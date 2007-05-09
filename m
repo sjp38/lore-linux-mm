@@ -1,69 +1,59 @@
-Subject: Re: [PATCH] change zonelist order v5 [1/3] implements zonelist
-	order selection
-From: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
-In-Reply-To: <20070509102018.8aaf21ed.kamezawa.hiroyu@jp.fujitsu.com>
-References: <20070508201401.8f78ec37.kamezawa.hiroyu@jp.fujitsu.com>
-	 <20070508201642.c63b3f65.kamezawa.hiroyu@jp.fujitsu.com>
-	 <1178643985.5203.27.camel@localhost>
-	 <Pine.LNX.4.64.0705081021340.9446@schroedinger.engr.sgi.com>
-	 <1178645622.5203.53.camel@localhost>
-	 <Pine.LNX.4.64.0705081104180.9941@schroedinger.engr.sgi.com>
-	 <1178656627.5203.84.camel@localhost>
-	 <20070509092912.3140bb78.kamezawa.hiroyu@jp.fujitsu.com>
-	 <20070508175855.b126caf7.akpm@linux-foundation.org>
-	 <20070509102018.8aaf21ed.kamezawa.hiroyu@jp.fujitsu.com>
-Content-Type: text/plain
-Date: Wed, 09 May 2007 09:55:43 -0400
-Message-Id: <1178718943.5047.20.camel@localhost>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Date: Wed, 9 May 2007 15:28:31 +0100 (BST)
+From: Hugh Dickins <hugh@veritas.com>
+Subject: Re: 2.6.22 -mm merge plans -- vm bugfixes
+In-Reply-To: <4641BFCE.6090200@yahoo.com.au>
+Message-ID: <Pine.LNX.4.64.0705091522110.15345@blonde.wat.veritas.com>
+References: <20070430162007.ad46e153.akpm@linux-foundation.org>
+ <4636FDD7.9080401@yahoo.com.au> <Pine.LNX.4.64.0705011931520.16502@blonde.wat.veritas.com>
+ <4638009E.3070408@yahoo.com.au> <Pine.LNX.4.64.0705021418030.16517@blonde.wat.veritas.com>
+ <4641BFCE.6090200@yahoo.com.au>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, clameter@sgi.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, ak@suse.de, jbarnes@virtuousgeek.org
+To: Nick Piggin <nickpiggin@yahoo.com.au>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andrea Arcangeli <andrea@suse.de>, Christoph Hellwig <hch@infradead.org>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 2007-05-09 at 10:20 +0900, KAMEZAWA Hiroyuki wrote:
-> On Tue, 8 May 2007 17:58:55 -0700
-> Andrew Morton <akpm@linux-foundation.org> wrote:
+On Wed, 9 May 2007, Nick Piggin wrote:
+> Hugh Dickins wrote:
+> > On Wed, 2 May 2007, Nick Piggin wrote:
 > 
-> > On Wed, 9 May 2007 09:29:12 +0900
-> > KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
+> > > >But I'm pretty sure (to use your words!) regular truncate was not racy
+> > > >before: I believe Andrea's sequence count was handling that case fine,
+> > > >without a second unmap_mapping_range.
+> > >
+> > >OK, I think you're right. I _think_ it should also be OK with the
+> > >lock_page version as well: we should not be able to have any pages
+> > >after the first unmap_mapping_range call, because of the i_size
+> > >write. So if we have no pages, there is nothing to 'cow' from.
 > > 
-> > > On Tue, 08 May 2007 16:37:06 -0400
-> > > Lee Schermerhorn <Lee.Schermerhorn@hp.com> wrote:
-> > > 
-> > > > > You probably need a 
-> > > > > configuration with a couple of nodes. Maybesomething less symmetric than 
-> > > > > Kame? I.e. have 4GB nodes and then DMA32 takes out a sizeable chunk of it?
-> > > > > 
-> > > > 
-> > > > I tested on a 2 socket, 4GB Opteron blade.  All memory is either DMA32
-> > > > or DMA.  I added some ad hoc instrumentation to the build_zonelist_*
-> > > > functions to see what's happening.  I have verified that the patches
-> > > > appear to build the zonelists correctly:
-> > > > 
-> > > Thank you. good news.
-> > > 
-> > 
-> > I'm still cowering in fear of these patches, btw.
-> > 
-> Hmm, the patches looks unclear ? 
+> > I'd be delighted if you can remove those later unmap_mapping_ranges.
+> > As I recall, the important thing for the copy pages is to be holding
+> > the page lock (or whatever other serialization) on the copied page
+> > still while the copy page is inserted into pagetable: that looks
+> > to be so in your __do_fault.
 > 
-> > Please keep testing and sending them ;)
-> > 
-> Okay. but it seems I need other testers...
-> 
-> I wonder I should drop sysctl of this patch and just support boot option
-> in next version.
+> Hmm, on second thoughts, I think I was right the first time, and do
+> need the unmap after the pages are truncated. With the lock_page code,
+> after the first unmap, we can get new ptes mapping pages, and
+> subsequently they can be COWed and then the original pte zapped before
+> the truncate loop checks it.
 
-I think the system still need to be able to rebuild the zonelists at
-run-time in response to memory hotplug [someday, maybe?].  And for now,
-the sysctl is very useful for testing.  And, it does avoid a
-reboot--quite expensive, timewise, on large platforms--should one find
-that the default order is not appropriate.  
+The filesystem (or page cache) allows pages beyond i_size to come
+in there?  That wasn't a problem before, was it?  But now it is?
 
-Lee
+> 
+> However, I wonder if we can't test mapping_mapped before the spinlock,
+> which would make most truncates cheaper?
+
+Slightly cheaper, yes, though I doubt it'd be much in comparison with
+actually doing any work in unmap_mapping_range or truncate_inode_pages.
+Suspect you'd need a barrier of some kind between the i_size_write and
+the mapping_mapped test?  But that's a change we could have made at
+any time if we'd bothered, it's not really the issue here.
+
+Hugh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
