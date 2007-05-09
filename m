@@ -1,69 +1,132 @@
-Message-ID: <46424A27.2030103@yahoo.com.au>
-Date: Thu, 10 May 2007 08:24:39 +1000
-From: Nick Piggin <nickpiggin@yahoo.com.au>
+Received: by ug-out-1314.google.com with SMTP id s2so364898uge
+        for <linux-mm@kvack.org>; Wed, 09 May 2007 15:34:13 -0700 (PDT)
+Message-ID: <29495f1d0705091534x51a9a0e9me304a880f75ab557@mail.gmail.com>
+Date: Wed, 9 May 2007 15:34:10 -0700
+From: "Nish Aravamudan" <nish.aravamudan@gmail.com>
+Subject: Re: [PATCH] Fix hugetlb pool allocation with empty nodes - V2 -> V3
+In-Reply-To: <1178743039.5047.85.camel@localhost>
 MIME-Version: 1.0
-Subject: Re: 2.6.22 -mm merge plans -- vm bugfixes
-References: <20070430162007.ad46e153.akpm@linux-foundation.org> <4636FDD7.9080401@yahoo.com.au> <Pine.LNX.4.64.0705011931520.16502@blonde.wat.veritas.com> <4638009E.3070408@yahoo.com.au> <Pine.LNX.4.64.0705021418030.16517@blonde.wat.veritas.com> <4641BFCE.6090200@yahoo.com.au> <Pine.LNX.4.64.0705091522110.15345@blonde.wat.veritas.com> <4641DE7D.6000902@yahoo.com.au> <Pine.LNX.4.64.0705091612100.18822@blonde.wat.veritas.com>
-In-Reply-To: <Pine.LNX.4.64.0705091612100.18822@blonde.wat.veritas.com>
-Content-Type: text/plain; charset=us-ascii; format=flowed
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+References: <20070503022107.GA13592@kryten>
+	 <1178310543.5236.43.camel@localhost>
+	 <Pine.LNX.4.64.0705041425450.25764@schroedinger.engr.sgi.com>
+	 <1178728661.5047.64.camel@localhost>
+	 <29495f1d0705091259t2532358ana4defb7c4e2a7560@mail.gmail.com>
+	 <1178743039.5047.85.camel@localhost>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Hugh Dickins <hugh@veritas.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andrea Arcangeli <andrea@suse.de>, Christoph Hellwig <hch@infradead.org>
+To: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
+Cc: Christoph Lameter <clameter@sgi.com>, Anton Blanchard <anton@samba.org>, linux-mm@kvack.org, ak@suse.de, mel@csn.ul.ie, apw@shadowen.org, Andrew Morton <akpm@linux-foundation.org>, Eric Whitney <eric.whitney@hp.com>, William Lee Irwin III <wli@holomorphy.com>
 List-ID: <linux-mm.kvack.org>
 
-Hugh Dickins wrote:
-> On Thu, 10 May 2007, Nick Piggin wrote:
-> 
->>>The filesystem (or page cache) allows pages beyond i_size to come
->>>in there?  That wasn't a problem before, was it?  But now it is?
->>
->>The filesystem still doesn't, but if i_size is updated after the page
->>is returned, we can have a problem that was previously taken care of
->>with the truncate_count but now isn't.
-> 
-> 
-> But... I thought the page lock was now taking care of that in your
-> scheme?  truncate_inode_pages has to wait for the page lock, then
-> it finds the page is mapped and... ahh, it finds the copiee page
-> is not mapped, so doesn't do its own little unmap_mapping_range,
-> and the copied page squeaks through.  Drat.
-> 
-> I really think the truncate_count solution worked better, for
-> truncation anyway.  There may be persuasive reasons you need the
-> page lock for invalidation: I gave up on trying to understand the
-> required behaviour(s) for invalidation.
-> 
-> So, bring back (the original use of, not my tree marker use of)
-> truncate_count?  Hmm, you probably don't want to do that, because
-> there was some pleasure in removing the strange barriers associated
-> with it.
-> 
-> A second unmap_mapping_range is just one line of code - but it sure
-> feels like a defeat to me, calling the whole exercise into question.
-> (But then, you'd be right to say my perfectionism made it impossible
-> for me to come up with any solution to the invalidation issues.)
+On 5/9/07, Lee Schermerhorn <Lee.Schermerhorn@hp.com> wrote:
+> On Wed, 2007-05-09 at 12:59 -0700, Nish Aravamudan wrote:
+> > [Adding wli to the Cc]
+> >
+> > On 5/9/07, Lee Schermerhorn <Lee.Schermerhorn@hp.com> wrote:
+> > > On Fri, 2007-05-04 at 14:27 -0700, Christoph Lameter wrote:
+> > > > On Fri, 4 May 2007, Lee Schermerhorn wrote:
+> > > >
+> > > > > On Wed, 2007-05-02 at 21:21 -0500, Anton Blanchard wrote:
+> > > > > > An interesting bug was pointed out to me where we failed to allocate
+> > > > > > hugepages evenly. In the example below node 7 has no memory (it only has
+> > > > > > CPUs). Node 0 and 1 have plenty of free memory. After doing:
+>
+> <snip>
+>
+> > >
+> > > OK, here's a rework that exports a node_populated_map and associated
+> > > access functions from page_alloc.c where we already check for populated
+> > > zones.  Maybe this should be "node_hugepages_map" ?
+> > >
+> > > Also, we might consider exporting this to user space for applications
+> > > that want to "interleave across all nodes with hugepages"--not that
+> > > hugetlbfs mappings currently obey "vma policy".  Could still be used
+> > > with the "set task policy before allocating region" method [not that I
+> > > advocate this method ;-)].
 
-Well we could bring back the truncate_count, but I think that sucks
-because that's moving work into the page fault handler in order to
-avoid a bit of work when truncating mapped files.
+Hrm, I forgot to reply to that bit before. I think hugetlbfs mappings
+will obey at least the interleave policy, per:
 
+struct zonelist *huge_zonelist(struct vm_area_struct *vma, unsigned long addr)
+{
+        struct mempolicy *pol = get_vma_policy(current, vma, addr);
 
->>>But that's a change we could have made at
->>>any time if we'd bothered, it's not really the issue here.
->>
->>I don't see how you could, because you need to increment truncate_count.
-> 
-> 
-> Though indeed we did so, I don't see that we needed to increment
-> truncate_count in that case (nobody could be coming through
-> do_no_page on that file, when there are no mappings of it).
+        if (pol->policy == MPOL_INTERLEAVE) {
+                unsigned nid;
 
-Of course :P
+                nid = interleave_nid(pol, vma, addr, HPAGE_SHIFT);
+                return NODE_DATA(nid)->node_zonelists + gfp_zone(GFP_HIGHUSER);
+        }
+        return zonelist_policy(GFP_HIGHUSER, pol);
+}
 
--- 
-SUSE Labs, Novell Inc.
+> > For libhugetlbfs purposes, with 1.1 and later, we've recommended folks
+> > use numactl in coordination with the library to specify the policy.
+> > After a kernel fix that submitted a while back (and has been merged
+> > for at least a few releases), hugepages interleave properly when
+> > requested.
+>
+> You mean using numactl command to preposition a hugetlb shmem seg
+> external to the application?  That's one way to do it.  Some apps like
+> to handle this internally themselves.
+
+Hrm, well, libhugetlbfs does not do anything with shmem segs -- I was
+referring to use numactl to set the policy for hugepages which then
+our malloc implementation takes advantage of. Hugepages show up
+interleaved across the nodes. This was what required a simple
+mempolicy fix last August (3b98b087fc2daab67518d2baa8aef19a6ad82723)
+
+> > > By the way:  does anything protect the "static int nid" in
+> > > allocate_fresh_huge_page() from racing attempts to set nr_hugepages?
+> > > Can this happen?  Do we care?
+> >
+> > Hrm, not sure if we care or not.
+>
+> Shouldn't happen too often, I think.  And the only result should be some
+> additional imbalance that this patch is trying to address.  Still, I
+> don't know that it's worth another lock.  And, I don't think we want to
+> hold the hugetlb_lock over the page allocation.  However, with a slight
+> reordering of the code, with maybe an additional temporary nid variable,
+> we could grab the hugetlb lock while updating the static nid each time
+> around the loop.  I don't see this as a performance path, but again, is
+> it worth it?
+
+I would say it's not, but will defer to wli et al.
+
+> > We've got a draft of patch that exports nr_hugepages on a per-node
+> > basis in sysfs. Will post it soon, as an additional, more flexible
+> > interface for dealing with hugepages on NUMA.
+>
+> You mean the ability to specify explicitly the number of hugepages per
+> node?
+
+Yep, seems like a handy feature.
+
+> > <snip>
+> >
+> > > -       page = alloc_pages_node(nid, htlb_alloc_mask|__GFP_COMP|__GFP_NOWARN,
+> > > -                                       HUGETLB_PAGE_ORDER);
+> >
+> > <snip>
+> >
+> > > +                       page = alloc_pages_node(nid,
+> > > +                                       GFP_HIGHUSER|__GFP_COMP|GFP_THISNODE,
+> > > +                                       HUGETLB_PAGE_ORDER);
+> >
+> > Are we taking out the GFP_NOWARN for a reason? I noticed this in
+> > Anton's patch, but forgot to ask.
+>
+> Actually, I hadn't noticed, but a quick look shows that GFP_THISNODE
+> contains the __GFP_NOWARN flag, as well as '_NORETRY which I think is
+> OK/desirable.
+
+Good call, sorry for the noise. This makes sense (along with Christoph's reply).
+
+Thanks,
+Nish
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
