@@ -1,49 +1,27 @@
-Date: Wed, 9 May 2007 18:04:38 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCH] change zonelist order v5 [1/3] implements zonelist
- order selection
-Message-Id: <20070509180438.1f4a7dcc.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <46418C0E.7060002@shadowen.org>
-References: <20070508201401.8f78ec37.kamezawa.hiroyu@jp.fujitsu.com>
-	<20070508201642.c63b3f65.kamezawa.hiroyu@jp.fujitsu.com>
-	<1178643985.5203.27.camel@localhost>
-	<Pine.LNX.4.64.0705081021340.9446@schroedinger.engr.sgi.com>
-	<1178645622.5203.53.camel@localhost>
-	<Pine.LNX.4.64.0705081104180.9941@schroedinger.engr.sgi.com>
-	<1178656627.5203.84.camel@localhost>
-	<20070509092912.3140bb78.kamezawa.hiroyu@jp.fujitsu.com>
-	<20070508175855.b126caf7.akpm@linux-foundation.org>
-	<20070509131238.598e5c3d.kamezawa.hiroyu@jp.fujitsu.com>
-	<46418C0E.7060002@shadowen.org>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+From: David Howells <dhowells@redhat.com>
+In-Reply-To: <Pine.LNX.4.64.0705081320120.13626@schroedinger.engr.sgi.com> 
+References: <Pine.LNX.4.64.0705081320120.13626@schroedinger.engr.sgi.com>  <Pine.LNX.4.64.0705081105570.9941@schroedinger.engr.sgi.com> <Pine.LNX.4.64.0705080905020.8722@schroedinger.engr.sgi.com> <Pine.LNX.4.64.0705072037030.4661@schroedinger.engr.sgi.com> <7950.1178620309@redhat.com> <11856.1178647354@redhat.com> <28059.1178653974@redhat.com> 
+Subject: Re: Get FRV to be able to run SLUB 
+Date: Wed, 09 May 2007 10:23:17 +0100
+Message-ID: <14754.1178702597@redhat.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andy Whitcroft <apw@shadowen.org>
-Cc: akpm@linux-foundation.org, Lee.Schermerhorn@hp.com, clameter@sgi.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, ak@suse.de, jbarnes@virtuousgeek.org
+To: Christoph Lameter <clameter@sgi.com>
+Cc: linux-mm@kvack.org, akpm@linux-foundation.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 09 May 2007 09:53:34 +0100
-Andy Whitcroft <apw@shadowen.org> wrote:
+Christoph Lameter <clameter@sgi.com> wrote:
 
-> KAMEZAWA Hiroyuki wrote:
-> > On Tue, 8 May 2007 17:58:55 -0700
-> > Andrew Morton <akpm@linux-foundation.org> wrote:
-> > 
-> >> I'm still cowering in fear of these patches, btw.
-> >>
-> >> Please keep testing and sending them ;)
-> >>
-> > I'll repost "Request-Fot-Test" version "6" against next -mm and
-> > add x86 as my test target at least. (I don't have other hardware.)
-> 
-> Copy me on the email and I'll shove the patches through TKO.
-> 
-Oh, thank you ! I think I will be able to post v6 tomorrow.
+> I fixed up the patch to work against 2.6.21-mm1. I added your signoff.
 
-Regards,
--Kame
+That's fine.
+
+> Ok to apply to Andrew's tree? Or will this patch go through the arch 
+> maintainer?
+
+I don't mind.
+
+David
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
