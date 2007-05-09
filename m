@@ -1,45 +1,36 @@
-Date: Wed, 9 May 2007 13:48:15 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [patch] removes MAX_ARG_PAGES
-Message-Id: <20070509134815.81cb9aa9.akpm@linux-foundation.org>
-In-Reply-To: <65dd6fd50705060151m78bb9b4fpcb941b16a8c4709e@mail.gmail.com>
-References: <65dd6fd50705060151m78bb9b4fpcb941b16a8c4709e@mail.gmail.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Date: Wed, 9 May 2007 13:54:15 -0700 (PDT)
+From: Christoph Lameter <clameter@sgi.com>
+Subject: Re: [PATCH] Fix hugetlb pool allocation with empty nodes - V2 -> V3
+In-Reply-To: <1178743039.5047.85.camel@localhost>
+Message-ID: <Pine.LNX.4.64.0705091353390.30265@schroedinger.engr.sgi.com>
+References: <20070503022107.GA13592@kryten>  <1178310543.5236.43.camel@localhost>
+  <Pine.LNX.4.64.0705041425450.25764@schroedinger.engr.sgi.com>
+ <1178728661.5047.64.camel@localhost>  <29495f1d0705091259t2532358ana4defb7c4e2a7560@mail.gmail.com>
+ <1178743039.5047.85.camel@localhost>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Ollie Wild <aaw@google.com>
-Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, linux-kernel@vger.kernel.org, parisc-linux@lists.parisc-linux.org, linux-mm@kvack.org, linux-arch@vger.kernel.org, Ingo Molnar <mingo@elte.hu>, Andi Kleen <ak@suse.de>
+To: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
+Cc: Nish Aravamudan <nish.aravamudan@gmail.com>, Anton Blanchard <anton@samba.org>, linux-mm@kvack.org, ak@suse.de, mel@csn.ul.ie, apw@shadowen.org, Andrew Morton <akpm@linux-foundation.org>, Eric Whitney <eric.whitney@hp.com>, William Lee Irwin III <wli@holomorphy.com>
 List-ID: <linux-mm.kvack.org>
 
-On Sun, 6 May 2007 01:51:34 -0700
-"Ollie Wild" <aaw@google.com> wrote:
+On Wed, 9 May 2007, Lee Schermerhorn wrote:
 
-> A while back, I sent out a preliminary patch
-> (http://thread.gmane.org/gmane.linux.ports.hppa/752) to remove the
-> MAX_ARG_PAGES limit on command line sizes.  Since then, Peter Zijlstra
-> and I have fixed a number of bugs and addressed the various
-> outstanding issues.
+> > 
+> > > +                       page = alloc_pages_node(nid,
+> > > +                                       GFP_HIGHUSER|__GFP_COMP|GFP_THISNODE,
+> > > +                                       HUGETLB_PAGE_ORDER);
+> > 
+> > Are we taking out the GFP_NOWARN for a reason? I noticed this in
+> > Anton's patch, but forgot to ask.
 > 
-> The attached patch incorporates the following changes:
-> 
-> - Fixes a BUG_ON() assertion failure discovered by Ingo Molnar.
-> - Adds CONFIG_STACK_GROWSUP (parisc) support.
-> - Adds auditing support.
-> - Reverts to the old behavior on architectures with no MMU.
-> - Fixes broken execution of 64-bit binaries from 32-bit binaries.
-> - Adds elf_fdpic support.
-> - Fixes cache coherency bugs.
-> 
-> We've tested the following architectures: i386, x86_64, um/i386,
-> parisc, and frv.  These are representative of the various scenarios
-> which this patch addresses, but other architecture teams should try it
-> out to make sure there aren't any unexpected gotchas.
+> Actually, I hadn't noticed, but a quick look shows that GFP_THISNODE
+> contains the __GFP_NOWARN flag, as well as '_NORETRY which I think is
+> OK/desirable.
 
-I'll duck this for now, given the couple of problems which people have reported.
-
-But please keep going ;)  We sorely need this.
+It is required because GFP_THISNODE needs to fail if it cannot get memory 
+from the right node.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
