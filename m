@@ -1,39 +1,34 @@
-Date: Wed, 9 May 2007 17:38:46 +0100 (BST)
-From: Hugh Dickins <hugh@veritas.com>
-Subject: Re: [PATCH] MM: implement MADV_FREE lazy freeing of anonymous memory
-In-Reply-To: <463B598B.80200@redhat.com>
-Message-ID: <Pine.LNX.4.64.0705091724500.25202@blonde.wat.veritas.com>
-References: <4632D0EF.9050701@redhat.com> <463B108C.10602@yahoo.com.au>
- <463B598B.80200@redhat.com>
+Date: Wed, 9 May 2007 09:57:38 -0700 (PDT)
+From: Christoph Lameter <clameter@sgi.com>
+Subject: Re: [PATCH] Fix hugetlb pool allocation with empty nodes - V2 -> V3
+In-Reply-To: <1178728661.5047.64.camel@localhost>
+Message-ID: <Pine.LNX.4.64.0705090956050.28244@schroedinger.engr.sgi.com>
+References: <20070503022107.GA13592@kryten>  <1178310543.5236.43.camel@localhost>
+  <Pine.LNX.4.64.0705041425450.25764@schroedinger.engr.sgi.com>
+ <1178728661.5047.64.camel@localhost>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Ulrich Drepper <drepper@redhat.com>
-Cc: Nick Piggin <nickpiggin@yahoo.com.au>, Rik van Riel <riel@redhat.com>, Linus Torvalds <torvalds@linux-foundation.org>, linux-kernel <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Jakub Jelinek <jakub@redhat.com>
+To: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
+Cc: Anton Blanchard <anton@samba.org>, linux-mm@kvack.org, ak@suse.de, nish.aravamudan@gmail.com, mel@csn.ul.ie, apw@shadowen.org, Andrew Morton <akpm@linux-foundation.org>, Eric Whitney <eric.whitney@hp.com>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 4 May 2007, Ulrich Drepper wrote:
-> 
-> I don't want to judge the numbers since I cannot but I want to make an
-> observations: even if in the SMP case MADV_FREE turns out to not be a
-> bigger boost then there is still the UP case to keep in mind where Rik
-> measured a significant speed-up.  As long as the SMP case isn't hurt
-> this is reaosn enough to use the patch.  With more and more cores on one
-> processor SMP systems are pushed evermore to the high-end side.  You'll
-> find many installations which today use SMP will be happy enough with
-> many-core UP machines.
+On Wed, 9 May 2007, Lee Schermerhorn wrote:
 
-Just remembered this mail from a few days ago, and how puzzled I'd been
-by your last sentence or two: I seem to be reading it in the wrong way,
-and don't understand why users of SMP kernels will be moving to UP?
+> +  					HUGETLB_PAGE_ORDER);
+> +
+> +		nid = next_node(nid, node_online_map);
+> +		if (nid == MAX_NUMNODES)
+> +			nid = first_node(node_online_map);
 
-UP in the sense of one processor but many cores?  But that still needs
-an SMP kernel to use all those cores.  Or you're thinking of growing
-virtualization?  Would you please explain further?
+Maybe use nr_node_ids here? May save some scanning over online maps?
 
-Thanks,
-Hugh
+>   * int node_possible(node)		Is some node possible?
+> + * int node_populated(node)		Is some node populated [at 'HIGHUSER]
+>   *
+
+Good.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
