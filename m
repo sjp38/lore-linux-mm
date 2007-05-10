@@ -1,37 +1,102 @@
-Date: Thu, 10 May 2007 11:09:29 -0700 (PDT)
-From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [RFC] memory hotremove patch take 2 [05/10] (make basic remove
- code)
-In-Reply-To: <20070509120512.B910.Y-GOTO@jp.fujitsu.com>
-Message-ID: <Pine.LNX.4.64.0705101108251.10002@schroedinger.engr.sgi.com>
-References: <20070509115506.B904.Y-GOTO@jp.fujitsu.com>
- <20070509120512.B910.Y-GOTO@jp.fujitsu.com>
+Date: Thu, 10 May 2007 20:03:51 +0100
+From: "Willkommensbonus von 555$" <intuitable@punkass.com>
+Message-ID: <50329982.58516585@waterfront.com>
+Subject: Willkommensbonus von 555$!
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
-Sender: owner-linux-mm@kvack.org
-Return-Path: <owner-linux-mm@kvack.org>
-To: Yasunori Goto <y-goto@jp.fujitsu.com>
-Cc: Linux Kernel ML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@osdl.org>, Mel Gorman <mel@csn.ul.ie>
+Content-Type: text/html; charset=iso-8859-1
+Content-Transfer-Encoding: 7bit
+Return-Path: <intuitable@punkass.com>
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 9 May 2007, Yasunori Goto wrote:
+<html>
 
-> +/*
-> + * Just an easy implementation.
-> + */
-> +static struct page *
-> +hotremove_migrate_alloc(struct page *page,
-> +			unsigned long private,
-> +			int **x)
-> +{
-> +	return alloc_page(GFP_HIGH_MOVABLE);
-> +}
+<head>
+<meta http-equiv=Content-Type content="text/html; charset=iso-8859-1">
 
-This would need to reflect the zone in which you are performing hot 
-remove. Or is hot remove only possible in the higest zone?
+<title>Die besten Spieler sind in Vegas und die besten Bonusse finden Sie nur
+bei Vegas VIP Casino</title>
 
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+<style>
+<!--
+ /* Style Definitions */
+ p.MsoNormal, li.MsoNormal, div.MsoNormal
+	{mso-style-parent:"";
+	margin:0cm;
+	margin-bottom:.0001pt;
+	mso-pagination:widow-orphan;
+	font-size:12.0pt;
+	font-family:"Times New Roman";
+	mso-fareast-font-family:"Times New Roman";
+	color:windowtext;
+	mso-ansi-language:EN-US;
+	mso-fareast-language:EN-US;}
+a:link, span.MsoHyperlink
+	{color:blue;}
+a:visited, span.MsoHyperlinkFollowed
+	{color:purple;
+	text-decoration:underline;
+	text-underline:single;}
+p
+	{mso-margin-top-alt:auto;
+	margin-right:0cm;
+	mso-margin-bottom-alt:auto;
+	margin-left:0cm;
+	mso-pagination:widow-orphan;
+	font-size:12.0pt;
+	font-family:"Times New Roman";
+	mso-fareast-font-family:"Times New Roman";
+	color:black;}
+@page Section1
+	{size:595.3pt 841.9pt;
+	margin:2.0cm 42.5pt 2.0cm 3.0cm;
+	mso-header-margin:35.4pt;
+	mso-footer-margin:35.4pt;
+	mso-paper-source:0;}
+div.Section1
+	{page:Section1;}
+-->
+</style>
+
+</head>
+
+<body lang=DE link=blue vlink=purple style='tab-interval:35.4pt'>
+
+<div class=Section1>
+
+<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
+Die besten Spieler sind in Vegas und die besten Bonusse 
+finden Sie nur bei Vegas VIP Casino!<o:p></o:p></span></p>
+
+<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
+<o:p>&nbsp;</o:p></span></p>
+
+<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
+200% f&uuml;r Ihre erste Einzahlung, 100% f&uuml;r Ihre zweite 
+und dritte Einzahlung und als Kr&ouml;nung
+einen 155% Bonus f&uuml;r Ihre vierte Einzahlung!
+ <o:p></o:p></span></p>
+
+
+<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
+<o:p>&nbsp;</o:p></span></p>
+
+<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
+Das ergibt insgesamt einen Willkommensbonus von 555 &#8364;/$!
+<o:p></o:p></span></p>
+
+<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
+<o:p>&nbsp;</o:p></span></p>
+
+<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
+Dieses und vieles mehr erwartet Sie im fabelhaften 
+Vegas VIP Casino, der beste Platz zum spielen!
+<o:p></o:p></span></p>
+
+<p><a href="http://www.vegasnetcasino.net/lang-de/">
+http://www.vegasnetcasino.net/lang-de/</a></p>
+</div>
+
+</body>
+
+</html>
