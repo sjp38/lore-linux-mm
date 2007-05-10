@@ -1,43 +1,79 @@
-Subject: Re: vm changes from linux-2.6.14 to linux-2.6.15
-From: Benjamin Herrenschmidt <benh@kernel.crashing.org>
-In-Reply-To: <20070509231937.ea254c26.akpm@linux-foundation.org>
-References: <20070430145414.88fda272.akpm@linux-foundation.org>
-	 <20070430.150407.07642146.davem@davemloft.net>
-	 <1177977619.24962.6.camel@localhost.localdomain>
-	 <20070430.173806.112621225.davem@davemloft.net>
-	 <Pine.LNX.4.61.0705010223040.3556@mtfhpc.demon.co.uk>
-	 <1177985136.24962.8.camel@localhost.localdomain>
-	 <Pine.LNX.4.61.0705011453380.4771@mtfhpc.demon.co.uk>
-	 <1178055110.13263.2.camel@localhost.localdomain>
-	 <Pine.LNX.4.61.0705012354290.12808@mtfhpc.demon.co.uk>
-	 <20070509231937.ea254c26.akpm@linux-foundation.org>
-Content-Type: text/plain
-Date: Thu, 10 May 2007 16:29:43 +1000
-Message-Id: <1178778583.14928.210.camel@localhost.localdomain>
-Mime-Version: 1.0
+Message-ID: <4642C416.3000205@yahoo.com.au>
+Date: Thu, 10 May 2007 17:04:54 +1000
+From: Nick Piggin <nickpiggin@yahoo.com.au>
+MIME-Version: 1.0
+Subject: Re: swap-prefetch: 2.6.22 -mm merge plans
+References: <20070430162007.ad46e153.akpm@linux-foundation.org>	 <200705100928.34056.kernel@kolivas.org>	 <464261B5.6030809@yahoo.com.au>	 <200705101134.34350.kernel@kolivas.org> <46427BDB.30004@yahoo.com.au>	 <2c0942db0705092048m38b36e7fo3a7c2c59fe1612b2@mail.gmail.com>	 <46429801.8030202@yahoo.com.au> <2c0942db0705092252n13a6a79aq39f13fcfae534de2@mail.gmail.com>
+In-Reply-To: <2c0942db0705092252n13a6a79aq39f13fcfae534de2@mail.gmail.com>
+Content-Type: text/plain; charset=us-ascii; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Mark Fortescue <mark@mtfhpc.demon.co.uk>, David Miller <davem@davemloft.net>, linuxppc-dev@ozlabs.org, wli@holomorphy.com, linux-mm@kvack.org, andrea@suse.de, sparclinux@vger.kernel.org
+To: Ray Lee <ray-lk@madrabbit.org>
+Cc: Con Kolivas <kernel@kolivas.org>, Ingo Molnar <mingo@elte.hu>, ck list <ck@vds.kolivas.org>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-> We never seemed to reach completion here?
+Ray Lee wrote:
+> On 5/9/07, Nick Piggin <nickpiggin@yahoo.com.au> wrote:
+> 
+>> Ray Lee wrote:
+>> > On 5/9/07, Nick Piggin <nickpiggin@yahoo.com.au> wrote:
+>> >
+>> >> You said it helped with the updatedb problem. That says we should 
+>> look at
+>> >> why it is going bad first, and for example improve use-once 
+>> algorithms.
+>> >> After we do that, then swap prefetching might still help, which is 
+>> fine.
+>> >
+>> > Nick, if you're volunteering to do that analysis, then great. If not,
+>> > then you're just providing a airy hope with nothing to back up when or
+>> > if that work would ever occur.
+>>
+>> I'd like to try helping. Tell me your problem.
+> 
+> 
+> Huh? You already stated one version of it above, namely updatedb. But
 
-Well, I'm waiting for other people comments too... as I said earlier,
-I'm not too fan of burrying the update_mmu_cache() inside
-ptep_set_access_flags(), but perhaps we could remove the whole logic of
-reading the old PTE & comparing it, and instead have
-ptep_set_access_flags() do that locally and return to the caller wether
-a change occured that requires update_mmu_cache() to be called.
+So a swapping problem with updatedb should be unusual and we'd like to see
+if we can fix it without resorting to prefetching.
 
-That way, archs who don't actually need update_mmu_cache() under some
-circumstances will be able to return 0 there.
+I know the theory behind swap prefetching, and I'm not saying it doesn't
+work, so I'll snip the rest of that.
 
-What do you guys thing ?
 
-Ben.
+>> What's wrong with the use-once we have? What improvements are you talking
+>> about?
+> 
+> 
+> You said, effectively: "Use-once could be improved to deal with
+> updatedb". I said I've been reading emails from Rik and others talking
+> about that for four years now, and we're still talking about it. Were
+> it merely updatedb, I'd say us userspace folk should step up and
+> rewrite the damn thing to amortize its work. However, I and others
+> feel it's only an example -- glaring, obviously -- of a more pervasive
+> issue. A small issue, to be sure!, but an issue nevertheless.
 
+It isn't going to get fixed unless people complain about it. If you
+cover the use-once problem with swap prefetching, then it will never
+get fixed.
+
+
+>> I don't think it is about energy or being mean, I'm just stating the
+>> issues I have with it.
+> 
+> 
+> Nick, I in no way think you're being mean, and I'm sorry if I've given
+> you that impression. However, if you're just stating the issues you
+> have with it, then can I assume that you won't lobby against having
+> this experiment merged?
+
+Anybody is free to merge anything into their kernel. And if somebody
+asks for my issues with the swap prefetching patch, then I'll give
+them :)
+
+-- 
+SUSE Labs, Novell Inc.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
