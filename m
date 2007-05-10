@@ -1,85 +1,120 @@
-Message-Id: <20070510101129.054108237@chello.nl>
+Message-Id: <20070510101129.732392567@chello.nl>
 References: <20070510100839.621199408@chello.nl>
-Date: Thu, 10 May 2007 12:08:44 +0200
+Date: Thu, 10 May 2007 12:08:52 +0200
 From: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Subject: [PATCH 05/15] lib: percpu_count_sum_signed()
-Content-Disposition: inline; filename=percpu_counter_sum.patch
+Subject: [PATCH 13/15] debug: sysfs files for the current ratio/size/total
+Content-Disposition: inline; filename=bdi_stat_debug.patch
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 Cc: miklos@szeredi.hu, akpm@linux-foundation.org, neilb@suse.de, dgc@sgi.com, tomoki.sekiyama.qu@hitachi.com, a.p.zijlstra@chello.nl, nikita@clusterfs.com, trond.myklebust@fys.uio.no, yingchao.zhou@gmail.com
 List-ID: <linux-mm.kvack.org>
 
-Provide an accurate version of percpu_counter_read.
-
-Should we go and replace the current use of percpu_counter_sum()
-with percpu_counter_sum_positive(), and call this new primitive
-percpu_counter_sum() instead?
+Expose the per bdi dirty limits in sysfs
 
 Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
 ---
- include/linux/percpu_counter.h |   18 +++++++++++++++++-
- lib/percpu_counter.c           |    6 +++---
- 2 files changed, 20 insertions(+), 4 deletions(-)
+ block/ll_rw_blk.c   |   50 ++++++++++++++++++++++++++++++++++++++++++++++++++
+ mm/page-writeback.c |    4 ++--
+ 2 files changed, 52 insertions(+), 2 deletions(-)
 
-Index: linux-2.6/include/linux/percpu_counter.h
+Index: linux-2.6/block/ll_rw_blk.c
 ===================================================================
---- linux-2.6.orig/include/linux/percpu_counter.h	2007-05-02 19:43:34.000000000 +0200
-+++ linux-2.6/include/linux/percpu_counter.h	2007-05-04 09:42:47.000000000 +0200
-@@ -41,7 +41,18 @@ static inline void percpu_counter_destro
- void percpu_counter_set(struct percpu_counter *fbc, s64 amount);
- void __percpu_counter_mod(struct percpu_counter *fbc, s32 amount, s32 batch);
- void __percpu_counter_mod64(struct percpu_counter *fbc, s64 amount, s32 batch);
--s64 percpu_counter_sum(struct percpu_counter *fbc);
-+s64 __percpu_counter_sum(struct percpu_counter *fbc);
-+
-+static inline s64 percpu_counter_sum(struct percpu_counter *fbc)
-+{
-+	s64 ret = __percpu_counter_sum(fbc);
-+	return ret < 0 ? 0 : ret;
-+}
-+
-+static inline s64 percpu_counter_sum_signed(struct percpu_counter *fbc)
-+{
-+	return __percpu_counter_sum(fbc);
-+}
- 
- static inline void percpu_counter_mod(struct percpu_counter *fbc, s32 amount)
- {
-@@ -130,6 +141,11 @@ static inline s64 percpu_counter_sum(str
- 	return percpu_counter_read_positive(fbc);
+--- linux-2.6.orig/block/ll_rw_blk.c	2007-05-04 09:57:52.000000000 +0200
++++ linux-2.6/block/ll_rw_blk.c	2007-05-04 10:00:23.000000000 +0200
+@@ -3998,6 +3998,38 @@ static ssize_t queue_nr_writeback_show(s
+ 			nr_writeback >> (PAGE_CACHE_SHIFT - 10));
  }
  
-+static inline s64 percpu_counter_sum_signed(struct percpu_counter *fbc)
++extern void bdi_writeout_fraction(struct backing_dev_info *bdi,
++	       	long *numerator, long *denominator);
++
++static ssize_t queue_nr_cache_ratio_show(struct request_queue *q, char *page)
 +{
-+	return fbc->count;
++	long scale, div;
++
++	bdi_writeout_fraction(&q->backing_dev_info, &scale, &div);
++	scale *= 1024;
++	scale /= div;
++
++	return sprintf(page, "%ld\n", scale);
 +}
 +
- #endif	/* CONFIG_SMP */
++extern void
++get_dirty_limits(long *pbackground, long *pdirty, long *pbdi_dirty,
++		struct backing_dev_info *bdi);
++
++static ssize_t queue_nr_cache_size_show(struct request_queue *q, char *page)
++{
++	long background, dirty, bdi_dirty;
++	get_dirty_limits(&background, &dirty, &bdi_dirty, &q->backing_dev_info);
++	return sprintf(page, "%ld\n", bdi_dirty);
++}
++
++static ssize_t queue_nr_cache_total_show(struct request_queue *q, char *page)
++{
++	long background, dirty, bdi_dirty;
++	get_dirty_limits(&background, &dirty, &bdi_dirty, &q->backing_dev_info);
++	return sprintf(page, "%ld\n", dirty);
++}
++
+ static struct queue_sysfs_entry queue_requests_entry = {
+ 	.attr = {.name = "nr_requests", .mode = S_IRUGO | S_IWUSR },
+ 	.show = queue_requests_show,
+@@ -4037,6 +4069,21 @@ static struct queue_sysfs_entry queue_wr
+ 	.show = queue_nr_writeback_show,
+ };
  
- static inline void percpu_counter_inc(struct percpu_counter *fbc)
-Index: linux-2.6/lib/percpu_counter.c
++static struct queue_sysfs_entry queue_cache_ratio_entry = {
++	.attr = {.name = "cache_ratio", .mode = S_IRUGO },
++	.show = queue_nr_cache_ratio_show,
++};
++
++static struct queue_sysfs_entry queue_cache_size_entry = {
++	.attr = {.name = "cache_size", .mode = S_IRUGO },
++	.show = queue_nr_cache_size_show,
++};
++
++static struct queue_sysfs_entry queue_cache_total_entry = {
++	.attr = {.name = "cache_total", .mode = S_IRUGO },
++	.show = queue_nr_cache_total_show,
++};
++
+ static struct queue_sysfs_entry queue_iosched_entry = {
+ 	.attr = {.name = "scheduler", .mode = S_IRUGO | S_IWUSR },
+ 	.show = elv_iosched_show,
+@@ -4051,6 +4098,9 @@ static struct attribute *default_attrs[]
+ 	&queue_max_sectors_entry.attr,
+ 	&queue_reclaimable_entry.attr,
+ 	&queue_writeback_entry.attr,
++	&queue_cache_ratio_entry.attr,
++	&queue_cache_size_entry.attr,
++	&queue_cache_total_entry.attr,
+ 	&queue_iosched_entry.attr,
+ 	NULL,
+ };
+Index: linux-2.6/mm/page-writeback.c
 ===================================================================
---- linux-2.6.orig/lib/percpu_counter.c	2007-05-02 19:43:34.000000000 +0200
-+++ linux-2.6/lib/percpu_counter.c	2007-05-04 09:38:36.000000000 +0200
-@@ -62,7 +62,7 @@ EXPORT_SYMBOL(__percpu_counter_mod64);
-  * Add up all the per-cpu counts, return the result.  This is a more accurate
-  * but much slower version of percpu_counter_read_positive()
+--- linux-2.6.orig/mm/page-writeback.c	2007-05-04 09:58:04.000000000 +0200
++++ linux-2.6/mm/page-writeback.c	2007-05-04 10:00:37.000000000 +0200
+@@ -402,7 +402,7 @@ static void __bdi_writeout_inc(struct ba
+  *
+  *   p_{j} = x_{j} / (period/2 + t % period/2)
   */
--s64 percpu_counter_sum(struct percpu_counter *fbc)
-+s64 __percpu_counter_sum(struct percpu_counter *fbc)
+-static void bdi_writeout_fraction(struct backing_dev_info *bdi,
++void bdi_writeout_fraction(struct backing_dev_info *bdi,
+ 	       	long *numerator, long *denominator)
  {
- 	s64 ret;
- 	int cpu;
-@@ -74,6 +74,6 @@ s64 percpu_counter_sum(struct percpu_cou
- 		ret += *pcount;
- 	}
- 	spin_unlock(&fbc->lock);
--	return ret < 0 ? 0 : ret;
-+	return ret;
+ 	struct vm_completions_data *vcd = get_vcd();
+@@ -477,7 +477,7 @@ static unsigned long determine_dirtyable
+ 	return x + 1;	/* Ensure that we never return 0 */
  }
--EXPORT_SYMBOL(percpu_counter_sum);
-+EXPORT_SYMBOL(__percpu_counter_sum);
+ 
+-static void
++void
+ get_dirty_limits(long *pbackground, long *pdirty, long *pbdi_dirty,
+ 		 struct backing_dev_info *bdi)
+ {
 
 -- 
 
