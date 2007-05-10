@@ -1,59 +1,55 @@
-Message-ID: <4642C788.1080309@yahoo.com.au>
-Date: Thu, 10 May 2007 17:19:36 +1000
-From: Nick Piggin <nickpiggin@yahoo.com.au>
+Date: Thu, 10 May 2007 00:20:51 -0700
+From: William Lee Irwin III <wli@holomorphy.com>
+Subject: Re: swap-prefetch: 2.6.22 -mm merge plans
+Message-ID: <20070510072051.GK19966@holomorphy.com>
+References: <20070430162007.ad46e153.akpm@linux-foundation.org> <200705100928.34056.kernel@kolivas.org> <464261B5.6030809@yahoo.com.au> <200705101134.34350.kernel@kolivas.org> <46427BDB.30004@yahoo.com.au> <2c0942db0705092048m38b36e7fo3a7c2c59fe1612b2@mail.gmail.com> <46429801.8030202@yahoo.com.au> <2c0942db0705092252n13a6a79aq39f13fcfae534de2@mail.gmail.com> <4642C416.3000205@yahoo.com.au>
 MIME-Version: 1.0
-Subject: Re: [patch] slob: implement RCU freeing
-References: <Pine.LNX.4.64.0705081746500.16914@schroedinger.engr.sgi.com> <20070509012725.GZ11115@waste.org> <Pine.LNX.4.64.0705081828300.17376@schroedinger.engr.sgi.com> <20070508.185141.85412154.davem@davemloft.net> <46412BB5.1060605@yahoo.com.au> <20070509174238.b4152887.akpm@linux-foundation.org> <46426EA1.4030408@yahoo.com.au> <20070510022707.GO11115@waste.org> <4642C6A2.1090809@yahoo.com.au>
-In-Reply-To: <4642C6A2.1090809@yahoo.com.au>
-Content-Type: text/plain; charset=us-ascii; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <4642C416.3000205@yahoo.com.au>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Nick Piggin <nickpiggin@yahoo.com.au>
-Cc: Matt Mackall <mpm@selenic.com>, Andrew Morton <akpm@linux-foundation.org>, Linux Memory Management <linux-mm@kvack.org>
+Cc: Ray Lee <ray-lk@madrabbit.org>, Con Kolivas <kernel@kolivas.org>, Ingo Molnar <mingo@elte.hu>, ck list <ck@vds.kolivas.org>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Nick Piggin wrote:
-> Matt Mackall wrote:
-> 
->> Looks good to me, but haven't had time to actually test it.
->>
->> Acked-by: Matt Mackall <mpm@selenic.com>
-> 
-> 
-> Updated to current, added a comment, and test booted it again.
-> Works OK.
-> 
-> 
-> ------------------------------------------------------------------------
-> 
-> The SLOB allocator should implement SLAB_DESTROY_BY_RCU correctly, because even
-> on UP, RCU freeing semantics are not equivalent to simply freeing immediately.
-> This also allows SLOB to be used on SMP.
-> 
-> Signed-off-by: Nick Piggin <npiggin@suse.de>
-> Acked-by: Matt Mackall <mpm@selenic.com>
-> 
-> Index: linux-2.6/init/Kconfig
-> ===================================================================
-> --- linux-2.6.orig/init/Kconfig	2007-05-10 14:17:38.000000000 +1000
-> +++ linux-2.6/init/Kconfig	2007-05-10 14:18:11.000000000 +1000
-> @@ -519,7 +519,8 @@
->  	  slab allocator.
->  
->  config SLUB
-> -	depends on EXPERIMENTAL && !ARCH_USES_SLAB_PAGE_STRUCT
-> +#	depends on EXPERIMENTAL && !ARCH_USES_SLAB_PAGE_STRUCT
-> +	depends on EXPERIMENTAL
->  	bool "SLUB (Unqueued Allocator)"
->  	help
->  	   SLUB is a slab allocator that minimizes cache line usage
-> @@ -529,15 +530,11 @@
+Ray Lee wrote:
+>> Huh? You already stated one version of it above, namely updatedb. But
 
-Ooops, sorry this hunk leaked in because I wanted to test compile slub :P
+On Thu, May 10, 2007 at 05:04:54PM +1000, Nick Piggin wrote:
+> So a swapping problem with updatedb should be unusual and we'd like to see
+> if we can fix it without resorting to prefetching.
+> I know the theory behind swap prefetching, and I'm not saying it doesn't
+> work, so I'll snip the rest of that.
 
--- 
-SUSE Labs, Novell Inc.
+I've not run updatedb in years, so I have no idea what it does to a
+modern kernel. It used to be an unholy terror of slab fragmentation
+and displacing user memory. The case of streaming kernel metadata IO
+is probably not quite as easy as streaming file IO.
+
+
+Ray Lee wrote:
+>> You said, effectively: "Use-once could be improved to deal with
+>> updatedb". I said I've been reading emails from Rik and others talking
+>> about that for four years now, and we're still talking about it. Were
+>> it merely updatedb, I'd say us userspace folk should step up and
+>> rewrite the damn thing to amortize its work. However, I and others
+>> feel it's only an example -- glaring, obviously -- of a more pervasive
+>> issue. A small issue, to be sure!, but an issue nevertheless.
+
+On Thu, May 10, 2007 at 05:04:54PM +1000, Nick Piggin wrote:
+> It isn't going to get fixed unless people complain about it. If you
+> cover the use-once problem with swap prefetching, then it will never
+> get fixed.
+
+The policy people need to clean this up once and for all at some point.
+clameter's targeted reclaim bits for slub look like a plausible tactic,
+but are by no means comprehensive. Things need to attempt to eat their
+own tails before eating everyone else alive. Maybe we need to take hits
+on things such as badari's dd's to resolve the pathologies.
+
+
+-- wli
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
