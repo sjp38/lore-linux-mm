@@ -1,8 +1,8 @@
-Date: Thu, 10 May 2007 16:24:33 +0900
+Date: Thu, 10 May 2007 16:26:49 +0900
 From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: [Request-For-Test] [PATCH] change zonelist order v6 [2/3] auto
- configuration
-Message-Id: <20070510162433.b091286a.kamezawa.hiroyu@jp.fujitsu.com>
+Subject: [Request-For-Test] [PATCH] change zonelist order v6 [3/3]
+ documentaion
+Message-Id: <20070510162649.6410c12f.kamezawa.hiroyu@jp.fujitsu.com>
 In-Reply-To: <20070510161611.fe1a696b.kamezawa.hiroyu@jp.fujitsu.com>
 References: <20070510161611.fe1a696b.kamezawa.hiroyu@jp.fujitsu.com>
 Mime-Version: 1.0
@@ -14,91 +14,92 @@ To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Lee.Schermerhorn@hp.com, apw@shadowen.org, clameter@sgi.com, akpm@linux-foundation.org, ak@suse.de, jbarnes@virtuousgeek.org
 List-ID: <linux-mm.kvack.org>
 
-Add auto zone ordering configuration.
+Documentation for numa_zonelist_order.
 
-This function will select ZONE_ORDER_NODE when
-
-There are only ZONE_DMA or ZONE_DMA32.
-|| size of (ZONE_DMA/DMA32) > (System Total Memory)/2
-|| Assume Node(A)
-	Node (A) is enough big &&
-	Node (A)'s ZONE_DMA/DMA32 occupies 60% of Node(A)'s memory.
-	(In this case, ZONE_ORDER_ZONE may not offer enough locality...)
-
-otherwise, ZONE_ORDER_ZONE is selected.
-
-Maybe there is no best way to configure zone order. I wrote this base on
-my experience and discussion on the list.
-
-Anyway, a user can specifiy zone order from boot option/sysctl.
 
 Signed-Off-By: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
- mm/page_alloc.c |   51 +++++++++++++++++++++++++++++++++++++++++++++++++--
- 1 file changed, 49 insertions(+), 2 deletions(-)
+ Documentation/kernel-parameters.txt |    5 +++
+ Documentation/sysctl/vm.txt         |   46 ++++++++++++++++++++++++++++++++++++
+ 2 files changed, 51 insertions(+)
 
-Index: linux-2.6.21-mm2/mm/page_alloc.c
+Index: linux-2.6.21-mm2/Documentation/sysctl/vm.txt
 ===================================================================
---- linux-2.6.21-mm2.orig/mm/page_alloc.c
-+++ linux-2.6.21-mm2/mm/page_alloc.c
-@@ -2204,8 +2204,55 @@ static void build_zonelists_in_zone_orde
+--- linux-2.6.21-mm2.orig/Documentation/sysctl/vm.txt
++++ linux-2.6.21-mm2/Documentation/sysctl/vm.txt
+@@ -33,6 +33,7 @@ Currently, these files are in /proc/sys/
+ - panic_on_oom
+ - swap_prefetch
+ - stat_interval
++- numa_zonelist_order
  
- static int default_zonelist_order(void)
- {
--	/* dummy, just select node order. */
--	return ZONELIST_ORDER_NODE;
-+	int nid, zone_type;
-+	unsigned long low_kmem_size,total_size;
-+	struct zone *z;
-+	int average_size;
-+	/*
-+         * ZONE_DMA and ZONE_DMA32 can be very small area in the sytem.
-+	 * If they are really small and used heavily, the system can fall
-+	 * into OOM very easily.
-+	 * This function detect ZONE_DMA/DMA32 size and confgigures zone order.
-+	 */
-+	/* Is there ZONE_NORMAL ? (ex. ppc has only DMA zone..) */
-+	low_kmem_size = 0;
-+	total_size = 0;
-+	for_each_online_node(nid) {
-+		for (zone_type = 0; zone_type < MAX_NR_ZONES; zone_type++) {
-+			z = &NODE_DATA(nid)->node_zones[zone_type];
-+			if (populated_zone(z)) {
-+				if (zone_type < ZONE_NORMAL)
-+					low_kmem_size += z->present_pages;
-+				total_size += z->present_pages;
-+			}
-+		}
-+	}
-+	if (!low_kmem_size ||  /* there are no DMA area. */
-+	    low_kmem_size > total_size/2) /* DMA/DMA32 is big. */
-+		return ZONELIST_ORDER_NODE;
-+	/*
-+	 * look into each node's config.
-+  	 * If there is a node whose DMA/DMA32 memory is very big area on
-+ 	 * local memory, NODE_ORDER may be suitable.
-+         */
-+	average_size = total_size / (num_online_nodes() + 1);
-+	for_each_online_node(nid) {
-+		low_kmem_size = 0;
-+		total_size = 0;
-+		for (zone_type = 0; zone_type < MAX_NR_ZONES; zone_type++) {
-+			z = &NODE_DATA(nid)->node_zones[zone_type];
-+			if (populated_zone(z)) {
-+				if (zone_type < ZONE_NORMAL)
-+					low_kmem_size += z->present_pages;
-+				total_size += z->present_pages;
-+			}
-+		}
-+		if (low_kmem_size &&
-+		    total_size > average_size && /* ignore small node */
-+		    low_kmem_size > total_size * 70/100)
-+			return ZONELIST_ORDER_NODE;
-+	}
-+	return ZONELIST_ORDER_ZONE;
- }
+ ==============================================================
  
- static void set_zonelist_order(void)
+@@ -248,3 +249,48 @@ determines the frequency of these consol
+ 
+ The default value is 1 second.
+ 
++==============================================================
++
++numa_zonelist_order
++
++This sysctl is only for NUMA.
++'where the memory is allocated from' is controlled by zonelists.
++(This documentation ignores ZONE_HIGHMEM/ZONE_DMA32 for simple explanation.
++ you may be able to read ZONE_DMA as ZONE_DMA32...)
++
++In non-NUMA case, a zonelist for GFP_KERNEL is ordered as following.
++ZONE_NORMAL -> ZONE_DMA
++This means that a memory allocation request for GFP_KERNEL will
++get memory from ZONE_DMA only when ZONE_NORMAL is not available.
++
++In NUMA case, you can think of following 2 types of order.
++Assume 2 node NUMA and below is zonelist of Node(0)'s GFP_KERNEL
++
++(A) Node(0) ZONE_NORMAL -> Node(0) ZONE_DMA -> Node(1) ZONE_NORMAL
++(B) Node(0) ZONE_NORMAL -> Node(1) ZONE_NORMAL -> Node(0) ZONE_DMA.
++
++Type(A) offers the best locality for processes on Node(0), but ZONE_DMA
++will be used before ZONE_NORMAL exhaustion. This increases possibility of
++out-of-memory(OOM) of ZONE_DMA because ZONE_DMA is tend to be small.
++
++Type(B) cannot offer the best locality but is more robust against OOM of
++the DMA zone.
++
++Type(A) is called as "Node" order. Type (B) is "Zone" order.
++
++"Node order" orders the zonelists by node, then by zone within each node.
++Specify "[Nn]ode" for zone order
++
++"Zone Order" orders the zonelists by zone type, then by node within each
++zone.  Specify "[Zz]one"for zode order.
++
++Specify "[Dd]efault" to request automatic configuration.  Autoconfiguration
++will select "node" order in following case.
++(1) if the DMA zone does not exist or
++(2) if the DMA zone comprises greater than 50% of the available memory or
++(3) if any node's DMA zone comprises greater than 60% of its local memory and
++    the amount of local memory is big enough.
++
++Otherwise, "zone" order will be selected. Default order is recommended unless
++this is causing problems for your system/application.
++
+Index: linux-2.6.21-mm2/Documentation/kernel-parameters.txt
+===================================================================
+--- linux-2.6.21-mm2.orig/Documentation/kernel-parameters.txt
++++ linux-2.6.21-mm2/Documentation/kernel-parameters.txt
+@@ -1231,6 +1231,11 @@ and is between 256 and 4096 characters. 
+ 
+ 	nowb		[ARM]
+ 
++	numa_zonelist_order= [KNL, BOOT] Select zonelist order for NUMA.
++			one of ['zone', 'node', 'default'] can be specified
++			This can be set from sysctl after boot.
++			See Documentation/sysctl/vm.txt for details.
++
+ 	nr_uarts=	[SERIAL] maximum number of UARTs to be registered.
+ 
+ 	opl3=		[HW,OSS]
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
