@@ -1,88 +1,41 @@
-From: Con Kolivas <kernel@kolivas.org>
-Subject: Re: swap-prefetch: 2.6.22 -mm merge plans
-Date: Thu, 10 May 2007 11:34:33 +1000
-References: <20070430162007.ad46e153.akpm@linux-foundation.org> <200705100928.34056.kernel@kolivas.org> <464261B5.6030809@yahoo.com.au>
-In-Reply-To: <464261B5.6030809@yahoo.com.au>
+Date: Wed, 9 May 2007 18:44:13 -0700 (PDT)
+From: Christoph Lameter <clameter@sgi.com>
+Subject: Re: [patch] check cpuset mems_allowed for sys_mbind
+In-Reply-To: <b040c32a0705091826n5b7b3602laa3650fd4763e3@mail.gmail.com>
+Message-ID: <Pine.LNX.4.64.0705091843040.2781@schroedinger.engr.sgi.com>
+References: <b040c32a0705091611mb35258ap334426e42d33372c@mail.gmail.com>
+ <20070509164859.15dd347b.pj@sgi.com>  <b040c32a0705091747x75f45eacwbe11fe106be71833@mail.gmail.com>
+  <Pine.LNX.4.64.0705091749180.2374@schroedinger.engr.sgi.com>
+ <b040c32a0705091826n5b7b3602laa3650fd4763e3@mail.gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain;
-  charset="iso-8859-1"
-Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
-Message-Id: <200705101134.34350.kernel@kolivas.org>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nick Piggin <nickpiggin@yahoo.com.au>
-Cc: Ingo Molnar <mingo@elte.hu>, ck list <ck@vds.kolivas.org>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Ken Chen <kenchen@google.com>
+Cc: Paul Jackson <pj@sgi.com>, akpm@linux-foundation.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thursday 10 May 2007 10:05, Nick Piggin wrote:
-> Con Kolivas wrote:
-> > Well how about that? That was the difference with a swap _file_ as I
-> > said, but I went ahead and checked with a swap partition as I used to
-> > have. I didn't notice, but somewhere in the last few months, swap
-> > prefetch code itself being unchanged for a year, seems to have been
-> > broken by other changes in the vm and it doesn't even start up
-> > prefetching often and has stale swap entries in its list. Once it breaks
-> > like that it does nothing from then on. So that leaves me with a quandry
-> > now.
-> >
-> >
-> > Do I:
-> >
-> > 1. Go ahead and find whatever breakage was introduced and fix it with
-> > hopefully a trivial change
-> >
-> > 2. Do option 1. and then implement support for yet another kernel feature
-> > (cpusets) that will be used perhaps never with swap prefetch [No Nick I
-> > don't believe you that cpusets have anything to do with normal users on a
-> > desktop ever; if it's used on a desktop it will only be by a kernel
-> > developer testing the cpusets code].
-> >
-> > or
-> >
-> > 3. Dump swap prefetch forever and ignore that it ever worked and was
-> > helpful and was a lot of work to implement and so on.
-> >
-> >
-> > Given that even if I do 1 and/or 2 it'll still be blocked from ever going
-> > to mainline I think the choice is clear.
-> >
-> > Nick since you're personally the gatekeeper for this code, would you like
-> > to make a call? Just say 3 and put me out of my misery please.
->
-> I'm not the gatekeeper and it is completely up to you whether you want
-> to work on something or not... but I'm sure you understand where I was
-> coming from when I suggested it doesn't get merged yet.
+On Wed, 9 May 2007, Ken Chen wrote:
 
-No matter how you spin it, you're the gatekeeper.
+> On 5/9/07, Christoph Lameter <clameter@sgi.com> wrote:
+> > > However, mbind shouldn't create discrepancy between what is allowed
+> > > and what is promised, especially with MPOL_BIND policy.  Since a
+> > > numa-aware app has already gone such a detail to request memory
+> > > placement on a specific nodemask, they fully expect memory to be
+> > > placed there for performance reason.  If kernel lies about it, we get
+> > > very unpleasant performance issue.
+> > 
+> > How does the kernel lie? The memory is placed given the current cpuset and
+> > memory policy restrictions.
+> 
+> sys_mbind lies.  A task in cpuset that has mems=0-7, it can do
+> sys_mbind(MPOL_BIND, 0x100, ...) and such call will return success.
 
-> You may not believe this, but I agree that swap prefetching (and
-> prefetching in general) has some potential to help desktop workloads :).
-> But it still should go through the normal process of being tested and
-> questioned and having a look at options for first improving existing
-> code in those problematic cases.
+I thought we assume that people know what they are doing if they run such 
+NUMA applications?
 
-Not this again? Proof was there ages ago that it helped and no proof that it 
-harmed could be found yet you cunningly pretend it never existed. It's been 
-done to death and I'm sick of this.
-
-> Once that process happens and it is shown to work nicely, etc., then I
-> would not be able to (or want to) keep it from getting merged.
->
-> As far as cpusets goes... if your code goes in last, then you have to
-> make it work with what is there, as a rule. People are using cpusets
-> for memory resource control, which would have uses on a desktop system.
-> It is just a really bad precedent to set, having different parts of the
-> VM not work correctly together. Even if you made them mutually
-> exclusive CONFIG_ options, that is still not a very nice solution.
-
-That's as close to a 3 as I'm likely to get out of you.
-
-Andrew you'll be relieved to know I would like you to throw swap prefetch and 
-related patches into the bin. Thanks.
-
--- 
--ck
+I do not think there is an easy way out given the current way of managing 
+memory policies and allocation constraints.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
