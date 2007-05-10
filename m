@@ -1,125 +1,76 @@
-Message-Id: <20070510101129.394378283@chello.nl>
+Message-Id: <20070510101129.564688888@chello.nl>
 References: <20070510100839.621199408@chello.nl>
-Date: Thu, 10 May 2007 12:08:48 +0200
+Date: Thu, 10 May 2007 12:08:50 +0200
 From: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Subject: [PATCH 09/15] mm: count reclaimable pages per BDI
-Content-Disposition: inline; filename=bdi_stat_reclaimable.patch
+Subject: [PATCH 11/15] mm: expose BDI statistics in sysfs.
+Content-Disposition: inline; filename=bdi_stat_sysfs.patch
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 Cc: miklos@szeredi.hu, akpm@linux-foundation.org, neilb@suse.de, dgc@sgi.com, tomoki.sekiyama.qu@hitachi.com, a.p.zijlstra@chello.nl, nikita@clusterfs.com, trond.myklebust@fys.uio.no, yingchao.zhou@gmail.com
 List-ID: <linux-mm.kvack.org>
 
-Count per BDI reclaimable pages; nr_reclaimable = nr_dirty + nr_unstable.
+Expose the per BDI stats in /sys/block/<dev>/queue/*
 
 Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
 ---
- fs/buffer.c                 |    2 ++
- fs/nfs/write.c              |    7 +++++++
- include/linux/backing-dev.h |    1 +
- mm/page-writeback.c         |    4 ++++
- mm/truncate.c               |    2 ++
- 5 files changed, 16 insertions(+)
+ block/ll_rw_blk.c |   29 +++++++++++++++++++++++++++++
+ 1 file changed, 29 insertions(+)
 
-Index: linux-2.6/fs/buffer.c
+Index: linux-2.6/block/ll_rw_blk.c
 ===================================================================
---- linux-2.6.orig/fs/buffer.c	2007-04-24 21:18:29.000000000 +0200
-+++ linux-2.6/fs/buffer.c	2007-04-25 08:20:10.000000000 +0200
-@@ -734,6 +734,8 @@ int __set_page_dirty_buffers(struct page
- 	if (page->mapping) {	/* Race with truncate? */
- 		if (mapping_cap_account_dirty(mapping)) {
- 			__inc_zone_page_state(page, NR_FILE_DIRTY);
-+			__inc_bdi_stat(mapping->backing_dev_info,
-+					BDI_RECLAIMABLE);
- 			task_io_account_write(PAGE_CACHE_SIZE);
- 		}
- 		radix_tree_tag_set(&mapping->page_tree,
-Index: linux-2.6/mm/page-writeback.c
-===================================================================
---- linux-2.6.orig/mm/page-writeback.c	2007-04-24 21:18:30.000000000 +0200
-+++ linux-2.6/mm/page-writeback.c	2007-04-25 08:20:10.000000000 +0200
-@@ -828,6 +828,8 @@ int __set_page_dirty_nobuffers(struct pa
- 			BUG_ON(mapping2 != mapping);
- 			if (mapping_cap_account_dirty(mapping)) {
- 				__inc_zone_page_state(page, NR_FILE_DIRTY);
-+				__inc_bdi_stat(mapping->backing_dev_info,
-+						BDI_RECLAIMABLE);
- 				task_io_account_write(PAGE_CACHE_SIZE);
- 			}
- 			radix_tree_tag_set(&mapping->page_tree,
-@@ -961,6 +963,8 @@ int clear_page_dirty_for_io(struct page 
- 		 */
- 		if (TestClearPageDirty(page)) {
- 			dec_zone_page_state(page, NR_FILE_DIRTY);
-+			dec_bdi_stat(mapping->backing_dev_info,
-+					BDI_RECLAIMABLE);
- 			return 1;
- 		}
- 		return 0;
-Index: linux-2.6/mm/truncate.c
-===================================================================
---- linux-2.6.orig/mm/truncate.c	2007-04-24 21:18:30.000000000 +0200
-+++ linux-2.6/mm/truncate.c	2007-04-25 08:20:10.000000000 +0200
-@@ -72,6 +72,8 @@ void cancel_dirty_page(struct page *page
- 		struct address_space *mapping = page->mapping;
- 		if (mapping && mapping_cap_account_dirty(mapping)) {
- 			dec_zone_page_state(page, NR_FILE_DIRTY);
-+			dec_bdi_stat(mapping->backing_dev_info,
-+					BDI_RECLAIMABLE);
- 			if (account_size)
- 				task_io_account_cancelled_write(account_size);
- 		}
-Index: linux-2.6/fs/nfs/write.c
-===================================================================
---- linux-2.6.orig/fs/nfs/write.c	2007-04-25 08:17:04.000000000 +0200
-+++ linux-2.6/fs/nfs/write.c	2007-04-25 08:20:29.000000000 +0200
-@@ -454,6 +454,7 @@ nfs_mark_request_commit(struct nfs_page 
- 	set_bit(PG_NEED_COMMIT, &(req)->wb_flags);
- 	spin_unlock(&nfsi->req_lock);
- 	inc_zone_page_state(req->wb_page, NR_UNSTABLE_NFS);
-+	inc_bdi_stat(req->wb_page->mapping->backing_dev_info, BDI_RECLAIMABLE);
- 	__mark_inode_dirty(inode, I_DIRTY_DATASYNC);
+--- linux-2.6.orig/block/ll_rw_blk.c	2007-05-10 10:21:59.000000000 +0200
++++ linux-2.6/block/ll_rw_blk.c	2007-05-10 10:23:39.000000000 +0200
+@@ -3978,6 +3978,23 @@ static ssize_t queue_max_hw_sectors_show
+ 	return queue_var_show(max_hw_sectors_kb, (page));
  }
  
-@@ -552,6 +553,8 @@ static void nfs_cancel_commit_list(struc
- 	while(!list_empty(head)) {
- 		req = nfs_list_entry(head->next);
- 		dec_zone_page_state(req->wb_page, NR_UNSTABLE_NFS);
-+		dec_bdi_stat(req->wb_page->mapping->backing_dev_info,
-+				BDI_RECLAIMABLE);
- 		nfs_list_remove_request(req);
- 		clear_bit(PG_NEED_COMMIT, &(req)->wb_flags);
- 		nfs_inode_remove_request(req);
-@@ -1269,6 +1272,8 @@ nfs_commit_list(struct inode *inode, str
- 		nfs_list_remove_request(req);
- 		nfs_mark_request_commit(req);
- 		dec_zone_page_state(req->wb_page, NR_UNSTABLE_NFS);
-+		dec_bdi_stat(req->wb_page->mapping->backing_dev_info,
-+				BDI_RECLAIMABLE);
- 		nfs_clear_page_writeback(req);
- 	}
- 	return -ENOMEM;
-@@ -1294,6 +1299,8 @@ static void nfs_commit_done(struct rpc_t
- 		nfs_list_remove_request(req);
- 		clear_bit(PG_NEED_COMMIT, &(req)->wb_flags);
- 		dec_zone_page_state(req->wb_page, NR_UNSTABLE_NFS);
-+		dec_bdi_stat(req->wb_page->mapping->backing_dev_info,
-+				BDI_RECLAIMABLE);
++static ssize_t queue_nr_reclaimable_show(struct request_queue *q, char *page)
++{
++	unsigned long long nr_reclaimable =
++		bdi_stat(&q->backing_dev_info, BDI_RECLAIMABLE);
++
++	return sprintf(page, "%llu\n",
++			nr_reclaimable >> (PAGE_CACHE_SHIFT - 10));
++}
++
++static ssize_t queue_nr_writeback_show(struct request_queue *q, char *page)
++{
++	unsigned long long nr_writeback =
++		bdi_stat(&q->backing_dev_info, BDI_WRITEBACK);
++
++	return sprintf(page, "%llu\n",
++			nr_writeback >> (PAGE_CACHE_SHIFT - 10));
++}
  
- 		dprintk("NFS: commit (%s/%Ld %d@%Ld)",
- 			req->wb_context->dentry->d_inode->i_sb->s_id,
-Index: linux-2.6/include/linux/backing-dev.h
-===================================================================
---- linux-2.6.orig/include/linux/backing-dev.h	2007-04-25 08:20:03.000000000 +0200
-+++ linux-2.6/include/linux/backing-dev.h	2007-04-25 08:20:10.000000000 +0200
-@@ -27,6 +27,7 @@ enum bdi_state {
- typedef int (congested_fn)(void *, int);
- 
- enum bdi_stat_item {
-+	BDI_RECLAIMABLE,
- 	NR_BDI_STAT_ITEMS
+ static struct queue_sysfs_entry queue_requests_entry = {
+ 	.attr = {.name = "nr_requests", .mode = S_IRUGO | S_IWUSR },
+@@ -4002,6 +4019,16 @@ static struct queue_sysfs_entry queue_ma
+ 	.show = queue_max_hw_sectors_show,
  };
  
++static struct queue_sysfs_entry queue_reclaimable_entry = {
++	.attr = {.name = "reclaimable_kb", .mode = S_IRUGO },
++	.show = queue_nr_reclaimable_show,
++};
++
++static struct queue_sysfs_entry queue_writeback_entry = {
++	.attr = {.name = "writeback_kb", .mode = S_IRUGO },
++	.show = queue_nr_writeback_show,
++};
++
+ static struct queue_sysfs_entry queue_iosched_entry = {
+ 	.attr = {.name = "scheduler", .mode = S_IRUGO | S_IWUSR },
+ 	.show = elv_iosched_show,
+@@ -4013,6 +4040,8 @@ static struct attribute *default_attrs[]
+ 	&queue_ra_entry.attr,
+ 	&queue_max_hw_sectors_entry.attr,
+ 	&queue_max_sectors_entry.attr,
++	&queue_reclaimable_entry.attr,
++	&queue_writeback_entry.attr,
+ 	&queue_iosched_entry.attr,
+ 	NULL,
+ };
 
 -- 
 
