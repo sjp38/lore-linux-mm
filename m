@@ -1,79 +1,96 @@
-Message-Id: <20070510101129.479207249@chello.nl>
+Message-Id: <20070510101128.887438283@chello.nl>
 References: <20070510100839.621199408@chello.nl>
-Date: Thu, 10 May 2007 12:08:49 +0200
+Date: Thu, 10 May 2007 12:08:42 +0200
 From: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Subject: [PATCH 10/15] mm: count writeback pages per BDI
-Content-Disposition: inline; filename=bdi_stat_writeback.patch
+Subject: [PATCH 03/15] lib: percpu_counter_mod64
+Content-Disposition: inline; filename=percpu_counter_mod.patch
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 Cc: miklos@szeredi.hu, akpm@linux-foundation.org, neilb@suse.de, dgc@sgi.com, tomoki.sekiyama.qu@hitachi.com, a.p.zijlstra@chello.nl, nikita@clusterfs.com, trond.myklebust@fys.uio.no, yingchao.zhou@gmail.com
 List-ID: <linux-mm.kvack.org>
 
-Count per BDI writeback pages.
+Add percpu_counter_mod64() to allow large modifications.
 
 Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
 ---
- include/linux/backing-dev.h |    1 +
- mm/page-writeback.c         |   12 ++++++++++--
- 2 files changed, 11 insertions(+), 2 deletions(-)
+ include/linux/percpu_counter.h |   17 +++++++++++++++++
+ lib/percpu_counter.c           |   20 ++++++++++++++++++++
+ 2 files changed, 37 insertions(+)
 
-Index: linux-2.6/mm/page-writeback.c
+Index: linux-2.6/include/linux/percpu_counter.h
 ===================================================================
---- linux-2.6.orig/mm/page-writeback.c	2007-04-20 15:27:28.000000000 +0200
-+++ linux-2.6/mm/page-writeback.c	2007-04-20 15:28:10.000000000 +0200
-@@ -979,14 +979,18 @@ int test_clear_page_writeback(struct pag
- 	int ret;
+--- linux-2.6.orig/include/linux/percpu_counter.h	2007-04-29 18:15:26.000000000 +0200
++++ linux-2.6/include/linux/percpu_counter.h	2007-04-29 18:16:49.000000000 +0200
+@@ -39,6 +39,7 @@ static inline void percpu_counter_destro
+ }
  
- 	if (mapping) {
-+		struct backing_dev_info *bdi = mapping->backing_dev_info;
- 		unsigned long flags;
+ void __percpu_counter_mod(struct percpu_counter *fbc, s32 amount, s32 batch);
++void __percpu_counter_mod64(struct percpu_counter *fbc, s64 amount, s32 batch);
+ s64 percpu_counter_sum(struct percpu_counter *fbc);
  
- 		write_lock_irqsave(&mapping->tree_lock, flags);
- 		ret = TestClearPageWriteback(page);
--		if (ret)
-+		if (ret) {
- 			radix_tree_tag_clear(&mapping->page_tree,
- 						page_index(page),
- 						PAGECACHE_TAG_WRITEBACK);
-+			if (bdi_cap_writeback_dirty(bdi))
-+				__dec_bdi_stat(bdi, BDI_WRITEBACK);
-+		}
- 		write_unlock_irqrestore(&mapping->tree_lock, flags);
- 	} else {
- 		ret = TestClearPageWriteback(page);
-@@ -1002,14 +1006,18 @@ int test_set_page_writeback(struct page 
- 	int ret;
+ static inline void percpu_counter_mod(struct percpu_counter *fbc, s32 amount)
+@@ -46,6 +47,11 @@ static inline void percpu_counter_mod(st
+ 	__percpu_counter_mod(fbc, amount, FBC_BATCH);
+ }
  
- 	if (mapping) {
-+		struct backing_dev_info *bdi = mapping->backing_dev_info;
- 		unsigned long flags;
++static inline void percpu_counter_mod64(struct percpu_counter *fbc, s64 amount)
++{
++	__percpu_counter_mod64(fbc, amount, FBC_BATCH);
++}
++
+ static inline s64 percpu_counter_read(struct percpu_counter *fbc)
+ {
+ 	return fbc->count;
+@@ -92,6 +98,17 @@ percpu_counter_mod(struct percpu_counter
+ 	preempt_enable();
+ }
  
- 		write_lock_irqsave(&mapping->tree_lock, flags);
- 		ret = TestSetPageWriteback(page);
--		if (!ret)
-+		if (!ret) {
- 			radix_tree_tag_set(&mapping->page_tree,
- 						page_index(page),
- 						PAGECACHE_TAG_WRITEBACK);
-+			if (bdi_cap_writeback_dirty(bdi))
-+				__inc_bdi_stat(bdi, BDI_WRITEBACK);
-+		}
- 		if (!PageDirty(page))
- 			radix_tree_tag_clear(&mapping->page_tree,
- 						page_index(page),
-Index: linux-2.6/include/linux/backing-dev.h
++#define __percpu_counter_mod64(fbc, amount, batch) \
++	percpu_counter_mod64(fbc, amount)
++
++static inline void
++percpu_counter_mod64(struct percpu_counter *fbc, s64 amount)
++{
++	preempt_disable();
++	fbc->count += amount;
++	preempt_enable();
++}
++
+ static inline s64 percpu_counter_read(struct percpu_counter *fbc)
+ {
+ 	return fbc->count;
+Index: linux-2.6/lib/percpu_counter.c
 ===================================================================
---- linux-2.6.orig/include/linux/backing-dev.h	2007-04-20 15:25:47.000000000 +0200
-+++ linux-2.6/include/linux/backing-dev.h	2007-04-20 15:28:17.000000000 +0200
-@@ -27,6 +27,7 @@ typedef int (congested_fn)(void *, int);
+--- linux-2.6.orig/lib/percpu_counter.c	2007-04-29 18:14:40.000000000 +0200
++++ linux-2.6/lib/percpu_counter.c	2007-04-29 18:15:34.000000000 +0200
+@@ -25,6 +25,26 @@ void __percpu_counter_mod(struct percpu_
+ }
+ EXPORT_SYMBOL(__percpu_counter_mod);
  
- enum bdi_stat_item {
- 	BDI_RECLAIMABLE,
-+	BDI_WRITEBACK,
- 	NR_BDI_STAT_ITEMS
- };
- 
++void __percpu_counter_mod64(struct percpu_counter *fbc, s64 amount, s32 batch)
++{
++	s64 count;
++	s32 *pcount;
++	int cpu = get_cpu();
++
++	pcount = per_cpu_ptr(fbc->counters, cpu);
++	count = *pcount + amount;
++	if (count >= batch || count <= -batch) {
++		spin_lock(&fbc->lock);
++		fbc->count += count;
++		*pcount = 0;
++		spin_unlock(&fbc->lock);
++	} else {
++		*pcount = count;
++	}
++	put_cpu();
++}
++EXPORT_SYMBOL(__percpu_counter_mod64);
++
+ /*
+  * Add up all the per-cpu counts, return the result.  This is a more accurate
+  * but much slower version of percpu_counter_read_positive()
 
 -- 
 
