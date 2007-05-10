@@ -1,87 +1,41 @@
-Date: Thu, 10 May 2007 18:05:56 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [Request-For-Test] [PATCH] change zonelist order v6 [0/3]
- Introduction
-Message-Id: <20070510180556.febd7a5d.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20070510013619.7b8c2457.akpm@linux-foundation.org>
-References: <20070510161611.fe1a696b.kamezawa.hiroyu@jp.fujitsu.com>
-	<20070510013619.7b8c2457.akpm@linux-foundation.org>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+From: Rob Landley <rob@landley.net>
+Subject: Re: [patch] removes MAX_ARG_PAGES
+Date: Thu, 10 May 2007 05:19:37 -0400
+References: <65dd6fd50705060151m78bb9b4fpcb941b16a8c4709e@mail.gmail.com> <200705092104.43353.rob@landley.net> <65dd6fd50705092106i15722e97g85f43191ceb5a3d7@mail.gmail.com>
+In-Reply-To: <65dd6fd50705092106i15722e97g85f43191ceb5a3d7@mail.gmail.com>
+MIME-Version: 1.0
+Content-Type: text/plain;
+  charset="iso-8859-1"
 Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+Message-Id: <200705100519.38073.rob@landley.net>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Lee.Schermerhorn@hp.com, apw@shadowen.org, clameter@sgi.com, ak@suse.de, jbarnes@virtuousgeek.org
+To: Ollie Wild <aaw@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, linux-kernel@vger.kernel.org, parisc-linux@lists.parisc-linux.org, linux-mm@kvack.org, linux-arch@vger.kernel.org, Ingo Molnar <mingo@elte.hu>, Andi Kleen <ak@suse.de>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 10 May 2007 01:36:19 -0700
-Andrew Morton <akpm@linux-foundation.org> wrote:
+On Thursday 10 May 2007 12:06 am, Ollie Wild wrote:
+> On 5/9/07, Rob Landley <rob@landley.net> wrote:
+> > Just FYI, a really really quick and dirty way of testing this sort of 
+thing on
+> > more architectures and you're likely to physically have?
+> 
+> Does this properly emulate caching?  On parisc, cache coherency was
+> the main issue we ran into.  I suspect this might be the case with
+> other architectures as well.
 
-> On Thu, 10 May 2007 16:16:11 +0900 KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
-> 
-> > This is zonelist-order-fix patch version 6. against 2.6.21-mm2.
-> 
-> This is new:
-> 
-> WARNING: mm/built-in.o - Section mismatch: reference to .init.text: from .text between '__build_all_zonelists' (at offset 0x3d13) and 'build_all_zonelists'
-> WARNING: mm/built-in.o - Section mismatch: reference to .init.text: from .text between '__build_all_zonelists' (at offset 0x3d2c) and 'build_all_zonelists'
-> WARNING: mm/built-in.o - Section mismatch: reference to .init.text: from .text between '__build_all_zonelists' (at offset 0x3d4b) and 'build_all_zonelists'
-> 
-> Using http://userweb.kernel.org/~akpm/config-sony.txt
-> 
-> Maybe it wasn't your match which did this, I didn't check.
-> 
-Ah....thank you. this is fix. I turned off memory-hotplug and this is patch.
-Because precise control of this meminit will need some #ifdef,
-I removed them all.
+This is really a QEMU question.  I've been focused on making cross-compilers 
+and using those to create kernels and a minimal native build environment I 
+could use to natively compile packages with.  (The way I designed the thing 
+you could substitute real hardware for the qemu step, assuming you had it.  
+Or another emulator like armulator for a specific platform.)
 
--Kame
-==
-Fixes section mismatch.
+I don't believe QEMU emulates parisc yet, although it adds new platforms all 
+the time.  (It just grew an alpha emulation last month.)  It's under very 
+active development.
 
-Signed-Off-By: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-
-Index: linux-2.6.21-mm2/mm/page_alloc.c
-===================================================================
---- linux-2.6.21-mm2.orig/mm/page_alloc.c
-+++ linux-2.6.21-mm2/mm/page_alloc.c
-@@ -1974,7 +1974,7 @@ void show_free_areas(void)
-  *
-  * Add all populated zones of a node to the zonelist.
-  */
--static int __meminit build_zonelists_node(pg_data_t *pgdat,
-+static int build_zonelists_node(pg_data_t *pgdat,
- 			struct zonelist *zonelist, int nr_zones, enum zone_type zone_type)
- {
- 	struct zone *zone;
-@@ -2324,7 +2324,7 @@ static void build_zonelists(pg_data_t *p
- }
- 
- /* Construct the zonelist performance cache - see further mmzone.h */
--static void __meminit build_zonelist_cache(pg_data_t *pgdat)
-+static void build_zonelist_cache(pg_data_t *pgdat)
- {
- 	int i;
- 
-@@ -2349,7 +2349,7 @@ static void set_zonelist_order(void)
- 	current_zonelist_order = ZONELIST_ORDER_ZONE;
- }
- 
--static void __meminit build_zonelists(pg_data_t *pgdat)
-+static void build_zonelists(pg_data_t *pgdat)
- {
- 	int node, local_node;
- 	enum zone_type i,j;
-@@ -2385,7 +2385,7 @@ static void __meminit build_zonelists(pg
- }
- 
- /* non-NUMA variant of zonelist performance cache - just NULL zlcache_ptr */
--static void __meminit build_zonelist_cache(pg_data_t *pgdat)
-+static void build_zonelist_cache(pg_data_t *pgdat)
- {
- 	int i;
- 
+Rob
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
