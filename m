@@ -1,81 +1,49 @@
-From: Rob Landley <rob@landley.net>
-Subject: Re: [patch] removes MAX_ARG_PAGES
-Date: Wed, 9 May 2007 21:04:42 -0400
-References: <65dd6fd50705060151m78bb9b4fpcb941b16a8c4709e@mail.gmail.com> <20070509134815.81cb9aa9.akpm@linux-foundation.org>
-In-Reply-To: <20070509134815.81cb9aa9.akpm@linux-foundation.org>
+Received: from spaceape14.eur.corp.google.com (spaceape14.eur.corp.google.com [172.28.16.148])
+	by smtp-out.google.com with ESMTP id l4A1QD2F012612
+	for <linux-mm@kvack.org>; Thu, 10 May 2007 02:26:13 +0100
+Received: from an-out-0708.google.com (anac38.prod.google.com [10.100.54.38])
+	by spaceape14.eur.corp.google.com with ESMTP id l4A1Q7kg022072
+	for <linux-mm@kvack.org>; Thu, 10 May 2007 02:26:08 +0100
+Received: by an-out-0708.google.com with SMTP id c38so99300ana
+        for <linux-mm@kvack.org>; Wed, 09 May 2007 18:26:07 -0700 (PDT)
+Message-ID: <b040c32a0705091826n5b7b3602laa3650fd4763e3@mail.gmail.com>
+Date: Wed, 9 May 2007 18:26:07 -0700
+From: "Ken Chen" <kenchen@google.com>
+Subject: Re: [patch] check cpuset mems_allowed for sys_mbind
+In-Reply-To: <Pine.LNX.4.64.0705091749180.2374@schroedinger.engr.sgi.com>
 MIME-Version: 1.0
-Content-Type: text/plain;
-  charset="iso-8859-1"
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
 Content-Disposition: inline
-Message-Id: <200705092104.43353.rob@landley.net>
+References: <b040c32a0705091611mb35258ap334426e42d33372c@mail.gmail.com>
+	 <20070509164859.15dd347b.pj@sgi.com>
+	 <b040c32a0705091747x75f45eacwbe11fe106be71833@mail.gmail.com>
+	 <Pine.LNX.4.64.0705091749180.2374@schroedinger.engr.sgi.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Ollie Wild <aaw@google.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, linux-kernel@vger.kernel.org, parisc-linux@lists.parisc-linux.org, linux-mm@kvack.org, linux-arch@vger.kernel.org, Ingo Molnar <mingo@elte.hu>, Andi Kleen <ak@suse.de>
+To: Christoph Lameter <clameter@sgi.com>
+Cc: Paul Jackson <pj@sgi.com>, akpm@linux-foundation.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wednesday 09 May 2007 4:48 pm, Andrew Morton wrote:
-> On Sun, 6 May 2007 01:51:34 -0700
-> "Ollie Wild" <aaw@google.com> wrote:
-> 
-> > A while back, I sent out a preliminary patch
-> > (http://thread.gmane.org/gmane.linux.ports.hppa/752) to remove the
-> > MAX_ARG_PAGES limit on command line sizes.  Since then, Peter Zijlstra
-> > and I have fixed a number of bugs and addressed the various
-> > outstanding issues.
-> > 
-> > The attached patch incorporates the following changes:
-> > 
-> > - Fixes a BUG_ON() assertion failure discovered by Ingo Molnar.
-> > - Adds CONFIG_STACK_GROWSUP (parisc) support.
-> > - Adds auditing support.
-> > - Reverts to the old behavior on architectures with no MMU.
-> > - Fixes broken execution of 64-bit binaries from 32-bit binaries.
-> > - Adds elf_fdpic support.
-> > - Fixes cache coherency bugs.
-> > 
-> > We've tested the following architectures: i386, x86_64, um/i386,
-> > parisc, and frv.  These are representative of the various scenarios
-> > which this patch addresses, but other architecture teams should try it
-> > out to make sure there aren't any unexpected gotchas.
+On 5/9/07, Christoph Lameter <clameter@sgi.com> wrote:
+> > However, mbind shouldn't create discrepancy between what is allowed
+> > and what is promised, especially with MPOL_BIND policy.  Since a
+> > numa-aware app has already gone such a detail to request memory
+> > placement on a specific nodemask, they fully expect memory to be
+> > placed there for performance reason.  If kernel lies about it, we get
+> > very unpleasant performance issue.
 >
-> I'll duck this for now, given the couple of problems which people have
-> reported. 
+> How does the kernel lie? The memory is placed given the current cpuset and
+> memory policy restrictions.
 
-Just FYI, a really really quick and dirty way of testing this sort of thing on 
-more architectures and you're likely to physically have?
-
-1) Install QEMU.
-
-2) Grab http://landley.net/code/firmware (releases in the downloads directory, 
-or tarball of most recent repository snapshot is 
-wget "http://landley.net/hg/firmware?ca=tip;type=gz").
-
-3) Edit "download.sh" to point at the URL of your tarball instead of whatever 
-kernel.org version it's using.  (Or add your patch to sources/patches if it 
-applies to the version it's already using.  Note that if you set SHA1= blank 
-in download.sh it'll skip the checksum test, so you don't have to recalculate 
-the sha1sum if you don't want to.)
-
-4) Run ./build.sh for the architecture you're interested in.  (I suggest 
-armv4l, i686, mipsel, and x86_64.  Both sparc and ppc are currently broken 
-for different reasons; I'm working on it.)  Wait a longish time for it to 
-finish compiling. :)
-
-5) "cd build; ./run-armv4l.sh" and your shell prompt should now be in qemu 
-running a kernel for the appropriate architecture.  (You even have a native 
-version of gcc you can build stuff with, although you may have 
-to "ln -s /tools/lib /lib" to run the results, for reasons Linux From Scratch 
-developers will recognize. :)
-
-This won't help you test real hardware (at least hardware qemu doesn't 
-emulate), but for stuff like filesystems or executable file formats, it's 
-handy. :)
-
-Email me if something doesn't work...
-
-Rob
+sys_mbind lies.  A task in cpuset that has mems=0-7, it can do
+sys_mbind(MPOL_BIND, 0x100, ...) and such call will return success.
+The app fully rely on memory allocation occurs on node 8, but that
+obviously can't happen because of cpuset.  Everything goes downhill
+from this point on.  Granted, app shouldn't call with such nodemask,
+but the fun starts with mbind being incompatible with cpuset (it
+checks against global node_online_map which includes a mask of entire
+system).
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
