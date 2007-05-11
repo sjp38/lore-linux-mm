@@ -1,46 +1,38 @@
-Date: Fri, 11 May 2007 10:05:46 +0900
+Date: Fri, 11 May 2007 10:08:51 +0900
 From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [RFC] memory hotremove patch take 2 [05/10] (make basic remove
- code)
-Message-Id: <20070511100546.6464c711.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <Pine.LNX.4.64.0705101108251.10002@schroedinger.engr.sgi.com>
+Subject: Re: [RFC] memory hotremove patch take 2 [01/10] (counter of
+ removable page)
+Message-Id: <20070511100851.f7d18ae8.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <p73bqgsg5ef.fsf@bingen.suse.de>
 References: <20070509115506.B904.Y-GOTO@jp.fujitsu.com>
-	<20070509120512.B910.Y-GOTO@jp.fujitsu.com>
-	<Pine.LNX.4.64.0705101108251.10002@schroedinger.engr.sgi.com>
+	<20070509120132.B906.Y-GOTO@jp.fujitsu.com>
+	<p73bqgsg5ef.fsf@bingen.suse.de>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
-Cc: y-goto@jp.fujitsu.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, akpm@osdl.org, mel@csn.ul.ie
+To: Andi Kleen <andi@firstfloor.org>
+Cc: y-goto@jp.fujitsu.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, akpm@osdl.org, clameter@sgi.com, mel@csn.ul.ie
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 10 May 2007 11:09:29 -0700 (PDT)
-Christoph Lameter <clameter@sgi.com> wrote:
+On 10 May 2007 15:44:08 +0200
+Andi Kleen <andi@firstfloor.org> wrote:
 
-> On Wed, 9 May 2007, Yasunori Goto wrote:
+> Yasunori Goto <y-goto@jp.fujitsu.com> writes:
 > 
-> > +/*
-> > + * Just an easy implementation.
-> > + */
-> > +static struct page *
-> > +hotremove_migrate_alloc(struct page *page,
-> > +			unsigned long private,
-> > +			int **x)
-> > +{
-> > +	return alloc_page(GFP_HIGH_MOVABLE);
-> > +}
 > 
-> This would need to reflect the zone in which you are performing hot 
-> remove. Or is hot remove only possible in the higest zone?
+> (not a full review, just something I noticed)
+> > @@ -352,6 +352,8 @@ struct sysinfo {
+> >  	unsigned short pad;		/* explicit padding for m68k */
+> >  	unsigned long totalhigh;	/* Total high memory size */
+> >  	unsigned long freehigh;		/* Available high memory size */
+> > +	unsigned long movable;		/* pages used only for data */
+> > +	unsigned long free_movable;	/* Avaiable pages in movable */
 > 
-No. We'll allow hot remove in any zone-type.
-My old patchest didn't include Mel-san's page grouping and just had
-ZONE_MOVABLE, so I wrote this. Reflecting migration target's zone here
-is reasobanle. 
-
-Anyway, I think we'll need more complicated function here.
+> You can't just change that structure, it is exported to user space.
+> 
+Okay. We'll drop this.
 
 Thanks,
 -Kame
