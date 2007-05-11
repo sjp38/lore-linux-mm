@@ -1,62 +1,49 @@
-Subject: Re: [Bug 8464] New: autoreconf: page allocation failure. order:2,
-	mode:0x84020
-From: Nicolas Mailhot <nicolas.mailhot@laposte.net>
-In-Reply-To: <20070511090823.GA29273@skynet.ie>
-References: <Pine.LNX.4.64.0705101447120.12874@schroedinger.engr.sgi.com>
-	 <20070510220657.GA14694@skynet.ie>
-	 <Pine.LNX.4.64.0705101510500.13404@schroedinger.engr.sgi.com>
-	 <20070510221607.GA15084@skynet.ie>
-	 <Pine.LNX.4.64.0705101522250.13504@schroedinger.engr.sgi.com>
-	 <20070510224441.GA15332@skynet.ie>
-	 <Pine.LNX.4.64.0705101547020.14064@schroedinger.engr.sgi.com>
-	 <20070510230044.GB15332@skynet.ie>
-	 <Pine.LNX.4.64.0705101601220.14471@schroedinger.engr.sgi.com>
-	 <1178863002.24635.4.camel@rousalka.dyndns.org>
-	 <20070511090823.GA29273@skynet.ie>
-Content-Type: multipart/signed; micalg=pgp-sha1; protocol="application/pgp-signature"; boundary="=-iSS1avLJLEBtnoji0oiw"
-Date: Fri, 11 May 2007 13:51:23 +0200
-Message-Id: <1178884283.27195.1.camel@rousalka.dyndns.org>
-Mime-Version: 1.0
+Message-Id: <20070511131541.992688403@chello.nl>
+Date: Fri, 11 May 2007 15:15:41 +0200
+From: Peter Zijlstra <a.p.zijlstra@chello.nl>
+Subject: [PATCH 0/2] convert mmap_sem to a scalable rw_mutex
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Mel Gorman <mel@skynet.ie>
-Cc: Christoph Lameter <clameter@sgi.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, "bugme-daemon@kernel-bugs.osdl.org" <bugme-daemon@bugzilla.kernel.org>
+To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: Oleg Nesterov <oleg@tv-sign.ru>, Andrew Morton <akpm@linux-foundation.org>, Ingo Molnar <mingo@elte.hu>, Thomas Gleixner <tglx@linutronix.de>, Nick Piggin <npiggin@suse.de>
 List-ID: <linux-mm.kvack.org>
 
---=-iSS1avLJLEBtnoji0oiw
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: quoted-printable
+I was toying with a scalable rw_mutex and found that it gives ~10% reduction in
+system time on ebizzy runs (without the MADV_FREE patch).
 
-Le vendredi 11 mai 2007 =C3=A0 10:08 +0100, Mel Gorman a =C3=A9crit :
+2-way x86_64 pentium D box:
 
-> > seems to have cured the system so far (need to charge it a bit longer t=
-o
-> > be sure)
-> >=20
->=20
-> The longer it runs the better, particularly under load and after
-> updatedb has run. Thanks a lot for testing
 
-After a few hours of load testing still nothing in the logs, so the
-revert was probably the right thing to do
+2.6.21
 
---=20
-Nicolas Mailhot
+/usr/bin/time ./ebizzy -m -P
+60.10user 137.72system 1:49.59elapsed 180%CPU (0avgtext+0avgdata 0maxresident)k
+0inputs+0outputs (0major+33555877minor)pagefaults 0swaps
 
---=-iSS1avLJLEBtnoji0oiw
-Content-Type: application/pgp-signature; name=signature.asc
-Content-Description: Ceci est une partie de message
-	=?ISO-8859-1?Q?num=E9riquement?= =?ISO-8859-1?Q?_sign=E9e?=
+/usr/bin/time ./ebizzy -m -P
+59.73user 139.50system 1:50.28elapsed 180%CPU (0avgtext+0avgdata 0maxresident)k
+0inputs+0outputs (0major+33555878minor)pagefaults 0swaps
 
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v1.4.7 (GNU/Linux)
+/usr/bin/time ./ebizzy -m -P
+59.49user 137.74system 1:49.22elapsed 180%CPU (0avgtext+0avgdata 0maxresident)k
+0inputs+0outputs (0major+33555877minor)pagefaults 0swaps
 
-iEYEABECAAYFAkZEWLYACgkQI2bVKDsp8g1nawCgsLzbk5Wc4/0Gfey+//uNHEPA
-kCoAn0HmY/aR2wKW5wizivptFnvVQfmY
-=Hm2+
------END PGP SIGNATURE-----
+2.6.21-rw_mutex
 
---=-iSS1avLJLEBtnoji0oiw--
+/usr/bin/time ./ebizzy -m -P
+57.85user 124.30system 1:42.99elapsed 176%CPU (0avgtext+0avgdata 0maxresident)k
+0inputs+0outputs (0major+33555877minor)pagefaults 0swaps
+
+/usr/bin/time ./ebizzy -m -P
+58.09user 124.11system 1:43.18elapsed 176%CPU (0avgtext+0avgdata 0maxresident)k
+0inputs+0outputs (0major+33555876minor)pagefaults 0swaps
+
+/usr/bin/time ./ebizzy -m -P
+57.36user 124.92system 1:43.52elapsed 176%CPU (0avgtext+0avgdata 0maxresident)k
+0inputs+0outputs (0major+33555877minor)pagefaults 0swaps
+
+
+-- 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
