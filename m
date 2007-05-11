@@ -1,64 +1,53 @@
-Received: from d12nrmr1607.megacenter.de.ibm.com (d12nrmr1607.megacenter.de.ibm.com [9.149.167.49])
-	by mtagate2.de.ibm.com (8.13.8/8.13.8) with ESMTP id l4BErMPh192096
-	for <linux-mm@kvack.org>; Fri, 11 May 2007 14:53:22 GMT
-Received: from d12av02.megacenter.de.ibm.com (d12av02.megacenter.de.ibm.com [9.149.165.228])
-	by d12nrmr1607.megacenter.de.ibm.com (8.13.8/8.13.8/NCO v8.3) with ESMTP id l4BErMrO3665992
-	for <linux-mm@kvack.org>; Fri, 11 May 2007 16:53:22 +0200
-Received: from d12av02.megacenter.de.ibm.com (loopback [127.0.0.1])
-	by d12av02.megacenter.de.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l4BErMSN008597
-	for <linux-mm@kvack.org>; Fri, 11 May 2007 16:53:22 +0200
-Subject: Re: [patch 1/6] Guest page hinting: core + volatile page cache.
-From: Martin Schwidefsky <schwidefsky@de.ibm.com>
-Reply-To: schwidefsky@de.ibm.com
-In-Reply-To: <5056.1178894723@turing-police.cc.vt.edu>
-References: <20070511135827.393181482@de.ibm.com>
-	 <20070511135925.513572897@de.ibm.com>
-	 <5056.1178894723@turing-police.cc.vt.edu>
-Content-Type: text/plain
-Date: Fri, 11 May 2007 16:53:49 +0200
-Message-Id: <1178895229.7695.4.camel@localhost>
+Date: Fri, 11 May 2007 17:56:21 +0200
+From: Ingo Molnar <mingo@elte.hu>
+Subject: Re: [PATCH 0/2] convert mmap_sem to a scalable rw_mutex
+Message-ID: <20070511155621.GA13150@elte.hu>
+References: <20070511131541.992688403@chello.nl>
 Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20070511131541.992688403@chello.nl>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Valdis.Kletnieks@vt.edu
-Cc: virtualization@lists.osdl.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Zachary Amsden <zach@vmware.com>, Andrew Morton <akpm@linux-foundation.org>, Nick Piggin <npiggin@suse.de>, Hubertus Franke <frankeh@watson.ibm.com>, Rik van Riel <riel@redhat.com>
+To: Peter Zijlstra <a.p.zijlstra@chello.nl>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Oleg Nesterov <oleg@tv-sign.ru>, Andrew Morton <akpm@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>, Nick Piggin <npiggin@suse.de>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 2007-05-11 at 10:45 -0400, Valdis.Kletnieks@vt.edu wrote:
-> > The guest page hinting patchset introduces code that passes guest
-> > page usage information to the host system that virtualizes the
-> > memory of its guests. There are three different page states:
+* Peter Zijlstra <a.p.zijlstra@chello.nl> wrote:
+
+> I was toying with a scalable rw_mutex and found that it gives ~10% 
+> reduction in system time on ebizzy runs (without the MADV_FREE patch).
 > 
-> Possibly hiding in the patchset someplace where I don't see it, but IBM's
-> VM hypervisor supported reflecting page faults back to a multitasking guest,
-> giving a signal that the guest supervisor could use.  The guest would then
-> look up which process owned that virtual page, and could elect to flag that
-> process as in page-wait and schedule another process to run while the hypervisor
-> was doing the I/O to bring the page in.  The guest would then get another
-> interrupt when the page became available, which it could use to flag the
-> suspended process as eligible for scheduling again.
+> 2-way x86_64 pentium D box:
+> 
+> 2.6.21
+> 
+> /usr/bin/time ./ebizzy -m -P
+> 59.49user 137.74system 1:49.22elapsed 180%CPU (0avgtext+0avgdata 0maxresident)k
+> 0inputs+0outputs (0major+33555877minor)pagefaults 0swaps
+> 
+> 2.6.21-rw_mutex
+> 
+> /usr/bin/time ./ebizzy -m -P
+> 57.85user 124.30system 1:42.99elapsed 176%CPU (0avgtext+0avgdata 0maxresident)k
+> 0inputs+0outputs (0major+33555877minor)pagefaults 0swaps
 
-That features is called pfault and is hidden in arch/s390/mm/fault.c.
-Guest page hinting is different. The idea is that the guest (linux)
-allows the host (z/VM) to remove the page from memory without writing it
-to a paging device. With pfault z/VM has to write the page but tells its
-guest that is has to retrieve the page before the current context can
-continue if the guest accesses the page. So with pfault the host gets
-the page back, with guest page hinting the guest does it.
+nice! This 6% runtime reduction on a 2-way box will i suspect get 
+exponentially better on systems with more CPUs/cores.
 
-> Not sure how that would fit into all this though - it looks like the
-> "discard fault" does something similar, but only for pages marked volatile.
-> Would it be useful/helpful to also deliver a similar signal for stable pages?
+i also like the design, alot: instead of doing a full new lock type 
+(with per-arch changes, extra lockdep support, etc. etc) you layered the 
+new abstraction ontop of mutexes. This makes this hard locking 
+abstraction look really, really simple, while the percpu_counter trick 
+makes it scale _perfectly_ for the reader case. Congratulations!
 
-Pfault delivers a signal for stable pages, yes.
+given how nice this looks already, have you considered completely 
+replacing rwsems with this? I suspect you could test the correctness of 
+that without doing a mass API changeover, by embedding struct rw_mutex 
+in struct rwsem and implementing kernel/rwsem.c's API that way. (the 
+real patch would just flip it all over to rw-mutexes)
 
--- 
-blue skies,
-  Martin.
-
-"Reality continues to ruin my life." - Calvin.
-
+	Ingo
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
