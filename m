@@ -1,56 +1,154 @@
-Subject: Re: [PATCH 0/2] convert mmap_sem to a scalable rw_mutex
-From: Peter Zijlstra <a.p.zijlstra@chello.nl>
-In-Reply-To: <46449F61.2060004@cosmosbay.com>
-References: <20070511131541.992688403@chello.nl>
-	 <20070511155621.GA13150@elte.hu>  <46449F61.2060004@cosmosbay.com>
-Content-Type: text/plain; charset=utf-8
-Date: Fri, 11 May 2007 19:18:33 +0200
-Message-Id: <1178903913.2781.20.camel@lappy>
-Mime-Version: 1.0
+Date: Fri, 11 May 2007 18:38:12 +0100
+Subject: Re: [Bug 8464] New: autoreconf: page allocation failure. order:2, mode:0x84020
+Message-ID: <20070511173811.GA8529@skynet.ie>
+References: <Pine.LNX.4.64.0705101510500.13404@schroedinger.engr.sgi.com> <20070510221607.GA15084@skynet.ie> <Pine.LNX.4.64.0705101522250.13504@schroedinger.engr.sgi.com> <20070510224441.GA15332@skynet.ie> <Pine.LNX.4.64.0705101547020.14064@schroedinger.engr.sgi.com> <20070510230044.GB15332@skynet.ie> <Pine.LNX.4.64.0705101601220.14471@schroedinger.engr.sgi.com> <1178863002.24635.4.camel@rousalka.dyndns.org> <20070511090823.GA29273@skynet.ie> <1178884283.27195.1.camel@rousalka.dyndns.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
 Content-Transfer-Encoding: 8bit
+In-Reply-To: <1178884283.27195.1.camel@rousalka.dyndns.org>
+From: mel@skynet.ie (Mel Gorman)
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Eric Dumazet <dada1@cosmosbay.com>
-Cc: Ingo Molnar <mingo@elte.hu>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Oleg Nesterov <oleg@tv-sign.ru>, Andrew Morton <akpm@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>, Nick Piggin <npiggin@suse.de>
+To: Nicolas Mailhot <nicolas.mailhot@laposte.net>
+Cc: Christoph Lameter <clameter@sgi.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, "bugme-daemon@kernel-bugs.osdl.org" <bugme-daemon@bugzilla.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 2007-05-11 at 18:52 +0200, Eric Dumazet wrote:
-> Ingo Molnar a A(C)crit :
-> > * Peter Zijlstra <a.p.zijlstra@chello.nl> wrote:
+On (11/05/07 13:51), Nicolas Mailhot didst pronounce:
+> Le vendredi 11 mai 2007 a 10:08 +0100, Mel Gorman a ecrit :
+> 
+> > > seems to have cured the system so far (need to charge it a bit longer to
+> > > be sure)
+> > > 
 > > 
-> >> I was toying with a scalable rw_mutex and found that it gives ~10% 
-> >> reduction in system time on ebizzy runs (without the MADV_FREE patch).
-> >>
-> >> 2-way x86_64 pentium D box:
-> >>
-> >> 2.6.21
-> >>
-> >> /usr/bin/time ./ebizzy -m -P
-> >> 59.49user 137.74system 1:49.22elapsed 180%CPU (0avgtext+0avgdata 0maxresident)k
-> >> 0inputs+0outputs (0major+33555877minor)pagefaults 0swaps
-> >>
-> >> 2.6.21-rw_mutex
-> >>
-> >> /usr/bin/time ./ebizzy -m -P
-> >> 57.85user 124.30system 1:42.99elapsed 176%CPU (0avgtext+0avgdata 0maxresident)k
-> >> 0inputs+0outputs (0major+33555877minor)pagefaults 0swaps
-> > 
-> > nice! This 6% runtime reduction on a 2-way box will i suspect get 
-> > exponentially better on systems with more CPUs/cores.
+> > The longer it runs the better, particularly under load and after
+> > updatedb has run. Thanks a lot for testing
 > 
-> As long you only have readers, yes.
-> 
-> But I personally find this new rw_mutex not scalable at all if you have some 
-> writers around.
-> 
-> percpu_counter_sum is just a L1 cache eater, and O(NR_CPUS)
+> After a few hours of load testing still nothing in the logs, so the
+> revert was probably the right thing to do
 
-Yeah, that is true; there are two occurences, the one in
-rw_mutex_read_unlock() is not strictly needed for correctness.
+Excellent. I am somewhat suprised by the result so I'd like to look at the
+alternative option with kswapd as well. Could you put that patch back in again
+please and try the following patch instead? The patch causes kswapd to reclaim
+at higher orders if it's requested to.  Christoph, can you look at the patch
+as well and make sure it's doing the right thing with respect to SLUB please?
 
-Write locks are indeed quite expensive. But given the ratio of
-reader:writer locks on mmap_sem (I'm not all that familiar with other
-rwsem users) this trade-off seems workable.
+Ultimatly, it's probably still a bad plan for atomic allocations to
+depend on high-order allocations being possible but it's interesting to
+see how it behaves.
+
+Thanks
+
+=====
+
+Subject: [RFC] Have kswapd keep a minimum order free other than order-0
+
+kswapd normally reclaims at order 0 unless there is a higher-order allocation
+under way. However, in some cases, it is known that there are a minimum
+order size of general interest such as the SLUB allocator requiring regular
+high-order allocations. This allows a minimum order to be set to that
+min_free_kbytes is kept at higher orders.
+
+With a simple stress test, buddyinfo looks like this at the end with kswapd at ddefault;
+
+Node 0, zone      DMA     10     12     11     10     10     10      6      5      4      1      0 
+Node 0, zone   Normal     87    232    601    490    369    282    197    116     79     39     28 
+
+With kswapd attempting to keep pages free at order-4, it looks like
+
+Node 0, zone      DMA     35     37     29     28     22     18      8      6      0      1      0 
+Node 0, zone   Normal     96    203    361    355    265    203    141     97     57     34     48 
+
+---
+diff -rup -X /usr/src/patchset-0.6/bin//dontdiff linux-2.6.21-mm2-clean/include/linux/mmzone.h linux-2.6.21-mm2-kswapd_minorder/include/linux/mmzone.h
+--- linux-2.6.21-mm2-clean/include/linux/mmzone.h	2007-05-09 10:21:28.000000000 +0100
++++ linux-2.6.21-mm2-kswapd_minorder/include/linux/mmzone.h	2007-05-11 11:12:43.000000000 +0100
+@@ -499,6 +499,8 @@ typedef struct pglist_data {
+ void get_zone_counts(unsigned long *active, unsigned long *inactive,
+ 			unsigned long *free);
+ void build_all_zonelists(void);
++int kswapd_order(unsigned int order);
++void set_kswapd_order(unsigned int order);
+ void wakeup_kswapd(struct zone *zone, int order);
+ int zone_watermark_ok(struct zone *z, int order, unsigned long mark,
+ 		int classzone_idx, int alloc_flags);
+diff -rup -X /usr/src/patchset-0.6/bin//dontdiff linux-2.6.21-mm2-clean/mm/slub.c linux-2.6.21-mm2-kswapd_minorder/mm/slub.c
+--- linux-2.6.21-mm2-clean/mm/slub.c	2007-05-09 10:21:28.000000000 +0100
++++ linux-2.6.21-mm2-kswapd_minorder/mm/slub.c	2007-05-11 11:10:08.000000000 +0100
+@@ -2131,6 +2131,7 @@ static struct kmem_cache *kmalloc_caches
+ static int __init setup_slub_min_order(char *str)
+ {
+ 	get_option (&str, &slub_min_order);
++	set_kswapd_order(slub_min_order);
+ 	user_override = 1;
+ 	return 1;
+ }
+diff -rup -X /usr/src/patchset-0.6/bin//dontdiff linux-2.6.21-mm2-clean/mm/vmscan.c linux-2.6.21-mm2-kswapd_minorder/mm/vmscan.c
+--- linux-2.6.21-mm2-clean/mm/vmscan.c	2007-05-09 10:21:28.000000000 +0100
++++ linux-2.6.21-mm2-kswapd_minorder/mm/vmscan.c	2007-05-11 11:55:45.000000000 +0100
+@@ -1407,6 +1407,32 @@ out:
+ 	return nr_reclaimed;
+ }
+ 
++static unsigned int kswapd_min_order __read_mostly;
++
++/**
++ * set_kswapd_order - Set the minimum order that kswapd reclaims at
++ * @order: The new minimum order
++ *
++ * kswapd normally reclaims at order 0 unless there is a higher-order
++ * allocation under way. However, in some cases, it is known that there
++ * are a minimum order size of general interest such as the SLUB allocator
++ * requiring regular high-order allocations. This allows a minimum order
++ * to be set to that min_free_kbytes is kept at higher orders
++ */
++void set_kswapd_order(unsigned int order)
++{
++	if (order >= MAX_ORDER)
++		return;
++	
++	printk(KERN_INFO "kswapd reclaim order set to %d\n", order);
++	kswapd_min_order = order;
++}
++	
++int kswapd_order(unsigned int order)
++{
++	return max(kswapd_min_order, order);
++}
++
+ /*
+  * The background pageout daemon, started as a kernel thread
+  * from the init process. 
+@@ -1450,13 +1476,13 @@ static int kswapd(void *p)
+ 	 */
+ 	tsk->flags |= PF_MEMALLOC | PF_SWAPWRITE | PF_KSWAPD;
+ 
+-	order = 0;
++	order = kswapd_order(0);
+ 	for ( ; ; ) {
+ 		unsigned long new_order;
+ 
+ 		prepare_to_wait(&pgdat->kswapd_wait, &wait, TASK_INTERRUPTIBLE);
+-		new_order = pgdat->kswapd_max_order;
+-		pgdat->kswapd_max_order = 0;
++		new_order = kswapd_order(pgdat->kswapd_max_order);
++		pgdat->kswapd_max_order = kswapd_order(0);
+ 		if (order < new_order) {
+ 			/*
+ 			 * Don't sleep if someone wants a larger 'order'
+@@ -1467,7 +1493,7 @@ static int kswapd(void *p)
+ 			if (!freezing(current))
+ 				schedule();
+ 
+-			order = pgdat->kswapd_max_order;
++			order = kswapd_order(pgdat->kswapd_max_order);
+ 		}
+ 		finish_wait(&pgdat->kswapd_wait, &wait);
+ 
+-- 
+Mel Gorman
+Part-time Phd Student                          Linux Technology Center
+University of Limerick                         IBM Dublin Software Lab
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
