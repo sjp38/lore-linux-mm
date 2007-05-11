@@ -1,70 +1,53 @@
+Received: by an-out-0708.google.com with SMTP id c10so209372ana
+        for <linux-mm@kvack.org>; Fri, 11 May 2007 00:05:51 -0700 (PDT)
+Message-ID: <89af10f90705102358q58d4b07bmbaba1e511edd928b@mail.gmail.com>
+Date: Fri, 11 May 2007 12:28:51 +0530
+From: "ashwin chaugule" <ashwin.chaugule@gmail.com>
 Subject: Re: [PATCH] Bug in mm/thrash.c function grab_swap_token()
-From: Ashwin Chaugule <ashwin.chaugule@celunite.com>
-Reply-To: ashwin.chaugule@celunite.com
-In-Reply-To: <20070510152957.edb26df3.akpm@linux-foundation.org>
+In-Reply-To: <1178866168.4497.6.camel@localhost.localdomain>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
 References: <20070510122359.GA16433@srv1-m700-lanp.koti>
 	 <20070510152957.edb26df3.akpm@linux-foundation.org>
-Content-Type: text/plain; charset=UTF-8
-Date: Fri, 11 May 2007 12:19:27 +0530
-Message-Id: <1178866168.4497.6.camel@localhost.localdomain>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 8bit
+	 <1178866168.4497.6.camel@localhost.localdomain>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: mikukkon@iki.fi, Mika Kukkonen <mikukkon@miku.homelinux.net>, linux-mm@kvack.org, Rik van Riel <riel@redhat.com>, ashwin.chaugule@gmail.com
+Cc: mikukkon@iki.fi, Mika Kukkonen <mikukkon@miku.homelinux.net>, linux-mm@kvack.org, Rik van Riel <riel@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 2007-05-10 at 15:29 -0700, Andrew Morton wrote:
-> On Thu, 10 May 2007 15:24:00 +0300
-> Mika Kukkonen <mikukkon@miku.homelinux.net> wrote:
-> 
-> > Following bug was uncovered by compiling with '-W' flag:
-> > 
-> >   CC      mm/thrash.o
-> > mm/thrash.c: In function A?AcAcA?A!A?A?grab_swap_tokenA?AcAcA?A!AcA?Ac:
-> > mm/thrash.c:52: warning: comparison of unsigned expression < 0 is always false
-> > 
-> > Variable token_priority is unsigned, so decrementing first and then
-> > checking the result does not work; fixed by reversing the test, patch
-> > attached (compile tested only). 
-> > 
-> > I am not sure if likely() makes much sense in this new situation, but
-> > I'll let somebody else to make a decision on that.
-> > 
-> > Signed-off-by: Mika Kukkonen <mikukkon@iki.fi>
-> > 
-> > diff --git a/mm/thrash.c b/mm/thrash.c
-> > index 9ef9071..c4c5205 100644
-> > --- a/mm/thrash.c
-> > +++ b/mm/thrash.c
-> > @@ -48,9 +48,8 @@ void grab_swap_token(void)
-> >  		if (current_interval < current->mm->last_interval)
-> >  			current->mm->token_priority++;
-> >  		else {
-> > -			current->mm->token_priority--;
-> > -			if (unlikely(current->mm->token_priority < 0))
-> > -				current->mm->token_priority = 0;
-> > +			if (likely(current->mm->token_priority > 0))
-> > +				current->mm->token_priority--;
-> >  		}
-> >  		/* Check if we deserve the token */
-> >  		if (current->mm->token_priority >
-> 
-> argh.
-> 
-> This has potential to cause large changes in system performance.
+This patch fixes a bug discovered by Mika Kukkonen in the swap token
+code. An unsigned int was being decremented and then checked for < 0.
 
-I'm not sure how. Although, I think the logic still remains the same.
-IOW, if the prio decrements to zero, it will remain zero until it
-contends for token rapidly. 
+Signed-off-by: Ashwin Chaugule <ashwin.chaugule@gmail.com>
 
-The likely part is unnecessary.
-
-Thanks Mika. Let me submit this patch, coz I'd like to change my email
-address in thrash.c
-
-
+diff --git a/mm/thrash.c b/mm/thrash.c
+index 9ef9071..60f3344 100644
+--- a/mm/thrash.c
++++ b/mm/thrash.c
+@@ -8,7 +8,7 @@
+  * Simple token based thrashing protection, using the algorithm
+  * described in:  http://www.cs.wm.edu/~sjiang/token.pdf
+  *
+- * Sep 2006, Ashwin Chaugule <ashwin.chaugule@celunite.com>
++ * Sep 2006, Ashwin Chaugule <ashwin.chaugule@gmail.com>
+  * Improved algorithm to pass token:
+  * Each task has a priority which is incremented if it contended
+  * for the token in an interval less than its previous attempt.
+@@ -48,9 +48,8 @@ void grab_swap_token(void)
+                if (current_interval < current->mm->last_interval)
+                        current->mm->token_priority++;
+                else {
+-                       current->mm->token_priority--;
+-                       if (unlikely(current->mm->token_priority < 0))
+-                               current->mm->token_priority = 0;
++                       if (current->mm->token_priority > 0)
++                               current->mm->token_priority--;
+                }
+                /* Check if we deserve the token */
+                if (current->mm->token_priority >
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
