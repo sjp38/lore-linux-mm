@@ -1,56 +1,128 @@
-Date: Fri, 11 May 2007 10:09:47 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [RFC] memory hotremove patch take 2 [01/10] (counter of
- removable page)
-Message-Id: <20070511100947.470a764d.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <Pine.LNX.4.64.0705101058260.10002@schroedinger.engr.sgi.com>
-References: <20070509115506.B904.Y-GOTO@jp.fujitsu.com>
-	<20070509120132.B906.Y-GOTO@jp.fujitsu.com>
-	<Pine.LNX.4.64.0705101058260.10002@schroedinger.engr.sgi.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Date: Fri, 11 May 2007 05:39:01 +0300
+From: "Magic-Jackpot Casino" <rubin@horafeliz.com>
+Message-ID: <51508846.56487045@oldenburg.com>
+Subject: Bis 1000 Euro frei!
+MIME-Version: 1.0
+Content-Type: text/html; charset=iso-8859-1
 Content-Transfer-Encoding: 7bit
-Sender: owner-linux-mm@kvack.org
-Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
-Cc: y-goto@jp.fujitsu.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, akpm@osdl.org, mel@csn.ul.ie
+Return-Path: <rubin@horafeliz.com>
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 10 May 2007 11:00:31 -0700 (PDT)
-Christoph Lameter <clameter@sgi.com> wrote:
+<html>
 
-> On Wed, 9 May 2007, Yasunori Goto wrote:
-> 
-> >  
-> > +unsigned int nr_free_movable_pages(void)
-> > +{
-> > +	unsigned long nr_pages = 0;
-> > +	struct zone *zone;
-> > +	int nid;
-> > +
-> > +	for_each_online_node(nid) {
-> > +		zone = &(NODE_DATA(nid)->node_zones[ZONE_MOVABLE]);
-> > +		nr_pages += zone_page_state(zone, NR_FREE_PAGES);
-> > +	}
-> > +	return nr_pages;
-> > +}
-> 
-> 
-> Hmmmm... This is redoing what the vm counters already provide
-> 
-> Could you add
-> 
-> NR_MOVABLE_PAGES etc.
-> 
-> instead and then let the ZVC counter logic take care of the rest?
-> 
-Okay, we'll try ZVC.
+<head>
+<meta http-equiv=Content-Type content="text/html; charset=iso-8859-1">
 
-Thanks,
--Kame
+<title>Sind Sie auf der Suche nach einem neuen, 
+aufregenden Spielangebot </title>
 
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+<style>
+<!--
+ /* Style Definitions */
+ p.MsoNormal, li.MsoNormal, div.MsoNormal
+	{mso-style-parent:"";
+	margin:0cm;
+	margin-bottom:.0001pt;
+	mso-pagination:widow-orphan;
+	font-size:12.0pt;
+	font-family:"Times New Roman";
+	mso-fareast-font-family:"Times New Roman";}
+a:link, span.MsoHyperlink
+	{color:blue;
+	text-decoration:underline;
+	text-underline:single;}
+a:visited, span.MsoHyperlinkFollowed
+	{color:purple;
+	text-decoration:underline;
+	text-underline:single;}
+@page Section1
+	{size:595.3pt 841.9pt;
+	margin:2.0cm 42.5pt 2.0cm 3.0cm;
+	mso-header-margin:35.4pt;
+	mso-footer-margin:35.4pt;
+	mso-paper-source:0;}
+div.Section1
+	{page:Section1;}
+-->
+</style>
+
+</head>
+
+<body lang=EN-US link=blue vlink=purple style='tab-interval:35.4pt'>
+
+<div class=Section1>
+
+<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
+Sind Sie auf der Suche nach einem neuen, aufregenden Spielangebot? 
+</span><o:p></o:p></p>
+
+<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
+<u3:p>&nbsp;</u3:p></span></p>
+
+<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
+Magic Jackpot ist momentan die warscheinlich aufregendste 
+Moglichkeit dazu ! </span><o:p></o:p></p>
+
+<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
+<u3:p>&nbsp;</u3:p></span></p>
+
+<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
+Wenn BlackJack oder Roulette zu Ihren Lieblingsspielen gehoren, 
+bieten Magic Jackpot's Live-Dealer das Gefuhl eines echten Casinos. 
+</span><o:p></o:p></p>
+
+<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
+<u3:p>&nbsp;</u3:p></span></p>
+
+<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
+Wenn Slot-Machinen zu Ihren Favoriten gehoren, konnen Sie den 
+hochsten Preis aller Zeiten beim Video-Slot Millionaire's Lane 
+gewinnen, insgesamt $5 000 000 !</span><o:p></o:p></p>
+
+<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
+<u3:p>&nbsp;</u3:p></span></p>
+
+<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
+Fur den Anfing bietet Magic Jackpots einen magischen Bonus 
+als Willkommensgeschenk !</span><o:p></o:p></p>
+
+<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
+<u3:p>&nbsp;</u3:p></span></p>
+
+<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
+Zahlen Sie Heute noch bei Magic Jackpot ein und Ihr Kontostand 
+wird umgehend mit einem 100% Bonus verdoppelt.
+</span></p>
+
+<p class=MsoNormal><span style='mso-ansi-language:DE'>
+<u3:p>&nbsp;</u3:p></span></p>
+
+<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
+Zahlen Sie 20$ ein, spielen Sie mit 40$</span></p>
+
+<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
+Zahlen Sie 250$ ein, spielen Sie mit 500$</span><o:p></o:p></p>
+
+<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
+<u3:p>&nbsp;</u3:p></span></p>
+
+<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
+Der Live-Kundendienst steht bei eventuellen Ruckfragen oder 
+sonstigen Anliegen, 24 Stunden am Tag zur Verfugung, was den 
+Genuess schneller Auszahlungen garantiert !</span>
+<o:p></o:p></p>
+
+<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
+<u3:p>&nbsp;</u3:p></span></p>
+
+<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
+<a href="http://www.magicnetcasino.com/lang-de/">
+http://www.magicnetcasino.com/lang-de/</a>
+<u3:p></u3:p></span></p>
+
+</div>
+
+</body>
+
+</html>
