@@ -1,84 +1,59 @@
-Date: Fri, 11 May 2007 14:15:03 +0100 (BST)
-From: Hugh Dickins <hugh@veritas.com>
-Subject: Re: [rfc] optimise unlock_page
-In-Reply-To: <20070511085424.GA15352@wotan.suse.de>
-Message-ID: <Pine.LNX.4.64.0705111357120.3350@blonde.wat.veritas.com>
-References: <20070508113709.GA19294@wotan.suse.de> <20070508114003.GB19294@wotan.suse.de>
- <1178659827.14928.85.camel@localhost.localdomain> <20070508224124.GD20174@wotan.suse.de>
- <20070508225012.GF20174@wotan.suse.de> <Pine.LNX.4.64.0705091950080.2909@blonde.wat.veritas.com>
- <20070510033736.GA19196@wotan.suse.de> <Pine.LNX.4.64.0705101935590.18496@blonde.wat.veritas.com>
- <20070511085424.GA15352@wotan.suse.de>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from d12nrmr1607.megacenter.de.ibm.com (d12nrmr1607.megacenter.de.ibm.com [9.149.167.49])
+	by mtagate1.de.ibm.com (8.13.8/8.13.8) with ESMTP id l4BDx3kb017534
+	for <linux-mm@kvack.org>; Fri, 11 May 2007 13:59:03 GMT
+Received: from d12av02.megacenter.de.ibm.com (d12av02.megacenter.de.ibm.com [9.149.165.228])
+	by d12nrmr1607.megacenter.de.ibm.com (8.13.8/8.13.8/NCO v8.3) with ESMTP id l4BDx2bh2506872
+	for <linux-mm@kvack.org>; Fri, 11 May 2007 15:59:02 +0200
+Received: from d12av02.megacenter.de.ibm.com (loopback [127.0.0.1])
+	by d12av02.megacenter.de.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l4BDwwNO030182
+	for <linux-mm@kvack.org>; Fri, 11 May 2007 15:58:58 +0200
+Message-Id: <20070511135827.393181482@de.ibm.com>
+Date: Fri, 11 May 2007 15:58:27 +0200
+From: Martin Schwidefsky <schwidefsky@de.ibm.com>
+Subject: [patch 0/6] [rfc] guest page hinting version 5
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nick Piggin <npiggin@suse.de>
-Cc: Benjamin Herrenschmidt <benh@kernel.crashing.org>, linux-arch@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>
+To: virtualization@lists.osdl.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: Zachary Amsden <zach@vmware.com>, Andrew Morton <akpm@linux-foundation.org>, Nick Piggin <npiggin@suse.de>, Hubertus Franke <frankeh@watson.ibm.com>, Rik van Riel <riel@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 11 May 2007, Nick Piggin wrote:
-> On Thu, May 10, 2007 at 08:14:52PM +0100, Hugh Dickins wrote:
-> > 
-> > Well, on the x86_64 I have seen a few of your io_schedule_timeout
-> > printks under load; but suspect those are no fault of your changes,
-> 
-> Hmm, I see... well I forgot to remove those from the page I sent,
-> the timeouts will kick things off again if they get stalled, so
-> maybe it just hides a problem? (OTOH, I *think* the logic is pretty
-> sound).
+After way to many months here is the fifth version of the guest page
+hinting patches. Compared to version four a few improvements have been
+added:
+ - Avoid page_host_discards() calls outside of page-states.h
+ - The discard list is now implemented via the page_free_discarded
+   hook and architecture specific code.
+ - PG_state_change page flag has been replaced with architecture
+   specficic primitives. s390 now uses PG_arch_1 and avoids to waste
+   another page flag (it still uses two additional bits).
+ - Add calls to make pages volatile when pages are moved from the
+   active to the inactive list and set max_buffer_heads to zero to
+   force a try_to_release_page call to get more page into volatile
+   state.
+ - remap_file_pages now works with guest page hinting, although the
+   discard of a page contained in a non-linear mapping is slow.
+ - Simplified the check in the mlock code.
+ - In general the code looks a bit nicer now.
 
-As I said in what you snipped, I believe your debug there is showing
-up an existing problem on my machine, not a problem in your changes.
+I tried to implement batched state transitions to volatile but after
+a few failures I gave up. Basically, most pages are made volatile with
+the unlock_page call after the end of i/o. To postpone a make volatile
+attempt requires to take a page reference. Trouble is you can't release
+a page reference from interrupt context. This has to be done in task
+context, so we can't use a pvec/array for keep the references. There is
+no room in struct page for a list, so it turns out lazy make volatile
+is hard to implement.
 
-> > So here it looks like a good change; but not enough to atone ;)
-> 
-> Don't worry, I'm only just beginning ;) Can we then do something crazy
-> like this?  (working on x86-64 only, so far. It seems to eliminate
-> lat_pagefault and lat_proc regressions here).
+The patches apply on the current git tree.
 
-I think Mr __NickPiggin_Lock is squirming ever more desperately.
+Many thanks go to Oliver Paukstadt who kept me busy with bug reports
+and uncountable dumps ..
 
-So, in essence, you'd like to expand PG_locked from 1 to 8 bits,
-despite the fact that page flags are known to be in short supply?
-Ah, no, you're keeping it near the static mmzone FLAGS_RESERVED.
+-- 
+blue skies,
+  Martin.
 
-Hmm, well, I think that's fairly horrid, and would it even be
-guaranteed to work on all architectures?  Playing with one char
-of an unsigned long in one way, while playing with the whole of
-the unsigned long in another way (bitops) sounds very dodgy to me.
-
-I think I'd rather just accept that your changes have slowed some
-microbenchmarks down: it is not always possible to fix a serious
-bug without slowing something down.  That's probably what you're
-trying to push me into saying by this patch ;)
-
-But again I wonder just what the gain has been, once your double
-unmap_mapping_range is factored in.  When I suggested before that
-perhaps the double (well, treble including the one in truncate.c)
-unmap_mapping_range might solve the problem you set out to solve
-(I've lost sight of that!) without pagelock when faulting, you said:
-
-> Well aside from being terribly ugly, it means we can still drop
-> the dirty bit where we'd otherwise rather not, so I don't think
-> we can do that.
-
-but that didn't give me enough information to agree or disagree.
-
-> 
-> What architecture and workloads are you testing with, btw?
-
-i386 (2*HT P4 Xeons), x86_64 (2*HT P4 Xeons), PowerPC (G5 Quad).
-
-Workloads mostly lmbench and my usual pair of make -j20 kernel builds,
-one to tmpfs and one to ext2 looped on tmpfs, restricted to 512M RAM
-plus swap.  Which is ever so old but still finds enough to keep me busy.
-
-Hugh
-
-> --
-> 
-> Put PG_locked in its own byte from other PG_bits, so we can use non-atomic
-> stores to unlock it.
+"Reality continues to ruin my life." - Calvin.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
