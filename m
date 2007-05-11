@@ -1,58 +1,95 @@
-Date: Fri, 11 May 2007 11:08:24 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH 2/2] mm: change mmap_sem over to the scalable rw_mutex
-Message-Id: <20070511110824.a617c679.akpm@linux-foundation.org>
-In-Reply-To: <1178903537.2781.13.camel@lappy>
-References: <20070511131541.992688403@chello.nl>
-	<20070511132321.984615201@chello.nl>
-	<20070511091744.236e8409.akpm@linux-foundation.org>
-	<1178903537.2781.13.camel@lappy>
+Subject: Re: [Bug 8464] New: autoreconf: page allocation failure. order:2,
+	mode:0x84020
+From: Nicolas Mailhot <nicolas.mailhot@laposte.net>
+In-Reply-To: <1178905541.2473.2.camel@rousalka.dyndns.org>
+References: <Pine.LNX.4.64.0705101510500.13404@schroedinger.engr.sgi.com>
+	 <20070510221607.GA15084@skynet.ie>
+	 <Pine.LNX.4.64.0705101522250.13504@schroedinger.engr.sgi.com>
+	 <20070510224441.GA15332@skynet.ie>
+	 <Pine.LNX.4.64.0705101547020.14064@schroedinger.engr.sgi.com>
+	 <20070510230044.GB15332@skynet.ie>
+	 <Pine.LNX.4.64.0705101601220.14471@schroedinger.engr.sgi.com>
+	 <1178863002.24635.4.camel@rousalka.dyndns.org>
+	 <20070511090823.GA29273@skynet.ie>
+	 <1178884283.27195.1.camel@rousalka.dyndns.org>
+	 <20070511173811.GA8529@skynet.ie>
+	 <1178905541.2473.2.camel@rousalka.dyndns.org>
+Content-Type: multipart/signed; micalg=pgp-sha1; protocol="application/pgp-signature"; boundary="=-zEJOmwkFzxD/DJB3VyQ0"
+Date: Fri, 11 May 2007 20:30:10 +0200
+Message-Id: <1178908210.4360.21.camel@rousalka.dyndns.org>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Oleg Nesterov <oleg@tv-sign.ru>, Ingo Molnar <mingo@elte.hu>, Thomas Gleixner <tglx@linutronix.de>, Nick Piggin <npiggin@suse.de>
+To: Mel Gorman <mel@skynet.ie>
+Cc: Christoph Lameter <clameter@sgi.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, "bugme-daemon@kernel-bugs.osdl.org" <bugme-daemon@bugzilla.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 11 May 2007 19:12:16 +0200
-Peter Zijlstra <a.p.zijlstra@chello.nl> wrote:
+--=-zEJOmwkFzxD/DJB3VyQ0
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: quoted-printable
 
-> (now with reply-all)
-> 
-> On Fri, 2007-05-11 at 09:17 -0700, Andrew Morton wrote:
-> > On Fri, 11 May 2007 15:15:43 +0200 Peter Zijlstra <a.p.zijlstra@chello.nl> wrote:
-> > 
-> > > -	down_write(&current->mm->mmap_sem);
-> > > +	rw_mutex_write_lock(&current->mm->mmap_lock);
-> > 
-> > y'know, this is such an important lock and people have had such problems
-> > with it and so many different schemes and ideas have popped up that I'm
-> > kinda thinking that we should wrap it:
-> > 
-> > 	write_lock_mm(struct mm_struct *mm);
-> > 	write_unlock_mm(struct mm_struct *mm);
-> > 	read_lock_mm(struct mm_struct *mm);
-> > 	read_unlock_mm(struct mm_struct *mm);
-> > 
-> > so that further experimentations become easier?
-> 
-> Sure, can do; it'd require a few more functions than these, but its not
-> too many. However, what is the best way to go about such massive rename
-> actions? Just push them through quickly, and make everybody cope?
+Le vendredi 11 mai 2007 =C3=A0 19:45 +0200, Nicolas Mailhot a =C3=A9crit :
+> Le vendredi 11 mai 2007 =C3=A0 18:38 +0100, Mel Gorman a =C3=A9crit :
 
-Well, if we _do_ decide to do this (is anyone howling?) then we can do
+> > so I'd like to look at the
+> > alternative option with kswapd as well. Could you put that patch back i=
+n again
+> > please and try the following patch instead?=20
+>=20
+> I'll try this one now (if it applies)
 
-static inline void write_lock_mm(struct mm_struct *mm)
-{
-	down_write(&mm->mmap_sem);
-}
+Well it doesn't seem to apply. Are you sure you have a clean tree?
+(I have vanilla mm2 + revert of
+md-improve-partition-detection-in-md-array.patch for another bug)
 
-and then let the conversions trickle into the tree in an orderly fashion.
++ umask 022
++ cd /builddir/build/BUILD
++ LANG=3DC
++ export LANG
++ unset DISPLAY
++ cd /builddir/build/BUILD
++ rm -rf linux-2.6.21
++ /usr/bin/bzip2 -dc /builddir/build/SOURCES/linux-2.6.21.tar.bz2
++ tar -xf -
++ STATUS=3D0
++ '[' 0 -ne 0 ']'
++ cd linux-2.6.21
+++ /usr/bin/id -u
++ '[' 499 =3D 0 ']'
+++ /usr/bin/id -u
++ '[' 499 =3D 0 ']'
++ /bin/chmod -Rf a+rX,u+w,g-w,o-w .
++ echo 'Patch #2 (2.6.21-mm2.bz2):'
+Patch #2 (2.6.21-mm2.bz2):
++ /usr/bin/bzip2 -d
++ patch -p1 -s
++ STATUS=3D0
++ '[' 0 -ne 0 ']'
++ echo 'Patch #3 (md-improve-partition-detection-in-md-array.patch):'
+Patch #3 (md-improve-partition-detection-in-md-array.patch):
++ patch -p1 -R -s
++ echo 'Patch #4 (bug-8464.patch):'
+Patch #4 (bug-8464.patch):
++ patch -p1 -s
+1 out of 1 hunk FAILED -- saving rejects to file mm/slub.c.rej
+2 out of 3 hunks FAILED -- saving rejects to file mm/vmscan.c.r
+--=20
+Nicolas Mailhot
 
-Once we think all the conversions have landed, we rename mmap_sem to
-_mmap_sem to avoid any backpedalling.
+--=-zEJOmwkFzxD/DJB3VyQ0
+Content-Type: application/pgp-signature; name=signature.asc
+Content-Description: Ceci est une partie de message
+	=?ISO-8859-1?Q?num=E9riquement?= =?ISO-8859-1?Q?_sign=E9e?=
+
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v1.4.7 (GNU/Linux)
+
+iEYEABECAAYFAkZEtjIACgkQI2bVKDsp8g28TgCffij/RXX69mSlTnodd1m6eNGc
+uQ0AoIgzZKyO9QMw1tiYyAk17Y8Am4mu
+=c0e2
+-----END PGP SIGNATURE-----
+
+--=-zEJOmwkFzxD/DJB3VyQ0--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
