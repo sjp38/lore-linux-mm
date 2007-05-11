@@ -1,93 +1,70 @@
-Subject: Re: [Bug 8464] New: autoreconf: page allocation failure. order:2,
-	mode:0x84020
-From: Nicolas Mailhot <nicolas.mailhot@laposte.net>
-In-Reply-To: <Pine.LNX.4.64.0705101601220.14471@schroedinger.engr.sgi.com>
-References: <200705102128.l4ALSI2A017437@fire-2.osdl.org>
-	 <20070510144319.48d2841a.akpm@linux-foundation.org>
-	 <Pine.LNX.4.64.0705101447120.12874@schroedinger.engr.sgi.com>
-	 <20070510220657.GA14694@skynet.ie>
-	 <Pine.LNX.4.64.0705101510500.13404@schroedinger.engr.sgi.com>
-	 <20070510221607.GA15084@skynet.ie>
-	 <Pine.LNX.4.64.0705101522250.13504@schroedinger.engr.sgi.com>
-	 <20070510224441.GA15332@skynet.ie>
-	 <Pine.LNX.4.64.0705101547020.14064@schroedinger.engr.sgi.com>
-	 <20070510230044.GB15332@skynet.ie>
-	 <Pine.LNX.4.64.0705101601220.14471@schroedinger.engr.sgi.com>
-Content-Type: multipart/signed; micalg=pgp-sha1; protocol="application/pgp-signature"; boundary="=-MxDrvQ0XLmIeHrHC0B+W"
-Date: Fri, 11 May 2007 07:56:42 +0200
-Message-Id: <1178863002.24635.4.camel@rousalka.dyndns.org>
+Subject: Re: [PATCH] Bug in mm/thrash.c function grab_swap_token()
+From: Ashwin Chaugule <ashwin.chaugule@celunite.com>
+Reply-To: ashwin.chaugule@celunite.com
+In-Reply-To: <20070510152957.edb26df3.akpm@linux-foundation.org>
+References: <20070510122359.GA16433@srv1-m700-lanp.koti>
+	 <20070510152957.edb26df3.akpm@linux-foundation.org>
+Content-Type: text/plain; charset=UTF-8
+Date: Fri, 11 May 2007 12:19:27 +0530
+Message-Id: <1178866168.4497.6.camel@localhost.localdomain>
 Mime-Version: 1.0
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
-Cc: Mel Gorman <mel@skynet.skynet.ie>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, "bugme-daemon@kernel-bugs.osdl.org" <bugme-daemon@bugzilla.kernel.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: mikukkon@iki.fi, Mika Kukkonen <mikukkon@miku.homelinux.net>, linux-mm@kvack.org, Rik van Riel <riel@redhat.com>, ashwin.chaugule@gmail.com
 List-ID: <linux-mm.kvack.org>
 
---=-MxDrvQ0XLmIeHrHC0B+W
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: quoted-printable
+On Thu, 2007-05-10 at 15:29 -0700, Andrew Morton wrote:
+> On Thu, 10 May 2007 15:24:00 +0300
+> Mika Kukkonen <mikukkon@miku.homelinux.net> wrote:
+> 
+> > Following bug was uncovered by compiling with '-W' flag:
+> > 
+> >   CC      mm/thrash.o
+> > mm/thrash.c: In function A?AcAcA?A!A?A?grab_swap_tokenA?AcAcA?A!AcA?Ac:
+> > mm/thrash.c:52: warning: comparison of unsigned expression < 0 is always false
+> > 
+> > Variable token_priority is unsigned, so decrementing first and then
+> > checking the result does not work; fixed by reversing the test, patch
+> > attached (compile tested only). 
+> > 
+> > I am not sure if likely() makes much sense in this new situation, but
+> > I'll let somebody else to make a decision on that.
+> > 
+> > Signed-off-by: Mika Kukkonen <mikukkon@iki.fi>
+> > 
+> > diff --git a/mm/thrash.c b/mm/thrash.c
+> > index 9ef9071..c4c5205 100644
+> > --- a/mm/thrash.c
+> > +++ b/mm/thrash.c
+> > @@ -48,9 +48,8 @@ void grab_swap_token(void)
+> >  		if (current_interval < current->mm->last_interval)
+> >  			current->mm->token_priority++;
+> >  		else {
+> > -			current->mm->token_priority--;
+> > -			if (unlikely(current->mm->token_priority < 0))
+> > -				current->mm->token_priority = 0;
+> > +			if (likely(current->mm->token_priority > 0))
+> > +				current->mm->token_priority--;
+> >  		}
+> >  		/* Check if we deserve the token */
+> >  		if (current->mm->token_priority >
+> 
+> argh.
+> 
+> This has potential to cause large changes in system performance.
 
-Le jeudi 10 mai 2007 =C3=A0 16:01 -0700, Christoph Lameter a =C3=A9crit :
-> On Fri, 11 May 2007, Mel Gorman wrote:
->=20
-> > Nicholas, could you backout the patch
-> > dont-group-high-order-atomic-allocations.patch and test again please?
-> > The following patch has the same effect. Thanks
->=20
-> Great! Thanks.
+I'm not sure how. Although, I think the logic still remains the same.
+IOW, if the prio decrements to zero, it will remain zero until it
+contends for token rapidly. 
 
-The proposed patch did not apply
+The likely part is unnecessary.
 
-+ cd /builddir/build/BUILD
-+ rm -rf linux-2.6.21
-+ /usr/bin/bzip2 -dc /builddir/build/SOURCES/linux-2.6.21.tar.bz2
-+ tar -xf -
-+ STATUS=3D0
-+ '[' 0 -ne 0 ']'
-+ cd linux-2.6.21
-++ /usr/bin/id -u
-+ '[' 499 =3D 0 ']'
-++ /usr/bin/id -u
-+ '[' 499 =3D 0 ']'
-+ /bin/chmod -Rf a+rX,u+w,g-w,o-w .
-+ echo 'Patch #2 (2.6.21-mm2.bz2):'
-Patch #2 (2.6.21-mm2.bz2):
-+ /usr/bin/bzip2 -d
-+ patch -p1 -s
-+ STATUS=3D0
-+ '[' 0 -ne 0 ']'
-+ echo 'Patch #3 (md-improve-partition-detection-in-md-array.patch):'
-Patch #3 (md-improve-partition-detection-in-md-array.patch):
-+ patch -p1 -R -s
-+ echo 'Patch #4 (bug-8464.patch):'
-Patch #4 (bug-8464.patch):
-+ patch -p1 -s
-1 out of 1 hunk FAILED -- saving rejects to file
-include/linux/pageblock-flags.h
-.rej
-6 out of 6 hunks FAILED -- saving rejects to file mm/page_alloc.c.rej
+Thanks Mika. Let me submit this patch, coz I'd like to change my email
+address in thrash.c
 
-Backing out dont-group-high-order-atomic-allocations.patch worked and
-seems to have cured the system so far (need to charge it a bit longer to
-be sure)
 
---=20
-Nicolas Mailhot
-
---=-MxDrvQ0XLmIeHrHC0B+W
-Content-Type: application/pgp-signature; name=signature.asc
-Content-Description: Ceci est une partie de message
-	=?ISO-8859-1?Q?num=E9riquement?= =?ISO-8859-1?Q?_sign=E9e?=
-
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v1.4.7 (GNU/Linux)
-
-iEYEABECAAYFAkZEBZoACgkQI2bVKDsp8g3ulwCdFEp5Vr9gJ0LQ5ZkhYtATZ7Oh
-g84An3vg3usKKJJbaKMz+WXo4edWRhme
-=zGaW
------END PGP SIGNATURE-----
-
---=-MxDrvQ0XLmIeHrHC0B+W--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
