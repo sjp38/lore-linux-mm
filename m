@@ -1,28 +1,68 @@
-Date: Sat, 12 May 2007 21:21:30 +0200
-From: Andi Kleen <andi@firstfloor.org>
-Subject: Re: [PATCH 1/2] scalable rw_mutex
-Message-ID: <20070512192130.GA8833@one.firstfloor.org>
-References: <20070511131541.992688403@chello.nl> <20070511132321.895740140@chello.nl> <20070511093108.495feb70.akpm@linux-foundation.org> <Pine.LNX.4.64.0705111006470.32716@schroedinger.engr.sgi.com> <20070511110522.ed459635.akpm@linux-foundation.org> <p73odkpeusf.fsf@bingen.suse.de> <20070512181254.GA331@tv-sign.ru>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Date: Sat, 12 May 2007 20:24:08 +0100
+Subject: Re: [Bug 8464] New: autoreconf: page allocation failure. order:2, mode:0x84020
+Message-ID: <20070512192408.GA5769@skynet.ie>
+References: <20070511090823.GA29273@skynet.ie> <1178884283.27195.1.camel@rousalka.dyndns.org> <20070511173811.GA8529@skynet.ie> <1178905541.2473.2.camel@rousalka.dyndns.org> <1178908210.4360.21.camel@rousalka.dyndns.org> <20070511203610.GA12136@skynet.ie> <1178957491.4095.2.camel@rousalka.dyndns.org> <20070512164237.GA2691@skynet.ie> <1178993343.6397.1.camel@rousalka.dyndns.org> <1178996310.6397.3.camel@rousalka.dyndns.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <20070512181254.GA331@tv-sign.ru>
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <1178996310.6397.3.camel@rousalka.dyndns.org>
+From: mel@skynet.ie (Mel Gorman)
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Oleg Nesterov <oleg@tv-sign.ru>
-Cc: Andi Kleen <andi@firstfloor.org>, Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <clameter@sgi.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Ingo Molnar <mingo@elte.hu>, Thomas Gleixner <tglx@linutronix.de>, Nick Piggin <npiggin@suse.de>
+To: Nicolas Mailhot <nicolas.mailhot@laposte.net>
+Cc: Christoph Lameter <clameter@sgi.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, "bugme-daemon@kernel-bugs.osdl.org" <bugme-daemon@bugzilla.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-> This also allows us to de-uglify workqueue.c a little bit, it uses
-> a home-grown cpu_populated_map.
+On (12/05/07 20:58), Nicolas Mailhot didst pronounce:
+> Le samedi 12 mai 2007 a 20:09 +0200, Nicolas Mailhot a ecrit :
+> > Le samedi 12 mai 2007 a 17:42 +0100, Mel Gorman a ecrit :
+> > 
+> > > order-2 (at least 19 pages but more are there) and higher pages were free
+> > > and this was a NORMAL allocation. It should also be above watermarks so
+> > > something screwy is happening
+> > > 
+> > > *peers suspiciously*
+> > > 
+> > > Can you try the following patch on top of the kswapd patch please? It is
+> > > also available from http://www.csn.ul.ie/~mel/watermarks.patch
+> > 
+> > Ok, testing now
+> 
+> And this one failed testing too 
 
-It might be obsolete iff more and more architecture don't use NR_CPUS filled
-possible_map anymore (haven't checked them all to know if it's true or not)
+And same thing, you have suitable free memory. The last patch was
+wrong because I forgot the !in_interrupt() part which was careless
+and dumb.  Please try the following, again on top of the kswapd patch -
+http://www.csn.ul.ie/~mel/watermarks-v2.patch
 
-If not there are a couple of more optimizations that can be done, e.g.
-in networking by converting more code to hotplug notifier.
+Thanks for all the testing, it's appreciated.
 
--Andi
+diff -rup -X /usr/src/patchset-0.6/bin//dontdiff linux-2.6.21-mm2-revertmd/mm/page_alloc.c linux-2.6.21-mm2-watermarks/mm/page_alloc.c
+--- linux-2.6.21-mm2-revertmd/mm/page_alloc.c	2007-05-11 21:16:57.000000000 +0100
++++ linux-2.6.21-mm2-watermarks/mm/page_alloc.c	2007-05-12 20:20:19.000000000 +0100
+@@ -1645,8 +1645,16 @@ nofail_alloc:
+ 	}
+ 
+ 	/* Atomic allocations - we can't balance anything */
+-	if (!wait)
++	if (!wait) {
++
++		/* Attempt to allocate ignoring watermarks */
++		page = get_page_from_freelist(gfp_mask, order,
++					zonelist, ALLOC_NO_WATERMARKS);	
++		if (page)
++			goto got_pg;
++
+ 		goto nopage;
++	}
+ 
+ 	cond_resched();
+ 
+-- 
+Mel Gorman
+Part-time Phd Student                          Linux Technology Center
+University of Limerick                         IBM Dublin Software Lab
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
