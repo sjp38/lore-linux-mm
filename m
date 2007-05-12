@@ -1,64 +1,59 @@
-Date: Sat, 12 May 2007 22:03:21 +0400
-From: Oleg Nesterov <oleg@tv-sign.ru>
+Date: Sat, 12 May 2007 11:06:24 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
 Subject: Re: [PATCH 1/2] scalable rw_mutex
-Message-ID: <20070512180321.GA320@tv-sign.ru>
-References: <20070511131541.992688403@chello.nl> <20070511132321.895740140@chello.nl> <20070511230023.GA449@tv-sign.ru> <1178977276.6810.59.camel@twins> <20070512160428.GA173@tv-sign.ru> <1178989068.19461.3.camel@lappy>
+Message-Id: <20070512110624.9ac3aa44.akpm@linux-foundation.org>
+In-Reply-To: <p73odkpeusf.fsf@bingen.suse.de>
+References: <20070511131541.992688403@chello.nl>
+	<20070511132321.895740140@chello.nl>
+	<20070511093108.495feb70.akpm@linux-foundation.org>
+	<Pine.LNX.4.64.0705111006470.32716@schroedinger.engr.sgi.com>
+	<20070511110522.ed459635.akpm@linux-foundation.org>
+	<p73odkpeusf.fsf@bingen.suse.de>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1178989068.19461.3.camel@lappy>
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Ingo Molnar <mingo@elte.hu>, Thomas Gleixner <tglx@linutronix.de>, Nick Piggin <npiggin@suse.de>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
+To: Andi Kleen <andi@firstfloor.org>
+Cc: Christoph Lameter <clameter@sgi.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Oleg Nesterov <oleg@tv-sign.ru>, Ingo Molnar <mingo@elte.hu>, Thomas Gleixner <tglx@linutronix.de>, Nick Piggin <npiggin@suse.de>
 List-ID: <linux-mm.kvack.org>
 
-On 05/12, Peter Zijlstra wrote:
->
-> On Sat, 2007-05-12 at 20:04 +0400, Oleg Nesterov wrote:
-> > 
-> > this code roughly does (the only reader does unlock)
-> > 
-> > 	READER			WRITER
-> > 
-> > 	readers = 0;		state = 1;
-> > 	wmb();			wmb();
-> > 	CHECK(state != 0)	CHECK(readers == 0)
-> > 
-> > We need to ensure that we can't miss both CHECKs. Either reader
-> > should see RW_MUTEX_READER_SLOW, o writer sees "readers == 0"
-> > and does not sleep.
-> > 
-> > In that case both barriers should be converted to smp_mb(). There
-> > was a _long_ discussion about STORE-MB-LOAD behaviour, and experts
-> > seem to believe everething is ok.
-> 
-> Ah, but note that both those CHECK()s have a rmb(), so that ends up
-> being:
-> 
-> 	READER				WRITER
-> 
-> 	readers = 0;			state = 1;
-> 	wmb();				wmb();
-> 
-> 	rmb();				rmb();		
-> 	if (state != 0)			if (readers == 0)
-> 
-> and a wmb+rmb is a full mb, right?
+On 12 May 2007 20:55:28 +0200 Andi Kleen <andi@firstfloor.org> wrote:
 
-I used to think the same, but this is wrong: wmb+rmb != mb. wmb+rmb
-doesn't provide LOAD,STORE or STORE,LOAD ordering.
+> Andrew Morton <akpm@linux-foundation.org> writes:
+> 
+> > On Fri, 11 May 2007 10:07:17 -0700 (PDT)
+> > Christoph Lameter <clameter@sgi.com> wrote:
+> > 
+> > > On Fri, 11 May 2007, Andrew Morton wrote:
+> > > 
+> > > > yipes.  percpu_counter_sum() is expensive.
+> > > 
+> > > Capable of triggering NMI watchdog on 4096+ processors?
+> > 
+> > Well.  That would be a millisecond per cpu which sounds improbable.  And
+> > we'd need to be calling it under local_irq_save() which we presently don't.
+> > And nobody has reported any problems against the existing callsites.
+> > 
+> > But it's no speed demon, that's for sure.
+> 
+> There is one possible optimization for this I did some time ago. You don't really
+> need to sum all over the possible map, but only all CPUs that were ever 
+> online. But this only helps on systems where the possible map is bigger
+> than online map in the common case. But that shouldn't be the case anymore on x86
+> -- it just used to be. If it's true on some other architectures it might
+> be still worth it.
+> 
 
-for example,
+hm, yeah.
 
-	LOAD;
-	rmb(); wmb();
-	STORE;
+We could put a cpumask in percpu_counter, initialise it to
+cpu_possible_map.  Then, those callsites which have hotplug notifiers can
+call into new percpu_counter functions which clear and set bits in that
+cpumask and which drain percpu_counter.counts[cpu] into
+percpu_counter.count.
 
-it is still possible that STORE comes before LOAD. At least this
-is my understanding.
-
-Oleg.
+And percpu_counter_sum() gets taught to do for_each_cpu_mask(fbc->cpumask).
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
