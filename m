@@ -1,62 +1,40 @@
-Subject: Re: [Bug 8464] New: autoreconf: page allocation failure. order:2,
-	mode:0x84020
-From: Nicolas Mailhot <nicolas.mailhot@laposte.net>
-In-Reply-To: <20070512164237.GA2691@skynet.ie>
-References: <20070510230044.GB15332@skynet.ie>
-	 <Pine.LNX.4.64.0705101601220.14471@schroedinger.engr.sgi.com>
-	 <1178863002.24635.4.camel@rousalka.dyndns.org>
-	 <20070511090823.GA29273@skynet.ie>
-	 <1178884283.27195.1.camel@rousalka.dyndns.org>
-	 <20070511173811.GA8529@skynet.ie>
-	 <1178905541.2473.2.camel@rousalka.dyndns.org>
-	 <1178908210.4360.21.camel@rousalka.dyndns.org>
-	 <20070511203610.GA12136@skynet.ie>
-	 <1178957491.4095.2.camel@rousalka.dyndns.org>
-	 <20070512164237.GA2691@skynet.ie>
-Content-Type: multipart/signed; micalg=pgp-sha1; protocol="application/pgp-signature"; boundary="=-uaW40IU6tqIOqYkknwMv"
-Date: Sat, 12 May 2007 20:09:03 +0200
-Message-Id: <1178993343.6397.1.camel@rousalka.dyndns.org>
+Date: Sat, 12 May 2007 11:11:00 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH 1/2] scalable rw_mutex
+Message-Id: <20070512111100.86ae13f6.akpm@linux-foundation.org>
+In-Reply-To: <20070512110624.9ac3aa44.akpm@linux-foundation.org>
+References: <20070511131541.992688403@chello.nl>
+	<20070511132321.895740140@chello.nl>
+	<20070511093108.495feb70.akpm@linux-foundation.org>
+	<Pine.LNX.4.64.0705111006470.32716@schroedinger.engr.sgi.com>
+	<20070511110522.ed459635.akpm@linux-foundation.org>
+	<p73odkpeusf.fsf@bingen.suse.de>
+	<20070512110624.9ac3aa44.akpm@linux-foundation.org>
 Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Mel Gorman <mel@skynet.ie>
-Cc: Christoph Lameter <clameter@sgi.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, "bugme-daemon@kernel-bugs.osdl.org" <bugme-daemon@bugzilla.kernel.org>
+To: Andi Kleen <andi@firstfloor.org>, Christoph Lameter <clameter@sgi.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Oleg Nesterov <oleg@tv-sign.ru>, Ingo Molnar <mingo@elte.hu>, Thomas Gleixner <tglx@linutronix.de>, Nick Piggin <npiggin@suse.de>
 List-ID: <linux-mm.kvack.org>
 
---=-uaW40IU6tqIOqYkknwMv
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: quoted-printable
+On Sat, 12 May 2007 11:06:24 -0700 Andrew Morton <akpm@linux-foundation.org> wrote:
 
-Le samedi 12 mai 2007 =C3=A0 17:42 +0100, Mel Gorman a =C3=A9crit :
+> We could put a cpumask in percpu_counter, initialise it to
+> cpu_possible_map.  Then, those callsites which have hotplug notifiers can
+> call into new percpu_counter functions which clear and set bits in that
+> cpumask and which drain percpu_counter.counts[cpu] into
+> percpu_counter.count.
+> 
+> And percpu_counter_sum() gets taught to do for_each_cpu_mask(fbc->cpumask).
 
-> order-2 (at least 19 pages but more are there) and higher pages were free
-> and this was a NORMAL allocation. It should also be above watermarks so
-> something screwy is happening
->=20
-> *peers suspiciously*
->=20
-> Can you try the following patch on top of the kswapd patch please? It is
-> also available from http://www.csn.ul.ie/~mel/watermarks.patch
+Perhaps we could have a single cpu hotplug notifier in the percpu_counter
+library.  Add register/deregister functions to the percpu_counter API so
+that all percpu_counters in the machine can be linked together.
 
-Ok, testing now
-
---=20
-Nicolas Mailhot
-
---=-uaW40IU6tqIOqYkknwMv
-Content-Type: application/pgp-signature; name=signature.asc
-Content-Description: Ceci est une partie de message
-	=?ISO-8859-1?Q?num=E9riquement?= =?ISO-8859-1?Q?_sign=E9e?=
-
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v1.4.7 (GNU/Linux)
-
-iEYEABECAAYFAkZGArkACgkQI2bVKDsp8g0AdACg4kHURYsfvh7XVXtLnm2/R3f9
-JrYAoOfyxfXQ30HH25DhJd/cVpWkmpu3
-=cr1N
------END PGP SIGNATURE-----
-
---=-uaW40IU6tqIOqYkknwMv--
+One _could_ just register and deregister the counters in
+percpu_counter_init() and percpu_counter_destroy(), but perhaps that
+wouldn't suit all callers, dunno.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
