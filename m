@@ -1,11 +1,12 @@
-Date: Mon, 14 May 2007 11:01:43 -0700 (PDT)
+Date: Mon, 14 May 2007 11:13:25 -0700 (PDT)
 From: Christoph Lameter <clameter@sgi.com>
 Subject: Re: [PATCH 1/2] Have kswapd keep a minimum order free other than
  order-0
-In-Reply-To: <20070514173238.6787.57003.sendpatchset@skynet.skynet.ie>
-Message-ID: <Pine.LNX.4.64.0705141058590.11319@schroedinger.engr.sgi.com>
+In-Reply-To: <Pine.LNX.4.64.0705141058590.11319@schroedinger.engr.sgi.com>
+Message-ID: <Pine.LNX.4.64.0705141111400.11411@schroedinger.engr.sgi.com>
 References: <20070514173218.6787.56089.sendpatchset@skynet.skynet.ie>
  <20070514173238.6787.57003.sendpatchset@skynet.skynet.ie>
+ <Pine.LNX.4.64.0705141058590.11319@schroedinger.engr.sgi.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
@@ -14,25 +15,28 @@ To: Mel Gorman <mel@csn.ul.ie>
 Cc: apw@shadowen.org, nicolas.mailhot@laposte.net, akpm@linux-foundation.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 14 May 2007, Mel Gorman wrote:
+I think the slub fragment may have to be this way? This calls 
+raise_kswapd_order on each kmem_cache_create with the order of the cache 
+that was created thus insuring that the min_order is correctly.
 
-> +++ linux-2.6.21-mm2-001_kswapd_minorder/mm/slub.c	2007-05-14 17:09:39.000000000 +0100
-> @@ -2131,6 +2131,7 @@ static struct kmem_cache *kmalloc_caches
->  static int __init setup_slub_min_order(char *str)
->  {
->  	get_option (&str, &slub_min_order);
-> +	raise_kswapd_order(slub_min_order);
->  	user_override = 1;
->  	return 1;
->  }
+Signed-off-by: Christoph Lameter <clameter@sgi.com>
 
-You need to do this for slub_max_order not for slub_min_order. Also the
-slub_max_order may not necessarily be used. It is just the maximum allowed 
-order. I could maintain a slub_max_used_order variable. When that is 
-increased I could call raise_kswapd_order?
+---
+ mm/slub.c |    1 +
+ 1 file changed, 1 insertion(+)
 
-The same call needs to be put into kmem_cache_init? Or is this only for 
-orders > 3?
+Index: slub/mm/slub.c
+===================================================================
+--- slub.orig/mm/slub.c	2007-05-14 11:10:37.000000000 -0700
++++ slub/mm/slub.c	2007-05-14 11:10:55.000000000 -0700
+@@ -1996,6 +1996,7 @@ static int kmem_cache_open(struct kmem_c
+ #ifdef CONFIG_NUMA
+ 	s->defrag_ratio = 100;
+ #endif
++	raise_kswapd_order(s->order);
+ 
+ 	if (init_kmem_cache_nodes(s, gfpflags & ~SLUB_DMA))
+ 		return 1;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
