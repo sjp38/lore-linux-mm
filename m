@@ -1,99 +1,47 @@
-Date: Tue, 15 May 2007 03:37:46 +0500
-From: "Vegas VIP Cazino" <decry@fannclub.com>
-Message-ID: <48701913.20052644@being.com>
-Subject: Willkommensbonus von 555$!
-MIME-Version: 1.0
-Content-Type: text/html; charset=iso-8859-1
+Date: Mon, 14 May 2007 15:00:32 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH] mm: swap prefetch more improvements
+Message-Id: <20070514150032.d3ef6bb1.akpm@linux-foundation.org>
+In-Reply-To: <200705141050.55038.kernel@kolivas.org>
+References: <200705141050.55038.kernel@kolivas.org>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
-Return-Path: <decry@fannclub.com>
-To: linux-mm@kvack.org
+Sender: owner-linux-mm@kvack.org
+Return-Path: <owner-linux-mm@kvack.org>
+To: Con Kolivas <kernel@kolivas.org>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, ck@vds.kolivas.org
 List-ID: <linux-mm.kvack.org>
 
-<html>
+On Mon, 14 May 2007 10:50:54 +1000
+Con Kolivas <kernel@kolivas.org> wrote:
 
-<head>
-<meta http-equiv=Content-Type content="text/html; charset=iso-8859-1">
+> akpm, please queue on top of "mm: swap prefetch improvements"
+> 
+> ---
+> Failed radix_tree_insert wasn't being handled leaving stale kmem.
+> 
+> The list should be iterated over in the reverse order when prefetching.
+> 
+> Make the yield within kprefetchd stronger through the use of cond_resched.
 
-<title>Nur vom nobelsten aller Casinos </title>
+hm.
 
-<style>
-<!--
- /* Style Definitions */
- p.MsoNormal, li.MsoNormal, div.MsoNormal
-	{mso-style-parent:"";
-	margin:0cm;
-	margin-bottom:.0001pt;
-	mso-pagination:widow-orphan;
-	font-size:12.0pt;
-	font-family:"Times New Roman";
-	mso-fareast-font-family:"Times New Roman";
-	mso-ansi-language:EN-US;
-	mso-fareast-language:EN-US;}
-a:link, span.MsoHyperlink
-	{color:blue;
-	text-decoration:underline;
-	text-underline:single;}
-a:visited, span.MsoHyperlinkFollowed
-	{color:purple;
-	text-decoration:underline;
-	text-underline:single;}
-@page Section1
-	{size:595.3pt 841.9pt;
-	margin:2.0cm 42.5pt 2.0cm 3.0cm;
-	mso-header-margin:35.4pt;
-	mso-footer-margin:35.4pt;
-	mso-paper-source:0;}
-div.Section1
-	{page:Section1;}
--->
-</style>
+> 
+> -		might_sleep();
+> -		if (!prefetch_suitable())
+> +		/* Yield to anything else running */
+> +		if (cond_resched() || !prefetch_suitable())
+>  			goto out_unlocked;
 
-</head>
+So if cond_resched() happened to schedule away, we terminate this
+swap-tricking attempt.  It's not possible to determine the reasons for this
+from the code or from the changelog (==bad).
 
-<body lang=DE link=blue vlink=purple style='tab-interval:35.4pt'>
+How come?
 
-<div class=Section1>
-
-<p class=MsoNormal>
-<span lang=DE style='mso-ansi-language:DE'>Nur vom nobelsten
-aller Casinos k&ouml;nnen Sie ein so vornehmes Geschenk erwarten:
-<o:p></o:p></span></p>
-
-<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
-<o:p>&nbsp;</o:p></span></p>
-
-<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
-300% Bonus f&uuml;r Ihre erste Einzahlung!<o:p></o:p></span></p>
-
-<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
-<o:p>&nbsp;</o:p></span></p>
-
-<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
-Zahlen Sie 100&#8364;/$ ein und spielen Sie mit 400 &#8364;/$!
-<o:p></o:p></span></p>
-
-<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
-<o:p>&nbsp;</o:p></span></p>
-
-<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
-Oben drauf bekommen Sie bei uns einen k&ouml;niglichen Service!
-<o:p></o:p></span></p>
-
-<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
-<o:p>&nbsp;</o:p></span></p>
-
-<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
-Kommen und spielen Sie im Royal VIP Casino!<o:p></o:p></span></p>
-
-<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
-<o:p>&nbsp;</o:p></span></p>
-
-<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
-<a href="http://www.vipclubcasino.net/lang-de/">
-http://www.vipclubcasino.net/lang-de/</a><o:p></o:p></span></p>
-
-</div>
-
-</body>
-
-</html>
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
