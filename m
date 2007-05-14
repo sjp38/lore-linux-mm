@@ -1,115 +1,79 @@
 From: Mel Gorman <mel@csn.ul.ie>
-Message-Id: <20070514173238.6787.57003.sendpatchset@skynet.skynet.ie>
+Message-Id: <20070514173259.6787.58533.sendpatchset@skynet.skynet.ie>
 In-Reply-To: <20070514173218.6787.56089.sendpatchset@skynet.skynet.ie>
 References: <20070514173218.6787.56089.sendpatchset@skynet.skynet.ie>
-Subject: [PATCH 1/2] Have kswapd keep a minimum order free other than order-0
-Date: Mon, 14 May 2007 18:32:39 +0100 (IST)
+Subject: [PATCH 2/2] Only check absolute watermarks for ALLOC_HIGH and ALLOC_HARDER allocations
+Date: Mon, 14 May 2007 18:32:59 +0100 (IST)
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: apw@shadowen.org, clameter@sgi.com, nicolas.mailhot@laposte.net
+To: nicolas.mailhot@laposte.net, clameter@sgi.com, apw@shadowen.org
 Cc: Mel Gorman <mel@csn.ul.ie>, akpm@linux-foundation.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-kswapd normally reclaims at order 0 unless there is a higher-order allocation
-currently being serviced. However, in some cases it is known that there is a
-minimum order size that is generally required such as when SLUB is configured
-to use higher orders for performance reasons.  This patch allows a minumum
-order to be set, such that min_free_kbytes pages are kept at higher orders.
-This depends on lumpy-reclaim to work.
+zone_watermark_ok() checks if there are enough free pages including a reserve.
+High-order allocations additionally check if there are enough free high-order
+pages in relation to the watermark adjusted based on the requested size. If
+there are not enough free high-order pages available, 0 is returned so that
+the caller enters direct reclaim.
+
+ALLOC_HIGH and ALLOC_HARDER allocations are allowed to dip further into
+the reserves but also take into account if the number of free high-order
+pages meet the adjusted watermarks. As these allocations cannot sleep,
+they cannot enter direct reclaim so the allocation can fail even though
+the pages are available and the number of free pages is well above the
+watermark for order-0.
+
+This patch alters the behaviour of zone_watermark_ok() slightly. Watermarks
+are still obeyed but when an allocator is flagged ALLOC_HIGH or ALLOC_HARDER,
+we only check that there is sufficient memory over the reserve to satisfy
+the allocation, allocation size is ignored.  This patch also documents
+better what zone_watermark_ok() is doing.
 
 Signed-off-by: Mel Gorman <mel@csn.ul.ie>
 Acked-by: Andy Whitcroft <apw@shadowen.org>
 ---
 
- include/linux/mmzone.h |    1 +
- mm/slub.c              |    1 +
- mm/vmscan.c            |   34 +++++++++++++++++++++++++++++++---
- 3 files changed, 33 insertions(+), 3 deletions(-)
+ page_alloc.c |   21 +++++++++++++++++++++
+ 1 file changed, 21 insertions(+)
 
-diff -rup -X /usr/src/patchset-0.6/bin//dontdiff linux-2.6.21-mm2-clean/include/linux/mmzone.h linux-2.6.21-mm2-001_kswapd_minorder/include/linux/mmzone.h
---- linux-2.6.21-mm2-clean/include/linux/mmzone.h	2007-05-11 21:16:11.000000000 +0100
-+++ linux-2.6.21-mm2-001_kswapd_minorder/include/linux/mmzone.h	2007-05-14 17:09:39.000000000 +0100
-@@ -499,6 +499,7 @@ typedef struct pglist_data {
- void get_zone_counts(unsigned long *active, unsigned long *inactive,
- 			unsigned long *free);
- void build_all_zonelists(void);
-+void raise_kswapd_order(unsigned int order);
- void wakeup_kswapd(struct zone *zone, int order);
- int zone_watermark_ok(struct zone *z, int order, unsigned long mark,
- 		int classzone_idx, int alloc_flags);
-diff -rup -X /usr/src/patchset-0.6/bin//dontdiff linux-2.6.21-mm2-clean/mm/slub.c linux-2.6.21-mm2-001_kswapd_minorder/mm/slub.c
---- linux-2.6.21-mm2-clean/mm/slub.c	2007-05-11 21:16:11.000000000 +0100
-+++ linux-2.6.21-mm2-001_kswapd_minorder/mm/slub.c	2007-05-14 17:09:39.000000000 +0100
-@@ -2131,6 +2131,7 @@ static struct kmem_cache *kmalloc_caches
- static int __init setup_slub_min_order(char *str)
- {
- 	get_option (&str, &slub_min_order);
-+	raise_kswapd_order(slub_min_order);
- 	user_override = 1;
- 	return 1;
- }
-diff -rup -X /usr/src/patchset-0.6/bin//dontdiff linux-2.6.21-mm2-clean/mm/vmscan.c linux-2.6.21-mm2-001_kswapd_minorder/mm/vmscan.c
---- linux-2.6.21-mm2-clean/mm/vmscan.c	2007-05-11 21:16:11.000000000 +0100
-+++ linux-2.6.21-mm2-001_kswapd_minorder/mm/vmscan.c	2007-05-14 17:09:39.000000000 +0100
-@@ -1407,6 +1407,34 @@ out:
- 	return nr_reclaimed;
- }
+diff -rup -X /usr/src/patchset-0.6/bin//dontdiff linux-2.6.21-mm2-001_kswapd_minorder/mm/page_alloc.c linux-2.6.21-mm2-005_nowait_nowatermark/mm/page_alloc.c
+--- linux-2.6.21-mm2-001_kswapd_minorder/mm/page_alloc.c	2007-05-14 17:11:37.000000000 +0100
++++ linux-2.6.21-mm2-005_nowait_nowatermark/mm/page_alloc.c	2007-05-14 17:12:40.000000000 +0100
+@@ -1280,13 +1280,34 @@ int zone_watermark_ok(struct zone *z, in
+ 	long free_pages = zone_page_state(z, NR_FREE_PAGES) - (1 << order) + 1;
+ 	int o;
  
-+static unsigned int kswapd_min_order __read_mostly;
++	/*
++	 * Allow ALLOC_HIGH and ALLOC_HARDER to dip further into reserves
++	 * ALLOC_HIGH              => Reduce the required reserve by a half
++	 * ALLOC_HARDER            => Reduce the required reserve by a quarter
++	 * ALLOC_HIGH|ALLOC_HARDER => Reduce the required reserve by 5/8ths
++	 */
+ 	if (alloc_flags & ALLOC_HIGH)
+ 		min -= min / 2;
+ 	if (alloc_flags & ALLOC_HARDER)
+ 		min -= min / 4;
+ 
++	/* Ensure there are sufficient total pages less the reserve. */
+ 	if (free_pages <= min + z->lowmem_reserve[classzone_idx])
+ 		return 0;
++	
++	/*
++	 * If the allocation is flagged ALLOC_HARDER or ALLOC_HIGH, the
++	 * caller cannot enter direct reclaim, so allow them to take a page
++	 * if one exists as the absolute reserves have been met.
++	 */
++	if (alloc_flags & (ALLOC_HARDER | ALLOC_HIGH))
++		return 1;
 +
-+static inline int kswapd_order(unsigned int order)
-+{
-+	return max(kswapd_min_order, order);
-+}
-+
-+/**
-+ * raise_kswapd_order - Raise the minimum order that kswapd reclaims
-+ * @order: The minimum order kswapd should reclaim at
-+ *
-+ * kswapd normally reclaims at order 0 unless there is a higher-order
-+ * allocation being serviced. This function is used to set the minimum
-+ * order that kswapd reclaims at when it is known there will be regular
-+ * high-order allocations at a given order.
-+ */
-+void raise_kswapd_order(unsigned int order)
-+{
-+	if (order >= MAX_ORDER)
-+		return;
-+
-+	/* Update order if necessary and inform if changed */
-+	if (order > kswapd_min_order) {
-+		kswapd_min_order = order;
-+		printk(KERN_INFO "kswapd reclaim order set to %d\n", order);
-+	}
-+}
-+
- /*
-  * The background pageout daemon, started as a kernel thread
-  * from the init process. 
-@@ -1450,12 +1478,12 @@ static int kswapd(void *p)
- 	 */
- 	tsk->flags |= PF_MEMALLOC | PF_SWAPWRITE | PF_KSWAPD;
- 
--	order = 0;
-+	order = kswapd_order(0);
- 	for ( ; ; ) {
- 		unsigned long new_order;
- 
- 		prepare_to_wait(&pgdat->kswapd_wait, &wait, TASK_INTERRUPTIBLE);
--		new_order = pgdat->kswapd_max_order;
-+		new_order = kswapd_order(pgdat->kswapd_max_order);
- 		pgdat->kswapd_max_order = 0;
- 		if (order < new_order) {
- 			/*
-@@ -1467,7 +1495,7 @@ static int kswapd(void *p)
- 			if (!freezing(current))
- 				schedule();
- 
--			order = pgdat->kswapd_max_order;
-+			order = kswapd_order(pgdat->kswapd_max_order);
- 		}
- 		finish_wait(&pgdat->kswapd_wait, &wait);
- 
++	/*
++	 * For higher order allocations that can sleep, check that there
++	 * are enough free high-order pages above a reserve adjusted
++	 * based on the requested order.
++	 */
+ 	for (o = 0; o < order; o++) {
+ 		/* At the next order, this order's pages become unavailable */
+ 		free_pages -= z->free_area[o].nr_free << o;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
