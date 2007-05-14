@@ -1,40 +1,72 @@
-Date: Mon, 14 May 2007 20:19:01 +0100 (BST)
-From: Hugh Dickins <hugh@veritas.com>
-Subject: Re: vm changes from linux-2.6.14 to linux-2.6.15
-In-Reply-To: <20070510.001234.126579706.davem@davemloft.net>
-Message-ID: <Pine.LNX.4.64.0705142018090.18453@blonde.wat.veritas.com>
-References: <Pine.LNX.4.61.0705012354290.12808@mtfhpc.demon.co.uk>
- <20070509231937.ea254c26.akpm@linux-foundation.org>
- <1178778583.14928.210.camel@localhost.localdomain>
- <20070510.001234.126579706.davem@davemloft.net>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: [PATCH 0/5] make slab gfp fair
+From: Peter Zijlstra <a.p.zijlstra@chello.nl>
+In-Reply-To: <Pine.LNX.4.64.0705141051170.11251@schroedinger.engr.sgi.com>
+References: <20070514131904.440041502@chello.nl>
+	 <Pine.LNX.4.64.0705140852150.10442@schroedinger.engr.sgi.com>
+	 <20070514161224.GC11115@waste.org>
+	 <Pine.LNX.4.64.0705140927470.10801@schroedinger.engr.sgi.com>
+	 <1179164453.2942.26.camel@lappy>
+	 <Pine.LNX.4.64.0705141051170.11251@schroedinger.engr.sgi.com>
+Content-Type: text/plain
+Date: Mon, 14 May 2007 21:28:32 +0200
+Message-Id: <1179170912.2942.37.camel@lappy>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: David Miller <davem@davemloft.net>, Benjamin Herrenschmidt <benh@kernel.crashing.org>
-Cc: akpm@linux-foundation.org, mark@mtfhpc.demon.co.uk, linuxppc-dev@ozlabs.org, wli@holomorphy.com, linux-mm@kvack.org, andrea@suse.de, sparclinux@vger.kernel.org
+To: Christoph Lameter <clameter@sgi.com>
+Cc: Matt Mackall <mpm@selenic.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Thomas Graf <tgraf@suug.ch>, David Miller <davem@davemloft.net>, Andrew Morton <akpm@linux-foundation.org>, Daniel Phillips <phillips@google.com>, Pekka Enberg <penberg@cs.helsinki.fi>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 10 May 2007, David Miller wrote:
-> > > We never seemed to reach completion here?
-> > 
-> > Well, I'm waiting for other people comments too... as I said earlier,
-> > I'm not too fan of burrying the update_mmu_cache() inside
-> > ptep_set_access_flags(), but perhaps we could remove the whole logic of
-> > reading the old PTE & comparing it, and instead have
-> > ptep_set_access_flags() do that locally and return to the caller wether
-> > a change occured that requires update_mmu_cache() to be called.
-> > 
-> > That way, archs who don't actually need update_mmu_cache() under some
-> > circumstances will be able to return 0 there.
-> > 
-> > What do you guys thing ?
+On Mon, 2007-05-14 at 10:57 -0700, Christoph Lameter wrote:
+> On Mon, 14 May 2007, Peter Zijlstra wrote:
 > 
-> I think that's a good idea.
+> > On Mon, 2007-05-14 at 09:29 -0700, Christoph Lameter wrote:
+> > > On Mon, 14 May 2007, Matt Mackall wrote:
+> > > 
+> > > > privileged thread                      unprivileged greedy process
+> > > > kmem_cache_alloc(...)
+> > > >    adds new slab page from lowmem pool
+> > > 
+> > > Yes but it returns an object for the privileged thread. Is that not 
+> > > enough?
+> > 
+> > No, because we reserved memory for n objects, and like matt illustrates
+> > most of those that will be eaten by the greedy process.
+> > We could reserve 1 page per object but that rather bloats the reserve.
+> 
+> 1 slab per object not one page. But yes thats some bloat.
+> 
+> You can pull the big switch (only on a SLUB slab I fear) to switch 
+> off the fast path. Do SetSlabDebug() when allocating a precious 
+> allocation that should not be gobbled up by lower level processes. 
+> Then you can do whatever you want in the __slab_alloc debug section and we 
+> wont care because its not the hot path.
 
-I agree.
+One allocator is all I need; it would just be grand if all could be
+supported.
 
-Hugh
+So what you suggest is not placing the 'emergency' slab into the regular
+place so that normal allocations will not be able to find it. Then if an
+emergency allocation cannot be satified by the regular path, we fall
+back to the slow path and find the emergency slab.
+
+> SLAB is a bit different. There we already have issues with the fast path 
+> due to the attempt to handle numa policies at the object level. SLUB fixes 
+> that issue (if we can avoid you hot path patch). It intentionally does 
+> defer all special object handling to the slab level to increase NUMA 
+> performance. If you do the same to SLAB then you will get the NUMA 
+> troubles propagated to the SMP and UP level.
+
+I could hack in a similar reserve slab; by catching the failure of the
+regular allocation path. It'd not make it prettier though.
+
+The thing is; I'm not needing any speed, as long as the machine stay
+alive I'm good. However others are planing to build a full reserve based
+allocator to properly fix the places that now use __GFP_NOFAIL and
+situation such as in add_to_swap().
+
+A well, one thing at a time. I'll hack this up.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
