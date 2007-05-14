@@ -1,42 +1,50 @@
-Date: Mon, 14 May 2007 11:13:25 -0700 (PDT)
-From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [PATCH 1/2] Have kswapd keep a minimum order free other than
- order-0
-In-Reply-To: <Pine.LNX.4.64.0705141058590.11319@schroedinger.engr.sgi.com>
-Message-ID: <Pine.LNX.4.64.0705141111400.11411@schroedinger.engr.sgi.com>
+Subject: Re: [PATCH 0/2] Two patches to address bug report in relation to
+	high-order atomic allocations
+From: Nicolas Mailhot <nicolas.mailhot@laposte.net>
+In-Reply-To: <20070514173218.6787.56089.sendpatchset@skynet.skynet.ie>
 References: <20070514173218.6787.56089.sendpatchset@skynet.skynet.ie>
- <20070514173238.6787.57003.sendpatchset@skynet.skynet.ie>
- <Pine.LNX.4.64.0705141058590.11319@schroedinger.engr.sgi.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: multipart/signed; micalg=pgp-sha1; protocol="application/pgp-signature"; boundary="=-aiLQR5JaBkgn81VO8tKt"
+Date: Mon, 14 May 2007 20:13:56 +0200
+Message-Id: <1179166436.14036.28.camel@rousalka.dyndns.org>
+Mime-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Mel Gorman <mel@csn.ul.ie>
-Cc: apw@shadowen.org, nicolas.mailhot@laposte.net, akpm@linux-foundation.org, linux-mm@kvack.org
+Cc: apw@shadowen.org, clameter@sgi.com, akpm@linux-foundation.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-I think the slub fragment may have to be this way? This calls 
-raise_kswapd_order on each kmem_cache_create with the order of the cache 
-that was created thus insuring that the min_order is correctly.
+--=-aiLQR5JaBkgn81VO8tKt
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: quoted-printable
 
-Signed-off-by: Christoph Lameter <clameter@sgi.com>
+Le lundi 14 mai 2007 =C3=A0 18:32 +0100, Mel Gorman a =C3=A9crit :
 
----
- mm/slub.c |    1 +
- 1 file changed, 1 insertion(+)
+> Nicolas, I would appreciate if you would test 2.6.21-mm2 with both of the=
+se
+> patches applied. They have changed in a number of respects from what what=
+ I
+> sent you over the weekend and I'd like to be sure the fix still works.
 
-Index: slub/mm/slub.c
-===================================================================
---- slub.orig/mm/slub.c	2007-05-14 11:10:37.000000000 -0700
-+++ slub/mm/slub.c	2007-05-14 11:10:55.000000000 -0700
-@@ -1996,6 +1996,7 @@ static int kmem_cache_open(struct kmem_c
- #ifdef CONFIG_NUMA
- 	s->defrag_ratio = 100;
- #endif
-+	raise_kswapd_order(s->order);
- 
- 	if (init_kmem_cache_nodes(s, gfpflags & ~SLUB_DMA))
- 		return 1;
+I can test but problably not as thoroughly as these past days. Can't
+have my system maxing up days in a row you know:)
+
+--=20
+Nicolas Mailhot
+
+--=-aiLQR5JaBkgn81VO8tKt
+Content-Type: application/pgp-signature; name=signature.asc
+Content-Description: Ceci est une partie de message
+	=?ISO-8859-1?Q?num=E9riquement?= =?ISO-8859-1?Q?_sign=E9e?=
+
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v1.4.7 (GNU/Linux)
+
+iEYEABECAAYFAkZIpuQACgkQI2bVKDsp8g21lACggdlvvZ7GkaYiTvUrCGXj87bg
+l38AoI2DS/eIhkRGFlGA7MS1aDMxgU2/
+=iX8/
+-----END PGP SIGNATURE-----
+
+--=-aiLQR5JaBkgn81VO8tKt--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
