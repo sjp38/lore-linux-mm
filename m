@@ -1,50 +1,61 @@
-Subject: Re: [PATCH 0/2] Two patches to address bug report in relation to
-	high-order atomic allocations
-From: Nicolas Mailhot <nicolas.mailhot@laposte.net>
-In-Reply-To: <20070514173218.6787.56089.sendpatchset@skynet.skynet.ie>
+Date: Mon, 14 May 2007 19:19:21 +0100 (IST)
+From: Mel Gorman <mel@csn.ul.ie>
+Subject: Re: [PATCH 1/2] Have kswapd keep a minimum order free other than
+ order-0
+In-Reply-To: <Pine.LNX.4.64.0705141058590.11319@schroedinger.engr.sgi.com>
+Message-ID: <Pine.LNX.4.64.0705141905400.7302@skynet.skynet.ie>
 References: <20070514173218.6787.56089.sendpatchset@skynet.skynet.ie>
-Content-Type: multipart/signed; micalg=pgp-sha1; protocol="application/pgp-signature"; boundary="=-aiLQR5JaBkgn81VO8tKt"
-Date: Mon, 14 May 2007 20:13:56 +0200
-Message-Id: <1179166436.14036.28.camel@rousalka.dyndns.org>
-Mime-Version: 1.0
+ <20070514173238.6787.57003.sendpatchset@skynet.skynet.ie>
+ <Pine.LNX.4.64.0705141058590.11319@schroedinger.engr.sgi.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII; format=flowed
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: apw@shadowen.org, clameter@sgi.com, akpm@linux-foundation.org, linux-mm@kvack.org
+To: Christoph Lameter <clameter@sgi.com>
+Cc: apw@shadowen.org, nicolas.mailhot@laposte.net, akpm@linux-foundation.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
---=-aiLQR5JaBkgn81VO8tKt
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: quoted-printable
+On Mon, 14 May 2007, Christoph Lameter wrote:
 
-Le lundi 14 mai 2007 =C3=A0 18:32 +0100, Mel Gorman a =C3=A9crit :
+> On Mon, 14 May 2007, Mel Gorman wrote:
+>
+>> +++ linux-2.6.21-mm2-001_kswapd_minorder/mm/slub.c	2007-05-14 17:09:39.000000000 +0100
+>> @@ -2131,6 +2131,7 @@ static struct kmem_cache *kmalloc_caches
+>>  static int __init setup_slub_min_order(char *str)
+>>  {
+>>  	get_option (&str, &slub_min_order);
+>> +	raise_kswapd_order(slub_min_order);
+>>  	user_override = 1;
+>>  	return 1;
+>>  }
+>
+> You need to do this for slub_max_order not for slub_min_order.
 
-> Nicolas, I would appreciate if you would test 2.6.21-mm2 with both of the=
-se
-> patches applied. They have changed in a number of respects from what what=
- I
-> sent you over the weekend and I'd like to be sure the fix still works.
+The intention is to have kswapd keep high-order pages free of an order 
+that is known to be of interest. Hence I used slub_min_order because it's 
+known to be used regularly. By default, the value is 0 but it's higher if 
+slub_min_order, then it gets raised.
 
-I can test but problably not as thoroughly as these past days. Can't
-have my system maxing up days in a row you know:)
+> Also the slub_max_order may not necessarily be used. It is just the 
+> maximum allowed order. I could maintain a slub_max_used_order variable. 
+> When that is increased I could call raise_kswapd_order?
+>
 
---=20
-Nicolas Mailhot
+A slub_max_user_order variable may have been useful but your suggestion 
+in relation to kmem_cache_open() makes more sense.
 
---=-aiLQR5JaBkgn81VO8tKt
-Content-Type: application/pgp-signature; name=signature.asc
-Content-Description: Ceci est une partie de message
-	=?ISO-8859-1?Q?num=E9riquement?= =?ISO-8859-1?Q?_sign=E9e?=
+> The same call needs to be put into kmem_cache_init? Or is this only for
+> orders > 3?
+>
 
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v1.4.7 (GNU/Linux)
+With kmem_cache_open(), altering kmem_cache_init seems unnecessary. 
+Similarly, calling raise_kswapd_order() when parsing slub_min_order= is 
+unnecessary.
 
-iEYEABECAAYFAkZIpuQACgkQI2bVKDsp8g21lACggdlvvZ7GkaYiTvUrCGXj87bg
-l38AoI2DS/eIhkRGFlGA7MS1aDMxgU2/
-=iX8/
------END PGP SIGNATURE-----
-
---=-aiLQR5JaBkgn81VO8tKt--
+-- 
+Mel Gorman
+Part-time Phd Student                          Linux Technology Center
+University of Limerick                         IBM Dublin Software Lab
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
