@@ -1,11 +1,11 @@
-Date: Mon, 14 May 2007 09:35:25 -0700 (PDT)
+Date: Mon, 14 May 2007 09:37:42 -0700 (PDT)
 From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [PATCH 3/5] mm: slub allocation fairness
-In-Reply-To: <1179159285.2942.20.camel@lappy>
-Message-ID: <Pine.LNX.4.64.0705140929200.10801@schroedinger.engr.sgi.com>
-References: <20070514131904.440041502@chello.nl>  <20070514133212.581041171@chello.nl>
-  <Pine.LNX.4.64.0705140847330.10442@schroedinger.engr.sgi.com>
- <1179159285.2942.20.camel@lappy>
+Subject: Re: [PATCH 0/5] make slab gfp fair
+In-Reply-To: <1179159011.2942.16.camel@lappy>
+Message-ID: <Pine.LNX.4.64.0705140935530.10801@schroedinger.engr.sgi.com>
+References: <20070514131904.440041502@chello.nl>
+ <Pine.LNX.4.64.0705140852150.10442@schroedinger.engr.sgi.com>
+ <1179159011.2942.16.camel@lappy>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
@@ -16,62 +16,20 @@ List-ID: <linux-mm.kvack.org>
 
 On Mon, 14 May 2007, Peter Zijlstra wrote:
 
-> On Mon, 2007-05-14 at 08:49 -0700, Christoph Lameter wrote:
-> > On Mon, 14 May 2007, Peter Zijlstra wrote:
-> > 
-> > > Index: linux-2.6-git/include/linux/slub_def.h
-> > > ===================================================================
-> > > --- linux-2.6-git.orig/include/linux/slub_def.h
-> > > +++ linux-2.6-git/include/linux/slub_def.h
-> > > @@ -52,6 +52,7 @@ struct kmem_cache {
-> > >  	struct kmem_cache_node *node[MAX_NUMNODES];
-> > >  #endif
-> > >  	struct page *cpu_slab[NR_CPUS];
-> > > +	int rank;
-> > >  };
-> > 
-> > Ranks as part of the kmem_cache structure? I thought this is a temporary 
-> > thing?
+> > Why does this have to handled by the slab allocators at all? If you have 
+> > free pages in the page allocator then the slab allocators will be able to 
+> > use that reserve.
 > 
-> No it needs to store the current state to verity subsequent allocations
-> their gfp flags against.
+> Yes, too freely. GFP flags are only ever checked when you allocate a new
+> page. Hence, if you have a low reaching alloc allocating a slab page;
+> subsequent non critical GFP_KERNEL allocs can fill up that slab. Hence
+> you would need to reserve a slab per object instead of the normal
+> packing.
 
-What state? This is a global state? The kmem_cache struct is rarely
-written to after setting up the slab. Any writes could create a serious 
-performance problem on large scale systems.
+This is all about making one thread fail rather than another? Note that 
+the allocations are a rather compex affair in the slab allocators. Per 
+node and per cpu structures play a big role.
 
- 
-> > >   * Lock order:
-> > > @@ -961,6 +962,8 @@ static struct page *allocate_slab(struct
-> > >  	if (!page)
-> > >  		return NULL;
-> > >  
-> > > +	s->rank = page->index;
-> > > +
-> > 
-> > Argh.... Setting a cache structure field from a page struct field? What 
-> > about concurrency?
-> 
-> Oh, right; allocate_slab is not serialized itself.
-
-Nor should you ever write to the kmem_cache structure concurrently at all.
-
-> > >  
-> > > -	else {
-> > > +	} else {
-> > >  		object = page->lockless_freelist;
-> > >  		page->lockless_freelist = object[page->offset];
-> > >  	}
-> > 
-> > This is the hot path. No modifications please.
-> 
-> Yes it is, but sorry, I have to. I really need to validate each slab
-> alloc its GFP flags. Thats what the whole thing is about, I thought you
-> understood that.
-
-You are accessing a kmem_cache structure field in the hot path. That 
-cacheline is never used in the hot path. Sorry this is way to intrusive 
-for the problem you are trying to solve.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
