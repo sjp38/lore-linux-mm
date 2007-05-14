@@ -1,46 +1,59 @@
-Subject: Re: vm changes from linux-2.6.14 to linux-2.6.15
-From: Benjamin Herrenschmidt <benh@kernel.crashing.org>
-In-Reply-To: <Pine.LNX.4.64.0705142018090.18453@blonde.wat.veritas.com>
-References: <Pine.LNX.4.61.0705012354290.12808@mtfhpc.demon.co.uk>
-	 <20070509231937.ea254c26.akpm@linux-foundation.org>
-	 <1178778583.14928.210.camel@localhost.localdomain>
-	 <20070510.001234.126579706.davem@davemloft.net>
-	 <Pine.LNX.4.64.0705142018090.18453@blonde.wat.veritas.com>
-Content-Type: text/plain
-Date: Tue, 15 May 2007 07:07:25 +1000
-Message-Id: <1179176845.32247.107.camel@localhost.localdomain>
-Mime-Version: 1.0
+From: Blaisorblade <blaisorblade@yahoo.it>
+Subject: Re: [uml-user] forkbomb into guest
+Date: Mon, 14 May 2007 23:11:33 +0200
+References: <4638.24.132.252.172.1178704676.squirrel@webmail.freaknet.org> <20070512085251.GB12571@c2.user-mode-linux.org> <20070512112809.GA13956@c2.user-mode-linux.org>
+In-Reply-To: <20070512112809.GA13956@c2.user-mode-linux.org>
+MIME-Version: 1.0
+Content-Type: text/plain;
+  charset="iso-8859-1"
 Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+Message-Id: <200705142311.33936.blaisorblade@yahoo.it>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Hugh Dickins <hugh@veritas.com>
-Cc: David Miller <davem@davemloft.net>, akpm@linux-foundation.org, mark@mtfhpc.demon.co.uk, linuxppc-dev@ozlabs.org, wli@holomorphy.com, linux-mm@kvack.org, andrea@suse.de, sparclinux@vger.kernel.org
+To: Jeff Dike <jdike@addtoit.com>, linux-mm@kvack.org
+Cc: user-mode-linux-user@lists.sourceforge.net
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 2007-05-14 at 20:19 +0100, Hugh Dickins wrote:
-> On Thu, 10 May 2007, David Miller wrote:
-> > > > We never seemed to reach completion here?
-> > > 
-> > > Well, I'm waiting for other people comments too... as I said earlier,
-> > > I'm not too fan of burrying the update_mmu_cache() inside
-> > > ptep_set_access_flags(), but perhaps we could remove the whole logic of
-> > > reading the old PTE & comparing it, and instead have
-> > > ptep_set_access_flags() do that locally and return to the caller wether
-> > > a change occured that requires update_mmu_cache() to be called.
-> > > 
-> > > That way, archs who don't actually need update_mmu_cache() under some
-> > > circumstances will be able to return 0 there.
-> > > 
-> > > What do you guys thing ?
-> > 
-> > I think that's a good idea.
-> 
-> I agree.
+On sabato 12 maggio 2007, Jeff Dike wrote:
+> On Sat, May 12, 2007 at 04:52:51AM -0400, Jeff Dike wrote:
+> > This might be better now with the irqstacks patchset I sent in.  This
+> > was prompted by this problem (forks failing when there is free memory
+> > - just not enough contiguous to get a kernel stack).
+>
+> Hmmm, I still get ooms from fork(), even though there appears to be
+> enough contiguous memory:
+>
+> make invoked oom-killer: gfp_mask=0xd0, order=1, oomkilladj=0
+> ...
+> Normal: 27065*4kB 64*8kB 1*16kB 0*32kB 0*64kB 0*128kB 0*256kB 0*512kB
+> 0*1024kB 0*2048kB 0*4096kB = 108788kB
+>
+> An order-1 allocation is failing even though there are 64 order-1
+> groups available.
+What's more, gfp_mask is __GFP_WAIT | __GFP_IO | __GFP_FS, i.e. GFP_KERNEL. 
+This should be discussed with VM hackers I'd guess...
 
-Ok, I'll cook a patch today.
+I guess you were running a serious stress test, right? If yes, after all that 
+may be ok. To sum up what's below, it seems that 64 order-1 groups is below 
+the zone->pages_xxx (min, low or high), and that's enough to cause an OOM.
 
-Ben.
+I've given a basic look at the code and there is no obvious explaination. 
+However, it seems that if you hit some memory watermark you may get the above 
+(you can see their values in /proc/zoneinfo).
 
+Also, there is a strangeness (for me) in zone_watermark_ok. Not only the total 
+free memory must be above the chosen watermark, but also the memory available 
+excluding lower-order memory must be above the same watermark.
+
+Since you have about 100 M of free RAM and just 64*8+16 = 528 Kb of free ram 
+on order 1+, the above situation may cause a failure.
+
+What do you think of a report such as the above? Is my analisys correct?
+-- 
+Inform me of my mistakes, so I can add them to my list!
+Paolo Giarrusso, aka Blaisorblade
+http://www.user-mode-linux.org/~blaisorblade
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
