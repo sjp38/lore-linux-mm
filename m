@@ -1,53 +1,57 @@
-Date: Mon, 14 May 2007 13:54:13 +0200
+Date: Mon, 14 May 2007 13:58:31 +0200
 From: Nick Piggin <npiggin@suse.de>
-Subject: Re: [PATCH 2/2] mm: change mmap_sem over to the scalable rw_mutex
-Message-ID: <20070514115413.GC31234@wotan.suse.de>
-References: <20070511131541.992688403@chello.nl> <20070511132321.984615201@chello.nl> <20070511091744.236e8409.akpm@linux-foundation.org> <1178903537.2781.13.camel@lappy> <20070511110824.a617c679.akpm@linux-foundation.org>
+Subject: Re: [PATCH 0/2] convert mmap_sem to a scalable rw_mutex
+Message-ID: <20070514115830.GD31234@wotan.suse.de>
+References: <20070511131541.992688403@chello.nl> <20070511155621.GA13150@elte.hu>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20070511110824.a617c679.akpm@linux-foundation.org>
+In-Reply-To: <20070511155621.GA13150@elte.hu>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Oleg Nesterov <oleg@tv-sign.ru>, Ingo Molnar <mingo@elte.hu>, Thomas Gleixner <tglx@linutronix.de>
+To: Ingo Molnar <mingo@elte.hu>
+Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Oleg Nesterov <oleg@tv-sign.ru>, Andrew Morton <akpm@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, May 11, 2007 at 11:08:24AM -0700, Andrew Morton wrote:
-> On Fri, 11 May 2007 19:12:16 +0200
-> Peter Zijlstra <a.p.zijlstra@chello.nl> wrote:
+On Fri, May 11, 2007 at 05:56:21PM +0200, Ingo Molnar wrote:
 > 
-> > (now with reply-all)
+> * Peter Zijlstra <a.p.zijlstra@chello.nl> wrote:
+> 
+> > I was toying with a scalable rw_mutex and found that it gives ~10% 
+> > reduction in system time on ebizzy runs (without the MADV_FREE patch).
 > > 
-> > On Fri, 2007-05-11 at 09:17 -0700, Andrew Morton wrote:
-> > > On Fri, 11 May 2007 15:15:43 +0200 Peter Zijlstra <a.p.zijlstra@chello.nl> wrote:
-> > > 
-> > > > -	down_write(&current->mm->mmap_sem);
-> > > > +	rw_mutex_write_lock(&current->mm->mmap_lock);
-> > > 
-> > > y'know, this is such an important lock and people have had such problems
-> > > with it and so many different schemes and ideas have popped up that I'm
-> > > kinda thinking that we should wrap it:
-> > > 
-> > > 	write_lock_mm(struct mm_struct *mm);
-> > > 	write_unlock_mm(struct mm_struct *mm);
-> > > 	read_lock_mm(struct mm_struct *mm);
-> > > 	read_unlock_mm(struct mm_struct *mm);
-> > > 
-> > > so that further experimentations become easier?
+> > 2-way x86_64 pentium D box:
 > > 
-> > Sure, can do; it'd require a few more functions than these, but its not
-> > too many. However, what is the best way to go about such massive rename
-> > actions? Just push them through quickly, and make everybody cope?
+> > 2.6.21
+> > 
+> > /usr/bin/time ./ebizzy -m -P
+> > 59.49user 137.74system 1:49.22elapsed 180%CPU (0avgtext+0avgdata 0maxresident)k
+> > 0inputs+0outputs (0major+33555877minor)pagefaults 0swaps
+> > 
+> > 2.6.21-rw_mutex
+> > 
+> > /usr/bin/time ./ebizzy -m -P
+> > 57.85user 124.30system 1:42.99elapsed 176%CPU (0avgtext+0avgdata 0maxresident)k
+> > 0inputs+0outputs (0major+33555877minor)pagefaults 0swaps
 > 
-> Well, if we _do_ decide to do this (is anyone howling?) then we can do
-> 
-> static inline void write_lock_mm(struct mm_struct *mm)
-> {
-> 	down_write(&mm->mmap_sem);
-> }
+> nice! This 6% runtime reduction on a 2-way box will i suspect get 
+> exponentially better on systems with more CPUs/cores.
 
-I think that would be fine to do.
+Is this with the MADV_DONTNEED kernel and glibc work?
+
+
+> i also like the design, alot: instead of doing a full new lock type 
+> (with per-arch changes, extra lockdep support, etc. etc) you layered the 
+> new abstraction ontop of mutexes. This makes this hard locking 
+> abstraction look really, really simple, while the percpu_counter trick 
+> makes it scale _perfectly_ for the reader case. Congratulations!
+> 
+> given how nice this looks already, have you considered completely 
+> replacing rwsems with this? I suspect you could test the correctness of 
+
+Not to take anything away from this lock type (because it can have its
+uses), but have you considered the size of this lock and its write side
+performance? 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
