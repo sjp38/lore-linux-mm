@@ -1,37 +1,49 @@
-Date: Mon, 14 May 2007 13:25:02 -0700 (PDT)
-From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [PATCH 0/5] make slab gfp fair
-In-Reply-To: <1179172994.2942.49.camel@lappy>
-Message-ID: <Pine.LNX.4.64.0705141324340.12479@schroedinger.engr.sgi.com>
-References: <20070514131904.440041502@chello.nl>
- <Pine.LNX.4.64.0705140852150.10442@schroedinger.engr.sgi.com>
- <20070514161224.GC11115@waste.org>  <Pine.LNX.4.64.0705140927470.10801@schroedinger.engr.sgi.com>
-  <1179164453.2942.26.camel@lappy>  <Pine.LNX.4.64.0705141051170.11251@schroedinger.engr.sgi.com>
-  <1179170912.2942.37.camel@lappy>  <Pine.LNX.4.64.0705141253130.12045@schroedinger.engr.sgi.com>
- <1179172994.2942.49.camel@lappy>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Date: Mon, 14 May 2007 13:46:06 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH] resolve duplicate flag no for PG_lazyfree
+Message-Id: <20070514134606.695f087a.akpm@linux-foundation.org>
+In-Reply-To: <20070514180618.GB9399@thunk.org>
+References: <379110250.28666@ustc.edu.cn>
+	<20070513224630.3cd0cb54.akpm@linux-foundation.org>
+	<20070514180618.GB9399@thunk.org>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Cc: Matt Mackall <mpm@selenic.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Thomas Graf <tgraf@suug.ch>, David Miller <davem@davemloft.net>, Andrew Morton <akpm@linux-foundation.org>, Daniel Phillips <phillips@google.com>, Pekka Enberg <penberg@cs.helsinki.fi>
+To: Theodore Tso <tytso@mit.edu>
+Cc: Fengguang Wu <fengguang.wu@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Rik van Riel <riel@redhat.com>, "linux-ext4@vger.kernel.org" <linux-ext4@vger.kernel.org>, Nick Piggin <nickpiggin@yahoo.com.au>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 14 May 2007, Peter Zijlstra wrote:
+On Mon, 14 May 2007 14:06:19 -0400
+Theodore Tso <tytso@mit.edu> wrote:
 
-> > > The thing is; I'm not needing any speed, as long as the machine stay
-> > > alive I'm good. However others are planing to build a full reserve based
-> > > allocator to properly fix the places that now use __GFP_NOFAIL and
-> > > situation such as in add_to_swap().
+> On Sun, May 13, 2007 at 10:46:30PM -0700, Andrew Morton wrote:
+> > otoh, the intersection between pages which are PageBooked() and pages which
+> > are PageLazyFree() should be zreo, so it'd be good to actually formalise
+> > this reuse within the ext4 patches.
 > > 
-> > Well I have version of SLUB here that allows you do redirect the alloc 
-> > calls at will. Adds a kmem_cache_ops structure and in the kmem_cache_ops 
-> > structure you can redirect allocation and freeing of slabs (not objects!) 
-> > at will. Would that help?
+> > otoh2, PageLazyFree() could have reused PG_owner_priv_1.
+> > 
+> > Rik, Ted: any thoughts?  We do need to scrimp on page flags: when we
+> > finally run out, we're screwed.
 > 
-> I'm not sure; I need kmalloc as well.
+> It makes sense to me.  PG_lazyfree is currently only in -mm, right?
 
-We could add a kmalloc_ops structuret to allow redirects?
+Ah, yes, I got confused, sorry.
+
+>  I
+> don't see it in my git tree.  It would probably would be a good idea
+> to make sure that we check to add some sanity checking code if it
+> isn't there already that PG_lazyfree isn't already set when try to set
+> PG_lazyfree (just in case there is a bug in the future which causes
+> the should-never-happen case of trying lazy free a PageBooked page).
+> 
+
+Actually, I think the current status of
+lazy-freeing-of-memory-through-madv_free.patch is "might not be needed".  I
+_think_ we've determined that 0a27a14a62921b438bb6f33772690d345a089be6
+sufficiently fixed the perfomance problems we had in there?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
