@@ -1,44 +1,30 @@
-Date: Mon, 14 May 2007 15:00:32 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH] mm: swap prefetch more improvements
-Message-Id: <20070514150032.d3ef6bb1.akpm@linux-foundation.org>
-In-Reply-To: <200705141050.55038.kernel@kolivas.org>
-References: <200705141050.55038.kernel@kolivas.org>
+Date: Tue, 15 May 2007 00:45:23 +0200
+From: Nick Piggin <npiggin@suse.de>
+Subject: Re: [patch 02/41] Revert 81b0c8713385ce1b1b9058e916edcf9561ad76d6
+Message-ID: <20070514224523.GF5531@wotan.suse.de>
+References: <20070514060619.689648000@wotan.suse.de> <20070514060650.231658000@wotan.suse.de> <20070514190635.GC29024@redhat.com>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20070514190635.GC29024@redhat.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Con Kolivas <kernel@kolivas.org>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, ck@vds.kolivas.org
+To: Dave Jones <davej@redhat.com>
+Cc: Andrew Morton <akpm@osdl.org>, Andrew Morton <akpm@linux-foundation.org>, linux-fsdevel@vger.kernel.org, Linux Memory Management <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 14 May 2007 10:50:54 +1000
-Con Kolivas <kernel@kolivas.org> wrote:
-
-> akpm, please queue on top of "mm: swap prefetch improvements"
+On Mon, May 14, 2007 at 03:06:35PM -0400, Dave Jones wrote:
+> On Mon, May 14, 2007 at 04:06:21PM +1000, npiggin@suse.de wrote:
+>  > This was a bugfix against 6527c2bdf1f833cc18e8f42bd97973d583e4aa83, which we
+>  > also revert.
 > 
-> ---
-> Failed radix_tree_insert wasn't being handled leaving stale kmem.
-> 
-> The list should be iterated over in the reverse order when prefetching.
-> 
-> Make the yield within kprefetchd stronger through the use of cond_resched.
+> changes like this play havoc with git-bisect.  If you must revert stuff
+> before patching new code in, revert it all in a single diff.
 
-hm.
+It's all going to still boot and run...
 
-> 
-> -		might_sleep();
-> -		if (!prefetch_suitable())
-> +		/* Yield to anything else running */
-> +		if (cond_resched() || !prefetch_suitable())
->  			goto out_unlocked;
-
-So if cond_resched() happened to schedule away, we terminate this
-swap-tricking attempt.  It's not possible to determine the reasons for this
-from the code or from the changelog (==bad).
-
-How come?
+But I guess there is no harm in merging them, however I'll send them
+to Andrew singularly and he can merge them if he likes.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
