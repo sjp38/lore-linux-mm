@@ -1,53 +1,58 @@
-Date: Sun, 13 May 2007 22:46:30 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH] resolve duplicate flag no for PG_lazyfree
-Message-Id: <20070513224630.3cd0cb54.akpm@linux-foundation.org>
-In-Reply-To: <379110250.28666@ustc.edu.cn>
-References: <379110250.28666@ustc.edu.cn>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Received: by an-out-0708.google.com with SMTP id c10so390663ana
+        for <linux-mm@kvack.org>; Mon, 14 May 2007 00:38:16 -0700 (PDT)
+Message-ID: <89af10f90705140038u1a592909yf212294c4b28c967@mail.gmail.com>
+Date: Mon, 14 May 2007 13:08:16 +0530
+From: "ashwin chaugule" <ashwin.chaugule@gmail.com>
+Subject: Re: [PATCH] Bug in mm/thrash.c function grab_swap_token()
+In-Reply-To: <464771CA.3080906@redhat.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+References: <20070510122359.GA16433@srv1-m700-lanp.koti>
+	 <20070510152957.edb26df3.akpm@linux-foundation.org>
+	 <1178866168.4497.6.camel@localhost.localdomain>
+	 <464771CA.3080906@redhat.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Fengguang Wu <fengguang.wu@gmail.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Rik van Riel <riel@redhat.com>, Theodore Ts'o <tytso@mit.edu>, "linux-ext4@vger.kernel.org" <linux-ext4@vger.kernel.org>
+To: Rik van Riel <riel@redhat.com>
+Cc: ashwin.chaugule@celunite.com, Andrew Morton <akpm@linux-foundation.org>, mikukkon@iki.fi, Mika Kukkonen <mikukkon@miku.homelinux.net>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 14 May 2007 10:37:18 +0800 Fengguang Wu <fengguang.wu@gmail.com> wrote:
+> >>> @@ -48,9 +48,8 @@ void grab_swap_token(void)
+> >>>             if (current_interval < current->mm->last_interval)
+> >>>                     current->mm->token_priority++;
+> >>>             else {
+> >>> -                   current->mm->token_priority--;
+> >>> -                   if (unlikely(current->mm->token_priority < 0))
+> >>> -                           current->mm->token_priority = 0;
+> >>> +                   if (likely(current->mm->token_priority > 0))
+> >>> +                           current->mm->token_priority--;
+> >>>             }
+> >>>             /* Check if we deserve the token */
+> >>>             if (current->mm->token_priority >
+> >> argh.
+> >>
+> >> This has potential to cause large changes in system performance.
+> >
+> > I'm not sure how. Although, I think the logic still remains the same.
+> > IOW, if the prio decrements to zero, it will remain zero until it
+> > contends for token rapidly.
+>
+> The problem is that the original code would decrement an
+> unsigned variable beyond zero, underflowing to a number
+> just under 2^32...
+>
+> That would make the process basically a permanent owner
+> of the swap token.
 
-> PG_lazyfree and PG_booked shares the same bit.
-> 
-> Either it is a bug that shall fixed by the following patch, or
-> the situation should be explicitly documented?
-> 
-> Signed-off-by: Fengguang Wu <wfg@mail.ustc.edu.cn>
-> ---
->  include/linux/page-flags.h |    2 +-
->  1 file changed, 1 insertion(+), 1 deletion(-)
-> 
-> --- linux-2.6.21-mm2.orig/include/linux/page-flags.h
-> +++ linux-2.6.21-mm2/include/linux/page-flags.h
-> @@ -91,7 +91,7 @@
->  #define PG_buddy		19	/* Page is free, on buddy lists */
->  #define PG_booked		20	/* Has blocks reserved on-disk */
->  
-> -#define PG_lazyfree		20	/* MADV_FREE potential throwaway */
-> +#define PG_lazyfree		21	/* MADV_FREE potential throwaway */
->  
->  /* PG_owner_priv_1 users should have descriptive aliases */
->  #define PG_checked		PG_owner_priv_1 /* Used by some filesystems */
 
-That's an accident: PG_lazyfree got added but the out-of-tree ext4 patches
-didn't get updated.
+Hm. Although, the probability of token_prio going below zero in the
+previous code was quite small. Nevertheless, I shall run the new fix
+through some tests and post the results asap.
 
-otoh, the intersection between pages which are PageBooked() and pages which
-are PageLazyFree() should be zreo, so it'd be good to actually formalise
-this reuse within the ext4 patches.
-
-otoh2, PageLazyFree() could have reused PG_owner_priv_1.
-
-Rik, Ted: any thoughts?  We do need to scrimp on page flags: when we
-finally run out, we're screwed.
+Cheers,
+Ashwin
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
