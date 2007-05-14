@@ -1,44 +1,49 @@
-Message-Id: <20070514060651.633237000@wotan.suse.de>
+Message-Id: <20070514060650.696144000@wotan.suse.de>
 References: <20070514060619.689648000@wotan.suse.de>
-Date: Mon, 14 May 2007 16:06:30 +1000
+Date: Mon, 14 May 2007 16:06:24 +1000
 From: npiggin@suse.de
-Subject: [patch 11/41] fs: fix data-loss on error
-Content-Disposition: inline; filename=fs-dataloss-stop.patch
+Subject: [patch 05/41] mm: debug write deadlocks
+Content-Disposition: inline; filename=mm-debug-write-deadlocks.patch
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: linux-fsdevel@vger.kernel.org, Linux Memory Management <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-New buffers against uptodate pages are simply be marked uptodate, while the
-buffer_new bit remains set. This causes error-case code to zero out parts
-of those buffers because it thinks they contain stale data: wrong, they
-are actually uptodate so this is a data loss situation.
+Allow CONFIG_DEBUG_VM to switch off the prefaulting logic, to simulate the
+difficult race where the page may be unmapped before calling copy_from_user.
+Makes the race much easier to hit.
 
-Fix this by actually clearning buffer_new and marking the buffer dirty. It
-makes sense to always clear buffer_new before setting a buffer uptodate.
+This is useful for demonstration and testing purposes, but is removed in a
+subsequent patch.
 
 Cc: Linux Memory Management <linux-mm@kvack.org>
 Cc: Linux Filesystems <linux-fsdevel@vger.kernel.org>
 Signed-off-by: Nick Piggin <npiggin@suse.de>
 
- fs/buffer.c |    2 ++
+ mm/filemap.c |    2 ++
  1 file changed, 2 insertions(+)
 
-Index: linux-2.6/fs/buffer.c
+Index: linux-2.6/mm/filemap.c
 ===================================================================
---- linux-2.6.orig/fs/buffer.c
-+++ linux-2.6/fs/buffer.c
-@@ -1793,7 +1793,9 @@ static int __block_prepare_write(struct 
- 				unmap_underlying_metadata(bh->b_bdev,
- 							bh->b_blocknr);
- 				if (PageUptodate(page)) {
-+					clear_buffer_new(bh);
- 					set_buffer_uptodate(bh);
-+					mark_buffer_dirty(bh);
- 					continue;
- 				}
- 				if (block_end > to || block_start < from) {
+--- linux-2.6.orig/mm/filemap.c
++++ linux-2.6/mm/filemap.c
+@@ -1940,6 +1940,7 @@ generic_file_buffered_write(struct kiocb
+ 		if (maxlen > bytes)
+ 			maxlen = bytes;
+ 
++#ifndef CONFIG_DEBUG_VM
+ 		/*
+ 		 * Bring in the user page that we will copy from _first_.
+ 		 * Otherwise there's a nasty deadlock on copying from the
+@@ -1947,6 +1948,7 @@ generic_file_buffered_write(struct kiocb
+ 		 * up-to-date.
+ 		 */
+ 		fault_in_pages_readable(buf, maxlen);
++#endif
+ 
+ 		page = __grab_cache_page(mapping,index,&cached_page,&lru_pvec);
+ 		if (!page) {
 
 -- 
 
