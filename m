@@ -1,57 +1,108 @@
-Date: Mon, 14 May 2007 11:12:24 -0500
-From: Matt Mackall <mpm@selenic.com>
-Subject: Re: [PATCH 0/5] make slab gfp fair
-Message-ID: <20070514161224.GC11115@waste.org>
-References: <20070514131904.440041502@chello.nl> <Pine.LNX.4.64.0705140852150.10442@schroedinger.engr.sgi.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <Pine.LNX.4.64.0705140852150.10442@schroedinger.engr.sgi.com>
+Subject: Re: [PATCH 3/5] mm: slub allocation fairness
+From: Peter Zijlstra <a.p.zijlstra@chello.nl>
+In-Reply-To: <Pine.LNX.4.64.0705140847330.10442@schroedinger.engr.sgi.com>
+References: <20070514131904.440041502@chello.nl>
+	 <20070514133212.581041171@chello.nl>
+	 <Pine.LNX.4.64.0705140847330.10442@schroedinger.engr.sgi.com>
+Content-Type: text/plain
+Date: Mon, 14 May 2007 18:14:45 +0200
+Message-Id: <1179159285.2942.20.camel@lappy>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Christoph Lameter <clameter@sgi.com>
-Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Thomas Graf <tgraf@suug.ch>, David Miller <davem@davemloft.net>, Andrew Morton <akpm@linux-foundation.org>, Daniel Phillips <phillips@google.com>, Pekka Enberg <penberg@cs.helsinki.fi>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Thomas Graf <tgraf@suug.ch>, David Miller <davem@davemloft.net>, Andrew Morton <akpm@linux-foundation.org>, Daniel Phillips <phillips@google.com>, Pekka Enberg <penberg@cs.helsinki.fi>, Matt Mackall <mpm@selenic.com>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, May 14, 2007 at 08:53:21AM -0700, Christoph Lameter wrote:
+On Mon, 2007-05-14 at 08:49 -0700, Christoph Lameter wrote:
 > On Mon, 14 May 2007, Peter Zijlstra wrote:
 > 
-> > In the interest of creating a reserve based allocator; we need to make the slab
-> > allocator (*sigh*, all three) fair with respect to GFP flags.
+> > Index: linux-2.6-git/include/linux/slub_def.h
+> > ===================================================================
+> > --- linux-2.6-git.orig/include/linux/slub_def.h
+> > +++ linux-2.6-git/include/linux/slub_def.h
+> > @@ -52,6 +52,7 @@ struct kmem_cache {
+> >  	struct kmem_cache_node *node[MAX_NUMNODES];
+> >  #endif
+> >  	struct page *cpu_slab[NR_CPUS];
+> > +	int rank;
+> >  };
 > 
-> I am not sure what the point of all of this is. 
+> Ranks as part of the kmem_cache structure? I thought this is a temporary 
+> thing?
+
+No it needs to store the current state to verity subsequent allocations
+their gfp flags against.
+
+> >   * Lock order:
+> > @@ -961,6 +962,8 @@ static struct page *allocate_slab(struct
+> >  	if (!page)
+> >  		return NULL;
+> >  
+> > +	s->rank = page->index;
+> > +
 > 
-> > That is, we need to protect memory from being used by easier gfp flags than it
-> > was allocated with. If our reserve is placed below GFP_ATOMIC, we do not want a
-> > GFP_KERNEL allocation to walk away with it - a scenario that is perfectly
-> > possible with the current allocators.
+> Argh.... Setting a cache structure field from a page struct field? What 
+> about concurrency?
+
+Oh, right; allocate_slab is not serialized itself.
+
+> > @@ -1371,8 +1376,12 @@ static void *__slab_alloc(struct kmem_ca
+> >  		gfp_t gfpflags, int node, void *addr, struct page *page)
+> >  {
+> >  	void **object;
+> > -	int cpu = smp_processor_id();
+> > +	int cpu;
+> > +
+> > +	if (page == FORCE_PAGE)
+> > +		goto force_new;
+> >  
+> > +	cpu = smp_processor_id();
+> >  	if (!page)
+> >  		goto new_slab;
+> >  
+> > @@ -1405,6 +1414,7 @@ have_slab:
+> >  		goto load_freelist;
+> >  	}
+> >  
+> > +force_new:
+> >  	page = new_slab(s, gfpflags, node);
+> >  	if (page) {
+> >  		cpu = smp_processor_id();
+> > @@ -1465,15 +1475,22 @@ static void __always_inline *slab_alloc(
+> >  	struct page *page;
+> >  	void **object;
+> >  	unsigned long flags;
+> > +	int rank = slab_alloc_rank(gfpflags);
+> >  
+> >  	local_irq_save(flags);
+> > +	if (slab_insufficient_rank(s, rank)) {
+> > +		page = FORCE_PAGE;
+> > +		goto force_alloc;
+> > +	}
+> > +
+> >  	page = s->cpu_slab[smp_processor_id()];
+> >  	if (unlikely(!page || !page->lockless_freelist ||
+> > -			(node != -1 && page_to_nid(page) != node)))
+> > +			(node != -1 && page_to_nid(page) != node))) {
+> >  
+> > +force_alloc:
+> >  		object = __slab_alloc(s, gfpflags, node, addr, page);
+> >  
+> > -	else {
+> > +	} else {
+> >  		object = page->lockless_freelist;
+> >  		page->lockless_freelist = object[page->offset];
+> >  	}
 > 
-> Why does this have to handled by the slab allocators at all? If you have 
-> free pages in the page allocator then the slab allocators will be able to 
-> use that reserve.
+> This is the hot path. No modifications please.
 
-If I understand this correctly:
+Yes it is, but sorry, I have to. I really need to validate each slab
+alloc its GFP flags. Thats what the whole thing is about, I thought you
+understood that.
 
-privileged thread                      unprivileged greedy process
-kmem_cache_alloc(...)
-   adds new slab page from lowmem pool
-do_io()
-                                       kmem_cache_alloc(...)
-                                       kmem_cache_alloc(...)
-                                       kmem_cache_alloc(...)
-                                       kmem_cache_alloc(...)
-                                       kmem_cache_alloc(...)
-                                       ...
-                                          eats it all
-kmem_cache_alloc(...) -> ENOMEM
-   who ate my donuts?!
 
-But I think this solution is somehow overkill. If we only care about
-this issue in the OOM avoidance case, then our rank reduces to a
-boolean.
-
--- 
-Mathematics is the supreme nostalgia of our time.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
