@@ -1,49 +1,46 @@
-Date: Mon, 14 May 2007 13:46:06 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH] resolve duplicate flag no for PG_lazyfree
-Message-Id: <20070514134606.695f087a.akpm@linux-foundation.org>
-In-Reply-To: <20070514180618.GB9399@thunk.org>
-References: <379110250.28666@ustc.edu.cn>
-	<20070513224630.3cd0cb54.akpm@linux-foundation.org>
-	<20070514180618.GB9399@thunk.org>
+Subject: Re: vm changes from linux-2.6.14 to linux-2.6.15
+From: Benjamin Herrenschmidt <benh@kernel.crashing.org>
+In-Reply-To: <Pine.LNX.4.64.0705142018090.18453@blonde.wat.veritas.com>
+References: <Pine.LNX.4.61.0705012354290.12808@mtfhpc.demon.co.uk>
+	 <20070509231937.ea254c26.akpm@linux-foundation.org>
+	 <1178778583.14928.210.camel@localhost.localdomain>
+	 <20070510.001234.126579706.davem@davemloft.net>
+	 <Pine.LNX.4.64.0705142018090.18453@blonde.wat.veritas.com>
+Content-Type: text/plain
+Date: Tue, 15 May 2007 07:07:25 +1000
+Message-Id: <1179176845.32247.107.camel@localhost.localdomain>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Theodore Tso <tytso@mit.edu>
-Cc: Fengguang Wu <fengguang.wu@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Rik van Riel <riel@redhat.com>, "linux-ext4@vger.kernel.org" <linux-ext4@vger.kernel.org>, Nick Piggin <nickpiggin@yahoo.com.au>
+To: Hugh Dickins <hugh@veritas.com>
+Cc: David Miller <davem@davemloft.net>, akpm@linux-foundation.org, mark@mtfhpc.demon.co.uk, linuxppc-dev@ozlabs.org, wli@holomorphy.com, linux-mm@kvack.org, andrea@suse.de, sparclinux@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 14 May 2007 14:06:19 -0400
-Theodore Tso <tytso@mit.edu> wrote:
-
-> On Sun, May 13, 2007 at 10:46:30PM -0700, Andrew Morton wrote:
-> > otoh, the intersection between pages which are PageBooked() and pages which
-> > are PageLazyFree() should be zreo, so it'd be good to actually formalise
-> > this reuse within the ext4 patches.
+On Mon, 2007-05-14 at 20:19 +0100, Hugh Dickins wrote:
+> On Thu, 10 May 2007, David Miller wrote:
+> > > > We never seemed to reach completion here?
+> > > 
+> > > Well, I'm waiting for other people comments too... as I said earlier,
+> > > I'm not too fan of burrying the update_mmu_cache() inside
+> > > ptep_set_access_flags(), but perhaps we could remove the whole logic of
+> > > reading the old PTE & comparing it, and instead have
+> > > ptep_set_access_flags() do that locally and return to the caller wether
+> > > a change occured that requires update_mmu_cache() to be called.
+> > > 
+> > > That way, archs who don't actually need update_mmu_cache() under some
+> > > circumstances will be able to return 0 there.
+> > > 
+> > > What do you guys thing ?
 > > 
-> > otoh2, PageLazyFree() could have reused PG_owner_priv_1.
-> > 
-> > Rik, Ted: any thoughts?  We do need to scrimp on page flags: when we
-> > finally run out, we're screwed.
+> > I think that's a good idea.
 > 
-> It makes sense to me.  PG_lazyfree is currently only in -mm, right?
+> I agree.
 
-Ah, yes, I got confused, sorry.
+Ok, I'll cook a patch today.
 
->  I
-> don't see it in my git tree.  It would probably would be a good idea
-> to make sure that we check to add some sanity checking code if it
-> isn't there already that PG_lazyfree isn't already set when try to set
-> PG_lazyfree (just in case there is a bug in the future which causes
-> the should-never-happen case of trying lazy free a PageBooked page).
-> 
+Ben.
 
-Actually, I think the current status of
-lazy-freeing-of-memory-through-madv_free.patch is "might not be needed".  I
-_think_ we've determined that 0a27a14a62921b438bb6f33772690d345a089be6
-sufficiently fixed the perfomance problems we had in there?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
