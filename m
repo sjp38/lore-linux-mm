@@ -1,95 +1,53 @@
-From: Con Kolivas <kernel@kolivas.org>
-Subject: [PATCH] mm: swap prefetch more improvements
-Date: Mon, 14 May 2007 10:50:54 +1000
-MIME-Version: 1.0
-Content-Type: text/plain;
-  charset="us-ascii"
+Date: Sun, 13 May 2007 22:46:30 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH] resolve duplicate flag no for PG_lazyfree
+Message-Id: <20070513224630.3cd0cb54.akpm@linux-foundation.org>
+In-Reply-To: <379110250.28666@ustc.edu.cn>
+References: <379110250.28666@ustc.edu.cn>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
-Message-Id: <200705141050.55038.kernel@kolivas.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, ck@vds.kolivas.org
+To: Fengguang Wu <fengguang.wu@gmail.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Rik van Riel <riel@redhat.com>, Theodore Ts'o <tytso@mit.edu>, "linux-ext4@vger.kernel.org" <linux-ext4@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-akpm, please queue on top of "mm: swap prefetch improvements"
+On Mon, 14 May 2007 10:37:18 +0800 Fengguang Wu <fengguang.wu@gmail.com> wrote:
 
----
-Failed radix_tree_insert wasn't being handled leaving stale kmem.
+> PG_lazyfree and PG_booked shares the same bit.
+> 
+> Either it is a bug that shall fixed by the following patch, or
+> the situation should be explicitly documented?
+> 
+> Signed-off-by: Fengguang Wu <wfg@mail.ustc.edu.cn>
+> ---
+>  include/linux/page-flags.h |    2 +-
+>  1 file changed, 1 insertion(+), 1 deletion(-)
+> 
+> --- linux-2.6.21-mm2.orig/include/linux/page-flags.h
+> +++ linux-2.6.21-mm2/include/linux/page-flags.h
+> @@ -91,7 +91,7 @@
+>  #define PG_buddy		19	/* Page is free, on buddy lists */
+>  #define PG_booked		20	/* Has blocks reserved on-disk */
+>  
+> -#define PG_lazyfree		20	/* MADV_FREE potential throwaway */
+> +#define PG_lazyfree		21	/* MADV_FREE potential throwaway */
+>  
+>  /* PG_owner_priv_1 users should have descriptive aliases */
+>  #define PG_checked		PG_owner_priv_1 /* Used by some filesystems */
 
-The list should be iterated over in the reverse order when prefetching.
+That's an accident: PG_lazyfree got added but the out-of-tree ext4 patches
+didn't get updated.
 
-Make the yield within kprefetchd stronger through the use of cond_resched.
+otoh, the intersection between pages which are PageBooked() and pages which
+are PageLazyFree() should be zreo, so it'd be good to actually formalise
+this reuse within the ext4 patches.
 
-Check that the pos entry hasn't been removed while unlocked.
+otoh2, PageLazyFree() could have reused PG_owner_priv_1.
 
-Signed-off-by: Con Kolivas <kernel@kolivas.org>
-
----
- mm/swap_prefetch.c |   19 ++++++++++---------
- 1 file changed, 10 insertions(+), 9 deletions(-)
-
-Index: linux-2.6.21-ck1/mm/swap_prefetch.c
-===================================================================
---- linux-2.6.21-ck1.orig/mm/swap_prefetch.c	2007-05-14 09:39:37.000000000 +1000
-+++ linux-2.6.21-ck1/mm/swap_prefetch.c	2007-05-14 10:21:47.000000000 +1000
-@@ -117,7 +117,8 @@ void add_to_swapped_list(struct page *pa
- 	if (likely(!radix_tree_insert(&swapped.swap_tree, index, entry))) {
- 		list_add(&entry->swapped_list, &swapped.list);
- 		swapped.count++;
--	}
-+	} else
-+		kmem_cache_free(swapped.cache, entry);
- 
- out_locked:
- 	spin_unlock_irqrestore(&swapped.lock, flags);
-@@ -427,7 +428,7 @@ out:
- static enum trickle_return trickle_swap(void)
- {
- 	enum trickle_return ret = TRICKLE_DELAY;
--	struct list_head *p, *next;
-+	struct swapped_entry *pos, *n;
- 	unsigned long flags;
- 
- 	if (!prefetch_enabled())
-@@ -440,19 +441,19 @@ static enum trickle_return trickle_swap(
- 		return TRICKLE_FAILED;
- 
- 	spin_lock_irqsave(&swapped.lock, flags);
--	list_for_each_safe(p, next, &swapped.list) {
--		struct swapped_entry *entry;
-+	list_for_each_entry_safe_reverse(pos, n, &swapped.list, swapped_list) {
- 		swp_entry_t swp_entry;
- 		int node;
- 
- 		spin_unlock_irqrestore(&swapped.lock, flags);
--		might_sleep();
--		if (!prefetch_suitable())
-+		/* Yield to anything else running */
-+		if (cond_resched() || !prefetch_suitable())
- 			goto out_unlocked;
- 
- 		spin_lock_irqsave(&swapped.lock, flags);
--		entry = list_entry(p, struct swapped_entry, swapped_list);
--		node = get_swap_entry_node(entry);
-+		if (unlikely(!pos))
-+			continue;
-+		node = get_swap_entry_node(pos);
- 		if (!node_isset(node, sp_stat.prefetch_nodes)) {
- 			/*
- 			 * We found an entry that belongs to a node that is
-@@ -460,7 +461,7 @@ static enum trickle_return trickle_swap(
- 			 */
- 			continue;
- 		}
--		swp_entry = entry->swp_entry;
-+		swp_entry = pos->swp_entry;
- 		spin_unlock_irqrestore(&swapped.lock, flags);
- 
- 		if (trickle_swap_cache_async(swp_entry, node) == TRICKLE_DELAY)
-
--- 
--ck
+Rik, Ted: any thoughts?  We do need to scrimp on page flags: when we
+finally run out, we're screwed.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
