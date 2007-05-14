@@ -1,35 +1,29 @@
-Date: Mon, 14 May 2007 11:52:01 -0700 (PDT)
-From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [PATCH 1/2] Have kswapd keep a minimum order free other than
- order-0
-In-Reply-To: <20070514182456.GA9006@skynet.ie>
-Message-ID: <Pine.LNX.4.64.0705141151330.11602@schroedinger.engr.sgi.com>
-References: <20070514173218.6787.56089.sendpatchset@skynet.skynet.ie>
- <20070514173238.6787.57003.sendpatchset@skynet.skynet.ie>
- <Pine.LNX.4.64.0705141058590.11319@schroedinger.engr.sgi.com>
- <Pine.LNX.4.64.0705141111400.11411@schroedinger.engr.sgi.com>
- <20070514182456.GA9006@skynet.ie>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Date: Mon, 14 May 2007 15:06:35 -0400
+From: Dave Jones <davej@redhat.com>
+Subject: Re: [patch 02/41] Revert 81b0c8713385ce1b1b9058e916edcf9561ad76d6
+Message-ID: <20070514190635.GC29024@redhat.com>
+References: <20070514060619.689648000@wotan.suse.de> <20070514060650.231658000@wotan.suse.de>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20070514060650.231658000@wotan.suse.de>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Mel Gorman <mel@skynet.ie>
-Cc: apw@shadowen.org, nicolas.mailhot@laposte.net, akpm@linux-foundation.org, linux-mm@kvack.org
+To: npiggin@suse.de, Andrew Morton <akpm@osdl.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-fsdevel@vger.kernel.org, Linux Memory Management <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 14 May 2007, Mel Gorman wrote:
+On Mon, May 14, 2007 at 04:06:21PM +1000, npiggin@suse.de wrote:
+ > This was a bugfix against 6527c2bdf1f833cc18e8f42bd97973d583e4aa83, which we
+ > also revert.
 
-> On (14/05/07 11:13), Christoph Lameter didst pronounce:
-> > I think the slub fragment may have to be this way? This calls 
-> > raise_kswapd_order on each kmem_cache_create with the order of the cache 
-> > that was created thus insuring that the min_order is correctly.
-> > 
-> > Signed-off-by: Christoph Lameter <clameter@sgi.com>
-> > 
-> 
-> Good plan. Revised patch as follows;
+changes like this play havoc with git-bisect.  If you must revert stuff
+before patching new code in, revert it all in a single diff.
 
-Acked-by: Christoph Lameter <clameter@sgi.com>
+	Dave
+
+-- 
+http://www.codemonkey.org.uk
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
