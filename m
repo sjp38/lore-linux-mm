@@ -1,29 +1,40 @@
-Date: Mon, 14 May 2007 15:06:35 -0400
-From: Dave Jones <davej@redhat.com>
-Subject: Re: [patch 02/41] Revert 81b0c8713385ce1b1b9058e916edcf9561ad76d6
-Message-ID: <20070514190635.GC29024@redhat.com>
-References: <20070514060619.689648000@wotan.suse.de> <20070514060650.231658000@wotan.suse.de>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20070514060650.231658000@wotan.suse.de>
+Date: Mon, 14 May 2007 20:19:01 +0100 (BST)
+From: Hugh Dickins <hugh@veritas.com>
+Subject: Re: vm changes from linux-2.6.14 to linux-2.6.15
+In-Reply-To: <20070510.001234.126579706.davem@davemloft.net>
+Message-ID: <Pine.LNX.4.64.0705142018090.18453@blonde.wat.veritas.com>
+References: <Pine.LNX.4.61.0705012354290.12808@mtfhpc.demon.co.uk>
+ <20070509231937.ea254c26.akpm@linux-foundation.org>
+ <1178778583.14928.210.camel@localhost.localdomain>
+ <20070510.001234.126579706.davem@davemloft.net>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: npiggin@suse.de, Andrew Morton <akpm@osdl.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-fsdevel@vger.kernel.org, Linux Memory Management <linux-mm@kvack.org>
+To: David Miller <davem@davemloft.net>, Benjamin Herrenschmidt <benh@kernel.crashing.org>
+Cc: akpm@linux-foundation.org, mark@mtfhpc.demon.co.uk, linuxppc-dev@ozlabs.org, wli@holomorphy.com, linux-mm@kvack.org, andrea@suse.de, sparclinux@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, May 14, 2007 at 04:06:21PM +1000, npiggin@suse.de wrote:
- > This was a bugfix against 6527c2bdf1f833cc18e8f42bd97973d583e4aa83, which we
- > also revert.
+On Thu, 10 May 2007, David Miller wrote:
+> > > We never seemed to reach completion here?
+> > 
+> > Well, I'm waiting for other people comments too... as I said earlier,
+> > I'm not too fan of burrying the update_mmu_cache() inside
+> > ptep_set_access_flags(), but perhaps we could remove the whole logic of
+> > reading the old PTE & comparing it, and instead have
+> > ptep_set_access_flags() do that locally and return to the caller wether
+> > a change occured that requires update_mmu_cache() to be called.
+> > 
+> > That way, archs who don't actually need update_mmu_cache() under some
+> > circumstances will be able to return 0 there.
+> > 
+> > What do you guys thing ?
+> 
+> I think that's a good idea.
 
-changes like this play havoc with git-bisect.  If you must revert stuff
-before patching new code in, revert it all in a single diff.
+I agree.
 
-	Dave
-
--- 
-http://www.codemonkey.org.uk
+Hugh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
