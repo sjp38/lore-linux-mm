@@ -1,9 +1,9 @@
-Date: Mon, 14 May 2007 08:51:50 -0700 (PDT)
+Date: Mon, 14 May 2007 08:53:21 -0700 (PDT)
 From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [PATCH 2/5] mm: slab allocation fairness
-In-Reply-To: <20070514133212.399158218@chello.nl>
-Message-ID: <Pine.LNX.4.64.0705140850540.10442@schroedinger.engr.sgi.com>
-References: <20070514131904.440041502@chello.nl> <20070514133212.399158218@chello.nl>
+Subject: Re: [PATCH 0/5] make slab gfp fair
+In-Reply-To: <20070514131904.440041502@chello.nl>
+Message-ID: <Pine.LNX.4.64.0705140852150.10442@schroedinger.engr.sgi.com>
+References: <20070514131904.440041502@chello.nl>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
@@ -14,16 +14,19 @@ List-ID: <linux-mm.kvack.org>
 
 On Mon, 14 May 2007, Peter Zijlstra wrote:
 
-> @@ -3182,13 +3192,13 @@ static inline void *____cache_alloc(stru
->  	check_irq_off();
->  
->  	ac = cpu_cache_get(cachep);
-> -	if (likely(ac->avail)) {
-> +	if (likely(ac->avail) && !slab_insufficient_rank(cachep, rank)) {
->  		STATS_INC_ALLOCHIT(cachep);
->  		ac->touched = 1;
+> In the interest of creating a reserve based allocator; we need to make the slab
+> allocator (*sigh*, all three) fair with respect to GFP flags.
 
-Hotpath modifications.
+I am not sure what the point of all of this is. 
+
+> That is, we need to protect memory from being used by easier gfp flags than it
+> was allocated with. If our reserve is placed below GFP_ATOMIC, we do not want a
+> GFP_KERNEL allocation to walk away with it - a scenario that is perfectly
+> possible with the current allocators.
+
+Why does this have to handled by the slab allocators at all? If you have 
+free pages in the page allocator then the slab allocators will be able to 
+use that reserve.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
