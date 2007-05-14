@@ -1,31 +1,37 @@
-Date: Mon, 14 May 2007 04:48:04 -0700
-From: Greg KH <greg@kroah.com>
-Subject: Re: pci hotplug patches
-Message-ID: <20070514114804.GA5169@kroah.com>
-References: <20070430162007.ad46e153.akpm@linux-foundation.org> <20070501084841.GC14364@infradead.org> <20070502035745.GB8877@kroah.com> <20070513205924.GA13985@infradead.org>
+Date: Mon, 14 May 2007 13:25:02 -0700 (PDT)
+From: Christoph Lameter <clameter@sgi.com>
+Subject: Re: [PATCH 0/5] make slab gfp fair
+In-Reply-To: <1179172994.2942.49.camel@lappy>
+Message-ID: <Pine.LNX.4.64.0705141324340.12479@schroedinger.engr.sgi.com>
+References: <20070514131904.440041502@chello.nl>
+ <Pine.LNX.4.64.0705140852150.10442@schroedinger.engr.sgi.com>
+ <20070514161224.GC11115@waste.org>  <Pine.LNX.4.64.0705140927470.10801@schroedinger.engr.sgi.com>
+  <1179164453.2942.26.camel@lappy>  <Pine.LNX.4.64.0705141051170.11251@schroedinger.engr.sgi.com>
+  <1179170912.2942.37.camel@lappy>  <Pine.LNX.4.64.0705141253130.12045@schroedinger.engr.sgi.com>
+ <1179172994.2942.49.camel@lappy>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20070513205924.GA13985@infradead.org>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Hellwig <hch@infradead.org>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, kristen.c.accardi@intel.com
+To: Peter Zijlstra <a.p.zijlstra@chello.nl>
+Cc: Matt Mackall <mpm@selenic.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Thomas Graf <tgraf@suug.ch>, David Miller <davem@davemloft.net>, Andrew Morton <akpm@linux-foundation.org>, Daniel Phillips <phillips@google.com>, Pekka Enberg <penberg@cs.helsinki.fi>
 List-ID: <linux-mm.kvack.org>
 
-On Sun, May 13, 2007 at 09:59:24PM +0100, Christoph Hellwig wrote:
-> On Tue, May 01, 2007 at 08:57:45PM -0700, Greg KH wrote:
-> > Hm, I'm no longer the PCI Hotplug maintainer, so that's why I haven't
-> > added them to my tree.  It would probably be best for everyone involved
-> > to send them to her instead :)
+On Mon, 14 May 2007, Peter Zijlstra wrote:
+
+> > > The thing is; I'm not needing any speed, as long as the machine stay
+> > > alive I'm good. However others are planing to build a full reserve based
+> > > allocator to properly fix the places that now use __GFP_NOFAIL and
+> > > situation such as in add_to_swap().
+> > 
+> > Well I have version of SLUB here that allows you do redirect the alloc 
+> > calls at will. Adds a kmem_cache_ops structure and in the kmem_cache_ops 
+> > structure you can redirect allocation and freeing of slabs (not objects!) 
+> > at will. Would that help?
 > 
-> FYI: MAINTAINERS still lists you as the maintainer of the cpqphp driver.
+> I'm not sure; I need kmalloc as well.
 
-Ick, I'll go fix that up, I don't even have the hardware anymore
-(donated it to a local university...)
-
-thanks,
-
-greg k-h
+We could add a kmalloc_ops structuret to allow redirects?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
