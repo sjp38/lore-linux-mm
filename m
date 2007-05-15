@@ -1,57 +1,44 @@
-From: Con Kolivas <kernel@kolivas.org>
-Subject: Re: [PATCH] mm: swap prefetch more improvements
-Date: Tue, 15 May 2007 22:43:57 +1000
-References: <200705141050.55038.kernel@kolivas.org> <20070514150032.d3ef6bb1.akpm@linux-foundation.org> <1179223081.6810.133.camel@twins>
-In-Reply-To: <1179223081.6810.133.camel@twins>
-MIME-Version: 1.0
-Content-Type: text/plain;
-  charset="utf-8"
-Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
-Message-Id: <200705152243.57871.kernel@kolivas.org>
+From: Mel Gorman <mel@csn.ul.ie>
+Message-Id: <20070515150311.16348.56826.sendpatchset@skynet.skynet.ie>
+Subject: [PATCH 0/8] Review-based updates to grouping pages by mobility
+Date: Tue, 15 May 2007 16:03:11 +0100 (IST)
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, ck@vds.kolivas.org
+To: clameter@sgi.com
+Cc: Mel Gorman <mel@csn.ul.ie>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tuesday 15 May 2007 19:58, Peter Zijlstra wrote:
-> On Mon, 2007-05-14 at 15:00 -0700, Andrew Morton wrote:
-> > On Mon, 14 May 2007 10:50:54 +1000
-> >
-> > Con Kolivas <kernel@kolivas.org> wrote:
-> > > akpm, please queue on top of "mm: swap prefetch improvements"
-> > >
-> > > ---
-> > > Failed radix_tree_insert wasn't being handled leaving stale kmem.
-> > >
-> > > The list should be iterated over in the reverse order when prefetching.
-> > >
-> > > Make the yield within kprefetchd stronger through the use of
-> > > cond_resched.
-> >
-> > hm.
-> >
-> > > -		might_sleep();
-> > > -		if (!prefetch_suitable())
-> > > +		/* Yield to anything else running */
-> > > +		if (cond_resched() || !prefetch_suitable())
-> > >  			goto out_unlocked;
-> >
-> > So if cond_resched() happened to schedule away, we terminate this
-> > swap-tricking attempt.  It's not possible to determine the reasons for
-> > this from the code or from the changelog (==bad).
-> >
-> > How come?
->
-> I think Con meant need_resched(). That would indicate someone else wants
-> to use the CPU and and has higher priority than kprefetchd.
+Hi Christoph,
 
-It may well be that need_resched is what I was trying to do... I don't need it 
-to do the resched and _then_ break out of swap prefetch.
+The following patches address points brought up by your review of the
+grouping pages by mobility patches. There are quite a number of patches here.
 
+The first patch allows grouping by mobility at sizes other than
+MAX_ORDER_NR_PAGES.  The size is based on the order of the system hugepage
+where that is defined. When possible this is specified as a compile time
+constant to help the optimiser. It does change the handling of hugepagesz
+from __setup() to early_param() which needs looking at.
+
+The second and third patches provide some statistics in relation to
+fragmentation avoidance.
+
+Patches four and five are fixes for incorrectly flagged allocations sites.
+
+Patches six, seven and eight extend the allocation types available and
+convert allocation sites to use them. This corrects a number of areas
+where call-sites are annotated incorrectly.
+
+This set of patches handles most of the items in the TODO list that were
+brought up during your review. There is another patch which groups page
+cache pages separetly to other allocations but I'm holding off on it for
+the moment in light of Nicolas's bug reports although they now appear to be
+resolved. The last two items are SLAB_PERSISTENT and resizing ZONE_MOVABLE. I
+glanced to check if SLAB_PERSISTENT would be useful but it doesn't seem to
+be the case yet. The last item was resizing ZONE_MOVABLE at runtime.
 -- 
--ck
+Mel Gorman
+Part-time Phd Student                          Linux Technology Center
+University of Limerick                         IBM Dublin Software Lab
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
