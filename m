@@ -1,44 +1,335 @@
 From: Mel Gorman <mel@csn.ul.ie>
-Message-Id: <20070515150311.16348.56826.sendpatchset@skynet.skynet.ie>
-Subject: [PATCH 0/8] Review-based updates to grouping pages by mobility
-Date: Tue, 15 May 2007 16:03:11 +0100 (IST)
+Message-Id: <20070515150331.16348.18072.sendpatchset@skynet.skynet.ie>
+In-Reply-To: <20070515150311.16348.56826.sendpatchset@skynet.skynet.ie>
+References: <20070515150311.16348.56826.sendpatchset@skynet.skynet.ie>
+Subject: [PATCH 1/8] Do not depend on MAX_ORDER when grouping pages by mobility
+Date: Tue, 15 May 2007 16:03:31 +0100 (IST)
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: clameter@sgi.com
 Cc: Mel Gorman <mel@csn.ul.ie>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi Christoph,
+Currently mobility grouping works at the MAX_ORDER_NR_PAGES level.
+This makes sense for the majority of users where this is also the huge page
+size. However, on platforms like ia64 where the huge page size is runtime
+configurable it is desirable to group at a lower order.  On x86_64 and
+occasionally on x86, the hugepage size may not always be MAX_ORDER_NR_PAGES.
 
-The following patches address points brought up by your review of the
-grouping pages by mobility patches. There are quite a number of patches here.
+This patch groups pages together based on the value of HUGETLB_PAGE_ORDER. It
+uses a compile-time constant if possible and a variable where the huge page
+size is runtime configurable.
 
-The first patch allows grouping by mobility at sizes other than
-MAX_ORDER_NR_PAGES.  The size is based on the order of the system hugepage
-where that is defined. When possible this is specified as a compile time
-constant to help the optimiser. It does change the handling of hugepagesz
-from __setup() to early_param() which needs looking at.
+It is assumed that grouping should be done at the lowest sensible order
+and that the user would not want to override this.  If this is not true,
+page_block order could be forced to a variable initialised via a boot-time
+kernel parameter.
 
-The second and third patches provide some statistics in relation to
-fragmentation avoidance.
+One potential issue with this patch is that IA64 now parses hugepagesz
+with early_param() instead of __setup(). __setup() is called after the
+memory allocator has been initialised and the pageblock bitmaps already
+setup. In tests on one IA64 there did not seem to be any problem with using
+early_param() and in fact may be more correct as it guarantees the parameter
+is handled before the parsing of hugepages=.
 
-Patches four and five are fixes for incorrectly flagged allocations sites.
+Signed-off-by: Mel Gorman <mel@csn.ul.ie>
+Acked-by: Andy Whitcroft <apw@shadowen.org>
+---
 
-Patches six, seven and eight extend the allocation types available and
-convert allocation sites to use them. This corrects a number of areas
-where call-sites are annotated incorrectly.
+ arch/ia64/Kconfig               |    5 ++
+ arch/ia64/mm/hugetlbpage.c      |    4 -
+ include/linux/mmzone.h          |    4 -
+ include/linux/pageblock-flags.h |   24 +++++++++++
+ mm/page_alloc.c                 |   71 ++++++++++++++++++++++++-----------
+ 5 files changed, 82 insertions(+), 26 deletions(-)
 
-This set of patches handles most of the items in the TODO list that were
-brought up during your review. There is another patch which groups page
-cache pages separetly to other allocations but I'm holding off on it for
-the moment in light of Nicolas's bug reports although they now appear to be
-resolved. The last two items are SLAB_PERSISTENT and resizing ZONE_MOVABLE. I
-glanced to check if SLAB_PERSISTENT would be useful but it doesn't seem to
-be the case yet. The last item was resizing ZONE_MOVABLE at runtime.
--- 
-Mel Gorman
-Part-time Phd Student                          Linux Technology Center
-University of Limerick                         IBM Dublin Software Lab
+diff -rup -X /usr/src/patchset-0.6/bin//dontdiff linux-2.6.21-mm2-001_v1r2/arch/ia64/Kconfig linux-2.6.21-mm2-002_group_arbitrary/arch/ia64/Kconfig
+--- linux-2.6.21-mm2-001_v1r2/arch/ia64/Kconfig	2007-05-11 21:16:07.000000000 +0100
++++ linux-2.6.21-mm2-002_group_arbitrary/arch/ia64/Kconfig	2007-05-15 12:23:22.000000000 +0100
+@@ -54,6 +54,11 @@ config ARCH_HAS_ILOG2_U64
+ 	bool
+ 	default n
+ 
++config HUGETLB_PAGE_SIZE_VARIABLE
++	depends on HUGETLB_PAGE
++	bool
++	default y
++
+ config GENERIC_FIND_NEXT_BIT
+ 	bool
+ 	default y
+diff -rup -X /usr/src/patchset-0.6/bin//dontdiff linux-2.6.21-mm2-001_v1r2/arch/ia64/mm/hugetlbpage.c linux-2.6.21-mm2-002_group_arbitrary/arch/ia64/mm/hugetlbpage.c
+--- linux-2.6.21-mm2-001_v1r2/arch/ia64/mm/hugetlbpage.c	2007-05-11 21:16:07.000000000 +0100
++++ linux-2.6.21-mm2-002_group_arbitrary/arch/ia64/mm/hugetlbpage.c	2007-05-15 12:23:22.000000000 +0100
+@@ -195,6 +195,6 @@ static int __init hugetlb_setup_sz(char 
+ 	 * override here with new page shift.
+ 	 */
+ 	ia64_set_rr(HPAGE_REGION_BASE, hpage_shift << 2);
+-	return 1;
++	return 0;
+ }
+-__setup("hugepagesz=", hugetlb_setup_sz);
++early_param("hugepagesz", hugetlb_setup_sz);
+diff -rup -X /usr/src/patchset-0.6/bin//dontdiff linux-2.6.21-mm2-001_v1r2/include/linux/mmzone.h linux-2.6.21-mm2-002_group_arbitrary/include/linux/mmzone.h
+--- linux-2.6.21-mm2-001_v1r2/include/linux/mmzone.h	2007-05-11 21:16:11.000000000 +0100
++++ linux-2.6.21-mm2-002_group_arbitrary/include/linux/mmzone.h	2007-05-15 12:23:22.000000000 +0100
+@@ -238,7 +238,7 @@ struct zone {
+ 
+ #ifndef CONFIG_SPARSEMEM
+ 	/*
+-	 * Flags for a MAX_ORDER_NR_PAGES block. See pageblock-flags.h.
++	 * Flags for a nr_pages_pageblock block. See pageblock-flags.h.
+ 	 * In SPARSEMEM, this map is stored in struct mem_section
+ 	 */
+ 	unsigned long		*pageblock_flags;
+@@ -707,7 +707,7 @@ extern struct zone *next_zone(struct zon
+ #define PAGE_SECTION_MASK	(~(PAGES_PER_SECTION-1))
+ 
+ #define SECTION_BLOCKFLAGS_BITS \
+-		((1 << (PFN_SECTION_SHIFT - (MAX_ORDER-1))) * NR_PAGEBLOCK_BITS)
++	((1UL << (PFN_SECTION_SHIFT - pageblock_order)) * NR_PAGEBLOCK_BITS)
+ 
+ #if (MAX_ORDER - 1 + PAGE_SHIFT) > SECTION_SIZE_BITS
+ #error Allocator MAX_ORDER exceeds SECTION_SIZE
+diff -rup -X /usr/src/patchset-0.6/bin//dontdiff linux-2.6.21-mm2-001_v1r2/include/linux/pageblock-flags.h linux-2.6.21-mm2-002_group_arbitrary/include/linux/pageblock-flags.h
+--- linux-2.6.21-mm2-001_v1r2/include/linux/pageblock-flags.h	2007-05-11 21:16:11.000000000 +0100
++++ linux-2.6.21-mm2-002_group_arbitrary/include/linux/pageblock-flags.h	2007-05-15 12:23:22.000000000 +0100
+@@ -1,6 +1,6 @@
+ /*
+  * Macros for manipulating and testing flags related to a
+- * MAX_ORDER_NR_PAGES block of pages.
++ * nr_pages_pageblock number of pages.
+  *
+  * This program is free software; you can redistribute it and/or modify
+  * it under the terms of the GNU General Public License as published by
+@@ -35,6 +35,28 @@ enum pageblock_bits {
+ 	NR_PAGEBLOCK_BITS
+ };
+ 
++#ifdef CONFIG_HUGETLB_PAGE
++
++#ifdef CONFIG_HUGETLB_PAGE_SIZE_VARIABLE
++
++/* Huge page sizes are variable */
++extern int pageblock_order;
++
++#else /* CONFIG_HUGETLB_PAGE_SIZE_VARIABLE */
++
++/* Huge pages are a constant size */
++#define pageblock_order		HUGETLB_PAGE_ORDER
++
++#endif /* CONFIG_HUGETLB_PAGE_SIZE_VARIABLE */
++
++#else /* CONFIG_HUGETLB_PAGE */
++
++/* If huge pages are not used, group by MAX_ORDER_NR_PAGES */
++#define pageblock_order		(MAX_ORDER-1)
++#endif /* CONFIG_HUGETLB_PAGE */
++
++#define nr_pages_pageblock	(1UL << pageblock_order)
++
+ /* Forward declaration */
+ struct page;
+ 
+diff -rup -X /usr/src/patchset-0.6/bin//dontdiff linux-2.6.21-mm2-001_v1r2/mm/page_alloc.c linux-2.6.21-mm2-002_group_arbitrary/mm/page_alloc.c
+--- linux-2.6.21-mm2-001_v1r2/mm/page_alloc.c	2007-05-15 12:21:44.000000000 +0100
++++ linux-2.6.21-mm2-002_group_arbitrary/mm/page_alloc.c	2007-05-15 12:23:22.000000000 +0100
+@@ -59,6 +59,10 @@ unsigned long totalreserve_pages __read_
+ long nr_swap_pages;
+ int percpu_pagelist_fraction;
+ 
++#ifdef CONFIG_HUGETLB_PAGE_SIZE_VARIABLE
++int pageblock_order __read_mostly;
++#endif
++
+ static void __free_pages_ok(struct page *page, unsigned int order);
+ 
+ /*
+@@ -721,7 +725,7 @@ static int fallbacks[MIGRATE_TYPES][MIGR
+ 
+ /*
+  * Move the free pages in a range to the free lists of the requested type.
+- * Note that start_page and end_pages are not aligned in a MAX_ORDER_NR_PAGES
++ * Note that start_page and end_pages are not aligned on a pageblock
+  * boundary. If alignment is required, use move_freepages_block()
+  */
+ int move_freepages(struct zone *zone,
+@@ -771,10 +775,10 @@ int move_freepages_block(struct zone *zo
+ 	struct page *start_page, *end_page;
+ 
+ 	start_pfn = page_to_pfn(page);
+-	start_pfn = start_pfn & ~(MAX_ORDER_NR_PAGES-1);
++	start_pfn = start_pfn & ~(nr_pages_pageblock-1);
+ 	start_page = pfn_to_page(start_pfn);
+-	end_page = start_page + MAX_ORDER_NR_PAGES - 1;
+-	end_pfn = start_pfn + MAX_ORDER_NR_PAGES - 1;
++	end_page = start_page + nr_pages_pageblock - 1;
++	end_pfn = start_pfn + nr_pages_pageblock - 1;
+ 
+ 	/* Do not cross zone boundaries */
+ 	if (start_pfn < zone->zone_start_pfn)
+@@ -838,14 +842,15 @@ static struct page *__rmqueue_fallback(s
+ 			 * back for a reclaimable kernel allocation, be more
+ 			 * agressive about taking ownership of free pages
+ 			 */
+-			if (unlikely(current_order >= MAX_ORDER / 2) ||
++			if (unlikely(current_order >= (pageblock_order >> 1)) ||
+ 					start_migratetype == MIGRATE_RECLAIMABLE) {
+ 				unsigned long pages;
+ 				pages = move_freepages_block(zone, page,
+ 								start_migratetype);
++				pages <<= current_order;
+ 
+ 				/* Claim the whole block if over half of it is free */
+-				if ((pages << current_order) >= (1 << (MAX_ORDER-2)))
++				if (pages >= (1 << (pageblock_order-1)))
+ 					set_pageblock_migratetype(page,
+ 								start_migratetype);
+ 
+@@ -858,7 +863,7 @@ static struct page *__rmqueue_fallback(s
+ 			__mod_zone_page_state(zone, NR_FREE_PAGES,
+ 							-(1UL << order));
+ 
+-			if (current_order == MAX_ORDER - 1)
++			if (current_order == pageblock_order)
+ 				set_pageblock_migratetype(page,
+ 							start_migratetype);
+ 
+@@ -2204,14 +2209,16 @@ void __meminit build_all_zonelists(void)
+ 	 * made on memory-hotadd so a system can start with mobility
+ 	 * disabled and enable it later
+ 	 */
+-	if (vm_total_pages < (MAX_ORDER_NR_PAGES * MIGRATE_TYPES))
++	if (vm_total_pages < (nr_pages_pageblock * MIGRATE_TYPES))
+ 		page_group_by_mobility_disabled = 1;
+ 	else
+ 		page_group_by_mobility_disabled = 0;
+ 
+-	printk("Built %i zonelists, mobility grouping %s.  Total pages: %ld\n",
++	printk(KERN_INFO "Built %i zonelists, mobility grouping %s order %d. "
++		"Total pages: %ld\n",
+ 			num_online_nodes(),
+ 			page_group_by_mobility_disabled ? "off" : "on",
++			pageblock_order,
+ 			vm_total_pages);
+ }
+ 
+@@ -2284,7 +2291,7 @@ static inline unsigned long wait_table_b
+ #define LONG_ALIGN(x) (((x)+(sizeof(long))-1)&~((sizeof(long))-1))
+ 
+ /*
+- * Mark a number of MAX_ORDER_NR_PAGES blocks as MIGRATE_RESERVE. The number
++ * Mark a number of pageblocks as MIGRATE_RESERVE. The number
+  * of blocks reserved is based on zone->pages_min. The memory within the
+  * reserve will tend to store contiguous free pages. Setting min_free_kbytes
+  * higher will lead to a bigger reserve which will get freed as contiguous
+@@ -2299,9 +2306,10 @@ static void setup_zone_migrate_reserve(s
+ 	/* Get the start pfn, end pfn and the number of blocks to reserve */
+ 	start_pfn = zone->zone_start_pfn;
+ 	end_pfn = start_pfn + zone->spanned_pages;
+-	reserve = roundup(zone->pages_min, MAX_ORDER_NR_PAGES) >> (MAX_ORDER-1);
++	reserve = roundup(zone->pages_min, nr_pages_pageblock) >>
++							pageblock_order;
+ 
+-	for (pfn = start_pfn; pfn < end_pfn; pfn += MAX_ORDER_NR_PAGES) {
++	for (pfn = start_pfn; pfn < end_pfn; pfn += nr_pages_pageblock) {
+ 		if (!pfn_valid(pfn))
+ 			continue;
+ 		page = pfn_to_page(pfn);
+@@ -2376,7 +2384,7 @@ void __meminit memmap_init_zone(unsigned
+ 		 * the start are marked MIGRATE_RESERVE by
+ 		 * setup_zone_migrate_reserve()
+ 		 */
+-		if ((pfn & (MAX_ORDER_NR_PAGES-1)))
++		if ((pfn & (nr_pages_pageblock-1)))
+ 			set_pageblock_migratetype(page, MIGRATE_MOVABLE);
+ 
+ 		INIT_LIST_HEAD(&page->lru);
+@@ -3080,8 +3088,8 @@ static void __meminit calculate_node_tot
+ #ifndef CONFIG_SPARSEMEM
+ /*
+  * Calculate the size of the zone->blockflags rounded to an unsigned long
+- * Start by making sure zonesize is a multiple of MAX_ORDER-1 by rounding up
+- * Then figure 1 NR_PAGEBLOCK_BITS worth of bits per MAX_ORDER-1, finally
++ * Start by making sure zonesize is a multiple of pageblock_order by rounding up
++ * Then figure 1 NR_PAGEBLOCK_BITS worth of bits per pageblock, finally
+  * round what is now in bits to nearest long in bits, then return it in
+  * bytes.
+  */
+@@ -3089,8 +3097,8 @@ static unsigned long __init usemap_size(
+ {
+ 	unsigned long usemapsize;
+ 
+-	usemapsize = roundup(zonesize, MAX_ORDER_NR_PAGES);
+-	usemapsize = usemapsize >> (MAX_ORDER-1);
++	usemapsize = roundup(zonesize, nr_pages_pageblock);
++	usemapsize = usemapsize >> pageblock_order;
+ 	usemapsize *= NR_PAGEBLOCK_BITS;
+ 	usemapsize = roundup(usemapsize, 8 * sizeof(unsigned long));
+ 
+@@ -3112,6 +3120,26 @@ static void inline setup_usemap(struct p
+ 				struct zone *zone, unsigned long zonesize) {}
+ #endif /* CONFIG_SPARSEMEM */
+ 
++#ifdef CONFIG_HUGETLB_PAGE_SIZE_VARIABLE
++/* Initialise the number of pages represented by NR_PAGEBLOCK_BITS */
++void __init set_pageblock_order(unsigned int order)
++{
++	/* Check that nr_pages_pageblock has not already been setup */
++	if (pageblock_order)
++		return;
++
++	/*
++	 * Assume the largest contiguous order of interest is a huge page.
++	 * This value may be variable depending on boot parameters on IA64
++	 */
++	pageblock_order = order;
++}
++#else /* CONFIG_HUGETLB_PAGE_SIZE_VARIABLE */
++void __init set_pageblock_order(unsigned int order)
++{
++}
++#endif /* CONFIG_HUGETLB_PAGE_SIZE_VARIABLE */
++
+ /*
+  * Set up the zone data structures:
+  *   - mark all pages reserved
+@@ -3192,6 +3220,7 @@ static void __meminit free_area_init_cor
+ 		if (!size)
+ 			continue;
+ 
++		set_pageblock_order(HUGETLB_PAGE_ORDER);
+ 		setup_usemap(pgdat, zone, size);
+ 		ret = init_currently_empty_zone(zone, zone_start_pfn,
+ 						size, MEMMAP_EARLY);
+@@ -4083,15 +4112,15 @@ static inline int pfn_to_bitidx(struct z
+ {
+ #ifdef CONFIG_SPARSEMEM
+ 	pfn &= (PAGES_PER_SECTION-1);
+-	return (pfn >> (MAX_ORDER-1)) * NR_PAGEBLOCK_BITS;
++	return (pfn >> pageblock_order) * NR_PAGEBLOCK_BITS;
+ #else
+ 	pfn = pfn - zone->zone_start_pfn;
+-	return (pfn >> (MAX_ORDER-1)) * NR_PAGEBLOCK_BITS;
++	return (pfn >> pageblock_order) * NR_PAGEBLOCK_BITS;
+ #endif /* CONFIG_SPARSEMEM */
+ }
+ 
+ /**
+- * get_pageblock_flags_group - Return the requested group of flags for the MAX_ORDER_NR_PAGES block of pages
++ * get_pageblock_flags_group - Return the requested group of flags for the nr_pages_pageblock block of pages
+  * @page: The page within the block of interest
+  * @start_bitidx: The first bit of interest to retrieve
+  * @end_bitidx: The last bit of interest
+@@ -4119,7 +4148,7 @@ unsigned long get_pageblock_flags_group(
+ }
+ 
+ /**
+- * set_pageblock_flags_group - Set the requested group of flags for a MAX_ORDER_NR_PAGES block of pages
++ * set_pageblock_flags_group - Set the requested group of flags for a nr_pages_pageblock block of pages
+  * @page: The page within the block of interest
+  * @start_bitidx: The first bit of interest
+  * @end_bitidx: The last bit of interest
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
