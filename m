@@ -1,47 +1,128 @@
-Date: Mon, 14 May 2007 21:54:21 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: SLUB: Define functions for cpu slab handling instead of using
- PageActive
-Message-Id: <20070514215421.d2136057.akpm@linux-foundation.org>
-In-Reply-To: <Pine.LNX.4.64.0705141959060.27789@schroedinger.engr.sgi.com>
-References: <Pine.LNX.4.64.0705141959060.27789@schroedinger.engr.sgi.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Date: Tue, 15 May 2007 11:54:43 +0600
+From: "Magic-Jackpot Casino" <erg@puertorrico.com>
+Message-ID: <95413993.32374069@vignette.com>
+Subject: Bis 1000 Euro frei!
+MIME-Version: 1.0
+Content-Type: text/html; charset=iso-8859-1
 Content-Transfer-Encoding: 7bit
-Sender: owner-linux-mm@kvack.org
-Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
-Cc: linux-mm@kvack.org
+Return-Path: <erg@puertorrico.com>
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 14 May 2007 20:00:07 -0700 (PDT) Christoph Lameter <clameter@sgi.com> wrote:
+<html>
 
-> Use inline functions to access the per cpu bit. Intoduce the notion of 
-> "freezing" a slab to make things more understandable.
-> 
-> ...
->
-> +static inline void ClearSlabFrozen(struct page *page)
-> +{
-> +	__ClearPageActive(page);
-> +}
+<head>
+<meta http-equiv=Content-Type content="text/html; charset=iso-8859-1">
 
-Non-atomic.
+<title>Sind Sie auf der Suche nach einem neuen, 
+aufregenden Spielangebot </title>
 
-> -	ClearPageActive(page);
+<style>
+<!--
+ /* Style Definitions */
+ p.MsoNormal, li.MsoNormal, div.MsoNormal
+	{mso-style-parent:"";
+	margin:0cm;
+	margin-bottom:.0001pt;
+	mso-pagination:widow-orphan;
+	font-size:12.0pt;
+	font-family:"Times New Roman";
+	mso-fareast-font-family:"Times New Roman";}
+a:link, span.MsoHyperlink
+	{color:blue;
+	text-decoration:underline;
+	text-underline:single;}
+a:visited, span.MsoHyperlinkFollowed
+	{color:purple;
+	text-decoration:underline;
+	text-underline:single;}
+@page Section1
+	{size:595.3pt 841.9pt;
+	margin:2.0cm 42.5pt 2.0cm 3.0cm;
+	mso-header-margin:35.4pt;
+	mso-footer-margin:35.4pt;
+	mso-paper-source:0;}
+div.Section1
+	{page:Section1;}
+-->
+</style>
 
-Atomic.
+</head>
 
-A substitution like this can lead to quite revoltingly subtle bugs and needs
-lots of justfication.
+<body lang=EN-US link=blue vlink=purple style='tab-interval:35.4pt'>
 
-I'll switch this back to the atomic version.  If you're really sure about
-this micro-optimisation then let's do it as a standalone patch.  One which
-adds a comment explaining why it is safe, and under which circumstances it
-will become unsafe, etc.
+<div class=Section1>
 
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
+Sind Sie auf der Suche nach einem neuen, aufregenden Spielangebot? 
+</span><o:p></o:p></p>
+
+<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
+<u3:p>&nbsp;</u3:p></span></p>
+
+<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
+Magic Jackpot ist momentan die warscheinlich aufregendste 
+Moglichkeit dazu ! </span><o:p></o:p></p>
+
+<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
+<u3:p>&nbsp;</u3:p></span></p>
+
+<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
+Wenn BlackJack oder Roulette zu Ihren Lieblingsspielen gehoren, 
+bieten Magic Jackpot's Live-Dealer das Gefuhl eines echten Casinos. 
+</span><o:p></o:p></p>
+
+<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
+<u3:p>&nbsp;</u3:p></span></p>
+
+<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
+Wenn Slot-Machinen zu Ihren Favoriten gehoren, konnen Sie den 
+hochsten Preis aller Zeiten beim Video-Slot Millionaire's Lane 
+gewinnen, insgesamt $5 000 000 !</span><o:p></o:p></p>
+
+<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
+<u3:p>&nbsp;</u3:p></span></p>
+
+<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
+Fur den Anfing bietet Magic Jackpots einen magischen Bonus 
+als Willkommensgeschenk !</span><o:p></o:p></p>
+
+<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
+<u3:p>&nbsp;</u3:p></span></p>
+
+<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
+Zahlen Sie Heute noch bei Magic Jackpot ein und Ihr Kontostand 
+wird umgehend mit einem 100% Bonus verdoppelt.
+</span></p>
+
+<p class=MsoNormal><span style='mso-ansi-language:DE'>
+<u3:p>&nbsp;</u3:p></span></p>
+
+<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
+Zahlen Sie 20$ ein, spielen Sie mit 40$</span></p>
+
+<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
+Zahlen Sie 250$ ein, spielen Sie mit 500$</span><o:p></o:p></p>
+
+<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
+<u3:p>&nbsp;</u3:p></span></p>
+
+<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
+Der Live-Kundendienst steht bei eventuellen Ruckfragen oder 
+sonstigen Anliegen, 24 Stunden am Tag zur Verfugung, was den 
+Genuess schneller Auszahlungen garantiert !</span>
+<o:p></o:p></p>
+
+<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
+<u3:p>&nbsp;</u3:p></span></p>
+
+<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
+<a href="http://www.mj-casinos.com/lang-de/">
+http://www.mj-casinos.com/lang-de/</a>
+<u3:p></u3:p></span></p>
+
+</div>
+
+</body>
+
+</html>
