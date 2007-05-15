@@ -1,11 +1,10 @@
-Date: Tue, 15 May 2007 11:29:10 -0700 (PDT)
+Date: Tue, 15 May 2007 11:29:46 -0700 (PDT)
 From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [PATCH 6/8] Add __GFP_TEMPORARY to identify allocations that
- are short-lived
-In-Reply-To: <20070515150512.16348.58421.sendpatchset@skynet.skynet.ie>
-Message-ID: <Pine.LNX.4.64.0705151129000.31972@schroedinger.engr.sgi.com>
+Subject: Re: [PATCH 7/8] Rename GFP_HIGH_MOVABLE to GFP_HIGHUSER_MOVABLE
+In-Reply-To: <20070515150532.16348.43459.sendpatchset@skynet.skynet.ie>
+Message-ID: <Pine.LNX.4.64.0705151129400.31972@schroedinger.engr.sgi.com>
 References: <20070515150311.16348.56826.sendpatchset@skynet.skynet.ie>
- <20070515150512.16348.58421.sendpatchset@skynet.skynet.ie>
+ <20070515150532.16348.43459.sendpatchset@skynet.skynet.ie>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
