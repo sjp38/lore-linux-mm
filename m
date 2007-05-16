@@ -1,167 +1,132 @@
-Date: Wed, 16 May 2007 14:50:39 +0100
-Subject: Re: [PATCH 1/2] Have kswapd keep a minimum order free other than order-0
-Message-ID: <20070516135039.GA7467@skynet.ie>
-References: <Pine.LNX.4.64.0705141058590.11319@schroedinger.engr.sgi.com> <Pine.LNX.4.64.0705141111400.11411@schroedinger.engr.sgi.com> <20070514182456.GA9006@skynet.ie> <1179218576.25205.1.camel@rousalka.dyndns.org> <Pine.LNX.4.64.0705150958150.6896@skynet.skynet.ie> <464AC00E.10704@yahoo.com.au> <Pine.LNX.4.64.0705160958230.7139@skynet.skynet.ie> <464ACA68.2040707@yahoo.com.au> <Pine.LNX.4.64.0705161011400.7139@skynet.skynet.ie> <464AF8DB.9030000@yahoo.com.au>
+Date: Wed, 16 May 2007 15:00:39 +0100
+Subject: Re: [PATCH 2/2] Only check absolute watermarks for ALLOC_HIGH and ALLOC_HARDER allocations
+Message-ID: <20070516140038.GA10225@skynet.ie>
+References: <20070514173218.6787.56089.sendpatchset@skynet.skynet.ie> <20070514173259.6787.58533.sendpatchset@skynet.skynet.ie> <464AF589.2000000@yahoo.com.au> <20070516132419.GA18542@skynet.ie> <464B089C.9070805@yahoo.com.au>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <464AF8DB.9030000@yahoo.com.au>
+In-Reply-To: <464B089C.9070805@yahoo.com.au>
 From: mel@skynet.ie (Mel Gorman)
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Nick Piggin <nickpiggin@yahoo.com.au>
-Cc: Nicolas Mailhot <nicolas.mailhot@laposte.net>, Christoph Lameter <clameter@sgi.com>, Andy Whitcroft <apw@shadowen.org>, akpm@linux-foundation.org, Linux Memory Management List <linux-mm@kvack.org>
+Cc: nicolas.mailhot@laposte.net, clameter@sgi.com, apw@shadowen.org, akpm@linux-foundation.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On (16/05/07 22:28), Nick Piggin didst pronounce:
+On (16/05/07 23:35), Nick Piggin didst pronounce:
 > Mel Gorman wrote:
-> >On Wed, 16 May 2007, Nick Piggin wrote:
+> >On (16/05/07 22:14), Nick Piggin didst pronounce:
 > >
 > >>Mel Gorman wrote:
 > >>
-> >>>On Wed, 16 May 2007, Nick Piggin wrote:
-> >>
-> >>
-> >>>>Hmm, so we require higher order pages be kept free even if nothing is
-> >>>>using them? That's not very nice :(
-> >>>>
+> >>>zone_watermark_ok() checks if there are enough free pages including a 
+> >>>reserve.
+> >>>High-order allocations additionally check if there are enough free 
+> >>>high-order
+> >>>pages in relation to the watermark adjusted based on the requested size. 
+> >>>If
+> >>>there are not enough free high-order pages available, 0 is returned so 
+> >>>that
+> >>>the caller enters direct reclaim.
 > >>>
-> >>>Not quite. We are already required to keep a minimum number of pages 
-> >>>free even though nothing is using them. The difference is that if it 
-> >>>is known high-order allocations are frequently required, the freed 
-> >>>pages will be contiguous. If no one calls raise_kswapd_order(), 
-> >>>kswapd will continue reclaiming at order-0.
+> >>>ALLOC_HIGH and ALLOC_HARDER allocations are allowed to dip further into
+> >>>the reserves but also take into account if the number of free high-order
+> >>>pages meet the adjusted watermarks. As these allocations cannot sleep,
 > >>
-> >>
-> >>And after they are stopped being used, it falls back to order-0?
-> >
-> >
-> >No, raise_kswapd_order() is used when it is known there are many 
-> >high-order allocations of a particular value. It becomes the minimum 
-> >value kswapd reclaims at. SLUB does not *require* high order allocations 
-> >but can be configured to use them so it makes sense to keep 
-> >min_free_kbytes at that order to reduce stalls due to direct reclaim.
-> 
-> The point is you still might not have anything performing those
-> allocations from those higher order caches. Or you might have things
-> that are doing higher order allocations, but not via slab.
-> 
-
-On the contrary, raise_kswapd_order() is called when you *know* things will
-be performing those allocations. However, I think what you are saying is
-that kswapd could end up reclaiming at the highest-order cache even though
-it might be very rarely used. Christoph identified the same problem and sent
-a follow-up patch, this is the leader
-
-======
-
-On third thought: The trouble with this solution is that we will now set
-the order to that used by the largest kmalloc cache. Bad... this could be
-6 on i386 to 13 if CONFIG_LARGE_ALLOCs is set. The large kmalloc caches are
-rarely used and we are used to OOMing if those are utilized to frequently.
-
-I guess we should only set this for non kmalloc caches then. 
-So move the call into kmem_cache_create? Would make the min order 3 on
-most of my mm machines.
-===
-
-The second part of what you say is that there could be a non-slab user of
-high order allocs. That is true and expected. In that case, the existing
-mechanism informs kswapd of the higher order as it does today so it can
-reclaim at the higher order for a bit and enter direct reclaim if necessary.
-
-> Basically this is dumbing down the existing higher order watermarking
-> already there in favour of a worse special case AFAIKS.
-> 
-
-It's not being replaced. That existing watermarking is still used. If it
-was being replaced, the for loop in zone_watermark_ok() would have been
-taken out.
-
-> 
-> >>Why
-> >>can't this use the infrastructure that is already in place for that?
+> >>Why can't ALLOC_HIGH or ALLOC_HARDER sleep? This patch seems wrong to
+> >>me.
 > >>
 > >
-> >The infrastructure there currently deals nicely with the situation where 
-> >there are rarely allocations of a high order. This change is for when it 
-> >is known there are frequent high-order (e.g. orders 1-4) allocations. 
-> >While the callers often can direct reclaim, kswapd should help them 
-> >avoid stalls because reducing stalls is one of it's functions. With this 
-> >patch, kswapd still reclaims the same number of pages, just tries to 
-> >reclaim contiguous ones.
+> >
+> >In page_alloc.c
+> >
+> >        if ((unlikely(rt_task(p)) && !in_interrupt()) || !wait)
+> >                alloc_flags |= ALLOC_HARDER;
+> >
+> >See the !wait part.
 > 
-> kswapd already does reclaim on behalf of non-sleeping higher order
-> allocations (or at least it does in mainline).
+> And the || part.
 > 
 
-My point is that when it does, a caller is still likely to enter direct
-reclaim and kswapd can help prevent stalls if it pre-emptively reclaims at
-an order known to be commonly used when free pages is below watermarks
+I doubt a rt_task is thrilled to be entering direct reclaim.
 
 > 
-> >>>Arguably, e1000 should also be calling raise_kswapd_order() when it 
-> >>>is using jumbo frames.
+> >The ALLOC_HIGH applies to __GFP_HIGH allocations which are allowed to
+> >dip into emergency pools and go below the reserve.
+> 
+> And some of them can sleep too.
+> 
+
+If you feel very strongly about it, I can back out the ALLOC_HIGH part for
+__GFP_HIGH allocations but it looks like at a glance that users of __GFP_HIGH
+are not too keen on sleeping;
+
+drivers/block/rd.c;
+	Comment
+	Deep badness.  rd_blkdev_pagecache_IO() needs to allocate
+	pagecache pages within a request_fn.  We cannot recur back
+	into the filesytem which is mounted atop the ramdisk
+
+fs/ext4/writeback.c;
+	Using __GFP_HIGH when allocating bios
+
+kernel/power/swap.c;
+	Using __GFP_HIGH when allocating bios
+
+The change is still obeying watermarks, just at order-0 instead of
+strictly observing the higher orders.
+
+> 
+> >>>they cannot enter direct reclaim so the allocation can fail even though
+> >>>the pages are available and the number of free pages is well above the
+> >>>watermark for order-0.
+> >>>
+> >>>This patch alters the behaviour of zone_watermark_ok() slightly. 
+> >>>Watermarks
+> >>>are still obeyed but when an allocator is flagged ALLOC_HIGH or 
+> >>>ALLOC_HARDER,
+> >>>we only check that there is sufficient memory over the reserve to satisfy
+> >>>the allocation, allocation size is ignored.  This patch also documents
+> >>>better what zone_watermark_ok() is doing.
 > >>
-> >>
-> >>It should be able to handle higher order page allocation failures
-> >>gracefully.
-> >
-> >
-> >Has something changed recently that it can handle failures? It might 
-> >have because it has been hinted that it's possible, just not very fast.
-> 
-> I don't know, but it is stupid if it can't.
-
-Well, if it could, order:3 allocation failure reports wouldn't occur
-periodically.
-
-> It should not be too hard to keep it fast where it is fast today, and have
-> it at least work where it would otherwise fail... just by reserving some
-> memory pages in case none can be allocated.
-> 
-
-It already reserves and still occasionally hits the problem.
-
-> 
-> >>kswapd will be notified of the attempts and go on and try
-> >>to free up some higher order pages for it for next time. What is wrong
-> >>with this process?
-> >
-> >
-> >It's reactive, it only occurs when a process has already entered direct 
-> >reclaim.
-> 
-> No it should not be. It should be proactive even for higher order 
-> allocations.
-
-I don't see why it would be. kswapd is only told to wake up when the
-first allocation attempt obeying watermarks fails.
-
-> All this stuff used to work properly :(
-> 
-
-It only came to light recently that there might be issues.
-
-> 
-> >>Are the higher order watermarks insufficient?
+> >>This is wrong because now you lose the buffering of higher order pages
+> >>for more urgent allocation classes against less urgent ones.
 > >>
 > >
-> >The high-order watermarks are still used to make a process that can 
-> >sleep enter direct reclaim when the higher order watermarks are not 
-> >being met.
 > >
-> >>(I would also add that non-arguably, e1000 should also be able to do
-> >>scatter gather with jumbo frames too.)
-> >>
-> >
-> >That's another football that has done the laps.
+> >ALLOC_HARDER is an urgent allocation class.
 > 
-> I think the hardware can do it.
+> And HIGH is even more, and MEMALLOC even more again.
 > 
 
-e1000 cards come in such a variety of capabilitys that it's difficult to
-tell
+HIGH => ALLOC_HIGH => obey watermarks at order-0
+
+Somewhat counter-intuitively, with the current code if the allocation is
+a really high priority but can sleep, it can actually allocate without any
+watermarks at all
+
+> 
+> >>Think of how the order-0 allocation buffering works with the watermarks
+> >>and consider that we're trying to do the same exact thing for higher order
+> >>allocations here.
+> >>
+> >
+> >
+> >What actually happens is that high-order allocations fail even though
+> >the watermarks are met because they cannot enter direct reclaim.
+> 
+> Yeah, they fail leaving some spare for more urgent allocations. Like
+> how the order-0 allocations work.
+
+order-0 watermarks are still in place. After the patch, it is still not
+possible for the allocations to break the watermarks there.
+
+> They should also kick kswapd to start freeing pages _before_ they start
+> failing too.
+> 
+
+Should prehaps, but from what I read kswapd is only kicked into action
+when the first allocation attempt has already failed.
 
 -- 
 Mel Gorman
