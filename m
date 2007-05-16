@@ -1,42 +1,28 @@
-Subject: Re: [PATCH 0/5] make slab gfp fair
-From: Peter Zijlstra <a.p.zijlstra@chello.nl>
-In-Reply-To: <Pine.LNX.4.64.0705151457060.3155@schroedinger.engr.sgi.com>
-References: <20070514131904.440041502@chello.nl>
-	 <Pine.LNX.4.64.0705140852150.10442@schroedinger.engr.sgi.com>
-	 <20070514161224.GC11115@waste.org>
-	 <Pine.LNX.4.64.0705140927470.10801@schroedinger.engr.sgi.com>
-	 <1179164453.2942.26.camel@lappy>
-	 <Pine.LNX.4.64.0705141051170.11251@schroedinger.engr.sgi.com>
-	 <1179170912.2942.37.camel@lappy> <1179250036.7173.7.camel@twins>
-	 <Pine.LNX.4.64.0705151457060.3155@schroedinger.engr.sgi.com>
-Content-Type: text/plain
-Date: Wed, 16 May 2007 08:59:31 +0200
-Message-Id: <1179298771.7173.16.camel@twins>
+Date: Wed, 16 May 2007 00:02:36 -0700 (PDT)
+Message-Id: <20070516.000236.71091606.davem@davemloft.net>
+Subject: Re: Slab allocators: Define common size limitations
+From: David Miller <davem@davemloft.net>
+In-Reply-To: <Pine.LNX.4.62.0705160855470.24080@pademelon.sonytel.be>
+References: <Pine.LNX.4.64.0705152313490.5832@schroedinger.engr.sgi.com>
+	<Pine.LNX.4.62.0705160855470.24080@pademelon.sonytel.be>
 Mime-Version: 1.0
+Content-Type: Text/Plain; charset=us-ascii
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
+From: Geert Uytterhoeven <Geert.Uytterhoeven@sonycom.com>
+Date: Wed, 16 May 2007 08:58:39 +0200 (CEST)
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
-Cc: Matt Mackall <mpm@selenic.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Thomas Graf <tgraf@suug.ch>, David Miller <davem@davemloft.net>, Andrew Morton <akpm@linux-foundation.org>, Daniel Phillips <phillips@google.com>, Pekka Enberg <penberg@cs.helsinki.fi>
+To: Geert.Uytterhoeven@sonycom.com
+Cc: clameter@sgi.com, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linuxppc-dev@ozlabs.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 2007-05-15 at 15:02 -0700, Christoph Lameter wrote:
-> On Tue, 15 May 2007, Peter Zijlstra wrote:
-> 
-> > How about something like this; it seems to sustain a little stress.
-> 
-> Argh again mods to kmem_cache.
+> E.g. for one of the PS3 drivers I need a physically contiguous 256
+> KiB-aligned block of 256 KiB. Currently I'm using __alloc_bootmem()
+> for that, but maybe kmalloc() becomes a suitable alternative now?
 
-Hmm, I had not understood you minded that very much; I did stay away
-from all the fast paths this time.
-
-The thing is, I wanted to fold all the emergency allocs into a single
-slab, not a per cpu thing. And once you loose the per cpu thing, you
-need some extra serialization. Currently the top level lock is
-slab_lock(page), but that only works because we have interrupts disabled
-and work per cpu.
-
-Why is it bad to extend kmem_cache a bit?
+I'm allocating up to 1MB for per-process TLB hash tables
+on sparc64.  But I can gracefully handle failures and it's
+just a performance tweak to use such large sized tables.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
