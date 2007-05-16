@@ -1,54 +1,75 @@
-Message-ID: <464AC00E.10704@yahoo.com.au>
-Date: Wed, 16 May 2007 18:25:50 +1000
-From: Nick Piggin <nickpiggin@yahoo.com.au>
+Date: Wed, 16 May 2007 09:58:16 +0100 (IST)
+From: Mel Gorman <mel@csn.ul.ie>
+Subject: Re: [PATCH 0/8] Review-based updates to grouping pages by mobility
+In-Reply-To: <20070516113314.65f442a2.kamezawa.hiroyu@jp.fujitsu.com>
+Message-ID: <Pine.LNX.4.64.0705160951490.7139@skynet.skynet.ie>
+References: <20070515150311.16348.56826.sendpatchset@skynet.skynet.ie>
+ <20070516113314.65f442a2.kamezawa.hiroyu@jp.fujitsu.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 1/2] Have kswapd keep a minimum order free other than
- order-0
-References: <20070514173218.6787.56089.sendpatchset@skynet.skynet.ie>  <20070514173238.6787.57003.sendpatchset@skynet.skynet.ie>  <Pine.LNX.4.64.0705141058590.11319@schroedinger.engr.sgi.com>  <Pine.LNX.4.64.0705141111400.11411@schroedinger.engr.sgi.com>  <20070514182456.GA9006@skynet.ie> <1179218576.25205.1.camel@rousalka.dyndns.org> <Pine.LNX.4.64.0705150958150.6896@skynet.skynet.ie>
-In-Reply-To: <Pine.LNX.4.64.0705150958150.6896@skynet.skynet.ie>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 8bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII; format=flowed
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: Nicolas Mailhot <nicolas.mailhot@laposte.net>, Christoph Lameter <clameter@sgi.com>, Andy Whitcroft <apw@shadowen.org>, akpm@linux-foundation.org, Linux Memory Management List <linux-mm@kvack.org>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: clameter@sgi.com, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Mel Gorman wrote:
-> On Tue, 15 May 2007, Nicolas Mailhot wrote:
-> 
->> Le lundi 14 mai 2007 a 19:24 +0100, Mel Gorman a ecrit :
->>
->>> On (14/05/07 11:13), Christoph Lameter didst pronounce:
->>>
->>>> I think the slub fragment may have to be this way? This calls
->>>> raise_kswapd_order on each kmem_cache_create with the order of the 
->>>> cache
->>>> that was created thus insuring that the min_order is correctly.
->>>>
->>>> Signed-off-by: Christoph Lameter <clameter@sgi.com>
->>>>
->>>
->>> Good plan. Revised patch as follows;
->>
->>
->> Kernel with this patch and the other one survives testing. I'll stop
->> heavy testing now and consider the issue closed.
->>
-> 
-> That is good news, thanks for the report.
-> 
->> Thanks for looking at my bug report.
->>
-> 
-> Thank you very much for your testing. I know it was a lot to ask to tie 
-> a machine up for a few days.
+On Wed, 16 May 2007, KAMEZAWA Hiroyuki wrote:
 
-Hmm, so we require higher order pages be kept free even if nothing is
-using them? That's not very nice :(
+> On Tue, 15 May 2007 16:03:11 +0100 (IST)
+> Mel Gorman <mel@csn.ul.ie> wrote:
+>
+>> Hi Christoph,
+>>
+>> The following patches address points brought up by your review of the
+>> grouping pages by mobility patches. There are quite a number of patches here.
+>>
+> May I have a question ?
+> Not about this patch but about 2.6.21-mm2.
+>
+> In free_hot_cold_page()
+>
+> ==
+> static void fastcall free_hot_cold_page(struct page *page, int cold)
+> {
+>        struct zone *zone = page_zone(page);
+>        struct per_cpu_pages *pcp;
+>        unsigned long flags;
+> <snip>
+> 	set_page_private(page, get_pageblock_migratetype(page));
+>        pcp->count++;
+>        if (pcp->count >= pcp->high) {
+>                free_pages_bulk(zone, pcp->batch, &pcp->list, 0);
+>                pcp->count -= pcp->batch;
+>        }
+>
+> ==
+>
+> get_pageblock_migratetype(page) is called without zone->lock.
+>
+
+Indeed, this is the per-cpu allocator so acquiring a lock defeats the 
+point.
+
+> Is this safe ? or should we add seqlock(or something) to access
+> migrate type bitmap ?
+>
+
+It's safe.
+
+At worst, the pcp free calls get_pageblock_migratetype() and gets the 
+wrong migrate type. For that to happen, it means that an allocator under 
+lock has "stolen" the block already contains pages of a mixed type. As the 
+block is already mixed, the situation has not gotten any worse.
+
+If the pcp page gets a migrate type > MIGRATE_TYPE, it will remain on the 
+pcp lists until a batch free occurs in which case it will call 
+get_pageblock_migratetype() again under the zone->lock this time, get the 
+right type and be freed.
 
 -- 
-SUSE Labs, Novell Inc.
+Mel Gorman
+Part-time Phd Student                          Linux Technology Center
+University of Limerick                         IBM Dublin Software Lab
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
