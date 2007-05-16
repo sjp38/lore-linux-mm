@@ -1,10 +1,11 @@
-Date: Wed, 16 May 2007 16:12:25 -0700 (PDT)
+Date: Wed, 16 May 2007 16:14:40 -0700 (PDT)
 From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [PATCH 2/5] Do not annotate shmem allocations explicitly
-In-Reply-To: <20070516230150.10314.37438.sendpatchset@skynet.skynet.ie>
-Message-ID: <Pine.LNX.4.64.0705161611530.12119@schroedinger.engr.sgi.com>
+Subject: Re: [PATCH 5/5] Mark page cache pages as __GFP_PAGECACHE instead of
+ __GFP_MOVABLE
+In-Reply-To: <20070516230250.10314.85751.sendpatchset@skynet.skynet.ie>
+Message-ID: <Pine.LNX.4.64.0705161613280.12119@schroedinger.engr.sgi.com>
 References: <20070516230110.10314.85884.sendpatchset@skynet.skynet.ie>
- <20070516230150.10314.37438.sendpatchset@skynet.skynet.ie>
+ <20070516230250.10314.85751.sendpatchset@skynet.skynet.ie>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
@@ -15,15 +16,36 @@ List-ID: <linux-mm.kvack.org>
 
 On Thu, 17 May 2007, Mel Gorman wrote:
 
-> shmem support allocates pages for two purposes. Firstly, shmem_dir_alloc()
-> allocates pages to track swap vectors. These are not movable so this
-> patch clears all mobility-flags related to the allocation. Secondly,
-> shmem_alloc_pages() allocates pages on behalf of shmem_getpage(), whose
-> flags come from a file mapping which already sets the appropriate mobility
-> flags. These allocations do not need to be explicitly flagged so this patch
-> removes the unnecessary annotations.
+> diff -rup -X /usr/src/patchset-0.6/bin//dontdiff linux-2.6.22-rc1-mm1-025_gfphighuser/fs/block_dev.c linux-2.6.22-rc1-mm1-030_pagecache_mark/fs/block_dev.c
+> --- linux-2.6.22-rc1-mm1-025_gfphighuser/fs/block_dev.c	2007-05-16 10:54:18.000000000 +0100
+> +++ linux-2.6.22-rc1-mm1-030_pagecache_mark/fs/block_dev.c	2007-05-16 23:07:30.000000000 +0100
+> @@ -576,7 +576,7 @@ struct block_device *bdget(dev_t dev)
+>  		inode->i_rdev = dev;
+>  		inode->i_bdev = bdev;
+>  		inode->i_data.a_ops = &def_blk_aops;
+> -		mapping_set_gfp_mask(&inode->i_data, GFP_USER|__GFP_MOVABLE);
+> +		mapping_set_gfp_mask(&inode->i_data, GFP_USER);
+>  		inode->i_data.backing_dev_info = &default_backing_dev_info;
+>  		spin_lock(&bdev_lock);
+>  		list_add(&bdev->bd_list, &all_bdevs);
+> diff -rup -X /usr/src/patchset-0.6/bin//dontdiff linux-2.6.22-rc1-mm1-025_gfphighuser/fs/buffer.c linux-2.6.22-rc1-mm1-030_pagecache_mark/fs/buffer.c
+> --- linux-2.6.22-rc1-mm1-025_gfphighuser/fs/buffer.c	2007-05-16 22:55:50.000000000 +0100
+> +++ linux-2.6.22-rc1-mm1-030_pagecache_mark/fs/buffer.c	2007-05-16 23:07:30.000000000 +0100
+> @@ -1009,7 +1009,7 @@ grow_dev_page(struct block_device *bdev,
+>  	struct buffer_head *bh;
+>  
+>  	page = find_or_create_page(inode->i_mapping, index,
+> -					GFP_NOFS|__GFP_RECLAIMABLE);
+> +					GFP_NOFS_PAGECACHE);
+>  	if (!page)
+>  		return NULL;
+>  
 
-I do not feel really competent on shmem.... but
+We still have the contrast here. Should fs/block_dev.c not have 
+GFP_PAGECACHE? But you could leave it and then my patch could fix this 
+up.
+
+Otherwise
 
 Acked-by: Christoph Lameter <clameter@sgi.com>
 
