@@ -1,27 +1,23 @@
-Date: Tue, 15 May 2007 23:39:40 -0700 (PDT)
-Message-Id: <20070515.233940.48528771.davem@davemloft.net>
-Subject: Re: Slab allocators: Define common size limitations
-From: David Miller <davem@davemloft.net>
-In-Reply-To: <20070515233239.335bd4ed.akpm@linux-foundation.org>
-References: <Pine.LNX.4.64.0705152313490.5832@schroedinger.engr.sgi.com>
-	<20070515233239.335bd4ed.akpm@linux-foundation.org>
+Date: Wed, 16 May 2007 08:57:43 +0200
+From: Christoph Hellwig <hch@lst.de>
+Subject: Re: [RFC/PATCH 2/2] Make map_vm_area() static
+Message-ID: <20070516065743.GB9884@lst.de>
+References: <20070516034600.8A7C6DDEE7@ozlabs.org>
 Mime-Version: 1.0
-Content-Type: Text/Plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20070516034600.8A7C6DDEE7@ozlabs.org>
 Sender: owner-linux-mm@kvack.org
-From: Andrew Morton <akpm@linux-foundation.org>
-Date: Tue, 15 May 2007 23:32:39 -0700
 Return-Path: <owner-linux-mm@kvack.org>
-To: akpm@linux-foundation.org
-Cc: clameter@sgi.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Benjamin Herrenschmidt <benh@kernel.crashing.org>
+Cc: Linux Memory Management <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, Christoph Hellwig <hch@lst.de>
 List-ID: <linux-mm.kvack.org>
 
-> rofl. Really we shouldn't put this into 2.6.22, but it turfs out so much
-> crap that it's hard to justify holding it back.
+On Wed, May 16, 2007 at 01:45:29PM +1000, Benjamin Herrenschmidt wrote:
+> map_vm_area() is only ever used inside of mm/vmalloc.c. This makes
+> it static and removes the prototype.
 
-If fixes sparc64 with SLAB for one thing.  I was going to put
-LARGE_ALLOCS back into sparc64/Kconfig but this is just soooo
-much better.
+Looks good.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
