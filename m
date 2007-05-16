@@ -1,54 +1,50 @@
-Date: Wed, 16 May 2007 18:21:09 +0100 (BST)
-From: Hugh Dickins <hugh@veritas.com>
-Subject: Re: [rfc] optimise unlock_page
-In-Reply-To: <20070513033210.GA3667@wotan.suse.de>
-Message-ID: <Pine.LNX.4.64.0705161737140.7914@blonde.wat.veritas.com>
-References: <20070508113709.GA19294@wotan.suse.de> <20070508114003.GB19294@wotan.suse.de>
- <1178659827.14928.85.camel@localhost.localdomain> <20070508224124.GD20174@wotan.suse.de>
- <20070508225012.GF20174@wotan.suse.de> <Pine.LNX.4.64.0705091950080.2909@blonde.wat.veritas.com>
- <20070510033736.GA19196@wotan.suse.de> <Pine.LNX.4.64.0705101935590.18496@blonde.wat.veritas.com>
- <20070511085424.GA15352@wotan.suse.de> <Pine.LNX.4.64.0705111357120.3350@blonde.wat.veritas.com>
- <20070513033210.GA3667@wotan.suse.de>
+Received: by ik-out-1112.google.com with SMTP id c30so175605ika
+        for <linux-mm@kvack.org>; Wed, 16 May 2007 10:27:12 -0700 (PDT)
+Message-ID: <29495f1d0705161027v2b79ef5as394dbbef8d7eec0@mail.gmail.com>
+Date: Wed, 16 May 2007 10:27:11 -0700
+From: "Nish Aravamudan" <nish.aravamudan@gmail.com>
+Subject: Re: [PATCH] Fix hugetlb pool allocation with empty nodes - V2 -> V3
+In-Reply-To: <1178738245.5047.67.camel@localhost>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+References: <20070503022107.GA13592@kryten>
+	 <1178310543.5236.43.camel@localhost>
+	 <Pine.LNX.4.64.0705041425450.25764@schroedinger.engr.sgi.com>
+	 <1178728661.5047.64.camel@localhost>
+	 <Pine.LNX.4.64.0705090956050.28244@schroedinger.engr.sgi.com>
+	 <1178738245.5047.67.camel@localhost>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nick Piggin <npiggin@suse.de>
-Cc: Benjamin Herrenschmidt <benh@kernel.crashing.org>, linux-arch@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>
+To: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
+Cc: Christoph Lameter <clameter@sgi.com>, Anton Blanchard <anton@samba.org>, linux-mm@kvack.org, ak@suse.de, mel@csn.ul.ie, apw@shadowen.org, Andrew Morton <akpm@linux-foundation.org>, Eric Whitney <eric.whitney@hp.com>
 List-ID: <linux-mm.kvack.org>
 
-On Sun, 13 May 2007, Nick Piggin wrote:
-> On Fri, May 11, 2007 at 02:15:03PM +0100, Hugh Dickins wrote:
-> 
-> > But again I wonder just what the gain has been, once your double
-> > unmap_mapping_range is factored in.  When I suggested before that
-> > perhaps the double (well, treble including the one in truncate.c)
-> > unmap_mapping_range might solve the problem you set out to solve
-> > (I've lost sight of that!) without pagelock when faulting, you said:
-> > 
-> > > Well aside from being terribly ugly, it means we can still drop
-> > > the dirty bit where we'd otherwise rather not, so I don't think
-> > > we can do that.
-> > 
-> > but that didn't give me enough information to agree or disagree.
-> 
-> Oh, well invalidate wants to be able to skip dirty pages or have the
-> filesystem do something special with them first. Once you have taken
-> the page out of the pagecache but still mapped shared, then blowing
-> it away doesn't actually solve the data loss problem... only makes
-> the window of VM inconsistency smaller.
+On 5/9/07, Lee Schermerhorn <Lee.Schermerhorn@hp.com> wrote:
+> On Wed, 2007-05-09 at 09:57 -0700, Christoph Lameter wrote:
+> > On Wed, 9 May 2007, Lee Schermerhorn wrote:
+> >
+> > > +                                   HUGETLB_PAGE_ORDER);
+> > > +
+> > > +           nid = next_node(nid, node_online_map);
+> > > +           if (nid == MAX_NUMNODES)
+> > > +                   nid = first_node(node_online_map);
+> >
+> > Maybe use nr_node_ids here? May save some scanning over online maps?
+>
+> Good idea.  I won't get to it until next week.  Maybe we'll have more
+> comments by then.
+>
+> Anton:  anything to add?
 
-Right, I think I see what you mean now, thanks: userspace
-must not for a moment be allowed to write to orphaned pages.
+Actually, I was going to ask? Why don't we just iterate over
+node_populated_map? You've exported it and everything... Rather than
+going over some other map and then checking to see if the node is
+populated every time?
 
-Whereas it's not an issue for the privately COWed pages you added
-the second unmap_mapping_range for: because it's only truncation
-that has to worry about them, so they're heading for SIGBUS anyway.
-
-Yes, and the page_mapped tests in mm/truncate.c are just racy
-heuristics without the page lock you now put into faulting.
-
-Hugh
+Thanks,
+Nish
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
