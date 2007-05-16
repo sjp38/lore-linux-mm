@@ -1,275 +1,86 @@
-Subject: Re: [PATCH 0/5] make slab gfp fair
-From: Peter Zijlstra <a.p.zijlstra@chello.nl>
-In-Reply-To: <Pine.LNX.4.64.0705161139540.10265@schroedinger.engr.sgi.com>
-References: <20070514131904.440041502@chello.nl>
-	 <Pine.LNX.4.64.0705140852150.10442@schroedinger.engr.sgi.com>
-	 <20070514161224.GC11115@waste.org>
-	 <Pine.LNX.4.64.0705140927470.10801@schroedinger.engr.sgi.com>
-	 <1179164453.2942.26.camel@lappy>
-	 <Pine.LNX.4.64.0705141051170.11251@schroedinger.engr.sgi.com>
-	 <1179170912.2942.37.camel@lappy> <1179250036.7173.7.camel@twins>
-	 <Pine.LNX.4.64.0705151457060.3155@schroedinger.engr.sgi.com>
-	 <1179298771.7173.16.camel@twins>
-	 <Pine.LNX.4.64.0705161139540.10265@schroedinger.engr.sgi.com>
-Content-Type: text/plain
-Date: Wed, 16 May 2007 21:25:21 +0200
-Message-Id: <1179343521.2912.20.camel@lappy>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Date: Wed, 16 May 2007 20:28:36 +0100 (BST)
+From: Hugh Dickins <hugh@veritas.com>
+Subject: Re: [rfc] optimise unlock_page
+In-Reply-To: <20070516181847.GD5883@wotan.suse.de>
+Message-ID: <Pine.LNX.4.64.0705161946170.28185@blonde.wat.veritas.com>
+References: <20070508225012.GF20174@wotan.suse.de>
+ <Pine.LNX.4.64.0705091950080.2909@blonde.wat.veritas.com>
+ <20070510033736.GA19196@wotan.suse.de> <Pine.LNX.4.64.0705101935590.18496@blonde.wat.veritas.com>
+ <20070511085424.GA15352@wotan.suse.de> <Pine.LNX.4.64.0705111357120.3350@blonde.wat.veritas.com>
+ <20070513033210.GA3667@wotan.suse.de> <Pine.LNX.4.64.0705130535410.3015@blonde.wat.veritas.com>
+ <20070513065246.GA15071@wotan.suse.de> <Pine.LNX.4.64.0705161838080.16762@blonde.wat.veritas.com>
+ <20070516181847.GD5883@wotan.suse.de>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
-Cc: Matt Mackall <mpm@selenic.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Thomas Graf <tgraf@suug.ch>, David Miller <davem@davemloft.net>, Andrew Morton <akpm@linux-foundation.org>, Daniel Phillips <phillips@google.com>, Pekka Enberg <penberg@cs.helsinki.fi>
+To: Nick Piggin <npiggin@suse.de>
+Cc: Benjamin Herrenschmidt <benh@kernel.crashing.org>, linux-arch@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>, Linus Torvalds <torvalds@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 2007-05-16 at 11:43 -0700, Christoph Lameter wrote:
-> On Wed, 16 May 2007, Peter Zijlstra wrote:
-> 
-> > On Tue, 2007-05-15 at 15:02 -0700, Christoph Lameter wrote:
-> > > On Tue, 15 May 2007, Peter Zijlstra wrote:
+On Wed, 16 May 2007, Nick Piggin wrote:
+> On Wed, May 16, 2007 at 06:54:15PM +0100, Hugh Dickins wrote:
+> > On Sun, 13 May 2007, Nick Piggin wrote:
 > > > 
-> > > > How about something like this; it seems to sustain a little stress.
-> > > 
-> > > Argh again mods to kmem_cache.
+> > > Well I think so, but not completely sure.
 > > 
-> > Hmm, I had not understood you minded that very much; I did stay away
-> > from all the fast paths this time.
+> > That's not quite enough to convince me!
 > 
-> Well you added a new locking level and changed the locking hierachy!
->  
-> > The thing is, I wanted to fold all the emergency allocs into a single
-> > slab, not a per cpu thing. And once you loose the per cpu thing, you
-> > need some extra serialization. Currently the top level lock is
-> > slab_lock(page), but that only works because we have interrupts disabled
-> > and work per cpu.
+> I did ask Linus, and he was very sure it works.
+
+Good, that's very encouraging.
+
+> Not so much from a high level view (although it does put more constraints
+> on the flags layout), but from a CPU level... the way we intermix different
+> sized loads and stores can run into store forwarding issues[*] which might
+> be expensive as well. Not to mention that we can't do the non-atomic
+> unlock on all architectures.
+
+Ah yes, that's easier to envisage than an actual correctness problem.
+
+> The other option of moving the bit into ->mapping hopefully avoids all
+> the issues, and would probably be a little faster again on the P4, at the
+> expense of being a more intrusive (but it doesn't look too bad, at first
+> glance)...
+
+Hmm, I'm so happy with PG_swapcache in there, that I'm reluctant to
+cede it to your PG_locked, though I can't deny your use should take
+precedence.  Perhaps we could enforce 8-byte alignment of struct
+address_space and struct anon_vma to make both bits available
+(along with the anon bit).
+
+But I think you may not be appreciating how intrusive PG_locked
+will be.  There are many references to page->mapping (often ->host)
+throughout fs/ : when we keep anon/swap flags in page->mapping, we
+know the filesystems will never see those bits set in their pages,
+so no page_mapping-like conversion is needed; just a few places in
+common code need to adapt.
+
+And given our deprecation discipline for in-kernel interfaces,
+wouldn't we have to wait a similar period before making page->mapping
+unavailable to out-of-tree filesystems?
+
+> > Please seek out those guarantees.  Like you, I can't really see how
+> > it would go wrong (how could moving in the unlocked char mess with
+> > the flag bits in the rest of the long? how could atomically modifying
+> > the long have a chance of undoing that move?), but it feels like it
+> > might take us into errata territory.
 > 
-> SLUB can only allocate from a per cpu slab. You will have to reserve one 
-> slab per cpu anyways unless we flush the cpu slab after each access. Same 
-> thing is true for SLAB. It wants objects in its per cpu queues.
-> 
-> > Why is it bad to extend kmem_cache a bit?
-> 
-> Because it is for all practical purposes a heavily accessed read only 
-> structure. Modifications only occur to per node and per cpu structures.
-> In a 4k systems any write will kick out the kmem_cache cacheline in 4k 
-> processors.
+> I think we can just rely on the cache coherency protocol taking care of
+> it for us, on x86. movb would not affect other data other than the dest.
+> A non-atomic op _could_ of course undo the movb, but it could likewise
+> undo any other store to the word or byte. An atomic op on the flags does
+> not modify the movb byte so the movb before/after possibilities should
+> look exactly the same regardless of the atomic operations happening.
 
-If this 4k cpu system ever gets to touch the new lock it is in way
-deeper problems than a bouncing cache-line.
+Yes, I've gone through that same thought process (my questions were
+intended as rhetorical exclamations of inconceivabilty, rather than
+actual queries).  But if you do go that way, I'd still like you to
+check with Intel and AMD for errata.  See include/asm-i386/spinlock.h
+for the CONFIG_X86_OOSTORE || CONFIG_X86_PPRO_FENCE __raw_spin_unlock
+using xchgb: doesn't that hint that exceptions may be needed?
 
-Please look at it more carefully.
-
-We differentiate pages allocated at the level where GFP_ATOMIC starts to
-fail. By not updating the percpu slabs those are retried every time,
-except for ALLOC_NO_WATERMARKS allocations; those are served from the
-->reserve_slab.
-
-Once a regular slab allocation succeeds again, the ->reserve_slab is
-cleaned up and never again looked at it until we're in distress again.
-
-Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
----
- include/linux/slub_def.h |    2 +
- mm/slub.c                |   85 ++++++++++++++++++++++++++++++++++++++++++-----
- 2 files changed, 78 insertions(+), 9 deletions(-)
-
-Index: linux-2.6-git/include/linux/slub_def.h
-===================================================================
---- linux-2.6-git.orig/include/linux/slub_def.h
-+++ linux-2.6-git/include/linux/slub_def.h
-@@ -46,6 +46,8 @@ struct kmem_cache {
- 	struct list_head list;	/* List of slab caches */
- 	struct kobject kobj;	/* For sysfs */
- 
-+	struct page *reserve_slab;
-+
- #ifdef CONFIG_NUMA
- 	int defrag_ratio;
- 	struct kmem_cache_node *node[MAX_NUMNODES];
-Index: linux-2.6-git/mm/slub.c
-===================================================================
---- linux-2.6-git.orig/mm/slub.c
-+++ linux-2.6-git/mm/slub.c
-@@ -20,11 +20,13 @@
- #include <linux/mempolicy.h>
- #include <linux/ctype.h>
- #include <linux/kallsyms.h>
-+#include "internal.h"
- 
- /*
-  * Lock order:
-- *   1. slab_lock(page)
-- *   2. slab->list_lock
-+ *   1. reserve_lock
-+ *   2. slab_lock(page)
-+ *   3. node->list_lock
-  *
-  *   The slab_lock protects operations on the object of a particular
-  *   slab and its metadata in the page struct. If the slab lock
-@@ -259,6 +261,8 @@ static int sysfs_slab_alias(struct kmem_
- static void sysfs_slab_remove(struct kmem_cache *s) {}
- #endif
- 
-+static DEFINE_SPINLOCK(reserve_lock);
-+
- /********************************************************************
-  * 			Core slab cache functions
-  *******************************************************************/
-@@ -1007,7 +1011,7 @@ static void setup_object(struct kmem_cac
- 		s->ctor(object, s, 0);
- }
- 
--static struct page *new_slab(struct kmem_cache *s, gfp_t flags, int node)
-+static struct page *new_slab(struct kmem_cache *s, gfp_t flags, int node, int *rank)
- {
- 	struct page *page;
- 	struct kmem_cache_node *n;
-@@ -1025,6 +1029,7 @@ static struct page *new_slab(struct kmem
- 	if (!page)
- 		goto out;
- 
-+	*rank = page->rank;
- 	n = get_node(s, page_to_nid(page));
- 	if (n)
- 		atomic_long_inc(&n->nr_slabs);
-@@ -1311,7 +1316,7 @@ static void unfreeze_slab(struct kmem_ca
- /*
-  * Remove the cpu slab
-  */
--static void deactivate_slab(struct kmem_cache *s, struct page *page, int cpu)
-+static void __deactivate_slab(struct kmem_cache *s, struct page *page)
- {
- 	/*
- 	 * Merge cpu freelist into freelist. Typically we get here
-@@ -1330,10 +1335,15 @@ static void deactivate_slab(struct kmem_
- 		page->freelist = object;
- 		page->inuse--;
- 	}
--	s->cpu_slab[cpu] = NULL;
- 	unfreeze_slab(s, page);
- }
- 
-+static void deactivate_slab(struct kmem_cache *s, struct page *page, int cpu)
-+{
-+	__deactive_slab(s, page);
-+	s->cpu_slab[cpu] = NULL;
-+}
-+
- static void flush_slab(struct kmem_cache *s, struct page *page, int cpu)
- {
- 	slab_lock(page);
-@@ -1395,6 +1405,7 @@ static void *__slab_alloc(struct kmem_ca
- {
- 	void **object;
- 	int cpu = smp_processor_id();
-+	int rank = 0;
- 
- 	if (!page)
- 		goto new_slab;
-@@ -1424,10 +1435,26 @@ new_slab:
- 	if (page) {
- 		s->cpu_slab[cpu] = page;
- 		goto load_freelist;
--	}
-+	} else if (unlikely(gfp_to_alloc_flags(gfpflags) & ALLOC_NO_WATERMARKS))
-+		goto try_reserve;
- 
--	page = new_slab(s, gfpflags, node);
--	if (page) {
-+alloc_slab:
-+	page = new_slab(s, gfpflags, node, &rank);
-+	if (page && rank) {
-+		if (unlikely(s->reserve_slab)) {
-+			struct page *reserve;
-+
-+			spin_lock(&reserve_lock);
-+			reserve = s->reserve_slab;
-+			s->reserve_slab = NULL;
-+			spin_unlock(&reserve_lock);
-+
-+			if (reserve) {
-+				slab_lock(reserve);
-+				__deactivate_slab(s, reserve);
-+				putback_slab(s, reserve);
-+			}
-+		}
- 		cpu = smp_processor_id();
- 		if (s->cpu_slab[cpu]) {
- 			/*
-@@ -1455,6 +1482,18 @@ new_slab:
- 		SetSlabFrozen(page);
- 		s->cpu_slab[cpu] = page;
- 		goto load_freelist;
-+	} else if (page) {
-+		spin_lock(&reserve_lock);
-+		if (s->reserve_slab) {
-+			discard_slab(s, page);
-+			page = s->reserve_slab;
-+		}
-+		slab_lock(page);
-+		SetPageActive(page);
-+		s->reserve_slab = page;
-+		spin_unlock(&reserve_lock);
-+
-+		goto got_reserve;
- 	}
- 	return NULL;
- debug:
-@@ -1470,6 +1509,31 @@ debug:
- 	page->freelist = object[page->offset];
- 	slab_unlock(page);
- 	return object;
-+
-+try_reserve:
-+	spin_lock(&reserve_lock);
-+	page = s->reserve_slab;
-+	if (!page) {
-+		spin_unlock(&reserve_lock);
-+		goto alloc_slab;
-+	}
-+
-+	slab_lock(page);
-+	if (!page->freelist) {
-+		s->reserve_slab = NULL;
-+		spin_unlock(&reserve_lock);
-+		__deactivate_slab(s, page);
-+		putback_slab(s, page);
-+		goto alloc_slab;
-+	}
-+	spin_unlock(&reserve_lock);
-+
-+got_reserve:
-+	object = page->freelist;
-+	page->inuse++;
-+	page->freelist = object[page->offset];
-+	slab_unlock(page);
-+	return object;
- }
- 
- /*
-@@ -1807,10 +1871,11 @@ static struct kmem_cache_node * __init e
- {
- 	struct page *page;
- 	struct kmem_cache_node *n;
-+	int rank;
- 
- 	BUG_ON(kmalloc_caches->size < sizeof(struct kmem_cache_node));
- 
--	page = new_slab(kmalloc_caches, gfpflags | GFP_THISNODE, node);
-+	page = new_slab(kmalloc_caches, gfpflags | GFP_THISNODE, node, &rank);
- 	/* new_slab() disables interupts */
- 	local_irq_enable();
- 
-@@ -2018,6 +2083,8 @@ static int kmem_cache_open(struct kmem_c
- #ifdef CONFIG_NUMA
- 	s->defrag_ratio = 100;
- #endif
-+	s->reserve_slab = NULL;
-+
- 	if (init_kmem_cache_nodes(s, gfpflags & ~SLUB_DMA))
- 		return 1;
- error:
-
+Hugh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
