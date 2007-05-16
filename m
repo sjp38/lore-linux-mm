@@ -1,55 +1,43 @@
-Date: Tue, 15 May 2007 15:02:40 -0700 (PDT)
-From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [PATCH 0/5] make slab gfp fair
-In-Reply-To: <1179250036.7173.7.camel@twins>
-Message-ID: <Pine.LNX.4.64.0705151457060.3155@schroedinger.engr.sgi.com>
-References: <20070514131904.440041502@chello.nl>
- <Pine.LNX.4.64.0705140852150.10442@schroedinger.engr.sgi.com>
- <20070514161224.GC11115@waste.org>  <Pine.LNX.4.64.0705140927470.10801@schroedinger.engr.sgi.com>
-  <1179164453.2942.26.camel@lappy>  <Pine.LNX.4.64.0705141051170.11251@schroedinger.engr.sgi.com>
-  <1179170912.2942.37.camel@lappy> <1179250036.7173.7.camel@twins>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Date: Wed, 16 May 2007 09:27:32 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [PATCH 2/8] Print out statistics in relation to fragmentation
+ avoidance to /proc/fragavoidance
+Message-Id: <20070516092732.9f0221ba.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <Pine.LNX.4.64.0705152020140.12851@skynet.skynet.ie>
+References: <20070515150311.16348.56826.sendpatchset@skynet.skynet.ie>
+	<20070515150351.16348.14242.sendpatchset@skynet.skynet.ie>
+	<Pine.LNX.4.64.0705151122110.31972@schroedinger.engr.sgi.com>
+	<Pine.LNX.4.64.0705152020140.12851@skynet.skynet.ie>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Cc: Matt Mackall <mpm@selenic.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Thomas Graf <tgraf@suug.ch>, David Miller <davem@davemloft.net>, Andrew Morton <akpm@linux-foundation.org>, Daniel Phillips <phillips@google.com>, Pekka Enberg <penberg@cs.helsinki.fi>
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: clameter@sgi.com, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 15 May 2007, Peter Zijlstra wrote:
+On Tue, 15 May 2007 20:23:21 +0100 (IST)
+Mel Gorman <mel@csn.ul.ie> wrote:
 
-> How about something like this; it seems to sustain a little stress.
+> On Tue, 15 May 2007, Christoph Lameter wrote:
+> 
+> > On Tue, 15 May 2007, Mel Gorman wrote:
+> >
+> >>
+> >> This patch provides fragmentation avoidance statistics via
+> >> /proc/fragavoidance. The information is collected only on request so there
+> >
+> > The name is probably a bit strange.
+> >
+> > /proc/pagetypeinfo or so?
+> >
+> 
+> /proc/mobilityinfo ?
+> 
+I vote pagetypeinfo or pagegroupinfo :)
 
-Argh again mods to kmem_cache.
-
-Could we do this with a new slab page flag? F.e. SlabEmergPool.
-
-
-in alloc_slab() do
-
-if (is_emergency_pool_page(page)) {
-	SetSlabDebug(page);
-	SetSlabEmerg(page);
-}
-
-So now you can intercept allocs to the SlabEmerg slab in __slab_alloc 
-
-debug:
-
-if (SlabEmergPool(page)) {
-	if (mem_no_longer_critical()) {
-		/* Avoid future trapping */
-		ClearSlabDebug(page);
-		ClearSlabEmergPool(page);
-	} else
-	if (process_not_allowed_this_memory()) {
-		do_something_bad_to_the_caller();
-	} else {
-		/* Allocation permitted */
-	}
-}
-
-....
+-Kame
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
