@@ -1,41 +1,45 @@
-Date: Tue, 15 May 2007 21:09:11 -0700 (PDT)
+Date: Tue, 15 May 2007 21:12:41 -0700 (PDT)
 From: Christoph Lameter <clameter@sgi.com>
-Subject: Fix: find_or_create_page skips cpuset memory spreading.
-Message-ID: <Pine.LNX.4.64.0705152108060.5173@schroedinger.engr.sgi.com>
+Subject: Fix page allocation flags in grow_dev_page()
+Message-ID: <Pine.LNX.4.64.0705152111380.5192@schroedinger.engr.sgi.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: akpm@linux-foundation.org
-Cc: linux-mm@kvack.org, pj@sgi.com
+Cc: linux-mm@kvack.org, hugh@veritas.com
 List-ID: <linux-mm.kvack.org>
 
-We call alloc_page where we should be calling __page_cache_alloc.
+Grow dev page simply passes GFP_NOFS to find_or_create_page. This means the
+allocation of radix tree nodes is done with GFP_NOFS and the allocation
+of a new page is done using GFP_NOFS.
 
-__page_cache_alloc performs cpuset memory spreading. alloc_page does not.
-There is no reason that pages allocated via find_or_create should be
-exempt.
+The mapping has a flags field that contains the necessary allocation flags for
+the page cache allocation. These need to be consulted in order to get DMA
+and HIGHMEM allocations etc right. And yes a blockdev could be allowing
+Highmem allocations if its a ramdisk.
 
+Cc: Hugh Dickins <hugh@veritas.com>
 Signed-off-by: Christoph Lameter <clameter@sgi.com>
 
 ---
- mm/filemap.c |    6 ++++--
- 1 file changed, 4 insertions(+), 2 deletions(-)
+ fs/buffer.c |    3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
 
-Index: vps/mm/filemap.c
+Index: vps/fs/buffer.c
 ===================================================================
---- vps.orig/mm/filemap.c	2007-05-15 19:03:27.000000000 -0700
-+++ vps/mm/filemap.c	2007-05-15 21:06:15.000000000 -0700
-@@ -670,7 +671,8 @@ repeat:
- 	page = find_lock_page(mapping, index);
- 	if (!page) {
- 		if (!cached_page) {
--			cached_page = alloc_page(gfp_mask);
-+			cached_page =
-+				__page_cache_alloc(gfp_mask);
- 			if (!cached_page)
- 				return NULL;
- 		}
+--- vps.orig/fs/buffer.c	2007-05-15 15:47:32.000000000 -0700
++++ vps/fs/buffer.c	2007-05-15 15:48:36.000000000 -0700
+@@ -981,7 +981,8 @@ grow_dev_page(struct block_device *bdev,
+ 	struct page *page;
+ 	struct buffer_head *bh;
+ 
+-	page = find_or_create_page(inode->i_mapping, index, GFP_NOFS);
++	page = find_or_create_page(inode->i_mapping, index,
++		mapping_gfp_mask(inode->i_mapping) & ~__GFP_FS);
+ 	if (!page)
+ 		return NULL;
+ 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
