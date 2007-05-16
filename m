@@ -1,32 +1,41 @@
-Subject: Re: [RFC/PATCH 1/2] powerpc: unmap_vm_area becomes
-	unmap_kernel_range
-From: Benjamin Herrenschmidt <benh@kernel.crashing.org>
-In-Reply-To: <20070516034600.18427DDEE4@ozlabs.org>
-References: <20070516034600.18427DDEE4@ozlabs.org>
-Content-Type: text/plain
-Date: Wed, 16 May 2007 13:48:37 +1000
-Message-Id: <1179287317.32247.207.camel@localhost.localdomain>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Date: Tue, 15 May 2007 21:09:11 -0700 (PDT)
+From: Christoph Lameter <clameter@sgi.com>
+Subject: Fix: find_or_create_page skips cpuset memory spreading.
+Message-ID: <Pine.LNX.4.64.0705152108060.5173@schroedinger.engr.sgi.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Linux Memory Management <linux-mm@kvack.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, Christoph Hellwig <hch@lst.de>
+To: akpm@linux-foundation.org
+Cc: linux-mm@kvack.org, pj@sgi.com
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 2007-05-16 at 13:45 +1000, Benjamin Herrenschmidt wrote:
-> This patch renames unmap_vm_area to unmap_kernel_range and make
-> it take an explicit range instead of a vm_area struct. This makes
-> it more versatile for code that wants to play with kernel page
-> tables outside of the standard vmalloc area.
-> 
-> Signed-off-by: Benjamin Herrenschmidt <benh@kernel.crashing.org> 
+We call alloc_page where we should be calling __page_cache_alloc.
 
-BTW, sorry for the incorrect title, it's not powerpc specific really
-(though I want to use the new function from powerpc code)
+__page_cache_alloc performs cpuset memory spreading. alloc_page does not.
+There is no reason that pages allocated via find_or_create should be
+exempt.
 
-Ben.
+Signed-off-by: Christoph Lameter <clameter@sgi.com>
 
+---
+ mm/filemap.c |    6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)
+
+Index: vps/mm/filemap.c
+===================================================================
+--- vps.orig/mm/filemap.c	2007-05-15 19:03:27.000000000 -0700
++++ vps/mm/filemap.c	2007-05-15 21:06:15.000000000 -0700
+@@ -670,7 +671,8 @@ repeat:
+ 	page = find_lock_page(mapping, index);
+ 	if (!page) {
+ 		if (!cached_page) {
+-			cached_page = alloc_page(gfp_mask);
++			cached_page =
++				__page_cache_alloc(gfp_mask);
+ 			if (!cached_page)
+ 				return NULL;
+ 		}
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
