@@ -1,50 +1,47 @@
-Date: Thu, 17 May 2007 09:28:50 +1000
-From: David Chinner <dgc@sgi.com>
-Subject: Re: [PATCH 1 of 2] block_page_mkwrite() Implementation V2
-Message-ID: <20070516232850.GO85884050@sgi.com>
-References: <20070318233008.GA32597093@melbourne.sgi.com> <18993.1179310769@redhat.com>
-Mime-Version: 1.0
+Received: from d01relay02.pok.ibm.com (d01relay02.pok.ibm.com [9.56.227.234])
+	by e5.ny.us.ibm.com (8.13.8/8.13.8) with ESMTP id l4GNUsF5002298
+	for <linux-mm@kvack.org>; Wed, 16 May 2007 19:30:54 -0400
+Received: from d01av01.pok.ibm.com (d01av01.pok.ibm.com [9.56.224.215])
+	by d01relay02.pok.ibm.com (8.13.8/8.13.8/NCO v8.3) with ESMTP id l4GNUsEu516854
+	for <linux-mm@kvack.org>; Wed, 16 May 2007 19:30:54 -0400
+Received: from d01av01.pok.ibm.com (loopback [127.0.0.1])
+	by d01av01.pok.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l4GNUs1c021384
+	for <linux-mm@kvack.org>; Wed, 16 May 2007 19:30:54 -0400
+Date: Wed, 16 May 2007 16:30:53 -0700
+From: Nishanth Aravamudan <nacc@us.ibm.com>
+Subject: [PATCH 1/3] hugetlb: remove unnecessary nid initialization
+Message-ID: <20070516233053.GN20535@us.ibm.com>
+MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <18993.1179310769@redhat.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: David Howells <dhowells@redhat.com>
-Cc: David Chinner <dgc@sgi.com>, lkml <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>
+To: wli@holomorphy.com
+Cc: Lee.Schermerhorn@hp.com, anton@samba.org, clameter@sgi.com, akpm@linux-foundation.org, agl@us.ibm.com, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, May 16, 2007 at 11:19:29AM +0100, David Howells wrote:
-> 
-> However, page_mkwrite() isn't told which bit of the page is going to be
-> written to.  This means it has to ask prepare_write() to make sure the whole
-> page is filled in.  In other words, offset and to must be equal (in AFS I set
-> them both to 0).
+nid is initialized to numa_node_id() but will either be overwritten in
+the loop or not used in the conditional. So remove the initialization.
 
-The assumption is the page is already up to date and we are writing
-the whole page unless EOF lands inside the page. AFAICT, we can't
-get called with a page that is not uptodate and so page filling is
-not something we should be doing (or want to be doing) here. All we
-want to do is to be able to change the mapping from a read to a
-write mapping (e.g. a read mapping of a hole needs to be changed on
-write) and do the relevant space reservation/allocation and buffer
-mapping needed for this change.
+Signed-off-by: Nishanth Aravamudan <nacc@us.ibm.com>
 
-> However, if someone adds a syscall to punch holes in files, this may change...
+diff --git a/mm/hugetlb.c b/mm/hugetlb.c
+index eb7180d..abcd9a9 100644
+--- a/mm/hugetlb.c
++++ b/mm/hugetlb.c
+@@ -66,7 +66,7 @@ static void enqueue_huge_page(struct page *page)
+ static struct page *dequeue_huge_page(struct vm_area_struct *vma,
+ 				unsigned long address)
+ {
+-	int nid = numa_node_id();
++	int nid;
+ 	struct page *page = NULL;
+ 	struct zonelist *zonelist = huge_zonelist(vma, address);
+ 	struct zone **z;
 
-We already have them - ioctl(XFS_IOC_UNRESVSP) and
-madvise(MADV_REMOVE) - and another - fallocate(FA_DEALLOCATE) - is
-on it's way. Racing with truncates should already be handled by the
-truncate code (i.e. partial page truncation does the zero filling).
-
-/me makes note to implement ->truncate_range() in XFS for MADV_REMOVE.
-
-Cheers,
-
-Dave.
 -- 
-Dave Chinner
-Principal Engineer
-SGI Australian Software Group
+Nishanth Aravamudan <nacc@us.ibm.com>
+IBM Linux Technology Center
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
