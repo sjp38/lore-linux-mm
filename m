@@ -1,105 +1,36 @@
-Message-ID: <464B110E.2040309@yahoo.com.au>
-Date: Thu, 17 May 2007 00:11:26 +1000
+Message-ID: <464B131F.6090904@yahoo.com.au>
+Date: Thu, 17 May 2007 00:20:15 +1000
 From: Nick Piggin <nickpiggin@yahoo.com.au>
 MIME-Version: 1.0
-Subject: Re: [PATCH 2/2] Only check absolute watermarks for ALLOC_HIGH and
- ALLOC_HARDER allocations
-References: <20070514173218.6787.56089.sendpatchset@skynet.skynet.ie> <20070514173259.6787.58533.sendpatchset@skynet.skynet.ie> <464AF589.2000000@yahoo.com.au> <20070516132419.GA18542@skynet.ie> <464B089C.9070805@yahoo.com.au> <20070516140038.GA10225@skynet.ie>
-In-Reply-To: <20070516140038.GA10225@skynet.ie>
+Subject: Re: [PATCH 1/2] Have kswapd keep a minimum order free other than
+ order-0
+References: <Pine.LNX.4.64.0705141058590.11319@schroedinger.engr.sgi.com> <Pine.LNX.4.64.0705141111400.11411@schroedinger.engr.sgi.com> <20070514182456.GA9006@skynet.ie> <1179218576.25205.1.camel@rousalka.dyndns.org> <Pine.LNX.4.64.0705150958150.6896@skynet.skynet.ie> <464AC00E.10704@yahoo.com.au> <Pine.LNX.4.64.0705160958230.7139@skynet.skynet.ie> <464ACA68.2040707@yahoo.com.au> <Pine.LNX.4.64.0705161011400.7139@skynet.skynet.ie> <464AF8DB.9030000@yahoo.com.au> <20070516135039.GA7467@skynet.ie>
+In-Reply-To: <20070516135039.GA7467@skynet.ie>
 Content-Type: text/plain; charset=us-ascii; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Mel Gorman <mel@skynet.ie>
-Cc: nicolas.mailhot@laposte.net, clameter@sgi.com, apw@shadowen.org, akpm@linux-foundation.org, linux-mm@kvack.org
+Cc: Nicolas Mailhot <nicolas.mailhot@laposte.net>, Christoph Lameter <clameter@sgi.com>, Andy Whitcroft <apw@shadowen.org>, akpm@linux-foundation.org, Linux Memory Management List <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
 Mel Gorman wrote:
-> On (16/05/07 23:35), Nick Piggin didst pronounce:
+
+> ======
 > 
->>Mel Gorman wrote:
-
->>>In page_alloc.c
->>>
->>>       if ((unlikely(rt_task(p)) && !in_interrupt()) || !wait)
->>>               alloc_flags |= ALLOC_HARDER;
->>>
->>>See the !wait part.
->>
->>And the || part.
->>
+> On third thought: The trouble with this solution is that we will now set
+> the order to that used by the largest kmalloc cache. Bad... this could be
+> 6 on i386 to 13 if CONFIG_LARGE_ALLOCs is set. The large kmalloc caches are
+> rarely used and we are used to OOMing if those are utilized to frequently.
 > 
-> 
-> I doubt a rt_task is thrilled to be entering direct reclaim.
+> I guess we should only set this for non kmalloc caches then. 
+> So move the call into kmem_cache_create? Would make the min order 3 on
+> most of my mm machines.
+> ===
 
-Doesn't mean you should break the watermarks. !wait allocations don't
-always happen from interrupt context either, and it is possible to see
-code doing
-
-if (!alloc(GFP_KERNEL&~__GFP_WAIT)) {
-     spin_unlock()
-     alloc(GFP_KERNEL)
-     spin_lock()
-}
-
-
->>>The ALLOC_HIGH applies to __GFP_HIGH allocations which are allowed to
->>>dip into emergency pools and go below the reserve.
->>
->>And some of them can sleep too.
->>
-> 
-> 
-> If you feel very strongly about it, I can back out the ALLOC_HIGH part for
-> __GFP_HIGH allocations but it looks like at a glance that users of __GFP_HIGH
-> are not too keen on sleeping;
-
-I feel strongly about not breaking these things which are specifically there
-for a reason and that are being changed seemingly because of the false
-impression that kswapd doesn't proactively free pages for them.
-
-
->>>ALLOC_HARDER is an urgent allocation class.
->>
->>And HIGH is even more, and MEMALLOC even more again.
->>
-> 
-> 
-> HIGH => ALLOC_HIGH => obey watermarks at order-0
-> 
-> Somewhat counter-intuitively, with the current code if the allocation is
-> a really high priority but can sleep, it can actually allocate without any
-> watermarks at all
-
-I didn't understand what you meant?
-
-
->>>What actually happens is that high-order allocations fail even though
->>>the watermarks are met because they cannot enter direct reclaim.
->>
->>Yeah, they fail leaving some spare for more urgent allocations. Like
->>how the order-0 allocations work.
-> 
-> 
-> order-0 watermarks are still in place. After the patch, it is still not
-> possible for the allocations to break the watermarks there.
-
-The watermarks for higher order pages you could say are implicit but
-still there. They are scaled down from the order-0 watermarks, so they
-should behave in the same way. I just can't understand why you're
-bypassing these if you think the order-0 behaviour is OK.
-
-
->>They should also kick kswapd to start freeing pages _before_ they start
->>failing too.
->>
-> 
-> 
-> Should prehaps, but from what I read kswapd is only kicked into action
-> when the first allocation attempt has already failed.
-
-Well that's wrong unless you are allocating with GFP_THISNODE, in which
-case that is specifically the behaviour that is asked for.
+Also, I might add that the e1000 page allocations failures usually come
+from kmalloc, so doing this means they might just be protected by chance
+if someone happens to create a kmem cache of order 3.
 
 -- 
 SUSE Labs, Novell Inc.
