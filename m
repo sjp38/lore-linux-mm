@@ -1,55 +1,49 @@
-Date: Wed, 16 May 2007 10:04:05 +0100 (IST)
-From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: [PATCH 6/8] Add __GFP_TEMPORARY to identify allocations that
- are short-lived
-In-Reply-To: <Pine.LNX.4.64.0705151751240.4272@schroedinger.engr.sgi.com>
-Message-ID: <Pine.LNX.4.64.0705161003340.7139@skynet.skynet.ie>
-References: <20070515150311.16348.56826.sendpatchset@skynet.skynet.ie>
- <20070515150512.16348.58421.sendpatchset@skynet.skynet.ie>
- <20070516093633.c8571b62.kamezawa.hiroyu@jp.fujitsu.com>
- <Pine.LNX.4.64.0705151751240.4272@schroedinger.engr.sgi.com>
+Message-ID: <464ACA68.2040707@yahoo.com.au>
+Date: Wed, 16 May 2007 19:10:00 +1000
+From: Nick Piggin <nickpiggin@yahoo.com.au>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII; format=flowed
+Subject: Re: [PATCH 1/2] Have kswapd keep a minimum order free other than
+ order-0
+References: <20070514173218.6787.56089.sendpatchset@skynet.skynet.ie>  <20070514173238.6787.57003.sendpatchset@skynet.skynet.ie>  <Pine.LNX.4.64.0705141058590.11319@schroedinger.engr.sgi.com>  <Pine.LNX.4.64.0705141111400.11411@schroedinger.engr.sgi.com>  <20070514182456.GA9006@skynet.ie> <1179218576.25205.1.camel@rousalka.dyndns.org> <Pine.LNX.4.64.0705150958150.6896@skynet.skynet.ie> <464AC00E.10704@yahoo.com.au> <Pine.LNX.4.64.0705160958230.7139@skynet.skynet.ie>
+In-Reply-To: <Pine.LNX.4.64.0705160958230.7139@skynet.skynet.ie>
+Content-Type: text/plain; charset=us-ascii; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: Nicolas Mailhot <nicolas.mailhot@laposte.net>, Christoph Lameter <clameter@sgi.com>, Andy Whitcroft <apw@shadowen.org>, akpm@linux-foundation.org, Linux Memory Management List <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 15 May 2007, Christoph Lameter wrote:
+Mel Gorman wrote:
+> On Wed, 16 May 2007, Nick Piggin wrote:
 
-> On Wed, 16 May 2007, KAMEZAWA Hiroyuki wrote:
->
->> What kind of objects should be considered to be TEMPORARY (short-lived) ?
->> It seems hard-to-use if no documentation.
->> Could you add clear explanation in header file ?
+>> Hmm, so we require higher order pages be kept free even if nothing is
+>> using them? That's not very nice :(
 >>
->> In my understanding, following case is typical.
->>
->> ==
->> foo() {
->> 	alloc();
->> 	do some work
->> 	free();
->> }
->> ==
->>
->> Other cases ?
->
-> GFP_TEMPORARY means that the memory will be freed in a short time without
-> further kernel intervention. I.e. there is no reclaim pass, user
-> intervention or other cleanup needed. I think network slabs also fit that
-> description.
->
+> 
+> Not quite. We are already required to keep a minimum number of pages 
+> free even though nothing is using them. The difference is that if it is 
+> known high-order allocations are frequently required, the freed pages 
+> will be contiguous. If no one calls raise_kswapd_order(), kswapd will 
+> continue reclaiming at order-0.
 
-Exactly.
+And after they are stopped being used, it falls back to order-0? Why
+can't this use the infrastructure that is already in place for that?
 
-Hint taken though. Better documentation of the flags is on the TODO list.
+
+> Arguably, e1000 should also be calling 
+> raise_kswapd_order() when it is using jumbo frames.
+
+It should be able to handle higher order page allocation failures
+gracefully. kswapd will be notified of the attempts and go on and try
+to free up some higher order pages for it for next time. What is wrong
+with this process? Are the higher order watermarks insufficient?
+
+(I would also add that non-arguably, e1000 should also be able to do
+scatter gather with jumbo frames too.)
 
 -- 
-Mel Gorman
-Part-time Phd Student                          Linux Technology Center
-University of Limerick                         IBM Dublin Software Lab
+SUSE Labs, Novell Inc.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
