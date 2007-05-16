@@ -1,92 +1,55 @@
-Message-ID: <464B089C.9070805@yahoo.com.au>
-Date: Wed, 16 May 2007 23:35:24 +1000
+Message-ID: <464B0A1B.4000209@yahoo.com.au>
+Date: Wed, 16 May 2007 23:41:47 +1000
 From: Nick Piggin <nickpiggin@yahoo.com.au>
 MIME-Version: 1.0
-Subject: Re: [PATCH 2/2] Only check absolute watermarks for ALLOC_HIGH and
- ALLOC_HARDER allocations
-References: <20070514173218.6787.56089.sendpatchset@skynet.skynet.ie> <20070514173259.6787.58533.sendpatchset@skynet.skynet.ie> <464AF589.2000000@yahoo.com.au> <20070516132419.GA18542@skynet.ie>
-In-Reply-To: <20070516132419.GA18542@skynet.ie>
+Subject: Re: [PATCH 1 of 2] block_page_mkwrite() Implementation V2
+References: <464AF224.30105@yahoo.com.au> <20070318233008.GA32597093@melbourne.sgi.com> <18993.1179310769@redhat.com> <17244.1179321647@redhat.com>
+In-Reply-To: <17244.1179321647@redhat.com>
 Content-Type: text/plain; charset=us-ascii; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Mel Gorman <mel@skynet.ie>
-Cc: nicolas.mailhot@laposte.net, clameter@sgi.com, apw@shadowen.org, akpm@linux-foundation.org, linux-mm@kvack.org
+To: David Howells <dhowells@redhat.com>
+Cc: David Chinner <dgc@sgi.com>, lkml <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-Mel Gorman wrote:
-> On (16/05/07 22:14), Nick Piggin didst pronounce:
-> 
->>Mel Gorman wrote:
->>
->>>zone_watermark_ok() checks if there are enough free pages including a 
->>>reserve.
->>>High-order allocations additionally check if there are enough free 
->>>high-order
->>>pages in relation to the watermark adjusted based on the requested size. If
->>>there are not enough free high-order pages available, 0 is returned so that
->>>the caller enters direct reclaim.
->>>
->>>ALLOC_HIGH and ALLOC_HARDER allocations are allowed to dip further into
->>>the reserves but also take into account if the number of free high-order
->>>pages meet the adjusted watermarks. As these allocations cannot sleep,
->>
->>Why can't ALLOC_HIGH or ALLOC_HARDER sleep? This patch seems wrong to
->>me.
->>
+David Howells wrote:
+> Nick Piggin <nickpiggin@yahoo.com.au> wrote:
 > 
 > 
-> In page_alloc.c
-> 
->         if ((unlikely(rt_task(p)) && !in_interrupt()) || !wait)
->                 alloc_flags |= ALLOC_HARDER;
-> 
-> See the !wait part.
-
-And the || part.
-
-
-> The ALLOC_HIGH applies to __GFP_HIGH allocations which are allowed to
-> dip into emergency pools and go below the reserve.
-
-And some of them can sleep too.
-
-
->>>they cannot enter direct reclaim so the allocation can fail even though
->>>the pages are available and the number of free pages is well above the
->>>watermark for order-0.
->>>
->>>This patch alters the behaviour of zone_watermark_ok() slightly. Watermarks
->>>are still obeyed but when an allocator is flagged ALLOC_HIGH or 
->>>ALLOC_HARDER,
->>>we only check that there is sufficient memory over the reserve to satisfy
->>>the allocation, allocation size is ignored.  This patch also documents
->>>better what zone_watermark_ok() is doing.
->>
->>This is wrong because now you lose the buffering of higher order pages
->>for more urgent allocation classes against less urgent ones.
->>
+>>Dave is using prepare_write here to ensure blocks are allocated in the
+>>given range. The filesystem's ->nopage function must ensure it is uptodate
+>>before allowing it to be mapped.
 > 
 > 
-> ALLOC_HARDER is an urgent allocation class.
+> Which is fine... assuming it's called.  For blockdev-based filesystems, this
+> is probably true.  But I'm not sure you can guarantee it.
+> 
+> I've seen Ext3, for example, unlocking a page that isn't yet uptodate.
+> nopage() won't get called on it again, but prepare_write() might.  I don't
+> know why this happens, but it's something I've fallen over in doing
+> CacheFiles.  When reading, readpage() is just called on it again and again
+> until it is up to date.  When writing, prepare_write() is called correctly.
 
-And HIGH is even more, and MEMALLOC even more again.
+There are bugs in the core VM and block filesystem code where !uptodate pages
+are left in pagetables. Some of these are fixed in -mm.
+
+But they aren't a good reason to invent completely different ways to do things.
 
 
->>Think of how the order-0 allocation buffering works with the watermarks
->>and consider that we're trying to do the same exact thing for higher order
->>allocations here.
->>
+>>Consider that the code currently works OK today _without_ page_mkwrite.
+>>page_mkwrite is being added to do block allocation / reservation.
 > 
 > 
-> What actually happens is that high-order allocations fail even though
-> the watermarks are met because they cannot enter direct reclaim.
+> Which doesn't prove anything.  All it means is that PG_uptodate being unset is
+> handled elsewhere.
 
-Yeah, they fail leaving some spare for more urgent allocations. Like
-how the order-0 allocations work.
+It means that Dave's page_mkwrite function will do the block allocation
+and everything else continues as it is. Your suggested change to pass in
+offset == to is just completely wrong for this.
 
-They should also kick kswapd to start freeing pages _before_ they start
-failing too.
+PG_uptodate being unset should be done via pagecache invalidation or truncation
+APIs, which (sometimes... modulo bugs) tear down pagetables first.
 
 -- 
 SUSE Labs, Novell Inc.
