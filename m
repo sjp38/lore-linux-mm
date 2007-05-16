@@ -1,77 +1,43 @@
-Date: Wed, 16 May 2007 13:34:16 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: Fix page allocation flags in grow_dev_page()
-Message-Id: <20070516133416.9d730d08.akpm@linux-foundation.org>
-In-Reply-To: <Pine.LNX.4.64.0705152111380.5192@schroedinger.engr.sgi.com>
-References: <Pine.LNX.4.64.0705152111380.5192@schroedinger.engr.sgi.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Date: Wed, 16 May 2007 13:41:32 -0700 (PDT)
+From: Christoph Lameter <clameter@sgi.com>
+Subject: Re: [PATCH 02/40] mm: slab allocation fairness
+In-Reply-To: <20070504103155.813939525@chello.nl>
+Message-ID: <Pine.LNX.4.64.0705161338040.11168@schroedinger.engr.sgi.com>
+References: <20070504102651.923946304@chello.nl> <20070504103155.813939525@chello.nl>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
-Cc: linux-mm@kvack.org, hugh@veritas.com, Mel Gorman <mel@csn.ul.ie>
+To: Peter Zijlstra <a.p.zijlstra@chello.nl>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, netdev@vger.kernel.org, Trond Myklebust <trond.myklebust@fys.uio.no>, Thomas Graf <tgraf@suug.ch>, David Miller <davem@davemloft.net>, James Bottomley <James.Bottomley@SteelEye.com>, Mike Christie <michaelc@cs.wisc.edu>, Andrew Morton <akpm@linux-foundation.org>, Daniel Phillips <phillips@google.com>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 15 May 2007 21:12:41 -0700 (PDT)
-Christoph Lameter <clameter@sgi.com> wrote:
+On Fri, 4 May 2007, Peter Zijlstra wrote:
 
-> Grow dev page simply passes GFP_NOFS to find_or_create_page. This means the
-> allocation of radix tree nodes is done with GFP_NOFS and the allocation
-> of a new page is done using GFP_NOFS.
+> Page allocation rank is a scalar quantity connecting ALLOC_ and gfp flags which
+> represents how deep we had to reach into our reserves when allocating a page. 
+> Rank 0 is the deepest we can reach (ALLOC_NO_WATERMARK) and 16 is the most 
+> shallow allocation possible (ALLOC_WMARK_HIGH).
 > 
-> The mapping has a flags field that contains the necessary allocation flags for
-> the page cache allocation. These need to be consulted in order to get DMA
-> and HIGHMEM allocations etc right. And yes a blockdev could be allowing
-> Highmem allocations if its a ramdisk.
+> When the slab space is grown the rank of the page allocation is stored. For
+> each slab allocation we test the given gfp flags against this rank. Thereby
+> asking the question: would these flags have allowed the slab to grow.
 > 
-> Cc: Hugh Dickins <hugh@veritas.com>
-> Signed-off-by: Christoph Lameter <clameter@sgi.com>
-> 
-> ---
->  fs/buffer.c |    3 ++-
->  1 file changed, 2 insertions(+), 1 deletion(-)
-> 
-> Index: vps/fs/buffer.c
-> ===================================================================
-> --- vps.orig/fs/buffer.c	2007-05-15 15:47:32.000000000 -0700
-> +++ vps/fs/buffer.c	2007-05-15 15:48:36.000000000 -0700
-> @@ -981,7 +981,8 @@ grow_dev_page(struct block_device *bdev,
->  	struct page *page;
->  	struct buffer_head *bh;
->  
-> -	page = find_or_create_page(inode->i_mapping, index, GFP_NOFS);
-> +	page = find_or_create_page(inode->i_mapping, index,
-> +		mapping_gfp_mask(inode->i_mapping) & ~__GFP_FS);
->  	if (!page)
->  		return NULL;
->  
+> If not so, we need to test the current situation. This is done by forcing the
+> growth of the slab space. (Just testing the free page limits will not work due
+> to direct reclaim) Failing this we need to fail the slab allocation.
 
-erk.  When I fixed this up against Mel's stuff I ended up with:
+This implies that an allocation at time t2 must be aware of the result of 
+an allocation at time t1. It assumes a linear ordering of allocations that 
+is not possible on large systems. Ordering of events is a very expensive 
+endeavor in particular on NUMA systems given the potentially large 
+latencies between various portions of the system.
 
-        page = find_or_create_page(inode->i_mapping, index,
-                (mapping_gfp_mask(inode->i_mapping) & ~__GFP_FS) |
-                        __GFP_RECLAIMABLE);
+Maybe you need to restrict the ordering per cpu or per node? Per zone? 
 
-which led to zillions of these:
+Then we would need to store the ranks somewhere which raises scalability 
+issues if these are global.
 
-static inline int allocflags_to_migratetype(gfp_t gfp_flags)
-{
-	WARN_ON((gfp_flags & GFP_MOVABLE_MASK) == GFP_MOVABLE_MASK);
-
-so I assume that mapping_gfp_mask() already had __GFP_MOVABLE set.
-
-
-So... which is it to be?
-
-<looks at the comments>
-
-#define __GFP_RECLAIMABLE ((__force gfp_t)0x80000u) /* Page is reclaimable */
-#define __GFP_MOVABLE   ((__force gfp_t)0x100000u)  /* Page is movable */
-
-well these pages are both reclaimable and moveable.  Sigh.
-
-I'll just remove the __GFP_RECLAIMABLE from the above, see what that does.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
