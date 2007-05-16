@@ -1,69 +1,50 @@
-Date: Thu, 17 May 2007 00:19:26 +0100
-Subject: Re: [PATCH 5/5] Mark page cache pages as __GFP_PAGECACHE instead of __GFP_MOVABLE
-Message-ID: <20070516231926.GA7340@skynet.ie>
-References: <20070516230110.10314.85884.sendpatchset@skynet.skynet.ie> <20070516230250.10314.85751.sendpatchset@skynet.skynet.ie> <Pine.LNX.4.64.0705161613280.12119@schroedinger.engr.sgi.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
+Date: Thu, 17 May 2007 09:28:50 +1000
+From: David Chinner <dgc@sgi.com>
+Subject: Re: [PATCH 1 of 2] block_page_mkwrite() Implementation V2
+Message-ID: <20070516232850.GO85884050@sgi.com>
+References: <20070318233008.GA32597093@melbourne.sgi.com> <18993.1179310769@redhat.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <Pine.LNX.4.64.0705161613280.12119@schroedinger.engr.sgi.com>
-From: mel@skynet.ie (Mel Gorman)
+In-Reply-To: <18993.1179310769@redhat.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
-Cc: akpm@linux-foundation.org, linux-mm@kvack.org
+To: David Howells <dhowells@redhat.com>
+Cc: David Chinner <dgc@sgi.com>, lkml <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-On (16/05/07 16:14), Christoph Lameter didst pronounce:
-> On Thu, 17 May 2007, Mel Gorman wrote:
+On Wed, May 16, 2007 at 11:19:29AM +0100, David Howells wrote:
 > 
-> > diff -rup -X /usr/src/patchset-0.6/bin//dontdiff linux-2.6.22-rc1-mm1-025_gfphighuser/fs/block_dev.c linux-2.6.22-rc1-mm1-030_pagecache_mark/fs/block_dev.c
-> > --- linux-2.6.22-rc1-mm1-025_gfphighuser/fs/block_dev.c	2007-05-16 10:54:18.000000000 +0100
-> > +++ linux-2.6.22-rc1-mm1-030_pagecache_mark/fs/block_dev.c	2007-05-16 23:07:30.000000000 +0100
-> > @@ -576,7 +576,7 @@ struct block_device *bdget(dev_t dev)
-> >  		inode->i_rdev = dev;
-> >  		inode->i_bdev = bdev;
-> >  		inode->i_data.a_ops = &def_blk_aops;
-> > -		mapping_set_gfp_mask(&inode->i_data, GFP_USER|__GFP_MOVABLE);
-> > +		mapping_set_gfp_mask(&inode->i_data, GFP_USER);
-> >  		inode->i_data.backing_dev_info = &default_backing_dev_info;
-> >  		spin_lock(&bdev_lock);
-> >  		list_add(&bdev->bd_list, &all_bdevs);
-> > diff -rup -X /usr/src/patchset-0.6/bin//dontdiff linux-2.6.22-rc1-mm1-025_gfphighuser/fs/buffer.c linux-2.6.22-rc1-mm1-030_pagecache_mark/fs/buffer.c
-> > --- linux-2.6.22-rc1-mm1-025_gfphighuser/fs/buffer.c	2007-05-16 22:55:50.000000000 +0100
-> > +++ linux-2.6.22-rc1-mm1-030_pagecache_mark/fs/buffer.c	2007-05-16 23:07:30.000000000 +0100
-> > @@ -1009,7 +1009,7 @@ grow_dev_page(struct block_device *bdev,
-> >  	struct buffer_head *bh;
-> >  
-> >  	page = find_or_create_page(inode->i_mapping, index,
-> > -					GFP_NOFS|__GFP_RECLAIMABLE);
-> > +					GFP_NOFS_PAGECACHE);
-> >  	if (!page)
-> >  		return NULL;
-> >  
-> 
-> We still have the contrast here. Should fs/block_dev.c not have 
-> GFP_PAGECACHE?
+> However, page_mkwrite() isn't told which bit of the page is going to be
+> written to.  This means it has to ask prepare_write() to make sure the whole
+> page is filled in.  In other words, offset and to must be equal (in AFS I set
+> them both to 0).
 
-It's not clear where, if anywhere, that pages allocated using the
-mapping_set_gfp_mask() from bdget() end up on an LRU or become otherwise
-movable. Hence, I removed the flag until such time as I am sure.
+The assumption is the page is already up to date and we are writing
+the whole page unless EOF lands inside the page. AFAICT, we can't
+get called with a page that is not uptodate and so page filling is
+not something we should be doing (or want to be doing) here. All we
+want to do is to be able to change the mapping from a read to a
+write mapping (e.g. a read mapping of a hole needs to be changed on
+write) and do the relevant space reservation/allocation and buffer
+mapping needed for this change.
 
-> But you could leave it and then my patch could fix this 
-> up.
-> 
+> However, if someone adds a syscall to punch holes in files, this may change...
 
-Perfect.
+We already have them - ioctl(XFS_IOC_UNRESVSP) and
+madvise(MADV_REMOVE) - and another - fallocate(FA_DEALLOCATE) - is
+on it's way. Racing with truncates should already be handled by the
+truncate code (i.e. partial page truncation does the zero filling).
 
-> Otherwise
-> 
-> Acked-by: Christoph Lameter <clameter@sgi.com>
+/me makes note to implement ->truncate_range() in XFS for MADV_REMOVE.
 
-Thanks.
+Cheers,
 
+Dave.
 -- 
-Mel Gorman
-Part-time Phd Student                          Linux Technology Center
-University of Limerick                         IBM Dublin Software Lab
+Dave Chinner
+Principal Engineer
+SGI Australian Software Group
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
