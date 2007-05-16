@@ -1,50 +1,34 @@
-Date: Wed, 16 May 2007 14:42:46 -0700 (PDT)
-From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [PATCH 0/5] make slab gfp fair
-In-Reply-To: <1179350433.2912.66.camel@lappy>
-Message-ID: <Pine.LNX.4.64.0705161435110.11642@schroedinger.engr.sgi.com>
-References: <1179350433.2912.66.camel@lappy>
+From: Arnd Bergmann <arnd@arndb.de>
+Subject: Re: Slab allocators: Define common size limitations
+Date: Wed, 16 May 2007 23:42:07 +0200
+References: <Pine.LNX.4.64.0705152313490.5832@schroedinger.engr.sgi.com> <Pine.LNX.4.62.0705160855470.24080@pademelon.sonytel.be>
+In-Reply-To: <Pine.LNX.4.62.0705160855470.24080@pademelon.sonytel.be>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain;
+  charset="iso-8859-1"
+Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+Message-Id: <200705162342.08601.arnd@arndb.de>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Cc: Matt Mackall <mpm@selenic.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Thomas Graf <tgraf@suug.ch>, David Miller <davem@davemloft.net>, Andrew Morton <akpm@linux-foundation.org>, Daniel Phillips <phillips@google.com>, Pekka Enberg <penberg@cs.helsinki.fi>
+To: linuxppc-dev@ozlabs.org
+Cc: Geert Uytterhoeven <Geert.Uytterhoeven@sonycom.com>, Christoph Lameter <clameter@sgi.com>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Linux Kernel Development <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 16 May 2007, Peter Zijlstra wrote:
-
-> > Hmmm.. so we could simplify the scheme by storing the last rank 
-> > somewheres.
+On Wednesday 16 May 2007, Geert Uytterhoeven wrote:
+> What are the changes a large allocation will actually succeed?
+> Is there an alignment rule for large allocations?
 > 
-> Not sure how that would help..
+> E.g. for one of the PS3 drivers I need a physically contiguous 256 KiB-aligned
+> block of 256 KiB. Currently I'm using __alloc_bootmem() for that, but maybe
+> kmalloc() becomes a suitable alternative now?
 
-One does not have a way of determining the current processes
-priority? Just need to do an alloc?
+kmalloc is limited to 128KiB on most architectures. Normally there is no
+need to use it anyway, just use __get_free_pages(). It will generally
+succeed at early boot time, but not after the system has been running
+for some time.
 
-If we had the current processes "rank" then we could simply compare.
-If rank is okay give them the object. If not try to extend slab. If that
-succeeds clear the rank. If extending fails fail the alloc. There would be 
-no need for a reserve slab.
-
-What worries me about this whole thing is
-
-
-1. It is designed to fail an allocation rather than guarantee that all 
-   succeed. Is it not possible to figure out which processes are not 
-   essential and simply put them to sleep until the situation clear up?
-
-2. It seems to be based on global ordering of allocations which is
-   not possible given large systems and the relativistic constraints
-   of physics. Ordering of events get more expensive the bigger the
-   system is.
-
-   How does this system work if you can just order events within
-   a processor? Or within a node? Within a zone?
-
-3. I do not see how this integrates with other allocation constraints:
-   DMA constraints, cpuset constraints, memory node constraints,
-   GFP_THISNODE, MEMALLOC, GFP_HIGH.
+	Arnd <><
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
