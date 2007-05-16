@@ -1,44 +1,93 @@
-Date: Tue, 15 May 2007 21:12:41 -0700 (PDT)
+Date: Tue, 15 May 2007 22:31:04 -0700 (PDT)
 From: Christoph Lameter <clameter@sgi.com>
-Subject: Fix page allocation flags in grow_dev_page()
-Message-ID: <Pine.LNX.4.64.0705152111380.5192@schroedinger.engr.sgi.com>
+Subject: SLUB: slabinfo fixes
+Message-ID: <Pine.LNX.4.64.0705152230360.5528@schroedinger.engr.sgi.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: akpm@linux-foundation.org
-Cc: linux-mm@kvack.org, hugh@veritas.com
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Grow dev page simply passes GFP_NOFS to find_or_create_page. This means the
-allocation of radix tree nodes is done with GFP_NOFS and the allocation
-of a new page is done using GFP_NOFS.
+Align the output of % with K/M/G of sizes.
 
-The mapping has a flags field that contains the necessary allocation flags for
-the page cache allocation. These need to be consulted in order to get DMA
-and HIGHMEM allocations etc right. And yes a blockdev could be allowing
-Highmem allocations if its a ramdisk.
+Check for empty NUMA information to avoid segfault on !NUMA.
 
-Cc: Hugh Dickins <hugh@veritas.com>
+-r should work directly not only if we match a single slab
+   without additional options.
+
 Signed-off-by: Christoph Lameter <clameter@sgi.com>
 
 ---
- fs/buffer.c |    3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
+ Documentation/vm/slabinfo.c |   17 ++++++++++++-----
+ 1 file changed, 12 insertions(+), 5 deletions(-)
 
-Index: vps/fs/buffer.c
+Index: slub/Documentation/vm/slabinfo.c
 ===================================================================
---- vps.orig/fs/buffer.c	2007-05-15 15:47:32.000000000 -0700
-+++ vps/fs/buffer.c	2007-05-15 15:48:36.000000000 -0700
-@@ -981,7 +981,8 @@ grow_dev_page(struct block_device *bdev,
- 	struct page *page;
- 	struct buffer_head *bh;
+--- slub.orig/Documentation/vm/slabinfo.c	2007-05-15 21:32:49.000000000 -0700
++++ slub/Documentation/vm/slabinfo.c	2007-05-15 22:27:43.000000000 -0700
+@@ -242,6 +242,9 @@ void decode_numa_list(int *numa, char *t
  
--	page = find_or_create_page(inode->i_mapping, index, GFP_NOFS);
-+	page = find_or_create_page(inode->i_mapping, index,
-+		mapping_gfp_mask(inode->i_mapping) & ~__GFP_FS);
- 	if (!page)
- 		return NULL;
+ 	memset(numa, 0, MAX_NODES * sizeof(int));
+ 
++	if (!t)
++		return;
++
+ 	while (*t == 'N') {
+ 		t++;
+ 		node = strtoul(t, &t, 10);
+@@ -386,7 +389,9 @@ void report(struct slabinfo *s)
+ {
+ 	if (strcmp(s->name, "*") == 0)
+ 		return;
+-	printf("\nSlabcache: %-20s  Aliases: %2d Order : %2d\n", s->name, s->aliases, s->order);
++
++	printf("\nSlabcache: %-20s  Aliases: %2d Order : %2d Objects: %d\n",
++		s->name, s->aliases, s->order, s->objects);
+ 	if (s->hwcache_align)
+ 		printf("** Hardware cacheline aligned\n");
+ 	if (s->cache_dma)
+@@ -791,11 +796,11 @@ void totals(void)
+ 
+ 	store_size(b1, total_size);store_size(b2, total_waste);
+ 	store_size(b3, total_waste * 100 / total_used);
+-	printf("Memory used: %6s   # Loss   : %6s   MRatio: %6s%%\n", b1, b2, b3);
++	printf("Memory used: %6s   # Loss   : %6s   MRatio:%6s%%\n", b1, b2, b3);
+ 
+ 	store_size(b1, total_objects);store_size(b2, total_partobj);
+ 	store_size(b3, total_partobj * 100 / total_objects);
+-	printf("# Objects  : %6s   # PartObj: %6s   ORatio: %6s%%\n", b1, b2, b3);
++	printf("# Objects  : %6s   # PartObj: %6s   ORatio:%6s%%\n", b1, b2, b3);
+ 
+ 	printf("\n");
+ 	printf("Per Cache    Average         Min         Max       Total\n");
+@@ -818,7 +823,7 @@ void totals(void)
+ 	store_size(b1, avg_ppart);store_size(b2, min_ppart);
+ 	store_size(b3, max_ppart);
+ 	store_size(b4, total_partial * 100  / total_slabs);
+-	printf("%%PartSlab %10s%% %10s%% %10s%% %10s%%\n",
++	printf("%%PartSlab%10s%% %10s%% %10s%% %10s%%\n",
+ 			b1,	b2,	b3,	b4);
+ 
+ 	store_size(b1, avg_partobj);store_size(b2, min_partobj);
+@@ -830,7 +835,7 @@ void totals(void)
+ 	store_size(b1, avg_ppartobj);store_size(b2, min_ppartobj);
+ 	store_size(b3, max_ppartobj);
+ 	store_size(b4, total_partobj * 100 / total_objects);
+-	printf("%% PartObj %10s%% %10s%% %10s%% %10s%%\n",
++	printf("%% PartObj%10s%% %10s%% %10s%% %10s%%\n",
+ 			b1,	b2,	b3,	b4);
+ 
+ 	store_size(b1, avg_size);store_size(b2, min_size);
+@@ -1100,6 +1105,8 @@ void output_slabs(void)
+ 			ops(slab);
+ 		else if (show_slab)
+ 			slabcache(slab);
++		else if (show_report)
++			report(slab);
+ 	}
+ }
  
 
 --
