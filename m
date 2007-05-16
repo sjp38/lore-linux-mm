@@ -1,32 +1,38 @@
 From: Mel Gorman <mel@csn.ul.ie>
-Message-Id: <20070516230110.10314.85884.sendpatchset@skynet.skynet.ie>
-Subject: [PATCH 0/5] Annotation fixes for grouping pages by mobility
-Date: Thu, 17 May 2007 00:01:10 +0100 (IST)
+Message-Id: <20070516230130.10314.48679.sendpatchset@skynet.skynet.ie>
+In-Reply-To: <20070516230110.10314.85884.sendpatchset@skynet.skynet.ie>
+References: <20070516230110.10314.85884.sendpatchset@skynet.skynet.ie>
+Subject: [PATCH 1/5] Mark bio_alloc() allocations correctly
+Date: Thu, 17 May 2007 00:01:30 +0100 (IST)
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: clameter@sgi.com
 Cc: Mel Gorman <mel@csn.ul.ie>, akpm@linux-foundation.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi Christoph,
+bio_alloc() currently uses __GFP_MOVABLE which is plain wrong. Objects are
+allocated with that gfp mask via mempool. The slab that is ultimatly used
+is not reclaimable or movable.
 
-The following patches deal with annotation fixups and clarifications only. The
-GFP_TEMPORARY one and GFP_HIGH_MOVABLE renames one you have already looked
-at and acked. It was not clear if you were happy with the bio_alloc, shmem
-and pagecache changes but they should be ok based on earlier feedback. Can
-you take another look at these three in particular to confirm you are ok
-with being pushed towards Andrew (cc'd)? I can deal with the feedback on
-the statistics and grouping at an order other than MAX_ORDER separately. The
-PAGECACHE one fixes up the grow_dev_page() annotation problem in particular
-which has reared its head again and also removes the annotation to bdget()
-because associated pages with its mappings do not appear movable. The patches
-have passed a compile and basic stress test on x86 against 2.6.22-rc1-mm1.
+Signed-off-by: Mel Gorman <mel@csn.ul.ie>
+Acked-by: Andy Whitcroft <apw@shadowen.org>
+---
 
-Thanks.
--- 
-Mel Gorman
-Part-time Phd Student                          Linux Technology Center
-University of Limerick                         IBM Dublin Software Lab
+ buffer.c |    2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff -rup -X /usr/src/patchset-0.6/bin//dontdiff linux-2.6.22-rc1-mm1-clean/fs/buffer.c linux-2.6.22-rc1-mm1-010_biomovable/fs/buffer.c
+--- linux-2.6.22-rc1-mm1-clean/fs/buffer.c	2007-05-16 10:54:18.000000000 +0100
++++ linux-2.6.22-rc1-mm1-010_biomovable/fs/buffer.c	2007-05-16 22:55:50.000000000 +0100
+@@ -2641,7 +2641,7 @@ int submit_bh(int rw, struct buffer_head
+ 	 * from here on down, it's all bio -- do the initial mapping,
+ 	 * submit_bio -> generic_make_request may further map this bio around
+ 	 */
+-	bio = bio_alloc(GFP_NOIO|__GFP_MOVABLE, 1);
++	bio = bio_alloc(GFP_NOIO, 1);
+ 
+ 	bio->bi_sector = bh->b_blocknr * (bh->b_size >> 9);
+ 	bio->bi_bdev = bh->b_bdev;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
