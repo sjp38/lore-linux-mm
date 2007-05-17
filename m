@@ -1,63 +1,30 @@
-Message-ID: <464C81B5.8070101@users.sourceforge.net>
-From: Andrea Righi <righiandr@users.sourceforge.net>
-Reply-To: righiandr@users.sourceforge.net
+Date: Thu, 17 May 2007 10:29:06 -0700 (PDT)
+From: Christoph Lameter <clameter@sgi.com>
+Subject: Re: [PATCH 0/5] make slab gfp fair
+In-Reply-To: <1179385718.27354.17.camel@twins>
+Message-ID: <Pine.LNX.4.64.0705171027390.17245@schroedinger.engr.sgi.com>
+References: <20070514131904.440041502@chello.nl>
+ <Pine.LNX.4.64.0705161957440.13458@schroedinger.engr.sgi.com>
+ <1179385718.27354.17.camel@twins>
 MIME-Version: 1.0
-Subject: [RFC] log out-of-virtual-memory events
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
-Date: Thu, 17 May 2007 18:24:28 +0200 (MEST)
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
+To: Peter Zijlstra <a.p.zijlstra@chello.nl>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Thomas Graf <tgraf@suug.ch>, David Miller <davem@davemloft.net>, Andrew Morton <akpm@linux-foundation.org>, Daniel Phillips <phillips@google.com>, Pekka Enberg <penberg@cs.helsinki.fi>, Matt Mackall <mpm@selenic.com>
 List-ID: <linux-mm.kvack.org>
 
-I'm looking for a way to keep track of the processes that fail to allocate new
-virtual memory. What do you think about the following approach (untested)?
+On Thu, 17 May 2007, Peter Zijlstra wrote:
 
---
+> I'm really not seeing why you're making such a fuzz about it; normally
+> when you push the system this hard we're failing allocations left right
+> and center too. Its just that the block IO path has some mempools which
+> allow it to write out some (swap) pages and slowly get back to sanity.
 
-Print informations about the processes that fail to allocate virtual memory.
-
-Signed-off-by: Andrea Righi <a.righi@cineca.it>
-
-diff -urpN linux-2.6.21/mm/mmap.c linux-2.6.21-vm-log-enomem/mm/mmap.c
---- linux-2.6.21/mm/mmap.c	2007-04-26 05:08:32.000000000 +0200
-+++ linux-2.6.21-vm-log-enomem/mm/mmap.c	2007-05-17 18:05:39.000000000 +0200
-@@ -77,6 +77,26 @@ int sysctl_max_map_count __read_mostly =
- atomic_t vm_committed_space = ATOMIC_INIT(0);
- 
- /*
-+ * Print current process informations when it fails to allocate new virtual
-+ * memory.
-+ */
-+static inline void log_vm_enomem(void)
-+{
-+	unsigned long total_vm = 0;
-+	struct mm_struct *mm;
-+
-+	task_lock(current);
-+	mm = current->mm;
-+	if (mm)
-+		total_vm = mm->total_vm;
-+	task_unlock(current);
-+
-+	printk(KERN_INFO
-+	       "out of virtual memory for process %d (%s): total_vm=%lu, uid=%d\n",
-+	       current->pid, current->comm, total_vm, current->uid);
-+}
-+
-+/*
-  * Check that a process has enough memory to allocate a new virtual
-  * mapping. 0 means there is enough memory for the allocation to
-  * succeed and -ENOMEM implies there is not.
-@@ -175,6 +195,7 @@ int __vm_enough_memory(long pages, int c
- 		return 0;
- error:
- 	vm_unacct_memory(pages);
-+	log_vm_enomem();
- 
- 	return -ENOMEM;
- }
+I am weirdly confused by these patches. Among other things you told me 
+that the performance does not matter since its never (or rarely) being 
+used (why do it then?). Then we do these strange swizzles with reserve 
+slabs that may contain an indeterminate amount of objects.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
