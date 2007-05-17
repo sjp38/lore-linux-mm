@@ -1,42 +1,57 @@
-Date: Wed, 16 May 2007 20:02:37 -0700 (PDT)
-From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [PATCH 0/5] make slab gfp fair
-In-Reply-To: <20070514131904.440041502@chello.nl>
-Message-ID: <Pine.LNX.4.64.0705161957440.13458@schroedinger.engr.sgi.com>
-References: <20070514131904.440041502@chello.nl>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Date: Thu, 17 May 2007 08:27:30 +0200
+From: Nick Piggin <npiggin@suse.de>
+Subject: Re: [rfc] optimise unlock_page
+Message-ID: <20070517062729.GA14350@wotan.suse.de>
+References: <Pine.LNX.4.64.0705101935590.18496@blonde.wat.veritas.com> <20070511085424.GA15352@wotan.suse.de> <Pine.LNX.4.64.0705111357120.3350@blonde.wat.veritas.com> <20070513033210.GA3667@wotan.suse.de> <Pine.LNX.4.64.0705130535410.3015@blonde.wat.veritas.com> <20070513065246.GA15071@wotan.suse.de> <Pine.LNX.4.64.0705161838080.16762@blonde.wat.veritas.com> <20070516181847.GD5883@wotan.suse.de> <Pine.LNX.4.64.0705161946170.28185@blonde.wat.veritas.com> <alpine.LFD.0.98.0705161242520.3890@woody.linux-foundation.org>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <alpine.LFD.0.98.0705161242520.3890@woody.linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Thomas Graf <tgraf@suug.ch>, David Miller <davem@davemloft.net>, Andrew Morton <akpm@linux-foundation.org>, Daniel Phillips <phillips@google.com>, Pekka Enberg <penberg@cs.helsinki.fi>, Matt Mackall <mpm@selenic.com>
+To: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Hugh Dickins <hugh@veritas.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, linux-arch@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 14 May 2007, Peter Zijlstra wrote:
-
+On Wed, May 16, 2007 at 12:47:54PM -0700, Linus Torvalds wrote:
 > 
-> In the interest of creating a reserve based allocator; we need to make the slab
-> allocator (*sigh*, all three) fair with respect to GFP flags.
+> On Wed, 16 May 2007, Hugh Dickins wrote:
 > 
-> That is, we need to protect memory from being used by easier gfp flags than it
-> was allocated with. If our reserve is placed below GFP_ATOMIC, we do not want a
-> GFP_KERNEL allocation to walk away with it - a scenario that is perfectly
-> possible with the current allocators.
+> > > The other option of moving the bit into ->mapping hopefully avoids all
+> > > the issues, and would probably be a little faster again on the P4, at the
+> > > expense of being a more intrusive (but it doesn't look too bad, at first
+> > > glance)...
+> > 
+> > Hmm, I'm so happy with PG_swapcache in there, that I'm reluctant to
+> > cede it to your PG_locked, though I can't deny your use should take
+> > precedence.  Perhaps we could enforce 8-byte alignment of struct
+> > address_space and struct anon_vma to make both bits available
+> > (along with the anon bit).
+> 
+> We probably could. It should be easy enough to mark "struct address_space" 
+> to be 8-byte aligned.
 
-And the solution is to fail the allocation of the process which tries to 
-walk away with it. The failing allocation will lead to the killing of the 
-process right?
-
-We already have an OOM killer which potentially kills random processes. We 
-hate it.
-
-Could you please modify the patchset to *avoid* failure conditions. This 
-patchset here only manages failure conditions. The system should not get 
-into the failure conditions in the first place! For that purpose you may 
-want to put processes to sleep etc. But in order to do so you need to 
-figure out which processes you need to make progress.
+Yeah, it might be worthwhile, because I agree that PG_swapcache would
+work nicely there too.
 
 
+> > But I think you may not be appreciating how intrusive PG_locked
+> > will be.  There are many references to page->mapping (often ->host)
+> > throughout fs/ : when we keep anon/swap flags in page->mapping, we
+> > know the filesystems will never see those bits set in their pages,
+> > so no page_mapping-like conversion is needed; just a few places in
+> > common code need to adapt.
+> 
+> You're right, it could be really painful. We'd have to rename the field, 
+> and use some inline function to access it (which masks off the low bits).
+
+Yeah, I realise that the change is intrusive in terms of lines touched,
+but AFAIKS, it should not be much more complex than a search/replace...
+
+As far as deprecating things goes... I don't think we have to wait too
+long, its more for features, drivers, or more fundamental APIs isn't it?
+If we just point out that one must use set_page_mapping/page_mapping
+rather than page->mapping, it is trivial to fix any out of tree breakage.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
