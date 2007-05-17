@@ -1,42 +1,41 @@
-Date: Thu, 17 May 2007 12:24:54 -0700 (PDT)
-From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [PATCH 0/5] make slab gfp fair
-In-Reply-To: <1179429499.2925.26.camel@lappy>
-Message-ID: <Pine.LNX.4.64.0705171220120.3043@schroedinger.engr.sgi.com>
-References: <20070514131904.440041502@chello.nl>
- <Pine.LNX.4.64.0705161957440.13458@schroedinger.engr.sgi.com>
- <1179385718.27354.17.camel@twins>  <Pine.LNX.4.64.0705171027390.17245@schroedinger.engr.sgi.com>
-  <20070517175327.GX11115@waste.org>  <Pine.LNX.4.64.0705171101360.18085@schroedinger.engr.sgi.com>
- <1179429499.2925.26.camel@lappy>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Date: Thu, 17 May 2007 12:38:54 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH 5/5] Mark page cache pages as __GFP_PAGECACHE instead of
+ __GFP_MOVABLE
+Message-Id: <20070517123854.6cea6338.akpm@linux-foundation.org>
+In-Reply-To: <20070517101203.3113.81852.sendpatchset@skynet.skynet.ie>
+References: <20070517101022.3113.15456.sendpatchset@skynet.skynet.ie>
+	<20070517101203.3113.81852.sendpatchset@skynet.skynet.ie>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Cc: Matt Mackall <mpm@selenic.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Thomas Graf <tgraf@suug.ch>, David Miller <davem@davemloft.net>, Andrew Morton <akpm@linux-foundation.org>, Daniel Phillips <phillips@google.com>, Pekka Enberg <penberg@cs.helsinki.fi>
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 17 May 2007, Peter Zijlstra wrote:
+On Thu, 17 May 2007 11:12:03 +0100 (IST)
+Mel Gorman <mel@csn.ul.ie> wrote:
 
-> The proposed patch doesn't change how the kernel functions at this
-> point; it just enforces an existing rule better.
+> --- linux-2.6.22-rc1-mm1-025_gfphighuser/fs/buffer.c	2007-05-16 22:55:50.000000000 +0100
+> +++ linux-2.6.22-rc1-mm1-030_pagecache_mark/fs/buffer.c	2007-05-16 23:07:30.000000000 +0100
+> @@ -1009,7 +1009,7 @@ grow_dev_page(struct block_device *bdev,
+>  	struct buffer_head *bh;
+>  
+>  	page = find_or_create_page(inode->i_mapping, index,
+> -					GFP_NOFS|__GFP_RECLAIMABLE);
+> +					GFP_NOFS_PAGECACHE);
+>  	if (!page)
+>  		return NULL;
+>  
 
-Well I'd say it controls the allocation failures. And that only works if 
-one can consider the system having a single zone.
+I ended up with
 
-Lets say the system has two cpusets A and B. A allocs from node 1 and B 
-allocs from node 2. Two processes one in A and one in B run on the same 
-processor.
+        page = find_or_create_page(inode->i_mapping, index,
+                (mapping_gfp_mask(inode->i_mapping) & ~__GFP_FS)|__GFP_MOVABLE);
 
-Node 1 gets very low in memory so your patch kicks in and sets up the 
-global memory emergency situation with the reserve slab.
-
-Now the process in B will either fail although it has plenty of memory on 
-node 2.
-
-Or it may just clear the emergency slab and then the next critical alloc 
-of the process in A that is low on memory will fail.
-
+here.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
