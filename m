@@ -1,55 +1,42 @@
-Date: Wed, 16 May 2007 17:24:35 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH 1/2] scalable rw_mutex
-Message-Id: <20070516172435.bd3270bd.akpm@linux-foundation.org>
-In-Reply-To: <Pine.LNX.4.64.0705161639010.12688@schroedinger.engr.sgi.com>
-References: <20070511131541.992688403@chello.nl>
-	<20070511132321.895740140@chello.nl>
-	<20070511093108.495feb70.akpm@linux-foundation.org>
-	<Pine.LNX.4.64.0705111006470.32716@schroedinger.engr.sgi.com>
-	<20070511110522.ed459635.akpm@linux-foundation.org>
-	<p73odkpeusf.fsf@bingen.suse.de>
-	<20070512110624.9ac3aa44.akpm@linux-foundation.org>
-	<20070516162829.23f9b1c4.akpm@linux-foundation.org>
-	<Pine.LNX.4.64.0705161639010.12688@schroedinger.engr.sgi.com>
+Date: Thu, 17 May 2007 10:04:32 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [PATCH 2.6.21-rc1-mm1] add check_highest_zone to
+ build_zonelists_in_zone_order
+Message-Id: <20070517100432.94c39067.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <1179345459.5867.31.camel@localhost>
+References: <1179345459.5867.31.camel@localhost>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
-Cc: Andi Kleen <andi@firstfloor.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Oleg Nesterov <oleg@tv-sign.ru>, Ingo Molnar <mingo@elte.hu>, Thomas Gleixner <tglx@linutronix.de>, Nick Piggin <npiggin@suse.de>
+To: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, akpm@linux-foundation.org, apw@shadowen.org, clameter@sgi.com, ak@suse.de, jbarnes@virtuousgeek.org, eric.whitney@hp.com
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 16 May 2007 16:40:59 -0700 (PDT) Christoph Lameter <clameter@sgi.com> wrote:
+On Wed, 16 May 2007 15:57:39 -0400
+Lee Schermerhorn <Lee.Schermerhorn@hp.com> wrote:
 
-> On Wed, 16 May 2007, Andrew Morton wrote:
 > 
-> > (I hope.  Might have race windows in which the percpu_counter_sum() count is
-> > inaccurate?)
+> [PATCH 2.6.21-rc1-mm1] add check_highest_zone to build_zonelists_in_zone_order
 > 
-> The question is how do these race windows affect the locking scheme?
+> We missed this in the "change zone order" series.  We need to record
+> the highest populated zone, just as build_zonelists_node() does.
+> Memory policies apply only to this zone.  Without this, we'll be
+> applying policy to all zones, including DMA, I think.  Not having
+> thought about it much, I can't claim to understand the downside of
+> doing so.
+> 
+> Also, display selected "policy zone" during boot or reconfig
+> of zonelist order, if 'NUMA.  Inquiring minds [might] want to know...
+> 
+> Cleanup:  remove stale comment in set_zonelist_order()
+> 
+> Signed-off-by:  Lee Schermerhorn <lee.schermerhorn@hp.com>
+>
+Acked-By: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
-The race to which I refer here is if another CPU is running
-percpu_counter_sum() in the window between the clearing of the bit in
-cpu_online_map and the CPU_DEAD callout.  Maybe that's too small to care
-about in the short-term, dunno.
-
-Officially we should fix that by taking lock_cpu_hotplug() in
-percpu_counter_sum(), but I hate that thing.
-
-I was thinking of putting a cpumask into the counter.  If we do that then
-there's no race at all: everything happens under fbc->lock.  This would be
-a preferable fix, if we need to fix it.
-
-But I'd prefer that freezer-based cpu-hotplug comes along and saves us
-again.
-
-
-
-umm, actually, we can fix the race by using CPU_DOWN_PREPARE instead of
-CPU_DEAD.  Because it's OK if percpu_counter_sum() looks at a gone-away
-CPU's slot.
+-Kame
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
