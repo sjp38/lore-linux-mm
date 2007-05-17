@@ -1,61 +1,135 @@
-Subject: Re: [PATCH 0/5] make slab gfp fair
-From: Peter Zijlstra <a.p.zijlstra@chello.nl>
-In-Reply-To: <Pine.LNX.4.64.0705161957440.13458@schroedinger.engr.sgi.com>
-References: <20070514131904.440041502@chello.nl>
-	 <Pine.LNX.4.64.0705161957440.13458@schroedinger.engr.sgi.com>
-Content-Type: text/plain
-Date: Thu, 17 May 2007 09:08:38 +0200
-Message-Id: <1179385718.27354.17.camel@twins>
-Mime-Version: 1.0
+Message-ID: <464BFF9D.809@yahoo.com.au>
+Date: Thu, 17 May 2007 17:09:17 +1000
+From: Nick Piggin <nickpiggin@yahoo.com.au>
+MIME-Version: 1.0
+Subject: Re: [PATCH 1/2] Have kswapd keep a minimum order free other than
+ order-0
+References: <Pine.LNX.4.64.0705150958150.6896@skynet.skynet.ie> <464AC00E.10704@yahoo.com.au> <Pine.LNX.4.64.0705160958230.7139@skynet.skynet.ie> <464ACA68.2040707@yahoo.com.au> <Pine.LNX.4.64.0705161011400.7139@skynet.skynet.ie> <464AF8DB.9030000@yahoo.com.au> <20070516135039.GA7467@skynet.ie> <464B0F81.2090103@yahoo.com.au> <20070516153215.GB10225@skynet.ie> <464B26E8.3060404@yahoo.com.au> <20070516164631.GD10225@skynet.ie>
+In-Reply-To: <20070516164631.GD10225@skynet.ie>
+Content-Type: text/plain; charset=us-ascii; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Thomas Graf <tgraf@suug.ch>, David Miller <davem@davemloft.net>, Andrew Morton <akpm@linux-foundation.org>, Daniel Phillips <phillips@google.com>, Pekka Enberg <penberg@cs.helsinki.fi>, Matt Mackall <mpm@selenic.com>
+To: Mel Gorman <mel@skynet.ie>
+Cc: Nicolas Mailhot <nicolas.mailhot@laposte.net>, Christoph Lameter <clameter@sgi.com>, Andy Whitcroft <apw@shadowen.org>, akpm@linux-foundation.org, Linux Memory Management List <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 2007-05-16 at 20:02 -0700, Christoph Lameter wrote:
-> On Mon, 14 May 2007, Peter Zijlstra wrote:
+Mel Gorman wrote:
+> On (17/05/07 01:44), Nick Piggin didst pronounce:
+
+>>>If the watermark was totally ignored with the second patch, I would 
+>>>understand
+>>>but they are still obeyed. Even if it is an ALLOC_HIGH or ALLOC_HARDER
+>>>allocation, the watermarks are obeyed for order-0 so memory does not get
+>>>exhausted as that could cause a host of problems. The difference is if this
+>>>is a HIGH or HARDER allocation and the memory can be granted without going
+>>>belong the order-0 watermarks, it'll succeed. Would it be better if the
+>>>lack of ALLOC_CPUSET was used to determine when only order-0 watermarks
+>>>should be obeyed?
+>>
+>>But I don't know why you want to disobey higher order watermarks in the
+>>first place.
 > 
-> > 
-> > In the interest of creating a reserve based allocator; we need to make the slab
-> > allocator (*sigh*, all three) fair with respect to GFP flags.
-> > 
-> > That is, we need to protect memory from being used by easier gfp flags than it
-> > was allocated with. If our reserve is placed below GFP_ATOMIC, we do not want a
-> > GFP_KERNEL allocation to walk away with it - a scenario that is perfectly
-> > possible with the current allocators.
 > 
-> And the solution is to fail the allocation of the process which tries to 
-> walk away with it. The failing allocation will lead to the killing of the 
-> process right?
+> Because the original problem was bio_alloc() allocations failing and the OOM
+> log showed that the higher-order pages were available. Patch 2 addressed it
+> by succeeding these allocations if the min watermark was not breached with the
+> knowledge that kswapd was awake and reclaiming at the relevant order. I think
+> it may even have solved it without the kswapd change but the kswapd change
+> seemed sensible.
 
-Not necessarily, we have this fault injection system that can fail
-allocations; that doesn't bring the processes down, now does it?
+But that just breaks the watermarks.
 
-> Could you please modify the patchset to *avoid* failure conditions. This 
-> patchset here only manages failure conditions. The system should not get 
-> into the failure conditions in the first place! For that purpose you may 
-> want to put processes to sleep etc. But in order to do so you need to 
-> figure out which processes you need to make progress.
+It could be that the actual values of the watermarks as they are now are
+not very good ones, which is where the problem is coming from.
 
-Those that have __GFP_WAIT set will go to sleep - or do whatever
-__GFP_WAIT allocations do best; the other allocations must handle
-failure anyway. (even __GFP_WAIT allocations must handle failure for
-that matter)
 
-I'm really not seeing why you're making such a fuzz about it; normally
-when you push the system this hard we're failing allocations left right
-and center too. Its just that the block IO path has some mempools which
-allow it to write out some (swap) pages and slowly get back to sanity.
+>>*Those* are exactly the things that are going to be helpful
+>>to fix this problem of atomic higher order allocations failing or non
+>>atomic ones going into direct reclaim.
+>>
+> 
+> 
+> And the intention was that non-atomic ones would go into direct reclaim
+> after kicking kswapd but the atomic allocations would at least succeeed if
+> the memory was there as long as they don't totally mess up watermarks.
 
-This really is not much different; the system is in dire need for
-memory; those allocations that cannot sleep will fail, simple.
+But we have 3 levels of watermarks, so you can keep a reserve for atomic
+allocations _and_ a buffer between the reclaim watermark and the direct
+reclaim watermark.
 
-All I'm wanting to do is limit the reserve to PF_MEMALLOC processes;
-those that are in charge of cleaning memory; not every other random
-process that just wants to do its thing - that doesn't seem like a weird
-thing to do at all.
+
+>>>Raising watermarks is no guarantee that a high-order allocation that can 
+>>>sleep
+>>>will occur at the right time to kick kswapd awake and that it'll get back 
+>>>from
+>>>whatever it's doing in time to spot the new order and start reclaiming 
+>>>again.
+>>
+>>You don't *need* a higher order allocation that can sleep in order
+>>to kick kswapd. Crikey, I keep saying this.
+>>
+> 
+> 
+> Indeed, we seem to have got stuck in a loop of sorts.
+> 
+> I understand that kswapd gets kicked awake either way but there must be a
+> timing issue. Lets say we had a situations like
+> 
+> order-0 alloc
+> watermark hit => wake kswapd
+> order-0 alloc			kswapd reclaiming order 0
+> order-0 alloc			kswapd reclaiming order 0
+> order-3 alloc => kick kswap for order 3
+> order-0 alloc			kswapd reclaiming order 0
+> order-3 alloc			kswapd reclaiming order 0
+> order-3 alloc			kswapd reclaiming order 0
+> order-3 alloc => highorder mark hit, fail
+> 
+> kswapd will keep reclaiming at order-0 until it completes a reclaim cycle
+> and spots the new order and start over again. So there is a potentially
+> sizable window there where problems can hit. Right?
+
+Take a look at the code. wakeup_kswapd and __alloc_pages.
+
+First, assume the zone is above high watermarks for order-0 and order-1.
+order-0 allocs...
+order-1 low watermark hit => don't care, not allocing order-1
+order-0 low watermark hit => wake kswapd reclaim order 0
+order-1 alloc => wakeup_kswapd raises kswapd_max_order to 1
+order-1 allocs continue to succeed until the min watermark is hit
+order-1 *atomic* allocs continue until the atomic reserve is hit
+order-1 memalloc allocs continue until no more order-1 pages left.
+
+There really is (or should be) a proper watermarking system in place that
+provides the right buffering for higher order allocations.
+
+
+>>Working out why it apparently isn't working, first. Then maybe look at
+>>raising watermarks (they get reduced fairly rapidly as the order increases,
+>>so it might just be that there is not enough at order-3).
+>>
+> 
+> 
+> I believe it failed to work due to a combination of kswapd reclaiming at
+> the wrong order for a while and the fact that the watermarks are pretty
+> agressive when it comes to higher orders. I'm trying to think of
+> alternative fixes but keep coming back to the current fix using 
+> !(alloc_flags & ALLOC_CPUSET) to allow !wait allocations to succeed if
+> the memory is there and above min watermarks at order-0.
+
+kswapd reclaiming at the wrong order should be a bug. It should start
+reclaiming at the right order as soon as an allocation (atomic or not)
+goes through the "start reclaiming now" watermark.
+
+Now this is just looking at mainline code that has the kswapd_max_order,
+and kswapd doesn't actually reclaim "at" any order -- it just uses the
+kswapd_max_order to know when the required "stop reclaiming now" marks
+have been hit. If lumpy reclaim is not reclaiming at the right order,
+then it means it isn't refreshing from kswapd_max_order enough.
+
+-- 
+SUSE Labs, Novell Inc.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
