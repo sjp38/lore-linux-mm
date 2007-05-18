@@ -1,82 +1,34 @@
-Date: Fri, 18 May 2007 08:23:53 -0700 (PDT)
-From: Linus Torvalds <torvalds@linux-foundation.org>
-Subject: Re: [patch 3/8] mm: merge nopfn into fault
-In-Reply-To: <200705180737.l4I7b6cg010758@shell0.pdx.osdl.net>
-Message-ID: <alpine.LFD.0.98.0705180817550.3890@woody.linux-foundation.org>
-References: <200705180737.l4I7b6cg010758@shell0.pdx.osdl.net>
+Date: Fri, 18 May 2007 16:42:10 +0100 (BST)
+From: Hugh Dickins <hugh@veritas.com>
+Subject: Re: [rfc] increase struct page size?!
+In-Reply-To: <20070518040854.GA15654@wotan.suse.de>
+Message-ID: <Pine.LNX.4.64.0705181633240.24071@blonde.wat.veritas.com>
+References: <20070518040854.GA15654@wotan.suse.de>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=us-ascii
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: akpm@linux-foundation.org
-Cc: linux-mm@kvack.org, npiggin@suse.de
+To: Nick Piggin <npiggin@suse.de>
+Cc: Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>, linux-arch@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-
-On Fri, 18 May 2007, akpm@linux-foundation.org wrote:
->
-> From: Nick Piggin <npiggin@suse.de>
+On Fri, 18 May 2007, Nick Piggin wrote:
 > 
-> Remove ->nopfn and reimplement the existing handlers with ->fault
+> If we add 8 bytes to struct page on 64-bit machines, it becomes 64 bytes,
+> which is quite a nice number for cache purposes.
+> 
+> However we don't have to let those 8 bytes go to waste: we can use them
+> to store the virtual address of the page, which kind of makes sense for
+> 64-bit, because they can likely to use complicated memory models.
 
-So this is why you kept address.
+Sooner rather than later, don't we need those 8 bytes to expand from
+atomic_t to atomic64_t _count and _mapcount?  Not that we really need
+all 64 bits of both, but I don't know how to work atomically with less.
 
-No no no.
+(Why do I have this sneaking feeling that you're actually wanting
+to stick something into the lower bits of page->virtual?)
 
-If we are changing the calling semantics of "nopage", then we should also 
-remove the horrible, horrible hack of making the "nopfn" function itself 
-do the "populate the page tables".
-
-It would be *much* better to just
-
-> +static struct page *spufs_mem_mmap_fault(struct vm_area_struct *vma,
-> +					  struct fault_data *fdata)
->  {
->  	struct spu_context *ctx	= vma->vm_file->private_data;
->  	unsigned long pfn, offset, addr0 = address;
-> @@ -137,9 +137,11 @@ static unsigned long spufs_mem_mmap_nopf
->  	}
->  #endif /* CONFIG_SPU_FS_64K_LS */
->  
-> -	offset = (address - vma->vm_start) + (vma->vm_pgoff << PAGE_SHIFT);
-> -	if (offset >= LS_SIZE)
-> -		return NOPFN_SIGBUS;
-> +	offset = fdata->pgoff << PAGE_SHIFT
-> +	if (offset >= LS_SIZE) {
-> +		fdata->type = VM_FAULT_SIGBUS;
-> +		return NULL;
-> +	}
-
-	if (offset >= LS_SIZE)
-		return -EINVAL; /* or whatever error value */
-
-and *remove* the "vm_insert_pfn":
-
-> -	vm_insert_pfn(vma, address, pfn);
-> +	vm_insert_pfn(vma, fdata->address, pfn);
->  
->  	spu_release(ctx);
->  
-> -	return NOPFN_REFAULT;
-> +	fdata->type = VM_FAULT_MINOR;
-> +	return NULL;
->  }
-
-And instead on success do
-
-	fdata->pfn = pfn;
-	/* Or: 'fdata->pte = pte' */
-	return VM_FAULT_MINOR;
-
-and let the caller always insert the thing into the page tables.
-
-Wouldn't it be nice if we never had drivers etc modifying page tables 
-directly? Even with helpers like "vm_insert_pfn()"?
-
-And once you don't return "struct page *", the return values can be a lot 
-more descriptive too.
-
-			Linus
+Hugh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
