@@ -1,86 +1,62 @@
-Message-Id: <200705180737.l4I7bAGo010774@shell0.pdx.osdl.net>
-Subject: [patch 7/8] mm: fix clear_page_dirty_for_io vs fault race
+Message-Id: <200705180737.l4I7b7MM010762@shell0.pdx.osdl.net>
+Subject: [patch 4/8] "Convert" hugetlbfs to use vm_ops->fault()
 From: akpm@linux-foundation.org
-Date: Fri, 18 May 2007 00:37:10 -0700
+Date: Fri, 18 May 2007 00:37:08 -0700
 Sender: owner-linux-mm@kvack.org
-From: Nick Piggin <npiggin@suse.de>
+From: Adam Litke <agl@us.ibm.com>
 Return-Path: <owner-linux-mm@kvack.org>
 To: torvalds@linux-foundation.org
-Cc: linux-mm@kvack.org, akpm@linux-foundation.org, npiggin@suse.de, miklos@szeredi.hu
+Cc: linux-mm@kvack.org, akpm@linux-foundation.org, agl@us.ibm.com, bill.irwin@oracle.com, nickpiggin@yahoo.com.au
 List-ID: <linux-mm.kvack.org>
 
-Fix msync data loss and (less importantly) dirty page accounting
-inaccuracies due to the race remaining in clear_page_dirty_for_io().
+I discovered that 2.6.21-rc5-mm1 was oopsing my box when running the
+libhugetlbfs test suite.  The trouble led me once again to shm stacked
+files ;-) The stacked mmap function is labeling the lack of a ->fault()
+vm_op a BUG() which is probably a good idea.  It isn't really a problem for
+hugetlbfs though, since our faults are handled by an explicit hook in
+__handle_mm_fault().  Rather than removing the BUG(), just convert the
+hugetlbfs ->nopage() placeholder to a ->fault() one which helps us get one
+step closer to removing the nopage vm_op anyway.
 
-The deleted comment explains what the race was, and the added comments
-explain how it is fixed.
-
-Signed-off-by: Nick Piggin <npiggin@suse.de>
-Acked-by: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Miklos Szeredi <miklos@szeredi.hu>
+Signed-off-by: Adam Litke <agl@us.ibm.com>
+Acked-by: Nick Piggin <nickpiggin@yahoo.com.au>
+Acked-by: Bill Irwin <bill.irwin@oracle.com>
 Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
 ---
 
- mm/memory.c         |    9 +++++++++
- mm/page-writeback.c |   17 ++++++++++++-----
- 2 files changed, 21 insertions(+), 5 deletions(-)
+ mm/hugetlb.c |   13 ++++++-------
+ 1 file changed, 6 insertions(+), 7 deletions(-)
 
-diff -puN mm/memory.c~mm-fix-clear_page_dirty_for_io-vs-fault-race mm/memory.c
---- a/mm/memory.c~mm-fix-clear_page_dirty_for_io-vs-fault-race
-+++ a/mm/memory.c
-@@ -1764,6 +1764,15 @@ gotten:
- unlock:
- 	pte_unmap_unlock(page_table, ptl);
- 	if (dirty_page) {
-+		/*
-+		 * Yes, Virginia, this is actually required to prevent a race
-+		 * with clear_page_dirty_for_io() from clearing the page dirty
-+		 * bit after it clear all dirty ptes, but before a racing
-+		 * do_wp_page installs a dirty pte.
-+		 *
-+		 * do_no_page is protected similarly.
-+		 */
-+		wait_on_page_locked(dirty_page);
- 		set_page_dirty_balance(dirty_page);
- 		put_page(dirty_page);
- 	}
-diff -puN mm/page-writeback.c~mm-fix-clear_page_dirty_for_io-vs-fault-race mm/page-writeback.c
---- a/mm/page-writeback.c~mm-fix-clear_page_dirty_for_io-vs-fault-race
-+++ a/mm/page-writeback.c
-@@ -919,6 +919,8 @@ int clear_page_dirty_for_io(struct page 
- {
- 	struct address_space *mapping = page_mapping(page);
+diff -puN mm/hugetlb.c~convert-hugetlbfs-to-use-vm_ops-fault mm/hugetlb.c
+--- a/mm/hugetlb.c~convert-hugetlbfs-to-use-vm_ops-fault
++++ a/mm/hugetlb.c
+@@ -287,20 +287,19 @@ unsigned long hugetlb_total_pages(void)
+ }
  
-+	BUG_ON(!PageLocked(page));
-+
- 	if (mapping && mapping_cap_account_dirty(mapping)) {
- 		/*
- 		 * Yes, Virginia, this is indeed insane.
-@@ -944,14 +946,19 @@ int clear_page_dirty_for_io(struct page 
- 		 * We basically use the page "master dirty bit"
- 		 * as a serialization point for all the different
- 		 * threads doing their things.
--		 *
--		 * FIXME! We still have a race here: if somebody
--		 * adds the page back to the page tables in
--		 * between the "page_mkclean()" and the "TestClearPageDirty()",
--		 * we might have it mapped without the dirty bit set.
- 		 */
- 		if (page_mkclean(page))
- 			set_page_dirty(page);
-+		/*
-+		 * We carefully synchronise fault handlers against
-+		 * installing a dirty pte and marking the page dirty
-+		 * at this point. We do this by having them hold the
-+		 * page lock at some point after installing their
-+		 * pte, but before marking the page dirty.
-+		 * Pages are always locked coming in here, so we get
-+		 * the desired exclusion. See mm/memory.c:do_wp_page()
-+		 * for more comments.
-+		 */
- 		if (TestClearPageDirty(page)) {
- 			dec_zone_page_state(page, NR_FILE_DIRTY);
- 			return 1;
+ /*
+- * We cannot handle pagefaults against hugetlb pages at all.  They cause
+- * handle_mm_fault() to try to instantiate regular-sized pages in the
+- * hugegpage VMA.  do_page_fault() is supposed to trap this, so BUG is we get
+- * this far.
++ * Hugetlb faults are serviced in __handle_mm_fault by explicitly calling
++ * hugetlb_fault.  Therefore the vm_ops->fault() op for hugetlb pages
++ * should never be called.
+  */
+-static struct page *hugetlb_nopage(struct vm_area_struct *vma,
+-				unsigned long address, int *unused)
++static struct page *hugetlb_vm_op_fault(struct vm_area_struct *vma,
++					struct fault_data *fdata)
+ {
+ 	BUG();
+ 	return NULL;
+ }
+ 
+ struct vm_operations_struct hugetlb_vm_ops = {
+-	.nopage = hugetlb_nopage,
++	.fault = hugetlb_vm_op_fault,
+ };
+ 
+ static pte_t make_huge_pte(struct vm_area_struct *vma, struct page *page,
 _
 
 --
