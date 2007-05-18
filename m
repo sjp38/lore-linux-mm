@@ -1,53 +1,156 @@
-From: Fengguang Wu <fengguang.wu@gmail.com>
-Subject: Re: [PATCH] resolve duplicate flag no for PG_lazyfree
-Date: Mon, 14 May 2007 15:55:20 +0800
-Message-ID: <20070514075519.GA6255__32494.7182824419$1179129837$gmane$org@mail.ustc.edu.cn>
-References: <379110250.28666@ustc.edu.cn> <20070513224630.3cd0cb54.akpm@linux-foundation.org>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Return-path: <linux-ext4-owner@vger.kernel.org>
-Message-ID: <20070514075519.GA6255@mail.ustc.edu.cn>
-Content-Disposition: inline
-In-Reply-To: <20070513224630.3cd0cb54.akpm@linux-foundation.org>
-Sender: linux-ext4-owner@vger.kernel.org
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Rik van Riel <riel@redhat.com>, Theodore Ts'o <tytso@mit.edu>, "linux-ext4@vger.kernel.org" <linux-ext4@vger.kernel.org>
+From: clameter@sgi.com
+Subject: [patch 04/10] Generic inode defragmentation
+Date: Fri, 18 May 2007 11:10:44 -0700
+Message-ID: <20070518181119.534255343@sgi.com>
+References: <20070518181040.465335396@sgi.com>
+Return-path: <linux-kernel-owner+glk-linux-kernel-3=40m.gmane.org-S1763077AbXERSLd@vger.kernel.org>
+Content-Disposition: inline; filename=inode_targeted_reclaim
+Sender: linux-kernel-owner@vger.kernel.org
+To: akpm@linux-foundation.org
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, dgc@sgi.com, Hugh Dickins <hugh@veritas.com>
 List-Id: linux-mm.kvack.org
 
-On Sun, May 13, 2007 at 10:46:30PM -0700, Andrew Morton wrote:
-> On Mon, 14 May 2007 10:37:18 +0800 Fengguang Wu <fengguang.wu@gmail.com> wrote:
-> 
-> > PG_lazyfree and PG_booked shares the same bit.
-> > 
-> > Either it is a bug that shall fixed by the following patch, or
-> > the situation should be explicitly documented?
-> > 
-> > Signed-off-by: Fengguang Wu <wfg@mail.ustc.edu.cn>
-> > ---
-> >  include/linux/page-flags.h |    2 +-
-> >  1 file changed, 1 insertion(+), 1 deletion(-)
-> > 
-> > --- linux-2.6.21-mm2.orig/include/linux/page-flags.h
-> > +++ linux-2.6.21-mm2/include/linux/page-flags.h
-> > @@ -91,7 +91,7 @@
-> >  #define PG_buddy		19	/* Page is free, on buddy lists */
-> >  #define PG_booked		20	/* Has blocks reserved on-disk */
-> >  
-> > -#define PG_lazyfree		20	/* MADV_FREE potential throwaway */
-> > +#define PG_lazyfree		21	/* MADV_FREE potential throwaway */
-> >  
-> >  /* PG_owner_priv_1 users should have descriptive aliases */
-> >  #define PG_checked		PG_owner_priv_1 /* Used by some filesystems */
-> 
-> That's an accident: PG_lazyfree got added but the out-of-tree ext4 patches
-> didn't get updated.
-> 
-> otoh, the intersection between pages which are PageBooked() and pages which
-> are PageLazyFree() should be zreo, so it'd be good to actually formalise
-> this reuse within the ext4 patches.
-> 
-> otoh2, PageLazyFree() could have reused PG_owner_priv_1.
+This implements the ability to remove a list of inodes from the inode
+cache. In order to remove an inode we may have to write out the pages
+of an inode, the inode itself and remove the dentries referring to the
+node.
 
-otoh3: PG_lazyfree and PG_readahead can reuse the same bit, too.
-PG_lazyfree applies to anonymous pages, while PG_readahead applies to
-file backed pages.
+Provide generic functionality that can be used by filesystems that have
+their own inode caches to also tie into the defragmentation functions
+that are made available here.
+
+Signed-off-by: Christoph Lameter <clameter@sgi.com>
+
+---
+ fs/inode.c         |   92 ++++++++++++++++++++++++++++++++++++++++++++++++++++-
+ include/linux/fs.h |    5 ++
+ 2 files changed, 96 insertions(+), 1 deletion(-)
+
+Index: slub/fs/inode.c
+===================================================================
+--- slub.orig/fs/inode.c	2007-05-18 00:50:36.000000000 -0700
++++ slub/fs/inode.c	2007-05-18 00:55:40.000000000 -0700
+@@ -1361,6 +1361,96 @@ static int __init set_ihash_entries(char
+ }
+ __setup("ihash_entries=", set_ihash_entries);
+ 
++static void *get_inodes(struct kmem_cache *s, int nr, void **v)
++{
++	int i;
++
++	spin_lock(&inode_lock);
++	for (i = 0; i < nr; i++) {
++		struct inode *inode = v[i];
++
++		if (inode->i_state & (I_FREEING|I_CLEAR|I_WILL_FREE))
++			v[i] = NULL;
++		else
++			__iget(inode);
++	}
++	spin_unlock(&inode_lock);
++	return NULL;
++}
++
++/*
++ * Function for filesystems that embedd struct inode into their own
++ * structures. The offset is the offset of the struct inode in the fs inode.
++ */
++void *fs_get_inodes(struct kmem_cache *s, int nr, void **v, unsigned long offset)
++{
++	int i;
++
++	for (i = 0; i < nr; i++)
++		v[i] += offset;
++
++	return get_inodes(s, nr, v);
++}
++EXPORT_SYMBOL(fs_get_inodes);
++
++void kick_inodes(struct kmem_cache *s, int nr, void **v, void *private)
++{
++	struct inode *inode;
++	int i;
++	int abort = 0;
++	LIST_HEAD(freeable);
++	struct super_block *sb;
++
++	for (i = 0; i < nr; i++) {
++		inode = v[i];
++		if (!inode)
++			continue;
++
++		if (inode_has_buffers(inode) || inode->i_data.nrpages) {
++			if (remove_inode_buffers(inode))
++				invalidate_mapping_pages(&inode->i_data,
++								0, -1);
++		}
++
++		if (inode->i_state & I_DIRTY)
++			write_inode_now(inode, 1);
++
++		if (atomic_read(&inode->i_count) > 1)
++			d_prune_aliases(inode);
++	}
++
++	mutex_lock(&iprune_mutex);
++	for (i = 0; i < nr; i++) {
++		inode = v[i];
++		if (!inode)
++			continue;
++
++		sb = inode->i_sb;
++		iput(inode);
++		if (abort || !(sb->s_flags & MS_ACTIVE))
++			continue;
++
++		spin_lock(&inode_lock);
++		if (!can_unuse(inode)) {
++			abort = 1;
++			spin_unlock(&inode_lock);
++			continue;
++		}
++		list_move(&inode->i_list, &freeable);
++		inode->i_state |= I_FREEING;
++		inodes_stat.nr_unused--;
++		spin_unlock(&inode_lock);
++	}
++	dispose_list(&freeable);
++	mutex_unlock(&iprune_mutex);
++}
++EXPORT_SYMBOL(kick_inodes);
++
++static struct kmem_cache_ops inode_kmem_cache_ops = {
++	.get = get_inodes,
++	.kick = kick_inodes
++};
++
+ /*
+  * Initialize the waitqueues and inode hash table.
+  */
+@@ -1399,7 +1489,7 @@ void __init inode_init(unsigned long mem
+ 					 (SLAB_RECLAIM_ACCOUNT|SLAB_PANIC|
+ 					 SLAB_MEM_SPREAD),
+ 					 init_once,
+-					 NULL);
++					 &inode_kmem_cache_ops);
+ 	register_shrinker(&icache_shrinker);
+ 
+ 	/* Hash may have been set up in inode_init_early */
+Index: slub/include/linux/fs.h
+===================================================================
+--- slub.orig/include/linux/fs.h	2007-05-18 00:50:36.000000000 -0700
++++ slub/include/linux/fs.h	2007-05-18 00:54:33.000000000 -0700
+@@ -1608,6 +1608,11 @@ static inline void insert_inode_hash(str
+ 	__insert_inode_hash(inode, inode->i_ino);
+ }
+ 
++/* Helpers to realize inode defrag support in filesystems */
++extern void kick_inodes(struct kmem_cache *, int, void **, void *);
++extern void *fs_get_inodes(struct kmem_cache *, int nr, void **,
++						unsigned long offset);
++
+ extern struct file * get_empty_filp(void);
+ extern void file_move(struct file *f, struct list_head *list);
+ extern void file_kill(struct file *f);
+
+-- 
