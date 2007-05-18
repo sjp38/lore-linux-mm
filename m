@@ -1,50 +1,56 @@
-From: David Howells <dhowells@redhat.com>
-In-Reply-To: <20070518040854.GA15654@wotan.suse.de>
-References: <20070518040854.GA15654@wotan.suse.de>
-Subject: Re: [rfc] increase struct page size?!
-Date: Fri, 18 May 2007 10:42:30 +0100
-Message-ID: <7554.1179481350@redhat.com>
+Date: Fri, 18 May 2007 11:54:54 +0200
+From: Eric Dumazet <dada1@cosmosbay.com>
+Subject: [PATCH] MM : alloc_large_system_hash() can free some memory for non
+ power-of-two bucketsize
+Message-Id: <20070518115454.d3e32f4d.dada1@cosmosbay.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nick Piggin <npiggin@suse.de>
-Cc: Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>, linux-arch@vger.kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+Cc: linux kernel <linux-kernel@vger.kernel.org>, David Miller <davem@davemloft.net>
 List-ID: <linux-mm.kvack.org>
 
-Nick Piggin <npiggin@suse.de> wrote:
+alloc_large_system_hash() is called at boot time to allocate space for several large hash tables.
 
-> I'd like to be the first to propose an increase to the size of struct page
-> just for the sake of increasing it!
+Lately, TCP hash table was changed and its bucketsize is not a power-of-two anymore.
 
-Heh.  I'm surprised you haven't got more adverse reactions.
+On most setups, alloc_large_system_hash() allocates one big page (order > 0) with __get_free_pages(GFP_ATOMIC, order). This single high_order page has a power-of-two size, bigger than the needed size.
 
-> If we add 8 bytes to struct page on 64-bit machines, it becomes 64 bytes,
-> which is quite a nice number for cache purposes.
+We can free all pages that wont be used by the hash table.
 
-Whilst that's true, if you have to deal with a run of contiguous page structs
-(eg: the page allocator, perhaps) it's actually less efficient because it
-takes more cache to do it.  But, hey, it's a compromise whatever.
+On a 1GB i386 machine, this patch saves 128 KB of LOWMEM memory.
 
-In the scheme of things, if we're mostly dealing with individual page structs
-(as I think we are), then yes, I think it's probably a good thing to do -
-especially with larger page sizes.
+TCP established hash table entries: 32768 (order: 6, 393216 bytes)
 
-> However we don't have to let those 8 bytes go to waste: we can use them
-> to store the virtual address of the page, which kind of makes sense for
-> 64-bit, because they can likely to use complicated memory models.
-
-That's a good idea, one that's implemented on some platforms anyway.  It'll be
-especially good with NUMA, I suspect.
-
-> I'd say all up this is going to decrease overall cache footprint in 
-> fastpaths, both by reducing text and data footprint of page_address and
-> related operations, and by reducing cacheline footprint of most batched
-> operations on struct pages.
-
-kmap, filling in scatter/gather lists, crypto stuff.  I like it.
-
-Can you do this just by turning on WANT_PAGE_VIRTUAL on all 64-bit platforms?
-
-David
+Signed-off-by: Eric Dumazet <dada1@cosmosbay.com>
+---
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index ae96dd8..2e0ba08 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -3350,6 +3350,20 @@ void *__init alloc_large_system_hash(const char *tablename,
+ 			for (order = 0; ((1UL << order) << PAGE_SHIFT) < size; order++)
+ 				;
+ 			table = (void*) __get_free_pages(GFP_ATOMIC, order);
++			/*
++			 * If bucketsize is not a power-of-two, we may free
++			 * some pages at the end of hash table.
++			 */
++			if (table) {
++				unsigned long alloc_end = (unsigned long)table +
++						(PAGE_SIZE << order);
++				unsigned long used = (unsigned long)table +
++						PAGE_ALIGN(size);
++				while (used < alloc_end) {
++					free_page(used);
++					used += PAGE_SIZE;
++				}
++			}
+ 		}
+ 	} while (!table && size > PAGE_SIZE && --log2qty);
+ 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
