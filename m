@@ -1,35 +1,27 @@
-Date: Fri, 18 May 2007 22:32:12 +0200 (MEST)
-From: Jan Engelhardt <jengelh@linux01.gwdg.de>
-Subject: Re: [patch 10/10] ext2 ext3 ext4: support inode slab defragmentation
-In-Reply-To: <20070518181120.938438348@sgi.com>
-Message-ID: <Pine.LNX.4.61.0705182229140.9015@yvahk01.tjqt.qr>
-References: <20070518181040.465335396@sgi.com> <20070518181120.938438348@sgi.com>
+Content-Class: urn:content-classes:message
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset="iso-8859-1"
+Content-Transfer-Encoding: 8BIT
+Subject: RE: [rfc] increase struct page size?!
+Date: Fri, 18 May 2007 13:37:09 -0700
+Message-ID: <617E1C2C70743745A92448908E030B2A017BCA67@scsmsx411.amr.corp.intel.com>
+In-Reply-To: <Pine.LNX.4.64.0705181112250.11881@schroedinger.engr.sgi.com>
+From: "Luck, Tony" <tony.luck@intel.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: clameter@sgi.com
-Cc: akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, dgc@sgi.com, Hugh Dickins <hugh@veritas.com>
+To: Christoph Lameter <clameter@sgi.com>, Nick Piggin <npiggin@suse.de>
+Cc: Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>, linux-arch@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On May 18 2007 11:10, clameter@sgi.com wrote:
->+
->+static struct kmem_cache_ops ext2_kmem_cache_ops = {
->+	ext2_get_inodes,
->+	kick_inodes
->+};
->+
+> I wonder if there are other uses for the free space?
 
-We love C99 names:
+	unsigned long moreflags;
 
-static struct kmem_cache_ops ext2_kmem_cache_ops = {
-	.get  = ext2_get_inodes,
-	.kick = kick_inodes,
-};
+Nick and Hugh were just sparring over adding a couple (or perhaps 8)
+flag bits.  This would supply 64 new bits ... maybe that would keep
+them happy for a few more years.
 
-
-	Jan
--- 
+-Tony
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
