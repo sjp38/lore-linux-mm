@@ -1,54 +1,43 @@
-Date: Fri, 18 May 2007 00:43:04 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [rfc] increase struct page size?!
-Message-Id: <20070518004304.14db3eef.akpm@linux-foundation.org>
-In-Reply-To: <20070518073223.GA23998@wotan.suse.de>
-References: <20070518040854.GA15654@wotan.suse.de>
-	<20070518001905.54cafeeb.akpm@linux-foundation.org>
-	<20070518073223.GA23998@wotan.suse.de>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Message-ID: <464D5AA4.8080900@users.sourceforge.net>
+From: Andrea Righi <righiandr@users.sourceforge.net>
+Reply-To: righiandr@users.sourceforge.net
+MIME-Version: 1.0
+Subject: Re: [RFC] log out-of-virtual-memory events
+References: <464C81B5.8070101@users.sourceforge.net> <464C9D82.60105@redhat.com>
+In-Reply-To: <464C9D82.60105@redhat.com>
+Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: 7bit
+Date: Fri, 18 May 2007 09:50:03 +0200 (MEST)
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nick Piggin <npiggin@suse.de>
-Cc: Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>, linux-arch@vger.kernel.org
+To: Rik van Riel <riel@redhat.com>
+Cc: LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 18 May 2007 09:32:23 +0200 Nick Piggin <npiggin@suse.de> wrote:
+Rik van Riel wrote:
+> Andrea Righi wrote:
+>> I'm looking for a way to keep track of the processes that fail to
+>> allocate new
+>> virtual memory. What do you think about the following approach
+>> (untested)?
+>
+> Looks like an easy way for users to spam syslogd over and
+> over and over again.
+>
+> At the very least, shouldn't this be dependant on print_fatal_signals?
+>
 
-> On Fri, May 18, 2007 at 12:19:05AM -0700, Andrew Morton wrote:
-> > On Fri, 18 May 2007 06:08:54 +0200 Nick Piggin <npiggin@suse.de> wrote:
-> > 
-> > > Many batch operations on struct page are completely random,
-> > 
-> > But they shouldn't be: we should aim to place physically contiguous pages
-> > into logically contiguous pagecache slots, for all the reasons we
-> > discussed.
-> 
-> For big IO batch operations, pagecache would be more likely to be
-> physically contiguous, as would LRU, I suppose.
+Anyway, with print-fatal-signals enabled a user could spam syslogd too, simply
+with a (char *)0 = 0 program, but we could always identify the spam attempts
+logging the process uid...
 
-read(), write(), truncate(), writeback, pagefault.  Pretty common stuff.
+In any case, I agree, it should depend on that patch...
 
-> I'm more thinking of operations where things get reclaimed over time,
-> touched or dirtied in slightly different orderings, interleaved with
-> other allocations, etc.
+What about adding a simple msleep_interruptible(SOME_MSECS) at the end of
+log_vm_enomem() or, at least, a might_sleep() to limit the potential spam/second
+rate?
 
-Yes, that can happen.  But in such cases we by definition aren't touching
-the pageframes very often.  I'd assert that when the kernel is really
-hitting those pageframes hard, it is commonly doing this in ascending
-pagecache order.
-
-> 
-> > If/when that happens, there will be a *lot* of locality of reference
-> > against the pageframes in a lot of important codepaths.
-> 
-> And when it doesn't happen, we eat 75% more cache misses. And for that
-> matter we eat 75% more cache misses for non-batch operations like
-> allocating or freeing a page by slab, for example.
-
-"measure twice, cut once"
+-Andrea
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
