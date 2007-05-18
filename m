@@ -1,26 +1,37 @@
-Date: Fri, 18 May 2007 11:15:12 -0700 (PDT)
+Date: Fri, 18 May 2007 11:21:12 -0700 (PDT)
 From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [rfc] increase struct page size?!
-In-Reply-To: <20070518051238.GA7696@wotan.suse.de>
-Message-ID: <Pine.LNX.4.64.0705181114470.11881@schroedinger.engr.sgi.com>
-References: <20070518040854.GA15654@wotan.suse.de> <20070517.214740.51856086.davem@davemloft.net>
- <20070518051238.GA7696@wotan.suse.de>
+Subject: Re: [PATCH] MM : alloc_large_system_hash() can free some memory for
+ non power-of-two bucketsize
+In-Reply-To: <20070518115454.d3e32f4d.dada1@cosmosbay.com>
+Message-ID: <Pine.LNX.4.64.0705181118530.11881@schroedinger.engr.sgi.com>
+References: <20070518115454.d3e32f4d.dada1@cosmosbay.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nick Piggin <npiggin@suse.de>
-Cc: David Miller <davem@davemloft.net>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-arch@vger.kernel.org
+To: Eric Dumazet <dada1@cosmosbay.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, linux kernel <linux-kernel@vger.kernel.org>, David Miller <davem@davemloft.net>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 18 May 2007, Nick Piggin wrote:
+On Fri, 18 May 2007, Eric Dumazet wrote:
 
-> The page->virtual thing is just a bonus (although have you seen what
-> sort of hoops SPARSEMEM has to go through to find page_address?! It
-> will definitely be a win on those architectures).
+>  			table = (void*) __get_free_pages(GFP_ATOMIC, order);
 
-That is on the way out. See the discussion on virtual memmap support in 
-sparseme.
+ATOMIC? Is there some reason why we need atomic here?
+
+> +			/*
+> +			 * If bucketsize is not a power-of-two, we may free
+> +			 * some pages at the end of hash table.
+> +			 */
+> +			if (table) {
+> +				unsigned long alloc_end = (unsigned long)table +
+> +						(PAGE_SIZE << order);
+> +				unsigned long used = (unsigned long)table +
+> +						PAGE_ALIGN(size);
+> +				while (used < alloc_end) {
+> +					free_page(used);
+
+Isnt this going to interfere with the kernel_map_pages debug stuff?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
