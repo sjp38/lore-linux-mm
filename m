@@ -1,39 +1,28 @@
-Date: Fri, 18 May 2007 08:28:13 +0200 (MEST)
-From: Jan Engelhardt <jengelh@linux01.gwdg.de>
-Subject: Re: signals logged / [RFC] log out-of-virtual-memory events
-In-Reply-To: <464C9D82.60105@redhat.com>
-Message-ID: <Pine.LNX.4.61.0705180825280.3231@yvahk01.tjqt.qr>
-References: <464C81B5.8070101@users.sourceforge.net> <464C9D82.60105@redhat.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Date: Fri, 18 May 2007 00:19:05 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [rfc] increase struct page size?!
+Message-Id: <20070518001905.54cafeeb.akpm@linux-foundation.org>
+In-Reply-To: <20070518040854.GA15654@wotan.suse.de>
+References: <20070518040854.GA15654@wotan.suse.de>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Rik van Riel <riel@redhat.com>
-Cc: righiandr@users.sourceforge.net, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, ak@suse.de
+To: Nick Piggin <npiggin@suse.de>
+Cc: Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>, linux-arch@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On May 17 2007 14:22, Rik van Riel wrote:
-> Andrea Righi wrote:
->> I'm looking for a way to keep track of the processes that fail to allocate
->> new
->> virtual memory. What do you think about the following approach (untested)?
->
-> Looks like an easy way for users to spam syslogd over and
-> over and over again.
->
-> At the very least, shouldn't this be dependant on print_fatal_signals?
+On Fri, 18 May 2007 06:08:54 +0200 Nick Piggin <npiggin@suse.de> wrote:
 
-Speaking of signals, everytime I get a segfault (or force one with a test
-program) on x86_64, the kernel prints to dmesg:
+> Many batch operations on struct page are completely random,
 
-fail[22278]: segfault at 0000000000000000 rip 00000000004004b8 rsp
-00007ffff7ecda50 error 6
+But they shouldn't be: we should aim to place physically contiguous pages
+into logically contiguous pagecache slots, for all the reasons we
+discussed.
 
-I do not see such on i386, so why for x86_64?
-
-
-	Jan
--- 
+If/when that happens, there will be a *lot* of locality of reference
+against the pageframes in a lot of important codepaths.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
