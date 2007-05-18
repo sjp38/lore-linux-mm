@@ -1,56 +1,50 @@
-Date: Fri, 18 May 2007 10:23:05 +0100 (IST)
-From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: [PATCH 5/5] Mark page cache pages as __GFP_PAGECACHE instead of
- __GFP_MOVABLE
-In-Reply-To: <20070517123854.6cea6338.akpm@linux-foundation.org>
-Message-ID: <Pine.LNX.4.64.0705181012090.17783@skynet.skynet.ie>
-References: <20070517101022.3113.15456.sendpatchset@skynet.skynet.ie>
- <20070517101203.3113.81852.sendpatchset@skynet.skynet.ie>
- <20070517123854.6cea6338.akpm@linux-foundation.org>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII; format=flowed
+From: David Howells <dhowells@redhat.com>
+In-Reply-To: <20070518040854.GA15654@wotan.suse.de>
+References: <20070518040854.GA15654@wotan.suse.de>
+Subject: Re: [rfc] increase struct page size?!
+Date: Fri, 18 May 2007 10:42:30 +0100
+Message-ID: <7554.1179481350@redhat.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Nick Piggin <npiggin@suse.de>
+Cc: Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>, linux-arch@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 17 May 2007, Andrew Morton wrote:
+Nick Piggin <npiggin@suse.de> wrote:
 
-> On Thu, 17 May 2007 11:12:03 +0100 (IST)
-> Mel Gorman <mel@csn.ul.ie> wrote:
->
->> --- linux-2.6.22-rc1-mm1-025_gfphighuser/fs/buffer.c	2007-05-16 22:55:50.000000000 +0100
->> +++ linux-2.6.22-rc1-mm1-030_pagecache_mark/fs/buffer.c	2007-05-16 23:07:30.000000000 +0100
->> @@ -1009,7 +1009,7 @@ grow_dev_page(struct block_device *bdev,
->>  	struct buffer_head *bh;
->>
->>  	page = find_or_create_page(inode->i_mapping, index,
->> -					GFP_NOFS|__GFP_RECLAIMABLE);
->> +					GFP_NOFS_PAGECACHE);
->>  	if (!page)
->>  		return NULL;
->>
->
-> I ended up with
->
->        page = find_or_create_page(inode->i_mapping, index,
->                (mapping_gfp_mask(inode->i_mapping) & ~__GFP_FS)|__GFP_MOVABLE);
->
-> here.
->
+> I'd like to be the first to propose an increase to the size of struct page
+> just for the sake of increasing it!
 
-That looks like it'll work fine with respects to grouping by mobility but 
-there is a slight functional difference worth noting. Specifically, the 
-old code did not obey cpuset limits because __GFP_HARDWALL was not set. 
-This change gets it's GFP mask from bdget() calling mapping_set_gfp_mask() 
-which is GFP_USER and so will obey CPUSET limits. This new version looks 
-more correct.
+Heh.  I'm surprised you haven't got more adverse reactions.
 
--- 
-Mel Gorman
-Part-time Phd Student                          Linux Technology Center
-University of Limerick                         IBM Dublin Software Lab
+> If we add 8 bytes to struct page on 64-bit machines, it becomes 64 bytes,
+> which is quite a nice number for cache purposes.
+
+Whilst that's true, if you have to deal with a run of contiguous page structs
+(eg: the page allocator, perhaps) it's actually less efficient because it
+takes more cache to do it.  But, hey, it's a compromise whatever.
+
+In the scheme of things, if we're mostly dealing with individual page structs
+(as I think we are), then yes, I think it's probably a good thing to do -
+especially with larger page sizes.
+
+> However we don't have to let those 8 bytes go to waste: we can use them
+> to store the virtual address of the page, which kind of makes sense for
+> 64-bit, because they can likely to use complicated memory models.
+
+That's a good idea, one that's implemented on some platforms anyway.  It'll be
+especially good with NUMA, I suspect.
+
+> I'd say all up this is going to decrease overall cache footprint in 
+> fastpaths, both by reducing text and data footprint of page_address and
+> related operations, and by reducing cacheline footprint of most batched
+> operations on struct pages.
+
+kmap, filling in scatter/gather lists, crypto stuff.  I like it.
+
+Can you do this just by turning on WANT_PAGE_VIRTUAL on all 64-bit platforms?
+
+David
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
