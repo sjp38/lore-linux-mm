@@ -1,37 +1,44 @@
-Date: Fri, 18 May 2007 11:21:12 -0700 (PDT)
+Date: Fri, 18 May 2007 11:26:19 -0700 (PDT)
 From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [PATCH] MM : alloc_large_system_hash() can free some memory for
- non power-of-two bucketsize
-In-Reply-To: <20070518115454.d3e32f4d.dada1@cosmosbay.com>
-Message-ID: <Pine.LNX.4.64.0705181118530.11881@schroedinger.engr.sgi.com>
-References: <20070518115454.d3e32f4d.dada1@cosmosbay.com>
+Subject: Re: [patch 06/10] xfs: inode defragmentation support
+In-Reply-To: <20070518181119.997242349@sgi.com>
+Message-ID: <Pine.LNX.4.64.0705181124430.11881@schroedinger.engr.sgi.com>
+References: <20070518181040.465335396@sgi.com> <20070518181119.997242349@sgi.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Eric Dumazet <dada1@cosmosbay.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, linux kernel <linux-kernel@vger.kernel.org>, David Miller <davem@davemloft.net>
+To: akpm@linux-foundation.org
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, dgc@sgi.com, Hugh Dickins <hugh@veritas.com>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 18 May 2007, Eric Dumazet wrote:
+Rats. Missing a piece due to the need to change the parameters of
+kmem_zone_init_flags (Isnt it possible to use kmem_cache_create 
+directly?).
 
->  			table = (void*) __get_free_pages(GFP_ATOMIC, order);
+Signed-off-by: Christoph Lameter <clameter@sgi.com>
 
-ATOMIC? Is there some reason why we need atomic here?
-
-> +			/*
-> +			 * If bucketsize is not a power-of-two, we may free
-> +			 * some pages at the end of hash table.
-> +			 */
-> +			if (table) {
-> +				unsigned long alloc_end = (unsigned long)table +
-> +						(PAGE_SIZE << order);
-> +				unsigned long used = (unsigned long)table +
-> +						PAGE_ALIGN(size);
-> +				while (used < alloc_end) {
-> +					free_page(used);
-
-Isnt this going to interfere with the kernel_map_pages debug stuff?
+Index: slub/fs/xfs/xfs_vfsops.c
+===================================================================
+--- slub.orig/fs/xfs/xfs_vfsops.c	2007-05-18 11:23:27.000000000 -0700
++++ slub/fs/xfs/xfs_vfsops.c	2007-05-17 22:14:34.000000000 -0700
+@@ -109,13 +109,13 @@ xfs_init(void)
+ 	xfs_inode_zone =
+ 		kmem_zone_init_flags(sizeof(xfs_inode_t), "xfs_inode",
+ 					KM_ZONE_HWALIGN | KM_ZONE_RECLAIM |
+-					KM_ZONE_SPREAD, NULL);
++					KM_ZONE_SPREAD, NULL, NULL);
+ 	xfs_ili_zone =
+ 		kmem_zone_init_flags(sizeof(xfs_inode_log_item_t), "xfs_ili",
+-					KM_ZONE_SPREAD, NULL);
++					KM_ZONE_SPREAD, NULL, NULL);
+ 	xfs_chashlist_zone =
+ 		kmem_zone_init_flags(sizeof(xfs_chashlist_t), "xfs_chashlist",
+-					KM_ZONE_SPREAD, NULL);
++					KM_ZONE_SPREAD, NULL, NULL);
+ 
+ 	/*
+ 	 * Allocate global trace buffers.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
