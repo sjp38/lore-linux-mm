@@ -1,38 +1,35 @@
-Received: by wr-out-0506.google.com with SMTP id 57so966990wri
-        for <linux-mm@kvack.org>; Fri, 18 May 2007 11:54:27 -0700 (PDT)
-Message-ID: <6bffcb0e0705181154y2795a7ccn54338b7b832fe98e@mail.gmail.com>
-Date: Fri, 18 May 2007 20:54:26 +0200
-From: "Michal Piotrowski" <michal.k.k.piotrowski@gmail.com>
-Subject: Re: [patch 00/10] Slab defragmentation V2
-In-Reply-To: <Pine.LNX.4.64.0705181128190.12567@schroedinger.engr.sgi.com>
+Date: Fri, 18 May 2007 22:32:12 +0200 (MEST)
+From: Jan Engelhardt <jengelh@linux01.gwdg.de>
+Subject: Re: [patch 10/10] ext2 ext3 ext4: support inode slab defragmentation
+In-Reply-To: <20070518181120.938438348@sgi.com>
+Message-ID: <Pine.LNX.4.61.0705182229140.9015@yvahk01.tjqt.qr>
+References: <20070518181040.465335396@sgi.com> <20070518181120.938438348@sgi.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
-References: <20070518181040.465335396@sgi.com>
-	 <Pine.LNX.4.64.0705181128190.12567@schroedinger.engr.sgi.com>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
-Cc: dgc@sgi.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Hugh Dickins <hugh@veritas.com>
+To: clameter@sgi.com
+Cc: akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, dgc@sgi.com, Hugh Dickins <hugh@veritas.com>
 List-ID: <linux-mm.kvack.org>
 
-On 18/05/07, Christoph Lameter <clameter@sgi.com> wrote:
-> For Dave: You can find the patchset also at
->
-> http://ftp.kernel.org/pub/linux/kernel/people/christoph/slub-defrag
+On May 18 2007 11:10, clameter@sgi.com wrote:
+>+
+>+static struct kmem_cache_ops ext2_kmem_cache_ops = {
+>+	ext2_get_inodes,
+>+	kick_inodes
+>+};
+>+
 
-s/slub-defrag/slab-defrag
+We love C99 names:
 
-http://ftp.kernel.org/pub/linux/kernel/people/christoph/slab-defrag/
+static struct kmem_cache_ops ext2_kmem_cache_ops = {
+	.get  = ext2_get_inodes,
+	.kick = kick_inodes,
+};
 
-Regards,
-Michal
 
+	Jan
 -- 
-Michal K. K. Piotrowski
-Kernel Monkeys
-(http://kernel.wikidot.com/start)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
