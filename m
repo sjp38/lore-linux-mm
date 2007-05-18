@@ -1,156 +1,84 @@
 From: clameter@sgi.com
-Subject: [patch 04/10] Generic inode defragmentation
-Date: Fri, 18 May 2007 11:10:44 -0700
-Message-ID: <20070518181119.534255343@sgi.com>
+Subject: [patch 06/10] xfs: inode defragmentation support
+Date: Fri, 18 May 2007 11:10:46 -0700
+Message-ID: <20070518181119.997242349@sgi.com>
 References: <20070518181040.465335396@sgi.com>
-Return-path: <linux-kernel-owner+glk-linux-kernel-3=40m.gmane.org-S1763077AbXERSLd@vger.kernel.org>
-Content-Disposition: inline; filename=inode_targeted_reclaim
+Return-path: <linux-kernel-owner+glk-linux-kernel-3=40m.gmane.org-S1763385AbXERSLp@vger.kernel.org>
+Content-Disposition: inline; filename=fs_xfs
 Sender: linux-kernel-owner@vger.kernel.org
 To: akpm@linux-foundation.org
 Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, dgc@sgi.com, Hugh Dickins <hugh@veritas.com>
 List-Id: linux-mm.kvack.org
 
-This implements the ability to remove a list of inodes from the inode
-cache. In order to remove an inode we may have to write out the pages
-of an inode, the inode itself and remove the dentries referring to the
-node.
-
-Provide generic functionality that can be used by filesystems that have
-their own inode caches to also tie into the defragmentation functions
-that are made available here.
+Add slab defrag support.
 
 Signed-off-by: Christoph Lameter <clameter@sgi.com>
 
 ---
- fs/inode.c         |   92 ++++++++++++++++++++++++++++++++++++++++++++++++++++-
- include/linux/fs.h |    5 ++
- 2 files changed, 96 insertions(+), 1 deletion(-)
+ fs/xfs/linux-2.6/kmem.h      |    5 +++--
+ fs/xfs/linux-2.6/xfs_buf.c   |    2 +-
+ fs/xfs/linux-2.6/xfs_super.c |   13 ++++++++++++-
+ 3 files changed, 16 insertions(+), 4 deletions(-)
 
-Index: slub/fs/inode.c
+Index: slub/fs/xfs/linux-2.6/kmem.h
 ===================================================================
---- slub.orig/fs/inode.c	2007-05-18 00:50:36.000000000 -0700
-+++ slub/fs/inode.c	2007-05-18 00:55:40.000000000 -0700
-@@ -1361,6 +1361,96 @@ static int __init set_ihash_entries(char
- }
- __setup("ihash_entries=", set_ihash_entries);
+--- slub.orig/fs/xfs/linux-2.6/kmem.h	2007-05-18 00:54:30.000000000 -0700
++++ slub/fs/xfs/linux-2.6/kmem.h	2007-05-18 00:58:38.000000000 -0700
+@@ -79,9 +79,10 @@ kmem_zone_init(int size, char *zone_name
  
-+static void *get_inodes(struct kmem_cache *s, int nr, void **v)
+ static inline kmem_zone_t *
+ kmem_zone_init_flags(int size, char *zone_name, unsigned long flags,
+-		     void (*construct)(void *, kmem_zone_t *, unsigned long))
++		     void (*construct)(void *, kmem_zone_t *, unsigned long),
++		     const struct kmem_cache_ops *ops)
+ {
+-	return kmem_cache_create(zone_name, size, 0, flags, construct, NULL);
++	return kmem_cache_create(zone_name, size, 0, flags, construct, ops);
+ }
+ 
+ static inline void
+Index: slub/fs/xfs/linux-2.6/xfs_buf.c
+===================================================================
+--- slub.orig/fs/xfs/linux-2.6/xfs_buf.c	2007-05-18 00:54:30.000000000 -0700
++++ slub/fs/xfs/linux-2.6/xfs_buf.c	2007-05-18 00:58:38.000000000 -0700
+@@ -1832,7 +1832,7 @@ xfs_buf_init(void)
+ #endif
+ 
+ 	xfs_buf_zone = kmem_zone_init_flags(sizeof(xfs_buf_t), "xfs_buf",
+-						KM_ZONE_HWALIGN, NULL);
++						KM_ZONE_HWALIGN, NULL, NULL);
+ 	if (!xfs_buf_zone)
+ 		goto out_free_trace_buf;
+ 
+Index: slub/fs/xfs/linux-2.6/xfs_super.c
+===================================================================
+--- slub.orig/fs/xfs/linux-2.6/xfs_super.c	2007-05-18 00:54:30.000000000 -0700
++++ slub/fs/xfs/linux-2.6/xfs_super.c	2007-05-18 00:58:38.000000000 -0700
+@@ -355,13 +355,24 @@ xfs_fs_inode_init_once(
+ 	inode_init_once(vn_to_inode((bhv_vnode_t *)vnode));
+ }
+ 
++static void *xfs_get_inodes(struct kmem_cache *s, int nr, void **v)
 +{
-+	int i;
++	return fs_get_inodes(s, nr, v, offsetof(bhv_vnode_t, v_inode));
++};
 +
-+	spin_lock(&inode_lock);
-+	for (i = 0; i < nr; i++) {
-+		struct inode *inode = v[i];
-+
-+		if (inode->i_state & (I_FREEING|I_CLEAR|I_WILL_FREE))
-+			v[i] = NULL;
-+		else
-+			__iget(inode);
-+	}
-+	spin_unlock(&inode_lock);
-+	return NULL;
-+}
-+
-+/*
-+ * Function for filesystems that embedd struct inode into their own
-+ * structures. The offset is the offset of the struct inode in the fs inode.
-+ */
-+void *fs_get_inodes(struct kmem_cache *s, int nr, void **v, unsigned long offset)
-+{
-+	int i;
-+
-+	for (i = 0; i < nr; i++)
-+		v[i] += offset;
-+
-+	return get_inodes(s, nr, v);
-+}
-+EXPORT_SYMBOL(fs_get_inodes);
-+
-+void kick_inodes(struct kmem_cache *s, int nr, void **v, void *private)
-+{
-+	struct inode *inode;
-+	int i;
-+	int abort = 0;
-+	LIST_HEAD(freeable);
-+	struct super_block *sb;
-+
-+	for (i = 0; i < nr; i++) {
-+		inode = v[i];
-+		if (!inode)
-+			continue;
-+
-+		if (inode_has_buffers(inode) || inode->i_data.nrpages) {
-+			if (remove_inode_buffers(inode))
-+				invalidate_mapping_pages(&inode->i_data,
-+								0, -1);
-+		}
-+
-+		if (inode->i_state & I_DIRTY)
-+			write_inode_now(inode, 1);
-+
-+		if (atomic_read(&inode->i_count) > 1)
-+			d_prune_aliases(inode);
-+	}
-+
-+	mutex_lock(&iprune_mutex);
-+	for (i = 0; i < nr; i++) {
-+		inode = v[i];
-+		if (!inode)
-+			continue;
-+
-+		sb = inode->i_sb;
-+		iput(inode);
-+		if (abort || !(sb->s_flags & MS_ACTIVE))
-+			continue;
-+
-+		spin_lock(&inode_lock);
-+		if (!can_unuse(inode)) {
-+			abort = 1;
-+			spin_unlock(&inode_lock);
-+			continue;
-+		}
-+		list_move(&inode->i_list, &freeable);
-+		inode->i_state |= I_FREEING;
-+		inodes_stat.nr_unused--;
-+		spin_unlock(&inode_lock);
-+	}
-+	dispose_list(&freeable);
-+	mutex_unlock(&iprune_mutex);
-+}
-+EXPORT_SYMBOL(kick_inodes);
-+
-+static struct kmem_cache_ops inode_kmem_cache_ops = {
-+	.get = get_inodes,
++static struct kmem_cache_ops xfs_kmem_cache_ops = {
++	.get = xfs_get_inodes,
 +	.kick = kick_inodes
 +};
 +
- /*
-  * Initialize the waitqueues and inode hash table.
-  */
-@@ -1399,7 +1489,7 @@ void __init inode_init(unsigned long mem
- 					 (SLAB_RECLAIM_ACCOUNT|SLAB_PANIC|
- 					 SLAB_MEM_SPREAD),
- 					 init_once,
--					 NULL);
-+					 &inode_kmem_cache_ops);
- 	register_shrinker(&icache_shrinker);
+ STATIC int
+ xfs_init_zones(void)
+ {
+ 	xfs_vnode_zone = kmem_zone_init_flags(sizeof(bhv_vnode_t), "xfs_vnode",
+ 					KM_ZONE_HWALIGN | KM_ZONE_RECLAIM |
+ 					KM_ZONE_SPREAD,
+-					xfs_fs_inode_init_once);
++					xfs_fs_inode_init_once,
++					&xfs_kmem_cache_ops);
+ 	if (!xfs_vnode_zone)
+ 		goto out;
  
- 	/* Hash may have been set up in inode_init_early */
-Index: slub/include/linux/fs.h
-===================================================================
---- slub.orig/include/linux/fs.h	2007-05-18 00:50:36.000000000 -0700
-+++ slub/include/linux/fs.h	2007-05-18 00:54:33.000000000 -0700
-@@ -1608,6 +1608,11 @@ static inline void insert_inode_hash(str
- 	__insert_inode_hash(inode, inode->i_ino);
- }
- 
-+/* Helpers to realize inode defrag support in filesystems */
-+extern void kick_inodes(struct kmem_cache *, int, void **, void *);
-+extern void *fs_get_inodes(struct kmem_cache *, int nr, void **,
-+						unsigned long offset);
-+
- extern struct file * get_empty_filp(void);
- extern void file_move(struct file *f, struct list_head *list);
- extern void file_kill(struct file *f);
 
 -- 
