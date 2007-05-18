@@ -1,22 +1,25 @@
-Date: Fri, 18 May 2007 11:24:20 +0100
-From: Christoph Hellwig <hch@infradead.org>
-Subject: Re: [patch 5/8] mm: remove legacy cruft
-Message-ID: <20070518102420.GB7658@infradead.org>
-References: <200705180737.l4I7b81u010766@shell0.pdx.osdl.net>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+From: Andi Kleen <ak@suse.de>
+Subject: Re: signals logged / [RFC] log out-of-virtual-memory events
+Date: Fri, 18 May 2007 13:47:13 +0200
+References: <464C81B5.8070101@users.sourceforge.net> <464C9D82.60105@redhat.com> <Pine.LNX.4.61.0705180825280.3231@yvahk01.tjqt.qr>
+In-Reply-To: <Pine.LNX.4.61.0705180825280.3231@yvahk01.tjqt.qr>
+MIME-Version: 1.0
+Content-Type: text/plain;
+  charset="iso-8859-1"
+Content-Transfer-Encoding: 7bit
 Content-Disposition: inline
-In-Reply-To: <200705180737.l4I7b81u010766@shell0.pdx.osdl.net>
+Message-Id: <200705181347.14256.ak@suse.de>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: akpm@linux-foundation.org, Nick Piggin <npiggin@suse.de>
-Cc: torvalds@linux-foundation.org, linux-mm@kvack.org
+To: Jan Engelhardt <jengelh@linux01.gwdg.de>
+Cc: Rik van Riel <riel@redhat.com>, righiandr@users.sourceforge.net, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, May 18, 2007 at 12:37:08AM -0700, akpm@linux-foundation.org wrote:
-> Remove legacy filemap_nopage and all of the .populate API cruft.
+> I do not see such on i386, so why for x86_64?
 
-Ah, okay.  I take my last mail back :)
+So that you know that one of your programs crashed. That's a feature.
+
+-Andi
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
