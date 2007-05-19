@@ -1,35 +1,109 @@
-Date: Sat, 19 May 2007 11:54:42 -0700 (PDT)
-Message-Id: <20070519.115442.30184476.davem@davemloft.net>
-Subject: Re: [PATCH] MM : alloc_large_system_hash() can free some memory
- for non power-of-two bucketsize
-From: David Miller <davem@davemloft.net>
-In-Reply-To: <464F3CCF.2070901@cosmosbay.com>
-References: <20070518115454.d3e32f4d.dada1@cosmosbay.com>
-	<20070519013724.3d4b74e0.akpm@linux-foundation.org>
-	<464F3CCF.2070901@cosmosbay.com>
-Mime-Version: 1.0
-Content-Type: Text/Plain; charset=us-ascii
+Date: Sat, 19 May 2007 23:47:43 +0300
+From: "Vegas VIP Cazino" <bender@fescomail.net>
+Message-ID: <28075554.43144359@storeroom.com>
+Subject: Willkommensbonus von 555$!
+MIME-Version: 1.0
+Content-Type: text/html; charset=iso-8859-1
 Content-Transfer-Encoding: 7bit
-Sender: owner-linux-mm@kvack.org
-From: Eric Dumazet <dada1@cosmosbay.com>
-Date: Sat, 19 May 2007 20:07:11 +0200
-Return-Path: <owner-linux-mm@kvack.org>
-To: dada1@cosmosbay.com
-Cc: akpm@linux-foundation.org, dhowells@redhat.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Return-Path: <bender@fescomail.net>
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-> Maybe David has an idea how this can be done properly ?
-> 
-> ref : http://marc.info/?l=linux-netdev&m=117706074825048&w=2
+<html>
 
-You need to use __GFP_COMP or similar to make this splitting+freeing
-thing work.
+<head>
+<meta http-equiv=Content-Type content="text/html; charset=iso-8859-1">
 
-Otherwise the individual pages don't have page references, only
-the head page of the high-order page will.
+<title>Spielen ist Unterhaltung und Unterhaltung is das Beste im Leben</title>
 
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+<style>
+<!--
+ /* Style Definitions */
+ p.MsoNormal, li.MsoNormal, div.MsoNormal
+	{mso-style-parent:"";
+	margin:0cm;
+	margin-bottom:.0001pt;
+	mso-pagination:widow-orphan;
+	font-size:12.0pt;
+	font-family:"Times New Roman";
+	mso-fareast-font-family:"Times New Roman";}
+a:link, span.MsoHyperlink
+	{color:blue;
+	text-decoration:underline;
+	text-underline:single;}
+a:visited, span.MsoHyperlinkFollowed
+	{color:purple;
+	text-decoration:underline;
+	text-underline:single;}
+@page Section1
+	{size:595.3pt 841.9pt;
+	margin:2.0cm 42.5pt 2.0cm 3.0cm;
+	mso-header-margin:35.4pt;
+	mso-footer-margin:35.4pt;
+	mso-paper-source:0;}
+div.Section1
+	{page:Section1;}
+-->
+</style>
+
+</head>
+
+<body lang=DE link=blue vlink=purple style='tab-interval:35.4pt'>
+
+<div class=Section1>
+
+<p class=MsoNormal><span lang=EN-US style='mso-ansi-language:EN-US'>
+Spielen ist Unterhaltung und Unterhaltung is das Beste im Leben.
+<o:p></o:p></span></p>
+
+<p class=MsoNormal><span lang=EN-US style='mso-ansi-language:EN-US'>
+<o:p>&nbsp;</o:p></span></p>
+
+<p class=MsoNormal><span lang=EN-US style='mso-ansi-language:EN-US'>
+Das echte Spielen findet nur an einem Ort statt... VEGAS!
+<o:p></o:p></span></p>
+
+<p class=MsoNormal><span lang=EN-US style='mso-ansi-language:EN-US'>
+<o:p>&nbsp;</o:p></span></p>
+
+<p class=MsoNormal><span lang=EN-US style='mso-ansi-language:EN-US'>
+Kommen und geniessen Sie Vegas VIP Casino.<o:p></o:p></span></p>
+
+<p class=MsoNormal><span lang=EN-US style='mso-ansi-language:EN-US'>
+<o:p>&nbsp;</o:p></span></p>
+
+<p class=MsoNormal><span lang=EN-US style='mso-ansi-language:EN-US'>
+Zus&auml;tzlich dazu ein exklusives Angebot nur f&uuml;r 
+Empf&auml;nger dieser E-Mail.<o:p></o:p></span></p>
+
+<p class=MsoNormal><span lang=EN-US style='mso-ansi-language:EN-US'>
+<o:p>&nbsp;</o:p></span></p>
+
+<p class=MsoNormal><span lang=EN-US style='mso-ansi-language:EN-US'>
+Ein UNGLAUBLICHER Bonus!!!!<o:p></o:p></span></p>
+
+<p class=MsoNormal><span lang=EN-US style='mso-ansi-language:EN-US'>
+200% Bonus auf Ihre erste Einzahlung! 100% auf je die zweite und 
+dritte Einzahlung! </span>Und als i-T&uuml;pfelchen 155% auf die 
+vierte Einzahlung!!!<o:p></o:p></p>
+
+<p class=MsoNormal><span lang=EN-US style='mso-ansi-language:EN-US'>
+<o:p>&nbsp;</o:p></span></p>
+
+<p class=MsoNormal><span lang=EN-US style='mso-ansi-language:EN-US'>
+Verschwenden Sie keine Zeit und nutzen Sie diesen Bonus! &Uuml;ber 
+100 Casino Spiele, spektakul&auml;re Grafiken und eine erstklassige 
+Online Unterst&uuml;tzung!<o:p></o:p></span></p>
+
+<p class=MsoNormal><span lang=EN-US style='mso-ansi-language:EN-US'>
+<o:p>&nbsp;</o:p></span></p>
+
+<p class=MsoNormal><span lang=EN-US style='mso-ansi-language:EN-US'>
+<a href="http://www.okcasino.org/lang-de/">
+http://www.okcasino.org/lang-de/</a><o:p></o:p></span></p>
+
+</div>
+
+</body>
+
+</html>
