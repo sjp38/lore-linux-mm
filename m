@@ -1,36 +1,31 @@
-Date: Sat, 19 May 2007 11:21:23 -0700
-From: William Lee Irwin III <wli@holomorphy.com>
-Subject: Re: [PATCH] MM : alloc_large_system_hash() can free some memory for non power-of-two bucketsize
-Message-ID: <20070519182123.GD19966@holomorphy.com>
-References: <20070518115454.d3e32f4d.dada1@cosmosbay.com>
+Date: Sat, 19 May 2007 11:25:12 -0700 (PDT)
+From: Christoph Lameter <clameter@sgi.com>
+Subject: Re: [rfc] increase struct page size?!
+In-Reply-To: <20070519181501.GC19966@holomorphy.com>
+Message-ID: <Pine.LNX.4.64.0705191121480.17008@schroedinger.engr.sgi.com>
+References: <20070518040854.GA15654@wotan.suse.de>
+ <Pine.LNX.4.64.0705181112250.11881@schroedinger.engr.sgi.com>
+ <20070519012530.GB15569@wotan.suse.de> <20070519181501.GC19966@holomorphy.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20070518115454.d3e32f4d.dada1@cosmosbay.com>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Eric Dumazet <dada1@cosmosbay.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, linux kernel <linux-kernel@vger.kernel.org>, David Miller <davem@davemloft.net>
+To: William Lee Irwin III <wli@holomorphy.com>
+Cc: Nick Piggin <npiggin@suse.de>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>, linux-arch@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, May 18, 2007 at 11:54:54AM +0200, Eric Dumazet wrote:
-> alloc_large_system_hash() is called at boot time to allocate space
-> for several large hash tables.
-> Lately, TCP hash table was changed and its bucketsize is not a
-> power-of-two anymore.
-> On most setups, alloc_large_system_hash() allocates one big page
-> (order > 0) with __get_free_pages(GFP_ATOMIC, order). This single
-> high_order page has a power-of-two size, bigger than the needed size.
-> We can free all pages that wont be used by the hash table.
-> On a 1GB i386 machine, this patch saves 128 KB of LOWMEM memory.
-> TCP established hash table entries: 32768 (order: 6, 393216 bytes)
+On Sat, 19 May 2007, William Lee Irwin III wrote:
 
-The proper way to do this is to convert the large system hashtable
-users to use some data structure / algorithm  other than hashing by
-separate chaining.
+> However, there are numerous optimizations and features made possible
+> with flag bits, which might as could be made cheap by padding struct
+> page up to the next highest power of 2 bytes with space for flag bits.
 
+Well the last time I tried to get this by Andi we became a bit concerned 
+when we realized that the memory map would grow by 14% in size. Given 
+that 4k page size challenged platforms have a huge amount of page structs 
+that growth is significant. I think it would be fine to do it for IA64 
+with 16k page size but not for x86_64.
 
--- wli
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
