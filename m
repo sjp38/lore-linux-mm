@@ -1,109 +1,103 @@
-Date: Sat, 19 May 2007 23:47:43 +0300
-From: "Vegas VIP Cazino" <bender@fescomail.net>
-Message-ID: <28075554.43144359@storeroom.com>
-Subject: Willkommensbonus von 555$!
+Message-ID: <464F5FE4.2010607@cosmosbay.com>
+Date: Sat, 19 May 2007 22:36:52 +0200
+From: Eric Dumazet <dada1@cosmosbay.com>
 MIME-Version: 1.0
-Content-Type: text/html; charset=iso-8859-1
-Content-Transfer-Encoding: 7bit
-Return-Path: <bender@fescomail.net>
-To: linux-mm@kvack.org
+Subject: Re: [PATCH] MM : alloc_large_system_hash() can free some memory for
+ non power-of-two bucketsize
+References: <20070518115454.d3e32f4d.dada1@cosmosbay.com>	<20070519013724.3d4b74e0.akpm@linux-foundation.org>	<464F3CCF.2070901@cosmosbay.com> <20070519.115442.30184476.davem@davemloft.net>
+In-Reply-To: <20070519.115442.30184476.davem@davemloft.net>
+Content-Type: multipart/mixed;
+ boundary="------------000202020007030807040908"
+Sender: owner-linux-mm@kvack.org
+Return-Path: <owner-linux-mm@kvack.org>
+To: David Miller <davem@davemloft.net>, akpm@linux-foundation.org
+Cc: dhowells@redhat.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-<html>
+This is a multi-part message in MIME format.
+--------------000202020007030807040908
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 8bit
 
-<head>
-<meta http-equiv=Content-Type content="text/html; charset=iso-8859-1">
+David Miller a ecrit :
+> From: Eric Dumazet <dada1@cosmosbay.com>
+> Date: Sat, 19 May 2007 20:07:11 +0200
+> 
+>> Maybe David has an idea how this can be done properly ?
+>>
+>> ref : http://marc.info/?l=linux-netdev&m=117706074825048&w=2
+> 
+> You need to use __GFP_COMP or similar to make this splitting+freeing
+> thing work.
+> 
+> Otherwise the individual pages don't have page references, only
+> the head page of the high-order page will.
+> 
 
-<title>Spielen ist Unterhaltung und Unterhaltung is das Beste im Leben</title>
+Oh thanks David for the hint.
 
-<style>
-<!--
- /* Style Definitions */
- p.MsoNormal, li.MsoNormal, div.MsoNormal
-	{mso-style-parent:"";
-	margin:0cm;
-	margin-bottom:.0001pt;
-	mso-pagination:widow-orphan;
-	font-size:12.0pt;
-	font-family:"Times New Roman";
-	mso-fareast-font-family:"Times New Roman";}
-a:link, span.MsoHyperlink
-	{color:blue;
-	text-decoration:underline;
-	text-underline:single;}
-a:visited, span.MsoHyperlinkFollowed
-	{color:purple;
-	text-decoration:underline;
-	text-underline:single;}
-@page Section1
-	{size:595.3pt 841.9pt;
-	margin:2.0cm 42.5pt 2.0cm 3.0cm;
-	mso-header-margin:35.4pt;
-	mso-footer-margin:35.4pt;
-	mso-paper-source:0;}
-div.Section1
-	{page:Section1;}
--->
-</style>
+I added a split_page() call and it seems to work now.
 
-</head>
 
-<body lang=DE link=blue vlink=purple style='tab-interval:35.4pt'>
+[PATCH] MM : alloc_large_system_hash() can free some memory for non 
+power-of-two bucketsize
 
-<div class=Section1>
+alloc_large_system_hash() is called at boot time to allocate space for several 
+large hash tables.
 
-<p class=MsoNormal><span lang=EN-US style='mso-ansi-language:EN-US'>
-Spielen ist Unterhaltung und Unterhaltung is das Beste im Leben.
-<o:p></o:p></span></p>
+Lately, TCP hash table was changed and its bucketsize is not a power-of-two 
+anymore.
 
-<p class=MsoNormal><span lang=EN-US style='mso-ansi-language:EN-US'>
-<o:p>&nbsp;</o:p></span></p>
+On most setups, alloc_large_system_hash() allocates one big page (order > 0) 
+with __get_free_pages(GFP_ATOMIC, order). This single high_order page has a 
+power-of-two size, bigger than the needed size.
 
-<p class=MsoNormal><span lang=EN-US style='mso-ansi-language:EN-US'>
-Das echte Spielen findet nur an einem Ort statt... VEGAS!
-<o:p></o:p></span></p>
+We can free all pages that wont be used by the hash table.
 
-<p class=MsoNormal><span lang=EN-US style='mso-ansi-language:EN-US'>
-<o:p>&nbsp;</o:p></span></p>
+On a 1GB i386 machine, this patch saves 128 KB of LOWMEM memory.
 
-<p class=MsoNormal><span lang=EN-US style='mso-ansi-language:EN-US'>
-Kommen und geniessen Sie Vegas VIP Casino.<o:p></o:p></span></p>
+TCP established hash table entries: 32768 (order: 6, 393216 bytes)
 
-<p class=MsoNormal><span lang=EN-US style='mso-ansi-language:EN-US'>
-<o:p>&nbsp;</o:p></span></p>
+Signed-off-by: Eric Dumazet <dada1@cosmosbay.com>
 
-<p class=MsoNormal><span lang=EN-US style='mso-ansi-language:EN-US'>
-Zus&auml;tzlich dazu ein exklusives Angebot nur f&uuml;r 
-Empf&auml;nger dieser E-Mail.<o:p></o:p></span></p>
+--------------000202020007030807040908
+Content-Type: text/plain;
+ name="alloc_large.patch"
+Content-Transfer-Encoding: 7bit
+Content-Disposition: inline;
+ filename="alloc_large.patch"
 
-<p class=MsoNormal><span lang=EN-US style='mso-ansi-language:EN-US'>
-<o:p>&nbsp;</o:p></span></p>
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index ae96dd8..7c219eb 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -3350,6 +3350,21 @@ void *__init alloc_large_system_hash(const char *tablename,
+ 			for (order = 0; ((1UL << order) << PAGE_SHIFT) < size; order++)
+ 				;
+ 			table = (void*) __get_free_pages(GFP_ATOMIC, order);
++			/*
++			 * If bucketsize is not a power-of-two, we may free
++			 * some pages at the end of hash table.
++			 */
++			if (table) {
++				unsigned long alloc_end = (unsigned long)table +
++						(PAGE_SIZE << order);
++				unsigned long used = (unsigned long)table +
++						PAGE_ALIGN(size);
++				split_page(virt_to_page(table), order);
++				while (used < alloc_end) {
++					free_page(used);
++					used += PAGE_SIZE;
++				}
++			}
+ 		}
+ 	} while (!table && size > PAGE_SIZE && --log2qty);
+ 
 
-<p class=MsoNormal><span lang=EN-US style='mso-ansi-language:EN-US'>
-Ein UNGLAUBLICHER Bonus!!!!<o:p></o:p></span></p>
+--------------000202020007030807040908--
 
-<p class=MsoNormal><span lang=EN-US style='mso-ansi-language:EN-US'>
-200% Bonus auf Ihre erste Einzahlung! 100% auf je die zweite und 
-dritte Einzahlung! </span>Und als i-T&uuml;pfelchen 155% auf die 
-vierte Einzahlung!!!<o:p></o:p></p>
-
-<p class=MsoNormal><span lang=EN-US style='mso-ansi-language:EN-US'>
-<o:p>&nbsp;</o:p></span></p>
-
-<p class=MsoNormal><span lang=EN-US style='mso-ansi-language:EN-US'>
-Verschwenden Sie keine Zeit und nutzen Sie diesen Bonus! &Uuml;ber 
-100 Casino Spiele, spektakul&auml;re Grafiken und eine erstklassige 
-Online Unterst&uuml;tzung!<o:p></o:p></span></p>
-
-<p class=MsoNormal><span lang=EN-US style='mso-ansi-language:EN-US'>
-<o:p>&nbsp;</o:p></span></p>
-
-<p class=MsoNormal><span lang=EN-US style='mso-ansi-language:EN-US'>
-<a href="http://www.okcasino.org/lang-de/">
-http://www.okcasino.org/lang-de/</a><o:p></o:p></span></p>
-
-</div>
-
-</body>
-
-</html>
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
