@@ -1,41 +1,32 @@
-Message-ID: <464F44BD.3040209@cosmosbay.com>
-Date: Sat, 19 May 2007 20:41:01 +0200
-From: Eric Dumazet <dada1@cosmosbay.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH] MM : alloc_large_system_hash() can free some memory for
- non power-of-two bucketsize
-References: <20070518115454.d3e32f4d.dada1@cosmosbay.com> <20070519182123.GD19966@holomorphy.com>
-In-Reply-To: <20070519182123.GD19966@holomorphy.com>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 8bit
+Date: Sat, 19 May 2007 11:54:42 -0700 (PDT)
+Message-Id: <20070519.115442.30184476.davem@davemloft.net>
+Subject: Re: [PATCH] MM : alloc_large_system_hash() can free some memory
+ for non power-of-two bucketsize
+From: David Miller <davem@davemloft.net>
+In-Reply-To: <464F3CCF.2070901@cosmosbay.com>
+References: <20070518115454.d3e32f4d.dada1@cosmosbay.com>
+	<20070519013724.3d4b74e0.akpm@linux-foundation.org>
+	<464F3CCF.2070901@cosmosbay.com>
+Mime-Version: 1.0
+Content-Type: Text/Plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
+From: Eric Dumazet <dada1@cosmosbay.com>
+Date: Sat, 19 May 2007 20:07:11 +0200
 Return-Path: <owner-linux-mm@kvack.org>
-To: William Lee Irwin III <wli@holomorphy.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, linux kernel <linux-kernel@vger.kernel.org>, David Miller <davem@davemloft.net>
+To: dada1@cosmosbay.com
+Cc: akpm@linux-foundation.org, dhowells@redhat.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-William Lee Irwin III a ecrit :
-> On Fri, May 18, 2007 at 11:54:54AM +0200, Eric Dumazet wrote:
->> alloc_large_system_hash() is called at boot time to allocate space
->> for several large hash tables.
->> Lately, TCP hash table was changed and its bucketsize is not a
->> power-of-two anymore.
->> On most setups, alloc_large_system_hash() allocates one big page
->> (order > 0) with __get_free_pages(GFP_ATOMIC, order). This single
->> high_order page has a power-of-two size, bigger than the needed size.
->> We can free all pages that wont be used by the hash table.
->> On a 1GB i386 machine, this patch saves 128 KB of LOWMEM memory.
->> TCP established hash table entries: 32768 (order: 6, 393216 bytes)
+> Maybe David has an idea how this can be done properly ?
 > 
-> The proper way to do this is to convert the large system hashtable
-> users to use some data structure / algorithm  other than hashing by
-> separate chaining.
+> ref : http://marc.info/?l=linux-netdev&m=117706074825048&w=2
 
-No thanks. This was already discussed to death on netdev. To date, hash tables 
-are a good compromise.
+You need to use __GFP_COMP or similar to make this splitting+freeing
+thing work.
 
-I dont mind losing part of memory, I prefer to keep good performance when 
-handling 1.000.000 or more tcp sessions.
+Otherwise the individual pages don't have page references, only
+the head page of the high-order page will.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
