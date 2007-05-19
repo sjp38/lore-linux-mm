@@ -1,44 +1,78 @@
-Date: Sat, 19 May 2007 03:30:13 +0200
+Date: Sat, 19 May 2007 03:38:32 +0200
 From: Nick Piggin <npiggin@suse.de>
-Subject: Re: [rfc] increase struct page size?!
-Message-ID: <20070519013013.GC15569@wotan.suse.de>
-References: <20070518040854.GA15654@wotan.suse.de> <7554.1179481350@redhat.com>
+Subject: Re: [patch 2/8] mm: merge populate and nopage into fault (fixes nonlinear)
+Message-ID: <20070519013832.GD15569@wotan.suse.de>
+References: <200705180737.l4I7b5aR010752@shell0.pdx.osdl.net> <alpine.LFD.0.98.0705180758450.3890@woody.linux-foundation.org>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <7554.1179481350@redhat.com>
+In-Reply-To: <alpine.LFD.0.98.0705180758450.3890@woody.linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: David Howells <dhowells@redhat.com>
-Cc: Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>, linux-arch@vger.kernel.org
+To: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: akpm@linux-foundation.org, linux-mm@kvack.org, randy.dunlap@oracle.com
 List-ID: <linux-mm.kvack.org>
 
-On Fri, May 18, 2007 at 10:42:30AM +0100, David Howells wrote:
-> Nick Piggin <npiggin@suse.de> wrote:
+On Fri, May 18, 2007 at 08:11:35AM -0700, Linus Torvalds wrote:
 > 
-> > I'd like to be the first to propose an increase to the size of struct page
-> > just for the sake of increasing it!
 > 
-> Heh.  I'm surprised you haven't got more adverse reactions.
+> On Fri, 18 May 2007, akpm@linux-foundation.org wrote:
+> > 
+> > Nonlinear mappings are (AFAIKS) simply a virtual memory concept that encodes
+> > the virtual address -> file offset differently from linear mappings.
 > 
-> > If we add 8 bytes to struct page on 64-bit machines, it becomes 64 bytes,
-> > which is quite a nice number for cache purposes.
+> I'm not going to merge this one.
 > 
-> Whilst that's true, if you have to deal with a run of contiguous page structs
-> (eg: the page allocator, perhaps) it's actually less efficient because it
-> takes more cache to do it.  But, hey, it's a compromise whatever.
-> 
-> In the scheme of things, if we're mostly dealing with individual page structs
-> (as I think we are), then yes, I think it's probably a good thing to do -
-> especially with larger page sizes.
+> First off, I don't see the point of renaming "nopage" to "fault". If you 
+> are looking for compiler warnings, you might as well just change the 
+> prototype and be done with it.
 
-Yeah, we would end up eating about 12.5% more cachelines for contiguous
-runs of pages... but that only kicks in after we've touched 8 of them I
-think, and by that point the accesses should be very prefetchable.
+I considered that, but it is going to break a whole lot of drivers (and
+I guess some out of tree code FWIW). If you want me to attempt to convert
+all drivers in the tree, then...
 
-I think the average of 75% more cachelines touched for random accesses
-is going to outweigh the contiguous batch savings, but that's just a
-guess at this point.
+(BTW, I agree the whole series is late, and I would have rathered it go
+in -rc1).
+
+
+> The new name is not even descriptive, since 
+> it's all about nopage, and not about any other kind of faults.
+
+I'm going to convert page_mkwrite over as well.
+
+
+> [ Side note: why is "address" there in the fault data? It would seem that 
+>   anybody that uses it is by definition buggy, so it shouldn't be there if 
+>   we're fixing up the interfaces. ]
+
+It could matter for some things... page colouring maybe.
+
+
+> Also, the commentary says that you're planning on replacing "nopfn" too, 
+> which means that returning a "struct page *" is wrong. So the patch is
+> introducing a new interface that is already known to be broken. 
+> 
+> Here's a suggestion:
+> 
+>  - make "nopage()" return "int" (the status code). Move the "struct page" 
+>    pointer into the data area, and add a "pte_t" entry there too, so that 
+>    the callee can now decide to fill in one or the other (or neither, if 
+>    it returns an error).
+
+Actually, I was thinking about changing to an int return code which
+makes the page_mkwrite conversion nicer too. But a pte_t? Yuck Linus!
+
+ 
+>  - "struct fault_data" is a stupid name. Of *course* it is data: it's a 
+>    struct. It can't be code. But it's not even about faults. It's about 
+>    missing pages.
+> 
+>    So call it something else. Maybe just "struct nopage". Or, "struct 
+>    vm_fault" at least, so that it's at least not about *random* faults.
+
+The name doesn't bother me so much, but as I said, it is not just going
+to be for missing pages. Also, keeping nopage means a full conversion,
+wheras we can support nopage with a few lines of backward compatible code.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
