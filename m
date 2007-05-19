@@ -1,37 +1,54 @@
-Message-ID: <464ECE6A.4050607@users.sourceforge.net>
+Message-ID: <464ED258.2010903@users.sourceforge.net>
 From: Andrea Righi <righiandr@users.sourceforge.net>
 Reply-To: righiandr@users.sourceforge.net
 MIME-Version: 1.0
-Subject: Re: signals logged / [RFC] log out-of-virtual-memory events
-References: <464C81B5.8070101@users.sourceforge.net> <464C9D82.60105@redhat.com> <Pine.LNX.4.61.0705180825280.3231@yvahk01.tjqt.qr> <200705181347.14256.ak@suse.de> <Pine.LNX.4.61.0705190946430.9015@yvahk01.tjqt.qr> <464EC4E4.5030401@users.sourceforge.net> <Pine.LNX.4.61.0705191205530.9015@yvahk01.tjqt.qr>
-In-Reply-To: <Pine.LNX.4.61.0705191205530.9015@yvahk01.tjqt.qr>
-Content-Type: text/plain; charset=US-ASCII
+Subject: [PATCH 1/2] limit print_fatal_signal() rate (was: [RFC] log out-of-virtual-memory
+ events)
+References: <E1Hp5PV-0001Bn-00@calista.eckenfels.net>
+In-Reply-To: <E1Hp5PV-0001Bn-00@calista.eckenfels.net>
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
-Date: Sat, 19 May 2007 12:16:18 +0200 (MEST)
+Date: Sat, 19 May 2007 12:33:04 +0200 (MEST)
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Jan Engelhardt <jengelh@linux01.gwdg.de>
-Cc: Andi Kleen <ak@suse.de>, Rik van Riel <riel@redhat.com>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
+To: Bernd Eckenfels <ecki@lina.inka.de>
+Cc: linux-kernel@vger.kernel.org, Rik van Riel <riel@redhat.com>, linux-mm@kvack.org, Ingo Molnar <mingo@elte.hu>, Andrew Morton <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-Jan Engelhardt wrote:
-> On May 19 2007 11:35, Andrea Righi wrote:
->> Jan Engelhardt wrote:
->>> On May 18 2007 13:47, Andi Kleen wrote:
->>>>> I do not see such on i386, so why for x86_64?
->>>> So that you know that one of your programs crashed. That's a feature.
->>> This feature could be handy for i386 too.
->>>
->> What about your /proc/sys/kernel/print-fatal-signals? it must be set to 1 to
->> enable that feature.
+Bernd Eckenfels wrote:
+> In article <464DCEAB.3090905@users.sourceforge.net> you wrote:
+>>        printk("%s/%d: potentially unexpected fatal signal %d.\n",
+>>                current->comm, current->pid, signr);
 > 
-> That file does not exist on versions
->   2.6.18 <= version <= 2.6.20
+> can we have both KERN_WARNING please?
 > 
+> Gruss
+> Bernd
 
-This means that you must apply the print_fatal_signals patch...
+Depends on print_fatal_signals patch.
 
--Andrea
+---
+
+Limit the rate of print_fatal_signal() to avoid potential denial-of-service
+attacks.
+
+Signed-off-by: Andrea Righi <a.righi@cineca.it>
+
+diff -urpN linux-2.6.22-rc1-mm1/kernel/signal.c linux-2.6.22-rc1-mm1-vm-log-enomem/kernel/signal.c
+--- linux-2.6.22-rc1-mm1/kernel/signal.c	2007-05-19 11:25:24.000000000 +0200
++++ linux-2.6.22-rc1-mm1-vm-log-enomem/kernel/signal.c	2007-05-19 11:30:00.000000000 +0200
+@@ -790,7 +790,10 @@ static void print_vmas(void)
+ 
+ static void print_fatal_signal(struct pt_regs *regs, int signr)
+ {
+-	printk("%s/%d: potentially unexpected fatal signal %d.\n",
++	if (unlikely(!printk_ratelimit()))
++		return;
++
++	printk(KERN_WARNING "%s/%d: potentially unexpected fatal signal %d.\n",
+ 		current->comm, current->pid, signr);
+ 
+ #ifdef __i386__
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
