@@ -1,30 +1,29 @@
-Date: Fri, 18 May 2007 19:03:39 -0700 (PDT)
-From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [rfc] increase struct page size?! (now sparsemem vmemmap)
-In-Reply-To: <20070519012530.GB15569@wotan.suse.de>
-Message-ID: <Pine.LNX.4.64.0705181901130.14521@schroedinger.engr.sgi.com>
-References: <20070518040854.GA15654@wotan.suse.de>
- <Pine.LNX.4.64.0705181112250.11881@schroedinger.engr.sgi.com>
- <20070519012530.GB15569@wotan.suse.de>
+Date: Sat, 19 May 2007 09:46:51 +0200 (MEST)
+From: Jan Engelhardt <jengelh@linux01.gwdg.de>
+Subject: Re: signals logged / [RFC] log out-of-virtual-memory events
+In-Reply-To: <200705181347.14256.ak@suse.de>
+Message-ID: <Pine.LNX.4.61.0705190946430.9015@yvahk01.tjqt.qr>
+References: <464C81B5.8070101@users.sourceforge.net> <464C9D82.60105@redhat.com>
+ <Pine.LNX.4.61.0705180825280.3231@yvahk01.tjqt.qr> <200705181347.14256.ak@suse.de>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: apw@shadowen.org
-Cc: Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>, linux-arch@vger.kernel.org, Nick Piggin <npiggin@suse.de>
+To: Andi Kleen <ak@suse.de>
+Cc: Rik van Riel <riel@redhat.com>, righiandr@users.sourceforge.net, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Sat, 19 May 2007, Nick Piggin wrote:
+On May 18 2007 13:47, Andi Kleen wrote:
+>
+>> I do not see such on i386, so why for x86_64?
+>
+>So that you know that one of your programs crashed. That's a feature.
 
-> Hugh points out that we should make _count and _mapcount atomic_long_t's,
-> which would probably be a better use of the space once your vmemmap goes
-> in.
+This feature could be handy for i386 too.
 
-Well Andy was going to merge it:
 
-http://marc.info/?l=linux-kernel&m=117620162415620&w=2
-
-Andy when are we going to get the vmemmap patches into sparsemem?
+	Jan
+-- 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
