@@ -1,81 +1,57 @@
-Message-ID: <464F3CCF.2070901@cosmosbay.com>
-Date: Sat, 19 May 2007 20:07:11 +0200
-From: Eric Dumazet <dada1@cosmosbay.com>
+Date: Sat, 19 May 2007 11:15:01 -0700
+From: William Lee Irwin III <wli@holomorphy.com>
+Subject: Re: [rfc] increase struct page size?!
+Message-ID: <20070519181501.GC19966@holomorphy.com>
+References: <20070518040854.GA15654@wotan.suse.de> <Pine.LNX.4.64.0705181112250.11881@schroedinger.engr.sgi.com> <20070519012530.GB15569@wotan.suse.de>
 MIME-Version: 1.0
-Subject: Re: [PATCH] MM : alloc_large_system_hash() can free some memory for
- non power-of-two bucketsize
-References: <20070518115454.d3e32f4d.dada1@cosmosbay.com> <20070519013724.3d4b74e0.akpm@linux-foundation.org>
-In-Reply-To: <20070519013724.3d4b74e0.akpm@linux-foundation.org>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20070519012530.GB15569@wotan.suse.de>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>, David Howells <dhowells@redhat.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, linux kernel <linux-kernel@vger.kernel.org>, David Miller <davem@davemloft.net>
+To: Nick Piggin <npiggin@suse.de>
+Cc: Christoph Lameter <clameter@sgi.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>, linux-arch@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-Andrew Morton a ecrit :
-> On Fri, 18 May 2007 11:54:54 +0200 Eric Dumazet <dada1@cosmosbay.com> wrote:
-> 
->> alloc_large_system_hash() is called at boot time to allocate space for several large hash tables.
->>
->> Lately, TCP hash table was changed and its bucketsize is not a power-of-two anymore.
->>
->> On most setups, alloc_large_system_hash() allocates one big page (order > 0) with __get_free_pages(GFP_ATOMIC, order). This single high_order page has a power-of-two size, bigger than the needed size.
-> 
-> Watch the 200-column text, please.
-> 
->> We can free all pages that wont be used by the hash table.
->>
->> On a 1GB i386 machine, this patch saves 128 KB of LOWMEM memory.
->>
->> TCP established hash table entries: 32768 (order: 6, 393216 bytes)
->>
->> Signed-off-by: Eric Dumazet <dada1@cosmosbay.com>
->> ---
->> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
->> index ae96dd8..2e0ba08 100644
->> --- a/mm/page_alloc.c
->> +++ b/mm/page_alloc.c
->> @@ -3350,6 +3350,20 @@ void *__init alloc_large_system_hash(const char *tablename,
->>  			for (order = 0; ((1UL << order) << PAGE_SHIFT) < size; order++)
->>  				;
->>  			table = (void*) __get_free_pages(GFP_ATOMIC, order);
->> +			/*
->> +			 * If bucketsize is not a power-of-two, we may free
->> +			 * some pages at the end of hash table.
->> +			 */
->> +			if (table) {
->> +				unsigned long alloc_end = (unsigned long)table +
->> +						(PAGE_SIZE << order);
->> +				unsigned long used = (unsigned long)table +
->> +						PAGE_ALIGN(size);
->> +				while (used < alloc_end) {
->> +					free_page(used);
->> +					used += PAGE_SIZE;
->> +				}
->> +			}
->>  		}
->>  	} while (!table && size > PAGE_SIZE && --log2qty);
->>  
-> 
-> It went BUG.
-> 
-> static inline int put_page_testzero(struct page *page)
-> {
-> 	VM_BUG_ON(atomic_read(&page->_count) == 0);
-> 	return atomic_dec_and_test(&page->_count);
-> }
-> 
-> http://userweb.kernel.org/~akpm/s5000523.jpg
-> http://userweb.kernel.org/~akpm/config-vmm.txt
+On Fri, May 18, 2007 at 11:14:26AM -0700, Christoph Lameter wrote:
+>> Right. That would simplify the calculations.
 
-I see :(
+On Sat, May 19, 2007 at 03:25:30AM +0200, Nick Piggin wrote:
+> It isn't the calculations I'm worried about, although they'll get simpler
+> too. It is the cache cost.
 
-Maybe David has an idea how this can be done properly ?
+The cache cost argument is specious. Even misaligned, smaller is
+smaller. The cache footprint reduction is merely amortized,
+probabilistic, etc.
 
-ref : http://marc.info/?l=linux-netdev&m=117706074825048&w=2
 
+On Fri, May 18, 2007 at 11:14:26AM -0700, Christoph Lameter wrote:
+>> I wonder if there are other uses for the free space?
+
+On Sat, May 19, 2007 at 03:25:30AM +0200, Nick Piggin wrote:
+> Hugh points out that we should make _count and _mapcount atomic_long_t's,
+> which would probably be a better use of the space once your vmemmap goes
+> in.
+
+I'm not so sure about that. I doubt we have issues with that. I say
+if there's to be padding to 64B to use the of the whole additional
+space for additional flag bits. I'm sure fs's could make good use of
+64 spare flag bits, or whatever's left over after the VM has its fill.
+Perhaps so many spare flag bits could be used in lieu of buffer_heads.
+
+page->virtual is the same old mistake as it was when it was removed.
+The virtual mem_map code should be used to resolve the computational
+expense. Much the same holds for the atomic_t's; 32 + PAGE_SHIFT is
+44 bits or more, about as much as is possible, and one reference per
+page per page is not even feasible. Full-length atomic_t's are just
+not necessary.
+
+However, there are numerous optimizations and features made possible
+with flag bits, which might as could be made cheap by padding struct
+page up to the next highest power of 2 bytes with space for flag bits.
+
+
+-- wli
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
