@@ -1,29 +1,36 @@
-Date: Sat, 19 May 2007 11:19:31 -0700 (PDT)
-From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [patch 01/10] SLUB: add support for kmem_cache_ops
-In-Reply-To: <84144f020705190553s598e722fu7279253ee8b516bc@mail.gmail.com>
-Message-ID: <Pine.LNX.4.64.0705191119010.17008@schroedinger.engr.sgi.com>
-References: <20070518181040.465335396@sgi.com>  <20070518181118.828853654@sgi.com>
- <84144f020705190553s598e722fu7279253ee8b516bc@mail.gmail.com>
+Date: Sat, 19 May 2007 11:21:23 -0700
+From: William Lee Irwin III <wli@holomorphy.com>
+Subject: Re: [PATCH] MM : alloc_large_system_hash() can free some memory for non power-of-two bucketsize
+Message-ID: <20070519182123.GD19966@holomorphy.com>
+References: <20070518115454.d3e32f4d.dada1@cosmosbay.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20070518115454.d3e32f4d.dada1@cosmosbay.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Pekka Enberg <penberg@cs.helsinki.fi>
-Cc: akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, dgc@sgi.com, Hugh Dickins <hugh@veritas.com>
+To: Eric Dumazet <dada1@cosmosbay.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, linux kernel <linux-kernel@vger.kernel.org>, David Miller <davem@davemloft.net>
 List-ID: <linux-mm.kvack.org>
 
-On Sat, 19 May 2007, Pekka Enberg wrote:
+On Fri, May 18, 2007 at 11:54:54AM +0200, Eric Dumazet wrote:
+> alloc_large_system_hash() is called at boot time to allocate space
+> for several large hash tables.
+> Lately, TCP hash table was changed and its bucketsize is not a
+> power-of-two anymore.
+> On most setups, alloc_large_system_hash() allocates one big page
+> (order > 0) with __get_free_pages(GFP_ATOMIC, order). This single
+> high_order page has a power-of-two size, bigger than the needed size.
+> We can free all pages that wont be used by the hash table.
+> On a 1GB i386 machine, this patch saves 128 KB of LOWMEM memory.
+> TCP established hash table entries: 32768 (order: 6, 393216 bytes)
 
-> On 5/18/07, clameter@sgi.com <clameter@sgi.com> wrote:
-> > kmem_cache_ops is created as empty. Later patches populate kmem_cache_ops.
-> 
-> Hmm, would make more sense to me to move "ctor" in kmem_cache_ops in
-> this patch and not make kmem_cache_create() take both as parameters...
+The proper way to do this is to convert the large system hashtable
+users to use some data structure / algorithm  other than hashing by
+separate chaining.
 
-Yeah earlier versions did this but then I have to do a patch that changes 
-all destructors and all kmem_cache_create calls in the kernel.
- 
+
+-- wli
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
