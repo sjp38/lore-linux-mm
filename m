@@ -1,47 +1,29 @@
-Date: Mon, 21 May 2007 00:21:20 +0200 (MEST)
-Message-Id: <200705202221.l4KMLKvI002716@harpo.it.uu.se>
-From: Mikael Pettersson <mikpe@it.uu.se>
+Date: Sun, 20 May 2007 18:22:47 -0400
+From: Jeff Dike <jdike@addtoit.com>
 Subject: Re: signals logged / [RFC] log out-of-virtual-memory events
+Message-ID: <20070520222247.GA25276@c2.user-mode-linux.org>
+References: <464C9D82.60105@redhat.com> <Pine.LNX.4.61.0705202235430.13923@yvahk01.tjqt.qr> <20070520205500.GJ22452@vanheusden.com> <200705202314.57758.ak@suse.de> <20070520212036.GL22452@vanheusden.com> <20070520222422.GT2012@bingen.suse.de>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20070520222422.GT2012@bingen.suse.de>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: ak@suse.de, folkert@vanheusden.com
-Cc: dada1@cosmosbay.com, jengelh@linux01.gwdg.de, linux-kernel@vger.kernel.org, linux-mm@kvack.org, riel@redhat.com, righiandr@users.sourceforge.net, shemminger@linux-foundation.org
+To: Andi Kleen <ak@suse.de>
+Cc: Folkert van Heusden <folkert@vanheusden.com>, Jan Engelhardt <jengelh@linux01.gwdg.de>, Stephen Hemminger <shemminger@linux-foundation.org>, Eric Dumazet <dada1@cosmosbay.com>, Rik van Riel <riel@redhat.com>, righiandr@users.sourceforge.net, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Sun, 20 May 2007 23:20:36 +0200, Folkert van Heusden wrote:
-> > > +	switch(sig) {
-> > > +	case SIGQUIT: 
-> > > +	case SIGILL: 
-> > > +	case SIGTRAP:
-> > > +	case SIGABRT: 
-> > > +	case SIGBUS: 
-> > > +	case SIGFPE:
-> > > +	case SIGSEGV: 
-> > > +	case SIGXCPU: 
-> > > +	case SIGXFSZ:
-> > > +	case SIGSYS: 
-> > > +	case SIGSTKFLT:
+On Mon, May 21, 2007 at 12:24:22AM +0200, Andi Kleen wrote:
+> > > But I think your list is far too long anyways.
 > > 
-> > Unconditional? That's definitely a very bad idea. If anything only unhandled
-> > signals should be printed this way because some programs use them internally. 
+> > So, which ones would you like to have removed then?
 > 
-> Use these signals internally? Afaik these are fatal, stopping the
-> process. So using them internally would be a little tricky.
+> SIGFPE at least and the accounting signals are dubious too. SIGQUIT can
+> be also relatively common.
 
-Tricky for Joe Programmer, perhaps.
+And SIGSEGV and SIGBUS - UML catches these internally and handles them.
 
-I've been personally involved with writing SIGFPE-handling code
-in a major telco application framework, for several different
-CPU architectures and operating systems.
-
-SIGSEGV is used by some garbage collectors, some JITs, and I believe
-also some software distributed shared memory implementations.
-
-I've heard of at least one Lisp implementation that used SIGBUS
-instead of dynamic type checks in some operations (e.g. to catch
-CAR of a non-CONS).
-
-Handled signals should not be logged.
+				Jeff
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
