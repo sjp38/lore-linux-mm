@@ -1,30 +1,55 @@
-Date: Sat, 19 May 2007 15:09:34 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [rfc] increase struct page size?!
-Message-Id: <20070519150934.bdabc9b5.akpm@linux-foundation.org>
-In-Reply-To: <20070519181501.GC19966@holomorphy.com>
-References: <20070518040854.GA15654@wotan.suse.de>
-	<Pine.LNX.4.64.0705181112250.11881@schroedinger.engr.sgi.com>
-	<20070519012530.GB15569@wotan.suse.de>
-	<20070519181501.GC19966@holomorphy.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Date: Sun, 20 May 2007 02:14:23 +0200
+From: Folkert van Heusden <folkert@vanheusden.com>
+Subject: Re: signals logged / [RFC] log out-of-virtual-memory events
+Message-ID: <20070520001418.GJ14578@vanheusden.com>
+References: <464C81B5.8070101@users.sourceforge.net> <464C9D82.60105@redhat.com> <Pine.LNX.4.61.0705180825280.3231@yvahk01.tjqt.qr> <200705181347.14256.ak@suse.de> <Pine.LNX.4.61.0705190946430.9015@yvahk01.tjqt.qr>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <Pine.LNX.4.61.0705190946430.9015@yvahk01.tjqt.qr>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: William Lee Irwin III <wli@holomorphy.com>
-Cc: Nick Piggin <npiggin@suse.de>, Christoph Lameter <clameter@sgi.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>, linux-arch@vger.kernel.org
+To: Jan Engelhardt <jengelh@linux01.gwdg.de>
+Cc: Andi Kleen <ak@suse.de>, Rik van Riel <riel@redhat.com>, righiandr@users.sourceforge.net, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Sat, 19 May 2007 11:15:01 -0700 William Lee Irwin III <wli@holomorphy.com> wrote:
+> >> I do not see such on i386, so why for x86_64?
+> >So that you know that one of your programs crashed. That's a feature.
+> This feature could be handy for i386 too.
 
-> Much the same holds for the atomic_t's; 32 + PAGE_SHIFT is
-> 44 bits or more, about as much as is possible, and one reference per
-> page per page is not even feasible. Full-length atomic_t's are just
-> not necessary.
+Since 2.6.18.2 I use this patch. With 2.6.21.1 it still applies altough
+with a small offsets. Works like a charm.
 
-You can overflow a page's refcount by mapping it 4G times.  That requires
-32GB of pagetable memory.  It's quite feasible with remap_file_pages().
+
+Signed-off by: Folkert van Heusden <folkert@vanheusden.com>
+
+--- linux-2.6.18.2/kernel/signal.c      2006-11-04 02:33:58.000000000 +0100
++++ linux-2.6.18.2.new/kernel/signal.c  2006-11-17 15:59:13.000000000 +0100
+@@ -706,6 +706,15 @@
+        struct sigqueue * q = NULL;
+        int ret = 0;
+
++       if (sig == SIGQUIT || sig == SIGILL  || sig == SIGTRAP ||
++           sig == SIGABRT || sig == SIGBUS  || sig == SIGFPE  ||
++           sig == SIGSEGV || sig == SIGXCPU || sig == SIGXFSZ ||
++           sig == SIGSYS  || sig == SIGSTKFLT)
++       {
++               printk(KERN_WARNING "Sig %d send to %d owned by %d.%d (%s)\n",
++                       sig, t -> pid, t -> uid, t -> gid, t -> comm);
++       }
++
+        /*
+         * fast-pathed signals for kernel-internal things like SIGSTOP
+         * or SIGKILL.
+
+
+
+Folkert van Heusden
+
+-- 
+www.biglumber.com <- site where one can exchange PGP key signatures 
+----------------------------------------------------------------------
+Phone: +31-6-41278122, PGP-key: 1F28D8AE, www.vanheusden.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
