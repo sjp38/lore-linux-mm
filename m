@@ -1,105 +1,51 @@
-Date: Sun, 20 May 2007 01:46:47 -0700
-From: William Lee Irwin III <wli@holomorphy.com>
-Subject: Re: [rfc] increase struct page size?!
-Message-ID: <20070520084647.GF19966@holomorphy.com>
-References: <20070518040854.GA15654@wotan.suse.de> <Pine.LNX.4.64.0705181112250.11881@schroedinger.engr.sgi.com> <20070519012530.GB15569@wotan.suse.de> <20070519181501.GC19966@holomorphy.com> <20070520052229.GA9372@wotan.suse.de>
+Received: by py-out-1112.google.com with SMTP id v53so1882156pyh
+        for <linux-mm@kvack.org>; Sun, 20 May 2007 02:08:50 -0700 (PDT)
+Message-ID: <1b5a37350705200208y20c8a23g90fd6adbdf665182@mail.gmail.com>
+Date: Sun, 20 May 2007 10:08:49 +0100
+From: "Ed Schofield" <edschofield@gmail.com>
+Subject: BUG in mm/slab.c:777 __find_general_cachep()
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=UTF-8; format=flowed
+Content-Transfer-Encoding: 7bit
 Content-Disposition: inline
-In-Reply-To: <20070520052229.GA9372@wotan.suse.de>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nick Piggin <npiggin@suse.de>
-Cc: Christoph Lameter <clameter@sgi.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>, linux-arch@vger.kernel.org
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Sat, May 19, 2007 at 11:15:01AM -0700, William Lee Irwin III wrote:
->> The cache cost argument is specious. Even misaligned, smaller is
->> smaller.
+I'm getting a BUG in mm/slab.c upon boot for Linus's git tree from
+Friday night (just before the 2.6.22-rc2 tag).
 
-On Sun, May 20, 2007 at 07:22:29AM +0200, Nick Piggin wrote:
-> Of course smaller is smaller ;) Why would that make the cache cost
-> argument specious?
+The call trace is:
 
-It's not possible to ignore aggregation. For instance, for a subset
-of mem_map whose size ignoring alignment would otherwise fit in the
-cache to completely avoid sharing any cachelines between page
-structures requires page structures to be separated by at least one
-mem_map index. This is highly unlikely in uniform distributions.
+[   29.543968] BUG: at mm/slab.c:777 __find_general_cachep()
+[   29.543970]
+[   29.543970] Call Trace:
+[   29.543977]  [<ffffffff8028d8e5>] __kmalloc+0xd5/0x140
+[   29.543981]  [<ffffffff8022064d>] cache_k8_northbridges+0x9d/0x120
+[   29.543986]  [<ffffffff80582a13>] gart_iommu_init+0x33/0x5b0
+[   29.543990]  [<ffffffff802e00cb>] sysfs_create_dir+0x2b/0x80
+[   29.543993]  [<ffffffff80303d79>] kobject_shadow_add+0xb9/0x1f0
+[   29.543996]  [<ffffffff80303b52>] kobject_get+0x12/0x20
+[   29.544001]  [<ffffffff80383e77>] class_register+0x177/0x180
+[   29.544004]  [<ffffffff8057dc6e>] pci_iommu_init+0xe/0x20
+[   29.544008]  [<ffffffff805759c7>] kernel_init+0x157/0x330
+[   29.544011]  [<ffffffff8020aca8>] child_rip+0xa/0x12
+[   29.544015]  [<ffffffff80575870>] kernel_init+0x0/0x330
+[   29.544017]  [<ffffffff8020ac9e>] child_rip+0x0/0x12
+[   29.544019]
 
+I've posted the output of dmesg, the kernel config, etc. here:
 
-On Sat, May 19, 2007 at 11:15:01AM -0700, William Lee Irwin III wrote:
->> The cache footprint reduction is merely amortized,
->> probabilistic, etc.
+http://edschofield.com/linux/dmesg-2.6.22-rc1-g18963c01.log
+http://edschofield.com/linux/config-2.6.22-rc1-g18963c01
+http://edschofield.com/linux/lspci-2.6.22-rc1-g18963c01.log
+http://edschofield.com/linux/iomem-2.6.22-rc1-g18963c01.log
+http://edschofield.com/linux/ioports-2.6.22-rc1-g18963c01.log
 
-On Sun, May 20, 2007 at 07:22:29AM +0200, Nick Piggin wrote:
-> I don't really know what you mean by this, or what part of my cache cost
-> argument you disagree with...
-> I think it is that you could construct mem_map access patterns, without
-> specifically looking at alignment, where a 56 byte struct page would suffer
-> about 75% more cache misses than a 64 byte aligned one (and you could also
-> get about 12% fewer cache misses with other access patterns).
-> I also think the kernel's mem_map access patterns would be more on the
-> random side, so overall would result in significantly fewer cache misses
-> with 64 byte aligned pages.
-> Which part do you disagree with?
+If I can help with more information or testing, please let me know.
 
-The lack of consideration of the average case. I'll see what I can smoke
-out there.
-
-
-On Sat, May 19, 2007 at 11:15:01AM -0700, William Lee Irwin III wrote:
->> I'm not so sure about that. I doubt we have issues with that. I say
-
-On Sun, May 20, 2007 at 07:22:29AM +0200, Nick Piggin wrote:
-> The issue is that userspace can DOS or crash the kernel by deliberately
-> overflowing count or mapcount.
-
-This was a flat out error.
-
-
-On Sat, May 19, 2007 at 11:15:01AM -0700, William Lee Irwin III wrote:
->> if there's to be padding to 64B to use the of the whole additional
->> space for additional flag bits. I'm sure fs's could make good use of
->> 64 spare flag bits, or whatever's left over after the VM has its fill.
->> Perhaps so many spare flag bits could be used in lieu of buffer_heads.
-
-On Sun, May 20, 2007 at 07:22:29AM +0200, Nick Piggin wrote:
-> Really? 64-bit architectures can already use about maybe 16 or 32 more
-> page flag bits than 32-bit architectures, and I definitely do not want
-> to increase the size of 32-bit struct page, so I think this wouldn't
-> work.
-
-Actually they can't use most of those flag bits on account of
-portability to the 32-bit case. A 32-bit flags on 64-bit is rather
-plausible due to such.
-
-
-On Sat, May 19, 2007 at 11:15:01AM -0700, William Lee Irwin III wrote:
->> page->virtual is the same old mistake as it was when it was removed.
->> The virtual mem_map code should be used to resolve the computational
-
-On Sun, May 20, 2007 at 07:22:29AM +0200, Nick Piggin wrote:
-> Don't get too hung up on the page->virtual thing. I'll send another
-> patch with atomic_t/atomic_long_t conversion.
-
-That's fine.
-
-
-On Sat, May 19, 2007 at 11:15:01AM -0700, William Lee Irwin III wrote:
->> expense. Much the same holds for the atomic_t's; 32 + PAGE_SHIFT is
->> 44 bits or more, about as much as is possible, and one reference per
->> page per page is not even feasible. Full-length atomic_t's are just
->> not necessary.
-
-On Sun, May 20, 2007 at 07:22:29AM +0200, Nick Piggin wrote:
-> I don't know what your 32 + PAGE_SHIFT calculation is for, but yes you
-> can wrap these counters from userspace on 64-bit architectures.
-
-That's just an error.
-
-
--- wli
+-- Ed
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
