@@ -1,115 +1,57 @@
-Date: Mon, 21 May 2007 01:16:19 +0500
-From: "Casino Royale" <cervantes@tlcfan.com>
-Subject: =?iso-8859-1?Q?300%_Bonus_f=FCr_Ihre_erste_Einzahlung!?=
-Message-ID: <06794160.33002856@u's.com>
+Date: Sun, 20 May 2007 22:38:08 +0200 (MEST)
+From: Jan Engelhardt <jengelh@linux01.gwdg.de>
+Subject: Re: signals logged / [RFC] log out-of-virtual-memory events
+In-Reply-To: <20070520161159.GD22452@vanheusden.com>
+Message-ID: <Pine.LNX.4.61.0705202235430.13923@yvahk01.tjqt.qr>
+References: <464C81B5.8070101@users.sourceforge.net> <464C9D82.60105@redhat.com>
+ <Pine.LNX.4.61.0705180825280.3231@yvahk01.tjqt.qr> <200705181347.14256.ak@suse.de>
+ <Pine.LNX.4.61.0705190946430.9015@yvahk01.tjqt.qr> <20070520001418.GJ14578@vanheusden.com>
+ <464FC6AA.2060805@cosmosbay.com> <20070520112111.GN14578@vanheusden.com>
+ <20070520090809.4f42d71d@freepuppy> <20070520161159.GD22452@vanheusden.com>
 MIME-Version: 1.0
-Content-Type: text/html; charset=iso-8859-1
-Content-Transfer-Encoding: 7bit
-Return-Path: <cervantes@tlcfan.com>
-To: linux-mm@kvack.org
+Content-Type: TEXT/PLAIN; charset=US-ASCII
+Sender: owner-linux-mm@kvack.org
+Return-Path: <owner-linux-mm@kvack.org>
+To: Folkert van Heusden <folkert@vanheusden.com>
+Cc: Stephen Hemminger <shemminger@linux-foundation.org>, Eric Dumazet <dada1@cosmosbay.com>, Andi Kleen <ak@suse.de>, Rik van Riel <riel@redhat.com>, righiandr@users.sourceforge.net, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-<html>
+On May 20 2007 18:12, Folkert van Heusden wrote:
+>> >  
+>> > +	if (unlikely(sig == SIGQUIT || sig == SIGILL  || sig == SIGTRAP ||
+>> > +	    sig == SIGABRT || sig == SIGBUS  || sig == SIGFPE  ||
+>> > +	    sig == SIGSEGV || sig == SIGXCPU || sig == SIGXFSZ ||
+>> > +	    sig == SIGSYS  || sig == SIGSTKFLT))
+>> > +	{
+>> > +		printk(KERN_WARNING "Sig %d send to %d owned by %d.%d (%s)\n",
+>> > +			sig, t->pid, t->uid, t->gid, t->comm);
+>> > +	}
+>> > +
+>> >  	/*
+>> >  	 * fast-pathed signals for kernel-internal things like SIGSTOP
+>> >  	 * or SIGKILL.
+>> 
+>> Would turning that into a switch() generate better code.
 
-<head>
-<meta http-equiv=Content-Type content="text/html; charset=iso-8859-1">
+Yes, this time.
 
-<title>Nur vom nobelsten aller</title>
+>Doubt it: in the worst case you still nee to check for each possibility.
+>Furthermore a.f.a.i.k. with switch you cannot do 'unlinkely()'.
 
-<style>
-<!--
- /* Style Definitions */
- p.MsoNormal, li.MsoNormal, div.MsoNormal
-	{mso-style-parent:"";
-	margin:0cm;
-	margin-bottom:.0001pt;
-	mso-pagination:widow-orphan;
-	font-size:12.0pt;
-	font-family:"Times New Roman";
-	mso-fareast-font-family:"Times New Roman";
-	mso-ansi-language:EN-US;
-	mso-fareast-language:EN-US;}
-a:link, span.MsoHyperlink
-	{color:blue;
-	text-decoration:underline;
-	text-underline:single;}
-a:visited, span.MsoHyperlinkFollowed
-	{color:purple;
-	text-decoration:underline;
-	text-underline:single;}
-@page Section1
-	{size:595.3pt 841.9pt;
-	margin:2.0cm 42.5pt 2.0cm 3.0cm;
-	mso-header-margin:35.4pt;
-	mso-footer-margin:35.4pt;
-	mso-paper-source:0;}
-div.Section1
-	{page:Section1;}
--->
-</style>
+With if(), it generates a ton of "CMP, JE" instructions.
+With switch(), I would assume gcc transforms it into using
+a jump table (aka "JMP [table+sig]")
 
-</head>
+I tried it: with switch(), gcc transforms this into a
+bitmap comparison ("MOV eax, 1; SHL eax, sig; TEST eax, 0x830109f8"),
+which seems even cheaper than a jump table.
 
-<body lang=DE link=blue vlink=purple style='tab-interval:35.4pt'>
 
-<div class=Section1>
+	Jan
+-- 
 
-<p class=MsoNormal>
-<span lang=DE style='mso-ansi-language:DE'>
-Nur vom nobelsten aller Casinos k&ouml;nnen 
-Sie ein so vornehmes Geschenk erwarten:
-<o:p></o:p></span></p>
-
-<p class=MsoNormal>
-<span lang=DE style='mso-ansi-language:DE'>
-<o:p>&nbsp;</o:p></span></p>
-
-<p class=MsoNormal>
-<span lang=DE style='mso-ansi-language:DE'>
-300% Bonus f&uuml;r Ihre erste Einzahlung!
-<o:p></o:p></span></p>
-
-<p class=MsoNormal>
-<span lang=DE style='mso-ansi-language:DE'>
-<o:p>&nbsp;</o:p></span></p>
-
-<p class=MsoNormal>
-<span lang=DE style='mso-ansi-language:DE'>
-Zahlen Sie 100&#8364;/$ ein und spielen 
-Sie mit 400 &#8364;/$!
-<o:p></o:p></span></p>
-
-<p class=MsoNormal>
-<span lang=DE style='mso-ansi-language:DE'>
-<o:p>&nbsp;</o:p></span></p>
-
-<p class=MsoNormal>
-<span lang=DE style='mso-ansi-language:DE'>
-Oben drauf bekommen Sie bei uns einen 
-k&ouml;niglichen Service!
-<o:p></o:p></span></p>
-
-<p class=MsoNormal>
-<span lang=DE style='mso-ansi-language:DE'>
-<o:p>&nbsp;</o:p></span></p>
-
-<p class=MsoNormal>
-<span lang=DE style='mso-ansi-language:DE'>
-Kommen und spielen Sie im Royal VIP Casino!
-<o:p></o:p></span></p>
-
-<p class=MsoNormal>
-<span lang=DE style='mso-ansi-language:DE'>
-<o:p>&nbsp;</o:p></span></p>
-
-<p class=MsoNormal>
-<span lang=DE style='mso-ansi-language:DE'>
-<a href="http://www.casinoroyalz.com/lang-de/">
-http://www.casinoroyalz.com/lang-de/</a>
-<o:p></o:p></span></p>
-
-</div>
-
-</body>
-
-</html>
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
