@@ -1,56 +1,115 @@
-Date: Sun, 20 May 2007 19:13:48 +0200
-From: Andrea Arcangeli <andrea@suse.de>
-Subject: Re: [rfc] increase struct page size?!
-Message-ID: <20070520171348.GC7653@v2.random>
-References: <20070518040854.GA15654@wotan.suse.de>
+Date: Mon, 21 May 2007 01:16:19 +0500
+From: "Casino Royale" <cervantes@tlcfan.com>
+Subject: =?iso-8859-1?Q?300%_Bonus_f=FCr_Ihre_erste_Einzahlung!?=
+Message-ID: <06794160.33002856@u's.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20070518040854.GA15654@wotan.suse.de>
-Sender: owner-linux-mm@kvack.org
-Return-Path: <owner-linux-mm@kvack.org>
-To: Nick Piggin <npiggin@suse.de>
-Cc: Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>, linux-arch@vger.kernel.org
+Content-Type: text/html; charset=iso-8859-1
+Content-Transfer-Encoding: 7bit
+Return-Path: <cervantes@tlcfan.com>
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, May 18, 2007 at 06:08:54AM +0200, Nick Piggin wrote:
-> If we add 8 bytes to struct page on 64-bit machines, it becomes 64 bytes,
-> which is quite a nice number for cache purposes.
+<html>
 
-We had those hardware alignment for many data structures where they
-were only wasting memory (i.e. vmas).
+<head>
+<meta http-equiv=Content-Type content="text/html; charset=iso-8859-1">
 
-There are few places where the hardware alignment matters, page struct
-isn't going to be one of them. But feel free to measure yourself.
+<title>Nur vom nobelsten aller</title>
 
-> I'd say all up this is going to decrease overall cache footprint in 
-> fastpaths, both by reducing text and data footprint of page_address and
-> related operations, and by reducing cacheline footprint of most batched
-> operations on struct pages.
+<style>
+<!--
+ /* Style Definitions */
+ p.MsoNormal, li.MsoNormal, div.MsoNormal
+	{mso-style-parent:"";
+	margin:0cm;
+	margin-bottom:.0001pt;
+	mso-pagination:widow-orphan;
+	font-size:12.0pt;
+	font-family:"Times New Roman";
+	mso-fareast-font-family:"Times New Roman";
+	mso-ansi-language:EN-US;
+	mso-fareast-language:EN-US;}
+a:link, span.MsoHyperlink
+	{color:blue;
+	text-decoration:underline;
+	text-underline:single;}
+a:visited, span.MsoHyperlinkFollowed
+	{color:purple;
+	text-decoration:underline;
+	text-underline:single;}
+@page Section1
+	{size:595.3pt 841.9pt;
+	margin:2.0cm 42.5pt 2.0cm 3.0cm;
+	mso-header-margin:35.4pt;
+	mso-footer-margin:35.4pt;
+	mso-paper-source:0;}
+div.Section1
+	{page:Section1;}
+-->
+</style>
 
-IIRC the math is faster for any x86. Overall I doubt the change is
-measurable.
+</head>
 
-Even if this would be a microoptimization barely measurable in some
-microbenchmark, I don't think this one is worth doing. mem_map is such
-a bloat that it really has to be as small as it can unless we can
-improve performance _significantly_ by enlarging it.
+<body lang=DE link=blue vlink=purple style='tab-interval:35.4pt'>
 
-> Interestingly, the irony of 32-bit architectures setting WANT_PAGE_VIRTUAL
-> because they have slow multiplications is that without WANT_PAGE_VIRTUAL, the
-> struct is 32-bytes and so page_address can usually be calculated with a shift.
-> So WANT_PAGE_VIRTUAL just bloats up the size of struct page for those guys!
+<div class=Section1>
 
-If you want to drop it you can, there's nothing fundamental that
-prevents you to drop the 'virtual' completely from page struct, by
-just making the vaddr per-process and storing it on the stack like
-with the atomic kmaps, but passing it up the stack may require heavy
-changes to various apis, which is why we've taken the few-changes lazy
-way back then. If it wasn't worth back then, I doubt it worth now for
-just pae36.
+<p class=MsoNormal>
+<span lang=DE style='mso-ansi-language:DE'>
+Nur vom nobelsten aller Casinos k&ouml;nnen 
+Sie ein so vornehmes Geschenk erwarten:
+<o:p></o:p></span></p>
 
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+<p class=MsoNormal>
+<span lang=DE style='mso-ansi-language:DE'>
+<o:p>&nbsp;</o:p></span></p>
+
+<p class=MsoNormal>
+<span lang=DE style='mso-ansi-language:DE'>
+300% Bonus f&uuml;r Ihre erste Einzahlung!
+<o:p></o:p></span></p>
+
+<p class=MsoNormal>
+<span lang=DE style='mso-ansi-language:DE'>
+<o:p>&nbsp;</o:p></span></p>
+
+<p class=MsoNormal>
+<span lang=DE style='mso-ansi-language:DE'>
+Zahlen Sie 100&#8364;/$ ein und spielen 
+Sie mit 400 &#8364;/$!
+<o:p></o:p></span></p>
+
+<p class=MsoNormal>
+<span lang=DE style='mso-ansi-language:DE'>
+<o:p>&nbsp;</o:p></span></p>
+
+<p class=MsoNormal>
+<span lang=DE style='mso-ansi-language:DE'>
+Oben drauf bekommen Sie bei uns einen 
+k&ouml;niglichen Service!
+<o:p></o:p></span></p>
+
+<p class=MsoNormal>
+<span lang=DE style='mso-ansi-language:DE'>
+<o:p>&nbsp;</o:p></span></p>
+
+<p class=MsoNormal>
+<span lang=DE style='mso-ansi-language:DE'>
+Kommen und spielen Sie im Royal VIP Casino!
+<o:p></o:p></span></p>
+
+<p class=MsoNormal>
+<span lang=DE style='mso-ansi-language:DE'>
+<o:p>&nbsp;</o:p></span></p>
+
+<p class=MsoNormal>
+<span lang=DE style='mso-ansi-language:DE'>
+<a href="http://www.casinoroyalz.com/lang-de/">
+http://www.casinoroyalz.com/lang-de/</a>
+<o:p></o:p></span></p>
+
+</div>
+
+</body>
+
+</html>
