@@ -1,68 +1,53 @@
-Date: Sun, 20 May 2007 18:12:00 +0200
-From: Folkert van Heusden <folkert@vanheusden.com>
-Subject: Re: signals logged / [RFC] log out-of-virtual-memory events
-Message-ID: <20070520161159.GD22452@vanheusden.com>
-References: <464C81B5.8070101@users.sourceforge.net> <464C9D82.60105@redhat.com> <Pine.LNX.4.61.0705180825280.3231@yvahk01.tjqt.qr> <200705181347.14256.ak@suse.de> <Pine.LNX.4.61.0705190946430.9015@yvahk01.tjqt.qr> <20070520001418.GJ14578@vanheusden.com> <464FC6AA.2060805@cosmosbay.com> <20070520112111.GN14578@vanheusden.com> <20070520090809.4f42d71d@freepuppy>
+Date: Sun, 20 May 2007 19:13:48 +0200
+From: Andrea Arcangeli <andrea@suse.de>
+Subject: Re: [rfc] increase struct page size?!
+Message-ID: <20070520171348.GC7653@v2.random>
+References: <20070518040854.GA15654@wotan.suse.de>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <20070520090809.4f42d71d@freepuppy>
+In-Reply-To: <20070518040854.GA15654@wotan.suse.de>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Stephen Hemminger <shemminger@linux-foundation.org>
-Cc: Eric Dumazet <dada1@cosmosbay.com>, Jan Engelhardt <jengelh@linux01.gwdg.de>, Andi Kleen <ak@suse.de>, Rik van Riel <riel@redhat.com>, righiandr@users.sourceforge.net, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
+To: Nick Piggin <npiggin@suse.de>
+Cc: Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>, linux-arch@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-> > > >>>>I do not see such on i386, so why for x86_64?
-> > > >>>So that you know that one of your programs crashed. That's a feature.
-> > > >>This feature could be handy for i386 too.
-> > > >Since 2.6.18.2 I use this patch. With 2.6.21.1 it still applies altough
-> > > >with a small offsets. Works like a charm.
-> > > >
-> > > >Signed-off by: Folkert van Heusden <folkert@vanheusden.com>
-> > > >--- linux-2.6.18.2/kernel/signal.c      2006-11-04 02:33:58.000000000 +0100
-> > > >+++ linux-2.6.18.2.new/kernel/signal.c  2006-11-17 15:59:13.000000000 +0100
-> > ...
-> > > >+                       sig, t -> pid, t -> uid, t -> gid, t -> comm);
-> > > 
-> > > Please check line 219 of Documentation/CodingStyle, Section 3.1: Spaces
-> > > 	and no space around the '.' and "->" structure member operators.
-> > New version without the spaces around '->' and a nice 'unlikely' added. 
-> > Signed-off by: Folkert van Heusden <folkert@vanheusden.com>
-> > --- linux-2.6.18.2/kernel/signal.c	2006-11-04 02:33:58.000000000 +0100
-> > +++ linux-2.6.18.2.new/kernel/signal.c	2006-11-17 15:59:13.000000000 +0100
-> > @@ -706,6 +706,15 @@
-> >  	struct sigqueue * q = NULL;
-> >  	int ret = 0;
-> >  
-> > +	if (unlikely(sig == SIGQUIT || sig == SIGILL  || sig == SIGTRAP ||
-> > +	    sig == SIGABRT || sig == SIGBUS  || sig == SIGFPE  ||
-> > +	    sig == SIGSEGV || sig == SIGXCPU || sig == SIGXFSZ ||
-> > +	    sig == SIGSYS  || sig == SIGSTKFLT))
-> > +	{
-> > +		printk(KERN_WARNING "Sig %d send to %d owned by %d.%d (%s)\n",
-> > +			sig, t->pid, t->uid, t->gid, t->comm);
-> > +	}
-> > +
-> >  	/*
-> >  	 * fast-pathed signals for kernel-internal things like SIGSTOP
-> >  	 * or SIGKILL.
-> 
-> Would turning that into a switch() generate better code.
+On Fri, May 18, 2007 at 06:08:54AM +0200, Nick Piggin wrote:
+> If we add 8 bytes to struct page on 64-bit machines, it becomes 64 bytes,
+> which is quite a nice number for cache purposes.
 
-Doubt it: in the worst case you still nee to check for each possibility.
-Furthermore a.f.a.i.k. with switch you cannot do 'unlinkely()'.
+We had those hardware alignment for many data structures where they
+were only wasting memory (i.e. vmas).
 
+There are few places where the hardware alignment matters, page struct
+isn't going to be one of them. But feel free to measure yourself.
 
-Folkert van Heusden
+> I'd say all up this is going to decrease overall cache footprint in 
+> fastpaths, both by reducing text and data footprint of page_address and
+> related operations, and by reducing cacheline footprint of most batched
+> operations on struct pages.
 
--- 
-MultiTail er et flexible tool for a kontrolere Logfiles og commandoer.
-Med filtrer, farger, sammenforinger, forskeliger ansikter etc.
-http://www.vanheusden.com/multitail/
-----------------------------------------------------------------------
-Phone: +31-6-41278122, PGP-key: 1F28D8AE, www.vanheusden.com
+IIRC the math is faster for any x86. Overall I doubt the change is
+measurable.
+
+Even if this would be a microoptimization barely measurable in some
+microbenchmark, I don't think this one is worth doing. mem_map is such
+a bloat that it really has to be as small as it can unless we can
+improve performance _significantly_ by enlarging it.
+
+> Interestingly, the irony of 32-bit architectures setting WANT_PAGE_VIRTUAL
+> because they have slow multiplications is that without WANT_PAGE_VIRTUAL, the
+> struct is 32-bytes and so page_address can usually be calculated with a shift.
+> So WANT_PAGE_VIRTUAL just bloats up the size of struct page for those guys!
+
+If you want to drop it you can, there's nothing fundamental that
+prevents you to drop the 'virtual' completely from page struct, by
+just making the vaddr per-process and storing it on the stack like
+with the atomic kmaps, but passing it up the stack may require heavy
+changes to various apis, which is why we've taken the few-changes lazy
+way back then. If it wasn't worth back then, I doubt it worth now for
+just pae36.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
