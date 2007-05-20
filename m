@@ -1,51 +1,60 @@
-Received: by py-out-1112.google.com with SMTP id v53so1882156pyh
-        for <linux-mm@kvack.org>; Sun, 20 May 2007 02:08:50 -0700 (PDT)
-Message-ID: <1b5a37350705200208y20c8a23g90fd6adbdf665182@mail.gmail.com>
-Date: Sun, 20 May 2007 10:08:49 +0100
-From: "Ed Schofield" <edschofield@gmail.com>
-Subject: BUG in mm/slab.c:777 __find_general_cachep()
-MIME-Version: 1.0
-Content-Type: text/plain; charset=UTF-8; format=flowed
-Content-Transfer-Encoding: 7bit
+Date: Sun, 20 May 2007 11:25:52 +0200
+From: Nick Piggin <npiggin@suse.de>
+Subject: Re: [rfc] increase struct page size?!
+Message-ID: <20070520092552.GA7318@wotan.suse.de>
+References: <20070518040854.GA15654@wotan.suse.de> <Pine.LNX.4.64.0705181112250.11881@schroedinger.engr.sgi.com> <20070519012530.GB15569@wotan.suse.de> <20070519181501.GC19966@holomorphy.com> <20070520052229.GA9372@wotan.suse.de> <20070520084647.GF19966@holomorphy.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
+In-Reply-To: <20070520084647.GF19966@holomorphy.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
+To: William Lee Irwin III <wli@holomorphy.com>
+Cc: Christoph Lameter <clameter@sgi.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>, linux-arch@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-I'm getting a BUG in mm/slab.c upon boot for Linus's git tree from
-Friday night (just before the 2.6.22-rc2 tag).
+On Sun, May 20, 2007 at 01:46:47AM -0700, William Lee Irwin III wrote:
+> On Sat, May 19, 2007 at 11:15:01AM -0700, William Lee Irwin III wrote:
+> >> The cache cost argument is specious. Even misaligned, smaller is
+> >> smaller.
+> 
+> On Sun, May 20, 2007 at 07:22:29AM +0200, Nick Piggin wrote:
+> > Of course smaller is smaller ;) Why would that make the cache cost
+> > argument specious?
+> 
+> It's not possible to ignore aggregation. For instance, for a subset
+> of mem_map whose size ignoring alignment would otherwise fit in the
+> cache to completely avoid sharing any cachelines between page
+> structures requires page structures to be separated by at least one
+> mem_map index. This is highly unlikely in uniform distributions.
 
-The call trace is:
+But that wasn't my argument. I _know_ there are cases where the smaller
+struct would be better, and I'm sure they would even arise in a running
+kernel.
+ 
 
-[   29.543968] BUG: at mm/slab.c:777 __find_general_cachep()
-[   29.543970]
-[   29.543970] Call Trace:
-[   29.543977]  [<ffffffff8028d8e5>] __kmalloc+0xd5/0x140
-[   29.543981]  [<ffffffff8022064d>] cache_k8_northbridges+0x9d/0x120
-[   29.543986]  [<ffffffff80582a13>] gart_iommu_init+0x33/0x5b0
-[   29.543990]  [<ffffffff802e00cb>] sysfs_create_dir+0x2b/0x80
-[   29.543993]  [<ffffffff80303d79>] kobject_shadow_add+0xb9/0x1f0
-[   29.543996]  [<ffffffff80303b52>] kobject_get+0x12/0x20
-[   29.544001]  [<ffffffff80383e77>] class_register+0x177/0x180
-[   29.544004]  [<ffffffff8057dc6e>] pci_iommu_init+0xe/0x20
-[   29.544008]  [<ffffffff805759c7>] kernel_init+0x157/0x330
-[   29.544011]  [<ffffffff8020aca8>] child_rip+0xa/0x12
-[   29.544015]  [<ffffffff80575870>] kernel_init+0x0/0x330
-[   29.544017]  [<ffffffff8020ac9e>] child_rip+0x0/0x12
-[   29.544019]
+> On Sat, May 19, 2007 at 11:15:01AM -0700, William Lee Irwin III wrote:
+> >> The cache footprint reduction is merely amortized,
+> >> probabilistic, etc.
+> 
+> On Sun, May 20, 2007 at 07:22:29AM +0200, Nick Piggin wrote:
+> > I don't really know what you mean by this, or what part of my cache cost
+> > argument you disagree with...
+> > I think it is that you could construct mem_map access patterns, without
+> > specifically looking at alignment, where a 56 byte struct page would suffer
+> > about 75% more cache misses than a 64 byte aligned one (and you could also
+> > get about 12% fewer cache misses with other access patterns).
+> > I also think the kernel's mem_map access patterns would be more on the
+> > random side, so overall would result in significantly fewer cache misses
+> > with 64 byte aligned pages.
+> > Which part do you disagree with?
+> 
+> The lack of consideration of the average case. I'll see what I can smoke
+> out there.
 
-I've posted the output of dmesg, the kernel config, etc. here:
+I _am_ considering the average case, and I consider the aligned structure
+is likely to win on average :) I just don't have numbers for it yet.
 
-http://edschofield.com/linux/dmesg-2.6.22-rc1-g18963c01.log
-http://edschofield.com/linux/config-2.6.22-rc1-g18963c01
-http://edschofield.com/linux/lspci-2.6.22-rc1-g18963c01.log
-http://edschofield.com/linux/iomem-2.6.22-rc1-g18963c01.log
-http://edschofield.com/linux/ioports-2.6.22-rc1-g18963c01.log
-
-If I can help with more information or testing, please let me know.
-
--- Ed
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
