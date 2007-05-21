@@ -1,78 +1,43 @@
-Received: by ug-out-1314.google.com with SMTP id s2so966835uge
-        for <linux-mm@kvack.org>; Mon, 21 May 2007 10:51:14 -0700 (PDT)
-Message-ID: <29495f1d0705211051s4c60818bm7452b04ae77b313d@mail.gmail.com>
-Date: Mon, 21 May 2007 10:51:13 -0700
-From: "Nish Aravamudan" <nish.aravamudan@gmail.com>
-Subject: Re: [PATCH/RFC] Fix hugetlb pool allocation with empty nodes - V4
-In-Reply-To: <1179759429.5113.16.camel@localhost>
+Date: Mon, 21 May 2007 20:59:47 +0200
+From: Folkert van Heusden <folkert@vanheusden.com>
+Subject: Re: signals logged / [RFC] log out-of-virtual-memory events
+Message-ID: <20070521185947.GF14802@vanheusden.com>
+References: <464C9D82.60105@redhat.com> <Pine.LNX.4.61.0705202235430.13923@yvahk01.tjqt.qr> <20070520205500.GJ22452@vanheusden.com> <200705202314.57758.ak@suse.de> <46517817.1080208@users.sourceforge.net> <20070521110406.GA14802@vanheusden.com> <Pine.LNX.4.61.0705211420100.4452@yvahk01.tjqt.qr> <20070521124734.GB14802@vanheusden.com> <4651A564.9090509@users.sourceforge.net>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=iso-8859-1
 Content-Disposition: inline
-References: <20070503022107.GA13592@kryten>
-	 <1178310543.5236.43.camel@localhost>
-	 <Pine.LNX.4.64.0705041425450.25764@schroedinger.engr.sgi.com>
-	 <1178728661.5047.64.camel@localhost>
-	 <29495f1d0705161259p70a1e499tb831889fd2bcebcb@mail.gmail.com>
-	 <1179353841.5867.53.camel@localhost>
-	 <29495f1d0705171730h552f7d80hc3f991f8dce9d4c2@mail.gmail.com>
-	 <1179759429.5113.16.camel@localhost>
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <4651A564.9090509@users.sourceforge.net>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
-Cc: Christoph Lameter <clameter@sgi.com>, Anton Blanchard <anton@samba.org>, linux-mm@kvack.org, ak@suse.de, mel@csn.ul.ie, apw@shadowen.org, Andrew Morton <akpm@linux-foundation.org>, Eric Whitney <eric.whitney@hp.com>, andyw@uk.ibm.com
+To: Andrea Righi <righiandr@users.sourceforge.net>
+Cc: Jan Engelhardt <jengelh@linux01.gwdg.de>, Andi Kleen <ak@suse.de>, Stephen Hemminger <shemminger@linux-foundation.org>, Eric Dumazet <dada1@cosmosbay.com>, Rik van Riel <riel@redhat.com>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 5/21/07, Lee Schermerhorn <Lee.Schermerhorn@hp.com> wrote:
-> On Thu, 2007-05-17 at 17:30 -0700, Nish Aravamudan wrote:
-> > On 5/16/07, Lee Schermerhorn <Lee.Schermerhorn@hp.com> wrote:
-> > > On Wed, 2007-05-16 at 12:59 -0700, Nish Aravamudan wrote:
-> > >
-> > > <snip>
-> > > >
-> > > > This completely breaks hugepage allocation on 4-node x86_64 box I have
-> > > > here. Each node has <4GB of memory, so all memory is ZONE_DMA and
-> > > > ZONE_DMA32. gfp_zone(GFP_HIGHUSER) is ZONE_NORMAL, though. So all
-> > > > nodes are not populated by the default initialization to an empty
-> > > > nodemask.
-> > > >
-> > > > Thanks to Andy Whitcroft for helping me debug this.
-> > > >
-> > > > I'm not sure how to fix this -- but I ran into while trying to base my
-> > > > sysfs hugepage allocation patches on top of yours.
-> > >
-> > > OK.  Try this.  Tested OK on 4 node [+ 1 pseudo node] ia64 and 2 node
-> > > x86_64.  The x86_64 had 2G per node--all DMA32.
-> > >
-> > > Notes:
-> > >
-> > > 1) applies on 2.6.22-rc1-mm1 atop my earlier patch to add the call to
-> > > check_highest_zone() to build_zonelists_in_zone_order().  I think it'll
-> > > apply [with offsets] w/o that patch.
-> >
-> > Could you give both patches (or just this one) against 2.6.22-rc1 or
-> > current -linus? -mm1 has build issues on ppc64 and i386 (as reported
-> > by Andy and Mel in other threads).
->
-> Nish:
->
-> Here's the hugepage fix against 2.6.22-rc2 for your testing.  I think
-> the patch still needs to cook in -mm if you think it's OK.
+> >>> What about the following enhancement: I check with sig_fatal if it would
+> >>> kill the process and only then emit a message. So when an application
+> >>> takes care itself of handling it nothing is printed.
+> >>> +	/* emit some logging for unhandled signals
+> >>> +	 */
+> >>> +	if (sig_fatal(t, sig))
+> >> Not unhandled_signal()?
+> > Can we already use that one in send_signal? As the signal needs to be
+> > send first I think before we know if it was handled or not? sig_fatal
+> > checks if the handler is set to default - which is it is not taken care
+> > of.
+> What about ptrace()'d processes? I don't think we should log signals for them...
 
-Ok, will test against:
+Why not?
 
-1-node (non-NUMA), 2-node x86
-4-node x86_64
-4-node ppc64
 
-Will let you know what happens as soon as they all finish.
+Folkert van Heusden
 
-I definitely agree that the patch should stew in -mm. Presuming the
-testing goes well, I can rebase my per-node allocation interface on
-top (no comments there yet, though).
-
-Thanks,
-Nish
+-- 
+MultiTail es una herramienta flexibele para consiguir archivos de log,
+y para ejecutar ordenes. Filtrar, anadir colores, merger y vista de
+las differencias.  http://www.vanheusden.com/multitail/
+----------------------------------------------------------------------
+Phone: +31-6-41278122, PGP-key: 1F28D8AE, www.vanheusden.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
