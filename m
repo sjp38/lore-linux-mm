@@ -1,62 +1,53 @@
-Date: Mon, 21 May 2007 07:59:17 -0700
-From: William Lee Irwin III <wli@holomorphy.com>
-Subject: Re: RSS controller v2 Test results (lmbench )
-Message-ID: <20070521145917.GN19966@holomorphy.com>
-References: <464C95D4.7070806@linux.vnet.ibm.com> <464D1599.1000506@redhat.com> <464D267A.50107@linux.vnet.ibm.com> <1179755615.5113.12.camel@localhost>
+Message-ID: <4651B4BF.9040608@sw.ru>
+Date: Mon, 21 May 2007 19:03:27 +0400
+From: Kirill Korotaev <dev@sw.ru>
 MIME-Version: 1.0
+Subject: Re: RSS controller v2 Test results (lmbench )
+References: <464C95D4.7070806@linux.vnet.ibm.com> <20070517112357.7adc4763.akpm@linux-foundation.org>
+In-Reply-To: <20070517112357.7adc4763.akpm@linux-foundation.org>
 Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1179755615.5113.12.camel@localhost>
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
-Cc: balbir@linux.vnet.ibm.com, Rik van Riel <riel@redhat.com>, Pavel Emelianov <xemul@sw.ru>, Paul Menage <menage@google.com>, Kirill Korotaev <dev@sw.ru>, devel@openvz.org, Linux Containers <containers@lists.osdl.org>, linux kernel mailing list <linux-kernel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>, Vaidyanathan Srinivasan <svaidy@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, "Eric W. Biederman" <ebiederm@xmission.com>, Herbert Poetzl <herbert@13thfloor.at>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: balbir@linux.vnet.ibm.com, Pavel Emelianov <xemul@sw.ru>, Paul Menage <menage@google.com>, devel@openvz.org, Linux Containers <containers@lists.osdl.org>, linux kernel mailing list <linux-kernel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>, Vaidyanathan Srinivasan <svaidy@linux.vnet.ibm.com>, "Eric W. Biederman" <ebiederm@xmission.com>, Herbert Poetzl <herbert@13thfloor.at>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 2007-05-18 at 09:37 +0530, Balbir Singh wrote:
->> oops! I wonder if AIM7 creates too many processes and exhausts all
->> memory. I've seen a case where during an upgrade of my tetex on my
->> laptop, the setup process failed and continued to fork processes
->> filling up 4GB of swap.
+Andrew Morton wrote:
+> On Thu, 17 May 2007 23:20:12 +0530
+> Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
+> 
+> 
+>>A meaningful container size does not hamper performance. I am in the process
+>>of getting more results (with varying container sizes). Please let me know
+>>what you think of the results? Would you like to see different benchmarks/
+>>tests/configuration results?
+>>
+>>Any feedback, suggestions to move this work forward towards identifying
+>>and correcting bottlenecks or to help improve it is highly appreciated.
+> 
+> 
+> <wakes up>
+> 
+> Memory reclaim tends not to consume much CPU.  Because in steady state it
+> tends to be the case that the memory reclaim rate (and hopefully the
+> scanning rate) is equal to the disk IO rate.
 
-On Mon, May 21, 2007 at 09:53:34AM -0400, Lee Schermerhorn wrote:
-> Jumping in late, I just want to note that in our investigations, when
-> AIM7 gets into this situation [non-responsive system], it's because all
-> cpus are in reclaim, spinning on an anon_vma spin lock.  AIM7 forks [10s
-> of] thousands of children from a single parent, resultings in thousands
-> of vmas on the anon_vma list.  shrink_inactive_list() must walk this
-> list twice [page_referenced() and try_to_unmap()] under spin_lock for
-> each anon page.  
+> Often the most successful way to identify performance problems in there is
+> by careful code inspection followed by development of exploits.
+> 
+> Is this RSS controller built on Paul's stuff, or is it standalone?
+it is based on Paul's patches.
+ 
+> Where do we stand on all of this now anyway?  I was thinking of getting Paul's
+> changes into -mm soon, see what sort of calamities that brings about.
+I think we can merge Paul's patches with *interfaces* and then switch to
+developing/reviewing/commiting resource subsytems.
+RSS control had good feedback so far from a number of people
+and is a first candidate imho.
 
-I wonder how far out RCU'ing the anon_vma lock is.
-
-
-On Mon, May 21, 2007 at 09:53:34AM -0400, Lee Schermerhorn wrote:
-> [Aside:  Just last week, I encountered a similar situation on the
-> i_mmap_lock for page cache pages running a 1200 user Oracle/OLTP run on
-> a largish ia64 system.  Left the system spitting out "soft lockup"
-> messages/stack dumps overnight.  Still spitting the next day, so I
-> decided to reboot.]
-> I have a patch that turns the anon_vma lock into a reader/writer lock
-> that alleviates the problem somewhat, but with 10s of thousands of vmas
-> on the lists, system still can't swap enough memory fast enough to
-> recover.
-
-Oh dear. Some algorithmic voodoo like virtually clustered scanning may
-be in order in addition to anon_vma lock RCU'ing/etc.
-
-
-On Mon, May 21, 2007 at 09:53:34AM -0400, Lee Schermerhorn wrote:
-> We've run some AIM7 tests with Rik's "split lru list" patch, both with
-> and without the anon_vma reader/writer lock patch.  We'll be posting
-> results later this week.  Quick summary:  with Rik's patch, AIM
-> performance tanks earlier, as the system starts swapping earlier.
-> However, system remains responsive to shell input.  More into to follow.
-
-I'm not sure where policy comes into this.
-
-
--- wli
+Thanks,
+Kirill
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
