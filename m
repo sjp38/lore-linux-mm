@@ -1,43 +1,114 @@
-Date: Mon, 21 May 2007 09:53:18 -0700 (PDT)
+Date: Mon, 21 May 2007 10:01:29 -0700 (PDT)
 From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [RFC 10/16] Variable Order Page Cache: Readahead fixups
-In-Reply-To: <379744113.16390@ustc.edu.cn>
-Message-ID: <Pine.LNX.4.64.0705210947450.25871@schroedinger.engr.sgi.com>
-References: <20070423064845.5458.2190.sendpatchset@schroedinger.engr.sgi.com>
- <20070423064937.5458.59638.sendpatchset@schroedinger.engr.sgi.com>
- <20070425113613.GF19942@skynet.ie> <Pine.LNX.4.64.0704250854420.24530@schroedinger.engr.sgi.com>
- <379744113.16390@ustc.edu.cn>
+Subject: Re: [patch 02/10] SLUB: slab defragmentation and kmem_cache_vacate
+In-Reply-To: <20070521141039.GA18474@skynet.ie>
+Message-ID: <Pine.LNX.4.64.0705210953440.25871@schroedinger.engr.sgi.com>
+References: <20070518181040.465335396@sgi.com> <20070518181119.062736299@sgi.com>
+ <20070521141039.GA18474@skynet.ie>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Fengguang Wu <fengguang.wu@gmail.com>
-Cc: Mel Gorman <mel@skynet.ie>, linux-mm@kvack.org, William Lee Irwin III <wli@holomorphy.com>, Badari Pulavarty <pbadari@gmail.com>, David Chinner <dgc@sgi.com>, Jens Axboe <jens.axboe@oracle.com>, Adam Litke <aglitke@gmail.com>, Dave Hansen <hansendc@us.ibm.com>, Avi Kivity <avi@argo.co.il>
+To: Mel Gorman <mel@skynet.ie>
+Cc: akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, dgc@sgi.com, Hugh Dickins <hugh@veritas.com>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 21 May 2007, Fengguang Wu wrote:
+On Mon, 21 May 2007, Mel Gorman wrote:
 
-> > I am not sure how to solve that one yet. With the above fix we stay at the 
-> > 2M sized readahead. As the compound order increases so the number of pages
-> > is reduced. We could keep the number of pages constant but then very high
-> > orders may cause a excessive use of memory for readahead.
+> I know I brought up this "less than a quarter" thing before and I
+> haven't thought of a better alternative. However, it occurs to be that
+> shrink_slab() is called when there is awareness of a reclaim priority.
+> It may be worth passing that down so that the fraction of candidates
+> pages is calculated based on priority.
+
+Hmmmm.. Yes I am thinking about that one too. Right now I have a system
+that triggers reclaim every 10 seconds or after more than 100 objects have 
+been reclaimed.
+ 
+> That said..... where is kmem_cache_shrink() ever called? The freeing of
+> slab pages seems to be indirect these days. Way back,
+> kmem_cache_shrink() used to be called directly but I'm not sure where it
+> happens now.
+
+Well, this one only allows manual triggering. To my embarasasment I found 
+that the kmem_cache_shrink calls for icache and dentries are only in 2.4. 
+They have been removed in 2.6.X. I need to add them back to 2.6.
+
+> >  /*
+> > + * Order the freelist so that addresses increase as object are allocated.
+> > + * This is useful to trigger the cpu cacheline prefetching logic.
+> > + */
 > 
-> Do we need to support very high orders(i.e. >2MB)?
+> makes sense. However, it occurs to me that maybe this should be a
+> separate patch so it can be measured to be sure. It makes sense though.
 
-Yes actually we could potentially be using up to 1 TB page size on our 
-new machines that can support several petabytes of RAM. But the read 
-ahead is likely irrelevant in that case. And this is an extreme case that 
-will be rarely used but a customer has required that we will be able to 
-handle such a situation. I think 2-4 megabytes may be more typical.
+Ok.
 
-> If not, we can define a MAX_PAGE_CACHE_SIZE=2MB, and limit page orders
-> under that threshold. Now large readahead can be done in
-> MAX_PAGE_CACHE_SIZE chunks.
+> > +/*
+> > + * Vacate all objects in the given slab.
+> > + *
+> > + * Slab must be locked and frozen. Interrupts are disabled (flags must
+> > + * be passed).
+> > + *
+> 
+> It may not hurt to have a VM_BUG_ON() if interrupts are still enabled when
+> this is called
 
-Maybe we can just logarithmically decrease the pages for readahead? 
-Readahead should possibly depend on the overall memory of the machine. If 
-the machine has several terabytes of main memory then a couple megs of 
-readahead may be necessary.
+Well flags need to be passed and those flags are obtained via disabling 
+interrupts.
+
+
+> > +	/*
+> > +	 * Got references. Now we can drop the slab lock. The slab
+> > +	 * is frozen so it cannot vanish from under us nor will
+> > +	 * allocations be performed on the slab. However, unlocking the
+> > +	 * slab will allow concurrent slab_frees to proceed.
+> > +	 */
+> > +	slab_unlock(page);
+> > +	local_irq_restore(flags);
+> 
+> I recognise that you want to restore interrupts as early as possible but
+> it should be noted somewhere that kmem_cache_vacate() disables
+> interrupts and __kmem_cache_vacate() enabled them again. I had to go
+> searching to see where interrupts are enabled again.
+> 
+> Maybe even a slab_lock_irq() and slab_unlock_irq() would clarify things
+> a little.
+
+Hmmmm... Okay but this is a rare situation in SLUB. Regular slab 
+operations always run with interrupts disabled.
+
+> > +
+> > +	vector = kmalloc(s->objects * sizeof(void *), GFP_KERNEL);
+> > +	if (!vector)
+> > +		return 0;
+> 
+> Is it worth logging this event, returning -ENOMEM or something so that
+> callers are aware of why kmem_cache_vacate() failed in this instance?
+> 
+> Also.. we have called get_page_unless_zero() but if we are out of memory
+> here, where have we called put_page()? Maybe we should be "goto out"
+> here with a
+
+Ahh. Thanks. Will fix that.
+
+> > +	 * We are holding a lock on a slab page and all operations on the
+> > +	 * slab are blocking.
+> > +	 */
+> > +	if (!s->ops->get || !s->ops->kick)
+> > +		goto out_locked;
+> > +	freeze_from_list(s, page);
+> > +	vacated = __kmem_cache_vacate(s, page, flags, vector) == 0;
+> 
+> That is a little funky looking. This may be nicer;
+> 
+> vacated = __kmem_cache_vacate(s, page, flags, vector);
+> out:
+> ...
+> return vacated == 0;
+> 
+
+Right. Done.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
