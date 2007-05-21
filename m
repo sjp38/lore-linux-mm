@@ -1,41 +1,42 @@
-Subject: Re: vm changes from linux-2.6.14 to linux-2.6.15
-From: Benjamin Herrenschmidt <benh@kernel.crashing.org>
-In-Reply-To: <1179757647.6254.235.camel@localhost.localdomain>
-References: <Pine.LNX.4.61.0705012354290.12808@mtfhpc.demon.co.uk>
-	 <20070509231937.ea254c26.akpm@linux-foundation.org>
-	 <1178778583.14928.210.camel@localhost.localdomain>
-	 <20070510.001234.126579706.davem@davemloft.net>
-	 <Pine.LNX.4.64.0705142018090.18453@blonde.wat.veritas.com>
-	 <1179176845.32247.107.camel@localhost.localdomain>
-	 <1179212184.32247.163.camel@localhost.localdomain>
-	 <1179757647.6254.235.camel@localhost.localdomain>
-Content-Type: text/plain
-Date: Tue, 22 May 2007 08:09:39 +1000
-Message-Id: <1179785379.32247.745.camel@localhost.localdomain>
-Mime-Version: 1.0
+Message-ID: <465219FA.7080305@users.sourceforge.net>
+From: Andrea Righi <righiandr@users.sourceforge.net>
+Reply-To: righiandr@users.sourceforge.net
+MIME-Version: 1.0
+Subject: Re: signals logged / [RFC] log out-of-virtual-memory events
+References: <464C9D82.60105@redhat.com> <Pine.LNX.4.61.0705202235430.13923@yvahk01.tjqt.qr> <20070520205500.GJ22452@vanheusden.com> <200705202314.57758.ak@suse.de> <46517817.1080208@users.sourceforge.net> <20070521110406.GA14802@vanheusden.com> <Pine.LNX.4.61.0705211420100.4452@yvahk01.tjqt.qr> <20070521124734.GB14802@vanheusden.com> <4651A564.9090509@users.sourceforge.net> <20070521185947.GF14802@vanheusden.com>
+In-Reply-To: <20070521185947.GF14802@vanheusden.com>
+Content-Type: text/plain; charset=iso-8859-1
 Content-Transfer-Encoding: 7bit
+Date: Tue, 22 May 2007 00:15:55 +0200 (MEST)
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "Tom \"spot\" Callaway" <tcallawa@redhat.com>
-Cc: Hugh Dickins <hugh@veritas.com>, David Miller <davem@davemloft.net>, akpm@linux-foundation.org, mark@mtfhpc.demon.co.uk, linuxppc-dev@ozlabs.org, wli@holomorphy.com, linux-mm@kvack.org, andrea@suse.de, sparclinux@vger.kernel.org
+To: Folkert van Heusden <folkert@vanheusden.com>
+Cc: Jan Engelhardt <jengelh@linux01.gwdg.de>, Andi Kleen <ak@suse.de>, Stephen Hemminger <shemminger@linux-foundation.org>, Eric Dumazet <dada1@cosmosbay.com>, Rik van Riel <riel@redhat.com>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 2007-05-21 at 09:27 -0500, Tom "spot" Callaway wrote:
-> On Tue, 2007-05-15 at 16:56 +1000, Benjamin Herrenschmidt wrote:
-> > > Ok, I'll cook a patch today.
-> > 
-> > Let's make it tomorrow :-( Got delayed by other urgent things
+Folkert van Heusden wrote:
+>>>>> What about the following enhancement: I check with sig_fatal if it would
+>>>>> kill the process and only then emit a message. So when an application
+>>>>> takes care itself of handling it nothing is printed.
+>>>>> +	/* emit some logging for unhandled signals
+>>>>> +	 */
+>>>>> +	if (sig_fatal(t, sig))
+>>>> Not unhandled_signal()?
+>>> Can we already use that one in send_signal? As the signal needs to be
+>>> send first I think before we know if it was handled or not? sig_fatal
+>>> checks if the handler is set to default - which is it is not taken care
+>>> of.
+>> What about ptrace()'d processes? I don't think we should log signals for them...
 > 
-> Not to be annoying, but I'm patiently waiting on this patch. Would like
-> to test sun4c before shipping Aurora 3.0. Any status?
+> Why not?
 
-Damn, kick me harder ! I totally forgot... probably what happens when
-one is deep into bringing up some new HW toys !
+Maybe sometimes it's useful, maybe not, but I suppose that usually only the
+controlling process should care about the critical signals received by the
+controlled process. I simply don't think it should be a system issue. For
+example I wouldn't like to have a lot of messages in the kernel logs just
+because I'm debugging some segfaulting programs with gdb.
 
-Sorry about that, I'll do it asap.
-
-Cheers
-Ben.
+-Andrea
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
