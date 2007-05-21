@@ -1,33 +1,78 @@
-Subject: Re: vm changes from linux-2.6.14 to linux-2.6.15
-From: "Tom \"spot\" Callaway" <tcallawa@redhat.com>
-In-Reply-To: <1179212184.32247.163.camel@localhost.localdomain>
-References: <Pine.LNX.4.61.0705012354290.12808@mtfhpc.demon.co.uk>
-	 <20070509231937.ea254c26.akpm@linux-foundation.org>
-	 <1178778583.14928.210.camel@localhost.localdomain>
-	 <20070510.001234.126579706.davem@davemloft.net>
-	 <Pine.LNX.4.64.0705142018090.18453@blonde.wat.veritas.com>
-	 <1179176845.32247.107.camel@localhost.localdomain>
-	 <1179212184.32247.163.camel@localhost.localdomain>
-Content-Type: text/plain
-Date: Mon, 21 May 2007 09:27:27 -0500
-Message-Id: <1179757647.6254.235.camel@localhost.localdomain>
-Mime-Version: 1.0
+Received: by ug-out-1314.google.com with SMTP id s2so966835uge
+        for <linux-mm@kvack.org>; Mon, 21 May 2007 10:51:14 -0700 (PDT)
+Message-ID: <29495f1d0705211051s4c60818bm7452b04ae77b313d@mail.gmail.com>
+Date: Mon, 21 May 2007 10:51:13 -0700
+From: "Nish Aravamudan" <nish.aravamudan@gmail.com>
+Subject: Re: [PATCH/RFC] Fix hugetlb pool allocation with empty nodes - V4
+In-Reply-To: <1179759429.5113.16.camel@localhost>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+References: <20070503022107.GA13592@kryten>
+	 <1178310543.5236.43.camel@localhost>
+	 <Pine.LNX.4.64.0705041425450.25764@schroedinger.engr.sgi.com>
+	 <1178728661.5047.64.camel@localhost>
+	 <29495f1d0705161259p70a1e499tb831889fd2bcebcb@mail.gmail.com>
+	 <1179353841.5867.53.camel@localhost>
+	 <29495f1d0705171730h552f7d80hc3f991f8dce9d4c2@mail.gmail.com>
+	 <1179759429.5113.16.camel@localhost>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Benjamin Herrenschmidt <benh@kernel.crashing.org>
-Cc: Hugh Dickins <hugh@veritas.com>, David Miller <davem@davemloft.net>, akpm@linux-foundation.org, mark@mtfhpc.demon.co.uk, linuxppc-dev@ozlabs.org, wli@holomorphy.com, linux-mm@kvack.org, andrea@suse.de, sparclinux@vger.kernel.org
+To: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
+Cc: Christoph Lameter <clameter@sgi.com>, Anton Blanchard <anton@samba.org>, linux-mm@kvack.org, ak@suse.de, mel@csn.ul.ie, apw@shadowen.org, Andrew Morton <akpm@linux-foundation.org>, Eric Whitney <eric.whitney@hp.com>, andyw@uk.ibm.com
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 2007-05-15 at 16:56 +1000, Benjamin Herrenschmidt wrote:
-> > Ok, I'll cook a patch today.
-> 
-> Let's make it tomorrow :-( Got delayed by other urgent things
+On 5/21/07, Lee Schermerhorn <Lee.Schermerhorn@hp.com> wrote:
+> On Thu, 2007-05-17 at 17:30 -0700, Nish Aravamudan wrote:
+> > On 5/16/07, Lee Schermerhorn <Lee.Schermerhorn@hp.com> wrote:
+> > > On Wed, 2007-05-16 at 12:59 -0700, Nish Aravamudan wrote:
+> > >
+> > > <snip>
+> > > >
+> > > > This completely breaks hugepage allocation on 4-node x86_64 box I have
+> > > > here. Each node has <4GB of memory, so all memory is ZONE_DMA and
+> > > > ZONE_DMA32. gfp_zone(GFP_HIGHUSER) is ZONE_NORMAL, though. So all
+> > > > nodes are not populated by the default initialization to an empty
+> > > > nodemask.
+> > > >
+> > > > Thanks to Andy Whitcroft for helping me debug this.
+> > > >
+> > > > I'm not sure how to fix this -- but I ran into while trying to base my
+> > > > sysfs hugepage allocation patches on top of yours.
+> > >
+> > > OK.  Try this.  Tested OK on 4 node [+ 1 pseudo node] ia64 and 2 node
+> > > x86_64.  The x86_64 had 2G per node--all DMA32.
+> > >
+> > > Notes:
+> > >
+> > > 1) applies on 2.6.22-rc1-mm1 atop my earlier patch to add the call to
+> > > check_highest_zone() to build_zonelists_in_zone_order().  I think it'll
+> > > apply [with offsets] w/o that patch.
+> >
+> > Could you give both patches (or just this one) against 2.6.22-rc1 or
+> > current -linus? -mm1 has build issues on ppc64 and i386 (as reported
+> > by Andy and Mel in other threads).
+>
+> Nish:
+>
+> Here's the hugepage fix against 2.6.22-rc2 for your testing.  I think
+> the patch still needs to cook in -mm if you think it's OK.
 
-Not to be annoying, but I'm patiently waiting on this patch. Would like
-to test sun4c before shipping Aurora 3.0. Any status?
+Ok, will test against:
 
-~spot
+1-node (non-NUMA), 2-node x86
+4-node x86_64
+4-node ppc64
+
+Will let you know what happens as soon as they all finish.
+
+I definitely agree that the patch should stew in -mm. Presuming the
+testing goes well, I can rebase my per-node allocation interface on
+top (no comments there yet, though).
+
+Thanks,
+Nish
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
