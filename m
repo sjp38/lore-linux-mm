@@ -1,42 +1,34 @@
-Message-ID: <46517817.1080208@users.sourceforge.net>
+Message-ID: <465178E6.60305@users.sourceforge.net>
 From: Andrea Righi <righiandr@users.sourceforge.net>
 Reply-To: righiandr@users.sourceforge.net
 MIME-Version: 1.0
-Subject: Re: signals logged / [RFC] log out-of-virtual-memory events
-References: <464C9D82.60105@redhat.com> <Pine.LNX.4.61.0705202235430.13923@yvahk01.tjqt.qr> <20070520205500.GJ22452@vanheusden.com> <200705202314.57758.ak@suse.de>
-In-Reply-To: <200705202314.57758.ak@suse.de>
-Content-Type: text/plain; charset=iso-8859-1
+Subject: Re: [PATCH 2/2] log out-of-virtual-memory events
+References: <E1Hp5RZ-0001CF-00@calista.eckenfels.net>	<464ED292.8020202@users.sourceforge.net> <20070520203209.ec952a84.akpm@linux-foundation.org>
+In-Reply-To: <20070520203209.ec952a84.akpm@linux-foundation.org>
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
-Date: Mon, 21 May 2007 12:45:06 +0200 (MEST)
+Date: Mon, 21 May 2007 12:48:33 +0200 (MEST)
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Folkert van Heusden <folkert@vanheusden.com>
-Cc: Andi Kleen <ak@suse.de>, Jan Engelhardt <jengelh@linux01.gwdg.de>, Stephen Hemminger <shemminger@linux-foundation.org>, Eric Dumazet <dada1@cosmosbay.com>, Rik van Riel <riel@redhat.com>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Bernd Eckenfels <ecki@lina.inka.de>, linux-kernel@vger.kernel.org, Rik van Riel <riel@redhat.com>, linux-mm@kvack.org, Ingo Molnar <mingo@elte.hu>
 List-ID: <linux-mm.kvack.org>
 
-Andi Kleen wrote:
->> +	switch(sig) {
->> +	case SIGQUIT: 
->> +	case SIGILL: 
->> +	case SIGTRAP:
->> +	case SIGABRT: 
->> +	case SIGBUS: 
->> +	case SIGFPE:
->> +	case SIGSEGV: 
->> +	case SIGXCPU: 
->> +	case SIGXFSZ:
->> +	case SIGSYS: 
->> +	case SIGSTKFLT:
+Andrew Morton wrote:
+> On Sat, 19 May 2007 12:34:01 +0200 (MEST) Andrea Righi <righiandr@users.sourceforge.net> wrote:
 > 
-> Unconditional? That's definitely a very bad idea. If anything only unhandled
-> signals should be printed this way because some programs use them internally. 
-> But I think your list is far too long anyways.
+>> Print informations about userspace processes that fail to allocate new virtual
+>> memory.
 > 
-> -Andi
+> Why is this useful?
 > 
 
-Maybe you could use somthing similar to unhandled_signal() in
-arch/x86_64/mm/fault.c, but I agree that the list seems a bit too long...
+Well... in strict overcommit mode (overcommit_memory=2) this is the only way to
+track down problems of the (bad-designed) user applications that exit when they
+receive a -ENOMEM without logging anything... and, anyway, it could be an
+additional aid in figuring out what is going wrong on inside a system. BTW, I
+don't think it should be enabled by default, so this is the reason why it should
+depend on print_fatal_signals patch.
 
 -Andrea
 
