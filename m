@@ -1,26 +1,39 @@
-Date: Sun, 20 May 2007 20:32:09 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH 2/2] log out-of-virtual-memory events (was: [RFC] log
- out-of-virtual-memory events)
-Message-Id: <20070520203209.ec952a84.akpm@linux-foundation.org>
-In-Reply-To: <464ED292.8020202@users.sourceforge.net>
-References: <E1Hp5RZ-0001CF-00@calista.eckenfels.net>
-	<464ED292.8020202@users.sourceforge.net>
+Date: Mon, 21 May 2007 15:28:30 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [rfc] increase struct page size?!
+Message-Id: <20070521152830.a844d7ef.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <617E1C2C70743745A92448908E030B2A017BCA67@scsmsx411.amr.corp.intel.com>
+References: <Pine.LNX.4.64.0705181112250.11881@schroedinger.engr.sgi.com>
+	<617E1C2C70743745A92448908E030B2A017BCA67@scsmsx411.amr.corp.intel.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: righiandr@users.sourceforge.net
-Cc: Bernd Eckenfels <ecki@lina.inka.de>, linux-kernel@vger.kernel.org, Rik van Riel <riel@redhat.com>, linux-mm@kvack.org, Ingo Molnar <mingo@elte.hu>
+To: "Luck, Tony" <tony.luck@intel.com>
+Cc: clameter@sgi.com, npiggin@suse.de, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-arch@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Sat, 19 May 2007 12:34:01 +0200 (MEST) Andrea Righi <righiandr@users.sourceforge.net> wrote:
+On Fri, 18 May 2007 13:37:09 -0700
+"Luck, Tony" <tony.luck@intel.com> wrote:
 
-> Print informations about userspace processes that fail to allocate new virtual
-> memory.
+> > I wonder if there are other uses for the free space?
+> 
+> 	unsigned long moreflags;
+> 
+> Nick and Hugh were just sparring over adding a couple (or perhaps 8)
+> flag bits.  This would supply 64 new bits ... maybe that would keep
+> them happy for a few more years.
+> 
+- page->zone 
+  free some flags bits and makes page_zone() simple.
+  and software (fake) zone for memory control can be added ?
+or 
 
-Why is this useful?
+-page->some_memory_controler ?
+(I don't know whether resource controller people want this or not.)
+
+-Kame
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
