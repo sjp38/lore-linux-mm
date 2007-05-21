@@ -1,34 +1,36 @@
-Date: Mon, 21 May 2007 01:11:39 -0700
-From: William Lee Irwin III <wli@holomorphy.com>
-Subject: Re: [PATCH] MM : alloc_large_system_hash() can free some memory for non power-of-two bucketsize
-Message-ID: <20070521081139.GG19966@holomorphy.com>
-References: <20070518115454.d3e32f4d.dada1@cosmosbay.com> <20070519182123.GD19966@holomorphy.com> <464F44BD.3040209@cosmosbay.com>
+Message-ID: <4651629B.2050505@aitel.hist.no>
+Date: Mon, 21 May 2007 11:12:59 +0200
+From: Helge Hafting <helge.hafting@aitel.hist.no>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <464F44BD.3040209@cosmosbay.com>
+Subject: Re: [rfc] increase struct page size?!
+References: <20070518040854.GA15654@wotan.suse.de>	<Pine.LNX.4.64.0705181112250.11881@schroedinger.engr.sgi.com>	<20070519012530.GB15569@wotan.suse.de>	<20070519181501.GC19966@holomorphy.com> <20070519150934.bdabc9b5.akpm@linux-foundation.org>
+In-Reply-To: <20070519150934.bdabc9b5.akpm@linux-foundation.org>
+Content-Type: text/plain; charset=UTF-8; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Eric Dumazet <dada1@cosmosbay.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, linux kernel <linux-kernel@vger.kernel.org>, David Miller <davem@davemloft.net>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: William Lee Irwin III <wli@holomorphy.com>, Nick Piggin <npiggin@suse.de>, Christoph Lameter <clameter@sgi.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>, linux-arch@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-William Lee Irwin III a ?crit :
->> The proper way to do this is to convert the large system hashtable
->> users to use some data structure / algorithm  other than hashing by
->> separate chaining.
+Andrew Morton wrote:
+> On Sat, 19 May 2007 11:15:01 -0700 William Lee Irwin III <wli@holomorphy.com> wrote:
+>
+>   
+>> Much the same holds for the atomic_t's; 32 + PAGE_SHIFT is
+>> 44 bits or more, about as much as is possible, and one reference per
+>> page per page is not even feasible. Full-length atomic_t's are just
+>> not necessary.
+>>     
+>
+> You can overflow a page's refcount by mapping it 4G times.  That requires
+> 32GB of pagetable memory.  It's quite feasible with remap_file_pages().
+>   
+But do anybody ever need to do that?
+Such an attack is easily thwarted by refusing to map it more
+than, say 3G times? 
 
-On Sat, May 19, 2007 at 08:41:01PM +0200, Eric Dumazet wrote:
-> No thanks. This was already discussed to death on netdev. To date, hash 
-> tables are a good compromise.
-> I dont mind losing part of memory, I prefer to keep good performance when 
-> handling 1.000.000 or more tcp sessions.
-
-The data structures perform well enough, but I suppose it's not worth
-pushing the issue this way.
-
-
--- wli
+Helge Hafting
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
