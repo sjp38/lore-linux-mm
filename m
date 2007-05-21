@@ -1,101 +1,72 @@
-Date: Mon, 21 May 2007 13:04:06 +0200
-From: Folkert van Heusden <folkert@vanheusden.com>
-Subject: Re: signals logged / [RFC] log out-of-virtual-memory events
-Message-ID: <20070521110406.GA14802@vanheusden.com>
-References: <464C9D82.60105@redhat.com> <Pine.LNX.4.61.0705202235430.13923@yvahk01.tjqt.qr> <20070520205500.GJ22452@vanheusden.com> <200705202314.57758.ak@suse.de> <46517817.1080208@users.sourceforge.net>
+Date: Mon, 21 May 2007 04:26:03 -0700
+From: William Lee Irwin III <wli@holomorphy.com>
+Subject: Re: [rfc] increase struct page size?!
+Message-ID: <20070521112603.GJ19966@holomorphy.com>
+References: <20070518040854.GA15654@wotan.suse.de> <Pine.LNX.4.64.0705181112250.11881@schroedinger.engr.sgi.com> <20070519012530.GB15569@wotan.suse.de> <20070519181501.GC19966@holomorphy.com> <20070520052229.GA9372@wotan.suse.de> <20070520084647.GF19966@holomorphy.com> <20070520092552.GA7318@wotan.suse.de> <20070521080813.GQ31925@holomorphy.com> <20070521092742.GA19642@wotan.suse.de>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <46517817.1080208@users.sourceforge.net>
+In-Reply-To: <20070521092742.GA19642@wotan.suse.de>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrea Righi <righiandr@users.sourceforge.net>
-Cc: Andi Kleen <ak@suse.de>, Jan Engelhardt <jengelh@linux01.gwdg.de>, Stephen Hemminger <shemminger@linux-foundation.org>, Eric Dumazet <dada1@cosmosbay.com>, Rik van Riel <riel@redhat.com>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
+To: Nick Piggin <npiggin@suse.de>
+Cc: Christoph Lameter <clameter@sgi.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>, linux-arch@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-> >> +	switch(sig) {
-> >> +	case SIGQUIT: 
-...
-> >> +	case SIGSTKFLT:
-> > 
-> > Unconditional? That's definitely a very bad idea. If anything only unhandled
-> > signals should be printed this way because some programs use them internally. 
-> > But I think your list is far too long anyways.
-> 
-> Maybe you could use somthing similar to unhandled_signal() in
-> arch/x86_64/mm/fault.c, but I agree that the list seems a bit too long...
+On Mon, May 21, 2007 at 01:08:13AM -0700, William Lee Irwin III wrote:
+>> Choosing k distinct integers (mem_map array indices) from the interval
+>> [0,n-1] results in k(n-k+1)/n non-adjacent intervals of contiguous
+>> array indices on average. The average interval length is
+>> (n+1)/(n-k+1) - 1/C(n,k). Alignment considerations make going much
+>> further somewhat hairy, but it should be clear that contiguity arising
+>> from random choice is non-negligible.
 
-What about the following enhancement: I check with sig_fatal if it would
-kill the process and only then emit a message. So when an application
-takes care itself of handling it nothing is printed.
+On Mon, May 21, 2007 at 11:27:42AM +0200, Nick Piggin wrote:
+> That doesn't say anything about temporal locality, though.
 
-Signed-off by: Folkert van Heusden <folkert@vanheusden.com>
-
---- kernel/signal.c.org	2007-05-20 22:47:13.000000000 +0200
-+++ kernel/signal.c	2007-05-21 12:59:52.000000000 +0200
-@@ -739,6 +739,8 @@
- 	struct sigqueue * q = NULL;
- 	int ret = 0;
- 
-+	/* emit some logging for unhandled signals
-+	 */
-+	if (sig_fatal(t, sig))
-+	{
-+		printk(KERN_WARNING "Sig %d send to %d owned by %d.%d (%s)\n",
-+		sig, t -> pid, t -> uid, t -> gid, t -> comm);
-+	}
-+
- 	/*
- 	 * fast-pathed signals for kernel-internal things like SIGSTOP
- 	 * or SIGKILL.
-
-of course, this can also be limited to only the interesting signals:
-
-Signed-off by: Folkert van Heusden <folkert@vanheusden.com>
-
---- kernel/signal.c.org	2007-05-20 22:47:13.000000000 +0200
-+++ kernel/signal.c	2007-05-21 12:59:52.000000000 +0200
-@@ -739,6 +739,28 @@
- 	struct sigqueue * q = NULL;
- 	int ret = 0;
- 
-+	/* emit some logging for nasty signals
-+	 * especially SIGSEGV and friends aught to be looked at when happening
-+	 */
-+	switch(sig) {
-+	case SIGQUIT: 
-+	case SIGILL: 
-+	case SIGTRAP:
-+	case SIGABRT: 
-+	case SIGBUS: 
-+	case SIGFPE:
-+	case SIGSEGV: 
-+	case SIGXCPU: 
-+	case SIGXFSZ:
-+	case SIGSYS: 
-+	case SIGSTKFLT:
-+		if (sig_fatal(t, sig))
-+		{
-+			printk(KERN_WARNING "Sig %d send to %d owned by %d.%d (%s)\n",
-+			sig, t -> pid, t -> uid, t -> gid, t -> comm);
-+		}
-+	}
-+
- 	/*
- 	 * fast-pathed signals for kernel-internal things like SIGSTOP
- 	 * or SIGKILL.
+It doesn't need to. If what's in the cache is uniformly distributed,
+you get that result for spatial locality. From there, it's counting
+cachelines.
 
 
-Folkert van Heusden
+On Mon, May 21, 2007 at 01:08:13AM -0700, William Lee Irwin III wrote:
+>> In any event, I don't have all that much of an objection to what's
+>> actually proposed, just this particular cache footprint argument.
+>> One can motivate increases in sizeof(struct page), but not this way.
 
--- 
+On Mon, May 21, 2007 at 01:08:13AM -0700, William Lee Irwin III wrote:
+> Realise that you have to have a run of I think at least 7 or 8 contiguous
+> pages and temporally close references in order to save a single cacheline.
+> Then also that if the page being touched is not partially in cache from
+> an earlier access, then it is statistically going to cost more lines to
+> touch it (up to 75% if you touch the first and the last field, obviously 0%
+> if you only touch a single field, but that's unlikely given that you
+> usually take a reference then do at least something else like check flags).
+> I think the problem with the cache footprint argument is just whether
+> it makes any significant difference to performance. But..
 
-Multitail - gibkaja utilita po sledovaniju log-fajlov i vyvoda
-kommand. Fil'trovanie, raskra?ivanie, slijanie, vizual'noe sravnenie,
-i t.d.  http://www.vanheusden.com/multitail/
-----------------------------------------------------------------------
-Phone: +31-6-41278122, PGP-key: 1F28D8AE, www.vanheusden.com
+The average interval ("run") length is (n+1)/(n-k+1) - 1/C(n,k), so for
+that to be >= 8 you need (n+1)/(n-k+1) - 1/C(n,k) >= 8 which also happens
+when (n+1)/(n-k+1) >= 9 or when n >= (9/8)*k - 1 or k <= (8/9)*(n+1).
+Clearly a lower bound on k is required, but not obviously derivable.
+k >= 8 is obvious, but the least k where (n+1)/(n-k+1) - 1/C(n,k) >= 8
+is not entirely obvious. Numerically solving for the least such k finds
+that k actually needs to be relatively close to (8/9)*n. A lower bound
+of something like 0.87*n + O(1) probably holds.
+
+
+On Mon, May 21, 2007 at 01:08:13AM -0700, William Lee Irwin III wrote:
+>> Now that I've been informed of the ->_count and ->_mapcount issues,
+>> I'd say that they're grave and should be corrected even at the cost
+>> of sizeof(struct page).
+
+On Mon, May 21, 2007 at 11:27:42AM +0200, Nick Piggin wrote:
+> ... yeah, something like that would bypass 
+
+Did you get cut off here?
+
+
+-- wli
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
