@@ -1,34 +1,63 @@
-Date: Sun, 20 May 2007 16:50:17 -0600
-From: Matthew Wilcox <matthew@wil.cx>
-Subject: Re: [rfc] increase struct page size?!
-Message-ID: <20070520225017.GC10562@parisc-linux.org>
-References: <20070518040854.GA15654@wotan.suse.de> <Pine.LNX.4.64.0705181633240.24071@blonde.wat.veritas.com> <20070519175320.GB19966@holomorphy.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20070519175320.GB19966@holomorphy.com>
+Date: Sun, 20 May 2007 20:31:23 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH 1/2] limit print_fatal_signal() rate (was: [RFC] log
+ out-of-virtual-memory events)
+Message-Id: <20070520203123.5cde3224.akpm@linux-foundation.org>
+In-Reply-To: <464ED258.2010903@users.sourceforge.net>
+References: <E1Hp5PV-0001Bn-00@calista.eckenfels.net>
+	<464ED258.2010903@users.sourceforge.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: William Lee Irwin III <wli@holomorphy.com>
-Cc: Hugh Dickins <hugh@veritas.com>, Nick Piggin <npiggin@suse.de>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>, linux-arch@vger.kernel.org
+To: righiandr@users.sourceforge.net
+Cc: Bernd Eckenfels <ecki@lina.inka.de>, linux-kernel@vger.kernel.org, Rik van Riel <riel@redhat.com>, linux-mm@kvack.org, Ingo Molnar <mingo@elte.hu>
 List-ID: <linux-mm.kvack.org>
 
-On Sat, May 19, 2007 at 10:53:20AM -0700, William Lee Irwin III wrote:
-> On Fri, May 18, 2007 at 04:42:10PM +0100, Hugh Dickins wrote:
-> > Sooner rather than later, don't we need those 8 bytes to expand from
-> > atomic_t to atomic64_t _count and _mapcount?  Not that we really need
-> > all 64 bits of both, but I don't know how to work atomically with less.
-> > (Why do I have this sneaking feeling that you're actually wanting
-> > to stick something into the lower bits of page->virtual?)
-> 
-> I wonder how close we get to overflow on ->_mapcount and ->_count.
-> (untested/uncompiled).
+On Sat, 19 May 2007 12:33:04 +0200 (MEST) Andrea Righi <righiandr@users.sourceforge.net> wrote:
 
-I think the problem is that an attacker can deliberately overflow
-->_count, not that it can happen innocuously.  By mmaping, say, the page
-of libc that contains memcpy() several million times, and forking
-enough, can't you make ->_mapcount hit 0?  I'm not a VM guy, I just
-vaguely remember people talking about this before.
+> Bernd Eckenfels wrote:
+> > In article <464DCEAB.3090905@users.sourceforge.net> you wrote:
+> >>        printk("%s/%d: potentially unexpected fatal signal %d.\n",
+> >>                current->comm, current->pid, signr);
+> > 
+> > can we have both KERN_WARNING please?
+> > 
+> > Gruss
+> > Bernd
+> 
+> Depends on print_fatal_signals patch.
+> 
+> ---
+> 
+> Limit the rate of print_fatal_signal() to avoid potential denial-of-service
+> attacks.
+> 
+> Signed-off-by: Andrea Righi <a.righi@cineca.it>
+> 
+> diff -urpN linux-2.6.22-rc1-mm1/kernel/signal.c linux-2.6.22-rc1-mm1-vm-log-enomem/kernel/signal.c
+> --- linux-2.6.22-rc1-mm1/kernel/signal.c	2007-05-19 11:25:24.000000000 +0200
+> +++ linux-2.6.22-rc1-mm1-vm-log-enomem/kernel/signal.c	2007-05-19 11:30:00.000000000 +0200
+> @@ -790,7 +790,10 @@ static void print_vmas(void)
+>  
+>  static void print_fatal_signal(struct pt_regs *regs, int signr)
+>  {
+> -	printk("%s/%d: potentially unexpected fatal signal %d.\n",
+> +	if (unlikely(!printk_ratelimit()))
+> +		return;
+> +
+> +	printk(KERN_WARNING "%s/%d: potentially unexpected fatal signal %d.\n",
+>  		current->comm, current->pid, signr);
+>  
+>  #ifdef __i386__
+
+Well OK.  But vdso-print-fatal-signals.patch is designated not-for-mainline
+anyway.
+
+I think the DoS which you identify has been available for a very long time
+on ia64, x86_64 and perhaps others.
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
