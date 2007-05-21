@@ -1,82 +1,144 @@
-Date: Mon, 21 May 2007 12:43:57 -0700 (PDT)
+Date: Mon, 21 May 2007 12:51:47 -0700 (PDT)
 From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [PATCH 0/5] make slab gfp fair
-In-Reply-To: <1179776038.5735.39.camel@lappy>
-Message-ID: <Pine.LNX.4.64.0705211239300.27622@schroedinger.engr.sgi.com>
-References: <20070514131904.440041502@chello.nl>
- <Pine.LNX.4.64.0705161957440.13458@schroedinger.engr.sgi.com>
- <1179385718.27354.17.camel@twins>  <Pine.LNX.4.64.0705171027390.17245@schroedinger.engr.sgi.com>
-  <20070517175327.GX11115@waste.org>  <Pine.LNX.4.64.0705171101360.18085@schroedinger.engr.sgi.com>
-  <1179429499.2925.26.camel@lappy>  <Pine.LNX.4.64.0705171220120.3043@schroedinger.engr.sgi.com>
-  <1179437209.2925.29.camel@lappy>  <Pine.LNX.4.64.0705171516260.4593@schroedinger.engr.sgi.com>
-  <1179482054.2925.52.camel@lappy>  <Pine.LNX.4.64.0705181002400.9372@schroedinger.engr.sgi.com>
-  <1179650384.7019.33.camel@twins>  <Pine.LNX.4.64.0705210932500.25871@schroedinger.engr.sgi.com>
- <1179776038.5735.39.camel@lappy>
+Subject: SLUB: Use ilog2 instead of series of constant comparisons.
+Message-ID: <Pine.LNX.4.64.0705211250410.27950@schroedinger.engr.sgi.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Cc: Matt Mackall <mpm@selenic.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Thomas Graf <tgraf@suug.ch>, David Miller <davem@davemloft.net>, Andrew Morton <akpm@linux-foundation.org>, Daniel Phillips <phillips@google.com>, Pekka Enberg <penberg@cs.helsinki.fi>, Paul Jackson <pj@sgi.com>, npiggin@suse.de
+To: akpm@linux-foundation.org
+Cc: linux-mm@kvack.org, Pekka Enberg <penberg@cs.helsinki.fi>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 21 May 2007, Peter Zijlstra wrote:
+I finally found a way to get rid of the nasty list of comparisions in
+slub_def.h. ilog2 seems to work right for constants.
 
-> > So the original issue is still not fixed. A slab alloc may succeed without
-> > watermarks if that particular allocation is restricted to a different set 
-> > of nodes. Then the reserve slab is dropped despite the memory scarcity on
-> > another set of nodes?
-> 
-> I can't see how. This extra ALLOC_MIN|ALLOC_HIGH|ALLOC_HARDER alloc will
-> first deplete all other zones. Once that starts failing no node should
-> still have pages accessible by any allocation context other than
-> PF_MEMALLOC.
+Also update comments
 
-This means we will disobey cpuset and memory policy constraints?
+Drop the generation of an unresolved symbol for the case that the size is
+too big. A simple BUG_ON sufficies now that we can alloc up to MAX_ORDER
+size slab objects.
 
-> > No the gfp zone flags are not uniform and placement of page allocator 
-> > allocs through SLUB do not always have the same allocation constraints.
-> 
-> It has to; since it can serve the allocation from a pre-existing slab
-> allocation. Hence any page allocation must be valid for all other users.
+Signed-off-by: Christoph Lameter <clameter@sgi.com>
 
-Why does it have to? This is not true.
+---
+ include/linux/slub_def.h |   66 ++++++++++++++---------------------------------
+ 1 file changed, 20 insertions(+), 46 deletions(-)
 
-> > SLUB will check the node of the page that was allocated when the page 
-> > allocator returns and put the page into that nodes slab list. This varies
-> > depending on the allocation context.
-> 
-> Yes, it keeps slabs on per node lists. I'm just not seeing how this puts
-> hard constraints on the allocations.
-
-The constraints come from the context of memory policies and cpusets. See
-get_any_partial().
+Index: slub/include/linux/slub_def.h
+===================================================================
+--- slub.orig/include/linux/slub_def.h	2007-05-21 11:38:19.000000000 -0700
++++ slub/include/linux/slub_def.h	2007-05-21 11:58:16.000000000 -0700
+@@ -10,6 +10,7 @@
+ #include <linux/gfp.h>
+ #include <linux/workqueue.h>
+ #include <linux/kobject.h>
++#include <linux/log2.h>
  
-> As far as I can see there cannot be a hard constraint here, because
-> allocations form interrupt context are at best node local. And node
-> affine zone lists still have all zones, just ordered on locality.
-
-Interrupt context is something different. If we do not have a process 
-context then no cpuset and memory policy constraints can apply since we
-have no way of determining that. If you restrict your use of the reserve 
-cpuset to only interrupt allocs then we may indeed be fine.
+ struct kmem_cache_node {
+ 	spinlock_t list_lock;	/* Protect partial list and nr_partial */
+@@ -58,6 +59,8 @@ struct kmem_cache {
+  */
+ #define KMALLOC_SHIFT_LOW 3
  
-> > Allocations can be particular to uses of a slab in particular situations. 
-> > A kmalloc cache can be used to allocate from various sets of nodes in 
-> > different circumstances. kmalloc will allow serving a limited number of 
-> > objects from the wrong nodes for performance reasons but the next 
-> > allocation from the page allocator (or from the partial lists) will occur 
-> > using the current set of allowed nodes in order to ensure a rough 
-> > obedience to the memory policies and cpusets. kmalloc_node behaves 
-> > differently and will enforce using memory from a particular node.
-> 
-> >From what I can see, it takes pretty much any page it can get once you
-> hit it with PF_MEMALLOC. If the page allocation doesn't use ALLOC_CPUSET
-> the page can come from pretty much anywhere.
-
-No it cannot. One the current cpuslab is exhaused (which can be anytime) 
-it will enforce the contextual allocation constraints. See 
-get_any_partial() in slub.c.
++#define KMALLOC_MIN_SIZE (1UL << KMALLOC_SHIFT_LOW)
++
+ /*
+  * We keep the general caches in an array of slab caches that are used for
+  * 2^x bytes of allocations.
+@@ -65,56 +68,36 @@ struct kmem_cache {
+ extern struct kmem_cache kmalloc_caches[KMALLOC_SHIFT_HIGH + 1];
+ 
+ /*
+- * Sorry that the following has to be that ugly but some versions of GCC
+- * have trouble with constant propagation and loops.
++ * Determine the kmalloc array index given the object size.
++ *
++ * Return -1 if the object size is not supported.
+  */
+ static inline int kmalloc_index(size_t size)
+ {
+ 	/*
+-	 * We should return 0 if size == 0 but we use the smallest object
+-	 * here for SLAB legacy reasons.
++	 * We should return 0 if size == 0 (which would result in the
++	 * kmalloc caller to get NULL) but we use the smallest object
++	 * here for legacy reasons. Just issue a warning so that
++	 * we can discover locations where we do 0 sized allocations.
+ 	 */
+ 	WARN_ON_ONCE(size == 0);
+ 
+ 	if (size > KMALLOC_MAX_SIZE)
+ 		return -1;
+ 
++	if (size <= KMALLOC_MIN_SIZE)
++		return KMALLOC_SHIFT_LOW;
++
++	/*
++	 * We map the non power of two slabs to the unused
++	 * log2 values in the kmalloc array.
++	 */
+ 	if (size > 64 && size <= 96)
+ 		return 1;
+ 	if (size > 128 && size <= 192)
+ 		return 2;
+-	if (size <=          8) return 3;
+-	if (size <=         16) return 4;
+-	if (size <=         32) return 5;
+-	if (size <=         64) return 6;
+-	if (size <=        128) return 7;
+-	if (size <=        256) return 8;
+-	if (size <=        512) return 9;
+-	if (size <=       1024) return 10;
+-	if (size <=   2 * 1024) return 11;
+-	if (size <=   4 * 1024) return 12;
+-	if (size <=   8 * 1024) return 13;
+-	if (size <=  16 * 1024) return 14;
+-	if (size <=  32 * 1024) return 15;
+-	if (size <=  64 * 1024) return 16;
+-	if (size <= 128 * 1024) return 17;
+-	if (size <= 256 * 1024) return 18;
+-	if (size <=  512 * 1024) return 19;
+-	if (size <= 1024 * 1024) return 20;
+-	if (size <=  2 * 1024 * 1024) return 21;
+-	if (size <=  4 * 1024 * 1024) return 22;
+-	if (size <=  8 * 1024 * 1024) return 23;
+-	if (size <= 16 * 1024 * 1024) return 24;
+-	if (size <= 32 * 1024 * 1024) return 25;
+-	return -1;
+ 
+-/*
+- * What we really wanted to do and cannot do because of compiler issues is:
+- *	int i;
+- *	for (i = KMALLOC_SHIFT_LOW; i <= KMALLOC_SHIFT_HIGH; i++)
+- *		if (size <= (1 << i))
+- *			return i;
+- */
++	return ilog2(size - 1) + 1;
+ }
+ 
+ /*
+@@ -131,18 +114,9 @@ static inline struct kmem_cache *kmalloc
+ 		return NULL;
+ 
+ 	/*
+-	 * This function only gets expanded if __builtin_constant_p(size), so
+-	 * testing it here shouldn't be needed.  But some versions of gcc need
+-	 * help.
++	 * If this triggers then the amount of memory requested was too large.
+ 	 */
+-	if (__builtin_constant_p(size) && index < 0) {
+-		/*
+-		 * Generate a link failure. Would be great if we could
+-		 * do something to stop the compile here.
+-		 */
+-		extern void __kmalloc_size_too_large(void);
+-		__kmalloc_size_too_large();
+-	}
++	BUG_ON(index < 0);
+ 	return &kmalloc_caches[index];
+ }
+ 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
