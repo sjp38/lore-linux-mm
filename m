@@ -1,96 +1,94 @@
-From: Con Kolivas <kernel@kolivas.org>
-Subject: Re: [PATCH] mm: swap prefetch improvements
-Date: Mon, 21 May 2007 23:44:26 +1000
-References: <20070430162007.ad46e153.akpm@linux-foundation.org> <200705121446.04191.kernel@kolivas.org> <20070521100320.GA1801@elte.hu>
-In-Reply-To: <20070521100320.GA1801@elte.hu>
-MIME-Version: 1.0
-Content-Type: text/plain;
-  charset="iso-8859-1"
+Subject: Re: RSS controller v2 Test results (lmbench )
+From: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
+In-Reply-To: <464D267A.50107@linux.vnet.ibm.com>
+References: <464C95D4.7070806@linux.vnet.ibm.com>
+	 <464D1599.1000506@redhat.com>  <464D267A.50107@linux.vnet.ibm.com>
+Content-Type: text/plain
+Date: Mon, 21 May 2007 09:53:34 -0400
+Message-Id: <1179755615.5113.12.camel@localhost>
+Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
-Message-Id: <200705212344.27511.kernel@kolivas.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Ingo Molnar <mingo@elte.hu>
-Cc: Nick Piggin <nickpiggin@yahoo.com.au>, Ray Lee <ray-lk@madrabbit.org>, ck list <ck@vds.kolivas.org>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: balbir@linux.vnet.ibm.com
+Cc: Rik van Riel <riel@redhat.com>, Pavel Emelianov <xemul@sw.ru>, Paul Menage <menage@google.com>, Kirill Korotaev <dev@sw.ru>, devel@openvz.org, Linux Containers <containers@lists.osdl.org>, linux kernel mailing list <linux-kernel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>, Vaidyanathan Srinivasan <svaidy@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, "Eric W. Biederman" <ebiederm@xmission.com>, Herbert Poetzl <herbert@13thfloor.at>
 List-ID: <linux-mm.kvack.org>
 
-On Monday 21 May 2007 20:03, Ingo Molnar wrote:
-> * Con Kolivas <kernel@kolivas.org> wrote:
-> > It turns out that fixing swap prefetch was not that hard to fix and
-> > improve upon, and since Andrew hasn't dropped swap prefetch, instead
-> > here are a swag of fixes and improvements, [...]
->
-> it's a reliable win on my testbox too:
->
->  # echo 1 > /proc/sys/vm/swap_prefetch
+On Fri, 2007-05-18 at 09:37 +0530, Balbir Singh wrote:
+> Rik van Riel wrote:
+> > Balbir Singh wrote:
+> > 
+> >> A meaningful container size does not hamper performance. I am in the
+> >> process
+> >> of getting more results (with varying container sizes). Please let me
+> >> know
+> >> what you think of the results? Would you like to see different
+> >> benchmarks/
+> >> tests/configuration results?
+> > 
+> > AIM7 results might be interesting, especially when run to crossover.
+> > 
+> 
+> I'll try and get hold of AIM7, I have some AIM9 results (please
+> see the attachment, since the results overflow 80 columns, I've
+> attached them).
+> 
+> > OTOH, AIM7 can make the current VM explode spectacularly :)
+> > 
+> > I saw it swap out 1.4GB of memory in one run, on my 2GB memory test
+> > system.  That's right, it swapped out almost 75% of memory.
+> > 
+> 
+> This would make a good test case for the RSS and the unmapped page
+> cache controller. Thanks for bringing it to my attention.
+> 
+> > Presumably all the AIM7 processes got stuck in the pageout code
+> > simultaneously and all decided they needed to swap some pages out.
+> > However, the shell got stuck too so I could not get sysrq output
+> > on time.
+> > 
+> 
+> oops! I wonder if AIM7 creates too many processes and exhausts all
+> memory. I've seen a case where during an upgrade of my tetex on my
+> laptop, the setup process failed and continued to fork processes
+> filling up 4GB of swap.
 
->  Timed portion 30279 milliseconds
->
-> versus:
->
->  # echo 0 > /proc/sys/vm/swap_prefetch
->  # ./sp_tester
->  [...]
->
->  Timed portion 36605 milliseconds
->
-> i've repeated these tests to make sure it's a stable win and indeed it
-> is:
->
->    # swap-prefetch-on:
->
->    Timed portion 29704 milliseconds
->
->    # swap-prefetch-off:
->
->    Timed portion 34863 milliseconds
->
-> Nice work Con!
+Jumping in late, I just want to note that in our investigations, when
+AIM7 gets into this situation [non-responsive system], it's because all
+cpus are in reclaim, spinning on an anon_vma spin lock.  AIM7 forks [10s
+of] thousands of children from a single parent, resultings in thousands
+of vmas on the anon_vma list.  shrink_inactive_list() must walk this
+list twice [page_referenced() and try_to_unmap()] under spin_lock for
+each anon page.  
 
-Thanks!
+[Aside:  Just last week, I encountered a similar situation on the
+i_mmap_lock for page cache pages running a 1200 user Oracle/OLTP run on
+a largish ia64 system.  Left the system spitting out "soft lockup"
+messages/stack dumps overnight.  Still spitting the next day, so I
+decided to reboot.]
 
->
-> A suggestion for improvement: right now swap-prefetch does a small bit
-> of swapin every 5 seconds and stays idle inbetween. Could this perhaps
-> be made more agressive (optionally perhaps), if the system is not
-> swapping otherwise? If block-IO level instrumentation is needed to
-> determine idleness of block IO then that is justified too i think.
+I have a patch that turns the anon_vma lock into a reader/writer lock
+that alleviates the problem somewhat, but with 10s of thousands of vmas
+on the lists, system still can't swap enough memory fast enough to
+recover.
 
-Hmm.. The timer waits 5 seconds before trying to prefetch, but then only stops 
-if it detects any activity elsewhere. It doesn't actually try to go idle in 
-between but it doesn't take much activity to put it back to sleep, hence 
-detecting yet another "not quite idle" period and then it goes to sleep 
-again. I guess the sleep interval can actually be changed as another tunable 
-from 5 seconds to whatever the user wanted.
+We've run some AIM7 tests with Rik's "split lru list" patch, both with
+and without the anon_vma reader/writer lock patch.  We'll be posting
+results later this week.  Quick summary:  with Rik's patch, AIM
+performance tanks earlier, as the system starts swapping earlier.
+However, system remains responsive to shell input.  More into to follow.
 
-> Another suggestion: swap-prefetch seems to be doing all the right
-> decisions in the sp_test.c case - so would it be possible to add
-> statistics so that it could be verified how much of the swapped-in pages
-> were indeed a 'hit' - and how many were recycled without them being
-> reused? That could give a reliable, objective metric about how efficient
-> swap-prefetch is in any workload.
+> 
+> > I am trying out a little VM patch to fix that now, carefully watching
+> > vmstat output.  Should be fun...
+> > 
+> 
+> VM debugging is always fun!
 
-Well the advantage is twofold potentially; 1. the pages that have been 
-prefecthed and become minor faults when they would have been major faults, 
-and 2. those that become minor faults (via 1) and then become major faults 
-again (since a copy is kept on backing store with swap prefetch). The 
-sp_tester only tests for 1, although it would be easy enough to simply do 
-another big malloc at the end and see how fast it swapped out again as a 
-marker of 2. As for an in-kernel option, it could get kind of expensive 
-tracking pages that have done one or both of these. I'll think about an 
-affordable way to do this, perhaps it could be just done as a 
-debugging/testing patch, but if would be nice to make it cheap enough to have 
-there permanently as well. The pages end up in swap cache (in the reverse 
-direction pages normally get to swap cache) so the accounting could be done 
-somewhere around there.
+For some definition thereof...
 
-> 	Ingo
+Lee
 
-Thanks for comments!
-
--- 
--ck
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
