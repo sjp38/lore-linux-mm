@@ -1,132 +1,80 @@
-From: Andy Whitcroft <apw@shadowen.org>
-Subject: [PATCH 8/8] ppc64: SPARSEMEM_VMEMMAP support
-References: <exportbomb.1179873917@pinky>
-Message-Id: <E1HqdMj-0003hx-S6@hellhawk.shadowen.org>
-Date: Wed, 23 May 2007 00:02:06 +0100
+Subject: Re: [PATCH/RFC] Rework ptep_set_access_flags and fix sun4c
+From: Benjamin Herrenschmidt <benh@kernel.crashing.org>
+In-Reply-To: <Pine.LNX.4.64.0705221738020.22822@blonde.wat.veritas.com>
+References: <Pine.LNX.4.61.0705012354290.12808@mtfhpc.demon.co.uk>
+	 <20070509231937.ea254c26.akpm@linux-foundation.org>
+	 <1178778583.14928.210.camel@localhost.localdomain>
+	 <20070510.001234.126579706.davem@davemloft.net>
+	 <Pine.LNX.4.64.0705142018090.18453@blonde.wat.veritas.com>
+	 <1179176845.32247.107.camel@localhost.localdomain>
+	 <1179212184.32247.163.camel@localhost.localdomain>
+	 <1179757647.6254.235.camel@localhost.localdomain>
+	 <1179815339.32247.799.camel@localhost.localdomain>
+	 <Pine.LNX.4.64.0705221738020.22822@blonde.wat.veritas.com>
+Content-Type: text/plain
+Date: Wed, 23 May 2007 08:59:08 +1000
+Message-Id: <1179874748.32247.868.camel@localhost.localdomain>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
-Cc: linux-arch@vger.kernel.org, Nick Piggin <npiggin@suse.de>, Christoph Lameter <clameter@sgi.com>, Mel Gorman <mel@csn.ul.ie>, Andy Whitcroft <apw@shadowen.org>
+To: Hugh Dickins <hugh@veritas.com>
+Cc: "Tom \"spot\" Callaway" <tcallawa@redhat.com>, David Miller <davem@davemloft.net>, akpm@linux-foundation.org, mark@mtfhpc.demon.co.uk, linuxppc-dev@ozlabs.org, wli@holomorphy.com, linux-mm@kvack.org, andrea@suse.de, sparclinux@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-Enable virtual memmap support for SPARSEMEM on PPC64 systems.
-Slice a 16th off the end of the linear mapping space and use that
-to hold the vmemmap.  Uses the same size mapping as uses in the
-linear 1:1 kernel mapping.
+> Looks pretty good to me.
+> 
+> There was a minor build error in x86 (see below), and ia64 is missing
+> (again see below).  I've now built and am running this on x86, x86_64
+> and powerpc64; but I'm very unlikely to be doing anything which
+> actually tickles these changes, or Andrea's original handle_pte_fault
+> optimization.
 
-Signed-off-by: Andy Whitcroft <apw@shadowen.org>
-Acked-by: Mel Gorman <mel@csn.ul.ie>
----
-diff --git a/arch/powerpc/Kconfig b/arch/powerpc/Kconfig
-index 56d3c0d..282838c 100644
---- a/arch/powerpc/Kconfig
-+++ b/arch/powerpc/Kconfig
-@@ -523,6 +523,14 @@ config ARCH_POPULATES_NODE_MAP
- 
- source "mm/Kconfig"
- 
-+config SPARSEMEM_VMEMMAP
-+	def_bool y
-+	depends on SPARSEMEM
-+
-+config ARCH_POPULATES_SPARSEMEM_VMEMMAP
-+	def_bool y
-+	depends on SPARSEMEM_VMEMMAP
-+
- config ARCH_MEMORY_PROBE
- 	def_bool y
- 	depends on MEMORY_HOTPLUG
-diff --git a/arch/powerpc/mm/init_64.c b/arch/powerpc/mm/init_64.c
-index 7312a26..2e38a43 100644
---- a/arch/powerpc/mm/init_64.c
-+++ b/arch/powerpc/mm/init_64.c
-@@ -183,3 +183,67 @@ void pgtable_cache_init(void)
- 						     NULL);
- 	}
- }
-+
-+#ifdef CONFIG_ARCH_POPULATES_SPARSEMEM_VMEMMAP
-+
-+/*
-+ * Convert an address within the vmemmap into a pfn.  Note that we have
-+ * to do this by hand as the proffered address may not be correctly aligned.
-+ * Subtraction of non-aligned pointers produces undefined results.
-+ */
-+#define VMM_SECTION(addr) \
-+		(((((unsigned long)(addr)) - ((unsigned long)(vmemmap))) / \
-+		sizeof(struct page)) >> PFN_SECTION_SHIFT)
-+#define VMM_SECTION_PAGE(addr)	(VMM_SECTION(addr) << PFN_SECTION_SHIFT)
-+
-+/*
-+ * Check if this vmemmap page is already initialised.  If any section
-+ * which overlaps this vmemmap page is initialised then this page is
-+ * initialised already.
-+ */
-+int __meminit vmemmap_populated(unsigned long start, int page_size)
-+{
-+	unsigned long end = start + page_size;
-+
-+	for (; start < end; start += (PAGES_PER_SECTION * sizeof(struct page)))
-+		if (pfn_valid(VMM_SECTION_PAGE(start)))
-+			return 1;
-+
-+	return 0;
-+}
-+
-+int __meminit vmemmap_populate(struct page *start_page,
-+					unsigned long nr_pages, int node)
-+{
-+	unsigned long mode_rw;
-+	unsigned long start = (unsigned long)start_page;
-+	unsigned long end = (unsigned long)(start_page + nr_pages);
-+	unsigned long page_size = 1 << mmu_psize_defs[mmu_linear_psize].shift;
-+
-+	mode_rw = _PAGE_ACCESSED | _PAGE_DIRTY | _PAGE_COHERENT | PP_RWXX;
-+
-+	/* Align to the page size of the linear mapping. */
-+	start = _ALIGN_DOWN(start, page_size);
-+
-+	for (; start < end; start += page_size) {
-+		int mapped;
-+		void *p;
-+
-+		if (vmemmap_populated(start, page_size))
-+			continue;
-+
-+		p = vmemmap_alloc_block(page_size, node);
-+		if (!p)
-+			return -ENOMEM;
-+
-+		printk(KERN_WARNING "vmemmap %08lx allocated at %p, "
-+					"physical %p.\n", start, p, __pa(p));
-+
-+		mapped = htab_bolt_mapping(start, start + page_size,
-+					__pa(p), mode_rw, mmu_linear_psize);
-+		BUG_ON(mapped < 0);
-+	}
-+
-+	return 0;
-+}
-+#endif
-diff --git a/include/asm-powerpc/pgtable-ppc64.h b/include/asm-powerpc/pgtable-ppc64.h
-index 704c4e6..5943378 100644
---- a/include/asm-powerpc/pgtable-ppc64.h
-+++ b/include/asm-powerpc/pgtable-ppc64.h
-@@ -63,6 +63,14 @@ struct mm_struct;
- #define USER_REGION_ID		(0UL)
- 
- /*
-+ * Defines the address of the vmemap area, in the top 16th of the
-+ * kernel region.
-+ */
-+#define VMEMMAP_BASE (ASM_CONST(CONFIG_KERNEL_START) + \
-+					(0xfUL << (REGION_SHIFT - 4)))
-+#define vmemmap ((struct page *)VMEMMAP_BASE)
-+
-+/*
-  * Common bits in a linux-style PTE.  These match the bits in the
-  * (hardware-defined) PowerPC PTE as closely as possible. Additional
-  * bits may be defined in pgtable-*.h
+Ok.
+
+> Would the "__changed && __dirty" architectures (x86, x86_64, ia64)
+> be better off saying __changed = __dirty && pte_same?  I doubt it's
+> worth bothering about.
+
+I'd say let gcc figure it out :-)
+
+> You've updated do_wp_page to do "if (ptep_set_access_flags(...",
+> but not updated set_huge_ptep_writable in the same way: I'd have
+> thought you'd either leave both alone, or update them both: any
+> reason for one not the other?  But again, not really an issue.
+
+Nah, I must have missed set_huge_ptep_writable(). I don't think the wp
+code path matters much anyway, it's likely to always be different.
+
+> These changes came about because the sun4c needs to update_mmu_cache
+> even in the pte_same case: might it also need to flush_tlb_page then?
+
+Well, I don't know which is why I'm waiting for Tom Callaway to test.
+Davem mentioned update_mmu_cache only though when we discussed the
+problem initially.
+
+> >  #define  __HAVE_ARCH_PTEP_SET_ACCESS_FLAGS
+> >  #define ptep_set_access_flags(vma, address, ptep, entry, dirty)		\
+> > -do {									\
+> > -	if (dirty) {							\
+> > +({									\
+> > +	int __changed = !pte_same(*(__ptep), __entry);			\
+> 
+> That just needs to be:
+> 
+>   +	int __changed = !pte_same(*(ptep), entry);			\
+
+Ah yes, sorry about that. I need to setup an x86 toolchain somewhere :-)
+
+> Here's what I think the ia64 hunk would be, unbuilt and untested.
+
+Ok.
+
+I'll respin a patch later today.
+
+Cheers,
+Ben.
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
