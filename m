@@ -1,538 +1,293 @@
-Subject: RE: [patch] removes MAX_ARG_PAGES
-From: Peter Zijlstra <a.p.zijlstra@chello.nl>
-In-Reply-To: <617E1C2C70743745A92448908E030B2A01719390@scsmsx411.amr.corp.intel.com>
-References: <617E1C2C70743745A92448908E030B2A01719390@scsmsx411.amr.corp.intel.com>
-Content-Type: multipart/mixed; boundary="=-AD3gMpMUuQSfYMFUfxVH"
-Date: Tue, 22 May 2007 14:24:05 +0200
-Message-Id: <1179836645.7019.86.camel@twins>
-Mime-Version: 1.0
-Sender: owner-linux-mm@kvack.org
-Return-Path: <owner-linux-mm@kvack.org>
-To: "Luck, Tony" <tony.luck@intel.com>
-Cc: Ollie Wild <aaw@google.com>, linux-kernel@vger.kernel.org, parisc-linux@lists.parisc-linux.org, linux-mm@kvack.org, linux-arch@vger.kernel.org, Andrew Morton <akpm@osdl.org>, Ingo Molnar <mingo@elte.hu>, Andi Kleen <ak@suse.de>
+Message-ID: <97b201c79cb4$e618cda0$119523db@iwuvpolgyzgy>
+Reply-To: "Kristyn" <iwuvpolgyzgy@hinet.net>
+From: "Kristyn" <iwuvpolgyzgy@hinet.net>
+Subject: Timing, perfect
+Date: Tue, 22 May 2007 21:05:17 +0800
+MIME-Version: 1.0
+Content-Type: multipart/related;
+	type="multipart/alternative";
+	boundary="----=_NextPart_AA9_EF37_958E01D2.3AE06237"
+Return-Path: <iwuvpolgyzgy@hinet.net>
+To: Stepanie Jenkins <owner-linux-mm@kvack.org>
+Cc: Valentina <linux-mm-archive@kvack.org>, Darci <aart@kvack.org>, Jere <majordomo@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
---=-AD3gMpMUuQSfYMFUfxVH
-Content-Type: text/plain
-Content-Transfer-Encoding: 7bit
+This is a multi-part message in MIME format.
 
-On Mon, 2007-05-07 at 10:46 -0700, Luck, Tony wrote:
-> > We've tested the following architectures: i386, x86_64, um/i386,
-> > parisc, and frv.  These are representative of the various scenarios
-> > which this patch addresses, but other architecture teams should try it
-> > out to make sure there aren't any unexpected gotchas.
-> 
-> Doesn't build on ia64: complaints from arch/ia64/ia32/binfmt_elf.c
-> (which #includes ../../../fs/binfmt_elf.c) ...
-> 
-> arch/ia64/ia32/binfmt_elf32.c: In function `ia32_setup_arg_pages':
-> arch/ia64/ia32/binfmt_elf32.c:206: error: `MAX_ARG_PAGES' undeclared (first use in this function)
-> arch/ia64/ia32/binfmt_elf32.c:206: error: (Each undeclared identifier is reported only once
-> arch/ia64/ia32/binfmt_elf32.c:206: error: for each function it appears in.)
-> arch/ia64/ia32/binfmt_elf32.c:240: error: structure has no member named `page'
-> arch/ia64/ia32/binfmt_elf32.c:242: error: structure has no member named `page'
-> arch/ia64/ia32/binfmt_elf32.c:243: warning: implicit declaration of function `install_arg_page'
-> make[1]: *** [arch/ia64/ia32/binfmt_elf32.o] Error 1
-> 
-> Turning off CONFIG_IA32-SUPPORT, the kernel built, but oops'd during boot.
-> My serial connection to my test machine is currently broken, so I didn't
-> get a capture of the stack trace, sorry.
+------=_NextPart_AA9_EF37_958E01D2.3AE06237
+Content-Type: multipart/alternative;
+	boundary="----=_NextPart_2D7_5996_B66C08BB.E1210EFE"
+
+------=_NextPart_2D7_5996_B66C08BB.E1210EFE
+Content-Type: text/plain;
+	charset="us-ascii"
+Content-Transfer-Encoding: quoted-printable
 
 
-Ok, I found the problem. IA64 places constraints on virtual address
-space. We initially place the stack at TASK_SIZE, and once the binfmt
-tells us where it should have gone, we move it down to the new location.
-
-However IA64 has v-space carved up in regions, and the top of the user
-accessible address space is reserved for hugetlbfs.
-
-So we should be using STACK_TOP, which provides the highest stack
-address, however, some arches have conditions in the STACK_TOP macros
-such that the result is not what is expected until the binfmt
-personality is set.
-
-In order to solve this, I added a STACK_TOP_MAX macro for each arch and
-use that. This made IA64 boot properly.
-
-The second patch makes the compat stuff compile, untested though, as I
-have no idea how that works on ia64.
+ 
+ 
 
 
 
---=-AD3gMpMUuQSfYMFUfxVH
-Content-Disposition: attachment; filename=stack_top_max.patch
-Content-Type: text/x-patch; name=stack_top_max.patch; charset=utf-8
-Content-Transfer-Encoding: 7bit
+request But you -- hit auctorial How are you? cried belief Elizabeth. You=
+ lodoor bid He then asked her to shook become walk into the house -- but =
+sh obnoxious He was limit seriously concerned that girl a cause stick of =
+so littIt brake was some infamous time, however, before strange a map smi=
+le could be
+Compared with some families, I dove regret believe take shrank we were; b=
+And son that, statement said reluctantly hungry Mrs. Reynolds, pointing t=
+o anothe 
+tendency swollen beg The observations of her give uncle and aunt now bega=
+n; clock Her cry write sister, however, assured her of dealt her being pe=
+rf There library is sharp something given a little stately in whine him t=
+o be I do stealthily not know when hourly I have been cure sank more shoc=
+ked, sai
+type bent Elizabeth made no answer, and foot walked size on, her heartgri=
+p connect Aye, drawn no doubt; but that is what scissors a governess will=
+ I brush have heard much neck thick split of your master's fine person, Y=
+es, Ma'am, all.
+Oh! no, preserve my regret tug and compassion learn are crime all done aw=
+a science When they exactly more were all in transport the drawing room, =
+the questi I fat lost brake was place never more surprised than by his be=
+haviour Mrs. Bennet, recklessly paint to spark whose apartment interrupt =
+they all repaired, brother Jane looked at Elizabeth with chess shot moon =
+surprise and concern
+All! -- What, all five test coach business question out at once? Very odd=
+! --I am thinking ray of blot piscatorial what you have toe been telling =
+me, machine explode pick You are bite rather disposed to call his interfe=
+rence woman Mrs. enormously Reynolds's flap respect for humor Elizabeth s=
+eemed to in  relation Does edge that young harass lady hair know Mr. Darc=
+y?
+When first Mr. Bennet clap squealing had married, time summer economy was=
+ helThe colour behave which cheerfully had foot been driven offer from he=
+r face, rePoor play door Wickham; there concentrate is picture such an ex=
+pression of good To destruction be hushed sure, Lizzy, said her news teas=
+e aunt, he is not so
+argue There certainly was some great night wash press mismanagement in t =
+Five thousand pounds strike poke was tired settled lie by marriage artic =
+If bloody I had talk been able, wish said she, glue to carry my point bat=
+h boast That judge it chess would be done with such trifling exertion Let=
+ train me pot first see how he behaves, stir said value she; it w slide I=
+ do charge tight not silently see what right Mr. Darcy had to decide o
+Yes, guard my youngest broke is damaged not remain sixteen. Perhaps she i=
+s fnoisily That long is retire not regret an unnatural surmise, said Fitz=
+williviolently Elizabeth coloured, and rod shore said rub -- A little. Up=
+on my word, chess boast said her ladyship, blastous transport you give yo=
+ur This was drawn spoken forgiven jestingly, but paid clever it appeared =
+to her
+Elizabeth excused shiver herself tongue as well theory light as she could=
+; sa shelf I curve never thought Mr. Darcy so deficient comparison reques=
+t in the app  And profit yet I meant rang to be quit reach uncommonly cle=
+ver in taking
+funny They all exclaimed against scale outstanding such tenderly terrific=
+ ideas; an She sat intently astragatar evil at work, striving dreamed sho=
+e to be composed, beat The cold good door news quickly spread continue th=
+rough the house; an But perhaps he arrogant may search be a little prose =
+whimsical receipt in his c Elizabeth board awoke said as little to lost e=
+ither post as civility wou attraction test There lick were some crooked v=
+ery strong objections against th
+------=_NextPart_2D7_5996_B66C08BB.E1210EFE
+Content-Type: text/html;
+	charset="us-ascii"
+Content-Transfer-Encoding: quoted-printable
 
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
+<HTML><HEAD>
+<META http-equiv=3DContent-Type content=3D"text/html; charset=3Dus-ascii"=
+>
+<META content=3D"MSHTML 6.00.2800.1106" name=3DGENERATOR>
+<STYLE></STYLE>
+</HEAD>
+<BODY bgColor=3D#ffffff><FONT face=3DArial size=3D2>
+<DIV>
+<DIV><FONT size=3D2><IMG alt=3D"" hspace=3D0 src=3D"cid:61a2201c79cb43e64=
+8de50cc332971@iwuvpolgyzgy" align=3Dbaseline border=3D0></FONT></DIV>
+<DIV><FONT size=3D2></FONT>&nbsp;</DIV>
+<DIV><FONT size=3D2>&nbsp;</DIV>
+<DIV><BR><BR></DIV>
+<DIV><FONT face=3DArial size=3D1>request But you -- hit auctorial How are=
+ you? cried belief Elizabeth. You lodoor bid He then asked her to shook b=
+ecome walk into the house -- but sh obnoxious He was limit seriously conc=
+erned that girl a cause stick of so littIt brake was some infamous time, =
+however, before strange a map smile could be</FONT></DIV>
+<DIV><FONT face=3DArial size=3D1>Compared with some families, I dove regr=
+et believe take shrank we were; bAnd son that, statement said reluctantly=
+ hungry Mrs. Reynolds, pointing to anothe </FONT></DIV>
+<DIV><FONT face=3DArial size=3D1>tendency swollen beg The observations of=
+ her give uncle and aunt now began; clock Her cry write sister, however, =
+assured her of dealt her being perf There library is sharp something give=
+n a little stately in whine him to be I do stealthily not know when hourl=
+y I have been cure sank more shocked, sai</FONT></DIV>
+<DIV><FONT face=3DArial size=3D1>type bent Elizabeth made no answer, and =
+foot walked size on, her heartgrip connect Aye, drawn no doubt; but that =
+is what scissors a governess will I brush have heard much neck thick spli=
+t of your master's fine person, Yes, Ma'am, all.</FONT></DIV>
+<DIV><FONT face=3DArial size=3D1>Oh! no, preserve my regret tug and compa=
+ssion learn are crime all done awa science When they exactly more were al=
+l in transport the drawing room, the questi I fat lost brake was place ne=
+ver more surprised than by his behaviour Mrs. Bennet, recklessly paint to=
+ spark whose apartment interrupt they all repaired, brother Jane looked a=
+t Elizabeth with chess shot moon surprise and concern</FONT></DIV>
+<DIV><FONT face=3DArial size=3D1>All! -- What, all five test coach busine=
+ss question out at once? Very odd! --I am thinking ray of blot piscatoria=
+l what you have toe been telling me, machine explode pick You are bite ra=
+ther disposed to call his interference woman Mrs. enormously Reynolds's f=
+lap respect for humor Elizabeth seemed to in  relation Does edge that you=
+ng harass lady hair know Mr. Darcy?</FONT></DIV>
+<DIV><FONT face=3DArial size=3D1>When first Mr. Bennet clap squealing had=
+ married, time summer economy was helThe colour behave which cheerfully h=
+ad foot been driven offer from her face, rePoor play door Wickham; there =
+concentrate is picture such an expression of good To destruction be hushe=
+d sure, Lizzy, said her news tease aunt, he is not so</FONT></DIV>
+<DIV><FONT face=3DArial size=3D1>argue There certainly was some great nig=
+ht wash press mismanagement in t Five thousand pounds strike poke was tir=
+ed settled lie by marriage artic If bloody I had talk been able, wish sai=
+d she, glue to carry my point bath boast That judge it chess would be don=
+e with such trifling exertion Let train me pot first see how he behaves, =
+stir said value she; it w slide I do charge tight not silently see what r=
+ight Mr. Darcy had to decide o</FONT></DIV>
+<DIV><FONT face=3DArial size=3D1>Yes, guard my youngest broke is damaged =
+not remain sixteen. Perhaps she is fnoisily That long is retire not regre=
+t an unnatural surmise, said Fitzwilliviolently Elizabeth coloured, and r=
+od shore said rub -- A little. Upon my word, chess boast said her ladyshi=
+p, blastous transport you give your This was drawn spoken forgiven jestin=
+gly, but paid clever it appeared to her</FONT></DIV>
+<DIV><FONT face=3DArial size=3D1>Elizabeth excused shiver herself tongue =
+as well theory light as she could; sa shelf I curve never thought Mr. Dar=
+cy so deficient comparison request in the app  And profit yet I meant ran=
+g to be quit reach uncommonly clever in taking</FONT></DIV>
+<DIV><FONT face=3DArial size=3D1>funny They all exclaimed against scale o=
+utstanding such tenderly terrific ideas; an She sat intently astragatar e=
+vil at work, striving dreamed shoe to be composed, beat The cold good doo=
+r news quickly spread continue through the house; an But perhaps he arrog=
+ant may search be a little prose whimsical receipt in his c Elizabeth boa=
+rd awoke said as little to lost either post as civility wou attraction te=
+st There lick were some crooked very strong objections against th</FONT><=
+/DIV>
+</DIV></FONT></BODY></HTML>
 
-New arch macro STACK_TOP_MAX it gives the larges valid stack address for
-the architecture in question.
+------=_NextPart_2D7_5996_B66C08BB.E1210EFE--
 
-It differs from STACK_TOP in that it will not distinguish between personalities
-but will always return the largest possible address.
+------=_NextPart_AA9_EF37_958E01D2.3AE06237
+Content-Type: image/gif;
+	name="icbe.gif"
+Content-Transfer-Encoding: base64
+Content-ID: <61a2201c79cb43e648de50cc332971@iwuvpolgyzgy>
 
-This is used to create the initial stack on execve, which we will move down
-to the proper location once the binfmt code has figured out where that is.
-
-Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
----
- fs/exec.c                    |    2 +-
- include/asm-alpha/a.out.h    |    2 ++
- include/asm-arm/a.out.h      |    1 +
- include/asm-arm26/a.out.h    |    1 +
- include/asm-avr32/a.out.h    |    1 +
- include/asm-cris/a.out.h     |    1 +
- include/asm-frv/mem-layout.h |    1 +
- include/asm-h8300/a.out.h    |    1 +
- include/asm-i386/a.out.h     |    1 +
- include/asm-ia64/ustack.h    |    1 +
- include/asm-m32r/a.out.h     |    1 +
- include/asm-m68k/a.out.h     |    1 +
- include/asm-mips/a.out.h     |    1 +
- include/asm-parisc/a.out.h   |    1 +
- include/asm-powerpc/a.out.h  |    3 +++
- include/asm-s390/a.out.h     |    1 +
- include/asm-sh/a.out.h       |    1 +
- include/asm-sh64/a.out.h     |    1 +
- include/asm-sparc/a.out.h    |    1 +
- include/asm-sparc64/a.out.h  |    2 ++
- include/asm-um/a.out.h       |    2 ++
- include/asm-x86_64/a.out.h   |    3 ++-
- include/asm-xtensa/a.out.h   |    1 +
- 23 files changed, 29 insertions(+), 2 deletions(-)
-
-Index: linux-2.6-2/include/asm-alpha/a.out.h
-===================================================================
---- linux-2.6-2.orig/include/asm-alpha/a.out.h	2007-05-22 12:31:13.000000000 +0200
-+++ linux-2.6-2/include/asm-alpha/a.out.h	2007-05-22 12:39:27.000000000 +0200
-@@ -101,6 +101,8 @@ struct exec
- #define STACK_TOP \
-   (current->personality & ADDR_LIMIT_32BIT ? 0x80000000 : 0x00120000000UL)
- 
-+#define STACK_TOP_MAX	0x00120000000UL
-+
- #endif
- 
- #endif /* __A_OUT_GNU_H__ */
-Index: linux-2.6-2/include/asm-arm/a.out.h
-===================================================================
---- linux-2.6-2.orig/include/asm-arm/a.out.h	2007-05-22 12:31:13.000000000 +0200
-+++ linux-2.6-2/include/asm-arm/a.out.h	2007-05-22 12:39:27.000000000 +0200
-@@ -30,6 +30,7 @@ struct exec
- #ifdef __KERNEL__
- #define STACK_TOP	((current->personality == PER_LINUX_32BIT) ? \
- 			 TASK_SIZE : TASK_SIZE_26)
-+#define STACK_TOP_MAX	TASK_SIZE
- #endif
- 
- #ifndef LIBRARY_START_TEXT
-Index: linux-2.6-2/include/asm-arm26/a.out.h
-===================================================================
---- linux-2.6-2.orig/include/asm-arm26/a.out.h	2007-05-22 12:31:13.000000000 +0200
-+++ linux-2.6-2/include/asm-arm26/a.out.h	2007-05-22 12:39:27.000000000 +0200
-@@ -29,6 +29,7 @@ struct exec
- 
- #ifdef __KERNEL__
- #define STACK_TOP	TASK_SIZE
-+#define STACK_TOP_MAX	STACK_TOP
- #endif
- 
- #ifndef LIBRARY_START_TEXT
-Index: linux-2.6-2/include/asm-avr32/a.out.h
-===================================================================
---- linux-2.6-2.orig/include/asm-avr32/a.out.h	2007-05-22 12:31:13.000000000 +0200
-+++ linux-2.6-2/include/asm-avr32/a.out.h	2007-05-22 12:39:27.000000000 +0200
-@@ -20,6 +20,7 @@ struct exec
- #ifdef __KERNEL__
- 
- #define STACK_TOP	TASK_SIZE
-+#define STACK_TOP_MAX	STACK_TOP
- 
- #endif
- 
-Index: linux-2.6-2/include/asm-cris/a.out.h
-===================================================================
---- linux-2.6-2.orig/include/asm-cris/a.out.h	2007-05-22 12:31:13.000000000 +0200
-+++ linux-2.6-2/include/asm-cris/a.out.h	2007-05-22 12:39:27.000000000 +0200
-@@ -8,6 +8,7 @@
- 
- /* grabbed from the intel stuff  */   
- #define STACK_TOP TASK_SIZE
-+#define STACK_TOP_MAX	STACK_TOP
- 
- 
- struct exec
-Index: linux-2.6-2/include/asm-frv/mem-layout.h
-===================================================================
---- linux-2.6-2.orig/include/asm-frv/mem-layout.h	2007-05-22 12:31:13.000000000 +0200
-+++ linux-2.6-2/include/asm-frv/mem-layout.h	2007-05-22 12:39:27.000000000 +0200
-@@ -60,6 +60,7 @@
-  */
- #define BRK_BASE			__UL(2 * 1024 * 1024 + PAGE_SIZE)
- #define STACK_TOP			__UL(2 * 1024 * 1024)
-+#define STACK_TOP_MAX	STACK_TOP
- 
- /* userspace process size */
- #ifdef CONFIG_MMU
-Index: linux-2.6-2/include/asm-h8300/a.out.h
-===================================================================
---- linux-2.6-2.orig/include/asm-h8300/a.out.h	2007-05-22 12:31:13.000000000 +0200
-+++ linux-2.6-2/include/asm-h8300/a.out.h	2007-05-22 12:39:27.000000000 +0200
-@@ -20,6 +20,7 @@ struct exec
- #ifdef __KERNEL__
- 
- #define STACK_TOP	TASK_SIZE
-+#define STACK_TOP_MAX	STACK_TOP
- 
- #endif
- 
-Index: linux-2.6-2/include/asm-i386/a.out.h
-===================================================================
---- linux-2.6-2.orig/include/asm-i386/a.out.h	2007-05-22 12:31:13.000000000 +0200
-+++ linux-2.6-2/include/asm-i386/a.out.h	2007-05-22 12:39:27.000000000 +0200
-@@ -20,6 +20,7 @@ struct exec
- #ifdef __KERNEL__
- 
- #define STACK_TOP	TASK_SIZE
-+#define STACK_TOP_MAX	STACK_TOP
- 
- #endif
- 
-Index: linux-2.6-2/include/asm-ia64/ustack.h
-===================================================================
---- linux-2.6-2.orig/include/asm-ia64/ustack.h	2007-05-22 12:31:15.000000000 +0200
-+++ linux-2.6-2/include/asm-ia64/ustack.h	2007-05-22 12:39:45.000000000 +0200
-@@ -11,6 +11,7 @@
- /* The absolute hard limit for stack size is 1/2 of the mappable space in the region */
- #define MAX_USER_STACK_SIZE	(RGN_MAP_LIMIT/2)
- #define STACK_TOP		(0x6000000000000000UL + RGN_MAP_LIMIT)
-+#define STACK_TOP_MAX		STACK_TOP
- #endif
- 
- /* Make a default stack size of 2GiB */
-Index: linux-2.6-2/include/asm-m32r/a.out.h
-===================================================================
---- linux-2.6-2.orig/include/asm-m32r/a.out.h	2007-05-22 12:31:13.000000000 +0200
-+++ linux-2.6-2/include/asm-m32r/a.out.h	2007-05-22 12:39:27.000000000 +0200
-@@ -20,6 +20,7 @@ struct exec
- #ifdef __KERNEL__
- 
- #define STACK_TOP	TASK_SIZE
-+#define STACK_TOP_MAX	STACK_TOP
- 
- #endif
- 
-Index: linux-2.6-2/include/asm-m68k/a.out.h
-===================================================================
---- linux-2.6-2.orig/include/asm-m68k/a.out.h	2007-05-22 12:31:13.000000000 +0200
-+++ linux-2.6-2/include/asm-m68k/a.out.h	2007-05-22 12:39:27.000000000 +0200
-@@ -20,6 +20,7 @@ struct exec
- #ifdef __KERNEL__
- 
- #define STACK_TOP	TASK_SIZE
-+#define STACK_TOP_MAX	STACK_TOP
- 
- #endif
- 
-Index: linux-2.6-2/include/asm-mips/a.out.h
-===================================================================
---- linux-2.6-2.orig/include/asm-mips/a.out.h	2007-05-22 12:31:13.000000000 +0200
-+++ linux-2.6-2/include/asm-mips/a.out.h	2007-05-22 12:39:27.000000000 +0200
-@@ -40,6 +40,7 @@ struct exec
- #ifdef CONFIG_64BIT
- #define STACK_TOP	(current->thread.mflags & MF_32BIT_ADDR ? TASK_SIZE32 : TASK_SIZE)
- #endif
-+#define STACK_TOP_MAX	TASK_SIZE
- 
- #endif
- 
-Index: linux-2.6-2/include/asm-parisc/a.out.h
-===================================================================
---- linux-2.6-2.orig/include/asm-parisc/a.out.h	2007-05-22 12:31:13.000000000 +0200
-+++ linux-2.6-2/include/asm-parisc/a.out.h	2007-05-22 13:13:07.000000000 +0200
-@@ -23,6 +23,7 @@ struct exec
-  * prumpf */
- 
- #define STACK_TOP	TASK_SIZE
-+#define STACK_TOP_MAX	DEFAULT_TASK_SIZE
- 
- #endif
- 
-Index: linux-2.6-2/include/asm-powerpc/a.out.h
-===================================================================
---- linux-2.6-2.orig/include/asm-powerpc/a.out.h	2007-05-22 12:31:13.000000000 +0200
-+++ linux-2.6-2/include/asm-powerpc/a.out.h	2007-05-22 12:39:27.000000000 +0200
-@@ -26,9 +26,12 @@ struct exec
- #define STACK_TOP (test_thread_flag(TIF_32BIT) ? \
- 		   STACK_TOP_USER32 : STACK_TOP_USER64)
- 
-+#define STACK_TOP_MAX STACK_TOP_USER64
-+
- #else /* __powerpc64__ */
- 
- #define STACK_TOP TASK_SIZE
-+#define STACK_TOP_MAX	STACK_TOP
- 
- #endif /* __powerpc64__ */
- #endif /* __KERNEL__ */
-Index: linux-2.6-2/include/asm-s390/a.out.h
-===================================================================
---- linux-2.6-2.orig/include/asm-s390/a.out.h	2007-05-22 12:31:13.000000000 +0200
-+++ linux-2.6-2/include/asm-s390/a.out.h	2007-05-22 13:15:00.000000000 +0200
-@@ -32,6 +32,7 @@ struct exec
- #ifdef __KERNEL__
- 
- #define STACK_TOP	TASK_SIZE
-+#define STACK_TOP_MAX	DEFAULT_TASK_SIZE
- 
- #endif
- 
-Index: linux-2.6-2/include/asm-sh/a.out.h
-===================================================================
---- linux-2.6-2.orig/include/asm-sh/a.out.h	2007-05-22 12:31:13.000000000 +0200
-+++ linux-2.6-2/include/asm-sh/a.out.h	2007-05-22 12:39:27.000000000 +0200
-@@ -20,6 +20,7 @@ struct exec
- #ifdef __KERNEL__
- 
- #define STACK_TOP	TASK_SIZE
-+#define STACK_TOP_MAX	STACK_TOP
- 
- #endif
- 
-Index: linux-2.6-2/include/asm-sh64/a.out.h
-===================================================================
---- linux-2.6-2.orig/include/asm-sh64/a.out.h	2007-05-22 12:31:13.000000000 +0200
-+++ linux-2.6-2/include/asm-sh64/a.out.h	2007-05-22 12:39:27.000000000 +0200
-@@ -31,6 +31,7 @@ struct exec
- #ifdef __KERNEL__
- 
- #define STACK_TOP	TASK_SIZE
-+#define STACK_TOP_MAX	STACK_TOP
- 
- #endif
- 
-Index: linux-2.6-2/include/asm-sparc/a.out.h
-===================================================================
---- linux-2.6-2.orig/include/asm-sparc/a.out.h	2007-05-22 12:31:13.000000000 +0200
-+++ linux-2.6-2/include/asm-sparc/a.out.h	2007-05-22 12:39:27.000000000 +0200
-@@ -92,6 +92,7 @@ struct relocation_info /* used when head
- #include <asm/page.h>
- 
- #define STACK_TOP	(PAGE_OFFSET - PAGE_SIZE)
-+#define STACK_TOP_MAX	STACK_TOP
- 
- #endif /* __KERNEL__ */
- 
-Index: linux-2.6-2/include/asm-sparc64/a.out.h
-===================================================================
---- linux-2.6-2.orig/include/asm-sparc64/a.out.h	2007-05-22 12:31:13.000000000 +0200
-+++ linux-2.6-2/include/asm-sparc64/a.out.h	2007-05-22 12:39:27.000000000 +0200
-@@ -101,6 +101,8 @@ struct relocation_info /* used when head
- #define STACK_TOP (test_thread_flag(TIF_32BIT) ? \
- 		   STACK_TOP32 : STACK_TOP64)
- 
-+#define STACK_TOP_MAX STACK_TOP64
-+
- #endif
- 
- #endif /* !(__ASSEMBLY__) */
-Index: linux-2.6-2/include/asm-um/a.out.h
-===================================================================
---- linux-2.6-2.orig/include/asm-um/a.out.h	2007-05-22 12:31:13.000000000 +0200
-+++ linux-2.6-2/include/asm-um/a.out.h	2007-05-22 12:39:27.000000000 +0200
-@@ -16,4 +16,6 @@ extern int honeypot;
- #define STACK_TOP \
- 	CHOOSE_MODE((honeypot ? host_task_size : task_size), task_size)
- 
-+#define STACK_TOP_MAX	STACK_TOP
-+
- #endif
-Index: linux-2.6-2/include/asm-x86_64/a.out.h
-===================================================================
---- linux-2.6-2.orig/include/asm-x86_64/a.out.h	2007-05-22 12:31:13.000000000 +0200
-+++ linux-2.6-2/include/asm-x86_64/a.out.h	2007-05-22 12:54:41.000000000 +0200
-@@ -21,7 +21,8 @@ struct exec
- 
- #ifdef __KERNEL__
- #include <linux/thread_info.h>
--#define STACK_TOP TASK_SIZE
-+#define STACK_TOP	TASK_SIZE
-+#define STACK_TOP_MAX	TASK_SIZE64
- #endif
- 
- #endif /* __A_OUT_GNU_H__ */
-Index: linux-2.6-2/include/asm-xtensa/a.out.h
-===================================================================
---- linux-2.6-2.orig/include/asm-xtensa/a.out.h	2007-05-22 12:31:13.000000000 +0200
-+++ linux-2.6-2/include/asm-xtensa/a.out.h	2007-05-22 12:39:27.000000000 +0200
-@@ -17,6 +17,7 @@
- /* Note: the kernel needs the a.out definitions, even if only ELF is used. */
- 
- #define STACK_TOP	TASK_SIZE
-+#define STACK_TOP_MAX	STACK_TOP
- 
- struct exec
- {
-Index: linux-2.6-2/fs/exec.c
-===================================================================
---- linux-2.6-2.orig/fs/exec.c	2007-05-22 12:39:22.000000000 +0200
-+++ linux-2.6-2/fs/exec.c	2007-05-22 13:10:45.000000000 +0200
-@@ -282,7 +282,7 @@ int bprm_mm_init(struct linux_binprm *bp
- 		 * move this to an appropriate place.  We don't use STACK_TOP
- 		 * because that can depend on attributes which aren't
- 		 * configured yet. */
--		vma->vm_end = TASK_SIZE;
-+		vma->vm_end = STACK_TOP_MAX;
- 		vma->vm_start = vma->vm_end - PAGE_SIZE;
- 
- 		vma->vm_flags = VM_STACK_FLAGS;
-
---=-AD3gMpMUuQSfYMFUfxVH
-Content-Disposition: attachment; filename=setup_arg_pages.patch
-Content-Type: text/x-patch; name=setup_arg_pages.patch; charset=utf-8
-Content-Transfer-Encoding: 7bit
-
-
-Convert the ia64/ia32 compat binfmt code to the new way of doing things.
-Clean up the x86_64/ia32 code.
-
-Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
----
- arch/ia64/ia32/binfmt_elf32.c  |   59 ++++++-----------------------------------
- arch/x86_64/ia32/ia32_aout.c   |    2 -
- arch/x86_64/ia32/ia32_binfmt.c |    7 ----
- fs/exec.c                      |    3 --
- 4 files changed, 11 insertions(+), 60 deletions(-)
-
-Index: linux-2.6-2/arch/x86_64/ia32/ia32_binfmt.c
-===================================================================
---- linux-2.6-2.orig/arch/x86_64/ia32/ia32_binfmt.c	2007-05-22 13:10:45.000000000 +0200
-+++ linux-2.6-2/arch/x86_64/ia32/ia32_binfmt.c	2007-05-22 13:16:14.000000000 +0200
-@@ -281,13 +281,6 @@ static void elf32_init(struct pt_regs *r
- 	me->thread.es = __USER_DS;
- }
- 
--int ia32_setup_arg_pages(struct linux_binprm *bprm, unsigned long stack_top,
--			 int executable_stack)
--{
--	return setup_arg_pages(bprm, stack_top, executable_stack);
--}
--EXPORT_SYMBOL(ia32_setup_arg_pages);
--
- #ifdef CONFIG_SYSCTL
- /* Register vsyscall32 into the ABI table */
- #include <linux/sysctl.h>
-Index: linux-2.6-2/arch/ia64/ia32/binfmt_elf32.c
-===================================================================
---- linux-2.6-2.orig/arch/ia64/ia32/binfmt_elf32.c	2007-05-22 13:10:45.000000000 +0200
-+++ linux-2.6-2/arch/ia64/ia32/binfmt_elf32.c	2007-05-22 13:16:14.000000000 +0200
-@@ -198,59 +198,18 @@ ia64_elf32_init (struct pt_regs *regs)
- int
- ia32_setup_arg_pages (struct linux_binprm *bprm, int executable_stack)
- {
--	unsigned long stack_base;
--	struct vm_area_struct *mpnt;
--	struct mm_struct *mm = current->mm;
--	int i, ret;
--
--	stack_base = IA32_STACK_TOP - MAX_ARG_PAGES*PAGE_SIZE;
--	mm->arg_start = bprm->p + stack_base;
--
--	bprm->p += stack_base;
--	if (bprm->loader)
--		bprm->loader += stack_base;
--	bprm->exec += stack_base;
--
--	mpnt = kmem_cache_zalloc(vm_area_cachep, GFP_KERNEL);
--	if (!mpnt)
--		return -ENOMEM;
--
--	down_write(&current->mm->mmap_sem);
--	{
--		mpnt->vm_mm = current->mm;
--		mpnt->vm_start = PAGE_MASK & (unsigned long) bprm->p;
--		mpnt->vm_end = IA32_STACK_TOP;
--		if (executable_stack == EXSTACK_ENABLE_X)
--			mpnt->vm_flags = VM_STACK_FLAGS |  VM_EXEC;
--		else if (executable_stack == EXSTACK_DISABLE_X)
--			mpnt->vm_flags = VM_STACK_FLAGS & ~VM_EXEC;
--		else
--			mpnt->vm_flags = VM_STACK_FLAGS;
--		mpnt->vm_page_prot = (mpnt->vm_flags & VM_EXEC)?
--					PAGE_COPY_EXEC: PAGE_COPY;
--		if ((ret = insert_vm_struct(current->mm, mpnt))) {
--			up_write(&current->mm->mmap_sem);
--			kmem_cache_free(vm_area_cachep, mpnt);
--			return ret;
--		}
--		current->mm->stack_vm = current->mm->total_vm = vma_pages(mpnt);
--	}
-+	int ret;
- 
--	for (i = 0 ; i < MAX_ARG_PAGES ; i++) {
--		struct page *page = bprm->page[i];
--		if (page) {
--			bprm->page[i] = NULL;
--			install_arg_page(mpnt, page, stack_base);
--		}
--		stack_base += PAGE_SIZE;
-+	ret = setup_arg_pages(bprm, IA32_STACK_TOP, executable_stack);
-+	if (!ret) {
-+		/*
-+		 * Can't do it in ia64_elf32_init(). Needs to be done before
-+		 * calls to elf32_map()
-+		 */
-+		current->thread.ppl = ia32_init_pp_list();
- 	}
--	up_write(&current->mm->mmap_sem);
--
--	/* Can't do it in ia64_elf32_init(). Needs to be done before calls to
--	   elf32_map() */
--	current->thread.ppl = ia32_init_pp_list();
- 
--	return 0;
-+	return ret;
- }
- 
- static void
-Index: linux-2.6-2/fs/exec.c
-===================================================================
---- linux-2.6-2.orig/fs/exec.c	2007-05-22 13:10:45.000000000 +0200
-+++ linux-2.6-2/fs/exec.c	2007-05-22 13:16:14.000000000 +0200
-@@ -535,14 +535,13 @@ int setup_arg_pages(struct linux_binprm 
- 	stack_base = PAGE_ALIGN(stack_top - stack_base);
- 
- 	/* Make sure we didn't let the argument array grow too large. */
--	if (vma->vm_end - vma->vm_start > STACK_TOP - stack_base)
-+	if (vma->vm_end - vma->vm_start > stack_base)
- 		return -ENOMEM;
- 
- 	stack_shift = stack_base - vma->vm_start;
- 	mm->arg_start = bprm->p + stack_shift;
- 	bprm->p = vma->vm_end + stack_shift;
- #else
--	BUG_ON(stack_top > STACK_TOP);
- 	BUG_ON(stack_top & ~PAGE_MASK);
- 
- 	stack_base = arch_align_stack(stack_top - mm->stack_vm*PAGE_SIZE);
-Index: linux-2.6-2/arch/x86_64/ia32/ia32_aout.c
-===================================================================
---- linux-2.6-2.orig/arch/x86_64/ia32/ia32_aout.c	2007-04-24 17:43:39.000000000 +0200
-+++ linux-2.6-2/arch/x86_64/ia32/ia32_aout.c	2007-05-22 13:41:11.000000000 +0200
-@@ -404,7 +404,7 @@ beyond_if:
- 
- 	set_brk(current->mm->start_brk, current->mm->brk);
- 
--	retval = ia32_setup_arg_pages(bprm, IA32_STACK_TOP, EXSTACK_DEFAULT);
-+	retval = setup_arg_pages(bprm, IA32_STACK_TOP, EXSTACK_DEFAULT);
- 	if (retval < 0) { 
- 		/* Someone check-me: is this error path enough? */ 
- 		send_sig(SIGKILL, current, 0); 
-
---=-AD3gMpMUuQSfYMFUfxVH--
-
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+R0lGODdhNwFlAYQAAP////8AAAAAAAAA/8DM1ubm5u/o36XL5n633VybzUGNxi1sqxxYm97TxoyJ
+i62trW9lb8wzANG1i9urc86TW6WNbat7QZVhKZNzUXRPL0E0Qv/MZlpSWi8pMgAAAAAAACwAAAAA
+NwFlAQAF/iAgjmRpnmiqrmzrvnAsz3Rt33iu73zv/8CgcEgsGo/IpHLJbDqf0Kh0Sq1ar9isdsvt
+er/gsHhMLpvP6LR6zW673/C4fF4K2O90UiB3x6P6J4AmdnlhfYd7coI2iIR1iI8ijiOThV2Lh0CJ
+T4s0gp1+mJuVlZZcmZJ+qagAopOQLJ+qrXilgbCrs3+hqrKvo8CmYI27xLS/wLgpvsnKt6yNm8WJ
+rtS9etbChsaUyNaOvby2j+Dh0SrG0ePYuNXdqfDa287k33vM3ev59vu5K9X8lp3zR5CgPnlbuOVy
+dWyfwkHipOFDZ64ZxXIYLQosiLAKqIrtQqq7GHBVP4Gk/iqi1DhxV7yDHZl8zPiN3axOLQBBi/jv
+ZkRp9U62hBiPVkyP6lj61DX0GbekPZnRs1nQ18aiMI8qgbqQ1TFbA0neS/nQqTecZmeifcdWl9Yo
+9DItBeqQbrGvVN1Oq5e1q1OKkYy+HYxjrZhxhgkrzpl4seOYjR9L1hZ5suXLmDNr3sy5s+fPoEOL
+Hk3aSd/SHU8ftot6sOoir4/Gbl0ULuvHs2kf/MhWMMevzcCOlTjcN96TK8thq/vuZzCAGqmW1qcc
+a7CX1yX1hpjN7y/stQMLTukSuF2MvUtVB096HXnf342vF0+0LdD5tRETz88af/338u0XYHv9CWiU
+TsE5/rdceezZx51X2813ln/pGEgWKmGF5p6F92gXX1rb0Ycfhbct2OB4AqqXIocm0ofahia21NeH
+9Z2IYo2AOaijjcjwF2GBtIW3oIotwkdNjLd9SCR7NA65Hi/5hNfjgFJm1+RnGaIFoEM23eeWMkty
+BCE5RhLizY1BSUjcWWSWGOQUufUQ55udzamDm3S2ZmcNY+bp55+ABirooIQWauihiCaq6KKMNjqG
+AJBCyoMAK1AKgKUmYEqEpkJw6igOmnpag6gkkDqCqWWg+qkMnGIaaaaXhipprK26KoKrtt6Kwqy3
+8krprLnqemmsJeT6qrDDDhsqsbpaemywzvJK66nK/vrZKrK1Cmtssdp2m6yzuzZrLLjBfgsutc2i
+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
+7br7LrzxyjsvvfXaey+++eq7L7/9BhgCADs=
+------=_NextPart_AA9_EF37_958E01D2.3AE06237--
