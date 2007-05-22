@@ -1,42 +1,55 @@
-Date: Tue, 22 May 2007 11:44:17 +0200 (CEST)
-From: Geert Uytterhoeven <geert@linux-m68k.org>
-Subject: Re: [rfc] increase struct page size?!
-In-Reply-To: <Pine.LNX.4.64.0705211737450.24160@schroedinger.engr.sgi.com>
-Message-ID: <Pine.LNX.4.64.0705221142340.11196@anakin>
-References: <20070518040854.GA15654@wotan.suse.de>
- <Pine.LNX.4.64.0705191121480.17008@schroedinger.engr.sgi.com>
- <464FCA28.9040009@cosmosbay.com> <200705201456.26283.ak@suse.de>
- <Pine.LNX.4.64.0705211006550.26282@schroedinger.engr.sgi.com>
- <20070522093050.0320d092.kamezawa.hiroyu@jp.fujitsu.com>
- <Pine.LNX.4.64.0705211737450.24160@schroedinger.engr.sgi.com>
+Received: by an-out-0708.google.com with SMTP id c10so452528ana
+        for <linux-mm@kvack.org>; Tue, 22 May 2007 03:15:30 -0700 (PDT)
+Message-ID: <5486cca80705220315oe4a42a2x366cff682333075c@mail.gmail.com>
+Date: Tue, 22 May 2007 12:15:30 +0200
+From: "Antonino Ingargiola" <tritemio@gmail.com>
+Subject: Re: [PATCH] mm: swap prefetch improvements
+In-Reply-To: <20070521160029.GA28715@elte.hu>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+References: <20070430162007.ad46e153.akpm@linux-foundation.org>
+	 <200705121446.04191.kernel@kolivas.org>
+	 <20070521100320.GA1801@elte.hu>
+	 <200705212344.27511.kernel@kolivas.org>
+	 <20070521160029.GA28715@elte.hu>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, ak@suse.de, dada1@cosmosbay.com, wli@holomorphy.com, npiggin@suse.de, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-arch@vger.kernel.org
+To: Ingo Molnar <mingo@elte.hu>
+Cc: Con Kolivas <kernel@kolivas.org>, Nick Piggin <nickpiggin@yahoo.com.au>, Ray Lee <ray-lk@madrabbit.org>, ck list <ck@vds.kolivas.org>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 21 May 2007, Christoph Lameter wrote:
-> On Tue, 22 May 2007, KAMEZAWA Hiroyuki wrote:
-> > For i386(32bit arch), there is not enough space for vmemmap.
-> 
-> I thought 32 bit would use flatmem? Is memory really sparse on 32 
-> bit? Likely difficult due to lack of address space?
+2007/5/21, Ingo Molnar <mingo@elte.hu>:
+>
+> * Con Kolivas <kernel@kolivas.org> wrote:
+>
+> > > A suggestion for improvement: right now swap-prefetch does a small
+> > > bit of swapin every 5 seconds and stays idle inbetween. Could this
+> > > perhaps be made more agressive (optionally perhaps), if the system
+> > > is not swapping otherwise? If block-IO level instrumentation is
+> > > needed to determine idleness of block IO then that is justified too
+> > > i think.
+> >
+> > Hmm.. The timer waits 5 seconds before trying to prefetch, but then
+> > only stops if it detects any activity elsewhere. It doesn't actually
+> > try to go idle in between but it doesn't take much activity to put it
+> > back to sleep, hence detecting yet another "not quite idle" period and
+> > then it goes to sleep again. I guess the sleep interval can actually
+> > be changed as another tunable from 5 seconds to whatever the user
+> > wanted.
+>
+> there was nothing else running on the system - so i suspect the swapin
+> activity flagged 'itself' as some 'other' activity and stopped? The
+> swapins happened in 4 bursts, separated by 5 seconds total idleness.
 
-Throwing in more crazy comments: many m68k boxes have really sparse memory, due
-to lack of memory and large address space.
+I've noted burst swapins separated by some seconds of pause in my
+desktop system too (with sp_tester and an idle gnome).
 
-Gr{oetje,eeting}s,
 
-						Geert
+Regards,
 
---
-Geert Uytterhoeven -- There's lots of Linux beyond ia32 -- geert@linux-m68k.org
-
-In personal conversations with technical people, I call myself a hacker. But
-when I'm talking to journalists I just say "programmer" or something like that.
-							    -- Linus Torvalds
+    ~ Antonio
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
