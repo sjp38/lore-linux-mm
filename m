@@ -1,12 +1,12 @@
 Received: from attica.americas.sgi.com (attica.americas.sgi.com [128.162.236.44])
-	by netops-testserver-4.corp.sgi.com (Postfix) with ESMTP id 9906461B49
+	by netops-testserver-4.corp.sgi.com (Postfix) with ESMTP id A205C61B5C
 	for <linux-mm@kvack.org>; Tue, 22 May 2007 13:53:00 -0700 (PDT)
 Date: Tue, 22 May 2007 15:53:00 -0500
-Subject: [PATCH 1/1] hotplug cpu: cpusets/sched_domain reconciliation
+Subject: [PATCH 1/1] hotplug cpu: move tasks in empty cpusets to parent
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Transfer-Encoding: 7bit
-Message-Id: <20070522205300.5D43A371894@attica.americas.sgi.com>
+Message-Id: <20070522205300.6C18D371895@attica.americas.sgi.com>
 From: cpw@sgi.com (Cliff Wickman)
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
@@ -14,179 +14,219 @@ To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
 
-This patch reconciles cpusets and sched_domains that get out of sync
-due to hotplug disabling and re-enabling of cpu's.
+This patch corrects a situation that occurs when one disables all the cpus
+in a cpuset.
 
-Here is an example of how the problem can occur:
+At that point, any tasks in that cpuset were incorrectly moved.
+(Disabling all cpus in a cpuset caused it to inherit the cpus
+ of its parent, which may overlap its exclusive sibling.)
 
-   system of cpu's 0-31
-   create cpuset /x  16-31
-   create cpuset /x/y  16-23
-   all cpu_exclusive
+Such tasks should be moved to the parent of their current cpuset. Or if the
+parent cpuset has no cpus, to its parent, etc.
 
-   disable cpu 17
-     x is now    16,18-31
-     x/y is now 16,18-23
-   enable cpu 17
-     x and x/y are unchanged
+And the empty cpuset should be removed (if it is flagged notify_on_release).
 
-   to restore the cpusets:
-     echo 16-31 > /dev/cpuset/x
-     echo 16-23 > /dev/cpuset/x/y
+This patch uses a workqueue thread to call the function that deletes the cpuset.
+That way we avoid the complexity of the cpuset locks.
 
-   At the first echo, update_cpu_domains() is called for cpuset x/.
-
-   The system is partitioned between:
-	its parent, the root cpuset of 0-31, minus its
-				    children (x/ is 16-31): 0-15
-        and x/ (16-31), minus its children (x/y/ 16,18-23): 17,24-31
-
-   The sched_domain's for parent 0-15 are updated.
-   The sched_domain's for current 17,24-31 are updated.
-
-   But 16 has been untouched.
-   As a result, 17's SD points to sched_group_phys[17] which is the only
-   sched_group_phys on 17's list.  It points to itself.
-   But 16's SD points to sched_group_phys[16], which still points to
-   sched_group_phys[17].
-   When cpu 16 executes find_busiest_group() it will hang on the non-
-   circular sched_group list.
-           
-This solution is to update the sched_domain's for the cpuset
-whose cpu's were changed and, in addition, all its children.
-Instead of calling update_cpu_domains(), call update_cpu_domains_tree(),
-which calls update_cpu_domains() for every node from the one specified
-down to all its children.
-
-The extra sched_domain reconstruction is overhead, but only at the
-frequency of administrative change to the cpuset.
-
-There seems to be no administrative procedural work-around.  In the
-example above one could not reverse the two echo's and set x/y before
-x/.  It is not logical, so not allowed (Permission denied).
-
-Thus the patch to cpuset.c makes the sched_domain's correct.
-
-This patch also includes checks in find_busiest_group() and
-find_idlest_group() that break from their loops on a sched_group that
-points to itself.  This is needed because cpu's are going through
-load balancing before all sched_domains have been reconstructed (see
-the example above).
-
-Thus the patch to sched.c prevents the hangs that would otherwise occur
-until the sched_domain's are made correct.
+(I've been working with Paul Jackson on this patch, and there is still a
+ little functional subtlety to work out. Can be tweaked later.)
 
 Diffed against 2.6.21
 
 Signed-off-by: Cliff Wickman <cpw@sgi.com>
 
 ---
- kernel/cpuset.c |   43 +++++++++++++++++++++++++++++++++++++++----
- kernel/sched.c  |   18 ++++++++++++++----
- 2 files changed, 53 insertions(+), 8 deletions(-)
+ kernel/cpuset.c |  221 ++++++++++++++++++++++++++++++++++++++++++++++++--------
+ 1 file changed, 191 insertions(+), 30 deletions(-)
 
-Index: linus.070504/kernel/sched.c
-===================================================================
---- linus.070504.orig/kernel/sched.c
-+++ linus.070504/kernel/sched.c
-@@ -1211,11 +1211,14 @@ static inline unsigned long cpu_avg_load
- static struct sched_group *
- find_idlest_group(struct sched_domain *sd, struct task_struct *p, int this_cpu)
- {
--	struct sched_group *idlest = NULL, *this = NULL, *group = sd->groups;
-+	struct sched_group *idlest = NULL, *this = sd->groups, *group = sd->groups;
-+	struct sched_group *self, *prev;
- 	unsigned long min_load = ULONG_MAX, this_load = 0;
- 	int load_idx = sd->forkexec_idx;
- 	int imbalance = 100 + (sd->imbalance_pct-100)/2;
- 
-+	prev = group;
-+	self = group;
- 	do {
- 		unsigned long load, avg_load;
- 		int local_group;
-@@ -1251,8 +1254,10 @@ find_idlest_group(struct sched_domain *s
- 			idlest = group;
- 		}
- nextgroup:
-+		prev = self;
-+		self = group;
- 		group = group->next;
--	} while (group != sd->groups);
-+	} while (group != sd->groups && group != self && group != prev);
- 
- 	if (!idlest || 100*this_load < imbalance*min_load)
- 		return NULL;
-@@ -2276,7 +2281,8 @@ find_busiest_group(struct sched_domain *
- 		   unsigned long *imbalance, enum idle_type idle, int *sd_idle,
- 		   cpumask_t *cpus, int *balance)
- {
--	struct sched_group *busiest = NULL, *this = NULL, *group = sd->groups;
-+	struct sched_group *busiest = NULL, *this = sd->groups, *group = sd->groups;
-+	struct sched_group *self, *prev;
- 	unsigned long max_load, avg_load, total_load, this_load, total_pwr;
- 	unsigned long max_pull;
- 	unsigned long busiest_load_per_task, busiest_nr_running;
-@@ -2299,6 +2305,8 @@ find_busiest_group(struct sched_domain *
- 	else
- 		load_idx = sd->idle_idx;
- 
-+	prev = group;
-+	self = group;
- 	do {
- 		unsigned long load, group_capacity;
- 		int local_group;
-@@ -2427,8 +2435,10 @@ find_busiest_group(struct sched_domain *
- 		}
- group_next:
- #endif
-+		prev = self;
-+		self = group;
- 		group = group->next;
--	} while (group != sd->groups);
-+	} while (group != sd->groups && group != self && group != prev);
- 
- 	if (!busiest || this_load >= max_load || busiest_nr_running == 0)
- 		goto out_balanced;
 Index: linus.070504/kernel/cpuset.c
 ===================================================================
 --- linus.070504.orig/kernel/cpuset.c
 +++ linus.070504/kernel/cpuset.c
-@@ -53,6 +53,7 @@
- #include <asm/uaccess.h>
+@@ -54,6 +54,7 @@
  #include <asm/atomic.h>
  #include <linux/mutex.h>
-+#include <linux/kfifo.h>
+ #include <linux/kfifo.h>
++#include <linux/workqueue.h>
  
  #define CPUSET_SUPER_MAGIC		0x27e0eb
  
-@@ -790,8 +791,8 @@ static void update_cpu_domains(struct cp
- 			return;
- 		cspan = CPU_MASK_NONE;
- 	} else {
--		if (cpus_empty(pspan))
--			return;
-+		/* parent may be empty, but update anyway */
+@@ -111,6 +112,7 @@ typedef enum {
+ 	CS_NOTIFY_ON_RELEASE,
+ 	CS_SPREAD_PAGE,
+ 	CS_SPREAD_SLAB,
++	CS_RELEASED_RESOURCE,
+ } cpuset_flagbits_t;
+ 
+ /* convenient tests for these bits */
+@@ -149,6 +151,11 @@ static inline int is_spread_slab(const s
+ 	return test_bit(CS_SPREAD_SLAB, &cs->flags);
+ }
+ 
++static inline int has_released_a_resource(const struct cpuset *cs)
++{
++	return test_bit(CS_RELEASED_RESOURCE, &cs->flags);
++}
 +
- 		cspan = cur->cpus_allowed;
- 		/*
- 		 * Get all cpus from current cpuset's cpus_allowed not part
-@@ -809,6 +810,40 @@ static void update_cpu_domains(struct cp
+ /*
+  * Increment this integer everytime any cpuset changes its
+  * mems_allowed value.  Users of cpusets can track this generation
+@@ -543,7 +550,7 @@ static void cpuset_release_agent(const c
+ static void check_for_release(struct cpuset *cs, char **ppathbuf)
+ {
+ 	if (notify_on_release(cs) && atomic_read(&cs->count) == 0 &&
+-	    list_empty(&cs->children)) {
++					list_empty(&cs->children)) {
+ 		char *buf;
+ 
+ 		buf = kmalloc(PAGE_SIZE, GFP_KERNEL);
+@@ -835,7 +842,8 @@ update_cpu_domains_tree(struct cpuset *r
+ 
+ 	while (__kfifo_get(queue, (unsigned char *)&cp, sizeof(cp))) {
+ 		list_for_each_entry(child, &cp->children, sibling)
+-		    __kfifo_put(queue,(unsigned char *)&child,sizeof(child));
++			__kfifo_put(queue, (unsigned char *)&child,
++							sizeof(child));
+ 		update_cpu_domains(cp);
+ 	}
+ 
+@@ -1101,7 +1109,7 @@ static int update_flag(cpuset_flagbits_t
+ 	mutex_unlock(&callback_mutex);
+ 
+ 	if (cpu_exclusive_changed)
+-                update_cpu_domains_tree(cs);
++		update_cpu_domains_tree(cs);
+ 	return 0;
+ }
+ 
+@@ -1279,6 +1287,7 @@ static int attach_task(struct cpuset *cs
+ 
+ 	from = oldcs->mems_allowed;
+ 	to = cs->mems_allowed;
++	set_bit(CS_RELEASED_RESOURCE, &oldcs->flags);
+ 
+ 	mutex_unlock(&callback_mutex);
+ 
+@@ -1361,6 +1370,10 @@ static ssize_t cpuset_common_file_write(
+ 		retval = update_flag(CS_MEM_EXCLUSIVE, cs, buffer);
+ 		break;
+ 	case FILE_NOTIFY_ON_RELEASE:
++		/* Even if the cpuset had been emptied in the past
++		   it must not be considered for release until it has
++		   become non-empty again. */
++		clear_bit(CS_RELEASED_RESOURCE, &cs->flags);
+ 		retval = update_flag(CS_NOTIFY_ON_RELEASE, cs, buffer);
+ 		break;
+ 	case FILE_MEMORY_MIGRATE:
+@@ -2014,6 +2027,7 @@ static int cpuset_rmdir(struct inode *un
+ 	cpuset_d_remove_dir(d);
+ 	dput(d);
+ 	number_of_cpusets--;
++	set_bit(CS_RELEASED_RESOURCE, &parent->flags);
+ 	mutex_unlock(&callback_mutex);
+ 	if (list_empty(&parent->children))
+ 		check_for_release(parent, &pathbuf);
+@@ -2081,50 +2095,188 @@ out:
  }
  
  /*
-+ * Call update_cpu_domains for cpuset "cur", and for all of its children.
++ * Move every task that is a member of cpuset "from" to cpuset "to".
 + *
++ * Called with both manage_sem and callback_sem held
++ */
++static void move_member_tasks_to_cpuset(struct cpuset *from, struct cpuset *to)
++{
++	int moved=0;
++	struct task_struct *g, *tsk;
++
++	read_lock(&tasklist_lock);
++	do_each_thread(g, tsk) {
++		if (tsk->cpuset == from) {
++			moved++;
++			task_lock(tsk);
++			tsk->cpuset = to;
++			task_unlock(tsk);
++		}
++	} while_each_thread(g, tsk);
++	read_unlock(&tasklist_lock);
++	atomic_add(moved, &to->count);
++	atomic_set(&from->count, 0);
++}
++
++/*
+  * If common_cpu_mem_hotplug_unplug(), below, unplugs any CPUs
+  * or memory nodes, we need to walk over the cpuset hierarchy,
+  * removing that CPU or node from all cpusets.  If this removes the
+- * last CPU or node from a cpuset, then the guarantee_online_cpus()
+- * or guarantee_online_mems() code will use that emptied cpusets
+- * parent online CPUs or nodes.  Cpusets that were already empty of
+- * CPUs or nodes are left empty.
++ * last CPU or node from a cpuset, then move the tasks in the empty
++ * cpuset to its next-highest non-empty parent.
++ *
++ * Called with both manage_sem and callback_sem held
++ */
++static void remove_tasks_in_empty_cpuset(struct cpuset *cs)
++{
++	int npids;
++	struct cpuset *parent;
++
++	/* cs->count is the number of tasks using the cpuset */
++	npids = atomic_read(&cs->count);
++	if (!npids)
++		return;
++
++	/* this cpuset has had member tasks */
++	set_bit(CS_RELEASED_RESOURCE, &cs->flags);
++
++	/*
++	 * Find its next-highest non-empty parent, (top cpuset
++	 * has online cpus, so can't be empty).
++	 */
++	parent = cs->parent;
++	while (parent && cpus_empty(parent->cpus_allowed)) {
++		/*
++		 * all these empty cpusets should now be considered to
++		 * have been used, and therefore eligible for
++		 * release when empty (if they are notify_on_release)
++		 */
++		set_bit(CS_RELEASED_RESOURCE, &parent->flags);
++		parent = parent->parent;
++	}
++	/*
++	 * the one that we find non-empty will be flagged releaseable when
++	 * the tasks exit.
++	 */
++
++	/* move member tasks to the non-empty parent cpuset */
++	move_member_tasks_to_cpuset(cs, parent);
++}
++
++/*
++ * Walk the specified cpuset subtree and move any tasks found in
++ * empty cpusets.  Also count the number of empty notify_on_release cpusets.
+  *
+- * This routine is intentionally inefficient in a couple of regards.
+- * It will check all cpusets in a subtree even if the top cpuset of
+- * the subtree has no offline CPUs or nodes.  It checks both CPUs and
+- * nodes, even though the caller could have been coded to know that
+- * only one of CPUs or nodes needed to be checked on a given call.
+- * This was done to minimize text size rather than cpu cycles.
++ * Note that such a notify_on_release cpuset must have had, at some time,
++ * member tasks or cpuset descendants and cpus and memory, before it can
++ * be a candidate for release.
+  *
+- * Call with both manage_mutex and callback_mutex held.
++ * Call with both manage_sem and callback_sem held so
++ * that this function can modify cpus_allowed and mems_allowed.
+  *
+- * Recursive, on depth of cpuset subtree.
 + * This walk processes the tree from top to bottom, completing one layer
 + * before dropping down to the next.  It always processes a node before
 + * any of its children.
-+ *
-+ * Call with manage_mutex held.
-+ * Must not be called holding callback_mutex, because we must
-+ * not call lock_cpu_hotplug() while holding callback_mutex.
-+ */
-+static void
-+update_cpu_domains_tree(struct cpuset *root)
+  */
++static void remove_tasks_from_empty_cpusets(const struct cpuset *root, int *count)
 +{
 +	struct cpuset *cp;	/* scans cpusets being updated */
 +	struct cpuset *child;	/* scans child cpusets of cp */
@@ -195,13 +235,26 @@ Index: linus.070504/kernel/cpuset.c
 +	queue = kfifo_alloc(number_of_cpusets * sizeof(cp), GFP_KERNEL, NULL);
 +	if (queue == ERR_PTR(-ENOMEM))
 +		return;
-+
+ 
+-static void guarantee_online_cpus_mems_in_subtree(const struct cpuset *cur)
 +	__kfifo_put(queue, (unsigned char *)&root, sizeof(root));
 +
 +	while (__kfifo_get(queue, (unsigned char *)&cp, sizeof(cp))) {
 +		list_for_each_entry(child, &cp->children, sibling)
-+		    __kfifo_put(queue,(unsigned char *)&child,sizeof(child));
-+		update_cpu_domains(cp);
++			__kfifo_put(queue, (unsigned char *)&child,
++							sizeof(child));
++		/* Remove offline cpus and mems from this cpuset. */
++		cpus_and(cp->cpus_allowed, cp->cpus_allowed, cpu_online_map);
++		nodes_and(cp->mems_allowed, cp->mems_allowed, node_online_map);
++		if ((cpus_empty(cp->cpus_allowed) ||
++		     nodes_empty(cp->mems_allowed))) {
++		        /* Move tasks from the empty cpuset to a parent */
++			remove_tasks_in_empty_cpuset(cp);
++			if (notify_on_release(cp) &&
++			    has_released_a_resource(cp))
++				/* count the cpuset to be released */
++				(*count)++;
++		}
 +	}
 +
 +	kfifo_free(queue);
@@ -209,27 +262,116 @@ Index: linus.070504/kernel/cpuset.c
 +}
 +
 +/*
-  * Call with manage_mutex held.  May take callback_mutex during call.
-  */
++ * Walk the specified cpuset subtree and release the empty
++ * notify_on_release cpusets.
++ *
++ * This walk processes the tree from top to bottom, completing one layer
++ * before dropping down to the next.  It always processes a node before
++ * any of its children.
++ *
++ * We hold manage_mutex so that the hierarchy cannot change while
++ * we are scanning it.
++ */
++static void release_empty_cpusets(const struct cpuset *root)
+ {
+-	struct cpuset *c;
++	struct cpuset *cp;	/* scans cpusets being updated */
++	struct cpuset *child;	/* scans child cpusets of cp */
++	struct kfifo *queue;	/* fifo queue of cpusets to be updated */
++	char *pathbuf = NULL;
  
-@@ -836,7 +871,7 @@ static int update_cpumask(struct cpuset 
- 	cs->cpus_allowed = trialcs.cpus_allowed;
- 	mutex_unlock(&callback_mutex);
- 	if (is_cpu_exclusive(cs) && !cpus_unchanged)
--		update_cpu_domains(cs);
-+		update_cpu_domains_tree(cs);
- 	return 0;
+-	/* Each of our child cpusets mems must be online */
+-	list_for_each_entry(c, &cur->children, sibling) {
+-		guarantee_online_cpus_mems_in_subtree(c);
+-		if (!cpus_empty(c->cpus_allowed))
+-			guarantee_online_cpus(c, &c->cpus_allowed);
+-		if (!nodes_empty(c->mems_allowed))
+-			guarantee_online_mems(c, &c->mems_allowed);
++	queue = kfifo_alloc(number_of_cpusets * sizeof(cp), GFP_KERNEL, NULL);
++	if (queue == ERR_PTR(-ENOMEM))
++		return;
++
++
++	__kfifo_put(queue, (unsigned char *)&root, sizeof(root));
++
++	mutex_lock(&manage_mutex);
++	while (__kfifo_get(queue, (unsigned char *)&cp, sizeof(cp))) {
++		list_for_each_entry(child, &cp->children, sibling)
++			__kfifo_put(queue, (unsigned char *)&child,
++							sizeof(child));
++		if ((notify_on_release(cp)) && has_released_a_resource(cp) &&
++			(cpus_empty(cp->cpus_allowed) ||
++			 nodes_empty(cp->mems_allowed))) {
++			check_for_release(cp, &pathbuf);
++			cpuset_release_agent(pathbuf);
++		}
+ 	}
++	mutex_unlock(&manage_mutex);
++
++	kfifo_free(queue);
++
++	return;
++}
++
++/*
++ * This runs from a workqueue.
++ *
++ * It's job is to remove any notify_on_release cpusets that have no
++ * online cpus.
++ *
++ * The argument is not used.
++ */
++static void remove_empty_cpusets(struct work_struct *p)
++{
++	release_empty_cpusets(&top_cpuset);
++	return;
  }
  
-@@ -1066,7 +1101,7 @@ static int update_flag(cpuset_flagbits_t
++static DECLARE_WORK(remove_empties_block, remove_empty_cpusets);
++
+ /*
+  * The cpus_allowed and mems_allowed nodemasks in the top_cpuset track
+  * cpu_online_map and node_online_map.  Force the top cpuset to track
+  * whats online after any CPU or memory node hotplug or unplug event.
+  *
+- * To ensure that we don't remove a CPU or node from the top cpuset
+- * that is currently in use by a child cpuset (which would violate
+- * the rule that cpusets must be subsets of their parent), we first
+- * call the recursive routine guarantee_online_cpus_mems_in_subtree().
+- *
+  * Since there are two callers of this routine, one for CPU hotplug
+  * events and one for memory node hotplug events, we could have coded
+  * two separate routines here.  We code it as a single common routine
+@@ -2133,12 +2285,18 @@ static void guarantee_online_cpus_mems_i
+ 
+ static void common_cpu_mem_hotplug_unplug(void)
+ {
++	int	empty_count=0;
++
+ 	mutex_lock(&manage_mutex);
+ 	mutex_lock(&callback_mutex);
+ 
+-	guarantee_online_cpus_mems_in_subtree(&top_cpuset);
+ 	top_cpuset.cpus_allowed = cpu_online_map;
+ 	top_cpuset.mems_allowed = node_online_map;
++	remove_tasks_from_empty_cpusets(&top_cpuset, &empty_count);
++	if (empty_count)
++		schedule_work(&remove_empties_block);
++		/* release_empty_cpusets() will lock manage_mutex, but that
++		   will be done in the context of the work queue */
+ 
  	mutex_unlock(&callback_mutex);
- 
- 	if (cpu_exclusive_changed)
--                update_cpu_domains(cs);
-+                update_cpu_domains_tree(cs);
- 	return 0;
- }
- 
+ 	mutex_unlock(&manage_mutex);
+@@ -2286,6 +2444,9 @@ void cpuset_exit(struct task_struct *tsk
+ 		mutex_lock(&manage_mutex);
+ 		if (atomic_dec_and_test(&cs->count))
+ 			check_for_release(cs, &pathbuf);
++		mutex_lock(&callback_mutex);
++		set_bit(CS_RELEASED_RESOURCE, &cs->flags);
++		mutex_unlock(&callback_mutex);
+ 		mutex_unlock(&manage_mutex);
+ 		cpuset_release_agent(pathbuf);
+ 	} else {
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
