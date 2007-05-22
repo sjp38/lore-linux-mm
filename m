@@ -1,85 +1,266 @@
-Date: Tue, 22 May 2007 08:24:53 +0200
-From: Nick Piggin <npiggin@suse.de>
-Subject: Re: [rfc] increase struct page size?!
-Message-ID: <20070522062452.GA29807@wotan.suse.de>
-References: <20070519181501.GC19966@holomorphy.com> <20070520052229.GA9372@wotan.suse.de> <20070520084647.GF19966@holomorphy.com> <20070520092552.GA7318@wotan.suse.de> <20070521080813.GQ31925@holomorphy.com> <20070521092742.GA19642@wotan.suse.de> <20070521224316.GC11166@waste.org> <20070522013951.GP19966@holomorphy.com> <20070522015703.GE27743@wotan.suse.de> <20070522050410.GQ19966@holomorphy.com>
+Subject: [PATCH/RFC] Rework ptep_set_access_flags and fix sun4c
+From: Benjamin Herrenschmidt <benh@kernel.crashing.org>
+In-Reply-To: <1179757647.6254.235.camel@localhost.localdomain>
+References: <Pine.LNX.4.61.0705012354290.12808@mtfhpc.demon.co.uk>
+	 <20070509231937.ea254c26.akpm@linux-foundation.org>
+	 <1178778583.14928.210.camel@localhost.localdomain>
+	 <20070510.001234.126579706.davem@davemloft.net>
+	 <Pine.LNX.4.64.0705142018090.18453@blonde.wat.veritas.com>
+	 <1179176845.32247.107.camel@localhost.localdomain>
+	 <1179212184.32247.163.camel@localhost.localdomain>
+	 <1179757647.6254.235.camel@localhost.localdomain>
+Content-Type: text/plain
+Date: Tue, 22 May 2007 16:28:59 +1000
+Message-Id: <1179815339.32247.799.camel@localhost.localdomain>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20070522050410.GQ19966@holomorphy.com>
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: William Lee Irwin III <wli@holomorphy.com>
-Cc: Matt Mackall <mpm@selenic.com>, Christoph Lameter <clameter@sgi.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>, linux-arch@vger.kernel.org
+To: "Tom \"spot\" Callaway" <tcallawa@redhat.com>
+Cc: Hugh Dickins <hugh@veritas.com>, David Miller <davem@davemloft.net>, akpm@linux-foundation.org, mark@mtfhpc.demon.co.uk, linuxppc-dev@ozlabs.org, wli@holomorphy.com, linux-mm@kvack.org, andrea@suse.de, sparclinux@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, May 21, 2007 at 10:04:10PM -0700, William Lee Irwin III wrote:
-> On Mon, May 21, 2007 at 06:39:51PM -0700, William Lee Irwin III wrote:
-> >> address (virtual and physical are trivially inter-convertible), mock
-> >> up something akin to what filesystems do for anonymous pages, etc.
-> >> The real objection everyone's going to have is that driver writers
-> >> will stain their shorts when faced with the rules for handling such
-> >> things. The thing is, I'm not entirely sure who these driver writers
-> >> that would have such trouble are, since the driver writers I know
-> >> personally are sophisticates rather than walking disaster areas as such
-> >> would imply. I suppose they may not be representative of the whole.
-> 
-> On Tue, May 22, 2007 at 03:57:03AM +0200, Nick Piggin wrote:
-> > That's not the objection I would have. I would say that firstly, I
-> > don't think the mem_map overhead is very significant (at any rate,
-> > an allocated-on-demand metadata is not going to be any smaller if
-> > you fill up on pagecache...). Secondly, I think there is merit to
-> > having the same page metadata used by the major subsystems, because
-> > it helps for locality of reference.
-> 
-> The size isn't the advantage being cited; I'd actually expect the net
-> result to be larger. It's the control over the layout of the metadata
-> for cache locality and even things like having enough flags, folding
-> buffer_head -like affairs into the per-page metadata for filesystems
-> and so reaping cache locality benefits even there (assuming it works
-> out in other respects), and so on.
-> 
-> Passing pages between subsystems doesn't seem very significant to me.
-> There isn't going to be much locality of reference, or even any
-> guarantee that the subsystem gets fed a cache hot page structure. The
-> subsystem being passed the page will have its own cache hot accounting
-> structures to stick the information about the memory into.
+This patch reworks ptep_set_access_flags() and the callers so that the
+comparison to the old PTE is done inside that function, which then
+returns wether an update_mmu_cache() is needed. That allows fixing
+the sun4c situation where update_mmu_cache() needs to be forced,
+always.
 
-Well consider the page allocator and pagecache. The page allocator
-uses page metadata rather than eg. a bitmap, and it uses page list
-heads for the per-cpu allocator.
+Signed-off-by: Benjamin Herrenschmidt <benh@kernel.crashing.org>
+---
 
-If we were to instead perhaps use external bitmaps and arrays to 
-keep track of pages, then the pagecache would have to go and allocate
-its own structures rather than reuse the cache hot page allocator
-structures.
+Ok, so that's only compile tested on sparc32 and powerpc 32 bits, boot
+tested on powerpc64 and not tested on others (I could use some help
+testing x86, x86_64 and s390 who also have their own implementations).
 
-Buffer heads might be something that would work well, but we'd still
-like to be able to deallocate them without freeing the whole pagecache
-(because they tend to be associated with less frequent operations like
-IO). But anyway, I don't know. I'm sure there would be cases where it
-works better.
+Index: linux-work/include/asm-generic/pgtable.h
+===================================================================
+--- linux-work.orig/include/asm-generic/pgtable.h	2007-05-22 15:04:45.000000000 +1000
++++ linux-work/include/asm-generic/pgtable.h	2007-05-22 15:32:21.000000000 +1000
+@@ -27,13 +27,20 @@ do {				  					\
+  * Largely same as above, but only sets the access flags (dirty,
+  * accessed, and writable). Furthermore, we know it always gets set
+  * to a "more permissive" setting, which allows most architectures
+- * to optimize this.
++ * to optimize this. We return wether the PTE actually changed, which
++ * in turn instructs the caller to do things like update__mmu_cache.
++ * This used to be done in the caller, but sparc needs minor faults to
++ * force that call on sun4c so we changed this macro slightly
+  */
+ #define ptep_set_access_flags(__vma, __address, __ptep, __entry, __dirty) \
+-do {				  					  \
+-	set_pte_at((__vma)->vm_mm, (__address), __ptep, __entry);	  \
+-	flush_tlb_page(__vma, __address);				  \
+-} while (0)
++({									  \
++	int __changed = !pte_same(*(__ptep), __entry);			  \
++	if (__changed) {						  \
++		set_pte_at((__vma)->vm_mm, (__address), __ptep, __entry); \
++		flush_tlb_page(__vma, __address);			  \
++	}								  \
++	__changed;							  \
++})
+ #endif
+ 
+ #ifndef __HAVE_ARCH_PTEP_TEST_AND_CLEAR_YOUNG
+Index: linux-work/include/asm-powerpc/pgtable-ppc64.h
+===================================================================
+--- linux-work.orig/include/asm-powerpc/pgtable-ppc64.h	2007-05-22 15:04:45.000000000 +1000
++++ linux-work/include/asm-powerpc/pgtable-ppc64.h	2007-05-22 15:27:21.000000000 +1000
+@@ -413,10 +413,14 @@ static inline void __ptep_set_access_fla
+ 	:"cc");
+ }
+ #define  ptep_set_access_flags(__vma, __address, __ptep, __entry, __dirty) \
+-	do {								   \
+-		__ptep_set_access_flags(__ptep, __entry, __dirty);	   \
+-		flush_tlb_page_nohash(__vma, __address);	       	   \
+-	} while(0)
++({									   \
++	int __changed = !pte_same(*(__ptep), __entry);			   \
++	if (__changed) {						   \
++		__ptep_set_access_flags(__ptep, __entry, __dirty);    	   \
++		flush_tlb_page_nohash(__vma, __address);		   \
++	}								   \
++	__changed;							   \
++})
+ 
+ /*
+  * Macro to mark a page protection value as "uncacheable".
+Index: linux-work/mm/memory.c
+===================================================================
+--- linux-work.orig/mm/memory.c	2007-05-22 15:04:45.000000000 +1000
++++ linux-work/mm/memory.c	2007-05-22 15:38:19.000000000 +1000
+@@ -1691,9 +1691,10 @@ static int do_wp_page(struct mm_struct *
+ 		flush_cache_page(vma, address, pte_pfn(orig_pte));
+ 		entry = pte_mkyoung(orig_pte);
+ 		entry = maybe_mkwrite(pte_mkdirty(entry), vma);
+-		ptep_set_access_flags(vma, address, page_table, entry, 1);
+-		update_mmu_cache(vma, address, entry);
+-		lazy_mmu_prot_update(entry);
++		if (ptep_set_access_flags(vma, address, page_table, entry,1)) {
++			update_mmu_cache(vma, address, entry);
++			lazy_mmu_prot_update(entry);
++		}
+ 		ret |= VM_FAULT_WRITE;
+ 		goto unlock;
+ 	}
+@@ -2525,10 +2526,9 @@ static inline int handle_pte_fault(struc
+ 		pte_t *pte, pmd_t *pmd, int write_access)
+ {
+ 	pte_t entry;
+-	pte_t old_entry;
+ 	spinlock_t *ptl;
+ 
+-	old_entry = entry = *pte;
++	entry = *pte;
+ 	if (!pte_present(entry)) {
+ 		if (pte_none(entry)) {
+ 			if (vma->vm_ops) {
+@@ -2561,8 +2561,7 @@ static inline int handle_pte_fault(struc
+ 		entry = pte_mkdirty(entry);
+ 	}
+ 	entry = pte_mkyoung(entry);
+-	if (!pte_same(old_entry, entry)) {
+-		ptep_set_access_flags(vma, address, pte, entry, write_access);
++	if (ptep_set_access_flags(vma, address, pte, entry, write_access)) {
+ 		update_mmu_cache(vma, address, entry);
+ 		lazy_mmu_prot_update(entry);
+ 	} else {
+Index: linux-work/include/asm-powerpc/pgtable-ppc32.h
+===================================================================
+--- linux-work.orig/include/asm-powerpc/pgtable-ppc32.h	2007-05-22 15:04:45.000000000 +1000
++++ linux-work/include/asm-powerpc/pgtable-ppc32.h	2007-05-22 15:26:07.000000000 +1000
+@@ -673,10 +673,14 @@ static inline void __ptep_set_access_fla
+ }
+ 
+ #define  ptep_set_access_flags(__vma, __address, __ptep, __entry, __dirty) \
+-	do {								   \
+-		__ptep_set_access_flags(__ptep, __entry, __dirty);	   \
+-		flush_tlb_page_nohash(__vma, __address);	       	   \
+-	} while(0)
++({									   \
++	int __changed = !pte_same(*(__ptep), __entry);			   \
++	if (__changed) {						   \
++		__ptep_set_access_flags(__ptep, __entry, __dirty);    	   \
++		flush_tlb_page_nohash(__vma, __address);		   \
++	}								   \
++	__changed;							   \
++})
+ 
+ /*
+  * Macro to mark a page protection value as "uncacheable".
+Index: linux-work/include/asm-i386/pgtable.h
+===================================================================
+--- linux-work.orig/include/asm-i386/pgtable.h	2007-05-22 15:06:17.000000000 +1000
++++ linux-work/include/asm-i386/pgtable.h	2007-05-22 15:16:11.000000000 +1000
+@@ -285,13 +285,15 @@ static inline pte_t native_local_ptep_ge
+  */
+ #define  __HAVE_ARCH_PTEP_SET_ACCESS_FLAGS
+ #define ptep_set_access_flags(vma, address, ptep, entry, dirty)		\
+-do {									\
+-	if (dirty) {							\
++({									\
++	int __changed = !pte_same(*(__ptep), __entry);			\
++	if (__changed && dirty) {					\
+ 		(ptep)->pte_low = (entry).pte_low;			\
+ 		pte_update_defer((vma)->vm_mm, (address), (ptep));	\
+ 		flush_tlb_page(vma, address);				\
+ 	}								\
+-} while (0)
++	__changed;							\
++})
+ 
+ #define __HAVE_ARCH_PTEP_TEST_AND_CLEAR_DIRTY
+ #define ptep_test_and_clear_dirty(vma, addr, ptep) ({			\
+Index: linux-work/include/asm-ppc/pgtable.h
+===================================================================
+--- linux-work.orig/include/asm-ppc/pgtable.h	2007-05-22 15:25:58.000000000 +1000
++++ linux-work/include/asm-ppc/pgtable.h	2007-05-22 15:26:08.000000000 +1000
+@@ -694,10 +694,14 @@ static inline void __ptep_set_access_fla
+ }
+ 
+ #define  ptep_set_access_flags(__vma, __address, __ptep, __entry, __dirty) \
+-	do {								   \
+-		__ptep_set_access_flags(__ptep, __entry, __dirty);	   \
+-		flush_tlb_page_nohash(__vma, __address);	       	   \
+-	} while(0)
++({									   \
++	int __changed = !pte_same(*(__ptep), __entry);			   \
++	if (__changed) {						   \
++		__ptep_set_access_flags(__ptep, __entry, __dirty);    	   \
++		flush_tlb_page_nohash(__vma, __address);		   \
++	}								   \
++	__changed;							   \
++})
+ 
+ /*
+  * Macro to mark a page protection value as "uncacheable".
+Index: linux-work/include/asm-s390/pgtable.h
+===================================================================
+--- linux-work.orig/include/asm-s390/pgtable.h	2007-05-22 15:16:48.000000000 +1000
++++ linux-work/include/asm-s390/pgtable.h	2007-05-22 15:20:16.000000000 +1000
+@@ -744,7 +744,12 @@ ptep_establish(struct vm_area_struct *vm
+ }
+ 
+ #define ptep_set_access_flags(__vma, __address, __ptep, __entry, __dirty) \
+-	ptep_establish(__vma, __address, __ptep, __entry)
++({									  \
++	int __changed = !pte_same(*(__ptep), __entry);			  \
++	if (__changed)							  \
++		ptep_establish(__vma, __address, __ptep, __entry);	  \
++	__changed;							  \
++})
+ 
+ /*
+  * Test and clear dirty bit in storage key.
+Index: linux-work/include/asm-sparc/pgtable.h
+===================================================================
+--- linux-work.orig/include/asm-sparc/pgtable.h	2007-05-22 15:30:48.000000000 +1000
++++ linux-work/include/asm-sparc/pgtable.h	2007-05-22 15:35:56.000000000 +1000
+@@ -446,6 +446,17 @@ extern int io_remap_pfn_range(struct vm_
+ #define GET_IOSPACE(pfn)		(pfn >> (BITS_PER_LONG - 4))
+ #define GET_PFN(pfn)			(pfn & 0x0fffffffUL)
+ 
++#define __HAVE_ARCH_PTEP_SET_ACCESS_FLAGS
++#define ptep_set_access_flags(__vma, __address, __ptep, __entry, __dirty) \
++({									  \
++	int __changed = !pte_same(*(__ptep), __entry);			  \
++	if (__changed) {						  \
++		set_pte_at((__vma)->vm_mm, (__address), __ptep, __entry); \
++		flush_tlb_page(__vma, __address);			  \
++	}								  \
++	(sparc_cpu_model == sun4c) || __changed;			  \
++})
++
+ #include <asm-generic/pgtable.h>
+ 
+ #endif /* !(__ASSEMBLY__) */
+Index: linux-work/include/asm-x86_64/pgtable.h
+===================================================================
+--- linux-work.orig/include/asm-x86_64/pgtable.h	2007-05-22 15:20:40.000000000 +1000
++++ linux-work/include/asm-x86_64/pgtable.h	2007-05-22 15:21:52.000000000 +1000
+@@ -395,12 +395,14 @@ static inline pte_t pte_modify(pte_t pte
+  * bit at the same time. */
+ #define  __HAVE_ARCH_PTEP_SET_ACCESS_FLAGS
+ #define ptep_set_access_flags(__vma, __address, __ptep, __entry, __dirty) \
+-	do {								  \
+-		if (__dirty) {						  \
+-			set_pte(__ptep, __entry);			  \
+-			flush_tlb_page(__vma, __address);		  \
+-		}							  \
+-	} while (0)
++({									  \
++	int __changed = !pte_same(*(__ptep), __entry);			  \
++	if (__changed && __dirty) {					  \
++		set_pte(__ptep, __entry);			  	  \
++		flush_tlb_page(__vma, __address);		  	  \
++	}								  \
++	__changed;							  \
++})
+ 
+ /* Encode and de-code a swap entry */
+ #define __swp_type(x)			(((x).val >> 1) & 0x3f)
 
-
-> On Tue, May 22, 2007 at 03:57:03AM +0200, Nick Piggin wrote:
-> > But I haven't explored the idea enough myself to know whether there
-> > would be any really killer benefits to this. Delayed metadata freeing
-> > via RCU without holding up the freeing of the actual page would have
-> > been something, however I can do similar with speculative references
-> > now (or whenever the code gets merged), which doesn't even require the
-> > RCU overhead.
-> 
-> I'm not entirely sure what you're on about there, but it sounds
-> interesting.
-
-Heh :) Well the lockless pagecache would become basically trivial if we
-could RCU-free pagecache pages, however doing that is really awful for
-a number of reasons. However if you had a system where the metadata is
-decoupled, you could simply RCU-free the 'struct page' (while still
-immediately freeing the page itself) which would make lockless pagecache
-(and potentially similar things) equally trivial.
-
-I assumed K42 might have been into that angle.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
