@@ -1,25 +1,38 @@
-Date: Tue, 22 May 2007 11:34:04 -0700 (PDT)
+Date: Tue, 22 May 2007 11:38:56 -0700 (PDT)
 From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [Patch] memory unplug v3 [0/4]
-In-Reply-To: <20070522155824.563f5873.kamezawa.hiroyu@jp.fujitsu.com>
-Message-ID: <Pine.LNX.4.64.0705221133070.29456@schroedinger.engr.sgi.com>
+Subject: Re: [Patch] memory unplug v3 [1/4] page isolation
+In-Reply-To: <20070522160151.3ae5e5d7.kamezawa.hiroyu@jp.fujitsu.com>
+Message-ID: <Pine.LNX.4.64.0705221137160.29456@schroedinger.engr.sgi.com>
 References: <20070522155824.563f5873.kamezawa.hiroyu@jp.fujitsu.com>
+ <20070522160151.3ae5e5d7.kamezawa.hiroyu@jp.fujitsu.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Linux-MM <linux-mm@kvack.org>, mel@csn.ul.ie, y-goto@jp.fujitsu.com
+Cc: linux-mm@kvack.org, mel@csn.ul.ie, y-goto@jp.fujitsu.com
 List-ID: <linux-mm.kvack.org>
 
 On Tue, 22 May 2007, KAMEZAWA Hiroyuki wrote:
 
->  - user kernelcore=XXX boot option to create ZONE_MOVABLE.
->    Memory unplug itself can work without ZONE_MOVABLE but it will be
->    better to use kernelcore= if your section size is big.
+> Index: devel-2.6.22-rc1-mm1/mm/page_isolation.c
+> ===================================================================
+> --- /dev/null	1970-01-01 00:00:00.000000000 +0000
+> +++ devel-2.6.22-rc1-mm1/mm/page_isolation.c	2007-05-22 15:12:28.000000000 +0900
+> @@ -0,0 +1,67 @@
+> +/*
+> + * linux/mm/page_isolation.c
+> + */
+> +
+> +#include <stddef.h>
+> +#include <linux/mm.h>
+> +#include <linux/page-isolation.h>
+> +
+> +#define ROUND_DOWN(x,y)	((x) & ~((y) - 1))
+> +#define ROUND_UP(x,y)	(((x) + (y) -1) & ~((y) - 1))
 
-Hmmm.... Sure wish the ZONE_MOVABLE would go away. Isnt there some way to 
-have a dynamic boundary within ZONE_NORMAL?
+Use the common definitions like ALIGN in kernel.h and the rounding 
+functions in log2.h?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
