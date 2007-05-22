@@ -1,28 +1,42 @@
-Received: by wr-out-0506.google.com with SMTP id 57so1472325wri
-        for <linux-mm@kvack.org>; Tue, 22 May 2007 01:45:07 -0700 (PDT)
-Message-ID: <84144f020705220145vb96b91eqa0ef6f1c25d1e5ff@mail.gmail.com>
-Date: Tue, 22 May 2007 11:45:06 +0300
-From: "Pekka Enberg" <penberg@cs.helsinki.fi>
-Subject: Re: SLUB: Use ilog2 instead of series of constant comparisons.
-In-Reply-To: <Pine.LNX.4.64.0705211250410.27950@schroedinger.engr.sgi.com>
+Date: Tue, 22 May 2007 11:44:17 +0200 (CEST)
+From: Geert Uytterhoeven <geert@linux-m68k.org>
+Subject: Re: [rfc] increase struct page size?!
+In-Reply-To: <Pine.LNX.4.64.0705211737450.24160@schroedinger.engr.sgi.com>
+Message-ID: <Pine.LNX.4.64.0705221142340.11196@anakin>
+References: <20070518040854.GA15654@wotan.suse.de>
+ <Pine.LNX.4.64.0705191121480.17008@schroedinger.engr.sgi.com>
+ <464FCA28.9040009@cosmosbay.com> <200705201456.26283.ak@suse.de>
+ <Pine.LNX.4.64.0705211006550.26282@schroedinger.engr.sgi.com>
+ <20070522093050.0320d092.kamezawa.hiroyu@jp.fujitsu.com>
+ <Pine.LNX.4.64.0705211737450.24160@schroedinger.engr.sgi.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
-References: <Pine.LNX.4.64.0705211250410.27950@schroedinger.engr.sgi.com>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Christoph Lameter <clameter@sgi.com>
-Cc: akpm@linux-foundation.org, linux-mm@kvack.org
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, ak@suse.de, dada1@cosmosbay.com, wli@holomorphy.com, npiggin@suse.de, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-arch@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On 5/21/07, Christoph Lameter <clameter@sgi.com> wrote:
-> I finally found a way to get rid of the nasty list of comparisions in
-> slub_def.h. ilog2 seems to work right for constants.
+On Mon, 21 May 2007, Christoph Lameter wrote:
+> On Tue, 22 May 2007, KAMEZAWA Hiroyuki wrote:
+> > For i386(32bit arch), there is not enough space for vmemmap.
+> 
+> I thought 32 bit would use flatmem? Is memory really sparse on 32 
+> bit? Likely difficult due to lack of address space?
 
-Nice cleanup Christoph! Looks good to me.
+Throwing in more crazy comments: many m68k boxes have really sparse memory, due
+to lack of memory and large address space.
 
-Acked-by: Pekka Enberg <penberg@cs.helsinki.fi>
+Gr{oetje,eeting}s,
+
+						Geert
+
+--
+Geert Uytterhoeven -- There's lots of Linux beyond ia32 -- geert@linux-m68k.org
+
+In personal conversations with technical people, I call myself a hacker. But
+when I'm talking to journalists I just say "programmer" or something like that.
+							    -- Linus Torvalds
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
