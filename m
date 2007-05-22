@@ -1,45 +1,38 @@
-Date: Tue, 22 May 2007 11:52:11 -0700 (PDT)
+Date: Tue, 22 May 2007 12:18:58 -0700 (PDT)
 From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [Patch] memory unplug v3 [3/4] page removal
-In-Reply-To: <20070522160733.964e531b.kamezawa.hiroyu@jp.fujitsu.com>
-Message-ID: <Pine.LNX.4.64.0705221150100.29456@schroedinger.engr.sgi.com>
-References: <20070522155824.563f5873.kamezawa.hiroyu@jp.fujitsu.com>
- <20070522160733.964e531b.kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [patch 1/3] slob: rework freelist handling
+In-Reply-To: <20070522145345.GN11115@waste.org>
+Message-ID: <Pine.LNX.4.64.0705221216300.30149@schroedinger.engr.sgi.com>
+References: <20070522073910.GD17051@wotan.suse.de> <20070522145345.GN11115@waste.org>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: linux-mm@kvack.org, mel@csn.ul.ie, y-goto@jp.fujitsu.com
+To: Matt Mackall <mpm@selenic.com>
+Cc: Nick Piggin <npiggin@suse.de>, Andrew Morton <akpm@linux-foundation.org>, Linux Memory Management List <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 22 May 2007, KAMEZAWA Hiroyuki wrote:
+On Tue, 22 May 2007, Matt Mackall wrote:
 
-> +static int
-> +do_migrate_range(unsigned long start_pfn, unsigned long end_pfn)
-> +{
-> +	unsigned long pfn;
-> +	struct page *page;
-> +	int move_pages = NR_OFFLINE_AT_ONCE_PAGES;
-> +	int not_managed = 0;
-> +	int ret = 0;
-> +	LIST_HEAD(source);
-> +
-> +	for (pfn = start_pfn; pfn < end_pfn && move_pages > 0; pfn++) {
-> +		if (!pfn_valid(pfn))
-> +			continue;
-> +		page = pfn_to_page(pfn);
-> +		/* page is isolated or being freed ? */
-> +		if ((page_count(page) == 0) || PageReserved(page))
-> +			continue;
+> On Tue, May 22, 2007 at 09:39:10AM +0200, Nick Piggin wrote:
+> > Here are some patches I have been working on for SLOB, which makes
+> > it significantly faster, and also using less dynamic memory... at
+> > the cost of being slightly larger static footprint and more complex
+> > code.
+> > 
+> > Matt was happy for the first 2 to go into -mm (and hasn't seen patch 3 yet).
+> 
+> These all look good, thanks Nick!
+> 
+> Acked-by: Matt Mackall <mpm@selenic.com>
 
-The check above is not necessary. A Page count = 0 page is not on the LRU 
-neither is a Reserved page.
+New SLUB inspired life for SLOB. I hope someone else tests this?
 
-> +	/* this function returns # of failed pages */
-> +	ret = migrate_pages_nocontext(&source, hotremove_migrate_alloc, 0);
+Are there any numbers / tests that give a continued reason for the 
+existence of SLOB? I.e. show some memory usage on a real system that is 
+actually lower than SLAB/SLUB? Or are there any confirmed platforms where 
+SLOB is needed?
 
-You have no context so the last parameter should be 1?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
