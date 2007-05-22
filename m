@@ -1,44 +1,29 @@
-Subject: Re: [PATCH/RFC] Rework ptep_set_access_flags and fix sun4c
-From: Benjamin Herrenschmidt <benh@kernel.crashing.org>
-In-Reply-To: <20070522.145340.59657045.davem@davemloft.net>
-References: <1179757647.6254.235.camel@localhost.localdomain>
-	 <1179815339.32247.799.camel@localhost.localdomain>
-	 <Pine.LNX.4.61.0705222247010.5890@mtfhpc.demon.co.uk>
-	 <20070522.145340.59657045.davem@davemloft.net>
-Content-Type: text/plain
-Date: Wed, 23 May 2007 09:29:14 +1000
-Message-Id: <1179876554.32247.889.camel@localhost.localdomain>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Content-class: urn:content-classes:message
+MIME-Version: 1.0
+Content-Type: text/plain;
+	charset="utf-8"
+Content-Transfer-Encoding: base64
+Subject: RE: [patch] removes MAX_ARG_PAGES
+Date: Tue, 22 May 2007 16:49:02 -0700
+Message-ID: <617E1C2C70743745A92448908E030B2A0184DF88@scsmsx411.amr.corp.intel.com>
+In-Reply-To: <1179836645.7019.86.camel@twins>
+From: "Luck, Tony" <tony.luck@intel.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: David Miller <davem@davemloft.net>
-Cc: mark@mtfhpc.demon.co.uk, tcallawa@redhat.com, hugh@veritas.com, akpm@linux-foundation.org, linuxppc-dev@ozlabs.org, wli@holomorphy.com, linux-mm@kvack.org, andrea@suse.de, sparclinux@vger.kernel.org
+To: Peter Zijlstra <a.p.zijlstra@chello.nl>
+Cc: Ollie Wild <aaw@google.com>, linux-kernel@vger.kernel.org, parisc-linux@lists.parisc-linux.org, linux-mm@kvack.org, linux-arch@vger.kernel.org, Andrew Morton <akpm@osdl.org>, Ingo Molnar <mingo@elte.hu>, Andi Kleen <ak@suse.de>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 2007-05-22 at 14:53 -0700, David Miller wrote:
-> From: Mark Fortescue <mark@mtfhpc.demon.co.uk>
-> Date: Tue, 22 May 2007 22:52:13 +0100 (BST)
-> 
-> > Hi Benjamin,
-> > 
-> > I have just tested this patch on my Sun4c Sparcstation 1 using my 2.6.20.9 
-> > test kernel without any problems.
-> > 
-> > Thank you for the work.
-> 
-> Thanks for your testing.
-> 
-> Someone please merge this in once any remaining issues have
-> been resolved :-)
-
-I'll send a patch fixing the couple of x86/ia64 nits & my bad english
-spelling (no, I don't happen to raise castrated rams) as soon as I reach
-the office later today.
-
-Cheers,
-Ben.
-
+PiBJbiBvcmRlciB0byBzb2x2ZSB0aGlzLCBJIGFkZGVkIGEgU1RBQ0tfVE9QX01BWCBtYWNybyBm
+b3IgZWFjaCBhcmNoIGFuZA0KPiB1c2UgdGhhdC4gVGhpcyBtYWRlIElBNjQgYm9vdCBwcm9wZXJs
+eS4NCg0KWWVzLiAgUGF0Y2hlcyBhcHBseSB0byAyLjYuMjEgY2xlYW5seSwgYnVpbGQgY2xlYW5s
+eSBhbmQgYm9vdCBmb3IgbWUgdG9vLg0KSSBjYW4gZXZlbiBydW46DQoNCgkkIGxzIC1scnQgYGZp
+bmQgL3Vzci9zaGFyZSAtdHlwZSBmIC1wcmludGANCg0Kb24gdGhlIG5ldyBrZXJuZWwgKHRoYXRz
+IDQ4MDIwIGZpbGVzIGZvciBhIHRvdGFsIG9mIDIuM01CIG9mIGFyZ3MpLg0KDQo+IFRoZSBzZWNv
+bmQgcGF0Y2ggbWFrZXMgdGhlIGNvbXBhdCBzdHVmZiBjb21waWxlLCB1bnRlc3RlZCB0aG91Z2gs
+IGFzIEkNCj4gaGF2ZSBubyBpZGVhIGhvdyB0aGF0IHdvcmtzIG9uIGlhNjQuDQoNCk5vdCBzbyBn
+b29kIG9uIHRoaXMgcGFydC4gIFJ1bm5pbmcgYW4gaWEzMiBiaW5hcnkgb24gdGhpcyBwYXRjaGVk
+IGtlcm5lbA0KanVzdCBodW5nIG15IHN5c3RlbSA6LSgNCg0KLVRvbnkNCg0KDQo=
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
