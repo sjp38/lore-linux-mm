@@ -1,50 +1,53 @@
-Date: Wed, 23 May 2007 12:15:16 -0700 (PDT)
-From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [patch 1/3] slob: rework freelist handling
-In-Reply-To: <20070523183224.GD11115@waste.org>
-Message-ID: <Pine.LNX.4.64.0705231208380.21222@schroedinger.engr.sgi.com>
-References: <20070523050333.GB29045@wotan.suse.de>
- <Pine.LNX.4.64.0705222204460.3135@schroedinger.engr.sgi.com>
- <20070523051152.GC29045@wotan.suse.de> <Pine.LNX.4.64.0705222212200.3232@schroedinger.engr.sgi.com>
- <20070523052206.GD29045@wotan.suse.de> <Pine.LNX.4.64.0705222224380.12076@schroedinger.engr.sgi.com>
- <20070523061702.GA9449@wotan.suse.de> <Pine.LNX.4.64.0705222326260.16694@schroedinger.engr.sgi.com>
- <20070523071200.GB9449@wotan.suse.de> <Pine.LNX.4.64.0705230956160.19822@schroedinger.engr.sgi.com>
- <20070523183224.GD11115@waste.org>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: [RFC][PATCH 2/3] hugetlb: numafy several functions
+From: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
+In-Reply-To: <20070523175142.GB9301@us.ibm.com>
+References: <20070516233053.GN20535@us.ibm.com>
+	 <20070516233155.GO20535@us.ibm.com>  <20070523175142.GB9301@us.ibm.com>
+Content-Type: text/plain
+Date: Wed, 23 May 2007 15:16:07 -0400
+Message-Id: <1179947768.5537.37.camel@localhost>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Matt Mackall <mpm@selenic.com>
-Cc: Nick Piggin <npiggin@suse.de>, Andrew Morton <akpm@linux-foundation.org>, Linux Memory Management List <linux-mm@kvack.org>
+To: Nishanth Aravamudan <nacc@us.ibm.com>
+Cc: wli@holomorphy.com, anton@samba.org, clameter@sgi.com, akpm@linux-foundation.org, agl@us.ibm.com, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 23 May 2007, Matt Mackall wrote:
-
-> You keep saying something like this but I'm never quite clear what you
-> mean. There are no slabs so reclaiming unused slabs is a non-issue.
-> Things like shrinking the dcache should work:
+On Wed, 2007-05-23 at 10:51 -0700, Nishanth Aravamudan wrote:
+> On 16.05.2007 [16:31:55 -0700], Nishanth Aravamudan wrote:
+> > Add node-parameterized helpers for dequeue_huge_page,
+> > alloc_fresh_huge_page and try_to_free_low. Also have
+> > update_and_free_page() take a nid parameter. This is necessary to add a
+> > per-node sysfs attribute to specify the number of hugepages on that
+> > node.
 > 
->  __alloc_pages
->   try_to_free_pages
->    shrink_slab
->     shrink_dcache_memory
+> I saw that 1/3 was picked up by Andrew, but have not got any responses
+> to the other two (I know Adam is out of town...).
+
+Nish:  I haven't had a chance to test these patches.  Other alligators
+in the swamp right now.
+
 > 
-> I don't see any checks of ZVCs interfering with that path.
+> Thoughts, comments? Bad idea, good idea?
+> 
+> I found it pretty handy to specify the exact layout of hugepages on each
+> node.
 
-One example is the NR_SLAB_RECLAIMABLE ZVC. SLOB does not handle it thus 
-it is always zero.
+Could be useful for system with unequal memory per node, or where you
+know you want more huge pages on a given node.  I recall that Tru64 Unix
+used to support something similar:  most vm tunables that involved sizes
+or percentages of memory, such as page cache limits, locked memory
+limits, reserved huge pages, ..., could be specified as a single value
+that was distributed across nodes [backwards compatibility] or as list
+of per node values.  However, I don't recall if marketing/customers
+asked for this or if it was a case of gratuitous design excess ;-).
 
-slab reclaim is entered in mm/vsmscan shrink_all_memory():
+I see that we'll need to reconcile the modified alloc_fresh_huge_page
+with the patch to skip unpopulated nodes when/if they collide in -mm.
 
-  nr_slab = global_page_state(NR_SLAB_RECLAIMABLE);
-  /* If slab caches are huge, it's better to hit them first */
-  while (nr_slab >= lru_pages) {
-               reclaim_state.reclaimed_slab = 0;
-                shrink_slab(nr_pages, sc.gfp_mask, lru_pages);
-                if (!reclaim_state.reclaimed_slab)
+Lee
 
-
-nr_slab will always be zero.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
