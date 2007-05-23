@@ -1,59 +1,73 @@
-Date: Wed, 23 May 2007 20:45:35 +0200
-From: Folkert van Heusden <folkert@vanheusden.com>
-Subject: Re: signals logged / [RFC] log out-of-virtual-memory events
-Message-ID: <20070523184535.GE21655@vanheusden.com>
-References: <464C9D82.60105@redhat.com> <Pine.LNX.4.61.0705202235430.13923@yvahk01.tjqt.qr> <20070520205500.GJ22452@vanheusden.com> <200705202314.57758.ak@suse.de> <46517817.1080208@users.sourceforge.net> <20070521110406.GA14802@vanheusden.com> <Pine.LNX.4.61.0705211420100.4452@yvahk01.tjqt.qr> <20070521124734.GB14802@vanheusden.com> <a781481a0705231100q333a589at6c025eb1292019cd@mail.gmail.com>
+Date: Wed, 23 May 2007 20:14:39 +0100 (IST)
+From: Mel Gorman <mel@csn.ul.ie>
+Subject: Re: [Patch] memory unplug v3 [2/4] migration by kernel
+In-Reply-To: <Pine.LNX.4.64.0705221143450.29456@schroedinger.engr.sgi.com>
+Message-ID: <Pine.LNX.4.64.0705231855000.11495@skynet.skynet.ie>
+References: <20070522155824.563f5873.kamezawa.hiroyu@jp.fujitsu.com>
+ <20070522160437.6607f445.kamezawa.hiroyu@jp.fujitsu.com>
+ <Pine.LNX.4.64.0705221143450.29456@schroedinger.engr.sgi.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <a781481a0705231100q333a589at6c025eb1292019cd@mail.gmail.com>
+Content-Type: TEXT/PLAIN; charset=US-ASCII; format=flowed
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Satyam Sharma <satyam.sharma@gmail.com>
-Cc: Jan Engelhardt <jengelh@linux01.gwdg.de>, Andrea Righi <righiandr@users.sourceforge.net>, Andi Kleen <ak@suse.de>, Stephen Hemminger <shemminger@linux-foundation.org>, Eric Dumazet <dada1@cosmosbay.com>, Rik van Riel <riel@redhat.com>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
+To: Christoph Lameter <clameter@sgi.com>
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org, y-goto@jp.fujitsu.com
 List-ID: <linux-mm.kvack.org>
 
-> >> >+    {
-> >> if (sig_fatal(t, sig)) {
-> >> >+            printk(KERN_WARNING "Sig %d send to %d owned by %d.%d 
-> >(%s)\n",
-> >> s/send/sent/;
-> >> >+            sig, t -> pid, t -> uid, t -> gid, t -> comm);
-> >> t->pid, t->uid, t->gid, t->comm);
-> >
-> 
-> Gargh ... why does this want to be in the *kernel*'s logs? In any case, can
-> you please make this KERN_INFO (or lower) instead of KERN_WARNING.
+On Tue, 22 May 2007, Christoph Lameter wrote:
 
-Description:
-This patch adds code to the signal-sender making it log a message when
-an unhandled fatal signal will be delivered.
+> On Tue, 22 May 2007, KAMEZAWA Hiroyuki wrote:
+>
+>> +config MIGRATION_BY_KERNEL
+>> +	bool "Page migration by kernel's page scan"
+>> +	def_bool y
+>> +	depends on MIGRATION
+>> +	help
+>> +	  Allows page migration from kernel context. This means page migration
+>> +	  can be done by codes other than sys_migrate() system call. Will add
+>> +	  some additional check code in page migration.
+>
+> I think the scope of this is much bigger than you imagine. This is also
+> going to be useful when Mel is going to implement defragmentation. So I
+> think this should not be a separate option but be on by default.
+>
 
-Signed-of by: Folkert van Heusden <folkert@vanheusden.com
+I'm not 100% sure but chances are I need this.
 
---- kernel/signal.c.org	2007-05-20 22:47:13.000000000 +0200
-+++ kernel/signal.c	2007-05-21 14:46:05.000000000 +0200
-@@ -739,6 +739,12 @@
- 	struct sigqueue * q = NULL;
- 	int ret = 0;
- 
-+	/* unhandled fatal signals are logged */
-+	if (sig_fatal(t, sig)) {
-+		printk(KERN_INFO "Sig %d sent to %d owned by %d.%d (%s)\n",
-+		sig, t->pid, t->uid, t->gid, t->comm);
-+	}
-+
- 	/*
- 	 * fast-pathed signals for kernel-internal things like SIGSTOP
- 	 * or SIGKILL.
+I put together a memory compaction prototype today[*] to check because 
+it's been put off long enough. However, memory compaction works whether I 
+called migrate_pages() or migrate_pages_nocontext() even when regularly 
+compacting under load. That said, calling migrate_pages() is probably 
+racing like mad and I am not getting nailed for it as the test machine is 
+small with one CPU and the stress load is kernel compiles instead of 
+processes with mapped data. I'm basing compaction on top of a slightly 
+modified version of this patch and will revisit it later.
 
+Incidentally, the results of the compaction at rest are;
 
-Folkert van Heusden
+Freelists before compaction
+Node    0, zone   Normal, type    Unmovable    302     55     26     20     12      6      2      0      0      0      0
+Node    0, zone   Normal, type  Reclaimable   3165    734    218     28      3      0      0      0      0      0      0
+Node    0, zone   Normal, type      Movable   4986   2222   1980   1553    752    238     26      2      0      0      0
+Node    0, zone   Normal, type      Reserve      5      3      0      0      1      1      0      0      1      1      0
+
+Freelists after compaction
+Node    0, zone   Normal, type    Unmovable    278     32     14     12     10      5      4      2      0      0      0
+Node    0, zone   Normal, type  Reclaimable   3184    743    226     32      3      0      0      0      0      0      0
+Node    0, zone   Normal, type      Movable    862    676    599    421    238     94     17      6      4      3     31
+Node    0, zone   Normal, type      Reserve      1      1      1      1      1      1      1      1      1      1      0
+
+So it's doing something and the machine hasn't killed itself in the face. 
+Aside, the page migration framework is ridiculously easy to work with - 
+kudos to all who worked on it.
+
+[*] Considering a working prototype only took a day to put
+     together, I'm irritated it took me this long to get around to it.
 
 -- 
-Temperature outside:    21.437500, temperature livingroom: 
-----------------------------------------------------------------------
-Phone: +31-6-41278122, PGP-key: 1F28D8AE, www.vanheusden.com
+Mel Gorman
+Part-time Phd Student                          Linux Technology Center
+University of Limerick                         IBM Dublin Software Lab
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
