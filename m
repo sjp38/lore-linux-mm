@@ -1,42 +1,48 @@
-Date: Tue, 22 May 2007 18:14:47 -0700 (PDT)
-From: Linus Torvalds <torvalds@linux-foundation.org>
-Subject: Re: [patch 2/8] mm: merge populate and nopage into fault (fixes
- nonlinear)
-In-Reply-To: <20070522151220.GA9541@infradead.org>
-Message-ID: <alpine.LFD.0.98.0705221814220.3890@woody.linux-foundation.org>
-References: <200705180737.l4I7b5aR010752@shell0.pdx.osdl.net>
- <alpine.LFD.0.98.0705180758450.3890@woody.linux-foundation.org>
- <20070522151220.GA9541@infradead.org>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=us-ascii
+Date: Wed, 23 May 2007 10:41:18 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [Patch] memory unplug v3 [1/4] page isolation
+Message-Id: <20070523104118.63a18e42.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <Pine.LNX.4.64.0705221137160.29456@schroedinger.engr.sgi.com>
+References: <20070522155824.563f5873.kamezawa.hiroyu@jp.fujitsu.com>
+	<20070522160151.3ae5e5d7.kamezawa.hiroyu@jp.fujitsu.com>
+	<Pine.LNX.4.64.0705221137160.29456@schroedinger.engr.sgi.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Hellwig <hch@infradead.org>
-Cc: akpm@linux-foundation.org, linux-mm@kvack.org, npiggin@suse.de, randy.dunlap@oracle.com, dgc@sgi.com
+To: Christoph Lameter <clameter@sgi.com>
+Cc: linux-mm@kvack.org, mel@csn.ul.ie, y-goto@jp.fujitsu.com
 List-ID: <linux-mm.kvack.org>
 
+On Tue, 22 May 2007 11:38:56 -0700 (PDT)
+Christoph Lameter <clameter@sgi.com> wrote:
 
-On Tue, 22 May 2007, Christoph Hellwig wrote:
->
-> On Fri, May 18, 2007 at 08:11:35AM -0700, Linus Torvalds wrote:
-> > 
-> > On Fri, 18 May 2007, akpm@linux-foundation.org wrote:
-> > > 
-> > > Nonlinear mappings are (AFAIKS) simply a virtual memory concept that encodes
-> > > the virtual address -> file offset differently from linear mappings.
-> > 
-> > I'm not going to merge this one.
+> On Tue, 22 May 2007, KAMEZAWA Hiroyuki wrote:
 > 
-> So if ->fault doesn't get in can be please at least get block_page_mkwrite
-> in to fix the shared mmap write allocation and unwritten extent + mmap
-> issues?  It can then later be converted to whatever version of ->fault
-> goes in.
+> > Index: devel-2.6.22-rc1-mm1/mm/page_isolation.c
+> > ===================================================================
+> > --- /dev/null	1970-01-01 00:00:00.000000000 +0000
+> > +++ devel-2.6.22-rc1-mm1/mm/page_isolation.c	2007-05-22 15:12:28.000000000 +0900
+> > @@ -0,0 +1,67 @@
+> > +/*
+> > + * linux/mm/page_isolation.c
+> > + */
+> > +
+> > +#include <stddef.h>
+> > +#include <linux/mm.h>
+> > +#include <linux/page-isolation.h>
+> > +
+> > +#define ROUND_DOWN(x,y)	((x) & ~((y) - 1))
+> > +#define ROUND_UP(x,y)	(((x) + (y) -1) & ~((y) - 1))
+> 
+> Use the common definitions like ALIGN in kernel.h and the rounding 
+> functions in log2.h?
+> 
+yes. I should do so.
 
-After a -rc2? 
-
-I don't think so. Unless it's some new regression.
-
-		Linus
+Thanks,
+-Kmae
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
