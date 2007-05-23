@@ -1,56 +1,126 @@
-Received: by ug-out-1314.google.com with SMTP id m2so226711uge
-        for <linux-mm@kvack.org>; Wed, 23 May 2007 11:00:50 -0700 (PDT)
-Message-ID: <a781481a0705231100q333a589at6c025eb1292019cd@mail.gmail.com>
-Date: Wed, 23 May 2007 23:30:50 +0530
-From: "Satyam Sharma" <satyam.sharma@gmail.com>
-Subject: Re: signals logged / [RFC] log out-of-virtual-memory events
-In-Reply-To: <20070521124734.GB14802@vanheusden.com>
+Date: Wed, 23 May 2007 11:04:28 -0700 (PDT)
+From: Christoph Lameter <clameter@sgi.com>
+Subject: Re: [patch 1/3] slob: rework freelist handling
+In-Reply-To: <20070523074636.GA10070@wotan.suse.de>
+Message-ID: <Pine.LNX.4.64.0705231102530.20395@schroedinger.engr.sgi.com>
+References: <Pine.LNX.4.64.0705222154280.28140@schroedinger.engr.sgi.com>
+ <20070523045938.GA29045@wotan.suse.de> <Pine.LNX.4.64.0705222200420.32184@schroedinger.engr.sgi.com>
+ <20070523050333.GB29045@wotan.suse.de> <Pine.LNX.4.64.0705222204460.3135@schroedinger.engr.sgi.com>
+ <20070523051152.GC29045@wotan.suse.de> <Pine.LNX.4.64.0705222212200.3232@schroedinger.engr.sgi.com>
+ <20070523052206.GD29045@wotan.suse.de> <Pine.LNX.4.64.0705222224380.12076@schroedinger.engr.sgi.com>
+ <20070523061702.GA9449@wotan.suse.de> <20070523074636.GA10070@wotan.suse.de>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
-References: <464C9D82.60105@redhat.com>
-	 <Pine.LNX.4.61.0705202235430.13923@yvahk01.tjqt.qr>
-	 <20070520205500.GJ22452@vanheusden.com>
-	 <200705202314.57758.ak@suse.de>
-	 <46517817.1080208@users.sourceforge.net>
-	 <20070521110406.GA14802@vanheusden.com>
-	 <Pine.LNX.4.61.0705211420100.4452@yvahk01.tjqt.qr>
-	 <20070521124734.GB14802@vanheusden.com>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Folkert van Heusden <folkert@vanheusden.com>
-Cc: Jan Engelhardt <jengelh@linux01.gwdg.de>, Andrea Righi <righiandr@users.sourceforge.net>, Andi Kleen <ak@suse.de>, Stephen Hemminger <shemminger@linux-foundation.org>, Eric Dumazet <dada1@cosmosbay.com>, Rik van Riel <riel@redhat.com>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
+To: Nick Piggin <npiggin@suse.de>
+Cc: Matt Mackall <mpm@selenic.com>, Andrew Morton <akpm@linux-foundation.org>, Linux Memory Management List <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On 5/21/07, Folkert van Heusden <folkert@vanheusden.com> wrote:
-> > >What about the following enhancement: I check with sig_fatal if it would
-> > >kill the process and only then emit a message. So when an application
-> > >takes care itself of handling it nothing is printed.
-> > >+    /* emit some logging for unhandled signals
-> > >+     */
-> > >+    if (sig_fatal(t, sig))
-> > Not unhandled_signal()?
->
-> Can we already use that one in send_signal? As the signal needs to be
-> send first I think before we know if it was handled or not? sig_fatal
-> checks if the handler is set to default - which is it is not taken care
-> of.
->
-> > >+    {
-> > if (sig_fatal(t, sig)) {
-> > >+            printk(KERN_WARNING "Sig %d send to %d owned by %d.%d (%s)\n",
-> > s/send/sent/;
-> > >+            sig, t -> pid, t -> uid, t -> gid, t -> comm);
-> > t->pid, t->uid, t->gid, t->comm);
->
->
-> Description:
-> This patch adds code to the signal-sender making it log a message when
-> an unhandled fatal signal will be delivered.
+Could you try this patch and tell me how much memory it saves?
 
-Gargh ... why does this want to be in the *kernel*'s logs? In any case, can
-you please make this KERN_INFO (or lower) instead of KERN_WARNING.
+SLUB embedded: Reduce memory use
+
+If we do not have CONFIG_SLUB_DEBUG set then assume that we need
+to conserve memory. So
+
+1. Reduce size of kmem_cache_node
+
+2. Do not keep empty partial slabs around
+
+3. Remove all empty cpu slabs when bootstrap of the kernel
+   is complete. New cpu slabs will only be added for
+   the slabs actually used by user space.
+
+Signed-off-by: Christoph Lameter <clameter@sgi.com>
+
+---
+ include/linux/slub_def.h |    2 ++
+ mm/slub.c                |   14 ++++++++++++--
+ 2 files changed, 14 insertions(+), 2 deletions(-)
+
+Index: slub/include/linux/slub_def.h
+===================================================================
+--- slub.orig/include/linux/slub_def.h	2007-05-22 22:46:06.000000000 -0700
++++ slub/include/linux/slub_def.h	2007-05-22 23:31:18.000000000 -0700
+@@ -17,7 +17,9 @@ struct kmem_cache_node {
+ 	unsigned long nr_partial;
+ 	atomic_long_t nr_slabs;
+ 	struct list_head partial;
++#ifdef CONFIG_SLUB_DEBUG
+ 	struct list_head full;
++#endif
+ };
+ 
+ /*
+Index: slub/mm/slub.c
+===================================================================
+--- slub.orig/mm/slub.c	2007-05-22 22:46:06.000000000 -0700
++++ slub/mm/slub.c	2007-05-23 10:32:36.000000000 -0700
+@@ -183,7 +183,11 @@ static inline void ClearSlabDebug(struct
+  * Mininum number of partial slabs. These will be left on the partial
+  * lists even if they are empty. kmem_cache_shrink may reclaim them.
+  */
++#ifdef CONFIG_SLUB_DEBUG
++#define MIN_PARTIAL 2
++#else
+ #define MIN_PARTIAL 0
++#endif
+ 
+ /*
+  * Maximum number of desirable partial slabs.
+@@ -1792,7 +1796,9 @@ static void init_kmem_cache_node(struct 
+ 	atomic_long_set(&n->nr_slabs, 0);
+ 	spin_lock_init(&n->list_lock);
+ 	INIT_LIST_HEAD(&n->partial);
++#ifdef CONFIG_SLUB_DEBUG
+ 	INIT_LIST_HEAD(&n->full);
++#endif
+ }
+ 
+ #ifdef CONFIG_NUMA
+@@ -3659,17 +3665,20 @@ static int sysfs_slab_alias(struct kmem_
+ 	return 0;
+ }
+ 
++#endif
+ static int __init slab_sysfs_init(void)
+ {
+ 	struct list_head *h;
+ 	int err;
+ 
++#ifdef CONFIG_SLUB_DEBUG
+ 	err = subsystem_register(&slab_subsys);
+ 	if (err) {
+ 		printk(KERN_ERR "Cannot register slab subsystem.\n");
+ 		return -ENOSYS;
+ 	}
+ 
++#endif
+ 	slab_state = SYSFS;
+ 
+ 	list_for_each(h, &slab_caches) {
+@@ -3678,8 +3687,10 @@ static int __init slab_sysfs_init(void)
+ 
+ 		err = sysfs_slab_add(s);
+ 		BUG_ON(err);
++		kmem_cache_shrink(s);
+ 	}
+ 
++#ifdef CONFIG_SLUB_DEBUG
+ 	while (alias_list) {
+ 		struct saved_alias *al = alias_list;
+ 
+@@ -3690,8 +3701,7 @@ static int __init slab_sysfs_init(void)
+ 	}
+ 
+ 	resiliency_test();
++#endif
+ 	return 0;
+ }
+-
+ __initcall(slab_sysfs_init);
+-#endif
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
