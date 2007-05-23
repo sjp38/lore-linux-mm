@@ -1,51 +1,59 @@
-Date: Wed, 23 May 2007 13:32:24 -0500
-From: Matt Mackall <mpm@selenic.com>
-Subject: Re: [patch 1/3] slob: rework freelist handling
-Message-ID: <20070523183224.GD11115@waste.org>
-References: <20070523050333.GB29045@wotan.suse.de> <Pine.LNX.4.64.0705222204460.3135@schroedinger.engr.sgi.com> <20070523051152.GC29045@wotan.suse.de> <Pine.LNX.4.64.0705222212200.3232@schroedinger.engr.sgi.com> <20070523052206.GD29045@wotan.suse.de> <Pine.LNX.4.64.0705222224380.12076@schroedinger.engr.sgi.com> <20070523061702.GA9449@wotan.suse.de> <Pine.LNX.4.64.0705222326260.16694@schroedinger.engr.sgi.com> <20070523071200.GB9449@wotan.suse.de> <Pine.LNX.4.64.0705230956160.19822@schroedinger.engr.sgi.com>
+Date: Wed, 23 May 2007 20:45:35 +0200
+From: Folkert van Heusden <folkert@vanheusden.com>
+Subject: Re: signals logged / [RFC] log out-of-virtual-memory events
+Message-ID: <20070523184535.GE21655@vanheusden.com>
+References: <464C9D82.60105@redhat.com> <Pine.LNX.4.61.0705202235430.13923@yvahk01.tjqt.qr> <20070520205500.GJ22452@vanheusden.com> <200705202314.57758.ak@suse.de> <46517817.1080208@users.sourceforge.net> <20070521110406.GA14802@vanheusden.com> <Pine.LNX.4.61.0705211420100.4452@yvahk01.tjqt.qr> <20070521124734.GB14802@vanheusden.com> <a781481a0705231100q333a589at6c025eb1292019cd@mail.gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <Pine.LNX.4.64.0705230956160.19822@schroedinger.engr.sgi.com>
+In-Reply-To: <a781481a0705231100q333a589at6c025eb1292019cd@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
-Cc: Nick Piggin <npiggin@suse.de>, Andrew Morton <akpm@linux-foundation.org>, Linux Memory Management List <linux-mm@kvack.org>
+To: Satyam Sharma <satyam.sharma@gmail.com>
+Cc: Jan Engelhardt <jengelh@linux01.gwdg.de>, Andrea Righi <righiandr@users.sourceforge.net>, Andi Kleen <ak@suse.de>, Stephen Hemminger <shemminger@linux-foundation.org>, Eric Dumazet <dada1@cosmosbay.com>, Rik van Riel <riel@redhat.com>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, May 23, 2007 at 10:03:34AM -0700, Christoph Lameter wrote:
-> On Wed, 23 May 2007, Nick Piggin wrote:
+> >> >+    {
+> >> if (sig_fatal(t, sig)) {
+> >> >+            printk(KERN_WARNING "Sig %d send to %d owned by %d.%d 
+> >(%s)\n",
+> >> s/send/sent/;
+> >> >+            sig, t -> pid, t -> uid, t -> gid, t -> comm);
+> >> t->pid, t->uid, t->gid, t->comm);
+> >
 > 
-> > On Tue, May 22, 2007 at 11:28:18PM -0700, Christoph Lameter wrote:
-> > > On Wed, 23 May 2007, Nick Piggin wrote:
-> > > 
-> > > > If you want to do a memory consumption shootout with SLOB, you need
-> > > > all the help you can get ;)
-> > > 
-> > > No way. And first you'd have to make SLOB functional. Among other 
-> > > things it does not support slab reclaim.
-> > 
-> > What do you mean by slab reclaim? SLOB doesn't have slabs and it
-> > never keeps around unused pages so I can't see how it would be able
-> > to do anything more useful. SLOB is fully functional here, on my 4GB
-> > desktop system, even.
-> 
-> SLOB does not f.e. handle the SLAB ZVCs. The VM will think there is no 
-> slab use and never shrink the slabs.
+> Gargh ... why does this want to be in the *kernel*'s logs? In any case, can
+> you please make this KERN_INFO (or lower) instead of KERN_WARNING.
 
-You keep saying something like this but I'm never quite clear what you
-mean. There are no slabs so reclaiming unused slabs is a non-issue.
-Things like shrinking the dcache should work:
+Description:
+This patch adds code to the signal-sender making it log a message when
+an unhandled fatal signal will be delivered.
 
- __alloc_pages
-  try_to_free_pages
-   shrink_slab
-    shrink_dcache_memory
+Signed-of by: Folkert van Heusden <folkert@vanheusden.com
 
-I don't see any checks of ZVCs interfering with that path.
+--- kernel/signal.c.org	2007-05-20 22:47:13.000000000 +0200
++++ kernel/signal.c	2007-05-21 14:46:05.000000000 +0200
+@@ -739,6 +739,12 @@
+ 	struct sigqueue * q = NULL;
+ 	int ret = 0;
+ 
++	/* unhandled fatal signals are logged */
++	if (sig_fatal(t, sig)) {
++		printk(KERN_INFO "Sig %d sent to %d owned by %d.%d (%s)\n",
++		sig, t->pid, t->uid, t->gid, t->comm);
++	}
++
+ 	/*
+ 	 * fast-pathed signals for kernel-internal things like SIGSTOP
+ 	 * or SIGKILL.
+
+
+Folkert van Heusden
 
 -- 
-Mathematics is the supreme nostalgia of our time.
+Temperature outside:    21.437500, temperature livingroom: 
+----------------------------------------------------------------------
+Phone: +31-6-41278122, PGP-key: 1F28D8AE, www.vanheusden.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
