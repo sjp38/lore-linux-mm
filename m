@@ -1,47 +1,62 @@
-Date: Wed, 23 May 2007 09:46:36 +0200
-From: Nick Piggin <npiggin@suse.de>
-Subject: Re: [patch 1/3] slob: rework freelist handling
-Message-ID: <20070523074636.GA10070@wotan.suse.de>
-References: <Pine.LNX.4.64.0705222154280.28140@schroedinger.engr.sgi.com> <20070523045938.GA29045@wotan.suse.de> <Pine.LNX.4.64.0705222200420.32184@schroedinger.engr.sgi.com> <20070523050333.GB29045@wotan.suse.de> <Pine.LNX.4.64.0705222204460.3135@schroedinger.engr.sgi.com> <20070523051152.GC29045@wotan.suse.de> <Pine.LNX.4.64.0705222212200.3232@schroedinger.engr.sgi.com> <20070523052206.GD29045@wotan.suse.de> <Pine.LNX.4.64.0705222224380.12076@schroedinger.engr.sgi.com> <20070523061702.GA9449@wotan.suse.de>
+Date: Wed, 23 May 2007 18:35:48 +1000
+From: David Chinner <dgc@sgi.com>
+Subject: Re: [patch 2/8] mm: merge populate and nopage into fault (fixes nonlinear)
+Message-ID: <20070523083548.GX86004887@sgi.com>
+References: <200705180737.l4I7b5aR010752@shell0.pdx.osdl.net> <alpine.LFD.0.98.0705180758450.3890@woody.linux-foundation.org> <20070522151220.GA9541@infradead.org> <alpine.LFD.0.98.0705221814220.3890@woody.linux-foundation.org>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20070523061702.GA9449@wotan.suse.de>
+In-Reply-To: <alpine.LFD.0.98.0705221814220.3890@woody.linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
-Cc: Matt Mackall <mpm@selenic.com>, Andrew Morton <akpm@linux-foundation.org>, Linux Memory Management List <linux-mm@kvack.org>
+To: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Christoph Hellwig <hch@infradead.org>, akpm@linux-foundation.org, linux-mm@kvack.org, npiggin@suse.de, randy.dunlap@oracle.com, dgc@sgi.com
 List-ID: <linux-mm.kvack.org>
 
-On Wed, May 23, 2007 at 08:17:02AM +0200, Nick Piggin wrote:
-> On Tue, May 22, 2007 at 10:28:54PM -0700, Christoph Lameter wrote:
-> > On Wed, 23 May 2007, Nick Piggin wrote:
-> > 
-> > > > This is intended for distro kernels so that you will not have to rebuild 
-> > > > the kernel for slab debugging if slab corruption occurs.
+On Tue, May 22, 2007 at 06:14:47PM -0700, Linus Torvalds wrote:
+> 
+> 
+> On Tue, 22 May 2007, Christoph Hellwig wrote:
+> >
+> > On Fri, May 18, 2007 at 08:11:35AM -0700, Linus Torvalds wrote:
 > > > 
-> > > OIC, neat. Anyway, the code size issue is still there, so I will
-> > > test with the fix instead.
+> > > On Fri, 18 May 2007, akpm@linux-foundation.org wrote:
+> > > > 
+> > > > Nonlinear mappings are (AFAIKS) simply a virtual memory concept that encodes
+> > > > the virtual address -> file offset differently from linear mappings.
+> > > 
+> > > I'm not going to merge this one.
 > > 
-> > A code size issue? You mean SLUB is code wise larger than SLOB?
+> > So if ->fault doesn't get in can be please at least get block_page_mkwrite
+> > in to fix the shared mmap write allocation and unwritten extent + mmap
+> > issues?  It can then later be converted to whatever version of ->fault
+> > goes in.
 > 
+> After a -rc2? 
 > 
-> That's what the numbers I just posted earlier indicate, yes.
-> 
-> If you want to do a memory consumption shootout with SLOB, you need
-> all the help you can get ;)
-> 
-> OK, so with a 64-bit UP ppc kernel, compiled for size, and without full
-> size data structures, booting with mem=16M init=/bin/bash.
-> 
-> 2.6.22-rc1-mm1 + your fix + my slob patches.
-> 
-> After booting and mounting /proc, SLOB has 1140K free, SLUB has 748K
-> free.
+> I don't think so. Unless it's some new regression.
 
-Oh, and just out of interest, SLOB before my patches winds up with
-1068K free, so it is good to know the patches were able to save a bit
-on this setup.
+It's an old bug that ppl have been asking to be fixed for
+a long time. I fixed it a couple of months back, only to have
+inclusion put on hold because a) there was nothing XFS sepcific
+and it should be made generic, and b) the generic implementation
+conflicted with the impending ->fault work and hence was held back.
+
+If neither of these things occurred, the XFS specific fix would have
+been released in 2.6.21. As it stands, the only user of
+block_page_mkwrite() would be XFS for 2.6.22 and the patches have
+been sitting in my QA tree for a couple of months now just waiting
+to go somewhere....
+
+What's the plan for ->fault moving forward?
+
+Cheers,
+
+Dave.
+-- 
+Dave Chinner
+Principal Engineer
+SGI Australian Software Group
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
