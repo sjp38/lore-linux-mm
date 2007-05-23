@@ -1,81 +1,53 @@
-Date: Tue, 22 May 2007 23:38:54 -0700 (PDT)
-From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [patch 1/3] slob: rework freelist handling
-In-Reply-To: <20070523061702.GA9449@wotan.suse.de>
-Message-ID: <Pine.LNX.4.64.0705222332530.16738@schroedinger.engr.sgi.com>
-References: <20070523030637.GC9255@wotan.suse.de>
- <Pine.LNX.4.64.0705222154280.28140@schroedinger.engr.sgi.com>
- <20070523045938.GA29045@wotan.suse.de> <Pine.LNX.4.64.0705222200420.32184@schroedinger.engr.sgi.com>
- <20070523050333.GB29045@wotan.suse.de> <Pine.LNX.4.64.0705222204460.3135@schroedinger.engr.sgi.com>
- <20070523051152.GC29045@wotan.suse.de> <Pine.LNX.4.64.0705222212200.3232@schroedinger.engr.sgi.com>
- <20070523052206.GD29045@wotan.suse.de> <Pine.LNX.4.64.0705222224380.12076@schroedinger.engr.sgi.com>
- <20070523061702.GA9449@wotan.suse.de>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Date: Wed, 23 May 2007 17:07:36 +1000
+From: Stephen Rothwell <sfr@canb.auug.org.au>
+Subject: Re: [PATCH 3/8] Generic Virtual Memmap support for SPARSEMEM V4
+Message-Id: <20070523170736.260d1b22.sfr@canb.auug.org.au>
+In-Reply-To: <Pine.LNX.4.64.0705222214590.5218@schroedinger.engr.sgi.com>
+References: <exportbomb.1179873917@pinky>
+	<E1HqdKD-0003dU-5r@hellhawk.shadowen.org>
+	<Pine.LNX.4.64.0705222214590.5218@schroedinger.engr.sgi.com>
+Mime-Version: 1.0
+Content-Type: multipart/signed; protocol="application/pgp-signature";
+ micalg="PGP-SHA1";
+ boundary="Signature=_Wed__23_May_2007_17_07_36_+1000_Qe3UP.g.beyBxc.B"
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nick Piggin <npiggin@suse.de>
-Cc: Matt Mackall <mpm@selenic.com>, Andrew Morton <akpm@linux-foundation.org>, Linux Memory Management List <linux-mm@kvack.org>
+To: Christoph Lameter <clameter@sgi.com>
+Cc: Andy Whitcroft <apw@shadowen.org>, linux-mm@kvack.org, linux-arch@vger.kernel.org, Nick Piggin <npiggin@suse.de>, Mel Gorman <mel@csn.ul.ie>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 23 May 2007, Nick Piggin wrote:
+--Signature=_Wed__23_May_2007_17_07_36_+1000_Qe3UP.g.beyBxc.B
+Content-Type: text/plain; charset=US-ASCII
+Content-Disposition: inline
+Content-Transfer-Encoding: 7bit
 
-> OK, so with a 64-bit UP ppc kernel, compiled for size, and without full
-> size data structures, booting with mem=16M init=/bin/bash.
+On Tue, 22 May 2007 22:15:26 -0700 (PDT) Christoph Lameter <clameter@sgi.com> wrote:
+>
+> I get a couple of warnings:
+>
+> mm/sparse.c:423: warning: '__kmalloc_section_memmap' defined but not used
+> mm/sparse.c:453: warning: '__kfree_section_memmap' defined but not used
 
-Hmmm.. Cannot do much on such a system. Try a 32 bit instead?
- 
-> After booting and mounting /proc, SLOB has 1140K free, SLUB has 748K
-> free.
+This is fixed by my patch "Move three functions that are only needed for
+CONFIG_MEMORY_HOTPLUG" which I posted yesterday and is in Andrew's tree.
+Sorry for not cc'ing linux-mm.
+--
+Cheers,
+Stephen Rothwell                    sfr@canb.auug.org.au
+http://www.canb.auug.org.au/~sfr/
 
-The following patch may help a little bit but not much. Hmmm... In order 
-to reduce the space further we would also have to shrink all caches when 
-boot is  complete. Elimination of useless caches also would be good. 
-Do you really want to go into this deeper?
+--Signature=_Wed__23_May_2007_17_07_36_+1000_Qe3UP.g.beyBxc.B
+Content-Type: application/pgp-signature
 
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v1.4.6 (GNU/Linux)
 
----
- include/linux/slub_def.h |    2 ++
- mm/slub.c                |    4 +++-
- 2 files changed, 5 insertions(+), 1 deletion(-)
+iD8DBQFGU+hBFdBgD/zoJvwRAltZAJ9UIEYzmqu39rUL/Vy2D8R1VurL+gCgocEl
+JwYPlmoTH/9Q8f430I9HbXc=
+=x+wh
+-----END PGP SIGNATURE-----
 
-Index: slub/include/linux/slub_def.h
-===================================================================
---- slub.orig/include/linux/slub_def.h	2007-05-22 22:46:06.000000000 -0700
-+++ slub/include/linux/slub_def.h	2007-05-22 23:31:18.000000000 -0700
-@@ -17,7 +17,9 @@ struct kmem_cache_node {
- 	unsigned long nr_partial;
- 	atomic_long_t nr_slabs;
- 	struct list_head partial;
-+#ifdef CONFIG_SLUB_DEBUG
- 	struct list_head full;
-+#endif
- };
- 
- /*
-Index: slub/mm/slub.c
-===================================================================
---- slub.orig/mm/slub.c	2007-05-22 22:46:06.000000000 -0700
-+++ slub/mm/slub.c	2007-05-22 23:32:00.000000000 -0700
-@@ -183,7 +183,7 @@ static inline void ClearSlabDebug(struct
-  * Mininum number of partial slabs. These will be left on the partial
-  * lists even if they are empty. kmem_cache_shrink may reclaim them.
-  */
--#define MIN_PARTIAL 2
-+#define MIN_PARTIAL 0
- 
- /*
-  * Maximum number of desirable partial slabs.
-@@ -1792,7 +1792,9 @@ static void init_kmem_cache_node(struct 
- 	atomic_long_set(&n->nr_slabs, 0);
- 	spin_lock_init(&n->list_lock);
- 	INIT_LIST_HEAD(&n->partial);
-+#ifdef CONFIG_SLUB_DEBUG
- 	INIT_LIST_HEAD(&n->full);
-+#endif
- }
- 
- #ifdef CONFIG_NUMA
+--Signature=_Wed__23_May_2007_17_07_36_+1000_Qe3UP.g.beyBxc.B--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
