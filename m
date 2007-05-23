@@ -1,15 +1,15 @@
-Date: Wed, 23 May 2007 12:59:05 -0700 (PDT)
+Date: Wed, 23 May 2007 13:02:53 -0700 (PDT)
 From: Christoph Lameter <clameter@sgi.com>
 Subject: Re: [patch 1/3] slob: rework freelist handling
-In-Reply-To: <20070523193547.GE11115@waste.org>
-Message-ID: <Pine.LNX.4.64.0705231256001.21541@schroedinger.engr.sgi.com>
-References: <Pine.LNX.4.64.0705222200420.32184@schroedinger.engr.sgi.com>
- <20070523050333.GB29045@wotan.suse.de> <Pine.LNX.4.64.0705222204460.3135@schroedinger.engr.sgi.com>
- <20070523051152.GC29045@wotan.suse.de> <Pine.LNX.4.64.0705222212200.3232@schroedinger.engr.sgi.com>
+In-Reply-To: <20070523195824.GF11115@waste.org>
+Message-ID: <Pine.LNX.4.64.0705231300070.21541@schroedinger.engr.sgi.com>
+References: <20070523051152.GC29045@wotan.suse.de>
+ <Pine.LNX.4.64.0705222212200.3232@schroedinger.engr.sgi.com>
  <20070523052206.GD29045@wotan.suse.de> <Pine.LNX.4.64.0705222224380.12076@schroedinger.engr.sgi.com>
- <20070523061702.GA9449@wotan.suse.de> <20070523074636.GA10070@wotan.suse.de>
- <Pine.LNX.4.64.0705231006370.19822@schroedinger.engr.sgi.com>
- <20070523193547.GE11115@waste.org>
+ <20070523061702.GA9449@wotan.suse.de> <Pine.LNX.4.64.0705222326260.16694@schroedinger.engr.sgi.com>
+ <20070523071200.GB9449@wotan.suse.de> <Pine.LNX.4.64.0705230956160.19822@schroedinger.engr.sgi.com>
+ <20070523183224.GD11115@waste.org> <Pine.LNX.4.64.0705231208380.21222@schroedinger.engr.sgi.com>
+ <20070523195824.GF11115@waste.org>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
@@ -20,31 +20,13 @@ List-ID: <linux-mm.kvack.org>
 
 On Wed, 23 May 2007, Matt Mackall wrote:
 
->  748K SLUB
-> 1068K SLOB    (old SLOB saves 320K)
-> 1140K SLOB++  (Nick's improvements save an additional 72K for 392K total)
-> 
-> (It'd be nice to have a SLAB number in there for completeness.)
-> 
-> Nick's patches also make SLOB reasonably performant on larger machines
-> (and can be a bit faster with a little tweaking). But it'll never be
-> as fast as SLAB or SLUB - it has to walk lists. Similarly, I think
-> it's basically impossible for a SLAB-like system that segregates
-> objects of different sizes onto different pages to compete with a
-> linked-list allocator on size. Especially now that Nick's reduced the
-> kmalloc overhead to 2 bytes!
-> 
-> So as long as there are machines where 100K or so makes a difference,
-> there'll be a use for a SLOB-like allocator.
+> Meanwhile this function is only called from swsusp.c.
 
-Hummm... We have not tested with my patch yet. May save another 200k.
+NR_SLAB_UNRECLAIMABLE is also used in  __vm_enough_memory and 
+in zone reclaim (well ok thats only NUMA).
 
-And also the situation that Nick created is a bit artificial. One should 
-at least have half the memory available for user space I would think. If 
-there is a small difference after bootup then its not worth to keep SLOB 
-around. In particular since any real user space stuff will likely cause 
-fragmentation in SLOB which over the long hawl will be a problem vs. 
-SLA/UB.
+Plus the SLAB sizes are not reported to user space. We see 0 in 
+/proc/meminfo etc etc.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
