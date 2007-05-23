@@ -1,8 +1,8 @@
-Date: Tue, 22 May 2007 23:28:18 -0700 (PDT)
+Date: Tue, 22 May 2007 23:38:54 -0700 (PDT)
 From: Christoph Lameter <clameter@sgi.com>
 Subject: Re: [patch 1/3] slob: rework freelist handling
 In-Reply-To: <20070523061702.GA9449@wotan.suse.de>
-Message-ID: <Pine.LNX.4.64.0705222326260.16694@schroedinger.engr.sgi.com>
+Message-ID: <Pine.LNX.4.64.0705222332530.16738@schroedinger.engr.sgi.com>
 References: <20070523030637.GC9255@wotan.suse.de>
  <Pine.LNX.4.64.0705222154280.28140@schroedinger.engr.sgi.com>
  <20070523045938.GA29045@wotan.suse.de> <Pine.LNX.4.64.0705222200420.32184@schroedinger.engr.sgi.com>
@@ -20,21 +20,62 @@ List-ID: <linux-mm.kvack.org>
 
 On Wed, 23 May 2007, Nick Piggin wrote:
 
-> If you want to do a memory consumption shootout with SLOB, you need
-> all the help you can get ;)
-
-No way. And first you'd have to make SLOB functional. Among other 
-things it does not support slab reclaim.
-
 > OK, so with a 64-bit UP ppc kernel, compiled for size, and without full
 > size data structures, booting with mem=16M init=/bin/bash.
-> 
-> 2.6.22-rc1-mm1 + your fix + my slob patches.
-> 
+
+Hmmm.. Cannot do much on such a system. Try a 32 bit instead?
+ 
 > After booting and mounting /proc, SLOB has 1140K free, SLUB has 748K
 > free.
 
-Hmm.... Can I see the .config please?
+The following patch may help a little bit but not much. Hmmm... In order 
+to reduce the space further we would also have to shrink all caches when 
+boot is  complete. Elimination of useless caches also would be good. 
+Do you really want to go into this deeper?
+
+
+---
+ include/linux/slub_def.h |    2 ++
+ mm/slub.c                |    4 +++-
+ 2 files changed, 5 insertions(+), 1 deletion(-)
+
+Index: slub/include/linux/slub_def.h
+===================================================================
+--- slub.orig/include/linux/slub_def.h	2007-05-22 22:46:06.000000000 -0700
++++ slub/include/linux/slub_def.h	2007-05-22 23:31:18.000000000 -0700
+@@ -17,7 +17,9 @@ struct kmem_cache_node {
+ 	unsigned long nr_partial;
+ 	atomic_long_t nr_slabs;
+ 	struct list_head partial;
++#ifdef CONFIG_SLUB_DEBUG
+ 	struct list_head full;
++#endif
+ };
+ 
+ /*
+Index: slub/mm/slub.c
+===================================================================
+--- slub.orig/mm/slub.c	2007-05-22 22:46:06.000000000 -0700
++++ slub/mm/slub.c	2007-05-22 23:32:00.000000000 -0700
+@@ -183,7 +183,7 @@ static inline void ClearSlabDebug(struct
+  * Mininum number of partial slabs. These will be left on the partial
+  * lists even if they are empty. kmem_cache_shrink may reclaim them.
+  */
+-#define MIN_PARTIAL 2
++#define MIN_PARTIAL 0
+ 
+ /*
+  * Maximum number of desirable partial slabs.
+@@ -1792,7 +1792,9 @@ static void init_kmem_cache_node(struct 
+ 	atomic_long_set(&n->nr_slabs, 0);
+ 	spin_lock_init(&n->list_lock);
+ 	INIT_LIST_HEAD(&n->partial);
++#ifdef CONFIG_SLUB_DEBUG
+ 	INIT_LIST_HEAD(&n->full);
++#endif
+ }
+ 
+ #ifdef CONFIG_NUMA
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
