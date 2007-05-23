@@ -1,72 +1,55 @@
-Received: from d01relay04.pok.ibm.com (d01relay04.pok.ibm.com [9.56.227.236])
-	by e1.ny.us.ibm.com (8.13.8/8.13.8) with ESMTP id l4NJTqlJ027111
-	for <linux-mm@kvack.org>; Wed, 23 May 2007 15:29:52 -0400
-Received: from d01av03.pok.ibm.com (d01av03.pok.ibm.com [9.56.224.217])
-	by d01relay04.pok.ibm.com (8.13.8/8.13.8/NCO v8.3) with ESMTP id l4NJTqBQ557122
-	for <linux-mm@kvack.org>; Wed, 23 May 2007 15:29:52 -0400
-Received: from d01av03.pok.ibm.com (loopback [127.0.0.1])
-	by d01av03.pok.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l4NJTpi1003425
-	for <linux-mm@kvack.org>; Wed, 23 May 2007 15:29:52 -0400
-Date: Wed, 23 May 2007 12:29:51 -0700
-From: Nishanth Aravamudan <nacc@us.ibm.com>
-Subject: Re: [RFC][PATCH 2/3] hugetlb: numafy several functions
-Message-ID: <20070523192951.GE9301@us.ibm.com>
-References: <20070516233053.GN20535@us.ibm.com> <20070516233155.GO20535@us.ibm.com> <20070523175142.GB9301@us.ibm.com> <1179947768.5537.37.camel@localhost>
+Date: Wed, 23 May 2007 14:35:47 -0500
+From: Matt Mackall <mpm@selenic.com>
+Subject: Re: [patch 1/3] slob: rework freelist handling
+Message-ID: <20070523193547.GE11115@waste.org>
+References: <Pine.LNX.4.64.0705222200420.32184@schroedinger.engr.sgi.com> <20070523050333.GB29045@wotan.suse.de> <Pine.LNX.4.64.0705222204460.3135@schroedinger.engr.sgi.com> <20070523051152.GC29045@wotan.suse.de> <Pine.LNX.4.64.0705222212200.3232@schroedinger.engr.sgi.com> <20070523052206.GD29045@wotan.suse.de> <Pine.LNX.4.64.0705222224380.12076@schroedinger.engr.sgi.com> <20070523061702.GA9449@wotan.suse.de> <20070523074636.GA10070@wotan.suse.de> <Pine.LNX.4.64.0705231006370.19822@schroedinger.engr.sgi.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1179947768.5537.37.camel@localhost>
+In-Reply-To: <Pine.LNX.4.64.0705231006370.19822@schroedinger.engr.sgi.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
-Cc: wli@holomorphy.com, anton@samba.org, clameter@sgi.com, akpm@linux-foundation.org, agl@us.ibm.com, linux-mm@kvack.org
+To: Christoph Lameter <clameter@sgi.com>
+Cc: Nick Piggin <npiggin@suse.de>, Andrew Morton <akpm@linux-foundation.org>, Linux Memory Management List <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On 23.05.2007 [15:16:07 -0400], Lee Schermerhorn wrote:
-> On Wed, 2007-05-23 at 10:51 -0700, Nishanth Aravamudan wrote:
-> > On 16.05.2007 [16:31:55 -0700], Nishanth Aravamudan wrote:
-> > > Add node-parameterized helpers for dequeue_huge_page,
-> > > alloc_fresh_huge_page and try_to_free_low. Also have
-> > > update_and_free_page() take a nid parameter. This is necessary to add a
-> > > per-node sysfs attribute to specify the number of hugepages on that
-> > > node.
-> > 
-> > I saw that 1/3 was picked up by Andrew, but have not got any responses
-> > to the other two (I know Adam is out of town...).
+On Wed, May 23, 2007 at 10:07:33AM -0700, Christoph Lameter wrote:
+> On Wed, 23 May 2007, Nick Piggin wrote:
 > 
-> Nish:  I haven't had a chance to test these patches.  Other alligators
-> in the swamp right now.
-
-No problem.
-
-> > Thoughts, comments? Bad idea, good idea?
-> > 
-> > I found it pretty handy to specify the exact layout of hugepages on each
-> > node.
+> > Oh, and just out of interest, SLOB before my patches winds up with
+> > 1068K free, so it is good to know the patches were able to save a bit
+> > on this setup.
 > 
-> Could be useful for system with unequal memory per node, or where you
-> know you want more huge pages on a given node.  I recall that Tru64 Unix
-> used to support something similar:  most vm tunables that involved sizes
-> or percentages of memory, such as page cache limits, locked memory
-> limits, reserved huge pages, ..., could be specified as a single value
-> that was distributed across nodes [backwards compatibility] or as list
-> of per node values.  However, I don't recall if marketing/customers
-> asked for this or if it was a case of gratuitous design excess ;-).
+> Ahhh.. Its you who did the evil deed. By copying SLUB ideas SLOB became 
+> better than SLUB.
 
-Yep, exactly the kind of use cases I was thinking of.
+Uh, what? SLOB's memory usage was already better.
 
-> I see that we'll need to reconcile the modified alloc_fresh_huge_page
-> with the patch to skip unpopulated nodes when/if they collide in -mm.
+Quoting Nick:
+> After booting and mounting /proc, SLOB has 1140K free, SLUB has 748K
+> free.
 
-Yeah, if folks like the interface and are satisfied with it working,
-I'll rebase onto -mm for Andrew's sanity.
+So that's:
 
-Thanks,
-Nish
+ 748K SLUB
+1068K SLOB    (old SLOB saves 320K)
+1140K SLOB++  (Nick's improvements save an additional 72K for 392K total)
+
+(It'd be nice to have a SLAB number in there for completeness.)
+
+Nick's patches also make SLOB reasonably performant on larger machines
+(and can be a bit faster with a little tweaking). But it'll never be
+as fast as SLAB or SLUB - it has to walk lists. Similarly, I think
+it's basically impossible for a SLAB-like system that segregates
+objects of different sizes onto different pages to compete with a
+linked-list allocator on size. Especially now that Nick's reduced the
+kmalloc overhead to 2 bytes!
+
+So as long as there are machines where 100K or so makes a difference,
+there'll be a use for a SLOB-like allocator.
 
 -- 
-Nishanth Aravamudan <nacc@us.ibm.com>
-IBM Linux Technology Center
+Mathematics is the supreme nostalgia of our time.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
