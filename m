@@ -1,39 +1,57 @@
-Date: Wed, 23 May 2007 04:57:47 +0200
+Date: Wed, 23 May 2007 05:06:37 +0200
 From: Nick Piggin <npiggin@suse.de>
-Subject: Re: [patch 2/8] mm: merge populate and nopage into fault (fixes nonlinear)
-Message-ID: <20070523025747.GB9255@wotan.suse.de>
-References: <200705180737.l4I7b5aR010752@shell0.pdx.osdl.net> <alpine.LFD.0.98.0705180758450.3890@woody.linux-foundation.org> <20070522151220.GA9541@infradead.org>
+Subject: Re: [patch 1/3] slob: rework freelist handling
+Message-ID: <20070523030637.GC9255@wotan.suse.de>
+References: <20070522073910.GD17051@wotan.suse.de> <20070522145345.GN11115@waste.org> <Pine.LNX.4.64.0705221216300.30149@schroedinger.engr.sgi.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20070522151220.GA9541@infradead.org>
+In-Reply-To: <Pine.LNX.4.64.0705221216300.30149@schroedinger.engr.sgi.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Hellwig <hch@infradead.org>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>, akpm@linux-foundation.org, linux-mm@kvack.org, randy.dunlap@oracle.com, dgc@sgi.com
+To: Christoph Lameter <clameter@sgi.com>
+Cc: Matt Mackall <mpm@selenic.com>, Andrew Morton <akpm@linux-foundation.org>, Linux Memory Management List <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, May 22, 2007 at 04:12:20PM +0100, Christoph Hellwig wrote:
-> On Fri, May 18, 2007 at 08:11:35AM -0700, Linus Torvalds wrote:
-> > 
-> > On Fri, 18 May 2007, akpm@linux-foundation.org wrote:
-> > > 
-> > > Nonlinear mappings are (AFAIKS) simply a virtual memory concept that encodes
-> > > the virtual address -> file offset differently from linear mappings.
-> > 
-> > I'm not going to merge this one.
+On Tue, May 22, 2007 at 12:18:58PM -0700, Christoph Lameter wrote:
+> On Tue, 22 May 2007, Matt Mackall wrote:
 > 
-> So if ->fault doesn't get in can be please at least get block_page_mkwrite
-> in to fix the shared mmap write allocation and unwritten extent + mmap
-> issues?  It can then later be converted to whatever version of ->fault
-> goes in.
+> > On Tue, May 22, 2007 at 09:39:10AM +0200, Nick Piggin wrote:
+> > > Here are some patches I have been working on for SLOB, which makes
+> > > it significantly faster, and also using less dynamic memory... at
+> > > the cost of being slightly larger static footprint and more complex
+> > > code.
+> > > 
+> > > Matt was happy for the first 2 to go into -mm (and hasn't seen patch 3 yet).
+> > 
+> > These all look good, thanks Nick!
+> > 
+> > Acked-by: Matt Mackall <mpm@selenic.com>
+> 
+> New SLUB inspired life for SLOB. I hope someone else tests this?
 
-David asked me about that a while back and yes, I have no problems with
-page_mkwrite users going into the tree -- I'll just convert them myself
-when the page_mkwrite -> fault conversion happens.
+I'm sure there are people using SLOB, not sure if any of them test the
+-mm tree, though. I am planning to get some size comparisons with other
+allocators, which shouldn't take long (although I wouldn't know what a
+representative tiny setup would look like).
 
-Actually it would be kind of useful to have some of them in the tree as
-a reference when doing the conversion.
+ 
+> Are there any numbers / tests that give a continued reason for the 
+> existence of SLOB? I.e. show some memory usage on a real system that is 
+> actually lower than SLAB/SLUB? Or are there any confirmed platforms where 
+> SLOB is needed?
+
+The only real numbers I have off-hand are these
+
+$ size mm/slob.o
+   text    data     bss     dec     hex filename
+   4160     792       8    4960    1360 mm/slob.o
+$ size mm/slub.o
+   text    data     bss     dec     hex filename
+  11728    6468     176   18372    47c4 mm/slub.o
+
+I'll see if I can get some basic dynamic memory numbers soon. The problem
+is that slub oopses on boot on the powerpc platform I'm testing on...
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
