@@ -1,15 +1,15 @@
-Date: Wed, 23 May 2007 20:51:07 -0700 (PDT)
+Date: Wed, 23 May 2007 20:55:20 -0700 (PDT)
 From: Christoph Lameter <clameter@sgi.com>
 Subject: Re: [patch 1/3] slob: rework freelist handling
-In-Reply-To: <20070524031548.GA14349@wotan.suse.de>
-Message-ID: <Pine.LNX.4.64.0705232050010.24352@schroedinger.engr.sgi.com>
-References: <20070523183224.GD11115@waste.org>
- <Pine.LNX.4.64.0705231208380.21222@schroedinger.engr.sgi.com>
- <20070523195824.GF11115@waste.org> <Pine.LNX.4.64.0705231300070.21541@schroedinger.engr.sgi.com>
- <20070523210612.GI11115@waste.org> <Pine.LNX.4.64.0705231524140.22666@schroedinger.engr.sgi.com>
- <20070523224206.GN11115@waste.org> <Pine.LNX.4.64.0705231544310.22857@schroedinger.engr.sgi.com>
- <20070524020530.GA13694@wotan.suse.de> <Pine.LNX.4.64.0705231945450.23981@schroedinger.engr.sgi.com>
- <20070524031548.GA14349@wotan.suse.de>
+In-Reply-To: <20070524033925.GD14349@wotan.suse.de>
+Message-ID: <Pine.LNX.4.64.0705232052040.24352@schroedinger.engr.sgi.com>
+References: <Pine.LNX.4.64.0705222204460.3135@schroedinger.engr.sgi.com>
+ <20070523051152.GC29045@wotan.suse.de> <Pine.LNX.4.64.0705222212200.3232@schroedinger.engr.sgi.com>
+ <20070523052206.GD29045@wotan.suse.de> <Pine.LNX.4.64.0705222224380.12076@schroedinger.engr.sgi.com>
+ <20070523061702.GA9449@wotan.suse.de> <20070523074636.GA10070@wotan.suse.de>
+ <Pine.LNX.4.64.0705231006370.19822@schroedinger.engr.sgi.com>
+ <20070523193547.GE11115@waste.org> <Pine.LNX.4.64.0705231256001.21541@schroedinger.engr.sgi.com>
+ <20070524033925.GD14349@wotan.suse.de>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
@@ -20,12 +20,22 @@ List-ID: <linux-mm.kvack.org>
 
 On Thu, 24 May 2007, Nick Piggin wrote:
 
-> > SLUB embedded: Reduce memory use II
+> > Hummm... We have not tested with my patch yet. May save another 200k.
 > 
-> After boot test, this has 760K free.
+> Saved 12K. Shuld it have been more? I only applied the last patch you
+> sent (plus the initial SLUB_DEBUG fix).
 
-Tss. What is this? No code reduction? The inlining was probably only 
-useful on x86_64 and a drawback on PPC.
+Yeah. The code size should have shrunk significantly. It seems that the 
+inlining instead of saving memory as on x86_64 wasted memory and ate up 
+the winnings through the shrink. Could you try the patch before to see how 
+much actually is saved by shrinking?
+
+> Admittedly, I am not involved with any such tiny Linux projects, however
+> why should half of memory be available to userspace? What about a router
+> or firewall that basically does all work in kernel?
+
+It would also work fine with SLUB? Its about 12k code + data on 
+x86_64. I doubt that this would be too much of an issue.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
