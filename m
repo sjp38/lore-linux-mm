@@ -1,53 +1,57 @@
-Date: Thu, 24 May 2007 09:23:36 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH 1/2] limit print_fatal_signal() rate (was: [RFC] log
- out-of-virtual-memory events)
-Message-Id: <20070524092336.b0b8cd8d.akpm@linux-foundation.org>
-In-Reply-To: <20070524095503.GA14783@elte.hu>
-References: <E1Hp5PV-0001Bn-00@calista.eckenfels.net>
-	<464ED258.2010903@users.sourceforge.net>
-	<20070520203123.5cde3224.akpm@linux-foundation.org>
-	<20070524075835.GC21138@elte.hu>
-	<20070524011551.3d72a6e8.akpm@linux-foundation.org>
-	<20070524095503.GA14783@elte.hu>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Date: Thu, 24 May 2007 09:36:16 -0700 (PDT)
+From: Christoph Lameter <clameter@sgi.com>
+Subject: Re: [patch 1/3] slob: rework freelist handling
+In-Reply-To: <20070524061153.GP11115@waste.org>
+Message-ID: <Pine.LNX.4.64.0705240928020.27844@schroedinger.engr.sgi.com>
+References: <20070523071200.GB9449@wotan.suse.de>
+ <Pine.LNX.4.64.0705230956160.19822@schroedinger.engr.sgi.com>
+ <20070523183224.GD11115@waste.org> <Pine.LNX.4.64.0705231208380.21222@schroedinger.engr.sgi.com>
+ <20070523195824.GF11115@waste.org> <Pine.LNX.4.64.0705231300070.21541@schroedinger.engr.sgi.com>
+ <20070523210612.GI11115@waste.org> <Pine.LNX.4.64.0705231524140.22666@schroedinger.engr.sgi.com>
+ <20070523224206.GN11115@waste.org> <Pine.LNX.4.64.0705231544310.22857@schroedinger.engr.sgi.com>
+ <20070524061153.GP11115@waste.org>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Ingo Molnar <mingo@elte.hu>
-Cc: righiandr@users.sourceforge.net, Bernd Eckenfels <ecki@lina.inka.de>, linux-kernel@vger.kernel.org, Rik van Riel <riel@redhat.com>, linux-mm@kvack.org
+To: Matt Mackall <mpm@selenic.com>
+Cc: Nick Piggin <npiggin@suse.de>, Andrew Morton <akpm@linux-foundation.org>, Linux Memory Management List <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 24 May 2007 11:55:03 +0200 Ingo Molnar <mingo@elte.hu> wrote:
+On Thu, 24 May 2007, Matt Mackall wrote:
 
+> So, here's three possible approaches to this issue:
 > 
-> * Andrew Morton <akpm@linux-foundation.org> wrote:
+> A) Continue to ignore it. Doing something about it would add
+> complexity and it's not clear that it's a win.
 > 
-> > On Thu, 24 May 2007 09:58:35 +0200 Ingo Molnar <mingo@elte.hu> wrote:
-> > 
-> > > 
-> > > * Andrew Morton <akpm@linux-foundation.org> wrote:
-> > > 
-> > > > Well OK.  But vdso-print-fatal-signals.patch is designated 
-> > > > not-for-mainline anyway.
-> > > 
-> > > btw., why?
-> > 
-> > err, because that's what I decided a year ago.  I wonder why ;)
-> > 
-> > Perhaps because of the DoS thing, but it has a /proc knob and defaults 
-> > to off, so it should be OK.
+> B) Set NR_SLAB_RECLAIMABLE to 1. If the VM starts checking that to
+> decide whether it should call shrinkers, things will continue to work.
+> Increment and decrement NR_SLAB_UNRECLAIMABLE when we grow/shrink the
+> SLOB pool. This is probably 3 lines of code total.
 > 
-> yeah. There's also a boot option. To address the DoS angle, should i 
-> make it optionally printk_ratelimit() perhaps? (although often the 
-> messages come in streams and skipping a message can be annoying)
+> C) Fake NR_SLAB_RECLAIMABLE/NR_SLAB_UNRECLAIMABLE based on actual
+> allocs and slab flags such that they sum to the total pages in the
+> SLOB pool. This would need a third global counter in bytes of how many
+> allocs we had in the "reclaimable" slabs. Probably 10-20 lines of
+> code of marginal utility. 
+> 
+> So, nothing insurmountable here. Just not convinced we should bother.
+> But the cost of B is so low, perhaps I might as well.
 
-I don't think so, really.  It takes a deliberate act to turn the thing
-on, after all.
+D) Do the right thing and implement the counters.
 
-I we _were_ concerned about the logspam then it might be better to make the
-feature turn itself off after 100 messages, rather than ratelimiting it.
+At the time of calling alloc_pages() you know that you have to increment 
+either counter but you do not know which.
+
+For that purpose you add another byte counter (reclaim_counter) that 
+contains the number of reclaimable bytes allocated. Sum them up during 
+slob_alloc if flags & SLAB_RECLAIM_ACCOUNT is set.
+
+Then after a page allocator alloc you check the following:
+
+If (NR_SLAB_RECLAIMABLE << PAGE_SHIFT) >= reclaim_counter then increment 
+NR_SLAB_UNRECLAIMABLE otherwise NR_SLAB_RECLAIMABLE.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
