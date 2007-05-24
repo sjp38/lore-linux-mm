@@ -1,50 +1,66 @@
 From: Mel Gorman <mel@csn.ul.ie>
-Message-Id: <20070524190505.31911.42785.sendpatchset@skynet.skynet.ie>
-Subject: [PATCH 0/5] Arbitrary grouping and statistics for grouping pages by mobility
-Date: Thu, 24 May 2007 20:05:06 +0100 (IST)
+Message-Id: <20070524190526.31911.56425.sendpatchset@skynet.skynet.ie>
+In-Reply-To: <20070524190505.31911.42785.sendpatchset@skynet.skynet.ie>
+References: <20070524190505.31911.42785.sendpatchset@skynet.skynet.ie>
+Subject: [PATCH 1/5] Fix calculation in move_freepages_block for counting pages
+Date: Thu, 24 May 2007 20:05:26 +0100 (IST)
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: clameter@sgi.com
 Cc: Mel Gorman <mel@csn.ul.ie>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Changelog since v1 of statistics and grouping by arbitrary order
-o Fix a bug in move_freepages_block() calculations
-o Make page_order available in internal.h for PageBuddy pages
-o Rename fragavoidance to pagetypeinfo for both code and proc filename
-o Renamr nr_pages_pageblock to pageblock_nr_pages for consistency
-o Print out pageblock_nr_pages and pageblock_order in proc output
-o Print out the orders in the header for /proc/pagetypeinfo
-o The order being grouped at is no longer printed to the kernel log. The
-  necessary information is available in /proc/pagetypeinfo
-o Breakout page_order so that statistics do not require special knowledge
-  of the buddy allocator
+move_freepages_block() returns the number of blocks moved. This value is
+used to determine if a block of pages should be stolen for the exclusive
+use of a migrate type or not. However, the value returned is being used
+correctly. This patch fixes the calculation to return the number of base
+pages that have been moved.
 
-Hi Christoph,
+This should be considered a fix to the patch move-free-pages-between-lists-on-steal.patch
 
-The following patches address points brought up by your review of the
-grouping pages by mobility patches.
+Credit to Andy Whitcroft for spotting the problem.
 
-The first patch is a fix to move_freepages_block() where it calculates
-the number of blocks used instead of the number of base pages which is
-what we are really interested in. This is a bug fix.
+Signed-off-by: Mel Gorman <mel@csn.ul.ie>
+Acked-by: Andy Whitcroft <apw@shadowen.org>
+---
 
-The second patch moves page_order() to internal.h as it's needed by
-the statistics patch later in the patchset. It is also needed by the
-not-ready-for-posting-yet memory compaction prototype.
+ page_alloc.c |    8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)
 
-The third patch allows grouping by mobility at sizes other than
-MAX_ORDER_NR_PAGES.  The size is based on the order of the system hugepage
-where that is defined. When possible this is specified as a compile time
-constant to help the optimiser. It does change the handling of hugepagesz
-from __setup() to early_param() which needs looking at.
-
-The fourth and fifth patches provide some statistics in relation to
-fragmentation avoidance.
--- 
-Mel Gorman
-Part-time Phd Student                          Linux Technology Center
-University of Limerick                         IBM Dublin Software Lab
+diff -rup -X /usr/src/patchset-0.6/bin//dontdiff linux-2.6.22-rc2-mm1-clean/mm/page_alloc.c linux-2.6.22-rc2-mm1-001_fix_movefreepages/mm/page_alloc.c
+--- linux-2.6.22-rc2-mm1-clean/mm/page_alloc.c	2007-05-24 10:13:34.000000000 +0100
++++ linux-2.6.22-rc2-mm1-001_fix_movefreepages/mm/page_alloc.c	2007-05-24 16:37:27.000000000 +0100
+@@ -728,7 +728,7 @@ int move_freepages(struct zone *zone,
+ {
+ 	struct page *page;
+ 	unsigned long order;
+-	int blocks_moved = 0;
++	int pages_moved = 0;
+ 
+ #ifndef CONFIG_HOLES_IN_ZONE
+ 	/*
+@@ -757,10 +757,10 @@ int move_freepages(struct zone *zone,
+ 		list_add(&page->lru,
+ 			&zone->free_area[order].free_list[migratetype]);
+ 		page += 1 << order;
+-		blocks_moved++;
++		pages_moved += 1 << order;
+ 	}
+ 
+-	return blocks_moved;
++	return pages_moved;
+ }
+ 
+ int move_freepages_block(struct zone *zone, struct page *page, int migratetype)
+@@ -843,7 +843,7 @@ static struct page *__rmqueue_fallback(s
+ 								start_migratetype);
+ 
+ 				/* Claim the whole block if over half of it is free */
+-				if ((pages << current_order) >= (1 << (MAX_ORDER-2)))
++				if (pages >= (1 << (MAX_ORDER-2)))
+ 					set_pageblock_migratetype(page,
+ 								start_migratetype);
+ 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
