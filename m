@@ -1,44 +1,47 @@
-Date: Thu, 24 May 2007 05:15:48 +0200
+Date: Thu, 24 May 2007 05:17:00 +0200
 From: Nick Piggin <npiggin@suse.de>
 Subject: Re: [patch 1/3] slob: rework freelist handling
-Message-ID: <20070524031548.GA14349@wotan.suse.de>
-References: <20070523183224.GD11115@waste.org> <Pine.LNX.4.64.0705231208380.21222@schroedinger.engr.sgi.com> <20070523195824.GF11115@waste.org> <Pine.LNX.4.64.0705231300070.21541@schroedinger.engr.sgi.com> <20070523210612.GI11115@waste.org> <Pine.LNX.4.64.0705231524140.22666@schroedinger.engr.sgi.com> <20070523224206.GN11115@waste.org> <Pine.LNX.4.64.0705231544310.22857@schroedinger.engr.sgi.com> <20070524020530.GA13694@wotan.suse.de> <Pine.LNX.4.64.0705231945450.23981@schroedinger.engr.sgi.com>
+Message-ID: <20070524031700.GB14349@wotan.suse.de>
+References: <20070523195824.GF11115@waste.org> <Pine.LNX.4.64.0705231300070.21541@schroedinger.engr.sgi.com> <20070523210612.GI11115@waste.org> <Pine.LNX.4.64.0705231524140.22666@schroedinger.engr.sgi.com> <20070523224206.GN11115@waste.org> <Pine.LNX.4.64.0705231544310.22857@schroedinger.engr.sgi.com> <20070524020530.GA13694@wotan.suse.de> <Pine.LNX.4.64.0705231943550.23957@schroedinger.engr.sgi.com> <20070524024747.GD13694@wotan.suse.de> <Pine.LNX.4.64.0705231949590.23981@schroedinger.engr.sgi.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <Pine.LNX.4.64.0705231945450.23981@schroedinger.engr.sgi.com>
+In-Reply-To: <Pine.LNX.4.64.0705231949590.23981@schroedinger.engr.sgi.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Christoph Lameter <clameter@sgi.com>
 Cc: Matt Mackall <mpm@selenic.com>, Andrew Morton <akpm@linux-foundation.org>, Linux Memory Management List <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, May 23, 2007 at 07:49:50PM -0700, Christoph Lameter wrote:
-> Here is what I got trying to trim down SLUB on x84_64 (UP config)
+On Wed, May 23, 2007 at 07:55:56PM -0700, Christoph Lameter wrote:
+> On Thu, 24 May 2007, Nick Piggin wrote:
 > 
-> Full:
+> > Sure some things may be suboptimal, but the VM cannot just fall over
+> > and become non-functional if there is no reclaimable slab, surely?
 > 
->    text    data     bss     dec     hex filename
->   25928   11351     256   37535    929f mm/slub.o
-> 
-> !CONFIG_SLUB_DEBUG + patch below
-> 
->    text    data     bss     dec     hex filename
->    8639    4735     224   13598    351e mm/slub.o
-> 
-> SLOB
-> 
->    text    data     bss     dec     hex filename
->    4206      96       0    4302    10ce mm/slob.o
-> 
-> So we can get down to about double the text size. Data is of course an 
-> issue. Other 64 bit platforms bloat the code significantly.
-> 
-> Interesting that inlining some functions actually saves memory.
-> 
-> SLUB embedded: Reduce memory use II
+> The check in __vm_enough_memory in particular is worrying there.
+> Overcommit may not work right. If large caches are created via SLOB then
+> we may OOM.
 
-After boot test, this has 760K free.
+On the other hand, if I enabled overcommit on an embedded system, then I
+might prefer not to call any slab memory reclaimable because you don't
+actually know if it is able to be reclaimed anyway.
+
+ 
+> Of course one can dismiss this by saying that the conditions under which 
+> this is true are rare etc etc.
+> 
+> Similarly the breakage of software suspend also did not matter..
+> 
+> Then swap prefetch (also using slab ZVCs) probably also does not matter. 
+> 
+> Guess embedded systems just have to be careful what kernel features they 
+> use and over time they can use less....
+
+Anyway, this is just going around in circles, because the embedded
+people using SLOB actually use it for the feature that it very memory
+efficient, which is something the other allocators do not have. But
+you just keep dismissing that...
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
