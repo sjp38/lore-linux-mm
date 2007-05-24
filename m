@@ -1,36 +1,50 @@
-Date: Thu, 24 May 2007 12:44:07 -0500
-From: Matt Mackall <mpm@selenic.com>
-Subject: Re: [patch 1/3] slob: rework freelist handling
-Message-ID: <20070524174406.GZ11115@waste.org>
-References: <20070523195824.GF11115@waste.org> <Pine.LNX.4.64.0705231300070.21541@schroedinger.engr.sgi.com> <20070523210612.GI11115@waste.org> <Pine.LNX.4.64.0705231524140.22666@schroedinger.engr.sgi.com> <20070523224206.GN11115@waste.org> <Pine.LNX.4.64.0705231544310.22857@schroedinger.engr.sgi.com> <20070524061153.GP11115@waste.org> <Pine.LNX.4.64.0705240928020.27844@schroedinger.engr.sgi.com> <20070524172251.GX11115@waste.org> <Pine.LNX.4.64.0705241024200.29173@schroedinger.engr.sgi.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <Pine.LNX.4.64.0705241024200.29173@schroedinger.engr.sgi.com>
+From: Mel Gorman <mel@csn.ul.ie>
+Message-Id: <20070524190505.31911.42785.sendpatchset@skynet.skynet.ie>
+Subject: [PATCH 0/5] Arbitrary grouping and statistics for grouping pages by mobility
+Date: Thu, 24 May 2007 20:05:06 +0100 (IST)
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
-Cc: Nick Piggin <npiggin@suse.de>, Andrew Morton <akpm@linux-foundation.org>, Linux Memory Management List <linux-mm@kvack.org>
+To: clameter@sgi.com
+Cc: Mel Gorman <mel@csn.ul.ie>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, May 24, 2007 at 10:27:54AM -0700, Christoph Lameter wrote:
-> On Thu, 24 May 2007, Matt Mackall wrote:
-> 
-> > That's C) above. But you haven't answered the real question: why
-> > bother? RECLAIMABLE is a bogus number and the VM treats it as such. We
-> > can make no judgment on how much memory we can actually reclaim from
-> > looking at reclaimable - it might very easily all be pinned.
-> 
-> The memory was allocated from a slab that has SLAB_ACCOUNT_RECLAIM set. It 
-> is the responsibility of the slab allocator to properly account for these.
+Changelog since v1 of statistics and grouping by arbitrary order
+o Fix a bug in move_freepages_block() calculations
+o Make page_order available in internal.h for PageBuddy pages
+o Rename fragavoidance to pagetypeinfo for both code and proc filename
+o Renamr nr_pages_pageblock to pageblock_nr_pages for consistency
+o Print out pageblock_nr_pages and pageblock_order in proc output
+o Print out the orders in the header for /proc/pagetypeinfo
+o The order being grouped at is no longer printed to the kernel log. The
+  necessary information is available in /proc/pagetypeinfo
+o Breakout page_order so that statistics do not require special knowledge
+  of the buddy allocator
 
-You keep asserting this, but the fact is if I ripped out all the
-SLAB_ACCOUNT_RECLAIM logic, the kernel would be unaffected.
+Hi Christoph,
 
-Because RECLAIM IS JUST A HINT. And not a very good one.
+The following patches address points brought up by your review of the
+grouping pages by mobility patches.
 
+The first patch is a fix to move_freepages_block() where it calculates
+the number of blocks used instead of the number of base pages which is
+what we are really interested in. This is a bug fix.
+
+The second patch moves page_order() to internal.h as it's needed by
+the statistics patch later in the patchset. It is also needed by the
+not-ready-for-posting-yet memory compaction prototype.
+
+The third patch allows grouping by mobility at sizes other than
+MAX_ORDER_NR_PAGES.  The size is based on the order of the system hugepage
+where that is defined. When possible this is specified as a compile time
+constant to help the optimiser. It does change the handling of hugepagesz
+from __setup() to early_param() which needs looking at.
+
+The fourth and fifth patches provide some statistics in relation to
+fragmentation avoidance.
 -- 
-Mathematics is the supreme nostalgia of our time.
+Mel Gorman
+Part-time Phd Student                          Linux Technology Center
+University of Limerick                         IBM Dublin Software Lab
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
