@@ -1,57 +1,125 @@
-Date: Thu, 24 May 2007 06:13:39 +0200
-From: Nick Piggin <npiggin@suse.de>
-Subject: Re: [patch 1/3] slob: rework freelist handling
-Message-ID: <20070524041339.GC20252@wotan.suse.de>
-References: <Pine.LNX.4.64.0705222212200.3232@schroedinger.engr.sgi.com> <20070523052206.GD29045@wotan.suse.de> <Pine.LNX.4.64.0705222224380.12076@schroedinger.engr.sgi.com> <20070523061702.GA9449@wotan.suse.de> <20070523074636.GA10070@wotan.suse.de> <Pine.LNX.4.64.0705231006370.19822@schroedinger.engr.sgi.com> <20070523193547.GE11115@waste.org> <Pine.LNX.4.64.0705231256001.21541@schroedinger.engr.sgi.com> <20070524033925.GD14349@wotan.suse.de> <Pine.LNX.4.64.0705232052040.24352@schroedinger.engr.sgi.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <Pine.LNX.4.64.0705232052040.24352@schroedinger.engr.sgi.com>
+From: Benjamin Herrenschmidt <benh@kernel.crashing.org>
+Date: Thu, 24 May 2007 14:13:33 +1000
+Subject: [PATCH 1/2] unmap_vm_area becomes unmap_kernel_range for the public
+Message-Id: <20070524041337.3BBFADDE05@ozlabs.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
-Cc: Matt Mackall <mpm@selenic.com>, Andrew Morton <akpm@linux-foundation.org>, Linux Memory Management List <linux-mm@kvack.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Linux Memory Management <linux-mm@kvack.org>, Paul Mackerras <paulus@samba.org>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, May 23, 2007 at 08:55:20PM -0700, Christoph Lameter wrote:
-> On Thu, 24 May 2007, Nick Piggin wrote:
-> 
-> > > Hummm... We have not tested with my patch yet. May save another 200k.
-> > 
-> > Saved 12K. Shuld it have been more? I only applied the last patch you
-> > sent (plus the initial SLUB_DEBUG fix).
-> 
-> Yeah. The code size should have shrunk significantly. It seems that the 
-> inlining instead of saving memory as on x86_64 wasted memory and ate up 
-> the winnings through the shrink. Could you try the patch before to see how 
-> much actually is saved by shrinking?
+This patch makes unmap_vm_area static and a wrapper around a new
+exported unmap_kernel_range that takes an explicit range instead
+of a vm_area struct.
 
-After
-   text    data     bss     dec     hex filename
-   7864    3700     176   11740    2ddc mm/slub.o
+This makes it more versatile for code that wants to play with kernel
+page tables outside of the standard vmalloc area.
 
-Before
-   text    data     bss     dec     hex filename
-   9136    5932     176   15244    3b8c mm/slub.o
+(One example is some rework of the PowerPC PCI IO space mapping
+code that depends on that patch and removes some code duplication
+and horrible abuse of forged struct vm_struct).
 
-But the biggest issue you can see is not text size, because even if
-slub.o was 1 byte, its total dynamic memory usage would still be a
-lot higher.
+Signed-off-by: Benjamin Herrenschmidt <benh@kernel.crashing.org> 
+---
 
+---
+
+ Documentation/cachetlb.txt   |    2 +-
+ arch/powerpc/mm/imalloc.c    |    3 ++-
+ arch/powerpc/mm/pgtable_64.c |    1 -
+ include/linux/vmalloc.h      |    3 ++-
+ mm/vmalloc.c                 |   13 +++++++++----
+ 5 files changed, 14 insertions(+), 8 deletions(-)
+
+Index: linux-cell/Documentation/cachetlb.txt
+===================================================================
+--- linux-cell.orig/Documentation/cachetlb.txt	2007-05-24 14:00:32.000000000 +1000
++++ linux-cell/Documentation/cachetlb.txt	2007-05-24 14:01:31.000000000 +1000
+@@ -253,7 +253,7 @@ Here are the routines, one by one:
  
-> > Admittedly, I am not involved with any such tiny Linux projects, however
-> > why should half of memory be available to userspace? What about a router
-> > or firewall that basically does all work in kernel?
-> 
-> It would also work fine with SLUB? Its about 12k code + data on 
-> x86_64. I doubt that this would be too much of an issue.
-
-Well as I said, I am not the one to ask about whether SLUB could replace
-SLOB or not. All else being equal, of course it is a good idea.
-
-But what I think is clear is that SLOB simply uses memory more
-efficiently than SLUB (in my test, anyway). I don't know how this can
-still be in dispute?
+ 	The first of these two routines is invoked after map_vm_area()
+ 	has installed the page table entries.  The second is invoked
+-	before unmap_vm_area() deletes the page table entries.
++	before unmap_kernel_range() deletes the page table entries.
+ 
+ There exists another whole class of cpu cache issues which currently
+ require a whole different set of interfaces to handle properly.
+Index: linux-cell/arch/powerpc/mm/imalloc.c
+===================================================================
+--- linux-cell.orig/arch/powerpc/mm/imalloc.c	2007-05-24 14:00:32.000000000 +1000
++++ linux-cell/arch/powerpc/mm/imalloc.c	2007-05-24 14:01:31.000000000 +1000
+@@ -301,7 +301,8 @@ void im_free(void * addr)
+ 	for (p = &imlist ; (tmp = *p) ; p = &tmp->next) {
+ 		if (tmp->addr == addr) {
+ 			*p = tmp->next;
+-			unmap_vm_area(tmp);
++			unmap_kernel_range((unsigned long)tmp->addr,
++					   tmp->size);
+ 			kfree(tmp);
+ 			mutex_unlock(&imlist_mutex);
+ 			return;
+Index: linux-cell/arch/powerpc/mm/pgtable_64.c
+===================================================================
+--- linux-cell.orig/arch/powerpc/mm/pgtable_64.c	2007-05-24 14:00:32.000000000 +1000
++++ linux-cell/arch/powerpc/mm/pgtable_64.c	2007-05-24 14:01:31.000000000 +1000
+@@ -240,7 +240,6 @@ int __ioremap_explicit(phys_addr_t pa, u
+ /*  
+  * Unmap an IO region and remove it from imalloc'd list.
+  * Access to IO memory should be serialized by driver.
+- * This code is modeled after vmalloc code - unmap_vm_area()
+  *
+  * XXX	what about calls before mem_init_done (ie python_countermeasures())
+  */
+Index: linux-cell/include/linux/vmalloc.h
+===================================================================
+--- linux-cell.orig/include/linux/vmalloc.h	2007-05-24 14:00:32.000000000 +1000
++++ linux-cell/include/linux/vmalloc.h	2007-05-24 14:01:31.000000000 +1000
+@@ -65,9 +65,10 @@ extern struct vm_struct *get_vm_area_nod
+ 					  unsigned long flags, int node,
+ 					  gfp_t gfp_mask);
+ extern struct vm_struct *remove_vm_area(void *addr);
++
+ extern int map_vm_area(struct vm_struct *area, pgprot_t prot,
+ 			struct page ***pages);
+-extern void unmap_vm_area(struct vm_struct *area);
++extern void unmap_kernel_range(unsigned long addr, unsigned long size);
+ 
+ /*
+  *	Internals.  Dont't use..
+Index: linux-cell/mm/vmalloc.c
+===================================================================
+--- linux-cell.orig/mm/vmalloc.c	2007-05-24 14:00:32.000000000 +1000
++++ linux-cell/mm/vmalloc.c	2007-05-24 14:02:03.000000000 +1000
+@@ -68,12 +68,12 @@ static inline void vunmap_pud_range(pgd_
+ 	} while (pud++, addr = next, addr != end);
+ }
+ 
+-void unmap_vm_area(struct vm_struct *area)
++void unmap_kernel_range(unsigned long addr, unsigned long size)
+ {
+ 	pgd_t *pgd;
+ 	unsigned long next;
+-	unsigned long addr = (unsigned long) area->addr;
+-	unsigned long end = addr + area->size;
++	unsigned long start = addr;
++	unsigned long end = addr + size;
+ 
+ 	BUG_ON(addr >= end);
+ 	pgd = pgd_offset_k(addr);
+@@ -84,7 +84,12 @@ void unmap_vm_area(struct vm_struct *are
+ 			continue;
+ 		vunmap_pud_range(pgd, addr, next);
+ 	} while (pgd++, addr = next, addr != end);
+-	flush_tlb_kernel_range((unsigned long) area->addr, end);
++	flush_tlb_kernel_range(start, end);
++}
++
++static void unmap_vm_area(struct vm_struct *area)
++{
++	unmap_kernel_range((unsigned long)area->addr, area->size);
+ }
+ 
+ static int vmap_pte_range(pmd_t *pmd, unsigned long addr,
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
