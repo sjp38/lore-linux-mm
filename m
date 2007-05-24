@@ -1,56 +1,57 @@
-Date: Thu, 24 May 2007 05:39:25 +0200
+Date: Thu, 24 May 2007 05:45:57 +0200
 From: Nick Piggin <npiggin@suse.de>
-Subject: Re: [patch 1/3] slob: rework freelist handling
-Message-ID: <20070524033925.GD14349@wotan.suse.de>
-References: <Pine.LNX.4.64.0705222204460.3135@schroedinger.engr.sgi.com> <20070523051152.GC29045@wotan.suse.de> <Pine.LNX.4.64.0705222212200.3232@schroedinger.engr.sgi.com> <20070523052206.GD29045@wotan.suse.de> <Pine.LNX.4.64.0705222224380.12076@schroedinger.engr.sgi.com> <20070523061702.GA9449@wotan.suse.de> <20070523074636.GA10070@wotan.suse.de> <Pine.LNX.4.64.0705231006370.19822@schroedinger.engr.sgi.com> <20070523193547.GE11115@waste.org> <Pine.LNX.4.64.0705231256001.21541@schroedinger.engr.sgi.com>
+Subject: Re: [patch 3/8] mm: merge nopfn into fault
+Message-ID: <20070524034557.GA20252@wotan.suse.de>
+References: <200705180737.l4I7b6cg010758@shell0.pdx.osdl.net> <alpine.LFD.0.98.0705180817550.3890@woody.linux-foundation.org> <1179963619.32247.991.camel@localhost.localdomain> <20070524014223.GA22998@wotan.suse.de> <alpine.LFD.0.98.0705231857090.3890@woody.linux-foundation.org> <1179976659.32247.1026.camel@localhost.localdomain> <1179977184.32247.1032.camel@localhost.localdomain> <alpine.LFD.0.98.0705232028510.3890@woody.linux-foundation.org>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <Pine.LNX.4.64.0705231256001.21541@schroedinger.engr.sgi.com>
+In-Reply-To: <alpine.LFD.0.98.0705232028510.3890@woody.linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
-Cc: Matt Mackall <mpm@selenic.com>, Andrew Morton <akpm@linux-foundation.org>, Linux Memory Management List <linux-mm@kvack.org>
+To: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Benjamin Herrenschmidt <benh@kernel.crashing.org>, akpm@linux-foundation.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, May 23, 2007 at 12:59:05PM -0700, Christoph Lameter wrote:
-> On Wed, 23 May 2007, Matt Mackall wrote:
+On Wed, May 23, 2007 at 08:37:28PM -0700, Linus Torvalds wrote:
 > 
-> >  748K SLUB
-> > 1068K SLOB    (old SLOB saves 320K)
-> > 1140K SLOB++  (Nick's improvements save an additional 72K for 392K total)
-> > 
-> > (It'd be nice to have a SLAB number in there for completeness.)
-> > 
-> > Nick's patches also make SLOB reasonably performant on larger machines
-> > (and can be a bit faster with a little tweaking). But it'll never be
-> > as fast as SLAB or SLUB - it has to walk lists. Similarly, I think
-> > it's basically impossible for a SLAB-like system that segregates
-> > objects of different sizes onto different pages to compete with a
-> > linked-list allocator on size. Especially now that Nick's reduced the
-> > kmalloc overhead to 2 bytes!
-> > 
-> > So as long as there are machines where 100K or so makes a difference,
-> > there'll be a use for a SLOB-like allocator.
 > 
-> Hummm... We have not tested with my patch yet. May save another 200k.
+> On Thu, 24 May 2007, Benjamin Herrenschmidt wrote:
+> > 
+> > Note that I culd just modify the address/page index in the struct
+> > vm_fault... doesn't make much difference in this case.
+> > 
+> > Might even create an arch helper prepare_special_pgsize_fault() or
+> > something like that that takes the VM fault struct, whack it the right
+> > way, and returns it to the driver for passing to vm_insert_pfn() so that
+> > all of the logic is actually hidden from the driver.
+> 
+> I don't think we really need that, but what I'd like to avoid is people 
+> using "address" when they don't actually need to (especially if it's just 
+> a quick-and-lazy conversion, and they use "address" to do the page index 
+> calculation with the "pgoff + ((address - vma->start) >> PAGE_SHIFT)" kind 
+> of thing.
+> 
+> So exactly _because_ the "nopage()" interface takes "address", I'd like to 
+> avoid it in that form in the "vm_fault" structure, just so that people 
+> don't do stupid things with it.
+> 
+> (And yes, I'm not proud of the "nopage()" interface, but it evolved from 
+> historical behaviour which did everything at the low level, so "address" 
+> _used_ to make sense for the same reason you want it now).
 
-Saved 12K. Shuld it have been more? I only applied the last patch you
-sent (plus the initial SLUB_DEBUG fix).
+Yes, the goal was always to use pgoff to locate the page, because that
+is the correct abstraction to pass through this interface.
 
  
-> And also the situation that Nick created is a bit artificial. One should 
-> at least have half the memory available for user space I would think. If 
-> there is a small difference after bootup then its not worth to keep SLOB 
-> around.
+> So just about any "hiding" would do it as far as I'm concerned. Ranging 
+> from the odd (making it a "virtual page number") to just using an 
+> inconvenient name that just makes it obvious that it shouldn't be used 
+> lightly ("virtual_page_fault_address"), to making it a type that cannot 
+> easily be used for that kind of arithmetic ("void __user *" would make 
+> sense, no?).
 
-Admittedly, I am not involved with any such tiny Linux projects, however
-why should half of memory be available to userspace? What about a router
-or firewall that basically does all work in kernel?
-
-I think a really stripped down system can boot in 2MB of RAM these days,
-so after the kernel actually boots, a few K probably == a few % of
-remaining available memory.
+'void __user *' seems reasonable, I think. Good idea.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
