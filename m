@@ -1,48 +1,31 @@
-Date: Thu, 24 May 2007 04:24:23 +0200
-From: Nick Piggin <npiggin@suse.de>
-Subject: Re: [patch 2/8] mm: merge populate and nopage into fault (fixes nonlinear)
-Message-ID: <20070524022423.GC13694@wotan.suse.de>
-References: <200705180737.l4I7b5aR010752@shell0.pdx.osdl.net> <alpine.LFD.0.98.0705180758450.3890@woody.linux-foundation.org> <1179963439.32247.987.camel@localhost.localdomain> <20070524014803.GB22998@wotan.suse.de> <alpine.LFD.0.98.0705231904480.3890@woody.linux-foundation.org>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <alpine.LFD.0.98.0705231904480.3890@woody.linux-foundation.org>
+Date: Wed, 23 May 2007 19:45:37 -0700 (PDT)
+From: Christoph Lameter <clameter@sgi.com>
+Subject: Re: [patch 1/3] slob: rework freelist handling
+In-Reply-To: <20070524020530.GA13694@wotan.suse.de>
+Message-ID: <Pine.LNX.4.64.0705231943550.23957@schroedinger.engr.sgi.com>
+References: <20070523071200.GB9449@wotan.suse.de>
+ <Pine.LNX.4.64.0705230956160.19822@schroedinger.engr.sgi.com>
+ <20070523183224.GD11115@waste.org> <Pine.LNX.4.64.0705231208380.21222@schroedinger.engr.sgi.com>
+ <20070523195824.GF11115@waste.org> <Pine.LNX.4.64.0705231300070.21541@schroedinger.engr.sgi.com>
+ <20070523210612.GI11115@waste.org> <Pine.LNX.4.64.0705231524140.22666@schroedinger.engr.sgi.com>
+ <20070523224206.GN11115@waste.org> <Pine.LNX.4.64.0705231544310.22857@schroedinger.engr.sgi.com>
+ <20070524020530.GA13694@wotan.suse.de>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Benjamin Herrenschmidt <benh@kernel.crashing.org>, akpm@linux-foundation.org, linux-mm@kvack.org, randy.dunlap@oracle.com
+To: Nick Piggin <npiggin@suse.de>
+Cc: Matt Mackall <mpm@selenic.com>, Andrew Morton <akpm@linux-foundation.org>, Linux Memory Management List <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, May 23, 2007 at 07:06:11PM -0700, Linus Torvalds wrote:
-> 
-> 
-> On Thu, 24 May 2007, Nick Piggin wrote:
-> > 
-> > I won't do this. I'll keep calling it fault, because a) it means we keep
-> > the backwards compatible ->nopage path until all drivers are converted,
-> > and b) the page_mkwrite conversion really will make "nopage" the wrong
-> > name.
-> 
-> I won't _take_ the patch unless you convert all drivers. 
+On Thu, 24 May 2007, Nick Piggin wrote:
 
-I will, it is really pretty easy.
+> SLOB doesn't keep track of what pages might be reclaimable, so yes
+> it reports zero to the VM. That doesn't make it non functional or
+> even prevent slab reclaim from working.
 
- 
-> I refuse to have more of these "deprecated" crap. We don't do that. The 
-> code is just ugly. The warnings are horrible, and if they don't exist, the 
-> thing never gets fixed. 
-> 
-> Just make a clean break. If you want to rename it, rename it. But don't do 
-> some bogus "we'll do *both*" crap.
-
-The problem is just carrying around all the patches, and also just getting
-it into -mm. For example, take a look at the new ->prepare_write aops
-patches I was working on... we converted *every* filesystem in the tree
-(except reiserfs) not long ago, it didn't get merged, and now half of
-them are broken again.
-
-But don't worry, I do plan on converting all in-tree users of the old
-interface as soon as possible.
+It does make the counters useless. The VM activities that depend on these
+will not work.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
