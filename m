@@ -1,62 +1,50 @@
-Date: Thu, 24 May 2007 03:48:03 +0200
-From: Nick Piggin <npiggin@suse.de>
-Subject: Re: [patch 2/8] mm: merge populate and nopage into fault (fixes nonlinear)
-Message-ID: <20070524014803.GB22998@wotan.suse.de>
-References: <200705180737.l4I7b5aR010752@shell0.pdx.osdl.net> <alpine.LFD.0.98.0705180758450.3890@woody.linux-foundation.org> <1179963439.32247.987.camel@localhost.localdomain>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1179963439.32247.987.camel@localhost.localdomain>
+Date: Wed, 23 May 2007 19:04:28 -0700 (PDT)
+From: Linus Torvalds <torvalds@linux-foundation.org>
+Subject: Re: [patch 3/8] mm: merge nopfn into fault
+In-Reply-To: <20070524014223.GA22998@wotan.suse.de>
+Message-ID: <alpine.LFD.0.98.0705231857090.3890@woody.linux-foundation.org>
+References: <200705180737.l4I7b6cg010758@shell0.pdx.osdl.net>
+ <alpine.LFD.0.98.0705180817550.3890@woody.linux-foundation.org>
+ <1179963619.32247.991.camel@localhost.localdomain>
+ <20070524014223.GA22998@wotan.suse.de>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Benjamin Herrenschmidt <benh@kernel.crashing.org>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>, akpm@linux-foundation.org, linux-mm@kvack.org, randy.dunlap@oracle.com
+To: Nick Piggin <npiggin@suse.de>
+Cc: Benjamin Herrenschmidt <benh@kernel.crashing.org>, akpm@linux-foundation.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, May 24, 2007 at 09:37:19AM +1000, Benjamin Herrenschmidt wrote:
-> On Fri, 2007-05-18 at 08:11 -0700, Linus Torvalds wrote:
-> 
-> > Also, the commentary says that you're planning on replacing "nopfn" too, 
-> > which means that returning a "struct page *" is wrong. So the patch is
-> > introducing a new interface that is already known to be broken. 
-> 
-> Agreed.
 
-Yep, I will change it to return the fault type. This makes page_mkwrite
-merge cleaner too.
-
-
-> >  - "struct fault_data" is a stupid name. Of *course* it is data: it's a 
-> >    struct. It can't be code. But it's not even about faults. It's about 
-> >    missing pages.
-> > 
-> >    So call it something else. Maybe just "struct nopage". Or, "struct 
-> >    vm_fault" at least, so that it's at least not about *random* faults.
-> > 
-> >  - drop "address" from "struct fault_data". Even if some user were to have 
-> >    some reason to use it (doubtful), it should be called somethign long 
-> >    and cumbersome, so that you don't use it by mistake, not realizing that 
-> >    you should use the page index instead.
+On Thu, 24 May 2007, Nick Piggin wrote:
 > 
-> I'd rather have it in, even if it's long and cumbersome :-) As I said,
-> there are a few HW drivers around the tree like spufs or some weirdo IBM
-> infiniband stuff that do really tricky games with nopage/nopfn and which
-> can have good use of it (at the very least, it's useful for debugging to
-> printk where the accesses that ended up doing the wrong thing precisely
-> was done :-)
-> 
-> >  - and keep calling it "nopage". 
-> 
-> Fine by me.
+> At most, if Linus really doesn't want ->fault to do the nopfn thing, then
+> I would be happy to leave in ->nopfn... but I don't see much reason not
+> to just merge them anyway... one fewer branch and less code in the
+> page fault handler.
 
-I won't do this. I'll keep calling it fault, because a) it means we keep
-the backwards compatible ->nopage path until all drivers are converted,
-and b) the page_mkwrite conversion really will make "nopage" the wrong
-name.
+I just think that the "->fault" calling convention is _broken_.
 
-I don't mind about the struct naming, but struct fault or struct nopage
-seems weird to me... but whatever. Maybe we can change it to struct
-fault_struct to go along with struct task_struct and struct mm_struct? ;)
+If you want to install the PFN in the low-level driver, just
+
+ - pass the whole "struct vm_fault" to the PFN-installing thing (so that 
+   the driver at least doesn't have to muck with the address)
+
+ - return a nice return value saying that you aren't returning a page. And 
+   since you *also* need to return a value saying whether the page you 
+   want to install is locked or not, that just means that the "struct page 
+   *" approach (with a few extra error cases) won't cut it.
+
+ - don't add yet another interface. Replace it cleanly. If you don't want 
+   to re-use the name, fine, but at least replace it with something 
+   better. 
+
+The old "nopage()" return values weren't exactly pretty before either, but 
+dang, do we really have to make it even MORE broken by having to have 
+_both_ the old and the new ones, with different interfaces and magic 
+locking rules depending on flags? I say "no".
+
+		Linus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
