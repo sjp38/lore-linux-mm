@@ -1,44 +1,39 @@
-Subject: Re: [patch 3/8] mm: merge nopfn into fault
-From: Benjamin Herrenschmidt <benh@kernel.crashing.org>
-In-Reply-To: <alpine.LFD.0.98.0705232028510.3890@woody.linux-foundation.org>
-References: <200705180737.l4I7b6cg010758@shell0.pdx.osdl.net>
-	 <alpine.LFD.0.98.0705180817550.3890@woody.linux-foundation.org>
-	 <1179963619.32247.991.camel@localhost.localdomain>
-	 <20070524014223.GA22998@wotan.suse.de>
-	 <alpine.LFD.0.98.0705231857090.3890@woody.linux-foundation.org>
-	 <1179976659.32247.1026.camel@localhost.localdomain>
-	 <1179977184.32247.1032.camel@localhost.localdomain>
-	 <alpine.LFD.0.98.0705232028510.3890@woody.linux-foundation.org>
-Content-Type: text/plain
-Date: Thu, 24 May 2007 13:48:18 +1000
-Message-Id: <1179978498.32247.1038.camel@localhost.localdomain>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Date: Wed, 23 May 2007 20:49:30 -0700 (PDT)
+From: Christoph Lameter <clameter@sgi.com>
+Subject: Re: [patch 1/3] slob: rework freelist handling
+In-Reply-To: <20070524032417.GC14349@wotan.suse.de>
+Message-ID: <Pine.LNX.4.64.0705232048120.24352@schroedinger.engr.sgi.com>
+References: <Pine.LNX.4.64.0705222200420.32184@schroedinger.engr.sgi.com>
+ <20070523050333.GB29045@wotan.suse.de> <Pine.LNX.4.64.0705222204460.3135@schroedinger.engr.sgi.com>
+ <20070523051152.GC29045@wotan.suse.de> <Pine.LNX.4.64.0705222212200.3232@schroedinger.engr.sgi.com>
+ <20070523052206.GD29045@wotan.suse.de> <Pine.LNX.4.64.0705222224380.12076@schroedinger.engr.sgi.com>
+ <20070523061702.GA9449@wotan.suse.de> <20070523074636.GA10070@wotan.suse.de>
+ <Pine.LNX.4.64.0705231006370.19822@schroedinger.engr.sgi.com>
+ <20070524032417.GC14349@wotan.suse.de>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Nick Piggin <npiggin@suse.de>, akpm@linux-foundation.org, linux-mm@kvack.org
+To: Nick Piggin <npiggin@suse.de>
+Cc: Matt Mackall <mpm@selenic.com>, Andrew Morton <akpm@linux-foundation.org>, Linux Memory Management List <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 2007-05-23 at 20:37 -0700, Linus Torvalds wrote:
-> 
-> So just about any "hiding" would do it as far as I'm concerned. Ranging 
-> from the odd (making it a "virtual page number") to just using an 
-> inconvenient name that just makes it obvious that it shouldn't be used 
-> lightly ("virtual_page_fault_address"), to making it a type that cannot 
-> easily be used for that kind of arithmetic ("void __user *" would make 
-> sense, no?).
+On Thu, 24 May 2007, Nick Piggin wrote:
 
-Yes, I like void __user *. I don't like long names because they make the
-struct definition ugly though. What about
+> The reason SLOB is so space efficient really comes from Matt's no
+> compromises design. The thrust of my patches were after seeing how slow
+> it was on my 4GB system while testing the RCU implementation. They
+> were primarily intended to speed up the thing, but retain all the same
+> basic allocation algorithms -- a quirk of my implementation allowed
+> smaller freelist indexes which was a bonus, but as Matt said, slob was
+> still more efficient before the change.
 
-	void __user	*_fault_target; /* for internal use only */
+Well as far as I understand Matt it seems that you still need 2 bytes per 
+alloc. That is still more than 0 that SLUB needs.
+ 
+> What SLUB idea did you think I copied anyway?
 
-Is that scary enough ? :-)
-
-Cheers,
-Ben.
-
+The use of the page struct.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
