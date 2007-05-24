@@ -1,41 +1,44 @@
-Date: Wed, 23 May 2007 20:55:20 -0700 (PDT)
-From: Christoph Lameter <clameter@sgi.com>
+Date: Thu, 24 May 2007 06:01:49 +0200
+From: Nick Piggin <npiggin@suse.de>
 Subject: Re: [patch 1/3] slob: rework freelist handling
-In-Reply-To: <20070524033925.GD14349@wotan.suse.de>
-Message-ID: <Pine.LNX.4.64.0705232052040.24352@schroedinger.engr.sgi.com>
-References: <Pine.LNX.4.64.0705222204460.3135@schroedinger.engr.sgi.com>
- <20070523051152.GC29045@wotan.suse.de> <Pine.LNX.4.64.0705222212200.3232@schroedinger.engr.sgi.com>
- <20070523052206.GD29045@wotan.suse.de> <Pine.LNX.4.64.0705222224380.12076@schroedinger.engr.sgi.com>
- <20070523061702.GA9449@wotan.suse.de> <20070523074636.GA10070@wotan.suse.de>
- <Pine.LNX.4.64.0705231006370.19822@schroedinger.engr.sgi.com>
- <20070523193547.GE11115@waste.org> <Pine.LNX.4.64.0705231256001.21541@schroedinger.engr.sgi.com>
- <20070524033925.GD14349@wotan.suse.de>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Message-ID: <20070524040149.GB20252@wotan.suse.de>
+References: <Pine.LNX.4.64.0705222204460.3135@schroedinger.engr.sgi.com> <20070523051152.GC29045@wotan.suse.de> <Pine.LNX.4.64.0705222212200.3232@schroedinger.engr.sgi.com> <20070523052206.GD29045@wotan.suse.de> <Pine.LNX.4.64.0705222224380.12076@schroedinger.engr.sgi.com> <20070523061702.GA9449@wotan.suse.de> <20070523074636.GA10070@wotan.suse.de> <Pine.LNX.4.64.0705231006370.19822@schroedinger.engr.sgi.com> <20070524032417.GC14349@wotan.suse.de> <Pine.LNX.4.64.0705232048120.24352@schroedinger.engr.sgi.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <Pine.LNX.4.64.0705232048120.24352@schroedinger.engr.sgi.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nick Piggin <npiggin@suse.de>
+To: Christoph Lameter <clameter@sgi.com>
 Cc: Matt Mackall <mpm@selenic.com>, Andrew Morton <akpm@linux-foundation.org>, Linux Memory Management List <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 24 May 2007, Nick Piggin wrote:
-
-> > Hummm... We have not tested with my patch yet. May save another 200k.
+On Wed, May 23, 2007 at 08:49:30PM -0700, Christoph Lameter wrote:
+> On Thu, 24 May 2007, Nick Piggin wrote:
 > 
-> Saved 12K. Shuld it have been more? I only applied the last patch you
-> sent (plus the initial SLUB_DEBUG fix).
+> > The reason SLOB is so space efficient really comes from Matt's no
+> > compromises design. The thrust of my patches were after seeing how slow
+> > it was on my 4GB system while testing the RCU implementation. They
+> > were primarily intended to speed up the thing, but retain all the same
+> > basic allocation algorithms -- a quirk of my implementation allowed
+> > smaller freelist indexes which was a bonus, but as Matt said, slob was
+> > still more efficient before the change.
+> 
+> Well as far as I understand Matt it seems that you still need 2 bytes per 
+> alloc. That is still more than 0 that SLUB needs.
 
-Yeah. The code size should have shrunk significantly. It seems that the 
-inlining instead of saving memory as on x86_64 wasted memory and ate up 
-the winnings through the shrink. Could you try the patch before to see how 
-much actually is saved by shrinking?
+That's true, but I think the more relevant number is that SLUB needs
+400K more memory to boot into /bin/bash.
 
-> Admittedly, I am not involved with any such tiny Linux projects, however
-> why should half of memory be available to userspace? What about a router
-> or firewall that basically does all work in kernel?
+  
+> > What SLUB idea did you think I copied anyway?
+> 
+> The use of the page struct.
 
-It would also work fine with SLUB? Its about 12k code + data on 
-x86_64. I doubt that this would be too much of an issue.
+The general use of struct page to store page metadata other than pagecache?
+I guess not, because that predates SLUB and even SLAB. You've got a
+freelist pointer in there, so maybe that's what you mean. I was hoping
+for something that I actually can "steal" to make SLOB even better ;)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
