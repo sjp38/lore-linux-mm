@@ -1,86 +1,72 @@
 Received: from d01relay02.pok.ibm.com (d01relay02.pok.ibm.com [9.56.227.234])
-	by e3.ny.us.ibm.com (8.13.8/8.13.8) with ESMTP id l4OB9Ye7013815
-	for <linux-mm@kvack.org>; Thu, 24 May 2007 07:09:35 -0400
+	by e5.ny.us.ibm.com (8.13.8/8.13.8) with ESMTP id l4OCBW05001091
+	for <linux-mm@kvack.org>; Thu, 24 May 2007 08:11:32 -0400
 Received: from d01av03.pok.ibm.com (d01av03.pok.ibm.com [9.56.224.217])
-	by d01relay02.pok.ibm.com (8.13.8/8.13.8/NCO v8.3) with ESMTP id l4OCBfcP530338
-	for <linux-mm@kvack.org>; Thu, 24 May 2007 08:11:41 -0400
+	by d01relay02.pok.ibm.com (8.13.8/8.13.8/NCO v8.3) with ESMTP id l4OCBU10474288
+	for <linux-mm@kvack.org>; Thu, 24 May 2007 08:11:32 -0400
 Received: from d01av03.pok.ibm.com (loopback [127.0.0.1])
-	by d01av03.pok.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l4OCBfke024720
-	for <linux-mm@kvack.org>; Thu, 24 May 2007 08:11:41 -0400
-Date: Thu, 24 May 2007 08:11:41 -0400
+	by d01av03.pok.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l4OCBUU8024508
+	for <linux-mm@kvack.org>; Thu, 24 May 2007 08:11:30 -0400
+Date: Thu, 24 May 2007 08:11:30 -0400
 From: Dave Kleikamp <shaggy@linux.vnet.ibm.com>
-Message-Id: <20070524121141.13533.97864.sendpatchset@kleikamp.austin.ibm.com>
-In-Reply-To: <20070524121130.13533.32563.sendpatchset@kleikamp.austin.ibm.com>
-References: <20070524121130.13533.32563.sendpatchset@kleikamp.austin.ibm.com>
-Subject: [RFC:PATCH 002/012] Allow file systems to specify whether to store file tails
+Message-Id: <20070524121130.13533.32563.sendpatchset@kleikamp.austin.ibm.com>
+Subject: [RFC:PATCH 000/012] VM Page Tails
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-Allow file systems to specify whether to enable page cache tails
+I wanted to get some feedback on this as it is, before it undergoes some
+major re-writing.  These patches are against linux-2.6.22-rc2.
 
-This allows us to test and enable each file system independently.  It also
-gives the file system the flexibility to have a mount flag enable or disable
-page cache tails.
+These patches implement what I'm calling "VM File Tails" to
+differentiate this code from a file system's method of storing file
+tails on disk, such as reiserfs does.  I've struggled a bit on the
+naming of the config option and symbols.  I changed the PageTail()
+to PageFileTail() to avoid confusion with the tails of a compound page,
+and I've changed the config option from CONFIG_FILE_TAILS to
+CONFIG_VM_FILE_TAILS to make it clear that this is not really a
+filesystem thing.
 
-Initially, I am only testing on ext4 & jfs, so as not to damage my root file
-system (ext3).
+The object is to store smaller files more effiently on kernels that use
+a large base page size.  In particular I'm targeting Series P kernels
+compiled with CONFIG_64K_PAGES.
 
-Signed-off-by: Dave Kleikamp <shaggy@linux.vnet.ibm.com>
----
+Buffers for the tails are kmalloc'ed and aligned to the file system's
+block size.  A fake page struct is allocated and assigned to the file
+tail, and used in the page cache (radix tree), file system code, and
+even passed to the device drivers in order to perform I/O.
 
- fs/ext4/super.c    |    4 ++++
- fs/jfs/super.c     |    3 +++
- include/linux/fs.h |    2 ++
- 3 files changed, 9 insertions(+)
+If a file is grown, or an mmapped tail is touched, the tail is unpacked
+into a normal page.
 
-diff -Nurp linux001/fs/ext4/super.c linux002/fs/ext4/super.c
---- linux001/fs/ext4/super.c	2007-05-21 15:15:33.000000000 -0500
-+++ linux002/fs/ext4/super.c	2007-05-23 22:53:11.000000000 -0500
-@@ -1548,6 +1548,10 @@ static int ext4_fill_super (struct super
- 
- 	sb->s_flags = (sb->s_flags & ~MS_POSIXACL) |
- 		((sbi->s_mount_opt & EXT4_MOUNT_POSIX_ACL) ? MS_POSIXACL : 0);
-+#ifdef CONFIG_VM_FILE_TAILS
-+	/* ToDo: Make this a mount option */
-+	sb->s_flags |= MS_FILE_TAIL;
-+#endif
- 
- 	if (le32_to_cpu(es->s_rev_level) == EXT4_GOOD_OLD_REV &&
- 	    (EXT4_HAS_COMPAT_FEATURE(sb, ~0U) ||
-diff -Nurp linux001/fs/jfs/super.c linux002/fs/jfs/super.c
---- linux001/fs/jfs/super.c	2007-05-21 15:15:34.000000000 -0500
-+++ linux002/fs/jfs/super.c	2007-05-23 22:53:11.000000000 -0500
-@@ -439,6 +439,9 @@ static int jfs_fill_super(struct super_b
- #ifdef CONFIG_JFS_POSIX_ACL
- 	sb->s_flags |= MS_POSIXACL;
- #endif
-+#ifdef CONFIG_VM_FILE_TAILS
-+	sb->s_flags |= MS_FILE_TAIL;
-+#endif
- 
- 	if (newLVSize) {
- 		printk(KERN_ERR "resize option for remount only\n");
-diff -Nurp linux001/include/linux/fs.h linux002/include/linux/fs.h
---- linux001/include/linux/fs.h	2007-05-21 15:15:43.000000000 -0500
-+++ linux002/include/linux/fs.h	2007-05-23 22:53:11.000000000 -0500
-@@ -123,6 +123,7 @@ extern int dir_notify_enable;
- #define MS_SLAVE	(1<<19)	/* change to slave */
- #define MS_SHARED	(1<<20)	/* change to shared */
- #define MS_RELATIME	(1<<21)	/* Update atime relative to mtime/ctime. */
-+#define MS_FILE_TAIL	(1<<22)	/* Store file tail efficiently in page cache */
- #define MS_ACTIVE	(1<<30)
- #define MS_NOUSER	(1<<31)
- 
-@@ -182,6 +183,7 @@ extern int dir_notify_enable;
- #define IS_NOCMTIME(inode)	((inode)->i_flags & S_NOCMTIME)
- #define IS_SWAPFILE(inode)	((inode)->i_flags & S_SWAPFILE)
- #define IS_PRIVATE(inode)	((inode)->i_flags & S_PRIVATE)
-+#define IS_FILE_TAIL_CAPABLE(inode)	__IS_FLG(inode, MS_FILE_TAIL)
- 
- /* the read-only stuff doesn't really belong here, but any other place is
-    probably as bad and I don't want to create yet another include file. */
+I've tried getting rid of the new page flag PG_filetail, by defining
+a function:
+
+static inline int page_is_file_tail(struct page *page) {
+	return (page->mapping && page == page->mapping->tail_page);
+}
+
+where tail_page is a new field in the mapping, but this gets complicated
+when the page is removed from the page cache.  zeroing page->mapping would
+cause us to lose track of the fact that this is not a real page struct.
+I believe I can make it work, but the patch gets much more intrusive, so
+I've left it as a page flag for the time being.
+
+The current implementation only enables the new code for jfs and ext4 in
+order to minimize any possible file system corruption until the code
+becomes more stable.  The code currently is NOT stable, so review it all
+you want, but be warned that it may crash or lockup your machine if you
+try to run it.
+
+These patches completely conflict with Nick Piggin's Lockless Page Cache
+patches, so keep in mind that all of the locking in mm/page_tail.c is going
+to have to be re-worked.
+
+I also think I can build on top of Christoph Lameter's Variable Order Page
+Cache patches, which deals with some of the same concepts, but from a
+different direction.  He's looking at larger than PAGE_SIZE pages, where
+I'm looking at pages that are smaller than PAGE_SIZE.
 
 -- 
 David Kleikamp
