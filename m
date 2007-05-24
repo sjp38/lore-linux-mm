@@ -1,113 +1,132 @@
-Date: Thu, 24 May 2007 12:24:54 -0700 (PDT)
-From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [PATCH/RFC 0/8] Mapped File Policy Overview
-In-Reply-To: <20070524172821.13933.80093.sendpatchset@localhost>
-Message-ID: <Pine.LNX.4.64.0705241216560.30537@schroedinger.engr.sgi.com>
-References: <20070524172821.13933.80093.sendpatchset@localhost>
+Date: Thu, 24 May 2007 18:22:40 -0300
+From: "Magic | Casino" <tailwind@singapore.net>
+Message-ID: <30823723.81513132@ignite.com>
+Subject: Bis 1000 Euro frei!
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
-Sender: owner-linux-mm@kvack.org
-Return-Path: <owner-linux-mm@kvack.org>
-To: Lee Schermerhorn <lee.schermerhorn@hp.com>
-Cc: linux-mm@kvack.org, akpm@linux-foundation.org, nish.aravamudan@gmail.com, ak@suse.de
+Content-Type: text/html; charset=iso-8859-1
+Content-Transfer-Encoding: 7bit
+Return-Path: <tailwind@singapore.net>
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 24 May 2007, Lee Schermerhorn wrote:
+<html>
 
-> Basic "problem":  currently [~2.6.21], files mmap()ed SHARED
-> do not follow mem policy applied to the mapped regions.  Instead, 
-> shared, file backed pages are allocated using the allocating
-> tasks' task policy.  This is inconsistent with the way that anon
-> and shmem pages are handled, violating, for me, the Principle
-> of Least Astonishment.
+<head>
+<meta http-equiv=Content-Type content="text/html; charset=iso-8859-1">
 
-Yes sort of.  Anonymous pages are not shared and shmem pages are special 
-anyways. With file backed pages we are talking about the page cache right?
+<title>Sind Sie auf der Suche nach einem neuen, 
+aufregenden Spielangebot </title>
 
-It would be great to have policies that can be set for the pagecache.
-Preferably per cpuset or so.
+<style>
+<!--
+ /* Style Definitions */
+ p.MsoNormal, li.MsoNormal, div.MsoNormal
+	{mso-style-parent:"";
+	margin:0cm;
+	margin-bottom:.0001pt;
+	mso-pagination:widow-orphan;
+	font-size:12.0pt;
+	font-family:"Times New Roman";
+	mso-fareast-font-family:"Times New Roman";}
+a:link, span.MsoHyperlink
+	{color:blue;
+	text-decoration:underline;
+	text-underline:single;}
+a:visited, span.MsoHyperlinkFollowed
+	{color:purple;
+	text-decoration:underline;
+	text-underline:single;}
+@page Section1
+	{size:595.3pt 841.9pt;
+	margin:2.0cm 42.5pt 2.0cm 3.0cm;
+	mso-header-margin:35.4pt;
+	mso-footer-margin:35.4pt;
+	mso-paper-source:0;}
+div.Section1
+	{page:Section1;}
+-->
+</style>
 
-> One reason for this is that down where pages are allocated for
-> file backed pages, the faulting (mm, vma, address) are not 
-> available to compute the policy.  However, we do have the
-> address_space [a.k.a. mapping] and file index/offset available.
-> If the applicable policy could be determined from just this info,
-> the vma and address would not be required.
+</head>
 
-Hmmm.. Hmmmm... yes logical.
+<body lang=EN-US link=blue vlink=purple style='tab-interval:35.4pt'>
 
-> Note that hugepage shmem segments do not follow the vma policy even
-> tho' the hugetlbfs inode_info contains the shared policy struct.
-> This situation arises because the hugetlbfs vm_ops do not contain the
-> shmem_{get|set}_policy ops.  One can't just add these.  If you do,
-> a read/cat of /proc/<pid>/numa_maps will hang.  I haven't investigated
-> reason for the hang.  However, this series does not suffer that
-> problem.
+<div class=Section1>
 
-Could you do a separate patch that fixes the hugetlbfs problem? There are 
-more exceptions in mempolicy.c that you may have to deal with.
+<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
+Sind Sie auf der Suche nach einem neuen, 
+aufregenden Spielangebot? 
+</span><o:p></o:p></p>
 
-> This series of patches implements NUMA memory policy for shared,
-> mmap()ed files.   Because files mmap()ed SHARED are shared between
-> tasks just like shared memory regions, I've used the shared_policy
-> infrastructure from shmem.  This infrastructure applies policies
-> directly to ranges of a file using an rb_tree.  The tree is indexed
-> by the page offset, which we have in page cache allocation contexts.
-> 
-> Note that the method used is similar to one proposed by Steve Longerbeam
-> quite a few years ago, except that I dynamically allocate the shared
-> policy struct when needed, rather than embedding it directly in the
-> inode/address_space.
-> 
-> This series result in the following internal and external semantics:
-> 
-> 1) The vma get|set_policy ops handle memory policies on sub-vma
->    address ranges for shared, linear mappings [shmem, files]
->    without splitting the vmas at the policy boundaries. Private
->    and non-linear mappings still split the vma to apply policy.
->    However, vma policy is still not visible to the nopage fault path.  
+<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
+<u3:p>&nbsp;</u3:p></span></p>
 
-So the process may set a policy that is then ignored? Instead we 
-use the policy in the inode? Setting a policy sets the policy for the 
-complete inode? Can we set policies on segments of pages of an inode?
+<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
+Magic Jackpot ist momentan die warscheinlich aufregendste 
+Moglichkeit dazu ! 
+</span><o:p></o:p></p>
 
-> 2) As with shmem segments, the shared policies applied to shared
->    file mappings persist as long as the inode remains--i.e., until
->    the file is deleted or the inode recycled--whether or not any
->    task has the file mapped or even open.  We could, I suppose,
->    free the shared policy on last close.
+<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
+<u3:p>&nbsp;</u3:p></span></p>
 
-What happens if something evicts the inode (reclaim) and then we need
-to reread it later? Isnt this a bit unpredictable?
+<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
+Wenn BlackJack oder Roulette zu Ihren Lieblingsspielen gehoren, 
+bieten Magic Jackpot's Live-Dealer das Gefuhl eines 
+echten Casinos. 
+</span><o:p></o:p></p>
 
-> 3) Vma policy of private mappings of files only apply when the 
->    task gets a private copy of the page--i.e., when do_wp_page()
->    breaks the COW sharing and allocates a private page.  Private,
->    read-only mappings of a file use the shared policy which 
->    defaults, as before, to process policy, which itself defaults
->    to, well... default policy.  This is how mapped files have
->    always behaved.
+<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
+<u3:p>&nbsp;</u3:p></span></p>
 
-Let it be the way it is?
- 
-> 4) mbind(... 'MOVE*, ...) will not migrate page cache pages in
->    a private mapping if the file has a shared policy.  Rather,
->    only anon pages that the mapping task has "COWed" will be
->    migrated.  If the mapped file does NOT have a shared policy
->    or the file is mapped shared, then the pages will be migrated,
->    subject to mapcount, preserving the existing semantics.
+<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
+Wenn Slot-Machinen zu Ihren Favoriten gehoren, konnen Sie den 
+hochsten Preis aller Zeiten beim Video-Slot Millionaire's Lane 
+gewinnen, insgesamt $5 000 000 !
+</span><o:p></o:p></p>
 
-Hmmm... That could get a bit confusing.
+<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
+<u3:p>&nbsp;</u3:p></span></p>
 
- 
-> Impact On Kernel Build times
+<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
+Fur den Anfing bietet Magic Jackpots einen magischen Bonus 
+als Willkommensgeschenk !</span><o:p></o:p></p>
 
-I think what you would like to show is that there is no negative impact on 
-concurrent reads and write on the page cache. The additional checking
-may impact scalability.
+<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
+<u3:p>&nbsp;</u3:p></span></p>
 
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
+Zahlen Sie Heute noch bei Magic Jackpot ein und Ihr Kontostand 
+wird umgehend mit einem 100% Bonus verdoppelt.
+</span></p>
+
+<p class=MsoNormal><span style='mso-ansi-language:DE'>
+<u3:p>&nbsp;</u3:p></span></p>
+
+<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
+Zahlen Sie 20$ ein, spielen Sie mit 40$</span></p>
+
+<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
+Zahlen Sie 250$ ein, spielen Sie mit 500$</span><o:p></o:p></p>
+
+<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
+<u3:p>&nbsp;</u3:p></span></p>
+
+<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
+Der Live-Kundendienst steht bei eventuellen Ruckfragen oder 
+sonstigen Anliegen, 24 Stunden am Tag zur Verfugung, was den 
+Genuess schneller Auszahlungen garantiert !</span>
+<o:p></o:p></p>
+
+<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
+<u3:p>&nbsp;</u3:p></span></p>
+
+<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
+<a href="http://www.goldmagiccasino.net/lang-de/">
+http://www.goldmagiccasino.net/lang-de/</a>
+<u3:p></u3:p></span></p>
+
+</div>
+
+</body>
+
+</html>
