@@ -1,52 +1,46 @@
-From: Benjamin Herrenschmidt <benh@kernel.crashing.org>
-Date: Thu, 24 May 2007 14:13:34 +1000
-Subject: [PATCH 2/2] Make map_vm_area() static
-Message-Id: <20070524041337.D2FA7DDE06@ozlabs.org>
+Date: Wed, 23 May 2007 21:23:22 -0700 (PDT)
+From: Christoph Lameter <clameter@sgi.com>
+Subject: Re: [patch 1/3] slob: rework freelist handling
+In-Reply-To: <20070524041339.GC20252@wotan.suse.de>
+Message-ID: <Pine.LNX.4.64.0705232115140.24618@schroedinger.engr.sgi.com>
+References: <Pine.LNX.4.64.0705222212200.3232@schroedinger.engr.sgi.com>
+ <20070523052206.GD29045@wotan.suse.de> <Pine.LNX.4.64.0705222224380.12076@schroedinger.engr.sgi.com>
+ <20070523061702.GA9449@wotan.suse.de> <20070523074636.GA10070@wotan.suse.de>
+ <Pine.LNX.4.64.0705231006370.19822@schroedinger.engr.sgi.com>
+ <20070523193547.GE11115@waste.org> <Pine.LNX.4.64.0705231256001.21541@schroedinger.engr.sgi.com>
+ <20070524033925.GD14349@wotan.suse.de> <Pine.LNX.4.64.0705232052040.24352@schroedinger.engr.sgi.com>
+ <20070524041339.GC20252@wotan.suse.de>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Linux Memory Management <linux-mm@kvack.org>, Paul Mackerras <paulus@samba.org>
+To: Nick Piggin <npiggin@suse.de>
+Cc: Matt Mackall <mpm@selenic.com>, Andrew Morton <akpm@linux-foundation.org>, Linux Memory Management List <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-map_vm_area() is only ever used inside of mm/vmalloc.c. This makes
-it static and removes the prototype.
+On Thu, 24 May 2007, Nick Piggin wrote:
 
-Signed-off-by: Benjamin Herrenschmidt <benh@kernel.crashing.org>
----
+> > It would also work fine with SLUB? Its about 12k code + data on 
+> > x86_64. I doubt that this would be too much of an issue.
+> 
+> Well as I said, I am not the one to ask about whether SLUB could replace
+> SLOB or not. All else being equal, of course it is a good idea.
+> 
+> But what I think is clear is that SLOB simply uses memory more
+> efficiently than SLUB (in my test, anyway). I don't know how this can
+> still be in dispute?
 
----
+You have shown that SLUB used more memory than SLOB after bootup on PPC64.
+But why is still an open question.
 
- include/linux/vmalloc.h |    2 --
- mm/vmalloc.c            |    3 ++-
- 2 files changed, 2 insertions(+), 3 deletions(-)
+It could be the way that SLOB can exploit the page for multiple object 
+sizes which creates the advantage. If that is the case then we can do 
+nothing with SLUB.
 
-Index: linux-cell/include/linux/vmalloc.h
-===================================================================
---- linux-cell.orig/include/linux/vmalloc.h	2007-05-24 13:42:22.000000000 +1000
-+++ linux-cell/include/linux/vmalloc.h	2007-05-24 13:52:08.000000000 +1000
-@@ -66,8 +66,6 @@ extern struct vm_struct *get_vm_area_nod
- 					  gfp_t gfp_mask);
- extern struct vm_struct *remove_vm_area(void *addr);
- 
--extern int map_vm_area(struct vm_struct *area, pgprot_t prot,
--			struct page ***pages);
- extern void unmap_kernel_range(unsigned long addr, unsigned long size);
- 
- /*
-Index: linux-cell/mm/vmalloc.c
-===================================================================
---- linux-cell.orig/mm/vmalloc.c	2007-05-24 13:44:28.000000000 +1000
-+++ linux-cell/mm/vmalloc.c	2007-05-24 13:52:08.000000000 +1000
-@@ -145,7 +145,8 @@ static inline int vmap_pud_range(pgd_t *
- 	return 0;
- }
- 
--int map_vm_area(struct vm_struct *area, pgprot_t prot, struct page ***pages)
-+static int map_vm_area(struct vm_struct *area, pgprot_t prot,
-+		       struct page ***pages)
- {
- 	pgd_t *pgd;
- 	unsigned long next;
+But there could still be excessive memory allocs with SLUB that we are not 
+aware of at this point. For example if the page size > 4k then SLUB will 
+use higher order allocs by default which will increase wastage.
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
