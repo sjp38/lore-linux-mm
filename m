@@ -1,26 +1,33 @@
-Date: Thu, 24 May 2007 11:57:46 +0200
+Date: Thu, 24 May 2007 11:58:37 +0200
 From: Ingo Molnar <mingo@elte.hu>
-Subject: Re: [PATCH 1/2] limit print_fatal_signal() rate (was: [RFC] log out-of-virtual-memory events)
-Message-ID: <20070524095746.GA15369@elte.hu>
-References: <E1Hp5PV-0001Bn-00@calista.eckenfels.net> <464ED258.2010903@users.sourceforge.net> <20070520203123.5cde3224.akpm@linux-foundation.org> <20070524075835.GC21138@elte.hu>
+Subject: Re: [PATCH 1/2] limit print_fatal_signal() rate
+Message-ID: <20070524095837.GA15689@elte.hu>
+References: <E1Hp5PV-0001Bn-00@calista.eckenfels.net> <464ED258.2010903@users.sourceforge.net> <20070520203123.5cde3224.akpm@linux-foundation.org> <20070524075835.GC21138@elte.hu> <465551DC.4060603@users.sourceforge.net>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20070524075835.GC21138@elte.hu>
+In-Reply-To: <465551DC.4060603@users.sourceforge.net>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: righiandr@users.sourceforge.net, Bernd Eckenfels <ecki@lina.inka.de>, linux-kernel@vger.kernel.org, Rik van Riel <riel@redhat.com>, linux-mm@kvack.org
+To: Andrea Righi <righiandr@users.sourceforge.net>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Bernd Eckenfels <ecki@lina.inka.de>, linux-kernel@vger.kernel.org, Rik van Riel <riel@redhat.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-* Ingo Molnar <mingo@elte.hu> wrote:
+* Andrea Righi <righiandr@users.sourceforge.net> wrote:
 
-> [...] The only add-on change should be to not print SIGKILL events.
+> Actually it seems that SIGKILLs are not printed. In 
+> get_signal_to_deliver() we have:
+> 
+> [snip]
+> @@ -1843,6 +1879,8 @@ relock:
+>  		 * Anything else is fatal, maybe with a core dump.
+>  		 */
+>  		current->flags |= PF_SIGNALED;
+> +		if ((signr != SIGKILL) && print_fatal_signals)
+> +			print_fatal_signal(regs, signr);
 
-ah, that's already included in the version in -mm.
-
-admittedly, the #ifdef __i386__ is quite lame, but there's no generic 
-safely-try-to-show-code-at-addr function available at the moment.
+yeah. Either i implemented that and forgot, or someone else implemented 
+it. :)
 
 	Ingo
 
