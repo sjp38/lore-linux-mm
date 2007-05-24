@@ -1,219 +1,412 @@
 Received: from d01relay02.pok.ibm.com (d01relay02.pok.ibm.com [9.56.227.234])
-	by e4.ny.us.ibm.com (8.13.8/8.13.8) with ESMTP id l4OCBqYa021407
-	for <linux-mm@kvack.org>; Thu, 24 May 2007 08:11:52 -0400
-Received: from d01av03.pok.ibm.com (d01av03.pok.ibm.com [9.56.224.217])
-	by d01relay02.pok.ibm.com (8.13.8/8.13.8/NCO v8.3) with ESMTP id l4OCBq9w512964
-	for <linux-mm@kvack.org>; Thu, 24 May 2007 08:11:52 -0400
-Received: from d01av03.pok.ibm.com (loopback [127.0.0.1])
-	by d01av03.pok.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l4OCBqe9025105
-	for <linux-mm@kvack.org>; Thu, 24 May 2007 08:11:52 -0400
-Date: Thu, 24 May 2007 08:11:52 -0400
+	by e5.ny.us.ibm.com (8.13.8/8.13.8) with ESMTP id l4OCBwUI001620
+	for <linux-mm@kvack.org>; Thu, 24 May 2007 08:11:58 -0400
+Received: from d01av04.pok.ibm.com (d01av04.pok.ibm.com [9.56.224.64])
+	by d01relay02.pok.ibm.com (8.13.8/8.13.8/NCO v8.3) with ESMTP id l4OCBws7534156
+	for <linux-mm@kvack.org>; Thu, 24 May 2007 08:11:58 -0400
+Received: from d01av04.pok.ibm.com (loopback [127.0.0.1])
+	by d01av04.pok.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l4OCBw5N024771
+	for <linux-mm@kvack.org>; Thu, 24 May 2007 08:11:58 -0400
+Date: Thu, 24 May 2007 08:11:57 -0400
 From: Dave Kleikamp <shaggy@linux.vnet.ibm.com>
-Message-Id: <20070524121152.13533.37381.sendpatchset@kleikamp.austin.ibm.com>
+Message-Id: <20070524121157.13533.32213.sendpatchset@kleikamp.austin.ibm.com>
 In-Reply-To: <20070524121130.13533.32563.sendpatchset@kleikamp.austin.ibm.com>
 References: <20070524121130.13533.32563.sendpatchset@kleikamp.austin.ibm.com>
-Subject: [RFC:PATCH 004/012] Replace PAGE_CACHE_SIZE with page_data_size()
+Subject: [RFC:PATCH 005/012] Base file tail function
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-Replace PAGE_CACHE_SIZE with page_data_size()
+Base file tail function
 
-Code that zeroes an entire page needs to be aware that tail pages may not
-be PAGE_CACHE_SIZE bytes long.
+This is the code to allocate, free, and unpack the tail into a normal page.
 
 Signed-off-by: Dave Kleikamp <shaggy@linux.vnet.ibm.com>
 ---
 
- fs/buffer.c             |   28 ++++++++++++++++------------
- fs/mpage.c              |    4 ++--
- fs/reiserfs/inode.c     |    3 ++-
- include/linux/pagemap.h |   28 ++++++++++++++++++++++++++++
- mm/truncate.c           |    2 +-
- 5 files changed, 49 insertions(+), 16 deletions(-)
+ include/linux/file_tail.h |   67 ++++++++++
+ mm/Makefile               |    1 
+ mm/file_tail.c            |  293 ++++++++++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 361 insertions(+)
 
-diff -Nurp linux003/fs/buffer.c linux004/fs/buffer.c
---- linux003/fs/buffer.c	2007-05-21 15:15:32.000000000 -0500
-+++ linux004/fs/buffer.c	2007-05-23 22:53:11.000000000 -0500
-@@ -875,7 +875,7 @@ struct buffer_head *alloc_page_buffers(s
- 
- try_again:
- 	head = NULL;
--	offset = PAGE_SIZE;
-+	offset = page_data_size(page);
- 	while ((offset -= size) >= 0) {
- 		bh = alloc_buffer_head(GFP_NOFS);
- 		if (!bh)
-@@ -1411,7 +1411,7 @@ void set_bh_page(struct buffer_head *bh,
- 		struct page *page, unsigned long offset)
- {
- 	bh->b_page = page;
--	BUG_ON(offset >= PAGE_SIZE);
-+	BUG_ON(offset >= page_data_size(page));
- 	if (PageHighMem(page))
- 		/*
- 		 * This catches illegal uses and preserves the offset:
-@@ -1752,8 +1752,10 @@ static int __block_prepare_write(struct 
- 	struct buffer_head *bh, *head, *wait[2], **wait_bh=wait;
- 
- 	BUG_ON(!PageLocked(page));
--	BUG_ON(from > PAGE_CACHE_SIZE);
-+	BUG_ON(from > page_data_size(page));
- 	BUG_ON(to > PAGE_CACHE_SIZE);
-+	if (to > page_data_size(page))
-+		to = page_data_size(page);
- 	BUG_ON(from > to);
- 
- 	blocksize = 1 << inode->i_blkbits;
-@@ -2098,12 +2100,14 @@ int cont_prepare_write(struct page *page
- 			(*bytes)++;
- 		}
- 		status = __block_prepare_write(inode, new_page, zerofrom,
--						PAGE_CACHE_SIZE, get_block);
-+						page_data_size(new_page),
-+						get_block);
- 		if (status)
- 			goto out_unmap;
--		zero_user_page(page, zerofrom, PAGE_CACHE_SIZE - zerofrom,
--				KM_USER0);
--		generic_commit_write(NULL, new_page, zerofrom, PAGE_CACHE_SIZE);
-+		zero_user_page(page, zerofrom,
-+			       page_data_size(new_page) - zerofrom, KM_USER0);
-+		generic_commit_write(NULL, new_page, zerofrom,
-+				     page_data_size(new_page));
- 		unlock_page(new_page);
- 		page_cache_release(new_page);
- 	}
-@@ -2234,7 +2238,7 @@ int nobh_prepare_write(struct page *page
- 	 * page is fully mapped-to-disk.
- 	 */
- 	for (block_start = 0, block_in_page = 0;
--		  block_start < PAGE_CACHE_SIZE;
-+		  block_start < page_data_size(page);
- 		  block_in_page++, block_start += blocksize) {
- 		unsigned block_end = block_start + blocksize;
- 		int create;
-@@ -2328,7 +2332,7 @@ failed:
- 	 * Error recovery is pretty slack.  Clear the page and mark it dirty
- 	 * so we'll later zero out any blocks which _were_ allocated.
- 	 */
--	zero_user_page(page, 0, PAGE_CACHE_SIZE, KM_USER0);
-+	zero_user_page(page, 0, page_data_size(page), KM_USER0);
- 	SetPageUptodate(page);
- 	set_page_dirty(page);
- 	return ret;
-@@ -2397,7 +2401,7 @@ int nobh_writepage(struct page *page, ge
- 	 * the  page size, the remaining memory is zeroed when mapped, and
- 	 * writes to that region are not written out to the file."
- 	 */
--	zero_user_page(page, offset, PAGE_CACHE_SIZE - offset, KM_USER0);
-+	zero_user_page(page, offset, page_data_size(page) - offset, KM_USER0);
- out:
- 	ret = mpage_writepage(page, get_block, wbc);
- 	if (ret == -EAGAIN)
-@@ -2431,7 +2435,7 @@ int nobh_truncate_page(struct address_sp
- 	to = (offset + blocksize) & ~(blocksize - 1);
- 	ret = a_ops->prepare_write(NULL, page, offset, to);
- 	if (ret == 0) {
--		zero_user_page(page, offset, PAGE_CACHE_SIZE - offset,
-+		zero_user_page(page, offset, page_data_size(page) - offset,
- 				KM_USER0);
- 		/*
- 		 * It would be more correct to call aops->commit_write()
-@@ -2557,7 +2561,7 @@ int block_write_full_page(struct page *p
- 	 * the  page size, the remaining memory is zeroed when mapped, and
- 	 * writes to that region are not written out to the file."
- 	 */
--	zero_user_page(page, offset, PAGE_CACHE_SIZE - offset, KM_USER0);
-+	zero_user_page(page, offset, page_data_size(page) - offset, KM_USER0);
- 	return __block_write_full_page(inode, page, get_block, wbc);
- }
- 
-diff -Nurp linux003/fs/mpage.c linux004/fs/mpage.c
---- linux003/fs/mpage.c	2007-05-21 15:15:35.000000000 -0500
-+++ linux004/fs/mpage.c	2007-05-23 22:53:11.000000000 -0500
-@@ -285,7 +285,7 @@ do_mpage_readpage(struct bio *bio, struc
- 
- 	if (first_hole != blocks_per_page) {
- 		zero_user_page(page, first_hole << blkbits,
--				PAGE_CACHE_SIZE - (first_hole << blkbits),
-+				page_data_size(page) - (first_hole << blkbits),
- 				KM_USER0);
- 		if (first_hole == 0) {
- 			SetPageUptodate(page);
-@@ -585,7 +585,7 @@ page_is_mapped:
- 
- 		if (page->index > end_index || !offset)
- 			goto confused;
--		zero_user_page(page, offset, PAGE_CACHE_SIZE - offset,
-+		zero_user_page(page, offset, page_data_size(page) - offset,
- 				KM_USER0);
- 	}
- 
-diff -Nurp linux003/fs/reiserfs/inode.c linux004/fs/reiserfs/inode.c
---- linux003/fs/reiserfs/inode.c	2007-05-21 15:15:36.000000000 -0500
-+++ linux004/fs/reiserfs/inode.c	2007-05-23 22:53:11.000000000 -0500
-@@ -2373,7 +2373,8 @@ static int reiserfs_write_full_page(stru
- 			unlock_page(page);
- 			return 0;
- 		}
--		zero_user_page(page, last_offset, PAGE_CACHE_SIZE - last_offset, KM_USER0);
-+		zero_user_page(page, last_offset,
-+			       page_data_size(page) - last_offset, KM_USER0);
- 	}
- 	bh = head;
- 	block = page->index << (PAGE_CACHE_SHIFT - s->s_blocksize_bits);
-diff -Nurp linux003/include/linux/pagemap.h linux004/include/linux/pagemap.h
---- linux003/include/linux/pagemap.h	2007-05-21 15:15:44.000000000 -0500
-+++ linux004/include/linux/pagemap.h	2007-05-23 22:53:11.000000000 -0500
-@@ -58,6 +58,34 @@ static inline void mapping_set_gfp_mask(
- #define PAGE_CACHE_MASK		PAGE_MASK
- #define PAGE_CACHE_ALIGN(addr)	(((addr)+PAGE_CACHE_SIZE-1)&PAGE_CACHE_MASK)
- 
+diff -Nurp linux004/include/linux/file_tail.h linux005/include/linux/file_tail.h
+--- linux004/include/linux/file_tail.h	1969-12-31 18:00:00.000000000 -0600
++++ linux005/include/linux/file_tail.h	2007-05-23 22:53:11.000000000 -0500
+@@ -0,0 +1,67 @@
++#ifndef FILE_TAIL_H
++#define FILE_TAIL_H
++
++#include <linux/fs.h>
++#include <linux/pagemap.h>
++
++/*
++ * VM File Tails are used to compactly store the data at the end of the
++ * file in a small SLAB-allocated buffer when the base page size is large.
++ */
++
 +#ifdef CONFIG_VM_FILE_TAILS
-+static inline pgoff_t file_tail_index(struct address_space *mapping)
++
++extern struct page *page_cache_alloc_tail(struct address_space *);
++extern void page_cache_free_tail(struct page *);
++extern void __page_cache_free_tail_buffer(struct page *);
++
++static inline void page_cache_free_tail_buffer(struct page *page)
 +{
-+	return (pgoff_t) (i_size_read(mapping->host) >> PAGE_CACHE_SHIFT);
++	if (PageFileTail(page))
++		__page_cache_free_tail_buffer(page);
 +}
 +
 +/*
-+ * Round up to file system block size so that we can read
-+ * directly into the buffer
++ * Caller must hold write_lock_irq(&mapping->tree_lock)
 + */
-+static inline int file_tail_buf_size(struct address_space *mapping)
++extern int __unpack_file_tail(struct address_space *);
++
++static inline int unpack_file_tail(struct address_space *mapping)
 +{
-+	int block_mask = (1 << mapping->host->i_blkbits) - 1;
-+	int tail_bytes = i_size_read(mapping->host) & (PAGE_CACHE_SIZE - 1);
-+	return ALIGN(tail_bytes, block_mask);
++	int rc;
++	write_lock_irq(&mapping->tree_lock);
++	rc = __unpack_file_tail(mapping);
++	write_unlock_irq(&mapping->tree_lock);
++	return rc;
 +}
 +
-+static inline int page_data_size(struct page *page)
++static inline void preallocate_page_cache_tail(struct address_space *mapping,
++					       unsigned long end_index)
 +{
-+	if (PageFileTail(page))
-+		return file_tail_buf_size(page->mapping);
-+	else
-+		return PAGE_CACHE_SIZE;
-+}
-+#else
-+#define page_data_size(page) PAGE_CACHE_SIZE
-+#endif
++	struct inode *inode = mapping->host;
++	struct page *page;
 +
- #define page_cache_get(page)		get_page(page)
- #define page_cache_release(page)	put_page(page)
- void release_pages(struct page **pages, int nr, int cold);
-diff -Nurp linux003/mm/truncate.c linux004/mm/truncate.c
---- linux003/mm/truncate.c	2007-05-21 15:15:48.000000000 -0500
-+++ linux004/mm/truncate.c	2007-05-23 22:53:11.000000000 -0500
-@@ -47,7 +47,7 @@ void do_invalidatepage(struct page *page
++	if (mapping->tail)
++		return;
++	if (!IS_FILE_TAIL_CAPABLE(inode))
++		return;
++	if (file_tail_index(mapping) != end_index)
++		return;
++	if (file_tail_buf_size(mapping) > PAGE_CACHE_SIZE / 2)
++		return;
++
++	page = page_cache_alloc_tail(mapping);
++	if (page)
++		page_cache_release(page);
++}
++
++#else /* !CONFIG_VM_FILE_TAILS */
++
++#define unpack_file_tail(mapping) 0
++#define page_cache_free_tail(page) do {} while (0)
++#define page_cache_free_tail_buffer(page) do {} while (0)
++#define preallocate_page_cache_tail(page, end_index) do {} while (0)
++
++#endif /* CONFIG_VM_FILE_TAILS */
++
++#endif	/* FILE_TAIL_H */
+diff -Nurp linux004/mm/Makefile linux005/mm/Makefile
+--- linux004/mm/Makefile	2007-05-21 15:15:48.000000000 -0500
++++ linux005/mm/Makefile	2007-05-23 22:53:11.000000000 -0500
+@@ -31,4 +31,5 @@ obj-$(CONFIG_FS_XIP) += filemap_xip.o
+ obj-$(CONFIG_MIGRATION) += migrate.o
+ obj-$(CONFIG_SMP) += allocpercpu.o
+ obj-$(CONFIG_QUICKLIST) += quicklist.o
++obj-$(CONFIG_VM_FILE_TAILS) += file_tail.o
  
- static inline void truncate_partial_page(struct page *page, unsigned partial)
- {
--	zero_user_page(page, partial, PAGE_CACHE_SIZE - partial, KM_USER0);
-+	zero_user_page(page, partial, page_data_size(page) - partial, KM_USER0);
- 	if (PagePrivate(page))
- 		do_invalidatepage(page, partial);
- }
+diff -Nurp linux004/mm/file_tail.c linux005/mm/file_tail.c
+--- linux004/mm/file_tail.c	1969-12-31 18:00:00.000000000 -0600
++++ linux005/mm/file_tail.c	2007-05-23 22:53:11.000000000 -0500
+@@ -0,0 +1,293 @@
++/*
++ *	linux/mm/file_tail.c
++ *
++ * Copyright (C) International Business Machines  Corp., 2006-2007
++ * Author: Dave Kleikamp <shaggy@linux.vnet.ibm.com>
++ */
++
++/*
++ * VM File Tails are used to compactly store the data at the end of the
++ * file in a small SLAB-allocated buffer when the base page size is large.
++ */
++
++#include <linux/file_tail.h>
++#include <linux/fs.h>
++#include <linux/module.h>
++#include <linux/pagemap.h>
++#include <linux/slab.h>
++#include <linux/buffer_head.h>
++#include <linux/swap.h>
++#include <linux/mm_inline.h>
++#include "internal.h"
++
++static struct kmem_cache *tail_page_cachep;
++
++/*
++ * Maybe this could become more generic, but for now, I need it here
++ */
++static void lru_cache_delete(struct page *page)
++{
++	if (PageLRU(page)) {
++		unsigned long flags;
++		struct zone *zone = page_zone(page);
++
++		spin_lock_irqsave(&zone->lru_lock, flags);
++		BUG_ON(!PageLRU(page));
++		__ClearPageLRU(page);
++		del_page_from_lru(zone, page);
++		spin_unlock_irqrestore(&zone->lru_lock, flags);
++	}
++}
++
++/*
++ * Unpack short_page into full_page.
++ * short_page is locked and has no buffers bound to it.
++ * full_page is newly allocated.
++ */
++static int unpack_tail(struct address_space *mapping, pgoff_t index,
++		       struct page *short_page, struct page *full_page)
++{
++	int error;
++	char *kaddr;
++	char *tail;
++	char *tail_buf;
++	int tail_length;
++
++	/* This is the equivalent of remove_from_page_cache and
++	 * add_to_page_cache_lru, without dropping tree_lock
++	 */
++	error = radix_tree_preload(mapping_gfp_mask(mapping));
++	if (unlikely(error))
++		return error;
++
++	write_lock_irq(&mapping->tree_lock);
++	radix_tree_delete(&mapping->page_tree, index);
++	short_page->mapping = NULL;
++	tail = mapping->tail;
++	tail_buf = mapping->tail_buf;
++	mapping->tail = mapping->tail_buf = NULL;
++
++	error = radix_tree_insert(&mapping->page_tree, index, full_page);
++	if (unlikely(error)) {
++		printk(KERN_ERR "unpack_tail: radix_tree_insert failed!\n");
++		kfree(tail_buf);
++		unlock_page(short_page);
++		page_cache_release(short_page);
++		return error;
++	}
++	page_cache_get(full_page);
++	SetPageLocked(full_page);
++	full_page->mapping = mapping;
++	full_page->index = index;
++
++	write_unlock_irq(&mapping->tree_lock);
++	radix_tree_preload_end();
++	page_cache_release(short_page); /* page cache ref */
++
++	/* Copy data from tail to full page */
++	if (PageUptodate(short_page)) {
++		kaddr = kmap_atomic(full_page, KM_USER0);
++		tail_length = file_tail_buf_size(mapping);
++		memcpy(kaddr, tail, tail_length);
++		memset(kaddr+tail_length, 0, PAGE_CACHE_SIZE - tail_length);
++		kunmap_atomic(kaddr, KM_USER0);
++		SetPageUptodate(full_page);
++	}
++	kfree(tail_buf);
++
++	/* finalize full_page */
++	if (PageUptodate(short_page) && PageDirty(short_page)) {
++		SetPageDirty(full_page);
++		write_lock_irq(&mapping->tree_lock);
++		radix_tree_tag_set(&mapping->page_tree, index,
++				   PAGECACHE_TAG_DIRTY);
++		write_unlock_irq(&mapping->tree_lock);
++	}
++	lru_cache_add(full_page);
++	unlock_page(full_page);
++	page_cache_release(full_page);
++
++	/* release short_page */
++	unlock_page(short_page);
++	page_cache_release(short_page);
++
++	return 0;
++}
++
++/*
++ * Caller must hold write lock on mapping->tree_lock
++ */
++int __unpack_file_tail(struct address_space *mapping)
++{
++	pgoff_t index;
++	struct page *full_page = NULL;
++	int rc = 0;
++	struct page *short_page;
++
++	while (mapping->tail) {
++		write_unlock_irq(&mapping->tree_lock);
++		index = file_tail_index(mapping);
++
++		/* Allocate full page */
++		if (!full_page)
++			full_page = page_cache_alloc(mapping);
++		if (!full_page) {
++			rc = -ENOMEM;
++			write_lock_irq(&mapping->tree_lock);
++			break;
++		}
++
++		/* Get & lock short page */
++		short_page = find_lock_page(mapping, index);
++		if (!short_page || !PageFileTail(short_page)) {
++			if (short_page) {
++				unlock_page(short_page);
++				page_cache_release(short_page);
++			}
++			write_lock_irq(&mapping->tree_lock);
++			continue;
++		}
++		wait_on_page_writeback(short_page);
++		lru_cache_delete(short_page);
++		/* We have the tail page locked, so this shouldn't go away */
++		BUG_ON(!mapping->tail);
++
++		if (page_has_buffers(short_page) &&
++		    !try_to_release_page(short_page,
++					 mapping_gfp_mask(mapping))) {
++			/* How hard to do we need to try? */
++			sync_blockdev(mapping->host->i_sb->s_bdev);
++			if (page_has_buffers(short_page) &&
++			    !try_to_release_page(short_page,
++						 mapping_gfp_mask(mapping))) {
++				printk(KERN_ERR "__unpack_file_tail: "
++						"can't release page\n");
++				page_cache_release(short_page);
++				rc = -EIO; /* What's a good return code? */
++				write_lock_irq(&mapping->tree_lock);
++				break;
++			}
++		}
++
++		rc = unpack_tail(mapping, index, short_page, full_page);
++		if (rc) {
++			write_lock_irq(&mapping->tree_lock);
++			break;
++		}
++		full_page = NULL;
++
++		/*
++		 * unlikely, but check to see if there was no tail added
++		 * back.  We need to return with tree_lock held.
++		 */
++		write_lock_irq(&mapping->tree_lock);
++
++	}
++	if (full_page)
++		page_cache_release(full_page);
++	return rc;
++}
++
++static void init_once(void *ptr, struct kmem_cache *cachep, unsigned long flags)
++{
++	struct page *page = (struct page *)ptr;
++
++	memset(page, 0, sizeof(struct page));
++	reset_page_mapcount(page);
++	INIT_LIST_HEAD(&page->lru);
++	SetPageFileTail(page);
++}
++
++static __init int file_tail_init(void)
++{
++	tail_page_cachep = kmem_cache_create("tail_page_cache",
++					     sizeof(struct page), 0, 0,
++					     init_once, NULL);
++	if (tail_page_cachep == NULL) {
++		printk (KERN_ERR "Failed to create tail_page_cache\n");
++		return -ENOMEM;
++	}
++	return 0;
++}
++__initcall(file_tail_init);
++
++struct page *page_cache_alloc_tail(struct address_space *mapping)
++{
++	int block_size = 1 << mapping->host->i_blkbits;
++	int error;
++	pgoff_t index;
++	struct page *page;
++	int size;
++	void *tail;
++	void *tail_buf;
++
++	size = file_tail_buf_size(mapping);
++	index = file_tail_index(mapping);
++
++	page = find_get_page(mapping, index);
++	if (page)
++		return page;
++
++	page = kmem_cache_alloc(tail_page_cachep, GFP_KERNEL);
++	if (!page)
++		return NULL;
++
++	/*
++	 * For pages up to 1/8 of a page, kmalloc returns well-aligned
++	 * buffers.  For smaller allocations, we need to align it ourselves
++	 */
++	if (size < PAGE_SIZE >> 3) {
++		tail_buf = kmalloc(size + block_size - 1, GFP_KERNEL);
++		tail = (void *)ALIGN((size_t)tail_buf, block_size);
++	} else
++		tail_buf = tail = kmalloc(size, GFP_KERNEL);
++
++	if (!tail) {
++		kmem_cache_free(tail_page_cachep, page);
++		return NULL;
++	}
++	/* Just to make sure */
++	BUG_ON((size_t)tail & (block_size - 1));
++
++	set_page_count(page, 1);
++	page->flags = 0;
++	SetPageFileTail(page);
++
++	error = add_to_page_cache_lru(page, mapping, index,
++				      mapping_gfp_mask(mapping));
++	if (error) {
++		kfree(tail_buf);
++		kmem_cache_free(tail_page_cachep, page);
++		return NULL;
++	}
++	write_lock_irq(&mapping->tree_lock);
++	/*
++	 * Make sure the file size didn't change
++	 */
++	if (mapping->tail || (index != file_tail_index(mapping)) ||
++	    (size != file_tail_buf_size(mapping))) {
++		write_unlock_irq(&mapping->tree_lock);
++		__put_page(page);
++		page_cache_release(page);
++		kfree(tail_buf);
++		return NULL;
++	}
++	mapping->tail = tail;
++	mapping->tail_buf = tail_buf;
++	write_unlock_irq(&mapping->tree_lock);
++	unlock_page(page);
++
++	return page;
++}
++
++void page_cache_free_tail(struct page *page)
++{
++	kmem_cache_free(tail_page_cachep, page);
++}
++
++void __page_cache_free_tail_buffer(struct page *page)
++{
++	struct address_space *mapping = page->mapping;
++	kfree(mapping->tail_buf);
++	mapping->tail_buf = mapping->tail = NULL;
++}
 
 -- 
 David Kleikamp
