@@ -1,132 +1,40 @@
-Date: Thu, 24 May 2007 18:22:40 -0300
-From: "Magic | Casino" <tailwind@singapore.net>
-Message-ID: <30823723.81513132@ignite.com>
-Subject: Bis 1000 Euro frei!
+From: Andi Kleen <ak@suse.de>
+Subject: Re: [PATCH/RFC 0/8] Mapped File Policy Overview
+Date: Thu, 24 May 2007 22:41:35 +0200
+References: <20070524172821.13933.80093.sendpatchset@localhost>
+In-Reply-To: <20070524172821.13933.80093.sendpatchset@localhost>
 MIME-Version: 1.0
-Content-Type: text/html; charset=iso-8859-1
+Content-Type: text/plain;
+  charset="iso-8859-15"
 Content-Transfer-Encoding: 7bit
-Return-Path: <tailwind@singapore.net>
-To: linux-mm@kvack.org
+Content-Disposition: inline
+Message-Id: <200705242241.35373.ak@suse.de>
+Sender: owner-linux-mm@kvack.org
+Return-Path: <owner-linux-mm@kvack.org>
+To: Lee Schermerhorn <lee.schermerhorn@hp.com>
+Cc: linux-mm@kvack.org, akpm@linux-foundation.org, nish.aravamudan@gmail.com, clameter@sgi.com
 List-ID: <linux-mm.kvack.org>
 
-<html>
+> 
+> Basic "problem":  currently [~2.6.21], files mmap()ed SHARED
+> do not follow mem policy applied to the mapped regions.  Instead, 
+> shared, file backed pages are allocated using the allocating
+> tasks' task policy.  This is inconsistent with the way that anon
+> and shmem pages are handled, violating, for me, the Principle
+> of Least Astonishment.
 
-<head>
-<meta http-equiv=Content-Type content="text/html; charset=iso-8859-1">
+Do you have some specific use cases? Did this actually improve
+some application significantly? 
 
-<title>Sind Sie auf der Suche nach einem neuen, 
-aufregenden Spielangebot </title>
+The main basic issue is that it seems weird semantics to have the policy randomly
+disappear when everybody closes the file depending on whether the system
+decides to flush the inode or not. But using EAs or similar
+also looked like overkill.
 
-<style>
-<!--
- /* Style Definitions */
- p.MsoNormal, li.MsoNormal, div.MsoNormal
-	{mso-style-parent:"";
-	margin:0cm;
-	margin-bottom:.0001pt;
-	mso-pagination:widow-orphan;
-	font-size:12.0pt;
-	font-family:"Times New Roman";
-	mso-fareast-font-family:"Times New Roman";}
-a:link, span.MsoHyperlink
-	{color:blue;
-	text-decoration:underline;
-	text-underline:single;}
-a:visited, span.MsoHyperlinkFollowed
-	{color:purple;
-	text-decoration:underline;
-	text-underline:single;}
-@page Section1
-	{size:595.3pt 841.9pt;
-	margin:2.0cm 42.5pt 2.0cm 3.0cm;
-	mso-header-margin:35.4pt;
-	mso-footer-margin:35.4pt;
-	mso-paper-source:0;}
-div.Section1
-	{page:Section1;}
--->
-</style>
+-Andi
 
-</head>
-
-<body lang=EN-US link=blue vlink=purple style='tab-interval:35.4pt'>
-
-<div class=Section1>
-
-<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
-Sind Sie auf der Suche nach einem neuen, 
-aufregenden Spielangebot? 
-</span><o:p></o:p></p>
-
-<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
-<u3:p>&nbsp;</u3:p></span></p>
-
-<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
-Magic Jackpot ist momentan die warscheinlich aufregendste 
-Moglichkeit dazu ! 
-</span><o:p></o:p></p>
-
-<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
-<u3:p>&nbsp;</u3:p></span></p>
-
-<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
-Wenn BlackJack oder Roulette zu Ihren Lieblingsspielen gehoren, 
-bieten Magic Jackpot's Live-Dealer das Gefuhl eines 
-echten Casinos. 
-</span><o:p></o:p></p>
-
-<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
-<u3:p>&nbsp;</u3:p></span></p>
-
-<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
-Wenn Slot-Machinen zu Ihren Favoriten gehoren, konnen Sie den 
-hochsten Preis aller Zeiten beim Video-Slot Millionaire's Lane 
-gewinnen, insgesamt $5 000 000 !
-</span><o:p></o:p></p>
-
-<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
-<u3:p>&nbsp;</u3:p></span></p>
-
-<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
-Fur den Anfing bietet Magic Jackpots einen magischen Bonus 
-als Willkommensgeschenk !</span><o:p></o:p></p>
-
-<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
-<u3:p>&nbsp;</u3:p></span></p>
-
-<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
-Zahlen Sie Heute noch bei Magic Jackpot ein und Ihr Kontostand 
-wird umgehend mit einem 100% Bonus verdoppelt.
-</span></p>
-
-<p class=MsoNormal><span style='mso-ansi-language:DE'>
-<u3:p>&nbsp;</u3:p></span></p>
-
-<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
-Zahlen Sie 20$ ein, spielen Sie mit 40$</span></p>
-
-<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
-Zahlen Sie 250$ ein, spielen Sie mit 500$</span><o:p></o:p></p>
-
-<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
-<u3:p>&nbsp;</u3:p></span></p>
-
-<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
-Der Live-Kundendienst steht bei eventuellen Ruckfragen oder 
-sonstigen Anliegen, 24 Stunden am Tag zur Verfugung, was den 
-Genuess schneller Auszahlungen garantiert !</span>
-<o:p></o:p></p>
-
-<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
-<u3:p>&nbsp;</u3:p></span></p>
-
-<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
-<a href="http://www.goldmagiccasino.net/lang-de/">
-http://www.goldmagiccasino.net/lang-de/</a>
-<u3:p></u3:p></span></p>
-
-</div>
-
-</body>
-
-</html>
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
