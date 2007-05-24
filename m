@@ -1,11 +1,11 @@
-Date: Thu, 24 May 2007 12:10:13 -0700 (PDT)
+Date: Thu, 24 May 2007 12:11:06 -0700 (PDT)
 From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [PATCH 3/5] Do not depend on MAX_ORDER when grouping pages by
- mobility
-In-Reply-To: <20070524190606.31911.55342.sendpatchset@skynet.skynet.ie>
-Message-ID: <Pine.LNX.4.64.0705241210070.30227@schroedinger.engr.sgi.com>
+Subject: Re: [PATCH 4/5] Print out statistics in relation to fragmentation
+ avoidance to /proc/pagetypeinfo
+In-Reply-To: <20070524190626.31911.37955.sendpatchset@skynet.skynet.ie>
+Message-ID: <Pine.LNX.4.64.0705241210570.30227@schroedinger.engr.sgi.com>
 References: <20070524190505.31911.42785.sendpatchset@skynet.skynet.ie>
- <20070524190606.31911.55342.sendpatchset@skynet.skynet.ie>
+ <20070524190626.31911.37955.sendpatchset@skynet.skynet.ie>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
