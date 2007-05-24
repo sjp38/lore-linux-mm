@@ -1,41 +1,29 @@
-Date: Wed, 23 May 2007 21:05:20 -0700 (PDT)
+Date: Wed, 23 May 2007 21:06:19 -0700 (PDT)
 From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [patch 1/3] slob: rework freelist handling
-In-Reply-To: <20070524040149.GB20252@wotan.suse.de>
-Message-ID: <Pine.LNX.4.64.0705232103260.24495@schroedinger.engr.sgi.com>
-References: <Pine.LNX.4.64.0705222204460.3135@schroedinger.engr.sgi.com>
- <20070523051152.GC29045@wotan.suse.de> <Pine.LNX.4.64.0705222212200.3232@schroedinger.engr.sgi.com>
- <20070523052206.GD29045@wotan.suse.de> <Pine.LNX.4.64.0705222224380.12076@schroedinger.engr.sgi.com>
- <20070523061702.GA9449@wotan.suse.de> <20070523074636.GA10070@wotan.suse.de>
- <Pine.LNX.4.64.0705231006370.19822@schroedinger.engr.sgi.com>
- <20070524032417.GC14349@wotan.suse.de> <Pine.LNX.4.64.0705232048120.24352@schroedinger.engr.sgi.com>
- <20070524040149.GB20252@wotan.suse.de>
+Subject: Re: [RFC 10/16] Variable Order Page Cache: Readahead fixups
+In-Reply-To: <379979481.69222@ustc.edu.cn>
+Message-ID: <Pine.LNX.4.64.0705232105470.24495@schroedinger.engr.sgi.com>
+References: <20070423064845.5458.2190.sendpatchset@schroedinger.engr.sgi.com>
+ <20070423064937.5458.59638.sendpatchset@schroedinger.engr.sgi.com>
+ <20070425113613.GF19942@skynet.ie> <Pine.LNX.4.64.0704250854420.24530@schroedinger.engr.sgi.com>
+ <379744113.16390@ustc.edu.cn> <Pine.LNX.4.64.0705210947450.25871@schroedinger.engr.sgi.com>
+ <379979481.69222@ustc.edu.cn>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nick Piggin <npiggin@suse.de>
-Cc: Matt Mackall <mpm@selenic.com>, Andrew Morton <akpm@linux-foundation.org>, Linux Memory Management List <linux-mm@kvack.org>
+To: Fengguang Wu <fengguang.wu@gmail.com>
+Cc: Mel Gorman <mel@skynet.ie>, linux-mm@kvack.org, William Lee Irwin III <wli@holomorphy.com>, Badari Pulavarty <pbadari@gmail.com>, David Chinner <dgc@sgi.com>, Jens Axboe <jens.axboe@oracle.com>, Adam Litke <aglitke@gmail.com>, Dave Hansen <hansendc@us.ibm.com>, Avi Kivity <avi@argo.co.il>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 24 May 2007, Nick Piggin wrote:
+On Thu, 24 May 2007, Fengguang Wu wrote:
 
-> > Well as far as I understand Matt it seems that you still need 2 bytes per 
-> > alloc. That is still more than 0 that SLUB needs.
-> 
-> That's true, but I think the more relevant number is that SLUB needs
-> 400K more memory to boot into /bin/bash.
+> So we do not want to enforce a maximum page size.
+> The patch is updated to only decrease the readahead pages on increased
+> page size, until it falls to 1. If page size continues to increase,
+> the I/O size will increase anyway.
 
-I am bit amazed by that. Where is that memory going to? What page size 
-does the system have?
-
-If we have 4k pages there then this boils down to 100 pages.
-
-Does booting with
-
-slub_max_order=0
-
-change things?
+Ahh Great! I will put that into the next rollup.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
