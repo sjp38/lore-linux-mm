@@ -1,41 +1,83 @@
-Date: Fri, 25 May 2007 08:25:15 -0700 (PDT)
-From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [PATCH/RFC 0/8] Mapped File Policy Overview
-In-Reply-To: <1180104952.5730.28.camel@localhost>
-Message-ID: <Pine.LNX.4.64.0705250823260.5850@schroedinger.engr.sgi.com>
-References: <20070524172821.13933.80093.sendpatchset@localhost>
- <200705242241.35373.ak@suse.de> <1180040744.5327.110.camel@localhost>
- <Pine.LNX.4.64.0705241417130.31587@schroedinger.engr.sgi.com>
- <1180104952.5730.28.camel@localhost>
+Date: Fri, 25 May 2007 16:57:02 +0100
+Subject: [PATCH] Update page->order at an appropriate time when tracking PAGE_OWNER
+Message-ID: <20070525155701.GA763@skynet.ie>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+From: mel@skynet.ie (Mel Gorman)
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
-Cc: Andi Kleen <ak@suse.de>, linux-mm@kvack.org, akpm@linux-foundation.org, nish.aravamudan@gmail.com
+To: alexn@telia.com, akpm@linux-foundation.org
+Cc: haveblue@us.ibm.com, kamezawa.hiroyu@jp.fujitu.com, clameter@sgi.com, apw@shadowen.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 25 May 2007, Lee Schermerhorn wrote:
+PAGE_OWNER tracks free pages by setting page->order to -1. However, it is set
+during __free_pages() which is not the only free path as __pagevec_free()
+and free_compound_page() do not go through __free_pages(). This leads to a
+situation where free pages are visible in /proc/page_owner which is confusing
+and might be interpreted as a memory leak.
 
-> It's easy to fix.  The shared policy support is already there.  We just
-> need to generalize it for regular files.  In the process,
-> *page_cache_alloc() obeys "file policy", which will allow additional
-> features such as you mentioned:  global page cache policy as the default
-> "file policy".
+This patch sets page->owner when PageBuddy is set. It also prints
+a warning to the kernel log if a free page is found that does
+not appear free to PAGE_OWNER. This should be considered a fix to
+page-owner-tracking-leak-detector.patch.
 
-A page cache policy would not need to be file based. It would be enough 
-to have a global one or one per cpuset. And it would not suffer from the 
-vanishing act of the inodes.
+This only applies to -mm as PAGE_OWNER is not in mainline.
 
-> By the way, I think we need the numa_maps fixes in any case because the
-> current implementation lies about shmem segments if you look at any task
-> that didn't install [all of] the policy on the segment, unless it
-> happens to be a child of the task that did install the policy and that
-> child was forked after the mbind() calls.  I really dislike all of those
-> "ifs" and "unlesses"--I found it humorous in the George Carlin routine,
-> but not in user/programming interface design.
+Signed-off-by: Mel Gorman <mel@csn.ul.ie>
+Acked-by: Andy Whitcroft <apw@shadowen.org>
+---
+ fs/proc/proc_misc.c |    8 ++++++++
+ mm/page_alloc.c     |    6 +++---
+ 2 files changed, 11 insertions(+), 3 deletions(-)
 
-Could you separate out a patch that fixes these issues?
+diff -rup -X /usr/src/patchset-0.6/bin//dontdiff linux-2.6.22-rc2-mm1-005_migrate_nocontext/fs/proc/proc_misc.c linux-2.6.22-rc2-mm1-010_fix_pageowner/fs/proc/proc_misc.c
+--- linux-2.6.22-rc2-mm1-005_migrate_nocontext/fs/proc/proc_misc.c	2007-05-25 10:24:24.000000000 +0100
++++ linux-2.6.22-rc2-mm1-010_fix_pageowner/fs/proc/proc_misc.c	2007-05-25 14:26:26.000000000 +0100
+@@ -769,8 +769,16 @@ read_page_owner(struct file *file, char 
+ 		if (!pfn_valid(pfn))
+ 			continue;
+ 		page = pfn_to_page(pfn);
++
++		/* Catch situations where free pages have a bad ->order  */
++		if (page->order >= 0 && PageBuddy(page))
++			printk(KERN_WARNING
++				"PageOwner info inaccurate for PFN %lu\n",
++				pfn);
++
+ 		if (page->order >= 0)
+ 			break;
++
+ 		next_idx++;
+ 	}
+ 
+diff -rup -X /usr/src/patchset-0.6/bin//dontdiff linux-2.6.22-rc2-mm1-005_migrate_nocontext/mm/page_alloc.c linux-2.6.22-rc2-mm1-010_fix_pageowner/mm/page_alloc.c
+--- linux-2.6.22-rc2-mm1-005_migrate_nocontext/mm/page_alloc.c	2007-05-25 10:24:24.000000000 +0100
++++ linux-2.6.22-rc2-mm1-010_fix_pageowner/mm/page_alloc.c	2007-05-25 11:19:29.000000000 +0100
+@@ -324,6 +324,9 @@ static inline void set_page_order(struct
+ {
+ 	set_page_private(page, order);
+ 	__SetPageBuddy(page);
++#ifdef CONFIG_PAGE_OWNER
++		page->order = -1;
++#endif
+ }
+ 
+ static inline void rmv_page_order(struct page *page)
+@@ -1745,9 +1748,6 @@ fastcall void __free_pages(struct page *
+ 			free_hot_page(page);
+ 		else
+ 			__free_pages_ok(page, order);
+-#ifdef CONFIG_PAGE_OWNER
+-		page->order = -1;
+-#endif
+ 	}
+ }
+ 
+-- 
+Mel Gorman
+Part-time Phd Student                          Linux Technology Center
+University of Limerick                         IBM Dublin Software Lab
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
