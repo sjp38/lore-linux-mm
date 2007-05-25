@@ -1,63 +1,45 @@
-Date: Fri, 25 May 2007 01:43:01 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [patch 1/1] vmscan: give referenced, active and unmapped pages
- a second trip around the LRU
-Message-Id: <20070525014301.ed817a91.akpm@linux-foundation.org>
-In-Reply-To: <1180082124.7348.55.camel@twins>
-References: <200705242357.l4ONvw49006681@shell0.pdx.osdl.net>
-	<1180076565.7348.14.camel@twins>
-	<20070525001812.9dfc972e.akpm@linux-foundation.org>
-	<1180077810.7348.20.camel@twins>
-	<20070525002829.19deb888.akpm@linux-foundation.org>
-	<1180078590.7348.27.camel@twins>
-	<20070525004808.84ae5cf3.akpm@linux-foundation.org>
-	<1180079479.7348.33.camel@twins>
-	<20070525010112.2c5754ac.akpm@linux-foundation.org>
-	<1180082124.7348.55.camel@twins>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Date: Fri, 25 May 2007 10:02:07 +0100 (IST)
+From: Mel Gorman <mel@csn.ul.ie>
+Subject: Re: [PATCH 2/5] Breakout page_order() to internal.h to avoid special
+ knowledge of the buddy allocator
+In-Reply-To: <Pine.LNX.4.64.0705241207260.30227@schroedinger.engr.sgi.com>
+Message-ID: <Pine.LNX.4.64.0705251001100.12364@skynet.skynet.ie>
+References: <20070524190505.31911.42785.sendpatchset@skynet.skynet.ie>
+ <20070524190546.31911.7469.sendpatchset@skynet.skynet.ie>
+ <Pine.LNX.4.64.0705241207260.30227@schroedinger.engr.sgi.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII; format=flowed
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Peter Zijlstra <peterz@infradead.org>
-Cc: linux-mm@kvack.org, mbligh@mbligh.org, riel@redhat.com
+To: Christoph Lameter <clameter@sgi.com>
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 25 May 2007 10:35:24 +0200 Peter Zijlstra <peterz@infradead.org> wrote:
+On Thu, 24 May 2007, Christoph Lameter wrote:
 
-> On Fri, 2007-05-25 at 01:01 -0700, Andrew Morton wrote:
-> > On Fri, 25 May 2007 09:51:19 +0200 Peter Zijlstra <peterz@infradead.org> wrote:
-> > 
-> > > Acked-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
-> > 
-> > But why?  It might make the VM suck.  Or swap more.  Or go oom.
-> > 
-> > I don't know how to justify merging this.
-> 
-> /me a tad confused here - what patch are we discussing?
-> The ACK was for your initial patch.
+> On Thu, 24 May 2007, Mel Gorman wrote:
+>
+>> The statistics patch later needs to know what order a free page is on the
+>> free lists. Rather than having special knowledge of page_private() when
+>> PageBuddy() is set, this patch places out page_order() in internal.h and
+>> adds a VM_BUG_ON to catch using it on non-PageBuddy pages.
+>
+> Ok but I think in the future we need to have some way to generally handle
+> pages of higher order be they free or not. Maybe generalize the way we
+> handle compound pages as done in the large blocksize patchset?
+>
 
-Yup, that patch.
+Ordinarily I would consider compound pages to be the general way 
+high-order pages are handled - at least while they are allocated. I'll 
+take a closer look again at what the blocksize patchset is doing.
 
-> As for my patch - yes I understand that that would be difficult, but
-> sometimes you seem to just toss things in to see how they work out (one
-> can always hope, right :-)
-> 
-> As for the rationale: not clearing the referenced state when we do give
-> the page another go on the active list, means it will get yet another
-> one when we finally do check it (and reclaim_mapped is deemed ok).
-> 
-> Not doing it basically gives all those pages another go after
-> reclaim_mapped is set.
-> 
-> I realise this is not backed up by evidence of actual tests,.. :-(
+> Signed-off-by: Christoph Lameter <clameter@sgi.com>
+>
 
-Well yeah.  I look at this patch and I can say with confidence that it will
-increase our tendency to swap and that it'll cause reclaim to scan more
-pages and that it'll increase the ease with which we declare oom.
-
-otoh it takes us closer to the designed 4-stage page aging.  But does it
-actually make the kernel better?  Unknown and unknowable.
+-- 
+Mel Gorman
+Part-time Phd Student                          Linux Technology Center
+University of Limerick                         IBM Dublin Software Lab
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
