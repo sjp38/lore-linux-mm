@@ -1,137 +1,23 @@
-Message-Id: <20070524053154.137538000@linux.local0.net>
-References: <20070524052844.860329000@suse.de>
-Date: Fri, 25 May 2007 22:21:50 +1000
-From: npiggin@suse.de
-Subject: [patch 06/41] mm: trim more holes
-Content-Disposition: inline; filename=mm-trim-more-holes.patch
+Date: Fri, 25 May 2007 06:42:25 -0700 (PDT)
+From: Christoph Lameter <clameter@sgi.com>
+Subject: Re: [patch 0/6] Compound Page Enhancements
+In-Reply-To: <20070525170533.2987b7b2.kamezawa.hiroyu@jp.fujitsu.com>
+Message-ID: <Pine.LNX.4.64.0705250642100.5199@schroedinger.engr.sgi.com>
+References: <20070525051716.030494061@sgi.com> <20070525170533.2987b7b2.kamezawa.hiroyu@jp.fujitsu.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-fsdevel@vger.kernel.org, Mark Fasheh <mark.fasheh@oracle.com>, Linux Memory Management <linux-mm@kvack.org>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: akpm@linux-foundation.org, linux-mm@kvack.org, mel@csn.ul.ie, wli@holomorphy.com
 List-ID: <linux-mm.kvack.org>
 
-If prepare_write fails with AOP_TRUNCATED_PAGE, or if commit_write fails, then
-we may have failed the write operation despite prepare_write having
-instantiated blocks past i_size. Fix this, and consolidate the trimming into
-one place.
+On Fri, 25 May 2007, KAMEZAWA Hiroyuki wrote:
 
-Cc: Linux Memory Management <linux-mm@kvack.org>
-Cc: Linux Filesystems <linux-fsdevel@vger.kernel.org>
-Signed-off-by: Nick Piggin <npiggin@suse.de>
+> Keeping "free high order page" as "free compound page" in free_area[]-> and
+> avoid calling prep_compound_page() in page allocation ?
 
- mm/filemap.c |   80 +++++++++++++++++++++++++++++------------------------------
- 1 file changed, 40 insertions(+), 40 deletions(-)
-
-Index: linux-2.6/mm/filemap.c
-===================================================================
---- linux-2.6.orig/mm/filemap.c
-+++ linux-2.6/mm/filemap.c
-@@ -1969,22 +1969,9 @@ generic_file_buffered_write(struct kiocb
- 		}
- 
- 		status = a_ops->prepare_write(file, page, offset, offset+bytes);
--		if (unlikely(status)) {
--			loff_t isize = i_size_read(inode);
-+		if (unlikely(status))
-+			goto fs_write_aop_error;
- 
--			if (status != AOP_TRUNCATED_PAGE)
--				unlock_page(page);
--			page_cache_release(page);
--			if (status == AOP_TRUNCATED_PAGE)
--				continue;
--			/*
--			 * prepare_write() may have instantiated a few blocks
--			 * outside i_size.  Trim these off again.
--			 */
--			if (pos + bytes > isize)
--				vmtruncate(inode, isize);
--			break;
--		}
- 		if (likely(nr_segs == 1))
- 			copied = filemap_copy_from_user(page, offset,
- 							buf, bytes);
-@@ -1993,40 +1980,53 @@ generic_file_buffered_write(struct kiocb
- 						cur_iov, iov_offset, bytes);
- 		flush_dcache_page(page);
- 		status = a_ops->commit_write(file, page, offset, offset+bytes);
--		if (status == AOP_TRUNCATED_PAGE) {
--			page_cache_release(page);
--			continue;
-+		if (unlikely(status < 0 || status == AOP_TRUNCATED_PAGE))
-+			goto fs_write_aop_error;
-+		if (unlikely(copied != bytes)) {
-+			status = -EFAULT;
-+			goto fs_write_aop_error;
- 		}
--		if (likely(copied > 0)) {
--			if (!status)
--				status = copied;
-+		if (unlikely(status > 0)) /* filesystem did partial write */
-+			copied = status;
- 
--			if (status >= 0) {
--				written += status;
--				count -= status;
--				pos += status;
--				buf += status;
--				if (unlikely(nr_segs > 1)) {
--					filemap_set_next_iovec(&cur_iov,
--							&iov_offset, status);
--					if (count)
--						buf = cur_iov->iov_base +
--							iov_offset;
--				} else {
--					iov_offset += status;
--				}
-+		if (likely(copied > 0)) {
-+			written += copied;
-+			count -= copied;
-+			pos += copied;
-+			buf += copied;
-+			if (unlikely(nr_segs > 1)) {
-+				filemap_set_next_iovec(&cur_iov,
-+						&iov_offset, copied);
-+				if (count)
-+					buf = cur_iov->iov_base + iov_offset;
-+			} else {
-+				iov_offset += copied;
- 			}
- 		}
--		if (unlikely(copied != bytes))
--			if (status >= 0)
--				status = -EFAULT;
- 		unlock_page(page);
- 		mark_page_accessed(page);
- 		page_cache_release(page);
--		if (status < 0)
--			break;
- 		balance_dirty_pages_ratelimited(mapping);
- 		cond_resched();
-+		continue;
-+
-+fs_write_aop_error:
-+		if (status != AOP_TRUNCATED_PAGE)
-+			unlock_page(page);
-+		page_cache_release(page);
-+
-+		/*
-+		 * prepare_write() may have instantiated a few blocks
-+		 * outside i_size.  Trim these off again. Don't need
-+		 * i_size_read because we hold i_mutex.
-+		 */
-+		if (pos + bytes > inode->i_size)
-+			vmtruncate(inode, inode->i_size);
-+		if (status == AOP_TRUNCATED_PAGE)
-+			continue;
-+		else
-+			break;
-+
- 	} while (count);
- 	*ppos = pos;
- 
-
--- 
+Right. That would be one benefit.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
