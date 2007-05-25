@@ -1,88 +1,105 @@
-Received: from d03relay02.boulder.ibm.com (d03relay02.boulder.ibm.com [9.17.195.227])
-	by e34.co.us.ibm.com (8.13.8/8.13.8) with ESMTP id l4PJhJax025512
-	for <linux-mm@kvack.org>; Fri, 25 May 2007 15:43:19 -0400
-Received: from d03av04.boulder.ibm.com (d03av04.boulder.ibm.com [9.17.195.170])
-	by d03relay02.boulder.ibm.com (8.13.8/8.13.8/NCO v8.3) with ESMTP id l4PJhJP5219400
-	for <linux-mm@kvack.org>; Fri, 25 May 2007 13:43:19 -0600
-Received: from d03av04.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av04.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l4PJhIvp029390
-	for <linux-mm@kvack.org>; Fri, 25 May 2007 13:43:19 -0600
-Date: Fri, 25 May 2007 12:43:18 -0700
-From: Nishanth Aravamudan <nacc@us.ibm.com>
-Subject: Re: [RFC][PATCH 2/3] hugetlb: numafy several functions
-Message-ID: <20070525194318.GD31717@us.ibm.com>
-References: <20070516233053.GN20535@us.ibm.com> <20070516233155.GO20535@us.ibm.com> <20070523175142.GB9301@us.ibm.com> <1179947768.5537.37.camel@localhost> <20070523192951.GE9301@us.ibm.com>
+Date: Sat, 26 May 2007 02:30:54 +0500
+From: "Casino" <musk@altacocina.com>
+Message-ID: <43390390.32860996@crawford.com>
+Subject: Willkommensbonus von 555 Euro!
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20070523192951.GE9301@us.ibm.com>
-Sender: owner-linux-mm@kvack.org
-Return-Path: <owner-linux-mm@kvack.org>
-To: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
-Cc: wli@holomorphy.com, anton@samba.org, clameter@sgi.com, akpm@linux-foundation.org, agl@us.ibm.com, linux-mm@kvack.org
+Content-Type: text/html; charset=iso-8859-1
+Content-Transfer-Encoding: 7bit
+Return-Path: <musk@altacocina.com>
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Andrew,
+<html>
 
-On 23.05.2007 [12:29:51 -0700], Nishanth Aravamudan wrote:
-> On 23.05.2007 [15:16:07 -0400], Lee Schermerhorn wrote:
-> > On Wed, 2007-05-23 at 10:51 -0700, Nishanth Aravamudan wrote:
-> > > On 16.05.2007 [16:31:55 -0700], Nishanth Aravamudan wrote:
-> > > > Add node-parameterized helpers for dequeue_huge_page,
-> > > > alloc_fresh_huge_page and try_to_free_low. Also have
-> > > > update_and_free_page() take a nid parameter. This is necessary to add a
-> > > > per-node sysfs attribute to specify the number of hugepages on that
-> > > > node.
-> > > 
-> > > I saw that 1/3 was picked up by Andrew, but have not got any
-> > > responses to the other two (I know Adam is out of town...).
-> > 
-> > Nish:  I haven't had a chance to test these patches.  Other
-> > alligators in the swamp right now.
-> 
-> No problem.
-> 
-> > > Thoughts, comments? Bad idea, good idea?
-> > > 
-> > > I found it pretty handy to specify the exact layout of hugepages
-> > > on each node.
-> > 
-> > Could be useful for system with unequal memory per node, or where
-> > you know you want more huge pages on a given node.  I recall that
-> > Tru64 Unix used to support something similar:  most vm tunables that
-> > involved sizes or percentages of memory, such as page cache limits,
-> > locked memory limits, reserved huge pages, ..., could be specified
-> > as a single value that was distributed across nodes [backwards
-> > compatibility] or as list of per node values.  However, I don't
-> > recall if marketing/customers asked for this or if it was a case of
-> > gratuitous design excess ;-).
-> 
-> Yep, exactly the kind of use cases I was thinking of.
-> 
-> > I see that we'll need to reconcile the modified
-> > alloc_fresh_huge_page with the patch to skip unpopulated nodes
-> > when/if they collide in -mm.
-> 
-> Yeah, if folks like the interface and are satisfied with it working,
-> I'll rebase onto -mm for Andrew's sanity.
+<head>
+<meta http-equiv=Content-Type content="text/html; charset=iso-8859-1">
 
-Would you like me to rebase onto 2.6.22-rc2-mm1? I think this is a very
-useful feature for NUMA systems that may have an unequal distribution of
-memory and don't like the hugepage allocations provided by the global
-sysctl.
+<title>Die besten Spieler </title>
 
-If I recall right, the collisions with Lee's hugetlb.c changes were
-pretty small, so it shouldn't be any trouble at all.
+<style>
+<!--
+ /* Style Definitions */
+ p.MsoNormal, li.MsoNormal, div.MsoNormal
+	{mso-style-parent:"";
+	margin:0cm;
+	margin-bottom:.0001pt;
+	mso-pagination:widow-orphan;
+	font-size:12.0pt;
+	font-family:"Times New Roman";
+	mso-fareast-font-family:"Times New Roman";
+	color:windowtext;
+	mso-ansi-language:EN-US;
+	mso-fareast-language:EN-US;}
+a:link, span.MsoHyperlink
+	{color:blue;}
+a:visited, span.MsoHyperlinkFollowed
+	{color:purple;
+	text-decoration:underline;
+	text-underline:single;}
+p
+	{mso-margin-top-alt:auto;
+	margin-right:0cm;
+	mso-margin-bottom-alt:auto;
+	margin-left:0cm;
+	mso-pagination:widow-orphan;
+	font-size:12.0pt;
+	font-family:"Times New Roman";
+	mso-fareast-font-family:"Times New Roman";
+	color:black;}
+@page Section1
+	{size:595.3pt 841.9pt;
+	margin:2.0cm 42.5pt 2.0cm 3.0cm;
+	mso-header-margin:35.4pt;
+	mso-footer-margin:35.4pt;
+	mso-paper-source:0;}
+div.Section1
+	{page:Section1;}
+-->
+</style>
 
-Thanks,
-Nish
+</head>
 
--- 
-Nishanth Aravamudan <nacc@us.ibm.com>
-IBM Linux Technology Center
+<body lang=DE link=blue vlink=purple style='tab-interval:35.4pt'>
 
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+<div class=Section1>
+
+<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
+Die besten Spieler sind in Vegas und die besten Bonusse 
+finden Sie nur bei Vegas 
+VIP Casino!
+<o:p></o:p></span></p>
+
+<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
+<o:p>&nbsp;</o:p></span></p>
+
+<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
+200% f&uuml;r Ihre erste Einzahlung, 100% f&uuml;r Ihre zweite 
+und dritte Einzahlung und als Kr&ouml;nung einen 155% Bonus 
+f&uuml;r Ihre vierte Einzahlung!
+<o:p></o:p></span></p>
+
+
+<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
+<o:p>&nbsp;</o:p></span></p>
+
+<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
+Das ergibt insgesamt einen Willkommensbonus von 555 &#8364;/$!
+<o:p></o:p></span></p>
+
+<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
+<o:p>&nbsp;</o:p></span></p>
+
+<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
+Dieses und vieles mehr erwartet Sie im fabelhaften Vegas 
+VIP Casino, der beste Platz zum spielen!
+<o:p></o:p></span></p>
+
+<p><a href="http://www.vegasonecasino.com/lang-de/">
+http://www.vegasonecasino.com/lang-de/</a>
+</p>
+
+</div>
+
+</body>
+
+</html>
