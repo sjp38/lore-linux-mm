@@ -1,78 +1,48 @@
-Subject: Re: [PATCH/RFC 0/8] Mapped File Policy Overview
-From: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
-In-Reply-To: <Pine.LNX.4.64.0705250914510.6070@schroedinger.engr.sgi.com>
-References: <20070524172821.13933.80093.sendpatchset@localhost>
-	 <200705242241.35373.ak@suse.de> <1180040744.5327.110.camel@localhost>
-	 <Pine.LNX.4.64.0705241417130.31587@schroedinger.engr.sgi.com>
-	 <1180104952.5730.28.camel@localhost>
-	 <Pine.LNX.4.64.0705250823260.5850@schroedinger.engr.sgi.com>
-	 <1180109165.5730.32.camel@localhost>
-	 <Pine.LNX.4.64.0705250914510.6070@schroedinger.engr.sgi.com>
-Content-Type: text/plain
-Date: Fri, 25 May 2007 13:37:28 -0400
-Message-Id: <1180114648.5730.64.camel@localhost>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Content-class: urn:content-classes:message
+MIME-Version: 1.0
+Content-Type: text/plain;
+	charset="iso-8859-1"
+Content-Transfer-Encoding: 8BIT
+Subject: RE: [patch] removes MAX_ARG_PAGES
+Date: Fri, 25 May 2007 11:48:09 -0700
+Message-ID: <617E1C2C70743745A92448908E030B2A018B17DE@scsmsx411.amr.corp.intel.com>
+In-Reply-To: <1180020019.7019.133.camel@twins>
+From: "Luck, Tony" <tony.luck@intel.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
-Cc: Andi Kleen <ak@suse.de>, linux-mm@kvack.org, akpm@linux-foundation.org, nish.aravamudan@gmail.com
+To: Peter Zijlstra <a.p.zijlstra@chello.nl>
+Cc: Ollie Wild <aaw@google.com>, linux-kernel@vger.kernel.org, parisc-linux@lists.parisc-linux.org, linux-mm@kvack.org, linux-arch@vger.kernel.org, Andrew Morton <akpm@osdl.org>, Ingo Molnar <mingo@elte.hu>, Andi Kleen <ak@suse.de>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 2007-05-25 at 09:24 -0700, Christoph Lameter wrote:
-> On Fri, 25 May 2007, Lee Schermerhorn wrote:
-> 
-> > True, but shared, mmap'ed file policy does need to be file based, and
-> > that is my objective.  I merely point out that we can easily add the
-> > page cache policy as the fall back when a file has no explicit policy.
-> 
-> The problem is that you have not given sufficient reason for the 
-> modifications. Tru64 compatibility is not a valid reason.
+> I just tried this on an Altix from the test lab, and ia32 bash just
+> started.
 
-I knew that!  There is no existing practice.  However, I think it is in
-our interests to ease the migration of applications to Linux.  And,
-again, [trying to choose words carefully], I see this as a
-defect/oversight in the API.  I mean, why provide mbind() at all, and
-then say, "Oh, by the way, this only works for anonymous memory, SysV
-shared memory and private file mappings. You can't use this if you
-mmap() a file shared.  For that you have to twiddle your task policy,
-fault in and lock down the pages to make sure they don't get paged out,
-because, if they do, and you've changed the task policy to place some
-other mapped file that doesn't obey mbind(), the kernel doesn't remember
-where you placed them.  Oh, and for those private mappings--be sure to
-write to each page in the range because if you just read, the kernel
-will ignore your vma policy."
+I don't have any native x86 binaries on my Madison-based testbox, so my
+test case was to compile a simple program that counted total length of
+argument strings on an x86 box, and copy it to my ia64 box.  So that I
+wouldn't have to copy over a bunch of libraries too, I compiled it
+with -static.  This is the test case that "hung" my system (re-running
+it today from /dev/tty1 instead of from an xterm, I see that it actually
+oopsed in rb_next()).  I wasn't even running with a long arglist.  Just
+"*" for my home directory (19 files/directories = ~170 bytes).
 
-Come on!  
+-Tony
 
-> 
-> > > Could you separate out a patch that fixes these issues?
-> > 
-> > Could do, but does that improve the chances for acceptance of this patch
-> > set?  If the patch set is accepted, with whatever corrections might be
-> > required, we get the numa_maps fix.  So, I'm not currently motivated to
-> > post a separate patch.
-> 
-> The patchset as is is not acceptable since it does not follow the 
-> standards. The fixes should come first. So you have to do this anyways to 
-> get the patchset accepted.
+My test program.  Compile on ia32 box with "cc -static -o args args.c"
 
-Which standards are we talking about?  I'll happily fix any coding
-standard violations.  Is there something wrong with the format of the
-patches?  Please tell me, so I can fix them...
+---- begin args.c ----
+main(int argc, char **argv)
+{
+	int n;
 
-And as for fixing the numa_maps behavior, hey, I didn't post the
-defective code.  I'm just pointing out that my patches happen to fix
-some existing suspect behavior along the way.  But, if some patch
-submittal standard exists that says one must fix all known outstanding
-bugs before submitting anything else [Andrew would probably support
-that ;-)], please point it out to me... and everyone else.  And, as I've
-said before, I see this patch set as one big fix to missing/broken
-behavior.  
+	printf("argc = %d\n", argc);
 
-Lee
+	n = 0;
+	while (--argc)
+		n += strlen(*++argv);
 
-
+	printf("bytes = %d\n", n);
+}
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
