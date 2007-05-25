@@ -1,413 +1,1197 @@
-Message-Id: <20070524053154.289691000@linux.local0.net>
+Message-Id: <20070524053155.065366000@linux.local0.net>
 References: <20070524052844.860329000@suse.de>
-Date: Fri, 25 May 2007 22:21:51 +1000
+Date: Fri, 25 May 2007 22:21:56 +1000
 From: npiggin@suse.de
-Subject: [patch 07/41] mm: buffered write cleanup
-Content-Disposition: inline; filename=mm-buffered-write-cleanup.patch
+Subject: [patch 12/41] fs: introduce write_begin, write_end, and perform_write aops
+Content-Disposition: inline; filename=fs-new-write-aops.patch
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: linux-fsdevel@vger.kernel.org, Mark Fasheh <mark.fasheh@oracle.com>, Linux Memory Management <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-Quite a bit of code is used in maintaining these "cached pages" that are
-probably pretty unlikely to get used. It would require a narrow race where
-the page is inserted concurrently while this process is allocating a page
-in order to create the spare page. Then a multi-page write into an uncached
-part of the file, to make use of it.
-
-Next, the buffered write path (and others) uses its own LRU pagevec when it
-should be just using the per-CPU LRU pagevec (which will cut down on both data
-and code size cacheline footprint). Also, these private LRU pagevecs are
-emptied after just a very short time, in contrast with the per-CPU pagevecs
-that are persistent. Net result: 7.3 times fewer lru_lock acquisitions required
-to add the pages to pagecache for a bulk write (in 4K chunks).
-
-[this gets rid of some cond_resched() calls in readahead.c and mpage.c due
- to clashes in -mm. What put them there, and why? ]
+These are intended to replace prepare_write and commit_write with more
+flexible alternatives that are also able to avoid the buffered write
+deadlock problems efficiently (which prepare_write is unable to do).
 
 Cc: Linux Memory Management <linux-mm@kvack.org>
 Cc: Linux Filesystems <linux-fsdevel@vger.kernel.org>
 Signed-off-by: Nick Piggin <npiggin@suse.de>
 
- fs/mpage.c     |   10 ---
- mm/filemap.c   |  145 ++++++++++++++++++++++-----------------------------------
- mm/readahead.c |   24 +++------
- 3 files changed, 66 insertions(+), 113 deletions(-)
+API design contributions, code review and fixes. 
 
+Signed-off-by: Mark Fasheh <mark.fasheh@oracle.com>
+
+ Documentation/filesystems/Locking |    9 -
+ Documentation/filesystems/vfs.txt |   45 +++++++
+ drivers/block/loop.c              |   75 ++++-------
+ fs/buffer.c                       |  198 ++++++++++++++++++++++++++-----
+ fs/libfs.c                        |   44 +++++++
+ fs/namei.c                        |   47 +------
+ fs/revoked_inode.c                |   14 ++
+ fs/splice.c                       |   70 +----------
+ include/linux/buffer_head.h       |   10 +
+ include/linux/fs.h                |   30 ++++
+ include/linux/pagemap.h           |    2 
+ mm/filemap.c                      |  238 +++++++++++++++++++++++++++++++++-----
+ 12 files changed, 576 insertions(+), 206 deletions(-)
+
+Index: linux-2.6/include/linux/fs.h
+===================================================================
+--- linux-2.6.orig/include/linux/fs.h
++++ linux-2.6/include/linux/fs.h
+@@ -409,6 +409,8 @@ enum positive_aop_returns {
+ 	AOP_TRUNCATED_PAGE	= 0x80001,
+ };
+ 
++#define AOP_FLAG_UNINTERRUPTIBLE	0x0001 /* will not do a short write */
++
+ /*
+  * oh the beauties of C type declarations.
+  */
+@@ -428,7 +430,7 @@ size_t iov_iter_copy_from_user_atomic(st
+ size_t iov_iter_copy_from_user(struct page *page,
+ 		struct iov_iter *i, unsigned long offset, size_t bytes);
+ void iov_iter_advance(struct iov_iter *i, size_t bytes);
+-int iov_iter_fault_in_readable(struct iov_iter *i);
++int iov_iter_fault_in_readable(struct iov_iter *i, size_t bytes);
+ size_t iov_iter_single_seg_count(struct iov_iter *i);
+ 
+ static inline void iov_iter_init(struct iov_iter *i,
+@@ -469,6 +471,14 @@ struct address_space_operations {
+ 	 */
+ 	int (*prepare_write)(struct file *, struct page *, unsigned, unsigned);
+ 	int (*commit_write)(struct file *, struct page *, unsigned, unsigned);
++
++	int (*write_begin)(struct file *, struct address_space *mapping,
++				loff_t pos, unsigned len, unsigned flags,
++				struct page **pagep, void **fsdata);
++	int (*write_end)(struct file *, struct address_space *mapping,
++				loff_t pos, unsigned len, unsigned copied,
++				struct page *page, void *fsdata);
++
+ 	/* Unfortunately this kludge is needed for FIBMAP. Don't use it */
+ 	sector_t (*bmap)(struct address_space *, sector_t);
+ 	void (*invalidatepage) (struct page *, unsigned long);
+@@ -483,6 +493,18 @@ struct address_space_operations {
+ 	int (*launder_page) (struct page *);
+ };
+ 
++/*
++ * pagecache_write_begin/pagecache_write_end must be used by general code
++ * to write into the pagecache.
++ */
++int pagecache_write_begin(struct file *, struct address_space *mapping,
++				loff_t pos, unsigned len, unsigned flags,
++				struct page **pagep, void **fsdata);
++
++int pagecache_write_end(struct file *, struct address_space *mapping,
++				loff_t pos, unsigned len, unsigned copied,
++				struct page *page, void *fsdata);
++
+ struct backing_dev_info;
+ struct address_space {
+ 	struct inode		*host;		/* owner: inode, block_device */
+@@ -1894,6 +1916,12 @@ extern int simple_prepare_write(struct f
+ 			unsigned offset, unsigned to);
+ extern int simple_commit_write(struct file *file, struct page *page,
+ 				unsigned offset, unsigned to);
++extern int simple_write_begin(struct file *file, struct address_space *mapping,
++			loff_t pos, unsigned len, unsigned flags,
++			struct page **pagep, void **fsdata);
++extern int simple_write_end(struct file *file, struct address_space *mapping,
++			loff_t pos, unsigned len, unsigned copied,
++			struct page *page, void *fsdata);
+ 
+ extern struct dentry *simple_lookup(struct inode *, struct dentry *, struct nameidata *);
+ extern ssize_t generic_read_dir(struct file *, char __user *, size_t, loff_t *);
 Index: linux-2.6/mm/filemap.c
 ===================================================================
 --- linux-2.6.orig/mm/filemap.c
 +++ linux-2.6/mm/filemap.c
-@@ -666,27 +666,22 @@ EXPORT_SYMBOL(find_lock_page);
- struct page *find_or_create_page(struct address_space *mapping,
- 		unsigned long index, gfp_t gfp_mask)
+@@ -1814,11 +1814,10 @@ void iov_iter_advance(struct iov_iter *i
+ 	i->count -= bytes;
+ }
+ 
+-int iov_iter_fault_in_readable(struct iov_iter *i)
++int iov_iter_fault_in_readable(struct iov_iter *i, size_t bytes)
  {
--	struct page *page, *cached_page = NULL;
-+	struct page *page;
- 	int err;
- repeat:
- 	page = find_lock_page(mapping, index);
- 	if (!page) {
--		if (!cached_page) {
--			cached_page =
--				__page_cache_alloc(gfp_mask);
--			if (!cached_page)
--				return NULL;
--		}
--		err = add_to_page_cache_lru(cached_page, mapping,
--					index, gfp_mask);
--		if (!err) {
--			page = cached_page;
--			cached_page = NULL;
--		} else if (err == -EEXIST)
--			goto repeat;
-+		page = __page_cache_alloc(gfp_mask);
-+		if (!page)
-+			return NULL;
-+		err = add_to_page_cache_lru(page, mapping, index, gfp_mask);
-+		if (unlikely(err)) {
-+			page_cache_release(page);
-+			page = NULL;
-+			if (err == -EEXIST)
-+				goto repeat;
-+		}
- 	}
--	if (cached_page)
--		page_cache_release(cached_page);
- 	return page;
+-	size_t seglen = min(i->iov->iov_len - i->iov_offset, i->count);
+ 	char __user *buf = i->iov->iov_base + i->iov_offset;
+-	return fault_in_pages_readable(buf, seglen);
++	return fault_in_pages_readable(buf, bytes);
  }
- EXPORT_SYMBOL(find_or_create_page);
-@@ -883,11 +878,9 @@ void do_generic_mapping_read(struct addr
- 	unsigned long prev_index;
- 	unsigned int prev_offset;
- 	loff_t isize;
--	struct page *cached_page;
- 	int error;
- 	struct file_ra_state ra = *_ra;
- 
--	cached_page = NULL;
- 	index = *ppos >> PAGE_CACHE_SHIFT;
- 	next_index = index;
- 	prev_index = ra.prev_index;
-@@ -1059,23 +1052,20 @@ no_cached_page:
- 		 * Ok, it wasn't cached, so we need to create a new
- 		 * page..
- 		 */
--		if (!cached_page) {
--			cached_page = page_cache_alloc_cold(mapping);
--			if (!cached_page) {
--				desc->error = -ENOMEM;
--				goto out;
--			}
-+		page = page_cache_alloc_cold(mapping);
-+		if (!page) {
-+			desc->error = -ENOMEM;
-+			goto out;
- 		}
--		error = add_to_page_cache_lru(cached_page, mapping,
-+		error = add_to_page_cache_lru(page, mapping,
- 						index, GFP_KERNEL);
- 		if (error) {
-+			page_cache_release(page);
- 			if (error == -EEXIST)
- 				goto find_page;
- 			desc->error = error;
- 			goto out;
- 		}
--		page = cached_page;
--		cached_page = NULL;
- 		goto readpage;
- 	}
- 
-@@ -1084,8 +1074,6 @@ out:
- 	_ra->prev_index = prev_index;
- 
- 	*ppos = ((loff_t) index << PAGE_CACHE_SHIFT) + offset;
--	if (cached_page)
--		page_cache_release(cached_page);
- 	if (filp)
- 		file_accessed(filp);
- }
-@@ -1573,35 +1561,28 @@ static struct page *__read_cache_page(st
- 				int (*filler)(void *,struct page*),
- 				void *data)
- {
--	struct page *page, *cached_page = NULL;
-+	struct page *page;
- 	int err;
- repeat:
- 	page = find_get_page(mapping, index);
- 	if (!page) {
--		if (!cached_page) {
--			cached_page = page_cache_alloc_cold(mapping);
--			if (!cached_page)
--				return ERR_PTR(-ENOMEM);
--		}
--		err = add_to_page_cache_lru(cached_page, mapping,
--					index, GFP_KERNEL);
--		if (err == -EEXIST)
--			goto repeat;
--		if (err < 0) {
-+		page = page_cache_alloc_cold(mapping);
-+		if (!page)
-+			return ERR_PTR(-ENOMEM);
-+		err = add_to_page_cache_lru(page, mapping, index, GFP_KERNEL);
-+		if (unlikely(err)) {
-+			page_cache_release(page);
-+			if (err == -EEXIST)
-+				goto repeat;
- 			/* Presumably ENOMEM for radix tree node */
--			page_cache_release(cached_page);
- 			return ERR_PTR(err);
- 		}
--		page = cached_page;
--		cached_page = NULL;
- 		err = filler(data, page);
- 		if (err < 0) {
- 			page_cache_release(page);
- 			page = ERR_PTR(err);
- 		}
- 	}
--	if (cached_page)
--		page_cache_release(cached_page);
- 	return page;
- }
- 
-@@ -1679,40 +1660,6 @@ struct page *read_cache_page(struct addr
- EXPORT_SYMBOL(read_cache_page);
  
  /*
-- * If the page was newly created, increment its refcount and add it to the
-- * caller's lru-buffering pagevec.  This function is specifically for
-- * generic_file_write().
-- */
--static inline struct page *
--__grab_cache_page(struct address_space *mapping, unsigned long index,
--			struct page **cached_page, struct pagevec *lru_pvec)
--{
--	int err;
--	struct page *page;
--repeat:
--	page = find_lock_page(mapping, index);
--	if (!page) {
--		if (!*cached_page) {
--			*cached_page = page_cache_alloc(mapping);
--			if (!*cached_page)
--				return NULL;
--		}
--		err = add_to_page_cache(*cached_page, mapping,
--					index, GFP_KERNEL);
--		if (err == -EEXIST)
--			goto repeat;
--		if (err == 0) {
--			page = *cached_page;
--			page_cache_get(page);
--			if (!pagevec_add(lru_pvec, page))
--				__pagevec_lru_add(lru_pvec);
--			*cached_page = NULL;
--		}
--	}
--	return page;
--}
--
--/*
-  * The logic we want is
-  *
-  *	if suid or (sgid and xgrp)
-@@ -1906,6 +1853,33 @@ generic_file_direct_write(struct kiocb *
+@@ -1917,6 +1916,93 @@ inline int generic_write_checks(struct f
  }
- EXPORT_SYMBOL(generic_file_direct_write);
+ EXPORT_SYMBOL(generic_write_checks);
  
-+/*
-+ * Find or create a page at the given pagecache position. Return the locked
-+ * page. This function is specifically for buffered writes.
-+ */
-+static struct page *__grab_cache_page(struct address_space *mapping,
-+							pgoff_t index)
++int pagecache_write_begin(struct file *file, struct address_space *mapping,
++				loff_t pos, unsigned len, unsigned flags,
++				struct page **pagep, void **fsdata)
 +{
-+	int status;
-+	struct page *page;
-+repeat:
-+	page = find_lock_page(mapping, index);
-+	if (likely(page))
-+		return page;
++	const struct address_space_operations *aops = mapping->a_ops;
 +
-+	page = page_cache_alloc(mapping);
-+	if (!page)
-+		return NULL;
-+	status = add_to_page_cache_lru(page, mapping, index, GFP_KERNEL);
-+	if (unlikely(status)) {
-+		page_cache_release(page);
-+		if (status == -EEXIST)
-+			goto repeat;
-+		return NULL;
++	if (aops->write_begin) {
++		return aops->write_begin(file, mapping, pos, len, flags,
++							pagep, fsdata);
++	} else {
++		int ret;
++		pgoff_t index = pos >> PAGE_CACHE_SHIFT;
++		unsigned offset = pos & (PAGE_CACHE_SIZE - 1);
++		struct inode *inode = mapping->host;
++		struct page *page;
++again:
++		page = __grab_cache_page(mapping, index);
++		*pagep = page;
++		if (!page)
++			return -ENOMEM;
++
++		if (flags & AOP_FLAG_UNINTERRUPTIBLE && !PageUptodate(page)) {
++			/*
++			 * There is no way to resolve a short write situation
++			 * for a !Uptodate page (except by double copying in
++			 * the caller done by generic_perform_write_2copy).
++			 *
++			 * Instead, we have to bring it uptodate here.
++			 */
++			ret = aops->readpage(file, page);
++			page_cache_release(page);
++			if (ret) {
++				if (ret == AOP_TRUNCATED_PAGE)
++					goto again;
++				return ret;
++			}
++			goto again;
++		}
++
++		ret = aops->prepare_write(file, page, offset, offset+len);
++		if (ret) {
++			if (ret != AOP_TRUNCATED_PAGE)
++				unlock_page(page);
++			page_cache_release(page);
++			if (pos + len > inode->i_size)
++				vmtruncate(inode, inode->i_size);
++			if (ret == AOP_TRUNCATED_PAGE)
++				goto again;
++		}
++		return ret;
 +	}
-+	return page;
 +}
++EXPORT_SYMBOL(pagecache_write_begin);
++
++int pagecache_write_end(struct file *file, struct address_space *mapping,
++				loff_t pos, unsigned len, unsigned copied,
++				struct page *page, void *fsdata)
++{
++	const struct address_space_operations *aops = mapping->a_ops;
++	int ret;
++
++	if (aops->write_begin) {
++		ret = aops->write_end(file, mapping, pos, len, copied,
++							page, fsdata);
++	} else {
++		unsigned offset = pos & (PAGE_CACHE_SIZE - 1);
++		struct inode *inode = mapping->host;
++
++		flush_dcache_page(page);
++		ret = aops->commit_write(file, page, offset, offset+len);
++		unlock_page(page);
++		page_cache_release(page);
++		BUG_ON(ret == AOP_TRUNCATED_PAGE); /* can't deal with */
++
++		if (ret < 0) {
++			if (pos + len > inode->i_size)
++				vmtruncate(inode, inode->i_size);
++		} else if (ret > 0)
++			ret = min_t(size_t, copied, ret);
++		else
++			ret = copied;
++	}
++
++	return ret;
++}
++EXPORT_SYMBOL(pagecache_write_end);
 +
  ssize_t
- generic_file_buffered_write(struct kiocb *iocb, const struct iovec *iov,
- 		unsigned long nr_segs, loff_t pos, loff_t *ppos,
-@@ -1916,15 +1890,10 @@ generic_file_buffered_write(struct kiocb
- 	const struct address_space_operations *a_ops = mapping->a_ops;
- 	struct inode 	*inode = mapping->host;
- 	long		status = 0;
--	struct page	*page;
--	struct page	*cached_page = NULL;
--	struct pagevec	lru_pvec;
- 	const struct iovec *cur_iov = iov; /* current iovec */
- 	size_t		iov_offset = 0;	   /* offset in the current iovec */
- 	char __user	*buf;
- 
--	pagevec_init(&lru_pvec, 0);
--
- 	/*
- 	 * handle partial DIO write.  Adjust cur_iov if needed.
- 	 */
-@@ -1936,6 +1905,7 @@ generic_file_buffered_write(struct kiocb
+ generic_file_direct_write(struct kiocb *iocb, const struct iovec *iov,
+ 		unsigned long *nr_segs, loff_t pos, loff_t *ppos,
+@@ -1960,8 +2046,7 @@ EXPORT_SYMBOL(generic_file_direct_write)
+  * Find or create a page at the given pagecache position. Return the locked
+  * page. This function is specifically for buffered writes.
+  */
+-static struct page *__grab_cache_page(struct address_space *mapping,
+-							pgoff_t index)
++struct page *__grab_cache_page(struct address_space *mapping, pgoff_t index)
+ {
+ 	int status;
+ 	struct page *page;
+@@ -1982,20 +2067,16 @@ repeat:
  	}
+ 	return page;
+ }
++EXPORT_SYMBOL(__grab_cache_page);
+ 
+-ssize_t
+-generic_file_buffered_write(struct kiocb *iocb, const struct iovec *iov,
+-		unsigned long nr_segs, loff_t pos, loff_t *ppos,
+-		size_t count, ssize_t written)
++static ssize_t generic_perform_write_2copy(struct file *file,
++				struct iov_iter *i, loff_t pos)
+ {
+-	struct file *file = iocb->ki_filp;
+ 	struct address_space *mapping = file->f_mapping;
+ 	const struct address_space_operations *a_ops = mapping->a_ops;
+-	struct inode 	*inode = mapping->host;
+-	long		status = 0;
+-	struct iov_iter i;
+-
+-	iov_iter_init(&i, iov, nr_segs, count, written);
++	struct inode *inode = mapping->host;
++	long status = 0;
++	ssize_t written = 0;
  
  	do {
-+		struct page *page;
- 		pgoff_t index;		/* Pagecache index for current page */
- 		unsigned long offset;	/* Offset into pagecache page */
- 		unsigned long maxlen;	/* Bytes remaining in current iovec */
-@@ -1962,7 +1932,8 @@ generic_file_buffered_write(struct kiocb
- 		fault_in_pages_readable(buf, maxlen);
- #endif
+ 		struct page *src_page;
+@@ -2008,7 +2089,7 @@ generic_file_buffered_write(struct kiocb
+ 		offset = (pos & (PAGE_CACHE_SIZE - 1));
+ 		index = pos >> PAGE_CACHE_SHIFT;
+ 		bytes = min_t(unsigned long, PAGE_CACHE_SIZE - offset,
+-						iov_iter_count(&i));
++						iov_iter_count(i));
  
--		page = __grab_cache_page(mapping,index,&cached_page,&lru_pvec);
-+
-+		page = __grab_cache_page(mapping, index);
- 		if (!page) {
- 			status = -ENOMEM;
+ 		/*
+ 		 * a non-NULL src_page indicates that we're doing the
+@@ -2026,7 +2107,7 @@ generic_file_buffered_write(struct kiocb
+ 		 * to check that the address is actually valid, when atomic
+ 		 * usercopies are used, below.
+ 		 */
+-		if (unlikely(iov_iter_fault_in_readable(&i))) {
++		if (unlikely(iov_iter_fault_in_readable(i, bytes))) {
+ 			status = -EFAULT;
  			break;
-@@ -2030,9 +2001,6 @@ fs_write_aop_error:
- 	} while (count);
- 	*ppos = pos;
- 
--	if (cached_page)
--		page_cache_release(cached_page);
--
- 	/*
- 	 * For now, when the user asks for O_SYNC, we'll actually give O_DSYNC
- 	 */
-@@ -2052,7 +2020,6 @@ fs_write_aop_error:
- 	if (unlikely(file->f_flags & O_DIRECT) && written)
- 		status = filemap_write_and_wait(mapping);
- 
--	pagevec_lru_add(&lru_pvec);
- 	return written ? written : status;
- }
- EXPORT_SYMBOL(generic_file_buffered_write);
-Index: linux-2.6/fs/mpage.c
-===================================================================
---- linux-2.6.orig/fs/mpage.c
-+++ linux-2.6/fs/mpage.c
-@@ -387,31 +387,25 @@ mpage_readpages(struct address_space *ma
- 	struct bio *bio = NULL;
- 	unsigned page_idx;
- 	sector_t last_block_in_bio = 0;
--	struct pagevec lru_pvec;
- 	struct buffer_head map_bh;
- 	unsigned long first_logical_block = 0;
- 
- 	clear_buffer_mapped(&map_bh);
--	pagevec_init(&lru_pvec, 0);
- 	for (page_idx = 0; page_idx < nr_pages; page_idx++) {
- 		struct page *page = list_entry(pages->prev, struct page, lru);
- 
- 		prefetchw(&page->flags);
- 		list_del(&page->lru);
--		if (!add_to_page_cache(page, mapping,
-+		if (!add_to_page_cache_lru(page, mapping,
- 					page->index, GFP_KERNEL)) {
- 			bio = do_mpage_readpage(bio, page,
- 					nr_pages - page_idx,
- 					&last_block_in_bio, &map_bh,
- 					&first_logical_block,
- 					get_block);
--			if (!pagevec_add(&lru_pvec, page))
--				__pagevec_lru_add(&lru_pvec);
--		} else {
--			page_cache_release(page);
  		}
-+		page_cache_release(page);
- 	}
--	pagevec_lru_add(&lru_pvec);
- 	BUG_ON(!list_empty(pages));
- 	if (bio)
- 		mpage_bio_submit(READ, bio);
-Index: linux-2.6/mm/readahead.c
-===================================================================
---- linux-2.6.orig/mm/readahead.c
-+++ linux-2.6/mm/readahead.c
-@@ -65,28 +65,25 @@ int read_cache_pages(struct address_spac
- 			int (*filler)(void *, struct page *), void *data)
- {
- 	struct page *page;
--	struct pagevec lru_pvec;
- 	int ret = 0;
- 
--	pagevec_init(&lru_pvec, 0);
+@@ -2057,7 +2138,7 @@ generic_file_buffered_write(struct kiocb
+ 			 * same reason as we can't take a page fault with a
+ 			 * page locked (as explained below).
+ 			 */
+-			copied = iov_iter_copy_from_user(src_page, &i,
++			copied = iov_iter_copy_from_user(src_page, i,
+ 								offset, bytes);
+ 			if (unlikely(copied == 0)) {
+ 				status = -EFAULT;
+@@ -2082,7 +2163,6 @@ generic_file_buffered_write(struct kiocb
+ 				page_cache_release(src_page);
+ 				continue;
+ 			}
 -
- 	while (!list_empty(pages)) {
- 		page = list_to_page(pages);
- 		list_del(&page->lru);
--		if (add_to_page_cache(page, mapping, page->index, GFP_KERNEL)) {
-+		if (add_to_page_cache_lru(page, mapping,
-+					page->index, GFP_KERNEL)) {
- 			page_cache_release(page);
+ 		}
+ 
+ 		status = a_ops->prepare_write(file, page, offset, offset+bytes);
+@@ -2104,7 +2184,7 @@ generic_file_buffered_write(struct kiocb
+ 			 * really matter.
+ 			 */
+ 			pagefault_disable();
+-			copied = iov_iter_copy_from_user_atomic(page, &i,
++			copied = iov_iter_copy_from_user_atomic(page, i,
+ 								offset, bytes);
+ 			pagefault_enable();
+ 		} else {
+@@ -2130,9 +2210,9 @@ generic_file_buffered_write(struct kiocb
+ 		if (src_page)
+ 			page_cache_release(src_page);
+ 
+-		iov_iter_advance(&i, copied);
+-		written += copied;
++		iov_iter_advance(i, copied);
+ 		pos += copied;
++		written += copied;
+ 
+ 		balance_dirty_pages_ratelimited(mapping);
+ 		cond_resched();
+@@ -2156,13 +2236,117 @@ fs_write_aop_error:
  			continue;
- 		}
-+		page_cache_release(page);
-+
- 		ret = filler(data, page);
--		if (!pagevec_add(&lru_pvec, page))
--			__pagevec_lru_add(&lru_pvec);
--		if (ret) {
-+		if (unlikely(ret)) {
- 			put_pages_list(pages);
+ 		else
  			break;
- 		}
- 		task_io_account_read(PAGE_CACHE_SIZE);
- 	}
--	pagevec_lru_add(&lru_pvec);
- 	return ret;
+-	} while (iov_iter_count(&i));
+-	*ppos = pos;
++	} while (iov_iter_count(i));
++
++	return written ? written : status;
++}
++
++static ssize_t generic_perform_write(struct file *file,
++				struct iov_iter *i, loff_t pos)
++{
++	struct address_space *mapping = file->f_mapping;
++	const struct address_space_operations *a_ops = mapping->a_ops;
++	long status = 0;
++	ssize_t written = 0;
++
++	do {
++		struct page *page;
++		pgoff_t index;		/* Pagecache index for current page */
++		unsigned long offset;	/* Offset into pagecache page */
++		unsigned long bytes;	/* Bytes to write to page */
++		size_t copied;		/* Bytes copied from user */
++		void *fsdata;
++
++		offset = (pos & (PAGE_CACHE_SIZE - 1));
++		index = pos >> PAGE_CACHE_SHIFT;
++		bytes = min_t(unsigned long, PAGE_CACHE_SIZE - offset,
++						iov_iter_count(i));
++
++again:
++
++		/*
++		 * Bring in the user page that we will copy from _first_.
++		 * Otherwise there's a nasty deadlock on copying from the
++		 * same page as we're writing to, without it being marked
++		 * up-to-date.
++		 *
++		 * Not only is this an optimisation, but it is also required
++		 * to check that the address is actually valid, when atomic
++		 * usercopies are used, below.
++		 */
++		if (unlikely(iov_iter_fault_in_readable(i, bytes))) {
++			status = -EFAULT;
++			break;
++		}
++
++		status = a_ops->write_begin(file, mapping, pos, bytes, 0,
++						&page, &fsdata);
++		if (unlikely(status))
++			break;
++
++		pagefault_disable();
++		copied = iov_iter_copy_from_user_atomic(page, i, offset, bytes);
++		pagefault_enable();
++		flush_dcache_page(page);
++
++		status = a_ops->write_end(file, mapping, pos, bytes, copied,
++						page, fsdata);
++		if (unlikely(status < 0))
++			break;
++		copied = status;
++
++		cond_resched();
++
++		if (unlikely(copied == 0)) {
++			/*
++			 * If we were unable to copy any data at all, we must
++			 * fall back to a single segment length write.
++			 *
++			 * If we didn't fallback here, we could livelock
++			 * because not all segments in the iov can be copied at
++			 * once without a pagefault.
++			 */
++			bytes = min_t(unsigned long, PAGE_CACHE_SIZE - offset,
++						iov_iter_single_seg_count(i));
++			goto again;
++		}
++		iov_iter_advance(i, copied);
++		pos += copied;
++		written += copied;
++
++		balance_dirty_pages_ratelimited(mapping);
++
++	} while (iov_iter_count(i));
++
++	return written ? written : status;
++}
++
++ssize_t
++generic_file_buffered_write(struct kiocb *iocb, const struct iovec *iov,
++		unsigned long nr_segs, loff_t pos, loff_t *ppos,
++		size_t count, ssize_t written)
++{
++	struct file *file = iocb->ki_filp;
++	struct address_space *mapping = file->f_mapping;
++	const struct address_space_operations *a_ops = mapping->a_ops;
++	struct inode *inode = mapping->host;
++	ssize_t status;
++	struct iov_iter i;
++
++	iov_iter_init(&i, iov, nr_segs, count, written);
++	if (a_ops->write_begin)
++		status = generic_perform_write(file, &i, pos);
++	else
++		status = generic_perform_write_2copy(file, &i, pos);
+ 
+-	/*
+-	 * For now, when the user asks for O_SYNC, we'll actually give O_DSYNC
+-	 */
+ 	if (likely(status >= 0)) {
++		written += status;
++		*ppos = pos + status;
++
++		/*
++		 * For now, when the user asks for O_SYNC, we'll actually give
++		 * O_DSYNC
++		 */
+ 		if (unlikely((file->f_flags & O_SYNC) || IS_SYNC(inode))) {
+ 			if (!a_ops->writepage || !is_sync_kiocb(iocb))
+ 				status = generic_osync_inode(inode, mapping,
+Index: linux-2.6/fs/buffer.c
+===================================================================
+--- linux-2.6.orig/fs/buffer.c
++++ linux-2.6/fs/buffer.c
+@@ -1773,6 +1773,48 @@ recover:
+ 	goto done;
  }
  
-@@ -96,7 +93,6 @@ static int read_pages(struct address_spa
- 		struct list_head *pages, unsigned nr_pages)
- {
- 	unsigned page_idx;
--	struct pagevec lru_pvec;
- 	int ret;
- 
- 	if (mapping->a_ops->readpages) {
-@@ -106,19 +102,15 @@ static int read_pages(struct address_spa
- 		goto out;
- 	}
- 
--	pagevec_init(&lru_pvec, 0);
- 	for (page_idx = 0; page_idx < nr_pages; page_idx++) {
- 		struct page *page = list_to_page(pages);
- 		list_del(&page->lru);
--		if (!add_to_page_cache(page, mapping,
-+		if (!add_to_page_cache_lru(page, mapping,
- 					page->index, GFP_KERNEL)) {
- 			mapping->a_ops->readpage(filp, page);
--			if (!pagevec_add(&lru_pvec, page))
--				__pagevec_lru_add(&lru_pvec);
--		} else
--			page_cache_release(page);
++/*
++ * If a page has any new buffers, zero them out here, and mark them uptodate
++ * and dirty so they'll be written out (in order to prevent uninitialised
++ * block data from leaking). And clear the new bit.
++ */
++void page_zero_new_buffers(struct page *page, unsigned from, unsigned to)
++{
++	unsigned int block_start, block_end;
++	struct buffer_head *head, *bh;
++
++	BUG_ON(!PageLocked(page));
++	if (!page_has_buffers(page))
++		return;
++
++	bh = head = page_buffers(page);
++	block_start = 0;
++	do {
++		block_end = block_start + bh->b_size;
++
++		if (buffer_new(bh)) {
++			if (block_end > from && block_start < to) {
++				if (!PageUptodate(page)) {
++					unsigned start, size;
++
++					start = max(from, block_start);
++					size = min(to, block_end) - start;
++
++					zero_user_page(page, start, size, KM_USER0);
++					set_buffer_uptodate(bh);
++				}
++
++				clear_buffer_new(bh);
++				mark_buffer_dirty(bh);
++			}
 +		}
-+		page_cache_release(page);
++
++		block_start = block_end;
++		bh = bh->b_this_page;
++	} while (bh != head);
++}
++EXPORT_SYMBOL(page_zero_new_buffers);
++
+ static int __block_prepare_write(struct inode *inode, struct page *page,
+ 		unsigned from, unsigned to, get_block_t *get_block)
+ {
+@@ -1857,38 +1899,8 @@ static int __block_prepare_write(struct 
+ 		if (!buffer_uptodate(*wait_bh))
+ 			err = -EIO;
  	}
--	pagevec_lru_add(&lru_pvec);
+-	if (!err) {
+-		bh = head;
+-		do {
+-			if (buffer_new(bh))
+-				clear_buffer_new(bh);
+-		} while ((bh = bh->b_this_page) != head);
+-		return 0;
+-	}
+-	/* Error case: */
+-	/*
+-	 * Zero out any newly allocated blocks to avoid exposing stale
+-	 * data.  If BH_New is set, we know that the block was newly
+-	 * allocated in the above loop.
+-	 */
+-	bh = head;
+-	block_start = 0;
+-	do {
+-		block_end = block_start+blocksize;
+-		if (block_end <= from)
+-			goto next_bh;
+-		if (block_start >= to)
+-			break;
+-		if (buffer_new(bh)) {
+-			clear_buffer_new(bh);
+-			zero_user_page(page, block_start, bh->b_size, KM_USER0);
+-			set_buffer_uptodate(bh);
+-			mark_buffer_dirty(bh);
+-		}
+-next_bh:
+-		block_start = block_end;
+-		bh = bh->b_this_page;
+-	} while (bh != head);
++	if (unlikely(err))
++		page_zero_new_buffers(page, from, to);
+ 	return err;
+ }
+ 
+@@ -1913,6 +1925,7 @@ static int __block_commit_write(struct i
+ 			set_buffer_uptodate(bh);
+ 			mark_buffer_dirty(bh);
+ 		}
++		clear_buffer_new(bh);
+ 	}
+ 
+ 	/*
+@@ -1927,6 +1940,127 @@ static int __block_commit_write(struct i
+ }
+ 
+ /*
++ * block_write_begin takes care of the basic task of block allocation and
++ * bringing partial write blocks uptodate first.
++ *
++ * If *pagep is not NULL, then block_write_begin uses the locked page
++ * at *pagep rather than allocating its own. In this case, the page will
++ * not be unlocked or deallocated on failure.
++ */
++int block_write_begin(struct file *file, struct address_space *mapping,
++			loff_t pos, unsigned len, unsigned flags,
++			struct page **pagep, void **fsdata,
++			get_block_t *get_block)
++{
++	struct inode *inode = mapping->host;
++	int status = 0;
++	struct page *page;
++	pgoff_t index;
++	unsigned start, end;
++	int ownpage = 0;
++
++	index = pos >> PAGE_CACHE_SHIFT;
++	start = pos & (PAGE_CACHE_SIZE - 1);
++	end = start + len;
++
++	page = *pagep;
++	if (page == NULL) {
++		ownpage = 1;
++		page = __grab_cache_page(mapping, index);
++		if (!page) {
++			status = -ENOMEM;
++			goto out;
++		}
++		*pagep = page;
++	} else
++		BUG_ON(!PageLocked(page));
++
++	status = __block_prepare_write(inode, page, start, end, get_block);
++	if (unlikely(status)) {
++		ClearPageUptodate(page);
++
++		if (ownpage) {
++			unlock_page(page);
++			page_cache_release(page);
++
++			/*
++			 * prepare_write() may have instantiated a few blocks
++			 * outside i_size.  Trim these off again. Don't need
++			 * i_size_read because we hold i_mutex.
++			 */
++			if (pos + len > inode->i_size)
++				vmtruncate(inode, inode->i_size);
++		}
++		goto out;
++	}
++
++out:
++	return status;
++}
++EXPORT_SYMBOL(block_write_begin);
++
++int block_write_end(struct file *file, struct address_space *mapping,
++			loff_t pos, unsigned len, unsigned copied,
++			struct page *page, void *fsdata)
++{
++	struct inode *inode = mapping->host;
++	unsigned start;
++
++	start = pos & (PAGE_CACHE_SIZE - 1);
++
++	if (unlikely(copied < len)) {
++		/*
++		 * The buffers that were written will now be uptodate, so we
++		 * don't have to worry about a readpage reading them and
++		 * overwriting a partial write. However if we have encountered
++		 * a short write and only partially written into a buffer, it
++		 * will not be marked uptodate, so a readpage might come in and
++		 * destroy our partial write.
++		 *
++		 * Do the simplest thing, and just treat any short write to a
++		 * non uptodate page as a zero-length write, and force the
++		 * caller to redo the whole thing.
++		 */
++		if (!PageUptodate(page))
++			copied = 0;
++
++		page_zero_new_buffers(page, start+copied, start+len);
++	}
++	flush_dcache_page(page);
++
++	/* This could be a short (even 0-length) commit */
++	__block_commit_write(inode, page, start, start+copied);
++
++	return copied;
++}
++EXPORT_SYMBOL(block_write_end);
++
++int generic_write_end(struct file *file, struct address_space *mapping,
++			loff_t pos, unsigned len, unsigned copied,
++			struct page *page, void *fsdata)
++{
++	struct inode *inode = mapping->host;
++
++	copied = block_write_end(file, mapping, pos, len, copied, page, fsdata);
++
++	unlock_page(page);
++	mark_page_accessed(page); /* XXX: put this in caller? */
++	page_cache_release(page);
++
++	/*
++	 * No need to use i_size_read() here, the i_size
++	 * cannot change under us because we hold i_mutex.
++	 */
++	if (pos+copied > inode->i_size) {
++		i_size_write(inode, pos+copied);
++		mark_inode_dirty(inode);
++	}
++
++	return copied;
++}
++EXPORT_SYMBOL(generic_write_end);
++
++/*
+  * Generic "read page" function for block devices that have the normal
+  * get_block functionality. This is most of the block device filesystems.
+  * Reads the page asynchronously --- the unlock_buffer() and
+Index: linux-2.6/include/linux/buffer_head.h
+===================================================================
+--- linux-2.6.orig/include/linux/buffer_head.h
++++ linux-2.6/include/linux/buffer_head.h
+@@ -203,6 +203,16 @@ void block_invalidatepage(struct page *p
+ int block_write_full_page(struct page *page, get_block_t *get_block,
+ 				struct writeback_control *wbc);
+ int block_read_full_page(struct page*, get_block_t*);
++int block_write_begin(struct file *, struct address_space *,
++				loff_t, unsigned, unsigned,
++				struct page **, void **, get_block_t*);
++int block_write_end(struct file *, struct address_space *,
++				loff_t, unsigned, unsigned,
++				struct page *, void *);
++int generic_write_end(struct file *, struct address_space *,
++				loff_t, unsigned, unsigned,
++				struct page *, void *);
++void page_zero_new_buffers(struct page *page, unsigned from, unsigned to);
+ int block_prepare_write(struct page*, unsigned, unsigned, get_block_t*);
+ int cont_prepare_write(struct page*, unsigned, unsigned, get_block_t*,
+ 				loff_t *);
+Index: linux-2.6/include/linux/pagemap.h
+===================================================================
+--- linux-2.6.orig/include/linux/pagemap.h
++++ linux-2.6/include/linux/pagemap.h
+@@ -96,6 +96,8 @@ unsigned find_get_pages_contig(struct ad
+ unsigned find_get_pages_tag(struct address_space *mapping, pgoff_t *index,
+ 			int tag, unsigned int nr_pages, struct page **pages);
+ 
++struct page *__grab_cache_page(struct address_space *mapping, pgoff_t index);
++
+ /*
+  * Returns locked page at given index in given cache, creating it if needed.
+  */
+Index: linux-2.6/fs/libfs.c
+===================================================================
+--- linux-2.6.orig/fs/libfs.c
++++ linux-2.6/fs/libfs.c
+@@ -351,6 +351,26 @@ int simple_prepare_write(struct file *fi
+ 	return 0;
+ }
+ 
++int simple_write_begin(struct file *file, struct address_space *mapping,
++			loff_t pos, unsigned len, unsigned flags,
++			struct page **pagep, void **fsdata)
++{
++	struct page *page;
++	pgoff_t index;
++	unsigned from;
++
++	index = pos >> PAGE_CACHE_SHIFT;
++	from = pos & (PAGE_CACHE_SIZE - 1);
++
++	page = __grab_cache_page(mapping, index);
++	if (!page)
++		return -ENOMEM;
++
++	*pagep = page;
++
++	return simple_prepare_write(file, page, from, from+len);
++}
++
+ int simple_commit_write(struct file *file, struct page *page,
+ 			unsigned from, unsigned to)
+ {
+@@ -369,6 +389,28 @@ int simple_commit_write(struct file *fil
+ 	return 0;
+ }
+ 
++int simple_write_end(struct file *file, struct address_space *mapping,
++			loff_t pos, unsigned len, unsigned copied,
++			struct page *page, void *fsdata)
++{
++	unsigned from = pos & (PAGE_CACHE_SIZE - 1);
++
++	/* zero the stale part of the page if we did a short copy */
++	if (copied < len) {
++		void *kaddr = kmap_atomic(page, KM_USER0);
++		memset(kaddr + from + copied, 0, len - copied);
++		flush_dcache_page(page);
++		kunmap_atomic(kaddr, KM_USER0);
++	}
++
++	simple_commit_write(file, page, from, from+copied);
++
++	unlock_page(page);
++	page_cache_release(page);
++
++	return copied;
++}
++
+ /*
+  * the inodes created here are not hashed. If you use iunique to generate
+  * unique inode values later for this filesystem, then you must take care
+@@ -642,6 +684,8 @@ EXPORT_SYMBOL(dcache_dir_open);
+ EXPORT_SYMBOL(dcache_readdir);
+ EXPORT_SYMBOL(generic_read_dir);
+ EXPORT_SYMBOL(get_sb_pseudo);
++EXPORT_SYMBOL(simple_write_begin);
++EXPORT_SYMBOL(simple_write_end);
+ EXPORT_SYMBOL(simple_commit_write);
+ EXPORT_SYMBOL(simple_dir_inode_operations);
+ EXPORT_SYMBOL(simple_dir_operations);
+Index: linux-2.6/drivers/block/loop.c
+===================================================================
+--- linux-2.6.orig/drivers/block/loop.c
++++ linux-2.6/drivers/block/loop.c
+@@ -202,14 +202,13 @@ lo_do_transfer(struct loop_device *lo, i
+  * do_lo_send_aops - helper for writing data to a loop device
+  *
+  * This is the fast version for backing filesystems which implement the address
+- * space operations prepare_write and commit_write.
++ * space operations write_begin and write_end.
+  */
+ static int do_lo_send_aops(struct loop_device *lo, struct bio_vec *bvec,
+-		int bsize, loff_t pos, struct page *page)
++		int bsize, loff_t pos, struct page *unused)
+ {
+ 	struct file *file = lo->lo_backing_file; /* kudos to NFsckingS */
+ 	struct address_space *mapping = file->f_mapping;
+-	const struct address_space_operations *aops = mapping->a_ops;
+ 	pgoff_t index;
+ 	unsigned offset, bv_offs;
+ 	int len, ret;
+@@ -221,63 +220,47 @@ static int do_lo_send_aops(struct loop_d
+ 	len = bvec->bv_len;
+ 	while (len > 0) {
+ 		sector_t IV;
+-		unsigned size;
++		unsigned size, copied;
+ 		int transfer_result;
++		struct page *page;
++		void *fsdata;
+ 
+ 		IV = ((sector_t)index << (PAGE_CACHE_SHIFT - 9))+(offset >> 9);
+ 		size = PAGE_CACHE_SIZE - offset;
+ 		if (size > len)
+ 			size = len;
+-		page = grab_cache_page(mapping, index);
+-		if (unlikely(!page))
++
++		ret = pagecache_write_begin(file, mapping, pos, size, 0,
++							&page, &fsdata);
++		if (ret)
+ 			goto fail;
+-		ret = aops->prepare_write(file, page, offset,
+-					  offset + size);
+-		if (unlikely(ret)) {
+-			if (ret == AOP_TRUNCATED_PAGE) {
+-				page_cache_release(page);
+-				continue;
+-			}
+-			goto unlock;
+-		}
++
+ 		transfer_result = lo_do_transfer(lo, WRITE, page, offset,
+ 				bvec->bv_page, bv_offs, size, IV);
+-		if (unlikely(transfer_result)) {
+-			/*
+-			 * The transfer failed, but we still write the data to
+-			 * keep prepare/commit calls balanced.
+-			 */
+-			printk(KERN_ERR "loop: transfer error block %llu\n",
+-			       (unsigned long long)index);
+-			zero_user_page(page, offset, size, KM_USER0);
+-		}
+-		flush_dcache_page(page);
+-		ret = aops->commit_write(file, page, offset,
+-					 offset + size);
+-		if (unlikely(ret)) {
+-			if (ret == AOP_TRUNCATED_PAGE) {
+-				page_cache_release(page);
+-				continue;
+-			}
+-			goto unlock;
+-		}
++		copied = size;
+ 		if (unlikely(transfer_result))
+-			goto unlock;
+-		bv_offs += size;
+-		len -= size;
++			copied = 0;
++
++		ret = pagecache_write_end(file, mapping, pos, size, copied,
++							page, fsdata);
++		if (ret < 0)
++			goto fail;
++		if (ret < copied)
++			copied = ret;
++
++		if (unlikely(transfer_result))
++			goto fail;
++
++		bv_offs += copied;
++		len -= copied;
+ 		offset = 0;
+ 		index++;
+-		pos += size;
+-		unlock_page(page);
+-		page_cache_release(page);
++		pos += copied;
+ 	}
  	ret = 0;
  out:
+ 	mutex_unlock(&mapping->host->i_mutex);
  	return ret;
+-unlock:
+-	unlock_page(page);
+-	page_cache_release(page);
+ fail:
+ 	ret = -1;
+ 	goto out;
+@@ -311,7 +294,7 @@ static int __do_lo_send_write(struct fil
+  * do_lo_send_direct_write - helper for writing data to a loop device
+  *
+  * This is the fast, non-transforming version for backing filesystems which do
+- * not implement the address space operations prepare_write and commit_write.
++ * not implement the address space operations write_begin and write_end.
+  * It uses the write file operation which should be present on all writeable
+  * filesystems.
+  */
+@@ -330,7 +313,7 @@ static int do_lo_send_direct_write(struc
+  * do_lo_send_write - helper for writing data to a loop device
+  *
+  * This is the slow, transforming version for filesystems which do not
+- * implement the address space operations prepare_write and commit_write.  It
++ * implement the address space operations write_begin and write_end.  It
+  * uses the write file operation which should be present on all writeable
+  * filesystems.
+  *
+@@ -762,7 +745,7 @@ static int loop_set_fd(struct loop_devic
+ 		 */
+ 		if (!file->f_op->sendfile)
+ 			goto out_putf;
+-		if (aops->prepare_write && aops->commit_write)
++		if (aops->prepare_write || aops->write_begin)
+ 			lo_flags |= LO_FLAGS_USE_AOPS;
+ 		if (!(lo_flags & LO_FLAGS_USE_AOPS) && !file->f_op->write)
+ 			lo_flags |= LO_FLAGS_READ_ONLY;
+Index: linux-2.6/fs/namei.c
+===================================================================
+--- linux-2.6.orig/fs/namei.c
++++ linux-2.6/fs/namei.c
+@@ -2697,53 +2697,30 @@ int __page_symlink(struct inode *inode, 
+ {
+ 	struct address_space *mapping = inode->i_mapping;
+ 	struct page *page;
++	void *fsdata;
+ 	int err;
+ 	char *kaddr;
+ 
+ retry:
+-	err = -ENOMEM;
+-	page = find_or_create_page(mapping, 0, gfp_mask);
+-	if (!page)
+-		goto fail;
+-	err = mapping->a_ops->prepare_write(NULL, page, 0, len-1);
+-	if (err == AOP_TRUNCATED_PAGE) {
+-		page_cache_release(page);
+-		goto retry;
+-	}
++	err = pagecache_write_begin(NULL, mapping, 0, PAGE_CACHE_SIZE,
++				AOP_FLAG_UNINTERRUPTIBLE, &page, &fsdata);
+ 	if (err)
+-		goto fail_map;
++		goto fail;
++
+ 	kaddr = kmap_atomic(page, KM_USER0);
+ 	memcpy(kaddr, symname, len-1);
++	memset(kaddr+len-1, 0, PAGE_CACHE_SIZE-(len-1));
+ 	kunmap_atomic(kaddr, KM_USER0);
+-	err = mapping->a_ops->commit_write(NULL, page, 0, len-1);
+-	if (err == AOP_TRUNCATED_PAGE) {
+-		page_cache_release(page);
+-		goto retry;
+-	}
+-	if (err)
+-		goto fail_map;
+-	/*
+-	 * Notice that we are _not_ going to block here - end of page is
+-	 * unmapped, so this will only try to map the rest of page, see
+-	 * that it is unmapped (typically even will not look into inode -
+-	 * ->i_size will be enough for everything) and zero it out.
+-	 * OTOH it's obviously correct and should make the page up-to-date.
+-	 */
+-	if (!PageUptodate(page)) {
+-		err = mapping->a_ops->readpage(NULL, page);
+-		if (err != AOP_TRUNCATED_PAGE)
+-			wait_on_page_locked(page);
+-	} else {
+-		unlock_page(page);
+-	}
+-	page_cache_release(page);
++
++	err = pagecache_write_end(NULL, mapping, 0, PAGE_CACHE_SIZE, PAGE_CACHE_SIZE,
++							page, fsdata);
+ 	if (err < 0)
+ 		goto fail;
++	if (err < PAGE_CACHE_SIZE)
++		goto retry;
++
+ 	mark_inode_dirty(inode);
+ 	return 0;
+-fail_map:
+-	unlock_page(page);
+-	page_cache_release(page);
+ fail:
+ 	return err;
+ }
+Index: linux-2.6/fs/splice.c
+===================================================================
+--- linux-2.6.orig/fs/splice.c
++++ linux-2.6/fs/splice.c
+@@ -554,7 +554,7 @@ static int pipe_to_file(struct pipe_inod
+ 	struct address_space *mapping = file->f_mapping;
+ 	unsigned int offset, this_len;
+ 	struct page *page;
+-	pgoff_t index;
++	void *fsdata;
+ 	int ret;
+ 
+ 	/*
+@@ -564,49 +564,16 @@ static int pipe_to_file(struct pipe_inod
+ 	if (unlikely(ret))
+ 		return ret;
+ 
+-	index = sd->pos >> PAGE_CACHE_SHIFT;
+ 	offset = sd->pos & ~PAGE_CACHE_MASK;
+ 
+ 	this_len = sd->len;
+ 	if (this_len + offset > PAGE_CACHE_SIZE)
+ 		this_len = PAGE_CACHE_SIZE - offset;
+ 
+-find_page:
+-	page = find_lock_page(mapping, index);
+-	if (!page) {
+-		ret = -ENOMEM;
+-		page = page_cache_alloc_cold(mapping);
+-		if (unlikely(!page))
+-			goto out_ret;
+-
+-		/*
+-		 * This will also lock the page
+-		 */
+-		ret = add_to_page_cache_lru(page, mapping, index,
+-					    GFP_KERNEL);
+-		if (unlikely(ret))
+-			goto out;
+-	}
+-
+-	ret = mapping->a_ops->prepare_write(file, page, offset, offset+this_len);
+-	if (unlikely(ret)) {
+-		loff_t isize = i_size_read(mapping->host);
+-
+-		if (ret != AOP_TRUNCATED_PAGE)
+-			unlock_page(page);
+-		page_cache_release(page);
+-		if (ret == AOP_TRUNCATED_PAGE)
+-			goto find_page;
+-
+-		/*
+-		 * prepare_write() may have instantiated a few blocks
+-		 * outside i_size.  Trim these off again.
+-		 */
+-		if (sd->pos + this_len > isize)
+-			vmtruncate(mapping->host, isize);
+-
+-		goto out_ret;
+-	}
++	ret = pagecache_write_begin(file, mapping, sd->pos, sd->len,
++				AOP_FLAG_UNINTERRUPTIBLE, &page, &fsdata);
++	if (unlikely(ret))
++		goto out;
+ 
+ 	if (buf->page != page) {
+ 		/*
+@@ -616,35 +583,14 @@ find_page:
+ 		char *dst = kmap_atomic(page, KM_USER1);
+ 
+ 		memcpy(dst + offset, src + buf->offset, this_len);
+-		flush_dcache_page(page);
+ 		kunmap_atomic(dst, KM_USER1);
+ 		buf->ops->unmap(pipe, buf, src);
+ 	}
+ 
+-	ret = mapping->a_ops->commit_write(file, page, offset, offset+this_len);
+-	if (ret) {
+-		if (ret == AOP_TRUNCATED_PAGE) {
+-			page_cache_release(page);
+-			goto find_page;
+-		}
+-		if (ret < 0)
+-			goto out;
+-		/*
+-		 * Partial write has happened, so 'ret' already initialized by
+-		 * number of bytes written, Where is nothing we have to do here.
+-		 */
+-	} else
+-		ret = this_len;
+-	/*
+-	 * Return the number of bytes written and mark page as
+-	 * accessed, we are now done!
+-	 */
+-	mark_page_accessed(page);
+-	balance_dirty_pages_ratelimited(mapping);
++	ret = pagecache_write_end(file, mapping, sd->pos, sd->len, sd->len, page, fsdata);
++
+ out:
+-	page_cache_release(page);
+-	unlock_page(page);
+-out_ret:
++
+ 	return ret;
+ }
+ 
+Index: linux-2.6/Documentation/filesystems/Locking
+===================================================================
+--- linux-2.6.orig/Documentation/filesystems/Locking
++++ linux-2.6/Documentation/filesystems/Locking
+@@ -178,15 +178,18 @@ prototypes:
+ locking rules:
+ 	All except set_page_dirty may block
+ 
+-			BKL	PageLocked(page)
++			BKL	PageLocked(page)	i_sem
+ writepage:		no	yes, unlocks (see below)
+ readpage:		no	yes, unlocks
+ sync_page:		no	maybe
+ writepages:		no
+ set_page_dirty		no	no
+ readpages:		no
+-prepare_write:		no	yes
+-commit_write:		no	yes
++prepare_write:		no	yes			yes
++commit_write:		no	yes			yes
++write_begin:		no	locks the page		yes
++write_end:		no	yes, unlocks		yes
++perform_write:		no	n/a			yes
+ bmap:			yes
+ invalidatepage:		no	yes
+ releasepage:		no	yes
+Index: linux-2.6/Documentation/filesystems/vfs.txt
+===================================================================
+--- linux-2.6.orig/Documentation/filesystems/vfs.txt
++++ linux-2.6/Documentation/filesystems/vfs.txt
+@@ -534,6 +534,12 @@ struct address_space_operations {
+ 			struct list_head *pages, unsigned nr_pages);
+ 	int (*prepare_write)(struct file *, struct page *, unsigned, unsigned);
+ 	int (*commit_write)(struct file *, struct page *, unsigned, unsigned);
++	int (*write_begin)(struct file *, struct address_space *mapping,
++				loff_t pos, unsigned len, unsigned flags,
++				struct page **pagep, void **fsdata);
++	int (*write_end)(struct file *, struct address_space *mapping,
++				loff_t pos, unsigned len, unsigned copied,
++				struct page *page, void *fsdata);
+ 	sector_t (*bmap)(struct address_space *, sector_t);
+ 	int (*invalidatepage) (struct page *, unsigned long);
+ 	int (*releasepage) (struct page *, int);
+@@ -629,6 +635,45 @@ struct address_space_operations {
+         operations.  It should avoid returning an error if possible -
+         errors should have been handled by prepare_write.
+ 
++  write_begin: This is intended as a replacement for prepare_write. The
++	key differences being that:
++		- it returns a locked page (in *pagep) rather than being
++		  given a pre locked page;
++		- it must be able to cope with short writes (where the
++		  length passed to write_begin is greater than the number
++		  of bytes copied into the page).
++
++	Called by the generic buffered write code to ask the filesystem to
++	prepare to write len bytes at the given offset in the file. The
++	address_space should check that the write will be able to complete,
++	by allocating space if necessary and doing any other internal
++	housekeeping.  If the write will update parts of any basic-blocks on
++	storage, then those blocks should be pre-read (if they haven't been
++	read already) so that the updated blocks can be written out properly.
++
++        The filesystem must return the locked pagecache page for the specified
++	offset, in *pagep, for the caller to write into.
++
++	flags is a field for AOP_FLAG_xxx flags, described in
++	include/linux/fs.h.
++
++        A void * may be returned in fsdata, which then gets passed into
++        write_end.
++
++        Returns 0 on success; < 0 on failure (which is the error code), in
++	which case write_end is not called.
++
++  write_end: After a successful write_begin, and data copy, write_end must
++        be called. len is the original len passed to write_begin, and copied
++        is the amount that was able to be copied (copied == len is always true
++	if write_begin was called with the AOP_FLAG_UNINTERRUPTIBLE flag).
++
++        The filesystem must take care of unlocking the page and releasing it
++        refcount, and updating i_size.
++
++        Returns < 0 on failure, otherwise the number of bytes (<= 'copied')
++        that were able to be copied into pagecache.
++
+   bmap: called by the VFS to map a logical block offset within object to
+   	physical block number. This method is used by the FIBMAP
+   	ioctl and for working with swap-files.  To be able to swap to
+Index: linux-2.6/fs/revoked_inode.c
+===================================================================
+--- linux-2.6.orig/fs/revoked_inode.c
++++ linux-2.6/fs/revoked_inode.c
+@@ -384,6 +384,20 @@ static int revoked_commit_write(struct f
+ 	return -EIO;
+ }
+ 
++static int revoked_write_begin(struct file *file, struct address_space *mapping,
++				loff_t pos, unsigned len, unsigned flags,
++				struct page **pagep, void **fsdata)
++{
++	return -EIO;
++}
++
++static int revoked_write_end(struct file *file, struct address_space *mapping,
++				loff_t pos, unsigned len, unsigned copied,
++				struct page *page, void *fsdata)
++{
++	return -EIO;
++}
++
+ static ssize_t revoked_direct_IO(int rw, struct kiocb *iocb,
+ 				 const struct iovec *iov, loff_t offset,
+ 				 unsigned long nr_segs)
 
 -- 
 
