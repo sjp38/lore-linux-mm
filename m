@@ -1,33 +1,38 @@
-Date: Fri, 25 May 2007 01:01:12 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [patch 1/1] vmscan: give referenced, active and unmapped pages
- a second trip around the LRU
-Message-Id: <20070525010112.2c5754ac.akpm@linux-foundation.org>
-In-Reply-To: <1180079479.7348.33.camel@twins>
-References: <200705242357.l4ONvw49006681@shell0.pdx.osdl.net>
-	<1180076565.7348.14.camel@twins>
-	<20070525001812.9dfc972e.akpm@linux-foundation.org>
-	<1180077810.7348.20.camel@twins>
-	<20070525002829.19deb888.akpm@linux-foundation.org>
-	<1180078590.7348.27.camel@twins>
-	<20070525004808.84ae5cf3.akpm@linux-foundation.org>
-	<1180079479.7348.33.camel@twins>
+Date: Fri, 25 May 2007 17:05:33 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [patch 0/6] Compound Page Enhancements
+Message-Id: <20070525170533.2987b7b2.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20070525051716.030494061@sgi.com>
+References: <20070525051716.030494061@sgi.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Peter Zijlstra <peterz@infradead.org>
-Cc: linux-mm@kvack.org, mbligh@mbligh.org, riel@redhat.com
+To: clameter@sgi.com
+Cc: akpm@linux-foundation.org, linux-mm@kvack.org, mel@csn.ul.ie, wli@holomorphy.com
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 25 May 2007 09:51:19 +0200 Peter Zijlstra <peterz@infradead.org> wrote:
+On Thu, 24 May 2007 22:17:16 -0700
+clameter@sgi.com wrote:
 
-> Acked-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
+> This patch enhances the handling of compound pages in the VM. It may also
+> be important also for the antifrag patches that need to manage a set of
+> higher order free pages and also for other uses of compound pages.
+> 
+> For now it simplifies accounting for SLUB pages but the groundwork here is
+> important for the large block size patches and for allowing to page migration
+> of larger pages. With this framework we may be able to get to a point where
+> compound pages keep their flags while they are free and Mel may avoid having
+> special functions for determining the page order of higher order freed pages.
+> If we can avoid the setup and teardown of higher order pages then allocation
+> and release of compound pages will be faster.
+> 
 
-But why?  It might make the VM suck.  Or swap more.  Or go oom.
+Keeping "free high order page" as "free compound page" in free_area[]-> and
+avoid calling prep_compound_page() in page allocation ?
 
-I don't know how to justify merging this.
+-Kame
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
