@@ -1,53 +1,96 @@
-Message-Id: <20070525051947.063860535@sgi.com>
+Message-Id: <20070525051947.298733925@sgi.com>
 References: <20070525051716.030494061@sgi.com>
-Date: Thu, 24 May 2007 22:17:18 -0700
+Date: Thu, 24 May 2007 22:17:19 -0700
 From: clameter@sgi.com
-Subject: [patch 2/6] compound pages: Add new support functions
-Content-Disposition: inline; filename=compound_functions
+Subject: [patch 3/6] compound pages: vmstat support
+Content-Disposition: inline; filename=compound_vmstat
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: akpm@linux-foundation.org
 Cc: linux-mm@kvack.org, Mel Gorman <mel@csn.ul.ie>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, William Lee Irwin III <wli@holomorphy.com>
 List-ID: <linux-mm.kvack.org>
 
-compound_pages(page)	-> Determines base pages of a compound page
+Add support for compound pages so that
 
-compound_shift(page)	-> Determine the page shift of a compound page
+inc_xxxx and dec_xxx
 
-compound_size(page)	-> Determine the size of a compound page
+will increment the ZVCs by the number of pages of the compound page.
 
 Signed-off-by: Christoph Lameter <clameter@sgi.com>
 
 ---
- include/linux/mm.h |   15 +++++++++++++++
- 1 file changed, 15 insertions(+)
+ include/linux/vmstat.h |    5 ++---
+ mm/vmstat.c            |   18 +++++++++++++-----
+ 2 files changed, 15 insertions(+), 8 deletions(-)
 
-Index: slub/include/linux/mm.h
+Index: slub/include/linux/vmstat.h
 ===================================================================
---- slub.orig/include/linux/mm.h	2007-05-24 20:43:46.000000000 -0700
-+++ slub/include/linux/mm.h	2007-05-24 20:50:51.000000000 -0700
-@@ -366,6 +366,21 @@ static inline void set_compound_order(st
- 	page[1].lru.prev = (void *)order;
+--- slub.orig/include/linux/vmstat.h	2007-05-24 20:37:44.000000000 -0700
++++ slub/include/linux/vmstat.h	2007-05-24 21:00:06.000000000 -0700
+@@ -234,7 +234,7 @@ static inline void __inc_zone_state(stru
+ static inline void __inc_zone_page_state(struct page *page,
+ 			enum zone_stat_item item)
+ {
+-	__inc_zone_state(page_zone(page), item);
++	__mod_zone_page_state(page_zone(page), item, compound_pages(page));
  }
  
-+static inline int compound_pages(struct page *page)
-+{
-+ 	return 1 << compound_order(page);
-+}
-+
-+static inline int compound_shift(struct page *page)
-+{
-+ 	return PAGE_SHIFT + compound_order(page);
-+}
-+
-+static inline int compound_size(struct page *page)
-+{
-+	return PAGE_SIZE << compound_order(page);
-+}
-+
+ static inline void __dec_zone_state(struct zone *zone, enum zone_stat_item item)
+@@ -246,8 +246,7 @@ static inline void __dec_zone_state(stru
+ static inline void __dec_zone_page_state(struct page *page,
+ 			enum zone_stat_item item)
+ {
+-	atomic_long_dec(&page_zone(page)->vm_stat[item]);
+-	atomic_long_dec(&vm_stat[item]);
++	__mod_zone_page_state(page_zone(page), item, -compound_pages(page));
+ }
+ 
  /*
-  * Multiple processes may "see" the same page. E.g. for untouched
-  * mappings of /dev/null, all processes see the same page full of
+Index: slub/mm/vmstat.c
+===================================================================
+--- slub.orig/mm/vmstat.c	2007-05-24 20:37:44.000000000 -0700
++++ slub/mm/vmstat.c	2007-05-24 21:00:06.000000000 -0700
+@@ -224,7 +224,12 @@ void __inc_zone_state(struct zone *zone,
+ 
+ void __inc_zone_page_state(struct page *page, enum zone_stat_item item)
+ {
+-	__inc_zone_state(page_zone(page), item);
++	struct zone *z = page_zone(page);
++
++	if (likely(!PageHead(page)))
++		__inc_zone_state(z, item);
++	else
++		__mod_zone_page_state(z, item, compound_pages(page));
+ }
+ EXPORT_SYMBOL(__inc_zone_page_state);
+ 
+@@ -245,7 +250,12 @@ void __dec_zone_state(struct zone *zone,
+ 
+ void __dec_zone_page_state(struct page *page, enum zone_stat_item item)
+ {
+-	__dec_zone_state(page_zone(page), item);
++	struct zone *z = page_zone(page);
++
++	if (likely(!PageHead(page)))
++		__dec_zone_state(z, item);
++	else
++		__mod_zone_page_state(z, item, -compound_pages(page));
+ }
+ EXPORT_SYMBOL(__dec_zone_page_state);
+ 
+@@ -261,11 +271,9 @@ void inc_zone_state(struct zone *zone, e
+ void inc_zone_page_state(struct page *page, enum zone_stat_item item)
+ {
+ 	unsigned long flags;
+-	struct zone *zone;
+ 
+-	zone = page_zone(page);
+ 	local_irq_save(flags);
+-	__inc_zone_state(zone, item);
++	__inc_zone_page_state(page, item);
+ 	local_irq_restore(flags);
+ }
+ EXPORT_SYMBOL(inc_zone_page_state);
 
 -- 
 
