@@ -1,105 +1,48 @@
-Date: Sat, 26 May 2007 02:30:54 +0500
-From: "Casino" <musk@altacocina.com>
-Message-ID: <43390390.32860996@crawford.com>
-Subject: Willkommensbonus von 555 Euro!
-MIME-Version: 1.0
-Content-Type: text/html; charset=iso-8859-1
+Subject: Re: [RFC][PATCH 2/3] hugetlb: numafy several functions
+From: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
+In-Reply-To: <20070525194318.GD31717@us.ibm.com>
+References: <20070516233053.GN20535@us.ibm.com>
+	 <20070516233155.GO20535@us.ibm.com> <20070523175142.GB9301@us.ibm.com>
+	 <1179947768.5537.37.camel@localhost> <20070523192951.GE9301@us.ibm.com>
+	 <20070525194318.GD31717@us.ibm.com>
+Content-Type: text/plain
+Date: Fri, 25 May 2007 16:55:59 -0400
+Message-Id: <1180126559.5730.73.camel@localhost>
+Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
-Return-Path: <musk@altacocina.com>
-To: linux-mm@kvack.org
+Sender: owner-linux-mm@kvack.org
+Return-Path: <owner-linux-mm@kvack.org>
+To: Nishanth Aravamudan <nacc@us.ibm.com>
+Cc: wli@holomorphy.com, anton@samba.org, clameter@sgi.com, akpm@linux-foundation.org, agl@us.ibm.com, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-<html>
+On Fri, 2007-05-25 at 12:43 -0700, Nishanth Aravamudan wrote:
+> Andrew,
+> 
+<snip>
+> > 
+> > Yeah, if folks like the interface and are satisfied with it working,
+> > I'll rebase onto -mm for Andrew's sanity.
+> 
+> Would you like me to rebase onto 2.6.22-rc2-mm1? I think this is a very
+> useful feature for NUMA systems that may have an unequal distribution of
+> memory and don't like the hugepage allocations provided by the global
+> sysctl.
+> 
+> If I recall right, the collisions with Lee's hugetlb.c changes were
+> pretty small, so it shouldn't be any trouble at all.
 
-<head>
-<meta http-equiv=Content-Type content="text/html; charset=iso-8859-1">
+Nish:
 
-<title>Die besten Spieler </title>
+Unless I missed your post, I think Andrew is waiting to hear from you on
+the results of your testing of the 22-rc2 based v4 patch before merging
+the huge page allocation fix.
 
-<style>
-<!--
- /* Style Definitions */
- p.MsoNormal, li.MsoNormal, div.MsoNormal
-	{mso-style-parent:"";
-	margin:0cm;
-	margin-bottom:.0001pt;
-	mso-pagination:widow-orphan;
-	font-size:12.0pt;
-	font-family:"Times New Roman";
-	mso-fareast-font-family:"Times New Roman";
-	color:windowtext;
-	mso-ansi-language:EN-US;
-	mso-fareast-language:EN-US;}
-a:link, span.MsoHyperlink
-	{color:blue;}
-a:visited, span.MsoHyperlinkFollowed
-	{color:purple;
-	text-decoration:underline;
-	text-underline:single;}
-p
-	{mso-margin-top-alt:auto;
-	margin-right:0cm;
-	mso-margin-bottom-alt:auto;
-	margin-left:0cm;
-	mso-pagination:widow-orphan;
-	font-size:12.0pt;
-	font-family:"Times New Roman";
-	mso-fareast-font-family:"Times New Roman";
-	color:black;}
-@page Section1
-	{size:595.3pt 841.9pt;
-	margin:2.0cm 42.5pt 2.0cm 3.0cm;
-	mso-header-margin:35.4pt;
-	mso-footer-margin:35.4pt;
-	mso-paper-source:0;}
-div.Section1
-	{page:Section1;}
--->
-</style>
-
-</head>
-
-<body lang=DE link=blue vlink=purple style='tab-interval:35.4pt'>
-
-<div class=Section1>
-
-<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
-Die besten Spieler sind in Vegas und die besten Bonusse 
-finden Sie nur bei Vegas 
-VIP Casino!
-<o:p></o:p></span></p>
-
-<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
-<o:p>&nbsp;</o:p></span></p>
-
-<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
-200% f&uuml;r Ihre erste Einzahlung, 100% f&uuml;r Ihre zweite 
-und dritte Einzahlung und als Kr&ouml;nung einen 155% Bonus 
-f&uuml;r Ihre vierte Einzahlung!
-<o:p></o:p></span></p>
+Lee
 
 
-<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
-<o:p>&nbsp;</o:p></span></p>
-
-<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
-Das ergibt insgesamt einen Willkommensbonus von 555 &#8364;/$!
-<o:p></o:p></span></p>
-
-<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
-<o:p>&nbsp;</o:p></span></p>
-
-<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
-Dieses und vieles mehr erwartet Sie im fabelhaften Vegas 
-VIP Casino, der beste Platz zum spielen!
-<o:p></o:p></span></p>
-
-<p><a href="http://www.vegasonecasino.com/lang-de/">
-http://www.vegasonecasino.com/lang-de/</a>
-</p>
-
-</div>
-
-</body>
-
-</html>
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
