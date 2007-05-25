@@ -1,62 +1,86 @@
-Date: Thu, 24 May 2007 23:00:32 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [patch 0/6] Compound Page Enhancements
-Message-Id: <20070524230032.554be39e.akpm@linux-foundation.org>
-In-Reply-To: <20070525051716.030494061@sgi.com>
-References: <20070525051716.030494061@sgi.com>
+Subject: Re: [patch 1/1] vmscan: give referenced, active and unmapped pages
+	a second trip around the LRU
+From: Peter Zijlstra <peterz@infradead.org>
+In-Reply-To: <200705242357.l4ONvw49006681@shell0.pdx.osdl.net>
+References: <200705242357.l4ONvw49006681@shell0.pdx.osdl.net>
+Content-Type: text/plain
+Date: Fri, 25 May 2007 09:02:45 +0200
+Message-Id: <1180076565.7348.14.camel@twins>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: clameter@sgi.com
-Cc: linux-mm@kvack.org, Mel Gorman <mel@csn.ul.ie>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, William Lee Irwin III <wli@holomorphy.com>
+To: akpm@linux-foundation.org
+Cc: linux-mm@kvack.org, mbligh@mbligh.org, riel@redhat.com
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 24 May 2007 22:17:16 -0700 clameter@sgi.com wrote:
-
-> This patch enhances the handling of compound pages in the VM. It may also
-> be important also for the antifrag patches that need to manage a set of
-> higher order free pages and also for other uses of compound pages.
+On Thu, 2007-05-24 at 16:57 -0700, akpm@linux-foundation.org wrote:
+> Martin spotted this.
 > 
-> For now it simplifies accounting for SLUB pages but the groundwork here is
-> important for the large block size patches and for allowing to page migration
-> of larger pages. With this framework we may be able to get to a point where
-> compound pages keep their flags while they are free and Mel may avoid having
-> special functions for determining the page order of higher order freed pages.
-> If we can avoid the setup and teardown of higher order pages then allocation
-> and release of compound pages will be faster.
+> In the original rmap conversion in 2.5.32 we broke aging of pagecache pages on
+> the active list: we deactivate these pages even if they had PG_referenced set.
 > 
-> Looking at the handling of compound pages we see that the fact that a page
-> is part of a higher order page is not that interesting. The differentiation
-> is mainly for head pages and tail pages of higher order pages. Head pages
-> usually need special handling to accomodate the larger size. It is usually
-> an error if tail pages are encountered. Or else they need to be treated
-> like PAGE_SIZE pages. So a compound flag in the page flags is not what we
-> need. Instead we introduce a flag for the head page and another for the tail
-> page. The PageCompound test is preserved for backward compatibility and
-> will test if either PageTail or PageHead has been set.
+> We should instead clear PG_referenced and give these pages another trip around
+> the active list.
 > 
-> After this patchset the uses of CompoundPage() will be reduced significantly
-> in the core VM. The I/O layer will still use CompoundPage() for direct I/O.
-> However, if we at some point convert direct I/O to also support compound
-> pages as a single unit then CompoundPage() there may become unecessary as
-> well as the leftover check in mm/swap.c. We may end up mostly with checks
-> for PageTail and PageHead.
+> We have basically no way of working out whether or not this change will
+> benefit or worsen anything.
 > 
+> Cc: Martin Bligh <mbligh@mbligh.org>
+> Cc: Rik van Riel <riel@redhat.com>
+> Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
+> ---
+> 
+>  mm/vmscan.c |    3 +++
+>  1 files changed, 3 insertions(+)
+> 
+> diff -puN mm/vmscan.c~vmscan-give-referenced-active-and-unmapped-pages-a-second-trip-around-the-lru mm/vmscan.c
+> --- a/mm/vmscan.c~vmscan-give-referenced-active-and-unmapped-pages-a-second-trip-around-the-lru
+> +++ a/mm/vmscan.c
+> @@ -836,6 +836,9 @@ force_reclaim_mapped:
+>  				list_add(&page->lru, &l_active);
+>  				continue;
+>  			}
+> +		} else if (TestClearPageReferenced(page)) {
+> +			list_add(&page->lru, &l_active);
+> +			continue;
+>  		}
+>  		list_add(&page->lru, &l_inactive);
+>  	}
 
-Well I've read that, and I've read the patches and I still don't see what
-the point in all this is.
+I myself prefer a patch like this:
 
-And looking back on it, I don't see the point in that PG_head_tail_mask
-hack either.  We could have done
+---
+diff --git a/mm/vmscan.c b/mm/vmscan.c
+index 53ad8ee..5addda9 100644
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -957,16 +957,17 @@ force_reclaim_mapped:
+ 	spin_unlock_irq(&zone->lru_lock);
+ 
+ 	while (!list_empty(&l_hold)) {
++		int referenced;
++
+ 		cond_resched();
+ 		page = lru_to_page(&l_hold);
+ 		list_del(&page->lru);
+-		if (page_mapped(page)) {
+-			if (!reclaim_mapped ||
+-			    (total_swap_pages == 0 && PageAnon(page)) ||
+-			    page_referenced(page, 0)) {
+-				list_add(&page->lru, &l_active);
+-				continue;
+-			}
++
++		referenced = page_referenced(page, 0);
++		if (referenced || (page_mapped(page) && !reclaim_mapped) ||
++				(total_swap_pages == 0 && PageAnon(page))) {
++			list_add(&page->lru, &l_active);
++			continue;
+ 		}
+ 		list_add(&page->lru, &l_inactive);
+ 	}
 
-static inline int page_tail(struct page *page)
-{
-	return PageCompound(page) && (page->first_page != page);
-}
-
-Confused.  Don't know where this is all headed.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
