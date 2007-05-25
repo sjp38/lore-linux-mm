@@ -1,12 +1,12 @@
-Date: Fri, 25 May 2007 10:02:07 +0100 (IST)
+Date: Fri, 25 May 2007 10:03:36 +0100 (IST)
 From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: [PATCH 2/5] Breakout page_order() to internal.h to avoid special
- knowledge of the buddy allocator
-In-Reply-To: <Pine.LNX.4.64.0705241207260.30227@schroedinger.engr.sgi.com>
-Message-ID: <Pine.LNX.4.64.0705251001100.12364@skynet.skynet.ie>
+Subject: Re: [PATCH 5/5] Print out PAGE_OWNER statistics in relation to
+ fragmentation avoidance
+In-Reply-To: <Pine.LNX.4.64.0705241211340.30227@schroedinger.engr.sgi.com>
+Message-ID: <Pine.LNX.4.64.0705251002190.12364@skynet.skynet.ie>
 References: <20070524190505.31911.42785.sendpatchset@skynet.skynet.ie>
- <20070524190546.31911.7469.sendpatchset@skynet.skynet.ie>
- <Pine.LNX.4.64.0705241207260.30227@schroedinger.engr.sgi.com>
+ <20070524190646.31911.50248.sendpatchset@skynet.skynet.ie>
+ <Pine.LNX.4.64.0705241211340.30227@schroedinger.engr.sgi.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII; format=flowed
 Sender: owner-linux-mm@kvack.org
@@ -17,24 +17,21 @@ List-ID: <linux-mm.kvack.org>
 
 On Thu, 24 May 2007, Christoph Lameter wrote:
 
-> On Thu, 24 May 2007, Mel Gorman wrote:
->
->> The statistics patch later needs to know what order a free page is on the
->> free lists. Rather than having special knowledge of page_private() when
->> PageBuddy() is set, this patch places out page_order() in internal.h and
->> adds a VM_BUG_ON to catch using it on non-PageBuddy pages.
->
-> Ok but I think in the future we need to have some way to generally handle
-> pages of higher order be they free or not. Maybe generalize the way we
-> handle compound pages as done in the large blocksize patchset?
+> Not familiar with page owner handling. Sorry.
 >
 
-Ordinarily I would consider compound pages to be the general way 
-high-order pages are handled - at least while they are allocated. I'll 
-take a closer look again at what the blocksize patchset is doing.
+I don't think it exists outside of -mm.  While the information is not 
+always available, it made sense to use it during debugging at least.
 
-> Signed-off-by: Christoph Lameter <clameter@sgi.com>
+> Looks good though ;-)
 >
+
+Thanks.
+
+> Acked-by: Christoph Lameter <clameter@sgi.com>
+>
+
+Thanks very much for reviewing.
 
 -- 
 Mel Gorman
