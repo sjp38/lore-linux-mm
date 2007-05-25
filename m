@@ -1,69 +1,68 @@
-Date: Fri, 25 May 2007 16:43:09 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [Patch] memory unplug v3 [2/4] migration by kernel
-Message-Id: <20070525164309.8175d241.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <Pine.LNX.4.64.0705231855000.11495@skynet.skynet.ie>
-References: <20070522155824.563f5873.kamezawa.hiroyu@jp.fujitsu.com>
-	<20070522160437.6607f445.kamezawa.hiroyu@jp.fujitsu.com>
-	<Pine.LNX.4.64.0705221143450.29456@schroedinger.engr.sgi.com>
-	<Pine.LNX.4.64.0705231855000.11495@skynet.skynet.ie>
+Date: Fri, 25 May 2007 00:48:08 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [patch 1/1] vmscan: give referenced, active and unmapped pages
+ a second trip around the LRU
+Message-Id: <20070525004808.84ae5cf3.akpm@linux-foundation.org>
+In-Reply-To: <1180078590.7348.27.camel@twins>
+References: <200705242357.l4ONvw49006681@shell0.pdx.osdl.net>
+	<1180076565.7348.14.camel@twins>
+	<20070525001812.9dfc972e.akpm@linux-foundation.org>
+	<1180077810.7348.20.camel@twins>
+	<20070525002829.19deb888.akpm@linux-foundation.org>
+	<1180078590.7348.27.camel@twins>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: clameter@sgi.com, linux-mm@kvack.org, y-goto@jp.fujitsu.com
+To: Peter Zijlstra <peterz@infradead.org>
+Cc: linux-mm@kvack.org, mbligh@mbligh.org, riel@redhat.com
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 23 May 2007 20:14:39 +0100 (IST)
-Mel Gorman <mel@csn.ul.ie> wrote:
+On Fri, 25 May 2007 09:36:30 +0200 Peter Zijlstra <peterz@infradead.org> wrote:
 
-> I put together a memory compaction prototype today[*] to check because 
-> it's been put off long enough. However, memory compaction works whether I 
-> called migrate_pages() or migrate_pages_nocontext() even when regularly 
-> compacting under load. That said, calling migrate_pages() is probably 
-> racing like mad and I am not getting nailed for it as the test machine is 
-> small with one CPU and the stress load is kernel compiles instead of 
-> processes with mapped data. I'm basing compaction on top of a slightly 
-> modified version of this patch and will revisit it later.
+> > > The trouble I had with the previous patch is that it somehow looks to
+> > > PG_referenced but not the PTE state, that seems wrong to me.
+> > 
+> > 		if (page_mapped(page)) {
+> > 			if (!reclaim_mapped ||
+> > 			    (total_swap_pages == 0 && PageAnon(page)) ||
+> > 			    page_referenced(page, 0)) {
+> > 				list_add(&page->lru, &l_active);
+> > 				continue;
+> > 			}
+> > 		} else if (TestClearPageReferenced(page)) {
+> > 			list_add(&page->lru, &l_active);
+> > 			continue;
+> > 		}
+> > 
+> > When we run TestClearPageReferenced() we know that the page isn't
+> > page_mapped(): there aren't any pte's which refer to it.
 > 
-thank you for test :)
-
-We (I and Goto-san) saw !page_mapped(page) case in try_to_unmap() under heavy
-memory pressure,....swapping.
-So, at least, 
-==
-+	if (page_mapped(page))
-+		try_to_unmap(page, 1);
-==
-This change is necessary.
-
-About anon_vma, see comments in page_remove_rmap().
-
-> Incidentally, the results of the compaction at rest are;
+> D'0h, I guess I need my morning juice...
 > 
-> Freelists before compaction
-> Node    0, zone   Normal, type    Unmovable    302     55     26     20     12      6      2      0      0      0      0
-> Node    0, zone   Normal, type  Reclaimable   3165    734    218     28      3      0      0      0      0      0      0
-> Node    0, zone   Normal, type      Movable   4986   2222   1980   1553    752    238     26      2      0      0      0
-> Node    0, zone   Normal, type      Reserve      5      3      0      0      1      1      0      0      1      1      0
-> 
-> Freelists after compaction
-> Node    0, zone   Normal, type    Unmovable    278     32     14     12     10      5      4      2      0      0      0
-> Node    0, zone   Normal, type  Reclaimable   3184    743    226     32      3      0      0      0      0      0      0
-> Node    0, zone   Normal, type      Movable    862    676    599    421    238     94     17      6      4      3     31
-> Node    0, zone   Normal, type      Reserve      1      1      1      1      1      1      1      1      1      1      0
-> 
-> So it's doing something and the machine hasn't killed itself in the face. 
-> Aside, the page migration framework is ridiculously easy to work with - 
-> kudos to all who worked on it.
-> 
+> OK, that was my biggest beef - another small nit: I think it should do
+> the page_referenced() first, and then the other checks (in the
+> page_mapped() branch). Otherwise we might 'leak' the referenced state
+> and give it yet another cycle on the active list - even though it was
+> not used since last we were here.
 
-I'll write this patch as one independent from memory unplug, AMAP.
+You're saying we whould run page_referenced() prior to testing
+reclaim_mapped?
 
-Thanks,
--Kame
+That's quite a large change in behaviour: when reclaim is having an easy
+time, (say, reclaiming clean pagecache), a change like that would cause
+more pte-refenced bits to be cleared and it would cause more clearing of
+PG_referenced on mapped pages.  Net effect: mapped pages get deactivated
+and reclaimed more easily.
+
+It's also significantly more computationally expensive: more rmap walking,
+more lock-taking, more tlb writeback when those ptes get dirtied.  Not that
+reclaim is very CPU-intensive.
+
+
+But hey, like any change in there it might make reclaim better.  Or worse.
+Or pink with shiny spots.  We just don't know.  
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
