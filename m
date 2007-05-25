@@ -1,71 +1,41 @@
-Message-Id: <20070525051947.529560112@sgi.com>
-References: <20070525051716.030494061@sgi.com>
-Date: Thu, 24 May 2007 22:17:20 -0700
+Message-Id: <20070525051716.030494061@sgi.com>
+Date: Thu, 24 May 2007 22:17:16 -0700
 From: clameter@sgi.com
-Subject: [patch 4/6] compound pages: Use new compound vmstat functions in SLUB
-Content-Disposition: inline; filename=compound_vmstat_slub
+Subject: [patch 0/6] Compound Page Enhancements
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: akpm@linux-foundation.org
 Cc: linux-mm@kvack.org, Mel Gorman <mel@csn.ul.ie>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, William Lee Irwin III <wli@holomorphy.com>
 List-ID: <linux-mm.kvack.org>
 
-Use the new dec/inc functions to simplify SLUB's accounting
-of pages.
+This patch enhances the handling of compound pages in the VM. It may also
+be important also for the antifrag patches that need to manage a set of
+higher order free pages and also for other uses of compound pages.
 
-Signed-off-by: Christoph Lameter <clameter@sgi.com>
+For now it simplifies accounting for SLUB pages but the groundwork here is
+important for the large block size patches and for allowing to page migration
+of larger pages. With this framework we may be able to get to a point where
+compound pages keep their flags while they are free and Mel may avoid having
+special functions for determining the page order of higher order freed pages.
+If we can avoid the setup and teardown of higher order pages then allocation
+and release of compound pages will be faster.
 
----
- mm/slub.c |   13 ++++---------
- 1 file changed, 4 insertions(+), 9 deletions(-)
+Looking at the handling of compound pages we see that the fact that a page
+is part of a higher order page is not that interesting. The differentiation
+is mainly for head pages and tail pages of higher order pages. Head pages
+usually need special handling to accomodate the larger size. It is usually
+an error if tail pages are encountered. Or else they need to be treated
+like PAGE_SIZE pages. So a compound flag in the page flags is not what we
+need. Instead we introduce a flag for the head page and another for the tail
+page. The PageCompound test is preserved for backward compatibility and
+will test if either PageTail or PageHead has been set.
 
-Index: slub/mm/slub.c
-===================================================================
---- slub.orig/mm/slub.c	2007-05-24 20:54:31.000000000 -0700
-+++ slub/mm/slub.c	2007-05-24 21:03:45.000000000 -0700
-@@ -965,7 +965,6 @@ static inline void kmem_cache_open_debug
- static struct page *allocate_slab(struct kmem_cache *s, gfp_t flags, int node)
- {
- 	struct page * page;
--	int pages = 1 << s->order;
- 
- 	if (s->order)
- 		flags |= __GFP_COMP;
-@@ -984,10 +983,9 @@ static struct page *allocate_slab(struct
- 	if (!page)
- 		return NULL;
- 
--	mod_zone_page_state(page_zone(page),
-+	inc_zone_page_state(page,
- 		(s->flags & SLAB_RECLAIM_ACCOUNT) ?
--		NR_SLAB_RECLAIMABLE : NR_SLAB_UNRECLAIMABLE,
--		pages);
-+		NR_SLAB_RECLAIMABLE : NR_SLAB_UNRECLAIMABLE);
- 
- 	return page;
- }
-@@ -1054,8 +1052,6 @@ out:
- 
- static void __free_slab(struct kmem_cache *s, struct page *page)
- {
--	int pages = 1 << s->order;
--
- 	if (unlikely(SlabDebug(page))) {
- 		void *p;
- 
-@@ -1064,10 +1060,9 @@ static void __free_slab(struct kmem_cach
- 			check_object(s, page, p, 0);
- 	}
- 
--	mod_zone_page_state(page_zone(page),
-+	dec_zone_page_state(page,
- 		(s->flags & SLAB_RECLAIM_ACCOUNT) ?
--		NR_SLAB_RECLAIMABLE : NR_SLAB_UNRECLAIMABLE,
--		- pages);
-+		NR_SLAB_RECLAIMABLE : NR_SLAB_UNRECLAIMABLE);
- 
- 	page->mapping = NULL;
- 	__free_pages(page, s->order);
+After this patchset the uses of CompoundPage() will be reduced significantly
+in the core VM. The I/O layer will still use CompoundPage() for direct I/O.
+However, if we at some point convert direct I/O to also support compound
+pages as a single unit then CompoundPage() there may become unecessary as
+well as the leftover check in mm/swap.c. We may end up mostly with checks
+for PageTail and PageHead.
 
 -- 
 
