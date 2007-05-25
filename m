@@ -1,39 +1,47 @@
-Message-ID: <4656F625.30402@redhat.com>
-Date: Fri, 25 May 2007 10:43:49 -0400
+Message-ID: <4656F7BF.8060803@redhat.com>
+Date: Fri, 25 May 2007 10:50:39 -0400
 From: Rik van Riel <riel@redhat.com>
 MIME-Version: 1.0
 Subject: Re: [patch 1/1] vmscan: give referenced, active and unmapped pages
  a second trip around the LRU
-References: <200705242357.l4ONvw49006681@shell0.pdx.osdl.net>
-In-Reply-To: <200705242357.l4ONvw49006681@shell0.pdx.osdl.net>
+References: <200705242357.l4ONvw49006681@shell0.pdx.osdl.net> <1180076565.7348.14.camel@twins>
+In-Reply-To: <1180076565.7348.14.camel@twins>
 Content-Type: text/plain; charset=UTF-8; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: akpm@linux-foundation.org
-Cc: linux-mm@kvack.org, mbligh@mbligh.org
+To: Peter Zijlstra <peterz@infradead.org>
+Cc: akpm@linux-foundation.org, linux-mm@kvack.org, mbligh@mbligh.org
 List-ID: <linux-mm.kvack.org>
 
-akpm@linux-foundation.org wrote:
-> From: Andrew Morton <akpm@linux-foundation.org>
-> 
-> Martin spotted this.
-> 
-> In the original rmap conversion in 2.5.32 we broke aging of pagecache pages on
-> the active list: we deactivate these pages even if they had PG_referenced set.
+Peter Zijlstra wrote:
 
-IIRC this is done to make sure that we reclaim page cache pages
-ahead of mapped anonymous pages.
+> -		if (page_mapped(page)) {
+> -			if (!reclaim_mapped ||
+> -			    (total_swap_pages == 0 && PageAnon(page)) ||
+> -			    page_referenced(page, 0)) {
+> -				list_add(&page->lru, &l_active);
+> -				continue;
 
-> We should instead clear PG_referenced and give these pages another trip around
-> the active list.
+This code is problematic, too.  We essentially randomize the
+LRU order of the mapped pages while !reclaim_mapped, while
+clearing the referenced bits on those pages.
 
-A side effect of this is that the page will now need TWO references
-to be promoted back to the active list from the inactive list.
+By the time we start swapping out mapped pages, the list has
+been randomized and replacement starts getting pretty bad.
 
-The current code leaves PG_referenced set, so that the first access
-to a page cache page that was demoted to the inactive list will cause
-that page to be moved back to the active list.
+
+Of course, these problems are pretty small compared to how
+my 2GB test system misbehaves when running AIM7.
+
+When the system runs out of memory, everything starts swapping
+all at once.  Unfortunately vmstat got stuck too, so I could
+not observe the start of swapping.  Once the system had freed
+up 900MB (of 2GB total RAM!), vmstat returned.  The system did
+not stop swapping until 1.4GB of memory was free!
+
+With the system behaving this badly at a macro level, I do
+not think page reclaim tweaks can be usefully tested...
 
 -- 
 Politics is the struggle between those who want to make their country
