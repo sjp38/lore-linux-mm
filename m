@@ -1,64 +1,85 @@
-Date: Fri, 25 May 2007 12:10:18 -0700 (PDT)
-From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [PATCH/RFC 0/8] Mapped File Policy Overview
-In-Reply-To: <1180114648.5730.64.camel@localhost>
-Message-ID: <Pine.LNX.4.64.0705251156460.7281@schroedinger.engr.sgi.com>
-References: <20070524172821.13933.80093.sendpatchset@localhost>
- <200705242241.35373.ak@suse.de> <1180040744.5327.110.camel@localhost>
- <Pine.LNX.4.64.0705241417130.31587@schroedinger.engr.sgi.com>
- <1180104952.5730.28.camel@localhost>  <Pine.LNX.4.64.0705250823260.5850@schroedinger.engr.sgi.com>
-  <1180109165.5730.32.camel@localhost>  <Pine.LNX.4.64.0705250914510.6070@schroedinger.engr.sgi.com>
- <1180114648.5730.64.camel@localhost>
+Received: from d03relay02.boulder.ibm.com (d03relay02.boulder.ibm.com [9.17.195.227])
+	by e34.co.us.ibm.com (8.13.8/8.13.8) with ESMTP id l4PJhJax025512
+	for <linux-mm@kvack.org>; Fri, 25 May 2007 15:43:19 -0400
+Received: from d03av04.boulder.ibm.com (d03av04.boulder.ibm.com [9.17.195.170])
+	by d03relay02.boulder.ibm.com (8.13.8/8.13.8/NCO v8.3) with ESMTP id l4PJhJP5219400
+	for <linux-mm@kvack.org>; Fri, 25 May 2007 13:43:19 -0600
+Received: from d03av04.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av04.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l4PJhIvp029390
+	for <linux-mm@kvack.org>; Fri, 25 May 2007 13:43:19 -0600
+Date: Fri, 25 May 2007 12:43:18 -0700
+From: Nishanth Aravamudan <nacc@us.ibm.com>
+Subject: Re: [RFC][PATCH 2/3] hugetlb: numafy several functions
+Message-ID: <20070525194318.GD31717@us.ibm.com>
+References: <20070516233053.GN20535@us.ibm.com> <20070516233155.GO20535@us.ibm.com> <20070523175142.GB9301@us.ibm.com> <1179947768.5537.37.camel@localhost> <20070523192951.GE9301@us.ibm.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20070523192951.GE9301@us.ibm.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
-Cc: Andi Kleen <ak@suse.de>, linux-mm@kvack.org, akpm@linux-foundation.org, nish.aravamudan@gmail.com
+Cc: wli@holomorphy.com, anton@samba.org, clameter@sgi.com, akpm@linux-foundation.org, agl@us.ibm.com, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 25 May 2007, Lee Schermerhorn wrote:
+Andrew,
 
-> I knew that!  There is no existing practice.  However, I think it is in
-> our interests to ease the migration of applications to Linux.  And,
-> again, [trying to choose words carefully], I see this as a
-> defect/oversight in the API.  I mean, why provide mbind() at all, and
-> then say, "Oh, by the way, this only works for anonymous memory, SysV
-> shared memory and private file mappings. You can't use this if you
-> mmap() a file shared.  For that you have to twiddle your task policy,
-> fault in and lock down the pages to make sure they don't get paged out,
-> because, if they do, and you've changed the task policy to place some
-> other mapped file that doesn't obey mbind(), the kernel doesn't remember
-> where you placed them.  Oh, and for those private mappings--be sure to
-> write to each page in the range because if you just read, the kernel
-> will ignore your vma policy."
+On 23.05.2007 [12:29:51 -0700], Nishanth Aravamudan wrote:
+> On 23.05.2007 [15:16:07 -0400], Lee Schermerhorn wrote:
+> > On Wed, 2007-05-23 at 10:51 -0700, Nishanth Aravamudan wrote:
+> > > On 16.05.2007 [16:31:55 -0700], Nishanth Aravamudan wrote:
+> > > > Add node-parameterized helpers for dequeue_huge_page,
+> > > > alloc_fresh_huge_page and try_to_free_low. Also have
+> > > > update_and_free_page() take a nid parameter. This is necessary to add a
+> > > > per-node sysfs attribute to specify the number of hugepages on that
+> > > > node.
+> > > 
+> > > I saw that 1/3 was picked up by Andrew, but have not got any
+> > > responses to the other two (I know Adam is out of town...).
+> > 
+> > Nish:  I haven't had a chance to test these patches.  Other
+> > alligators in the swamp right now.
 > 
-> Come on!  
+> No problem.
+> 
+> > > Thoughts, comments? Bad idea, good idea?
+> > > 
+> > > I found it pretty handy to specify the exact layout of hugepages
+> > > on each node.
+> > 
+> > Could be useful for system with unequal memory per node, or where
+> > you know you want more huge pages on a given node.  I recall that
+> > Tru64 Unix used to support something similar:  most vm tunables that
+> > involved sizes or percentages of memory, such as page cache limits,
+> > locked memory limits, reserved huge pages, ..., could be specified
+> > as a single value that was distributed across nodes [backwards
+> > compatibility] or as list of per node values.  However, I don't
+> > recall if marketing/customers asked for this or if it was a case of
+> > gratuitous design excess ;-).
+> 
+> Yep, exactly the kind of use cases I was thinking of.
+> 
+> > I see that we'll need to reconcile the modified
+> > alloc_fresh_huge_page with the patch to skip unpopulated nodes
+> > when/if they collide in -mm.
+> 
+> Yeah, if folks like the interface and are satisfied with it working,
+> I'll rebase onto -mm for Andrew's sanity.
 
-Well if this patch would simplify things then I would agree but it 
-introduces new cornercases.
+Would you like me to rebase onto 2.6.22-rc2-mm1? I think this is a very
+useful feature for NUMA systems that may have an unequal distribution of
+memory and don't like the hugepage allocations provided by the global
+sysctl.
 
-The current scheme is logical if you consider the pagecache as something 
-separate. It is after all already controlled via the memory spreading flag 
-in cpusets. There is already limited control by the process.
+If I recall right, the collisions with Lee's hugetlb.c changes were
+pretty small, so it shouldn't be any trouble at all.
 
-Also allowing vma based memory policies to control shared mapping is 
-problematic because they are shared. Concurrent processes may set 
-different policies. This would make sense if the policy could be set at a 
-filesystem level.
+Thanks,
+Nish
 
-> And as for fixing the numa_maps behavior, hey, I didn't post the
-> defective code.  I'm just pointing out that my patches happen to fix
-> some existing suspect behavior along the way.  But, if some patch
-> submittal standard exists that says one must fix all known outstanding
-> bugs before submitting anything else [Andrew would probably support
-> that ;-)], please point it out to me... and everyone else.  And, as I've
-> said before, I see this patch set as one big fix to missing/broken
-> behavior.  
-
-I still have not found a bug in there....
-
-Convention is that fixes precede enhancements in a patchset.
+-- 
+Nishanth Aravamudan <nacc@us.ibm.com>
+IBM Linux Technology Center
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
