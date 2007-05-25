@@ -1,15 +1,12 @@
-Date: Fri, 25 May 2007 14:43:52 -0700 (PDT)
+Date: Fri, 25 May 2007 14:46:16 -0700 (PDT)
 From: Christoph Lameter <clameter@sgi.com>
 Subject: Re: [PATCH/RFC 0/8] Mapped File Policy Overview
-In-Reply-To: <1180127552.21879.15.camel@localhost>
-Message-ID: <Pine.LNX.4.64.0705251441510.8208@schroedinger.engr.sgi.com>
+In-Reply-To: <1180129271.21879.45.camel@localhost>
+Message-ID: <Pine.LNX.4.64.0705251444420.8208@schroedinger.engr.sgi.com>
 References: <20070524172821.13933.80093.sendpatchset@localhost>
- <200705242241.35373.ak@suse.de> <1180040744.5327.110.camel@localhost>
- <Pine.LNX.4.64.0705241417130.31587@schroedinger.engr.sgi.com>
- <1180104952.5730.28.camel@localhost>  <Pine.LNX.4.64.0705250823260.5850@schroedinger.engr.sgi.com>
-  <1180109165.5730.32.camel@localhost>  <Pine.LNX.4.64.0705250914510.6070@schroedinger.engr.sgi.com>
-  <1180114648.5730.64.camel@localhost>  <Pine.LNX.4.64.0705251156460.7281@schroedinger.engr.sgi.com>
- <1180127552.21879.15.camel@localhost>
+ <Pine.LNX.4.64.0705250914510.6070@schroedinger.engr.sgi.com>
+ <1180114648.5730.64.camel@localhost>  <200705252301.00722.ak@suse.de>
+ <1180129271.21879.45.camel@localhost>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
@@ -20,22 +17,15 @@ List-ID: <linux-mm.kvack.org>
 
 On Fri, 25 May 2007, Lee Schermerhorn wrote:
 
-> ??? Why?  Different processes could set different policies on the file
-> in the file system.  The last one [before the file was mapped?] would
-> rule.
+> As I've said, I view this series as addressing a number of problems,
+> including the numa_maps hang when displaying hugetlb shmem segments with
+> shared policy [that one by accident, I admit], the incorrect display of
 
-Then the policy would be set on a file and not by processes. So there is 
-one way of controlling the memory policy.
+That hang exists only if you first add a shared policy right?
 
-> Seems like a lot of extra effort that could be applied to other tasks,
-> but you've worn me down.  I'll debug the numa_maps hang with hugetlb
-> shmem segments with shared policy in the current code base, and reorder
-> the patch set to handle correct display of shmem policy from all tasks
-> first.  Next week or so.  
+> shmem segment policy from different tasks, and the disconnect between
 
-It may be worthwhile to split off the huge tlb pieces and cc those 
-interested in huge pages. Maybe they can be treated like shmem?
-
+Ahh.. Never checked that. What is happening with shmem policy display?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
