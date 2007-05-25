@@ -1,84 +1,62 @@
-Message-Id: <20070525051948.009700520@sgi.com>
+Date: Thu, 24 May 2007 23:00:32 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [patch 0/6] Compound Page Enhancements
+Message-Id: <20070524230032.554be39e.akpm@linux-foundation.org>
+In-Reply-To: <20070525051716.030494061@sgi.com>
 References: <20070525051716.030494061@sgi.com>
-Date: Thu, 24 May 2007 22:17:22 -0700
-From: clameter@sgi.com
-Subject: [patch 6/6] compound pages: Allow freeing of compound pages via pagevec
-Content-Disposition: inline; filename=compound_free_via_pagevec
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: akpm@linux-foundation.org
+To: clameter@sgi.com
 Cc: linux-mm@kvack.org, Mel Gorman <mel@csn.ul.ie>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, William Lee Irwin III <wli@holomorphy.com>
 List-ID: <linux-mm.kvack.org>
 
-Allow the freeing of compound pages via pagevec.
+On Thu, 24 May 2007 22:17:16 -0700 clameter@sgi.com wrote:
 
-In release_pages() we currently special case for compound pages in order to
-be sure to always decrement the page count of the head page and not the
-tail page. However that redirection to the head page is only necessary for
-tail pages. So use PageTail instead of PageCompound. No change therefore
-for the handling of tail pages.
+> This patch enhances the handling of compound pages in the VM. It may also
+> be important also for the antifrag patches that need to manage a set of
+> higher order free pages and also for other uses of compound pages.
+> 
+> For now it simplifies accounting for SLUB pages but the groundwork here is
+> important for the large block size patches and for allowing to page migration
+> of larger pages. With this framework we may be able to get to a point where
+> compound pages keep their flags while they are free and Mel may avoid having
+> special functions for determining the page order of higher order freed pages.
+> If we can avoid the setup and teardown of higher order pages then allocation
+> and release of compound pages will be faster.
+> 
+> Looking at the handling of compound pages we see that the fact that a page
+> is part of a higher order page is not that interesting. The differentiation
+> is mainly for head pages and tail pages of higher order pages. Head pages
+> usually need special handling to accomodate the larger size. It is usually
+> an error if tail pages are encountered. Or else they need to be treated
+> like PAGE_SIZE pages. So a compound flag in the page flags is not what we
+> need. Instead we introduce a flag for the head page and another for the tail
+> page. The PageCompound test is preserved for backward compatibility and
+> will test if either PageTail or PageHead has been set.
+> 
+> After this patchset the uses of CompoundPage() will be reduced significantly
+> in the core VM. The I/O layer will still use CompoundPage() for direct I/O.
+> However, if we at some point convert direct I/O to also support compound
+> pages as a single unit then CompoundPage() there may become unecessary as
+> well as the leftover check in mm/swap.c. We may end up mostly with checks
+> for PageTail and PageHead.
+> 
 
-The head page of a compound pages now represents single page large page.
-We do the usual processing including checking if its on the LRU
-and removing it (not useful right now but later when compound pages are
-on the LRU this will work). Then we add the compound page to the pagevec.
-Only head pages will end up on the pagevec not tail pages.
+Well I've read that, and I've read the patches and I still don't see what
+the point in all this is.
 
-In __pagevec_free() we then check if we are freeing a head page and if
-so call the destructor for the compound page.
+And looking back on it, I don't see the point in that PG_head_tail_mask
+hack either.  We could have done
 
-Signed-off-by: Christoph Lameter <clameter@sgi.com>
+static inline int page_tail(struct page *page)
+{
+	return PageCompound(page) && (page->first_page != page);
+}
 
----
- mm/page_alloc.c |   13 +++++++++++--
- mm/swap.c       |    8 +++++++-
- 2 files changed, 18 insertions(+), 3 deletions(-)
-
-Index: slub/mm/page_alloc.c
-===================================================================
---- slub.orig/mm/page_alloc.c	2007-05-24 21:34:23.000000000 -0700
-+++ slub/mm/page_alloc.c	2007-05-24 21:43:24.000000000 -0700
-@@ -1760,8 +1760,17 @@ void __pagevec_free(struct pagevec *pvec
- {
- 	int i = pagevec_count(pvec);
- 
--	while (--i >= 0)
--		free_hot_cold_page(pvec->pages[i], pvec->cold);
-+	while (--i >= 0) {
-+		struct page *page = pvec->pages[i];
-+
-+		if (PageHead(page)) {
-+			compound_page_dtor *dtor;
-+
-+			dtor = get_compound_page_dtor(page);
-+			(*dtor)(page);
-+		} else
-+			free_hot_cold_page(page, pvec->cold);
-+	}
- }
- 
- fastcall void __free_pages(struct page *page, unsigned int order)
-Index: slub/mm/swap.c
-===================================================================
---- slub.orig/mm/swap.c	2007-05-24 21:34:23.000000000 -0700
-+++ slub/mm/swap.c	2007-05-24 21:43:24.000000000 -0700
-@@ -307,7 +307,13 @@ void release_pages(struct page **pages, 
- 	for (i = 0; i < nr; i++) {
- 		struct page *page = pages[i];
- 
--		if (unlikely(PageCompound(page))) {
-+		/*
-+		 * If we have a tail page on the LRU then we need to
-+		 * decrement the page count of the head page. There
-+		 * is no further need to do anything since tail pages
-+		 * cannot be on the LRU.
-+		 */
-+		if (unlikely(PageTail(page))) {
- 			if (zone) {
- 				spin_unlock_irq(&zone->lru_lock);
- 				zone = NULL;
-
--- 
+Confused.  Don't know where this is all headed.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
