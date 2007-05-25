@@ -1,48 +1,35 @@
-Content-class: urn:content-classes:message
+Date: Fri, 25 May 2007 11:56:36 -0700 (PDT)
+From: Christoph Lameter <clameter@sgi.com>
+Subject: Re: [patch 0/6] Compound Page Enhancements
+In-Reply-To: <20070525101411.a95bd2ea.akpm@linux-foundation.org>
+Message-ID: <Pine.LNX.4.64.0705251153410.7281@schroedinger.engr.sgi.com>
+References: <20070525051716.030494061@sgi.com> <20070524230032.554be39e.akpm@linux-foundation.org>
+ <Pine.LNX.4.64.0705250701400.5490@schroedinger.engr.sgi.com>
+ <20070525101411.a95bd2ea.akpm@linux-foundation.org>
 MIME-Version: 1.0
-Content-Type: text/plain;
-	charset="iso-8859-1"
-Content-Transfer-Encoding: 8BIT
-Subject: RE: [patch] removes MAX_ARG_PAGES
-Date: Fri, 25 May 2007 11:48:09 -0700
-Message-ID: <617E1C2C70743745A92448908E030B2A018B17DE@scsmsx411.amr.corp.intel.com>
-In-Reply-To: <1180020019.7019.133.camel@twins>
-From: "Luck, Tony" <tony.luck@intel.com>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Cc: Ollie Wild <aaw@google.com>, linux-kernel@vger.kernel.org, parisc-linux@lists.parisc-linux.org, linux-mm@kvack.org, linux-arch@vger.kernel.org, Andrew Morton <akpm@osdl.org>, Ingo Molnar <mingo@elte.hu>, Andi Kleen <ak@suse.de>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, Mel Gorman <mel@csn.ul.ie>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, William Lee Irwin III <wli@holomorphy.com>
 List-ID: <linux-mm.kvack.org>
 
-> I just tried this on an Altix from the test lab, and ia32 bash just
-> started.
+On Fri, 25 May 2007, Andrew Morton wrote:
 
-I don't have any native x86 binaries on my Madison-based testbox, so my
-test case was to compile a simple program that counted total length of
-argument strings on an x86 box, and copy it to my ia64 box.  So that I
-wouldn't have to copy over a bunch of libraries too, I compiled it
-with -static.  This is the test case that "hung" my system (re-running
-it today from /dev/tty1 instead of from an xterm, I see that it actually
-oopsed in rb_next()).  I wasn't even running with a long arglist.  Just
-"*" for my home directory (19 files/directories = ~170 bytes).
+> > But then PageHead(page) wont work anymore. pagehead->first_page is in use 
+> > for some other purpose.
+> 
+> That's only because slub came along and screwed it all up.  The compound
+> page management used to be consistent, and simple.
 
--Tony
+Yeah I tried to keep it that way. Had to mess it up with the strange bit 
+checks to get it in.
 
-My test program.  Compile on ia32 box with "cc -static -o args args.c"
+> Specifically: that lockless_freelist afterthought rendered us unable to fix
+> this mess.
 
----- begin args.c ----
-main(int argc, char **argv)
-{
-	int n;
-
-	printf("argc = %d\n", argc);
-
-	n = 0;
-	while (--argc)
-		n += strlen(*++argv);
-
-	printf("bytes = %d\n", n);
-}
+The main mess of page->private not being usable was fixed up. Now this can 
+be even cleaner if we had PageTail and PageHead.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
