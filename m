@@ -1,29 +1,44 @@
-Date: Fri, 25 May 2007 07:03:22 -0700 (PDT)
-From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [patch 0/6] Compound Page Enhancements
-In-Reply-To: <20070524230032.554be39e.akpm@linux-foundation.org>
-Message-ID: <Pine.LNX.4.64.0705250701400.5490@schroedinger.engr.sgi.com>
-References: <20070525051716.030494061@sgi.com> <20070524230032.554be39e.akpm@linux-foundation.org>
+Message-ID: <4656F625.30402@redhat.com>
+Date: Fri, 25 May 2007 10:43:49 -0400
+From: Rik van Riel <riel@redhat.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: [patch 1/1] vmscan: give referenced, active and unmapped pages
+ a second trip around the LRU
+References: <200705242357.l4ONvw49006681@shell0.pdx.osdl.net>
+In-Reply-To: <200705242357.l4ONvw49006681@shell0.pdx.osdl.net>
+Content-Type: text/plain; charset=UTF-8; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, Mel Gorman <mel@csn.ul.ie>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, William Lee Irwin III <wli@holomorphy.com>
+To: akpm@linux-foundation.org
+Cc: linux-mm@kvack.org, mbligh@mbligh.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 24 May 2007, Andrew Morton wrote:
-
-> And looking back on it, I don't see the point in that PG_head_tail_mask
-> hack either.  We could have done
+akpm@linux-foundation.org wrote:
+> From: Andrew Morton <akpm@linux-foundation.org>
 > 
-> static inline int page_tail(struct page *page)
-> {
-> 	return PageCompound(page) && (page->first_page != page);
-> }
+> Martin spotted this.
+> 
+> In the original rmap conversion in 2.5.32 we broke aging of pagecache pages on
+> the active list: we deactivate these pages even if they had PG_referenced set.
 
-But then PageHead(page) wont work anymore. pagehead->first_page is in use 
-for some other purpose.
+IIRC this is done to make sure that we reclaim page cache pages
+ahead of mapped anonymous pages.
+
+> We should instead clear PG_referenced and give these pages another trip around
+> the active list.
+
+A side effect of this is that the page will now need TWO references
+to be promoted back to the active list from the inactive list.
+
+The current code leaves PG_referenced set, so that the first access
+to a page cache page that was demoted to the inactive list will cause
+that page to be moved back to the active list.
+
+-- 
+Politics is the struggle between those who want to make their country
+the best in the world, and those who believe it already is.  Each group
+calls the other unpatriotic.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
