@@ -1,118 +1,44 @@
-Message-Id: <20070524053153.829644000@linux.local0.net>
+Message-Id: <20070524053154.910657000@linux.local0.net>
 References: <20070524052844.860329000@suse.de>
-Date: Fri, 25 May 2007 22:21:48 +1000
+Date: Fri, 25 May 2007 22:21:55 +1000
 From: npiggin@suse.de
-Subject: [patch 04/41] mm: clean up buffered write code
-Content-Disposition: inline; filename=mm-generic_file_buffered_write-cleanup.patch
+Subject: [patch 11/41] fs: fix data-loss on error
+Content-Disposition: inline; filename=fs-dataloss-stop.patch
 Sender: owner-linux-mm@kvack.org
-From: Andrew Morton <akpm@osdl.org>
 Return-Path: <owner-linux-mm@kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-fsdevel@vger.kernel.org, Mark Fasheh <mark.fasheh@oracle.com>, Linux Memory Management <linux-mm@kvack.org>, Andrew Morton <akpm@osdl.org>
+Cc: linux-fsdevel@vger.kernel.org, Mark Fasheh <mark.fasheh@oracle.com>, Linux Memory Management <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-Rename some variables and fix some types.
+New buffers against uptodate pages are simply be marked uptodate, while the
+buffer_new bit remains set. This causes error-case code to zero out parts
+of those buffers because it thinks they contain stale data: wrong, they
+are actually uptodate so this is a data loss situation.
+
+Fix this by actually clearning buffer_new and marking the buffer dirty. It
+makes sense to always clear buffer_new before setting a buffer uptodate.
 
 Cc: Linux Memory Management <linux-mm@kvack.org>
 Cc: Linux Filesystems <linux-fsdevel@vger.kernel.org>
-Signed-off-by: Andrew Morton <akpm@osdl.org>
 Signed-off-by: Nick Piggin <npiggin@suse.de>
 
- mm/filemap.c |   35 ++++++++++++++++++-----------------
- 1 file changed, 18 insertions(+), 17 deletions(-)
+ fs/buffer.c |    2 ++
+ 1 file changed, 2 insertions(+)
 
-Index: linux-2.6/mm/filemap.c
+Index: linux-2.6/fs/buffer.c
 ===================================================================
---- linux-2.6.orig/mm/filemap.c
-+++ linux-2.6/mm/filemap.c
-@@ -1912,16 +1912,15 @@ generic_file_buffered_write(struct kiocb
- 		size_t count, ssize_t written)
- {
- 	struct file *file = iocb->ki_filp;
--	struct address_space * mapping = file->f_mapping;
-+	struct address_space *mapping = file->f_mapping;
- 	const struct address_space_operations *a_ops = mapping->a_ops;
- 	struct inode 	*inode = mapping->host;
- 	long		status = 0;
- 	struct page	*page;
- 	struct page	*cached_page = NULL;
--	size_t		bytes;
- 	struct pagevec	lru_pvec;
- 	const struct iovec *cur_iov = iov; /* current iovec */
--	size_t		iov_base = 0;	   /* offset in the current iovec */
-+	size_t		iov_offset = 0;	   /* offset in the current iovec */
- 	char __user	*buf;
- 
- 	pagevec_init(&lru_pvec, 0);
-@@ -1932,31 +1931,33 @@ generic_file_buffered_write(struct kiocb
- 	if (likely(nr_segs == 1))
- 		buf = iov->iov_base + written;
- 	else {
--		filemap_set_next_iovec(&cur_iov, &iov_base, written);
--		buf = cur_iov->iov_base + iov_base;
-+		filemap_set_next_iovec(&cur_iov, &iov_offset, written);
-+		buf = cur_iov->iov_base + iov_offset;
- 	}
- 
- 	do {
--		unsigned long index;
--		unsigned long offset;
--		unsigned long maxlen;
--		size_t copied;
-+		pgoff_t index;		/* Pagecache index for current page */
-+		unsigned long offset;	/* Offset into pagecache page */
-+		unsigned long maxlen;	/* Bytes remaining in current iovec */
-+		size_t bytes;		/* Bytes to write to page */
-+		size_t copied;		/* Bytes copied from user */
- 
--		offset = (pos & (PAGE_CACHE_SIZE -1)); /* Within page */
-+		offset = (pos & (PAGE_CACHE_SIZE - 1));
- 		index = pos >> PAGE_CACHE_SHIFT;
- 		bytes = PAGE_CACHE_SIZE - offset;
- 		if (bytes > count)
- 			bytes = count;
- 
-+		maxlen = cur_iov->iov_len - iov_offset;
-+		if (maxlen > bytes)
-+			maxlen = bytes;
-+
- 		/*
- 		 * Bring in the user page that we will copy from _first_.
- 		 * Otherwise there's a nasty deadlock on copying from the
- 		 * same page as we're writing to, without it being marked
- 		 * up-to-date.
- 		 */
--		maxlen = cur_iov->iov_len - iov_base;
--		if (maxlen > bytes)
--			maxlen = bytes;
- 		fault_in_pages_readable(buf, maxlen);
- 
- 		page = __grab_cache_page(mapping,index,&cached_page,&lru_pvec);
-@@ -1987,7 +1988,7 @@ generic_file_buffered_write(struct kiocb
- 							buf, bytes);
- 		else
- 			copied = filemap_copy_from_user_iovec(page, offset,
--						cur_iov, iov_base, bytes);
-+						cur_iov, iov_offset, bytes);
- 		flush_dcache_page(page);
- 		status = a_ops->commit_write(file, page, offset, offset+bytes);
- 		if (status == AOP_TRUNCATED_PAGE) {
-@@ -2005,12 +2006,12 @@ generic_file_buffered_write(struct kiocb
- 				buf += status;
- 				if (unlikely(nr_segs > 1)) {
- 					filemap_set_next_iovec(&cur_iov,
--							&iov_base, status);
-+							&iov_offset, status);
- 					if (count)
- 						buf = cur_iov->iov_base +
--							iov_base;
-+							iov_offset;
- 				} else {
--					iov_base += status;
-+					iov_offset += status;
+--- linux-2.6.orig/fs/buffer.c
++++ linux-2.6/fs/buffer.c
+@@ -1816,7 +1816,9 @@ static int __block_prepare_write(struct 
+ 				unmap_underlying_metadata(bh->b_bdev,
+ 							bh->b_blocknr);
+ 				if (PageUptodate(page)) {
++					clear_buffer_new(bh);
+ 					set_buffer_uptodate(bh);
++					mark_buffer_dirty(bh);
+ 					continue;
  				}
- 			}
- 		}
+ 				if (block_end > to || block_start < from) {
 
 -- 
 
