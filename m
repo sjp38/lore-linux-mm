@@ -1,47 +1,54 @@
-Subject: Re: [PATCH/RFC 0/8] Mapped File Policy Overview
-From: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
-In-Reply-To: <200705252303.16752.ak@suse.de>
-References: <20070524172821.13933.80093.sendpatchset@localhost>
-	 <1180104952.5730.28.camel@localhost>
-	 <Pine.LNX.4.64.0705250823260.5850@schroedinger.engr.sgi.com>
-	 <200705252303.16752.ak@suse.de>
-Content-Type: text/plain
-Date: Fri, 25 May 2007 17:14:28 -0400
-Message-Id: <1180127668.21879.18.camel@localhost>
+Date: Fri, 25 May 2007 14:39:08 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [RFC][PATCH 2/3] hugetlb: numafy several functions
+Message-Id: <20070525143908.dfcc0060.akpm@linux-foundation.org>
+In-Reply-To: <1180126559.5730.73.camel@localhost>
+References: <20070516233053.GN20535@us.ibm.com>
+	<20070516233155.GO20535@us.ibm.com>
+	<20070523175142.GB9301@us.ibm.com>
+	<1179947768.5537.37.camel@localhost>
+	<20070523192951.GE9301@us.ibm.com>
+	<20070525194318.GD31717@us.ibm.com>
+	<1180126559.5730.73.camel@localhost>
 Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andi Kleen <ak@suse.de>
-Cc: Christoph Lameter <clameter@sgi.com>, linux-mm@kvack.org, akpm@linux-foundation.org, nish.aravamudan@gmail.com
+To: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
+Cc: Nishanth Aravamudan <nacc@us.ibm.com>, wli@holomorphy.com, anton@samba.org, clameter@sgi.com, agl@us.ibm.com, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 2007-05-25 at 23:03 +0200, Andi Kleen wrote:
-> On Friday 25 May 2007 17:25:15 Christoph Lameter wrote:
-> > On Fri, 25 May 2007, Lee Schermerhorn wrote:
+On Fri, 25 May 2007 16:55:59 -0400 Lee Schermerhorn <Lee.Schermerhorn@hp.com> wrote:
+
+> On Fri, 2007-05-25 at 12:43 -0700, Nishanth Aravamudan wrote:
+> > Andrew,
 > > 
-> > > It's easy to fix.  The shared policy support is already there.  We just
-> > > need to generalize it for regular files.  In the process,
-> > > *page_cache_alloc() obeys "file policy", which will allow additional
-> > > features such as you mentioned:  global page cache policy as the default
-> > > "file policy".
+> <snip>
+> > > 
+> > > Yeah, if folks like the interface and are satisfied with it working,
+> > > I'll rebase onto -mm for Andrew's sanity.
 > > 
-> > A page cache policy would not need to be file based. It would be enough 
-> > to have a global one or one per cpuset. And it would not suffer from the 
-> > vanishing act of the inodes.
+> > Would you like me to rebase onto 2.6.22-rc2-mm1? I think this is a very
+> > useful feature for NUMA systems that may have an unequal distribution of
+> > memory and don't like the hugepage allocations provided by the global
+> > sysctl.
+> > 
+> > If I recall right, the collisions with Lee's hugetlb.c changes were
+> > pretty small, so it shouldn't be any trouble at all.
 > 
-> I agree. A general page cache policy is probably a good idea and having
-> it in a cpuset is reasonable too. I've been also toying with the idea to 
-> change the global default to interleaved for unmapped files.
+> Nish:
 > 
-> But in this case it's actually not needed to add something to the
-> address space. It can be all process policy based.
+> Unless I missed your post, I think Andrew is waiting to hear from you on
+> the results of your testing of the 22-rc2 based v4 patch before merging
+> the huge page allocation fix.
+> 
 
-Just so we're clear, I'm talking about "struct address_space", as in the
-file's "mapping", not as in "struct mm_struct".
+I am in my common state of lost-the-plot on this patchset.
 
-
-Lee
+Once all the issues are believed to be settled, please send fresh shiny new
+patches against latest -linus or, if there is colliding stuff in -mm,
+against latest -mm.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
