@@ -1,34 +1,124 @@
-From: Andi Kleen <ak@suse.de>
-Subject: Re: [PATCH/RFC 0/8] Mapped File Policy Overview
-Date: Sat, 26 May 2007 00:44:38 +0200
-References: <20070524172821.13933.80093.sendpatchset@localhost> <200705252303.16752.ak@suse.de> <1180127668.21879.18.camel@localhost>
-In-Reply-To: <1180127668.21879.18.camel@localhost>
-MIME-Version: 1.0
-Content-Type: text/plain;
-  charset="iso-8859-15"
-Content-Transfer-Encoding: 7bit
+Date: Sat, 26 May 2007 09:34:26 +0200
+From: Nick Piggin <npiggin@suse.de>
+Subject: Re: [patch 3/8] mm: merge nopfn into fault
+Message-ID: <20070526073426.GC32402@wotan.suse.de>
+References: <200705180737.l4I7b6cg010758@shell0.pdx.osdl.net> <alpine.LFD.0.98.0705180817550.3890@woody.linux-foundation.org> <1179963619.32247.991.camel@localhost.localdomain> <20070524014223.GA22998@wotan.suse.de> <alpine.LFD.0.98.0705231857090.3890@woody.linux-foundation.org> <1179976659.32247.1026.camel@localhost.localdomain> <1179977184.32247.1032.camel@localhost.localdomain> <alpine.LFD.0.98.0705232028510.3890@woody.linux-foundation.org> <20070525111818.GA3881@wotan.suse.de> <alpine.LFD.0.98.0705250924320.26602@woody.linux-foundation.org>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-Message-Id: <200705260044.39065.ak@suse.de>
+In-Reply-To: <alpine.LFD.0.98.0705250924320.26602@woody.linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
-Cc: Christoph Lameter <clameter@sgi.com>, linux-mm@kvack.org, akpm@linux-foundation.org, nish.aravamudan@gmail.com
+To: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Benjamin Herrenschmidt <benh@kernel.crashing.org>, akpm@linux-foundation.org, linux-mm@kvack.org, Christoph Hellwig <hch@infradead.org>
 List-ID: <linux-mm.kvack.org>
 
-> > I agree. A general page cache policy is probably a good idea and having
-> > it in a cpuset is reasonable too. I've been also toying with the idea to 
-> > change the global default to interleaved for unmapped files.
-> > 
-> > But in this case it's actually not needed to add something to the
-> > address space. It can be all process policy based.
+On Fri, May 25, 2007 at 09:36:26AM -0700, Linus Torvalds wrote:
 > 
-> Just so we're clear, I'm talking about "struct address_space", as in the
-> file's "mapping", not as in "struct mm_struct".
+> 
+> On Fri, 25 May 2007, Nick Piggin wrote:
+> > 
+> > What do you think? Any better?
+> 
+> Yes, I think this is getting there. It made the error returns generally 
+> much simpler.
+> 
+> That said, I think it has room for more improvement. Why not make the 
+> return value just be a bitmask, rather than having two separate "bytes" of 
+> data.
 
-I'm talking about the same. Process/current cpuset policy doesn't need anything in 
-struct address_space
+Yeah, that would be really nice, but I guess that now goes out and
+touches all arch code too, doesn't it? Or... actually we could just
+retain compatibility by masking off the high bits, and defining some
+sane definition for VM_FAULT_MINOR (seems like 0x0000 would work).
 
--Andi
+Then in a subsequent patch I can update all architectures to use bit
+masks (I think Ben wanted to make some changes here too, and we could
+probably consolidate a bit of code).
+
+Actually if we have a VM_FAULT_ERROR bitmask, we can probably be a
+tiny bit more efficient in the arch fault handlers as well by doing an
+
+ if (unlikely(ret & VM_FAULT_ERROR))
+     out_of_line_error_handler();
+
+
+> For example, you now do:
+> 
+> > +
+> > +/*
+> > + * VM_FAULT_ERROR is set for the error cases, to make some tests simpler.
+> > + */
+> > +#define VM_FAULT_ERROR	0x20
+> > +
+> > +#define VM_FAULT_OOM	(0x00 | VM_FAULT_ERROR)
+> > +#define VM_FAULT_SIGBUS	(0x01 | VM_FAULT_ERROR)
+> >  #define VM_FAULT_MINOR	0x02
+> >  #define VM_FAULT_MAJOR	0x03
+> 
+> And it would be so much cleaner (I think) to just realize:
+> 
+>  - successful VM faults are always either major or minor, so having two 
+>    different values for them is silly (it comes from the fact that we did 
+>    _not_ have a bitmask). JUst make a "MAJOR" bit, and if it's clear, then 
+>    it's not major, of course!
+> 
+>  - rather than have one bit to say "we had an error", just make each error 
+>    be a bit of its own. We don't have that many (two, to be exact), so you 
+>    actually don't even use any more bits, but it means that you can do:
+> 
+> 	#define VM_FAULT_OOM		0x0001
+> 	#define VM_FAULT_SIGBUS		0x0002
+> 	#define VM_FAULT_MAJOR		0x0004
+> 	#define VM_FAULT_WRITE		0x0008
+> 
+> 	#define VM_FAULT_NONLINEAR	0x0010
+> 	#define VM_FAULT_NOPAGE		0x0020	/* We did our own pfn map */
+> 	#define VM_FAULT_LOCKED		0x0040	/* Returned a locked page */
+> 
+> 	/* Helper defines: */
+> 	#define VM_FAULT_ERROR	(VM_FAULT_OOM | VM_FAULT_SIGBUS)
+> 
+>    and you're done. No magic semantics: you just always return a set of 
+>    result flags.
+> 
+> So now the _user_ would simply do something like
+> 
+> 	unsigned int flags;
+> 
+> 	flags = vma->vm_ops->fault(...);
+> 	if (flags & VM_FAULT_ERROR)
+> 		return flags;
+> 
+> 	if (flags & VM_FAULT_MAJOR)
+> 		increment_major_faults();
+> 	else
+> 		increment_minor_faults();
+> 
+> 	/* Did the fault handler do it all already? All done! */
+> 	if (flags & VM_FAULT_NOPAGE)
+> 		return 0;
+> 
+> 	page = fault->page;
+> 	.. install page ..
+> 
+> 	/*
+> 	 * If the fault handler returned a locked page, we should now 
+> 	 * unlock it
+> 	 */
+> 	if (flags & VM_FAULT_LOCKED)
+> 		unlock_page(page);
+> 
+> 	/* All done! */
+> 	return 0;
+> 
+> or something like that. Yeah, the above is simplified, but it's not 
+> *overly* so. And it never worries about "high bytes" and "low bytes", and 
+> it never worries about a certain set of bits meaning one thing, and 
+> another set meaning somethign else. Isn't that just much simpler for 
+> everybody?
+
+Yes I think that seems nice. I'll do another inc patch.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
