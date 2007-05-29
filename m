@@ -1,46 +1,94 @@
-Message-ID: <465C5BE0.4090903@redhat.com>
-Date: Tue, 29 May 2007 12:59:12 -0400
-From: Rik van Riel <riel@redhat.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH] MM: implement MADV_FREE lazy freeing of anonymous memory
-References: <4632D0EF.9050701@redhat.com> <463B108C.10602@yahoo.com.au>
-In-Reply-To: <463B108C.10602@yahoo.com.au>
-Content-Type: text/plain; charset=UTF-8; format=flowed
-Content-Transfer-Encoding: 7bit
+From: Mel Gorman <mel@csn.ul.ie>
+Message-Id: <20070529173609.1570.4686.sendpatchset@skynet.skynet.ie>
+Subject: [PATCH 0/7] [RFC] Memory Compaction v1
+Date: Tue, 29 May 2007 18:36:09 +0100 (IST)
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nick Piggin <nickpiggin@yahoo.com.au>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>, linux-kernel <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Ulrich Drepper <drepper@redhat.com>, Jakub Jelinek <jakub@redhat.com>
+To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: Mel Gorman <mel@csn.ul.ie>, kamezawa.hiroyu@jp.fujitsu.com, clameter@sgi.com
 List-ID: <linux-mm.kvack.org>
 
-Nick Piggin wrote:
-> Rik van Riel wrote:
->> With lazy freeing of anonymous pages through MADV_FREE, performance of
->> the MySQL sysbench workload more than doubles on my quad-core system.
-> 
-> OK, I've run some tests on a 16 core Opteron system, both sysbench with
-> MySQL 5.33 (set up as described in the freebsd vs linux page), and with
-> ebizzy.
-> 
-> What I found is that, on this system, MADV_FREE performance improvement
-> was in the noise when you look at it on top of the MADV_DONTNEED glibc
-> and down_read(mmap_sem) patch in sysbench.
+This is a prototype for compacting memory to reduce external fragmentation
+so that free memory exists as fewer, but larger contiguous blocks. Rather
+than being a full defragmentation solution, this focuses exclusively on
+pages that are movable via the page migration mechanism.
 
-It turns out that setting the pte accessed bit in hardware
-can apparently take a few thousand CPU cycles - 3000 cycles
-is the number I've heard for one CPU family.
+The compaction mechanism operates within a zone and moves movable pages
+towards the end of.  Grouping pages by mobility already biases the location
+of unmovable pages is biased towards the lower addresses, so these strategies
+work in conjunction.
 
-This is a similar number of cycles as is needed to zero out
-a page.  Giving a cache hot page to userspace could cancel
-out the rest of the cost of the page fault handling.
+A single compaction run involves two scanners operating within a zone - a
+migration and a free scanner. The migration scanner starts at the beginning
+of a zone and finds all movable pages within one pageblock_nr_pages-sized
+area and isolates them on a migratepages list. The free scanner begins at
+the end of the zone and searches on a per-area basis for enough free pages to
+migrate all the pages on the migratepages list. As each area is respecively
+migrated or exhaused of free pages, the scanners are advanced one area.
+A compaction run completes within a zone when the two scanners meet.
 
-Lets stick with the simpler MADV_DONTNEED code for now and
-save the page flag for something else...
+This is what /proc/buddyinfo looks like before and after a compaction run.
+
+mel@arnold:~/results$ cat before-buddyinfo.txt 
+Node 0, zone      DMA    150     33      6      4      2      1      1      1      1      0      0 
+Node 0, zone   Normal   7901   3005   2205   1511    758    245     34      3      0      1      0 
+
+mel@arnold:~/results$ cat after-buddyinfo.txt 
+Node 0, zone      DMA    150     33      6      4      2      1      1      1      1      0      0 
+Node 0, zone   Normal   1900   1187    609    325    228    178    110     32      6      4     24 
+
+In this patchset, memory is never compacted automatically and is only triggered
+by writing a node number to /proc/sys/vm/compact_node. This version of the
+patchset is mainly concerned with getting the compaction mechanism correct.
+
+The first patch is a roll-up patch of changes to grouping pages by mobility
+posted to the linux-mm list but not merged into -mm yet. The second patch
+is from the memory hot-remove patchset which memory compaction can use.
+
+The two patches after that are changes to page migration. The third patch
+allows CONFIG_MIGRATION to be set without CONFIG_NUMA.  The fourth patch
+allows LRU pages to be isolated in batch instead of acquiring and releasing
+the LRU lock a lot.
+
+The fifth patch exports some metrics on external fragmentation which are
+relevant to memory compaction. The sixth patch is what implements memory
+compaction for a single zone. The final patch enables a node to be compacted
+explicitly by writing to a special file in /proc.
+
+This patchset has been tested based on 2.6.22-rc2-mm1 with the following;
+
+o x86 with one CPU, 512MB RAM, FLATMEM
+o x86 with four CPUs, 2GB RAM, FLATMEM
+o x86_64 with four CPUs, 1GB of RAM, FLATMEM
+o x86_64 with four CPUs, 8GB of RAM, DISCONTIG NUMA with 4 nodes
+o ppc64 with two CPUs, 2GB of RAM, SPARSEMEM
+o IA64 with four CPUs, 1GB of RAM, FLATMEM + VIRTUAL_MEM_MAP
+
+The x86 with one CPU is the only machine that has been tested under
+stress. The others was a minimal boot-test followed by compaction under
+no load.
+
+This patchset is incomplete. Here some outstanding items on a TODO list in
+no particular order.
+
+o Have pageblock_suitable_migration() check the number of free pages properly
+o Do not call lru_add_drain_all() on every update
+o Add trigger to directly compact before reclaiming for high orders
+o Make the fragmentation statistics independent of CONFIG_MIGRATION
+o Obey watermarks in split_pagebuddy_page
+o Handle free pages intelligently when they are larger than pageblock_order
+o Implement compaction_debug boot-time option like slub_debug
+o Implement compaction_disable boot-time option just in case
+o Investigate using debugfs as the manual compaction trigger instead of proc
+o Deal with MIGRATE_RESERVE during compaction properly
+o Build test to verify correctness and behaviour under load
+
+Any comments on this first version are welcome.
 
 -- 
-Politics is the struggle between those who want to make their country
-the best in the world, and those who believe it already is.  Each group
-calls the other unpatriotic.
+Mel Gorman
+Part-time Phd Student                          Linux Technology Center
+University of Limerick                         IBM Dublin Software Lab
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
