@@ -1,39 +1,36 @@
-Date: Wed, 30 May 2007 13:07:33 -0700 (PDT)
-From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [PATCH 2/7] KAMEZAWA Hiroyuki - migration by kernel
-In-Reply-To: <Pine.LNX.4.64.0705302021040.7044@blonde.wat.veritas.com>
-Message-ID: <Pine.LNX.4.64.0705301304200.2671@schroedinger.engr.sgi.com>
-References: <20070529173609.1570.4686.sendpatchset@skynet.skynet.ie>
- <20070529173649.1570.85922.sendpatchset@skynet.skynet.ie>
- <20070530114243.e3c3c75e.kamezawa.hiroyu@jp.fujitsu.com>
- <Pine.LNX.4.64.0705302021040.7044@blonde.wat.veritas.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Date: Wed, 30 May 2007 13:09:11 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH] Make dynamic/run-time configuration of zonelist order
+ configurable
+Message-Id: <20070530130911.431d5f6f.akpm@linux-foundation.org>
+In-Reply-To: <1180554142.5850.90.camel@localhost>
+References: <1180468121.5067.64.camel@localhost>
+	<20070530111212.095350d2.akpm@linux-foundation.org>
+	<1180554142.5850.90.camel@localhost>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Hugh Dickins <hugh@veritas.com>
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Mel Gorman <mel@csn.ul.ie>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
+Cc: linux-mm <linux-mm@kvack.org>, Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Nishanth Aravamudan <nacc@us.ibm.com>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 30 May 2007, Hugh Dickins wrote:
+On Wed, 30 May 2007 15:42:22 -0400
+Lee Schermerhorn <Lee.Schermerhorn@hp.com> wrote:
 
-> I've taken a look at last.  It looks like a good fix to a real problem,
-> but may I suggest a simpler version?  The anon_vma isn't usually held
-> by a refcount, but by having a vma on its linked list: why not just
-> put a dummy vma into that linked list?  No need to add a refcount.
-> 
-> The NUMA shmem_alloc_page already uses a dummy vma on its stack,
-> so you can reasonably declare a vm_area_struct on unmap_and_move's
-> stack.  No need for a special anon_vma_release, anon_vma_unlink
-> should do fine.  I've not reworked your whole patch, but show
-> what I think the mm/rmap.c part would be at the bottom.
+> But, before I go and rework it against the current mm
+> tree and then rebase the hugetlb fix on that, could you offer an opinion
+> either way, whether it's worth the effort and a new Kconfig option to
+> attempt to give back this amount init code/data?  I recall you making
+> noise about the zonelist order patch being "a lot of code" when Kame
+> first posted it.
 
-Hummm.. shmem_alloc_pages version only uses the vma as a placeholder 
-for memory policies. So we would put the page on a vma that is on the 
-stack? That would mean changing the mapping of the page? Is that safe?
+The concern with a "lot of code" is 99% about complexity, reliability and
+maintainability and only 1% about RAM usage.
 
-And then later we would be changing the mapping back to the old vma?
-What guarantees that the old vma is not gone by then?
+This stuff is mainly a NUMA/SMP thing, isn't it?  If so, a couple of k is
+neither here nor there.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
