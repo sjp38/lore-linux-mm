@@ -1,26 +1,29 @@
-Subject: numa_maps display of shmem--need/want '\040(deleted)' ???
-From: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
-Content-Type: text/plain
-Date: Wed, 30 May 2007 13:02:37 -0400
-Message-Id: <1180544557.5850.78.camel@localhost>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Date: Wed, 30 May 2007 10:33:09 -0700 (PDT)
+From: Christoph Lameter <clameter@sgi.com>
+Subject: Re: [PATCH 7/7] Add /proc/sys/vm/compact_node for the explicit
+ compaction of a node
+In-Reply-To: <Pine.LNX.4.64.0705300920150.16108@skynet.skynet.ie>
+Message-ID: <Pine.LNX.4.64.0705301031210.1195@schroedinger.engr.sgi.com>
+References: <20070529173609.1570.4686.sendpatchset@skynet.skynet.ie>
+ <20070529173830.1570.91184.sendpatchset@skynet.skynet.ie>
+ <Pine.LNX.4.64.0705292109460.29854@schroedinger.engr.sgi.com>
+ <Pine.LNX.4.64.0705300920150.16108@skynet.skynet.ie>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
-Cc: linux-mm <linux-mm@kvack.org>
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, kamezawa.hiroyu@jp.fujitsu.com
 List-ID: <linux-mm.kvack.org>
 
-Christoph [,anyone?]:
+On Wed, 30 May 2007, Mel Gorman wrote:
 
-While I'm looking at numa_maps, do we need/want that funky suffix string
-that shows up on the file names of shmem regions in numa_maps?  I expect
-it will show up on any unlinked, mmap'ed file, but haven't tested that
-case.  Is it useful information in the context of numa_maps?
+> > Check for node < nr_node_ids first.
+> Very good point. Will fix
 
-Maybe translate the '\040' back to a space?
+And check if the node is online first? F.e.
 
-Lee
+node_online(node) ?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
