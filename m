@@ -1,29 +1,31 @@
-Date: Wed, 30 May 2007 10:33:09 -0700 (PDT)
+Date: Wed, 30 May 2007 10:41:44 -0700 (PDT)
 From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [PATCH 7/7] Add /proc/sys/vm/compact_node for the explicit
- compaction of a node
-In-Reply-To: <Pine.LNX.4.64.0705300920150.16108@skynet.skynet.ie>
-Message-ID: <Pine.LNX.4.64.0705301031210.1195@schroedinger.engr.sgi.com>
-References: <20070529173609.1570.4686.sendpatchset@skynet.skynet.ie>
- <20070529173830.1570.91184.sendpatchset@skynet.skynet.ie>
- <Pine.LNX.4.64.0705292109460.29854@schroedinger.engr.sgi.com>
- <Pine.LNX.4.64.0705300920150.16108@skynet.skynet.ie>
+Subject: Re: [PATCH] Document Linux Memory Policy
+In-Reply-To: <1180541849.5850.30.camel@localhost>
+Message-ID: <Pine.LNX.4.64.0705301040560.1195@schroedinger.engr.sgi.com>
+References: <1180467234.5067.52.camel@localhost>
+ <Pine.LNX.4.64.0705291247001.26308@schroedinger.engr.sgi.com>
+ <200705292216.31102.ak@suse.de> <1180541849.5850.30.camel@localhost>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, kamezawa.hiroyu@jp.fujitsu.com
+To: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
+Cc: Andi Kleen <ak@suse.de>, mtk-manpages@gmx.net, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 30 May 2007, Mel Gorman wrote:
+On Wed, 30 May 2007, Lee Schermerhorn wrote:
 
-> > Check for node < nr_node_ids first.
-> Very good point. Will fix
+> > Also the big difference to MPOL_BIND is that it is not strict and will fall 
+> > back like the default policy.
+> 
+> Right.  And since the API argument is a node mask, one might want to
+> know what happens if more than one node is specified.  On the other
+> hand, we could play hardball and reject the call if more than one is
+> specified.
 
-And check if the node is online first? F.e.
-
-node_online(node) ?
+I think we would like to reject the call if more than one node is 
+specified.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
