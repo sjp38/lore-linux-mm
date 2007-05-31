@@ -1,35 +1,50 @@
-Subject: Re: [PATCH] Document Linux Memory Policy
+Subject: Re: [PATCH] Make dynamic/run-time configuration of zonelist order
+	configurable
 From: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
-In-Reply-To: <20070531082016.19080@gmx.net>
-References: <1180467234.5067.52.camel@localhost>
-	 <Pine.LNX.4.64.0705291247001.26308@schroedinger.engr.sgi.com>
-	 <200705292216.31102.ak@suse.de> <1180541849.5850.30.camel@localhost>
-	 <20070531082016.19080@gmx.net>
+In-Reply-To: <20070530130911.431d5f6f.akpm@linux-foundation.org>
+References: <1180468121.5067.64.camel@localhost>
+	 <20070530111212.095350d2.akpm@linux-foundation.org>
+	 <1180554142.5850.90.camel@localhost>
+	 <20070530130911.431d5f6f.akpm@linux-foundation.org>
 Content-Type: text/plain
-Date: Thu, 31 May 2007 10:49:56 -0400
-Message-Id: <1180622996.5091.25.camel@localhost>
+Date: Thu, 31 May 2007 10:58:43 -0400
+Message-Id: <1180623523.5091.32.camel@localhost>
 Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Michael Kerrisk <mtk-manpages@gmx.net>
-Cc: ak@suse.de, akpm@linux-foundation.org, linux-mm@kvack.org, clameter@sgi.com
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm <linux-mm@kvack.org>, Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Nishanth Aravamudan <nacc@us.ibm.com>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 2007-05-31 at 10:20 +0200, Michael Kerrisk wrote:
-> > > > The docs are wrong. This is fully supported.
-> > > 
-> > > Yes, I gave up on that one and the warning in the manpage should be 
-> > > probably dropped 
-> > 
-> > OK.  I'll work with the man page maintainers. 
+On Wed, 2007-05-30 at 13:09 -0700, Andrew Morton wrote:
+> On Wed, 30 May 2007 15:42:22 -0400
+> Lee Schermerhorn <Lee.Schermerhorn@hp.com> wrote:
 > 
-> Hi Lee,
+> > But, before I go and rework it against the current mm
+> > tree and then rebase the hugetlb fix on that, could you offer an opinion
+> > either way, whether it's worth the effort and a new Kconfig option to
+> > attempt to give back this amount init code/data?  I recall you making
+> > noise about the zonelist order patch being "a lot of code" when Kame
+> > first posted it.
 > 
-> If you could write a patch for the man page, that would be ideal.
-> Location of current tarball is in the .sig.
+> The concern with a "lot of code" is 99% about complexity, reliability and
+> maintainability and only 1% about RAM usage.
 
-Michael:  I'd be happy to.  I'll put that in my queue ;-).
+Ah, OK.
+
+> 
+> This stuff is mainly a NUMA/SMP thing, isn't it?  If so, a couple of k is
+> neither here nor there.
+
+I agree that on the platforms I deal with, it's not an issue.  However,
+as I mentioned, I've seen chatter on the lists from folks who apparently
+use numa emulation [requires NUMA infrastructure] on single cpu 32-bit
+systems as a "poor man's containers" for memory resource management and
+didn't want to impose the addtional, admittedly small, extra overhead on
+them.  Perhaps this usage goes away when containers becomes mainline.
+If no one in that camp complains and you don't think it's worth it, I'll
+drop it.
 
 Lee
 
