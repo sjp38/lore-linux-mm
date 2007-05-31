@@ -1,22 +1,25 @@
-Date: Thu, 31 May 2007 02:03:24 -0700 (PDT)
-Message-Id: <20070531.020324.35020300.davem@davemloft.net>
+Message-ID: <465E8F7C.7080300@s5r6.in-berlin.de>
+Date: Thu, 31 May 2007 11:03:56 +0200
+From: Stefan Richter <stefanr@s5r6.in-berlin.de>
+MIME-Version: 1.0
 Subject: Re: [RFC 1/4] CONFIG_STABLE: Define it
-From: David Miller <davem@davemloft.net>
+References: <20070531002047.702473071@sgi.com> <20070531003012.302019683@sgi.com> <465E8D4C.9040506@s5r6.in-berlin.de>
 In-Reply-To: <465E8D4C.9040506@s5r6.in-berlin.de>
-References: <20070531002047.702473071@sgi.com>
-	<20070531003012.302019683@sgi.com>
-	<465E8D4C.9040506@s5r6.in-berlin.de>
-Mime-Version: 1.0
-Content-Type: Text/Plain; charset=us-ascii
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-From: Stefan Richter <stefanr@s5r6.in-berlin.de>
-Date: Thu, 31 May 2007 10:54:36 +0200
 Return-Path: <owner-linux-mm@kvack.org>
-To: stefanr@s5r6.in-berlin.de
-Cc: clameter@sgi.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, akpm@linux-foundation.org
+To: clameter@sgi.com
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, akpm@linux-foundation.org
 List-ID: <linux-mm.kvack.org>
 
+>>  menu "General setup"
+>>  
+>> +config STABLE
+>> +	bool "Stable kernel"
+[...]
+> a) Why in Kconfig, why not in Makefile?
+> 
 > b) Of course nobody wants STABLE=n. :-)  How about:
 > 
 > config RELEASE
@@ -26,16 +29,16 @@ List-ID: <linux-mm.kvack.org>
 > 	  various checks that are only of interest to kernel development
 > 	  will be omitted.
 
-Agreed :-)
+PS:  Also, it could be reversed (e.g. config TESTBUILD) and put into the
+Kernel Hacking submenu.
 
-> 
 > c) A drawback of this general option is, it's hard to tell what will be
->    omitted in particular.
+> omitted in particular.
 
-In that sense it is similar to EMBEDDED, but I still think there
-is high value to this, I can already think of several things I
-want to put under this which are only noise I want to see during
-development periods.
+-- 
+Stefan Richter
+-=====-=-=== -=-= =====
+http://arcgraph.de/sr/
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
