@@ -1,44 +1,35 @@
-Message-ID: <465E8F7C.7080300@s5r6.in-berlin.de>
-Date: Thu, 31 May 2007 11:03:56 +0200
-From: Stefan Richter <stefanr@s5r6.in-berlin.de>
+From: Andi Kleen <ak@suse.de>
+Subject: Re: [PATCH] Document Linux Memory Policy
+Date: Thu, 31 May 2007 12:43:19 +0200
+References: <1180467234.5067.52.camel@localhost> <Pine.LNX.4.64.0705302335050.6733@schroedinger.engr.sgi.com> <20070531064753.GA31143@minantech.com>
+In-Reply-To: <20070531064753.GA31143@minantech.com>
 MIME-Version: 1.0
-Subject: Re: [RFC 1/4] CONFIG_STABLE: Define it
-References: <20070531002047.702473071@sgi.com> <20070531003012.302019683@sgi.com> <465E8D4C.9040506@s5r6.in-berlin.de>
-In-Reply-To: <465E8D4C.9040506@s5r6.in-berlin.de>
-Content-Type: text/plain; charset=ISO-8859-1
+Content-Type: text/plain;
+  charset="iso-8859-1"
 Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+Message-Id: <200705311243.20119.ak@suse.de>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: clameter@sgi.com
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, akpm@linux-foundation.org
+To: Gleb Natapov <glebn@voltaire.com>
+Cc: Christoph Lameter <clameter@sgi.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
->>  menu "General setup"
->>  
->> +config STABLE
->> +	bool "Stable kernel"
-[...]
-> a) Why in Kconfig, why not in Makefile?
+> > The faulted page will use the memory policy of the task that faulted it 
+> > in. If that process has numa_set_localalloc() set then the page will be 
+> > located as closely as possible to the allocating thread.
 > 
-> b) Of course nobody wants STABLE=n. :-)  How about:
-> 
-> config RELEASE
-> 	bool "Build for release"
-> 	help
-> 	  If the kernel is declared as a release build here, then
-> 	  various checks that are only of interest to kernel development
-> 	  will be omitted.
+> Thanks. But I have to say this feels very unnatural.
 
-PS:  Also, it could be reversed (e.g. config TESTBUILD) and put into the
-Kernel Hacking submenu.
+What do you think is unnatural exactly? First one wins seems like a quite 
+natural policy to me.
 
-> c) A drawback of this general option is, it's hard to tell what will be
-> omitted in particular.
+> So to have 
+> desirable effect I have to create shared memory with shmget?
 
--- 
-Stefan Richter
--=====-=-=== -=-= =====
-http://arcgraph.de/sr/
+shmget behaves the same.
+
+-Andi
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
