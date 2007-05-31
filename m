@@ -1,35 +1,57 @@
-Date: Thu, 31 May 2007 00:05:39 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [patch 12/41] fs: introduce write_begin, write_end, and
- perform_write aops
-Message-Id: <20070531000539.7386646c.akpm@linux-foundation.org>
-In-Reply-To: <20070531051539.GK20107@wotan.suse.de>
-References: <20070524052844.860329000@suse.de>
-	<20070524053155.065366000@linux.local0.net>
-	<20070530213035.d7b6e3e0.akpm@linux-foundation.org>
-	<20070531044327.GD20107@wotan.suse.de>
-	<20070530215231.468e7f26.akpm@linux-foundation.org>
-	<20070531045754.GE20107@wotan.suse.de>
-	<20070530221121.7eadc807.akpm@linux-foundation.org>
-	<20070531051539.GK20107@wotan.suse.de>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Date: Thu, 31 May 2007 10:11:10 +0300
+Subject: Re: [PATCH] Document Linux Memory Policy
+Message-ID: <20070531071110.GB31143@minantech.com>
+References: <1180467234.5067.52.camel@localhost> <Pine.LNX.4.64.0705291247001.26308@schroedinger.engr.sgi.com> <1180544104.5850.70.camel@localhost> <Pine.LNX.4.64.0705301042320.1195@schroedinger.engr.sgi.com> <20070531061836.GL4715@minantech.com> <Pine.LNX.4.64.0705302335050.6733@schroedinger.engr.sgi.com> <20070531064753.GA31143@minantech.com> <Pine.LNX.4.64.0705302352590.6824@schroedinger.engr.sgi.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <Pine.LNX.4.64.0705302352590.6824@schroedinger.engr.sgi.com>
+From: glebn@voltaire.com (Gleb Natapov)
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nick Piggin <npiggin@suse.de>
-Cc: linux-fsdevel@vger.kernel.org, Mark Fasheh <mark.fasheh@oracle.com>, Linux Memory Management <linux-mm@kvack.org>
+To: Christoph Lameter <clameter@sgi.com>
+Cc: Lee Schermerhorn <Lee.Schermerhorn@hp.com>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Andi Kleen <ak@suse.de>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 31 May 2007 07:15:39 +0200 Nick Piggin <npiggin@suse.de> wrote:
+On Wed, May 30, 2007 at 11:56:34PM -0700, Christoph Lameter wrote:
+> On Thu, 31 May 2007, Gleb Natapov wrote:
+> 
+> > > The faulted page will use the memory policy of the task that faulted it 
+> > > in. If that process has numa_set_localalloc() set then the page will be 
+> > > located as closely as possible to the allocating thread.
+> > 
+> > Thanks. But I have to say this feels very unnatural. So to have
+> > desirable effect I have to create shared memory with shmget?
+> 
+> Right. From a user perspective: How would you solve the problem that
+> 
+> 1. A shared range has multiple tasks that can fault pages in.
+>    The policy of which task should control how the page is allocated?
+>    Is it the last one that set the policy?
+How is it done for shmget? For my particular case I would prefer to get an error
+from numa_setlocal_memory() if process tries to set policy on the area
+of the file that already has policy set. This may happen only as a
+result of a bug in my app.
 
-> If you can send that rollup, it would be good. I could try getting
-> everything to compile and do some more testing on it too.
+> 
+> 2. Pagecache pages can be read and written by buffered I/O and
+>    via mmap. Should there be different allocation semantics
+>    depending on the way you got the page? Obviously no policy
+>    for a memory range can be applied to a page allocated via
+>    buffered I/O. Later it may be mapped via mmap but then
+>    we never use policies if the page is already in memory.
+If page is already in the pagecache use it. Or return an error if strict
+policy is in use. Or something else :) In my case I make sure that files
+is accessed only through mmap interface.
 
+I agree that from kernel point of view the current behaviour seems more
+logical/easy to implement. After all memory policy is a property of a
+memory space and not a file. But as a user I expect to be able to use mmap to
+create shared space between processes and set memory policy on this
+space.
 
-Single patch against 2.6.22-rc3: http://userweb.kernel.org/~akpm/np.gz
-
-broken-out: ftp://ftp.kernel.org/pub/linux/kernel/people/akpm/mm/broken-out-2007-05-30-09-30.tar.gz
+--
+			Gleb.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
