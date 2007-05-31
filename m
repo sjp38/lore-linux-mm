@@ -1,48 +1,37 @@
-Received: by an-out-0708.google.com with SMTP id d33so78645and
-        for <linux-mm@kvack.org>; Thu, 31 May 2007 06:41:19 -0700 (PDT)
-Message-ID: <2c09dd780705310641j34f5d8b9ga70c02d2c93852c8@mail.gmail.com>
-Date: Thu, 31 May 2007 19:11:14 +0530
-From: "manjunath k" <kmanjunat@gmail.com>
-Subject: Dirty pages changes in linux-2.6
-MIME-Version: 1.0
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Subject: Re: [PATCH] Document Linux Memory Policy
+From: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
+In-Reply-To: <20070531082016.19080@gmx.net>
+References: <1180467234.5067.52.camel@localhost>
+	 <Pine.LNX.4.64.0705291247001.26308@schroedinger.engr.sgi.com>
+	 <200705292216.31102.ak@suse.de> <1180541849.5850.30.camel@localhost>
+	 <20070531082016.19080@gmx.net>
+Content-Type: text/plain
+Date: Thu, 31 May 2007 10:49:56 -0400
+Message-Id: <1180622996.5091.25.camel@localhost>
+Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
+To: Michael Kerrisk <mtk-manpages@gmx.net>
+Cc: ak@suse.de, akpm@linux-foundation.org, linux-mm@kvack.org, clameter@sgi.com
 List-ID: <linux-mm.kvack.org>
 
-Hi,
+On Thu, 2007-05-31 at 10:20 +0200, Michael Kerrisk wrote:
+> > > > The docs are wrong. This is fully supported.
+> > > 
+> > > Yes, I gave up on that one and the warning in the manpage should be 
+> > > probably dropped 
+> > 
+> > OK.  I'll work with the man page maintainers. 
+> 
+> Hi Lee,
+> 
+> If you could write a patch for the man page, that would be ideal.
+> Location of current tarball is in the .sig.
 
- Ive been working on some of the proc filesystem
-codes and found that the dirty pages list present in
-the struct address_space is being removed from the
-linux-2.6 kernel version by the patch
+Michael:  I'd be happy to.  I'll put that in my queue ;-).
 
-"stop-using-the-address_space-dirty_pages-list.patch"
-
-@@ -327,7 +327,6 @@ struct address_space {
- 	struct radix_tree_root	page_tree;	/* radix tree of all pages */
- 	spinlock_t		tree_lock;	/* and spinlock protecting it */
- 	struct list_head	clean_pages;	/* list of clean pages */
--	struct list_head	dirty_pages;	/* list of dirty pages */
- 	struct list_head	locked_pages;	/* list of locked pages */
- 	struct list_head	io_pages;	/* being prepared for I/O */
- 	unsigned long		nrpages;	/* number of total pages */
-
-And ive also noticed that the /proc/pid/statm output displays
-the dirty page count as 0.
-Eg :
-cat /proc/self/statm
-1207 100 833 3 0 371 0
-
-My perception is that it is because of the changes in the above mentioned
-patch the dirty page count is 0 in linux-2.6.
-
-Please give me some information regarding the same.
-
--Thanks
+Lee
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
