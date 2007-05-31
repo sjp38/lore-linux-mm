@@ -1,34 +1,40 @@
-From: Andi Kleen <ak@suse.de>
+Date: Thu, 31 May 2007 14:59:31 +0300
 Subject: Re: [PATCH] Document Linux Memory Policy
-Date: Thu, 31 May 2007 13:47:28 +0200
-References: <1180467234.5067.52.camel@localhost> <200705311243.20119.ak@suse.de> <20070531110412.GM4715@minantech.com>
-In-Reply-To: <20070531110412.GM4715@minantech.com>
+Message-ID: <20070531115931.GO4715@minantech.com>
+References: <1180467234.5067.52.camel@localhost> <200705311243.20119.ak@suse.de> <20070531110412.GM4715@minantech.com> <200705311347.28214.ak@suse.de>
 MIME-Version: 1.0
-Content-Type: text/plain;
-  charset="iso-8859-1"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-Message-Id: <200705311347.28214.ak@suse.de>
+In-Reply-To: <200705311347.28214.ak@suse.de>
+From: glebn@voltaire.com (Gleb Natapov)
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Gleb Natapov <glebn@voltaire.com>
+To: Andi Kleen <ak@suse.de>
 Cc: Christoph Lameter <clameter@sgi.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-> No it is not (not always).
+On Thu, May 31, 2007 at 01:47:28PM +0200, Andi Kleen wrote:
+> 
+> > No it is not (not always).
+> 
+> Natural = as in benefits a large number of application. Your requirement
+> seems to be quite special.
+Really. Is use of shared memory to communicate between two processes so
+rare and special?
 
-Natural = as in benefits a large number of application. Your requirement
-seems to be quite special.
+> 
+> > I want to create shared memory for 
+> > interprocess communication. Process A will write into the memory and
+> > process B will periodically poll it to see if there is a message there.
+> > In NUMA system I want the physical memory for this VMA to be allocated
+> > from node close to process B 
+> 
+> Then bind it to the node of process B (using numa_set_membind())
+> 
+Already found it. Thanks.
 
-> I want to create shared memory for 
-> interprocess communication. Process A will write into the memory and
-> process B will periodically poll it to see if there is a message there.
-> In NUMA system I want the physical memory for this VMA to be allocated
-> from node close to process B 
-
-Then bind it to the node of process B (using numa_set_membind())
-
--Andi 
+--
+			Gleb.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
