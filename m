@@ -1,71 +1,45 @@
-Date: Thu, 31 May 2007 23:30:46 +0200
-From: Sam Ravnborg <sam@ravnborg.org>
-Subject: Re: [RFC 1/4] CONFIG_STABLE: Define it
-Message-ID: <20070531213046.GA27923@uranus.ravnborg.org>
-References: <20070531002047.702473071@sgi.com> <20070531003012.302019683@sgi.com> <20070531141147.423ad5e3.akpm@linux-foundation.org>
-Mime-Version: 1.0
+Subject: Re: [RFC 2/4] CONFIG_STABLE: Switch off kmalloc(0) tests in slab allocators
+References: <20070531002047.702473071@sgi.com>
+	<20070531003012.532539202@sgi.com>
+	<20070531195133.GK5488@mami.zabbo.net>
+From: Andi Kleen <andi@firstfloor.org>
+Date: 01 Jun 2007 00:37:48 +0200
+In-Reply-To: <20070531195133.GK5488@mami.zabbo.net>
+Message-ID: <p736468d3gj.fsf@bingen.suse.de>
+MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20070531141147.423ad5e3.akpm@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: clameter@sgi.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Roman Zippel <zippel@linux-m68k.org>
+To: Zach Brown <zach.brown@oracle.com>
+Cc: clameter@sgi.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, akpm@linux-foundation.org
 List-ID: <linux-mm.kvack.org>
 
+Zach Brown <zach.brown@oracle.com> writes:
+
+> > +#ifndef CONFIG_STABLE
+> >  	/*
+> >  	 * We should return 0 if size == 0 (which would result in the
+> >  	 * kmalloc caller to get NULL) but we use the smallest object
+> > @@ -81,6 +82,7 @@ static inline int kmalloc_index(size_t s
+> >  	 * we can discover locations where we do 0 sized allocations.
+> >  	 */
+> >  	WARN_ON_ONCE(size == 0);
+> > +#endif
 > 
-> So something like this:
+> > +#ifndef CONFIG_STABLE
+> >  	WARN_ON_ONCE(size == 0);
+> > +#endif
 > 
-> diff -puN Makefile~a Makefile
-> --- a/Makefile~a
-> +++ a/Makefile
-> @@ -3,6 +3,7 @@ PATCHLEVEL = 6
->  SUBLEVEL = 22
->  EXTRAVERSION = -rc3
->  NAME = Jeff Thinks I Should Change This, But To What?
-> +DEVEL_KERNEL = 1
+> I wonder if there wouldn't be value in making a WARN_*() variant that
+> contained the ifdef internally so we could lose these tedious
+> surrounding ifdefs in call sites.  WARN_DEVELOPER_WHEN(), or something.
+> I don't care what it's called.  
 
-Could we name this: KERNELDEVEL to fit with current naming convention?
-Alternative: KERNEL_DEVEL
+Networking has had NETDEBUG(codeblock) for this. Perhaps something
+similar would be useful (DEVELOPMENT(codeblock)) in addition
+to the special WARN/BUG_ONs
 
-Maybe a little comment that this is mirrored as a CONFIG_ symbol?
-
->  
->  # *DOCUMENTATION*
->  # To see a list of typical targets execute "make help"
-> @@ -320,7 +321,7 @@ AFLAGS          := -D__ASSEMBLY__
->  KERNELRELEASE = $(shell cat include/config/kernel.release 2> /dev/null)
->  KERNELVERSION = $(VERSION).$(PATCHLEVEL).$(SUBLEVEL)$(EXTRAVERSION)
->  
-> -export VERSION PATCHLEVEL SUBLEVEL KERNELRELEASE KERNELVERSION
-> +export VERSION PATCHLEVEL SUBLEVEL KERNELRELEASE KERNELVERSION DEVEL_KERNEL
->  export ARCH CONFIG_SHELL HOSTCC HOSTCFLAGS CROSS_COMPILE AS LD CC
->  export CPP AR NM STRIP OBJCOPY OBJDUMP MAKE AWK GENKSYMS PERL UTS_MACHINE
->  export HOSTCXX HOSTCXXFLAGS LDFLAGS_MODULE CHECK CHECKFLAGS
-> diff -puN scripts/kconfig/symbol.c~a scripts/kconfig/symbol.c
-> --- a/scripts/kconfig/symbol.c~a
-> +++ a/scripts/kconfig/symbol.c
-> @@ -68,6 +68,15 @@ void sym_init(void)
->  	if (p)
->  		sym_add_default(sym, p);
->  
-> +	sym = sym_lookup("DEVEL_KERNEL", 0);
-> +	sym->type = S_BOOLEAN;
-> +	sym->flags |= SYMBOL_AUTO;
-> +	p = getenv("DEVEL_KERNEL");
-> +	if (p && atoi(p))
-> +		sym_add_default(sym, "y");
-> +	else
-> +		sym_add_default(sym, "n");
-> +
-
-		sym_set_tristate_value(sym, yes);
-	else
-		sym_set_tristate_value(sym, no);
-
-should do the trick (untested).
-
-	Sam
+-Andi
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
