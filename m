@@ -1,30 +1,31 @@
-Received: by an-out-0708.google.com with SMTP id d33so971804and
-        for <linux-mm@kvack.org>; Wed, 30 May 2007 17:35:57 -0700 (PDT)
-Message-ID: <a8e1da0705301735r5619f79axcb3ea6c7dd344efc@mail.gmail.com>
-Date: Thu, 31 May 2007 00:35:56 +0000
-From: "young dave" <hidave.darkstar@gmail.com>
+Date: Wed, 30 May 2007 17:49:56 -0700 (PDT)
+From: Christoph Lameter <clameter@sgi.com>
 Subject: Re: [RFC 1/4] CONFIG_STABLE: Define it
-In-Reply-To: <20070531003012.302019683@sgi.com>
+In-Reply-To: <a8e1da0705301735r5619f79axcb3ea6c7dd344efc@mail.gmail.com>
+Message-ID: <Pine.LNX.4.64.0705301747370.4809@schroedinger.engr.sgi.com>
+References: <20070531002047.702473071@sgi.com>  <20070531003012.302019683@sgi.com>
+ <a8e1da0705301735r5619f79axcb3ea6c7dd344efc@mail.gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
-References: <20070531002047.702473071@sgi.com>
-	 <20070531003012.302019683@sgi.com>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "clameter@sgi.com" <clameter@sgi.com>
+To: young dave <hidave.darkstar@gmail.com>
 Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, akpm@linux-foundation.org
 List-ID: <linux-mm.kvack.org>
 
-Hi Christoph,
+On Thu, 31 May 2007, young dave wrote:
 
->Introduce CONFIG_STABLE to control checks only useful for development.
+> Hi Christoph,
+> 
+> > Introduce CONFIG_STABLE to control checks only useful for development.
+> 
+> What about control checks only as SLUB_DEBUG is set?
 
-What about control checks only as SLUB_DEBUG is set?
+Debug code is always included in all builds unless it is an embedded 
+system. Debug code is kept out of the hot path.
 
-Regards
-dave
+Disabling SLUB_DEBUG should only be done for embedded systems. That is why 
+the option is in CONFIG_EMBEDDED.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
