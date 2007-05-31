@@ -1,61 +1,70 @@
-Date: Thu, 31 May 2007 07:15:39 +0200
-From: Nick Piggin <npiggin@suse.de>
-Subject: Re: [patch 12/41] fs: introduce write_begin, write_end, and perform_write aops
-Message-ID: <20070531051539.GK20107@wotan.suse.de>
-References: <20070524052844.860329000@suse.de> <20070524053155.065366000@linux.local0.net> <20070530213035.d7b6e3e0.akpm@linux-foundation.org> <20070531044327.GD20107@wotan.suse.de> <20070530215231.468e7f26.akpm@linux-foundation.org> <20070531045754.GE20107@wotan.suse.de> <20070530221121.7eadc807.akpm@linux-foundation.org>
-Mime-Version: 1.0
+Date: Wed, 30 May 2007 23:01:48 -0700
+From: Chris Wright <chrisw@sous-sol.org>
+Subject: Re: [RFC][PATCH] Replacing the /proc/<pid|self>/exe symlink code
+Message-ID: <20070531060148.GE3390@sequoia.sous-sol.org>
+References: <1180486369.11715.69.camel@localhost.localdomain> <20070530180923.GA22345@vino.hallyn.com>
+MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20070530221121.7eadc807.akpm@linux-foundation.org>
+In-Reply-To: <20070530180923.GA22345@vino.hallyn.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-fsdevel@vger.kernel.org, Mark Fasheh <mark.fasheh@oracle.com>, Linux Memory Management <linux-mm@kvack.org>
+To: "Serge E. Hallyn" <serge@hallyn.com>
+Cc: Matt Helsley <matthltc@us.ibm.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, May 30, 2007 at 10:11:21PM -0700, Andrew Morton wrote:
-> On Thu, 31 May 2007 06:57:54 +0200 Nick Piggin <npiggin@suse.de> wrote:
+* Serge E. Hallyn (serge@hallyn.com) wrote:
+> > ===================================================================
+> > --- linux-2.6.22-rc2-mm1.orig/kernel/exit.c
+> > +++ linux-2.6.22-rc2-mm1/kernel/exit.c
+> > @@ -924,10 +924,12 @@ fastcall void do_exit(long code)
+> >  	if (unlikely(tsk->audit_context))
+> >  		audit_free(tsk);
+> >  
+> >  	taskstats_exit(tsk, group_dead);
+> >  
+> > +	if (tsk->exe_file)
+> > +		fput(tsk->exe_file);
 > 
-> > > Don't know - I shelved the patches.
-> > 
-> > Oh, that didn't last long :P
-> 
-> I have a heap of other stuff to get out the door.  If I have to
-> do just two bisects then it's 4AM and I give up then I have to repull
-> everything and we're back to square one.
-> 
-> Fortunately, I didn't need to do a bisect this time.  That's unusual.
-> 
-> > 
-> > > Given the great pile of build errors, I think we need the next rev.
-> > 
-> > I was working on bringing some of the others uptodate (hopefully
-> > before you did another release). There is not much point in doing
-> > that if they don't get merged because the patches just break again.
-> 
-> There's not much point in sending build-busting patches either.  Lots
-> of people run allmodconfig.
-> 
-> My sympathy for broken patches is limited - you should see what happens
-> over here ;)
-> 
-> I can do you a rollup with those patches reinstated after I've done rc3-mm1
-> if you like.
+> just taking a cursory look so I may be missing something, but doesn't
+> this leave the possibility that right here, with tsk->exe_file being
+> put, another task would try to look at tsk's /proc/tsk->pid/exe?
 
-OK, if you are planning to get a release out now, that's fair
-enough.
+And I hit this one, so there's at least one issue.
 
-If you can send that rollup, it would be good. I could try getting
-everything to compile and do some more testing on it too.
- 
- 
-> > Were there build errors in any core code or converted filesystems?
-> > AFAIKS it was just in reiser4 and a couple of the "cont" filesystems
-> > that didn't get converted yet.
-> 
-> The _cont filesystems, reiser4 and that revoke warning.
-
-OK, thanks.
+[  110.296952] Unable to handle kernel NULL pointer dereference at 0000000000000088 RIP: 
+[  110.299053]  [<ffffffff80293fca>] d_path+0x1a/0x117
+[  110.301861] PGD 6d35a067 PUD 6d35e067 PMD 0 
+[  110.303509] Oops: 0000 [1] SMP 
+[  110.304719] CPU 1 
+[  110.305493] Modules linked in: oprofile
+[  110.306969] Pid: 3983, comm: pidof Not tainted 2.6.22-rc3-g7f397dcd-dirty #183
+[  110.309733] RIP: 0010:[<ffffffff80293fca>]  [<ffffffff80293fca>] d_path+0x1a/0x117
+[  110.312635] RSP: 0018:ffff810142335e38  EFLAGS: 00010292
+[  110.314667] RAX: ffff81006d58a000 RBX: 0000000000000000 RCX: 0000000000001000
+[  110.317397] RDX: ffff81006d58a000 RSI: 0000000000000000 RDI: 0000000000000000
+[  110.320127] RBP: ffff81006d58a000 R08: 00000000fffffff3 R09: 000000000006be8b
+[  110.322857] R10: 0000000000000000 R11: 0000000000000001 R12: 0000000000000000
+[  110.325588] R13: 0000000000001000 R14: ffff81006d58a000 R15: 00000000000000000
+[  110.328319] FS:  00002b033d578260(0000) GS:ffff81000106e480(0000) knlGS:0000000000000000
+[  110.331415] CS:  0010 DS: 0000 ES: 0000 CR0: 000000008005003b
+[  110.333613] CR2: 0000000000000088 CR3: 000000006cf54000 CR4: 00000000000006e0
+[  110.336344] Process pidof (pid: 3983, threadinfo ffff810142334000, task ffff8101421186c0)
+[  110.339472] Stack:  ffff8101422a7268 0000000000000000 ffff81006d58a000 00000000fffffff4
+[  110.342556]  0000000000000000 0000000000001000 0000000000678820 ffffffff802b7a54
+[  110.345404]  0000000000000000 0000000000000000 0000000000000000 0000000000000000
+[  110.348180] Call Trace:
+[  110.349188]  [<ffffffff802b7a54>] proc_pid_readlink+0x89/0xff
+[  110.351387]  [<ffffffff80285e55>] sys_readlinkat+0x87/0xa9
+[  110.353487]  [<ffffffff8026d4dc>] remove_vma+0x5d/0x64
+[  110.355455]  [<ffffffff80596acd>] error_exit+0x0/0x84
+[  110.357389]  [<ffffffff8020935e>] system_call+0x7e/0x83
+[  110.359388] 
+[  110.359958] 
+[  110.359958] Code: 48 8b 87 88 00 00 00 48 85 c0 74 20 48 8b 40 30 48 85 c0 74 
+[  110.363381] RIP  [<ffffffff80293fca>] d_path+0x1a/0x117
+[  110.365386]  RSP <ffff810142335e38>
+[  110.366720] CR2: 0000000000000088
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
