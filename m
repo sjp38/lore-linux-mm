@@ -1,102 +1,130 @@
-Date: Thu, 31 May 2007 12:25:44 -0700
-From: Paul Jackson <pj@sgi.com>
 Subject: Re: [PATCH] Document Linux Memory Policy
-Message-Id: <20070531122544.fd561de4.pj@sgi.com>
-In-Reply-To: <Pine.LNX.4.64.0705301042320.1195@schroedinger.engr.sgi.com>
+From: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
+In-Reply-To: <Pine.LNX.4.64.0705311130010.11008@schroedinger.engr.sgi.com>
 References: <1180467234.5067.52.camel@localhost>
-	<Pine.LNX.4.64.0705291247001.26308@schroedinger.engr.sgi.com>
-	<1180544104.5850.70.camel@localhost>
-	<Pine.LNX.4.64.0705301042320.1195@schroedinger.engr.sgi.com>
+	 <Pine.LNX.4.64.0705291247001.26308@schroedinger.engr.sgi.com>
+	 <1180544104.5850.70.camel@localhost>
+	 <Pine.LNX.4.64.0705301042320.1195@schroedinger.engr.sgi.com>
+	 <1180636096.5091.125.camel@localhost>
+	 <Pine.LNX.4.64.0705311130010.11008@schroedinger.engr.sgi.com>
+Content-Type: text/plain
+Date: Thu, 31 May 2007 15:29:04 -0400
+Message-Id: <1180639745.5091.186.camel@localhost>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Christoph Lameter <clameter@sgi.com>
-Cc: Lee.Schermerhorn@hp.com, linux-mm@kvack.org, akpm@linux-foundation.org, ak@suse.de
+Cc: linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Andi Kleen <ak@suse.de>, Gleb Natapov <glebn@voltaire.com>
 List-ID: <linux-mm.kvack.org>
 
-> They have to since they may be used to change page locations when policies 
-> are active. There is a libcpuset library that can be used for application 
-> control of cpusets. I think Paul would disagree with you here.
+On Thu, 2007-05-31 at 11:35 -0700, Christoph Lameter wrote:
+> On Thu, 31 May 2007, Lee Schermerhorn wrote:
+> 
+> > > It seems that you are creating some artificial problems here.
+> > 
+> > Christoph:  Let me assume you, I'm not persisting in this exchange
+> > because I'm enjoying it.  Quite the opposite, actually.  However, like
+> > you, my employer asks me to address our customers' requirements.  I'm
+> > trying to understand and play within the rules of the community.  I
+> > attempted this documentation patch to address what I saw as missing
+> > documentation and to provide context for further discussion of my patch
+> > set.  
+> 
+> Could you explain to us what kind of user scenario you are addressing? We 
+> have repeatedly asked you for that information. I am happy to hear that 
+> there is an actual customer requirement.
 
-In the most common usage, a batch scheduler uses cpusets to control
-a jobs memory and  placement, and application code within the job uses
-the memory policy calls (mbind, set_mempolicy) and scheduler policy
-call (set_schedaffinity) to manage its detailed placement.
+And I've tried to explain without "naming names".  Let me try it this
+way:  An multi-task application that mmap()s a large file--think O(1TB)
+or larger--shared.   You can think of it as an in-memory data base, but
+the size of the file could exceed physical memory. Various tasks of the
+application will access various portions of the memory area in different
+ways/with different frequencies, ... [sort of like Gleb described].  The
+memory region is large enough and cache locality poor enough that
+"locality matters".
 
-In particular, the memory policy calls can only be applied to the
-current task, so any larger scope control has to be done by cpusets.
+Why not just use shmem and read the file in at startup?  In those cases
+where it would fit, it takes quite a while to read a file of this size
+in, and processing can't start until it's all in.  Perhaps one could
+modify the application to carefully sequence the load so other tasks
+could get started before it's all in.  And, it only works if the access
+pattern is known a priori.  And, if the file is larger than memory,
+you'll need swap space to back it.
 
-The cpuset file system, with its traditional file system hierarchy
-and permission model, allows as much control as desired to be passed
-on to specific applications, and over time, I expect this to happen
-more.
+You want persistence across runs of the application--e.g., so that you
+could suspend it and continue later.  You could just write the entire
+shmem out at the end, but again, that takes a long time.  The
+application could keep track of which regions of memory have been
+modified and write them out incrementally, but with a mapped file, the
+kernel does this automatically [I won't say "for free" ;-)] with an
+occasional msync() or if reclaim becomes necessary. 
 
-However, there will always be a different focus here.
+Granted, these last 2 paragraphs describe how a number of large
+enterprise data bases work.  So, it's not impossible.  It IS a lot of
+work if you don't need the type of guarantees that those systems
+provide.
 
-The primary purpose of the memory and scheduler policy mechanisms is to
-maximize the efficient usage of available resources by a co-operating
-set of tasks - get tasks close to their memory and things like that.
-The mind set is "we own the machine - how can we best use it."  For
-example tightly coupled MPI jobs will need to place one compute bound
-thread on each processor, insure that nothing else is actively running
-on those processors, and place data close to task accessing it.  The
-expectation is that a jobs code may have to be modified, perhaps even
-radically rewritten with a new algorithm, to optimize processor and
-memory usage, as relative speeds of processor, memory and bus change.
+Why not just use task policy to place the pages?  Task policy affects
+all task allocations, including stack, heap, ...  Better to let those
+default to local.  Well, why not place the pages, lock them down and
+then change the task policy back to default/local?  File might not fit;
+even if it did, might not want to commit that much memory, ...  And,
+yes, it seems unnatural to have to jump through these hoops--at least
+for customers bringing applications from envrionments where they didn't
+have to.  [I know, I know.  Functional parity with other systems... Not
+a valid reason... Yada yada.  ;-)]
 
-The primary purpose of cpusets is job isolation, ensuring that one job
-does not interfere with another, by keeping the jobs on separate cpus
-and memory nodes.  The mind set is "how can we keep these several jobs
-out of each others hair, minimizing any impact of one jobs resource
-usage on the runtime of another."  The expectation is that jobs must
-be controlled externally, without any change to the jobs code or even
-any expertise in the fine grained memory or scheduler policy behaviour
-of the job.
+> 
+> > My point was that the description of MPOL_DEFAULT made reference to the
+> > zonelists built at boot time, to distinguish them from the custom
+> > zonelists built for an MPOL_BIND.  Since the zonelist reorder patch
+> > hasn't made it out of Andrew's tree yet, I didn't want to refer to it
+> > this round of the doc.  If it makes it into the tree, I had planned say
+> > something like:  "at boot time or on request".  I should probably add
+> > "or on memory hotplug".
+> 
+> Hmmm... The zonelists for MPOL_BIND are never rebuilt by Kame-san's 
+> patches. That  is a concern.
 
-It may well make sense to document memory policy, for the developers
-of large applications that need to use the scheduler or memory policy
-routines to manage their multi-threaded, or multiple memory node (NUMA)
-placement, -separate- from documenting cpuset placement of jobs on cpus
-and memory.  It's a quite different audience.  In so far as possible,
-the cpuset code was designed to enable controlling the placement of
-jobs without the developer of those jobs, who might be using the
-scheduler and memory placement calls, being aware of cpusets -- it's
-just a smaller machine available to their job.  Migration should also
-be transparent to them -- their machine moved, that's all.
+Yes.  And as we noted earlier, even the initial ones don't consider
+distance.  The latter should be relatively easy to fix, as we have code
+that does it for the node zonelists.  Would require some generalization.
 
-Unfortunately there are a couple of details that leak through:
- 1) big apps using scheduler and memory policy calls often want to
-    know how "big" their machine is, which changes under cpusets
-    from the physical size of the system, and
- 2) the sched_setaffinity, mbind and set_mempolicy calls take hard
-    physical CPU and Memory Node numbers, which change under migration
-    non-transparently.
+Rebuilding policy zonelists would require finding them all somehow.
+Either an expensive system [cpuset] wide scan or a system-wide/per
+cpuset list of [MPOL-BIND] policies.  A per cpuset list might reduce the
+scope of the rebuild, but you'd have to scan tasks and reparent their
+policies when move them between cpusets.  Not pretty either way.
 
-Therefore I have in libcpuset two kinds of routines:
- 1) a large powerful set used by heavy weight batch schedulers to
-    provide sophisticated job placement, and
- 2) a small simple set used by applications that provide an interface
-    to sched_setaffinity, mbind and set_mempolicy that is virtualized
-    to the cpuset, providing cpuset relative CPU and Memory Node
-    numbering and cpuset relative sizes, safely usable from an
-    application across a migration to different nodes, without
-    application awareness.
+> 
+> > But, after I see what gets accepted into the man pages that I've agreed
+> > to update, I'll consider dropping this section altogether.  Maybe the
+> > entire document.
+> 
+> I'd be very thankful if you could upgrade the manpages. Andi has some 
+> patches from me against numactl pending that include manpage 
+> updatess. I can forward that too you.
+> 
+> > > page cache pages are subject to a tasks memory policy regardless of how we 
+> > > get to the page cache page. I think that is pretty consistent.
+> > 
+> > Oh, it's consistent, alright.  Just not pretty [;-)] when it's not what
+> > the application wants.
+> 
+> I sure hope that we can at some point figure out what your applications is 
+> doing. Its been a hard road to that information so far.
+> 
 
-The ancient, Linux 2.4 kernel based, libcpuset on oss.sgi.com is
-really ancient and not relevant here.  The cpuset mechanism in
-Linux 2.6 is a complete redesign from SGI's cpumemset mechanism
-for Linux 2.4 kernels.
+I thought I'd explained before.  I guess just too abstractly.  Maybe the
+description above is a too abstract as well.   However, Gleb's
+application has similar requirements--he wants to control the location
+of pages in a shared, mmap'ed file using explicit policies.  He's even
+willing to issue the identical policy calls from each task--something I
+don't think he should need to do--to accomplish it.  But, it still won't
+work for him...
 
-SGI releases libcpuset under GPL license, though currently I've just
-set this up for customers of SGI's software.  Someday I hope to get
-the current libcpuset up on oss.sgi.com, for all to use.
-
--- 
-                  I won't rest till it's the best ...
-                  Programmer, Linux Scalability
-                  Paul Jackson <pj@sgi.com> 1.925.600.0401
+Lee
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
