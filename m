@@ -1,45 +1,30 @@
-Message-Id: <20070531003012.765913558@sgi.com>
+Received: by an-out-0708.google.com with SMTP id d33so971804and
+        for <linux-mm@kvack.org>; Wed, 30 May 2007 17:35:57 -0700 (PDT)
+Message-ID: <a8e1da0705301735r5619f79axcb3ea6c7dd344efc@mail.gmail.com>
+Date: Thu, 31 May 2007 00:35:56 +0000
+From: "young dave" <hidave.darkstar@gmail.com>
+Subject: Re: [RFC 1/4] CONFIG_STABLE: Define it
+In-Reply-To: <20070531003012.302019683@sgi.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
 References: <20070531002047.702473071@sgi.com>
-Date: Wed, 30 May 2007 17:20:50 -0700
-From: clameter@sgi.com
-Subject: [RFC 3/4] CONFIG_STABLE: Switch off SLUB banner
-Content-Disposition: inline; filename=stable_no_slub_banner
+	 <20070531003012.302019683@sgi.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-kernel@vger.kernel.org
-Cc: linux-mm@kvack.org, akpm@linux-foundation.org
+To: "clameter@sgi.com" <clameter@sgi.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, akpm@linux-foundation.org
 List-ID: <linux-mm.kvack.org>
 
-The one line that SLUB prints on bootup is useful for debugging but I do not
-think that we would like to have it on in stable kernels.
+Hi Christoph,
 
-Signed-off-by: Christoph Lameter <clameter@sgi.com>
+>Introduce CONFIG_STABLE to control checks only useful for development.
 
----
- mm/slub.c |    3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
+What about control checks only as SLUB_DEBUG is set?
 
-Index: slub/mm/slub.c
-===================================================================
---- slub.orig/mm/slub.c	2007-05-30 16:40:04.000000000 -0700
-+++ slub/mm/slub.c	2007-05-30 16:40:40.000000000 -0700
-@@ -2518,12 +2518,13 @@ void __init kmem_cache_init(void)
- 
- 	kmem_size = offsetof(struct kmem_cache, cpu_slab) +
- 				nr_cpu_ids * sizeof(struct page *);
--
-+#ifndef CONFIG_STABLE
- 	printk(KERN_INFO "SLUB: Genslabs=%d, HWalign=%d, Order=%d-%d, MinObjects=%d,"
- 		" Processors=%d, Nodes=%d\n",
- 		KMALLOC_SHIFT_HIGH, cache_line_size(),
- 		slub_min_order, slub_max_order, slub_min_objects,
- 		nr_cpu_ids, nr_node_ids);
-+#endif
- }
- 
- /*
-
--- 
+Regards
+dave
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
