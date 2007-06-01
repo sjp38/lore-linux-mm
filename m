@@ -1,7 +1,7 @@
-Date: Fri, 1 Jun 2007 13:13:17 +0900
+Date: Fri, 1 Jun 2007 13:25:15 +0900
 From: Paul Mundt <lethal@linux-sh.org>
-Subject: [PATCH] slab: Fix slab debug for non alien caches.
-Message-ID: <20070601041317.GA8490@linux-sh.org>
+Subject: [PATCH] sparsemem: Shut up unused symbol compiler warnings.
+Message-ID: <20070601042515.GA8628@linux-sh.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
@@ -11,40 +11,81 @@ To: Andrew Morton <akpm@linux-foundation.org>
 Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-Currently when slab debugging is enabled, the WARN_ON() nodeid checks
-trigger if we boot with 'noaliencache'. In the noaliencache case the
-WARN_ON()'s seem to be superfluous, so only bother doing the nodeid
-comparison if use_alien_caches is set.
+__kmalloc_section_memmap()/__kfree_section_memmap() and friends are only
+used by the memory hotplug code. Move these in to the existing
+CONFIG_MEMORY_HOTPLUG block.
 
 Signed-off-by: Paul Mundt <lethal@linux-sh.org>
 
 --
 
- mm/slab.c |    4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ mm/sparse.c |   42 +++++++++++++++++++++---------------------
+ 1 file changed, 21 insertions(+), 21 deletions(-)
 
-diff --git a/mm/slab.c b/mm/slab.c
-index 2e71a32..88db26b 100644
---- a/mm/slab.c
-+++ b/mm/slab.c
-@@ -2663,7 +2663,7 @@ static void *slab_get_obj(struct kmem_cache *cachep, struct slab *slabp,
- 	next = slab_bufctl(slabp)[slabp->free];
- #if DEBUG
- 	slab_bufctl(slabp)[slabp->free] = BUFCTL_FREE;
--	WARN_ON(slabp->nodeid != nodeid);
-+	WARN_ON(use_alien_caches && slabp->nodeid != nodeid);
+diff --git a/mm/sparse.c b/mm/sparse.c
+index 1302f83..35f739a 100644
+--- a/mm/sparse.c
++++ b/mm/sparse.c
+@@ -229,6 +229,7 @@ static struct page __init *sparse_early_mem_map_alloc(unsigned long pnum)
+ 	return NULL;
+ }
+ 
++#ifdef CONFIG_MEMORY_HOTPLUG
+ static struct page *__kmalloc_section_memmap(unsigned long nr_pages)
+ {
+ 	struct page *page, *ret;
+@@ -269,27 +270,6 @@ static void __kfree_section_memmap(struct page *memmap, unsigned long nr_pages)
+ }
+ 
+ /*
+- * Allocate the accumulated non-linear sections, allocate a mem_map
+- * for each and record the physical to section mapping.
+- */
+-void __init sparse_init(void)
+-{
+-	unsigned long pnum;
+-	struct page *map;
+-
+-	for (pnum = 0; pnum < NR_MEM_SECTIONS; pnum++) {
+-		if (!valid_section_nr(pnum))
+-			continue;
+-
+-		map = sparse_early_mem_map_alloc(pnum);
+-		if (!map)
+-			continue;
+-		sparse_init_one_section(__nr_to_section(pnum), pnum, map);
+-	}
+-}
+-
+-#ifdef CONFIG_MEMORY_HOTPLUG
+-/*
+  * returns the number of sections whose mem_maps were properly
+  * set.  If this is <=0, then that means that the passed-in
+  * map was not consumed and must be freed.
+@@ -329,3 +309,23 @@ out:
+ 	return ret;
+ }
  #endif
- 	slabp->free = next;
- 
-@@ -2677,7 +2677,7 @@ static void slab_put_obj(struct kmem_cache *cachep, struct slab *slabp,
- 
- #if DEBUG
- 	/* Verify that the slab belongs to the intended node */
--	WARN_ON(slabp->nodeid != nodeid);
-+	WARN_ON(use_alien_caches && slabp->nodeid != nodeid);
- 
- 	if (slab_bufctl(slabp)[objnr] + 1 <= SLAB_LIMIT + 1) {
- 		printk(KERN_ERR "slab: double free detected in cache "
++
++/*
++ * Allocate the accumulated non-linear sections, allocate a mem_map
++ * for each and record the physical to section mapping.
++ */
++void __init sparse_init(void)
++{
++	unsigned long pnum;
++	struct page *map;
++
++	for (pnum = 0; pnum < NR_MEM_SECTIONS; pnum++) {
++		if (!valid_section_nr(pnum))
++			continue;
++
++		map = sparse_early_mem_map_alloc(pnum);
++		if (!map)
++			continue;
++		sparse_init_one_section(__nr_to_section(pnum), pnum, map);
++	}
++}
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
