@@ -1,62 +1,55 @@
-Date: Fri, 1 Jun 2007 11:25:49 -0700 (PDT)
+Date: Fri, 1 Jun 2007 11:38:11 -0700 (PDT)
 From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [RFC 1/4] CONFIG_STABLE: Define it
-In-Reply-To: <20070601180807.GB7968@redhat.com>
-Message-ID: <Pine.LNX.4.64.0706011115120.2284@schroedinger.engr.sgi.com>
-References: <20070531002047.702473071@sgi.com> <20070531003012.302019683@sgi.com>
- <a8e1da0705301735r5619f79axcb3ea6c7dd344efc@mail.gmail.com>
- <Pine.LNX.4.64.0705301747370.4809@schroedinger.engr.sgi.com>
- <20070601180807.GB7968@redhat.com>
+Subject: Re: [RFC 0/4] CONFIG_STABLE to switch off development checks
+In-Reply-To: <46603371.50808@goop.org>
+Message-ID: <Pine.LNX.4.64.0706011126030.2284@schroedinger.engr.sgi.com>
+References: <20070531002047.702473071@sgi.com> <46603371.50808@goop.org>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Dave Jones <davej@redhat.com>
-Cc: young dave <hidave.darkstar@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, akpm@linux-foundation.org
+To: Jeremy Fitzhardinge <jeremy@goop.org>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, akpm@linux-foundation.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 1 Jun 2007, Dave Jones wrote:
+On Fri, 1 Jun 2007, Jeremy Fitzhardinge wrote:
 
->  > Disabling SLUB_DEBUG should only be done for embedded systems. That is why 
->  > the option is in CONFIG_EMBEDDED.
-> 
-> Something I'd really love to have is a CONFIG option to decide if
-> slub_debug is set or not by default.  The reasoning behind this is that during
-> development of each Fedora release, I used to leave SLAB_DEBUG=y for
-> months on end and catch all kinds of nasties.
+> Perhaps I missed it, but what's the rationale for complaining about
+> 0-sized allocations?  They seem like a perfectly reasonable thing to me;
+> they turn up at the boundary conditions of many algorithms, and avoiding
+> them just cruds up the callsites to make them go through hoops to avoid
+> allocation. 
 
-So slub_debug as a boot parameter is not enough.
+Hmmm... We got there because SLUB initially return NULL for kmalloc(0). 
+Rationale: The user did not request any memory so we wont give him 
+any.
 
-> Now that I've switched it over to using slub, I ended up adding the
-> ugly patch below, because otherwise, no-one would ever run with
-> slub_debug and we'd miss out on all those lovely bugs.
-
-Oh. No worry. By default slub puts its free pointer in the most dangerous 
-area. In my experience it will bug immediately if there is something 
-wrong. The mode of operations that I had in mind for development was to 
-run until we crash somewhere. Then reboot with slub_debug to get the 
-lovely report on who did it.
-
-> (I have 'make release' and 'make debug' targets which enable/disable
->  this [and other] patches in the Fedora kernel).
-> 
-> (Patch for illustration only, obviously not for applying).
-
-Hummm..... I need to think about this one.
+That (to my surprise) caused some strange behavior of code and so we then 
+decided to keep SLAB behavior and return the smallest available object 
+size and put a warning in there. At some later point we plan to switch
+to returning NULL for kmalloc(0).
  
-> Unless someone beats me to it, I'll hack up a CONFIG option around
-> this. Having that turned on if !CONFIG_STABLE would also be a win I think.
+> Why not just do a 1 byte allocation instead, and be done with it?  Any
+> non-constant-sized allocation will potentially have to deal with this
+> case, so it seems to me we could just put the fix in common code (and
+> use an inline wrapper to avoid it when dealing with constant non-zero
+> sized allocations).
 
-Doing so will impair performance testing. Memory use will be changed due 
-to the growth of all the objects etc etc. Generally I think running 
-with slub_debug by default is overkill. 
+The smallest allocation that SLUB can do is 8 bytes (SLAB 32). We are
+giving the user the smallest object that we can allocate. We could just 
+remove the warning and would have the behavior that you want.
 
-Having said that you can do even more if you would run
+But now allocating code gets memory although none was requested. The 
+object can be modified without us being able to check.
 
-slabinfo -v
+By returning NULL any use of the returned pointer would BUG.
 
-to validate object from cron. That way you can check up on all slab 
-objects.
+An allocation of zero bytes usually indicates that the code is not dealing 
+with a special case. Later code may operate on the allocated object. I 
+think its clearer and cleaner if code would deal with that special case 
+explicitly. We have seen a series of code pieces that do uncomfortably 
+looking operations on structures with no objects.
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
