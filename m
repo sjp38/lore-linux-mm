@@ -1,40 +1,92 @@
-Date: Fri, 1 Jun 2007 11:43:57 -0700 (PDT)
-From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [PATCH] Document Linux Memory Policy
-In-Reply-To: <1180718106.5278.28.camel@localhost>
-Message-ID: <Pine.LNX.4.64.0706011140330.2643@schroedinger.engr.sgi.com>
-References: <1180467234.5067.52.camel@localhost>  <200705312243.20242.ak@suse.de>
- <20070601093803.GE10459@minantech.com>  <200706011221.33062.ak@suse.de>
- <1180718106.5278.28.camel@localhost>
+Message-ID: <46606C71.9010008@goop.org>
+Date: Fri, 01 Jun 2007 11:58:57 -0700
+From: Jeremy Fitzhardinge <jeremy@goop.org>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: [RFC 0/4] CONFIG_STABLE to switch off development checks
+References: <20070531002047.702473071@sgi.com> <46603371.50808@goop.org> <Pine.LNX.4.64.0706011126030.2284@schroedinger.engr.sgi.com>
+In-Reply-To: <Pine.LNX.4.64.0706011126030.2284@schroedinger.engr.sgi.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
-Cc: Andi Kleen <ak@suse.de>, Gleb Natapov <glebn@voltaire.com>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>
+To: Christoph Lameter <clameter@sgi.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, akpm@linux-foundation.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 1 Jun 2007, Lee Schermerhorn wrote:
+Christoph Lameter wrote:
+> Hmmm... We got there because SLUB initially return NULL for kmalloc(0). 
+> Rationale: The user did not request any memory so we wont give him 
+> any.
+>
+> That (to my surprise) caused some strange behavior of code and so we then 
+> decided to keep SLAB behavior and return the smallest available object 
+> size and put a warning in there. At some later point we plan to switch
+> to returning NULL for kmalloc(0).
+>   
 
-> Like Gleb, I find the different behaviors for different memory regions
-> to be unnatural.  Not because of the fraction of applications or
-> deployments that might use them, but because [speaking for customers] I
-> expect and want to be able to control placement of any object mapped
-> into an application's address space, subject to permissions and
-> privileges.
+Unfortunately, returning NULL is indistinguishable from ENOMEM, so the
+caller would have to check to see how much it asked for before deciding
+to really fail, which doesn't help things much.
 
-Same here and I wish we had a clean memory region based implementation.
-But that is just what your patches do *not* provide. Instead they are file 
-based. They should be memory region based.
+Or does it (should it) return ERRPTR(-ENOMEM)?  Bit of a major API
+change if not.
 
-Would you please come up with such a solution?
+>> Why not just do a 1 byte allocation instead, and be done with it?  Any
+>> non-constant-sized allocation will potentially have to deal with this
+>> case, so it seems to me we could just put the fix in common code (and
+>> use an inline wrapper to avoid it when dealing with constant non-zero
+>> sized allocations).
+>>     
+>
+> The smallest allocation that SLUB can do is 8 bytes (SLAB 32). We are
+> giving the user the smallest object that we can allocate. We could just 
+> remove the warning and would have the behavior that you want.
+>   
 
-> Then why does Christoph keep insisting that "page cache pages" must
-> always follow task policy, when shmem, tmpfs and anonymous pages don't
-> have to?
+I think that's reasonable.  0-sized allocations seem to be relatively
+rare anyway, so its not like we're going to be filling the heap with
+these things.
 
-No I just said that the page cache handling is consistently following task 
-policy.
+I'm getting a couple of these warnings out of my code, but I've been
+hesitating about fixing them because I can't see it resulting in any
+improvement, either locally or globally - it would just be to shut the
+warning up.
+
+> But now allocating code gets memory although none was requested. The 
+> object can be modified without us being able to check.
+>   
+
+Yes, that's a problem, but maybe heap debugging would help (ie, if
+enabled make sure the "zero-sized allocation" pattern is undisturbed). 
+Or return a pointer to a specific non-NULL unmapped address, though that
+would need special handling on the free side.  Also, callers may get
+upset if they get non-unique non-NULL addresses back from allocation.
+
+> By returning NULL any use of the returned pointer would BUG.
+>   
+
+Well, actually it would stomp usermode memory, but we generally assume
+there's nothing mapped at 0.  Or there are no bugs.
+
+> An allocation of zero bytes usually indicates that the code is not dealing 
+> with a special case. Later code may operate on the allocated object. I 
+> think its clearer and cleaner if code would deal with that special case 
+> explicitly. We have seen a series of code pieces that do uncomfortably 
+> looking operations on structures with no objects.
+>   
+
+I disagree.  There are plenty of boundary conditions where 0 is not
+really a special case, and making it a special case just complicates
+things.  I think at least some of the patches posted to silence this
+warning have been generally negative for code quality.  If we were
+seeing lots of zero-sized allocations then that might indicate something
+is amiss, but it seems to me that there's just a scattered handful.
+
+I agree that it's always a useful debugging aid to make sure that
+allocated regions are not over-run, but 0-sized allocations are not
+special in this regard.
+
+    J
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
