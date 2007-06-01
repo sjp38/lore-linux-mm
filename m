@@ -1,300 +1,183 @@
 From: Mel Gorman <mel@csn.ul.ie>
-Message-Id: <20070601163051.24933.44130.sendpatchset@skynet.skynet.ie>
+Message-Id: <20070601163111.24933.32685.sendpatchset@skynet.skynet.ie>
 In-Reply-To: <20070601163010.24933.87242.sendpatchset@skynet.skynet.ie>
 References: <20070601163010.24933.87242.sendpatchset@skynet.skynet.ie>
-Subject: [PATCH 2/3] Print out statistics in relation to fragmentation avoidance to /proc/pagetypeinfo
-Date: Fri,  1 Jun 2007 17:30:51 +0100 (IST)
+Subject: [PATCH 3/3] Print out PAGE_OWNER statistics in relation to fragmentation avoidance
+Date: Fri,  1 Jun 2007 17:31:11 +0100 (IST)
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: akpm@linux-foundation.org
 Cc: Mel Gorman <mel@csn.ul.ie>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-This patch provides fragmentation avoidance statistics via
-/proc/pagetypeinfo. The information is collected only on request so there
-is no runtime overhead. The statistics are in three parts:
+When PAGE_OWNER is set, more information is available of relevance
+to fragmentation avoidance. A second line is added to /proc/page_owner
+showing the PFN, the pageblock number, the mobility type of the page based
+on its allocation flags, whether the allocation is improperly placed and
+the flags. A sample entry looks like
 
-The first part prints information on the size of blocks that pages are
-being grouped on and looks like
+Page allocated via order 0, mask 0x1280d2
+PFN 7355 Block 7 type 3 Fallback Flags      LA     
+[0xc01528c6] __handle_mm_fault+598
+[0xc0320427] do_page_fault+279
+[0xc031ed9a] error_code+114
 
-Page block order: 10
-Pages per block:  1024
+This information can be used to identify pages that are improperly placed. As
+the format of PAGE_OWNER data is now different, the comment at the top of
+Documentation/page_owner.c is updated with new instructions.
 
-The second part is a more detailed version of /proc/buddyinfo and looks like
+As PAGE_OWNER tracks the GFP flags used to allocate the pages,
+/proc/pagetypeinfo is enhanced to contain how many mixed blocks exist. The
+additional output looks like
 
-Free pages count per migrate type at order       0      1      2      3      4      5      6      7      8      9     10 
-Node    0, zone      DMA, type    Unmovable      0      0      0      0      0      0      0      0      0      0      0
-Node    0, zone      DMA, type  Reclaimable      1      0      0      0      0      0      0      0      0      0      0
-Node    0, zone      DMA, type      Movable      0      0      0      0      0      0      0      0      0      0      0
-Node    0, zone      DMA, type      Reserve      0      4      4      0      0      0      0      1      0      1      0
-Node    0, zone   Normal, type    Unmovable    111      8      4      4      2      3      1      0      0      0      0
-Node    0, zone   Normal, type  Reclaimable    293     89      8      0      0      0      0      0      0      0      0
-Node    0, zone   Normal, type      Movable      1      6     13      9      7      6      3      0      0      0      0
-Node    0, zone   Normal, type      Reserve      0      0      0      0      0      0      0      0      0      0      4
-
-The third part looks like
-
-Number of blocks type     Unmovable  Reclaimable      Movable      Reserve
+Number of mixed blocks    Unmovable  Reclaimable      Movable      Reserve
 Node 0, zone      DMA            0            1            2            1
-Node 0, zone   Normal            3           17           94            4
-
-To walk the zones within a node with interrupts disabled, walk_zones_in_node()
-is introduced and shared between /proc/buddyinfo, /proc/zoneinfo and
-/proc/pagetypeinfo to reduce code duplication. It seems specific to what
-vmstat.c requires but could be broken out as a general utility function in
-mmzone.c if there were other other potential users.
+Node 0, zone   Normal            2           11           33            0
 
 Signed-off-by: Mel Gorman <mel@csn.ul.ie>
 Acked-by: Andy Whitcroft <apw@shadowen.org>
 Acked-by: Christoph Lameter <clameter@sgi.com>
 ---
 
- fs/proc/proc_misc.c    |   14 ++
- include/linux/gfp.h    |   12 +
- include/linux/mmzone.h |   10 +
- mm/page_alloc.c        |   20 ---
- mm/vmstat.c            |  284 +++++++++++++++++++++++++++++++-------------
- 5 files changed, 240 insertions(+), 100 deletions(-)
+ Documentation/page_owner.c |    3 -
+ fs/proc/proc_misc.c        |   28 ++++++++++++
+ mm/vmstat.c                |   93 ++++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 123 insertions(+), 1 deletion(-)
 
-diff -rup -X /usr/src/patchset-0.6/bin//dontdiff linux-2.6.22-rc3-mm1-004_group_arbitrary/fs/proc/proc_misc.c linux-2.6.22-rc3-mm1-005_statistics/fs/proc/proc_misc.c
---- linux-2.6.22-rc3-mm1-004_group_arbitrary/fs/proc/proc_misc.c	2007-06-01 09:24:38.000000000 +0100
-+++ linux-2.6.22-rc3-mm1-005_statistics/fs/proc/proc_misc.c	2007-06-01 10:33:50.000000000 +0100
-@@ -232,6 +232,19 @@ static const struct file_operations frag
- 	.release	= seq_release,
- };
+diff -rup -X /usr/src/patchset-0.6/bin//dontdiff linux-2.6.22-rc3-mm1-005_statistics/Documentation/page_owner.c linux-2.6.22-rc3-mm1-006_statistics_owner/Documentation/page_owner.c
+--- linux-2.6.22-rc3-mm1-005_statistics/Documentation/page_owner.c	2007-06-01 09:24:34.000000000 +0100
++++ linux-2.6.22-rc3-mm1-006_statistics_owner/Documentation/page_owner.c	2007-06-01 10:38:14.000000000 +0100
+@@ -2,7 +2,8 @@
+  * User-space helper to sort the output of /proc/page_owner
+  *
+  * Example use:
+- * cat /proc/page_owner > page_owner.txt
++ * cat /proc/page_owner > page_owner_full.txt
++ * grep -v ^PFN page_owner_full.txt > page_owner.txt
+  * ./sort page_owner.txt sorted_page_owner.txt
+ */
  
-+extern struct seq_operations pagetypeinfo_op;
-+static int pagetypeinfo_open(struct inode *inode, struct file *file)
-+{
-+	return seq_open(file, &pagetypeinfo_op);
-+}
-+
-+static const struct file_operations pagetypeinfo_file_ops = {
-+	.open		= pagetypeinfo_open,
-+	.read		= seq_read,
-+	.llseek		= seq_lseek,
-+	.release	= seq_release,
-+};
-+
- extern struct seq_operations zoneinfo_op;
- static int zoneinfo_open(struct inode *inode, struct file *file)
- {
-@@ -882,6 +895,7 @@ void __init proc_misc_init(void)
- #endif
- #endif
- 	create_seq_entry("buddyinfo",S_IRUGO, &fragmentation_file_operations);
-+	create_seq_entry("pagetypeinfo", S_IRUGO, &pagetypeinfo_file_ops);
- 	create_seq_entry("vmstat",S_IRUGO, &proc_vmstat_file_operations);
- 	create_seq_entry("zoneinfo",S_IRUGO, &proc_zoneinfo_file_operations);
- #ifdef CONFIG_BLOCK
-diff -rup -X /usr/src/patchset-0.6/bin//dontdiff linux-2.6.22-rc3-mm1-004_group_arbitrary/include/linux/gfp.h linux-2.6.22-rc3-mm1-005_statistics/include/linux/gfp.h
---- linux-2.6.22-rc3-mm1-004_group_arbitrary/include/linux/gfp.h	2007-06-01 09:24:41.000000000 +0100
-+++ linux-2.6.22-rc3-mm1-005_statistics/include/linux/gfp.h	2007-06-01 10:33:50.000000000 +0100
-@@ -101,6 +101,18 @@ struct vm_area_struct;
- /* 4GB DMA on some platforms */
- #define GFP_DMA32	__GFP_DMA32
+diff -rup -X /usr/src/patchset-0.6/bin//dontdiff linux-2.6.22-rc3-mm1-005_statistics/fs/proc/proc_misc.c linux-2.6.22-rc3-mm1-006_statistics_owner/fs/proc/proc_misc.c
+--- linux-2.6.22-rc3-mm1-005_statistics/fs/proc/proc_misc.c	2007-06-01 10:33:50.000000000 +0100
++++ linux-2.6.22-rc3-mm1-006_statistics_owner/fs/proc/proc_misc.c	2007-06-01 10:38:14.000000000 +0100
+@@ -761,6 +761,7 @@ read_page_owner(struct file *file, char 
+ 	unsigned long offset = 0, symsize;
+ 	int i;
+ 	ssize_t num_written = 0;
++	int blocktype = 0, pagetype = 0;
  
-+/* Convert GFP flags to their corresponding migrate type */
-+static inline int allocflags_to_migratetype(gfp_t gfp_flags)
-+{
-+	WARN_ON((gfp_flags & GFP_MOVABLE_MASK) == GFP_MOVABLE_MASK);
-+
-+	if (unlikely(page_group_by_mobility_disabled))
-+		return MIGRATE_UNMOVABLE;
-+
-+	/* Group based on mobility */
-+	return (((gfp_flags & __GFP_MOVABLE) != 0) << 1) |
-+		((gfp_flags & __GFP_RECLAIMABLE) != 0);
-+}
- 
- static inline enum zone_type gfp_zone(gfp_t flags)
- {
-diff -rup -X /usr/src/patchset-0.6/bin//dontdiff linux-2.6.22-rc3-mm1-004_group_arbitrary/include/linux/mmzone.h linux-2.6.22-rc3-mm1-005_statistics/include/linux/mmzone.h
---- linux-2.6.22-rc3-mm1-004_group_arbitrary/include/linux/mmzone.h	2007-06-01 10:16:26.000000000 +0100
-+++ linux-2.6.22-rc3-mm1-005_statistics/include/linux/mmzone.h	2007-06-01 10:33:50.000000000 +0100
-@@ -45,6 +45,16 @@ extern int page_group_by_mobility_disabl
- 	for (order = 0; order < MAX_ORDER; order++) \
- 		for (type = 0; type < MIGRATE_TYPES; type++)
- 
-+extern int page_group_by_mobility_disabled;
-+
-+static inline int get_pageblock_migratetype(struct page *page)
-+{
-+	if (unlikely(page_group_by_mobility_disabled))
-+		return MIGRATE_UNMOVABLE;
-+
-+	return get_pageblock_flags_group(page, PB_migrate, PB_migrate_end);
-+}
-+
- struct free_area {
- 	struct list_head	free_list[MIGRATE_TYPES];
- 	unsigned long		nr_free;
-diff -rup -X /usr/src/patchset-0.6/bin//dontdiff linux-2.6.22-rc3-mm1-004_group_arbitrary/mm/page_alloc.c linux-2.6.22-rc3-mm1-005_statistics/mm/page_alloc.c
---- linux-2.6.22-rc3-mm1-004_group_arbitrary/mm/page_alloc.c	2007-06-01 10:31:18.000000000 +0100
-+++ linux-2.6.22-rc3-mm1-005_statistics/mm/page_alloc.c	2007-06-01 10:33:50.000000000 +0100
-@@ -155,32 +155,12 @@ EXPORT_SYMBOL(nr_node_ids);
- 
- int page_group_by_mobility_disabled __read_mostly;
- 
--static inline int get_pageblock_migratetype(struct page *page)
--{
--	if (unlikely(page_group_by_mobility_disabled))
--		return MIGRATE_UNMOVABLE;
--
--	return get_pageblock_flags_group(page, PB_migrate, PB_migrate_end);
--}
--
- static void set_pageblock_migratetype(struct page *page, int migratetype)
- {
- 	set_pageblock_flags_group(page, (unsigned long)migratetype,
- 					PB_migrate, PB_migrate_end);
- }
- 
--static inline int allocflags_to_migratetype(gfp_t gfp_flags)
--{
--	WARN_ON((gfp_flags & GFP_MOVABLE_MASK) == GFP_MOVABLE_MASK);
--
--	if (unlikely(page_group_by_mobility_disabled))
--		return MIGRATE_UNMOVABLE;
--
--	/* Cluster based on mobility */
--	return (((gfp_flags & __GFP_MOVABLE) != 0) << 1) |
--		((gfp_flags & __GFP_RECLAIMABLE) != 0);
--}
--
- #ifdef CONFIG_DEBUG_VM
- static int page_outside_zone_boundaries(struct zone *zone, struct page *page)
- {
-diff -rup -X /usr/src/patchset-0.6/bin//dontdiff linux-2.6.22-rc3-mm1-004_group_arbitrary/mm/vmstat.c linux-2.6.22-rc3-mm1-005_statistics/mm/vmstat.c
---- linux-2.6.22-rc3-mm1-004_group_arbitrary/mm/vmstat.c	2007-06-01 09:24:41.000000000 +0100
-+++ linux-2.6.22-rc3-mm1-005_statistics/mm/vmstat.c	2007-06-01 10:33:50.000000000 +0100
-@@ -397,6 +397,13 @@ void zone_statistics(struct zonelist *zo
- 
- #include <linux/seq_file.h>
- 
-+static char * const migratetype_names[MIGRATE_TYPES] = {
-+	"Unmovable",
-+	"Reclaimable",
-+	"Movable",
-+	"Reserve",
-+};
-+
- static void *frag_start(struct seq_file *m, loff_t *pos)
- {
- 	pg_data_t *pgdat;
-@@ -421,28 +428,144 @@ static void frag_stop(struct seq_file *m
- {
- }
- 
--/*
-- * This walks the free areas for each zone.
-- */
--static int frag_show(struct seq_file *m, void *arg)
-+/* Walk all the zones in a node and print using a callback */
-+static void walk_zones_in_node(struct seq_file *m, pg_data_t *pgdat,
-+		void (*print)(struct seq_file *m, pg_data_t *, struct zone *))
- {
--	pg_data_t *pgdat = (pg_data_t *)arg;
- 	struct zone *zone;
- 	struct zone *node_zones = pgdat->node_zones;
- 	unsigned long flags;
--	int order;
- 
- 	for (zone = node_zones; zone - node_zones < MAX_NR_ZONES; ++zone) {
- 		if (!populated_zone(zone))
- 			continue;
- 
- 		spin_lock_irqsave(&zone->lock, flags);
--		seq_printf(m, "Node %d, zone %8s ", pgdat->node_id, zone->name);
--		for (order = 0; order < MAX_ORDER; ++order)
--			seq_printf(m, "%6lu ", zone->free_area[order].nr_free);
-+		print(m, pgdat, zone);
- 		spin_unlock_irqrestore(&zone->lock, flags);
-+	}
-+}
-+
-+static void frag_show_print(struct seq_file *m, pg_data_t *pgdat,
-+						struct zone *zone)
-+{
-+	int order;
-+
-+	seq_printf(m, "Node %d, zone %8s ", pgdat->node_id, zone->name);
-+	for (order = 0; order < MAX_ORDER; ++order)
-+		seq_printf(m, "%6lu ", zone->free_area[order].nr_free);
-+	seq_putc(m, '\n');
-+}
-+
-+/*
-+ * This walks the free areas for each zone.
-+ */
-+static int frag_show(struct seq_file *m, void *arg)
-+{
-+	pg_data_t *pgdat = (pg_data_t *)arg;
-+	walk_zones_in_node(m, pgdat, frag_show_print);
-+	return 0;
-+}
-+
-+static void pagetypeinfo_showfree_print(struct seq_file *m,
-+					pg_data_t *pgdat, struct zone *zone)
-+{
-+	int order, mtype;
-+
-+	for (mtype = 0; mtype < MIGRATE_TYPES; mtype++) {
-+		seq_printf(m, "Node %4d, zone %8s, type %12s ",
-+					pgdat->node_id,
-+					zone->name,
-+					migratetype_names[mtype]);
-+		for (order = 0; order < MAX_ORDER; ++order) {
-+			unsigned long freecount = 0;
-+			struct free_area *area;
-+			struct list_head *curr;
-+
-+			area = &(zone->free_area[order]);
-+
-+			list_for_each(curr, &area->free_list[mtype])
-+				freecount++;
-+			seq_printf(m, "%6lu ", freecount);
-+		}
- 		seq_putc(m, '\n');
+ 	pfn = min_low_pfn + *ppos;
+ 	page = pfn_to_page(pfn);
+@@ -797,6 +798,33 @@ read_page_owner(struct file *file, char 
+ 		goto out;
  	}
-+}
+ 
++	/* Print information relevant to grouping pages by mobility */
++	blocktype = get_pageblock_migratetype(page);
++	pagetype  = allocflags_to_migratetype(page->gfp_mask);
++	ret += snprintf(kbuf+ret, count-ret,
++			"PFN %lu Block %lu type %d %s "
++			"Flags %s%s%s%s%s%s%s%s%s%s%s%s\n",
++			pfn,
++			pfn >> pageblock_order,
++			blocktype,
++			blocktype != pagetype ? "Fallback" : "        ",
++			PageLocked(page)	? "K" : " ",
++			PageError(page)		? "E" : " ",
++			PageReferenced(page)	? "R" : " ",
++			PageUptodate(page)	? "U" : " ",
++			PageDirty(page)		? "D" : " ",
++			PageLRU(page)		? "L" : " ",
++			PageActive(page)	? "A" : " ",
++			PageSlab(page)		? "S" : " ",
++			PageWriteback(page)	? "W" : " ",
++			PageCompound(page)	? "C" : " ",
++			PageSwapCache(page)	? "B" : " ",
++			PageMappedToDisk(page)	? "M" : " ");
++	if (ret >= count) {
++		ret = -ENOMEM;
++		goto out;
++	}
 +
-+/* Print out the free pages at each order for each migatetype */
-+static int pagetypeinfo_showfree(struct seq_file *m, void *arg)
+ 	num_written = ret;
+ 
+ 	for (i = 0; i < 8; i++) {
+diff -rup -X /usr/src/patchset-0.6/bin//dontdiff linux-2.6.22-rc3-mm1-005_statistics/mm/vmstat.c linux-2.6.22-rc3-mm1-006_statistics_owner/mm/vmstat.c
+--- linux-2.6.22-rc3-mm1-005_statistics/mm/vmstat.c	2007-06-01 10:33:50.000000000 +0100
++++ linux-2.6.22-rc3-mm1-006_statistics_owner/mm/vmstat.c	2007-06-01 10:38:14.000000000 +0100
+@@ -13,6 +13,7 @@
+ #include <linux/module.h>
+ #include <linux/cpu.h>
+ #include <linux/sched.h>
++#include "internal.h"
+ 
+ #ifdef CONFIG_VM_EVENT_COUNTERS
+ DEFINE_PER_CPU(struct vm_event_state, vm_event_states) = {{0}};
+@@ -552,6 +553,97 @@ static int pagetypeinfo_showblockcount(s
+ 	return 0;
+ }
+ 
++#ifdef CONFIG_PAGE_OWNER
++static void pagetypeinfo_showmixedcount_print(struct seq_file *m,
++							pg_data_t *pgdat,
++							struct zone *zone)
 +{
-+	int order;
-+	pg_data_t *pgdat = (pg_data_t *)arg;
-+
-+	/* Print header */
-+	seq_printf(m, "%-43s ", "Free pages count per migrate type at order");
-+	for (order = 0; order < MAX_ORDER; ++order)
-+		seq_printf(m, "%6d ", order);
-+	seq_putc(m, '\n');
-+
-+	walk_zones_in_node(m, pgdat, pagetypeinfo_showfree_print);
-+
-+	return 0;
-+}
-+
-+static void pagetypeinfo_showblockcount_print(struct seq_file *m,
-+					pg_data_t *pgdat, struct zone *zone)
-+{
-+	int mtype;
++	int mtype, pagetype;
 +	unsigned long pfn;
 +	unsigned long start_pfn = zone->zone_start_pfn;
 +	unsigned long end_pfn = start_pfn + zone->spanned_pages;
 +	unsigned long count[MIGRATE_TYPES] = { 0, };
 +
-+	for (pfn = start_pfn; pfn < end_pfn; pfn += pageblock_nr_pages) {
-+		struct page *page;
++	/* Align PFNs to pageblock_nr_pages boundary */
++	pfn = start_pfn & ~(pageblock_nr_pages-1);
 +
-+		if (!pfn_valid(pfn))
++	/*
++	 * Walk the zone in pageblock_nr_pages steps. If a page block spans
++	 * a zone boundary, it will be double counted between zones. This does
++	 * not matter as the mixed block count will still be correct
++	 */
++	for (; pfn < end_pfn; pfn += pageblock_nr_pages) {
++		struct page *page;
++		unsigned long offset = 0;
++
++		/* Do not read before the zone start, use a valid page */
++		if (pfn < start_pfn)
++			offset = start_pfn - pfn;
++
++		if (!pfn_valid(pfn + offset))
 +			continue;
 +
-+		page = pfn_to_page(pfn);
++		page = pfn_to_page(pfn + offset);
 +		mtype = get_pageblock_migratetype(page);
 +
-+		count[mtype]++;
++		/* Check the block for bad migrate types */
++		for (; offset < pageblock_nr_pages; offset++) {
++			/* Do not past the end of the zone */
++			if (pfn + offset >= end_pfn)
++				break;
++
++			if (!pfn_valid_within(pfn + offset))
++				continue;
++
++			page = pfn_to_page(pfn + offset);
++
++			/* Skip free pages */
++			if (PageBuddy(page)) {
++				offset += (1UL << page_order(page)) - 1UL;
++				continue;
++			}
++			if (page->order < 0)
++				continue;
++
++			pagetype = allocflags_to_migratetype(page->gfp_mask);
++			if (pagetype != mtype) {
++				count[mtype]++;
++				break;
++			}
++
++			/* Move to end of this allocation */
++			offset += (1 << page->order) - 1;
++		}
 +	}
 +
 +	/* Print counts */
@@ -303,203 +186,39 @@ diff -rup -X /usr/src/patchset-0.6/bin//dontdiff linux-2.6.22-rc3-mm1-004_group_
 +		seq_printf(m, "%12lu ", count[mtype]);
 +	seq_putc(m, '\n');
 +}
++#endif /* CONFIG_PAGE_OWNER */
 +
-+/* Print out the free pages at each order for each migratetype */
-+static int pagetypeinfo_showblockcount(struct seq_file *m, void *arg)
++/*
++ * Print out the number of pageblocks for each migratetype that contain pages
++ * of other types. This gives an indication of how well fallbacks are being
++ * contained by rmqueue_fallback(). It requires information from PAGE_OWNER
++ * to determine what is going on
++ */
++static void pagetypeinfo_showmixedcount(struct seq_file *m, pg_data_t *pgdat)
 +{
++#ifdef CONFIG_PAGE_OWNER
 +	int mtype;
-+	pg_data_t *pgdat = (pg_data_t *)arg;
 +
-+	seq_printf(m, "\n%-23s", "Number of blocks type ");
++	seq_printf(m, "\n%-23s", "Number of mixed blocks ");
 +	for (mtype = 0; mtype < MIGRATE_TYPES; mtype++)
 +		seq_printf(m, "%12s ", migratetype_names[mtype]);
 +	seq_putc(m, '\n');
-+	walk_zones_in_node(m, pgdat, pagetypeinfo_showblockcount_print);
 +
-+	return 0;
++	walk_zones_in_node(m, pgdat, pagetypeinfo_showmixedcount_print);
++#endif /* CONFIG_PAGE_OWNER */
 +}
 +
-+/*
-+ * This prints out statistics in relation to grouping pages by mobility.
-+ * It is expensive to collect so do not constantly read the file.
-+ */
-+static int pagetypeinfo_show(struct seq_file *m, void *arg)
-+{
-+	pg_data_t *pgdat = (pg_data_t *)arg;
-+
-+	seq_printf(m, "Page block order: %d\n", pageblock_order);
-+	seq_printf(m, "Pages per block:  %lu\n", pageblock_nr_pages);
-+	seq_putc(m, '\n');
-+	pagetypeinfo_showfree(m, pgdat);
-+	pagetypeinfo_showblockcount(m, pgdat);
-+
+ /*
+  * This prints out statistics in relation to grouping pages by mobility.
+  * It is expensive to collect so do not constantly read the file.
+@@ -565,6 +657,7 @@ static int pagetypeinfo_show(struct seq_
+ 	seq_putc(m, '\n');
+ 	pagetypeinfo_showfree(m, pgdat);
+ 	pagetypeinfo_showblockcount(m, pgdat);
++	pagetypeinfo_showmixedcount(m, pgdat);
+ 
  	return 0;
  }
- 
-@@ -453,6 +576,13 @@ const struct seq_operations fragmentatio
- 	.show	= frag_show,
- };
- 
-+const struct seq_operations pagetypeinfo_op = {
-+	.start	= frag_start,
-+	.next	= frag_next,
-+	.stop	= frag_stop,
-+	.show	= pagetypeinfo_show,
-+};
-+
- #ifdef CONFIG_ZONE_DMA
- #define TEXT_FOR_DMA(xx) xx "_dma",
- #else
-@@ -531,84 +661,78 @@ static const char * const vmstat_text[] 
- #endif
- };
- 
--/*
-- * Output information about zones in @pgdat.
-- */
--static int zoneinfo_show(struct seq_file *m, void *arg)
-+static void zoneinfo_show_print(struct seq_file *m, pg_data_t *pgdat,
-+							struct zone *zone)
- {
--	pg_data_t *pgdat = arg;
--	struct zone *zone;
--	struct zone *node_zones = pgdat->node_zones;
--	unsigned long flags;
--
--	for (zone = node_zones; zone - node_zones < MAX_NR_ZONES; zone++) {
--		int i;
-+	int i;
-+	seq_printf(m, "Node %d, zone %8s", pgdat->node_id, zone->name);
-+	seq_printf(m,
-+		   "\n  pages free     %lu"
-+		   "\n        min      %lu"
-+		   "\n        low      %lu"
-+		   "\n        high     %lu"
-+		   "\n        scanned  %lu (a: %lu i: %lu)"
-+		   "\n        spanned  %lu"
-+		   "\n        present  %lu",
-+		   zone_page_state(zone, NR_FREE_PAGES),
-+		   zone->pages_min,
-+		   zone->pages_low,
-+		   zone->pages_high,
-+		   zone->pages_scanned,
-+		   zone->nr_scan_active, zone->nr_scan_inactive,
-+		   zone->spanned_pages,
-+		   zone->present_pages);
- 
--		if (!populated_zone(zone))
--			continue;
-+	for (i = 0; i < NR_VM_ZONE_STAT_ITEMS; i++)
-+		seq_printf(m, "\n    %-12s %lu", vmstat_text[i],
-+				zone_page_state(zone, i));
- 
--		spin_lock_irqsave(&zone->lock, flags);
--		seq_printf(m, "Node %d, zone %8s", pgdat->node_id, zone->name);
--		seq_printf(m,
--			   "\n  pages free     %lu"
--			   "\n        min      %lu"
--			   "\n        low      %lu"
--			   "\n        high     %lu"
--			   "\n        scanned  %lu (a: %lu i: %lu)"
--			   "\n        spanned  %lu"
--			   "\n        present  %lu",
--			   zone_page_state(zone, NR_FREE_PAGES),
--			   zone->pages_min,
--			   zone->pages_low,
--			   zone->pages_high,
--			   zone->pages_scanned,
--			   zone->nr_scan_active, zone->nr_scan_inactive,
--			   zone->spanned_pages,
--			   zone->present_pages);
--
--		for (i = 0; i < NR_VM_ZONE_STAT_ITEMS; i++)
--			seq_printf(m, "\n    %-12s %lu", vmstat_text[i],
--					zone_page_state(zone, i));
--
--		seq_printf(m,
--			   "\n        protection: (%lu",
--			   zone->lowmem_reserve[0]);
--		for (i = 1; i < ARRAY_SIZE(zone->lowmem_reserve); i++)
--			seq_printf(m, ", %lu", zone->lowmem_reserve[i]);
--		seq_printf(m,
--			   ")"
--			   "\n  pagesets");
--		for_each_online_cpu(i) {
--			struct per_cpu_pageset *pageset;
--			int j;
--
--			pageset = zone_pcp(zone, i);
--			for (j = 0; j < ARRAY_SIZE(pageset->pcp); j++) {
--				seq_printf(m,
--					   "\n    cpu: %i pcp: %i"
--					   "\n              count: %i"
--					   "\n              high:  %i"
--					   "\n              batch: %i",
--					   i, j,
--					   pageset->pcp[j].count,
--					   pageset->pcp[j].high,
--					   pageset->pcp[j].batch);
-+	seq_printf(m,
-+		   "\n        protection: (%lu",
-+		   zone->lowmem_reserve[0]);
-+	for (i = 1; i < ARRAY_SIZE(zone->lowmem_reserve); i++)
-+		seq_printf(m, ", %lu", zone->lowmem_reserve[i]);
-+	seq_printf(m,
-+		   ")"
-+		   "\n  pagesets");
-+	for_each_online_cpu(i) {
-+		struct per_cpu_pageset *pageset;
-+		int j;
-+
-+		pageset = zone_pcp(zone, i);
-+		for (j = 0; j < ARRAY_SIZE(pageset->pcp); j++) {
-+			seq_printf(m,
-+				   "\n    cpu: %i pcp: %i"
-+				   "\n              count: %i"
-+				   "\n              high:  %i"
-+				   "\n              batch: %i",
-+				   i, j,
-+				   pageset->pcp[j].count,
-+				   pageset->pcp[j].high,
-+				   pageset->pcp[j].batch);
- 			}
- #ifdef CONFIG_SMP
--			seq_printf(m, "\n  vm stats threshold: %d",
--					pageset->stat_threshold);
-+		seq_printf(m, "\n  vm stats threshold: %d",
-+				pageset->stat_threshold);
- #endif
--		}
--		seq_printf(m,
--			   "\n  all_unreclaimable: %u"
--			   "\n  prev_priority:     %i"
--			   "\n  start_pfn:         %lu",
--			   zone->all_unreclaimable,
--			   zone->prev_priority,
--			   zone->zone_start_pfn);
--		spin_unlock_irqrestore(&zone->lock, flags);
--		seq_putc(m, '\n');
- 	}
-+	seq_printf(m,
-+		   "\n  all_unreclaimable: %u"
-+		   "\n  prev_priority:     %i"
-+		   "\n  start_pfn:         %lu",
-+		   zone->all_unreclaimable,
-+		   zone->prev_priority,
-+		   zone->zone_start_pfn);
-+	seq_putc(m, '\n');
-+}
-+
-+/*
-+ * Output information about zones in @pgdat.
-+ */
-+static int zoneinfo_show(struct seq_file *m, void *arg)
-+{
-+	pg_data_t *pgdat = (pg_data_t *)arg;
-+	walk_zones_in_node(m, pgdat, zoneinfo_show_print);
- 	return 0;
- }
- 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
