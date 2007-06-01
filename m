@@ -1,224 +1,112 @@
-From: Mel Gorman <mel@csn.ul.ie>
-Message-Id: <20070601163111.24933.32685.sendpatchset@skynet.skynet.ie>
-In-Reply-To: <20070601163010.24933.87242.sendpatchset@skynet.skynet.ie>
-References: <20070601163010.24933.87242.sendpatchset@skynet.skynet.ie>
-Subject: [PATCH 3/3] Print out PAGE_OWNER statistics in relation to fragmentation avoidance
-Date: Fri,  1 Jun 2007 17:31:11 +0100 (IST)
+Subject: Re: [PATCH] Document Linux Memory Policy
+From: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
+In-Reply-To: <200706011221.33062.ak@suse.de>
+References: <1180467234.5067.52.camel@localhost>
+	 <200705312243.20242.ak@suse.de> <20070601093803.GE10459@minantech.com>
+	 <200706011221.33062.ak@suse.de>
+Content-Type: text/plain
+Date: Fri, 01 Jun 2007 13:15:06 -0400
+Message-Id: <1180718106.5278.28.camel@localhost>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: akpm@linux-foundation.org
-Cc: Mel Gorman <mel@csn.ul.ie>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Andi Kleen <ak@suse.de>
+Cc: Gleb Natapov <glebn@voltaire.com>, Christoph Lameter <clameter@sgi.com>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-When PAGE_OWNER is set, more information is available of relevance
-to fragmentation avoidance. A second line is added to /proc/page_owner
-showing the PFN, the pageblock number, the mobility type of the page based
-on its allocation flags, whether the allocation is improperly placed and
-the flags. A sample entry looks like
+On Fri, 2007-06-01 at 12:21 +0200, Andi Kleen wrote:
+> On Friday 01 June 2007 11:38:03 Gleb Natapov wrote:
+> > On Thu, May 31, 2007 at 10:43:19PM +0200, Andi Kleen wrote:
+> > > 
+> > > > > > Do I
+> > > > > > miss something here?
+> > > > > 
+> > > > > I think you do.  
+> > > > OK. It seems I missed the fact that VMA policy is completely ignored for
+> > > > pagecache backed files and only task policy is used. 
+> > > 
+> > > That's not correct. tmpfs is page cache backed and supports (even shared) VMA policy.
+> > > hugetlbfs used to too, but lost its ability, but will hopefully get it again.
+> > > 
+> > This is even more confusing.
+> 
+> I see. Anything that doesn't work exactly as your particular 
+> application expects it is "unnatural" and "confusing". I suppose only
+> in Glebnix it would be different.
 
-Page allocated via order 0, mask 0x1280d2
-PFN 7355 Block 7 type 3 Fallback Flags      LA     
-[0xc01528c6] __handle_mm_fault+598
-[0xc0320427] do_page_fault+279
-[0xc031ed9a] error_code+114
+Andi, as you well know, many Posix-like systems have had NUMA policies
+for quite a while.  Most of these systems tried to provide consistent
+semantics from the applications view point with respect to control of
+policy of memory objects mapped into the application's address space.
+It's not particularly difficult to achieve.  Your shared policy
+infrastructure provides almost everything that's required, as I've
+demonstrated.
 
-This information can be used to identify pages that are improperly placed. As
-the format of PAGE_OWNER data is now different, the comment at the top of
-Documentation/page_owner.c is updated with new instructions.
+Like Gleb, I find the different behaviors for different memory regions
+to be unnatural.  Not because of the fraction of applications or
+deployments that might use them, but because [speaking for customers] I
+expect and want to be able to control placement of any object mapped
+into an application's address space, subject to permissions and
+privileges.
 
-As PAGE_OWNER tracks the GFP flags used to allocate the pages,
-/proc/pagetypeinfo is enhanced to contain how many mixed blocks exist. The
-additional output looks like
+> 
+> > So numa_*_memory() works different 
+> > depending on where file is created.
+> 
+> See it as "it doesn't work for files, but only for shared memory".
+> The main reason for that is that there is no way to make it persistent
+> for files.
 
-Number of mixed blocks    Unmovable  Reclaimable      Movable      Reserve
-Node 0, zone      DMA            0            1            2            1
-Node 0, zone   Normal            2           11           33            0
+Your definition of persistence seems to be keeping policy around on
+files when the application that owns the file doesn't have it open or
+mapped.  In the context of my customers' applications and, AFAICT,
+Gleb's application, your definition of persistence is a red herring.
+You're using it to prevent acceptance of behavior we need because the
+patches don't address your definition.  From what I can tell from the
+discussion so far, YOU don't have a need [or know of anyone who does]
+for your definition of persistence.  You claim you don't know of any use
+case for memory policy on memory mapped file at all.  
 
-Signed-off-by: Mel Gorman <mel@csn.ul.ie>
-Acked-by: Andy Whitcroft <apw@shadowen.org>
-Acked-by: Christoph Lameter <clameter@sgi.com>
----
+If you do know of a need for file policy persistence at least as good as
+shmem--i.e., doesn't survive reboot--that could be added relatively
+easily.  But you haven't asked for that.  You've rejected the notion
+that anyone might have a need for policy on memory mapped files without
+such persistence.  If you want persistence across reboots--i.e.,
+attached to the file as some sort of extended attribue--I expect that
+could be done, as well.  But, that's a file system issue and, IMO,
+mbind() is not the right interface.  However, such a feature would
+require the kernel to support policies on regular disk-backed files as
+it does for swap-backed files.
 
- Documentation/page_owner.c |    3 -
- fs/proc/proc_misc.c        |   28 ++++++++++++
- mm/vmstat.c                |   93 ++++++++++++++++++++++++++++++++++++++++
- 3 files changed, 123 insertions(+), 1 deletion(-)
+> 
+> I only objected to your page cache based description because tmpfs
+> (and even anonymous memory) are page cache based too.
 
-diff -rup -X /usr/src/patchset-0.6/bin//dontdiff linux-2.6.22-rc3-mm1-005_statistics/Documentation/page_owner.c linux-2.6.22-rc3-mm1-006_statistics_owner/Documentation/page_owner.c
---- linux-2.6.22-rc3-mm1-005_statistics/Documentation/page_owner.c	2007-06-01 09:24:34.000000000 +0100
-+++ linux-2.6.22-rc3-mm1-006_statistics_owner/Documentation/page_owner.c	2007-06-01 10:38:14.000000000 +0100
-@@ -2,7 +2,8 @@
-  * User-space helper to sort the output of /proc/page_owner
-  *
-  * Example use:
-- * cat /proc/page_owner > page_owner.txt
-+ * cat /proc/page_owner > page_owner_full.txt
-+ * grep -v ^PFN page_owner_full.txt > page_owner.txt
-  * ./sort page_owner.txt sorted_page_owner.txt
- */
- 
-diff -rup -X /usr/src/patchset-0.6/bin//dontdiff linux-2.6.22-rc3-mm1-005_statistics/fs/proc/proc_misc.c linux-2.6.22-rc3-mm1-006_statistics_owner/fs/proc/proc_misc.c
---- linux-2.6.22-rc3-mm1-005_statistics/fs/proc/proc_misc.c	2007-06-01 10:33:50.000000000 +0100
-+++ linux-2.6.22-rc3-mm1-006_statistics_owner/fs/proc/proc_misc.c	2007-06-01 10:38:14.000000000 +0100
-@@ -761,6 +761,7 @@ read_page_owner(struct file *file, char 
- 	unsigned long offset = 0, symsize;
- 	int i;
- 	ssize_t num_written = 0;
-+	int blocktype = 0, pagetype = 0;
- 
- 	pfn = min_low_pfn + *ppos;
- 	page = pfn_to_page(pfn);
-@@ -797,6 +798,33 @@ read_page_owner(struct file *file, char 
- 		goto out;
- 	}
- 
-+	/* Print information relevant to grouping pages by mobility */
-+	blocktype = get_pageblock_migratetype(page);
-+	pagetype  = allocflags_to_migratetype(page->gfp_mask);
-+	ret += snprintf(kbuf+ret, count-ret,
-+			"PFN %lu Block %lu type %d %s "
-+			"Flags %s%s%s%s%s%s%s%s%s%s%s%s\n",
-+			pfn,
-+			pfn >> pageblock_order,
-+			blocktype,
-+			blocktype != pagetype ? "Fallback" : "        ",
-+			PageLocked(page)	? "K" : " ",
-+			PageError(page)		? "E" : " ",
-+			PageReferenced(page)	? "R" : " ",
-+			PageUptodate(page)	? "U" : " ",
-+			PageDirty(page)		? "D" : " ",
-+			PageLRU(page)		? "L" : " ",
-+			PageActive(page)	? "A" : " ",
-+			PageSlab(page)		? "S" : " ",
-+			PageWriteback(page)	? "W" : " ",
-+			PageCompound(page)	? "C" : " ",
-+			PageSwapCache(page)	? "B" : " ",
-+			PageMappedToDisk(page)	? "M" : " ");
-+	if (ret >= count) {
-+		ret = -ENOMEM;
-+		goto out;
-+	}
-+
- 	num_written = ret;
- 
- 	for (i = 0; i < 8; i++) {
-diff -rup -X /usr/src/patchset-0.6/bin//dontdiff linux-2.6.22-rc3-mm1-005_statistics/mm/vmstat.c linux-2.6.22-rc3-mm1-006_statistics_owner/mm/vmstat.c
---- linux-2.6.22-rc3-mm1-005_statistics/mm/vmstat.c	2007-06-01 10:33:50.000000000 +0100
-+++ linux-2.6.22-rc3-mm1-006_statistics_owner/mm/vmstat.c	2007-06-01 10:38:14.000000000 +0100
-@@ -13,6 +13,7 @@
- #include <linux/module.h>
- #include <linux/cpu.h>
- #include <linux/sched.h>
-+#include "internal.h"
- 
- #ifdef CONFIG_VM_EVENT_COUNTERS
- DEFINE_PER_CPU(struct vm_event_state, vm_event_states) = {{0}};
-@@ -552,6 +553,97 @@ static int pagetypeinfo_showblockcount(s
- 	return 0;
- }
- 
-+#ifdef CONFIG_PAGE_OWNER
-+static void pagetypeinfo_showmixedcount_print(struct seq_file *m,
-+							pg_data_t *pgdat,
-+							struct zone *zone)
-+{
-+	int mtype, pagetype;
-+	unsigned long pfn;
-+	unsigned long start_pfn = zone->zone_start_pfn;
-+	unsigned long end_pfn = start_pfn + zone->spanned_pages;
-+	unsigned long count[MIGRATE_TYPES] = { 0, };
-+
-+	/* Align PFNs to pageblock_nr_pages boundary */
-+	pfn = start_pfn & ~(pageblock_nr_pages-1);
-+
-+	/*
-+	 * Walk the zone in pageblock_nr_pages steps. If a page block spans
-+	 * a zone boundary, it will be double counted between zones. This does
-+	 * not matter as the mixed block count will still be correct
-+	 */
-+	for (; pfn < end_pfn; pfn += pageblock_nr_pages) {
-+		struct page *page;
-+		unsigned long offset = 0;
-+
-+		/* Do not read before the zone start, use a valid page */
-+		if (pfn < start_pfn)
-+			offset = start_pfn - pfn;
-+
-+		if (!pfn_valid(pfn + offset))
-+			continue;
-+
-+		page = pfn_to_page(pfn + offset);
-+		mtype = get_pageblock_migratetype(page);
-+
-+		/* Check the block for bad migrate types */
-+		for (; offset < pageblock_nr_pages; offset++) {
-+			/* Do not past the end of the zone */
-+			if (pfn + offset >= end_pfn)
-+				break;
-+
-+			if (!pfn_valid_within(pfn + offset))
-+				continue;
-+
-+			page = pfn_to_page(pfn + offset);
-+
-+			/* Skip free pages */
-+			if (PageBuddy(page)) {
-+				offset += (1UL << page_order(page)) - 1UL;
-+				continue;
-+			}
-+			if (page->order < 0)
-+				continue;
-+
-+			pagetype = allocflags_to_migratetype(page->gfp_mask);
-+			if (pagetype != mtype) {
-+				count[mtype]++;
-+				break;
-+			}
-+
-+			/* Move to end of this allocation */
-+			offset += (1 << page->order) - 1;
-+		}
-+	}
-+
-+	/* Print counts */
-+	seq_printf(m, "Node %d, zone %8s ", pgdat->node_id, zone->name);
-+	for (mtype = 0; mtype < MIGRATE_TYPES; mtype++)
-+		seq_printf(m, "%12lu ", count[mtype]);
-+	seq_putc(m, '\n');
-+}
-+#endif /* CONFIG_PAGE_OWNER */
-+
-+/*
-+ * Print out the number of pageblocks for each migratetype that contain pages
-+ * of other types. This gives an indication of how well fallbacks are being
-+ * contained by rmqueue_fallback(). It requires information from PAGE_OWNER
-+ * to determine what is going on
-+ */
-+static void pagetypeinfo_showmixedcount(struct seq_file *m, pg_data_t *pgdat)
-+{
-+#ifdef CONFIG_PAGE_OWNER
-+	int mtype;
-+
-+	seq_printf(m, "\n%-23s", "Number of mixed blocks ");
-+	for (mtype = 0; mtype < MIGRATE_TYPES; mtype++)
-+		seq_printf(m, "%12s ", migratetype_names[mtype]);
-+	seq_putc(m, '\n');
-+
-+	walk_zones_in_node(m, pgdat, pagetypeinfo_showmixedcount_print);
-+#endif /* CONFIG_PAGE_OWNER */
-+}
-+
- /*
-  * This prints out statistics in relation to grouping pages by mobility.
-  * It is expensive to collect so do not constantly read the file.
-@@ -565,6 +657,7 @@ static int pagetypeinfo_show(struct seq_
- 	seq_putc(m, '\n');
- 	pagetypeinfo_showfree(m, pgdat);
- 	pagetypeinfo_showblockcount(m, pgdat);
-+	pagetypeinfo_showmixedcount(m, pgdat);
- 
- 	return 0;
- }
+Then why does Christoph keep insisting that "page cache pages" must
+always follow task policy, when shmem, tmpfs and anonymous pages don't
+have to?
+
+> 
+> > I can't rely on this anyway and 
+> > have to assume that numa_*_memory() call is ignored and prefault.
+> 
+> It's either use shared/anonymous memory or process policy.
+> 
+> > I think Lee's patches should be applied ASAP to fix this inconsistency.
+> 
+> They have serious semantic problems.
+
+Which, except for your persistence red herring, you haven't described.
+
+Go back to my message to Gleb where I described the semantics provided
+by my patches and show me where your problems are.  And tell us YOUR use
+cases for YOUR definition of persistence that you claim is missing.
+They must be very compelling if they're worth blocking a capability that
+others want to use.
+
+Regards,
+Lee
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
