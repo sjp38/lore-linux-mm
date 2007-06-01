@@ -1,38 +1,46 @@
-From: Andi Kleen <ak@suse.de>
-Subject: Re: [PATCH] Document Linux Memory Policy
-Date: Fri, 1 Jun 2007 15:09:18 +0200
-References: <1180467234.5067.52.camel@localhost> <200706011221.33062.ak@suse.de> <20070601122514.GF10459@minantech.com>
-In-Reply-To: <20070601122514.GF10459@minantech.com>
+Message-ID: <46603371.50808@goop.org>
+Date: Fri, 01 Jun 2007 07:55:45 -0700
+From: Jeremy Fitzhardinge <jeremy@goop.org>
 MIME-Version: 1.0
-Content-Type: text/plain;
-  charset="iso-8859-1"
+Subject: Re: [RFC 0/4] CONFIG_STABLE to switch off development checks
+References: <20070531002047.702473071@sgi.com>
+In-Reply-To: <20070531002047.702473071@sgi.com>
+Content-Type: text/plain; charset=ISO-8859-15
 Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
-Message-Id: <200706011509.18433.ak@suse.de>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Gleb Natapov <glebn@voltaire.com>
-Cc: Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Christoph Lameter <clameter@sgi.com>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>
+To: clameter@sgi.com
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, akpm@linux-foundation.org
 List-ID: <linux-mm.kvack.org>
 
-> > > I can't rely on this anyway and 
-> > > have to assume that numa_*_memory() call is ignored and prefault.
-> > 
-> > It's either use shared/anonymous memory or process policy.
-> That is where confusion is. You use words "shared memory" here. Is shared
-> memory created with mmap(MAP_SHARED) is not "shared" enough? 
+clameter@sgi.com wrote:
+> A while back we talked about having the capability of switching off checks
+> like the one for kmalloc(0) for stable kernel releases. This is a first stab
+> at such functionality. It adds #ifdef CONFIG_STABLE for now. Maybe we can
+> come up with some better way to handle it later. There should alsol be some
+> way to set CONFIG_STABLE from the Makefile.
+>
+> CONFIG_STABLE switches off
+>
+> - kmalloc(0) check in both slab allocators
+> - SLUB banner
+> - Makes SLUB tolerate object corruption like SLAB (not sure if we really want
+>   to go down this route. See patch)
+>   
 
-It's file backed.
+Perhaps I missed it, but what's the rationale for complaining about
+0-sized allocations?  They seem like a perfectly reasonable thing to me;
+they turn up at the boundary conditions of many algorithms, and avoiding
+them just cruds up the callsites to make them go through hoops to avoid
+allocation. 
 
-> > > I think Lee's patches should be applied ASAP to fix this inconsistency.
-> > 
-> > They have serious semantic problems.
-> > 
-> Can you point me to thread where this was discussed?
+Why not just do a 1 byte allocation instead, and be done with it?  Any
+non-constant-sized allocation will potentially have to deal with this
+case, so it seems to me we could just put the fix in common code (and
+use an inline wrapper to avoid it when dealing with constant non-zero
+sized allocations).
 
-See the thread following the patches.
-
--Andi
+    J
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
