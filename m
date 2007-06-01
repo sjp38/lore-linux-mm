@@ -1,51 +1,53 @@
-From: clameter@sgi.com
-Subject: [patch 09/10] sockets: inode defragmentation support
-Date: Fri, 18 May 2007 11:10:49 -0700
-Message-ID: <20070518181120.708884638@sgi.com>
-References: <20070518181040.465335396@sgi.com>
-Return-path: <linux-kernel-owner+glk-linux-kernel-3=40m.gmane.org-S1764027AbXERSOo@vger.kernel.org>
-Content-Disposition: inline; filename=fs_socket
-Sender: linux-kernel-owner@vger.kernel.org
-To: akpm@linux-foundation.org
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, dgc@sgi.com, Hugh Dickins <hugh@veritas.com>
-List-Id: linux-mm.kvack.org
+Date: Fri, 1 Jun 2007 13:13:17 +0900
+From: Paul Mundt <lethal@linux-sh.org>
+Subject: [PATCH] slab: Fix slab debug for non alien caches.
+Message-ID: <20070601041317.GA8490@linux-sh.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+Sender: owner-linux-mm@kvack.org
+Return-Path: <owner-linux-mm@kvack.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+List-ID: <linux-mm.kvack.org>
 
-Signed-off-by: Christoph Lameter <clameter@sgi.com>
+Currently when slab debugging is enabled, the WARN_ON() nodeid checks
+trigger if we boot with 'noaliencache'. In the noaliencache case the
+WARN_ON()'s seem to be superfluous, so only bother doing the nodeid
+comparison if use_alien_caches is set.
 
----
- net/socket.c |   13 ++++++++++++-
- 1 file changed, 12 insertions(+), 1 deletion(-)
+Signed-off-by: Paul Mundt <lethal@linux-sh.org>
 
-Index: slub/net/socket.c
-===================================================================
---- slub.orig/net/socket.c	2007-05-18 00:54:30.000000000 -0700
-+++ slub/net/socket.c	2007-05-18 01:03:31.000000000 -0700
-@@ -264,6 +264,17 @@ static void init_once(void *foo, struct 
- 	inode_init_once(&ei->vfs_inode);
- }
+--
+
+ mm/slab.c |    4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/mm/slab.c b/mm/slab.c
+index 2e71a32..88db26b 100644
+--- a/mm/slab.c
++++ b/mm/slab.c
+@@ -2663,7 +2663,7 @@ static void *slab_get_obj(struct kmem_cache *cachep, struct slab *slabp,
+ 	next = slab_bufctl(slabp)[slabp->free];
+ #if DEBUG
+ 	slab_bufctl(slabp)[slabp->free] = BUFCTL_FREE;
+-	WARN_ON(slabp->nodeid != nodeid);
++	WARN_ON(use_alien_caches && slabp->nodeid != nodeid);
+ #endif
+ 	slabp->free = next;
  
-+static void *sock_get_inodes(struct kmem_cache *s, int nr, void **v)
-+{
-+	return fs_get_inodes(s, nr, v,
-+		offsetof(struct socket_alloc, vfs_inode));
-+}
-+
-+static struct kmem_cache_ops sock_kmem_cache_ops = {
-+	.get = sock_get_inodes,
-+	.kick = kick_inodes
-+};
-+
- static int init_inodecache(void)
- {
- 	sock_inode_cachep = kmem_cache_create("sock_inode_cache",
-@@ -273,7 +284,7 @@ static int init_inodecache(void)
- 					       SLAB_RECLAIM_ACCOUNT |
- 					       SLAB_MEM_SPREAD),
- 					      init_once,
--					      NULL);
-+					      &sock_kmem_cache_ops);
- 	if (sock_inode_cachep == NULL)
- 		return -ENOMEM;
- 	return 0;
+@@ -2677,7 +2677,7 @@ static void slab_put_obj(struct kmem_cache *cachep, struct slab *slabp,
+ 
+ #if DEBUG
+ 	/* Verify that the slab belongs to the intended node */
+-	WARN_ON(slabp->nodeid != nodeid);
++	WARN_ON(use_alien_caches && slabp->nodeid != nodeid);
+ 
+ 	if (slab_bufctl(slabp)[objnr] + 1 <= SLAB_LIMIT + 1) {
+ 		printk(KERN_ERR "slab: double free detected in cache "
 
--- 
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
