@@ -1,42 +1,115 @@
-Date: Fri, 1 Jun 2007 14:58:56 -0700 (PDT)
-From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [PATCH] Document Linux Memory Policy
-In-Reply-To: <1180732232.5278.152.camel@localhost>
-Message-ID: <Pine.LNX.4.64.0706011456090.5009@schroedinger.engr.sgi.com>
-References: <1180467234.5067.52.camel@localhost>  <200705312243.20242.ak@suse.de>
- <20070601093803.GE10459@minantech.com>  <200706011221.33062.ak@suse.de>
- <1180718106.5278.28.camel@localhost>  <Pine.LNX.4.64.0706011140330.2643@schroedinger.engr.sgi.com>
-  <20070601202829.GA14250@minantech.com>  <Pine.LNX.4.64.0706011344260.4323@schroedinger.engr.sgi.com>
- <1180732232.5278.152.camel@localhost>
+Date: Fri, 1 Jun 2007 17:31:56 -0500
+From: "Serge E. Hallyn" <serge@hallyn.com>
+Subject: Re: [RFC][PATCH] Replacing the /proc/<pid|self>/exe symlink code
+Message-ID: <20070601223156.GA22754@vino.hallyn.com>
+References: <1180486369.11715.69.camel@localhost.localdomain> <20070530180923.GA22345@vino.hallyn.com> <1180634174.4738.48.camel@localhost.localdomain>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1180634174.4738.48.camel@localhost.localdomain>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
-Cc: Gleb Natapov <glebn@voltaire.com>, Andi Kleen <ak@suse.de>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>
+To: Matt Helsley <matthltc@us.ibm.com>
+Cc: "Serge E. Hallyn" <serge@hallyn.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 1 Jun 2007, Lee Schermerhorn wrote:
-
-> But, what if the processes install different policies... if they're NOT
-> cooperating.  This was your previous objection.  In fact, you've used
-> just the scenario that Gleb describes as an objection--that different
-> tasks could have different policies in their address spaces.  Not a
-> problem if the policy is shared.  Let one task do the setup.  Done!  It
-> just works.  Keep those uncooperative tasks away from your file.
+Quoting Matt Helsley (matthltc@us.ibm.com):
+> On Wed, 2007-05-30 at 13:09 -0500, Serge E. Hallyn wrote:
+> > Quoting Matt Helsley (matthltc@us.ibm.com):
+> > > This patch avoids holding the mmap semaphore while walking VMAs in response to
+> > > programs which read or follow the /proc/<pid|self>/exe symlink. This also allows us
+> > > to merge mmu and nommu proc_exe_link() functions. The costs are holding a separate
+> > > reference to the executable file stored in the task struct and increased code in
+> > > fork, exec, and exit paths.
+> > > 
+> > > Signed-off-by: Matt Helsley <matthltc@us.ibm.com>
+> > > ---
+> > > 
+> > > Compiled and passed simple tests for regressions when patched against a 2.6.20
+> > > and 2.6.22-rc2-mm1 kernel.
+> > > 
+> > >  fs/exec.c             |    5 +++--
+> > >  fs/proc/base.c        |   20 ++++++++++++++++++++
+> > >  fs/proc/internal.h    |    1 -
+> > >  fs/proc/task_mmu.c    |   34 ----------------------------------
+> > >  fs/proc/task_nommu.c  |   34 ----------------------------------
+> > >  include/linux/sched.h |    1 +
+> > >  kernel/exit.c         |    2 ++
+> > >  kernel/fork.c         |   10 +++++++++-
+> > >  8 files changed, 35 insertions(+), 72 deletions(-)
 > 
-> What happened to consistency? ;-)
+> <snip>
+> 
+> > > Index: linux-2.6.22-rc2-mm1/kernel/exit.c
+> > > ===================================================================
+> > > --- linux-2.6.22-rc2-mm1.orig/kernel/exit.c
+> > > +++ linux-2.6.22-rc2-mm1/kernel/exit.c
+> > > @@ -924,10 +924,12 @@ fastcall void do_exit(long code)
+> > >  	if (unlikely(tsk->audit_context))
+> > >  		audit_free(tsk);
+> > >  
+> > >  	taskstats_exit(tsk, group_dead);
+> > >  
+> > > +	if (tsk->exe_file)
+> > > +		fput(tsk->exe_file);
+> > 
+> > Hi,
+> > 
+> > just taking a cursory look so I may be missing something, but doesn't
+> > this leave the possibility that right here, with tsk->exe_file being
+> > put, another task would try to look at tsk's /proc/tsk->pid/exe?
+> > 
+> > thanks,
+> > -serge
+> >
+> >       exit_mm(tsk);
+> >
+>   
+> <snip>
+> 
+> Good question. To be precise, I think the problem doesn't exist here but
+> after the exit_mm() because there's a VMA that holds a reference to the
+> same file.
+> 
+> The existing code appears to solve the race between
+> reading/following /proc/tsk->pid/exe and exit_mm() in the exit path by
+> returning -ENOENT for the case where there is no executable VMA with a
+> reference to the file backing it.
+> 
+> So I need to put NULL in the exe_file field and adjust the return value
+> to be -ENOENT instead of -ENOSYS.
+> 
+> Thanks for the review!
 
-It is consistent with page cache pages being able to be "faulted" in 
-either by buffered I/O or mmapped I/O of to an arbitrary node. So the 
-application does not have the expectation that the pages must be on 
-certain nodes. This is the same for shared anonymous pages. It would be
-fully consistent across all uses of vma based policiues.
+Ok, I had to think about this a bit, but so you're saying you set it to
+NULL in do_exit(), and anyone who has just dereferenced tsk->exe_file
+before the fput in do_exit() should be ok because the vma hasn't yet
+been put?
 
-The new pages are allocated in the context of the vma's memory policy. And 
-the applicable policy depends on the task doing the allocations. 
-Again consistent semantics with how anonymous pages are handled.
+Should the 
+	if (!task->exe_file)
+		goto out;
+	*mnt = mntget(task->exe_file->f_path.mnt);
+	*dentry = dget(task->exe_file->f_path.dentry);
 
+also go inside an preempt_disable to prevent sleeping and maybe become
+
+	exef = task->exe_file;  /* to prevent task->exe_file being set
+			to NULL before we've grabbed the path */
+	if (!exef)
+		goto out;
+	get_file(exef);  /* to prevent the mm somehow being put before
+				we've grabbed the path? */
+	*mnt = mntget(task->exe_file->f_path.mnt);
+	*dentry = dget(task->exe_file->f_path.dentry);
+	put_file(exef);  /* ? */
+
+?
+
+Or am I being overly paranoid?
+
+thanks,
+-serge
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
