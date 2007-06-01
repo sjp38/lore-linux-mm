@@ -1,107 +1,43 @@
-Date: Fri, 1 Jun 2007 22:25:56 +0200
-From: Sam Ravnborg <sam@ravnborg.org>
-Subject: Re: [RFC 1/4] CONFIG_STABLE: Define it
-Message-ID: <20070601202556.GB4232@uranus.ravnborg.org>
-References: <20070531002047.702473071@sgi.com> <20070531003012.302019683@sgi.com> <20070531141147.423ad5e3.akpm@linux-foundation.org>
-Mime-Version: 1.0
+Date: Fri, 1 Jun 2007 23:28:29 +0300
+Subject: Re: [PATCH] Document Linux Memory Policy
+Message-ID: <20070601202829.GA14250@minantech.com>
+References: <1180467234.5067.52.camel@localhost> <200705312243.20242.ak@suse.de> <20070601093803.GE10459@minantech.com> <200706011221.33062.ak@suse.de> <1180718106.5278.28.camel@localhost> <Pine.LNX.4.64.0706011140330.2643@schroedinger.engr.sgi.com>
+MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20070531141147.423ad5e3.akpm@linux-foundation.org>
+In-Reply-To: <Pine.LNX.4.64.0706011140330.2643@schroedinger.engr.sgi.com>
+From: glebn@voltaire.com (Gleb Natapov)
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: clameter@sgi.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Roman Zippel <zippel@linux-m68k.org>
+To: Christoph Lameter <clameter@sgi.com>
+Cc: Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Andi Kleen <ak@suse.de>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
+On Fri, Jun 01, 2007 at 11:43:57AM -0700, Christoph Lameter wrote:
+> On Fri, 1 Jun 2007, Lee Schermerhorn wrote:
 > 
-> With the following behaviour:
+> > Like Gleb, I find the different behaviors for different memory regions
+> > to be unnatural.  Not because of the fraction of applications or
+> > deployments that might use them, but because [speaking for customers] I
+> > expect and want to be able to control placement of any object mapped
+> > into an application's address space, subject to permissions and
+> > privileges.
 > 
-> DEVEL_KERNEL = 0 in Makefile:
-> 
-> 	DEVEL_KERNEL=n in Kconfig
-> 	CONFIG_DEVEL_KERNEL is not set in cpp
-> 
-> DEVEL_KERNEL = 1 in Makefile:
-> 
-> 	DEVEL_KERNEL=y in Kconfig
-> 	CONFIG_DEVEL_KERNEL is set in cpp
-> 
-> however the above patch doesn't do this correctly and I got bored of
-> fiddling with it.  Help?
+> Same here and I wish we had a clean memory region based implementation.
+> But that is just what your patches do *not* provide. Instead they are file 
+> based. They should be memory region based.
+Do you want a solution that doesn't associate memory policy with a file
+(if a file is mapped shared and disk backed) like Lee's solution does, but
+instead install it into VMA and respect the policy during pagecache page
+allocation on behalf of the process? So two process should cooperate
+(bind same part of a file to a same memory node in each process) to get
+consistent result? If yes this will work for me.
 
-My first try below.
-It does the kconfig stuff as expected.
-But the CONFIG_KERNEL_DEVEL is NOT updated unless you
-touch .config (or in other ways change the config).
+I really hate to use shmget() for all the reasons you've listed in you
+other mail and some more.
 
-I did not see an easy way to fix that - Roman?
-
-I only had to add SYMBOL_VALID as falg to get it working - but it 
-took me a while to figure out. Somehow all the comments describing the
-data structures for kconfig has got lost.
-
-	Sam
-
-diff --git a/Makefile b/Makefile
-index 562a909..362668c 100644
---- a/Makefile
-+++ b/Makefile
-@@ -3,6 +3,7 @@ PATCHLEVEL = 6
- SUBLEVEL = 22
- EXTRAVERSION = -rc3
- NAME = Jeff Thinks I Should Change This, But To What?
-+KERNEL_DEVEL = 
- 
- # *DOCUMENTATION*
- # To see a list of typical targets execute "make help"
-@@ -320,7 +321,7 @@ AFLAGS          := -D__ASSEMBLY__
- KERNELRELEASE = $(shell cat include/config/kernel.release 2> /dev/null)
- KERNELVERSION = $(VERSION).$(PATCHLEVEL).$(SUBLEVEL)$(EXTRAVERSION)
- 
--export VERSION PATCHLEVEL SUBLEVEL KERNELRELEASE KERNELVERSION
-+export VERSION PATCHLEVEL SUBLEVEL KERNELRELEASE KERNELVERSION KERNEL_DEVEL
- export ARCH CONFIG_SHELL HOSTCC HOSTCFLAGS CROSS_COMPILE AS LD CC
- export CPP AR NM STRIP OBJCOPY OBJDUMP MAKE AWK GENKSYMS PERL UTS_MACHINE
- export HOSTCXX HOSTCXXFLAGS LDFLAGS_MODULE CHECK CHECKFLAGS
-diff --git a/arch/i386/Kconfig b/arch/i386/Kconfig
-index 8770a5d..5373d58 100644
---- a/arch/i386/Kconfig
-+++ b/arch/i386/Kconfig
-@@ -91,6 +91,14 @@ source "init/Kconfig"
- 
- menu "Processor type and features"
- 
-+config MY_KERNEL_DEVEL
-+	bool "Needs Kernel devel"
-+	depends on KERNEL_DEVEL
-+
-+config MY_KERNEL_DEVEL2
-+	bool "Do not need kernel devel"
-+	depends on !KERNEL_DEVEL
-+
- source "kernel/time/Kconfig"
- 
- config SMP
-diff --git a/scripts/kconfig/symbol.c b/scripts/kconfig/symbol.c
-index c35dcc5..fb4d5b8 100644
---- a/scripts/kconfig/symbol.c
-+++ b/scripts/kconfig/symbol.c
-@@ -68,6 +68,15 @@ void sym_init(void)
- 	if (p)
- 		sym_add_default(sym, p);
- 
-+	sym = sym_lookup("KERNEL_DEVEL", 0);
-+	sym->type = S_BOOLEAN;
-+	sym->flags |= SYMBOL_VALID|SYMBOL_AUTO;
-+	p = getenv("KERNEL_DEVEL");
-+	if (p && atoi(p))
-+		sym_add_default(sym, "y");
-+	else
-+		sym_add_default(sym, "n");
-+
- 	sym = sym_lookup("UNAME_RELEASE", 0);
- 	sym->type = S_STRING;
- 	sym->flags |= SYMBOL_AUTO;
+--
+			Gleb.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
