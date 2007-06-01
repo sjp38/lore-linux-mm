@@ -1,8 +1,8 @@
-Message-ID: <465FB966.5020808@google.com>
-Date: Thu, 31 May 2007 23:15:02 -0700
+Message-ID: <465FB9A5.8070806@google.com>
+Date: Thu, 31 May 2007 23:16:05 -0700
 From: Ethan Solomita <solo@google.com>
 MIME-Version: 1.0
-Subject: [RFC 5/7] cpuset write vm writeout
+Subject: [corrected][RFC 5/7] cpuset write vm writeout
 References: <465FB6CF.4090801@google.com>
 In-Reply-To: <465FB6CF.4090801@google.com>
 Content-Type: text/plain; charset=ISO-8859-1
@@ -27,39 +27,37 @@ Signed-off-by: Ethan Solomita <solo@google.com>
 
 ---
 
-diff -uprN -X 0/Documentation/dontdiff 4/include/linux/writeback.h
-5/include/linux/writeback.h
+diff -uprN -X 0/Documentation/dontdiff 4/include/linux/writeback.h 5/include/linux/writeback.h
 --- 4/include/linux/writeback.h	2007-05-30 11:36:14.000000000 -0700
 +++ 5/include/linux/writeback.h	2007-05-30 11:37:01.000000000 -0700
-@@ -89,7 +89,7 @@ static inline void wait_on_inode(struct
+@@ -89,7 +89,7 @@ static inline void wait_on_inode(struct 
  int wakeup_pdflush(long nr_pages, nodemask_t *nodes);
  void laptop_io_completion(void);
  void laptop_sync_completion(void);
 -void throttle_vm_writeout(gfp_t gfp_mask);
 +void throttle_vm_writeout(nodemask_t *nodes,gfp_t gfp_mask);
-
+ 
  /* These are exported to sysctl. */
  extern int dirty_background_ratio;
-diff -uprN -X 0/Documentation/dontdiff 4/mm/page-writeback.c
-5/mm/page-writeback.c
+diff -uprN -X 0/Documentation/dontdiff 4/mm/page-writeback.c 5/mm/page-writeback.c
 --- 4/mm/page-writeback.c	2007-05-30 11:36:15.000000000 -0700
 +++ 5/mm/page-writeback.c	2007-05-30 11:37:01.000000000 -0700
 @@ -384,7 +384,7 @@ void balance_dirty_pages_ratelimited_nr(
  }
  EXPORT_SYMBOL(balance_dirty_pages_ratelimited_nr);
-
+ 
 -void throttle_vm_writeout(gfp_t gfp_mask)
 +void throttle_vm_writeout(nodemask_t *nodes, gfp_t gfp_mask)
  {
  	struct dirty_limits dl;
-
+ 
 @@ -399,7 +399,7 @@ void throttle_vm_writeout(gfp_t gfp_mask
  	}
-
+ 
  	for ( ; ; ) {
 -		get_dirty_limits(&dl, NULL, &node_online_map);
 +		get_dirty_limits(&dl, NULL, nodes);
-
+ 
  		/*
  		 * Boost the allowable dirty threshold a bit for page
 diff -uprN -X 0/Documentation/dontdiff 4/mm/vmscan.c 5/mm/vmscan.c
@@ -68,10 +66,10 @@ diff -uprN -X 0/Documentation/dontdiff 4/mm/vmscan.c 5/mm/vmscan.c
 @@ -1079,7 +1079,7 @@ static unsigned long shrink_zone(int pri
  		}
  	}
-
+ 
 -	throttle_vm_writeout(sc->gfp_mask);
 +	throttle_vm_writeout(&cpuset_current_mems_allowed, sc->gfp_mask);
-
+ 
  	atomic_dec(&zone->reclaim_in_progress);
  	return nr_reclaimed;
 
