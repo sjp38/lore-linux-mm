@@ -1,59 +1,62 @@
-From: Andi Kleen <ak@suse.de>
-Subject: Re: [PATCH] Document Linux Memory Policy
-Date: Fri, 1 Jun 2007 12:21:32 +0200
-References: <1180467234.5067.52.camel@localhost> <200705312243.20242.ak@suse.de> <20070601093803.GE10459@minantech.com>
-In-Reply-To: <20070601093803.GE10459@minantech.com>
-MIME-Version: 1.0
-Content-Type: text/plain;
-  charset="iso-8859-1"
+Subject: Re: [patch 3/9] radix-tree: gang slot lookups
+From: Peter Zijlstra <peterz@infradead.org>
+In-Reply-To: <20070412103223.5564.13412.sendpatchset@linux.site>
+References: <20070412103151.5564.16127.sendpatchset@linux.site>
+	 <20070412103223.5564.13412.sendpatchset@linux.site>
+Content-Type: text/plain
+Date: Fri, 01 Jun 2007 12:31:18 +0200
+Message-Id: <1180693878.7348.119.camel@twins>
+Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
-Message-Id: <200706011221.33062.ak@suse.de>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Gleb Natapov <glebn@voltaire.com>
-Cc: Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Christoph Lameter <clameter@sgi.com>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>
+To: Nick Piggin <npiggin@suse.de>
+Cc: Linux Memory Management <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-On Friday 01 June 2007 11:38:03 Gleb Natapov wrote:
-> On Thu, May 31, 2007 at 10:43:19PM +0200, Andi Kleen wrote:
-> > 
-> > > > > Do I
-> > > > > miss something here?
-> > > > 
-> > > > I think you do.  
-> > > OK. It seems I missed the fact that VMA policy is completely ignored for
-> > > pagecache backed files and only task policy is used. 
-> > 
-> > That's not correct. tmpfs is page cache backed and supports (even shared) VMA policy.
-> > hugetlbfs used to too, but lost its ability, but will hopefully get it again.
-> > 
-> This is even more confusing.
+On Thu, 2007-04-12 at 14:45 +0200, Nick Piggin wrote:
 
-I see. Anything that doesn't work exactly as your particular 
-application expects it is "unnatural" and "confusing". I suppose only
-in Glebnix it would be different.
+> @@ -825,13 +889,21 @@ radix_tree_gang_lookup_tag(struct radix_
+>  
+>  	ret = 0;
+>  	while (ret < max_items) {
+> -		unsigned int nr_found;
+> +		unsigned int slots_found, nr_found, i;
+>  		unsigned long next_index;	/* Index of next search */
+>  
+>  		if (cur_index > max_index)
+>  			break;
+> -		nr_found = __lookup_tag(node, results + ret, cur_index,
+> -					max_items - ret, &next_index, tag);
+> +		slots_found = __lookup_tag(node, (void ***)results + ret,
+> +				cur_index, max_items - ret, &next_index, tag);
+> +		nr_found = 0;
+> +		for (i = 0; i < slots_found; i++) {
+> +			node = *((void ***)results)[ret + i];
+> +			if (!node)
+> +				continue;
+> +			results[ret + nr_found] = rcu_dereference(node);
 
-> So numa_*_memory() works different 
-> depending on where file is created.
+I think this should read (as you correctly did in
+radix_tree_gang_lookup):
 
-See it as "it doesn't work for files, but only for shared memory".
-The main reason for that is that there is no way to make it persistent
-for files.
+			struct radix_tree_node *slot;
+			slot = *((void ***)results)[ret + i];
+			if (!slot)
+				continue;
+			results[ret + nr_found] = rcu_dereference(slot);
 
-I only objected to your page cache based description because tmpfs
-(and even anonymous memory) are page cache based too.
+by overwriting node, a subsequent __lookup_tag() will do the darnest
+things.
 
-> I can't rely on this anyway and 
-> have to assume that numa_*_memory() call is ignored and prefault.
 
-It's either use shared/anonymous memory or process policy.
+> +			nr_found++;
+> +		}
+>  		ret += nr_found;
+>  		if (next_index == 0)
+>  			break;
 
-> I think Lee's patches should be applied ASAP to fix this inconsistency.
 
-They have serious semantic problems.
-
--Andi
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
