@@ -1,49 +1,61 @@
-Date: Sat, 2 Jun 2007 10:23:40 +0300
-Subject: Re: [PATCH] Document Linux Memory Policy
-Message-ID: <20070602072340.GA14877@minantech.com>
-References: <1180467234.5067.52.camel@localhost> <200705312243.20242.ak@suse.de> <20070601093803.GE10459@minantech.com> <200706011221.33062.ak@suse.de> <1180718106.5278.28.camel@localhost> <Pine.LNX.4.64.0706011140330.2643@schroedinger.engr.sgi.com> <20070601202829.GA14250@minantech.com> <Pine.LNX.4.64.0706011344260.4323@schroedinger.engr.sgi.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <Pine.LNX.4.64.0706011344260.4323@schroedinger.engr.sgi.com>
-From: glebn@voltaire.com (Gleb Natapov)
+Received: from d01relay02.pok.ibm.com (d01relay02.pok.ibm.com [9.56.227.234])
+	by e3.ny.us.ibm.com (8.13.8/8.13.8) with ESMTP id l52EKm8c003519
+	for <linux-mm@kvack.org>; Sat, 2 Jun 2007 10:20:49 -0400
+Received: from d01av02.pok.ibm.com (d01av02.pok.ibm.com [9.56.224.216])
+	by d01relay02.pok.ibm.com (8.13.8/8.13.8/NCO v8.3) with ESMTP id l52FNEUw493556
+	for <linux-mm@kvack.org>; Sat, 2 Jun 2007 11:23:14 -0400
+Received: from d01av02.pok.ibm.com (loopback [127.0.0.1])
+	by d01av02.pok.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l52FNDVp004189
+	for <linux-mm@kvack.org>; Sat, 2 Jun 2007 11:23:14 -0400
+Subject: Re: [RFC 0/4] CONFIG_STABLE to switch off development checks
+From: Dave Kleikamp <shaggy@linux.vnet.ibm.com>
+In-Reply-To: <46606C71.9010008@goop.org>
+References: <20070531002047.702473071@sgi.com> <46603371.50808@goop.org>
+	 <Pine.LNX.4.64.0706011126030.2284@schroedinger.engr.sgi.com>
+	 <46606C71.9010008@goop.org>
+Content-Type: text/plain
+Date: Sat, 02 Jun 2007 10:23:10 -0500
+Message-Id: <1180797790.18535.6.camel@kleikamp.austin.ibm.com>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
-Cc: Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Andi Kleen <ak@suse.de>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>
+To: Jeremy Fitzhardinge <jeremy@goop.org>
+Cc: Christoph Lameter <clameter@sgi.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, akpm@linux-foundation.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Jun 01, 2007 at 01:45:04PM -0700, Christoph Lameter wrote:
-> On Fri, 1 Jun 2007, Gleb Natapov wrote:
+On Fri, 2007-06-01 at 11:58 -0700, Jeremy Fitzhardinge wrote:
+> Christoph Lameter wrote:
+> > Hmmm... We got there because SLUB initially return NULL for kmalloc(0). 
+> > Rationale: The user did not request any memory so we wont give him 
+> > any.
+> >
+> > That (to my surprise) caused some strange behavior of code and so we then 
+> > decided to keep SLAB behavior and return the smallest available object 
+> > size and put a warning in there. At some later point we plan to switch
+> > to returning NULL for kmalloc(0).
+> >   
 > 
-> > > Same here and I wish we had a clean memory region based implementation.
-> > > But that is just what your patches do *not* provide. Instead they are file 
-> > > based. They should be memory region based.
-> > Do you want a solution that doesn't associate memory policy with a file
-> > (if a file is mapped shared and disk backed) like Lee's solution does, but
-> > instead install it into VMA and respect the policy during pagecache page
-> > allocation on behalf of the process? So two process should cooperate
+> Unfortunately, returning NULL is indistinguishable from ENOMEM, so the
+> caller would have to check to see how much it asked for before deciding
+> to really fail, which doesn't help things much.
 > 
-> Right.
-> 
-> > (bind same part of a file to a same memory node in each process) to get
-> > consistent result? If yes this will work for me.
-> 
-> Yes.
+> Or does it (should it) return ERRPTR(-ENOMEM)?  Bit of a major API
+> change if not.
 
-OK. This would be good enough for me (although I agree with Lee's approach and,
-I suppose, we can track which process installed latest policy on the file's region
-and remove it on process exit). But for the sake of consistency why not handle shmem
-in the same way then? Do it Lee's way or do it your way but PLEASE do it the same
-for all kind of memory regions! You are claiming that shmem is somehow special
-because you can control access to it, but what about files? You surely
-can control access to those. And about persistence of shmem policy I
-don't see how this is useful for multiuser machine. I see some kind of
-use for this in dedicated server, but this is exactly where it can be
-achieved by other means.
+I'm on Christoph's side here.  I don't think it makes sense for any code
+to ask to allocate zero bytes of memory and expect valid memory to be
+returned.
 
---
-			Gleb.
+Would a compromise be to return a pointer to some known invalid region?
+This way the kmalloc(0) call would appear successful to the caller, but
+any access to the memory would result in an exception.
+
+Just my 2 cents,
+Shaggy
+-- 
+David Kleikamp
+IBM Linux Technology Center
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
