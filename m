@@ -1,39 +1,42 @@
-Date: Mon, 4 Jun 2007 12:52:11 -0700 (PDT)
-From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [RFC 1/7] cpuset write dirty map
-In-Reply-To: <46646A33.6090107@google.com>
-Message-ID: <Pine.LNX.4.64.0706041250440.25535@schroedinger.engr.sgi.com>
-References: <465FB6CF.4090801@google.com> <Pine.LNX.4.64.0706041138410.24412@schroedinger.engr.sgi.com>
- <46646A33.6090107@google.com>
+From: Andi Kleen <ak@suse.de>
+Subject: Re: [PATCH] Document Linux Memory Policy
+Date: Mon, 4 Jun 2007 22:23:41 +0200
+References: <1180467234.5067.52.camel@localhost> <1180976571.5055.24.camel@localhost> <Pine.LNX.4.64.0706041003040.23603@schroedinger.engr.sgi.com>
+In-Reply-To: <Pine.LNX.4.64.0706041003040.23603@schroedinger.engr.sgi.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain;
+  charset="iso-8859-1"
+Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+Message-Id: <200706042223.41681.ak@suse.de>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Ethan Solomita <solo@google.com>
-Cc: linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@google.com>, a.p.zijlstra@chello.nl
+To: Christoph Lameter <clameter@sgi.com>
+Cc: Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Gleb Natapov <glebn@voltaire.com>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 4 Jun 2007, Ethan Solomita wrote:
+>
+> The other issues will still remain! This is a fundamental change to the
+> nature of memory policies. They are no longer under the control of the
+> task but imposed from the outside. 
 
-> > You should preserve my Signed-off-by: since I wrote most of this. Is there 
-> > a changelog?
-> > 
-> 
-> 	I wasn't sure of the etiquette -- I'd thought that by saying you had
-> signed it off that meant you were accepting my modifications, and didn't
-> want to presume. But I will change it if you like. No slight intended.
-> 
-> 	Unfortunately I don't have a changelog, and since I've since forward
-> ported the changes it would be hard to produce. If you want to review it
-> you should probably review it all, because the forward porting may have
-> introduced issues.
+To be fair this can already happen with tmpfs (and hopefully soon hugetlbfs
+again -- i plan to do some other work there anyways and will put 
+that in too) . But with first touch it is relatively benign.
 
-I glanced over it and it looks okay. Please cc me on future submissions.
+> If one wants to do this then the whole 
+> scheme of memory policies needs to be reworked and rethought in order to
+> be consistent and usable. For example you would need the ability to clear
+> a memory policy.
 
-What testing was done? Would you include the results of tests in your next 
-post?
+That's just setting it to default.
 
+Frankly I think this whole discussion is quite useless without discussing 
+concrete use cases. So far I haven't heard any where this any file policy
+would be a great improvement. Any further complication of the code which
+is already quite complex needs a very good rationale.
 
+-Andi
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
