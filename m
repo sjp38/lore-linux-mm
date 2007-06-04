@@ -1,38 +1,42 @@
-From: Andi Kleen <ak@suse.de>
-Subject: Re: tmpfs and numa mempolicy
-Date: Mon, 4 Jun 2007 15:43:23 +0200
-References: <20070603203003.64fd91a8.randy.dunlap@oracle.com> <Pine.LNX.4.64.0706041307560.12071@blonde.wat.veritas.com>
-In-Reply-To: <Pine.LNX.4.64.0706041307560.12071@blonde.wat.veritas.com>
-MIME-Version: 1.0
-Content-Type: text/plain;
-  charset="iso-8859-1"
+Subject: Re: [PATCH] Document Linux Memory Policy
+From: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
+In-Reply-To: <Pine.LNX.4.64.0706011445380.5009@schroedinger.engr.sgi.com>
+References: <1180467234.5067.52.camel@localhost>
+	 <200705312243.20242.ak@suse.de> <20070601093803.GE10459@minantech.com>
+	 <200706011221.33062.ak@suse.de> <1180718106.5278.28.camel@localhost>
+	 <Pine.LNX.4.64.0706011140330.2643@schroedinger.engr.sgi.com>
+	 <1180726713.5278.80.camel@localhost>
+	 <Pine.LNX.4.64.0706011242250.3598@schroedinger.engr.sgi.com>
+	 <1180731944.5278.146.camel@localhost>
+	 <Pine.LNX.4.64.0706011445380.5009@schroedinger.engr.sgi.com>
+Content-Type: text/plain
+Date: Mon, 04 Jun 2007 09:46:30 -0400
+Message-Id: <1180964790.5055.2.camel@localhost>
+Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
-Message-Id: <200706041543.24516.ak@suse.de>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Hugh Dickins <hugh@veritas.com>
-Cc: Randy Dunlap <randy.dunlap@oracle.com>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Robin Holt <holt@sgi.com>, Christoph Lameter <clameter@sgi.com>
+To: Christoph Lameter <clameter@sgi.com>
+Cc: Andi Kleen <ak@suse.de>, Gleb Natapov <glebn@voltaire.com>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-> I've appended a patch to check node_online_map below, and update
-> tmpfs.txt accordingly.
+On Fri, 2007-06-01 at 14:56 -0700, Christoph Lameter wrote:
+> On Fri, 1 Jun 2007, Lee Schermerhorn wrote:
+> 
+> > > > I don't understand what you mean by "memory region based".
 
-Looks good to me.
+<big snip>
 
-> But it looks to me like mempolicy.c normally never lets a nonline
-> node get into any of its policies, and it would be a bit tedious,
-> error-prone and unnecessary overhead to relax that: so tmpfs mount
-> is at present a dangerous exception in this regard.
->
-> Would you be happy with this change, Robin?  I'm not very NUMArate:
-> do nodes in fact ever get onlined after early system startup?
+Christoph:  obviously I disagree with you on most of the points as well
+as your conclusion.  I may get preempted out of this exchange for a
+while, but in any case, I'm going to try to recap all of the points,
+including the application model, current capabilities, the semantics I'm
+expousing and why they make sense to me.  I fear our mental maps of the
+territory are such that no reconciliation is possible, but I need to
+make the attempt because you seem to be in a position to block me here.
 
-Currently not, but at some point they might be. But then there will
-be quite a lot of code to fix for that anyways so don't let it stop
-you here.
-
--Andi
+Later,
+Lee
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
