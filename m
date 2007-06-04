@@ -1,77 +1,76 @@
-Date: Mon, 4 Jun 2007 09:44:52 -0700
-From: Randy Dunlap <randy.dunlap@oracle.com>
-Subject: Re: tmpfs and numa mempolicy
-Message-Id: <20070604094452.6eae8828.randy.dunlap@oracle.com>
-In-Reply-To: <Pine.LNX.4.64.0706041307560.12071@blonde.wat.veritas.com>
-References: <20070603203003.64fd91a8.randy.dunlap@oracle.com>
-	<Pine.LNX.4.64.0706041307560.12071@blonde.wat.veritas.com>
+Subject: Re: [PATCH] Document Linux Memory Policy
+From: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
+In-Reply-To: <Pine.LNX.4.64.0706040922170.23235@schroedinger.engr.sgi.com>
+References: <1180467234.5067.52.camel@localhost>
+	 <200705312243.20242.ak@suse.de> <20070601093803.GE10459@minantech.com>
+	 <200706011221.33062.ak@suse.de> <1180718106.5278.28.camel@localhost>
+	 <Pine.LNX.4.64.0706011140330.2643@schroedinger.engr.sgi.com>
+	 <1180726713.5278.80.camel@localhost>
+	 <Pine.LNX.4.64.0706011242250.3598@schroedinger.engr.sgi.com>
+	 <1180731944.5278.146.camel@localhost>
+	 <Pine.LNX.4.64.0706011445380.5009@schroedinger.engr.sgi.com>
+	 <1180964790.5055.2.camel@localhost>
+	 <Pine.LNX.4.64.0706040922170.23235@schroedinger.engr.sgi.com>
+Content-Type: text/plain
+Date: Mon, 04 Jun 2007 13:02:51 -0400
+Message-Id: <1180976571.5055.24.camel@localhost>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Hugh Dickins <hugh@veritas.com>
-Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Robin Holt <holt@sgi.com>, Christoph Lameter <clameter@sgi.com>, Andi Kleen <ak@suse.de>
+To: Christoph Lameter <clameter@sgi.com>
+Cc: Andi Kleen <ak@suse.de>, Gleb Natapov <glebn@voltaire.com>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 4 Jun 2007 13:43:33 +0100 (BST) Hugh Dickins wrote:
+On Mon, 2007-06-04 at 09:34 -0700, Christoph Lameter wrote:
+> We have discussed this since you began this work more than a year ago 
+> after I asked you to do the memory region based approach. More 
+> documentation will not change the fundamental problems with inode
+> based policies.
 
-> On Sun, 3 Jun 2007, Randy Dunlap wrote:
-> > 
-> > If someone mounts tmpfs as in
-> > 
-> > > mount -t tmpfs -o size=10g,nr_inodes=10k,mode=777,mpol=prefer:1 \
-> > 	tmpfs /mytmpfs
-> > 
-> > but does not have a node 1, bad things happen when /mytmpfs is accessed.
-> > (CONFIG_NUMA=y)
-> > 
-> > Is this just a case of shoot self in foot, DDT (don't do that)?
+I hope that I can show why a memory region based approach, if I
+understand your notion of memory regions, doesn't have the desired
+properties.  That is the properties that I desire.  I want to make that
+clear because you make statements about "fundamental problems",
+"catastrophe", "crazy semantics" as if you view is the only valid one.
+To quote [paraphrase?] Nick Piggin:  "I have thought about this,
+some..."
+
 > 
-> Thanks for finding that, Randy.
+> You can likely make the approach less of a catastophe by enhancing the 
+> shmem tools (ipcs ipcrm) work on page cache files so that the sysadmin can 
+> see what kind of policies are set on the inodes in memory right now, so 
+> that any unusual allocation behavior as a result of the crazy semantics 
+> here can be detected and fixed.
 > 
-> While it's true that you have to be privileged to mount in the first
-> place (so this isn't too serious), I don't think we can dismiss it as
-> just root shooting own foot: we are in the habit of validating mount
-> arguments to avoid obvious crashes, so ought to do something about this.
+> For shmem (even without page cache inode policies) it may be useful to at 
+> least modify ipcs to show the memory policies and the distribution of the 
+> pages for shared memory. Frankly the existing shmem numa policy 
+> implementation is already a grave cause for concern because there are 
+> weird policies suddenly come into play that the process has never set. To 
+> have that for the page cache is a nightmare scenario.
 
-I agree.  Thanks.
+A "nightmare" in your view of the world, not mine.  Maybe not in Gleb's,
+from what I can tell.  As for others, I don't know, as they've all been
+silent.  ROFL for all I know...
 
-> I've appended a patch to check node_online_map below, and update
-> tmpfs.txt accordingly.  I'm not entirely happy with it: you and I
-> rather need to undo it when testing whether the mpol= parsing works,
-> and it is more restrictive than Robin or I intended.
+I try to give you the benefit of the doubt that it's my fault for not
+explaining things clearly enough where you're making what appear to me
+as specious arguments--unintentionally, of course.  But your tone just
+keeps getting more strident.  
+
 > 
-> But it looks to me like mempolicy.c normally never lets a nonline
-> node get into any of its policies, and it would be a bit tedious,
-> error-prone and unnecessary overhead to relax that: so tmpfs mount
-> is at present a dangerous exception in this regard.
-> 
-> Would you be happy with this change, Robin?  I'm not very NUMArate:
-> do nodes in fact ever get onlined after early system startup?
-> If not, then this change would hardly be any real limitation.
-> 
-> Hugh
-
-> [PATCH] mount -t tmpfs -o mpol= check nodes online
-> 
-> Randy Dunlap reports that a tmpfs, mounted with NUMA mpol= specifying
-> an offline node, crashes as soon as data is allocated upon it.  Now
-> restrict it to online nodes, where before it restricted to MAX_NUMNODES.
-> 
-> Signed-off-by: Hugh Dickins <hugh@veritas.com>
-
-Acked-by: Randy Dunlap <randy.dunlap@oracle.com> // and tested-by:
-
-> ---
->  Documentation/filesystems/tmpfs.txt |   10 +++++-----
->  mm/shmem.c                          |    2 ++
->  2 files changed, 7 insertions(+), 5 deletions(-)
+> Shmem has at least a determinate lifetime (and therefore also a 
+> determinate lifetime for memory policies attached to shmem) which makes it 
+> more manageable. Plus it is a kind of ramdisk where you would want to have 
+> a policy attached to where the ramdisk data should be placed.
 
 
----
-~Randy
-*** Remember to use Documentation/SubmitChecklist when testing your code ***
+So, control over the lifetime of the policies is one of your issue.
+Fine, I can deal with that.  Name calling and hyperbole doesn't help.
+
+Later,
+Lee
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
