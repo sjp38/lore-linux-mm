@@ -1,46 +1,119 @@
-Received: by an-out-0708.google.com with SMTP id d33so401012and
-        for <linux-mm@kvack.org>; Mon, 04 Jun 2007 04:48:05 -0700 (PDT)
-Message-ID: <2c09dd780706040448g792512a8nc62712097d62cc92@mail.gmail.com>
-Date: Mon, 4 Jun 2007 17:18:05 +0530
-From: "manjunath k" <kmanjunat@gmail.com>
-Subject: /proc/pid/maps output
+Date: Mon, 4 Jun 2007 13:43:33 +0100 (BST)
+From: Hugh Dickins <hugh@veritas.com>
+Subject: Re: tmpfs and numa mempolicy
+In-Reply-To: <20070603203003.64fd91a8.randy.dunlap@oracle.com>
+Message-ID: <Pine.LNX.4.64.0706041307560.12071@blonde.wat.veritas.com>
+References: <20070603203003.64fd91a8.randy.dunlap@oracle.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
+To: Randy Dunlap <randy.dunlap@oracle.com>
+Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Robin Holt <holt@sgi.com>, Christoph Lameter <clameter@sgi.com>, Andi Kleen <ak@suse.de>
 List-ID: <linux-mm.kvack.org>
 
-Hi,
+On Sun, 3 Jun 2007, Randy Dunlap wrote:
+> 
+> If someone mounts tmpfs as in
+> 
+> > mount -t tmpfs -o size=10g,nr_inodes=10k,mode=777,mpol=prefer:1 \
+> 	tmpfs /mytmpfs
+> 
+> but does not have a node 1, bad things happen when /mytmpfs is accessed.
+> (CONFIG_NUMA=y)
+> 
+> Is this just a case of shoot self in foot, DDT (don't do that)?
 
- Ive been verifying the /proc/pid/maps output which looks as below,
+Thanks for finding that, Randy.
 
-# cat /proc/<pid>/maps
+While it's true that you have to be privileged to mount in the first
+place (so this isn't too serious), I don't think we can dismiss it as
+just root shooting own foot: we are in the habit of validating mount
+arguments to avoid obvious crashes, so ought to do something about this.
 
-003f2000-003f3000 r-xp 003f2000 00:00 0
-007e6000-007fb000 r-xp 00000000 08:03 14833414   /lib/ld-2.3.6.so
-007fc000-007fd000 r--p 00015000 08:03 14833414   /lib/ld-2.3.6.so
-007fd000-007fe000 rw-p 00016000 08:03 14833414   /lib/ld-2.3.6.so
-00804000-00928000 r-xp 00000000 08:03 14928618   /lib/tls/libc-2.3.6.so
-00928000-00929000 ---p 00124000 08:03 14928618   /lib/tls/libc-2.3.6.so
-00929000-0092b000 r--p 00124000 08:03 14928618   /lib/tls/libc-2.3.6.so
-0092b000-0092d000 rw-p 00126000 08:03 14928618   /lib/tls/libc-2.3.6.so
-0092d000-0092f000 rw-p 0092d000 00:00 0
-08048000-0804c000 r-xp 00000000 08:03 5095452    /bin/cat
-0804c000-0804d000 rw-p 00003000 08:03 5095452    /bin/cat
-0a01c000-0a03d000 rw-p 0a01c000 00:00 0          [heap]
-b7d21000-b7f21000 r--p 00000000 08:03 25480659   /usr/lib/locale/locale-archive
-b7f21000-b7f23000 rw-p b7f21000 00:00 0
-bf81d000-bf832000 rw-p bf81d000 00:00 0          [stack]
+I've appended a patch to check node_online_map below, and update
+tmpfs.txt accordingly.  I'm not entirely happy with it: you and I
+rather need to undo it when testing whether the mpol= parsing works,
+and it is more restrictive than Robin or I intended.
 
-In the above output the last column displays the name of libraries and
-executables,
-but in columns 1, 9 and 14 there is no name displayed, can anyone give
-some information about this, regarding what does it correspond to.
+But it looks to me like mempolicy.c normally never lets a nonline
+node get into any of its policies, and it would be a bit tedious,
+error-prone and unnecessary overhead to relax that: so tmpfs mount
+is at present a dangerous exception in this regard.
 
-Thanks
+Would you be happy with this change, Robin?  I'm not very NUMArate:
+do nodes in fact ever get onlined after early system startup?
+If not, then this change would hardly be any real limitation.
+
+Hugh
+
+> a.  cp somefile /mytmpfs
+> 
+> Unable to handle kernel paging request at 00000000000019e8 RIP: 
+>  [<ffffffff8026c369>] __alloc_pages+0x3e/0x2c6
+> Pid: 3762, comm: cp Not tainted 2.6.22-rc3 #2
+> Call Trace:
+>  [<ffffffff8028494d>] shmem_swp_entry+0x4b/0x14a
+>  [<ffffffff8028330a>] alloc_page_vma+0x7c/0x85
+>  [<ffffffff8028548f>] shmem_getpage+0x453/0x6e8
+>  [<ffffffff802868d1>] shmem_file_write+0x124/0x217
+>  [<ffffffff8028c32d>] vfs_write+0xae/0x137
+>  [<ffffffff8028c895>] sys_write+0x47/0x70
+>  [<ffffffff8020948e>] system_call+0x7e/0x83
+> 
+> b.  umount /mytmpfs
+> 
+> kernel BUG at mm/shmem.c:775!
+
+This umount BUG is just an untidy consequence of the first oops.
+
+
+[PATCH] mount -t tmpfs -o mpol= check nodes online
+
+Randy Dunlap reports that a tmpfs, mounted with NUMA mpol= specifying
+an offline node, crashes as soon as data is allocated upon it.  Now
+restrict it to online nodes, where before it restricted to MAX_NUMNODES.
+
+Signed-off-by: Hugh Dickins <hugh@veritas.com>
+---
+ Documentation/filesystems/tmpfs.txt |   10 +++++-----
+ mm/shmem.c                          |    2 ++
+ 2 files changed, 7 insertions(+), 5 deletions(-)
+
+--- 2.6.22-rc3/Documentation/filesystems/tmpfs.txt	2006-11-29 21:57:37.000000000 +0000
++++ linux/Documentation/filesystems/tmpfs.txt	2007-06-04 12:54:17.000000000 +0100
+@@ -94,10 +94,10 @@ largest node numbers in the range.  For 
+ 
+ Note that trying to mount a tmpfs with an mpol option will fail if the
+ running kernel does not support NUMA; and will fail if its nodelist
+-specifies a node >= MAX_NUMNODES.  If your system relies on that tmpfs
+-being mounted, but from time to time runs a kernel built without NUMA
+-capability (perhaps a safe recovery kernel), or configured to support
+-fewer nodes, then it is advisable to omit the mpol option from automatic
++specifies a node which is not online.  If your system relies on that
++tmpfs being mounted, but from time to time runs a kernel built without
++NUMA capability (perhaps a safe recovery kernel), or with fewer nodes
++online, then it is advisable to omit the mpol option from automatic
+ mount options.  It can be added later, when the tmpfs is already mounted
+ on MountPoint, by 'mount -o remount,mpol=Policy:NodeList MountPoint'.
+ 
+@@ -121,4 +121,4 @@ RAM/SWAP in 10240 inodes and it is only 
+ Author:
+    Christoph Rohland <cr@sap.com>, 1.12.01
+ Updated:
+-   Hugh Dickins <hugh@veritas.com>, 19 February 2006
++   Hugh Dickins <hugh@veritas.com>, 4 June 2007
+--- 2.6.22-rc3/mm/shmem.c	2007-05-21 13:13:20.000000000 +0100
++++ linux/mm/shmem.c	2007-06-04 12:54:17.000000000 +0100
+@@ -967,6 +967,8 @@ static inline int shmem_parse_mpol(char 
+ 		*nodelist++ = '\0';
+ 		if (nodelist_parse(nodelist, *policy_nodes))
+ 			goto out;
++		if (!nodes_subset(*policy_nodes, node_online_map))
++			goto out;
+ 	}
+ 	if (!strcmp(value, "default")) {
+ 		*policy = MPOL_DEFAULT;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
