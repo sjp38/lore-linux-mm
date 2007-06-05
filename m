@@ -1,277 +1,135 @@
-Date: Tue, 5 Jun 2007 15:35:32 -0700
-From: Randy Dunlap <randy.dunlap@oracle.com>
-Subject: [RFC/PATCH v2] shmem: use lib/parser for mount options
-Message-Id: <20070605153532.7b88e529.randy.dunlap@oracle.com>
-In-Reply-To: <20070524000044.b62a0792.randy.dunlap@oracle.com>
-References: <20070524000044.b62a0792.randy.dunlap@oracle.com>
+Date: Tue, 5 Jun 2007 16:39:15 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH 2/4] audit: rework execve audit
+Message-Id: <20070605163915.e9cc7bc8.akpm@linux-foundation.org>
+In-Reply-To: <20070605151203.626442000@chello.nl>
+References: <20070605150523.786600000@chello.nl>
+	<20070605151203.626442000@chello.nl>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-From: Randy Dunlap <randy.dunlap@oracle.com>
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
-Cc: hugh@veritas.com, akpm <akpm@linux-foundation.org>
+To: Peter Zijlstra <a.p.zijlstra@chello.nl>
+Cc: linux-kernel@vger.kernel.org, parisc-linux@lists.parisc-linux.org, linux-mm@kvack.org, linux-arch@vger.kernel.org, Ollie Wild <aaw@google.com>, Ingo Molnar <mingo@elte.hu>, Andi Kleen <ak@suse.de>, linux-audit@redhat.com
 List-ID: <linux-mm.kvack.org>
 
-Convert shmem (tmpfs) to use the in-kernel mount options parsing library.
+On Tue, 05 Jun 2007 17:05:25 +0200
+Peter Zijlstra <a.p.zijlstra@chello.nl> wrote:
 
-Old size: 0x368 = 872 bytes
-New size: 0x3b6 = 950 bytes
+> The purpose of audit_bprm() is to log the argv array to a userspace daemon at
+> the end of the execve system call. Since user-space hasn't had time to run,
+> this array is still in pristine state on the process' stack; so no need to copy
+> it, we can just grab it from there.
+> 
+> In order to minimize the damage to audit_log_*() copy each string into a
+> temporary kernel buffer first.
+> 
+> Currently the audit code requires that the full argument vector fits in a
+> single packet. So currently it does clip the argv size to a (sysctl) limit, but
+> only when execve auditing is enabled.
+> 
+> If the audit protocol gets extended to allow for multiple packets this check
+> can be removed.
+> 
+> ...
+>  
 
-If you feel that there is no significant advantage to this, that's OK,
-I can just drop it.
+Please try to avoid trigger-happiness with the BUG_ON()s..
 
-Signed-off-by: Randy Dunlap <randy.dunlap@oracle.com>
----
- mm/shmem.c |  179 ++++++++++++++++++++++++++++++++++++++++---------------------
- 1 file changed, 120 insertions(+), 59 deletions(-)
+>  struct audit_aux_data_socketcall {
+> @@ -834,6 +834,47 @@ static int audit_log_pid_context(struct 
+>  	return rc;
+>  }
+>  
+> +static void audit_log_execve_info(struct audit_buffer *ab,
+> +		struct audit_aux_data_execve *axi)
+> +{
+> +	int i;
+> +	long len;
+> +	const char __user *p = (const char __user *)axi->mm->arg_start;
+> +
+> +	if (axi->mm != current->mm)
+> +		return; /* execve failed, no additional info */
+> +
+> +	for (i = 0; i < axi->argc; i++, p += len) {
+> +		long ret;
+> +		char *tmp;
+> +
+> +		len = strnlen_user(p, MAX_ARG_PAGES*PAGE_SIZE);
+> +		/*
+> +		 * We just created this mm, if we can't find the strings
+> +		 * we just copied in something is _very_ wrong.
+> +		 */
+> +		BUG_ON(!len);
+> +
+> +		tmp = kmalloc(len, GFP_KERNEL);
+> +		if (!tmp) {
+> +			audit_panic("out of memory for argv string\n");
+> +			break;
+> +		}
+> +
+> +		ret = copy_from_user(tmp, p, len);
+> +		/*
+> +		 * There is no reason for this copy to be short.
+> +		 */
+> +		BUG_ON(ret);
 
---- linux-2622-rc4.orig/mm/shmem.c
-+++ linux-2622-rc4/mm/shmem.c
-@@ -32,6 +32,7 @@
- #include <linux/mman.h>
- #include <linux/file.h>
- #include <linux/swap.h>
-+#include <linux/parser.h>
- #include <linux/pagemap.h>
- #include <linux/string.h>
- #include <linux/slab.h>
-@@ -84,6 +85,23 @@ enum sgp_type {
- 	SGP_WRITE,	/* may exceed i_size, may allocate page */
- };
+You sure?  What happens if another thread does munmap() in parallel?
+
+I think I'll make this WARN_ON just out of principle.
+
+> +		audit_log_format(ab, "a%d=", i);
+> +		audit_log_untrustedstring(ab, tmp);
+> +		audit_log_format(ab, "\n");
+> +
+> +		kfree(tmp);
+> +	}
+> +}
+> +
+>
+> ...
+>
+> ===================================================================
+> --- linux-2.6-2.orig/fs/exec.c	2007-06-05 09:51:42.000000000 +0200
+> +++ linux-2.6-2/fs/exec.c	2007-06-05 10:03:11.000000000 +0200
+> @@ -1154,6 +1154,7 @@ int do_execve(char * filename,
+>  {
+>  	struct linux_binprm *bprm;
+>  	struct file *file;
+> +	unsigned long tmp;
+>  	int retval;
+>  	int i;
+>  
+> @@ -1208,9 +1209,11 @@ int do_execve(char * filename,
+>  	if (retval < 0)
+>  		goto out;
+>  
+> +	tmp = bprm->p;
+>  	retval = copy_strings(bprm->argc, argv, bprm);
+>  	if (retval < 0)
+>  		goto out;
+> +	bprm->argv_len = tmp - bprm->p;
+
+
+
+
+
+--- a/include/linux/kernel.h~a
++++ a/include/linux/kernel.h
+@@ -5,6 +5,8 @@
+  * 'kernel.h' contains some often-used function prototypes etc
+  */
  
-+enum {
-+	Opt_size, Opt_nr_blocks, Opt_nr_inodes,
-+	Opt_mode, Opt_uid, Opt_gid,
-+	Opt_mpol, Opt_err,
-+};
++#define tmp don't call your variables tmp!
 +
-+static match_table_t tokens = {
-+	{Opt_size,	"size=%s"},
-+	{Opt_nr_blocks,	"nr_blocks=%s"},
-+	{Opt_nr_inodes,	"nr_inodes=%s"},
-+	{Opt_mode,	"mode=%o"},	/* not for remount */
-+	{Opt_uid,	"uid=%u"},	/* not for remount */
-+	{Opt_gid,	"gid=%u"},	/* not for remount */
-+	{Opt_mpol,	"mpol=%s"},	/* various NUMA memory policy options */
-+	{Opt_err,	NULL},
-+};
-+
- static int shmem_getpage(struct inode *inode, unsigned long idx,
- 			 struct page **pagep, enum sgp_type sgp, int *type);
+ #ifdef __KERNEL__
  
-@@ -2113,92 +2131,135 @@ static struct export_operations shmem_ex
- 
- static int shmem_parse_options(char *options, int *mode, uid_t *uid,
- 	gid_t *gid, unsigned long *blocks, unsigned long *inodes,
--	int *policy, nodemask_t *policy_nodes)
-+	int *policy, nodemask_t *policy_nodes, int is_remount)
- {
--	char *this_char, *value, *rest;
-+	char *rest;
-+	substring_t args[MAX_OPT_ARGS];
-+	char *p, *prev_opt = NULL;
-+	int option;
- 
--	while (options != NULL) {
--		this_char = options;
--		for (;;) {
--			/*
--			 * NUL-terminate this option: unfortunately,
--			 * mount options form a comma-separated list,
--			 * but mpol's nodelist may also contain commas.
--			 */
--			options = strchr(options, ',');
--			if (options == NULL)
--				break;
--			options++;
--			if (!isdigit(*options)) {
--				options[-1] = '\0';
--				break;
--			}
--		}
--		if (!*this_char)
-+	if (!options)
-+		return 0;
-+
-+	while ((p = strsep(&options, ",")) != NULL) {
-+		int token;
-+
-+		if (!*p) {
-+			prev_opt = options;
- 			continue;
--		if ((value = strchr(this_char,'=')) != NULL) {
--			*value++ = 0;
--		} else {
--			printk(KERN_ERR
--			    "tmpfs: No value for mount option '%s'\n",
--			    this_char);
--			return 1;
- 		}
--
--		if (!strcmp(this_char,"size")) {
-+		token = match_token(p, tokens, args);
-+		switch (token) {
-+		case Opt_size: {
- 			unsigned long long size;
--			size = memparse(value,&rest);
-+			/* memparse() will accept a K/M/G without a digit */
-+			if (!isdigit(*args[0].from))
-+				goto bad_val;
-+			size = memparse(args[0].from, &rest);
- 			if (*rest == '%') {
- 				size <<= PAGE_SHIFT;
- 				size *= totalram_pages;
- 				do_div(size, 100);
- 				rest++;
- 			}
--			if (*rest)
--				goto bad_val;
- 			*blocks = size >> PAGE_CACHE_SHIFT;
--		} else if (!strcmp(this_char,"nr_blocks")) {
--			*blocks = memparse(value,&rest);
--			if (*rest)
-+			break;
-+		}
-+		case Opt_nr_blocks:
-+			/* memparse() will accept a K/M/G without a digit */
-+			if (!isdigit(*args[0].from))
- 				goto bad_val;
--		} else if (!strcmp(this_char,"nr_inodes")) {
--			*inodes = memparse(value,&rest);
--			if (*rest)
-+			*blocks = memparse(args[0].from, &rest);
-+			break;
-+		case Opt_nr_inodes:
-+			/* memparse() will accept a K/M/G without a digit */
-+			if (!isdigit(*args[0].from))
- 				goto bad_val;
--		} else if (!strcmp(this_char,"mode")) {
-+			*inodes = memparse(args[0].from, &rest);
-+			break;
-+		case Opt_mode:
-+			if (is_remount)		/* not valid on remount */
-+				break;
- 			if (!mode)
--				continue;
--			*mode = simple_strtoul(value,&rest,8);
--			if (*rest)
-+				break;
-+			if (match_octal(&args[0], &option))
- 				goto bad_val;
--		} else if (!strcmp(this_char,"uid")) {
-+			*mode = option;
-+			break;
-+		case Opt_uid:
-+			if (is_remount)		/* not valid on remount */
-+				break;
- 			if (!uid)
--				continue;
--			*uid = simple_strtoul(value,&rest,0);
--			if (*rest)
-+				break;
-+			if (match_int(&args[0], &option))
- 				goto bad_val;
--		} else if (!strcmp(this_char,"gid")) {
-+			*uid = option;
-+			break;
-+		case Opt_gid:
-+			if (is_remount)		/* not valid on remount */
-+				break;
- 			if (!gid)
--				continue;
--			*gid = simple_strtoul(value,&rest,0);
--			if (*rest)
-+				break;
-+			if (match_int(&args[0], &option))
- 				goto bad_val;
--		} else if (!strcmp(this_char,"mpol")) {
--			if (shmem_parse_mpol(value,policy,policy_nodes))
-+			*gid = option;
-+			break;
-+		case Opt_mpol: {
-+			/*
-+			 * strsep() broke the mount options string at a comma,
-+			 * but tmpfs accepts "mpol=type:nodelist", where
-+			 * nodelist may contain commas, so restore the
-+			 * comma and then insert a nul char at the end of
-+			 * the nodelist. Also update 'options' so that the
-+			 * next call to strsep() points to the next mount
-+			 * option(s).
-+			 */
-+			char *delim, *opt = prev_opt + 5; /* skip "mpol=" */
-+			char *fixup = NULL; /* temp change nul char to comma */
-+
-+			if (!options)	/* no fixups needed */
-+				goto do_mpol;
-+
-+			/* there are more options, so put the comma back */
-+			fixup = prev_opt + strlen(prev_opt);
-+			*fixup = ',';	/* this lets (mpol=)policy[:nodelist] be parsed */
-+			/* now find the end of the mpol= option */
-+			delim = strchr(prev_opt, ':');
-+			if (!delim) { /* no colon, restore nul char, done */
-+				*fixup = '\0';
-+				goto do_mpol;
-+			}
-+			/* scan over the node(list) & insert nul char at its end */
-+			delim++;	/* past colon */
-+			while (*delim) {
-+				if (*delim == ',' || isdigit(*delim) || *delim == '-')
-+					delim++;
-+				else
-+					break;
-+			}
-+			options = delim;	/* for next time in main loop */
-+			if (*delim)	/* not end of string */
-+				delim[-1] = '\0';
-+do_mpol:
-+			if (shmem_parse_mpol(opt, policy, policy_nodes))
- 				goto bad_val;
--		} else {
--			printk(KERN_ERR "tmpfs: Bad mount option %s\n",
--			       this_char);
-+
-+			break;
-+		}
-+		default:
-+			printk(KERN_ERR "tmpfs: Bad mount option: %s\n", p);
- 			return 1;
-+			break;
- 		}
-+
-+		prev_opt = options;
- 	}
- 	return 0;
- 
- bad_val:
- 	printk(KERN_ERR "tmpfs: Bad value '%s' for mount option '%s'\n",
--	       value, this_char);
-+	       args[0].from, p);
- 	return 1;
--
- }
- 
- static int shmem_remount_fs(struct super_block *sb, int *flags, char *data)
-@@ -2213,7 +2274,7 @@ static int shmem_remount_fs(struct super
- 	int error = -EINVAL;
- 
- 	if (shmem_parse_options(data, NULL, NULL, NULL, &max_blocks,
--				&max_inodes, &policy, &policy_nodes))
-+				&max_inodes, &policy, &policy_nodes, 1))
- 		return error;
- 
- 	spin_lock(&sbinfo->stat_lock);
-@@ -2280,7 +2341,7 @@ static int shmem_fill_super(struct super
- 		if (inodes > blocks)
- 			inodes = blocks;
- 		if (shmem_parse_options(data, &mode, &uid, &gid, &blocks,
--					&inodes, &policy, &policy_nodes))
-+					&inodes, &policy, &policy_nodes, 0))
- 			return -EINVAL;
- 	}
- 	sb->s_export_op = &shmem_export_ops;
+ #include <stdarg.h>
+_
+  
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
