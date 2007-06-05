@@ -1,61 +1,50 @@
-Date: Mon, 4 Jun 2007 14:51:11 -0700 (PDT)
-From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [PATCH] Document Linux Memory Policy
-In-Reply-To: <200706042223.41681.ak@suse.de>
-Message-ID: <Pine.LNX.4.64.0706041444010.26764@schroedinger.engr.sgi.com>
-References: <1180467234.5067.52.camel@localhost> <1180976571.5055.24.camel@localhost>
- <Pine.LNX.4.64.0706041003040.23603@schroedinger.engr.sgi.com>
- <200706042223.41681.ak@suse.de>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from pd3mr6so.prod.shaw.ca (pd3mr6so-qfe3.prod.shaw.ca [10.0.141.21])
+ by l-daemon (Sun ONE Messaging Server 6.0 HotFix 1.01 (built Mar 15 2004))
+ with ESMTP id <0JJ500C1G0FXEEB0@l-daemon> for linux-mm@kvack.org; Mon,
+ 04 Jun 2007 18:38:21 -0600 (MDT)
+Received: from pn2ml1so.prod.shaw.ca ([10.0.121.145])
+ by pd3mr6so.prod.shaw.ca (Sun Java System Messaging Server 6.2-7.05 (built Sep
+ 5 2006)) with ESMTP id <0JJ500FA30FVEYS0@pd3mr6so.prod.shaw.ca> for
+ linux-mm@kvack.org; Mon, 04 Jun 2007 18:38:21 -0600 (MDT)
+Received: from [192.168.1.113] ([70.64.1.86])
+ by l-daemon (Sun ONE Messaging Server 6.0 HotFix 1.01 (built Mar 15 2004))
+ with ESMTP id <0JJ500BHR0FRCNK0@l-daemon> for linux-mm@kvack.org; Mon,
+ 04 Jun 2007 18:38:15 -0600 (MDT)
+Date: Mon, 04 Jun 2007 18:38:14 -0600
+From: Robert Hancock <hancockr@shaw.ca>
+Subject: Re: [RFC 0/4] CONFIG_STABLE to switch off development checks
+In-reply-to: <fa.wiSgrIhkRNkkC7Wh6Bt3BY4z7BM@ifi.uio.no>
+Message-id: <4664B076.5000406@shaw.ca>
+MIME-version: 1.0
+Content-type: text/plain; charset=ISO-8859-1; format=flowed
+Content-transfer-encoding: 7bit
+References: <fa.UBCbBXgIW93M6j2F+d+umQ5+v9I@ifi.uio.no>
+ <fa.iaekQW/Par/E6eIpnL0NjEdCUxc@ifi.uio.no>
+ <fa.2BlkzuhauAATrsG1MYhPMeWMhPM@ifi.uio.no>
+ <fa.o9WA1K75HxwNnBEQDyoQMfWVpiQ@ifi.uio.no>
+ <fa.wiSgrIhkRNkkC7Wh6Bt3BY4z7BM@ifi.uio.no>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andi Kleen <ak@suse.de>
-Cc: Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Gleb Natapov <glebn@voltaire.com>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>
+To: Dave Kleikamp <shaggy@linux.vnet.ibm.com>
+Cc: Jeremy Fitzhardinge <jeremy@goop.org>, Christoph Lameter <clameter@sgi.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, akpm@linux-foundation.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 4 Jun 2007, Andi Kleen wrote:
-
-> > The other issues will still remain! This is a fundamental change to the
-> > nature of memory policies. They are no longer under the control of the
-> > task but imposed from the outside. 
+Dave Kleikamp wrote:
+> I'm on Christoph's side here.  I don't think it makes sense for any code
+> to ask to allocate zero bytes of memory and expect valid memory to be
+> returned.
 > 
-> To be fair this can already happen with tmpfs (and hopefully soon hugetlbfs
-> again -- i plan to do some other work there anyways and will put 
-> that in too) . But with first touch it is relatively benign.
+> Would a compromise be to return a pointer to some known invalid region?
+> This way the kmalloc(0) call would appear successful to the caller, but
+> any access to the memory would result in an exception.
 
-Well this is pretty restricted for now so the control issues are not that
-much of a problem. Both are special areas of memory that only see limited 
-use.
+I would think returning 1 as the address would work here, it's not NULL 
+but any access to that page should still oops..
 
-But in general the association of memory policies with files is not that 
-clean and it would be best to avoid things like that unless we first clean 
-up the semantics.
- 
-> > If one wants to do this then the whole 
-> > scheme of memory policies needs to be reworked and rethought in order to
-> > be consistent and usable. For example you would need the ability to clear
-> > a memory policy.
-> 
-> That's just setting it to default.
-
-Default does not allow to distinguish between no memory policy set and 
-the node local policy. This becomes important if you need to arbitrate 
-multiple processes setting competing memory policies on a file page range. 
-Right now we are ducking issues here it seems. If a process with higher 
-rights sets the node local policy then another process with lower right 
-should not be able to change that etc.
-
-> Frankly I think this whole discussion is quite useless without discussing 
-> concrete use cases. So far I haven't heard any where this any file policy
-> would be a great improvement. Any further complication of the code which
-> is already quite complex needs a very good rationale.
-
-In general I agree (we have now operated for years with the current 
-mempolicy semantics and I am concerned about any changes causing churn for 
-our customers) but there is also the consistency issue. Memory policies do 
-not work in mmapped page cache ranges which is surprising and not 
-documented.
+-- 
+Robert Hancock      Saskatoon, SK, Canada
+To email, remove "nospam" from hancockr@nospamshaw.ca
+Home Page: http://www.roberthancock.com/
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
