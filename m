@@ -1,188 +1,324 @@
-Message-Id: <20070605151203.738393000@chello.nl>
+Message-Id: <20070605151203.548530000@chello.nl>
 References: <20070605150523.786600000@chello.nl>
-Date: Tue, 05 Jun 2007 17:05:26 +0200
+Date: Tue, 05 Jun 2007 17:05:24 +0200
 From: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Subject: [PATCH 3/4] mm: move_page_tables{,_up}
-Content-Disposition: inline; filename=move_page_tables_up.patch
+Subject: [PATCH 1/4] arch: personality independent stack top
+Content-Disposition: inline; filename=stack_top_max.patch
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: linux-kernel@vger.kernel.org, parisc-linux@lists.parisc-linux.org, linux-mm@kvack.org, linux-arch@vger.kernel.org
 Cc: Ollie Wild <aaw@google.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Andrew Morton <akpm@osdl.org>, Ingo Molnar <mingo@elte.hu>, Andi Kleen <ak@suse.de>
 List-ID: <linux-mm.kvack.org>
 
-Provide functions for moving page tables upwards.
+New arch macro STACK_TOP_MAX it gives the larges valid stack address for
+the architecture in question.
+
+It differs from STACK_TOP in that it will not distinguish between personalities
+but will always return the largest possible address.
+
+This is used to create the initial stack on execve, which we will move down
+to the proper location once the binfmt code has figured out where that is.
 
 Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
 Signed-off-by: Ollie Wild <aaw@google.com>
 ---
- include/linux/mm.h |    7 +++
- mm/mremap.c        |  105 ++++++++++++++++++++++++++++++++++++++++++++++++++++-
- 2 files changed, 110 insertions(+), 2 deletions(-)
+ fs/exec.c                    |    2 +-
+ include/asm-alpha/a.out.h    |    2 ++
+ include/asm-arm/a.out.h      |    1 +
+ include/asm-arm26/a.out.h    |    1 +
+ include/asm-avr32/a.out.h    |    1 +
+ include/asm-cris/a.out.h     |    1 +
+ include/asm-frv/mem-layout.h |    1 +
+ include/asm-h8300/a.out.h    |    1 +
+ include/asm-i386/a.out.h     |    1 +
+ include/asm-ia64/ustack.h    |    1 +
+ include/asm-m32r/a.out.h     |    1 +
+ include/asm-m68k/a.out.h     |    1 +
+ include/asm-mips/a.out.h     |    1 +
+ include/asm-parisc/a.out.h   |    1 +
+ include/asm-powerpc/a.out.h  |    3 +++
+ include/asm-s390/a.out.h     |    1 +
+ include/asm-sh/a.out.h       |    1 +
+ include/asm-sh64/a.out.h     |    1 +
+ include/asm-sparc/a.out.h    |    1 +
+ include/asm-sparc64/a.out.h  |    2 ++
+ include/asm-um/a.out.h       |    2 ++
+ include/asm-x86_64/a.out.h   |    3 ++-
+ include/asm-xtensa/a.out.h   |    1 +
+ 23 files changed, 29 insertions(+), 2 deletions(-)
 
-Index: linux-2.6-2/include/linux/mm.h
+Index: linux-2.6-2/include/asm-alpha/a.out.h
 ===================================================================
---- linux-2.6-2.orig/include/linux/mm.h	2007-06-01 10:50:58.000000000 +0200
-+++ linux-2.6-2/include/linux/mm.h	2007-06-01 10:57:26.000000000 +0200
-@@ -788,6 +787,12 @@ int FASTCALL(set_page_dirty(struct page 
- int set_page_dirty_lock(struct page *page);
- int clear_page_dirty_for_io(struct page *page);
+--- linux-2.6-2.orig/include/asm-alpha/a.out.h	2007-06-01 10:27:27.000000000 +0200
++++ linux-2.6-2/include/asm-alpha/a.out.h	2007-06-01 10:27:30.000000000 +0200
+@@ -101,6 +101,8 @@ struct exec
+ #define STACK_TOP \
+   (current->personality & ADDR_LIMIT_32BIT ? 0x80000000 : 0x00120000000UL)
  
-+extern unsigned long move_page_tables(struct vm_area_struct *vma,
-+		unsigned long old_addr, struct vm_area_struct *new_vma,
-+		unsigned long new_addr, unsigned long len);
-+extern unsigned long move_page_tables_up(struct vm_area_struct *vma,
-+		unsigned long old_addr, struct vm_area_struct *new_vma,
-+		unsigned long new_addr, unsigned long len);
- extern unsigned long do_mremap(unsigned long addr,
- 			       unsigned long old_len, unsigned long new_len,
- 			       unsigned long flags, unsigned long new_addr);
-Index: linux-2.6-2/mm/mremap.c
++#define STACK_TOP_MAX	0x00120000000UL
++
+ #endif
+ 
+ #endif /* __A_OUT_GNU_H__ */
+Index: linux-2.6-2/include/asm-arm/a.out.h
 ===================================================================
---- linux-2.6-2.orig/mm/mremap.c	2007-06-01 10:50:58.000000000 +0200
-+++ linux-2.6-2/mm/mremap.c	2007-06-01 10:57:45.000000000 +0200
-@@ -118,9 +118,63 @@ static void move_ptes(struct vm_area_str
- 		spin_unlock(&mapping->i_mmap_lock);
- }
+--- linux-2.6-2.orig/include/asm-arm/a.out.h	2007-06-01 10:27:27.000000000 +0200
++++ linux-2.6-2/include/asm-arm/a.out.h	2007-06-01 10:27:30.000000000 +0200
+@@ -30,6 +30,7 @@ struct exec
+ #ifdef __KERNEL__
+ #define STACK_TOP	((current->personality == PER_LINUX_32BIT) ? \
+ 			 TASK_SIZE : TASK_SIZE_26)
++#define STACK_TOP_MAX	TASK_SIZE
+ #endif
  
-+static void move_ptes_up(struct vm_area_struct *vma, pmd_t *old_pmd,
-+		unsigned long old_addr, unsigned long old_end,
-+		struct vm_area_struct *new_vma, pmd_t *new_pmd,
-+		unsigned long new_addr)
-+{
-+	struct address_space *mapping = NULL;
-+	struct mm_struct *mm = vma->vm_mm;
-+	pte_t *old_pte, *new_pte, pte;
-+	spinlock_t *old_ptl, *new_ptl;
-+	unsigned long new_end = new_addr + (old_end - old_addr);
-+
-+	if (vma->vm_file) {
-+		/*
-+		 * Subtle point from Rajesh Venkatasubramanian: before
-+		 * moving file-based ptes, we must lock vmtruncate out,
-+		 * since it might clean the dst vma before the src vma,
-+		 * and we propagate stale pages into the dst afterward.
-+		 */
-+		mapping = vma->vm_file->f_mapping;
-+		spin_lock(&mapping->i_mmap_lock);
-+		if (new_vma->vm_truncate_count &&
-+		    new_vma->vm_truncate_count != vma->vm_truncate_count)
-+			new_vma->vm_truncate_count = 0;
-+	}
-+
-+	/*
-+	 * We don't have to worry about the ordering of src and dst
-+	 * pte locks because exclusive mmap_sem prevents deadlock.
-+	 */
-+	old_pte = pte_offset_map_lock(mm, old_pmd, old_end-1, &old_ptl);
-+ 	new_pte = pte_offset_map_nested(new_pmd, new_end-1);
-+	new_ptl = pte_lockptr(mm, new_pmd);
-+	if (new_ptl != old_ptl)
-+		spin_lock_nested(new_ptl, SINGLE_DEPTH_NESTING);
-+	arch_enter_lazy_mmu_mode();
-+
-+	for (; old_end > old_addr; old_pte--, old_end -= PAGE_SIZE,
-+				   new_pte--, new_end -= PAGE_SIZE) {
-+		if (pte_none(*old_pte))
-+			continue;
-+		pte = ptep_clear_flush(vma, old_end-1, old_pte);
-+		pte = move_pte(pte, new_vma->vm_page_prot, old_end-1, new_end-1);
-+		set_pte_at(mm, new_end-1, new_pte, pte);
-+	}
-+
-+	arch_leave_lazy_mmu_mode();
-+	if (new_ptl != old_ptl)
-+		spin_unlock(new_ptl);
-+	pte_unmap_nested(new_pte - 1);
-+	pte_unmap_unlock(old_pte - 1, old_ptl);
-+	if (mapping)
-+		spin_unlock(&mapping->i_mmap_lock);
-+}
-+
- #define LATENCY_LIMIT	(64 * PAGE_SIZE)
+ #ifndef LIBRARY_START_TEXT
+Index: linux-2.6-2/include/asm-arm26/a.out.h
+===================================================================
+--- linux-2.6-2.orig/include/asm-arm26/a.out.h	2007-06-01 10:27:27.000000000 +0200
++++ linux-2.6-2/include/asm-arm26/a.out.h	2007-06-01 10:27:30.000000000 +0200
+@@ -29,6 +29,7 @@ struct exec
  
--static unsigned long move_page_tables(struct vm_area_struct *vma,
-+unsigned long move_page_tables(struct vm_area_struct *vma,
- 		unsigned long old_addr, struct vm_area_struct *new_vma,
- 		unsigned long new_addr, unsigned long len)
+ #ifdef __KERNEL__
+ #define STACK_TOP	TASK_SIZE
++#define STACK_TOP_MAX	STACK_TOP
+ #endif
+ 
+ #ifndef LIBRARY_START_TEXT
+Index: linux-2.6-2/include/asm-avr32/a.out.h
+===================================================================
+--- linux-2.6-2.orig/include/asm-avr32/a.out.h	2007-06-01 10:27:27.000000000 +0200
++++ linux-2.6-2/include/asm-avr32/a.out.h	2007-06-01 10:27:30.000000000 +0200
+@@ -20,6 +20,7 @@ struct exec
+ #ifdef __KERNEL__
+ 
+ #define STACK_TOP	TASK_SIZE
++#define STACK_TOP_MAX	STACK_TOP
+ 
+ #endif
+ 
+Index: linux-2.6-2/include/asm-cris/a.out.h
+===================================================================
+--- linux-2.6-2.orig/include/asm-cris/a.out.h	2007-06-01 10:27:27.000000000 +0200
++++ linux-2.6-2/include/asm-cris/a.out.h	2007-06-01 10:27:30.000000000 +0200
+@@ -8,6 +8,7 @@
+ 
+ /* grabbed from the intel stuff  */   
+ #define STACK_TOP TASK_SIZE
++#define STACK_TOP_MAX	STACK_TOP
+ 
+ 
+ struct exec
+Index: linux-2.6-2/include/asm-frv/mem-layout.h
+===================================================================
+--- linux-2.6-2.orig/include/asm-frv/mem-layout.h	2007-06-01 10:27:27.000000000 +0200
++++ linux-2.6-2/include/asm-frv/mem-layout.h	2007-06-01 10:27:30.000000000 +0200
+@@ -60,6 +60,7 @@
+  */
+ #define BRK_BASE			__UL(2 * 1024 * 1024 + PAGE_SIZE)
+ #define STACK_TOP			__UL(2 * 1024 * 1024)
++#define STACK_TOP_MAX	STACK_TOP
+ 
+ /* userspace process size */
+ #ifdef CONFIG_MMU
+Index: linux-2.6-2/include/asm-h8300/a.out.h
+===================================================================
+--- linux-2.6-2.orig/include/asm-h8300/a.out.h	2007-06-01 10:27:27.000000000 +0200
++++ linux-2.6-2/include/asm-h8300/a.out.h	2007-06-01 10:27:30.000000000 +0200
+@@ -20,6 +20,7 @@ struct exec
+ #ifdef __KERNEL__
+ 
+ #define STACK_TOP	TASK_SIZE
++#define STACK_TOP_MAX	STACK_TOP
+ 
+ #endif
+ 
+Index: linux-2.6-2/include/asm-i386/a.out.h
+===================================================================
+--- linux-2.6-2.orig/include/asm-i386/a.out.h	2007-06-01 10:27:27.000000000 +0200
++++ linux-2.6-2/include/asm-i386/a.out.h	2007-06-01 10:27:30.000000000 +0200
+@@ -20,6 +20,7 @@ struct exec
+ #ifdef __KERNEL__
+ 
+ #define STACK_TOP	TASK_SIZE
++#define STACK_TOP_MAX	STACK_TOP
+ 
+ #endif
+ 
+Index: linux-2.6-2/include/asm-ia64/ustack.h
+===================================================================
+--- linux-2.6-2.orig/include/asm-ia64/ustack.h	2007-06-01 10:27:27.000000000 +0200
++++ linux-2.6-2/include/asm-ia64/ustack.h	2007-06-01 10:27:30.000000000 +0200
+@@ -11,6 +11,7 @@
+ /* The absolute hard limit for stack size is 1/2 of the mappable space in the region */
+ #define MAX_USER_STACK_SIZE	(RGN_MAP_LIMIT/2)
+ #define STACK_TOP		(0x6000000000000000UL + RGN_MAP_LIMIT)
++#define STACK_TOP_MAX		STACK_TOP
+ #endif
+ 
+ /* Make a default stack size of 2GiB */
+Index: linux-2.6-2/include/asm-m32r/a.out.h
+===================================================================
+--- linux-2.6-2.orig/include/asm-m32r/a.out.h	2007-06-01 10:27:27.000000000 +0200
++++ linux-2.6-2/include/asm-m32r/a.out.h	2007-06-01 10:27:30.000000000 +0200
+@@ -20,6 +20,7 @@ struct exec
+ #ifdef __KERNEL__
+ 
+ #define STACK_TOP	TASK_SIZE
++#define STACK_TOP_MAX	STACK_TOP
+ 
+ #endif
+ 
+Index: linux-2.6-2/include/asm-m68k/a.out.h
+===================================================================
+--- linux-2.6-2.orig/include/asm-m68k/a.out.h	2007-06-01 10:27:27.000000000 +0200
++++ linux-2.6-2/include/asm-m68k/a.out.h	2007-06-01 10:27:30.000000000 +0200
+@@ -20,6 +20,7 @@ struct exec
+ #ifdef __KERNEL__
+ 
+ #define STACK_TOP	TASK_SIZE
++#define STACK_TOP_MAX	STACK_TOP
+ 
+ #endif
+ 
+Index: linux-2.6-2/include/asm-mips/a.out.h
+===================================================================
+--- linux-2.6-2.orig/include/asm-mips/a.out.h	2007-06-01 10:27:27.000000000 +0200
++++ linux-2.6-2/include/asm-mips/a.out.h	2007-06-01 10:27:30.000000000 +0200
+@@ -40,6 +40,7 @@ struct exec
+ #ifdef CONFIG_64BIT
+ #define STACK_TOP	(current->thread.mflags & MF_32BIT_ADDR ? TASK_SIZE32 : TASK_SIZE)
+ #endif
++#define STACK_TOP_MAX	TASK_SIZE
+ 
+ #endif
+ 
+Index: linux-2.6-2/include/asm-parisc/a.out.h
+===================================================================
+--- linux-2.6-2.orig/include/asm-parisc/a.out.h	2007-06-01 10:27:27.000000000 +0200
++++ linux-2.6-2/include/asm-parisc/a.out.h	2007-06-01 10:27:30.000000000 +0200
+@@ -23,6 +23,7 @@ struct exec
+  * prumpf */
+ 
+ #define STACK_TOP	TASK_SIZE
++#define STACK_TOP_MAX	DEFAULT_TASK_SIZE
+ 
+ #endif
+ 
+Index: linux-2.6-2/include/asm-powerpc/a.out.h
+===================================================================
+--- linux-2.6-2.orig/include/asm-powerpc/a.out.h	2007-06-01 10:27:27.000000000 +0200
++++ linux-2.6-2/include/asm-powerpc/a.out.h	2007-06-01 10:27:30.000000000 +0200
+@@ -26,9 +26,12 @@ struct exec
+ #define STACK_TOP (test_thread_flag(TIF_32BIT) ? \
+ 		   STACK_TOP_USER32 : STACK_TOP_USER64)
+ 
++#define STACK_TOP_MAX STACK_TOP_USER64
++
+ #else /* __powerpc64__ */
+ 
+ #define STACK_TOP TASK_SIZE
++#define STACK_TOP_MAX	STACK_TOP
+ 
+ #endif /* __powerpc64__ */
+ #endif /* __KERNEL__ */
+Index: linux-2.6-2/include/asm-s390/a.out.h
+===================================================================
+--- linux-2.6-2.orig/include/asm-s390/a.out.h	2007-06-01 10:27:27.000000000 +0200
++++ linux-2.6-2/include/asm-s390/a.out.h	2007-06-01 10:27:30.000000000 +0200
+@@ -32,6 +32,7 @@ struct exec
+ #ifdef __KERNEL__
+ 
+ #define STACK_TOP	TASK_SIZE
++#define STACK_TOP_MAX	DEFAULT_TASK_SIZE
+ 
+ #endif
+ 
+Index: linux-2.6-2/include/asm-sh/a.out.h
+===================================================================
+--- linux-2.6-2.orig/include/asm-sh/a.out.h	2007-06-01 10:27:27.000000000 +0200
++++ linux-2.6-2/include/asm-sh/a.out.h	2007-06-01 10:27:30.000000000 +0200
+@@ -20,6 +20,7 @@ struct exec
+ #ifdef __KERNEL__
+ 
+ #define STACK_TOP	TASK_SIZE
++#define STACK_TOP_MAX	STACK_TOP
+ 
+ #endif
+ 
+Index: linux-2.6-2/include/asm-sh64/a.out.h
+===================================================================
+--- linux-2.6-2.orig/include/asm-sh64/a.out.h	2007-06-01 10:27:27.000000000 +0200
++++ linux-2.6-2/include/asm-sh64/a.out.h	2007-06-01 10:27:30.000000000 +0200
+@@ -31,6 +31,7 @@ struct exec
+ #ifdef __KERNEL__
+ 
+ #define STACK_TOP	TASK_SIZE
++#define STACK_TOP_MAX	STACK_TOP
+ 
+ #endif
+ 
+Index: linux-2.6-2/include/asm-sparc/a.out.h
+===================================================================
+--- linux-2.6-2.orig/include/asm-sparc/a.out.h	2007-06-01 10:27:27.000000000 +0200
++++ linux-2.6-2/include/asm-sparc/a.out.h	2007-06-01 10:27:30.000000000 +0200
+@@ -92,6 +92,7 @@ struct relocation_info /* used when head
+ #include <asm/page.h>
+ 
+ #define STACK_TOP	(PAGE_OFFSET - PAGE_SIZE)
++#define STACK_TOP_MAX	STACK_TOP
+ 
+ #endif /* __KERNEL__ */
+ 
+Index: linux-2.6-2/include/asm-sparc64/a.out.h
+===================================================================
+--- linux-2.6-2.orig/include/asm-sparc64/a.out.h	2007-06-01 10:27:27.000000000 +0200
++++ linux-2.6-2/include/asm-sparc64/a.out.h	2007-06-01 10:27:30.000000000 +0200
+@@ -101,6 +101,8 @@ struct relocation_info /* used when head
+ #define STACK_TOP (test_thread_flag(TIF_32BIT) ? \
+ 		   STACK_TOP32 : STACK_TOP64)
+ 
++#define STACK_TOP_MAX STACK_TOP64
++
+ #endif
+ 
+ #endif /* !(__ASSEMBLY__) */
+Index: linux-2.6-2/include/asm-um/a.out.h
+===================================================================
+--- linux-2.6-2.orig/include/asm-um/a.out.h	2007-06-01 10:27:27.000000000 +0200
++++ linux-2.6-2/include/asm-um/a.out.h	2007-06-01 10:27:30.000000000 +0200
+@@ -16,4 +16,6 @@ extern int honeypot;
+ #define STACK_TOP \
+ 	CHOOSE_MODE((honeypot ? host_task_size : task_size), task_size)
+ 
++#define STACK_TOP_MAX	STACK_TOP
++
+ #endif
+Index: linux-2.6-2/include/asm-x86_64/a.out.h
+===================================================================
+--- linux-2.6-2.orig/include/asm-x86_64/a.out.h	2007-06-01 10:27:27.000000000 +0200
++++ linux-2.6-2/include/asm-x86_64/a.out.h	2007-06-01 10:27:30.000000000 +0200
+@@ -21,7 +21,8 @@ struct exec
+ 
+ #ifdef __KERNEL__
+ #include <linux/thread_info.h>
+-#define STACK_TOP TASK_SIZE
++#define STACK_TOP	TASK_SIZE
++#define STACK_TOP_MAX	TASK_SIZE64
+ #endif
+ 
+ #endif /* __A_OUT_GNU_H__ */
+Index: linux-2.6-2/include/asm-xtensa/a.out.h
+===================================================================
+--- linux-2.6-2.orig/include/asm-xtensa/a.out.h	2007-06-01 10:27:27.000000000 +0200
++++ linux-2.6-2/include/asm-xtensa/a.out.h	2007-06-01 10:27:30.000000000 +0200
+@@ -17,6 +17,7 @@
+ /* Note: the kernel needs the a.out definitions, even if only ELF is used. */
+ 
+ #define STACK_TOP	TASK_SIZE
++#define STACK_TOP_MAX	STACK_TOP
+ 
+ struct exec
  {
-@@ -132,21 +186,25 @@ static unsigned long move_page_tables(st
- 
- 	for (; old_addr < old_end; old_addr += extent, new_addr += extent) {
- 		cond_resched();
-+
- 		next = (old_addr + PMD_SIZE) & PMD_MASK;
- 		if (next - 1 > old_end)
- 			next = old_end;
- 		extent = next - old_addr;
-+
- 		old_pmd = get_old_pmd(vma->vm_mm, old_addr);
- 		if (!old_pmd)
- 			continue;
- 		new_pmd = alloc_new_pmd(vma->vm_mm, new_addr);
- 		if (!new_pmd)
- 			break;
-+
- 		next = (new_addr + PMD_SIZE) & PMD_MASK;
- 		if (extent > next - new_addr)
- 			extent = next - new_addr;
- 		if (extent > LATENCY_LIMIT)
- 			extent = LATENCY_LIMIT;
-+
- 		move_ptes(vma, old_pmd, old_addr, old_addr + extent,
- 				new_vma, new_pmd, new_addr);
- 	}
-@@ -154,6 +212,51 @@ static unsigned long move_page_tables(st
- 	return len + old_addr - old_end;	/* how much done */
- }
- 
-+unsigned long move_page_tables_up(struct vm_area_struct *vma,
-+		unsigned long old_addr, struct vm_area_struct *new_vma,
-+		unsigned long new_addr, unsigned long len)
-+{
-+	unsigned long extent, prev, old_end, new_end;
-+	pmd_t *old_pmd, *new_pmd;
-+
-+	old_end = old_addr + len;
-+	new_end = new_addr + len;
-+	flush_cache_range(vma, old_addr, old_end);
-+
-+	for (; old_end > old_addr; old_end -= extent, new_end -= extent) {
-+		cond_resched();
-+
-+		/*
-+		 * calculate how far till prev PMD boundary for old
-+		 */
-+		prev = (old_end - 1) & PMD_MASK;
-+		if (prev < old_addr)
-+			prev = old_addr;
-+		extent = old_end - prev;
-+
-+		old_pmd = get_old_pmd(vma->vm_mm, old_end-1);
-+		if (!old_pmd)
-+			continue;
-+		new_pmd = alloc_new_pmd(vma->vm_mm, new_end-1);
-+		if (!new_pmd)
-+			break;
-+
-+		/*
-+		 * calculate and clip to prev PMD boundary for new
-+		 */
-+		prev = (new_end - 1) & PMD_MASK;
-+		if (extent > new_end - prev)
-+			extent = new_end - prev;
-+		if (extent > LATENCY_LIMIT)
-+			extent = LATENCY_LIMIT;
-+
-+		move_ptes_up(vma, old_pmd, old_end - extent, old_end,
-+				new_vma, new_pmd, new_end - extent);
-+	}
-+
-+	return old_addr + len - old_end;
-+}
-+
- static unsigned long move_vma(struct vm_area_struct *vma,
- 		unsigned long old_addr, unsigned long old_len,
- 		unsigned long new_len, unsigned long new_addr)
 
 -- 
 
