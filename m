@@ -1,37 +1,41 @@
-Date: Wed, 6 Jun 2007 11:36:07 -0700 (PDT)
-From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: SLUB: Use ilog2 instead of series of constant comparisons.
-In-Reply-To: <20070606100817.7af24b74.akpm@linux-foundation.org>
-Message-ID: <Pine.LNX.4.64.0706061053290.11553@schroedinger.engr.sgi.com>
-References: <Pine.LNX.4.64.0705211250410.27950@schroedinger.engr.sgi.com>
- <20070606100817.7af24b74.akpm@linux-foundation.org>
+Received: from zps36.corp.google.com (zps36.corp.google.com [172.25.146.36])
+	by smtp-out.google.com with ESMTP id l56Ixs4p022002
+	for <linux-mm@kvack.org>; Wed, 6 Jun 2007 11:59:55 -0700
+Message-ID: <46670411.1060901@google.com>
+Date: Wed, 06 Jun 2007 11:59:29 -0700
+From: Ethan Solomita <solo@google.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: [PATCH 1/1] oom: stop allocating user memory if TIF_MEMDIE is set
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, Pekka Enberg <penberg@cs.helsinki.fi>
+To: Andrew Morton <akpm@google.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 6 Jun 2007, Andrew Morton wrote:
+get_user_pages() can try to allocate a nearly unlimited amount of memory on behalf of a user process, even if that process has been OOM killed. The OOM kill occurs upon return to user space via a SIGKILL, but get_user_pages() will try allocate all its memory before returning. Change get_user_pages() to check for TIF_MEMDIE, and if set then return immediately.
 
-> This caused test.kernel.org's power4 build to blow up:
-> 
-> http://test.kernel.org/abat/93315/debug/test.log.0
-> 
-> fs/built-in.o(.text+0x148420): In function `.CalcNTLMv2_partial_mac_key':
-> : undefined reference to `.____ilog2_NaN'
-
-Hmmm... Weird message that does not allow too much analysis.
-The __ilog2_NaN comes about if 0 or a negative number is passed to ilog. 
-There is no way for that to happen since we check for KMALLOC_MIN_SIZE 
-and KMALLOC_MAX_SIZE in kmalloc_index() and an unsigned value is used.
-
-There is also nothing special in CalcNTLMv2_partial_mac_key(). Two 
-kmallocs of 33 bytes and 132 bytes each.
-
-Buggy compiler (too much stress on constant folding)? Or hardware? Can we 
-rerun the test?
+Signed-off-by: Ethan Solomita <solo@google.com>
+---
+diff -uprN -X orig/Documentation/dontdiff orig/mm/memory.c new/mm/memory.c
+--- orig/mm/memory.c	2007-06-05 19:01:46.000000000 -0700
++++ new/mm/memory.c	2007-06-05 19:07:15.000000000 -0700
+@@ -1084,6 +1084,15 @@ int get_user_pages(struct task_struct *t
+ 		do {
+ 			struct page *page;
+ 
++			/*
++			 * If tsk is ooming, cut off its access to large memory
++			 * allocations. It has a pending SIGKILL, but it can't
++			 * be processed until returning to user space.
++			 */
++
++			if (unlikely(test_tsk_thread_flag(tsk, TIF_MEMDIE)))
++				return -ENOMEM;
++
+ 			if (write)
+ 				foll_flags |= FOLL_WRITE;
+ 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
