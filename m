@@ -1,37 +1,40 @@
+Received: from spaceape8.eur.corp.google.com (spaceape8.eur.corp.google.com [172.28.16.142])
+	by smtp-out.google.com with ESMTP id l56JoiLe026688
+	for <linux-mm@kvack.org>; Wed, 6 Jun 2007 20:50:44 +0100
+Received: from py-out-1112.google.com (pyia29.prod.google.com [10.34.253.29])
+	by spaceape8.eur.corp.google.com with ESMTP id l56JnTH0001527
+	for <linux-mm@kvack.org>; Wed, 6 Jun 2007 20:50:42 +0100
+Received: by py-out-1112.google.com with SMTP id a29so470190pyi
+        for <linux-mm@kvack.org>; Wed, 06 Jun 2007 12:50:42 -0700 (PDT)
+Message-ID: <65dd6fd50706061250l7378ec38gf86c984fe4e00b86@mail.gmail.com>
+Date: Wed, 6 Jun 2007 12:50:42 -0700
+From: "Ollie Wild" <aaw@google.com>
 Subject: Re: [PATCH 3/4] mm: move_page_tables{,_up}
-From: Peter Zijlstra <a.p.zijlstra@chello.nl>
-In-Reply-To: <65dd6fd50706061206y558e7f90t3740424fae7bdc9c@mail.gmail.com>
+In-Reply-To: <1181157134.5676.28.camel@lappy>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
 References: <20070605150523.786600000@chello.nl>
 	 <20070605151203.738393000@chello.nl>
 	 <65dd6fd50706061206y558e7f90t3740424fae7bdc9c@mail.gmail.com>
-Content-Type: text/plain
-Date: Wed, 06 Jun 2007 21:12:14 +0200
-Message-Id: <1181157134.5676.28.camel@lappy>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+	 <1181157134.5676.28.camel@lappy>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Ollie Wild <aaw@google.com>
+To: Peter Zijlstra <a.p.zijlstra@chello.nl>
 Cc: linux-kernel@vger.kernel.org, parisc-linux@lists.parisc-linux.org, linux-mm@kvack.org, linux-arch@vger.kernel.org, Andrew Morton <akpm@osdl.org>, Ingo Molnar <mingo@elte.hu>, Andi Kleen <ak@suse.de>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 2007-06-06 at 12:06 -0700, Ollie Wild wrote:
-> On 6/5/07, Peter Zijlstra <a.p.zijlstra@chello.nl> wrote:
-> > Provide functions for moving page tables upwards.
-> 
-> Now that we're initializing the temporary stack location to
-> STACK_TOP_MAX, do we still need move_page_tables_up() for variable
-> length argument support?  I originally added it into shift_arg_pages()
-> to support 32-bit apps exec'ing 64-bit apps when we were using
-> TASK_SIZE as our temporary location.
-> 
-> Maybe we should decouple this patch from the others and submit it as
-> an enhancement to support memory defragmentation.
+On 6/6/07, Peter Zijlstra <a.p.zijlstra@chello.nl> wrote:
+> PA-RISC will still need it, right?
 
-PA-RISC will still need it, right?
+Originally, I thought since the PA-RISC stack grows up, we'd want to
+place the stack at the bottom of memory and have copy_strings() and
+friends work in the opposite direction.  It turns out, though, that
+this ends up being way more headache than it's worth, so I just
+manually grow the stack down with expand_downwards().
 
-On the defrag thingy, I talked with Mel today, and neither of us can see
-a usefull application of these functions to his defrag work.
+Ollie
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
