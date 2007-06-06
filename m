@@ -1,33 +1,52 @@
-Subject: Re: [PATCH 3/4] mm: move_page_tables{,_up}
-From: Peter Zijlstra <a.p.zijlstra@chello.nl>
-In-Reply-To: <65dd6fd50706061250l7378ec38gf86c984fe4e00b86@mail.gmail.com>
-References: <20070605150523.786600000@chello.nl>
-	 <20070605151203.738393000@chello.nl>
-	 <65dd6fd50706061206y558e7f90t3740424fae7bdc9c@mail.gmail.com>
-	 <1181157134.5676.28.camel@lappy>
-	 <65dd6fd50706061250l7378ec38gf86c984fe4e00b86@mail.gmail.com>
-Content-Type: text/plain
-Date: Wed, 06 Jun 2007 21:53:35 +0200
-Message-Id: <1181159615.5676.40.camel@lappy>
+Date: Wed, 6 Jun 2007 13:11:21 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: SLUB: Use ilog2 instead of series of constant comparisons.
+Message-Id: <20070606131121.a8f7be78.akpm@linux-foundation.org>
+In-Reply-To: <Pine.LNX.4.64.0706061053290.11553@schroedinger.engr.sgi.com>
+References: <Pine.LNX.4.64.0705211250410.27950@schroedinger.engr.sgi.com>
+	<20070606100817.7af24b74.akpm@linux-foundation.org>
+	<Pine.LNX.4.64.0706061053290.11553@schroedinger.engr.sgi.com>
 Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Ollie Wild <aaw@google.com>
-Cc: linux-kernel@vger.kernel.org, parisc-linux@lists.parisc-linux.org, linux-mm@kvack.org, linux-arch@vger.kernel.org, Andrew Morton <akpm@osdl.org>, Ingo Molnar <mingo@elte.hu>, Andi Kleen <ak@suse.de>
+To: Christoph Lameter <clameter@sgi.com>
+Cc: linux-mm@kvack.org, Pekka Enberg <penberg@cs.helsinki.fi>, Andy Whitcroft <apw@shadowen.org>, Martin Bligh <mbligh@mbligh.org>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 2007-06-06 at 12:50 -0700, Ollie Wild wrote:
-> On 6/6/07, Peter Zijlstra <a.p.zijlstra@chello.nl> wrote:
-> > PA-RISC will still need it, right?
-> 
-> Originally, I thought since the PA-RISC stack grows up, we'd want to
-> place the stack at the bottom of memory and have copy_strings() and
-> friends work in the opposite direction.  It turns out, though, that
-> this ends up being way more headache than it's worth, so I just
-> manually grow the stack down with expand_downwards().
+On Wed, 6 Jun 2007 11:36:07 -0700 (PDT) Christoph Lameter <clameter@sgi.com> wrote:
 
-Ah, ok. I'll drop this whole patch then.
+> On Wed, 6 Jun 2007, Andrew Morton wrote:
+> 
+> > This caused test.kernel.org's power4 build to blow up:
+> > 
+> > http://test.kernel.org/abat/93315/debug/test.log.0
+> > 
+> > fs/built-in.o(.text+0x148420): In function `.CalcNTLMv2_partial_mac_key':
+> > : undefined reference to `.____ilog2_NaN'
+> 
+> Hmmm... Weird message that does not allow too much analysis.
+> The __ilog2_NaN comes about if 0 or a negative number is passed to ilog. 
+> There is no way for that to happen since we check for KMALLOC_MIN_SIZE 
+> and KMALLOC_MAX_SIZE in kmalloc_index() and an unsigned value is used.
+> 
+> There is also nothing special in CalcNTLMv2_partial_mac_key(). Two 
+> kmallocs of 33 bytes and 132 bytes each.
+
+Yes, the code all looks OK.  I suspect this is another case of the compiler
+failing to remove unreachable stuff.
+
+> Buggy compiler (too much stress on constant folding)? Or hardware? Can we 
+> rerun the test?
+
+It happened multiple times:
+http://test.kernel.org/functional/pSeries-101_2.html
+
+I'm sure there's a way of extracting the compiler version out of
+test.kernel.org but I can't see it there.  Andy, maybe we should toss a gcc
+--version in there or something?
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
