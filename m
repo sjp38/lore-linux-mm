@@ -1,41 +1,41 @@
-Received: from zps36.corp.google.com (zps36.corp.google.com [172.25.146.36])
-	by smtp-out.google.com with ESMTP id l56Ixs4p022002
-	for <linux-mm@kvack.org>; Wed, 6 Jun 2007 11:59:55 -0700
-Message-ID: <46670411.1060901@google.com>
-Date: Wed, 06 Jun 2007 11:59:29 -0700
-From: Ethan Solomita <solo@google.com>
+Received: from spaceape7.eur.corp.google.com (spaceape7.eur.corp.google.com [172.28.16.141])
+	by smtp-out.google.com with ESMTP id l56J69Ya000459
+	for <linux-mm@kvack.org>; Wed, 6 Jun 2007 20:06:09 +0100
+Received: from py-out-1112.google.com (pybu77.prod.google.com [10.34.97.77])
+	by spaceape7.eur.corp.google.com with ESMTP id l56J4GHM030317
+	for <linux-mm@kvack.org>; Wed, 6 Jun 2007 20:06:05 +0100
+Received: by py-out-1112.google.com with SMTP id u77so440143pyb
+        for <linux-mm@kvack.org>; Wed, 06 Jun 2007 12:06:05 -0700 (PDT)
+Message-ID: <65dd6fd50706061206y558e7f90t3740424fae7bdc9c@mail.gmail.com>
+Date: Wed, 6 Jun 2007 12:06:05 -0700
+From: "Ollie Wild" <aaw@google.com>
+Subject: Re: [PATCH 3/4] mm: move_page_tables{,_up}
+In-Reply-To: <20070605151203.738393000@chello.nl>
 MIME-Version: 1.0
-Subject: [PATCH 1/1] oom: stop allocating user memory if TIF_MEMDIE is set
-Content-Type: text/plain; charset=ISO-8859-1
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+References: <20070605150523.786600000@chello.nl>
+	 <20070605151203.738393000@chello.nl>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@google.com>, linux-mm@kvack.org
+To: Peter Zijlstra <a.p.zijlstra@chello.nl>
+Cc: linux-kernel@vger.kernel.org, parisc-linux@lists.parisc-linux.org, linux-mm@kvack.org, linux-arch@vger.kernel.org, Andrew Morton <akpm@osdl.org>, Ingo Molnar <mingo@elte.hu>, Andi Kleen <ak@suse.de>
 List-ID: <linux-mm.kvack.org>
 
-get_user_pages() can try to allocate a nearly unlimited amount of memory on behalf of a user process, even if that process has been OOM killed. The OOM kill occurs upon return to user space via a SIGKILL, but get_user_pages() will try allocate all its memory before returning. Change get_user_pages() to check for TIF_MEMDIE, and if set then return immediately.
+On 6/5/07, Peter Zijlstra <a.p.zijlstra@chello.nl> wrote:
+> Provide functions for moving page tables upwards.
 
-Signed-off-by: Ethan Solomita <solo@google.com>
----
-diff -uprN -X orig/Documentation/dontdiff orig/mm/memory.c new/mm/memory.c
---- orig/mm/memory.c	2007-06-05 19:01:46.000000000 -0700
-+++ new/mm/memory.c	2007-06-05 19:07:15.000000000 -0700
-@@ -1084,6 +1084,15 @@ int get_user_pages(struct task_struct *t
- 		do {
- 			struct page *page;
- 
-+			/*
-+			 * If tsk is ooming, cut off its access to large memory
-+			 * allocations. It has a pending SIGKILL, but it can't
-+			 * be processed until returning to user space.
-+			 */
-+
-+			if (unlikely(test_tsk_thread_flag(tsk, TIF_MEMDIE)))
-+				return -ENOMEM;
-+
- 			if (write)
- 				foll_flags |= FOLL_WRITE;
- 
+Now that we're initializing the temporary stack location to
+STACK_TOP_MAX, do we still need move_page_tables_up() for variable
+length argument support?  I originally added it into shift_arg_pages()
+to support 32-bit apps exec'ing 64-bit apps when we were using
+TASK_SIZE as our temporary location.
+
+Maybe we should decouple this patch from the others and submit it as
+an enhancement to support memory defragmentation.
+
+Ollie
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
