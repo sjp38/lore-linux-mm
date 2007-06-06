@@ -1,19 +1,21 @@
-Date: Wed, 6 Jun 2007 17:44:07 +0900
-From: Paul Mundt <lethal@linux-sh.org>
 Subject: Re: [PATCH 4/4] mm: variable length argument support
-Message-ID: <20070606084407.GA9975@linux-sh.org>
-References: <20070605150523.786600000@chello.nl> <20070605151203.790585000@chello.nl> <20070606013658.20bcbe2f.akpm@linux-foundation.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
+From: Peter Zijlstra <a.p.zijlstra@chello.nl>
 In-Reply-To: <20070606013658.20bcbe2f.akpm@linux-foundation.org>
+References: <20070605150523.786600000@chello.nl>
+	 <20070605151203.790585000@chello.nl>
+	 <20070606013658.20bcbe2f.akpm@linux-foundation.org>
+Content-Type: text/plain
+Date: Wed, 06 Jun 2007 10:54:21 +0200
+Message-Id: <1181120061.7348.177.camel@twins>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, linux-kernel@vger.kernel.org, parisc-linux@lists.parisc-linux.org, linux-mm@kvack.org, linux-arch@vger.kernel.org, Ollie Wild <aaw@google.com>, Ingo Molnar <mingo@elte.hu>, Andi Kleen <ak@suse.de>
+Cc: linux-kernel@vger.kernel.org, parisc-linux@lists.parisc-linux.org, linux-mm@kvack.org, linux-arch@vger.kernel.org, Ollie Wild <aaw@google.com>, Ingo Molnar <mingo@elte.hu>, Andi Kleen <ak@suse.de>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Jun 06, 2007 at 01:36:58AM -0700, Andrew Morton wrote:
+On Wed, 2007-06-06 at 01:36 -0700, Andrew Morton wrote:
 > On Tue, 05 Jun 2007 17:05:27 +0200 Peter Zijlstra <a.p.zijlstra@chello.nl> wrote:
 > 
 > > From: Ollie Wild <aaw@google.com>
@@ -32,16 +34,35 @@ On Wed, Jun 06, 2007 at 01:36:58AM -0700, Andrew Morton wrote:
 > >
 > > +				flush_cache_page(bprm->vma, kpos,
 > > +						 page_to_pfn(kmapped_page));
-> 
-> Breaks SuperH:
-> 
-> fs/exec.c: In function `bprm_mm_init':
-> fs/exec.c:268: warning: unused variable `vma'
-> fs/exec.c: In function `copy_strings':
-> fs/exec.c:431: error: structure has no member named `vma'
-> 
-More pointedly, bprm->vma doesn't exist if CONFIG_MMU=n, which Andrew's
-config seems to have ;-)
+
+Bah, and my frv cross build bums out on an unrelated change,..
+I'll see if I can get a noMMU arch building, in the mean time, would you
+try this:
+
+---
+
+Since no-MMU doesn't do the fancy inactive mm access there is no need to
+flush cache.
+
+Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
+---
+
+Index: linux-2.6-2/fs/exec.c
+===================================================================
+--- linux-2.6-2.orig/fs/exec.c	2007-06-05 16:48:52.000000000 +0200
++++ linux-2.6-2/fs/exec.c	2007-06-06 10:49:19.000000000 +0200
+@@ -428,8 +428,10 @@ static int copy_strings(int argc, char _
+ 				kmapped_page = page;
+ 				kaddr = kmap(kmapped_page);
+ 				kpos = pos & PAGE_MASK;
++#ifdef CONFIG_MMU
+ 				flush_cache_page(bprm->vma, kpos,
+ 						 page_to_pfn(kmapped_page));
++#endif
+ 			}
+ 			if (copy_from_user(kaddr+offset, str, bytes_to_copy)) {
+ 				ret = -EFAULT;
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
