@@ -1,98 +1,118 @@
-Received: from spaceape10.eur.corp.google.com (spaceape10.eur.corp.google.com [172.28.16.144])
-	by smtp-out.google.com with ESMTP id l560musu026755
-	for <linux-mm@kvack.org>; Wed, 6 Jun 2007 01:48:57 +0100
-Received: from py-out-1112.google.com (pybp76.prod.google.com [10.34.92.76])
-	by spaceape10.eur.corp.google.com with ESMTP id l560mJxQ024245
-	for <linux-mm@kvack.org>; Wed, 6 Jun 2007 01:48:55 +0100
-Received: by py-out-1112.google.com with SMTP id p76so3365914pyb
-        for <linux-mm@kvack.org>; Tue, 05 Jun 2007 17:48:55 -0700 (PDT)
-Message-ID: <65dd6fd50706051748y2e7791c3q41722f0d7d536312@mail.gmail.com>
-Date: Tue, 5 Jun 2007 17:48:54 -0700
-From: "Ollie Wild" <aaw@google.com>
-Subject: Re: [PATCH 4/4] mm: variable length argument support
-In-Reply-To: <20070605163925.bfc417ca.akpm@linux-foundation.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
+Subject: Re: [PATCH 2/4] audit: rework execve audit
+From: Peter Zijlstra <a.p.zijlstra@chello.nl>
+In-Reply-To: <20070605163915.e9cc7bc8.akpm@linux-foundation.org>
 References: <20070605150523.786600000@chello.nl>
-	 <20070605151203.790585000@chello.nl>
-	 <20070605163925.bfc417ca.akpm@linux-foundation.org>
+	 <20070605151203.626442000@chello.nl>
+	 <20070605163915.e9cc7bc8.akpm@linux-foundation.org>
+Content-Type: text/plain
+Date: Wed, 06 Jun 2007 07:52:27 +0200
+Message-Id: <1181109147.7348.142.camel@twins>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, linux-kernel@vger.kernel.org, parisc-linux@lists.parisc-linux.org, linux-mm@kvack.org, linux-arch@vger.kernel.org, Ingo Molnar <mingo@elte.hu>, Andi Kleen <ak@suse.de>
+Cc: linux-kernel@vger.kernel.org, parisc-linux@lists.parisc-linux.org, linux-mm@kvack.org, linux-arch@vger.kernel.org, Ollie Wild <aaw@google.com>, Ingo Molnar <mingo@elte.hu>, Andi Kleen <ak@suse.de>, linux-audit@redhat.com
 List-ID: <linux-mm.kvack.org>
 
-OK.  It sounds like a healthy dose of comments is in order.  I'll
-clean things up and send out a new patch sometime tonight or tomorrow.
+On Tue, 2007-06-05 at 16:39 -0700, Andrew Morton wrote:
+> On Tue, 05 Jun 2007 17:05:25 +0200
+> Peter Zijlstra <a.p.zijlstra@chello.nl> wrote:
+> 
+> > The purpose of audit_bprm() is to log the argv array to a userspace daemon at
+> > the end of the execve system call. Since user-space hasn't had time to run,
+> > this array is still in pristine state on the process' stack; so no need to copy
+> > it, we can just grab it from there.
+> > 
+> > In order to minimize the damage to audit_log_*() copy each string into a
+> > temporary kernel buffer first.
+> > 
+> > Currently the audit code requires that the full argument vector fits in a
+> > single packet. So currently it does clip the argv size to a (sysctl) limit, but
+> > only when execve auditing is enabled.
+> > 
+> > If the audit protocol gets extended to allow for multiple packets this check
+> > can be removed.
+> > 
+> > ...
+> >  
+> 
+> Please try to avoid trigger-happiness with the BUG_ON()s..
+> 
+> >  struct audit_aux_data_socketcall {
+> > @@ -834,6 +834,47 @@ static int audit_log_pid_context(struct 
+> >  	return rc;
+> >  }
+> >  
+> > +static void audit_log_execve_info(struct audit_buffer *ab,
+> > +		struct audit_aux_data_execve *axi)
+> > +{
+> > +	int i;
+> > +	long len;
+> > +	const char __user *p = (const char __user *)axi->mm->arg_start;
+> > +
+> > +	if (axi->mm != current->mm)
+> > +		return; /* execve failed, no additional info */
+> > +
+> > +	for (i = 0; i < axi->argc; i++, p += len) {
+> > +		long ret;
+> > +		char *tmp;
+> > +
+> > +		len = strnlen_user(p, MAX_ARG_PAGES*PAGE_SIZE);
+> > +		/*
+> > +		 * We just created this mm, if we can't find the strings
+> > +		 * we just copied in something is _very_ wrong.
+> > +		 */
+> > +		BUG_ON(!len);
+> > +
+> > +		tmp = kmalloc(len, GFP_KERNEL);
+> > +		if (!tmp) {
+> > +			audit_panic("out of memory for argv string\n");
+> > +			break;
+> > +		}
+> > +
+> > +		ret = copy_from_user(tmp, p, len);
+> > +		/*
+> > +		 * There is no reason for this copy to be short.
+> > +		 */
+> > +		BUG_ON(ret);
+> 
+> You sure?  What happens if another thread does munmap() in parallel?
+> 
+> I think I'll make this WARN_ON just out of principle.
 
-Additional comments inline below:
+This is right after the execve call, and before we've hit userspace, so
+at this time there is no runnable context with access to the memory
+(except this one).
 
-> > -             len = strnlen_user((void __user *)p, PAGE_SIZE*MAX_ARG_PAGES);
-> > -             if (!len || len > PAGE_SIZE*MAX_ARG_PAGES)
-> > +             len = strnlen_user((void __user *)p, MAX_ARG_STRLEN);
-> > +             if (!len || len > MAX_ARG_STRLEN)
->
-> strnlen_user() is a scary function.  Please do remember that if the memory
-> we just strlen'ed is writeable by any user thread then that thread can at
-> any time invalidate the number which the kernel now holds.
 
-At this point, we've already called setup_arg_pages(), so the user
-memory is our own private copy.  No other threads can access it.
+> > @@ -1208,9 +1209,11 @@ int do_execve(char * filename,
+> >  	if (retval < 0)
+> >  		goto out;
+> >  
+> > +	tmp = bprm->p;
+> >  	retval = copy_strings(bprm->argc, argv, bprm);
+> >  	if (retval < 0)
+> >  		goto out;
+> > +	bprm->argv_len = tmp - bprm->p;
+> 
+> 
+> 
+> 
+> 
+> --- a/include/linux/kernel.h~a
+> +++ a/include/linux/kernel.h
+> @@ -5,6 +5,8 @@
+>   * 'kernel.h' contains some often-used function prototypes etc
+>   */
+>  
+> +#define tmp don't call your variables tmp!
+> +
+>  #ifdef __KERNEL__
+>  
+>  #include <stdarg.h>
 
-> > -                     !(len = strnlen_user(compat_ptr(str), bprm->p))) {
-> > +                 !(len = strnlen_user(compat_ptr(str), MAX_ARG_STRLEN))) {
-> >                       ret = -EFAULT;
-> >                       goto out;
-> >               }
-> >
-> > -             if (bprm->p < len)  {
-> > +             if (MAX_ARG_STRLEN < len) {
-> >                       ret = -E2BIG;
-> >                       goto out;
-> >               }
->
-> Do we have an off-by-one here?  Should it be <=?
-
-No, strnlen_user() returns N+1 (where N==MAX_ARG_STRLEN) if the string
-is too large.
-
-> If not, then this code is relying upon the string's terminating \0 coming
-> from userspace?  If so, that's buggy: userspace can overwrite the \0 after
-> we ran the strnlen_user(), perhaps, and confound the kernel?
-
-If that's the case, then we will fail to copy the null terminator, and
-the string will munge into the following string.  Since we always
-access this data via the various userspace access routines, we will
-either return an error on a later operation, or the new process will
-segfault shortly upon starting.
-
-> > +             vma_adjust(vma, new_start, old_end,
-> > +                        vma->vm_pgoff - (-shift >> PAGE_SHIFT), NULL);
->
-> hm, a right-shift of a negated unsigned value.  That's pretty unusual.  I
-> hope you know what you're doing ;)
-
-This is correct.  In this case, shift is already populated with a
-negative, wrapped unsigned value.  The -shift is needed to make it
-positive before the bitwise shift.
-
-> >  #define EXTRA_STACK_VM_PAGES 20      /* random */
-> >
-> > +/* Finalizes the stack vm_area_struct.  The flags and permissions are updated,
-> > + * the stack is optionally relocated, and some extra space is added.
-> > + */
->
-> That's better.
->
-> But what extra space is added, and why?
-
-We add EXTRA_STACK_VM_PAGES.  To be honest, I think neither of us know
-why this is done.  It's just what the old code did, so we preserved
-it.
-
-Ollie
+Fair enough. :-/
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
