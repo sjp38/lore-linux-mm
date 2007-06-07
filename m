@@ -1,349 +1,139 @@
 From: clameter@sgi.com
-Subject: [patch 00/12] Slab defragmentation V3
-Date: Thu, 07 Jun 2007 14:55:29 -0700
-Message-ID: <20070607215529.147027769@sgi.com>
-Return-path: <linux-kernel-owner+glk-linux-kernel-3=40m.gmane.org-S966214AbXFGV7w@vger.kernel.org>
+Subject: [patch 03/12] SLUB: Extend slabinfo to support -D and -C options
+Date: Thu, 07 Jun 2007 14:55:32 -0700
+Message-ID: <20070607215908.732209293@sgi.com>
+References: <20070607215529.147027769@sgi.com>
+Return-path: <linux-kernel-owner+glk-linux-kernel-3=40m.gmane.org-S966231AbXFGWA3@vger.kernel.org>
+Content-Disposition: inline; filename=slab_defrag_slabinfo_updates
 Sender: linux-kernel-owner@vger.kernel.org
 To: akpm@linux-foundation.org
 Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, dgc@sgi.com, Michal Piotrowski <michal.k.k.piotrowski@gmail.com>, Mel Gorman <mel@skynet.ie>
 List-Id: linux-mm.kvack.org
 
-Will show up shortly at http://ftp.kernel.org/pub/linux/kernel/people/christoph/slab-defrag/
+-D lists caches that support defragmentation
+
+-C lists caches that use a ctor.
+
+Signed-off-by: Christoph Lameter <clameter@sgi.com>
+
+---
+ Documentation/vm/slabinfo.c |   39 ++++++++++++++++++++++++++++++++++-----
+ 1 file changed, 34 insertions(+), 5 deletions(-)
+
+Index: slub/Documentation/vm/slabinfo.c
+===================================================================
+--- slub.orig/Documentation/vm/slabinfo.c	2007-06-07 14:09:37.000000000 -0700
++++ slub/Documentation/vm/slabinfo.c	2007-06-07 14:12:27.000000000 -0700
+@@ -30,6 +30,7 @@ struct slabinfo {
+ 	int hwcache_align, object_size, objs_per_slab;
+ 	int sanity_checks, slab_size, store_user, trace;
+ 	int order, poison, reclaim_account, red_zone;
++	int defrag, ctor;
+ 	unsigned long partial, objects, slabs;
+ 	int numa[MAX_NODES];
+ 	int numa_partial[MAX_NODES];
+@@ -56,6 +57,8 @@ int show_slab = 0;
+ int skip_zero = 1;
+ int show_numa = 0;
+ int show_track = 0;
++int show_defrag = 0;
++int show_ctor = 0;
+ int show_first_alias = 0;
+ int validate = 0;
+ int shrink = 0;
+@@ -90,18 +93,20 @@ void fatal(const char *x, ...)
+ void usage(void)
+ {
+ 	printf("slabinfo 5/7/2007. (c) 2007 sgi. clameter@sgi.com\n\n"
+-		"slabinfo [-ahnpvtsz] [-d debugopts] [slab-regexp]\n"
++		"slabinfo [-aCDefhilnosSrtTvz1] [-d debugopts] [slab-regexp]\n"
+ 		"-a|--aliases           Show aliases\n"
++		"-C|--ctor              Show slabs with ctors\n"
+ 		"-d<options>|--debug=<options> Set/Clear Debug options\n"
+-		"-e|--empty		Show empty slabs\n"
++		"-D|--defrag            Show defragmentable caches\n"
++		"-e|--empty             Show empty slabs\n"
+ 		"-f|--first-alias       Show first alias\n"
+ 		"-h|--help              Show usage information\n"
+ 		"-i|--inverted          Inverted list\n"
+ 		"-l|--slabs             Show slabs\n"
+ 		"-n|--numa              Show NUMA information\n"
+-		"-o|--ops		Show kmem_cache_ops\n"
++		"-o|--ops               Show kmem_cache_ops\n"
+ 		"-s|--shrink            Shrink slabs\n"
+-		"-r|--report		Detailed report on single slabs\n"
++		"-r|--report            Detailed report on single slabs\n"
+ 		"-S|--Size              Sort by size\n"
+ 		"-t|--tracking          Show alloc/free information\n"
+ 		"-T|--Totals            Show summary information\n"
+@@ -452,6 +457,12 @@ void slabcache(struct slabinfo *s)
+ 	if (show_empty && s->slabs)
+ 		return;
+ 
++	if (show_defrag && !s->defrag)
++		return;
++
++	if (show_ctor && !s->ctor)
++		return;
++
+ 	store_size(size_str, slab_size(s));
+ 	sprintf(dist_str,"%lu/%lu/%d", s->slabs, s->partial, s->cpu_slabs);
+ 
+@@ -462,6 +473,10 @@ void slabcache(struct slabinfo *s)
+ 		*p++ = '*';
+ 	if (s->cache_dma)
+ 		*p++ = 'd';
++	if (s->defrag)
++		*p++ = 'D';
++	if (s->ctor)
++		*p++ = 'C';
+ 	if (s->hwcache_align)
+ 		*p++ = 'A';
+ 	if (s->poison)
+@@ -1072,6 +1087,12 @@ void read_slab_dir(void)
+ 			slab->store_user = get_obj("store_user");
+ 			slab->trace = get_obj("trace");
+ 			chdir("..");
++			if (read_slab_obj(slab, "ops")) {
++				if (strstr(buffer, "ctor :"))
++					slab->ctor = 1;
++				if (strstr(buffer, "kick :"))
++					slab->defrag = 1;
++			}
+ 			if (slab->name[0] == ':')
+ 				alias_targets++;
+ 			slab++;
+@@ -1121,7 +1142,9 @@ void output_slabs(void)
+ 
+ struct option opts[] = {
+ 	{ "aliases", 0, NULL, 'a' },
++	{ "ctor", 0, NULL, 'C' },
+ 	{ "debug", 2, NULL, 'd' },
++	{ "defrag", 0, NULL, 'D' },
+ 	{ "empty", 0, NULL, 'e' },
+ 	{ "first-alias", 0, NULL, 'f' },
+ 	{ "help", 0, NULL, 'h' },
+@@ -1146,7 +1169,7 @@ int main(int argc, char *argv[])
+ 
+ 	page_size = getpagesize();
+ 
+-	while ((c = getopt_long(argc, argv, "ad::efhil1noprstvzTS",
++	while ((c = getopt_long(argc, argv, "ad::efhil1noprstvzCDTS",
+ 						opts, NULL)) != -1)
+ 	switch(c) {
+ 		case '1':
+@@ -1196,6 +1219,12 @@ int main(int argc, char *argv[])
+ 		case 'z':
+ 			skip_zero = 0;
+ 			break;
++		case 'C':
++			show_ctor = 1;
++			break;
++		case 'D':
++			show_defrag = 1;
++			break;
+ 		case 'T':
+ 			show_totals = 1;
+ 			break;
 
-Test results (see appended scripts / user space code for more data)
-
-(3 level tree with 10 entries at first level , 20 at the second and 30 files at the
-third level. Files at the lowest level were removed to create inode fragmentation)
-
-%Ra is the allocation ratio (need to apply the slabinfo patch to get those numbers)
-
-inode reclaim in reiserfs
-
-Name                   Objects Objsize    Space Slabs/Part/Cpu  O/S O %Ra %Ef Flg
-dentry                   14660     200     3.0M        733/0/1   20 0 100  97 Da
-reiser_inode_cache        1596     640     4.1M      256/201/1   25 2  24  24 DCa
-
-Status after defrag
-
-Name                   Objects Objsize    Space Slabs/Part/Cpu  O/S O %Ra %Ef Flg
-dentry                    8849     200     1.8M       454/17/1   20 0  97  95 Da
-reiser_inode_cache        1381     640     1.0M        65/11/0   25 2  84  82 DCa
-
-
-
-Slab defragmentation can be triggered in two ways:
-
-1. Manually by running
-
-slabinfo -s <slabs-to-shrink>
-
-or manually by the kernel calling
-
-kmem_cache_shrink(slab)
-
-(Currently only ACPI is doing such a call to a slab that has no
-defragmentation support. In that case we simply do what SLAB does:
-drop per cpu caches and sift through partial list for free slabs).
-
-2. Automatically if defragmentable slabs reach a certain degree of
-   fragmentation.
-
-The point where slab defragmentation occurs is can be set at
-
-/proc/sys/vm/slab_defrag_ratio
-
-Slab fragmentation is measured by how much of the possible objects in a
-slab are in use. The default setting for slab_defrag_ratio is 30%. This
-means that slab fragmentation is going to be triggered if there are more than
-3 free object slots for each allocated object.
-
-Setting the slab_defrag_ratio higher will cause more defragmentation runs.
-If slab_defrag_ratio is set to 0 then no slab defragmentation occurs.
-
-Slabs are checked for their fragmentation levels after the slabs have been shrunk
-by running shrinkers in vm/scan.c during memory reclaim. This means that slab
-defragmentation is only triggered if we are under memory pressure and if there is
-significant slab fragmentation.
-
-V1->V2
-- Clean up control flow using a state variable. Simplify API. Back to 2
-  functions that now take arrays of objects.
-- Inode defrag support for a set of filesystems
-- Fix up dentry defrag support to work on negative dentries by adding
-  a new dentry flag that indicates that a dentry is not in the process
-  of being freed or allocated.
-
-V2->V3
-- Support directory reclaim
-- Add infrastructure to trigger slab defrag after slab shrinking if we
-  have slabs with a high degree of fragmentation.
-
-
-
-Test script:
-
-#!/bin/sh
-
-echo 30 >/proc/sys/vm/slab_defrag_ratio
-
-./gazfiles c 3 10 20 30
-echo "Status before"
-slabinfo -D
-./gazfiles d 2
-echo "Status after removing files"
-slabinfo -D
-slabinfo -s
-echo "Status after defrag"
-slabinfo -D
-./gazfiles d 0
-
-
-gazfiles.c :
-
-/*
- * Create a gazillion of files to be able to create slab fragmentation
- *
- * (C) 2007 sgi, Christoph Lameter <clameter@sgi.com>
- *
- * Create a n layered hierachy of files of empty files
- *
- * gazfiles <action> <levels> <n1> <n2> ...
- *
- * gazfiles c[reate] 3 50 50 50
- *
- * gazfiles s[hrink] <levels>
- *
- * gazfiles r[andomkill] <nr to kill> 
- */
-
-#include <stdio.h>
-#include <stdlib.h>
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <dirent.h>
-#include <string.h>
-#include <unistd.h>
-#include <stdarg.h>
-#include <getopt.h>
-#include <regex.h>
-#include <errno.h>
-
-#define MAXIMUM_LEVELS 10
-
-int level;
-int sizes[MAXIMUM_LEVELS];
-
-void fatal(const char *x, ...)
-{
-        va_list ap;
-
-        va_start(ap, x);
-        vfprintf(stderr, x, ap);
-        va_end(ap);
-        exit(1);
-}
-
-int read_gaz(void)
-{
-	FILE *f = fopen(".gazinfo", "r");
-	int rc = 0;
-	int i;
-
-	if (!f)
-		return 0;
-
-	if (!fscanf(f, "%d", &level))
-		goto out;
-
-	if (level >= MAXIMUM_LEVELS)
-		goto out;
-
-	for (i = 0; i < level; i++)
-		if (!fscanf(f, " %d", &sizes[i]))
-			goto out;
-	rc = 1;
-out:
-	fclose(f);
-	return rc;
-}
-
-void write_gaz(void)
-{
-	FILE *f = fopen(".gazinfo","w");
-	int i;
-
-	fprintf(f, "%d",level);
-	for (i = 0; i < level; i++)
-		fprintf(f," %d", sizes[i]);
-	fprintf(f, "\n");
-	fclose(f);
-}
-
-void cre(int l)
-{
-	int i;
-
-	for (i = 0; i < sizes[l - 1]; i++) {
-		char name[20];
-
-		sprintf(name, "%03d", i);
-
-		if (l < level) {
-			mkdir(name, 0775);
-			chdir(name);
-			cre(l + 1);
-			chdir("..");
-		} else {
-			FILE *f;
-
-			f = fopen(name,"w");
-			fprintf(f, "Test");
-			fclose(f);
-		}
-	}
-}
-
-void create(int l, char **sz)
-{
-	int i;
-
-	level = l;
-	for (i = 0; i < level; i++)
-		sizes[i] = atoi(sz[i]);
-
-	if (mkdir("gazf", 0775))
-		fatal("Cannot create gazf here\n");
-	chdir("gazf");
-	write_gaz();
-	cre(1);
-	chdir("..");
-}
-
-void shrink(int level)
-{
-	if (chdir("gazf"))
-		fatal("No gazfiles in this directory");
-	read_gaz();
-	chdir("..");
-}
-
-void scand(int l, void (*func)(int, int, char *, unsigned long),
-			unsigned long level)
-{
-	DIR *dir;
-	struct dirent *de;
-
-	dir = opendir(".");
-	if (!dir)
-		fatal("Cannot open directory");
-	while ((de = readdir(dir))) {
-		struct stat s;
-
-		if (de->d_name[0] == '.')
-			continue;
-
-		/*
-		 * Some idiot broke the glibc library or made it impossible
-		 * to figure out how to make readdir work right
-		 */
-
-		stat(de->d_name, &s);
-		if (S_ISDIR(s.st_mode))
-			de->d_type = DT_DIR;
-
-		if (de->d_type == DT_DIR) {
-			if (chdir(de->d_name))
-				fatal("Cannot enter %s", de->d_name);
-			scand(l + 1, func, level);
-			chdir("..");
-			func(l, 1, de->d_name, level);
-		} else {
-			func(l, 0, de->d_name, level);
-		}
-	}
-	closedir(dir);
-}
-
-void traverse(void (*func)(int, int, char *, unsigned long),
-		unsigned long level)
-{
-	if (chdir("gazf"))
-		fatal("No gazfiles in this directory");
-	scand(1, func, level);
-	chdir("..");
-}
-
-void randomkill(int nr)
-{
-	if (chdir("gazf"))
-		fatal("No gazfiles in this directory");
-	read_gaz();
-	chdir("..");
-}
-
-void del_func(int l, int dir, char *name, unsigned long level)
-{
-	if (l <= level)
-		return;
-	if (dir) {
-		if (rmdir(name))
-			fatal("Cannot remove directory %s");
-	} else {
-		if (unlink(name))
-			fatal("Cannot unlink file %s");
-	}
-}
-
-void delete(int l)
-{
-	if (l == 0) {
-		system("rm -rf gazf");
-		return;
-	}
-	traverse(del_func, l);
-}
-
-void usage(void)
-{
-	printf("gazfiles: Tool to manage gazillions of files\n\n");
-	printf("gazfiles create <levels> <#l1> <#l2> ...\n");
-	printf("gazfiles delete <levels>\n");
-	printf("gazfiles shrink <levels>\n");
-	printf("gazfiles randomkill <nr>\n\n");
-	printf("(C) 2007 sgi, Christoph Lameter <clameter@sgi.com>\n");
-	exit(0);
-}
-
-int main(int argc, char *argv[])
-{
-	if (argc  <  2)
-		usage();
-
-	switch (argv[1][0]) {
-		case 'c' :
-			create(atoi(argv[2]), argv + 3);
-			break;
-		case 's' :
-			if (argc != 3)
-				usage();
-
-			shrink(atoi(argv[2]));
-			break;
-		case 'r' :
-			if (argc != 3)
-				usage();
-
-			randomkill(atoi(argv[2]));
-			break;
-		case 'd':
-			if (argc != 3)
-				usage();
-			delete(atoi(argv[2]));
-			break;
-
-		default:
-			usage();
-	}
-	return 0;
-}
 -- 
