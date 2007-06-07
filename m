@@ -1,65 +1,306 @@
-Date: Thu, 7 Jun 2007 11:11:02 -0700 (PDT)
-From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [PATCH] gfp.h: GFP_THISNODE can go to other nodes if some are
- unpopulated
-In-Reply-To: <20070607150425.GA15776@us.ibm.com>
-Message-ID: <Pine.LNX.4.64.0706071103240.24988@schroedinger.engr.sgi.com>
-References: <20070607150425.GA15776@us.ibm.com>
+Date: Thu, 7 Jun 2007 19:57:18 +0100 (BST)
+From: Hugh Dickins <hugh@veritas.com>
+Subject: Re: [RFC/PATCH v2] shmem: use lib/parser for mount options
+In-Reply-To: <20070605153532.7b88e529.randy.dunlap@oracle.com>
+Message-ID: <Pine.LNX.4.64.0706071940340.32729@blonde.wat.veritas.com>
+References: <20070524000044.b62a0792.randy.dunlap@oracle.com>
+ <20070605153532.7b88e529.randy.dunlap@oracle.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nishanth Aravamudan <nacc@us.ibm.com>
-Cc: Lee.Schermerhorn@hp.com, anton@samba.org, apw@shadowen.org, mel@csn.ul.ie, akpm@linux-foundation.org, linux-mm@kvack.org
+To: Randy Dunlap <randy.dunlap@oracle.com>
+Cc: linux-mm@kvack.org, akpm <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 7 Jun 2007, Nishanth Aravamudan wrote:
+On Tue, 5 Jun 2007, Randy Dunlap wrote:
+> From: Randy Dunlap <randy.dunlap@oracle.com>
+> 
+> Convert shmem (tmpfs) to use the in-kernel mount options parsing library.
+> 
+> Old size: 0x368 = 872 bytes
+> New size: 0x3b6 = 950 bytes
 
-> While testing my sysfs per-node hugepage allocator
-> (http://marc.info/?l=linux-mm&m=117935849517122&w=2), I found that an
-> alloc_pages_node(nid, GFP_THISNODE) request would sometimes return a
-> struct page such that page_to_nid(page) != nid. This was because, on
-> that particular machine, nodes 0 and 1 are populated and nodes 2 and 3
-> are not. When a page is requested get_page_from_freelist() relies on
-> zonelist->zones[0]->zone_pgdat indicating when THISNODE stops. But,
-> because, say, node 2 has no memory, the first zone_pgdat in the fallback
-> list points to a different node. Add a comment indicating that THISNODE
-> may not return pages on THISNODE if the node is unpopulated.
+Varies with arch/config: in some cases the old is smaller,
+in other cases your new.  And you're not accounting for (nor
+drawing attention to) any bugfixes you added (nor, for that matter,
+on any bugs you added - but we usually keep quiet about those ;)
 
-Hmmm.... Bad semantics are developing as a result of allowing empty nodes 
-with no zones. This is not correct and can have bad consequences. 
+> If you feel that there is no significant advantage to this, that's OK,
+> I can just drop it.
 
-As I expected: We may need more hacks to deal with it. Sigh.
+Hmm.  Hmm.  My own personal feeling is that it's not really an
+improvement; especially the Opt_mpol block (and the unnecessary
+is_remount arg I already commented on).
 
-> Am working on testing Lee/Anton's patch to add a node_populated_mask and
-> use that in the hugepage allocator path. But I think this may be a
-> problem anywhere THISNODE is used and memory is expected to come from
-> the requested node and nowhere else.
+But I'm familiar with what's already there: I'd happily be overruled
+on this if others feel yours really is an improvement.  Anyone? 
+And you've cleaned up that "no space after comma" coding style.
 
-What GFP_THISNODE effectively does now is to require the allocation on the 
-nearest available zone to the indicated node because it does not allow 
-access outside of the first encountered pgdat. But the first pgdat is not 
-the node we selected if the node has no memory.
+For me, the main question is, did you fix any bugs?  You certainly
+discovered the nonline mpol crash, which was worthwhile in itself.
+And you've discovered that memparse accepts k, M, G without a digit:
+if it treated that as 1 I wouldn't mind so much, but it treats it as 0.
 
-> diff --git a/include/linux/gfp.h b/include/linux/gfp.h
-> index 0d2ef0b..ed826e9 100644
-> --- a/include/linux/gfp.h
-> +++ b/include/linux/gfp.h
-> @@ -67,6 +67,10 @@ struct vm_area_struct;
->  			 __GFP_HIGHMEM)
+We can live with that; but if we're to fix it, I'd prefer the fix to
+go into memparse itself - though it's called from many places, so
+maybe there's an audit job to see if the present behaviour could
+make sense in any of them.
+
+Hugh
+
+> 
+> Signed-off-by: Randy Dunlap <randy.dunlap@oracle.com>
+> ---
+>  mm/shmem.c |  179 ++++++++++++++++++++++++++++++++++++++++---------------------
+>  1 file changed, 120 insertions(+), 59 deletions(-)
+> 
+> --- linux-2622-rc4.orig/mm/shmem.c
+> +++ linux-2622-rc4/mm/shmem.c
+> @@ -32,6 +32,7 @@
+>  #include <linux/mman.h>
+>  #include <linux/file.h>
+>  #include <linux/swap.h>
+> +#include <linux/parser.h>
+>  #include <linux/pagemap.h>
+>  #include <linux/string.h>
+>  #include <linux/slab.h>
+> @@ -84,6 +85,23 @@ enum sgp_type {
+>  	SGP_WRITE,	/* may exceed i_size, may allocate page */
+>  };
 >  
->  #ifdef CONFIG_NUMA
-> +/*
-> + * NOTE: if the requested node is unpopulated (no memory), a THISNODE
-> + * request can go to other nodes due to the fallback list
-
-Change to
-
-Note: GFP_THISNODE allocates from the first available pgdat (== node 
-structure) from the zonelist of a given node. The first pgdat may be the 
-pgdat of another node if the node has no memory on its own.
-
-?
+> +enum {
+> +	Opt_size, Opt_nr_blocks, Opt_nr_inodes,
+> +	Opt_mode, Opt_uid, Opt_gid,
+> +	Opt_mpol, Opt_err,
+> +};
+> +
+> +static match_table_t tokens = {
+> +	{Opt_size,	"size=%s"},
+> +	{Opt_nr_blocks,	"nr_blocks=%s"},
+> +	{Opt_nr_inodes,	"nr_inodes=%s"},
+> +	{Opt_mode,	"mode=%o"},	/* not for remount */
+> +	{Opt_uid,	"uid=%u"},	/* not for remount */
+> +	{Opt_gid,	"gid=%u"},	/* not for remount */
+> +	{Opt_mpol,	"mpol=%s"},	/* various NUMA memory policy options */
+> +	{Opt_err,	NULL},
+> +};
+> +
+>  static int shmem_getpage(struct inode *inode, unsigned long idx,
+>  			 struct page **pagep, enum sgp_type sgp, int *type);
+>  
+> @@ -2113,92 +2131,135 @@ static struct export_operations shmem_ex
+>  
+>  static int shmem_parse_options(char *options, int *mode, uid_t *uid,
+>  	gid_t *gid, unsigned long *blocks, unsigned long *inodes,
+> -	int *policy, nodemask_t *policy_nodes)
+> +	int *policy, nodemask_t *policy_nodes, int is_remount)
+>  {
+> -	char *this_char, *value, *rest;
+> +	char *rest;
+> +	substring_t args[MAX_OPT_ARGS];
+> +	char *p, *prev_opt = NULL;
+> +	int option;
+>  
+> -	while (options != NULL) {
+> -		this_char = options;
+> -		for (;;) {
+> -			/*
+> -			 * NUL-terminate this option: unfortunately,
+> -			 * mount options form a comma-separated list,
+> -			 * but mpol's nodelist may also contain commas.
+> -			 */
+> -			options = strchr(options, ',');
+> -			if (options == NULL)
+> -				break;
+> -			options++;
+> -			if (!isdigit(*options)) {
+> -				options[-1] = '\0';
+> -				break;
+> -			}
+> -		}
+> -		if (!*this_char)
+> +	if (!options)
+> +		return 0;
+> +
+> +	while ((p = strsep(&options, ",")) != NULL) {
+> +		int token;
+> +
+> +		if (!*p) {
+> +			prev_opt = options;
+>  			continue;
+> -		if ((value = strchr(this_char,'=')) != NULL) {
+> -			*value++ = 0;
+> -		} else {
+> -			printk(KERN_ERR
+> -			    "tmpfs: No value for mount option '%s'\n",
+> -			    this_char);
+> -			return 1;
+>  		}
+> -
+> -		if (!strcmp(this_char,"size")) {
+> +		token = match_token(p, tokens, args);
+> +		switch (token) {
+> +		case Opt_size: {
+>  			unsigned long long size;
+> -			size = memparse(value,&rest);
+> +			/* memparse() will accept a K/M/G without a digit */
+> +			if (!isdigit(*args[0].from))
+> +				goto bad_val;
+> +			size = memparse(args[0].from, &rest);
+>  			if (*rest == '%') {
+>  				size <<= PAGE_SHIFT;
+>  				size *= totalram_pages;
+>  				do_div(size, 100);
+>  				rest++;
+>  			}
+> -			if (*rest)
+> -				goto bad_val;
+>  			*blocks = size >> PAGE_CACHE_SHIFT;
+> -		} else if (!strcmp(this_char,"nr_blocks")) {
+> -			*blocks = memparse(value,&rest);
+> -			if (*rest)
+> +			break;
+> +		}
+> +		case Opt_nr_blocks:
+> +			/* memparse() will accept a K/M/G without a digit */
+> +			if (!isdigit(*args[0].from))
+>  				goto bad_val;
+> -		} else if (!strcmp(this_char,"nr_inodes")) {
+> -			*inodes = memparse(value,&rest);
+> -			if (*rest)
+> +			*blocks = memparse(args[0].from, &rest);
+> +			break;
+> +		case Opt_nr_inodes:
+> +			/* memparse() will accept a K/M/G without a digit */
+> +			if (!isdigit(*args[0].from))
+>  				goto bad_val;
+> -		} else if (!strcmp(this_char,"mode")) {
+> +			*inodes = memparse(args[0].from, &rest);
+> +			break;
+> +		case Opt_mode:
+> +			if (is_remount)		/* not valid on remount */
+> +				break;
+>  			if (!mode)
+> -				continue;
+> -			*mode = simple_strtoul(value,&rest,8);
+> -			if (*rest)
+> +				break;
+> +			if (match_octal(&args[0], &option))
+>  				goto bad_val;
+> -		} else if (!strcmp(this_char,"uid")) {
+> +			*mode = option;
+> +			break;
+> +		case Opt_uid:
+> +			if (is_remount)		/* not valid on remount */
+> +				break;
+>  			if (!uid)
+> -				continue;
+> -			*uid = simple_strtoul(value,&rest,0);
+> -			if (*rest)
+> +				break;
+> +			if (match_int(&args[0], &option))
+>  				goto bad_val;
+> -		} else if (!strcmp(this_char,"gid")) {
+> +			*uid = option;
+> +			break;
+> +		case Opt_gid:
+> +			if (is_remount)		/* not valid on remount */
+> +				break;
+>  			if (!gid)
+> -				continue;
+> -			*gid = simple_strtoul(value,&rest,0);
+> -			if (*rest)
+> +				break;
+> +			if (match_int(&args[0], &option))
+>  				goto bad_val;
+> -		} else if (!strcmp(this_char,"mpol")) {
+> -			if (shmem_parse_mpol(value,policy,policy_nodes))
+> +			*gid = option;
+> +			break;
+> +		case Opt_mpol: {
+> +			/*
+> +			 * strsep() broke the mount options string at a comma,
+> +			 * but tmpfs accepts "mpol=type:nodelist", where
+> +			 * nodelist may contain commas, so restore the
+> +			 * comma and then insert a nul char at the end of
+> +			 * the nodelist. Also update 'options' so that the
+> +			 * next call to strsep() points to the next mount
+> +			 * option(s).
+> +			 */
+> +			char *delim, *opt = prev_opt + 5; /* skip "mpol=" */
+> +			char *fixup = NULL; /* temp change nul char to comma */
+> +
+> +			if (!options)	/* no fixups needed */
+> +				goto do_mpol;
+> +
+> +			/* there are more options, so put the comma back */
+> +			fixup = prev_opt + strlen(prev_opt);
+> +			*fixup = ',';	/* this lets (mpol=)policy[:nodelist] be parsed */
+> +			/* now find the end of the mpol= option */
+> +			delim = strchr(prev_opt, ':');
+> +			if (!delim) { /* no colon, restore nul char, done */
+> +				*fixup = '\0';
+> +				goto do_mpol;
+> +			}
+> +			/* scan over the node(list) & insert nul char at its end */
+> +			delim++;	/* past colon */
+> +			while (*delim) {
+> +				if (*delim == ',' || isdigit(*delim) || *delim == '-')
+> +					delim++;
+> +				else
+> +					break;
+> +			}
+> +			options = delim;	/* for next time in main loop */
+> +			if (*delim)	/* not end of string */
+> +				delim[-1] = '\0';
+> +do_mpol:
+> +			if (shmem_parse_mpol(opt, policy, policy_nodes))
+>  				goto bad_val;
+> -		} else {
+> -			printk(KERN_ERR "tmpfs: Bad mount option %s\n",
+> -			       this_char);
+> +
+> +			break;
+> +		}
+> +		default:
+> +			printk(KERN_ERR "tmpfs: Bad mount option: %s\n", p);
+>  			return 1;
+> +			break;
+>  		}
+> +
+> +		prev_opt = options;
+>  	}
+>  	return 0;
+>  
+>  bad_val:
+>  	printk(KERN_ERR "tmpfs: Bad value '%s' for mount option '%s'\n",
+> -	       value, this_char);
+> +	       args[0].from, p);
+>  	return 1;
+> -
+>  }
+>  
+>  static int shmem_remount_fs(struct super_block *sb, int *flags, char *data)
+> @@ -2213,7 +2274,7 @@ static int shmem_remount_fs(struct super
+>  	int error = -EINVAL;
+>  
+>  	if (shmem_parse_options(data, NULL, NULL, NULL, &max_blocks,
+> -				&max_inodes, &policy, &policy_nodes))
+> +				&max_inodes, &policy, &policy_nodes, 1))
+>  		return error;
+>  
+>  	spin_lock(&sbinfo->stat_lock);
+> @@ -2280,7 +2341,7 @@ static int shmem_fill_super(struct super
+>  		if (inodes > blocks)
+>  			inodes = blocks;
+>  		if (shmem_parse_options(data, &mode, &uid, &gid, &blocks,
+> -					&inodes, &policy, &policy_nodes))
+> +					&inodes, &policy, &policy_nodes, 0))
+>  			return -EINVAL;
+>  	}
+>  	sb->s_export_op = &shmem_export_ops;
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
