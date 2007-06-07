@@ -1,51 +1,106 @@
 From: clameter@sgi.com
-Subject: [patch 10/12] sockets: inode defragmentation support
-Date: Thu, 07 Jun 2007 14:55:39 -0700
-Message-ID: <20070607215910.379088320@sgi.com>
+Subject: [patch 07/12] xfs: inode defragmentation support
+Date: Thu, 07 Jun 2007 14:55:36 -0700
+Message-ID: <20070607215909.676560434@sgi.com>
 References: <20070607215529.147027769@sgi.com>
-Return-path: <linux-kernel-owner+glk-linux-kernel-3=40m.gmane.org-S966380AbXFGWCP@vger.kernel.org>
-Content-Disposition: inline; filename=slub_defrag_fs_socket
+Return-path: <linux-kernel-owner+glk-linux-kernel-3=40m.gmane.org-S966471AbXFGWCv@vger.kernel.org>
+Content-Disposition: inline; filename=slub_defrag_fs_xfs
 Sender: linux-kernel-owner@vger.kernel.org
 To: akpm@linux-foundation.org
 Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, dgc@sgi.com, Michal Piotrowski <michal.k.k.piotrowski@gmail.com>, Mel Gorman <mel@skynet.ie>
 List-Id: linux-mm.kvack.org
 
+Add slab defrag support.
+
 Signed-off-by: Christoph Lameter <clameter@sgi.com>
 
 ---
- net/socket.c |   13 ++++++++++++-
- 1 file changed, 12 insertions(+), 1 deletion(-)
+ fs/xfs/linux-2.6/kmem.h      |    5 +++--
+ fs/xfs/linux-2.6/xfs_buf.c   |    2 +-
+ fs/xfs/linux-2.6/xfs_super.c |   13 ++++++++++++-
+ fs/xfs/xfs_vfsops.c          |    6 +++---
+ 4 files changed, 19 insertions(+), 7 deletions(-)
 
-Index: slub/net/socket.c
+Index: slub/fs/xfs/linux-2.6/kmem.h
 ===================================================================
---- slub.orig/net/socket.c	2007-06-06 15:19:29.000000000 -0700
-+++ slub/net/socket.c	2007-06-06 15:20:54.000000000 -0700
-@@ -264,6 +264,17 @@ static void init_once(void *foo, struct 
- 	inode_init_once(&ei->vfs_inode);
+--- slub.orig/fs/xfs/linux-2.6/kmem.h	2007-06-06 13:08:09.000000000 -0700
++++ slub/fs/xfs/linux-2.6/kmem.h	2007-06-06 13:32:58.000000000 -0700
+@@ -79,9 +79,10 @@ kmem_zone_init(int size, char *zone_name
+ 
+ static inline kmem_zone_t *
+ kmem_zone_init_flags(int size, char *zone_name, unsigned long flags,
+-		     void (*construct)(void *, kmem_zone_t *, unsigned long))
++		     void (*construct)(void *, kmem_zone_t *, unsigned long),
++		     const struct kmem_cache_ops *ops)
+ {
+-	return kmem_cache_create(zone_name, size, 0, flags, construct, NULL);
++	return kmem_cache_create(zone_name, size, 0, flags, construct, ops);
  }
  
-+static void *sock_get_inodes(struct kmem_cache *s, int nr, void **v)
+ static inline void
+Index: slub/fs/xfs/linux-2.6/xfs_buf.c
+===================================================================
+--- slub.orig/fs/xfs/linux-2.6/xfs_buf.c	2007-06-06 13:08:09.000000000 -0700
++++ slub/fs/xfs/linux-2.6/xfs_buf.c	2007-06-06 13:32:58.000000000 -0700
+@@ -1834,7 +1834,7 @@ xfs_buf_init(void)
+ #endif
+ 
+ 	xfs_buf_zone = kmem_zone_init_flags(sizeof(xfs_buf_t), "xfs_buf",
+-						KM_ZONE_HWALIGN, NULL);
++						KM_ZONE_HWALIGN, NULL, NULL);
+ 	if (!xfs_buf_zone)
+ 		goto out_free_trace_buf;
+ 
+Index: slub/fs/xfs/linux-2.6/xfs_super.c
+===================================================================
+--- slub.orig/fs/xfs/linux-2.6/xfs_super.c	2007-06-06 13:08:09.000000000 -0700
++++ slub/fs/xfs/linux-2.6/xfs_super.c	2007-06-06 13:32:58.000000000 -0700
+@@ -355,13 +355,24 @@ xfs_fs_inode_init_once(
+ 	inode_init_once(vn_to_inode((bhv_vnode_t *)vnode));
+ }
+ 
++static void *xfs_get_inodes(struct kmem_cache *s, int nr, void **v)
 +{
-+	return fs_get_inodes(s, nr, v,
-+		offsetof(struct socket_alloc, vfs_inode));
-+}
++	return fs_get_inodes(s, nr, v, offsetof(bhv_vnode_t, v_inode));
++};
 +
-+static struct kmem_cache_ops sock_kmem_cache_ops = {
-+	.get = sock_get_inodes,
++static struct kmem_cache_ops xfs_kmem_cache_ops = {
++	.get = xfs_get_inodes,
 +	.kick = kick_inodes
 +};
 +
- static int init_inodecache(void)
+ STATIC int
+ xfs_init_zones(void)
  {
- 	sock_inode_cachep = kmem_cache_create("sock_inode_cache",
-@@ -273,7 +284,7 @@ static int init_inodecache(void)
- 					       SLAB_RECLAIM_ACCOUNT |
- 					       SLAB_MEM_SPREAD),
- 					      init_once,
--					      NULL);
-+					      &sock_kmem_cache_ops);
- 	if (sock_inode_cachep == NULL)
- 		return -ENOMEM;
- 	return 0;
+ 	xfs_vnode_zone = kmem_zone_init_flags(sizeof(bhv_vnode_t), "xfs_vnode",
+ 					KM_ZONE_HWALIGN | KM_ZONE_RECLAIM |
+ 					KM_ZONE_SPREAD,
+-					xfs_fs_inode_init_once);
++					xfs_fs_inode_init_once,
++					&xfs_kmem_cache_ops);
+ 	if (!xfs_vnode_zone)
+ 		goto out;
+ 
+Index: slub/fs/xfs/xfs_vfsops.c
+===================================================================
+--- slub.orig/fs/xfs/xfs_vfsops.c	2007-06-06 15:19:52.000000000 -0700
++++ slub/fs/xfs/xfs_vfsops.c	2007-06-06 15:20:36.000000000 -0700
+@@ -109,13 +109,13 @@ xfs_init(void)
+ 	xfs_inode_zone =
+ 		kmem_zone_init_flags(sizeof(xfs_inode_t), "xfs_inode",
+ 					KM_ZONE_HWALIGN | KM_ZONE_RECLAIM |
+-					KM_ZONE_SPREAD, NULL);
++					KM_ZONE_SPREAD, NULL, NULL);
+ 	xfs_ili_zone =
+ 		kmem_zone_init_flags(sizeof(xfs_inode_log_item_t), "xfs_ili",
+-					KM_ZONE_SPREAD, NULL);
++					KM_ZONE_SPREAD, NULL, NULL);
+ 	xfs_chashlist_zone =
+ 		kmem_zone_init_flags(sizeof(xfs_chashlist_t), "xfs_chashlist",
+-					KM_ZONE_SPREAD, NULL);
++					KM_ZONE_SPREAD, NULL, NULL);
+ 
+ 	/*
+ 	 * Allocate global trace buffers.
 
 -- 
