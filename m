@@ -1,48 +1,56 @@
-Subject: [KJ][PATCH]is_power_of_2-ia64/mm/hugetlbpage.c
-From: vignesh babu <vignesh.babu@wipro.com>
-Reply-To: vignesh.babu@wipro.com
-Content-Type: text/plain
-Content-Transfer-Encoding: 7bit
-Date: Thu, 07 Jun 2007 15:27:46 +0530
-Message-Id: <1181210266.11218.3.camel@merlin.linuxcoe.com>
+Date: Thu, 7 Jun 2007 21:47:06 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: 2.6.22-rc4-mm1
+Message-Id: <20070607214706.3efc5870.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20070606020737.4663d686.akpm@linux-foundation.org>
+References: <20070606020737.4663d686.akpm@linux-foundation.org>
 Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: tony.luck@intel.com, rohit.seth@intel.com, kenneth.w.chen@intel.com
-Cc: linux-ia64@vger.kernel.org, linux-mm@kvack.org, linux-kernel <linux-kernel@vger.kernel.org>, Kernel Janitors List <kernel-janitors@lists.osdl.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-kernel@vger.kernel.org, clameter@sgi.com, "linux-mm@kvack.org" <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-Replacing (n & (n-1)) in the context of power of 2 checks
-with is_power_of_2
+Question.
 
-Signed-off-by: vignesh babu <vignesh.babu@wipro.com>
---- 
-diff --git a/arch/ia64/mm/hugetlbpage.c b/arch/ia64/mm/hugetlbpage.c
-index 1346b7f..d22861c 100644
---- a/arch/ia64/mm/hugetlbpage.c
-+++ b/arch/ia64/mm/hugetlbpage.c
-@@ -15,6 +15,7 @@
- #include <linux/pagemap.h>
- #include <linux/slab.h>
- #include <linux/sysctl.h>
-+#include <linux/log2.h>
- #include <asm/mman.h>
- #include <asm/pgalloc.h>
- #include <asm/tlb.h>
-@@ -182,7 +183,7 @@ static int __init hugetlb_setup_sz(char *str)
- 		tr_pages = 0x15557000UL;
- 
- 	size = memparse(str, &str);
--	if (*str || (size & (size-1)) || !(tr_pages & size) ||
-+	if (*str || !is_power_of_2(size) || !(tr_pages & size) ||
- 		size <= PAGE_SIZE ||
- 		size >= (1UL << PAGE_SHIFT << MAX_ORDER)) {
- 		printk(KERN_WARNING "Invalid huge page size specified\n");
+While writing memory unplug, I noticed this code.
+==
+static int
+fixup_anon_page(pte_t *pte, unsigned long start, unsigned long end, void *priv)
+{
+        struct vm_area_struct *vma = priv;
+        struct page *page = vm_normal_page(vma, start, *pte);
 
--- 
-Vignesh Babu BM 
-_____________________________________________________________ 
-"Why is it that every time I'm with you, makes me believe in magic?"
+        if (page && PageAnon(page))
+                page->index = linear_page_index(vma, start);
+
+        return 0;
+}
+
+static int fixup_anon_pages(struct vm_area_struct *vma)
+{
+        struct mm_walk walk = {
+                .pte_entry = fixup_anon_page,
+        };
+
+        return walk_page_range(vma->vm_mm,
+                        vma->vm_start, vma->vm_end, &walk, vma);
+}
+==
+
+I think that 'pte' passed to fixup_anon_page() by walk_page_range()
+is not guaranteed to be 'Present'.
+
+Then, vm_normal_page() will show print_bad_pte().
+
+If this never occur now, I'll add my own check code for memory migration by kernel here.
+
+(Sorry, I can't find who should be CCed.)
+
+-Kame
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
