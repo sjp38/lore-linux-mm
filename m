@@ -1,90 +1,52 @@
-Date: Thu, 7 Jun 2007 10:17:01 +0900
-From: Paul Mundt <lethal@linux-sh.org>
-Subject: [PATCH] numa: mempolicy: dynamic interleave map for system init.
-Message-ID: <20070607011701.GA14211@linux-sh.org>
+Received: by wa-out-1112.google.com with SMTP id m33so476748wag
+        for <linux-mm@kvack.org>; Wed, 06 Jun 2007 20:27:02 -0700 (PDT)
+Message-ID: <787b0d920706062027s5a8fd35q752f8da5d446afc@mail.gmail.com>
+Date: Wed, 6 Jun 2007 23:27:01 -0400
+From: "Albert Cahalan" <acahalan@gmail.com>
+Subject: Re: [RFC][PATCH] /proc/pid/maps doesn't match "ipcs -m" shmid
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, ak@suse.de, clameter@sgi.com, hugh@veritas.com, lee.schermerhorn@hp.com
+To: linux-kernel@vger.kernel.org, linux-mm@kvack.org, akpm@linux-foundation.org, ebiederm@xmission.com, pbadari@us.ibm.com, torvalds@linux-foundation.org
 List-ID: <linux-mm.kvack.org>
 
-This is an alternative approach to the MPOL_INTERLEAVE across online
-nodes as the system init policy. Andi suggested it might be worthwhile
-trying to do this dynamically rather than as a command line option, so
-that's what this tries to do.
+Eric W. Biederman writes:
+> Badari Pulavarty <pbadari@us.ibm.com> writes:
 
-With this, the online nodes are sized and packed in to an interleave map
-if they're large enough for interleave to be worthwhile. I arbitrarily
-chose 16MB as the node size to enable interleaving, but perhaps someone
-has a better figure in mind?
+>> Your recent cleanup to shm code, namely
+>>
+>> [PATCH] shm: make sysv ipc shared memory use stacked files
+>>
+>> took away one of the debugging feature for shm segments.
+>> Originally, shmid were forced to be the inode numbers and
+>> they show up in /proc/pid/maps for the process which mapped
+>> this shared memory segments (vma listing). That way, its easy
+>> to find out who all mapped this shared memory segment. Your
+>> patchset, took away the inode# setting. So, we can't easily
+>> match the shmem segments to /proc/pid/maps easily. (It was
+>> really useful in tracking down a customer problem recently).
+>> Is this done deliberately ? Anything wrong in setting this back ?
+>
+> Theoretically it makes the stacked file concept more brittle,
+> because it means the lower layers can't care about their inode
+> number.
+>
+> We do need something to tie these things together.
+>
+> So I suspect what makes most sense is to simply rename the
+> dentry SYSVID<segmentid>
 
-In the case where all of the nodes are smaller than that, the largest
-node is selected and placed in to the map by itself (if they're all the
-same size, the first online node gets used).
+Please stop breaking things in /proc. The pmap command relys
+on the old behavior. It's time to revert. Put back the segment ID
+where it belongs, and leave the key where it belongs too.
 
-If people prefer this approach, the previous patch adding mpolinit can be
-dropped.
-
-Signed-off-by: Paul Mundt <lethal@linux-sh.org>
-
---
-
- mm/mempolicy.c |   31 ++++++++++++++++++++++++++++---
- 1 file changed, 28 insertions(+), 3 deletions(-)
-
-diff --git a/mm/mempolicy.c b/mm/mempolicy.c
-index d76e8eb..a67c8f1 100644
---- a/mm/mempolicy.c
-+++ b/mm/mempolicy.c
-@@ -1597,6 +1597,10 @@ void mpol_free_shared_policy(struct shared_policy *p)
- /* assumes fs == KERNEL_DS */
- void __init numa_policy_init(void)
- {
-+	nodemask_t interleave_nodes;
-+	unsigned long largest = 0;
-+	int nid, prefer = 0;
-+
- 	policy_cache = kmem_cache_create("numa_policy",
- 					 sizeof(struct mempolicy),
- 					 0, SLAB_PANIC, NULL, NULL);
-@@ -1605,10 +1609,31 @@ void __init numa_policy_init(void)
- 				     sizeof(struct sp_node),
- 				     0, SLAB_PANIC, NULL, NULL);
- 
--	/* Set interleaving policy for system init. This way not all
--	   the data structures allocated at system boot end up in node zero. */
-+	/*
-+	 * Set interleaving policy for system init. Interleaving is only
-+	 * enabled across suitably sized nodes (default is >= 16MB), or
-+	 * fall back to the largest node if they're all smaller.
-+	 */
-+	nodes_clear(interleave_nodes);
-+	for_each_online_node(nid) {
-+		unsigned long total_pages = node_present_pages(nid);
-+
-+		/* Preserve the largest node */
-+		if (largest < total_pages) {
-+			largest = total_pages;
-+			prefer = nid;
-+		}
-+
-+		/* Interleave this node? */
-+		if ((total_pages << PAGE_SHIFT) >= (16 << 20))
-+			node_set(nid, interleave_nodes);
-+	}
-+
-+	/* All too small, use the largest */
-+	if (unlikely(nodes_empty(interleave_nodes)))
-+		node_set(prefer, interleave_nodes);
- 
--	if (do_set_mempolicy(MPOL_INTERLEAVE, &node_online_map))
-+	if (do_set_mempolicy(MPOL_INTERLEAVE, &interleave_nodes))
- 		printk("numa_policy_init: interleaving failed\n");
- }
- 
+Containers are NOT worth breaking our ABIs left and right.
+We don't need to leap off that bridge just because Solaris did,
+unless you can explain why complexity and bloat are desirable.
+We already have SE Linux, chroot, KVM, and several more!
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
