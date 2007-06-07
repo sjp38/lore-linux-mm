@@ -1,83 +1,72 @@
-Message-ID: <4667B656.3080308@shadowen.org>
-Date: Thu, 07 Jun 2007 08:40:06 +0100
+Message-ID: <4667B862.3080809@shadowen.org>
+Date: Thu, 07 Jun 2007 08:48:50 +0100
 From: Andy Whitcroft <apw@shadowen.org>
 MIME-Version: 1.0
 Subject: Re: SLUB: Use ilog2 instead of series of constant comparisons.
-References: <Pine.LNX.4.64.0705211250410.27950@schroedinger.engr.sgi.com>	<20070606100817.7af24b74.akpm@linux-foundation.org>	<Pine.LNX.4.64.0706061053290.11553@schroedinger.engr.sgi.com>	<20070606131121.a8f7be78.akpm@linux-foundation.org>	<Pine.LNX.4.64.0706061326020.12565@schroedinger.engr.sgi.com> <20070606133432.2f3cb26a.akpm@linux-foundation.org> <46671C16.9080409@mbligh.org>
-In-Reply-To: <46671C16.9080409@mbligh.org>
+References: <Pine.LNX.4.64.0705211250410.27950@schroedinger.engr.sgi.com>	 <20070606100817.7af24b74.akpm@linux-foundation.org>	 <Pine.LNX.4.64.0706061053290.11553@schroedinger.engr.sgi.com>	 <20070606131121.a8f7be78.akpm@linux-foundation.org> <29495f1d0706061329o457d3c97q3a93c4ab2581a1c@mail.gmail.com>
+In-Reply-To: <29495f1d0706061329o457d3c97q3a93c4ab2581a1c@mail.gmail.com>
 Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Martin Bligh <mbligh@mbligh.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <clameter@sgi.com>, linux-mm@kvack.org, Pekka Enberg <penberg@cs.helsinki.fi>
+To: Nish Aravamudan <nish.aravamudan@gmail.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <clameter@sgi.com>, linux-mm@kvack.org, Pekka Enberg <penberg@cs.helsinki.fi>, Martin Bligh <mbligh@mbligh.org>
 List-ID: <linux-mm.kvack.org>
 
-Martin Bligh wrote:
-> Andrew Morton wrote:
->> On Wed, 6 Jun 2007 13:28:40 -0700 (PDT) Christoph Lameter
+Nish Aravamudan wrote:
+> On 6/6/07, Andrew Morton <akpm@linux-foundation.org> wrote:
+>> On Wed, 6 Jun 2007 11:36:07 -0700 (PDT) Christoph Lameter
 >> <clameter@sgi.com> wrote:
 >>
->>> On Wed, 6 Jun 2007, Andrew Morton wrote:
->>>
->>>>> There is also nothing special in CalcNTLMv2_partial_mac_key(). Two
->>>>> kmallocs of 33 bytes and 132 bytes each.
->>>> Yes, the code all looks OK.  I suspect this is another case of the
->>>> compiler
->>>> failing to remove unreachable stuff.
->>> Sigh.
->>>
->>> The patch was already in 2.6.22-rc3-mm1. Why did the patch pass the
->>> testing during that release cycle?
+>> > On Wed, 6 Jun 2007, Andrew Morton wrote:
+>> >
+>> > > This caused test.kernel.org's power4 build to blow up:
+>> > >
+>> > > http://test.kernel.org/abat/93315/debug/test.log.0
+>> > >
+>> > > fs/built-in.o(.text+0x148420): In function
+>> `.CalcNTLMv2_partial_mac_key':
+>> > > : undefined reference to `.____ilog2_NaN'
+>> >
+>> > Hmmm... Weird message that does not allow too much analysis.
+>> > The __ilog2_NaN comes about if 0 or a negative number is passed to
+>> ilog.
+>> > There is no way for that to happen since we check for KMALLOC_MIN_SIZE
+>> > and KMALLOC_MAX_SIZE in kmalloc_index() and an unsigned value is used.
+>> >
+>> > There is also nothing special in CalcNTLMv2_partial_mac_key(). Two
+>> > kmallocs of 33 bytes and 132 bytes each.
 >>
->> Good question - don't know, sorry.
+>> Yes, the code all looks OK.  I suspect this is another case of the
+>> compiler
+>> failing to remove unreachable stuff.
 >>
->> I tried to build gcc-3.3.3 the other day.  Would you believe that
->> gcc-4.1.0
->> fails to compile gcc-3.3.3?
+>> > Buggy compiler (too much stress on constant folding)? Or hardware?
+>> Can we
+>> > rerun the test?
+>>
+>> It happened multiple times:
+>> http://test.kernel.org/functional/pSeries-101_2.html
+>>
+>> I'm sure there's a way of extracting the compiler version out of
+>> test.kernel.org but I can't see it there.  Andy, maybe we should toss
+>> a gcc
+>> --version in there or something?
 > 
-> IIRC, the SUSE ones were customized anyway, so not sure that'd help you.
-> Might do though.
+> I went and looked at one of the GOOD jobs and acc'g to that, the gcc is
 > 
-> There should be a sysinfo directory that lists stuff like gcc version,
-> maybe it's not getting replicated to TKO though ... Nish or Andy,
-> any chance you can take a look at the original copy of one of those
-> jobs on the ABAT server?
+> gcc version 3.3.3 (SuSE Linux)
 > 
-> I just fixed autotest, but I can't fix the old IBM code from here ;-)
-> Anything else that'd be particularly handy to dump all the time?
-> You can see what we're currently doing in the context of the diff
-> below.
+> (http://test.kernel.org/abat/93029/summary)
 > 
-> Index: sysinfo.py
-> ===================================================================
-> --- sysinfo.py  (revision 527)
-> +++ sysinfo.py  (working copy)
-> @@ -8,7 +8,7 @@
->  files = ['/proc/pci', '/proc/meminfo', '/proc/slabinfo', '/proc/version',
->         '/proc/cpuinfo', '/proc/cmdline']
->  # commands = ['lshw']        # this causes problems triggering CDROM
-> drives
-> -commands = ['uname -a', 'lspci -vvn']
-> +commands = ['uname -a', 'lspci -vvn', 'gcc --version']
->  path = ['/usr/bin', '/bin']
+> I agree, seems like it would be handy to spit that out somewhere nicer
+> and easier to get to. Maybe the machine links at the top should point
+> to a summary page which has a link to the .config, machine info, etc?
+> (more indirection, but may be ok).
 
-
-Yep this is something we keep in the job, but apparently something we
-don't push out to you.
-
-Reading specs from /usr/lib/gcc-lib/powerpc-suse-linux/3.3.3/specs
-Configured with: ../configure --enable-threads=posix --prefix=/usr
---with-local-prefix=/usr/local --infodir=/usr/share/info
---mandir=/usr/share/man --enable-languages=c,c++,f77,objc,java,ada
---disable-checking --libdir=/usr/lib --enable-libgcj
---with-gxx-include-dir=/usr/include/g++ --with-slibdir=/lib
---with-system-zlib --enable-shared --enable-__cxa_atexit
---host=powerpc-suse-linux --build=powerpc-suse-linux
---target=powerpc-suse-linux --enable-targets=powerpc64-suse-linux
---enable-biarch
-Thread model: posix
-gcc version 3.3.3 (SuSE Linux)
+They probably should be replicated with the job as the machine may
+change compiler at some time in its life.  If for no other reason that
+there should be a break in the kernbench graph if it does ... :)
 
 -apw
 
