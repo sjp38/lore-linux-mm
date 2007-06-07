@@ -1,40 +1,39 @@
-Date: Thu, 7 Jun 2007 20:49:07 -0200
-From: "Dina Crabtree" <dwfreudenbergerm@freudenberger.net>
-Reply-To: dwfreudenbergerm@freudenberger.net
-Message-ID: <712868688.68442668041680@freudenberger.net>
-Subject: Looking for drugs ?
+Date: Thu, 7 Jun 2007 13:59:42 -0700 (PDT)
+From: Christoph Lameter <clameter@sgi.com>
+Subject: SLUB: Remove useless EXPORT_SYMBOL
+Message-ID: <Pine.LNX.4.64.0706071358410.26516@schroedinger.engr.sgi.com>
 MIME-Version: 1.0
-Content-Type: multipart/alternative;
-  boundary="----------4BF6E4BFDA67F6"
-Return-Path: <dwfreudenbergerm@freudenberger.net>
-To: linux-mm@kvack.org
+Content-Type: TEXT/PLAIN; charset=US-ASCII
+Sender: owner-linux-mm@kvack.org
+Return-Path: <owner-linux-mm@kvack.org>
+To: akpm@linux-foundation.org
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-------------4BF6E4BFDA67F6
-Content-Type: text/plain; charset=Windows-1252
-Content-Transfer-Encoding: 7bit
+kmem_cache_open is static. EXPORT_SYMBOL was leftover from some earlier 
+time period where kmem_cache_open was usable outside of slub.
 
-Dear valued member.In the last newsletter we?ve informed you that Canadian products are of the same quality as American but much more cheaper.  Now MyCanadianPharmacy offers even better opportunity to save on your drugs ? 50% discount.MyCanadianPharmacy is proud to offer the cheapest prices for the best quality drugs. We do our best to satisfy all customers? needs. Click here to see the selection of our products. Strict confidentiality is guaranteed. Quick and safe shipping.Get the quality products you deserve. http://studenthot.hkBest regards,Dina Crabtree
+Signed-off-by: Chrsitoph Lameter <clameter@sgi.com>
 
-------------4BF6E4BFDA67F6
-Content-Type: text/html; charset=Windows-1252
-Content-Transfer-Encoding: 7bit
+---
+ mm/slub.c |    1 -
+ 1 file changed, 1 deletion(-)
 
-<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
-<HTML><HEAD><TITLE></TITLE>
-</HEAD>
-<BODY>
+Index: slub/mm/slub.c
+===================================================================
+--- slub.orig/mm/slub.c	2007-06-04 19:41:57.000000000 -0700
++++ slub/mm/slub.c	2007-06-04 19:41:58.000000000 -0700
+@@ -2084,7 +2084,6 @@ error:
+ 			s->offset, flags);
+ 	return 0;
+ }
+-EXPORT_SYMBOL(kmem_cache_open);
+ 
+ /*
+  * Check if a given pointer is valid
 
-<html>
-<body bgcolor="#FFFFFF" link="#333366">
-<p><font face="Verdana" size="2" color="#000000">Dear valued member.</font></p>
-<p><font face="Verdana" size="2">In the last newsletter we?ve informed you that Canadian products are of the same quality as American but much more cheaper.  Now <a href="http://studenthot.hk">MyCanadianPharmacy</a> offers even better opportunity to save on your drugs ? <b><i>50% discount</i></b>.</font></p>
-<p><font face="Verdana" size="2"><a href="http://studenthot.hk">MyCanadianPharmacy</a> is proud to offer the cheapest prices for the best quality drugs. We do our best to satisfy all customers? needs. <a href="http://studenthot.hk">Click here</a> to see the selection of our products. Strict confidentiality is guaranteed. Quick and safe shipping.</font></p>
-<p><font face="Verdana" size="2">Get the quality products you deserve. <br><a href="http://studenthot.hk">http://studenthot.hk</a></font></p>
-<p><font face="Verdana" size="2">Best regards,<br>Dina Crabtree</font></p>
-</body>
-</html>
-
-
-</BODY></HTML>
-------------4BF6E4BFDA67F6--
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
