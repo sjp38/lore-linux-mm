@@ -1,88 +1,112 @@
-Received: from d01relay02.pok.ibm.com (d01relay02.pok.ibm.com [9.56.227.234])
-	by e4.ny.us.ibm.com (8.13.8/8.13.8) with ESMTP id l57MG367003234
-	for <linux-mm@kvack.org>; Thu, 7 Jun 2007 18:16:03 -0400
+Received: from d01relay04.pok.ibm.com (d01relay04.pok.ibm.com [9.56.227.236])
+	by e2.ny.us.ibm.com (8.13.8/8.13.8) with ESMTP id l57MKrEQ000811
+	for <linux-mm@kvack.org>; Thu, 7 Jun 2007 18:20:53 -0400
 Received: from d01av03.pok.ibm.com (d01av03.pok.ibm.com [9.56.224.217])
-	by d01relay02.pok.ibm.com (8.13.8/8.13.8/NCO v8.3) with ESMTP id l57MG33I527580
-	for <linux-mm@kvack.org>; Thu, 7 Jun 2007 18:16:03 -0400
+	by d01relay04.pok.ibm.com (8.13.8/8.13.8/NCO v8.3) with ESMTP id l57MKrqI558112
+	for <linux-mm@kvack.org>; Thu, 7 Jun 2007 18:20:53 -0400
 Received: from d01av03.pok.ibm.com (loopback [127.0.0.1])
-	by d01av03.pok.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l57MG2GT016790
-	for <linux-mm@kvack.org>; Thu, 7 Jun 2007 18:16:03 -0400
-Date: Thu, 7 Jun 2007 15:16:02 -0700
-From: Nishanth Aravamudan <nacc@us.ibm.com>
-Subject: Re: [PATCH v2] gfp.h: GFP_THISNODE can go to other nodes if some are unpopulated
-Message-ID: <20070607221602.GD15776@us.ibm.com>
-References: <20070607150425.GA15776@us.ibm.com> <Pine.LNX.4.64.0706071103240.24988@schroedinger.engr.sgi.com> <20070607220149.GC15776@us.ibm.com> <Pine.LNX.4.64.0706071505330.28899@schroedinger.engr.sgi.com>
+	by d01av03.pok.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l57MKrlS024375
+	for <linux-mm@kvack.org>; Thu, 7 Jun 2007 18:20:53 -0400
+Message-ID: <466884CF.2060802@us.ibm.com>
+Date: Thu, 07 Jun 2007 15:21:03 -0700
+From: Badari Pulavarty <pbadari@us.ibm.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <Pine.LNX.4.64.0706071505330.28899@schroedinger.engr.sgi.com>
+Subject: Re: [RFC][PATCH] /proc/pid/maps doesn't match "ipcs -m" shmid
+References: <787b0d920706062027s5a8fd35q752f8da5d446afc@mail.gmail.com> <20070606204432.b670a7b1.akpm@linux-foundation.org> <787b0d920706062153u7ad64179p1c4f3f663c3882f@mail.gmail.com> <1181233393.9995.14.camel@dyn9047017100.beaverton.ibm.com> <787b0d920706070943h6ac65b85nee5b01600905be08@mail.gmail.com> <1181235997.9995.23.camel@dyn9047017100.beaverton.ibm.com> <20070607124824.27e909fd.akpm@linux-foundation.org> <1181246363.9995.37.camel@dyn9047017100.beaverton.ibm.com> <20070607203757.GA531@vino.hallyn.com> <1181250968.9995.41.camel@dyn9047017100.beaverton.ibm.com> <20070607220820.GA1191@vino.hallyn.com>
+Content-Type: text/plain; charset=us-ascii; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
-Cc: Lee.Schermerhorn@hp.com, anton@samba.org, apw@shadowen.org, mel@csn.ul.ie, akpm@linux-foundation.org, linux-mm@kvack.org
+To: "Serge E. Hallyn" <serge@hallyn.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Albert Cahalan <acahalan@gmail.com>, lkml <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, ebiederm@xmission.com, torvalds@linux-foundation.org
 List-ID: <linux-mm.kvack.org>
 
-On 07.06.2007 [15:05:56 -0700], Christoph Lameter wrote:
-> On Thu, 7 Jun 2007, Nishanth Aravamudan wrote:
-> 
-> >  /*
-> > - * NOTE: if the requested node is unpopulated (no memory), a THISNODE
-> > - * request can go to other nodes due to the fallback list
-> > + * NOTE: GFP_THISNODE allocates from the first available pgdat (== node
-> > + * structure) from the zonelist of the requested node. The first pgdat
-> > + * may be the pgdat of another node if the requested node has no memory
-> > + * on its own.
-> >   */
-> >  #define GFP_THISNODE	(__GFP_THISNODE | __GFP_NOWARN | __GFP_NORETRY)
-> >  #else
-> 
-> Acked-by: Christoph Lameter <clameter@sgi.com>
 
-Thanks, I'm an idiot, though, and didn't reset to stock -linus before
-refreshing my patch:
+Serge E. Hallyn wrote:
 
-gfp.h: GFP_THISNODE can go to other nodes if some are unpopulated
+>Quoting Badari Pulavarty (pbadari@us.ibm.com):
+>
+>>On Thu, 2007-06-07 at 15:37 -0500, Serge E. Hallyn wrote:
+>>
+>>>Quoting Badari Pulavarty (pbadari@us.ibm.com):
+>>>
+>>>>On Thu, 2007-06-07 at 12:48 -0700, Andrew Morton wrote:
+>>>>
+>>>>>On Thu, 07 Jun 2007 10:06:37 -0700
+>>>>>Badari Pulavarty <pbadari@us.ibm.com> wrote:
+>>>>>
+>>>>>>On Thu, 2007-06-07 at 12:43 -0400, Albert Cahalan wrote:
+>>>>>>
+>>>>>>>On 6/7/07, Badari Pulavarty <pbadari@us.ibm.com> wrote:
+>>>>>>>
+>>>>>>>>BTW, I agree with Eric that its would be nice to use shmid as part
+>>>>>>>>of name instead of forcing to be as inode number. It should be
+>>>>>>>>possible for pmap to workout shmid from "key" or name. Isn't it ?
+>>>>>>>>
+>>>>>>>It is not at all nice.
+>>>>>>>
+>>>>>>>1. it's incompatible ABI breakage
+>>>>>>>2. where will you put the key then, in the inode? :-)
+>>>>>>>
+>>>>>>Nope. Currently "key" is part of the name (but its not unique).
+>>>>>>
+>>>>>>>Changing to "SYSVID%d" is no good either. Look, people
+>>>>>>>are ***parsing*** this stuff in /proc. The /proc filesystem
+>>>>>>>is not some random sandbox to be playing in.
+>>>>>>>
+>>>>>>>Before you go messing with it, note that the device number
+>>>>>>>also matters. (it's per-boot dynamic, but that's OK)
+>>>>>>>That's how one knows that /SYSV00000000 is not just
+>>>>>>>a regular file; sadly these didn't get a non-/ prefix.
+>>>>>>>(and no you can't fix that now; it's way too late)
+>>>>>>>
+>>>>>>>Next time you feel like breaking an ABI, mind putting
+>>>>>>>"LET'S BREAK AN ABI!" in the subject of your email?
+>>>>>>>
+>>>>>>I am not breaking ABI. Its already broken in the current
+>>>>>>mainline. I am trying to fix it by putting back the ino#
+>>>>>>as shmid. Eric had a suggestion that, instead of depending
+>>>>>>on the inode# to be shmid, we could embed shmid into name
+>>>>>>(instead of "key" which is currently not unique).
+>>>>>>
+>>>>>>>BTW, I suspect this kind of thing also breaks:
+>>>>>>>a. fuser, lsof, and other resource usage display tools
+>>>>>>>b. various obscure emulators (similar to valgrind)
+>>>>>>>
+>>>>>>If you strongly feel that "old" behaviour needs to be retained, 
+>>>>>>
+>>>>>yup, we should put it back.  The change was, afaik, accidental.
+>>>>>
+>>>>>>here is the patch I originally suggested.
+>>>>>>
+>>>>>Confused.  Will this one-liner fix all the userspace breakage to which
+>>>>>Albert refers?
+>>>>>
+>>>>Yes. Albert, please correct me if I am wrong.
+>>>>
+>>>It will, but could lead to two different inodes with the same i_ino,
+>>>right?
+>>>
+>>Only if we generate same ID in two different namespaces. Is it currently
+>>possible ? 
+>>
+>
+>Should be nothing stopping it.
+>
+>But like I say we never find the inode based on i_ino, and don't hash
+>the inode, so it might be ok.
+>
+Correct. We might end up with same shmid - which mean same inode# shows 
+up in /proc/pid/maps.
+If we don't unshare pid namespace or look from parent namespace - we 
+will end up seeing same
+shmid/inode# in different /proc/pid/maps, even though they are 
+different. But I guess its okay..
 
-While testing my sysfs per-node hugepage allocator
-(http://marc.info/?l=linux-mm&m=117935849517122&w=2), I found that an
-alloc_pages_node(nid, GFP_THISNODE) request would sometimes return a
-struct page such that page_to_nid(page) != nid. This was because, on
-that particular machine, nodes 0 and 1 are populated and nodes 2 and 3
-are not. When a page is requested get_page_from_freelist() relies on
-zonelist->zones[0]->zone_pgdat indicating when THISNODE stops. But,
-because, say, node 2 has no memory, the first zone_pgdat in the fallback
-list points to a different node. Add a comment indicating that THISNODE
-may not return pages on THISNODE if the node is unpopulated.
+Thanks,
+Badari
 
-Am working on testing Lee/Anton's patch to add a node_populated_mask and
-use that in the hugepage allocator path. But I think this may be a
-problem anywhere THISNODE is used and memory is expected to come from
-the requested node and nowhere else.
 
-Signed-off-by: Nishanth Aravamudan <nacc@us.ibm.com>
-Acked-by: Christoph Lameter <clameter@sgi.com>
-
-diff --git a/include/linux/gfp.h b/include/linux/gfp.h
-index 0d2ef0b..996cf08 100644
---- a/include/linux/gfp.h
-+++ b/include/linux/gfp.h
-@@ -67,6 +67,12 @@ struct vm_area_struct;
- 			 __GFP_HIGHMEM)
- 
- #ifdef CONFIG_NUMA
-+/*
-+ * NOTE: GFP_THISNODE allocates from the first available pgdat (== node
-+ * structure) from the zonelist of the requested node. The first pgdat
-+ * may be the pgdat of another node if the requested node has no memory
-+ * on its own.
-+ */
- #define GFP_THISNODE	(__GFP_THISNODE | __GFP_NOWARN | __GFP_NORETRY)
- #else
- #define GFP_THISNODE	((__force gfp_t)0)
-
--- 
-Nishanth Aravamudan <nacc@us.ibm.com>
-IBM Linux Technology Center
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
