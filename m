@@ -1,143 +1,128 @@
-Received: from schroedinger.engr.sgi.com (schroedinger.engr.sgi.com [150.166.1.51])
-	by netops-testserver-4.corp.sgi.com (Postfix) with ESMTP id 3573961B84
-	for <linux-mm@kvack.org>; Thu,  7 Jun 2007 14:43:13 -0700 (PDT)
-Received: from clameter (helo=localhost)
-	by schroedinger.engr.sgi.com with local-esmtp (Exim 3.36 #1 (Debian))
-	id 1HwPlB-0006yM-00
-	for <linux-mm@kvack.org>; Thu, 07 Jun 2007 14:43:13 -0700
-Date: Thu, 7 Jun 2007 14:43:13 -0700 (PDT)
-From: Christoph Lameter <clameter@sgi.com>
-Subject: SLUB: Use list_for_each_entry for loops over all slabs (fwd)
-Message-ID: <Pine.LNX.4.64.0706071442590.26798@schroedinger.engr.sgi.com>
+Received: from d01relay02.pok.ibm.com (d01relay02.pok.ibm.com [9.56.227.234])
+	by e3.ny.us.ibm.com (8.13.8/8.13.8) with ESMTP id l57KxDwu013440
+	for <linux-mm@kvack.org>; Thu, 7 Jun 2007 16:59:13 -0400
+Received: from d01av04.pok.ibm.com (d01av04.pok.ibm.com [9.56.224.64])
+	by d01relay02.pok.ibm.com (8.13.8/8.13.8/NCO v8.3) with ESMTP id l57M1oXZ529868
+	for <linux-mm@kvack.org>; Thu, 7 Jun 2007 18:01:50 -0400
+Received: from d01av04.pok.ibm.com (loopback [127.0.0.1])
+	by d01av04.pok.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l57M1o8w002942
+	for <linux-mm@kvack.org>; Thu, 7 Jun 2007 18:01:50 -0400
+Date: Thu, 7 Jun 2007 15:01:49 -0700
+From: Nishanth Aravamudan <nacc@us.ibm.com>
+Subject: [PATCH v2] gfp.h: GFP_THISNODE can go to other nodes if some are unpopulated
+Message-ID: <20070607220149.GC15776@us.ibm.com>
+References: <20070607150425.GA15776@us.ibm.com> <Pine.LNX.4.64.0706071103240.24988@schroedinger.engr.sgi.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <Pine.LNX.4.64.0706071103240.24988@schroedinger.engr.sgi.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
+To: Christoph Lameter <clameter@sgi.com>
+Cc: Lee.Schermerhorn@hp.com, anton@samba.org, apw@shadowen.org, mel@csn.ul.ie, akpm@linux-foundation.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Forgot to include linux-mm.
+On 07.06.2007 [11:11:02 -0700], Christoph Lameter wrote:
+> On Thu, 7 Jun 2007, Nishanth Aravamudan wrote:
+> 
+> > While testing my sysfs per-node hugepage allocator
+> > (http://marc.info/?l=linux-mm&m=117935849517122&w=2), I found that
+> > an alloc_pages_node(nid, GFP_THISNODE) request would sometimes
+> > return a struct page such that page_to_nid(page) != nid. This was
+> > because, on that particular machine, nodes 0 and 1 are populated and
+> > nodes 2 and 3 are not. When a page is requested
+> > get_page_from_freelist() relies on zonelist->zones[0]->zone_pgdat
+> > indicating when THISNODE stops. But, because, say, node 2 has no
+> > memory, the first zone_pgdat in the fallback list points to a
+> > different node. Add a comment indicating that THISNODE may not
+> > return pages on THISNODE if the node is unpopulated.
+> 
+> Hmmm.... Bad semantics are developing as a result of allowing empty
+> nodes with no zones. This is not correct and can have bad
+> consequences. 
 
----------- Forwarded message ----------
-Date: Thu, 7 Jun 2007 14:01:50 -0700 (PDT)
-From: Christoph Lameter <clameter@sgi.com>
-To: akpm@linux-foundation.org
-Subject: SLUB: Use list_for_each_entry for loops over all slabs
+I won't argue with you.
 
-Use list_for_each_entry() instead of list_for_each().
+> As I expected: We may need more hacks to deal with it. Sigh.
 
-Get rid of for_all_slabs(). It had only one user. So fold it into the 
-callback. This also gets rid of cpu_slab_flush.
+Yes.
 
-Signed-off-by: Christoph Lameter <clameter@sgi.com>
+> > Am working on testing Lee/Anton's patch to add a node_populated_mask
+> > and use that in the hugepage allocator path. But I think this may be
+> > a problem anywhere THISNODE is used and memory is expected to come
+> > from the requested node and nowhere else.
+> 
+> What GFP_THISNODE effectively does now is to require the allocation on
+> the nearest available zone to the indicated node because it does not
+> allow access outside of the first encountered pgdat. But the first
+> pgdat is not the node we selected if the node has no memory.
 
----
- mm/slub.c |   51 +++++++++++++--------------------------------------
- 1 file changed, 13 insertions(+), 38 deletions(-)
+Right, that's the fallback list, right? And for unpopulated zones,
+zonelist->zone[0]->zone_pgdat can refer to a different node.
 
-Index: slub/mm/slub.c
-===================================================================
---- slub.orig/mm/slub.c	2007-06-04 20:04:10.000000000 -0700
-+++ slub/mm/slub.c	2007-06-04 20:08:01.000000000 -0700
-@@ -2582,7 +2582,7 @@ static struct kmem_cache *find_mergeable
- 		size_t align, unsigned long flags,
- 		void (*ctor)(void *, struct kmem_cache *, unsigned long))
- {
--	struct list_head *h;
-+	struct kmem_cache *s;
+> > diff --git a/include/linux/gfp.h b/include/linux/gfp.h
+> > index 0d2ef0b..ed826e9 100644
+> > --- a/include/linux/gfp.h
+> > +++ b/include/linux/gfp.h
+> > @@ -67,6 +67,10 @@ struct vm_area_struct;
+> >  			 __GFP_HIGHMEM)
+> >  
+> >  #ifdef CONFIG_NUMA
+> > +/*
+> > + * NOTE: if the requested node is unpopulated (no memory), a THISNODE
+> > + * request can go to other nodes due to the fallback list
+> 
+> Change to
+> 
+> Note: GFP_THISNODE allocates from the first available pgdat (== node 
+> structure) from the zonelist of a given node. The first pgdat may be the 
+> pgdat of another node if the node has no memory on its own.
+
+Changed below.
+
+gfp.h: GFP_THISNODE can go to other nodes if some are unpopulated
+
+While testing my sysfs per-node hugepage allocator
+(http://marc.info/?l=linux-mm&m=117935849517122&w=2), I found that an
+alloc_pages_node(nid, GFP_THISNODE) request would sometimes return a
+struct page such that page_to_nid(page) != nid. This was because, on
+that particular machine, nodes 0 and 1 are populated and nodes 2 and 3
+are not. When a page is requested get_page_from_freelist() relies on
+zonelist->zones[0]->zone_pgdat indicating when THISNODE stops. But,
+because, say, node 2 has no memory, the first zone_pgdat in the fallback
+list points to a different node. Add a comment indicating that THISNODE
+may not return pages on THISNODE if the node is unpopulated.
+
+Am working on testing Lee/Anton's patch to add a node_populated_mask and
+use that in the hugepage allocator path. But I think this may be a
+problem anywhere THISNODE is used and memory is expected to come from
+the requested node and nowhere else.
+
+Reworked the comment based on feedback from Christoph Lameter.
+
+Signed-off-by: Nishanth Aravamudan <nacc@us.ibm.com>
+
+diff --git a/include/linux/gfp.h b/include/linux/gfp.h
+index ed826e9..996cf08 100644
+--- a/include/linux/gfp.h
++++ b/include/linux/gfp.h
+@@ -68,8 +68,10 @@ struct vm_area_struct;
  
- 	if (slub_nomerge || (flags & SLUB_NEVER_MERGE))
- 		return NULL;
-@@ -2594,10 +2594,7 @@ static struct kmem_cache *find_mergeable
- 	align = calculate_alignment(flags, align, size);
- 	size = ALIGN(size, align);
- 
--	list_for_each(h, &slab_caches) {
--		struct kmem_cache *s =
--			container_of(h, struct kmem_cache, list);
--
-+	list_for_each_entry(s, &slab_caches, list) {
- 		if (slab_unmergeable(s))
- 			continue;
- 
-@@ -2680,33 +2677,6 @@ void *kmem_cache_zalloc(struct kmem_cach
- EXPORT_SYMBOL(kmem_cache_zalloc);
- 
- #ifdef CONFIG_SMP
--static void for_all_slabs(void (*func)(struct kmem_cache *, int), int cpu)
--{
--	struct list_head *h;
--
--	down_read(&slub_lock);
--	list_for_each(h, &slab_caches) {
--		struct kmem_cache *s =
--			container_of(h, struct kmem_cache, list);
--
--		func(s, cpu);
--	}
--	up_read(&slub_lock);
--}
--
--/*
-- * Version of __flush_cpu_slab for the case that interrupts
-- * are enabled.
-- */
--static void cpu_slab_flush(struct kmem_cache *s, int cpu)
--{
--	unsigned long flags;
--
--	local_irq_save(flags);
--	__flush_cpu_slab(s, cpu);
--	local_irq_restore(flags);
--}
--
+ #ifdef CONFIG_NUMA
  /*
-  * Use the cpu notifier to insure that the cpu slabs are flushed when
-  * necessary.
-@@ -2715,13 +2685,21 @@ static int __cpuinit slab_cpuup_callback
- 		unsigned long action, void *hcpu)
- {
- 	long cpu = (long)hcpu;
-+	struct kmem_cache *s;
-+	unsigned long flags;
- 
- 	switch (action) {
- 	case CPU_UP_CANCELED:
- 	case CPU_UP_CANCELED_FROZEN:
- 	case CPU_DEAD:
- 	case CPU_DEAD_FROZEN:
--		for_all_slabs(cpu_slab_flush, cpu);
-+		down_read(&slub_lock);
-+		list_for_each_entry(s, &slab_caches, list) {
-+			local_irq_save(flags);
-+			__flush_cpu_slab(s, cpu);
-+			local_irq_restore(flags);
-+		}
-+		up_read(&slub_lock);
- 		break;
- 	default:
- 		break;
-@@ -3744,7 +3722,7 @@ static int sysfs_slab_alias(struct kmem_
- 
- static int __init slab_sysfs_init(void)
- {
--	struct list_head *h;
-+	struct kmem_cache *s;
- 	int err;
- 
- 	err = subsystem_register(&slab_subsys);
-@@ -3755,10 +3733,7 @@ static int __init slab_sysfs_init(void)
- 
- 	slab_state = SYSFS;
- 
--	list_for_each(h, &slab_caches) {
--		struct kmem_cache *s =
--			container_of(h, struct kmem_cache, list);
--
-+	list_for_each_entry(s, &slab_caches, list) {
- 		err = sysfs_slab_add(s);
- 		BUG_ON(err);
- 	}
+- * NOTE: if the requested node is unpopulated (no memory), a THISNODE
+- * request can go to other nodes due to the fallback list
++ * NOTE: GFP_THISNODE allocates from the first available pgdat (== node
++ * structure) from the zonelist of the requested node. The first pgdat
++ * may be the pgdat of another node if the requested node has no memory
++ * on its own.
+  */
+ #define GFP_THISNODE	(__GFP_THISNODE | __GFP_NOWARN | __GFP_NORETRY)
+ #else
+
+-- 
+Nishanth Aravamudan <nacc@us.ibm.com>
+IBM Linux Technology Center
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
