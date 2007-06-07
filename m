@@ -1,110 +1,76 @@
-Received: from d03relay04.boulder.ibm.com (d03relay04.boulder.ibm.com [9.17.195.106])
-	by e33.co.us.ibm.com (8.13.8/8.13.8) with ESMTP id l57JwE8q025546
-	for <linux-mm@kvack.org>; Thu, 7 Jun 2007 15:58:14 -0400
-Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
-	by d03relay04.boulder.ibm.com (8.13.8/8.13.8/NCO v8.3) with ESMTP id l57JwEAl208222
-	for <linux-mm@kvack.org>; Thu, 7 Jun 2007 13:58:14 -0600
-Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av02.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l57JwDMA018214
-	for <linux-mm@kvack.org>; Thu, 7 Jun 2007 13:58:14 -0600
-Subject: Re: [RFC][PATCH] /proc/pid/maps doesn't match "ipcs -m" shmid
-From: Badari Pulavarty <pbadari@us.ibm.com>
-In-Reply-To: <20070607124824.27e909fd.akpm@linux-foundation.org>
-References: <787b0d920706062027s5a8fd35q752f8da5d446afc@mail.gmail.com>
-	 <20070606204432.b670a7b1.akpm@linux-foundation.org>
-	 <787b0d920706062153u7ad64179p1c4f3f663c3882f@mail.gmail.com>
-	 <1181233393.9995.14.camel@dyn9047017100.beaverton.ibm.com>
-	 <787b0d920706070943h6ac65b85nee5b01600905be08@mail.gmail.com>
-	 <1181235997.9995.23.camel@dyn9047017100.beaverton.ibm.com>
-	 <20070607124824.27e909fd.akpm@linux-foundation.org>
-Content-Type: text/plain
-Date: Thu, 07 Jun 2007 12:59:23 -0700
-Message-Id: <1181246363.9995.37.camel@dyn9047017100.beaverton.ibm.com>
+Date: Thu, 7 Jun 2007 13:12:12 -0700
+From: Randy Dunlap <randy.dunlap@oracle.com>
+Subject: Re: [RFC/PATCH v2] shmem: use lib/parser for mount options
+Message-Id: <20070607131212.6d187fdd.randy.dunlap@oracle.com>
+In-Reply-To: <Pine.LNX.4.64.0706071940340.32729@blonde.wat.veritas.com>
+References: <20070524000044.b62a0792.randy.dunlap@oracle.com>
+	<20070605153532.7b88e529.randy.dunlap@oracle.com>
+	<Pine.LNX.4.64.0706071940340.32729@blonde.wat.veritas.com>
 Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Albert Cahalan <acahalan@gmail.com>, lkml <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, ebiederm@xmission.com, torvalds@linux-foundation.org
+To: Hugh Dickins <hugh@veritas.com>
+Cc: linux-mm@kvack.org, akpm <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 2007-06-07 at 12:48 -0700, Andrew Morton wrote:
-> On Thu, 07 Jun 2007 10:06:37 -0700
-> Badari Pulavarty <pbadari@us.ibm.com> wrote:
-> 
-> > On Thu, 2007-06-07 at 12:43 -0400, Albert Cahalan wrote:
-> > > On 6/7/07, Badari Pulavarty <pbadari@us.ibm.com> wrote:
-> > > 
-> > > > BTW, I agree with Eric that its would be nice to use shmid as part
-> > > > of name instead of forcing to be as inode number. It should be
-> > > > possible for pmap to workout shmid from "key" or name. Isn't it ?
-> > > 
-> > > It is not at all nice.
-> > > 
-> > > 1. it's incompatible ABI breakage
-> > > 2. where will you put the key then, in the inode? :-)
-> > 
-> > Nope. Currently "key" is part of the name (but its not unique).
-> > 
-> > > 
-> > > Changing to "SYSVID%d" is no good either. Look, people
-> > > are ***parsing*** this stuff in /proc. The /proc filesystem
-> > > is not some random sandbox to be playing in.
-> > > 
-> > > Before you go messing with it, note that the device number
-> > > also matters. (it's per-boot dynamic, but that's OK)
-> > > That's how one knows that /SYSV00000000 is not just
-> > > a regular file; sadly these didn't get a non-/ prefix.
-> > > (and no you can't fix that now; it's way too late)
-> > > 
-> > > Next time you feel like breaking an ABI, mind putting
-> > > "LET'S BREAK AN ABI!" in the subject of your email?
-> > 
-> > I am not breaking ABI. Its already broken in the current
-> > mainline. I am trying to fix it by putting back the ino#
-> > as shmid. Eric had a suggestion that, instead of depending
-> > on the inode# to be shmid, we could embed shmid into name
-> > (instead of "key" which is currently not unique).
-> > 
-> > > BTW, I suspect this kind of thing also breaks:
-> > > a. fuser, lsof, and other resource usage display tools
-> > > b. various obscure emulators (similar to valgrind)
-> > 
-> > If you strongly feel that "old" behaviour needs to be retained, 
-> 
-> yup, we should put it back.  The change was, afaik, accidental.
-> 
-> > here is the patch I originally suggested.
-> 
-> Confused.  Will this one-liner fix all the userspace breakage to which
-> Albert refers?
+On Thu, 7 Jun 2007 19:57:18 +0100 (BST) Hugh Dickins wrote:
 
-Yes. Albert, please correct me if I am wrong.
+> On Tue, 5 Jun 2007, Randy Dunlap wrote:
+> > From: Randy Dunlap <randy.dunlap@oracle.com>
+> > 
+> > Convert shmem (tmpfs) to use the in-kernel mount options parsing library.
+> > 
+> > Old size: 0x368 = 872 bytes
+> > New size: 0x3b6 = 950 bytes
+> 
+> Varies with arch/config: in some cases the old is smaller,
+> in other cases your new.  And you're not accounting for (nor
+> drawing attention to) any bugfixes you added (nor, for that matter,
+> on any bugs you added - but we usually keep quiet about those ;)
+> 
+> > If you feel that there is no significant advantage to this, that's OK,
+> > I can just drop it.
+> 
+> Hmm.  Hmm.  My own personal feeling is that it's not really an
+> improvement; especially the Opt_mpol block (and the unnecessary
+> is_remount arg I already commented on).
 
-Thanks,
-Badari
+Yes, I reread that comment earlier today.
+
+The mpol=args parameter string is messy, due to the commas that
+may be in it, whereas the old & new parsers like to split options
+at commas.
 
 
-> > "ino#" in /proc/pid/maps used to match "ipcs -m" output for shared 
-> > memory (shmid). It was useful in debugging, but its changed recently. 
-> > This patch sets inode number to shared memory id to match /proc/pid/maps.
-> > 
-> > Signed-off-by: Badari Pulavarty <pbadari@us.ibm.com>
-> > 
-> > Index: linux-2.6.22-rc4/ipc/shm.c
-> > ===================================================================
-> > --- linux-2.6.22-rc4.orig/ipc/shm.c	2007-06-04 17:57:25.000000000 -0700
-> > +++ linux-2.6.22-rc4/ipc/shm.c	2007-06-06 08:23:57.000000000 -0700
-> > @@ -397,6 +397,7 @@ static int newseg (struct ipc_namespace 
-> >  	shp->shm_nattch = 0;
-> >  	shp->id = shm_buildid(ns, id, shp->shm_perm.seq);
-> >  	shp->shm_file = file;
-> > +	file->f_dentry->d_inode->i_ino = shp->id;
-> >  
-> >  	ns->shm_tot += numpages;
-> >  	shm_unlock(shp);
-> > 
-> > 
+> But I'm familiar with what's already there: I'd happily be overruled
+> on this if others feel yours really is an improvement.  Anyone? 
+> And you've cleaned up that "no space after comma" coding style.
+>  	 
+> For me, the main question is, did you fix any bugs?  You certainly
+> discovered the nonline mpol crash, which was worthwhile in itself.
+> And you've discovered that memparse accepts k, M, G without a digit:
+> if it treated that as 1 I wouldn't mind so much, but it treats it as 0.
+
+Right.  memparse could be fixed, or lib/parser.c could gain some
+additions/extensions, such as support for memparse and long long
+option values.  I think that those would be useful additions.
+
+> We can live with that; but if we're to fix it, I'd prefer the fix to
+> go into memparse itself - though it's called from many places, so
+> maybe there's an audit job to see if the present behaviour could
+> make sense in any of them.
+> 
+> Hugh
+
+I can't convince myself that it's worth the change...  :)
+
+Thanks for looking.
+
+---
+~Randy
+*** Remember to use Documentation/SubmitChecklist when testing your code ***
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
