@@ -1,36 +1,99 @@
-Date: Thu, 7 Jun 2007 13:59:42 -0700 (PDT)
-From: Christoph Lameter <clameter@sgi.com>
-Subject: SLUB: Remove useless EXPORT_SYMBOL
-Message-ID: <Pine.LNX.4.64.0706071358410.26516@schroedinger.engr.sgi.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from d03relay04.boulder.ibm.com (d03relay04.boulder.ibm.com [9.17.195.106])
+	by e34.co.us.ibm.com (8.13.8/8.13.8) with ESMTP id l57LF9kM028902
+	for <linux-mm@kvack.org>; Thu, 7 Jun 2007 17:15:09 -0400
+Received: from d03av01.boulder.ibm.com (d03av01.boulder.ibm.com [9.17.195.167])
+	by d03relay04.boulder.ibm.com (8.13.8/8.13.8/NCO v8.3) with ESMTP id l57LF9wo156498
+	for <linux-mm@kvack.org>; Thu, 7 Jun 2007 15:15:09 -0600
+Received: from d03av01.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av01.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l57LF8Ep013283
+	for <linux-mm@kvack.org>; Thu, 7 Jun 2007 15:15:08 -0600
+Subject: Re: [RFC][PATCH] /proc/pid/maps doesn't match "ipcs -m" shmid
+From: Badari Pulavarty <pbadari@us.ibm.com>
+In-Reply-To: <20070607203757.GA531@vino.hallyn.com>
+References: <787b0d920706062027s5a8fd35q752f8da5d446afc@mail.gmail.com>
+	 <20070606204432.b670a7b1.akpm@linux-foundation.org>
+	 <787b0d920706062153u7ad64179p1c4f3f663c3882f@mail.gmail.com>
+	 <1181233393.9995.14.camel@dyn9047017100.beaverton.ibm.com>
+	 <787b0d920706070943h6ac65b85nee5b01600905be08@mail.gmail.com>
+	 <1181235997.9995.23.camel@dyn9047017100.beaverton.ibm.com>
+	 <20070607124824.27e909fd.akpm@linux-foundation.org>
+	 <1181246363.9995.37.camel@dyn9047017100.beaverton.ibm.com>
+	 <20070607203757.GA531@vino.hallyn.com>
+Content-Type: text/plain
+Date: Thu, 07 Jun 2007 14:16:08 -0700
+Message-Id: <1181250968.9995.41.camel@dyn9047017100.beaverton.ibm.com>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: akpm@linux-foundation.org
-Cc: linux-mm@kvack.org
+To: "Serge E. Hallyn" <serge@hallyn.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Albert Cahalan <acahalan@gmail.com>, lkml <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, ebiederm@xmission.com, torvalds@linux-foundation.org
 List-ID: <linux-mm.kvack.org>
 
-kmem_cache_open is static. EXPORT_SYMBOL was leftover from some earlier 
-time period where kmem_cache_open was usable outside of slub.
+On Thu, 2007-06-07 at 15:37 -0500, Serge E. Hallyn wrote:
+> Quoting Badari Pulavarty (pbadari@us.ibm.com):
+> > On Thu, 2007-06-07 at 12:48 -0700, Andrew Morton wrote:
+> > > On Thu, 07 Jun 2007 10:06:37 -0700
+> > > Badari Pulavarty <pbadari@us.ibm.com> wrote:
+> > > 
+> > > > On Thu, 2007-06-07 at 12:43 -0400, Albert Cahalan wrote:
+> > > > > On 6/7/07, Badari Pulavarty <pbadari@us.ibm.com> wrote:
+> > > > > 
+> > > > > > BTW, I agree with Eric that its would be nice to use shmid as part
+> > > > > > of name instead of forcing to be as inode number. It should be
+> > > > > > possible for pmap to workout shmid from "key" or name. Isn't it ?
+> > > > > 
+> > > > > It is not at all nice.
+> > > > > 
+> > > > > 1. it's incompatible ABI breakage
+> > > > > 2. where will you put the key then, in the inode? :-)
+> > > > 
+> > > > Nope. Currently "key" is part of the name (but its not unique).
+> > > > 
+> > > > > 
+> > > > > Changing to "SYSVID%d" is no good either. Look, people
+> > > > > are ***parsing*** this stuff in /proc. The /proc filesystem
+> > > > > is not some random sandbox to be playing in.
+> > > > > 
+> > > > > Before you go messing with it, note that the device number
+> > > > > also matters. (it's per-boot dynamic, but that's OK)
+> > > > > That's how one knows that /SYSV00000000 is not just
+> > > > > a regular file; sadly these didn't get a non-/ prefix.
+> > > > > (and no you can't fix that now; it's way too late)
+> > > > > 
+> > > > > Next time you feel like breaking an ABI, mind putting
+> > > > > "LET'S BREAK AN ABI!" in the subject of your email?
+> > > > 
+> > > > I am not breaking ABI. Its already broken in the current
+> > > > mainline. I am trying to fix it by putting back the ino#
+> > > > as shmid. Eric had a suggestion that, instead of depending
+> > > > on the inode# to be shmid, we could embed shmid into name
+> > > > (instead of "key" which is currently not unique).
+> > > > 
+> > > > > BTW, I suspect this kind of thing also breaks:
+> > > > > a. fuser, lsof, and other resource usage display tools
+> > > > > b. various obscure emulators (similar to valgrind)
+> > > > 
+> > > > If you strongly feel that "old" behaviour needs to be retained, 
+> > > 
+> > > yup, we should put it back.  The change was, afaik, accidental.
+> > > 
+> > > > here is the patch I originally suggested.
+> > > 
+> > > Confused.  Will this one-liner fix all the userspace breakage to which
+> > > Albert refers?
+> > 
+> > Yes. Albert, please correct me if I am wrong.
+> 
+> It will, but could lead to two different inodes with the same i_ino,
+> right?
 
-Signed-off-by: Chrsitoph Lameter <clameter@sgi.com>
+Only if we generate same ID in two different namespaces. Is it currently
+possible ? 
 
----
- mm/slub.c |    1 -
- 1 file changed, 1 deletion(-)
+Thanks,
+Badari
 
-Index: slub/mm/slub.c
-===================================================================
---- slub.orig/mm/slub.c	2007-06-04 19:41:57.000000000 -0700
-+++ slub/mm/slub.c	2007-06-04 19:41:58.000000000 -0700
-@@ -2084,7 +2084,6 @@ error:
- 			s->offset, flags);
- 	return 0;
- }
--EXPORT_SYMBOL(kmem_cache_open);
- 
- /*
-  * Check if a given pointer is valid
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
