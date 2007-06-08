@@ -1,45 +1,36 @@
-Date: Thu, 7 Jun 2007 18:01:08 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH] numa: mempolicy: dynamic interleave map for system
- init.
-Message-Id: <20070607180108.0eeca877.akpm@linux-foundation.org>
-In-Reply-To: <20070607011701.GA14211@linux-sh.org>
+Date: Thu, 7 Jun 2007 19:47:09 -0700 (PDT)
+From: Christoph Lameter <clameter@sgi.com>
+Subject: Re: [PATCH] numa: mempolicy: dynamic interleave map for system init.
+In-Reply-To: <20070607180108.0eeca877.akpm@linux-foundation.org>
+Message-ID: <Pine.LNX.4.64.0706071942240.26636@schroedinger.engr.sgi.com>
 References: <20070607011701.GA14211@linux-sh.org>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+ <20070607180108.0eeca877.akpm@linux-foundation.org>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Paul Mundt <lethal@linux-sh.org>
-Cc: linux-mm@kvack.org, ak@suse.de, clameter@sgi.com, hugh@veritas.com, lee.schermerhorn@hp.com
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Paul Mundt <lethal@linux-sh.org>, linux-mm@kvack.org, ak@suse.de, hugh@veritas.com, lee.schermerhorn@hp.com
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 7 Jun 2007 10:17:01 +0900
-Paul Mundt <lethal@linux-sh.org> wrote:
+On Thu, 7 Jun 2007, Andrew Morton wrote:
 
-> This is an alternative approach to the MPOL_INTERLEAVE across online
-> nodes as the system init policy. Andi suggested it might be worthwhile
-> trying to do this dynamically rather than as a command line option, so
-> that's what this tries to do.
-> 
-> With this, the online nodes are sized and packed in to an interleave map
-> if they're large enough for interleave to be worthwhile. I arbitrarily
-> chose 16MB as the node size to enable interleaving, but perhaps someone
-> has a better figure in mind?
-> 
-> In the case where all of the nodes are smaller than that, the largest
-> node is selected and placed in to the map by itself (if they're all the
-> same size, the first online node gets used).
-> 
-> If people prefer this approach, the previous patch adding mpolinit can be
-> dropped.
-> 
-> Signed-off-by: Paul Mundt <lethal@linux-sh.org>
+> Well I took silence as assent.
 
-Well I took silence as assent.
+Well, grudgingly. How far are we willing to go to support these asymmetric 
+setups? The NUMA code initially was designed for mostly symmetric systems 
+with roughly the same amount of memory on each node. The farther we go 
+from this the more options we will have to add special casing to deal with 
+these imbalances.
 
-None of the above text is suitable for a changelog.  Please send a
-changelog for this patch, thanks.
+With memoryless nodes we already have one issue that will ripple through 
+the kernel likely requiring numerous modifications and special casing. 
+Then we now have the ZONE_DMA issues reording the zonelists. Now we will 
+support systems with 1MB size nodes? We will need to modify the slab 
+allocators to only allocate on special processors?
+
+
+ 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
