@@ -1,39 +1,28 @@
-Date: Fri, 8 Jun 2007 16:25:58 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: memory unplug v4 intro [1/6] migration without mm->sem
-Message-Id: <20070608162558.b1a8fbc7.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <Pine.LNX.4.64.0706080019400.29461@schroedinger.engr.sgi.com>
-References: <20070608143531.411c76df.kamezawa.hiroyu@jp.fujitsu.com>
-	<20070608143844.569c2804.kamezawa.hiroyu@jp.fujitsu.com>
-	<Pine.LNX.4.64.0706072242500.28618@schroedinger.engr.sgi.com>
-	<20070608145435.4fa7c9b6.kamezawa.hiroyu@jp.fujitsu.com>
-	<Pine.LNX.4.64.0706072254160.28618@schroedinger.engr.sgi.com>
-	<20070608150602.78f07b34.kamezawa.hiroyu@jp.fujitsu.com>
-	<Pine.LNX.4.64.0706072344040.29301@schroedinger.engr.sgi.com>
-	<20070608160148.616dae54.kamezawa.hiroyu@jp.fujitsu.com>
-	<Pine.LNX.4.64.0706080019400.29461@schroedinger.engr.sgi.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: by wr-out-0506.google.com with SMTP id 67so660712wri
+        for <linux-mm@kvack.org>; Fri, 08 Jun 2007 02:39:48 -0700 (PDT)
+Message-ID: <6bffcb0e0706080239w5cfe8594sbf5564dacd48936f@mail.gmail.com>
+Date: Fri, 8 Jun 2007 11:39:47 +0200
+From: "Michal Piotrowski" <michal.k.k.piotrowski@gmail.com>
+Subject: Re: [patch 00/12] Slab defragmentation V3
+In-Reply-To: <20070607215529.147027769@sgi.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=ISO-8859-2; format=flowed
+Content-Transfer-Encoding: base64
+Content-Disposition: inline
+References: <20070607215529.147027769@sgi.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
-Cc: linux-mm@kvack.org, mel@csn.ul.ie, y-goto@jp.fujitsu.com, hugh@veritas.com
+To: "clameter@sgi.com" <clameter@sgi.com>
+Cc: akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, dgc@sgi.com, Mel Gorman <mel@skynet.ie>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 8 Jun 2007 00:21:39 -0700 (PDT)
-Christoph Lameter <clameter@sgi.com> wrote:
-
-> > But it's not necessary to add anon_vma_hold() in rmap.c, as you pointed out.
-> > I'll rewrite them as static func in migrate.c
-> 
-> I do not think you need anon_vma_hold at all. Neither do you need to add 
-> any other function. The presence of the dummy vma while the page is 
-> removed and added guarantees that it does not vanish.
-> 
-Hmm, ok. add extra codes instead of new function.
-
--Kame
+SGkgQ2hyaXN0b3BoLAoKT24gMDcvMDYvMDcsIGNsYW1ldGVyQHNnaS5jb20gPGNsYW1ldGVyQHNn
+aS5jb20+IHdyb3RlOgo+IFdpbGwgc2hvdyB1cCBzaG9ydGx5IGF0IGh0dHA6Ly9mdHAua2VybmVs
+Lm9yZy9wdWIvbGludXgva2VybmVsL3Blb3BsZS9jaHJpc3RvcGgvc2xhYi1kZWZyYWcvCgpJIHRy
+aWVkIHRvIGFwcGx5IHRoaXMgcGF0Y2hzZXQsIGJ1dCB3aXRob3V0IHN1Y2Nlc3MuIEkgdHJpZWQK
+Mi42LjIyLXJjNC1tbTIsIDIuNi4yMi1yYzQsIDIuNi4yMi1yYzQtZ2l0MiwgMi42LjIyLXJjMy4u
+LgoKUmVnYXJkcywKTWljaGFsCgotLSAKIk5hamJhcmR6aWVqIGJyYWtvd2GzbyBtaSB0d29qZWdv
+IG1pbGN6ZW5pYS4iCi0tIEFuZHJ6ZWogU2Fwa293c2tpICJDb7Ygd2nqY2VqIgo=
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
