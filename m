@@ -1,108 +1,120 @@
-Date: Fri, 8 Jun 2007 18:39:07 +0900
-From: Paul Mundt <lethal@linux-sh.org>
-Subject: [PATCH] numa: mempolicy: Trivial debug fixes.
-Message-ID: <20070608093907.GA18808@linux-sh.org>
+Date: Fri, 8 Jun 2007 13:53:49 +0100
+Subject: [PATCH] Allow PAGE_OWNER to be set on any architecture
+Message-ID: <20070608125349.GA8444@skynet.ie>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
+From: mel@skynet.ie (Mel Gorman)
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org
+To: alexn@telia.com, akpm@linux-foundation.org
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-Enabling debugging fails to build due to the nodemask variable in
-do_mbind() having changed names, and then oopses on boot due to the
-assumption that the nodemask can be dereferenced -- which doesn't work
-out so well when the policy is changed to MPOL_DEFAULT with a NULL
-nodemask by numa_default_policy().
+Currently PAGE_OWNER depends on CONFIG_X86. This appears to be due to
+pfn_to_page() being called in an inappropriate for many memory models
+and the presense of memory holes. This patch ensures that pfn_valid()
+and pfn_valid_within() is called at the appropriate places and the offsets
+correctly updated so that PAGE_OWNER is safe on any architecture.
 
-This fixes it up, and switches from PDprintk() to pr_debug() while
-we're at it.
+In situations where CONFIG_HOLES_IN_ZONES is set (IA64 with VIRTUAL_MEM_MAP),
+there may be cases where pages allocated within a MAX_ORDER_NR_PAGES block
+of pages may not be displayed in /proc/page_owner if the hole is at the
+start of the block. Addressing this would be quite complex, perform slowly
+and is of no clear benefit.
 
-Signed-off-by: Paul Mundt <lethal@linux-sh.org>
+Once PAGE_OWNER is allowed on all architectures, the statistics for grouping
+pages by mobility that declare how many pageblocks contain mixed page types
+becomes optionally available on all arches.
 
---
+This patch was tested successfully on x86, x86_64, ppc64 and IA64 machines.
 
- mm/mempolicy.c |   20 ++++++++++----------
- 1 file changed, 10 insertions(+), 10 deletions(-)
+Signed-off-by: Mel Gorman <mel@csn.ul.ie>
+Acked-by: Andy Whitcroft <apw@shadowen.org>
+---
+ fs/proc/proc_misc.c |   31 ++++++++++++++++++++++++-------
+ lib/Kconfig.debug   |    2 +-
+ 2 files changed, 25 insertions(+), 8 deletions(-)
 
-diff --git a/mm/mempolicy.c b/mm/mempolicy.c
-index d76e8eb..4d2b15a 100644
---- a/mm/mempolicy.c
-+++ b/mm/mempolicy.c
-@@ -101,8 +103,6 @@
- static struct kmem_cache *policy_cache;
- static struct kmem_cache *sn_cache;
+diff -rup -X /usr/src/patchset-0.6/bin//dontdiff linux-2.6.22-rc4-mm2-clean/fs/proc/proc_misc.c linux-2.6.22-rc4-mm2-005_pageowner_anyarch/fs/proc/proc_misc.c
+--- linux-2.6.22-rc4-mm2-clean/fs/proc/proc_misc.c	2007-06-07 14:11:20.000000000 +0100
++++ linux-2.6.22-rc4-mm2-005_pageowner_anyarch/fs/proc/proc_misc.c	2007-06-08 13:34:36.000000000 +0100
+@@ -756,18 +756,35 @@ read_page_owner(struct file *file, char 
+ 	struct page *page;
+ 	char *kbuf, *modname;
+ 	const char *symname;
+-	int ret = 0, next_idx = 1;
++	int ret = 0;
+ 	char namebuf[128];
+ 	unsigned long offset = 0, symsize;
+ 	int i;
+ 	ssize_t num_written = 0;
+ 	int blocktype = 0, pagetype = 0;
  
--#define PDprintk(fmt...)
--
- /* Highest zone. An specific allocation for a zone below that is not
-    policied. */
- enum zone_type policy_zone = 0;
-@@ -175,7 +175,9 @@ static struct mempolicy *mpol_new(int mode, nodemask_t *nodes)
- {
- 	struct mempolicy *policy;
- 
--	PDprintk("setting mode %d nodes[0] %lx\n", mode, nodes_addr(*nodes)[0]);
-+	pr_debug("setting mode %d nodes[0] %lx\n",
-+		 mode, nodes ? nodes_addr(*nodes)[0] : -1);
++	page = NULL;
+ 	pfn = min_low_pfn + *ppos;
+-	page = pfn_to_page(pfn);
 +
- 	if (mode == MPOL_DEFAULT)
- 		return NULL;
- 	policy = kmem_cache_alloc(policy_cache, GFP_KERNEL);
-@@ -379,7 +381,7 @@ static int policy_vma(struct vm_area_struct *vma, struct mempolicy *new)
- 	int err = 0;
- 	struct mempolicy *old = vma->vm_policy;
++	/* Find a valid PFN or the start of a MAX_ORDER_NR_PAGES area */
++	while (!pfn_valid(pfn) && (pfn & (MAX_ORDER_NR_PAGES - 1)) != 0)
++		pfn++;
++
++	/* Find an allocated page */
+ 	for (; pfn < max_pfn; pfn++) {
+-		if (!pfn_valid(pfn))
++		/*
++		 * If the new page is in a new MAX_ORDER_NR_PAGES area,
++		 * validate the area as existing, skip it if not
++		 */
++		if ((pfn & (MAX_ORDER_NR_PAGES - 1)) == 0 && !pfn_valid(pfn)) {
++			pfn += MAX_ORDER_NR_PAGES - 1;
+ 			continue;
++		}
++
++		/* Check for holes within a MAX_ORDER area */
++		if (!pfn_valid_within(pfn))
++			continue;
++
+ 		page = pfn_to_page(pfn);
  
--	PDprintk("vma %lx-%lx/%lx vm_ops %p vm_file %p set_policy %p\n",
-+	pr_debug("vma %lx-%lx/%lx vm_ops %p vm_file %p set_policy %p\n",
- 		 vma->vm_start, vma->vm_end, vma->vm_pgoff,
- 		 vma->vm_ops, vma->vm_file,
- 		 vma->vm_ops ? vma->vm_ops->set_policy : NULL);
-@@ -776,8 +778,8 @@ long do_mbind(unsigned long start, unsigned long len,
- 	if (!new)
- 		flags |= MPOL_MF_DISCONTIG_OK;
+ 		/* Catch situations where free pages have a bad ->order  */
+@@ -776,16 +793,16 @@ read_page_owner(struct file *file, char 
+ 				"PageOwner info inaccurate for PFN %lu\n",
+ 				pfn);
  
--	PDprintk("mbind %lx-%lx mode:%ld nodes:%lx\n",start,start+len,
--			mode,nodes_addr(nodes)[0]);
-+	pr_debug("mbind %lx-%lx mode:%ld nodes:%lx\n",start,start+len,
-+		 mode, nmask ? nodes_addr(*nmask)[0] : -1);
- 
- 	down_write(&mm->mmap_sem);
- 	vma = check_range(mm, start, end, nmask,
-@@ -1434,7 +1436,7 @@ static void sp_insert(struct shared_policy *sp, struct sp_node *new)
+-		if (page->order >= 0)
++		/* Stop search if page is allocated and has trace info */
++		if (page->order >= 0 && page->trace[0])
+ 			break;
+-
+-		next_idx++;
  	}
- 	rb_link_node(&new->nd, parent, p);
- 	rb_insert_color(&new->nd, &sp->root);
--	PDprintk("inserting %lx-%lx: %d\n", new->start, new->end,
-+	pr_debug("inserting %lx-%lx: %d\n", new->start, new->end,
- 		 new->policy ? new->policy->policy : 0);
- }
  
-@@ -1459,7 +1461,7 @@ mpol_shared_policy_lookup(struct shared_policy *sp, unsigned long idx)
+ 	if (!pfn_valid(pfn))
+ 		return 0;
  
- static void sp_delete(struct shared_policy *sp, struct sp_node *n)
- {
--	PDprintk("deleting %lx-l%x\n", n->start, n->end);
-+	pr_debug("deleting %lx-l%lx\n", n->start, n->end);
- 	rb_erase(&n->nd, &sp->root);
- 	mpol_free(n->policy);
- 	kmem_cache_free(sn_cache, n);
-@@ -1558,10 +1560,10 @@ int mpol_set_shared_policy(struct shared_policy *info,
- 	struct sp_node *new = NULL;
- 	unsigned long sz = vma_pages(vma);
+-	*ppos += next_idx;
++	/* Record the next PFN to read in the file offset */
++	*ppos = (pfn - min_low_pfn) + 1;
  
--	PDprintk("set_shared_policy %lx sz %lu %d %lx\n",
-+	pr_debug("set_shared_policy %lx sz %lu %d %lx\n",
- 		 vma->vm_pgoff,
- 		 sz, npol? npol->policy : -1,
--		npol ? nodes_addr(npol->v.nodes)[0] : -1);
-+		 npol ? nodes_addr(npol->v.nodes)[0] : -1);
+ 	kbuf = kmalloc(count, GFP_KERNEL);
+ 	if (!kbuf)
+diff -rup -X /usr/src/patchset-0.6/bin//dontdiff linux-2.6.22-rc4-mm2-clean/lib/Kconfig.debug linux-2.6.22-rc4-mm2-005_pageowner_anyarch/lib/Kconfig.debug
+--- linux-2.6.22-rc4-mm2-clean/lib/Kconfig.debug	2007-06-07 14:11:21.000000000 +0100
++++ linux-2.6.22-rc4-mm2-005_pageowner_anyarch/lib/Kconfig.debug	2007-06-08 13:34:36.000000000 +0100
+@@ -49,7 +49,7 @@ config UNUSED_SYMBOLS
  
- 	if (npol) {
- 		new = sp_alloc(vma->vm_pgoff, vma->vm_pgoff + sz, npol);
- 
+ config PAGE_OWNER
+ 	bool "Track page owner"
+-	depends on DEBUG_KERNEL && X86
++	depends on DEBUG_KERNEL
+ 	help
+ 	  This keeps track of what call chain is the owner of a page, may
+ 	  help to find bare alloc_page(s) leaks. Eats a fair amount of memory.
+-- 
+Mel Gorman
+Part-time Phd Student                          Linux Technology Center
+University of Limerick                         IBM Dublin Software Lab
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
