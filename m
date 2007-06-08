@@ -1,26 +1,33 @@
-Received: from d01relay04.pok.ibm.com (d01relay04.pok.ibm.com [9.56.227.236])
-	by e2.ny.us.ibm.com (8.13.8/8.13.8) with ESMTP id l58J8wGV018144
-	for <linux-mm@kvack.org>; Fri, 8 Jun 2007 15:08:58 -0400
-Received: from d01av02.pok.ibm.com (d01av02.pok.ibm.com [9.56.224.216])
-	by d01relay04.pok.ibm.com (8.13.8/8.13.8/NCO v8.3) with ESMTP id l58J8waN531670
-	for <linux-mm@kvack.org>; Fri, 8 Jun 2007 15:08:58 -0400
-Received: from d01av02.pok.ibm.com (loopback [127.0.0.1])
-	by d01av02.pok.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l58J8wPs003609
-	for <linux-mm@kvack.org>; Fri, 8 Jun 2007 15:08:58 -0400
-Date: Fri, 8 Jun 2007 12:08:57 -0700
+Received: from d03relay02.boulder.ibm.com (d03relay02.boulder.ibm.com [9.17.195.227])
+	by e36.co.us.ibm.com (8.13.8/8.13.8) with ESMTP id l58JBCbG006143
+	for <linux-mm@kvack.org>; Fri, 8 Jun 2007 15:11:12 -0400
+Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
+	by d03relay02.boulder.ibm.com (8.13.8/8.13.8/NCO v8.3) with ESMTP id l58JB8mU249096
+	for <linux-mm@kvack.org>; Fri, 8 Jun 2007 13:11:10 -0600
+Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av02.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l58JB7Rn022759
+	for <linux-mm@kvack.org>; Fri, 8 Jun 2007 13:11:08 -0600
+Date: Fri, 8 Jun 2007 12:10:59 -0700
 From: Nishanth Aravamudan <nacc@us.ibm.com>
-Subject: [PATCH][3/3] hugetlb: add per-node nr_hugepages sysfs attribute
-Message-ID: <20070608190857.GD8017@us.ibm.com>
-References: <20070608190620.GB8017@us.ibm.com> <20070608190738.GC8017@us.ibm.com>
+Subject: Re: [PATCH][3/3] hugetlb: add per-node nr_hugepages sysfs attribute
+Message-ID: <20070608191059.GE8017@us.ibm.com>
+References: <20070608190620.GB8017@us.ibm.com> <20070608190738.GC8017@us.ibm.com> <20070608190857.GD8017@us.ibm.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20070608190738.GC8017@us.ibm.com>
+In-Reply-To: <20070608190857.GD8017@us.ibm.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: clameter@sgi.com
 Cc: akpm@linuxfoundation.org, lee.schermerhorn@hp.com, anton@samba.org, wli@holomorphy.com, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
+
+On 08.06.2007 [12:08:57 -0700], Nishanth Aravamudan wrote:
+> hugetlb: add per-node nr_hugepages sysfs attribute
+
+Sorry, meant to send the non-gitified version of the patch...
+
+hugetlb: add per-node nr_hugepages sysfs attribute
 
 Rebased against 2.6.22-rc4-mm2 with:
 fix-hugetlb-pool-allocation-with-empty-nodes-v5.patch
@@ -46,8 +53,7 @@ I would have liked to have avoided the #ifdef's in node.c, but I
 couldn't figure out a simple way to conditionalize the
 create_file/remove_file calls.
 
-diff --git a/drivers/base/node.c b/drivers/base/node.c
-index cae346e..fc0b4a1 100644
+diff a/drivers/base/node.c b/drivers/base/node.c
 --- a/drivers/base/node.c
 +++ b/drivers/base/node.c
 @@ -131,6 +131,11 @@ static ssize_t node_read_distance(struct sys_device * dev, char * buf)
@@ -82,8 +88,7 @@ index cae346e..fc0b4a1 100644
  
  	sysdev_unregister(&node->sysdev);
  }
-diff --git a/include/linux/hugetlb.h b/include/linux/hugetlb.h
-index aa0dc9b..7df75c1 100644
+diff a/include/linux/hugetlb.h b/include/linux/hugetlb.h
 --- a/include/linux/hugetlb.h
 +++ b/include/linux/hugetlb.h
 @@ -5,6 +5,7 @@
@@ -104,8 +109,7 @@ index aa0dc9b..7df75c1 100644
  unsigned long hugetlb_total_pages(void);
  int hugetlb_fault(struct mm_struct *mm, struct vm_area_struct *vma,
  			unsigned long address, int write_access);
-diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-index d1e1063..9f1cb16 100644
+diff a/mm/hugetlb.c b/mm/hugetlb.c
 --- a/mm/hugetlb.c
 +++ b/mm/hugetlb.c
 @@ -215,7 +215,6 @@ static unsigned int cpuset_mems_nr(unsigned int *array)
@@ -183,6 +187,7 @@ index d1e1063..9f1cb16 100644
  /* Return the number pages of memory we physically have, in PAGE_SIZE units. */
  unsigned long hugetlb_total_pages(void)
  {
+
 -- 
 Nishanth Aravamudan <nacc@us.ibm.com>
 IBM Linux Technology Center
