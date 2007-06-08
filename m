@@ -1,51 +1,36 @@
-Date: Fri, 8 Jun 2007 11:16:13 -0700 (PDT)
-From: Christoph Lameter <clameter@sgi.com>
+Received: by wa-out-1112.google.com with SMTP id m33so1268527wag
+        for <linux-mm@kvack.org>; Fri, 08 Jun 2007 11:56:33 -0700 (PDT)
+Message-ID: <6bffcb0e0706081156u4ad0cc9dkf6d55ebcbd79def2@mail.gmail.com>
+Date: Fri, 8 Jun 2007 20:56:33 +0200
+From: "Michal Piotrowski" <michal.k.k.piotrowski@gmail.com>
 Subject: Re: [patch 00/12] Slab defragmentation V3
-In-Reply-To: <466999A2.8020608@googlemail.com>
-Message-ID: <Pine.LNX.4.64.0706081110580.1464@schroedinger.engr.sgi.com>
-References: <20070607215529.147027769@sgi.com> <466999A2.8020608@googlemail.com>
+In-Reply-To: <Pine.LNX.4.64.0706081110580.1464@schroedinger.engr.sgi.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=ISO-8859-2; format=flowed
+Content-Transfer-Encoding: base64
+Content-Disposition: inline
+References: <20070607215529.147027769@sgi.com>
+	 <466999A2.8020608@googlemail.com>
+	 <Pine.LNX.4.64.0706081110580.1464@schroedinger.engr.sgi.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Michal Piotrowski <michal.k.k.piotrowski@gmail.com>
+To: Christoph Lameter <clameter@sgi.com>
 Cc: akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, dgc@sgi.com, Mel Gorman <mel@skynet.ie>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 8 Jun 2007, Michal Piotrowski wrote:
-
-> bash shared mapping + your script in a loop
-> while true;  do sudo ./run.sh; done > res3.txt
-
-Hmmmm... Seems to be triggered from the reclaim path kmem_cache_defrag 
-rather than the manual triggered one from the script. Taking the slub_lock 
-on the reclaim path is an issue it seems.
-
-Maybe we need to do a trylock in kmem_cache_defrag to defuse the 
-situation? This is after all an optimization so we can bug out.
-
-Does this fix it?
-
----
- mm/slub.c |    4 +++-
- 1 file changed, 3 insertions(+), 1 deletion(-)
-
-Index: slub/mm/slub.c
-===================================================================
---- slub.orig/mm/slub.c	2007-06-08 11:12:40.000000000 -0700
-+++ slub/mm/slub.c	2007-06-08 11:14:34.000000000 -0700
-@@ -2738,7 +2738,9 @@ int kmem_cache_defrag(int percent, int n
- 	unsigned long pages = 0;
- 	void *scratch;
- 
--	down_read(&slub_lock);
-+	if (!down_read_trylock(&slub_lock))
-+		return 0;
-+
- 	list_for_each_entry(s, &slab_caches, list) {
- 
- 		/*
-
+T24gMDgvMDYvMDcsIENocmlzdG9waCBMYW1ldGVyIDxjbGFtZXRlckBzZ2kuY29tPiB3cm90ZToK
+PiBPbiBGcmksIDggSnVuIDIwMDcsIE1pY2hhbCBQaW90cm93c2tpIHdyb3RlOgo+Cj4gPiBiYXNo
+IHNoYXJlZCBtYXBwaW5nICsgeW91ciBzY3JpcHQgaW4gYSBsb29wCj4gPiB3aGlsZSB0cnVlOyAg
+ZG8gc3VkbyAuL3J1bi5zaDsgZG9uZSA+IHJlczMudHh0Cj4KPiBIbW1tbS4uLiBTZWVtcyB0byBi
+ZSB0cmlnZ2VyZWQgZnJvbSB0aGUgcmVjbGFpbSBwYXRoIGttZW1fY2FjaGVfZGVmcmFnCj4gcmF0
+aGVyIHRoYW4gdGhlIG1hbnVhbCB0cmlnZ2VyZWQgb25lIGZyb20gdGhlIHNjcmlwdC4gVGFraW5n
+IHRoZSBzbHViX2xvY2sKPiBvbiB0aGUgcmVjbGFpbSBwYXRoIGlzIGFuIGlzc3VlIGl0IHNlZW1z
+Lgo+Cj4gTWF5YmUgd2UgbmVlZCB0byBkbyBhIHRyeWxvY2sgaW4ga21lbV9jYWNoZV9kZWZyYWcg
+dG8gZGVmdXNlIHRoZQo+IHNpdHVhdGlvbj8gVGhpcyBpcyBhZnRlciBhbGwgYW4gb3B0aW1pemF0
+aW9uIHNvIHdlIGNhbiBidWcgb3V0Lgo+Cj4gRG9lcyB0aGlzIGZpeCBpdD8KPgoKWWVzLCBpdCBk
+b2VzLiBUaGFua3MhCgpSZWdhcmRzLApNaWNoYWwKCi0tIAoiTmFqYmFyZHppZWogYnJha293YbNv
+IG1pIHR3b2plZ28gbWlsY3plbmlhLiIKLS0gQW5kcnplaiBTYXBrb3dza2kgIkNvtiB3aepjZWoi
+Cg==
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
