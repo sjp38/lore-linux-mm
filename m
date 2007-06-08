@@ -1,114 +1,40 @@
-Date: Fri, 8 Jun 2007 13:48:49 -0700 (PDT)
-From: Christoph Lameter <clameter@sgi.com>
+Received: by nz-out-0506.google.com with SMTP id x7so870226nzc
+        for <linux-mm@kvack.org>; Fri, 08 Jun 2007 14:17:11 -0700 (PDT)
+Message-ID: <6bffcb0e0706081417v6b66f753k1d965fb6f82674e9@mail.gmail.com>
+Date: Fri, 8 Jun 2007 23:17:10 +0200
+From: "Michal Piotrowski" <michal.k.k.piotrowski@gmail.com>
 Subject: Re: [patch 00/12] Slab defragmentation V3
-In-Reply-To: <4669B25A.6010404@googlemail.com>
-Message-ID: <Pine.LNX.4.64.0706081345520.2447@schroedinger.engr.sgi.com>
-References: <20070607215529.147027769@sgi.com>  <466999A2.8020608@googlemail.com>
-  <Pine.LNX.4.64.0706081110580.1464@schroedinger.engr.sgi.com>
- <6bffcb0e0706081156u4ad0cc9dkf6d55ebcbd79def2@mail.gmail.com>
- <Pine.LNX.4.64.0706081207400.2082@schroedinger.engr.sgi.com>
- <Pine.LNX.4.64.0706081239340.2447@schroedinger.engr.sgi.com>
- <4669B25A.6010404@googlemail.com>
+In-Reply-To: <Pine.LNX.4.64.0706081345520.2447@schroedinger.engr.sgi.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=ISO-8859-2; format=flowed
+Content-Transfer-Encoding: base64
+Content-Disposition: inline
+References: <20070607215529.147027769@sgi.com>
+	 <466999A2.8020608@googlemail.com>
+	 <Pine.LNX.4.64.0706081110580.1464@schroedinger.engr.sgi.com>
+	 <6bffcb0e0706081156u4ad0cc9dkf6d55ebcbd79def2@mail.gmail.com>
+	 <Pine.LNX.4.64.0706081207400.2082@schroedinger.engr.sgi.com>
+	 <Pine.LNX.4.64.0706081239340.2447@schroedinger.engr.sgi.com>
+	 <4669B25A.6010404@googlemail.com>
+	 <Pine.LNX.4.64.0706081345520.2447@schroedinger.engr.sgi.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Michal Piotrowski <michal.k.k.piotrowski@gmail.com>
+To: Christoph Lameter <clameter@sgi.com>
 Cc: akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, dgc@sgi.com, Mel Gorman <mel@skynet.ie>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 8 Jun 2007, Michal Piotrowski wrote:
-
-> > Could you remove the trylock patch and see how this one fares? We may need
-> > both but this should avoid taking the slub_lock around any possible alloc of
-> > sysfs.
-> It's a bit tricky
-
-Hmmm... Yes that version was aginst 4-mm1 instead after the defrag 
-patchset. The difference is only the "ops" parameter...
-
-Rediff to apply after defrag patchset.
-
-SLUB: Move sysfs operations outside of slub_lock
-
-Sysfs can do a gazillion things when called. Make sure that we do
-not call any sysfs functions while holding the slub_lock. Let sysfs
-fend for itself locking wise.
-
-Just protect the essentials: The modifications to the slab lists
-and the ref counters of the slabs.
-
-Signed-off-by: Christoph Lameter <clameter@sgi.com>
-
----
- mm/slub.c |   34 +++++++++++++++++++++-------------
- 1 file changed, 21 insertions(+), 13 deletions(-)
-
-Index: slub/mm/slub.c
-===================================================================
---- slub.orig/mm/slub.c	2007-06-08 13:47:32.000000000 -0700
-+++ slub/mm/slub.c	2007-06-08 13:48:07.000000000 -0700
-@@ -2193,12 +2193,13 @@ void kmem_cache_destroy(struct kmem_cach
- 	s->refcount--;
- 	if (!s->refcount) {
- 		list_del(&s->list);
-+		up_write(&slub_lock);
- 		if (kmem_cache_close(s))
- 			WARN_ON(1);
- 		sysfs_slab_remove(s);
- 		kfree(s);
--	}
--	up_write(&slub_lock);
-+	} else
-+		up_write(&slub_lock);
- }
- EXPORT_SYMBOL(kmem_cache_destroy);
- 
-@@ -2956,26 +2957,33 @@ struct kmem_cache *kmem_cache_create(con
- 		 */
- 		s->objsize = max(s->objsize, (int)size);
- 		s->inuse = max_t(int, s->inuse, ALIGN(size, sizeof(void *)));
-+		up_write(&slub_lock);
-+
- 		if (sysfs_slab_alias(s, name))
- 			goto err;
--	} else {
--		s = kmalloc(kmem_size, GFP_KERNEL);
--		if (s && kmem_cache_open(s, GFP_KERNEL, name,
-+
-+		return s;
-+	}
-+
-+	s = kmalloc(kmem_size, GFP_KERNEL);
-+	if (s) {
-+		if (kmem_cache_open(s, GFP_KERNEL, name,
- 				size, align, flags, ctor, ops)) {
--			if (sysfs_slab_add(s)) {
--				kfree(s);
--				goto err;
--			}
- 			list_add(&s->list, &slab_caches);
-+			up_write(&slub_lock);
- 			raise_kswapd_order(s->order);
--		} else
--			kfree(s);
-+
-+			if (sysfs_slab_add(s))
-+				goto err;
-+
-+			return s;
-+
-+		}
-+		kfree(s);
- 	}
- 	up_write(&slub_lock);
--	return s;
- 
- err:
--	up_write(&slub_lock);
- 	if (flags & SLAB_PANIC)
- 		panic("Cannot create slabcache %s\n", name);
- 	else
+T24gMDgvMDYvMDcsIENocmlzdG9waCBMYW1ldGVyIDxjbGFtZXRlckBzZ2kuY29tPiB3cm90ZToK
+PiBPbiBGcmksIDggSnVuIDIwMDcsIE1pY2hhbCBQaW90cm93c2tpIHdyb3RlOgo+Cj4gPiA+IENv
+dWxkIHlvdSByZW1vdmUgdGhlIHRyeWxvY2sgcGF0Y2ggYW5kIHNlZSBob3cgdGhpcyBvbmUgZmFy
+ZXM/IFdlIG1heSBuZWVkCj4gPiA+IGJvdGggYnV0IHRoaXMgc2hvdWxkIGF2b2lkIHRha2luZyB0
+aGUgc2x1Yl9sb2NrIGFyb3VuZCBhbnkgcG9zc2libGUgYWxsb2Mgb2YKPiA+ID4gc3lzZnMuCj4g
+PiBJdCdzIGEgYml0IHRyaWNreQo+Cj4gSG1tbS4uLiBZZXMgdGhhdCB2ZXJzaW9uIHdhcyBhZ2lu
+c3QgNC1tbTEgaW5zdGVhZCBhZnRlciB0aGUgZGVmcmFnCj4gcGF0Y2hzZXQuIFRoZSBkaWZmZXJl
+bmNlIGlzIG9ubHkgdGhlICJvcHMiIHBhcmFtZXRlci4uLgo+CgpJIGRpZCBub3RpY2UgaXQgd2hl
+biBJIGFwcGxpZWQgcGF0Y2ggYnkgaGFuZC4KClVuZm9ydHVuYXRlbHkgdGhlIHBhdGNoIGRvZXNu
+J3QgZml4IHRoZSBwcm9ibGVtLgoKUmVnYXJkcywKTWljaGFsCgotLSAKIk5hamJhcmR6aWVqIGJy
+YWtvd2GzbyBtaSB0d29qZWdvIG1pbGN6ZW5pYS4iCi0tIEFuZHJ6ZWogU2Fwa293c2tpICJDb7Yg
+d2nqY2VqIgo=
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
