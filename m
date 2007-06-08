@@ -1,34 +1,30 @@
-Date: Fri, 8 Jun 2007 08:28:18 -0700 (PDT)
+Date: Fri, 8 Jun 2007 08:36:33 -0700 (PDT)
 From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [patch 00/12] Slab defragmentation V3
-In-Reply-To: <6bffcb0e0706080239w5cfe8594sbf5564dacd48936f@mail.gmail.com>
-Message-ID: <Pine.LNX.4.64.0706080826230.32210@schroedinger.engr.sgi.com>
-References: <20070607215529.147027769@sgi.com>
- <6bffcb0e0706080239w5cfe8594sbf5564dacd48936f@mail.gmail.com>
+Subject: Re: [PATCH] Allow PAGE_OWNER to be set on any architecture
+In-Reply-To: <20070608125349.GA8444@skynet.ie>
+Message-ID: <Pine.LNX.4.64.0706080833560.32416@schroedinger.engr.sgi.com>
+References: <20070608125349.GA8444@skynet.ie>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Michal Piotrowski <michal.k.k.piotrowski@gmail.com>
-Cc: akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, dgc@sgi.com, Mel Gorman <mel@skynet.ie>
+To: Mel Gorman <mel@skynet.ie>
+Cc: alexn@telia.com, akpm@linux-foundation.org, Andy Whitcroft <apw@shadowen.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 8 Jun 2007, Michal Piotrowski wrote:
+On Fri, 8 Jun 2007, Mel Gorman wrote:
 
-> Hi Christoph,
-> 
-> On 07/06/07, clameter@sgi.com <clameter@sgi.com> wrote:
-> > Will show up shortly at
-> http://ftp.kernel.org/pub/linux/kernel/people/christoph/slab-defrag/
-> 
-> I tried to apply this patchset, but without success. I tried
-> 2.6.22-rc4-mm2, 2.6.22-rc4, 2.6.22-rc4-git2, 2.6.22-rc3...
+> In situations where CONFIG_HOLES_IN_ZONES is set (IA64 with VIRTUAL_MEM_MAP),
+> there may be cases where pages allocated within a MAX_ORDER_NR_PAGES block
+> of pages may not be displayed in /proc/page_owner if the hole is at the
+> start of the block. Addressing this would be quite complex, perform slowly
+> and is of no clear benefit.
 
-Yeah its against 2.6.22-rc4-mm1 and 2.6.22-rc4-mm2 changes kernel/sysctl.c 
-so that the defrag trigger patch fails. Sigh.
+Note that CONFIG_HOLES_IN_ZONES and IA64 VIRTUAL_MEM_MAP may be going 
+away. Andy Whitcroft has a patchset that implements virtual memmap 
+support under sparse and that would allow us to get rid of this.
 
-I added kernel versions below slab-defrag so that you can find the correct 
-version for your kernel.
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
