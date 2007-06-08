@@ -1,85 +1,65 @@
-Date: Fri, 8 Jun 2007 15:15:51 -0700 (PDT)
-From: Christoph Lameter <clameter@sgi.com>
-Subject: SLUB slab validation: Move tracking information alloc outside of
- lock
-Message-ID: <Pine.LNX.4.64.0706081510420.3823@schroedinger.engr.sgi.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from d03relay04.boulder.ibm.com (d03relay04.boulder.ibm.com [9.17.195.106])
+	by e35.co.us.ibm.com (8.13.8/8.13.8) with ESMTP id l58MU80O008847
+	for <linux-mm@kvack.org>; Fri, 8 Jun 2007 18:30:08 -0400
+Received: from d03av03.boulder.ibm.com (d03av03.boulder.ibm.com [9.17.195.169])
+	by d03relay04.boulder.ibm.com (8.13.8/8.13.8/NCO v8.3) with ESMTP id l58MU7Fg207206
+	for <linux-mm@kvack.org>; Fri, 8 Jun 2007 16:30:07 -0600
+Received: from d03av03.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av03.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l58MU7N6025227
+	for <linux-mm@kvack.org>; Fri, 8 Jun 2007 16:30:07 -0600
+Subject: [PATCH] Restore shmid as inode# to fix /proc/pid/maps ABI breakage
+From: Badari Pulavarty <pbadari@us.ibm.com>
+In-Reply-To: <787b0d920706072351s6917ad77oe0bf381a5d5817d0@mail.gmail.com>
+References: <787b0d920706062027s5a8fd35q752f8da5d446afc@mail.gmail.com>
+	 <20070606204432.b670a7b1.akpm@linux-foundation.org>
+	 <787b0d920706062153u7ad64179p1c4f3f663c3882f@mail.gmail.com>
+	 <20070607162004.GA27802@vino.hallyn.com>
+	 <m1ir9zrtwe.fsf@ebiederm.dsl.xmission.com>
+	 <787b0d920706072141s5a34ecb3n97007ad857ba4dc9@mail.gmail.com>
+	 <m1ejknrnva.fsf@ebiederm.dsl.xmission.com>
+	 <787b0d920706072351s6917ad77oe0bf381a5d5817d0@mail.gmail.com>
+Content-Type: text/plain
+Date: Fri, 08 Jun 2007 15:31:14 -0700
+Message-Id: <1181341874.14441.3.camel@dyn9047017100.beaverton.ibm.com>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: akpm@linux-foundation.org
-Cc: linux-mm@kvack.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Albert Cahalan <acahalan@gmail.com>, "Eric W. Biederman" <ebiederm@xmission.com>, lkml <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, torvalds@linux-foundation.org
 List-ID: <linux-mm.kvack.org>
 
-[Earlier one liner was intended as the upstream fix. This is a better 
-but more invasive solution]
+Andrew,
 
-We currently have to do an GFP_ATOMIC allocation because the list_lock
-is already taken when we first allocate memory for tracking allocation
-information. It would be better if we could avoid atomic allocations.
+Can you include this in -mm ?
 
-Allocate a size of the tracking table that is usually sufficient (one 
-page) before we take the list lock. We will then only do the atomic 
-allocation if we need to resize the table to become larger than a page 
-(mostly only needed under large NUMA because of the tracking of cpus and 
-nodes otherwise the table stays small).
+Thanks,
+Badari
 
-Signed-off-by: Christoph Lameter <clameter@sgi.com>
+shmid used to be stored as inode# for shared memory segments. Some of
+the proc-ps tools use this from /proc/pid/maps.  Recent cleanups
+to newseg() changed it.  This patch sets inode number back to shared 
+memory id to fix breakage.
 
----
- mm/slub.c |   17 +++++++----------
- 1 file changed, 7 insertions(+), 10 deletions(-)
+Signed-off-by: Badari Pulavarty <pbadari@us.ibm.com>
 
-Index: slub/mm/slub.c
+Index: linux-2.6.22-rc4/ipc/shm.c
 ===================================================================
---- slub.orig/mm/slub.c	2007-06-08 14:27:14.000000000 -0700
-+++ slub/mm/slub.c	2007-06-08 14:35:57.000000000 -0700
-@@ -2912,18 +2912,14 @@ static void free_loc_track(struct loc_tr
- 			get_order(sizeof(struct location) * t->max));
- }
+--- linux-2.6.22-rc4.orig/ipc/shm.c	2007-06-08 15:17:20.000000000 -0700
++++ linux-2.6.22-rc4/ipc/shm.c	2007-06-08 15:19:38.000000000 -0700
+@@ -397,6 +397,11 @@ static int newseg (struct ipc_namespace 
+ 	shp->shm_nattch = 0;
+ 	shp->id = shm_buildid(ns, id, shp->shm_perm.seq);
+ 	shp->shm_file = file;
++	/*
++	 * shmid gets reported as "inode#" in /proc/pid/maps.
++	 * proc-ps tools use this. Changing this will break them.
++	 */
++	file->f_dentry->d_inode->i_ino = shp->id;
  
--static int alloc_loc_track(struct loc_track *t, unsigned long max)
-+static int alloc_loc_track(struct loc_track *t, unsigned long max, gfp_t flags)
- {
- 	struct location *l;
- 	int order;
- 
--	if (!max)
--		max = PAGE_SIZE / sizeof(struct location);
--
- 	order = get_order(sizeof(struct location) * max);
- 
--	l = (void *)__get_free_pages(GFP_ATOMIC, order);
--
-+	l = (void *)__get_free_pages(flags, order);
- 	if (!l)
- 		return 0;
- 
-@@ -2989,7 +2985,7 @@ static int add_location(struct loc_track
- 	/*
- 	 * Not found. Insert new tracking element.
- 	 */
--	if (t->count >= t->max && !alloc_loc_track(t, 2 * t->max))
-+	if (t->count >= t->max && !alloc_loc_track(t, 2 * t->max, GFP_ATOMIC))
- 		return 0;
- 
- 	l = t->loc + pos;
-@@ -3032,11 +3028,12 @@ static int list_locations(struct kmem_ca
- {
- 	int n = 0;
- 	unsigned long i;
--	struct loc_track t;
-+	struct loc_track t = { 0, 0, NULL };
- 	int node;
- 
--	t.count = 0;
--	t.max = 0;
-+	if (!alloc_loc_track(&t, PAGE_SIZE / sizeof(struct location),
-+			GFP_TEMPORARY))
-+		return sprintf(buf, "Out of memory\n");
- 
- 	/* Push back cpu slabs */
- 	flush_all(s);
+ 	ns->shm_tot += numpages;
+ 	shm_unlock(shp);
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
