@@ -1,213 +1,25 @@
-Received: from d01relay02.pok.ibm.com (d01relay02.pok.ibm.com [9.56.227.234])
-	by e6.ny.us.ibm.com (8.13.8/8.13.8) with ESMTP id l58J8iek003283
-	for <linux-mm@kvack.org>; Fri, 8 Jun 2007 15:08:44 -0400
-Received: from d01av01.pok.ibm.com (d01av01.pok.ibm.com [9.56.224.215])
-	by d01relay02.pok.ibm.com (8.13.8/8.13.8/NCO v8.3) with ESMTP id l58J7d6f459738
-	for <linux-mm@kvack.org>; Fri, 8 Jun 2007 15:07:39 -0400
-Received: from d01av01.pok.ibm.com (loopback [127.0.0.1])
-	by d01av01.pok.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l58J7dLv001337
-	for <linux-mm@kvack.org>; Fri, 8 Jun 2007 15:07:39 -0400
-Date: Fri, 8 Jun 2007 12:07:38 -0700
-From: Nishanth Aravamudan <nacc@us.ibm.com>
-Subject: [PATCH][2/3] hugetlb: numafy several functions
-Message-ID: <20070608190738.GC8017@us.ibm.com>
-References: <20070608190620.GB8017@us.ibm.com>
+Date: Fri, 8 Jun 2007 12:08:30 -0700 (PDT)
+From: Christoph Lameter <clameter@sgi.com>
+Subject: Re: [patch 00/12] Slab defragmentation V3
+In-Reply-To: <6bffcb0e0706081156u4ad0cc9dkf6d55ebcbd79def2@mail.gmail.com>
+Message-ID: <Pine.LNX.4.64.0706081207400.2082@schroedinger.engr.sgi.com>
+References: <20070607215529.147027769@sgi.com>  <466999A2.8020608@googlemail.com>
+  <Pine.LNX.4.64.0706081110580.1464@schroedinger.engr.sgi.com>
+ <6bffcb0e0706081156u4ad0cc9dkf6d55ebcbd79def2@mail.gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20070608190620.GB8017@us.ibm.com>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: clameter@sgi.com
-Cc: akpm@linuxfoundation.org, lee.schermerhorn@hp.com, anton@samba.org, wli@holomorphy.com, linux-mm@kvack.org
+To: Michal Piotrowski <michal.k.k.piotrowski@gmail.com>
+Cc: akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, dgc@sgi.com, Mel Gorman <mel@skynet.ie>
 List-ID: <linux-mm.kvack.org>
 
-Rebased against 2.6.22-rc4-mm2 with:
-fix-hugetlb-pool-allocation-with-empty-nodes-v5.patch
+On Fri, 8 Jun 2007, Michal Piotrowski wrote:
 
-Add node-parameterized helpers for dequeue_huge_page,
-alloc_fresh_huge_page and try_to_free_low. Also have
-update_and_free_page() take a nid parameter. This is necessary to add a
-per-node sysfs attribute to specify the number of hugepages on that
-node.
+> Yes, it does. Thanks!
 
-Tested on non-NUMA x86, non-NUMA ppc64, 2-node IA64, 4-node x86_64 and
-4-node ppc64 with 2 unpopulated nodes.
-
-Signed-off-by: Nishanth Aravamudan <nacc@us.ibm.com>
-
-diff a/mm/hugetlb.c b/mm/hugetlb.c
---- a/mm/hugetlb.c
-+++ b/mm/hugetlb.c
-@@ -66,11 +66,22 @@ static void enqueue_huge_page(struct page *page)
- 	free_huge_pages_node[nid]++;
- }
- 
-+static struct page *dequeue_huge_page_node(int nid)
-+{
-+	struct page *page;
-+
-+	page = list_entry(hugepage_freelists[nid].next,
-+					  struct page, lru);
-+	list_del(&page->lru);
-+	free_huge_pages--;
-+	free_huge_pages_node[nid]--;
-+	return page;
-+}
-+
- static struct page *dequeue_huge_page(struct vm_area_struct *vma,
- 				unsigned long address)
- {
- 	int nid;
--	struct page *page = NULL;
- 	struct zonelist *zonelist = huge_zonelist(vma, address,
- 						htlb_alloc_mask);
- 	struct zone **z;
-@@ -82,14 +93,9 @@ static struct page *dequeue_huge_page(struct vm_area_struct *vma,
- 			break;
- 	}
- 
--	if (*z) {
--		page = list_entry(hugepage_freelists[nid].next,
--				  struct page, lru);
--		list_del(&page->lru);
--		free_huge_pages--;
--		free_huge_pages_node[nid]--;
--	}
--	return page;
-+	if (*z)
-+		return dequeue_huge_page_node(nid);
-+	return NULL;
- }
- 
- static void free_huge_page(struct page *page)
-@@ -103,6 +109,25 @@ static void free_huge_page(struct page *page)
- 	spin_unlock(&hugetlb_lock);
- }
- 
-+static struct page *alloc_fresh_huge_page_node(int nid)
-+{
-+	struct page *page;
-+
-+	page = alloc_pages_node(nid,
-+			GFP_HIGHUSER|__GFP_COMP|GFP_THISNODE,
-+			HUGETLB_PAGE_ORDER);
-+	if (page) {
-+		set_compound_page_dtor(page, free_huge_page);
-+		spin_lock(&hugetlb_lock);
-+		nr_huge_pages++;
-+		nr_huge_pages_node[nid]++;
-+		spin_unlock(&hugetlb_lock);
-+		put_page(page); /* free it into the hugepage allocator */
-+	}
-+
-+	return page;
-+}
-+
- static int alloc_fresh_huge_page(void)
- {
- 	static int nid = -1;
-@@ -114,22 +139,14 @@ static int alloc_fresh_huge_page(void)
- 	start_nid = nid;
- 
- 	do {
--		page = alloc_pages_node(nid,
--				GFP_HIGHUSER|__GFP_COMP|GFP_THISNODE,
--				HUGETLB_PAGE_ORDER);
-+		page = alloc_fresh_huge_page_node(nid);
- 		nid = next_node(nid, node_populated_map);
- 		if (nid >= nr_node_ids)
- 			nid = first_node(node_populated_map);
- 	} while (!page && nid != start_nid);
--	if (page) {
--		set_compound_page_dtor(page, free_huge_page);
--		spin_lock(&hugetlb_lock);
--		nr_huge_pages++;
--		nr_huge_pages_node[page_to_nid(page)]++;
--		spin_unlock(&hugetlb_lock);
--		put_page(page); /* free it into the hugepage allocator */
-+
-+	if (page)
- 		return 1;
--	}
- 	return 0;
- }
- 
-@@ -199,11 +216,11 @@ static unsigned int cpuset_mems_nr(unsigned int *array)
- }
- 
- #ifdef CONFIG_SYSCTL
--static void update_and_free_page(struct page *page)
-+static void update_and_free_page(int nid, struct page *page)
- {
- 	int i;
- 	nr_huge_pages--;
--	nr_huge_pages_node[page_to_nid(page)]--;
-+	nr_huge_pages_node[nid]--;
- 	for (i = 0; i < (HPAGE_SIZE / PAGE_SIZE); i++) {
- 		page[i].flags &= ~(1 << PG_locked | 1 << PG_error | 1 << PG_referenced |
- 				1 << PG_dirty | 1 << PG_active | 1 << PG_reserved |
-@@ -215,25 +232,37 @@ static void update_and_free_page(struct page *page)
- }
- 
- #ifdef CONFIG_HIGHMEM
-+static void try_to_free_low_node(int nid, unsigned long count)
-+{
-+	struct page *page, *next;
-+
-+	list_for_each_entry_safe(page, next,
-+				&hugepage_freelists[nid], lru) {
-+		if (PageHighMem(page))
-+			continue;
-+		list_del(&page->lru);
-+		update_and_free_page(nid, page);
-+		free_huge_pages--;
-+		free_huge_pages_node[nid]--;
-+		if (count >= nr_huge_pages_node[nid])
-+			return;
-+	}
-+}
-+
- static void try_to_free_low(unsigned long count)
- {
- 	int i;
- 
- 	for (i = 0; i < MAX_NUMNODES; ++i) {
--		struct page *page, *next;
--		list_for_each_entry_safe(page, next, &hugepage_freelists[i], lru) {
--			if (PageHighMem(page))
--				continue;
--			list_del(&page->lru);
--			update_and_free_page(page);
--			free_huge_pages--;
--			free_huge_pages_node[page_to_nid(page)]--;
--			if (count >= nr_huge_pages)
--				return;
--		}
-+		try_to_free_low_node(i, count);
-+		if (count >= nr_huge_pages)
-+			break;
- 	}
- }
- #else
-+static inline void try_to_free_low_node(int nid, unsigned long count)
-+{
-+}
- static inline void try_to_free_low(unsigned long count)
- {
- }
-@@ -255,7 +284,7 @@ static unsigned long set_max_huge_pages(unsigned long count)
- 		struct page *page = dequeue_huge_page(NULL, 0);
- 		if (!page)
- 			break;
--		update_and_free_page(page);
-+		update_and_free_page(page_to_nid(page), page);
- 	}
- 	spin_unlock(&hugetlb_lock);
- 	return nr_huge_pages;
--- 
-Nishanth Aravamudan <nacc@us.ibm.com>
-IBM Linux Technology Center
+Ahhh... That leds to the discovery more sysfs problems. I need to make 
+sure not to be holding locks while calling into sysfs. More cleanup...
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
