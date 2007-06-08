@@ -1,63 +1,54 @@
-Date: Fri, 8 Jun 2007 15:06:02 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: memory unplug v4 intro [1/6] migration without mm->sem
-Message-Id: <20070608150602.78f07b34.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <Pine.LNX.4.64.0706072254160.28618@schroedinger.engr.sgi.com>
-References: <20070608143531.411c76df.kamezawa.hiroyu@jp.fujitsu.com>
-	<20070608143844.569c2804.kamezawa.hiroyu@jp.fujitsu.com>
-	<Pine.LNX.4.64.0706072242500.28618@schroedinger.engr.sgi.com>
-	<20070608145435.4fa7c9b6.kamezawa.hiroyu@jp.fujitsu.com>
-	<Pine.LNX.4.64.0706072254160.28618@schroedinger.engr.sgi.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Date: Fri, 8 Jun 2007 15:05:08 +0900
+From: Paul Mundt <lethal@linux-sh.org>
+Subject: Re: [PATCH] numa: mempolicy: dynamic interleave map for system init.
+Message-ID: <20070608060508.GA13727@linux-sh.org>
+References: <20070607011701.GA14211@linux-sh.org> <20070607180108.0eeca877.akpm@linux-foundation.org> <Pine.LNX.4.64.0706071942240.26636@schroedinger.engr.sgi.com> <20070608032505.GA13227@linux-sh.org> <Pine.LNX.4.64.0706072027300.27295@schroedinger.engr.sgi.com> <20070608041303.GA13603@linux-sh.org> <Pine.LNX.4.64.0706072123560.27441@schroedinger.engr.sgi.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <Pine.LNX.4.64.0706072123560.27441@schroedinger.engr.sgi.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Christoph Lameter <clameter@sgi.com>
-Cc: linux-mm@kvack.org, mel@csn.ul.ie, y-goto@jp.fujitsu.com, hugh@veritas.com
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, ak@suse.de, hugh@veritas.com, lee.schermerhorn@hp.com, mpm@selenic.com
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 7 Jun 2007 22:57:19 -0700 (PDT)
-Christoph Lameter <clameter@sgi.com> wrote:
-
-> > Ah, maybe ok. But scattering codes around rmap in several files is ok ?
+On Thu, Jun 07, 2007 at 09:27:01PM -0700, Christoph Lameter wrote:
+> On Fri, 8 Jun 2007, Paul Mundt wrote:
 > 
-> No. Lets try to keep the changes to rmap minimal.
+> > Node 1 SUnreclaim:          8 kB
 > 
-Okay, will do my best.
-
-> > > Could you avoid these checks by having page_referend_one fail
-> > > appropriately on the dummy vma?
-> > > 
-> > Hmm, Is this better ?
-> > ==
-> > static int page_referenced_one(struct page *page,
-> >         struct vm_area_struct *vma, unsigned int *mapcount)
-> > {
-> >         struct mm_struct *mm = vma->vm_mm;
-> >         unsigned long address;
-> >         pte_t *pte;
-> >         spinlock_t *ptl;
-> >         int referenced = 0;
-> > 
-> > +	if(is_dummy_vma(vma))
-> > +		return 0;
+> > So at least that gets back the couple of slab pages!
 > 
-> The best solution would be if you could fill the dummy vma with such 
-> values that will give you the intended result without having to modify 
-> page_referenced_one. If you can make vma_address() fail then you have 
-> what you want. F.e. setting vma->vm_end to zero should do it. (is it not 
-> already zero?)
+> Hmmmm.. is that worth it? The patch is not right btw. There is still the 
+> case that new_slab can acquire a page on the wrong node and since we are 
+> not setup to allow that node in SLUB we will crash.
 > 
+Well, every page we can get back is a win in this situation, since we're
+talking about individual pages being used by applications. The other 56k
+is a bit more problematic, but that's something I'd like to narrow down
+as well. I don't mind giving up a chunk of the node as long as the
+majority of it is usable for applications, but certainly every page we
+can get back helps.
+
+> This now gets a bit ugly. In order to avoid that situation we check
+> first if the node is allowed. If not then we simply ask for an alloc on
+> the first node.
 > 
-Hmm, maybe your option will work. I'll try it in the next set.
-My concern is that almost all people will never imagine anon_vma can includes
-dummy_vma in some special case..
+> But that may still make the page allocator fall back. If that happens then
+> we redo the allocation with GFP_THISNODE to force an allocation on the 
+> first node or fail.
+> 
+This patch works fine for the few cases I've tried at least.
 
--Kame
-
-
--Kame
+> I think we could do better by constructing a custom zonelist but that will 
+> be even more special casing.
+> 
+I don't know if a custom zonelist is worth the trouble. For the common
+asymmetric case, you could at least infer that ZONE_NORMAL is the only
+thing populated per node (well, small nodes other than node 0). If you
+mean just creating the zonelist from the range of allowable SLUB nodes,
+that could work.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
