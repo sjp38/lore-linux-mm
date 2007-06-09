@@ -1,42 +1,43 @@
-Date: Sat, 9 Jun 2007 16:55:47 +0200
+Date: Sat, 9 Jun 2007 17:27:18 +0200
 From: Andrea Arcangeli <andrea@suse.de>
-Subject: Re: [PATCH 00 of 16] OOM related fixes
-Message-ID: <20070609145547.GC7130@v2.random>
-References: <patchbomb.1181332978@v2.random> <20070608212610.GA11773@holomorphy.com>
+Subject: Re: [PATCH 04 of 16] serialize oom killer
+Message-ID: <20070609152718.GD7130@v2.random>
+References: <baa866fedc79cb333b90.1181332982@v2.random> <1181371427.7348.293.camel@twins>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20070608212610.GA11773@holomorphy.com>
+In-Reply-To: <1181371427.7348.293.camel@twins>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: William Lee Irwin III <wli@holomorphy.com>
-Cc: linux-mm@kvack.org, Petr Tesarik <ptesarik@suse.cz>
+To: Peter Zijlstra <peterz@infradead.org>
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi Wil,
+On Sat, Jun 09, 2007 at 08:43:47AM +0200, Peter Zijlstra wrote:
+> On Fri, 2007-06-08 at 22:03 +0200, Andrea Arcangeli wrote:
+> > +	static DECLARE_MUTEX(OOM_lock);
+> 
+> I thought we depricated that construct in favour of DEFINE_MUTEX. Also,
 
-On Fri, Jun 08, 2007 at 02:26:10PM -0700, William Lee Irwin III wrote:
-> Interesting. This seems to demonstrate a need for file IO to handle
-> fatal signals, beyond just people wanting faster responses to kill -9.
-> Perhaps it's the case that fatal signals should always be handled, and
-> there should be no waiting primitives excluding them. __GFP_NOFAIL is
-> also "interesting."
+Ok, so it should be changed to DEFINE_MUTEX. I have to trust you on
+this because there's not a sign of warning in asm-i386/semaphore.h
+that DECLARE_MUTEX has been deprecated and tons of code is still using
+it in the current kernel. I couldn't imagine that somebody duplicated
+it somewhere else for whatever reason without removing
+DECLARE_MUTEX. It's not like we have to keep deprecated and redundant
+interfaces in the kernel for no good reason, especially if `sed` can
+fix it without human intervention. Let's say it's a low priority to
+rename it, if I've to generate a new diff, I'd probably prefer to
+generate one that drops DECLARE_MUTEX all over the other places too.
 
-Clearly the sooner we respond to a SIGKILL the better. We tried to
-catch the two critical points to solve the evil read(huge)->oom. BTW,
-the first suggestion that we had to also break out of read to make
-progress substantially quicker, was from Petr so I'm cc'ing him. I'm
-unsure what else of more generic we could do to solve more of those
-troubles at the same time without having to pollute the code with
-sigkill checks. For example we're not yet covering the o-direct paths
-but I did the minimal changes to resolve the current workload and that
-used buffered io of course ;). BTW, I could have checked the
-TIF_MEMDIE instead of seeing if sigkill was pending, but since I had
-to check the task structure anyway, I preferred to check for the
-sigkill so that kill -9 will now work for the first time against a
-large read/write syscall, besides allowing the TIF_MEMDIE task to exit
-in reasonable time without triggering the deadlock detection in the
-later patches.
+> putting it in a function like so is a little icky IMHO.
+
+On this I disagree, the whole point of static/private variables is to
+decrease visibility where it's unnecessary. A static variable
+function-local is even less visible so it's a good thing and it helps
+self-documenting the code. So I very much like to keep it there,
+coding strict improves readability (you immediately know that no other
+code could ever try to acquire that lock).
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
