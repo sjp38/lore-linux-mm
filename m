@@ -1,46 +1,50 @@
-From: ebiederm@xmission.com (Eric W. Biederman)
-Subject: Re: [PATCH] shm: Fix the filename of hugetlb sysv shared memory
-References: <787b0d920706062027s5a8fd35q752f8da5d446afc@mail.gmail.com>
-	<20070606204432.b670a7b1.akpm@linux-foundation.org>
-	<787b0d920706062153u7ad64179p1c4f3f663c3882f@mail.gmail.com>
-	<20070607162004.GA27802@vino.hallyn.com>
-	<m1ir9zrtwe.fsf@ebiederm.dsl.xmission.com>
-	<46697EDA.9000209@us.ibm.com>
-	<m1vedyqaft.fsf_-_@ebiederm.dsl.xmission.com>
-	<20070608165505.aa15fcdb.akpm@linux-foundation.org>
-	<466A2D4F.3040300@us.ibm.com>
-Date: Sat, 09 Jun 2007 02:01:35 -0600
-In-Reply-To: <466A2D4F.3040300@us.ibm.com> (Badari Pulavarty's message of
-	"Fri, 08 Jun 2007 21:32:15 -0700")
-Message-ID: <m1r6olr1y8.fsf@ebiederm.dsl.xmission.com>
+Date: Sat, 9 Jun 2007 16:05:52 +0200
+From: Andrea Arcangeli <andrea@suse.de>
+Subject: Re: [PATCH 10 of 16] stop useless vm trashing while we wait the TIF_MEMDIE task to exit
+Message-ID: <20070609140552.GA7130@v2.random>
+References: <24250f0be1aa26e5c6e3.1181332988@v2.random> <Pine.LNX.4.64.0706081446200.3646@schroedinger.engr.sgi.com> <20070609015944.GL9380@v2.random> <Pine.LNX.4.64.0706082000370.5145@schroedinger.engr.sgi.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <Pine.LNX.4.64.0706082000370.5145@schroedinger.engr.sgi.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Badari Pulavarty <pbadari@us.ibm.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, "Serge E. Hallyn" <serge@hallyn.com>, Albert Cahalan <acahalan@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, torvalds@linux-foundation.org
+To: Christoph Lameter <clameter@sgi.com>
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Badari Pulavarty <pbadari@us.ibm.com> writes:
+On Fri, Jun 08, 2007 at 08:01:58PM -0700, Christoph Lameter wrote:
+> On Sat, 9 Jun 2007, Andrea Arcangeli wrote:
+> 
+> > I'm sorry to inform you that the oom killing in current mainline has
+> > always been a global event not a per-node one, regardless of the fixes
+> > I just posted.
+> 
+> Wrong. The oom killling is a local event if we are in a constrained 
+> allocation. The allocating task is killed not a random task. That call to 
+> kill the allocating task should not set any global flags.
 
-> No. You still need my patch to fix the current breakage.
+I just showed the global flag that is being checked. TIF_MEMDIE
+affects the whole system, not just your node-constrained allocating
+task. If your local constrained task fails to exit because it's
+running in the nfs path that loops forever even if NULL is returned
+from alloc_pages, it will deadlock the whole system if later a regular
+oom happens (alloc_pages isn't guaranteed to be called by a page fault
+where we know do_exit will guaranteed to be called if a sigkill is
+pending). This is just an example.
 
-Agreed.
-
-> This patch makes hugetlbfs also use same naming convention as regular shmem for
-> its
-> name. This is not absolutely needed, its a nice to have. Currently, user space
-> tools
-> can't depend on the filename alone, since its not unique (based on kry).
-
-Exactly.  My patch is an additional fix/cleanup to bring the hugetlbfs
-shm segments as close to their normal counterparts as I can.
-
-pmap still won't recognize them as shm segments (different block device
-minor number) but otherwise they are now presented identically with
-normal shm segments.
-
-Eric
+Amittedly my fixes made things worse for your "local" oom killing, but
+your code was only apparently "local" because TIF_MEMDIE is a _global_
+flag in the mainline kernel. So again, I'm very willing to improve the
+local oom killing, so that it will really become a local event for the
+first time ever. Infact with my fixes applied the whole system will
+stop waiting for the TIF_MEMDIE flag to go away, so it'll be much
+easier to really make the global oom killing independent from the
+local one. I didn't look into the details of the local oom killing yet
+(exactly because it wasn't so local in the first place) but it may be
+enough to set VM_is_OOM only for tasks that are not being locally
+killed and then those new changes will automatically prevent
+TIF_MEMDIE being set on a local-oom to affect the global-oom event.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
