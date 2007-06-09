@@ -1,43 +1,46 @@
-Subject: Re: [PATCH 04 of 16] serialize oom killer
-From: Peter Zijlstra <peterz@infradead.org>
-In-Reply-To: <baa866fedc79cb333b90.1181332982@v2.random>
-References: <baa866fedc79cb333b90.1181332982@v2.random>
-Content-Type: text/plain
-Date: Sat, 09 Jun 2007 08:43:47 +0200
-Message-Id: <1181371427.7348.293.camel@twins>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+From: ebiederm@xmission.com (Eric W. Biederman)
+Subject: Re: [PATCH] shm: Fix the filename of hugetlb sysv shared memory
+References: <787b0d920706062027s5a8fd35q752f8da5d446afc@mail.gmail.com>
+	<20070606204432.b670a7b1.akpm@linux-foundation.org>
+	<787b0d920706062153u7ad64179p1c4f3f663c3882f@mail.gmail.com>
+	<20070607162004.GA27802@vino.hallyn.com>
+	<m1ir9zrtwe.fsf@ebiederm.dsl.xmission.com>
+	<46697EDA.9000209@us.ibm.com>
+	<m1vedyqaft.fsf_-_@ebiederm.dsl.xmission.com>
+	<20070608165505.aa15fcdb.akpm@linux-foundation.org>
+	<466A2D4F.3040300@us.ibm.com>
+Date: Sat, 09 Jun 2007 02:01:35 -0600
+In-Reply-To: <466A2D4F.3040300@us.ibm.com> (Badari Pulavarty's message of
+	"Fri, 08 Jun 2007 21:32:15 -0700")
+Message-ID: <m1r6olr1y8.fsf@ebiederm.dsl.xmission.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrea Arcangeli <andrea@suse.de>
-Cc: linux-mm@kvack.org
+To: Badari Pulavarty <pbadari@us.ibm.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, "Serge E. Hallyn" <serge@hallyn.com>, Albert Cahalan <acahalan@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, torvalds@linux-foundation.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 2007-06-08 at 22:03 +0200, Andrea Arcangeli wrote:
-> # HG changeset patch
-> # User Andrea Arcangeli <andrea@suse.de>
-> # Date 1181332960 -7200
-> # Node ID baa866fedc79cb333b90004da2730715c145f1d5
-> # Parent  532a5f712848ee75d827bfe233b9364a709e1fc1
-> serialize oom killer
-> 
-> It's risky and useless to run two oom killers in parallel, let serialize it to
-> reduce the probability of spurious oom-killage.
-> 
-> Signed-off-by: Andrea Arcangeli <andrea@suse.de>
-> 
-> diff --git a/mm/oom_kill.c b/mm/oom_kill.c
-> --- a/mm/oom_kill.c
-> +++ b/mm/oom_kill.c
-> @@ -400,12 +400,15 @@ void out_of_memory(struct zonelist *zone
->  	unsigned long points = 0;
->  	unsigned long freed = 0;
->  	int constraint;
-> +	static DECLARE_MUTEX(OOM_lock);
+Badari Pulavarty <pbadari@us.ibm.com> writes:
 
-I thought we depricated that construct in favour of DEFINE_MUTEX. Also,
-putting it in a function like so is a little icky IMHO.
+> No. You still need my patch to fix the current breakage.
 
+Agreed.
+
+> This patch makes hugetlbfs also use same naming convention as regular shmem for
+> its
+> name. This is not absolutely needed, its a nice to have. Currently, user space
+> tools
+> can't depend on the filename alone, since its not unique (based on kry).
+
+Exactly.  My patch is an additional fix/cleanup to bring the hugetlbfs
+shm segments as close to their normal counterparts as I can.
+
+pmap still won't recognize them as shm segments (different block device
+minor number) but otherwise they are now presented identically with
+normal shm segments.
+
+Eric
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
