@@ -1,33 +1,42 @@
-Date: Sat, 9 Jun 2007 16:38:52 +0200
+Date: Sat, 9 Jun 2007 16:55:47 +0200
 From: Andrea Arcangeli <andrea@suse.de>
-Subject: Re: [PATCH 10 of 16] stop useless vm trashing while we wait the TIF_MEMDIE task to exit
-Message-ID: <20070609143852.GB7130@v2.random>
-References: <24250f0be1aa26e5c6e3.1181332988@v2.random> <Pine.LNX.4.64.0706081446200.3646@schroedinger.engr.sgi.com> <20070609015944.GL9380@v2.random> <Pine.LNX.4.64.0706082000370.5145@schroedinger.engr.sgi.com> <20070609140552.GA7130@v2.random>
+Subject: Re: [PATCH 00 of 16] OOM related fixes
+Message-ID: <20070609145547.GC7130@v2.random>
+References: <patchbomb.1181332978@v2.random> <20070608212610.GA11773@holomorphy.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20070609140552.GA7130@v2.random>
+In-Reply-To: <20070608212610.GA11773@holomorphy.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
-Cc: linux-mm@kvack.org
+To: William Lee Irwin III <wli@holomorphy.com>
+Cc: linux-mm@kvack.org, Petr Tesarik <ptesarik@suse.cz>
 List-ID: <linux-mm.kvack.org>
 
-On a side note about the current way you select the task to kill if a
-constrained alloc failure triggers, I think it would have been better
-if you simply extended the oom-selector by filtering tasks in function
-of the current->mems_allowed. Now I agree the current badness is quite
-bad, now with rss instead of the virtual space, it works a bit better
-at least, but the whole point is that if you integrate the cpuset task
-filtering in the oom-selector algorithm, then once we fix the badness
-algorithm to actually do something more meaningful than to check
-static values, you'll get the better algorithm working for your
-local-oom killing too. This if you really care about the huge-numa
-niche to get node-partitioning working really like if this was a
-virtualized environment. If you just have kill something to release
-memory, killing the current task is always the safest choice
-obviously, so as your customers are ok with it I'm certainly fine with
-the current approach too.
+Hi Wil,
+
+On Fri, Jun 08, 2007 at 02:26:10PM -0700, William Lee Irwin III wrote:
+> Interesting. This seems to demonstrate a need for file IO to handle
+> fatal signals, beyond just people wanting faster responses to kill -9.
+> Perhaps it's the case that fatal signals should always be handled, and
+> there should be no waiting primitives excluding them. __GFP_NOFAIL is
+> also "interesting."
+
+Clearly the sooner we respond to a SIGKILL the better. We tried to
+catch the two critical points to solve the evil read(huge)->oom. BTW,
+the first suggestion that we had to also break out of read to make
+progress substantially quicker, was from Petr so I'm cc'ing him. I'm
+unsure what else of more generic we could do to solve more of those
+troubles at the same time without having to pollute the code with
+sigkill checks. For example we're not yet covering the o-direct paths
+but I did the minimal changes to resolve the current workload and that
+used buffered io of course ;). BTW, I could have checked the
+TIF_MEMDIE instead of seeing if sigkill was pending, but since I had
+to check the task structure anyway, I preferred to check for the
+sigkill so that kill -9 will now work for the first time against a
+large read/write syscall, besides allowing the TIF_MEMDIE task to exit
+in reasonable time without triggering the deadlock detection in the
+later patches.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
