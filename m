@@ -1,77 +1,48 @@
-Date: Fri, 8 Jun 2007 16:55:05 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH] shm: Fix the filename of hugetlb sysv shared memory
-Message-Id: <20070608165505.aa15fcdb.akpm@linux-foundation.org>
-In-Reply-To: <m1vedyqaft.fsf_-_@ebiederm.dsl.xmission.com>
-References: <787b0d920706062027s5a8fd35q752f8da5d446afc@mail.gmail.com>
-	<20070606204432.b670a7b1.akpm@linux-foundation.org>
-	<787b0d920706062153u7ad64179p1c4f3f663c3882f@mail.gmail.com>
-	<20070607162004.GA27802@vino.hallyn.com>
-	<m1ir9zrtwe.fsf@ebiederm.dsl.xmission.com>
-	<46697EDA.9000209@us.ibm.com>
-	<m1vedyqaft.fsf_-_@ebiederm.dsl.xmission.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Date: Sat, 9 Jun 2007 03:59:44 +0200
+From: Andrea Arcangeli <andrea@suse.de>
+Subject: Re: [PATCH 10 of 16] stop useless vm trashing while we wait the TIF_MEMDIE task to exit
+Message-ID: <20070609015944.GL9380@v2.random>
+References: <24250f0be1aa26e5c6e3.1181332988@v2.random> <Pine.LNX.4.64.0706081446200.3646@schroedinger.engr.sgi.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <Pine.LNX.4.64.0706081446200.3646@schroedinger.engr.sgi.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "Eric W. Biederman" <ebiederm@xmission.com>
-Cc: "Serge E. Hallyn" <serge@hallyn.com>, Albert Cahalan <acahalan@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, torvalds@linux-foundation.org, Badari Pulavarty <pbadari@us.ibm.com>
+To: Christoph Lameter <clameter@sgi.com>
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 08 Jun 2007 17:43:34 -0600
-ebiederm@xmission.com (Eric W. Biederman) wrote:
-
-> Some user space tools need to identify SYSV shared memory when
-> examining /proc/<pid>/maps.  To do so they look for a block device
-> with major zero, a dentry named SYSV<sysv key>, and having the minor of
-> the internal sysv shared memory kernel mount.
+On Fri, Jun 08, 2007 at 02:48:15PM -0700, Christoph Lameter wrote:
+> On Fri, 8 Jun 2007, Andrea Arcangeli wrote:
 > 
-> To help these tools and to make it easier for people just browsing
-> /proc/<pid>/maps this patch modifies hugetlb sysv shared memory to
-> use the SYSV<key> dentry naming convention.
+> > There's no point in trying to free memory if we're oom.
 > 
-> User space tools will still have to be aware that hugetlb sysv
-> shared memory lives on a different internal kernel mount and so
-> has a different block device minor number from the rest of sysv
-> shared memory.
+> OOMs can occur because we are in a cpuset or have a memory policy that 
+> restricts the allocations. So I guess that OOMness is a per node property 
+> and not a global one.
 
-I assume this fix is preferred over Badari's?  If so, why?
+I'm sorry to inform you that the oom killing in current mainline has
+always been a global event not a per-node one, regardless of the fixes
+I just posted.
 
+    	 if (test_tsk_thread_flag(p, TIF_MEMDIE))
+	     return ERR_PTR(-1UL);
+[..]
+		if (PTR_ERR(p) == -1UL)
+	   	       goto out;
 
+Best would be for you to send me more changes at the end of the
+patchbomb so that for that the first time _ever_, the oom will become
+a per-node event and not a global one anymore.
 
-From: Badari Pulavarty <pbadari@us.ibm.com>
+Said that it's not entirely obvious to me, that it makes any sense to
+disrupt functionality instead of just running slower but safely (I
+would generally prefer printk a warning instead of killing a task if
+we've to override the restriction on the memory policy). But that's
+your call, I'm fine either ways...
 
-shmid used to be stored as inode# for shared memory segments. Some of
-the proc-ps tools use this from /proc/pid/maps.  Recent cleanups
-to newseg() changed it.  This patch sets inode number back to shared
-memory id to fix breakage.
-
-Signed-off-by: Badari Pulavarty <pbadari@us.ibm.com>
-Cc: "Albert Cahalan" <acahalan@gmail.com>
-Cc: "Eric W. Biederman" <ebiederm@xmission.com>
-Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
----
-
- ipc/shm.c |    5 +++++
- 1 files changed, 5 insertions(+)
-
-diff -puN ipc/shm.c~restore-shmid-as-inode-to-fix-proc-pid-maps-abi-breakage ipc/shm.c
---- a/ipc/shm.c~restore-shmid-as-inode-to-fix-proc-pid-maps-abi-breakage
-+++ a/ipc/shm.c
-@@ -397,6 +397,11 @@ static int newseg (struct ipc_namespace 
- 	shp->shm_nattch = 0;
- 	shp->id = shm_buildid(ns, id, shp->shm_perm.seq);
- 	shp->shm_file = file;
-+	/*
-+	 * shmid gets reported as "inode#" in /proc/pid/maps.
-+	 * proc-ps tools use this. Changing this will break them.
-+	 */
-+	file->f_dentry->d_inode->i_ino = shp->id;
- 
- 	ns->shm_tot += numpages;
- 	shm_unlock(shp);
-_
+Thanks!
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
