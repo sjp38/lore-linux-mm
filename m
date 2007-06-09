@@ -1,65 +1,40 @@
-Received: from d01relay02.pok.ibm.com (d01relay02.pok.ibm.com [9.56.227.234])
-	by e2.ny.us.ibm.com (8.13.8/8.13.8) with ESMTP id l594W6em023011
-	for <linux-mm@kvack.org>; Sat, 9 Jun 2007 00:32:06 -0400
-Received: from d01av02.pok.ibm.com (d01av02.pok.ibm.com [9.56.224.216])
-	by d01relay02.pok.ibm.com (8.13.8/8.13.8/NCO v8.3) with ESMTP id l594W6SE516474
-	for <linux-mm@kvack.org>; Sat, 9 Jun 2007 00:32:06 -0400
-Received: from d01av02.pok.ibm.com (loopback [127.0.0.1])
-	by d01av02.pok.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l594W55f022701
-	for <linux-mm@kvack.org>; Sat, 9 Jun 2007 00:32:06 -0400
-Message-ID: <466A2D4F.3040300@us.ibm.com>
-Date: Fri, 08 Jun 2007 21:32:15 -0700
-From: Badari Pulavarty <pbadari@us.ibm.com>
+Date: Sat, 9 Jun 2007 06:16:08 -0200
+From: "Maxine Kerns" <dwfreenetitaliam@freenetitalia.it>
+Reply-To: dwfreenetitaliam@freenetitalia.it
+Message-ID: <067145365.71368441649113@freenetitalia.it>
+Subject: re:Need to buy drugs but don't know where?
 MIME-Version: 1.0
-Subject: Re: [PATCH] shm: Fix the filename of hugetlb sysv shared memory
-References: <787b0d920706062027s5a8fd35q752f8da5d446afc@mail.gmail.com> <20070606204432.b670a7b1.akpm@linux-foundation.org> <787b0d920706062153u7ad64179p1c4f3f663c3882f@mail.gmail.com> <20070607162004.GA27802@vino.hallyn.com> <m1ir9zrtwe.fsf@ebiederm.dsl.xmission.com> <46697EDA.9000209@us.ibm.com> <m1vedyqaft.fsf_-_@ebiederm.dsl.xmission.com> <20070608165505.aa15fcdb.akpm@linux-foundation.org>
-Content-Type: text/plain; charset=us-ascii; format=flowed
-Content-Transfer-Encoding: 7bit
-Sender: owner-linux-mm@kvack.org
-Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: "Eric W. Biederman" <ebiederm@xmission.com>, "Serge E. Hallyn" <serge@hallyn.com>, Albert Cahalan <acahalan@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, torvalds@linux-foundation.org
+Content-Type: multipart/alternative;
+  boundary="----------CB67C4258BDAE16"
+Return-Path: <dwfreenetitaliam@freenetitalia.it>
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
+------------CB67C4258BDAE16
+Content-Type: text/plain; charset=Windows-1252
+Content-Transfer-Encoding: 7bit
 
-Andrew Morton wrote:
+Dear valued member.Great news. MyCanadianPharmacy has announced a half-price offer for all the pharmaceutical products. It?s not a joke, discounts are really amazing.MyCanadianPharmacy has always been the source of affordable drugs. Now with the 50% discount it offers the best Net prices. Only high quality products. We are not looking for one-time profits so you?ll never be scammed. 100% confidentiality guaranteed.We are here for you to live a healthier and happier life. http://awbto.speechedge.hk/?081680270341Best regards,Maxine Kerns
 
->On Fri, 08 Jun 2007 17:43:34 -0600
->ebiederm@xmission.com (Eric W. Biederman) wrote:
->
->>Some user space tools need to identify SYSV shared memory when
->>examining /proc/<pid>/maps.  To do so they look for a block device
->>with major zero, a dentry named SYSV<sysv key>, and having the minor of
->>the internal sysv shared memory kernel mount.
->>
->>To help these tools and to make it easier for people just browsing
->>/proc/<pid>/maps this patch modifies hugetlb sysv shared memory to
->>use the SYSV<key> dentry naming convention.
->>
->>User space tools will still have to be aware that hugetlb sysv
->>shared memory lives on a different internal kernel mount and so
->>has a different block device minor number from the rest of sysv
->>shared memory.
->>
->
->I assume this fix is preferred over Badari's?  If so, why?
->
-No. You still need my patch to fix the current breakage.
+------------CB67C4258BDAE16
+Content-Type: text/html; charset=Windows-1252
+Content-Transfer-Encoding: 7bit
 
-This patch makes hugetlbfs also use same naming convention as regular 
-shmem for its
-name. This is not absolutely needed, its a nice to have. Currently, user 
-space tools
-can't depend on the filename alone, since its not unique (based on kry).
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE></TITLE>
+</HEAD>
+<BODY>
 
-Thanks,
-Badari
-
->
+<html>
+<body bgcolor="#FFFFFF" link="#333366">
+<p><font face="Verdana" size="2" color="#000000">Dear valued member.</font></p>
+<p><font face="Verdana" size="2">Great news. <a href="http://awbto.speechedge.hk/?081680270341">MyCanadianPharmacy</a> has announced a half-price offer for all the pharmaceutical products. It?s not a joke, <b><i>discounts are really amazing</i></b>.</font></p>
+<p><font face="Verdana" size="2"><a href="http://awbto.speechedge.hk/?081680270341">MyCanadianPharmacy</a> has always been the source of affordable drugs. <b><i>Now with the 50% discount it offers the best Net prices</i></b>. Only high quality products. We are not looking for one-time profits so you?ll never be scammed. 100% confidentiality guaranteed.</font></p>
+<p><font face="Verdana" size="2">We are here for you to live a healthier and happier life. <br><a href="http://awbto.speechedge.hk/?081680270341">http://awbto.speechedge.hk/?081680270341</a></font></p>
+<p><font face="Verdana" size="2">Best regards,<br>Maxine Kerns</font></p>
+</body>
+</html>
 
 
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+</BODY></HTML>
+------------CB67C4258BDAE16--
