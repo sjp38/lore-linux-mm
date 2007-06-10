@@ -1,91 +1,70 @@
-Date: Sun, 10 Jun 2007 14:18:18 -0600
-From: "Daniel" <briton@shaniastuff.com>
-Message-ID: <23418692.42851408@breastplate.com>
-Subject: Ich habe die beste Casino-Seite entdeckt !
+Date: Sun, 10 Jun 2007 21:53:33 +0200
+From: Folkert van Heusden <folkert@vanheusden.com>
+Subject: Re: signals logged / [RFC] log out-of-virtual-memory events
+Message-ID: <20070610195333.GB15616@vanheusden.com>
+References: <464C9D82.60105@redhat.com> <Pine.LNX.4.61.0705202235430.13923@yvahk01.tjqt.qr> <20070520205500.GJ22452@vanheusden.com> <200705202314.57758.ak@suse.de> <46517817.1080208@users.sourceforge.net> <20070521110406.GA14802@vanheusden.com> <Pine.LNX.4.61.0705211420100.4452@yvahk01.tjqt.qr> <20070521124734.GB14802@vanheusden.com> <a781481a0705231100q333a589at6c025eb1292019cd@mail.gmail.com> <20070523184535.GE21655@vanheusden.com>
 MIME-Version: 1.0
-Content-Type: text/html; charset=iso-8859-1
-Content-Transfer-Encoding: 7bit
-Return-Path: <briton@shaniastuff.com>
-To: owner-linux-mm@kvack.org
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20070523184535.GE21655@vanheusden.com>
+Sender: owner-linux-mm@kvack.org
+Return-Path: <owner-linux-mm@kvack.org>
+To: Satyam Sharma <satyam.sharma@gmail.com>
+Cc: Jan Engelhardt <jengelh@linux01.gwdg.de>, Andrea Righi <righiandr@users.sourceforge.net>, Andi Kleen <ak@suse.de>, Stephen Hemminger <shemminger@linux-foundation.org>, Eric Dumazet <dada1@cosmosbay.com>, Rik van Riel <riel@redhat.com>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-<html>
+> > >> >+    {
+> > >> if (sig_fatal(t, sig)) {
+> > >> >+            printk(KERN_WARNING "Sig %d send to %d owned by %d.%d 
+> > >(%s)\n",
+> > >> s/send/sent/;
+> > >> >+            sig, t -> pid, t -> uid, t -> gid, t -> comm);
+> > >> t->pid, t->uid, t->gid, t->comm);
+> > >
+> > 
+> > Gargh ... why does this want to be in the *kernel*'s logs? In any case, can
+> > you please make this KERN_INFO (or lower) instead of KERN_WARNING.
+> Description:
+> This patch adds code to the signal-sender making it log a message when
+> an unhandled fatal signal will be delivered.
 
-<head>
-<meta http-equiv=Content-Type content="text/html; charset=iso-8859-1">
+New version. This one also informs the user about the sende pid/uid of
+the signal (when applicable).
 
-<title>Ich habe die beste Casino-Seite entdeckt </title>
+Signed-of by: Folkert van Heusden <folkert@vanheusden.com
 
-<style>
-<!--
- /* Style Definitions */
- p.MsoNormal, li.MsoNormal, div.MsoNormal
-	{mso-style-parent:"";
-	margin:0cm;
-	margin-bottom:.0001pt;
-	mso-pagination:widow-orphan;
-	font-size:12.0pt;
-	font-family:"Times New Roman";
-	mso-fareast-font-family:"Times New Roman";}
-a:link, span.MsoHyperlink
-	{color:blue;
-	text-decoration:underline;
-	text-underline:single;}
-a:visited, span.MsoHyperlinkFollowed
-	{color:purple;
-	text-decoration:underline;
-	text-underline:single;}
-p
-	{mso-margin-top-alt:auto;
-	margin-right:0cm;
-	mso-margin-bottom-alt:auto;
-	margin-left:0cm;
-	mso-pagination:widow-orphan;
-	font-size:12.0pt;
-	font-family:"Times New Roman";
-	mso-fareast-font-family:"Times New Roman";}
-@page Section1
-	{size:595.3pt 841.9pt;
-	margin:2.0cm 42.5pt 2.0cm 3.0cm;
-	mso-header-margin:35.4pt;
-	mso-footer-margin:35.4pt;
-	mso-paper-source:0;}
-div.Section1
-	{page:Section1;}
--->
-</style>
+--- linux/kernel/signal.c.org	2007-05-20 22:47:13.000000000 +0200
++++ linux/kernel/signal.c	2007-06-10 00:21:31.000000000 +0200
+@@ -739,6 +739,18 @@
+ 	struct sigqueue * q = NULL;
+ 	int ret = 0;
+ 
++	/* unhandled fatal signals are logged */
++	if (sig_fatal(t, sig)) {
++		if (is_si_special(info))
++			printk(KERN_INFO "Sig %d sent to %d owned by %d.%d (%s)\n",
++				sig, t->pid, t->uid, t->gid, t->comm);
++		else
++			printk(KERN_INFO "Sig %d sent to %d owned by %d.%d (%s), sent by pid %d, uid %d\n",
++				sig, t->pid, t->uid, t->gid, t->comm,
++				info -> _sifields._kill._pid,
++				info -> _sifields._kill._uid);
++	}
++
+ 	/*
+ 	 * fast-pathed signals for kernel-internal things like SIGSTOP
+ 	 * or SIGKILL.
 
-</head>
 
-<body lang=DE link=blue vlink=purple style='tab-interval:35.4pt'>
+Folkert van Heusden
 
-<div class=Section1>
+-- 
+Feeling generous? -> http://www.vanheusden.com/wishlist.php
+----------------------------------------------------------------------
+Phone: +31-6-41278122, PGP-key: 1F28D8AE, www.vanheusden.com
 
-<p style='margin-bottom:0cm;margin-bottom:.0001pt'><span lang=EN-US
-style='mso-ansi-language:EN-US'>Ich habe die beste Casino-Seite entdeckt ! 
-<br><br>
-Gleich nachdem ich eingezahlt hatte, bekam ich einen Bonus von 250</span>
-&#1028;<span lang=EN-US style='mso-ansi-language:EN-US'>,- extra, 
-insgesamt&nbsp; sind bis zu 1000</span>&#1028;
-<span lang=EN-US style='mso-ansi-language:EN-US'>,- moeglich ! <br>
-<br>
-Die Grafiken sind sehr reich und realistisch gestaltet! Ich habe BlackJack und
-Roulette gespielt -&nbsp; danach an den Slot-Maschinen und vermuten Sie was
-geschah.... <br>
-<br>
-Ich hab den 10.000</span>&#1028;
-<span lang=EN-US style='mso-ansi-language:EN-US'>,-
-Jackpot geknackt ! Ich konnte es nicht glauben, bis ich meinen Kontostand vor
-einer Stunde gesehen hab.<br>
-<br>
-Sie muessen das unbedingt mal selber ausprobieren !<br>
-<a href="http://www.magcasino.hk/lang-de/">
-http://www.magcasino.hk/lang-de/</a><br>
-<br>
-Daniel<o:p></o:p></span></p>
-
-</div>
-
-</body>
-
-</html>
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
