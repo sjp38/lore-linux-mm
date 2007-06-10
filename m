@@ -1,10 +1,10 @@
-Message-ID: <466C36AE.3000101@redhat.com>
-Date: Sun, 10 Jun 2007 13:36:46 -0400
+Message-ID: <466C3729.7050903@redhat.com>
+Date: Sun, 10 Jun 2007 13:38:49 -0400
 From: Rik van Riel <riel@redhat.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 01 of 16] remove nr_scan_inactive/active
-References: <8e38f7656968417dfee0.1181332979@v2.random>
-In-Reply-To: <8e38f7656968417dfee0.1181332979@v2.random>
+Subject: Re: [PATCH 02 of 16] avoid oom deadlock in nfs_create_request
+References: <d64cb81222748354bf5b.1181332980@v2.random>
+In-Reply-To: <d64cb81222748354bf5b.1181332980@v2.random>
 Content-Type: text/plain; charset=UTF-8; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
@@ -15,30 +15,57 @@ List-ID: <linux-mm.kvack.org>
 
 Andrea Arcangeli wrote:
 
-> -	else
-> +	nr_inactive = zone_page_state(zone, NR_INACTIVE) >> priority;
-> +	if (nr_inactive < sc->swap_cluster_max)
->  		nr_inactive = 0;
+> When sigkill is pending after the oom killer set TIF_MEMDIE, the task
+> must go away or the VM will malfunction.
 
-This is a problem.
+However, if the sigkill is pending against ANOTHER task,
+this patch looks like it could introduce an IO error
+where the system would recover fine before.
 
-On workloads with lots of anonymous memory, for example
-running a very large JVM or simply stressing the system
-with AIM7, the inactive list can be very small.
+Tasks that do not have a pending SIGKILL should retry
+the allocation, shouldn't they?
 
-If dozens (or even hundreds) of tasks get into the
-pageout code simultaneously, they will all spend a lot
-of time moving pages from the active to the inactive
-list, but they will not even try to free any of the
-(few) inactive pages the system has!
+> diff --git a/fs/nfs/pagelist.c b/fs/nfs/pagelist.c
+> --- a/fs/nfs/pagelist.c
+> +++ b/fs/nfs/pagelist.c
+> @@ -61,16 +61,20 @@ nfs_create_request(struct nfs_open_conte
+>  	struct nfs_server *server = NFS_SERVER(inode);
+>  	struct nfs_page		*req;
+>  
+> -	for (;;) {
+> -		/* try to allocate the request struct */
+> -		req = nfs_page_alloc();
+> -		if (req != NULL)
+> -			break;
+> -
+> -		if (signalled() && (server->flags & NFS_MOUNT_INTR))
+> -			return ERR_PTR(-ERESTARTSYS);
+> -		yield();
+> -	}
+> +	/* try to allocate the request struct */
+> +	req = nfs_page_alloc();
+> +	if (unlikely(!req)) {
+> +		/*
+> +		 * -ENOMEM will be returned only when TIF_MEMDIE is set
+> +		 * so userland shouldn't risk to get confused by a new
+> +		 * unhandled ENOMEM errno.
+> +		 */
+> +		WARN_ON(!test_thread_flag(TIF_MEMDIE));
+> +		return ERR_PTR(-ENOMEM);
+> +	}
+> +
+> +	if (signalled() && (server->flags & NFS_MOUNT_INTR))
+> +		return ERR_PTR(-ERESTARTSYS);
+>  
+>  	/* Initialize the request struct. Initially, we assume a
+>  	 * long write-back delay. This will be adjusted in
+> 
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
-We have observed systems in stress tests that spent
-well over 10 minutes in shrink_active_list before
-the first call to shrink_inactive_list was made.
-
-Your code looks like it could exacerbate that situation,
-by not having zone->nr_scan_inactive increment between
-calls.
 
 -- 
 Politics is the struggle between those who want to make their country
