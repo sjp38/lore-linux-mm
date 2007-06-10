@@ -1,53 +1,91 @@
-Date: Sun, 10 Jun 2007 20:27:43 +0200
-From: Andrea Arcangeli <andrea@suse.de>
-Subject: Re: [PATCH 02 of 16] avoid oom deadlock in nfs_create_request
-Message-ID: <20070610182743.GD7443@v2.random>
-References: <d64cb81222748354bf5b.1181332980@v2.random> <466C3729.7050903@redhat.com>
+Date: Sun, 10 Jun 2007 14:18:18 -0600
+From: "Daniel" <briton@shaniastuff.com>
+Message-ID: <23418692.42851408@breastplate.com>
+Subject: Ich habe die beste Casino-Seite entdeckt !
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <466C3729.7050903@redhat.com>
-Sender: owner-linux-mm@kvack.org
-Return-Path: <owner-linux-mm@kvack.org>
-To: Rik van Riel <riel@redhat.com>
-Cc: linux-mm@kvack.org
+Content-Type: text/html; charset=iso-8859-1
+Content-Transfer-Encoding: 7bit
+Return-Path: <briton@shaniastuff.com>
+To: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Sun, Jun 10, 2007 at 01:38:49PM -0400, Rik van Riel wrote:
-> Andrea Arcangeli wrote:
-> 
-> >When sigkill is pending after the oom killer set TIF_MEMDIE, the task
-> >must go away or the VM will malfunction.
-> 
-> However, if the sigkill is pending against ANOTHER task,
-> this patch looks like it could introduce an IO error
-> where the system would recover fine before.
+<html>
 
-The error being returned would be -ENOMEM. But even that should not be
-returned because do_exit will run before userland runs again. When I
-told about this to Neil he didn't seem to object that do_exit will be
-called first so I hope we didn't get it wrong.
+<head>
+<meta http-equiv=Content-Type content="text/html; charset=iso-8859-1">
 
-The only risk would be if we set TIF_MEMDIE but we kill a task with
-SIGTERM, then the I/O error could reach userland if the user catched
-the sigterm signal in userland.
+<title>Ich habe die beste Casino-Seite entdeckt </title>
 
-I didn't add the warn-on for sigkill, because even if we decide to
-send sigterm first, in theory it wouldn't be a kernel issue if we
-correctly return -ENOMEM to userland if that is the task that must
-exit (we don't support a graceful exit path today, perhaps we never
-will). But clearly we don't know if all userland code is capable of
-coping with a -ENOMEM, so for now we don't have to worry thanks to the
-sigkill.
+<style>
+<!--
+ /* Style Definitions */
+ p.MsoNormal, li.MsoNormal, div.MsoNormal
+	{mso-style-parent:"";
+	margin:0cm;
+	margin-bottom:.0001pt;
+	mso-pagination:widow-orphan;
+	font-size:12.0pt;
+	font-family:"Times New Roman";
+	mso-fareast-font-family:"Times New Roman";}
+a:link, span.MsoHyperlink
+	{color:blue;
+	text-decoration:underline;
+	text-underline:single;}
+a:visited, span.MsoHyperlinkFollowed
+	{color:purple;
+	text-decoration:underline;
+	text-underline:single;}
+p
+	{mso-margin-top-alt:auto;
+	margin-right:0cm;
+	mso-margin-bottom-alt:auto;
+	margin-left:0cm;
+	mso-pagination:widow-orphan;
+	font-size:12.0pt;
+	font-family:"Times New Roman";
+	mso-fareast-font-family:"Times New Roman";}
+@page Section1
+	{size:595.3pt 841.9pt;
+	margin:2.0cm 42.5pt 2.0cm 3.0cm;
+	mso-header-margin:35.4pt;
+	mso-footer-margin:35.4pt;
+	mso-paper-source:0;}
+div.Section1
+	{page:Section1;}
+-->
+</style>
 
-> Tasks that do not have a pending SIGKILL should retry
-> the allocation, shouldn't they?
+</head>
 
-All tasks not having TIF_MEMDIE set (and currently sigkill pending as
-well) should retry yes.
+<body lang=DE link=blue vlink=purple style='tab-interval:35.4pt'>
 
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+<div class=Section1>
+
+<p style='margin-bottom:0cm;margin-bottom:.0001pt'><span lang=EN-US
+style='mso-ansi-language:EN-US'>Ich habe die beste Casino-Seite entdeckt ! 
+<br><br>
+Gleich nachdem ich eingezahlt hatte, bekam ich einen Bonus von 250</span>
+&#1028;<span lang=EN-US style='mso-ansi-language:EN-US'>,- extra, 
+insgesamt&nbsp; sind bis zu 1000</span>&#1028;
+<span lang=EN-US style='mso-ansi-language:EN-US'>,- moeglich ! <br>
+<br>
+Die Grafiken sind sehr reich und realistisch gestaltet! Ich habe BlackJack und
+Roulette gespielt -&nbsp; danach an den Slot-Maschinen und vermuten Sie was
+geschah.... <br>
+<br>
+Ich hab den 10.000</span>&#1028;
+<span lang=EN-US style='mso-ansi-language:EN-US'>,-
+Jackpot geknackt ! Ich konnte es nicht glauben, bis ich meinen Kontostand vor
+einer Stunde gesehen hab.<br>
+<br>
+Sie muessen das unbedingt mal selber ausprobieren !<br>
+<a href="http://www.magcasino.hk/lang-de/">
+http://www.magcasino.hk/lang-de/</a><br>
+<br>
+Daniel<o:p></o:p></span></p>
+
+</div>
+
+</body>
+
+</html>
