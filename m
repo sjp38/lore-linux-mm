@@ -1,25 +1,49 @@
-Date: Sun, 10 Jun 2007 19:32:21 +0200
-From: Andrea Arcangeli <andrea@suse.de>
-Subject: Re: [PATCH 15 of 16] limit reclaim if enough pages have been freed
-Message-ID: <20070610173221.GB7443@v2.random>
-References: <31ef5d0bf924fb47da14.1181332993@v2.random> <466C32F2.9000306@redhat.com>
+Message-ID: <466C36AE.3000101@redhat.com>
+Date: Sun, 10 Jun 2007 13:36:46 -0400
+From: Rik van Riel <riel@redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <466C32F2.9000306@redhat.com>
+Subject: Re: [PATCH 01 of 16] remove nr_scan_inactive/active
+References: <8e38f7656968417dfee0.1181332979@v2.random>
+In-Reply-To: <8e38f7656968417dfee0.1181332979@v2.random>
+Content-Type: text/plain; charset=UTF-8; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Rik van Riel <riel@redhat.com>
-Cc: linux-mm@kvack.org, Larry Woodman <lwoodman@redhat.com>
+To: Andrea Arcangeli <andrea@suse.de>
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Sun, Jun 10, 2007 at 01:20:50PM -0400, Rik van Riel wrote:
-> code simultaneously, all starting out at priority 12 and
-> not freeing anything until they all get to much lower
-> priorities.
+Andrea Arcangeli wrote:
 
-BTW, this reminds me that I've been wondering if 2**12 is a too small
-fraction of the lru to start the scan with.
+> -	else
+> +	nr_inactive = zone_page_state(zone, NR_INACTIVE) >> priority;
+> +	if (nr_inactive < sc->swap_cluster_max)
+>  		nr_inactive = 0;
+
+This is a problem.
+
+On workloads with lots of anonymous memory, for example
+running a very large JVM or simply stressing the system
+with AIM7, the inactive list can be very small.
+
+If dozens (or even hundreds) of tasks get into the
+pageout code simultaneously, they will all spend a lot
+of time moving pages from the active to the inactive
+list, but they will not even try to free any of the
+(few) inactive pages the system has!
+
+We have observed systems in stress tests that spent
+well over 10 minutes in shrink_active_list before
+the first call to shrink_inactive_list was made.
+
+Your code looks like it could exacerbate that situation,
+by not having zone->nr_scan_inactive increment between
+calls.
+
+-- 
+Politics is the struggle between those who want to make their country
+the best in the world, and those who believe it already is.  Each group
+calls the other unpatriotic.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
