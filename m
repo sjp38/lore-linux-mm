@@ -1,38 +1,45 @@
-Date: Mon, 11 Jun 2007 20:40:46 +0200
-From: Sam Ravnborg <sam@ravnborg.org>
-Subject: Re: mm: memory/cpu hotplug section mismatch.
-Message-ID: <20070611184046.GA6458@uranus.ravnborg.org>
-References: <20070611043543.GA22910@linux-sh.org> <20070611140145.05726c0f.kamezawa.hiroyu@jp.fujitsu.com> <20070611050955.GA23215@linux-sh.org> <20070611082732.70018522.randy.dunlap@oracle.com> <20070611154428.GA27644@linux-sh.org>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20070611154428.GA27644@linux-sh.org>
+Date: Mon, 11 Jun 2007 11:40:48 -0700 (PDT)
+From: Christoph Lameter <clameter@sgi.com>
+Subject: Re: [PATCH v2] gfp.h: GFP_THISNODE can go to other nodes if some
+ are unpopulated
+In-Reply-To: <1181586222.8324.78.camel@localhost>
+Message-ID: <Pine.LNX.4.64.0706111139370.18327@schroedinger.engr.sgi.com>
+References: <20070607150425.GA15776@us.ibm.com>
+ <Pine.LNX.4.64.0706071103240.24988@schroedinger.engr.sgi.com>
+ <20070607220149.GC15776@us.ibm.com> <466D44C6.6080105@shadowen.org>
+ <Pine.LNX.4.64.0706110911080.15326@schroedinger.engr.sgi.com>
+ <Pine.LNX.4.64.0706110926110.15868@schroedinger.engr.sgi.com>
+ <1181586222.8324.78.camel@localhost>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Paul Mundt <lethal@linux-sh.org>, Randy Dunlap <randy.dunlap@oracle.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
+Cc: Andy Whitcroft <apw@shadowen.org>, Nishanth Aravamudan <nacc@us.ibm.com>, ak@suse.de, anton@samba.org, mel@csn.ul.ie, akpm@linux-foundation.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-> 
-> If CONFIG_MEMORY_HOTPLUG=n __meminit == __init, and if
-> CONFIG_HOTPLUG_CPU=n __cpuinit == __init. However, with one set and the
-> other disabled, you end up with a reference between __init and a regular
-> non-init function.
+On Mon, 11 Jun 2007, Lee Schermerhorn wrote:
 
-My plan is to define dedicated sections for both __devinit and __meminit.
-Then we can apply the checks no matter the definition of CONFIG_HOTPLUG*
-But we are a few steps away form doing so:
-1) All harcoded uses of .init.text needs to go (at least done in assembler files)
-2) The arch lds files needs to be unified a bit too.
+> When the hugepages patch was evolving, I suggested that we might want to
+> export the "populated map" to applications so that they could ask to
+> bind to or interleave across only populated nodes.  We never pursued
+> that.  Maybe just eliminate nodes that are unpopulated in the "policy
+> zone" from the node masks for MPOL_BIND and MPOL_INTERLEAVE in the
+> system calls?  Saves checking the populated node set in the allocation
+> paths.  Would need appropriate error return if this resulted in empty
+> nodemask.
 
-Then we can during the final link stage decide if __devinit shall be merged
-into .text or .init.text (after applying the modpost checks).
+That would work for the MPOL_BIND case since it has a zonelist. However, 
+MPOL_INTERLEAVE does not have a zonelist. I think we need the populated 
+map for interleave. The hacky way in how I checked for an unpopulated 
+node in the patch just posted is not that effective.
 
-But do not hold your breath.
+> Of course, memory hotplug could result in nodes becoming empty after the
+> nodemasks are adjusted, so we probably can't avoid checks in the
+> allocation paths if we want to avoid the bind and interleave issues you
+> mention above.
 
-The even more important precondition is to sort out all the current
-section mismatch warnings. But here we are getting close.
-
-	Sam
+Right.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
