@@ -1,62 +1,38 @@
-Date: Mon, 11 Jun 2007 11:39:03 -0700 (PDT)
-From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [PATCH 10 of 16] stop useless vm trashing while we wait the
- TIF_MEMDIE task to exit
-In-Reply-To: <20070611182232.GN7443@v2.random>
-Message-ID: <Pine.LNX.4.64.0706111133020.18327@schroedinger.engr.sgi.com>
-References: <Pine.LNX.4.64.0706081446200.3646@schroedinger.engr.sgi.com>
- <20070609015944.GL9380@v2.random> <Pine.LNX.4.64.0706082000370.5145@schroedinger.engr.sgi.com>
- <20070609140552.GA7130@v2.random> <20070609143852.GB7130@v2.random>
- <Pine.LNX.4.64.0706110905080.15326@schroedinger.engr.sgi.com>
- <20070611165032.GJ7443@v2.random> <Pine.LNX.4.64.0706110952001.16068@schroedinger.engr.sgi.com>
- <20070611175130.GL7443@v2.random> <Pine.LNX.4.64.0706111055140.17264@schroedinger.engr.sgi.com>
- <20070611182232.GN7443@v2.random>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Date: Mon, 11 Jun 2007 20:40:46 +0200
+From: Sam Ravnborg <sam@ravnborg.org>
+Subject: Re: mm: memory/cpu hotplug section mismatch.
+Message-ID: <20070611184046.GA6458@uranus.ravnborg.org>
+References: <20070611043543.GA22910@linux-sh.org> <20070611140145.05726c0f.kamezawa.hiroyu@jp.fujitsu.com> <20070611050955.GA23215@linux-sh.org> <20070611082732.70018522.randy.dunlap@oracle.com> <20070611154428.GA27644@linux-sh.org>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20070611154428.GA27644@linux-sh.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrea Arcangeli <andrea@suse.de>
-Cc: linux-mm@kvack.org
+To: Paul Mundt <lethal@linux-sh.org>, Randy Dunlap <randy.dunlap@oracle.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 11 Jun 2007, Andrea Arcangeli wrote:
-
-> > These are customer reports. 4 hours one and another 2 hours. I can 
 > 
-> How long does "ls /proc" take? Can you run top at all on such a
-> system (I mean before it reaches the oom point, then it'll hang for
-> those 4 hours with the mainline kernel, I know this and that's why I
-> worked to fix it and posted 18 patches so far about it).
+> If CONFIG_MEMORY_HOTPLUG=n __meminit == __init, and if
+> CONFIG_HOTPLUG_CPU=n __cpuinit == __init. However, with one set and the
+> other disabled, you end up with a reference between __init and a regular
+> non-init function.
 
-These are big systems and it would take some time to reproduce these 
-issues. Thanks for your work. I'd really like to see improvements there. 
-If you take care of not worsening the local kill path then I am okay with 
-the rest.
- 
-> > certainly get more reports if I ask them for more details. I will get this 
-> > on your SUSE radar.
-> 
-> If it takes 4 hours for the function out_of_memory to return, please
-> report it. If instead as I start to suspect, you're going to show me
-> the function out_of_memory called one million times and taking a few
-> seconds for each invocation, please test all my fixes before
-> reporting, there's a reason I made those changes...
+My plan is to define dedicated sections for both __devinit and __meminit.
+Then we can apply the checks no matter the definition of CONFIG_HOTPLUG*
+But we are a few steps away form doing so:
+1) All harcoded uses of .init.text needs to go (at least done in assembler files)
+2) The arch lds files needs to be unified a bit too.
 
-out_of_memory takes about 5-10 minutes each (according to one report). An 
-OOM storm will then take the machine out for 4 hours. The on site SE can 
-likely tell you more details in the bugzilla.
+Then we can during the final link stage decide if __devinit shall be merged
+into .text or .init.text (after applying the modpost checks).
 
-Another reporter had been waiting for 2 hours after an oom without any 
-messages indicating that a single OOM was processed.
+But do not hold your breath.
 
-> Back to the local-oom: if out_of_memory takes a couple of seconds at
-> most as I expect (it'll be the same order of ls /proc, actually ls
-> /proc will be a lot slower), killing the current task in the local-oom
-> as a performance optimization remains a very dubious argument.
+The even more important precondition is to sort out all the current
+section mismatch warnings. But here we are getting close.
 
-Killing the local process avoids 4 slow scans over a pretty large 
-tasklist. But I agree that there may be additionial other issues lurking 
-there fore large systems.
+	Sam
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
