@@ -1,43 +1,46 @@
-Date: Mon, 11 Jun 2007 18:50:33 +0200
-From: Andrea Arcangeli <andrea@suse.de>
-Subject: Re: [PATCH 10 of 16] stop useless vm trashing while we wait the TIF_MEMDIE task to exit
-Message-ID: <20070611165032.GJ7443@v2.random>
-References: <24250f0be1aa26e5c6e3.1181332988@v2.random> <Pine.LNX.4.64.0706081446200.3646@schroedinger.engr.sgi.com> <20070609015944.GL9380@v2.random> <Pine.LNX.4.64.0706082000370.5145@schroedinger.engr.sgi.com> <20070609140552.GA7130@v2.random> <20070609143852.GB7130@v2.random> <Pine.LNX.4.64.0706110905080.15326@schroedinger.engr.sgi.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <Pine.LNX.4.64.0706110905080.15326@schroedinger.engr.sgi.com>
+Date: Mon, 11 Jun 2007 11:11:11 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH] shm: Fix the filename of hugetlb sysv shared memory
+Message-Id: <20070611111111.2345470d.akpm@linux-foundation.org>
+In-Reply-To: <m1vedyqaft.fsf_-_@ebiederm.dsl.xmission.com>
+References: <787b0d920706062027s5a8fd35q752f8da5d446afc@mail.gmail.com>
+	<20070606204432.b670a7b1.akpm@linux-foundation.org>
+	<787b0d920706062153u7ad64179p1c4f3f663c3882f@mail.gmail.com>
+	<20070607162004.GA27802@vino.hallyn.com>
+	<m1ir9zrtwe.fsf@ebiederm.dsl.xmission.com>
+	<46697EDA.9000209@us.ibm.com>
+	<m1vedyqaft.fsf_-_@ebiederm.dsl.xmission.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
-Cc: linux-mm@kvack.org
+To: "Eric W. Biederman" <ebiederm@xmission.com>
+Cc: "Serge E. Hallyn" <serge@hallyn.com>, Albert Cahalan <acahalan@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, torvalds@linux-foundation.org, Badari Pulavarty <pbadari@us.ibm.com>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Jun 11, 2007 at 09:07:59AM -0700, Christoph Lameter wrote:
-> Filtering tasks is a very expensive operation on huge systems. We have had 
+On Fri, 08 Jun 2007 17:43:34 -0600
+ebiederm@xmission.com (Eric W. Biederman) wrote:
 
-Come on, oom_kill.c only happens at oom time, after the huge complex
-processing has figured out it's time to call into oom_kill.c, how can
-you care about the performance of oom_kill.c?  Apparently some folks
-prefer to panic when oom triggers go figure...
+> Some user space tools need to identify SYSV shared memory when
+> examining /proc/<pid>/maps.  To do so they look for a block device
+> with major zero, a dentry named SYSV<sysv key>, and having the minor of
+> the internal sysv shared memory kernel mount.
+> 
+> To help these tools and to make it easier for people just browsing
+> /proc/<pid>/maps this patch modifies hugetlb sysv shared memory to
+> use the SYSV<key> dentry naming convention.
+> 
+> User space tools will still have to be aware that hugetlb sysv
+> shared memory lives on a different internal kernel mount and so
+> has a different block device minor number from the rest of sysv
+> shared memory.
 
-> cases where it took an hour or so for the OOM to complete. OOM usually 
-> occurs under heavy processing loads which makes the taking of global locks 
-> quite expensive.
+So..  I am sitting here believing that this patch and Badari's
+restore-shmid-as-inode-to-fix-proc-pid-maps-abi-breakage.patch are both
+needed in 2.6.22 and that they will fix all these issues up.
 
-Since you mean that a _global_ OOM took one hour (you just used it as
-the comparison of the slow-one, the local-oom is supposed to be the
-fast one instead) I'd appreciate if you could try again with all my
-fixes applied and see if the time to recover the global oom is reduced
-(which is the whole objective of most of the fixes I've just
-posted).
-
-In general whatever you do inside oom_kill.c has nothing to do with
-the "expensive operations" (the expensive operations are infact halted
-with my fixes).
-
-In turn killing the current task so that oom_kill.c is faster, is
-quite a dubious argument.
+If that is untrue, someone please let us know..
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
