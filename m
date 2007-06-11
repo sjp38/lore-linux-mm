@@ -1,37 +1,31 @@
-Received: by ug-out-1314.google.com with SMTP id m2so1681219uge
-        for <linux-mm@kvack.org>; Mon, 11 Jun 2007 12:00:57 -0700 (PDT)
-Message-ID: <a0a62dfc0706111200x4c23c285tfa9aebc304a9f3e6@mail.gmail.com>
-Date: Mon, 11 Jun 2007 14:00:57 -0500
-From: "Adam Litke" <aglitke@gmail.com>
-Subject: Re: [PATCH] shm: Fix the filename of hugetlb sysv shared memory
-In-Reply-To: <m1vedyqaft.fsf_-_@ebiederm.dsl.xmission.com>
+Date: Mon, 11 Jun 2007 12:25:41 -0700 (PDT)
+From: Christoph Lameter <clameter@sgi.com>
+Subject: Re: [PATCH 10 of 16] stop useless vm trashing while we wait the
+ TIF_MEMDIE task to exit
+In-Reply-To: <20070611185844.GO7443@v2.random>
+Message-ID: <Pine.LNX.4.64.0706111225190.19541@schroedinger.engr.sgi.com>
+References: <Pine.LNX.4.64.0706082000370.5145@schroedinger.engr.sgi.com>
+ <20070609140552.GA7130@v2.random> <20070609143852.GB7130@v2.random>
+ <Pine.LNX.4.64.0706110905080.15326@schroedinger.engr.sgi.com>
+ <20070611165032.GJ7443@v2.random> <Pine.LNX.4.64.0706110952001.16068@schroedinger.engr.sgi.com>
+ <20070611175130.GL7443@v2.random> <Pine.LNX.4.64.0706111055140.17264@schroedinger.engr.sgi.com>
+ <20070611182232.GN7443@v2.random> <Pine.LNX.4.64.0706111133020.18327@schroedinger.engr.sgi.com>
+ <20070611185844.GO7443@v2.random>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
-References: <787b0d920706062027s5a8fd35q752f8da5d446afc@mail.gmail.com>
-	 <20070606204432.b670a7b1.akpm@linux-foundation.org>
-	 <787b0d920706062153u7ad64179p1c4f3f663c3882f@mail.gmail.com>
-	 <20070607162004.GA27802@vino.hallyn.com>
-	 <m1ir9zrtwe.fsf@ebiederm.dsl.xmission.com>
-	 <46697EDA.9000209@us.ibm.com>
-	 <m1vedyqaft.fsf_-_@ebiederm.dsl.xmission.com>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "Eric W. Biederman" <ebiederm@xmission.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, "Serge E. Hallyn" <serge@hallyn.com>, Albert Cahalan <acahalan@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, torvalds@linux-foundation.org, Badari Pulavarty <pbadari@us.ibm.com>
+To: Andrea Arcangeli <andrea@suse.de>
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 6/8/07, Eric W. Biederman <ebiederm@xmission.com> wrote:
-> -struct file *hugetlb_zero_setup(size_t size)
-> +struct file *hugetlb_file_setup(const char *name, size_t size)
+On Mon, 11 Jun 2007, Andrea Arcangeli wrote:
 
-The bulk of this patch seems to handle renaming this function.  Is
-that really necessary?
+> This is the case I'm dealing with more commonly, normally the more
+> swap more more it takes, and that's expectable. It should have
+> improved too with the patchset.
 
---
-Adam Litke ( agl at us.ibm.com )
-IBM Linux Technology Center
+Do you have a SLES10 kernel with these fixes?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
