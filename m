@@ -1,37 +1,54 @@
-Date: Sun, 10 Jun 2007 22:06:54 +0200 (CEST)
-From: Jiri Kosina <jikos@jikos.cz>
-Subject: Re: signals logged / [RFC] log out-of-virtual-memory events
-In-Reply-To: <20070610195333.GB15616@vanheusden.com>
-Message-ID: <Pine.LNX.4.64.0706102200400.23280@twin.jikos.cz>
-References: <464C9D82.60105@redhat.com> <Pine.LNX.4.61.0705202235430.13923@yvahk01.tjqt.qr>
- <20070520205500.GJ22452@vanheusden.com> <200705202314.57758.ak@suse.de>
- <46517817.1080208@users.sourceforge.net> <20070521110406.GA14802@vanheusden.com>
- <Pine.LNX.4.61.0705211420100.4452@yvahk01.tjqt.qr> <20070521124734.GB14802@vanheusden.com>
- <a781481a0705231100q333a589at6c025eb1292019cd@mail.gmail.com>
- <20070523184535.GE21655@vanheusden.com> <20070610195333.GB15616@vanheusden.com>
+Date: Mon, 11 Jun 2007 13:35:43 +0900
+From: Paul Mundt <lethal@linux-sh.org>
+Subject: mm: memory/cpu hotplug section mismatch.
+Message-ID: <20070611043543.GA22910@linux-sh.org>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Folkert van Heusden <folkert@vanheusden.com>
-Cc: Satyam Sharma <satyam.sharma@gmail.com>, Jan Engelhardt <jengelh@linux01.gwdg.de>, Andrea Righi <righiandr@users.sourceforge.net>, Andi Kleen <ak@suse.de>, Stephen Hemminger <shemminger@linux-foundation.org>, Eric Dumazet <dada1@cosmosbay.com>, Rik van Riel <riel@redhat.com>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
+To: Sam Ravnborg <sam@ravnborg.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Sun, 10 Jun 2007, Folkert van Heusden wrote:
+When building with memory hotplug enabled and cpu hotplug disabled, we
+end up with the following section mismatch:
 
-> Signed-of by: Folkert van Heusden <folkert@vanheusden.com
+WARNING: mm/built-in.o(.text+0x4e58): Section mismatch: reference to
+.init.text: (between 'free_area_init_node' and '__build_all_zonelists')
 
-This looks broken BTW.
+This happens as a result of:
 
-> +			printk(KERN_INFO "Sig %d sent to %d owned by %d.%d (%s), sent by pid %d, uid %d\n",
-> +				sig, t->pid, t->uid, t->gid, t->comm,
-> +				info -> _sifields._kill._pid,
-> +				info -> _sifields._kill._uid);
+	-> free_area_init_node()
+	  -> free_area_init_core()
+	    -> zone_pcp_init() <-- all __meminit up to this point
+	      -> zone_batchsize() <-- marked as __cpuinit
 
-Am I the only one whose eyes are hurt by these spaces?
+This happens because CONFIG_HOTPLUG_CPU=n sets __cpuinit to __init, but
+CONFIG_MEMORY_HOTPLUG=y unsets __meminit.
 
--- 
-Jiri Kosina
+Changing zone_batchsize() to __init_refok fixes this.
+
+Signed-off-by: Paul Mundt <lethal@linux-sh.org>
+
+--
+
+ mm/page_alloc.c |    2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index bd8e335..5c312d6 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -1968,7 +1968,7 @@ void zone_init_free_lists(struct pglist_data *pgdat, struct zone *zone,
+ 	memmap_init_zone((size), (nid), (zone), (start_pfn), MEMMAP_EARLY)
+ #endif
+ 
+-static int __cpuinit zone_batchsize(struct zone *zone)
++static int __init_refok zone_batchsize(struct zone *zone)
+ {
+ 	int batch;
+ 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
