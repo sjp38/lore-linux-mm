@@ -1,37 +1,42 @@
-Date: Mon, 11 Jun 2007 16:42:33 -0700 (PDT)
+Date: Mon, 11 Jun 2007 16:45:30 -0700 (PDT)
 From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [PATCH][RFC] hugetlb: add per-node nr_hugepages sysfs attribute
-In-Reply-To: <20070611231314.GF14458@us.ibm.com>
-Message-ID: <Pine.LNX.4.64.0706111641160.24042@schroedinger.engr.sgi.com>
+Subject: Re: [PATCH v4] Add populated_map to account for memoryless nodes
+In-Reply-To: <20070611234155.GG14458@us.ibm.com>
+Message-ID: <Pine.LNX.4.64.0706111642450.24042@schroedinger.engr.sgi.com>
 References: <20070611202728.GD9920@us.ibm.com>
  <Pine.LNX.4.64.0706111417540.20454@schroedinger.engr.sgi.com>
  <20070611221036.GA14458@us.ibm.com> <Pine.LNX.4.64.0706111537250.20954@schroedinger.engr.sgi.com>
- <20070611225213.GB14458@us.ibm.com> <20070611230829.GC14458@us.ibm.com>
- <20070611231008.GD14458@us.ibm.com> <20070611231149.GE14458@us.ibm.com>
- <20070611231314.GF14458@us.ibm.com>
+ <20070611225213.GB14458@us.ibm.com> <Pine.LNX.4.64.0706111559490.21107@schroedinger.engr.sgi.com>
+ <20070611234155.GG14458@us.ibm.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Nishanth Aravamudan <nacc@us.ibm.com>
-Cc: lee.schermerhorn@hp.com, anton@samba.org, akpm@linux-foundation.org, linux-mm@kvack.org, wli@holomorphy.com
+Cc: lee.schermerhorn@hp.com, anton@samba.org, akpm@linux-foundation.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
 On Mon, 11 Jun 2007, Nishanth Aravamudan wrote:
 
->  }
->  static SYSDEV_ATTR(distance, S_IRUGO, node_read_distance, NULL);
->  
-> +#ifdef CONFIG_HUGETLB_PAGE
-> +static SYSDEV_ATTR(nr_hugepages, S_IRUGO | S_IWUSR,
-> +				hugetlb_read_nr_hugepages_node,
-> +				hugetlb_write_nr_hugepages_node);
-> +#endif
+> Eep, except that we don't initialize node_populated_mask unless we're
+> NUMA. Also, do you think it's worth adding the comment in mmzone.h that
+> now now NUMA policies depend on present_pages?
 
-Move the above to hugetlb.c?
+No need to initialize if we do not use it. You may to #ifdef it out
+by moving the definition. Please sent a diff against the earlier patch 
+since Andrew already merged it.
 
-Also so far there is nothing in the nodes directories that can be 
-modified. This is the first one. Is that really the right location?
+present_pages just indicates that there is memory on the node. So I am not 
+sure that this will help.
+
+> +
+> +	/*
+> +	 * record populated zones for use when INTERLEAVE'ing or using
+> +	 * GFP_THISNODE
+> +	 */
+
+There may be other purposes as well. No need to enumerate those here.
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
