@@ -1,44 +1,76 @@
-Date: Mon, 11 Jun 2007 09:57:59 -0700 (PDT)
+Date: Mon, 11 Jun 2007 09:42:14 -0700 (PDT)
 From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [PATCH 10 of 16] stop useless vm trashing while we wait the
- TIF_MEMDIE task to exit
-In-Reply-To: <20070611165032.GJ7443@v2.random>
-Message-ID: <Pine.LNX.4.64.0706110952001.16068@schroedinger.engr.sgi.com>
-References: <24250f0be1aa26e5c6e3.1181332988@v2.random>
- <Pine.LNX.4.64.0706081446200.3646@schroedinger.engr.sgi.com>
- <20070609015944.GL9380@v2.random> <Pine.LNX.4.64.0706082000370.5145@schroedinger.engr.sgi.com>
- <20070609140552.GA7130@v2.random> <20070609143852.GB7130@v2.random>
- <Pine.LNX.4.64.0706110905080.15326@schroedinger.engr.sgi.com>
- <20070611165032.GJ7443@v2.random>
+Subject: Re: [PATCH v2] gfp.h: GFP_THISNODE can go to other nodes if some
+ are unpopulated
+In-Reply-To: <Pine.LNX.4.64.0706110911080.15326@schroedinger.engr.sgi.com>
+Message-ID: <Pine.LNX.4.64.0706110926110.15868@schroedinger.engr.sgi.com>
+References: <20070607150425.GA15776@us.ibm.com>
+ <Pine.LNX.4.64.0706071103240.24988@schroedinger.engr.sgi.com>
+ <20070607220149.GC15776@us.ibm.com> <466D44C6.6080105@shadowen.org>
+ <Pine.LNX.4.64.0706110911080.15326@schroedinger.engr.sgi.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrea Arcangeli <andrea@suse.de>
-Cc: linux-mm@kvack.org
+To: Andy Whitcroft <apw@shadowen.org>
+Cc: Nishanth Aravamudan <nacc@us.ibm.com>, Lee.Schermerhorn@hp.com, ak@suse.de, anton@samba.org, mel@csn.ul.ie, akpm@linux-foundation.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 11 Jun 2007, Andrea Arcangeli wrote:
+On Mon, 11 Jun 2007, Christoph Lameter wrote:
 
-> On Mon, Jun 11, 2007 at 09:07:59AM -0700, Christoph Lameter wrote:
-> > Filtering tasks is a very expensive operation on huge systems. We have had 
-> 
-> Come on, oom_kill.c only happens at oom time, after the huge complex
-> processing has figured out it's time to call into oom_kill.c, how can
-> you care about the performance of oom_kill.c?  Apparently some folks
-> prefer to panic when oom triggers go figure...
+> Well maybe we better fix this? I put an effort into using only cachelines 
+> already used for GFP_THISNODE since this is in a very performance 
+> critical path but at that point I was not thinking that we 
+> would have memoryless nodes.
 
-Its pretty bad if a large system sits for hours just because it cannot 
-finish its OOM processing. We have reports of that taking 4 hours!
+Duh. Too bad. The node information is not available in __alloc_pages at 
+all. The only thing we have to go on is a zonelist. And the first element 
+of that zonelist must no longer be the node from which we picked up 
+the zonelist after memoryless nodes come into play.
 
-> In turn killing the current task so that oom_kill.c is faster, is
-> quite a dubious argument.
+We could check this for alloc_pages_node() and alloc_pages_current by 
+putting in some code into the place where we retrive the zonelist based on 
+the current policy.
 
-It avoids repeated scans over a super sized tasklist with heavy lock 
-contention. 4 loops for every OOM kill! If a number of processes will be 
-OOM killed then it will take hours to sort out the lock contention.
+And looking at that code I can see some more bad consequences of 
+memoryless nodes:
 
-Want this as a a SUSE bug?
+1. Interleave to the memoryless node will be redirected to the nearest
+   node to the memoryless node. This will typically result in the nearest
+   node getting double the allocations if interleave is set.
+
+   So interleave is basically broken. It will no longer spread out the
+   allocations properly.
+
+2. MPOL_BIND may allow allocations outside of the nodes specified.
+   It assumes that the first item of the zonelist of each node
+   is that zone.
+
+
+So we have a universal assumption in the VM that the first zone of a
+zonelist contains the local node. The current way of generating
+zonelists for memoryless zones is broken (unsurprisingly since the NUMA 
+handling was never designed to handle memoryless nodes).
+
+I think we can to fix all these troubles by adding a empty zone as
+a first zone in the zonelist if the node has no memory of its own.
+Then we need to make sure that we do the right thing of falling back 
+anytime these empty zones will be encountered.
+
+This will have the effect of
+
+1. GFP_THISNODE will fail since there is no memory in the empty zone.
+
+2. MPOL_BIND will not allocate on nodes outside of the specified set
+   since there will be an empty zone in the generated zonelist.
+
+3. Interleave will still hit an empty zones and fall back to the next.
+   We should add detection of memoryless nodes to mempoliy.c to skip
+   those nodes.
+
+
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
