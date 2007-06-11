@@ -1,61 +1,179 @@
-Received: from d03relay04.boulder.ibm.com (d03relay04.boulder.ibm.com [9.17.195.106])
-	by e34.co.us.ibm.com (8.13.8/8.13.8) with ESMTP id l5BKIWHX029733
-	for <linux-mm@kvack.org>; Mon, 11 Jun 2007 16:18:32 -0400
-Received: from d03av04.boulder.ibm.com (d03av04.boulder.ibm.com [9.17.195.170])
-	by d03relay04.boulder.ibm.com (8.13.8/8.13.8/NCO v8.3) with ESMTP id l5BKINKC058178
-	for <linux-mm@kvack.org>; Mon, 11 Jun 2007 14:18:23 -0600
-Received: from d03av04.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av04.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l5BKIMLR014602
-	for <linux-mm@kvack.org>; Mon, 11 Jun 2007 14:18:22 -0600
-Date: Mon, 11 Jun 2007 13:18:14 -0700
+Received: from d03relay02.boulder.ibm.com (d03relay02.boulder.ibm.com [9.17.195.227])
+	by e35.co.us.ibm.com (8.13.8/8.13.8) with ESMTP id l5BKRXH1030720
+	for <linux-mm@kvack.org>; Mon, 11 Jun 2007 16:27:33 -0400
+Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
+	by d03relay02.boulder.ibm.com (8.13.8/8.13.8/NCO v8.3) with ESMTP id l5BKRXaD266638
+	for <linux-mm@kvack.org>; Mon, 11 Jun 2007 14:27:33 -0600
+Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av02.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l5BKRXoI018204
+	for <linux-mm@kvack.org>; Mon, 11 Jun 2007 14:27:33 -0600
+Date: Mon, 11 Jun 2007 13:27:28 -0700
 From: Nishanth Aravamudan <nacc@us.ibm.com>
-Subject: Re: [PATCH v2] gfp.h: GFP_THISNODE can go to other nodes if some are unpopulated
-Message-ID: <20070611201814.GC9920@us.ibm.com>
-References: <20070607150425.GA15776@us.ibm.com> <Pine.LNX.4.64.0706071103240.24988@schroedinger.engr.sgi.com> <20070607220149.GC15776@us.ibm.com> <466D44C6.6080105@shadowen.org> <Pine.LNX.4.64.0706110911080.15326@schroedinger.engr.sgi.com> <Pine.LNX.4.64.0706110926110.15868@schroedinger.engr.sgi.com> <20070611171201.GB3798@us.ibm.com> <Pine.LNX.4.64.0706111122010.18327@schroedinger.engr.sgi.com> <20070611193646.GB9920@us.ibm.com> <Pine.LNX.4.64.0706111240470.19654@schroedinger.engr.sgi.com>
+Subject: [PATCH] Add populated_map to account for memoryless nodes
+Message-ID: <20070611202728.GD9920@us.ibm.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <Pine.LNX.4.64.0706111240470.19654@schroedinger.engr.sgi.com>
 Sender: owner-linux-mm@kvack.org
+From: Lee Schermerhorn <lee.schermerhorn@hp.com>
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
-Cc: Andy Whitcroft <apw@shadowen.org>, Lee.Schermerhorn@hp.com, ak@suse.de, anton@samba.org, mel@csn.ul.ie, akpm@linux-foundation.org, linux-mm@kvack.org
+To: clameter@sgi.com
+Cc: lee.schermerhorn@hp.com, anton@samba.org, akpm@linux-foundation.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 11.06.2007 [12:43:32 -0700], Christoph Lameter wrote:
-> On Mon, 11 Jun 2007, Nishanth Aravamudan wrote:
-> 
-> > So, I'm splitting up the populated_map patch in two, so that these bits
-> > or the hugetlbfs bits could be put on top of having that nodemask.
-> 
-> Well maybe just do a single populate_map patch first. We can easily review 
-> that and get it in. And it will be useful for multiple other patchsets.
+Split up Lee and Anton's original patch
+(http://marc.info/?l=linux-mm&m=118133042025995&w=2), to allow for the
+populated_map changes to go in on their own.
 
-Right, sorry, that's what I meant -- I was moving ahead to the other
-patches to make sure everything was sensible.
+Add a populated_map nodemask to indicate a node has memory or not. We
+have run into a number of issues (in practice and in code) with
+assumptions about every node having memory. Having this nodemask allows
+us to fix these issues; in particular, THISNODE allocations will come
+from the node specified, only, and the INTERLEAVE policy will be able to
+do the right thing with memoryless nodes.
 
-Will send out the populated_map patch ASAP.
+Signed-off-by: Lee Schermerhorn <lee.schermerhorn@hp.com>
+Signed-off-by: Anton Blanchard <anton@samba.org>
+Signed-off-by: Nishanth Aravamudan <nacc@us.ibm.com>
 
-> > *but*, if this change occurs in mempolicy.c, I think we still have a
-> > problem, where me->il_next could be initialized in do_set_mempolicy() to
-> > a memoryless node:
-> 
-> I thought that one misalloc would not be that problematic (hmmmm... unless 
-> its a hugetlb page on smallist NUMA system...)
+---
 
-Right -- it all depends...
+Andrew, sorry, typo'd your address in the previous series. Will be
+sending them out again, anyways...
 
-> > 	if (new && new->policy == MPOL_INTERLEAVE)
-> > 		current->il_next = first_node(new->v.nodes);
-> 
-> Hmmmm... We could also switch off the nodes in v.nodes? Then we do not
-> need any additional checks and the modifications to interleave() are
-> not necessary?
-
-Ah true, so that would happen at mpol_new() time. Makes sense.
-
-Thanks,
-Nish
+diff --git a/include/linux/nodemask.h b/include/linux/nodemask.h
+index 52c54a5..751d3d7 100644
+--- a/include/linux/nodemask.h
++++ b/include/linux/nodemask.h
+@@ -64,12 +64,16 @@
+  *
+  * int node_online(node)		Is some node online?
+  * int node_possible(node)		Is some node possible?
++ * int node_populated(node)		Is some node populated [at policy_zone]
+  *
+  * int any_online_node(mask)		First online node in mask
+  *
+  * node_set_online(node)		set bit 'node' in node_online_map
+  * node_set_offline(node)		clear bit 'node' in node_online_map
+  *
++ * node_set_populated(node)		set bit 'node' in node_populated_map
++ * node_not_populated(node)		clear bit 'node' in node_populated_map
++ *
+  * for_each_node(node)			for-loop node over node_possible_map
+  * for_each_online_node(node)		for-loop node over node_online_map
+  *
+@@ -344,12 +348,14 @@ static inline void __nodes_remap(nodemask_t *dstp, const nodemask_t *srcp,
+ 
+ extern nodemask_t node_online_map;
+ extern nodemask_t node_possible_map;
++extern nodemask_t node_populated_map;
+ 
+ #if MAX_NUMNODES > 1
+ #define num_online_nodes()	nodes_weight(node_online_map)
+ #define num_possible_nodes()	nodes_weight(node_possible_map)
+ #define node_online(node)	node_isset((node), node_online_map)
+ #define node_possible(node)	node_isset((node), node_possible_map)
++#define node_populated(node)	node_isset((node), node_populated_map)
+ #define first_online_node	first_node(node_online_map)
+ #define next_online_node(nid)	next_node((nid), node_online_map)
+ extern int nr_node_ids;
+@@ -358,6 +364,7 @@ extern int nr_node_ids;
+ #define num_possible_nodes()	1
+ #define node_online(node)	((node) == 0)
+ #define node_possible(node)	((node) == 0)
++#define node_populated(node)	((node) == 0)
+ #define first_online_node	0
+ #define next_online_node(nid)	(MAX_NUMNODES)
+ #define nr_node_ids		1
+@@ -375,6 +382,9 @@ extern int nr_node_ids;
+ #define node_set_online(node)	   set_bit((node), node_online_map.bits)
+ #define node_set_offline(node)	   clear_bit((node), node_online_map.bits)
+ 
++#define node_set_populated(node)   set_bit((node), node_populated_map.bits)
++#define node_not_populated(node)   clear_bit((node), node_populated_map.bits)
++
+ #define for_each_node(node)	   for_each_node_mask((node), node_possible_map)
+ #define for_each_online_node(node) for_each_node_mask((node), node_online_map)
+ 
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index 07cd5ae..8eea4ff 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -54,6 +54,9 @@ nodemask_t node_online_map __read_mostly = { { [0] = 1UL } };
+ EXPORT_SYMBOL(node_online_map);
+ nodemask_t node_possible_map __read_mostly = NODE_MASK_ALL;
+ EXPORT_SYMBOL(node_possible_map);
++nodemask_t node_populated_map __read_mostly = NODE_MASK_NONE;
++EXPORT_SYMBOL(node_populated_map);
++
+ unsigned long totalram_pages __read_mostly;
+ unsigned long totalreserve_pages __read_mostly;
+ long nr_swap_pages;
+@@ -2161,7 +2164,7 @@ static int node_order[MAX_NUMNODES];
+ static void build_zonelists_in_zone_order(pg_data_t *pgdat, int nr_nodes)
+ {
+ 	enum zone_type i;
+-	int pos, j, node;
++	int pos, j;
+ 	int zone_type;		/* needs to be signed */
+ 	struct zone *z;
+ 	struct zonelist *zonelist;
+@@ -2171,7 +2174,7 @@ static void build_zonelists_in_zone_order(pg_data_t *pgdat, int nr_nodes)
+ 		pos = 0;
+ 		for (zone_type = i; zone_type >= 0; zone_type--) {
+ 			for (j = 0; j < nr_nodes; j++) {
+-				node = node_order[j];
++				int node = node_order[j];
+ 				z = &NODE_DATA(node)->node_zones[zone_type];
+ 				if (populated_zone(z)) {
+ 					zonelist->zones[pos++] = z;
+@@ -2244,6 +2247,22 @@ static void set_zonelist_order(void)
+ 		current_zonelist_order = user_zonelist_order;
+ }
+ 
++/*
++ * setup_populate_map() - record nodes whose "policy_zone" is "on-node".
++ */
++static void setup_populated_map(int nid)
++{
++	pg_data_t *pgdat = NODE_DATA(nid);
++	struct zonelist *zl = pgdat->node_zonelists + policy_zone;
++	struct zone *z = zl->zones[0];
++
++	VM_BUG_ON(!z);
++	if (z->zone_pgdat == pgdat)
++		node_set_populated(nid);
++	else
++		node_not_populated(nid);
++}
++
+ static void build_zonelists(pg_data_t *pgdat)
+ {
+ 	int j, node, load;
+@@ -2327,6 +2346,15 @@ static void set_zonelist_order(void)
+ 	current_zonelist_order = ZONELIST_ORDER_ZONE;
+ }
+ 
++/*
++ * setup_populated_map - non-NUMA case
++ * Only node 0 should be on-line, and it MUST be populated!
++ */
++static void setup_populated_map(int nid)
++{
++	node_set_populated(nid);
++}
++
+ static void build_zonelists(pg_data_t *pgdat)
+ {
+ 	int node, local_node;
+@@ -2381,6 +2409,7 @@ static int __build_all_zonelists(void *dummy)
+ 	for_each_online_node(nid) {
+ 		build_zonelists(NODE_DATA(nid));
+ 		build_zonelist_cache(NODE_DATA(nid));
++		setup_populated_map(nid);
+ 	}
+ 	return 0;
+ }
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
