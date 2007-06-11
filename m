@@ -1,69 +1,77 @@
-Message-ID: <466D6312.2010302@redhat.com>
-Date: Mon, 11 Jun 2007 10:58:26 -0400
-From: Rik van Riel <riel@redhat.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH 01 of 16] remove nr_scan_inactive/active
-References: <8e38f7656968417dfee0.1181332979@v2.random> <466C36AE.3000101@redhat.com> <20070610181700.GC7443@v2.random>
-In-Reply-To: <20070610181700.GC7443@v2.random>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Date: Mon, 11 Jun 2007 08:27:32 -0700
+From: Randy Dunlap <randy.dunlap@oracle.com>
+Subject: Re: mm: memory/cpu hotplug section mismatch.
+Message-Id: <20070611082732.70018522.randy.dunlap@oracle.com>
+In-Reply-To: <20070611050955.GA23215@linux-sh.org>
+References: <20070611043543.GA22910@linux-sh.org>
+	<20070611140145.05726c0f.kamezawa.hiroyu@jp.fujitsu.com>
+	<20070611050955.GA23215@linux-sh.org>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrea Arcangeli <andrea@suse.de>
-Cc: linux-mm@kvack.org
+To: Paul Mundt <lethal@linux-sh.org>
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Sam Ravnborg <sam@ravnborg.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-Andrea Arcangeli wrote:
-> On Sun, Jun 10, 2007 at 01:36:46PM -0400, Rik van Riel wrote:
->> Andrea Arcangeli wrote:
->>
->>> -	else
->>> +	nr_inactive = zone_page_state(zone, NR_INACTIVE) >> priority;
->>> +	if (nr_inactive < sc->swap_cluster_max)
->>> 		nr_inactive = 0;
->> This is a problem.
->>
->> On workloads with lots of anonymous memory, for example
->> running a very large JVM or simply stressing the system
->> with AIM7, the inactive list can be very small.
->>
->> If dozens (or even hundreds) of tasks get into the
->> pageout code simultaneously, they will all spend a lot
->> of time moving pages from the active to the inactive
->> list, but they will not even try to free any of the
->> (few) inactive pages the system has!
->>
->> We have observed systems in stress tests that spent
->> well over 10 minutes in shrink_active_list before
->> the first call to shrink_inactive_list was made.
->>
->> Your code looks like it could exacerbate that situation,
->> by not having zone->nr_scan_inactive increment between
->> calls.
+On Mon, 11 Jun 2007 14:09:55 +0900 Paul Mundt wrote:
+
+> On Mon, Jun 11, 2007 at 02:01:45PM +0900, KAMEZAWA Hiroyuki wrote:
+> > On Mon, 11 Jun 2007 13:35:43 +0900
+> > Paul Mundt <lethal@linux-sh.org> wrote:
+> > 
+> > > When building with memory hotplug enabled and cpu hotplug disabled, we
+> > > end up with the following section mismatch:
+> > > 
+> > > WARNING: mm/built-in.o(.text+0x4e58): Section mismatch: reference to
+> > > .init.text: (between 'free_area_init_node' and '__build_all_zonelists')
+> > > 
+> > > This happens as a result of:
+> > > 
+> > > 	-> free_area_init_node()
+> > > 	  -> free_area_init_core()
+> > > 	    -> zone_pcp_init() <-- all __meminit up to this point
+> > > 	      -> zone_batchsize() <-- marked as __cpuinit
+> > > 
+> > > This happens because CONFIG_HOTPLUG_CPU=n sets __cpuinit to __init, but
+> > > CONFIG_MEMORY_HOTPLUG=y unsets __meminit.
+> > > 
+> > > Changing zone_batchsize() to __init_refok fixes this.
+> > > 
+> > 
+> > It seems this zone_batchsize() is called by cpu-hotplug and memory-hotplug.
+> > So, __init_refok doesn't look good, here.
+> > 
+> > maybe we can use __devinit here. (Because HOTPLUG_CPU and MEMORY_HOTPLUG are
+> > depend on CONFIG_HOTPLUG.)
+> > 
+> Yes, that's probably a more reasonable way to go. The __devinit name is a
+> bit misleading, though..
+
+__meminit does not fit/work here?
+
+
+> --
 > 
-> If all tasks spend 10 minutes in shrink_active_list before the first
-> call to shrink_inactive_list that could mean you hit the race that I'm
-> just trying to fix with this very patch. (i.e. nr_*active going
-> totally huge because of the race triggering,
+> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> index bd8e335..05ace44 100644
+> --- a/mm/page_alloc.c
+> +++ b/mm/page_alloc.c
+> @@ -1968,7 +1968,7 @@ void zone_init_free_lists(struct pglist_data *pgdat, struct zone *zone,
+>  	memmap_init_zone((size), (nid), (zone), (start_pfn), MEMMAP_EARLY)
+>  #endif
+>  
+> -static int __cpuinit zone_batchsize(struct zone *zone)
+> +static int __devinit zone_batchsize(struct zone *zone)
+>  {
+>  	int batch;
+>  
 
-Nope.  In this case it spends its time in shrink_active_list
-because the active list is 99% of memory (several GB) while
-the inactive list is so small that nr_inactive_pages >> priority
-is zero.
 
-> Normally if the highest priority passes only calls into
-> shrink_active_list that's because the two lists needs rebalancing. But
-> I fail to see how it could ever take 10min for the first
-> shrink_inactive_list to trigger with my patch applied, while if it
-> happens in current vanilla that could be the race triggering, or
-> anyway something unrelated is going wrong in the VM.
-
-Yeah, I have no real objection to your patch, but was
-just pointing out that it does not fix the big problem
-with this code.
-
--- 
-All Rights Reversed
+---
+~Randy
+*** Remember to use Documentation/SubmitChecklist when testing your code ***
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
