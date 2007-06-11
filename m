@@ -1,45 +1,123 @@
-Date: Mon, 11 Jun 2007 11:40:48 -0700 (PDT)
-From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [PATCH v2] gfp.h: GFP_THISNODE can go to other nodes if some
- are unpopulated
-In-Reply-To: <1181586222.8324.78.camel@localhost>
-Message-ID: <Pine.LNX.4.64.0706111139370.18327@schroedinger.engr.sgi.com>
-References: <20070607150425.GA15776@us.ibm.com>
- <Pine.LNX.4.64.0706071103240.24988@schroedinger.engr.sgi.com>
- <20070607220149.GC15776@us.ibm.com> <466D44C6.6080105@shadowen.org>
- <Pine.LNX.4.64.0706110911080.15326@schroedinger.engr.sgi.com>
- <Pine.LNX.4.64.0706110926110.15868@schroedinger.engr.sgi.com>
- <1181586222.8324.78.camel@localhost>
+Received: from d01relay02.pok.ibm.com (d01relay02.pok.ibm.com [9.56.227.234])
+	by e6.ny.us.ibm.com (8.13.8/8.13.8) with ESMTP id l5BIm7VH015194
+	for <linux-mm@kvack.org>; Mon, 11 Jun 2007 14:48:07 -0400
+Received: from d01av01.pok.ibm.com (d01av01.pok.ibm.com [9.56.224.215])
+	by d01relay02.pok.ibm.com (8.13.8/8.13.8/NCO v8.3) with ESMTP id l5BIl1eW533716
+	for <linux-mm@kvack.org>; Mon, 11 Jun 2007 14:47:01 -0400
+Received: from d01av01.pok.ibm.com (loopback [127.0.0.1])
+	by d01av01.pok.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l5BIl0lk010959
+	for <linux-mm@kvack.org>; Mon, 11 Jun 2007 14:47:01 -0400
+Date: Mon, 11 Jun 2007 11:46:56 -0700
+From: Nishanth Aravamudan <nacc@us.ibm.com>
+Subject: Re: [PATCH v2] gfp.h: GFP_THISNODE can go to other nodes if some are unpopulated
+Message-ID: <20070611184656.GA9920@us.ibm.com>
+References: <20070607150425.GA15776@us.ibm.com> <Pine.LNX.4.64.0706071103240.24988@schroedinger.engr.sgi.com> <20070607220149.GC15776@us.ibm.com> <466D44C6.6080105@shadowen.org> <Pine.LNX.4.64.0706110911080.15326@schroedinger.engr.sgi.com> <Pine.LNX.4.64.0706110926110.15868@schroedinger.engr.sgi.com> <20070611171201.GB3798@us.ibm.com> <Pine.LNX.4.64.0706111122010.18327@schroedinger.engr.sgi.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <Pine.LNX.4.64.0706111122010.18327@schroedinger.engr.sgi.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
-Cc: Andy Whitcroft <apw@shadowen.org>, Nishanth Aravamudan <nacc@us.ibm.com>, ak@suse.de, anton@samba.org, mel@csn.ul.ie, akpm@linux-foundation.org, linux-mm@kvack.org
+To: Christoph Lameter <clameter@sgi.com>
+Cc: Andy Whitcroft <apw@shadowen.org>, Lee.Schermerhorn@hp.com, ak@suse.de, anton@samba.org, mel@csn.ul.ie, akpm@linux-foundation.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 11 Jun 2007, Lee Schermerhorn wrote:
+On 11.06.2007 [11:29:14 -0700], Christoph Lameter wrote:
+> On Mon, 11 Jun 2007, Nishanth Aravamudan wrote:
+> 
+> > These are the exact semantics, I expected. so I'll be happy to test/work
+> > on these fixes.
+> > 
+> > This would also make it unnecessary to add the populated checks in
+> > various places, I think, as THISNODE will mean ONLYTHISNODE (and perhaps
+> > should be renamed in the series).
+> 
+> Here is a draft on how this could work:
+> 
+> It seems that MPOL_BIND already has the fixes needed. Adding empty zones 
+> does not look that easy. 
+> So I added a check interleave_nodes to verify that the selected node has
+> memory. If not skip it.
+> 
+> This does not work for the address based interleaving for anonymous vmas.
+> I am not sure what to do there. We could change the calculation of the
+> node to be based only on nodes with memory and then skip the memoryless 
+> ones. I have only added a comment to describe its brokennes for now.
+> 
+> Then there is the original issue of GFP_THISNODE. I added a check in 
+> alloc_pages_node to verify that the node has memory. If not then fail.
+> This will fix the alloc_pages_node case but not the alloc_pages() case.
+> 
+> In the alloc_pages() case we do not specify a node. Implicitly it is 
+> understood that we (in the case of no memory policy / cpuset options) 
+> allocate from the nearest node. So it may be argued there that the 
+> GFP_THISNODE behavior of taking the first node from the zonelist is okay.
+> 
+> There is some reason to worry about the performance impact from adding the 
+> check in alloc_pages_node and interleave. If the code is left in 
+> alloc_pages_node then alloc_pages_node should be uninlined and moved to 
+> mempolicy.c
+> 
+> Index: linux-2.6/mm/mempolicy.c
+> ===================================================================
+> --- linux-2.6.orig/mm/mempolicy.c	2007-06-11 11:13:09.000000000 -0700
+> +++ linux-2.6/mm/mempolicy.c	2007-06-11 11:19:03.000000000 -0700
+> @@ -1125,9 +1125,11 @@ static unsigned interleave_nodes(struct 
+>  	struct task_struct *me = current;
+> 
+>  	nid = me->il_next;
+> -	next = next_node(nid, policy->v.nodes);
+> -	if (next >= MAX_NUMNODES)
+> -		next = first_node(policy->v.nodes);
+> +	do {
+> +		next = next_node(nid, policy->v.nodes);
+> +		if (next >= MAX_NUMNODES)
+> +			next = first_node(policy->v.nodes);
+> +	} while (!NODE_DATA(node)->present_pages);
 
-> When the hugepages patch was evolving, I suggested that we might want to
-> export the "populated map" to applications so that they could ask to
-> bind to or interleave across only populated nodes.  We never pursued
-> that.  Maybe just eliminate nodes that are unpopulated in the "policy
-> zone" from the node masks for MPOL_BIND and MPOL_INTERLEAVE in the
-> system calls?  Saves checking the populated node set in the allocation
-> paths.  Would need appropriate error return if this resulted in empty
-> nodemask.
+If something like Lee/Anton's patch were to go in (which, as Lee pointed
+out, I refreshed as Patch 1/3 in the series I posted a few days ago),
+this would be
 
-That would work for the MPOL_BIND case since it has a zonelist. However, 
-MPOL_INTERLEAVE does not have a zonelist. I think we need the populated 
-map for interleave. The hacky way in how I checked for an unpopulated 
-node in the patch just posted is not that effective.
+	while(!node_populated(nid))
 
-> Of course, memory hotplug could result in nodes becoming empty after the
-> nodemasks are adjusted, so we probably can't avoid checks in the
-> allocation paths if we want to avoid the bind and interleave issues you
-> mention above.
+>  	me->il_next = next;
+>  	return nid;
+>  }
+> @@ -1191,6 +1193,11 @@ static inline unsigned interleave_nid(st
+>  		 * for huge pages, since vm_pgoff is in units of small
+>  		 * pages, we need to shift off the always 0 bits to get
+>  		 * a useful offset.
+> +		 *
+> +		 * For configurations with memoryless nodes this is broken
+> +		 * since the allocation attempts on that node will fall
+> +		 * back to other nodes and thus one neighboring node
+> +		 * will be overallocated from.
+>  		 */
+>  		BUG_ON(shift < PAGE_SHIFT);
+>  		off = vma->vm_pgoff >> (shift - PAGE_SHIFT);
+> Index: linux-2.6/include/linux/gfp.h
+> ===================================================================
+> --- linux-2.6.orig/include/linux/gfp.h	2007-06-11 11:19:32.000000000 -0700
+> +++ linux-2.6/include/linux/gfp.h	2007-06-11 11:21:33.000000000 -0700
+> @@ -134,6 +134,9 @@ static inline struct page *alloc_pages_n
+>  	if (nid < 0)
+>  		nid = numa_node_id();
+> 
+> +	if ((gfp_mask & __GFP_THISNODE) && !NODE_DATA(nid)->present_pages)
+> +		return NULL;
+> +
 
-Right.
+similarly,
+
+	if ((gfp_mask & __GFP_THISNODE) && !node_populated(nid))
+
+Presuming I understand everything correctly. Not sure which would be
+preferred, or if perhaps node_populated, rather than using a nodemask
+should just use NODE_DATA(nid)->present_pages?
+
+Thanks,
+Nish
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
