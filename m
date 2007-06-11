@@ -1,72 +1,45 @@
-Received: from d03relay02.boulder.ibm.com (d03relay02.boulder.ibm.com [9.17.195.227])
-	by e35.co.us.ibm.com (8.13.8/8.13.8) with ESMTP id l5BJsnqF021857
-	for <linux-mm@kvack.org>; Mon, 11 Jun 2007 15:54:49 -0400
-Received: from d03av01.boulder.ibm.com (d03av01.boulder.ibm.com [9.17.195.167])
-	by d03relay02.boulder.ibm.com (8.13.8/8.13.8/NCO v8.3) with ESMTP id l5BJsaKW161100
-	for <linux-mm@kvack.org>; Mon, 11 Jun 2007 13:54:41 -0600
-Received: from d03av01.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av01.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l5BJsZf4021267
-	for <linux-mm@kvack.org>; Mon, 11 Jun 2007 13:54:35 -0600
-Subject: Re: [PATCH] shm: Fix the filename of hugetlb sysv shared memory
-From: Badari Pulavarty <pbadari@us.ibm.com>
-In-Reply-To: <20070611111111.2345470d.akpm@linux-foundation.org>
-References: <787b0d920706062027s5a8fd35q752f8da5d446afc@mail.gmail.com>
-	 <20070606204432.b670a7b1.akpm@linux-foundation.org>
-	 <787b0d920706062153u7ad64179p1c4f3f663c3882f@mail.gmail.com>
-	 <20070607162004.GA27802@vino.hallyn.com>
-	 <m1ir9zrtwe.fsf@ebiederm.dsl.xmission.com> <46697EDA.9000209@us.ibm.com>
-	 <m1vedyqaft.fsf_-_@ebiederm.dsl.xmission.com>
-	 <20070611111111.2345470d.akpm@linux-foundation.org>
-Content-Type: text/plain
-Date: Mon, 11 Jun 2007 12:55:33 -0700
-Message-Id: <1181591733.22665.5.camel@dyn9047017100.beaverton.ibm.com>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Date: Mon, 11 Jun 2007 12:43:32 -0700 (PDT)
+From: Christoph Lameter <clameter@sgi.com>
+Subject: Re: [PATCH v2] gfp.h: GFP_THISNODE can go to other nodes if some
+ are unpopulated
+In-Reply-To: <20070611193646.GB9920@us.ibm.com>
+Message-ID: <Pine.LNX.4.64.0706111240470.19654@schroedinger.engr.sgi.com>
+References: <20070607150425.GA15776@us.ibm.com>
+ <Pine.LNX.4.64.0706071103240.24988@schroedinger.engr.sgi.com>
+ <20070607220149.GC15776@us.ibm.com> <466D44C6.6080105@shadowen.org>
+ <Pine.LNX.4.64.0706110911080.15326@schroedinger.engr.sgi.com>
+ <Pine.LNX.4.64.0706110926110.15868@schroedinger.engr.sgi.com>
+ <20070611171201.GB3798@us.ibm.com> <Pine.LNX.4.64.0706111122010.18327@schroedinger.engr.sgi.com>
+ <20070611193646.GB9920@us.ibm.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: "Eric W. Biederman" <ebiederm@xmission.com>, "Serge E. Hallyn" <serge@hallyn.com>, Albert Cahalan <acahalan@gmail.com>, lkml <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, torvalds@linux-foundation.org
+To: Nishanth Aravamudan <nacc@us.ibm.com>
+Cc: Andy Whitcroft <apw@shadowen.org>, Lee.Schermerhorn@hp.com, ak@suse.de, anton@samba.org, mel@csn.ul.ie, akpm@linux-foundation.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 2007-06-11 at 11:11 -0700, Andrew Morton wrote:
-> On Fri, 08 Jun 2007 17:43:34 -0600
-> ebiederm@xmission.com (Eric W. Biederman) wrote:
-> 
-> > Some user space tools need to identify SYSV shared memory when
-> > examining /proc/<pid>/maps.  To do so they look for a block device
-> > with major zero, a dentry named SYSV<sysv key>, and having the minor of
-> > the internal sysv shared memory kernel mount.
-> > 
-> > To help these tools and to make it easier for people just browsing
-> > /proc/<pid>/maps this patch modifies hugetlb sysv shared memory to
-> > use the SYSV<key> dentry naming convention.
-> > 
-> > User space tools will still have to be aware that hugetlb sysv
-> > shared memory lives on a different internal kernel mount and so
-> > has a different block device minor number from the rest of sysv
-> > shared memory.
-> 
-> So..  I am sitting here believing that this patch and Badari's
-> restore-shmid-as-inode-to-fix-proc-pid-maps-abi-breakage.patch are both
-> needed in 2.6.22 and that they will fix all these issues up.
-> 
-> If that is untrue, someone please let us know..
+On Mon, 11 Jun 2007, Nishanth Aravamudan wrote:
 
-Andrew,
+> So, I'm splitting up the populated_map patch in two, so that these bits
+> or the hugetlbfs bits could be put on top of having that nodemask.
 
-My restore-shmid-as-inode-to-fix-proc-pid-maps-abi-breakage.patch is
-definitely needed for 2.6.22 to fix ABI issue.
+Well maybe just do a single populate_map patch first. We can easily review 
+that and get it in. And it will be useful for multiple other patchsets.
 
-Eric's patch goes beyond and provides same naming convention for
-hugetlbfs backed shm segs (which we never did in the past). So,
-its not absolutely need for 2.6.22. You can queue up for next 
-release,  unless Albert really wants to extend proc-ps utils for
-hugetlbfs segments too.
+> *but*, if this change occurs in mempolicy.c, I think we still have a
+> problem, where me->il_next could be initialized in do_set_mempolicy() to
+> a memoryless node:
 
-But, its very simple patch - you might as well push this too.
+I thought that one misalloc would not be that problematic (hmmmm... unless 
+its a hugetlb page on smallist NUMA system...)
 
-Thanks,
-Badari
+> 	if (new && new->policy == MPOL_INTERLEAVE)
+> 		current->il_next = first_node(new->v.nodes);
+
+Hmmmm... We could also switch off the nodes in v.nodes? Then we do not 
+need any additional checks and the modifications to interleave() are not 
+necessary?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
