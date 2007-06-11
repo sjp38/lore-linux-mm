@@ -1,52 +1,46 @@
-Date: Tue, 12 Jun 2007 00:44:28 +0900
-From: Paul Mundt <lethal@linux-sh.org>
-Subject: Re: mm: memory/cpu hotplug section mismatch.
-Message-ID: <20070611154428.GA27644@linux-sh.org>
-References: <20070611043543.GA22910@linux-sh.org> <20070611140145.05726c0f.kamezawa.hiroyu@jp.fujitsu.com> <20070611050955.GA23215@linux-sh.org> <20070611082732.70018522.randy.dunlap@oracle.com>
+Date: Mon, 11 Jun 2007 09:04:14 -0700 (PDT)
+From: Christoph Lameter <clameter@sgi.com>
+Subject: Re: [PATCH 10 of 16] stop useless vm trashing while we wait the
+ TIF_MEMDIE task to exit
+In-Reply-To: <20070609140552.GA7130@v2.random>
+Message-ID: <Pine.LNX.4.64.0706110901530.15326@schroedinger.engr.sgi.com>
+References: <24250f0be1aa26e5c6e3.1181332988@v2.random>
+ <Pine.LNX.4.64.0706081446200.3646@schroedinger.engr.sgi.com>
+ <20070609015944.GL9380@v2.random> <Pine.LNX.4.64.0706082000370.5145@schroedinger.engr.sgi.com>
+ <20070609140552.GA7130@v2.random>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20070611082732.70018522.randy.dunlap@oracle.com>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Randy Dunlap <randy.dunlap@oracle.com>
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Sam Ravnborg <sam@ravnborg.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Andrea Arcangeli <andrea@suse.de>
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Jun 11, 2007 at 08:27:32AM -0700, Randy Dunlap wrote:
-> On Mon, 11 Jun 2007 14:09:55 +0900 Paul Mundt wrote:
-> > On Mon, Jun 11, 2007 at 02:01:45PM +0900, KAMEZAWA Hiroyuki wrote:
-> > > On Mon, 11 Jun 2007 13:35:43 +0900
-> > > Paul Mundt <lethal@linux-sh.org> wrote:
-> > > > This happens because CONFIG_HOTPLUG_CPU=n sets __cpuinit to __init, but
-> > > > CONFIG_MEMORY_HOTPLUG=y unsets __meminit.
-> > > 
-> > > It seems this zone_batchsize() is called by cpu-hotplug and
-> > > memory-hotplug.  So, __init_refok doesn't look good, here.
-> > > 
-> > > maybe we can use __devinit here. (Because HOTPLUG_CPU and
-> > > MEMORY_HOTPLUG are depend on CONFIG_HOTPLUG.)
-> > > 
-> > Yes, that's probably a more reasonable way to go. The __devinit name is a
-> > bit misleading, though..
-> 
-> __meminit does not fit/work here?
-> 
-No, for the reasons already noted.
+On Sat, 9 Jun 2007, Andrea Arcangeli wrote:
 
-If CONFIG_MEMORY_HOTPLUG=n __meminit == __init, and if
-CONFIG_HOTPLUG_CPU=n __cpuinit == __init. However, with one set and the
-other disabled, you end up with a reference between __init and a regular
-non-init function.
+> I just showed the global flag that is being checked. TIF_MEMDIE
+> affects the whole system, not just your node-constrained allocating
 
-CONFIG_HOTPLUG is the only thing that they both have in common, so only
-__devinit will gaurantee the proper behaviour. __init_refok is the
-opposite of the behaviour that is desired, as Kamezawa-san was quick to
-point out.
+TIF_MEMDIE affects the task that attempted to perform an constrained 
+allocation. The effects are global for that task but there are not as 
+severe as setting a global OOM flag!
 
-Simply switching to __meminit will cause zone_batchlist() to emit a
-section mismatch on CONFIG_HOTPLUG_CPU=y and CONFIG_MEMORY_HOTPLUG=n
-configurations instead of the other way around.
+> Amittedly my fixes made things worse for your "local" oom killing, but
+> your code was only apparently "local" because TIF_MEMDIE is a _global_
+> flag in the mainline kernel. So again, I'm very willing to improve the
+
+TIF_MEMDIE is confined to a process.
+
+> local one. I didn't look into the details of the local oom killing yet
+> (exactly because it wasn't so local in the first place) but it may be
+> enough to set VM_is_OOM only for tasks that are not being locally
+> killed and then those new changes will automatically prevent
+> TIF_MEMDIE being set on a local-oom to affect the global-oom event.
+
+TIF_MEMDIE must be set in order for the task to die properly even if its a 
+constrained allocation because TIF_MEMDIE relaxes the constraints so that 
+the task can terminate.
+ 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
