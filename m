@@ -1,74 +1,51 @@
-Received: from d03relay02.boulder.ibm.com (d03relay02.boulder.ibm.com [9.17.195.227])
-	by e35.co.us.ibm.com (8.13.8/8.13.8) with ESMTP id l5C3UrjP027498
-	for <linux-mm@kvack.org>; Mon, 11 Jun 2007 23:30:53 -0400
-Received: from d03av04.boulder.ibm.com (d03av04.boulder.ibm.com [9.17.195.170])
-	by d03relay02.boulder.ibm.com (8.13.8/8.13.8/NCO v8.3) with ESMTP id l5C3UrPD251792
-	for <linux-mm@kvack.org>; Mon, 11 Jun 2007 21:30:53 -0600
-Received: from d03av04.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av04.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l5C3UrKp023568
-	for <linux-mm@kvack.org>; Mon, 11 Jun 2007 21:30:53 -0600
-Date: Mon, 11 Jun 2007 20:30:50 -0700
+Received: from d01relay04.pok.ibm.com (d01relay04.pok.ibm.com [9.56.227.236])
+	by e1.ny.us.ibm.com (8.13.8/8.13.8) with ESMTP id l5C3VcH3020026
+	for <linux-mm@kvack.org>; Mon, 11 Jun 2007 23:31:38 -0400
+Received: from d01av03.pok.ibm.com (d01av03.pok.ibm.com [9.56.224.217])
+	by d01relay04.pok.ibm.com (8.13.8/8.13.8/NCO v8.3) with ESMTP id l5C3VcUr531406
+	for <linux-mm@kvack.org>; Mon, 11 Jun 2007 23:31:38 -0400
+Received: from d01av03.pok.ibm.com (loopback [127.0.0.1])
+	by d01av03.pok.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l5C3VbA7022395
+	for <linux-mm@kvack.org>; Mon, 11 Jun 2007 23:31:38 -0400
+Date: Mon, 11 Jun 2007 20:31:35 -0700
 From: Nishanth Aravamudan <nacc@us.ibm.com>
-Subject: Re: [PATCH v6][RFC] Fix hugetlb pool allocation with empty nodes
-Message-ID: <20070612033050.GR3798@us.ibm.com>
-References: <Pine.LNX.4.64.0706111615450.23857@schroedinger.engr.sgi.com> <20070612001542.GJ14458@us.ibm.com> <Pine.LNX.4.64.0706111745491.24389@schroedinger.engr.sgi.com> <20070612021245.GH3798@us.ibm.com> <Pine.LNX.4.64.0706111921370.25134@schroedinger.engr.sgi.com> <Pine.LNX.4.64.0706111923580.25207@schroedinger.engr.sgi.com> <20070612023421.GL3798@us.ibm.com> <Pine.LNX.4.64.0706111954360.25390@schroedinger.engr.sgi.com> <20070612031718.GP3798@us.ibm.com> <Pine.LNX.4.64.0706112018260.25631@schroedinger.engr.sgi.com>
+Subject: Re: [PATCH] populated_map: fix !NUMA case, remove comment
+Message-ID: <20070612033135.GS3798@us.ibm.com>
+References: <20070611234155.GG14458@us.ibm.com> <Pine.LNX.4.64.0706111642450.24042@schroedinger.engr.sgi.com> <20070612000705.GH14458@us.ibm.com> <Pine.LNX.4.64.0706111740280.24389@schroedinger.engr.sgi.com> <20070612020257.GF3798@us.ibm.com> <Pine.LNX.4.64.0706111919450.25134@schroedinger.engr.sgi.com> <20070612023209.GJ3798@us.ibm.com> <Pine.LNX.4.64.0706111953220.25390@schroedinger.engr.sgi.com> <20070612032055.GQ3798@us.ibm.com> <Pine.LNX.4.64.0706112021180.25705@schroedinger.engr.sgi.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <Pine.LNX.4.64.0706112018260.25631@schroedinger.engr.sgi.com>
+In-Reply-To: <Pine.LNX.4.64.0706112021180.25705@schroedinger.engr.sgi.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Christoph Lameter <clameter@sgi.com>
-Cc: linux-mm@kvack.org
+Cc: lee.schermerhorn@hp.com, anton@samba.org, akpm@linux-foundation.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 11.06.2007 [20:19:24 -0700], Christoph Lameter wrote:
+On 11.06.2007 [20:21:58 -0700], Christoph Lameter wrote:
 > On Mon, 11 Jun 2007, Nishanth Aravamudan wrote:
 > 
-> > > Ahh did not see that. Can you not call simply into interleave() from 
-> > > mempolicy.c? It will get you the counter that you need.
+> > > I am not sure what you are up to. Just make sure that the changes are
+> > > minimal. Look in the source code for other examples on how !NUMA
+> > > situations were handled.
 > > 
-> > You just told me that mempolicy.c is built conditionally on NUMA.
-> > alloc_fresh_huge_page() is not, it only depeonds on CONFIG_HUGETLB_PAGE!
+> > I swear I'm trying to make the code do the right thing, and understand
+> > the NUMA intricacies better. Sorry for the flood of e-mails and such. I
+> > asked about specific other cases because they are used in !NUMA
+> > situations too and I wasn't sure why node_populated_map should be
+> > different.
+> > 
+> > But ok, I will rely on the source to be correct and make my changelog
+> > indicate where I got the ideas from.
 > 
-> Well you just need to have the appropriate fallbacks defined in
-> mempolicy.h
+> Ok. I just hope this crash course in Linux NUMA is useful and you keep on 
+> working on NUMA....
 
-Ok, I understand that.
+I'll try, at least.
 
-> > The only interleave functions I see in mempolicy.c are:
-> > 
-> > interleave_nodes(), which takes a mempolicy, which I don't have in
-> > hugetlb.c
-> > 
-> > interleave_nid(), which also takes a mempolicy
-> > 
-> > I guess I could try and use huge_zonelist(), but I don't see the point?
-> 
-> Export a function for the interleave functionality so that we do not
-> have to replicate the same thing in various locations in the kernel.
+Thanks for the patience!
 
-But I don't understand this at all.
-
-This is *not* generically available, unless every caller has its own
-private static variable. I don't know how to do that in C.
-
-You're asking me to complicate patches that work just fine right now.
-Well, excluding a hasty patch that I didn't compile-test. All I'm trying
-to do is ask for some guidance.
-
-What we have here is:
-
-alloc_fresh_huge_page() should return 1 after a successful allocation of
-a huge page on a different node, in a round-robin fashion, on every
-invocation; or 0, if no huge page could be allocated.
-
-I don't see how to make that generic in a simple way. It relies on an
-interator that is private to the function, not to any structure. And
-this is really a one-time allocation right now (hugepages).
-
-Thanks,
-Nish
+-Nish
 
 -- 
 Nishanth Aravamudan <nacc@us.ibm.com>
