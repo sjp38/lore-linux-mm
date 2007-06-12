@@ -1,12 +1,12 @@
-Date: Tue, 12 Jun 2007 14:25:47 -0700 (PDT)
+Date: Tue, 12 Jun 2007 14:27:54 -0700 (PDT)
 From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [patch 2/3] Fix GFP_THISNODE behavior for memoryless nodes
-In-Reply-To: <alpine.DEB.0.99.0706121408250.5104@chino.kir.corp.google.com>
-Message-ID: <Pine.LNX.4.64.0706121422330.2322@schroedinger.engr.sgi.com>
-References: <20070612204843.491072749@sgi.com> <20070612205738.548677035@sgi.com>
- <alpine.DEB.0.99.0706121403420.5104@chino.kir.corp.google.com>
- <Pine.LNX.4.64.0706121406020.1850@schroedinger.engr.sgi.com>
- <alpine.DEB.0.99.0706121408250.5104@chino.kir.corp.google.com>
+Subject: Re: [patch 1/3] NUMA: introduce node_memory_map
+In-Reply-To: <alpine.DEB.0.99.0706121409170.5104@chino.kir.corp.google.com>
+Message-ID: <Pine.LNX.4.64.0706121426020.2322@schroedinger.engr.sgi.com>
+References: <20070612204843.491072749@sgi.com> <20070612205738.309078596@sgi.com>
+ <alpine.DEB.0.99.0706121401060.5104@chino.kir.corp.google.com>
+ <Pine.LNX.4.64.0706121407070.1850@schroedinger.engr.sgi.com>
+ <alpine.DEB.0.99.0706121409170.5104@chino.kir.corp.google.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
@@ -17,27 +17,31 @@ List-ID: <linux-mm.kvack.org>
 
 On Tue, 12 Jun 2007, David Rientjes wrote:
 
-> That's the point.  Isn't !node_memory(nid) unlikely?
+> On Tue, 12 Jun 2007, Christoph Lameter wrote:
+> 
+> > On Tue, 12 Jun 2007, David Rientjes wrote:
+> > 
+> > > >   * int node_online(node)		Is some node online?
+> > > >   * int node_possible(node)		Is some node possible?
+> > > > + * int node_memory(node)		Does a node have memory?
+> > > >   *
+> > > 
+> > > This name doesn't make sense; wouldn't node_has_memory() be better?
+> > 
+> > node_set_has_memory and node_clear_has_memory sounds a bit strange.
+> > 
+> 
+> This will probably be one of those things that people see in the source 
+> and have to look up everytime.  node_has_memory() is straight-forward and 
+> to the point.
 
-Correct.
+But node_possible is similar to node_memory.
 
-Use unlikely
+Would you also prefer node_is_possible over node_possible?
 
-Signed-off-cy: Christoph Lameter <clameter@sgi.com>
+node_is_online?
 
-Index: linux-2.6.22-rc4-mm2/include/linux/gfp.h
-===================================================================
---- linux-2.6.22-rc4-mm2.orig/include/linux/gfp.h	2007-06-12 14:22:57.000000000 -0700
-+++ linux-2.6.22-rc4-mm2/include/linux/gfp.h	2007-06-12 14:24:46.000000000 -0700
-@@ -179,7 +179,7 @@ static inline struct page *alloc_pages_n
- 	 * Check for the special case that GFP_THISNODE is used on a
- 	 * memoryless node
- 	 */
--	if ((gfp_mask & __GFP_THISNODE) && !node_memory(nid))
-+	if (unlikely((gfp_mask & __GFP_THISNODE) && !node_memory(nid)))
- 		return NULL;
  
- 	return __alloc_pages(gfp_mask, order,
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
