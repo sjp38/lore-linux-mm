@@ -1,59 +1,75 @@
-Received: from d01relay02.pok.ibm.com (d01relay02.pok.ibm.com [9.56.227.234])
-	by e2.ny.us.ibm.com (8.13.8/8.13.8) with ESMTP id l5CK0kA9026355
-	for <linux-mm@kvack.org>; Tue, 12 Jun 2007 16:00:46 -0400
-Received: from d01av03.pok.ibm.com (d01av03.pok.ibm.com [9.56.224.217])
-	by d01relay02.pok.ibm.com (8.13.8/8.13.8/NCO v8.3) with ESMTP id l5CK0kuf516360
-	for <linux-mm@kvack.org>; Tue, 12 Jun 2007 16:00:46 -0400
-Received: from d01av03.pok.ibm.com (loopback [127.0.0.1])
-	by d01av03.pok.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l5CK0kmp014846
-	for <linux-mm@kvack.org>; Tue, 12 Jun 2007 16:00:46 -0400
-Date: Tue, 12 Jun 2007 13:00:44 -0700
+Received: from d03relay04.boulder.ibm.com (d03relay04.boulder.ibm.com [9.17.195.106])
+	by e35.co.us.ibm.com (8.13.8/8.13.8) with ESMTP id l5CK1R24010308
+	for <linux-mm@kvack.org>; Tue, 12 Jun 2007 16:01:27 -0400
+Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
+	by d03relay04.boulder.ibm.com (8.13.8/8.13.8/NCO v8.3) with ESMTP id l5CK1RFj200748
+	for <linux-mm@kvack.org>; Tue, 12 Jun 2007 14:01:27 -0600
+Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av02.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l5CK1R7v009484
+	for <linux-mm@kvack.org>; Tue, 12 Jun 2007 14:01:27 -0600
+Date: Tue, 12 Jun 2007 13:01:25 -0700
 From: Nishanth Aravamudan <nacc@us.ibm.com>
-Subject: Re: [PATCH v2] Add populated_map to account for memoryless nodes
-Message-ID: <20070612200044.GF3798@us.ibm.com>
-References: <20070611202728.GD9920@us.ibm.com> <Pine.LNX.4.64.0706111417540.20454@schroedinger.engr.sgi.com> <20070611221036.GA14458@us.ibm.com> <Pine.LNX.4.64.0706111537250.20954@schroedinger.engr.sgi.com> <1181657940.5592.19.camel@localhost> <Pine.LNX.4.64.0706121143530.30754@schroedinger.engr.sgi.com> <1181675840.5592.123.camel@localhost> <Pine.LNX.4.64.0706121220580.3240@schroedinger.engr.sgi.com> <20070612194951.GC3798@us.ibm.com> <Pine.LNX.4.64.0706121252010.7983@schroedinger.engr.sgi.com>
+Subject: Re: [PATCH] populated_map: fix !NUMA case, remove comment
+Message-ID: <20070612200125.GG3798@us.ibm.com>
+References: <20070612023209.GJ3798@us.ibm.com> <Pine.LNX.4.64.0706111953220.25390@schroedinger.engr.sgi.com> <20070612032055.GQ3798@us.ibm.com> <1181660782.5592.50.camel@localhost> <20070612172858.GV3798@us.ibm.com> <1181674081.5592.91.camel@localhost> <Pine.LNX.4.64.0706121150220.30754@schroedinger.engr.sgi.com> <1181677473.5592.149.camel@localhost> <Pine.LNX.4.64.0706121245200.7983@schroedinger.engr.sgi.com> <Pine.LNX.4.64.0706121257290.7983@schroedinger.engr.sgi.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <Pine.LNX.4.64.0706121252010.7983@schroedinger.engr.sgi.com>
+In-Reply-To: <Pine.LNX.4.64.0706121257290.7983@schroedinger.engr.sgi.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Christoph Lameter <clameter@sgi.com>
-Cc: Lee Schermerhorn <Lee.Schermerhorn@hp.com>, anton@samba.org, akpm@linux-foundation.org, linux-mm@kvack.org, Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: Lee Schermerhorn <Lee.Schermerhorn@hp.com>, anton@samba.org, akpm@linux-foundation.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 12.06.2007 [12:52:38 -0700], Christoph Lameter wrote:
-> Interleave fix patch:
+On 12.06.2007 [12:58:16 -0700], Christoph Lameter wrote:
+> On Tue, 12 Jun 2007, Christoph Lameter wrote:
 > 
-> Fix MPOL_INTERLEAVE behavior for memoryless nodes
+> > Uhhh... Right there is another special case. The recently 
+> > introduces zonelist swizzle makes the DMA zone come last and if a 
+> > node had only a DMA zone then it may become swizzled to the end of 
+> > the zonelist.
 > 
-> MPOL_INTERLEAVE currently simply loops over all nodes. Allocations on
-> memoryless nodes will be redirected to nodes with memory. This results in
-> an imbalance because the neighboring nodes to memoryless nodes will get significantly
-> more interleave hits that the rest of the nodes on the system.
+> Maybe we can ignore that case for now:
 > 
-> We can avoid this imbalance by clearing the nodes in the interleave node
-> set that have no memory.
+> 
+> Fix GFP_THISNODE behavior for memoryless nodes
+> 
+> GFP_THISNODE checks that the zone selected is within the pgdat (node) of the
+> first zone of a nodelist. That only works if the node has memory. A
+> memoryless node will have its first node on another pgdat (node).
+> 
+> GFP_THISNODE currently will return simply memory on the first pgdat.
+> Thus it is returning memory on other nodes. GFP_THISNODE should fail
+> if there is no local memory on a node.
+> 
+> So we add a check to verify that the node specified has memory in
+> alloc_pages_node(). If the node has no memory then return NULL.
+> 
+> The case of alloc_pages(GFP_THISNODE) is not changed. alloc_pages() (with no memory
+> policies in effect)
 > 
 > Signed-off-by: Christoph Lameter <clameter@sgi.com>
 > Signed-off-by: Nishanth Aravamudan <nacc@us.ibm.com>
 > 
-> Index: linux-2.6.22-rc4-mm2/mm/mempolicy.c
+> Index: linux-2.6.22-rc4-mm2/include/linux/gfp.h
 > ===================================================================
-> --- linux-2.6.22-rc4-mm2.orig/mm/mempolicy.c	2007-06-12 12:37:23.000000000 -0700
-> +++ linux-2.6.22-rc4-mm2/mm/mempolicy.c	2007-06-12 12:39:16.000000000 -0700
-> @@ -185,6 +185,7 @@ static struct mempolicy *mpol_new(int mo
->  	switch (mode) {
->  	case MPOL_INTERLEAVE:
->  		policy->v.nodes = *nodes;
-> +		nodemask_and(policy->v.nodes, policy->v.nodes, node_memory_map);
->  		if (nodes_weight(*nodes) == 0) {
+> --- linux-2.6.22-rc4-mm2.orig/include/linux/gfp.h	2007-06-12 12:33:37.000000000 -0700
+> +++ linux-2.6.22-rc4-mm2/include/linux/gfp.h	2007-06-12 12:38:37.000000000 -0700
+> @@ -175,6 +175,13 @@ static inline struct page *alloc_pages_n
+>  	if (nid < 0)
+>  		nid = numa_node_id();
+> 
+> +	/*
+> +	 * Check for the special case that GFP_THISNODE is used on a
+> +	 * memoryless node
+> +	 */
+> +	if ((gfp_mask & __GFP_THISNODE) && !node_memory(nid))
+> +		return NULL;
+> +
 
-Shouldn't this be changed to
-
-		if (nodes_weight(policy->v.nodes) == 0) {
-
-??
+Yep, this seems to be the right thing to do, and was in my rolled-up
+patch.
 
 Thanks,
 Nish
