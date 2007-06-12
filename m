@@ -1,101 +1,75 @@
-Subject: Re: [PATCH] populated_map: fix !NUMA case, remove comment
-From: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
-In-Reply-To: <20070612032055.GQ3798@us.ibm.com>
-References: <20070611225213.GB14458@us.ibm.com>
-	 <Pine.LNX.4.64.0706111559490.21107@schroedinger.engr.sgi.com>
-	 <20070611234155.GG14458@us.ibm.com>
-	 <Pine.LNX.4.64.0706111642450.24042@schroedinger.engr.sgi.com>
-	 <20070612000705.GH14458@us.ibm.com>
-	 <Pine.LNX.4.64.0706111740280.24389@schroedinger.engr.sgi.com>
-	 <20070612020257.GF3798@us.ibm.com>
-	 <Pine.LNX.4.64.0706111919450.25134@schroedinger.engr.sgi.com>
-	 <20070612023209.GJ3798@us.ibm.com>
-	 <Pine.LNX.4.64.0706111953220.25390@schroedinger.engr.sgi.com>
-	 <20070612032055.GQ3798@us.ibm.com>
-Content-Type: text/plain
-Date: Tue, 12 Jun 2007 11:06:22 -0400
-Message-Id: <1181660782.5592.50.camel@localhost>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Date: Tue, 12 Jun 2007 10:32:34 -0500
+From: Matt Mackall <mpm@selenic.com>
+Subject: Re: [PATCH] numa: mempolicy: dynamic interleave map for system init.
+Message-ID: <20070612153234.GI11115@waste.org>
+References: <20070607011701.GA14211@linux-sh.org> <20070607180108.0eeca877.akpm@linux-foundation.org> <Pine.LNX.4.64.0706071942240.26636@schroedinger.engr.sgi.com> <20070608032505.GA13227@linux-sh.org> <20070608145011.GE11115@waste.org> <20070612094359.GA5803@linux-sh.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20070612094359.GA5803@linux-sh.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nishanth Aravamudan <nacc@us.ibm.com>
-Cc: Christoph Lameter <clameter@sgi.com>, anton@samba.org, akpm@linux-foundation.org, linux-mm@kvack.org
+To: Paul Mundt <lethal@linux-sh.org>, Christoph Lameter <clameter@sgi.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, ak@suse.de, hugh@veritas.com, lee.schermerhorn@hp.com, Nick Piggin <nickpiggin@yahoo.com.au>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 2007-06-11 at 20:20 -0700, Nishanth Aravamudan wrote:
-> On 11.06.2007 [19:54:13 -0700], Christoph Lameter wrote:
-> > On Mon, 11 Jun 2007, Nishanth Aravamudan wrote:
+On Tue, Jun 12, 2007 at 06:43:59PM +0900, Paul Mundt wrote:
+> On Fri, Jun 08, 2007 at 09:50:11AM -0500, Matt Mackall wrote:
+> > SLOB's big scalability problem at this point is number of CPUs.
+> > Throwing some fine-grained locking at it or the like may be able to
+> > help with that too.
 > > 
-> > > On 11.06.2007 [19:20:58 -0700], Christoph Lameter wrote:
-> > > > On Mon, 11 Jun 2007, Nishanth Aravamudan wrote:
-> > > > 
-> > > > > [PATCH v6][RFC] Fix hugetlb pool allocation with empty nodes
-> > > > 
-> > > > There is no point in compiling the interleave logic for !NUMA.
-> > > > There needs to be some sort of !NUMA fallback in hugetlb. It would
-> > > > be better to call a interleave function in mempolicy.c that
-> > > > provides an appropriate shim for !NUMA.
-> > > 
-> > > Hrm, if !NUMA, is the nid of the only node guaranteed to be 0? If so, I
-> > > can just
+> > Why would you even want to bother making it scale that large? For
+> > starters, it's less affected by things like dcache fragmentation. The
+> > majority of pages pinned by long-lived dcache entries will still be
+> > available to other allocations.
 > > 
-> > Yes.
+> > Haven't given any thought to NUMA yet though..
 > > 
-> > > Make alloc_fresh_huge_page() and other generic variants call into
-> > > the _node() versions with nid=0, if !NUMA.
-> > > 
-> > > Would that be ok?
-> > 
-> > I am not sure what you are up to. Just make sure that the changes are
-> > minimal. Look in the source code for other examples on how !NUMA
-> > situations were handled.
+> This is what I've hacked together and tested with my small nodes. It's
+> not terribly intelligent, and it pushes off most of the logic to the page
+> allocator. Obviously it's not terribly scalable, and I haven't tested it
+> with page migration, either. Still, it works for me with my simple tmpfs
+> + mpol policy tests.
 > 
-> I swear I'm trying to make the code do the right thing, and understand
-> the NUMA intricacies better. Sorry for the flood of e-mails and such. I
-> asked about specific other cases because they are used in !NUMA
-> situations too and I wasn't sure why node_populated_map should be
-> different.
+> Tested on a UP + SPARSEMEM (static, not extreme) + NUMA (2 nodes) + SLOB
+> configuration.
 > 
-> But ok, I will rely on the source to be correct and make my changelog
-> indicate where I got the ideas from.
+> Flame away!
 
-Nish:  when this all settles down, I still need to make sure it works on
-our platforms with the funny DMA-only node.  What that comes down to is
-that when alloc_fresh_huge_page() calls:
+For starters, it's not against the current SLOB, which no longer has
+the bigblock list.
 
-		page = alloc_pages_node(nid,
-                               GFP_HIGHUSER|__GFP_COMP|GFP_THISNODE,
-                               HUGETLB_PAGE_ORDER);
+> -void *__kmalloc(size_t size, gfp_t gfp)
+> +static void *__kmalloc_alloc(size_t size, gfp_t gfp, int node)
 
-I need to get a page that is on nid.  On our platform, GFP_HIGHUSER is
-going to specify the zonelist for ZONE_NORMAL.  The first zone on this
-list needs to be on-node for nid.  With the changes you've made to the
-definition of populated map, I think this won't be the case.  I need to
-test your latest patches and fix that, if it's broken.
+That's a ridiculous name. So, uh.. more underbars!
 
-I still think using policy zone is the "right way" to go, here.  After
-all, only pages in the policy zone are controlled by policy, and that's
-the goal of spreading out the huge pages across nodes--to make them
-available to satisfy memory policy at allocation time.  But that would
-need some adjustments for x86_64 systems that have some nodes that are
-all/mostly DMA32 and other nodes that are populated in zones > DMA32, if
-we want to allocate huge pages out of the DMA32 zone.   
+Though really, I think you can just name it __kmalloc_node?
 
-As far as the static variable, and round-robin allocation:  the current
-method "works" both for huge pages allocated at boot time and for huge
-pages allocated at run-time vi the vm.nr_hugepages sysctl.  By "works",
-I mean that it continues to spread the pages evenly across the
-"populated" nodes.  If, however, you use the task local counter to
-interleave fresh huge pages, each write to the nr_hugepages from a
-different task ["echo NN >.../nr_hugepages"] will start at node zero or
-the first populated node--assuming you're interleaving across populated
-nodes and not on-line nodes.  That's probably OK if you always change
-nr_hugepages by a multiple of the number of populated nodes.  And, if
-things get out of balance, we'll have your per node attribute, I hope,
-to adjust any individual node.
+> +		if (node == -1)
+> +			pages = alloc_pages(flags, get_order(c->size));
+> +		else
+> +			pages = alloc_pages_node(node, flags,
+> +						get_order(c->size));
 
-Lee
+This fragment appears a few times. Looks like it ought to get its own
+function. And that function can reduce to a trivial inline in the
+!NUMA case.
+
+> +void *kmem_cache_alloc_node(struct kmem_cache *c, gfp_t flags, int node)
+> +{
+> +	return __kmem_cache_alloc(c, flags, node);
+> +}
+
+If we make the underlying functions all take a node, this stuff all
+gets simpler.
+
+>  static void slob_timer_cbk(void)
+
+This is gone in the latest SLOB too.
+
+-- 
+Mathematics is the supreme nostalgia of our time.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
