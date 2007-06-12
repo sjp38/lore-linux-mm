@@ -1,37 +1,59 @@
-Date: Mon, 11 Jun 2007 21:14:36 -0700
-From: William Lee Irwin III <wli@holomorphy.com>
+Received: from d01relay04.pok.ibm.com (d01relay04.pok.ibm.com [9.56.227.236])
+	by e1.ny.us.ibm.com (8.13.8/8.13.8) with ESMTP id l5C575G3010386
+	for <linux-mm@kvack.org>; Tue, 12 Jun 2007 01:07:05 -0400
+Received: from d01av01.pok.ibm.com (d01av01.pok.ibm.com [9.56.224.215])
+	by d01relay04.pok.ibm.com (8.13.8/8.13.8/NCO v8.3) with ESMTP id l5C575mp556748
+	for <linux-mm@kvack.org>; Tue, 12 Jun 2007 01:07:05 -0400
+Received: from d01av01.pok.ibm.com (loopback [127.0.0.1])
+	by d01av01.pok.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l5C575mg024458
+	for <linux-mm@kvack.org>; Tue, 12 Jun 2007 01:07:05 -0400
+Date: Mon, 11 Jun 2007 22:07:02 -0700
+From: Nishanth Aravamudan <nacc@us.ibm.com>
 Subject: Re: [PATCH v6][RFC] Fix hugetlb pool allocation with empty nodes
-Message-ID: <20070612041436.GC11781@holomorphy.com>
-References: <Pine.LNX.4.64.0706111537250.20954@schroedinger.engr.sgi.com> <20070611225213.GB14458@us.ibm.com> <20070611230829.GC14458@us.ibm.com> <20070611231008.GD14458@us.ibm.com> <Pine.LNX.4.64.0706111615450.23857@schroedinger.engr.sgi.com> <20070612001542.GJ14458@us.ibm.com> <20070612034407.GB11773@holomorphy.com> <Pine.LNX.4.64.0706112050070.25900@schroedinger.engr.sgi.com> <20070612035324.GB11781@holomorphy.com> <Pine.LNX.4.64.0706112053190.25967@schroedinger.engr.sgi.com>
+Message-ID: <20070612050702.GT3798@us.ibm.com>
+References: <Pine.LNX.4.64.0706111745491.24389@schroedinger.engr.sgi.com> <20070612021245.GH3798@us.ibm.com> <Pine.LNX.4.64.0706111921370.25134@schroedinger.engr.sgi.com> <Pine.LNX.4.64.0706111923580.25207@schroedinger.engr.sgi.com> <20070612023421.GL3798@us.ibm.com> <Pine.LNX.4.64.0706111954360.25390@schroedinger.engr.sgi.com> <20070612031718.GP3798@us.ibm.com> <Pine.LNX.4.64.0706112018260.25631@schroedinger.engr.sgi.com> <20070612033050.GR3798@us.ibm.com> <Pine.LNX.4.64.0706112046380.25900@schroedinger.engr.sgi.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <Pine.LNX.4.64.0706112053190.25967@schroedinger.engr.sgi.com>
+In-Reply-To: <Pine.LNX.4.64.0706112046380.25900@schroedinger.engr.sgi.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Christoph Lameter <clameter@sgi.com>
-Cc: Nishanth Aravamudan <nacc@us.ibm.com>, lee.schermerhorn@hp.com, anton@samba.org, akpm@linux-foundation.org, linux-mm@kvack.org
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Jun 11, 2007 at 08:50:49PM -0700, Christoph Lameter wrote:
->>> Each task already has a next node field. Just use that.
+On 11.06.2007 [20:48:08 -0700], Christoph Lameter wrote:
+> On Mon, 11 Jun 2007, Nishanth Aravamudan wrote:
+> 
+> > > Export a function for the interleave functionality so that we do not
+> > > have to replicate the same thing in various locations in the kernel.
+> > 
+> > But I don't understand this at all.
+> > 
+> > This is *not* generically available, unless every caller has its own
+> > private static variable. I don't know how to do that in C.
+> 
+> It is already there. Each task has a il_next field in its task struct
+> for that purpose.
 
-On Mon, 11 Jun 2007, William Lee Irwin III wrote:
->> That's new. It sounds convenient.
+Hrm, maybe that will work -- but then it means that if one is
+interleaving huge pages, it will interfere with the interleaving of
+small pages. Given that right now, huge pages are a rather precious
+commodity, do we want this?
 
-On Mon, Jun 11, 2007 at 08:53:31PM -0700, Christoph Lameter wrote:
-> No its ancient.
+> > You're asking me to complicate patches that work just fine right now.
+> 
+> I am trying to simplify your work.
 
-Heh. It all depends on your view of time. One's point of view tends
-toward geologic when 2.4.9 (not a typo) is still current for a number
-of one's customers. Not to mention when one maintains code (or attempts
-to, however poorly) with open bugs where the last known working
-versions are in the 2.0.x and 2.2.x version spaces.
+Sorry, I wasn't trying to sound unappreciative. Your suggestions are
+very valuable!
 
-Shiny new code from 2005 can indeed be a breath of fresh air to some.
+Thanks,
+Nish
 
-
--- wli
+-- 
+Nishanth Aravamudan <nacc@us.ibm.com>
+IBM Linux Technology Center
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
