@@ -1,109 +1,125 @@
 Received: from d03relay02.boulder.ibm.com (d03relay02.boulder.ibm.com [9.17.195.227])
-	by e31.co.us.ibm.com (8.13.8/8.13.8) with ESMTP id l5CHcHHC029587
-	for <linux-mm@kvack.org>; Tue, 12 Jun 2007 13:38:17 -0400
-Received: from d03av01.boulder.ibm.com (d03av01.boulder.ibm.com [9.17.195.167])
-	by d03relay02.boulder.ibm.com (8.13.8/8.13.8/NCO v8.3) with ESMTP id l5CHaCp6240106
-	for <linux-mm@kvack.org>; Tue, 12 Jun 2007 11:38:13 -0600
-Received: from d03av01.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av01.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l5CHZON6012585
-	for <linux-mm@kvack.org>; Tue, 12 Jun 2007 11:35:24 -0600
-Date: Tue, 12 Jun 2007 10:35:21 -0700
+	by e36.co.us.ibm.com (8.13.8/8.13.8) with ESMTP id l5CHhCxT017311
+	for <linux-mm@kvack.org>; Tue, 12 Jun 2007 13:43:12 -0400
+Received: from d03av04.boulder.ibm.com (d03av04.boulder.ibm.com [9.17.195.170])
+	by d03relay02.boulder.ibm.com (8.13.8/8.13.8/NCO v8.3) with ESMTP id l5CHaEbG106784
+	for <linux-mm@kvack.org>; Tue, 12 Jun 2007 11:43:12 -0600
+Received: from d03av04.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av04.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l5CHTDCQ005177
+	for <linux-mm@kvack.org>; Tue, 12 Jun 2007 11:29:13 -0600
+Date: Tue, 12 Jun 2007 10:28:58 -0700
 From: Nishanth Aravamudan <nacc@us.ibm.com>
-Subject: Re: [PATCH] Add populated_map to account for memoryless nodes
-Message-ID: <20070612173521.GX3798@us.ibm.com>
-References: <20070611202728.GD9920@us.ibm.com> <Pine.LNX.4.64.0706111417540.20454@schroedinger.engr.sgi.com> <1181657433.5592.11.camel@localhost>
+Subject: Re: [PATCH] populated_map: fix !NUMA case, remove comment
+Message-ID: <20070612172858.GV3798@us.ibm.com>
+References: <20070611234155.GG14458@us.ibm.com> <Pine.LNX.4.64.0706111642450.24042@schroedinger.engr.sgi.com> <20070612000705.GH14458@us.ibm.com> <Pine.LNX.4.64.0706111740280.24389@schroedinger.engr.sgi.com> <20070612020257.GF3798@us.ibm.com> <Pine.LNX.4.64.0706111919450.25134@schroedinger.engr.sgi.com> <20070612023209.GJ3798@us.ibm.com> <Pine.LNX.4.64.0706111953220.25390@schroedinger.engr.sgi.com> <20070612032055.GQ3798@us.ibm.com> <1181660782.5592.50.camel@localhost>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1181657433.5592.11.camel@localhost>
+In-Reply-To: <1181660782.5592.50.camel@localhost>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
-Cc: Christoph Lameter <clameter@sgi.com>, anton@samba.org, akpm@linux-foundation.org, linux-mm@kvack.org, Andi Kleen <ak@suse.de>
+Cc: Christoph Lameter <clameter@sgi.com>, anton@samba.org, akpm@linux-foundation.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 12.06.2007 [10:10:33 -0400], Lee Schermerhorn wrote:
-> On Mon, 2007-06-11 at 14:25 -0700, Christoph Lameter wrote:
-> > On Mon, 11 Jun 2007, Nishanth Aravamudan wrote:
+On 12.06.2007 [11:06:22 -0400], Lee Schermerhorn wrote:
+> On Mon, 2007-06-11 at 20:20 -0700, Nishanth Aravamudan wrote:
+> > On 11.06.2007 [19:54:13 -0700], Christoph Lameter wrote:
+> > > On Mon, 11 Jun 2007, Nishanth Aravamudan wrote:
+> > > 
+> > > > On 11.06.2007 [19:20:58 -0700], Christoph Lameter wrote:
+> > > > > On Mon, 11 Jun 2007, Nishanth Aravamudan wrote:
+> > > > > 
+> > > > > > [PATCH v6][RFC] Fix hugetlb pool allocation with empty nodes
+> > > > > 
+> > > > > There is no point in compiling the interleave logic for !NUMA.
+> > > > > There needs to be some sort of !NUMA fallback in hugetlb. It would
+> > > > > be better to call a interleave function in mempolicy.c that
+> > > > > provides an appropriate shim for !NUMA.
+> > > > 
+> > > > Hrm, if !NUMA, is the nid of the only node guaranteed to be 0? If so, I
+> > > > can just
+> > > 
+> > > Yes.
+> > > 
+> > > > Make alloc_fresh_huge_page() and other generic variants call into
+> > > > the _node() versions with nid=0, if !NUMA.
+> > > > 
+> > > > Would that be ok?
+> > > 
+> > > I am not sure what you are up to. Just make sure that the changes are
+> > > minimal. Look in the source code for other examples on how !NUMA
+> > > situations were handled.
 > > 
-> > > @@ -2161,7 +2164,7 @@ static int node_order[MAX_NUMNODES];
-> > >  static void build_zonelists_in_zone_order(pg_data_t *pgdat, int nr_nodes)
-> > >  {
-> > >  	enum zone_type i;
-> > > -	int pos, j, node;
-> > > +	int pos, j;
-> > >  	int zone_type;		/* needs to be signed */
-> > >  	struct zone *z;
-> > >  	struct zonelist *zonelist;
-> > > @@ -2171,7 +2174,7 @@ static void build_zonelists_in_zone_order(pg_data_t *pgdat, int nr_nodes)
-> > >  		pos = 0;
-> > >  		for (zone_type = i; zone_type >= 0; zone_type--) {
-> > >  			for (j = 0; j < nr_nodes; j++) {
-> > > -				node = node_order[j];
-> > > +				int node = node_order[j];
-> > >  				z = &NODE_DATA(node)->node_zones[zone_type];
-> > >  				if (populated_zone(z)) {
-> > >  					zonelist->zones[pos++] = z;
+> > I swear I'm trying to make the code do the right thing, and understand
+> > the NUMA intricacies better. Sorry for the flood of e-mails and such. I
+> > asked about specific other cases because they are used in !NUMA
+> > situations too and I wasn't sure why node_populated_map should be
+> > different.
 > > 
-> > Unrelated modifications.
-> > 
-> > > @@ -2244,6 +2247,22 @@ static void set_zonelist_order(void)
-> > >  		current_zonelist_order = user_zonelist_order;
-> > >  }
-> > >  
-> > > +/*
-> > > + * setup_populate_map() - record nodes whose "policy_zone" is "on-node".
-> > > + */
-> > > +static void setup_populated_map(int nid)
-> > > +{
-> > > +	pg_data_t *pgdat = NODE_DATA(nid);
-> > > +	struct zonelist *zl = pgdat->node_zonelists + policy_zone;
-> > > +	struct zone *z = zl->zones[0];
-> > > +
-> > > +	VM_BUG_ON(!z);
-> > > +	if (z->zone_pgdat == pgdat)
-> > > +		node_set_populated(nid);
-> > > +	else
-> > > +		node_not_populated(nid);
-> > > +}
-> > 
-> > 
-> > A node is only populated if it has memory in the policy zone? I
-> > would say a node is populated if it has any memory in any zone.
+> > But ok, I will rely on the source to be correct and make my changelog
+> > indicate where I got the ideas from.
 > 
-> Mea culpa.  Our platforms have a [pseudo-]node with just O(1G) memory
-> all in zone DMA.  That node can't look populated for allocating huge
-> pages.
+> Nish:  when this all settles down, I still need to make sure it works
+> on our platforms with the funny DMA-only node.  What that comes down
+> to is that when alloc_fresh_huge_page() calls:
 
-Because you don't want to use up any of the DMA pages, right? That seems
-*very* platform specific. And it doesn't seem right to make common code
-more complicated for one platform. Maybe there isn't a better solution,
-but I'd like to mull it over.
+Ok, thanks for these details.
 
-> > The above check may fail on x86_64 where only some nodes may have 
-> > ZONE_NORMAL. Others only have ZONE_DMA32. Policy zone will be set to 
-> > ZONE_NORMAL.
+Would you be ok with stabilizing the generic definition of
+node_populated_map as is (any present pages, regardless of location),
+and then trying to figure out how to get your platform to work with
+that?
+
+> 		page = alloc_pages_node(nid,
+>                                GFP_HIGHUSER|__GFP_COMP|GFP_THISNODE,
+>                                HUGETLB_PAGE_ORDER);
 > 
-> Yes.  I thought of this after I created the patch.  I've been looking
-> for a platform with exactly 4GB per node to test on.  I believe that,
-> on our platforms, all of node zero would be in zone DMA32 and all
-> other nodes would be > DMA32.  
-> 
-> Maybe we can just exclude zone DMA from the populated map?
+> I need to get a page that is on nid.  On our platform, GFP_HIGHUSER is
+> going to specify the zonelist for ZONE_NORMAL.  The first zone on this
+> list needs to be on-node for nid.  With the changes you've made to the
+> definition of populated map, I think this won't be the case.  I need
+> to test your latest patches and fix that, if it's broken.
 
-Maybe I don't know enough about NUMA and such, but I'm not sure I
-understand how this would make it a populated map anymore?
+Ok. But that means your platform is broken now too, right? As in, it's
+not a regression, per se?
 
-Maybe we need two maps, really?
+I'm much more concerned in the short term about the whole
+memoryless-node issue, which I think is more straight-forward, and
+generic to fix.
 
-One is for nodes that have memory, period (pages_present) ==
-populated_map as currently implemented.
+> I still think using policy zone is the "right way" to go, here.  After
+> all, only pages in the policy zone are controlled by policy, and
+> that's the goal of spreading out the huge pages across nodes--to make
+> them available to satisfy memory policy at allocation time.  But that
+> would need some adjustments for x86_64 systems that have some nodes
+> that are all/mostly DMA32 and other nodes that are populated in zones
+> > DMA32, if we want to allocate huge pages out of the DMA32 zone.   
 
-Another is for nodes that can satisfy hugepage allocations
-(policy_zone?) (a subset of the populated nodes).
+Well, as of right now, I'm *only* trying to deal with memoryless nodes.
+So then this whole notion of policy_zone is relatively moot. It matters
+for your platform, I understand, but I think the fix there is more
+complex and probably should be stacked on the current set, once it is
+stabilized.
 
-That may solve both the memoryless nodes problem and your platform's
-problem?
+> As far as the static variable, and round-robin allocation:  the current
+> method "works" both for huge pages allocated at boot time and for huge
+> pages allocated at run-time vi the vm.nr_hugepages sysctl.  By "works",
+> I mean that it continues to spread the pages evenly across the
+> "populated" nodes.  If, however, you use the task local counter to
+> interleave fresh huge pages, each write to the nr_hugepages from a
+> different task ["echo NN >.../nr_hugepages"] will start at node zero or
+> the first populated node--assuming you're interleaving across populated
+> nodes and not on-line nodes.  That's probably OK if you always change
+> nr_hugepages by a multiple of the number of populated nodes.  And, if
+> things get out of balance, we'll have your per node attribute, I hope,
+> to adjust any individual node.
+
+Yes, I will reply about the il_next thing in a sec. Maybe Christoph has
+some cleverness.
+
+And yes, I think the per-node attribute will fix most of the interface
+problems for 'odd' NUMA systems.
 
 Thanks,
 Nish
