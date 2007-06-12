@@ -1,15 +1,15 @@
-Date: Tue, 12 Jun 2007 13:06:03 -0700 (PDT)
+Date: Tue, 12 Jun 2007 13:10:29 -0700 (PDT)
 From: Christoph Lameter <clameter@sgi.com>
 Subject: Re: [PATCH v2] Add populated_map to account for memoryless nodes
-In-Reply-To: <20070612200044.GF3798@us.ibm.com>
-Message-ID: <Pine.LNX.4.64.0706121304150.31428@schroedinger.engr.sgi.com>
+In-Reply-To: <20070612200012.GE3798@us.ibm.com>
+Message-ID: <Pine.LNX.4.64.0706121309170.3918@schroedinger.engr.sgi.com>
 References: <20070611202728.GD9920@us.ibm.com>
  <Pine.LNX.4.64.0706111417540.20454@schroedinger.engr.sgi.com>
  <20070611221036.GA14458@us.ibm.com> <Pine.LNX.4.64.0706111537250.20954@schroedinger.engr.sgi.com>
  <1181657940.5592.19.camel@localhost> <Pine.LNX.4.64.0706121143530.30754@schroedinger.engr.sgi.com>
  <1181675840.5592.123.camel@localhost> <Pine.LNX.4.64.0706121220580.3240@schroedinger.engr.sgi.com>
- <20070612194951.GC3798@us.ibm.com> <Pine.LNX.4.64.0706121252010.7983@schroedinger.engr.sgi.com>
- <20070612200044.GF3798@us.ibm.com>
+ <20070612194951.GC3798@us.ibm.com> <Pine.LNX.4.64.0706121250430.7983@schroedinger.engr.sgi.com>
+ <20070612200012.GE3798@us.ibm.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
@@ -20,22 +20,20 @@ List-ID: <linux-mm.kvack.org>
 
 On Tue, 12 Jun 2007, Nishanth Aravamudan wrote:
 
-> > ===================================================================
-> > --- linux-2.6.22-rc4-mm2.orig/mm/mempolicy.c	2007-06-12 12:37:23.000000000 -0700
-> > +++ linux-2.6.22-rc4-mm2/mm/mempolicy.c	2007-06-12 12:39:16.000000000 -0700
-> > @@ -185,6 +185,7 @@ static struct mempolicy *mpol_new(int mo
-> >  	switch (mode) {
-> >  	case MPOL_INTERLEAVE:
-> >  		policy->v.nodes = *nodes;
-> > +		nodemask_and(policy->v.nodes, policy->v.nodes, node_memory_map);
-> >  		if (nodes_weight(*nodes) == 0) {
 > 
-> Shouldn't this be changed to
-> 
-> 		if (nodes_weight(policy->v.nodes) == 0) {
+> These are terrible names :) Something more like node_set_has_memory(node)
+> and node_set_has_no_memory(node), maybe? [why be arbitrarily different
+> than node_set_{on,off}line?].
 
-You are right. Fix applied. I will post a patchset when I got my testing 
-done.
+Because node_set_on/off is already inconsisted with node_set and 
+node_clear.
+
+Another possible name may be
+
+node_clear_has_memory
+node_clear_has_memory
+
+but that is awkward.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
