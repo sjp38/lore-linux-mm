@@ -1,54 +1,46 @@
-Received: from d01relay04.pok.ibm.com (d01relay04.pok.ibm.com [9.56.227.236])
-	by e6.ny.us.ibm.com (8.13.8/8.13.8) with ESMTP id l5CHiZvQ013287
-	for <linux-mm@kvack.org>; Tue, 12 Jun 2007 13:44:35 -0400
-Received: from d01av01.pok.ibm.com (d01av01.pok.ibm.com [9.56.224.215])
-	by d01relay04.pok.ibm.com (8.13.8/8.13.8/NCO v8.3) with ESMTP id l5CHhSH7546566
-	for <linux-mm@kvack.org>; Tue, 12 Jun 2007 13:43:28 -0400
-Received: from d01av01.pok.ibm.com (loopback [127.0.0.1])
-	by d01av01.pok.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l5CHhSUM009388
-	for <linux-mm@kvack.org>; Tue, 12 Jun 2007 13:43:28 -0400
-Date: Tue, 12 Jun 2007 10:43:26 -0700
+Received: from d03relay02.boulder.ibm.com (d03relay02.boulder.ibm.com [9.17.195.227])
+	by e35.co.us.ibm.com (8.13.8/8.13.8) with ESMTP id l5CHj6O4019840
+	for <linux-mm@kvack.org>; Tue, 12 Jun 2007 13:45:06 -0400
+Received: from d03av03.boulder.ibm.com (d03av03.boulder.ibm.com [9.17.195.169])
+	by d03relay02.boulder.ibm.com (8.13.8/8.13.8/NCO v8.3) with ESMTP id l5CHj5DW215834
+	for <linux-mm@kvack.org>; Tue, 12 Jun 2007 11:45:05 -0600
+Received: from d03av03.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av03.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l5CHj5iO032623
+	for <linux-mm@kvack.org>; Tue, 12 Jun 2007 11:45:05 -0600
+Date: Tue, 12 Jun 2007 10:45:03 -0700
 From: Nishanth Aravamudan <nacc@us.ibm.com>
 Subject: Re: [PATCH v6][RFC] Fix hugetlb pool allocation with empty nodes
-Message-ID: <20070612174326.GA3798@us.ibm.com>
-References: <Pine.LNX.4.64.0706111745491.24389@schroedinger.engr.sgi.com> <20070612021245.GH3798@us.ibm.com> <Pine.LNX.4.64.0706111921370.25134@schroedinger.engr.sgi.com> <Pine.LNX.4.64.0706111923580.25207@schroedinger.engr.sgi.com> <20070612023421.GL3798@us.ibm.com> <Pine.LNX.4.64.0706111954360.25390@schroedinger.engr.sgi.com> <20070612031718.GP3798@us.ibm.com> <Pine.LNX.4.64.0706112018260.25631@schroedinger.engr.sgi.com> <20070612033050.GR3798@us.ibm.com> <Pine.LNX.4.64.0706112046380.25900@schroedinger.engr.sgi.com>
+Message-ID: <20070612174503.GB3798@us.ibm.com>
+References: <20070611221036.GA14458@us.ibm.com> <Pine.LNX.4.64.0706111537250.20954@schroedinger.engr.sgi.com> <20070611225213.GB14458@us.ibm.com> <20070611230829.GC14458@us.ibm.com> <20070611231008.GD14458@us.ibm.com> <Pine.LNX.4.64.0706111615450.23857@schroedinger.engr.sgi.com> <20070612001542.GJ14458@us.ibm.com> <20070612034407.GB11773@holomorphy.com> <20070612050910.GU3798@us.ibm.com> <20070612051512.GC11773@holomorphy.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <Pine.LNX.4.64.0706112046380.25900@schroedinger.engr.sgi.com>
+In-Reply-To: <20070612051512.GC11773@holomorphy.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
-Cc: linux-mm@kvack.org
+To: William Lee Irwin III <wli@holomorphy.com>
+Cc: Christoph Lameter <clameter@sgi.com>, lee.schermerhorn@hp.com, anton@samba.org, akpm@linux-foundation.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 11.06.2007 [20:48:08 -0700], Christoph Lameter wrote:
-> On Mon, 11 Jun 2007, Nishanth Aravamudan wrote:
+On 11.06.2007 [22:15:12 -0700], William Lee Irwin III wrote:
+> On Mon, Jun 11, 2007 at 10:09:10PM -0700, Nishanth Aravamudan wrote:
+> > Well, (presuming I understood everything you wrote :), don't we need the
+> > static 'affair' to guarantee the initial allocations are approximately
+> > round-robin? Or, if we aren't going to make that guarantee, than we
+> > should only change that once my sysfs allocator (or its equivalent) is
+> > available?
+> > Just trying to get a handle on what you're suggesting without any
+> > historical context.
 > 
-> > > Export a function for the interleave functionality so that we do not
-> > > have to replicate the same thing in various locations in the kernel.
-> > 
-> > But I don't understand this at all.
-> > 
-> > This is *not* generically available, unless every caller has its own
-> > private static variable. I don't know how to do that in C.
-> 
-> It is already there. Each task has a il_next field in its task struct
-> for that purpose.
+> For initially filling the pool one can just loop over nid's modulo the
+> number of populated nodes and pass down a stack-allocated variable.
 
-Ok, I see that. And it represent the next node to use for an interleaved
-allocation. Makes sense to me, and I see how it's used in mempolicy.c to
-achieve that. But we're running at system boot time, or whenever some
-invokes the sysctl /proc/sys/vm/nr_hugepages. Do we really want to muck
-with some arbitray bash shell's il_next field to achieve interleaving?
-What if it's a C process that is trying to achieve actual interleaving
-for other purposes and also allocates some hugepages on the system? It
-seems like il_next is very much a process-related field.
+But how does one differentiate between "initally filling" the pool and a
+later attempt to add to the pool (or even just marginally later).
 
-When I wrote "caller", I meant calling function, sorry, not calling
-process.
-
-I'm not entirely sure how il_next is useful here, sorry.
+I guess I don't see why folks are so against this static variable :) It
+does the job and removing it seems like it could be an independent
+cleanup?
 
 Thanks,
 Nish
