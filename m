@@ -1,42 +1,61 @@
-Date: Tue, 12 Jun 2007 11:39:17 -0700 (PDT)
+Date: Tue, 12 Jun 2007 11:41:45 -0700 (PDT)
 From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [PATCH] Add populated_map to account for memoryless nodes
-In-Reply-To: <20070612173521.GX3798@us.ibm.com>
-Message-ID: <Pine.LNX.4.64.0706121138050.30754@schroedinger.engr.sgi.com>
-References: <20070611202728.GD9920@us.ibm.com>
- <Pine.LNX.4.64.0706111417540.20454@schroedinger.engr.sgi.com>
- <1181657433.5592.11.camel@localhost> <20070612173521.GX3798@us.ibm.com>
+Subject: Re: [PATCH] populated_map: fix !NUMA case, remove comment
+In-Reply-To: <1181660782.5592.50.camel@localhost>
+Message-ID: <Pine.LNX.4.64.0706121140020.30754@schroedinger.engr.sgi.com>
+References: <20070611225213.GB14458@us.ibm.com>
+ <Pine.LNX.4.64.0706111559490.21107@schroedinger.engr.sgi.com>
+ <20070611234155.GG14458@us.ibm.com>  <Pine.LNX.4.64.0706111642450.24042@schroedinger.engr.sgi.com>
+  <20070612000705.GH14458@us.ibm.com>  <Pine.LNX.4.64.0706111740280.24389@schroedinger.engr.sgi.com>
+  <20070612020257.GF3798@us.ibm.com>  <Pine.LNX.4.64.0706111919450.25134@schroedinger.engr.sgi.com>
+  <20070612023209.GJ3798@us.ibm.com>  <Pine.LNX.4.64.0706111953220.25390@schroedinger.engr.sgi.com>
+  <20070612032055.GQ3798@us.ibm.com> <1181660782.5592.50.camel@localhost>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nishanth Aravamudan <nacc@us.ibm.com>
-Cc: Lee Schermerhorn <Lee.Schermerhorn@hp.com>, anton@samba.org, akpm@linux-foundation.org, linux-mm@kvack.org, Andi Kleen <ak@suse.de>
+To: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
+Cc: Nishanth Aravamudan <nacc@us.ibm.com>, anton@samba.org, akpm@linux-foundation.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 12 Jun 2007, Nishanth Aravamudan wrote:
+On Tue, 12 Jun 2007, Lee Schermerhorn wrote:
 
-> > Mea culpa.  Our platforms have a [pseudo-]node with just O(1G) memory
-> > all in zone DMA.  That node can't look populated for allocating huge
-> > pages.
+> 		page = alloc_pages_node(nid,
+>                                GFP_HIGHUSER|__GFP_COMP|GFP_THISNODE,
+>                                HUGETLB_PAGE_ORDER);
 > 
-> Because you don't want to use up any of the DMA pages, right? That seems
-> *very* platform specific. And it doesn't seem right to make common code
-> more complicated for one platform. Maybe there isn't a better solution,
-> but I'd like to mull it over.
+> I need to get a page that is on nid.  On our platform, GFP_HIGHUSER is
+> going to specify the zonelist for ZONE_NORMAL.  The first zone on this
+> list needs to be on-node for nid.  With the changes you've made to the
+> definition of populated map, I think this won't be the case.  I need to
+> test your latest patches and fix that, if it's broken.
 
-Right. Please Lee be generic and avoid the exceptional cases.
+Yes that is the intend of the fixes.
 
-> > Maybe we can just exclude zone DMA from the populated map?
+> I still think using policy zone is the "right way" to go, here.  After
+> all, only pages in the policy zone are controlled by policy, and that's
+> the goal of spreading out the huge pages across nodes--to make them
+> available to satisfy memory policy at allocation time.  But that would
+> need some adjustments for x86_64 systems that have some nodes that are
+> all/mostly DMA32 and other nodes that are populated in zones > DMA32, if
+> we want to allocate huge pages out of the DMA32 zone.   
+
+GFP_THISNODE will work right for that case if we get the intended fix in.
+
 > 
-> Maybe I don't know enough about NUMA and such, but I'm not sure I
-> understand how this would make it a populated map anymore?
-> 
-> Maybe we need two maps, really?
+> As far as the static variable, and round-robin allocation:  the current
+> method "works" both for huge pages allocated at boot time and for huge
+> pages allocated at run-time vi the vm.nr_hugepages sysctl.  By "works",
+> I mean that it continues to spread the pages evenly across the
+> "populated" nodes.  If, however, you use the task local counter to
+> interleave fresh huge pages, each write to the nr_hugepages from a
+> different task ["echo NN >.../nr_hugepages"] will start at node zero or
+> the first populated node--assuming you're interleaving across populated
+> nodes and not on-line nodes.  That's probably OK if you always change
 
-No need. If you want to exclude a node from huge pages then you need 
-to use the patch that allows per node huge page specifications and set 
-the number of huge pages for that node to zero.
+We may want to change that behavior. Interleave should start at the local 
+node and then proceed from there. If there are just a few pages needed 
+then they would be better placed local to the process.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
