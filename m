@@ -1,31 +1,93 @@
-Date: Tue, 12 Jun 2007 12:00:09 -0700 (PDT)
-From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [PATCH] Add populated_map to account for memoryless nodes
-In-Reply-To: <1181674482.5592.98.camel@localhost>
-Message-ID: <Pine.LNX.4.64.0706121159310.31158@schroedinger.engr.sgi.com>
-References: <20070611202728.GD9920@us.ibm.com>
- <Pine.LNX.4.64.0706111417540.20454@schroedinger.engr.sgi.com>
- <1181657433.5592.11.camel@localhost> <20070612173521.GX3798@us.ibm.com>
- <Pine.LNX.4.64.0706121138050.30754@schroedinger.engr.sgi.com>
- <1181674482.5592.98.camel@localhost>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: [PATCH] populated_map: fix !NUMA case, remove comment
+From: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
+In-Reply-To: <Pine.LNX.4.64.0706121140020.30754@schroedinger.engr.sgi.com>
+References: <20070611225213.GB14458@us.ibm.com>
+	 <Pine.LNX.4.64.0706111559490.21107@schroedinger.engr.sgi.com>
+	 <20070611234155.GG14458@us.ibm.com>
+	 <Pine.LNX.4.64.0706111642450.24042@schroedinger.engr.sgi.com>
+	 <20070612000705.GH14458@us.ibm.com>
+	 <Pine.LNX.4.64.0706111740280.24389@schroedinger.engr.sgi.com>
+	 <20070612020257.GF3798@us.ibm.com>
+	 <Pine.LNX.4.64.0706111919450.25134@schroedinger.engr.sgi.com>
+	 <20070612023209.GJ3798@us.ibm.com>
+	 <Pine.LNX.4.64.0706111953220.25390@schroedinger.engr.sgi.com>
+	 <20070612032055.GQ3798@us.ibm.com> <1181660782.5592.50.camel@localhost>
+	 <Pine.LNX.4.64.0706121140020.30754@schroedinger.engr.sgi.com>
+Content-Type: text/plain
+Date: Tue, 12 Jun 2007 15:07:27 -0400
+Message-Id: <1181675248.5592.112.camel@localhost>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
-Cc: Nishanth Aravamudan <nacc@us.ibm.com>, anton@samba.org, akpm@linux-foundation.org, linux-mm@kvack.org, Andi Kleen <ak@suse.de>
+To: Christoph Lameter <clameter@sgi.com>
+Cc: Nishanth Aravamudan <nacc@us.ibm.com>, anton@samba.org, akpm@linux-foundation.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 12 Jun 2007, Lee Schermerhorn wrote:
+On Tue, 2007-06-12 at 11:41 -0700, Christoph Lameter wrote:
+> On Tue, 12 Jun 2007, Lee Schermerhorn wrote:
+> 
+> > 		page = alloc_pages_node(nid,
+> >                                GFP_HIGHUSER|__GFP_COMP|GFP_THISNODE,
+> >                                HUGETLB_PAGE_ORDER);
+> > 
+> > I need to get a page that is on nid.  On our platform, GFP_HIGHUSER is
+> > going to specify the zonelist for ZONE_NORMAL.  The first zone on this
+> > list needs to be on-node for nid.  With the changes you've made to the
+> > definition of populated map, I think this won't be the case.  I need to
+> > test your latest patches and fix that, if it's broken.
+> 
+> Yes that is the intend of the fixes.
+> 
+> > I still think using policy zone is the "right way" to go, here.  After
+> > all, only pages in the policy zone are controlled by policy, and that's
+> > the goal of spreading out the huge pages across nodes--to make them
+> > available to satisfy memory policy at allocation time.  But that would
+> > need some adjustments for x86_64 systems that have some nodes that are
+> > all/mostly DMA32 and other nodes that are populated in zones > DMA32, if
+> > we want to allocate huge pages out of the DMA32 zone.   
+> 
+> GFP_THISNODE will work right for that case if we get the intended fix in.
 
-> Perhaps.  But, be aware that allocating pages via the 'hugepages' boot
-> parameter or the vm.nr_hugepages sysctl won't spread pages evenly--on
-> our platforms, anyway--if we don't get this right.  From what I've seen
-> in the mailing lists, this approach [fixing it up with the per node
-> attributes] runs counter to the general approach of having the kernel
-> figure it out.  
+OK.  So, allocations with 'THISNODE will ensure that we don't get an
+off-node page if the any zone in the zonelist indicated by the gfp zone
+happens to point off-node?  That wasn't the case previously, and that's
+why I created the populated map with the semantics I did.  I agree it's
+better to have alloc_page_*() handle this.
 
-Hmm.. shmem does the same with the boot parameter there?
+> 
+> > 
+> > As far as the static variable, and round-robin allocation:  the current
+> > method "works" both for huge pages allocated at boot time and for huge
+> > pages allocated at run-time vi the vm.nr_hugepages sysctl.  By "works",
+> > I mean that it continues to spread the pages evenly across the
+> > "populated" nodes.  If, however, you use the task local counter to
+> > interleave fresh huge pages, each write to the nr_hugepages from a
+> > different task ["echo NN >.../nr_hugepages"] will start at node zero or
+> > the first populated node--assuming you're interleaving across populated
+> > nodes and not on-line nodes.  That's probably OK if you always change
+> 
+> We may want to change that behavior. Interleave should start at the local 
+> node and then proceed from there. If there are just a few pages needed 
+> then they would be better placed local to the process.
+
+For page interleaving for some memory object, I agree.  The usage here
+was for the allocation of reserved huge pages--trying to spread those
+evenly across nodes with appropriate [non-DMA] memory.   Then, normal
+interleaving will work as huge pages are allocated from the per node
+reserved lists until some node's huge pages are exhausted.   
+
+I think that using a local "cursor", as you propose, will work,
+tho'--even for spreading huge page allocations for the reserved lists.
+We may tend to favor low order nodes if one incrementally increases
+nr_hugepages via the sysctl.  But, I don't think that's too regular an
+occurrence.  I'm not sure Nish can use the mempolicy huge page
+interleaving allocator, tho'  That allocates FROM the per node reserved
+lists, and alloc_fresh_huge_page[_node]() is used to fill those lists.  
+
+Lee
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
