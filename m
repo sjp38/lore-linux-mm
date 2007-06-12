@@ -1,82 +1,50 @@
-Received: from d01relay02.pok.ibm.com (d01relay02.pok.ibm.com [9.56.227.234])
-	by e2.ny.us.ibm.com (8.13.8/8.13.8) with ESMTP id l5C1flKe002291
-	for <linux-mm@kvack.org>; Mon, 11 Jun 2007 21:41:47 -0400
-Received: from d01av01.pok.ibm.com (d01av01.pok.ibm.com [9.56.224.215])
-	by d01relay02.pok.ibm.com (8.13.8/8.13.8/NCO v8.3) with ESMTP id l5C1fjHi465124
-	for <linux-mm@kvack.org>; Mon, 11 Jun 2007 21:41:47 -0400
-Received: from d01av01.pok.ibm.com (loopback [127.0.0.1])
-	by d01av01.pok.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l5C1fiNU020368
-	for <linux-mm@kvack.org>; Mon, 11 Jun 2007 21:41:45 -0400
-Date: Mon, 11 Jun 2007 18:41:42 -0700
+Received: from d03relay02.boulder.ibm.com (d03relay02.boulder.ibm.com [9.17.195.227])
+	by e35.co.us.ibm.com (8.13.8/8.13.8) with ESMTP id l5C1i1w0025832
+	for <linux-mm@kvack.org>; Mon, 11 Jun 2007 21:44:01 -0400
+Received: from d03av01.boulder.ibm.com (d03av01.boulder.ibm.com [9.17.195.167])
+	by d03relay02.boulder.ibm.com (8.13.8/8.13.8/NCO v8.3) with ESMTP id l5C1hxvq266808
+	for <linux-mm@kvack.org>; Mon, 11 Jun 2007 19:44:01 -0600
+Received: from d03av01.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av01.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l5C1hxeh010625
+	for <linux-mm@kvack.org>; Mon, 11 Jun 2007 19:43:59 -0600
+Date: Mon, 11 Jun 2007 18:43:57 -0700
 From: Nishanth Aravamudan <nacc@us.ibm.com>
-Subject: Re: [PATCH v2][RFC] Fix INTERLEAVE with memoryless nodes
-Message-ID: <20070612014142.GC3798@us.ibm.com>
-References: <20070611202728.GD9920@us.ibm.com> <Pine.LNX.4.64.0706111417540.20454@schroedinger.engr.sgi.com> <20070611221036.GA14458@us.ibm.com> <Pine.LNX.4.64.0706111537250.20954@schroedinger.engr.sgi.com> <20070611225213.GB14458@us.ibm.com> <20070611230829.GC14458@us.ibm.com> <Pine.LNX.4.64.0706111613100.23857@schroedinger.engr.sgi.com> <20070612001436.GI14458@us.ibm.com> <20070611175700.e5268342.akpm@linux-foundation.org>
+Subject: Re: [PATCH] populated_map: fix !NUMA case, remove comment
+Message-ID: <20070612014357.GD3798@us.ibm.com>
+References: <20070611202728.GD9920@us.ibm.com> <Pine.LNX.4.64.0706111417540.20454@schroedinger.engr.sgi.com> <20070611221036.GA14458@us.ibm.com> <Pine.LNX.4.64.0706111537250.20954@schroedinger.engr.sgi.com> <20070611225213.GB14458@us.ibm.com> <Pine.LNX.4.64.0706111559490.21107@schroedinger.engr.sgi.com> <20070611234155.GG14458@us.ibm.com> <Pine.LNX.4.64.0706111642450.24042@schroedinger.engr.sgi.com> <20070612000705.GH14458@us.ibm.com> <Pine.LNX.4.64.0706111740280.24389@schroedinger.engr.sgi.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20070611175700.e5268342.akpm@linux-foundation.org>
+In-Reply-To: <Pine.LNX.4.64.0706111740280.24389@schroedinger.engr.sgi.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Christoph Lameter <clameter@sgi.com>, lee.schermerhorn@hp.com, anton@samba.org, linux-mm@kvack.org
+To: Christoph Lameter <clameter@sgi.com>
+Cc: lee.schermerhorn@hp.com, anton@samba.org, akpm@linux-foundation.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 11.06.2007 [17:57:00 -0700], Andrew Morton wrote:
-> On Mon, 11 Jun 2007 17:14:36 -0700 Nishanth Aravamudan <nacc@us.ibm.com> wrote:
+On 11.06.2007 [17:41:15 -0700], Christoph Lameter wrote:
+> On Mon, 11 Jun 2007, Nishanth Aravamudan wrote:
 > 
+> > > No need to initialize if we do not use it. You may to #ifdef it out
+> > > by moving the definition. Please sent a diff against the earlier patch 
+> > > since Andrew already merged it.
 > > 
-> > Christoph said:
-> > "This does not work for the address based interleaving for anonymous
-> > vmas.  I am not sure what to do there. We could change the calculation
-> > of the node to be based only on nodes with memory and then skip the
-> > memoryless ones. I have only added a comment to describe its brokennes
-> > for now."
-> > 
-> > I have copied his draft's comment.
-> > 
-> > Change alloc_pages_node() to fail __GFP_THISNODE allocations if the node
-> > is not populated.
-> > 
-> > Again, Christoph said:
-> > "This will fix the alloc_pages_node case but not the alloc_pages() case.
-> > In the alloc_pages() case we do not specify a node. Implicitly it is
-> > understood that we (in the case of no memory policy / cpuset options)
-> > allocate from the nearest node. So it may be argued there that the
-> > GFP_THISNODE behavior of taking the first node from the zonelist is
-> > okay."
-> > 
-> > Christoph was also worried about the performance impact on these paths,
-> > as am I.
-> > 
-> > Finally, as he suggested, uninline alloc_pages_node() and move it to
-> > mempolicy.c.
-> > 
+> > We will be using it (it == node_populated_mask) later in my sysfs patch
+> > and in the fix hugepage allocation patch.
 > 
-> All confused.
+> But not in the !NUMA case. So the definition of the node_populated_mask 
+> can be moved into an #ifdef CONFIG_NUMA chunk in page_alloc.c and we can 
+> have fallback functions.
 
-<snip>
+Ah, but we'll use it in mpol_new via nodes_and() regardless of
+NUMA/!NUMA, right?
 
-> I have no node_populated_mask.
-> 
-> The below improves the situation, but I wonder about, ahem, the maturity of
-> this code.
+I see no reason not make sure the node_populated_mask is sensible
+whenever it can be.
 
-Sorry, Andrew :(
-
-I didn't expect you to pull all these patche so quickly. No one gave me
-much feedback the last few times I posted the series, so I wasn't
-expecting any this time either...that's what I get for pique-ing
-Christoph's interest :) We went through several revisions today alone...
-
-If you would prefer dropping the series, I will clean them up and get
-them ready for you tomorrow.
-
-The previous series were well-tested, but this one was more of a RFD/RFC
-with an emphasis on the D/C. Sorry for that and not making it more
-explicit.
-
-How would you like me to proceed?
+If you really feel that only CONFIG_NUMA code should use
+node_populated_mask, then I'll make that change and use node_populated()
+in the callers.
 
 Thanks,
 Nish
