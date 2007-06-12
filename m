@@ -1,45 +1,63 @@
-Date: Tue, 12 Jun 2007 11:51:17 -0700 (PDT)
-From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [PATCH] populated_map: fix !NUMA case, remove comment
-In-Reply-To: <1181674081.5592.91.camel@localhost>
-Message-ID: <Pine.LNX.4.64.0706121150220.30754@schroedinger.engr.sgi.com>
-References: <20070611234155.GG14458@us.ibm.com>
- <Pine.LNX.4.64.0706111642450.24042@schroedinger.engr.sgi.com>
- <20070612000705.GH14458@us.ibm.com>  <Pine.LNX.4.64.0706111740280.24389@schroedinger.engr.sgi.com>
-  <20070612020257.GF3798@us.ibm.com>  <Pine.LNX.4.64.0706111919450.25134@schroedinger.engr.sgi.com>
-  <20070612023209.GJ3798@us.ibm.com>  <Pine.LNX.4.64.0706111953220.25390@schroedinger.engr.sgi.com>
-  <20070612032055.GQ3798@us.ibm.com> <1181660782.5592.50.camel@localhost>
- <20070612172858.GV3798@us.ibm.com> <1181674081.5592.91.camel@localhost>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: [PATCH] Add populated_map to account for memoryless nodes
+From: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
+In-Reply-To: <Pine.LNX.4.64.0706121138050.30754@schroedinger.engr.sgi.com>
+References: <20070611202728.GD9920@us.ibm.com>
+	 <Pine.LNX.4.64.0706111417540.20454@schroedinger.engr.sgi.com>
+	 <1181657433.5592.11.camel@localhost> <20070612173521.GX3798@us.ibm.com>
+	 <Pine.LNX.4.64.0706121138050.30754@schroedinger.engr.sgi.com>
+Content-Type: text/plain
+Date: Tue, 12 Jun 2007 14:54:42 -0400
+Message-Id: <1181674482.5592.98.camel@localhost>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
-Cc: Nishanth Aravamudan <nacc@us.ibm.com>, anton@samba.org, akpm@linux-foundation.org, linux-mm@kvack.org
+To: Christoph Lameter <clameter@sgi.com>
+Cc: Nishanth Aravamudan <nacc@us.ibm.com>, anton@samba.org, akpm@linux-foundation.org, linux-mm@kvack.org, Andi Kleen <ak@suse.de>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 12 Jun 2007, Lee Schermerhorn wrote:
-
-> Well, my patch [v4] fixed it on my platform.  So this is a regression
-> relative to my patch.  But, then, my patch had an issue with an x86_64
-> system where one node is all/mostly DMA32 and other nodes have memory in
-> higher zones.  Maybe that's OK [or not] for hugepage allocation, but
-> almost certainly not for regular page interleaving, ...
-
-Well this means your patch was arch specific.
-
-> > I'm much more concerned in the short term about the whole
-> > memoryless-node issue, which I think is more straight-forward, and
-> > generic to fix.
+On Tue, 2007-06-12 at 11:39 -0700, Christoph Lameter wrote:
+> On Tue, 12 Jun 2007, Nishanth Aravamudan wrote:
 > 
-> Perhaps, but I think we're still going to get off node allocations with
-> the revised definition of the populated map and the new zonelist
-> ordering.  I think we'll need to check for and reject off-node
-> allocations when '_THISNODE is specified.  We can't assume that the
-> first zone in a node's zonelist for a given gfp_zone is on-node.
+> > > Mea culpa.  Our platforms have a [pseudo-]node with just O(1G) memory
+> > > all in zone DMA.  That node can't look populated for allocating huge
+> > > pages.
+> > 
+> > Because you don't want to use up any of the DMA pages, right? That seems
+> > *very* platform specific. And it doesn't seem right to make common code
+> > more complicated for one platform. Maybe there isn't a better solution,
+> > but I'd like to mull it over.
+> 
+> Right. Please Lee be generic and avoid the exceptional cases.
 
-We do not do that anymore. GFP_THISNODE guarantees the allocation on 
-the node with alloc_pages_node. Read on.
+I was trying to be generic.  But it broke for the exceptional case of an
+x86_64 with all/mostly DMA32 in one node and higher zone memory in other
+nodes.  
+
+> 
+> > > Maybe we can just exclude zone DMA from the populated map?
+> > 
+> > Maybe I don't know enough about NUMA and such, but I'm not sure I
+> > understand how this would make it a populated map anymore?
+> > 
+> > Maybe we need two maps, really?
+> 
+> No need. If you want to exclude a node from huge pages then you need 
+> to use the patch that allows per node huge page specifications and set 
+> the number of huge pages for that node to zero.
+
+
+Perhaps.  But, be aware that allocating pages via the 'hugepages' boot
+parameter or the vm.nr_hugepages sysctl won't spread pages evenly--on
+our platforms, anyway--if we don't get this right.  From what I've seen
+in the mailing lists, this approach [fixing it up with the per node
+attributes] runs counter to the general approach of having the kernel
+figure it out.  
+
+So, I'll wait for this to settle down.  Then I'll see how it works on
+our platforms and propose whatever generic fixes I can to make it work.
+
+Lee
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
