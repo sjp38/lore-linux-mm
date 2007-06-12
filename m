@@ -1,39 +1,41 @@
-Date: Mon, 11 Jun 2007 19:25:08 -0700 (PDT)
-From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [PATCH v6][RFC] Fix hugetlb pool allocation with empty nodes
-In-Reply-To: <Pine.LNX.4.64.0706111921370.25134@schroedinger.engr.sgi.com>
-Message-ID: <Pine.LNX.4.64.0706111923580.25207@schroedinger.engr.sgi.com>
+Date: Tue, 12 Jun 2007 11:27:57 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [PATCH] Add populated_map to account for memoryless nodes
+Message-Id: <20070612112757.e2d511e0.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20070611202728.GD9920@us.ibm.com>
 References: <20070611202728.GD9920@us.ibm.com>
- <Pine.LNX.4.64.0706111417540.20454@schroedinger.engr.sgi.com>
- <20070611221036.GA14458@us.ibm.com> <Pine.LNX.4.64.0706111537250.20954@schroedinger.engr.sgi.com>
- <20070611225213.GB14458@us.ibm.com> <20070611230829.GC14458@us.ibm.com>
- <20070611231008.GD14458@us.ibm.com> <Pine.LNX.4.64.0706111615450.23857@schroedinger.engr.sgi.com>
- <20070612001542.GJ14458@us.ibm.com> <Pine.LNX.4.64.0706111745491.24389@schroedinger.engr.sgi.com>
- <20070612021245.GH3798@us.ibm.com> <Pine.LNX.4.64.0706111921370.25134@schroedinger.engr.sgi.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nishanth Aravamudan <nacc@us.ibm.com>
-Cc: linux-mm@kvack.org
+To: Nishanth Aravamudan <nacc@us.ibm.com>, Lee Schermerhorn <lee.schermerhorn@hp.com>
+Cc: clameter@sgi.com, anton@samba.org, akpm@linux-foundation.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 11 Jun 2007, Christoph Lameter wrote:
+On Mon, 11 Jun 2007 13:27:28 -0700
+Nishanth Aravamudan <nacc@us.ibm.com>, Lee Schermerhorn <lee.schermerhorn@hp.com> wrote:
 
-> On Mon, 11 Jun 2007, Nishanth Aravamudan wrote:
+> Split up Lee and Anton's original patch
+> (http://marc.info/?l=linux-mm&m=118133042025995&w=2), to allow for the
+> populated_map changes to go in on their own.
 > 
-> > static int nid = first_node(node_populated_map), I get:
-> > 
-> > mm/hugetlb.c:108: error: initializer element is not constant
+> Add a populated_map nodemask to indicate a node has memory or not. We
+> have run into a number of issues (in practice and in code) with
+> assumptions about every node having memory. Having this nodemask allows
+> us to fix these issues; in particular, THISNODE allocations will come
+> from the node specified, only, and the INTERLEAVE policy will be able to
+> do the right thing with memoryless nodes.
 > 
-> Remove the static.
+Thank you, I like this work.
 
-Cutting down the CCs.
+> +extern nodemask_t node_populated_map;
+please add /* node has memory */ here.
 
-Removing static wont help if the variable is still global. You need to 
-define a local variable. Then it can be initialized with a variable 
-expression.
- 
+I don't think "populated node" means "node-with-memory" if there is no comments.
+
+Thanks,
+-Kame
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
