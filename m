@@ -1,45 +1,42 @@
-Date: Mon, 11 Jun 2007 20:19:24 -0700 (PDT)
-From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [PATCH v6][RFC] Fix hugetlb pool allocation with empty nodes
-In-Reply-To: <20070612031718.GP3798@us.ibm.com>
-Message-ID: <Pine.LNX.4.64.0706112018260.25631@schroedinger.engr.sgi.com>
-References: <20070611230829.GC14458@us.ibm.com> <20070611231008.GD14458@us.ibm.com>
- <Pine.LNX.4.64.0706111615450.23857@schroedinger.engr.sgi.com>
- <20070612001542.GJ14458@us.ibm.com> <Pine.LNX.4.64.0706111745491.24389@schroedinger.engr.sgi.com>
- <20070612021245.GH3798@us.ibm.com> <Pine.LNX.4.64.0706111921370.25134@schroedinger.engr.sgi.com>
- <Pine.LNX.4.64.0706111923580.25207@schroedinger.engr.sgi.com>
- <20070612023421.GL3798@us.ibm.com> <Pine.LNX.4.64.0706111954360.25390@schroedinger.engr.sgi.com>
- <20070612031718.GP3798@us.ibm.com>
+Date: Tue, 12 Jun 2007 12:19:12 +0900
+From: Paul Mundt <lethal@linux-sh.org>
+Subject: Re: mm: memory/cpu hotplug section mismatch.
+Message-ID: <20070612031912.GA1377@linux-sh.org>
+References: <20070611154428.GA27644@linux-sh.org> <20070611184046.GA6458@uranus.ravnborg.org> <20070612102236.E8BA.Y-GOTO@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20070612102236.E8BA.Y-GOTO@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nishanth Aravamudan <nacc@us.ibm.com>
-Cc: linux-mm@kvack.org
+To: Yasunori Goto <y-goto@jp.fujitsu.com>
+Cc: Sam Ravnborg <sam@ravnborg.org>, Randy Dunlap <randy.dunlap@oracle.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 11 Jun 2007, Nishanth Aravamudan wrote:
-
-> > Ahh did not see that. Can you not call simply into interleave() from 
-> > mempolicy.c? It will get you the counter that you need.
+On Tue, Jun 12, 2007 at 10:50:33AM +0900, Yasunori Goto wrote:
+> > > 
+> > > If CONFIG_MEMORY_HOTPLUG=n __meminit == __init, and if
+> > > CONFIG_HOTPLUG_CPU=n __cpuinit == __init. However, with one set and the
+> > > other disabled, you end up with a reference between __init and a regular
+> > > non-init function.
+> > 
+> > My plan is to define dedicated sections for both __devinit and __meminit.
+> > Then we can apply the checks no matter the definition of CONFIG_HOTPLUG*
 > 
-> You just told me that mempolicy.c is built conditionally on NUMA.
-> alloc_fresh_huge_page() is not, it only depeonds on CONFIG_HUGETLB_PAGE!
-
-Well you just need to have the appropriate fallbacks defined in 
-mempolicy.h
-
-> The only interleave functions I see in mempolicy.c are:
+> I prefer defining "__nodeinit" for __cpuinit and __meminit case to
+> __devinit.   __devinit is used many devices like I/O, and it is
+> useful for many desktop users. But, cpu/memory hotpluggable box
+> is very rare. And it should be in init section for many people.
 > 
-> interleave_nodes(), which takes a mempolicy, which I don't have in
-> hugetlb.c
+> This kind of issue is caused by initialization of pgdat/zone.
+> I think __nodeinit is enough and desirable.
 > 
-> interleave_nid(), which also takes a mempolicy
-> 
-> I guess I could try and use huge_zonelist(), but I don't see the point?
-
-Export a function for the interleave functionality so that we do not have 
-to replicate the same thing in various locations in the kernel.
+A #define __nodeinit __devinit is probably reasonable for clarity
+purposes. But whatever we want to call it, the current __cpuinit for
+zone_batchsize() has to be changed, as it will be freed with the rest of
+the init code if CPU hotplug is disabled. If we want to do something
+cleaner in the long run, that's fine, but changing to __devinit now at
+least gets the semantics right for both the memory and cpu hotplug cases.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
