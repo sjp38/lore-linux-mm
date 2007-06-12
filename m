@@ -1,40 +1,32 @@
-Date: Tue, 12 Jun 2007 11:49:00 -0700 (PDT)
+Date: Tue, 12 Jun 2007 11:50:00 -0700 (PDT)
 From: Christoph Lameter <clameter@sgi.com>
 Subject: Re: [PATCH v6][RFC] Fix hugetlb pool allocation with empty nodes
-In-Reply-To: <20070612174326.GA3798@us.ibm.com>
-Message-ID: <Pine.LNX.4.64.0706121147260.30754@schroedinger.engr.sgi.com>
-References: <Pine.LNX.4.64.0706111745491.24389@schroedinger.engr.sgi.com>
- <20070612021245.GH3798@us.ibm.com> <Pine.LNX.4.64.0706111921370.25134@schroedinger.engr.sgi.com>
- <Pine.LNX.4.64.0706111923580.25207@schroedinger.engr.sgi.com>
- <20070612023421.GL3798@us.ibm.com> <Pine.LNX.4.64.0706111954360.25390@schroedinger.engr.sgi.com>
- <20070612031718.GP3798@us.ibm.com> <Pine.LNX.4.64.0706112018260.25631@schroedinger.engr.sgi.com>
- <20070612033050.GR3798@us.ibm.com> <Pine.LNX.4.64.0706112046380.25900@schroedinger.engr.sgi.com>
- <20070612174326.GA3798@us.ibm.com>
+In-Reply-To: <20070612173602.GY3798@us.ibm.com>
+Message-ID: <Pine.LNX.4.64.0706121149360.30754@schroedinger.engr.sgi.com>
+References: <20070611221036.GA14458@us.ibm.com>
+ <Pine.LNX.4.64.0706111537250.20954@schroedinger.engr.sgi.com>
+ <20070611225213.GB14458@us.ibm.com> <20070611230829.GC14458@us.ibm.com>
+ <20070611231008.GD14458@us.ibm.com> <Pine.LNX.4.64.0706111615450.23857@schroedinger.engr.sgi.com>
+ <20070612001542.GJ14458@us.ibm.com> <20070612034407.GB11773@holomorphy.com>
+ <20070612050910.GU3798@us.ibm.com> <20070612051512.GC11773@holomorphy.com>
+ <20070612173602.GY3798@us.ibm.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Nishanth Aravamudan <nacc@us.ibm.com>
-Cc: linux-mm@kvack.org
+Cc: William Lee Irwin III <wli@holomorphy.com>, lee.schermerhorn@hp.com, anton@samba.org, akpm@linux-foundation.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
 On Tue, 12 Jun 2007, Nishanth Aravamudan wrote:
 
-> Ok, I see that. And it represent the next node to use for an interleaved
-> allocation. Makes sense to me, and I see how it's used in mempolicy.c to
-> achieve that. But we're running at system boot time, or whenever some
+> > For initially filling the pool one can just loop over nid's modulo the
+> > number of populated nodes and pass down a stack-allocated variable.
+> 
+> Ok, I'll play with that a bit.
 
-At boot time the init_task is running and you can effectively use a global
-variable like you have now.
-
-> invokes the sysctl /proc/sys/vm/nr_hugepages. Do we really want to muck
-> with some arbitray bash shell's il_next field to achieve interleaving?
-> What if it's a C process that is trying to achieve actual interleaving
-> for other purposes and also allocates some hugepages on the system? It
-> seems like il_next is very much a process-related field.
-
-il_next is process related. Mucking around is what is was put there for.
-The bash process wont be hurt by changing its il_next field.
+That would work too but then you need to write your own interleave 
+function.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
