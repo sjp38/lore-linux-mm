@@ -1,39 +1,36 @@
-Date: Mon, 11 Jun 2007 20:48:08 -0700 (PDT)
+Date: Mon, 11 Jun 2007 20:50:49 -0700 (PDT)
 From: Christoph Lameter <clameter@sgi.com>
 Subject: Re: [PATCH v6][RFC] Fix hugetlb pool allocation with empty nodes
-In-Reply-To: <20070612033050.GR3798@us.ibm.com>
-Message-ID: <Pine.LNX.4.64.0706112046380.25900@schroedinger.engr.sgi.com>
-References: <Pine.LNX.4.64.0706111615450.23857@schroedinger.engr.sgi.com>
- <20070612001542.GJ14458@us.ibm.com> <Pine.LNX.4.64.0706111745491.24389@schroedinger.engr.sgi.com>
- <20070612021245.GH3798@us.ibm.com> <Pine.LNX.4.64.0706111921370.25134@schroedinger.engr.sgi.com>
- <Pine.LNX.4.64.0706111923580.25207@schroedinger.engr.sgi.com>
- <20070612023421.GL3798@us.ibm.com> <Pine.LNX.4.64.0706111954360.25390@schroedinger.engr.sgi.com>
- <20070612031718.GP3798@us.ibm.com> <Pine.LNX.4.64.0706112018260.25631@schroedinger.engr.sgi.com>
- <20070612033050.GR3798@us.ibm.com>
+In-Reply-To: <20070612034407.GB11773@holomorphy.com>
+Message-ID: <Pine.LNX.4.64.0706112050070.25900@schroedinger.engr.sgi.com>
+References: <20070611202728.GD9920@us.ibm.com>
+ <Pine.LNX.4.64.0706111417540.20454@schroedinger.engr.sgi.com>
+ <20070611221036.GA14458@us.ibm.com> <Pine.LNX.4.64.0706111537250.20954@schroedinger.engr.sgi.com>
+ <20070611225213.GB14458@us.ibm.com> <20070611230829.GC14458@us.ibm.com>
+ <20070611231008.GD14458@us.ibm.com> <Pine.LNX.4.64.0706111615450.23857@schroedinger.engr.sgi.com>
+ <20070612001542.GJ14458@us.ibm.com> <20070612034407.GB11773@holomorphy.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nishanth Aravamudan <nacc@us.ibm.com>
-Cc: linux-mm@kvack.org
+To: William Lee Irwin III <wli@holomorphy.com>
+Cc: Nishanth Aravamudan <nacc@us.ibm.com>, lee.schermerhorn@hp.com, anton@samba.org, akpm@linux-foundation.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 11 Jun 2007, Nishanth Aravamudan wrote:
+On Mon, 11 Jun 2007, William Lee Irwin III wrote:
 
-> > Export a function for the interleave functionality so that we do not
-> > have to replicate the same thing in various locations in the kernel.
-> 
-> But I don't understand this at all.
-> 
-> This is *not* generically available, unless every caller has its own
-> private static variable. I don't know how to do that in C.
+> I wrote that, so I figure I should chime in. The static variable can
+> be killed off outright.
 
-It is already there. Each task has a il_next field in its task struct for 
-that purpose.
+I agree.
 
-> You're asking me to complicate patches that work just fine right now.
+> Initially filling the pool doesn't need the static affair. Refilling
+> the pool from the page allocator can refill the node with the least
+> memory first, and choose randomly otherwise. Using default mpolicies
+> or defaulting to node-local memory instead of round-robin allocation
+> will likely do for callers into the allocator.
 
-I am trying to simplify your work.
+Each task already has a next node field. Just use that.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
