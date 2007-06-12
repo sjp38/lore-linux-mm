@@ -1,50 +1,39 @@
-Date: Mon, 11 Jun 2007 20:44:07 -0700
-From: William Lee Irwin III <wli@holomorphy.com>
+Date: Mon, 11 Jun 2007 20:48:08 -0700 (PDT)
+From: Christoph Lameter <clameter@sgi.com>
 Subject: Re: [PATCH v6][RFC] Fix hugetlb pool allocation with empty nodes
-Message-ID: <20070612034407.GB11773@holomorphy.com>
-References: <20070611202728.GD9920@us.ibm.com> <Pine.LNX.4.64.0706111417540.20454@schroedinger.engr.sgi.com> <20070611221036.GA14458@us.ibm.com> <Pine.LNX.4.64.0706111537250.20954@schroedinger.engr.sgi.com> <20070611225213.GB14458@us.ibm.com> <20070611230829.GC14458@us.ibm.com> <20070611231008.GD14458@us.ibm.com> <Pine.LNX.4.64.0706111615450.23857@schroedinger.engr.sgi.com> <20070612001542.GJ14458@us.ibm.com>
+In-Reply-To: <20070612033050.GR3798@us.ibm.com>
+Message-ID: <Pine.LNX.4.64.0706112046380.25900@schroedinger.engr.sgi.com>
+References: <Pine.LNX.4.64.0706111615450.23857@schroedinger.engr.sgi.com>
+ <20070612001542.GJ14458@us.ibm.com> <Pine.LNX.4.64.0706111745491.24389@schroedinger.engr.sgi.com>
+ <20070612021245.GH3798@us.ibm.com> <Pine.LNX.4.64.0706111921370.25134@schroedinger.engr.sgi.com>
+ <Pine.LNX.4.64.0706111923580.25207@schroedinger.engr.sgi.com>
+ <20070612023421.GL3798@us.ibm.com> <Pine.LNX.4.64.0706111954360.25390@schroedinger.engr.sgi.com>
+ <20070612031718.GP3798@us.ibm.com> <Pine.LNX.4.64.0706112018260.25631@schroedinger.engr.sgi.com>
+ <20070612033050.GR3798@us.ibm.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20070612001542.GJ14458@us.ibm.com>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Nishanth Aravamudan <nacc@us.ibm.com>
-Cc: Christoph Lameter <clameter@sgi.com>, lee.schermerhorn@hp.com, anton@samba.org, akpm@linux-foundation.org, linux-mm@kvack.org
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 11.06.2007 [16:17:47 -0700], Christoph Lameter wrote:
->> nid == 1 means local node? Or why do we check for nid < 0?
->> 	if (nid == 1)
->> 		 nid = numa_node_id();
->> ?
+On Mon, 11 Jun 2007, Nishanth Aravamudan wrote:
 
-On Mon, Jun 11, 2007 at 05:15:42PM -0700, Nishanth Aravamudan wrote:
-> No, nid is a static variable. So we initialize it to -1 to catch the
-> first time we go through the loop.
-> IIRC, we can't just set it to first_node(node_populated_map), because
-> it's a non-constant or something?
+> > Export a function for the interleave functionality so that we do not
+> > have to replicate the same thing in various locations in the kernel.
+> 
+> But I don't understand this at all.
+> 
+> This is *not* generically available, unless every caller has its own
+> private static variable. I don't know how to do that in C.
 
-I wrote that, so I figure I should chime in. The static variable can
-be killed off outright.
+It is already there. Each task has a il_next field in its task struct for 
+that purpose.
 
-Initially filling the pool doesn't need the static affair. Refilling
-the pool from the page allocator can refill the node with the least
-memory first, and choose randomly otherwise. Using default mpolicies
-or defaulting to node-local memory instead of round-robin allocation
-will likely do for callers into the allocator.
+> You're asking me to complicate patches that work just fine right now.
 
-It depends a bit on what SGI's app that originally wanted striping of
-hugetlb does.
-
-Also, if one has such a large number of nodes that exhaustive search
-for the node with the least memory would be prohibitive, esp. when in
-a loop, it's always possible to keep node ID's in an array heap-ordered
-by the number of pages in the node's segment of the pool. In such a
-manner the inner loop's search is limited to O(lg(nr_online_nodes())).
-
-
--- wli
+I am trying to simplify your work.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
