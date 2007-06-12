@@ -1,29 +1,35 @@
-Date: Mon, 11 Jun 2007 19:55:21 -0700 (PDT)
-From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [PATCH v6][RFC] Fix hugetlb pool allocation with empty nodes
-In-Reply-To: <20070612023421.GL3798@us.ibm.com>
-Message-ID: <Pine.LNX.4.64.0706111954360.25390@schroedinger.engr.sgi.com>
-References: <Pine.LNX.4.64.0706111537250.20954@schroedinger.engr.sgi.com>
- <20070611225213.GB14458@us.ibm.com> <20070611230829.GC14458@us.ibm.com>
- <20070611231008.GD14458@us.ibm.com> <Pine.LNX.4.64.0706111615450.23857@schroedinger.engr.sgi.com>
- <20070612001542.GJ14458@us.ibm.com> <Pine.LNX.4.64.0706111745491.24389@schroedinger.engr.sgi.com>
- <20070612021245.GH3798@us.ibm.com> <Pine.LNX.4.64.0706111921370.25134@schroedinger.engr.sgi.com>
- <Pine.LNX.4.64.0706111923580.25207@schroedinger.engr.sgi.com>
- <20070612023421.GL3798@us.ibm.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Date: Tue, 12 Jun 2007 12:04:46 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [PATCH] Add populated_map to account for memoryless nodes
+Message-Id: <20070612120446.8a75b238.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <Pine.LNX.4.64.0706111952580.25390@schroedinger.engr.sgi.com>
+References: <20070611202728.GD9920@us.ibm.com>
+	<20070612112757.e2d511e0.kamezawa.hiroyu@jp.fujitsu.com>
+	<Pine.LNX.4.64.0706111952580.25390@schroedinger.engr.sgi.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nishanth Aravamudan <nacc@us.ibm.com>
-Cc: linux-mm@kvack.org
+To: Christoph Lameter <clameter@sgi.com>
+Cc: Nishanth Aravamudan <nacc@us.ibm.com>, Lee Schermerhorn <lee.schermerhorn@hp.com>, anton@samba.org, akpm@linux-foundation.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 11 Jun 2007, Nishanth Aravamudan wrote:
+On Mon, 11 Jun 2007 19:53:10 -0700 (PDT)
+Christoph Lameter <clameter@sgi.com> wrote:
 
-> nid is static to alloc_fresh_huge_page().
+> > Thank you, I like this work.
+> > 
+> > > +extern nodemask_t node_populated_map;
+> > please add /* node has memory */ here.
+> > 
+> > I don't think "populated node" means "node-with-memory" if there is no comments.
+> 
+> What else could it mean?
+> 
+"a node has cpu(s) or device(s)" is not populated ?
 
-Ahh did not see that. Can you not call simply into interleave() from 
-mempolicy.c? It will get you the counter that you need.
+-Kame
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
