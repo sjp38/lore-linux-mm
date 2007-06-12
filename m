@@ -1,75 +1,97 @@
-Date: Tue, 12 Jun 2007 10:32:34 -0500
-From: Matt Mackall <mpm@selenic.com>
-Subject: Re: [PATCH] numa: mempolicy: dynamic interleave map for system init.
-Message-ID: <20070612153234.GI11115@waste.org>
-References: <20070607011701.GA14211@linux-sh.org> <20070607180108.0eeca877.akpm@linux-foundation.org> <Pine.LNX.4.64.0706071942240.26636@schroedinger.engr.sgi.com> <20070608032505.GA13227@linux-sh.org> <20070608145011.GE11115@waste.org> <20070612094359.GA5803@linux-sh.org>
+Received: from d03relay02.boulder.ibm.com (d03relay02.boulder.ibm.com [9.17.195.227])
+	by e34.co.us.ibm.com (8.13.8/8.13.8) with ESMTP id l5CHWn5n003723
+	for <linux-mm@kvack.org>; Tue, 12 Jun 2007 13:32:49 -0400
+Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
+	by d03relay02.boulder.ibm.com (8.13.8/8.13.8/NCO v8.3) with ESMTP id l5CHWU2k145416
+	for <linux-mm@kvack.org>; Tue, 12 Jun 2007 11:32:42 -0600
+Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av02.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l5CHWTq6023247
+	for <linux-mm@kvack.org>; Tue, 12 Jun 2007 11:32:29 -0600
+Date: Tue, 12 Jun 2007 10:32:26 -0700
+From: Nishanth Aravamudan <nacc@us.ibm.com>
+Subject: Re: [PATCH v2] Add populated_map to account for memoryless nodes
+Message-ID: <20070612173226.GW3798@us.ibm.com>
+References: <20070611202728.GD9920@us.ibm.com> <Pine.LNX.4.64.0706111417540.20454@schroedinger.engr.sgi.com> <20070611221036.GA14458@us.ibm.com> <Pine.LNX.4.64.0706111537250.20954@schroedinger.engr.sgi.com> <1181657940.5592.19.camel@localhost>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20070612094359.GA5803@linux-sh.org>
+In-Reply-To: <1181657940.5592.19.camel@localhost>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Paul Mundt <lethal@linux-sh.org>, Christoph Lameter <clameter@sgi.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, ak@suse.de, hugh@veritas.com, lee.schermerhorn@hp.com, Nick Piggin <nickpiggin@yahoo.com.au>
+To: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
+Cc: Christoph Lameter <clameter@sgi.com>, anton@samba.org, akpm@linux-foundation.org, linux-mm@kvack.org, Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Jun 12, 2007 at 06:43:59PM +0900, Paul Mundt wrote:
-> On Fri, Jun 08, 2007 at 09:50:11AM -0500, Matt Mackall wrote:
-> > SLOB's big scalability problem at this point is number of CPUs.
-> > Throwing some fine-grained locking at it or the like may be able to
-> > help with that too.
+On 12.06.2007 [10:19:00 -0400], Lee Schermerhorn wrote:
+> On Mon, 2007-06-11 at 15:42 -0700, Christoph Lameter wrote:
+> > On Mon, 11 Jun 2007, Nishanth Aravamudan wrote:
 > > 
-> > Why would you even want to bother making it scale that large? For
-> > starters, it's less affected by things like dcache fragmentation. The
-> > majority of pages pinned by long-lived dcache entries will still be
-> > available to other allocations.
+> > > Already done in the original patch (node_populated() returns (node == 0)
+> > > if MAX_NUMODES <= 1), I think.
 > > 
-> > Haven't given any thought to NUMA yet though..
+> > Ah good.
 > > 
-> This is what I've hacked together and tested with my small nodes. It's
-> not terribly intelligent, and it pushes off most of the logic to the page
-> allocator. Obviously it's not terribly scalable, and I haven't tested it
-> with page migration, either. Still, it works for me with my simple tmpfs
-> + mpol policy tests.
+> > > @@ -2299,6 +2303,18 @@ static void build_zonelists(pg_data_t *pgdat)
+> > >  		/* calculate node order -- i.e., DMA last! */
+> > >  		build_zonelists_in_zone_order(pgdat, j);
+> > >  	}
+> > > +
+> > > +	/*
+> > > +	 * record nodes whose first fallback zone is "on-node" as
+> > > +	 * populated
+> > > +	 */
+> > > +	z = pgdat->node_zonelists->zones[0];
+> > > +
+> > > +	VM_BUG_ON(!z);
+> > > +	if (z->zone_pgdat == pgdat)
+> > > +		node_set_populated(local_node);
+> > > +	else
+> > > +		node_not_populated(local_node);
+> > >  }
+> > >  
+> > >  /* Construct the zonelist performance cache - see further mmzone.h */
+> > > 
+> > 
+> > Could be much simpler:
+> > 
+> > if (pgdat->node_present_pages)
+> > 	node_set_populated(local_node);
 > 
-> Tested on a UP + SPARSEMEM (static, not extreme) + NUMA (2 nodes) + SLOB
-> configuration.
+> As a minimum, we need to exclude a node with only zone DMA memory for
+> this to work on our platforms.  For that, I think the current code is
+> the simplest because we still need to check if the first zone is
+> "on-node" and !DMA.
 > 
-> Flame away!
+> And, I think we need both cases--set and reset populated map bit--to
+> handle memory/node hotplug.  So something like:
 
-For starters, it's not against the current SLOB, which no longer has
-the bigblock list.
+That's a good point -- build_zonelists() will get called for the
+rebuild, but won't remove nodes from the populated_map. Admittedly, only
+hot-add is currently supported, right?
 
-> -void *__kmalloc(size_t size, gfp_t gfp)
-> +static void *__kmalloc_alloc(size_t size, gfp_t gfp, int node)
+> 	if (z->zone_pgdat == pgdat && !is_zone_dma(z))
+> 		node_set_populated(local_node);
+> 	else
+> 		node_not_populated(local_node);
 
-That's a ridiculous name. So, uh.. more underbars!
+Hrm, but then node_populated == node has non-DMA pages, which is
+altogether unintuitive. Again, I think this obfuscates things -- perhaps
+the map should be renamed to something closer to what you actually want
+it to represent?
 
-Though really, I think you can just name it __kmalloc_node?
+> Need to define 'is_zone-dma()' to test the zone or unconditionally
+> return false depending on whether ZONE_DMA is configured.
 
-> +		if (node == -1)
-> +			pages = alloc_pages(flags, get_order(c->size));
-> +		else
-> +			pages = alloc_pages_node(node, flags,
-> +						get_order(c->size));
+@Andrew: would you be ok dropping the populated_map patches while I hammer
+out whether it's what we want with Lee; and decide whether the fix-patch
+on top is needed, as well, based on Christoph's feedback?
 
-This fragment appears a few times. Looks like it ought to get its own
-function. And that function can reduce to a trivial inline in the
-!NUMA case.
-
-> +void *kmem_cache_alloc_node(struct kmem_cache *c, gfp_t flags, int node)
-> +{
-> +	return __kmem_cache_alloc(c, flags, node);
-> +}
-
-If we make the underlying functions all take a node, this stuff all
-gets simpler.
-
->  static void slob_timer_cbk(void)
-
-This is gone in the latest SLOB too.
+Thanks,
+Nish
 
 -- 
-Mathematics is the supreme nostalgia of our time.
+Nishanth Aravamudan <nacc@us.ibm.com>
+IBM Linux Technology Center
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
