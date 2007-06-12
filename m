@@ -1,36 +1,40 @@
-Date: Mon, 11 Jun 2007 18:45:55 -0700 (PDT)
-From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [PATCH] populated_map: fix !NUMA case, remove comment
-In-Reply-To: <20070612014357.GD3798@us.ibm.com>
-Message-ID: <Pine.LNX.4.64.0706111844560.24889@schroedinger.engr.sgi.com>
-References: <20070611202728.GD9920@us.ibm.com>
- <Pine.LNX.4.64.0706111417540.20454@schroedinger.engr.sgi.com>
- <20070611221036.GA14458@us.ibm.com> <Pine.LNX.4.64.0706111537250.20954@schroedinger.engr.sgi.com>
- <20070611225213.GB14458@us.ibm.com> <Pine.LNX.4.64.0706111559490.21107@schroedinger.engr.sgi.com>
- <20070611234155.GG14458@us.ibm.com> <Pine.LNX.4.64.0706111642450.24042@schroedinger.engr.sgi.com>
- <20070612000705.GH14458@us.ibm.com> <Pine.LNX.4.64.0706111740280.24389@schroedinger.engr.sgi.com>
- <20070612014357.GD3798@us.ibm.com>
+Date: Tue, 12 Jun 2007 10:50:33 +0900
+From: Yasunori Goto <y-goto@jp.fujitsu.com>
+Subject: Re: mm: memory/cpu hotplug section mismatch.
+In-Reply-To: <20070611184046.GA6458@uranus.ravnborg.org>
+References: <20070611154428.GA27644@linux-sh.org> <20070611184046.GA6458@uranus.ravnborg.org>
+Message-Id: <20070612102236.E8BA.Y-GOTO@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset="US-ASCII"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nishanth Aravamudan <nacc@us.ibm.com>
-Cc: lee.schermerhorn@hp.com, anton@samba.org, akpm@linux-foundation.org, linux-mm@kvack.org
+To: Sam Ravnborg <sam@ravnborg.org>
+Cc: Paul Mundt <lethal@linux-sh.org>, Randy Dunlap <randy.dunlap@oracle.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 11 Jun 2007, Nishanth Aravamudan wrote:
+> > 
+> > If CONFIG_MEMORY_HOTPLUG=n __meminit == __init, and if
+> > CONFIG_HOTPLUG_CPU=n __cpuinit == __init. However, with one set and the
+> > other disabled, you end up with a reference between __init and a regular
+> > non-init function.
+> 
+> My plan is to define dedicated sections for both __devinit and __meminit.
+> Then we can apply the checks no matter the definition of CONFIG_HOTPLUG*
 
-> Ah, but we'll use it in mpol_new via nodes_and() regardless of
-> NUMA/!NUMA, right?
+I prefer defining "__nodeinit" for __cpuinit and __meminit case to
+__devinit.   __devinit is used many devices like I/O, and it is
+useful for many desktop users. But, cpu/memory hotpluggable box
+is very rare. And it should be in init section for many people.
 
-mempolicy.c will only be compiled for the NUMA case.
+This kind of issue is caused by initialization of pgdat/zone.
+I think __nodeinit is enough and desirable.
 
-> If you really feel that only CONFIG_NUMA code should use
-> node_populated_mask, then I'll make that change and use node_populated()
-> in the callers.
+Bye.
 
-What point would there be of !NUMA configurations using 
-node_populated_mask()?
+-- 
+Yasunori Goto 
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
