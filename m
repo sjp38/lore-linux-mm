@@ -1,53 +1,50 @@
-Received: from d03relay02.boulder.ibm.com (d03relay02.boulder.ibm.com [9.17.195.227])
-	by e34.co.us.ibm.com (8.13.8/8.13.8) with ESMTP id l5C2Ygcs004529
-	for <linux-mm@kvack.org>; Mon, 11 Jun 2007 22:34:42 -0400
-Received: from d03av04.boulder.ibm.com (d03av04.boulder.ibm.com [9.17.195.170])
-	by d03relay02.boulder.ibm.com (8.13.8/8.13.8/NCO v8.3) with ESMTP id l5C2Yfgh266694
-	for <linux-mm@kvack.org>; Mon, 11 Jun 2007 20:34:41 -0600
-Received: from d03av04.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av04.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l5C2Yfsu015470
-	for <linux-mm@kvack.org>; Mon, 11 Jun 2007 20:34:41 -0600
-Date: Mon, 11 Jun 2007 19:34:39 -0700
-From: Nishanth Aravamudan <nacc@us.ibm.com>
-Subject: Re: [PATCH][RFC] hugetlb: add per-node nr_hugepages sysfs attribute
-Message-ID: <20070612023439.GM3798@us.ibm.com>
-References: <20070611221036.GA14458@us.ibm.com> <Pine.LNX.4.64.0706111537250.20954@schroedinger.engr.sgi.com> <20070611225213.GB14458@us.ibm.com> <20070611230829.GC14458@us.ibm.com> <20070611231008.GD14458@us.ibm.com> <20070611231149.GE14458@us.ibm.com> <20070611231314.GF14458@us.ibm.com> <Pine.LNX.4.64.0706111641160.24042@schroedinger.engr.sgi.com> <20070612021950.GI3798@us.ibm.com> <Pine.LNX.4.64.0706111921540.25134@schroedinger.engr.sgi.com>
+Message-ID: <466E06CA.9030302@yahoo.com.au>
+Date: Tue, 12 Jun 2007 12:36:58 +1000
+From: Nick Piggin <nickpiggin@yahoo.com.au>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <Pine.LNX.4.64.0706111921540.25134@schroedinger.engr.sgi.com>
+Subject: Re: [PATCH] numa: mempolicy: dynamic interleave map for system init.
+References: <20070607011701.GA14211@linux-sh.org> <20070607180108.0eeca877.akpm@linux-foundation.org> <Pine.LNX.4.64.0706071942240.26636@schroedinger.engr.sgi.com> <20070608032505.GA13227@linux-sh.org> <20070608145011.GE11115@waste.org>
+In-Reply-To: <20070608145011.GE11115@waste.org>
+Content-Type: text/plain; charset=us-ascii; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
-Cc: lee.schermerhorn@hp.com, anton@samba.org, akpm@linux-foundation.org, linux-mm@kvack.org, wli@holomorphy.com
+To: Matt Mackall <mpm@selenic.com>
+Cc: Paul Mundt <lethal@linux-sh.org>, Christoph Lameter <clameter@sgi.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, ak@suse.de, hugh@veritas.com, lee.schermerhorn@hp.com
 List-ID: <linux-mm.kvack.org>
 
-On 11.06.2007 [19:22:43 -0700], Christoph Lameter wrote:
-> On Mon, 11 Jun 2007, Nishanth Aravamudan wrote:
+Matt Mackall wrote:
+> On Fri, Jun 08, 2007 at 12:25:05PM +0900, Paul Mundt wrote:
 > 
-> > Ok, if I do that, would you prefer I just add callbacks into hugetlb
-> > code for register_node() and unregister_node() that are no-ops if
-> > !CONFIG_HUGETLB_PAGE? That is, rather than
-> > 
-> > 	sysdev_remove_file(&node->sysdev, &attr_nr_hugepages);
-> > 
-> > just call something like
-> > 
-> > 	hugetlb_unregister_node()
-> > 
-> > ? And similar for register? Otherwise, there are still going to be
-> > ifdefs for the remove and add calls.
+>>Well, this doesn't all have to be dynamic either. I opted for the
+>>mpolinit= approach first so we wouldn't make the accounting for the
+>>common case heavier, but certainly having it dynamic is less hassle. The
+>>asymmetric case will likely be the common case for embedded, but it's
+>>obviously possible to try to work that in to SLOB or something similar,
+>>if making SLUB or SLAB lighterweight and more tunable for these cases
+>>ends up being a real barrier.
+>>
+>>On the other hand, as we start having machines with multiple gigs of RAM
+>>that are stashed in node 0 (with many smaller memories in other nodes),
+>>SLOB isn't going to be a long-term option either.
 > 
-> Sounds good. Lets see the patch.
+> 
+> SLOB in -mm should scale to this size reasonably well now, and Nick
+> and I have another tweak planned that should make it quite fast here.
 
-Of course, just wanted to make sure were on the same page.
+Indeed. The existing code in -mm should hopefully get merged next cycle,
+so if you have ever wanted to use SLOB but had performance problems, please
+reevaluate and report if you still hit problems.
 
-Thanks,
-Nish
+Even on small SMPs, it might be a reasonable choice, although it won't be
+able to match the other allocators for performance. Again, if you have
+problems with SMP scalability of SLOB, then please let us know too, because
+as Matt said there are a few things we could do (such as multiple freelists)
+which may improve performance quite a bit without hurting complexity or
+memory usage much.
 
 -- 
-Nishanth Aravamudan <nacc@us.ibm.com>
-IBM Linux Technology Center
+SUSE Labs, Novell Inc.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
