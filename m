@@ -1,35 +1,53 @@
-Date: Tue, 12 Jun 2007 12:04:46 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCH] Add populated_map to account for memoryless nodes
-Message-Id: <20070612120446.8a75b238.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <Pine.LNX.4.64.0706111952580.25390@schroedinger.engr.sgi.com>
-References: <20070611202728.GD9920@us.ibm.com>
-	<20070612112757.e2d511e0.kamezawa.hiroyu@jp.fujitsu.com>
-	<Pine.LNX.4.64.0706111952580.25390@schroedinger.engr.sgi.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from d01relay04.pok.ibm.com (d01relay04.pok.ibm.com [9.56.227.236])
+	by e6.ny.us.ibm.com (8.13.8/8.13.8) with ESMTP id l5C3IQ0J003262
+	for <linux-mm@kvack.org>; Mon, 11 Jun 2007 23:18:26 -0400
+Received: from d01av04.pok.ibm.com (d01av04.pok.ibm.com [9.56.224.64])
+	by d01relay04.pok.ibm.com (8.13.8/8.13.8/NCO v8.3) with ESMTP id l5C3HL0N556648
+	for <linux-mm@kvack.org>; Mon, 11 Jun 2007 23:17:21 -0400
+Received: from d01av04.pok.ibm.com (loopback [127.0.0.1])
+	by d01av04.pok.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l5C3HLfG017184
+	for <linux-mm@kvack.org>; Mon, 11 Jun 2007 23:17:21 -0400
+Date: Mon, 11 Jun 2007 20:17:18 -0700
+From: Nishanth Aravamudan <nacc@us.ibm.com>
+Subject: Re: [PATCH v6][RFC] Fix hugetlb pool allocation with empty nodes
+Message-ID: <20070612031718.GP3798@us.ibm.com>
+References: <20070611230829.GC14458@us.ibm.com> <20070611231008.GD14458@us.ibm.com> <Pine.LNX.4.64.0706111615450.23857@schroedinger.engr.sgi.com> <20070612001542.GJ14458@us.ibm.com> <Pine.LNX.4.64.0706111745491.24389@schroedinger.engr.sgi.com> <20070612021245.GH3798@us.ibm.com> <Pine.LNX.4.64.0706111921370.25134@schroedinger.engr.sgi.com> <Pine.LNX.4.64.0706111923580.25207@schroedinger.engr.sgi.com> <20070612023421.GL3798@us.ibm.com> <Pine.LNX.4.64.0706111954360.25390@schroedinger.engr.sgi.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <Pine.LNX.4.64.0706111954360.25390@schroedinger.engr.sgi.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Christoph Lameter <clameter@sgi.com>
-Cc: Nishanth Aravamudan <nacc@us.ibm.com>, Lee Schermerhorn <lee.schermerhorn@hp.com>, anton@samba.org, akpm@linux-foundation.org, linux-mm@kvack.org
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 11 Jun 2007 19:53:10 -0700 (PDT)
-Christoph Lameter <clameter@sgi.com> wrote:
-
-> > Thank you, I like this work.
-> > 
-> > > +extern nodemask_t node_populated_map;
-> > please add /* node has memory */ here.
-> > 
-> > I don't think "populated node" means "node-with-memory" if there is no comments.
+On 11.06.2007 [19:55:21 -0700], Christoph Lameter wrote:
+> On Mon, 11 Jun 2007, Nishanth Aravamudan wrote:
 > 
-> What else could it mean?
+> > nid is static to alloc_fresh_huge_page().
 > 
-"a node has cpu(s) or device(s)" is not populated ?
+> Ahh did not see that. Can you not call simply into interleave() from 
+> mempolicy.c? It will get you the counter that you need.
 
--Kame
+You just told me that mempolicy.c is built conditionally on NUMA.
+alloc_fresh_huge_page() is not, it only depeonds on CONFIG_HUGETLB_PAGE!
+
+The only interleave functions I see in mempolicy.c are:
+
+interleave_nodes(), which takes a mempolicy, which I don't have in
+hugetlb.c
+
+interleave_nid(), which also takes a mempolicy
+
+I guess I could try and use huge_zonelist(), but I don't see the point?
+
+Thanks,
+Nish
+
+-- 
+Nishanth Aravamudan <nacc@us.ibm.com>
+IBM Linux Technology Center
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
