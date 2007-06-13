@@ -1,216 +1,95 @@
-Received: from d03relay02.boulder.ibm.com (d03relay02.boulder.ibm.com [9.17.195.227])
-	by e35.co.us.ibm.com (8.13.8/8.13.8) with ESMTP id l5D04n8S008625
-	for <linux-mm@kvack.org>; Tue, 12 Jun 2007 20:04:49 -0400
-Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
-	by d03relay02.boulder.ibm.com (8.13.8/8.13.8/NCO v8.3) with ESMTP id l5D04nTU267128
-	for <linux-mm@kvack.org>; Tue, 12 Jun 2007 18:04:49 -0600
-Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av02.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l5D04m87026079
-	for <linux-mm@kvack.org>; Tue, 12 Jun 2007 18:04:48 -0600
-Date: Tue, 12 Jun 2007 17:04:46 -0700
-From: Nishanth Aravamudan <nacc@us.ibm.com>
-Subject: [PATCH v7][RFC] Fix hugetlb pool allocation with empty nodes
-Message-ID: <20070613000446.GL3798@us.ibm.com>
-References: <20070611225213.GB14458@us.ibm.com> <20070611230829.GC14458@us.ibm.com> <20070611231008.GD14458@us.ibm.com> <Pine.LNX.4.64.0706111615450.23857@schroedinger.engr.sgi.com> <20070612001542.GJ14458@us.ibm.com> <20070612034407.GB11773@holomorphy.com> <20070612050910.GU3798@us.ibm.com> <20070612051512.GC11773@holomorphy.com> <20070612174503.GB3798@us.ibm.com> <20070612191347.GE11781@holomorphy.com>
+Message-ID: <466F520D.9080206@yahoo.com.au>
+Date: Wed, 13 Jun 2007 12:10:21 +1000
+From: Nick Piggin <nickpiggin@yahoo.com.au>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20070612191347.GE11781@holomorphy.com>
+Subject: Re: [PATCH] numa: mempolicy: dynamic interleave map for system init.
+References: <20070607011701.GA14211@linux-sh.org> <20070607180108.0eeca877.akpm@linux-foundation.org> <Pine.LNX.4.64.0706071942240.26636@schroedinger.engr.sgi.com> <20070608032505.GA13227@linux-sh.org> <20070608145011.GE11115@waste.org> <20070612094359.GA5803@linux-sh.org> <20070612153234.GI11115@waste.org>
+In-Reply-To: <20070612153234.GI11115@waste.org>
+Content-Type: text/plain; charset=us-ascii; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: William Lee Irwin III <wli@holomorphy.com>
-Cc: Christoph Lameter <clameter@sgi.com>, lee.schermerhorn@hp.com, anton@samba.org, akpm@linux-foundation.org, linux-mm@kvack.org
+To: Matt Mackall <mpm@selenic.com>
+Cc: Paul Mundt <lethal@linux-sh.org>, Christoph Lameter <clameter@sgi.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, ak@suse.de, hugh@veritas.com, lee.schermerhorn@hp.com
 List-ID: <linux-mm.kvack.org>
 
-On 12.06.2007 [12:13:47 -0700], William Lee Irwin III wrote:
-> On 11.06.2007 [22:15:12 -0700], William Lee Irwin III wrote:
-> >> For initially filling the pool one can just loop over nid's modulo the
-> >> number of populated nodes and pass down a stack-allocated variable.
+Matt Mackall wrote:
+> On Tue, Jun 12, 2007 at 06:43:59PM +0900, Paul Mundt wrote:
 > 
-> On Tue, Jun 12, 2007 at 10:45:03AM -0700, Nishanth Aravamudan wrote:
-> > But how does one differentiate between "initally filling" the pool and a
-> > later attempt to add to the pool (or even just marginally later).
-> > I guess I don't see why folks are so against this static variable :) It
-> > does the job and removing it seems like it could be an independent
-> > cleanup?
+>>On Fri, Jun 08, 2007 at 09:50:11AM -0500, Matt Mackall wrote:
+>>
+>>>SLOB's big scalability problem at this point is number of CPUs.
+>>>Throwing some fine-grained locking at it or the like may be able to
+>>>help with that too.
+>>>
+>>>Why would you even want to bother making it scale that large? For
+>>>starters, it's less affected by things like dcache fragmentation. The
+>>>majority of pages pinned by long-lived dcache entries will still be
+>>>available to other allocations.
+>>>
+>>>Haven't given any thought to NUMA yet though..
+>>>
+>>
+>>This is what I've hacked together and tested with my small nodes. It's
+>>not terribly intelligent, and it pushes off most of the logic to the page
+>>allocator. Obviously it's not terribly scalable, and I haven't tested it
+>>with page migration, either. Still, it works for me with my simple tmpfs
+>>+ mpol policy tests.
+>>
+>>Tested on a UP + SPARSEMEM (static, not extreme) + NUMA (2 nodes) + SLOB
+>>configuration.
+>>
+>>Flame away!
 > 
-> Well, another approach is to just statically initialize it to something
-> and then always check to make sure the node for the nid has memory, and
-> if not, find the next nid with a node with memory from the populated map.
+> 
+> For starters, it's not against the current SLOB, which no longer has
+> the bigblock list.
+> 
+> 
+>>-void *__kmalloc(size_t size, gfp_t gfp)
+>>+static void *__kmalloc_alloc(size_t size, gfp_t gfp, int node)
+> 
+> 
+> That's a ridiculous name. So, uh.. more underbars!
+> 
+> Though really, I think you can just name it __kmalloc_node?
+> 
+> 
+>>+		if (node == -1)
+>>+			pages = alloc_pages(flags, get_order(c->size));
+>>+		else
+>>+			pages = alloc_pages_node(node, flags,
+>>+						get_order(c->size));
+> 
+> 
+> This fragment appears a few times. Looks like it ought to get its own
+> function. And that function can reduce to a trivial inline in the
+> !NUMA case.
 
-How does something like this look? Or is it overkill?
+BTW. what I would like to see tried initially -- which may give reasonable
+scalability and NUMAness -- is perhaps a percpu or per-node free pages
+lists. However these lists would not be exclusively per-cpu, because that
+would result in worse memory consumption (we should always try to put
+memory consumption above all else with SLOB).
 
-[PATCH 2.6.22-rc4-mm2] Fix hugetlb pool allocation with empty nodes V7
+So each list would have its own lock and can be accessed by any CPU, but
+they would default to their own list first (or in the case of a
+kmalloc_node, they could default to some other list).
 
-Anton found a problem with the hugetlb pool allocation when some nodes
-have no memory (http://marc.info/?l=linux-mm&m=118133042025995&w=2). Lee
-worked on versions that tried to fix it, but none were accepted.
-Christoph has created a set of patches which allow for GFP_THISNODE
-allocations to fail if the node has no memory and for exporting a
-node_memory_map indicating which nodes have memory. Since mempolicy.c
-already has a number of functions which support interleaving, create a
-mempolicy when we invoke alloc_fresh_huge_page() that specifies
-interleaving across all the nodes in node_memory_map, rather than custom
-interleaving code in hugetlb.c.  This requires adding some dummy
-functions, and some declarations, in mempolicy.h to compile with NUMA or
-!NUMA.
+Then we'd probably like to introduce a *little* bit of slack, so that we
+will allocate a new page on our local list even if there is a small amount
+of memory free on another list. I think this might be enough to get a
+reasonable number of list-local allocations without blowing out the memory
+usage much. The slack ratio could be configurable so at one extreme we
+could always allocate from our local lists for best NUMA placement I guess.
 
-Signed-off-by: Nishanth Aravamudan <nacc@us.ibm.com>
-Cc: Anton Blanchard <anton@samba.org>
-Cc: Lee Schermerhorn <lee.schermerhon@hp.com>
-Cc: Christoph Lameter <clameter@sgi.com>
-Cc: William Lee Irwin III <wli@holomorphy.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>
-
-diff --git a/include/linux/mempolicy.h b/include/linux/mempolicy.h
-index 22b668c..c8a68b8 100644
---- a/include/linux/mempolicy.h
-+++ b/include/linux/mempolicy.h
-@@ -76,6 +76,8 @@ struct mempolicy {
-  * The default fast path of a NULL MPOL_DEFAULT policy is always inlined.
-  */
- 
-+extern struct mempolicy *mpol_new(int mode, nodemask_t *nodes);
-+
- extern void __mpol_free(struct mempolicy *pol);
- static inline void mpol_free(struct mempolicy *pol)
- {
-@@ -164,6 +166,8 @@ static inline void check_highest_zone(enum zone_type k)
- 		policy_zone = k;
- }
- 
-+extern unsigned interleave_nodes(struct mempolicy *policy);
-+
- int do_migrate_pages(struct mm_struct *mm,
- 	const nodemask_t *from_nodes, const nodemask_t *to_nodes, int flags);
- 
-@@ -179,6 +183,11 @@ static inline int mpol_equal(struct mempolicy *a, struct mempolicy *b)
- 
- #define mpol_set_vma_default(vma) do {} while(0)
- 
-+static inline struct mempolicy *mpol_new(int mode, nodemask_t *nodes)
-+{
-+	return NULL;
-+}
-+
- static inline void mpol_free(struct mempolicy *p)
- {
- }
-@@ -267,6 +276,11 @@ static inline int do_migrate_pages(struct mm_struct *mm,
- static inline void check_highest_zone(int k)
- {
- }
-+
-+static inline unsigned interleave_nodes(struct mempolicy *policy)
-+{
-+	return 0;
-+}
- #endif /* CONFIG_NUMA */
- #endif /* __KERNEL__ */
- 
-diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-index 858c0b3..1c13687 100644
---- a/mm/hugetlb.c
-+++ b/mm/hugetlb.c
-@@ -103,15 +103,20 @@ static void free_huge_page(struct page *page)
- 	spin_unlock(&hugetlb_lock);
- }
- 
--static int alloc_fresh_huge_page(void)
-+static int alloc_fresh_huge_page(struct mempolicy *policy)
- {
--	static int nid = 0;
-+	int nid;
- 	struct page *page;
--	page = alloc_pages_node(nid, htlb_alloc_mask|__GFP_COMP|__GFP_NOWARN,
--					HUGETLB_PAGE_ORDER);
--	nid = next_node(nid, node_online_map);
--	if (nid == MAX_NUMNODES)
--		nid = first_node(node_online_map);
-+	int start_nid = interleave_nodes(policy);
-+
-+	nid = start_nid;
-+
-+	do {
-+		page = alloc_pages_node(nid,
-+				htlb_alloc_mask|__GFP_COMP|GFP_THISNODE,
-+				HUGETLB_PAGE_ORDER);
-+		nid = interleave_nodes(policy);
-+	} while (!page && nid != start_nid);
- 	if (page) {
- 		set_compound_page_dtor(page, free_huge_page);
- 		spin_lock(&hugetlb_lock);
-@@ -153,6 +158,7 @@ fail:
- static int __init hugetlb_init(void)
- {
- 	unsigned long i;
-+	struct mempolicy *pol;
- 
- 	if (HPAGE_SHIFT == 0)
- 		return 0;
-@@ -160,11 +166,16 @@ static int __init hugetlb_init(void)
- 	for (i = 0; i < MAX_NUMNODES; ++i)
- 		INIT_LIST_HEAD(&hugepage_freelists[i]);
- 
-+	pol = mpol_new(MPOL_INTERLEAVE, &node_memory_map);
-+	if (IS_ERR(pol))
-+		goto quit;
- 	for (i = 0; i < max_huge_pages; ++i) {
--		if (!alloc_fresh_huge_page())
-+		if (!alloc_fresh_huge_page(pol))
- 			break;
- 	}
-+	mpol_free(pol);
- 	max_huge_pages = free_huge_pages = nr_huge_pages = i;
-+quit:
- 	printk("Total HugeTLB memory allocated, %ld\n", free_huge_pages);
- 	return 0;
- }
-@@ -232,10 +243,16 @@ static inline void try_to_free_low(unsigned long count)
- 
- static unsigned long set_max_huge_pages(unsigned long count)
- {
-+	struct mempolicy *pol;
-+
-+	pol = mpol_new(MPOL_INTERLEAVE, &node_memory_map);
-+	if (IS_ERR(pol))
-+		return nr_huge_pages;
- 	while (count > nr_huge_pages) {
--		if (!alloc_fresh_huge_page())
--			return nr_huge_pages;
-+		if (!alloc_fresh_huge_page(pol))
-+			break;
- 	}
-+	mpol_free(pol);
- 	if (count >= nr_huge_pages)
- 		return nr_huge_pages;
- 
-diff --git a/mm/mempolicy.c b/mm/mempolicy.c
-index 21458ca..c576d32 100644
---- a/mm/mempolicy.c
-+++ b/mm/mempolicy.c
-@@ -171,7 +171,7 @@ static struct zonelist *bind_zonelist(nodemask_t *nodes)
- }
- 
- /* Create a new policy */
--static struct mempolicy *mpol_new(int mode, nodemask_t *nodes)
-+struct mempolicy *mpol_new(int mode, nodemask_t *nodes)
- {
- 	struct mempolicy *policy;
- 
-@@ -1121,7 +1121,7 @@ static struct zonelist *zonelist_policy(gfp_t gfp, struct mempolicy *policy)
- }
- 
- /* Do dynamic interleaving for a process */
--static unsigned interleave_nodes(struct mempolicy *policy)
-+unsigned interleave_nodes(struct mempolicy *policy)
- {
- 	unsigned nid, next;
- 	struct task_struct *me = current;
+I haven't given it a great deal of thought, so this strategy might go
+horribly wrong in some cases... but I have a feeling something reasonably
+simple like that might go a long way to improving locking scalability and
+NUMAness.
 
 -- 
-Nishanth Aravamudan <nacc@us.ibm.com>
-IBM Linux Technology Center
+SUSE Labs, Novell Inc.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
