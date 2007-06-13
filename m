@@ -1,82 +1,42 @@
-Date: Tue, 12 Jun 2007 22:16:21 -0500
-From: Matt Mackall <mpm@selenic.com>
-Subject: Re: [PATCH] numa: mempolicy: dynamic interleave map for system init.
-Message-ID: <20070613031621.GM11115@waste.org>
-References: <20070607011701.GA14211@linux-sh.org> <20070607180108.0eeca877.akpm@linux-foundation.org> <Pine.LNX.4.64.0706071942240.26636@schroedinger.engr.sgi.com> <20070608032505.GA13227@linux-sh.org> <20070608145011.GE11115@waste.org> <20070612094359.GA5803@linux-sh.org> <20070612153234.GI11115@waste.org> <20070613025337.GA15009@linux-sh.org>
+Message-ID: <466F6351.9040503@yahoo.com.au>
+Date: Wed, 13 Jun 2007 13:24:01 +1000
+From: Nick Piggin <nickpiggin@yahoo.com.au>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20070613025337.GA15009@linux-sh.org>
+Subject: Re: [PATCH] slob: poor man's NUMA, take 2.
+References: <20070613031203.GB15009@linux-sh.org>
+In-Reply-To: <20070613031203.GB15009@linux-sh.org>
+Content-Type: text/plain; charset=us-ascii; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Paul Mundt <lethal@linux-sh.org>, Christoph Lameter <clameter@sgi.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, ak@suse.de, hugh@veritas.com, lee.schermerhorn@hp.com, Nick Piggin <nickpiggin@yahoo.com.au>
+To: Paul Mundt <lethal@linux-sh.org>
+Cc: Matt Mackall <mpm@selenic.com>, Christoph Lameter <clameter@sgi.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Jun 13, 2007 at 11:53:37AM +0900, Paul Mundt wrote:
-> On Tue, Jun 12, 2007 at 10:32:34AM -0500, Matt Mackall wrote:
-> > On Tue, Jun 12, 2007 at 06:43:59PM +0900, Paul Mundt wrote:
-> > > On Fri, Jun 08, 2007 at 09:50:11AM -0500, Matt Mackall wrote:
-> > > > Haven't given any thought to NUMA yet though..
-> > > > 
-> > > This is what I've hacked together and tested with my small nodes. It's
-> > > not terribly intelligent, and it pushes off most of the logic to the page
-> > > allocator. Obviously it's not terribly scalable, and I haven't tested it
-> > > with page migration, either. Still, it works for me with my simple tmpfs
-> > > + mpol policy tests.
-> > > 
-> > > Tested on a UP + SPARSEMEM (static, not extreme) + NUMA (2 nodes) + SLOB
-> > > configuration.
-> > > 
-> > > Flame away!
-> > 
-> > For starters, it's not against the current SLOB, which no longer has
-> > the bigblock list.
-> > 
-> Sorry about that, seems I used the wrong tree.
+Paul Mundt wrote:
+> Here's an updated copy of the patch adding simple NUMA support to SLOB,
+> against the current -mm version of SLOB this time.
 > 
-> > > -void *__kmalloc(size_t size, gfp_t gfp)
-> > > +static void *__kmalloc_alloc(size_t size, gfp_t gfp, int node)
-> > 
-> > That's a ridiculous name. So, uh.. more underbars!
-> > 
-> Agreed, though I couldn't think of a better one.
+> I've tried to address all of the comments on the initial version so far,
+> but there's obviously still room for improvement.
 > 
-> > Though really, I think you can just name it __kmalloc_node?
-> > 
-> No, kmalloc_node and __kmalloc_node are both required by CONFIG_NUMA,
-> otherwise that would have been the logical choice.
+> This approach is not terribly scalable in that we still end up using a
+> global freelist (and a global spinlock!) across all nodes, making the
+> partial free page lookup rather expensive. The next step after this will
+> be moving towards split freelists with finer grained locking.
 
-What I'm suggesting is: _always_ have __kmalloc_node and have
-__kmalloc be a trivial inline that calls it. Together with cleaning up
-the following piece, it may compile down to what we currently have on UP/SMP:
+I just think that this is not really a good intermediate step because
+you only get NUMA awareness from the first allocation out of a page. I
+guess that's an easy no-brainer for bigblock allocations, but for SLUB
+proper, it seems not so good.
 
-> > > +		if (node == -1)
-> > > +			pages = alloc_pages(flags, get_order(c->size));
-> > > +		else
-> > > +			pages = alloc_pages_node(node, flags,
-> > > +						get_order(c->size));
-> > 
-> > This fragment appears a few times. Looks like it ought to get its own
-> > function. And that function can reduce to a trivial inline in the
-> > !NUMA case.
-> > 
-> Ok.
-> 
-> > > +void *kmem_cache_alloc_node(struct kmem_cache *c, gfp_t flags, int node)
-> > > +{
-> > > +	return __kmem_cache_alloc(c, flags, node);
-> > > +}
-> > 
-> > If we make the underlying functions all take a node, this stuff all
-> > gets simpler.
-> > 
-> Could you elaborate on that?
-
-See above. Just make the non-node versions wrappers around the node
-versions everywhere.
+For a lot of workloads you will have a steady state where allocation and
+freeing rates match pretty well and there won't be much movement of pages
+in and out of the allocator. In this case it will be back to random
+allocations, won't it?
 
 -- 
-Mathematics is the supreme nostalgia of our time.
+SUSE Labs, Novell Inc.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
