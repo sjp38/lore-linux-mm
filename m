@@ -1,46 +1,35 @@
-Date: Wed, 13 Jun 2007 13:23:06 +0900
-From: Paul Mundt <lethal@linux-sh.org>
+Date: Tue, 12 Jun 2007 22:30:04 -0700 (PDT)
+From: Christoph Lameter <clameter@sgi.com>
 Subject: Re: [PATCH] slob: poor man's NUMA, take 2.
-Message-ID: <20070613042306.GA15462@linux-sh.org>
-References: <20070613031203.GB15009@linux-sh.org> <466F6351.9040503@yahoo.com.au> <20070613033306.GA15169@linux-sh.org> <466F66E3.8020200@yahoo.com.au> <466F67A4.9080104@yahoo.com.au> <20070613041319.GA15328@linux-sh.org>
+In-Reply-To: <20070613042306.GA15462@linux-sh.org>
+Message-ID: <Pine.LNX.4.64.0706122225190.28451@schroedinger.engr.sgi.com>
+References: <20070613031203.GB15009@linux-sh.org> <466F6351.9040503@yahoo.com.au>
+ <20070613033306.GA15169@linux-sh.org> <466F66E3.8020200@yahoo.com.au>
+ <466F67A4.9080104@yahoo.com.au> <20070613041319.GA15328@linux-sh.org>
+ <20070613042306.GA15462@linux-sh.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20070613041319.GA15328@linux-sh.org>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nick Piggin <nickpiggin@yahoo.com.au>, Matt Mackall <mpm@selenic.com>, Christoph Lameter <clameter@sgi.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org
+To: Paul Mundt <lethal@linux-sh.org>
+Cc: Nick Piggin <nickpiggin@yahoo.com.au>, Matt Mackall <mpm@selenic.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Jun 13, 2007 at 01:13:19PM +0900, Paul Mundt wrote:
-> On Wed, Jun 13, 2007 at 01:42:28PM +1000, Nick Piggin wrote:
-> > OTOH, there are lots of places that don't specify the node explicitly,
-> > but most of them prefer the allocation to come from the current node...
-> > and that case isn't handled very well is it?
-> > 
-> Well, we could throw in a numa_node_id() for kmem_cache_alloc() and
-> __kmalloc(), that would actually simplify slob_new_page(), since we can
-> just use alloc_pages_node() directly in the NUMA case without special
-> casing the node id.
-> 
-> This also has the side-effect of working well on UP with asymmetric nodes
-> (assuming a larger node 0), since numa_node_id() will leave us with a
-> node 0 preference in places where the node id isn't explicitly given.
-> 
-And sure enough, that's what alloc_pages_node() already does, so if
-slob_new_page() simply wraps in to it it should already be handled:
+Hmmmm. One key advantage that SLOB has over all allocators is the density 
+of the kmalloc array. I tried to add various schemes to SLUB but there is 
+still a difference of 340kb on boot. If you get it to do NUMA then may be 
+we can get a specialized allocator for the kmalloc array out of all of 
+this?
 
-static inline struct page *alloc_pages_node(int nid, gfp_t gfp_mask,
-					    unsigned int order)
-{
-	...
+If you focus on the kmalloc array then you can avoid to deal with certain 
+other issues
 
-	/* Unknown node is current node */
-	if (nid < 0)
-		nid = numa_node_id();
-	...
+- No ctor, no reclaim accounting, no rcu etc.
+- No need to manage partial slabs.
+- No slab creation, destruction etc.
 
-I'll update the patch..
+Maybe that could done in a pretty compact way and replace the space 
+wasting kmalloc arrays in SLAB and SLUB?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
