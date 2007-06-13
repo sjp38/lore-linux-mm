@@ -1,48 +1,36 @@
-Date: Wed, 13 Jun 2007 15:47:42 -0700 (PDT)
+Date: Wed, 13 Jun 2007 15:49:26 -0700 (PDT)
 From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [PATCH] slob: poor man's NUMA, take 2.
-In-Reply-To: <20070613131549.GZ11115@waste.org>
-Message-ID: <Pine.LNX.4.64.0706131546380.32399@schroedinger.engr.sgi.com>
-References: <20070613031203.GB15009@linux-sh.org> <20070613032857.GN11115@waste.org>
- <20070613092109.GA16526@linux-sh.org> <20070613131549.GZ11115@waste.org>
+Subject: Re: [PATCH] populated_map: fix !NUMA case, remove comment
+In-Reply-To: <1181748606.6148.19.camel@localhost>
+Message-ID: <Pine.LNX.4.64.0706131548230.32399@schroedinger.engr.sgi.com>
+References: <20070612023209.GJ3798@us.ibm.com>
+ <Pine.LNX.4.64.0706111953220.25390@schroedinger.engr.sgi.com>
+ <20070612032055.GQ3798@us.ibm.com> <1181660782.5592.50.camel@localhost>
+ <20070612172858.GV3798@us.ibm.com> <1181674081.5592.91.camel@localhost>
+ <Pine.LNX.4.64.0706121150220.30754@schroedinger.engr.sgi.com>
+ <1181677473.5592.149.camel@localhost>  <Pine.LNX.4.64.0706121245200.7983@schroedinger.engr.sgi.com>
+  <Pine.LNX.4.64.0706121257290.7983@schroedinger.engr.sgi.com>
+ <20070612200125.GG3798@us.ibm.com> <1181748606.6148.19.camel@localhost>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Matt Mackall <mpm@selenic.com>
-Cc: Paul Mundt <lethal@linux-sh.org>, Nick Piggin <nickpiggin@yahoo.com.au>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org
+To: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
+Cc: Nishanth Aravamudan <nacc@us.ibm.com>, anton@samba.org, akpm@linux-foundation.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 13 Jun 2007, Matt Mackall wrote:
+On Wed, 13 Jun 2007, Lee Schermerhorn wrote:
 
-> On Wed, Jun 13, 2007 at 06:21:09PM +0900, Paul Mundt wrote:
-> > Here's an updated copy with the node variants always defined.
-> > 
-> > I've left the nid=-1 case in as the default for the non-node variants, as
-> > this is the approach also used by SLUB. alloc_pages() is special cased
-> > for NUMA, and takes the memory policy under advisement when doing the
-> > allocation, so the page ends up in a reasonable place.
-> > 
-> 
-> > +void *__kmalloc(size_t size, gfp_t gfp)
-> > +{
-> > +	return __kmalloc_node(size, gfp, -1);
-> > +}
-> >  EXPORT_SYMBOL(__kmalloc);
-> 
-> > +void *kmem_cache_alloc(struct kmem_cache *c, gfp_t flags)
-> > +{
-> > +	return kmem_cache_alloc_node(c, flags, -1);
-> > +}
-> >  EXPORT_SYMBOL(kmem_cache_alloc);
-> 
-> Now promote these guys to inlines in slab.h. At which point all the
-> new NUMA code become a no-op on !NUMA.
+> alloc_fresh_huge_page() loop.  However, I think that to support all
+> platforms in a generic way, alloc_pages_node() and
+> alloc_page_interleave() [both take a node id arg] should be more strict
+> when the gfp mask includes 'THISNODE and not assume that a populated
+> node always has on-node memory in the zone of interest.  E.g., something
+> like:
 
-The fallback code already exists in kmalloc.h for SLAB/SLUB. You just need 
-to enable the #ifdefs for SLOB.
+So a node with memory may have no memory in that particular zone.
 
-Fallback is for kmem_cache_alloc_node to kmem_cache_alloc.
+This can only be true for DMA and DMA32. So we need a node_has_dma(node)?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
