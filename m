@@ -1,152 +1,153 @@
-Subject: Re: [PATCH v7][RFC] Fix hugetlb pool allocation with empty nodes
+Subject: Re: [patch 2/3] Fix GFP_THISNODE behavior for memoryless nodes
 From: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
-In-Reply-To: <20070613000446.GL3798@us.ibm.com>
-References: <20070611225213.GB14458@us.ibm.com>
-	 <20070611230829.GC14458@us.ibm.com> <20070611231008.GD14458@us.ibm.com>
-	 <Pine.LNX.4.64.0706111615450.23857@schroedinger.engr.sgi.com>
-	 <20070612001542.GJ14458@us.ibm.com> <20070612034407.GB11773@holomorphy.com>
-	 <20070612050910.GU3798@us.ibm.com> <20070612051512.GC11773@holomorphy.com>
-	 <20070612174503.GB3798@us.ibm.com> <20070612191347.GE11781@holomorphy.com>
-	 <20070613000446.GL3798@us.ibm.com>
+In-Reply-To: <20070612205738.548677035@sgi.com>
+References: <20070612204843.491072749@sgi.com>
+	 <20070612205738.548677035@sgi.com>
 Content-Type: text/plain
-Date: Wed, 13 Jun 2007 17:04:40 -0400
-Message-Id: <1181768681.6148.109.camel@localhost>
+Date: Wed, 13 Jun 2007 17:10:32 -0400
+Message-Id: <1181769033.6148.116.camel@localhost>
 Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nishanth Aravamudan <nacc@us.ibm.com>
-Cc: William Lee Irwin III <wli@holomorphy.com>, Christoph Lameter <clameter@sgi.com>, anton@samba.org, akpm@linux-foundation.org, linux-mm@kvack.org
+To: clameter@sgi.com
+Cc: akpm@linux-foundation.org, linux-mm@kvack.org, ak@suse.de, Nishanth Aravamudan <nacc@us.ibm.com>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 2007-06-12 at 17:04 -0700, Nishanth Aravamudan wrote:
-> On 12.06.2007 [12:13:47 -0700], William Lee Irwin III wrote:
-> > On 11.06.2007 [22:15:12 -0700], William Lee Irwin III wrote:
-> > >> For initially filling the pool one can just loop over nid's modulo the
-> > >> number of populated nodes and pass down a stack-allocated variable.
-> > 
-> > On Tue, Jun 12, 2007 at 10:45:03AM -0700, Nishanth Aravamudan wrote:
-> > > But how does one differentiate between "initally filling" the pool and a
-> > > later attempt to add to the pool (or even just marginally later).
-> > > I guess I don't see why folks are so against this static variable :) It
-> > > does the job and removing it seems like it could be an independent
-> > > cleanup?
-> > 
-> > Well, another approach is to just statically initialize it to something
-> > and then always check to make sure the node for the nid has memory, and
-> > if not, find the next nid with a node with memory from the populated map.
+On Tue, 2007-06-12 at 13:48 -0700, clameter@sgi.com wrote:
+> GFP_THISNODE checks that the zone selected is within the pgdat (node) of the
+> first zone of a nodelist. That only works if the node has memory. A
+> memoryless node will have its first zone on another pgdat (node).
 > 
-> How does something like this look? Or is it overkill?
+> Thus GFP_THISNODE may be returning memory on other nodes.
+> GFP_THISNODE should fail if there is no local memory on a node.
 > 
-> [PATCH 2.6.22-rc4-mm2] Fix hugetlb pool allocation with empty nodes V7
+> So we add a check to verify that the node specified has memory in
+> alloc_pages_node(). If the node has no memory then return NULL.
 > 
-> Anton found a problem with the hugetlb pool allocation when some nodes
-> have no memory (http://marc.info/?l=linux-mm&m=118133042025995&w=2). Lee
-> worked on versions that tried to fix it, but none were accepted.
-> Christoph has created a set of patches which allow for GFP_THISNODE
-> allocations to fail if the node has no memory and for exporting a
-> node_memory_map indicating which nodes have memory. Since mempolicy.c
-> already has a number of functions which support interleaving, create a
-> mempolicy when we invoke alloc_fresh_huge_page() that specifies
-> interleaving across all the nodes in node_memory_map, rather than custom
-> interleaving code in hugetlb.c.  This requires adding some dummy
-> functions, and some declarations, in mempolicy.h to compile with NUMA or
-> !NUMA.
+> The case of alloc_pages(GFP_THISNODE) is not changed. alloc_pages() (with
+> no memory policies in effect) is understood to prefer the current node.
+> If a process is running on a node with no memory then its default allocations
+> come from the next neighboring node. GFP_THISNODE will then force the memory
+> to come from that node.
 > 
+> Signed-off-by: Christoph Lameter <clameter@sgi.com>
 > Signed-off-by: Nishanth Aravamudan <nacc@us.ibm.com>
-> Cc: Anton Blanchard <anton@samba.org>
-> Cc: Lee Schermerhorn <lee.schermerhon@hp.com>
-> Cc: Christoph Lameter <clameter@sgi.com>
-> Cc: William Lee Irwin III <wli@holomorphy.com>
-> Cc: Andrew Morton <akpm@linux-foundation.org>
 > 
-> diff --git a/include/linux/mempolicy.h b/include/linux/mempolicy.h
-> index 22b668c..c8a68b8 100644
-> --- a/include/linux/mempolicy.h
-> +++ b/include/linux/mempolicy.h
-> @@ -76,6 +76,8 @@ struct mempolicy {
->   * The default fast path of a NULL MPOL_DEFAULT policy is always inlined.
->   */
+> Index: linux-2.6.22-rc4-mm2/include/linux/gfp.h
+> ===================================================================
+> --- linux-2.6.22-rc4-mm2.orig/include/linux/gfp.h	2007-06-12 12:33:37.000000000 -0700
+> +++ linux-2.6.22-rc4-mm2/include/linux/gfp.h	2007-06-12 12:38:37.000000000 -0700
+> @@ -175,6 +175,13 @@ static inline struct page *alloc_pages_n
+>  	if (nid < 0)
+>  		nid = numa_node_id();
 >  
-> +extern struct mempolicy *mpol_new(int mode, nodemask_t *nodes);
+> +	/*
+> +	 * Check for the special case that GFP_THISNODE is used on a
+> +	 * memoryless node
+> +	 */
+> +	if ((gfp_mask & __GFP_THISNODE) && !node_memory(nid))
+> +		return NULL;
 > +
->  extern void __mpol_free(struct mempolicy *pol);
->  static inline void mpol_free(struct mempolicy *pol)
->  {
-> @@ -164,6 +166,8 @@ static inline void check_highest_zone(enum zone_type k)
->  		policy_zone = k;
+>  	return __alloc_pages(gfp_mask, order,
+>  		NODE_DATA(nid)->node_zonelists + gfp_zone(gfp_mask));
 >  }
->  
-> +extern unsigned interleave_nodes(struct mempolicy *policy);
-> +
->  int do_migrate_pages(struct mm_struct *mm,
->  	const nodemask_t *from_nodes, const nodemask_t *to_nodes, int flags);
->  
-> @@ -179,6 +183,11 @@ static inline int mpol_equal(struct mempolicy *a, struct mempolicy *b)
->  
->  #define mpol_set_vma_default(vma) do {} while(0)
->  
-> +static inline struct mempolicy *mpol_new(int mode, nodemask_t *nodes)
-> +{
-> +	return NULL;
-> +}
-> +
->  static inline void mpol_free(struct mempolicy *p)
->  {
->  }
-> @@ -267,6 +276,11 @@ static inline int do_migrate_pages(struct mm_struct *mm,
->  static inline void check_highest_zone(int k)
->  {
->  }
-> +
-> +static inline unsigned interleave_nodes(struct mempolicy *policy)
-> +{
-> +	return 0;
-> +}
->  #endif /* CONFIG_NUMA */
->  #endif /* __KERNEL__ */
->  
-> diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-> index 858c0b3..1c13687 100644
-> --- a/mm/hugetlb.c
-> +++ b/mm/hugetlb.c
-> @@ -103,15 +103,20 @@ static void free_huge_page(struct page *page)
->  	spin_unlock(&hugetlb_lock);
->  }
->  
-> -static int alloc_fresh_huge_page(void)
-> +static int alloc_fresh_huge_page(struct mempolicy *policy)
->  {
-> -	static int nid = 0;
-> +	int nid;
->  	struct page *page;
-> -	page = alloc_pages_node(nid, htlb_alloc_mask|__GFP_COMP|__GFP_NOWARN,
-> -					HUGETLB_PAGE_ORDER);
-> -	nid = next_node(nid, node_online_map);
-> -	if (nid == MAX_NUMNODES)
-> -		nid = first_node(node_online_map);
-> +	int start_nid = interleave_nodes(policy);
-> +
-> +	nid = start_nid;
-> +
-> +	do {
-> +		page = alloc_pages_node(nid,
-> +				htlb_alloc_mask|__GFP_COMP|GFP_THISNODE,
-> +				HUGETLB_PAGE_ORDER);
-> +		nid = interleave_nodes(policy);
+> 
 
-This needs to be:
+Attached patch fixes alloc_pages_node() so that it never returns an
+off-node page when GFP_THISNODE is specified by.  This requires a fix to
+SLUB early allocation, included in the patch.  Works on HP ia64 platform
+with small DMA only node and "zone order" zonelists.  Will test on
+x86_64 real soon now...
 
-		if (!page)
-			nid = interleave_nodes(policy);
+---
 
-Otherwise, you skip every other populated node, because you call
-interleave_nodes() at the top when you initialize start_nid.  You only
-want to advance to the next node here if the allocation failed.
+PATCH  fix GFP_THISNODE for DMA only nodes and zone-order zonelists
 
-<snip>
+The map of nodes with memory may include nodes with just
+DMA/DMA32 memory.  Using this map/mask together with
+GFP_THISNODE will not guarantee on-node allocations at higher
+zones.  Modify checks in alloc_pages_node() to ensure that the
+first zone in the selected zonelist is "on-node".
 
-Lee
+This change will result in alloc_pages_node() returning NULL
+when GFP_THISNODE is specified and the first zone in the zonelist
+selected by (nid, gfp_zone(gfp_mask) is not on node 'nid'.  This,
+in turn, BUGs out in slub.c:early_kmem_cache_node_alloc() which
+apparently can't handle a NULL page from new_slab().  Fix SLUB
+to handle NULL page in early allocation.
+
+Signed-off-by:  Lee Schermerhorn <lee.schermerhorn@hp.com>
+
+ include/linux/gfp.h |   11 ++++++++---
+ mm/slub.c           |   22 ++++++++++++----------
+ 2 files changed, 20 insertions(+), 13 deletions(-)
+
+Index: Linux/include/linux/gfp.h
+===================================================================
+--- Linux.orig/include/linux/gfp.h	2007-06-13 16:36:02.000000000 -0400
++++ Linux/include/linux/gfp.h	2007-06-13 16:38:41.000000000 -0400
+@@ -168,6 +168,9 @@ FASTCALL(__alloc_pages(gfp_t, unsigned i
+ static inline struct page *alloc_pages_node(int nid, gfp_t gfp_mask,
+ 						unsigned int order)
+ {
++	pg_data_t *pgdat;
++	struct zonelist *zonelist;
++
+ 	if (unlikely(order >= MAX_ORDER))
+ 		return NULL;
+ 
+@@ -179,11 +182,13 @@ static inline struct page *alloc_pages_n
+ 	 * Check for the special case that GFP_THISNODE is used on a
+ 	 * memoryless node
+ 	 */
+-	if ((gfp_mask & __GFP_THISNODE) && !node_memory(nid))
++	pgdat = NODE_DATA(nid);
++	zonelist = pgdat->node_zonelists + gfp_zone(gfp_mask);
++	if ((gfp_mask & __GFP_THISNODE) &&
++		pgdat != zonelist->zones[0]->zone_pgdat)
+ 		return NULL;
+ 
+-	return __alloc_pages(gfp_mask, order,
+-		NODE_DATA(nid)->node_zonelists + gfp_zone(gfp_mask));
++	return __alloc_pages(gfp_mask, order, zonelist);
+ }
+ 
+ #ifdef CONFIG_NUMA
+Index: Linux/mm/slub.c
+===================================================================
+--- Linux.orig/mm/slub.c	2007-06-13 16:36:02.000000000 -0400
++++ Linux/mm/slub.c	2007-06-13 16:38:41.000000000 -0400
+@@ -1870,16 +1870,18 @@ static struct kmem_cache_node * __init e
+ 	/* new_slab() disables interupts */
+ 	local_irq_enable();
+ 
+-	BUG_ON(!page);
+-	n = page->freelist;
+-	BUG_ON(!n);
+-	page->freelist = get_freepointer(kmalloc_caches, n);
+-	page->inuse++;
+-	kmalloc_caches->node[node] = n;
+-	setup_object_debug(kmalloc_caches, page, n);
+-	init_kmem_cache_node(n);
+-	atomic_long_inc(&n->nr_slabs);
+-	add_partial(n, page);
++	if (page) {
++		n = page->freelist;
++		BUG_ON(!n);
++		page->freelist = get_freepointer(kmalloc_caches, n);
++		page->inuse++;
++		kmalloc_caches->node[node] = n;
++		setup_object_debug(kmalloc_caches, page, n);
++		init_kmem_cache_node(n);
++		atomic_long_inc(&n->nr_slabs);
++		add_partial(n, page);
++	} else
++		kmalloc_caches->node[node] = NULL;
+ 	return n;
+ }
+ 
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
