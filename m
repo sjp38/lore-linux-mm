@@ -1,50 +1,34 @@
-Received: from d01relay02.pok.ibm.com (d01relay02.pok.ibm.com [9.56.227.234])
-	by e4.ny.us.ibm.com (8.13.8/8.13.8) with ESMTP id l5DNK8Sd012215
-	for <linux-mm@kvack.org>; Wed, 13 Jun 2007 19:20:08 -0400
-Received: from d01av03.pok.ibm.com (d01av03.pok.ibm.com [9.56.224.217])
-	by d01relay02.pok.ibm.com (8.13.8/8.13.8/NCO v8.3) with ESMTP id l5DNK8Ic394974
-	for <linux-mm@kvack.org>; Wed, 13 Jun 2007 19:20:08 -0400
-Received: from d01av03.pok.ibm.com (loopback [127.0.0.1])
-	by d01av03.pok.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l5DNK72F012600
-	for <linux-mm@kvack.org>; Wed, 13 Jun 2007 19:20:07 -0400
-Date: Wed, 13 Jun 2007 16:20:05 -0700
-From: Nishanth Aravamudan <nacc@us.ibm.com>
-Subject: Re: [patch 2/3] Fix GFP_THISNODE behavior for memoryless nodes
-Message-ID: <20070613232005.GY3798@us.ibm.com>
-References: <20070612204843.491072749@sgi.com> <20070612205738.548677035@sgi.com> <1181769033.6148.116.camel@localhost> <Pine.LNX.4.64.0706131535200.32399@schroedinger.engr.sgi.com> <20070613231153.GW3798@us.ibm.com> <Pine.LNX.4.64.0706131613050.394@schroedinger.engr.sgi.com>
+Date: Wed, 13 Jun 2007 16:26:15 -0700 (PDT)
+From: Christoph Lameter <clameter@sgi.com>
+Subject: Re: [PATCH] populated_map: fix !NUMA case, remove comment
+In-Reply-To: <20070613231825.GX3798@us.ibm.com>
+Message-ID: <Pine.LNX.4.64.0706131625530.698@schroedinger.engr.sgi.com>
+References: <Pine.LNX.4.64.0706121150220.30754@schroedinger.engr.sgi.com>
+ <1181677473.5592.149.camel@localhost> <Pine.LNX.4.64.0706121245200.7983@schroedinger.engr.sgi.com>
+ <Pine.LNX.4.64.0706121257290.7983@schroedinger.engr.sgi.com>
+ <20070612200125.GG3798@us.ibm.com> <1181748606.6148.19.camel@localhost>
+ <20070613175802.GP3798@us.ibm.com> <Pine.LNX.4.64.0706131549480.32399@schroedinger.engr.sgi.com>
+ <20070613230906.GV3798@us.ibm.com> <Pine.LNX.4.64.0706131609370.394@schroedinger.engr.sgi.com>
+ <20070613231825.GX3798@us.ibm.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <Pine.LNX.4.64.0706131613050.394@schroedinger.engr.sgi.com>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
-Cc: Lee Schermerhorn <Lee.Schermerhorn@hp.com>, akpm@linux-foundation.org, linux-mm@kvack.org, ak@suse.de
+To: Nishanth Aravamudan <nacc@us.ibm.com>
+Cc: Lee Schermerhorn <Lee.Schermerhorn@hp.com>, anton@samba.org, akpm@linux-foundation.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 13.06.2007 [16:15:24 -0700], Christoph Lameter wrote:
-> On Wed, 13 Jun 2007, Nishanth Aravamudan wrote:
+On Wed, 13 Jun 2007, Nishanth Aravamudan wrote:
+
+> Well...maybe we can do better by just adding another GFP flag?
 > 
-> > I would like to roll up the patches and small fixes into a set of 4 or 5
-> > patches that Andrew can pick up, so once this is all stable, I'll post a
-> > fresh series. Sound good, Andrew?
+> GFP_ONLYTHISNODE?
 > 
-> NACK. This patchset is not ready for any inclusion and nothing like
-> that should go into 2.6.22. We first need to assess the breakage that
-> results if GFP_THISNODE now returns NULL for memoryless nodes. So far
-> GFP_THISNODE returns memory on the nearest node and that seems to make
-> lots of things keep working.
+> THISNODE has the current semantics, that the "closest" node is
+> preferred, which may be local, and it will succeed if memory exists
+> somewhere for the allocation you want (I think).
 
-Who the heck said anything about mainline?
-
-See my other reply for discussing GFP_THISNODE.
-
-Thanks,
-Nish
-
--- 
-Nishanth Aravamudan <nacc@us.ibm.com>
-IBM Linux Technology Center
+No we want one GFP_THISNODE working in a consistent way.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
