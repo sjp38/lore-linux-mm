@@ -1,134 +1,216 @@
-Date: Tue, 12 Jun 2007 16:26:32 -0700 (PDT)
-From: Christoph Lameter <clameter@sgi.com>
-Subject: SLUB: minimum alignment fixes
-Message-ID: <Pine.LNX.4.64.0706121623490.7300@schroedinger.engr.sgi.com>
+Received: from d03relay02.boulder.ibm.com (d03relay02.boulder.ibm.com [9.17.195.227])
+	by e35.co.us.ibm.com (8.13.8/8.13.8) with ESMTP id l5D04n8S008625
+	for <linux-mm@kvack.org>; Tue, 12 Jun 2007 20:04:49 -0400
+Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
+	by d03relay02.boulder.ibm.com (8.13.8/8.13.8/NCO v8.3) with ESMTP id l5D04nTU267128
+	for <linux-mm@kvack.org>; Tue, 12 Jun 2007 18:04:49 -0600
+Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av02.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l5D04m87026079
+	for <linux-mm@kvack.org>; Tue, 12 Jun 2007 18:04:48 -0600
+Date: Tue, 12 Jun 2007 17:04:46 -0700
+From: Nishanth Aravamudan <nacc@us.ibm.com>
+Subject: [PATCH v7][RFC] Fix hugetlb pool allocation with empty nodes
+Message-ID: <20070613000446.GL3798@us.ibm.com>
+References: <20070611225213.GB14458@us.ibm.com> <20070611230829.GC14458@us.ibm.com> <20070611231008.GD14458@us.ibm.com> <Pine.LNX.4.64.0706111615450.23857@schroedinger.engr.sgi.com> <20070612001542.GJ14458@us.ibm.com> <20070612034407.GB11773@holomorphy.com> <20070612050910.GU3798@us.ibm.com> <20070612051512.GC11773@holomorphy.com> <20070612174503.GB3798@us.ibm.com> <20070612191347.GE11781@holomorphy.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20070612191347.GE11781@holomorphy.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: akpm@linux-foundation.org
-Cc: =?iso-8859-1?Q?H=E5vard_Skinnemoen?= <hskinnemoen@gmail.com>, linux-mm@kvack.org
+To: William Lee Irwin III <wli@holomorphy.com>
+Cc: Christoph Lameter <clameter@sgi.com>, lee.schermerhorn@hp.com, anton@samba.org, akpm@linux-foundation.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-If ARCH_KMALLOC_MINALIGN is set to a value greater than 8 (SLUBs smallest
-kmalloc cache) then SLUB may generate duplicate slabs in sysfs (yes again) 
-because the object size is padded to reach ARCH_KMALLOC_MINALIGN. Thus 
-the size of the small slabs is all the same.
+On 12.06.2007 [12:13:47 -0700], William Lee Irwin III wrote:
+> On 11.06.2007 [22:15:12 -0700], William Lee Irwin III wrote:
+> >> For initially filling the pool one can just loop over nid's modulo the
+> >> number of populated nodes and pass down a stack-allocated variable.
+> 
+> On Tue, Jun 12, 2007 at 10:45:03AM -0700, Nishanth Aravamudan wrote:
+> > But how does one differentiate between "initally filling" the pool and a
+> > later attempt to add to the pool (or even just marginally later).
+> > I guess I don't see why folks are so against this static variable :) It
+> > does the job and removing it seems like it could be an independent
+> > cleanup?
+> 
+> Well, another approach is to just statically initialize it to something
+> and then always check to make sure the node for the nid has memory, and
+> if not, find the next nid with a node with memory from the populated map.
 
-No arch sets ARCH_KMALLOC_MINALIGN larger than 8 though except mips which 
-for some reason wants a 128 byte alignment.
+How does something like this look? Or is it overkill?
 
-This patch increases the size of the smallest cache if ARCH_KMALLOC_MINALIGN
-is greater than 8. In that case more and more of the smallest caches are
-disabled.
+[PATCH 2.6.22-rc4-mm2] Fix hugetlb pool allocation with empty nodes V7
 
-If we do that then the count of the active general caches that is displayed
-on boot is not correct anymore since we may skip elements of the kmalloc
-array. So count them separately.
+Anton found a problem with the hugetlb pool allocation when some nodes
+have no memory (http://marc.info/?l=linux-mm&m=118133042025995&w=2). Lee
+worked on versions that tried to fix it, but none were accepted.
+Christoph has created a set of patches which allow for GFP_THISNODE
+allocations to fail if the node has no memory and for exporting a
+node_memory_map indicating which nodes have memory. Since mempolicy.c
+already has a number of functions which support interleaving, create a
+mempolicy when we invoke alloc_fresh_huge_page() that specifies
+interleaving across all the nodes in node_memory_map, rather than custom
+interleaving code in hugetlb.c.  This requires adding some dummy
+functions, and some declarations, in mempolicy.h to compile with NUMA or
+!NUMA.
 
-This approach was tested by Havard yesterday.
+Signed-off-by: Nishanth Aravamudan <nacc@us.ibm.com>
+Cc: Anton Blanchard <anton@samba.org>
+Cc: Lee Schermerhorn <lee.schermerhon@hp.com>
+Cc: Christoph Lameter <clameter@sgi.com>
+Cc: William Lee Irwin III <wli@holomorphy.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>
 
-Signed-off-by: Christoph Lameter <clameter@sgi.com>
-
----
- include/linux/slub_def.h |   13 +++++++++++--
- mm/slub.c                |   20 +++++++++++++++-----
- 2 files changed, 26 insertions(+), 7 deletions(-)
-
-Index: vps/include/linux/slub_def.h
-===================================================================
---- vps.orig/include/linux/slub_def.h	2007-06-12 15:58:30.000000000 -0700
-+++ vps/include/linux/slub_def.h	2007-06-12 16:00:43.000000000 -0700
-@@ -28,7 +28,7 @@ struct kmem_cache {
- 	int size;		/* The size of an object including meta data */
- 	int objsize;		/* The size of an object without meta data */
- 	int offset;		/* Free pointer offset. */
--	unsigned int order;
-+	int order;
- 
- 	/*
- 	 * Avoid an extra cache line for UP, SMP and for the node local to
-@@ -56,7 +56,13 @@ struct kmem_cache {
- /*
-  * Kmalloc subsystem.
+diff --git a/include/linux/mempolicy.h b/include/linux/mempolicy.h
+index 22b668c..c8a68b8 100644
+--- a/include/linux/mempolicy.h
++++ b/include/linux/mempolicy.h
+@@ -76,6 +76,8 @@ struct mempolicy {
+  * The default fast path of a NULL MPOL_DEFAULT policy is always inlined.
   */
--#define KMALLOC_SHIFT_LOW 3
-+#if defined(ARCH_KMALLOC_MINALIGN) && ARCH_KMALLOC_MINALIGN > 8
-+#define KMALLOC_MIN_SIZE ARCH_KMALLOC_MINALIGN
-+#else
-+#define KMALLOC_MIN_SIZE 8
-+#endif
-+
-+#define KMALLOC_SHIFT_LOW ilog2(KMALLOC_MIN_SIZE)
  
- /*
-  * We keep the general caches in an array of slab caches that are used for
-@@ -76,6 +82,9 @@ static inline int kmalloc_index(size_t s
- 	if (size > KMALLOC_MAX_SIZE)
- 		return -1;
- 
-+	if (size <= KMALLOC_MIN_SIZE)
-+		return KMALLOC_SHIFT_LOW;
++extern struct mempolicy *mpol_new(int mode, nodemask_t *nodes);
 +
- 	if (size > 64 && size <= 96)
- 		return 1;
- 	if (size > 128 && size <= 192)
-Index: vps/mm/slub.c
-===================================================================
---- vps.orig/mm/slub.c	2007-06-12 15:58:37.000000000 -0700
-+++ vps/mm/slub.c	2007-06-12 16:03:00.000000000 -0700
-@@ -2521,6 +2521,7 @@ EXPORT_SYMBOL(krealloc);
- void __init kmem_cache_init(void)
+ extern void __mpol_free(struct mempolicy *pol);
+ static inline void mpol_free(struct mempolicy *pol)
  {
- 	int i;
-+	int caches = 0;
- 
- 	if (!page_group_by_mobility_disabled && !user_override) {
- 		/*
-@@ -2540,20 +2541,29 @@ void __init kmem_cache_init(void)
- 	create_kmalloc_cache(&kmalloc_caches[0], "kmem_cache_node",
- 		sizeof(struct kmem_cache_node), GFP_KERNEL);
- 	kmalloc_caches[0].refcount = -1;
-+	caches++;
- #endif
- 
- 	/* Able to allocate the per node structures */
- 	slab_state = PARTIAL;
- 
- 	/* Caches that are not of the two-to-the-power-of size */
--	create_kmalloc_cache(&kmalloc_caches[1],
-+	if (KMALLOC_MIN_SIZE <= 64) {
-+		create_kmalloc_cache(&kmalloc_caches[1],
- 				"kmalloc-96", 96, GFP_KERNEL);
--	create_kmalloc_cache(&kmalloc_caches[2],
-+		caches++;
-+	}
-+	if (KMALLOC_MIN_SIZE <= 128) {
-+		create_kmalloc_cache(&kmalloc_caches[2],
- 				"kmalloc-192", 192, GFP_KERNEL);
-+		caches++;
-+	}
- 
--	for (i = KMALLOC_SHIFT_LOW; i <= KMALLOC_SHIFT_HIGH; i++)
-+	for (i = KMALLOC_SHIFT_LOW; i <= KMALLOC_SHIFT_HIGH; i++) {
- 		create_kmalloc_cache(&kmalloc_caches[i],
- 			"kmalloc", 1 << i, GFP_KERNEL);
-+		caches++;
-+	}
- 
- 	slab_state = UP;
- 
-@@ -2570,8 +2580,8 @@ void __init kmem_cache_init(void)
- 				nr_cpu_ids * sizeof(struct page *);
- 
- 	printk(KERN_INFO "SLUB: Genslabs=%d, HWalign=%d, Order=%d-%d, MinObjects=%d,"
--		" Processors=%d, Nodes=%d\n",
--		KMALLOC_SHIFT_HIGH, cache_line_size(),
-+		" CPUs=%d, Nodes=%d\n",
-+		caches, cache_line_size(),
- 		slub_min_order, slub_max_order, slub_min_objects,
- 		nr_cpu_ids, nr_node_ids);
+@@ -164,6 +166,8 @@ static inline void check_highest_zone(enum zone_type k)
+ 		policy_zone = k;
  }
+ 
++extern unsigned interleave_nodes(struct mempolicy *policy);
++
+ int do_migrate_pages(struct mm_struct *mm,
+ 	const nodemask_t *from_nodes, const nodemask_t *to_nodes, int flags);
+ 
+@@ -179,6 +183,11 @@ static inline int mpol_equal(struct mempolicy *a, struct mempolicy *b)
+ 
+ #define mpol_set_vma_default(vma) do {} while(0)
+ 
++static inline struct mempolicy *mpol_new(int mode, nodemask_t *nodes)
++{
++	return NULL;
++}
++
+ static inline void mpol_free(struct mempolicy *p)
+ {
+ }
+@@ -267,6 +276,11 @@ static inline int do_migrate_pages(struct mm_struct *mm,
+ static inline void check_highest_zone(int k)
+ {
+ }
++
++static inline unsigned interleave_nodes(struct mempolicy *policy)
++{
++	return 0;
++}
+ #endif /* CONFIG_NUMA */
+ #endif /* __KERNEL__ */
+ 
+diff --git a/mm/hugetlb.c b/mm/hugetlb.c
+index 858c0b3..1c13687 100644
+--- a/mm/hugetlb.c
++++ b/mm/hugetlb.c
+@@ -103,15 +103,20 @@ static void free_huge_page(struct page *page)
+ 	spin_unlock(&hugetlb_lock);
+ }
+ 
+-static int alloc_fresh_huge_page(void)
++static int alloc_fresh_huge_page(struct mempolicy *policy)
+ {
+-	static int nid = 0;
++	int nid;
+ 	struct page *page;
+-	page = alloc_pages_node(nid, htlb_alloc_mask|__GFP_COMP|__GFP_NOWARN,
+-					HUGETLB_PAGE_ORDER);
+-	nid = next_node(nid, node_online_map);
+-	if (nid == MAX_NUMNODES)
+-		nid = first_node(node_online_map);
++	int start_nid = interleave_nodes(policy);
++
++	nid = start_nid;
++
++	do {
++		page = alloc_pages_node(nid,
++				htlb_alloc_mask|__GFP_COMP|GFP_THISNODE,
++				HUGETLB_PAGE_ORDER);
++		nid = interleave_nodes(policy);
++	} while (!page && nid != start_nid);
+ 	if (page) {
+ 		set_compound_page_dtor(page, free_huge_page);
+ 		spin_lock(&hugetlb_lock);
+@@ -153,6 +158,7 @@ fail:
+ static int __init hugetlb_init(void)
+ {
+ 	unsigned long i;
++	struct mempolicy *pol;
+ 
+ 	if (HPAGE_SHIFT == 0)
+ 		return 0;
+@@ -160,11 +166,16 @@ static int __init hugetlb_init(void)
+ 	for (i = 0; i < MAX_NUMNODES; ++i)
+ 		INIT_LIST_HEAD(&hugepage_freelists[i]);
+ 
++	pol = mpol_new(MPOL_INTERLEAVE, &node_memory_map);
++	if (IS_ERR(pol))
++		goto quit;
+ 	for (i = 0; i < max_huge_pages; ++i) {
+-		if (!alloc_fresh_huge_page())
++		if (!alloc_fresh_huge_page(pol))
+ 			break;
+ 	}
++	mpol_free(pol);
+ 	max_huge_pages = free_huge_pages = nr_huge_pages = i;
++quit:
+ 	printk("Total HugeTLB memory allocated, %ld\n", free_huge_pages);
+ 	return 0;
+ }
+@@ -232,10 +243,16 @@ static inline void try_to_free_low(unsigned long count)
+ 
+ static unsigned long set_max_huge_pages(unsigned long count)
+ {
++	struct mempolicy *pol;
++
++	pol = mpol_new(MPOL_INTERLEAVE, &node_memory_map);
++	if (IS_ERR(pol))
++		return nr_huge_pages;
+ 	while (count > nr_huge_pages) {
+-		if (!alloc_fresh_huge_page())
+-			return nr_huge_pages;
++		if (!alloc_fresh_huge_page(pol))
++			break;
+ 	}
++	mpol_free(pol);
+ 	if (count >= nr_huge_pages)
+ 		return nr_huge_pages;
+ 
+diff --git a/mm/mempolicy.c b/mm/mempolicy.c
+index 21458ca..c576d32 100644
+--- a/mm/mempolicy.c
++++ b/mm/mempolicy.c
+@@ -171,7 +171,7 @@ static struct zonelist *bind_zonelist(nodemask_t *nodes)
+ }
+ 
+ /* Create a new policy */
+-static struct mempolicy *mpol_new(int mode, nodemask_t *nodes)
++struct mempolicy *mpol_new(int mode, nodemask_t *nodes)
+ {
+ 	struct mempolicy *policy;
+ 
+@@ -1121,7 +1121,7 @@ static struct zonelist *zonelist_policy(gfp_t gfp, struct mempolicy *policy)
+ }
+ 
+ /* Do dynamic interleaving for a process */
+-static unsigned interleave_nodes(struct mempolicy *policy)
++unsigned interleave_nodes(struct mempolicy *policy)
+ {
+ 	unsigned nid, next;
+ 	struct task_struct *me = current;
+
+-- 
+Nishanth Aravamudan <nacc@us.ibm.com>
+IBM Linux Technology Center
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
