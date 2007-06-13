@@ -1,114 +1,240 @@
-Subject: Re: [PATCH] populated_map: fix !NUMA case, remove comment
-From: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
-In-Reply-To: <20070612200125.GG3798@us.ibm.com>
-References: <20070612023209.GJ3798@us.ibm.com>
-	 <Pine.LNX.4.64.0706111953220.25390@schroedinger.engr.sgi.com>
-	 <20070612032055.GQ3798@us.ibm.com> <1181660782.5592.50.camel@localhost>
-	 <20070612172858.GV3798@us.ibm.com> <1181674081.5592.91.camel@localhost>
-	 <Pine.LNX.4.64.0706121150220.30754@schroedinger.engr.sgi.com>
-	 <1181677473.5592.149.camel@localhost>
-	 <Pine.LNX.4.64.0706121245200.7983@schroedinger.engr.sgi.com>
-	 <Pine.LNX.4.64.0706121257290.7983@schroedinger.engr.sgi.com>
-	 <20070612200125.GG3798@us.ibm.com>
-Content-Type: text/plain
-Date: Wed, 13 Jun 2007 11:30:06 -0400
-Message-Id: <1181748606.6148.19.camel@localhost>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Received: from d03relay02.boulder.ibm.com (d03relay02.boulder.ibm.com [9.17.195.227])
+	by e31.co.us.ibm.com (8.13.8/8.13.8) with ESMTP id l5DFgaMR016896
+	for <linux-mm@kvack.org>; Wed, 13 Jun 2007 11:42:36 -0400
+Received: from d03av04.boulder.ibm.com (d03av04.boulder.ibm.com [9.17.195.170])
+	by d03relay02.boulder.ibm.com (8.13.8/8.13.8/NCO v8.3) with ESMTP id l5DFaF1u230700
+	for <linux-mm@kvack.org>; Wed, 13 Jun 2007 09:42:36 -0600
+Received: from d03av04.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av04.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l5DFQptI005615
+	for <linux-mm@kvack.org>; Wed, 13 Jun 2007 09:26:51 -0600
+Date: Wed, 13 Jun 2007 08:26:49 -0700
+From: Nishanth Aravamudan <nacc@us.ibm.com>
+Subject: [PATCH v3][RFC] hugetlb: numafy several functions
+Message-ID: <20070613152649.GN3798@us.ibm.com>
+References: <20070611230829.GC14458@us.ibm.com> <20070611231008.GD14458@us.ibm.com> <Pine.LNX.4.64.0706111615450.23857@schroedinger.engr.sgi.com> <20070612001542.GJ14458@us.ibm.com> <20070612034407.GB11773@holomorphy.com> <20070612050910.GU3798@us.ibm.com> <20070612051512.GC11773@holomorphy.com> <20070612174503.GB3798@us.ibm.com> <20070612191347.GE11781@holomorphy.com> <20070613000446.GL3798@us.ibm.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20070613000446.GL3798@us.ibm.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nishanth Aravamudan <nacc@us.ibm.com>
-Cc: Christoph Lameter <clameter@sgi.com>, anton@samba.org, akpm@linux-foundation.org, linux-mm@kvack.org
+To: William Lee Irwin III <wli@holomorphy.com>
+Cc: Christoph Lameter <clameter@sgi.com>, lee.schermerhorn@hp.com, anton@samba.org, akpm@linux-foundation.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 2007-06-12 at 13:01 -0700, Nishanth Aravamudan wrote:
-> On 12.06.2007 [12:58:16 -0700], Christoph Lameter wrote:
-> > On Tue, 12 Jun 2007, Christoph Lameter wrote:
+On 12.06.2007 [17:04:46 -0700], Nishanth Aravamudan wrote:
+> On 12.06.2007 [12:13:47 -0700], William Lee Irwin III wrote:
+> > On 11.06.2007 [22:15:12 -0700], William Lee Irwin III wrote:
+> > >> For initially filling the pool one can just loop over nid's modulo the
+> > >> number of populated nodes and pass down a stack-allocated variable.
 > > 
-> > > Uhhh... Right there is another special case. The recently 
-> > > introduces zonelist swizzle makes the DMA zone come last and if a 
-> > > node had only a DMA zone then it may become swizzled to the end of 
-> > > the zonelist.
+> > On Tue, Jun 12, 2007 at 10:45:03AM -0700, Nishanth Aravamudan wrote:
+> > > But how does one differentiate between "initally filling" the pool and a
+> > > later attempt to add to the pool (or even just marginally later).
+> > > I guess I don't see why folks are so against this static variable :) It
+> > > does the job and removing it seems like it could be an independent
+> > > cleanup?
 > > 
-> > Maybe we can ignore that case for now:
-> > 
-I wish we wouldn't.  We need the "DMA zone comes last" for both HP and
-Fujitsu platforms.  That's why Kame and I worked on that patch
-together.  
-
-> > 
-> > Fix GFP_THISNODE behavior for memoryless nodes
-> > 
-> > GFP_THISNODE checks that the zone selected is within the pgdat (node) of the
-> > first zone of a nodelist. That only works if the node has memory. A
-> > memoryless node will have its first node on another pgdat (node).
-> > 
-> > GFP_THISNODE currently will return simply memory on the first pgdat.
-> > Thus it is returning memory on other nodes. GFP_THISNODE should fail
-> > if there is no local memory on a node.
-> > 
-> > So we add a check to verify that the node specified has memory in
-> > alloc_pages_node(). If the node has no memory then return NULL.
-> > 
-> > The case of alloc_pages(GFP_THISNODE) is not changed. alloc_pages() (with no memory
-> > policies in effect)
-> > 
-> > Signed-off-by: Christoph Lameter <clameter@sgi.com>
-> > Signed-off-by: Nishanth Aravamudan <nacc@us.ibm.com>
-> > 
-> > Index: linux-2.6.22-rc4-mm2/include/linux/gfp.h
-> > ===================================================================
-> > --- linux-2.6.22-rc4-mm2.orig/include/linux/gfp.h	2007-06-12 12:33:37.000000000 -0700
-> > +++ linux-2.6.22-rc4-mm2/include/linux/gfp.h	2007-06-12 12:38:37.000000000 -0700
-> > @@ -175,6 +175,13 @@ static inline struct page *alloc_pages_n
-> >  	if (nid < 0)
-> >  		nid = numa_node_id();
-> > 
-> > +	/*
-> > +	 * Check for the special case that GFP_THISNODE is used on a
-> > +	 * memoryless node
-> > +	 */
-> > +	if ((gfp_mask & __GFP_THISNODE) && !node_memory(nid))
-> > +		return NULL;
-> > +
+> > Well, another approach is to just statically initialize it to something
+> > and then always check to make sure the node for the nid has memory, and
+> > if not, find the next nid with a node with memory from the populated map.
 > 
-> Yep, this seems to be the right thing to do, and was in my rolled-up
-> patch.
+> How does something like this look? Or is it overkill?
 
-I think that the "node has memory" mask is fine for scanning nodes that
-might have memory in the zone of interest--including in the hugetlb
-alloc_fresh_huge_page() loop.  However, I think that to support all
-platforms in a generic way, alloc_pages_node() and
-alloc_page_interleave() [both take a node id arg] should be more strict
-when the gfp mask includes 'THISNODE and not assume that a populated
-node always has on-node memory in the zone of interest.  E.g., something
-like:
+If that patch looks ok, then the other patches (numafy and sysfs) are
+relatively unchanged.
 
-	pgdat_t *pgdat;
-	struct zonelist *zonelist;
+commit 041cb3d3c2fd3640aff50e2f701b8b5a670193de
+Author: Nishanth Aravamudan <nacc@us.ibm.com>
+Date:   Tue Jun 12 17:10:21 2007 -0700
 
-	...
+hugetlb: numafy several functions
 
-	/* 
-	 * after validating nid, ... 
-	 * Note that we need to fetch these values anyway for the
-	 * [likely?] call to __alloc_pages().  
-	 */
-	pgdat = NODE_DATA(nid);
-	zonelist = pgdat->node_zonelists + gfp_zone(gfp_mask);
+Add node-parameterized helpers for dequeue_huge_page,
+alloc_fresh_huge_page and try_to_free_low. Also have
+update_and_free_page() take a nid parameter. This is necessary to add a
+per-node sysfs attribute to specify the number of hugepages on that
+node.
 
-	if ((gfp_mask & __GFP_THISNODE) &&
-		zonelist->zones[0]->zone_pgdat != pgdat)
-		return NULL;
-	
-	return __alloc_pages(gfp_mask, order, zonelist);
+Signed-off-by: Nishanth Aravamudan <nacc@us.ibm.com>
+Cc: William Lee Irwin III <wli@holomorphy.com>
+Cc: Christoph Lameter <clameter@sgi.com>
+Cc: Lee Schermerhorn <lee.schermerhorn@hp.com>
+Cc: Anton Blanchard <anton@sambar.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>
 
+diff --git a/mm/hugetlb.c b/mm/hugetlb.c
+index 1c13687..c4a966e 100644
+--- a/mm/hugetlb.c
++++ b/mm/hugetlb.c
+@@ -66,11 +66,22 @@ static void enqueue_huge_page(struct page *page)
+ 	free_huge_pages_node[nid]++;
+ }
+ 
++static struct page *dequeue_huge_page_node(int nid)
++{
++	struct page *page;
++
++	page = list_entry(hugepage_freelists[nid].next,
++					  struct page, lru);
++	list_del(&page->lru);
++	free_huge_pages--;
++	free_huge_pages_node[nid]--;
++	return page;
++}
++
+ static struct page *dequeue_huge_page(struct vm_area_struct *vma,
+ 				unsigned long address)
+ {
+ 	int nid;
+-	struct page *page = NULL;
+ 	struct zonelist *zonelist = huge_zonelist(vma, address,
+ 						htlb_alloc_mask);
+ 	struct zone **z;
+@@ -82,14 +93,9 @@ static struct page *dequeue_huge_page(struct vm_area_struct *vma,
+ 			break;
+ 	}
+ 
+-	if (*z) {
+-		page = list_entry(hugepage_freelists[nid].next,
+-				  struct page, lru);
+-		list_del(&page->lru);
+-		free_huge_pages--;
+-		free_huge_pages_node[nid]--;
+-	}
+-	return page;
++	if (*z)
++		return dequeue_huge_page_node(nid);
++	return NULL;
+ }
+ 
+ static void free_huge_page(struct page *page)
+@@ -103,6 +109,25 @@ static void free_huge_page(struct page *page)
+ 	spin_unlock(&hugetlb_lock);
+ }
+ 
++static struct page *alloc_fresh_huge_page_node(int nid)
++{
++	struct page *page;
++
++	page = alloc_pages_node(nid,
++			GFP_HIGHUSER|__GFP_COMP|GFP_THISNODE,
++			HUGETLB_PAGE_ORDER);
++	if (page) {
++		set_compound_page_dtor(page, free_huge_page);
++		spin_lock(&hugetlb_lock);
++		nr_huge_pages++;
++		nr_huge_pages_node[nid]++;
++		spin_unlock(&hugetlb_lock);
++		put_page(page); /* free it into the hugepage allocator */
++	}
++
++	return page;
++}
++
+ static int alloc_fresh_huge_page(struct mempolicy *policy)
+ {
+ 	int nid;
+@@ -112,20 +137,12 @@ static int alloc_fresh_huge_page(struct mempolicy *policy)
+ 	nid = start_nid;
+ 
+ 	do {
+-		page = alloc_pages_node(nid,
+-				htlb_alloc_mask|__GFP_COMP|GFP_THISNODE,
+-				HUGETLB_PAGE_ORDER);
++		page = alloc_fresh_huge_page_node(nid);
+ 		nid = interleave_nodes(policy);
+ 	} while (!page && nid != start_nid);
+-	if (page) {
+-		set_compound_page_dtor(page, free_huge_page);
+-		spin_lock(&hugetlb_lock);
+-		nr_huge_pages++;
+-		nr_huge_pages_node[page_to_nid(page)]++;
+-		spin_unlock(&hugetlb_lock);
+-		put_page(page); /* free it into the hugepage allocator */
++
++	if (page)
+ 		return 1;
+-	}
+ 	return 0;
+ }
+ 
+@@ -201,11 +218,11 @@ static unsigned int cpuset_mems_nr(unsigned int *array)
+ }
+ 
+ #ifdef CONFIG_SYSCTL
+-static void update_and_free_page(struct page *page)
++static void update_and_free_page(int nid, struct page *page)
+ {
+ 	int i;
+ 	nr_huge_pages--;
+-	nr_huge_pages_node[page_to_nid(page)]--;
++	nr_huge_pages_node[nid]--;
+ 	for (i = 0; i < (HPAGE_SIZE / PAGE_SIZE); i++) {
+ 		page[i].flags &= ~(1 << PG_locked | 1 << PG_error | 1 << PG_referenced |
+ 				1 << PG_dirty | 1 << PG_active | 1 << PG_reserved |
+@@ -217,25 +234,37 @@ static void update_and_free_page(struct page *page)
+ }
+ 
+ #ifdef CONFIG_HIGHMEM
++static void try_to_free_low_node(int nid, unsigned long count)
++{
++	struct page *page, *next;
++
++	list_for_each_entry_safe(page, next,
++				&hugepage_freelists[nid], lru) {
++		if (PageHighMem(page))
++			continue;
++		list_del(&page->lru);
++		update_and_free_page(nid, page);
++		free_huge_pages--;
++		free_huge_pages_node[nid]--;
++		if (count >= nr_huge_pages_node[nid])
++			return;
++	}
++}
++
+ static void try_to_free_low(unsigned long count)
+ {
+ 	int i;
+ 
+ 	for (i = 0; i < MAX_NUMNODES; ++i) {
+-		struct page *page, *next;
+-		list_for_each_entry_safe(page, next, &hugepage_freelists[i], lru) {
+-			if (PageHighMem(page))
+-				continue;
+-			list_del(&page->lru);
+-			update_and_free_page(page);
+-			free_huge_pages--;
+-			free_huge_pages_node[page_to_nid(page)]--;
+-			if (count >= nr_huge_pages)
+-				return;
+-		}
++		try_to_free_low_node(i, count);
++		if (count >= nr_huge_pages)
++			break;
+ 	}
+ }
+ #else
++static inline void try_to_free_low_node(int nid, unsigned long count)
++{
++}
+ static inline void try_to_free_low(unsigned long count)
+ {
+ }
+@@ -263,7 +292,7 @@ static unsigned long set_max_huge_pages(unsigned long count)
+ 		struct page *page = dequeue_huge_page(NULL, 0);
+ 		if (!page)
+ 			break;
+-		update_and_free_page(page);
++		update_and_free_page(page_to_nid(page), page);
+ 	}
+ 	spin_unlock(&hugetlb_lock);
+ 	return nr_huge_pages;
 
-I see you've submitted a new patch set.  I grab it [when Nish reposts]
-and test it as is and modified to look something like the above, if
-needed.
-
-Lee
+-- 
+Nishanth Aravamudan <nacc@us.ibm.com>
+IBM Linux Technology Center
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
