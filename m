@@ -1,7 +1,7 @@
-Date: Tue, 12 Jun 2007 22:32:03 -0500
-From: Matt Mackall <mpm@selenic.com>
+Date: Wed, 13 Jun 2007 12:33:06 +0900
+From: Paul Mundt <lethal@linux-sh.org>
 Subject: Re: [PATCH] slob: poor man's NUMA, take 2.
-Message-ID: <20070613033203.GO11115@waste.org>
+Message-ID: <20070613033306.GA15169@linux-sh.org>
 References: <20070613031203.GB15009@linux-sh.org> <466F6351.9040503@yahoo.com.au>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
@@ -10,7 +10,7 @@ In-Reply-To: <466F6351.9040503@yahoo.com.au>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Nick Piggin <nickpiggin@yahoo.com.au>
-Cc: Paul Mundt <lethal@linux-sh.org>, Christoph Lameter <clameter@sgi.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org
+Cc: Matt Mackall <mpm@selenic.com>, Christoph Lameter <clameter@sgi.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
 On Wed, Jun 13, 2007 at 01:24:01PM +1000, Nick Piggin wrote:
@@ -35,15 +35,18 @@ On Wed, Jun 13, 2007 at 01:24:01PM +1000, Nick Piggin wrote:
 > freeing rates match pretty well and there won't be much movement of pages
 > in and out of the allocator. In this case it will be back to random
 > allocations, won't it?
+> 
+That's why I tossed in the node id matching in slob_alloc() for the
+partial free page lookup. At the moment the logic obviously won't scale,
+since we end up scanning the entire freelist looking for a page that
+matches the node specifier. If we don't find one, we could rescan and
+just grab a block from another node, but at the moment it just continues
+on and tries to fetch a new page for the specified node.
 
-Hmmm, probably.
-
-Perhaps we can have a single list (or ring, rather) with per-node
-insertion points. Then we can start node-local searches at the
-insertion points..?
-
--- 
-Mathematics is the supreme nostalgia of our time.
+If the freelists are split per node, that makes it a bit more manageable,
+but that's more of a scalability issue than a correctness one. Random
+alloc/free workloads will stick to their node with the current patch, so
+I'm not sure where you see the random node placement as an issue?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
