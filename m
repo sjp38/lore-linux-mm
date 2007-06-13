@@ -1,51 +1,48 @@
-Received: from d01relay02.pok.ibm.com (d01relay02.pok.ibm.com [9.56.227.234])
-	by e6.ny.us.ibm.com (8.13.8/8.13.8) with ESMTP id l5DNY5Po018538
-	for <linux-mm@kvack.org>; Wed, 13 Jun 2007 19:34:05 -0400
-Received: from d01av03.pok.ibm.com (d01av03.pok.ibm.com [9.56.224.217])
-	by d01relay02.pok.ibm.com (8.13.8/8.13.8/NCO v8.3) with ESMTP id l5DNWxQn528122
-	for <linux-mm@kvack.org>; Wed, 13 Jun 2007 19:32:59 -0400
-Received: from d01av03.pok.ibm.com (loopback [127.0.0.1])
-	by d01av03.pok.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l5DNWxSo024804
-	for <linux-mm@kvack.org>; Wed, 13 Jun 2007 19:32:59 -0400
-Date: Wed, 13 Jun 2007 16:32:56 -0700
-From: Nishanth Aravamudan <nacc@us.ibm.com>
-Subject: Re: [patch 2/3] Fix GFP_THISNODE behavior for memoryless nodes
-Message-ID: <20070613233256.GZ3798@us.ibm.com>
-References: <20070612204843.491072749@sgi.com> <20070612205738.548677035@sgi.com> <1181769033.6148.116.camel@localhost> <Pine.LNX.4.64.0706131535200.32399@schroedinger.engr.sgi.com> <20070613231153.GW3798@us.ibm.com> <Pine.LNX.4.64.0706131613050.394@schroedinger.engr.sgi.com> <20070613232005.GY3798@us.ibm.com> <Pine.LNX.4.64.0706131626250.698@schroedinger.engr.sgi.com>
+Content-class: urn:content-classes:message
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <Pine.LNX.4.64.0706131626250.698@schroedinger.engr.sgi.com>
+Content-Type: text/plain;
+	charset="iso-8859-1"
+Content-Transfer-Encoding: 8BIT
+Subject: RE: [patch 0/3] no MAX_ARG_PAGES -v2
+Date: Wed, 13 Jun 2007 16:36:13 -0700
+Message-ID: <617E1C2C70743745A92448908E030B2A01AF860A@scsmsx411.amr.corp.intel.com>
+In-Reply-To: <20070613100334.635756997@chello.nl>
+From: "Luck, Tony" <tony.luck@intel.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
-Cc: Lee Schermerhorn <Lee.Schermerhorn@hp.com>, akpm@linux-foundation.org, linux-mm@kvack.org, ak@suse.de
+To: Peter Zijlstra <a.p.zijlstra@chello.nl>, linux-kernel@vger.kernel.org, parisc-linux@lists.parisc-linux.org, linux-mm@kvack.org, linux-arch@vger.kernel.org
+Cc: Ollie Wild <aaw@google.com>, Andrew Morton <akpm@osdl.org>, Ingo Molnar <mingo@elte.hu>, Andi Kleen <ak@suse.de>
 List-ID: <linux-mm.kvack.org>
 
-On 13.06.2007 [16:26:50 -0700], Christoph Lameter wrote:
-> On Wed, 13 Jun 2007, Nishanth Aravamudan wrote:
-> 
-> > Who the heck said anything about mainline?
-> 
-> Well we do have discovered issues that are bugs. Handling of
-> memoryless nodes is rather strange.
+> This patch-set aims at removing the current limit on argv+env space aka.
+> MAX_ARG_PAGES.
 
-Without a doubt :)
+Running with this patch shows that /bin/bash has some unpleasant
+O(n^2) performance issues with long argument lists.  I made a
+1Mbyte file full of pathnames, then timed the execution of:
 
-Sorry, the real reason for wrapping the patches and reposting, for me,
-is that we've had a lot of versions flying around, with small fixlets
-here and there. I wanted to start a new thread for the 3 or so patches I
-see that implement the core of dealing with memoryless nodes, and then
-keep the discussion going there, but that was purely for my own sanity.
+$ /bin/echo `cat megabyte` | wc
+$ /bin/echo `cat megabyte megabyte` | wc
+   etc. ...
 
-Sorry if I overreacted.
+System time was pretty much linear as the arglist grew
+(and only got up to 0.144 seconds at 5Mbytes).
 
-Thanks,
-Nish
+But user time ~= real time (in seconds) looks like:
 
--- 
-Nishanth Aravamudan <nacc@us.ibm.com>
-IBM Linux Technology Center
+1 5.318
+2 18.871
+3 40.620
+4 70.819
+5 108.911
+
+Above 5Mbytes, I started seeing problems.  The line/word/char
+counts from "wc" started being "0 0 0".  Not sure if this is
+a problem in "wc" dealing with a single line >5MBytes, or some
+other problem (possibly I was exceeding the per-process stack
+limit which is only 8MB on that machine).
+
+-Tony
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
