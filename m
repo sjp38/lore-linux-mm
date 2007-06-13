@@ -1,263 +1,161 @@
-Received: from d03relay02.boulder.ibm.com (d03relay02.boulder.ibm.com [9.17.195.227])
-	by e31.co.us.ibm.com (8.13.8/8.13.8) with ESMTP id l5DJJPU7030492
-	for <linux-mm@kvack.org>; Wed, 13 Jun 2007 15:19:25 -0400
-Received: from d03av03.boulder.ibm.com (d03av03.boulder.ibm.com [9.17.195.169])
-	by d03relay02.boulder.ibm.com (8.13.8/8.13.8/NCO v8.3) with ESMTP id l5DJJNLa263218
-	for <linux-mm@kvack.org>; Wed, 13 Jun 2007 13:19:25 -0600
-Received: from d03av03.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av03.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l5DJJM1h025857
-	for <linux-mm@kvack.org>; Wed, 13 Jun 2007 13:19:23 -0600
-Date: Wed, 13 Jun 2007 12:19:08 -0700
-From: Nishanth Aravamudan <nacc@us.ibm.com>
-Subject: [PATCH v4][RFC] hugetlb: add per-node nr_hugepages sysfs attribute
-Message-ID: <20070613191908.GR3798@us.ibm.com>
-References: <20070612001542.GJ14458@us.ibm.com> <20070612034407.GB11773@holomorphy.com> <20070612050910.GU3798@us.ibm.com> <20070612051512.GC11773@holomorphy.com> <20070612174503.GB3798@us.ibm.com> <20070612191347.GE11781@holomorphy.com> <20070613000446.GL3798@us.ibm.com> <20070613152649.GN3798@us.ibm.com> <20070613152847.GO3798@us.ibm.com> <1181759027.6148.77.camel@localhost>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1181759027.6148.77.camel@localhost>
+Subject: Re: [PATCH v4][RFC] hugetlb: add per-node nr_hugepages sysfs
+	attribute
+From: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
+In-Reply-To: <20070613191908.GR3798@us.ibm.com>
+References: <20070612001542.GJ14458@us.ibm.com>
+	 <20070612034407.GB11773@holomorphy.com> <20070612050910.GU3798@us.ibm.com>
+	 <20070612051512.GC11773@holomorphy.com> <20070612174503.GB3798@us.ibm.com>
+	 <20070612191347.GE11781@holomorphy.com> <20070613000446.GL3798@us.ibm.com>
+	 <20070613152649.GN3798@us.ibm.com> <20070613152847.GO3798@us.ibm.com>
+	 <1181759027.6148.77.camel@localhost>  <20070613191908.GR3798@us.ibm.com>
+Content-Type: text/plain
+Date: Wed, 13 Jun 2007 16:05:10 -0400
+Message-Id: <1181765111.6148.98.camel@localhost>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
-Cc: William Lee Irwin III <wli@holomorphy.com>, Christoph Lameter <clameter@sgi.com>, anton@samba.org, akpm@linux-foundation.org, linux-mm@kvack.org
+To: Nishanth Aravamudan <nacc@us.ibm.com>, Christoph Lameter <clameter@sgi.com>
+Cc: William Lee Irwin III <wli@holomorphy.com>, anton@samba.org, akpm@linux-foundation.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 13.06.2007 [14:23:47 -0400], Lee Schermerhorn wrote:
-> On Wed, 2007-06-13 at 08:28 -0700, Nishanth Aravamudan wrote:
-> <snip>
+On Wed, 2007-06-13 at 12:19 -0700, Nishanth Aravamudan wrote:
+> On 13.06.2007 [14:23:47 -0400], Lee Schermerhorn wrote:
+> > On Wed, 2007-06-13 at 08:28 -0700, Nishanth Aravamudan wrote:
+> > <snip>
+> > > 
+> > > commit 05a7edb8c909c674cdefb0323348825cf3e2d1d0
+> > > Author: Nishanth Aravamudan <nacc@us.ibm.com>
+> > > Date:   Thu Jun 7 08:54:48 2007 -0700
+> > > 
+> > > hugetlb: add per-node nr_hugepages sysfs attribute
+> > > 
+> > > Allow specifying the number of hugepages to allocate on a particular
+> > > node. Our current global sysctl will try its best to put hugepages
+> > > equally on each node, but htat may not always be desired. This allows
+> > > the admin to control the layout of hugepage allocation at a finer level
+> > > (while not breaking the existing interface). Add callbacks in the sysfs
+> > > node registration and unregistration functions into hugetlb to add the
+> > > nr_hugepages attribute, which is a no-op if !NUMA or !HUGETLB.
+> > > 
+> > > Signed-off-by: Nishanth Aravamudan <nacc@us.ibm.com>
+> > > Cc: William Lee Irwin III <wli@holomorphy.com>
+> > > Cc: Christoph Lameter <clameter@sgi.com>
+> > > Cc: Lee Schermerhorn <lee.schermerhorn@hp.com>
+> > > Cc: Anton Blanchard <anton@sambar.org>
+> > > Cc: Andrew Morton <akpm@linux-foundation.org>
+> > > 
+> > > ---
+> > > Do the dummy function definitions need to be (void)0?
+> > > 
 > > 
-> > commit 05a7edb8c909c674cdefb0323348825cf3e2d1d0
-> > Author: Nishanth Aravamudan <nacc@us.ibm.com>
-> > Date:   Thu Jun 7 08:54:48 2007 -0700
-> > 
-> > hugetlb: add per-node nr_hugepages sysfs attribute
-> > 
-> > Allow specifying the number of hugepages to allocate on a particular
-> > node. Our current global sysctl will try its best to put hugepages
-> > equally on each node, but htat may not always be desired. This allows
-> > the admin to control the layout of hugepage allocation at a finer level
-> > (while not breaking the existing interface). Add callbacks in the sysfs
-> > node registration and unregistration functions into hugetlb to add the
-> > nr_hugepages attribute, which is a no-op if !NUMA or !HUGETLB.
-> > 
-> > Signed-off-by: Nishanth Aravamudan <nacc@us.ibm.com>
-> > Cc: William Lee Irwin III <wli@holomorphy.com>
-> > Cc: Christoph Lameter <clameter@sgi.com>
-> > Cc: Lee Schermerhorn <lee.schermerhorn@hp.com>
-> > Cc: Anton Blanchard <anton@sambar.org>
-> > Cc: Andrew Morton <akpm@linux-foundation.org>
-> > 
-> > ---
-> > Do the dummy function definitions need to be (void)0?
-> > 
-> 
-> <snip>
-> 
-> > diff --git a/include/linux/hugetlb.h b/include/linux/hugetlb.h
-> > index aa0dc9b..e9f5928 100644
-> > --- a/include/linux/hugetlb.h
-> > +++ b/include/linux/hugetlb.h
-> > @@ -5,6 +5,7 @@
-> >  
-> >  #include <linux/mempolicy.h>
-> >  #include <linux/shm.h>
-> > +#include <linux/sysdev.h>
-> >  #include <asm/tlbflush.h>
-> >  
-> >  struct ctl_table;
-> > @@ -23,6 +24,11 @@ void __unmap_hugepage_range(struct vm_area_struct *, unsigned long, unsigned lon
-> >  int hugetlb_prefault(struct address_space *, struct vm_area_struct *);
-> >  int hugetlb_report_meminfo(char *);
-> >  int hugetlb_report_node_meminfo(int, char *);
-> > +int hugetlb_register_node(struct sys_device *);
-> > +void hugetlb_unregister_node(struct sys_device *);
-> 
-> The parameter type for the two functions above need to be "struct
-> node".  You'll need to include <linux/node.h> after <linux/sysdev.h>,
-> as well.  Otherwise, doesn't build.
+> > <snip>
 
-Sigh... Actually a few fixes worth doing. Make stuff static, since it's
-now all in hugetlb.c and only compile if NUMA. And don't export the
-nr_hugepages functions any more via hugetlb.h, as they are now private.
+I tested hugepage allocation on my HP rx8620 platform [16 cpu ia64, 32GB
+in 4 "real" nodes and one pseudo-node containing only DMA memory].  As
+expected, I don't get a balanced distribution across the real nodes.
+Here's what I see:
 
-Compile-tested with HUGETLB && NUMA, HUGETLB && !NUMA, !HUGETLB && NUMA,
-!HUGETLB && !NUMA.
+# before allocating huge pages:
+root@gwydyr(root):cat /sys/devices/system/node/node*/meminfo | grep HugeP 
+Node 0 HugePages_Total:     0
+Node 0 HugePages_Free:      0
+Node 1 HugePages_Total:     0
+Node 1 HugePages_Free:      0
+Node 2 HugePages_Total:     0
+Node 2 HugePages_Free:      0
+Node 3 HugePages_Total:     0
+Node 3 HugePages_Free:      0
+Node 4 HugePages_Total:     0
+Node 4 HugePages_Free:      0
 
-Will throw it at the machines I ran the previous set on, to verify
-everything runs as expected, but for review:
+# Now allocate 64 256MB pages.  Only nodes 0-3 have NORMAL memory.
+# Zone 4 contains ~512MB of DMA memory.  Some has already been
+# used, so I doubt that even 1 256MB [aligned] huge page is available.
+
+root@gwydyr(root):echo 64 >/proc/sys/vm/nr_hugepages
+root@gwydyr(root):cat /sys/devices/system/node/node*/meminfo | grep HugeP
+Node 0 HugePages_Total:    13	<---???
+Node 0 HugePages_Free:     26	<---???
+Node 1 HugePages_Total:    12
+Node 1 HugePages_Free:     12
+Node 2 HugePages_Total:    13
+Node 2 HugePages_Free:     13
+Node 3 HugePages_Total:    13
+Node 3 HugePages_Free:     13
+Node 4 HugePages_Total:    13	<---???
+Node 4 HugePages_Free:      0
+
+# 13 of the pages say they're from Node 4, but I know that has only
+~512MB or memory, of which some is already used.  Unlikely that I can
+allocate even 1 256MB huge page because of alignment.  Note that the
+free pages are accounted on Node 0, where they actually reside.
+
+Here's some zoneinfo after the allocation above [forgot to snap it
+before].
+
+# zoneinfo shell function contains:
+# cat /proc/zoneinfo | egrep '^Node|^  pages |^  *present|^  *spanned'
+# results after allocating huge pages
+root@gwydyr(root):zoneinfo
+Node 0, zone   Normal
+  pages free     36157
+        spanned  486400
+        present  484738
+Node 1, zone   Normal
+  pages free     318034
+        spanned  520192
+        present  518413
+Node 2, zone   Normal
+  pages free     301526
+        spanned  520192
+        present  518414
+Node 3, zone   Normal
+  pages free     301932
+        spanned  520182
+        present  518362
+Node 4, zone      DMA
+  pages free     31706
+        spanned  32767
+        present  32656
+^^^^^^^^^^^^^^^^^^^^^^ Nope!  no huge pages allocated from here!
+
+# now try to free the huge pages.
+
+root@gwydyr(root):echo 0 >/proc/sys/vm/nr_hugepages
+root@gwydyr(root):cat /sys/devices/system/node/node*/meminfo | grep HugeP
+Node 0 HugePages_Total: 4294967283 <--- ???
+Node 0 HugePages_Free:      0
+Node 1 HugePages_Total:     0
+Node 1 HugePages_Free:      0
+Node 2 HugePages_Total:     0
+Node 2 HugePages_Free:      0
+Node 3 HugePages_Total:     0
+Node 3 HugePages_Free:      0
+Node 4 HugePages_Total:    13	<---??? they weren't really there to begin with!
+Node 4 HugePages_Free:      0
+
+# Apparently on remove, the pages were decremented from node 0 instead
+of node 4 where they were accounted for on allocation, resulting in a
+negative count on node 0 and the original 13 count still on node 4.  
+
+------------------
+
+I tried to "tighten up"  alloc_pages_node() to check the location of the
+first zone in the selected zonelist, as discussed in previous exchange.
+When I do this, I hit a BUG() in slub.c in
+early_kmem_cache_node_alloc(), as it apparently can't handle new_slab()
+returning a NULL page, even tho' it calls it with GFP_THISNODE.  Slub
+should be able to handle memoryless nodes, right?  I'm looking for a
+work around to this now.
+
+Lee
 
 
-hugetlb: add per-node nr_hugepages sysfs attribute
 
-Allow specifying the number of hugepages to allocate on a particular
-node. Our current global sysctl will try its best to put hugepages
-equally on each node, but htat may not always be desired. This allows
-the admin to control the layout of hugepage allocation at a finer level
-(while not breaking the existing interface).  Add callbacks in the sysfs
-node registration and unregistration functions into hugetlb to add the
-nr_hugepages attribute, which is a no-op if !NUMA or !HUGETLB.
 
-Signed-off-by: Nishanth Aravamudan <nacc@us.ibm.com>
 
-diff --git a/drivers/base/node.c b/drivers/base/node.c
-index cae346e..c9d531f 100644
---- a/drivers/base/node.c
-+++ b/drivers/base/node.c
-@@ -151,6 +151,7 @@ int register_node(struct node *node, int num, struct node *parent)
- 		sysdev_create_file(&node->sysdev, &attr_meminfo);
- 		sysdev_create_file(&node->sysdev, &attr_numastat);
- 		sysdev_create_file(&node->sysdev, &attr_distance);
-+		hugetlb_register_node(node);
- 	}
- 	return error;
- }
-@@ -168,6 +169,7 @@ void unregister_node(struct node *node)
- 	sysdev_remove_file(&node->sysdev, &attr_meminfo);
- 	sysdev_remove_file(&node->sysdev, &attr_numastat);
- 	sysdev_remove_file(&node->sysdev, &attr_distance);
-+	hugetlb_unregister_node(node);
- 
- 	sysdev_unregister(&node->sysdev);
- }
-diff --git a/include/linux/hugetlb.h b/include/linux/hugetlb.h
-index aa0dc9b..7872031 100644
---- a/include/linux/hugetlb.h
-+++ b/include/linux/hugetlb.h
-@@ -4,7 +4,9 @@
- #ifdef CONFIG_HUGETLB_PAGE
- 
- #include <linux/mempolicy.h>
-+#include <linux/node.h>
- #include <linux/shm.h>
-+#include <linux/sysdev.h>
- #include <asm/tlbflush.h>
- 
- struct ctl_table;
-@@ -23,6 +25,13 @@ void __unmap_hugepage_range(struct vm_area_struct *, unsigned long, unsigned lon
- int hugetlb_prefault(struct address_space *, struct vm_area_struct *);
- int hugetlb_report_meminfo(char *);
- int hugetlb_report_node_meminfo(int, char *);
-+#ifdef CONFIG_NUMA
-+int hugetlb_register_node(struct node *);
-+void hugetlb_unregister_node(struct node *);
-+#else
-+#define hugetlb_register_node(node)		0
-+#define hugetlb_unregister_node(node)		0
-+#endif
- unsigned long hugetlb_total_pages(void);
- int hugetlb_fault(struct mm_struct *mm, struct vm_area_struct *vma,
- 			unsigned long address, int write_access);
-@@ -114,6 +123,8 @@ static inline unsigned long hugetlb_total_pages(void)
- #define unmap_hugepage_range(vma, start, end)	BUG()
- #define hugetlb_report_meminfo(buf)		0
- #define hugetlb_report_node_meminfo(n, buf)	0
-+#define hugetlb_register_node(node)		0
-+#define hugetlb_unregister_node(node)		0
- #define follow_huge_pmd(mm, addr, pmd, write)	NULL
- #define prepare_hugepage_range(addr,len,pgoff)	(-EINVAL)
- #define pmd_huge(x)	0
-diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-index c4a966e..e6ba07d 100644
---- a/mm/hugetlb.c
-+++ b/mm/hugetlb.c
-@@ -137,6 +137,9 @@ static int alloc_fresh_huge_page(struct mempolicy *policy)
- 	nid = start_nid;
- 
- 	do {
-+		/*
-+		 * this allocation will fail for unpopulated nodes
-+		 */
- 		page = alloc_fresh_huge_page_node(nid);
- 		nid = interleave_nodes(policy);
- 	} while (!page && nid != start_nid);
-@@ -217,7 +220,6 @@ static unsigned int cpuset_mems_nr(unsigned int *array)
- 	return nr;
- }
- 
--#ifdef CONFIG_SYSCTL
- static void update_and_free_page(int nid, struct page *page)
- {
- 	int i;
-@@ -270,6 +272,7 @@ static inline void try_to_free_low(unsigned long count)
- }
- #endif
- 
-+#ifdef CONFIG_SYSCTL
- static unsigned long set_max_huge_pages(unsigned long count)
- {
- 	struct mempolicy *pol;
-@@ -343,6 +346,67 @@ int hugetlb_report_node_meminfo(int nid, char *buf)
- 		nid, free_huge_pages_node[nid]);
- }
- 
-+#ifdef CONFIG_NUMA
-+static ssize_t hugetlb_read_nr_hugepages_node(struct sys_device *dev,
-+							char *buf)
-+{
-+	return sprintf(buf, "%u\n", nr_huge_pages_node[dev->id]);
-+}
-+
-+static ssize_t hugetlb_write_nr_hugepages_node(struct sys_device *dev,
-+					const char *buf, size_t count)
-+{
-+	int nid = dev->id;
-+	unsigned long target;
-+	unsigned long free_on_other_nodes;
-+	unsigned long nr_huge_pages_req = simple_strtoul(buf, NULL, 10);
-+
-+	while (nr_huge_pages_req > nr_huge_pages_node[nid]) {
-+		if (!alloc_fresh_huge_page_node(nid))
-+			return count;
-+	}
-+	if (nr_huge_pages_req >= nr_huge_pages_node[nid])
-+		return count;
-+
-+	/* need to ensure that our counts are accurate */
-+	spin_lock(&hugetlb_lock);
-+	free_on_other_nodes = free_huge_pages - free_huge_pages_node[nid];
-+	if (free_on_other_nodes >= resv_huge_pages) {
-+		/* other nodes can satisfy reserve */
-+		target = nr_huge_pages_req;
-+	} else {
-+		/* this node needs some free to satisfy reserve */
-+		target = max((resv_huge_pages - free_on_other_nodes),
-+						nr_huge_pages_req);
-+	}
-+	try_to_free_low_node(nid, target);
-+	while (target < nr_huge_pages_node[nid]) {
-+		struct page *page = dequeue_huge_page_node(nid);
-+		if (!page)
-+			break;
-+		update_and_free_page(nid, page);
-+	}
-+	spin_unlock(&hugetlb_lock);
-+
-+	return count;
-+}
-+
-+static SYSDEV_ATTR(nr_hugepages, S_IRUGO | S_IWUSR,
-+			hugetlb_read_nr_hugepages_node,
-+			hugetlb_write_nr_hugepages_node);
-+
-+int hugetlb_register_node(struct node *node)
-+{
-+	return sysdev_create_file(&node->sysdev, &attr_nr_hugepages);
-+}
-+
-+void hugetlb_unregister_node(struct node *node)
-+{
-+	sysdev_remove_file(&node->sysdev, &attr_nr_hugepages);
-+}
-+
-+#endif
-+
- /* Return the number pages of memory we physically have, in PAGE_SIZE units. */
- unsigned long hugetlb_total_pages(void)
- {
 
--- 
-Nishanth Aravamudan <nacc@us.ibm.com>
-IBM Linux Technology Center
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
