@@ -1,167 +1,76 @@
-Message-Id: <20070614220446.975889268@chello.nl>
+Message-Id: <20070614220447.167706679@chello.nl>
 References: <20070614215817.389524447@chello.nl>
-Date: Thu, 14 Jun 2007 23:58:27 +0200
+Date: Thu, 14 Jun 2007 23:58:30 +0200
 From: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Subject: [PATCH 10/17] mm: scalable bdi statistics counters.
-Content-Disposition: inline; filename=bdi_stat.patch
+Subject: [PATCH 13/17] mm: expose BDI statistics in sysfs.
+Content-Disposition: inline; filename=bdi_stat_sysfs.patch
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 Cc: miklos@szeredi.hu, akpm@linux-foundation.org, neilb@suse.de, dgc@sgi.com, tomoki.sekiyama.qu@hitachi.com, a.p.zijlstra@chello.nl, nikita@clusterfs.com, trond.myklebust@fys.uio.no, yingchao.zhou@gmail.com, andrea@suse.de
 List-ID: <linux-mm.kvack.org>
 
-Provide scalable per backing_dev_info statistics counters.
+Expose the per BDI stats in /sys/block/<dev>/queue/*
 
 Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
 ---
- include/linux/backing-dev.h |   96 +++++++++++++++++++++++++++++++++++++++++++-
- mm/backing-dev.c            |   21 +++++++++
- 2 files changed, 115 insertions(+), 2 deletions(-)
+ block/ll_rw_blk.c |   29 +++++++++++++++++++++++++++++
+ 1 file changed, 29 insertions(+)
 
-Index: linux-2.6/include/linux/backing-dev.h
+Index: linux-2.6/block/ll_rw_blk.c
 ===================================================================
---- linux-2.6.orig/include/linux/backing-dev.h	2007-05-10 10:21:53.000000000 +0200
-+++ linux-2.6/include/linux/backing-dev.h	2007-05-10 10:23:26.000000000 +0200
-@@ -8,6 +8,8 @@
- #ifndef _LINUX_BACKING_DEV_H
- #define _LINUX_BACKING_DEV_H
+--- linux-2.6.orig/block/ll_rw_blk.c
++++ linux-2.6/block/ll_rw_blk.c
+@@ -3977,6 +3977,23 @@ static ssize_t queue_max_hw_sectors_show
+ 	return queue_var_show(max_hw_sectors_kb, (page));
+ }
  
-+#include <linux/percpu_counter.h>
-+#include <linux/log2.h>
- #include <asm/atomic.h>
- 
- struct page;
-@@ -24,6 +26,12 @@ enum bdi_state {
- 
- typedef int (congested_fn)(void *, int);
- 
-+enum bdi_stat_item {
-+	NR_BDI_STAT_ITEMS
-+};
++static ssize_t queue_nr_reclaimable_show(struct request_queue *q, char *page)
++{
++	unsigned long long nr_reclaimable =
++		bdi_stat(&q->backing_dev_info, BDI_RECLAIMABLE);
 +
-+#define BDI_STAT_BATCH (8*(1+ilog2(nr_cpu_ids)))
++	return sprintf(page, "%llu\n",
++			nr_reclaimable >> (PAGE_CACHE_SHIFT - 10));
++}
 +
- struct backing_dev_info {
- 	unsigned long ra_pages;	/* max readahead in PAGE_CACHE_SIZE units */
- 	unsigned long state;	/* Always use atomic bitops on this */
-@@ -32,14 +40,86 @@ struct backing_dev_info {
- 	void *congested_data;	/* Pointer to aux data for congested func */
- 	void (*unplug_io_fn)(struct backing_dev_info *, struct page *);
- 	void *unplug_io_data;
++static ssize_t queue_nr_writeback_show(struct request_queue *q, char *page)
++{
++	unsigned long long nr_writeback =
++		bdi_stat(&q->backing_dev_info, BDI_WRITEBACK);
 +
-+	struct percpu_counter bdi_stat[NR_BDI_STAT_ITEMS];
++	return sprintf(page, "%llu\n",
++			nr_writeback >> (PAGE_CACHE_SHIFT - 10));
++}
+ 
+ static struct queue_sysfs_entry queue_requests_entry = {
+ 	.attr = {.name = "nr_requests", .mode = S_IRUGO | S_IWUSR },
+@@ -4001,6 +4018,16 @@ static struct queue_sysfs_entry queue_ma
+ 	.show = queue_max_hw_sectors_show,
  };
  
--static inline void bdi_init(struct backing_dev_info *bdi)
-+void bdi_init(struct backing_dev_info *bdi);
-+void bdi_destroy(struct backing_dev_info *bdi);
++static struct queue_sysfs_entry queue_reclaimable_entry = {
++	.attr = {.name = "reclaimable_kb", .mode = S_IRUGO },
++	.show = queue_nr_reclaimable_show,
++};
 +
-+static inline void __mod_bdi_stat(struct backing_dev_info *bdi,
-+		enum bdi_stat_item item, s32 amount)
-+{
-+	__percpu_counter_mod(&bdi->bdi_stat[item], amount, BDI_STAT_BATCH);
-+}
++static struct queue_sysfs_entry queue_writeback_entry = {
++	.attr = {.name = "writeback_kb", .mode = S_IRUGO },
++	.show = queue_nr_writeback_show,
++};
 +
-+static inline void __inc_bdi_stat(struct backing_dev_info *bdi,
-+		enum bdi_stat_item item)
-+{
-+	__mod_bdi_stat(bdi, item, 1);
-+}
-+
-+static inline void inc_bdi_stat(struct backing_dev_info *bdi,
-+		enum bdi_stat_item item)
-+{
-+	unsigned long flags;
-+
-+	local_irq_save(flags);
-+	__inc_bdi_stat(bdi, item);
-+	local_irq_restore(flags);
-+}
-+
-+static inline void __dec_bdi_stat(struct backing_dev_info *bdi,
-+		enum bdi_stat_item item)
- {
-+	__mod_bdi_stat(bdi, item, -1);
- }
- 
--static inline void bdi_destroy(struct backing_dev_info *bdi)
-+static inline void dec_bdi_stat(struct backing_dev_info *bdi,
-+		enum bdi_stat_item item)
- {
-+	unsigned long flags;
-+
-+	local_irq_save(flags);
-+	__dec_bdi_stat(bdi, item);
-+	local_irq_restore(flags);
-+}
-+
-+static inline s64 bdi_stat(struct backing_dev_info *bdi,
-+		enum bdi_stat_item item)
-+{
-+	return percpu_counter_read_positive(&bdi->bdi_stat[item]);
-+}
-+
-+static inline s64 __bdi_stat_sum(struct backing_dev_info *bdi,
-+		enum bdi_stat_item item)
-+{
-+	return percpu_counter_sum(&bdi->bdi_stat[item]);
-+}
-+
-+static inline s64 bdi_stat_sum(struct backing_dev_info *bdi,
-+		enum bdi_stat_item item)
-+{
-+	s64 sum;
-+	unsigned long flags;
-+
-+	local_irq_save(flags);
-+	sum = __bdi_stat_sum(bdi, item);
-+	local_irq_restore(flags);
-+
-+	return sum;
-+}
-+
-+/*
-+ * maximal error of a stat counter.
-+ */
-+static inline unsigned long bdi_stat_error(struct backing_dev_info *bdi)
-+{
-+#ifdef CONFIG_SMP
-+	return nr_cpu_ids * BDI_STAT_BATCH;
-+#else
-+	return 1;
-+#endif
- }
- 
- /*
-Index: linux-2.6/mm/backing-dev.c
-===================================================================
---- linux-2.6.orig/mm/backing-dev.c	2007-05-10 10:21:46.000000000 +0200
-+++ linux-2.6/mm/backing-dev.c	2007-05-10 10:23:08.000000000 +0200
-@@ -5,6 +5,24 @@
- #include <linux/sched.h>
- #include <linux/module.h>
- 
-+void bdi_init(struct backing_dev_info *bdi)
-+{
-+	int i;
-+
-+	for (i = 0; i < NR_BDI_STAT_ITEMS; i++)
-+		percpu_counter_init_irq(&bdi->bdi_stat[i], 0);
-+}
-+EXPORT_SYMBOL(bdi_init);
-+
-+void bdi_destroy(struct backing_dev_info *bdi)
-+{
-+	int i;
-+
-+	for (i = 0; i < NR_BDI_STAT_ITEMS; i++)
-+		percpu_counter_destroy(&bdi->bdi_stat[i]);
-+}
-+EXPORT_SYMBOL(bdi_destroy);
-+
- static wait_queue_head_t congestion_wqh[2] = {
- 		__WAIT_QUEUE_HEAD_INITIALIZER(congestion_wqh[0]),
- 		__WAIT_QUEUE_HEAD_INITIALIZER(congestion_wqh[1])
+ static struct queue_sysfs_entry queue_iosched_entry = {
+ 	.attr = {.name = "scheduler", .mode = S_IRUGO | S_IWUSR },
+ 	.show = elv_iosched_show,
+@@ -4012,6 +4039,8 @@ static struct attribute *default_attrs[]
+ 	&queue_ra_entry.attr,
+ 	&queue_max_hw_sectors_entry.attr,
+ 	&queue_max_sectors_entry.attr,
++	&queue_reclaimable_entry.attr,
++	&queue_writeback_entry.attr,
+ 	&queue_iosched_entry.attr,
+ 	NULL,
+ };
 
 -- 
 
