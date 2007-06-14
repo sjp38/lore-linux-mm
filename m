@@ -1,96 +1,74 @@
-Message-Id: <20070614220446.533265320@chello.nl>
+Message-Id: <20070614220446.410498862@chello.nl>
 References: <20070614215817.389524447@chello.nl>
-Date: Thu, 14 Jun 2007 23:58:20 +0200
+Date: Thu, 14 Jun 2007 23:58:18 +0200
 From: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Subject: [PATCH 03/17] lib: percpu_counter_mod64
-Content-Disposition: inline; filename=percpu_counter_mod.patch
+Subject: [PATCH 01/17] nfs: remove congestion_end()
+Content-Disposition: inline; filename=nfs_congestion_fixup.patch
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 Cc: miklos@szeredi.hu, akpm@linux-foundation.org, neilb@suse.de, dgc@sgi.com, tomoki.sekiyama.qu@hitachi.com, a.p.zijlstra@chello.nl, nikita@clusterfs.com, trond.myklebust@fys.uio.no, yingchao.zhou@gmail.com, andrea@suse.de
 List-ID: <linux-mm.kvack.org>
 
-Add percpu_counter_mod64() to allow large modifications.
+Its redundant, clear_bdi_congested() already wakes the waiters.
 
 Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
 ---
- include/linux/percpu_counter.h |   17 +++++++++++++++++
- lib/percpu_counter.c           |   20 ++++++++++++++++++++
- 2 files changed, 37 insertions(+)
+ fs/nfs/write.c              |    5 ++---
+ include/linux/backing-dev.h |    1 -
+ mm/backing-dev.c            |   13 -------------
+ 3 files changed, 2 insertions(+), 17 deletions(-)
 
-Index: linux-2.6/include/linux/percpu_counter.h
+Index: linux-2.6/fs/nfs/write.c
 ===================================================================
---- linux-2.6.orig/include/linux/percpu_counter.h	2007-05-23 20:36:06.000000000 +0200
-+++ linux-2.6/include/linux/percpu_counter.h	2007-05-23 20:37:41.000000000 +0200
-@@ -33,6 +33,7 @@ struct percpu_counter {
- void percpu_counter_init(struct percpu_counter *fbc, s64 amount);
- void percpu_counter_destroy(struct percpu_counter *fbc);
- void __percpu_counter_mod(struct percpu_counter *fbc, s32 amount, s32 batch);
-+void __percpu_counter_mod64(struct percpu_counter *fbc, s64 amount, s32 batch);
- s64 percpu_counter_sum(struct percpu_counter *fbc);
+--- linux-2.6.orig/fs/nfs/write.c
++++ linux-2.6/fs/nfs/write.c
+@@ -235,10 +235,9 @@ static void nfs_end_page_writeback(struc
+ 	struct nfs_server *nfss = NFS_SERVER(inode);
  
- static inline void percpu_counter_mod(struct percpu_counter *fbc, s32 amount)
-@@ -40,6 +41,11 @@ static inline void percpu_counter_mod(st
- 	__percpu_counter_mod(fbc, amount, FBC_BATCH);
+ 	end_page_writeback(page);
+-	if (atomic_long_dec_return(&nfss->writeback) < NFS_CONGESTION_OFF_THRESH) {
++	if (atomic_long_dec_return(&nfss->writeback) <
++			NFS_CONGESTION_OFF_THRESH)
+ 		clear_bdi_congested(&nfss->backing_dev_info, WRITE);
+-		congestion_end(WRITE);
+-	}
  }
  
-+static inline void percpu_counter_mod64(struct percpu_counter *fbc, s64 amount)
-+{
-+	__percpu_counter_mod64(fbc, amount, FBC_BATCH);
-+}
-+
- static inline s64 percpu_counter_read(struct percpu_counter *fbc)
- {
- 	return fbc->count;
-@@ -86,6 +92,17 @@ percpu_counter_mod(struct percpu_counter
- 	preempt_enable();
- }
- 
-+#define __percpu_counter_mod64(fbc, amount, batch) \
-+	percpu_counter_mod64(fbc, amount)
-+
-+static inline void
-+percpu_counter_mod64(struct percpu_counter *fbc, s64 amount)
-+{
-+	preempt_disable();
-+	fbc->count += amount;
-+	preempt_enable();
-+}
-+
- static inline s64 percpu_counter_read(struct percpu_counter *fbc)
- {
- 	return fbc->count;
-Index: linux-2.6/lib/percpu_counter.c
-===================================================================
---- linux-2.6.orig/lib/percpu_counter.c	2007-05-23 20:36:21.000000000 +0200
-+++ linux-2.6/lib/percpu_counter.c	2007-05-23 20:37:34.000000000 +0200
-@@ -34,6 +34,26 @@ void __percpu_counter_mod(struct percpu_
- }
- EXPORT_SYMBOL(__percpu_counter_mod);
- 
-+void __percpu_counter_mod64(struct percpu_counter *fbc, s64 amount, s32 batch)
-+{
-+	s64 count;
-+	s32 *pcount;
-+	int cpu = get_cpu();
-+
-+	pcount = per_cpu_ptr(fbc->counters, cpu);
-+	count = *pcount + amount;
-+	if (count >= batch || count <= -batch) {
-+		spin_lock(&fbc->lock);
-+		fbc->count += count;
-+		*pcount = 0;
-+		spin_unlock(&fbc->lock);
-+	} else {
-+		*pcount = count;
-+	}
-+	put_cpu();
-+}
-+EXPORT_SYMBOL(__percpu_counter_mod64);
-+
  /*
-  * Add up all the per-cpu counts, return the result.  This is a more accurate
-  * but much slower version of percpu_counter_read_positive()
+Index: linux-2.6/include/linux/backing-dev.h
+===================================================================
+--- linux-2.6.orig/include/linux/backing-dev.h
++++ linux-2.6/include/linux/backing-dev.h
+@@ -94,7 +94,6 @@ void clear_bdi_congested(struct backing_
+ void set_bdi_congested(struct backing_dev_info *bdi, int rw);
+ long congestion_wait(int rw, long timeout);
+ long congestion_wait_interruptible(int rw, long timeout);
+-void congestion_end(int rw);
+ 
+ #define bdi_cap_writeback_dirty(bdi) \
+ 	(!((bdi)->capabilities & BDI_CAP_NO_WRITEBACK))
+Index: linux-2.6/mm/backing-dev.c
+===================================================================
+--- linux-2.6.orig/mm/backing-dev.c
++++ linux-2.6/mm/backing-dev.c
+@@ -70,16 +70,3 @@ long congestion_wait_interruptible(int r
+ 	return ret;
+ }
+ EXPORT_SYMBOL(congestion_wait_interruptible);
+-
+-/**
+- * congestion_end - wake up sleepers on a congested backing_dev_info
+- * @rw: READ or WRITE
+- */
+-void congestion_end(int rw)
+-{
+-	wait_queue_head_t *wqh = &congestion_wqh[rw];
+-
+-	if (waitqueue_active(wqh))
+-		wake_up(wqh);
+-}
+-EXPORT_SYMBOL(congestion_end);
 
 -- 
 
