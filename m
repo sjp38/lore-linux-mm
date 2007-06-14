@@ -1,48 +1,46 @@
-Received: from d01relay04.pok.ibm.com (d01relay04.pok.ibm.com [9.56.227.236])
-	by e3.ny.us.ibm.com (8.13.8/8.13.8) with ESMTP id l5EDLP7r014980
-	for <linux-mm@kvack.org>; Thu, 14 Jun 2007 09:21:25 -0400
-Received: from d01av01.pok.ibm.com (d01av01.pok.ibm.com [9.56.224.215])
-	by d01relay04.pok.ibm.com (8.13.8/8.13.8/NCO v8.3) with ESMTP id l5EEOEmi547048
-	for <linux-mm@kvack.org>; Thu, 14 Jun 2007 10:24:14 -0400
-Received: from d01av01.pok.ibm.com (loopback [127.0.0.1])
-	by d01av01.pok.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l5EEOEAB029132
-	for <linux-mm@kvack.org>; Thu, 14 Jun 2007 10:24:14 -0400
-Date: Thu, 14 Jun 2007 07:24:12 -0700
-From: Nishanth Aravamudan <nacc@us.ibm.com>
-Subject: Re: [RFC 00/13] RFC memoryless node handling fixes
-Message-ID: <20070614142412.GC7469@us.ibm.com>
-References: <20070614075026.607300756@sgi.com>
+Date: Thu, 14 Jun 2007 07:24:55 -0700 (PDT)
+From: Christoph Lameter <clameter@sgi.com>
+Subject: Re: [patch 2/3] Fix GFP_THISNODE behavior for memoryless nodes
+In-Reply-To: <1181830705.5410.13.camel@localhost>
+Message-ID: <Pine.LNX.4.64.0706140721510.28544@schroedinger.engr.sgi.com>
+References: <20070612204843.491072749@sgi.com>  <20070612205738.548677035@sgi.com>
+ <1181769033.6148.116.camel@localhost>  <Pine.LNX.4.64.0706131535200.32399@schroedinger.engr.sgi.com>
+ <1181830705.5410.13.camel@localhost>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20070614075026.607300756@sgi.com>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: clameter@sgi.com
-Cc: Lee Schermerhorn <Lee.Schermerhorn@hp.com>, linux-mm@kvack.org
+To: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
+Cc: akpm@linux-foundation.org, linux-mm@kvack.org, ak@suse.de, Nishanth Aravamudan <nacc@us.ibm.com>
 List-ID: <linux-mm.kvack.org>
 
-On 14.06.2007 [00:50:26 -0700], clameter@sgi.com wrote:
-> This has now become a longer series since I have seen a couple of
-> things in various places where we do not take into account memoryless
-> nodes.
+On Thu, 14 Jun 2007, Lee Schermerhorn wrote:
+
+> > That check is already done by __alloc_pages.
 > 
-> I changed the GFP_THISNODE fix to generate a new set of zonelists.
-> GFP_THISNODE will then simply use a zonelist that only has the zones
-> of the node.
+> You mean in get_page_from_freelist()?  No, it only checks that the zone
+> under consideration is on the same node as the zone at the start of the
+> list.  This can be off-node if the node is populated only at lower
+> zones; and the zonelists are in zone-order.
+
+See the later discussion. I did not see the use the nodes pgdat here that 
+you only have in alloc_pages_node().
+
+> > Ummm... Slub would need to consult node_memory_map instead I guess.
 > 
-> I have only tested this by booting on a IA64 simulator. Please review.
-> I do not have a real system with a memoryless node.
+> Probably should check the node_memory_map to avoid attempting
+> allocations from completely memoryless nodes.  However, it should still
+> be able to handle nulls from alloc_pages_nodes() because of the
+> scenarios discussed above.
 
-I do :) -- will stack your patches on rc4-mm2 and rebase my patches on
-top to test.
+It is able to handle NULLs during usual operations but not during bootstrap.
 
-Thanks,
-Nish
+> Again, node_memory_map can't detect the "first zone in zonelist
+> off-node" situation.  That's the one that alloc_pages_node() must guard
+> against.   So, it can/should/must return NULL when attempting to
+> allocate from a higher zone that is off-node.
 
--- 
-Nishanth Aravamudan <nacc@us.ibm.com>
-IBM Linux Technology Center
+I think GFP_THISNODE should not fail in that case.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
