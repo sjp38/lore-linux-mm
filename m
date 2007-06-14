@@ -1,11 +1,12 @@
-Date: Wed, 13 Jun 2007 23:00:51 -0700 (PDT)
+Date: Wed, 13 Jun 2007 23:01:19 -0700 (PDT)
 From: Christoph Lameter <clameter@sgi.com>
 Subject: Re: [PATCH] slob: poor man's NUMA, take 2.
-In-Reply-To: <20070614024008.GA21749@linux-sh.org>
-Message-ID: <Pine.LNX.4.64.0706132259230.2094@schroedinger.engr.sgi.com>
+In-Reply-To: <20070614024344.GB21749@linux-sh.org>
+Message-ID: <Pine.LNX.4.64.0706132300580.2094@schroedinger.engr.sgi.com>
 References: <20070613031203.GB15009@linux-sh.org> <20070613032857.GN11115@waste.org>
  <20070613092109.GA16526@linux-sh.org> <20070613131549.GZ11115@waste.org>
- <20070614024008.GA21749@linux-sh.org>
+ <Pine.LNX.4.64.0706131546380.32399@schroedinger.engr.sgi.com>
+ <20070614024344.GB21749@linux-sh.org>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
@@ -16,13 +17,16 @@ List-ID: <linux-mm.kvack.org>
 
 On Thu, 14 Jun 2007, Paul Mundt wrote:
 
-> If we do that, then slab.h needs a bit of reordering (as we can't use the
-> existing CONFIG_NUMA ifdefs that exist in slab.h, which the previous
-> patches built on), which makes the patch a bit more invasive.
+> Yes, this is what I had originally. Matt wants to go the other way,
+> having the _node variants always defined, and having the non-node
+> variants simply wrap in to them.
+> 
+> Doing that only for SLOB makes slab.h a bit messy. We could presumably
+> switch to that sort of behaviour across the board, but that would cause a
+> bit of churn in SLAB, so it's probably something we want to avoid.
 
-I guess we should create include/linux/slob_def.h analoguous to 
-include/linux/slab_def and move the definitions for this into the *_def 
-files.
+Yes please move the functionality to include/linux/slob_def.h.
+ 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
