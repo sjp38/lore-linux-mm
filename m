@@ -1,35 +1,43 @@
-Date: Thu, 14 Jun 2007 09:13:12 -0700 (PDT)
+Date: Thu, 14 Jun 2007 09:15:04 -0700 (PDT)
 From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [RFC 10/13] Memoryless nodes: Fix GFP_THISNODE behavior
-In-Reply-To: <20070614160704.GE7469@us.ibm.com>
-Message-ID: <Pine.LNX.4.64.0706140912540.29612@schroedinger.engr.sgi.com>
-References: <20070614075026.607300756@sgi.com> <20070614075336.405903951@sgi.com>
- <20070614160704.GE7469@us.ibm.com>
+Subject: Re: [PATCH] populated_map: fix !NUMA case, remove comment
+In-Reply-To: <20070614160913.GF7469@us.ibm.com>
+Message-ID: <Pine.LNX.4.64.0706140913530.29612@schroedinger.engr.sgi.com>
+References: <Pine.LNX.4.64.0706121150220.30754@schroedinger.engr.sgi.com>
+ <1181677473.5592.149.camel@localhost> <Pine.LNX.4.64.0706121245200.7983@schroedinger.engr.sgi.com>
+ <Pine.LNX.4.64.0706121257290.7983@schroedinger.engr.sgi.com>
+ <20070612200125.GG3798@us.ibm.com> <1181748606.6148.19.camel@localhost>
+ <20070613175802.GP3798@us.ibm.com> <1181758874.6148.73.camel@localhost>
+ <Pine.LNX.4.64.0706131550520.32399@schroedinger.engr.sgi.com>
+ <1181836247.5410.85.camel@localhost> <20070614160913.GF7469@us.ibm.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Nishanth Aravamudan <nacc@us.ibm.com>
-Cc: Lee Schermerhorn <Lee.Schermerhorn@hp.com>, linux-mm@kvack.org
+Cc: Lee Schermerhorn <Lee.Schermerhorn@hp.com>, anton@samba.org, akpm@linux-foundation.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
 On Thu, 14 Jun 2007, Nishanth Aravamudan wrote:
 
-> > Add a new set of zonelists for each node that only contain the nodes
-> > that belong to the zones itself so that no fallback is possible.
+> > The point of all this is that, as you've pointed out, the original
+> > NUMA and memory policy designs assumed a fairly symmetric system
+> > configuration with all nodes populated with [similar amounts?] of
+> > roughly equivalent memory.  That probably describes a majority of NUMA
+> > systems, so the system should handle this well, as a default.  We
+> > still need to be able to handle the less symmetric configs--with boot
+> > parameters, sysctls, cpusets, ...--that specify non-default behavior,
+> > and cause the generic code to do the right thing.  Certainly, the
+> > generic code can't "fall over and die" in the presence of memoryless
+> > nodes or other "interesting" configurations.
 > 
-> Should be
-> 
-> Add a new set of zonelists for each node that only contain the zones
-> that belong to the node itself so that no fallback is possible?
+> Agreed,
+> Nish
 
-Right.
+The generic code currently does not fail. It (slab allocators etc) simply 
+gets memory that it thinks comes from a memoryless node but it came from a 
+neighboring node.
 
-
-> This is the last patch in the stack I should based my patches on,
-> correct (I believe 11-13 were mis-sends)?
-
-Right.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
