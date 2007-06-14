@@ -1,48 +1,95 @@
-Date: Thu, 14 Jun 2007 00:47:46 -0700 (PDT)
-From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [RFC] memory unplug v5 [1/6] migration by kernel
-In-Reply-To: <20070614164128.42882f74.kamezawa.hiroyu@jp.fujitsu.com>
-Message-ID: <Pine.LNX.4.64.0706140044400.22032@schroedinger.engr.sgi.com>
-References: <20070614155630.04f8170c.kamezawa.hiroyu@jp.fujitsu.com>
- <20070614155929.2be37edb.kamezawa.hiroyu@jp.fujitsu.com>
- <Pine.LNX.4.64.0706140000400.11433@schroedinger.engr.sgi.com>
- <20070614161146.5415f493.kamezawa.hiroyu@jp.fujitsu.com>
- <Pine.LNX.4.64.0706140019490.11852@schroedinger.engr.sgi.com>
- <20070614164128.42882f74.kamezawa.hiroyu@jp.fujitsu.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Message-Id: <20070614075336.635263920@sgi.com>
+References: <20070614075026.607300756@sgi.com>
+Date: Thu, 14 Jun 2007 00:50:37 -0700
+From: clameter@sgi.com
+Subject: [RFC 11/13] SLUB: Ensure that the # object per slabs stays low enough.
+Content-Disposition: inline; filename=slub_oversize
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: linux-mm@kvack.org, mel@csn.ul.ie, y-goto@jp.fujitsu.com, hugh@veritas.com
+To: Nishanth Aravamudan <nacc@us.ibm.com>
+Cc: Lee Schermerhorn <Lee.Schermerhorn@hp.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 14 Jun 2007, KAMEZAWA Hiroyuki wrote:
+Currently SLUB has no provision to deal with too high page orders
+that may be specified on the kernel boot line. If an order higher
+than 6 (on a 4k platform) is generated then we will BUG() because
+slabs get more than 65535 objects.
 
-> In my understanding:
-> 
-> PageAnon(page) checks (page->mapping & 0x1). And, as you know, page->mapping
-> is not cleared even if the page is removed from rmap.
+Add some logic that decreases order for slabs that have too many
+objects. This allow booting with slab sizes up to MAX_ORDER.
 
-But in that case the refcount is zero. We will not migrate the page.
+For example
 
-> My patch should be
-> ==
-> +	if (PageAnon(page)) {
-> +		anon_vma = page_lock_anon_vma(page);
-> ==
-> This is my mistake.
+	slub_min_order=10
 
-Do not worry I make lots of mistakes.... We just need to pool our minds 
-and come up with the right solution. I think this is a critical piece of 
-code that needs to be right for defrag and for memory unplug.
+will boot with a default slab size of 4M and reduce slab sizes
+for small object sizes to lower orders if the number of objects
+becomes too big. Large slab sizes like that allow a concentration
+of objects of the same slab cache under as few as possible TLB
+entries and thus reduce TLB pressure.
 
-Why do you lock the page there? Its already locked from sys_move_pages 
-etc. This will make normal page migration deadlock.
+Signed-off-by: Christoph Lameter <clameter@sgi.com>
 
-Just get the anonymous vma address from the mapping like in the last 
-conceptual patch that I sent you.
+---
+ mm/slub.c |   21 +++++++++++++++++++--
+ 1 file changed, 19 insertions(+), 2 deletions(-)
 
+Index: vps/mm/slub.c
+===================================================================
+--- vps.orig/mm/slub.c	2007-06-12 15:58:35.000000000 -0700
++++ vps/mm/slub.c	2007-06-12 16:04:01.000000000 -0700
+@@ -212,6 +212,11 @@ static inline void ClearSlabDebug(struct
+ #define ARCH_SLAB_MINALIGN __alignof__(unsigned long long)
+ #endif
+ 
++/*
++ * The page->inuse field is 16 bit thus we have this limitation
++ */
++#define MAX_OBJECTS_PER_SLAB 65535
++
+ /* Internal SLUB flags */
+ #define __OBJECT_POISON 0x80000000	/* Poison object */
+ 
+@@ -1751,8 +1756,17 @@ static inline int slab_order(int size, i
+ {
+ 	int order;
+ 	int rem;
++	int min_order = slub_min_order;
+ 
+-	for (order = max(slub_min_order,
++	/*
++	 * If we would create too many object per slab then reduce
++	 * the slab order even if it goes below slub_min_order.
++	 */
++	while (min_order > 0 &&
++		(PAGE_SIZE << min_order) >= MAX_OBJECTS_PER_SLAB * size)
++			min_order--;
++
++	for (order = max(min_order,
+ 				fls(min_objects * size - 1) - PAGE_SHIFT);
+ 			order <= max_order; order++) {
+ 
+@@ -1766,6 +1780,9 @@ static inline int slab_order(int size, i
+ 		if (rem <= slab_size / fract_leftover)
+ 			break;
+ 
++		/* If the next size is too high then exit now */
++		if (slab_size * 2 >= MAX_OBJECTS_PER_SLAB * size)
++			break;
+ 	}
+ 
+ 	return order;
+@@ -2048,7 +2065,7 @@ static int calculate_sizes(struct kmem_c
+ 	 * The page->inuse field is only 16 bit wide! So we cannot have
+ 	 * more than 64k objects per slab.
+ 	 */
+-	if (!s->objects || s->objects > 65535)
++	if (!s->objects || s->objects > MAX_OBJECTS_PER_SLAB)
+ 		return 0;
+ 	return 1;
+ 
+
+-- 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
