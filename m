@@ -1,62 +1,48 @@
-Subject: Re: [PATCH] populated_map: fix !NUMA case, remove comment
-From: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
-In-Reply-To: <Pine.LNX.4.64.0706131549480.32399@schroedinger.engr.sgi.com>
-References: <20070612032055.GQ3798@us.ibm.com>
-	 <1181660782.5592.50.camel@localhost> <20070612172858.GV3798@us.ibm.com>
-	 <1181674081.5592.91.camel@localhost>
-	 <Pine.LNX.4.64.0706121150220.30754@schroedinger.engr.sgi.com>
-	 <1181677473.5592.149.camel@localhost>
-	 <Pine.LNX.4.64.0706121245200.7983@schroedinger.engr.sgi.com>
-	 <Pine.LNX.4.64.0706121257290.7983@schroedinger.engr.sgi.com>
-	 <20070612200125.GG3798@us.ibm.com> <1181748606.6148.19.camel@localhost>
-	 <20070613175802.GP3798@us.ibm.com>
-	 <Pine.LNX.4.64.0706131549480.32399@schroedinger.engr.sgi.com>
-Content-Type: text/plain
-Date: Thu, 14 Jun 2007 10:23:49 -0400
-Message-Id: <1181831029.5410.20.camel@localhost>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Received: from d01relay04.pok.ibm.com (d01relay04.pok.ibm.com [9.56.227.236])
+	by e3.ny.us.ibm.com (8.13.8/8.13.8) with ESMTP id l5EDLP7r014980
+	for <linux-mm@kvack.org>; Thu, 14 Jun 2007 09:21:25 -0400
+Received: from d01av01.pok.ibm.com (d01av01.pok.ibm.com [9.56.224.215])
+	by d01relay04.pok.ibm.com (8.13.8/8.13.8/NCO v8.3) with ESMTP id l5EEOEmi547048
+	for <linux-mm@kvack.org>; Thu, 14 Jun 2007 10:24:14 -0400
+Received: from d01av01.pok.ibm.com (loopback [127.0.0.1])
+	by d01av01.pok.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l5EEOEAB029132
+	for <linux-mm@kvack.org>; Thu, 14 Jun 2007 10:24:14 -0400
+Date: Thu, 14 Jun 2007 07:24:12 -0700
+From: Nishanth Aravamudan <nacc@us.ibm.com>
+Subject: Re: [RFC 00/13] RFC memoryless node handling fixes
+Message-ID: <20070614142412.GC7469@us.ibm.com>
+References: <20070614075026.607300756@sgi.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20070614075026.607300756@sgi.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
-Cc: Nishanth Aravamudan <nacc@us.ibm.com>, anton@samba.org, akpm@linux-foundation.org, linux-mm@kvack.org
+To: clameter@sgi.com
+Cc: Lee Schermerhorn <Lee.Schermerhorn@hp.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 2007-06-13 at 15:50 -0700, Christoph Lameter wrote:
-> On Wed, 13 Jun 2007, Nishanth Aravamudan wrote:
+On 14.06.2007 [00:50:26 -0700], clameter@sgi.com wrote:
+> This has now become a longer series since I have seen a couple of
+> things in various places where we do not take into account memoryless
+> nodes.
 > 
-> > I think your code above makes sense -- I'd still leave in the earlier
-> > check, though.
-> > 
-> > So it probably should be:
-> > 
-> > 	pgdat = NODE_DATA(nid);
-> > 	zonelist = pgdat->node_zonelists + gfp_zone(gfp_mask);
-> > 
-> > 	if (unlikely((gfp_mask & __GFP_THISNODE) &&
-> > 		(!node_memory(nid) ||
-> > 		 zonelist->zones[0]->zone_pgdat != pgdat)))
-> > 		 return NULL;
-> > 
-> > That way, if the node has no memory whatsoever, we don't bother checking
-> > the pgdat of the relevant zone?
+> I changed the GFP_THISNODE fix to generate a new set of zonelists.
+> GFP_THISNODE will then simply use a zonelist that only has the zones
+> of the node.
 > 
-> Checking the pgdat is already done in __alloc_pages. No need to repeat it 
-> here.
+> I have only tested this by booting on a IA64 simulator. Please review.
+> I do not have a real system with a memoryless node.
 
-As discussed in prior mail, that's too late given the check that's being
-done.  Down in get_page_from_freelist(), where this check is made, we
-don't have the node id nor pgdat from which the allocation is being
-attempted.  The node id of the first zone in the list may already be
-off-node [even tho' the node_memory_map says the node is populated/has
-memory], so we can't rely on that.  
+I do :) -- will stack your patches on rc4-mm2 and rebase my patches on
+top to test.
 
-I suppose we could add the pgdat pointer to the zonelist itself or try
-to backup to the original pgdat from the zonelist and
-gfp_zone(gfp_mask).  Then we could do the check in
-get_page_from_freelist() that each zone in the list is on-node.
+Thanks,
+Nish
 
-
+-- 
+Nishanth Aravamudan <nacc@us.ibm.com>
+IBM Linux Technology Center
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
