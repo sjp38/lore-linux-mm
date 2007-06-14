@@ -1,89 +1,78 @@
-Subject: Re: [patch 0/3] no MAX_ARG_PAGES -v2
-From: Peter Zijlstra <a.p.zijlstra@chello.nl>
-In-Reply-To: <65dd6fd50706132323i9c760f4m6e23687914d0c46e@mail.gmail.com>
-References: <20070613100334.635756997@chello.nl>
-	 <617E1C2C70743745A92448908E030B2A01AF860A@scsmsx411.amr.corp.intel.com>
-	 <65dd6fd50706132323i9c760f4m6e23687914d0c46e@mail.gmail.com>
-Content-Type: text/plain
-Date: Thu, 14 Jun 2007 10:38:39 +0200
-Message-Id: <1181810319.7348.345.camel@twins>
-Mime-Version: 1.0
+Date: Thu, 14 Jun 2007 18:32:32 +0900
+From: Yasunori Goto <y-goto@jp.fujitsu.com>
+Subject: Re: mm: Fix memory/cpu hotplug section mismatch and oops.
+In-Reply-To: <20070614061316.GA22543@linux-sh.org>
+References: <20070614061316.GA22543@linux-sh.org>
+Message-Id: <20070614183015.9DD7.Y-GOTO@jp.fujitsu.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset="US-ASCII"
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Ollie Wild <aaw@google.com>
-Cc: "Luck, Tony" <tony.luck@intel.com>, linux-kernel@vger.kernel.org, parisc-linux@lists.parisc-linux.org, linux-mm@kvack.org, linux-arch@vger.kernel.org, Andrew Morton <akpm@osdl.org>, Ingo Molnar <mingo@elte.hu>, Andi Kleen <ak@suse.de>
+To: Paul Mundt <lethal@linux-sh.org>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 2007-06-13 at 23:23 -0700, Ollie Wild wrote:
-> On 6/13/07, Luck, Tony <tony.luck@intel.com> wrote:
-> > Above 5Mbytes, I started seeing problems.  The line/word/char
-> > counts from "wc" started being "0 0 0".  Not sure if this is
-> > a problem in "wc" dealing with a single line >5MBytes, or some
-> > other problem (possibly I was exceeding the per-process stack
-> > limit which is only 8MB on that machine).
+Thanks. I tested compile with cpu/memory hotplug off/on.
+It was OK.
+
+Acked-by: Yasunori Goto <y-goto@jp.fujitsu.com>
+
+
+> (This is a resend of the earlier patch, this issue still needs to be
+> fixed.)
 > 
-> Interesting.  If you're exceeding your stack ulimit, you should be
-> seeing either an "argument list too long" message or getting a
-> SIGSEGV.  Have you tried bypassing wc and piping the output straight
-> to a file?
+> When building with memory hotplug enabled and cpu hotplug disabled, we
+> end up with the following section mismatch:
+> 
+> WARNING: mm/built-in.o(.text+0x4e58): Section mismatch: reference to
+> .init.text: (between 'free_area_init_node' and '__build_all_zonelists')
+> 
+> This happens as a result of:
+> 
+>         -> free_area_init_node()
+>           -> free_area_init_core()
+>             -> zone_pcp_init() <-- all __meminit up to this point
+>               -> zone_batchsize() <-- marked as __cpuinit                     fo
+> 
+> This happens because CONFIG_HOTPLUG_CPU=n sets __cpuinit to __init, but
+> CONFIG_MEMORY_HOTPLUG=y unsets __meminit.
+> 
+> Changing zone_batchsize() to __devinit fixes this.
+> 
+> __devinit is the only thing that is common between CONFIG_HOTPLUG_CPU=y and
+> CONFIG_MEMORY_HOTPLUG=y. In the long run, perhaps this should be moved to
+> another section identifier completely. Without this, memory hot-add
+> of offline nodes (via hotadd_new_pgdat()) will oops if CPU hotplug is
+> not also enabled.
+> 
+> Signed-off-by: Paul Mundt <lethal@linux-sh.org>
+> 
+> --
+> 
+>  mm/page_alloc.c |    2 +-
+>  1 file changed, 1 insertion(+), 1 deletion(-)
+> 
+> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> index bd8e335..05ace44 100644
+> --- a/mm/page_alloc.c
+> +++ b/mm/page_alloc.c
+> @@ -1968,7 +1968,7 @@ void zone_init_free_lists(struct pglist_data *pgdat, struct zone *zone,
+>  	memmap_init_zone((size), (nid), (zone), (start_pfn), MEMMAP_EARLY)
+>  #endif
+>  
+> -static int __cpuinit zone_batchsize(struct zone *zone)
+> +static int __devinit zone_batchsize(struct zone *zone)
+>  {
+>  	int batch;
+>  
+> -
+> To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
+> the body of a message to majordomo@vger.kernel.org
+> More majordomo info at  http://vger.kernel.org/majordomo-info.html
+> Please read the FAQ at  http://www.tux.org/lkml/
 
-I think it sends SIGKILL on failure paths.
-
-I've been thinking of moving this large stack alloc in
-create_elf_tables() before the point of no return.
-
-something like this, it should do the largest part of the alloc
-beforehand. Just have to see if all binfmts need this much, and if not,
-what the ramifications are of overgrowing the stack (perhaps we need to
-shrink it again to wherever bprm->p ends up?)
-
-
-Index: linux-2.6-2/fs/exec.c
-===================================================================
---- linux-2.6-2.orig/fs/exec.c	2007-06-14 10:29:22.000000000 +0200
-+++ linux-2.6-2/fs/exec.c	2007-06-14 10:28:45.000000000 +0200
-@@ -272,6 +272,17 @@ static bool valid_arg_len(struct linux_b
- 	return len <= MAX_ARG_STRLEN;
- }
- 
-+static int expand_arg_vma(struct linux_binprm *bprm)
-+{
-+	long size = (bprm->argc + bprm->envc + 2) * sizeof(void *);
-+
-+#ifdef CONFIG_STACK_GROWSUP
-+#error I broke it
-+#else
-+	return expand_stack(bprm->vma, bprm->p - size);
-+#endif
-+}
-+
- #else
- 
- static struct page *get_arg_page(struct linux_binprm *bprm, unsigned long pos,
-@@ -326,6 +337,11 @@ static bool valid_arg_len(struct linux_b
- 	return len <= bprm->p;
- }
- 
-+static int expand_arg_vma(struct linux_binprm *bprm)
-+{
-+	return 0;
-+}
-+
- #endif /* CONFIG_MMU */
- 
- /*
-@@ -1385,6 +1401,10 @@ int do_execve(char * filename,
- 		goto out;
- 	bprm->argv_len = env_p - bprm->p;
- 
-+	retval = expand_arg_vma(bprm);
-+	if (retval < 0)
-+		goto out;
-+
- 	retval = search_binary_handler(bprm,regs);
- 	if (retval >= 0) {
- 		/* execve success */
+-- 
+Yasunori Goto 
 
 
 --
