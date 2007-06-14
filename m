@@ -1,63 +1,41 @@
-Date: Thu, 14 Jun 2007 15:13:16 +0900
-From: Paul Mundt <lethal@linux-sh.org>
-Subject: mm: Fix memory/cpu hotplug section mismatch and oops.
-Message-ID: <20070614061316.GA22543@linux-sh.org>
+Received: from zps38.corp.google.com (zps38.corp.google.com [172.25.146.38])
+	by smtp-out.google.com with ESMTP id l5E6O4RX022992
+	for <linux-mm@kvack.org>; Wed, 13 Jun 2007 23:24:04 -0700
+Received: from py-out-1112.google.com (pybu77.prod.google.com [10.34.97.77])
+	by zps38.corp.google.com with ESMTP id l5E6NcfM010680
+	for <linux-mm@kvack.org>; Wed, 13 Jun 2007 23:24:00 -0700
+Received: by py-out-1112.google.com with SMTP id u77so803892pyb
+        for <linux-mm@kvack.org>; Wed, 13 Jun 2007 23:23:59 -0700 (PDT)
+Message-ID: <65dd6fd50706132323i9c760f4m6e23687914d0c46e@mail.gmail.com>
+Date: Wed, 13 Jun 2007 23:23:59 -0700
+From: "Ollie Wild" <aaw@google.com>
+Subject: Re: [patch 0/3] no MAX_ARG_PAGES -v2
+In-Reply-To: <617E1C2C70743745A92448908E030B2A01AF860A@scsmsx411.amr.corp.intel.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Content-Disposition: inline
+References: <20070613100334.635756997@chello.nl>
+	 <617E1C2C70743745A92448908E030B2A01AF860A@scsmsx411.amr.corp.intel.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: "Luck, Tony" <tony.luck@intel.com>
+Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, linux-kernel@vger.kernel.org, parisc-linux@lists.parisc-linux.org, linux-mm@kvack.org, linux-arch@vger.kernel.org, Andrew Morton <akpm@osdl.org>, Ingo Molnar <mingo@elte.hu>, Andi Kleen <ak@suse.de>
 List-ID: <linux-mm.kvack.org>
 
-(This is a resend of the earlier patch, this issue still needs to be
-fixed.)
+On 6/13/07, Luck, Tony <tony.luck@intel.com> wrote:
+> Above 5Mbytes, I started seeing problems.  The line/word/char
+> counts from "wc" started being "0 0 0".  Not sure if this is
+> a problem in "wc" dealing with a single line >5MBytes, or some
+> other problem (possibly I was exceeding the per-process stack
+> limit which is only 8MB on that machine).
 
-When building with memory hotplug enabled and cpu hotplug disabled, we
-end up with the following section mismatch:
+Interesting.  If you're exceeding your stack ulimit, you should be
+seeing either an "argument list too long" message or getting a
+SIGSEGV.  Have you tried bypassing wc and piping the output straight
+to a file?
 
-WARNING: mm/built-in.o(.text+0x4e58): Section mismatch: reference to
-.init.text: (between 'free_area_init_node' and '__build_all_zonelists')
-
-This happens as a result of:
-
-        -> free_area_init_node()
-          -> free_area_init_core()
-            -> zone_pcp_init() <-- all __meminit up to this point
-              -> zone_batchsize() <-- marked as __cpuinit                     fo
-
-This happens because CONFIG_HOTPLUG_CPU=n sets __cpuinit to __init, but
-CONFIG_MEMORY_HOTPLUG=y unsets __meminit.
-
-Changing zone_batchsize() to __devinit fixes this.
-
-__devinit is the only thing that is common between CONFIG_HOTPLUG_CPU=y and
-CONFIG_MEMORY_HOTPLUG=y. In the long run, perhaps this should be moved to
-another section identifier completely. Without this, memory hot-add
-of offline nodes (via hotadd_new_pgdat()) will oops if CPU hotplug is
-not also enabled.
-
-Signed-off-by: Paul Mundt <lethal@linux-sh.org>
-
---
-
- mm/page_alloc.c |    2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
-
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index bd8e335..05ace44 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -1968,7 +1968,7 @@ void zone_init_free_lists(struct pglist_data *pgdat, struct zone *zone,
- 	memmap_init_zone((size), (nid), (zone), (start_pfn), MEMMAP_EARLY)
- #endif
- 
--static int __cpuinit zone_batchsize(struct zone *zone)
-+static int __devinit zone_batchsize(struct zone *zone)
- {
- 	int batch;
- 
+Ollie
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
