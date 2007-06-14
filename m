@@ -1,41 +1,60 @@
-Received: from zps38.corp.google.com (zps38.corp.google.com [172.25.146.38])
-	by smtp-out.google.com with ESMTP id l5E6O4RX022992
-	for <linux-mm@kvack.org>; Wed, 13 Jun 2007 23:24:04 -0700
-Received: from py-out-1112.google.com (pybu77.prod.google.com [10.34.97.77])
-	by zps38.corp.google.com with ESMTP id l5E6NcfM010680
-	for <linux-mm@kvack.org>; Wed, 13 Jun 2007 23:24:00 -0700
-Received: by py-out-1112.google.com with SMTP id u77so803892pyb
-        for <linux-mm@kvack.org>; Wed, 13 Jun 2007 23:23:59 -0700 (PDT)
-Message-ID: <65dd6fd50706132323i9c760f4m6e23687914d0c46e@mail.gmail.com>
-Date: Wed, 13 Jun 2007 23:23:59 -0700
-From: "Ollie Wild" <aaw@google.com>
-Subject: Re: [patch 0/3] no MAX_ARG_PAGES -v2
-In-Reply-To: <617E1C2C70743745A92448908E030B2A01AF860A@scsmsx411.amr.corp.intel.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Date: Thu, 14 Jun 2007 15:56:30 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: [RFC] memory unplug v5 [0/6] intro
+Message-Id: <20070614155630.04f8170c.kamezawa.hiroyu@jp.fujitsu.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
-References: <20070613100334.635756997@chello.nl>
-	 <617E1C2C70743745A92448908E030B2A01AF860A@scsmsx411.amr.corp.intel.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "Luck, Tony" <tony.luck@intel.com>
-Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, linux-kernel@vger.kernel.org, parisc-linux@lists.parisc-linux.org, linux-mm@kvack.org, linux-arch@vger.kernel.org, Andrew Morton <akpm@osdl.org>, Ingo Molnar <mingo@elte.hu>, Andi Kleen <ak@suse.de>
+To: linux-mm@kvack.org
+Cc: mel@csn.ul.ie, y-goto@jp.fujitsu.com, clameter@sgi.com, hugh@veritas.com, "kamezawa.hiroyu@jp.fujitsu.com" <kamezawa.hiroyu@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-On 6/13/07, Luck, Tony <tony.luck@intel.com> wrote:
-> Above 5Mbytes, I started seeing problems.  The line/word/char
-> counts from "wc" started being "0 0 0".  Not sure if this is
-> a problem in "wc" dealing with a single line >5MBytes, or some
-> other problem (possibly I was exceeding the per-process stack
-> limit which is only 8MB on that machine).
+Hi,
 
-Interesting.  If you're exceeding your stack ulimit, you should be
-seeing either an "argument list too long" message or getting a
-SIGSEGV.  Have you tried bypassing wc and piping the output straight
-to a file?
+This is a memory unplug base patch set v5 against 2.6.22-rc4-mm2
+for review and testers.
 
-Ollie
+Plan:
+Maybe this will be the last post before OLS. I'd like to remove [RFC} 
+and post this set as [PATCH] in July. If you have any concerns, please tell me.
+
+Changelog V4->V5
+ - reflected commetns on v4. no big changes in logic.
+ - anon_vma_hold/rel functions are removed. Uses more direct way.
+ - restructured page isolation patchset. maybe simpler than previous ones.
+ - use pageblock_nr_pages.
+ - adjusted other patches 
+ 
+
+We tested this patch on ia64/NUMA.
+
+How to use
+ - user kernelcore=XXX boot option to create ZONE_MOVABLE.
+   Memory unplug itself can work without ZONE_MOVABLE (if you allow retrying..)
+   but it will be better to use kernelcore= if your section size is big.
+  
+ - After bootup, execute following.
+     # echo "offline" > /sys/devices/system/memory/memoryX/state
+ - you can push back offlined memory by following
+     # echo "online" > /sys/devices/system/memory/memoryX/state
+
+TODO
+ - more tests.
+ - Now, there is no check around ZONE_MOVABLE and bootmem.
+   I hope bootmem can treat kernelcore=....
+ - add better logic to allocate memory for migration. 
+   Problems here are that we have no way to rememeber "How page is allocated".
+   cpusets info and policy info is in "task_struct", which cannot be accessed
+   from a page struct..maybe what we can do is (1) add more information to page 
+   or (2) use just a simple way. or (3) some magical technique...
+ - node hotplug support
+ - Should make i386/x86-64/powerpc interface code. But not yet 
+ - remove memmap after memory unplug. (for sparsemem)
+
+Thanks,
+-Kame
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
