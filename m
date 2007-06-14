@@ -1,45 +1,100 @@
-Subject: RE: [patch 0/3] no MAX_ARG_PAGES -v2
-From: Peter Zijlstra <a.p.zijlstra@chello.nl>
-In-Reply-To: <617E1C2C70743745A92448908E030B2A01AF8CE6@scsmsx411.amr.corp.intel.com>
-References: <617E1C2C70743745A92448908E030B2A01AF8CE6@scsmsx411.amr.corp.intel.com>
-Content-Type: text/plain
-Date: Thu, 14 Jun 2007 20:32:43 +0200
-Message-Id: <1181845964.5806.2.camel@lappy>
-Mime-Version: 1.0
+Date: Thu, 14 Jun 2007 18:50:49 -0100
+Message-ID: <79805797.28418978@lisle.com>
+From: "Euro VIP Casino" <bellman@u2club.com>
+Subject: 400 Euro Willkommensbonus!
+MIME-Version: 1.0
+Content-Type: text/html; charset=iso-8859-1
 Content-Transfer-Encoding: 7bit
-Sender: owner-linux-mm@kvack.org
-Return-Path: <owner-linux-mm@kvack.org>
-To: "Luck, Tony" <tony.luck@intel.com>
-Cc: Ollie Wild <aaw@google.com>, linux-kernel@vger.kernel.org, parisc-linux@lists.parisc-linux.org, linux-mm@kvack.org, linux-arch@vger.kernel.org, Andrew Morton <akpm@osdl.org>, Ingo Molnar <mingo@elte.hu>, Andi Kleen <ak@suse.de>
+Return-Path: <bellman@u2club.com>
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 2007-06-14 at 11:22 -0700, Luck, Tony wrote:
-> > > Interesting.  If you're exceeding your stack ulimit, you should be
-> > > seeing either an "argument list too long" message or getting a
-> > > SIGSEGV.  Have you tried bypassing wc and piping the output straight
-> > > to a file?
-> >
-> > I think it sends SIGKILL on failure paths.
-> 
-> Setting stack limit to unlimited I managed to exec with 10MB, and
-> "wc" produced the correct output when it (finally) ran, so no
-> odd limits being hit in there.
+<html>
 
-Ah, good :-)
+<head>
+<meta http-equiv=Content-Type content="text/html; charset=iso-8859-1">
 
-> Ah ... running the 34*100K case direct from my shell prompt, I
-> do see a "Killed" that must get lost when I run this in the
-> shell script loop.
+<title>EURO VIP</title>
 
-Yes, so it seems we just trip the stack limit after we cross the point
-of no return.
+<style>
+<!--
+ /* Font Definitions */
+ @font-face
+	{font-family:Garamond;
+	panose-1:2 2 4 4 3 3 1 1 8 3;
+	mso-font-charset:204;
+	mso-generic-font-family:roman;
+	mso-font-pitch:variable;
+	mso-font-signature:647 0 0 0 159 0;}
+ /* Style Definitions */
+ p.MsoNormal, li.MsoNormal, div.MsoNormal
+	{mso-style-parent:"";
+	margin:0cm;
+	margin-bottom:.0001pt;
+	mso-pagination:widow-orphan;
+	font-size:12.0pt;
+	font-family:"Times New Roman";
+	mso-fareast-font-family:"Times New Roman";
+	mso-ansi-language:EN-US;
+	mso-fareast-language:EN-US;}
+a:link, span.MsoHyperlink
+	{color:blue;
+	text-decoration:underline;
+	text-underline:single;}
+a:visited, span.MsoHyperlinkFollowed
+	{color:purple;
+	text-decoration:underline;
+	text-underline:single;}
+@page Section1
+	{size:595.3pt 841.9pt;
+	margin:2.0cm 42.5pt 2.0cm 3.0cm;
+	mso-header-margin:35.4pt;
+	mso-footer-margin:35.4pt;
+	mso-paper-source:0;}
+div.Section1
+	{page:Section1;}
+-->
+</style>
 
-I started looking into growing the stack beforehand and perhaps
-shrinking the stack after we're done. That would get most if not all
-these failures before the point of no return.
+</head>
 
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+<body lang=RO link=blue vlink=purple style='tab-interval:35.4pt'>
+
+<div class=Section1>
+
+<p class=MsoNormal>
+<span lang=DE style='font-size:13.0pt;font-family:Garamond'>
+EURO VIP Casino bietet Ihnen 4 mal 100% 
+Ersteinzahlungsbonus auf bis zu 400&#8364;!<o:p></o:p></span></p>
+
+<p class=MsoNormal>
+<span lang=DE style='font-size:13.0pt;font-family:Garamond'>
+<o:p>&nbsp;</o:p></span></p>
+
+<p class=MsoNormal>
+<span lang=DE style='font-size:13.0pt;font-family:Garamond'>
+EURO VIP schafft jeden Monat neue Million&auml;re!
+<o:p></o:p></span></p>
+
+<p class=MsoNormal>
+<span lang=DE style='font-size:13.0pt;font-family:Garamond'>
+<o:p>&nbsp;</o:p></span></p>
+
+<p class=MsoNormal>
+<span lang=DE style='font-size:13.0pt;font-family:Garamond'>
+Kommen Sie um zu spielen!<o:p></o:p></span></p>
+
+<p class=MsoNormal>
+<span lang=DE style='font-size:13.0pt;font-family:Garamond'>
+<o:p>&nbsp;</o:p></span></p>
+
+<p class=MsoNormal>
+<span lang=DE style='font-size:13.0pt;font-family:Garamond'>
+<a href="http://www.eurovipcasino.hk/lang-de/">
+http://www.eurovipcasino.hk/lang-de/</a><o:p></o:p></span></p>
+
+</div>
+
+</body>
+
+</html>
