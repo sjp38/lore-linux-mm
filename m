@@ -1,130 +1,155 @@
-Message-Id: <20070614075336.870895145@sgi.com>
+Message-Id: <20070614075336.405903951@sgi.com>
 References: <20070614075026.607300756@sgi.com>
-Date: Thu, 14 Jun 2007 00:50:38 -0700
+Date: Thu, 14 Jun 2007 00:50:36 -0700
 From: clameter@sgi.com
-Subject: [RFC 12/13] SLUB: minimum alignment fixes
-Content-Disposition: inline; filename=slub_min_align
+Subject: [RFC 10/13] Memoryless nodes: Fix GFP_THISNODE behavior
+Content-Disposition: inline; filename=memless_thisnode_fix
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Nishanth Aravamudan <nacc@us.ibm.com>
 Cc: Lee Schermerhorn <Lee.Schermerhorn@hp.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-If ARCH_KMALLOC_MINALIGN is set to a value greater than 8 (SLUBs smallest
-kmalloc cache) then SLUB may generate duplicate slabs in sysfs (yes again).
+GFP_THISNODE checks that the zone selected is within the pgdat (node) of the
+first zone of a nodelist. That only works if the node has memory. A
+memoryless node will have its first node on another pgdat (node).
 
-However, no arch sets ARCH_KMALLOC_MINALIGN larger than 8 though except mips
-which for some reason wants a 128 byte alignment.
+GFP_THISNODE currently will return simply memory on the first pgdat.
+Thus it is returning memory on other nodes. GFP_THISNODE should fail
+if there is no local memory on a node.
 
-This patch increases the size of the smallest cache if ARCH_KMALLOC_MINALIGN
-is greater than 8. In that case more and more of the smallest caches are
-disabled.
 
-If we do that then the count of the active general caches that is displayed
-on boot is not correct anymore since we may skip elements of the kmalloc
-array. So count them separately.
+Add a new set of zonelists for each node that only contain the nodes
+that belong to the zones itself so that no fallback is possible.
+
+Then modify gfp_type to pickup the right zone based on the presence
+of __GFP_THISNODE.
+
+Then we can drop the existing GFP_THISNODE code from the hot path.
 
 Signed-off-by: Christoph Lameter <clameter@sgi.com>
 
----
- include/linux/slub_def.h |   13 +++++++++++--
- mm/slub.c                |   20 +++++++++++++++-----
- 2 files changed, 26 insertions(+), 7 deletions(-)
-
-Index: vps/include/linux/slub_def.h
+Index: linux-2.6.22-rc4-mm2/include/linux/gfp.h
 ===================================================================
---- vps.orig/include/linux/slub_def.h	2007-06-12 15:58:30.000000000 -0700
-+++ vps/include/linux/slub_def.h	2007-06-12 16:00:43.000000000 -0700
-@@ -28,7 +28,7 @@ struct kmem_cache {
- 	int size;		/* The size of an object including meta data */
- 	int objsize;		/* The size of an object without meta data */
- 	int offset;		/* Free pointer offset. */
--	unsigned int order;
-+	int order;
+--- linux-2.6.22-rc4-mm2.orig/include/linux/gfp.h	2007-06-14 00:22:42.000000000 -0700
++++ linux-2.6.22-rc4-mm2/include/linux/gfp.h	2007-06-14 00:24:17.000000000 -0700
+@@ -116,22 +116,28 @@ static inline int allocflags_to_migratet
  
- 	/*
- 	 * Avoid an extra cache line for UP, SMP and for the node local to
-@@ -56,7 +56,13 @@ struct kmem_cache {
- /*
-  * Kmalloc subsystem.
-  */
--#define KMALLOC_SHIFT_LOW 3
-+#if defined(ARCH_KMALLOC_MINALIGN) && ARCH_KMALLOC_MINALIGN > 8
-+#define KMALLOC_MIN_SIZE ARCH_KMALLOC_MINALIGN
-+#else
-+#define KMALLOC_MIN_SIZE 8
-+#endif
-+
-+#define KMALLOC_SHIFT_LOW ilog2(KMALLOC_MIN_SIZE)
- 
- /*
-  * We keep the general caches in an array of slab caches that are used for
-@@ -76,6 +82,9 @@ static inline int kmalloc_index(size_t s
- 	if (size > KMALLOC_MAX_SIZE)
- 		return -1;
- 
-+	if (size <= KMALLOC_MIN_SIZE)
-+		return KMALLOC_SHIFT_LOW;
-+
- 	if (size > 64 && size <= 96)
- 		return 1;
- 	if (size > 128 && size <= 192)
-Index: vps/mm/slub.c
-===================================================================
---- vps.orig/mm/slub.c	2007-06-12 15:58:37.000000000 -0700
-+++ vps/mm/slub.c	2007-06-12 16:03:00.000000000 -0700
-@@ -2521,6 +2521,7 @@ EXPORT_SYMBOL(krealloc);
- void __init kmem_cache_init(void)
+ static inline enum zone_type gfp_zone(gfp_t flags)
  {
- 	int i;
-+	int caches = 0;
- 
- 	if (!page_group_by_mobility_disabled && !user_override) {
- 		/*
-@@ -2540,20 +2541,29 @@ void __init kmem_cache_init(void)
- 	create_kmalloc_cache(&kmalloc_caches[0], "kmem_cache_node",
- 		sizeof(struct kmem_cache_node), GFP_KERNEL);
- 	kmalloc_caches[0].refcount = -1;
-+	caches++;
++	int offset = 0;
++
++#ifdef CONFIG_NUMA
++	if (flags & __GFP_THISNODE)
++		offset = MAX_NR_ZONES;
++#endif
+ #ifdef CONFIG_ZONE_DMA
+ 	if (flags & __GFP_DMA)
+-		return ZONE_DMA;
++		return offset + ZONE_DMA;
  #endif
- 
- 	/* Able to allocate the per node structures */
- 	slab_state = PARTIAL;
- 
- 	/* Caches that are not of the two-to-the-power-of size */
--	create_kmalloc_cache(&kmalloc_caches[1],
-+	if (KMALLOC_MIN_SIZE <= 64) {
-+		create_kmalloc_cache(&kmalloc_caches[1],
- 				"kmalloc-96", 96, GFP_KERNEL);
--	create_kmalloc_cache(&kmalloc_caches[2],
-+		caches++;
-+	}
-+	if (KMALLOC_MIN_SIZE <= 128) {
-+		create_kmalloc_cache(&kmalloc_caches[2],
- 				"kmalloc-192", 192, GFP_KERNEL);
-+		caches++;
-+	}
- 
--	for (i = KMALLOC_SHIFT_LOW; i <= KMALLOC_SHIFT_HIGH; i++)
-+	for (i = KMALLOC_SHIFT_LOW; i <= KMALLOC_SHIFT_HIGH; i++) {
- 		create_kmalloc_cache(&kmalloc_caches[i],
- 			"kmalloc", 1 << i, GFP_KERNEL);
-+		caches++;
-+	}
- 
- 	slab_state = UP;
- 
-@@ -2570,8 +2580,8 @@ void __init kmem_cache_init(void)
- 				nr_cpu_ids * sizeof(struct page *);
- 
- 	printk(KERN_INFO "SLUB: Genslabs=%d, HWalign=%d, Order=%d-%d, MinObjects=%d,"
--		" Processors=%d, Nodes=%d\n",
--		KMALLOC_SHIFT_HIGH, cache_line_size(),
-+		" CPUs=%d, Nodes=%d\n",
-+		caches, cache_line_size(),
- 		slub_min_order, slub_max_order, slub_min_objects,
- 		nr_cpu_ids, nr_node_ids);
+ #ifdef CONFIG_ZONE_DMA32
+ 	if (flags & __GFP_DMA32)
+-		return ZONE_DMA32;
++		return offset + ZONE_DMA32;
+ #endif
+ 	if ((flags & (__GFP_HIGHMEM | __GFP_MOVABLE)) ==
+ 			(__GFP_HIGHMEM | __GFP_MOVABLE))
+-		return ZONE_MOVABLE;
++		return offset + ZONE_MOVABLE;
+ #ifdef CONFIG_HIGHMEM
+ 	if (flags & __GFP_HIGHMEM)
+-		return ZONE_HIGHMEM;
++		return offset + ZONE_HIGHMEM;
+ #endif
+-	return ZONE_NORMAL;
++	return offset + ZONE_NORMAL;
  }
+ 
+ static inline gfp_t set_migrateflags(gfp_t gfp, gfp_t migrate_flags)
+Index: linux-2.6.22-rc4-mm2/mm/page_alloc.c
+===================================================================
+--- linux-2.6.22-rc4-mm2.orig/mm/page_alloc.c	2007-06-14 00:25:29.000000000 -0700
++++ linux-2.6.22-rc4-mm2/mm/page_alloc.c	2007-06-14 00:36:44.000000000 -0700
+@@ -1433,9 +1433,6 @@ zonelist_scan:
+ 			!zlc_zone_worth_trying(zonelist, z, allowednodes))
+ 				continue;
+ 		zone = *z;
+-		if (unlikely(NUMA_BUILD && (gfp_mask & __GFP_THISNODE) &&
+-			zone->zone_pgdat != zonelist->zones[0]->zone_pgdat))
+-				break;
+ 		if ((alloc_flags & ALLOC_CPUSET) &&
+ 			!cpuset_zone_allowed_softwall(zone, gfp_mask))
+ 				goto try_next_zone;
+@@ -1556,7 +1553,10 @@ restart:
+ 	z = zonelist->zones;  /* the list of zones suitable for gfp_mask */
+ 
+ 	if (unlikely(*z == NULL)) {
+-		/* Should this ever happen?? */
++		/*
++		 * Happens if we have an empty zonelist as a result of
++		 * GFP_THISNODE being used on a memoryless node
++		 */
+ 		return NULL;
+ 	}
+ 
+@@ -2154,6 +2154,22 @@ static void build_zonelists_in_node_orde
+ }
+ 
+ /*
++ * Build gfp_thisnode zonelists
++ */
++static void build_thisnode_zonelists(pg_data_t *pgdat)
++{
++	enum zone_type i;
++	int j;
++	struct zonelist *zonelist;
++
++	for (i = 0; i < MAX_NR_ZONES; i++) {
++		zonelist = pgdat->node_zonelists + MAX_NR_ZONES + i;
++ 		j = build_zonelists_node(pgdat, zonelist, 0, i);
++		zonelist->zones[j] = NULL;
++	}
++}
++
++/*
+  * Build zonelists ordered by zone and nodes within zones.
+  * This results in conserving DMA zone[s] until all Normal memory is
+  * exhausted, but results in overflowing to remote node while memory
+@@ -2257,7 +2273,7 @@ static void build_zonelists(pg_data_t *p
+ 	int order = current_zonelist_order;
+ 
+ 	/* initialize zonelists */
+-	for (i = 0; i < MAX_NR_ZONES; i++) {
++	for (i = 0; i < 2 * MAX_NR_ZONES; i++) {
+ 		zonelist = pgdat->node_zonelists + i;
+ 		zonelist->zones[0] = NULL;
+ 	}
+@@ -2303,6 +2319,8 @@ static void build_zonelists(pg_data_t *p
+ 		build_zonelists_in_zone_order(pgdat, j);
+ 	}
+ 
++	build_thisnode_zonelists(pgdat);
++
+ 	if (pgdat->node_present_pages)
+ 		node_set_has_memory(local_node);
+ }
+Index: linux-2.6.22-rc4-mm2/include/linux/mmzone.h
+===================================================================
+--- linux-2.6.22-rc4-mm2.orig/include/linux/mmzone.h	2007-06-14 00:24:28.000000000 -0700
++++ linux-2.6.22-rc4-mm2/include/linux/mmzone.h	2007-06-14 00:25:25.000000000 -0700
+@@ -469,7 +469,11 @@ extern struct page *mem_map;
+ struct bootmem_data;
+ typedef struct pglist_data {
+ 	struct zone node_zones[MAX_NR_ZONES];
++#ifdef CONFIG_NUMA
++	struct zonelist node_zonelists[2 * MAX_NR_ZONES];
++#else
+ 	struct zonelist node_zonelists[MAX_NR_ZONES];
++#endif
+ 	int nr_zones;
+ #ifdef CONFIG_FLAT_NODE_MEM_MAP
+ 	struct page *node_mem_map;
 
 -- 
 
