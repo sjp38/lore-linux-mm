@@ -1,51 +1,41 @@
-Date: Thu, 14 Jun 2007 10:16:48 -0700 (PDT)
-From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [PATCH] populated_map: fix !NUMA case, remove comment
-In-Reply-To: <1181840872.5410.159.camel@localhost>
-Message-ID: <Pine.LNX.4.64.0706141012200.30147@schroedinger.engr.sgi.com>
-References: <Pine.LNX.4.64.0706121150220.30754@schroedinger.engr.sgi.com>
- <1181677473.5592.149.camel@localhost>  <Pine.LNX.4.64.0706121245200.7983@schroedinger.engr.sgi.com>
-  <Pine.LNX.4.64.0706121257290.7983@schroedinger.engr.sgi.com>
- <20070612200125.GG3798@us.ibm.com> <1181748606.6148.19.camel@localhost>
- <20070613175802.GP3798@us.ibm.com> <1181758874.6148.73.camel@localhost>
- <Pine.LNX.4.64.0706131550520.32399@schroedinger.engr.sgi.com>
- <1181836247.5410.85.camel@localhost> <20070614160913.GF7469@us.ibm.com>
- <Pine.LNX.4.64.0706140913530.29612@schroedinger.engr.sgi.com>
- <1181840872.5410.159.camel@localhost>
+Message-ID: <46718320.1010500@csn.ul.ie>
+Date: Thu, 14 Jun 2007 19:04:16 +0100
+From: Mel Gorman <mel@csn.ul.ie>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: [RFC] memory unplug v5 [1/6] migration by kernel
+References: <20070614155630.04f8170c.kamezawa.hiroyu@jp.fujitsu.com>	<20070614155929.2be37edb.kamezawa.hiroyu@jp.fujitsu.com>	<Pine.LNX.4.64.0706140000400.11433@schroedinger.engr.sgi.com>	<20070614161146.5415f493.kamezawa.hiroyu@jp.fujitsu.com>	<Pine.LNX.4.64.0706140019490.11852@schroedinger.engr.sgi.com>	<20070614164128.42882f74.kamezawa.hiroyu@jp.fujitsu.com>	<Pine.LNX.4.64.0706140044400.22032@schroedinger.engr.sgi.com>	<20070614172936.12b94ad7.kamezawa.hiroyu@jp.fujitsu.com>	<Pine.LNX.4.64.0706140706370.28544@schroedinger.engr.sgi.com>	<20070615010217.62908da3.kamezawa.hiroyu@jp.fujitsu.com>	<Pine.LNX.4.64.0706140909030.29612@schroedinger.engr.sgi.com> <20070615011536.beaa79c1.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20070615011536.beaa79c1.kamezawa.hiroyu@jp.fujitsu.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
-Cc: Nishanth Aravamudan <nacc@us.ibm.com>, anton@samba.org, akpm@linux-foundation.org, linux-mm@kvack.org
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: Christoph Lameter <clameter@sgi.com>, linux-mm@kvack.org, y-goto@jp.fujitsu.com, hugh@veritas.com
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 14 Jun 2007, Lee Schermerhorn wrote:
+KAMEZAWA Hiroyuki wrote:
+> On Thu, 14 Jun 2007 09:12:37 -0700 (PDT)
+> Christoph Lameter <clameter@sgi.com> wrote:
+> 
+>>> An unmapped swapcache page, which is just added to LRU, may be accessed via migrate_page().
+>>> But page->mapping is NULL yet. 
+>> Yes then lets add a check for page->mapping == NULL there.
+>>
+>> if (!page->mapping)
+>> 	goto unlock;
+>>
+>> That will retry the migration on the next pass. Add some concise comment 
+>> explaining the situation. This is general bug in page migration.
+>>
+> Ok, will do. thank you for your advice.
+> 
 
-> If it (slab allocators etc) wants and/or can use memory from a different
-> node from what it requested, then, it shouldn't be calling with
-> GFP_THISNODE, right?  I mean what's the point?  If GFP_THISNODE never
-
-The code wanted memory from a certain node because a certain structure is 
-performance sensitive and it did get something else. Both slab and slub 
-will fail at some point when trying to touch the structure that was not 
-allocated.
-
-> returned off-node memory, then one couldn't use it without checking for
-> and dealing with failure.  And, 'THISNODE allocations CAN fail, when the
-
-GFP_THISNODE *never* should return off node memory. That it happened is 
-due to people not reviewing the VM as I told them to when we starting 
-allowing memoryless nodes in the core VM.
-
-> first zone in the selected zonelist is empty and subsequent zones are
-> off-node.  __alloc_pages() et al WILL fail this case and return NULL, so
-> callers must be prepared to deal with it--even [especially?] early boot
-> code, IMO, anyway.
-
-Bootstrap is a special case. It is a reasonable expectation to find memory 
-on nodes that have memory (i.e. formerly online nodes were guaranteed to 
-have memory now we guarantee that for "memory nodes").
+I am currently testing what I believe your patches currently look like.
+In combination with the isolate lru page fix patch, things are looking
+better than they were. Previously I had seen some very bizarre errors
+when migrating due to compaction of memory but I'm not seeing them now.
+ I hadn't been reporting because it was difficult to tell if migration
+was at fault or what memory compaction was doing.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
