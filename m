@@ -1,49 +1,59 @@
-Date: Thu, 14 Jun 2007 16:06:03 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: [RFC] memory unplug v5 [6/6] ia64 interface
-Message-Id: <20070614160603.b4fd61e7.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20070614155630.04f8170c.kamezawa.hiroyu@jp.fujitsu.com>
-References: <20070614155630.04f8170c.kamezawa.hiroyu@jp.fujitsu.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Date: Thu, 14 Jun 2007 00:07:28 -0700 (PDT)
+From: Christoph Lameter <clameter@sgi.com>
+Subject: Re: [patch 2/3] Fix GFP_THISNODE behavior for memoryless nodes
+In-Reply-To: <1181769033.6148.116.camel@localhost>
+Message-ID: <Pine.LNX.4.64.0706140004070.11676@schroedinger.engr.sgi.com>
+References: <20070612204843.491072749@sgi.com>  <20070612205738.548677035@sgi.com>
+ <1181769033.6148.116.camel@localhost>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: linux-mm@kvack.org, mel@csn.ul.ie, y-goto@jp.fujitsu.com, clameter@sgi.com, hugh@veritas.com
+To: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
+Cc: akpm@linux-foundation.org, linux-mm@kvack.org, ak@suse.de, Nishanth Aravamudan <nacc@us.ibm.com>
 List-ID: <linux-mm.kvack.org>
 
-IA64 memory unplug interface.
+On Wed, 13 Jun 2007, Lee Schermerhorn wrote:
 
-Signed-Off-By: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> --- Linux.orig/include/linux/gfp.h	2007-06-13 16:36:02.000000000 -0400
+> +++ Linux/include/linux/gfp.h	2007-06-13 16:38:41.000000000 -0400
+> @@ -168,6 +168,9 @@ FASTCALL(__alloc_pages(gfp_t, unsigned i
+>  static inline struct page *alloc_pages_node(int nid, gfp_t gfp_mask,
+>  						unsigned int order)
+>  {
+> +	pg_data_t *pgdat;
+> +	struct zonelist *zonelist;
+> +
+>  	if (unlikely(order >= MAX_ORDER))
+>  		return NULL;
+>  
+> @@ -179,11 +182,13 @@ static inline struct page *alloc_pages_n
+>  	 * Check for the special case that GFP_THISNODE is used on a
+>  	 * memoryless node
+>  	 */
+> -	if ((gfp_mask & __GFP_THISNODE) && !node_memory(nid))
+> +	pgdat = NODE_DATA(nid);
+> +	zonelist = pgdat->node_zonelists + gfp_zone(gfp_mask);
+> +	if ((gfp_mask & __GFP_THISNODE) &&
+> +		pgdat != zonelist->zones[0]->zone_pgdat)
+>  		return NULL;
+>  
+> -	return __alloc_pages(gfp_mask, order,
+> -		NODE_DATA(nid)->node_zonelists + gfp_zone(gfp_mask));
+> +	return __alloc_pages(gfp_mask, order, zonelist);
+>  }
 
----
- arch/ia64/mm/init.c |   12 +++++++++++-
- 1 file changed, 11 insertions(+), 1 deletion(-)
+Good idea but I think this does not address the case where the DMA zone of 
+a node was moved to the end of the zonelist. In that case the first zone 
+is not on the first pgdat but the node has memory. The memory of the node 
+is listed elsewhere in the nodelist. I can probably modify __alloc_pages 
+to make GFP_THISNODE to check all zones but we do not have the pgdat 
+reference there. Sigh.
 
-Index: devel-2.6.22-rc4-mm2/arch/ia64/mm/init.c
-===================================================================
---- devel-2.6.22-rc4-mm2.orig/arch/ia64/mm/init.c
-+++ devel-2.6.22-rc4-mm2/arch/ia64/mm/init.c
-@@ -724,7 +724,17 @@ int arch_add_memory(int nid, u64 start, 
- 
- int remove_memory(u64 start, u64 size)
- {
--	return -EINVAL;
-+	unsigned long start_pfn, end_pfn;
-+	unsigned long timeout = 120 * HZ;
-+	int ret;
-+	start_pfn = start >> PAGE_SHIFT;
-+	end_pfn = start_pfn + (size >> PAGE_SHIFT);
-+	ret = offline_pages(start_pfn, end_pfn, timeout);
-+	if (ret)
-+		goto out;
-+	/* we can free mem_map at this point */
-+out:
-+	return ret;
- }
- EXPORT_SYMBOL_GPL(remove_memory);
- #endif
+How about generating a special THISNODE zonelist in build_zonelist that 
+only contains the zones of a single node. Then just use that one if 
+GFP_THISNODE is set. Then we get rid of all the GFP_THISNODE crap that I 
+added to __alloc_pages?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
