@@ -1,155 +1,122 @@
-Message-Id: <20070614075336.405903951@sgi.com>
+Message-Id: <20070614075337.104048463@sgi.com>
 References: <20070614075026.607300756@sgi.com>
-Date: Thu, 14 Jun 2007 00:50:36 -0700
+Date: Thu, 14 Jun 2007 00:50:39 -0700
 From: clameter@sgi.com
-Subject: [RFC 10/13] Memoryless nodes: Fix GFP_THISNODE behavior
-Content-Disposition: inline; filename=memless_thisnode_fix
+Subject: [RFC 13/13] I finally found a way to get rid of the nasty list of comparisions in slub_def.h. ilog2 seems to work right for constants.
+Content-Disposition: inline; filename=slub_ilog2
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Nishanth Aravamudan <nacc@us.ibm.com>
-Cc: Lee Schermerhorn <Lee.Schermerhorn@hp.com>, linux-mm@kvack.org
+Cc: Lee Schermerhorn <Lee.Schermerhorn@hp.com>, linux-mm@kvack.org, Pekka Enberg <penberg@cs.helsinki.fi>, Andrew Morton <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-GFP_THISNODE checks that the zone selected is within the pgdat (node) of the
-first zone of a nodelist. That only works if the node has memory. A
-memoryless node will have its first node on another pgdat (node).
+Also update comments
 
-GFP_THISNODE currently will return simply memory on the first pgdat.
-Thus it is returning memory on other nodes. GFP_THISNODE should fail
-if there is no local memory on a node.
-
-
-Add a new set of zonelists for each node that only contain the nodes
-that belong to the zones itself so that no fallback is possible.
-
-Then modify gfp_type to pickup the right zone based on the presence
-of __GFP_THISNODE.
-
-Then we can drop the existing GFP_THISNODE code from the hot path.
+Drop the generation of an unresolved symbol for the case that the size is
+too big. A simple BUG_ON sufficies now that we can alloc up to MAX_ORDER
+size slab objects.
 
 Signed-off-by: Christoph Lameter <clameter@sgi.com>
+Acked-by: Pekka Enberg <penberg@cs.helsinki.fi>
+Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
+---
 
-Index: linux-2.6.22-rc4-mm2/include/linux/gfp.h
+ include/linux/slub_def.h |   56 +++++++++--------------------------------------
+ 1 file changed, 11 insertions(+), 45 deletions(-)
+
+Index: vps/include/linux/slub_def.h
 ===================================================================
---- linux-2.6.22-rc4-mm2.orig/include/linux/gfp.h	2007-06-14 00:22:42.000000000 -0700
-+++ linux-2.6.22-rc4-mm2/include/linux/gfp.h	2007-06-14 00:24:17.000000000 -0700
-@@ -116,22 +116,28 @@ static inline int allocflags_to_migratet
+--- vps.orig/include/linux/slub_def.h	2007-06-12 16:09:56.000000000 -0700
++++ vps/include/linux/slub_def.h	2007-06-12 16:32:44.000000000 -0700
+@@ -10,6 +10,7 @@
+ #include <linux/gfp.h>
+ #include <linux/workqueue.h>
+ #include <linux/kobject.h>
++#include <linux/log2.h>
  
- static inline enum zone_type gfp_zone(gfp_t flags)
+ struct kmem_cache_node {
+ 	spinlock_t list_lock;	/* Protect partial list and nr_partial */
+@@ -71,8 +72,9 @@ struct kmem_cache {
+ extern struct kmem_cache kmalloc_caches[KMALLOC_SHIFT_HIGH + 1];
+ 
+ /*
+- * Sorry that the following has to be that ugly but some versions of GCC
+- * have trouble with constant propagation and loops.
++ * Determine the kmalloc array index given the object size.
++ *
++ * Return -1 if the object size is not supported.
+  */
+ static inline int kmalloc_index(size_t size)
  {
-+	int offset = 0;
-+
-+#ifdef CONFIG_NUMA
-+	if (flags & __GFP_THISNODE)
-+		offset = MAX_NR_ZONES;
-+#endif
- #ifdef CONFIG_ZONE_DMA
- 	if (flags & __GFP_DMA)
--		return ZONE_DMA;
-+		return offset + ZONE_DMA;
- #endif
- #ifdef CONFIG_ZONE_DMA32
- 	if (flags & __GFP_DMA32)
--		return ZONE_DMA32;
-+		return offset + ZONE_DMA32;
- #endif
- 	if ((flags & (__GFP_HIGHMEM | __GFP_MOVABLE)) ==
- 			(__GFP_HIGHMEM | __GFP_MOVABLE))
--		return ZONE_MOVABLE;
-+		return offset + ZONE_MOVABLE;
- #ifdef CONFIG_HIGHMEM
- 	if (flags & __GFP_HIGHMEM)
--		return ZONE_HIGHMEM;
-+		return offset + ZONE_HIGHMEM;
- #endif
--	return ZONE_NORMAL;
-+	return offset + ZONE_NORMAL;
- }
+@@ -85,42 +87,15 @@ static inline int kmalloc_index(size_t s
+ 	if (size <= KMALLOC_MIN_SIZE)
+ 		return KMALLOC_SHIFT_LOW;
  
- static inline gfp_t set_migrateflags(gfp_t gfp, gfp_t migrate_flags)
-Index: linux-2.6.22-rc4-mm2/mm/page_alloc.c
-===================================================================
---- linux-2.6.22-rc4-mm2.orig/mm/page_alloc.c	2007-06-14 00:25:29.000000000 -0700
-+++ linux-2.6.22-rc4-mm2/mm/page_alloc.c	2007-06-14 00:36:44.000000000 -0700
-@@ -1433,9 +1433,6 @@ zonelist_scan:
- 			!zlc_zone_worth_trying(zonelist, z, allowednodes))
- 				continue;
- 		zone = *z;
--		if (unlikely(NUMA_BUILD && (gfp_mask & __GFP_THISNODE) &&
--			zone->zone_pgdat != zonelist->zones[0]->zone_pgdat))
--				break;
- 		if ((alloc_flags & ALLOC_CPUSET) &&
- 			!cpuset_zone_allowed_softwall(zone, gfp_mask))
- 				goto try_next_zone;
-@@ -1556,7 +1553,10 @@ restart:
- 	z = zonelist->zones;  /* the list of zones suitable for gfp_mask */
- 
- 	if (unlikely(*z == NULL)) {
--		/* Should this ever happen?? */
-+		/*
-+		 * Happens if we have an empty zonelist as a result of
-+		 * GFP_THISNODE being used on a memoryless node
-+		 */
- 		return NULL;
- 	}
- 
-@@ -2154,6 +2154,22 @@ static void build_zonelists_in_node_orde
++	/*
++	 * We map the non power of two slabs to the unused
++	 * log2 values in the kmalloc array.
++	 */
+ 	if (size > 64 && size <= 96)
+ 		return 1;
+ 	if (size > 128 && size <= 192)
+ 		return 2;
+-	if (size <=          8) return 3;
+-	if (size <=         16) return 4;
+-	if (size <=         32) return 5;
+-	if (size <=         64) return 6;
+-	if (size <=        128) return 7;
+-	if (size <=        256) return 8;
+-	if (size <=        512) return 9;
+-	if (size <=       1024) return 10;
+-	if (size <=   2 * 1024) return 11;
+-	if (size <=   4 * 1024) return 12;
+-	if (size <=   8 * 1024) return 13;
+-	if (size <=  16 * 1024) return 14;
+-	if (size <=  32 * 1024) return 15;
+-	if (size <=  64 * 1024) return 16;
+-	if (size <= 128 * 1024) return 17;
+-	if (size <= 256 * 1024) return 18;
+-	if (size <=  512 * 1024) return 19;
+-	if (size <= 1024 * 1024) return 20;
+-	if (size <=  2 * 1024 * 1024) return 21;
+-	if (size <=  4 * 1024 * 1024) return 22;
+-	if (size <=  8 * 1024 * 1024) return 23;
+-	if (size <= 16 * 1024 * 1024) return 24;
+-	if (size <= 32 * 1024 * 1024) return 25;
+-	return -1;
+-
+-/*
+- * What we really wanted to do and cannot do because of compiler issues is:
+- *	int i;
+- *	for (i = KMALLOC_SHIFT_LOW; i <= KMALLOC_SHIFT_HIGH; i++)
+- *		if (size <= (1 << i))
+- *			return i;
+- */
++	return ilog2(size - 1) + 1;
  }
  
  /*
-+ * Build gfp_thisnode zonelists
-+ */
-+static void build_thisnode_zonelists(pg_data_t *pgdat)
-+{
-+	enum zone_type i;
-+	int j;
-+	struct zonelist *zonelist;
-+
-+	for (i = 0; i < MAX_NR_ZONES; i++) {
-+		zonelist = pgdat->node_zonelists + MAX_NR_ZONES + i;
-+ 		j = build_zonelists_node(pgdat, zonelist, 0, i);
-+		zonelist->zones[j] = NULL;
-+	}
-+}
-+
-+/*
-  * Build zonelists ordered by zone and nodes within zones.
-  * This results in conserving DMA zone[s] until all Normal memory is
-  * exhausted, but results in overflowing to remote node while memory
-@@ -2257,7 +2273,7 @@ static void build_zonelists(pg_data_t *p
- 	int order = current_zonelist_order;
+@@ -137,18 +112,9 @@ static inline struct kmem_cache *kmalloc
+ 		return NULL;
  
- 	/* initialize zonelists */
--	for (i = 0; i < MAX_NR_ZONES; i++) {
-+	for (i = 0; i < 2 * MAX_NR_ZONES; i++) {
- 		zonelist = pgdat->node_zonelists + i;
- 		zonelist->zones[0] = NULL;
- 	}
-@@ -2303,6 +2319,8 @@ static void build_zonelists(pg_data_t *p
- 		build_zonelists_in_zone_order(pgdat, j);
- 	}
- 
-+	build_thisnode_zonelists(pgdat);
-+
- 	if (pgdat->node_present_pages)
- 		node_set_has_memory(local_node);
+ 	/*
+-	 * This function only gets expanded if __builtin_constant_p(size), so
+-	 * testing it here shouldn't be needed.  But some versions of gcc need
+-	 * help.
++	 * If this triggers then the amount of memory requested was too large.
+ 	 */
+-	if (__builtin_constant_p(size) && index < 0) {
+-		/*
+-		 * Generate a link failure. Would be great if we could
+-		 * do something to stop the compile here.
+-		 */
+-		extern void __kmalloc_size_too_large(void);
+-		__kmalloc_size_too_large();
+-	}
++	BUG_ON(index < 0);
+ 	return &kmalloc_caches[index];
  }
-Index: linux-2.6.22-rc4-mm2/include/linux/mmzone.h
-===================================================================
---- linux-2.6.22-rc4-mm2.orig/include/linux/mmzone.h	2007-06-14 00:24:28.000000000 -0700
-+++ linux-2.6.22-rc4-mm2/include/linux/mmzone.h	2007-06-14 00:25:25.000000000 -0700
-@@ -469,7 +469,11 @@ extern struct page *mem_map;
- struct bootmem_data;
- typedef struct pglist_data {
- 	struct zone node_zones[MAX_NR_ZONES];
-+#ifdef CONFIG_NUMA
-+	struct zonelist node_zonelists[2 * MAX_NR_ZONES];
-+#else
- 	struct zonelist node_zonelists[MAX_NR_ZONES];
-+#endif
- 	int nr_zones;
- #ifdef CONFIG_FLAT_NODE_MEM_MAP
- 	struct page *node_mem_map;
+ 
 
 -- 
 
