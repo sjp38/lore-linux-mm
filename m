@@ -1,71 +1,85 @@
-Message-Id: <20070614220446.614501106@chello.nl>
+Message-Id: <20070614220446.471097653@chello.nl>
 References: <20070614215817.389524447@chello.nl>
-Date: Thu, 14 Jun 2007 23:58:21 +0200
+Date: Thu, 14 Jun 2007 23:58:19 +0200
 From: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Subject: [PATCH 04/17] lib: percpu_counter_set
-Content-Disposition: inline; filename=percpu_counter_set.patch
+Subject: [PATCH 02/17] lib: percpu_counter variable batch
+Content-Disposition: inline; filename=percpu_counter_batch.patch
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 Cc: miklos@szeredi.hu, akpm@linux-foundation.org, neilb@suse.de, dgc@sgi.com, tomoki.sekiyama.qu@hitachi.com, a.p.zijlstra@chello.nl, nikita@clusterfs.com, trond.myklebust@fys.uio.no, yingchao.zhou@gmail.com, andrea@suse.de
 List-ID: <linux-mm.kvack.org>
 
-Provide a method to set a percpu counter to a specified value.
+Because the current batch setup has an quadric error bound on the counter,
+allow for an alternative setup.
 
 Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
 ---
- include/linux/percpu_counter.h |    6 ++++++
- lib/percpu_counter.c           |   13 +++++++++++++
- 2 files changed, 19 insertions(+)
+ include/linux/percpu_counter.h |   10 +++++++++-
+ lib/percpu_counter.c           |    6 +++---
+ 2 files changed, 12 insertions(+), 4 deletions(-)
 
 Index: linux-2.6/include/linux/percpu_counter.h
 ===================================================================
---- linux-2.6.orig/include/linux/percpu_counter.h	2007-05-23 20:37:41.000000000 +0200
-+++ linux-2.6/include/linux/percpu_counter.h	2007-05-23 20:37:54.000000000 +0200
-@@ -32,6 +32,7 @@ struct percpu_counter {
+--- linux-2.6.orig/include/linux/percpu_counter.h	2007-05-23 20:34:12.000000000 +0200
++++ linux-2.6/include/linux/percpu_counter.h	2007-05-23 20:36:06.000000000 +0200
+@@ -32,9 +32,14 @@ struct percpu_counter {
  
  void percpu_counter_init(struct percpu_counter *fbc, s64 amount);
  void percpu_counter_destroy(struct percpu_counter *fbc);
-+void percpu_counter_set(struct percpu_counter *fbc, s64 amount);
- void __percpu_counter_mod(struct percpu_counter *fbc, s32 amount, s32 batch);
- void __percpu_counter_mod64(struct percpu_counter *fbc, s64 amount, s32 batch);
+-void percpu_counter_mod(struct percpu_counter *fbc, s32 amount);
++void __percpu_counter_mod(struct percpu_counter *fbc, s32 amount, s32 batch);
  s64 percpu_counter_sum(struct percpu_counter *fbc);
-@@ -81,6 +82,11 @@ static inline void percpu_counter_destro
+ 
++static inline void percpu_counter_mod(struct percpu_counter *fbc, s32 amount)
++{
++	__percpu_counter_mod(fbc, amount, FBC_BATCH);
++}
++
+ static inline s64 percpu_counter_read(struct percpu_counter *fbc)
+ {
+ 	return fbc->count;
+@@ -70,6 +75,9 @@ static inline void percpu_counter_destro
  {
  }
  
-+static inline void percpu_counter_set(struct percpu_counter *fbc, s64 amount)
-+{
-+	fbc->count = amount;
-+}
++#define __percpu_counter_mod(fbc, amount, batch) \
++	percpu_counter_mod(fbc, amount)
 +
- #define __percpu_counter_mod(fbc, amount, batch) \
- 	percpu_counter_mod(fbc, amount)
- 
+ static inline void
+ percpu_counter_mod(struct percpu_counter *fbc, s32 amount)
+ {
 Index: linux-2.6/lib/percpu_counter.c
 ===================================================================
---- linux-2.6.orig/lib/percpu_counter.c	2007-05-23 20:37:34.000000000 +0200
-+++ linux-2.6/lib/percpu_counter.c	2007-05-23 20:38:03.000000000 +0200
-@@ -14,6 +14,19 @@ static LIST_HEAD(percpu_counters);
+--- linux-2.6.orig/lib/percpu_counter.c	2007-05-23 20:34:12.000000000 +0200
++++ linux-2.6/lib/percpu_counter.c	2007-05-23 20:36:21.000000000 +0200
+@@ -14,7 +14,7 @@ static LIST_HEAD(percpu_counters);
  static DEFINE_MUTEX(percpu_counters_lock);
  #endif
  
-+void percpu_counter_set(struct percpu_counter *fbc, s64 amount)
-+{
-+	int cpu;
-+
-+	spin_lock(&fbc->lock);
-+	for_each_possible_cpu(cpu) {
-+		s32 *pcount = per_cpu_ptr(fbc->counters, cpu);
-+		*pcount = 0;
-+	}
-+	fbc->count = amount;
-+	spin_unlock(&fbc->lock);
-+}
-+
- void __percpu_counter_mod(struct percpu_counter *fbc, s32 amount, s32 batch)
+-void percpu_counter_mod(struct percpu_counter *fbc, s32 amount)
++void __percpu_counter_mod(struct percpu_counter *fbc, s32 amount, s32 batch)
  {
  	long count;
+ 	s32 *pcount;
+@@ -22,7 +22,7 @@ void percpu_counter_mod(struct percpu_co
+ 
+ 	pcount = per_cpu_ptr(fbc->counters, cpu);
+ 	count = *pcount + amount;
+-	if (count >= FBC_BATCH || count <= -FBC_BATCH) {
++	if (count >= batch || count <= -batch) {
+ 		spin_lock(&fbc->lock);
+ 		fbc->count += count;
+ 		*pcount = 0;
+@@ -32,7 +32,7 @@ void percpu_counter_mod(struct percpu_co
+ 	}
+ 	put_cpu();
+ }
+-EXPORT_SYMBOL(percpu_counter_mod);
++EXPORT_SYMBOL(__percpu_counter_mod);
+ 
+ /*
+  * Add up all the per-cpu counts, return the result.  This is a more accurate
 
 -- 
 
