@@ -1,53 +1,71 @@
-Message-Id: <20070614220446.853313577@chello.nl>
+Message-Id: <20070614220446.614501106@chello.nl>
 References: <20070614215817.389524447@chello.nl>
-Date: Thu, 14 Jun 2007 23:58:25 +0200
+Date: Thu, 14 Jun 2007 23:58:21 +0200
 From: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Subject: [PATCH 08/17] containers: bdi init hooks
-Content-Disposition: inline; filename=bdi_init_container.patch
+Subject: [PATCH 04/17] lib: percpu_counter_set
+Content-Disposition: inline; filename=percpu_counter_set.patch
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 Cc: miklos@szeredi.hu, akpm@linux-foundation.org, neilb@suse.de, dgc@sgi.com, tomoki.sekiyama.qu@hitachi.com, a.p.zijlstra@chello.nl, nikita@clusterfs.com, trond.myklebust@fys.uio.no, yingchao.zhou@gmail.com, andrea@suse.de
 List-ID: <linux-mm.kvack.org>
 
-split off from the large bdi_init patch because containers are not slated
-for mainline any time soon.
+Provide a method to set a percpu counter to a specified value.
 
 Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
 ---
- kernel/container.c |    9 ++++++---
- 1 file changed, 6 insertions(+), 3 deletions(-)
+ include/linux/percpu_counter.h |    6 ++++++
+ lib/percpu_counter.c           |   13 +++++++++++++
+ 2 files changed, 19 insertions(+)
 
-Index: linux-2.6/kernel/container.c
+Index: linux-2.6/include/linux/percpu_counter.h
 ===================================================================
---- linux-2.6.orig/kernel/container.c
-+++ linux-2.6/kernel/container.c
-@@ -554,12 +554,13 @@ static int container_populate_dir(struct
- static struct inode_operations container_dir_inode_operations;
- static struct file_operations proc_containerstats_operations;
+--- linux-2.6.orig/include/linux/percpu_counter.h	2007-05-23 20:37:41.000000000 +0200
++++ linux-2.6/include/linux/percpu_counter.h	2007-05-23 20:37:54.000000000 +0200
+@@ -32,6 +32,7 @@ struct percpu_counter {
  
-+static struct backing_dev_info container_backing_dev_info = {
-+	.capabilities	= BDI_CAP_NO_ACCT_DIRTY | BDI_CAP_NO_WRITEBACK,
-+};
-+
- static struct inode *container_new_inode(mode_t mode, struct super_block *sb)
+ void percpu_counter_init(struct percpu_counter *fbc, s64 amount);
+ void percpu_counter_destroy(struct percpu_counter *fbc);
++void percpu_counter_set(struct percpu_counter *fbc, s64 amount);
+ void __percpu_counter_mod(struct percpu_counter *fbc, s32 amount, s32 batch);
+ void __percpu_counter_mod64(struct percpu_counter *fbc, s64 amount, s32 batch);
+ s64 percpu_counter_sum(struct percpu_counter *fbc);
+@@ -81,6 +82,11 @@ static inline void percpu_counter_destro
  {
- 	struct inode *inode = new_inode(sb);
--	static struct backing_dev_info container_backing_dev_info = {
--		.capabilities	= BDI_CAP_NO_ACCT_DIRTY | BDI_CAP_NO_WRITEBACK,
--	};
+ }
  
- 	if (inode) {
- 		inode->i_mode = mode;
-@@ -2058,6 +2059,8 @@ int __init container_init(void)
- 	if (err < 0)
- 		goto out;
- 
-+	bdi_init(&container_backing_dev_info);
++static inline void percpu_counter_set(struct percpu_counter *fbc, s64 amount)
++{
++	fbc->count = amount;
++}
 +
- 	entry = create_proc_entry("containers", 0, NULL);
- 	if (entry)
- 		entry->proc_fops = &proc_containerstats_operations;
+ #define __percpu_counter_mod(fbc, amount, batch) \
+ 	percpu_counter_mod(fbc, amount)
+ 
+Index: linux-2.6/lib/percpu_counter.c
+===================================================================
+--- linux-2.6.orig/lib/percpu_counter.c	2007-05-23 20:37:34.000000000 +0200
++++ linux-2.6/lib/percpu_counter.c	2007-05-23 20:38:03.000000000 +0200
+@@ -14,6 +14,19 @@ static LIST_HEAD(percpu_counters);
+ static DEFINE_MUTEX(percpu_counters_lock);
+ #endif
+ 
++void percpu_counter_set(struct percpu_counter *fbc, s64 amount)
++{
++	int cpu;
++
++	spin_lock(&fbc->lock);
++	for_each_possible_cpu(cpu) {
++		s32 *pcount = per_cpu_ptr(fbc->counters, cpu);
++		*pcount = 0;
++	}
++	fbc->count = amount;
++	spin_unlock(&fbc->lock);
++}
++
+ void __percpu_counter_mod(struct percpu_counter *fbc, s32 amount, s32 batch)
+ {
+ 	long count;
 
 -- 
 
