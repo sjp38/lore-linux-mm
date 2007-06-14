@@ -1,78 +1,62 @@
-Received: from d03relay04.boulder.ibm.com (d03relay04.boulder.ibm.com [9.17.195.106])
-	by e31.co.us.ibm.com (8.13.8/8.13.8) with ESMTP id l5EENcF1017741
-	for <linux-mm@kvack.org>; Thu, 14 Jun 2007 10:23:38 -0400
-Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
-	by d03relay04.boulder.ibm.com (8.13.8/8.13.8/NCO v8.3) with ESMTP id l5EENbUj216656
-	for <linux-mm@kvack.org>; Thu, 14 Jun 2007 08:23:37 -0600
-Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av02.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l5EENbKj005366
-	for <linux-mm@kvack.org>; Thu, 14 Jun 2007 08:23:37 -0600
-Date: Thu, 14 Jun 2007 07:23:34 -0700
-From: Nishanth Aravamudan <nacc@us.ibm.com>
-Subject: Re: [patch 2/3] Fix GFP_THISNODE behavior for memoryless nodes
-Message-ID: <20070614142334.GB7469@us.ibm.com>
-References: <20070612204843.491072749@sgi.com> <20070612205738.548677035@sgi.com> <1181769033.6148.116.camel@localhost> <Pine.LNX.4.64.0706140004070.11676@schroedinger.engr.sgi.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <Pine.LNX.4.64.0706140004070.11676@schroedinger.engr.sgi.com>
+Subject: Re: [PATCH] populated_map: fix !NUMA case, remove comment
+From: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
+In-Reply-To: <Pine.LNX.4.64.0706131549480.32399@schroedinger.engr.sgi.com>
+References: <20070612032055.GQ3798@us.ibm.com>
+	 <1181660782.5592.50.camel@localhost> <20070612172858.GV3798@us.ibm.com>
+	 <1181674081.5592.91.camel@localhost>
+	 <Pine.LNX.4.64.0706121150220.30754@schroedinger.engr.sgi.com>
+	 <1181677473.5592.149.camel@localhost>
+	 <Pine.LNX.4.64.0706121245200.7983@schroedinger.engr.sgi.com>
+	 <Pine.LNX.4.64.0706121257290.7983@schroedinger.engr.sgi.com>
+	 <20070612200125.GG3798@us.ibm.com> <1181748606.6148.19.camel@localhost>
+	 <20070613175802.GP3798@us.ibm.com>
+	 <Pine.LNX.4.64.0706131549480.32399@schroedinger.engr.sgi.com>
+Content-Type: text/plain
+Date: Thu, 14 Jun 2007 10:23:49 -0400
+Message-Id: <1181831029.5410.20.camel@localhost>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Christoph Lameter <clameter@sgi.com>
-Cc: Lee Schermerhorn <Lee.Schermerhorn@hp.com>, akpm@linux-foundation.org, linux-mm@kvack.org, ak@suse.de
+Cc: Nishanth Aravamudan <nacc@us.ibm.com>, anton@samba.org, akpm@linux-foundation.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 14.06.2007 [00:07:28 -0700], Christoph Lameter wrote:
-> On Wed, 13 Jun 2007, Lee Schermerhorn wrote:
+On Wed, 2007-06-13 at 15:50 -0700, Christoph Lameter wrote:
+> On Wed, 13 Jun 2007, Nishanth Aravamudan wrote:
 > 
-> > --- Linux.orig/include/linux/gfp.h	2007-06-13 16:36:02.000000000 -0400
-> > +++ Linux/include/linux/gfp.h	2007-06-13 16:38:41.000000000 -0400
-> > @@ -168,6 +168,9 @@ FASTCALL(__alloc_pages(gfp_t, unsigned i
-> >  static inline struct page *alloc_pages_node(int nid, gfp_t gfp_mask,
-> >  						unsigned int order)
-> >  {
-> > +	pg_data_t *pgdat;
-> > +	struct zonelist *zonelist;
-> > +
-> >  	if (unlikely(order >= MAX_ORDER))
-> >  		return NULL;
-> >  
-> > @@ -179,11 +182,13 @@ static inline struct page *alloc_pages_n
-> >  	 * Check for the special case that GFP_THISNODE is used on a
-> >  	 * memoryless node
-> >  	 */
-> > -	if ((gfp_mask & __GFP_THISNODE) && !node_memory(nid))
-> > +	pgdat = NODE_DATA(nid);
-> > +	zonelist = pgdat->node_zonelists + gfp_zone(gfp_mask);
-> > +	if ((gfp_mask & __GFP_THISNODE) &&
-> > +		pgdat != zonelist->zones[0]->zone_pgdat)
-> >  		return NULL;
-> >  
-> > -	return __alloc_pages(gfp_mask, order,
-> > -		NODE_DATA(nid)->node_zonelists + gfp_zone(gfp_mask));
-> > +	return __alloc_pages(gfp_mask, order, zonelist);
-> >  }
+> > I think your code above makes sense -- I'd still leave in the earlier
+> > check, though.
+> > 
+> > So it probably should be:
+> > 
+> > 	pgdat = NODE_DATA(nid);
+> > 	zonelist = pgdat->node_zonelists + gfp_zone(gfp_mask);
+> > 
+> > 	if (unlikely((gfp_mask & __GFP_THISNODE) &&
+> > 		(!node_memory(nid) ||
+> > 		 zonelist->zones[0]->zone_pgdat != pgdat)))
+> > 		 return NULL;
+> > 
+> > That way, if the node has no memory whatsoever, we don't bother checking
+> > the pgdat of the relevant zone?
 > 
-> Good idea but I think this does not address the case where the DMA
-> zone of a node was moved to the end of the zonelist. In that case the
-> first zone is not on the first pgdat but the node has memory. The
-> memory of the node is listed elsewhere in the nodelist. I can probably
-> modify __alloc_pages to make GFP_THISNODE to check all zones but we do
-> not have the pgdat reference there. Sigh.
-> 
-> How about generating a special THISNODE zonelist in build_zonelist
-> that only contains the zones of a single node. Then just use that one
-> if GFP_THISNODE is set. Then we get rid of all the GFP_THISNODE crap
-> that I added to __alloc_pages?
+> Checking the pgdat is already done in __alloc_pages. No need to repeat it 
+> here.
 
-Makes sense to me.
+As discussed in prior mail, that's too late given the check that's being
+done.  Down in get_page_from_freelist(), where this check is made, we
+don't have the node id nor pgdat from which the allocation is being
+attempted.  The node id of the first zone in the list may already be
+off-node [even tho' the node_memory_map says the node is populated/has
+memory], so we can't rely on that.  
 
-Thanks,
-NIsh
+I suppose we could add the pgdat pointer to the zonelist itself or try
+to backup to the original pgdat from the zonelist and
+gfp_zone(gfp_mask).  Then we could do the check in
+get_page_from_freelist() that each zone in the list is on-node.
 
--- 
-Nishanth Aravamudan <nacc@us.ibm.com>
-IBM Linux Technology Center
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
