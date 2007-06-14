@@ -1,79 +1,153 @@
-Date: Thu, 14 Jun 2007 18:32:32 +0900
-From: Yasunori Goto <y-goto@jp.fujitsu.com>
-Subject: Re: mm: Fix memory/cpu hotplug section mismatch and oops.
-In-Reply-To: <20070614061316.GA22543@linux-sh.org>
-References: <20070614061316.GA22543@linux-sh.org>
-Message-Id: <20070614183015.9DD7.Y-GOTO@jp.fujitsu.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
+Subject: Re: [patch 2/3] Fix GFP_THISNODE behavior for memoryless nodes
+From: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
+In-Reply-To: <Pine.LNX.4.64.0706131535200.32399@schroedinger.engr.sgi.com>
+References: <20070612204843.491072749@sgi.com>
+	 <20070612205738.548677035@sgi.com> <1181769033.6148.116.camel@localhost>
+	 <Pine.LNX.4.64.0706131535200.32399@schroedinger.engr.sgi.com>
+Content-Type: text/plain
+Date: Thu, 14 Jun 2007 10:18:25 -0400
+Message-Id: <1181830705.5410.13.camel@localhost>
+Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Paul Mundt <lethal@linux-sh.org>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Christoph Lameter <clameter@sgi.com>
+Cc: akpm@linux-foundation.org, linux-mm@kvack.org, ak@suse.de, Nishanth Aravamudan <nacc@us.ibm.com>
 List-ID: <linux-mm.kvack.org>
 
-Thanks. I tested compile with cpu/memory hotplug off/on.
-It was OK.
+On Wed, 2007-06-13 at 15:46 -0700, Christoph Lameter wrote:
+> On Wed, 13 Jun 2007, Lee Schermerhorn wrote:
+> 
+> > SLUB early allocation, included in the patch.  Works on HP ia64 platform
+> > with small DMA only node and "zone order" zonelists.  Will test on
+> > x86_64 real soon now...
+> 
+> I do not see the difference?? How does this work? node_memory(x) fails 
+> there?
 
-Acked-by: Yasunori Goto <y-goto@jp.fujitsu.com>
+On my system, pseudo-node 4 contains ~512MB of DMA zone.  With the new
+zoneorder auto-config patch [which this platform also needs], the
+zonelist for gfp_zone == ZONE_NORMAL [hugetlb attempts to allocate from
+this zone--as it should] contains the following zones:
 
+	zone0-normal, zone1-normal, zone2-normal, zone3-normal,
+	zone4-dma
 
-> (This is a resend of the earlier patch, this issue still needs to be
-> fixed.)
+node_memory(4) returns "true" -- node does have memory, in the dma zone,
+but it's last in the list, as required.  alloc_pages_node() would call
+__alloc_pages() with this zonelist.  If get_page_from_freelist() finds
+the requested page in zone0-normal, the check that the zone's pgdat ==
+the pgdat of zonelist->zone[0] will succeed and we'll return an off-node
+page.
+
 > 
-> When building with memory hotplug enabled and cpu hotplug disabled, we
-> end up with the following section mismatch:
+> > The map of nodes with memory may include nodes with just
+> > DMA/DMA32 memory.  Using this map/mask together with
+> > GFP_THISNODE will not guarantee on-node allocations at higher
+> > zones.  Modify checks in alloc_pages_node() to ensure that the
+> > first zone in the selected zonelist is "on-node".
 > 
-> WARNING: mm/built-in.o(.text+0x4e58): Section mismatch: reference to
-> .init.text: (between 'free_area_init_node' and '__build_all_zonelists')
+> That check is already done by __alloc_pages.
+
+You mean in get_page_from_freelist()?  No, it only checks that the zone
+under consideration is on the same node as the zone at the start of the
+list.  This can be off-node if the node is populated only at lower
+zones; and the zonelists are in zone-order.
+
 > 
-> This happens as a result of:
+> > This change will result in alloc_pages_node() returning NULL
+> > when GFP_THISNODE is specified and the first zone in the zonelist
+> > selected by (nid, gfp_zone(gfp_mask) is not on node 'nid'.  This,
+> > in turn, BUGs out in slub.c:early_kmem_cache_node_alloc() which
+> > apparently can't handle a NULL page from new_slab().  Fix SLUB
+> > to handle NULL page in early allocation.
 > 
->         -> free_area_init_node()
->           -> free_area_init_core()
->             -> zone_pcp_init() <-- all __meminit up to this point
->               -> zone_batchsize() <-- marked as __cpuinit                     fo
+> Ummm... Slub would need to consult node_memory_map instead I guess.
+
+Probably should check the node_memory_map to avoid attempting
+allocations from completely memoryless nodes.  However, it should still
+be able to handle nulls from alloc_pages_nodes() because of the
+scenarios discussed above.
+
+Lee
+
 > 
-> This happens because CONFIG_HOTPLUG_CPU=n sets __cpuinit to __init, but
-> CONFIG_MEMORY_HOTPLUG=y unsets __meminit.
+> > Index: Linux/mm/slub.c
+> > ===================================================================
+> > --- Linux.orig/mm/slub.c	2007-06-13 16:36:02.000000000 -0400
+> > +++ Linux/mm/slub.c	2007-06-13 16:38:41.000000000 -0400
+> > @@ -1870,16 +1870,18 @@ static struct kmem_cache_node * __init e
+> >  	/* new_slab() disables interupts */
+> >  	local_irq_enable();
+> >  
+> > -	BUG_ON(!page);
+> > -	n = page->freelist;
+> > -	BUG_ON(!n);
+> > -	page->freelist = get_freepointer(kmalloc_caches, n);
+> > -	page->inuse++;
+> > -	kmalloc_caches->node[node] = n;
+> > -	setup_object_debug(kmalloc_caches, page, n);
+> > -	init_kmem_cache_node(n);
+> > -	atomic_long_inc(&n->nr_slabs);
+> > -	add_partial(n, page);
+> > +	if (page) {
+> > +		n = page->freelist;
+> > +		BUG_ON(!n);
+> > +		page->freelist = get_freepointer(kmalloc_caches, n);
+> > +		page->inuse++;
+> > +		kmalloc_caches->node[node] = n;
+> > +		setup_object_debug(kmalloc_caches, page, n);
+> > +		init_kmem_cache_node(n);
+> > +		atomic_long_inc(&n->nr_slabs);
+> > +		add_partial(n, page);
+> > +	} else
+> > +		kmalloc_caches->node[node] = NULL;
+> >  	return n;
+> >  }
 > 
-> Changing zone_batchsize() to __devinit fixes this.
+> It would be easier to modify SLUB to loop over node_memory_map instead of 
+> node_online_map? Potentially we have to change all loops over online node 
+> in the slab allocators.
+
+Again, node_memory_map can't detect the "first zone in zonelist
+off-node" situation.  That's the one that alloc_pages_node() must guard
+against.   So, it can/should/must return NULL when attempting to
+allocate from a higher zone that is off-node.
+
 > 
-> __devinit is the only thing that is common between CONFIG_HOTPLUG_CPU=y and
-> CONFIG_MEMORY_HOTPLUG=y. In the long run, perhaps this should be moved to
-> another section identifier completely. Without this, memory hot-add
-> of offline nodes (via hotadd_new_pgdat()) will oops if CPU hotplug is
-> not also enabled.
+> ---
+>  include/linux/nodemask.h |    1 +
+>  mm/slub.c                |    2 +-
+>  2 files changed, 2 insertions(+), 1 deletion(-)
 > 
-> Signed-off-by: Paul Mundt <lethal@linux-sh.org>
-> 
-> --
-> 
->  mm/page_alloc.c |    2 +-
->  1 file changed, 1 insertion(+), 1 deletion(-)
-> 
-> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> index bd8e335..05ace44 100644
-> --- a/mm/page_alloc.c
-> +++ b/mm/page_alloc.c
-> @@ -1968,7 +1968,7 @@ void zone_init_free_lists(struct pglist_data *pgdat, struct zone *zone,
->  	memmap_init_zone((size), (nid), (zone), (start_pfn), MEMMAP_EARLY)
->  #endif
+> Index: linux-2.6/include/linux/nodemask.h
+> ===================================================================
+> --- linux-2.6.orig/include/linux/nodemask.h	2007-06-13 15:40:27.000000000 -0700
+> +++ linux-2.6/include/linux/nodemask.h	2007-06-13 15:40:48.000000000 -0700
+> @@ -377,5 +377,6 @@ extern int nr_node_ids;
 >  
-> -static int __cpuinit zone_batchsize(struct zone *zone)
-> +static int __devinit zone_batchsize(struct zone *zone)
->  {
->  	int batch;
+>  #define for_each_node(node)	   for_each_node_mask((node), node_possible_map)
+>  #define for_each_online_node(node) for_each_node_mask((node), node_online_map)
+> +#define for_each_memory_node(node) for_each_node_mask((node), node_memory_map)
 >  
-> -
-> To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
-> the body of a message to majordomo@vger.kernel.org
-> More majordomo info at  http://vger.kernel.org/majordomo-info.html
-> Please read the FAQ at  http://www.tux.org/lkml/
-
--- 
-Yasunori Goto 
-
+>  #endif /* __LINUX_NODEMASK_H */
+> Index: linux-2.6/mm/slub.c
+> ===================================================================
+> --- linux-2.6.orig/mm/slub.c	2007-06-13 15:39:16.000000000 -0700
+> +++ linux-2.6/mm/slub.c	2007-06-13 15:40:23.000000000 -0700
+> @@ -1836,7 +1836,7 @@ static int init_kmem_cache_nodes(struct 
+>  	else
+>  		local_node = 0;
+>  
+> -	for_each_online_node(node) {
+> +	for_each_memory_node(node) {
+>  		struct kmem_cache_node *n;
+>  
+>  		if (local_node == node)
+> 
+> 
+> 
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
