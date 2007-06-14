@@ -1,40 +1,33 @@
-Message-Id: <20070614075334.761001237@sgi.com>
+Message-Id: <20070614075334.990871341@sgi.com>
 References: <20070614075026.607300756@sgi.com>
-Date: Thu, 14 Jun 2007 00:50:29 -0700
+Date: Thu, 14 Jun 2007 00:50:30 -0700
 From: clameter@sgi.com
-Subject: [RFC 03/13] OOM: use the node_memory_map instead of constructing one on the fly
-Content-Disposition: inline; filename=nodeless_oom_kill
+Subject: [RFC 04/13] Memoryless Nodes: No need for kswapd
+Content-Disposition: inline; filename=nodeless_no_kswapd
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Nishanth Aravamudan <nacc@us.ibm.com>
 Cc: Lee Schermerhorn <Lee.Schermerhorn@hp.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-constrained_alloc() builds its own memory map for nodes with memory.
-We have that available in node_memory_map now. So simplify the code.
+A node without memory does not need a kswapd. So use the memory map instead
+of the online map to start kswapd.
 
 Signed-off-by: Christoph Lameter <clameter@sgi.com>
 
-Index: linux-2.6.22-rc4-mm2/mm/oom_kill.c
+Index: linux-2.6.22-rc4-mm2/mm/vmscan.c
 ===================================================================
---- linux-2.6.22-rc4-mm2.orig/mm/oom_kill.c	2007-06-13 23:11:32.000000000 -0700
-+++ linux-2.6.22-rc4-mm2/mm/oom_kill.c	2007-06-13 23:12:39.000000000 -0700
-@@ -176,14 +176,7 @@ static inline int constrained_alloc(stru
- {
- #ifdef CONFIG_NUMA
- 	struct zone **z;
--	nodemask_t nodes;
--	int node;
--
--	nodes_clear(nodes);
--	/* node has memory ? */
--	for_each_online_node(node)
--		if (NODE_DATA(node)->node_present_pages)
--			node_set(node, nodes);
-+	nodemask_t nodes = node_memory_map;
+--- linux-2.6.22-rc4-mm2.orig/mm/vmscan.c	2007-06-13 23:15:05.000000000 -0700
++++ linux-2.6.22-rc4-mm2/mm/vmscan.c	2007-06-13 23:16:30.000000000 -0700
+@@ -1716,7 +1716,7 @@ static int __init kswapd_init(void)
+ 	int nid;
  
- 	for (z = zonelist->zones; *z; z++)
- 		if (cpuset_zone_allowed_softwall(*z, gfp_mask))
+ 	swap_setup();
+-	for_each_online_node(nid)
++	for_each_memory_node(nid)
+  		kswapd_run(nid);
+ 	hotcpu_notifier(cpu_callback, 0);
+ 	return 0;
 
 -- 
 
