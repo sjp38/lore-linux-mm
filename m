@@ -1,8 +1,8 @@
-Date: Fri, 15 Jun 2007 18:43:08 +0900
+Date: Fri, 15 Jun 2007 18:53:53 +0900
 From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 Subject: Re: [RFC] memory unplug v5 [1/6] migration by kernel
-Message-Id: <20070615184308.d59a9c11.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20070615073125.f5e4d6e2.kamezawa.hiroyu@jp.fujitsu.com>
+Message-Id: <20070615185353.905b525f.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20070615184308.d59a9c11.kamezawa.hiroyu@jp.fujitsu.com>
 References: <20070614155630.04f8170c.kamezawa.hiroyu@jp.fujitsu.com>
 	<20070614155929.2be37edb.kamezawa.hiroyu@jp.fujitsu.com>
 	<Pine.LNX.4.64.0706140000400.11433@schroedinger.engr.sgi.com>
@@ -17,6 +17,7 @@ References: <20070614155630.04f8170c.kamezawa.hiroyu@jp.fujitsu.com>
 	<20070615011536.beaa79c1.kamezawa.hiroyu@jp.fujitsu.com>
 	<46718320.1010500@csn.ul.ie>
 	<20070615073125.f5e4d6e2.kamezawa.hiroyu@jp.fujitsu.com>
+	<20070615184308.d59a9c11.kamezawa.hiroyu@jp.fujitsu.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
@@ -26,10 +27,11 @@ To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 Cc: Mel Gorman <mel@csn.ul.ie>, clameter@sgi.com, linux-mm@kvack.org, y-goto@jp.fujitsu.com, hugh@veritas.com
 List-ID: <linux-mm.kvack.org>
 
-This is updated version.
+Sorry...original comments were removed...
+This is fixed version.
 
 -Kame
-
+==
 page migration by kernel v6.
 
 Changelog V5->V6
@@ -62,7 +64,7 @@ Index: devel-2.6.22-rc4-mm2/mm/migrate.c
 ===================================================================
 --- devel-2.6.22-rc4-mm2.orig/mm/migrate.c
 +++ devel-2.6.22-rc4-mm2/mm/migrate.c
-@@ -632,16 +632,30 @@ static int unmap_and_move(new_page_t get
+@@ -632,16 +632,31 @@ static int unmap_and_move(new_page_t get
  			goto unlock;
  		wait_on_page_writeback(page);
  	}
@@ -74,7 +76,7 @@ Index: devel-2.6.22-rc4-mm2/mm/migrate.c
 +	 * and treated as swapcache but has no rmap yet.
 +	 * Calling try_to_unmap() against a page->mapping==NULL page is
 +	 * BUG. So handle it here.
-+	 */
+ 	 */
 +	if (!page->mapping)
 +		goto unlock;
 +	/*
@@ -82,8 +84,9 @@ Index: devel-2.6.22-rc4-mm2/mm/migrate.c
 +	 * we cannot notice that anon_vma is freed while we migrates a pages
 +	 * This rcu_read_lock() delays freeing anon_vma pointer until the end
 +	 * of migration. File cache pages are no problem because of page_lock()
- 	 */
++	 */
 +	rcu_read_lock();
++	/* Establish migration ptes or remove ptes */
  	try_to_unmap(page, 1);
 +
  	if (!page_mapped(page))
