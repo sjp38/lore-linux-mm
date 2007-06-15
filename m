@@ -1,12 +1,11 @@
-Date: Fri, 15 Jun 2007 15:11:32 +0900
+Date: Fri, 15 Jun 2007 15:12:42 +0900
 From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [RFC] memory unplug v5 [3/6] walk memory resources assist
- function.
-Message-Id: <20070615151132.a6ffa1e4.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <alpine.DEB.0.99.0706142304530.1729@chino.kir.corp.google.com>
+Subject: Re: [RFC] memory unplug v5 [5/6] page unplug
+Message-Id: <20070615151242.9226b64b.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <alpine.DEB.0.99.0706142303460.1729@chino.kir.corp.google.com>
 References: <20070614155630.04f8170c.kamezawa.hiroyu@jp.fujitsu.com>
-	<20070614160156.9aa218ec.kamezawa.hiroyu@jp.fujitsu.com>
-	<alpine.DEB.0.99.0706142304530.1729@chino.kir.corp.google.com>
+	<20070614160458.62e20cbd.kamezawa.hiroyu@jp.fujitsu.com>
+	<alpine.DEB.0.99.0706142303460.1729@chino.kir.corp.google.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
@@ -16,17 +15,18 @@ To: David Rientjes <rientjes@google.com>
 Cc: linux-mm@kvack.org, mel@csn.ul.ie, y-goto@jp.fujitsu.com, clameter@sgi.com, hugh@veritas.com
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 14 Jun 2007 23:05:22 -0700 (PDT)
+On Thu, 14 Jun 2007 23:04:50 -0700 (PDT)
 David Rientjes <rientjes@google.com> wrote:
 
-> > +		len = (unsigned long)(res.end + 1 - res.start) >> PAGE_SHIFT;
+> > +		page = pfn_to_page(pfn);
+> > +#endif
 > 
-> This needs to be
+> Please extract this out to inlined functions that are conditional are 
+> CONFIG_HOLES_IN_ZONE.
 > 
-> 	len = (unsigned long)((res.end + 1 - res.start) >> PAGE_SHIFT);
-> 
-Okay, thank you for review. will fix.
+Hmm. ok, I"ll do.
 
+thanks.
 -Kame
 
 --
