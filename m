@@ -1,10 +1,11 @@
-Date: Thu, 14 Jun 2007 23:04:50 -0700 (PDT)
+Date: Thu, 14 Jun 2007 23:05:22 -0700 (PDT)
 From: David Rientjes <rientjes@google.com>
-Subject: Re: [RFC] memory unplug v5 [5/6] page unplug
-In-Reply-To: <20070614160458.62e20cbd.kamezawa.hiroyu@jp.fujitsu.com>
-Message-ID: <alpine.DEB.0.99.0706142303460.1729@chino.kir.corp.google.com>
+Subject: Re: [RFC] memory unplug v5 [3/6] walk memory resources assist
+ function.
+In-Reply-To: <20070614160156.9aa218ec.kamezawa.hiroyu@jp.fujitsu.com>
+Message-ID: <alpine.DEB.0.99.0706142304530.1729@chino.kir.corp.google.com>
 References: <20070614155630.04f8170c.kamezawa.hiroyu@jp.fujitsu.com>
- <20070614160458.62e20cbd.kamezawa.hiroyu@jp.fujitsu.com>
+ <20070614160156.9aa218ec.kamezawa.hiroyu@jp.fujitsu.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
@@ -15,52 +16,42 @@ List-ID: <linux-mm.kvack.org>
 
 On Thu, 14 Jun 2007, KAMEZAWA Hiroyuki wrote:
 
-> Index: devel-2.6.22-rc4-mm2/mm/memory_hotplug.c
+> Index: devel-2.6.22-rc4-mm2/kernel/resource.c
 > ===================================================================
-> --- devel-2.6.22-rc4-mm2.orig/mm/memory_hotplug.c
-> +++ devel-2.6.22-rc4-mm2/mm/memory_hotplug.c
-> @@ -23,6 +23,9 @@
->  #include <linux/vmalloc.h>
->  #include <linux/ioport.h>
->  #include <linux/cpuset.h>
-> +#include <linux/delay.h>
-> +#include <linux/migrate.h>
-> +#include <linux/page-isolation.h>
->  
->  #include <asm/tlbflush.h>
->  
-> @@ -301,3 +304,256 @@ error:
->  	return ret;
+> --- devel-2.6.22-rc4-mm2.orig/kernel/resource.c
+> +++ devel-2.6.22-rc4-mm2/kernel/resource.c
+> @@ -244,7 +244,7 @@ EXPORT_SYMBOL(release_resource);
+>   * the caller must specify res->start, res->end, res->flags.
+>   * If found, returns 0, res is overwritten, if not found, returns -1.
+>   */
+> -int find_next_system_ram(struct resource *res)
+> +static int find_next_system_ram(struct resource *res)
+>  {
+>  	resource_size_t start, end;
+>  	struct resource *p;
+> @@ -277,6 +277,30 @@ int find_next_system_ram(struct resource
+>  		res->end = p->end;
+>  	return 0;
 >  }
->  EXPORT_SYMBOL_GPL(add_memory);
 > +
-> +#ifdef CONFIG_MEMORY_HOTREMOVE
-> +/*
-> + * Confirm all pages in a range [start, end) is belongs to the same zone.
-> + */
-> +static int test_pages_in_a_zone(unsigned long start_pfn, unsigned long end_pfn)
+> +int walk_memory_resource(unsigned long start_pfn, unsigned long nr_pages,
+> +			 void *arg, walk_memory_callback_t func)
 > +{
-> +	unsigned long pfn;
-> +	struct zone *zone = NULL;
-> +	struct page *page;
-> +	for (pfn = start_pfn;
-> +             pfn < end_pfn;
-> +	     pfn += MAX_ORDER_NR_PAGES) {
-> +#ifdef CONFIG_HOLES_IN_ZONE
-> +		int i;
-> +		for (i = 0; i < MAX_ORDER_NR_PAGES; i++) {
-> +			if (pfn_valid_within(pfn + i))
-> +				break;
-> +		}
-> +		if (i == MAX_ORDER_NR_PAGES)
-> +			continue;
-> +		page = pfn_to_page(pfn + i);
-> +#else
-> +		page = pfn_to_page(pfn);
-> +#endif
+> +	struct resource res;
+> +	unsigned long pfn, len;
+> +	u64 orig_end;
+> +	int ret;
+> +	res.start = (u64) start_pfn << PAGE_SHIFT;
+> +	res.end = ((u64)(start_pfn + nr_pages) << PAGE_SHIFT) - 1;
+> +	res.flags = IORESOURCE_MEM;
+> +	orig_end = res.end;
+> +	while ((res.start < res.end) && (find_next_system_ram(&res) >= 0)) {
+> +		pfn = (unsigned long)(res.start >> PAGE_SHIFT);
+> +		len = (unsigned long)(res.end + 1 - res.start) >> PAGE_SHIFT;
 
-Please extract this out to inlined functions that are conditional are 
-CONFIG_HOLES_IN_ZONE.
+This needs to be
+
+	len = (unsigned long)((res.end + 1 - res.start) >> PAGE_SHIFT);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
