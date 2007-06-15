@@ -1,34 +1,53 @@
-Date: Fri, 15 Jun 2007 07:39:54 -0700 (PDT)
+Date: Fri, 15 Jun 2007 07:41:42 -0700 (PDT)
 From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [PATCH] slob: poor man's NUMA, take 5.
-In-Reply-To: <20070615082237.GA29917@linux-sh.org>
-Message-ID: <Pine.LNX.4.64.0706150737190.7471@schroedinger.engr.sgi.com>
-References: <20070615033412.GA28687@linux-sh.org> <20070615064445.GM11115@waste.org>
- <20070615082237.GA29917@linux-sh.org>
+Subject: Re: [RFC] memory unplug v5 [1/6] migration by kernel
+In-Reply-To: <20070615184308.d59a9c11.kamezawa.hiroyu@jp.fujitsu.com>
+Message-ID: <Pine.LNX.4.64.0706150740510.7471@schroedinger.engr.sgi.com>
+References: <20070614155630.04f8170c.kamezawa.hiroyu@jp.fujitsu.com>
+ <20070614155929.2be37edb.kamezawa.hiroyu@jp.fujitsu.com>
+ <Pine.LNX.4.64.0706140000400.11433@schroedinger.engr.sgi.com>
+ <20070614161146.5415f493.kamezawa.hiroyu@jp.fujitsu.com>
+ <Pine.LNX.4.64.0706140019490.11852@schroedinger.engr.sgi.com>
+ <20070614164128.42882f74.kamezawa.hiroyu@jp.fujitsu.com>
+ <Pine.LNX.4.64.0706140044400.22032@schroedinger.engr.sgi.com>
+ <20070614172936.12b94ad7.kamezawa.hiroyu@jp.fujitsu.com>
+ <Pine.LNX.4.64.0706140706370.28544@schroedinger.engr.sgi.com>
+ <20070615010217.62908da3.kamezawa.hiroyu@jp.fujitsu.com>
+ <Pine.LNX.4.64.0706140909030.29612@schroedinger.engr.sgi.com>
+ <20070615011536.beaa79c1.kamezawa.hiroyu@jp.fujitsu.com> <46718320.1010500@csn.ul.ie>
+ <20070615073125.f5e4d6e2.kamezawa.hiroyu@jp.fujitsu.com>
+ <20070615184308.d59a9c11.kamezawa.hiroyu@jp.fujitsu.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Paul Mundt <lethal@linux-sh.org>
-Cc: Matt Mackall <mpm@selenic.com>, Nick Piggin <nickpiggin@yahoo.com.au>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: Mel Gorman <mel@csn.ul.ie>, linux-mm@kvack.org, y-goto@jp.fujitsu.com, hugh@veritas.com
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 15 Jun 2007, Paul Mundt wrote:
+On Fri, 15 Jun 2007, KAMEZAWA Hiroyuki wrote:
 
-> + * %GFP_DMA - Allocation suitable for DMA.
-> + *
-> + * %GFP_DMA32 - Large allocation suitable for DMA (depending on platform).
+>  	/*
+> -	 * Establish migration ptes or remove ptes
+> +	 * This is a corner case handling.
+> +	 * When a new swap-ache is read into, it is linked to LRU
+> +	 * and treated as swapcache but has no rmap yet.
+> +	 * Calling try_to_unmap() against a page->mapping==NULL page is
+> +	 * BUG. So handle it here.
+> +	 */
+> +	if (!page->mapping)
+> +		goto unlock;
+> +	/*
+> +	 * By try_to_unmap(), page->mapcount goes down to 0 here. In this case,
+> +	 * we cannot notice that anon_vma is freed while we migrates a pages
+> +	 * This rcu_read_lock() delays freeing anon_vma pointer until the end
+> +	 * of migration. File cache pages are no problem because of page_lock()
+>  	 */
+> +	rcu_read_lock();
+>  	try_to_unmap(page, 1);
 
-GFP_DMA32 is not supported in the slab allocators.
-
-GFP_DMA should only be used for kmalloc caches. Otherwise use a slab 
-created with SLAB_DMA.
-
-> + *
-> + * %__GFP_ZERO - Zero the allocation on success.
-> + *
-
-__GFP_ZERO is not support for slab allocations.
+page->mapping needs to be checked after rcu_read_lock. The mapping may be 
+removed and the anon_vma dropped after you checked page->mapping.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
