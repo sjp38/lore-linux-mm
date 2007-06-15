@@ -1,37 +1,66 @@
-Date: Fri, 15 Jun 2007 14:39:06 +0900
-From: Paul Mundt <lethal@linux-sh.org>
-Subject: Re: [PATCH] slob: poor man's NUMA, take 5.
-Message-ID: <20070615053906.GA28865@linux-sh.org>
-References: <20070615033412.GA28687@linux-sh.org> <Pine.LNX.4.64.0706142119540.4224@schroedinger.engr.sgi.com>
+Date: Thu, 14 Jun 2007 23:04:50 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [RFC] memory unplug v5 [5/6] page unplug
+In-Reply-To: <20070614160458.62e20cbd.kamezawa.hiroyu@jp.fujitsu.com>
+Message-ID: <alpine.DEB.0.99.0706142303460.1729@chino.kir.corp.google.com>
+References: <20070614155630.04f8170c.kamezawa.hiroyu@jp.fujitsu.com>
+ <20070614160458.62e20cbd.kamezawa.hiroyu@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <Pine.LNX.4.64.0706142119540.4224@schroedinger.engr.sgi.com>
+Content-Type: TEXT/PLAIN; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
-Cc: Matt Mackall <mpm@selenic.com>, Nick Piggin <nickpiggin@yahoo.com.au>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: linux-mm@kvack.org, mel@csn.ul.ie, y-goto@jp.fujitsu.com, clameter@sgi.com, hugh@veritas.com
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Jun 14, 2007 at 09:30:58PM -0700, Christoph Lameter wrote:
-> On Fri, 15 Jun 2007, Paul Mundt wrote:
-> 
-> > This version adds in a slob_def.h and reorders a bit of the slab.h
-> > definitions. This should take in to account all of the outstanding
-> > comments so far on the earlier versions.
-> 
-> Why are the comments on kmalloc moved() from slab.h to slob_def.h? The 
-> comments are only partially correct. So they probably can do less harm in 
-> slob_def.h. May be good if you could move them back and in the process 
-> make them accurate?
-> 
-The comments moved because the kmalloc() definition moved, it didn't seem
-entirely helpful to leave the comment by itself and have the definitions
-in the *_def.h files.
+On Thu, 14 Jun 2007, KAMEZAWA Hiroyuki wrote:
 
-But I'll try and generalize the comments regarding the allocator gfp
-flags, and keep those in slab.h, so it's more obvious (as well as tidying
-them for correctness).
+> Index: devel-2.6.22-rc4-mm2/mm/memory_hotplug.c
+> ===================================================================
+> --- devel-2.6.22-rc4-mm2.orig/mm/memory_hotplug.c
+> +++ devel-2.6.22-rc4-mm2/mm/memory_hotplug.c
+> @@ -23,6 +23,9 @@
+>  #include <linux/vmalloc.h>
+>  #include <linux/ioport.h>
+>  #include <linux/cpuset.h>
+> +#include <linux/delay.h>
+> +#include <linux/migrate.h>
+> +#include <linux/page-isolation.h>
+>  
+>  #include <asm/tlbflush.h>
+>  
+> @@ -301,3 +304,256 @@ error:
+>  	return ret;
+>  }
+>  EXPORT_SYMBOL_GPL(add_memory);
+> +
+> +#ifdef CONFIG_MEMORY_HOTREMOVE
+> +/*
+> + * Confirm all pages in a range [start, end) is belongs to the same zone.
+> + */
+> +static int test_pages_in_a_zone(unsigned long start_pfn, unsigned long end_pfn)
+> +{
+> +	unsigned long pfn;
+> +	struct zone *zone = NULL;
+> +	struct page *page;
+> +	for (pfn = start_pfn;
+> +             pfn < end_pfn;
+> +	     pfn += MAX_ORDER_NR_PAGES) {
+> +#ifdef CONFIG_HOLES_IN_ZONE
+> +		int i;
+> +		for (i = 0; i < MAX_ORDER_NR_PAGES; i++) {
+> +			if (pfn_valid_within(pfn + i))
+> +				break;
+> +		}
+> +		if (i == MAX_ORDER_NR_PAGES)
+> +			continue;
+> +		page = pfn_to_page(pfn + i);
+> +#else
+> +		page = pfn_to_page(pfn);
+> +#endif
+
+Please extract this out to inlined functions that are conditional are 
+CONFIG_HOLES_IN_ZONE.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
