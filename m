@@ -1,61 +1,90 @@
-Date: Sat, 16 Jun 2007 02:03:48 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [RFC] memory unplug v5 [5/6] page unplug
-Message-Id: <20070616020348.b4f2aab5.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <1181922762.28189.30.camel@spirit>
-References: <20070614155630.04f8170c.kamezawa.hiroyu@jp.fujitsu.com>
-	<20070614160458.62e20cbd.kamezawa.hiroyu@jp.fujitsu.com>
-	<1181922762.28189.30.camel@spirit>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Date: Fri, 15 Jun 2007 11:10:22 -0700
+Message-ID: <90062074.77437753@cannon.com>
+From: "Cherry" <ally@fast.net>
+Subject: unglaublichen 300% bonus!
+MIME-Version: 1.0
+Content-Type: text/html; charset=iso-8859-1
 Content-Transfer-Encoding: 7bit
-Sender: owner-linux-mm@kvack.org
-Return-Path: <owner-linux-mm@kvack.org>
-To: Dave Hansen <hansendc@us.ibm.com>
-Cc: linux-mm@kvack.org, mel@csn.ul.ie, y-goto@jp.fujitsu.com, clameter@sgi.com, hugh@veritas.com
+Return-Path: <ally@fast.net>
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 15 Jun 2007 08:52:41 -0700
-Dave Hansen <hansendc@us.ibm.com> wrote:
+<html>
 
-> On Thu, 2007-06-14 at 16:04 +0900, KAMEZAWA Hiroyuki wrote:
-> > 
-> > +       if (start_pfn & (pageblock_nr_pages - 1))
-> > +               return -EINVAL;
-> > +       if (end_pfn & (pageblock_nr_pages - 1))
-> > +               return -EINVAL; 
-> 
-> After reading these, I'm still not sure I know what a pageblock is
-> supposed to be. :)  Did those come from Mel's patches?
-> 
-yes.
+<head>
+<meta http-equiv=Content-Type content="text/html; charset=iso-8859-1">
 
-> In any case, I think it might be helpful to wrap up some of those
-> references in functions.  I was always looking at the patches trying to
-> find if "pageblock_nr_pages" was a local variable or not.  A function
-> would surely tell me.
-> 
-> static inline int pfn_is_pageblock_aligned(unsigned long pfn)
-> {
-> 	return pfn & (pageblock_nr_pages - 1)
-> }
-> 
-> and, then you get
-> 
-> 		BUG_ON(!pfn_is_pageblock_aligned(start_pfn));
-> 
-> It's pretty obvious what is going on, there. 
-> 
-Hmm...I'll try that in the next version. But Is there some macro
-to do this ? like..
---
-#define IS_ALIGNED(val, align)	((val) & (align - 1))
---
+<title>Hallo</title>
 
--Kame
+<style>
+<!--
+ /* Style Definitions */
+ p.MsoNormal, li.MsoNormal, div.MsoNormal
+	{mso-style-parent:"";
+	margin:0cm;
+	margin-bottom:.0001pt;
+	mso-pagination:widow-orphan;
+	font-size:12.0pt;
+	font-family:"Times New Roman";
+	mso-fareast-font-family:"Times New Roman";
+	mso-ansi-language:FR;
+	mso-fareast-language:EN-US;
+	mso-bidi-language:HE;}
+a:link, span.MsoHyperlink
+	{color:blue;
+	text-decoration:underline;
+	text-underline:single;}
+a:visited, span.MsoHyperlinkFollowed
+	{color:purple;
+	text-decoration:underline;
+	text-underline:single;}
+@page Section1
+	{size:595.3pt 841.9pt;
+	margin:2.0cm 42.5pt 2.0cm 3.0cm;
+	mso-header-margin:35.4pt;
+	mso-footer-margin:35.4pt;
+	mso-paper-source:0;}
+div.Section1
+	{page:Section1;}
+-->
+</style>
 
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+</head>
+
+<body lang=DE link=blue vlink=purple style='tab-interval:35.4pt'>
+
+<div class=Section1>
+
+<p class=MsoNormal><span lang=FR>Hallo!<o:p></o:p></span></p>
+
+<p class=MsoNormal><span lang=FR><o:p>&nbsp;</o:p></span></p>
+
+<p class=MsoNormal><span lang=FR>Ich hatte schon vor Sie anzurufen&#8230; wie
+geht es Ihnen? <o:p></o:p></span></p>
+
+<p class=MsoNormal><span lang=FR><o:p>&nbsp;</o:p></span></p>
+
+<p class=MsoNormal><span lang=FR>Ich wollte Ihnen nur schnell von dieser 
+tollen Webseite erz&auml;hlen, die ich gefunden habe. Sie hat die besten 
+Spiele und bietet einen unglaublichen 300% Bonus an!<o:p></o:p></span></p>
+
+<p class=MsoNormal><span lang=FR><o:p>&nbsp;</o:p></span></p>
+
+<p class=MsoNormal><span lang=FR>Schauen Sie sich diese Seite mal an und
+erz&auml;hlen Sie mir danach was Sie davon halten! <o:p></o:p></span></p>
+
+<p class=MsoNormal><span lang=FR><o:p>&nbsp;</o:p></span></p>
+
+<p class=MsoNormal><span lang=FR>Bleiben Sie in Kontakt!<o:p></o:p></span></p>
+
+<p class=MsoNormal><span lang=FR><o:p>&nbsp;</o:p></span></p>
+
+<p class=MsoNormal><span lang=FR>
+<a href="http://www.royaleurocazino.hk/lang-de/">
+http://www.royaleurocazino.hk/lang-de/</a><o:p></o:p></span></p>
+
+</div>
+
+</body>
+
+</html>
