@@ -1,40 +1,35 @@
-Received: from d01relay02.pok.ibm.com (d01relay02.pok.ibm.com [9.56.227.234])
-	by e6.ny.us.ibm.com (8.13.8/8.13.8) with ESMTP id l5FLAohg007456
-	for <linux-mm@kvack.org>; Fri, 15 Jun 2007 17:10:50 -0400
-Received: from d01av02.pok.ibm.com (d01av02.pok.ibm.com [9.56.224.216])
-	by d01relay02.pok.ibm.com (8.13.8/8.13.8/NCO v8.3) with ESMTP id l5FL9fHV128820
-	for <linux-mm@kvack.org>; Fri, 15 Jun 2007 17:09:43 -0400
-Received: from d01av02.pok.ibm.com (loopback [127.0.0.1])
-	by d01av02.pok.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l5FL9e9v017987
-	for <linux-mm@kvack.org>; Fri, 15 Jun 2007 17:09:41 -0400
-Subject: Re: [RFC] memory unplug v5 [5/6] page unplug
-From: Dave Hansen <hansendc@us.ibm.com>
-In-Reply-To: <20070616020348.b4f2aab5.kamezawa.hiroyu@jp.fujitsu.com>
-References: <20070614155630.04f8170c.kamezawa.hiroyu@jp.fujitsu.com>
-	 <20070614160458.62e20cbd.kamezawa.hiroyu@jp.fujitsu.com>
-	 <1181922762.28189.30.camel@spirit>
-	 <20070616020348.b4f2aab5.kamezawa.hiroyu@jp.fujitsu.com>
-Content-Type: text/plain
-Date: Fri, 15 Jun 2007 14:09:39 -0700
-Message-Id: <1181941779.28189.36.camel@spirit.sr71.net>
+Date: Fri, 15 Jun 2007 16:44:11 -0700
+From: Randy Dunlap <randy.dunlap@oracle.com>
+Subject: Re: mm: Fix memory/cpu hotplug section mismatch and oops.
+Message-Id: <20070615164411.ec1bdcc7.randy.dunlap@oracle.com>
+In-Reply-To: <20070615030241.GA28493@linux-sh.org>
+References: <20070614061316.GA22543@linux-sh.org>
+	<20070614183015.9DD7.Y-GOTO@jp.fujitsu.com>
+	<20070615030241.GA28493@linux-sh.org>
 Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: linux-mm@kvack.org, mel@csn.ul.ie, y-goto@jp.fujitsu.com, clameter@sgi.com, hugh@veritas.com
+To: Paul Mundt <lethal@linux-sh.org>
+Cc: Yasunori Goto <y-goto@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Sat, 2007-06-16 at 02:03 +0900, KAMEZAWA Hiroyuki wrote:
-> 
-> Hmm...I'll try that in the next version. But Is there some macro
-> to do this ? like..
-> --
-> #define IS_ALIGNED(val, align)  ((val) & (align - 1)) 
+On Fri, 15 Jun 2007 12:02:41 +0900 Paul Mundt wrote:
 
-Yep, that's a bit better.
+> On Thu, Jun 14, 2007 at 06:32:32PM +0900, Yasunori Goto wrote:
+> > Thanks. I tested compile with cpu/memory hotplug off/on.
+> > It was OK.
+> > 
+> > Acked-by: Yasunori Goto <y-goto@jp.fujitsu.com>
+> > 
+> It would be nice to have this for 2.6.22..
 
--- Dave
+Yes, please.
+
+---
+~Randy
+*** Remember to use Documentation/SubmitChecklist when testing your code ***
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
