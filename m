@@ -1,51 +1,68 @@
-Date: Fri, 15 Jun 2007 11:20:31 -0400 (EDT)
-From: Jason Baron <jbaron@redhat.com>
-Subject: [PATCH] madvise_need_mmap_write() usage
-Message-ID: <Pine.LNX.4.64.0706151118150.11498@dhcp83-20.boston.redhat.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Date: Sat, 16 Jun 2007 00:36:10 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [RFC] memory unplug v5 [1/6] migration by kernel
+Message-Id: <20070616003610.2acbcbc8.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <Pine.LNX.4.64.0706150740510.7471@schroedinger.engr.sgi.com>
+References: <20070614155630.04f8170c.kamezawa.hiroyu@jp.fujitsu.com>
+	<20070614155929.2be37edb.kamezawa.hiroyu@jp.fujitsu.com>
+	<Pine.LNX.4.64.0706140000400.11433@schroedinger.engr.sgi.com>
+	<20070614161146.5415f493.kamezawa.hiroyu@jp.fujitsu.com>
+	<Pine.LNX.4.64.0706140019490.11852@schroedinger.engr.sgi.com>
+	<20070614164128.42882f74.kamezawa.hiroyu@jp.fujitsu.com>
+	<Pine.LNX.4.64.0706140044400.22032@schroedinger.engr.sgi.com>
+	<20070614172936.12b94ad7.kamezawa.hiroyu@jp.fujitsu.com>
+	<Pine.LNX.4.64.0706140706370.28544@schroedinger.engr.sgi.com>
+	<20070615010217.62908da3.kamezawa.hiroyu@jp.fujitsu.com>
+	<Pine.LNX.4.64.0706140909030.29612@schroedinger.engr.sgi.com>
+	<20070615011536.beaa79c1.kamezawa.hiroyu@jp.fujitsu.com>
+	<46718320.1010500@csn.ul.ie>
+	<20070615073125.f5e4d6e2.kamezawa.hiroyu@jp.fujitsu.com>
+	<20070615184308.d59a9c11.kamezawa.hiroyu@jp.fujitsu.com>
+	<Pine.LNX.4.64.0706150740510.7471@schroedinger.engr.sgi.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-kernel@vger.kernel.org
-Cc: linux-mm@kvack.org, nickpiggin@yahoo.com.au, Rik van Riel <riel@redhat.com>
+To: Christoph Lameter <clameter@sgi.com>
+Cc: mel@csn.ul.ie, linux-mm@kvack.org, y-goto@jp.fujitsu.com, hugh@veritas.com
 List-ID: <linux-mm.kvack.org>
 
-hi,
+On Fri, 15 Jun 2007 07:41:42 -0700 (PDT)
+Christoph Lameter <clameter@sgi.com> wrote:
 
-i was just looking at the new madvise_need_mmap_write() call...can we
-avoid an extra case statement and function call as follows?
+> On Fri, 15 Jun 2007, KAMEZAWA Hiroyuki wrote:
+> 
+> >  	/*
+> > -	 * Establish migration ptes or remove ptes
+> > +	 * This is a corner case handling.
+> > +	 * When a new swap-ache is read into, it is linked to LRU
+> > +	 * and treated as swapcache but has no rmap yet.
+> > +	 * Calling try_to_unmap() against a page->mapping==NULL page is
+> > +	 * BUG. So handle it here.
+> > +	 */
+> > +	if (!page->mapping)
+> > +		goto unlock;
+> > +	/*
+> > +	 * By try_to_unmap(), page->mapcount goes down to 0 here. In this case,
+> > +	 * we cannot notice that anon_vma is freed while we migrates a pages
+> > +	 * This rcu_read_lock() delays freeing anon_vma pointer until the end
+> > +	 * of migration. File cache pages are no problem because of page_lock()
+> >  	 */
+> > +	rcu_read_lock();
+> >  	try_to_unmap(page, 1);
+> 
+> page->mapping needs to be checked after rcu_read_lock. The mapping may be 
+> removed and the anon_vma dropped after you checked page->mapping.
+> 
+page->mapping is not clearred when the kernel removing rmap (it will not be
+cleared even if it is freed in my understanding)
+...but your point seems reasonable. I'll fix it.
 
-thanks,
+BTW, I'll not able to touch my box until next Friday.
 
--Jason
-
-
-Signed-off-by: Jason Baron <jbaron@redhat.com>
-
-diff --git a/mm/madvise.c b/mm/madvise.c
---- a/mm/madvise.c
-+++ b/mm/madvise.c
-@@ -287,9 +287,10 @@ asmlinkage long sys_madvise(unsigned long start, size_t len_in, int behavior)
- 	struct vm_area_struct * vma, *prev;
- 	int unmapped_error = 0;
- 	int error = -EINVAL;
-+	int write;
- 	size_t len;
- 
--	if (madvise_need_mmap_write(behavior))
-+	if (write = madvise_need_mmap_write(behavior))
- 		down_write(&current->mm->mmap_sem);
- 	else
- 		down_read(&current->mm->mmap_sem);
-@@ -354,7 +355,7 @@ asmlinkage long sys_madvise(unsigned long start, size_t len_in, int behavior)
- 			vma = find_vma(current->mm, start);
- 	}
- out:
--	if (madvise_need_mmap_write(behavior))
-+	if (write)
- 		up_write(&current->mm->mmap_sem);
- 	else
- 		up_read(&current->mm->mmap_sem);
+Regards,
+-Kame
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
