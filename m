@@ -1,20 +1,20 @@
-Received: from d03relay02.boulder.ibm.com (d03relay02.boulder.ibm.com [9.17.195.227])
-	by e31.co.us.ibm.com (8.13.8/8.13.8) with ESMTP id l5FFkmeU026549
-	for <linux-mm@kvack.org>; Fri, 15 Jun 2007 11:46:48 -0400
-Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
-	by d03relay02.boulder.ibm.com (8.13.8/8.13.8/NCO v8.3) with ESMTP id l5FFkm6r254134
-	for <linux-mm@kvack.org>; Fri, 15 Jun 2007 09:46:48 -0600
-Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av02.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l5FFkldX003260
-	for <linux-mm@kvack.org>; Fri, 15 Jun 2007 09:46:47 -0600
-Subject: Re: [RFC] memory unplug v5 [4/6] page isolation
+Received: from d01relay02.pok.ibm.com (d01relay02.pok.ibm.com [9.56.227.234])
+	by e3.ny.us.ibm.com (8.13.8/8.13.8) with ESMTP id l5FEnvgt027200
+	for <linux-mm@kvack.org>; Fri, 15 Jun 2007 10:49:57 -0400
+Received: from d01av02.pok.ibm.com (d01av02.pok.ibm.com [9.56.224.216])
+	by d01relay02.pok.ibm.com (8.13.8/8.13.8/NCO v8.3) with ESMTP id l5FFqmGw344142
+	for <linux-mm@kvack.org>; Fri, 15 Jun 2007 11:52:48 -0400
+Received: from d01av02.pok.ibm.com (loopback [127.0.0.1])
+	by d01av02.pok.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l5FFqmOJ004922
+	for <linux-mm@kvack.org>; Fri, 15 Jun 2007 11:52:48 -0400
+Subject: Re: [RFC] memory unplug v5 [5/6] page unplug
 From: Dave Hansen <hansendc@us.ibm.com>
-In-Reply-To: <20070614160321.59314758.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20070614160458.62e20cbd.kamezawa.hiroyu@jp.fujitsu.com>
 References: <20070614155630.04f8170c.kamezawa.hiroyu@jp.fujitsu.com>
-	 <20070614160321.59314758.kamezawa.hiroyu@jp.fujitsu.com>
+	 <20070614160458.62e20cbd.kamezawa.hiroyu@jp.fujitsu.com>
 Content-Type: text/plain
-Date: Fri, 15 Jun 2007 08:46:45 -0700
-Message-Id: <1181922406.28189.25.camel@spirit>
+Date: Fri, 15 Jun 2007 08:52:41 -0700
+Message-Id: <1181922762.28189.30.camel@spirit>
 Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
@@ -23,45 +23,31 @@ To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 Cc: linux-mm@kvack.org, mel@csn.ul.ie, y-goto@jp.fujitsu.com, clameter@sgi.com, hugh@veritas.com
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 2007-06-14 at 16:03 +0900, KAMEZAWA Hiroyuki wrote:
-> +#ifdef CONFIG_HOLES_IN_ZONE
-> +static inline struct page *
-> +__first_valid_page(unsigned long pfn, unsigned long nr_page)
-> +{
-> +	int i;
-> +	struct page *page;
-> +	for (i = 0; i < nr_page; i++)
-> +		if (pfn_valid_within(pfn + i))
-> +			break;
-> +	if (unlikely(i == nr_pages))
-> +		return NULL;
-> +	return pfn_to_page(pfn + i);
-> +}
-> +#else
-> +static inline struct page *
-> +__first_valid_page(unsigned long pfn, unsigned long nr_page)
-> +{
-> +	return pfn_to_page(pfn);
-> +}
-> +#endif
+On Thu, 2007-06-14 at 16:04 +0900, KAMEZAWA Hiroyuki wrote:
+> 
+> +       if (start_pfn & (pageblock_nr_pages - 1))
+> +               return -EINVAL;
+> +       if (end_pfn & (pageblock_nr_pages - 1))
+> +               return -EINVAL; 
 
-I think this entire #ifdef is unneeded.  pfn_valid_within() will be
-#defined to 1 if CONFIG_HOLES_IN_ZONE=n, so that function will come out
-looking like this:
+After reading these, I'm still not sure I know what a pageblock is
+supposed to be. :)  Did those come from Mel's patches?
 
-+__first_valid_page(unsigned long pfn, unsigned long nr_page)
-> +{
-> +	int i;
-> +	struct page *page;
-> +	for (i = 0; i < nr_page; i++)
-> +		if (1)
-> +			break;
-> +	if (unlikely(i == nr_pages))
-> +		return NULL;
-> +	return pfn_to_page(pfn + i);
-> +}
+In any case, I think it might be helpful to wrap up some of those
+references in functions.  I was always looking at the patches trying to
+find if "pageblock_nr_pages" was a local variable or not.  A function
+would surely tell me.
 
-I think the compiler can optimize that. :)
+static inline int pfn_is_pageblock_aligned(unsigned long pfn)
+{
+	return pfn & (pageblock_nr_pages - 1)
+}
+
+and, then you get
+
+		BUG_ON(!pfn_is_pageblock_aligned(start_pfn));
+
+It's pretty obvious what is going on, there. 
 
 -- Dave
 
