@@ -1,53 +1,54 @@
-Date: Fri, 15 Jun 2007 07:41:42 -0700 (PDT)
-From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [RFC] memory unplug v5 [1/6] migration by kernel
-In-Reply-To: <20070615184308.d59a9c11.kamezawa.hiroyu@jp.fujitsu.com>
-Message-ID: <Pine.LNX.4.64.0706150740510.7471@schroedinger.engr.sgi.com>
-References: <20070614155630.04f8170c.kamezawa.hiroyu@jp.fujitsu.com>
- <20070614155929.2be37edb.kamezawa.hiroyu@jp.fujitsu.com>
- <Pine.LNX.4.64.0706140000400.11433@schroedinger.engr.sgi.com>
- <20070614161146.5415f493.kamezawa.hiroyu@jp.fujitsu.com>
- <Pine.LNX.4.64.0706140019490.11852@schroedinger.engr.sgi.com>
- <20070614164128.42882f74.kamezawa.hiroyu@jp.fujitsu.com>
- <Pine.LNX.4.64.0706140044400.22032@schroedinger.engr.sgi.com>
- <20070614172936.12b94ad7.kamezawa.hiroyu@jp.fujitsu.com>
- <Pine.LNX.4.64.0706140706370.28544@schroedinger.engr.sgi.com>
- <20070615010217.62908da3.kamezawa.hiroyu@jp.fujitsu.com>
- <Pine.LNX.4.64.0706140909030.29612@schroedinger.engr.sgi.com>
- <20070615011536.beaa79c1.kamezawa.hiroyu@jp.fujitsu.com> <46718320.1010500@csn.ul.ie>
- <20070615073125.f5e4d6e2.kamezawa.hiroyu@jp.fujitsu.com>
- <20070615184308.d59a9c11.kamezawa.hiroyu@jp.fujitsu.com>
+Date: Fri, 15 Jun 2007 17:06:18 +0200
+From: Johannes Weiner <hannes-kernel@saeurebad.de>
+Subject: Re: PROBLEM: kernel BUG at mm/swap_state.c:78! (v2.6.21 under vmware)
+Message-ID: <20070615150618.GA19912@saeurebad.de>
+References: <745af2c30706140842w5eabdf1bjdcc5fd7c2a92b77e@mail.gmail.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: multipart/mixed; boundary="vtzGhvizbBRQ85DL"
+Content-Disposition: inline
+In-Reply-To: <745af2c30706140842w5eabdf1bjdcc5fd7c2a92b77e@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Mel Gorman <mel@csn.ul.ie>, linux-mm@kvack.org, y-goto@jp.fujitsu.com, hugh@veritas.com
+To: linux-kernel@vger.kernel.org
+Cc: Tom Robinson <thomas.robinson@gmail.com>, linux-mm@kvack.org, Stephen Tweedie <sct@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 15 Jun 2007, KAMEZAWA Hiroyuki wrote:
+--vtzGhvizbBRQ85DL
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
 
->  	/*
-> -	 * Establish migration ptes or remove ptes
-> +	 * This is a corner case handling.
-> +	 * When a new swap-ache is read into, it is linked to LRU
-> +	 * and treated as swapcache but has no rmap yet.
-> +	 * Calling try_to_unmap() against a page->mapping==NULL page is
-> +	 * BUG. So handle it here.
-> +	 */
-> +	if (!page->mapping)
-> +		goto unlock;
-> +	/*
-> +	 * By try_to_unmap(), page->mapcount goes down to 0 here. In this case,
-> +	 * we cannot notice that anon_vma is freed while we migrates a pages
-> +	 * This rcu_read_lock() delays freeing anon_vma pointer until the end
-> +	 * of migration. File cache pages are no problem because of page_lock()
->  	 */
-> +	rcu_read_lock();
->  	try_to_unmap(page, 1);
+Hi,
 
-page->mapping needs to be checked after rcu_read_lock. The mapping may be 
-removed and the anon_vma dropped after you checked page->mapping.
+I am not sure if this patch is a fix or a hiding (or leads to more trouble at
+all), so, could PLEASE anyone with knowledge about the code see over it?
+Thanks :)
+
+shrink_page_list() should not pass a private page to add_to_swap().
+Is it a bug if the page is private when reaching this point? I do not think
+so, because a few lines below is a condition where private pages are handled
+legally.
+
+
+--vtzGhvizbBRQ85DL
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline; filename="do-not-swap-private-pages.patch"
+
+diff --git a/mm/vmscan.c b/mm/vmscan.c
+index 1be5a63..92573b7 100644
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -489,7 +489,8 @@ static unsigned long shrink_page_list(struct list_head *page_list,
+ 		 * Anonymous process memory has backing store?
+ 		 * Try to allocate it some swap space here.
+ 		 */
+-		if (PageAnon(page) && !PageSwapCache(page))
++		if (PageAnon(page) && !PageSwapCache(page) &&
++		    !PagePrivate(page))
+ 			if (!add_to_swap(page, GFP_ATOMIC))
+ 				goto activate_locked;
+ #endif /* CONFIG_SWAP */
+
+--vtzGhvizbBRQ85DL--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
