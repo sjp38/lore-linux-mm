@@ -1,68 +1,69 @@
-Date: Sat, 16 Jun 2007 00:36:10 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [RFC] memory unplug v5 [1/6] migration by kernel
-Message-Id: <20070616003610.2acbcbc8.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <Pine.LNX.4.64.0706150740510.7471@schroedinger.engr.sgi.com>
+Received: from d03relay02.boulder.ibm.com (d03relay02.boulder.ibm.com [9.17.195.227])
+	by e31.co.us.ibm.com (8.13.8/8.13.8) with ESMTP id l5FFkmeU026549
+	for <linux-mm@kvack.org>; Fri, 15 Jun 2007 11:46:48 -0400
+Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
+	by d03relay02.boulder.ibm.com (8.13.8/8.13.8/NCO v8.3) with ESMTP id l5FFkm6r254134
+	for <linux-mm@kvack.org>; Fri, 15 Jun 2007 09:46:48 -0600
+Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av02.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l5FFkldX003260
+	for <linux-mm@kvack.org>; Fri, 15 Jun 2007 09:46:47 -0600
+Subject: Re: [RFC] memory unplug v5 [4/6] page isolation
+From: Dave Hansen <hansendc@us.ibm.com>
+In-Reply-To: <20070614160321.59314758.kamezawa.hiroyu@jp.fujitsu.com>
 References: <20070614155630.04f8170c.kamezawa.hiroyu@jp.fujitsu.com>
-	<20070614155929.2be37edb.kamezawa.hiroyu@jp.fujitsu.com>
-	<Pine.LNX.4.64.0706140000400.11433@schroedinger.engr.sgi.com>
-	<20070614161146.5415f493.kamezawa.hiroyu@jp.fujitsu.com>
-	<Pine.LNX.4.64.0706140019490.11852@schroedinger.engr.sgi.com>
-	<20070614164128.42882f74.kamezawa.hiroyu@jp.fujitsu.com>
-	<Pine.LNX.4.64.0706140044400.22032@schroedinger.engr.sgi.com>
-	<20070614172936.12b94ad7.kamezawa.hiroyu@jp.fujitsu.com>
-	<Pine.LNX.4.64.0706140706370.28544@schroedinger.engr.sgi.com>
-	<20070615010217.62908da3.kamezawa.hiroyu@jp.fujitsu.com>
-	<Pine.LNX.4.64.0706140909030.29612@schroedinger.engr.sgi.com>
-	<20070615011536.beaa79c1.kamezawa.hiroyu@jp.fujitsu.com>
-	<46718320.1010500@csn.ul.ie>
-	<20070615073125.f5e4d6e2.kamezawa.hiroyu@jp.fujitsu.com>
-	<20070615184308.d59a9c11.kamezawa.hiroyu@jp.fujitsu.com>
-	<Pine.LNX.4.64.0706150740510.7471@schroedinger.engr.sgi.com>
+	 <20070614160321.59314758.kamezawa.hiroyu@jp.fujitsu.com>
+Content-Type: text/plain
+Date: Fri, 15 Jun 2007 08:46:45 -0700
+Message-Id: <1181922406.28189.25.camel@spirit>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
-Cc: mel@csn.ul.ie, linux-mm@kvack.org, y-goto@jp.fujitsu.com, hugh@veritas.com
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: linux-mm@kvack.org, mel@csn.ul.ie, y-goto@jp.fujitsu.com, clameter@sgi.com, hugh@veritas.com
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 15 Jun 2007 07:41:42 -0700 (PDT)
-Christoph Lameter <clameter@sgi.com> wrote:
+On Thu, 2007-06-14 at 16:03 +0900, KAMEZAWA Hiroyuki wrote:
+> +#ifdef CONFIG_HOLES_IN_ZONE
+> +static inline struct page *
+> +__first_valid_page(unsigned long pfn, unsigned long nr_page)
+> +{
+> +	int i;
+> +	struct page *page;
+> +	for (i = 0; i < nr_page; i++)
+> +		if (pfn_valid_within(pfn + i))
+> +			break;
+> +	if (unlikely(i == nr_pages))
+> +		return NULL;
+> +	return pfn_to_page(pfn + i);
+> +}
+> +#else
+> +static inline struct page *
+> +__first_valid_page(unsigned long pfn, unsigned long nr_page)
+> +{
+> +	return pfn_to_page(pfn);
+> +}
+> +#endif
 
-> On Fri, 15 Jun 2007, KAMEZAWA Hiroyuki wrote:
-> 
-> >  	/*
-> > -	 * Establish migration ptes or remove ptes
-> > +	 * This is a corner case handling.
-> > +	 * When a new swap-ache is read into, it is linked to LRU
-> > +	 * and treated as swapcache but has no rmap yet.
-> > +	 * Calling try_to_unmap() against a page->mapping==NULL page is
-> > +	 * BUG. So handle it here.
-> > +	 */
-> > +	if (!page->mapping)
-> > +		goto unlock;
-> > +	/*
-> > +	 * By try_to_unmap(), page->mapcount goes down to 0 here. In this case,
-> > +	 * we cannot notice that anon_vma is freed while we migrates a pages
-> > +	 * This rcu_read_lock() delays freeing anon_vma pointer until the end
-> > +	 * of migration. File cache pages are no problem because of page_lock()
-> >  	 */
-> > +	rcu_read_lock();
-> >  	try_to_unmap(page, 1);
-> 
-> page->mapping needs to be checked after rcu_read_lock. The mapping may be 
-> removed and the anon_vma dropped after you checked page->mapping.
-> 
-page->mapping is not clearred when the kernel removing rmap (it will not be
-cleared even if it is freed in my understanding)
-...but your point seems reasonable. I'll fix it.
+I think this entire #ifdef is unneeded.  pfn_valid_within() will be
+#defined to 1 if CONFIG_HOLES_IN_ZONE=n, so that function will come out
+looking like this:
 
-BTW, I'll not able to touch my box until next Friday.
++__first_valid_page(unsigned long pfn, unsigned long nr_page)
+> +{
+> +	int i;
+> +	struct page *page;
+> +	for (i = 0; i < nr_page; i++)
+> +		if (1)
+> +			break;
+> +	if (unlikely(i == nr_pages))
+> +		return NULL;
+> +	return pfn_to_page(pfn + i);
+> +}
 
-Regards,
--Kame
+I think the compiler can optimize that. :)
+
+-- Dave
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
