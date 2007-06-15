@@ -1,35 +1,40 @@
-Content-class: urn:content-classes:message
-MIME-Version: 1.0
-Content-Type: text/plain;
-	charset="iso-8859-1"
-Content-Transfer-Encoding: 8BIT
-Subject: RE: [patch 0/3] no MAX_ARG_PAGES -v2
-Date: Fri, 15 Jun 2007 11:49:04 -0700
-Message-ID: <617E1C2C70743745A92448908E030B2A01B3467D@scsmsx411.amr.corp.intel.com>
-In-Reply-To: <65dd6fd50706151107v784a252aw89a128f255304ef6@mail.gmail.com>
-From: "Luck, Tony" <tony.luck@intel.com>
+Received: from d01relay02.pok.ibm.com (d01relay02.pok.ibm.com [9.56.227.234])
+	by e6.ny.us.ibm.com (8.13.8/8.13.8) with ESMTP id l5FLAohg007456
+	for <linux-mm@kvack.org>; Fri, 15 Jun 2007 17:10:50 -0400
+Received: from d01av02.pok.ibm.com (d01av02.pok.ibm.com [9.56.224.216])
+	by d01relay02.pok.ibm.com (8.13.8/8.13.8/NCO v8.3) with ESMTP id l5FL9fHV128820
+	for <linux-mm@kvack.org>; Fri, 15 Jun 2007 17:09:43 -0400
+Received: from d01av02.pok.ibm.com (loopback [127.0.0.1])
+	by d01av02.pok.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l5FL9e9v017987
+	for <linux-mm@kvack.org>; Fri, 15 Jun 2007 17:09:41 -0400
+Subject: Re: [RFC] memory unplug v5 [5/6] page unplug
+From: Dave Hansen <hansendc@us.ibm.com>
+In-Reply-To: <20070616020348.b4f2aab5.kamezawa.hiroyu@jp.fujitsu.com>
+References: <20070614155630.04f8170c.kamezawa.hiroyu@jp.fujitsu.com>
+	 <20070614160458.62e20cbd.kamezawa.hiroyu@jp.fujitsu.com>
+	 <1181922762.28189.30.camel@spirit>
+	 <20070616020348.b4f2aab5.kamezawa.hiroyu@jp.fujitsu.com>
+Content-Type: text/plain
+Date: Fri, 15 Jun 2007 14:09:39 -0700
+Message-Id: <1181941779.28189.36.camel@spirit.sr71.net>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Ollie Wild <aaw@google.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>
-Cc: linux-kernel@vger.kernel.org, parisc-linux@lists.parisc-linux.org, linux-mm@kvack.org, linux-arch@vger.kernel.org, Andrew Morton <akpm@osdl.org>, Ingo Molnar <mingo@elte.hu>, Andi Kleen <ak@suse.de>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: linux-mm@kvack.org, mel@csn.ul.ie, y-goto@jp.fujitsu.com, clameter@sgi.com, hugh@veritas.com
 List-ID: <linux-mm.kvack.org>
 
-> > >   A good heuristic, though, might be to limit
-> > > argument size to a percentage (say 25%) of maximum stack size and
-> > > validate this inside copy_strings().
-> >
-> > This seems to do:
->
-> Looks good.
+On Sat, 2007-06-16 at 02:03 +0900, KAMEZAWA Hiroyuki wrote:
+> 
+> Hmm...I'll try that in the next version. But Is there some macro
+> to do this ? like..
+> --
+> #define IS_ALIGNED(val, align)  ((val) & (align - 1)) 
 
-Me too.  As I increase the number of arguments, I now have
-a smooth cutover from "works" to "Arg list too long", without
-the in between zone where the process is killed.
+Yep, that's a bit better.
 
-The IA-32 compatability exec path is now working too (I didn't
-stress it too hard, but I did try argument lists up to a megabyte).
-
-Acked-by: Tony Luck <tony.luck@intel.com>
+-- Dave
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
