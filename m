@@ -1,31 +1,34 @@
-From: Andi Kleen <ak@suse.de>
-Subject: Re: [PATCH] More informative logging for OOM-killer
-Date: Fri, 15 Jun 2007 13:35:16 +0200
-References: <4671B1CA.8070908@bzzt.net>
-In-Reply-To: <4671B1CA.8070908@bzzt.net>
+Date: Fri, 15 Jun 2007 07:31:36 -0700 (PDT)
+From: Christoph Lameter <clameter@sgi.com>
+Subject: Re: [PATCH] slob: poor man's NUMA, take 5.
+In-Reply-To: <20070615053906.GA28865@linux-sh.org>
+Message-ID: <Pine.LNX.4.64.0706150730530.7400@schroedinger.engr.sgi.com>
+References: <20070615033412.GA28687@linux-sh.org>
+ <Pine.LNX.4.64.0706142119540.4224@schroedinger.engr.sgi.com>
+ <20070615053906.GA28865@linux-sh.org>
 MIME-Version: 1.0
-Content-Type: text/plain;
-  charset="iso-8859-15"
-Content-Transfer-Encoding: 8bit
-Content-Disposition: inline
-Message-Id: <200706151335.16607.ak@suse.de>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Arnout Engelen <arnouten@bzzt.net>
-Cc: linux-mm@kvack.org
+To: Paul Mundt <lethal@linux-sh.org>
+Cc: Matt Mackall <mpm@selenic.com>, Nick Piggin <nickpiggin@yahoo.com.au>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thursday 14 June 2007 23:23:22 Arnout Engelen wrote:
-> +                       // TODO is this a proper upper bound for the
-> +                       // length of a commandline?
-> +                       char buffer[PAGE_SIZE / sizeof(char)];
+On Fri, 15 Jun 2007, Paul Mundt wrote:
 
-That's a 100% guaranteed stack overflow with 4K stacks.
+> The comments moved because the kmalloc() definition moved, it didn't seem
+> entirely helpful to leave the comment by itself and have the definitions
+> in the *_def.h files.
 
-And sizeof(char) is always 1 btw.
+That is helpful because someone will be first looking at slab.h to find 
+the general API. The description is not SLAB, SLUB or SLOB specific.
+ 
+> But I'll try and generalize the comments regarding the allocator gfp
+> flags, and keep those in slab.h, so it's more obvious (as well as tidying
+> them for correctness).
 
--Andi
-
+Great.
+ 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
