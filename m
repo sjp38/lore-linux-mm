@@ -1,37 +1,26 @@
-Date: Fri, 15 Jun 2007 16:57:19 -0700 (PDT)
-From: Linus Torvalds <torvalds@linux-foundation.org>
-Subject: Re: mm: Fix memory/cpu hotplug section mismatch and oops.
-In-Reply-To: <20070615164411.ec1bdcc7.randy.dunlap@oracle.com>
-Message-ID: <alpine.LFD.0.98.0706151656480.14121@woody.linux-foundation.org>
-References: <20070614061316.GA22543@linux-sh.org> <20070614183015.9DD7.Y-GOTO@jp.fujitsu.com>
- <20070615030241.GA28493@linux-sh.org>
- <20070615164411.ec1bdcc7.randy.dunlap@oracle.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=us-ascii
+Date: Sat, 16 Jun 2007 20:41:30 +0100
+From: Christoph Hellwig <hch@infradead.org>
+Subject: Re: [PATCH] madvise_need_mmap_write() usage
+Message-ID: <20070616194130.GA6681@infradead.org>
+References: <Pine.LNX.4.64.0706151118150.11498@dhcp83-20.boston.redhat.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <Pine.LNX.4.64.0706151118150.11498@dhcp83-20.boston.redhat.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Randy Dunlap <randy.dunlap@oracle.com>
-Cc: Paul Mundt <lethal@linux-sh.org>, Yasunori Goto <y-goto@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Jason Baron <jbaron@redhat.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, nickpiggin@yahoo.com.au, Rik van Riel <riel@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
-
-On Fri, 15 Jun 2007, Randy Dunlap wrote:
-
-> On Fri, 15 Jun 2007 12:02:41 +0900 Paul Mundt wrote:
+On Fri, Jun 15, 2007 at 11:20:31AM -0400, Jason Baron wrote:
+> hi,
 > 
-> > On Thu, Jun 14, 2007 at 06:32:32PM +0900, Yasunori Goto wrote:
-> > > Thanks. I tested compile with cpu/memory hotplug off/on.
-> > > It was OK.
-> > > 
-> > > Acked-by: Yasunori Goto <y-goto@jp.fujitsu.com>
-> > > 
-> > It would be nice to have this for 2.6.22..
-> 
-> Yes, please.
+> i was just looking at the new madvise_need_mmap_write() call...can we
+> avoid an extra case statement and function call as follows?
 
-I pushed out my tree that should include this one about ten minutes ago..
-
-		Linus
+Sounds like a good idea, but please move the assignment out of the
+conditional.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
