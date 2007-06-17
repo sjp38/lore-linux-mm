@@ -1,100 +1,32 @@
-Date: Sun, 17 Jun 2007 13:19:12 -0300
-Message-ID: <51537288.03999371@foray.com>
-From: "Euro VIP Casino" <job@wongfaye.com>
-Subject: 400 Euro Willkommensbonus!
-MIME-Version: 1.0
-Content-Type: text/html; charset=iso-8859-1
-Content-Transfer-Encoding: 7bit
-Return-Path: <job@wongfaye.com>
-To: linux-mm@kvack.org
+Date: Sun, 17 Jun 2007 18:32:13 +0000
+From: Pavel Machek <pavel@ucw.cz>
+Subject: Re: [patch 0/3] no MAX_ARG_PAGES -v2
+Message-ID: <20070617183213.GA3892@ucw.cz>
+References: <20070613100334.635756997@chello.nl>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20070613100334.635756997@chello.nl>
+Sender: owner-linux-mm@kvack.org
+Return-Path: <owner-linux-mm@kvack.org>
+To: Peter Zijlstra <a.p.zijlstra@chello.nl>
+Cc: linux-kernel@vger.kernel.org, parisc-linux@lists.parisc-linux.org, linux-mm@kvack.org, linux-arch@vger.kernel.org, Ollie Wild <aaw@google.com>, Andrew Morton <akpm@osdl.org>, Ingo Molnar <mingo@elte.hu>, Andi Kleen <ak@suse.de>
 List-ID: <linux-mm.kvack.org>
 
-<html>
+Hi!
 
-<head>
-<meta http-equiv=Content-Type content="text/html; charset=iso-8859-1">
+> This patch-set aims at removing the current limit on argv+env space aka.
+> MAX_ARG_PAGES.
 
-<title>EURO VIP</title>
+Thanks a lot for solving this properly. I have been upping current limits to some
+insane ammounts to work around this.
+							Pavel
+-- 
+(english) http://www.livejournal.com/~pavelmachek
+(cesky, pictures) http://atrey.karlin.mff.cuni.cz/~pavel/picture/horses/blog.html
 
-<style>
-<!--
- /* Font Definitions */
- @font-face
-	{font-family:Garamond;
-	panose-1:2 2 4 4 3 3 1 1 8 3;
-	mso-font-charset:204;
-	mso-generic-font-family:roman;
-	mso-font-pitch:variable;
-	mso-font-signature:647 0 0 0 159 0;}
- /* Style Definitions */
- p.MsoNormal, li.MsoNormal, div.MsoNormal
-	{mso-style-parent:"";
-	margin:0cm;
-	margin-bottom:.0001pt;
-	mso-pagination:widow-orphan;
-	font-size:12.0pt;
-	font-family:"Times New Roman";
-	mso-fareast-font-family:"Times New Roman";
-	mso-ansi-language:EN-US;
-	mso-fareast-language:EN-US;}
-a:link, span.MsoHyperlink
-	{color:blue;
-	text-decoration:underline;
-	text-underline:single;}
-a:visited, span.MsoHyperlinkFollowed
-	{color:purple;
-	text-decoration:underline;
-	text-underline:single;}
-@page Section1
-	{size:595.3pt 841.9pt;
-	margin:2.0cm 42.5pt 2.0cm 3.0cm;
-	mso-header-margin:35.4pt;
-	mso-footer-margin:35.4pt;
-	mso-paper-source:0;}
-div.Section1
-	{page:Section1;}
--->
-</style>
-
-</head>
-
-<body lang=RO link=blue vlink=purple style='tab-interval:35.4pt'>
-
-<div class=Section1>
-
-<p class=MsoNormal>
-<span lang=DE style='font-size:13.0pt;font-family:Garamond'>
-EURO VIP Casino bietet Ihnen 4 mal 100% 
-Ersteinzahlungsbonus auf bis zu 400&#8364;!<o:p></o:p></span></p>
-
-<p class=MsoNormal>
-<span lang=DE style='font-size:13.0pt;font-family:Garamond'>
-<o:p>&nbsp;</o:p></span></p>
-
-<p class=MsoNormal>
-<span lang=DE style='font-size:13.0pt;font-family:Garamond'>
-EURO VIP schafft jeden Monat neue Million&auml;re!
-<o:p></o:p></span></p>
-
-<p class=MsoNormal>
-<span lang=DE style='font-size:13.0pt;font-family:Garamond'>
-<o:p>&nbsp;</o:p></span></p>
-
-<p class=MsoNormal>
-<span lang=DE style='font-size:13.0pt;font-family:Garamond'>
-Kommen Sie um zu spielen!<o:p></o:p></span></p>
-
-<p class=MsoNormal>
-<span lang=DE style='font-size:13.0pt;font-family:Garamond'>
-<o:p>&nbsp;</o:p></span></p>
-
-<p class=MsoNormal>
-<span lang=DE style='font-size:13.0pt;font-family:Garamond'>
-<a href="http://www.europecasino.hk/lang-de/">
-http://www.europecasino.hk/lang-de/</a><o:p></o:p></span></p>
-
-</div>
-
-</body>
-
-</html>
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
