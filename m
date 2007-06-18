@@ -1,43 +1,36 @@
-Received: by nz-out-0506.google.com with SMTP id x7so1558089nzc
-        for <linux-mm@kvack.org>; Mon, 18 Jun 2007 13:43:14 -0700 (PDT)
-Message-ID: <6bffcb0e0706181343x1128bbf2p291f404778143777@mail.gmail.com>
-Date: Mon, 18 Jun 2007 22:43:14 +0200
-From: "Michal Piotrowski" <michal.k.k.piotrowski@gmail.com>
-Subject: Re: [patch 00/26] Current slab allocator / SLUB patch queue
-In-Reply-To: <Pine.LNX.4.64.0706181217350.8899@schroedinger.engr.sgi.com>
+Date: Mon, 18 Jun 2007 14:55:27 -0700 (PDT)
+From: Christoph Lameter <clameter@sgi.com>
+Subject: Re: [patch 05/26] Slab allocators: Cleanup zeroing allocations
+In-Reply-To: <84144f020706181316u70145db2i786641d265e5bc42@mail.gmail.com>
+Message-ID: <Pine.LNX.4.64.0706181454370.14261@schroedinger.engr.sgi.com>
+References: <20070618095838.238615343@sgi.com>  <20070618095914.622685354@sgi.com>
+ <84144f020706181316u70145db2i786641d265e5bc42@mail.gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
-References: <20070618095838.238615343@sgi.com>
-	 <46767346.2040108@googlemail.com>
-	 <Pine.LNX.4.64.0706180936280.4751@schroedinger.engr.sgi.com>
-	 <6bffcb0e0706181038j107e2357o89c525261cf671a@mail.gmail.com>
-	 <Pine.LNX.4.64.0706181102280.6596@schroedinger.engr.sgi.com>
-	 <6bffcb0e0706181158l739864e0t6fb5bc564444f23c@mail.gmail.com>
-	 <Pine.LNX.4.64.0706181159430.1896@schroedinger.engr.sgi.com>
-	 <6bffcb0e0706181209p49f4ae86xce5418b7c9b3edbb@mail.gmail.com>
-	 <Pine.LNX.4.64.0706181217350.8899@schroedinger.engr.sgi.com>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
-Cc: akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Pekka Enberg <penberg@cs.helsinki.fi>, suresh.b.siddha@intel.com
+To: Pekka Enberg <penberg@cs.helsinki.fi>
+Cc: akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, suresh.b.siddha@intel.com
 List-ID: <linux-mm.kvack.org>
 
-On 18/06/07, Christoph Lameter <clameter@sgi.com> wrote:
-> Stupid me. n on both sides of the comparison. Tried to run your script
-> here but I cannot trigger it.
->
-> Next attempt: Sorry for the churn.
+On Mon, 18 Jun 2007, Pekka Enberg wrote:
 
-Problem fixed. Thanks!
+> On 6/18/07, clameter@sgi.com <clameter@sgi.com> wrote:
+> > +static inline void *kmem_cache_zalloc(struct kmem_cache *k, gfp_t flags)
+> > +{
+> > +       return kmem_cache_alloc(k, flags | __GFP_ZERO);
+> > +}
+> > +
+> > +static inline void *__kzalloc(int size, gfp_t flags)
+> > +{
+> > +       return kmalloc(size, flags | __GFP_ZERO);
+> > +}
+> 
+> Hmm, did you check kernel text size before and after this change?
+> Setting the __GFP_ZERO flag at every kzalloc call-site seems like a
+> bad idea.
 
-Regards,
-Michal
-
--- 
-LOG
-http://www.stardust.webpages.pl/log/
+I did not check but the flags are usually constant. Compiler does the |.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
