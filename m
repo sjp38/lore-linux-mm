@@ -1,50 +1,44 @@
-Received: from d03relay02.boulder.ibm.com (d03relay02.boulder.ibm.com [9.17.195.227])
-	by e32.co.us.ibm.com (8.12.11.20060308/8.13.8) with ESMTP id l5IIG8jE015653
-	for <linux-mm@kvack.org>; Mon, 18 Jun 2007 14:16:08 -0400
-Received: from d03av03.boulder.ibm.com (d03av03.boulder.ibm.com [9.17.195.169])
-	by d03relay02.boulder.ibm.com (8.13.8/8.13.8/NCO v8.3) with ESMTP id l5IIKcOH203698
-	for <linux-mm@kvack.org>; Mon, 18 Jun 2007 12:20:41 -0600
-Received: from d03av03.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av03.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l5IIKZN0004047
-	for <linux-mm@kvack.org>; Mon, 18 Jun 2007 12:20:35 -0600
-Date: Mon, 18 Jun 2007 11:20:01 -0700
-From: Nishanth Aravamudan <nacc@us.ibm.com>
-Subject: Re: [PATCH 1/3] Fix hugetlb pool allocation with empty nodes
-Message-ID: <20070618182001.GE10714@us.ibm.com>
-References: <20070618173428.GB10714@us.ibm.com>
+Received: by wa-out-1112.google.com with SMTP id m33so2375449wag
+        for <linux-mm@kvack.org>; Mon, 18 Jun 2007 11:58:54 -0700 (PDT)
+Message-ID: <6bffcb0e0706181158l739864e0t6fb5bc564444f23c@mail.gmail.com>
+Date: Mon, 18 Jun 2007 20:58:54 +0200
+From: "Michal Piotrowski" <michal.k.k.piotrowski@gmail.com>
+Subject: Re: [patch 00/26] Current slab allocator / SLUB patch queue
+In-Reply-To: <Pine.LNX.4.64.0706181102280.6596@schroedinger.engr.sgi.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Content-Disposition: inline
-In-Reply-To: <20070618173428.GB10714@us.ibm.com>
+References: <20070618095838.238615343@sgi.com>
+	 <46767346.2040108@googlemail.com>
+	 <Pine.LNX.4.64.0706180936280.4751@schroedinger.engr.sgi.com>
+	 <6bffcb0e0706181038j107e2357o89c525261cf671a@mail.gmail.com>
+	 <Pine.LNX.4.64.0706181102280.6596@schroedinger.engr.sgi.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: wli@holomorphy.com
-Cc: anton@samba.org, lee.schermerhorn@hp.com, clameter@sgi.com, linux-mm@kvack.org
+To: Christoph Lameter <clameter@sgi.com>
+Cc: akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Pekka Enberg <penberg@cs.helsinki.fi>, suresh.b.siddha@intel.com
 List-ID: <linux-mm.kvack.org>
 
-On 18.06.2007 [10:34:28 -0700], Nishanth Aravamudan wrote:
-> Anton found a problem with the hugetlb pool allocation when some nodes
-> have no memory (http://marc.info/?l=linux-mm&m=118133042025995&w=2). Lee
-> worked on versions that tried to fix it, but none were accepted.
-> Christoph has created a set of patches which allow for GFP_THISNODE
-> allocations to fail if the node has no memory and for exporting a
-> node_memory_map indicating which nodes have memory. Since mempolicy.c
-> already has a number of functions which support interleaving, create a
-> mempolicy when we invoke alloc_fresh_huge_page() that specifies
-> interleaving across all the nodes in node_memory_map, rather than custom
-> interleaving code in hugetlb.c.  This requires adding some dummy
-> functions, and some declarations, in mempolicy.h to compile with NUMA or
-> !NUMA.
+On 18/06/07, Christoph Lameter <clameter@sgi.com> wrote:
+> On Mon, 18 Jun 2007, Michal Piotrowski wrote:
+>
+> > > Does this patch fix the issue?
+> > Unfortunately no.
+> >
+> > AFAIR I didn't see it in 2.6.22-rc4-mm2
+>
+> Seems that I miscounted. We need a larger safe area.
+>
 
-Sigh, in case it wasn't clear from the preceding dicussions, these
-patches depend on Christoph's memoryless node fixes.
+Still the same.
 
-Thanks,
-Nish
+Regards,
+Michal
 
 -- 
-Nishanth Aravamudan <nacc@us.ibm.com>
-IBM Linux Technology Center
+LOG
+http://www.stardust.webpages.pl/log/
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
