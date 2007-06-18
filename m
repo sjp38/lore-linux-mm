@@ -1,116 +1,113 @@
-Message-Id: <20070618192545.764710140@sgi.com>
+Message-Id: <20070618192544.604193343@sgi.com>
 References: <20070618191956.411091458@sgi.com>
-Date: Mon, 18 Jun 2007 12:20:03 -0700
+Date: Mon, 18 Jun 2007 12:19:58 -0700
 From: clameter@sgi.com
-Subject: [patch 07/10] Memoryless nodes: SLUB support
-Content-Disposition: inline; filename=memless_slub
+Subject: [patch 02/10] NUMA: Introduce node_memory_map
+Content-Disposition: inline; filename=memless_memory_map
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: akpm@linux-foundation.org
-Cc: linux-mm@kvack.org
+Cc: linux-mm@kvack.org, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Nishanth Aravamudan <nacc@us.ibm.com>
 List-ID: <linux-mm.kvack.org>
 
-Simply switch all for_each_online_node to for_each_memory_node. That way
-SLUB only operates on nodes with memory. Any allocation attempt on a
-memoryless node will fall whereupon SLUB will fetch memory from a nearby
-node (depending on how memory policies and cpuset describe fallback).
+It is necessary to know if nodes have memory since we have recently
+begun to add support for memoryless nodes. For that purpose we introduce
+a new bitmap called
 
+node_memory_map
+
+A node has its bit in node_memory_map set if it has memory. If a node
+has memory then it has at least one zone defined in its pgdat structure
+that is located in the pgdat itself.
+
+The node_memory_map can then be used in various places to insure that we
+do the right thing when we encounter a memoryless node.
+
+Signed-off-by: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
+Signed-off-by: Nishanth Aravamudan <nacc@us.ibm.com>
 Signed-off-by: Christoph Lameter <clameter@sgi.com>
 
-Index: linux-2.6.22-rc4-mm2/mm/slub.c
+Index: linux-2.6.22-rc4-mm2/include/linux/nodemask.h
 ===================================================================
---- linux-2.6.22-rc4-mm2.orig/mm/slub.c	2007-06-18 11:16:15.000000000 -0700
-+++ linux-2.6.22-rc4-mm2/mm/slub.c	2007-06-18 11:28:50.000000000 -0700
-@@ -2086,7 +2086,7 @@ static void free_kmem_cache_nodes(struct
- {
- 	int node;
+--- linux-2.6.22-rc4-mm2.orig/include/linux/nodemask.h	2007-06-18 11:46:26.000000000 -0700
++++ linux-2.6.22-rc4-mm2/include/linux/nodemask.h	2007-06-18 11:48:42.000000000 -0700
+@@ -64,12 +64,16 @@
+  *
+  * int node_online(node)		Is some node online?
+  * int node_possible(node)		Is some node possible?
++ * int node_memory(node)		Does a node have memory?
+  *
+  * int any_online_node(mask)		First online node in mask
+  *
+  * node_set_online(node)		set bit 'node' in node_online_map
+  * node_set_offline(node)		clear bit 'node' in node_online_map
+  *
++ * node_set_has_memory(node)		set bit 'node' in node_memory_map
++ * node_set_no_memory(node)		clear bit 'node' in node_memory_map
++ *
+  * for_each_node(node)			for-loop node over node_possible_map
+  * for_each_online_node(node)		for-loop node over node_online_map
+  *
+@@ -344,12 +348,14 @@ static inline void __nodes_remap(nodemas
  
--	for_each_online_node(node) {
-+	for_each_memory_node(node) {
- 		struct kmem_cache_node *n = s->node[node];
- 		if (n && n != &s->local_node)
- 			kmem_cache_free(kmalloc_caches, n);
-@@ -2104,7 +2104,7 @@ static int init_kmem_cache_nodes(struct 
- 	else
- 		local_node = 0;
+ extern nodemask_t node_online_map;
+ extern nodemask_t node_possible_map;
++extern nodemask_t node_memory_map;
  
--	for_each_online_node(node) {
-+	for_each_memory_node(node) {
- 		struct kmem_cache_node *n;
+ #if MAX_NUMNODES > 1
+ #define num_online_nodes()	nodes_weight(node_online_map)
+ #define num_possible_nodes()	nodes_weight(node_possible_map)
+ #define node_online(node)	node_isset((node), node_online_map)
+ #define node_possible(node)	node_isset((node), node_possible_map)
++#define node_memory(node)	node_isset((node), node_memory_map)
+ #define first_online_node	first_node(node_online_map)
+ #define next_online_node(nid)	next_node((nid), node_online_map)
+ extern int nr_node_ids;
+@@ -358,6 +364,8 @@ extern int nr_node_ids;
+ #define num_possible_nodes()	1
+ #define node_online(node)	((node) == 0)
+ #define node_possible(node)	((node) == 0)
++#define node_memory(node)	((node) == 0)
++#define node_populated(node)	((node) == 0)
+ #define first_online_node	0
+ #define next_online_node(nid)	(MAX_NUMNODES)
+ #define nr_node_ids		1
+@@ -375,7 +383,11 @@ extern int nr_node_ids;
+ #define node_set_online(node)	   set_bit((node), node_online_map.bits)
+ #define node_set_offline(node)	   clear_bit((node), node_online_map.bits)
  
- 		if (local_node == node)
-@@ -2366,7 +2366,7 @@ static inline int kmem_cache_close(struc
- 	/* Attempt to free all objects */
- 	free_kmem_cache_cpus(s);
++#define node_set_has_memory(node)  set_bit((node), node_memory_map.bits)
++#define node_set_no_memory(node)   clear_bit((node), node_memory_map.bits)
++
+ #define for_each_node(node)	   for_each_node_mask((node), node_possible_map)
+ #define for_each_online_node(node) for_each_node_mask((node), node_online_map)
++#define for_each_memory_node(node) for_each_node_mask((node), node_memory_map)
  
--	for_each_online_node(node) {
-+	for_each_memory_node(node) {
- 		struct kmem_cache_node *n = get_node(s, node);
- 
- 		n->nr_partial -= free_list(s, n, &n->partial);
-@@ -2937,7 +2937,7 @@ int kmem_cache_shrink(struct kmem_cache 
- 	if (!scratch)
- 		return -ENOMEM;
- 
--	for_each_online_node(node)
-+	for_each_memory_node(node)
- 		__kmem_cache_shrink(s, get_node(s, node), scratch);
- 
- 	kfree(scratch);
-@@ -3008,7 +3008,7 @@ int kmem_cache_defrag(int percent, int n
- 		scratch = kmalloc(sizeof(struct list_head) * s->objects,
- 								GFP_KERNEL);
- 		if (node == -1) {
--			for_each_online_node(node)
-+			for_each_memory_node(node)
- 				pages += __kmem_cache_defrag(s, percent,
- 							node, scratch);
- 		} else
-@@ -3392,7 +3392,7 @@ static unsigned long validate_slab_cache
- 	unsigned long count = 0;
- 
- 	flush_all(s);
--	for_each_online_node(node) {
-+	for_each_memory_node(node) {
- 		struct kmem_cache_node *n = get_node(s, node);
- 
- 		count += validate_slab_node(s, n);
-@@ -3611,7 +3611,7 @@ static int list_locations(struct kmem_ca
- 	/* Push back cpu slabs */
- 	flush_all(s);
- 
--	for_each_online_node(node) {
-+	for_each_memory_node(node) {
- 		struct kmem_cache_node *n = get_node(s, node);
- 		unsigned long flags;
- 		struct page *page;
-@@ -3723,7 +3723,7 @@ static unsigned long slab_objects(struct
- 		}
+ #endif /* __LINUX_NODEMASK_H */
+Index: linux-2.6.22-rc4-mm2/mm/page_alloc.c
+===================================================================
+--- linux-2.6.22-rc4-mm2.orig/mm/page_alloc.c	2007-06-18 11:48:32.000000000 -0700
++++ linux-2.6.22-rc4-mm2/mm/page_alloc.c	2007-06-18 11:49:34.000000000 -0700
+@@ -54,6 +54,9 @@ nodemask_t node_online_map __read_mostly
+ EXPORT_SYMBOL(node_online_map);
+ nodemask_t node_possible_map __read_mostly = NODE_MASK_ALL;
+ EXPORT_SYMBOL(node_possible_map);
++nodemask_t node_memory_map __read_mostly = NODE_MASK_NONE;
++EXPORT_SYMBOL(node_memory_map);
++
+ unsigned long totalram_pages __read_mostly;
+ unsigned long totalreserve_pages __read_mostly;
+ long nr_swap_pages;
+@@ -2317,6 +2320,9 @@ static void build_zonelists(pg_data_t *p
  	}
  
--	for_each_online_node(node) {
-+	for_each_memory_node(node) {
- 		struct kmem_cache_node *n = get_node(s, node);
+ 	build_thisnode_zonelists(pgdat);
++
++	if (pgdat->node_present_pages)
++		node_set_has_memory(local_node);
+ }
  
- 		if (flags & SO_PARTIAL) {
-@@ -3751,7 +3751,7 @@ static unsigned long slab_objects(struct
- 
- 	x = sprintf(buf, "%lu", total);
- #ifdef CONFIG_NUMA
--	for_each_online_node(node)
-+	for_each_memory_node(node)
- 		if (nodes[node])
- 			x += sprintf(buf + x, " N%d=%lu",
- 					node, nodes[node]);
-@@ -3772,7 +3772,7 @@ static int any_slab_objects(struct kmem_
- 			return 1;
- 	}
- 
--	for_each_online_node(node) {
-+	for_each_memory_node(node) {
- 		struct kmem_cache_node *n = get_node(s, node);
- 
- 		if (n && (n->nr_partial || atomic_read(&n->nr_slabs)))
+ /* Construct the zonelist performance cache - see further mmzone.h */
 
 -- 
 
