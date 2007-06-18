@@ -1,62 +1,59 @@
-Received: by nz-out-0506.google.com with SMTP id x7so1527075nzc
-        for <linux-mm@kvack.org>; Mon, 18 Jun 2007 12:09:08 -0700 (PDT)
-Message-ID: <6bffcb0e0706181209p49f4ae86xce5418b7c9b3edbb@mail.gmail.com>
-Date: Mon, 18 Jun 2007 21:09:04 +0200
-From: "Michal Piotrowski" <michal.k.k.piotrowski@gmail.com>
+Date: Mon, 18 Jun 2007 12:19:05 -0700 (PDT)
+From: Christoph Lameter <clameter@sgi.com>
 Subject: Re: [patch 00/26] Current slab allocator / SLUB patch queue
-In-Reply-To: <Pine.LNX.4.64.0706181159430.1896@schroedinger.engr.sgi.com>
+In-Reply-To: <6bffcb0e0706181209p49f4ae86xce5418b7c9b3edbb@mail.gmail.com>
+Message-ID: <Pine.LNX.4.64.0706181217350.8899@schroedinger.engr.sgi.com>
+References: <20070618095838.238615343@sgi.com>  <46767346.2040108@googlemail.com>
+  <Pine.LNX.4.64.0706180936280.4751@schroedinger.engr.sgi.com>
+ <6bffcb0e0706181038j107e2357o89c525261cf671a@mail.gmail.com>
+ <Pine.LNX.4.64.0706181102280.6596@schroedinger.engr.sgi.com>
+ <6bffcb0e0706181158l739864e0t6fb5bc564444f23c@mail.gmail.com>
+ <Pine.LNX.4.64.0706181159430.1896@schroedinger.engr.sgi.com>
+ <6bffcb0e0706181209p49f4ae86xce5418b7c9b3edbb@mail.gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
-References: <20070618095838.238615343@sgi.com>
-	 <46767346.2040108@googlemail.com>
-	 <Pine.LNX.4.64.0706180936280.4751@schroedinger.engr.sgi.com>
-	 <6bffcb0e0706181038j107e2357o89c525261cf671a@mail.gmail.com>
-	 <Pine.LNX.4.64.0706181102280.6596@schroedinger.engr.sgi.com>
-	 <6bffcb0e0706181158l739864e0t6fb5bc564444f23c@mail.gmail.com>
-	 <Pine.LNX.4.64.0706181159430.1896@schroedinger.engr.sgi.com>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
+To: Michal Piotrowski <michal.k.k.piotrowski@gmail.com>
 Cc: akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Pekka Enberg <penberg@cs.helsinki.fi>, suresh.b.siddha@intel.com
 List-ID: <linux-mm.kvack.org>
 
-On 18/06/07, Christoph Lameter <clameter@sgi.com> wrote:
-> On Mon, 18 Jun 2007, Michal Piotrowski wrote:
->
-> > Still the same.
->
-> Is it still exactly the same strack trace?
+Stupid me. n on both sides of the comparison. Tried to run your script 
+here but I cannot trigger it.
 
-Not exactly the same
-[<c0480d4b>] list_locations+0x257/0x2ad
-is the only difference
+Next attempt: Sorry for the churn.
 
- l *list_locations+0x257
-0xc1080d4b is in list_locations (mm/slub.c:3655).
-3650                                    l->min_pid);
-3651
-3652                    if (num_online_cpus() > 1 && !cpus_empty(l->cpus) &&
-3653                                    n < PAGE_SIZE - n - 60) {
-3654                            n += sprintf(buf + n, " cpus=");
-3655                            n += cpulist_scnprintf(buf + n,
-PAGE_SIZE - n - 50,
-3656                                            l->cpus);
-3657                    }
-3658
-3659                    if (num_online_nodes() > 1 && !nodes_empty(l->nodes) &&
+SLUB: Fix behavior if the text output of list_locations overflows PAGE_SIZE
 
+If slabs are allocated or freed from a large set of call sites (typical
+for the kmalloc area) then we may create more output than fits into
+a single PAGE and sysfs only gives us one page. The output should be
+truncated. This patch fixes the checks to do the truncation properly.
 
-> There could be multiple issue
-> if we overflow PAGE_SIZE there.
+Signed-off-by: Christoph Lameter <clameter@sgi.com>
 
-Regards,
-Michal
-
--- 
-LOG
-http://www.stardust.webpages.pl/log/
+Index: linux-2.6.22-rc4-mm2/mm/slub.c
+===================================================================
+--- linux-2.6.22-rc4-mm2.orig/mm/slub.c	2007-06-18 12:13:48.000000000 -0700
++++ linux-2.6.22-rc4-mm2/mm/slub.c	2007-06-18 12:15:10.000000000 -0700
+@@ -3649,13 +3649,15 @@ static int list_locations(struct kmem_ca
+ 			n += sprintf(buf + n, " pid=%ld",
+ 				l->min_pid);
+ 
+-		if (num_online_cpus() > 1 && !cpus_empty(l->cpus)) {
++		if (num_online_cpus() > 1 && !cpus_empty(l->cpus) &&
++				n < PAGE_SIZE - 60) {
+ 			n += sprintf(buf + n, " cpus=");
+ 			n += cpulist_scnprintf(buf + n, PAGE_SIZE - n - 50,
+ 					l->cpus);
+ 		}
+ 
+-		if (num_online_nodes() > 1 && !nodes_empty(l->nodes)) {
++		if (num_online_nodes() > 1 && !nodes_empty(l->nodes) &&
++				n < PAGE_SIZE - 60) {
+ 			n += sprintf(buf + n, " nodes=");
+ 			n += nodelist_scnprintf(buf + n, PAGE_SIZE - n - 50,
+ 					l->nodes);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
