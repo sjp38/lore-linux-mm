@@ -1,11 +1,11 @@
-Date: Mon, 18 Jun 2007 10:05:04 -0700 (PDT)
+Date: Mon, 18 Jun 2007 10:07:21 -0700 (PDT)
 From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [PATCH 3/7] Introduce isolate_lru_page_nolock() as a lockless
- version of isolate_lru_page()
-In-Reply-To: <20070618092921.7790.78151.sendpatchset@skynet.skynet.ie>
-Message-ID: <Pine.LNX.4.64.0706181004520.4751@schroedinger.engr.sgi.com>
+Subject: Re: [PATCH 4/7] Provide metrics on the extent of fragmentation in
+ zones
+In-Reply-To: <20070618092941.7790.35167.sendpatchset@skynet.skynet.ie>
+Message-ID: <Pine.LNX.4.64.0706181007080.4751@schroedinger.engr.sgi.com>
 References: <20070618092821.7790.52015.sendpatchset@skynet.skynet.ie>
- <20070618092921.7790.78151.sendpatchset@skynet.skynet.ie>
+ <20070618092941.7790.35167.sendpatchset@skynet.skynet.ie>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
@@ -13,6 +13,10 @@ Return-Path: <owner-linux-mm@kvack.org>
 To: Mel Gorman <mel@csn.ul.ie>
 Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, kamezawa.hiroyu@jp.fujitsu.com
 List-ID: <linux-mm.kvack.org>
+
+Good idea. 
+
+Signed-off-by: Christoph Lameter <clameter@sgi.com>
 
 
 --
