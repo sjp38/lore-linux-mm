@@ -1,254 +1,268 @@
-Message-Id: <20070618095916.083793990@sgi.com>
+Message-Id: <20070618095914.622685354@sgi.com>
 References: <20070618095838.238615343@sgi.com>
-Date: Mon, 18 Jun 2007 02:58:49 -0700
+Date: Mon, 18 Jun 2007 02:58:43 -0700
 From: clameter@sgi.com
-Subject: [patch 11/26] SLUB: Add support for kmem_cache_ops
-Content-Disposition: inline; filename=slab_defrag_kmem_cache_ops
+Subject: [patch 05/26] Slab allocators: Cleanup zeroing allocations
+Content-Disposition: inline; filename=slab_remove_shortcut
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: akpm@linux-foundation.org
 Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Pekka Enberg <penberg@cs.helsinki.fi>, suresh.b.siddha@intel.com
 List-ID: <linux-mm.kvack.org>
 
-We use the parameter formerly used by the destructor to pass an optional
-pointer to a kmem_cache_ops structure to kmem_cache_create.
-
-kmem_cache_ops is created as empty. Later patches populate kmem_cache_ops.
-
-Create a KMEM_CACHE_OPS macro that allows the specification of a the
-kmem_cache_ops.
-
-Code to handle kmem_cache_ops is added to SLUB. SLAB and SLOB are updated
-to be able to accept a kmem_cache_ops structure but will ignore it.
+It becomes now easy to support the zeroing allocs with generic inline functions
+in slab.h. Provide inline definitions to allow the continued use of
+kzalloc, kmem_cache_zalloc etc but remove other definitions of zeroing functions
+from the slab allocators and util.c.
 
 Signed-off-by: Christoph Lameter <clameter@sgi.com>
 
 ---
- include/linux/slab.h     |   13 +++++++++----
- include/linux/slub_def.h |    1 +
- mm/slab.c                |    6 +++---
- mm/slob.c                |    2 +-
- mm/slub.c                |   44 ++++++++++++++++++++++++++++++--------------
- 5 files changed, 44 insertions(+), 22 deletions(-)
+ include/linux/slab.h     |   36 ++++++++++++++++++++++++------------
+ include/linux/slab_def.h |   30 ------------------------------
+ include/linux/slub_def.h |   13 -------------
+ mm/slab.c                |   17 -----------------
+ mm/slob.c                |   10 ----------
+ mm/slub.c                |   11 -----------
+ mm/util.c                |   14 --------------
+ 7 files changed, 24 insertions(+), 107 deletions(-)
 
 Index: linux-2.6.22-rc4-mm2/include/linux/slab.h
 ===================================================================
---- linux-2.6.22-rc4-mm2.orig/include/linux/slab.h	2007-06-17 18:11:59.000000000 -0700
-+++ linux-2.6.22-rc4-mm2/include/linux/slab.h	2007-06-17 18:12:19.000000000 -0700
-@@ -51,10 +51,13 @@
- void __init kmem_cache_init(void);
- int slab_is_available(void);
- 
-+struct kmem_cache_ops {
-+};
-+
- struct kmem_cache *kmem_cache_create(const char *, size_t, size_t,
- 			unsigned long,
- 			void (*)(void *, struct kmem_cache *, unsigned long),
--			void (*)(void *, struct kmem_cache *, unsigned long));
-+			const struct kmem_cache_ops *s);
+--- linux-2.6.22-rc4-mm2.orig/include/linux/slab.h	2007-06-17 18:08:09.000000000 -0700
++++ linux-2.6.22-rc4-mm2/include/linux/slab.h	2007-06-17 18:11:59.000000000 -0700
+@@ -58,7 +58,6 @@ struct kmem_cache *kmem_cache_create(con
  void kmem_cache_destroy(struct kmem_cache *);
  int kmem_cache_shrink(struct kmem_cache *);
  void *kmem_cache_alloc(struct kmem_cache *, gfp_t);
-@@ -71,9 +74,11 @@ int kmem_ptr_validate(struct kmem_cache 
-  * f.e. add ____cacheline_aligned_in_smp to the struct declaration
-  * then the objects will be properly aligned in SMP configurations.
+-void *kmem_cache_zalloc(struct kmem_cache *, gfp_t);
+ void kmem_cache_free(struct kmem_cache *, void *);
+ unsigned int kmem_cache_size(struct kmem_cache *);
+ const char *kmem_cache_name(struct kmem_cache *);
+@@ -105,7 +104,6 @@ static inline void *kmem_cache_alloc_nod
+  * Common kmalloc functions provided by all allocators
   */
--#define KMEM_CACHE(__struct, __flags) kmem_cache_create(#__struct,\
--		sizeof(struct __struct), __alignof__(struct __struct),\
--		(__flags), NULL, NULL)
-+#define KMEM_CACHE_OPS(__struct, __flags, __ops) \
-+	kmem_cache_create(#__struct, sizeof(struct __struct), \
-+	__alignof__(struct __struct), (__flags), NULL, (__ops))
-+
-+#define KMEM_CACHE(__struct, __flags) KMEM_CACHE_OPS(__struct, __flags, NULL)
- 
- #ifdef CONFIG_NUMA
- extern void *kmem_cache_alloc_node(struct kmem_cache *, gfp_t flags, int node);
-Index: linux-2.6.22-rc4-mm2/mm/slub.c
-===================================================================
---- linux-2.6.22-rc4-mm2.orig/mm/slub.c	2007-06-17 18:12:16.000000000 -0700
-+++ linux-2.6.22-rc4-mm2/mm/slub.c	2007-06-17 18:12:19.000000000 -0700
-@@ -300,6 +300,9 @@ static inline int check_valid_pointer(st
- 	return 1;
- }
- 
-+struct kmem_cache_ops slub_default_ops = {
-+};
-+
- /*
-  * Slow version of get and set free pointer.
-  *
-@@ -2081,11 +2084,13 @@ static int calculate_sizes(struct kmem_c
- static int kmem_cache_open(struct kmem_cache *s, gfp_t gfpflags,
- 		const char *name, size_t size,
- 		size_t align, unsigned long flags,
--		void (*ctor)(void *, struct kmem_cache *, unsigned long))
-+		void (*ctor)(void *, struct kmem_cache *, unsigned long),
-+		const struct kmem_cache_ops *ops)
+ void *__kmalloc(size_t, gfp_t);
+-void *__kzalloc(size_t, gfp_t);
+ void * __must_check krealloc(const void *, size_t, gfp_t);
+ void kfree(const void *);
+ size_t ksize(const void *);
+@@ -120,7 +118,7 @@ static inline void *kcalloc(size_t n, si
  {
- 	memset(s, 0, kmem_size);
- 	s->name = name;
- 	s->ctor = ctor;
-+	s->ops = ops;
- 	s->objsize = size;
- 	s->flags = flags;
- 	s->align = align;
-@@ -2268,7 +2273,7 @@ static struct kmem_cache *create_kmalloc
- 
- 	down_write(&slub_lock);
- 	if (!kmem_cache_open(s, gfp_flags, name, size, ARCH_KMALLOC_MINALIGN,
--			flags, NULL))
-+			flags, NULL, &slub_default_ops))
- 		goto panic;
- 
- 	list_add(&s->list, &slab_caches);
-@@ -2645,12 +2650,16 @@ static int slab_unmergeable(struct kmem_
- 	if (s->refcount < 0)
- 		return 1;
- 
-+	if (s->ops != &slub_default_ops)
-+		return 1;
-+
- 	return 0;
- }
- 
- static struct kmem_cache *find_mergeable(size_t size,
- 		size_t align, unsigned long flags,
--		void (*ctor)(void *, struct kmem_cache *, unsigned long))
-+		void (*ctor)(void *, struct kmem_cache *, unsigned long),
-+		const struct kmem_cache_ops *ops)
- {
- 	struct kmem_cache *s;
- 
-@@ -2660,6 +2669,9 @@ static struct kmem_cache *find_mergeable
- 	if (ctor)
+ 	if (n != 0 && size > ULONG_MAX / n)
  		return NULL;
- 
-+	if (ops != &slub_default_ops)
-+		return NULL;
-+
- 	size = ALIGN(size, sizeof(void *));
- 	align = calculate_alignment(flags, align, size);
- 	size = ALIGN(size, align);
-@@ -2692,13 +2704,15 @@ static struct kmem_cache *find_mergeable
- struct kmem_cache *kmem_cache_create(const char *name, size_t size,
- 		size_t align, unsigned long flags,
- 		void (*ctor)(void *, struct kmem_cache *, unsigned long),
--		void (*dtor)(void *, struct kmem_cache *, unsigned long))
-+		const struct kmem_cache_ops *ops)
- {
- 	struct kmem_cache *s;
- 
--	BUG_ON(dtor);
-+	if (!ops)
-+		ops = &slub_default_ops;
-+
- 	down_write(&slub_lock);
--	s = find_mergeable(size, align, flags, ctor);
-+	s = find_mergeable(size, align, flags, ctor, ops);
- 	if (s) {
- 		s->refcount++;
- 		/*
-@@ -2712,7 +2726,7 @@ struct kmem_cache *kmem_cache_create(con
- 	} else {
- 		s = kmalloc(kmem_size, GFP_KERNEL);
- 		if (s && kmem_cache_open(s, GFP_KERNEL, name,
--				size, align, flags, ctor)) {
-+				size, align, flags, ctor, ops)) {
- 			if (sysfs_slab_add(s)) {
- 				kfree(s);
- 				goto err;
-@@ -3323,16 +3337,18 @@ static ssize_t order_show(struct kmem_ca
+-	return __kzalloc(n * size, flags);
++	return __kmalloc(n * size, flags | __GFP_ZERO);
  }
- SLAB_ATTR_RO(order);
  
--static ssize_t ctor_show(struct kmem_cache *s, char *buf)
-+static ssize_t ops_show(struct kmem_cache *s, char *buf)
- {
--	if (s->ctor) {
--		int n = sprint_symbol(buf, (unsigned long)s->ctor);
-+	int x = 0;
- 
--		return n + sprintf(buf + n, "\n");
-+	if (s->ctor) {
-+		x += sprintf(buf + x, "ctor : ");
-+		x += sprint_symbol(buf + x, (unsigned long)s->ctor);
-+		x += sprintf(buf + x, "\n");
- 	}
--	return 0;
-+	return x;
+ /*
+@@ -192,15 +190,6 @@ static inline void *kmalloc(size_t size,
+ 	return __kmalloc(size, flags);
  }
--SLAB_ATTR_RO(ctor);
-+SLAB_ATTR_RO(ops);
  
- static ssize_t aliases_show(struct kmem_cache *s, char *buf)
- {
-@@ -3564,7 +3580,7 @@ static struct attribute * slab_attrs[] =
- 	&slabs_attr.attr,
- 	&partial_attr.attr,
- 	&cpu_slabs_attr.attr,
--	&ctor_attr.attr,
-+	&ops_attr.attr,
- 	&aliases_attr.attr,
- 	&align_attr.attr,
- 	&sanity_checks_attr.attr,
+-/**
+- * kzalloc - allocate memory. The memory is set to zero.
+- * @size: how many bytes of memory are required.
+- * @flags: the type of memory to allocate (see kmalloc).
+- */
+-static inline void *kzalloc(size_t size, gfp_t flags)
+-{
+-	return __kzalloc(size, flags);
+-}
+ #endif
+ 
+ #ifndef CONFIG_NUMA
+@@ -258,6 +247,29 @@ extern void *__kmalloc_node_track_caller
+ 
+ #endif /* DEBUG_SLAB */
+ 
++/*
++ * Shortcuts
++ */
++static inline void *kmem_cache_zalloc(struct kmem_cache *k, gfp_t flags)
++{
++	return kmem_cache_alloc(k, flags | __GFP_ZERO);
++}
++
++static inline void *__kzalloc(int size, gfp_t flags)
++{
++	return kmalloc(size, flags | __GFP_ZERO);
++}
++
++/**
++ * kzalloc - allocate memory. The memory is set to zero.
++ * @size: how many bytes of memory are required.
++ * @flags: the type of memory to allocate (see kmalloc).
++ */
++static inline void *kzalloc(size_t size, gfp_t flags)
++{
++	return kmalloc(size, flags | __GFP_ZERO);
++}
++
+ #endif	/* __KERNEL__ */
+ #endif	/* _LINUX_SLAB_H */
+ 
+Index: linux-2.6.22-rc4-mm2/include/linux/slab_def.h
+===================================================================
+--- linux-2.6.22-rc4-mm2.orig/include/linux/slab_def.h	2007-06-17 18:08:09.000000000 -0700
++++ linux-2.6.22-rc4-mm2/include/linux/slab_def.h	2007-06-17 18:11:59.000000000 -0700
+@@ -55,36 +55,6 @@ found:
+ 	return __kmalloc(size, flags);
+ }
+ 
+-static inline void *kzalloc(size_t size, gfp_t flags)
+-{
+-	if (__builtin_constant_p(size)) {
+-		int i = 0;
+-
+-		if (!size)
+-			return ZERO_SIZE_PTR;
+-
+-#define CACHE(x) \
+-		if (size <= x) \
+-			goto found; \
+-		else \
+-			i++;
+-#include "kmalloc_sizes.h"
+-#undef CACHE
+-		{
+-			extern void __you_cannot_kzalloc_that_much(void);
+-			__you_cannot_kzalloc_that_much();
+-		}
+-found:
+-#ifdef CONFIG_ZONE_DMA
+-		if (flags & GFP_DMA)
+-			return kmem_cache_zalloc(malloc_sizes[i].cs_dmacachep,
+-						flags);
+-#endif
+-		return kmem_cache_zalloc(malloc_sizes[i].cs_cachep, flags);
+-	}
+-	return __kzalloc(size, flags);
+-}
+-
+ #ifdef CONFIG_NUMA
+ extern void *__kmalloc_node(size_t size, gfp_t flags, int node);
+ 
 Index: linux-2.6.22-rc4-mm2/include/linux/slub_def.h
 ===================================================================
---- linux-2.6.22-rc4-mm2.orig/include/linux/slub_def.h	2007-06-17 18:12:04.000000000 -0700
-+++ linux-2.6.22-rc4-mm2/include/linux/slub_def.h	2007-06-17 18:12:19.000000000 -0700
-@@ -42,6 +42,7 @@ struct kmem_cache {
- 	int objects;		/* Number of objects in slab */
- 	int refcount;		/* Refcount for slab cache destroy */
- 	void (*ctor)(void *, struct kmem_cache *, unsigned long);
-+	const struct kmem_cache_ops *ops;
- 	int inuse;		/* Offset to metadata */
- 	int align;		/* Alignment */
- 	const char *name;	/* Name (only for display!) */
+--- linux-2.6.22-rc4-mm2.orig/include/linux/slub_def.h	2007-06-17 18:08:09.000000000 -0700
++++ linux-2.6.22-rc4-mm2/include/linux/slub_def.h	2007-06-17 18:11:59.000000000 -0700
+@@ -173,19 +173,6 @@ static inline void *kmalloc(size_t size,
+ 		return __kmalloc(size, flags);
+ }
+ 
+-static inline void *kzalloc(size_t size, gfp_t flags)
+-{
+-	if (__builtin_constant_p(size) && !(flags & SLUB_DMA)) {
+-		struct kmem_cache *s = kmalloc_slab(size);
+-
+-		if (!s)
+-			return ZERO_SIZE_PTR;
+-
+-		return kmem_cache_zalloc(s, flags);
+-	} else
+-		return __kzalloc(size, flags);
+-}
+-
+ #ifdef CONFIG_NUMA
+ extern void *__kmalloc_node(size_t size, gfp_t flags, int node);
+ 
 Index: linux-2.6.22-rc4-mm2/mm/slab.c
 ===================================================================
---- linux-2.6.22-rc4-mm2.orig/mm/slab.c	2007-06-17 18:11:59.000000000 -0700
-+++ linux-2.6.22-rc4-mm2/mm/slab.c	2007-06-17 18:12:19.000000000 -0700
-@@ -2102,7 +2102,7 @@ static int __init_refok setup_cpu_cache(
-  * @align: The required alignment for the objects.
-  * @flags: SLAB flags
-  * @ctor: A constructor for the objects.
-- * @dtor: A destructor for the objects (not implemented anymore).
-+ * @ops: A kmem_cache_ops structure (ignored).
-  *
-  * Returns a ptr to the cache on success, NULL on failure.
-  * Cannot be called within a int, but can be interrupted.
-@@ -2128,7 +2128,7 @@ struct kmem_cache *
- kmem_cache_create (const char *name, size_t size, size_t align,
- 	unsigned long flags,
- 	void (*ctor)(void*, struct kmem_cache *, unsigned long),
--	void (*dtor)(void*, struct kmem_cache *, unsigned long))
-+	const struct kmem_cache_ops *ops)
- {
- 	size_t left_over, slab_size, ralign;
- 	struct kmem_cache *cachep = NULL, *pc;
-@@ -2137,7 +2137,7 @@ kmem_cache_create (const char *name, siz
- 	 * Sanity checks... these are all serious usage bugs.
- 	 */
- 	if (!name || in_interrupt() || (size < BYTES_PER_WORD) ||
--	    size > KMALLOC_MAX_SIZE || dtor) {
-+	    size > KMALLOC_MAX_SIZE) {
- 		printk(KERN_ERR "%s: Early error in slab %s\n", __FUNCTION__,
- 				name);
- 		BUG();
+--- linux-2.6.22-rc4-mm2.orig/mm/slab.c	2007-06-17 18:11:55.000000000 -0700
++++ linux-2.6.22-rc4-mm2/mm/slab.c	2007-06-17 18:11:59.000000000 -0700
+@@ -3578,23 +3578,6 @@ void *kmem_cache_alloc(struct kmem_cache
+ EXPORT_SYMBOL(kmem_cache_alloc);
+ 
+ /**
+- * kmem_cache_zalloc - Allocate an object. The memory is set to zero.
+- * @cache: The cache to allocate from.
+- * @flags: See kmalloc().
+- *
+- * Allocate an object from this cache and set the allocated memory to zero.
+- * The flags are only relevant if the cache has no available objects.
+- */
+-void *kmem_cache_zalloc(struct kmem_cache *cache, gfp_t flags)
+-{
+-	void *ret = __cache_alloc(cache, flags, __builtin_return_address(0));
+-	if (ret)
+-		memset(ret, 0, obj_size(cache));
+-	return ret;
+-}
+-EXPORT_SYMBOL(kmem_cache_zalloc);
+-
+-/**
+  * kmem_ptr_validate - check if an untrusted pointer might
+  *	be a slab entry.
+  * @cachep: the cache we're checking against
 Index: linux-2.6.22-rc4-mm2/mm/slob.c
 ===================================================================
---- linux-2.6.22-rc4-mm2.orig/mm/slob.c	2007-06-17 18:11:59.000000000 -0700
-+++ linux-2.6.22-rc4-mm2/mm/slob.c	2007-06-17 18:12:19.000000000 -0700
-@@ -455,7 +455,7 @@ struct kmem_cache {
- struct kmem_cache *kmem_cache_create(const char *name, size_t size,
- 	size_t align, unsigned long flags,
- 	void (*ctor)(void*, struct kmem_cache *, unsigned long),
--	void (*dtor)(void*, struct kmem_cache *, unsigned long))
-+	const struct kmem_cache_ops *o)
- {
- 	struct kmem_cache *c;
+--- linux-2.6.22-rc4-mm2.orig/mm/slob.c	2007-06-17 18:10:47.000000000 -0700
++++ linux-2.6.22-rc4-mm2/mm/slob.c	2007-06-17 18:11:59.000000000 -0700
+@@ -505,16 +505,6 @@ void *kmem_cache_alloc(struct kmem_cache
+ }
+ EXPORT_SYMBOL(kmem_cache_alloc);
  
+-void *kmem_cache_zalloc(struct kmem_cache *c, gfp_t flags)
+-{
+-	void *ret = kmem_cache_alloc(c, flags);
+-	if (ret)
+-		memset(ret, 0, c->size);
+-
+-	return ret;
+-}
+-EXPORT_SYMBOL(kmem_cache_zalloc);
+-
+ static void __kmem_cache_free(void *b, int size)
+ {
+ 	if (size < PAGE_SIZE)
+Index: linux-2.6.22-rc4-mm2/mm/slub.c
+===================================================================
+--- linux-2.6.22-rc4-mm2.orig/mm/slub.c	2007-06-17 18:10:47.000000000 -0700
++++ linux-2.6.22-rc4-mm2/mm/slub.c	2007-06-17 18:11:59.000000000 -0700
+@@ -2664,17 +2664,6 @@ err:
+ }
+ EXPORT_SYMBOL(kmem_cache_create);
+ 
+-void *kmem_cache_zalloc(struct kmem_cache *s, gfp_t flags)
+-{
+-	void *x;
+-
+-	x = slab_alloc(s, flags, -1, __builtin_return_address(0), 0);
+-	if (x)
+-		memset(x, 0, s->objsize);
+-	return x;
+-}
+-EXPORT_SYMBOL(kmem_cache_zalloc);
+-
+ #ifdef CONFIG_SMP
+ /*
+  * Use the cpu notifier to insure that the cpu slabs are flushed when
+Index: linux-2.6.22-rc4-mm2/mm/util.c
+===================================================================
+--- linux-2.6.22-rc4-mm2.orig/mm/util.c	2007-06-17 18:08:09.000000000 -0700
++++ linux-2.6.22-rc4-mm2/mm/util.c	2007-06-17 18:11:59.000000000 -0700
+@@ -5,20 +5,6 @@
+ #include <asm/uaccess.h>
+ 
+ /**
+- * __kzalloc - allocate memory. The memory is set to zero.
+- * @size: how many bytes of memory are required.
+- * @flags: the type of memory to allocate.
+- */
+-void *__kzalloc(size_t size, gfp_t flags)
+-{
+-	void *ret = kmalloc_track_caller(size, flags);
+-	if (ret)
+-		memset(ret, 0, size);
+-	return ret;
+-}
+-EXPORT_SYMBOL(__kzalloc);
+-
+-/**
+  * kstrdup - allocate space for and copy an existing string
+  * @s: the string to duplicate
+  * @gfp: the GFP mask used in the kmalloc() call when allocating memory
 
 -- 
 
