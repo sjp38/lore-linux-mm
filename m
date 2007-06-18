@@ -1,66 +1,45 @@
-Received: from d03relay04.boulder.ibm.com (d03relay04.boulder.ibm.com [9.17.195.106])
-	by e33.co.us.ibm.com (8.13.8/8.13.8) with ESMTP id l5IGlm35019455
-	for <linux-mm@kvack.org>; Mon, 18 Jun 2007 12:47:48 -0400
-Received: from d03av04.boulder.ibm.com (d03av04.boulder.ibm.com [9.17.195.170])
-	by d03relay04.boulder.ibm.com (8.13.8/8.13.8/NCO v8.3) with ESMTP id l5IGlmLZ040796
-	for <linux-mm@kvack.org>; Mon, 18 Jun 2007 10:47:48 -0600
-Received: from d03av04.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av04.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l5IGlmqt024851
-	for <linux-mm@kvack.org>; Mon, 18 Jun 2007 10:47:48 -0600
-Date: Mon, 18 Jun 2007 09:47:22 -0700
-From: Nishanth Aravamudan <nacc@us.ibm.com>
-Subject: Re: [RFC 10/13] Memoryless nodes: Fix GFP_THISNODE behavior
-Message-ID: <20070618164722.GA10714@us.ibm.com>
-References: <20070614075026.607300756@sgi.com> <20070614075336.405903951@sgi.com> <20070614160704.GE7469@us.ibm.com>
+Received: by ug-out-1314.google.com with SMTP id m2so1537305uge
+        for <linux-mm@kvack.org>; Mon, 18 Jun 2007 09:51:59 -0700 (PDT)
+Message-ID: <29495f1d0706180951r2b7d0fe1gdcc0158011baf637@mail.gmail.com>
+Date: Mon, 18 Jun 2007 09:51:59 -0700
+From: "Nish Aravamudan" <nish.aravamudan@gmail.com>
+Subject: Re: [PATCH] madvise_need_mmap_write() usage
+In-Reply-To: <Pine.LNX.4.64.0706181132020.23021@dhcp83-20.boston.redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Content-Disposition: inline
-In-Reply-To: <20070614160704.GE7469@us.ibm.com>
+References: <Pine.LNX.4.64.0706151118150.11498@dhcp83-20.boston.redhat.com>
+	 <20070616194130.GA6681@infradead.org>
+	 <Pine.LNX.4.64.0706181132020.23021@dhcp83-20.boston.redhat.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: clameter@sgi.com
-Cc: Lee Schermerhorn <Lee.Schermerhorn@hp.com>, linux-mm@kvack.org
+To: Jason Baron <jbaron@redhat.com>
+Cc: Christoph Hellwig <hch@infradead.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, nickpiggin@yahoo.com.au, Rik van Riel <riel@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
-On 14.06.2007 [09:07:04 -0700], Nishanth Aravamudan wrote:
-> On 14.06.2007 [00:50:36 -0700], clameter@sgi.com wrote:
-> > GFP_THISNODE checks that the zone selected is within the pgdat (node) of the
-> > first zone of a nodelist. That only works if the node has memory. A
-> > memoryless node will have its first node on another pgdat (node).
-> > 
-> > GFP_THISNODE currently will return simply memory on the first pgdat.
-> > Thus it is returning memory on other nodes. GFP_THISNODE should fail
-> > if there is no local memory on a node.
-> > 
-> > 
-> > Add a new set of zonelists for each node that only contain the nodes
-> > that belong to the zones itself so that no fallback is possible.
-> 
-> Should be
-> 
-> Add a new set of zonelists for each node that only contain the zones
-> that belong to the node itself so that no fallback is possible?
-> 
-> This is the last patch in the stack I should based my patches on,
-> correct (I believe 11-13 were mis-sends)?
-> 
-> Will test everything and send out Acks later today, hopefully.
+On 6/18/07, Jason Baron <jbaron@redhat.com> wrote:
+>
+> On Sat, 16 Jun 2007, Christoph Hellwig wrote:
+>
+> > On Fri, Jun 15, 2007 at 11:20:31AM -0400, Jason Baron wrote:
+> > > hi,
+> > >
+> > > i was just looking at the new madvise_need_mmap_write() call...can we
+> > > avoid an extra case statement and function call as follows?
+> >
+> > Sounds like a good idea, but please move the assignment out of the
+> > conditional.
+> >
+>
+> ok, here's an updated version:
 
-Tested on a 4-node ppc64 w/ 2 memoryless nodes and a 4-node x86_64 w/
-no memoryless nodes, with my patches applied on top (will send out the
-latest versions again).
+You should always append the full patch, both the diff and the
+rationale, I think. Even though it's quoted above, might make less
+work for Andrew to pull in.
 
-All get
-
-Acked-by: Nishanth Aravamudan <nacc@us.ibm.com>
-
-Thanks for doing this work, Christoph!
-
--Nish
-
--- 
-Nishanth Aravamudan <nacc@us.ibm.com>
-IBM Linux Technology Center
+Thanks,
+Nish
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
