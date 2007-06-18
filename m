@@ -1,9 +1,9 @@
-Message-Id: <20070618095917.727840136@sgi.com>
+Message-Id: <20070618095917.242949306@sgi.com>
 References: <20070618095838.238615343@sgi.com>
-Date: Mon, 18 Jun 2007 02:58:56 -0700
+Date: Mon, 18 Jun 2007 02:58:54 -0700
 From: clameter@sgi.com
-Subject: [patch 18/26] Slab defragmentation: Support procfs inode defragmentation
-Content-Disposition: inline; filename=slub_defrag_fs_proc
+Subject: [patch 16/26] Slab defragmentation: Support defragmentation for extX filesystem inodes
+Content-Disposition: inline; filename=slub_defrag_fs_ext234
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: akpm@linux-foundation.org
@@ -11,39 +11,104 @@ Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Pekka Enberg <penberg@cs.h
 List-ID: <linux-mm.kvack.org>
 
 ---
- fs/proc/inode.c |   22 ++++++++++++++++++++--
- 1 file changed, 20 insertions(+), 2 deletions(-)
+ fs/ext2/super.c |   16 ++++++++++++++--
+ fs/ext3/super.c |   14 +++++++++++++-
+ fs/ext4/super.c |   14 +++++++++++++-
+ 3 files changed, 40 insertions(+), 4 deletions(-)
 
-Index: slub/fs/proc/inode.c
+Index: slub/fs/ext2/super.c
 ===================================================================
---- slub.orig/fs/proc/inode.c	2007-06-04 20:12:56.000000000 -0700
-+++ slub/fs/proc/inode.c	2007-06-04 21:35:00.000000000 -0700
-@@ -112,14 +112,25 @@ static void init_once(void * foo, struct
- 
+--- slub.orig/fs/ext2/super.c	2007-06-07 14:09:36.000000000 -0700
++++ slub/fs/ext2/super.c	2007-06-07 14:28:47.000000000 -0700
+@@ -168,14 +168,26 @@ static void init_once(void * foo, struct
+ 	mutex_init(&ei->truncate_mutex);
  	inode_init_once(&ei->vfs_inode);
  }
 - 
 +
-+static void *proc_get_inodes(struct kmem_cache *s, int nr, void **v)
++static void *ext2_get_inodes(struct kmem_cache *s, int nr, void **v)
 +{
 +	return fs_get_inodes(s, nr, v,
-+			offsetof(struct proc_inode, vfs_inode));
-+};
++		offsetof(struct ext2_inode_info, vfs_inode));
++}
 +
-+static struct kmem_cache_ops proc_kmem_cache_ops = {
-+	.get = proc_get_inodes,
++static struct kmem_cache_ops ext2_kmem_cache_ops = {
++	.get = ext2_get_inodes,
 +	.kick = kick_inodes
 +};
 +
- int __init proc_init_inodecache(void)
+ static int init_inodecache(void)
  {
- 	proc_inode_cachep = kmem_cache_create("proc_inode_cache",
- 					     sizeof(struct proc_inode),
+ 	ext2_inode_cachep = kmem_cache_create("ext2_inode_cache",
+ 					     sizeof(struct ext2_inode_info),
  					     0, (SLAB_RECLAIM_ACCOUNT|
  						SLAB_MEM_SPREAD),
 -					     init_once, NULL);
-+					     init_once, &proc_kmem_cache_ops);
- 	if (proc_inode_cachep == NULL)
++					     init_once,
++					     &ext2_kmem_cache_ops);
+ 	if (ext2_inode_cachep == NULL)
+ 		return -ENOMEM;
+ 	return 0;
+Index: slub/fs/ext3/super.c
+===================================================================
+--- slub.orig/fs/ext3/super.c	2007-06-07 14:09:36.000000000 -0700
++++ slub/fs/ext3/super.c	2007-06-07 14:28:47.000000000 -0700
+@@ -483,13 +483,25 @@ static void init_once(void * foo, struct
+ 	inode_init_once(&ei->vfs_inode);
+ }
+ 
++static void *ext3_get_inodes(struct kmem_cache *s, int nr, void **v)
++{
++	return fs_get_inodes(s, nr, v,
++		offsetof(struct ext3_inode_info, vfs_inode));
++}
++
++static struct kmem_cache_ops ext3_kmem_cache_ops = {
++	.get = ext3_get_inodes,
++	.kick = kick_inodes
++};
++
+ static int init_inodecache(void)
+ {
+ 	ext3_inode_cachep = kmem_cache_create("ext3_inode_cache",
+ 					     sizeof(struct ext3_inode_info),
+ 					     0, (SLAB_RECLAIM_ACCOUNT|
+ 						SLAB_MEM_SPREAD),
+-					     init_once, NULL);
++					     init_once,
++					     &ext3_kmem_cache_ops);
+ 	if (ext3_inode_cachep == NULL)
+ 		return -ENOMEM;
+ 	return 0;
+Index: slub/fs/ext4/super.c
+===================================================================
+--- slub.orig/fs/ext4/super.c	2007-06-07 14:09:36.000000000 -0700
++++ slub/fs/ext4/super.c	2007-06-07 14:29:49.000000000 -0700
+@@ -543,13 +543,25 @@ static void init_once(void * foo, struct
+ 	inode_init_once(&ei->vfs_inode);
+ }
+ 
++static void *ext4_get_inodes(struct kmem_cache *s, int nr, void **v)
++{
++	return fs_get_inodes(s, nr, v,
++		offsetof(struct ext4_inode_info, vfs_inode));
++}
++
++static struct kmem_cache_ops ext4_kmem_cache_ops = {
++	.get = ext4_get_inodes,
++	.kick = kick_inodes
++};
++
+ static int init_inodecache(void)
+ {
+ 	ext4_inode_cachep = kmem_cache_create("ext4_inode_cache",
+ 					     sizeof(struct ext4_inode_info),
+ 					     0, (SLAB_RECLAIM_ACCOUNT|
+ 						SLAB_MEM_SPREAD),
+-					     init_once, NULL);
++					     init_once,
++					     &ext4_kmem_cache_ops);
+ 	if (ext4_inode_cachep == NULL)
  		return -ENOMEM;
  	return 0;
 
