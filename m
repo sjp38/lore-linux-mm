@@ -1,113 +1,44 @@
-Message-Id: <20070618192544.604193343@sgi.com>
+Message-Id: <20070618192546.235770839@sgi.com>
 References: <20070618191956.411091458@sgi.com>
-Date: Mon, 18 Jun 2007 12:19:58 -0700
+Date: Mon, 18 Jun 2007 12:20:05 -0700
 From: clameter@sgi.com
-Subject: [patch 02/10] NUMA: Introduce node_memory_map
-Content-Disposition: inline; filename=memless_memory_map
+Subject: [patch 09/10] Memoryless node: Allow profiling data to fall back to other nodes
+Content-Disposition: inline; filename=memless_profile
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: akpm@linux-foundation.org
-Cc: linux-mm@kvack.org, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Nishanth Aravamudan <nacc@us.ibm.com>
+Cc: linux-mm@kvack.org, Nishanth Aravamudan <nacc@us.ibm.com>
 List-ID: <linux-mm.kvack.org>
 
-It is necessary to know if nodes have memory since we have recently
-begun to add support for memoryless nodes. For that purpose we introduce
-a new bitmap called
+Processors on memoryless nodes must be able to fall back to remote nodes
+in order to get a profiling buffer. This may lead to excessive NUMA traffic
+but I think we should allow this rather than failing.
 
-node_memory_map
-
-A node has its bit in node_memory_map set if it has memory. If a node
-has memory then it has at least one zone defined in its pgdat structure
-that is located in the pgdat itself.
-
-The node_memory_map can then be used in various places to insure that we
-do the right thing when we encounter a memoryless node.
-
-Signed-off-by: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
-Signed-off-by: Nishanth Aravamudan <nacc@us.ibm.com>
 Signed-off-by: Christoph Lameter <clameter@sgi.com>
+Acked-by: Nishanth Aravamudan <nacc@us.ibm.com>
 
-Index: linux-2.6.22-rc4-mm2/include/linux/nodemask.h
+Index: linux-2.6.22-rc4-mm2/kernel/profile.c
 ===================================================================
---- linux-2.6.22-rc4-mm2.orig/include/linux/nodemask.h	2007-06-18 11:46:26.000000000 -0700
-+++ linux-2.6.22-rc4-mm2/include/linux/nodemask.h	2007-06-18 11:48:42.000000000 -0700
-@@ -64,12 +64,16 @@
-  *
-  * int node_online(node)		Is some node online?
-  * int node_possible(node)		Is some node possible?
-+ * int node_memory(node)		Does a node have memory?
-  *
-  * int any_online_node(mask)		First online node in mask
-  *
-  * node_set_online(node)		set bit 'node' in node_online_map
-  * node_set_offline(node)		clear bit 'node' in node_online_map
-  *
-+ * node_set_has_memory(node)		set bit 'node' in node_memory_map
-+ * node_set_no_memory(node)		clear bit 'node' in node_memory_map
-+ *
-  * for_each_node(node)			for-loop node over node_possible_map
-  * for_each_online_node(node)		for-loop node over node_online_map
-  *
-@@ -344,12 +348,14 @@ static inline void __nodes_remap(nodemas
- 
- extern nodemask_t node_online_map;
- extern nodemask_t node_possible_map;
-+extern nodemask_t node_memory_map;
- 
- #if MAX_NUMNODES > 1
- #define num_online_nodes()	nodes_weight(node_online_map)
- #define num_possible_nodes()	nodes_weight(node_possible_map)
- #define node_online(node)	node_isset((node), node_online_map)
- #define node_possible(node)	node_isset((node), node_possible_map)
-+#define node_memory(node)	node_isset((node), node_memory_map)
- #define first_online_node	first_node(node_online_map)
- #define next_online_node(nid)	next_node((nid), node_online_map)
- extern int nr_node_ids;
-@@ -358,6 +364,8 @@ extern int nr_node_ids;
- #define num_possible_nodes()	1
- #define node_online(node)	((node) == 0)
- #define node_possible(node)	((node) == 0)
-+#define node_memory(node)	((node) == 0)
-+#define node_populated(node)	((node) == 0)
- #define first_online_node	0
- #define next_online_node(nid)	(MAX_NUMNODES)
- #define nr_node_ids		1
-@@ -375,7 +383,11 @@ extern int nr_node_ids;
- #define node_set_online(node)	   set_bit((node), node_online_map.bits)
- #define node_set_offline(node)	   clear_bit((node), node_online_map.bits)
- 
-+#define node_set_has_memory(node)  set_bit((node), node_memory_map.bits)
-+#define node_set_no_memory(node)   clear_bit((node), node_memory_map.bits)
-+
- #define for_each_node(node)	   for_each_node_mask((node), node_possible_map)
- #define for_each_online_node(node) for_each_node_mask((node), node_online_map)
-+#define for_each_memory_node(node) for_each_node_mask((node), node_memory_map)
- 
- #endif /* __LINUX_NODEMASK_H */
-Index: linux-2.6.22-rc4-mm2/mm/page_alloc.c
-===================================================================
---- linux-2.6.22-rc4-mm2.orig/mm/page_alloc.c	2007-06-18 11:48:32.000000000 -0700
-+++ linux-2.6.22-rc4-mm2/mm/page_alloc.c	2007-06-18 11:49:34.000000000 -0700
-@@ -54,6 +54,9 @@ nodemask_t node_online_map __read_mostly
- EXPORT_SYMBOL(node_online_map);
- nodemask_t node_possible_map __read_mostly = NODE_MASK_ALL;
- EXPORT_SYMBOL(node_possible_map);
-+nodemask_t node_memory_map __read_mostly = NODE_MASK_NONE;
-+EXPORT_SYMBOL(node_memory_map);
-+
- unsigned long totalram_pages __read_mostly;
- unsigned long totalreserve_pages __read_mostly;
- long nr_swap_pages;
-@@ -2317,6 +2320,9 @@ static void build_zonelists(pg_data_t *p
- 	}
- 
- 	build_thisnode_zonelists(pgdat);
-+
-+	if (pgdat->node_present_pages)
-+		node_set_has_memory(local_node);
- }
- 
- /* Construct the zonelist performance cache - see further mmzone.h */
+--- linux-2.6.22-rc4-mm2.orig/kernel/profile.c	2007-06-13 23:36:42.000000000 -0700
++++ linux-2.6.22-rc4-mm2/kernel/profile.c	2007-06-13 23:36:55.000000000 -0700
+@@ -346,7 +346,7 @@ static int __devinit profile_cpu_callbac
+ 		per_cpu(cpu_profile_flip, cpu) = 0;
+ 		if (!per_cpu(cpu_profile_hits, cpu)[1]) {
+ 			page = alloc_pages_node(node,
+-					GFP_KERNEL | __GFP_ZERO | GFP_THISNODE,
++					GFP_KERNEL | __GFP_ZERO,
+ 					0);
+ 			if (!page)
+ 				return NOTIFY_BAD;
+@@ -354,7 +354,7 @@ static int __devinit profile_cpu_callbac
+ 		}
+ 		if (!per_cpu(cpu_profile_hits, cpu)[0]) {
+ 			page = alloc_pages_node(node,
+-					GFP_KERNEL | __GFP_ZERO | GFP_THISNODE,
++					GFP_KERNEL | __GFP_ZERO,
+ 					0);
+ 			if (!page)
+ 				goto out_free;
 
 -- 
 
