@@ -1,11 +1,9 @@
-Date: Mon, 18 Jun 2007 10:22:19 -0700 (PDT)
+Date: Mon, 18 Jun 2007 10:24:45 -0700 (PDT)
 From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [PATCH 7/7] Compact memory directly by a process when a high-order
- allocation fails
-In-Reply-To: <20070618093042.7790.30669.sendpatchset@skynet.skynet.ie>
-Message-ID: <Pine.LNX.4.64.0706181022060.4751@schroedinger.engr.sgi.com>
+Subject: Re: [PATCH 0/7] Memory Compaction v2
+In-Reply-To: <20070618092821.7790.52015.sendpatchset@skynet.skynet.ie>
+Message-ID: <Pine.LNX.4.64.0706181022530.4751@schroedinger.engr.sgi.com>
 References: <20070618092821.7790.52015.sendpatchset@skynet.skynet.ie>
- <20070618093042.7790.30669.sendpatchset@skynet.skynet.ie>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
@@ -14,10 +12,17 @@ To: Mel Gorman <mel@csn.ul.ie>
 Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, kamezawa.hiroyu@jp.fujitsu.com
 List-ID: <linux-mm.kvack.org>
 
-You are amazing.
+On Mon, 18 Jun 2007, Mel Gorman wrote:
 
-Acked-by: Christoph Lameter <clameter@sgi.com>
+> The patchset implements memory compaction for the page allocator reducing
+> external fragmentation so that free memory exists as fewer, but larger
+> contiguous blocks. Instead of being a full defragmentation solution,
+> this focuses exclusively on pages that are movable via the page migration
+> mechanism.
 
+We need an additional facility at some point that allows the moving of 
+pages that are not on the LRU. Such support seems to be possible
+for page table pages and slab pages.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
