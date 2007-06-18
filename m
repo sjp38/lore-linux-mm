@@ -1,126 +1,65 @@
-Message-Id: <20070618192546.461417125@sgi.com>
+Message-Id: <20070618192545.536071353@sgi.com>
 References: <20070618191956.411091458@sgi.com>
-Date: Mon, 18 Jun 2007 12:20:06 -0700
+Date: Mon, 18 Jun 2007 12:20:02 -0700
 From: clameter@sgi.com
-Subject: [patch 10/10] Memoryless nodes: Update memory policy and page migration
-Content-Disposition: inline; filename=memless_migrate
+Subject: [patch 06/10] Memoryless Node: Slab support
+Content-Disposition: inline; filename=memless_slab
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: akpm@linux-foundation.org
 Cc: linux-mm@kvack.org, Nishanth Aravamudan <nacc@us.ibm.com>
 List-ID: <linux-mm.kvack.org>
 
-Online nodes now may have no memory. The checks and initialization must therefore
-be changed to no longer use the online functions.
+Slab should not allocate control structures for nodes without memory. This may seem
+to work right now but its unreliable since not all allocations can fall back due
+to the use of GFP_THISNODE.
 
-This will correctly initialize the interleave on bootup to only target
-nodes with memory and will make sys_move_pages return an error when a page
-is to be moved to a memoryless node. Similarly we will get an error if
-MPOL_BIND and MPOL_INTERLEAVE is used on a memoryless node.
-
-These are somewhat new semantics. So far one could specify memoryless nodes
-and we would maybe do the right thing and just ignore the node (or we'd do
-something strange like with MPOL_INTERLEAVE). If we want to allow the
-specification of memoryless nodes via memory policies then we need to keep
-checking for online nodes.
+Switching a few for_each_online_node's to for_each_memory_node will allow us to
+only allocate for nodes that actually have memory.
 
 Signed-off-by: Christoph Lameter <clameter@sgi.com>
 Acked-by: Nishanth Aravamudan <nacc@us.ibm.com>
 
-Index: linux-2.6.22-rc4-mm2/mm/migrate.c
+Index: linux-2.6.22-rc4-mm2/mm/slab.c
 ===================================================================
---- linux-2.6.22-rc4-mm2.orig/mm/migrate.c	2007-06-14 00:49:43.000000000 -0700
-+++ linux-2.6.22-rc4-mm2/mm/migrate.c	2007-06-18 11:30:53.000000000 -0700
-@@ -963,7 +963,7 @@ asmlinkage long sys_move_pages(pid_t pid
- 				goto out;
+--- linux-2.6.22-rc4-mm2.orig/mm/slab.c	2007-06-18 11:46:25.000000000 -0700
++++ linux-2.6.22-rc4-mm2/mm/slab.c	2007-06-18 11:49:53.000000000 -0700
+@@ -1564,7 +1564,7 @@ void __init kmem_cache_init(void)
+ 		/* Replace the static kmem_list3 structures for the boot cpu */
+ 		init_list(&cache_cache, &initkmem_list3[CACHE_CACHE], node);
  
- 			err = -ENODEV;
--			if (!node_online(node))
-+			if (!node_memory(node))
- 				goto out;
+-		for_each_online_node(nid) {
++		for_each_memory_node(nid) {
+ 			init_list(malloc_sizes[INDEX_AC].cs_cachep,
+ 				  &initkmem_list3[SIZE_AC + nid], nid);
  
- 			err = -EACCES;
-Index: linux-2.6.22-rc4-mm2/mm/mempolicy.c
-===================================================================
---- linux-2.6.22-rc4-mm2.orig/mm/mempolicy.c	2007-06-18 11:24:51.000000000 -0700
-+++ linux-2.6.22-rc4-mm2/mm/mempolicy.c	2007-06-18 11:30:53.000000000 -0700
-@@ -130,7 +130,7 @@ static int mpol_check_policy(int mode, n
- 			return -EINVAL;
- 		break;
- 	}
--	return nodes_subset(*nodes, node_online_map) ? 0 : -EINVAL;
-+	return nodes_subset(*nodes, node_memory_map) ? 0 : -EINVAL;
- }
+@@ -1942,7 +1942,7 @@ static void __init set_up_list3s(struct 
+ {
+ 	int node;
  
- /* Generate a custom zonelist for the BIND policy. */
-@@ -495,9 +495,9 @@ static void get_zonemask(struct mempolic
- 		*nodes = p->v.nodes;
- 		break;
- 	case MPOL_PREFERRED:
--		/* or use current node instead of online map? */
-+		/* or use current node instead of memory_map? */
- 		if (p->v.preferred_node < 0)
--			*nodes = node_online_map;
-+			*nodes = node_memory_map;
- 		else
- 			node_set(p->v.preferred_node, *nodes);
- 		break;
-@@ -1606,7 +1606,7 @@ int mpol_parse_options(char *value, int 
- 		*nodelist++ = '\0';
- 		if (nodelist_parse(nodelist, *policy_nodes))
- 			goto out;
--		if (!nodes_subset(*policy_nodes, node_online_map))
-+		if (!nodes_subset(*policy_nodes, node_memory_map))
- 			goto out;
- 	}
- 	if (!strcmp(value, "default")) {
-@@ -1631,9 +1631,9 @@ int mpol_parse_options(char *value, int 
- 			err = 0;
- 	} else if (!strcmp(value, "interleave")) {
- 		*policy = MPOL_INTERLEAVE;
--		/* Default to nodes online if no nodelist */
-+		/* Default to nodes memory map if no nodelist */
- 		if (!nodelist)
--			*policy_nodes = node_online_map;
-+			*policy_nodes = node_memory_map;
- 		err = 0;
- 	}
- out:
-@@ -1674,14 +1674,14 @@ void __init numa_policy_init(void)
+-	for_each_online_node(node) {
++	for_each_memory_node(node) {
+ 		cachep->nodelists[node] = &initkmem_list3[index + node];
+ 		cachep->nodelists[node]->next_reap = jiffies +
+ 		    REAPTIMEOUT_LIST3 +
+@@ -2073,7 +2073,7 @@ static int __init_refok setup_cpu_cache(
+ 			g_cpucache_up = PARTIAL_L3;
+ 		} else {
+ 			int node;
+-			for_each_online_node(node) {
++			for_each_memory_node(node) {
+ 				cachep->nodelists[node] =
+ 				    kmalloc_node(sizeof(struct kmem_list3),
+ 						GFP_KERNEL, node);
+@@ -3787,7 +3787,7 @@ static int alloc_kmemlist(struct kmem_ca
+ 	struct array_cache *new_shared;
+ 	struct array_cache **new_alien = NULL;
  
- 	/*
- 	 * Use the specified nodemask for init, or fall back to
--	 * node_online_map.
-+	 * node_memory_map.
- 	 */
- 	if (policy_sysinit == MPOL_DEFAULT)
- 		nmask = NULL;
- 	else if (!nodes_empty(nmask_sysinit))
- 		nmask = &nmask_sysinit;
- 	else
--		nmask = &node_online_map;
-+		nmask = &node_memory_map;
+-	for_each_online_node(node) {
++	for_each_memory_node(node) {
  
- 	if (do_set_mempolicy(policy_sysinit, nmask))
- 		printk("numa_policy_init: setting init policy failed\n");
-@@ -1945,7 +1945,7 @@ int show_numa_map(struct seq_file *m, vo
- 		seq_printf(m, " huge");
- 	} else {
- 		check_pgd_range(vma, vma->vm_start, vma->vm_end,
--				&node_online_map, MPOL_MF_STATS, md);
-+				&node_memory_map, MPOL_MF_STATS, md);
- 	}
- 
- 	if (!md->pages)
-@@ -1972,7 +1972,7 @@ int show_numa_map(struct seq_file *m, vo
- 	if (md->writeback)
- 		seq_printf(m," writeback=%lu", md->writeback);
- 
--	for_each_online_node(n)
-+	for_each_memory_node(n)
- 		if (md->node[n])
- 			seq_printf(m, " N%d=%lu", n, md->node[n]);
- out:
+                 if (use_alien_caches) {
+                         new_alien = alloc_alien_cache(node, cachep->limit);
 
 -- 
 
