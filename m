@@ -1,166 +1,47 @@
-Message-Id: <20070618095917.005535114@sgi.com>
+Message-Id: <20070618095915.600066736@sgi.com>
 References: <20070618095838.238615343@sgi.com>
-Date: Mon, 18 Jun 2007 02:58:53 -0700
+Date: Mon, 18 Jun 2007 02:58:47 -0700
 From: clameter@sgi.com
-Subject: [patch 15/26] Slab defrag: Support generic defragmentation for inode slab caches
-Content-Disposition: inline; filename=slub_defrag_inode_generic
+Subject: [patch 09/26] SLUB: Do proper locking during dma slab creation
+Content-Disposition: inline; filename=slub_dma_create_lock
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: akpm@linux-foundation.org
 Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Pekka Enberg <penberg@cs.helsinki.fi>, suresh.b.siddha@intel.com
 List-ID: <linux-mm.kvack.org>
 
-This implements the ability to remove inodes in a particular slab
-from inode cache. In order to remove an inode we may have to write out
-the pages of an inode, the inode itself and remove the dentries referring
-to the node.
-
-Provide generic functionality that can be used by filesystems that have
-their own inode caches to also tie into the defragmentation functions
-that are made available here.
+We modify the kmalloc_cache_dma[] array without proper locking.
+Do the proper locking and undo the dma cache creation if another processor
+has already created it.
 
 Signed-off-by: Christoph Lameter <clameter@sgi.com>
 
 ---
- fs/inode.c         |  100 ++++++++++++++++++++++++++++++++++++++++++++++++++++-
- include/linux/fs.h |    5 ++
- 2 files changed, 104 insertions(+), 1 deletion(-)
+ mm/slub.c |   11 +++++++++--
+ 1 file changed, 9 insertions(+), 2 deletions(-)
 
-Index: linux-2.6.22-rc4-mm2/fs/inode.c
+Index: linux-2.6.22-rc4-mm2/mm/slub.c
 ===================================================================
---- linux-2.6.22-rc4-mm2.orig/fs/inode.c	2007-06-17 22:29:43.000000000 -0700
-+++ linux-2.6.22-rc4-mm2/fs/inode.c	2007-06-17 22:54:41.000000000 -0700
-@@ -1351,6 +1351,105 @@ static int __init set_ihash_entries(char
+--- linux-2.6.22-rc4-mm2.orig/mm/slub.c	2007-06-17 18:12:10.000000000 -0700
++++ linux-2.6.22-rc4-mm2/mm/slub.c	2007-06-17 18:12:13.000000000 -0700
+@@ -2310,8 +2310,15 @@ static struct kmem_cache *dma_kmalloc_ca
+ 	text = kasprintf(flags & ~SLUB_DMA, "kmalloc_dma-%d",
+ 			(unsigned int)realsize);
+ 	s = create_kmalloc_cache(x, text, realsize, flags);
+-	kmalloc_caches_dma[index] = s;
+-	return s;
++	down_write(&slub_lock);
++	if (!kmalloc_caches_dma[index]) {
++		kmalloc_caches_dma[index] = s;
++		up_write(&slub_lock);
++		return s;
++	}
++	up_write(&slub_lock);
++	kmem_cache_destroy(s);
++	return kmalloc_caches_dma[index];
  }
- __setup("ihash_entries=", set_ihash_entries);
+ #endif
  
-+static void *get_inodes(struct kmem_cache *s, int nr, void **v)
-+{
-+	int i;
-+
-+	spin_lock(&inode_lock);
-+	for (i = 0; i < nr; i++) {
-+		struct inode *inode = v[i];
-+
-+		if (inode->i_state & (I_FREEING|I_CLEAR|I_WILL_FREE))
-+			v[i] = NULL;
-+		else
-+			__iget(inode);
-+	}
-+	spin_unlock(&inode_lock);
-+	return NULL;
-+}
-+
-+/*
-+ * Function for filesystems that embedd struct inode into their own
-+ * structures. The offset is the offset of the struct inode in the fs inode.
-+ */
-+void *fs_get_inodes(struct kmem_cache *s, int nr, void **v,
-+						unsigned long offset)
-+{
-+	int i;
-+
-+	for (i = 0; i < nr; i++)
-+		v[i] += offset;
-+
-+	return get_inodes(s, nr, v);
-+}
-+EXPORT_SYMBOL(fs_get_inodes);
-+
-+void kick_inodes(struct kmem_cache *s, int nr, void **v, void *private)
-+{
-+	struct inode *inode;
-+	int i;
-+	int abort = 0;
-+	LIST_HEAD(freeable);
-+	struct super_block *sb;
-+
-+	for (i = 0; i < nr; i++) {
-+		inode = v[i];
-+		if (!inode)
-+			continue;
-+
-+		if (inode_has_buffers(inode) || inode->i_data.nrpages) {
-+			if (remove_inode_buffers(inode))
-+				invalidate_mapping_pages(&inode->i_data,
-+								0, -1);
-+		}
-+
-+		/* Invalidate children and dentry */
-+		if (S_ISDIR(inode->i_mode)) {
-+			struct dentry *d = d_find_alias(inode);
-+
-+			if (d) {
-+				d_invalidate(d);
-+				dput(d);
-+			}
-+		}
-+
-+		if (inode->i_state & I_DIRTY)
-+			write_inode_now(inode, 1);
-+
-+		d_prune_aliases(inode);
-+	}
-+
-+	mutex_lock(&iprune_mutex);
-+	for (i = 0; i < nr; i++) {
-+		inode = v[i];
-+		if (!inode)
-+			continue;
-+
-+		sb = inode->i_sb;
-+		iput(inode);
-+		if (abort || !(sb->s_flags & MS_ACTIVE))
-+			continue;
-+
-+		spin_lock(&inode_lock);
-+		abort =  !can_unuse(inode);
-+
-+		if (!abort) {
-+			list_move(&inode->i_list, &freeable);
-+			inode->i_state |= I_FREEING;
-+			inodes_stat.nr_unused--;
-+		}
-+		spin_unlock(&inode_lock);
-+	}
-+	dispose_list(&freeable);
-+	mutex_unlock(&iprune_mutex);
-+}
-+EXPORT_SYMBOL(kick_inodes);
-+
-+static struct kmem_cache_ops inode_kmem_cache_ops = {
-+	.get = get_inodes,
-+	.kick = kick_inodes
-+};
-+
- /*
-  * Initialize the waitqueues and inode hash table.
-  */
-@@ -1389,7 +1488,7 @@ void __init inode_init(unsigned long mem
- 					 (SLAB_RECLAIM_ACCOUNT|SLAB_PANIC|
- 					 SLAB_MEM_SPREAD),
- 					 init_once,
--					 NULL);
-+					 &inode_kmem_cache_ops);
- 	register_shrinker(&icache_shrinker);
- 
- 	/* Hash may have been set up in inode_init_early */
-Index: linux-2.6.22-rc4-mm2/include/linux/fs.h
-===================================================================
---- linux-2.6.22-rc4-mm2.orig/include/linux/fs.h	2007-06-17 22:29:43.000000000 -0700
-+++ linux-2.6.22-rc4-mm2/include/linux/fs.h	2007-06-17 22:31:52.000000000 -0700
-@@ -1790,6 +1790,11 @@ static inline void insert_inode_hash(str
- 	__insert_inode_hash(inode, inode->i_ino);
- }
- 
-+/* Helper functions for inode defragmentation support in filesystems */
-+extern void kick_inodes(struct kmem_cache *, int, void **, void *);
-+extern void *fs_get_inodes(struct kmem_cache *, int nr, void **,
-+						unsigned long offset);
-+
- extern struct file * get_empty_filp(void);
- extern void file_move(struct file *f, struct list_head *list);
- extern void file_kill(struct file *f);
 
 -- 
 
