@@ -1,158 +1,313 @@
-Message-Id: <20070618095916.531477701@sgi.com>
+Message-Id: <20070618095914.862238426@sgi.com>
 References: <20070618095838.238615343@sgi.com>
-Date: Mon, 18 Jun 2007 02:58:51 -0700
+Date: Mon, 18 Jun 2007 02:58:44 -0700
 From: clameter@sgi.com
-Subject: [patch 13/26] SLUB: Extend slabinfo to support -D and -C options
-Content-Disposition: inline; filename=slab_defrag_slabinfo_updates
+Subject: [patch 06/26] Slab allocators: Replace explicit zeroing with __GFP_ZERO
+Content-Disposition: inline; filename=slab_use_gfpzero_for_kmalloc_node
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: akpm@linux-foundation.org
 Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Pekka Enberg <penberg@cs.helsinki.fi>, suresh.b.siddha@intel.com
 List-ID: <linux-mm.kvack.org>
 
--D lists caches that support defragmentation
+kmalloc_node() and kmem_cache_alloc_node() were not available in
+a zeroing variant in the past. But with __GFP_ZERO it is possible
+now to do zeroing while allocating.
 
--C lists caches that use a ctor.
+Use __GFP_ZERO to remove the explicit clearing of memory via memset whereever
+we can.
 
 Signed-off-by: Christoph Lameter <clameter@sgi.com>
 
 ---
- Documentation/vm/slabinfo.c |   39 ++++++++++++++++++++++++++++++++++-----
- 1 file changed, 34 insertions(+), 5 deletions(-)
+ block/as-iosched.c       |    3 +--
+ block/cfq-iosched.c      |   18 +++++++++---------
+ block/deadline-iosched.c |    3 +--
+ block/elevator.c         |    3 +--
+ block/genhd.c            |    8 ++++----
+ block/ll_rw_blk.c        |    4 ++--
+ drivers/ide/ide-probe.c  |    4 ++--
+ kernel/timer.c           |    4 ++--
+ lib/genalloc.c           |    3 +--
+ mm/allocpercpu.c         |    9 +++------
+ mm/mempool.c             |    3 +--
+ mm/vmalloc.c             |    6 +++---
+ 12 files changed, 30 insertions(+), 38 deletions(-)
 
-Index: linux-2.6.22-rc4-mm2/Documentation/vm/slabinfo.c
+Index: linux-2.6.22-rc4-mm2/block/as-iosched.c
 ===================================================================
---- linux-2.6.22-rc4-mm2.orig/Documentation/vm/slabinfo.c	2007-06-18 01:26:22.000000000 -0700
-+++ linux-2.6.22-rc4-mm2/Documentation/vm/slabinfo.c	2007-06-18 01:27:21.000000000 -0700
-@@ -30,6 +30,7 @@ struct slabinfo {
- 	int hwcache_align, object_size, objs_per_slab;
- 	int sanity_checks, slab_size, store_user, trace;
- 	int order, poison, reclaim_account, red_zone;
-+	int defrag, ctor;
- 	unsigned long partial, objects, slabs;
- 	int numa[MAX_NODES];
- 	int numa_partial[MAX_NODES];
-@@ -56,6 +57,8 @@ int show_slab = 0;
- int skip_zero = 1;
- int show_numa = 0;
- int show_track = 0;
-+int show_defrag = 0;
-+int show_ctor = 0;
- int show_first_alias = 0;
- int validate = 0;
- int shrink = 0;
-@@ -90,18 +93,20 @@ void fatal(const char *x, ...)
- void usage(void)
+--- linux-2.6.22-rc4-mm2.orig/block/as-iosched.c	2007-06-17 15:46:35.000000000 -0700
++++ linux-2.6.22-rc4-mm2/block/as-iosched.c	2007-06-17 15:46:59.000000000 -0700
+@@ -1322,10 +1322,9 @@ static void *as_init_queue(request_queue
  {
- 	printf("slabinfo 5/7/2007. (c) 2007 sgi. clameter@sgi.com\n\n"
--		"slabinfo [-ahnpvtsz] [-d debugopts] [slab-regexp]\n"
-+		"slabinfo [-aCDefhilnosSrtTvz1] [-d debugopts] [slab-regexp]\n"
- 		"-a|--aliases           Show aliases\n"
-+		"-C|--ctor              Show slabs with ctors\n"
- 		"-d<options>|--debug=<options> Set/Clear Debug options\n"
--		"-e|--empty		Show empty slabs\n"
-+		"-D|--defrag            Show defragmentable caches\n"
-+		"-e|--empty             Show empty slabs\n"
- 		"-f|--first-alias       Show first alias\n"
- 		"-h|--help              Show usage information\n"
- 		"-i|--inverted          Inverted list\n"
- 		"-l|--slabs             Show slabs\n"
- 		"-n|--numa              Show NUMA information\n"
--		"-o|--ops		Show kmem_cache_ops\n"
-+		"-o|--ops               Show kmem_cache_ops\n"
- 		"-s|--shrink            Shrink slabs\n"
--		"-r|--report		Detailed report on single slabs\n"
-+		"-r|--report            Detailed report on single slabs\n"
- 		"-S|--Size              Sort by size\n"
- 		"-t|--tracking          Show alloc/free information\n"
- 		"-T|--Totals            Show summary information\n"
-@@ -281,7 +286,7 @@ int line = 0;
- void first_line(void)
+ 	struct as_data *ad;
+ 
+-	ad = kmalloc_node(sizeof(*ad), GFP_KERNEL, q->node);
++	ad = kmalloc_node(sizeof(*ad), GFP_KERNEL | __GFP_ZERO, q->node);
+ 	if (!ad)
+ 		return NULL;
+-	memset(ad, 0, sizeof(*ad));
+ 
+ 	ad->q = q; /* Identify what queue the data belongs to */
+ 
+Index: linux-2.6.22-rc4-mm2/block/cfq-iosched.c
+===================================================================
+--- linux-2.6.22-rc4-mm2.orig/block/cfq-iosched.c	2007-06-17 15:42:50.000000000 -0700
++++ linux-2.6.22-rc4-mm2/block/cfq-iosched.c	2007-06-17 15:47:21.000000000 -0700
+@@ -1249,9 +1249,9 @@ cfq_alloc_io_context(struct cfq_data *cf
  {
- 	printf("Name                   Objects Objsize    Space "
--		"Slabs/Part/Cpu  O/S O %%Fr %%Ef Flg\n");
-+		"Slabs/Part/Cpu  O/S O %%Ra %%Ef Flg\n");
+ 	struct cfq_io_context *cic;
+ 
+-	cic = kmem_cache_alloc_node(cfq_ioc_pool, gfp_mask, cfqd->queue->node);
++	cic = kmem_cache_alloc_node(cfq_ioc_pool, gfp_mask | __GFP_ZERO,
++							cfqd->queue->node);
+ 	if (cic) {
+-		memset(cic, 0, sizeof(*cic));
+ 		cic->last_end_request = jiffies;
+ 		INIT_LIST_HEAD(&cic->queue_list);
+ 		cic->dtor = cfq_free_io_context;
+@@ -1374,17 +1374,19 @@ retry:
+ 			 * free memory.
+ 			 */
+ 			spin_unlock_irq(cfqd->queue->queue_lock);
+-			new_cfqq = kmem_cache_alloc_node(cfq_pool, gfp_mask|__GFP_NOFAIL, cfqd->queue->node);
++			new_cfqq = kmem_cache_alloc_node(cfq_pool,
++					gfp_mask | __GFP_NOFAIL | __GFP_ZERO,
++					cfqd->queue->node);
+ 			spin_lock_irq(cfqd->queue->queue_lock);
+ 			goto retry;
+ 		} else {
+-			cfqq = kmem_cache_alloc_node(cfq_pool, gfp_mask, cfqd->queue->node);
++			cfqq = kmem_cache_alloc_node(cfq_pool,
++					gfp_mask | __GFP_ZERO,
++					cfqd->queue->node);
+ 			if (!cfqq)
+ 				goto out;
+ 		}
+ 
+-		memset(cfqq, 0, sizeof(*cfqq));
+-
+ 		RB_CLEAR_NODE(&cfqq->rb_node);
+ 		INIT_LIST_HEAD(&cfqq->fifo);
+ 
+@@ -2046,12 +2048,10 @@ static void *cfq_init_queue(request_queu
+ {
+ 	struct cfq_data *cfqd;
+ 
+-	cfqd = kmalloc_node(sizeof(*cfqd), GFP_KERNEL, q->node);
++	cfqd = kmalloc_node(sizeof(*cfqd), GFP_KERNEL | __GFP_ZERO, q->node);
+ 	if (!cfqd)
+ 		return NULL;
+ 
+-	memset(cfqd, 0, sizeof(*cfqd));
+-
+ 	cfqd->service_tree = CFQ_RB_ROOT;
+ 	INIT_LIST_HEAD(&cfqd->cic_list);
+ 
+Index: linux-2.6.22-rc4-mm2/block/deadline-iosched.c
+===================================================================
+--- linux-2.6.22-rc4-mm2.orig/block/deadline-iosched.c	2007-06-17 15:47:37.000000000 -0700
++++ linux-2.6.22-rc4-mm2/block/deadline-iosched.c	2007-06-17 15:47:47.000000000 -0700
+@@ -360,10 +360,9 @@ static void *deadline_init_queue(request
+ {
+ 	struct deadline_data *dd;
+ 
+-	dd = kmalloc_node(sizeof(*dd), GFP_KERNEL, q->node);
++	dd = kmalloc_node(sizeof(*dd), GFP_KERNEL | __GFP_ZERO, q->node);
+ 	if (!dd)
+ 		return NULL;
+-	memset(dd, 0, sizeof(*dd));
+ 
+ 	INIT_LIST_HEAD(&dd->fifo_list[READ]);
+ 	INIT_LIST_HEAD(&dd->fifo_list[WRITE]);
+Index: linux-2.6.22-rc4-mm2/block/elevator.c
+===================================================================
+--- linux-2.6.22-rc4-mm2.orig/block/elevator.c	2007-06-17 15:47:57.000000000 -0700
++++ linux-2.6.22-rc4-mm2/block/elevator.c	2007-06-17 15:48:07.000000000 -0700
+@@ -177,11 +177,10 @@ static elevator_t *elevator_alloc(reques
+ 	elevator_t *eq;
+ 	int i;
+ 
+-	eq = kmalloc_node(sizeof(elevator_t), GFP_KERNEL, q->node);
++	eq = kmalloc_node(sizeof(elevator_t), GFP_KERNEL | __GFP_ZERO, q->node);
+ 	if (unlikely(!eq))
+ 		goto err;
+ 
+-	memset(eq, 0, sizeof(*eq));
+ 	eq->ops = &e->ops;
+ 	eq->elevator_type = e;
+ 	kobject_init(&eq->kobj);
+Index: linux-2.6.22-rc4-mm2/block/genhd.c
+===================================================================
+--- linux-2.6.22-rc4-mm2.orig/block/genhd.c	2007-06-17 15:48:27.000000000 -0700
++++ linux-2.6.22-rc4-mm2/block/genhd.c	2007-06-17 15:49:03.000000000 -0700
+@@ -726,21 +726,21 @@ struct gendisk *alloc_disk_node(int mino
+ {
+ 	struct gendisk *disk;
+ 
+-	disk = kmalloc_node(sizeof(struct gendisk), GFP_KERNEL, node_id);
++	disk = kmalloc_node(sizeof(struct gendisk),
++				GFP_KERNEL | __GFP_ZERO, node_id);
+ 	if (disk) {
+-		memset(disk, 0, sizeof(struct gendisk));
+ 		if (!init_disk_stats(disk)) {
+ 			kfree(disk);
+ 			return NULL;
+ 		}
+ 		if (minors > 1) {
+ 			int size = (minors - 1) * sizeof(struct hd_struct *);
+-			disk->part = kmalloc_node(size, GFP_KERNEL, node_id);
++			disk->part = kmalloc_node(size,
++				GFP_KERNEL | __GFP_ZERO, node_id);
+ 			if (!disk->part) {
+ 				kfree(disk);
+ 				return NULL;
+ 			}
+-			memset(disk->part, 0, size);
+ 		}
+ 		disk->minors = minors;
+ 		kobj_set_kset_s(disk,block_subsys);
+Index: linux-2.6.22-rc4-mm2/block/ll_rw_blk.c
+===================================================================
+--- linux-2.6.22-rc4-mm2.orig/block/ll_rw_blk.c	2007-06-17 15:44:27.000000000 -0700
++++ linux-2.6.22-rc4-mm2/block/ll_rw_blk.c	2007-06-17 15:45:03.000000000 -0700
+@@ -1828,11 +1828,11 @@ request_queue_t *blk_alloc_queue_node(gf
+ {
+ 	request_queue_t *q;
+ 
+-	q = kmem_cache_alloc_node(requestq_cachep, gfp_mask, node_id);
++	q = kmem_cache_alloc_node(requestq_cachep,
++				gfp_mask | __GFP_ZERO, node_id);
+ 	if (!q)
+ 		return NULL;
+ 
+-	memset(q, 0, sizeof(*q));
+ 	init_timer(&q->unplug_timer);
+ 
+ 	snprintf(q->kobj.name, KOBJ_NAME_LEN, "%s", "queue");
+Index: linux-2.6.22-rc4-mm2/drivers/ide/ide-probe.c
+===================================================================
+--- linux-2.6.22-rc4-mm2.orig/drivers/ide/ide-probe.c	2007-06-17 15:49:57.000000000 -0700
++++ linux-2.6.22-rc4-mm2/drivers/ide/ide-probe.c	2007-06-17 15:50:13.000000000 -0700
+@@ -1073,14 +1073,14 @@ static int init_irq (ide_hwif_t *hwif)
+ 		hwgroup->hwif->next = hwif;
+ 		spin_unlock_irq(&ide_lock);
+ 	} else {
+-		hwgroup = kmalloc_node(sizeof(ide_hwgroup_t), GFP_KERNEL,
++		hwgroup = kmalloc_node(sizeof(ide_hwgroup_t),
++					GFP_KERNEL | __GFP_ZERO,
+ 					hwif_to_node(hwif->drives[0].hwif));
+ 		if (!hwgroup)
+ 	       		goto out_up;
+ 
+ 		hwif->hwgroup = hwgroup;
+ 
+-		memset(hwgroup, 0, sizeof(ide_hwgroup_t));
+ 		hwgroup->hwif     = hwif->next = hwif;
+ 		hwgroup->rq       = NULL;
+ 		hwgroup->handler  = NULL;
+Index: linux-2.6.22-rc4-mm2/kernel/timer.c
+===================================================================
+--- linux-2.6.22-rc4-mm2.orig/kernel/timer.c	2007-06-17 15:50:50.000000000 -0700
++++ linux-2.6.22-rc4-mm2/kernel/timer.c	2007-06-17 15:51:16.000000000 -0700
+@@ -1221,7 +1221,8 @@ static int __devinit init_timers_cpu(int
+ 			/*
+ 			 * The APs use this path later in boot
+ 			 */
+-			base = kmalloc_node(sizeof(*base), GFP_KERNEL,
++			base = kmalloc_node(sizeof(*base),
++						GFP_KERNEL | __GFP_ZERO,
+ 						cpu_to_node(cpu));
+ 			if (!base)
+ 				return -ENOMEM;
+@@ -1232,7 +1233,6 @@ static int __devinit init_timers_cpu(int
+ 				kfree(base);
+ 				return -ENOMEM;
+ 			}
+-			memset(base, 0, sizeof(*base));
+ 			per_cpu(tvec_bases, cpu) = base;
+ 		} else {
+ 			/*
+Index: linux-2.6.22-rc4-mm2/lib/genalloc.c
+===================================================================
+--- linux-2.6.22-rc4-mm2.orig/lib/genalloc.c	2007-06-17 15:51:38.000000000 -0700
++++ linux-2.6.22-rc4-mm2/lib/genalloc.c	2007-06-17 15:51:56.000000000 -0700
+@@ -54,11 +54,10 @@ int gen_pool_add(struct gen_pool *pool, 
+ 	int nbytes = sizeof(struct gen_pool_chunk) +
+ 				(nbits + BITS_PER_BYTE - 1) / BITS_PER_BYTE;
+ 
+-	chunk = kmalloc_node(nbytes, GFP_KERNEL, nid);
++	chunk = kmalloc_node(nbytes, GFP_KERNEL | __GFP_ZERO, nid);
+ 	if (unlikely(chunk == NULL))
+ 		return -1;
+ 
+-	memset(chunk, 0, nbytes);
+ 	spin_lock_init(&chunk->lock);
+ 	chunk->start_addr = addr;
+ 	chunk->end_addr = addr + size;
+Index: linux-2.6.22-rc4-mm2/mm/allocpercpu.c
+===================================================================
+--- linux-2.6.22-rc4-mm2.orig/mm/allocpercpu.c	2007-06-17 15:52:19.000000000 -0700
++++ linux-2.6.22-rc4-mm2/mm/allocpercpu.c	2007-06-17 15:52:38.000000000 -0700
+@@ -53,12 +53,9 @@ void *percpu_populate(void *__pdata, siz
+ 	int node = cpu_to_node(cpu);
+ 
+ 	BUG_ON(pdata->ptrs[cpu]);
+-	if (node_online(node)) {
+-		/* FIXME: kzalloc_node(size, gfp, node) */
+-		pdata->ptrs[cpu] = kmalloc_node(size, gfp, node);
+-		if (pdata->ptrs[cpu])
+-			memset(pdata->ptrs[cpu], 0, size);
+-	} else
++	if (node_online(node))
++		pdata->ptrs[cpu] = kmalloc_node(size, gfp|__GFP_ZERO, node);
++	else
+ 		pdata->ptrs[cpu] = kzalloc(size, gfp);
+ 	return pdata->ptrs[cpu];
  }
+Index: linux-2.6.22-rc4-mm2/mm/mempool.c
+===================================================================
+--- linux-2.6.22-rc4-mm2.orig/mm/mempool.c	2007-06-17 15:52:52.000000000 -0700
++++ linux-2.6.22-rc4-mm2/mm/mempool.c	2007-06-17 15:53:19.000000000 -0700
+@@ -62,10 +62,9 @@ mempool_t *mempool_create_node(int min_n
+ 			mempool_free_t *free_fn, void *pool_data, int node_id)
+ {
+ 	mempool_t *pool;
+-	pool = kmalloc_node(sizeof(*pool), GFP_KERNEL, node_id);
++	pool = kmalloc_node(sizeof(*pool), GFP_KERNEL | __GFP_ZERO, node_id);
+ 	if (!pool)
+ 		return NULL;
+-	memset(pool, 0, sizeof(*pool));
+ 	pool->elements = kmalloc_node(min_nr * sizeof(void *),
+ 					GFP_KERNEL, node_id);
+ 	if (!pool->elements) {
+Index: linux-2.6.22-rc4-mm2/mm/vmalloc.c
+===================================================================
+--- linux-2.6.22-rc4-mm2.orig/mm/vmalloc.c	2007-06-17 15:57:18.000000000 -0700
++++ linux-2.6.22-rc4-mm2/mm/vmalloc.c	2007-06-17 16:03:38.000000000 -0700
+@@ -434,11 +434,12 @@ void *__vmalloc_area_node(struct vm_stru
+ 	area->nr_pages = nr_pages;
+ 	/* Please note that the recursion is strictly bounded. */
+ 	if (array_size > PAGE_SIZE) {
+-		pages = __vmalloc_node(array_size, gfp_mask, PAGE_KERNEL, node);
++		pages = __vmalloc_node(array_size, gfp_mask | __GFP_ZERO,
++					PAGE_KERNEL, node);
+ 		area->flags |= VM_VPAGES;
+ 	} else {
+ 		pages = kmalloc_node(array_size,
+-				(gfp_mask & GFP_LEVEL_MASK),
++				(gfp_mask & GFP_LEVEL_MASK) | __GFP_ZERO,
+ 				node);
+ 	}
+ 	area->pages = pages;
+@@ -447,7 +448,6 @@ void *__vmalloc_area_node(struct vm_stru
+ 		kfree(area);
+ 		return NULL;
+ 	}
+-	memset(area->pages, 0, array_size);
  
- /*
-@@ -452,6 +457,12 @@ void slabcache(struct slabinfo *s)
- 	if (show_empty && s->slabs)
- 		return;
- 
-+	if (show_defrag && !s->defrag)
-+		return;
-+
-+	if (show_ctor && !s->ctor)
-+		return;
-+
- 	store_size(size_str, slab_size(s));
- 	sprintf(dist_str,"%lu/%lu/%d", s->slabs, s->partial, s->cpu_slabs);
- 
-@@ -462,6 +473,10 @@ void slabcache(struct slabinfo *s)
- 		*p++ = '*';
- 	if (s->cache_dma)
- 		*p++ = 'd';
-+	if (s->defrag)
-+		*p++ = 'D';
-+	if (s->ctor)
-+		*p++ = 'C';
- 	if (s->hwcache_align)
- 		*p++ = 'A';
- 	if (s->poison)
-@@ -481,7 +496,7 @@ void slabcache(struct slabinfo *s)
- 	printf("%-21s %8ld %7d %8s %14s %4d %1d %3ld %3ld %s\n",
- 		s->name, s->objects, s->object_size, size_str, dist_str,
- 		s->objs_per_slab, s->order,
--		s->slabs ? (s->partial * 100) / s->slabs : 100,
-+		s->slabs ? (s->objects * 100) / (s->slabs * s->objs_per_slab) : 100,
- 		s->slabs ? (s->objects * s->object_size * 100) /
- 			(s->slabs * (page_size << s->order)) : 100,
- 		flags);
-@@ -1072,6 +1087,12 @@ void read_slab_dir(void)
- 			slab->store_user = get_obj("store_user");
- 			slab->trace = get_obj("trace");
- 			chdir("..");
-+			if (read_slab_obj(slab, "ops")) {
-+				if (strstr(buffer, "ctor :"))
-+					slab->ctor = 1;
-+				if (strstr(buffer, "kick :"))
-+					slab->defrag = 1;
-+			}
- 			if (slab->name[0] == ':')
- 				alias_targets++;
- 			slab++;
-@@ -1121,7 +1142,9 @@ void output_slabs(void)
- 
- struct option opts[] = {
- 	{ "aliases", 0, NULL, 'a' },
-+	{ "ctor", 0, NULL, 'C' },
- 	{ "debug", 2, NULL, 'd' },
-+	{ "defrag", 0, NULL, 'D' },
- 	{ "empty", 0, NULL, 'e' },
- 	{ "first-alias", 0, NULL, 'f' },
- 	{ "help", 0, NULL, 'h' },
-@@ -1146,7 +1169,7 @@ int main(int argc, char *argv[])
- 
- 	page_size = getpagesize();
- 
--	while ((c = getopt_long(argc, argv, "ad::efhil1noprstvzTS",
-+	while ((c = getopt_long(argc, argv, "ad::efhil1noprstvzCDTS",
- 						opts, NULL)) != -1)
- 	switch(c) {
- 		case '1':
-@@ -1196,6 +1219,12 @@ int main(int argc, char *argv[])
- 		case 'z':
- 			skip_zero = 0;
- 			break;
-+		case 'C':
-+			show_ctor = 1;
-+			break;
-+		case 'D':
-+			show_defrag = 1;
-+			break;
- 		case 'T':
- 			show_totals = 1;
- 			break;
+ 	for (i = 0; i < area->nr_pages; i++) {
+ 		if (node < 0)
 
 -- 
 
