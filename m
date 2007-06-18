@@ -1,82 +1,66 @@
-Date: Mon, 18 Jun 2007 09:46:11 -0700 (PDT)
-From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [patch 00/26] Current slab allocator / SLUB patch queue
-In-Reply-To: <46767346.2040108@googlemail.com>
-Message-ID: <Pine.LNX.4.64.0706180936280.4751@schroedinger.engr.sgi.com>
-References: <20070618095838.238615343@sgi.com> <46767346.2040108@googlemail.com>
+Received: from d03relay04.boulder.ibm.com (d03relay04.boulder.ibm.com [9.17.195.106])
+	by e33.co.us.ibm.com (8.13.8/8.13.8) with ESMTP id l5IGlm35019455
+	for <linux-mm@kvack.org>; Mon, 18 Jun 2007 12:47:48 -0400
+Received: from d03av04.boulder.ibm.com (d03av04.boulder.ibm.com [9.17.195.170])
+	by d03relay04.boulder.ibm.com (8.13.8/8.13.8/NCO v8.3) with ESMTP id l5IGlmLZ040796
+	for <linux-mm@kvack.org>; Mon, 18 Jun 2007 10:47:48 -0600
+Received: from d03av04.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av04.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l5IGlmqt024851
+	for <linux-mm@kvack.org>; Mon, 18 Jun 2007 10:47:48 -0600
+Date: Mon, 18 Jun 2007 09:47:22 -0700
+From: Nishanth Aravamudan <nacc@us.ibm.com>
+Subject: Re: [RFC 10/13] Memoryless nodes: Fix GFP_THISNODE behavior
+Message-ID: <20070618164722.GA10714@us.ibm.com>
+References: <20070614075026.607300756@sgi.com> <20070614075336.405903951@sgi.com> <20070614160704.GE7469@us.ibm.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20070614160704.GE7469@us.ibm.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Michal Piotrowski <michal.k.k.piotrowski@gmail.com>
-Cc: akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Pekka Enberg <penberg@cs.helsinki.fi>, suresh.b.siddha@intel.com
+To: clameter@sgi.com
+Cc: Lee Schermerhorn <Lee.Schermerhorn@hp.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 18 Jun 2007, Michal Piotrowski wrote:
-
-> Result:
+On 14.06.2007 [09:07:04 -0700], Nishanth Aravamudan wrote:
+> On 14.06.2007 [00:50:36 -0700], clameter@sgi.com wrote:
+> > GFP_THISNODE checks that the zone selected is within the pgdat (node) of the
+> > first zone of a nodelist. That only works if the node has memory. A
+> > memoryless node will have its first node on another pgdat (node).
+> > 
+> > GFP_THISNODE currently will return simply memory on the first pgdat.
+> > Thus it is returning memory on other nodes. GFP_THISNODE should fail
+> > if there is no local memory on a node.
+> > 
+> > 
+> > Add a new set of zonelists for each node that only contain the nodes
+> > that belong to the zones itself so that no fallback is possible.
 > 
-> [  212.247759] WARNING: at lib/vsprintf.c:280 vsnprintf()
-> [  212.253263]  [<c04052ad>] dump_trace+0x63/0x1eb
-> [  212.259042]  [<c040544f>] show_trace_log_lvl+0x1a/0x2f
-> [  212.266672]  [<c040608d>] show_trace+0x12/0x14
-> [  212.271622]  [<c04060a5>] dump_stack+0x16/0x18
-> [  212.276663]  [<c050d512>] vsnprintf+0x6b/0x48c
-> [  212.281325]  [<c050d9f0>] scnprintf+0x20/0x2d
-> [  212.286707]  [<c0508dbc>] bitmap_scnlistprintf+0xa8/0xec
-> [  212.292508]  [<c0480d40>] list_locations+0x24c/0x2a2
-> [  212.298241]  [<c0480dde>] alloc_calls_show+0x1f/0x26
-> [  212.303459]  [<c047e72e>] slab_attr_show+0x1c/0x20
-> [  212.309469]  [<c04c1cf9>] sysfs_read_file+0x94/0x105
-> [  212.315519]  [<c0485933>] vfs_read+0xcf/0x158
-> [  212.320215]  [<c0485d99>] sys_read+0x3d/0x72
-> [  212.327539]  [<c040420c>] syscall_call+0x7/0xb
-> [  212.332203]  [<b7f74410>] 0xb7f74410
-> [  212.336229]  =======================
+> Should be
 > 
-> Unfortunately, I don't know which file was cat'ed
+> Add a new set of zonelists for each node that only contain the zones
+> that belong to the node itself so that no fallback is possible?
+> 
+> This is the last patch in the stack I should based my patches on,
+> correct (I believe 11-13 were mis-sends)?
+> 
+> Will test everything and send out Acks later today, hopefully.
 
-The dump shows that it was alloc_calls. But the issue is not related to 
-this patchset.
+Tested on a 4-node ppc64 w/ 2 memoryless nodes and a 4-node x86_64 w/
+no memoryless nodes, with my patches applied on top (will send out the
+latest versions again).
 
-Looks like we overflowed the buffer available for /sys output. The calls 
-in list_location to format cpulist and node lists attempt to allow very
-long lists by trying to calculate how many bytes are remaining in the 
-page. If we are beyond the space left over by them then we may pass a
-negative size to the scn_printf functions.
+All get
 
-So we need to check first if there are enough bytes remaining before
-doing the calculation of how many remaining bytes can be used to
-format these lists.
+Acked-by: Nishanth Aravamudan <nacc@us.ibm.com>
 
-Does this patch fix the issue?
+Thanks for doing this work, Christoph!
 
-Index: linux-2.6.22-rc4-mm2/mm/slub.c
-===================================================================
---- linux-2.6.22-rc4-mm2.orig/mm/slub.c	2007-06-18 09:37:41.000000000 -0700
-+++ linux-2.6.22-rc4-mm2/mm/slub.c	2007-06-18 09:44:38.000000000 -0700
-@@ -3649,13 +3649,15 @@ static int list_locations(struct kmem_ca
- 			n += sprintf(buf + n, " pid=%ld",
- 				l->min_pid);
- 
--		if (num_online_cpus() > 1 && !cpus_empty(l->cpus)) {
-+		if (num_online_cpus() > 1 && !cpus_empty(l->cpus) &&
-+				n < PAGE_SIZE - n - 57) {
- 			n += sprintf(buf + n, " cpus=");
- 			n += cpulist_scnprintf(buf + n, PAGE_SIZE - n - 50,
- 					l->cpus);
- 		}
- 
--		if (num_online_nodes() > 1 && !nodes_empty(l->nodes)) {
-+		if (num_online_nodes() > 1 && !nodes_empty(l->nodes) &&
-+				n < PAGE_SIZE - n - 57) {
- 			n += sprintf(buf + n, " nodes=");
- 			n += nodelist_scnprintf(buf + n, PAGE_SIZE - n - 50,
- 					l->nodes);
+-Nish
 
-
-
-
+-- 
+Nishanth Aravamudan <nacc@us.ibm.com>
+IBM Linux Technology Center
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
