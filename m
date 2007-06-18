@@ -1,267 +1,301 @@
-From: Mel Gorman <mel@csn.ul.ie>
-Message-Id: <20070618093042.7790.30669.sendpatchset@skynet.skynet.ie>
-In-Reply-To: <20070618092821.7790.52015.sendpatchset@skynet.skynet.ie>
-References: <20070618092821.7790.52015.sendpatchset@skynet.skynet.ie>
-Subject: [PATCH 7/7] Compact memory directly by a process when a high-order allocation fails
-Date: Mon, 18 Jun 2007 10:30:42 +0100 (IST)
+Message-Id: <20070618095919.579023320@sgi.com>
+References: <20070618095838.238615343@sgi.com>
+Date: Mon, 18 Jun 2007 02:59:04 -0700
+From: clameter@sgi.com
+Subject: [patch 26/26] SLUB: Place kmem_cache_cpu structures in a NUMA aware way.
+Content-Disposition: inline; filename=slub_performance_numa_placement
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
-Cc: Mel Gorman <mel@csn.ul.ie>, kamezawa.hiroyu@jp.fujitsu.com, clameter@sgi.com
+To: akpm@linux-foundation.org
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Pekka Enberg <penberg@cs.helsinki.fi>, suresh.b.siddha@intel.com
 List-ID: <linux-mm.kvack.org>
 
-Ordinarily when a high-order allocation fails, direct reclaim is entered to
-free pages to satisfy the allocation.  With this patch, it is determined if
-an allocation failed due to external fragmentation instead of low memory
-and if so, the calling process will compact until a suitable page is
-freed. Compaction by moving pages in memory is considerably cheaper than
-paging out to disk and works where there are locked pages or no swap. If
-compaction fails to free a page of a suitable size, then reclaim will
-still occur.
+The kmem_cache_cpu structures introduced are currently an array placed in the
+kmem_cache struct. Meaning the kmem_cache_cpu structures are overwhelmingly
+on the wrong node for systems with a higher amount of nodes. These are
+performance critical structures since the per node information has
+to be touched for every alloc and free in a slab.
 
-Direct compaction returns as soon as possible. As each block is compacted,
-it is checked if a suitable page has been freed and if so, it returns.
-Signed-off-by: Mel Gorman <mel@csn.ul.ie>
+In order to place the kmem_cache_cpu structure optimally we put an array
+of pointers to kmem_cache_cpu structs in kmem_cache (similar to SLAB).
+
+The kmem_cache_cpu structures can now be allocated in a more intelligent way.
+We could put per cpu structures for the same cpu but different
+slab caches in cachelines together to save space and decrease the cache
+footprint. However, the slab allocators itself control only allocations
+per node. Thus we set up a simple per cpu array for every processor with
+100 per cpu structures which is usually enough to get them all set up right.
+If we run out then we fall back to kmalloc_node. This also solves the
+bootstrap problem since we do not have to use slab allocator functions
+early in boot to get memory for the small per cpu structures.
+
+Pro:
+	- NUMA aware placement improves memory performance
+	- All global structures in struct kmem_cache become readonly
+	- Dense packing of per cpu structures reduces cacheline
+	  footprint in SMP and NUMA.
+	- Potential avoidance of exclusive cacheline fetches
+	  on the free and alloc hotpath since multiple kmem_cache_cpu
+	  structures are in one cacheline. This is particularly important
+	  for the kmalloc array.
+
+Cons:
+	- Additional reference to one read only cacheline (per cpu
+	  array of pointers to kmem_cache_cpu) in both slab_alloc()
+	  and slab_free().
+
+Signed-off-by: Christoph Lameter <clameter@sgi.com>
+
 ---
+ include/linux/slub_def.h |    9 ++-
+ mm/slub.c                |  131 +++++++++++++++++++++++++++++++++++++++++++++--
+ 2 files changed, 133 insertions(+), 7 deletions(-)
 
- include/linux/compaction.h |   12 ++++
- include/linux/vmstat.h     |    1 
- mm/compaction.c            |  103 ++++++++++++++++++++++++++++++++++++++++
- mm/page_alloc.c            |   21 ++++++++
- mm/vmstat.c                |    4 +
- 5 files changed, 140 insertions(+), 1 deletion(-)
-
-diff -rup -X /usr/src/patchset-0.6/bin//dontdiff linux-2.6.22-rc4-mm2-115_compact_viaproc/include/linux/compaction.h linux-2.6.22-rc4-mm2-120_compact_direct/include/linux/compaction.h
---- linux-2.6.22-rc4-mm2-115_compact_viaproc/include/linux/compaction.h	2007-06-15 16:29:08.000000000 +0100
-+++ linux-2.6.22-rc4-mm2-120_compact_direct/include/linux/compaction.h	2007-06-15 16:29:20.000000000 +0100
-@@ -1,15 +1,25 @@
- #ifndef _LINUX_COMPACTION_H
- #define _LINUX_COMPACTION_H
+Index: linux-2.6.22-rc4-mm2/include/linux/slub_def.h
+===================================================================
+--- linux-2.6.22-rc4-mm2.orig/include/linux/slub_def.h	2007-06-18 01:28:48.000000000 -0700
++++ linux-2.6.22-rc4-mm2/include/linux/slub_def.h	2007-06-18 01:34:52.000000000 -0700
+@@ -16,8 +16,7 @@ struct kmem_cache_cpu {
+ 	struct page *page;
+ 	int objects;	/* Saved page->inuse */
+ 	int node;
+-	/* Lots of wasted space */
+-} ____cacheline_aligned_in_smp;
++};
  
--/* Return values for compact_zone() */
-+/* Return values for compact_zone() and try_to_compact_pages() */
- #define COMPACT_INCOMPLETE	0
- #define COMPACT_COMPLETE	1
-+#define COMPACT_PARTIAL	2
- 
- #ifdef CONFIG_MIGRATION
- 
-+extern int fragmentation_index(struct zone *zone, unsigned int target_order);
- extern int sysctl_compaction_handler(struct ctl_table *table, int write,
- 				struct file *file, void __user *buffer,
- 				size_t *length, loff_t *ppos);
-+extern unsigned long try_to_compact_pages(struct zone **zones,
-+						int order, gfp_t gfp_mask);
- 
-+#else
-+static inline unsigned long try_to_compact_pages(struct zone **zones,
-+						int order, gfp_t gfp_mask)
-+{
-+	return COMPACT_COMPLETE;
-+}
- #endif /* CONFIG_MIGRATION */
- #endif /* _LINUX_COMPACTION_H */
-diff -rup -X /usr/src/patchset-0.6/bin//dontdiff linux-2.6.22-rc4-mm2-115_compact_viaproc/include/linux/vmstat.h linux-2.6.22-rc4-mm2-120_compact_direct/include/linux/vmstat.h
---- linux-2.6.22-rc4-mm2-115_compact_viaproc/include/linux/vmstat.h	2007-06-13 23:43:12.000000000 +0100
-+++ linux-2.6.22-rc4-mm2-120_compact_direct/include/linux/vmstat.h	2007-06-15 16:29:20.000000000 +0100
-@@ -37,6 +37,7 @@ enum vm_event_item { PGPGIN, PGPGOUT, PS
- 		FOR_ALL_ZONES(PGSCAN_DIRECT),
- 		PGINODESTEAL, SLABS_SCANNED, KSWAPD_STEAL, KSWAPD_INODESTEAL,
- 		PAGEOUTRUN, ALLOCSTALL, PGROTATED,
-+		COMPACTSTALL, COMPACTSUCCESS, COMPACTRACE,
- 		NR_VM_EVENT_ITEMS
- };
- 
-diff -rup -X /usr/src/patchset-0.6/bin//dontdiff linux-2.6.22-rc4-mm2-115_compact_viaproc/mm/compaction.c linux-2.6.22-rc4-mm2-120_compact_direct/mm/compaction.c
---- linux-2.6.22-rc4-mm2-115_compact_viaproc/mm/compaction.c	2007-06-15 16:29:08.000000000 +0100
-+++ linux-2.6.22-rc4-mm2-120_compact_direct/mm/compaction.c	2007-06-15 16:32:27.000000000 +0100
-@@ -24,6 +24,8 @@ struct compact_control {
- 	unsigned long nr_migratepages;	/* Number of pages to migrate */
- 	unsigned long free_pfn;		/* isolate_freepages search base */
- 	unsigned long migrate_pfn;	/* isolate_migratepages search base */
-+	int required_order;		/* order a direct compactor needs */
-+	int mtype;			/* type of high-order page required */
- };
- 
- static int release_freepages(struct zone *zone, struct list_head *freelist)
-@@ -252,10 +254,29 @@ static void update_nr_listpages(struct c
- static inline int compact_finished(struct zone *zone,
- 						struct compact_control *cc)
- {
-+	int order;
-+
- 	/* Compaction run completes if the migrate and free scanner meet */
- 	if (cc->free_pfn <= cc->migrate_pfn)
- 		return COMPACT_COMPLETE;
- 
-+	if (cc->required_order == -1)
-+		return COMPACT_INCOMPLETE;
-+
-+	/* Check for page of the appropriate type when direct compacting */
-+	for (order = cc->required_order; order < MAX_ORDER; order++) {
-+		/*
-+		 * If the current order is greater than pageblock_order, then
-+		 * the block is eligible for allocation
-+		 */
-+		if (order >= pageblock_order && zone->free_area[order].nr_free)
-+			return COMPACT_PARTIAL;
-+
-+		/* Otherwise use a page is free and of the right type */
-+		if (!list_empty(&zone->free_area[order].free_list[cc->mtype]))
-+			return COMPACT_PARTIAL;
-+	}
-+
- 	return COMPACT_INCOMPLETE;
- }
- 
-@@ -298,6 +319,87 @@ static int compact_zone(struct zone *zon
- 	return ret;
- }
- 
-+static inline unsigned long compact_zone_order(struct zone *zone,
-+						int order, gfp_t gfp_mask)
-+{
-+	struct compact_control cc = {
-+		.nr_freepages = 0,
-+		.nr_migratepages = 0,
-+		.required_order = order,
-+		.mtype = allocflags_to_migratetype(gfp_mask),
-+	};
-+	INIT_LIST_HEAD(&cc.freepages);
-+	INIT_LIST_HEAD(&cc.migratepages);
-+
-+	return compact_zone(zone, &cc);
-+}
-+
-+/**
-+ * try_to_compact_pages - Compact memory directly to satisfy a high-order allocation
-+ * @zones: The zonelist used for the current allocation
-+ * @order: The order of the current allocation
-+ * @gfp_mask: The GFP mask of the current allocation
-+ *
-+ * This is the main entry point for direct page compaction.
-+ *
-+ * Returns 0 if compaction fails to free a page of the required size and type
-+ * Returns non-zero on success
-+ */
-+unsigned long try_to_compact_pages(struct zone **zones,
-+						int order, gfp_t gfp_mask)
-+{
-+	unsigned long watermark;
-+	int may_enter_fs = gfp_mask & __GFP_FS;
-+	int may_perform_io = gfp_mask & __GFP_IO;
-+	int i;
-+	int status = COMPACT_INCOMPLETE;
-+
-+	/* Check whether it is worth even starting compaction */
-+	if (order == 0 || !may_enter_fs || !may_perform_io)
-+		return status;
-+
-+	/* Flush pending updates to the LRU lists on the local CPU */
-+	lru_add_drain();
-+
-+	/* Compact each zone in the list */
-+	for (i = 0; zones[i] != NULL; i++) {
-+		struct zone *zone = zones[i];
-+		int fragindex;
-+
-+		/*
-+		 * If watermarks are not met, compaction will not help.
-+		 * Note that we check the watermarks at order-0 as we
-+		 * are assuming some free pages will coalesce
-+		 */
-+		watermark = zone->pages_low + (1 << order);
-+		if (!zone_watermark_ok(zone, 0, watermark, 0, 0))
-+			continue;
-+
-+		/*
-+		 * fragmentation index determines if allocation failures are
-+		 * due to low memory or external fragmentation
-+		 *
-+		 * index of -1 implies allocations would succeed
-+		 * index < 50 implies alloc failure is due to lack of memory
-+		 */
-+		fragindex = fragmentation_index(zone, order);
-+		if (fragindex < 50)
-+			continue;
-+
-+		status = compact_zone_order(zone, order, gfp_mask);
-+		if (status == COMPACT_PARTIAL) {
-+			count_vm_event(COMPACTSUCCESS);
-+			break;
-+		}
-+	}
-+
-+	/* Account for it if we stalled due to compaction */
-+	if (status != COMPACT_INCOMPLETE)
-+		count_vm_event(COMPACTSTALL);
-+
-+	return status;
-+}
-+
- /* Compact all zones within a node */
- int compact_node(int nodeid)
- {
-@@ -322,6 +424,7 @@ int compact_node(int nodeid)
- 
- 		cc.nr_freepages = 0;
- 		cc.nr_migratepages = 0;
-+		cc.required_order = -1;
- 		INIT_LIST_HEAD(&cc.freepages);
- 		INIT_LIST_HEAD(&cc.migratepages);
- 
-diff -rup -X /usr/src/patchset-0.6/bin//dontdiff linux-2.6.22-rc4-mm2-115_compact_viaproc/mm/page_alloc.c linux-2.6.22-rc4-mm2-120_compact_direct/mm/page_alloc.c
---- linux-2.6.22-rc4-mm2-115_compact_viaproc/mm/page_alloc.c	2007-06-15 16:28:59.000000000 +0100
-+++ linux-2.6.22-rc4-mm2-120_compact_direct/mm/page_alloc.c	2007-06-15 16:29:20.000000000 +0100
-@@ -41,6 +41,7 @@
- #include <linux/pfn.h>
- #include <linux/backing-dev.h>
- #include <linux/fault-inject.h>
-+#include <linux/compaction.h>
- 
- #include <asm/tlbflush.h>
- #include <asm/div64.h>
-@@ -1670,6 +1671,26 @@ nofail_alloc:
- 
- 	cond_resched();
- 
-+	/* Try memory compaction for high-order allocations before reclaim */
-+	if (order != 0) {
-+		drain_all_local_pages();
-+		did_some_progress = try_to_compact_pages(zonelist->zones,
-+							order, gfp_mask);
-+		if (did_some_progress == COMPACT_PARTIAL) {
-+			page = get_page_from_freelist(gfp_mask, order,
-+						zonelist, alloc_flags);
-+
-+			if (page)
-+				goto got_pg;
-+
-+			/*
-+			 * It's a race if compaction frees a suitable page but
-+			 * someone else allocates it
-+			 */
-+			count_vm_event(COMPACTRACE);
-+		}
-+	}
-+
- 	/* We now go into synchronous reclaim */
- 	cpuset_memory_pressure_bump();
- 	p->flags |= PF_MEMALLOC;
-diff -rup -X /usr/src/patchset-0.6/bin//dontdiff linux-2.6.22-rc4-mm2-115_compact_viaproc/mm/vmstat.c linux-2.6.22-rc4-mm2-120_compact_direct/mm/vmstat.c
---- linux-2.6.22-rc4-mm2-115_compact_viaproc/mm/vmstat.c	2007-06-15 16:25:55.000000000 +0100
-+++ linux-2.6.22-rc4-mm2-120_compact_direct/mm/vmstat.c	2007-06-15 16:29:20.000000000 +0100
-@@ -882,6 +882,10 @@ static const char * const vmstat_text[] 
- 	"allocstall",
- 
- 	"pgrotated",
-+
-+	"compact_stall",
-+	"compact_success",
-+	"compact_race",
+ struct kmem_cache_node {
+ 	spinlock_t list_lock;	/* Protect partial list and nr_partial */
+@@ -63,7 +62,11 @@ struct kmem_cache {
+ 	int defrag_ratio;
+ 	struct kmem_cache_node *node[MAX_NUMNODES];
  #endif
+-	struct kmem_cache_cpu cpu_slab[NR_CPUS];
++#ifdef CONFIG_SMP
++	struct kmem_cache_cpu *cpu_slab[NR_CPUS];
++#else
++	struct kmem_cache_cpu cpu_slab;
++#endif
  };
  
+ /*
+Index: linux-2.6.22-rc4-mm2/mm/slub.c
+===================================================================
+--- linux-2.6.22-rc4-mm2.orig/mm/slub.c	2007-06-18 01:34:42.000000000 -0700
++++ linux-2.6.22-rc4-mm2/mm/slub.c	2007-06-18 02:15:22.000000000 -0700
+@@ -280,7 +280,11 @@ static inline struct kmem_cache_node *ge
+ 
+ static inline struct kmem_cache_cpu *get_cpu_slab(struct kmem_cache *s, int cpu)
+ {
+-	return &s->cpu_slab[cpu];
++#ifdef CONFIG_SMP
++	return s->cpu_slab[cpu];
++#else
++	return &s->cpu_slab;
++#endif
+ }
+ 
+ static inline int check_valid_pointer(struct kmem_cache *s,
+@@ -1924,14 +1928,126 @@ static void init_kmem_cache_node(struct 
+ 	INIT_LIST_HEAD(&n->full);
+ }
+ 
++#ifdef CONFIG_SMP
++/*
++ * Per cpu array for per cpu structures.
++ *
++ * The per cpu array places all kmem_cache_cpu structures from one processor
++ * close together meaning that it becomes possible that multiple per cpu
++ * structures are contained in one cacheline. This may be particularly
++ * beneficial for the kmalloc caches.
++ *
++ * A desktop system typically has around 60-80 slabs. With 100 here we are
++ * likely able to get per cpu structures for all caches from the array defined
++ * here. We must be able to cover all kmalloc caches during bootstrap.
++ *
++ * If the per cpu array is exhausted then fall back to kmalloc
++ * of individual cachelines. No sharing is possible then.
++ */
++#define NR_KMEM_CACHE_CPU 100
++
++static DEFINE_PER_CPU(struct kmem_cache_cpu,
++				kmem_cache_cpu)[NR_KMEM_CACHE_CPU];
++
++static DEFINE_PER_CPU(struct kmem_cache_cpu *, kmem_cache_cpu_free);
++
++static struct kmem_cache_cpu *alloc_kmem_cache_cpu(int cpu, gfp_t flags)
++{
++	struct kmem_cache_cpu *c = per_cpu(kmem_cache_cpu_free, cpu);
++
++	if (c)
++		per_cpu(kmem_cache_cpu_free, cpu) =
++				(void *)c->lockless_freelist;
++	else {
++		/* Table overflow: So allocate ourselves */
++		c = kmalloc_node(
++			ALIGN(sizeof(struct kmem_cache_cpu), cache_line_size()),
++			flags, cpu_to_node(cpu));
++		if (!c)
++			return NULL;
++	}
++
++	memset(c, 0, sizeof(struct kmem_cache_cpu));
++	return c;
++}
++
++static void free_kmem_cache_cpu(struct kmem_cache_cpu *c, int cpu)
++{
++	if (c < per_cpu(kmem_cache_cpu, cpu) ||
++			c > per_cpu(kmem_cache_cpu, cpu) + NR_KMEM_CACHE_CPU) {
++		kfree(c);
++		return;
++	}
++	c->lockless_freelist = (void *)per_cpu(kmem_cache_cpu_free, cpu);
++	per_cpu(kmem_cache_cpu_free, cpu) = c;
++}
++
++static void free_kmem_cache_cpus(struct kmem_cache *s)
++{
++	int cpu;
++
++	for_each_online_cpu(cpu) {
++		struct kmem_cache_cpu *c = get_cpu_slab(s, cpu);
++
++		if (c) {
++			s->cpu_slab[cpu] = NULL;
++			free_kmem_cache_cpu(c, cpu);
++		}
++	}
++}
++
++static int alloc_kmem_cache_cpus(struct kmem_cache *s, gfp_t flags)
++{
++	int cpu;
++
++	for_each_online_cpu(cpu) {
++		struct kmem_cache_cpu *c = get_cpu_slab(s, cpu);
++
++		if (c)
++			continue;
++
++		c = alloc_kmem_cache_cpu(cpu, flags);
++		if (!c) {
++			free_kmem_cache_cpus(s);
++			return 0;
++		}
++		s->cpu_slab[cpu] = c;
++	}
++	return 1;
++}
++
++static void __init init_alloc_cpu(void)
++{
++	int cpu;
++	int i;
++
++	for_each_online_cpu(cpu) {
++		for (i = NR_KMEM_CACHE_CPU - 1; i >= 0; i--)
++			free_kmem_cache_cpu(&per_cpu(kmem_cache_cpu, cpu)[i],
++								cpu);
++	}
++}
++
++#else
++static inline void free_kmem_cache_cpus(struct kmem_cache *s) {}
++static inline void init_alloc_cpu(struct kmem_cache *s) {}
++
++static inline int alloc_kmem_cache_cpus(struct kmem_cache *s, gfp_t flags)
++{
++	return 1;
++}
++#endif
++
+ #ifdef CONFIG_NUMA
++
+ /*
+  * No kmalloc_node yet so do it by hand. We know that this is the first
+  * slab on the node for this slabcache. There are no concurrent accesses
+  * possible.
+  *
+  * Note that this function only works on the kmalloc_node_cache
+- * when allocating for the kmalloc_node_cache.
++ * when allocating for the kmalloc_node_cache. This is used for bootstrapping
++ * memory on a fresh node that has no slab structures yet.
+  */
+ static struct kmem_cache_node * __init early_kmem_cache_node_alloc(gfp_t gfpflags,
+ 								int node)
+@@ -2152,8 +2268,13 @@ static int kmem_cache_open(struct kmem_c
+ #ifdef CONFIG_NUMA
+ 	s->defrag_ratio = 100;
+ #endif
+-	if (init_kmem_cache_nodes(s, gfpflags & ~SLUB_DMA))
++	if (!init_kmem_cache_nodes(s, gfpflags & ~SLUB_DMA))
++		goto error;
++
++	if (alloc_kmem_cache_cpus(s, gfpflags & ~SLUB_DMA))
+ 		return 1;
++
++	free_kmem_cache_nodes(s);
+ error:
+ 	if (flags & SLAB_PANIC)
+ 		panic("Cannot create slab %s size=%lu realsize=%u "
+@@ -2236,6 +2357,8 @@ static inline int kmem_cache_close(struc
+ 	flush_all(s);
+ 
+ 	/* Attempt to free all objects */
++	free_kmem_cache_cpus(s);
++
+ 	for_each_online_node(node) {
+ 		struct kmem_cache_node *n = get_node(s, node);
+ 
+@@ -2908,6 +3031,8 @@ void __init kmem_cache_init(void)
+ 		slub_min_objects = DEFAULT_ANTIFRAG_MIN_OBJECTS;
+ 	}
+ 
++	init_alloc_cpu();
++
+ #ifdef CONFIG_NUMA
+ 	/*
+ 	 * Must first have the slab cache available for the allocations of the
+@@ -2971,7 +3096,7 @@ void __init kmem_cache_init(void)
+ #endif
+ 
+ 	kmem_size = offsetof(struct kmem_cache, cpu_slab) +
+-				nr_cpu_ids * sizeof(struct kmem_cache_cpu);
++				nr_cpu_ids * sizeof(struct kmem_cache_cpu *);
+ 
+ 	printk(KERN_INFO "SLUB: Genslabs=%d, HWalign=%d, Order=%d-%d,"
+ 		" MinObjects=%d, CPUs=%d, Nodes=%d\n",
+@@ -3116,15 +3241,28 @@ static int __cpuinit slab_cpuup_callback
+ 	unsigned long flags;
+ 
+ 	switch (action) {
++	case CPU_UP_PREPARE:
++	case CPU_UP_PREPARE_FROZEN:
++		down_read(&slub_lock);
++		list_for_each_entry(s, &slab_caches, list)
++			s->cpu_slab[cpu] = alloc_kmem_cache_cpu(cpu,
++							GFP_KERNEL);
++		up_read(&slub_lock);
++		break;
++
+ 	case CPU_UP_CANCELED:
+ 	case CPU_UP_CANCELED_FROZEN:
+ 	case CPU_DEAD:
+ 	case CPU_DEAD_FROZEN:
+ 		down_read(&slub_lock);
+ 		list_for_each_entry(s, &slab_caches, list) {
++			struct kmem_cache_cpu *c = get_cpu_slab(s, cpu);
++
+ 			local_irq_save(flags);
+ 			__flush_cpu_slab(s, cpu);
+ 			local_irq_restore(flags);
++			free_kmem_cache_cpu(c, cpu);
++			s->cpu_slab[cpu] = NULL;
+ 		}
+ 		up_read(&slub_lock);
+ 		break;
+
+-- 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
