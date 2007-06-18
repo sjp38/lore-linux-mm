@@ -1,85 +1,107 @@
 From: Mel Gorman <mel@csn.ul.ie>
-Message-Id: <20070618092901.7790.31240.sendpatchset@skynet.skynet.ie>
+Message-Id: <20070618092921.7790.78151.sendpatchset@skynet.skynet.ie>
 In-Reply-To: <20070618092821.7790.52015.sendpatchset@skynet.skynet.ie>
 References: <20070618092821.7790.52015.sendpatchset@skynet.skynet.ie>
-Subject: [PATCH 2/7] Allow CONFIG_MIGRATION to be set without CONFIG_NUMA
-Date: Mon, 18 Jun 2007 10:29:01 +0100 (IST)
+Subject: [PATCH 3/7] Introduce isolate_lru_page_nolock() as a lockless version of isolate_lru_page()
+Date: Mon, 18 Jun 2007 10:29:21 +0100 (IST)
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 Cc: Mel Gorman <mel@csn.ul.ie>, kamezawa.hiroyu@jp.fujitsu.com, clameter@sgi.com
 List-ID: <linux-mm.kvack.org>
 
-CONFIG_MIGRATION currently depends on CONFIG_NUMA. move_pages() is the only
-user of migration today and as this system call is only meaningful on NUMA,
-it makes sense. However, memory compaction will operate within a zone and is
-useful on both NUMA and non-NUMA systems. This patch allows CONFIG_MIGRATION
-to be used in all memory models. To preserve existing behaviour, move_pages()
-is only available when CONFIG_NUMA is set.
+Migration uses isolate_lru_page() to isolate an LRU page. This acquires
+the zone->lru_lock to safely remove the page and place it on a private
+list. However, this prevents the caller from batching up isolation of
+multiple pages.  This patch introduces a nolock version of isolate_lru_page()
+for callers that are aware of the locking requirements.
 
 Signed-off-by: Mel Gorman <mel@csn.ul.ie>
 Acked-by: Andy Whitcroft <apw@shadowen.org>
 ---
 
- include/linux/migrate.h |    6 +++---
- include/linux/mm.h      |    2 ++
- mm/Kconfig              |    1 -
- 3 files changed, 5 insertions(+), 4 deletions(-)
+ include/linux/migrate.h |    8 +++++++-
+ mm/migrate.c            |   36 +++++++++++++++++++++++++++---------
+ 2 files changed, 34 insertions(+), 10 deletions(-)
 
-diff -rup -X /usr/src/patchset-0.6/bin//dontdiff linux-2.6.22-rc4-mm2-005_migrationkernel/include/linux/migrate.h linux-2.6.22-rc4-mm2-015_migration_flatmem/include/linux/migrate.h
---- linux-2.6.22-rc4-mm2-005_migrationkernel/include/linux/migrate.h	2007-06-05 01:57:25.000000000 +0100
-+++ linux-2.6.22-rc4-mm2-015_migration_flatmem/include/linux/migrate.h	2007-06-15 16:25:37.000000000 +0100
-@@ -7,7 +7,7 @@
+diff -rup -X /usr/src/patchset-0.6/bin//dontdiff linux-2.6.22-rc4-mm2-015_migration_flatmem/include/linux/migrate.h linux-2.6.22-rc4-mm2-020_isolate_nolock/include/linux/migrate.h
+--- linux-2.6.22-rc4-mm2-015_migration_flatmem/include/linux/migrate.h	2007-06-15 16:25:37.000000000 +0100
++++ linux-2.6.22-rc4-mm2-020_isolate_nolock/include/linux/migrate.h	2007-06-15 16:25:46.000000000 +0100
+@@ -27,6 +27,8 @@ static inline int vma_migratable(struct 
+ #endif
  
- typedef struct page *new_page_t(struct page *, unsigned long private, int **);
- 
--#ifdef CONFIG_MIGRATION
-+#ifdef CONFIG_NUMA
- /* Check if a vma is migratable */
- static inline int vma_migratable(struct vm_area_struct *vma)
- {
-@@ -24,7 +24,9 @@ static inline int vma_migratable(struct 
- 			return 0;
- 	return 1;
- }
-+#endif
- 
-+#ifdef CONFIG_MIGRATION
+ #ifdef CONFIG_MIGRATION
++extern int locked_isolate_lru_page(struct zone *zone, struct page *p,
++						struct list_head *pagelist);
  extern int isolate_lru_page(struct page *p, struct list_head *pagelist);
  extern int putback_lru_pages(struct list_head *l);
  extern int migrate_page(struct address_space *,
-@@ -39,8 +41,6 @@ extern int migrate_vmas(struct mm_struct
+@@ -41,7 +43,11 @@ extern int migrate_vmas(struct mm_struct
  		const nodemask_t *from, const nodemask_t *to,
  		unsigned long flags);
  #else
--static inline int vma_migratable(struct vm_area_struct *vma)
--					{ return 0; }
- 
+-
++static inline int locked_isolate_lru_page(struct zone *zone, struct page *p,
++						struct list_head *list)
++{
++	return -ENOSYS;
++}
  static inline int isolate_lru_page(struct page *p, struct list_head *list)
  					{ return -ENOSYS; }
-diff -rup -X /usr/src/patchset-0.6/bin//dontdiff linux-2.6.22-rc4-mm2-005_migrationkernel/include/linux/mm.h linux-2.6.22-rc4-mm2-015_migration_flatmem/include/linux/mm.h
---- linux-2.6.22-rc4-mm2-005_migrationkernel/include/linux/mm.h	2007-06-13 23:43:12.000000000 +0100
-+++ linux-2.6.22-rc4-mm2-015_migration_flatmem/include/linux/mm.h	2007-06-15 16:25:37.000000000 +0100
-@@ -241,6 +241,8 @@ struct vm_operations_struct {
- 	int (*set_policy)(struct vm_area_struct *vma, struct mempolicy *new);
- 	struct mempolicy *(*get_policy)(struct vm_area_struct *vma,
- 					unsigned long addr);
-+#endif /* CONFIG_NUMA */
-+#ifdef CONFIG_MIGRATION
- 	int (*migrate)(struct vm_area_struct *vma, const nodemask_t *from,
- 		const nodemask_t *to, unsigned long flags);
- #endif
-diff -rup -X /usr/src/patchset-0.6/bin//dontdiff linux-2.6.22-rc4-mm2-005_migrationkernel/mm/Kconfig linux-2.6.22-rc4-mm2-015_migration_flatmem/mm/Kconfig
---- linux-2.6.22-rc4-mm2-005_migrationkernel/mm/Kconfig	2007-06-13 23:43:12.000000000 +0100
-+++ linux-2.6.22-rc4-mm2-015_migration_flatmem/mm/Kconfig	2007-06-15 16:25:37.000000000 +0100
-@@ -145,7 +145,6 @@ config SPLIT_PTLOCK_CPUS
- config MIGRATION
- 	bool "Page migration"
- 	def_bool y
--	depends on NUMA
- 	help
- 	  Allows the migration of the physical location of pages of processes
- 	  while the virtual addresses are not changed. This is useful for
+ static inline int putback_lru_pages(struct list_head *l) { return 0; }
+diff -rup -X /usr/src/patchset-0.6/bin//dontdiff linux-2.6.22-rc4-mm2-015_migration_flatmem/mm/migrate.c linux-2.6.22-rc4-mm2-020_isolate_nolock/mm/migrate.c
+--- linux-2.6.22-rc4-mm2-015_migration_flatmem/mm/migrate.c	2007-06-15 16:25:31.000000000 +0100
++++ linux-2.6.22-rc4-mm2-020_isolate_nolock/mm/migrate.c	2007-06-15 16:25:46.000000000 +0100
+@@ -41,6 +41,32 @@
+  *  -EBUSY: page not on LRU list
+  *  0: page removed from LRU list and added to the specified list.
+  */
++int locked_isolate_lru_page(struct zone *zone, struct page *page,
++						struct list_head *pagelist)
++{
++	int ret = -EBUSY;
++
++	if (PageLRU(page) && get_page_unless_zero(page)) {
++		ret = 0;
++		ClearPageLRU(page);
++		if (PageActive(page))
++			del_page_from_active_list(zone, page);
++		else
++			del_page_from_inactive_list(zone, page);
++		list_add_tail(&page->lru, pagelist);
++	}
++
++	return ret;
++}
++
++/*
++ * Acquire the zone->lru_lock and isolate one page from the LRU lists. If
++ * successful put it onto the indicated list with elevated page count.
++ *
++ * Result:
++ *  -EBUSY: page not on LRU list
++ *  0: page removed from LRU list and added to the specified list.
++ */
+ int isolate_lru_page(struct page *page, struct list_head *pagelist)
+ {
+ 	int ret = -EBUSY;
+@@ -49,15 +75,7 @@ int isolate_lru_page(struct page *page, 
+ 		struct zone *zone = page_zone(page);
+ 
+ 		spin_lock_irq(&zone->lru_lock);
+-		if (PageLRU(page) && get_page_unless_zero(page)) {
+-			ret = 0;
+-			ClearPageLRU(page);
+-			if (PageActive(page))
+-				del_page_from_active_list(zone, page);
+-			else
+-				del_page_from_inactive_list(zone, page);
+-			list_add_tail(&page->lru, pagelist);
+-		}
++		ret = locked_isolate_lru_page(zone, page, pagelist);
+ 		spin_unlock_irq(&zone->lru_lock);
+ 	}
+ 	return ret;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
