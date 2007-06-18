@@ -1,140 +1,158 @@
-Message-Id: <20070618095915.826976488@sgi.com>
+Message-Id: <20070618095916.531477701@sgi.com>
 References: <20070618095838.238615343@sgi.com>
-Date: Mon, 18 Jun 2007 02:58:48 -0700
+Date: Mon, 18 Jun 2007 02:58:51 -0700
 From: clameter@sgi.com
-Subject: [patch 10/26] SLUB: Faster more efficient slab determination for __kmalloc.
-Content-Disposition: inline; filename=slub_faster_kmalloc_slab
+Subject: [patch 13/26] SLUB: Extend slabinfo to support -D and -C options
+Content-Disposition: inline; filename=slab_defrag_slabinfo_updates
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: akpm@linux-foundation.org
 Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Pekka Enberg <penberg@cs.helsinki.fi>, suresh.b.siddha@intel.com
 List-ID: <linux-mm.kvack.org>
 
-kmalloc_index is a long series of comparisons. The attempt to replace
-kmalloc_index with something more efficient like ilog2 failed due to
-compiler issues with constant folding on gcc 3.3 / powerpc.
+-D lists caches that support defragmentation
 
-kmalloc_index()'es long list of comparisons works fine for constant folding
-since all the comparisons are optimized away. However, SLUB also uses
-kmalloc_index to determine the slab to use for the __kmalloc_xxx functions.
-This leads to a large set of comparisons in get_slab().
-
-The patch here allows to get rid of that list of comparisons in get_slab():
-
-1. If the requested size is larger than 192 then we can simply use
-   fls to determine the slab index since all larger slabs are
-   of the power of two type.
-
-2. If the requested size is smaller then we cannot use fls since there
-   are non power of two caches to be considered. However, the sizes are
-   in a managable range. So we divide the size by 8. Then we have only
-   24 possibilities left and then we simply look up the kmalloc index
-   in a table.
-
-Code size of slub.o decreases by more than 200 bytes through this patch.
+-C lists caches that use a ctor.
 
 Signed-off-by: Christoph Lameter <clameter@sgi.com>
 
 ---
- mm/slub.c |   73 +++++++++++++++++++++++++++++++++++++++++++++++++++++++-------
- 1 file changed, 65 insertions(+), 8 deletions(-)
+ Documentation/vm/slabinfo.c |   39 ++++++++++++++++++++++++++++++++++-----
+ 1 file changed, 34 insertions(+), 5 deletions(-)
 
-Index: linux-2.6.22-rc4-mm2/mm/slub.c
+Index: linux-2.6.22-rc4-mm2/Documentation/vm/slabinfo.c
 ===================================================================
---- linux-2.6.22-rc4-mm2.orig/mm/slub.c	2007-06-17 18:12:13.000000000 -0700
-+++ linux-2.6.22-rc4-mm2/mm/slub.c	2007-06-17 18:12:16.000000000 -0700
-@@ -2322,20 +2322,59 @@ static struct kmem_cache *dma_kmalloc_ca
- }
- #endif
- 
-+/*
-+ * Conversion table for small slabs sizes / 8 to the index in the
-+ * kmalloc array. This is necessary for slabs < 192 since we have non power
-+ * of two cache sizes there. The size of larger slabs can be determined using
-+ * fls.
-+ */
-+static s8 size_index[24] = {
-+	3,	/* 8 */
-+	4,	/* 16 */
-+	5,	/* 24 */
-+	5,	/* 32 */
-+	6,	/* 40 */
-+	6,	/* 48 */
-+	6,	/* 56 */
-+	6,	/* 64 */
-+	1,	/* 72 */
-+	1,	/* 80 */
-+	1,	/* 88 */
-+	1,	/* 96 */
-+	7,	/* 104 */
-+	7,	/* 112 */
-+	7,	/* 120 */
-+	7,	/* 128 */
-+	2,	/* 136 */
-+	2,	/* 144 */
-+	2,	/* 152 */
-+	2,	/* 160 */
-+	2,	/* 168 */
-+	2,	/* 176 */
-+	2,	/* 184 */
-+	2	/* 192 */
-+};
-+
- static struct kmem_cache *get_slab(size_t size, gfp_t flags)
+--- linux-2.6.22-rc4-mm2.orig/Documentation/vm/slabinfo.c	2007-06-18 01:26:22.000000000 -0700
++++ linux-2.6.22-rc4-mm2/Documentation/vm/slabinfo.c	2007-06-18 01:27:21.000000000 -0700
+@@ -30,6 +30,7 @@ struct slabinfo {
+ 	int hwcache_align, object_size, objs_per_slab;
+ 	int sanity_checks, slab_size, store_user, trace;
+ 	int order, poison, reclaim_account, red_zone;
++	int defrag, ctor;
+ 	unsigned long partial, objects, slabs;
+ 	int numa[MAX_NODES];
+ 	int numa_partial[MAX_NODES];
+@@ -56,6 +57,8 @@ int show_slab = 0;
+ int skip_zero = 1;
+ int show_numa = 0;
+ int show_track = 0;
++int show_defrag = 0;
++int show_ctor = 0;
+ int show_first_alias = 0;
+ int validate = 0;
+ int shrink = 0;
+@@ -90,18 +93,20 @@ void fatal(const char *x, ...)
+ void usage(void)
  {
--	int index = kmalloc_index(size);
-+	int index;
- 
--	if (!index)
--		return ZERO_SIZE_PTR;
-+	if (size <= 192) {
-+		if (!size)
-+			return ZERO_SIZE_PTR;
- 
--	/* Allocation too large? */
--	if (index < 0)
--		return NULL;
-+		index = size_index[(size - 1) / 8];
-+	} else {
-+		if (size > KMALLOC_MAX_SIZE)
-+			return NULL;
-+
-+		index = fls(size - 1) + 1;
-+	}
- 
- #ifdef CONFIG_ZONE_DMA
--	if ((flags & SLUB_DMA))
-+	if (unlikely((flags & SLUB_DMA)))
- 		return dma_kmalloc_cache(index, flags);
-+
- #endif
- 	return &kmalloc_caches[index];
+ 	printf("slabinfo 5/7/2007. (c) 2007 sgi. clameter@sgi.com\n\n"
+-		"slabinfo [-ahnpvtsz] [-d debugopts] [slab-regexp]\n"
++		"slabinfo [-aCDefhilnosSrtTvz1] [-d debugopts] [slab-regexp]\n"
+ 		"-a|--aliases           Show aliases\n"
++		"-C|--ctor              Show slabs with ctors\n"
+ 		"-d<options>|--debug=<options> Set/Clear Debug options\n"
+-		"-e|--empty		Show empty slabs\n"
++		"-D|--defrag            Show defragmentable caches\n"
++		"-e|--empty             Show empty slabs\n"
+ 		"-f|--first-alias       Show first alias\n"
+ 		"-h|--help              Show usage information\n"
+ 		"-i|--inverted          Inverted list\n"
+ 		"-l|--slabs             Show slabs\n"
+ 		"-n|--numa              Show NUMA information\n"
+-		"-o|--ops		Show kmem_cache_ops\n"
++		"-o|--ops               Show kmem_cache_ops\n"
+ 		"-s|--shrink            Shrink slabs\n"
+-		"-r|--report		Detailed report on single slabs\n"
++		"-r|--report            Detailed report on single slabs\n"
+ 		"-S|--Size              Sort by size\n"
+ 		"-t|--tracking          Show alloc/free information\n"
+ 		"-T|--Totals            Show summary information\n"
+@@ -281,7 +286,7 @@ int line = 0;
+ void first_line(void)
+ {
+ 	printf("Name                   Objects Objsize    Space "
+-		"Slabs/Part/Cpu  O/S O %%Fr %%Ef Flg\n");
++		"Slabs/Part/Cpu  O/S O %%Ra %%Ef Flg\n");
  }
-@@ -2550,6 +2589,24 @@ void __init kmem_cache_init(void)
- 		caches++;
- 	}
  
-+
-+	/*
-+	 * Patch up the size_index table if we have strange large alignment
-+	 * requirements for the kmalloc array. This is only the case for
-+	 * mips it seems. The standard arches will not generate any code here.
-+	 *
-+	 * Largest permitted alignment is 256 bytes due to the way we
-+	 * handle the index determination for the smaller caches.
-+	 *
-+	 * Make sure that nothing crazy happens if someone starts tinkering
-+	 * around with ARCH_KMALLOC_MINALIGN
-+	 */
-+	BUG_ON(KMALLOC_MIN_SIZE > 256 ||
-+		(KMALLOC_MIN_SIZE & (KMALLOC_MIN_SIZE - 1)));
-+
-+	for (i = 8; i < KMALLOC_MIN_SIZE;i++)
-+		size_index[(i - 1) / 8] = KMALLOC_SHIFT_LOW;
-+
- 	slab_state = UP;
+ /*
+@@ -452,6 +457,12 @@ void slabcache(struct slabinfo *s)
+ 	if (show_empty && s->slabs)
+ 		return;
  
- 	/* Provide the correct kmalloc names now that the caches are up */
++	if (show_defrag && !s->defrag)
++		return;
++
++	if (show_ctor && !s->ctor)
++		return;
++
+ 	store_size(size_str, slab_size(s));
+ 	sprintf(dist_str,"%lu/%lu/%d", s->slabs, s->partial, s->cpu_slabs);
+ 
+@@ -462,6 +473,10 @@ void slabcache(struct slabinfo *s)
+ 		*p++ = '*';
+ 	if (s->cache_dma)
+ 		*p++ = 'd';
++	if (s->defrag)
++		*p++ = 'D';
++	if (s->ctor)
++		*p++ = 'C';
+ 	if (s->hwcache_align)
+ 		*p++ = 'A';
+ 	if (s->poison)
+@@ -481,7 +496,7 @@ void slabcache(struct slabinfo *s)
+ 	printf("%-21s %8ld %7d %8s %14s %4d %1d %3ld %3ld %s\n",
+ 		s->name, s->objects, s->object_size, size_str, dist_str,
+ 		s->objs_per_slab, s->order,
+-		s->slabs ? (s->partial * 100) / s->slabs : 100,
++		s->slabs ? (s->objects * 100) / (s->slabs * s->objs_per_slab) : 100,
+ 		s->slabs ? (s->objects * s->object_size * 100) /
+ 			(s->slabs * (page_size << s->order)) : 100,
+ 		flags);
+@@ -1072,6 +1087,12 @@ void read_slab_dir(void)
+ 			slab->store_user = get_obj("store_user");
+ 			slab->trace = get_obj("trace");
+ 			chdir("..");
++			if (read_slab_obj(slab, "ops")) {
++				if (strstr(buffer, "ctor :"))
++					slab->ctor = 1;
++				if (strstr(buffer, "kick :"))
++					slab->defrag = 1;
++			}
+ 			if (slab->name[0] == ':')
+ 				alias_targets++;
+ 			slab++;
+@@ -1121,7 +1142,9 @@ void output_slabs(void)
+ 
+ struct option opts[] = {
+ 	{ "aliases", 0, NULL, 'a' },
++	{ "ctor", 0, NULL, 'C' },
+ 	{ "debug", 2, NULL, 'd' },
++	{ "defrag", 0, NULL, 'D' },
+ 	{ "empty", 0, NULL, 'e' },
+ 	{ "first-alias", 0, NULL, 'f' },
+ 	{ "help", 0, NULL, 'h' },
+@@ -1146,7 +1169,7 @@ int main(int argc, char *argv[])
+ 
+ 	page_size = getpagesize();
+ 
+-	while ((c = getopt_long(argc, argv, "ad::efhil1noprstvzTS",
++	while ((c = getopt_long(argc, argv, "ad::efhil1noprstvzCDTS",
+ 						opts, NULL)) != -1)
+ 	switch(c) {
+ 		case '1':
+@@ -1196,6 +1219,12 @@ int main(int argc, char *argv[])
+ 		case 'z':
+ 			skip_zero = 0;
+ 			break;
++		case 'C':
++			show_ctor = 1;
++			break;
++		case 'D':
++			show_defrag = 1;
++			break;
+ 		case 'T':
+ 			show_totals = 1;
+ 			break;
 
 -- 
 
