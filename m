@@ -1,45 +1,31 @@
-Date: Mon, 18 Jun 2007 09:45:29 +0200
+Date: Mon, 18 Jun 2007 09:48:58 +0200
 From: Sam Ravnborg <sam@ravnborg.org>
 Subject: Re: [PATCH] mm: More __meminit annotations.
-Message-ID: <20070618074529.GA21222@uranus.ravnborg.org>
-References: <20070618045229.GA31635@linux-sh.org> <20070618143943.B108.Y-GOTO@jp.fujitsu.com>
+Message-ID: <20070618074858.GB21222@uranus.ravnborg.org>
+References: <20070618143943.B108.Y-GOTO@jp.fujitsu.com> <20070618055842.GA17858@linux-sh.org> <20070618151544.B10A.Y-GOTO@jp.fujitsu.com> <a781481a0706172357s7c473686pa41df174af01cda4@mail.gmail.com> <a781481a0706180028k5d44f27eld7c2d2564c42ed63@mail.gmail.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20070618143943.B108.Y-GOTO@jp.fujitsu.com>
+In-Reply-To: <a781481a0706180028k5d44f27eld7c2d2564c42ed63@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Yasunori Goto <y-goto@jp.fujitsu.com>
-Cc: Paul Mundt <lethal@linux-sh.org>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Satyam Sharma <satyam.sharma@gmail.com>
+Cc: Yasunori Goto <y-goto@jp.fujitsu.com>, Paul Mundt <lethal@linux-sh.org>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Jun 18, 2007 at 02:49:24PM +0900, Yasunori Goto wrote:
-> >  }
-> >  
-> > -static inline unsigned long zone_absent_pages_in_node(int nid,
-> > +static inline unsigned long __meminit zone_absent_pages_in_node(int nid,
-> >  						unsigned long zone_type,
-> >  						unsigned long *zholes_size)
-> >  {
+On Mon, Jun 18, 2007 at 12:58:34PM +0530, Satyam Sharma wrote:
 > 
-> I thought __meminit is not effective for these static functions,
-> because they are inlined function. So, it depends on caller's 
-> defenition. Is it wrong? 
+> Actually, modpost will _not_ complain precisely _because_ kernel
+> uses always_inline so a separate body for the function will never be
+> emitted at all.
+That has been threaten to change many times. Far far far too much
+are marked inline today. There has been several longer threads about it.
 
-As we do not _know_ if a given function is inline or not it definitely
-makes sense to mark them as __meminit.
-If the compiler then decides to inline the function we are all clear and
-no problems. If the compiler decides not to inline the function we will
-properly discard the code after init has completed so again all clear.
+Part of it is that some part MUST be inlined to work while other parts
+may be inline but not needed (and often the wrong thing).
 
-And btw. some people (including myself) consider it a bug that gcc inline
-a function that is forced to a specific section into a function that belongs
-to another section. Now gcc people has another view but that may change.
-So again defining a function as __meminit makes sense no matter the
-section marker.
-
-For the technical merit whay a function is marker inline in the first place.
-It must be assumed this is a hot path where it is benificial to do so.
+So a carefully added inline is good but the other 98% of inline
+markings are just wrong and ougth to go.
 
 	Sam
 
