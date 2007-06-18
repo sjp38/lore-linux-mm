@@ -1,60 +1,50 @@
-Date: Mon, 18 Jun 2007 11:05:54 -0700 (PDT)
-From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [patch 00/26] Current slab allocator / SLUB patch queue
-In-Reply-To: <6bffcb0e0706181038j107e2357o89c525261cf671a@mail.gmail.com>
-Message-ID: <Pine.LNX.4.64.0706181102280.6596@schroedinger.engr.sgi.com>
-References: <20070618095838.238615343@sgi.com>  <46767346.2040108@googlemail.com>
-  <Pine.LNX.4.64.0706180936280.4751@schroedinger.engr.sgi.com>
- <6bffcb0e0706181038j107e2357o89c525261cf671a@mail.gmail.com>
+Received: from d03relay02.boulder.ibm.com (d03relay02.boulder.ibm.com [9.17.195.227])
+	by e32.co.us.ibm.com (8.12.11.20060308/8.13.8) with ESMTP id l5IIG8jE015653
+	for <linux-mm@kvack.org>; Mon, 18 Jun 2007 14:16:08 -0400
+Received: from d03av03.boulder.ibm.com (d03av03.boulder.ibm.com [9.17.195.169])
+	by d03relay02.boulder.ibm.com (8.13.8/8.13.8/NCO v8.3) with ESMTP id l5IIKcOH203698
+	for <linux-mm@kvack.org>; Mon, 18 Jun 2007 12:20:41 -0600
+Received: from d03av03.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av03.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l5IIKZN0004047
+	for <linux-mm@kvack.org>; Mon, 18 Jun 2007 12:20:35 -0600
+Date: Mon, 18 Jun 2007 11:20:01 -0700
+From: Nishanth Aravamudan <nacc@us.ibm.com>
+Subject: Re: [PATCH 1/3] Fix hugetlb pool allocation with empty nodes
+Message-ID: <20070618182001.GE10714@us.ibm.com>
+References: <20070618173428.GB10714@us.ibm.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20070618173428.GB10714@us.ibm.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Michal Piotrowski <michal.k.k.piotrowski@gmail.com>
-Cc: akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Pekka Enberg <penberg@cs.helsinki.fi>, suresh.b.siddha@intel.com
+To: wli@holomorphy.com
+Cc: anton@samba.org, lee.schermerhorn@hp.com, clameter@sgi.com, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 18 Jun 2007, Michal Piotrowski wrote:
+On 18.06.2007 [10:34:28 -0700], Nishanth Aravamudan wrote:
+> Anton found a problem with the hugetlb pool allocation when some nodes
+> have no memory (http://marc.info/?l=linux-mm&m=118133042025995&w=2). Lee
+> worked on versions that tried to fix it, but none were accepted.
+> Christoph has created a set of patches which allow for GFP_THISNODE
+> allocations to fail if the node has no memory and for exporting a
+> node_memory_map indicating which nodes have memory. Since mempolicy.c
+> already has a number of functions which support interleaving, create a
+> mempolicy when we invoke alloc_fresh_huge_page() that specifies
+> interleaving across all the nodes in node_memory_map, rather than custom
+> interleaving code in hugetlb.c.  This requires adding some dummy
+> functions, and some declarations, in mempolicy.h to compile with NUMA or
+> !NUMA.
 
-> > Does this patch fix the issue?
-> Unfortunately no.
-> 
-> AFAIR I didn't see it in 2.6.22-rc4-mm2
+Sigh, in case it wasn't clear from the preceding dicussions, these
+patches depend on Christoph's memoryless node fixes.
 
-Seems that I miscounted. We need a larger safe area.
+Thanks,
+Nish
 
-
-SLUB: Fix behavior if the text output of list_locations overflows PAGE_SIZE
-
-If slabs are allocated or freed from a large set of call sites (typical 
-for the kmalloc area) then we may create more output than fits into
-a single PAGE and sysfs only gives us one page. The output should be
-truncated. This patch fixes the checks to do the truncation properly.
-
-Signed-off-by: Christoph Lameter <clameter@sgi.com>
-
-Index: linux-2.6.22-rc4-mm2/mm/slub.c
-===================================================================
---- linux-2.6.22-rc4-mm2.orig/mm/slub.c	2007-06-18 09:37:41.000000000 -0700
-+++ linux-2.6.22-rc4-mm2/mm/slub.c	2007-06-18 11:02:19.000000000 -0700
-@@ -3649,13 +3649,15 @@ static int list_locations(struct kmem_ca
- 			n += sprintf(buf + n, " pid=%ld",
- 				l->min_pid);
- 
--		if (num_online_cpus() > 1 && !cpus_empty(l->cpus)) {
-+		if (num_online_cpus() > 1 && !cpus_empty(l->cpus) &&
-+				n < PAGE_SIZE - n - 60) {
- 			n += sprintf(buf + n, " cpus=");
- 			n += cpulist_scnprintf(buf + n, PAGE_SIZE - n - 50,
- 					l->cpus);
- 		}
- 
--		if (num_online_nodes() > 1 && !nodes_empty(l->nodes)) {
-+		if (num_online_nodes() > 1 && !nodes_empty(l->nodes) &&
-+				n < PAGE_SIZE - n - 60) {
- 			n += sprintf(buf + n, " nodes=");
- 			n += nodelist_scnprintf(buf + n, PAGE_SIZE - n - 50,
- 					l->nodes);
+-- 
+Nishanth Aravamudan <nacc@us.ibm.com>
+IBM Linux Technology Center
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
