@@ -1,65 +1,41 @@
-Message-Id: <20070618192545.536071353@sgi.com>
+Message-Id: <20070618192545.072982806@sgi.com>
 References: <20070618191956.411091458@sgi.com>
-Date: Mon, 18 Jun 2007 12:20:02 -0700
+Date: Mon, 18 Jun 2007 12:20:00 -0700
 From: clameter@sgi.com
-Subject: [patch 06/10] Memoryless Node: Slab support
-Content-Disposition: inline; filename=memless_slab
+Subject: [patch 04/10] OOM: use the node_memory_map instead of constructing one on the fly
+Content-Disposition: inline; filename=memless_oom_kill
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: akpm@linux-foundation.org
 Cc: linux-mm@kvack.org, Nishanth Aravamudan <nacc@us.ibm.com>
 List-ID: <linux-mm.kvack.org>
 
-Slab should not allocate control structures for nodes without memory. This may seem
-to work right now but its unreliable since not all allocations can fall back due
-to the use of GFP_THISNODE.
-
-Switching a few for_each_online_node's to for_each_memory_node will allow us to
-only allocate for nodes that actually have memory.
+constrained_alloc() builds its own memory map for nodes with memory.
+We have that available in node_memory_map now. So simplify the code.
 
 Signed-off-by: Christoph Lameter <clameter@sgi.com>
 Acked-by: Nishanth Aravamudan <nacc@us.ibm.com>
 
-Index: linux-2.6.22-rc4-mm2/mm/slab.c
+Index: linux-2.6.22-rc4-mm2/mm/oom_kill.c
 ===================================================================
---- linux-2.6.22-rc4-mm2.orig/mm/slab.c	2007-06-18 11:46:25.000000000 -0700
-+++ linux-2.6.22-rc4-mm2/mm/slab.c	2007-06-18 11:49:53.000000000 -0700
-@@ -1564,7 +1564,7 @@ void __init kmem_cache_init(void)
- 		/* Replace the static kmem_list3 structures for the boot cpu */
- 		init_list(&cache_cache, &initkmem_list3[CACHE_CACHE], node);
- 
--		for_each_online_node(nid) {
-+		for_each_memory_node(nid) {
- 			init_list(malloc_sizes[INDEX_AC].cs_cachep,
- 				  &initkmem_list3[SIZE_AC + nid], nid);
- 
-@@ -1942,7 +1942,7 @@ static void __init set_up_list3s(struct 
+--- linux-2.6.22-rc4-mm2.orig/mm/oom_kill.c	2007-06-13 23:11:32.000000000 -0700
++++ linux-2.6.22-rc4-mm2/mm/oom_kill.c	2007-06-13 23:12:39.000000000 -0700
+@@ -176,14 +176,7 @@ static inline int constrained_alloc(stru
  {
- 	int node;
+ #ifdef CONFIG_NUMA
+ 	struct zone **z;
+-	nodemask_t nodes;
+-	int node;
+-
+-	nodes_clear(nodes);
+-	/* node has memory ? */
+-	for_each_online_node(node)
+-		if (NODE_DATA(node)->node_present_pages)
+-			node_set(node, nodes);
++	nodemask_t nodes = node_memory_map;
  
--	for_each_online_node(node) {
-+	for_each_memory_node(node) {
- 		cachep->nodelists[node] = &initkmem_list3[index + node];
- 		cachep->nodelists[node]->next_reap = jiffies +
- 		    REAPTIMEOUT_LIST3 +
-@@ -2073,7 +2073,7 @@ static int __init_refok setup_cpu_cache(
- 			g_cpucache_up = PARTIAL_L3;
- 		} else {
- 			int node;
--			for_each_online_node(node) {
-+			for_each_memory_node(node) {
- 				cachep->nodelists[node] =
- 				    kmalloc_node(sizeof(struct kmem_list3),
- 						GFP_KERNEL, node);
-@@ -3787,7 +3787,7 @@ static int alloc_kmemlist(struct kmem_ca
- 	struct array_cache *new_shared;
- 	struct array_cache **new_alien = NULL;
- 
--	for_each_online_node(node) {
-+	for_each_memory_node(node) {
- 
-                 if (use_alien_caches) {
-                         new_alien = alloc_alien_cache(node, cachep->limit);
+ 	for (z = zonelist->zones; *z; z++)
+ 		if (cpuset_zone_allowed_softwall(*z, gfp_mask))
 
 -- 
 
