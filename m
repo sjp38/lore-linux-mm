@@ -1,16 +1,16 @@
-Received: by wa-out-1112.google.com with SMTP id m33so2401950wag
-        for <linux-mm@kvack.org>; Mon, 18 Jun 2007 13:08:03 -0700 (PDT)
-Message-ID: <84144f020706181308v689254dl80a5dd42ba6014c4@mail.gmail.com>
-Date: Mon, 18 Jun 2007 23:08:03 +0300
+Received: by wa-out-1112.google.com with SMTP id m33so2403497wag
+        for <linux-mm@kvack.org>; Mon, 18 Jun 2007 13:11:59 -0700 (PDT)
+Message-ID: <84144f020706181311u2bb10658i3869f7aeb8e29f8e@mail.gmail.com>
+Date: Mon, 18 Jun 2007 23:11:59 +0300
 From: "Pekka Enberg" <penberg@cs.helsinki.fi>
-Subject: Re: [patch 03/26] Slab allocators: Consistent ZERO_SIZE_PTR support and NULL result semantics
-In-Reply-To: <20070618095914.097484951@sgi.com>
+Subject: Re: [patch 04/26] Slab allocators: Support __GFP_ZERO in all allocators.
+In-Reply-To: <20070618095914.332369986@sgi.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
 Content-Disposition: inline
 References: <20070618095838.238615343@sgi.com>
-	 <20070618095914.097484951@sgi.com>
+	 <20070618095914.332369986@sgi.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: "clameter@sgi.com" <clameter@sgi.com>
@@ -18,14 +18,16 @@ Cc: akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org,
 List-ID: <linux-mm.kvack.org>
 
 On 6/18/07, clameter@sgi.com <clameter@sgi.com> wrote:
-> Define ZERO_OR_NULL_PTR macro to be able to remove the checks
-> from the allocators. Move ZERO_SIZE_PTR related stuff into slab.h.
+> A kernel convention for many allocators is that if __GFP_ZERO is passed to
+> an allocator then the allocated memory should be zeroed.
 >
-> Make ZERO_SIZE_PTR work for all slab allocators and get rid of the
-> WARN_ON_ONCE(size == 0) that is still remaining in SLAB.
->
-> Make slub return NULL like the other allocators if a too large
-> memory segment is requested via __kmalloc.
+> This is currently not supported by the slab allocators. The inconsistency
+> makes it difficult to implement in derived allocators such as in the uncached
+> allocator and the pool allocators.
+
+[snip]
+
+> So add the necessary logic to all slab allocators to support __GFP_ZERO.
 
 Looks good to me.
 
