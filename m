@@ -1,34 +1,26 @@
-Date: Tue, 19 Jun 2007 15:32:05 -0700 (PDT)
+Date: Tue, 19 Jun 2007 15:33:08 -0700 (PDT)
 From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [patch 11/26] SLUB: Add support for kmem_cache_ops
-In-Reply-To: <84144f020706191358j1992dd50ga5d93efbd61878d6@mail.gmail.com>
-Message-ID: <Pine.LNX.4.64.0706191531330.7633@schroedinger.engr.sgi.com>
-References: <20070618095838.238615343@sgi.com>  <20070618095916.083793990@sgi.com>
- <84144f020706191358j1992dd50ga5d93efbd61878d6@mail.gmail.com>
+Subject: Re: [patch 05/26] Slab allocators: Cleanup zeroing allocations
+In-Reply-To: <20070619210010.GN11166@waste.org>
+Message-ID: <Pine.LNX.4.64.0706191532170.7633@schroedinger.engr.sgi.com>
+References: <20070618095838.238615343@sgi.com> <20070618095914.622685354@sgi.com>
+ <20070619210010.GN11166@waste.org>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Pekka Enberg <penberg@cs.helsinki.fi>
-Cc: akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, suresh.b.siddha@intel.com
+To: Matt Mackall <mpm@selenic.com>
+Cc: akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Pekka Enberg <penberg@cs.helsinki.fi>, suresh.b.siddha@intel.com
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 19 Jun 2007, Pekka Enberg wrote:
+On Tue, 19 Jun 2007, Matt Mackall wrote:
 
-> On 6/18/07, clameter@sgi.com <clameter@sgi.com> wrote:
-> > We use the parameter formerly used by the destructor to pass an optional
-> > pointer to a kmem_cache_ops structure to kmem_cache_create.
-> > 
-> > kmem_cache_ops is created as empty. Later patches populate kmem_cache_ops.
-> 
-> I like kmem_cache_ops but I don't like this patch. I know its painful
-> but we really want the introduction patch to fixup the API (move ctor
-> to kmem_cache_ops and do the callers).
+> I worry a bit about adding another branch checking __GFP_ZERO in such
+> a hot path for SLAB/SLUB.
 
-That can be done later. The effort does not increase because of this 
-patch. If you have the time please do such a patch.
+Its checking the gfpflags variable on the stack. In a recently touched 
+cachline.
 
- 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
