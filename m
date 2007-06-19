@@ -1,31 +1,47 @@
-Received: by py-out-1112.google.com with SMTP id a25so2075481pyi
-        for <linux-mm@kvack.org>; Tue, 19 Jun 2007 13:58:12 -0700 (PDT)
-Message-ID: <84144f020706191358j1992dd50ga5d93efbd61878d6@mail.gmail.com>
-Date: Tue, 19 Jun 2007 23:58:12 +0300
-From: "Pekka Enberg" <penberg@cs.helsinki.fi>
-Subject: Re: [patch 11/26] SLUB: Add support for kmem_cache_ops
-In-Reply-To: <20070618095916.083793990@sgi.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Date: Tue, 19 Jun 2007 14:23:44 -0700
+From: Paul Jackson <pj@sgi.com>
+Subject: Re: Some thoughts on memory policies
+Message-Id: <20070619142344.db0f636c.pj@sgi.com>
+In-Reply-To: <1182284690.5055.128.camel@localhost>
+References: <Pine.LNX.4.64.0706181257010.13154@schroedinger.engr.sgi.com>
+	<1182284690.5055.128.camel@localhost>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
-References: <20070618095838.238615343@sgi.com>
-	 <20070618095916.083793990@sgi.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "clameter@sgi.com" <clameter@sgi.com>
-Cc: akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, suresh.b.siddha@intel.com
+To: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
+Cc: clameter@sgi.com, linux-mm@kvack.org, wli@holomorphy.com, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On 6/18/07, clameter@sgi.com <clameter@sgi.com> wrote:
-> We use the parameter formerly used by the destructor to pass an optional
-> pointer to a kmem_cache_ops structure to kmem_cache_create.
->
-> kmem_cache_ops is created as empty. Later patches populate kmem_cache_ops.
+> The current memory policy APIs can work in such a "containerized"
+> environment if we can reconcile the policy APIs' notion of nodes with
+> the set of nodes that container allows.  Perhaps we need to revisit the
+> "cpumemset" proposal that provides a separate node id namespace in each
+> container/cpuset.
 
-I like kmem_cache_ops but I don't like this patch. I know its painful
-but we really want the introduction patch to fixup the API (move ctor
-to kmem_cache_ops and do the callers).
+Currently, we (SGI) do this for our systems using user level library
+code.
+
+Even though that library code is LGPL licensed, it's still far less
+widely distributed than the Linux kernel.  Container relative numbering
+support directly in the kernel might make sense; though it would be
+very challenging to provide that without breaking any existing API's
+such as sched_setaffinity, mbind, set_mempolicy and various /proc
+files that provide only system-wide numbering.
+
+The advantage I had doing cpuset relative cpu and mem numbering in a
+user library was that I could invent new API's that were numbered
+relatively from day one.
+
+So ... I'd likely be supportive of cpuset (or container) relative
+numbering support in the kernel ... if someone can figure out how to do
+it without breaking existing API's left and right.
+
+-- 
+                  I won't rest till it's the best ...
+                  Programmer, Linux Scalability
+                  Paul Jackson <pj@sgi.com> 1.925.600.0401
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
