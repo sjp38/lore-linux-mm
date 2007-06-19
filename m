@@ -1,24 +1,33 @@
-Date: Mon, 18 Jun 2007 21:01:31 -0700 (PDT)
-From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [PATCH] slob: poor man's NUMA, take 5.
-In-Reply-To: <20070619035230.GA23631@linux-sh.org>
-Message-ID: <Pine.LNX.4.64.0706182101001.1002@schroedinger.engr.sgi.com>
-References: <20070615033412.GA28687@linux-sh.org> <20070615064445.GM11115@waste.org>
- <20070615082237.GA29917@linux-sh.org> <Pine.LNX.4.64.0706150737190.7471@schroedinger.engr.sgi.com>
- <20070618023956.GA30969@linux-sh.org> <20070619035230.GA23631@linux-sh.org>
+Subject: Re: [patch 05/26] Slab allocators: Cleanup zeroing allocations
+In-Reply-To: <Pine.LNX.4.64.0706181531410.8595@schroedinger.engr.sgi.com>
+Message-ID: <YwzqCzcS.1182232109.9199150.penberg@cs.helsinki.fi>
+From: "Pekka Enberg" <penberg@cs.helsinki.fi>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 8BIT
+Date: Tue, 19 Jun 2007 08:48:29 +0300 (EEST)
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Paul Mundt <lethal@linux-sh.org>
-Cc: Matt Mackall <mpm@selenic.com>, Nick Piggin <nickpiggin@yahoo.com.au>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org
+To: clameter@sgi.com
+Cc: "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "suresh.b.siddha@intel.com" <suresh.b.siddha@intel.com>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 19 Jun 2007, Paul Mundt wrote:
+On 6/19/2007, "Christoph Lameter" <clameter@sgi.com> wrote:
+> IA64
 
-> Christoph, does your previous Acked-by still apply to this version?
+[snip]
 
-Yes.
+> Saved ~500 bytes in text size.
+> 
+> x86_64:
+
+[snip]
+
+> 200 bytes saved.
+
+Looks good. Thanks Christoph.
+
+Acked-by: Pekka Enberg <penberg@cs.helsinki.fi>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
