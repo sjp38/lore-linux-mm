@@ -1,33 +1,67 @@
-Subject: Re: [patch 05/26] Slab allocators: Cleanup zeroing allocations
-In-Reply-To: <Pine.LNX.4.64.0706181531410.8595@schroedinger.engr.sgi.com>
-Message-ID: <YwzqCzcS.1182232109.9199150.penberg@cs.helsinki.fi>
-From: "Pekka Enberg" <penberg@cs.helsinki.fi>
+Message-ID: <46777EBA.7080707@sgi.com>
+Date: Tue, 19 Jun 2007 08:59:06 +0200
+From: Jes Sorensen <jes@sgi.com>
 MIME-Version: 1.0
+Subject: Re: [patch 08/10] Uncached allocator: Handle memoryless nodes
+References: <20070618191956.411091458@sgi.com> <20070618192545.999967493@sgi.com>
+In-Reply-To: <20070618192545.999967493@sgi.com>
 Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 8BIT
-Date: Tue, 19 Jun 2007 08:48:29 +0300 (EEST)
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: clameter@sgi.com
-Cc: "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "suresh.b.siddha@intel.com" <suresh.b.siddha@intel.com>
+Cc: akpm@linux-foundation.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 6/19/2007, "Christoph Lameter" <clameter@sgi.com> wrote:
-> IA64
-
-[snip]
-
-> Saved ~500 bytes in text size.
+clameter@sgi.com wrote:
+> The checks for node_online in the uncached allocator are made to make sure
+> that memory is available on these nodes. Thus switch all the checks to use
+> the node_memory and for_each_memory_node functions.
 > 
-> x86_64:
+> Cc: jes@sgi.com
+> Signed-off-by: Christoph Lameter <clameter@sgi.com>
 
-[snip]
+Seems fair to me:
 
-> 200 bytes saved.
+Acked-by: Jes Sorensen <jes@sgi.com>
 
-Looks good. Thanks Christoph.
 
-Acked-by: Pekka Enberg <penberg@cs.helsinki.fi>
+> Index: linux-2.6.22-rc4-mm2/arch/ia64/kernel/uncached.c
+> ===================================================================
+> --- linux-2.6.22-rc4-mm2.orig/arch/ia64/kernel/uncached.c	2007-06-13 23:29:58.000000000 -0700
+> +++ linux-2.6.22-rc4-mm2/arch/ia64/kernel/uncached.c	2007-06-13 23:32:35.000000000 -0700
+> @@ -196,7 +196,7 @@ unsigned long uncached_alloc_page(int st
+>  	nid = starting_nid;
+>  
+>  	do {
+> -		if (!node_online(nid))
+> +		if (!node_memory(nid))
+>  			continue;
+>  		uc_pool = &uncached_pools[nid];
+>  		if (uc_pool->pool == NULL)
+> @@ -268,7 +268,7 @@ static int __init uncached_init(void)
+>  {
+>  	int nid;
+>  
+> -	for_each_online_node(nid) {
+> +	for_each_memory_node(nid) {
+>  		uncached_pools[nid].pool = gen_pool_create(PAGE_SHIFT, nid);
+>  		mutex_init(&uncached_pools[nid].add_chunk_mutex);
+>  	}
+> Index: linux-2.6.22-rc4-mm2/drivers/char/mspec.c
+> ===================================================================
+> --- linux-2.6.22-rc4-mm2.orig/drivers/char/mspec.c	2007-06-13 23:28:15.000000000 -0700
+> +++ linux-2.6.22-rc4-mm2/drivers/char/mspec.c	2007-06-13 23:29:35.000000000 -0700
+> @@ -353,7 +353,7 @@ mspec_init(void)
+>  		is_sn2 = 1;
+>  		if (is_shub2()) {
+>  			ret = -ENOMEM;
+> -			for_each_online_node(nid) {
+> +			for_each_memory_node(nid) {
+>  				int actual_nid;
+>  				int nasid;
+>  				unsigned long phys;
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
