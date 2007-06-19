@@ -1,57 +1,45 @@
-Date: Mon, 18 Jun 2007 15:34:06 -0700 (PDT)
-From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [patch 05/26] Slab allocators: Cleanup zeroing allocations
-In-Reply-To: <84144f020706181326i6923cccdm21d122ee9eee8fb7@mail.gmail.com>
-Message-ID: <Pine.LNX.4.64.0706181531410.8595@schroedinger.engr.sgi.com>
-References: <20070618095838.238615343@sgi.com>  <20070618095914.622685354@sgi.com>
-  <84144f020706181316u70145db2i786641d265e5bc42@mail.gmail.com>
- <84144f020706181326i6923cccdm21d122ee9eee8fb7@mail.gmail.com>
+Date: Tue, 19 Jun 2007 12:52:30 +0900
+From: Paul Mundt <lethal@linux-sh.org>
+Subject: Re: [PATCH] slob: poor man's NUMA, take 5.
+Message-ID: <20070619035230.GA23631@linux-sh.org>
+References: <20070615033412.GA28687@linux-sh.org> <20070615064445.GM11115@waste.org> <20070615082237.GA29917@linux-sh.org> <Pine.LNX.4.64.0706150737190.7471@schroedinger.engr.sgi.com> <20070618023956.GA30969@linux-sh.org>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20070618023956.GA30969@linux-sh.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Pekka Enberg <penberg@cs.helsinki.fi>
-Cc: akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, suresh.b.siddha@intel.com
+To: Christoph Lameter <clameter@sgi.com>, Matt Mackall <mpm@selenic.com>, Nick Piggin <nickpiggin@yahoo.com.au>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 18 Jun 2007, Pekka Enberg wrote:
-
-> On 6/18/07, Pekka Enberg <penberg@cs.helsinki.fi> wrote:
-> > Hmm, did you check kernel text size before and after this change?
-> > Setting the __GFP_ZERO flag at every kzalloc call-site seems like a
-> > bad idea.
+On Mon, Jun 18, 2007 at 11:39:56AM +0900, Paul Mundt wrote:
+> On Fri, Jun 15, 2007 at 07:39:54AM -0700, Christoph Lameter wrote:
+> > On Fri, 15 Jun 2007, Paul Mundt wrote:
+> > 
+> > > + * %GFP_DMA - Allocation suitable for DMA.
+> > > + *
+> > > + * %GFP_DMA32 - Large allocation suitable for DMA (depending on platform).
+> > 
+> > GFP_DMA32 is not supported in the slab allocators.
+> > 
+> > GFP_DMA should only be used for kmalloc caches. Otherwise use a slab 
+> > created with SLAB_DMA.
+> > 
+> > > + *
+> > > + * %__GFP_ZERO - Zero the allocation on success.
+> > > + *
+> > 
+> > __GFP_ZERO is not support for slab allocations.
+> > 
+> Thanks, updated.
 > 
-> Aah but most call-sites, of course, use constants such as GFP_KERNEL
-> only which should be folded nicely by the compiler. So this probably
-> doesn't have much impact. Would be nice if you'd check, though.
+Christoph, does your previous Acked-by still apply to this version?
 
-IA64
+Matt, any other concerns?
 
-Before:
-
-   text    data     bss     dec     hex filename
-10486815        4128471 3686044 18301330        1174192 vmlinux
-
-After:
-
-   text    data     bss     dec     hex filename
-10486335        4128439 3686044 18300818        1173f92 vmlinux
-
-Saved ~500 bytes in text size.
-
-x86_64:
-
-Before:
-
-   text    data     bss     dec     hex filename
-3823932  333840  220484 4378256  42ce90 vmlinux
-
-After
-
-   text    data     bss     dec     hex filename
-3823716  333840  220484 4378040  42cdb8 vmlinux
-
-200 bytes saved.
+If there's nothing else, I'll post a final version with the appropriate
+sign-offs/acks, and hopefully this is ready to go in to -mm if Andrew is
+taking patches.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
