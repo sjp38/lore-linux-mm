@@ -1,51 +1,46 @@
-Received: from sd0109e.au.ibm.com (d23rh905.au.ibm.com [202.81.18.225])
-	by ausmtp05.au.ibm.com (8.13.8/8.13.8) with ESMTP id l5KBg4B43309620
-	for <linux-mm@kvack.org>; Wed, 20 Jun 2007 21:42:05 +1000
-Received: from d23av03.au.ibm.com (d23av03.au.ibm.com [9.190.250.244])
-	by sd0109e.au.ibm.com (8.13.8/8.13.8/NCO v8.3) with ESMTP id l5KBi7Ph130346
-	for <linux-mm@kvack.org>; Wed, 20 Jun 2007 21:44:08 +1000
-Received: from d23av03.au.ibm.com (loopback [127.0.0.1])
-	by d23av03.au.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l5KBeYX1003805
-	for <linux-mm@kvack.org>; Wed, 20 Jun 2007 21:40:35 +1000
-Message-ID: <4679122C.8030202@linux.vnet.ibm.com>
-Date: Wed, 20 Jun 2007 17:10:28 +0530
-From: Vaidyanathan Srinivasan <svaidy@linux.vnet.ibm.com>
-MIME-Version: 1.0
-Subject: [RFC][PATCH 4/4] Pagecache reclaim
-References: <46791098.4010801@linux.vnet.ibm.com>
-In-Reply-To: <46791098.4010801@linux.vnet.ibm.com>
-Content-Type: text/plain; charset=ISO-8859-1
+Subject: Re: [patch 07/10] Memoryless nodes: SLUB support
+From: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
+In-Reply-To: <20070618192545.764710140@sgi.com>
+References: <20070618191956.411091458@sgi.com>
+	 <20070618192545.764710140@sgi.com>
+Content-Type: text/plain
+Date: Wed, 20 Jun 2007 10:10:11 -0400
+Message-Id: <1182348612.5058.3.camel@localhost>
+Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Linux Kernel <linux-kernel@vger.kernel.org>, Linux Containers <containers@lists.osdl.org>, linux-mm@kvack.org
-Cc: Balbir Singh <balbir@in.ibm.com>, Pavel Emelianov <xemul@sw.ru>, Paul Menage <menage@google.com>, Kirill Korotaev <dev@sw.ru>, devel@openvz.org, Andrew Morton <akpm@linux-foundation.org>, "Eric W. Biederman" <ebiederm@xmission.com>, Herbert Poetzl <herbert@13thfloor.at>, Roy Huang <royhuang9@gmail.com>, Aubrey Li <aubreylee@gmail.com>
+To: clameter@sgi.com
+Cc: akpm@linux-foundation.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Pagecache controller reclaim changes
-------------------------------------
+On Mon, 2007-06-18 at 12:20 -0700, clameter@sgi.com wrote:
+> plain text document attachment (memless_slub)
+> Simply switch all for_each_online_node to for_each_memory_node. That way
+> SLUB only operates on nodes with memory. Any allocation attempt on a
+> memoryless node will fall whereupon SLUB will fetch memory from a nearby
+> node (depending on how memory policies and cpuset describe fallback).
+> 
+> Signed-off-by: Christoph Lameter <clameter@sgi.com>
+> 
+> Index: linux-2.6.22-rc4-mm2/mm/slub.c
+> ===================================================================
+> --- linux-2.6.22-rc4-mm2.orig/mm/slub.c	2007-06-18 11:16:15.000000000 -0700
+> +++ linux-2.6.22-rc4-mm2/mm/slub.c	2007-06-18 11:28:50.000000000 -0700
 
-Reclaim path needs performance improvement.
-For now it is minor changes to include unmapped
-pages in our list of page_container.
+<snip>
 
-Signed-off-by: Vaidyanathan Srinivasan <svaidy@linux.vnet.ibm.com>
----
- mm/rss_container.c |    3 ---
- 1 file changed, 3 deletions(-)
+Christoph:
 
---- linux-2.6.22-rc2-mm1.orig/mm/rss_container.c
-+++ linux-2.6.22-rc2-mm1/mm/rss_container.c
-@@ -274,9 +274,6 @@ void container_rss_move_lists(struct pag
- 	struct rss_container *rss;
- 	struct page_container *pc;
+This patch didn't apply to 22-rc4-mm2.  Does it assume some other SLUB
+patches?
 
--	if (!page_mapped(pg))
--		return;
--
- 	pc = page_container(pg);
- 	if (pc == NULL)
- 		return;
+I resolved the conflicts by just doing what the description says:
+replacing all 'for_each_online_node" with "for_each_memory_node", but I
+was surprised that this one patch out of 10 didn't apply.  I'm probably
+missing some other patch.
+
+Lee
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
