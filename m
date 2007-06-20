@@ -1,29 +1,31 @@
-Date: Tue, 19 Jun 2007 22:08:25 -0700 (PDT)
-From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: Some thoughts on memory policies
-In-Reply-To: <20070620040131.GA29240@linux-sh.org>
-Message-ID: <Pine.LNX.4.64.0706192205410.18467@schroedinger.engr.sgi.com>
-References: <Pine.LNX.4.64.0706181257010.13154@schroedinger.engr.sgi.com>
- <20070620040131.GA29240@linux-sh.org>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Date: Wed, 20 Jun 2007 09:14:43 +0300 (EEST)
+From: Pekka J Enberg <penberg@cs.helsinki.fi>
+Subject: Re: [patch 05/26] Slab allocators: Cleanup zeroing allocations
+In-Reply-To: <Pine.LNX.4.64.0706191532170.7633@schroedinger.engr.sgi.com>
+Message-ID: <Pine.LNX.4.64.0706200911200.10032@sbz-30.cs.Helsinki.FI>
+References: <20070618095838.238615343@sgi.com> <20070618095914.622685354@sgi.com>
+ <20070619210010.GN11166@waste.org> <Pine.LNX.4.64.0706191532170.7633@schroedinger.engr.sgi.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Paul Mundt <lethal@linux-sh.org>
-Cc: linux-mm@kvack.org, wli@holomorphy.com, lee.schermerhorn@hp.com, linux-kernel@vger.kernel.org
+To: Christoph Lameter <clameter@sgi.com>
+Cc: Matt Mackall <mpm@selenic.com>, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, suresh.b.siddha@intel.com
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 20 Jun 2007, Paul Mundt wrote:
+On Tue, 19 Jun 2007, Matt Mackall wrote:
+> > I worry a bit about adding another branch checking __GFP_ZERO in such
+> > a hot path for SLAB/SLUB.
 
-> There's quite a bit of room for improving and extending the existing
-> code, and those options should likely be exhausted first.
+On Tue, 19 Jun 2007, Christoph Lameter wrote:
+> Its checking the gfpflags variable on the stack. In a recently touched 
+> cachline.
 
-There is a confusing maze of special rules if one goes beyond the simple 
-process address space case. There are no clean rules on how to combine 
-memory policies. Refcounting / updating becomes a problem because policies 
-are intended to be only updated from the process that set them up. Look at 
-the gimmicks that Paul needed to do to update memory policies when a 
-process is migrated and the vmas on the stack for shmem etc etc.
+The variable could be in a register too but it's the _branch 
+instruction_ that is bit worrisome especially for embedded devices (think 
+slob). I haven't measured this, so consider this as pure speculation and 
+hand-waving from my part.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
