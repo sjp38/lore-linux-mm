@@ -1,98 +1,80 @@
-Date: Tue, 19 Jun 2007 16:17:18 -0700 (PDT)
-From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [patch 26/26] SLUB: Place kmem_cache_cpu structures in a NUMA
- aware way.
-In-Reply-To: <20070618095919.579023320@sgi.com>
-Message-ID: <Pine.LNX.4.64.0706191615490.15951@schroedinger.engr.sgi.com>
-References: <20070618095838.238615343@sgi.com> <20070618095919.579023320@sgi.com>
+Date: Wed, 20 Jun 2007 13:01:31 +0900
+From: Paul Mundt <lethal@linux-sh.org>
+Subject: Re: Some thoughts on memory policies
+Message-ID: <20070620040131.GA29240@linux-sh.org>
+References: <Pine.LNX.4.64.0706181257010.13154@schroedinger.engr.sgi.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <Pine.LNX.4.64.0706181257010.13154@schroedinger.engr.sgi.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: akpm@linux-foundation.org
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Pekka Enberg <penberg@cs.helsinki.fi>, suresh.b.siddha@intel.com
+To: Christoph Lameter <clameter@sgi.com>
+Cc: linux-mm@kvack.org, wli@holomorphy.com, lee.schermerhorn@hp.com, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-Some fixups to this patch:
+On Mon, Jun 18, 2007 at 01:22:08PM -0700, Christoph Lameter wrote:
+> 1. Memory policies must be attachable to a variety of objects
+> 
+> - System policies. The system policy is currently not
+>   modifiable. It may be useful to be able to set this.
+>   Small NUMA systems may want to run with interleave by default 
+> 
+For small systems there are a number of things that could be done for
+this. With the interleave map for system init dynamically created, we can
+make a reasonable guess about whether we want to use interleave as a
+default policy or not if the node map is considerably different from
+the online map (or the node_memory_map in -mm).
 
+If the system policy only makes sense as interleave or default, it might
+make sense simply to have a sysctl for this (the sysctl handler could
+rebalance the interleave map when switching to handle offline nodes
+coming online later, for example).
 
-Fix issues with per cpu kmem_cache_cpu arrays.
+> - Memory policies need to be attachable to types of pages.
+>   F.e. executable pages of a threaded application are best
+>   spread (or replicated) whereas the stack and the data may
+>   best be allocated in a node local way.
 
-1. During cpu bootstrap we also need to bootstrap the per cpu array
-   for the cpu in SLUB.
-   kmem_cache_init is called while only a single cpu is marked online.
+That would be nice, but one would also have to be able to restrict
+the range of nodes to replicate across when applications know their
+worst-case locality. Perhaps some of the cpuset work could be generalized
+for this?
 
-2. The size determination of the kmem_cache array is wrong for UP.
+> 2. Memory policies need to support additional constraints
+> 
+> - Restriction to a set of nodes. That is what we have today.
+> 
+> - Restriction to a container or cpuset. Maybe restriction
+>   to a set of containers?
+> 
+Having memory policies per container or cpuset would be nice to have,
+but this seems like it would get pretty messy with nested cpusets that
+contain overlapping memory nodes?
 
-Signed-off-by: Christoph Lameter <clameter@sgi.com>
+The other question is whether tasks residing under a cpuset with an
+established memory policy are allowed to mbind() outside of the cpuset
+policy constraints. Spreading of page and slab cache pages seem to
+already side-step constraints.
 
----
- mm/slub.c |   28 +++++++++++++++++++---------
- 1 file changed, 19 insertions(+), 9 deletions(-)
+> 7. Allocators must change
+> 
+> Right now the policy is set by the process context which is bad because
+> one cannot specify a memory policy for an allocation. It must be possible
+> to pass a memory policy to the allocators and then get the memory 
+> requested.
+> 
+Some policy hints can already be determined from the gfpflags, perhaps
+it's worth expanding on this? If these sorts of things have to be handled
+by devices, one has to assume that the device may not always be running
+in the same configuration or system, so an explicit policy would simply
+cause more trouble.
 
-Index: linux-2.6.22-rc4-mm2/mm/slub.c
-===================================================================
---- linux-2.6.22-rc4-mm2.orig/mm/slub.c	2007-06-19 15:38:22.000000000 -0700
-+++ linux-2.6.22-rc4-mm2/mm/slub.c	2007-06-19 16:13:17.000000000 -0700
-@@ -2016,21 +2016,28 @@ static int alloc_kmem_cache_cpus(struct 
- 	return 1;
- }
- 
-+/*
-+ * Initialize the per cpu array.
-+ */
-+static void init_alloc_cpu_cpu(int cpu)
-+{
-+	int i;
-+
-+	for (i = NR_KMEM_CACHE_CPU - 1; i >= 0; i--)
-+		free_kmem_cache_cpu(&per_cpu(kmem_cache_cpu, cpu)[i], cpu);
-+}
-+
- static void __init init_alloc_cpu(void)
- {
- 	int cpu;
--	int i;
- 
--	for_each_online_cpu(cpu) {
--		for (i = NR_KMEM_CACHE_CPU - 1; i >= 0; i--)
--			free_kmem_cache_cpu(&per_cpu(kmem_cache_cpu, cpu)[i],
--								cpu);
--	}
-+	for_each_online_cpu(cpu)
-+		init_alloc_cpu_cpu(cpu);
- }
- 
- #else
- static inline void free_kmem_cache_cpus(struct kmem_cache *s) {}
--static inline void init_alloc_cpu(struct kmem_cache *s) {}
-+static inline void init_alloc_cpu(void) {}
- 
- static inline int alloc_kmem_cache_cpus(struct kmem_cache *s, gfp_t flags)
- {
-@@ -3094,10 +3101,12 @@ void __init kmem_cache_init(void)
- 
- #ifdef CONFIG_SMP
- 	register_cpu_notifier(&slab_notifier);
--#endif
--
- 	kmem_size = offsetof(struct kmem_cache, cpu_slab) +
- 				nr_cpu_ids * sizeof(struct kmem_cache_cpu *);
-+#else
-+	kmem_size = sizeof(struct kmem_cache);
-+#endif
-+
- 
- 	printk(KERN_INFO "SLUB: Genslabs=%d, HWalign=%d, Order=%d-%d,"
- 		" MinObjects=%d, CPUs=%d, Nodes=%d\n",
-@@ -3244,6 +3253,7 @@ static int __cpuinit slab_cpuup_callback
- 	switch (action) {
- 	case CPU_UP_PREPARE:
- 	case CPU_UP_PREPARE_FROZEN:
-+		init_alloc_cpu_cpu(cpu);
- 		down_read(&slub_lock);
- 		list_for_each_entry(s, &slab_caches, list)
- 			s->cpu_slab[cpu] = alloc_kmem_cache_cpu(cpu,
+> I wish we could come up with some universal scheme that encompasses all
+> of the functionality we want and that makes memory more manageable....
+> 
+There's quite a bit of room for improving and extending the existing
+code, and those options should likely be exhausted first.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
