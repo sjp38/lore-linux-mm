@@ -1,34 +1,36 @@
-From: mel@skynet.ie (Mel Gorman)
-Subject: Re: [PATCH 7/7] Compact memory directly by a process when a high-order allocation fails
-Date: Tue, 19 Jun 2007 17:50:57 +0100
-Message-ID: <20070619165057.GF17109@skynet.ie>
-References: <20070618092821.7790.52015.sendpatchset@skynet.skynet.ie> <20070618093042.7790.30669.sendpatchset@skynet.skynet.ie> <Pine.LNX.4.64.0706181022060.4751@schroedinger.engr.sgi.com>
+From: Christoph Lameter <clameter@sgi.com>
+Subject: NUMA BOF @OLS
+Date: Thu, 21 Jun 2007 13:24:36 -0700 (PDT)
+Message-ID: <Pine.LNX.4.64.0706211316150.9220@schroedinger.engr.sgi.com>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Return-path: <linux-kernel-owner+glk-linux-kernel-3=40m.gmane.org-S1760158AbXFSQvP@vger.kernel.org>
-Content-Disposition: inline
-In-Reply-To: <Pine.LNX.4.64.0706181022060.4751@schroedinger.engr.sgi.com>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
+Return-path: <linux-kernel-owner+glk-linux-kernel-3=40m.gmane.org-S1759894AbXFUUYs@vger.kernel.org>
 Sender: linux-kernel-owner@vger.kernel.org
-To: Christoph Lameter <clameter@sgi.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, kamezawa.hiroyu@jp.fujitsu.com
+To: linux-mm@kvack.org
+Cc: linux-kernel@vger.kernel.org
 List-Id: linux-mm.kvack.org
 
-On (18/06/07 10:22), Christoph Lameter didst pronounce:
-> You are amazing.
-> 
+Everyone is invited to the NUMA BOF at the Ottawa Linux Symposium
 
-Thanks! 
+Friday Jun 29th, 2007 19:00 - 20:00 in Rockhopper
 
-There are still knots that need ironing out but I believe the core idea
-is solid and can be built into something useful.
+The main interest seems to be a discussion on the use of memory policies. 
+Lee Schermerhorn will talk a bit about his work and then I may say 
+something about the problems with memory policies.
 
-Thanks for reviewing.
+More subjects:
 
-> Acked-by: Christoph Lameter <clameter@sgi.com>
-> 
+- Memoryless node support
 
--- 
--- 
-Mel Gorman
-Part-time Phd Student                          Linux Technology Center
-University of Limerick                         IBM Dublin Software Lab
+- Restricting subsystems to not allocate on certain nodes
+  (f.e. huge pages only on some nodes, slab only on some nodes,
+  kernel memory only on some nodes).
+
+- Cpusets and containers
+
+- Do we need to have more support for multicore issues in the NUMA layers?
+
+- Issues with the scheduler on NUMA. 
+
+If you have another subject that should be brought up then please contact 
+me.
