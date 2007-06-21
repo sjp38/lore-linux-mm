@@ -1,36 +1,27 @@
-From: Christoph Lameter <clameter@sgi.com>
-Subject: NUMA BOF @OLS
-Date: Thu, 21 Jun 2007 13:24:36 -0700 (PDT)
-Message-ID: <Pine.LNX.4.64.0706211316150.9220@schroedinger.engr.sgi.com>
+From: Arnd Bergmann <arnd@arndb.de>
+Subject: Re: NUMA BOF @OLS
+Date: Fri, 22 Jun 2007 01:12:51 +0200
+Message-ID: <200706220112.51813.arnd@arndb.de>
+References: <Pine.LNX.4.64.0706211316150.9220@schroedinger.engr.sgi.com>
 Mime-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
-Return-path: <linux-kernel-owner+glk-linux-kernel-3=40m.gmane.org-S1759894AbXFUUYs@vger.kernel.org>
+Content-Type: text/plain;
+  charset="iso-8859-1"
+Content-Transfer-Encoding: 7bit
+Return-path: <linux-kernel-owner+glk-linux-kernel-3=40m.gmane.org-S1751449AbXFUXNL@vger.kernel.org>
+In-Reply-To: <Pine.LNX.4.64.0706211316150.9220@schroedinger.engr.sgi.com>
+Content-Disposition: inline
 Sender: linux-kernel-owner@vger.kernel.org
-To: linux-mm@kvack.org
-Cc: linux-kernel@vger.kernel.org
+To: Christoph Lameter <clameter@sgi.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-Id: linux-mm.kvack.org
 
-Everyone is invited to the NUMA BOF at the Ottawa Linux Symposium
+On Thursday 21 June 2007, Christoph Lameter wrote:
+> If you have another subject that should be brought up then please contact 
+> me.
 
-Friday Jun 29th, 2007 19:00 - 20:00 in Rockhopper
+- Interface for preallocating hugetlbfs pages per node instead of system wide
 
-The main interest seems to be a discussion on the use of memory policies. 
-Lee Schermerhorn will talk a bit about his work and then I may say 
-something about the problems with memory policies.
+- architecture independent in-kernel API for enumerating CPU sockets with
+  multicore processors (not sure if that's the same as your existing subject).
 
-More subjects:
-
-- Memoryless node support
-
-- Restricting subsystems to not allocate on certain nodes
-  (f.e. huge pages only on some nodes, slab only on some nodes,
-  kernel memory only on some nodes).
-
-- Cpusets and containers
-
-- Do we need to have more support for multicore issues in the NUMA layers?
-
-- Issues with the scheduler on NUMA. 
-
-If you have another subject that should be brought up then please contact 
-me.
+	Arnd <><
