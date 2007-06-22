@@ -1,90 +1,31 @@
-Date: Thu, 21 Jun 2007 19:34:16 -0500
-Message-ID: <84663258.30299116@aerosol.com>
-From: "Coleman" <obituary@incamail.com>
-Subject: unglaublichen 300% bonus!
+From: "Corinne Yanira" <completely0different@barb.com>
+Date: Thu, 21 Jun 2007 21:46:22 -0600
+Subject: CialisPhentemineXanaViagra\/aliun from $;2/pill, No  Doctor Approval, as simple as 1-2-3 fire
 MIME-Version: 1.0
-Content-Type: text/html; charset=iso-8859-1
+Message-ID: <18720.32805.12014@barb.com>
+Content-Type: text/html;
+	charset="iso-8859-1"
 Content-Transfer-Encoding: 7bit
-Return-Path: <obituary@incamail.com>
+Return-Path: <wish9ground@border.net>
 To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
 <html>
-
-<head>
-<meta http-equiv=Content-Type content="text/html; charset=iso-8859-1">
-
-<title>Hallo</title>
-
-<style>
-<!--
- /* Style Definitions */
- p.MsoNormal, li.MsoNormal, div.MsoNormal
-	{mso-style-parent:"";
-	margin:0cm;
-	margin-bottom:.0001pt;
-	mso-pagination:widow-orphan;
-	font-size:12.0pt;
-	font-family:"Times New Roman";
-	mso-fareast-font-family:"Times New Roman";
-	mso-ansi-language:FR;
-	mso-fareast-language:EN-US;
-	mso-bidi-language:HE;}
-a:link, span.MsoHyperlink
-	{color:blue;
-	text-decoration:underline;
-	text-underline:single;}
-a:visited, span.MsoHyperlinkFollowed
-	{color:purple;
-	text-decoration:underline;
-	text-underline:single;}
-@page Section1
-	{size:595.3pt 841.9pt;
-	margin:2.0cm 42.5pt 2.0cm 3.0cm;
-	mso-header-margin:35.4pt;
-	mso-footer-margin:35.4pt;
-	mso-paper-source:0;}
-div.Section1
-	{page:Section1;}
--->
-</style>
-
+<head><meta http-equiv="Content-Type" content="text; charset=iso-8859-1">
 </head>
-
-<body lang=DE link=blue vlink=purple style='tab-interval:35.4pt'>
-
-<div class=Section1>
-
-<p class=MsoNormal><span lang=FR>Hallo!<o:p></o:p></span></p>
-
-<p class=MsoNormal><span lang=FR><o:p>&nbsp;</o:p></span></p>
-
-<p class=MsoNormal><span lang=FR>Ich hatte schon vor Sie anzurufen&#8230; wie
-geht es Ihnen? <o:p></o:p></span></p>
-
-<p class=MsoNormal><span lang=FR><o:p>&nbsp;</o:p></span></p>
-
-<p class=MsoNormal><span lang=FR>Ich wollte Ihnen nur schnell von dieser 
-tollen Webseite erz&auml;hlen, die ich gefunden habe. Sie hat die besten 
-Spiele und bietet einen unglaublichen 300% Bonus an!<o:p></o:p></span></p>
-
-<p class=MsoNormal><span lang=FR><o:p>&nbsp;</o:p></span></p>
-
-<p class=MsoNormal><span lang=FR>Schauen Sie sich diese Seite mal an und
-erz&auml;hlen Sie mir danach was Sie davon halten! <o:p></o:p></span></p>
-
-<p class=MsoNormal><span lang=FR><o:p>&nbsp;</o:p></span></p>
-
-<p class=MsoNormal><span lang=FR>Bleiben Sie in Kontakt!<o:p></o:p></span></p>
-
-<p class=MsoNormal><span lang=FR><o:p>&nbsp;</o:p></span></p>
-
-<p class=MsoNormal><span lang=FR>
-<a href="http://www.royalonecazino.hk/lang-de/">
-http://www.royalonecazino.hk/lang-de/</a><o:p></o:p></span></p>
-
-</div>
-
-</body>
-
-</html>
+<body>
+<center><table border=0 cellspacing=0 cellpadding=5><tr><td bgcolor=DFFFFF align=center>
+<font color=95FFFF size=1>
+ought really longer. winter bad again mischievous? reply planning make reading similar.</font><br><font size=6 color=55AAFF face="Century Gothic"><b>Certified <font color=0000FF>
+OnlinePharmacy</font><br><font color=55AAFF size=4>Genuine Quality Ingredient <font color=000000>&</font> <font color=0000FF>All Countries Shipping</font></b></font></font>
+<br><table border=0 cellspacing=0 cellpadding=3 width=560><tr><td width=50% valign=top bgcolor=ffffff><font face="Century Gothic" size=2 color=000000><b>ViagraAs</b> 10pills $57
+<br><b>CialisAs</b> 20pills $1xx<br><b>PhentermineAs</b> 30pills $1xx<br><b>ValiumAs
+</b> 
+30pills $95<br><b>XanaxAs
+</b> 30pills $99<br><b>LevitraAs</b> 10pills $73<br>plus <b>30 meds more</b>
+</font></td><td width=50% valign=top bgcolor=F7F7F7><font face="Century Gothic" size=2 color=000000><b>RivotrilAs</b> 30pills $70<br><b>AtivanAs</b> 30pills $90
+<br><b>AmbienAs</b> 30pills $1xx<br><b>MeridiaAs</b> 30pills $1xx<br><b>
+SomaAs</b> 30pills $1xx<br><b>
+CelebrexAs</b> 30pills $1xx<br>plus <b>30 meds more</b></font></td></tr></table>
+</b><center><a href=http://kykqqp.saidinastatement.com target=_blank><font size=6 face="Century Gothic" color=FF0000><u><b>Best Price - Click Here To View More</b></font></font></u></a><br><font color=95FFFF size=1>rose obliged dark spoken. work fail taught appear. mischievous miles again completely disease,
+</font></center></td></tr></table></center></body></html>
