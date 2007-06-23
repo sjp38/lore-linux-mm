@@ -1,11 +1,11 @@
-Date: Fri, 22 Jun 2007 17:47:55 -0300
-From: "Vegas VIP Casino" <recurrent@otakumail.com>
-Message-ID: <27228520.24776681@backup.com>
-Subject: Willkommensbonus von 555 Euro!
+Date: Sat, 23 Jun 2007 07:43:13 -0100
+Message-ID: <41382843.04311864@shark.com>
+From: "Arnold" <bidirectional@sammimail.com>
+Subject: Ich habe ein Online Casino mit unglaublichen Spielen entdeckt!
 MIME-Version: 1.0
 Content-Type: text/html; charset=iso-8859-1
 Content-Transfer-Encoding: 7bit
-Return-Path: <recurrent@otakumail.com>
+Return-Path: <bidirectional@sammimail.com>
 To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
@@ -14,7 +14,8 @@ List-ID: <linux-mm.kvack.org>
 <head>
 <meta http-equiv=Content-Type content="text/html; charset=iso-8859-1">
 
-<title>Die besten Spieler </title>
+<title>Schade, dass Sie das grosse Spiel verpasst haben&#8230; aber ich glaube
+noch ein besseres gefunden zu haben</title>
 
 <style>
 <!--
@@ -27,25 +28,17 @@ List-ID: <linux-mm.kvack.org>
 	font-size:12.0pt;
 	font-family:"Times New Roman";
 	mso-fareast-font-family:"Times New Roman";
-	color:windowtext;
-	mso-ansi-language:EN-US;
-	mso-fareast-language:EN-US;}
+	mso-ansi-language:FR;
+	mso-fareast-language:EN-US;
+	mso-bidi-language:HE;}
 a:link, span.MsoHyperlink
-	{color:blue;}
+	{color:blue;
+	text-decoration:underline;
+	text-underline:single;}
 a:visited, span.MsoHyperlinkFollowed
 	{color:purple;
 	text-decoration:underline;
 	text-underline:single;}
-p
-	{mso-margin-top-alt:auto;
-	margin-right:0cm;
-	mso-margin-bottom-alt:auto;
-	margin-left:0cm;
-	mso-pagination:widow-orphan;
-	font-size:12.0pt;
-	font-family:"Times New Roman";
-	mso-fareast-font-family:"Times New Roman";
-	color:black;}
 @page Section1
 	{size:595.3pt 841.9pt;
 	margin:2.0cm 42.5pt 2.0cm 3.0cm;
@@ -63,40 +56,35 @@ div.Section1
 
 <div class=Section1>
 
-<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
-Die besten Spieler sind in Vegas und die besten Bonusse 
-finden Sie nur bei Vegas 
-VIP Casino!
+<p class=MsoNormal><span lang=FR>Schade, dass Sie das grosse Spiel verpasst
+haben&#8230; aber ich glaube noch ein besseres gefunden zu haben!
 <o:p></o:p></span></p>
 
-<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
-<o:p>&nbsp;</o:p></span></p>
+<p class=MsoNormal><span lang=FR><o:p>&nbsp;</o:p></span></p>
 
-<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
-200% f&uuml;r Ihre erste Einzahlung, 100% f&uuml;r Ihre zweite 
-und dritte Einzahlung und als Kr&ouml;nung einen 155% Bonus 
-f&uuml;r Ihre vierte Einzahlung!
+<p class=MsoNormal><span lang=FR>Ich habe ein Online Casino mit unglaublichen
+Spielen entdeckt &#8211; von Tischspielen &uuml;ber Automaten bis hin zu 
+Turnieren, hier wird alles geboten. <o:p></o:p></span></p>
+
+<p class=MsoNormal><span lang=FR><o:p>&nbsp;</o:p></span></p>
+
+<p class=MsoNormal><span lang=FR>Und wenn Sie sich heute noch anmelden, 
+k&ouml;nnen Sie einen Willkommensbonus von bis zu 555&#8364; erhalten!
 <o:p></o:p></span></p>
 
+<p class=MsoNormal><span lang=FR><o:p>&nbsp;</o:p></span></p>
 
-<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
-<o:p>&nbsp;</o:p></span></p>
-
-<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
-Das ergibt insgesamt einen Willkommensbonus von 555 &#8364;/$!
+<p class=MsoNormal><span lang=FR>Also worauf warten Sie noch? 
 <o:p></o:p></span></p>
 
-<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
-<o:p>&nbsp;</o:p></span></p>
+<p class=MsoNormal><span lang=FR>Schauen Sie vorbei!<o:p></o:p></span></p>
 
-<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
-Dieses und vieles mehr erwartet Sie im fabelhaften Vegas 
-VIP Casino, der beste Platz zum spielen!
-<o:p></o:p></span></p>
+<p class=MsoNormal><span lang=FR>
+<a href="http://www.vipmagiccasino.hk/lang-de/">
+http://www.vipmagiccasino.hk/lang-de/</a></span><span
+lang=FR style='mso-bidi-font-size:10.0pt'><o:p></o:p></span></p>
 
-<p><a href="http://www.vegasvipcasino.hk/lang-de/">
-http://www.vegasvipcasino.hk/lang-de/</a>
-</p>
+<p class=MsoNormal><span lang=FR><o:p>&nbsp;</o:p></span></p>
 
 </div>
 
