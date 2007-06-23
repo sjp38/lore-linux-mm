@@ -1,93 +1,52 @@
-Date: Sat, 23 Jun 2007 07:43:13 -0100
-Message-ID: <41382843.04311864@shark.com>
-From: "Arnold" <bidirectional@sammimail.com>
-Subject: Ich habe ein Online Casino mit unglaublichen Spielen entdeckt!
-MIME-Version: 1.0
-Content-Type: text/html; charset=iso-8859-1
+Date: Sat, 23 Jun 2007 09:53:34 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: slab allocators: MAX_ORDER one off fix
+Message-Id: <20070623095334.51f80e94.akpm@linux-foundation.org>
+In-Reply-To: <Pine.LNX.4.64.0706221100270.17293@schroedinger.engr.sgi.com>
+References: <Pine.LNX.4.64.0706221100270.17293@schroedinger.engr.sgi.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
-Return-Path: <bidirectional@sammimail.com>
-To: linux-mm@kvack.org
+Sender: owner-linux-mm@kvack.org
+Return-Path: <owner-linux-mm@kvack.org>
+To: Christoph Lameter <clameter@sgi.com>
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-<html>
+> On Fri, 22 Jun 2007 11:02:17 -0700 (PDT) Christoph Lameter <clameter@sgi.com> wrote:
+> MAX_ORDER is the first order that is not possible.
+> 
+> Use MAX_ORDER - 1 to calculate the larges possible object size in slab.h
+> 
+> Signed-off-by: Christoph Lameter <clameter@sgi.com>
+> 
+> ---
+>  include/linux/slab.h |    4 ++--
+>  1 file changed, 2 insertions(+), 2 deletions(-)
+> 
+> Index: linux-2.6.22-rc4-mm2/include/linux/slab.h
+> ===================================================================
+> --- linux-2.6.22-rc4-mm2.orig/include/linux/slab.h	2007-06-22 10:46:12.000000000 -0700
+> +++ linux-2.6.22-rc4-mm2/include/linux/slab.h	2007-06-22 10:46:53.000000000 -0700
+> @@ -133,8 +133,8 @@ static inline void *kmem_cache_alloc_nod
+>   * to do various tricks to work around compiler limitations in order to
+>   * ensure proper constant folding.
+>   */
+> -#define KMALLOC_SHIFT_HIGH	((MAX_ORDER + PAGE_SHIFT) <= 25 ? \
+> -				(MAX_ORDER + PAGE_SHIFT) : 25)
+> +#define KMALLOC_SHIFT_HIGH	((MAX_ORDER + PAGE_SHIFT - 1) <= 25 ? \
+> +				(MAX_ORDER + PAGE_SHIFT - 1) : 25)
+>  
+>  #define KMALLOC_MAX_SIZE	(1UL << KMALLOC_SHIFT_HIGH)
+>  #define KMALLOC_MAX_ORDER	(KMALLOC_SHIFT_HIGH - PAGE_SHIFT)
 
-<head>
-<meta http-equiv=Content-Type content="text/html; charset=iso-8859-1">
+I'm too lazy to look.  What are the consequences of deferring this to
+2.6.23?  Oversized kmallocs will still get a runtime failure, so no real
+problem?
 
-<title>Schade, dass Sie das grosse Spiel verpasst haben&#8230; aber ich glaube
-noch ein besseres gefunden zu haben</title>
 
-<style>
-<!--
- /* Style Definitions */
- p.MsoNormal, li.MsoNormal, div.MsoNormal
-	{mso-style-parent:"";
-	margin:0cm;
-	margin-bottom:.0001pt;
-	mso-pagination:widow-orphan;
-	font-size:12.0pt;
-	font-family:"Times New Roman";
-	mso-fareast-font-family:"Times New Roman";
-	mso-ansi-language:FR;
-	mso-fareast-language:EN-US;
-	mso-bidi-language:HE;}
-a:link, span.MsoHyperlink
-	{color:blue;
-	text-decoration:underline;
-	text-underline:single;}
-a:visited, span.MsoHyperlinkFollowed
-	{color:purple;
-	text-decoration:underline;
-	text-underline:single;}
-@page Section1
-	{size:595.3pt 841.9pt;
-	margin:2.0cm 42.5pt 2.0cm 3.0cm;
-	mso-header-margin:35.4pt;
-	mso-footer-margin:35.4pt;
-	mso-paper-source:0;}
-div.Section1
-	{page:Section1;}
--->
-</style>
-
-</head>
-
-<body lang=DE link=blue vlink=purple style='tab-interval:35.4pt'>
-
-<div class=Section1>
-
-<p class=MsoNormal><span lang=FR>Schade, dass Sie das grosse Spiel verpasst
-haben&#8230; aber ich glaube noch ein besseres gefunden zu haben!
-<o:p></o:p></span></p>
-
-<p class=MsoNormal><span lang=FR><o:p>&nbsp;</o:p></span></p>
-
-<p class=MsoNormal><span lang=FR>Ich habe ein Online Casino mit unglaublichen
-Spielen entdeckt &#8211; von Tischspielen &uuml;ber Automaten bis hin zu 
-Turnieren, hier wird alles geboten. <o:p></o:p></span></p>
-
-<p class=MsoNormal><span lang=FR><o:p>&nbsp;</o:p></span></p>
-
-<p class=MsoNormal><span lang=FR>Und wenn Sie sich heute noch anmelden, 
-k&ouml;nnen Sie einen Willkommensbonus von bis zu 555&#8364; erhalten!
-<o:p></o:p></span></p>
-
-<p class=MsoNormal><span lang=FR><o:p>&nbsp;</o:p></span></p>
-
-<p class=MsoNormal><span lang=FR>Also worauf warten Sie noch? 
-<o:p></o:p></span></p>
-
-<p class=MsoNormal><span lang=FR>Schauen Sie vorbei!<o:p></o:p></span></p>
-
-<p class=MsoNormal><span lang=FR>
-<a href="http://www.vipmagiccasino.hk/lang-de/">
-http://www.vipmagiccasino.hk/lang-de/</a></span><span
-lang=FR style='mso-bidi-font-size:10.0pt'><o:p></o:p></span></p>
-
-<p class=MsoNormal><span lang=FR><o:p>&nbsp;</o:p></span></p>
-
-</div>
-
-</body>
-
-</html>
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
