@@ -1,51 +1,47 @@
-Date: Sun, 24 Jun 2007 06:23:45 +0200
-From: Nick Piggin <npiggin@suse.de>
-Subject: vm/fs meetup in september?
-Message-ID: <20070624042345.GB20033@wotan.suse.de>
-Mime-Version: 1.0
+Subject: Re: [RFC] fsblock
+References: <20070624014528.GA17609@wotan.suse.de>
+From: Andi Kleen <andi@firstfloor.org>
+Date: 24 Jun 2007 16:16:29 +0200
+In-Reply-To: <20070624014528.GA17609@wotan.suse.de>
+Message-ID: <p73lke95tfm.fsf@bingen.suse.de>
+MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>, linux-fsdevel@vger.kernel.org
+To: Nick Piggin <npiggin@suse.de>
+Cc: Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>, linux-fsdevel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-I'd just like to take the chance also to ask about a VM/FS meetup some
-time around kernel summit (maybe take a big of time during UKUUG or so).
+Nick Piggin <npiggin@suse.de> writes:
+> 
+> - Structure packing. A page gets a number of buffer heads that are
+>   allocated in a linked list. fsblocks are allocated contiguously, so
+>   cacheline footprint is smaller in the above situation.
 
-I was thinking about trying to arrange a proper mini summit thing, but
-it's a bit difficult and we could talk this year about doing it for
-subsequent years. If there is a bit of interest, we could probably find
-a small room somewhere this year on pretty short notice or do it as a
-BOF or something.
+It would be interesting to test if that makes a difference for 
+database benchmarks running over file systems. Databases
+eat a lot of cache so in theory any cache improvements
+in the kernel which often runs cache cold then should be beneficial. 
 
-I don't want to do it in the VM summit, because that kind of alienates
-the filesystem guys. What I want to talk about is anything and everything
-that the VM can do better to help the fs and vice versa.  I'd like to
-stay away from memory management where not too applicable to the fs.
+But I guess it would need at least ext2 to test; Minix is probably not
+good enough.
 
-A few things I'd like to talk about are:
+In general have you benchmarked the CPU overhead of old vs new code? 
+e.g. when we went to BIO scalability went up, but CPU costs
+of a single request also went up. It would be nice to not continue
+or better reverse that trend.
 
-- the address space operations APIs, and their page based nature. I think
-  it would be nice to generally move toward offset,length based ones as
-  much as possible because it should give more efficiency and flexibility
-  in the filesystem.
+> - Large block support. I can mount and run an 8K block size minix3 fs on
+>   my 4K page system and it didn't require anything special in the fs. We
+>   can go up to about 32MB blocks now, and gigabyte+ blocks would only
+>   require  one more bit in the fsblock flags. fsblock_superpage blocks
+>   are > PAGE_CACHE_SIZE, midpage ==, and subpage <.
 
-- write_begin API if it is still an issue by that date. Hope not :)
+Can it be cleanly ifdefed or optimized away?  Unless the fragmentation
+problem is not solved it would seem rather pointless to me. Also I personally
+still think the right way to approach this is larger softpage size.
 
-- truncate races
-
-- fsblock if it hasn't been shot down by then
-
-- how to make complex API changes without having to fix most things
-  yourself.
-
-
-Anyway, if you will be in the area and are interested, let me know (off
-list) and we can work out time and place.
-
-Thanks,
-Nick
+-Andi
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
