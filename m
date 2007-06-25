@@ -1,100 +1,53 @@
-From: Lee Schermerhorn <lee.schermerhorn@hp.com>
-Date: Mon, 25 Jun 2007 15:53:43 -0400
-Message-Id: <20070625195343.21210.57811.sendpatchset@localhost>
-In-Reply-To: <20070625195224.21210.89898.sendpatchset@localhost>
-References: <20070625195224.21210.89898.sendpatchset@localhost>
-Subject: [PATCH/RFC 11/11] Shared Policy: add generic file set/get policy vm ops
+Message-ID: <468023CA.2090401@google.com>
+Date: Mon, 25 Jun 2007 13:21:30 -0700
+From: Ethan Solomita <solo@google.com>
+MIME-Version: 1.0
+Subject: Re: [RFC 1/7] cpuset write dirty map
+References: <465FB6CF.4090801@google.com> <Pine.LNX.4.64.0706041138410.24412@schroedinger.engr.sgi.com> <46646A33.6090107@google.com> <Pine.LNX.4.64.0706041250440.25535@schroedinger.engr.sgi.com>
+In-Reply-To: <Pine.LNX.4.64.0706041250440.25535@schroedinger.engr.sgi.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
-Cc: akpm@linux-foundation.org, nacc@us.ibm.com, ak@suse.de, Lee Schermerhorn <lee.schermerhorn@hp.com>, clameter@sgi.com
+To: Christoph Lameter <clameter@sgi.com>
+Cc: linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@google.com>, a.p.zijlstra@chello.nl
 List-ID: <linux-mm.kvack.org>
 
-Shared Mapped File Policy 11/11 add generic file set/get policy vm ops
+Christoph Lameter wrote:
+> 
+> What testing was done? Would you include the results of tests in your next 
+> post?
 
-Against 2.6.22-rc4-mm2
+	Sorry for the delay in responding -- I was chasing phantom failures.
 
-Add set/get policy vm ops to generic_file_vm_ops in support of
-mmap()ed file memory policies.  This patch effectively "hooks up"
-shared file mappings to the NUMA shared policy infrastructure.
+	I created a stress test which involved using cpusets and mems_allowed
+to split memory so that all daemons had memory set aside for them, and
+my memory stress test had a separate set of memory. The stress test was
+mmaping 7GB of a very large file on disk. It then scans the entire 7GB
+of memory reading and modifying each byte. 7GB is more than the amount
+of physical memory made available to the stress test.
 
-NOTE:  we could return an error on an attempt to mbind() a shared,
-mapped file when shared_file_policy is disabled instead of just ignoring.
-This would change existing behavior in the default case--something
-I've tried to avoid--but would let the application/programmer know
-that the operation is unsupported.
+	Using iostat I can see the initial period of reading from disk,
+followed by a period of simultaneous reads and writes as dirty bytes are
+pushed to make room for new reads.
 
-Signed-off-by:  Lee Schermerhorn <lee.schermerhorn@hp.com>
+	In a separate log-in, in the other cpuset, I am running:
 
- mm/filemap.c |   41 +++++++++++++++++++++++++++++++++++++++++
- 1 file changed, 41 insertions(+)
+while `true`; do date | tee -a date.txt; sleep 5; done
 
-Index: Linux/mm/filemap.c
-===================================================================
---- Linux.orig/mm/filemap.c	2007-06-25 15:03:25.000000000 -0400
-+++ Linux/mm/filemap.c	2007-06-25 15:04:37.000000000 -0400
-@@ -30,6 +30,7 @@
- #include <linux/security.h>
- #include <linux/syscalls.h>
- #include <linux/cpuset.h>
-+#include <linux/mempolicy.h>
- #include <linux/hardirq.h> /* for BUG_ON(!in_atomic()) only */
- #include <linux/mempolicy.h>
- 
-@@ -508,6 +509,42 @@ struct page *__page_cache_alloc(struct a
- 	return alloc_page_pol(gfp, pol, pgoff);
- }
- EXPORT_SYMBOL(__page_cache_alloc);
-+
-+static int generic_file_set_policy(struct vm_area_struct *vma,
-+			unsigned long start, unsigned long end,
-+			struct mempolicy *new)
-+{
-+	struct address_space *mapping;
-+	struct shared_policy *sp;
-+	unsigned long sz;
-+	pgoff_t pgoff;
-+
-+	if (!current->shared_file_policy_enabled)
-+		return 0;	/* could [should?] be -EINVAL */
-+
-+	mapping = vma->vm_file->f_mapping;
-+	sp = mapping->spolicy;
-+	if (!sp) {
-+		sp = mpol_shared_policy_new(mapping, MPOL_DEFAULT, NULL);
-+		if (IS_ERR(sp))
-+			return PTR_ERR(sp);
-+	}
-+
-+	sz = (end - start) >> PAGE_SHIFT;
-+	pgoff = vma_addr_to_pgoff(vma, start, PAGE_SHIFT);
-+	return mpol_set_shared_policy(sp, pgoff, sz, new);
-+}
-+
-+static struct mempolicy *
-+generic_file_get_policy(struct vm_area_struct *vma, unsigned long addr)
-+{
-+	struct shared_policy *sp = vma->vm_file->f_mapping->spolicy;
-+	if (!sp)
-+		return NULL;
-+
-+	return mpol_shared_policy_lookup(sp,
-+				 vma_addr_to_pgoff(vma, addr, PAGE_SHIFT));
-+}
- #endif
- 
- static int __sleep_on_page_lock(void *word)
-@@ -1547,6 +1584,10 @@ EXPORT_SYMBOL(filemap_fault);
- 
- struct vm_operations_struct generic_file_vm_ops = {
- 	.fault		= filemap_fault,
-+#ifdef CONFIG_NUMA
-+	.set_policy     = generic_file_set_policy,
-+	.get_policy     = generic_file_get_policy,
-+#endif
- };
- 
- /* This is used for a general mmap of a disk file */
+	date.txt resides on the same disk as the large file mentioned above.
+The above while-loop serves the dual purpose of providing me visual
+clues of progress along with the opportunity for the "tee" command to
+become throttled writing to the disk.
+
+	The effect of this patchset is straightforward. Without it there are
+long hangs between appearances of the date. With it the dates are all 5
+(or sometimes 6) seconds apart.
+
+	I also added printks to the kernel to verify that, without these
+patches, the tee was being throttled (along with lots of other things),
+and with the patch only pdflush is being throttled.
+	-- Ethan
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
