@@ -1,44 +1,25 @@
-Date: Mon, 25 Jun 2007 14:10:31 -0700
-From: Paul Jackson <pj@sgi.com>
-Subject: Re: [PATCH/RFC 10/11] Shared Policy: per cpuset shared file policy
- control
-Message-Id: <20070625141031.904935b5.pj@sgi.com>
-In-Reply-To: <20070625195335.21210.82618.sendpatchset@localhost>
-References: <20070625195224.21210.89898.sendpatchset@localhost>
-	<20070625195335.21210.82618.sendpatchset@localhost>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Date: Mon, 25 Jun 2007 23:12:59 +0200
+From: Andrea Arcangeli <andrea@suse.de>
+Subject: Re: 2.6.22-rc5-yesterdaygit with VM debug: BUG in mm/rmap.c:66: anon_vma_link ?
+Message-ID: <20070625211259.GD7059@v2.random>
+References: <467F6882.9000800@vmware.com> <Pine.LNX.4.64.0706252129430.22492@blonde.wat.veritas.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <Pine.LNX.4.64.0706252129430.22492@blonde.wat.veritas.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Lee Schermerhorn <lee.schermerhorn@hp.com>
-Cc: linux-mm@kvack.org, akpm@linux-foundation.org, nacc@us.ibm.com, ak@suse.de, clameter@sgi.com
+To: Hugh Dickins <hugh@veritas.com>
+Cc: Petr Vandrovec <petr@vmware.com>, Andrew Morton <akpm@linux-foundation.org>, Nick Piggin <npiggin@suse.de>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Lee wrote:
-> +#ifdef CONFIG_NUMA
+On Mon, Jun 25, 2007 at 10:05:09PM +0100, Hugh Dickins wrote:
+> size of memory?); but I rather think validate_anon_vma has outlived its
+> usefulness, and is better just removed - which gives a magnificent
 
-Hmmm ... our very first ifdef CONFIG_NUMA in kernel/cpuset.c,
-and the second ifdef ever in that file.  (And I doubt that
-the first ifdef, on CONFIG_MEMORY_HOTPLUG, is necessary.)
-
-How about we just remove these ifdef CONFIG_NUMA's, and
-let that per-cpuset 'shared_file_policy' always be present?
-It just won't do a heck of a lot on non-NUMA systems.
-
-No sense in breaking code that happens to access that file,
-just because we're running on a system where it's useless.
-It seems better to just simply, consistently, always have
-that file present.
-
-And I don't like ifdef's in kernel/cpuset.c.  If necessary,
-put them in some header file, related to whatever piece of
-code has to shrink down to nothingness when not configured.
-
--- 
-                  I won't rest till it's the best ...
-                  Programmer, Linux Scalability
-                  Paul Jackson <pj@sgi.com> 1.925.600.0401
+Probably yes. But the most fundamental issue is that this code
+probably was never meant to be enabled through a menuconfig tweak but
+only by editing the source.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
