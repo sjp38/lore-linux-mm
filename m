@@ -1,65 +1,82 @@
-From: Arnd Bergmann <arnd@arndb.de>
+From: "Takayoshi Kochi" <takayoshi.kochi@gmail.com>
 Subject: Re: NUMA BOF @OLS
-Date: Fri, 22 Jun 2007 12:14:58 +0200
-Message-ID: <200706221214.58823.arnd@arndb.de>
-References: <Pine.LNX.4.64.0706211316150.9220@schroedinger.engr.sgi.com> <200706220112.51813.arnd@arndb.de> <Pine.LNX.4.64.0706211844420.11754@schroedinger.engr.sgi.com>
+Date: Mon, 25 Jun 2007 11:45:12 -0700
+Message-ID: <43c301fe0706251145q3249ddcar3e723ae7db8d6ebc@mail.gmail.com>
+References: <Pine.LNX.4.64.0706211316150.9220@schroedinger.engr.sgi.com>
+	 <200706220112.51813.arnd@arndb.de>
+	 <Pine.LNX.4.64.0706211844420.11754@schroedinger.engr.sgi.com>
+	 <200706221214.58823.arnd@arndb.de>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Transfer-Encoding: QUOTED-PRINTABLE
-Return-path: <linux-kernel-owner+glk-linux-kernel-3=40m.gmane.org-S1754345AbXFVKQh@vger.kernel.org>
-In-Reply-To: <Pine.LNX.4.64.0706211844420.11754@schroedinger.engr.sgi.com>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
+Return-path: <linux-kernel-owner+glk-linux-kernel-3=40m.gmane.org-S1754423AbXFYSp1@vger.kernel.org>
+In-Reply-To: <200706221214.58823.arnd@arndb.de>
 Content-Disposition: inline
 Sender: linux-kernel-owner@vger.kernel.org
-To: Christoph Lameter <clameter@sgi.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: linux-mm@kvack.org
+Cc: Christoph Lameter <clameter@sgi.com>, linux-kernel@vger.kernel.org, Arnd Bergmann <arnd@arndb.de>
 List-Id: linux-mm.kvack.org
 
-On Friday 22 June 2007, Christoph Lameter wrote:
->=20
-> On Fri, 22 Jun 2007, Arnd Bergmann wrote:
->=20
-> > - Interface for preallocating hugetlbfs pages per node instead of s=
-ystem wide
->=20
-> We may want to get a bit higher level than that. General way of=20
-> controlling subsystem use on nodes. One wants to restrict the slab=20
-> allocator and the kernel etc on nodes too.
->=20
-> How will this interact with the other NUMA policy specifications?
+Hi all,
 
-I guess that's what I'd like to discuss at the BOF. I frequently
-get requests from users that need to have some interface for it:
-Application currently break if they try to use /proc/sys/vm/nr_hugepage=
-s
-in combination with numactl --membind.
+I'll host another mm-related BOF at OLS:
 
-> > - architecture independent in-kernel API for enumerating CPU socket=
-s with
-> > =A0 multicore processors (not sure if that's the same as your exist=
-ing subject).
->=20
-> Not sure what you mean by this. We already have a topology interface =
-and=20
-> the scheduler knows about these things.
+Discussion for the Future of Linux Memory Management
+Saturday Jun 30th, 2007 14:45-15:30
 
-I'm not referring to user interfaces or scheduling. It's probably not r=
-eally
-a NUMA topic, but we currently use the topology interfaces for enumerat=
-ing
-sockets on systems that are not really NUMA. This includes stuff like
-per-socket=20
- * cpufreq settings (these have their own logic currently)
- * IOMMU
- * performance counters
- * thermal management
- * local interrupt controller
- * PCI/HT host bridge
+I'll share some experiences with the MM-related real world issues there.
+Anyone who have something to pitch in is welcome.
+Please contact me or grab me at OLS.
 
-If you have a system with multiple CPUs in one socket and either multip=
-le
-sockets in one NUMA node or no NUMA at all,  you have no way of properl=
-y
-enumerating the sockets.  I'd like to discuss what such an interface
-would need to look like to be useful for all architectures.
+Any topics spilled out of NUMA BOF are welcome!
 
-	Arnd <><
+
+2007/6/22, Arnd Bergmann <arnd@arndb.de>:
+> On Friday 22 June 2007, Christoph Lameter wrote:
+> >
+> > On Fri, 22 Jun 2007, Arnd Bergmann wrote:
+> >
+> > > - Interface for preallocating hugetlbfs pages per node instead of system wide
+> >
+> > We may want to get a bit higher level than that. General way of
+> > controlling subsystem use on nodes. One wants to restrict the slab
+> > allocator and the kernel etc on nodes too.
+> >
+> > How will this interact with the other NUMA policy specifications?
+>
+> I guess that's what I'd like to discuss at the BOF. I frequently
+> get requests from users that need to have some interface for it:
+> Application currently break if they try to use /proc/sys/vm/nr_hugepages
+> in combination with numactl --membind.
+>
+> > > - architecture independent in-kernel API for enumerating CPU sockets with
+> > > multicore processors (not sure if that's the same as your existing subject).
+> >
+> > Not sure what you mean by this. We already have a topology interface and
+> > the scheduler knows about these things.
+>
+> I'm not referring to user interfaces or scheduling. It's probably not really
+> a NUMA topic, but we currently use the topology interfaces for enumerating
+> sockets on systems that are not really NUMA. This includes stuff like
+> per-socket
+>  * cpufreq settings (these have their own logic currently)
+>  * IOMMU
+>  * performance counters
+>  * thermal management
+>  * local interrupt controller
+>  * PCI/HT host bridge
+>
+> If you have a system with multiple CPUs in one socket and either multiple
+> sockets in one NUMA node or no NUMA at all,  you have no way of properly
+> enumerating the sockets.  I'd like to discuss what such an interface
+> would need to look like to be useful for all architectures.
+>
+>         Arnd <><
+> -
+> To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
+> the body of a message to majordomo@vger.kernel.org
+> More majordomo info at  http://vger.kernel.org/majordomo-info.html
+> Please read the FAQ at  http://www.tux.org/lkml/
+
+-- 
+Takayoshi Kochi
