@@ -1,38 +1,115 @@
-Subject: Re: [RFC] mm-controller
-From: Peter Zijlstra <peterz@infradead.org>
-In-Reply-To: <467BFA47.4050802@linux.vnet.ibm.com>
-References: <1182418364.21117.134.camel@twins>
-	 <467A5B1F.5080204@linux.vnet.ibm.com> <1182433855.21117.160.camel@twins>
-	 <467BFA47.4050802@linux.vnet.ibm.com>
-Content-Type: text/plain
-Date: Mon, 25 Jun 2007 18:22:41 +0200
-Message-Id: <1182788561.6174.70.camel@lappy>
-Mime-Version: 1.0
+Date: Mon, 25 Jun 2007 23:14:24 +0500
+From: "Casino Royale" <daddy@gmx.net>
+Subject: =?iso-8859-1?Q?300%_Bonus_f=FCr_Ihre_erste_Einzahlung!?=
+Message-ID: <61685104.62522856@stockholm.com>
+MIME-Version: 1.0
+Content-Type: text/html; charset=iso-8859-1
 Content-Transfer-Encoding: 7bit
-Sender: owner-linux-mm@kvack.org
-Return-Path: <owner-linux-mm@kvack.org>
-To: Vaidyanathan Srinivasan <svaidy@linux.vnet.ibm.com>
-Cc: balbir@linux.vnet.ibm.com, Linux Kernel <linux-kernel@vger.kernel.org>, Linux Containers <containers@lists.osdl.org>, linux-mm <linux-mm@kvack.org>, Balbir Singh <balbir@in.ibm.com>, Pavel Emelianov <xemul@sw.ru>, Paul Menage <menage@google.com>, Kirill Korotaev <dev@sw.ru>, devel@openvz.org, Andrew Morton <akpm@linux-foundation.org>, "Eric W. Biederman" <ebiederm@xmission.com>, Herbert Poetzl <herbert@13thfloor.at>, Roy Huang <royhuang9@gmail.com>, Aubrey Li <aubreylee@gmail.com>, riel@redhat
+Return-Path: <daddy@gmx.net>
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 2007-06-22 at 22:05 +0530, Vaidyanathan Srinivasan wrote:
+<html>
 
-> Merging both limits will eliminate the issue, however we would need
-> individual limits for pagecache and RSS for better control.  There are
-> use cases for pagecache_limit alone without RSS_limit like the case of
-> database application using direct IO, backup applications and
-> streaming applications that does not make good use of pagecache.
+<head>
+<meta http-equiv=Content-Type content="text/html; charset=iso-8859-1">
 
-I'm aware that some people want this. However we rejected adding a
-pagecache limit to the kernel proper on grounds that reclaim should do a
-better job.
+<title>Nur vom nobelsten aller</title>
 
-And now we're sneaking it in the backdoor.
+<style>
+<!--
+ /* Style Definitions */
+ p.MsoNormal, li.MsoNormal, div.MsoNormal
+	{mso-style-parent:"";
+	margin:0cm;
+	margin-bottom:.0001pt;
+	mso-pagination:widow-orphan;
+	font-size:12.0pt;
+	font-family:"Times New Roman";
+	mso-fareast-font-family:"Times New Roman";
+	mso-ansi-language:EN-US;
+	mso-fareast-language:EN-US;}
+a:link, span.MsoHyperlink
+	{color:blue;
+	text-decoration:underline;
+	text-underline:single;}
+a:visited, span.MsoHyperlinkFollowed
+	{color:purple;
+	text-decoration:underline;
+	text-underline:single;}
+@page Section1
+	{size:595.3pt 841.9pt;
+	margin:2.0cm 42.5pt 2.0cm 3.0cm;
+	mso-header-margin:35.4pt;
+	mso-footer-margin:35.4pt;
+	mso-paper-source:0;}
+div.Section1
+	{page:Section1;}
+-->
+</style>
 
-If we're going to do this, get it in the kernel proper first.
+</head>
 
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+<body lang=DE link=blue vlink=purple style='tab-interval:35.4pt'>
+
+<div class=Section1>
+
+<p class=MsoNormal>
+<span lang=DE style='mso-ansi-language:DE'>
+Nur vom nobelsten aller Casinos k&ouml;nnen 
+Sie ein so vornehmes Geschenk erwarten:
+<o:p></o:p></span></p>
+
+<p class=MsoNormal>
+<span lang=DE style='mso-ansi-language:DE'>
+<o:p>&nbsp;</o:p></span></p>
+
+<p class=MsoNormal>
+<span lang=DE style='mso-ansi-language:DE'>
+300% Bonus f&uuml;r Ihre erste Einzahlung!
+<o:p></o:p></span></p>
+
+<p class=MsoNormal>
+<span lang=DE style='mso-ansi-language:DE'>
+<o:p>&nbsp;</o:p></span></p>
+
+<p class=MsoNormal>
+<span lang=DE style='mso-ansi-language:DE'>
+Zahlen Sie 100&#8364;/$ ein und spielen 
+Sie mit 400 &#8364;/$!
+<o:p></o:p></span></p>
+
+<p class=MsoNormal>
+<span lang=DE style='mso-ansi-language:DE'>
+<o:p>&nbsp;</o:p></span></p>
+
+<p class=MsoNormal>
+<span lang=DE style='mso-ansi-language:DE'>
+Oben drauf bekommen Sie bei uns einen 
+k&ouml;niglichen Service!
+<o:p></o:p></span></p>
+
+<p class=MsoNormal>
+<span lang=DE style='mso-ansi-language:DE'>
+<o:p>&nbsp;</o:p></span></p>
+
+<p class=MsoNormal>
+<span lang=DE style='mso-ansi-language:DE'>
+Kommen und spielen Sie im Royal VIP Casino!
+<o:p></o:p></span></p>
+
+<p class=MsoNormal>
+<span lang=DE style='mso-ansi-language:DE'>
+<o:p>&nbsp;</o:p></span></p>
+
+<p class=MsoNormal>
+<span lang=DE style='mso-ansi-language:DE'>
+<a href="http://rvipcasinos.hk/lang-de/">
+http://rvipcasinos.hk/lang-de/</a>
+<o:p></o:p></span></p>
+
+</div>
+
+</body>
+
+</html>
