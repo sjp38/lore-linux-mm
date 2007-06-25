@@ -1,37 +1,35 @@
-Date: Mon, 25 Jun 2007 09:19:17 -0400
-From: Chris Mason <chris.mason@oracle.com>
-Subject: Re: [patch 1/3] add the fsblock layer
-Message-ID: <20070625131917.GD12852@think.oraclecorp.com>
-References: <20070624014528.GA17609@wotan.suse.de> <20070624014613.GB17609@wotan.suse.de>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20070624014613.GB17609@wotan.suse.de>
+Subject: Re: [RFC] mm-controller
+From: Peter Zijlstra <peterz@infradead.org>
+In-Reply-To: <467BFA47.4050802@linux.vnet.ibm.com>
+References: <1182418364.21117.134.camel@twins>
+	 <467A5B1F.5080204@linux.vnet.ibm.com> <1182433855.21117.160.camel@twins>
+	 <467BFA47.4050802@linux.vnet.ibm.com>
+Content-Type: text/plain
+Date: Mon, 25 Jun 2007 18:22:41 +0200
+Message-Id: <1182788561.6174.70.camel@lappy>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nick Piggin <npiggin@suse.de>
-Cc: Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>, linux-fsdevel@vger.kernel.org
+To: Vaidyanathan Srinivasan <svaidy@linux.vnet.ibm.com>
+Cc: balbir@linux.vnet.ibm.com, Linux Kernel <linux-kernel@vger.kernel.org>, Linux Containers <containers@lists.osdl.org>, linux-mm <linux-mm@kvack.org>, Balbir Singh <balbir@in.ibm.com>, Pavel Emelianov <xemul@sw.ru>, Paul Menage <menage@google.com>, Kirill Korotaev <dev@sw.ru>, devel@openvz.org, Andrew Morton <akpm@linux-foundation.org>, "Eric W. Biederman" <ebiederm@xmission.com>, Herbert Poetzl <herbert@13thfloor.at>, Roy Huang <royhuang9@gmail.com>, Aubrey Li <aubreylee@gmail.com>, riel@redhat
 List-ID: <linux-mm.kvack.org>
 
-On Sun, Jun 24, 2007 at 03:46:13AM +0200, Nick Piggin wrote:
-> Rewrite the buffer layer.
+On Fri, 2007-06-22 at 22:05 +0530, Vaidyanathan Srinivasan wrote:
 
-Overall, I like the basic concepts, but it is hard to track the locking
-rules.  Could you please write them up?
+> Merging both limits will eliminate the issue, however we would need
+> individual limits for pagecache and RSS for better control.  There are
+> use cases for pagecache_limit alone without RSS_limit like the case of
+> database application using direct IO, backup applications and
+> streaming applications that does not make good use of pagecache.
 
-I like the way you split out the assoc_buffers from the main fsblock
-code, but the list setup is still something of a wart.  It also provides
-poor ordering of blocks for writeback.
+I'm aware that some people want this. However we rejected adding a
+pagecache limit to the kernel proper on grounds that reclaim should do a
+better job.
 
-I think it makes sense to replace the assoc_buffers list head with a
-radix tree sorted by block number.  mark_buffer_dirty_inode would up the
-reference count and put it into the radix, the various flushing routines
-would walk the radix etc.
+And now we're sneaking it in the backdoor.
 
-If you wanted to be able to drop the reference count once the block was
-written you could have a back pointer to the appropriate inode.
-
--chris
+If we're going to do this, get it in the kernel proper first.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
