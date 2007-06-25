@@ -1,115 +1,30 @@
-Date: Mon, 25 Jun 2007 23:14:24 +0500
-From: "Casino Royale" <daddy@gmx.net>
-Subject: =?iso-8859-1?Q?300%_Bonus_f=FCr_Ihre_erste_Einzahlung!?=
-Message-ID: <61685104.62522856@stockholm.com>
-MIME-Version: 1.0
-Content-Type: text/html; charset=iso-8859-1
-Content-Transfer-Encoding: 7bit
-Return-Path: <daddy@gmx.net>
-To: linux-mm@kvack.org
+Date: Mon, 25 Jun 2007 10:26:22 -0700
+From: Zach Brown <zach.brown@oracle.com>
+Subject: Re: vm/fs meetup in september?
+Message-ID: <20070625172622.GB11209@mami.zabbo.net>
+References: <20070624042345.GB20033@wotan.suse.de> <20070625063545.GA1964@infradead.org>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20070625063545.GA1964@infradead.org>
+Sender: owner-linux-mm@kvack.org
+Return-Path: <owner-linux-mm@kvack.org>
+To: Christoph Hellwig <hch@infradead.org>, Nick Piggin <npiggin@suse.de>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>, linux-fsdevel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-<html>
+> > I'd just like to take the chance also to ask about a VM/FS meetup some
+> > time around kernel summit (maybe take a big of time during UKUUG or so).
 
-<head>
-<meta http-equiv=Content-Type content="text/html; charset=iso-8859-1">
+Yeah, I'd be interested.
 
-<title>Nur vom nobelsten aller</title>
+> More issues:
 
-<style>
-<!--
- /* Style Definitions */
- p.MsoNormal, li.MsoNormal, div.MsoNormal
-	{mso-style-parent:"";
-	margin:0cm;
-	margin-bottom:.0001pt;
-	mso-pagination:widow-orphan;
-	font-size:12.0pt;
-	font-family:"Times New Roman";
-	mso-fareast-font-family:"Times New Roman";
-	mso-ansi-language:EN-US;
-	mso-fareast-language:EN-US;}
-a:link, span.MsoHyperlink
-	{color:blue;
-	text-decoration:underline;
-	text-underline:single;}
-a:visited, span.MsoHyperlinkFollowed
-	{color:purple;
-	text-decoration:underline;
-	text-underline:single;}
-@page Section1
-	{size:595.3pt 841.9pt;
-	margin:2.0cm 42.5pt 2.0cm 3.0cm;
-	mso-header-margin:35.4pt;
-	mso-footer-margin:35.4pt;
-	mso-paper-source:0;}
-div.Section1
-	{page:Section1;}
--->
-</style>
+- chris mason's patches to normalize buffered and direct locking
 
-</head>
+- z
 
-<body lang=DE link=blue vlink=purple style='tab-interval:35.4pt'>
-
-<div class=Section1>
-
-<p class=MsoNormal>
-<span lang=DE style='mso-ansi-language:DE'>
-Nur vom nobelsten aller Casinos k&ouml;nnen 
-Sie ein so vornehmes Geschenk erwarten:
-<o:p></o:p></span></p>
-
-<p class=MsoNormal>
-<span lang=DE style='mso-ansi-language:DE'>
-<o:p>&nbsp;</o:p></span></p>
-
-<p class=MsoNormal>
-<span lang=DE style='mso-ansi-language:DE'>
-300% Bonus f&uuml;r Ihre erste Einzahlung!
-<o:p></o:p></span></p>
-
-<p class=MsoNormal>
-<span lang=DE style='mso-ansi-language:DE'>
-<o:p>&nbsp;</o:p></span></p>
-
-<p class=MsoNormal>
-<span lang=DE style='mso-ansi-language:DE'>
-Zahlen Sie 100&#8364;/$ ein und spielen 
-Sie mit 400 &#8364;/$!
-<o:p></o:p></span></p>
-
-<p class=MsoNormal>
-<span lang=DE style='mso-ansi-language:DE'>
-<o:p>&nbsp;</o:p></span></p>
-
-<p class=MsoNormal>
-<span lang=DE style='mso-ansi-language:DE'>
-Oben drauf bekommen Sie bei uns einen 
-k&ouml;niglichen Service!
-<o:p></o:p></span></p>
-
-<p class=MsoNormal>
-<span lang=DE style='mso-ansi-language:DE'>
-<o:p>&nbsp;</o:p></span></p>
-
-<p class=MsoNormal>
-<span lang=DE style='mso-ansi-language:DE'>
-Kommen und spielen Sie im Royal VIP Casino!
-<o:p></o:p></span></p>
-
-<p class=MsoNormal>
-<span lang=DE style='mso-ansi-language:DE'>
-<o:p>&nbsp;</o:p></span></p>
-
-<p class=MsoNormal>
-<span lang=DE style='mso-ansi-language:DE'>
-<a href="http://rvipcasinos.hk/lang-de/">
-http://rvipcasinos.hk/lang-de/</a>
-<o:p></o:p></span></p>
-
-</div>
-
-</body>
-
-</html>
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
