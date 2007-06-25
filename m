@@ -1,43 +1,51 @@
-Message-ID: <467F6C8F.9040400@yahoo.com.au>
-Date: Mon, 25 Jun 2007 17:19:43 +1000
+Message-ID: <467F71C6.6040204@yahoo.com.au>
+Date: Mon, 25 Jun 2007 17:41:58 +1000
 From: Nick Piggin <nickpiggin@yahoo.com.au>
 MIME-Version: 1.0
 Subject: Re: [patch 1/3] add the fsblock layer
-References: <20070624014528.GA17609@wotan.suse.de>	<20070624014613.GB17609@wotan.suse.de> <p73fy4h5q3c.fsf@bingen.suse.de>
-In-Reply-To: <p73fy4h5q3c.fsf@bingen.suse.de>
+References: <20070624014528.GA17609@wotan.suse.de>	<20070624014613.GB17609@wotan.suse.de> <18046.63436.472085.535177@notabene.brown>
+In-Reply-To: <18046.63436.472085.535177@notabene.brown>
 Content-Type: text/plain; charset=us-ascii; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andi Kleen <andi@firstfloor.org>
+To: Neil Brown <neilb@suse.de>
 Cc: Nick Piggin <npiggin@suse.de>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>, linux-fsdevel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-Andi Kleen wrote:
-> Nick Piggin <npiggin@suse.de> writes:
+Neil Brown wrote:
+> On Sunday June 24, npiggin@suse.de wrote:
+> 
+>> 
+>>+#define PG_blocks		20	/* Page has block mappings */
+>>+
 > 
 > 
-> [haven't read everything, just commenting on something that caught my eye]
+> I've only had a very quick look, but this line looks *very* wrong.
+> You should be using PG_private.
 > 
-> 
->>+struct fsblock {
->>+	atomic_t	count;
->>+	union {
->>+		struct {
->>+			unsigned long	flags; /* XXX: flags could be int for better packing */
-> 
-> 
-> int is not supported by many architectures, but works on x86 at least.
+> There should never be any confusion about whether ->private has
+> buffers or blocks attached as the only routines that ever look in
+> ->private are address_space operations  (or should be.  I think 'NULL'
+> is sometimes special cased, as in try_to_release_page.  It would be
+> good to do some preliminary work and tidy all that up).
 
-Yeah, that would be nice. We could actually use this for buffer_head as well,
-but saving 4% there isn't so important as saving 20% for fsblock :)
+There is a lot of confusion, actually :)
+But as you see in the patch, I added a couple more aops APIs, and
+am working toward decoupling it as much as possible. It's pretty
+close after the fsblock patch... however:
 
 
-> Hmm, could define a macro DECLARE_ATOMIC_BITMAP(maxbit) that expands to the smallest
-> possible type for each architecture. And a couple of ugly casts for set_bit et.al.
-> but those could be also hidden in macros. Should be relatively easy to do.
+> Why do you think you need PG_blocks?
 
-Cool. It would probably be useful for other things as well.
+Block device pagecache (buffer cache) has to be able to accept
+attachment of either buffers or blocks for filesystem metadata,
+and call into either buffer.c or fsblock.c based on that.
+
+If the page flag is really important, we can do some awful hack
+like assuming the first long of the private data is flags, and
+those flags will tell us whether the structure is a buffer_head
+or fsblock ;) But for now it is just easier to use a page flag.
 
 -- 
 SUSE Labs, Novell Inc.
