@@ -1,133 +1,472 @@
 From: Lee Schermerhorn <lee.schermerhorn@hp.com>
-Date: Mon, 25 Jun 2007 15:52:24 -0400
-Message-Id: <20070625195224.21210.89898.sendpatchset@localhost>
-Subject: [PATCH/RFC 0/11] Shared Policy Overview
+Date: Mon, 25 Jun 2007 15:52:30 -0400
+Message-Id: <20070625195230.21210.80475.sendpatchset@localhost>
+In-Reply-To: <20070625195224.21210.89898.sendpatchset@localhost>
+References: <20070625195224.21210.89898.sendpatchset@localhost>
+Subject: [PATCH/RFC 1/11] Shared Policy: move shared policy to inode/mapping
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: linux-mm@kvack.org
 Cc: akpm@linux-foundation.org, nacc@us.ibm.com, ak@suse.de, Lee Schermerhorn <lee.schermerhorn@hp.com>, clameter@sgi.com
 List-ID: <linux-mm.kvack.org>
 
-[RFC] Shared Policy Fixex and Mapped File Policy 0/11 
+Shared Policy Infrstructure 1/11 move shared policy to inode/mapping
 
 Against 2.6.22-rc4-mm2
 
-This is my former "Mapped File Policy" patch set, reordered to
-move the fixes to numa_maps and the "hook up" of hugetlb shmem
-policies to before the hook up of shared policy to shared mmap()ed
-regular files.  ["Fixes first" per Christoph L.]
+This patch starts the process of cleaning the shmem shared
+[mem]policy infrastructure for use with hugetlb shmem segments
+and eventually, I hope, for use with generic mmap()ed files.
 
-The 2 patches to fix up current behavior issues [#s 4 & 5] sit
-atop 3 "cleanup" patches.  The clean up patches simplify the fixes
-and, yes, support the generic mapped file policy patches [#s 6-11].
+1) add a struct shared_policy pointer to struct address_space
+   This effectively adds it to each inode in i_data.  get_policy
+   vma ops will locate this via vma->vm_file->f_mapping->spolicy.
+   Modify [temporarily] mpol_shared_policy_init() to initialize
+   via a shared policy pointer.
 
-With patches 1-3 applied, external behavior is, AFAICT, exactly
-the same as current behavior.  The internal differences are that
-shared policy is now a pointer in the address_space structure.
-A NULL value [the default] indicates default policy.  The shared
-policy is allocated on demand--when one mbind()s a virtual
-address range backed by a shmem memory object.
+	A subsequent patch will make this struct dependent
+	on CONFIG_NUMA so as not to burden systems that
+	don't use numa.  At that point all accesses to
+	spolicy will also be made dependent on 'NUMA via
+	wrapper functions/macros.  I didn't do that in this
+	patch because I'd just have to change the wrappers
+	in the next patch where I dynamically alloc shared
+	policies.
 
-Patch #3 eliminates the need for a pseudo-vma on the stack to 
-initialize policies for tmpfs inodes when the superblock has
-a non-default policy by changing the interface to
-mpol_set_shared_policy() to take a page offset and size in pages,
-computed in the shmem set_policy vm_op.  This cleanup addresses
-one complaint about the current shared policy infrastructure.
+2) create a shared_policy.h header and move the shared policy
+   support from mempolicy.h to shared_policy.h.
 
-The other internal difference is that linear mappings that support
-the 'set_policy' vm_op are mapped by a single VMA--not split on
-policy boundaries.  numa_maps needs to be able to handle this
-anyway because a task that attaches a shmem segment on which
-another task has already installed multiple shared policies will
-have a single vma mapping the entire segment.  Patch #4 fixes
-numa_maps to display these properly.
+3) modify mpol_shared_policy_lookup() to return NULL if
+   spolicy pointer contains NULL.  get_vma_policy() will
+   substitute the process policy, if any, else the default
+   policy.
 
-Patch #5 hooks up SHM_HUGETLB segments to use the shmem get/set
-policy vm_ops.  This "just works" with the fixes to numa_maps
-in patch #4.  Without the numa_maps fixes, a cat of the numa_maps
-of a task with a hugetlb shmem segment with shared policy attached
-would hang.
+4) modify shmem, the only existing user of shared policy
+   infrastructure, to work with changes above.  At this
+   point, just use the shared_policy embedded in the shmem
+   inode info struct.  A later patch will dynamically
+   allocate the struct when needed.
 
-Again, patches 6-11 define the generic file shared policy support,
-They also prevent a private file mapping from affecting any shared
-policy installed via a shared mapping, including preventing migrating
-the shared pages to follow the address space private policy.
-Policies installed via a private mapping apply only to the calling
-task's address space--current behavior. 
+   Actually, hugetlbfs inodes also contain a shared policy, but
+   the vma's get|set_policy ops are not hooked up.  This patch
+   modifies hugetlbfs_get_inode() to initialize the shared
+   policy struct embedded in its info struct via the i_mapping's
+   spolicy pointer.  A later patch will "hook up" hugetlb
+   mappings to the get|set_policy ops.
 
-Patches 6-8 add support for shared policy on regular files, factoring
-alloc_page_vma() into vma policy lookup and allocation of a page
-given a policy--alloc_page_pol().  Then, the page page cache alloc
-function can lookup the shared file policy via page offset and use
-the same alloc_page_pol() to allocate the page based on that policy.
+5) some miscellaneous cleanup to use "sp" for shared policy
+   in routines that take it as an arg.  Prior use of "info"
+   seemed misleading, and use of "p" was just plain 
+   inconsistent.
 
-Patch #9 defines an initial peristence model for shared policies on
-shared mmap()ed files:   a shared policy can only be installed on generic
-files via a shared mmap()ing.  Such a policy will persist as long as
-any shared mmap()ings exist.  Shared mappings of a file are tracked
-by the i_mmap_writable count in the struct address_space.  Patch #9
-removes any existing policy when the i_mmap_writable count goes to zero.
+Signed-off-by:  Lee Schermerhorn <lee.schermerhorn@hp.com>
 
-Note that the existing shared policy persistence model for shmem segments
-is different.  Once installed, the shared policies persist until the segment
-is destroyed.  Because shmem goes through the same unmap path, shared
-policies on shmem segments are marked with a SPOL_F_PERSIST flag to
-prevent them from being removed on last detatch [unmap]--i.e., to preserve
-existing behavior.
+ fs/hugetlbfs/inode.c          |    4 +-
+ include/linux/fs.h            |    3 +
+ include/linux/mempolicy.h     |   54 -----------------------------------
+ include/linux/shared_policy.h |   64 ++++++++++++++++++++++++++++++++++++++++++
+ mm/mempolicy.c                |   27 +++++++++--------
+ mm/shmem.c                    |   38 ++++++++++++------------
+ 6 files changed, 104 insertions(+), 86 deletions(-)
 
-Also note that because we can remove a shared policy from a "live"
-inode, we need to handle potential races with another task performing
-a get_file_policy() on the same file via a file descriptor access
-[read()/write()/...].  Patch #9 handles this by defining an RCU reader
-critical region in get_file_policy() and by synchronizing with this
-in mpol_free_shared_policy().
-
-[I hope patch #9 will alleviate Andi's concerns about an unspecified
-persistence model.  Note that the model implemented by patch #9 could
-easily be enhanced to persist beyond the last shared mapping--e.g.,
-via some additional mbind() flags, such as MPOL_MF_[NO]PERSIST--and
-possibly enhancements to numactl to set/remove shared policy on files.
-I didn't want to pursue that in this patch set because I don't have a
-use for it, and it will require some tool to list files with persistent
-shared policy--perhaps an enhancement to lsof(8).]
-
-Patch #10 adds a per cpuset control file--shared_file_policy--to
-explicitly enable/disable shared policy on shared file mappings.
-Default is disabled--current behavior.  That is, even with all 11
-patches applied, you'll have to explicitly enable shared file policy,
-else the kernel will continue to ignore mbind() of address ranges backed
-by a shared regular file mapping.  This preserves existing behavior for
-applications that might currently be installing memory policies on
-shared regular file mappings, not realizing that they are ignored.
-Such applications might break or behave unexpectedly if the kernel
-suddenly starts using the shared policy.   With the per cpuset control
-defaulting to current behavior, an explicit action by a privileged 
-user is required to enable the new behavior.
-
-[I hope patch #10 alleviates Christoph's concern about unexpected
-interaction of shared policies on mmap()ed files in one cpuset with
-file descriptor access from another cpuset.  This can only happen if
-the user/adminstrator explicitly enables shared file policies for an
-application.]
-
-Finally, patch #11 adds the generic file set|get_policy vm_ops to
-actually hook up shared file mappings to memory policy.  Without this
-patch, the shared policy infrastructure enhancements in the previous
-patches remain mostly unused, except for the existing shmem and added
-hugetlbfs usage.
-
----
-
-Note:  testing/code sizes/... covered in previous posting:
-
-	http://marc.info/?l=linux-mm&m=118002773528224&w=4
-
-No sense in repeating this until we decide to go forward.
-However, this series has been tested with 22-rc4-mm2 on ia64 and
-x86_64 platforms.
-
-Lee
+Index: Linux/include/linux/fs.h
+===================================================================
+--- Linux.orig/include/linux/fs.h	2007-06-22 13:07:48.000000000 -0400
++++ Linux/include/linux/fs.h	2007-06-22 13:10:30.000000000 -0400
+@@ -523,9 +523,12 @@ struct address_space {
+ 	const struct address_space_operations *a_ops;	/* methods */
+ 	unsigned long		flags;		/* error bits/gfp mask */
+ 	struct backing_dev_info *backing_dev_info; /* device readahead, etc */
++
+ 	spinlock_t		private_lock;	/* for use by the address_space */
+ 	struct list_head	private_list;	/* ditto */
+ 	struct address_space	*assoc_mapping;	/* ditto */
++
++	struct shared_policy	*spolicy;
+ } __attribute__((aligned(sizeof(long))));
+ 	/*
+ 	 * On most architectures that alignment is already the case; but
+Index: Linux/include/linux/mempolicy.h
+===================================================================
+--- Linux.orig/include/linux/mempolicy.h	2007-06-22 13:07:48.000000000 -0400
++++ Linux/include/linux/mempolicy.h	2007-06-22 13:10:30.000000000 -0400
+@@ -30,12 +30,12 @@
+ 
+ #include <linux/mmzone.h>
+ #include <linux/slab.h>
+-#include <linux/rbtree.h>
+ #include <linux/spinlock.h>
+ #include <linux/nodemask.h>
+ 
+ struct vm_area_struct;
+ struct mm_struct;
++#include <linux/shared_policy.h>
+ 
+ #ifdef CONFIG_NUMA
+ 
+@@ -113,34 +113,6 @@ static inline int mpol_equal(struct memp
+ 
+ #define mpol_set_vma_default(vma) ((vma)->vm_policy = NULL)
+ 
+-/*
+- * Tree of shared policies for a shared memory region.
+- * Maintain the policies in a pseudo mm that contains vmas. The vmas
+- * carry the policy. As a special twist the pseudo mm is indexed in pages, not
+- * bytes, so that we can work with shared memory segments bigger than
+- * unsigned long.
+- */
+-
+-struct sp_node {
+-	struct rb_node nd;
+-	unsigned long start, end;
+-	struct mempolicy *policy;
+-};
+-
+-struct shared_policy {
+-	struct rb_root root;
+-	spinlock_t lock;
+-};
+-
+-void mpol_shared_policy_init(struct shared_policy *info, int policy,
+-				nodemask_t *nodes);
+-int mpol_set_shared_policy(struct shared_policy *info,
+-				struct vm_area_struct *vma,
+-				struct mempolicy *new);
+-void mpol_free_shared_policy(struct shared_policy *p);
+-struct mempolicy *mpol_shared_policy_lookup(struct shared_policy *sp,
+-					    unsigned long idx);
+-
+ extern void numa_default_policy(void);
+ extern void numa_policy_init(void);
+ extern void mpol_rebind_policy(struct mempolicy *pol, const nodemask_t *new);
+@@ -192,30 +164,6 @@ static inline struct mempolicy *mpol_cop
+ 	return NULL;
+ }
+ 
+-struct shared_policy {};
+-
+-static inline int mpol_set_shared_policy(struct shared_policy *info,
+-					struct vm_area_struct *vma,
+-					struct mempolicy *new)
+-{
+-	return -EINVAL;
+-}
+-
+-static inline void mpol_shared_policy_init(struct shared_policy *info,
+-					int policy, nodemask_t *nodes)
+-{
+-}
+-
+-static inline void mpol_free_shared_policy(struct shared_policy *p)
+-{
+-}
+-
+-static inline struct mempolicy *
+-mpol_shared_policy_lookup(struct shared_policy *sp, unsigned long idx)
+-{
+-	return NULL;
+-}
+-
+ #define vma_policy(vma) NULL
+ #define vma_set_policy(vma, pol) do {} while(0)
+ 
+Index: Linux/include/linux/shared_policy.h
+===================================================================
+--- /dev/null	1970-01-01 00:00:00.000000000 +0000
++++ Linux/include/linux/shared_policy.h	2007-06-22 13:10:30.000000000 -0400
+@@ -0,0 +1,64 @@
++#ifndef _LINUX_SHARED_POLICY_H
++#define _LINUX_SHARED_POLICY_H 1
++
++#include <linux/rbtree.h>
++
++/*
++ * Tree of shared policies for a shared memory regions and memory
++ * mapped files.
++TODO:  wean the low level shared policies from the notion of vmas.
++       just use inode, offset, length
++ * Maintain the policies in a pseudo mm that contains vmas. The vmas
++ * carry the policy. As a special twist the pseudo mm is indexed in pages, not
++ * bytes, so that we can work with shared memory segments bigger than
++ * unsigned long.
++ */
++
++#ifdef CONFIG_NUMA
++
++struct sp_node {
++	struct rb_node nd;
++	unsigned long start, end;
++	struct mempolicy *policy;
++};
++
++struct shared_policy {
++	struct rb_root root;
++	spinlock_t lock;	/* protects rb tree */
++};
++
++void mpol_shared_policy_init(struct shared_policy *, int, nodemask_t *);
++int mpol_set_shared_policy(struct shared_policy *,
++				struct vm_area_struct *,
++				struct mempolicy *);
++void mpol_free_shared_policy(struct shared_policy *);
++struct mempolicy *mpol_shared_policy_lookup(struct shared_policy *,
++					    unsigned long);
++
++#else /* !NUMA */
++
++struct shared_policy {};
++
++static inline int mpol_set_shared_policy(struct shared_policy *info,
++					struct vm_area_struct *vma,
++					struct mempolicy *new)
++{
++	return -EINVAL;
++}
++static inline void mpol_shared_policy_init(struct shared_policy *info,
++					int policy, nodemask_t *nodes)
++{
++}
++
++static inline void mpol_free_shared_policy(struct shared_policy *p)
++{
++}
++
++static inline struct mempolicy *
++mpol_shared_policy_lookup(struct shared_policy *sp, unsigned long idx)
++{
++	return NULL;
++}
++#endif
++
++#endif /* _LINUX_SHARED_POLICY_H */
+Index: Linux/mm/mempolicy.c
+===================================================================
+--- Linux.orig/mm/mempolicy.c	2007-06-22 13:07:48.000000000 -0400
++++ Linux/mm/mempolicy.c	2007-06-22 13:10:30.000000000 -0400
+@@ -1446,7 +1446,7 @@ mpol_shared_policy_lookup(struct shared_
+ 	struct mempolicy *pol = NULL;
+ 	struct sp_node *sn;
+ 
+-	if (!sp->root.rb_node)
++	if (!sp || !sp->root.rb_node)
+ 		return NULL;
+ 	spin_lock(&sp->lock);
+ 	sn = sp_lookup(sp, idx, idx+1);
+@@ -1528,11 +1528,12 @@ restart:
+ 	return 0;
+ }
+ 
+-void mpol_shared_policy_init(struct shared_policy *info, int policy,
++void mpol_shared_policy_init(struct shared_policy *sp, int policy,
+ 				nodemask_t *policy_nodes)
+ {
+-	info->root = RB_ROOT;
+-	spin_lock_init(&info->lock);
++
++	sp->root = RB_ROOT;
++	spin_lock_init(&sp->lock);
+ 
+ 	if (policy != MPOL_DEFAULT) {
+ 		struct mempolicy *newpol;
+@@ -1546,13 +1547,13 @@ void mpol_shared_policy_init(struct shar
+ 			memset(&pvma, 0, sizeof(struct vm_area_struct));
+ 			/* Policy covers entire file */
+ 			pvma.vm_end = TASK_SIZE;
+-			mpol_set_shared_policy(info, &pvma, newpol);
++			mpol_set_shared_policy(sp, &pvma, newpol);
+ 			mpol_free(newpol);
+ 		}
+ 	}
+ }
+ 
+-int mpol_set_shared_policy(struct shared_policy *info,
++int mpol_set_shared_policy(struct shared_policy *sp,
+ 			struct vm_area_struct *vma, struct mempolicy *npol)
+ {
+ 	int err;
+@@ -1569,30 +1570,30 @@ int mpol_set_shared_policy(struct shared
+ 		if (!new)
+ 			return -ENOMEM;
+ 	}
+-	err = shared_policy_replace(info, vma->vm_pgoff, vma->vm_pgoff+sz, new);
++	err = shared_policy_replace(sp, vma->vm_pgoff, vma->vm_pgoff+sz, new);
+ 	if (err && new)
+ 		kmem_cache_free(sn_cache, new);
+ 	return err;
+ }
+ 
+ /* Free a backing policy store on inode delete. */
+-void mpol_free_shared_policy(struct shared_policy *p)
++void mpol_free_shared_policy(struct shared_policy *sp)
+ {
+ 	struct sp_node *n;
+ 	struct rb_node *next;
+ 
+-	if (!p->root.rb_node)
++	if (!sp->root.rb_node)
+ 		return;
+-	spin_lock(&p->lock);
+-	next = rb_first(&p->root);
++	spin_lock(&sp->lock);
++	next = rb_first(&sp->root);
+ 	while (next) {
+ 		n = rb_entry(next, struct sp_node, nd);
+ 		next = rb_next(&n->nd);
+-		rb_erase(&n->nd, &p->root);
++		rb_erase(&n->nd, &sp->root);
+ 		mpol_free(n->policy);
+ 		kmem_cache_free(sn_cache, n);
+ 	}
+-	spin_unlock(&p->lock);
++	spin_unlock(&sp->lock);
+ }
+ 
+ int mpol_parse_options(char *value, int *policy, nodemask_t *policy_nodes)
+Index: Linux/mm/shmem.c
+===================================================================
+--- Linux.orig/mm/shmem.c	2007-06-22 13:07:48.000000000 -0400
++++ Linux/mm/shmem.c	2007-06-22 13:10:30.000000000 -0400
+@@ -962,7 +962,7 @@ redirty:
+ }
+ 
+ #ifdef CONFIG_NUMA
+-static struct page *shmem_swapin_async(struct shared_policy *p,
++static struct page *shmem_swapin_async(struct shared_policy *sp,
+ 				       swp_entry_t entry, unsigned long idx)
+ {
+ 	struct page *page;
+@@ -972,41 +972,39 @@ static struct page *shmem_swapin_async(s
+ 	memset(&pvma, 0, sizeof(struct vm_area_struct));
+ 	pvma.vm_end = PAGE_SIZE;
+ 	pvma.vm_pgoff = idx;
+-	pvma.vm_policy = mpol_shared_policy_lookup(p, idx);
++	pvma.vm_policy = mpol_shared_policy_lookup(sp, idx);
+ 	page = read_swap_cache_async(entry, &pvma, 0);
+ 	mpol_free(pvma.vm_policy);
+ 	return page;
+ }
+ 
+-struct page *shmem_swapin(struct shmem_inode_info *info, swp_entry_t entry,
+-			  unsigned long idx)
++struct page *shmem_swapin(struct shared_policy *sp, swp_entry_t entry,
++				unsigned long idx)
+ {
+-	struct shared_policy *p = &info->policy;
+ 	int i, num;
+ 	struct page *page;
+ 	unsigned long offset;
+ 
+ 	num = valid_swaphandles(entry, &offset);
+ 	for (i = 0; i < num; offset++, i++) {
+-		page = shmem_swapin_async(p,
++		page = shmem_swapin_async(sp,
+ 				swp_entry(swp_type(entry), offset), idx);
+ 		if (!page)
+ 			break;
+ 		page_cache_release(page);
+ 	}
+ 	lru_add_drain();	/* Push any new pages onto the LRU now */
+-	return shmem_swapin_async(p, entry, idx);
++	return shmem_swapin_async(sp, entry, idx);
+ }
+ 
+ static struct page *
+-shmem_alloc_page(gfp_t gfp, struct shmem_inode_info *info,
+-		 unsigned long idx)
++shmem_alloc_page(gfp_t gfp, struct shared_policy *sp, unsigned long idx)
+ {
+ 	struct vm_area_struct pvma;
+ 	struct page *page;
+ 
+ 	memset(&pvma, 0, sizeof(struct vm_area_struct));
+-	pvma.vm_policy = mpol_shared_policy_lookup(&info->policy, idx);
++	pvma.vm_policy = mpol_shared_policy_lookup(sp, idx);
+ 	pvma.vm_pgoff = idx;
+ 	pvma.vm_end = PAGE_SIZE;
+ 	page = alloc_page_vma(gfp | __GFP_ZERO, &pvma, 0);
+@@ -1015,14 +1013,14 @@ shmem_alloc_page(gfp_t gfp, struct shmem
+ }
+ #else
+ static inline struct page *
+-shmem_swapin(struct shmem_inode_info *info,swp_entry_t entry,unsigned long idx)
++shmem_swapin(void *sp, swp_entry_t entry, unsigned long idx)
+ {
+ 	swapin_readahead(entry, 0, NULL);
+ 	return read_swap_cache_async(entry, NULL, 0);
+ }
+ 
+ static inline struct page *
+-shmem_alloc_page(gfp_t gfp,struct shmem_inode_info *info, unsigned long idx)
++shmem_alloc_page(gfp_t gfp, void *sp, unsigned long idx)
+ {
+ 	return alloc_page(gfp | __GFP_ZERO);
+ }
+@@ -1091,7 +1089,7 @@ repeat:
+ 				*type = VM_FAULT_MAJOR;
+ 			}
+ 			spin_unlock(&info->lock);
+-			swappage = shmem_swapin(info, swap, idx);
++			swappage = shmem_swapin(mapping->spolicy, swap, idx);
+ 			if (!swappage) {
+ 				spin_lock(&info->lock);
+ 				entry = shmem_swp_alloc(info, idx, sgp);
+@@ -1204,7 +1202,7 @@ repeat:
+ 		if (!filepage) {
+ 			spin_unlock(&info->lock);
+ 			filepage = shmem_alloc_page(mapping_gfp_mask(mapping),
+-						    info,
++						    mapping->spolicy,
+ 						    idx);
+ 			if (!filepage) {
+ 				shmem_unacct_blocks(info->flags, 1);
+@@ -1370,8 +1368,9 @@ shmem_get_inode(struct super_block *sb, 
+ 		case S_IFREG:
+ 			inode->i_op = &shmem_inode_operations;
+ 			inode->i_fop = &shmem_file_operations;
+-			mpol_shared_policy_init(&info->policy, sbinfo->policy,
+-							&sbinfo->policy_nodes);
++			inode->i_mapping->spolicy = &info->policy;
++			mpol_shared_policy_init(inode->i_mapping->spolicy,
++					 sbinfo->policy, &sbinfo->policy_nodes);
+ 			break;
+ 		case S_IFDIR:
+ 			inc_nlink(inode);
+@@ -1385,8 +1384,9 @@ shmem_get_inode(struct super_block *sb, 
+ 			 * Must not load anything in the rbtree,
+ 			 * mpol_free_shared_policy will not be called.
+ 			 */
+-			mpol_shared_policy_init(&info->policy, MPOL_DEFAULT,
+-						NULL);
++			inode->i_mapping->spolicy = &info->policy;
++			mpol_shared_policy_init(inode->i_mapping->spolicy,
++					 MPOL_DEFAULT, NULL);
+ 			break;
+ 		}
+ 	} else if (sbinfo->max_inodes) {
+@@ -2287,7 +2287,7 @@ static void shmem_destroy_inode(struct i
+ {
+ 	if ((inode->i_mode & S_IFMT) == S_IFREG) {
+ 		/* only struct inode is valid if it's an inline symlink */
+-		mpol_free_shared_policy(&SHMEM_I(inode)->policy);
++		mpol_free_shared_policy(inode->i_mapping->spolicy);
+ 	}
+ 	shmem_acl_destroy_inode(inode);
+ 	kmem_cache_free(shmem_inode_cachep, SHMEM_I(inode));
+Index: Linux/fs/hugetlbfs/inode.c
+===================================================================
+--- Linux.orig/fs/hugetlbfs/inode.c	2007-06-22 13:07:48.000000000 -0400
++++ Linux/fs/hugetlbfs/inode.c	2007-06-22 13:10:30.000000000 -0400
+@@ -364,7 +364,9 @@ static struct inode *hugetlbfs_get_inode
+ 		inode->i_atime = inode->i_mtime = inode->i_ctime = CURRENT_TIME;
+ 		INIT_LIST_HEAD(&inode->i_mapping->private_list);
+ 		info = HUGETLBFS_I(inode);
+-		mpol_shared_policy_init(&info->policy, MPOL_DEFAULT, NULL);
++		inode->i_mapping->spolicy = &info->policy;
++		mpol_shared_policy_init(inode->i_mapping->spolicy,
++					 MPOL_DEFAULT, NULL);
+ 		switch (mode & S_IFMT) {
+ 		default:
+ 			init_special_inode(inode, mode, dev);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
