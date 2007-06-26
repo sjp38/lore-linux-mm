@@ -1,32 +1,60 @@
-Date: Tue, 26 Jun 2007 12:20:35 -0700 (PDT)
+Date: Tue, 26 Jun 2007 12:28:50 -0700 (PDT)
 From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [PATCH] slob: poor man's NUMA support.
-In-Reply-To: <29495f1d0706261217y3ba48400q7c64865082ba13df@mail.gmail.com>
-Message-ID: <Pine.LNX.4.64.0706261219450.20282@schroedinger.engr.sgi.com>
-References: <20070619090616.GA23697@linux-sh.org>
- <20070626002131.ff3518d4.akpm@linux-foundation.org>
- <Pine.LNX.4.64.0706261112380.18010@schroedinger.engr.sgi.com>
- <29495f1d0706261204x5b49511co18546443c78033fd@mail.gmail.com>
- <Pine.LNX.4.64.0706261209170.19878@schroedinger.engr.sgi.com>
- <29495f1d0706261217y3ba48400q7c64865082ba13df@mail.gmail.com>
+Subject: Re: [patch 15/26] Slab defrag: Support generic defragmentation for
+ inode slab caches
+In-Reply-To: <20070626011836.f4abb4ff.akpm@linux-foundation.org>
+Message-ID: <Pine.LNX.4.64.0706261223110.20457@schroedinger.engr.sgi.com>
+References: <20070618095838.238615343@sgi.com> <20070618095917.005535114@sgi.com>
+ <20070626011836.f4abb4ff.akpm@linux-foundation.org>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nish Aravamudan <nish.aravamudan@gmail.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Paul Mundt <lethal@linux-sh.org>, Matt Mackall <mpm@selenic.com>, Nick Piggin <nickpiggin@yahoo.com.au>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Pekka Enberg <penberg@cs.helsinki.fi>, suresh.b.siddha@intel.com
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 26 Jun 2007, Nish Aravamudan wrote:
+On Tue, 26 Jun 2007, Andrew Morton wrote:
 
-> Hrm, I guess the simplest looking solution is rarely the best. Could
-> we add more smarts in alloc_pages_current() to make GFP_THISNODE be
-> equivalent to bind_zonelist(thisnode_only_mask)? I'll keep thinking,
-> maybe I'll come up with something.
+> Yes, this is tricky stuff.  I have vague ancestral memories that the sort
+> of inode work which you refer to here can cause various deadlocks, lockdep
+> warnings and such nasties when if we attempt to call it from the wrong
+> context (ie: from within fs code).
 
-Yes that is what the most recent GFP_THISNODE patch does. See V1 of the 
-meoryless node patchset.
+Right. Michael's test flushed one such issue out.
 
+> Possibly we could prevent that by skipping all this code if the caller
+> didn't have __GFP_FS.
+
+There is no check in vmscan.c as I thought earlier.
+
+
+Slab defragmentation: Only perform slab defrag if __GFP_FS is clear
+
+Avoids slab defragmentation be triggered from filesystem operations.
+
+Signed-off-by: Christoph Lameter <clameter@sgi.com>
+
+---
+ mm/vmscan.c |    5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)
+
+Index: linux-2.6.22-rc4-mm2/mm/vmscan.c
+===================================================================
+--- linux-2.6.22-rc4-mm2.orig/mm/vmscan.c	2007-06-26 12:25:28.000000000 -0700
++++ linux-2.6.22-rc4-mm2/mm/vmscan.c	2007-06-26 12:26:18.000000000 -0700
+@@ -233,8 +233,9 @@ unsigned long shrink_slab(unsigned long 
+ 		shrinker->nr += total_scan;
+ 	}
+ 	up_read(&shrinker_rwsem);
+-	kmem_cache_defrag(sysctl_slab_defrag_ratio,
+-		zone ? zone_to_nid(zone) : -1);
++	if (!(gfp_mask & __GFP_FS))
++		kmem_cache_defrag(sysctl_slab_defrag_ratio,
++			zone ? zone_to_nid(zone) : -1);
+ 	return ret;
+ }
+ 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
