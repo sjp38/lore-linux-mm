@@ -1,25 +1,43 @@
-Date: Mon, 25 Jun 2007 23:12:59 +0200
-From: Andrea Arcangeli <andrea@suse.de>
-Subject: Re: 2.6.22-rc5-yesterdaygit with VM debug: BUG in mm/rmap.c:66: anon_vma_link ?
-Message-ID: <20070625211259.GD7059@v2.random>
-References: <467F6882.9000800@vmware.com> <Pine.LNX.4.64.0706252129430.22492@blonde.wat.veritas.com>
+Received: by nz-out-0506.google.com with SMTP id x7so1560483nzc
+        for <linux-mm@kvack.org>; Mon, 25 Jun 2007 17:08:03 -0700 (PDT)
+Message-ID: <6934efce0706251708h7ab8d7dal6682def601a82073@mail.gmail.com>
+Date: Mon, 25 Jun 2007 17:08:02 -0700
+From: "Jared Hulbert" <jaredeh@gmail.com>
+Subject: Re: vm/fs meetup in september?
+In-Reply-To: <20070624042345.GB20033@wotan.suse.de>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Content-Disposition: inline
-In-Reply-To: <Pine.LNX.4.64.0706252129430.22492@blonde.wat.veritas.com>
+References: <20070624042345.GB20033@wotan.suse.de>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Hugh Dickins <hugh@veritas.com>
-Cc: Petr Vandrovec <petr@vmware.com>, Andrew Morton <akpm@linux-foundation.org>, Nick Piggin <npiggin@suse.de>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Nick Piggin <npiggin@suse.de>
+Cc: Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>, linux-fsdevel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Jun 25, 2007 at 10:05:09PM +0100, Hugh Dickins wrote:
-> size of memory?); but I rather think validate_anon_vma has outlived its
-> usefulness, and is better just removed - which gives a magnificent
+> A few things I'd like to talk about are:
+>
+> - the address space operations APIs, and their page based nature. I think
+>   it would be nice to generally move toward offset,length based ones as
+>   much as possible because it should give more efficiency and flexibility
+>   in the filesystem.
+>
+> - write_begin API if it is still an issue by that date. Hope not :)
+>
+> - truncate races
+>
+> - fsblock if it hasn't been shot down by then
+>
+> - how to make complex API changes without having to fix most things
+>   yourself.
 
-Probably yes. But the most fundamental issue is that this code
-probably was never meant to be enabled through a menuconfig tweak but
-only by editing the source.
+I'd like to add:
+
+-revamping filemap_xip.c
+
+-memory mappable swap file (I'm not sure if this one is appropriate
+for the proposed meeting)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
