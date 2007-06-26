@@ -1,45 +1,52 @@
-Date: Tue, 26 Jun 2007 11:14:18 -0700 (PDT)
+Date: Tue, 26 Jun 2007 11:19:26 -0700 (PDT)
 From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [PATCH] slob: poor man's NUMA support.
-In-Reply-To: <20070626002131.ff3518d4.akpm@linux-foundation.org>
-Message-ID: <Pine.LNX.4.64.0706261112380.18010@schroedinger.engr.sgi.com>
-References: <20070619090616.GA23697@linux-sh.org>
- <20070626002131.ff3518d4.akpm@linux-foundation.org>
+Subject: Re: [patch 12/26] SLUB: Slab defragmentation core
+In-Reply-To: <20070626011831.181d7a6a.akpm@linux-foundation.org>
+Message-ID: <Pine.LNX.4.64.0706261114320.18010@schroedinger.engr.sgi.com>
+References: <20070618095838.238615343@sgi.com> <20070618095916.297690463@sgi.com>
+ <20070626011831.181d7a6a.akpm@linux-foundation.org>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Paul Mundt <lethal@linux-sh.org>, Matt Mackall <mpm@selenic.com>, Nick Piggin <nickpiggin@yahoo.com.au>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Pekka Enberg <penberg@cs.helsinki.fi>, suresh.b.siddha@intel.com
 List-ID: <linux-mm.kvack.org>
 
 On Tue, 26 Jun 2007, Andrew Morton wrote:
 
-> > +#ifdef CONFIG_NUMA
-> > +	if (node != -1)
-> > +		page = alloc_pages_node(node, gfp, order);
-> > +	else
-> > +#endif
-> > +		page = alloc_pages(gfp, order);
+> > 	No slab operations may be performed in get_reference(). Interrupts
 > 
-> Isn't the above equivalent to a bare
-> 
-> 	page = alloc_pages_node(node, gfp, order);
-> 
-> ?
+> s/get_reference/get/, yes?
 
-No. alloc_pages follows memory policy. alloc_pages_node does not. One of 
-the reasons that I want a new memory policy layer are these kinds of 
-strange uses.
+Correct.
 
-> 
-> 	if (node < 0
-> 
-> rather than comparing with -1 exactly.
-> 
-> On many CPUs it'll save a few bytes of code.
+> (What's the smallest sized object slub will create?  4 bytes?)
 
--1 means no node specified and much of the NUMA code compares with -1.
+__alignof__(unsigned long long)
+
+> To hold off a concurrent free while defragging, the code relies upon
+> slab_lock() on the current page, yes?
+
+Right.
+ 
+> But slab_lock() isn't taken for slabs whose objects are larger than 
+> PAGE_SIZE. How's that handled?
+
+slab lock is always taken. How did you get that idea?
+
+> Overall: looks good.  It'd be nice to get a buffer_head shrinker in place,
+> see how that goes from a proof-of-concept POV.
+
+Ok.
+
+> How much testing has been done on this code, and of what form, and with
+> what results?
+
+I posted them in the intro of the last full post and then Michael 
+Piotrowski did some stress tests.
+
+See http://marc.info/?l=linux-mm&m=118125373320855&w=2
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
