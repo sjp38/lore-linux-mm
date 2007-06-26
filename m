@@ -1,57 +1,41 @@
-Message-ID: <468082FF.6090704@yahoo.com.au>
-Date: Tue, 26 Jun 2007 13:07:43 +1000
-From: Nick Piggin <nickpiggin@yahoo.com.au>
-MIME-Version: 1.0
-Subject: Re: [patch 1/3] add the fsblock layer
-References: <20070624014528.GA17609@wotan.suse.de>	<20070624014613.GB17609@wotan.suse.de>	<18046.63436.472085.535177@notabene.brown>	<467F71C6.6040204@yahoo.com.au>	<20070625122906.GB12446@think.oraclecorp.com>	<46807B32.6050302@yahoo.com.au> <18048.32372.40011.10896@notabene.brown>
-In-Reply-To: <18048.32372.40011.10896@notabene.brown>
-Content-Type: text/plain; charset=us-ascii; format=flowed
-Content-Transfer-Encoding: 7bit
+Date: Mon, 25 Jun 2007 21:23:20 -0600
+From: Andreas Dilger <adilger@clusterfs.com>
+Subject: Re: vm/fs meetup in september?
+Message-ID: <20070626032320.GN5181@schatzie.adilger.int>
+References: <20070624042345.GB20033@wotan.suse.de> <20070625063545.GA1964@infradead.org> <46807B5D.6090604@yahoo.com.au>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <46807B5D.6090604@yahoo.com.au>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Neil Brown <neilb@suse.de>
-Cc: Chris Mason <chris.mason@oracle.com>, Nick Piggin <npiggin@suse.de>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>, linux-fsdevel@vger.kernel.org
+To: Nick Piggin <nickpiggin@yahoo.com.au>
+Cc: Christoph Hellwig <hch@infradead.org>, Nick Piggin <npiggin@suse.de>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>, linux-fsdevel@vger.kernel.org, "Martin J. Bligh" <mbligh@mbligh.org>
 List-ID: <linux-mm.kvack.org>
 
-Neil Brown wrote:
-> On Tuesday June 26, nickpiggin@yahoo.com.au wrote:
-> 
->>Chris Mason wrote:
->>
->>>The block device pagecache isn't special, and certainly isn't that much
->>>code.  I would suggest keeping it buffer head specific and making a
->>>second variant that does only fsblocks.  This is mostly to keep the
->>>semantics of PagePrivate sane, lets not fuzz the line.
->>
->>That would require a new inode and address_space for the fsblock
->>type blockdev pagecache, wouldn't it? I just can't think of a
->>better non-intrusive way of allowing a buffer_head filesystem and
->>an fsblock filesystem to live on the same blkdev together.
-> 
-> 
-> I don't think they would ever try to.  Both filesystems would bd_claim
-> the blkdev, and only one would win.
+On Jun 26, 2007  12:35 +1000, Nick Piggin wrote:
+> Leaving my opinion of higher order pagecache aside, this _may_ be an
+> example of something that doesn't need a lot of attention, because it
+> should be fairly uncontroversial from a filesystem's POV? (eg. it is
+> more a relevant item to memory management and possibly block layer).
+> OTOH if it is discussed in the context of "large blocks in the buffer
+> layer is crap because we can do it with higher order pagecache", then
+> that might be interesting :)
 
-Hmm OK, I might have confused myself thinking about partitions...
+FWIW, being able to have large (8-64kB) blocksize would be great for
+ext2/3/4.  We'd sort of been betting on this by limiting the on-disk
+extent format to 48-bit physical block numbers, and to have 2 patches
+to implement this in as many weeks is excellent.
 
-> The issue is more of a filesystem sharing a blockdev with the
-> block-special device (i.e. open("/dev/sda1"), read) isn't it?
-> 
-> If a filesystem wants to attach information to the blockdev pagecache
-> that is different to what blockdev want to attach, then I think "Yes"
-> - a new inode and address space is what it needs to create.
-> 
-> Then you get into consistency issues between the metadata and direct
-> blockdevice access.  Do we care about those?
+To me the mechanism doesn't matter, whether through fsblock or high-order
+PAGE_SIZE.  I'll let the rest of you duke it out as long as at least one
+of them makes it into the kernel.
 
-Yeah that issue is definitely a real one. The problem is not just
-consistency, but "how do the block device aops even know that the
-PG_private page they have has buffer heads or fsblocks", so it is
-an oopsable condition rather than just a plain consistency issue
-(consistency is already not guaranteed).
-
--- 
-SUSE Labs, Novell Inc.
+Cheers, Andreas
+--
+Andreas Dilger
+Principal Software Engineer
+Cluster File Systems, Inc.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
