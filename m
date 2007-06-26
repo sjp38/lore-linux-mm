@@ -1,49 +1,45 @@
-Date: Tue, 26 Jun 2007 10:55:41 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH 01 of 16] remove nr_scan_inactive/active
-Message-Id: <20070626105541.cd82c940.akpm@linux-foundation.org>
-In-Reply-To: <46814829.8090808@redhat.com>
-References: <8e38f7656968417dfee0.1181332979@v2.random>
-	<466C36AE.3000101@redhat.com>
-	<20070610181700.GC7443@v2.random>
-	<46814829.8090808@redhat.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Date: Tue, 26 Jun 2007 11:14:18 -0700 (PDT)
+From: Christoph Lameter <clameter@sgi.com>
+Subject: Re: [PATCH] slob: poor man's NUMA support.
+In-Reply-To: <20070626002131.ff3518d4.akpm@linux-foundation.org>
+Message-ID: <Pine.LNX.4.64.0706261112380.18010@schroedinger.engr.sgi.com>
+References: <20070619090616.GA23697@linux-sh.org>
+ <20070626002131.ff3518d4.akpm@linux-foundation.org>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Rik van Riel <riel@redhat.com>
-Cc: Andrea Arcangeli <andrea@suse.de>, linux-mm@kvack.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Paul Mundt <lethal@linux-sh.org>, Matt Mackall <mpm@selenic.com>, Nick Piggin <nickpiggin@yahoo.com.au>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 26 Jun 2007 13:08:57 -0400 Rik van Riel <riel@redhat.com> wrote:
+On Tue, 26 Jun 2007, Andrew Morton wrote:
 
-> > If all tasks spend 10 minutes in shrink_active_list before the first
-> > call to shrink_inactive_list that could mean you hit the race that I'm
-> > just trying to fix with this very patch. 
+> > +#ifdef CONFIG_NUMA
+> > +	if (node != -1)
+> > +		page = alloc_pages_node(node, gfp, order);
+> > +	else
+> > +#endif
+> > +		page = alloc_pages(gfp, order);
 > 
-> I got around to testing it now.  I am using AIM7 since it is
-> a very anonymous memory heavy workload.
+> Isn't the above equivalent to a bare
 > 
-> Unfortunately your patch does not fix the problem, but behaves
-> as I had feared :(
+> 	page = alloc_pages_node(node, gfp, order);
 > 
-> Both the normal kernel and your kernel fall over once memory
-> pressure gets big enough, but they explode differently and
-> at different points.
-> 
-> I am running the test on a quad core x86-64 system with 2GB
-> memory.  I am "zooming in" on the 4000 user range, because
-> that is where they start to diverge.  I am running aim7 to
-> cross-over, which is the point at which fewer than 1 jobs/min/user
-> are being completed.
+> ?
 
-with what command line and config scripts does one run aim7 to
-reproduce this?
+No. alloc_pages follows memory policy. alloc_pages_node does not. One of 
+the reasons that I want a new memory policy layer are these kinds of 
+strange uses.
 
-Where's the system time being spent?
+> 
+> 	if (node < 0
+> 
+> rather than comparing with -1 exactly.
+> 
+> On many CPUs it'll save a few bytes of code.
 
-Thanks.
+-1 means no node specified and much of the NUMA code compares with -1.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
