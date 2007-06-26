@@ -1,45 +1,105 @@
-Date: Tue, 26 Jun 2007 12:10:56 -0700 (PDT)
-From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [PATCH] slob: poor man's NUMA support.
-In-Reply-To: <29495f1d0706261204x5b49511co18546443c78033fd@mail.gmail.com>
-Message-ID: <Pine.LNX.4.64.0706261209170.19878@schroedinger.engr.sgi.com>
-References: <20070619090616.GA23697@linux-sh.org>
- <20070626002131.ff3518d4.akpm@linux-foundation.org>
- <Pine.LNX.4.64.0706261112380.18010@schroedinger.engr.sgi.com>
- <29495f1d0706261204x5b49511co18546443c78033fd@mail.gmail.com>
+Date: Tue, 26 Jun 2007 18:09:13 -0200
+From: "Vegas VIP Casino" <complaisant@ultrapostman.com>
+Message-ID: <73952413.09695450@arden.com>
+Subject: Willkommensbonus von 555 Euro!
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
-Sender: owner-linux-mm@kvack.org
-Return-Path: <owner-linux-mm@kvack.org>
-To: Nish Aravamudan <nish.aravamudan@gmail.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Paul Mundt <lethal@linux-sh.org>, Matt Mackall <mpm@selenic.com>, Nick Piggin <nickpiggin@yahoo.com.au>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Content-Type: text/html; charset=iso-8859-1
+Content-Transfer-Encoding: 7bit
+Return-Path: <complaisant@ultrapostman.com>
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 26 Jun 2007, Nish Aravamudan wrote:
+<html>
 
-> > No. alloc_pages follows memory policy. alloc_pages_node does not. One of
-> > the reasons that I want a new memory policy layer are these kinds of
-> > strange uses.
-> 
-> What would break by changing, in alloc_pages_node()
-> 
->        if (nid < 0)
->                nid = numa_node_id();
-> 
-> to
-> 
->        if (nid < 0)
->                return alloc_pages_current(gfp_mask, order);
-> 
-> beyond needing to make alloc_pages_current() defined if !NUMA too.
+<head>
+<meta http-equiv=Content-Type content="text/html; charset=iso-8859-1">
 
-It would make alloc_pages_node obey memory policies instead of only
-following cpuset constraints. An a memory policy may redirect the 
-allocation from the local node ;-).
+<title>Die besten Spieler </title>
+
+<style>
+<!--
+ /* Style Definitions */
+ p.MsoNormal, li.MsoNormal, div.MsoNormal
+	{mso-style-parent:"";
+	margin:0cm;
+	margin-bottom:.0001pt;
+	mso-pagination:widow-orphan;
+	font-size:12.0pt;
+	font-family:"Times New Roman";
+	mso-fareast-font-family:"Times New Roman";
+	color:windowtext;
+	mso-ansi-language:EN-US;
+	mso-fareast-language:EN-US;}
+a:link, span.MsoHyperlink
+	{color:blue;}
+a:visited, span.MsoHyperlinkFollowed
+	{color:purple;
+	text-decoration:underline;
+	text-underline:single;}
+p
+	{mso-margin-top-alt:auto;
+	margin-right:0cm;
+	mso-margin-bottom-alt:auto;
+	margin-left:0cm;
+	mso-pagination:widow-orphan;
+	font-size:12.0pt;
+	font-family:"Times New Roman";
+	mso-fareast-font-family:"Times New Roman";
+	color:black;}
+@page Section1
+	{size:595.3pt 841.9pt;
+	margin:2.0cm 42.5pt 2.0cm 3.0cm;
+	mso-header-margin:35.4pt;
+	mso-footer-margin:35.4pt;
+	mso-paper-source:0;}
+div.Section1
+	{page:Section1;}
+-->
+</style>
+
+</head>
+
+<body lang=DE link=blue vlink=purple style='tab-interval:35.4pt'>
+
+<div class=Section1>
+
+<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
+Die besten Spieler sind in Vegas und die besten Bonusse 
+finden Sie nur bei Vegas 
+VIP Casino!
+<o:p></o:p></span></p>
+
+<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
+<o:p>&nbsp;</o:p></span></p>
+
+<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
+200% f&uuml;r Ihre erste Einzahlung, 100% f&uuml;r Ihre zweite 
+und dritte Einzahlung und als Kr&ouml;nung einen 155% Bonus 
+f&uuml;r Ihre vierte Einzahlung!
+<o:p></o:p></span></p>
 
 
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
+<o:p>&nbsp;</o:p></span></p>
+
+<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
+Das ergibt insgesamt einen Willkommensbonus von 555 &#8364;/$!
+<o:p></o:p></span></p>
+
+<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
+<o:p>&nbsp;</o:p></span></p>
+
+<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
+Dieses und vieles mehr erwartet Sie im fabelhaften Vegas 
+VIP Casino, der beste Platz zum spielen!
+<o:p></o:p></span></p>
+
+<p><a href="http://www.myvegascasino.hk/lang-de/">
+http://www.myvegascasino.hk/lang-de/</a>
+</p>
+
+</div>
+
+</body>
+
+</html>
