@@ -1,30 +1,57 @@
-Date: Tue, 26 Jun 2007 11:23:30 -0700 (PDT)
-From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [patch 21/26] Slab defragmentation: support dentry defragmentation
-In-Reply-To: <20070626011845.bfd4efe0.akpm@linux-foundation.org>
-Message-ID: <Pine.LNX.4.64.0706261122130.18010@schroedinger.engr.sgi.com>
-References: <20070618095838.238615343@sgi.com> <20070618095918.404020641@sgi.com>
- <20070626011845.bfd4efe0.akpm@linux-foundation.org>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Date: Tue, 26 Jun 2007 11:38:23 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [patch 12/26] SLUB: Slab defragmentation core
+Message-Id: <20070626113823.d78d8c0c.akpm@linux-foundation.org>
+In-Reply-To: <Pine.LNX.4.64.0706261114320.18010@schroedinger.engr.sgi.com>
+References: <20070618095838.238615343@sgi.com>
+	<20070618095916.297690463@sgi.com>
+	<20070626011831.181d7a6a.akpm@linux-foundation.org>
+	<Pine.LNX.4.64.0706261114320.18010@schroedinger.engr.sgi.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
+To: Christoph Lameter <clameter@sgi.com>
 Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Pekka Enberg <penberg@cs.helsinki.fi>, suresh.b.siddha@intel.com
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 26 Jun 2007, Andrew Morton wrote:
+On Tue, 26 Jun 2007 11:19:26 -0700 (PDT)
+Christoph Lameter <clameter@sgi.com> wrote:
 
-> > +			 * objects.
-> > +			 */
-> > +			abort = 1;
+>  
+> > But slab_lock() isn't taken for slabs whose objects are larger than 
+> > PAGE_SIZE. How's that handled?
 > 
-> It's unobvious why the entire shrink effort is abandoned if one busy dentry
-> is encountered.  Please flesh the comment out explaining this.
+> slab lock is always taken. How did you get that idea?
 
-If one item is busy then we cannot reclaim the slab. So what would be the 
-use of continuing efforts. I thought I put that into the description? I 
-can put that into the code too.
+Damned if I know.  Perhaps by reading slob.c instead of slub.c.  When can
+we start deleting some slab implementations?
+
+> > How much testing has been done on this code, and of what form, and with
+> > what results?
+> 
+> I posted them in the intro of the last full post and then Michael 
+> Piotrowski did some stress tests.
+> 
+> See http://marc.info/?l=linux-mm&m=118125373320855&w=2
+
+hm, OK, thin.
+
+I think we'll need to come up with a better-than-usual test plan for this
+change.  One starting point might be to ask what in-the-field problem
+you're trying to address here, and what the results were.
+
+
+Also, what are the risks of meltdowns in this code?  For example, it
+reaches the magical 30% ratio, tries to do defrag, but the defrag is for
+some reason unsuccessful and it then tries to run defrag again, etc.
+
+And that was "for example"!  Are there other such potential problems in
+there?  There usually are, with memory reclaim.
+
+
+(Should slab_defrag_ratio be per-slab rather than global?)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
