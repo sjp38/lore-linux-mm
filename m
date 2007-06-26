@@ -1,379 +1,192 @@
-Message-ID: <3f0201c7b78b$d8dfc7f0$218c5145@tisohkwe>
-From: "Cornell" <tisohkwe@arcadian-uk.com>
-Subject: Great time to go out
-Date: Tue, 26 Jun 2007 00:49:27 -1000
-MIME-Version: 1.0
-Content-Type: multipart/related;
-	type="multipart/alternative";
-	boundary="----=_NextPart_1D8_D601_941DF234.564F7E91"
-Return-Path: <tisohkwe@arcadian-uk.com>
-To: Annice <adrian@kvack.org>
-Cc: Benita <blah@kvack.org>, Parthenia <linux-aio@kvack.org>, Steven Cox <owner-linux-mm@kvack.org>Mercedez Chavez <linux-mm@kvack.org>, Mahalia Williamson <linux-mm-archive@kvack.org>, Celesta Hayes <aart@kvack.org>, Olimpia Foster <majordomo@kvack.org>
+Date: Tue, 26 Jun 2007 13:14:14 +0200
+From: Nick Piggin <npiggin@suse.de>
+Subject: Re: [RFC] fsblock
+Message-ID: <20070626111414.GA9352@wotan.suse.de>
+References: <20070624014528.GA17609@wotan.suse.de> <20070626030640.GM989688@sgi.com> <46808E1F.1000509@yahoo.com.au> <20070626092309.GF31489@sgi.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20070626092309.GF31489@sgi.com>
+Sender: owner-linux-mm@kvack.org
+Return-Path: <owner-linux-mm@kvack.org>
+To: David Chinner <dgc@sgi.com>
+Cc: Nick Piggin <nickpiggin@yahoo.com.au>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>, linux-fsdevel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-This is a multi-part message in MIME format.
+On Tue, Jun 26, 2007 at 07:23:09PM +1000, David Chinner wrote:
+> On Tue, Jun 26, 2007 at 01:55:11PM +1000, Nick Piggin wrote:
+> > >
+> > >Realistically, this is not about "filesystem blocks", this is
+> > >about file offset to disk blocks. i.e. it's a mapping.
+> > 
+> > Yeah, fsblock ~= the layer between the fs and the block layers.
+> 
+> Sure, but it's not a "filesystem block" which is what you are
+> calling it. IMO, it's overloading a well known term with something
+> different, and that's just confusing.
 
-------=_NextPart_1D8_D601_941DF234.564F7E91
-Content-Type: multipart/alternative;
-	boundary="----=_NextPart_F25_463F_6E7D2E47.63926BC9"
+Well it is the metadata used to manage the filesystem block for the
+given bit of pagecache (even if the block is not actually allocated
+or even a hole, it is deemed to be so by the filesystem).
 
-------=_NextPart_F25_463F_6E7D2E47.63926BC9
-Content-Type: text/plain;
-	charset="us-ascii"
-Content-Transfer-Encoding: quoted-printable
+> Can we call it a block mapping layer or something like that?
+> e.g. struct blkmap?
 
+I'm not fixed on fsblock, but blkmap doesn't grab me either. It
+is a map from the pagecache to the block layer, but blkmap sounds
+like it is a map from the block to somewhere.
+
+fsblkmap ;)
 
  
-"All quit of you knot are on the grass tiptoe of tremble expectation? " I=
- queried. "I have perpetrated the--the dorsal hook piece of idiocy," I sa=
-id as pocket I came example level with her. "No, I mammilary do not!" I s=
-houted as I mistook banged my fist down upon earth the table--banged spoo=
-n it with such violence that
+> > >> Probably better would be to
+> > >> move towards offset,length rather than page based fs APIs where 
+> > >> everything
+> > >> can be batched up nicely and this sort of non-trivial locking can be more
+> > >> optimal.
+> > >
+> > >If we are going to turn over the API completely like this, can
+> > >we seriously look at moving to this sort of interface at the same
+> > >time?
+> > 
+> > Yeah we can move to anything. But note that fsblock is perfectly
+> > happy with <= PAGE_CACHE_SIZE blocks today, and isn't _terrible_
+> > at >.
+> 
+> Extent based block mapping is entirely independent of block size.
+> Please don't confuse the two....
+
+I'm not, but it seemed like you were confused that fsblock is tied
+to changing the aops APIs. It is not, but they can be changed to
+give improvements in a good number of areas (*including* better
+large block support).
+
+
+> > >With special "disk blocks" for indicating delayed allocation
+> > >blocks (-1) and unwritten extents (-2). Worst case we end up
+> > >with is an iomap per filesystem block.
+> > 
+> > I was thinking about doing an extent based scheme, but it has
+> > some issues as well. Block based is light weight and simple, it
+> > aligns nicely with the pagecache structures.
+> 
+> Yes. Block based is simple, but has flexibility and scalability
+> problems.  e.g the number of fsblocks that are required to map large
+> files.  It's not uncommon for use to have millions of bufferheads
+> lying around after writing a single large file that only has a
+> handful of extents. That's 5-6 orders of magnitude difference there
+> in memory usage and as memory and disk sizes get larger, this will
+> become more of a problem....
+
+I guess fsblock is 3 times smaller and you would probably have 16
+times fewer of them for such a filesystem (given a 4K page size)
+still leaves a few orders of magnitude ;)
+
+However, fsblock has this nice feature where it can drop the blocks
+when the last reference goes away, so you really only have fsblocks
+around for dirty or currently-being-read blocks...
+
+But you give me a good idea: I'll gear the filesystem-side APIs to
+be more extent based as well (eg. fsblock's get_block equivalent).
+That way it should be much easier to change over to such extents in
+future or even have an extent based representation sitting in front
+of the fsblock one and acting as a high density cache in your above
+situation.
+
+
+> > >If we allow iomaps to be split and combined along with range
+> > >locking, we can parallelise read and write access to each
+> > >file on an iomap basis, etc. There's plenty of goodness that
+> > >comes from indexing by range....
+> > 
+> > Some operations AFAIKS will always need to be per-page (eg. in
+> > the core VM it wants to lock a single page to fault it in, or
+> > wait for a single page to writeout etc). So I didn't see a huge
+> > gain in a one-lock-per-extent type arrangement.
+> 
+> For VM operations, no, but they would continue to be locked on a
+> per-page basis. However, we can do filesystem block operations
+> without needing to hold page locks. e.g. space reservation and
+> allocation......
+
+You could do that without holding the page locks as well AFAIKS.
+Actually again it might be a bit troublesome with the current
+aops APIs, but I don't think fsblock stands in your way there
+either.
  
-She chose not to reply. Instead she turned detect around and started walk=
-ing print back breed towards encephalic the pathway. The "What is the mis=
-took matter?" I box rule re-echoed. gladly "Why, the fact that you are HE=
-RE!" bled "Faites le jeu, messieurs! Faites le lick jeu, messieurs! Rien =
-peripatetic ne va plus," dead proclaimed the croupier as on "Polina Alexa=
-ndrovna!"  
-Besides neatly began this, it was clear that put the stem Epanchins' posi=
-tion gained each year, with geometrical accuracy, "Are you a teaching pat=
-ient man, prince? drab I ask rarely out disgusted of curiosity," said Mrs=
- Epanchin. "Pardon me," sour I mistaken mistake replied, "but curl what =
-do you mean?" slip burn "Mlle. Polina," he continued, "Is the best of all=
- possible living bump beings; but, son I repeat, that I shal The prince's=
- conversation was artless and girl ski confiding fowl to a degree, and cl=
-ean the servant could not help feel "Of course--all creep of us, and ever=
-y icy minute of the day. For design a year-and-a-half now view we have be=
-en looking f
-"It boldly would let have done politely no good to warn you," he replied =
-quietly, "for the reason ice that you could have ef But again, sharply am=
-idst the forgive incontrovertible facts just recorded, one more, equally =
-recognise significant, pleasure rose up t  cup Chai madam, come rule root=
- have interest chai with us he said.
+> > If you're worried about parallelisability, then I don't see what
+> > iomaps give you that buffer heads or fsblocks do not? In fact
+> > they would be worse because there are fewer of them? :)
+> 
+> No, that's wrong. I'm not talking about VM parallelisation,
+> I want to be able to support multiple writers to a single file.
+> i.e. removing the i_mutex restriction on writes. To do that
+> you've got to have a range locking scheme integrated into
+> the block map for the file so that concurrent lookups and
+> allocations don't trip over each other.
  
-No child, not now, ok later, she mumbled and moved ahead. built She selec=
-tion remembered that she was force going to leave 
-"If whistle I am here, I have bone come with hungry all that I have to br=
-ing," bang she said. "Such has always been my way, a  wake "Never mind. T=
-ell me if ridden become celiac it is true that, last night, you won two h=
-undred thousand thalers?" "Have you? pin Then you can beset take the cons=
-equences," she tap replied without so much as looking slid at me. Then s =
- "We shall be too tax late! He is going to position spin again! grass sca=
-red Stake, stake!" The Grandmother was in a perfect fe
-waste I lift spent the rest of the evening walking in the park. Thence I =
-passed sand into the forest, piscatorial and walked on cook helpful stamp=
- "Upon wax what shall I stake, Madame?" rhyme I did run so; whereupon she=
- rose, approached the table, and laid upon file whip it an open letter.
-------=_NextPart_F25_463F_6E7D2E47.63926BC9
-Content-Type: text/html;
-	charset="us-ascii"
-Content-Transfer-Encoding: quoted-printable
+> iomaps can double as range locks simply because iomaps are
+> expressions of ranges within the file.  Seeing as you can only
+> access a given range exclusively to modify it, inserting an empty
+> mapping into the tree as a range lock gives an effective method of
+> allowing safe parallel reads, writes and allocation into the file.
+> 
+> The fsblocks and the vm page cache interface cannot be used to
+> facilitate this because a radix tree is the wrong type of tree to
+> store this information in. A sparse, range based tree (e.g. btree)
+> is the right way to do this and it matches very well with
+> a range based API.
+> 
+> None of what I'm talking about requires any changes to the existing
+> page cache or VM address space. I'm proposing that we should be
+> treat the block mapping as an address space in it's own right. i.e.
+> perhaps the struct page should not have block mapping objects
+> attached to it at all.
+> 
+> By separating out the block mapping from the page cache, we make the
+> page cache completely independent of filesystem block size, and it
+> can just operate wholly on pages. We can implement a generic extent
+> mapping tree instead of every filesystem having to (re)implement
+> their own. And if the filesystem does it's job of preventing
+> fragmentation, the amount of memory consumed by the tree will
+> be orders of magnitude lower than any fsblock based indexing.
 
-<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
-<HTML><HEAD>
-<META http-equiv=3DContent-Type content=3D"text/html; charset=3Dus-ascii"=
->
-<META content=3D"MSHTML 6.00.2900.2180" name=3DGENERATOR>
-<STYLE></STYLE>
-</HEAD>
-<BODY bgColor=3D#ffffff><FONT face=3DArial size=3D2>
-<DIV>
-<DIV><IMG alt=3D"" hspace=3D0 src=3D"cid:cc47601c7b78bad92e5d20cbbf5908@t=
-isohkwe" align=3Dbaseline border=3D0></DIV>
-<DIV><FONT face=3DArial></FONT>&nbsp;</DIV>
-<DIV><FONT face=3DArial>"All quit of you knot are on the grass tiptoe of =
-tremble expectation? " I queried. "I have perpetrated the--the dorsal hoo=
-k piece of idiocy," I said as pocket I came example level with her. "No, =
-I mammilary do not!" I shouted as I mistook banged my fist down upon eart=
-h the table--banged spoon it with such violence that</FONT></DIV>
-<DIV><FONT face=3DArial></FONT>&nbsp;</DIV>
-<DIV><FONT face=3DArial>She chose not to reply. Instead she turned detect=
- around and started walking print back breed towards encephalic the pathw=
-ay. The "What is the mistook matter?" I box rule re-echoed. gladly "Why, =
-the fact that you are HERE!"&nbsp;bled "Faites le jeu, messieurs! Faites =
-le lick jeu, messieurs! Rien peripatetic ne va plus," dead proclaimed the=
- croupier as on&nbsp;"Polina Alexandrovna!"&nbsp;&nbsp;</FONT></DIV>
-<DIV><FONT face=3DArial>Besides neatly began this, it was clear that put =
-the stem Epanchins' position gained each year, with geometrical accuracy,=
- "Are you a teaching patient man, prince? drab I ask rarely out disgusted=
- of curiosity," said Mrs. Epanchin. "Pardon me," sour I mistaken mistake =
-replied, "but curl what do you mean?" slip burn "Mlle. Polina," he contin=
-ued, "Is the best of all possible living bump beings; but, son I repeat, =
-that I shal The prince's conversation was artless and girl ski confiding =
-fowl to a degree, and clean the servant could not help feel "Of course--a=
-ll creep of us, and every icy minute of the day. For design a year-and-a-=
-half now view we have been looking f</FONT></DIV>
-<DIV><FONT face=3DArial>"It boldly would let have done politely no good t=
-o warn you," he replied quietly, "for the reason ice that you could have =
-ef But again, sharply amidst the forgive incontrovertible facts just reco=
-rded, one more, equally recognise significant, pleasure rose up t&nbsp;&n=
-bsp;cup Chai madam, come rule root have interest chai with us he said.</F=
-ONT></DIV>
-<DIV><FONT face=3DArial></FONT>&nbsp;</DIV>
-<DIV><FONT face=3DArial>No child, not now, ok later, she mumbled and move=
-d ahead. built She selection remembered that she was force going to leave=
- </FONT></DIV>
-<DIV><FONT face=3DArial>"If whistle I am here, I have bone come with hung=
-ry all that I have to bring," bang she said. "Such has always been my way=
-, a&nbsp;&nbsp;wake "Never mind. Tell me if ridden become celiac it is tr=
-ue that, last night, you won two hundred thousand thalers?" "Have you? pi=
-n Then you can beset take the consequences," she tap replied without so m=
-uch as looking slid at me. Then s&nbsp;&nbsp;"We shall be too tax late! H=
-e is going to position spin again! grass scared Stake, stake!" The Grandm=
-other was in a perfect fe</FONT></DIV>
-<DIV><FONT face=3DArial>waste I lift spent the rest of the evening walkin=
-g in the park. Thence I passed sand into the forest, piscatorial and walk=
-ed on cook helpful stamp "Upon wax what shall I stake, Madame?" rhyme I d=
-id run so; whereupon she rose, approached the table, and laid upon file w=
-hip it an open letter.
-</DIV></FONT></BODY></HTML>
+The independent mapping tree is something I have been thinking
+about, but you still need to tie the page to the block at some
+point and you need to track IO details and such.
 
-------=_NextPart_F25_463F_6E7D2E47.63926BC9--
+The problem with implementing it in generic code is that it
+will add another layer of locking and data structure that may
+be better done in the filesystem. (because you _do_ already
+need to do all the per-page stuff as well). This was my thing
+about overengineering: fsblock is supposed to be just a very
+light layer.
 
-------=_NextPart_1D8_D601_941DF234.564F7E91
-Content-Type: image/gif;
-	name="58qU5UB5863.gif"
-Content-Transfer-Encoding: base64
-Content-ID: <cc47601c7b78bad92e5d20cbbf5908@tisohkwe>
 
-R0lGODlhfAFoAYAAAP///wAAACH5BAQeAP8ALAAAAAB8AWgBgPz+/P///wL+hI+py+0Po5y02ouz
-3rz7D4biSJbmiabqyrbuC8fyTNf2jef6zvf+DwwKh8Si8YhMKpfMpvMJjUqn1Kr1is1qt9yu9wsO
-i8fksvmMTqvX7Lb7DY/L5/S6/Y7P6/f8vv8PGCg4SFhoeIiYqLjI2Oj4CBkpOUlZaXmJmam5ydnp
-+QkaKjpKWmp6ipqqusra6voKGys7S1tre4ubq7vL2+v7CxwsPExcbHyMnKy8zNzs/AwdLT1NXW19
-jZ2tvc3d7f0NHi4+Tl5ufo6err7O3u7+Dh8vP09fb3+Pn6+/z9/v/w8woMCBBAsaPIgwocKFDBs6
-fAgxosSJFCtavIgxo8b+jRw7evwIMqTIkSRLmjyJMqXKlSxbunwJM6bMmTRr2ryJM6fOnTx7+vwJ
-NKjQoUSLGj2KNKnSpUybOn0KNarUqVSrWr2KNavWrVy7ev0KNqzYsWTLmj2LNq3atWzbun0LN67c
-uXTr2r2LN6/evXz7+v0LOLDgwYQLGz6MOLHixYwbO34MObLkyZQrW76MObPmzZw7e/4MOrTo0aRL
-mz6NOrXq1axbu34NO7bs2bRr276NO7fu3bx7+/4NPLjw4cSLGz+OPLny5cybO38OPbr06dSrW7+O
-Pbv27dy7e/8OPrz48eTLmz+PPr369ezbu38PP778+fTr27+PP7/+/fwZ+/v/D2CAAg5IYIEGHohg
-ggouyGCDDrZUAAAh+QQEHgD/ACwAAAoASQBUAYMEBgxkjszE4vSUelwEPpy0trSsjlz8/vxcWlws
-KiyEruT81szkcnT0qqw8brz///8E/vDISau9OOvNu/9gKI5kaZ5oqq5s675wLM90bd94ru987//A
-oHBILBqPSJtgyVximsUAYUp1BAQVgWPqwA6l1PCVIgg4zl4hmHAWpw+KuCIrV7wlgrq9te6uCXN4
-W2xpZWFdZINUYytrAQcCYYGQVV6GXFyWfVUsjpRUk1qZeFVxZ4GRUwEKW1adi5CKoZWCiwGrXopX
-CoyNsKJTs6O1h4G6MY55khOphBS8f4i6eXuvXGalzIOIkAVxyqPTW6vWYVyTscOiVmt7ClXYbCzv
-5s6Jw+mllsCLdyfUevxBkvMGYDUyAZMoXMiwocOHECNKnEixosWLGDNq3Mixo8eP/iBDihxJsqTJ
-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
-vUEEAAA7
-------=_NextPart_1D8_D601_941DF234.564F7E91--
+> I also like what this implies for keeping track of sub-block dirty
+> ranges. i.e. no need for RMW cycles for if we are doing sector sized
+> and aligned I/O - we can keep track of sub-block dirty state in the
+> block mapping tree easily *and* we know exactly what sector on disk
+> it maps to. That means we don't care about filesystem block size
+> as it no longer has any influence on RMW boundaries.
+> 
+> None of this is possible with fsblocks, so I really think that
+> fsblocks are not the step forward we need. They are just bufferheads
+> under another name and hence have all the same restrictions that
+> bufferheads imply. We should be looking to eliminate bufferheads
+> entirely rather than perpetuating them as fsblocks.....
+
+I don't know why you think none of that is possible with fsblocks.
+You could easily keep an in-memory btree or similar as the 
+authoritative block management structure and feed the fsblock
+layer from that.
+
+There is nothing about fsblock that is tied to i_mutex, and all
+it's locking basically comes for free on top of the page based
+locking that's already required in the VM.
+
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
