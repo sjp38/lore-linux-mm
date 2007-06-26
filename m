@@ -1,105 +1,33 @@
-Date: Tue, 26 Jun 2007 18:09:13 -0200
-From: "Vegas VIP Casino" <complaisant@ultrapostman.com>
-Message-ID: <73952413.09695450@arden.com>
-Subject: Willkommensbonus von 555 Euro!
+Date: Tue, 26 Jun 2007 12:16:50 -0700 (PDT)
+From: Christoph Lameter <clameter@sgi.com>
+Subject: Re: [RFC 1/7] cpuset write dirty map
+In-Reply-To: <468023CA.2090401@google.com>
+Message-ID: <Pine.LNX.4.64.0706261216110.20282@schroedinger.engr.sgi.com>
+References: <465FB6CF.4090801@google.com> <Pine.LNX.4.64.0706041138410.24412@schroedinger.engr.sgi.com>
+ <46646A33.6090107@google.com> <Pine.LNX.4.64.0706041250440.25535@schroedinger.engr.sgi.com>
+ <468023CA.2090401@google.com>
 MIME-Version: 1.0
-Content-Type: text/html; charset=iso-8859-1
-Content-Transfer-Encoding: 7bit
-Return-Path: <complaisant@ultrapostman.com>
-To: linux-mm@kvack.org
+Content-Type: TEXT/PLAIN; charset=US-ASCII
+Sender: owner-linux-mm@kvack.org
+Return-Path: <owner-linux-mm@kvack.org>
+To: Andrew Morton <akpm@google.com>
+Cc: Ethan Solomita <solo@google.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, a.p.zijlstra@chello.nl
 List-ID: <linux-mm.kvack.org>
 
-<html>
+On Mon, 25 Jun 2007, Ethan Solomita wrote:
 
-<head>
-<meta http-equiv=Content-Type content="text/html; charset=iso-8859-1">
+> 	The effect of this patchset is straightforward. Without it there are
+> long hangs between appearances of the date. With it the dates are all 5
+> (or sometimes 6) seconds apart.
+> 
+> 	I also added printks to the kernel to verify that, without these
+> patches, the tee was being throttled (along with lots of other things),
+> and with the patch only pdflush is being throttled.
 
-<title>Die besten Spieler </title>
+That sounds good. Andrew: Any chance that we can get this patchset merged?
 
-<style>
-<!--
- /* Style Definitions */
- p.MsoNormal, li.MsoNormal, div.MsoNormal
-	{mso-style-parent:"";
-	margin:0cm;
-	margin-bottom:.0001pt;
-	mso-pagination:widow-orphan;
-	font-size:12.0pt;
-	font-family:"Times New Roman";
-	mso-fareast-font-family:"Times New Roman";
-	color:windowtext;
-	mso-ansi-language:EN-US;
-	mso-fareast-language:EN-US;}
-a:link, span.MsoHyperlink
-	{color:blue;}
-a:visited, span.MsoHyperlinkFollowed
-	{color:purple;
-	text-decoration:underline;
-	text-underline:single;}
-p
-	{mso-margin-top-alt:auto;
-	margin-right:0cm;
-	mso-margin-bottom-alt:auto;
-	margin-left:0cm;
-	mso-pagination:widow-orphan;
-	font-size:12.0pt;
-	font-family:"Times New Roman";
-	mso-fareast-font-family:"Times New Roman";
-	color:black;}
-@page Section1
-	{size:595.3pt 841.9pt;
-	margin:2.0cm 42.5pt 2.0cm 3.0cm;
-	mso-header-margin:35.4pt;
-	mso-footer-margin:35.4pt;
-	mso-paper-source:0;}
-div.Section1
-	{page:Section1;}
--->
-</style>
-
-</head>
-
-<body lang=DE link=blue vlink=purple style='tab-interval:35.4pt'>
-
-<div class=Section1>
-
-<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
-Die besten Spieler sind in Vegas und die besten Bonusse 
-finden Sie nur bei Vegas 
-VIP Casino!
-<o:p></o:p></span></p>
-
-<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
-<o:p>&nbsp;</o:p></span></p>
-
-<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
-200% f&uuml;r Ihre erste Einzahlung, 100% f&uuml;r Ihre zweite 
-und dritte Einzahlung und als Kr&ouml;nung einen 155% Bonus 
-f&uuml;r Ihre vierte Einzahlung!
-<o:p></o:p></span></p>
-
-
-<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
-<o:p>&nbsp;</o:p></span></p>
-
-<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
-Das ergibt insgesamt einen Willkommensbonus von 555 &#8364;/$!
-<o:p></o:p></span></p>
-
-<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
-<o:p>&nbsp;</o:p></span></p>
-
-<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
-Dieses und vieles mehr erwartet Sie im fabelhaften Vegas 
-VIP Casino, der beste Platz zum spielen!
-<o:p></o:p></span></p>
-
-<p><a href="http://www.myvegascasino.hk/lang-de/">
-http://www.myvegascasino.hk/lang-de/</a>
-</p>
-
-</div>
-
-</body>
-
-</html>
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
