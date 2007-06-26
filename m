@@ -1,53 +1,54 @@
-Message-ID: <468162CD.6000208@redhat.com>
-Date: Tue, 26 Jun 2007 15:02:37 -0400
-From: Rik van Riel <riel@redhat.com>
-MIME-Version: 1.0
+Date: Tue, 26 Jun 2007 22:37:43 +0200
+From: Andrea Arcangeli <andrea@suse.de>
 Subject: Re: [PATCH 01 of 16] remove nr_scan_inactive/active
-References: <8e38f7656968417dfee0.1181332979@v2.random>	<466C36AE.3000101@redhat.com>	<20070610181700.GC7443@v2.random>	<46814829.8090808@redhat.com> <20070626105541.cd82c940.akpm@linux-foundation.org>
-In-Reply-To: <20070626105541.cd82c940.akpm@linux-foundation.org>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Message-ID: <20070626203743.GG7059@v2.random>
+References: <8e38f7656968417dfee0.1181332979@v2.random> <466C36AE.3000101@redhat.com> <20070610181700.GC7443@v2.random> <46814829.8090808@redhat.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <46814829.8090808@redhat.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Andrea Arcangeli <andrea@suse.de>, linux-mm@kvack.org
+To: Rik van Riel <riel@redhat.com>
+Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-Andrew Morton wrote:
-> On Tue, 26 Jun 2007 13:08:57 -0400 Rik van Riel <riel@redhat.com> wrote:
-> 
->>> If all tasks spend 10 minutes in shrink_active_list before the first
->>> call to shrink_inactive_list that could mean you hit the race that I'm
->>> just trying to fix with this very patch. 
->> I got around to testing it now.  I am using AIM7 since it is
->> a very anonymous memory heavy workload.
->>
->> Unfortunately your patch does not fix the problem, but behaves
->> as I had feared :(
->>
->> Both the normal kernel and your kernel fall over once memory
->> pressure gets big enough, but they explode differently and
->> at different points.
->>
->> I am running the test on a quad core x86-64 system with 2GB
->> memory.  I am "zooming in" on the 4000 user range, because
->> that is where they start to diverge.  I am running aim7 to
->> cross-over, which is the point at which fewer than 1 jobs/min/user
->> are being completed.
-> 
-> with what command line and config scripts does one run aim7 to
-> reproduce this?
+On Tue, Jun 26, 2007 at 01:08:57PM -0400, Rik van Riel wrote:
+> Both the normal kernel and your kernel fall over once memory
+> pressure gets big enough, but they explode differently and
+> at different points.
 
-reaim -x -i 100 -s 5000
+Ok, at some point it's normal they start trashing. What is strange is
+that it seems patch 01 requires the VM to do more work and in turn
+more memory to be free. The only explanation I could have is that the
+race has the side effect of in average reducing the amount of vm
+activity for each task instead of increasing it (this in turn reduces
+thrashing and free memory level requirements before the workload
+halts).
 
-Using the default reaim.config and workfile.shared
+Even if it may have a positive effect in practice, I still think the
+current racy behavior (randomly overstimating and randomly
+understimating the amount of work each task has to do depending of who
+adds and read the zone values first) isn't good.
 
-> Where's the system time being spent?
+Perhaps if you change the DEF_PRIORITY you'll get closer to the
+current mainline but without any race. You can try to halve it and see
+what happens. If the initial passes fails, it'll start swapping and
+performance will go down quick. So perhaps once we fix the race we've
+to decrease DEF_PRIORITY to get the same vm-tune.
 
-I will run the tests again with profiling enabled.
+It'd also be interesting to see what we get between 3000 and 4000.
 
--- 
-All Rights Reversed
+Where exactly we get to the halting point (4300 vs 5105) isn't
+crucial, otherwise one can win by simply decreasing min_free_kbytes as
+well, which clearly shows "when" we hang isn't the real interest. OTOH
+I agree the difference between 4300 and 5105 seems way too big but if
+this was between 5000 and 5105 I wouldn't worry too much (5000 instead
+of 5105 would result in more memory to be free at the oom point which
+isn't a net-negative). Hope the benchmark is repeatable.  This week
+I've been working on another project but I'll shortly try to install
+AIM and reproduce and see what happens by decreasing
+DEF_PRIORITY. Thanks for the testing!
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
