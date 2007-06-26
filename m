@@ -1,55 +1,53 @@
-Date: Tue, 26 Jun 2007 12:41:54 -0700 (PDT)
-From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [patch 15/26] Slab defrag: Support generic defragmentation for
- inode slab caches
-In-Reply-To: <20070626123709.211c67c4.akpm@linux-foundation.org>
-Message-ID: <Pine.LNX.4.64.0706261241130.20744@schroedinger.engr.sgi.com>
-References: <20070618095838.238615343@sgi.com> <20070618095917.005535114@sgi.com>
- <20070626011836.f4abb4ff.akpm@linux-foundation.org>
- <Pine.LNX.4.64.0706261223110.20457@schroedinger.engr.sgi.com>
- <20070626123709.211c67c4.akpm@linux-foundation.org>
+Message-ID: <468162CD.6000208@redhat.com>
+Date: Tue, 26 Jun 2007 15:02:37 -0400
+From: Rik van Riel <riel@redhat.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: [PATCH 01 of 16] remove nr_scan_inactive/active
+References: <8e38f7656968417dfee0.1181332979@v2.random>	<466C36AE.3000101@redhat.com>	<20070610181700.GC7443@v2.random>	<46814829.8090808@redhat.com> <20070626105541.cd82c940.akpm@linux-foundation.org>
+In-Reply-To: <20070626105541.cd82c940.akpm@linux-foundation.org>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Pekka Enberg <penberg@cs.helsinki.fi>, suresh.b.siddha@intel.com
+Cc: Andrea Arcangeli <andrea@suse.de>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 26 Jun 2007, Andrew Morton wrote:
+Andrew Morton wrote:
+> On Tue, 26 Jun 2007 13:08:57 -0400 Rik van Riel <riel@redhat.com> wrote:
+> 
+>>> If all tasks spend 10 minutes in shrink_active_list before the first
+>>> call to shrink_inactive_list that could mean you hit the race that I'm
+>>> just trying to fix with this very patch. 
+>> I got around to testing it now.  I am using AIM7 since it is
+>> a very anonymous memory heavy workload.
+>>
+>> Unfortunately your patch does not fix the problem, but behaves
+>> as I had feared :(
+>>
+>> Both the normal kernel and your kernel fall over once memory
+>> pressure gets big enough, but they explode differently and
+>> at different points.
+>>
+>> I am running the test on a quad core x86-64 system with 2GB
+>> memory.  I am "zooming in" on the 4000 user range, because
+>> that is where they start to diverge.  I am running aim7 to
+>> cross-over, which is the point at which fewer than 1 jobs/min/user
+>> are being completed.
+> 
+> with what command line and config scripts does one run aim7 to
+> reproduce this?
 
-> This is inverted: __GFP_FS is set if we may perform fs operations.
+reaim -x -i 100 -s 5000
 
-Sigh. 
+Using the default reaim.config and workfile.shared
 
+> Where's the system time being spent?
 
+I will run the tests again with profiling enabled.
 
-Slab defragmentation: Only perform slab defrag if __GFP_FS is clear
-
-Avoids slab defragmentation be triggered from filesystem operations.
-
-Signed-off-by: Christoph Lameter <clameter@sgi.com>
-
----
- mm/vmscan.c |    5 +++--
- 1 file changed, 3 insertions(+), 2 deletions(-)
-
-Index: linux-2.6.22-rc4-mm2/mm/vmscan.c
-===================================================================
---- linux-2.6.22-rc4-mm2.orig/mm/vmscan.c	2007-06-26 12:25:28.000000000 -0700
-+++ linux-2.6.22-rc4-mm2/mm/vmscan.c	2007-06-26 12:40:44.000000000 -0700
-@@ -233,8 +233,9 @@ unsigned long shrink_slab(unsigned long 
- 		shrinker->nr += total_scan;
- 	}
- 	up_read(&shrinker_rwsem);
--	kmem_cache_defrag(sysctl_slab_defrag_ratio,
--		zone ? zone_to_nid(zone) : -1);
-+	if (gfp_mask & __GFP_FS)
-+		kmem_cache_defrag(sysctl_slab_defrag_ratio,
-+			zone ? zone_to_nid(zone) : -1);
- 	return ret;
- }
- 
+-- 
+All Rights Reversed
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
