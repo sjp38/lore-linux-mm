@@ -1,80 +1,57 @@
-Date: Tue, 26 Jun 2007 11:52:19 -0700 (PDT)
-From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [patch 12/26] SLUB: Slab defragmentation core
-In-Reply-To: <20070626113823.d78d8c0c.akpm@linux-foundation.org>
-Message-ID: <Pine.LNX.4.64.0706261140410.19696@schroedinger.engr.sgi.com>
-References: <20070618095838.238615343@sgi.com> <20070618095916.297690463@sgi.com>
- <20070626011831.181d7a6a.akpm@linux-foundation.org>
- <Pine.LNX.4.64.0706261114320.18010@schroedinger.engr.sgi.com>
- <20070626113823.d78d8c0c.akpm@linux-foundation.org>
+Received: by ug-out-1314.google.com with SMTP id m2so175220uge
+        for <linux-mm@kvack.org>; Tue, 26 Jun 2007 12:10:40 -0700 (PDT)
+Message-ID: <29495f1d0706261204x5b49511co18546443c78033fd@mail.gmail.com>
+Date: Tue, 26 Jun 2007 12:04:18 -0700
+From: "Nish Aravamudan" <nish.aravamudan@gmail.com>
+Subject: Re: [PATCH] slob: poor man's NUMA support.
+In-Reply-To: <Pine.LNX.4.64.0706261112380.18010@schroedinger.engr.sgi.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+References: <20070619090616.GA23697@linux-sh.org>
+	 <20070626002131.ff3518d4.akpm@linux-foundation.org>
+	 <Pine.LNX.4.64.0706261112380.18010@schroedinger.engr.sgi.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Pekka Enberg <penberg@cs.helsinki.fi>, suresh.b.siddha@intel.com
+To: Christoph Lameter <clameter@sgi.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Paul Mundt <lethal@linux-sh.org>, Matt Mackall <mpm@selenic.com>, Nick Piggin <nickpiggin@yahoo.com.au>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 26 Jun 2007, Andrew Morton wrote:
+On 6/26/07, Christoph Lameter <clameter@sgi.com> wrote:
+> On Tue, 26 Jun 2007, Andrew Morton wrote:
+>
+> > > +#ifdef CONFIG_NUMA
+> > > +   if (node != -1)
+> > > +           page = alloc_pages_node(node, gfp, order);
+> > > +   else
+> > > +#endif
+> > > +           page = alloc_pages(gfp, order);
+> >
+> > Isn't the above equivalent to a bare
+> >
+> >       page = alloc_pages_node(node, gfp, order);
+> >
+> > ?
+>
+> No. alloc_pages follows memory policy. alloc_pages_node does not. One of
+> the reasons that I want a new memory policy layer are these kinds of
+> strange uses.
 
-> Damned if I know.  Perhaps by reading slob.c instead of slub.c.  When can
-> we start deleting some slab implementations?
+What would break by changing, in alloc_pages_node()
 
-Probably after we switch to SLUB in 2.6.23 and then address all the 
-eventual complaints and issues that come up.
+        if (nid < 0)
+                nid = numa_node_id();
 
-> > See http://marc.info/?l=linux-mm&m=118125373320855&w=2
-> 
-> hm, OK, thin.
-> 
-> I think we'll need to come up with a better-than-usual test plan for this
-> change.  One starting point might be to ask what in-the-field problem
-> you're trying to address here, and what the results were.
+to
 
-The typical scenario is the unmounting of a volume with a large number of 
-entries. Anything that uses a large number of inodes and then shifts the
-load so that the memory needs to be used for a different purpose. 
-Currently those cases lead to trapping a lot of memory in dentry / inode 
-caches.
+        if (nid < 0)
+                return alloc_pages_current(gfp_mask, order);
 
-Note that the approach may  also supports memory compaction by Mel.
-It may allow us to get rid of the RECLAIMABLE category and thus simplify
-his code.
+beyond needing to make alloc_pages_current() defined if !NUMA too.
 
-> Also, what are the risks of meltdowns in this code?  For example, it
-> reaches the magical 30% ratio, tries to do defrag, but the defrag is for
-> some reason unsuccessful and it then tries to run defrag again, etc.
-
-That could occur if something keeps holding extra references to 
-dentries and inodes for a long time. Same issue as with page migration. 
-Migrates again and again.
-
-The issue is to some extend avoided by putting slabs that we were not able
-to handle at the to of the partial list. Meaning these slabs will soon be
-grabbed and used for allocations. So they will fill up and protected from
-new attempts until they first have been filled up and then aged on the 
-partial list.
-
-Another measure to avoid that issue is that we abandon attempts at the
-first sign of trouble. That limits the overhead. If we get into some
-strange scenario where the slabs are unreclaimable then we will not retry.
-
-Yet another measure is to not attempt anything if the number of
-partial slabs is below a certain mininum. We will never attempt to
-handle all partial slabs, some problem slabs may stick around without
-causing additional reclaim.
-
-> And that was "for example"!  Are there other such potential problems in
-> there?  There usually are, with memory reclaim.
-
-Its difficult to foresee all these issues. I have tried to cover what I 
-could imagine.
- 
-> (Should slab_defrag_ratio be per-slab rather than global?)
-
-I do not have seen scenarios that would justify that change. inode / 
-dentry are very related and its easier to simply have to manage one
-global number.
+Thanks,
+Nish
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
