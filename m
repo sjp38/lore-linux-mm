@@ -1,10 +1,11 @@
-Date: Tue, 26 Jun 2007 11:19:26 -0700 (PDT)
+Date: Tue, 26 Jun 2007 11:21:57 -0700 (PDT)
 From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [patch 12/26] SLUB: Slab defragmentation core
-In-Reply-To: <20070626011831.181d7a6a.akpm@linux-foundation.org>
-Message-ID: <Pine.LNX.4.64.0706261114320.18010@schroedinger.engr.sgi.com>
-References: <20070618095838.238615343@sgi.com> <20070618095916.297690463@sgi.com>
- <20070626011831.181d7a6a.akpm@linux-foundation.org>
+Subject: Re: [patch 15/26] Slab defrag: Support generic defragmentation for
+ inode slab caches
+In-Reply-To: <20070626011836.f4abb4ff.akpm@linux-foundation.org>
+Message-ID: <Pine.LNX.4.64.0706261119420.18010@schroedinger.engr.sgi.com>
+References: <20070618095838.238615343@sgi.com> <20070618095917.005535114@sgi.com>
+ <20070626011836.f4abb4ff.akpm@linux-foundation.org>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
@@ -15,38 +16,30 @@ List-ID: <linux-mm.kvack.org>
 
 On Tue, 26 Jun 2007, Andrew Morton wrote:
 
-> > 	No slab operations may be performed in get_reference(). Interrupts
+> > Provide generic functionality that can be used by filesystems that have
+> > their own inode caches to also tie into the defragmentation functions
+> > that are made available here.
 > 
-> s/get_reference/get/, yes?
+> Yes, this is tricky stuff.  I have vague ancestral memories that the sort
+> of inode work which you refer to here can cause various deadlocks, lockdep
+> warnings and such nasties when if we attempt to call it from the wrong
+> context (ie: from within fs code).
 
-Correct.
-
-> (What's the smallest sized object slub will create?  4 bytes?)
-
-__alignof__(unsigned long long)
-
-> To hold off a concurrent free while defragging, the code relies upon
-> slab_lock() on the current page, yes?
-
-Right.
+Right that is likelyi the reason why Michael did his stress test...
  
-> But slab_lock() isn't taken for slabs whose objects are larger than 
-> PAGE_SIZE. How's that handled?
+> Possibly we could prevent that by skipping all this code if the caller
+> didn't have __GFP_FS.
 
-slab lock is always taken. How did you get that idea?
+We do. Look at the earlier patch.
 
-> Overall: looks good.  It'd be nice to get a buffer_head shrinker in place,
-> see how that goes from a proof-of-concept POV.
+> I trust all the code in kick_inodes() was carefuly copied from 
+> prue_icache() and such places - I didn't check it.
 
-Ok.
+Yup tried to remain faithful to that. We could increase the usefulness if 
+I could take more liberties with the code in order to actually move an 
+item instead of simply reclaiming. But its better to first have a proven 
+correct solution before doing more work on that.
 
-> How much testing has been done on this code, and of what form, and with
-> what results?
-
-I posted them in the intro of the last full post and then Michael 
-Piotrowski did some stress tests.
-
-See http://marc.info/?l=linux-mm&m=118125373320855&w=2
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
