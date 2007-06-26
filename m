@@ -1,60 +1,42 @@
-Message-ID: <46817DB0.80105@redhat.com>
-Date: Tue, 26 Jun 2007 16:57:20 -0400
-From: Rik van Riel <riel@redhat.com>
+Date: Tue, 26 Jun 2007 23:57:03 +0200
+From: Andrea Arcangeli <andrea@suse.de>
+Subject: Re: [patch] oom: serialize oom killer for cpusets
+Message-ID: <20070626215702.GA22366@v2.random>
+References: <alpine.DEB.0.99.0706260241460.26409@chino.kir.corp.google.com> <20070626205533.GH7059@v2.random> <alpine.DEB.0.99.0706261414440.6721@chino.kir.corp.google.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 01 of 16] remove nr_scan_inactive/active
-References: <8e38f7656968417dfee0.1181332979@v2.random> <466C36AE.3000101@redhat.com> <20070610181700.GC7443@v2.random> <46814829.8090808@redhat.com> <20070626203743.GG7059@v2.random>
-In-Reply-To: <20070626203743.GG7059@v2.random>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <alpine.DEB.0.99.0706261414440.6721@chino.kir.corp.google.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrea Arcangeli <andrea@suse.de>
-Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>
+To: David Rientjes <rientjes@google.com>
+Cc: Christoph Lameter <clameter@sgi.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Andrea Arcangeli wrote:
-> On Tue, Jun 26, 2007 at 01:08:57PM -0400, Rik van Riel wrote:
->> Both the normal kernel and your kernel fall over once memory
->> pressure gets big enough, but they explode differently and
->> at different points.
-> 
-> Ok, at some point it's normal they start trashing. 
+On Tue, Jun 26, 2007 at 02:20:42PM -0700, David Rientjes wrote:
+> In that case, it would turn into a simple cpuset_exit_oom(tsk); in the 
+> test_tsk_thread_flag(tsk, TIF_MEMDIE) check in exit_notify().  That's 
+> clean, but what happens if tsk gets stuck in TASK_UNINTERRUPTIBLE, for 
+> whatever reason, and then we leave the cpuset locked out of the OOM 
+> killer?  I'm trying to avoid having a last_tif_memdie_jiffies for each 
+> struct cpuset.
 
-Yes, but I would hope that the system would be disk bound
-at that time instead of CPU bound.
+Right, to avoid risking deadlocks with infinite loops like the one
+I've fixed in nfs (a R state deadlock in that case, not D state),
+you'd need a last_tif_memdie_jiffies in the cpuset :(
 
-There was no swap IO going on yet, the system was just
-wasting CPU time in the VM.
+I wish there was a cleaner way to detect if we run into a
+deadlock... At least in your case since you kill "current" you avoid
+some of the TASK_UNINTERRUPTIBLE deadlocks like the one where the
+chosen one is blocked in the PG_locked bitflag. The chosen one for you
+is alive and well running inside alloc_pages, so it's more likely
+capable to notice that it received a sigkill, than the ones that are
+already in D state.
 
-> Even if it may have a positive effect in practice, I still think the
-> current racy behavior (randomly overstimating and randomly
-> understimating the amount of work each task has to do depending of who
-> adds and read the zone values first) isn't good.
+> I was assuming that your patchset had already reached -mm so I simply 
 
-Oh, I like your simplification of the code, too.
-
-I was running the test to see if that patch could be
-merged without any negative side effects, because I
-would have liked to see it.
-
-> Where exactly we get to the halting point (4300 vs 5105) isn't
-> crucial, 
-
-However, neither of the two seems to be IO bound
-at that point...
-
-> Hope the benchmark is repeatable.  This week
-> I've been working on another project but I'll shortly try to install
-> AIM and reproduce and see what happens by decreasing
-> DEF_PRIORITY. Thanks for the testing!
-
-Not only is the AIM7 test perfectly repeatable, it also
-causes the VM to show some of the same behaviour that
-customers are seeing in the field with large JVM workloads.
-
--- 
-All Rights Reversed
+I didn't receive any -mm automatic email about it yet, so I assumed
+it's not yet in.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
