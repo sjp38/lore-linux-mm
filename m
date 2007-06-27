@@ -1,47 +1,78 @@
-Date: Wed, 27 Jun 2007 02:14:08 -0700
-From: Andrew Morton <akpm@google.com>
-Subject: Re: [RFC 1/7] cpuset write dirty map
-Message-Id: <20070627021408.493812fe.akpm@google.com>
-In-Reply-To: <Pine.LNX.4.64.0706262017260.24504@schroedinger.engr.sgi.com>
-References: <465FB6CF.4090801@google.com>
-	<Pine.LNX.4.64.0706041138410.24412@schroedinger.engr.sgi.com>
-	<46646A33.6090107@google.com>
-	<Pine.LNX.4.64.0706041250440.25535@schroedinger.engr.sgi.com>
-	<468023CA.2090401@google.com>
-	<Pine.LNX.4.64.0706261216110.20282@schroedinger.engr.sgi.com>
-	<20070626152204.b6b4bc3f.akpm@google.com>
-	<Pine.LNX.4.64.0706262017260.24504@schroedinger.engr.sgi.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Date: Wed, 27 Jun 2007 07:50:56 -0400
+From: Chris Mason <chris.mason@oracle.com>
+Subject: Re: [RFC] fsblock
+Message-ID: <20070627115056.GW14224@think.oraclecorp.com>
+References: <20070624014528.GA17609@wotan.suse.de> <20070626030640.GM989688@sgi.com> <46808E1F.1000509@yahoo.com.au> <20070626092309.GF31489@sgi.com> <20070626123449.GM14224@think.oraclecorp.com> <20070627053245.GA6033@wotan.suse.de>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20070627053245.GA6033@wotan.suse.de>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
-Cc: Ethan Solomita <solo@google.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, a.p.zijlstra@chello.nl
+To: Nick Piggin <npiggin@suse.de>
+Cc: David Chinner <dgc@sgi.com>, Nick Piggin <nickpiggin@yahoo.com.au>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>, linux-fsdevel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 26 Jun 2007 20:18:36 -0700 (PDT) Christoph Lameter <clameter@sgi.com> wrote:
-
-> On Tue, 26 Jun 2007, Andrew Morton wrote:
-> 
-> > Is in my queue somewhere.  Could be that by the time I get to it it will
-> > need refreshing (again), we'll see.
+On Wed, Jun 27, 2007 at 07:32:45AM +0200, Nick Piggin wrote:
+> On Tue, Jun 26, 2007 at 08:34:49AM -0400, Chris Mason wrote:
+> > On Tue, Jun 26, 2007 at 07:23:09PM +1000, David Chinner wrote:
+> > > On Tue, Jun 26, 2007 at 01:55:11PM +1000, Nick Piggin wrote:
 > > 
-> > One open question is the interaction between these changes and with Peter's
-> > per-device-dirty-throttling changes.  They also are in my queue somewhere. 
-> > Having a 100:1 coder:reviewer ratio doesn't exactly make for swift
-> > progress.
+> > [ ... fsblocks vs extent range mapping ]
+> > 
+> > > iomaps can double as range locks simply because iomaps are
+> > > expressions of ranges within the file.  Seeing as you can only
+> > > access a given range exclusively to modify it, inserting an empty
+> > > mapping into the tree as a range lock gives an effective method of
+> > > allowing safe parallel reads, writes and allocation into the file.
+> > > 
+> > > The fsblocks and the vm page cache interface cannot be used to
+> > > facilitate this because a radix tree is the wrong type of tree to
+> > > store this information in. A sparse, range based tree (e.g. btree)
+> > > is the right way to do this and it matches very well with
+> > > a range based API.
+> > 
+> > I'm really not against the extent based page cache idea, but I kind of
+> > assumed it would be too big a change for this kind of generic setup.  At
+> > any rate, if we'd like to do it, it may be best to ditch the idea of
+> > "attach mapping information to a page", and switch to "lookup mapping
+> > information and range locking for a page".
 > 
-> Hmmmm.. How can we help? I can look at some aspects of Peter's per device 
-> throttling.
+> Well the get_block equivalent API is extent based one now, and I'll
+> look at what is required in making map_fsblock a more generic call
+> that could be used for an extent-based scheme.
+> 
+> An extent based thing IMO really isn't appropriate as the main generic
+> layer here though. If it is really useful and popular, then it could
+> be turned into generic code and sit along side fsblock or underneath
+> fsblock...
 
-That can't hurt.
+Lets look at a typical example of how IO actually gets done today,
+starting with sys_write():
 
-I'm more concerned about all of Mel's code in -mm actually.  I don't recall
-anyone doing a full review recently and I'm still not sure that this is the
-overall direction in which we wish to go.  Last time I asked this everyone
-seemed a bit waffly and non-committal.
+sys_write(file, buffer, 1MB)
+for each page:
+    prepare_write()
+	allocate contiguous chunks of disk
+        attach buffers
+    copy_from_user()
+    commit_write()
+        dirty buffers
 
+pdflush:
+    writepages()
+        find pages with contiguous chunks of disk
+	build and submit large bios
+
+So, we replace prepare_write and commit_write with an extent based api,
+but we keep the dirty each buffer part.  writepages has to turn that
+back into extents (bio sized), and the result is completely full of dark
+dark corner cases.
+
+I do think fsblocks is a nice cleanup on its own, but Dave has a good
+point that it makes sense to look for ways generalize things even more.
+
+-chris
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
