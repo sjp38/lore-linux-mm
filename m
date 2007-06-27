@@ -1,55 +1,68 @@
-Received: from d01relay04.pok.ibm.com (d01relay04.pok.ibm.com [9.56.227.236])
-	by e5.ny.us.ibm.com (8.13.8/8.13.8) with ESMTP id l5RNkbfn010565
-	for <linux-mm@kvack.org>; Wed, 27 Jun 2007 19:46:37 -0400
-Received: from d01av04.pok.ibm.com (d01av04.pok.ibm.com [9.56.224.64])
-	by d01relay04.pok.ibm.com (8.13.8/8.13.8/NCO v8.3) with ESMTP id l5RNkZ9X557280
-	for <linux-mm@kvack.org>; Wed, 27 Jun 2007 19:46:37 -0400
-Received: from d01av04.pok.ibm.com (loopback [127.0.0.1])
-	by d01av04.pok.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l5RNkZIx026092
-	for <linux-mm@kvack.org>; Wed, 27 Jun 2007 19:46:35 -0400
-Date: Wed, 27 Jun 2007 16:46:34 -0700
-From: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
-Subject: Re: [PATCH/RFC 0/11] Shared Policy Overview
-Message-ID: <20070627234634.GI8604@linux.vnet.ibm.com>
-Reply-To: paulmck@linux.vnet.ibm.com
-References: <20070625195224.21210.89898.sendpatchset@localhost> <1182968078.4948.30.camel@localhost> <Pine.LNX.4.64.0706271427400.31227@schroedinger.engr.sgi.com> <200706280001.16383.ak@suse.de>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <200706280001.16383.ak@suse.de>
+Date: Wed, 27 Jun 2007 16:56:51 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH] Allow PAGE_OWNER to be set on any architecture
+Message-Id: <20070627165651.1ffb72d7.akpm@linux-foundation.org>
+In-Reply-To: <20070608125349.GA8444@skynet.ie>
+References: <20070608125349.GA8444@skynet.ie>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andi Kleen <ak@suse.de>
-Cc: Christoph Lameter <clameter@sgi.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, linux-mm@kvack.org, akpm@linux-foundation.org, nacc@us.ibm.com
+To: Mel Gorman <mel@skynet.ie>
+Cc: alexn@telia.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Jun 28, 2007 at 12:01:16AM +0200, Andi Kleen wrote:
-> 
-> > The zonelist from MPOL_BIND is passed to __alloc_pages. As a result the 
-> > RCU lock must be held over the call into the page allocator with reclaim 
-> > etc etc. Note that the zonelist is part of the policy structure.
-> 
-> Yes I realized this at some point too. RCU doesn't work here because
-> __alloc_pages can sleep. Have to use the reference counts even though
-> it adds atomic operations.
+On Fri, 8 Jun 2007 13:53:49 +0100
+mel@skynet.ie (Mel Gorman) wrote:
 
-Any reason SRCU wouldn't work here?  From a quick glance at the patch,
-it seems possible to me.
+> Currently PAGE_OWNER depends on CONFIG_X86. This appears to be due to
+> pfn_to_page() being called in an inappropriate for many memory models
+> and the presense of memory holes. This patch ensures that pfn_valid()
+> and pfn_valid_within() is called at the appropriate places and the offsets
+> correctly updated so that PAGE_OWNER is safe on any architecture.
+> 
+> In situations where CONFIG_HOLES_IN_ZONES is set (IA64 with VIRTUAL_MEM_MAP),
+> there may be cases where pages allocated within a MAX_ORDER_NR_PAGES block
+> of pages may not be displayed in /proc/page_owner if the hole is at the
+> start of the block. Addressing this would be quite complex, perform slowly
+> and is of no clear benefit.
+> 
+> Once PAGE_OWNER is allowed on all architectures, the statistics for grouping
+> pages by mobility that declare how many pageblocks contain mixed page types
+> becomes optionally available on all arches.
+> 
+> This patch was tested successfully on x86, x86_64, ppc64 and IA64 machines.
 
-							Thanx, Paul
+I'm kinda mystified about how you successfully tested this on ppc64 and
+ia64.  They don't assemble and execute i386 opcodes?
 
-> > I think one prerequisite to memory policy uses like this is work out how a 
-> > memory policy can be handled by the page allocator in such a way that
-> > 
-> > 1. The use is lightweight and does not impact performance.
-> 
-> The current mempolicies are all lightweight and zero cost in the main
-> allocator path.
-> 
-> The only outlier is still cpusets which does strange stuff, but you
-> can't blame mempolicies for that.
-> 
-> -Andi
+
+--- a/mm/page_alloc.c~allow-page_owner-to-be-set-on-any-architecture-fix
++++ a/mm/page_alloc.c
+@@ -1498,13 +1498,15 @@ static inline void __stack_trace(struct 
+ #endif
+ }
+ 
+-static inline void set_page_owner(struct page *page,
+-			unsigned int order, unsigned int gfp_mask)
++static void set_page_owner(struct page *page, unsigned int order,
++			unsigned int gfp_mask)
+ {
+-	unsigned long address, bp;
++	unsigned long address;
++	unsigned long bp = 0;
+ #ifdef CONFIG_X86_64
+ 	asm ("movq %%rbp, %0" : "=r" (bp) : );
+-#else
++#endif
++#ifdef CONFIG_X86_32
+ 	asm ("movl %%ebp, %0" : "=r" (bp) : );
+ #endif
+ 	page->order = (int) order;
+_
+
+that'll make it build, but it won't work...
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
