@@ -1,27 +1,81 @@
-Message-ID: <4682A9B6.8070003@google.com>
-Date: Wed, 27 Jun 2007 14:17:26 -0400
-From: Ethan Solomita <solo@google.com>
+Date: Wed, 27 Jun 2007 20:00:26 +0100 (BST)
+From: Mark Fortescue <mark@mtfhpc.demon.co.uk>
+Subject: Re: [1/2] 2.6.22-rc6: known regressions
+In-Reply-To: <467F8F78.8090700@googlemail.com>
+Message-ID: <Pine.LNX.4.61.0706271944590.16177@mtfhpc.demon.co.uk>
+References: <467F8B35.4010906@googlemail.com> <467F8F78.8090700@googlemail.com>
 MIME-Version: 1.0
-Subject: Re: [RFC 1/7] cpuset write dirty map
-References: <465FB6CF.4090801@google.com>	<Pine.LNX.4.64.0706041138410.24412@schroedinger.engr.sgi.com>	<46646A33.6090107@google.com>	<Pine.LNX.4.64.0706041250440.25535@schroedinger.engr.sgi.com>	<468023CA.2090401@google.com>	<Pine.LNX.4.64.0706261216110.20282@schroedinger.engr.sgi.com> <20070626152204.b6b4bc3f.akpm@google.com>
-In-Reply-To: <20070626152204.b6b4bc3f.akpm@google.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII; format=flowed
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@google.com>
-Cc: Christoph Lameter <clameter@sgi.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, a.p.zijlstra@chello.nl
+To: Michal Piotrowski <michal.k.k.piotrowski@gmail.com>, linux-mm@kvack.org
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, sparclinux@vger.kernel.org, David Miller <davem@davemloft.net>, Mikael Pettersson <mikpe@it.uu.se>, William Lee Irwin III <wli@holomorphy.com>, Andi Kleen <ak@suse.de>, discuss@x86-64.org, Ioan Ionita <opslynx@gmail.com>
 List-ID: <linux-mm.kvack.org>
 
-Andrew Morton wrote:
-> 
-> One open question is the interaction between these changes and with Peter's
-> per-device-dirty-throttling changes.  They also are in my queue somewhere. 
+Hi All,
 
-	I looked over it at one point. Most of the code doesn't conflict, but I
-believe that the code path which calculates the dirty limits will need
-some merging. Doable but non-trivial.
-	-- Ethan
+I have done some more work on the sun4c Sparc32 random invalid instruction 
+occourances. The issue only affects the SLAB allocator. The SLUB and SLOB 
+allocators both work OK but SLOB is dreadfully slow making it totally 
+impractical for use on my sun4c. Isolating the problem to the SLAB 
+allocator should make it a bit easier to track down the problem.
+
+It may be desirable to put a comment into Kconfig to indicate that the 
+SLAB allocator is currently broaken for sun4c but that SLUB works well as 
+I dought that I will have found/fixed the problem before 2.6.22.
+
+Regards
+ 	Mark Fortescue.
+
+On Mon, 25 Jun 2007, Michal Piotrowski wrote:
+
+> Hi all,
+> 
+> Here is a list of some known regressions in 2.6.22-rc6.
+> 
+> Feel free to add new regressions/remove fixed etc.
+> http://kernelnewbies.org/known_regressions
+> 
+> *STATISTICS* (a.k.a. list of aces)
+> 
+> Name                    Regressions fixed since 21-Jun-2007
+> Andi Kleen                             1
+> Hugh Dickins                           1
+> Jean Delvare                           1
+> 
+> 
+> 
+> Sparc64
+> 
+> Subject    : random invalid instruction occourances on sparc32 (sun4c)
+> References : http://lkml.org/lkml/2007/6/17/111
+> Submitter  : Mark Fortescue <mark@mtfhpc.demon.co.uk>
+> Status     : problem is being debugged
+> 
+> Subject    : 2.6.22-rc broke X on Ultra5
+> References : http://lkml.org/lkml/2007/5/22/78
+> Submitter  : Mikael Pettersson <mikpe@it.uu.se>
+> Handled-By : David Miller <davem@davemloft.net>
+> Status     : problem is being debugged
+> 
+> 
+> 
+> x86-64
+> 
+> Subject    : x86-64 2.6.22-rc2 random segfaults
+> References : http://lkml.org/lkml/2007/5/24/275
+> Submitter  : Ioan Ionita <opslynx@gmail.com>
+> Status     : Unknown
+> 
+> 
+> 
+> Regards,
+> Michal
+> 
+> --
+> LOG
+> http://www.stardust.webpages.pl/log/
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
