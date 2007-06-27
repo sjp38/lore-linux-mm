@@ -1,100 +1,62 @@
-Subject: Re: [PATCH/RFC 0/11] Shared Policy Overview
+Subject: Re: [PATCH/RFC 10/11] Shared Policy: per cpuset shared file policy
+	control
 From: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
-In-Reply-To: <Pine.LNX.4.64.0706262019470.24504@schroedinger.engr.sgi.com>
+In-Reply-To: <20070627125242.f195b5ce.pj@sgi.com>
 References: <20070625195224.21210.89898.sendpatchset@localhost>
-	 <Pine.LNX.4.64.0706261517050.21844@schroedinger.engr.sgi.com>
-	 <200706270042.27365.ak@suse.de>
-	 <Pine.LNX.4.64.0706262019470.24504@schroedinger.engr.sgi.com>
+	 <20070625195335.21210.82618.sendpatchset@localhost>
+	 <20070625141031.904935b5.pj@sgi.com> <1182965584.4948.13.camel@localhost>
+	 <20070627125242.f195b5ce.pj@sgi.com>
 Content-Type: text/plain
-Date: Wed, 27 Jun 2007 16:14:04 -0400
-Message-Id: <1182975244.5146.16.camel@localhost>
+Date: Wed, 27 Jun 2007 16:22:10 -0400
+Message-Id: <1182975731.6539.3.camel@localhost>
 Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andi Kleen <ak@suse.de>, Christoph Lameter <clameter@sgi.com>
-Cc: linux-mm@kvack.org, akpm@linux-foundation.org, nacc@us.ibm.com
+To: Paul Jackson <pj@sgi.com>
+Cc: linux-mm@kvack.org, akpm@linux-foundation.org, nacc@us.ibm.com, ak@suse.de, clameter@sgi.com
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 2007-06-26 at 20:25 -0700, Christoph Lameter wrote:
-> On Wed, 27 Jun 2007, Andi Kleen wrote:
+On Wed, 2007-06-27 at 12:52 -0700, Paul Jackson wrote:
+> > If my patches eventually go in, I'd agree with this.  I was trying to be
+> > a good doobee and not add code that wasn't needed.
 > 
-> > > You are sure that this works? Just by looking at the description: It
-> > > cannot work. Any allocator use of a memory policy must use rcu locks
-> > > otherwise the memory policy can vanish from under us while allocating a
-> > > page. This means you need to add this to alloc_pages_current
-> > > and alloc_pages_node.  Possible all of __alloc_pages must be handled
-> > > under RCU. This is a significant increase of RCU use.
-> > 
-> > I've been actually looking at using RCUs for the shared policies 
-> > too to plug the recent reference count issue.  I don't think it's a problem 
-> > because the RCU use can be limited to when policies are actually
-> > used. Besides rcu_read_lock() is a nop on non preemptible kernels
-> > anyways and users of preemptible kernels will probably not notice
-> > it among all the other overhead they have anyways.
-
-Hi, Andi:
-
-I see that Christoph has already responded, so I'll respond in the
-context of his message.
+> The ifdef's are added code -- added source code.
 > 
-> If a system policy is set then it will be used all of the time.
-> Could be a signficant increase in RCU use.
+> For a body of code that's as big as the Linux kernel, and changing
+> at the speed of Andrew's Enter key, I worry more about keeping the
+> source code as easy to read as possible, than I do about the last
+> few bytes of kernel text size.
 
-Generally, I don't think you need to use RCU for the system policy, as
-it is statically allocated.  Now, if "default_policy" were changed to a
-pointer to the actual policy, AND you could replace the pointer at
-run-time, there might be a use for RCU.
-
->  
-> > > If we can make this work then RCU should be used for all policies so that
-> > > we can get rid of the requirement that policies can only be modified from
-> > > the task context that created it.
-> > 
-> > Huh? RCU doesn't give you locking against multiple writers. Just existence
-> > guarantees. And you can have those already by just holding the reference 
-> > count.
-
-Right.  It only works for shared policies, because shared policies have
-a spin lock that protects the rb-tree from concurrent updates.  [And the
-policies stored in the tree seem to be reference counted properly.]
-However, I think RCU could be used for changing, including deleting
-[more below], the task/process policy and a given VMA policy in a
-similar fashion to the way I'm deleting shared file policy on removal of
-last shared mapping.
-
-RE: deleting:  it occurs to me that installing a "DEFAULT" policy could
-actually delete the corresponding policy without changing semantics.  I
-plan on looking at this after OLS.
-
+Point taken.
 > 
-> If you want to replace one policy by another then RCU ensures 
-> that the old policy can still be used for the remainder of the rcu period.
-
-As Christoph indicates, I'm using RCU to replace the shared policy on a
-regular file with NULL [== default!] on unmap of last shared mapping.  I
-need to protect against any references that come from other than a
-shared mapping.  This includes accesses via regular file system IO and
-faults from private mappings of the file.   Unlike shared mappings,
-which as you say are protected from disappearing by reference counts,
-page cache allocations to satisfy normal file descriptor based IO or
-faults in private mappings can't guarantee that the policy won't go away
-when some other task removes the last shared mapping. 
-
+> The success of Linux is far more constrained by the limitations of
+> human neurons than by the limitations of dynamic RAM chips.
 > 
-> If RCU is not used then the updating of a policy is not possible since
-> there is currently no locking and there may be concurrent uses of the 
-> policy or the zonelist generated by a policy. One thread may acquire
-> the pointer to a policy while another changes the policy.
+> > 	[[ ! -f $cpuset/shared_file_policy ]] || echo 1 >$cpuset/...
 > 
-> If the old policy is immediately freed then the first thread may access 
-> invalid data.
+> Sure - you can code that - that 'shared_file_policy' file is your baby,
+> and you know how best to care for it.
+> 
+> But it leads to others writing code that doesn't have this [[ ! -f
+> ... ]] guard, which code works fine ... for a while.  Works long
+> enough to get good and buried in three layers of cruft, leading to
+> a problem costing someone hours or days to unravel, when it finally
+> hits a machine lacking that file.
+> 
+> I'd sure like to see that ifdef gone.  I wish I had the time now to
+> go stamp out that other ifdef in kernel/cpuset.c as well.
 
-Yep.  So, deleting a policy or replacing it with another can be done
-safely under RCU, assuming everyone who gains access to the policy takes
-a proper reference [AND releases it when finished...].
+Well, I'm sure I've got a few more spins to go on this patch set ;-).  I
+can easily just remove the ifdefs and see what folks think.  I'll need
+to add a couple of conditionally defined functions/macros to handle the
+update/test of "shared_file_policy_enabled" when the system is
+configured w/o NUMA.  The resulting #ifdefs will be in the header.  Are
+you "OK" with that?
 
 Lee
+
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
