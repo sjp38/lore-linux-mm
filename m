@@ -1,81 +1,53 @@
-Date: Wed, 27 Jun 2007 20:00:26 +0100 (BST)
-From: Mark Fortescue <mark@mtfhpc.demon.co.uk>
-Subject: Re: [1/2] 2.6.22-rc6: known regressions
-In-Reply-To: <467F8F78.8090700@googlemail.com>
-Message-ID: <Pine.LNX.4.61.0706271944590.16177@mtfhpc.demon.co.uk>
-References: <467F8B35.4010906@googlemail.com> <467F8F78.8090700@googlemail.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII; format=flowed
+Date: Wed, 27 Jun 2007 12:52:42 -0700
+From: Paul Jackson <pj@sgi.com>
+Subject: Re: [PATCH/RFC 10/11] Shared Policy: per cpuset shared file policy
+ control
+Message-Id: <20070627125242.f195b5ce.pj@sgi.com>
+In-Reply-To: <1182965584.4948.13.camel@localhost>
+References: <20070625195224.21210.89898.sendpatchset@localhost>
+	<20070625195335.21210.82618.sendpatchset@localhost>
+	<20070625141031.904935b5.pj@sgi.com>
+	<1182965584.4948.13.camel@localhost>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Michal Piotrowski <michal.k.k.piotrowski@gmail.com>, linux-mm@kvack.org
-Cc: Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, sparclinux@vger.kernel.org, David Miller <davem@davemloft.net>, Mikael Pettersson <mikpe@it.uu.se>, William Lee Irwin III <wli@holomorphy.com>, Andi Kleen <ak@suse.de>, discuss@x86-64.org, Ioan Ionita <opslynx@gmail.com>
+To: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
+Cc: linux-mm@kvack.org, akpm@linux-foundation.org, nacc@us.ibm.com, ak@suse.de, clameter@sgi.com
 List-ID: <linux-mm.kvack.org>
 
-Hi All,
+> If my patches eventually go in, I'd agree with this.  I was trying to be
+> a good doobee and not add code that wasn't needed.
 
-I have done some more work on the sun4c Sparc32 random invalid instruction 
-occourances. The issue only affects the SLAB allocator. The SLUB and SLOB 
-allocators both work OK but SLOB is dreadfully slow making it totally 
-impractical for use on my sun4c. Isolating the problem to the SLAB 
-allocator should make it a bit easier to track down the problem.
+The ifdef's are added code -- added source code.
 
-It may be desirable to put a comment into Kconfig to indicate that the 
-SLAB allocator is currently broaken for sun4c but that SLUB works well as 
-I dought that I will have found/fixed the problem before 2.6.22.
+For a body of code that's as big as the Linux kernel, and changing
+at the speed of Andrew's Enter key, I worry more about keeping the
+source code as easy to read as possible, than I do about the last
+few bytes of kernel text size.
 
-Regards
- 	Mark Fortescue.
+The success of Linux is far more constrained by the limitations of
+human neurons than by the limitations of dynamic RAM chips.
 
-On Mon, 25 Jun 2007, Michal Piotrowski wrote:
+> 	[[ ! -f $cpuset/shared_file_policy ]] || echo 1 >$cpuset/...
 
-> Hi all,
-> 
-> Here is a list of some known regressions in 2.6.22-rc6.
-> 
-> Feel free to add new regressions/remove fixed etc.
-> http://kernelnewbies.org/known_regressions
-> 
-> *STATISTICS* (a.k.a. list of aces)
-> 
-> Name                    Regressions fixed since 21-Jun-2007
-> Andi Kleen                             1
-> Hugh Dickins                           1
-> Jean Delvare                           1
-> 
-> 
-> 
-> Sparc64
-> 
-> Subject    : random invalid instruction occourances on sparc32 (sun4c)
-> References : http://lkml.org/lkml/2007/6/17/111
-> Submitter  : Mark Fortescue <mark@mtfhpc.demon.co.uk>
-> Status     : problem is being debugged
-> 
-> Subject    : 2.6.22-rc broke X on Ultra5
-> References : http://lkml.org/lkml/2007/5/22/78
-> Submitter  : Mikael Pettersson <mikpe@it.uu.se>
-> Handled-By : David Miller <davem@davemloft.net>
-> Status     : problem is being debugged
-> 
-> 
-> 
-> x86-64
-> 
-> Subject    : x86-64 2.6.22-rc2 random segfaults
-> References : http://lkml.org/lkml/2007/5/24/275
-> Submitter  : Ioan Ionita <opslynx@gmail.com>
-> Status     : Unknown
-> 
-> 
-> 
-> Regards,
-> Michal
-> 
-> --
-> LOG
-> http://www.stardust.webpages.pl/log/
->
+Sure - you can code that - that 'shared_file_policy' file is your baby,
+and you know how best to care for it.
+
+But it leads to others writing code that doesn't have this [[ ! -f
+... ]] guard, which code works fine ... for a while.  Works long
+enough to get good and buried in three layers of cruft, leading to
+a problem costing someone hours or days to unravel, when it finally
+hits a machine lacking that file.
+
+I'd sure like to see that ifdef gone.  I wish I had the time now to
+go stamp out that other ifdef in kernel/cpuset.c as well.
+
+-- 
+                  I won't rest till it's the best ...
+                  Programmer, Linux Scalability
+                  Paul Jackson <pj@sgi.com> 1.925.600.0401
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
