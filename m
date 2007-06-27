@@ -1,40 +1,38 @@
-From: Andi Kleen <ak@suse.de>
+Date: Wed, 27 Jun 2007 15:08:13 -0700 (PDT)
+From: Christoph Lameter <clameter@sgi.com>
 Subject: Re: [PATCH/RFC 0/11] Shared Policy Overview
-Date: Thu, 28 Jun 2007 00:01:16 +0200
-References: <20070625195224.21210.89898.sendpatchset@localhost> <1182968078.4948.30.camel@localhost> <Pine.LNX.4.64.0706271427400.31227@schroedinger.engr.sgi.com>
-In-Reply-To: <Pine.LNX.4.64.0706271427400.31227@schroedinger.engr.sgi.com>
+In-Reply-To: <200706280001.16383.ak@suse.de>
+Message-ID: <Pine.LNX.4.64.0706271506320.32036@schroedinger.engr.sgi.com>
+References: <20070625195224.21210.89898.sendpatchset@localhost>
+ <1182968078.4948.30.camel@localhost> <Pine.LNX.4.64.0706271427400.31227@schroedinger.engr.sgi.com>
+ <200706280001.16383.ak@suse.de>
 MIME-Version: 1.0
-Content-Type: text/plain;
-  charset="iso-8859-1"
-Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
-Message-Id: <200706280001.16383.ak@suse.de>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
+To: Andi Kleen <ak@suse.de>
 Cc: Lee Schermerhorn <Lee.Schermerhorn@hp.com>, "Paul E. McKenney" <paulmck@us.ibm.com>, linux-mm@kvack.org, akpm@linux-foundation.org, nacc@us.ibm.com
 List-ID: <linux-mm.kvack.org>
 
-> The zonelist from MPOL_BIND is passed to __alloc_pages. As a result the 
-> RCU lock must be held over the call into the page allocator with reclaim 
-> etc etc. Note that the zonelist is part of the policy structure.
+On Thu, 28 Jun 2007, Andi Kleen wrote:
 
-Yes I realized this at some point too. RCU doesn't work here because
-__alloc_pages can sleep. Have to use the reference counts even though
-it adds atomic operations.
-
-> I think one prerequisite to memory policy uses like this is work out how a 
-> memory policy can be handled by the page allocator in such a way that
+> > I think one prerequisite to memory policy uses like this is work out how a 
+> > memory policy can be handled by the page allocator in such a way that
+> > 
+> > 1. The use is lightweight and does not impact performance.
 > 
-> 1. The use is lightweight and does not impact performance.
+> The current mempolicies are all lightweight and zero cost in the main
+> allocator path.
 
-The current mempolicies are all lightweight and zero cost in the main
-allocator path.
+Right but with incrementing the policy refcount on each allocation we are 
+no longer lightweight.
 
-The only outlier is still cpusets which does strange stuff, but you
-can't blame mempolicies for that.
+> The only outlier is still cpusets which does strange stuff, but you
+> can't blame mempolicies for that.
 
--Andi
+What strange stuff does cpusets do? It would be good if further work could 
+integration all allocations constraints / special behavior of 
+containers/cpusets/memory policies etc.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
