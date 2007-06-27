@@ -1,38 +1,37 @@
-Date: Wed, 27 Jun 2007 15:08:13 -0700 (PDT)
-From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [PATCH/RFC 0/11] Shared Policy Overview
-In-Reply-To: <200706280001.16383.ak@suse.de>
-Message-ID: <Pine.LNX.4.64.0706271506320.32036@schroedinger.engr.sgi.com>
-References: <20070625195224.21210.89898.sendpatchset@localhost>
- <1182968078.4948.30.camel@localhost> <Pine.LNX.4.64.0706271427400.31227@schroedinger.engr.sgi.com>
- <200706280001.16383.ak@suse.de>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Date: Wed, 27 Jun 2007 15:13:34 -0700
+From: Paul Jackson <pj@sgi.com>
+Subject: Re: [patch 4/4] oom: serialize for cpusets
+Message-Id: <20070627151334.9348be8e.pj@sgi.com>
+In-Reply-To: <Pine.LNX.4.64.0706271452580.31852@schroedinger.engr.sgi.com>
+References: <alpine.DEB.0.99.0706261947490.24949@chino.kir.corp.google.com>
+	<alpine.DEB.0.99.0706261949140.24949@chino.kir.corp.google.com>
+	<alpine.DEB.0.99.0706261949490.24949@chino.kir.corp.google.com>
+	<alpine.DEB.0.99.0706261950140.24949@chino.kir.corp.google.com>
+	<Pine.LNX.4.64.0706271452580.31852@schroedinger.engr.sgi.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andi Kleen <ak@suse.de>
-Cc: Lee Schermerhorn <Lee.Schermerhorn@hp.com>, "Paul E. McKenney" <paulmck@us.ibm.com>, linux-mm@kvack.org, akpm@linux-foundation.org, nacc@us.ibm.com
+To: Christoph Lameter <clameter@sgi.com>
+Cc: andrea@suse.de, rientjes@google.com, akpm@linux-foundation.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 28 Jun 2007, Andi Kleen wrote:
+> Paul have you seen this?
 
-> > I think one prerequisite to memory policy uses like this is work out how a 
-> > memory policy can be handled by the page allocator in such a way that
-> > 
-> > 1. The use is lightweight and does not impact performance.
-> 
-> The current mempolicies are all lightweight and zero cost in the main
-> allocator path.
+I saw it, but I'm up to my eyeballs in unrelated stuff,
+and had to avoid thinking about it enough to be of any
+use.
 
-Right but with incrementing the policy refcount on each allocation we are 
-no longer lightweight.
+I did have this vague recollection that I had seen something
+like this before, and it got shot down, because even tasks
+in entirely nonoverlapping cpusets might be holding memory
+resources on the nodes where we're running out of memory.
 
-> The only outlier is still cpusets which does strange stuff, but you
-> can't blame mempolicies for that.
-
-What strange stuff does cpusets do? It would be good if further work could 
-integration all allocations constraints / special behavior of 
-containers/cpusets/memory policies etc.
+-- 
+                  I won't rest till it's the best ...
+                  Programmer, Linux Scalability
+                  Paul Jackson <pj@sgi.com> 1.925.600.0401
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
