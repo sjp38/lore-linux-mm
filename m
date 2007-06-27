@@ -1,29 +1,57 @@
-Date: Wed, 27 Jun 2007 14:38:15 -0700 (PDT)
+Date: Wed, 27 Jun 2007 14:52:26 -0700 (PDT)
 From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [RFC 1/7] cpuset write dirty map
-In-Reply-To: <4682A9B6.8070003@google.com>
-Message-ID: <Pine.LNX.4.64.0706271437410.31227@schroedinger.engr.sgi.com>
-References: <465FB6CF.4090801@google.com> <Pine.LNX.4.64.0706041138410.24412@schroedinger.engr.sgi.com>
- <46646A33.6090107@google.com> <Pine.LNX.4.64.0706041250440.25535@schroedinger.engr.sgi.com>
- <468023CA.2090401@google.com> <Pine.LNX.4.64.0706261216110.20282@schroedinger.engr.sgi.com>
- <20070626152204.b6b4bc3f.akpm@google.com> <4682A9B6.8070003@google.com>
+Subject: Re: [patch 2/4] oom: select process to kill for cpusets
+In-Reply-To: <alpine.DEB.0.99.0706261949140.24949@chino.kir.corp.google.com>
+Message-ID: <Pine.LNX.4.64.0706271448440.31852@schroedinger.engr.sgi.com>
+References: <alpine.DEB.0.99.0706261947490.24949@chino.kir.corp.google.com>
+ <alpine.DEB.0.99.0706261949140.24949@chino.kir.corp.google.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Ethan Solomita <solo@google.com>
-Cc: Andrew Morton <akpm@google.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, a.p.zijlstra@chello.nl
+To: David Rientjes <rientjes@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <andrea@suse.de>, linux-mm@kvack.org, pj@sgi.com
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 27 Jun 2007, Ethan Solomita wrote:
+Paul needs to review this too I think. Some comments below.
 
-> 	I looked over it at one point. Most of the code doesn't conflict, but I
-> believe that the code path which calculates the dirty limits will need
-> some merging. Doable but non-trivial.
-> 	-- Ethan
+On Wed, 27 Jun 2007, David Rientjes wrote:
 
-I hope you will keep on updating the patchset and posting it against 
-current mm?
+> @@ -423,12 +430,6 @@ void out_of_memory(struct zonelist *zonelist, gfp_t gfp_mask, int order)
+>  		break;
+>  
+>  	case CONSTRAINT_CPUSET:
+> -		read_lock(&tasklist_lock);
+> -		oom_kill_process(current, points,
+> -				 "No available memory in cpuset", gfp_mask, order);
+> -		read_unlock(&tasklist_lock);
+> -		break;
+> -
+>  	case CONSTRAINT_NONE:
+>  		if (down_trylock(&OOM_lock))
+>  			break;
+
+Would be better if this would now become an "if" instead of "switch". You 
+only got two branches.
+
+> @@ -453,9 +454,17 @@ retry:
+>  		 * Rambo mode: Shoot down a process and hope it solves whatever
+>  		 * issues we may have.
+>  		 */
+> -		p = select_bad_process(&points);
+> +		p = select_bad_process(&points, constraint);
+>  		/* Found nothing?!?! Either we hang forever, or we panic. */
+>  		if (unlikely(!p)) {
+> +			/*
+> +			 * We shouldn't panic the entire system if we can't
+> +			 * find any eligible tasks to kill in a
+> +			 * cpuset-constrained OOM condition.  Instead, we do
+> +			 * nothing and allow other cpusets to continue.
+> +			 */
+> +			if (constraint == CONSTRAINT_CPUSET)
+> +				goto out;
+
+Put something into the syslog to note the strange condition?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
