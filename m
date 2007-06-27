@@ -1,62 +1,36 @@
+Date: Wed, 27 Jun 2007 13:36:35 -0700
+From: Paul Jackson <pj@sgi.com>
 Subject: Re: [PATCH/RFC 10/11] Shared Policy: per cpuset shared file policy
-	control
-From: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
-In-Reply-To: <20070627125242.f195b5ce.pj@sgi.com>
+ control
+Message-Id: <20070627133635.9eae8ee4.pj@sgi.com>
+In-Reply-To: <1182975731.6539.3.camel@localhost>
 References: <20070625195224.21210.89898.sendpatchset@localhost>
-	 <20070625195335.21210.82618.sendpatchset@localhost>
-	 <20070625141031.904935b5.pj@sgi.com> <1182965584.4948.13.camel@localhost>
-	 <20070627125242.f195b5ce.pj@sgi.com>
-Content-Type: text/plain
-Date: Wed, 27 Jun 2007 16:22:10 -0400
-Message-Id: <1182975731.6539.3.camel@localhost>
+	<20070625195335.21210.82618.sendpatchset@localhost>
+	<20070625141031.904935b5.pj@sgi.com>
+	<1182965584.4948.13.camel@localhost>
+	<20070627125242.f195b5ce.pj@sgi.com>
+	<1182975731.6539.3.camel@localhost>
 Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Paul Jackson <pj@sgi.com>
+To: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
 Cc: linux-mm@kvack.org, akpm@linux-foundation.org, nacc@us.ibm.com, ak@suse.de, clameter@sgi.com
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 2007-06-27 at 12:52 -0700, Paul Jackson wrote:
-> > If my patches eventually go in, I'd agree with this.  I was trying to be
-> > a good doobee and not add code that wasn't needed.
-> 
-> The ifdef's are added code -- added source code.
-> 
-> For a body of code that's as big as the Linux kernel, and changing
-> at the speed of Andrew's Enter key, I worry more about keeping the
-> source code as easy to read as possible, than I do about the last
-> few bytes of kernel text size.
+> The resulting #ifdefs will be in the header.  Are
+> you "OK" with that?
 
-Point taken.
-> 
-> The success of Linux is far more constrained by the limitations of
-> human neurons than by the limitations of dynamic RAM chips.
-> 
-> > 	[[ ! -f $cpuset/shared_file_policy ]] || echo 1 >$cpuset/...
-> 
-> Sure - you can code that - that 'shared_file_policy' file is your baby,
-> and you know how best to care for it.
-> 
-> But it leads to others writing code that doesn't have this [[ ! -f
-> ... ]] guard, which code works fine ... for a while.  Works long
-> enough to get good and buried in three layers of cruft, leading to
-> a problem costing someone hours or days to unravel, when it finally
-> hits a machine lacking that file.
-> 
-> I'd sure like to see that ifdef gone.  I wish I had the time now to
-> go stamp out that other ifdef in kernel/cpuset.c as well.
+Yes - headers are the right place for this.
 
-Well, I'm sure I've got a few more spins to go on this patch set ;-).  I
-can easily just remove the ifdefs and see what folks think.  I'll need
-to add a couple of conditionally defined functions/macros to handle the
-update/test of "shared_file_policy_enabled" when the system is
-configured w/o NUMA.  The resulting #ifdefs will be in the header.  Are
-you "OK" with that?
+No need to re-release your patch set just for this;
+I'll be quite happy if it makes your next round.
 
-Lee
-
-> 
+-- 
+                  I won't rest till it's the best ...
+                  Programmer, Linux Scalability
+                  Paul Jackson <pj@sgi.com> 1.925.600.0401
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
