@@ -1,37 +1,47 @@
-Date: Wed, 27 Jun 2007 16:05:31 +1000
-From: David Chinner <dgc@sgi.com>
-Subject: Re: [RFC] fsblock
-Message-ID: <20070627060531.GV31489@sgi.com>
-References: <20070624014528.GA17609@wotan.suse.de> <20070626030640.GM989688@sgi.com> <46808E1F.1000509@yahoo.com.au> <20070626092309.GF31489@sgi.com> <20070626123449.GM14224@think.oraclecorp.com> <20070627053245.GA6033@wotan.suse.de>
+Date: Wed, 27 Jun 2007 02:14:08 -0700
+From: Andrew Morton <akpm@google.com>
+Subject: Re: [RFC 1/7] cpuset write dirty map
+Message-Id: <20070627021408.493812fe.akpm@google.com>
+In-Reply-To: <Pine.LNX.4.64.0706262017260.24504@schroedinger.engr.sgi.com>
+References: <465FB6CF.4090801@google.com>
+	<Pine.LNX.4.64.0706041138410.24412@schroedinger.engr.sgi.com>
+	<46646A33.6090107@google.com>
+	<Pine.LNX.4.64.0706041250440.25535@schroedinger.engr.sgi.com>
+	<468023CA.2090401@google.com>
+	<Pine.LNX.4.64.0706261216110.20282@schroedinger.engr.sgi.com>
+	<20070626152204.b6b4bc3f.akpm@google.com>
+	<Pine.LNX.4.64.0706262017260.24504@schroedinger.engr.sgi.com>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20070627053245.GA6033@wotan.suse.de>
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nick Piggin <npiggin@suse.de>
-Cc: Chris Mason <chris.mason@oracle.com>, David Chinner <dgc@sgi.com>, Nick Piggin <nickpiggin@yahoo.com.au>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>, linux-fsdevel@vger.kernel.org
+To: Christoph Lameter <clameter@sgi.com>
+Cc: Ethan Solomita <solo@google.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, a.p.zijlstra@chello.nl
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Jun 27, 2007 at 07:32:45AM +0200, Nick Piggin wrote:
-> I think using fsblock to drive the IO and keep the pagecache flags
-> uptodate and using a btree in the filesystem to manage extents of block
-> allocations wouldn't be a bad idea though. Do any filesystems actually
-> do this?
+On Tue, 26 Jun 2007 20:18:36 -0700 (PDT) Christoph Lameter <clameter@sgi.com> wrote:
 
-Yes. XFS. But we still need to hold state in buffer heads (BH_delay,
-BH_unwritten) that is needed to determine what type of
-allocation/extent conversion is necessary during writeback. i.e.
-what we originally mapped the page as during the ->prepare_write
-call.
+> On Tue, 26 Jun 2007, Andrew Morton wrote:
+> 
+> > Is in my queue somewhere.  Could be that by the time I get to it it will
+> > need refreshing (again), we'll see.
+> > 
+> > One open question is the interaction between these changes and with Peter's
+> > per-device-dirty-throttling changes.  They also are in my queue somewhere. 
+> > Having a 100:1 coder:reviewer ratio doesn't exactly make for swift
+> > progress.
+> 
+> Hmmmm.. How can we help? I can look at some aspects of Peter's per device 
+> throttling.
 
-Cheers,
+That can't hurt.
 
-Dave.
--- 
-Dave Chinner
-Principal Engineer
-SGI Australian Software Group
+I'm more concerned about all of Mel's code in -mm actually.  I don't recall
+anyone doing a full review recently and I'm still not sure that this is the
+overall direction in which we wish to go.  Last time I asked this everyone
+seemed a bit waffly and non-committal.
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
