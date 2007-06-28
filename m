@@ -1,37 +1,22 @@
-From: Andi Kleen <ak@suse.de>
-Subject: Re: [PATCH/RFC 0/11] Shared Policy Overview
-Date: Thu, 28 Jun 2007 02:14:22 +0200
-References: <20070625195224.21210.89898.sendpatchset@localhost> <200706280001.16383.ak@suse.de> <20070627234634.GI8604@linux.vnet.ibm.com>
-In-Reply-To: <20070627234634.GI8604@linux.vnet.ibm.com>
+Date: Thu, 28 Jun 2007 02:26:15 +0200
+From: Andrea Arcangeli <andrea@cpushare.com>
+Subject: Re: [patch 4/4] oom: serialize for cpusets
+Message-ID: <20070628002614.GF6670@v2.random>
+References: <alpine.DEB.0.99.0706261947490.24949@chino.kir.corp.google.com> <alpine.DEB.0.99.0706261949140.24949@chino.kir.corp.google.com> <alpine.DEB.0.99.0706261949490.24949@chino.kir.corp.google.com> <alpine.DEB.0.99.0706261950140.24949@chino.kir.corp.google.com> <Pine.LNX.4.64.0706271452580.31852@schroedinger.engr.sgi.com>
 MIME-Version: 1.0
-Content-Type: text/plain;
-  charset="iso-8859-1"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-Message-Id: <200706280214.23054.ak@suse.de>
+In-Reply-To: <Pine.LNX.4.64.0706271452580.31852@schroedinger.engr.sgi.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: paulmck@linux.vnet.ibm.com
-Cc: Christoph Lameter <clameter@sgi.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, linux-mm@kvack.org, akpm@linux-foundation.org, nacc@us.ibm.com
+To: Christoph Lameter <clameter@sgi.com>
+Cc: David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, pj@sgi.com
 List-ID: <linux-mm.kvack.org>
 
-On Thursday 28 June 2007 01:46:34 Paul E. McKenney wrote:
-> On Thu, Jun 28, 2007 at 12:01:16AM +0200, Andi Kleen wrote:
-> > 
-> > > The zonelist from MPOL_BIND is passed to __alloc_pages. As a result the 
-> > > RCU lock must be held over the call into the page allocator with reclaim 
-> > > etc etc. Note that the zonelist is part of the policy structure.
-> > 
-> > Yes I realized this at some point too. RCU doesn't work here because
-> > __alloc_pages can sleep. Have to use the reference counts even though
-> > it adds atomic operations.
-> 
-> Any reason SRCU wouldn't work here?  From a quick glance at the patch,
-> it seems possible to me.
+On Wed, Jun 27, 2007 at 02:53:27PM -0700, Christoph Lameter wrote:
+> Andrea: How does this jive with your patches?
 
-We have reference counts anyways that can be used so it's not needed.
-
--Andi
+Good! it's incremental to it.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
