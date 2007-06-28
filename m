@@ -1,101 +1,63 @@
-Date: Thu, 28 Jun 2007 22:51:31 +0500
-Message-ID: <68242532.53192406@membrane.com>
-From: "Euro VIP Casino" <precipitable@mailfreeway.com>
-Subject: 400 Euro Willkommensbonus!
+Date: Thu, 28 Jun 2007 11:13:36 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [patch 4/4] oom: serialize for cpusets
+In-Reply-To: <20070628020302.bb0eea6a.pj@sgi.com>
+Message-ID: <alpine.DEB.0.99.0706281104490.20980@chino.kir.corp.google.com>
+References: <alpine.DEB.0.99.0706261947490.24949@chino.kir.corp.google.com>
+ <alpine.DEB.0.99.0706261949140.24949@chino.kir.corp.google.com>
+ <alpine.DEB.0.99.0706261949490.24949@chino.kir.corp.google.com>
+ <alpine.DEB.0.99.0706261950140.24949@chino.kir.corp.google.com>
+ <Pine.LNX.4.64.0706271452580.31852@schroedinger.engr.sgi.com>
+ <20070627151334.9348be8e.pj@sgi.com> <alpine.DEB.0.99.0706272313410.12292@chino.kir.corp.google.com>
+ <20070628003334.1ed6da96.pj@sgi.com> <alpine.DEB.0.99.0706280039510.17762@chino.kir.corp.google.com>
+ <20070628020302.bb0eea6a.pj@sgi.com>
 MIME-Version: 1.0
-Content-Type: text/html; charset=iso-8859-1
-Content-Transfer-Encoding: 7bit
-Return-Path: <precipitable@mailfreeway.com>
-To: linux-mm@kvack.org
+Content-Type: TEXT/PLAIN; charset=us-ascii
+Sender: owner-linux-mm@kvack.org
+Return-Path: <owner-linux-mm@kvack.org>
+To: Paul Jackson <pj@sgi.com>
+Cc: clameter@sgi.com, andrea@suse.de, akpm@linux-foundation.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-<html>
+On Thu, 28 Jun 2007, Paul Jackson wrote:
 
-<head>
-<meta http-equiv=Content-Type content="text/html; charset=iso-8859-1">
+> Do you have real world cases where your change is necessary?  Perhaps
+> you could describe those scenarios a bit, so that we can separate out
+> what's going wrong, from the possible remedies, and so we can get a
+> sense of the importance of this proposed tweak.
+> 
 
-<title>Nur im alten aristokratischen Europa </title>
+It's pretty simple to show how killing current is not the best choice for 
+cpuset-constrained memory allocations that encounter an OOM condition.
 
-<style>
-<!--
- /* Style Definitions */
- p.MsoNormal, li.MsoNormal, div.MsoNormal
-	{mso-style-parent:"";
-	margin:0cm;
-	margin-bottom:.0001pt;
-	mso-pagination:widow-orphan;
-	font-size:12.0pt;
-	font-family:"Times New Roman";
-	mso-fareast-font-family:"Times New Roman";
-	mso-ansi-language:EN-US;
-	mso-fareast-language:EN-US;}
-a:link, span.MsoHyperlink
-	{color:blue;
-	text-decoration:underline;
-	text-underline:single;}
-a:visited, span.MsoHyperlinkFollowed
-	{color:purple;
-	text-decoration:underline;
-	text-underline:single;}
-@page Section1
-	{size:595.3pt 841.9pt;
-	margin:2.0cm 42.5pt 2.0cm 3.0cm;
-	mso-header-margin:35.4pt;
-	mso-footer-margin:35.4pt;
-	mso-paper-source:0;}
-div.Section1
-	{page:Section1;}
--->
-</style>
+If you attach all your system tasks to a single small node and then 
+attempt to allocate large amounts of memory in that node, tasks get killed 
+unnecessarily.  This is a good way to approximate a cpuset's memory 
+pressure in real-world examples.  The actual rogue task can avoid getting 
+killed by simply not allocating the last N kB in that node while other 
+tasks, such as sshd or sendmail, require memory on a spurious basis.  So 
+we've often seen tasks such as those get OOM killed even though they don't 
+alleviate the condition much at all: sshd and sendmail are not normally 
+memory hogs.
 
-</head>
+The much better policy in terms of sharing memory among a cpuset's task is 
+to kill the actual rogue task which we can estimate pretty well with 
+select_bad_process() since it takes into consideration, most importantly, 
+the total VM size.
 
-<body lang=DE link=blue vlink=purple style='tab-interval:35.4pt'>
+So my belief is that it is better to kill one large memory-hogging task in 
+a cpuset instead of killing multiple smaller ones based on their 
+scheduling and unfortunate luck of being the one to enter the OOM killer.  
+Even worse is when the OOM killer, which is not at all serialized for 
+cpuset-constrained allocations at present, kills multiple smaller tasks 
+before killing the rogue task.  Then those previous kills were unnecessary 
+and certainly would qualify as a strong example for why current git's 
+behavior is broken.
 
-<div class=Section1>
+		David
 
-<p class=MsoNormal>
-<span lang=EN-US>Nur im alten aristokratischen Europa k&ouml;nnen
-Sie so ein elitistisches Casino zum Spielen finden:<o:p></o:p></span></p>
-
-<p class=MsoNormal><span lang=EN-US>Euro VIP Casino!!<o:p></o:p></span></p>
-
-<p class=MsoNormal><span lang=EN-US><o:p>&nbsp;</o:p></span></p>
-
-<p class=MsoNormal><span lang=EN-US>Hoher Standard ist einzigartig:
-<o:p></o:p></span></p>
-
-<p class=MsoNormal><span lang=EN-US>Ein grossz&uuml;giger Willkommensbonus von
-mindestens 100% bis zu 100 &#8364;/$ auf<span style='mso-spacerun:yes'> 
-</span>Ihre ersten vier Einzahlungen, mit maximalem 400 &#8364;/$ hohem 
-Bonus!!!<o:p></o:p></span></p>
-
-<p class=MsoNormal><span lang=EN-US>Unglaubliche Jackpots welche die
-Millionengrenze weit &uuml;berschreiten!<o:p></o:p></span></p>
-
-<p class=MsoNormal><span lang=EN-US>Sagenhafte last generation Software!
-<o:p></o:p></span></p>
-
-<p class=MsoNormal><span lang=EN-US><o:p>&nbsp;</o:p></span></p>
-
-<p class=MsoNormal>
-<span lang=EN-US>All das macht es zum besten Platz online zu
-spielen.<o:p></o:p></span></p>
-
-<p class=MsoNormal><span lang=EN-US><o:p>&nbsp;</o:p></span></p>
-
-<p class=MsoNormal><span lang=EN-US>Also kommen und spielen Sie bei Euro VIP
-Casino und treten Sie der noblen Gesellschaft der europ&auml;ischen 
-Spielelite bei!<o:p></o:p></span></p>
-
-<p class=MsoNormal><span lang=EN-US><o:p>&nbsp;</o:p></span></p>
-
-<p class=MsoNormal><span lang=EN-US>
-<a href="http://555vip.hk/lang-de/">
-http://555vip.hk/lang-de/</a><o:p></o:p></span></p>
-
-</div>
-
-</body>
-
-</html>
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
