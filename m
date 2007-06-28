@@ -1,60 +1,42 @@
-Date: Thu, 28 Jun 2007 11:13:36 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [patch 4/4] oom: serialize for cpusets
-In-Reply-To: <20070628020302.bb0eea6a.pj@sgi.com>
-Message-ID: <alpine.DEB.0.99.0706281104490.20980@chino.kir.corp.google.com>
-References: <alpine.DEB.0.99.0706261947490.24949@chino.kir.corp.google.com>
- <alpine.DEB.0.99.0706261949140.24949@chino.kir.corp.google.com>
- <alpine.DEB.0.99.0706261949490.24949@chino.kir.corp.google.com>
- <alpine.DEB.0.99.0706261950140.24949@chino.kir.corp.google.com>
- <Pine.LNX.4.64.0706271452580.31852@schroedinger.engr.sgi.com>
- <20070627151334.9348be8e.pj@sgi.com> <alpine.DEB.0.99.0706272313410.12292@chino.kir.corp.google.com>
- <20070628003334.1ed6da96.pj@sgi.com> <alpine.DEB.0.99.0706280039510.17762@chino.kir.corp.google.com>
- <20070628020302.bb0eea6a.pj@sgi.com>
+Received: from rgmsgw02.us.oracle.com (rgmsgw02.us.oracle.com [138.1.186.52])
+	by agminet01.oracle.com (Switch-3.2.4/Switch-3.1.7) with ESMTP id l5SIPqNZ011477
+	for <linux-mm@kvack.org>; Thu, 28 Jun 2007 13:25:52 -0500
+Message-ID: <4683FD2F.5090607@oracle.com>
+Date: Thu, 28 Jun 2007 11:25:51 -0700
+From: Herbert van den Bergh <Herbert.van.den.Bergh@oracle.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=us-ascii
+Subject: [PATCH] do not limit locked memory when RLIMIT_MEMLOCK is RLIM_INFINITY
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Paul Jackson <pj@sgi.com>
-Cc: clameter@sgi.com, andrea@suse.de, akpm@linux-foundation.org, linux-mm@kvack.org
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 28 Jun 2007, Paul Jackson wrote:
+This patch fixes a bug in mm/mlock.c on 32-bit architectures that prevents
+a user from locking more than 4GB of shared memory, or allocating more
+than 4GB of shared memory in hugepages, when rlim[RLIMIT_MEMLOCK] is
+set to RLIM_INFINITY.
 
-> Do you have real world cases where your change is necessary?  Perhaps
-> you could describe those scenarios a bit, so that we can separate out
-> what's going wrong, from the possible remedies, and so we can get a
-> sense of the importance of this proposed tweak.
-> 
+Signed-off-by: Herbert van den Bergh <herbert.van.den.bergh@oracle.com>
+Acked-by: Chris Mason <chris.mason@oracle.com>
 
-It's pretty simple to show how killing current is not the best choice for 
-cpuset-constrained memory allocations that encounter an OOM condition.
-
-If you attach all your system tasks to a single small node and then 
-attempt to allocate large amounts of memory in that node, tasks get killed 
-unnecessarily.  This is a good way to approximate a cpuset's memory 
-pressure in real-world examples.  The actual rogue task can avoid getting 
-killed by simply not allocating the last N kB in that node while other 
-tasks, such as sshd or sendmail, require memory on a spurious basis.  So 
-we've often seen tasks such as those get OOM killed even though they don't 
-alleviate the condition much at all: sshd and sendmail are not normally 
-memory hogs.
-
-The much better policy in terms of sharing memory among a cpuset's task is 
-to kill the actual rogue task which we can estimate pretty well with 
-select_bad_process() since it takes into consideration, most importantly, 
-the total VM size.
-
-So my belief is that it is better to kill one large memory-hogging task in 
-a cpuset instead of killing multiple smaller ones based on their 
-scheduling and unfortunate luck of being the one to enter the OOM killer.  
-Even worse is when the OOM killer, which is not at all serialized for 
-cpuset-constrained allocations at present, kills multiple smaller tasks 
-before killing the rogue task.  Then those previous kills were unnecessary 
-and certainly would qualify as a strong example for why current git's 
-behavior is broken.
-
-		David
+--- linux-2.6.22-rc6/mm/mlock.c.orig    2007-06-26 15:17:22.000000000 -0700
++++ linux-2.6.22-rc6/mm/mlock.c    2007-06-28 11:18:48.000000000 -0700
+@@ -244,9 +244,12 @@ int user_shm_lock(size_t size, struct us
+ 
+     locked = (size + PAGE_SIZE - 1) >> PAGE_SHIFT;
+     lock_limit = current->signal->rlim[RLIMIT_MEMLOCK].rlim_cur;
++    if (lock_limit == RLIM_INFINITY)
++        allowed = 1;
+     lock_limit >>= PAGE_SHIFT;
+     spin_lock(&shmlock_user_lock);
+-    if (locked + user->locked_shm > lock_limit && !capable(CAP_IPC_LOCK))
++    if (!allowed &&
++        locked + user->locked_shm > lock_limit && !capable(CAP_IPC_LOCK))
+         goto out;
+     get_uid(user);
+     user->locked_shm += locked;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
