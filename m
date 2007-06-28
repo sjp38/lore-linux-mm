@@ -1,99 +1,93 @@
-Date: Thu, 28 Jun 2007 08:35:48 +1000
-From: David Chinner <dgc@sgi.com>
-Subject: Re: [RFC] fsblock
-Message-ID: <20070627223548.GS989688@sgi.com>
-References: <20070624014528.GA17609@wotan.suse.de> <20070626030640.GM989688@sgi.com> <46808E1F.1000509@yahoo.com.au> <20070626092309.GF31489@sgi.com> <20070626123449.GM14224@think.oraclecorp.com> <20070627053245.GA6033@wotan.suse.de> <20070627115056.GW14224@think.oraclecorp.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20070627115056.GW14224@think.oraclecorp.com>
-Sender: owner-linux-mm@kvack.org
-Return-Path: <owner-linux-mm@kvack.org>
-To: Chris Mason <chris.mason@oracle.com>
-Cc: Nick Piggin <npiggin@suse.de>, David Chinner <dgc@sgi.com>, Nick Piggin <nickpiggin@yahoo.com.au>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>, linux-fsdevel@vger.kernel.org
+Date: Wed, 27 Jun 2007 17:11:47 -0700
+Message-ID: <64592624.90890071@annual.com>
+From: "Arnold" <carleton@bellsouth.com>
+Subject: Ich habe ein Online Casino mit unglaublichen Spielen entdeckt!
+MIME-Version: 1.0
+Content-Type: text/html; charset=iso-8859-1
+Content-Transfer-Encoding: 7bit
+Return-Path: <carleton@bellsouth.com>
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Jun 27, 2007 at 07:50:56AM -0400, Chris Mason wrote:
-> On Wed, Jun 27, 2007 at 07:32:45AM +0200, Nick Piggin wrote:
-> > On Tue, Jun 26, 2007 at 08:34:49AM -0400, Chris Mason wrote:
-> > > On Tue, Jun 26, 2007 at 07:23:09PM +1000, David Chinner wrote:
-> > > > On Tue, Jun 26, 2007 at 01:55:11PM +1000, Nick Piggin wrote:
-> > > 
-> > > [ ... fsblocks vs extent range mapping ]
-> > > 
-> > > > iomaps can double as range locks simply because iomaps are
-> > > > expressions of ranges within the file.  Seeing as you can only
-> > > > access a given range exclusively to modify it, inserting an empty
-> > > > mapping into the tree as a range lock gives an effective method of
-> > > > allowing safe parallel reads, writes and allocation into the file.
-> > > > 
-> > > > The fsblocks and the vm page cache interface cannot be used to
-> > > > facilitate this because a radix tree is the wrong type of tree to
-> > > > store this information in. A sparse, range based tree (e.g. btree)
-> > > > is the right way to do this and it matches very well with
-> > > > a range based API.
-> > > 
-> > > I'm really not against the extent based page cache idea, but I kind of
-> > > assumed it would be too big a change for this kind of generic setup.  At
-> > > any rate, if we'd like to do it, it may be best to ditch the idea of
-> > > "attach mapping information to a page", and switch to "lookup mapping
-> > > information and range locking for a page".
-> > 
-> > Well the get_block equivalent API is extent based one now, and I'll
-> > look at what is required in making map_fsblock a more generic call
-> > that could be used for an extent-based scheme.
-> > 
-> > An extent based thing IMO really isn't appropriate as the main generic
-> > layer here though. If it is really useful and popular, then it could
-> > be turned into generic code and sit along side fsblock or underneath
-> > fsblock...
-> 
-> Lets look at a typical example of how IO actually gets done today,
-> starting with sys_write():
-> 
-> sys_write(file, buffer, 1MB)
-> for each page:
->     prepare_write()
-> 	allocate contiguous chunks of disk
->         attach buffers
->     copy_from_user()
->     commit_write()
->         dirty buffers
-> 
-> pdflush:
->     writepages()
->         find pages with contiguous chunks of disk
-> 	build and submit large bios
-> 
-> So, we replace prepare_write and commit_write with an extent based api,
-> but we keep the dirty each buffer part.  writepages has to turn that
-> back into extents (bio sized), and the result is completely full of dark
-> dark corner cases.
+<html>
 
-Yup - I've been on the painful end of those dark corner cases several
-times in the last few months.
+<head>
+<meta http-equiv=Content-Type content="text/html; charset=iso-8859-1">
 
-It's also worth pointing out that mpage_readpages() already works on
-an extent basis - it overloads bufferheads to provide a "map_bh" that
-can point to a range of blocks in the same state. The code then iterates
-the map_bh range a page at a time building bios (i.e. not even using
-buffer heads) from that map......
+<title>Schade, dass Sie das grosse Spiel verpasst haben&#8230; aber ich glaube
+noch ein besseres gefunden zu haben</title>
 
-> I do think fsblocks is a nice cleanup on its own, but Dave has a good
-> point that it makes sense to look for ways generalize things even more.
+<style>
+<!--
+ /* Style Definitions */
+ p.MsoNormal, li.MsoNormal, div.MsoNormal
+	{mso-style-parent:"";
+	margin:0cm;
+	margin-bottom:.0001pt;
+	mso-pagination:widow-orphan;
+	font-size:12.0pt;
+	font-family:"Times New Roman";
+	mso-fareast-font-family:"Times New Roman";
+	mso-ansi-language:FR;
+	mso-fareast-language:EN-US;
+	mso-bidi-language:HE;}
+a:link, span.MsoHyperlink
+	{color:blue;
+	text-decoration:underline;
+	text-underline:single;}
+a:visited, span.MsoHyperlinkFollowed
+	{color:purple;
+	text-decoration:underline;
+	text-underline:single;}
+@page Section1
+	{size:595.3pt 841.9pt;
+	margin:2.0cm 42.5pt 2.0cm 3.0cm;
+	mso-header-margin:35.4pt;
+	mso-footer-margin:35.4pt;
+	mso-paper-source:0;}
+div.Section1
+	{page:Section1;}
+-->
+</style>
 
-*nod*
+</head>
 
-Cheers,
+<body lang=DE link=blue vlink=purple style='tab-interval:35.4pt'>
 
-Dave.
--- 
-Dave Chinner
-Principal Engineer
-SGI Australian Software Group
+<div class=Section1>
 
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+<p class=MsoNormal><span lang=FR>Schade, dass Sie das grosse Spiel verpasst
+haben&#8230; aber ich glaube noch ein besseres gefunden zu haben!
+<o:p></o:p></span></p>
+
+<p class=MsoNormal><span lang=FR><o:p>&nbsp;</o:p></span></p>
+
+<p class=MsoNormal><span lang=FR>Ich habe ein Online Casino mit unglaublichen
+Spielen entdeckt &#8211; von Tischspielen &uuml;ber Automaten bis hin zu 
+Turnieren, hier wird alles geboten. <o:p></o:p></span></p>
+
+<p class=MsoNormal><span lang=FR><o:p>&nbsp;</o:p></span></p>
+
+<p class=MsoNormal><span lang=FR>Und wenn Sie sich heute noch anmelden, 
+k&ouml;nnen Sie einen Willkommensbonus von bis zu 555&#8364; erhalten!
+<o:p></o:p></span></p>
+
+<p class=MsoNormal><span lang=FR><o:p>&nbsp;</o:p></span></p>
+
+<p class=MsoNormal><span lang=FR>Also worauf warten Sie noch? 
+<o:p></o:p></span></p>
+
+<p class=MsoNormal><span lang=FR>Schauen Sie vorbei!<o:p></o:p></span></p>
+
+<p class=MsoNormal><span lang=FR>
+<a href="http://www.mvipcasino.hk/lang-de/">
+http://www.mvipcasino.hk/lang-de/</a></span><span
+lang=FR style='mso-bidi-font-size:10.0pt'><o:p></o:p></span></p>
+
+<p class=MsoNormal><span lang=FR><o:p>&nbsp;</o:p></span></p>
+
+</div>
+
+</body>
+
+</html>
