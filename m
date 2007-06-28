@@ -1,46 +1,34 @@
-Date: Thu, 28 Jun 2007 13:43:54 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [patch 4/4] oom: serialize for cpusets
-In-Reply-To: <20070628115537.56344465.pj@sgi.com>
-Message-ID: <alpine.DEB.0.99.0706281341420.30133@chino.kir.corp.google.com>
-References: <alpine.DEB.0.99.0706261947490.24949@chino.kir.corp.google.com>
- <alpine.DEB.0.99.0706261949140.24949@chino.kir.corp.google.com>
- <alpine.DEB.0.99.0706261949490.24949@chino.kir.corp.google.com>
- <alpine.DEB.0.99.0706261950140.24949@chino.kir.corp.google.com>
- <Pine.LNX.4.64.0706271452580.31852@schroedinger.engr.sgi.com>
- <20070627151334.9348be8e.pj@sgi.com> <alpine.DEB.0.99.0706272313410.12292@chino.kir.corp.google.com>
- <20070628003334.1ed6da96.pj@sgi.com> <alpine.DEB.0.99.0706280039510.17762@chino.kir.corp.google.com>
- <20070628020302.bb0eea6a.pj@sgi.com> <alpine.DEB.0.99.0706281104490.20980@chino.kir.corp.google.com>
- <20070628115537.56344465.pj@sgi.com>
+From: Andi Kleen <ak@suse.de>
+Subject: Re: [PATCH/RFC 0/11] Shared Policy Overview
+Date: Fri, 29 Jun 2007 00:02:11 +0200
+References: <20070625195224.21210.89898.sendpatchset@localhost> <200706280001.16383.ak@suse.de> <1183038137.5697.16.camel@localhost>
+In-Reply-To: <1183038137.5697.16.camel@localhost>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=us-ascii
+Content-Type: text/plain;
+  charset="iso-8859-15"
+Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+Message-Id: <200706290002.12113.ak@suse.de>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Paul Jackson <pj@sgi.com>
-Cc: clameter@sgi.com, andrea@suse.de, akpm@linux-foundation.org, linux-mm@kvack.org
+To: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
+Cc: Christoph Lameter <clameter@sgi.com>, "Paul E. McKenney" <paulmck@us.ibm.com>, linux-mm@kvack.org, akpm@linux-foundation.org, nacc@us.ibm.com
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 28 Jun 2007, Paul Jackson wrote:
 
-> Would you like to propose a patch, adding a per-cpuset Boolean flag
-> that has inheritance properties similar to the memory_spread_* flags?
-> Set at the top and inherited on cpuset creation; overridable per-cpuset.
-> 
-> How about calling it "oom_kill_asking_task", defaulting to 0 (the
-> default you will like, not the one I will use for my customers.)
-> 
+> -	return __alloc_pages(gfp, 0, zonelist_policy(gfp, pol));
+> +	page =  __alloc_pages(gfp, 0, zonelist_policy(gfp, pol));
+> +	if (pol != &default_policy && pol != current->mempolicy)
+> +		__mpol_free(pol);
 
-That sounds like a good solution.  I certainly don't want to cause a 
-regression for your customers where this change would cause the OOM killer 
-to become excessively expensive.
+That destroyed the tail call in the fast path. I would prefer if it
+was preserved at least for the default_policy case. This means handling
+this in a separated if path.
 
-I'd like an ack from Christoph on my posted patch that does this before 
-it's merged, however, to make sure he thinks its worth the addition of yet 
-another cpuset flag.
+Other than that it looks reasonable and we probably want something
+like this for .22.
 
-Thanks for the reviews.
-
-		David
+-Andi
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
