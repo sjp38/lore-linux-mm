@@ -1,60 +1,36 @@
-Date: Thu, 28 Jun 2007 18:33:37 -0700 (PDT)
+Date: Thu, 28 Jun 2007 18:39:52 -0700 (PDT)
 From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [patch 4/4] oom: serialize for cpusets
-In-Reply-To: <alpine.DEB.0.99.0706281104490.20980@chino.kir.corp.google.com>
-Message-ID: <Pine.LNX.4.64.0706281830280.9573@schroedinger.engr.sgi.com>
-References: <alpine.DEB.0.99.0706261947490.24949@chino.kir.corp.google.com>
- <alpine.DEB.0.99.0706261949140.24949@chino.kir.corp.google.com>
- <alpine.DEB.0.99.0706261949490.24949@chino.kir.corp.google.com>
- <alpine.DEB.0.99.0706261950140.24949@chino.kir.corp.google.com>
- <Pine.LNX.4.64.0706271452580.31852@schroedinger.engr.sgi.com>
- <20070627151334.9348be8e.pj@sgi.com> <alpine.DEB.0.99.0706272313410.12292@chino.kir.corp.google.com>
- <20070628003334.1ed6da96.pj@sgi.com> <alpine.DEB.0.99.0706280039510.17762@chino.kir.corp.google.com>
- <20070628020302.bb0eea6a.pj@sgi.com> <alpine.DEB.0.99.0706281104490.20980@chino.kir.corp.google.com>
+Subject: Re: [PATCH/RFC 0/11] Shared Policy Overview
+In-Reply-To: <1183038137.5697.16.camel@localhost>
+Message-ID: <Pine.LNX.4.64.0706281835270.9573@schroedinger.engr.sgi.com>
+References: <20070625195224.21210.89898.sendpatchset@localhost>
+ <1182968078.4948.30.camel@localhost>  <Pine.LNX.4.64.0706271427400.31227@schroedinger.engr.sgi.com>
+  <200706280001.16383.ak@suse.de> <1183038137.5697.16.camel@localhost>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Paul Jackson <pj@sgi.com>, andrea@suse.de, akpm@linux-foundation.org, linux-mm@kvack.org
+To: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
+Cc: Andi Kleen <ak@suse.de>, "Paul E. McKenney" <paulmck@us.ibm.com>, linux-mm@kvack.org, akpm@linux-foundation.org, nacc@us.ibm.com
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 28 Jun 2007, David Rientjes wrote:
+On Thu, 28 Jun 2007, Lee Schermerhorn wrote:
 
-> If you attach all your system tasks to a single small node and then 
-> attempt to allocate large amounts of memory in that node, tasks get killed 
-> unnecessarily.  This is a good way to approximate a cpuset's memory 
-> pressure in real-world examples.  The actual rogue task can avoid getting 
-> killed by simply not allocating the last N kB in that node while other 
-> tasks, such as sshd or sendmail, require memory on a spurious basis.  So 
-> we've often seen tasks such as those get OOM killed even though they don't 
-> alleviate the condition much at all: sshd and sendmail are not normally 
-> memory hogs.
+> Avoid the taking the reference count on the system default policy or the
+> current task's task policy.  Note that if show_numa_map() is called from
+> the context of a relative of the target task with the same task mempolicy,
+> we won't take an extra reference either.  This is safe, because the policy
+> remains referenced by the calling task during the mpol_to_str() processing.
 
-Yeah but to get there seems to require intention on the part of the 
-rogue tasks.
+I still do not see the rationale for this patchset. This adds more special 
+casing. So if we have a vma policy then we suck again?
 
-> The much better policy in terms of sharing memory among a cpuset's task is 
-> to kill the actual rogue task which we can estimate pretty well with 
-> select_bad_process() since it takes into consideration, most importantly, 
-> the total VM size.
-
-Sorry that is too expensive. I did not see that initially. Thanks Paul for 
-reminding me. I am at the OLS and my mindshare for this is pretty limited 
-right now.
-
-> So my belief is that it is better to kill one large memory-hogging task in 
-> a cpuset instead of killing multiple smaller ones based on their 
-> scheduling and unfortunate luck of being the one to enter the OOM killer.  
-> Even worse is when the OOM killer, which is not at all serialized for 
-> cpuset-constrained allocations at present, kills multiple smaller tasks 
-> before killing the rogue task.  Then those previous kills were unnecessary 
-> and certainly would qualify as a strong example for why current git's 
-> behavior is broken.
-
-The current behavior will usually kill the memory hogging task and it can 
-do so with minimal effort. If there is a whole array of memory hogging 
-tasks then the existing approach will be much easier on the system.
+This all still falls under the category of messing up a bad situation even 
+more. Its first necessary to come up with way to consistently handle 
+memory policies and improve the interaction with other methods to 
+constrain allocations (cpusets, node restrictions for hugetlb etc etc). It 
+should improve the situation and not increase special casing or make the 
+system more unpreditable.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
