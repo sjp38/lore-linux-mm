@@ -1,61 +1,45 @@
 Subject: Re: [PATCH/RFC 0/11] Shared Policy Overview
 From: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
-In-Reply-To: <200706291620.07452.ak@suse.de>
+In-Reply-To: <20070627234634.GI8604@linux.vnet.ibm.com>
 References: <20070625195224.21210.89898.sendpatchset@localhost>
-	 <Pine.LNX.4.64.0706281840210.9573@schroedinger.engr.sgi.com>
-	 <1183123836.5037.25.camel@localhost>  <200706291620.07452.ak@suse.de>
+	 <1182968078.4948.30.camel@localhost>
+	 <Pine.LNX.4.64.0706271427400.31227@schroedinger.engr.sgi.com>
+	 <200706280001.16383.ak@suse.de>  <20070627234634.GI8604@linux.vnet.ibm.com>
 Content-Type: text/plain
-Date: Fri, 29 Jun 2007 17:40:13 -0400
-Message-Id: <1183153213.4988.16.camel@localhost>
+Date: Fri, 29 Jun 2007 17:47:52 -0400
+Message-Id: <1183153672.4988.22.camel@localhost>
 Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andi Kleen <ak@suse.de>
-Cc: Christoph Lameter <clameter@sgi.com>, "Paul E. McKenney" <paulmck@us.ibm.com>, linux-mm@kvack.org, akpm@linux-foundation.org, nacc@us.ibm.com
+To: paulmck@linux.vnet.ibm.com
+Cc: Andi Kleen <ak@suse.de>, Christoph Lameter <clameter@sgi.com>, linux-mm@kvack.org, akpm@linux-foundation.org, nacc@us.ibm.com
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 2007-06-29 at 16:20 +0200, Andi Kleen wrote:
-> On Friday 29 June 2007 15:30:36 Lee Schermerhorn wrote:
+On Wed, 2007-06-27 at 16:46 -0700, Paul E. McKenney wrote:
+> On Thu, Jun 28, 2007 at 12:01:16AM +0200, Andi Kleen wrote:
+> > 
+> > > The zonelist from MPOL_BIND is passed to __alloc_pages. As a result the 
+> > > RCU lock must be held over the call into the page allocator with reclaim 
+> > > etc etc. Note that the zonelist is part of the policy structure.
+> > 
+> > Yes I realized this at some point too. RCU doesn't work here because
+> > __alloc_pages can sleep. Have to use the reference counts even though
+> > it adds atomic operations.
 > 
-> > Firstly, the "current situation" is deficient for applications that I,
-> > on behalf of our customers, care about.
-> 
-> So what's the specific use case from these applications? How much do 
-> they lose by not having this?
+> Any reason SRCU wouldn't work here?  From a quick glance at the patch,
+> it seems possible to me.
 
-Andi:
+Does SRCU have a deferred version--i.e., a call_srcu()?  I didn't see
+one.  I originally tried synchronize_rcu() in my patch, but hit a
+"scheduling while atomic" bug, so I converted it to deferred reclaim.
 
-I had answered [attempted to anyway] the first question in:
+For changing the task policy from outside the task--something that I
+understand Christoph would like to do--we can use synchronize_srcu(), if
+we can call it from outside any atomic context.
 
-	http://marc.info/?l=linux-mm&m=118105384427674&w=4
-
-What do they lose?  The ability to control explicitly and reliably the
-location of pages in shared, mapped files without prefaulting.  The only
-way an application has today to guarantee the location of a file page is
-to: 1) have the file opened exclusively--i.e., be the only task with the
-file opened, lest some other task access the file and fault in pages; 2)
-set the task policy to bind/prefer/interleave to the appropriate
-node[s]; 3) prefault some range of file pages in and lock them down; 4)
-change the task policy for the next range and fault that in and lock it
-down;  etc, until the entire file is placed correctly--assuming the
-entire file fits.  If pages of the file are already in memory, they
-don't even have the option of mass migration via mbind().  They'd have
-to individually migrate pages, once that sys call wrapper is available.
-
-I'd like to just mbind() the mmap()ed range, set the policy and then
-know that, as pages fault in, they'll end up obeying the policy.  If
-some pages of the file are already memory resident, they can be migrated
-to follow policy.  It seems so simple to me.  The fundamental support is
-all there.  
-
-I agree we need to handle some of Christoph's issues so that his
-customers can't get themselves confused, playing with shared policies,
-or attempting to set policies on files [and shmem!] that don't work in
-all the cpusets from which the files/shmem might be accessed.  That's a
-hairly problem that containers/cpusets introduce when you try to segment
-a system along only 1 or 2 dimensions, leaving the rest of the
-dimensions wide open for sharing...
+Or maybe synchronize_srcu() does attempt to reschedule nor call
+"might_schedule()"?  [Sorry, haven't had time to look.]
 
 Lee
 
