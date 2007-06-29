@@ -1,59 +1,46 @@
-Message-ID: <46851E43.3060001@redhat.com>
-Date: Fri, 29 Jun 2007 10:59:15 -0400
-From: Rik van Riel <riel@redhat.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH 01 of 16] remove nr_scan_inactive/active
-References: <8e38f7656968417dfee0.1181332979@v2.random> <466C36AE.3000101@redhat.com> <20070610181700.GC7443@v2.random> <46814829.8090808@redhat.com> <20070626105541.cd82c940.akpm@linux-foundation.org> <468439E8.4040606@redhat.com> <1183124309.5037.31.camel@localhost> <20070629141254.GA23310@v2.random>
-In-Reply-To: <20070629141254.GA23310@v2.random>
-Content-Type: text/plain; charset=UTF-8; format=flowed
+Subject: Re: [PATCH/RFC 0/11] Shared Policy Overview
+From: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
+In-Reply-To: <200706290002.12113.ak@suse.de>
+References: <20070625195224.21210.89898.sendpatchset@localhost>
+	 <200706280001.16383.ak@suse.de> <1183038137.5697.16.camel@localhost>
+	 <200706290002.12113.ak@suse.de>
+Content-Type: text/plain
+Date: Fri, 29 Jun 2007 13:14:17 -0400
+Message-Id: <1183137257.5012.12.camel@localhost>
+Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrea Arcangeli <andrea@suse.de>
-Cc: Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Nick Dokos <nicholas.dokos@hp.com>
+To: Andi Kleen <ak@suse.de>
+Cc: Christoph Lameter <clameter@sgi.com>, "Paul E. McKenney" <paulmck@us.ibm.com>, linux-mm@kvack.org, akpm@linux-foundation.org, nacc@us.ibm.com
 List-ID: <linux-mm.kvack.org>
 
-Andrea Arcangeli wrote:
-
-> BTW, hope the above numbers are measured before the trashing stage
-> when the number of jobs per second is lower than 10. It'd be nice not
-> to spend all that time in system time but after that point the system
-> will shortly reach oom. It's more important to be fast and save cpu in
-> "useful" conditions (like with <4000 tasks).
-
-If the numbers were measured only in the thrashing stage,
-mwait_idle would be the top CPU "user", not the scanning
-code.
-
-What I am trying to measure is more a question of system
-robustness than performance.  We have seen a few cases
-where the system took 2 hours to recover to a useful state
-after running out of RAM, with enough free swap.
-
-Linux needs to deal better with memory filling up. It
-should start to swap instead of scanning pages for very
-long periods of time and not recovering for a while.
-
->> Here's a fairly recent version of the patch if you want to try it on
->> your workload.  We've seen mixed results on somewhat larger systems,
->> with and without your split LRU patch.  I've started writing up those
->> results.  I'll try to get back to finishing up the writeup after OLS and
->> vacation.
+On Fri, 2007-06-29 at 00:02 +0200, Andi Kleen wrote:
 > 
-> This looks a very good idea indeed.
+> > -	return __alloc_pages(gfp, 0, zonelist_policy(gfp, pol));
+> > +	page =  __alloc_pages(gfp, 0, zonelist_policy(gfp, pol));
+> > +	if (pol != &default_policy && pol != current->mempolicy)
+> > +		__mpol_free(pol);
+> 
+> That destroyed the tail call in the fast path. I would prefer if it
+> was preserved at least for the default_policy case. This means handling
+> this in a separated if path.
 
-I'm definately going to give Lee's patch a spin.
+Andi:  I could restore the tail call for the common cases of system
+default and task policy, but that would require a second call to
+__alloc_pages(), I think, for the shared and vma policies.  What do you
+think about that solution?
 
-> Also I'm stunned this is being compared to a java workload, java is a
-> threaded beast 
+> 
+> Other than that it looks reasonable and we probably want something
+> like this for .22.
 
-Interestingly enough, both a heavy Java workload and this AIM7
-test block on the anon_vma lock contention.
+As Christoph notes, this will have to extracted from my series. I think
+that only get_vma_policy() and alloc_page_vma() need to change for now.
+I won't get a chance to test anything until the 2nd week in July and
+that might be too late for .22.
 
--- 
-Politics is the struggle between those who want to make their country
-the best in the world, and those who believe it already is.  Each group
-calls the other unpatriotic.
+Lee
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
