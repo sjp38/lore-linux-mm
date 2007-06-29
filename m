@@ -1,5 +1,4 @@
-Subject: "Noreclaim Infrastructure"  [was Re: [PATCH 01 of 16] remove
-	nr_scan_inactive/active]
+Subject: RFC "Noreclaim Infrastructure - patch 1/3 basic infrastructure"
 From: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
 In-Reply-To: <20070629141254.GA23310@v2.random>
 References: <8e38f7656968417dfee0.1181332979@v2.random>
@@ -9,8 +8,8 @@ References: <8e38f7656968417dfee0.1181332979@v2.random>
 	 <468439E8.4040606@redhat.com> <1183124309.5037.31.camel@localhost>
 	 <20070629141254.GA23310@v2.random>
 Content-Type: text/plain
-Date: Fri, 29 Jun 2007 18:39:01 -0400
-Message-Id: <1183156742.7012.25.camel@localhost>
+Date: Fri, 29 Jun 2007 18:42:46 -0400
+Message-Id: <1183156967.7012.29.camel@localhost>
 Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
@@ -19,275 +18,579 @@ To: Andrea Arcangeli <andrea@suse.de>
 Cc: Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Nick Dokos <nicholas.dokos@hp.com>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 2007-06-29 at 16:12 +0200, Andrea Arcangeli wrote:
-> On Fri, Jun 29, 2007 at 09:38:29AM -0400, Lee Schermerhorn wrote:
-<snip>
-> 
-> > Here's a fairly recent version of the patch if you want to try it on
-> > your workload.  We've seen mixed results on somewhat larger systems,
-> > with and without your split LRU patch.  I've started writing up those
-> > results.  I'll try to get back to finishing up the writeup after OLS and
-> > vacation.
-> 
-> This looks a very good idea indeed.
-> 
-> Overall the O(log(N)) change I doubt would help, being able to give an
-> efficient answer to "give me only the vmas that maps this anon page"
-> won't be helpful here since the answer will be the same as the current
-> question "give me any vma that may be mapping this anon page". Only
-> for the filebacked mappings it matters.
-> 
-> Also I'm stunned this is being compared to a java workload, java is a
-> threaded beast (unless you're capable of understanding async-io in
-> which case it's still threaded but with tons less threads, but anyway
-> you code it won't create any anonymous related overhead). What we deal
-> with isn't really an issue with anon-vma but just with the fact the
-> system is trying to unmap pages that are mapped in 4000-5000 pte, so
-> no matter how you code it, there will be still 4000-5000 ptes to check
-> for each page that we want to know if it's referenced and it will take
-> system time, this is an hardware issue not a software one. And the
-> other suspect thing is to do all that pte-mangling work without doing
-> any I/O at all.
+Patch against 2.6.21-rc5/6
 
-Andrea:
+Infrastructure to manage pages excluded from reclaim--i.e., hidden
+from vmscan.  Based on a patch by Larry Woodman of Red Hat.
 
-Yes, the patch is not a panacea.  At best, it allows different kswapd's
-to attempt to unmap different pages associated with the same VMA.  But,
-as you say, you still have to unmap X000 ptes.  On one of the smaller
-ia64 systems we've been testing, we hit this state in the 15000-20000
-range of AIM jobs.  This patch, along with Rik's split LRU patch allowed
-us to make forward progress at saturation, and we were actually
-swapping, instead of just spinning around in page_referenced() and
-try_to_unmap().  [Actually, I don't think we get past page_referenced()
-much w/o this patch--have to check.]
+Applies atop two patches from Nick Piggin's "mlock pages off the LRU"
+series:  move-and-rework-isolate_lru_page and
+move-and-rename-install_arg_page
 
-I have experimented with another "noreclaim" infrastructure, based on
-some patches by Larry Woodman at Red Hat, to keep non-reclaimable pages
-off the active/inactive list.  I envisioned this as a general
-infrastructure to handle this case--pages whose anon_vmas have
-excessively long vma lists, swap-backed pages for which no swap space is
-available and mlock()ed pages [a la Nick Piggin's patch].  
+Maintain "nonreclaimable" pages on a separate per-zone list, to 
+"hide" them from vmscan. 
 
-I will include the patch overview here and send along the 2
-infrastructure patches and one "client" patch--the excessively
-referenced anon_vma case.  I'm not proposing that these be considered
-for inclusion.  Just another take on this issue.
+Although this patch series does not support it, the noreclaim list
+could be scanned at a lower rate--for example to attempt to reclaim
+the "difficult to reclaim" pages when pages are REALLY needed, such
+as when reserves are exhausted and a critical need arises.
 
-The patches are against 2.6.21-rc6.  I have been distracted by other
-issues lately, so they have languished, and even the overview is a bit
-out of date relative to on-going activity in this area.  I did integrate
-this series with Rik's split LRU patch at one time, and it all "worked"
-for some definition thereof. 
+A new function 'page_reclaimable(page, vma)' in vmscan.c tests whether
+or not a page is reclaimable.  Subsequent patches will add the various
+!reclaimable tests.  Reclaimable pages are placed on the appropriate
+LRU list; non-reclaimable pages on the new noreclaim list.
 
-One final note before the "noreclaim overview":  I have seen similar
-behavior on the i_mmap_lock for file back pages running a [too] heavy
-Oracle/TPC-C workload--on a larger ia64 system with ~8TB of storage.
-System hung/unresponsive, spitting out "Soft lockup" messages.  Stack
-traces showed cpus in spinlock contention called from
-page_referenced_file.  So, it's not limited to anon pages.
+Notes:
 
-Lee
------------------
+1.  Not sure I need the 'vma' arg to page_reclaimable().  I did in an
+    earlier incarnation.  Don't seem to now
 
+2.  for now, use bit 20 in page flags.   Could restrict to 64-bit
+    systems only and use one of bits 21-30 [ia64 uses bit 31; other
+    archs ???].  
 
-This series of patches introduces support for mananaging "non-reclaimable"
-pages off the LRU active and inactive list.   In this rather long-winded 
-overview, I attempt to provide the motivation for this work, describe how
-it relates to other recent patches that address different aspects of the
-"problem", and give an overview of the mechanism.  I'll try not to repeat
-too much of this in the patch descriptions.
+Signed-off-by:  Lee Schermerhorn <lee.schermerhorn@hp.com>
 
+ include/linux/mm_inline.h  |   34 +++++++++++++++++++-
+ include/linux/mmzone.h     |    6 +++
+ include/linux/page-flags.h |   20 ++++++++++++
+ include/linux/pagevec.h    |    5 +++
+ include/linux/swap.h       |   11 ++++++
+ mm/Kconfig                 |    8 ++++
+ mm/mempolicy.c             |    2 -
+ mm/migrate.c               |    8 ++++
+ mm/page_alloc.c            |    6 +++
+ mm/swap.c                  |   73 +++++++++++++++++++++++++++++++++++++++----
+ mm/vmscan.c                |   75 ++++++++++++++++++++++++++++++++++++++++++++-
+ 11 files changed, 237 insertions(+), 11 deletions(-)
 
-We have seen instances of large linux servers [10s/100s of GB of memory =>
-millions of pages] apparently hanging for extended periods [10s or minutes
-or more] while all processors attempt to reclaim memory.  For various
-reasons many of the pages on the LRU lists become difficult or impossible
-to reclaim.  The system spends a lot time trying to reclaim [unmap] the
-difficult pages and/or shuffling through the impossible ones.
-
-Some of the conditions that make pages difficult or impossible to reclaim:
-  1) page is anon or shmem, but no swap space available
-  2) page is mlocked into memory
-  3) page is anon with an excessive number of related vmas [on the
-     anon_vma list].  More on this below.
-
-The basic noreclaim mechanism, described below, is based
-on a patch developed by Larry Woodman of Red Hat for RHEL4 [2.6.9+ based
-kernel] to address the first condition above--an x86_64 non-NUMA system 
-with 64G-128G memory [16M-32M 4k pages] with very little swap space--
-~2GB.  The majority of the memory on the system was consumed by large
-database shared memory areas.  A file IO intensive operation, such as
-backup, causes remaining free memory to be consumed by the page cache,
-initiating reclaim.
-
-vmscan then spends a great deal of time shuffling non-swappable anon
-and shmem pages between the active to the inactive lists, only to find
-that it can't move them to the swap cache.  The pages get reactivated
-and round and round it goes.  Because pages cannot be easily reclaimed,
-eventually other processors need to allocate pages and enter direct
-reclaim, only to compete for the zone lru lock.  The single [normal]
-zone on the non-numa platform exacerbates this problem, but it can 
-also arise, per zone, on numa platforms.
-
-Larry's patch alleviates this problem by maintaining anon and shmem
-pages for which no swap space exists on a per zone noreclaim list.
-Once the pages have been parked there, vmscan deals only with page
-cache pages, and anon/shmem pages to which space space has already
-been assigned.  Pages move from the noreclaim list back to the LRU
-when swap space becomes available.
-
-Upstream developers have been addressing some of these issues in other
-ways:
-
-Christoph Lameter posted a patch to keep anon pages off the LRU when SWAP
-support not configured into the kernel.  With Christoph's patch, these
-pages are left out "in limbo"--not on any list.  Because of this,
-Christoph's patch does not address the more common situation of kernels
-with SWAP configured in, but insufficient or no swap added.  I think this
-is a more common situation because most distros will ship kernels with
-the SWAP support configured in--at least for "enterprise" use.  Maintaining
-these pages on a noreclaim list, will make it possible to restore these
-pages to the [in]active lists when/if swap is added.
-
-Nick Piggin's patch to keep mlock'ed pages [condition 2 above] off the
-LRU list also lets the mlocked/non-reclaimable pages float, not on any
-list.  While Nick's patch does allow these pages to become reclaimable
-when all memory locks are removed, there is another reason to keep pages
-on a separate list.
-
-We want to be able to migrate anon pages that have no swap space backing
-them, and those that are mlocked.  Indeed, the migration infrastructure
-supports this.  However, the LRU lists, via the zone lru locks, arbitrate
-between tasks attempting to migrate the same pages simultaneously.  To
-migrate a page, we must isolate it from the LRU.  If the page cannot be
-isolated, migration gives up and moves on to another page.  Which ever
-task is successful in isolating the page proceeds with the migration.
-Keeping the nonreclaimable pages on a separate list, protected by the
-zone lru lock, would preserve this arbitration function.  isolate_page_lru(),
-used by both migration and Nick's mlock patch, can be enhanced to find
-pages on the noreclaim list, as well as on the [in]active lists.
-
-What's the probability that tasks will race on migrating the same page?
-Fairly high if auto-migration ever makes it into the kernel, but non-zero
-in any case.
-
-Rik van Reil's patch to split the active and inactive lists can address
-the non-swappable page problem by throttling the scan of the anon LRU
-lists, that contain both anon and shmem pages.  However, if the system
-supports any swap space at all, one still needs to scan the anon lists
-to free up memory consumed by pages already in the swap cache.  On
-large memory systems, the anon lists can still be millions of pages 
-long and contain a large per centage of non-swappable and mlocked
-pages.
-
-This series attempts to unify this work into a general mechanism for
-managing non-reclaimable pages.  The basic objective is to make vmscan
-as productive as possible on very large memory systems, by eliminating
-non-productive page shuffling.
-
-Like Larry's patch, the noreclaim infrastructure maintains "non-reclaimable"
-pages on a separate per-zone list.  This noreclaim list is, conceptually,
-another LRU list--a sibling of the active and inactive lists.  A page on
-the noreclaim list will have the PG_lru and PG_noreclaim flags set.  The
-PG_noreclaim flag is analogous to, and mutually exclusive with, the
-PG_active flag--it specifies which LRU list the page resides on.  The
-noreclaim list supports a pagevec cache, like the active and inactive
-lists to reduce contention on the zone lru lock in vmscan and in the
-fault path.
-
-Pages on the noreclaim list are "hidden" from page reclaim scanning.  Thus,
-reclaim will not spend time attempting to reclaim the pages, only to find
-that they can't be unmapped, have no swap space available, are locked into
-memory, ...  However, vmscan may find pages on the [in]active lists that
-have become non-reclaimable since they were put on the list.  It will
-move them to the noreclaim list at that time.
-
-This series of patches includes the basic noreclaim list support and one
-patch, as a proof of concept, to address the 3rd condition listed above:
-the excessively long anon_vma list of related vmas.  This seemed to be
-the easiest of the 3 conditions to address, and I have a test case
-handy [AIM7--see below].  Additional patches to handle anon pages for
-which no swap exists and to layer Nick Piggin's patch to keep "mlock
-pages off the LRU" will be forthcoming, if feedback indicates that
-this approach is worth pursuing.
-
-
-Now, about those anon pages with really long "related vma" lists:
-We have only seen this in AIM7 benchmarks on largish servers.  The situation
-occurs when a single task fork()s many [10s of] thousands of children, and
-the the system needs to reclaim memory.  We've seen all processors on a
-system spinning on the anon_vma lock attempting to unmap pages mapped
-by these thousands of children--for 10s of minutes or until we give up
-and reboot.
-
-I discussed this issue at LCA'07 in a kernel miniconf presentation.
-Linus questioned whether this was a problem that really needs solving.
-After all, AIM7 is only a synthetic benchmark.  Does any real application 
-behave this way?   After the presentation, someone came up to me and told
-me that Apache also fork()s for each incoming connection and can fork
-thousands of children.  However, I have not witnessed this, nor do I
-know how long lived these children are.
-
-I have included another patch that makes the anon_vma lock a reader/write
-lock.  This allows different cpus to attempt to reclaim, in parallel,
-different pages that point to the same anon_vma.  However, this doesn't
-solve the problem of trying to unmap pages that are [potentially] mapped
-into thousands of vmas.
-
-The last patch in this series counts the number of related vmas on an 
-anon_vma's list and, when it exceeds a tunable threshold, pages that 
-reference that anon_vma are declared nonreclaimable.  We detect these
-non-reclaimable pages either on fault [COW or new anon page in a vma with
-an excessively shared anon_vma] or when vmscan encounters such a page on
-the LRU list.  
-
-The patch/series does not [yet] support moving such a page back to the
-[in]active lists when it's anon_vma sharing drops below the threshold.
-This usually occurs when a task exits or explicitly unmapps the area.
-Any COWed private pages will be freed at this time, but anon pages that
-are still shared will remain nonreclaimable even though the related vma
-count is below the no-reclaim limit.  Again, I will address this if the
-overall approach is deemed worth pursuing.
-
-Additional considerations:
-
-If the noreclaim list contains mlocked pages, they can be directly deleted
-from the noreclaim list without scanning when the become unlocked.  But,
-note that we can't use one of the lru link fields to contain the mlocked
-vma count in this case.
-
-If the noreclaim list contains anon/shmem pages for which no swap space
-exists, it will be necessary to scan the list when swap space becomes
-available, either because it has been freed from other pages, or because
-additional swap has been added.  The latter case should not occur 
-frequently enough to be a problem.  We should be able to defer the
-scanning when swap space is freed from other pages until a sufficient
-number become available or system is under severe pressure.
-
-If the list contains pages that are merely difficult to reclaim because
-of the excessive anon_vma sharing, and if we want to make them reclaimable
-again when the anon_vma related vma count drops to an acceptable value,
-one would have to scan the list at some point.  Again, this could be 
-deferred until there are a sufficient number of such pages to make it
-worth while or until the system is under severe memory pressure.
-
-The above considerations suggest that one consider separate lists for
-non-reclaimable [no swap, mlocked] and difficult to reclaim.   Or,
-maybe not...
-
-Interaction of noreclaim list and LRU lists:  My current patch moves
-pages to the noreclaim list as soon as they are detected, either on the
-active or inactive list.  I could change this such that non-reclaimable
-pages found on the active list go to the inactive list first, and 
-take a ride there before being declared non-reclaimable.  However, 
-we still have the issue of where to place the pages when then come off
-the no reclaim list:  back to the active list?  the inactive list?
-head or tail thereof?  My current mechanism, with the PG_active and
-PG_noreclaim flags being mutually exclusive, does not track activeness
-of pages on the noreclaim list.  To do so would require additional
-scanning of the list, I think, sort of defeating the purpose of the
-list.  But, maybe acceptable if we scan just to test/modify the active
-flags.
+Index: Linux/mm/Kconfig
+===================================================================
+--- Linux.orig/mm/Kconfig	2007-03-26 12:39:02.000000000 -0400
++++ Linux/mm/Kconfig	2007-03-26 13:14:05.000000000 -0400
+@@ -163,3 +163,11 @@ config ZONE_DMA_FLAG
+ 	default "0" if !ZONE_DMA
+ 	default "1"
+ 
++config NORECLAIM
++	bool "Track non-reclaimable pages"
++	help
++	  Supports tracking of non-reclaimable pages off the [in]active lists
++	  to avoid excessive reclaim overhead on large memory systems.  Pages
++	  may be non-reclaimable because:  they are locked into memory, they
++	  are anonymous pages for which no swap space exists, or they are anon
++	  pages that are expensive to unmap [long anon_vma "related vma" list.]
+Index: Linux/include/linux/page-flags.h
+===================================================================
+--- Linux.orig/include/linux/page-flags.h	2007-03-26 12:39:01.000000000 -0400
++++ Linux/include/linux/page-flags.h	2007-03-26 13:15:08.000000000 -0400
+@@ -91,6 +91,9 @@
+ #define PG_nosave_free		18	/* Used for system suspend/resume */
+ #define PG_buddy		19	/* Page is free, on buddy lists */
+ 
++#define PG_noreclaim		20	/* Page is "non-reclaimable"  */
++
++
+ /* PG_owner_priv_1 users should have descriptive aliases */
+ #define PG_checked		PG_owner_priv_1 /* Used by some filesystems */
+ 
+@@ -249,6 +252,23 @@ static inline void SetPageUptodate(struc
+ #define PageSwapCache(page)	0
+ #endif
+ 
++#ifdef CONFIG_NORECLAIM
++#define PageNoreclaim(page)	test_bit(PG_noreclaim, &(page)->flags)
++#define SetPageNoreclaim(page)	set_bit(PG_noreclaim, &(page)->flags)
++#define ClearPageNoreclaim(page) clear_bit(PG_noreclaim, &(page)->flags)
++#define __ClearPageNoreclaim(page) __clear_bit(PG_noreclaim, &(page)->flags)
++//TODO:   need test versions?
++#define TestSetPageNoreclaim(page) \
++				test_and_set_bit(PG_noreclaim, &(page)->flags)
++#define TestClearPageNoreclaim(page) \
++				test_and_clear_bit(PG_noreclaim, &(page)->flags)
++#else
++#define PageNoreclaim(page)	0
++#define SetPageNoreclaim(page)
++#define ClearPageNoreclaim(page)
++#define __ClearPageNoreclaim(page)
++#endif
++
+ #define PageUncached(page)	test_bit(PG_uncached, &(page)->flags)
+ #define SetPageUncached(page)	set_bit(PG_uncached, &(page)->flags)
+ #define ClearPageUncached(page)	clear_bit(PG_uncached, &(page)->flags)
+Index: Linux/include/linux/mmzone.h
+===================================================================
+--- Linux.orig/include/linux/mmzone.h	2007-03-26 12:39:01.000000000 -0400
++++ Linux/include/linux/mmzone.h	2007-03-26 13:23:10.000000000 -0400
+@@ -51,6 +51,9 @@ enum zone_stat_item {
+ 	NR_FREE_PAGES,
+ 	NR_INACTIVE,
+ 	NR_ACTIVE,
++#ifdef CONFIG_NORECLAIM
++	NR_NORECLAIM,
++#endif
+ 	NR_ANON_PAGES,	/* Mapped anonymous pages */
+ 	NR_FILE_MAPPED,	/* pagecache pages mapped into pagetables.
+ 			   only modified from process context */
+@@ -217,6 +220,9 @@ struct zone {
+ 	spinlock_t		lru_lock;	
+ 	struct list_head	active_list;
+ 	struct list_head	inactive_list;
++#ifdef CONFIG_NORECLAIM
++	struct list_head	noreclaim_list;
++#endif
+ 	unsigned long		nr_scan_active;
+ 	unsigned long		nr_scan_inactive;
+ 	unsigned long		pages_scanned;	   /* since last reclaim */
+Index: Linux/mm/page_alloc.c
+===================================================================
+--- Linux.orig/mm/page_alloc.c	2007-03-26 12:39:02.000000000 -0400
++++ Linux/mm/page_alloc.c	2007-03-26 13:17:49.000000000 -0400
+@@ -198,6 +198,7 @@ static void bad_page(struct page *page)
+ 			1 << PG_private |
+ 			1 << PG_locked	|
+ 			1 << PG_active	|
++			1 << PG_noreclaim	|
+ 			1 << PG_dirty	|
+ 			1 << PG_reclaim |
+ 			1 << PG_slab    |
+@@ -433,6 +434,7 @@ static inline int free_pages_check(struc
+ 			1 << PG_private |
+ 			1 << PG_locked	|
+ 			1 << PG_active	|
++			1 << PG_noreclaim	|
+ 			1 << PG_reclaim	|
+ 			1 << PG_slab	|
+ 			1 << PG_swapcache |
+@@ -582,6 +584,7 @@ static int prep_new_page(struct page *pa
+ 			1 << PG_private	|
+ 			1 << PG_locked	|
+ 			1 << PG_active	|
++			1 << PG_noreclaim	|
+ 			1 << PG_dirty	|
+ 			1 << PG_reclaim	|
+ 			1 << PG_slab    |
+@@ -2673,6 +2676,9 @@ static void __meminit free_area_init_cor
+ 		zone_pcp_init(zone);
+ 		INIT_LIST_HEAD(&zone->active_list);
+ 		INIT_LIST_HEAD(&zone->inactive_list);
++#ifdef CONFIG_NORECLAIM
++		INIT_LIST_HEAD(&zone->noreclaim_list);
++#endif
+ 		zone->nr_scan_active = 0;
+ 		zone->nr_scan_inactive = 0;
+ 		zap_zone_vm_stats(zone);
+Index: Linux/include/linux/mm_inline.h
+===================================================================
+--- Linux.orig/include/linux/mm_inline.h	2007-03-26 12:39:01.000000000 -0400
++++ Linux/include/linux/mm_inline.h	2007-03-26 13:24:10.000000000 -0400
+@@ -26,11 +26,43 @@ del_page_from_inactive_list(struct zone 
+ 	__dec_zone_state(zone, NR_INACTIVE);
+ }
+ 
++#ifdef CONFIG_NORECLAIM
++static inline void __dec_zone_noreclaim(struct zone *zone)
++{
++	__dec_zone_state(zone, NR_NORECLAIM);
++}
++
++static inline void
++add_page_to_noreclaim_list(struct zone *zone, struct page *page)
++{
++	list_add(&page->lru, &zone->noreclaim_list);
++	__inc_zone_state(zone, NR_NORECLAIM);
++}
++
++static inline void
++del_page_from_noreclaim_list(struct zone *zone, struct page *page)
++{
++	list_del(&page->lru);
++	__dec_zone_noreclaim(zone);
++}
++#else
++static inline void __dec_zone_noreclaim(struct zone *zone) { }
++
++static inline void
++add_page_to_noreclaim_list(struct zone *zone, struct page *page) { }
++
++static inline void
++del_page_from_noreclaim_list(struct zone *zone, struct page *page) { }
++#endif
++
+ static inline void
+ del_page_from_lru(struct zone *zone, struct page *page)
+ {
+ 	list_del(&page->lru);
+-	if (PageActive(page)) {
++	if (PageNoreclaim(page)) {
++		__ClearPageNoreclaim(page);
++		__dec_zone_noreclaim(zone);
++	} else if (PageActive(page)) {
+ 		__ClearPageActive(page);
+ 		__dec_zone_state(zone, NR_ACTIVE);
+ 	} else {
+Index: Linux/include/linux/swap.h
+===================================================================
+--- Linux.orig/include/linux/swap.h	2007-03-26 12:39:01.000000000 -0400
++++ Linux/include/linux/swap.h	2007-03-26 13:13:18.000000000 -0400
+@@ -186,6 +186,11 @@ extern void lru_add_drain(void);
+ extern int lru_add_drain_all(void);
+ extern int rotate_reclaimable_page(struct page *page);
+ extern void swap_setup(void);
++#ifdef CONFIG_NORECLAIM
++extern void FASTCALL(lru_cache_add_noreclaim(struct page *page));
++#else
++static inline void lru_cache_add_noreclaim(struct page *page) { }
++#endif
+ 
+ /* linux/mm/vmscan.c */
+ extern unsigned long try_to_free_pages(struct zone **, gfp_t);
+@@ -207,6 +212,12 @@ static inline int zone_reclaim(struct zo
+ }
+ #endif
+ 
++#ifdef CONFIG_NORECLAIM
++extern int page_reclaimable(struct page *page, struct vm_area_struct *vma);
++#else
++#define page_reclaimable(P, V) 1
++#endif
++
+ extern int kswapd_run(int nid);
+ 
+ #ifdef CONFIG_MMU
+Index: Linux/include/linux/pagevec.h
+===================================================================
+--- Linux.orig/include/linux/pagevec.h	2007-02-04 13:44:54.000000000 -0500
++++ Linux/include/linux/pagevec.h	2007-03-26 13:13:18.000000000 -0400
+@@ -25,6 +25,11 @@ void __pagevec_release_nonlru(struct pag
+ void __pagevec_free(struct pagevec *pvec);
+ void __pagevec_lru_add(struct pagevec *pvec);
+ void __pagevec_lru_add_active(struct pagevec *pvec);
++#ifdef CONFIG_NORECLAIM
++void __pagevec_lru_add_noreclaim(struct pagevec *pvec);
++#else
++static inline void __pagevec_lru_add_noreclaim(struct pagevec *pvec) { }
++#endif
+ void pagevec_strip(struct pagevec *pvec);
+ unsigned pagevec_lookup(struct pagevec *pvec, struct address_space *mapping,
+ 		pgoff_t start, unsigned nr_pages);
+Index: Linux/mm/swap.c
+===================================================================
+--- Linux.orig/mm/swap.c	2007-02-04 13:44:54.000000000 -0500
++++ Linux/mm/swap.c	2007-03-26 13:13:18.000000000 -0400
+@@ -117,14 +117,14 @@ int rotate_reclaimable_page(struct page 
+ 		return 1;
+ 	if (PageDirty(page))
+ 		return 1;
+-	if (PageActive(page))
++	if (PageActive(page) | PageNoreclaim(page))
+ 		return 1;
+ 	if (!PageLRU(page))
+ 		return 1;
+ 
+ 	zone = page_zone(page);
+ 	spin_lock_irqsave(&zone->lru_lock, flags);
+-	if (PageLRU(page) && !PageActive(page)) {
++	if (PageLRU(page) && !PageActive(page) && !PageNoreclaim(page)) {
+ 		list_move_tail(&page->lru, &zone->inactive_list);
+ 		__count_vm_event(PGROTATED);
+ 	}
+@@ -142,7 +142,7 @@ void fastcall activate_page(struct page 
+ 	struct zone *zone = page_zone(page);
+ 
+ 	spin_lock_irq(&zone->lru_lock);
+-	if (PageLRU(page) && !PageActive(page)) {
++	if (PageLRU(page) && !PageActive(page) && !PageNoreclaim(page)) {
+ 		del_page_from_inactive_list(zone, page);
+ 		SetPageActive(page);
+ 		add_page_to_active_list(zone, page);
+@@ -160,7 +160,8 @@ void fastcall activate_page(struct page 
+  */
+ void fastcall mark_page_accessed(struct page *page)
+ {
+-	if (!PageActive(page) && PageReferenced(page) && PageLRU(page)) {
++	if (!PageActive(page) && !PageNoreclaim(page) &&
++			PageReferenced(page) && PageLRU(page)) {
+ 		activate_page(page);
+ 		ClearPageReferenced(page);
+ 	} else if (!PageReferenced(page)) {
+@@ -197,6 +198,29 @@ void fastcall lru_cache_add_active(struc
+ 	put_cpu_var(lru_add_active_pvecs);
+ }
+ 
++#ifdef CONFIG_NORECLAIM
++static DEFINE_PER_CPU(struct pagevec, lru_add_noreclaim_pvecs) = { 0, };
++
++void fastcall lru_cache_add_noreclaim(struct page *page)
++{
++	struct pagevec *pvec = &get_cpu_var(lru_add_noreclaim_pvecs);
++
++	page_cache_get(page);
++	if (!pagevec_add(pvec, page))
++		__pagevec_lru_add_noreclaim(pvec);
++	put_cpu_var(lru_add_noreclaim_pvecs);
++}
++
++static inline void __drain_noreclaim_pvec(struct pagevec **pvec, int cpu)
++{
++	*pvec = &per_cpu(lru_add_noreclaim_pvecs, cpu);
++	if (pagevec_count(*pvec))
++		__pagevec_lru_add_noreclaim(*pvec);
++}
++#else
++static inline void __drain_noreclaim_pvec(struct pagevec **pvec, int cpu) { }
++#endif
++
+ static void __lru_add_drain(int cpu)
+ {
+ 	struct pagevec *pvec = &per_cpu(lru_add_pvecs, cpu);
+@@ -207,6 +231,8 @@ static void __lru_add_drain(int cpu)
+ 	pvec = &per_cpu(lru_add_active_pvecs, cpu);
+ 	if (pagevec_count(pvec))
+ 		__pagevec_lru_add_active(pvec);
++
++	__drain_noreclaim_pvec(&pvec, cpu);
+ }
+ 
+ void lru_add_drain(void)
+@@ -277,14 +303,18 @@ void release_pages(struct page **pages, 
+ 
+ 		if (PageLRU(page)) {
+ 			struct zone *pagezone = page_zone(page);
++			int is_lru_page;
++
+ 			if (pagezone != zone) {
+ 				if (zone)
+ 					spin_unlock_irq(&zone->lru_lock);
+ 				zone = pagezone;
+ 				spin_lock_irq(&zone->lru_lock);
+ 			}
+-			VM_BUG_ON(!PageLRU(page));
+-			__ClearPageLRU(page);
++			is_lru_page = PageLRU(page);
++			VM_BUG_ON(!(is_lru_page));
++			if (is_lru_page)
++				__ClearPageLRU(page);
+ 			del_page_from_lru(zone, page);
+ 		}
+ 
+@@ -392,7 +422,7 @@ void __pagevec_lru_add_active(struct pag
+ 		}
+ 		VM_BUG_ON(PageLRU(page));
+ 		SetPageLRU(page);
+-		VM_BUG_ON(PageActive(page));
++		VM_BUG_ON(PageActive(page) || PageNoreclaim(page));
+ 		SetPageActive(page);
+ 		add_page_to_active_list(zone, page);
+ 	}
+@@ -402,6 +432,35 @@ void __pagevec_lru_add_active(struct pag
+ 	pagevec_reinit(pvec);
+ }
+ 
++#ifdef CONFIG_NORECLAIM
++void __pagevec_lru_add_noreclaim(struct pagevec *pvec)
++{
++	int i;
++	struct zone *zone = NULL;
++
++	for (i = 0; i < pagevec_count(pvec); i++) {
++		struct page *page = pvec->pages[i];
++		struct zone *pagezone = page_zone(page);
++
++		if (pagezone != zone) {
++			if (zone)
++				spin_unlock_irq(&zone->lru_lock);
++			zone = pagezone;
++			spin_lock_irq(&zone->lru_lock);
++		}
++		VM_BUG_ON(PageLRU(page));
++		SetPageLRU(page);
++		VM_BUG_ON(PageActive(page) || PageNoreclaim(page));
++		SetPageNoreclaim(page);
++		add_page_to_noreclaim_list(zone, page);
++	}
++	if (zone)
++		spin_unlock_irq(&zone->lru_lock);
++	release_pages(pvec->pages, pvec->nr, pvec->cold);
++	pagevec_reinit(pvec);
++}
++#endif
++
+ /*
+  * Try to drop buffers from the pages in a pagevec
+  */
+Index: Linux/mm/migrate.c
+===================================================================
+--- Linux.orig/mm/migrate.c	2007-03-26 13:11:51.000000000 -0400
++++ Linux/mm/migrate.c	2007-03-26 13:13:18.000000000 -0400
+@@ -52,7 +52,10 @@ int migrate_prep(void)
+ 
+ static inline void move_to_lru(struct page *page)
+ {
+-	if (PageActive(page)) {
++	if (PageNoreclaim(page)) {
++		ClearPageNoreclaim(page);
++		lru_cache_add_noreclaim(page);
++	} else if (PageActive(page)) {
+ 		/*
+ 		 * lru_cache_add_active checks that
+ 		 * the PG_active bit is off.
+@@ -322,6 +325,9 @@ static void migrate_page_copy(struct pag
+ 		SetPageUptodate(newpage);
+ 	if (PageActive(page))
+ 		SetPageActive(newpage);
++	else
++		if (PageNoreclaim(page))
++			SetPageNoreclaim(newpage);
+ 	if (PageChecked(page))
+ 		SetPageChecked(newpage);
+ 	if (PageMappedToDisk(page))
+Index: Linux/mm/vmscan.c
+===================================================================
+--- Linux.orig/mm/vmscan.c	2007-03-26 13:11:51.000000000 -0400
++++ Linux/mm/vmscan.c	2007-03-26 13:24:56.000000000 -0400
+@@ -473,6 +473,11 @@ static unsigned long shrink_page_list(st
+ 
+ 		sc->nr_scanned++;
+ 
++		if (!page_reclaimable(page, NULL)) {
++			SetPageNoreclaim(page);
++			goto keep_locked;
++		}
++
+ 		if (!sc->may_swap && page_mapped(page))
+ 			goto keep_locked;
+ 
+@@ -587,6 +592,7 @@ free_it:
+ 		continue;
+ 
+ activate_locked:
++		VM_BUG_ON(PageActive(page));
+ 		SetPageActive(page);
+ 		pgactivate++;
+ keep_locked:
+@@ -682,6 +688,8 @@ int isolate_lru_page(struct page *page)
+ 			ClearPageLRU(page);
+ 			if (PageActive(page))
+ 				del_page_from_active_list(zone, page);
++			else if (PageNoreclaim(page))
++				del_page_from_noreclaim_list(zone, page);
+ 			else
+ 				del_page_from_inactive_list(zone, page);
+ 		}
+@@ -742,8 +750,11 @@ static unsigned long shrink_inactive_lis
+ 			VM_BUG_ON(PageLRU(page));
+ 			SetPageLRU(page);
+ 			list_del(&page->lru);
+-			if (PageActive(page))
++			if (PageActive(page)) {
+ 				add_page_to_active_list(zone, page);
++				VM_BUG_ON(PageNoreclaim(page));
++			} else if (PageNoreclaim(page))
++				add_page_to_noreclaim_list(zone, page);
+ 			else
+ 				add_page_to_inactive_list(zone, page);
+ 			if (!pagevec_add(&pvec, page)) {
+@@ -806,6 +817,9 @@ static void shrink_active_list(unsigned 
+ 	LIST_HEAD(l_hold);	/* The pages which were snipped off */
+ 	LIST_HEAD(l_inactive);	/* Pages to go onto the inactive_list */
+ 	LIST_HEAD(l_active);	/* Pages to go onto the active_list */
++#ifdef CONFIG_NORECLAIM
++	LIST_HEAD(l_noreclaim);	/* Pages to go onto the noreclaim list */
++#endif
+ 	struct page *page;
+ 	struct pagevec pvec;
+ 	int reclaim_mapped = 0;
+@@ -869,6 +883,14 @@ force_reclaim_mapped:
+ 		cond_resched();
+ 		page = lru_to_page(&l_hold);
+ 		list_del(&page->lru);
++		if (!page_reclaimable(page, NULL)) {
++			/*
++			 * divert any non-reclaimable pages onto the
++			 * noreclaim list
++			 */
++			list_add(&page->lru, &l_noreclaim);
++			continue;
++		}
+ 		if (page_mapped(page)) {
+ 			if (!reclaim_mapped ||
+ 			    (total_swap_pages == 0 && PageAnon(page)) ||
+@@ -931,6 +953,30 @@ force_reclaim_mapped:
+ 	}
+ 	__mod_zone_page_state(zone, NR_ACTIVE, pgmoved);
+ 
++#ifdef CONFIG_NORECLAIM
++	pgmoved = 0;
++	while (!list_empty(&l_noreclaim)) {
++		page = lru_to_page(&l_noreclaim);
++		prefetchw_prev_lru_page(page, &l_noreclaim, flags);
++		VM_BUG_ON(PageLRU(page));
++		SetPageLRU(page);
++		VM_BUG_ON(!PageActive(page));
++		ClearPageActive(page);
++		VM_BUG_ON(PageNoreclaim(page));
++		SetPageNoreclaim(page);
++		list_move(&page->lru, &zone->noreclaim_list);
++		pgmoved++;
++		if (!pagevec_add(&pvec, page)) {
++			__mod_zone_page_state(zone, NR_NORECLAIM, pgmoved);
++			pgmoved = 0;
++			spin_unlock_irq(&zone->lru_lock);
++			__pagevec_release(&pvec);
++			spin_lock_irq(&zone->lru_lock);
++		}
++	}
++	__mod_zone_page_state(zone, NR_NORECLAIM, pgmoved);
++#endif
++
+ 	__count_zone_vm_events(PGREFILL, zone, pgscanned);
+ 	__count_vm_events(PGDEACTIVATE, pgdeactivate);
+ 	spin_unlock_irq(&zone->lru_lock);
+@@ -1764,3 +1810,30 @@ int zone_reclaim(struct zone *zone, gfp_
+ 	return __zone_reclaim(zone, gfp_mask, order);
+ }
+ #endif
++
++#ifdef CONFIG_NORECLAIM
++/*
++ * page_reclaimable(struct page *page, struct vm_area_struct *vma)
++ * Test whether page is reclaimable--i.e., should be placed on active/inactive
++ * lists vs noreclaim list.
++ *
++ * @page       - page to test
++ * @vma        - vm area in which page is/will be mapped.  May be NULL.
++ *               If !NULL, called from fault path.
++ *
++ * Reasons page might not be reclaimable:
++ * TODO - later patches
++ *
++ * TODO:  specify locking assumptions
++ */
++int page_reclaimable(struct page *page, struct vm_area_struct *vma)
++{
++	int reclaimable = 1;
++
++	VM_BUG_ON(PageNoreclaim(page));
++
++	/* TODO:  test page [!]reclaimable conditions */
++
++	return reclaimable;
++}
++#endif
+Index: Linux/mm/mempolicy.c
+===================================================================
+--- Linux.orig/mm/mempolicy.c	2007-03-26 13:11:51.000000000 -0400
++++ Linux/mm/mempolicy.c	2007-03-26 13:13:18.000000000 -0400
+@@ -1790,7 +1790,7 @@ static void gather_stats(struct page *pa
+ 	if (PageSwapCache(page))
+ 		md->swapcache++;
+ 
+-	if (PageActive(page))
++	if (PageActive(page) || PageNoreclaim(page))
+ 		md->active++;
+ 
+ 	if (PageWriteback(page))
 
 
 --
