@@ -1,51 +1,49 @@
-Received: from sd0112e0.au.ibm.com (d23rh903.au.ibm.com [202.81.18.201])
-	by ausmtp06.au.ibm.com (8.13.8/8.13.8) with ESMTP id l5T6PUAC5103690
-	for <linux-mm@kvack.org>; Fri, 29 Jun 2007 16:25:31 +1000
-Received: from d23av01.au.ibm.com (d23av01.au.ibm.com [9.190.250.242])
-	by sd0112e0.au.ibm.com (8.13.8/8.13.8/NCO v8.3) with ESMTP id l5T6RlKS081456
-	for <linux-mm@kvack.org>; Fri, 29 Jun 2007 16:27:57 +1000
-Received: from d23av01.au.ibm.com (loopback [127.0.0.1])
-	by d23av01.au.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l5T6MXK3021002
-	for <linux-mm@kvack.org>; Fri, 29 Jun 2007 16:22:52 +1000
-Message-ID: <4684A523.5090600@linux.vnet.ibm.com>
-Date: Fri, 29 Jun 2007 11:52:27 +0530
-From: Vaidyanathan Srinivasan <svaidy@linux.vnet.ibm.com>
+From: Andi Kleen <ak@suse.de>
+Subject: Re: [PATCH/RFC 0/11] Shared Policy Overview
+Date: Fri, 29 Jun 2007 11:01:40 +0200
+References: <20070625195224.21210.89898.sendpatchset@localhost> <1183038137.5697.16.camel@localhost> <Pine.LNX.4.64.0706281835270.9573@schroedinger.engr.sgi.com>
+In-Reply-To: <Pine.LNX.4.64.0706281835270.9573@schroedinger.engr.sgi.com>
 MIME-Version: 1.0
-Subject: [RFC][PATCH 3/3] Pagecache reclaim
-References: <4684A3F3.40001@linux.vnet.ibm.com>
-In-Reply-To: <4684A3F3.40001@linux.vnet.ibm.com>
-Content-Type: text/plain; charset=ISO-8859-1
+Content-Type: text/plain;
+  charset="iso-8859-1"
 Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+Message-Id: <200706291101.41081.ak@suse.de>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Linux Kernel <linux-kernel@vger.kernel.org>, Linux Containers <containers@lists.osdl.org>, linux-mm <linux-mm@kvack.org>
-Cc: Balbir Singh <balbir@in.ibm.com>, Pavel Emelianov <xemul@sw.ru>, Paul Menage <menage@google.com>, Kirill Korotaev <dev@sw.ru>, devel@openvz.org, Andrew Morton <akpm@linux-foundation.org>, "Eric W. Biederman" <ebiederm@xmission.com>, Herbert Poetzl <herbert@13thfloor.at>, Roy Huang <royhuang9@gmail.com>, Aubrey Li <aubreylee@gmail.com>, Peter Zijlstra <peterz@infradead.org>
+To: Christoph Lameter <clameter@sgi.com>
+Cc: Lee Schermerhorn <Lee.Schermerhorn@hp.com>, "Paul E. McKenney" <paulmck@us.ibm.com>, linux-mm@kvack.org, akpm@linux-foundation.org, nacc@us.ibm.com
 List-ID: <linux-mm.kvack.org>
 
-Pagecache controller reclaim changes
-------------------------------------
+On Friday 29 June 2007 03:39:52 Christoph Lameter wrote:
+> On Thu, 28 Jun 2007, Lee Schermerhorn wrote:
+> 
+> > Avoid the taking the reference count on the system default policy or the
+> > current task's task policy.  Note that if show_numa_map() is called from
+> > the context of a relative of the target task with the same task mempolicy,
+> > we won't take an extra reference either.  This is safe, because the policy
+> > remains referenced by the calling task during the mpol_to_str() processing.
+> 
+> I still do not see the rationale for this patchset. This adds more special 
+> casing. 
 
-Reclaim path needs performance improvement.
-For now it is minor changes to include unmapped
-pages in our list of page_container.
+The reference count change at least is a good idea.
 
-Signed-off-by: Vaidyanathan Srinivasan <svaidy@linux.vnet.ibm.com>
----
- mm/rss_container.c |    3 ---
- 1 file changed, 3 deletions(-)
+> So if we have a vma policy then we suck again? 
 
---- linux-2.6.22-rc2-mm1.orig/mm/rss_container.c
-+++ linux-2.6.22-rc2-mm1/mm/rss_container.c
-@@ -243,9 +243,6 @@ void container_rss_move_lists(struct pag
- 	struct rss_container *rss;
- 	struct page_container *pc;
+An additional reference count inc/dec is not exactly "suck". We try to 
+avoid it because it's a little slow on some obsolete CPUs we support, but
+even on those it is not that bad and will probably only show up
+in extreme microbenchmarking. Still it's normally good to avoid
+making the default path slower.
 
--	if (!page_mapped(pg))
--		return;
--
- 	pc = page_container(pg);
- 	if (pc == NULL)
- 		return;
+> 
+> This all still falls under the category of messing up a bad situation even 
+> more.
+
+I think you're exaggerating.
+
+-Andi
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
