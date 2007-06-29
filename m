@@ -1,18 +1,18 @@
 Received: from d12nrmr1607.megacenter.de.ibm.com (d12nrmr1607.megacenter.de.ibm.com [9.149.167.49])
-	by mtagate8.de.ibm.com (8.13.8/8.13.8) with ESMTP id l5TEDOeg268452
-	for <linux-mm@kvack.org>; Fri, 29 Jun 2007 14:13:24 GMT
+	by mtagate6.de.ibm.com (8.13.8/8.13.8) with ESMTP id l5TEDN9h1605692
+	for <linux-mm@kvack.org>; Fri, 29 Jun 2007 14:13:23 GMT
 Received: from d12av02.megacenter.de.ibm.com (d12av02.megacenter.de.ibm.com [9.149.165.228])
-	by d12nrmr1607.megacenter.de.ibm.com (8.13.8/8.13.8/NCO v8.3) with ESMTP id l5TEDOgF1409158
-	for <linux-mm@kvack.org>; Fri, 29 Jun 2007 16:13:24 +0200
+	by d12nrmr1607.megacenter.de.ibm.com (8.13.8/8.13.8/NCO v8.3) with ESMTP id l5TEDNKL2166974
+	for <linux-mm@kvack.org>; Fri, 29 Jun 2007 16:13:23 +0200
 Received: from d12av02.megacenter.de.ibm.com (loopback [127.0.0.1])
-	by d12av02.megacenter.de.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l5TEDNgC016028
-	for <linux-mm@kvack.org>; Fri, 29 Jun 2007 16:13:24 +0200
-Message-Id: <20070629141528.287915310@de.ibm.com>
+	by d12av02.megacenter.de.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l5TEDNaM016007
+	for <linux-mm@kvack.org>; Fri, 29 Jun 2007 16:13:23 +0200
+Message-Id: <20070629141527.839906850@de.ibm.com>
 References: <20070629135530.912094590@de.ibm.com>
-Date: Fri, 29 Jun 2007 15:55:34 +0200
+Date: Fri, 29 Jun 2007 15:55:32 +0200
 From: Martin Schwidefsky <schwidefsky@de.ibm.com>
-Subject: [patch 4/5] move mm_struct and vm_area_struct.
-Content-Disposition: inline; filename=005-mm-types.diff
+Subject: [patch 2/5] remove ptep_establish.
+Content-Disposition: inline; filename=003-ptep-establish.diff
 Sender: owner-linux-mm@kvack.org
 From: Martin Schwidefsky <schwidefsky@de.ibm.com>
 Return-Path: <owner-linux-mm@kvack.org>
@@ -20,373 +20,83 @@ To: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 Cc: Martin Schwidefsky <schwidefsky@de.ibm.com>
 List-ID: <linux-mm.kvack.org>
 
-Move the definitions of struct mm_struct and struct vma_area_struct
-to include/mm_types.h. This allows to define more function in
-asm/pgtable.h and friends with inline assemblies instead of macros.
+The last user of ptep_establish in mm/ is long gone. Remove the
+architecture primitive as well.
 
 Signed-off-by: Martin Schwidefsky <schwidefsky@de.ibm.com>
 ---
 
- include/linux/mm.h       |   63 --------------------
- include/linux/mm_types.h |  143 +++++++++++++++++++++++++++++++++++++++++++++++
- include/linux/sched.h    |   74 ------------------------
- 3 files changed, 144 insertions(+), 136 deletions(-)
+ include/asm-generic/pgtable.h |   19 -------------------
+ include/asm-i386/pgtable.h    |   11 -----------
+ include/asm-ia64/pgtable.h    |    6 ++++--
+ 3 files changed, 4 insertions(+), 32 deletions(-)
 
-diff -urpN linux-2.6/include/linux/mm.h linux-2.6-patched/include/linux/mm.h
---- linux-2.6/include/linux/mm.h	2007-06-29 15:44:08.000000000 +0200
-+++ linux-2.6-patched/include/linux/mm.h	2007-06-29 15:44:12.000000000 +0200
-@@ -51,69 +51,6 @@ extern int sysctl_legacy_va_layout;
-  * mmap() functions).
-  */
+diff -urpN linux-2.6/include/asm-generic/pgtable.h linux-2.6-patched/include/asm-generic/pgtable.h
+--- linux-2.6/include/asm-generic/pgtable.h	2007-06-18 09:43:22.000000000 +0200
++++ linux-2.6-patched/include/asm-generic/pgtable.h	2007-06-29 15:44:10.000000000 +0200
+@@ -3,25 +3,6 @@
+ 
+ #ifndef __ASSEMBLY__
+ 
+-#ifndef __HAVE_ARCH_PTEP_ESTABLISH
+-/*
+- * Establish a new mapping:
+- *  - flush the old one
+- *  - update the page tables
+- *  - inform the TLB about the new one
+- *
+- * We hold the mm semaphore for reading, and the pte lock.
+- *
+- * Note: the old pte is known to not be writable, so we don't need to
+- * worry about dirty bits etc getting lost.
+- */
+-#define ptep_establish(__vma, __address, __ptep, __entry)		\
+-do {				  					\
+-	set_pte_at((__vma)->vm_mm, (__address), __ptep, __entry);	\
+-	flush_tlb_page(__vma, __address);				\
+-} while (0)
+-#endif
+-
+ #ifndef __HAVE_ARCH_PTEP_SET_ACCESS_FLAGS
+ /*
+  * Largely same as above, but only sets the access flags (dirty,
+diff -urpN linux-2.6/include/asm-i386/pgtable.h linux-2.6-patched/include/asm-i386/pgtable.h
+--- linux-2.6/include/asm-i386/pgtable.h	2007-06-18 09:43:22.000000000 +0200
++++ linux-2.6-patched/include/asm-i386/pgtable.h	2007-06-29 15:44:10.000000000 +0200
+@@ -317,17 +317,6 @@ static inline pte_t native_local_ptep_ge
+ 	__ret;								\
+ })
  
 -/*
-- * This struct defines a memory VMM memory area. There is one of these
-- * per VM-area/task.  A VM area is any part of the process virtual memory
-- * space that has a special rule for the page-fault handlers (ie a shared
-- * library, the executable area etc).
+- * Rules for using ptep_establish: the pte MUST be a user pte, and
+- * must be a present->present transition.
 - */
--struct vm_area_struct {
--	struct mm_struct * vm_mm;	/* The address space we belong to. */
--	unsigned long vm_start;		/* Our start address within vm_mm. */
--	unsigned long vm_end;		/* The first byte after our end address
--					   within vm_mm. */
+-#define __HAVE_ARCH_PTEP_ESTABLISH
+-#define ptep_establish(vma, address, ptep, pteval)			\
+-do {									\
+-	set_pte_present((vma)->vm_mm, address, ptep, pteval);		\
+-	flush_tlb_page(vma, address);					\
+-} while (0)
 -
--	/* linked list of VM areas per task, sorted by address */
--	struct vm_area_struct *vm_next;
--
--	pgprot_t vm_page_prot;		/* Access permissions of this VMA. */
--	unsigned long vm_flags;		/* Flags, listed below. */
--
--	struct rb_node vm_rb;
--
--	/*
--	 * For areas with an address space and backing store,
--	 * linkage into the address_space->i_mmap prio tree, or
--	 * linkage to the list of like vmas hanging off its node, or
--	 * linkage of vma in the address_space->i_mmap_nonlinear list.
--	 */
--	union {
--		struct {
--			struct list_head list;
--			void *parent;	/* aligns with prio_tree_node parent */
--			struct vm_area_struct *head;
--		} vm_set;
--
--		struct raw_prio_tree_node prio_tree_node;
--	} shared;
--
--	/*
--	 * A file's MAP_PRIVATE vma can be in both i_mmap tree and anon_vma
--	 * list, after a COW of one of the file pages.  A MAP_SHARED vma
--	 * can only be in the i_mmap tree.  An anonymous MAP_PRIVATE, stack
--	 * or brk vma (with NULL file) can only be in an anon_vma list.
--	 */
--	struct list_head anon_vma_node;	/* Serialized by anon_vma->lock */
--	struct anon_vma *anon_vma;	/* Serialized by page_table_lock */
--
--	/* Function pointers to deal with this struct. */
--	struct vm_operations_struct * vm_ops;
--
--	/* Information about our backing store: */
--	unsigned long vm_pgoff;		/* Offset (within vm_file) in PAGE_SIZE
--					   units, *not* PAGE_CACHE_SIZE */
--	struct file * vm_file;		/* File we map to (can be NULL). */
--	void * vm_private_data;		/* was vm_pte (shared mem) */
--	unsigned long vm_truncate_count;/* truncate_count or restart_addr */
--
--#ifndef CONFIG_MMU
--	atomic_t vm_usage;		/* refcount (VMAs shared if !MMU) */
--#endif
--#ifdef CONFIG_NUMA
--	struct mempolicy *vm_policy;	/* NUMA policy for the VMA */
--#endif
--};
--
- extern struct kmem_cache *vm_area_cachep;
- 
- /*
-diff -urpN linux-2.6/include/linux/mm_types.h linux-2.6-patched/include/linux/mm_types.h
---- linux-2.6/include/linux/mm_types.h	2007-05-11 09:19:04.000000000 +0200
-+++ linux-2.6-patched/include/linux/mm_types.h	2007-06-29 15:44:12.000000000 +0200
-@@ -1,13 +1,25 @@
- #ifndef _LINUX_MM_TYPES_H
- #define _LINUX_MM_TYPES_H
- 
-+#include <linux/auxvec.h>	/* For AT_VECTOR_SIZE */
- #include <linux/types.h>
- #include <linux/threads.h>
- #include <linux/list.h>
- #include <linux/spinlock.h>
-+#include <linux/prio_tree.h>
-+#include <linux/rbtree.h>
-+#include <linux/rwsem.h>
-+#include <linux/completion.h>
-+#include <asm/mmu.h>
- 
- struct address_space;
- 
-+#if NR_CPUS >= CONFIG_SPLIT_PTLOCK_CPUS
-+typedef atomic_long_t mm_counter_t;
-+#else  /* NR_CPUS < CONFIG_SPLIT_PTLOCK_CPUS */
-+typedef unsigned long mm_counter_t;
-+#endif /* NR_CPUS < CONFIG_SPLIT_PTLOCK_CPUS */
-+
- /*
-  * Each physical page in the system has a struct page associated with
-  * it to keep track of whatever it is we are using the page for at the
-@@ -80,4 +92,135 @@ struct page {
- #endif /* WANT_PAGE_VIRTUAL */
- };
- 
-+/*
-+ * This struct defines a memory VMM memory area. There is one of these
-+ * per VM-area/task.  A VM area is any part of the process virtual memory
-+ * space that has a special rule for the page-fault handlers (ie a shared
-+ * library, the executable area etc).
-+ */
-+struct vm_area_struct {
-+	struct mm_struct * vm_mm;	/* The address space we belong to. */
-+	unsigned long vm_start;		/* Our start address within vm_mm. */
-+	unsigned long vm_end;		/* The first byte after our end address
-+					   within vm_mm. */
-+
-+	/* linked list of VM areas per task, sorted by address */
-+	struct vm_area_struct *vm_next;
-+
-+	pgprot_t vm_page_prot;		/* Access permissions of this VMA. */
-+	unsigned long vm_flags;		/* Flags, listed below. */
-+
-+	struct rb_node vm_rb;
-+
-+	/*
-+	 * For areas with an address space and backing store,
-+	 * linkage into the address_space->i_mmap prio tree, or
-+	 * linkage to the list of like vmas hanging off its node, or
-+	 * linkage of vma in the address_space->i_mmap_nonlinear list.
-+	 */
-+	union {
-+		struct {
-+			struct list_head list;
-+			void *parent;	/* aligns with prio_tree_node parent */
-+			struct vm_area_struct *head;
-+		} vm_set;
-+
-+		struct raw_prio_tree_node prio_tree_node;
-+	} shared;
-+
-+	/*
-+	 * A file's MAP_PRIVATE vma can be in both i_mmap tree and anon_vma
-+	 * list, after a COW of one of the file pages.	A MAP_SHARED vma
-+	 * can only be in the i_mmap tree.  An anonymous MAP_PRIVATE, stack
-+	 * or brk vma (with NULL file) can only be in an anon_vma list.
-+	 */
-+	struct list_head anon_vma_node;	/* Serialized by anon_vma->lock */
-+	struct anon_vma *anon_vma;	/* Serialized by page_table_lock */
-+
-+	/* Function pointers to deal with this struct. */
-+	struct vm_operations_struct * vm_ops;
-+
-+	/* Information about our backing store: */
-+	unsigned long vm_pgoff;		/* Offset (within vm_file) in PAGE_SIZE
-+					   units, *not* PAGE_CACHE_SIZE */
-+	struct file * vm_file;		/* File we map to (can be NULL). */
-+	void * vm_private_data;		/* was vm_pte (shared mem) */
-+	unsigned long vm_truncate_count;/* truncate_count or restart_addr */
-+
-+#ifndef CONFIG_MMU
-+	atomic_t vm_usage;		/* refcount (VMAs shared if !MMU) */
-+#endif
-+#ifdef CONFIG_NUMA
-+	struct mempolicy *vm_policy;	/* NUMA policy for the VMA */
-+#endif
-+};
-+
-+struct mm_struct {
-+	struct vm_area_struct * mmap;		/* list of VMAs */
-+	struct rb_root mm_rb;
-+	struct vm_area_struct * mmap_cache;	/* last find_vma result */
-+	unsigned long (*get_unmapped_area) (struct file *filp,
-+				unsigned long addr, unsigned long len,
-+				unsigned long pgoff, unsigned long flags);
-+	void (*unmap_area) (struct mm_struct *mm, unsigned long addr);
-+	unsigned long mmap_base;		/* base of mmap area */
-+	unsigned long task_size;		/* size of task vm space */
-+	unsigned long cached_hole_size; 	/* if non-zero, the largest hole below free_area_cache */
-+	unsigned long free_area_cache;		/* first hole of size cached_hole_size or larger */
-+	pgd_t * pgd;
-+	atomic_t mm_users;			/* How many users with user space? */
-+	atomic_t mm_count;			/* How many references to "struct mm_struct" (users count as 1) */
-+	int map_count;				/* number of VMAs */
-+	struct rw_semaphore mmap_sem;
-+	spinlock_t page_table_lock;		/* Protects page tables and some counters */
-+
-+	struct list_head mmlist;		/* List of maybe swapped mm's.	These are globally strung
-+						 * together off init_mm.mmlist, and are protected
-+						 * by mmlist_lock
-+						 */
-+
-+	/* Special counters, in some configurations protected by the
-+	 * page_table_lock, in other configurations by being atomic.
-+	 */
-+	mm_counter_t _file_rss;
-+	mm_counter_t _anon_rss;
-+
-+	unsigned long hiwater_rss;	/* High-watermark of RSS usage */
-+	unsigned long hiwater_vm;	/* High-water virtual memory usage */
-+
-+	unsigned long total_vm, locked_vm, shared_vm, exec_vm;
-+	unsigned long stack_vm, reserved_vm, def_flags, nr_ptes;
-+	unsigned long start_code, end_code, start_data, end_data;
-+	unsigned long start_brk, brk, start_stack;
-+	unsigned long arg_start, arg_end, env_start, env_end;
-+
-+	unsigned long saved_auxv[AT_VECTOR_SIZE]; /* for /proc/PID/auxv */
-+
-+	cpumask_t cpu_vm_mask;
-+
-+	/* Architecture-specific MM context */
-+	mm_context_t context;
-+
-+	/* Swap token stuff */
-+	/*
-+	 * Last value of global fault stamp as seen by this process.
-+	 * In other words, this value gives an indication of how long
-+	 * it has been since this task got the token.
-+	 * Look at mm/thrash.c
-+	 */
-+	unsigned int faultstamp;
-+	unsigned int token_priority;
-+	unsigned int last_interval;
-+
-+	unsigned char dumpable:2;
-+
-+	/* coredumping support */
-+	int core_waiters;
-+	struct completion *core_startup_done, core_done;
-+
-+	/* aio bits */
-+	rwlock_t		ioctx_list_lock;
-+	struct kioctx		*ioctx_list;
-+};
-+
- #endif /* _LINUX_MM_TYPES_H */
-diff -urpN linux-2.6/include/linux/sched.h linux-2.6-patched/include/linux/sched.h
---- linux-2.6/include/linux/sched.h	2007-06-09 12:24:04.000000000 +0200
-+++ linux-2.6-patched/include/linux/sched.h	2007-06-29 15:44:12.000000000 +0200
-@@ -1,8 +1,6 @@
- #ifndef _LINUX_SCHED_H
- #define _LINUX_SCHED_H
- 
--#include <linux/auxvec.h>	/* For AT_VECTOR_SIZE */
--
- /*
-  * cloning flags:
-  */
-@@ -54,12 +52,12 @@ struct sched_param {
- #include <linux/cpumask.h>
- #include <linux/errno.h>
- #include <linux/nodemask.h>
-+#include <linux/mm_types.h>
- 
- #include <asm/system.h>
- #include <asm/semaphore.h>
- #include <asm/page.h>
- #include <asm/ptrace.h>
--#include <asm/mmu.h>
- #include <asm/cputime.h>
- 
- #include <linux/smp.h>
-@@ -292,7 +290,6 @@ extern void arch_unmap_area_topdown(stru
- #define add_mm_counter(mm, member, value) atomic_long_add(value, &(mm)->_##member)
- #define inc_mm_counter(mm, member) atomic_long_inc(&(mm)->_##member)
- #define dec_mm_counter(mm, member) atomic_long_dec(&(mm)->_##member)
--typedef atomic_long_t mm_counter_t;
- 
- #else  /* NR_CPUS < CONFIG_SPLIT_PTLOCK_CPUS */
- /*
-@@ -304,7 +301,6 @@ typedef atomic_long_t mm_counter_t;
- #define add_mm_counter(mm, member, value) (mm)->_##member += (value)
- #define inc_mm_counter(mm, member) (mm)->_##member++
- #define dec_mm_counter(mm, member) (mm)->_##member--
--typedef unsigned long mm_counter_t;
- 
- #endif /* NR_CPUS < CONFIG_SPLIT_PTLOCK_CPUS */
- 
-@@ -320,74 +316,6 @@ typedef unsigned long mm_counter_t;
- 		(mm)->hiwater_vm = (mm)->total_vm;	\
- } while (0)
- 
--struct mm_struct {
--	struct vm_area_struct * mmap;		/* list of VMAs */
--	struct rb_root mm_rb;
--	struct vm_area_struct * mmap_cache;	/* last find_vma result */
--	unsigned long (*get_unmapped_area) (struct file *filp,
--				unsigned long addr, unsigned long len,
--				unsigned long pgoff, unsigned long flags);
--	void (*unmap_area) (struct mm_struct *mm, unsigned long addr);
--	unsigned long mmap_base;		/* base of mmap area */
--	unsigned long task_size;		/* size of task vm space */
--	unsigned long cached_hole_size;         /* if non-zero, the largest hole below free_area_cache */
--	unsigned long free_area_cache;		/* first hole of size cached_hole_size or larger */
--	pgd_t * pgd;
--	atomic_t mm_users;			/* How many users with user space? */
--	atomic_t mm_count;			/* How many references to "struct mm_struct" (users count as 1) */
--	int map_count;				/* number of VMAs */
--	struct rw_semaphore mmap_sem;
--	spinlock_t page_table_lock;		/* Protects page tables and some counters */
--
--	struct list_head mmlist;		/* List of maybe swapped mm's.  These are globally strung
--						 * together off init_mm.mmlist, and are protected
--						 * by mmlist_lock
--						 */
--
--	/* Special counters, in some configurations protected by the
--	 * page_table_lock, in other configurations by being atomic.
--	 */
--	mm_counter_t _file_rss;
--	mm_counter_t _anon_rss;
--
--	unsigned long hiwater_rss;	/* High-watermark of RSS usage */
--	unsigned long hiwater_vm;	/* High-water virtual memory usage */
--
--	unsigned long total_vm, locked_vm, shared_vm, exec_vm;
--	unsigned long stack_vm, reserved_vm, def_flags, nr_ptes;
--	unsigned long start_code, end_code, start_data, end_data;
--	unsigned long start_brk, brk, start_stack;
--	unsigned long arg_start, arg_end, env_start, env_end;
--
--	unsigned long saved_auxv[AT_VECTOR_SIZE]; /* for /proc/PID/auxv */
--
--	cpumask_t cpu_vm_mask;
--
--	/* Architecture-specific MM context */
--	mm_context_t context;
--
--	/* Swap token stuff */
--	/*
--	 * Last value of global fault stamp as seen by this process.
--	 * In other words, this value gives an indication of how long
--	 * it has been since this task got the token.
--	 * Look at mm/thrash.c
--	 */
--	unsigned int faultstamp;
--	unsigned int token_priority;
--	unsigned int last_interval;
--
--	unsigned char dumpable:2;
--
--	/* coredumping support */
--	int core_waiters;
--	struct completion *core_startup_done, core_done;
--
--	/* aio bits */
--	rwlock_t		ioctx_list_lock;
--	struct kioctx		*ioctx_list;
--};
--
- struct sighand_struct {
- 	atomic_t		count;
- 	struct k_sigaction	action[_NSIG];
+ #define __HAVE_ARCH_PTEP_CLEAR_DIRTY_FLUSH
+ #define ptep_clear_flush_dirty(vma, address, ptep)			\
+ ({									\
+diff -urpN linux-2.6/include/asm-ia64/pgtable.h linux-2.6-patched/include/asm-ia64/pgtable.h
+--- linux-2.6/include/asm-ia64/pgtable.h	2007-06-18 09:43:22.000000000 +0200
++++ linux-2.6-patched/include/asm-ia64/pgtable.h	2007-06-29 15:44:10.000000000 +0200
+@@ -546,8 +546,10 @@ extern void lazy_mmu_prot_update (pte_t 
+ # define ptep_set_access_flags(__vma, __addr, __ptep, __entry, __safely_writable) \
+ ({									\
+ 	int __changed = !pte_same(*(__ptep), __entry);			\
+-	if (__changed)							\
+-		ptep_establish(__vma, __addr, __ptep, __entry);		\
++	if (__changed) {						\
++		set_pte_at((__vma)->vm_mm, (__addr), __ptep, __entry);	\
++		flush_tlb_page(__vma, __addr);				\
++	}								\
+ 	__changed;							\
+ })
+ #endif
 
 -- 
 blue skies,
