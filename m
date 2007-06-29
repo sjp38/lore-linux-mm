@@ -1,35 +1,30 @@
-Received: from d12nrmr1607.megacenter.de.ibm.com (d12nrmr1607.megacenter.de.ibm.com [9.149.167.49])
-	by mtagate5.de.ibm.com (8.13.8/8.13.8) with ESMTP id l5TEDNP5131818
-	for <linux-mm@kvack.org>; Fri, 29 Jun 2007 14:13:23 GMT
-Received: from d12av02.megacenter.de.ibm.com (d12av02.megacenter.de.ibm.com [9.149.165.228])
-	by d12nrmr1607.megacenter.de.ibm.com (8.13.8/8.13.8/NCO v8.3) with ESMTP id l5TEDNfj2072766
-	for <linux-mm@kvack.org>; Fri, 29 Jun 2007 16:13:23 +0200
-Received: from d12av02.megacenter.de.ibm.com (loopback [127.0.0.1])
-	by d12av02.megacenter.de.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l5TEDMbm015989
-	for <linux-mm@kvack.org>; Fri, 29 Jun 2007 16:13:23 +0200
-Message-Id: <20070629135530.912094590@de.ibm.com>
-Date: Fri, 29 Jun 2007 15:55:30 +0200
-From: Martin Schwidefsky <schwidefsky@de.ibm.com>
-Subject: [patch 0/5] Various mm improvements.
+Date: Fri, 29 Jun 2007 07:18:17 -0700 (PDT)
+From: Christoph Lameter <clameter@sgi.com>
+Subject: Re: [PATCH/RFC 0/11] Shared Policy Overview
+In-Reply-To: <1183123347.5037.17.camel@localhost>
+Message-ID: <Pine.LNX.4.64.0706290715560.14268@schroedinger.engr.sgi.com>
+References: <20070625195224.21210.89898.sendpatchset@localhost>
+ <1182968078.4948.30.camel@localhost>  <Pine.LNX.4.64.0706271427400.31227@schroedinger.engr.sgi.com>
+  <200706280001.16383.ak@suse.de> <1183038137.5697.16.camel@localhost>
+ <Pine.LNX.4.64.0706281835270.9573@schroedinger.engr.sgi.com>
+ <1183123347.5037.17.camel@localhost>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
+Cc: Andi Kleen <ak@suse.de>, "Paul E. McKenney" <paulmck@us.ibm.com>, linux-mm@kvack.org, akpm@linux-foundation.org, nacc@us.ibm.com
 List-ID: <linux-mm.kvack.org>
 
-While working on 1K/2K page tables for s390 I noticed room for
-improvement in regard to some common mm code:
- - unnecessary tlb flushing in unmap_vmas
- - ptep_establish has fallen into disuse
- - ptep_test_and_clear_dirty / ptep_clear_flush_dirty are not used either
- - the definitions of mm_struct and vm_area_struct should be moved to
-   mm_types.h
- - page_mkclean_one is giving false positives
+On Fri, 29 Jun 2007, Lee Schermerhorn wrote:
 
--- 
-blue skies,
-   Martin.
+> I'm not sure what you mean by "rationale for this patchset" in the
+> context of this reference counting patch.  We've already gone over the
+> rationale for shared policy on shared file mappings--over and over...
 
-"Reality continues to ruin my life." - Calvin.
+Yes and its still not clear to me what the point is. I think sharing 
+policies that have so far per process semantics wil break things and cause 
+a lot of difficulty in the future.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
