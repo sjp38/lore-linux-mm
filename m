@@ -1,76 +1,60 @@
-Date: Fri, 29 Jun 2007 16:12:54 +0200
-From: Andrea Arcangeli <andrea@suse.de>
-Subject: Re: [PATCH 01 of 16] remove nr_scan_inactive/active
-Message-ID: <20070629141254.GA23310@v2.random>
-References: <8e38f7656968417dfee0.1181332979@v2.random> <466C36AE.3000101@redhat.com> <20070610181700.GC7443@v2.random> <46814829.8090808@redhat.com> <20070626105541.cd82c940.akpm@linux-foundation.org> <468439E8.4040606@redhat.com> <1183124309.5037.31.camel@localhost>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1183124309.5037.31.camel@localhost>
+Received: from d12nrmr1607.megacenter.de.ibm.com (d12nrmr1607.megacenter.de.ibm.com [9.149.167.49])
+	by mtagate7.de.ibm.com (8.13.8/8.13.8) with ESMTP id l5TEDOpc256184
+	for <linux-mm@kvack.org>; Fri, 29 Jun 2007 14:13:24 GMT
+Received: from d12av02.megacenter.de.ibm.com (d12av02.megacenter.de.ibm.com [9.149.165.228])
+	by d12nrmr1607.megacenter.de.ibm.com (8.13.8/8.13.8/NCO v8.3) with ESMTP id l5TEDOpY1720500
+	for <linux-mm@kvack.org>; Fri, 29 Jun 2007 16:13:24 +0200
+Received: from d12av02.megacenter.de.ibm.com (loopback [127.0.0.1])
+	by d12av02.megacenter.de.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l5TEDO1V016043
+	for <linux-mm@kvack.org>; Fri, 29 Jun 2007 16:13:24 +0200
+Message-Id: <20070629141528.511942868@de.ibm.com>
+References: <20070629135530.912094590@de.ibm.com>
+Date: Fri, 29 Jun 2007 15:55:35 +0200
+From: Martin Schwidefsky <schwidefsky@de.ibm.com>
+Subject: [patch 5/5] Optimize page_mkclean_one
+Content-Disposition: inline; filename=006-page-mkclean.diff
 Sender: owner-linux-mm@kvack.org
+From: Martin Schwidefsky <schwidefsky@de.ibm.com>
 Return-Path: <owner-linux-mm@kvack.org>
-To: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
-Cc: Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Nick Dokos <nicholas.dokos@hp.com>
+To: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Cc: Martin Schwidefsky <schwidefsky@de.ibm.com>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Jun 29, 2007 at 09:38:29AM -0400, Lee Schermerhorn wrote:
-> On Thu, 2007-06-28 at 18:44 -0400, Rik van Riel wrote:
-> > Andrew Morton wrote:
-> > 
-> > > Where's the system time being spent?
-> > 
-> > OK, it turns out that there is quite a bit of variability
-> > in where the system spends its time.  I did a number of
-> > reaim runs and averaged the time the system spent in the
-> > top functions.
-> > 
-> > This is with the Fedora rawhide kernel config, which has
-> > quite a few debugging options enabled.
-> > 
-> > _raw_spin_lock		32.0%
-> > page_check_address	12.7%
-> > __delay			10.8%
-> > mwait_idle		10.4%
-> > anon_vma_unlink		5.7%
-> > __anon_vma_link		5.3%
-> > lockdep_reset_lock	3.5%
-> > __kmalloc_node_track_caller 2.8%
-> > security_port_sid	1.8%
-> > kfree			1.6%
-> > anon_vma_link		1.2%
-> > page_referenced_one	1.1%
+page_mkclean_one is used to clear the dirty bit and to set the write
+protect bit of a pte. In additions it returns true if the pte either
+has been dirty or if it has been writable. As far as I can see the
+function should return true only if the pte has been dirty, or page
+writeback will needlessly write a clean page.
 
-BTW, hope the above numbers are measured before the trashing stage
-when the number of jobs per second is lower than 10. It'd be nice not
-to spend all that time in system time but after that point the system
-will shortly reach oom. It's more important to be fast and save cpu in
-"useful" conditions (like with <4000 tasks).
+Signed-off-by: Martin Schwidefsky <schwidefsky@de.ibm.com>
+---
 
-> Here's a fairly recent version of the patch if you want to try it on
-> your workload.  We've seen mixed results on somewhat larger systems,
-> with and without your split LRU patch.  I've started writing up those
-> results.  I'll try to get back to finishing up the writeup after OLS and
-> vacation.
+ mm/rmap.c |    3 ++-
+ 1 files changed, 2 insertions(+), 1 deletion(-)
 
-This looks a very good idea indeed.
+diff -urpN linux-2.6/mm/rmap.c linux-2.6-patched/mm/rmap.c
+--- linux-2.6/mm/rmap.c	2007-06-29 09:58:33.000000000 +0200
++++ linux-2.6-patched/mm/rmap.c	2007-06-29 15:44:58.000000000 +0200
+@@ -433,11 +433,12 @@ static int page_mkclean_one(struct page 
+ 
+ 		flush_cache_page(vma, address, pte_pfn(*pte));
+ 		entry = ptep_clear_flush(vma, address, pte);
++		if (pte_dirty(entry))
++			ret = 1;
+ 		entry = pte_wrprotect(entry);
+ 		entry = pte_mkclean(entry);
+ 		set_pte_at(mm, address, pte, entry);
+ 		lazy_mmu_prot_update(entry);
+-		ret = 1;
+ 	}
+ 
+ 	pte_unmap_unlock(pte, ptl);
 
-Overall the O(log(N)) change I doubt would help, being able to give an
-efficient answer to "give me only the vmas that maps this anon page"
-won't be helpful here since the answer will be the same as the current
-question "give me any vma that may be mapping this anon page". Only
-for the filebacked mappings it matters.
+-- 
+blue skies,
+   Martin.
 
-Also I'm stunned this is being compared to a java workload, java is a
-threaded beast (unless you're capable of understanding async-io in
-which case it's still threaded but with tons less threads, but anyway
-you code it won't create any anonymous related overhead). What we deal
-with isn't really an issue with anon-vma but just with the fact the
-system is trying to unmap pages that are mapped in 4000-5000 pte, so
-no matter how you code it, there will be still 4000-5000 ptes to check
-for each page that we want to know if it's referenced and it will take
-system time, this is an hardware issue not a software one. And the
-other suspect thing is to do all that pte-mangling work without doing
-any I/O at all.
+"Reality continues to ruin my life." - Calvin.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
