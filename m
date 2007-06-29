@@ -1,99 +1,63 @@
-Received: from d12nrmr1607.megacenter.de.ibm.com (d12nrmr1607.megacenter.de.ibm.com [9.149.167.49])
-	by mtagate5.de.ibm.com (8.13.8/8.13.8) with ESMTP id l5TLHfIX398406
-	for <linux-mm@kvack.org>; Fri, 29 Jun 2007 21:17:41 GMT
-Received: from d12av02.megacenter.de.ibm.com (d12av02.megacenter.de.ibm.com [9.149.165.228])
-	by d12nrmr1607.megacenter.de.ibm.com (8.13.8/8.13.8/NCO v8.3) with ESMTP id l5TLHfXS1966266
-	for <linux-mm@kvack.org>; Fri, 29 Jun 2007 23:17:41 +0200
-Received: from d12av02.megacenter.de.ibm.com (loopback [127.0.0.1])
-	by d12av02.megacenter.de.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l5TLHfXl006474
-	for <linux-mm@kvack.org>; Fri, 29 Jun 2007 23:17:41 +0200
-Subject: Re: [patch 1/5] avoid tlb gather restarts.
-From: Martin Schwidefsky <schwidefsky@de.ibm.com>
-Reply-To: schwidefsky@de.ibm.com
-In-Reply-To: <Pine.LNX.4.64.0706291927260.1509@blonde.wat.veritas.com>
-References: <20070629135530.912094590@de.ibm.com>
-	 <20070629141527.557443600@de.ibm.com>
-	 <Pine.LNX.4.64.0706291927260.1509@blonde.wat.veritas.com>
+Subject: Re: [PATCH/RFC 0/11] Shared Policy Overview
+From: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
+In-Reply-To: <200706291620.07452.ak@suse.de>
+References: <20070625195224.21210.89898.sendpatchset@localhost>
+	 <Pine.LNX.4.64.0706281840210.9573@schroedinger.engr.sgi.com>
+	 <1183123836.5037.25.camel@localhost>  <200706291620.07452.ak@suse.de>
 Content-Type: text/plain
-Date: Fri, 29 Jun 2007 23:19:44 +0200
-Message-Id: <1183151984.13635.16.camel@localhost>
+Date: Fri, 29 Jun 2007 17:40:13 -0400
+Message-Id: <1183153213.4988.16.camel@localhost>
 Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Hugh Dickins <hugh@veritas.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Andi Kleen <ak@suse.de>
+Cc: Christoph Lameter <clameter@sgi.com>, "Paul E. McKenney" <paulmck@us.ibm.com>, linux-mm@kvack.org, akpm@linux-foundation.org, nacc@us.ibm.com
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 2007-06-29 at 19:56 +0100, Hugh Dickins wrote:
-> I don't dare comment on your page_mkclean_one patch (5/5),
-> that dirty page business has grown too subtle for me.
-
-Oh yes, the dirty handling is tricky. I had to fix a really nasty bug
-with it lately. As for page_mkclean_one the difference is that it
-doesn't claim a page is dirty if only the write protect bit has not been
-set. If we manage to lose dirty bits from ptes and have to rely on the
-write protect bit to take over the job, then we have a different problem
-altogether, no ?
-
-> Your cleanups 2-4 look good, especially the mm_types.h one (how
-> confident are you that everything builds?), and I'm glad we can
-> now lay ptep_establish to rest.  Though I think you may have 
-> missed removing a __HAVE_ARCH_PTEP... from frv at least?
-
-Ok, thanks for the review. I take a look at frv to see if I missed
-something.
-
-> But this one...
+On Fri, 2007-06-29 at 16:20 +0200, Andi Kleen wrote:
+> On Friday 29 June 2007 15:30:36 Lee Schermerhorn wrote:
 > 
-> On Fri, 29 Jun 2007, Martin Schwidefsky wrote:
+> > Firstly, the "current situation" is deficient for applications that I,
+> > on behalf of our customers, care about.
 > 
-> > If need_resched() is false it is unnecessary to call tlb_finish_mmu()
-> > and tlb_gather_mmu() for each vma in unmap_vmas(). Moving the tlb gather
-> > restart under the if that contains the cond_resched() will avoid
-> > unnecessary tlb flush operations that are triggered by tlb_finish_mmu() 
-> > and tlb_gather_mmu().
-> > 
-> > Signed-off-by: Martin Schwidefsky <schwidefsky@de.ibm.com>
-> 
-> Sorry, no.  It looks reasonable, but unmap_vmas is treading a delicate
-> and uncomfortable line between hi-performance and lo-latency: you've
-> chosen to improve performance at the expense of latency.
+> So what's the specific use case from these applications? How much do 
+> they lose by not having this?
 
-That it true, my only concern had been performance. You likely have a
-point here.
+Andi:
 
-> You think you're just moving the finish/gather to where they're
-> actually necessary; but the thing is, that per-cpu struct mmu_gather
-> is liable to accumulate a lot of unpreemptible work for the future
-> tlb_finish_mmu, particularly when anon pages are associated with swap.
+I had answered [attempted to anyway] the first question in:
 
-Hmm, ok, so you are saying that we should do a flush at the end of each
-vma.
+	http://marc.info/?l=linux-mm&m=118105384427674&w=4
 
-> So although there may be no need to resched right now, if we keep on
-> gathering more and more without flushing, we'll be very unresponsive
-> when a resched is needed later on.  Hence Ingo's ZAP_BLOCK_SIZE to
-> split it up, small when CONFIG_PREEMPT, more reasonable but still
-> limited when not.
+What do they lose?  The ability to control explicitly and reliably the
+location of pages in shared, mapped files without prefaulting.  The only
+way an application has today to guarantee the location of a file page is
+to: 1) have the file opened exclusively--i.e., be the only task with the
+file opened, lest some other task access the file and fault in pages; 2)
+set the task policy to bind/prefer/interleave to the appropriate
+node[s]; 3) prefault some range of file pages in and lock them down; 4)
+change the task policy for the next range and fault that in and lock it
+down;  etc, until the entire file is placed correctly--assuming the
+entire file fits.  If pages of the file are already in memory, they
+don't even have the option of mass migration via mbind().  They'd have
+to individually migrate pages, once that sys call wrapper is available.
 
-Would it be acceptable to call tlb_flush_mmu instead of the
-tlb_finish_mmu / tlb_gather_mmu pair if the condition around
-cond_resched evaluates to false?
-The background for this change is that I'm working on another patch that
-will change the tlb flushing for s390 quite a bit. We won't have
-anything to flush with tlb_finish_mmu because we will either flush all
-tlbs with tlb_gather_mmu or each pte seperatly. The pages will always be
-freed immediatly. If we are forced to restart the tlb gather then we'll
-do multiple flush_tlb_mm because the information that we already flushed
-everything is lost with tlb_finish_mmu.
+I'd like to just mbind() the mmap()ed range, set the policy and then
+know that, as pages fault in, they'll end up obeying the policy.  If
+some pages of the file are already memory resident, they can be migrated
+to follow policy.  It seems so simple to me.  The fundamental support is
+all there.  
 
--- 
-blue skies,
-  Martin.
+I agree we need to handle some of Christoph's issues so that his
+customers can't get themselves confused, playing with shared policies,
+or attempting to set policies on files [and shmem!] that don't work in
+all the cpusets from which the files/shmem might be accessed.  That's a
+hairly problem that containers/cpusets introduce when you try to segment
+a system along only 1 or 2 dimensions, leaving the rest of the
+dimensions wide open for sharing...
 
-"Reality continues to ruin my life." - Calvin.
-
+Lee
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
