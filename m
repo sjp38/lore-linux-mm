@@ -1,73 +1,84 @@
-Message-ID: <46844B83.20901@redhat.com>
-Date: Thu, 28 Jun 2007 20:00:03 -0400
-From: Rik van Riel <riel@redhat.com>
-MIME-Version: 1.0
+Date: Thu, 28 Jun 2007 17:12:45 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
 Subject: Re: [PATCH 01 of 16] remove nr_scan_inactive/active
-References: <8e38f7656968417dfee0.1181332979@v2.random>	<466C36AE.3000101@redhat.com>	<20070610181700.GC7443@v2.random>	<46814829.8090808@redhat.com>	<20070626105541.cd82c940.akpm@linux-foundation.org>	<468439E8.4040606@redhat.com>	<20070628155715.49d051c9.akpm@linux-foundation.org>	<46843E65.3020008@redhat.com>	<20070628161350.5ce20202.akpm@linux-foundation.org>	<4684415D.1060700@redhat.com> <20070628162936.9e78168d.akpm@linux-foundation.org>
-In-Reply-To: <20070628162936.9e78168d.akpm@linux-foundation.org>
-Content-Type: text/plain; charset=UTF-8; format=flowed
+Message-Id: <20070628171245.60948196.akpm@linux-foundation.org>
+In-Reply-To: <20070628232535.GD7690@v2.random>
+References: <8e38f7656968417dfee0.1181332979@v2.random>
+	<466C36AE.3000101@redhat.com>
+	<20070610181700.GC7443@v2.random>
+	<46814829.8090808@redhat.com>
+	<20070626105541.cd82c940.akpm@linux-foundation.org>
+	<468439E8.4040606@redhat.com>
+	<20070628155715.49d051c9.akpm@linux-foundation.org>
+	<46843E65.3020008@redhat.com>
+	<20070628161350.5ce20202.akpm@linux-foundation.org>
+	<20070628232535.GD7690@v2.random>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Andrea Arcangeli <andrea@suse.de>, linux-mm@kvack.org
+To: Andrea Arcangeli <andrea@suse.de>
+Cc: Rik van Riel <riel@redhat.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Andrew Morton wrote:
+On Fri, 29 Jun 2007 01:25:36 +0200
+Andrea Arcangeli <andrea@suse.de> wrote:
 
->> Scanning fewer pages in the pageout path is probably
->> the way to go.
+> On Thu, Jun 28, 2007 at 04:13:50PM -0700, Andrew Morton wrote:
+> > On Thu, 28 Jun 2007 19:04:05 -0400
+> > Rik van Riel <riel@redhat.com> wrote:
+> > 
+> > > > Sigh.  We had a workload (forget which, still unfixed) in which things
+> > > > would basically melt down in that linear anon_vma walk, walking 10,000 or
+> > > > more vma's.  I wonder if that's what's happening here?
+> > > 
+> > > That would be a large multi-threaded application that fills up
+> > > memory.  Customers are reproducing this with JVMs on some very
+> > > large systems.
+> > 
+> > So.... does that mean "yes, it's scanning a lot of vmas"?
+> > 
+> > If so, I expect there will still be failure modes, whatever we do outside
+> > of this.  A locked, linear walk of a list whose length is
+> > application-controlled is going to be a problem.  Could be that we'll need
+> > an O(n) -> O(log(n)) conversion, which will be tricky in there.
 > 
-> I don't see why that would help.  The bottom-line steady-state case is that
-> we need to reclaim N pages per second, and we need to scan N*M vmas per
-> second to do so.  How we chunk that up won't affect the aggregate amount of
-> work which needs to be done.
+> There's no swapping, so are we sure we need to scan the pte?
+
+well, for better or for worse, that's the design.  We need to run
+page_referenced() when considering whether to deactivate the page and that
+involves a scan of all the ptes.
+
+> This
+> might be as well the unmapping code being invoked too early despite
+> there's still clean cache to free.
+
+Might be so, but even if we ade changes there, failure modes will remain.
+
+> If I/O would start because swapping
+> is really needed, the O(N) walk wouldn't hog the cpu so much because
+> lots of time would be spent waiting for I/O too.
+
+yup.  The *total* amount of CPu we spend in there shouldn't matter a lot:
+unless something else is bust, it'll be relatively low.  I think the
+problem here is that a) we do it all in a big burst and b) we do it on lots
+of CPUs at the same time, so that burst is quite an inefficient one.
+
+We _could_ teach kswapd to keep the lists in balance in some fashion even
+when we're above pages_high.  But I suspect that'll have corner-cases and
+probably it'd be better to do it synchronously.  There's not much point in
+having multiple CPUs doing this so some per-zone trylock could perhaps be
+used.
+
+> Decreasing
+> DEF_PRIORITY should defer the invocation of the unmapping code too.
 > 
-> Or maybe you're referring to the ongoing LRU balancing thing.  Or to something
-> else.
+> Conversion to O(log(N)) like for the filebacked mappings shouldn't be
+> a big problem but it'll waste more static memory for each vma and
+> anon_vma.
 
-Yes, I am indeed talking about LRU balancing.
-
-We pretty much *know* that an anonymous page on the
-active list is accessed, so why bother scanning them
-all?
-
-We could just deactivate the oldest ones and clear
-their referenced bits.
-
-Once they reach the end of the inactive list, we
-check for the referenced bit again.  If the page
-was accessed, we move it back to the active list.
-
-The only problem with this is that anonymous
-pages could be easily pushed out of memory by
-the page cache, because the page cache has
-totally different locality of reference.
-
-The page cache also benefits from the use-once
-scheme we have in place today.
-
-Because of these three reasons, I want to split
-the page cache LRU lists from the anonymous
-memory LRU lists.
-
-Does this make sense to you?
-
->> No matter how efficient we make the scanning of one
->> individual page, we simply cannot scan through 1TB
->> worth of anonymous pages (which are all referenced
->> because they've been there for a week) in order to
->> deactivate something.
-> 
-> Sure.  And we could avoid that sudden transition by balancing the LRU prior
-> to hitting the great pages_high wall.
-
-Yes, we will need to do some preactive balancing.
-
--- 
-Politics is the struggle between those who want to make their country
-the best in the world, and those who believe it already is.  Each group
-calls the other unpatriotic.
+hm, OK, I haven't looked at what would be involved there.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
