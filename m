@@ -1,43 +1,59 @@
-Message-ID: <468517E1.4050803@goop.org>
-Date: Fri, 29 Jun 2007 10:32:01 -0400
-From: Jeremy Fitzhardinge <jeremy@goop.org>
+Message-ID: <46851E43.3060001@redhat.com>
+Date: Fri, 29 Jun 2007 10:59:15 -0400
+From: Rik van Riel <riel@redhat.com>
 MIME-Version: 1.0
-Subject: Re: RFC: multiple address spaces for one process
-References: <87myynt1m6.wl%peter@chubb.wattle.id.au>
-In-Reply-To: <87myynt1m6.wl%peter@chubb.wattle.id.au>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Subject: Re: [PATCH 01 of 16] remove nr_scan_inactive/active
+References: <8e38f7656968417dfee0.1181332979@v2.random> <466C36AE.3000101@redhat.com> <20070610181700.GC7443@v2.random> <46814829.8090808@redhat.com> <20070626105541.cd82c940.akpm@linux-foundation.org> <468439E8.4040606@redhat.com> <1183124309.5037.31.camel@localhost> <20070629141254.GA23310@v2.random>
+In-Reply-To: <20070629141254.GA23310@v2.random>
+Content-Type: text/plain; charset=UTF-8; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Peter Chubb <peterc@gelato.unsw.edu.au>
-Cc: virtualization@lists.linux-foundation.org, linux-mm@kvack.org, Carsten Otte <cotte@de.ibm.com>, avi Kivity <avi@qumranet.com>
+To: Andrea Arcangeli <andrea@suse.de>
+Cc: Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Nick Dokos <nicholas.dokos@hp.com>
 List-ID: <linux-mm.kvack.org>
 
-Peter Chubb wrote:
-> In a hosted VMM like LinuxOnLinux or UML, context switch time can be a
-> major problem (as mmap when repeated for each guest page frame takes a
-> long time).  One solution is to allow the host kernel to keep a cache of
-> address space contexts, and switch between them in a single
-> operation. 
->   
+Andrea Arcangeli wrote:
 
-Other VMMs which have a large usermode component, like lguest and kvm, 
-do maintain two address spaces mapping the same set of pages.  But 
-unlike UML (and I guess LoL), the guest mappings are not represented as 
-VMAs, but just as a raw processor pagetable.  They need some special 
-switcher code to go into that state, so it doesn't look like this would 
-be terribly useful for them.
+> BTW, hope the above numbers are measured before the trashing stage
+> when the number of jobs per second is lower than 10. It'd be nice not
+> to spend all that time in system time but after that point the system
+> will shortly reach oom. It's more important to be fast and save cpu in
+> "useful" conditions (like with <4000 tasks).
 
-Am I right in presuming that this is really only useful for VMMs which 
-want to use mmap/mprotect/munmap for the virtual MMU implementation?
+If the numbers were measured only in the thrashing stage,
+mwait_idle would be the top CPU "user", not the scanning
+code.
 
-It might be interesting if the two cases could be unified in some way, 
-so that the VMMs could use a common usermode mechanism to achieve the 
-same end, which is what Carsten was proposing.  But its not obvious to 
-me how much common mechanism can be pulled out, since its a pretty 
-deeply architecture-specific operation.
+What I am trying to measure is more a question of system
+robustness than performance.  We have seen a few cases
+where the system took 2 hours to recover to a useful state
+after running out of RAM, with enough free swap.
 
-    J
+Linux needs to deal better with memory filling up. It
+should start to swap instead of scanning pages for very
+long periods of time and not recovering for a while.
+
+>> Here's a fairly recent version of the patch if you want to try it on
+>> your workload.  We've seen mixed results on somewhat larger systems,
+>> with and without your split LRU patch.  I've started writing up those
+>> results.  I'll try to get back to finishing up the writeup after OLS and
+>> vacation.
+> 
+> This looks a very good idea indeed.
+
+I'm definately going to give Lee's patch a spin.
+
+> Also I'm stunned this is being compared to a java workload, java is a
+> threaded beast 
+
+Interestingly enough, both a heavy Java workload and this AIM7
+test block on the anon_vma lock contention.
+
+-- 
+Politics is the struggle between those who want to make their country
+the best in the world, and those who believe it already is.  Each group
+calls the other unpatriotic.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
