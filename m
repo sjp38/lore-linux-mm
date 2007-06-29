@@ -1,29 +1,43 @@
-From: Andi Kleen <ak@suse.de>
-Subject: Re: [PATCH/RFC 0/11] Shared Policy Overview
-Date: Fri, 29 Jun 2007 16:20:07 +0200
-References: <20070625195224.21210.89898.sendpatchset@localhost> <Pine.LNX.4.64.0706281840210.9573@schroedinger.engr.sgi.com> <1183123836.5037.25.camel@localhost>
-In-Reply-To: <1183123836.5037.25.camel@localhost>
+Message-ID: <468517E1.4050803@goop.org>
+Date: Fri, 29 Jun 2007 10:32:01 -0400
+From: Jeremy Fitzhardinge <jeremy@goop.org>
 MIME-Version: 1.0
-Content-Type: text/plain;
-  charset="iso-8859-15"
+Subject: Re: RFC: multiple address spaces for one process
+References: <87myynt1m6.wl%peter@chubb.wattle.id.au>
+In-Reply-To: <87myynt1m6.wl%peter@chubb.wattle.id.au>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
-Message-Id: <200706291620.07452.ak@suse.de>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
-Cc: Christoph Lameter <clameter@sgi.com>, "Paul E. McKenney" <paulmck@us.ibm.com>, linux-mm@kvack.org, akpm@linux-foundation.org, nacc@us.ibm.com
+To: Peter Chubb <peterc@gelato.unsw.edu.au>
+Cc: virtualization@lists.linux-foundation.org, linux-mm@kvack.org, Carsten Otte <cotte@de.ibm.com>, avi Kivity <avi@qumranet.com>
 List-ID: <linux-mm.kvack.org>
 
-On Friday 29 June 2007 15:30:36 Lee Schermerhorn wrote:
+Peter Chubb wrote:
+> In a hosted VMM like LinuxOnLinux or UML, context switch time can be a
+> major problem (as mmap when repeated for each guest page frame takes a
+> long time).  One solution is to allow the host kernel to keep a cache of
+> address space contexts, and switch between them in a single
+> operation. 
+>   
 
-> Firstly, the "current situation" is deficient for applications that I,
-> on behalf of our customers, care about.
+Other VMMs which have a large usermode component, like lguest and kvm, 
+do maintain two address spaces mapping the same set of pages.  But 
+unlike UML (and I guess LoL), the guest mappings are not represented as 
+VMAs, but just as a raw processor pagetable.  They need some special 
+switcher code to go into that state, so it doesn't look like this would 
+be terribly useful for them.
 
-So what's the specific use case from these applications? How much do 
-they lose by not having this?
+Am I right in presuming that this is really only useful for VMMs which 
+want to use mmap/mprotect/munmap for the virtual MMU implementation?
 
--Andi
+It might be interesting if the two cases could be unified in some way, 
+so that the VMMs could use a common usermode mechanism to achieve the 
+same end, which is what Carsten was proposing.  But its not obvious to 
+me how much common mechanism can be pulled out, since its a pretty 
+deeply architecture-specific operation.
+
+    J
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
