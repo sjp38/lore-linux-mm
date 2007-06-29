@@ -1,91 +1,48 @@
-Date: Fri, 29 Jun 2007 19:56:33 +0100 (BST)
-From: Hugh Dickins <hugh@veritas.com>
-Subject: Re: [patch 1/5] avoid tlb gather restarts.
-In-Reply-To: <20070629141527.557443600@de.ibm.com>
-Message-ID: <Pine.LNX.4.64.0706291927260.1509@blonde.wat.veritas.com>
-References: <20070629135530.912094590@de.ibm.com> <20070629141527.557443600@de.ibm.com>
+Date: Fri, 29 Jun 2007 13:15:12 -0700 (PDT)
+From: Christoph Lameter <clameter@sgi.com>
+Subject: Re: [PATCH/RFC 0/11] Shared Policy Overview
+In-Reply-To: <1183138909.5012.40.camel@localhost>
+Message-ID: <Pine.LNX.4.64.0706291309050.17407@schroedinger.engr.sgi.com>
+References: <20070625195224.21210.89898.sendpatchset@localhost>
+ <1183038137.5697.16.camel@localhost>  <Pine.LNX.4.64.0706281835270.9573@schroedinger.engr.sgi.com>
+  <200706291101.41081.ak@suse.de>  <Pine.LNX.4.64.0706290649480.14268@schroedinger.engr.sgi.com>
+ <1183138909.5012.40.camel@localhost>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Martin Schwidefsky <schwidefsky@de.ibm.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
+Cc: Andi Kleen <ak@suse.de>, "Paul E. McKenney" <paulmck@us.ibm.com>, linux-mm@kvack.org, akpm@linux-foundation.org, nacc@us.ibm.com
 List-ID: <linux-mm.kvack.org>
 
-I don't dare comment on your page_mkclean_one patch (5/5),
-that dirty page business has grown too subtle for me.
+On Fri, 29 Jun 2007, Lee Schermerhorn wrote:
 
-Your cleanups 2-4 look good, especially the mm_types.h one (how
-confident are you that everything builds?), and I'm glad we can
-now lay ptep_establish to rest.  Though I think you may have 
-missed removing a __HAVE_ARCH_PTEP... from frv at least?
+> As I've said before, we can DO that, if you think it's needed.  E.g., we
+> can require write access to a file in order to install a shared policy.
+> Probably a good idea anyway.  Processes that have write access to a
+> shared, mmap()ed file BETTER be cooperating.
 
-But this one...
+They currently do not do that.
 
-On Fri, 29 Jun 2007, Martin Schwidefsky wrote:
+> Mapped shared file policy is off by default.  Documentation explain the
+> implications of turning on for applications that share mapped files
+> between cpusets.  We need to do this anyway, for shmem.  How many bug
+> reports have you seen from this scenario for shmem segments which behave
+> exactly the same?
 
-> If need_resched() is false it is unnecessary to call tlb_finish_mmu()
-> and tlb_gather_mmu() for each vma in unmap_vmas(). Moving the tlb gather
-> restart under the if that contains the cond_resched() will avoid
-> unnecessary tlb flush operations that are triggered by tlb_finish_mmu() 
-> and tlb_gather_mmu().
-> 
-> Signed-off-by: Martin Schwidefsky <schwidefsky@de.ibm.com>
+I think about 7 or so shmem related that were escalated to our team? We 
+put in the policy specification for shmem on the kernel command line for a 
+reason. You boot the kernel with the policy you want shmem to have and 
+tell all other people that may attempt to set a policy on shmem to stay 
+the *** away from it.
 
-Sorry, no.  It looks reasonable, but unmap_vmas is treading a delicate
-and uncomfortable line between hi-performance and lo-latency: you've
-chosen to improve performance at the expense of latency.
+> Do the bug reports specify whether the mapping is for private or shared
+> mappings?  VMA policies ARE applied to page cache pages of private
+> mappings if the process COWs the page.   For shared mappings, if we used
 
-You think you're just moving the finish/gather to where they're
-actually necessary; but the thing is, that per-cpu struct mmu_gather
-is liable to accumulate a lot of unpreemptible work for the future
-tlb_finish_mmu, particularly when anon pages are associated with swap.
-
-So although there may be no need to resched right now, if we keep on
-gathering more and more without flushing, we'll be very unresponsive
-when a resched is needed later on.  Hence Ingo's ZAP_BLOCK_SIZE to
-split it up, small when CONFIG_PREEMPT, more reasonable but still
-limited when not.
-
-I expect there is some tinkering which could be done to improve it a
-little; but my ambition has always been to eliminate ZAP_BLOCK_SIZE,
-get away from the per-cpu'ness of the mmu_gather, and make unmap_vmas
-preemptible.  But the i_mmap_lock case, and the per-arch variations
-in TLB flushing, have forever stalled me.
-
-Hugh
-
-> ---
-> 
->  mm/memory.c |    7 +++----
->  1 files changed, 3 insertions(+), 4 deletions(-)
-> 
-> diff -urpN linux-2.6/mm/memory.c linux-2.6-patched/mm/memory.c
-> --- linux-2.6/mm/memory.c	2007-06-29 15:44:08.000000000 +0200
-> +++ linux-2.6-patched/mm/memory.c	2007-06-29 15:44:08.000000000 +0200
-> @@ -851,19 +851,18 @@ unsigned long unmap_vmas(struct mmu_gath
->  				break;
->  			}
->  
-> -			tlb_finish_mmu(*tlbp, tlb_start, start);
-> -
->  			if (need_resched() ||
->  				(i_mmap_lock && need_lockbreak(i_mmap_lock))) {
-> +				tlb_finish_mmu(*tlbp, tlb_start, start);
->  				if (i_mmap_lock) {
->  					*tlbp = NULL;
->  					goto out;
->  				}
->  				cond_resched();
-> +				*tlbp = tlb_gather_mmu(vma->vm_mm, fullmm);
-> +				tlb_start_valid = 0;
->  			}
->  
-> -			*tlbp = tlb_gather_mmu(vma->vm_mm, fullmm);
-> -			tlb_start_valid = 0;
->  			zap_work = ZAP_BLOCK_SIZE;
->  		}
->  	}
+Yes but not if the proccess simply reads the page and that is the simple 
+case that could be fixed by passing the policy to page_cache_alloc() 
+without weird shared sematics on volatile memory objects.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
