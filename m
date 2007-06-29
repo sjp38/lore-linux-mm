@@ -1,18 +1,19 @@
 Received: from sd0109e.au.ibm.com (d23rh905.au.ibm.com [202.81.18.225])
-	by ausmtp04.au.ibm.com (8.13.8/8.13.8) with ESMTP id l5T6eFSJ233204
-	for <linux-mm@kvack.org>; Fri, 29 Jun 2007 16:40:25 +1000
-Received: from d23av04.au.ibm.com (d23av04.au.ibm.com [9.190.250.237])
-	by sd0109e.au.ibm.com (8.13.8/8.13.8/NCO v8.3) with ESMTP id l5T6LJsF206890
-	for <linux-mm@kvack.org>; Fri, 29 Jun 2007 16:21:29 +1000
-Received: from d23av04.au.ibm.com (loopback [127.0.0.1])
-	by d23av04.au.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l5T6HY6F003825
-	for <linux-mm@kvack.org>; Fri, 29 Jun 2007 16:17:37 +1000
-Message-ID: <4684A3F3.40001@linux.vnet.ibm.com>
-Date: Fri, 29 Jun 2007 11:47:23 +0530
+	by ausmtp04.au.ibm.com (8.13.8/8.13.8) with ESMTP id l5T6g9A3289878
+	for <linux-mm@kvack.org>; Fri, 29 Jun 2007 16:42:09 +1000
+Received: from d23av02.au.ibm.com (d23av02.au.ibm.com [9.190.250.243])
+	by sd0109e.au.ibm.com (8.13.8/8.13.8/NCO v8.3) with ESMTP id l5T6NLSM131252
+	for <linux-mm@kvack.org>; Fri, 29 Jun 2007 16:23:26 +1000
+Received: from d23av02.au.ibm.com (loopback [127.0.0.1])
+	by d23av02.au.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l5T6JitN008742
+	for <linux-mm@kvack.org>; Fri, 29 Jun 2007 16:19:44 +1000
+Message-ID: <4684A479.5050703@linux.vnet.ibm.com>
+Date: Fri, 29 Jun 2007 11:49:37 +0530
 From: Vaidyanathan Srinivasan <svaidy@linux.vnet.ibm.com>
 MIME-Version: 1.0
-Subject: [RFC][PATCH 0/3] Containers: Integrated RSS and pagecache control
- v5
+Subject: [RFC][PATCH 1/3] Pagecache accounting
+References: <4684A3F3.40001@linux.vnet.ibm.com>
+In-Reply-To: <4684A3F3.40001@linux.vnet.ibm.com>
 Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
@@ -21,115 +22,258 @@ To: Linux Kernel <linux-kernel@vger.kernel.org>, Linux Containers <containers@li
 Cc: Balbir Singh <balbir@in.ibm.com>, Pavel Emelianov <xemul@sw.ru>, Paul Menage <menage@google.com>, Kirill Korotaev <dev@sw.ru>, devel@openvz.org, Andrew Morton <akpm@linux-foundation.org>, "Eric W. Biederman" <ebiederm@xmission.com>, Herbert Poetzl <herbert@13thfloor.at>, Roy Huang <royhuang9@gmail.com>, Aubrey Li <aubreylee@gmail.com>, Peter Zijlstra <peterz@infradead.org>
 List-ID: <linux-mm.kvack.org>
 
-------------------------------------------------------------------
+Pagecache Accounting
+--------------------
 
-Based on the discussions at OLS yesterday, the consensus was to try an
-integrated pagecache controller along with RSS controller under the
-same usage limit.
+The rss accounting hooks have been generalised to handle both anon pages
+and file backed pages and charge the resource counter.
 
-This patch extends the RSS controller to account and reclaim pagecache
-and swapcache pages.  The same 'rss_limit' now applies to both RSS pages
-and pagecache pages. When the limit is reached, both pagecache and RSS
-pages are reclaimed in LRU order as per the normal system wide reclaim
-policy.
+Ref count has been added to page_container structure.  The ref count is used
+to ensure a page is added or removed from page_container list only once
+independent of repeated calls from pagecache, swapcache and mmap to RSS.
 
-This patch is based on RSS Controller V3.1 by Pavel and Balbir.  This patch
-depends on
+No setup patch is required since rss_limit and rss_usage has been generalised
+as the resource counter for pagecache as well.
 
-1. Paul Menage's Containers(V10): Generic Process Containers
-http://lwn.net/Articles/236032/
-2. Pavel Emelianov's RSS controller based on process containers (v3.1)
-http://lwn.net/Articles/236817/
-3. Balbir's fixes for RSS controller as mentioned in
-http://lkml.org/lkml/2007/6/04/185
+Signed-off-by: Vaidyanathan Srinivasan <svaidy@linux.vnet.ibm.com>
+---
+ include/linux/rss_container.h |   18 ++---
+ mm/rss_container.c            |  134 ++++++++++++++++++++++++++++--------------
+ 2 files changed, 99 insertions(+), 53 deletions(-)
 
-This is very much work-in-progress and it have been posted for comments
-after some basic testing with kernbench.
+--- linux-2.6.22-rc2-mm1.orig/include/linux/rss_container.h
++++ linux-2.6.22-rc2-mm1/include/linux/rss_container.h
+@@ -68,11 +68,11 @@ struct rss_container;
+  *
+  */
 
-Comments, suggestions and criticisms are welcome.
+-int container_rss_prepare(struct page *, struct vm_area_struct *vma,
++int container_page_prepare(struct page *, struct mm_struct *mm,
+ 		struct page_container **);
+-void container_rss_add(struct page_container *);
+-void container_rss_del(struct page_container *);
+-void container_rss_release(struct page_container *);
++void container_page_add(struct page_container *);
++void container_page_del(struct page_container *);
++void container_page_release(struct page_container *);
 
---Vaidy
+ void container_out_of_memory(struct rss_container *);
 
-Features:
---------
-* Single limit for both RSS and pagecache/swapcache pages
-* No new subsystem is added. The RSS controller subsystem is extended
-  since most of the code can be shared between pagecache control and
-  RSS control.
-* The accounting number include pages in swap cache and filesystem
-  buffer pages apart from pagecache, basically everything under
-  NR_FILE_PAGES is counted under rss_usage.
-* The usage limit set in rss_limit applies to sum of both RSS and
-  pagecache pages
-* Limits on pagecache can be set by echo -n 100000 > rss_limit on
-  the /container file system.  The unit is in pages or 4 kilobytes
-* If the pagecache+RSS utilisation exceed the limit, the container reclaim
-  code is invoked to recover pages from the container.
+@@ -85,22 +85,22 @@ unsigned long isolate_pages_in_container
+ 		int order, int mode, struct zone *zone,
+ 		struct rss_container *, int active);
+ #else
+-static inline int container_rss_prepare(struct page *pg,
+-		struct vm_area_struct *vma, struct page_container **pc)
++static inline int container_page_prepare(struct page *pg,
++		struct mm_struct *mm, struct page_container **pc)
+ {
+ 	*pc = NULL; /* to make gcc happy */
+ 	return 0;
+ }
 
-Advantages:
------------
-* Minimal code changes to RSS controller to include pagecache pages
+-static inline void container_rss_add(struct page_container *pc)
++static inline void container_page_add(struct page_container *pc)
+ {
+ }
 
-Limitations:
------------
-* All limitation of RSS controller applies to this code as well
-* Per-container reclaim knobs like dirty ratio, vm_swappiness may
-  provide better control
+-static inline void container_rss_del(struct page_container *pc)
++static inline void container_page_del(struct page_container *pc)
+ {
+ }
 
-Usage:
-------
-* Add all dependent patches before including this patch
-* No new config settings apart from enabling CONFIG_RSS_CONTAINER
-* Boot new kernel
-* Mount container filesystem
-	mount -t container none /container
-	cd /container
-* Create new container
-	mkdir mybox
-	cd /container/mybox
-* Add current shell to container
-	echo $$ > tasks
-* In order to set limit, echo value in pages (4KB) to rss_limit
-	echo -n 100000 > rss_limit
-	#This would set 409MB limit on pagecache+rss usage
-* Trash the system from current shell using scp/cp/dd/tar etc
-* Watch rss_usage and /proc/meminfo to verify behavior
+-static inline void container_rss_release(struct page_container *pc)
++static inline void container_page_release(struct page_container *pc)
+ {
+ }
 
-Tests:
-------
-* Simple dd/cat/cp test on pagecache limit/reclaim
-* rss_limit was tested with simple test application that would malloc
-  predefined size of memory and touch them to allocate pages.
-* kernbench was run under container with 400MB memory limit
+--- linux-2.6.22-rc2-mm1.orig/mm/rss_container.c
++++ linux-2.6.22-rc2-mm1/mm/rss_container.c
+@@ -56,6 +56,9 @@ struct rss_container {
+  */
 
-ToDo:
-----
-* Optimise the reclaim.
-* Per-container VM stats and knobs
+ struct page_container {
++	unsigned long ref_cnt;  /* Ref cnt to keep track of
++				 * multiple additions of same page
++				 */
+ 	struct page *page;
+ 	struct rss_container *cnt;
+ 	struct list_head list; /* this is the element of (int)active_list of
+@@ -93,26 +96,36 @@ void mm_free_container(struct mm_struct
+  * I bet you have already read the comment in include/linux/rss_container.h :)
+  */
 
-Patch Series:
--------------
-pagecache-controller-v5-acct.patch
-pagecache-controller-v5-acct-hooks.patch
-pagecache-controller-v5-reclaim.patch
+-int container_rss_prepare(struct page *page, struct vm_area_struct *vma,
++int container_page_prepare(struct page *page, struct mm_struct *mm,
+ 		struct page_container **ppc)
+ {
+-	struct rss_container *rss;
+-	struct page_container *pc;
+-
+-	rcu_read_lock();
+-	rss = rcu_dereference(vma->vm_mm->rss_container);
+-	css_get(&rss->css);
+-	rcu_read_unlock();
+-
+-	pc = kmalloc(sizeof(struct page_container), GFP_KERNEL);
+-	if (pc == NULL)
+-		goto out_nomem;
++  	struct rss_container *rss;
++  	struct page_container *pc;
++ 	int rc = 1;
++
++  	/* Page may have been added to container earlier */
++  	pc = page_container(page);
++	/* Check if this is fist time addition or not */
++	if (!pc) {
++		rcu_read_lock();
++		rss = rcu_dereference(mm->rss_container);
++		css_get(&rss->css);
++		rcu_read_unlock();
++	} else {
++		rss = pc->cnt;
++	}
 
-ChangeLog:
----------
+-	while (res_counter_charge(&rss->res, 1)) {
+-		if (try_to_free_pages_in_container(rss)) {
+-			atomic_inc(&rss->rss_reclaimed);
+-			continue;
+-		}
++ 	/* Charge the respective resource count first time only */
++ 	while (rc && !pc) {
++		rc = res_counter_charge(&rss->res, 1);
++
++ 		if (!rc)
++ 			break; /* All well */
++
++  		if (try_to_free_pages_in_container(rss)) {
++  			atomic_inc(&rss->rss_reclaimed);
++ 			continue; /* Try agin to charge container */
++  		}
 
-v5: Integrated pagecache + rss controller
+ 		/*
+  		 * try_to_free_pages() might not give us a full picture
+@@ -125,60 +138,93 @@ int container_rss_prepare(struct page *p
+ 		if (res_counter_check_under_limit(&rss->res))
+ 			continue;
 
-* No separate pagecache_limit
-* pagecache and rss pages accounted in rss_usage and governed by rss_limit
-* Each page counted only once in rss_usage.  Mapped or unmapped
-  pagecache pages are counted alike in rss_usage
+-		container_out_of_memory(rss);
+-		if (test_thread_flag(TIF_MEMDIE))
+-			goto out_charge;
+-	}
++ 		/* Unable to free memory?? */
++  		container_out_of_memory(rss);
++  		if (test_thread_flag(TIF_MEMDIE))
++  			goto out_charge;
++  	}
++
++  	/* First time addition to container: Create new page_container */
++  	if (!pc) {
++  		pc = kzalloc(sizeof(struct page_container), GFP_KERNEL);
++  		if (pc == NULL)
++  			goto out_nomem;
++
++ 		pc->page = page;
++ 		pc->cnt = rss;
++  	}
 
-v4:
-* Patch remerged to Container v10 and RSS v3.1
-* Bug fixes
-* Tested with kernbench
+-	pc->page = page;
+-	pc->cnt = rss;
+-	*ppc = pc;
+-	return 0;
++  	*ppc = pc;
++  	return 0;
 
-v3:
-* Patch merged with Containers v8 and RSS v2
+ out_charge:
+-	kfree(pc);
++ 	/* Need to zero page_container?? */
+ out_nomem:
+-	css_put(&rss->css);
+-	return -ENOMEM;
++  	css_put(&rss->css);
++  	return -ENOMEM;
++
+ }
+
+-void container_rss_release(struct page_container *pc)
++void container_page_release(struct page_container *pc)
+ {
+ 	struct rss_container *rss;
+
+ 	rss = pc->cnt;
+-	res_counter_uncharge(&rss->res, 1);
+-	css_put(&rss->css);
+-	kfree(pc);
++	/* Setting the accounts right */
++	if (!pc->ref_cnt) {
++		res_counter_uncharge(&rss->res, 1);
++		set_page_container(pc->page, NULL);
++		kfree(pc);
++		css_put(&rss->css);
++	}
+ }
+
+-void container_rss_add(struct page_container *pc)
++void container_page_add(struct page_container *pc)
+ {
+ 	struct page *pg;
+ 	struct rss_container *rss;
++	unsigned long irqflags;
+
+ 	pg = pc->page;
+-	rss = pc->cnt;
++	if (pg == ZERO_PAGE(0))
++		return;
+
+-	spin_lock_irq(&rss->res.lock);
+-	list_add(&pc->list, &rss->active_list);
+-	spin_unlock_irq(&rss->res.lock);
++	rss = pc->cnt;
++	spin_lock_irqsave(&rss->res.lock, irqflags);
++	if (!pc->ref_cnt)
++		list_add(&pc->list, &rss->inactive_list);
++	pc->ref_cnt++;
++	spin_unlock_irqrestore(&rss->res.lock, irqflags);
+
+ 	set_page_container(pg, pc);
+ }
+
+-void container_rss_del(struct page_container *pc)
++void container_page_del(struct page_container *pc)
+ {
++	struct page *page;
+ 	struct rss_container *rss;
++	unsigned long irqflags;
+
++	page = pc->page;
+ 	rss = pc->cnt;
+-	spin_lock_irq(&rss->res.lock);
+-	list_del(&pc->list);
+-	res_counter_uncharge_locked(&rss->res, 1);
+-	spin_unlock_irq(&rss->res.lock);
+
+-	css_put(&rss->css);
+-	kfree(pc);
++	if (page == ZERO_PAGE(0))
++		return;
++
++	spin_lock_irqsave(&rss->res.lock, irqflags);
++	pc->ref_cnt--;
++	if (!pc->ref_cnt) {
++		list_del(&pc->list);
++		set_page_container(page, NULL);
++	}
++	spin_unlock_irqrestore(&rss->res.lock, irqflags);
++
++	if (!pc->ref_cnt) {
++		res_counter_uncharge(&rss->res, 1);
++		kfree(pc);
++		css_put(&rss->css);
++	}
++
+ }
+
+ /*
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
