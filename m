@@ -1,32 +1,31 @@
-Date: Sat, 30 Jun 2007 11:42:44 +0100
+Date: Sat, 30 Jun 2007 11:44:08 +0100
 From: Christoph Hellwig <hch@infradead.org>
 Subject: Re: [RFC] fsblock
-Message-ID: <20070630104244.GC24123@infradead.org>
-References: <20070624014528.GA17609@wotan.suse.de> <467DE00A.9080700@garzik.org>
+Message-ID: <20070630104408.GD24123@infradead.org>
+References: <20070624014528.GA17609@wotan.suse.de> <467DE00A.9080700@garzik.org> <20070624034755.GA3292@wotan.suse.de> <20070624135126.GA10077@think.oraclecorp.com> <467F67A8.3030408@yahoo.com.au> <20070625122521.GA12446@think.oraclecorp.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <467DE00A.9080700@garzik.org>
+In-Reply-To: <20070625122521.GA12446@think.oraclecorp.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Jeff Garzik <jeff@garzik.org>
-Cc: Nick Piggin <npiggin@suse.de>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>, linux-fsdevel@vger.kernel.org
+To: Chris Mason <chris.mason@oracle.com>
+Cc: Nick Piggin <nickpiggin@yahoo.com.au>, Nick Piggin <npiggin@suse.de>, Jeff Garzik <jeff@garzik.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>, linux-fsdevel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Sat, Jun 23, 2007 at 11:07:54PM -0400, Jeff Garzik wrote:
-> >- In line with the above item, filesystem block allocation is performed
-> >  before a page is dirtied. In the buffer layer, mmap writes can dirty a
-> >  page with no backing blocks which is a problem if the filesystem is
-> >  ENOSPC (patches exist for buffer.c for this).
+On Mon, Jun 25, 2007 at 08:25:21AM -0400, Chris Mason wrote:
+> > write_begin/write_end is a step in that direction (and it helps
+> > OCFS and GFS quite a bit). I think there is also not much reason
+> > for writepage sites to require the page to lock the page and clear
+> > the dirty bit themselves (which has seems ugly to me).
 > 
-> This raises an eyebrow...  The handling of ENOSPC prior to mmap write is 
-> more an ABI behavior, so I don't see how this can be fixed with internal 
-> changes, yet without changing behavior currently exported to userland 
-> (and thus affecting code based on such assumptions).
+> If we keep the page mapping information with the page all the time (ie
+> writepage doesn't have to call get_block ever), it may be possible to
+> avoid sending down a locked page.  But, I don't know the delayed
+> allocation internals well enough to say for sure if that is true.
 
-Not really, the current behaviour is a bug.  And it's not actually buffer
-layer specific - XFS now has a fix for that bug and it's generic enough
-that everyone could use it.
+The point of delayed allocations is that the mapping information doesn't
+even exist until writepage for new allocations :)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
