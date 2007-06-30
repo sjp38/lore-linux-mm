@@ -1,17 +1,15 @@
-Date: Sat, 30 Jun 2007 14:16:44 +0100 (BST)
+Date: Sat, 30 Jun 2007 15:04:22 +0100 (BST)
 From: Hugh Dickins <hugh@veritas.com>
-Subject: Re: [patch 1/5] avoid tlb gather restarts.
-In-Reply-To: <1183151984.13635.16.camel@localhost>
-Message-ID: <Pine.LNX.4.64.0706301406001.12517@blonde.wat.veritas.com>
-References: <20070629135530.912094590@de.ibm.com>  <20070629141527.557443600@de.ibm.com>
-  <Pine.LNX.4.64.0706291927260.1509@blonde.wat.veritas.com>
- <1183151984.13635.16.camel@localhost>
+Subject: Re: [patch 5/5] Optimize page_mkclean_one
+In-Reply-To: <20070629141528.511942868@de.ibm.com>
+Message-ID: <Pine.LNX.4.64.0706301448450.13752@blonde.wat.veritas.com>
+References: <20070629135530.912094590@de.ibm.com> <20070629141528.511942868@de.ibm.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Martin Schwidefsky <schwidefsky@de.ibm.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Cc: Peter Zijlstra <peterz@infradead.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
 On Fri, 29 Jun 2007, Martin Schwidefsky wrote:
@@ -19,64 +17,61 @@ On Fri, 29 Jun 2007, Martin Schwidefsky wrote:
 > > I don't dare comment on your page_mkclean_one patch (5/5),
 > > that dirty page business has grown too subtle for me.
 > 
-> Oh yes, the dirty handling is tricky....
+> Oh yes, the dirty handling is tricky. I had to fix a really nasty bug
+> with it lately. As for page_mkclean_one the difference is that it
+> doesn't claim a page is dirty if only the write protect bit has not been
+> set. If we manage to lose dirty bits from ptes and have to rely on the
+> write protect bit to take over the job, then we have a different problem
+> altogether, no ?
 
-I'll move that discussion over to 5/5 and Cc Peter
-(sorry I was too lazy to do so in the first place).
+[Moving that over from 1/5 discussion].
 
-> > On Fri, 29 Jun 2007, Martin Schwidefsky wrote:
-> > You think you're just moving the finish/gather to where they're
-> > actually necessary; but the thing is, that per-cpu struct mmu_gather
-> > is liable to accumulate a lot of unpreemptible work for the future
-> > tlb_finish_mmu, particularly when anon pages are associated with swap.
-> 
-> Hmm, ok, so you are saying that we should do a flush at the end of each
-> vma.
+Expect you're right, but I _really_ don't want to comment, when I don't
+understand that "|| pte_write" in the first place, and don't know the
+consequence of pte_dirty && !pte_write or !pte_dirty && pte_write there.
+Peter?
 
-I think of it as doing a flush every ZAP_BLOCK_SIZE, with the imperfect
-structure of the loop forcing perhaps an early flush at the end of each
-vma: I seem to assume large vmas, and you to assume small ones.
-
-IIRC, the common case for doing multiple vmas here is exit, when it
-ends up that the TLB flush can often be skipped because already done
-by the switch from exiting task; so the premature flush per vma doesn't
-matter much.  But treat that claim with maximum scepticism: I've not
-rechecked it, several aspects may be wrong.  What I do remember is
-that (at least on i386) there's a lot less actual TLB flushing done
-here than it appears from the outside.
-
-> > So although there may be no need to resched right now, if we keep on
-> > gathering more and more without flushing, we'll be very unresponsive
-> > when a resched is needed later on.  Hence Ingo's ZAP_BLOCK_SIZE to
-> > split it up, small when CONFIG_PREEMPT, more reasonable but still
-> > limited when not.
-> 
-> Would it be acceptable to call tlb_flush_mmu instead of the
-> tlb_finish_mmu / tlb_gather_mmu pair if the condition around
-> cond_resched evaluates to false?
-
-That sounds a good idea, yes, that should be fine.  But beware,
-tlb_flush_mmu is an internal detail of the asm-generic/tlb.h method
-and perhaps some others, it currently doesn't exist on some arches.
-
-I think you just need to add a simple one to arm & arm26, and take
-the "ia64_" off the ia64 one.  powerpc and sparc64 go about it all 
-a bit differently, but it should be easy to give them one too.
-There may be some others missing.
-
-> The background for this change is that I'm working on another patch that
-> will change the tlb flushing for s390 quite a bit. We won't have
-> anything to flush with tlb_finish_mmu because we will either flush all
-> tlbs with tlb_gather_mmu or each pte seperatly. The pages will always be
-> freed immediatly. If we are forced to restart the tlb gather then we'll
-> do multiple flush_tlb_mm because the information that we already flushed
-> everything is lost with tlb_finish_mmu.
-
-Thanks for the info.  Sounds like we may have trouble ahead when
-rearranging this stuff, easy to forget s390 from our assumptions:
-keep watch!
+My suspicion is that the "|| pte_write" is precisely to cover your
+s390 case where pte is never dirty (it may even have been me who got
+Peter to put it in for that reason).  In which case your patch would
+be fine - though I think it'd be improved a lot by a comment or
+rearrangement or new macro in place of the pte_dirty || pte_write
+line (perhaps adjust my pte_maybe_dirty in asm-generic/pgtable.h,
+and use that - its former use in msync has gone away now).
 
 Hugh
+
+On Fri, 29 Jun 2007, Martin Schwidefsky wrote:
+
+> page_mkclean_one is used to clear the dirty bit and to set the write
+> protect bit of a pte. In additions it returns true if the pte either
+> has been dirty or if it has been writable. As far as I can see the
+> function should return true only if the pte has been dirty, or page
+> writeback will needlessly write a clean page.
+> 
+> Signed-off-by: Martin Schwidefsky <schwidefsky@de.ibm.com>
+> ---
+> 
+>  mm/rmap.c |    3 ++-
+>  1 files changed, 2 insertions(+), 1 deletion(-)
+> 
+> diff -urpN linux-2.6/mm/rmap.c linux-2.6-patched/mm/rmap.c
+> --- linux-2.6/mm/rmap.c	2007-06-29 09:58:33.000000000 +0200
+> +++ linux-2.6-patched/mm/rmap.c	2007-06-29 15:44:58.000000000 +0200
+> @@ -433,11 +433,12 @@ static int page_mkclean_one(struct page 
+>  
+>  		flush_cache_page(vma, address, pte_pfn(*pte));
+>  		entry = ptep_clear_flush(vma, address, pte);
+> +		if (pte_dirty(entry))
+> +			ret = 1;
+>  		entry = pte_wrprotect(entry);
+>  		entry = pte_mkclean(entry);
+>  		set_pte_at(mm, address, pte, entry);
+>  		lazy_mmu_prot_update(entry);
+> -		ret = 1;
+>  	}
+>  
+>  	pte_unmap_unlock(pte, ptl);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
