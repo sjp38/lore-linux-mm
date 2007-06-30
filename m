@@ -1,26 +1,32 @@
-Date: Sat, 30 Jun 2007 11:40:38 +0100
+Date: Sat, 30 Jun 2007 11:42:44 +0100
 From: Christoph Hellwig <hch@infradead.org>
-Subject: Re: [patch 1/3] add the fsblock layer
-Message-ID: <20070630104038.GB24123@infradead.org>
-References: <20070624014528.GA17609@wotan.suse.de> <20070624014613.GB17609@wotan.suse.de> <18046.63436.472085.535177@notabene.brown> <467F71C6.6040204@yahoo.com.au> <20070625122906.GB12446@think.oraclecorp.com> <46807B32.6050302@yahoo.com.au> <18048.32372.40011.10896@notabene.brown> <468082FF.6090704@yahoo.com.au> <20070626122650.GL14224@think.oraclecorp.com>
+Subject: Re: [RFC] fsblock
+Message-ID: <20070630104244.GC24123@infradead.org>
+References: <20070624014528.GA17609@wotan.suse.de> <467DE00A.9080700@garzik.org>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20070626122650.GL14224@think.oraclecorp.com>
+In-Reply-To: <467DE00A.9080700@garzik.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Chris Mason <chris.mason@oracle.com>
-Cc: Nick Piggin <nickpiggin@yahoo.com.au>, Neil Brown <neilb@suse.de>, Nick Piggin <npiggin@suse.de>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>, linux-fsdevel@vger.kernel.org
+To: Jeff Garzik <jeff@garzik.org>
+Cc: Nick Piggin <npiggin@suse.de>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>, linux-fsdevel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Jun 26, 2007 at 08:26:50AM -0400, Chris Mason wrote:
-> Since we're testing new code, I would just leave the blkdev address
-> space alone.  If a filesystem wants to use fsblocks, they allocate a new
-> inode during mount, stuff it into their private super block (or in the
-> generic super), and use that for everything.  Basically ignoring the
-> block device address space completely.
+On Sat, Jun 23, 2007 at 11:07:54PM -0400, Jeff Garzik wrote:
+> >- In line with the above item, filesystem block allocation is performed
+> >  before a page is dirtied. In the buffer layer, mmap writes can dirty a
+> >  page with no backing blocks which is a problem if the filesystem is
+> >  ENOSPC (patches exist for buffer.c for this).
+> 
+> This raises an eyebrow...  The handling of ENOSPC prior to mmap write is 
+> more an ABI behavior, so I don't see how this can be fixed with internal 
+> changes, yet without changing behavior currently exported to userland 
+> (and thus affecting code based on such assumptions).
 
-Exactly, same thing XFS does.
+Not really, the current behaviour is a bug.  And it's not actually buffer
+layer specific - XFS now has a fix for that bug and it's generic enough
+that everyone could use it.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
