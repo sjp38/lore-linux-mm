@@ -1,77 +1,84 @@
-Date: Sat, 30 Jun 2007 15:04:22 +0100 (BST)
-From: Hugh Dickins <hugh@veritas.com>
-Subject: Re: [patch 5/5] Optimize page_mkclean_one
-In-Reply-To: <20070629141528.511942868@de.ibm.com>
-Message-ID: <Pine.LNX.4.64.0706301448450.13752@blonde.wat.veritas.com>
-References: <20070629135530.912094590@de.ibm.com> <20070629141528.511942868@de.ibm.com>
+From: Al Boldi <a1426z@gawab.com>
+Subject: Re: vm/fs meetup in september?
+Date: Sat, 30 Jun 2007 17:58:16 -0400
+References: <20070624042345.GB20033@wotan.suse.de> <20070630093243.GD22354@infradead.org> <87bqexiwu3.wl%peter@chubb.wattle.id.au>
+In-Reply-To: <87bqexiwu3.wl%peter@chubb.wattle.id.au>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain;
+  charset="iso-8859-1"
+Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+Message-Id: <200706301758.16607.a1426z@gawab.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Martin Schwidefsky <schwidefsky@de.ibm.com>
-Cc: Peter Zijlstra <peterz@infradead.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: peter@chubb.wattle.id.au
+Cc: Christoph Hellwig <hch@infradead.org>, Jared Hulbert <jaredeh@gmail.com>, Nick Piggin <npiggin@suse.de>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>, linux-fsdevel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 29 Jun 2007, Martin Schwidefsky wrote:
-> On Fri, 2007-06-29 at 19:56 +0100, Hugh Dickins wrote:
-> > I don't dare comment on your page_mkclean_one patch (5/5),
-> > that dirty page business has grown too subtle for me.
-> 
-> Oh yes, the dirty handling is tricky. I had to fix a really nasty bug
-> with it lately. As for page_mkclean_one the difference is that it
-> doesn't claim a page is dirty if only the write protect bit has not been
-> set. If we manage to lose dirty bits from ptes and have to rely on the
-> write protect bit to take over the job, then we have a different problem
-> altogether, no ?
+peter@chubb.wattle.id.au wrote:
+> >>>>> "Christoph" == Christoph Hellwig <hch@infradead.org> writes:
+>
+> Christoph> On Tue, Jun 26, 2007 at 10:07:24AM -0700, Jared Hulbert
+>
+> Christoph> wrote:
+> >> If you have a large array of a non-volatile semi-writeable memory
+> >> such as a highspeed NOR Flash or some of the similar emerging
+> >> technologies in a system.  It would be useful to use that memory as
+> >> an extension of RAM.  One of the ways you could do that is allow
+> >> pages to be swapped out to this memory.  Once there these pages
+> >> could be read directly, but would require a COW procedure on a
+> >> write access.  The reason why I think this may be a vm/fs topic is
+> >> that the hardware makes writing to this memory efficiently a
+> >> non-trivial operation that requires management just like a
+> >> filesystem.  Also it seems to me that there are probably overlaps
+> >> between this topic and the recent filemap_xip.c discussions.
+>
+> Christoph> So what you mean is "swap on flash" ?  Defintively sounds
+> Christoph> like an interesting topic, although I'm not too sure it's
+> Christoph> all that filesystem-related.
 
-[Moving that over from 1/5 discussion].
+I wouldn't want to call it swap, as this carries with it block-io 
+connotations.  It's really mmap on flash.
 
-Expect you're right, but I _really_ don't want to comment, when I don't
-understand that "|| pte_write" in the first place, and don't know the
-consequence of pte_dirty && !pte_write or !pte_dirty && pte_write there.
-Peter?
+> You need either a block translation layer,
 
-My suspicion is that the "|| pte_write" is precisely to cover your
-s390 case where pte is never dirty (it may even have been me who got
-Peter to put it in for that reason).  In which case your patch would
-be fine - though I think it'd be improved a lot by a comment or
-rearrangement or new macro in place of the pte_dirty || pte_write
-line (perhaps adjust my pte_maybe_dirty in asm-generic/pgtable.h,
-and use that - its former use in msync has gone away now).
+Are you suggesting to go through the block layer to reach the flash?
 
-Hugh
+> or a (swap) filesystem that
+> understands flash peculiarities in order to make such a thing work.
+> The standard Linux swap format will not work.
 
-On Fri, 29 Jun 2007, Martin Schwidefsky wrote:
+Correct.
 
-> page_mkclean_one is used to clear the dirty bit and to set the write
-> protect bit of a pte. In additions it returns true if the pte either
-> has been dirty or if it has been writable. As far as I can see the
-> function should return true only if the pte has been dirty, or page
-> writeback will needlessly write a clean page.
-> 
-> Signed-off-by: Martin Schwidefsky <schwidefsky@de.ibm.com>
-> ---
-> 
->  mm/rmap.c |    3 ++-
->  1 files changed, 2 insertions(+), 1 deletion(-)
-> 
-> diff -urpN linux-2.6/mm/rmap.c linux-2.6-patched/mm/rmap.c
-> --- linux-2.6/mm/rmap.c	2007-06-29 09:58:33.000000000 +0200
-> +++ linux-2.6-patched/mm/rmap.c	2007-06-29 15:44:58.000000000 +0200
-> @@ -433,11 +433,12 @@ static int page_mkclean_one(struct page 
->  
->  		flush_cache_page(vma, address, pte_pfn(*pte));
->  		entry = ptep_clear_flush(vma, address, pte);
-> +		if (pte_dirty(entry))
-> +			ret = 1;
->  		entry = pte_wrprotect(entry);
->  		entry = pte_mkclean(entry);
->  		set_pte_at(mm, address, pte, entry);
->  		lazy_mmu_prot_update(entry);
-> -		ret = 1;
->  	}
->  
->  	pte_unmap_unlock(pte, ptl);
+BTW, you may want to have a look at my "[RFC] VM: I have a dream..." thread.
+
+Here is an excerpt:
+
+"What's more, there is no more swap.
+Apps are executed inplace, as if already loaded.
+Physical RAM is used to cache slower storage RAM, much the same as the CPU 
+cache RAM caches slower physical RAM."
+
+The thread ended with this conclusion:
+
+Alan Cox wrote:
+> On Iau, 2006-02-02 at 21:59 +0300, Al Boldi wrote:
+> > So w/ 1GB RAM, no swap, and 1TB disk mmap'd, could this mmap'd space be
+> > added to the total memory available to the OS, as is done w/ swap?
+>
+> Yes in theory. It would be harder to manage.
+>
+> > And if that's possible, why not replace swap w/ mmap'd disk-space?
+>
+> Swap is just somewhere to stick data that isnt file backed, you could
+> build a swapless mmap based OS but it wouldn't be quite the same as
+> Unix/Linux are.
+
+
+Thanks!
+
+--
+Al
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
