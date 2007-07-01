@@ -1,82 +1,69 @@
-From: "Takayoshi Kochi" <takayoshi.kochi@gmail.com>
-Subject: Re: NUMA BOF @OLS
-Date: Mon, 25 Jun 2007 11:45:12 -0700
-Message-ID: <43c301fe0706251145q3249ddcar3e723ae7db8d6ebc@mail.gmail.com>
-References: <Pine.LNX.4.64.0706211316150.9220@schroedinger.engr.sgi.com>
-	 <200706220112.51813.arnd@arndb.de>
-	 <Pine.LNX.4.64.0706211844420.11754@schroedinger.engr.sgi.com>
-	 <200706221214.58823.arnd@arndb.de>
+Received: from d12nrmr1607.megacenter.de.ibm.com (d12nrmr1607.megacenter.de.ibm.com [9.149.167.49])
+	by mtagate6.de.ibm.com (8.13.8/8.13.8) with ESMTP id l617DmCX1628428
+	for <linux-mm@kvack.org>; Sun, 1 Jul 2007 07:13:48 GMT
+Received: from d12av02.megacenter.de.ibm.com (d12av02.megacenter.de.ibm.com [9.149.165.228])
+	by d12nrmr1607.megacenter.de.ibm.com (8.13.8/8.13.8/NCO v8.3) with ESMTP id l617DmRH2166808
+	for <linux-mm@kvack.org>; Sun, 1 Jul 2007 09:13:48 +0200
+Received: from d12av02.megacenter.de.ibm.com (loopback [127.0.0.1])
+	by d12av02.megacenter.de.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l617DmfQ013646
+	for <linux-mm@kvack.org>; Sun, 1 Jul 2007 09:13:48 +0200
+Subject: Re: [patch 5/5] Optimize page_mkclean_one
+From: Martin Schwidefsky <schwidefsky@de.ibm.com>
+Reply-To: schwidefsky@de.ibm.com
+In-Reply-To: <Pine.LNX.4.64.0706301448450.13752@blonde.wat.veritas.com>
+References: <20070629135530.912094590@de.ibm.com>
+	 <20070629141528.511942868@de.ibm.com>
+	 <Pine.LNX.4.64.0706301448450.13752@blonde.wat.veritas.com>
+Content-Type: text/plain
+Date: Sun, 01 Jul 2007 09:15:53 +0200
+Message-Id: <1183274153.15924.6.camel@localhost>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
-Return-path: <linux-kernel-owner+glk-linux-kernel-3=40m.gmane.org-S1754423AbXFYSp1@vger.kernel.org>
-In-Reply-To: <200706221214.58823.arnd@arndb.de>
-Content-Disposition: inline
-Sender: linux-kernel-owner@vger.kernel.org
-To: linux-mm@kvack.org
-Cc: Christoph Lameter <clameter@sgi.com>, linux-kernel@vger.kernel.org, Arnd Bergmann <arnd@arndb.de>
-List-Id: linux-mm.kvack.org
+Sender: owner-linux-mm@kvack.org
+Return-Path: <owner-linux-mm@kvack.org>
+To: Hugh Dickins <hugh@veritas.com>
+Cc: Peter Zijlstra <peterz@infradead.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+List-ID: <linux-mm.kvack.org>
 
-Hi all,
+On Sat, 2007-06-30 at 15:04 +0100, Hugh Dickins wrote:
+> > Oh yes, the dirty handling is tricky. I had to fix a really nasty bug
+> > with it lately. As for page_mkclean_one the difference is that it
+> > doesn't claim a page is dirty if only the write protect bit has not been
+> > set. If we manage to lose dirty bits from ptes and have to rely on the
+> > write protect bit to take over the job, then we have a different problem
+> > altogether, no ?
+> 
+> [Moving that over from 1/5 discussion].
+> 
+> Expect you're right, but I _really_ don't want to comment, when I don't
+> understand that "|| pte_write" in the first place, and don't know the
+> consequence of pte_dirty && !pte_write or !pte_dirty && pte_write there.
 
-I'll host another mm-related BOF at OLS:
+The pte_write() part is for the shared dirty page tracking. If you want
+to make sure that a max of x% of your pages are dirty then you cannot
+allow to have more than x% to be writable. Thats why page_mkclean_one
+clears the dirty bit and makes the page read-only.
 
-Discussion for the Future of Linux Memory Management
-Saturday Jun 30th, 2007 14:45-15:30
+> My suspicion is that the "|| pte_write" is precisely to cover your
+> s390 case where pte is never dirty (it may even have been me who got
+> Peter to put it in for that reason).  In which case your patch would
+> be fine - though I think it'd be improved a lot by a comment or
+> rearrangement or new macro in place of the pte_dirty || pte_write
+> line (perhaps adjust my pte_maybe_dirty in asm-generic/pgtable.h,
+> and use that - its former use in msync has gone away now).
 
-I'll share some experiences with the MM-related real world issues there.
-Anyone who have something to pitch in is welcome.
-Please contact me or grab me at OLS.
-
-Any topics spilled out of NUMA BOF are welcome!
-
-
-2007/6/22, Arnd Bergmann <arnd@arndb.de>:
-> On Friday 22 June 2007, Christoph Lameter wrote:
-> >
-> > On Fri, 22 Jun 2007, Arnd Bergmann wrote:
-> >
-> > > - Interface for preallocating hugetlbfs pages per node instead of system wide
-> >
-> > We may want to get a bit higher level than that. General way of
-> > controlling subsystem use on nodes. One wants to restrict the slab
-> > allocator and the kernel etc on nodes too.
-> >
-> > How will this interact with the other NUMA policy specifications?
->
-> I guess that's what I'd like to discuss at the BOF. I frequently
-> get requests from users that need to have some interface for it:
-> Application currently break if they try to use /proc/sys/vm/nr_hugepages
-> in combination with numactl --membind.
->
-> > > - architecture independent in-kernel API for enumerating CPU sockets with
-> > > multicore processors (not sure if that's the same as your existing subject).
-> >
-> > Not sure what you mean by this. We already have a topology interface and
-> > the scheduler knows about these things.
->
-> I'm not referring to user interfaces or scheduling. It's probably not really
-> a NUMA topic, but we currently use the topology interfaces for enumerating
-> sockets on systems that are not really NUMA. This includes stuff like
-> per-socket
->  * cpufreq settings (these have their own logic currently)
->  * IOMMU
->  * performance counters
->  * thermal management
->  * local interrupt controller
->  * PCI/HT host bridge
->
-> If you have a system with multiple CPUs in one socket and either multiple
-> sockets in one NUMA node or no NUMA at all,  you have no way of properly
-> enumerating the sockets.  I'd like to discuss what such an interface
-> would need to look like to be useful for all architectures.
->
->         Arnd <><
-> -
-> To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
-> the body of a message to majordomo@vger.kernel.org
-> More majordomo info at  http://vger.kernel.org/majordomo-info.html
-> Please read the FAQ at  http://www.tux.org/lkml/
+No, s390 is covered by the page_test_dirty / page_clear_dirty pair in
+page_mkclean. 
 
 -- 
-Takayoshi Kochi
+blue skies,
+  Martin.
+
+"Reality continues to ruin my life." - Calvin.
+
+
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
