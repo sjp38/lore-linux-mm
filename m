@@ -1,93 +1,57 @@
-Date: Sun, 01 Jul 2007 20:06:34 -0200
-Message-ID: <45587955.09163439@muskrat.com>
-From: "Arnold" <drain@moebelheinrich.de>
-Subject: Ich habe ein Online Casino mit unglaublichen Spielen entdeckt!
-MIME-Version: 1.0
-Content-Type: text/html; charset=iso-8859-1
-Content-Transfer-Encoding: 7bit
-Return-Path: <drain@moebelheinrich.de>
-To: linux-mm@kvack.org
+Date: Mon, 2 Jul 2007 08:19:44 +0200
+From: Nick Piggin <npiggin@suse.de>
+Subject: Re: vm/fs meetup in september?
+Message-ID: <20070702061944.GA31557@wotan.suse.de>
+References: <20070624042345.GB20033@wotan.suse.de> <20070625063545.GA1964@infradead.org> <46807B5D.6090604@yahoo.com.au> <20070630093129.GC22354@infradead.org> <46864DF8.6090807@mbligh.org>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <46864DF8.6090807@mbligh.org>
+Sender: owner-linux-mm@kvack.org
+Return-Path: <owner-linux-mm@kvack.org>
+To: "Martin J. Bligh" <mbligh@mbligh.org>
+Cc: Christoph Hellwig <hch@infradead.org>, Nick Piggin <nickpiggin@yahoo.com.au>, Linux Memory Management List <linux-mm@kvack.org>, linux-fsdevel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-<html>
+On Sat, Jun 30, 2007 at 05:35:04AM -0700, Martin J. Bligh wrote:
+> Christoph Hellwig wrote:
+> >On Tue, Jun 26, 2007 at 12:35:09PM +1000, Nick Piggin wrote:
+> >  
+> >>I'd like to see you there, so I hope we can find a date that most
+> >>people are happy with. I'll try to start working that out after we
+> >>have a rough idea of who's interested.
+> >>    
+> >
+> >Do we have any data preferences yet?
+> >  
+> 
+> You mean date?
+> 
+> 
+> VM is arranged for the 3rd, IIRC Kernel summit doesn't
+> start until the 5th, so there's a gap on the 4th if you want
+> to sort out the fs stuff then? Not 100% sure on the dates.
 
-<head>
-<meta http-equiv=Content-Type content="text/html; charset=iso-8859-1">
+Well it says kernel summit is 4-6th, but also that it is a two
+day event, so I think you're right that it starts on 5th.
 
-<title>Schade, dass Sie das grosse Spiel verpasst haben&#8230; aber ich glaube
-noch ein besseres gefunden zu haben</title>
+I'd like to see what people's preferences are, whether we try to
+do this on the 4th, or after KS (which could be 7th or 8th)? I
+know some can't make it before KS and some can't make it after,
+but if you absolutely won't come on any of these dates can you let
+me know? And let me know preferences or other ideas too.
 
-<style>
-<!--
- /* Style Definitions */
- p.MsoNormal, li.MsoNormal, div.MsoNormal
-	{mso-style-parent:"";
-	margin:0cm;
-	margin-bottom:.0001pt;
-	mso-pagination:widow-orphan;
-	font-size:12.0pt;
-	font-family:"Times New Roman";
-	mso-fareast-font-family:"Times New Roman";
-	mso-ansi-language:FR;
-	mso-fareast-language:EN-US;
-	mso-bidi-language:HE;}
-a:link, span.MsoHyperlink
-	{color:blue;
-	text-decoration:underline;
-	text-underline:single;}
-a:visited, span.MsoHyperlinkFollowed
-	{color:purple;
-	text-decoration:underline;
-	text-underline:single;}
-@page Section1
-	{size:595.3pt 841.9pt;
-	margin:2.0cm 42.5pt 2.0cm 3.0cm;
-	mso-header-margin:35.4pt;
-	mso-footer-margin:35.4pt;
-	mso-paper-source:0;}
-div.Section1
-	{page:Section1;}
--->
-</style>
+Regarding numbers, there are about a dozen so far which is good
+but not as many filesystem maintainers as I had hoped (do they
+tend not to get invited to KS?). We may get a few more people yet
+so I think if we try to get a room to fit 20-25 people it would
+be ideal: I don't want to turn anyone away ;)
 
-</head>
+Thanks,
+Nick
 
-<body lang=DE link=blue vlink=purple style='tab-interval:35.4pt'>
-
-<div class=Section1>
-
-<p class=MsoNormal><span lang=FR>Schade, dass Sie das grosse Spiel verpasst
-haben&#8230; aber ich glaube noch ein besseres gefunden zu haben!
-<o:p></o:p></span></p>
-
-<p class=MsoNormal><span lang=FR><o:p>&nbsp;</o:p></span></p>
-
-<p class=MsoNormal><span lang=FR>Ich habe ein Online Casino mit unglaublichen
-Spielen entdeckt &#8211; von Tischspielen &uuml;ber Automaten bis hin zu 
-Turnieren, hier wird alles geboten. <o:p></o:p></span></p>
-
-<p class=MsoNormal><span lang=FR><o:p>&nbsp;</o:p></span></p>
-
-<p class=MsoNormal><span lang=FR>Und wenn Sie sich heute noch anmelden, 
-k&ouml;nnen Sie einen Willkommensbonus von bis zu 555&#8364; erhalten!
-<o:p></o:p></span></p>
-
-<p class=MsoNormal><span lang=FR><o:p>&nbsp;</o:p></span></p>
-
-<p class=MsoNormal><span lang=FR>Also worauf warten Sie noch? 
-<o:p></o:p></span></p>
-
-<p class=MsoNormal><span lang=FR>Schauen Sie vorbei!<o:p></o:p></span></p>
-
-<p class=MsoNormal><span lang=FR>
-<a href="http://myvipcasino.hk/lang-de/">
-http://myvipcasino.hk/lang-de/</a></span><span
-lang=FR style='mso-bidi-font-size:10.0pt'><o:p></o:p></span></p>
-
-<p class=MsoNormal><span lang=FR><o:p>&nbsp;</o:p></span></p>
-
-</div>
-
-</body>
-
-</html>
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
