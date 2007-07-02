@@ -1,62 +1,54 @@
-Received: from d12nrmr1607.megacenter.de.ibm.com (d12nrmr1607.megacenter.de.ibm.com [9.149.167.49])
-	by mtagate8.de.ibm.com (8.13.8/8.13.8) with ESMTP id l6275JZq252072
-	for <linux-mm@kvack.org>; Mon, 2 Jul 2007 07:05:19 GMT
-Received: from d12av02.megacenter.de.ibm.com (d12av02.megacenter.de.ibm.com [9.149.165.228])
-	by d12nrmr1607.megacenter.de.ibm.com (8.13.8/8.13.8/NCO v8.3) with ESMTP id l6275JRu1601560
-	for <linux-mm@kvack.org>; Mon, 2 Jul 2007 09:05:19 +0200
-Received: from d12av02.megacenter.de.ibm.com (loopback [127.0.0.1])
-	by d12av02.megacenter.de.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l6275IDY015824
-	for <linux-mm@kvack.org>; Mon, 2 Jul 2007 09:05:19 +0200
-Subject: Re: [patch 5/5] Optimize page_mkclean_one
-From: Martin Schwidefsky <schwidefsky@de.ibm.com>
-Reply-To: schwidefsky@de.ibm.com
-In-Reply-To: <1183296468.5180.10.camel@lappy>
-References: <20070629135530.912094590@de.ibm.com>
-	 <20070629141528.511942868@de.ibm.com>
-	 <Pine.LNX.4.64.0706301448450.13752@blonde.wat.veritas.com>
-	 <1183274153.15924.6.camel@localhost>
-	 <Pine.LNX.4.64.0707010926130.11148@blonde.wat.veritas.com>
-	 <1183296468.5180.10.camel@lappy>
-Content-Type: text/plain
-Date: Mon, 02 Jul 2007 09:07:26 +0200
-Message-Id: <1183360046.12198.8.camel@localhost>
-Mime-Version: 1.0
+Received: by wa-out-1112.google.com with SMTP id m33so2318550wag
+        for <linux-mm@kvack.org>; Mon, 02 Jul 2007 10:26:13 -0700 (PDT)
+Message-ID: <6934efce0707021026wad68bbar2d239d0cb7954ea0@mail.gmail.com>
+Date: Mon, 2 Jul 2007 10:26:13 -0700
+From: "Jared Hulbert" <jaredeh@gmail.com>
+Subject: Re: vm/fs meetup in september?
+In-Reply-To: <200706301758.16607.a1426z@gawab.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+References: <20070624042345.GB20033@wotan.suse.de>
+	 <20070630093243.GD22354@infradead.org>
+	 <87bqexiwu3.wl%peter@chubb.wattle.id.au>
+	 <200706301758.16607.a1426z@gawab.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Peter Zijlstra <peterz@infradead.org>
-Cc: Hugh Dickins <hugh@veritas.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Al Boldi <a1426z@gawab.com>
+Cc: peter@chubb.wattle.id.au, Christoph Hellwig <hch@infradead.org>, Nick Piggin <npiggin@suse.de>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>, linux-fsdevel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Sun, 2007-07-01 at 15:27 +0200, Peter Zijlstra wrote:
-> > But I could easily be overlooking something: Peter will recall.
-> 
-> /me tries to get his brain up to speed after the OLS closing party :-)
+> > Christoph> So what you mean is "swap on flash" ?  Defintively sounds
+> > Christoph> like an interesting topic, although I'm not too sure it's
+> > Christoph> all that filesystem-related.
+>
+> I wouldn't want to call it swap, as this carries with it block-io
+> connotations.  It's really mmap on flash.
 
-Oh-oh, the Black Thorn party :-)
+Yes it is really mmap on flash.  But you are "swapping" pages from RAM
+to be mmap'ed on flash.  Also the flash-io complexities are similar to
+the block-io layer.  I think "swap on flash" is fair.  Though that
+might be confused with making swap work on a NAND flash, which is very
+much like the current block-io approach.  "Mmappable swap on flash" is
+more exact, I suppose.
 
-> I did both pte_dirty and pte_write because I was extra careful. One
-> _should_ imply the other, but since we'll be clearing both, I thought it
-> prudent to also check both.
+> > You need either a block translation layer,
+>
+> Are you suggesting to go through the block layer to reach the flash?
 
-Just ran a little experiment: I've added a simple WARN_ON(ret == 0) to
-page_mkclean after the page_test_dirty() check to see if there are cases
-where the page is dirty and all ptes are read-only. A little stress run
-including massive swap did not print a single warning.
+Well the obvious route would be to have this management layer use the
+MTD, I can't see anything wrong with that.
 
-> I will have to think on this a little more, but I'm currently of the
-> opinion that the optimisation is not correct. But I'll have a thorough
-> look at s390 again when I get home.
+> > or a (swap) filesystem that
+> > understands flash peculiarities in order to make such a thing work.
+> > The standard Linux swap format will not work.
+>
+> Correct.
+>
+> BTW, you may want to have a look at my "[RFC] VM: I have a dream..." thread.
 
-I think the patch is correct, although I beginning to doubt that is has
-any effect.
-
--- 
-blue skies,
-  Martin.
-
-"Reality continues to ruin my life." - Calvin.
-
+Interesting.  This idea does allow for swap to be access directly.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
