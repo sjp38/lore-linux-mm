@@ -1,54 +1,62 @@
-Date: Mon, 2 Jul 2007 08:19:44 +0200
-From: Nick Piggin <npiggin@suse.de>
-Subject: Re: vm/fs meetup in september?
-Message-ID: <20070702061944.GA31557@wotan.suse.de>
-References: <20070624042345.GB20033@wotan.suse.de> <20070625063545.GA1964@infradead.org> <46807B5D.6090604@yahoo.com.au> <20070630093129.GC22354@infradead.org> <46864DF8.6090807@mbligh.org>
+Received: from d12nrmr1607.megacenter.de.ibm.com (d12nrmr1607.megacenter.de.ibm.com [9.149.167.49])
+	by mtagate8.de.ibm.com (8.13.8/8.13.8) with ESMTP id l6275JZq252072
+	for <linux-mm@kvack.org>; Mon, 2 Jul 2007 07:05:19 GMT
+Received: from d12av02.megacenter.de.ibm.com (d12av02.megacenter.de.ibm.com [9.149.165.228])
+	by d12nrmr1607.megacenter.de.ibm.com (8.13.8/8.13.8/NCO v8.3) with ESMTP id l6275JRu1601560
+	for <linux-mm@kvack.org>; Mon, 2 Jul 2007 09:05:19 +0200
+Received: from d12av02.megacenter.de.ibm.com (loopback [127.0.0.1])
+	by d12av02.megacenter.de.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l6275IDY015824
+	for <linux-mm@kvack.org>; Mon, 2 Jul 2007 09:05:19 +0200
+Subject: Re: [patch 5/5] Optimize page_mkclean_one
+From: Martin Schwidefsky <schwidefsky@de.ibm.com>
+Reply-To: schwidefsky@de.ibm.com
+In-Reply-To: <1183296468.5180.10.camel@lappy>
+References: <20070629135530.912094590@de.ibm.com>
+	 <20070629141528.511942868@de.ibm.com>
+	 <Pine.LNX.4.64.0706301448450.13752@blonde.wat.veritas.com>
+	 <1183274153.15924.6.camel@localhost>
+	 <Pine.LNX.4.64.0707010926130.11148@blonde.wat.veritas.com>
+	 <1183296468.5180.10.camel@lappy>
+Content-Type: text/plain
+Date: Mon, 02 Jul 2007 09:07:26 +0200
+Message-Id: <1183360046.12198.8.camel@localhost>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <46864DF8.6090807@mbligh.org>
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "Martin J. Bligh" <mbligh@mbligh.org>
-Cc: Christoph Hellwig <hch@infradead.org>, Nick Piggin <nickpiggin@yahoo.com.au>, Linux Memory Management List <linux-mm@kvack.org>, linux-fsdevel@vger.kernel.org
+To: Peter Zijlstra <peterz@infradead.org>
+Cc: Hugh Dickins <hugh@veritas.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Sat, Jun 30, 2007 at 05:35:04AM -0700, Martin J. Bligh wrote:
-> Christoph Hellwig wrote:
-> >On Tue, Jun 26, 2007 at 12:35:09PM +1000, Nick Piggin wrote:
-> >  
-> >>I'd like to see you there, so I hope we can find a date that most
-> >>people are happy with. I'll try to start working that out after we
-> >>have a rough idea of who's interested.
-> >>    
-> >
-> >Do we have any data preferences yet?
-> >  
+On Sun, 2007-07-01 at 15:27 +0200, Peter Zijlstra wrote:
+> > But I could easily be overlooking something: Peter will recall.
 > 
-> You mean date?
-> 
-> 
-> VM is arranged for the 3rd, IIRC Kernel summit doesn't
-> start until the 5th, so there's a gap on the 4th if you want
-> to sort out the fs stuff then? Not 100% sure on the dates.
+> /me tries to get his brain up to speed after the OLS closing party :-)
 
-Well it says kernel summit is 4-6th, but also that it is a two
-day event, so I think you're right that it starts on 5th.
+Oh-oh, the Black Thorn party :-)
 
-I'd like to see what people's preferences are, whether we try to
-do this on the 4th, or after KS (which could be 7th or 8th)? I
-know some can't make it before KS and some can't make it after,
-but if you absolutely won't come on any of these dates can you let
-me know? And let me know preferences or other ideas too.
+> I did both pte_dirty and pte_write because I was extra careful. One
+> _should_ imply the other, but since we'll be clearing both, I thought it
+> prudent to also check both.
 
-Regarding numbers, there are about a dozen so far which is good
-but not as many filesystem maintainers as I had hoped (do they
-tend not to get invited to KS?). We may get a few more people yet
-so I think if we try to get a room to fit 20-25 people it would
-be ideal: I don't want to turn anyone away ;)
+Just ran a little experiment: I've added a simple WARN_ON(ret == 0) to
+page_mkclean after the page_test_dirty() check to see if there are cases
+where the page is dirty and all ptes are read-only. A little stress run
+including massive swap did not print a single warning.
 
-Thanks,
-Nick
+> I will have to think on this a little more, but I'm currently of the
+> opinion that the optimisation is not correct. But I'll have a thorough
+> look at s390 again when I get home.
+
+I think the patch is correct, although I beginning to doubt that is has
+any effect.
+
+-- 
+blue skies,
+  Martin.
+
+"Reality continues to ruin my life." - Calvin.
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
