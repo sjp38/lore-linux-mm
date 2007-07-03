@@ -1,145 +1,200 @@
-Date: Tue, 3 Jul 2007 19:04:33 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: [RFC][PATCH] avoiding fallback to ZONE_DMA with GFP_KERNEL
-Message-Id: <20070703190433.176a2deb.kamezawa.hiroyu@jp.fujitsu.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from d12nrmr1607.megacenter.de.ibm.com (d12nrmr1607.megacenter.de.ibm.com [9.149.167.49])
+	by mtagate3.de.ibm.com (8.13.8/8.13.8) with ESMTP id l63CAD7Q172064
+	for <linux-mm@kvack.org>; Tue, 3 Jul 2007 12:10:13 GMT
+Received: from d12av02.megacenter.de.ibm.com (d12av02.megacenter.de.ibm.com [9.149.165.228])
+	by d12nrmr1607.megacenter.de.ibm.com (8.13.8/8.13.8/NCO v8.3) with ESMTP id l63CADES1478864
+	for <linux-mm@kvack.org>; Tue, 3 Jul 2007 14:10:13 +0200
+Received: from d12av02.megacenter.de.ibm.com (loopback [127.0.0.1])
+	by d12av02.megacenter.de.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l63CACJW019550
+	for <linux-mm@kvack.org>; Tue, 3 Jul 2007 14:10:13 +0200
+Message-Id: <20070703121228.479973636@de.ibm.com>
+References: <20070703111822.418649776@de.ibm.com>
+Date: Tue, 03 Jul 2007 13:18:24 +0200
+From: Martin Schwidefsky <schwidefsky@de.ibm.com>
+Subject: [patch 2/5] remove ptep_establish.
+Content-Disposition: inline; filename=002-ptep-establish.diff
 Sender: owner-linux-mm@kvack.org
+From: Martin Schwidefsky <schwidefsky@de.ibm.com>
 Return-Path: <owner-linux-mm@kvack.org>
-To: "linux-mm@kvack.org" <linux-mm@kvack.org>
-Cc: "linux-ia64@vger.kernel.org" <linux-ia64@vger.kernel.org>
+To: akpm@linux-foundation.org, hugh@veritas.com, peterz@infradead.org
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Martin Schwidefsky <schwidefsky@de.ibm.com>
 List-ID: <linux-mm.kvack.org>
 
-This is a [RFC] patch to support "no-fallback-to-DMA zonelist".
-against 2.6.22-rc6-mm1. any comments are welcome.
+The last user of ptep_establish in mm/ is long gone. Remove the
+architecture primitive as well.
 
--Kame
-
-In ia64 system, which are often used for servers, system configuration are
-very stable. Once fixed, it will be unchanged for years. And we can estimate
-"How much ZONE_DMA memory is enough for the system" in system development phase.
-(ZONE_DMA are used for 32bit devices like USB/Keyboard,CD-ROM,etc... and not
- used very often.)
-
-When we know ZONE_DMA can be small, we can reduce it by boot ops. But if 
-we reduce ZONE_DMA memory by max_dma=XXX boot ops, the possibility of OOM
-in ZONE_DMA will increase under high memory pressure.
-
-This patch removes zonelist fallback among zone-types Normal-> DMA(32).
-By this, GFP_KERNEL memory request never use pages in zone below ZONE_NORMAL.
-
-There was a discussion that alloc_pfn_range(start,end), allocate some 
-memory from [start,end), can be the silver bullet for problems around ZONE_DMA
-OOM in future. But I think this fix can be a method to handle OOM/ZONE_DMA
-for current kernel.
-
-
-(1) If "ZONELIST_ORDER_CONSERVATIVE" is strange, plz give me better name.
-(2) I'm now considering to move "zonelist" funcs to other (new) file.
-    How do you think ?
-(3) This patch guarded DMA32, too. not necessary ?
-
-TODO:
- - add text to Documentation/. (not yet done.)
-
-Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-
-
+Signed-off-by: Martin Schwidefsky <schwidefsky@de.ibm.com>
 ---
- mm/page_alloc.c |   30 ++++++++++++++++++++++--------
- 1 file changed, 22 insertions(+), 8 deletions(-)
 
-Index: linux-2.6.22-rc6-mm1/mm/page_alloc.c
-===================================================================
---- linux-2.6.22-rc6-mm1.orig/mm/page_alloc.c
-+++ linux-2.6.22-rc6-mm1/mm/page_alloc.c
-@@ -1982,19 +1982,23 @@ static int build_zonelists_node(pg_data_
-  *  0 = automatic detection of better ordering.
-  *  1 = order by ([node] distance, -zonetype)
-  *  2 = order by (-zonetype, [node] distance)
+ include/asm-arm/pgtable.h     |    6 ++---
+ include/asm-generic/pgtable.h |   19 ------------------
+ include/asm-i386/pgtable.h    |   11 ----------
+ include/asm-ia64/pgtable.h    |    6 +++--
+ include/asm-s390/pgtable.h    |   43 ++++++++++++++++++------------------------
+ 5 files changed, 26 insertions(+), 59 deletions(-)
+
+diff -urpN linux-2.6/include/asm-arm/pgtable.h linux-2.6-patched/include/asm-arm/pgtable.h
+--- linux-2.6/include/asm-arm/pgtable.h	2007-05-09 09:58:15.000000000 +0200
++++ linux-2.6-patched/include/asm-arm/pgtable.h	2007-07-03 12:56:47.000000000 +0200
+@@ -83,14 +83,14 @@
+  * means that a write to a clean page will cause a permission fault, and
+  * the Linux MM layer will mark the page dirty via handle_pte_fault().
+  * For the hardware to notice the permission change, the TLB entry must
+- * be flushed, and ptep_establish() does that for us.
++ * be flushed, and ptep_set_access_flags() does that for us.
+  *
+  * The "accessed" or "young" bit is emulated by a similar method; we only
+  * allow accesses to the page if the "young" bit is set.  Accesses to the
+  * page will cause a fault, and handle_pte_fault() will set the young bit
+  * for us as long as the page is marked present in the corresponding Linux
+- * PTE entry.  Again, ptep_establish() will ensure that the TLB is up to
+- * date.
++ * PTE entry.  Again, ptep_set_access_flags() will ensure that the TLB is
++ * up to date.
+  *
+  * However, when the "young" bit is cleared, we deny access to the page
+  * by clearing the hardware PTE.  Currently Linux does not flush the TLB
+diff -urpN linux-2.6/include/asm-generic/pgtable.h linux-2.6-patched/include/asm-generic/pgtable.h
+--- linux-2.6/include/asm-generic/pgtable.h	2007-06-18 09:43:22.000000000 +0200
++++ linux-2.6-patched/include/asm-generic/pgtable.h	2007-07-03 12:56:47.000000000 +0200
+@@ -3,25 +3,6 @@
+ 
+ #ifndef __ASSEMBLY__
+ 
+-#ifndef __HAVE_ARCH_PTEP_ESTABLISH
+-/*
+- * Establish a new mapping:
+- *  - flush the old one
+- *  - update the page tables
+- *  - inform the TLB about the new one
 - *
-+ *  3 = diallow fallback from NORMAL -> DMA, order by zone.
-  *  If not NUMA, ZONELIST_ORDER_ZONE and ZONELIST_ORDER_NODE will create
-  *  the same zonelist. So only NUMA can configure this param.
-  */
- #define ZONELIST_ORDER_DEFAULT  0
- #define ZONELIST_ORDER_NODE     1
- #define ZONELIST_ORDER_ZONE     2
-+#define ZONELIST_ORDER_CONSERVATIVE   3
+- * We hold the mm semaphore for reading, and the pte lock.
+- *
+- * Note: the old pte is known to not be writable, so we don't need to
+- * worry about dirty bits etc getting lost.
+- */
+-#define ptep_establish(__vma, __address, __ptep, __entry)		\
+-do {				  					\
+-	set_pte_at((__vma)->vm_mm, (__address), __ptep, __entry);	\
+-	flush_tlb_page(__vma, __address);				\
+-} while (0)
+-#endif
+-
+ #ifndef __HAVE_ARCH_PTEP_SET_ACCESS_FLAGS
+ /*
+  * Largely same as above, but only sets the access flags (dirty,
+diff -urpN linux-2.6/include/asm-i386/pgtable.h linux-2.6-patched/include/asm-i386/pgtable.h
+--- linux-2.6/include/asm-i386/pgtable.h	2007-06-18 09:43:22.000000000 +0200
++++ linux-2.6-patched/include/asm-i386/pgtable.h	2007-07-03 12:56:47.000000000 +0200
+@@ -317,17 +317,6 @@ static inline pte_t native_local_ptep_ge
+ 	__ret;								\
+ })
  
- /* zonelist order in the kernel.
-  * set_zonelist_order() will set this to NODE or ZONE.
-+ * Conservative is special settings for small DMA zone servers,
-+ * This will be never selected automatically.
-  */
- static int current_zonelist_order = ZONELIST_ORDER_DEFAULT;
--static char zonelist_order_name[3][8] = {"Default", "Node", "Zone"};
-+static char zonelist_order_name[4][16] = {"Default",
-+					  "Node", "Zone", "Conservative"};
- 
- 
- #ifdef CONFIG_NUMA
-@@ -2010,6 +2014,7 @@ char numa_zonelist_order[16] = "default"
-  *	= "[dD]efault	- default, automatic configuration.
-  *	= "[nN]ode 	- order by node locality, then by zone within node
-  *	= "[zZ]one      - order by zone, then by locality within zone
-+ * 	= "[cC]onservative - Normal -> DMA fallback is disallowed.
-  */
- 
- static int __parse_numa_zonelist_order(char *s)
-@@ -2020,6 +2025,8 @@ static int __parse_numa_zonelist_order(c
- 		user_zonelist_order = ZONELIST_ORDER_NODE;
- 	} else if (*s == 'z' || *s == 'Z') {
- 		user_zonelist_order = ZONELIST_ORDER_ZONE;
-+	} else if (*s == 'c' || *s == 'C') {
-+		user_zonelist_order = ZONELIST_ORDER_CONSERVATIVE;
- 	} else {
- 		printk(KERN_WARNING
- 			"Ignoring invalid numa_zonelist_order value:  "
-@@ -2161,18 +2168,25 @@ static void build_zonelists_in_node_orde
-  */
- static int node_order[MAX_NUMNODES];
- 
--static void build_zonelists_in_zone_order(pg_data_t *pgdat, int nr_nodes)
-+static void
-+build_zonelists_in_zone_order(pg_data_t *pgdat,int nr_nodes, int listorder)
- {
- 	enum zone_type i;
- 	int pos, j, node;
--	int zone_type;		/* needs to be signed */
-+	int zone_type, low_zone;		/* needs to be signed */
- 	struct zone *z;
- 	struct zonelist *zonelist;
- 
- 	for (i = 0; i < MAX_NR_ZONES; i++) {
- 		zonelist = pgdat->node_zonelists + i;
- 		pos = 0;
--		for (zone_type = i; zone_type >= 0; zone_type--) {
-+		if ((listorder == ZONELIST_ORDER_CONSERVATIVE) &&
-+		    (i >= ZONE_NORMAL))
-+			low_zone = ZONE_NORMAL;
-+		else
-+			low_zone = 0;
-+
-+		for (zone_type = i; zone_type >= low_zone; zone_type--) {
- 			for (j = 0; j < nr_nodes; j++) {
- 				node = node_order[j];
- 				z = &NODE_DATA(node)->node_zones[zone_type];
-@@ -2298,10 +2312,10 @@ static void build_zonelists(pg_data_t *p
- 			node_order[j++] = node;	/* remember order */
- 	}
- 
--	if (order == ZONELIST_ORDER_ZONE) {
-+	if (order != ZONELIST_ORDER_NODE)
- 		/* calculate node order -- i.e., DMA last! */
--		build_zonelists_in_zone_order(pgdat, j);
--	}
-+		build_zonelists_in_zone_order(pgdat, j, order);
-+
+-/*
+- * Rules for using ptep_establish: the pte MUST be a user pte, and
+- * must be a present->present transition.
+- */
+-#define __HAVE_ARCH_PTEP_ESTABLISH
+-#define ptep_establish(vma, address, ptep, pteval)			\
+-do {									\
+-	set_pte_present((vma)->vm_mm, address, ptep, pteval);		\
+-	flush_tlb_page(vma, address);					\
+-} while (0)
+-
+ #define __HAVE_ARCH_PTEP_CLEAR_DIRTY_FLUSH
+ #define ptep_clear_flush_dirty(vma, address, ptep)			\
+ ({									\
+diff -urpN linux-2.6/include/asm-ia64/pgtable.h linux-2.6-patched/include/asm-ia64/pgtable.h
+--- linux-2.6/include/asm-ia64/pgtable.h	2007-06-18 09:43:22.000000000 +0200
++++ linux-2.6-patched/include/asm-ia64/pgtable.h	2007-07-03 12:56:47.000000000 +0200
+@@ -546,8 +546,10 @@ extern void lazy_mmu_prot_update (pte_t 
+ # define ptep_set_access_flags(__vma, __addr, __ptep, __entry, __safely_writable) \
+ ({									\
+ 	int __changed = !pte_same(*(__ptep), __entry);			\
+-	if (__changed)							\
+-		ptep_establish(__vma, __addr, __ptep, __entry);		\
++	if (__changed) {						\
++		set_pte_at((__vma)->vm_mm, (__addr), __ptep, __entry);	\
++		flush_tlb_page(__vma, __addr);				\
++	}								\
+ 	__changed;							\
+ })
+ #endif
+diff -urpN linux-2.6/include/asm-s390/pgtable.h linux-2.6-patched/include/asm-s390/pgtable.h
+--- linux-2.6/include/asm-s390/pgtable.h	2007-06-18 09:43:22.000000000 +0200
++++ linux-2.6-patched/include/asm-s390/pgtable.h	2007-07-03 12:56:47.000000000 +0200
+@@ -715,16 +715,19 @@ static inline void __ptep_ipte(unsigned 
+ 	pte_val(*ptep) = _PAGE_TYPE_EMPTY;
  }
  
- /* Construct the zonelist performance cache - see further mmzone.h */
+-static inline pte_t
+-ptep_clear_flush(struct vm_area_struct *vma,
+-		 unsigned long address, pte_t *ptep)
++static inline void ptep_invalidate(unsigned long address, pte_t *ptep)
+ {
+-	pte_t pte = *ptep;
+-	pte_t *shadow_pte = get_shadow_pte(ptep);
+-
+ 	__ptep_ipte(address, ptep);
+-	if (shadow_pte)
+-		__ptep_ipte(address, shadow_pte);
++	ptep = get_shadow_pte(ptep);
++	if (ptep)
++		__ptep_ipte(address, ptep);
++}
++
++static inline pte_t ptep_clear_flush(struct vm_area_struct *vma,
++				     unsigned long address, pte_t *ptep)
++{
++	pte_t pte = *ptep;
++	ptep_invalidate(address, ptep);
+ 	return pte;
+ }
+ 
+@@ -734,21 +737,14 @@ static inline void ptep_set_wrprotect(st
+ 	set_pte_at(mm, addr, ptep, pte_wrprotect(old_pte));
+ }
+ 
+-static inline void
+-ptep_establish(struct vm_area_struct *vma, 
+-	       unsigned long address, pte_t *ptep,
+-	       pte_t entry)
+-{
+-	ptep_clear_flush(vma, address, ptep);
+-	set_pte(ptep, entry);
+-}
+-
+-#define ptep_set_access_flags(__vma, __address, __ptep, __entry, __dirty) \
+-({									  \
+-	int __changed = !pte_same(*(__ptep), __entry);			  \
+-	if (__changed)							  \
+-		ptep_establish(__vma, __address, __ptep, __entry);	  \
+-	__changed;							  \
++#define ptep_set_access_flags(__vma, __addr, __ptep, __entry, __dirty)	\
++({									\
++	int __changed = !pte_same(*(__ptep), __entry);			\
++	if (__changed) {						\
++		ptep_invalidate(__addr, __ptep);			\
++		set_pte_at((__vma)->vm_mm, __addr, __ptep, __entry);	\
++	}								\
++	__changed;							\
+ })
+ 
+ /*
+@@ -948,7 +944,6 @@ extern int remove_shared_memory(unsigned
+ #define __HAVE_ARCH_MEMMAP_INIT
+ extern void memmap_init(unsigned long, int, unsigned long, unsigned long);
+ 
+-#define __HAVE_ARCH_PTEP_ESTABLISH
+ #define __HAVE_ARCH_PTEP_SET_ACCESS_FLAGS
+ #define __HAVE_ARCH_PTEP_TEST_AND_CLEAR_YOUNG
+ #define __HAVE_ARCH_PTEP_CLEAR_YOUNG_FLUSH
+
+-- 
+blue skies,
+   Martin.
+
+"Reality continues to ruin my life." - Calvin.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
