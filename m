@@ -1,63 +1,48 @@
-Received: by wa-out-1112.google.com with SMTP id m33so2450670wag
-        for <linux-mm@kvack.org>; Mon, 02 Jul 2007 17:46:40 -0700 (PDT)
-Message-ID: <6934efce0707021746q133c62f5l803e5fa78b3535d9@mail.gmail.com>
-Date: Mon, 2 Jul 2007 17:46:40 -0700
-From: "Jared Hulbert" <jaredeh@gmail.com>
-Subject: Re: vm/fs meetup in september?
-In-Reply-To: <20070702230418.GA5630@lazybastard.org>
+Message-ID: <4689A691.9090908@vmware.com>
+Date: Mon, 02 Jul 2007 18:29:53 -0700
+From: Zachary Amsden <zach@vmware.com>
 MIME-Version: 1.0
+Subject: Re: [patch 3/5] remove ptep_test_and_clear_dirty and ptep_clear_flush_dirty.
+References: <20070629135530.912094590@de.ibm.com> <20070629141528.060235678@de.ibm.com>
+In-Reply-To: <20070629141528.060235678@de.ibm.com>
 Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 8BIT
-Content-Disposition: inline
-References: <20070624042345.GB20033@wotan.suse.de>
-	 <6934efce0706251708h7ab8d7dal6682def601a82073@mail.gmail.com>
-	 <20070626060528.GA15134@infradead.org>
-	 <6934efce0706261007x5e402eebvc528d2d39abd03a3@mail.gmail.com>
-	 <20070630093243.GD22354@infradead.org>
-	 <6934efce0707021044x44f51337ofa046c85e342a973@mail.gmail.com>
-	 <20070702230418.GA5630@lazybastard.org>
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: =?ISO-8859-1?Q?J=F6rn_Engel?= <joern@logfs.org>
-Cc: Christoph Hellwig <hch@infradead.org>, Nick Piggin <npiggin@suse.de>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>, linux-fsdevel@vger.kernel.org
+To: Martin Schwidefsky <schwidefsky@de.ibm.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Hugh Dickins <hugh@veritas.com>
 List-ID: <linux-mm.kvack.org>
 
-On 7/2/07, Jorn Engel <joern@logfs.org> wrote:
-> On Mon, 2 July 2007 10:44:00 -0700, Jared Hulbert wrote:
-> >
-> > >So what you mean is "swap on flash" ?  Defintively sounds like an
-> > >interesting topic, although I'm not too sure it's all that
-> > >filesystem-related.
-> >
-> > Maybe not. Yet, it would be a very useful place to store data from a
-> > file as a non-volatile page cache.
-> >
-> > Also it is something that I believe would benefit from a VFS-like API.
-> > I mean there is a consistent interface a management layer like this
-> > could use, yet the algorithms used to order the data and the interface
-> > to the physical media may vary.  There is no single right way to do
-> > the management layer, much like filesystems.
-> >
-> > Given the page orientation of the current VFS seems to me like there
-> > might be a nice way to use it for this purpose.
-> >
-> > Or maybe the real experts on this stuff can tell me how wrong that is
-> > and where it should go :)
+Martin Schwidefsky wrote:
+> From: Martin Schwidefsky <schwidefsky@de.ibm.com>
 >
-> I don't believe anyone has implemented this before, so any experts would
-> be self-appointed.
+> Nobody is using ptep_test_and_clear_dirty and ptep_clear_flush_dirty.
+> Remove the functions from all architectures.
 >
-> Maybe this should be turned into a filesystem subject after all.  The
-> complexity comes from combining XIP with writes on the same chip.  So
-> solving your problem should be identical to solving the rw XIP
-> filesystem problem.
 >
-> If there is interest in the latter, I'd offer my self-appointed
-> expertise.
+> -static inline int
+> -ptep_test_and_clear_dirty (struct vm_area_struct *vma, unsigned long addr, pte_t *ptep)
+> -{
+> -#ifdef CONFIG_SMP
+> -	if (!pte_dirty(*ptep))
+> -		return 0;
+> -	return test_and_clear_bit(_PAGE_D_BIT, ptep);
+> -#else
+> -	pte_t pte = *ptep;
+> -	if (!pte_dirty(pte))
+> -		return 0;
+> -	set_pte_at(vma->vm_mm, addr, ptep, pte_mkclean(pte));
+> -	return 1;
+> -#endif
+> -}
 
-Right, the solution to swap problem is identical to the rw XIP
-filesystem problem.    Jorn, that's why you're the self-appointed
-subject matter expert!
+I've not followed all the changes lately - what is the current protocol 
+for clearing dirty bit?  Is it simply pte_clear followed by set or is it 
+not done at all?  At least for i386 and virtualization, we had several 
+optimizations to the test_and_clear path that are not possible with a 
+pte_clear / set_pte approach.
+
+Zach
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
