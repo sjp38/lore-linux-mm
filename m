@@ -1,43 +1,63 @@
-Date: Tue, 3 Jul 2007 01:09:15 +0200
-From: =?utf-8?B?SsO2cm4=?= Engel <joern@logfs.org>
+Received: by wa-out-1112.google.com with SMTP id m33so2450670wag
+        for <linux-mm@kvack.org>; Mon, 02 Jul 2007 17:46:40 -0700 (PDT)
+Message-ID: <6934efce0707021746q133c62f5l803e5fa78b3535d9@mail.gmail.com>
+Date: Mon, 2 Jul 2007 17:46:40 -0700
+From: "Jared Hulbert" <jaredeh@gmail.com>
 Subject: Re: vm/fs meetup in september?
-Message-ID: <20070702230914.GB5630@lazybastard.org>
-References: <20070624042345.GB20033@wotan.suse.de> <20070625063545.GA1964@infradead.org> <46807B5D.6090604@yahoo.com.au> <20070630093129.GC22354@infradead.org> <46864DF8.6090807@mbligh.org> <20070702061944.GA31557@wotan.suse.de>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=utf-8
+In-Reply-To: <20070702230418.GA5630@lazybastard.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 8BIT
 Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <20070702061944.GA31557@wotan.suse.de>
+References: <20070624042345.GB20033@wotan.suse.de>
+	 <6934efce0706251708h7ab8d7dal6682def601a82073@mail.gmail.com>
+	 <20070626060528.GA15134@infradead.org>
+	 <6934efce0706261007x5e402eebvc528d2d39abd03a3@mail.gmail.com>
+	 <20070630093243.GD22354@infradead.org>
+	 <6934efce0707021044x44f51337ofa046c85e342a973@mail.gmail.com>
+	 <20070702230418.GA5630@lazybastard.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nick Piggin <npiggin@suse.de>
-Cc: "Martin J. Bligh" <mbligh@mbligh.org>, Christoph Hellwig <hch@infradead.org>, Nick Piggin <nickpiggin@yahoo.com.au>, Linux Memory Management List <linux-mm@kvack.org>, linux-fsdevel@vger.kernel.org
+To: =?ISO-8859-1?Q?J=F6rn_Engel?= <joern@logfs.org>
+Cc: Christoph Hellwig <hch@infradead.org>, Nick Piggin <npiggin@suse.de>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>, linux-fsdevel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 2 July 2007 08:19:44 +0200, Nick Piggin wrote:
-> 
-> Regarding numbers, there are about a dozen so far which is good
-> but not as many filesystem maintainers as I had hoped (do they
-> tend not to get invited to KS?). We may get a few more people yet
-> so I think if we try to get a room to fit 20-25 people it would
-> be ideal: I don't want to turn anyone away ;)
+On 7/2/07, Jorn Engel <joern@logfs.org> wrote:
+> On Mon, 2 July 2007 10:44:00 -0700, Jared Hulbert wrote:
+> >
+> > >So what you mean is "swap on flash" ?  Defintively sounds like an
+> > >interesting topic, although I'm not too sure it's all that
+> > >filesystem-related.
+> >
+> > Maybe not. Yet, it would be a very useful place to store data from a
+> > file as a non-volatile page cache.
+> >
+> > Also it is something that I believe would benefit from a VFS-like API.
+> > I mean there is a consistent interface a management layer like this
+> > could use, yet the algorithms used to order the data and the interface
+> > to the physical media may vary.  There is no single right way to do
+> > the management layer, much like filesystems.
+> >
+> > Given the page orientation of the current VFS seems to me like there
+> > might be a nice way to use it for this purpose.
+> >
+> > Or maybe the real experts on this stuff can tell me how wrong that is
+> > and where it should go :)
+>
+> I don't believe anyone has implemented this before, so any experts would
+> be self-appointed.
+>
+> Maybe this should be turned into a filesystem subject after all.  The
+> complexity comes from combining XIP with writes on the same chip.  So
+> solving your problem should be identical to solving the rw XIP
+> filesystem problem.
+>
+> If there is interest in the latter, I'd offer my self-appointed
+> expertise.
 
-I'm interested.
-
-My particular pet subject would be sync behaviour.  LogFS benefits from
-writing data in a particular order - data first, then indirect blocks,
-doubly indirect, triply, etc.  Reason is that indirect blocks get
-dirtied when data is written.
-
-The current solution is to write indirect blocks immediatly, causing
-quite bad performance.
-
-JA?rn
-
--- 
-Measure. Don't tune for speed until you've measured, and even then
-don't unless one part of the code overwhelms the rest.
--- Rob Pike
+Right, the solution to swap problem is identical to the rw XIP
+filesystem problem.    Jorn, that's why you're the self-appointed
+subject matter expert!
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
