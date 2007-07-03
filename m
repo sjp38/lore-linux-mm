@@ -1,78 +1,33 @@
-Date: Tue, 3 Jul 2007 11:09:02 -0700 (PDT)
+Date: Tue, 3 Jul 2007 11:09:28 -0700 (PDT)
 From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [PATCH/RFC] Fix Mempolicy Ref Counts - was Re: [PATCH/RFC 0/11]
- Shared Policy Overview
-In-Reply-To: <1183228446.6975.10.camel@localhost>
-Message-ID: <Pine.LNX.4.64.0707031108160.6404@schroedinger.engr.sgi.com>
-References: <20070625195224.21210.89898.sendpatchset@localhost>
- <200706290002.12113.ak@suse.de> <1183137257.5012.12.camel@localhost>
- <200706291942.06679.ak@suse.de> <1183228446.6975.10.camel@localhost>
+Subject: Re: [RFC 1/7] cpuset write dirty map
+In-Reply-To: <468717FF.3090401@google.com>
+Message-ID: <Pine.LNX.4.64.0707031109100.6404@schroedinger.engr.sgi.com>
+References: <465FB6CF.4090801@google.com> <Pine.LNX.4.64.0706041138410.24412@schroedinger.engr.sgi.com>
+ <46646A33.6090107@google.com> <Pine.LNX.4.64.0706041250440.25535@schroedinger.engr.sgi.com>
+ <468023CA.2090401@google.com> <Pine.LNX.4.64.0706261216110.20282@schroedinger.engr.sgi.com>
+ <20070626152204.b6b4bc3f.akpm@google.com> <4682A9B6.8070003@google.com>
+ <Pine.LNX.4.64.0706271437410.31227@schroedinger.engr.sgi.com>
+ <468717FF.3090401@google.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
-Cc: Andi Kleen <ak@suse.de>, "Paul E. McKenney" <paulmck@us.ibm.com>, linux-mm@kvack.org, akpm@linux-foundation.org, nacc@us.ibm.com
+To: Ethan Solomita <solo@google.com>
+Cc: Andrew Morton <akpm@google.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, a.p.zijlstra@chello.nl
 List-ID: <linux-mm.kvack.org>
 
-On Sat, 30 Jun 2007, Lee Schermerhorn wrote:
+On Sat, 30 Jun 2007, Ethan Solomita wrote:
 
-> Index: Linux/mm/mempolicy.c
-> ===================================================================
-> --- Linux.orig/mm/mempolicy.c	2007-06-30 12:56:51.000000000 -0400
-> +++ Linux/mm/mempolicy.c	2007-06-30 13:49:12.000000000 -0400
-> @@ -1077,16 +1077,20 @@ static struct mempolicy * get_vma_policy
->  		struct vm_area_struct *vma, unsigned long addr)
->  {
->  	struct mempolicy *pol = task->mempolicy;
-> +	int shared_pol = 0;
->  
->  	if (vma) {
-> -		if (vma->vm_ops && vma->vm_ops->get_policy)
-> +		if (vma->vm_ops && vma->vm_ops->get_policy) {
->  			pol = vma->vm_ops->get_policy(vma, addr);
-> -		else if (vma->vm_policy &&
-> +			shared_pol = 1;	/* if non-NULL, that is */
-> +		} else if (vma->vm_policy &&
->  				vma->vm_policy->policy != MPOL_DEFAULT)
->  			pol = vma->vm_policy;
->  	}
->  	if (!pol)
->  		pol = &default_policy;
-> +	else if (!shared_pol && pol != current->mempolicy)
-> +		mpol_get(pol);	/* vma or other task's policy */
->  	return pol;
->  }
->  
-> @@ -1259,6 +1263,7 @@ struct page *
->  alloc_page_vma(gfp_t gfp, struct vm_area_struct *vma, unsigned long addr)
->  {
->  	struct mempolicy *pol = get_vma_policy(current, vma, addr);
-> +	struct zonelist *zl;
->  
->  	cpuset_update_task_memory_state();
->  
-> @@ -1268,7 +1273,19 @@ alloc_page_vma(gfp_t gfp, struct vm_area
->  		nid = interleave_nid(pol, vma, addr, PAGE_SHIFT);
->  		return alloc_page_interleave(gfp, 0, nid);
->  	}
-> -	return __alloc_pages(gfp, 0, zonelist_policy(gfp, pol));
-> +	zl = zonelist_policy(gfp, pol);
-> +	if (pol != &default_policy && pol != current->mempolicy) {
-> +		/*
-> +		 * slow path: ref counted policy -- shared or vma
-> +		 */
-> +		struct page *page =  __alloc_pages(gfp, 0, zl);
-> +		__mpol_free(pol);
-> +		return page;
-> +	}
-> +	/*
-> +	 * fast path:  default or task policy
-> +	 */
-> +	return __alloc_pages(gfp, 0, zl);
->  }
+> > I hope you will keep on updating the patchset and posting it against 
+> > current mm?
+> > 
+> 
+> 	I have no new changes, but I can update it against the current mm. Or
+> did the per-bdi throttling change get taken by Andrew?
 
-Argh. Some hot paths are touched here.
+Not that I am aware of. So please repost against current mm.
+ 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
