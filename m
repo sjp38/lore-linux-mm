@@ -1,36 +1,63 @@
-Date: Tue, 3 Jul 2007 14:25:22 +0200
-From: =?utf-8?B?SsO2cm4=?= Engel <joern@logfs.org>
-Subject: Re: vm/fs meetup in september?
-Message-ID: <20070703122522.GB11942@lazybastard.org>
-References: <20070624042345.GB20033@wotan.suse.de> <6934efce0706251708h7ab8d7dal6682def601a82073@mail.gmail.com> <20070626060528.GA15134@infradead.org> <6934efce0706261007x5e402eebvc528d2d39abd03a3@mail.gmail.com> <20070630093243.GD22354@infradead.org> <6934efce0707021044x44f51337ofa046c85e342a973@mail.gmail.com> <20070702230418.GA5630@lazybastard.org> <6934efce0707021746q133c62f5l803e5fa78b3535d9@mail.gmail.com>
+Subject: Re: [patch 2/3] audit: rework execve audit
+From: Peter Zijlstra <a.p.zijlstra@chello.nl>
+In-Reply-To: <20070626155541.9708eded.akpm@linux-foundation.org>
+References: <20070613100334.635756997@chello.nl>
+	 <20070613100834.897301179@chello.nl>
+	 <20070626155541.9708eded.akpm@linux-foundation.org>
+Content-Type: text/plain
+Date: Tue, 03 Jul 2007 17:00:55 +0200
+Message-Id: <1183474855.7054.2.camel@twins>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <6934efce0707021746q133c62f5l803e5fa78b3535d9@mail.gmail.com>
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Jared Hulbert <jaredeh@gmail.com>
-Cc: =?utf-8?B?SsO2cm4=?= Engel <joern@logfs.org>, Christoph Hellwig <hch@infradead.org>, Nick Piggin <npiggin@suse.de>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>, linux-fsdevel@vger.kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-kernel@vger.kernel.org, parisc-linux@lists.parisc-linux.org, linux-mm@kvack.org, linux-arch@vger.kernel.org, Ollie Wild <aaw@google.com>, Ingo Molnar <mingo@elte.hu>, Andi Kleen <ak@suse.de>, linux-audit@redhat.com
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 2 July 2007 17:46:40 -0700, Jared Hulbert wrote:
+On Tue, 2007-06-26 at 15:55 -0700, Andrew Morton wrote:
+> On Wed, 13 Jun 2007 12:03:36 +0200
+> Peter Zijlstra <a.p.zijlstra@chello.nl> wrote:
 > 
-> Right, the solution to swap problem is identical to the rw XIP
-> filesystem problem.    JA?rn, that's why you're the self-appointed
-> subject matter expert!
+> > +#ifdef CONFIG_AUDITSYSCALL
+> > +	{
+> > +		.ctl_name	= CTL_UNNUMBERED,
+> > +		.procname	= "audit_argv_kb",
+> > +		.data		= &audit_argv_kb,
+> > +		.maxlen		= sizeof(int),
+> > +		.mode		= 0644,
+> > +		.proc_handler	= &proc_dointvec,
+> > +	},
+> > +#endif
+> 
+> Please document /proc entries in Documentation/filesystems/proc.txt
 
-All right.  I'll try to make an important face whenever the subject
-comes up.
 
-Nick, do you have a problem if LogFS occupies two brainslots at the
-meeting?
 
-JA?rn
+Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
+---
+ Documentation/filesystems/proc.txt |    7 +++++++
+ 1 file changed, 7 insertions(+)
 
--- 
-Eighty percent of success is showing up.
--- Woody Allen
+Index: linux-2.6/Documentation/filesystems/proc.txt
+===================================================================
+--- linux-2.6.orig/Documentation/filesystems/proc.txt
++++ linux-2.6/Documentation/filesystems/proc.txt
+@@ -1075,6 +1075,13 @@ check the amount of free space (value is
+ resume it  if we have a value of 3 or more percent; consider information about
+ the amount of free space valid for 30 seconds
+ 
++audit_argv_kb
++-------------
++
++The file contains a single value denoting the limit on the argv array size
++for execve (in KiB). This limit is only applied when system call auditing for
++execve is enabled, otherwise the value is ignored.
++
+ ctrl-alt-del
+ ------------
+ 
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
