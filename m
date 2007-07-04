@@ -1,115 +1,48 @@
-Date: Wed, 04 Jul 2007 17:28:20 +0500
-From: "Casino Royal VIP" <hector@fast.net>
-Subject: =?iso-8859-1?Q?300%_Bonus_f=FCr_Ihre_erste_Einzahlung!?=
-Message-ID: <76953108.88543001@swishy.com>
-MIME-Version: 1.0
-Content-Type: text/html; charset=iso-8859-1
+Subject: Re: [PATCH] Re: Sparc32: random invalid instruction occourances on
+	sparc32 (sun4c)
+From: David Woodhouse <dwmw2@infradead.org>
+In-Reply-To: <Pine.LNX.4.61.0707041121290.31752@mtfhpc.demon.co.uk>
+References: <468A7D14.1050505@googlemail.com>
+	 <Pine.LNX.4.61.0707031817050.29930@mtfhpc.demon.co.uk>
+	 <Pine.LNX.4.61.0707031910280.29930@mtfhpc.demon.co.uk>
+	 <1183490778.29081.35.camel@shinybook.infradead.org>
+	 <Pine.LNX.4.61.0707032209230.30376@mtfhpc.demon.co.uk>
+	 <1183499781.29081.46.camel@shinybook.infradead.org>
+	 <Pine.LNX.4.61.0707032317590.30376@mtfhpc.demon.co.uk>
+	 <1183505787.29081.62.camel@shinybook.infradead.org>
+	 <Pine.LNX.4.61.0707040335230.30946@mtfhpc.demon.co.uk>
+	 <1183520006.29081.79.camel@shinybook.infradead.org>
+	 <Pine.LNX.4.61.0707041121290.31752@mtfhpc.demon.co.uk>
+Content-Type: text/plain
+Date: Wed, 04 Jul 2007 10:46:03 -0400
+Message-Id: <1183560364.29081.106.camel@shinybook.infradead.org>
+Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
-Return-Path: <hector@fast.net>
-To: linux-mm@kvack.org
+Sender: owner-linux-mm@kvack.org
+Return-Path: <owner-linux-mm@kvack.org>
+To: Mark Fortescue <mark@mtfhpc.demon.co.uk>
+Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, sparclinux@vger.kernel.org, David Miller <davem@davemloft.net>, Christoph Lameter <clameter@engr.sgi.com>, William Lee Irwin III <wli@holomorphy.com>
 List-ID: <linux-mm.kvack.org>
 
-<html>
+On Wed, 2007-07-04 at 11:27 +0100, Mark Fortescue wrote:
+> Another related point that may also need to be considered is that I think 
+> I am correct in saying that on ARM and on the 64bit platforms, sizeof 
+> (unsigned long long) is 16 (128bits).
 
-<head>
-<meta http-equiv=Content-Type content="text/html; charset=iso-8859-1">
+No, it's always 64 bits.
 
-<title>Nur vom nobelsten aller</title>
+> Should the RedZone words be specified as __u64 not the unsigned long long 
+> used or does the alignment need to be that of unsigned long long ?
 
-<style>
-<!--
- /* Style Definitions */
- p.MsoNormal, li.MsoNormal, div.MsoNormal
-	{mso-style-parent:"";
-	margin:0cm;
-	margin-bottom:.0001pt;
-	mso-pagination:widow-orphan;
-	font-size:12.0pt;
-	font-family:"Times New Roman";
-	mso-fareast-font-family:"Times New Roman";
-	mso-ansi-language:EN-US;
-	mso-fareast-language:EN-US;}
-a:link, span.MsoHyperlink
-	{color:blue;
-	text-decoration:underline;
-	text-underline:single;}
-a:visited, span.MsoHyperlinkFollowed
-	{color:purple;
-	text-decoration:underline;
-	text-underline:single;}
-@page Section1
-	{size:595.3pt 841.9pt;
-	margin:2.0cm 42.5pt 2.0cm 3.0cm;
-	mso-header-margin:35.4pt;
-	mso-footer-margin:35.4pt;
-	mso-paper-source:0;}
-div.Section1
-	{page:Section1;}
--->
-</style>
+You have to play silly buggers with printk formats (%lx vs. %llx) if you
+do that. And you have to make a choice about using proper C types or the
+Linux-specific nonsense. 'unsigned long long' is just easier all round.
 
-</head>
+-- 
+dwmw2
 
-<body lang=DE link=blue vlink=purple style='tab-interval:35.4pt'>
-
-<div class=Section1>
-
-<p class=MsoNormal>
-<span lang=DE style='mso-ansi-language:DE'>
-Nur vom nobelsten aller Casinos k&ouml;nnen 
-Sie ein so vornehmes Geschenk erwarten:
-<o:p></o:p></span></p>
-
-<p class=MsoNormal>
-<span lang=DE style='mso-ansi-language:DE'>
-<o:p>&nbsp;</o:p></span></p>
-
-<p class=MsoNormal>
-<span lang=DE style='mso-ansi-language:DE'>
-300% Bonus f&uuml;r Ihre erste Einzahlung!
-<o:p></o:p></span></p>
-
-<p class=MsoNormal>
-<span lang=DE style='mso-ansi-language:DE'>
-<o:p>&nbsp;</o:p></span></p>
-
-<p class=MsoNormal>
-<span lang=DE style='mso-ansi-language:DE'>
-Zahlen Sie 100&#8364;/$ ein und spielen 
-Sie mit 400 &#8364;/$!
-<o:p></o:p></span></p>
-
-<p class=MsoNormal>
-<span lang=DE style='mso-ansi-language:DE'>
-<o:p>&nbsp;</o:p></span></p>
-
-<p class=MsoNormal>
-<span lang=DE style='mso-ansi-language:DE'>
-Oben drauf bekommen Sie bei uns einen 
-k&ouml;niglichen Service!
-<o:p></o:p></span></p>
-
-<p class=MsoNormal>
-<span lang=DE style='mso-ansi-language:DE'>
-<o:p>&nbsp;</o:p></span></p>
-
-<p class=MsoNormal>
-<span lang=DE style='mso-ansi-language:DE'>
-Kommen und spielen Sie im Royal VIP Casino!
-<o:p></o:p></span></p>
-
-<p class=MsoNormal>
-<span lang=DE style='mso-ansi-language:DE'>
-<o:p>&nbsp;</o:p></span></p>
-
-<p class=MsoNormal>
-<span lang=DE style='mso-ansi-language:DE'>
-<a href="http://royalcoolcasino.com/lang-de/">
-http://royalcoolcasino.com/lang-de/</a>
-<o:p></o:p></span></p>
-
-</div>
-
-</body>
-
-</html>
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
