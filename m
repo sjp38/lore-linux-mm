@@ -1,51 +1,68 @@
-Date: Wed, 4 Jul 2007 03:52:25 -0400 (EDT)
-From: "Robert P. J. Day" <rpjday@mindspring.com>
-Subject: [PATCH] MM: Make needlessly global hugetlb_no_page() static.
-Message-ID: <Pine.LNX.4.64.0707040352040.2922@localhost.localdomain>
+Date: Wed, 4 Jul 2007 11:27:32 +0100 (BST)
+From: Mark Fortescue <mark@mtfhpc.demon.co.uk>
+Subject: Re: [PATCH] Re: Sparc32: random invalid instruction occourances on
+ sparc32 (sun4c)
+In-Reply-To: <1183520006.29081.79.camel@shinybook.infradead.org>
+Message-ID: <Pine.LNX.4.61.0707041121290.31752@mtfhpc.demon.co.uk>
+References: <468A7D14.1050505@googlemail.com>  <Pine.LNX.4.61.0707031817050.29930@mtfhpc.demon.co.uk>
+  <Pine.LNX.4.61.0707031910280.29930@mtfhpc.demon.co.uk>
+ <1183490778.29081.35.camel@shinybook.infradead.org>
+ <Pine.LNX.4.61.0707032209230.30376@mtfhpc.demon.co.uk>
+ <1183499781.29081.46.camel@shinybook.infradead.org>
+ <Pine.LNX.4.61.0707032317590.30376@mtfhpc.demon.co.uk>
+ <1183505787.29081.62.camel@shinybook.infradead.org>
+ <Pine.LNX.4.61.0707040335230.30946@mtfhpc.demon.co.uk>
+ <1183520006.29081.79.camel@shinybook.infradead.org>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: TEXT/PLAIN; charset=US-ASCII; format=flowed
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
-Cc: Andrew Morton <akpm@osdl.org>, Adrian Bunk <bunk@stusta.de>
+To: David Woodhouse <dwmw2@infradead.org>
+Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, sparclinux@vger.kernel.org, David Miller <davem@davemloft.net>, Christoph Lameter <clameter@engr.sgi.com>, William Lee Irwin III <wli@holomorphy.com>
 List-ID: <linux-mm.kvack.org>
 
-Signed-off-by: Robert P. J. Day <rpjday@mindspring.com>
+Hi David,
 
----
+Another related point that may also need to be considered is that I think 
+I am correct in saying that on ARM and on the 64bit platforms, sizeof 
+(unsigned long long) is 16 (128bits).
 
-  i'm assuming that, given the following:
+Should the RedZone words be specified as __u64 not the unsigned long long 
+used or does the alignment need to be that of unsigned long long ?
 
-$ grep -rw hugetlb_no_page *
-mm/hugetlb.c:int hugetlb_no_page(struct mm_struct *mm, struct vm_area_struct *vma,
-mm/hugetlb.c:           ret = hugetlb_no_page(mm, vma, address, ptep, write_access);
+Regards
+ 	Mark Fortescue.
 
-if a routine is both declared and defined in a single translation
-unit, and isn't EXPORT_SYMBOLed in some way, that's pretty much the
-definition of needlessly global, right?
+  On Tue, 3 Jul 2007, David Woodhouse wrote:
 
-
-diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-index a45d1f0..6d7abaf 100644
---- a/mm/hugetlb.c
-+++ b/mm/hugetlb.c
-@@ -474,7 +474,7 @@ static int hugetlb_cow(struct mm_struct *mm, struct vm_area_struct *vma,
- 	return VM_FAULT_MINOR;
- }
-
--int hugetlb_no_page(struct mm_struct *mm, struct vm_area_struct *vma,
-+static int hugetlb_no_page(struct mm_struct *mm, struct vm_area_struct *vma,
- 			unsigned long address, pte_t *ptep, int write_access)
- {
- 	int ret = VM_FAULT_SIGBUS;
--- 
-========================================================================
-Robert P. J. Day
-Linux Consulting, Training and Annoying Kernel Pedantry
-Waterloo, Ontario, CANADA
-
-http://fsdev.net/wiki/index.php?title=Main_Page
-========================================================================
+> On Wed, 2007-07-04 at 04:27 +0100, Mark Fortescue wrote:
+>> I tried the previous patch and it looks like it fixes the issue however
+>> one of the test builds I did caused depmod to use up all available memory
+>> (40M - kernel memory) before taking out the kernel with the oom killer.
+>> At present, I do not know if it is a depmod issue or a kernel issue.
+>> I will have to do some more tests later on to day.
+>
+> That's almost certain to be an unrelated issue.
+>
+>> I have looked at the latest patch below and am I am still not sure about
+>> two areas. Please take a look at my offering based on your latest
+>> patch (included here to it will probably get mangled).
+>>
+>> Note the change to lines 2178 to 2185. I have also changed/moved the
+>> alignment of size (see lines 2197 to 2206) based on your changes.
+>
+> The first looks correct; well spotted. The second is just cosmetic but
+> also seems correct. I might be inclined to make the #define
+> 'RED_ZONE_ALIGN' and use it in the other places too.
+>
+> -- 
+> dwmw2
+>
+> -
+> To unsubscribe from this list: send the line "unsubscribe sparclinux" in
+> the body of a message to majordomo@vger.kernel.org
+> More majordomo info at  http://vger.kernel.org/majordomo-info.html
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
