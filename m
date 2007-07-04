@@ -1,71 +1,115 @@
-Date: Wed, 4 Jul 2007 11:27:32 +0100 (BST)
-From: Mark Fortescue <mark@mtfhpc.demon.co.uk>
-Subject: Re: [PATCH] Re: Sparc32: random invalid instruction occourances on
- sparc32 (sun4c)
-In-Reply-To: <1183520006.29081.79.camel@shinybook.infradead.org>
-Message-ID: <Pine.LNX.4.61.0707041121290.31752@mtfhpc.demon.co.uk>
-References: <468A7D14.1050505@googlemail.com>  <Pine.LNX.4.61.0707031817050.29930@mtfhpc.demon.co.uk>
-  <Pine.LNX.4.61.0707031910280.29930@mtfhpc.demon.co.uk>
- <1183490778.29081.35.camel@shinybook.infradead.org>
- <Pine.LNX.4.61.0707032209230.30376@mtfhpc.demon.co.uk>
- <1183499781.29081.46.camel@shinybook.infradead.org>
- <Pine.LNX.4.61.0707032317590.30376@mtfhpc.demon.co.uk>
- <1183505787.29081.62.camel@shinybook.infradead.org>
- <Pine.LNX.4.61.0707040335230.30946@mtfhpc.demon.co.uk>
- <1183520006.29081.79.camel@shinybook.infradead.org>
+Date: Wed, 04 Jul 2007 17:28:20 +0500
+From: "Casino Royal VIP" <hector@fast.net>
+Subject: =?iso-8859-1?Q?300%_Bonus_f=FCr_Ihre_erste_Einzahlung!?=
+Message-ID: <76953108.88543001@swishy.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII; format=flowed
-Sender: owner-linux-mm@kvack.org
-Return-Path: <owner-linux-mm@kvack.org>
-To: David Woodhouse <dwmw2@infradead.org>
-Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, sparclinux@vger.kernel.org, David Miller <davem@davemloft.net>, Christoph Lameter <clameter@engr.sgi.com>, William Lee Irwin III <wli@holomorphy.com>
+Content-Type: text/html; charset=iso-8859-1
+Content-Transfer-Encoding: 7bit
+Return-Path: <hector@fast.net>
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi David,
+<html>
 
-Another related point that may also need to be considered is that I think 
-I am correct in saying that on ARM and on the 64bit platforms, sizeof 
-(unsigned long long) is 16 (128bits).
+<head>
+<meta http-equiv=Content-Type content="text/html; charset=iso-8859-1">
 
-Should the RedZone words be specified as __u64 not the unsigned long long 
-used or does the alignment need to be that of unsigned long long ?
+<title>Nur vom nobelsten aller</title>
 
-Regards
- 	Mark Fortescue.
+<style>
+<!--
+ /* Style Definitions */
+ p.MsoNormal, li.MsoNormal, div.MsoNormal
+	{mso-style-parent:"";
+	margin:0cm;
+	margin-bottom:.0001pt;
+	mso-pagination:widow-orphan;
+	font-size:12.0pt;
+	font-family:"Times New Roman";
+	mso-fareast-font-family:"Times New Roman";
+	mso-ansi-language:EN-US;
+	mso-fareast-language:EN-US;}
+a:link, span.MsoHyperlink
+	{color:blue;
+	text-decoration:underline;
+	text-underline:single;}
+a:visited, span.MsoHyperlinkFollowed
+	{color:purple;
+	text-decoration:underline;
+	text-underline:single;}
+@page Section1
+	{size:595.3pt 841.9pt;
+	margin:2.0cm 42.5pt 2.0cm 3.0cm;
+	mso-header-margin:35.4pt;
+	mso-footer-margin:35.4pt;
+	mso-paper-source:0;}
+div.Section1
+	{page:Section1;}
+-->
+</style>
 
-  On Tue, 3 Jul 2007, David Woodhouse wrote:
+</head>
 
-> On Wed, 2007-07-04 at 04:27 +0100, Mark Fortescue wrote:
->> I tried the previous patch and it looks like it fixes the issue however
->> one of the test builds I did caused depmod to use up all available memory
->> (40M - kernel memory) before taking out the kernel with the oom killer.
->> At present, I do not know if it is a depmod issue or a kernel issue.
->> I will have to do some more tests later on to day.
->
-> That's almost certain to be an unrelated issue.
->
->> I have looked at the latest patch below and am I am still not sure about
->> two areas. Please take a look at my offering based on your latest
->> patch (included here to it will probably get mangled).
->>
->> Note the change to lines 2178 to 2185. I have also changed/moved the
->> alignment of size (see lines 2197 to 2206) based on your changes.
->
-> The first looks correct; well spotted. The second is just cosmetic but
-> also seems correct. I might be inclined to make the #define
-> 'RED_ZONE_ALIGN' and use it in the other places too.
->
-> -- 
-> dwmw2
->
-> -
-> To unsubscribe from this list: send the line "unsubscribe sparclinux" in
-> the body of a message to majordomo@vger.kernel.org
-> More majordomo info at  http://vger.kernel.org/majordomo-info.html
->
+<body lang=DE link=blue vlink=purple style='tab-interval:35.4pt'>
 
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+<div class=Section1>
+
+<p class=MsoNormal>
+<span lang=DE style='mso-ansi-language:DE'>
+Nur vom nobelsten aller Casinos k&ouml;nnen 
+Sie ein so vornehmes Geschenk erwarten:
+<o:p></o:p></span></p>
+
+<p class=MsoNormal>
+<span lang=DE style='mso-ansi-language:DE'>
+<o:p>&nbsp;</o:p></span></p>
+
+<p class=MsoNormal>
+<span lang=DE style='mso-ansi-language:DE'>
+300% Bonus f&uuml;r Ihre erste Einzahlung!
+<o:p></o:p></span></p>
+
+<p class=MsoNormal>
+<span lang=DE style='mso-ansi-language:DE'>
+<o:p>&nbsp;</o:p></span></p>
+
+<p class=MsoNormal>
+<span lang=DE style='mso-ansi-language:DE'>
+Zahlen Sie 100&#8364;/$ ein und spielen 
+Sie mit 400 &#8364;/$!
+<o:p></o:p></span></p>
+
+<p class=MsoNormal>
+<span lang=DE style='mso-ansi-language:DE'>
+<o:p>&nbsp;</o:p></span></p>
+
+<p class=MsoNormal>
+<span lang=DE style='mso-ansi-language:DE'>
+Oben drauf bekommen Sie bei uns einen 
+k&ouml;niglichen Service!
+<o:p></o:p></span></p>
+
+<p class=MsoNormal>
+<span lang=DE style='mso-ansi-language:DE'>
+<o:p>&nbsp;</o:p></span></p>
+
+<p class=MsoNormal>
+<span lang=DE style='mso-ansi-language:DE'>
+Kommen und spielen Sie im Royal VIP Casino!
+<o:p></o:p></span></p>
+
+<p class=MsoNormal>
+<span lang=DE style='mso-ansi-language:DE'>
+<o:p>&nbsp;</o:p></span></p>
+
+<p class=MsoNormal>
+<span lang=DE style='mso-ansi-language:DE'>
+<a href="http://royalcoolcasino.com/lang-de/">
+http://royalcoolcasino.com/lang-de/</a>
+<o:p></o:p></span></p>
+
+</div>
+
+</body>
+
+</html>
