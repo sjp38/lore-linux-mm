@@ -1,53 +1,51 @@
-Date: Wed, 4 Jul 2007 16:38:26 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [BUGFIX][PATCH] DO flush icache before set_pte() on ia64.
-Message-Id: <20070704163826.d0b7465b.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <468B3EAA.9070905@yahoo.com.au>
-References: <20070704150504.423f6c54.kamezawa.hiroyu@jp.fujitsu.com>
-	<468B3EAA.9070905@yahoo.com.au>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Date: Wed, 4 Jul 2007 03:52:25 -0400 (EDT)
+From: "Robert P. J. Day" <rpjday@mindspring.com>
+Subject: [PATCH] MM: Make needlessly global hugetlb_no_page() static.
+Message-ID: <Pine.LNX.4.64.0707040352040.2922@localhost.localdomain>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nick Piggin <nickpiggin@yahoo.com.au>
-Cc: "linux-ia64@vger.kernel.org" <linux-ia64@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>, "tony.luck@intel.com" <tony.luck@intel.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Christoph Lameter <clameter@sgi.com>, Mike.stroya@hp.com, GOTO <y-goto@jp.fujitsu.com>, dmosberger@gmail.com, hugh@veritas.com
+To: linux-mm@kvack.org
+Cc: Andrew Morton <akpm@osdl.org>, Adrian Bunk <bunk@stusta.de>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 04 Jul 2007 16:31:06 +1000
-Nick Piggin <nickpiggin@yahoo.com.au> wrote:
-> The only thing I noticed when I looked at the code is that some places
-> may not have flushed icache when they should have? Did you get them all?
+Signed-off-by: Robert P. J. Day <rpjday@mindspring.com>
 
-I think that I added flush_icache_page() to the place where any flush_(i)cache_xxx
-is not called and lazy_mmu_prot_update was used instead of them.
-But I want good review, of course.
+---
 
-> Minor nitpick: you have one place where you test VM_EXEC before flushing,
-> but the flush routine itself contains the same test I think?
-> 
-Ah, yes...in do_anonymous_page(). my mistake.
+  i'm assuming that, given the following:
 
-> Regarding the ia64 code -- I'm not an expert so I can't say whether it
-> is the right thing to do or not. However I still can't work out what it's
-> rationale for the PG_arch_1 bit is, exactly. Does it assume that
-> flush_dcache_page sites would only ever be encountered by pages that are
-> not faulted in? A faulted in page kind of is "special" because it is
-> guaranteed uptodate, but is the ia64 arch code relying on that? Should it?
+$ grep -rw hugetlb_no_page *
+mm/hugetlb.c:int hugetlb_no_page(struct mm_struct *mm, struct vm_area_struct *vma,
+mm/hugetlb.c:           ret = hugetlb_no_page(mm, vma, address, ptep, write_access);
 
-(I'm sorry if I misses point.)
-ia64's D-cache is coherent but I-cache and D-cache is not coherent and any
-invalidation against d-cache will invalidate I-cache.
+if a routine is both declared and defined in a single translation
+unit, and isn't EXPORT_SYMBOLed in some way, that's pretty much the
+definition of needlessly global, right?
 
-In my understanding :
-PG_arch_1 is used for showing "there is no inconsistent data on any level of
-cache". PG_uptodate is used for showing "this page includes the newest data
-and contents are valid."
-...maybe not used for the same purpose.
 
-BTW, a page filled by DMA should have PG_arch_1 :(
+diff --git a/mm/hugetlb.c b/mm/hugetlb.c
+index a45d1f0..6d7abaf 100644
+--- a/mm/hugetlb.c
++++ b/mm/hugetlb.c
+@@ -474,7 +474,7 @@ static int hugetlb_cow(struct mm_struct *mm, struct vm_area_struct *vma,
+ 	return VM_FAULT_MINOR;
+ }
 
--Kame
+-int hugetlb_no_page(struct mm_struct *mm, struct vm_area_struct *vma,
++static int hugetlb_no_page(struct mm_struct *mm, struct vm_area_struct *vma,
+ 			unsigned long address, pte_t *ptep, int write_access)
+ {
+ 	int ret = VM_FAULT_SIGBUS;
+-- 
+========================================================================
+Robert P. J. Day
+Linux Consulting, Training and Annoying Kernel Pedantry
+Waterloo, Ontario, CANADA
+
+http://fsdev.net/wiki/index.php?title=Main_Page
+========================================================================
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
