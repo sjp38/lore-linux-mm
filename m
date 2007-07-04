@@ -1,122 +1,86 @@
-Date: Wed, 4 Jul 2007 19:38:31 +0100 (BST)
-From: Mark Fortescue <mark@mtfhpc.demon.co.uk>
-Subject: Re: [PATCH] Re: Sparc32: random invalid instruction occourances on
- sparc32 (sun4c)
-In-Reply-To: <1183560364.29081.106.camel@shinybook.infradead.org>
-Message-ID: <Pine.LNX.4.61.0707041918160.32544@mtfhpc.demon.co.uk>
-References: <468A7D14.1050505@googlemail.com>  <Pine.LNX.4.61.0707031817050.29930@mtfhpc.demon.co.uk>
-  <Pine.LNX.4.61.0707031910280.29930@mtfhpc.demon.co.uk>
- <1183490778.29081.35.camel@shinybook.infradead.org>
- <Pine.LNX.4.61.0707032209230.30376@mtfhpc.demon.co.uk>
- <1183499781.29081.46.camel@shinybook.infradead.org>
- <Pine.LNX.4.61.0707032317590.30376@mtfhpc.demon.co.uk>
- <1183505787.29081.62.camel@shinybook.infradead.org>
- <Pine.LNX.4.61.0707040335230.30946@mtfhpc.demon.co.uk>
- <1183520006.29081.79.camel@shinybook.infradead.org>
- <Pine.LNX.4.61.0707041121290.31752@mtfhpc.demon.co.uk>
- <1183560364.29081.106.camel@shinybook.infradead.org>
+From: "Emanuel Pierre" <reneehudgens@adelphia.net>
+Subject: Energy fur ihren Schwanz, kaufen und 85% sparen  FOS with reference  --  learned by those 
+Date: Wed, 4 Jul 2007 18:47:17 -0300
+Message-ID: <01c7be6b$bf1570e0$70a25f55@reneehudgens>
 MIME-Version: 1.0
-Content-Type: MULTIPART/MIXED; BOUNDARY="1750305931-1144574762-1183574311=:32544"
-Sender: owner-linux-mm@kvack.org
-Return-Path: <owner-linux-mm@kvack.org>
-To: David Woodhouse <dwmw2@infradead.org>
-Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, sparclinux@vger.kernel.org, David Miller <davem@davemloft.net>, Christoph Lameter <clameter@engr.sgi.com>, William Lee Irwin III <wli@holomorphy.com>
+Content-Type: multipart/alternative;
+	boundary="----=_NextPart_000_0006_01C7BE8D.462710E0"
+Return-Path: <reneehudgens@adelphia.net>
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
---1750305931-1144574762-1183574311=:32544
-Content-Type: TEXT/PLAIN; charset=US-ASCII; format=flowed
+This is a multi-part message in MIME format.
 
-Hi David,
+------=_NextPart_000_0006_01C7BE8D.462710E0
+Content-Type: text/plain;
+	charset="us-ascii"
+Content-Transfer-Encoding: 7bit
 
-I have sucessfully tested the attached patch on Sparc32:sun4c.
+Haben Sie endlich wieder Spass am Leben!
 
-Is there any chance of this getting sufficiantly tested on other 
-architectures to get in into v2.6.22 ?
+Preise die keine Konkurrenz kennen 
 
-Regards
- 	Mark Fortescue.
---1750305931-1144574762-1183574311=:32544
-Content-Type: TEXT/PLAIN; charset=US-ASCII; name="slab_fix2.patch"
-Content-Transfer-Encoding: BASE64
-Content-ID: <Pine.LNX.4.61.0707041938290.32544@mtfhpc.demon.co.uk>
-Content-Description: 
-Content-Disposition: attachment; filename="slab_fix2.patch"
+- Visa verifizierter Onlineshop
+- Diskrete Verpackung und Zahlung
+- Kein langes Warten - Auslieferung innerhalb von 2-3 Tagen
+- Kein peinlicher Arztbesuch erforderlicht
+- Kostenlose, arztliche Telefon-Beratung
+- Bequem und diskret online bestellen.
+- keine versteckte Kosten
 
-RnJvbTogTWFyayBGb3J0ZXNjdWUgPG1hcmtAbXRmaHBjLmRlbW9uLmNvLnVr
-PiwgRGF2aWQgV29vZGhvdXNlIDxkd213MkBpbmZyYWRlYWQub3JnPg0KDQpW
-ZXJpb3VzIGFsaWdubWVudCBmaXhlcyBpbiB0aGUgU0xBQiBhbG9jYXRvciB0
-aGF0IGluY3JlYXNlZCB0aGUgc2l6ZQ0Kb2YgdGhlIFJlZFpvbmUgd29yZHMg
-ZmFpbGVkIHRvIGVuc3VyZSB0aGF0IFJlZFpvbmUgd29yZCAyIGlzIGFsaWdu
-ZWQNCm9uIGEgNjRiaXQgYm91bmRhcnkuIFRoaXMgcmVzdWx0ZWQgaW4gcmFu
-ZG9tIGludmFsaWQgaW5zdHJ1Y3Rpb24NCm9jY291cmFuY2VzIG9uIFNwYXJj
-MzIgKHN1bjRjKS4NClRoZXNlIGFkZGl0aW9uYWwgY2hhbmdlcyBzaG91bGQg
-ZW5zdXJlIHRoYXQgdGhlIFJlZFpvbmUgd29yZHMgYXJlDQpjb3JyZWN0bHkg
-YWxpZ25lZCBvbiBhIDY0Yml0IGJvdW5kYXJ5IGZvciBhcmNoaXRlY3R1cmVz
-IHRoYXQgcmVxdWlyZSB0aGlzLg0KDQpTaWduZWQtb2ZmLWJ5OiBNYXJrIEZv
-cnRlc2N1ZSA8bWFya0BtdGZocGMuZGVtb24uY28udWs+DQotLS0NClRlc3Rl
-ZCBvbiBTcGFyYzMyOnN1bjRjDQpBZGRpdGlvbmFsIHRlc3RpbmcgZGVzaXJh
-YmxlIG9uIFBvd2VyUEMzMiwgU3BhcmM2NCwgUG93ZXJQQzY0IGFuZCBhbnkN
-Cm90aGVyIHBsYXRmb3JtcyB3aGVyZSBhbGlnbm1lbnQgY2hhbmdlcyBtYXkg
-YmUgb2YgY29uY2lybi4NCi0tLSBsaW51eC0yLjYvbW0vc2xhYi5jCTIwMDct
-MDctMDMgMTk6MDk6NDguMDAwMDAwMDAwICswMTAwDQorKysgbGludXgtdGVz
-dC9tbS9zbGFiLmMJMjAwNy0wNy0wNCAwNDoxNDoxNS4wMDAwMDAwMDAgKzAx
-MDANCkBAIC0xMzcsNiArMTM3LDcgQEANCiANCiAvKiBTaG91bGRuJ3QgdGhp
-cyBiZSBpbiBhIGhlYWRlciBmaWxlIHNvbWV3aGVyZT8gKi8NCiAjZGVmaW5l
-CUJZVEVTX1BFUl9XT1JECQlzaXplb2Yodm9pZCAqKQ0KKyNkZWZpbmUJUkVE
-X1pPTkVfQUxJR04JCShtYXgoX19hbGlnbm9mX18odm9pZCAqKSwgX19hbGln
-bm9mKHVuc2lnbmVkIGxvbmcgbG9uZykpIC0gMSkNCiANCiAjaWZuZGVmIGNh
-Y2hlX2xpbmVfc2l6ZQ0KICNkZWZpbmUgY2FjaGVfbGluZV9zaXplKCkJTDFf
-Q0FDSEVfQllURVMNCkBAIC01NDcsNyArNTQ4LDcgQEAgc3RhdGljIHVuc2ln
-bmVkIGxvbmcgbG9uZyAqZGJnX3JlZHpvbmUyKA0KIAlpZiAoY2FjaGVwLT5m
-bGFncyAmIFNMQUJfU1RPUkVfVVNFUikNCiAJCXJldHVybiAodW5zaWduZWQg
-bG9uZyBsb25nICopKG9ianAgKyBjYWNoZXAtPmJ1ZmZlcl9zaXplIC0NCiAJ
-CQkJCSAgICAgIHNpemVvZih1bnNpZ25lZCBsb25nIGxvbmcpIC0NCi0JCQkJ
-CSAgICAgIEJZVEVTX1BFUl9XT1JEKTsNCisJCQkJCSAgICAgIG1heChCWVRF
-U19QRVJfV09SRCwgX19hbGlnbm9mX18odW5zaWduZWQgbG9uZyBsb25nKSkp
-Ow0KIAlyZXR1cm4gKHVuc2lnbmVkIGxvbmcgbG9uZyAqKSAob2JqcCArIGNh
-Y2hlcC0+YnVmZmVyX3NpemUgLQ0KIAkJCQkgICAgICAgc2l6ZW9mKHVuc2ln
-bmVkIGxvbmcgbG9uZykpOw0KIH0NCkBAIC0yMTc4LDcgKzIxNzksOCBAQCBr
-bWVtX2NhY2hlX2NyZWF0ZSAoY29uc3QgY2hhciAqbmFtZSwgc2l6DQogCSAq
-IGFib3ZlIHRoZSBuZXh0IHBvd2VyIG9mIHR3bzogY2FjaGVzIHdpdGggb2Jq
-ZWN0IHNpemVzIGp1c3QgYWJvdmUgYQ0KIAkgKiBwb3dlciBvZiB0d28gaGF2
-ZSBhIHNpZ25pZmljYW50IGFtb3VudCBvZiBpbnRlcm5hbCBmcmFnbWVudGF0
-aW9uLg0KIAkgKi8NCi0JaWYgKHNpemUgPCA0MDk2IHx8IGZscyhzaXplIC0g
-MSkgPT0gZmxzKHNpemUtMSArIDMgKiBCWVRFU19QRVJfV09SRCkpDQorCWlm
-IChzaXplIDwgNDA5NiB8fCBmbHMoc2l6ZSAtIDEpID09IGZscyhzaXplLTEg
-KyAyICogc2l6ZW9mKHVuc2lnbmVkIGxvbmcgbG9uZykgKw0KKwkJCQkJCW1h
-eChCWVRFU19QRVJfV09SRCwgX19hbGlnbm9mX18odW5zaWduZWQgbG9uZyBs
-b25nKSkpKQ0KIAkJZmxhZ3MgfD0gU0xBQl9SRURfWk9ORSB8IFNMQUJfU1RP
-UkVfVVNFUjsNCiAJaWYgKCEoZmxhZ3MgJiBTTEFCX0RFU1RST1lfQllfUkNV
-KSkNCiAJCWZsYWdzIHw9IFNMQUJfUE9JU09OOw0KQEAgLTIxOTcsOSArMjE5
-OSw5IEBAIGttZW1fY2FjaGVfY3JlYXRlIChjb25zdCBjaGFyICpuYW1lLCBz
-aXoNCiAJICogdW5hbGlnbmVkIGFjY2Vzc2VzIGZvciBzb21lIGFyY2hzIHdo
-ZW4gcmVkem9uaW5nIGlzIHVzZWQsIGFuZCBtYWtlcw0KIAkgKiBzdXJlIGFu
-eSBvbi1zbGFiIGJ1ZmN0bCdzIGFyZSBhbHNvIGNvcnJlY3RseSBhbGlnbmVk
-Lg0KIAkgKi8NCi0JaWYgKHNpemUgJiAoQllURVNfUEVSX1dPUkQgLSAxKSkg
-ew0KLQkJc2l6ZSArPSAoQllURVNfUEVSX1dPUkQgLSAxKTsNCi0JCXNpemUg
-Jj0gfihCWVRFU19QRVJfV09SRCAtIDEpOw0KKwlpZiAoc2l6ZSAmIFJFRF9a
-T05FX0FMSUdOKSB7DQorCQlzaXplICs9IFJFRF9aT05FX0FMSUdOOw0KKwkJ
-c2l6ZSAmPSB+UkVEX1pPTkVfQUxJR047DQogCX0NCiANCiAJLyogY2FsY3Vs
-YXRlIHRoZSBmaW5hbCBidWZmZXIgYWxpZ25tZW50OiAqLw0KQEAgLTIyNjEs
-OSArMjI2MywxNCBAQCBrbWVtX2NhY2hlX2NyZWF0ZSAoY29uc3QgY2hhciAq
-bmFtZSwgc2l6DQogCX0NCiAJaWYgKGZsYWdzICYgU0xBQl9TVE9SRV9VU0VS
-KSB7DQogCQkvKiB1c2VyIHN0b3JlIHJlcXVpcmVzIG9uZSB3b3JkIHN0b3Jh
-Z2UgYmVoaW5kIHRoZSBlbmQgb2YNCi0JCSAqIHRoZSByZWFsIG9iamVjdC4N
-CisJCSAqIHRoZSByZWFsIG9iamVjdC4gQnV0IGlmIHRoZSBzZWNvbmQgcmVk
-IHpvbmUgbXVzdCBiZQ0KKwkJICogYWxpZ25lZCAnYmV0dGVyJyB0aGFuIHRo
-YXQsIGFsbG93IGZvciBpdC4NCiAJCSAqLw0KLQkJc2l6ZSArPSBCWVRFU19Q
-RVJfV09SRDsNCisJCWlmIChmbGFncyAmIFNMQUJfUkVEX1pPTkUNCisJCSAg
-ICAmJiBCWVRFU19QRVJfV09SRCA8IF9fYWxpZ25vZl9fKHVuc2lnbmVkIGxv
-bmcgbG9uZykpDQorCQkJc2l6ZSArPSBfX2FsaWdub2ZfXyh1bnNpZ25lZCBs
-b25nIGxvbmcpOw0KKwkJZWxzZQ0KKwkJCXNpemUgKz0gQllURVNfUEVSX1dP
-UkQ7DQogCX0NCiAjaWYgRk9SQ0VEX0RFQlVHICYmIGRlZmluZWQoQ09ORklH
-X0RFQlVHX1BBR0VBTExPQykNCiAJaWYgKHNpemUgPj0gbWFsbG9jX3NpemVz
-W0lOREVYX0wzICsgMV0uY3Nfc2l6ZQ0K
 
---1750305931-1144574762-1183574311=:32544--
+Jetzt bestellen - und vier Pillen umsonst erhalten
+http://soqnu.feltrich.hk/?173368610607
 
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+------=_NextPart_000_0006_01C7BE8D.462710E0
+Content-Type: text/html;
+	charset="us-ascii"
+Content-Transfer-Encoding: quoted-printable
+
+<html xmlns:v=3D"urn:schemas-microsoft-com:vml" xmlns:o=3D"urn:schemas-micr=
+osoft-com:office:office" xmlns:w=3D"urn:schemas-microsoft-com:office:word" =
+xmlns=3D"http://www.w3.org/TR/REC-html40">
+
+<head>
+<META HTTP-EQUIV=3D"Content-Type" CONTENT=3D"text/html; charset=3Dus-ascii">
+
+
+<meta name=3DProgId content=3DWord.Document>
+<meta name=3DGenerator content=3D"Microsoft Word 10">
+<meta name=3DOriginator content=3D"Microsoft Word 10">
+<link rel=3DFile-List href=3D"cid:filelist.xml@1C729991.5A8D34F0">
+<link rel=3DEdit-Time-Data href=3D"cid:editdata.mso@1C729991.5A8D34F0">
+</head>
+<body>
+<head><meta http-equiv=3D"Content-Type" content=3D"text/html; charset=3Diso=
+-8859-1">
+</head><body>
+<p>Meinung von unserem Kunden:<br>
+  <strong>Ich habe eine Aff&#228;re mit einer Bekannten, sie h&#228;lt mich=
+ f&#252;r einen Sex-Gott. Ich habe Viaaaagra ungef&#228;hr zehn Minuten, be=
+vor wir uns im Hotel getroffen haben, genommen. Ich habe davon nicht nur ei=
+nen strammen Riemen bekommen, sondern auch die Selbstsicherheit, die die Fr=
+auen lieben. Ich habe es ihr drei- oder viermal besorgt, und sie ist absolu=
+t hingerissen. Ich komme ziemlich schnell, danach wird ihr Organsmus jedesm=
+al unkontrollierbar. Viaaaagra hat mich bei ihr zur Legende gemacht!! Ich k=
+ann es kaum abwarten, wieder eine zu schlucken</strong></p>
+<p><strong>Viaaaagra wirkt Wunder! Sie ahnen nicht, wie gl&#252;cklich ich =
+bin. Viaaaagra hat mein Leben ver&#228;ndert. Endlich keine Angst mehr wege=
+n der E_r_rektion. Und auch das Problem mit dem vorzeitigen Samenerguss ist=
+ weg.<br>
+  </strong><strong><br>
+  Versuchen Sie unser Produkt und Sie werden fuhlen was unsere Kunden besta=
+tigen</strong>
+</p>
+<p>Preise die keine Konkurrenz kennen <p>
+- Visa verifizierter Onlineshop<br>- Kostenlose, arztliche Telefon-Beratung=
+<br>- Kein langes Warten - Auslieferung innerhalb von 2-3 Tagen<br>- Kein p=
+einlicher Arztbesuch erforderlicht<br>- Bequem und diskret online bestellen=
+<br>- Diskrete Verpackung und Zahlung<br>- keine versteckte Kosten</p>  
+<p><br><strong><a href=3D"http://soqnu.feltrich.hk/?173368610607" target=3D=
+"_blank">Jetzt bestellen - und vier Pillen umsonst erhalten</a></strong></b=
+ody>
+</body>
+</html>
+
+------=_NextPart_000_0006_01C7BE8D.462710E0--
