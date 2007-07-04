@@ -1,48 +1,72 @@
-Subject: Re: [PATCH] Re: Sparc32: random invalid instruction occourances on
-	sparc32 (sun4c)
-From: David Woodhouse <dwmw2@infradead.org>
-In-Reply-To: <Pine.LNX.4.61.0707041121290.31752@mtfhpc.demon.co.uk>
-References: <468A7D14.1050505@googlemail.com>
-	 <Pine.LNX.4.61.0707031817050.29930@mtfhpc.demon.co.uk>
-	 <Pine.LNX.4.61.0707031910280.29930@mtfhpc.demon.co.uk>
-	 <1183490778.29081.35.camel@shinybook.infradead.org>
-	 <Pine.LNX.4.61.0707032209230.30376@mtfhpc.demon.co.uk>
-	 <1183499781.29081.46.camel@shinybook.infradead.org>
-	 <Pine.LNX.4.61.0707032317590.30376@mtfhpc.demon.co.uk>
-	 <1183505787.29081.62.camel@shinybook.infradead.org>
-	 <Pine.LNX.4.61.0707040335230.30946@mtfhpc.demon.co.uk>
-	 <1183520006.29081.79.camel@shinybook.infradead.org>
-	 <Pine.LNX.4.61.0707041121290.31752@mtfhpc.demon.co.uk>
-Content-Type: text/plain
-Date: Wed, 04 Jul 2007 10:46:03 -0400
-Message-Id: <1183560364.29081.106.camel@shinybook.infradead.org>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
-Sender: owner-linux-mm@kvack.org
-Return-Path: <owner-linux-mm@kvack.org>
-To: Mark Fortescue <mark@mtfhpc.demon.co.uk>
-Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, sparclinux@vger.kernel.org, David Miller <davem@davemloft.net>, Christoph Lameter <clameter@engr.sgi.com>, William Lee Irwin III <wli@holomorphy.com>
+From: "Sonja Joyner" <sales@usi-ed.com>
+Subject: Man Lebt nur einmal - probiers aus !  =?ISO-8859-1?Q?hasn=92t?= resolved 
+Date: Wed, 4 Jul 2007 16:39:38 -0300
+Message-ID: <01c7be59$e9c18890$029c8dd5@sales>
+MIME-Version: 1.0
+Content-Type: multipart/alternative;
+	boundary="----=_NextPart_000_000E_01C7BE7B.70D32890"
+Return-Path: <sales@usi-ed.com>
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 2007-07-04 at 11:27 +0100, Mark Fortescue wrote:
-> Another related point that may also need to be considered is that I think 
-> I am correct in saying that on ARM and on the 64bit platforms, sizeof 
-> (unsigned long long) is 16 (128bits).
+This is a multi-part message in MIME format.
 
-No, it's always 64 bits.
+------=_NextPart_000_000E_01C7BE7B.70D32890
+Content-Type: text/plain;
+	charset="iso-8859-2"
+Content-Transfer-Encoding: 7bit
 
-> Should the RedZone words be specified as __u64 not the unsigned long long 
-> used or does the alignment need to be that of unsigned long long ?
+Sie leben nur einmal - warum dann nicht was neues ausprobieren?
 
-You have to play silly buggers with printk formats (%lx vs. %llx) if you
-do that. And you have to make a choice about using proper C types or the
-Linux-specific nonsense. 'unsigned long long' is just easier all round.
+Preise die keine Konkurrenz kennen 
 
--- 
-dwmw2
+- Kein peinlicher Arztbesuch erforderlicht
+- Kein langes Warten - Auslieferung innerhalb von 2-3 Tagen
+- Diskrete Verpackung und Zahlung
+- Bequem und diskret online bestellen.
+- Kostenlose, arztliche Telefon-Beratung
+- Visa verifizierter Onlineshop
+- keine versteckte Kosten
 
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+
+Klicken Sie HIER und Sie erhalten vier Dosen umsonst
+http://yvfbia.childrenyoung.hk/?442468074243
+
+
+------=_NextPart_000_000E_01C7BE7B.70D32890
+Content-Type: text/html;
+	charset="iso-8859-2"
+Content-Transfer-Encoding: quoted-printable
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
+<HTML><HEAD><TITLE></TITLE>
+<META content=3D"text/html; charset=3Diso-8859-2" http-equiv=3DContent-Type>
+<META content=3D"MSHTML 5.50.4927.1200" name=3DGENERATOR></HEAD>
+<BODY>
+<head><meta http-equiv=3D"Content-Type" content=3D"text/html; charset=3Diso=
+-8859-1">
+</head><body>
+<p>Meinung von unserem Kunden:<br>
+  <strong>Ich muss sagen, Ciaaaalis ist wirklich nochmals viel besser als V=
+iaaaagra. Es ist alles viel nat&#252;rlicher als mit Viaaaagra. Aufgrund de=
+r langen Wirkungszeit von 24 Stunden kann man sich richtig Zeit lassen und =
+mehrer Runden einlegen.</strong></p>
+<p><strong>Ich finde Viaaaagra einfach wunderbar. Egal, ob f&#252;r den Sex=
+ oder, um mich selbst zu verw&#246;hnen: Es funktioniert. Mein Schwanz wird=
+ extrem hart und mein Orgasmus ist sehr intensiv. Die Wirkung ist so stark,=
+ dass ich Viaaaagra nur am Wochenende verwende oder wenn ich viel Zeit habe=
+, es richtig zu genie&#223;en.<br>
+  </strong><strong><br>
+  Sie leben nur einmal - warum dann nicht was neues ausprobieren?</strong>
+</p>
+<p>Preise die keine Konkurrenz kennen <p>
+- Kein peinlicher Arztbesuch erforderlicht<br>- Visa verifizierter Onlinesh=
+op<br>- Bequem und diskret online bestellen.<br>- Kostenlose, arztliche Tel=
+efon-Beratung<br>- Kein langes Warten - Auslieferung innerhalb von 2-3 Tage=
+n<br>- keine versteckte Kosten<br>- Diskrete Verpackung und Zahlung</p>  
+<p><br><strong><a href=3D"http://yvfbia.childrenyoung.hk/?442468074243" tar=
+get=3D"_blank">Klicken Sie HIER und Sie erhalten vier Dosen umsonst</a></st=
+rong></body>
+</BODY></HTML>
+
+------=_NextPart_000_000E_01C7BE7B.70D32890--
