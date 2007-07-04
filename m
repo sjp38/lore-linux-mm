@@ -1,87 +1,97 @@
-Message-ID: <468B3EAA.9070905@yahoo.com.au>
-Date: Wed, 04 Jul 2007 16:31:06 +1000
-From: Nick Piggin <nickpiggin@yahoo.com.au>
-MIME-Version: 1.0
-Subject: Re: [BUGFIX][PATCH] DO flush icache before set_pte() on ia64.
-References: <20070704150504.423f6c54.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20070704150504.423f6c54.kamezawa.hiroyu@jp.fujitsu.com>
-Content-Type: text/plain; charset=us-ascii; format=flowed
+Received: from d12nrmr1607.megacenter.de.ibm.com (d12nrmr1607.megacenter.de.ibm.com [9.149.167.49])
+	by mtagate6.de.ibm.com (8.13.8/8.13.8) with ESMTP id l647WHpT625620
+	for <linux-mm@kvack.org>; Wed, 4 Jul 2007 07:32:17 GMT
+Received: from d12av02.megacenter.de.ibm.com (d12av02.megacenter.de.ibm.com [9.149.165.228])
+	by d12nrmr1607.megacenter.de.ibm.com (8.13.8/8.13.8/NCO v8.3) with ESMTP id l647WHPM278692
+	for <linux-mm@kvack.org>; Wed, 4 Jul 2007 09:32:17 +0200
+Received: from d12av02.megacenter.de.ibm.com (loopback [127.0.0.1])
+	by d12av02.megacenter.de.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l647WGlu002480
+	for <linux-mm@kvack.org>; Wed, 4 Jul 2007 09:32:17 +0200
+Subject: Re: [patch 5/5] s390 tlb flush fix.
+From: Martin Schwidefsky <schwidefsky@de.ibm.com>
+Reply-To: schwidefsky@de.ibm.com
+In-Reply-To: <Pine.LNX.4.64.0707031921270.8155@blonde.wat.veritas.com>
+References: <20070703111822.418649776@de.ibm.com>
+	 <20070703121229.180281096@de.ibm.com>
+	 <Pine.LNX.4.64.0707031921270.8155@blonde.wat.veritas.com>
+Content-Type: text/plain
+Date: Wed, 04 Jul 2007 09:34:34 +0200
+Message-Id: <1183534474.1208.20.camel@localhost>
+Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: "linux-ia64@vger.kernel.org" <linux-ia64@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>, "tony.luck@intel.com" <tony.luck@intel.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Christoph Lameter <clameter@sgi.com>, Mike.stroya@hp.com, GOTO <y-goto@jp.fujitsu.com>, dmosberger@gmail.com, hugh@veritas.com
+To: Hugh Dickins <hugh@veritas.com>
+Cc: akpm@linux-foundation.org, peterz@infradead.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-KAMEZAWA Hiroyuki wrote:
-> This is a experimental patch for fixing icache flush race of ia64(Montecito).
+On Tue, 2007-07-03 at 19:58 +0100, Hugh Dickins wrote:
+> On Tue, 3 Jul 2007, Martin Schwidefsky wrote:
+> > +
+> > +static inline struct mmu_gather *tlb_gather_mmu(struct mm_struct *mm,
+> > +						unsigned int full_mm_flush)
+> > +{
+> > +	struct mmu_gather *tlb = &get_cpu_var(mmu_gathers);
+> > +
+> > +	tlb->mm = mm;
+> > +	tlb->fullmm = full_mm_flush || (num_online_cpus() == 1) ||
+> > +		(atomic_read(&mm->mm_users) <= 1);
+> > +	tlb->nr_ptes = 0;
+> > +	tlb->nr_pmds = TLB_NR_PTRS;
+> > +	if (tlb->fullmm)
+> > +		__tlb_flush_mm(mm);
+> > +	return tlb;
+> > +}
 > 
-> Problem Description:
-> Montecito, new ia64 processor, has separated L2 i-cache and d-cache,
-> and i-cache and d-cache is not consistent in automatic way.
-> 
-> L1 cache is also separated but L1 D-cache is write-through. Then, before
-> Montecito, any changes in L1-dcache is visible in L2-mixed-cache consistently.
-> 
-> Montecito has separated L2 cache and Mixed L3 cache. But...L2 D-cache is
-> *write back*. (See http://download.intel.com/design/Itanium2/manuals/
-> 30806501.pdf section 2.3.3)
-> 
-> Assume : valid data is in L2 d-cache and old data in L3 mixed cache.
-> If write-back L2->L3 is delayed, at L2 i-cache miss cpu will fetch old data
-> in L3 mixed cache. 
-> By this, L2-icache-miss will read wrong instruction from L3-mixed cache.
-> (Just I think so, is this correct ?)
-> 
-> Anyway, there is SIGILL problem in NFS/ia64 and icache flush can fix
-> SIGILL problem (in our HPC team test.)
-> 
-> Following SIGILL issue occurs in current kernel.
-> (This was a discussion in this April)
-> - http://www.gelato.unsw.edu.au/archives/linux-ia64/0704/20323.html
-> Usual file systems uses DMA and it purges cache. But NFS uses copy-by-cpu.
-> 
-> This is HP-UX's errata comment:
-> - http://h50221.www5.hp.com/upassist/itrc_japan/assist2/patchdigest/PHKL_36120.html
-> (Sorry for Japanese page...but English comments also written. See PHKL_36120)
-> 
-> Now, I think icache should be flushed before set_pte().
-> This is a patch to try that.
-> 
-> 1. remove all lazy_mmu_prot_update()...which is used by only ia64.
-> 2. implements flush_cache_page()/flush_icache_page() for ia64.
-> 
-> Something unsure....
-> 3. mprotect() flushes cache before removing pte. Is this sane ?
->    I added flush_icache_range() before set_pte() here.
-> 
-> Any comments and advices ?
+> I'm afraid that mm_users test (and probably some of your other
+> mm_users tests) is not good: because this also gets called when
+> a file is truncated while it is mapped - the active mm at that
+> time is likely not to be one of the mm_users.  (Do any other
+> arches use mm_users in that way?  No: that should be a warning.)
 
-Thanks, this is the way I wanted to see it go in the generic code. (ie.
-get rid of lazy_mmu_prot_uptdate and actually follow the cacheflush API
-instead).
+Good catch, that would have caused me some headache. So I need to add a
+current->active_mm==mm check if mm_users==1.
 
-The only thing I noticed when I looked at the code is that some places
-may not have flushed icache when they should have? Did you get them all?
-Minor nitpick: you have one place where you test VM_EXEC before flushing,
-but the flush routine itself contains the same test I think?
+> You might do better to make more use of cpu_vm_mask (though I
+> didn't see where any bits get cleared from it on s390 at present).
 
-Regarding the ia64 code -- I'm not an expert so I can't say whether it
-is the right thing to do or not. However I still can't work out what it's
-rationale for the PG_arch_1 bit is, exactly. Does it assume that
-flush_dcache_page sites would only ever be encountered by pages that are
-not faulted in? A faulted in page kind of is "special" because it is
-guaranteed uptodate, but is the ia64 arch code relying on that? Should it?
-(there could definitely still be flush_dcache_page called on mapped pages,
-but it should only be a subset of all possible sites -- I don't know if it
-is too clean for ia64 cacheflush code to know that?). [*]
+We don't clear any of the bits in cpu_vm_mask. I though about it for a
+while and got tangled in race conditions. The cpu_vm_mask optimization
+works for short-lived processes which always executed on the same cpu.
 
-[*] all this is, as usual, predicated by the disclaimer that quirks in mm/
-can result in mapped pages not being uptodate (in which case hell often
-breaks loose in other ways anyway).
+> Though it seems sensible to aim for one TLB flush at the beginning
+> as you're doing, that's not what other arches do (some have to
+> worry about speculative execution, but you don't?), and it
+> worries me that you're taking s390 further away into its own
+> implementation: which you're surely entitled to do, but then
+> we're more likely to screw you over by mistake in future.
+
+We do not have to worry about speculative execution because s390 uses
+special instruction to do user access (mvcs, mvcp and mvcos) and the
+kernel has its own address space. The compiler doesn't know about these
+instruction and cannot "accidentally" access a user space address over
+the user page table when it shouldn't.
+
+> Is there perhaps another architecture whose procedures you
+> can copy?  Changing a pte while another cpu is accessing it
+> is not a problem unique to s390.
+
+No, I don't think so. s390 is quite unique with the restriction that you
+may not do a set_pte_at .. flush_tlb_xxx while a pte might get accessed
+by a different cpu.
+
+> Patches 1-4 looked fine to me, but I believe this 5/5
+> is the rationale behind all of them.
+
+Yes, indeed the tlb flush fix and the 1K/2K page tables are my reasons
+for all these patches.
 
 -- 
-SUSE Labs, Novell Inc.
+blue skies,
+  Martin.
+
+"Reality continues to ruin my life." - Calvin.
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
