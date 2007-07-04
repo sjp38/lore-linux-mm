@@ -1,86 +1,255 @@
-From: "Cedric Sykes" <renegade@atlanticmills.com>
-Subject: Belebt Geist und Korper   can be awarded  -- Decorator is something from
-Date: Wed, 4 Jul 2007 20:18:59 -0100
-Message-ID: <01c7be78$8e6ba240$4e921e54@renegade>
-MIME-Version: 1.0
-Content-Type: multipart/alternative;
-	boundary="----=_NextPart_000_0006_01C7BE89.51F47240"
-Return-Path: <renegade@atlanticmills.com>
-To: linux-mm@kvack.org
+Received: from sd0109e.au.ibm.com (d23rh905.au.ibm.com [202.81.18.225])
+	by ausmtp05.au.ibm.com (8.13.8/8.13.8) with ESMTP id l64MF74s295152
+	for <linux-mm@kvack.org>; Thu, 5 Jul 2007 08:15:19 +1000
+Received: from d23av03.au.ibm.com (d23av03.au.ibm.com [9.190.250.244])
+	by sd0109e.au.ibm.com (8.13.8/8.13.8/NCO v8.3) with ESMTP id l64MGoSo202870
+	for <linux-mm@kvack.org>; Thu, 5 Jul 2007 08:16:50 +1000
+Received: from d23av03.au.ibm.com (loopback [127.0.0.1])
+	by d23av03.au.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l64MDIZa016267
+	for <linux-mm@kvack.org>; Thu, 5 Jul 2007 08:13:18 +1000
+From: Balbir Singh <balbir@linux.vnet.ibm.com>
+Date: Wed, 04 Jul 2007 15:13:08 -0700
+Message-Id: <20070704221308.13517.64453.sendpatchset@balbir-laptop>
+In-Reply-To: <20070704221240.13517.37641.sendpatchset@balbir-laptop>
+References: <20070704221240.13517.37641.sendpatchset@balbir-laptop>
+Subject: [-mm PATCH 2/7] Memory controller containers setup
+Sender: owner-linux-mm@kvack.org
+Return-Path: <owner-linux-mm@kvack.org>
+To: Andrew Morton <akpm@>, osdl.org, Pavel Emelianov <xemul@>, openvz.org, Vaidyanathan Srinivasan <svaidy@>, linux.vnet.ibm.com
+Cc: Paul Menage <menage@>, google.com, Linux Kernel Mailing List <linux-kernel@>, vger.kernel.org, Balbir Singh <balbir@linux.vnet.ibm.com>, Linux MM <linux-mm@kvack.org>, Linux Containers <containers@>, lists.osdl.org
 List-ID: <linux-mm.kvack.org>
 
-This is a multi-part message in MIME format.
+Setup the memory container and add basic hooks and controls to integrate
+and work with the container.
 
-------=_NextPart_000_0006_01C7BE89.51F47240
-Content-Type: text/plain;
-	charset="windows-1250"
-Content-Transfer-Encoding: 7bit
+Signed-off-by: Balbir Singh <balbir@linux.vnet.ibm.com>
+---
 
-Versuchen Sie unser Produkt und Sie werden fuhlen was unsere Kunden bestatigen
+ include/linux/container_subsys.h |    6 +
+ include/linux/memcontrol.h       |   19 +++++
+ init/Kconfig                     |    8 ++
+ mm/Makefile                      |    1 
+ mm/memcontrol.c                  |  141 +++++++++++++++++++++++++++++++++++++++
+ 5 files changed, 175 insertions(+)
 
-Preise die keine Konkurrenz kennen 
+diff -puN include/linux/container_subsys.h~mem-control-setup include/linux/container_subsys.h
+--- linux-2.6.22-rc6/include/linux/container_subsys.h~mem-control-setup	2007-07-04 15:05:22.000000000 -0700
++++ linux-2.6.22-rc6-balbir/include/linux/container_subsys.h	2007-07-04 15:05:22.000000000 -0700
+@@ -30,3 +30,9 @@ SUBSYS(ns)
+ #endif
+ 
+ /* */
++
++#ifdef CONFIG_CONTAINER_MEM_CONT
++SUBSYS(mem_container)
++#endif
++
++/* */
+diff -puN init/Kconfig~mem-control-setup init/Kconfig
+--- linux-2.6.22-rc6/init/Kconfig~mem-control-setup	2007-07-04 15:05:22.000000000 -0700
++++ linux-2.6.22-rc6-balbir/init/Kconfig	2007-07-04 15:05:22.000000000 -0700
+@@ -360,6 +360,14 @@ config CONTAINER_NS
+           for instance virtual servers and checkpoint/restart
+           jobs.
+ 
++config CONTAINER_MEM_CONT
++	bool "Memory controller for containers"
++	select CONTAINERS
++	select RESOURCE_COUNTERS
++	help
++	  Provides a memory controller that manages both page cache and
++	  RSS memory.
++
+ config PROC_PID_CPUSET
+ 	bool "Include legacy /proc/<pid>/cpuset file"
+ 	depends on CPUSETS
+diff -puN mm/Makefile~mem-control-setup mm/Makefile
+--- linux-2.6.22-rc6/mm/Makefile~mem-control-setup	2007-07-04 15:05:22.000000000 -0700
++++ linux-2.6.22-rc6-balbir/mm/Makefile	2007-07-04 15:05:22.000000000 -0700
+@@ -30,4 +30,5 @@ obj-$(CONFIG_FS_XIP) += filemap_xip.o
+ obj-$(CONFIG_MIGRATION) += migrate.o
+ obj-$(CONFIG_SMP) += allocpercpu.o
+ obj-$(CONFIG_QUICKLIST) += quicklist.o
++obj-$(CONFIG_CONTAINER_MEM_CONT) += memcontrol.o
+ 
+diff -puN /dev/null mm/memcontrol.c
+--- /dev/null	2007-06-01 08:12:04.000000000 -0700
++++ linux-2.6.22-rc6-balbir/mm/memcontrol.c	2007-07-04 15:05:22.000000000 -0700
+@@ -0,0 +1,141 @@
++/* memcontrol.c - Memory Controller
++ *
++ * Copyright IBM Corporation, 2007
++ * Author Balbir Singh <balbir@linux.vnet.ibm.com>
++ *
++ * This program is free software; you can redistribute it and/or modify it
++ * under the terms of version 2.1 of the GNU Lesser General Public License
++ * as published by the Free Software Foundation.
++ *
++ * This program is distributed in the hope that it would be useful, but
++ * WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
++ */
++
++#include <linux/res_counter.h>
++#include <linux/memcontrol.h>
++#include <linux/container.h>
++
++struct container_subsys mem_container_subsys;
++
++/*
++ * The memory controller data structure. The memory controller controls both
++ * page cache and RSS per container. We would eventually like to provide
++ * statistics based on the statistics developed by Rik Van Riel for clock-pro,
++ * to help the administrator determine what knobs to tune.
++ *
++ * TODO: Add a water mark for the memory controller. Reclaim will begin when
++ * we hit the water mark.
++ */
++struct mem_container {
++	struct container_subsys_state css;
++	/*
++	 * the counter to account for memory usage
++	 */
++	struct res_counter res;
++};
++
++/*
++ * A meta page is associated with every page descriptor. The meta page
++ * helps us identify information about the container
++ */
++struct meta_page {
++	struct list_head list;		/* per container LRU list */
++	struct page *page;
++	struct mem_container *mem_container;
++};
++
++
++static inline struct mem_container *mem_container_from_cont(struct container
++								*cnt)
++{
++	return container_of(container_subsys_state(cnt,
++				mem_container_subsys_id), struct mem_container,
++				css);
++}
++
++static ssize_t mem_container_read(struct container *cont, struct cftype *cft,
++			struct file *file, char __user *userbuf, size_t nbytes,
++			loff_t *ppos)
++{
++	return res_counter_read(&mem_container_from_cont(cont)->res,
++				cft->private, userbuf, nbytes, ppos);
++}
++
++static ssize_t mem_container_write(struct container *cont, struct cftype *cft,
++				struct file *file, const char __user *userbuf,
++				size_t nbytes, loff_t *ppos)
++{
++	return res_counter_write(&mem_container_from_cont(cont)->res,
++				cft->private, userbuf, nbytes, ppos);
++}
++
++static struct cftype mem_container_usage = {
++	.name = "mem_usage",
++	.private = RES_USAGE,
++	.read = mem_container_read,
++};
++
++static struct cftype mem_container_limit = {
++	.name = "mem_limit",
++	.private = RES_LIMIT,
++	.write = mem_container_write,
++	.read = mem_container_read,
++};
++
++static struct cftype mem_container_failcnt = {
++	.name = "mem_failcnt",
++	.private = RES_FAILCNT,
++	.read = mem_container_read,
++};
++
++static int mem_container_create(struct container_subsys *ss,
++				struct container *cont)
++{
++	struct mem_container *mem;
++
++	mem = kzalloc(sizeof(struct mem_container), GFP_KERNEL);
++	if (!mem)
++		return -ENOMEM;
++
++	res_counter_init(&mem->res);
++	cont->subsys[mem_container_subsys_id] = &mem->css;
++	mem->css.container = cont;
++	return 0;
++}
++
++static void mem_container_destroy(struct container_subsys *ss,
++				struct container *cont)
++{
++	kfree(mem_container_from_cont(cont));
++}
++
++static int mem_container_populate(struct container_subsys *ss,
++				struct container *cont)
++{
++	int rc = 0;
++
++	rc = container_add_file(cont, &mem_container_usage);
++	if (rc < 0)
++		goto err;
++
++	rc = container_add_file(cont, &mem_container_limit);
++	if (rc < 0)
++		goto err;
++
++	rc = container_add_file(cont, &mem_container_failcnt);
++	if (rc < 0)
++		goto err;
++
++err:
++	return rc;
++}
++
++struct container_subsys mem_container_subsys = {
++	.name = "mem_container",
++	.subsys_id = mem_container_subsys_id,
++	.create = mem_container_create,
++	.destroy = mem_container_destroy,
++	.populate = mem_container_populate,
++	.early_init = 0,
++};
+diff -puN /dev/null include/linux/memcontrol.h
+--- /dev/null	2007-06-01 08:12:04.000000000 -0700
++++ linux-2.6.22-rc6-balbir/include/linux/memcontrol.h	2007-07-04 15:05:22.000000000 -0700
+@@ -0,0 +1,19 @@
++/* memcontrol.h - Memory Controller
++ *
++ * Copyright IBM Corporation, 2007
++ * Author Balbir Singh <balbir@linux.vnet.ibm.com>
++ *
++ * This program is free software; you can redistribute it and/or modify it
++ * under the terms of version 2.1 of the GNU Lesser General Public License
++ * as published by the Free Software Foundation.
++ *
++ * This program is distributed in the hope that it would be useful, but
++ * WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
++ */
++
++#ifndef _LINUX_MEMCONTROL_H
++#define _LINUX_MEMCONTROL_H
++
++#endif /* _LINUX_MEMCONTROL_H */
++
+_
 
-- Diskrete Verpackung und Zahlung
-- Kein langes Warten - Auslieferung innerhalb von 2-3 Tagen
-- Bequem und diskret online bestellen.
-- Kostenlose, arztliche Telefon-Beratung
-- Kein peinlicher Arztbesuch erforderlicht
-- Visa verifizierter Onlineshop
-- keine versteckte Kosten
+-- 
+	Warm Regards,
+	Balbir Singh
+	Linux Technology Center
+	IBM, ISTL
 
-
-Jetzt bestellen - und vier Pillen umsonst erhalten
-http://pedszop.feltrich.hk/?081522523325
-
-------=_NextPart_000_0006_01C7BE89.51F47240
-Content-Type: text/html;
-	charset="windows-1250"
-Content-Transfer-Encoding: quoted-printable
-
-<html xmlns:v=3D"urn:schemas-microsoft-com:vml" xmlns:o=3D"urn:schemas-micr=
-osoft-com:office:office" xmlns:w=3D"urn:schemas-microsoft-com:office:word" =
-xmlns=3D"http://www.w3.org/TR/REC-html40">
-
-<head>
-<META HTTP-EQUIV=3D"Content-Type" CONTENT=3D"text/html; charset=3Dwindows-1250">
-
-
-<meta name=3DProgId content=3DWord.Document>
-<meta name=3DGenerator content=3D"Microsoft Word 10">
-<meta name=3DOriginator content=3D"Microsoft Word 10">
-<link rel=3DFile-List href=3D"cid:filelist.xml@F6E4BFD3.21EBFDAD">
-<link rel=3DEdit-Time-Data href=3D"cid:editdata.mso@F6E4BFD3.21EBFDAD">
-</head>
-<body>
-<head><meta http-equiv=3D"Content-Type" content=3D"text/html; charset=3Diso=
--8859-1">
-</head><body>
-<p>Meinung von unserem Kunden:<br>
-  <strong>Ich glaube, ich habe bis jetzt Gl&#252;ck gehabt (Ich klopfe auf =
-Holz.), denn ich hatte bis jetzt noch nie Nebenwirkungen durch Viaaaagra - =
-au&#223;er einer brettharten Latte, und das f&#252;r Stunden.</strong></p>
-<p><strong>Fantastische Wirkung! F&#252;nf Jahre lang hatte ich es nicht me=
-hr geschafft, meine Err. ..ektion w&#228;hrend des Verkehrs zu halten und w=
-ar richtig &#228;ngstlich geworden. Ich hatte auch ein Problem mit vorzeiti=
-gem Samenerguss. Au&#223;erdem bin ich Zuckerkrank. Vor einiger Zeit habe i=
-ch eine 50-mg-Dosis Viaaaagra genommen und zwei Stunden sp&#228;ter mit ein=
-er 22-j&#228;hrigen geschlafen. Kurz vor dem Vorspiel wurde mein Penis hart=
- und ich konnte es kaum glauben. Ich habe in dieser Nacht dreimal Sex gehab=
-t und es gab keine Probleme dabei. Kein Schuss ging daneben. Ich bin ein gl=
-&#252;cklicher Mann. Achmet, 52<br>
-  </strong><strong><br>
-  Verpassen Sie nichts am Lebem - Sie werden fuhlen was unsere Kunden besta=
-tigen!</strong>
-</p>
-<p>Preise die keine Konkurrenz kennen <p>
-- Kostenlose, arztliche Telefon-Beratung<br>- Bequem und diskret online bes=
-tellen.<br>- Kein peinlicher Arztbesuch erforderlicht<br>- Kein langes Wart=
-en - Auslieferung innerhalb von 2-3 Tagen<br>- Diskrete Verpackung und Zahl=
-ung<br>- Visa verifizierter Onlineshop<br>- keine versteckte Kosten</p>  
-<p><br><strong><a href=3D"http://pedszop.feltrich.hk/?081522523325" target=
-=3D"_blank">Jetzt bestellen - und vier Pillen umsonst erhalten</a></strong>=
-</body>
-</body>
-</html>
-
-------=_NextPart_000_0006_01C7BE89.51F47240--
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
