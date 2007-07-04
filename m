@@ -1,72 +1,122 @@
-From: "Sonja Joyner" <sales@usi-ed.com>
-Subject: Man Lebt nur einmal - probiers aus !  =?ISO-8859-1?Q?hasn=92t?= resolved 
-Date: Wed, 4 Jul 2007 16:39:38 -0300
-Message-ID: <01c7be59$e9c18890$029c8dd5@sales>
+Date: Wed, 4 Jul 2007 19:38:31 +0100 (BST)
+From: Mark Fortescue <mark@mtfhpc.demon.co.uk>
+Subject: Re: [PATCH] Re: Sparc32: random invalid instruction occourances on
+ sparc32 (sun4c)
+In-Reply-To: <1183560364.29081.106.camel@shinybook.infradead.org>
+Message-ID: <Pine.LNX.4.61.0707041918160.32544@mtfhpc.demon.co.uk>
+References: <468A7D14.1050505@googlemail.com>  <Pine.LNX.4.61.0707031817050.29930@mtfhpc.demon.co.uk>
+  <Pine.LNX.4.61.0707031910280.29930@mtfhpc.demon.co.uk>
+ <1183490778.29081.35.camel@shinybook.infradead.org>
+ <Pine.LNX.4.61.0707032209230.30376@mtfhpc.demon.co.uk>
+ <1183499781.29081.46.camel@shinybook.infradead.org>
+ <Pine.LNX.4.61.0707032317590.30376@mtfhpc.demon.co.uk>
+ <1183505787.29081.62.camel@shinybook.infradead.org>
+ <Pine.LNX.4.61.0707040335230.30946@mtfhpc.demon.co.uk>
+ <1183520006.29081.79.camel@shinybook.infradead.org>
+ <Pine.LNX.4.61.0707041121290.31752@mtfhpc.demon.co.uk>
+ <1183560364.29081.106.camel@shinybook.infradead.org>
 MIME-Version: 1.0
-Content-Type: multipart/alternative;
-	boundary="----=_NextPart_000_000E_01C7BE7B.70D32890"
-Return-Path: <sales@usi-ed.com>
-To: linux-mm@kvack.org
+Content-Type: MULTIPART/MIXED; BOUNDARY="1750305931-1144574762-1183574311=:32544"
+Sender: owner-linux-mm@kvack.org
+Return-Path: <owner-linux-mm@kvack.org>
+To: David Woodhouse <dwmw2@infradead.org>
+Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, sparclinux@vger.kernel.org, David Miller <davem@davemloft.net>, Christoph Lameter <clameter@engr.sgi.com>, William Lee Irwin III <wli@holomorphy.com>
 List-ID: <linux-mm.kvack.org>
 
-This is a multi-part message in MIME format.
+--1750305931-1144574762-1183574311=:32544
+Content-Type: TEXT/PLAIN; charset=US-ASCII; format=flowed
 
-------=_NextPart_000_000E_01C7BE7B.70D32890
-Content-Type: text/plain;
-	charset="iso-8859-2"
-Content-Transfer-Encoding: 7bit
+Hi David,
 
-Sie leben nur einmal - warum dann nicht was neues ausprobieren?
+I have sucessfully tested the attached patch on Sparc32:sun4c.
 
-Preise die keine Konkurrenz kennen 
+Is there any chance of this getting sufficiantly tested on other 
+architectures to get in into v2.6.22 ?
 
-- Kein peinlicher Arztbesuch erforderlicht
-- Kein langes Warten - Auslieferung innerhalb von 2-3 Tagen
-- Diskrete Verpackung und Zahlung
-- Bequem und diskret online bestellen.
-- Kostenlose, arztliche Telefon-Beratung
-- Visa verifizierter Onlineshop
-- keine versteckte Kosten
+Regards
+ 	Mark Fortescue.
+--1750305931-1144574762-1183574311=:32544
+Content-Type: TEXT/PLAIN; charset=US-ASCII; name="slab_fix2.patch"
+Content-Transfer-Encoding: BASE64
+Content-ID: <Pine.LNX.4.61.0707041938290.32544@mtfhpc.demon.co.uk>
+Content-Description: 
+Content-Disposition: attachment; filename="slab_fix2.patch"
 
+RnJvbTogTWFyayBGb3J0ZXNjdWUgPG1hcmtAbXRmaHBjLmRlbW9uLmNvLnVr
+PiwgRGF2aWQgV29vZGhvdXNlIDxkd213MkBpbmZyYWRlYWQub3JnPg0KDQpW
+ZXJpb3VzIGFsaWdubWVudCBmaXhlcyBpbiB0aGUgU0xBQiBhbG9jYXRvciB0
+aGF0IGluY3JlYXNlZCB0aGUgc2l6ZQ0Kb2YgdGhlIFJlZFpvbmUgd29yZHMg
+ZmFpbGVkIHRvIGVuc3VyZSB0aGF0IFJlZFpvbmUgd29yZCAyIGlzIGFsaWdu
+ZWQNCm9uIGEgNjRiaXQgYm91bmRhcnkuIFRoaXMgcmVzdWx0ZWQgaW4gcmFu
+ZG9tIGludmFsaWQgaW5zdHJ1Y3Rpb24NCm9jY291cmFuY2VzIG9uIFNwYXJj
+MzIgKHN1bjRjKS4NClRoZXNlIGFkZGl0aW9uYWwgY2hhbmdlcyBzaG91bGQg
+ZW5zdXJlIHRoYXQgdGhlIFJlZFpvbmUgd29yZHMgYXJlDQpjb3JyZWN0bHkg
+YWxpZ25lZCBvbiBhIDY0Yml0IGJvdW5kYXJ5IGZvciBhcmNoaXRlY3R1cmVz
+IHRoYXQgcmVxdWlyZSB0aGlzLg0KDQpTaWduZWQtb2ZmLWJ5OiBNYXJrIEZv
+cnRlc2N1ZSA8bWFya0BtdGZocGMuZGVtb24uY28udWs+DQotLS0NClRlc3Rl
+ZCBvbiBTcGFyYzMyOnN1bjRjDQpBZGRpdGlvbmFsIHRlc3RpbmcgZGVzaXJh
+YmxlIG9uIFBvd2VyUEMzMiwgU3BhcmM2NCwgUG93ZXJQQzY0IGFuZCBhbnkN
+Cm90aGVyIHBsYXRmb3JtcyB3aGVyZSBhbGlnbm1lbnQgY2hhbmdlcyBtYXkg
+YmUgb2YgY29uY2lybi4NCi0tLSBsaW51eC0yLjYvbW0vc2xhYi5jCTIwMDct
+MDctMDMgMTk6MDk6NDguMDAwMDAwMDAwICswMTAwDQorKysgbGludXgtdGVz
+dC9tbS9zbGFiLmMJMjAwNy0wNy0wNCAwNDoxNDoxNS4wMDAwMDAwMDAgKzAx
+MDANCkBAIC0xMzcsNiArMTM3LDcgQEANCiANCiAvKiBTaG91bGRuJ3QgdGhp
+cyBiZSBpbiBhIGhlYWRlciBmaWxlIHNvbWV3aGVyZT8gKi8NCiAjZGVmaW5l
+CUJZVEVTX1BFUl9XT1JECQlzaXplb2Yodm9pZCAqKQ0KKyNkZWZpbmUJUkVE
+X1pPTkVfQUxJR04JCShtYXgoX19hbGlnbm9mX18odm9pZCAqKSwgX19hbGln
+bm9mKHVuc2lnbmVkIGxvbmcgbG9uZykpIC0gMSkNCiANCiAjaWZuZGVmIGNh
+Y2hlX2xpbmVfc2l6ZQ0KICNkZWZpbmUgY2FjaGVfbGluZV9zaXplKCkJTDFf
+Q0FDSEVfQllURVMNCkBAIC01NDcsNyArNTQ4LDcgQEAgc3RhdGljIHVuc2ln
+bmVkIGxvbmcgbG9uZyAqZGJnX3JlZHpvbmUyKA0KIAlpZiAoY2FjaGVwLT5m
+bGFncyAmIFNMQUJfU1RPUkVfVVNFUikNCiAJCXJldHVybiAodW5zaWduZWQg
+bG9uZyBsb25nICopKG9ianAgKyBjYWNoZXAtPmJ1ZmZlcl9zaXplIC0NCiAJ
+CQkJCSAgICAgIHNpemVvZih1bnNpZ25lZCBsb25nIGxvbmcpIC0NCi0JCQkJ
+CSAgICAgIEJZVEVTX1BFUl9XT1JEKTsNCisJCQkJCSAgICAgIG1heChCWVRF
+U19QRVJfV09SRCwgX19hbGlnbm9mX18odW5zaWduZWQgbG9uZyBsb25nKSkp
+Ow0KIAlyZXR1cm4gKHVuc2lnbmVkIGxvbmcgbG9uZyAqKSAob2JqcCArIGNh
+Y2hlcC0+YnVmZmVyX3NpemUgLQ0KIAkJCQkgICAgICAgc2l6ZW9mKHVuc2ln
+bmVkIGxvbmcgbG9uZykpOw0KIH0NCkBAIC0yMTc4LDcgKzIxNzksOCBAQCBr
+bWVtX2NhY2hlX2NyZWF0ZSAoY29uc3QgY2hhciAqbmFtZSwgc2l6DQogCSAq
+IGFib3ZlIHRoZSBuZXh0IHBvd2VyIG9mIHR3bzogY2FjaGVzIHdpdGggb2Jq
+ZWN0IHNpemVzIGp1c3QgYWJvdmUgYQ0KIAkgKiBwb3dlciBvZiB0d28gaGF2
+ZSBhIHNpZ25pZmljYW50IGFtb3VudCBvZiBpbnRlcm5hbCBmcmFnbWVudGF0
+aW9uLg0KIAkgKi8NCi0JaWYgKHNpemUgPCA0MDk2IHx8IGZscyhzaXplIC0g
+MSkgPT0gZmxzKHNpemUtMSArIDMgKiBCWVRFU19QRVJfV09SRCkpDQorCWlm
+IChzaXplIDwgNDA5NiB8fCBmbHMoc2l6ZSAtIDEpID09IGZscyhzaXplLTEg
+KyAyICogc2l6ZW9mKHVuc2lnbmVkIGxvbmcgbG9uZykgKw0KKwkJCQkJCW1h
+eChCWVRFU19QRVJfV09SRCwgX19hbGlnbm9mX18odW5zaWduZWQgbG9uZyBs
+b25nKSkpKQ0KIAkJZmxhZ3MgfD0gU0xBQl9SRURfWk9ORSB8IFNMQUJfU1RP
+UkVfVVNFUjsNCiAJaWYgKCEoZmxhZ3MgJiBTTEFCX0RFU1RST1lfQllfUkNV
+KSkNCiAJCWZsYWdzIHw9IFNMQUJfUE9JU09OOw0KQEAgLTIxOTcsOSArMjE5
+OSw5IEBAIGttZW1fY2FjaGVfY3JlYXRlIChjb25zdCBjaGFyICpuYW1lLCBz
+aXoNCiAJICogdW5hbGlnbmVkIGFjY2Vzc2VzIGZvciBzb21lIGFyY2hzIHdo
+ZW4gcmVkem9uaW5nIGlzIHVzZWQsIGFuZCBtYWtlcw0KIAkgKiBzdXJlIGFu
+eSBvbi1zbGFiIGJ1ZmN0bCdzIGFyZSBhbHNvIGNvcnJlY3RseSBhbGlnbmVk
+Lg0KIAkgKi8NCi0JaWYgKHNpemUgJiAoQllURVNfUEVSX1dPUkQgLSAxKSkg
+ew0KLQkJc2l6ZSArPSAoQllURVNfUEVSX1dPUkQgLSAxKTsNCi0JCXNpemUg
+Jj0gfihCWVRFU19QRVJfV09SRCAtIDEpOw0KKwlpZiAoc2l6ZSAmIFJFRF9a
+T05FX0FMSUdOKSB7DQorCQlzaXplICs9IFJFRF9aT05FX0FMSUdOOw0KKwkJ
+c2l6ZSAmPSB+UkVEX1pPTkVfQUxJR047DQogCX0NCiANCiAJLyogY2FsY3Vs
+YXRlIHRoZSBmaW5hbCBidWZmZXIgYWxpZ25tZW50OiAqLw0KQEAgLTIyNjEs
+OSArMjI2MywxNCBAQCBrbWVtX2NhY2hlX2NyZWF0ZSAoY29uc3QgY2hhciAq
+bmFtZSwgc2l6DQogCX0NCiAJaWYgKGZsYWdzICYgU0xBQl9TVE9SRV9VU0VS
+KSB7DQogCQkvKiB1c2VyIHN0b3JlIHJlcXVpcmVzIG9uZSB3b3JkIHN0b3Jh
+Z2UgYmVoaW5kIHRoZSBlbmQgb2YNCi0JCSAqIHRoZSByZWFsIG9iamVjdC4N
+CisJCSAqIHRoZSByZWFsIG9iamVjdC4gQnV0IGlmIHRoZSBzZWNvbmQgcmVk
+IHpvbmUgbXVzdCBiZQ0KKwkJICogYWxpZ25lZCAnYmV0dGVyJyB0aGFuIHRo
+YXQsIGFsbG93IGZvciBpdC4NCiAJCSAqLw0KLQkJc2l6ZSArPSBCWVRFU19Q
+RVJfV09SRDsNCisJCWlmIChmbGFncyAmIFNMQUJfUkVEX1pPTkUNCisJCSAg
+ICAmJiBCWVRFU19QRVJfV09SRCA8IF9fYWxpZ25vZl9fKHVuc2lnbmVkIGxv
+bmcgbG9uZykpDQorCQkJc2l6ZSArPSBfX2FsaWdub2ZfXyh1bnNpZ25lZCBs
+b25nIGxvbmcpOw0KKwkJZWxzZQ0KKwkJCXNpemUgKz0gQllURVNfUEVSX1dP
+UkQ7DQogCX0NCiAjaWYgRk9SQ0VEX0RFQlVHICYmIGRlZmluZWQoQ09ORklH
+X0RFQlVHX1BBR0VBTExPQykNCiAJaWYgKHNpemUgPj0gbWFsbG9jX3NpemVz
+W0lOREVYX0wzICsgMV0uY3Nfc2l6ZQ0K
 
-Klicken Sie HIER und Sie erhalten vier Dosen umsonst
-http://yvfbia.childrenyoung.hk/?442468074243
+--1750305931-1144574762-1183574311=:32544--
 
-
-------=_NextPart_000_000E_01C7BE7B.70D32890
-Content-Type: text/html;
-	charset="iso-8859-2"
-Content-Transfer-Encoding: quoted-printable
-
-<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
-<HTML><HEAD><TITLE></TITLE>
-<META content=3D"text/html; charset=3Diso-8859-2" http-equiv=3DContent-Type>
-<META content=3D"MSHTML 5.50.4927.1200" name=3DGENERATOR></HEAD>
-<BODY>
-<head><meta http-equiv=3D"Content-Type" content=3D"text/html; charset=3Diso=
--8859-1">
-</head><body>
-<p>Meinung von unserem Kunden:<br>
-  <strong>Ich muss sagen, Ciaaaalis ist wirklich nochmals viel besser als V=
-iaaaagra. Es ist alles viel nat&#252;rlicher als mit Viaaaagra. Aufgrund de=
-r langen Wirkungszeit von 24 Stunden kann man sich richtig Zeit lassen und =
-mehrer Runden einlegen.</strong></p>
-<p><strong>Ich finde Viaaaagra einfach wunderbar. Egal, ob f&#252;r den Sex=
- oder, um mich selbst zu verw&#246;hnen: Es funktioniert. Mein Schwanz wird=
- extrem hart und mein Orgasmus ist sehr intensiv. Die Wirkung ist so stark,=
- dass ich Viaaaagra nur am Wochenende verwende oder wenn ich viel Zeit habe=
-, es richtig zu genie&#223;en.<br>
-  </strong><strong><br>
-  Sie leben nur einmal - warum dann nicht was neues ausprobieren?</strong>
-</p>
-<p>Preise die keine Konkurrenz kennen <p>
-- Kein peinlicher Arztbesuch erforderlicht<br>- Visa verifizierter Onlinesh=
-op<br>- Bequem und diskret online bestellen.<br>- Kostenlose, arztliche Tel=
-efon-Beratung<br>- Kein langes Warten - Auslieferung innerhalb von 2-3 Tage=
-n<br>- keine versteckte Kosten<br>- Diskrete Verpackung und Zahlung</p>  
-<p><br><strong><a href=3D"http://yvfbia.childrenyoung.hk/?442468074243" tar=
-get=3D"_blank">Klicken Sie HIER und Sie erhalten vier Dosen umsonst</a></st=
-rong></body>
-</BODY></HTML>
-
-------=_NextPart_000_000E_01C7BE7B.70D32890--
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
