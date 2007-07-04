@@ -1,60 +1,53 @@
-Received: from d12nrmr1607.megacenter.de.ibm.com (d12nrmr1607.megacenter.de.ibm.com [9.149.167.49])
-	by mtagate6.de.ibm.com (8.13.8/8.13.8) with ESMTP id l647ZYfg1647766
-	for <linux-mm@kvack.org>; Wed, 4 Jul 2007 07:35:34 GMT
-Received: from d12av02.megacenter.de.ibm.com (d12av02.megacenter.de.ibm.com [9.149.165.228])
-	by d12nrmr1607.megacenter.de.ibm.com (8.13.8/8.13.8/NCO v8.3) with ESMTP id l647ZXF81925216
-	for <linux-mm@kvack.org>; Wed, 4 Jul 2007 09:35:34 +0200
-Received: from d12av02.megacenter.de.ibm.com (loopback [127.0.0.1])
-	by d12av02.megacenter.de.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l647ZWQ7010073
-	for <linux-mm@kvack.org>; Wed, 4 Jul 2007 09:35:32 +0200
-Subject: Re: [patch 1/5] avoid tlb gather restarts.
-From: Martin Schwidefsky <schwidefsky@de.ibm.com>
-Reply-To: schwidefsky@de.ibm.com
-In-Reply-To: <Pine.LNX.4.64.0707031829390.2111@blonde.wat.veritas.com>
-References: <20070703111822.418649776@de.ibm.com>
-	 <20070703121228.254110263@de.ibm.com>
-	 <Pine.LNX.4.64.0707031829390.2111@blonde.wat.veritas.com>
-Content-Type: text/plain
-Date: Wed, 04 Jul 2007 09:37:51 +0200
-Message-Id: <1183534671.1208.22.camel@localhost>
+Date: Wed, 4 Jul 2007 16:38:26 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [BUGFIX][PATCH] DO flush icache before set_pte() on ia64.
+Message-Id: <20070704163826.d0b7465b.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <468B3EAA.9070905@yahoo.com.au>
+References: <20070704150504.423f6c54.kamezawa.hiroyu@jp.fujitsu.com>
+	<468B3EAA.9070905@yahoo.com.au>
 Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Hugh Dickins <hugh@veritas.com>
-Cc: akpm@linux-foundation.org, peterz@infradead.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Nick Piggin <nickpiggin@yahoo.com.au>
+Cc: "linux-ia64@vger.kernel.org" <linux-ia64@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>, "tony.luck@intel.com" <tony.luck@intel.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Christoph Lameter <clameter@sgi.com>, Mike.stroya@hp.com, GOTO <y-goto@jp.fujitsu.com>, dmosberger@gmail.com, hugh@veritas.com
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 2007-07-03 at 18:42 +0100, Hugh Dickins wrote:
-> > If need_resched() is false in the inner loop of unmap_vmas it is
-> > unnecessary to do a full blown tlb_finish_mmu / tlb_gather_mmu for
-> > each ZAP_BLOCK_SIZE ptes. Do a tlb_flush_mmu() instead. That gives
-> > architectures with a non-generic tlb flush implementation room for
-> > optimization. The tlb_flush_mmu primitive is a available with the
-> > generic tlb flush code, the ia64_tlb_flush_mm needs to be renamed
-> > and a dummy function is added to arm and arm26.
-> > 
-> > Signed-off-by: Martin Schwidefsky <schwidefsky@de.ibm.com>
+On Wed, 04 Jul 2007 16:31:06 +1000
+Nick Piggin <nickpiggin@yahoo.com.au> wrote:
+> The only thing I noticed when I looked at the code is that some places
+> may not have flushed icache when they should have? Did you get them all?
+
+I think that I added flush_icache_page() to the place where any flush_(i)cache_xxx
+is not called and lazy_mmu_prot_update was used instead of them.
+But I want good review, of course.
+
+> Minor nitpick: you have one place where you test VM_EXEC before flushing,
+> but the flush routine itself contains the same test I think?
 > 
-> Acked-by: Hugh Dickins <hugh@veritas.com>
-> 
-> (Looking at it, I see that we could argue that there ought to be a
-> need_resched() etc. check after your tlb_flush_mmu() in unmap_vmas,
-> in case it's spent a long while in there on some arches; but I don't
-> think we have the ZAP_BLOCK_SIZE tuned with any great precision, and
-> you'd at worst be doubling the latency there, so let's not worry
-> about it.  I write this merely in order to reserve myself an
-> "I told you so" if anyone ever notices increased latency ;)
+Ah, yes...in do_anonymous_page(). my mistake.
 
-Hmm, we'd have to repeat the longish if statement to make sure we don't
-miss a cond_resched after tlb_flush_mmu. I'd rather not do that.
+> Regarding the ia64 code -- I'm not an expert so I can't say whether it
+> is the right thing to do or not. However I still can't work out what it's
+> rationale for the PG_arch_1 bit is, exactly. Does it assume that
+> flush_dcache_page sites would only ever be encountered by pages that are
+> not faulted in? A faulted in page kind of is "special" because it is
+> guaranteed uptodate, but is the ia64 arch code relying on that? Should it?
 
--- 
-blue skies,
-  Martin.
+(I'm sorry if I misses point.)
+ia64's D-cache is coherent but I-cache and D-cache is not coherent and any
+invalidation against d-cache will invalidate I-cache.
 
-"Reality continues to ruin my life." - Calvin.
+In my understanding :
+PG_arch_1 is used for showing "there is no inconsistent data on any level of
+cache". PG_uptodate is used for showing "this page includes the newest data
+and contents are valid."
+...maybe not used for the same purpose.
 
+BTW, a page filled by DMA should have PG_arch_1 :(
+
+-Kame
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
