@@ -1,83 +1,122 @@
-From: "Betty Downey" <ektactics@downeast.net>
-Subject: Blaues Wunder - dann klappts auch mit der Nachbarin   history of corporation, -- your boss told you 
-Date: Thu, 5 Jul 2007 15:24:53 -0100
-Message-ID: <01c7bf18$a2f05c10$5f653854@ektactics>
+Date: Thu, 5 Jul 2007 17:21:21 +0100
+Subject: Re: [PATCH] Allow PAGE_OWNER to be set on any architecture
+Message-ID: <20070705162121.GA21219@skynet.ie>
+References: <20070608125349.GA8444@skynet.ie> <20070627165651.1ffb72d7.akpm@linux-foundation.org>
 MIME-Version: 1.0
-Content-Type: multipart/alternative;
-	boundary="----=_NextPart_000_0006_01C7BF29.66792C10"
-Return-Path: <ektactics@downeast.net>
-To: linux-mm@kvack.org
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <20070627165651.1ffb72d7.akpm@linux-foundation.org>
+From: mel@skynet.ie (Mel Gorman)
+Sender: owner-linux-mm@kvack.org
+Return-Path: <owner-linux-mm@kvack.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: alexn@telia.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-This is a multi-part message in MIME format.
+On (27/06/07 16:56), Andrew Morton didst pronounce:
+> On Fri, 8 Jun 2007 13:53:49 +0100
+> mel@skynet.ie (Mel Gorman) wrote:
+> 
+> > Currently PAGE_OWNER depends on CONFIG_X86. This appears to be due to
+> > pfn_to_page() being called in an inappropriate for many memory models
+> > and the presense of memory holes. This patch ensures that pfn_valid()
+> > and pfn_valid_within() is called at the appropriate places and the offsets
+> > correctly updated so that PAGE_OWNER is safe on any architecture.
+> > 
+> > In situations where CONFIG_HOLES_IN_ZONES is set (IA64 with VIRTUAL_MEM_MAP),
+> > there may be cases where pages allocated within a MAX_ORDER_NR_PAGES block
+> > of pages may not be displayed in /proc/page_owner if the hole is at the
+> > start of the block. Addressing this would be quite complex, perform slowly
+> > and is of no clear benefit.
+> > 
+> > Once PAGE_OWNER is allowed on all architectures, the statistics for grouping
+> > pages by mobility that declare how many pageblocks contain mixed page types
+> > becomes optionally available on all arches.
+> > 
+> > This patch was tested successfully on x86, x86_64, ppc64 and IA64 machines.
+> 
+> I'm kinda mystified about how you successfully tested this on ppc64 and
+> ia64.  They don't assemble and execute i386 opcodes?
+> 
 
-------=_NextPart_000_0006_01C7BF29.66792C10
-Content-Type: text/plain;
-	charset="us-ascii"
-Content-Transfer-Encoding: 7bit
+You are of course right and I thought I must be insane to apparently screw
+up testing so badly.  However somewhat to my suprise, this does work on
+ppc64 and IA64. I boot tested with the patch and was able to read the stack
+trace on /proc/page_owner although it is a bit useless on IA64. Of course,
+the inline assember doesn't show up in the disassembled vmlinux because it
+could never be executed.
 
-Verpassen Sie nichts am Lebem - Sie werden fuhlen was unsere Kunden bestatigen!
+What appears to happen is that the inline assembler is optimised away when
+CONFIG_FRAME_POINTER is not set as the bp variable is unused.  As it cannot
+be set on IA64 or PPC64, it appeared to work and passed earlier testing.
+When I cross-compile for m68k (something I hadn't done before), it builds
+if CONFIG_FRAME_POINTER is unset but fails with parse errors when set which
+is what one would expect.
 
-Preise die keine Konkurrenz kennen 
+I think the following patch brings things more in line with expectations once
+your fix is in place at the cost of a larger __stack_trace function. It uses
+the frame pointer if possible but otherwise falls back. It appears to work
+fine on ppc64, IA64 and an x86 laptop.
 
-- Kein peinlicher Arztbesuch erforderlicht
-- Diskrete Verpackung und Zahlung
-- Kostenlose, arztliche Telefon-Beratung
-- Kein langes Warten - Auslieferung innerhalb von 2-3 Tagen
-- Bequem und diskret online bestellen.
-- Visa verifizierter Onlineshop
-- keine versteckte Kosten
+======
 
+Page-owner-tracking stores the a backtrace of an allocation in the struct
+page. How the stack trace is generated depends on whether CONFIG_FRAME_POINTER
+is set or not. If CONFIG_FRAME_POINTER is set, the frame pointer must be
+read using some inline assembler which is not available for all architectures.
 
-Jetzt bestellen - und vier Pillen umsonst erhalten
-http://dopass.sistersilent.hk/?805140614298
+This patch uses the frame pointer where it is available but has a fallback
+where it is not.
 
-------=_NextPart_000_0006_01C7BF29.66792C10
-Content-Type: text/html;
-	charset="us-ascii"
-Content-Transfer-Encoding: quoted-printable
+Signed-off-by: Mel Gorman <mel@csn.ul.ie>
 
-<html xmlns:v=3D"urn:schemas-microsoft-com:vml" xmlns:o=3D"urn:schemas-micr=
-osoft-com:office:office" xmlns:w=3D"urn:schemas-microsoft-com:office:word" =
-xmlns=3D"http://www.w3.org/TR/REC-html40">
+--- 
+ page_alloc.c |   18 ++++++++++--------
+ 1 file changed, 10 insertions(+), 8 deletions(-)
 
-<head>
-<META HTTP-EQUIV=3D"Content-Type" CONTENT=3D"text/html; charset=3Dus-ascii">
+diff -rup -X /usr/src/patchset-0.6/bin//dontdiff linux-2.6.22-rc4-mm2-005_pageowner_anyarch/mm/page_alloc.c linux-2.6.22-rc4-mm2-010_handle_framepointer/mm/page_alloc.c
+--- linux-2.6.22-rc4-mm2-005_pageowner_anyarch/mm/page_alloc.c	2007-07-05 14:12:56.000000000 +0100
++++ linux-2.6.22-rc4-mm2-010_handle_framepointer/mm/page_alloc.c	2007-07-05 14:48:23.000000000 +0100
+@@ -1494,14 +1494,17 @@ static inline void __stack_trace(struct 
+ 	memset(page->trace, 0, sizeof(long) * 8);
+ 
+ #ifdef CONFIG_FRAME_POINTER
+-	while (valid_stack_ptr(tinfo, (void *)bp)) {
+-		addr = *(unsigned long *)(bp + sizeof(long));
+-		page->trace[i] = addr;
+-		if (++i >= 8)
+-			break;
+-		bp = *(unsigned long *)bp;
++	if (bp) {
++		while (valid_stack_ptr(tinfo, (void *)bp)) {
++			addr = *(unsigned long *)(bp + sizeof(long));
++			page->trace[i] = addr;
++			if (++i >= 8)
++				break;
++			bp = *(unsigned long *)bp;
++		}
++		return;
+ 	}
+-#else
++#endif /* CONFIG_FRAME_POINTER */
+ 	while (valid_stack_ptr(tinfo, stack)) {
+ 		addr = *stack++;
+ 		if (__kernel_text_address(addr)) {
+@@ -1510,7 +1513,6 @@ static inline void __stack_trace(struct 
+ 				break;
+ 		}
+ 	}
+-#endif
+ }
+ 
+ static void set_page_owner(struct page *page, unsigned int order,
+-- 
+Mel Gorman
+Part-time Phd Student                          Linux Technology Center
+University of Limerick                         IBM Dublin Software Lab
 
-
-<meta name=3DProgId content=3DWord.Document>
-<meta name=3DGenerator content=3D"Microsoft Word 10">
-<meta name=3DOriginator content=3D"Microsoft Word 10">
-<link rel=3DFile-List href=3D"cid:filelist.xml@59E8213D.A0C597BF">
-<link rel=3DEdit-Time-Data href=3D"cid:editdata.mso@59E8213D.A0C597BF">
-</head>
-<body>
-<head><meta http-equiv=3D"Content-Type" content=3D"text/html; charset=3Diso=
--8859-1">
-</head><body>
-<p>Meinung von unserem Kunden:<br>
-  <strong>Ich glaube, ich habe bis jetzt Gl&#252;ck gehabt (Ich klopfe auf =
-Holz.), denn ich hatte bis jetzt noch nie Nebenwirkungen durch Viaaaagra - =
-au&#223;er einer brettharten Latte, und das f&#252;r Stunden.</strong></p>
-<p><strong>Meine Frau und ich haben Viaaaagra am letzten Wochenende ausprob=
-iert. Sie fand, mein bestes St&#252;ck w&#228;re in letzter Zeit nicht ganz=
- auf der H&#246;he gewesen. Also dachten wir, wir probieren es einfach einm=
-al.Es gibt nur ein Wort, dass das Gef&#252;hl beschreibt: Wahnsinn. Seit ic=
-h zwanzig war, konnte ich nicht mehr so lang und so oft. Was soll ich sagen=
-? Gute Arbeit, Viaaaagra!<br>
-  </strong><strong><br>
-  Verpassen Sie nichts am Lebem - Sie werden fuhlen was unsere Kunden besta=
-tigen!</strong>
-</p>
-<p>Preise die keine Konkurrenz kennen <p>
-- Bequem und diskret online bestellen.<br>- Kein langes Warten - Auslieferu=
-ng innerhalb von 2-3 Tagen<br>- Visa verifizierter Onlineshop<br>- Diskrete=
- Verpackung und Zahlung<br>- Kostenlose, arztliche Telefon-Beratung<br>- Ke=
-in peinlicher Arztbesuch erforderlicht<br>- keine versteckte Kosten</p>  
-<p><br><strong><a href=3D"http://dopass.sistersilent.hk/?805140614298" targ=
-et=3D"_blank">Jetzt bestellen - und vier Pillen umsonst erhalten</a></stron=
-g></body>
-</body>
-</html>
-
-------=_NextPart_000_0006_01C7BF29.66792C10--
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
