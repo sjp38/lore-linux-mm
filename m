@@ -1,49 +1,83 @@
-Subject: Re: vm/fs meetup details
-From: Peter Zijlstra <peterz@infradead.org>
-In-Reply-To: <20070705040138.GG32240@wotan.suse.de>
-References: <20070705040138.GG32240@wotan.suse.de>
-Content-Type: text/plain
-Date: Thu, 05 Jul 2007 16:32:33 +0200
-Message-Id: <1183645953.7054.69.camel@twins>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
-Sender: owner-linux-mm@kvack.org
-Return-Path: <owner-linux-mm@kvack.org>
-To: Nick Piggin <npiggin@suse.de>
-Cc: Anton Altaparmakov <aia21@cam.ac.uk>, Suparna Bhattacharya <suparna@in.ibm.com>, Christoph Hellwig <hch@infradead.org>, Zach Brown <zach.brown@oracle.com>, Hugh Dickins <hugh@veritas.com>, Jared Hulbert <jaredeh@gmail.com>, Chris Mason <chris.mason@oracle.com>, David Chinner <dgc@sgi.com>, "Martin J. Bligh" <mbligh@mbligh.org>, Trond Myklebust <trond.myklebust@fys.uio.no>, Neil Brown <neilb@suse.de>, Joern Engel <joern@logfs.org>, Miklos Szeredi <miklos@szeredi.hu>, Mingming Cao <cmm@us.ibm.com>, Linux Memory Management List <linux-mm@kvack.org>, linux-fsdevel@vger.kernel.org
+From: "Betty Downey" <ektactics@downeast.net>
+Subject: Blaues Wunder - dann klappts auch mit der Nachbarin   history of corporation, -- your boss told you 
+Date: Thu, 5 Jul 2007 15:24:53 -0100
+Message-ID: <01c7bf18$a2f05c10$5f653854@ektactics>
+MIME-Version: 1.0
+Content-Type: multipart/alternative;
+	boundary="----=_NextPart_000_0006_01C7BF29.66792C10"
+Return-Path: <ektactics@downeast.net>
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 2007-07-05 at 06:01 +0200, Nick Piggin wrote:
-> Hi,
-> 
-> The vm/fs meetup will be held September 4th from 10am till 4pm (with the
-> option of going longer), at the University of Cambridge. 
-> 
-> Anton Altaparmakov has arranged a conference room for us with whiteboard
-> and projector, so many thanks to him. I will send out the location and
-> plans for meeting/getting there after we work out the best strategy for
-> that.
-> 
-> At the moment we have 15 people interested so far. We can have a few
-> more people, so if you aren't cc'ed and would like to come along please
-> let me know. We do have limited space, so I'm sorry in advance if anybody
-> misses out.
-> 
-> I'll post out a running list of suggested topics later, but they're
-> really just a rough guideline. It will be a round-table kind of thing
-> and long monologue talks won't be appropriate, however some slides or
-> whiteboarding to interactively introduce and discuss your idea would
-> be OK.
-> 
-> I think we want to avoid assigning slots for specific people/topics.
-> Feel free to propose anything, if it only gets a small amount of
-> interest then at least you'll know who to discuss it with later :)
+This is a multi-part message in MIME format.
 
-I'm interested in attending, worst that could happen is that I learn
-something :-)
+------=_NextPart_000_0006_01C7BF29.66792C10
+Content-Type: text/plain;
+	charset="us-ascii"
+Content-Transfer-Encoding: 7bit
 
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+Verpassen Sie nichts am Lebem - Sie werden fuhlen was unsere Kunden bestatigen!
+
+Preise die keine Konkurrenz kennen 
+
+- Kein peinlicher Arztbesuch erforderlicht
+- Diskrete Verpackung und Zahlung
+- Kostenlose, arztliche Telefon-Beratung
+- Kein langes Warten - Auslieferung innerhalb von 2-3 Tagen
+- Bequem und diskret online bestellen.
+- Visa verifizierter Onlineshop
+- keine versteckte Kosten
+
+
+Jetzt bestellen - und vier Pillen umsonst erhalten
+http://dopass.sistersilent.hk/?805140614298
+
+------=_NextPart_000_0006_01C7BF29.66792C10
+Content-Type: text/html;
+	charset="us-ascii"
+Content-Transfer-Encoding: quoted-printable
+
+<html xmlns:v=3D"urn:schemas-microsoft-com:vml" xmlns:o=3D"urn:schemas-micr=
+osoft-com:office:office" xmlns:w=3D"urn:schemas-microsoft-com:office:word" =
+xmlns=3D"http://www.w3.org/TR/REC-html40">
+
+<head>
+<META HTTP-EQUIV=3D"Content-Type" CONTENT=3D"text/html; charset=3Dus-ascii">
+
+
+<meta name=3DProgId content=3DWord.Document>
+<meta name=3DGenerator content=3D"Microsoft Word 10">
+<meta name=3DOriginator content=3D"Microsoft Word 10">
+<link rel=3DFile-List href=3D"cid:filelist.xml@59E8213D.A0C597BF">
+<link rel=3DEdit-Time-Data href=3D"cid:editdata.mso@59E8213D.A0C597BF">
+</head>
+<body>
+<head><meta http-equiv=3D"Content-Type" content=3D"text/html; charset=3Diso=
+-8859-1">
+</head><body>
+<p>Meinung von unserem Kunden:<br>
+  <strong>Ich glaube, ich habe bis jetzt Gl&#252;ck gehabt (Ich klopfe auf =
+Holz.), denn ich hatte bis jetzt noch nie Nebenwirkungen durch Viaaaagra - =
+au&#223;er einer brettharten Latte, und das f&#252;r Stunden.</strong></p>
+<p><strong>Meine Frau und ich haben Viaaaagra am letzten Wochenende ausprob=
+iert. Sie fand, mein bestes St&#252;ck w&#228;re in letzter Zeit nicht ganz=
+ auf der H&#246;he gewesen. Also dachten wir, wir probieren es einfach einm=
+al.Es gibt nur ein Wort, dass das Gef&#252;hl beschreibt: Wahnsinn. Seit ic=
+h zwanzig war, konnte ich nicht mehr so lang und so oft. Was soll ich sagen=
+? Gute Arbeit, Viaaaagra!<br>
+  </strong><strong><br>
+  Verpassen Sie nichts am Lebem - Sie werden fuhlen was unsere Kunden besta=
+tigen!</strong>
+</p>
+<p>Preise die keine Konkurrenz kennen <p>
+- Bequem und diskret online bestellen.<br>- Kein langes Warten - Auslieferu=
+ng innerhalb von 2-3 Tagen<br>- Visa verifizierter Onlineshop<br>- Diskrete=
+ Verpackung und Zahlung<br>- Kostenlose, arztliche Telefon-Beratung<br>- Ke=
+in peinlicher Arztbesuch erforderlicht<br>- keine versteckte Kosten</p>  
+<p><br><strong><a href=3D"http://dopass.sistersilent.hk/?805140614298" targ=
+et=3D"_blank">Jetzt bestellen - und vier Pillen umsonst erhalten</a></stron=
+g></body>
+</body>
+</html>
+
+------=_NextPart_000_0006_01C7BF29.66792C10--
