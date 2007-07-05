@@ -1,46 +1,82 @@
-Message-ID: <468D6569.6050606@redhat.com>
-Date: Thu, 05 Jul 2007 17:40:57 -0400
-From: Rik van Riel <riel@redhat.com>
-MIME-Version: 1.0
-Subject: Re: vm/fs meetup details
-References: <20070705040138.GG32240@wotan.suse.de> <468D303E.4040902@redhat.com> <137D15F6-EABE-4EC1-A3AF-DAB0A22CF4E3@oracle.com> <20070705212757.GB12413810@sgi.com>
-In-Reply-To: <20070705212757.GB12413810@sgi.com>
-Content-Type: text/plain; charset=UTF-8; format=flowed
+Date: Fri, 6 Jul 2007 07:18:53 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [BUGFIX][PATCH] DO flush icache before set_pte() on ia64.
+Message-Id: <20070706071853.9434deae.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20070705181308.GB8320@stroyan.net>
+References: <20070704150504.423f6c54.kamezawa.hiroyu@jp.fujitsu.com>
+	<20070705181308.GB8320@stroyan.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: David Chinner <dgc@sgi.com>
-Cc: Zach Brown <zach.brown@oracle.com>, Nick Piggin <npiggin@suse.de>, Anton Altaparmakov <aia21@cam.ac.uk>, Suparna Bhattacharya <suparna@in.ibm.com>, Christoph Hellwig <hch@infradead.org>, Hugh Dickins <hugh@veritas.com>, Jared Hulbert <jaredeh@gmail.com>, Chris Mason <chris.mason@oracle.com>, "Martin J. Bligh" <mbligh@mbligh.org>, Trond Myklebust <trond.myklebust@fys.uio.no>, Neil Brown <neilb@suse.de>, Joern Engel <joern@logfs.org>, Miklos Szeredi <miklos@szeredi.hu>, Mingming Cao <cmm@us.ibm.com>, Linux Memory Management List <linux-mm@kvack.org>, linux-fsdevel@vger.kernel.org
+To: Mike Stroyan <mike@stroyan.net>
+Cc: linux-ia64@vger.kernel.org, linux-kernel@vger.kernel.org, tony.luck@intel.com, linux-mm@kvack.org, clameter@sgi.com, y-goto@jp.fujitsu.com, dmosberger@gmail.com, hugh@veritas.com, nickpiggin@yahoo.com.au
 List-ID: <linux-mm.kvack.org>
 
-David Chinner wrote:
-> On Thu, Jul 05, 2007 at 01:40:08PM -0700, Zach Brown wrote:
->>> - repair driven design, we know what it is (Val told us), but
->>>  how does it apply to the things we are currently working on?
->>>  should we do more of it?
->> I'm sure Chris and I could talk about the design elements in btrfs  
->> that should aid repair if folks are interested in hearing about  
->> them.  We'd keep the hand-waving to a minimum :).
+On Thu, 5 Jul 2007 12:13:09 -0600
+Mike Stroyan <mike@stroyan.net> wrote:
+>   The L3 cache is involved in the HP-UX defect description because the
+> earlier HP-UX patch PHKL_33781 added flushing of the instruction cache
+> when an executable mapping was removed.  Linux never added that
+> unsuccessfull attempt at montecito cache coherency.  In the current
+> linux situation it can execute old cache lines straight from L2 icache.
 > 
-> And I'm sure I could provide a counterpoint by talking about
-> the techniques we've used improving XFS repair speed and
-> scalability without needing to change any on disk formats....
+Hmm... I couldn't understand "why icache includes old lines in a new page."
+This happens at
+ - a file is newly loaded into page-cache.
+ - only on NFS.
+ - happens very *often* if the program is unlucky.
 
-Sounds like that could be an interesting discussion.
+So I wrote my understainding as I think.
 
-Especially when trying to answer questions like:
+> > Now, I think icache should be flushed before set_pte().
+> > This is a patch to try that.
+> > 
+> > 1. remove all lazy_mmu_prot_update()...which is used by only ia64.
+> > 2. implements flush_cache_page()/flush_icache_page() for ia64.
+> > 
+> > Something unsure....
+> > 3. mprotect() flushes cache before removing pte. Is this sane ?
+> >    I added flush_icache_range() before set_pte() here.
+> > 
+> > Any comments and advices ?
+> 
+>   I am concerned about performance consequences.  With the change
+> from lazy_mmu_prot_update to __flush_icache_page_ia64 you dropped
+> the code that avoids icache flushes for non-executable pages.
 
-"At what filesystem size will the mitigating fixes no
-  longer be enough?"
+Hmm? I added VM_EXEC check in flush_(d|i)cache_page(). Isn't it enough ?
 
-and
+> Section 4.6.2 of David Mosberger and Stephane Eranian's
+> "ia-64 linux kernel design and implementation" goes into some
+> detail about the performance penalties avoided by limiting icache
+> flushes to executable pages and defering flushes until the first
+> fault for execution.
+> 
+>   Have you done any benchmarking to measure the performance
+> effect of these additional cache flushes?  It would be particularly
+> interesting to measure on large systems with many CPUs.  The fc.i
+> instruction needs to be broadcast to all CPUs in the system.
 
-"When will people start using filesystems THAT big?"  :)
+no benchmarks yet.
 
--- 
-Politics is the struggle between those who want to make their country
-the best in the world, and those who believe it already is.  Each group
-calls the other unpatriotic.
+> 
+>   The only defect that I see in the current implementation of
+> lazy_mmu_prot_update() is that it is called too late in some
+> functions that are already calling it.  Are your large changes
+> attempting to correct other defects?  Or are you simplifying
+> away potentially valuable code because you don't understand it?
+> 
+I know your *simple* patch in April wasn't included. So I wrote this.
+In April thread, commenter's advices was "implement flush_icache_page()" I think.  
+If you have a better patch, please post.
+
+Thanks,
+-Kame
+
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
