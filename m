@@ -1,77 +1,49 @@
-Message-ID: <01c7bf0f$a0274010$d246d0d8@clipsvideo>
-From: "Sara Sheridan" <clipsvideo@pa.hodes.com>
-Subject: Wir wissen was Frauen wollern  including registration of corporation,  --  with
-Date: Thu, 5 Jul 2007 14:20:23 +0500
-MIME-Version: 1.0
-Content-Type: multipart/alternative;
-	boundary="----=_NextPart_000_0007_01C7BEEE.1915A010"
-Return-Path: <clipsvideo@pa.hodes.com>
-To: linux-mm@kvack.org
+Subject: Re: vm/fs meetup details
+From: Peter Zijlstra <peterz@infradead.org>
+In-Reply-To: <20070705040138.GG32240@wotan.suse.de>
+References: <20070705040138.GG32240@wotan.suse.de>
+Content-Type: text/plain
+Date: Thu, 05 Jul 2007 16:32:33 +0200
+Message-Id: <1183645953.7054.69.camel@twins>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
+Sender: owner-linux-mm@kvack.org
+Return-Path: <owner-linux-mm@kvack.org>
+To: Nick Piggin <npiggin@suse.de>
+Cc: Anton Altaparmakov <aia21@cam.ac.uk>, Suparna Bhattacharya <suparna@in.ibm.com>, Christoph Hellwig <hch@infradead.org>, Zach Brown <zach.brown@oracle.com>, Hugh Dickins <hugh@veritas.com>, Jared Hulbert <jaredeh@gmail.com>, Chris Mason <chris.mason@oracle.com>, David Chinner <dgc@sgi.com>, "Martin J. Bligh" <mbligh@mbligh.org>, Trond Myklebust <trond.myklebust@fys.uio.no>, Neil Brown <neilb@suse.de>, Joern Engel <joern@logfs.org>, Miklos Szeredi <miklos@szeredi.hu>, Mingming Cao <cmm@us.ibm.com>, Linux Memory Management List <linux-mm@kvack.org>, linux-fsdevel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-This is a multi-part message in MIME format.
+On Thu, 2007-07-05 at 06:01 +0200, Nick Piggin wrote:
+> Hi,
+> 
+> The vm/fs meetup will be held September 4th from 10am till 4pm (with the
+> option of going longer), at the University of Cambridge. 
+> 
+> Anton Altaparmakov has arranged a conference room for us with whiteboard
+> and projector, so many thanks to him. I will send out the location and
+> plans for meeting/getting there after we work out the best strategy for
+> that.
+> 
+> At the moment we have 15 people interested so far. We can have a few
+> more people, so if you aren't cc'ed and would like to come along please
+> let me know. We do have limited space, so I'm sorry in advance if anybody
+> misses out.
+> 
+> I'll post out a running list of suggested topics later, but they're
+> really just a rough guideline. It will be a round-table kind of thing
+> and long monologue talks won't be appropriate, however some slides or
+> whiteboarding to interactively introduce and discuss your idea would
+> be OK.
+> 
+> I think we want to avoid assigning slots for specific people/topics.
+> Feel free to propose anything, if it only gets a small amount of
+> interest then at least you'll know who to discuss it with later :)
 
-------=_NextPart_000_0007_01C7BEEE.1915A010
-Content-Type: text/plain;
-	charset="us-ascii"
-Content-Transfer-Encoding: quoted-printable
+I'm interested in attending, worst that could happen is that I learn
+something :-)
 
-Haben Sie endlich wieder Spass am Leben!
-
-Preise die keine Konkurrenz kennen 
-
-- Kein peinlicher Arztbesuch erforderlicht
-- Kein langes Warten - Auslieferung innerhalb von 2-3 Tagen
-- Bequem und diskret online bestellen.
-- Kostenlose, arztliche Telefon-Beratung
-- Diskrete Verpackung und Zahlung
-- Visa verifizierter Onlineshop
-- keine versteckte Kosten
-
-
-Jetzt bestellen - und vier Pillen umsonst erhalten
-http://obvac.sistersilent.hk/?998868072425
-------=_NextPart_000_0007_01C7BEEE.1915A010
-Content-Type: text/html;
-	charset="us-ascii"
-Content-Transfer-Encoding: quoted-printable
-
-<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
-<HTML><HEAD>
-<META http-equiv=3DContent-Type content=3D"text/html; charset=3Dus-ascii">
-<META content=3D"MSHTML 6.00.2900.2869" name=3DGENERATOR>
-<STYLE></STYLE>
-</HEAD>
-<BODY>
-<head><meta http-equiv=3D"Content-Type" content=3D"text/html; charset=3Diso=
--8859-1">
-</head><body>
-<p>Meinung von unserem Kunden:<br>
-  <strong>Meine Frau und ich haben Viaaaagra am letzten Wochenende ausprobi=
-ert. Sie fand, mein bestes St&#252;ck w&#228;re in letzter Zeit nicht ganz =
-auf der H&#246;he gewesen. Also dachten wir, wir probieren es einfach einma=
-l.Es gibt nur ein Wort, dass das Gef&#252;hl beschreibt: Wahnsinn. Seit ich=
- zwanzig war, konnte ich nicht mehr so lang und so oft. Was soll ich sagen?=
- Gute Arbeit, Viaaaagra!</strong></p>
-<p><strong>Ich habe eine Aff&#228;re mit einer Bekannten, sie h&#228;lt mic=
-h f&#252;r einen Sex-Gott. Ich habe Viaaaagra ungef&#228;hr zehn Minuten, b=
-evor wir uns im Hotel getroffen haben, genommen. Ich habe davon nicht nur e=
-inen strammen Riemen bekommen, sondern auch die Selbstsicherheit, die die F=
-rauen lieben. Ich habe es ihr drei- oder viermal besorgt, und sie ist absol=
-ut hingerissen. Ich komme ziemlich schnell, danach wird ihr Organsmus jedes=
-mal unkontrollierbar. Viaaaagra hat mich bei ihr zur Legende gemacht!! Ich =
-kann es kaum abwarten, wieder eine zu schlucken<br>
-  </strong><strong><br>
-  Haben Sie endlich wieder Spass am Leben!</strong>
-</p>
-<p>Preise die keine Konkurrenz kennen <p>
-- Kein langes Warten - Auslieferung innerhalb von 2-3 Tagen<br>- Bequem und=
- diskret online bestellen.<br>- Visa verifizierter Onlineshop<br>- Kein pei=
-nlicher Arztbesuch erforderlicht<br>- Kostenlose, arztliche Telefon-Beratun=
-g<br>- Diskrete Verpackung und Zahlung<br>- keine versteckte Kosten</p>  
-<p><br><strong><a href=3D"http://obvac.sistersilent.hk/?998868072425" targe=
-t=3D"_blank">Jetzt bestellen - und vier Pillen umsonst erhalten</a></strong=
-></body>
-</BODY></HTML>
-
-------=_NextPart_000_0007_01C7BEEE.1915A010--
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
