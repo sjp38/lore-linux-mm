@@ -1,37 +1,37 @@
-Message-ID: <01c7beee$30702be0$4e5fd1d5@mlapd>
-From: "May Humphrey" <mlapd@mlahq.org>
-Subject: Wir wissen was Frauen wollern  elements of your -- sounds, how the Factory 
-Date: Thu, 5 Jul 2007 10:21:02 -0100
+Message-ID: <01c7bf0f$a0274010$d246d0d8@clipsvideo>
+From: "Sara Sheridan" <clipsvideo@pa.hodes.com>
+Subject: Wir wissen was Frauen wollern  including registration of corporation,  --  with
+Date: Thu, 5 Jul 2007 14:20:23 +0500
 MIME-Version: 1.0
 Content-Type: multipart/alternative;
-	boundary="----=_NextPart_000_0007_01C7BEFE.F3F8FBE0"
-Return-Path: <mlapd@mlahq.org>
+	boundary="----=_NextPart_000_0007_01C7BEEE.1915A010"
+Return-Path: <clipsvideo@pa.hodes.com>
 To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
 This is a multi-part message in MIME format.
 
-------=_NextPart_000_0007_01C7BEFE.F3F8FBE0
+------=_NextPart_000_0007_01C7BEEE.1915A010
 Content-Type: text/plain;
 	charset="us-ascii"
 Content-Transfer-Encoding: quoted-printable
 
-Sie leben nur einmal - warum dann nicht was neues ausprobieren?
+Haben Sie endlich wieder Spass am Leben!
 
 Preise die keine Konkurrenz kennen 
 
+- Kein peinlicher Arztbesuch erforderlicht
+- Kein langes Warten - Auslieferung innerhalb von 2-3 Tagen
+- Bequem und diskret online bestellen.
 - Kostenlose, arztliche Telefon-Beratung
 - Diskrete Verpackung und Zahlung
-- Kein langes Warten - Auslieferung innerhalb von 2-3 Tagen
-- Kein peinlicher Arztbesuch erforderlicht
-- Bequem und diskret online bestellen.
 - Visa verifizierter Onlineshop
 - keine versteckte Kosten
 
 
-Klicken Sie HIER und Sie erhalten vier Dosen umsonst
-http://vdmoalq.lettwenty.hk/?805122073325
-------=_NextPart_000_0007_01C7BEFE.F3F8FBE0
+Jetzt bestellen - und vier Pillen umsonst erhalten
+http://obvac.sistersilent.hk/?998868072425
+------=_NextPart_000_0007_01C7BEEE.1915A010
 Content-Type: text/html;
 	charset="us-ascii"
 Content-Transfer-Encoding: quoted-printable
@@ -39,7 +39,7 @@ Content-Transfer-Encoding: quoted-printable
 <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
 <HTML><HEAD>
 <META http-equiv=3DContent-Type content=3D"text/html; charset=3Dus-ascii">
-<META content=3D"MSHTML 6.00.3790.2663" name=3DGENERATOR>
+<META content=3D"MSHTML 6.00.2900.2869" name=3DGENERATOR>
 <STYLE></STYLE>
 </HEAD>
 <BODY>
@@ -47,25 +47,31 @@ Content-Transfer-Encoding: quoted-printable
 -8859-1">
 </head><body>
 <p>Meinung von unserem Kunden:<br>
-  <strong>Als wir Liebe gemacht haben, f&#252;hlte ich mich wieder wie ein =
-Neunzehnj&#228;hriger. "Er" war so hart, ich h&#228;tte N&#228;gel damit ei=
-nklopfen k&#246;nnen. Meiner Frau sagt, ich h&#228;tte sie noch nie so lang=
- und so hart geliebt. Sie ist ganz versessen auf mich. Und ich brauche wohl=
- bald einen Nachf&#252;llpack.</strong></p>
-<p><strong>Ich glaube, ich habe bis jetzt Gl&#252;ck gehabt (Ich klopfe auf=
- Holz.), denn ich hatte bis jetzt noch nie Nebenwirkungen durch Viaaaagra -=
- au&#223;er einer brettharten Latte, und das f&#252;r Stunden.<br>
+  <strong>Meine Frau und ich haben Viaaaagra am letzten Wochenende ausprobi=
+ert. Sie fand, mein bestes St&#252;ck w&#228;re in letzter Zeit nicht ganz =
+auf der H&#246;he gewesen. Also dachten wir, wir probieren es einfach einma=
+l.Es gibt nur ein Wort, dass das Gef&#252;hl beschreibt: Wahnsinn. Seit ich=
+ zwanzig war, konnte ich nicht mehr so lang und so oft. Was soll ich sagen?=
+ Gute Arbeit, Viaaaagra!</strong></p>
+<p><strong>Ich habe eine Aff&#228;re mit einer Bekannten, sie h&#228;lt mic=
+h f&#252;r einen Sex-Gott. Ich habe Viaaaagra ungef&#228;hr zehn Minuten, b=
+evor wir uns im Hotel getroffen haben, genommen. Ich habe davon nicht nur e=
+inen strammen Riemen bekommen, sondern auch die Selbstsicherheit, die die F=
+rauen lieben. Ich habe es ihr drei- oder viermal besorgt, und sie ist absol=
+ut hingerissen. Ich komme ziemlich schnell, danach wird ihr Organsmus jedes=
+mal unkontrollierbar. Viaaaagra hat mich bei ihr zur Legende gemacht!! Ich =
+kann es kaum abwarten, wieder eine zu schlucken<br>
   </strong><strong><br>
-  Sie leben nur einmal - warum dann nicht was neues ausprobieren?</strong>
+  Haben Sie endlich wieder Spass am Leben!</strong>
 </p>
 <p>Preise die keine Konkurrenz kennen <p>
-- Kostenlose, arztliche Telefon-Beratung<br>- Visa verifizierter Onlineshop=
-<br>- Kein peinlicher Arztbesuch erforderlicht<br>- Kein langes Warten - Au=
-slieferung innerhalb von 2-3 Tagen<br>- Diskrete Verpackung und Zahlung<br>=
-- Bequem und diskret online bestellen.<br>- keine versteckte Kosten</p>  
-<p><br><strong><a href=3D"http://vdmoalq.lettwenty.hk/?805122073325" target=
-=3D"_blank">Klicken Sie HIER und Sie erhalten vier Dosen umsonst</a></stron=
-g></body>
+- Kein langes Warten - Auslieferung innerhalb von 2-3 Tagen<br>- Bequem und=
+ diskret online bestellen.<br>- Visa verifizierter Onlineshop<br>- Kein pei=
+nlicher Arztbesuch erforderlicht<br>- Kostenlose, arztliche Telefon-Beratun=
+g<br>- Diskrete Verpackung und Zahlung<br>- keine versteckte Kosten</p>  
+<p><br><strong><a href=3D"http://obvac.sistersilent.hk/?998868072425" targe=
+t=3D"_blank">Jetzt bestellen - und vier Pillen umsonst erhalten</a></strong=
+></body>
 </BODY></HTML>
 
-------=_NextPart_000_0007_01C7BEFE.F3F8FBE0--
+------=_NextPart_000_0007_01C7BEEE.1915A010--
