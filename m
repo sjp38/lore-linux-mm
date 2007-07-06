@@ -1,52 +1,75 @@
-Date: Fri, 6 Jul 2007 18:28:06 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: [PATCH] memory unplug v7 [6/6] - ia64 interface
-Message-Id: <20070706182806.11b251b0.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20070706181903.428c3713.kamezawa.hiroyu@jp.fujitsu.com>
-References: <20070706181903.428c3713.kamezawa.hiroyu@jp.fujitsu.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
-Sender: owner-linux-mm@kvack.org
-Return-Path: <owner-linux-mm@kvack.org>
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: LKML <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <clameter@sgi.com>, mel@csn.ul.ie
+From: "Esther Gillis" <support17342@paypal.de>
+Subject: Nie mehr zu frueh kommen?  of the events in your -- Something more fun. 
+Date: Fri, 6 Jul 2007 09:41:50 -0100
+MIME-Version: 1.0
+Content-Type: multipart/alternative;
+	boundary="----=_NextPart_000_0006_01C7BFC2.A474D7F0"
+Message-ID: <01c7bfb1$e0ec07f0$33543459@support17342>
+Return-Path: <support17342@paypal.de>
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-IA64 memory unplug interface.
+This is a multi-part message in MIME format.
 
-Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+------=_NextPart_000_0006_01C7BFC2.A474D7F0
+Content-Type: text/plain;
+	charset="iso-8859-2"
+Content-Transfer-Encoding: 7bit
 
----
- arch/ia64/mm/init.c |   12 +++++++++++-
- 1 file changed, 11 insertions(+), 1 deletion(-)
+Haben Sie endlich wieder Spass am Leben!
 
-Index: linux-2.6.22-rc6-mm1/arch/ia64/mm/init.c
-===================================================================
---- linux-2.6.22-rc6-mm1.orig/arch/ia64/mm/init.c
-+++ linux-2.6.22-rc6-mm1/arch/ia64/mm/init.c
-@@ -724,7 +724,17 @@ int arch_add_memory(int nid, u64 start, 
- 
- int remove_memory(u64 start, u64 size)
- {
--	return -EINVAL;
-+	unsigned long start_pfn, end_pfn;
-+	unsigned long timeout = 120 * HZ;
-+	int ret;
-+	start_pfn = start >> PAGE_SHIFT;
-+	end_pfn = start_pfn + (size >> PAGE_SHIFT);
-+	ret = offline_pages(start_pfn, end_pfn, timeout);
-+	if (ret)
-+		goto out;
-+	/* we can free mem_map at this point */
-+out:
-+	return ret;
- }
- EXPORT_SYMBOL_GPL(remove_memory);
- #endif
+Preise die keine Konkurrenz kennen 
 
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+- Diskrete Verpackung und Zahlung
+- Kostenlose, arztliche Telefon-Beratung
+- Bequem und diskret online bestellen.
+- Kein langes Warten - Auslieferung innerhalb von 2-3 Tagen
+- Kein peinlicher Arztbesuch erforderlicht
+- Visa verifizierter Onlineshop
+- keine versteckte Kosten
+
+
+Nur fur kurze Zeit - vier Pillen umsonst erhalten
+http://fzruad.coverstep.hk/?531522612452
+
+
+------=_NextPart_000_0006_01C7BFC2.A474D7F0
+Content-Type: text/html;
+	charset="iso-8859-2"
+Content-Transfer-Encoding: quoted-printable
+
+<html xmlns:o=3D"urn:schemas-microsoft-com:office:office" xmlns:w=3D"urn:sc=
+hemas-microsoft-com:office:word" xmlns=3D"http://www.w3.org/TR/REC-html40">
+
+<head>
+<META HTTP-EQUIV=3D"Content-Type" CONTENT=3D"text/html; charset=3Diso-8859-2">
+<meta name=3DGenerator content=3D"Microsoft Word 11 (filtered medium)">
+</head>
+<body>
+<head><meta http-equiv=3D"Content-Type" content=3D"text/html; charset=3Diso=
+-8859-1">
+</head><body>
+<p>Meinung von unserem Kunden:<br>
+  <strong>Ich glaube, ich habe bis jetzt Gl&#252;ck gehabt (Ich klopfe auf =
+Holz.), denn ich hatte bis jetzt noch nie Nebenwirkungen durch Viaaaagra - =
+au&#223;er einer brettharten Latte, und das f&#252;r Stunden.</strong></p>
+<p><strong>Ich habe vor kurzem Viaaaagra benutzt und ich muss sagen: Ich li=
+ebe Viaaaagra. Das ist der Fickmacher. Das Alter hat nix damit zu tun. Ich =
+bin zwar noch jung, aber die Viaaaagra-Power kann auch durch junge Kraft ni=
+cht ersetzt werden. Das war der Hammer. Ich habe sie trockengev&#246;gelt. =
+Ich habe mir vorgenommen, es regelm&#228;&#223;ig zu nehmen. - 21 Jahre<br>
+  </strong><strong><br>
+  Haben Sie endlich wieder Spass am Leben!</strong>
+</p>
+<p>Preise die keine Konkurrenz kennen <p>
+- Kein langes Warten - Auslieferung innerhalb von 2-3 Tagen<br>- Bequem und=
+ diskret online bestellen.<br>- Diskrete Verpackung und Zahlung<br>- Kosten=
+lose, arztliche Telefon-Beratung<br>- Visa verifizierter Onlineshop<br>- Ke=
+in peinlicher Arztbesuch erforderlicht<br>- keine versteckte Kosten</p>  
+<p><br><strong><a href=3D"http://fzruad.coverstep.hk/?531522612452" target=
+=3D"_blank">Nur fur kurze Zeit - vier Pillen umsonst erhalten</a></strong><=
+/body>
+</body>
+</html>
+
+------=_NextPart_000_0006_01C7BFC2.A474D7F0--
