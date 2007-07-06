@@ -1,61 +1,54 @@
-Date: Fri, 6 Jul 2007 17:57:49 +0200
-From: =?utf-8?B?SsO2cm4=?= Engel <joern@logfs.org>
-Subject: Re: vm/fs meetup details
-Message-ID: <20070706155748.GC846@lazybastard.org>
-References: <20070705040138.GG32240@wotan.suse.de> <468D303E.4040902@redhat.com> <137D15F6-EABE-4EC1-A3AF-DAB0A22CF4E3@oracle.com> <20070705212757.GB12413810@sgi.com> <468D6569.6050606@redhat.com> <20070706022651.GG14215@wotan.suse.de> <20070706100110.GD12413810@sgi.com> <20070706102623.GA846@lazybastard.org> <20070706134201.GL31489@sgi.com> <20070706095214.1ac9da94@think.oraclecorp.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <20070706095214.1ac9da94@think.oraclecorp.com>
+Received: from sd0109e.au.ibm.com (d23rh905.au.ibm.com [202.81.18.225])
+	by ausmtp04.au.ibm.com (8.13.8/8.13.8) with ESMTP id l667S8l1244148
+	for <linux-mm@kvack.org>; Fri, 6 Jul 2007 17:28:10 +1000
+Received: from d23av02.au.ibm.com (d23av02.au.ibm.com [9.190.250.243])
+	by sd0109e.au.ibm.com (8.13.8/8.13.8/NCO v8.3) with ESMTP id l6679177172510
+	for <linux-mm@kvack.org>; Fri, 6 Jul 2007 17:09:06 +1000
+Received: from d23av02.au.ibm.com (loopback [127.0.0.1])
+	by d23av02.au.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l6675Qio031924
+	for <linux-mm@kvack.org>; Fri, 6 Jul 2007 17:05:26 +1000
+Message-ID: <468DE9A8.8000107@linux.vnet.ibm.com>
+Date: Fri, 06 Jul 2007 00:05:12 -0700
+From: Balbir Singh <balbir@linux.vnet.ibm.com>
+Reply-To: balbir@linux.vnet.ibm.com
+MIME-Version: 1.0
+Subject: Re: [-mm PATCH 6/8] Memory controller add per container LRU and reclaim
+ (v2)
+References: <20070706052029.11677.16964.sendpatchset@balbir-laptop> <20070706052212.11677.26502.sendpatchset@balbir-laptop>
+In-Reply-To: <20070706052212.11677.26502.sendpatchset@balbir-laptop>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Chris Mason <chris.mason@oracle.com>
-Cc: David Chinner <dgc@sgi.com>, =?utf-8?B?SsODwrZybg==?= Engel <joern@logfs.org>, Nick Piggin <npiggin@suse.de>, Rik van Riel <riel@redhat.com>, Zach Brown <zach.brown@oracle.com>, Anton Altaparmakov <aia21@cam.ac.uk>, Suparna Bhattacharya <suparna@in.ibm.com>, Christoph Hellwig <hch@infradead.org>, Hugh Dickins <hugh@veritas.com>, Jared Hulbert <jaredeh@gmail.com>, "Martin J. Bligh" <mbligh@mbligh.org>, Trond Myklebust <trond.myklebust@fys.uio.no>, Neil Brown <neilb@suse.de>, Miklos Szeredi <miklos@szeredi.hu>, Mingming Cao <cmm@us.ibm.com>, Linux Memory Management List <linux-mm@kvack.org>, linux-fsdevel@vger.kernel.org, Evgeniy Polyakov <johnpol@2ka.mipt.ru>, Steven Whitehouse <steve@chygwyn.com>, Dave McCracken <dave.mccracken@oracle.com>, Peter Zijlstra <peterz@infradead.org>
+To: Balbir Singh <balbir@linux.vnet.ibm.com>
+Cc: Vaidyanathan Srinivasan <svaidy@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, Pavel Emelianov <xemul@openvz.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux MM Mailing List <linux-mm@kvack.org>, Eric W Biederman <ebiederm@xmission.com>, Linux Containers <containers@lists.osdl.org>, Paul Menage <menage@google.com>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 6 July 2007 09:52:14 -0400, Chris Mason wrote:
-> On Fri, 6 Jul 2007 23:42:01 +1000 David Chinner <dgc@sgi.com> wrote:
-> 
-> > Hmmm - I guess you could use it for writeback ordering. I hadn't
-> > really thought about that. Doesn't seem a particularly efficient way
-> > of doing it, though. Why not just use multiple address spaces for
-> > this? i.e. one per level and flush in ascending order.
+Balbir Singh wrote:
+> +unsigned long mem_container_isolate_pages(unsigned long nr_to_scan,
+> +					struct list_head *dst,
+> +					unsigned long *scanned, int order,
+> +					int mode, struct zone *z,
+> +					struct mem_container *mem_cont,
+> +					int active)
 
-Interesting idea.  Is it possible to attach several address spaces to an
-inode?  That would cure some headaches.
+[snip]
 
-> At least in the case of btrfs, the perfect order for sync is disk
-> order ;)  COW happens when blocks are changed for the first time in a
-> transaction, not when they are written out to disk.  If logfs is
-> writing things out some form of tree order, you're going to have to
-> group disk allocations such that tree order reflects disk order somehow.
+> +{
+> +		/*
+> +		 * Check if the meta page went away from under us
+> +		 */
+> +		if (!list_empty(&mp->list)
 
-I don't understand half of what you're writing.  Maybe we should do
-another design session on irc?
+There is a small typo here, we need an extra brace at the end
+(I should have done a refpatch :( )
 
-At any rate, logfs simply writes out blocks.  When it is handed a page
-to write, the corresponding block is written.  Allocation happens at
-writeout time, not earlier.  Each written block causes a higher-level
-block to get changed, so that is written immediatly as well, until the
-next higher level is the inode.
-
-I would like to instead just dirty the higher-level block, so that
-multiple changes can accumulate before indirect blocks are written.  And
-I have no idea how transactions relate to all this.
-
-> But, the part where we toss leaves first is definitely useful.
-
-Shouldn't LRU ordering already do that.  I can even imagine cases when
-leaves should be tossed last and LRU ordering would dtrt.
-
-JA?rn
 
 -- 
-The competent programmer is fully aware of the strictly limited size of
-his own skull; therefore he approaches the programming task in full
-humility, and among other things he avoids clever tricks like the plague.
--- Edsger W. Dijkstra
+	Warm Regards,
+	Balbir Singh
+	Linux Technology Center
+	IBM, ISTL
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
