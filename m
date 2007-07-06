@@ -1,7 +1,7 @@
-Date: Fri, 6 Jul 2007 18:26:11 +0900
+Date: Fri, 6 Jul 2007 18:27:12 +0900
 From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: [PATCH] memory unplug v7 [4/6] - page isolation
-Message-Id: <20070706182611.b16b6720.kamezawa.hiroyu@jp.fujitsu.com>
+Subject: [PATCH] memory unplug v7 [5/6] - page offline
+Message-Id: <20070706182712.b00a5dba.kamezawa.hiroyu@jp.fujitsu.com>
 In-Reply-To: <20070706181903.428c3713.kamezawa.hiroyu@jp.fujitsu.com>
 References: <20070706181903.428c3713.kamezawa.hiroyu@jp.fujitsu.com>
 Mime-Version: 1.0
@@ -13,326 +13,403 @@ To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 Cc: LKML <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <clameter@sgi.com>, mel@csn.ul.ie
 List-ID: <linux-mm.kvack.org>
 
-Implement generic chunk-of-pages isolation method by using page grouping ops.
+Changes V5 ->V6
+ - style fixes.
+ 
 
-This patch add MIGRATE_ISOLATE to MIGRATE_TYPES. By this
- - MIGRATE_TYPES increases.
- - bitmap for migratetype is enlarged.
+Logic.
+ - set all pages in  [start,end)  as isolated migration-type.
+   by this, all free pages in the range will be not-for-use.
+ - Migrate all LRU pages in the range.
+ - Test all pages in the range's refcnt is zero or not.
 
-pages of MIGRATE_ISOLATE migratetype will not be allocated even if it is free.
-By this, you can isolated *freed* pages from users. How-to-free pages is not
-a purpose of this patch. You may use reclaim and migrate codes to free pages.
+Todo:
+ - allocate migration destination page from better area.
+ - confirm page_count(page)== 0 && PageReserved(page) page is safe to be freed..
+ (I don't like this kind of page but..
+ - Find out pages which cannot be migrated.
+ - more running tests.
+ - Use reclaim for unplugging other memory type area.
 
-If start_isolate_page_range(start,end) is called,
- - migratetype of the range turns to be MIGRATE_ISOLATE  if 
-   its type is MIGRATE_MOVABLE. (*) this check can be updated if other
-   memory reclaiming works make progress.
- - MIGRATE_ISOLATE is not on migratetype fallback list.
- - All free pages and will-be-freed pages are isolated.
-To check all pages in the range are isolated or not,  use test_pages_isolated(),
-To cancel isolation, use undo_isolate_page_range().
-
-Changes V6 -> V7
- - removed unnecessary #ifdef
-
-There are HOLES_IN_ZONE handling codes...I'm glad if we can remove them..
-
-Signed-off-by: Yasunori Goto <y-goto@jp.fujitsu.com>
 Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Signed-off-by: Yasunori Goto <y-goto@jp.fujitsu.com>
 
 ---
- include/linux/mmzone.h          |    3 
- include/linux/page-isolation.h  |   37 ++++++++++
- include/linux/pageblock-flags.h |    2 
- mm/Makefile                     |    2 
- mm/page_alloc.c                 |   44 ++++++++++++
- mm/page_isolation.c             |  138 ++++++++++++++++++++++++++++++++++++++++
- 6 files changed, 223 insertions(+), 3 deletions(-)
+ include/linux/kernel.h         |    1 
+ include/linux/memory_hotplug.h |    5 
+ mm/Kconfig                     |    5 
+ mm/memory_hotplug.c            |  254 +++++++++++++++++++++++++++++++++++++++++
+ mm/page_alloc.c                |   47 +++++++
+ 5 files changed, 311 insertions(+), 1 deletion(-)
 
-Index: linux-2.6.22-rc6-mm1/include/linux/mmzone.h
+Index: linux-2.6.22-rc6-mm1/mm/Kconfig
 ===================================================================
---- linux-2.6.22-rc6-mm1.orig/include/linux/mmzone.h
-+++ linux-2.6.22-rc6-mm1/include/linux/mmzone.h
-@@ -39,7 +39,8 @@ extern int page_group_by_mobility_disabl
- #define MIGRATE_RECLAIMABLE   1
- #define MIGRATE_MOVABLE       2
- #define MIGRATE_RESERVE       3
--#define MIGRATE_TYPES         4
-+#define MIGRATE_ISOLATE       4 /* can't allocate from here */
-+#define MIGRATE_TYPES         5
+--- linux-2.6.22-rc6-mm1.orig/mm/Kconfig
++++ linux-2.6.22-rc6-mm1/mm/Kconfig
+@@ -126,6 +126,11 @@ config MEMORY_HOTPLUG_SPARSE
+ 	def_bool y
+ 	depends on SPARSEMEM && MEMORY_HOTPLUG
  
- #define for_each_migratetype_order(order, type) \
- 	for (order = 0; order < MAX_ORDER; order++) \
-Index: linux-2.6.22-rc6-mm1/include/linux/pageblock-flags.h
++config MEMORY_HOTREMOVE
++	bool "Allow for memory hot remove"
++	depends on MEMORY_HOTPLUG
++	depends on MIGRATION
++
+ # Heavily threaded applications may benefit from splitting the mm-wide
+ # page_table_lock, so that faults on different parts of the user address
+ # space can be handled with less contention: split it at this NR_CPUS.
+Index: linux-2.6.22-rc6-mm1/mm/memory_hotplug.c
 ===================================================================
---- linux-2.6.22-rc6-mm1.orig/include/linux/pageblock-flags.h
-+++ linux-2.6.22-rc6-mm1/include/linux/pageblock-flags.h
-@@ -31,7 +31,7 @@
+--- linux-2.6.22-rc6-mm1.orig/mm/memory_hotplug.c
++++ linux-2.6.22-rc6-mm1/mm/memory_hotplug.c
+@@ -23,6 +23,9 @@
+ #include <linux/vmalloc.h>
+ #include <linux/ioport.h>
+ #include <linux/cpuset.h>
++#include <linux/delay.h>
++#include <linux/migrate.h>
++#include <linux/page-isolation.h>
  
- /* Bit indices that affect a whole block of pages */
- enum pageblock_bits {
--	PB_range(PB_migrate, 2), /* 2 bits required for migrate types */
-+	PB_range(PB_migrate, 3), /* 3 bits required for migrate types */
- 	NR_PAGEBLOCK_BITS
- };
+ #include <asm/tlbflush.h>
  
+@@ -301,3 +304,254 @@ error:
+ 	return ret;
+ }
+ EXPORT_SYMBOL_GPL(add_memory);
++
++#ifdef CONFIG_MEMORY_HOTREMOVE
++/*
++ * Confirm all pages in a range [start, end) is belongs to the same zone.
++ */
++static int test_pages_in_a_zone(unsigned long start_pfn, unsigned long end_pfn)
++{
++	unsigned long pfn;
++	struct zone *zone = NULL;
++	struct page *page;
++	int i;
++	for (pfn = start_pfn;
++	     pfn < end_pfn;
++	     pfn += MAX_ORDER_NR_PAGES) {
++		i = 0;
++		/* This is just a CONFIG_HOLES_IN_ZONE check.*/
++		while ((i < MAX_ORDER_NR_PAGES) && !pfn_valid_within(pfn + i))
++			i++;
++		if (i == MAX_ORDER_NR_PAGES)
++			continue;
++		page = pfn_to_page(pfn + i);
++		if (zone && page_zone(page) != zone)
++			return 0;
++		zone = page_zone(page);
++	}
++	return 1;
++}
++
++/*
++ * Scanning pfn is much easier than scanning lru list.
++ * Scan pfn from start to end and Find LRU page.
++ */
++int scan_lru_pages(unsigned long start, unsigned long end)
++{
++	unsigned long pfn;
++	struct page *page;
++	for (pfn = start; pfn < end; pfn++) {
++		if (pfn_valid(pfn)) {
++			page = pfn_to_page(pfn);
++			if (PageLRU(page))
++				return pfn;
++		}
++	}
++	return 0;
++}
++
++static struct page *
++hotremove_migrate_alloc(struct page *page,
++			unsigned long private,
++			int **x)
++{
++	/* This should be improoooooved!! */
++	return alloc_page(GFP_HIGHUSER_PAGECACHE);
++}
++
++
++#define NR_OFFLINE_AT_ONCE_PAGES	(256)
++static int
++do_migrate_range(unsigned long start_pfn, unsigned long end_pfn)
++{
++	unsigned long pfn;
++	struct page *page;
++	int move_pages = NR_OFFLINE_AT_ONCE_PAGES;
++	int not_managed = 0;
++	int ret = 0;
++	LIST_HEAD(source);
++
++	for (pfn = start_pfn; pfn < end_pfn && move_pages > 0; pfn++) {
++		if (!pfn_valid(pfn))
++			continue;
++		page = pfn_to_page(pfn);
++		if (!page_count(page))
++			continue;
++		/*
++		 * We can skip free pages. And we can only deal with pages on
++		 * LRU.
++		 */
++		ret = isolate_lru_page(page, &source);
++		if (!ret) { /* Success */
++			move_pages--;
++		} else {
++			/* Becasue we don't have big zone->lock. we should
++			   check this again here. */
++			if (page_count(page))
++				not_managed++;
++#ifdef CONFIG_DEBUG_VM
++			printk(KERN_INFO "removing from LRU failed"
++					 " %lx/%d/%lx\n",
++				pfn, page_count(page), page->flags);
++#endif
++		}
++	}
++	ret = -EBUSY;
++	if (not_managed) {
++		if (!list_empty(&source))
++			putback_lru_pages(&source);
++		goto out;
++	}
++	ret = 0;
++	if (list_empty(&source))
++		goto out;
++	/* this function returns # of failed pages */
++	ret = migrate_pages(&source, hotremove_migrate_alloc, 0);
++
++out:
++	return ret;
++}
++
++/*
++ * remove from free_area[] and mark all as Reserved.
++ */
++static int
++offline_isolated_pages_cb(unsigned long start, unsigned long nr_pages,
++			void *data)
++{
++	__offline_isolated_pages(start, start + nr_pages);
++	return 0;
++}
++
++static void
++offline_isolated_pages(unsigned long start_pfn, unsigned long end_pfn)
++{
++	walk_memory_resource(start_pfn, end_pfn - start_pfn, NULL,
++				offline_isolated_pages_cb);
++}
++
++/*
++ * Check all pages in range, recoreded as memory resource, are isolated.
++ */
++static int
++check_pages_isolated_cb(unsigned long start_pfn, unsigned long nr_pages,
++			void *data)
++{
++	int ret;
++	long offlined = *(long *)data;
++	ret = test_pages_isolated(start_pfn, start_pfn + nr_pages);
++	offlined = nr_pages;
++	if (!ret)
++		*(long *)data += offlined;
++	return ret;
++}
++
++static long
++check_pages_isolated(unsigned long start_pfn, unsigned long end_pfn)
++{
++	long offlined = 0;
++	int ret;
++
++	ret = walk_memory_resource(start_pfn, end_pfn - start_pfn, &offlined,
++			check_pages_isolated_cb);
++	if (ret < 0)
++		offlined = (long)ret;
++	return offlined;
++}
++
++extern void drain_all_local_pages(void);
++
++int offline_pages(unsigned long start_pfn,
++		  unsigned long end_pfn, unsigned long timeout)
++{
++	unsigned long pfn, nr_pages, expire;
++	long offlined_pages;
++	int ret, drain, retry_max;
++	struct zone *zone;
++
++	BUG_ON(start_pfn >= end_pfn);
++	/* at least, alignment against pageblock is necessary */
++	if (!IS_ALIGNED(start_pfn, pageblock_nr_pages))
++		return -EINVAL;
++	if (!IS_ALIGNED(end_pfn, pageblock_nr_pages))
++		return -EINVAL;
++	/* This makes hotplug much easier...and readable.
++	   we assume this for now. .*/
++	if (!test_pages_in_a_zone(start_pfn, end_pfn))
++		return -EINVAL;
++	/* set above range as isolated */
++	ret = start_isolate_page_range(start_pfn, end_pfn);
++	if (ret)
++		return ret;
++	nr_pages = end_pfn - start_pfn;
++	pfn = start_pfn;
++	expire = jiffies + timeout;
++	drain = 0;
++	retry_max = 5;
++repeat:
++	/* start memory hot removal */
++	ret = -EAGAIN;
++	if (time_after(jiffies, expire))
++		goto failed_removal;
++	ret = -EINTR;
++	if (signal_pending(current))
++		goto failed_removal;
++	ret = 0;
++	if (drain) {
++		lru_add_drain_all();
++		flush_scheduled_work();
++		cond_resched();
++		drain_all_local_pages();
++	}
++
++	pfn = scan_lru_pages(start_pfn, end_pfn);
++	if (pfn) { /* We have page on LRU */
++		ret = do_migrate_range(pfn, end_pfn);
++		if (!ret) {
++			drain = 1;
++			goto repeat;
++		} else {
++			if (ret < 0)
++				if (--retry_max == 0)
++					goto failed_removal;
++			yield();
++			drain = 1;
++			goto repeat;
++		}
++	}
++	/* drain all zone's lru pagevec, this is asyncronous... */
++	lru_add_drain_all();
++	flush_scheduled_work();
++	yield();
++	/* drain pcp pages , this is synchrouns. */
++	drain_all_local_pages();
++	/* check again */
++	offlined_pages = check_pages_isolated(start_pfn, end_pfn);
++	if (offlined_pages < 0) {
++		ret = -EBUSY;
++		goto failed_removal;
++	}
++	printk(KERN_INFO "Offlined Pages %ld\n", offlined_pages);
++	/* Ok, all of our target is islaoted.
++	   We cannot do rollback at this point. */
++	offline_isolated_pages(start_pfn, end_pfn);
++	/* reset pagetype flags */
++	start_isolate_page_range(start_pfn, end_pfn);
++	/* removal success */
++	zone = page_zone(pfn_to_page(start_pfn));
++	zone->present_pages -= offlined_pages;
++	zone->zone_pgdat->node_present_pages -= offlined_pages;
++	totalram_pages -= offlined_pages;
++	num_physpages -= offlined_pages;
++	vm_total_pages = nr_free_pagecache_pages();
++	writeback_set_ratelimit();
++	return 0;
++
++failed_removal:
++	printk(KERN_INFO "memory offlining %lx to %lx failed\n",
++		start_pfn, end_pfn);
++	/* pushback to free area */
++	undo_isolate_page_range(start_pfn, end_pfn);
++	return ret;
++}
++#endif /* CONFIG_MEMORY_HOTREMOVE */
+Index: linux-2.6.22-rc6-mm1/include/linux/memory_hotplug.h
+===================================================================
+--- linux-2.6.22-rc6-mm1.orig/include/linux/memory_hotplug.h
++++ linux-2.6.22-rc6-mm1/include/linux/memory_hotplug.h
+@@ -59,7 +59,10 @@ extern int add_one_highpage(struct page 
+ extern void online_page(struct page *page);
+ /* VM interface that may be used by firmware interface */
+ extern int online_pages(unsigned long, unsigned long);
+-
++#ifdef CONFIG_MEMORY_HOTREMOVE
++extern int offline_pages(unsigned long, unsigned long, unsigned long);
++extern void __offline_isolated_pages(unsigned long, unsigned long);
++#endif
+ /* reasonably generic interface to expand the physical pages in a zone  */
+ extern int __add_pages(struct zone *zone, unsigned long start_pfn,
+ 	unsigned long nr_pages);
 Index: linux-2.6.22-rc6-mm1/mm/page_alloc.c
 ===================================================================
 --- linux-2.6.22-rc6-mm1.orig/mm/page_alloc.c
 +++ linux-2.6.22-rc6-mm1/mm/page_alloc.c
-@@ -41,6 +41,7 @@
- #include <linux/pfn.h>
- #include <linux/backing-dev.h>
- #include <linux/fault-inject.h>
-+#include <linux/page-isolation.h>
- 
- #include <asm/tlbflush.h>
- #include <asm/div64.h>
-@@ -4412,3 +4413,46 @@ void set_pageblock_flags_group(struct pa
- 		else
- 			__clear_bit(bitidx + start_bitidx, bitmap);
+@@ -4456,3 +4456,50 @@ void unset_migratetype_isolate(struct pa
+ out:
+ 	spin_unlock_irqrestore(&zone->lock, flags);
  }
 +
++#ifdef CONFIG_MEMORY_HOTREMOVE
 +/*
-+ * This is designed as sub function...plz see page_isolation.c also.
-+ * set/clear page block's type to be ISOLATE.
-+ * page allocater never alloc memory from ISOLATE block.
++ * All pages in the range must be isolated before calling this.
 + */
-+
-+int set_migratetype_isolate(struct page *page)
++void
++__offline_isolated_pages(unsigned long start_pfn, unsigned long end_pfn)
 +{
++	struct page *page;
 +	struct zone *zone;
++	int order, i;
++	unsigned long pfn;
 +	unsigned long flags;
-+	int ret = -EBUSY;
-+
-+	zone = page_zone(page);
-+	spin_lock_irqsave(&zone->lock, flags);
-+	/*
-+	 * In future, more migrate types will be able to be isolation target.
-+	 */
-+	if (get_pageblock_migratetype(page) != MIGRATE_MOVABLE)
-+		goto out;
-+	set_pageblock_migratetype(page, MIGRATE_ISOLATE);
-+	move_freepages_block(zone, page, MIGRATE_ISOLATE);
-+	ret = 0;
-+out:
-+	spin_unlock_irqrestore(&zone->lock, flags);
-+	if (!ret)
-+		drain_all_local_pages();
-+	return ret;
-+}
-+
-+void unset_migratetype_isolate(struct page *page)
-+{
-+	struct zone *zone;
-+	unsigned long flags;
-+	zone = page_zone(page);
-+	spin_lock_irqsave(&zone->lock, flags);
-+	if (get_pageblock_migratetype(page) != MIGRATE_ISOLATE)
-+		goto out;
-+	set_pageblock_migratetype(page, MIGRATE_MOVABLE);
-+	move_freepages_block(zone, page, MIGRATE_MOVABLE);
-+out:
-+	spin_unlock_irqrestore(&zone->lock, flags);
-+}
-Index: linux-2.6.22-rc6-mm1/mm/page_isolation.c
-===================================================================
---- /dev/null
-+++ linux-2.6.22-rc6-mm1/mm/page_isolation.c
-@@ -0,0 +1,138 @@
-+/*
-+ * linux/mm/page_isolation.c
-+ */
-+
-+#include <stddef.h>
-+#include <linux/mm.h>
-+#include <linux/page-isolation.h>
-+#include <linux/pageblock-flags.h>
-+#include "internal.h"
-+
-+static inline struct page *
-+__first_valid_page(unsigned long pfn, unsigned long nr_pages)
-+{
-+	int i;
-+	for (i = 0; i < nr_pages; i++)
-+		if (pfn_valid_within(pfn + i))
++	/* find the first valid pfn */
++	for (pfn = start_pfn; pfn < end_pfn; pfn++)
++		if (pfn_valid(pfn))
 +			break;
-+	if (unlikely(i == nr_pages))
-+		return NULL;
-+	return pfn_to_page(pfn + i);
-+}
-+
-+/*
-+ * start_isolate_page_range() -- make page-allocation-type of range of pages
-+ * to be MIGRATE_ISOLATE.
-+ * @start_pfn: The lower PFN of the range to be isolated.
-+ * @end_pfn: The upper PFN of the range to be isolated.
-+ *
-+ * Making page-allocation-type to be MIGRATE_ISOLATE means free pages in
-+ * the range will never be allocated. Any free pages and pages freed in the
-+ * future will not be allocated again.
-+ *
-+ * start_pfn/end_pfn must be aligned to pageblock_order.
-+ * Returns 0 on success and -EBUSY if any part of range cannot be isolated.
-+ */
-+int
-+start_isolate_page_range(unsigned long start_pfn, unsigned long end_pfn)
-+{
-+	unsigned long pfn;
-+	unsigned long undo_pfn;
-+	struct page *page;
-+
-+	BUG_ON((start_pfn) & (pageblock_nr_pages - 1));
-+	BUG_ON((end_pfn) & (pageblock_nr_pages - 1));
-+
-+	for (pfn = start_pfn;
-+	     pfn < end_pfn;
-+	     pfn += pageblock_nr_pages) {
-+		page = __first_valid_page(pfn, pageblock_nr_pages);
-+		if (page && set_migratetype_isolate(page)) {
-+			undo_pfn = pfn;
-+			goto undo;
-+		}
-+	}
-+	return 0;
-+undo:
-+	for (pfn = start_pfn;
-+	     pfn <= undo_pfn;
-+	     pfn += pageblock_nr_pages)
-+		unset_migratetype_isolate(pfn_to_page(pfn));
-+
-+	return -EBUSY;
-+}
-+
-+/*
-+ * Make isolated pages available again.
-+ */
-+int
-+undo_isolate_page_range(unsigned long start_pfn, unsigned long end_pfn)
-+{
-+	unsigned long pfn;
-+	struct page *page;
-+	BUG_ON((start_pfn) & (pageblock_nr_pages - 1));
-+	BUG_ON((end_pfn) & (pageblock_nr_pages - 1));
-+	for (pfn = start_pfn;
-+	     pfn < end_pfn;
-+	     pfn += pageblock_nr_pages) {
-+		page = __first_valid_page(pfn, pageblock_nr_pages);
-+		if (!page || get_pageblock_flags(page) != MIGRATE_ISOLATE)
-+			continue;
-+		unset_migratetype_isolate(page);
-+	}
-+	return 0;
-+}
-+/*
-+ * Test all pages in the range is free(means isolated) or not.
-+ * all pages in [start_pfn...end_pfn) must be in the same zone.
-+ * zone->lock must be held before call this.
-+ *
-+ * Returns 0 if all pages in the range is isolated.
-+ */
-+static int
-+__test_page_isolated_in_pageblock(unsigned long pfn, unsigned long end_pfn)
-+{
-+	struct page *page;
-+
++	if (pfn == end_pfn)
++		return;
++	zone = page_zone(pfn_to_page(pfn));
++	spin_lock_irqsave(&zone->lock, flags);
++	pfn = start_pfn;
 +	while (pfn < end_pfn) {
-+		if (!pfn_valid_within(pfn)) {
++		if (!pfn_valid(pfn)) {
 +			pfn++;
 +			continue;
 +		}
 +		page = pfn_to_page(pfn);
-+		if (PageBuddy(page))
-+			pfn += 1 << page_order(page);
-+		else if (page_count(page) == 0 &&
-+				page_private(page) == MIGRATE_ISOLATE)
-+			pfn += 1;
-+		else
-+			break;
-+	}
-+	if (pfn < end_pfn)
-+		return 0;
-+	return 1;
-+}
-+
-+int test_pages_isolated(unsigned long start_pfn, unsigned long end_pfn)
-+{
-+	unsigned long pfn;
-+	struct page *page;
-+
-+	pfn = start_pfn;
-+	/*
-+	 * Note: pageblock_nr_page != MAX_ORDER. Then, chunks of free page
-+	 * is not aligned to pageblock_nr_pages.
-+	 * Then we just check pagetype fist.
-+	 */
-+	for (pfn = start_pfn; pfn < end_pfn; pfn += pageblock_nr_pages) {
-+		page = __first_valid_page(pfn, pageblock_nr_pages);
-+		if (page && get_pageblock_flags(page) != MIGRATE_ISOLATE)
-+			break;
-+	}
-+	if (pfn < end_pfn)
-+		return -EBUSY;
-+	/* Check all pages are free or Marked as ISOLATED */
-+	if (__test_page_isolated_in_pageblock(start_pfn, end_pfn))
-+		return 0;
-+	return -EBUSY;
-+}
-Index: linux-2.6.22-rc6-mm1/include/linux/page-isolation.h
-===================================================================
---- /dev/null
-+++ linux-2.6.22-rc6-mm1/include/linux/page-isolation.h
-@@ -0,0 +1,37 @@
-+#ifndef __LINUX_PAGEISOLATION_H
-+#define __LINUX_PAGEISOLATION_H
-+
-+/*
-+ * Changes migrate type in [start_pfn, end_pfn) to be MIGRATE_ISOLATE.
-+ * If specified range includes migrate types other than MOVABLE,
-+ * this will fail with -EBUSY.
-+ *
-+ * For isolating all pages in the range finally, the caller have to
-+ * free all pages in the range. test_page_isolated() can be used for
-+ * test it.
-+ */
-+extern int
-+start_isolate_page_range(unsigned long start_pfn, unsigned long end_pfn);
-+
-+/*
-+ * Changes MIGRATE_ISOLATE to MIGRATE_MOVABLE.
-+ * target range is [start_pfn, end_pfn)
-+ */
-+extern int
-+undo_isolate_page_range(unsigned long start_pfn, unsigned long end_pfn);
-+
-+/*
-+ * test all pages in [start_pfn, end_pfn)are isolated or not.
-+ */
-+extern int
-+test_pages_isolated(unsigned long start_pfn, unsigned long end_pfn);
-+
-+/*
-+ * Internal funcs.Changes pageblock's migrate type.
-+ * Please use make_pagetype_isolated()/make_pagetype_movable().
-+ */
-+extern int set_migratetype_isolate(struct page *page);
-+extern void unset_migratetype_isolate(struct page *page);
-+
-+
++		BUG_ON(page_count(page));
++		BUG_ON(!PageBuddy(page));
++		order = page_order(page);
++#ifdef CONFIG_DEBUG_VM
++		printk(KERN_INFO "remove from free list %lx %d %lx\n",
++		       pfn, 1 << order, end_pfn);
 +#endif
-Index: linux-2.6.22-rc6-mm1/mm/Makefile
++		list_del(&page->lru);
++		rmv_page_order(page);
++		zone->free_area[order].nr_free--;
++		__mod_zone_page_state(zone, NR_FREE_PAGES,
++				      - (1UL << order));
++		for (i = 0; i < (1 << order); i++)
++			SetPageReserved((page+i));
++		pfn += (1 << order);
++	}
++	spin_unlock_irqrestore(&zone->lock, flags);
++}
++#endif
+Index: linux-2.6.22-rc6-mm1/include/linux/kernel.h
 ===================================================================
---- linux-2.6.22-rc6-mm1.orig/mm/Makefile
-+++ linux-2.6.22-rc6-mm1/mm/Makefile
-@@ -11,7 +11,7 @@ obj-y			:= bootmem.o filemap.o mempool.o
- 			   page_alloc.o page-writeback.o pdflush.o \
- 			   readahead.o swap.o truncate.o vmscan.o \
- 			   prio_tree.o util.o mmzone.o vmstat.o backing-dev.o \
--			   $(mmu-y)
-+			   page_isolation.o $(mmu-y)
+--- linux-2.6.22-rc6-mm1.orig/include/linux/kernel.h
++++ linux-2.6.22-rc6-mm1/include/linux/kernel.h
+@@ -34,6 +34,7 @@ extern const char linux_proc_banner[];
  
- obj-$(CONFIG_BOUNCE)	+= bounce.o
- obj-$(CONFIG_SWAP)	+= page_io.o swap_state.o swapfile.o thrash.o
+ #define ALIGN(x,a)		__ALIGN_MASK(x,(typeof(x))(a)-1)
+ #define __ALIGN_MASK(x,mask)	(((x)+(mask))&~(mask))
++#define IS_ALIGNED(x,a)		(((x) % ((typeof(x))(a))) == 0)
+ 
+ #define ARRAY_SIZE(arr) (sizeof(arr) / sizeof((arr)[0]) + __must_be_array(arr))
+ 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
