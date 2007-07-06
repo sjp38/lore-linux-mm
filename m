@@ -1,77 +1,74 @@
-From: "Sheryl Cho" <support10941@paypal.de>
-Subject: Vier Doosen umsonst  complaint purely  --  In their native 
-Date: Fri, 6 Jul 2007 08:02:47 -0100
-MIME-Version: 1.0
-Content-Type: multipart/alternative;
-	boundary="----=_NextPart_000_0006_01C7BFB4.CDC2C260"
-Message-ID: <01c7bfa4$0a39f260$de4b9554@support10941>
-Return-Path: <support10941@paypal.de>
-To: linux-mm@kvack.org
+Date: Fri, 6 Jul 2007 18:19:03 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: [PATCH] memory unplug v7 - introduction
+Message-Id: <20070706181903.428c3713.kamezawa.hiroyu@jp.fujitsu.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
+Sender: owner-linux-mm@kvack.org
+Return-Path: <owner-linux-mm@kvack.org>
+To: LKML <linux-kernel@vger.kernel.org>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <clameter@sgi.com>, mel@csn.ul.ie
 List-ID: <linux-mm.kvack.org>
 
-This is a multi-part message in MIME format.
+Hi,
 
-------=_NextPart_000_0006_01C7BFB4.CDC2C260
-Content-Type: text/plain;
-	charset="windows-1250"
-Content-Transfer-Encoding: 7bit
+This is a memory unplug base patch set against 2.6.22-rc6-mm1.
+called v7 (I skipped v6 post because of my internal patch handling.)
 
-Verpassen Sie nichts am Lebem - Sie werden fuhlen was unsere Kunden bestatigen!
+Andrew, could you give me your advice toward next step (merge) ?
 
-Preise die keine Konkurrenz kennen 
+Changelog V5->V7
+ - reflected all coments on V5 and following threads.
 
-- Bequem und diskret online bestellen.
-- Visa verifizierter Onlineshop
-- Kein langes Warten - Auslieferung innerhalb von 2-3 Tagen
-- Kein peinlicher Arztbesuch erforderlicht
-- Kostenlose, arztliche Telefon-Beratung
-- keine versteckte Kosten
-- Diskrete Verpackung und Zahlung
+Patch series are following.
 
+(1)migrate_nocontext.patch
+(2)lru_page_race_fix.patch
+(3)walk_mem_resource.patch
+(4)page_isolation_base_v7.patch
+(5)page_removal_base_v7.patch
+(6)ia64_page_hotremove.patch
 
-Nur fur kurze Zeit - vier Pillen umsonst erhalten
-www.fopser.hk
+I think patch (1) (2) (3) has enough quality and can be merged without
+regression.
+patch (1) and (2) is for "page migration by the kernel".
+patch (3) is cleanup of memory hotplug.
 
+patch (4)(5) depens on Mel's page grouping.
+patch (5) will need more work for enhancement for NUMA and stable-removal.
+(In current code, a user may have to retry offlining if pages are *very* busy.)
+But it works well on my test.
 
-------=_NextPart_000_0006_01C7BFB4.CDC2C260
-Content-Type: text/html;
-	charset="windows-1250"
-Content-Transfer-Encoding: quoted-printable
+How to use
+ - user kernelcore=XXX boot option to create ZONE_MOVABLE.
+   Memory unplug itself can work without ZONE_MOVABLE (if you allow retrying..)
+   but it will be better to use kernelcore= if your section size is big.
+  
+ - After bootup, execute following.
+     # echo "offline" > /sys/devices/system/memory/memoryX/state
+ - you can push back offlined memory by following
+     # echo "online" > /sys/devices/system/memory/memoryX/state
 
-<html xmlns:o=3D"urn:schemas-microsoft-com:office:office" xmlns:w=3D"urn:sc=
-hemas-microsoft-com:office:word" xmlns=3D"http://www.w3.org/TR/REC-html40">
+TODO
+ - more tests.
+ - Now, there is no check around ZONE_MOVABLE and bootmem.
+   I hope bootmem can treat kernelcore=....
+   We have some idea about this.
+ - add better logic to allocate memory for migration (for NUMA). 
+   Problems here are that we have no way to rememeber "How page is allocated".
+   cpusets info and policy info is in "task_struct", which cannot be accessed
+   from a page struct..maybe what we can do is (1) add more information to page 
+   or (2) use just a simple way. or (3) some magical technique...
+ - interface code for other archs. plz request if you want.
+ - remove memmap after memory unplug.  (after sparsemem-vmemap inclusion)
+ - node hotplug support
 
-<head>
-<META HTTP-EQUIV=3D"Content-Type" CONTENT=3D"text/html; charset=3Dwindows-1250">
-<meta name=3DGenerator content=3D"Microsoft Word 11 (filtered medium)">
-</head>
-<body>
-<head><meta http-equiv=3D"Content-Type" content=3D"text/html; charset=3Diso=
--8859-1">
-</head><body>
-<p>Meinung von unserem Kunden:<br>
-  <strong>Ich finde Viaaaagra einfach wunderbar. Egal, ob f&#252;r den Sex =
-oder, um mich selbst zu verw&#246;hnen: Es funktioniert. Mein Schwanz wird =
-extrem hart und mein Orgasmus ist sehr intensiv. Die Wirkung ist so stark, =
-dass ich Viaaaagra nur am Wochenende verwende oder wenn ich viel Zeit habe,=
- es richtig zu genie&#223;en.</strong></p>
-<p><strong>Ich habe vor kurzem Viaaaagra benutzt und ich muss sagen: Ich li=
-ebe Viaaaagra. Das ist der Fickmacher. Das Alter hat nix damit zu tun. Ich =
-bin zwar noch jung, aber die Viaaaagra-Power kann auch durch junge Kraft ni=
-cht ersetzt werden. Das war der Hammer. Ich habe sie trockengev&#246;gelt. =
-Ich habe mir vorgenommen, es regelm&#228;&#223;ig zu nehmen. - 21 Jahre<br>
-  </strong><strong><br>
-  Verpassen Sie nichts am Lebem - Sie werden fuhlen was unsere Kunden besta=
-tigen!</strong>
-</p>
-<p>Preise die keine Konkurrenz kennen <p>
-- Bequem und diskret online bestellen.<br>- Visa verifizierter Onlineshop<b=
-r>- Kein langes Warten - Auslieferung innerhalb von 2-3 Tagen<br>- keine ve=
-rsteckte Kosten<br>- Diskrete Verpackung und Zahlung<br>- Kein peinlicher A=
-rztbesuch erforderlicht<br>- Kostenlose, arztliche Telefon-Beratung</p>  
-<p><br><strong><a href=3D"http://www.fopser.hk" target=3D"_blank">Nur fur k=
-urze Zeit - vier Pillen umsonst erhalten</a></strong></body>
-</body>
-</html>
+Thanks,
+-Kame
 
-------=_NextPart_000_0006_01C7BFB4.CDC2C260--
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
