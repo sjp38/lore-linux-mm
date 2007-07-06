@@ -1,23 +1,21 @@
-Date: Fri, 6 Jul 2007 13:40:03 -0700 (PDT)
-From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: vm/fs meetup details
-In-Reply-To: <20070706020042.GD14215@wotan.suse.de>
-Message-ID: <Pine.LNX.4.64.0707061339100.24812@schroedinger.engr.sgi.com>
-References: <20070705040138.GG32240@wotan.suse.de> <468D303E.4040902@redhat.com>
- <20070706020042.GD14215@wotan.suse.de>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Date: Fri, 6 Jul 2007 13:40:43 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: SLUB: Style fix up the loop to disable small slabs
+Message-Id: <20070706134043.e572eb7c.akpm@linux-foundation.org>
+In-Reply-To: <Pine.LNX.4.64.0707061245120.24255@schroedinger.engr.sgi.com>
+References: <Pine.LNX.4.64.0707061245120.24255@schroedinger.engr.sgi.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nick Piggin <npiggin@suse.de>
-Cc: Rik van Riel <riel@redhat.com>, Anton Altaparmakov <aia21@cam.ac.uk>, Suparna Bhattacharya <suparna@in.ibm.com>, Christoph Hellwig <hch@infradead.org>, Zach Brown <zach.brown@oracle.com>, Hugh Dickins <hugh@veritas.com>, Jared Hulbert <jaredeh@gmail.com>, Chris Mason <chris.mason@oracle.com>, David Chinner <dgc@sgi.com>, "Martin J. Bligh" <mbligh@mbligh.org>, Trond Myklebust <trond.myklebust@fys.uio.no>, Neil Brown <neilb@suse.de>, Joern Engel <joern@logfs.org>, Miklos Szeredi <miklos@szeredi.hu>, Mingming Cao <cmm@us.ibm.com>, Linux Memory Management List <linux-mm@kvack.org>, linux-fsdevel@vger.kernel.org
+To: Christoph Lameter <clameter@sgi.com>
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-An interesting topic is certainly
+ugh, six slab patches, no sequence numbers.
 
-1. Large buffer support
-
-2. icache/dentry/buffer_head defragmentation.
+What is the applying order?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
