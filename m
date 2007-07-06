@@ -1,72 +1,79 @@
-Date: Fri, 6 Jul 2007 09:52:14 -0400
-From: Chris Mason <chris.mason@oracle.com>
-Subject: Re: vm/fs meetup details
-Message-ID: <20070706095214.1ac9da94@think.oraclecorp.com>
-In-Reply-To: <20070706134201.GL31489@sgi.com>
-References: <20070705040138.GG32240@wotan.suse.de>
-	<468D303E.4040902@redhat.com>
-	<137D15F6-EABE-4EC1-A3AF-DAB0A22CF4E3@oracle.com>
-	<20070705212757.GB12413810@sgi.com>
-	<468D6569.6050606@redhat.com>
-	<20070706022651.GG14215@wotan.suse.de>
-	<20070706100110.GD12413810@sgi.com>
-	<20070706102623.GA846@lazybastard.org>
-	<20070706134201.GL31489@sgi.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 8BIT
-Sender: owner-linux-mm@kvack.org
-Return-Path: <owner-linux-mm@kvack.org>
-To: David Chinner <dgc@sgi.com>
-Cc: =?UTF-8?B?SsODwrZybg==?= Engel <joern@logfs.org>, Nick Piggin <npiggin@suse.de>, Rik van Riel <riel@redhat.com>, Zach Brown <zach.brown@oracle.com>, Anton Altaparmakov <aia21@cam.ac.uk>, Suparna Bhattacharya <suparna@in.ibm.com>, Christoph Hellwig <hch@infradead.org>, Hugh Dickins <hugh@veritas.com>, Jared Hulbert <jaredeh@gmail.com>, "Martin J. Bligh" <mbligh@mbligh.org>, Trond Myklebust <trond.myklebust@fys.uio.no>, Neil Brown <neilb@suse.de>, Miklos Szeredi <miklos@szeredi.hu>, Mingming Cao <cmm@us.ibm.com>, Linux Memory Management List <linux-mm@kvack.org>, linux-fsdevel@vger.kernel.org, Evgeniy Polyakov <johnpol@2ka.mipt.ru>, Steven Whitehouse <steve@chygwyn.com>, Dave McCracken <dave.mccracken@oracle.com>, Peter Zijlstra <peterz@infradead.org>
+From: "Shari Bland" <heart@emtap.org>
+Subject: Man Lebt nur einmal - probiers aus !  if you are interested in it. --  you don't want to 
+Date: Fri, 6 Jul 2007 14:57:43 +0600
+Message-ID: <01c7bfde$01d6d590$e020f094@heart>
+MIME-Version: 1.0
+Content-Type: multipart/alternative;
+	boundary="----=_NextPart_000_0006_01C7BFB4.1900CD90"
+Return-Path: <heart@emtap.org>
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 6 Jul 2007 23:42:01 +1000
-David Chinner <dgc@sgi.com> wrote:
+This is a multi-part message in MIME format.
 
-> On Fri, Jul 06, 2007 at 12:26:23PM +0200, JA?A?rn Engel wrote:
-> > On Fri, 6 July 2007 20:01:10 +1000, David Chinner wrote:
-> > > On Fri, Jul 06, 2007 at 04:26:51AM +0200, Nick Piggin wrote:
-> > > 
-> > > But, surprisingly enough, the above work is relevent to this
-> > > forum because of two things:
-> > > 
-> > > 	- we've had to move to direct I/O and user space caching
-> > > to work around deficiencies in kernel block device caching under
-> > > memory pressure....
-> > > 
-> > > 	- we've exploited techniques that XFS supports but the VM
-> > > does not. i.e. priority tagging of cached metadata so that less
-> > > important metadata is tossed first (e.g. toss tree leaves before
-> > > nodes and nodes before roots) when under memory pressure.
-> > 
-> > And the latter is exactly what logfs needs as well.  You certainly
-> > have me interested.
-> > 
-> > I believe it applies to btrfs and any other cow-fs as well.  The
-> > point is that higher levels get dirtied by writing lower layers.
-> > So perfect behaviour for sync is to write leaves first, then nodes,
-> > then the root.  Any other order will either cause sync not to sync
-> > or cause unnecessary writes and cost performance.
-> 
-> Hmmm - I guess you could use it for writeback ordering. I hadn't
-> really thought about that. Doesn't seem a particularly efficient way
-> of doing it, though. Why not just use multiple address spaces for
-> this? i.e. one per level and flush in ascending order.
-> 
+------=_NextPart_000_0006_01C7BFB4.1900CD90
+Content-Type: text/plain;
+	charset="Windows-1252"
+Content-Transfer-Encoding: 7bit
 
-At least in the case of btrfs, the perfect order for sync is disk
-order ;)  COW happens when blocks are changed for the first time in a
-transaction, not when they are written out to disk.  If logfs is
-writing things out some form of tree order, you're going to have to
-group disk allocations such that tree order reflects disk order somehow.
+Haben Sie endlich wieder Spass am Leben!
 
-But, the part where we toss leaves first is definitely useful.
+Preise die keine Konkurrenz kennen 
 
--chris
+- Kein peinlicher Arztbesuch erforderlicht
+- Kostenlose, arztliche Telefon-Beratung
+- Bequem und diskret online bestellen.
+- Kein langes Warten - Auslieferung innerhalb von 2-3 Tagen
+- Visa verifizierter Onlineshop
+- Diskrete Verpackung und Zahlung
+- keine versteckte Kosten
 
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+
+Vier Dosen gibt's bei jeder Bestellung umsonst
+http://fopser.hk/
+
+------=_NextPart_000_0006_01C7BFB4.1900CD90
+Content-Type: text/html;
+	charset="Windows-1252"
+Content-Transfer-Encoding: quoted-printable
+
+<html xmlns:v=3D"urn:schemas-microsoft-com:vml" xmlns:o=3D"urn:schemas-micr=
+osoft-com:office:office" xmlns:w=3D"urn:schemas-microsoft-com:office:word" =
+xmlns=3D"http://www.w3.org/TR/REC-html40">
+
+<head>
+<META HTTP-EQUIV=3D"Content-Type" CONTENT=3D"text/html; charset=3DWindows-1252">
+
+
+<meta name=3DProgId content=3DWord.Document>
+<meta name=3DGenerator content=3D"Microsoft Word 10">
+<meta name=3DOriginator content=3D"Microsoft Word 10">
+<link rel=3DFile-List href=3D"cid:filelist.xml@6E4B80C1.7F6E444B">
+<link rel=3DEdit-Time-Data href=3D"cid:editdata.mso@6E4B80C1.7F6E444B">
+</head>
+<body>
+<head><meta http-equiv=3D"Content-Type" content=3D"text/html; charset=3Diso=
+-8859-1">
+</head><body><p>Meinung von unserem Kunden:<br><strong>Ich glaube, ich habe=
+ bis jetzt Gl&#252;ck gehabt (Ich klopfe auf Holz.), denn ich hatte bis jet=
+zt noch nie Nebenwirkungen durch Viaaaagra - au&#223;er einer brettharten L=
+atte, und das f&#252;r Stunden.</strong></p><p><strong>Warum nehme ich Ciaa=
+aaaalis? Es ist einfach ein angenehmens Gef&#252;hl. Man brauch sich nicht =
+auf die Err. ..ektion zu konzentrieren. Beim Sex ist man viel entspannter, =
+mann kann auch mal die Muskeln im Genitalbereich lockern, ohne das die Err.=
+ ..ektion im Glied nachlasst. Dadurch ist eine lange Verz&#246;gerung der E=
+jakulation m&#246;glich. Man ist beim Sex generell lockerer und entspannter=
+, und kommt auch nicht mehr so schnell ausser Athem, weil man eben locker u=
+nd entspannt ist, ausser nat&#252;rlich der kleine Freund :-)<br>
+</strong><strong><br>Haben Sie endlich wieder Spass am Leben!</strong></p><=
+p>Preise die keine Konkurrenz kennen <p>
+- Visa verifizierter Onlineshop<br>- keine versteckte Kosten<br>- Kein pein=
+licher Arztbesuch erforderlicht<br>- Diskrete Verpackung und Zahlung<br>- K=
+ostenlose, arztliche Telefon-Beratung<br>- Kein langes Warten - Auslieferun=
+g innerhalb von 2-3 Tagen<br>- Bequem und diskret online bestellen.</p>  
+<p><br><strong><a href=3D"http://fopser.hk/" target=3D"_blank">Vier Dosen g=
+ibt's bei jeder Bestellung umsonst</a></strong></body>
+</body>
+</html>
+
+------=_NextPart_000_0006_01C7BFB4.1900CD90--
