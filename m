@@ -1,10 +1,10 @@
-Date: Fri, 6 Jul 2007 11:11:10 -0700 (PDT)
+Date: Fri, 6 Jul 2007 11:11:40 -0700 (PDT)
 From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [PATCH] memory unplug v7 - migration by kernel
-In-Reply-To: <20070706182324.e18338d4.kamezawa.hiroyu@jp.fujitsu.com>
-Message-ID: <Pine.LNX.4.64.0707061110590.30987@schroedinger.engr.sgi.com>
+Subject: Re: [PATCH] memory unplug v7 [2/6] - isolate_lru_page fix
+In-Reply-To: <20070706182420.d7d3b615.kamezawa.hiroyu@jp.fujitsu.com>
+Message-ID: <Pine.LNX.4.64.0707061111260.30987@schroedinger.engr.sgi.com>
 References: <20070706181903.428c3713.kamezawa.hiroyu@jp.fujitsu.com>
- <20070706182324.e18338d4.kamezawa.hiroyu@jp.fujitsu.com>
+ <20070706182420.d7d3b615.kamezawa.hiroyu@jp.fujitsu.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
