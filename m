@@ -1,245 +1,297 @@
 Received: from sd0109e.au.ibm.com (d23rh905.au.ibm.com [202.81.18.225])
-	by ausmtp04.au.ibm.com (8.13.8/8.13.8) with ESMTP id l665hsw4119320
-	for <linux-mm@kvack.org>; Fri, 6 Jul 2007 15:44:32 +1000
-Received: from d23av04.au.ibm.com (d23av04.au.ibm.com [9.190.250.237])
-	by sd0109e.au.ibm.com (8.13.8/8.13.8/NCO v8.3) with ESMTP id l665Oo4M089378
-	for <linux-mm@kvack.org>; Fri, 6 Jul 2007 15:24:53 +1000
-Received: from d23av04.au.ibm.com (loopback [127.0.0.1])
-	by d23av04.au.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l665LDK2022661
-	for <linux-mm@kvack.org>; Fri, 6 Jul 2007 15:21:14 +1000
+	by ausmtp04.au.ibm.com (8.13.8/8.13.8) with ESMTP id l665hY1Z321720
+	for <linux-mm@kvack.org>; Fri, 6 Jul 2007 15:44:38 +1000
+Received: from d23av01.au.ibm.com (d23av01.au.ibm.com [9.190.250.242])
+	by sd0109e.au.ibm.com (8.13.8/8.13.8/NCO v8.3) with ESMTP id l665OW2u177922
+	for <linux-mm@kvack.org>; Fri, 6 Jul 2007 15:24:33 +1000
+Received: from d23av01.au.ibm.com (loopback [127.0.0.1])
+	by d23av01.au.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l665KvHS005721
+	for <linux-mm@kvack.org>; Fri, 6 Jul 2007 15:20:58 +1000
 From: Balbir Singh <balbir@linux.vnet.ibm.com>
-Date: Thu, 05 Jul 2007 22:21:03 -0700
-Message-Id: <20070706052103.11677.4158.sendpatchset@balbir-laptop>
+Date: Thu, 05 Jul 2007 22:20:43 -0700
+Message-Id: <20070706052043.11677.56208.sendpatchset@balbir-laptop>
 In-Reply-To: <20070706052029.11677.16964.sendpatchset@balbir-laptop>
 References: <20070706052029.11677.16964.sendpatchset@balbir-laptop>
-Subject: [-mm PATCH 2/8] Memory controller containers setup (v2)
+Subject: [-mm PATCH 1/8] Memory controller resource counters (v2)
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Vaidyanathan Srinivasan <svaidy@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, Pavel Emelianov <xemul@openvz.org>
-Cc: Linux Containers <containers@lists.osdl.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Paul Menage <menage@google.com>, Linux MM Mailing List <linux-mm@kvack.org>, Balbir Singh <balbir@linux.vnet.ibm.com>, Eric W Biederman <ebiederm@xmission.com>
+Cc: Linux Containers <containers@lists.osdl.org>, Paul Menage <menage@google.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Linux MM Mailing List <linux-mm@kvack.org>, Balbir Singh <balbir@linux.vnet.ibm.com>, Eric W Biederman <ebiederm@xmission.com>
 List-ID: <linux-mm.kvack.org>
 
-Setup the memory container and add basic hooks and controls to integrate
-and work with the container.
+From: Pavel Emelianov <xemul@openvz.org>
 
+Introduce generic structures and routines for resource accounting.
+
+Each resource accounting container is supposed to aggregate it,
+container_subsystem_state and its resource-specific members within.
+
+Signed-off-by: Pavel Emelianov <xemul@openvz.org>
 Signed-off-by: Balbir Singh <balbir@linux.vnet.ibm.com>
 ---
 
- include/linux/container_subsys.h |    6 +
- include/linux/memcontrol.h       |   19 +++++
- init/Kconfig                     |    8 ++
- mm/Makefile                      |    1 
- mm/memcontrol.c                  |  141 +++++++++++++++++++++++++++++++++++++++
- 5 files changed, 175 insertions(+)
+ include/linux/res_counter.h |  102 +++++++++++++++++++++++++++++++++++++
+ init/Kconfig                |    4 +
+ kernel/Makefile             |    1 
+ kernel/res_counter.c        |  121 ++++++++++++++++++++++++++++++++++++++++++++
+ 4 files changed, 228 insertions(+)
 
-diff -puN include/linux/container_subsys.h~mem-control-setup include/linux/container_subsys.h
---- linux-2.6.22-rc6/include/linux/container_subsys.h~mem-control-setup	2007-07-05 13:45:17.000000000 -0700
-+++ linux-2.6.22-rc6-balbir/include/linux/container_subsys.h	2007-07-05 13:45:17.000000000 -0700
-@@ -30,3 +30,9 @@ SUBSYS(ns)
- #endif
- 
- /* */
-+
-+#ifdef CONFIG_CONTAINER_MEM_CONT
-+SUBSYS(mem_container)
-+#endif
-+
-+/* */
-diff -puN init/Kconfig~mem-control-setup init/Kconfig
---- linux-2.6.22-rc6/init/Kconfig~mem-control-setup	2007-07-05 13:45:17.000000000 -0700
-+++ linux-2.6.22-rc6-balbir/init/Kconfig	2007-07-05 13:45:17.000000000 -0700
-@@ -360,6 +360,14 @@ config CONTAINER_NS
-           for instance virtual servers and checkpoint/restart
-           jobs.
- 
-+config CONTAINER_MEM_CONT
-+	bool "Memory controller for containers"
-+	select CONTAINERS
-+	select RESOURCE_COUNTERS
-+	help
-+	  Provides a memory controller that manages both page cache and
-+	  RSS memory.
-+
- config PROC_PID_CPUSET
- 	bool "Include legacy /proc/<pid>/cpuset file"
- 	depends on CPUSETS
-diff -puN mm/Makefile~mem-control-setup mm/Makefile
---- linux-2.6.22-rc6/mm/Makefile~mem-control-setup	2007-07-05 13:45:17.000000000 -0700
-+++ linux-2.6.22-rc6-balbir/mm/Makefile	2007-07-05 13:45:17.000000000 -0700
-@@ -30,4 +30,5 @@ obj-$(CONFIG_FS_XIP) += filemap_xip.o
- obj-$(CONFIG_MIGRATION) += migrate.o
- obj-$(CONFIG_SMP) += allocpercpu.o
- obj-$(CONFIG_QUICKLIST) += quicklist.o
-+obj-$(CONFIG_CONTAINER_MEM_CONT) += memcontrol.o
- 
-diff -puN /dev/null mm/memcontrol.c
+diff -puN /dev/null include/linux/res_counter.h
 --- /dev/null	2007-06-01 08:12:04.000000000 -0700
-+++ linux-2.6.22-rc6-balbir/mm/memcontrol.c	2007-07-05 13:45:17.000000000 -0700
-@@ -0,0 +1,141 @@
-+/* memcontrol.c - Memory Controller
++++ linux-2.6.22-rc6-balbir/include/linux/res_counter.h	2007-07-05 13:45:17.000000000 -0700
+@@ -0,0 +1,102 @@
++#ifndef __RES_COUNTER_H__
++#define __RES_COUNTER_H__
++
++/*
++ * resource counters
++ * contain common data types and routines for resource accounting
 + *
-+ * Copyright IBM Corporation, 2007
-+ * Author Balbir Singh <balbir@linux.vnet.ibm.com>
++ * Copyright 2007 OpenVZ SWsoft Inc
 + *
-+ * This program is free software; you can redistribute it and/or modify it
-+ * under the terms of version 2.1 of the GNU Lesser General Public License
-+ * as published by the Free Software Foundation.
++ * Author: Pavel Emelianov <xemul@openvz.org>
 + *
-+ * This program is distributed in the hope that it would be useful, but
-+ * WITHOUT ANY WARRANTY; without even the implied warranty of
-+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 + */
 +
-+#include <linux/res_counter.h>
-+#include <linux/memcontrol.h>
 +#include <linux/container.h>
 +
-+struct container_subsys mem_container_subsys;
-+
 +/*
-+ * The memory controller data structure. The memory controller controls both
-+ * page cache and RSS per container. We would eventually like to provide
-+ * statistics based on the statistics developed by Rik Van Riel for clock-pro,
-+ * to help the administrator determine what knobs to tune.
-+ *
-+ * TODO: Add a water mark for the memory controller. Reclaim will begin when
-+ * we hit the water mark.
++ * the core object. the container that wishes to account for some
++ * resource may include this counter into its structures and use
++ * the helpers described beyond
 + */
-+struct mem_container {
-+	struct container_subsys_state css;
++
++struct res_counter {
 +	/*
-+	 * the counter to account for memory usage
++	 * the current resource consumption level
 +	 */
-+	struct res_counter res;
++	unsigned long usage;
++	/*
++	 * the limit that usage cannot exceed
++	 */
++	unsigned long limit;
++	/*
++	 * the number of insuccessful attempts to consume the resource
++	 */
++	unsigned long failcnt;
++	/*
++	 * the lock to protect all of the above.
++	 * the routines below consider this to be IRQ-safe
++	 */
++	spinlock_t lock;
 +};
 +
 +/*
-+ * A meta page is associated with every page descriptor. The meta page
-+ * helps us identify information about the container
++ * helpers to interact with userspace
++ * res_counter_read/_write - put/get the specified fields from the
++ * res_counter struct to/from the user
++ *
++ * @cnt:     the counter in question
++ * @member:  the field to work with (see RES_xxx below)
++ * @buf:     the buffer to opeate on,...
++ * @nbytes:  its size...
++ * @pos:     and the offset.
 + */
-+struct meta_page {
-+	struct list_head list;		/* per container LRU list */
-+	struct page *page;
-+	struct mem_container *mem_container;
++
++ssize_t res_counter_read(struct res_counter *cnt, int member,
++		const char __user *buf, size_t nbytes, loff_t *pos);
++ssize_t res_counter_write(struct res_counter *cnt, int member,
++		const char __user *buf, size_t nbytes, loff_t *pos);
++
++/*
++ * the field descriptors. one for each member of res_counter
++ */
++
++enum {
++	RES_USAGE,
++	RES_LIMIT,
++	RES_FAILCNT,
 +};
 +
++/*
++ * helpers for accounting
++ */
 +
-+static inline struct mem_container *mem_container_from_cont(struct container
-+								*cnt)
-+{
-+	return container_of(container_subsys_state(cnt,
-+				mem_container_subsys_id), struct mem_container,
-+				css);
-+}
++void res_counter_init(struct res_counter *cnt);
 +
-+static ssize_t mem_container_read(struct container *cont, struct cftype *cft,
-+			struct file *file, char __user *userbuf, size_t nbytes,
-+			loff_t *ppos)
-+{
-+	return res_counter_read(&mem_container_from_cont(cont)->res,
-+				cft->private, userbuf, nbytes, ppos);
-+}
++/*
++ * charge - try to consume more resource.
++ *
++ * @cnt: the counter
++ * @val: the amount of the resource. each controller defines its own
++ *       units, e.g. numbers, bytes, Kbytes, etc
++ *
++ * returns 0 on success and <0 if the cnt->usage will exceed the cnt->limit
++ * _locked call expects the cnt->lock to be taken
++ */
 +
-+static ssize_t mem_container_write(struct container *cont, struct cftype *cft,
-+				struct file *file, const char __user *userbuf,
-+				size_t nbytes, loff_t *ppos)
-+{
-+	return res_counter_write(&mem_container_from_cont(cont)->res,
-+				cft->private, userbuf, nbytes, ppos);
-+}
++int res_counter_charge_locked(struct res_counter *cnt, unsigned long val);
++int res_counter_charge(struct res_counter *cnt, unsigned long val);
 +
-+static struct cftype mem_container_usage = {
-+	.name = "mem_usage",
-+	.private = RES_USAGE,
-+	.read = mem_container_read,
-+};
++/*
++ * uncharge - tell that some portion of the resource is released
++ *
++ * @cnt: the counter
++ * @val: the amount of the resource
++ *
++ * these calls check for usage underflow and show a warning on the console
++ * _locked call expects the cnt->lock to be taken
++ */
 +
-+static struct cftype mem_container_limit = {
-+	.name = "mem_limit",
-+	.private = RES_LIMIT,
-+	.write = mem_container_write,
-+	.read = mem_container_read,
-+};
++void res_counter_uncharge_locked(struct res_counter *cnt, unsigned long val);
++void res_counter_uncharge(struct res_counter *cnt, unsigned long val);
 +
-+static struct cftype mem_container_failcnt = {
-+	.name = "mem_failcnt",
-+	.private = RES_FAILCNT,
-+	.read = mem_container_read,
-+};
++#endif
+diff -puN init/Kconfig~res_counters_infra init/Kconfig
+--- linux-2.6.22-rc6/init/Kconfig~res_counters_infra	2007-07-05 13:45:17.000000000 -0700
++++ linux-2.6.22-rc6-balbir/init/Kconfig	2007-07-05 13:45:17.000000000 -0700
+@@ -320,6 +320,10 @@ config CPUSETS
+ 
+ 	  Say N if unsure.
+ 
++config RESOURCE_COUNTERS
++	bool
++	select CONTAINERS
 +
-+static int mem_container_create(struct container_subsys *ss,
-+				struct container *cont)
-+{
-+	struct mem_container *mem;
-+
-+	mem = kzalloc(sizeof(struct mem_container), GFP_KERNEL);
-+	if (!mem)
-+		return -ENOMEM;
-+
-+	res_counter_init(&mem->res);
-+	cont->subsys[mem_container_subsys_id] = &mem->css;
-+	mem->css.container = cont;
-+	return 0;
-+}
-+
-+static void mem_container_destroy(struct container_subsys *ss,
-+				struct container *cont)
-+{
-+	kfree(mem_container_from_cont(cont));
-+}
-+
-+static int mem_container_populate(struct container_subsys *ss,
-+				struct container *cont)
-+{
-+	int rc = 0;
-+
-+	rc = container_add_file(cont, &mem_container_usage);
-+	if (rc < 0)
-+		goto err;
-+
-+	rc = container_add_file(cont, &mem_container_limit);
-+	if (rc < 0)
-+		goto err;
-+
-+	rc = container_add_file(cont, &mem_container_failcnt);
-+	if (rc < 0)
-+		goto err;
-+
-+err:
-+	return rc;
-+}
-+
-+struct container_subsys mem_container_subsys = {
-+	.name = "mem_container",
-+	.subsys_id = mem_container_subsys_id,
-+	.create = mem_container_create,
-+	.destroy = mem_container_destroy,
-+	.populate = mem_container_populate,
-+	.early_init = 0,
-+};
-diff -puN /dev/null include/linux/memcontrol.h
+ config SYSFS_DEPRECATED
+ 	bool "Create deprecated sysfs files"
+ 	default y
+diff -puN kernel/Makefile~res_counters_infra kernel/Makefile
+--- linux-2.6.22-rc6/kernel/Makefile~res_counters_infra	2007-07-05 13:45:17.000000000 -0700
++++ linux-2.6.22-rc6-balbir/kernel/Makefile	2007-07-05 13:45:17.000000000 -0700
+@@ -58,6 +58,7 @@ obj-$(CONFIG_RELAY) += relay.o
+ obj-$(CONFIG_SYSCTL) += utsname_sysctl.o
+ obj-$(CONFIG_TASK_DELAY_ACCT) += delayacct.o
+ obj-$(CONFIG_TASKSTATS) += taskstats.o tsacct.o
++obj-$(CONFIG_RESOURCE_COUNTERS) += res_counter.o
+ 
+ ifneq ($(CONFIG_SCHED_NO_NO_OMIT_FRAME_POINTER),y)
+ # According to Alan Modra <alan@linuxcare.com.au>, the -fno-omit-frame-pointer is
+diff -puN /dev/null kernel/res_counter.c
 --- /dev/null	2007-06-01 08:12:04.000000000 -0700
-+++ linux-2.6.22-rc6-balbir/include/linux/memcontrol.h	2007-07-05 13:45:17.000000000 -0700
-@@ -0,0 +1,19 @@
-+/* memcontrol.h - Memory Controller
++++ linux-2.6.22-rc6-balbir/kernel/res_counter.c	2007-07-05 13:45:17.000000000 -0700
+@@ -0,0 +1,121 @@
++/*
++ * resource containers
 + *
-+ * Copyright IBM Corporation, 2007
-+ * Author Balbir Singh <balbir@linux.vnet.ibm.com>
++ * Copyright 2007 OpenVZ SWsoft Inc
 + *
-+ * This program is free software; you can redistribute it and/or modify it
-+ * under the terms of version 2.1 of the GNU Lesser General Public License
-+ * as published by the Free Software Foundation.
++ * Author: Pavel Emelianov <xemul@openvz.org>
 + *
-+ * This program is distributed in the hope that it would be useful, but
-+ * WITHOUT ANY WARRANTY; without even the implied warranty of
-+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 + */
 +
-+#ifndef _LINUX_MEMCONTROL_H
-+#define _LINUX_MEMCONTROL_H
++#include <linux/types.h>
++#include <linux/parser.h>
++#include <linux/fs.h>
++#include <linux/res_counter.h>
++#include <linux/uaccess.h>
 +
-+#endif /* _LINUX_MEMCONTROL_H */
++void res_counter_init(struct res_counter *cnt)
++{
++	spin_lock_init(&cnt->lock);
++	cnt->limit = (unsigned long)LONG_MAX;
++}
 +
++int res_counter_charge_locked(struct res_counter *cnt, unsigned long val)
++{
++	if (cnt->usage <= cnt->limit - val) {
++		cnt->usage += val;
++		return 0;
++	}
++
++	cnt->failcnt++;
++	return -ENOMEM;
++}
++
++int res_counter_charge(struct res_counter *cnt, unsigned long val)
++{
++	int ret;
++	unsigned long flags;
++
++	spin_lock_irqsave(&cnt->lock, flags);
++	ret = res_counter_charge_locked(cnt, val);
++	spin_unlock_irqrestore(&cnt->lock, flags);
++	return ret;
++}
++
++void res_counter_uncharge_locked(struct res_counter *cnt, unsigned long val)
++{
++	if (unlikely(cnt->usage < val)) {
++		WARN_ON(1);
++		val = cnt->usage;
++	}
++
++	cnt->usage -= val;
++}
++
++void res_counter_uncharge(struct res_counter *cnt, unsigned long val)
++{
++	unsigned long flags;
++
++	spin_lock_irqsave(&cnt->lock, flags);
++	res_counter_uncharge_locked(cnt, val);
++	spin_unlock_irqrestore(&cnt->lock, flags);
++}
++
++
++static inline unsigned long *res_counter_member(struct res_counter *cnt, int member)
++{
++	switch (member) {
++	case RES_USAGE:
++		return &cnt->usage;
++	case RES_LIMIT:
++		return &cnt->limit;
++	case RES_FAILCNT:
++		return &cnt->failcnt;
++	};
++
++	BUG();
++	return NULL;
++}
++
++ssize_t res_counter_read(struct res_counter *cnt, int member,
++		const char __user *userbuf, size_t nbytes, loff_t *pos)
++{
++	unsigned long *val;
++	char buf[64], *s;
++
++	s = buf;
++	val = res_counter_member(cnt, member);
++	s += sprintf(s, "%lu\n", *val);
++	return simple_read_from_buffer((void __user *)userbuf, nbytes,
++			pos, buf, s - buf);
++}
++
++ssize_t res_counter_write(struct res_counter *cnt, int member,
++		const char __user *userbuf, size_t nbytes, loff_t *pos)
++{
++	int ret;
++	char *buf, *end;
++	unsigned long tmp, *val;
++
++	buf = kmalloc(nbytes + 1, GFP_KERNEL);
++	ret = -ENOMEM;
++	if (buf == NULL)
++		goto out;
++
++	buf[nbytes] = 0;
++	ret = -EFAULT;
++	if (copy_from_user(buf, userbuf, nbytes))
++		goto out_free;
++
++	ret = -EINVAL;
++	tmp = simple_strtoul(buf, &end, 10);
++	if (*end != '\0')
++		goto out_free;
++
++	val = res_counter_member(cnt, member);
++	*val = tmp;
++	ret = nbytes;
++out_free:
++	kfree(buf);
++out:
++	return ret;
++}
 _
 
 -- 
