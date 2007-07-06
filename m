@@ -1,68 +1,64 @@
-From: "Maxine Johnston" <heart@clan-0.com>
-Subject: Blaues Wunder - dann klappts auch mit der Nachbarin   In my investigation  -- Most importantly, 
-Date: Fri, 6 Jul 2007 17:42:55 +0800
-Message-ID: <01c7bff5$158997a0$6e381044@heart>
-MIME-Version: 1.0
-Content-Type: multipart/alternative;
-	boundary="----=_NextPart_000_000E_01C7BFBA.692ABFA0"
-Return-Path: <heart@clan-0.com>
-To: linux-mm@kvack.org
+Date: Fri, 6 Jul 2007 17:57:49 +0200
+From: =?utf-8?B?SsO2cm4=?= Engel <joern@logfs.org>
+Subject: Re: vm/fs meetup details
+Message-ID: <20070706155748.GC846@lazybastard.org>
+References: <20070705040138.GG32240@wotan.suse.de> <468D303E.4040902@redhat.com> <137D15F6-EABE-4EC1-A3AF-DAB0A22CF4E3@oracle.com> <20070705212757.GB12413810@sgi.com> <468D6569.6050606@redhat.com> <20070706022651.GG14215@wotan.suse.de> <20070706100110.GD12413810@sgi.com> <20070706102623.GA846@lazybastard.org> <20070706134201.GL31489@sgi.com> <20070706095214.1ac9da94@think.oraclecorp.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=utf-8
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <20070706095214.1ac9da94@think.oraclecorp.com>
+Sender: owner-linux-mm@kvack.org
+Return-Path: <owner-linux-mm@kvack.org>
+To: Chris Mason <chris.mason@oracle.com>
+Cc: David Chinner <dgc@sgi.com>, =?utf-8?B?SsODwrZybg==?= Engel <joern@logfs.org>, Nick Piggin <npiggin@suse.de>, Rik van Riel <riel@redhat.com>, Zach Brown <zach.brown@oracle.com>, Anton Altaparmakov <aia21@cam.ac.uk>, Suparna Bhattacharya <suparna@in.ibm.com>, Christoph Hellwig <hch@infradead.org>, Hugh Dickins <hugh@veritas.com>, Jared Hulbert <jaredeh@gmail.com>, "Martin J. Bligh" <mbligh@mbligh.org>, Trond Myklebust <trond.myklebust@fys.uio.no>, Neil Brown <neilb@suse.de>, Miklos Szeredi <miklos@szeredi.hu>, Mingming Cao <cmm@us.ibm.com>, Linux Memory Management List <linux-mm@kvack.org>, linux-fsdevel@vger.kernel.org, Evgeniy Polyakov <johnpol@2ka.mipt.ru>, Steven Whitehouse <steve@chygwyn.com>, Dave McCracken <dave.mccracken@oracle.com>, Peter Zijlstra <peterz@infradead.org>
 List-ID: <linux-mm.kvack.org>
 
-This is a multi-part message in MIME format.
+On Fri, 6 July 2007 09:52:14 -0400, Chris Mason wrote:
+> On Fri, 6 Jul 2007 23:42:01 +1000 David Chinner <dgc@sgi.com> wrote:
+> 
+> > Hmmm - I guess you could use it for writeback ordering. I hadn't
+> > really thought about that. Doesn't seem a particularly efficient way
+> > of doing it, though. Why not just use multiple address spaces for
+> > this? i.e. one per level and flush in ascending order.
 
-------=_NextPart_000_000E_01C7BFBA.692ABFA0
-Content-Type: text/plain;
-	charset="Windows-1252"
-Content-Transfer-Encoding: 7bit
+Interesting idea.  Is it possible to attach several address spaces to an
+inode?  That would cure some headaches.
 
-Verpassen Sie nichts am Lebem - Sie werden fuhlen was unsere Kunden bestatigen!
+> At least in the case of btrfs, the perfect order for sync is disk
+> order ;)  COW happens when blocks are changed for the first time in a
+> transaction, not when they are written out to disk.  If logfs is
+> writing things out some form of tree order, you're going to have to
+> group disk allocations such that tree order reflects disk order somehow.
 
-Preise die keine Konkurrenz kennen 
+I don't understand half of what you're writing.  Maybe we should do
+another design session on irc?
 
-- Diskrete Verpackung und Zahlung
-- Kein peinlicher Arztbesuch erforderlicht
-- Kostenlose, arztliche Telefon-Beratung
-- Kein langes Warten - Auslieferung innerhalb von 2-3 Tagen
-- Bequem und diskret online bestellen.
-- Visa verifizierter Onlineshop
-- keine versteckte Kosten
+At any rate, logfs simply writes out blocks.  When it is handed a page
+to write, the corresponding block is written.  Allocation happens at
+writeout time, not earlier.  Each written block causes a higher-level
+block to get changed, so that is written immediatly as well, until the
+next higher level is the inode.
 
+I would like to instead just dirty the higher-level block, so that
+multiple changes can accumulate before indirect blocks are written.  And
+I have no idea how transactions relate to all this.
 
-Vier Dosen gibt's bei jeder Bestellung umsonst
-http://cmikop.hk/
+> But, the part where we toss leaves first is definitely useful.
 
+Shouldn't LRU ordering already do that.  I can even imagine cases when
+leaves should be tossed last and LRU ordering would dtrt.
 
-------=_NextPart_000_000E_01C7BFBA.692ABFA0
-Content-Type: text/html;
-	charset="Windows-1252"
-Content-Transfer-Encoding: quoted-printable
+JA?rn
 
-<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
-<HTML><HEAD><TITLE></TITLE>
-<META content=3D"text/html; charset=3DWindows-1252" http-equiv=3DContent-Type>
-<META content=3D"MSHTML 6.00.2900.2180" name=3DGENERATOR></HEAD>
-<BODY>
-<head><meta http-equiv=3D"Content-Type" content=3D"text/html; charset=3Diso=
--8859-1">
-</head><body><p>Meinung von unserem Kunden:<br><strong>Viaaaagra wirkt Wund=
-er! Sie ahnen nicht, wie gl&#252;cklich ich bin. Viaaaagra hat mein Leben v=
-er&#228;ndert. Endlich keine Angst mehr wegen der E_r_rektion. Und auch das=
- Problem mit dem vorzeitigen Samenerguss ist weg.</strong></p><p><strong>Ic=
-h finde Viaaaagra einfach wunderbar. Egal, ob f&#252;r den Sex oder, um mic=
-h selbst zu verw&#246;hnen: Es funktioniert. Mein Schwanz wird extrem hart =
-und mein Orgasmus ist sehr intensiv. Die Wirkung ist so stark, dass ich Via=
-aaagra nur am Wochenende verwende oder wenn ich viel Zeit habe, es richtig =
-zu genie&#223;en.<br>
-</strong><strong><br>Verpassen Sie nichts am Lebem - Sie werden fuhlen was =
-unsere Kunden bestatigen!</strong></p><p>Preise die keine Konkurrenz kennen=
- <p>
-- Kein langes Warten - Auslieferung innerhalb von 2-3 Tagen<br>- Diskrete V=
-erpackung und Zahlung<br>- Kein peinlicher Arztbesuch erforderlicht<br>- Ko=
-stenlose, arztliche Telefon-Beratung<br>- Bequem und diskret online bestell=
-en.<br>- Visa verifizierter Onlineshop<br>- keine versteckte Kosten</p>  
-<p><br><strong><a href=3D"http://cmikop.hk/" target=3D"_blank">Vier Dosen g=
-ibt's bei jeder Bestellung umsonst</a></strong></body>
-</BODY></HTML>
+-- 
+The competent programmer is fully aware of the strictly limited size of
+his own skull; therefore he approaches the programming task in full
+humility, and among other things he avoids clever tricks like the plague.
+-- Edsger W. Dijkstra
 
-------=_NextPart_000_000E_01C7BFBA.692ABFA0--
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
