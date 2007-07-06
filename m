@@ -1,75 +1,85 @@
-Received: from sd0208e0.au.ibm.com (d23rh904.au.ibm.com [202.81.18.202])
-	by ausmtp06.au.ibm.com (8.13.8/8.13.8) with ESMTP id l665M6Z51556578
-	for <linux-mm@kvack.org>; Fri, 6 Jul 2007 15:22:51 +1000
-Received: from d23av02.au.ibm.com (d23av02.au.ibm.com [9.190.250.243])
-	by sd0208e0.au.ibm.com (8.13.8/8.13.8/NCO v8.3) with ESMTP id l665OL6L159998
-	for <linux-mm@kvack.org>; Fri, 6 Jul 2007 15:24:27 +1000
-Received: from d23av02.au.ibm.com (loopback [127.0.0.1])
-	by d23av02.au.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l665KcNJ026786
-	for <linux-mm@kvack.org>; Fri, 6 Jul 2007 15:20:38 +1000
+Received: from sd0109e.au.ibm.com (d23rh905.au.ibm.com [202.81.18.225])
+	by ausmtp04.au.ibm.com (8.13.8/8.13.8) with ESMTP id l665j6K3087212
+	for <linux-mm@kvack.org>; Fri, 6 Jul 2007 15:45:10 +1000
+Received: from d23av01.au.ibm.com (d23av01.au.ibm.com [9.190.250.242])
+	by sd0109e.au.ibm.com (8.13.8/8.13.8/NCO v8.3) with ESMTP id l665Pgpc190372
+	for <linux-mm@kvack.org>; Fri, 6 Jul 2007 15:25:45 +1000
+Received: from d23av01.au.ibm.com (loopback [127.0.0.1])
+	by d23av01.au.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l665M7AL007898
+	for <linux-mm@kvack.org>; Fri, 6 Jul 2007 15:22:08 +1000
 From: Balbir Singh <balbir@linux.vnet.ibm.com>
-Date: Thu, 05 Jul 2007 22:20:29 -0700
-Message-Id: <20070706052029.11677.16964.sendpatchset@balbir-laptop>
-Subject: [-mm PATCH 0/8] Memory controller introduction (v2)
+Date: Thu, 05 Jul 2007 22:21:55 -0700
+Message-Id: <20070706052155.11677.41872.sendpatchset@balbir-laptop>
+In-Reply-To: <20070706052029.11677.16964.sendpatchset@balbir-laptop>
+References: <20070706052029.11677.16964.sendpatchset@balbir-laptop>
+Subject: [-mm PATCH 5/8] Memory controller task migration (v2)
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Vaidyanathan Srinivasan <svaidy@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, Pavel Emelianov <xemul@openvz.org>
-Cc: Linux Containers <containers@lists.osdl.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Paul Menage <menage@google.com>, Linux MM Mailing List <linux-mm@kvack.org>, Balbir Singh <balbir@linux.vnet.ibm.com>, Eric W Biederman <ebiederm@xmission.com>
+Cc: Linux Containers <containers@lists.osdl.org>, Paul Menage <menage@google.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Linux MM Mailing List <linux-mm@kvack.org>, Balbir Singh <balbir@linux.vnet.ibm.com>, Eric W Biederman <ebiederm@xmission.com>
 List-ID: <linux-mm.kvack.org>
 
-Changelog since version 1
+Allow tasks to migrate from one container to the other. We migrate
+mm_struct's mem_container only when the thread group id migrates.
 
-1. Fixed some compile time errors (in mm/migrate.c from Vaidyanathan S)
-2. Fixed a panic seen when LIST_DEBUG is enabled
-3. Added a mechanism to control whether we track page cache or both
-   page cache and mapped pages (as requested by Pavel)
 
-This patchset implements another version of the memory controller. These
-patches have been through a big churn, the first set of patches were posted
-last year and earlier this year at
-	http://lkml.org/lkml/2007/2/19/10
+Signed-off-by: Balbir Singh <balbir@linux.vnet.ibm.com>
+---
 
-Ever since, the RSS controller has been through four revisions, the latest
-one being
-	http://lwn.net/Articles/236817/
+ mm/memcontrol.c |   35 +++++++++++++++++++++++++++++++++++
+ 1 file changed, 35 insertions(+)
 
-This patchset draws from the patches listed above and from some of the
-contents of the patches posted by Vaidyanathan for page cache control.
-	http://lkml.org/lkml/2007/6/20/92
-
-Pavel, Vaidy could you look at the patches and add your signed off by
-where relevant?
-
-At OLS, the resource management BOF, it was discussed that we need to manage
-RSS and unmapped page cache together. This patchset is a step towards that
-
-TODO's
-
-1. Add memory controller water mark support. Reclaim on high water mark
-2. Add support for shrinking on limit change
-3. Add per zone per container LRU lists
-4. Make page_referenced() container aware
-5. Figure out a better CLUI for the controller
-
-In case you have been using/testing the RSS controller, you'll find that
-this controller works slower than the RSS controller. The reason being
-that both swap cache and page cache is accounted for, so pages do go
-out to swap upon reclaim (they cannot live in the swap cache).
-
-I've test compiled the framework without the controller enabled, tested
-the code on UML and minimally on a power box.
-
-Any test output, feedback, comments, suggestions are welcome!
-
-series
-
-res_counters_infra.patch
-mem-control-setup.patch
-mem-control-accounting-setup.patch
-mem-control-accounting.patch
-mem-control-task-migration.patch
-mem-control-lru-and-reclaim.patch
-mem-control-out-of-memory.patch
+diff -puN mm/memcontrol.c~mem-control-task-migration mm/memcontrol.c
+--- linux-2.6.22-rc6/mm/memcontrol.c~mem-control-task-migration	2007-07-05 13:45:18.000000000 -0700
++++ linux-2.6.22-rc6-balbir/mm/memcontrol.c	2007-07-05 13:45:18.000000000 -0700
+@@ -302,11 +302,46 @@ err:
+ 	return rc;
+ }
+ 
++static void mem_container_move_task(struct container_subsys *ss,
++				struct container *cont,
++				struct container *old_cont,
++				struct task_struct *p)
++{
++	struct mm_struct *mm;
++	struct mem_container *mem, *old_mem;
++
++	mm = get_task_mm(p);
++	if (mm == NULL)
++		return;
++
++	mem = mem_container_from_cont(cont);
++	old_mem = mem_container_from_cont(old_cont);
++
++	if (mem == old_mem)
++		goto out;
++
++	/*
++	 * Only thread group leaders are allowed to migrate, the mm_struct is
++	 * in effect owned by the leader
++	 */
++	if (p->tgid != p->pid)
++		goto out;
++
++	css_get(&mem->css);
++	rcu_assign_pointer(mm->mem_container, mem);
++	css_put(&old_mem->css);
++
++out:
++	mmput(mm);
++	return;
++}
++
+ struct container_subsys mem_container_subsys = {
+ 	.name = "mem_container",
+ 	.subsys_id = mem_container_subsys_id,
+ 	.create = mem_container_create,
+ 	.destroy = mem_container_destroy,
+ 	.populate = mem_container_populate,
++	.attach = mem_container_move_task,
+ 	.early_init = 1,
+ };
+_
 
 -- 
 	Warm Regards,
