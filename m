@@ -1,49 +1,79 @@
-Received: from sd0109e.au.ibm.com (d23rh905.au.ibm.com [202.81.18.225])
-	by ausmtp04.au.ibm.com (8.13.8/8.13.8) with ESMTP id l667Vp7Y316884
-	for <linux-mm@kvack.org>; Fri, 6 Jul 2007 17:31:51 +1000
-Received: from d23av01.au.ibm.com (d23av01.au.ibm.com [9.190.250.242])
-	by sd0109e.au.ibm.com (8.13.8/8.13.8/NCO v8.3) with ESMTP id l667Ck0M186948
-	for <linux-mm@kvack.org>; Fri, 6 Jul 2007 17:12:49 +1000
-Received: from d23av01.au.ibm.com (loopback [127.0.0.1])
-	by d23av01.au.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l6679Aef023546
-	for <linux-mm@kvack.org>; Fri, 6 Jul 2007 17:09:11 +1000
-Message-ID: <468DEA8C.6090000@linux.vnet.ibm.com>
-Date: Fri, 06 Jul 2007 00:09:00 -0700
-From: Balbir Singh <balbir@linux.vnet.ibm.com>
-Reply-To: balbir@linux.vnet.ibm.com
+From: "Mona Albert" <support5626@paypal.de>
+Subject: Haben Sie wieder Spass am Leben!   grant us the sloe  -- With Design Patterns, 
+Date: Fri, 6 Jul 2007 06:37:53 -0100
 MIME-Version: 1.0
-Subject: Re: [-mm PATCH 0/8] Memory controller introduction (v2)
-References: <20070706052029.11677.16964.sendpatchset@balbir-laptop> <468DD969.1040104@linux.vnet.ibm.com>
-In-Reply-To: <468DD969.1040104@linux.vnet.ibm.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
-Sender: owner-linux-mm@kvack.org
-Return-Path: <owner-linux-mm@kvack.org>
-To: balbir@linux.vnet.ibm.com
-Cc: Vaidyanathan Srinivasan <svaidy@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, Pavel Emelianov <xemul@openvz.org>, Linux Containers <containers@lists.osdl.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Paul Menage <menage@google.com>, Linux MM Mailing List <linux-mm@kvack.org>, Eric W Biederman <ebiederm@xmission.com>, Dhaval Giani <dhaval@linux.vnet.ibm.com>
+Content-Type: multipart/alternative;
+	boundary="----=_NextPart_000_0006_01C7BFA8.F1CC56A0"
+Message-ID: <01c7bf98$2e4386a0$83077a57@support5626>
+Return-Path: <support5626@paypal.de>
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Balbir Singh wrote:
+This is a multi-part message in MIME format.
 
-In mem_container_move_lists()
+------=_NextPart_000_0006_01C7BFA8.F1CC56A0
+Content-Type: text/plain;
+	charset="iso-8859-1"
+Content-Transfer-Encoding: 7bit
 
-> +		/*
-> +		 * Check if the meta page went away from under us
-> +		 */
-> +		if (!list_empty(&mp->list)
+Versuchen Sie unser Produkt und Sie werden fuhlen was unsere Kunden bestatigen
 
-You'll need an extra brace here to get it compile.
-I forgot to refpatch :(
+Preise die keine Konkurrenz kennen 
+
+- Kostenlose, arztliche Telefon-Beratung
+- Kein peinlicher Arztbesuch erforderlicht
+- Kein langes Warten - Auslieferung innerhalb von 2-3 Tagen
+- Bequem und diskret online bestellen.
+- Diskrete Verpackung und Zahlung
+- Visa verifizierter Onlineshop
+- keine versteckte Kosten
 
 
--- 
-	Warm Regards,
-	Balbir Singh
-	Linux Technology Center
-	IBM, ISTL
+Vier Dosen gibt's bei jeder Bestellung umsonst
+www.fopser.hk
 
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+
+------=_NextPart_000_0006_01C7BFA8.F1CC56A0
+Content-Type: text/html;
+	charset="iso-8859-1"
+Content-Transfer-Encoding: quoted-printable
+
+<html xmlns:o=3D"urn:schemas-microsoft-com:office:office" xmlns:w=3D"urn:sc=
+hemas-microsoft-com:office:word" xmlns=3D"http://www.w3.org/TR/REC-html40">
+
+<head>
+<META HTTP-EQUIV=3D"Content-Type" CONTENT=3D"text/html; charset=3Diso-8859-1">
+<meta name=3DGenerator content=3D"Microsoft Word 11 (filtered medium)">
+</head>
+<body>
+<head><meta http-equiv=3D"Content-Type" content=3D"text/html; charset=3Diso=
+-8859-1">
+</head><body>
+<p>Meinung von unserem Kunden:<br>
+  <strong>Ich glaube, ich habe bis jetzt Gl&#252;ck gehabt (Ich klopfe auf =
+Holz.), denn ich hatte bis jetzt noch nie Nebenwirkungen durch Viaaaagra - =
+au&#223;er einer brettharten Latte, und das f&#252;r Stunden.</strong></p>
+<p><strong>Fantastische Wirkung! F&#252;nf Jahre lang hatte ich es nicht me=
+hr geschafft, meine Err. ..ektion w&#228;hrend des Verkehrs zu halten und w=
+ar richtig &#228;ngstlich geworden. Ich hatte auch ein Problem mit vorzeiti=
+gem Samenerguss. Au&#223;erdem bin ich Zuckerkrank. Vor einiger Zeit habe i=
+ch eine 50-mg-Dosis Viaaaagra genommen und zwei Stunden sp&#228;ter mit ein=
+er 22-j&#228;hrigen geschlafen. Kurz vor dem Vorspiel wurde mein Penis hart=
+ und ich konnte es kaum glauben. Ich habe in dieser Nacht dreimal Sex gehab=
+t und es gab keine Probleme dabei. Kein Schuss ging daneben. Ich bin ein gl=
+&#252;cklicher Mann. Achmet, 52<br>
+  </strong><strong><br>
+  Versuchen Sie unser Produkt und Sie werden fuhlen was unsere Kunden besta=
+tigen</strong>
+</p>
+<p>Preise die keine Konkurrenz kennen <p>
+- Kostenlose, arztliche Telefon-Beratung<br>- Kein langes Warten - Ausliefe=
+rung innerhalb von 2-3 Tagen<br>- Diskrete Verpackung und Zahlung<br>- Kein=
+ peinlicher Arztbesuch erforderlicht<br>- Bequem und diskret online bestell=
+en.<br>- Visa verifizierter Onlineshop<br>- keine versteckte Kosten</p>  
+<p><br><strong><a href=3D"http://www.fopser.hk" target=3D"_blank">Vier Dose=
+n gibt's bei jeder Bestellung umsonst</a></strong></body>
+</body>
+</html>
+
+------=_NextPart_000_0006_01C7BFA8.F1CC56A0--
