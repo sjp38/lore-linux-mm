@@ -1,75 +1,42 @@
-From: "Esther Gillis" <support17342@paypal.de>
-Subject: Nie mehr zu frueh kommen?  of the events in your -- Something more fun. 
-Date: Fri, 6 Jul 2007 09:41:50 -0100
+Message-ID: <468E0E52.2060705@bull.net>
+Date: Fri, 06 Jul 2007 11:41:38 +0200
+From: Zoltan Menyhart <Zoltan.Menyhart@bull.net>
 MIME-Version: 1.0
-Content-Type: multipart/alternative;
-	boundary="----=_NextPart_000_0006_01C7BFC2.A474D7F0"
-Message-ID: <01c7bfb1$e0ec07f0$33543459@support17342>
-Return-Path: <support17342@paypal.de>
-To: linux-mm@kvack.org
+Subject: Re: [BUGFIX]{PATCH] flush icache on ia64 take2
+References: <20070706112901.16bb5f8a.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20070706112901.16bb5f8a.kamezawa.hiroyu@jp.fujitsu.com>
+Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii; format=flowed
+Sender: owner-linux-mm@kvack.org
+Return-Path: <owner-linux-mm@kvack.org>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: linux-ia64@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, "tony.luck@intel.com" <tony.luck@intel.com>, nickpiggin@yahoo.com.au, mike@stroyan.net, dmosberger@gmail.com, GOTO <y-goto@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-This is a multi-part message in MIME format.
+KAMEZAWA Hiroyuki wrote:
 
-------=_NextPart_000_0006_01C7BFC2.A474D7F0
-Content-Type: text/plain;
-	charset="iso-8859-2"
-Content-Transfer-Encoding: 7bit
+>  Note1: icache flush is called only when VM_EXEC flag is on and 
+>         PG_arch_1 is not set.
 
-Haben Sie endlich wieder Spass am Leben!
+If you have not got the page in the cache, then the new page will
+be allocated with PG_arch_1 bit off.
+You are going to flush pages which are read by HW DMA, i.e. the L2I
+of Montecito does not keep old lines for those pages anyway.
 
-Preise die keine Konkurrenz kennen 
+...->a_ops->readpage() of "L2I safe" file systems should set PG_arch_1
+if the CPU is ia64 and it has got separate L2I.
 
-- Diskrete Verpackung und Zahlung
-- Kostenlose, arztliche Telefon-Beratung
-- Bequem und diskret online bestellen.
-- Kein langes Warten - Auslieferung innerhalb von 2-3 Tagen
-- Kein peinlicher Arztbesuch erforderlicht
-- Visa verifizierter Onlineshop
-- keine versteckte Kosten
+On the other hand, arch. independent file systems should not play with
+PG_arch_1.
+The base kernel should export a macro for the file systems...
 
+Thanks,
 
-Nur fur kurze Zeit - vier Pillen umsonst erhalten
-http://fzruad.coverstep.hk/?531522612452
+Zoltan Menyhart
 
 
-------=_NextPart_000_0006_01C7BFC2.A474D7F0
-Content-Type: text/html;
-	charset="iso-8859-2"
-Content-Transfer-Encoding: quoted-printable
-
-<html xmlns:o=3D"urn:schemas-microsoft-com:office:office" xmlns:w=3D"urn:sc=
-hemas-microsoft-com:office:word" xmlns=3D"http://www.w3.org/TR/REC-html40">
-
-<head>
-<META HTTP-EQUIV=3D"Content-Type" CONTENT=3D"text/html; charset=3Diso-8859-2">
-<meta name=3DGenerator content=3D"Microsoft Word 11 (filtered medium)">
-</head>
-<body>
-<head><meta http-equiv=3D"Content-Type" content=3D"text/html; charset=3Diso=
--8859-1">
-</head><body>
-<p>Meinung von unserem Kunden:<br>
-  <strong>Ich glaube, ich habe bis jetzt Gl&#252;ck gehabt (Ich klopfe auf =
-Holz.), denn ich hatte bis jetzt noch nie Nebenwirkungen durch Viaaaagra - =
-au&#223;er einer brettharten Latte, und das f&#252;r Stunden.</strong></p>
-<p><strong>Ich habe vor kurzem Viaaaagra benutzt und ich muss sagen: Ich li=
-ebe Viaaaagra. Das ist der Fickmacher. Das Alter hat nix damit zu tun. Ich =
-bin zwar noch jung, aber die Viaaaagra-Power kann auch durch junge Kraft ni=
-cht ersetzt werden. Das war der Hammer. Ich habe sie trockengev&#246;gelt. =
-Ich habe mir vorgenommen, es regelm&#228;&#223;ig zu nehmen. - 21 Jahre<br>
-  </strong><strong><br>
-  Haben Sie endlich wieder Spass am Leben!</strong>
-</p>
-<p>Preise die keine Konkurrenz kennen <p>
-- Kein langes Warten - Auslieferung innerhalb von 2-3 Tagen<br>- Bequem und=
- diskret online bestellen.<br>- Diskrete Verpackung und Zahlung<br>- Kosten=
-lose, arztliche Telefon-Beratung<br>- Visa verifizierter Onlineshop<br>- Ke=
-in peinlicher Arztbesuch erforderlicht<br>- keine versteckte Kosten</p>  
-<p><br><strong><a href=3D"http://fzruad.coverstep.hk/?531522612452" target=
-=3D"_blank">Nur fur kurze Zeit - vier Pillen umsonst erhalten</a></strong><=
-/body>
-</body>
-</html>
-
-------=_NextPart_000_0006_01C7BFC2.A474D7F0--
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
