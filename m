@@ -1,7 +1,7 @@
-Date: Fri, 6 Jul 2007 12:52:25 -0700 (PDT)
+Date: Fri, 6 Jul 2007 12:53:34 -0700 (PDT)
 From: Christoph Lameter <clameter@sgi.com>
-Subject: SLUB: Do not allocate object bit array on stack
-Message-ID: <Pine.LNX.4.64.0707061252030.24364@schroedinger.engr.sgi.com>
+Subject: SLUB: Move sysfs operations outside of slub_lock
+Message-ID: <Pine.LNX.4.64.0707061253010.24389@schroedinger.engr.sgi.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
@@ -10,127 +10,84 @@ To: akpm@linux-foundation.org
 Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-The objects per slab increase with the current patches in mm since we
-allow up to order 3 allocs by default. More patches in mm actually allow
-to use 2M or higher sized slabs. For slab validation we need per object
-bitmaps in order to check a slab. We end up with up to 64k objects per
-slab resulting in a potential requirement of 8K stack space. That does
-not look good.
+Sysfs can do a gazillion things when called. Make sure that we do
+not call any sysfs functions while holding the slub_lock.
 
-Allocate the bit arrays via kmalloc.
+Just protect the essentials:
+
+1. The list of all slab caches
+2. The kmalloc_dma array
+3. The ref counters of the slabs.
 
 Signed-off-by: Christoph Lameter <clameter@sgi.com>
 
 ---
- mm/slub.c |   39 +++++++++++++++++++++++++--------------
- 1 file changed, 25 insertions(+), 14 deletions(-)
+ mm/slub.c |   32 +++++++++++++++++++-------------
+ 1 file changed, 19 insertions(+), 13 deletions(-)
 
 Index: linux-2.6.22-rc6-mm1/mm/slub.c
 ===================================================================
---- linux-2.6.22-rc6-mm1.orig/mm/slub.c	2007-07-04 13:37:41.000000000 -0700
-+++ linux-2.6.22-rc6-mm1/mm/slub.c	2007-07-04 13:38:51.000000000 -0700
-@@ -2784,11 +2784,11 @@ void *__kmalloc_node_track_caller(size_t
+--- linux-2.6.22-rc6-mm1.orig/mm/slub.c	2007-07-04 09:10:16.000000000 -0700
++++ linux-2.6.22-rc6-mm1/mm/slub.c	2007-07-04 09:14:35.000000000 -0700
+@@ -2204,12 +2204,13 @@ void kmem_cache_destroy(struct kmem_cach
+ 	s->refcount--;
+ 	if (!s->refcount) {
+ 		list_del(&s->list);
++		up_write(&slub_lock);
+ 		if (kmem_cache_close(s))
+ 			WARN_ON(1);
+ 		sysfs_slab_remove(s);
+ 		kfree(s);
+-	}
+-	up_write(&slub_lock);
++	} else
++		up_write(&slub_lock);
  }
+ EXPORT_SYMBOL(kmem_cache_destroy);
  
- #if defined(CONFIG_SYSFS) && defined(CONFIG_SLUB_DEBUG)
--static int validate_slab(struct kmem_cache *s, struct page *page)
-+static int validate_slab(struct kmem_cache *s, struct page *page,
-+						unsigned long *map)
- {
- 	void *p;
- 	void *addr = page_address(page);
--	DECLARE_BITMAP(map, s->objects);
- 
- 	if (!check_slab(s, page) ||
- 			!on_freelist(s, page, NULL))
-@@ -2810,10 +2810,11 @@ static int validate_slab(struct kmem_cac
- 	return 1;
- }
- 
--static void validate_slab_slab(struct kmem_cache *s, struct page *page)
-+static void validate_slab_slab(struct kmem_cache *s, struct page *page,
-+						unsigned long *map)
- {
- 	if (slab_trylock(page)) {
--		validate_slab(s, page);
-+		validate_slab(s, page, map);
- 		slab_unlock(page);
- 	} else
- 		printk(KERN_INFO "SLUB %s: Skipped busy slab 0x%p\n",
-@@ -2830,7 +2831,8 @@ static void validate_slab_slab(struct km
- 	}
- }
- 
--static int validate_slab_node(struct kmem_cache *s, struct kmem_cache_node *n)
-+static int validate_slab_node(struct kmem_cache *s,
-+		struct kmem_cache_node *n, unsigned long *map)
- {
- 	unsigned long count = 0;
- 	struct page *page;
-@@ -2839,7 +2841,7 @@ static int validate_slab_node(struct kme
- 	spin_lock_irqsave(&n->list_lock, flags);
- 
- 	list_for_each_entry(page, &n->partial, lru) {
--		validate_slab_slab(s, page);
-+		validate_slab_slab(s, page, map);
- 		count++;
- 	}
- 	if (count != n->nr_partial)
-@@ -2850,7 +2852,7 @@ static int validate_slab_node(struct kme
- 		goto out;
- 
- 	list_for_each_entry(page, &n->full, lru) {
--		validate_slab_slab(s, page);
-+		validate_slab_slab(s, page, map);
- 		count++;
- 	}
- 	if (count != atomic_long_read(&n->nr_slabs))
-@@ -2863,17 +2865,23 @@ out:
- 	return count;
- }
- 
--static unsigned long validate_slab_cache(struct kmem_cache *s)
-+static long validate_slab_cache(struct kmem_cache *s)
- {
- 	int node;
- 	unsigned long count = 0;
-+	unsigned long *map = kmalloc(BITS_TO_LONGS(s->objects) *
-+				sizeof(unsigned long), GFP_KERNEL);
+@@ -2700,26 +2701,31 @@ struct kmem_cache *kmem_cache_create(con
+ 		 */
+ 		s->objsize = max(s->objsize, (int)size);
+ 		s->inuse = max_t(int, s->inuse, ALIGN(size, sizeof(void *)));
++		up_write(&slub_lock);
 +
-+	if (!map)
-+		return -ENOMEM;
- 
- 	flush_all(s);
- 	for_each_online_node(node) {
- 		struct kmem_cache_node *n = get_node(s, node);
- 
--		count += validate_slab_node(s, n);
-+		count += validate_slab_node(s, n, map);
- 	}
-+	kfree(map);
- 	return count;
- }
- 
-@@ -3487,11 +3495,14 @@ static ssize_t validate_show(struct kmem
- static ssize_t validate_store(struct kmem_cache *s,
- 			const char *buf, size_t length)
- {
--	if (buf[0] == '1')
--		validate_slab_cache(s);
--	else
--		return -EINVAL;
--	return length;
-+	int ret = -EINVAL;
+ 		if (sysfs_slab_alias(s, name))
+ 			goto err;
+-	} else {
+-		s = kmalloc(kmem_size, GFP_KERNEL);
+-		if (s && kmem_cache_open(s, GFP_KERNEL, name,
 +
-+	if (buf[0] == '1') {
-+		ret = validate_slab_cache(s);
-+		if (ret >= 0)
-+			ret = length;
++		return s;
 +	}
-+	return ret;
- }
- SLAB_ATTR(validate);
++
++	s = kmalloc(kmem_size, GFP_KERNEL);
++	if (s) {
++		if (kmem_cache_open(s, GFP_KERNEL, name,
+ 				size, align, flags, ctor)) {
+-			if (sysfs_slab_add(s)) {
+-				kfree(s);
+-				goto err;
+-			}
+ 			list_add(&s->list, &slab_caches);
++			up_write(&slub_lock);
+ 			raise_kswapd_order(s->order);
+-		} else
+-			kfree(s);
++
++			if (sysfs_slab_add(s))
++				goto err;
++			return s;
++		}
++		kfree(s);
+ 	}
+ 	up_write(&slub_lock);
+-	return s;
  
+ err:
+-	up_write(&slub_lock);
+ 	if (flags & SLAB_PANIC)
+ 		panic("Cannot create slabcache %s\n", name);
+ 	else
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
