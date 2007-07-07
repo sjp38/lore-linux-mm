@@ -1,41 +1,30 @@
-Date: Sat, 7 Jul 2007 12:45:35 +0200
-From: =?utf-8?B?SsO2cm4=?= Engel <joern@logfs.org>
-Subject: Re: vm/fs meetup details
-Message-ID: <20070707104534.GA5686@lazybastard.org>
-References: <20070705040138.GG32240@wotan.suse.de> <468D303E.4040902@redhat.com> <20070706020042.GD14215@wotan.suse.de> <Pine.LNX.4.64.0707061339100.24812@schroedinger.engr.sgi.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
+From: "Nancey Aleida" <syxr60uoxq@varig.com>
+Subject: Increase Your  Cum By 5-times More, Sperm Enhancement Pill jopc
+Message-ID: <568i80100.97635b92213550@varig.com>
+Date: Sat, 07 Jul 2007 20:27:53 +0700
+Content-Type: text/plain;
+	charset="iso-8859-2"
 Content-Transfer-Encoding: 8bit
-In-Reply-To: <Pine.LNX.4.64.0707061339100.24812@schroedinger.engr.sgi.com>
-Sender: owner-linux-mm@kvack.org
-Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
-Cc: Nick Piggin <npiggin@suse.de>, Rik van Riel <riel@redhat.com>, Anton Altaparmakov <aia21@cam.ac.uk>, Suparna Bhattacharya <suparna@in.ibm.com>, Christoph Hellwig <hch@infradead.org>, Zach Brown <zach.brown@oracle.com>, Hugh Dickins <hugh@veritas.com>, Jared Hulbert <jaredeh@gmail.com>, Chris Mason <chris.mason@oracle.com>, David Chinner <dgc@sgi.com>, "Martin J. Bligh" <mbligh@mbligh.org>, Trond Myklebust <trond.myklebust@fys.uio.no>, Neil Brown <neilb@suse.de>, Joern Engel <joern@logfs.org>, Miklos Szeredi <miklos@szeredi.hu>, Mingming Cao <cmm@us.ibm.com>, Linux Memory Management List <linux-mm@kvack.org>, linux-fsdevel@vger.kernel.org
+Return-Path: <syxr60uoxq@varig.com>
+To: kelda@kvack.org, kernel@kvack.org, linux-mm-archive@kvack.org, linux-mm@kvack.org, owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 6 July 2007 13:40:03 -0700, Christoph Lameter wrote:
-> 
-> An interesting topic is certainly
-> 
-> 1. Large buffer support
-> 
-> 2. icache/dentry/buffer_head defragmentation.
+::Cum Pills : Increase Ejaculate:: 
+A large, volumous and Intense orgasm is an experience like no other and it is very satisfying for both partners - especially for the man. I'm sure there have been times in every man's life where he has had a truly intense and incredible orgasm. But for most men, an explosive and mind-blowing orgasm doesn't happen every time, which is why they are searching for a product that can help them achieve this feeling of complete euphoria much more frequently. In such circumstances Xtracum Cum pill is the only product that can help them. This is why we have sold over 800,000 Bottles of our cum pills Globally  
 
-Oh certainly!  I should dust off my dcache_static patch.  Some dentries
-are hands-off for the shrinker, basically mountpoints and tmpfs.  The
-patch moves those to a seperate slab cache.
+* Longer orgasms - Squirt for longer    
+* Erections like steel - Also increased size  
+* Increaase Sexual desire - Enhanced libido    
+* More Staying Power - Last all night  
+* Multiple Orgasms - Cum 4 times in a row  
+* 5x more sperm - Cover your lover in it     
+* Sweeter taste - It improves the flavor  
 
-JA?rn
+Order today our cum pills here   
+http://sszg.ofconsole.com
 
--- 
-Data dominates. If you've chosen the right data structures and organized
-things well, the algorithms will almost always be self-evident. Data
-structures, not algorithms, are central to programming.
--- Rob Pike
 
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+
+
+
+music comes speaking news taste. discuss interest necessary taste.
