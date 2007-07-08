@@ -1,398 +1,253 @@
 From: Christoph Lameter <clameter@sgi.com>
-Subject: [patch 00/12] Slab defragmentation V4
-Date: Sat, 07 Jul 2007 20:05:38 -0700
-Message-ID: <20070708030538.729027694@sgi.com>
-Return-path: <linux-kernel-owner+glk-linux-kernel-3=40m.gmane.org-S1756613AbXGHDJ6@vger.kernel.org>
+Subject: [patch 01/12] Slab defragmentation: Add support for kmem_cache_ops
+Date: Sat, 07 Jul 2007 20:05:39 -0700
+Message-ID: <20070708030843.608904913@sgi.com>
+References: <20070708030538.729027694@sgi.com>
+Return-path: <linux-kernel-owner+glk-linux-kernel-3=40m.gmane.org-S1756642AbXGHDKZ@vger.kernel.org>
+Content-Disposition: inline; filename=slab_defrag_kmem_cache_ops
 Sender: linux-kernel-owner@vger.kernel.org
 To: akpm@linux-foundation.org
 Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, dgc@sgi.com
 List-Id: linux-mm.kvack.org
 
-V3->V4:
-- Optimize scan for slabs that need defragmentation
-- Add /sys/slab/*/defrag_ratio to allow setting defrag limits
-  per slab.
-- Add support for buffer heads.
-- Describe how the cleanup after the daily updatedb can be
-  improved by slab defragmentation.
-- Rediff against 2.6.22-rc6-mm1 (+ slub patches in mm but
-  there should be minimal overlap--if any--with those)
-
-V2->V3
-- Support directory reclaim
-- Add infrastructure to trigger defragmentation after slab shrinking if we
-  have slabs with a high degree of fragmentation.
-
-V1->V2
-- Clean up control flow using a state variable. Simplify API. Back to 2
-  functions that now take arrays of objects.
-- Inode defrag support for a set of filesystems
-- Fix up dentry defrag support to work on negative dentries by adding
-  a new dentry flag that indicates that a dentry is not in the process
-  of being freed or allocated.
-
-
-
-Slab defragmentation is useful to increase the object density in slab caches.
-On reclaim the fragmentation ratios will be checked and if a the object
-density (ratio between maximum objects that could be stored in the allocated
-slabs and the actuall objects in use) in a defragmentable slab is less than
-a certain percentage (defaults to 30%) then the slabs with the lowest number
-of objects in them will be freed which increases the object density.
-
-Currently supported are
-
-1. dentry defrag
-2. inode defrag (with a generic interface to allow easy setup of more
-   filesystems than the currently supported ext2/3/4 reiserfs, XFS
-   and proc)
-3. buffer_heads
-
-One typical mechanism that triggers slab defragmentation on my systems
-is the daily run of
-
-	updatedb
-
-Updatedb scans all files on the system which causes a high inode and dentry
-use. After updatedb is complete we need to go back to the regular use
-patterns (typical on my machine: kernel compiles). Those need the memory now
-for different purposes. The inodes and dentries used for updatedb will
-gradually be aged by the dentry/inode reclaim algorithm which will free
-up the dentries and inode entries randomly through the slabs that were
-allocated. As a result the slabs will become sparsely populated. If they
-become empty then they can be freed but a lot of them will remain sparsely
-populated. That is where slab defrag comes in: It removes the slabs with
-just a few entries reclaiming more memory for other uses.
-
-Currently slab reclaim writes messages like this to the syslog if slab defrag
-is occurring:
-
-
-
-
-
-Test results (see appended scripts / user space code for more data)
-
-(3 level tree with 10 entries at first level , 20 at the second and 30 files at the
-third level. Files at the lowest level were removed to create inode fragmentation)
-
-%Ra is the allocation ratio (need to apply the slabinfo patch to get those numbers)
-
-inode reclaim in reiserfs
-
-Name                   Objects Objsize    Space Slabs/Part/Cpu  O/S O %Ra %Ef Flg
-dentry                   14660     200     3.0M        733/0/1   20 0 100  97 Da
-reiser_inode_cache        1596     640     4.1M      256/201/1   25 2  24  24 DCa
-
-Status after defrag
-
-Name                   Objects Objsize    Space Slabs/Part/Cpu  O/S O %Ra %Ef Flg
-dentry                    8849     200     1.8M       454/17/1   20 0  97  95 Da
-reiser_inode_cache        1381     640     1.0M        65/11/0   25 2  84  82 DCa
-
-
-
-Slab defragmentation can be triggered in two ways:
-
-1. Manually by running
-
-slabinfo -s <slabs-to-shrink>
-
-or manually by the kernel calling
-
-kmem_cache_shrink(slab)
-
-(Currently only ACPI is doing such a call to a slab that has no
-defragmentation support. In that case we simply do what SLAB does:
-drop per cpu caches and sift through partial list for free slabs).
-
-2. Automatically if defragmentable slabs reach a certain degree of
-   fragmentation.
-
-The point where slab defragmentation occurs is can be set at
-
-/proc/sys/vm/slab_defrag_ratio
-
-Slab fragmentation is measured by how much of the possible objects in a
-slab are in use. The default setting for slab_defrag_ratio is 30%. This
-means that slab fragmentation is going to be triggered if there are more than
-3 free object slots for each allocated object.
-
-Setting the slab_defrag_ratio higher will cause more defragmentation runs.
-If slab_defrag_ratio is set to 0 then no slab defragmentation occurs.
-
-Slabs are checked for their fragmentation levels after the slabs have been shrunk
-by running shrinkers in vm/scan.c during memory reclaim. This means that slab
-defragmentation is only triggered if we are under memory pressure and if there is
-significant slab fragmentation.
-
-
-
-Test script:
-
-#!/bin/sh
-
-echo 30 >/proc/sys/vm/slab_defrag_ratio
-
-./gazfiles c 3 10 20 30
-echo "Status before"
-slabinfo -D
-./gazfiles d 2
-echo "Status after removing files"
-slabinfo -D
-slabinfo -s
-echo "Status after defrag"
-slabinfo -D
-./gazfiles d 0
-
-
-gazfiles.c :
-
-/*
- * Create a gazillion of files to be able to create slab fragmentation
- *
- * (C) 2007 sgi, Christoph Lameter <clameter@sgi.com>
- *
- * Create a n layered hierachy of files of empty files
- *
- * gazfiles <action> <levels> <n1> <n2> ...
- *
- * gazfiles c[reate] 3 50 50 50
- *
- * gazfiles s[hrink] <levels>
- *
- * gazfiles r[andomkill] <nr to kill> 
- */
-
-#include <stdio.h>
-#include <stdlib.h>
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <dirent.h>
-#include <string.h>
-#include <unistd.h>
-#include <stdarg.h>
-#include <getopt.h>
-#include <regex.h>
-#include <errno.h>
-
-#define MAXIMUM_LEVELS 10
-
-int level;
-int sizes[MAXIMUM_LEVELS];
-
-void fatal(const char *x, ...)
-{
-        va_list ap;
-
-        va_start(ap, x);
-        vfprintf(stderr, x, ap);
-        va_end(ap);
-        exit(1);
-}
-
-int read_gaz(void)
-{
-	FILE *f = fopen(".gazinfo", "r");
-	int rc = 0;
-	int i;
-
-	if (!f)
-		return 0;
-
-	if (!fscanf(f, "%d", &level))
-		goto out;
-
-	if (level >= MAXIMUM_LEVELS)
-		goto out;
-
-	for (i = 0; i < level; i++)
-		if (!fscanf(f, " %d", &sizes[i]))
-			goto out;
-	rc = 1;
-out:
-	fclose(f);
-	return rc;
-}
-
-void write_gaz(void)
-{
-	FILE *f = fopen(".gazinfo","w");
-	int i;
-
-	fprintf(f, "%d",level);
-	for (i = 0; i < level; i++)
-		fprintf(f," %d", sizes[i]);
-	fprintf(f, "\n");
-	fclose(f);
-}
-
-void cre(int l)
-{
-	int i;
-
-	for (i = 0; i < sizes[l - 1]; i++) {
-		char name[20];
-
-		sprintf(name, "%03d", i);
-
-		if (l < level) {
-			mkdir(name, 0775);
-			chdir(name);
-			cre(l + 1);
-			chdir("..");
-		} else {
-			FILE *f;
-
-			f = fopen(name,"w");
-			fprintf(f, "Test");
-			fclose(f);
-		}
-	}
-}
-
-void create(int l, char **sz)
-{
-	int i;
-
-	level = l;
-	for (i = 0; i < level; i++)
-		sizes[i] = atoi(sz[i]);
-
-	if (mkdir("gazf", 0775))
-		fatal("Cannot create gazf here\n");
-	chdir("gazf");
-	write_gaz();
-	cre(1);
-	chdir("..");
-}
-
-void shrink(int level)
-{
-	if (chdir("gazf"))
-		fatal("No gazfiles in this directory");
-	read_gaz();
-	chdir("..");
-}
-
-void scand(int l, void (*func)(int, int, char *, unsigned long),
-			unsigned long level)
-{
-	DIR *dir;
-	struct dirent *de;
-
-	dir = opendir(".");
-	if (!dir)
-		fatal("Cannot open directory");
-	while ((de = readdir(dir))) {
-		struct stat s;
-
-		if (de->d_name[0] == '.')
-			continue;
-
-		/*
-		 * Some idiot broke the glibc library or made it impossible
-		 * to figure out how to make readdir work right
-		 */
-
-		stat(de->d_name, &s);
-		if (S_ISDIR(s.st_mode))
-			de->d_type = DT_DIR;
-
-		if (de->d_type == DT_DIR) {
-			if (chdir(de->d_name))
-				fatal("Cannot enter %s", de->d_name);
-			scand(l + 1, func, level);
-			chdir("..");
-			func(l, 1, de->d_name, level);
-		} else {
-			func(l, 0, de->d_name, level);
-		}
-	}
-	closedir(dir);
-}
-
-void traverse(void (*func)(int, int, char *, unsigned long),
-		unsigned long level)
-{
-	if (chdir("gazf"))
-		fatal("No gazfiles in this directory");
-	scand(1, func, level);
-	chdir("..");
-}
-
-void randomkill(int nr)
-{
-	if (chdir("gazf"))
-		fatal("No gazfiles in this directory");
-	read_gaz();
-	chdir("..");
-}
-
-void del_func(int l, int dir, char *name, unsigned long level)
-{
-	if (l <= level)
-		return;
-	if (dir) {
-		if (rmdir(name))
-			fatal("Cannot remove directory %s");
-	} else {
-		if (unlink(name))
-			fatal("Cannot unlink file %s");
-	}
-}
-
-void delete(int l)
-{
-	if (l == 0) {
-		system("rm -rf gazf");
-		return;
-	}
-	traverse(del_func, l);
-}
-
-void usage(void)
-{
-	printf("gazfiles: Tool to manage gazillions of files\n\n");
-	printf("gazfiles create <levels> <#l1> <#l2> ...\n");
-	printf("gazfiles delete <levels>\n");
-	printf("gazfiles shrink <levels>\n");
-	printf("gazfiles randomkill <nr>\n\n");
-	printf("(C) 2007 sgi, Christoph Lameter <clameter@sgi.com>\n");
-	exit(0);
-}
-
-int main(int argc, char *argv[])
-{
-	if (argc  <  2)
-		usage();
-
-	switch (argv[1][0]) {
-		case 'c' :
-			create(atoi(argv[2]), argv + 3);
-			break;
-		case 's' :
-			if (argc != 3)
-				usage();
-
-			shrink(atoi(argv[2]));
-			break;
-		case 'r' :
-			if (argc != 3)
-				usage();
-
-			randomkill(atoi(argv[2]));
-			break;
-		case 'd':
-			if (argc != 3)
-				usage();
-			delete(atoi(argv[2]));
-			break;
-
-		default:
-			usage();
-	}
-	return 0;
-}
+We use the parameter formerly used by the destructor to pass an optional
+pointer to a kmem_cache_ops structure to kmem_cache_create.
+
+kmem_cache_ops is created as empty. Later patches populate kmem_cache_ops.
+
+Create a KMEM_CACHE_OPS macro that allows the specification of a the
+kmem_cache_ops parameter.
+
+Code to handle kmem_cache_ops is added to SLUB. SLAB and SLOB are updated
+to be able to accept a kmem_cache_ops structure but will ignore it.
+
+Signed-off-by: Christoph Lameter <clameter@sgi.com>
+
+---
+ include/linux/slab.h     |   13 +++++++++----
+ include/linux/slub_def.h |    1 +
+ mm/slab.c                |    6 +++---
+ mm/slob.c                |    2 +-
+ mm/slub.c                |   44 ++++++++++++++++++++++++++++++--------------
+ 5 files changed, 44 insertions(+), 22 deletions(-)
+
+Index: linux-2.6.22-rc6-mm1/include/linux/slab.h
+===================================================================
+--- linux-2.6.22-rc6-mm1.orig/include/linux/slab.h	2007-07-04 09:09:55.000000000 -0700
++++ linux-2.6.22-rc6-mm1/include/linux/slab.h	2007-07-04 09:14:59.000000000 -0700
+@@ -51,10 +51,13 @@
+ void __init kmem_cache_init(void);
+ int slab_is_available(void);
+ 
++struct kmem_cache_ops {
++};
++
+ struct kmem_cache *kmem_cache_create(const char *, size_t, size_t,
+ 			unsigned long,
+ 			void (*)(void *, struct kmem_cache *, unsigned long),
+-			void (*)(void *, struct kmem_cache *, unsigned long));
++			const struct kmem_cache_ops *s);
+ void kmem_cache_destroy(struct kmem_cache *);
+ int kmem_cache_shrink(struct kmem_cache *);
+ void kmem_cache_free(struct kmem_cache *, void *);
+@@ -70,9 +73,11 @@ int kmem_ptr_validate(struct kmem_cache 
+  * f.e. add ____cacheline_aligned_in_smp to the struct declaration
+  * then the objects will be properly aligned in SMP configurations.
+  */
+-#define KMEM_CACHE(__struct, __flags) kmem_cache_create(#__struct,\
+-		sizeof(struct __struct), __alignof__(struct __struct),\
+-		(__flags), NULL, NULL)
++#define KMEM_CACHE_OPS(__struct, __flags, __ops) \
++	kmem_cache_create(#__struct, sizeof(struct __struct), \
++	__alignof__(struct __struct), (__flags), NULL, (__ops))
++
++#define KMEM_CACHE(__struct, __flags) KMEM_CACHE_OPS(__struct, __flags, NULL)
+ 
+ /*
+  * The largest kmalloc size supported by the slab allocators is
+Index: linux-2.6.22-rc6-mm1/mm/slub.c
+===================================================================
+--- linux-2.6.22-rc6-mm1.orig/mm/slub.c	2007-07-04 09:14:35.000000000 -0700
++++ linux-2.6.22-rc6-mm1/mm/slub.c	2007-07-04 09:15:21.000000000 -0700
+@@ -300,6 +300,9 @@ static inline int check_valid_pointer(st
+ 	return 1;
+ }
+ 
++struct kmem_cache_ops slub_default_ops = {
++};
++
+ /*
+  * Slow version of get and set free pointer.
+  *
+@@ -2082,11 +2085,13 @@ static int calculate_sizes(struct kmem_c
+ static int kmem_cache_open(struct kmem_cache *s, gfp_t gfpflags,
+ 		const char *name, size_t size,
+ 		size_t align, unsigned long flags,
+-		void (*ctor)(void *, struct kmem_cache *, unsigned long))
++		void (*ctor)(void *, struct kmem_cache *, unsigned long),
++		const struct kmem_cache_ops *ops)
+ {
+ 	memset(s, 0, kmem_size);
+ 	s->name = name;
+ 	s->ctor = ctor;
++	s->ops = ops;
+ 	s->objsize = size;
+ 	s->flags = flags;
+ 	s->align = align;
+@@ -2270,7 +2275,7 @@ static struct kmem_cache *create_kmalloc
+ 
+ 	down_write(&slub_lock);
+ 	if (!kmem_cache_open(s, gfp_flags, name, size, ARCH_KMALLOC_MINALIGN,
+-			flags, NULL))
++			flags, NULL, &slub_default_ops))
+ 		goto panic;
+ 
+ 	list_add(&s->list, &slab_caches);
+@@ -2639,12 +2644,16 @@ static int slab_unmergeable(struct kmem_
+ 	if (s->refcount < 0)
+ 		return 1;
+ 
++	if (s->ops != &slub_default_ops)
++		return 1;
++
+ 	return 0;
+ }
+ 
+ static struct kmem_cache *find_mergeable(size_t size,
+ 		size_t align, unsigned long flags,
+-		void (*ctor)(void *, struct kmem_cache *, unsigned long))
++		void (*ctor)(void *, struct kmem_cache *, unsigned long),
++		const struct kmem_cache_ops *ops)
+ {
+ 	struct kmem_cache *s;
+ 
+@@ -2654,6 +2663,9 @@ static struct kmem_cache *find_mergeable
+ 	if (ctor)
+ 		return NULL;
+ 
++	if (ops != &slub_default_ops)
++		return NULL;
++
+ 	size = ALIGN(size, sizeof(void *));
+ 	align = calculate_alignment(flags, align, size);
+ 	size = ALIGN(size, align);
+@@ -2686,13 +2698,15 @@ static struct kmem_cache *find_mergeable
+ struct kmem_cache *kmem_cache_create(const char *name, size_t size,
+ 		size_t align, unsigned long flags,
+ 		void (*ctor)(void *, struct kmem_cache *, unsigned long),
+-		void (*dtor)(void *, struct kmem_cache *, unsigned long))
++		const struct kmem_cache_ops *ops)
+ {
+ 	struct kmem_cache *s;
+ 
+-	BUG_ON(dtor);
++	if (!ops)
++		ops = &slub_default_ops;
++
+ 	down_write(&slub_lock);
+-	s = find_mergeable(size, align, flags, ctor);
++	s = find_mergeable(size, align, flags, ctor, ops);
+ 	if (s) {
+ 		s->refcount++;
+ 		/*
+@@ -2712,7 +2726,7 @@ struct kmem_cache *kmem_cache_create(con
+ 	s = kmalloc(kmem_size, GFP_KERNEL);
+ 	if (s) {
+ 		if (kmem_cache_open(s, GFP_KERNEL, name,
+-				size, align, flags, ctor)) {
++				size, align, flags, ctor, ops)) {
+ 			list_add(&s->list, &slab_caches);
+ 			up_write(&slub_lock);
+ 			raise_kswapd_order(s->order);
+@@ -3332,16 +3346,18 @@ static ssize_t order_show(struct kmem_ca
+ }
+ SLAB_ATTR_RO(order);
+ 
+-static ssize_t ctor_show(struct kmem_cache *s, char *buf)
++static ssize_t ops_show(struct kmem_cache *s, char *buf)
+ {
+-	if (s->ctor) {
+-		int n = sprint_symbol(buf, (unsigned long)s->ctor);
++	int x = 0;
+ 
+-		return n + sprintf(buf + n, "\n");
++	if (s->ctor) {
++		x += sprintf(buf + x, "ctor : ");
++		x += sprint_symbol(buf + x, (unsigned long)s->ctor);
++		x += sprintf(buf + x, "\n");
+ 	}
+-	return 0;
++	return x;
+ }
+-SLAB_ATTR_RO(ctor);
++SLAB_ATTR_RO(ops);
+ 
+ static ssize_t aliases_show(struct kmem_cache *s, char *buf)
+ {
+@@ -3576,7 +3592,7 @@ static struct attribute * slab_attrs[] =
+ 	&slabs_attr.attr,
+ 	&partial_attr.attr,
+ 	&cpu_slabs_attr.attr,
+-	&ctor_attr.attr,
++	&ops_attr.attr,
+ 	&aliases_attr.attr,
+ 	&align_attr.attr,
+ 	&sanity_checks_attr.attr,
+Index: linux-2.6.22-rc6-mm1/include/linux/slub_def.h
+===================================================================
+--- linux-2.6.22-rc6-mm1.orig/include/linux/slub_def.h	2007-07-04 09:09:55.000000000 -0700
++++ linux-2.6.22-rc6-mm1/include/linux/slub_def.h	2007-07-04 09:14:59.000000000 -0700
+@@ -42,6 +42,7 @@ struct kmem_cache {
+ 	int objects;		/* Number of objects in slab */
+ 	int refcount;		/* Refcount for slab cache destroy */
+ 	void (*ctor)(void *, struct kmem_cache *, unsigned long);
++	const struct kmem_cache_ops *ops;
+ 	int inuse;		/* Offset to metadata */
+ 	int align;		/* Alignment */
+ 	const char *name;	/* Name (only for display!) */
+Index: linux-2.6.22-rc6-mm1/mm/slab.c
+===================================================================
+--- linux-2.6.22-rc6-mm1.orig/mm/slab.c	2007-07-04 09:09:55.000000000 -0700
++++ linux-2.6.22-rc6-mm1/mm/slab.c	2007-07-04 09:14:59.000000000 -0700
+@@ -2102,7 +2102,7 @@ static int __init_refok setup_cpu_cache(
+  * @align: The required alignment for the objects.
+  * @flags: SLAB flags
+  * @ctor: A constructor for the objects.
+- * @dtor: A destructor for the objects (not implemented anymore).
++ * @ops: A kmem_cache_ops structure (ignored).
+  *
+  * Returns a ptr to the cache on success, NULL on failure.
+  * Cannot be called within a int, but can be interrupted.
+@@ -2128,7 +2128,7 @@ struct kmem_cache *
+ kmem_cache_create (const char *name, size_t size, size_t align,
+ 	unsigned long flags,
+ 	void (*ctor)(void*, struct kmem_cache *, unsigned long),
+-	void (*dtor)(void*, struct kmem_cache *, unsigned long))
++	const struct kmem_cache_ops *ops)
+ {
+ 	size_t left_over, slab_size, ralign;
+ 	struct kmem_cache *cachep = NULL, *pc;
+@@ -2137,7 +2137,7 @@ kmem_cache_create (const char *name, siz
+ 	 * Sanity checks... these are all serious usage bugs.
+ 	 */
+ 	if (!name || in_interrupt() || (size < BYTES_PER_WORD) ||
+-	    size > KMALLOC_MAX_SIZE || dtor) {
++	    size > KMALLOC_MAX_SIZE) {
+ 		printk(KERN_ERR "%s: Early error in slab %s\n", __FUNCTION__,
+ 				name);
+ 		BUG();
+Index: linux-2.6.22-rc6-mm1/mm/slob.c
+===================================================================
+--- linux-2.6.22-rc6-mm1.orig/mm/slob.c	2007-07-04 09:09:55.000000000 -0700
++++ linux-2.6.22-rc6-mm1/mm/slob.c	2007-07-04 09:14:59.000000000 -0700
+@@ -493,7 +493,7 @@ struct kmem_cache {
+ struct kmem_cache *kmem_cache_create(const char *name, size_t size,
+ 	size_t align, unsigned long flags,
+ 	void (*ctor)(void*, struct kmem_cache *, unsigned long),
+-	void (*dtor)(void*, struct kmem_cache *, unsigned long))
++	const struct kmem_cache_ops *o)
+ {
+ 	struct kmem_cache *c;
+ 
 
 -- 
