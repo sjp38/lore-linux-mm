@@ -1,253 +1,162 @@
 From: Christoph Lameter <clameter@sgi.com>
-Subject: [patch 01/12] Slab defragmentation: Add support for kmem_cache_ops
-Date: Sat, 07 Jul 2007 20:05:39 -0700
-Message-ID: <20070708030843.608904913@sgi.com>
+Subject: [patch 04/12] Slab defragmentation: Logic to trigger defragmentation from memory reclaim
+Date: Sat, 07 Jul 2007 20:05:42 -0700
+Message-ID: <20070708030844.327742445@sgi.com>
 References: <20070708030538.729027694@sgi.com>
-Return-path: <linux-kernel-owner+glk-linux-kernel-3=40m.gmane.org-S1756642AbXGHDKZ@vger.kernel.org>
-Content-Disposition: inline; filename=slab_defrag_kmem_cache_ops
+Return-path: <linux-kernel-owner+glk-linux-kernel-3=40m.gmane.org-S1756515AbXGHDJl@vger.kernel.org>
+Content-Disposition: inline; filename=slab_defrag_trigger
 Sender: linux-kernel-owner@vger.kernel.org
 To: akpm@linux-foundation.org
 Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, dgc@sgi.com
 List-Id: linux-mm.kvack.org
 
-We use the parameter formerly used by the destructor to pass an optional
-pointer to a kmem_cache_ops structure to kmem_cache_create.
+At some point slab defragmentation needs to be triggered. The logical
+point for this is after slab shrinking was performed in vmscan.c. At
+that point the fragmentation ratio of a slab was increased by objects
+being freed. So we call kmem_cache_defrag from there.
 
-kmem_cache_ops is created as empty. Later patches populate kmem_cache_ops.
-
-Create a KMEM_CACHE_OPS macro that allows the specification of a the
-kmem_cache_ops parameter.
-
-Code to handle kmem_cache_ops is added to SLUB. SLAB and SLOB are updated
-to be able to accept a kmem_cache_ops structure but will ignore it.
+slab_shrink() from vmscan.c is called in some contexts to do
+global shrinking of slabs and in others to do shrinking for
+a particular zone. Pass the zone to slab_shrink, so that slab_shrink
+can call kmem_cache_defrag() and restrict the defragmentation to
+the node that is under memory pressure.
 
 Signed-off-by: Christoph Lameter <clameter@sgi.com>
 
 ---
- include/linux/slab.h     |   13 +++++++++----
- include/linux/slub_def.h |    1 +
- mm/slab.c                |    6 +++---
- mm/slob.c                |    2 +-
- mm/slub.c                |   44 ++++++++++++++++++++++++++++++--------------
- 5 files changed, 44 insertions(+), 22 deletions(-)
+ fs/drop_caches.c     |    2 +-
+ include/linux/mm.h   |    2 +-
+ include/linux/slab.h |    1 +
+ mm/vmscan.c          |   27 ++++++++++++++++++++-------
+ 4 files changed, 23 insertions(+), 9 deletions(-)
 
 Index: linux-2.6.22-rc6-mm1/include/linux/slab.h
 ===================================================================
---- linux-2.6.22-rc6-mm1.orig/include/linux/slab.h	2007-07-04 09:09:55.000000000 -0700
-+++ linux-2.6.22-rc6-mm1/include/linux/slab.h	2007-07-04 09:14:59.000000000 -0700
-@@ -51,10 +51,13 @@
- void __init kmem_cache_init(void);
- int slab_is_available(void);
+--- linux-2.6.22-rc6-mm1.orig/include/linux/slab.h	2007-07-04 09:53:59.000000000 -0700
++++ linux-2.6.22-rc6-mm1/include/linux/slab.h	2007-07-04 09:56:22.000000000 -0700
+@@ -96,6 +96,7 @@ void kmem_cache_free(struct kmem_cache *
+ unsigned int kmem_cache_size(struct kmem_cache *);
+ const char *kmem_cache_name(struct kmem_cache *);
+ int kmem_ptr_validate(struct kmem_cache *cachep, const void *ptr);
++int kmem_cache_defrag(int node);
  
-+struct kmem_cache_ops {
-+};
-+
- struct kmem_cache *kmem_cache_create(const char *, size_t, size_t,
- 			unsigned long,
- 			void (*)(void *, struct kmem_cache *, unsigned long),
--			void (*)(void *, struct kmem_cache *, unsigned long));
-+			const struct kmem_cache_ops *s);
- void kmem_cache_destroy(struct kmem_cache *);
- int kmem_cache_shrink(struct kmem_cache *);
- void kmem_cache_free(struct kmem_cache *, void *);
-@@ -70,9 +73,11 @@ int kmem_ptr_validate(struct kmem_cache 
-  * f.e. add ____cacheline_aligned_in_smp to the struct declaration
-  * then the objects will be properly aligned in SMP configurations.
+ /*
+  * Please use this macro to create slab caches. Simply specify the
+Index: linux-2.6.22-rc6-mm1/mm/vmscan.c
+===================================================================
+--- linux-2.6.22-rc6-mm1.orig/mm/vmscan.c	2007-07-04 09:53:59.000000000 -0700
++++ linux-2.6.22-rc6-mm1/mm/vmscan.c	2007-07-04 09:59:08.000000000 -0700
+@@ -152,10 +152,18 @@ EXPORT_SYMBOL(unregister_shrinker);
+  * are eligible for the caller's allocation attempt.  It is used for balancing
+  * slab reclaim versus page reclaim.
+  *
++ * zone is the zone for which we are shrinking the slabs. If the intent
++ * is to do a global shrink then zone may be NULL. Specification of a
++ * zone is currently only used to limit slab defragmentation to a NUMA node.
++ * The performace of shrink_slab would be better (in particular under NUMA)
++ * if it could be targeted as a whole to the zone that is under memory
++ * pressure but the VFS infrastructure does not allow that at the present
++ * time.
++ *
+  * Returns the number of slab objects which we shrunk.
   */
--#define KMEM_CACHE(__struct, __flags) kmem_cache_create(#__struct,\
--		sizeof(struct __struct), __alignof__(struct __struct),\
--		(__flags), NULL, NULL)
-+#define KMEM_CACHE_OPS(__struct, __flags, __ops) \
-+	kmem_cache_create(#__struct, sizeof(struct __struct), \
-+	__alignof__(struct __struct), (__flags), NULL, (__ops))
-+
-+#define KMEM_CACHE(__struct, __flags) KMEM_CACHE_OPS(__struct, __flags, NULL)
- 
- /*
-  * The largest kmalloc size supported by the slab allocators is
-Index: linux-2.6.22-rc6-mm1/mm/slub.c
-===================================================================
---- linux-2.6.22-rc6-mm1.orig/mm/slub.c	2007-07-04 09:14:35.000000000 -0700
-+++ linux-2.6.22-rc6-mm1/mm/slub.c	2007-07-04 09:15:21.000000000 -0700
-@@ -300,6 +300,9 @@ static inline int check_valid_pointer(st
- 	return 1;
- }
- 
-+struct kmem_cache_ops slub_default_ops = {
-+};
-+
- /*
-  * Slow version of get and set free pointer.
-  *
-@@ -2082,11 +2085,13 @@ static int calculate_sizes(struct kmem_c
- static int kmem_cache_open(struct kmem_cache *s, gfp_t gfpflags,
- 		const char *name, size_t size,
- 		size_t align, unsigned long flags,
--		void (*ctor)(void *, struct kmem_cache *, unsigned long))
-+		void (*ctor)(void *, struct kmem_cache *, unsigned long),
-+		const struct kmem_cache_ops *ops)
+ unsigned long shrink_slab(unsigned long scanned, gfp_t gfp_mask,
+-			unsigned long lru_pages)
++			unsigned long lru_pages, struct zone *zone)
  {
- 	memset(s, 0, kmem_size);
- 	s->name = name;
- 	s->ctor = ctor;
-+	s->ops = ops;
- 	s->objsize = size;
- 	s->flags = flags;
- 	s->align = align;
-@@ -2270,7 +2275,7 @@ static struct kmem_cache *create_kmalloc
- 
- 	down_write(&slub_lock);
- 	if (!kmem_cache_open(s, gfp_flags, name, size, ARCH_KMALLOC_MINALIGN,
--			flags, NULL))
-+			flags, NULL, &slub_default_ops))
- 		goto panic;
- 
- 	list_add(&s->list, &slab_caches);
-@@ -2639,12 +2644,16 @@ static int slab_unmergeable(struct kmem_
- 	if (s->refcount < 0)
- 		return 1;
- 
-+	if (s->ops != &slub_default_ops)
-+		return 1;
-+
- 	return 0;
- }
- 
- static struct kmem_cache *find_mergeable(size_t size,
- 		size_t align, unsigned long flags,
--		void (*ctor)(void *, struct kmem_cache *, unsigned long))
-+		void (*ctor)(void *, struct kmem_cache *, unsigned long),
-+		const struct kmem_cache_ops *ops)
- {
- 	struct kmem_cache *s;
- 
-@@ -2654,6 +2663,9 @@ static struct kmem_cache *find_mergeable
- 	if (ctor)
- 		return NULL;
- 
-+	if (ops != &slub_default_ops)
-+		return NULL;
-+
- 	size = ALIGN(size, sizeof(void *));
- 	align = calculate_alignment(flags, align, size);
- 	size = ALIGN(size, align);
-@@ -2686,13 +2698,15 @@ static struct kmem_cache *find_mergeable
- struct kmem_cache *kmem_cache_create(const char *name, size_t size,
- 		size_t align, unsigned long flags,
- 		void (*ctor)(void *, struct kmem_cache *, unsigned long),
--		void (*dtor)(void *, struct kmem_cache *, unsigned long))
-+		const struct kmem_cache_ops *ops)
- {
- 	struct kmem_cache *s;
- 
--	BUG_ON(dtor);
-+	if (!ops)
-+		ops = &slub_default_ops;
-+
- 	down_write(&slub_lock);
--	s = find_mergeable(size, align, flags, ctor);
-+	s = find_mergeable(size, align, flags, ctor, ops);
- 	if (s) {
- 		s->refcount++;
- 		/*
-@@ -2712,7 +2726,7 @@ struct kmem_cache *kmem_cache_create(con
- 	s = kmalloc(kmem_size, GFP_KERNEL);
- 	if (s) {
- 		if (kmem_cache_open(s, GFP_KERNEL, name,
--				size, align, flags, ctor)) {
-+				size, align, flags, ctor, ops)) {
- 			list_add(&s->list, &slab_caches);
- 			up_write(&slub_lock);
- 			raise_kswapd_order(s->order);
-@@ -3332,16 +3346,18 @@ static ssize_t order_show(struct kmem_ca
- }
- SLAB_ATTR_RO(order);
- 
--static ssize_t ctor_show(struct kmem_cache *s, char *buf)
-+static ssize_t ops_show(struct kmem_cache *s, char *buf)
- {
--	if (s->ctor) {
--		int n = sprint_symbol(buf, (unsigned long)s->ctor);
-+	int x = 0;
- 
--		return n + sprintf(buf + n, "\n");
-+	if (s->ctor) {
-+		x += sprintf(buf + x, "ctor : ");
-+		x += sprint_symbol(buf + x, (unsigned long)s->ctor);
-+		x += sprintf(buf + x, "\n");
+ 	struct shrinker *shrinker;
+ 	unsigned long ret = 0;
+@@ -218,6 +226,8 @@ unsigned long shrink_slab(unsigned long 
+ 		shrinker->nr += total_scan;
  	}
--	return 0;
-+	return x;
+ 	up_read(&shrinker_rwsem);
++	if (gfp_mask & __GFP_FS)
++		kmem_cache_defrag(zone ? zone_to_nid(zone) : -1);
+ 	return ret;
  }
--SLAB_ATTR_RO(ctor);
-+SLAB_ATTR_RO(ops);
  
- static ssize_t aliases_show(struct kmem_cache *s, char *buf)
- {
-@@ -3576,7 +3592,7 @@ static struct attribute * slab_attrs[] =
- 	&slabs_attr.attr,
- 	&partial_attr.attr,
- 	&cpu_slabs_attr.attr,
--	&ctor_attr.attr,
-+	&ops_attr.attr,
- 	&aliases_attr.attr,
- 	&align_attr.attr,
- 	&sanity_checks_attr.attr,
-Index: linux-2.6.22-rc6-mm1/include/linux/slub_def.h
-===================================================================
---- linux-2.6.22-rc6-mm1.orig/include/linux/slub_def.h	2007-07-04 09:09:55.000000000 -0700
-+++ linux-2.6.22-rc6-mm1/include/linux/slub_def.h	2007-07-04 09:14:59.000000000 -0700
-@@ -42,6 +42,7 @@ struct kmem_cache {
- 	int objects;		/* Number of objects in slab */
- 	int refcount;		/* Refcount for slab cache destroy */
- 	void (*ctor)(void *, struct kmem_cache *, unsigned long);
-+	const struct kmem_cache_ops *ops;
- 	int inuse;		/* Offset to metadata */
- 	int align;		/* Alignment */
- 	const char *name;	/* Name (only for display!) */
-Index: linux-2.6.22-rc6-mm1/mm/slab.c
-===================================================================
---- linux-2.6.22-rc6-mm1.orig/mm/slab.c	2007-07-04 09:09:55.000000000 -0700
-+++ linux-2.6.22-rc6-mm1/mm/slab.c	2007-07-04 09:14:59.000000000 -0700
-@@ -2102,7 +2102,7 @@ static int __init_refok setup_cpu_cache(
-  * @align: The required alignment for the objects.
-  * @flags: SLAB flags
-  * @ctor: A constructor for the objects.
-- * @dtor: A destructor for the objects (not implemented anymore).
-+ * @ops: A kmem_cache_ops structure (ignored).
-  *
-  * Returns a ptr to the cache on success, NULL on failure.
-  * Cannot be called within a int, but can be interrupted.
-@@ -2128,7 +2128,7 @@ struct kmem_cache *
- kmem_cache_create (const char *name, size_t size, size_t align,
- 	unsigned long flags,
- 	void (*ctor)(void*, struct kmem_cache *, unsigned long),
--	void (*dtor)(void*, struct kmem_cache *, unsigned long))
-+	const struct kmem_cache_ops *ops)
- {
- 	size_t left_over, slab_size, ralign;
- 	struct kmem_cache *cachep = NULL, *pc;
-@@ -2137,7 +2137,7 @@ kmem_cache_create (const char *name, siz
- 	 * Sanity checks... these are all serious usage bugs.
- 	 */
- 	if (!name || in_interrupt() || (size < BYTES_PER_WORD) ||
--	    size > KMALLOC_MAX_SIZE || dtor) {
-+	    size > KMALLOC_MAX_SIZE) {
- 		printk(KERN_ERR "%s: Early error in slab %s\n", __FUNCTION__,
- 				name);
- 		BUG();
-Index: linux-2.6.22-rc6-mm1/mm/slob.c
-===================================================================
---- linux-2.6.22-rc6-mm1.orig/mm/slob.c	2007-07-04 09:09:55.000000000 -0700
-+++ linux-2.6.22-rc6-mm1/mm/slob.c	2007-07-04 09:14:59.000000000 -0700
-@@ -493,7 +493,7 @@ struct kmem_cache {
- struct kmem_cache *kmem_cache_create(const char *name, size_t size,
- 	size_t align, unsigned long flags,
- 	void (*ctor)(void*, struct kmem_cache *, unsigned long),
--	void (*dtor)(void*, struct kmem_cache *, unsigned long))
-+	const struct kmem_cache_ops *o)
- {
- 	struct kmem_cache *c;
+@@ -1163,7 +1173,8 @@ unsigned long try_to_free_pages(struct z
+ 		if (!priority)
+ 			disable_swap_token();
+ 		nr_reclaimed += shrink_zones(priority, zones, &sc);
+-		shrink_slab(sc.nr_scanned, gfp_mask, lru_pages);
++		shrink_slab(sc.nr_scanned, gfp_mask, lru_pages,
++						NULL);
+ 		if (reclaim_state) {
+ 			nr_reclaimed += reclaim_state->reclaimed_slab;
+ 			reclaim_state->reclaimed_slab = 0;
+@@ -1333,7 +1344,7 @@ loop_again:
+ 			nr_reclaimed += shrink_zone(priority, zone, &sc);
+ 			reclaim_state->reclaimed_slab = 0;
+ 			nr_slab = shrink_slab(sc.nr_scanned, GFP_KERNEL,
+-						lru_pages);
++						lru_pages, zone);
+ 			nr_reclaimed += reclaim_state->reclaimed_slab;
+ 			total_scanned += sc.nr_scanned;
+ 			if (zone->all_unreclaimable)
+@@ -1601,7 +1612,7 @@ unsigned long shrink_all_memory(unsigned
+ 	/* If slab caches are huge, it's better to hit them first */
+ 	while (nr_slab >= lru_pages) {
+ 		reclaim_state.reclaimed_slab = 0;
+-		shrink_slab(nr_pages, sc.gfp_mask, lru_pages);
++		shrink_slab(nr_pages, sc.gfp_mask, lru_pages, NULL);
+ 		if (!reclaim_state.reclaimed_slab)
+ 			break;
  
+@@ -1639,7 +1650,7 @@ unsigned long shrink_all_memory(unsigned
+ 
+ 			reclaim_state.reclaimed_slab = 0;
+ 			shrink_slab(sc.nr_scanned, sc.gfp_mask,
+-					count_lru_pages());
++					count_lru_pages(), NULL);
+ 			ret += reclaim_state.reclaimed_slab;
+ 			if (ret >= nr_pages)
+ 				goto out;
+@@ -1656,7 +1667,8 @@ unsigned long shrink_all_memory(unsigned
+ 	if (!ret) {
+ 		do {
+ 			reclaim_state.reclaimed_slab = 0;
+-			shrink_slab(nr_pages, sc.gfp_mask, count_lru_pages());
++			shrink_slab(nr_pages, sc.gfp_mask,
++					count_lru_pages(), NULL);
+ 			ret += reclaim_state.reclaimed_slab;
+ 		} while (ret < nr_pages && reclaim_state.reclaimed_slab > 0);
+ 	}
+@@ -1816,7 +1828,8 @@ static int __zone_reclaim(struct zone *z
+ 		 * Note that shrink_slab will free memory on all zones and may
+ 		 * take a long time.
+ 		 */
+-		while (shrink_slab(sc.nr_scanned, gfp_mask, order) &&
++		while (shrink_slab(sc.nr_scanned, gfp_mask, order,
++						zone) &&
+ 			zone_page_state(zone, NR_SLAB_RECLAIMABLE) >
+ 				slab_reclaimable - nr_pages)
+ 			;
+Index: linux-2.6.22-rc6-mm1/fs/drop_caches.c
+===================================================================
+--- linux-2.6.22-rc6-mm1.orig/fs/drop_caches.c	2007-07-04 09:53:59.000000000 -0700
++++ linux-2.6.22-rc6-mm1/fs/drop_caches.c	2007-07-04 09:56:22.000000000 -0700
+@@ -52,7 +52,7 @@ void drop_slab(void)
+ 	int nr_objects;
+ 
+ 	do {
+-		nr_objects = shrink_slab(1000, GFP_KERNEL, 1000);
++		nr_objects = shrink_slab(1000, GFP_KERNEL, 1000, NULL);
+ 	} while (nr_objects > 10);
+ }
+ 
+Index: linux-2.6.22-rc6-mm1/include/linux/mm.h
+===================================================================
+--- linux-2.6.22-rc6-mm1.orig/include/linux/mm.h	2007-07-04 09:53:59.000000000 -0700
++++ linux-2.6.22-rc6-mm1/include/linux/mm.h	2007-07-04 09:56:22.000000000 -0700
+@@ -1248,7 +1248,7 @@ int in_gate_area_no_task(unsigned long a
+ int drop_caches_sysctl_handler(struct ctl_table *, int, struct file *,
+ 					void __user *, size_t *, loff_t *);
+ unsigned long shrink_slab(unsigned long scanned, gfp_t gfp_mask,
+-			unsigned long lru_pages);
++			unsigned long lru_pages, struct zone *zone);
+ extern void drop_pagecache_sb(struct super_block *);
+ void drop_pagecache(void);
+ void drop_slab(void);
 
 -- 
