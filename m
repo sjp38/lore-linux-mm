@@ -1,73 +1,174 @@
-From: "Frances Brandon" <jboutte@unitrin.com>
-Subject: Potenzprobleme - ab heute nicht mehr   reference report forever!  -- But you don't just 
-Date: Mon, 9 Jul 2007 19:16:12 -0100
-MIME-Version: 1.0
-Content-Type: multipart/alternative;
-	boundary="----=_NextPart_000_0006_01C7C26E.606D37B0"
-Message-ID: <01c7c25d$9ce467b0$0b8a0f59@jboutte>
-Return-Path: <jboutte@unitrin.com>
-To: linux-mm@kvack.org
+Received: from d03relay02.boulder.ibm.com (d03relay02.boulder.ibm.com [9.17.195.227])
+	by e32.co.us.ibm.com (8.12.11.20060308/8.13.8) with ESMTP id l69JL9of015966
+	for <linux-mm@kvack.org>; Mon, 9 Jul 2007 15:21:09 -0400
+Received: from d03av01.boulder.ibm.com (d03av01.boulder.ibm.com [9.17.195.167])
+	by d03relay02.boulder.ibm.com (8.13.8/8.13.8/NCO v8.3) with ESMTP id l69JQURR250200
+	for <linux-mm@kvack.org>; Mon, 9 Jul 2007 13:26:31 -0600
+Received: from d03av01.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av01.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l69JQU1m030776
+	for <linux-mm@kvack.org>; Mon, 9 Jul 2007 13:26:30 -0600
+Subject: [RFC][PATCH] hugetlbfs read support
+From: Badari Pulavarty <pbadari@us.ibm.com>
+Content-Type: text/plain
+Date: Mon, 09 Jul 2007 12:28:11 -0700
+Message-Id: <1184009291.31638.8.camel@dyn9047017100.beaverton.ibm.com>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
+Sender: owner-linux-mm@kvack.org
+Return-Path: <owner-linux-mm@kvack.org>
+To: Linux Memory Management <linux-mm@kvack.org>
+Cc: nacc@us.ibm.com, clameter@sgi.com, Bill Irwin <bill.irwin@oracle.com>, agl@us.ibm.com
 List-ID: <linux-mm.kvack.org>
 
-This is a multi-part message in MIME format.
+Comments/flames ?
 
-------=_NextPart_000_0006_01C7C26E.606D37B0
-Content-Type: text/plain;
-	charset="iso-8859-1"
-Content-Transfer-Encoding: 7bit
+Thanks,
+Badari
 
-Haben Sie endlich wieder Spass am Leben!
+Support for reading from hugetlbfs files. libhugetlbfs lets application
+text/data to be placed in large pages. When we do that, oprofile doesn't
+work - since it tries to read from it.
 
-Preise die keine Konkurrenz kennen 
+This code is very similar to what do_generic_mapping_read() does, but
+I can't use it since it has PAGE_CACHE_SIZE assumptions. Christoph
+Lamater's cleanup to pagecache would hopefully give me all of this.
 
-- Diskrete Verpackung und Zahlung
-- Bequem und diskret online bestellen.
-- Kein peinlicher Arztbesuch erforderlicht
-- Kostenlose, arztliche Telefon-Beratung
-- Kein langes Warten - Auslieferung innerhalb von 2-3 Tagen
-- Visa verifizierter Onlineshop
-- keine versteckte Kosten
+Signed-off-by: Badari Pulavarty <pbadari@us.ibm.com>
+
+ fs/hugetlbfs/inode.c |  109 +++++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 109 insertions(+)
+
+Index: linux-2.6.22/fs/hugetlbfs/inode.c
+===================================================================
+--- linux-2.6.22.orig/fs/hugetlbfs/inode.c	2007-07-08 16:32:17.000000000 -0700
++++ linux-2.6.22/fs/hugetlbfs/inode.c	2007-07-09 13:37:00.000000000 -0700
+@@ -156,6 +156,114 @@ full_search:
+ }
+ #endif
+ 
++static int
++hugetlbfs_read_actor(struct page *page, unsigned long offset,
++			char __user *buf, unsigned long count,
++			unsigned long size)
++{
++	char *kaddr;
++	unsigned long to_copy;
++	int i, chunksize;
++
++	if (size > count)
++		size = count;
++
++	/* Find which 4k chunk and offset with in that chunk */
++	i = offset >> PAGE_CACHE_SHIFT;
++	offset = offset & ~PAGE_CACHE_MASK;
++	to_copy = size;
++
++	while (to_copy) {
++		chunksize = PAGE_CACHE_SIZE;
++		if (offset)
++			chunksize -= offset;
++		if (chunksize > to_copy)
++			chunksize = to_copy;
++		kaddr = kmap(&page[i]);
++		memcpy(buf, kaddr + offset, chunksize);
++		kunmap(&page[i]);
++		offset = 0;
++		to_copy -= chunksize;
++		buf += chunksize;
++		i++;
++	}
++	return size;
++}
++
++/*
++ * Support for read() - Find the page attached to f_mapping and copy out the
++ * data. Its *very* similar to do_generic_mapping_read(), we can't use that
++ * since it has PAGE_CACHE_SIZE assumptions.
++ */
++ssize_t
++hugetlbfs_read(struct file *filp, char __user *buf, size_t len, loff_t *ppos)
++{
++	struct address_space *mapping = filp->f_mapping;
++	struct inode *inode = mapping->host;
++	unsigned long index = *ppos >> HPAGE_SHIFT;
++	unsigned long end_index;
++	loff_t isize;
++	unsigned long offset;
++	ssize_t retval = 0;
++
++	/* validate len */
++	if (len == 0)
++		goto out;
++
++	isize = i_size_read(inode);
++	if (!isize)
++		goto out;
++
++	offset = *ppos & ~HPAGE_MASK;
++	end_index = (isize - 1) >> HPAGE_SHIFT;
++	for (;;) {
++		struct page *page;
++		unsigned long nr, ret;
++
++		/* nr is the maximum number of bytes to copy from this page */
++		nr = HPAGE_SIZE;
++		if (index >= end_index) {
++			if (index > end_index)
++				goto out;
++			nr = ((isize - 1) & ~HPAGE_MASK) + 1;
++			if (nr <= offset) {
++				goto out;
++			}
++		}
++		nr = nr - offset;
++
++		/* Find the page */
++		page = find_get_page(mapping, index);
++		if (unlikely(page == NULL)) {
++			/*
++			 * We can't find the page in the cache - bail out ?
++			 */
++			goto out;
++		}
++		/*
++		 * Ok, we have the page, so now we can copy it to user space...
++		 */
++		ret = hugetlbfs_read_actor(page, offset, buf, len, nr);
++		if (ret < 0) {
++			retval = retval ? : ret;
++			goto out;
++		}
++
++		offset += ret;
++		retval += ret;
++		len -= ret;
++		index += offset >> HPAGE_SHIFT;
++		offset &= ~HPAGE_MASK;
++
++		page_cache_release(page);
++		if (ret == nr && len)
++			continue;
++		goto out;
++	}
++out:
++	return retval;
++}
++
+ /*
+  * Read a page. Again trivial. If it didn't already exist
+  * in the page cache, it is zero-filled.
+@@ -560,6 +668,7 @@ static void init_once(void *foo, struct 
+ }
+ 
+ const struct file_operations hugetlbfs_file_operations = {
++	.read			= hugetlbfs_read,
+ 	.mmap			= hugetlbfs_file_mmap,
+ 	.fsync			= simple_sync_file,
+ 	.get_unmapped_area	= hugetlb_get_unmapped_area,
 
 
-Vier Dosen gibt's bei jeder Bestellung umsonst
-http://lhodfe.forcewish.hk/?267977344261
-
-
-------=_NextPart_000_0006_01C7C26E.606D37B0
-Content-Type: text/html;
-	charset="iso-8859-1"
-Content-Transfer-Encoding: quoted-printable
-
-<html xmlns:o=3D"urn:schemas-microsoft-com:office:office" xmlns:w=3D"urn:sc=
-hemas-microsoft-com:office:word" xmlns=3D"http://www.w3.org/TR/REC-html40">
-
-<head>
-<META HTTP-EQUIV=3D"Content-Type" CONTENT=3D"text/html; charset=3Diso-8859-1">
-<meta name=3DGenerator content=3D"Microsoft Word 11 (filtered medium)">
-</head>
-<body>
-<head><meta http-equiv=3D"Content-Type" content=3D"text/html; charset=3Diso=
--8859-1">
-</head><body><p>Meinung von unserem Kunden:<br><strong>Ich bin weit &#252;b=
-er 60, nehme Ciaaaaaalis 20 mg. und das Wochenende ist gerettet. Ich kann p=
-ro Nacht 4-5 mal, und am Morgen wieder, f&#252;r den n&#228;chsten Abend re=
-icht eine Halbe. Meine Freundin ist begeistert. F&#252;r meine Frau nehme i=
-ch eine halbe Tablette, das reicht f&#252;r einen netten Abend.</strong></p=
-><p><strong>Als wir Liebe gemacht haben, f&#252;hlte ich mich wieder wie ei=
-n Neunzehnj&#228;hriger. "Er" war so hart, ich h&#228;tte N&#228;gel damit =
-einklopfen k&#246;nnen. Meiner Frau sagt, ich h&#228;tte sie noch nie so la=
-ng und so hart geliebt. Sie ist ganz versessen auf mich. Und ich brauche wo=
-hl bald einen Nachf&#252;llpack.<br>
-</strong><strong><br>Haben Sie endlich wieder Spass am Leben!</strong></p><=
-p>Preise die keine Konkurrenz kennen <p>
-- Bequem und diskret online bestellen.<br>- Visa verifizierter Onlineshop<b=
-r>- keine versteckte Kosten<br>- Kein peinlicher Arztbesuch erforderlicht<b=
-r>- Diskrete Verpackung und Zahlung<br>- Kostenlose, arztliche Telefon-Bera=
-tung<br>- Kein langes Warten - Auslieferung innerhalb von 2-3 Tagen</p>  
-<p><br><strong><a href=3D"http://lhodfe.forcewish.hk/?267977344261" target=
-=3D"_blank">Vier Dosen gibt's bei jeder Bestellung umsonst</a></strong></bo=
-dy>
-</body>
-</html>
-
-------=_NextPart_000_0006_01C7C26E.606D37B0--
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
