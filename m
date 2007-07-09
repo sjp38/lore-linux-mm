@@ -1,73 +1,58 @@
-From: "Frances Siegel" <hbkwaiver@weintraub.com>
-Subject: Probieren Sie es - Mann Lebt nur einmal   For the sake  -- design problems, and better 
-Date: Mon, 9 Jul 2007 07:28:09 -0100
+Message-ID: <4691E64F.5070506@yahoo.com.au>
+Date: Mon, 09 Jul 2007 17:39:59 +1000
+From: Nick Piggin <nickpiggin@yahoo.com.au>
 MIME-Version: 1.0
-Content-Type: multipart/alternative;
-	boundary="----=_NextPart_000_0006_01C7C20B.76CC2E70"
-Message-ID: <01c7c1fa$b3435e70$adc1ad57@hbkwaiver>
-Return-Path: <hbkwaiver@weintraub.com>
-To: linux-mm@kvack.org
+Subject: Re: [RFC/PATCH] Use mmu_gather for fork() instead of flush_tlb_mm()
+References: <1183952874.3388.349.camel@localhost.localdomain>	 <1183962981.5961.3.camel@localhost.localdomain> <1183963544.5961.6.camel@localhost.localdomain>
+In-Reply-To: <1183963544.5961.6.camel@localhost.localdomain>
+Content-Type: text/plain; charset=us-ascii; format=flowed
+Content-Transfer-Encoding: 7bit
+Sender: owner-linux-mm@kvack.org
+Return-Path: <owner-linux-mm@kvack.org>
+To: Benjamin Herrenschmidt <benh@kernel.crashing.org>
+Cc: linux-mm@kvack.org, Linux Kernel list <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-This is a multi-part message in MIME format.
+Benjamin Herrenschmidt wrote:
+> Use mmu_gather for fork() instead of flush_tlb_mm()
+> 
+> This patch uses an mmu_gather for copying page tables instead of
+> flush_tlb_mm(). This allows archs like ppc32 with hash table to
+> avoid walking the page tables a second time to invalidate hash
+> entries, and to only flush PTEs that have actually been changed
+> from RW to RO.
+> 
+> Note that this contain a small change to the mmu gather stuff,
+> it must not call free_pages_and_swap_cache() if no page have been
+> queued up for freeing (if we are only invalidating PTEs). Calling
+> it on fork can deadlock (I haven't dug why but it looks like a
+> good idea to test anyway if we're going to use the mmu_gather for
+> more than just removing pages).
+> 
+> If the patch gets accepted, I will split that bit from the rest
+> of the patch and send it separately.
+> 
+> The main possible issue I see is with huge pages. Arch code might
+> have relied on flush_tlb_mm() and might not cope with
+> tlb_remove_tlb_entry() called for huge PTEs.
+> 
+> Other possible issues are if archs make assumptions about
+> flush_tlb_mm() being called in fork for different unrelated reasons.
+> 
+> Ah also, we could probably improve the tracking of start/end, in
+> the case of lock breaking, the outside function will still finish
+> the batch with the entire range. It doesn't matter on ppc and x86
+> I think though.
 
-------=_NextPart_000_0006_01C7C20B.76CC2E70
-Content-Type: text/plain;
-	charset="iso-8859-2"
-Content-Transfer-Encoding: 7bit
+Would it be better off to start off with a new API for this? The
+mmu gather I think is traditionally entirely for dealing with
+page removal...
 
-Versuchen Sie unser Produkt und Sie werden fuhlen was unsere Kunden bestatigen
+-- 
+SUSE Labs, Novell Inc.
 
-Preise die keine Konkurrenz kennen 
-
-- Kein peinlicher Arztbesuch erforderlicht
-- Visa verifizierter Onlineshop
-- Kostenlose, arztliche Telefon-Beratung
-- Kein langes Warten - Auslieferung innerhalb von 2-3 Tagen
-- Bequem und diskret online bestellen.
-- keine versteckte Kosten
-- Diskrete Verpackung und Zahlung
-
-
-Nur fur kurze Zeit - vier Pillen umsonst erhalten
-http://alqirmf.betweenduck.hk/?081595437989
-
-
-------=_NextPart_000_0006_01C7C20B.76CC2E70
-Content-Type: text/html;
-	charset="iso-8859-2"
-Content-Transfer-Encoding: quoted-printable
-
-<html xmlns:o=3D"urn:schemas-microsoft-com:office:office" xmlns:w=3D"urn:sc=
-hemas-microsoft-com:office:word" xmlns=3D"http://www.w3.org/TR/REC-html40">
-
-<head>
-<META HTTP-EQUIV=3D"Content-Type" CONTENT=3D"text/html; charset=3Diso-8859-2">
-<meta name=3DGenerator content=3D"Microsoft Word 11 (filtered medium)">
-</head>
-<body>
-<head><meta http-equiv=3D"Content-Type" content=3D"text/html; charset=3Diso=
--8859-1">
-</head><body><p>Meinung von unserem Kunden:<br><strong>Ich bin 28 Jahre alt=
- und habe keine Err. ..ektionsprobleme. Ich wollte Viaaaagra einfach nur so=
- probieren. Es funktioniert, aber die Durchblutung ist st&#228;rker als son=
-st und es f&#252;hlt sich an, als w&#252;rde ich mit einem Dildo v&#246;gel=
-n und nicht mit meinem Schwanz. Ich hatte ziemliche Probleme, wieder runter=
-zukommen. Aber ich w&#252;rde es wohl wieder tun ...</strong></p><p><strong=
->Ich glaube, ich habe bis jetzt Gl&#252;ck gehabt (Ich klopfe auf Holz.), d=
-enn ich hatte bis jetzt noch nie Nebenwirkungen durch Viaaaagra - au&#223;e=
-r einer brettharten Latte, und das f&#252;r Stunden.<br>
-</strong><strong><br>Versuchen Sie unser Produkt und Sie werden fuhlen was =
-unsere Kunden bestatigen</strong></p><p>Preise die keine Konkurrenz kennen =
-<p>
-- Kein peinlicher Arztbesuch erforderlicht<br>- Bequem und diskret online b=
-estellen.<br>- Kostenlose, arztliche Telefon-Beratung<br>- Kein langes Wart=
-en - Auslieferung innerhalb von 2-3 Tagen<br>- Visa verifizierter Onlinesho=
-p<br>- keine versteckte Kosten<br>- Diskrete Verpackung und Zahlung</p>  
-<p><br><strong><a href=3D"http://alqirmf.betweenduck.hk/?081595437989" targ=
-et=3D"_blank">Nur fur kurze Zeit - vier Pillen umsonst erhalten</a></strong=
-></body>
-</body>
-</html>
-
-------=_NextPart_000_0006_01C7C20B.76CC2E70--
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
