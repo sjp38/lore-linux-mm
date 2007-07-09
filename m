@@ -1,52 +1,35 @@
-Message-ID: <4691E64F.5070506@yahoo.com.au>
-Date: Mon, 09 Jul 2007 17:39:59 +1000
+Message-ID: <4691E8D1.4030507@yahoo.com.au>
+Date: Mon, 09 Jul 2007 17:50:41 +1000
 From: Nick Piggin <nickpiggin@yahoo.com.au>
 MIME-Version: 1.0
-Subject: Re: [RFC/PATCH] Use mmu_gather for fork() instead of flush_tlb_mm()
-References: <1183952874.3388.349.camel@localhost.localdomain>	 <1183962981.5961.3.camel@localhost.localdomain> <1183963544.5961.6.camel@localhost.localdomain>
-In-Reply-To: <1183963544.5961.6.camel@localhost.localdomain>
+Subject: zone movable patches comments
 Content-Type: text/plain; charset=us-ascii; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Benjamin Herrenschmidt <benh@kernel.crashing.org>
-Cc: linux-mm@kvack.org, Linux Kernel list <linux-kernel@vger.kernel.org>
+To: Mel Gorman <mel@csn.ul.ie>, Linux Memory Management <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-Benjamin Herrenschmidt wrote:
-> Use mmu_gather for fork() instead of flush_tlb_mm()
-> 
-> This patch uses an mmu_gather for copying page tables instead of
-> flush_tlb_mm(). This allows archs like ppc32 with hash table to
-> avoid walking the page tables a second time to invalidate hash
-> entries, and to only flush PTEs that have actually been changed
-> from RW to RO.
-> 
-> Note that this contain a small change to the mmu gather stuff,
-> it must not call free_pages_and_swap_cache() if no page have been
-> queued up for freeing (if we are only invalidating PTEs). Calling
-> it on fork can deadlock (I haven't dug why but it looks like a
-> good idea to test anyway if we're going to use the mmu_gather for
-> more than just removing pages).
-> 
-> If the patch gets accepted, I will split that bit from the rest
-> of the patch and send it separately.
-> 
-> The main possible issue I see is with huge pages. Arch code might
-> have relied on flush_tlb_mm() and might not cope with
-> tlb_remove_tlb_entry() called for huge PTEs.
-> 
-> Other possible issues are if archs make assumptions about
-> flush_tlb_mm() being called in fork for different unrelated reasons.
-> 
-> Ah also, we could probably improve the tracking of start/end, in
-> the case of lock breaking, the outside function will still finish
-> the batch with the entire range. It doesn't matter on ppc and x86
-> I think though.
+Hi Mel,
 
-Would it be better off to start off with a new API for this? The
-mmu gather I think is traditionally entirely for dealing with
-page removal...
+Just had a bit of a look at the zone movable stuff in -mm... Firstly,
+would it be possible to list all the dependant patches in that set, or
+is it just those few that are contiguous in Andrew's series file?
+
+A few comments -- can it be made configurable? I guess there is not
+much overhead if the zone is not populated, but there has been a fair
+bit of work towards taking out unneeded zones.
+
+Also, I don't really like the name kernelcore= to specify mem-sizeof
+movable zone. Could it be renamed and stated in the positive, like
+movable_mem= or reserve_movable_mem=? And can that option be written
+up in Documentation?
+
+What is the status of these patches? Are they working and pretty well
+ready to be merged for 2.6.23?
+
+Thanks,
+Nick
 
 -- 
 SUSE Labs, Novell Inc.
