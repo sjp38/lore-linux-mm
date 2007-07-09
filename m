@@ -1,212 +1,73 @@
-Subject: [RFT][PATCH] mm: drop behind
-From: Peter Zijlstra <peterz@infradead.org>
-Content-Type: text/plain
-Date: Mon, 09 Jul 2007 20:50:08 +0200
-Message-Id: <1184007008.1913.45.camel@twins>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
-Sender: owner-linux-mm@kvack.org
-Return-Path: <owner-linux-mm@kvack.org>
-To: linux-kernel <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
-Cc: Fengguang Wu <wfg@mail.ustc.edu.cn>, riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Rusty Russell <rusty@rustcorp.com.au>
+From: "Frances Brandon" <jboutte@unitrin.com>
+Subject: Potenzprobleme - ab heute nicht mehr   reference report forever!  -- But you don't just 
+Date: Mon, 9 Jul 2007 19:16:12 -0100
+MIME-Version: 1.0
+Content-Type: multipart/alternative;
+	boundary="----=_NextPart_000_0006_01C7C26E.606D37B0"
+Message-ID: <01c7c25d$9ce467b0$0b8a0f59@jboutte>
+Return-Path: <jboutte@unitrin.com>
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Use the read-ahead code to provide hints to page reclaim.
+This is a multi-part message in MIME format.
 
-This patch has the potential to solve the streaming-IO trashes my
-desktop problem.
+------=_NextPart_000_0006_01C7C26E.606D37B0
+Content-Type: text/plain;
+	charset="iso-8859-1"
+Content-Transfer-Encoding: 7bit
 
-It tries to aggressively reclaim pages that were loaded in a strong
-sequential pattern and have been consumed. Thereby limiting the damage
-to the current resident set.
+Haben Sie endlich wieder Spass am Leben!
 
-I'm posting this in the hope that people will test this in a variety of
-workloads and report back (success or regression). It seems to work
-reasonably well on my desktop for things that sequentially consume large
-files: burning dvds, md5sum dvds, cat dvds > /dev/null
+Preise die keine Konkurrenz kennen 
 
-Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
----
- include/linux/swap.h |    1 +
- mm/readahead.c       |   38 +++++++++++++++++++++++++++++++++++++-
- mm/swap.c            |   51 +++++++++++++++++++++++++++++++++++++++++++++++++++
- 3 files changed, 89 insertions(+), 1 deletion(-)
-
-Index: linux-2.6/mm/swap.c
-===================================================================
---- linux-2.6.orig/mm/swap.c
-+++ linux-2.6/mm/swap.c
-@@ -31,6 +31,7 @@
- #include <linux/cpu.h>
- #include <linux/notifier.h>
- #include <linux/init.h>
-+#include <linux/rmap.h>
- 
- /* How many pages do we try to swap or page in/out together? */
- int page_cluster;
-@@ -178,6 +179,7 @@ EXPORT_SYMBOL(mark_page_accessed);
- static DEFINE_PER_CPU(struct pagevec, lru_add_pvecs) = { 0, };
- static DEFINE_PER_CPU(struct pagevec, lru_add_active_pvecs) = { 0, };
- static DEFINE_PER_CPU(struct pagevec, lru_add_tail_pvecs) = { 0, };
-+static DEFINE_PER_CPU(struct pagevec, lru_demote_pvecs) = { 0, };
- 
- void fastcall lru_cache_add(struct page *page)
- {
-@@ -224,6 +226,37 @@ static void __pagevec_lru_add_tail(struc
- 	pagevec_reinit(pvec);
- }
- 
-+static void __pagevec_lru_demote(struct pagevec *pvec)
-+{
-+	int i;
-+	struct zone *zone = NULL;
-+
-+	for (i = 0; i < pagevec_count(pvec); i++) {
-+		struct page *page = pvec->pages[i];
-+		struct zone *pagezone = page_zone(page);
-+
-+		if (pagezone != zone) {
-+			if (zone)
-+				spin_unlock_irq(&zone->lru_lock);
-+			zone = pagezone;
-+			spin_lock_irq(&zone->lru_lock);
-+		}
-+		if (PageLRU(page)) {
-+			page_referenced(page, 0);
-+			if (PageActive(page)) {
-+				ClearPageActive(page);
-+				__dec_zone_state(zone, NR_ACTIVE);
-+				__inc_zone_state(zone, NR_INACTIVE);
-+			}
-+			list_move_tail(&page->lru, &zone->inactive_list);
-+		}
-+	}
-+	if (zone)
-+		spin_unlock_irq(&zone->lru_lock);
-+	release_pages(pvec->pages, pvec->nr, pvec->cold);
-+	pagevec_reinit(pvec);
-+}
-+
- static void __lru_add_drain(int cpu)
- {
- 	struct pagevec *pvec = &per_cpu(lru_add_pvecs, cpu);
-@@ -237,6 +270,9 @@ static void __lru_add_drain(int cpu)
- 	pvec = &per_cpu(lru_add_tail_pvecs, cpu);
- 	if (pagevec_count(pvec))
- 		__pagevec_lru_add_tail(pvec);
-+	pvec = &per_cpu(lru_demote_pvecs, cpu);
-+	if (pagevec_count(pvec))
-+		__pagevec_lru_demote(pvec);
- }
- 
- void lru_add_drain(void)
-@@ -448,6 +484,21 @@ void fastcall lru_cache_add_tail(struct 
- }
- 
- /*
-+ * Function used to forcefully demote a page to the tail of the inactive
-+ * list.
-+ */
-+void fastcall lru_demote(struct page *page)
-+{
-+	if (likely(get_page_unless_zero(page))) {
-+		struct pagevec *pvec = &get_cpu_var(lru_demote_pvecs);
-+
-+		if (!pagevec_add(pvec, page))
-+			__pagevec_lru_demote(pvec);
-+		put_cpu_var(lru_demote_pvecs);
-+	}
-+}
-+
-+/*
-  * Try to drop buffers from the pages in a pagevec
-  */
- void pagevec_strip(struct pagevec *pvec)
-Index: linux-2.6/include/linux/swap.h
-===================================================================
---- linux-2.6.orig/include/linux/swap.h
-+++ linux-2.6/include/linux/swap.h
-@@ -181,6 +181,7 @@ extern unsigned int nr_free_pagecache_pa
- extern void FASTCALL(lru_cache_add(struct page *));
- extern void FASTCALL(lru_cache_add_active(struct page *));
- extern void FASTCALL(lru_cache_add_tail(struct page *));
-+extern void FASTCALL(lru_demote(struct page *));
- extern void FASTCALL(activate_page(struct page *));
- extern void FASTCALL(mark_page_accessed(struct page *));
- extern void lru_add_drain(void);
-Index: linux-2.6/mm/readahead.c
-===================================================================
---- linux-2.6.orig/mm/readahead.c
-+++ linux-2.6/mm/readahead.c
-@@ -15,6 +15,7 @@
- #include <linux/backing-dev.h>
- #include <linux/task_io_accounting_ops.h>
- #include <linux/pagevec.h>
-+#include <linux/swap.h>
- 
- void default_unplug_io_fn(struct backing_dev_info *bdi, struct page *page)
- {
-@@ -441,13 +442,18 @@ EXPORT_SYMBOL_GPL(page_cache_sync_readah
-  * page_cache_async_ondemand() should be called when a page is used which
-  * has the PG_readahead flag: this is a marker to suggest that the application
-  * has used up enough of the readahead window that we should start pulling in
-- * more pages. */
-+ * more pages.
-+ */
- void
- page_cache_async_readahead(struct address_space *mapping,
- 			   struct file_ra_state *ra, struct file *filp,
- 			   struct page *page, pgoff_t offset,
- 			   unsigned long req_size)
- {
-+	unsigned long demote_idx = offset - min(offset, ra->size);
-+	struct page *pages[16];
-+	unsigned nr_pages, i;
-+
- 	/* no read-ahead */
- 	if (!ra->ra_pages)
- 		return;
-@@ -466,6 +472,36 @@ page_cache_async_readahead(struct addres
- 	if (bdi_read_congested(mapping->backing_dev_info))
- 		return;
- 
-+	/*
-+	 * Read-ahead use once: when the ra window is maximal this is a good
-+	 * hint that there is sequential IO, which implies that the pages that
-+	 * have been used thus far can be reclaimed
-+	 */
-+	if (ra->size == ra->ra_pages) do {
-+		nr_pages = find_get_pages(mapping,
-+				demote_idx, ARRAY_SIZE(pages), pages);
-+
-+		for (i = 0; i < nr_pages; i++) {
-+			page = pages[i];
-+			demote_idx = page_index(page);
-+
-+			/*
-+			 * The page is active. This means there are other
-+			 * users. We should not take away somebody else's
-+			 * pages, so do not drop behind beyond this point.
-+			 */
-+			if (demote_idx < offset && !PageActive(page)) {
-+				lru_demote(page);
-+			} else {
-+				demote_idx = offset;
-+				break;
-+			}
-+		}
-+		demote_idx++;
-+
-+		release_pages(pages, nr_pages, 0);
-+	} while (demote_idx < offset);
-+
- 	/* do read-ahead */
- 	ondemand_readahead(mapping, ra, filp, true, offset, req_size);
- }
+- Diskrete Verpackung und Zahlung
+- Bequem und diskret online bestellen.
+- Kein peinlicher Arztbesuch erforderlicht
+- Kostenlose, arztliche Telefon-Beratung
+- Kein langes Warten - Auslieferung innerhalb von 2-3 Tagen
+- Visa verifizierter Onlineshop
+- keine versteckte Kosten
 
 
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+Vier Dosen gibt's bei jeder Bestellung umsonst
+http://lhodfe.forcewish.hk/?267977344261
+
+
+------=_NextPart_000_0006_01C7C26E.606D37B0
+Content-Type: text/html;
+	charset="iso-8859-1"
+Content-Transfer-Encoding: quoted-printable
+
+<html xmlns:o=3D"urn:schemas-microsoft-com:office:office" xmlns:w=3D"urn:sc=
+hemas-microsoft-com:office:word" xmlns=3D"http://www.w3.org/TR/REC-html40">
+
+<head>
+<META HTTP-EQUIV=3D"Content-Type" CONTENT=3D"text/html; charset=3Diso-8859-1">
+<meta name=3DGenerator content=3D"Microsoft Word 11 (filtered medium)">
+</head>
+<body>
+<head><meta http-equiv=3D"Content-Type" content=3D"text/html; charset=3Diso=
+-8859-1">
+</head><body><p>Meinung von unserem Kunden:<br><strong>Ich bin weit &#252;b=
+er 60, nehme Ciaaaaaalis 20 mg. und das Wochenende ist gerettet. Ich kann p=
+ro Nacht 4-5 mal, und am Morgen wieder, f&#252;r den n&#228;chsten Abend re=
+icht eine Halbe. Meine Freundin ist begeistert. F&#252;r meine Frau nehme i=
+ch eine halbe Tablette, das reicht f&#252;r einen netten Abend.</strong></p=
+><p><strong>Als wir Liebe gemacht haben, f&#252;hlte ich mich wieder wie ei=
+n Neunzehnj&#228;hriger. "Er" war so hart, ich h&#228;tte N&#228;gel damit =
+einklopfen k&#246;nnen. Meiner Frau sagt, ich h&#228;tte sie noch nie so la=
+ng und so hart geliebt. Sie ist ganz versessen auf mich. Und ich brauche wo=
+hl bald einen Nachf&#252;llpack.<br>
+</strong><strong><br>Haben Sie endlich wieder Spass am Leben!</strong></p><=
+p>Preise die keine Konkurrenz kennen <p>
+- Bequem und diskret online bestellen.<br>- Visa verifizierter Onlineshop<b=
+r>- keine versteckte Kosten<br>- Kein peinlicher Arztbesuch erforderlicht<b=
+r>- Diskrete Verpackung und Zahlung<br>- Kostenlose, arztliche Telefon-Bera=
+tung<br>- Kein langes Warten - Auslieferung innerhalb von 2-3 Tagen</p>  
+<p><br><strong><a href=3D"http://lhodfe.forcewish.hk/?267977344261" target=
+=3D"_blank">Vier Dosen gibt's bei jeder Bestellung umsonst</a></strong></bo=
+dy>
+</body>
+</html>
+
+------=_NextPart_000_0006_01C7C26E.606D37B0--
