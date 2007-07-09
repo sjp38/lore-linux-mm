@@ -1,45 +1,41 @@
-Date: Mon, 9 Jul 2007 10:39:25 -0700 (PDT)
+Date: Mon, 9 Jul 2007 11:11:36 -0700 (PDT)
 From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: zone movable patches comments
-In-Reply-To: <20070709110457.GB9305@skynet.ie>
-Message-ID: <Pine.LNX.4.64.0707091035300.16075@schroedinger.engr.sgi.com>
-References: <4691E8D1.4030507@yahoo.com.au> <20070709110457.GB9305@skynet.ie>
+Subject: Re: [patch 00/10] [RFC] SLUB patches for more functionality,
+ performance and maintenance
+In-Reply-To: <46925B5D.8000507@google.com>
+Message-ID: <Pine.LNX.4.64.0707091055090.16207@schroedinger.engr.sgi.com>
+References: <20070708034952.022985379@sgi.com> <p73y7hrywel.fsf@bingen.suse.de>
+ <Pine.LNX.4.64.0707090845520.13792@schroedinger.engr.sgi.com>
+ <46925B5D.8000507@google.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Mel Gorman <mel@skynet.ie>
-Cc: Nick Piggin <nickpiggin@yahoo.com.au>, Linux Memory Management <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>
+To: Martin Bligh <mbligh@google.com>
+Cc: Andi Kleen <andi@firstfloor.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 9 Jul 2007, Mel Gorman wrote:
+On Mon, 9 Jul 2007, Martin Bligh wrote:
 
-> > much overhead if the zone is not populated, but there has been a fair
-> > bit of work towards taking out unneeded zones.
-> > 
-> 
-> It could be made configurable as zone_type already has configurable
-> zones. However, as it is that would always be set on distro kernels for
-> CONFIG_HUGETLB_PAGE, is there any point? It might make sense for embedded
-> systems but I've received pushback from Andrew before for trying to introduce
-> config options that affect the allocator before.
+> Those numbers came from Mathieu Desnoyers (LTTng) if you
+> want more details.
 
-Well it could be removed when we get memory compaction right? Its only 
-useful to guarantee reclaimable memory in a certain region when we only 
-have antifrag? The more memory becomes movable the less need for it.
+Okay the source for these numbers is in his paper for the OLS 2006: Volume 
+1 page 208-209? I do not see the exact number that you referred to there.
 
-> It could but it was named this way for a reason. It was more important that
-> the administrator get the amount of memory for non-movable allocations
-> correct than movable allocations. If the size of ZONE_MOVABLE is wrong,
-> the hugepage pool may not be able to grow as large as desired. If the size
-> of memory usable of non-movable allocations is wrong, it's worse.
+He seems to be comparing spinlock acquire / release vs. cmpxchg. So I 
+guess you got your material from somewhere else?
 
-Yeah that causes concern. The current situation is that the huge page pool 
-grows until fragmentation makes it impossible to get more. If you would 
-remove ZONE_MOVABLE then that situation would continue to exist. The 
-guarantee is useful as long as we do not have memory 
-defragmentation/compaction because then reclaim can guarantee that the 
-desired number of higher order pages can be obtained through reclaiming pages.
+Also the cmpxchg used there is the lockless variant. cmpxchg 29 cycles w/o 
+lock prefix and 112 with lock prefix.
+
+I see you reference another paper by Desnoyers: 
+http://tree.celinuxforum.org/CelfPubWiki/ELC2006Presentations?action=AttachFile&do=get&target=celf2006-desnoyers.pdf
+
+I do not see anything relevant there. Where did those numbers come from?
+
+The lockless cmpxchg is certainly an interesting idea. Certain for some 
+platforms I could disable preempt and then do a lockless cmpxchg.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
