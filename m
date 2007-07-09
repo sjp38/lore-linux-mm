@@ -1,75 +1,53 @@
-From: "Bert Padgett" <hear@cornyn.senate.gov>
-Subject: RedBull fur Ihr bestes Stuck   to summarise some  -- Java's built-in pattern 
-Date: Mon, 9 Jul 2007 20:32:58 -0100
+Message-ID: <4692A1D0.50308@mbligh.org>
+Date: Mon, 09 Jul 2007 14:00:00 -0700
+From: Martin Bligh <mbligh@mbligh.org>
 MIME-Version: 1.0
-Content-Type: multipart/alternative;
-	boundary="----=_NextPart_000_0006_01C7C279.19DC7C60"
-Message-ID: <01c7c268$5653ac60$9fd58054@hear>
-Return-Path: <hear@cornyn.senate.gov>
-To: linux-mm@kvack.org
+Subject: Re: [patch 00/10] [RFC] SLUB patches for more functionality, performance
+ and maintenance
+References: <20070708034952.022985379@sgi.com> <p73y7hrywel.fsf@bingen.suse.de> <Pine.LNX.4.64.0707090845520.13792@schroedinger.engr.sgi.com> <46925B5D.8000507@google.com> <Pine.LNX.4.64.0707091055090.16207@schroedinger.engr.sgi.com>
+In-Reply-To: <Pine.LNX.4.64.0707091055090.16207@schroedinger.engr.sgi.com>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
+Sender: owner-linux-mm@kvack.org
+Return-Path: <owner-linux-mm@kvack.org>
+To: Christoph Lameter <clameter@sgi.com>
+Cc: Andi Kleen <andi@firstfloor.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Mathieu Desnoyers <mathieu.desnoyers@polymtl.ca>
 List-ID: <linux-mm.kvack.org>
 
-This is a multi-part message in MIME format.
+Christoph Lameter wrote:
+> On Mon, 9 Jul 2007, Martin Bligh wrote:
+> 
+>> Those numbers came from Mathieu Desnoyers (LTTng) if you
+>> want more details.
+> 
+> Okay the source for these numbers is in his paper for the OLS 2006: Volume 
+> 1 page 208-209? I do not see the exact number that you referred to there.
 
-------=_NextPart_000_0006_01C7C279.19DC7C60
-Content-Type: text/plain;
-	charset="iso-8859-2"
-Content-Transfer-Encoding: 7bit
+Nope, he was a direct co-author on the paper, was
+working here, and measured it.
 
-Verpassen Sie nichts am Lebem - Sie werden fuhlen was unsere Kunden bestatigen!
+> He seems to be comparing spinlock acquire / release vs. cmpxchg. So I 
+> guess you got your material from somewhere else?
+> 
+> Also the cmpxchg used there is the lockless variant. cmpxchg 29 cycles w/o 
+> lock prefix and 112 with lock prefix.
+> 
+> I see you reference another paper by Desnoyers: 
+> http://tree.celinuxforum.org/CelfPubWiki/ELC2006Presentations?action=AttachFile&do=get&target=celf2006-desnoyers.pdf
+> 
+> I do not see anything relevant there. Where did those numbers come from?
+> 
+> The lockless cmpxchg is certainly an interesting idea. Certain for some 
+> platforms I could disable preempt and then do a lockless cmpxchg.
 
-Preise die keine Konkurrenz kennen 
+Matheiu, can you give some more details? Obviously the exact numbers
+will vary by archicture, machine size, etc, but it's a good point
+for discussion.
 
-- Kein peinlicher Arztbesuch erforderlicht
-- Diskrete Verpackung und Zahlung
-- Kostenlose, arztliche Telefon-Beratung
-- Kein langes Warten - Auslieferung innerhalb von 2-3 Tagen
-- Bequem und diskret online bestellen.
-- Visa verifizierter Onlineshop
-- keine versteckte Kosten
+M.
 
-
-Vier Dosen gibt's bei jeder Bestellung umsonst
-http://uidszs.forcewish.hk/?802486255107
-
-
-------=_NextPart_000_0006_01C7C279.19DC7C60
-Content-Type: text/html;
-	charset="iso-8859-2"
-Content-Transfer-Encoding: quoted-printable
-
-<html xmlns:o=3D"urn:schemas-microsoft-com:office:office" xmlns:w=3D"urn:sc=
-hemas-microsoft-com:office:word" xmlns=3D"http://www.w3.org/TR/REC-html40">
-
-<head>
-<META HTTP-EQUIV=3D"Content-Type" CONTENT=3D"text/html; charset=3Diso-8859-2">
-<meta name=3DGenerator content=3D"Microsoft Word 11 (filtered medium)">
-</head>
-<body>
-<head><meta http-equiv=3D"Content-Type" content=3D"text/html; charset=3Diso=
--8859-1">
-</head><body><p>Meinung von unserem Kunden:<br><strong>Ich bin 28 Jahre alt=
- und habe keine Err. ..ektionsprobleme. Ich wollte Viaaaagra einfach nur so=
- probieren. Es funktioniert, aber die Durchblutung ist st&#228;rker als son=
-st und es f&#252;hlt sich an, als w&#252;rde ich mit einem Dildo v&#246;gel=
-n und nicht mit meinem Schwanz. Ich hatte ziemliche Probleme, wieder runter=
-zukommen. Aber ich w&#252;rde es wohl wieder tun ...</strong></p><p><strong=
->Ich finde Viaaaagra einfach wunderbar. Egal, ob f&#252;r den Sex oder, um =
-mich selbst zu verw&#246;hnen: Es funktioniert. Mein Schwanz wird extrem ha=
-rt und mein Orgasmus ist sehr intensiv. Die Wirkung ist so stark, dass ich =
-Viaaaagra nur am Wochenende verwende oder wenn ich viel Zeit habe, es richt=
-ig zu genie&#223;en.<br>
-</strong><strong><br>Verpassen Sie nichts am Lebem - Sie werden fuhlen was =
-unsere Kunden bestatigen!</strong></p><p>Preise die keine Konkurrenz kennen=
- <p>
-- Kein langes Warten - Auslieferung innerhalb von 2-3 Tagen<br>- Bequem und=
- diskret online bestellen.<br>- Visa verifizierter Onlineshop<br>- Kostenlo=
-se, arztliche Telefon-Beratung<br>- Kein peinlicher Arztbesuch erforderlich=
-t<br>- Diskrete Verpackung und Zahlung<br>- keine versteckte Kosten</p>  
-<p><br><strong><a href=3D"http://uidszs.forcewish.hk/?802486255107" target=
-=3D"_blank">Vier Dosen gibt's bei jeder Bestellung umsonst</a></strong></bo=
-dy>
-</body>
-</html>
-
-------=_NextPart_000_0006_01C7C279.19DC7C60--
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
