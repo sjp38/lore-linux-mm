@@ -1,81 +1,73 @@
-From: "Dewayne Tackett" <head@apz-applied.com>
-Subject: Ficken wie ein Weltmeister ?   if you are interested in it. -- so you look to Design
-Date: Mon, 9 Jul 2007 06:46:27 -0300
-Message-ID: <01c7c1f4$e0137120$4226abd5@head>
+From: "Frances Siegel" <hbkwaiver@weintraub.com>
+Subject: Probieren Sie es - Mann Lebt nur einmal   For the sake  -- design problems, and better 
+Date: Mon, 9 Jul 2007 07:28:09 -0100
 MIME-Version: 1.0
 Content-Type: multipart/alternative;
-	boundary="----=_NextPart_000_0006_01C7C216.67251120"
-Return-Path: <head@apz-applied.com>
+	boundary="----=_NextPart_000_0006_01C7C20B.76CC2E70"
+Message-ID: <01c7c1fa$b3435e70$adc1ad57@hbkwaiver>
+Return-Path: <hbkwaiver@weintraub.com>
 To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
 This is a multi-part message in MIME format.
 
-------=_NextPart_000_0006_01C7C216.67251120
+------=_NextPart_000_0006_01C7C20B.76CC2E70
 Content-Type: text/plain;
-	charset="windows-1250"
+	charset="iso-8859-2"
 Content-Transfer-Encoding: 7bit
 
-Verpassen Sie nichts am Lebem - Sie werden fuhlen was unsere Kunden bestatigen!
+Versuchen Sie unser Produkt und Sie werden fuhlen was unsere Kunden bestatigen
 
 Preise die keine Konkurrenz kennen 
 
-- Visa verifizierter Onlineshop
-- keine versteckte Kosten
-- Diskrete Verpackung und Zahlung
-- Kostenlose, arztliche Telefon-Beratung
 - Kein peinlicher Arztbesuch erforderlicht
+- Visa verifizierter Onlineshop
+- Kostenlose, arztliche Telefon-Beratung
 - Kein langes Warten - Auslieferung innerhalb von 2-3 Tagen
 - Bequem und diskret online bestellen.
+- keine versteckte Kosten
+- Diskrete Verpackung und Zahlung
 
 
-Vier Dosen gibt's bei jeder Bestellung umsonst
-http://bnooy.oxygenweek.hk/?172431612489
+Nur fur kurze Zeit - vier Pillen umsonst erhalten
+http://alqirmf.betweenduck.hk/?081595437989
 
-------=_NextPart_000_0006_01C7C216.67251120
+
+------=_NextPart_000_0006_01C7C20B.76CC2E70
 Content-Type: text/html;
-	charset="windows-1250"
+	charset="iso-8859-2"
 Content-Transfer-Encoding: quoted-printable
 
-<html xmlns:v=3D"urn:schemas-microsoft-com:vml" xmlns:o=3D"urn:schemas-micr=
-osoft-com:office:office" xmlns:w=3D"urn:schemas-microsoft-com:office:word" =
-xmlns=3D"http://www.w3.org/TR/REC-html40">
+<html xmlns:o=3D"urn:schemas-microsoft-com:office:office" xmlns:w=3D"urn:sc=
+hemas-microsoft-com:office:word" xmlns=3D"http://www.w3.org/TR/REC-html40">
 
 <head>
-<META HTTP-EQUIV=3D"Content-Type" CONTENT=3D"text/html; charset=3Dwindows-1250">
-
-
-<meta name=3DProgId content=3DWord.Document>
-<meta name=3DGenerator content=3D"Microsoft Word 10">
-<meta name=3DOriginator content=3D"Microsoft Word 10">
-<link rel=3DFile-List href=3D"cid:filelist.xml@5E057DA4.8DAB4867">
-<link rel=3DEdit-Time-Data href=3D"cid:editdata.mso@5E057DA4.8DAB4867">
+<META HTTP-EQUIV=3D"Content-Type" CONTENT=3D"text/html; charset=3Diso-8859-2">
+<meta name=3DGenerator content=3D"Microsoft Word 11 (filtered medium)">
 </head>
 <body>
 <head><meta http-equiv=3D"Content-Type" content=3D"text/html; charset=3Diso=
 -8859-1">
-</head><body><p>Meinung von unserem Kunden:<br><strong>Bin restlos begeiste=
-rt. Bin 50 und schlage mich seit einem guten Jahre damit herum, dass meinem=
- Freund im entscheidenden Moment die Standfestigkeit abhanden kommt. Aber n=
-un ist es wie in allerbesten Zeiten. 10 mg reichen f&#252;r ein sehr LUSTig=
-es Weekend. Null Nebenwirkungen - abgesehen vom Muskelkater am n&#228;chten=
- Tag. Aber der verschwindet ja durch ausreichendes Training ;-))</strong></=
-p><p><strong>Ich finde Viaaaagra einfach wunderbar. Egal, ob f&#252;r den S=
-ex oder, um mich selbst zu verw&#246;hnen: Es funktioniert. Mein Schwanz wi=
-rd extrem hart und mein Orgasmus ist sehr intensiv. Die Wirkung ist so star=
-k, dass ich Viaaaagra nur am Wochenende verwende oder wenn ich viel Zeit ha=
-be, es richtig zu genie&#223;en.<br>
-</strong><strong><br>Verpassen Sie nichts am Lebem - Sie werden fuhlen was =
-unsere Kunden bestatigen!</strong></p><p>Preise die keine Konkurrenz kennen=
- <p>
-- Kein peinlicher Arztbesuch erforderlicht<br>- Kein langes Warten - Auslie=
-ferung innerhalb von 2-3 Tagen<br>- Bequem und diskret online bestellen.<br=
->- Visa verifizierter Onlineshop<br>- Kostenlose, arztliche Telefon-Beratun=
-g<br>- keine versteckte Kosten<br>- Diskrete Verpackung und Zahlung</p>  
-<p><br><strong><a href=3D"http://bnooy.oxygenweek.hk/?172431612489" target=
-=3D"_blank">Vier Dosen gibt's bei jeder Bestellung umsonst</a></strong></bo=
-dy>
+</head><body><p>Meinung von unserem Kunden:<br><strong>Ich bin 28 Jahre alt=
+ und habe keine Err. ..ektionsprobleme. Ich wollte Viaaaagra einfach nur so=
+ probieren. Es funktioniert, aber die Durchblutung ist st&#228;rker als son=
+st und es f&#252;hlt sich an, als w&#252;rde ich mit einem Dildo v&#246;gel=
+n und nicht mit meinem Schwanz. Ich hatte ziemliche Probleme, wieder runter=
+zukommen. Aber ich w&#252;rde es wohl wieder tun ...</strong></p><p><strong=
+>Ich glaube, ich habe bis jetzt Gl&#252;ck gehabt (Ich klopfe auf Holz.), d=
+enn ich hatte bis jetzt noch nie Nebenwirkungen durch Viaaaagra - au&#223;e=
+r einer brettharten Latte, und das f&#252;r Stunden.<br>
+</strong><strong><br>Versuchen Sie unser Produkt und Sie werden fuhlen was =
+unsere Kunden bestatigen</strong></p><p>Preise die keine Konkurrenz kennen =
+<p>
+- Kein peinlicher Arztbesuch erforderlicht<br>- Bequem und diskret online b=
+estellen.<br>- Kostenlose, arztliche Telefon-Beratung<br>- Kein langes Wart=
+en - Auslieferung innerhalb von 2-3 Tagen<br>- Visa verifizierter Onlinesho=
+p<br>- keine versteckte Kosten<br>- Diskrete Verpackung und Zahlung</p>  
+<p><br><strong><a href=3D"http://alqirmf.betweenduck.hk/?081595437989" targ=
+et=3D"_blank">Nur fur kurze Zeit - vier Pillen umsonst erhalten</a></strong=
+></body>
 </body>
 </html>
 
-------=_NextPart_000_0006_01C7C216.67251120--
+------=_NextPart_000_0006_01C7C20B.76CC2E70--
