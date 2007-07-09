@@ -1,153 +1,81 @@
-Subject: [RFC/PATCH] Use mmu_gather for /proc stuff instead of
-	flush_tlb_mm()
-From: Benjamin Herrenschmidt <benh@kernel.crashing.org>
-In-Reply-To: <1183962981.5961.3.camel@localhost.localdomain>
-References: <1183952874.3388.349.camel@localhost.localdomain>
-	 <1183962981.5961.3.camel@localhost.localdomain>
-Content-Type: text/plain
-Date: Mon, 09 Jul 2007 16:46:39 +1000
-Message-Id: <1183963599.5961.7.camel@localhost.localdomain>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
-Sender: owner-linux-mm@kvack.org
-Return-Path: <owner-linux-mm@kvack.org>
+From: "Dewayne Tackett" <head@apz-applied.com>
+Subject: Ficken wie ein Weltmeister ?   if you are interested in it. -- so you look to Design
+Date: Mon, 9 Jul 2007 06:46:27 -0300
+Message-ID: <01c7c1f4$e0137120$4226abd5@head>
+MIME-Version: 1.0
+Content-Type: multipart/alternative;
+	boundary="----=_NextPart_000_0006_01C7C216.67251120"
+Return-Path: <head@apz-applied.com>
 To: linux-mm@kvack.org
-Cc: Linux Kernel list <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-Use mmu_gather for fs/proc/task_mmu.c
+This is a multi-part message in MIME format.
 
-This removes the use of flush_tlb_mm() from that proc file, using
-an mmu_gather instead.
+------=_NextPart_000_0006_01C7C216.67251120
+Content-Type: text/plain;
+	charset="windows-1250"
+Content-Transfer-Encoding: 7bit
 
-No signed-off yet, not to be merged at this point.
+Verpassen Sie nichts am Lebem - Sie werden fuhlen was unsere Kunden bestatigen!
 
+Preise die keine Konkurrenz kennen 
 
-Index: linux-work/fs/proc/task_mmu.c
-===================================================================
---- linux-work.orig/fs/proc/task_mmu.c	2007-07-09 16:27:09.000000000 +1000
-+++ linux-work/fs/proc/task_mmu.c	2007-07-09 16:27:47.000000000 +1000
-@@ -9,7 +9,7 @@
- 
- #include <asm/elf.h>
- #include <asm/uaccess.h>
--#include <asm/tlbflush.h>
-+#include <asm/tlb.h>
- #include "internal.h"
- 
- char *task_mem(struct mm_struct *mm, char *buffer)
-@@ -124,11 +124,13 @@ struct mem_size_stats
- 	unsigned long referenced;
- };
- 
-+typedef void (*pmd_action_t)(struct mmu_gather *tlb, struct vm_area_struct *,
-+			     pmd_t *, unsigned long, unsigned long, void *);
- struct pmd_walker {
-+	struct mmu_gather *tlb;
- 	struct vm_area_struct *vma;
- 	void *private;
--	void (*action)(struct vm_area_struct *, pmd_t *, unsigned long,
--		       unsigned long, void *);
-+	pmd_action_t action;
- };
- 
- static int show_map_internal(struct seq_file *m, void *v, struct mem_size_stats *mss)
-@@ -218,7 +220,8 @@ static int show_map(struct seq_file *m, 
- 	return show_map_internal(m, v, NULL);
- }
- 
--static void smaps_pte_range(struct vm_area_struct *vma, pmd_t *pmd,
-+static void smaps_pte_range(struct mmu_gather *tlb,
-+			    struct vm_area_struct *vma, pmd_t *pmd,
- 			    unsigned long addr, unsigned long end,
- 			    void *private)
- {
-@@ -258,7 +261,8 @@ static void smaps_pte_range(struct vm_ar
- 	cond_resched();
- }
- 
--static void clear_refs_pte_range(struct vm_area_struct *vma, pmd_t *pmd,
-+static void clear_refs_pte_range(struct mmu_gather *tlb,
-+				 struct vm_area_struct *vma, pmd_t *pmd,
- 				 unsigned long addr, unsigned long end,
- 				 void *private)
- {
-@@ -279,6 +283,8 @@ static void clear_refs_pte_range(struct 
- 		/* Clear accessed and referenced bits. */
- 		ptep_test_and_clear_young(vma, addr, pte);
- 		ClearPageReferenced(page);
-+		if (tlb)
-+			tlb_remove_tlb_entry(tlb, pte, addr);
- 	}
- 	pte_unmap_unlock(pte - 1, ptl);
- 	cond_resched();
-@@ -295,7 +301,8 @@ static inline void walk_pmd_range(struct
- 		next = pmd_addr_end(addr, end);
- 		if (pmd_none_or_clear_bad(pmd))
- 			continue;
--		walker->action(walker->vma, pmd, addr, next, walker->private);
-+		walker->action(walker->tlb, walker->vma, pmd, addr, next,
-+			       walker->private);
- 	}
- }
- 
-@@ -323,11 +330,9 @@ static inline void walk_pud_range(struct
-  * Recursively walk the page table for the memory area in a VMA, calling
-  * a callback for every bottom-level (PTE) page table.
-  */
--static inline void walk_page_range(struct vm_area_struct *vma,
--				   void (*action)(struct vm_area_struct *,
--						  pmd_t *, unsigned long,
--						  unsigned long, void *),
--				   void *private)
-+static inline void walk_page_range(struct mmu_gather *tlb,
-+				   struct vm_area_struct *vma,
-+				   pmd_action_t	action, void *private)
- {
- 	unsigned long addr = vma->vm_start;
- 	unsigned long end = vma->vm_end;
-@@ -335,6 +340,7 @@ static inline void walk_page_range(struc
- 		.vma		= vma,
- 		.private	= private,
- 		.action		= action,
-+		.tlb		= tlb,
- 	};
- 	pgd_t *pgd;
- 	unsigned long next;
-@@ -355,19 +361,25 @@ static int show_smap(struct seq_file *m,
- 
- 	memset(&mss, 0, sizeof mss);
- 	if (vma->vm_mm && !is_vm_hugetlb_page(vma))
--		walk_page_range(vma, smaps_pte_range, &mss);
-+		walk_page_range(NULL, vma, smaps_pte_range, &mss);
- 	return show_map_internal(m, v, &mss);
- }
- 
- void clear_refs_smap(struct mm_struct *mm)
- {
- 	struct vm_area_struct *vma;
-+	struct mmu_gather *tlb;
-+	unsigned long end_addr = 0;
- 
- 	down_read(&mm->mmap_sem);
-+	tlb = tlb_gather_mmu(mm, 0);
- 	for (vma = mm->mmap; vma; vma = vma->vm_next)
--		if (vma->vm_mm && !is_vm_hugetlb_page(vma))
--			walk_page_range(vma, clear_refs_pte_range, NULL);
--	flush_tlb_mm(mm);
-+		if (vma->vm_mm && !is_vm_hugetlb_page(vma)) {
-+			end_addr = max(vma->vm_end, end_addr);
-+			walk_page_range(tlb, vma, clear_refs_pte_range, NULL);
-+		}
-+	if (tlb)
-+		tlb_finish_mmu(tlb, 0, end_addr);
- 	up_read(&mm->mmap_sem);
- }
- 
+- Visa verifizierter Onlineshop
+- keine versteckte Kosten
+- Diskrete Verpackung und Zahlung
+- Kostenlose, arztliche Telefon-Beratung
+- Kein peinlicher Arztbesuch erforderlicht
+- Kein langes Warten - Auslieferung innerhalb von 2-3 Tagen
+- Bequem und diskret online bestellen.
 
 
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+Vier Dosen gibt's bei jeder Bestellung umsonst
+http://bnooy.oxygenweek.hk/?172431612489
+
+------=_NextPart_000_0006_01C7C216.67251120
+Content-Type: text/html;
+	charset="windows-1250"
+Content-Transfer-Encoding: quoted-printable
+
+<html xmlns:v=3D"urn:schemas-microsoft-com:vml" xmlns:o=3D"urn:schemas-micr=
+osoft-com:office:office" xmlns:w=3D"urn:schemas-microsoft-com:office:word" =
+xmlns=3D"http://www.w3.org/TR/REC-html40">
+
+<head>
+<META HTTP-EQUIV=3D"Content-Type" CONTENT=3D"text/html; charset=3Dwindows-1250">
+
+
+<meta name=3DProgId content=3DWord.Document>
+<meta name=3DGenerator content=3D"Microsoft Word 10">
+<meta name=3DOriginator content=3D"Microsoft Word 10">
+<link rel=3DFile-List href=3D"cid:filelist.xml@5E057DA4.8DAB4867">
+<link rel=3DEdit-Time-Data href=3D"cid:editdata.mso@5E057DA4.8DAB4867">
+</head>
+<body>
+<head><meta http-equiv=3D"Content-Type" content=3D"text/html; charset=3Diso=
+-8859-1">
+</head><body><p>Meinung von unserem Kunden:<br><strong>Bin restlos begeiste=
+rt. Bin 50 und schlage mich seit einem guten Jahre damit herum, dass meinem=
+ Freund im entscheidenden Moment die Standfestigkeit abhanden kommt. Aber n=
+un ist es wie in allerbesten Zeiten. 10 mg reichen f&#252;r ein sehr LUSTig=
+es Weekend. Null Nebenwirkungen - abgesehen vom Muskelkater am n&#228;chten=
+ Tag. Aber der verschwindet ja durch ausreichendes Training ;-))</strong></=
+p><p><strong>Ich finde Viaaaagra einfach wunderbar. Egal, ob f&#252;r den S=
+ex oder, um mich selbst zu verw&#246;hnen: Es funktioniert. Mein Schwanz wi=
+rd extrem hart und mein Orgasmus ist sehr intensiv. Die Wirkung ist so star=
+k, dass ich Viaaaagra nur am Wochenende verwende oder wenn ich viel Zeit ha=
+be, es richtig zu genie&#223;en.<br>
+</strong><strong><br>Verpassen Sie nichts am Lebem - Sie werden fuhlen was =
+unsere Kunden bestatigen!</strong></p><p>Preise die keine Konkurrenz kennen=
+ <p>
+- Kein peinlicher Arztbesuch erforderlicht<br>- Kein langes Warten - Auslie=
+ferung innerhalb von 2-3 Tagen<br>- Bequem und diskret online bestellen.<br=
+>- Visa verifizierter Onlineshop<br>- Kostenlose, arztliche Telefon-Beratun=
+g<br>- keine versteckte Kosten<br>- Diskrete Verpackung und Zahlung</p>  
+<p><br><strong><a href=3D"http://bnooy.oxygenweek.hk/?172431612489" target=
+=3D"_blank">Vier Dosen gibt's bei jeder Bestellung umsonst</a></strong></bo=
+dy>
+</body>
+</html>
+
+------=_NextPart_000_0006_01C7C216.67251120--
