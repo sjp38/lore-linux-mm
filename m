@@ -1,63 +1,162 @@
-Subject: Re: [RFC/PATCH] Use mmu_gather for fork() instead of flush_tlb_mm()
-From: Benjamin Herrenschmidt <benh@kernel.crashing.org>
-In-Reply-To: <46920B7D.5090100@yahoo.com.au>
-References: <1183952874.3388.349.camel@localhost.localdomain>
-	 <1183962981.5961.3.camel@localhost.localdomain>
-	 <1183963544.5961.6.camel@localhost.localdomain>
-	 <4691E64F.5070506@yahoo.com.au>
-	 <1183972349.5961.25.camel@localhost.localdomain>
-	 <4691FFDC.5020808@yahoo.com.au>
-	 <1183974458.5961.42.camel@localhost.localdomain>
-	 <46920A0C.3040400@yahoo.com.au>  <46920B7D.5090100@yahoo.com.au>
-Content-Type: text/plain
-Date: Mon, 09 Jul 2007 22:37:08 +1000
-Message-Id: <1183984629.5961.68.camel@localhost.localdomain>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Date: Mon, 9 Jul 2007 14:21:41 +0100
+Subject: Re: zone movable patches comments
+Message-ID: <20070709132140.GC9305@skynet.ie>
+References: <4691E8D1.4030507@yahoo.com.au> <20070709110457.GB9305@skynet.ie> <469226CB.4010900@yahoo.com.au>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <469226CB.4010900@yahoo.com.au>
+From: mel@skynet.ie (Mel Gorman)
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Nick Piggin <nickpiggin@yahoo.com.au>
-Cc: linux-mm@kvack.org, Linux Kernel list <linux-kernel@vger.kernel.org>
+Cc: Linux Memory Management <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, kamezawa.hiroyu@jp.fujitsu.com
 List-ID: <linux-mm.kvack.org>
 
-> To elaborate on this one... I realise for this one that in the kernel
-> where this is currently used everything is non-preemptible anyway
-> because of the ptl. And I also realise that -rt kernel issues don't
-> really have a bearing on mainline kernel.. but the generic
-> implementation of this API is fundamentally used to operate on a
-> per-cpu data structure that is only required when tearing down page
-> tables. That makes this necessarily non-preemptible.
+On (09/07/07 22:15), Nick Piggin didst pronounce:
+> Mel Gorman wrote:
+> >On (09/07/07 17:50), Nick Piggin didst pronounce:
+> >
+> >>Hi Mel,
+> >>
+> >>Just had a bit of a look at the zone movable stuff in -mm...
+> >
+> >
+> >Great.
+> >
+> >
+> >>Firstly,
+> >>would it be possible to list all the dependant patches in that set, or
+> >>is it just those few that are contiguous in Andrew's series file?
+> >>
+> >
+> >
+> >add-__gfp_movable-for-callers-to-flag-allocations-from-high-memory-that-may-be-migrated.patch
+> >and the few that are contiguous. I'm beginning to test with the
+> >following series file
+> >
+> >add-__gfp_movable-for-callers-to-flag-allocations-from-high-memory-that-may-be-migrated.patch
+> >create-the-zone_movable-zone.patch
+> >create-the-zone_movable-zone-fix.patch
+> >create-the-zone_movable-zone-fix-2.patch
+> >allow-huge-page-allocations-to-use-gfp_high_movable.patch
+> >allow-huge-page-allocations-to-use-gfp_high_movable-fix.patch
+> >allow-huge-page-allocations-to-use-gfp_high_movable-fix-2.patch
+> >allow-huge-page-allocations-to-use-gfp_high_movable-fix-3.patch
+> >handle-kernelcore=-generic.patch
+> >handle-kernelcore=-generic-fix.patch
+> >
+> >There was a minor reject in
+> >add-__gfp_movable-for-callers-to-flag-allocations-from-high-memory-that-may-be-migrated.patch
+> >but otherwise applied smoothly.
 > 
-> Which shows that it adds more restrictions that may not otherwise be
-> required.
-
-Yes, it's a bit annoying but not necessarily that bad. In fact, we don't
-have to make it non-preemptible, we did it because it was easier that way
-I strongly suspect. In fact, the batch could actually be attached to the
-mm rather than the CPU for that matter, no ? Or is there a fudamental
-reason I'm not seeing why it -has- to be per-cpu ?
-
-> > has to look in there and touch the cacheline. You're also having to
-> > do more work when unlocking/relocking the ptl etc.
-> > 
-> > 
-> >> I really think it's the right API
+> Thanks.
 > 
-> OK, the *form* of the API is fine, I have no arguments. I just don't
-> know why you have to reuse the same thing. If you provided a new set of
-> names then you can trivially do a generic implementation which compiles
-> to exactly the same code for all architectures right now. That seems to
-> me like the right way to go...
+> 
+> >>A few comments -- can it be made configurable? I guess there is not
+> >>much overhead if the zone is not populated, but there has been a fair
+> >>bit of work towards taking out unneeded zones.
+> >>
+> >
+> >
+> >It could be made configurable as zone_type already has configurable
+> >zones. However, as it is that would always be set on distro kernels for
+> >CONFIG_HUGETLB_PAGE, is there any point? It might make sense for embedded
+> >systems but I've received pushback from Andrew before for trying to 
+> >introduce
+> >config options that affect the allocator before.
+> 
+> I think yes it would be a good idea. If it is done for things like ZONE_DMA
+> which is a fairly core bit of kernel, I don't see why it shouldn't be done
+> for this. I'm sure it can be made to look niceish ;) (I haven't looked at
+> Kame's patch yet, though).
+> 
 
-But that means two different APIs for almost the same thing. I'm trying
-to clean up the mess, not add more :-) Beside, that "other" API would
-have overall much of the same issues no ? Or do you want to have that
-"other" API not actually provide a percpu "mmu_gather" type structure at
-all in asm-generic (but basically just boil down to an empty inline for
-creating the "other" batch and flush_tlb_mm() for finishing it with an
-empty inline for "adding" a PTE to the list of invalidation targets ?)
+I'm pretty sure it can be made look nice by changing enum zone_type to
+conditionally define ZONE_MOVABLE and define __GFP_MOVABLE to be 0 when
+it doesn't exist. I'll look at Kame's patch before starting in case it's
+nicer.
 
-Ben.
+> 
+> >>Also, I don't really like the name kernelcore= to specify mem-sizeof
+> >>movable zone. Could it be renamed and stated in the positive, like
+> >>movable_mem= or reserve_movable_mem=?
+> >
+> >
+> >It could but it was named this way for a reason. It was more important that
+> >the administrator get the amount of memory for non-movable allocations
+> >correct than movable allocations. If the size of ZONE_MOVABLE is wrong,
+> >the hugepage pool may not be able to grow as large as desired. If the size
+> >of memory usable of non-movable allocations is wrong, it's worse.
+> 
+> kernelcore= has some fairly strong connotations outside the movable
+> zone functionality, however.
+> 
+> If you have a 16GB highmem machine, and you want 8GB of movable zone,
+> do you say kernelcore=8GB?
+
+Yes but depending the topology of memory, the kernelcore portion may not
+be sized exactly as you request. For example, if you have many nodes of
+different sizes, kernelcore may not spread evently. Secondly, the movable
+zone can only use pages from the highest active zone.  To illustrate the
+"highest" zone problem - lets say I have a 2GB 32 bit x86 machine and I
+specify kernelcore=512MB, I'll really get a kernelcore of 896MB because
+ZONE_MOVABLE can only use HIGHMEM pages in this case.
+
+> Does that give you the other 8GB in kernel
+> addressable memory? :) What if some other functionality is introduced
+> that also wants to reserve a chunk of memory? How do you distinguish
+> between them?
+> 
+
+Right now I wouldn't distinguish between them. So if another user
+reserved a portion of memory, it may be in kernelcore only, movable only
+or some combination thereof.
+
+> Why not just specify in the help text that the admin should boot the
+> kernel without that parameter first to check how much memory they
+> have before using it... If they wanted to break the kernel by doing
+> something silly, then I don't see how kernelcore is really better
+> than reclaimable_mem...
+> 
+
+It's simply harder to break a machine by getting kernelcore wrong than
+it is to get reclaimable_mem wrong. If the available memory to the
+machine is changed, it will not have unexpected results on the next boot
+with kernelcore and if you have a cluster with differing amounts of
+memory in each machine, it'll be easier to have one kernelcore value for
+all of them than unique reclaimable_mem ones.
+
+> >>And can that option be written
+> >>up in Documentation?
+> >>
+> >
+> >
+> >Documentation/kernel-parameters.txt
+> 
+> Thanks, I didn't see the kernelcore patches.
+> 
+> 
+> >>What is the status of these patches? Are they working and pretty well
+> >>ready to be merged for 2.6.23?
+> >>
+> >
+> >
+> >I have not encountered problems with them in a long time. I'm re-testing 
+> >now
+> >using 2.6.22 as a baseline but I believe they are ready for merging to 
+> >2.6.23.
+> 
+> Cool. Would be nice to see them go upstream!
+> 
+
+I agree. The zone at least relaxes some restrictions on sizing the
+hugepage pool at runtime and it's predictable.
+
+-- 
+Mel Gorman
+Part-time Phd Student                          Linux Technology Center
+University of Limerick                         IBM Dublin Software Lab
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
