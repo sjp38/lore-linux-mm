@@ -1,38 +1,36 @@
-Message-ID: <46925B5D.8000507@google.com>
-Date: Mon, 09 Jul 2007 08:59:25 -0700
-From: Martin Bligh <mbligh@google.com>
+Date: Mon, 9 Jul 2007 09:08:10 -0700 (PDT)
+From: Christoph Lameter <clameter@sgi.com>
+Subject: Re: [patch 09/10] Remove the SLOB allocator for 2.6.23
+In-Reply-To: <84144f020707090404l657a62c7x89d7d06b3dd6c34b@mail.gmail.com>
+Message-ID: <Pine.LNX.4.64.0707090907010.13970@schroedinger.engr.sgi.com>
+References: <20070708034952.022985379@sgi.com>  <20070708035018.074510057@sgi.com>
+ <20070708075119.GA16631@elte.hu>  <20070708110224.9cd9df5b.akpm@linux-foundation.org>
+  <4691A415.6040208@yahoo.com.au> <84144f020707090404l657a62c7x89d7d06b3dd6c34b@mail.gmail.com>
 MIME-Version: 1.0
-Subject: Re: [patch 00/10] [RFC] SLUB patches for more functionality, performance
- and maintenance
-References: <20070708034952.022985379@sgi.com> <p73y7hrywel.fsf@bingen.suse.de> <Pine.LNX.4.64.0707090845520.13792@schroedinger.engr.sgi.com>
-In-Reply-To: <Pine.LNX.4.64.0707090845520.13792@schroedinger.engr.sgi.com>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
-Cc: Andi Kleen <andi@firstfloor.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Pekka Enberg <penberg@cs.helsinki.fi>
+Cc: Nick Piggin <nickpiggin@yahoo.com.au>, Andrew Morton <akpm@linux-foundation.org>, Ingo Molnar <mingo@elte.hu>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, suresh.b.siddha@intel.com, corey.d.gough@intel.com, Matt Mackall <mpm@selenic.com>, Denis Vlasenko <vda.linux@googlemail.com>, Erik Andersen <andersen@codepoet.org>
 List-ID: <linux-mm.kvack.org>
 
-Christoph Lameter wrote:
-> On Sun, 8 Jul 2007, Andi Kleen wrote:
-> 
->> Christoph Lameter <clameter@sgi.com> writes:
->>
->>> A cmpxchg is less costly than interrupt enabe/disable
->> That sounds wrong.
-> 
-> Martin Bligh was able to significantly increase his LTTng performance 
-> by using cmpxchg. See his article in the 2007 proceedings of the OLS 
-> Volume 1, page 39.
-> 
-> His numbers were:
-> 
-> interrupts enable disable : 210.6ns
-> local cmpxchg             : 9.0ns
+On Mon, 9 Jul 2007, Pekka Enberg wrote:
 
-Those numbers came from Mathieu Desnoyers (LTTng) if you
-want more details.
+> I assume with "slab external fragmentation" you mean allocating a
+> whole page for a slab when there are not enough objects to fill the
+> whole thing thus wasting memory? We could try to combat that by
+> packing multiple variable-sized slabs within a single page. Also,
+> adding some non-power-of-two kmalloc caches might help with internal
+> fragmentation.
+
+Ther are already non-power-of-two kmalloc caches for 96 and 192 bytes 
+sizes.
+> 
+> In any case, SLUB needs some serious tuning for smaller machines
+> before we can get rid of SLOB.
+
+Switch off CONFIG_SLUB_DEBUG to get memory savings.
+ 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
