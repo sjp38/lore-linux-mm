@@ -1,74 +1,75 @@
-Message-ID: <01c7c1ff$9cd64da0$021af0c9@jbroker>
-From: "Reynaldo Evans" <jbroker@vectorscm.com>
-Subject: Probieren Sie es - Mann Lebt nur einmal   if you are interested in it. -- to know how they 
-Date: Mon, 9 Jul 2007 08:03:19 +0500
-MIME-Version: 1.0
-Content-Type: multipart/alternative;
-	boundary="----=_NextPart_000_0007_01C7C1D5.B40045A0"
-Return-Path: <jbroker@vectorscm.com>
-To: linux-mm@kvack.org
+Subject: Re: [RFC/PATCH] Use mmu_gather for fork() instead of flush_tlb_mm()
+From: Benjamin Herrenschmidt <benh@kernel.crashing.org>
+In-Reply-To: <4691E64F.5070506@yahoo.com.au>
+References: <1183952874.3388.349.camel@localhost.localdomain>
+	 <1183962981.5961.3.camel@localhost.localdomain>
+	 <1183963544.5961.6.camel@localhost.localdomain>
+	 <4691E64F.5070506@yahoo.com.au>
+Content-Type: text/plain
+Date: Mon, 09 Jul 2007 19:12:29 +1000
+Message-Id: <1183972349.5961.25.camel@localhost.localdomain>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
+Sender: owner-linux-mm@kvack.org
+Return-Path: <owner-linux-mm@kvack.org>
+To: Nick Piggin <nickpiggin@yahoo.com.au>
+Cc: linux-mm@kvack.org, Linux Kernel list <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-This is a multi-part message in MIME format.
+On Mon, 2007-07-09 at 17:39 +1000, Nick Piggin wrote:
 
-------=_NextPart_000_0007_01C7C1D5.B40045A0
-Content-Type: text/plain;
-	charset="windows-1250"
-Content-Transfer-Encoding: quoted-printable
+> Would it be better off to start off with a new API for this? The
+> mmu gather I think is traditionally entirely for dealing with
+> page removal...
 
-Haben Sie endlich wieder Spass am Leben!
+It would be weird because the new API would mostly duplicate this one,
+and we would end up with duplicated hooks..
 
-Preise die keine Konkurrenz kennen 
+I think it's fine to have one mmu_gather construct to gather changes to
+PTEs, it doesn't have to contain freed pages, though it can. Appart from
+that simple nr test, it's entirely the same code and the existing
+implementation for all archs should just work (well, should, I haven't
+actually looked in details yet :-)
 
-- Visa verifizierter Onlineshop
-- Diskrete Verpackung und Zahlung
-- Kein peinlicher Arztbesuch erforderlicht
-- Kostenlose, arztliche Telefon-Beratung
-- Kein langes Warten - Auslieferung innerhalb von 2-3 Tagen
-- Bequem und diskret online bestellen.
-- keine versteckte Kosten
+Maybe we can use a separate call than tlb_remove_tlb_entry() tho,
+something like tlb_invalidate_entry(), which by default would do the
+same but that archs can override if they want to distinguish page
+freeing and simple invalidations at that level.
+
+That means adding a suitable default __tlb_invalidate_entry() to all
+archs but that shouldn't be too hard with a bit of help from the various
+maintainers.
+
+But I think the rest of the mmu_gather interface should stay the same.
+
+I would like to add a few more things to it next, mostly:
+
+ - tlb_gather_lockdrop() (or find a better name) called just before we
+drop the page table / PTE lock. That would allow me to bring back ppc64
+to use the normal mmu_gather API instead of hijacking the lazy mmu stuff
+as it's doing now by flushing my batches before the lock is dropped.
+
+ - start moving over pretty much everything that walks page tables to it
+
+So that in the end, we basically go down to:
+
+ - flush_tlb_page() for single page invalidates (protection faults for
+example)
+
+ - mmu_gather batches for everything else userland
+
+ - possibly stick to something else for kernel mappings, to be
+discussed. I'm find with doing batches there too :-)
+
+The current situation is just too messy imho, and generalizing batches
+will be useful to platforms like hash table ppc's or funky TLBs.
+
+Ben.
 
 
-Jetzt bestellen - und vier Pillen umsonst erhalten
-http://ntftaax.spellbelieve.hk/?808859077925
-------=_NextPart_000_0007_01C7C1D5.B40045A0
-Content-Type: text/html;
-	charset="windows-1250"
-Content-Transfer-Encoding: quoted-printable
 
-<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
-<HTML><HEAD>
-<META http-equiv=3DContent-Type content=3D"text/html; charset=3Dwindows-1250">
-<META content=3D"MSHTML 6.00.2900.2180" name=3DGENERATOR>
-<STYLE></STYLE>
-</HEAD>
-<BODY>
-<head><meta http-equiv=3D"Content-Type" content=3D"text/html; charset=3Diso=
--8859-1">
-</head><body><p>Meinung von unserem Kunden:<br><strong>Vor zwei Monaten hab=
-en meine Freundin und ich beschlossen, zum ersten Mal miteinander Sex zu ha=
-ben. Als es soweit war, und ich in sie eindringen wollte, blieb ich v&#246;=
-llig schlaff. Wir haben es drei Wochen sp&#228;ter nochmal versucht, und ic=
-h habe immer noch schlappgemacht. Mein Onkel hat mir Viaaaagra empfohlen. L=
-etzte Woche haben meine Freundin und ich es noch einmal miteinander probier=
-t, und es wurde die tollste Nacht meines Lebens. Ich nehme Viaaaagra jetzt =
-einmal pro Woche, und es klappt prima. Meine Freundin hat keine Zweifel meh=
-r an meinen sexuellen Qualit&#228;ten.</strong></p><p><strong>Ich habe drei=
- Jahre lang keine befriedigende Er_rektio_n hinbekommen. Das hat mich ferti=
-g gemacht. Viaaaagra haben meine Frau, sie ist 54, und ich in zwei Jahren n=
-icht einmal auf befriedigen Sex verzichten m&#252;ssen. Und die Liebe ist g=
-enauso intensiv wie vor einem halben Jahrhundert! Jetzt machen wir es wiede=
-r drei- bis f&#252;nfmal pro Woche. Ich bin 75 Jahre alt und dankbar, dass =
-ich Viaaaagra kennengelernt habe.<br>
-</strong><strong><br>Haben Sie endlich wieder Spass am Leben!</strong></p><=
-p>Preise die keine Konkurrenz kennen <p>
-- Kein langes Warten - Auslieferung innerhalb von 2-3 Tagen<br>- Kostenlose=
-, arztliche Telefon-Beratung<br>- Kein peinlicher Arztbesuch erforderlicht<=
-br>- Bequem und diskret online bestellen.<br>- Visa verifizierter Onlinesho=
-p<br>- keine versteckte Kosten<br>- Diskrete Verpackung und Zahlung</p>  
-<p><br><strong><a href=3D"http://ntftaax.spellbelieve.hk/?808859077925" tar=
-get=3D"_blank">Jetzt bestellen - und vier Pillen umsonst erhalten</a></stro=
-ng></body>
-</BODY></HTML>
-
-------=_NextPart_000_0007_01C7C1D5.B40045A0--
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
