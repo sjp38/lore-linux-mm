@@ -1,30 +1,32 @@
-Date: Tue, 10 Jul 2007 09:10:57 -0700
+Date: Tue, 10 Jul 2007 09:12:17 -0700
 From: Bill Irwin <bill.irwin@oracle.com>
 Subject: Re: [RFC][PATCH] hugetlbfs read support
-Message-ID: <20070710161057.GW26380@holomorphy.com>
-References: <1184009291.31638.8.camel@dyn9047017100.beaverton.ibm.com> <20070710091720.GA28371@infradead.org> <20070710152846.GD27655@us.ibm.com>
+Message-ID: <20070710161217.GX26380@holomorphy.com>
+References: <1184009291.31638.8.camel@dyn9047017100.beaverton.ibm.com> <20070710153752.GV26380@holomorphy.com> <20070710154312.GE27655@us.ibm.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20070710152846.GD27655@us.ibm.com>
+In-Reply-To: <20070710154312.GE27655@us.ibm.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Nishanth Aravamudan <nacc@us.ibm.com>
-Cc: Christoph Hellwig <hch@infradead.org>, Badari Pulavarty <pbadari@us.ibm.com>, Linux Memory Management <linux-mm@kvack.org>, clameter@sgi.com, Bill Irwin <bill.irwin@oracle.com>, agl@us.ibm.com
+Cc: Bill Irwin <bill.irwin@oracle.com>, Badari Pulavarty <pbadari@us.ibm.com>, Linux Memory Management <linux-mm@kvack.org>, clameter@sgi.com, agl@us.ibm.com
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Jul 10, 2007 at 08:28:46AM -0700, Nishanth Aravamudan wrote:
-> I agree and sounds like something to bring up at KS (again?) or the
-> VM/FS summit. But, for now, hugetlbfs is the supported interface and
-> libhugetlbfs has run into this issue supporting one of its features. So
-> I would like to see this make it in.
-> Just my $0.02 as a libhuge developer.
+On 10.07.2007 [08:37:52 -0700], Bill Irwin wrote:
+>> What's the testing status of all this? I thoroughly approve of the
+>> concept, of course.
 
-It should also be there to make it more like a normal filesystem,
-though your use case is of vastly higher priority than such concerns.
+On Tue, Jul 10, 2007 at 08:43:12AM -0700, Nishanth Aravamudan wrote:
+> With this change, OProfile is able to do symbol lookup (which is
+> achieved via libbfd, which does reads() of the appropriate files) with
+> relinked binaries in post-processing. The file utility is also able to
+> recognize persistent text segments as ELF executables.
+> If you would like further testing, let me know what.
 
-As far as large pages for the generic VM/VFS, I cast my absentee
-vote(s) in favor of such, not that anyone gives a damn what I think.
+That's good enough for me.
+
+Acked-by: William Irwin <bill.irwin@oracle.com>
 
 
 -- wli
