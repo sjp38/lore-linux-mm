@@ -1,95 +1,184 @@
-Date: Tue, 10 Jul 2007 15:03:56 +0200
-From: Nick Piggin <npiggin@suse.de>
-Subject: Re: -mm merge plans -- anti-fragmentation
-Message-ID: <20070710130356.GG8779@wotan.suse.de>
-References: <20070710102043.GA20303@skynet.ie>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Date: Tue, 10 Jul 2007 14:21:54 +0100
+Subject: Re: zone movable patches comments
+Message-ID: <20070710132154.GA9426@skynet.ie>
+References: <4691E8D1.4030507@yahoo.com.au> <20070709110457.GB9305@skynet.ie> <469226CB.4010900@yahoo.com.au> <20070709132140.GC9305@skynet.ie> <46933BD7.2020200@yahoo.com.au> <20070710095116.GB12052@skynet.ie> <46935C84.9060407@yahoo.com.au> <46935CEB.3050204@yahoo.com.au>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <20070710102043.GA20303@skynet.ie>
+In-Reply-To: <46935CEB.3050204@yahoo.com.au>
+From: mel@skynet.ie (Mel Gorman)
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Mel Gorman <mel@skynet.ie>
-Cc: Andrew Morton <akpm@linux-foundation.org>, kenchen@google.com, jschopp@austin.ibm.com, apw@shadowen.org, kamezawa.hiroyu@jp.fujitsu.com, a.p.zijlstra@chello.nl, y-goto@jp.fujitsu.com, clameter@sgi.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Nick Piggin <nickpiggin@yahoo.com.au>
+Cc: Linux Memory Management <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, kamezawa.hiroyu@jp.fujitsu.com, Andy Whitcroft <apw@shadowen.org>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Jul 10, 2007 at 11:20:43AM +0100, Mel Gorman wrote:
-> > 
-> >  Mel's page allocator work.  Might merge this, but I'm still not hearing
-> >  sufficiently convincing noises from a sufficient number of people over this.
-> > 
+On (10/07/07 20:18), Nick Piggin didst pronounce:
+> Nick Piggin wrote:
 > 
-> This is a long on-going story. It bounces between people who say it's not a
-> complete solution and everything should have the 100% ability to defragment
-> and the people on the other side that say it goes a long way to solving their
-> problem. I've cc'd some of the parties that have expressed any interest in
-> the last year.
-
-And I guess some other people who want to see what prolbems there are
-and what can't be solved between order-0 allocations and reserve zones.
-
- 
-> On a slightly more left of centre tact, these patches *may* help fsblock with
-> large blocks although I would like to hear Nick's confirming/denying this.
-> Currently if fsblock wants to work with large blocks, it uses a vmap to map
-> discontiguous pages so they are virtually contiguous for the filesystem. The
-> use of VMAP is never cheap, though how much of an overhead in this case is
-> unknown.  If these patches were in place, fsblock could optimisically allocate
-> the higher-order page and use it without vmap if it succeeded. If it fails,
-> it would use vmap as a lower-performance-but-still-works fallback. This
-> may tie in better with what Christoph is doing with large blocks as well
-> as it may be a compromise solution between their proposals - I'm not 100%
-> sure so he's cc'd as well for comment.
-
-Yeah higher order allocations could definitely be helpful for this although
-I couldn't guess at the sort of impovements at this stage. And I mean if
-there was a simple choice between better (but still not perfect) support
-for higher order allocations or not, then of course you would take them.
-I am sure there are other places as well where they might makes life a bit
-easier or performance a bit better.
-
-But given the code involved, it is not just a simple choice, but a
-tradeoff. Perhaps I haven't seen or don't realise it, but I'm still not
-sure that this tradeoff is a good one. (just my opinion).
-
-
-> The patches have been reviewed heavily recently by Christoph and Andy has
-> looked through them as well. They've been tested for a long time in -mm so
-> I would expect they not regress functionality. I've maintained that having
-> the 100% ability to defragment will cost too much in terms of performance
-> and would be blocked by the fact that the device driver model would have to
-> be updated to never use physical addresses - a massive undertaking. I think
-> this approach is more pragmatic and working on making more types of memory
-> (like page tables) migratable is at least piecemeal as opposed to turning
-> everything on it's head.
-
-My comments about defragmentation of the kernel were not exactly what
-I believe is the right direction to go (it may be, but I'm rally not
-in a position to know without having seen or tried to implement it). But
-I do think that's what would really be needed in order to really support
-higher order allocations the same as order-0.
-
-I realise in your pragmatic approach, you are encouraging users to
-put fallbacks in place in case a higher order page cannot be allocated,
-but I don't think either higher order pagecache or higher order slubs
-have such fallbacks (fsblock or a combination of fsblock and higher
-order pagecache could have, but...).
- 
-> >  These are slub changes which are dependent on Mel's stuff, and I have a note
-> >  here that there were reports of page allocation failures with these.  What's
-> >  up with that?
-> > 
+> >I'm not completely against kernelcore=, no. However I do think that
+> >should be a general parameter that exists for the core kernel. I guess it
+> >would override any other reservations and things, and it would specify the
+> >absolute minimum kernelcore.
+> >
+> >Then if you add a movable_mem= (or something -- I don't know what the
+> >exact name should be), then that would also specify the minimum movable
+> >memory, although at a lower priority to kernelcore= (and you could have
+> >the appropriate warnings and such if they cannot be satisfied).
 > 
-> These is where the
-> have-kswapd-keep-a-minimum-order-free-other-than-order-0.patch and
-> only-check-absolute-watermarks-for-alloc_high-and-alloc_harder-allocations.patch
-> patches should be. There were page allocation failure reports without these
-> patches but Nick felt they were not the correct solution and I tend to agree
-> with him on this matter. I haven't put a massive amount of thought into it
-> yet because without grouping pages by mobility, the question is pointless.
+> Ah yes, I now read Andy's mail and this is what he is suggesting, so
+> yes it seems like a good idea I think.
+> 
 
-Yeah I think that was a hack.
+*beats keyboard with stick* 
 
+Does something like the following cover it? Tested on a standalone x86
+and it seemed to behave as expected.
+
+=====
+
+This patch adds a new parameter for sizing ZONE_MOVABLE called
+movablecore=. kernelcore is used to specify the minimum amount of memory that
+must be available for all allocation types. movablecore= is used to specify
+the minimum amount of memory that is used for migratable allocations. The
+amount of memory used for migratable allocations determines how large the
+huge page pool could be dynamically resized to at runtime for example.
+
+Signed-off-by: Mel Gorman <mel@csn.ul.ie>
+---
+ Documentation/kernel-parameters.txt |   10 +++++
+ mm/page_alloc.c                     |   61 +++++++++++++++++++++++++++++++-----
+ 2 files changed, 64 insertions(+), 7 deletions(-)
+
+diff -rup -X /usr/src/patchset-0.6/bin//dontdiff linux-2.6.22-zonemovable/Documentation/kernel-parameters.txt linux-2.6.22-movablecore/Documentation/kernel-parameters.txt
+--- linux-2.6.22-zonemovable/Documentation/kernel-parameters.txt	2007-07-09 11:50:18.000000000 +0100
++++ linux-2.6.22-movablecore/Documentation/kernel-parameters.txt	2007-07-10 11:38:04.000000000 +0100
+@@ -850,6 +850,16 @@ and is between 256 and 4096 characters. 
+ 			use the HighMem zone if it exists, and the Normal
+ 			zone if it does not.
+ 
++	movablecore=nn[KMG]	[KNL,IA-32,IA-64,PPC,X86-64] This parameter
++			is similar to kernelcore except it specifies the
++			amount of memory used for migratable allocations.
++			If both kernelcore and movablecore is specified,
++			then kernelcore will be at *least* the specified
++			value but may be more. If movablecore on its own
++			is specified, the administrator must be careful
++			that the amount of memory usable for all allocations
++			is not too small.
++
+ 	keepinitrd	[HW,ARM]
+ 
+ 	kstack=N	[IA-32,X86-64] Print N words from the kernel stack
+diff -rup -X /usr/src/patchset-0.6/bin//dontdiff linux-2.6.22-zonemovable/mm/page_alloc.c linux-2.6.22-movablecore/mm/page_alloc.c
+--- linux-2.6.22-zonemovable/mm/page_alloc.c	2007-07-09 11:50:18.000000000 +0100
++++ linux-2.6.22-movablecore/mm/page_alloc.c	2007-07-10 12:31:39.000000000 +0100
+@@ -137,6 +137,7 @@ static unsigned long __meminitdata dma_r
+   unsigned long __initdata node_boundary_end_pfn[MAX_NUMNODES];
+ #endif /* CONFIG_MEMORY_HOTPLUG_RESERVE */
+   unsigned long __initdata required_kernelcore;
++  unsigned long __initdata required_movablecore;
+   unsigned long __initdata zone_movable_pfn[MAX_NUMNODES];
+ 
+   /* movable_zone is the "real" zone pages in ZONE_MOVABLE are taken from */
+@@ -2980,6 +2981,18 @@ unsigned long __init find_max_pfn_with_a
+ 	return max_pfn;
+ }
+ 
++unsigned long __init early_calculate_totalpages(void)
++{
++	int i;
++	unsigned long totalpages = 0;
++
++	for (i = 0; i < nr_nodemap_entries; i++)
++		totalpages += early_node_map[i].end_pfn -
++						early_node_map[i].start_pfn;
++
++	return totalpages;
++}
++
+ /*
+  * Find the PFN the Movable zone begins in each node. Kernel memory
+  * is spread evenly between nodes as long as the nodes have enough
+@@ -2993,6 +3006,25 @@ void __init find_zone_movable_pfns_for_n
+ 	unsigned long kernelcore_node, kernelcore_remaining;
+ 	int usable_nodes = num_online_nodes();
+ 
++	/*
++	 * If movablecore was specified, calculate what size of
++	 * kernelcore that corresponds so that memory usable for
++	 * any allocation type is evenly spread. If both kernelcore
++	 * and movablecore are specified, then the value of kernelcore
++	 * will be used for required_kernelcore if it's greater than
++	 * what movablecore would have allowed.
++	 */
++	if (required_movablecore) {
++		unsigned long totalpages = early_calculate_totalpages();
++		unsigned long corepages;
++		
++		required_movablecore =
++			roundup(required_movablecore, MAX_ORDER_NR_PAGES);
++		corepages = totalpages - required_movablecore;
++
++		required_kernelcore = max(required_kernelcore, corepages);
++	}
++		
+ 	/* If kernelcore was not specified, there is no ZONE_MOVABLE */
+ 	if (!required_kernelcore)
+ 		return;
+@@ -3173,26 +3205,41 @@ void __init free_area_init_nodes(unsigne
+ 	}
+ }
+ 
+-/*
+- * kernelcore=size sets the amount of memory for use for allocations that
+- * cannot be reclaimed or migrated.
+- */
+-static int __init cmdline_parse_kernelcore(char *p)
++static int __init cmdline_parse_core(char *p, unsigned long *core)
+ {
+ 	unsigned long long coremem;
+ 	if (!p)
+ 		return -EINVAL;
+ 
+ 	coremem = memparse(p, &p);
+-	required_kernelcore = coremem >> PAGE_SHIFT;
++	*core = coremem >> PAGE_SHIFT;
+ 
+-	/* Paranoid check that UL is enough for required_kernelcore */
++	/* Paranoid check that UL is enough for the coremem value */
+ 	WARN_ON((coremem >> PAGE_SHIFT) > ULONG_MAX);
+ 
+ 	return 0;
+ }
+ 
++/*
++ * kernelcore=size sets the amount of memory for use for allocations that
++ * cannot be reclaimed or migrated.
++ */
++static int __init cmdline_parse_kernelcore(char *p)
++{
++	return cmdline_parse_core(p, &required_kernelcore);
++}
++
++/*
++ * movablecore=size sets the amount of memory for use for allocations that
++ * can be reclaimed or migrated.
++ */
++static int __init cmdline_parse_movablecore(char *p)
++{
++	return cmdline_parse_core(p, &required_movablecore);
++}
++
+ early_param("kernelcore", cmdline_parse_kernelcore);
++early_param("movablecore", cmdline_parse_movablecore);
+ 
+ #endif /* CONFIG_ARCH_POPULATES_NODE_MAP */
+ 
+-- 
+Mel Gorman
+Part-time Phd Student                          Linux Technology Center
+University of Limerick                         IBM Dublin Software Lab
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
