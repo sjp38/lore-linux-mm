@@ -1,42 +1,55 @@
-Message-ID: <4692D9E0.1000308@oracle.com>
-Date: Mon, 09 Jul 2007 17:59:12 -0700
-From: Herbert van den Bergh <Herbert.van.den.Bergh@oracle.com>
+Date: Mon, 9 Jul 2007 17:59:47 -0700 (PDT)
+From: Christoph Lameter <clameter@sgi.com>
+Subject: Re: [RFC] fsblock
+In-Reply-To: <20070710005419.GB8779@wotan.suse.de>
+Message-ID: <Pine.LNX.4.64.0707091756020.2348@schroedinger.engr.sgi.com>
+References: <20070624014528.GA17609@wotan.suse.de>
+ <Pine.LNX.4.64.0707091002170.15696@schroedinger.engr.sgi.com>
+ <20070710005419.GB8779@wotan.suse.de>
 MIME-Version: 1.0
-Subject: [PATCH] do not limit locked memory when RLIMIT_MEMLOCK is RLIM_INFINITY
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-kernel@vger.kernel.org, linux-mm@kvack.org
-Cc: akpm@linux-foundation.org, Dave McCracken <dave.mccracken@oracle.com>, Chris Mason <chris.mason@oracle.com>
+To: Nick Piggin <npiggin@suse.de>
+Cc: Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>, linux-fsdevel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-[resending, since my previous message had tabs converted to spaces]
+On Tue, 10 Jul 2007, Nick Piggin wrote:
 
-This patch fixes a bug in mm/mlock.c on 32-bit architectures that prevents
-a user from locking more than 4GB of shared memory, or allocating more
-than 4GB of shared memory in hugepages, when rlim[RLIMIT_MEMLOCK] is
-set to RLIM_INFINITY.
+> > Hmmm.... I did not notice that yet but then I have not done much work 
+> > there.
+> 
+> Notice what?
 
-Signed-off-by: Herbert van den Bergh <herbert.van.den.bergh@oracle.com>
-Acked-by: Chris Mason <chris.mason@oracle.com>
+The bad code for the buffer heads.
 
---- linux-2.6.22/mm/mlock.c.orig	2007-07-09 10:19:31.000000000 -0700
-+++ linux-2.6.22/mm/mlock.c	2007-07-09 10:19:19.000000000 -0700
-@@ -244,9 +244,12 @@ int user_shm_lock(size_t size, struct us
- 
- 	locked = (size + PAGE_SIZE - 1) >> PAGE_SHIFT;
- 	lock_limit = current->signal->rlim[RLIMIT_MEMLOCK].rlim_cur;
-+	if (lock_limit == RLIM_INFINITY)
-+		allowed = 1;
- 	lock_limit >>= PAGE_SHIFT;
- 	spin_lock(&shmlock_user_lock);
--	if (locked + user->locked_shm > lock_limit && !capable(CAP_IPC_LOCK))
-+	if (!allowed &&
-+	    locked + user->locked_shm > lock_limit && !capable(CAP_IPC_LOCK))
- 		goto out;
- 	get_uid(user);
- 	user->locked_shm += locked;
+> > > - A real "nobh" mode. nobh was created I think mainly to avoid problems
+> > >   with buffer_head memory consumption, especially on lowmem machines. It
+> > >   is basically a hack (sorry), which requires special code in filesystems,
+> > >   and duplication of quite a bit of tricky buffer layer code (and bugs).
+> > >   It also doesn't work so well for buffers with non-trivial private data
+> > >   (like most journalling ones). fsblock implements this with basically a
+> > >   few lines of code, and it shold work in situations like ext3.
+> > 
+> > Hmmm.... That means simply page struct are not working...
+> 
+> I don't understand you. jbd needs to attach private data to each bh, and
+> that can stay around for longer than the life of the page in the pagecache.
+
+Right. So just using page struct alone wont work for the filesystems.
+
+> There are no changes to the filesystem API for large pages (although I
+> am adding a couple of helpers to do page based bitmap ops). And I don't
+> want to rely on contiguous memory. Why do you think handling of large
+> pages (presumably you mean larger than page sized blocks) is strange?
+
+We already have a way to handle large pages: Compound pages.
+
+> Conglomerating the constituent pages via the pagecache radix-tree seems
+> logical to me.
+
+Meaning overhead to handle each page still exists? This scheme cannot 
+handle large contiguous blocks as a single entity?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
