@@ -1,89 +1,60 @@
-Date: Tue, 10 Jul 2007 17:23:55 +0200
-From: Nick Piggin <npiggin@suse.de>
-Subject: Re: -mm merge plans -- anti-fragmentation
-Message-ID: <20070710152355.GI8779@wotan.suse.de>
-References: <20070710102043.GA20303@skynet.ie> <200707100929.46153.dave.mccracken@oracle.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
+Received: from d01relay02.pok.ibm.com (d01relay02.pok.ibm.com [9.56.227.234])
+	by e5.ny.us.ibm.com (8.13.8/8.13.8) with ESMTP id l6AFSlTx007742
+	for <linux-mm@kvack.org>; Tue, 10 Jul 2007 11:28:47 -0400
+Received: from d01av02.pok.ibm.com (d01av02.pok.ibm.com [9.56.224.216])
+	by d01relay02.pok.ibm.com (8.13.8/8.13.8/NCO v8.3) with ESMTP id l6AFSlrx322920
+	for <linux-mm@kvack.org>; Tue, 10 Jul 2007 11:28:47 -0400
+Received: from d01av02.pok.ibm.com (loopback [127.0.0.1])
+	by d01av02.pok.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l6AFSlAg008936
+	for <linux-mm@kvack.org>; Tue, 10 Jul 2007 11:28:47 -0400
+Date: Tue, 10 Jul 2007 08:28:46 -0700
+From: Nishanth Aravamudan <nacc@us.ibm.com>
+Subject: Re: [RFC][PATCH] hugetlbfs read support
+Message-ID: <20070710152846.GD27655@us.ibm.com>
+References: <1184009291.31638.8.camel@dyn9047017100.beaverton.ibm.com> <20070710091720.GA28371@infradead.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <200707100929.46153.dave.mccracken@oracle.com>
+In-Reply-To: <20070710091720.GA28371@infradead.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Dave McCracken <dave.mccracken@oracle.com>
-Cc: Mel Gorman <mel@skynet.ie>, Andrew Morton <akpm@linux-foundation.org>, kenchen@google.com, jschopp@austin.ibm.com, apw@shadowen.org, kamezawa.hiroyu@jp.fujitsu.com, a.p.zijlstra@chello.nl, y-goto@jp.fujitsu.com, clameter@sgi.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Christoph Hellwig <hch@infradead.org>
+Cc: Badari Pulavarty <pbadari@us.ibm.com>, Linux Memory Management <linux-mm@kvack.org>, clameter@sgi.com, Bill Irwin <bill.irwin@oracle.com>, agl@us.ibm.com
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Jul 10, 2007 at 09:29:45AM -0500, Dave McCracken wrote:
-> On Tuesday 10 July 2007, Mel Gorman wrote:
-> > >  Mel's page allocator work.  Might merge this, but I'm still not hearing
-> > >  sufficiently convincing noises from a sufficient number of people over
-> > > this.
-> >
-> > This is a long on-going story. It bounces between people who say it's not a
-> > complete solution and everything should have the 100% ability to defragment
-> > and the people on the other side that say it goes a long way to solving
-> > their problem. I've cc'd some of the parties that have expressed any
-> > interest in the last year.
+On 10.07.2007 [10:17:20 +0100], Christoph Hellwig wrote:
+> On Mon, Jul 09, 2007 at 12:28:11PM -0700, Badari Pulavarty wrote:
+> > Comments/flames ?
+> > 
+> > Thanks,
+> > Badari
+> > 
+> > Support for reading from hugetlbfs files. libhugetlbfs lets
+> > application text/data to be placed in large pages. When we do that,
+> > oprofile doesn't work - since it tries to read from it.
+> > 
+> > This code is very similar to what do_generic_mapping_read() does,
+> > but I can't use it since it has PAGE_CACHE_SIZE assumptions.
+> > Christoph Lamater's cleanup to pagecache would hopefully give me all
+> > of this.
 > 
-> I find myself wondering what "sufficiently convincing noises" are.  I think we 
-> can all agree that in the current kernel order>0 allocations are a disaster.  
+> The code looks fine, but I really hate that we need it all all.  We
+> really should make the general VM/FS code large page aware and get rid
+> of this whole hack called hugetlbfs..
 
-Are they? For what the kernel currently uses them for, I don't think
-the lower order ones are so bad. Now and again we used to get reports
-of atomic order 3 allocation failures with e1000 for example, but a
-lot of those were before kswapd would properly asynchronously start
-reclaim for atomic and higher order allocations. The odd failure
-sometimes catches my eye, but nothing I would call a disaster.
+I agree and sounds like something to bring up at KS (again?) or the
+VM/FS summit. But, for now, hugetlbfs is the supported interface and
+libhugetlbfs has run into this issue supporting one of its features. So
+I would like to see this make it in.
 
-Something like the birthday paradox I guess says that you don't actually
-need a large proportion of pages free in order to get higher order
-pages free. I think it is something like O(log or sqrt total pages), ie.
-similar to what we use for our pages_min sizing, isn't it?
+Just my $0.02 as a libhuge developer.
 
+Thanks,
+Nish
 
-> They simply aren't useable once the system fragments.  I think we can also 
-> all agree that 100% defragmentation is impossible without rewriting the 
-> kernel to avoid the hard-coded virtual->physical relationship we have now.
-> 
-> With that said, the only remaining question I see is whether we need order>0 
-> allocations.  If we do, then Mel's patches are clearly the right thing to do.  
-> They have received a lot of testing (if just by virtue of being in -mm for so 
-> long), and have shown to greatly increase the availability of order>0 pages.
-> 
-> The sheer list of patches lined up behind this set is strong evidence that 
-> there are useful features which depend on a working order>0.  When you add in 
-> the existing code that has to struggle with allocation failures or resort to 
-> special pools (ie hugetlbfs), I see a clear vote for the need for this patch.
-
-Really the only patches so far that I think have convincing reasons are
-memory unplug and hugepage, and both of those can get a long way by using
-a reserve zone (note it isn't entirely reserved, but still available for
-things like pagecache). Beyond that, is there a big demand, and do we
-want to make this fundamental change in direction in the kernel to
-satisfy that demand?
- 
-
-> Some object because order>0 will still be able to fail.  I point out that 
-> order==0 can also fail, though we go to great lengths to prevent it.  Mel's 
-> patches raise the success rate of order>0 to within a few percent of 
-> order==0.  All this means is callers will need to decide how to handle the 
-> infrequent failure.  This should be true no matter what the order.
-
-So small ones like order-1 and 2 seem reasonably good right now AFAIKS.
-If you perhaps want to say start using order-4  pages for slab or
-some other kernel memory allocations, then you can run into the situation
-where memory gets fragmented such that you have one sixteenth of your
-memory actualy used but you can't allocate from any of your slabs because
-there are no order-4 pages left. I guess this is a big difference between
-order-low failures and order-high.
-
-
-> 
-> I strongly vote for merging these patches.  Let's get them in mainline where 
-> they can do some good.
-> 
-> Dave McCracken
+-- 
+Nishanth Aravamudan <nacc@us.ibm.com>
+IBM Linux Technology Center
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
