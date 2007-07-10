@@ -1,50 +1,95 @@
-Date: Tue, 10 Jul 2007 15:57:26 +0300 (EEST)
-From: Pekka J Enberg <penberg@cs.helsinki.fi>
-Subject: Re: [patch 09/10] Remove the SLOB allocator for 2.6.23
-In-Reply-To: <20070710120224.GP11115@waste.org>
-Message-ID: <Pine.LNX.4.64.0707101544150.27425@sbz-30.cs.Helsinki.FI>
-References: <20070708034952.022985379@sgi.com> <20070708035018.074510057@sgi.com>
- <20070708075119.GA16631@elte.hu> <20070708110224.9cd9df5b.akpm@linux-foundation.org>
- <4691A415.6040208@yahoo.com.au> <84144f020707090404l657a62c7x89d7d06b3dd6c34b@mail.gmail.com>
- <Pine.LNX.4.64.0707090907010.13970@schroedinger.engr.sgi.com>
- <Pine.LNX.4.64.0707101049230.23040@sbz-30.cs.Helsinki.FI> <469342DC.8070007@yahoo.com.au>
- <84144f020707100231p5013e1aer767562c26fc52eeb@mail.gmail.com>
- <20070710120224.GP11115@waste.org>
+Date: Tue, 10 Jul 2007 15:03:56 +0200
+From: Nick Piggin <npiggin@suse.de>
+Subject: Re: -mm merge plans -- anti-fragmentation
+Message-ID: <20070710130356.GG8779@wotan.suse.de>
+References: <20070710102043.GA20303@skynet.ie>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+In-Reply-To: <20070710102043.GA20303@skynet.ie>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Matt Mackall <mpm@selenic.com>
-Cc: Nick Piggin <nickpiggin@yahoo.com.au>, Christoph Lameter <clameter@sgi.com>, Andrew Morton <akpm@linux-foundation.org>, Ingo Molnar <mingo@elte.hu>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, suresh.b.siddha@intel.com, corey.d.gough@intel.com, Denis Vlasenko <vda.linux@googlemail.com>, Erik Andersen <andersen@codepoet.org>
+To: Mel Gorman <mel@skynet.ie>
+Cc: Andrew Morton <akpm@linux-foundation.org>, kenchen@google.com, jschopp@austin.ibm.com, apw@shadowen.org, kamezawa.hiroyu@jp.fujitsu.com, a.p.zijlstra@chello.nl, y-goto@jp.fujitsu.com, clameter@sgi.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-Hi Matt,
-
-On Tue, 10 Jul 2007, Matt Mackall wrote:
-> Using 2.6.22-rc6-mm1 with a 64MB lguest and busybox, I'm seeing the
-> following as the best MemFree numbers after several boots each:
+On Tue, Jul 10, 2007 at 11:20:43AM +0100, Mel Gorman wrote:
+> > 
+> >  Mel's page allocator work.  Might merge this, but I'm still not hearing
+> >  sufficiently convincing noises from a sufficient number of people over this.
+> > 
 > 
-> SLAB: 54796
-> SLOB: 55044
-> SLUB: 53944
-> SLUB: 54788 (debug turned off)
+> This is a long on-going story. It bounces between people who say it's not a
+> complete solution and everything should have the 100% ability to defragment
+> and the people on the other side that say it goes a long way to solving their
+> problem. I've cc'd some of the parties that have expressed any interest in
+> the last year.
+
+And I guess some other people who want to see what prolbems there are
+and what can't be solved between order-0 allocations and reserve zones.
+
+ 
+> On a slightly more left of centre tact, these patches *may* help fsblock with
+> large blocks although I would like to hear Nick's confirming/denying this.
+> Currently if fsblock wants to work with large blocks, it uses a vmap to map
+> discontiguous pages so they are virtually contiguous for the filesystem. The
+> use of VMAP is never cheap, though how much of an overhead in this case is
+> unknown.  If these patches were in place, fsblock could optimisically allocate
+> the higher-order page and use it without vmap if it succeeded. If it fails,
+> it would use vmap as a lower-performance-but-still-works fallback. This
+> may tie in better with what Christoph is doing with large blocks as well
+> as it may be a compromise solution between their proposals - I'm not 100%
+> sure so he's cc'd as well for comment.
+
+Yeah higher order allocations could definitely be helpful for this although
+I couldn't guess at the sort of impovements at this stage. And I mean if
+there was a simple choice between better (but still not perfect) support
+for higher order allocations or not, then of course you would take them.
+I am sure there are other places as well where they might makes life a bit
+easier or performance a bit better.
+
+But given the code involved, it is not just a simple choice, but a
+tradeoff. Perhaps I haven't seen or don't realise it, but I'm still not
+sure that this tradeoff is a good one. (just my opinion).
+
+
+> The patches have been reviewed heavily recently by Christoph and Andy has
+> looked through them as well. They've been tested for a long time in -mm so
+> I would expect they not regress functionality. I've maintained that having
+> the 100% ability to defragment will cost too much in terms of performance
+> and would be blocked by the fact that the device driver model would have to
+> be updated to never use physical addresses - a massive undertaking. I think
+> this approach is more pragmatic and working on making more types of memory
+> (like page tables) migratable is at least piecemeal as opposed to turning
+> everything on it's head.
+
+My comments about defragmentation of the kernel were not exactly what
+I believe is the right direction to go (it may be, but I'm rally not
+in a position to know without having seen or tried to implement it). But
+I do think that's what would really be needed in order to really support
+higher order allocations the same as order-0.
+
+I realise in your pragmatic approach, you are encouraging users to
+put fallbacks in place in case a higher order page cannot be allocated,
+but I don't think either higher order pagecache or higher order slubs
+have such fallbacks (fsblock or a combination of fsblock and higher
+order pagecache could have, but...).
+ 
+> >  These are slub changes which are dependent on Mel's stuff, and I have a note
+> >  here that there were reports of page allocation failures with these.  What's
+> >  up with that?
+> > 
 > 
-> These numbers bounce around a lot more from boot to boot than I
-> remember, so take these numbers with a grain of salt.
+> These is where the
+> have-kswapd-keep-a-minimum-order-free-other-than-order-0.patch and
+> only-check-absolute-watermarks-for-alloc_high-and-alloc_harder-allocations.patch
+> patches should be. There were page allocation failure reports without these
+> patches but Nick felt they were not the correct solution and I tend to agree
+> with him on this matter. I haven't put a massive amount of thought into it
+> yet because without grouping pages by mobility, the question is pointless.
 
-To rule out userland, 2.6.22 with 32 MB defconfig UML and busybox [1] on 
-i386:
+Yeah I think that was a hack.
 
-SLOB: 26708
-SLUB: 27212 (no debug)
-
-Unfortunately UML is broken in 2.6.22-rc6-mm1, so I don't know if SLOB 
-patches help there.
-
-  1. http://uml.nagafix.co.uk/BusyBox-1.5.0/BusyBox-1.5.0-x86-root_fs.bz2
-
-			Pekka
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
