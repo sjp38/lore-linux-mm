@@ -1,63 +1,51 @@
-Date: Tue, 10 Jul 2007 20:38:48 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: -mm merge plans -- anti-fragmentation
-Message-Id: <20070710203848.e7bbc98e.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20070710111202.GC25512@skynet.ie>
-References: <20070710102043.GA20303@skynet.ie>
-	<20070710200115.b5bbfb4a.kamezawa.hiroyu@jp.fujitsu.com>
-	<20070710111202.GC25512@skynet.ie>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Date: Tue, 10 Jul 2007 07:02:24 -0500
+From: Matt Mackall <mpm@selenic.com>
+Subject: Re: [patch 09/10] Remove the SLOB allocator for 2.6.23
+Message-ID: <20070710120224.GP11115@waste.org>
+References: <20070708034952.022985379@sgi.com> <20070708035018.074510057@sgi.com> <20070708075119.GA16631@elte.hu> <20070708110224.9cd9df5b.akpm@linux-foundation.org> <4691A415.6040208@yahoo.com.au> <84144f020707090404l657a62c7x89d7d06b3dd6c34b@mail.gmail.com> <Pine.LNX.4.64.0707090907010.13970@schroedinger.engr.sgi.com> <Pine.LNX.4.64.0707101049230.23040@sbz-30.cs.Helsinki.FI> <469342DC.8070007@yahoo.com.au> <84144f020707100231p5013e1aer767562c26fc52eeb@mail.gmail.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=utf-8
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <84144f020707100231p5013e1aer767562c26fc52eeb@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Mel Gorman <mel@skynet.ie>
-Cc: Andrew Morton <akpm@linux-foundation.org>, npiggin@suse.de, kenchen@google.com, jschopp@austin.ibm.com, apw@shadowen.org, a.p.zijlstra@chello.nl, y-goto@jp.fujitsu.com, clameter@sgi.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Pekka Enberg <penberg@cs.helsinki.fi>
+Cc: Nick Piggin <nickpiggin@yahoo.com.au>, Christoph Lameter <clameter@sgi.com>, Andrew Morton <akpm@linux-foundation.org>, Ingo Molnar <mingo@elte.hu>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, suresh.b.siddha@intel.com, corey.d.gough@intel.com, Denis Vlasenko <vda.linux@googlemail.com>, Erik Andersen <andersen@codepoet.org>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 10 Jul 2007 12:12:02 +0100
-mel@skynet.ie (Mel Gorman) wrote:
-> > For (2), we need some method for specifing the range we will remove. For doing that,
-> > ZONE seems to be good candidate.  Now we use "kernelcore=" boot option to create
-> > ZONE_MOVABLE by hand.
+On Tue, Jul 10, 2007 at 12:31:40PM +0300, Pekka Enberg wrote:
+> Hi Nick,
 > 
-> At the risk of putting you on the spot, do you mind saying whether the
-> grouping pages by mobility and ZONE_MOVABLE patches are going in the
-> direction you want or should something totally different be done? If
-> they are going the right direction, is there anything critical that is
-> missing right now?
+> Pekka J Enberg wrote:
+> >> That's 92 KB advantage for SLUB with debugging enabled and 240 KB when
+> >> debugging is disabled.
 > 
-"grouping pages by mobility and ZONE_MOVABLE" things are what I want. And
-I want to go with them. But I know some people doesn't want to increase #
-of zones. It is my concern. 
-I know ZONE_MOVABLE works well but there are people who don't want new zone.
-So making ZONE_MOVABLE as configurable will be good thing, as Nick Piggin pointed.
+> On 7/10/07, Nick Piggin <nickpiggin@yahoo.com.au> wrote:
+> >Interesting. What kernel version are you using?
+> 
+> Linus' git head from yesterday so the results are likely to be
+> sensitive to workload and mine doesn't represent real embedded use.
 
-About my other concerns , see node hotplug (below).
+Using 2.6.22-rc6-mm1 with a 64MB lguest and busybox, I'm seeing the
+following as the best MemFree numbers after several boots each:
 
-> > But this is the first step. I know Intel guy posted
-> > his idea to specify Hotpluggable-Memory range in SRAT (by firmware).
-> 
-> There may be additional work required to make this play nicely with
-> ZONE_MOVABLE but it shouldn't be anything fundamental.
-> 
-yes. And I don't know his idea about SRAT is acceped in firmware comunity or not.
-For now, kernelcore= works enough for memory hotplug.
+SLAB: 54796
+SLOB: 55044
+SLUB: 53944
+SLUB: 54788 (debug turned off)
 
-> > And I think that
-> > other method may be introduced for node-hotplug. 
-> > 
-> 
-> Same as above really. If the node contains one zone - ZONE_MOVABLE, it
-> would work for unplugging.
-> 
-Our concern on node hotplug is "bootmem" and hashtable , pgdata, memmap etc....
-NUMA initilization (of each arch) includes something complicated.
-But this is not directly related to ZONE_MOVABLE things I think.
-It's node-hotplug problem.
-We are now consdiering hot-add nodes after initcalls().
+These numbers bounce around a lot more from boot to boot than I
+remember, so take these numbers with a grain of salt.
 
--Kame
+Disabling the debug code in the build gives this, by the way:
+
+mm/slub.c: In function a??init_kmem_cache_nodea??:
+mm/slub.c:1873: error: a??struct kmem_cache_nodea?? has no member named
+a??fulla??
+
+-- 
+Mathematics is the supreme nostalgia of our time.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
