@@ -1,92 +1,74 @@
-Message-ID: <46933BD7.2020200@yahoo.com.au>
-Date: Tue, 10 Jul 2007 17:57:11 +1000
-From: Nick Piggin <nickpiggin@yahoo.com.au>
-MIME-Version: 1.0
-Subject: Re: zone movable patches comments
-References: <4691E8D1.4030507@yahoo.com.au> <20070709110457.GB9305@skynet.ie> <469226CB.4010900@yahoo.com.au> <20070709132140.GC9305@skynet.ie>
-In-Reply-To: <20070709132140.GC9305@skynet.ie>
-Content-Type: text/plain; charset=us-ascii; format=flowed
+Date: Tue, 10 Jul 2007 11:17:36 +0300 (EEST)
+From: Pekka J Enberg <penberg@cs.helsinki.fi>
+Subject: Re: [patch 09/10] Remove the SLOB allocator for 2.6.23
+In-Reply-To: <Pine.LNX.4.64.0707090907010.13970@schroedinger.engr.sgi.com>
+Message-ID: <Pine.LNX.4.64.0707101049230.23040@sbz-30.cs.Helsinki.FI>
+References: <20070708034952.022985379@sgi.com>  <20070708035018.074510057@sgi.com>
+ <20070708075119.GA16631@elte.hu>  <20070708110224.9cd9df5b.akpm@linux-foundation.org>
+  <4691A415.6040208@yahoo.com.au> <84144f020707090404l657a62c7x89d7d06b3dd6c34b@mail.gmail.com>
+ <Pine.LNX.4.64.0707090907010.13970@schroedinger.engr.sgi.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Mel Gorman <mel@skynet.ie>
-Cc: Linux Memory Management <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, kamezawa.hiroyu@jp.fujitsu.com
+To: Christoph Lameter <clameter@sgi.com>
+Cc: Nick Piggin <nickpiggin@yahoo.com.au>, Andrew Morton <akpm@linux-foundation.org>, Ingo Molnar <mingo@elte.hu>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, suresh.b.siddha@intel.com, corey.d.gough@intel.com, Matt Mackall <mpm@selenic.com>, Denis Vlasenko <vda.linux@googlemail.com>, Erik Andersen <andersen@codepoet.org>
 List-ID: <linux-mm.kvack.org>
 
-Mel Gorman wrote:
-> On (09/07/07 22:15), Nick Piggin didst pronounce:
-> 
->>Mel Gorman wrote:
+Hi Christoph,
 
->>kernelcore= has some fairly strong connotations outside the movable
->>zone functionality, however.
->>
->>If you have a 16GB highmem machine, and you want 8GB of movable zone,
->>do you say kernelcore=8GB?
-> 
-> 
-> Yes but depending the topology of memory, the kernelcore portion may not
-> be sized exactly as you request. For example, if you have many nodes of
-> different sizes, kernelcore may not spread evently. Secondly, the movable
-> zone can only use pages from the highest active zone.  To illustrate the
-> "highest" zone problem - lets say I have a 2GB 32 bit x86 machine and I
-> specify kernelcore=512MB, I'll really get a kernelcore of 896MB because
-> ZONE_MOVABLE can only use HIGHMEM pages in this case.
+On Mon, 9 Jul 2007, Pekka Enberg wrote:
+> > I assume with "slab external fragmentation" you mean allocating a
+> > whole page for a slab when there are not enough objects to fill the
+> > whole thing thus wasting memory? We could try to combat that by
+> > packing multiple variable-sized slabs within a single page. Also,
+> > adding some non-power-of-two kmalloc caches might help with internal
+> > fragmentation.
 
-kernelcore suggests some fundamental VM tunable, rather than just
-a random shot in the dark that roughly relates to the amount of
-memory you want to reserve for your movable zone.
+On Mon, 9 Jul 2007, Christoph Lameter wrote:
+> Ther are already non-power-of-two kmalloc caches for 96 and 192 bytes 
+> sizes.
 
+I know that, but for my setup at least, there seems to be a need for a 
+non-power of two cache between 512 and 1024. What I am seeing is average 
+allocation size for kmalloc-512 being around 270-280 which wastes total 
+of 10 KB of memory due to internal fragmentation. Might be a buggy caller 
+that can be fixed with its own cache too.
 
->>Does that give you the other 8GB in kernel
->>addressable memory? :) What if some other functionality is introduced
->>that also wants to reserve a chunk of memory? How do you distinguish
->>between them?
->>
-> 
-> 
-> Right now I wouldn't distinguish between them. So if another user
-> reserved a portion of memory, it may be in kernelcore only, movable only
-> or some combination thereof.
+On Mon, 9 Jul 2007, Pekka Enberg wrote:
+> > In any case, SLUB needs some serious tuning for smaller machines
+> > before we can get rid of SLOB.
 
-Does not seem very future proof.
+On Mon, 9 Jul 2007, Christoph Lameter wrote:
+> Switch off CONFIG_SLUB_DEBUG to get memory savings.
 
+Curious, /proc/meminfo immediately after boot shows:
 
->>Why not just specify in the help text that the admin should boot the
->>kernel without that parameter first to check how much memory they
->>have before using it... If they wanted to break the kernel by doing
->>something silly, then I don't see how kernelcore is really better
->>than reclaimable_mem...
->>
-> 
-> 
-> It's simply harder to break a machine by getting kernelcore wrong than
-> it is to get reclaimable_mem wrong. If the available memory to the
-> machine is changed, it will not have unexpected results on the next boot
-> with kernelcore and if you have a cluster with differing amounts of
-> memory in each machine, it'll be easier to have one kernelcore value for
-> all of them than unique reclaimable_mem ones.
+SLUB (debugging enabled):
 
-No I really don't see why kernelcore=toosmall is any better than
-movable_mem=toobig. And why do you think the admin knows how much
-memory is enough to run the kernel, or why should that be the same
-between different sized machines? If you have a huge machine, you
-need much more addressable kernel memory for the mem_map array
-before you even think about anything else.
+(none):~# cat /proc/meminfo 
+MemTotal:        30260 kB
+MemFree:         22096 kB
 
-Actually, it is more likely that the admin knows exactly how much
-memory they need to reserve (eg. for their database's shared
-memory segment or to hot unplug or whatever), and in that case
-it is much better to be able to specify movable_mem= and just be
-given exactly what you asked for and the kernel can be given the
-rest.
+SLUB (debugging disabled):
 
-If somebody is playing with this parameter, they definitely know
-what they are doing and they are not just blindly throwing it out
-over their cluster because it might be a good idea.
+(none):~# cat /proc/meminfo 
+MemTotal:        30276 kB
+MemFree:         22244 kB
 
--- 
-SUSE Labs, Novell Inc.
+SLOB:
+
+(none):~# cat /proc/meminfo 
+MemTotal:        30280 kB
+MemFree:         22004 kB
+
+That's 92 KB advantage for SLUB with debugging enabled and 240 KB when 
+debugging is disabled.
+
+Nick, Matt, care to retest SLUB and SLOB for your setups?
+
+				Pekka
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
