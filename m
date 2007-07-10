@@ -1,94 +1,78 @@
-Subject: mmu_gather changes & generalization
-From: Benjamin Herrenschmidt <benh@kernel.crashing.org>
-Content-Type: text/plain
-Date: Tue, 10 Jul 2007 15:46:45 +1000
-Message-Id: <1184046405.6059.17.camel@localhost.localdomain>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
-Sender: owner-linux-mm@kvack.org
-Return-Path: <owner-linux-mm@kvack.org>
-To: Hugh Dickins <hugh@veritas.com>
-Cc: linux-mm@kvack.org, Nick Piggin <nickpiggin@yahoo.com.au>
+From: "Gale Blankenship" <jblock@ups.edu>
+Subject: Probieren Sie es - Mann Lebt nur einmal   of every internal industry  -- his stunningly clever use of Command,
+Date: Tue, 10 Jul 2007 07:01:32 -0100
+MIME-Version: 1.0
+Content-Type: multipart/alternative;
+	boundary="----=_NextPart_000_0006_01C7C2D0.E8F7F9A0"
+Message-ID: <01c7c2c0$256f29a0$35bb8450@jblock>
+Return-Path: <jblock@ups.edu>
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-So to make things simple: I want to generalize the tlb batch interfaces
-to all flushing, except single pages and possible kernel page table
-flushing.
+This is a multi-part message in MIME format.
 
-I've discussed a bit with Nick today, and came up with this idea as a
-first step toward possible bigger changes/cleanups. He told me you have
-been working around the same lines, so I'd like your feedback there and
-possibly whatever patches you are already cooking :-)
+------=_NextPart_000_0006_01C7C2D0.E8F7F9A0
+Content-Type: text/plain;
+	charset="Windows-1252"
+Content-Transfer-Encoding: 7bit
 
-First, the situation/problems:
+Versuchen Sie unser Produkt und Sie werden fuhlen was unsere Kunden bestatigen
 
- - The problems with using the current mmu_gather is the fact that it's
-per-cpu, thus needs to be flushed when we do lock dropping and might
-schedule. That means more work than necessary on things like x86 when
-using it for fork or mprotect for example.
+Preise die keine Konkurrenz kennen 
 
- - Essentially, a simple batch data structure doesn't need to be
-per-CPU, it could just be on the stack. However, the current one is
-per-cpu because of this massive list of struct page's which is too big
-for a stack allocation.
-
-Now the idea is to turn mmu_gather into a small stack based data
-structure, with an optional pointer to the list of pages which remains,
-for now, per-cpu.
-
-The initializer for it (tlb_gather_init ?) would then take a flag/type
-argument saying whether it is to be used for simple invalidations, or
-invalidations + pages freeing.
-
-If used for page freeing, that pointer points to the per-cpu list of
-pages and we do get_cpu (and put_cpu when finishing the batch). If used
-for simple invalidations, we set that pointer to NULL and don't do
-get_cpu/put_cpu.
-
-That way, we don't have to finish/restart the batch unless we are
-freeing pages. Thus users like fork() don't need to finish/restart the
-batch, and thus, we have no overhead on x86 compared to the current
-implementation (well, other than setting need_flush to 1 but that's
-probably not close to measurable).
-
-Thus, the implementation remains as far as unmap_vmas is concerned,
-essentially the same. We just make it stack based at the top-level and
-change the init call, and we can avoid passing double indirections down
-the call chain, which is a nice cleanup.
-
-An additional cleanup that it directly leads to is rather than
-finish/init when doing lock-break, when can introduce a reinit call that
-restarts a batch keeping the existing "settings" (We would still call
-finish, it's just that the call pair would be finish/reinit). That way,
-we don't have to "remember" things like fullmm like we have to do
-currently.
-
-Since it's no longer per-cpu, things like fullmm or mm are still valid
-in the batch structure, and so we don't have to carry "fullmm" around
-like we do in unmap_vmas (and like we would have to do in other users).
-In fact, arch implementations can carry around even more state that they
-might need and keep it around lock breaks that way.
-
-That would provide a good ground for then looking into changing the
-per-cpu list of pages to something else, as Nick told me you were
-working on.
-
-Any comment, idea, suggestions ? I will give a go at implementing that
-sometime this week I hope (I have some urgent stuff to do first) unless
-you guys convince me it's worthless :-)
-
-Note that I expect some perf. improvements on things like ppc32 on fork
-due to being able to target for shooting only hash entries for PTEs that
-have actually be turned into RO. The current ppc32 hash code just
-basically re-walks the page tables in flush_tlb_mm() and shoots down all
-PTEs that have been hashed.
-
-Cheers,
-Ben.
+- Kein langes Warten - Auslieferung innerhalb von 2-3 Tagen
+- Kostenlose, arztliche Telefon-Beratung
+- Diskrete Verpackung und Zahlung
+- Kein peinlicher Arztbesuch erforderlicht
+- Bequem und diskret online bestellen.
+- Visa verifizierter Onlineshop
+- keine versteckte Kosten
 
 
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+Jetzt bestellen - und vier Pillen umsonst erhalten
+http://eessf.planemind.hk/?089795528898
+
+
+------=_NextPart_000_0006_01C7C2D0.E8F7F9A0
+Content-Type: text/html;
+	charset="Windows-1252"
+Content-Transfer-Encoding: quoted-printable
+
+<html xmlns:o=3D"urn:schemas-microsoft-com:office:office" xmlns:w=3D"urn:sc=
+hemas-microsoft-com:office:word" xmlns=3D"http://www.w3.org/TR/REC-html40">
+
+<head>
+<META HTTP-EQUIV=3D"Content-Type" CONTENT=3D"text/html; charset=3DWindows-1252">
+<meta name=3DGenerator content=3D"Microsoft Word 11 (filtered medium)">
+</head>
+<body>
+<head><meta http-equiv=3D"Content-Type" content=3D"text/html; charset=3Diso=
+-8859-1">
+</head><body><p>Meinung von unserem Kunden:<br><strong>Ich habe eine Aff&#2=
+28;re mit einer Bekannten, sie h&#228;lt mich f&#252;r einen Sex-Gott. Ich =
+habe Viaaaagra ungef&#228;hr zehn Minuten, bevor wir uns im Hotel getroffen=
+ haben, genommen. Ich habe davon nicht nur einen strammen Riemen bekommen, =
+sondern auch die Selbstsicherheit, die die Frauen lieben. Ich habe es ihr d=
+rei- oder viermal besorgt, und sie ist absolut hingerissen. Ich komme zieml=
+ich schnell, danach wird ihr Organsmus jedesmal unkontrollierbar. Viaaaagra=
+ hat mich bei ihr zur Legende gemacht!! Ich kann es kaum abwarten, wieder e=
+ine zu schlucken</strong></p><p><strong>Ich bin 28 Jahre alt und habe keine=
+ Err. ..ektionsprobleme. Ich wollte Viaaaagra einfach nur so probieren. Es =
+funktioniert, aber die Durchblutung ist st&#228;rker als sonst und es f&#25=
+2;hlt sich an, als w&#252;rde ich mit einem Dildo v&#246;geln und nicht mit=
+ meinem Schwanz. Ich hatte ziemliche Probleme, wieder runterzukommen. Aber =
+ich w&#252;rde es wohl wieder tun ...<br>
+</strong><strong><br>Versuchen Sie unser Produkt und Sie werden fuhlen was =
+unsere Kunden bestatigen</strong></p><p>Preise die keine Konkurrenz kennen =
+<p>
+- Visa verifizierter Onlineshop<br>- Diskrete Verpackung und Zahlung<br>- K=
+ostenlose, arztliche Telefon-Beratung<br>- Kein peinlicher Arztbesuch erfor=
+derlicht<br>- Kein langes Warten - Auslieferung innerhalb von 2-3 Tagen<br>=
+- Bequem und diskret online bestellen.<br>- keine versteckte Kosten</p>  
+<p><br><strong><a href=3D"http://eessf.planemind.hk/?089795528898" target=
+=3D"_blank">Jetzt bestellen - und vier Pillen umsonst erhalten</a></strong>=
+</body>
+</body>
+</html>
+
+------=_NextPart_000_0006_01C7C2D0.E8F7F9A0--
