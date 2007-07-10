@@ -1,16 +1,7 @@
-Received: from d01relay02.pok.ibm.com (d01relay02.pok.ibm.com [9.56.227.234])
-	by e5.ny.us.ibm.com (8.13.8/8.13.8) with ESMTP id l6AFSlTx007742
-	for <linux-mm@kvack.org>; Tue, 10 Jul 2007 11:28:47 -0400
-Received: from d01av02.pok.ibm.com (d01av02.pok.ibm.com [9.56.224.216])
-	by d01relay02.pok.ibm.com (8.13.8/8.13.8/NCO v8.3) with ESMTP id l6AFSlrx322920
-	for <linux-mm@kvack.org>; Tue, 10 Jul 2007 11:28:47 -0400
-Received: from d01av02.pok.ibm.com (loopback [127.0.0.1])
-	by d01av02.pok.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l6AFSlAg008936
-	for <linux-mm@kvack.org>; Tue, 10 Jul 2007 11:28:47 -0400
-Date: Tue, 10 Jul 2007 08:28:46 -0700
-From: Nishanth Aravamudan <nacc@us.ibm.com>
+Date: Tue, 10 Jul 2007 08:36:49 -0700
+From: Bill Irwin <bill.irwin@oracle.com>
 Subject: Re: [RFC][PATCH] hugetlbfs read support
-Message-ID: <20070710152846.GD27655@us.ibm.com>
+Message-ID: <20070710153649.GU26380@holomorphy.com>
 References: <1184009291.31638.8.camel@dyn9047017100.beaverton.ibm.com> <20070710091720.GA28371@infradead.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
@@ -19,42 +10,24 @@ In-Reply-To: <20070710091720.GA28371@infradead.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Christoph Hellwig <hch@infradead.org>
-Cc: Badari Pulavarty <pbadari@us.ibm.com>, Linux Memory Management <linux-mm@kvack.org>, clameter@sgi.com, Bill Irwin <bill.irwin@oracle.com>, agl@us.ibm.com
+Cc: Badari Pulavarty <pbadari@us.ibm.com>, Linux Memory Management <linux-mm@kvack.org>, nacc@us.ibm.com, clameter@sgi.com, Bill Irwin <bill.irwin@oracle.com>, agl@us.ibm.com
 List-ID: <linux-mm.kvack.org>
 
-On 10.07.2007 [10:17:20 +0100], Christoph Hellwig wrote:
-> On Mon, Jul 09, 2007 at 12:28:11PM -0700, Badari Pulavarty wrote:
-> > Comments/flames ?
-> > 
-> > Thanks,
-> > Badari
-> > 
-> > Support for reading from hugetlbfs files. libhugetlbfs lets
-> > application text/data to be placed in large pages. When we do that,
-> > oprofile doesn't work - since it tries to read from it.
-> > 
-> > This code is very similar to what do_generic_mapping_read() does,
-> > but I can't use it since it has PAGE_CACHE_SIZE assumptions.
-> > Christoph Lamater's cleanup to pagecache would hopefully give me all
-> > of this.
-> 
-> The code looks fine, but I really hate that we need it all all.  We
-> really should make the general VM/FS code large page aware and get rid
-> of this whole hack called hugetlbfs..
+On Mon, Jul 09, 2007 at 12:28:11PM -0700, Badari Pulavarty wrote:
+>> This code is very similar to what do_generic_mapping_read() does, but
+>> I can't use it since it has PAGE_CACHE_SIZE assumptions. Christoph
+>> Lamater's cleanup to pagecache would hopefully give me all of this.
 
-I agree and sounds like something to bring up at KS (again?) or the
-VM/FS summit. But, for now, hugetlbfs is the supported interface and
-libhugetlbfs has run into this issue supporting one of its features. So
-I would like to see this make it in.
+On Tue, Jul 10, 2007 at 10:17:20AM +0100, Christoph Hellwig wrote:
+> The code looks fine, but I really hate that we need it all all.  We really
+> should make the general VM/FS code large page aware and get rid of this
+> whole hack called hugetlbfs..
 
-Just my $0.02 as a libhuge developer.
+That needs to be taken up with Linus. If it's any consolation, I'm in
+favor of such myself.
 
-Thanks,
-Nish
 
--- 
-Nishanth Aravamudan <nacc@us.ibm.com>
-IBM Linux Technology Center
+-- wli
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
