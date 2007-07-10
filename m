@@ -1,75 +1,57 @@
-From: "Virginia Brandt" <jbirth@stoneman.com>
-Subject: Probieren Sie es - Mann Lebt nur einmal   th -- support in your own code.
-Date: Tue, 10 Jul 2007 22:12:38 -0100
+Date: Tue, 10 Jul 2007 15:12:38 -0700 (PDT)
+From: Christoph Lameter <clameter@sgi.com>
+Subject: Re: [patch 09/10] Remove the SLOB allocator for 2.6.23
+In-Reply-To: <20070710120224.GP11115@waste.org>
+Message-ID: <Pine.LNX.4.64.0707101510410.5490@schroedinger.engr.sgi.com>
+References: <20070708034952.022985379@sgi.com> <20070708035018.074510057@sgi.com>
+ <20070708075119.GA16631@elte.hu> <20070708110224.9cd9df5b.akpm@linux-foundation.org>
+ <4691A415.6040208@yahoo.com.au> <84144f020707090404l657a62c7x89d7d06b3dd6c34b@mail.gmail.com>
+ <Pine.LNX.4.64.0707090907010.13970@schroedinger.engr.sgi.com>
+ <Pine.LNX.4.64.0707101049230.23040@sbz-30.cs.Helsinki.FI> <469342DC.8070007@yahoo.com.au>
+ <84144f020707100231p5013e1aer767562c26fc52eeb@mail.gmail.com>
+ <20070710120224.GP11115@waste.org>
 MIME-Version: 1.0
-Content-Type: multipart/alternative;
-	boundary="----=_NextPart_000_0006_01C7C350.30DB0AD0"
-Message-ID: <01c7c33f$6d523ad0$f711b8d9@jbirth>
-Return-Path: <jbirth@stoneman.com>
-To: linux-mm@kvack.org
+Content-Type: MULTIPART/MIXED; BOUNDARY="-1700579579-1284435424-1184105558=:5490"
+Sender: owner-linux-mm@kvack.org
+Return-Path: <owner-linux-mm@kvack.org>
+To: Matt Mackall <mpm@selenic.com>
+Cc: Pekka Enberg <penberg@cs.helsinki.fi>, Nick Piggin <nickpiggin@yahoo.com.au>, Andrew Morton <akpm@linux-foundation.org>, Ingo Molnar <mingo@elte.hu>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, suresh.b.siddha@intel.com, corey.d.gough@intel.com, Denis Vlasenko <vda.linux@googlemail.com>, Erik Andersen <andersen@codepoet.org>
 List-ID: <linux-mm.kvack.org>
 
-This is a multi-part message in MIME format.
+---1700579579-1284435424-1184105558=:5490
+Content-Type: TEXT/PLAIN; charset=iso-8859-1
+Content-Transfer-Encoding: QUOTED-PRINTABLE
 
-------=_NextPart_000_0006_01C7C350.30DB0AD0
-Content-Type: text/plain;
-	charset="windows-1250"
-Content-Transfer-Encoding: 7bit
+On Tue, 10 Jul 2007, Matt Mackall wrote:
 
-Versuchen Sie unser Produkt und Sie werden fuhlen was unsere Kunden bestatigen
+> following as the best MemFree numbers after several boots each:
+>=20
+> SLAB: 54796
+> SLOB: 55044
+> SLUB: 53944
+> SLUB: 54788 (debug turned off)
 
-Preise die keine Konkurrenz kennen 
+That was without "slub_debug" as a parameter or with !CONFIG_SLUB_DEBUG?
 
-- Visa verifizierter Onlineshop
-- Bequem und diskret online bestellen.
-- Kein peinlicher Arztbesuch erforderlicht
-- Diskrete Verpackung und Zahlung
-- Kostenlose, arztliche Telefon-Beratung
-- Kein langes Warten - Auslieferung innerhalb von 2-3 Tagen
-- keine versteckte Kosten
+Data size and code size will decrease if you compile with=20
+!CONFIG_SLUB_DEBUG. slub_debug on the command line governs if debug=20
+information is used.
 
+> These numbers bounce around a lot more from boot to boot than I
+> remember, so take these numbers with a grain of salt.
+>=20
+> Disabling the debug code in the build gives this, by the way:
+>=20
+> mm/slub.c: In function =FF=FFinit_kmem_cache_node=FF=FF:
+> mm/slub.c:1873: error: =FF=FFstruct kmem_cache_node=FF=FF has no member n=
+amed
+> =FF=FFfull=FF=FF
 
-Klicken Sie HIER und Sie erhalten vier Dosen umsonst
-http://zyowbda.firemajor.hk/?265195894270
+A fix for that is in Andrew's tree.
+---1700579579-1284435424-1184105558=:5490--
 
-
-------=_NextPart_000_0006_01C7C350.30DB0AD0
-Content-Type: text/html;
-	charset="windows-1250"
-Content-Transfer-Encoding: quoted-printable
-
-<html xmlns:o=3D"urn:schemas-microsoft-com:office:office" xmlns:w=3D"urn:sc=
-hemas-microsoft-com:office:word" xmlns=3D"http://www.w3.org/TR/REC-html40">
-
-<head>
-<META HTTP-EQUIV=3D"Content-Type" CONTENT=3D"text/html; charset=3Dwindows-1250">
-<meta name=3DGenerator content=3D"Microsoft Word 11 (filtered medium)">
-</head>
-<body>
-<head><meta http-equiv=3D"Content-Type" content=3D"text/html; charset=3Diso=
--8859-1">
-</head><body><p>Meinung von unserem Kunden:<br><strong>Ich bin 28 Jahre alt=
- und habe keine Err. ..ektionsprobleme. Ich wollte Viaaaagra einfach nur so=
- probieren. Es funktioniert, aber die Durchblutung ist st&#228;rker als son=
-st und es f&#252;hlt sich an, als w&#252;rde ich mit einem Dildo v&#246;gel=
-n und nicht mit meinem Schwanz. Ich hatte ziemliche Probleme, wieder runter=
-zukommen. Aber ich w&#252;rde es wohl wieder tun ...</strong></p><p><strong=
->Ich finde Viaaaagra einfach wunderbar. Egal, ob f&#252;r den Sex oder, um =
-mich selbst zu verw&#246;hnen: Es funktioniert. Mein Schwanz wird extrem ha=
-rt und mein Orgasmus ist sehr intensiv. Die Wirkung ist so stark, dass ich =
-Viaaaagra nur am Wochenende verwende oder wenn ich viel Zeit habe, es richt=
-ig zu genie&#223;en.<br>
-</strong><strong><br>Versuchen Sie unser Produkt und Sie werden fuhlen was =
-unsere Kunden bestatigen</strong></p><p>Preise die keine Konkurrenz kennen =
-<p>
-- Kostenlose, arztliche Telefon-Beratung<br>- Kein langes Warten - Ausliefe=
-rung innerhalb von 2-3 Tagen<br>- Bequem und diskret online bestellen.<br>-=
- Visa verifizierter Onlineshop<br>- Kein peinlicher Arztbesuch erforderlich=
-t<br>- keine versteckte Kosten<br>- Diskrete Verpackung und Zahlung</p>  
-<p><br><strong><a href=3D"http://zyowbda.firemajor.hk/?265195894270" target=
-=3D"_blank">Klicken Sie HIER und Sie erhalten vier Dosen umsonst</a></stron=
-g></body>
-</body>
-</html>
-
-------=_NextPart_000_0006_01C7C350.30DB0AD0--
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
