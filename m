@@ -1,78 +1,71 @@
-From: "Gale Blankenship" <jblock@ups.edu>
-Subject: Probieren Sie es - Mann Lebt nur einmal   of every internal industry  -- his stunningly clever use of Command,
-Date: Tue, 10 Jul 2007 07:01:32 -0100
-MIME-Version: 1.0
-Content-Type: multipart/alternative;
-	boundary="----=_NextPart_000_0006_01C7C2D0.E8F7F9A0"
-Message-ID: <01c7c2c0$256f29a0$35bb8450@jblock>
-Return-Path: <jblock@ups.edu>
-To: linux-mm@kvack.org
+Subject: Re: [-mm PATCH 4/8] Memory controller memory accounting (v2)
+In-Reply-To: Your message of "Thu, 05 Jul 2007 22:21:35 -0700"
+	<20070706052135.11677.28030.sendpatchset@balbir-laptop>
+References: <20070706052135.11677.28030.sendpatchset@balbir-laptop>
+Mime-Version: 1.0
+Content-Type: Text/Plain; charset=us-ascii
+Message-Id: <20070710072651.C061D1BF77E@siro.lan>
+Date: Tue, 10 Jul 2007 16:26:51 +0900 (JST)
+From: yamamoto@valinux.co.jp (YAMAMOTO Takashi)
+Sender: owner-linux-mm@kvack.org
+Return-Path: <owner-linux-mm@kvack.org>
+To: balbir@linux.vnet.ibm.com
+Cc: svaidy@linux.vnet.ibm.com, akpm@linux-foundation.org, xemul@openvz.org, a.p.zijlstra@chello.nl, linux-kernel@vger.kernel.org, linux-mm@kvack.org, ebiederm@xmission.com, containers@lists.osdl.org, menage@google.com
 List-ID: <linux-mm.kvack.org>
 
-This is a multi-part message in MIME format.
+hi,
 
-------=_NextPart_000_0006_01C7C2D0.E8F7F9A0
-Content-Type: text/plain;
-	charset="Windows-1252"
-Content-Transfer-Encoding: 7bit
+> diff -puN mm/memory.c~mem-control-accounting mm/memory.c
+> --- linux-2.6.22-rc6/mm/memory.c~mem-control-accounting	2007-07-05 13:45:18.000000000 -0700
+> +++ linux-2.6.22-rc6-balbir/mm/memory.c	2007-07-05 13:45:18.000000000 -0700
 
-Versuchen Sie unser Produkt und Sie werden fuhlen was unsere Kunden bestatigen
+> @@ -1731,6 +1736,9 @@ gotten:
+>  		cow_user_page(new_page, old_page, address, vma);
+>  	}
+>  
+> +	if (mem_container_charge(new_page, mm))
+> +		goto oom;
+> +
+>  	/*
+>  	 * Re-check the pte - we dropped the lock
+>  	 */
 
-Preise die keine Konkurrenz kennen 
+it seems that the page will be leaked on error.
 
-- Kein langes Warten - Auslieferung innerhalb von 2-3 Tagen
-- Kostenlose, arztliche Telefon-Beratung
-- Diskrete Verpackung und Zahlung
-- Kein peinlicher Arztbesuch erforderlicht
-- Bequem und diskret online bestellen.
-- Visa verifizierter Onlineshop
-- keine versteckte Kosten
+> @@ -2188,6 +2196,11 @@ static int do_swap_page(struct mm_struct
+>  	}
+>  
+>  	delayacct_clear_flag(DELAYACCT_PF_SWAPIN);
+> +	if (mem_container_charge(page, mm)) {
+> +		ret = VM_FAULT_OOM;
+> +		goto out;
+> +	}
+> +
+>  	mark_page_accessed(page);
+>  	lock_page(page);
+>  
 
+ditto.
 
-Jetzt bestellen - und vier Pillen umsonst erhalten
-http://eessf.planemind.hk/?089795528898
+> @@ -2264,6 +2278,9 @@ static int do_anonymous_page(struct mm_s
+>  		if (!page)
+>  			goto oom;
+>  
+> +		if (mem_container_charge(page, mm))
+> +			goto oom;
+> +
+>  		entry = mk_pte(page, vma->vm_page_prot);
+>  		entry = maybe_mkwrite(pte_mkdirty(entry), vma);
+>  
 
+ditto.
 
-------=_NextPart_000_0006_01C7C2D0.E8F7F9A0
-Content-Type: text/html;
-	charset="Windows-1252"
-Content-Transfer-Encoding: quoted-printable
+can you check the rest of the patch by yourself?  thanks.
 
-<html xmlns:o=3D"urn:schemas-microsoft-com:office:office" xmlns:w=3D"urn:sc=
-hemas-microsoft-com:office:word" xmlns=3D"http://www.w3.org/TR/REC-html40">
+YAMAMOTO Takashi
 
-<head>
-<META HTTP-EQUIV=3D"Content-Type" CONTENT=3D"text/html; charset=3DWindows-1252">
-<meta name=3DGenerator content=3D"Microsoft Word 11 (filtered medium)">
-</head>
-<body>
-<head><meta http-equiv=3D"Content-Type" content=3D"text/html; charset=3Diso=
--8859-1">
-</head><body><p>Meinung von unserem Kunden:<br><strong>Ich habe eine Aff&#2=
-28;re mit einer Bekannten, sie h&#228;lt mich f&#252;r einen Sex-Gott. Ich =
-habe Viaaaagra ungef&#228;hr zehn Minuten, bevor wir uns im Hotel getroffen=
- haben, genommen. Ich habe davon nicht nur einen strammen Riemen bekommen, =
-sondern auch die Selbstsicherheit, die die Frauen lieben. Ich habe es ihr d=
-rei- oder viermal besorgt, und sie ist absolut hingerissen. Ich komme zieml=
-ich schnell, danach wird ihr Organsmus jedesmal unkontrollierbar. Viaaaagra=
- hat mich bei ihr zur Legende gemacht!! Ich kann es kaum abwarten, wieder e=
-ine zu schlucken</strong></p><p><strong>Ich bin 28 Jahre alt und habe keine=
- Err. ..ektionsprobleme. Ich wollte Viaaaagra einfach nur so probieren. Es =
-funktioniert, aber die Durchblutung ist st&#228;rker als sonst und es f&#25=
-2;hlt sich an, als w&#252;rde ich mit einem Dildo v&#246;geln und nicht mit=
- meinem Schwanz. Ich hatte ziemliche Probleme, wieder runterzukommen. Aber =
-ich w&#252;rde es wohl wieder tun ...<br>
-</strong><strong><br>Versuchen Sie unser Produkt und Sie werden fuhlen was =
-unsere Kunden bestatigen</strong></p><p>Preise die keine Konkurrenz kennen =
-<p>
-- Visa verifizierter Onlineshop<br>- Diskrete Verpackung und Zahlung<br>- K=
-ostenlose, arztliche Telefon-Beratung<br>- Kein peinlicher Arztbesuch erfor=
-derlicht<br>- Kein langes Warten - Auslieferung innerhalb von 2-3 Tagen<br>=
-- Bequem und diskret online bestellen.<br>- keine versteckte Kosten</p>  
-<p><br><strong><a href=3D"http://eessf.planemind.hk/?089795528898" target=
-=3D"_blank">Jetzt bestellen - und vier Pillen umsonst erhalten</a></strong>=
-</body>
-</body>
-</html>
-
-------=_NextPart_000_0006_01C7C2D0.E8F7F9A0--
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
