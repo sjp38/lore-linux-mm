@@ -1,128 +1,91 @@
-Received: from krystal.dyndns.org ([76.65.100.197])
-          by tomts16-srv.bellnexxia.net
-          (InterMail vM.5.01.06.13 201-253-122-130-113-20050324) with ESMTP
-          id <20070710051616.CSZJ1673.tomts16-srv.bellnexxia.net@krystal.dyndns.org>
-          for <linux-mm@kvack.org>; Tue, 10 Jul 2007 01:16:16 -0400
-Date: Tue, 10 Jul 2007 01:16:16 -0400
-From: Mathieu Desnoyers <mathieu.desnoyers@polymtl.ca>
-Subject: [PATCH] x86_64 - Use non locked version for local_cmpxchg()
-Message-ID: <20070710051616.GB16148@Krystal>
-References: <20070708034952.022985379@sgi.com> <p73y7hrywel.fsf@bingen.suse.de> <Pine.LNX.4.64.0707090845520.13792@schroedinger.engr.sgi.com> <46925B5D.8000507@google.com> <Pine.LNX.4.64.0707091055090.16207@schroedinger.engr.sgi.com> <4692A1D0.50308@mbligh.org> <20070709214426.GC1026@Krystal> <Pine.LNX.4.64.0707091451200.18780@schroedinger.engr.sgi.com> <20070709225817.GA5111@Krystal> <Pine.LNX.4.64.0707091605380.20282@schroedinger.engr.sgi.com>
+Subject: mmu_gather changes & generalization
+From: Benjamin Herrenschmidt <benh@kernel.crashing.org>
+Content-Type: text/plain
+Date: Tue, 10 Jul 2007 15:46:45 +1000
+Message-Id: <1184046405.6059.17.camel@localhost.localdomain>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
 Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
-In-Reply-To: <Pine.LNX.4.64.0707091605380.20282@schroedinger.engr.sgi.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: akpm@linux-foundation.org
-Cc: Martin Bligh <mbligh@mbligh.org>, Andi Kleen <andi@firstfloor.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Hugh Dickins <hugh@veritas.com>
+Cc: linux-mm@kvack.org, Nick Piggin <nickpiggin@yahoo.com.au>
 List-ID: <linux-mm.kvack.org>
 
-You are completely right: on x86_64, a bit got lost in the move to
-cmpxchg.h, here is the fix. It applies on 2.6.22-rc6-mm1.
+So to make things simple: I want to generalize the tlb batch interfaces
+to all flushing, except single pages and possible kernel page table
+flushing.
 
-x86_64 - Use non locked version for local_cmpxchg()
+I've discussed a bit with Nick today, and came up with this idea as a
+first step toward possible bigger changes/cleanups. He told me you have
+been working around the same lines, so I'd like your feedback there and
+possibly whatever patches you are already cooking :-)
 
-local_cmpxchg() should not use any LOCK prefix. This change probably got lost in
-the move to cmpxchg.h.
+First, the situation/problems:
 
-Signed-off-by: Mathieu Desnoyers <mathieu.desnoyers@polymtl.ca>
----
- include/asm-x86_64/cmpxchg.h |    2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ - The problems with using the current mmu_gather is the fact that it's
+per-cpu, thus needs to be flushed when we do lock dropping and might
+schedule. That means more work than necessary on things like x86 when
+using it for fork or mprotect for example.
 
-Index: linux-2.6-lttng/include/asm-x86_64/cmpxchg.h
-===================================================================
---- linux-2.6-lttng.orig/include/asm-x86_64/cmpxchg.h	2007-07-10 01:10:10.000000000 -0400
-+++ linux-2.6-lttng/include/asm-x86_64/cmpxchg.h	2007-07-10 01:11:03.000000000 -0400
-@@ -128,7 +128,7 @@
- 	((__typeof__(*(ptr)))__cmpxchg((ptr),(unsigned long)(o),\
- 					(unsigned long)(n),sizeof(*(ptr))))
- #define cmpxchg_local(ptr,o,n)\
--	((__typeof__(*(ptr)))__cmpxchg((ptr),(unsigned long)(o),\
-+	((__typeof__(*(ptr)))__cmpxchg_local((ptr),(unsigned long)(o),\
- 					(unsigned long)(n),sizeof(*(ptr))))
- 
- #endif
+ - Essentially, a simple batch data structure doesn't need to be
+per-CPU, it could just be on the stack. However, the current one is
+per-cpu because of this massive list of struct page's which is too big
+for a stack allocation.
 
+Now the idea is to turn mmu_gather into a small stack based data
+structure, with an optional pointer to the list of pages which remains,
+for now, per-cpu.
 
-* Christoph Lameter (clameter@sgi.com) wrote:
-> On Mon, 9 Jul 2007, Mathieu Desnoyers wrote:
-> 
-> > > > Yep, I volountarily used the variant without lock prefix because the
-> > > > data is per cpu and I disable preemption.
-> > > 
-> > > local_cmpxchg generates this?
-> > > 
-> > 
-> > Yes.
-> 
-> Does not work here. If I use
-> 
-> static void __always_inline *slab_alloc(struct kmem_cache *s,
->                 gfp_t gfpflags, int node, void *addr)
-> {
->         void **object;
->         struct kmem_cache_cpu *c;
-> 
->         preempt_disable();
->         c = get_cpu_slab(s, smp_processor_id());
-> redo:
->         object = c->freelist;
->         if (unlikely(!object || !node_match(c, node)))
->                 return __slab_alloc(s, gfpflags, node, addr, c);
-> 
->         if (cmpxchg_local(&c->freelist, object, object[c->offset]) != object)
->                 goto redo;
-> 
->         preempt_enable();
->         if (unlikely((gfpflags & __GFP_ZERO)))
->                 memset(object, 0, c->objsize);
-> 
->         return object;
-> }
-> 
-> Then the code will include a lock prefix:
-> 
->     3270:       48 8b 1a                mov    (%rdx),%rbx
->     3273:       48 85 db                test   %rbx,%rbx
+The initializer for it (tlb_gather_init ?) would then take a flag/type
+argument saying whether it is to be used for simple invalidations, or
+invalidations + pages freeing.
 
+If used for page freeing, that pointer points to the per-cpu list of
+pages and we do get_cpu (and put_cpu when finishing the batch). If used
+for simple invalidations, we set that pointer to NULL and don't do
+get_cpu/put_cpu.
 
+That way, we don't have to finish/restart the batch unless we are
+freeing pages. Thus users like fork() don't need to finish/restart the
+batch, and thus, we have no overhead on x86 compared to the current
+implementation (well, other than setting need_flush to 1 but that's
+probably not close to measurable).
 
+Thus, the implementation remains as far as unmap_vmas is concerned,
+essentially the same. We just make it stack based at the top-level and
+change the init call, and we can avoid passing double indirections down
+the call chain, which is a nice cleanup.
 
->     3276:       74 23                   je     329b <kmem_cache_alloc+0x4b>
->     3278:       8b 42 14                mov    0x14(%rdx),%eax
->     327b:       4c 8b 0c c3             mov    (%rbx,%rax,8),%r9
->     327f:       48 89 d8                mov    %rbx,%rax
->     3282:       f0 4c 0f b1 0a          lock cmpxchg %r9,(%rdx)
->     3287:       48 39 c3                cmp    %rax,%rbx
->     328a:       75 e4                   jne    3270 <kmem_cache_alloc+0x20>
->     328c:       66 85 f6                test   %si,%si
->     328f:       78 19                   js     32aa <kmem_cache_alloc+0x5a>
->     3291:       48 89 d8                mov    %rbx,%rax
->     3294:       48 83 c4 08             add    $0x8,%rsp
->     3298:       5b                      pop    %rbx
->     3299:       c9                      leaveq
->     329a:       c3                      retq
-> 
-> 
-> > What applies to local_inc, given as example in the local_ops.txt
-> > document, applies integrally to local_cmpxchg. And I would say that
-> > local_cmpxchg is by far the cheapest locking mechanism I have found, and
-> > use today, for my kernel tracer. The idea emerged from my need to trace
-> > every execution context, including NMIs, while still providing good
-> > performances. local_cmpxchg was the perfect fit; that's why I deployed
-> > it in local.h in each and every architecture.
-> 
-> Great idea. The SLUB allocator may be able to use your idea to improve 
-> both the alloc and free path.
-> 
+An additional cleanup that it directly leads to is rather than
+finish/init when doing lock-break, when can introduce a reinit call that
+restarts a batch keeping the existing "settings" (We would still call
+finish, it's just that the call pair would be finish/reinit). That way,
+we don't have to "remember" things like fullmm like we have to do
+currently.
 
--- 
-Mathieu Desnoyers
-Computer Engineering Ph.D. Student, Ecole Polytechnique de Montreal
-OpenPGP key fingerprint: 8CD5 52C3 8E3C 4140 715F  BA06 3F25 A8FE 3BAE 9A68
+Since it's no longer per-cpu, things like fullmm or mm are still valid
+in the batch structure, and so we don't have to carry "fullmm" around
+like we do in unmap_vmas (and like we would have to do in other users).
+In fact, arch implementations can carry around even more state that they
+might need and keep it around lock breaks that way.
+
+That would provide a good ground for then looking into changing the
+per-cpu list of pages to something else, as Nick told me you were
+working on.
+
+Any comment, idea, suggestions ? I will give a go at implementing that
+sometime this week I hope (I have some urgent stuff to do first) unless
+you guys convince me it's worthless :-)
+
+Note that I expect some perf. improvements on things like ppc32 on fork
+due to being able to target for shooting only hash entries for PTEs that
+have actually be turned into RO. The current ppc32 hash code just
+basically re-walks the page tables in flush_tlb_mm() and shoots down all
+PTEs that have been hashed.
+
+Cheers,
+Ben.
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
