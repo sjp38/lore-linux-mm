@@ -1,154 +1,234 @@
-Date: Tue, 10 Jul 2007 02:54:19 +0200
-From: Nick Piggin <npiggin@suse.de>
-Subject: Re: [RFC] fsblock
-Message-ID: <20070710005419.GB8779@wotan.suse.de>
-References: <20070624014528.GA17609@wotan.suse.de> <Pine.LNX.4.64.0707091002170.15696@schroedinger.engr.sgi.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <Pine.LNX.4.64.0707091002170.15696@schroedinger.engr.sgi.com>
+Date: Mon, 9 Jul 2007 17:55:30 -0700 (PDT)
+From: Christoph Lameter <clameter@sgi.com>
+Subject: Re: [patch 00/10] [RFC] SLUB patches for more functionality,
+ performance and maintenance
+In-Reply-To: <20070709225817.GA5111@Krystal>
+Message-ID: <Pine.LNX.4.64.0707091715450.2062@schroedinger.engr.sgi.com>
+References: <20070708034952.022985379@sgi.com> <p73y7hrywel.fsf@bingen.suse.de>
+ <Pine.LNX.4.64.0707090845520.13792@schroedinger.engr.sgi.com>
+ <46925B5D.8000507@google.com> <Pine.LNX.4.64.0707091055090.16207@schroedinger.engr.sgi.com>
+ <4692A1D0.50308@mbligh.org> <20070709214426.GC1026@Krystal>
+ <Pine.LNX.4.64.0707091451200.18780@schroedinger.engr.sgi.com>
+ <20070709225817.GA5111@Krystal>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
-Cc: Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>, linux-fsdevel@vger.kernel.org
+To: Mathieu Desnoyers <mathieu.desnoyers@polymtl.ca>
+Cc: Martin Bligh <mbligh@mbligh.org>, Andi Kleen <andi@firstfloor.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, David Miller <davem@davemloft.net>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Jul 09, 2007 at 10:14:06AM -0700, Christoph Lameter wrote:
-> On Sun, 24 Jun 2007, Nick Piggin wrote:
-> 
-> > Firstly, what is the buffer layer?  The buffer layer isn't really a
-> > buffer layer as in the buffer cache of unix: the block device cache
-> > is unified with the pagecache (in terms of the pagecache, a blkdev
-> > file is just like any other, but with a 1:1 mapping between offset
-> > and block).
-> 
-> I thought that the buffer layer is essentially a method to index to sub 
-> section of a page?
+Ok here is a replacement patch for the cmpxchg patch. Problems
 
-It converts pagecache addresses to block addresses I guess. The
-current implementation cannot handle blocks larger than pages,
-but not because use of larger pages for pagecache wsa anticipated
-(likely because it is more work, and the APIs aren't really set up
-for it).
+1. cmpxchg_local is not available on all arches. If we wanted to do
+   this then it needs to be universally available.
 
+2. cmpxchg_local does generate the "lock" prefix. It should not do that.
+   Without fixes to cmpxchg_local we cannot expect maximum performance.
 
-> > Why rewrite the buffer layer?  Lots of people have had a desire to
-> > completely rip out the buffer layer, but we can't do that[*] because
-> > it does actually serve a useful purpose. Why the bad rap? Because
-> > the code is old and crufty, and buffer_head is an awful name. It must 
-> > be among the oldest code in the core fs/vm, and the main reason is
-> > because of the inertia of so many and such complex filesystems.
-> 
-> Hmmm.... I did not notice that yet but then I have not done much work 
-> there.
+3. The approach is x86 centric. It relies on a cmpxchg that does not
+   synchronize with memory used by other cpus and therefore is more
+   lightweight. As far as I know the IA64 cmpxchg cannot do that.
+   Neither several other processors. I am not sure how cmpxchgless
+   platforms would use that. We need a detailed comparison of
+   interrupt enable /disable vs. cmpxchg cycle counts for cachelines in
+   the cpu cache to evaluate the impact that such a change would have.
 
-Notice what?
+   The cmpxchg (or its emulation) does not need any barriers since the
+   accesses can only come from a single processor. 
 
+Mathieu measured a significant performance benefit coming from not using
+interrupt enable / disable.
 
-> > - data structure size. struct fsblock is 20 bytes on 32-bit, and 40 on
-> >   64-bit (could easily be 32 if we can have int bitops). Compare this
-> >   to around 50 and 100ish for struct buffer_head. With a 4K page and 1K
-> >   blocks, IO requires 10% RAM overhead in buffer heads alone. With
-> >   fsblocks you're down to around 3%.
-> 
-> I thought we were going to simply use the page struct instead of having
-> buffer heads? Would that not reduce the overhead to zero?
+Some rough processor cycle counts (anyone have better numbers?)
 
-What do you mean by that? As I said, you couldn't use just the page
-struct for anything except page sized blocks, and even then it would
-require more fields or at least more flags in the page struct.
+	STI	CLI	CMPXCHG
+IA32	36	26	1 (assume XCHG == CMPXCHG, sti/cli also need stack pushes/pulls)
+IA64	12	12	1 (but ar.ccv needs 11 cycles to set comparator,
+			need register moves to preserve processors flags)
 
-nobh mode actually tries to do something similar, however it requires
-multiple calls into the filesystem to first allocate the block, and
-then find its sector. It is also buggy and can't handle errors properly
-(although I'm trying to fix that).
+Looks like STI/CLI is pretty expensive and it seems that we may be able to
+optimize the alloc / free hotpath quite a bit if we could drop the 
+interrupt enable / disable. But we need some measurements.
 
 
-> > - A real "nobh" mode. nobh was created I think mainly to avoid problems
-> >   with buffer_head memory consumption, especially on lowmem machines. It
-> >   is basically a hack (sorry), which requires special code in filesystems,
-> >   and duplication of quite a bit of tricky buffer layer code (and bugs).
-> >   It also doesn't work so well for buffers with non-trivial private data
-> >   (like most journalling ones). fsblock implements this with basically a
-> >   few lines of code, and it shold work in situations like ext3.
-> 
-> Hmmm.... That means simply page struct are not working...
+Draft of a new patch:
 
-I don't understand you. jbd needs to attach private data to each bh, and
-that can stay around for longer than the life of the page in the pagecache.
+SLUB: Single atomic instruction alloc/free using cmpxchg_local
 
+A cmpxchg allows us to avoid disabling and enabling interrupts. The cmpxchg
+is optimal to allow operations on per cpu freelist. We can stay on one
+processor by disabling preemption() and allowing concurrent interrupts
+thus avoiding the overhead of disabling and enabling interrupts.
 
-> > - Large block support. I can mount and run an 8K block size minix3 fs on
-> >   my 4K page system and it didn't require anything special in the fs. We
-> >   can go up to about 32MB blocks now, and gigabyte+ blocks would only
-> >   require  one more bit in the fsblock flags. fsblock_superpage blocks
-> >   are > PAGE_CACHE_SIZE, midpage ==, and subpage <.
-> > 
-> >   Core pagecache code is pretty creaky with respect to this. I think it is
-> >   mostly race free, but it requires stupid unlocking and relocking hacks
-> >   because the vm usually passes single locked pages to the fs layers, and we
-> >   need to lock all pages of a block in offset ascending order. This could be
-> >   avoided by doing locking on only the first page of a block for locking in
-> >   the fsblock layer, but that's a bit scary too. Probably better would be to
-> >   move towards offset,length rather than page based fs APIs where everything
-> >   can be batched up nicely and this sort of non-trivial locking can be more
-> >   optimal.
-> > 
-> >   Large blocks also have a performance black spot where an 8K sized and
-> >   aligned write(2) would require an RMW in the filesystem. Again because of
-> >   the page based nature of the fs API, and this too would be fixed if
-> >   the APIs were better.
-> 
-> The simple solution would be to use a compound page and make the head page
-> represent the status of all the pages in the vm. Logic for that is already 
-> in place.
+Pro:
+	- No need to disable interrupts.
+	- Preempt disable /enable vanishes on non preempt kernels
+Con:
+        - Slightly complexer handling.
+	- Updates to atomic instructions needed
 
-I do not consider that a solution because I explicitly want to allow
-order-0 pages here. I know about your higher order pagecache, the anti-frag
-and defrag work, I know about compound pages.  I'm not just ignoring them
-because of NIH or something silly.
+Signed-off-by: Christoph Lameter <clameter@sgi.com>
 
-Anyway, I have thought about just using the first page in the block for
-the locking, and that might be a reasonable optimisation. However for
-now I'm keeping it simple.
+---
+ mm/slub.c |   72 ++++++++++++++++++++++++++++++++++++++++++--------------------
+ 1 file changed, 49 insertions(+), 23 deletions(-)
 
-
-> >   Large block memory access via filesystem uses vmap, but it will go back
-> >   to kmap if the access doesn't cross a page. Filesystems really should do
-> >   this because vmap is slow as anything. I've implemented a vmap cache
-> >   which basically wouldn't work on 32-bit systems (because of limited vmap
-> >   space) for performance testing (and yes it sometimes tries to unmap in
-> >   interrupt context, I know, I'm using loop). We could possibly do a self
-> >   limiting cache, but I'd rather build some helpers to hide the raw multi
-> >   page access for things like bitmap scanning and bit setting etc. and
-> >   avoid too much vmaps.
-> 
-> Argh. No. Too much overhead.
-
-Really? In my measurements I was able to do various things to cut the vmap
-overhead until it was insignificant. I haven't done any intensive IO
-benchmarking yet because of a few other suboptimal bits in fsblock (and
-no good filesystem, although ext2 is on its way so that should change
-soon).
-
-
-> > So. Comments? Is this something we want? If yes, then how would we
-> > transition from buffer.c to fsblock.c?
-> 
-> I think many of the ideas are great but the handling of large pages is 
-> rather strange. I would suggest to use compound pages to represent larger 
-> pages and rely on Mel Gorman's antifrag/compaction work to get you the 
-> contiguous memory locations instead of using vmap. This may significantly 
-> simplify your patchset and avoid changes to the filesytesm API. Its still 
-> pretty invasive though and I am not sure that there is enough benefit from 
-> this one.
-
-There are no changes to the filesystem API for large pages (although I
-am adding a couple of helpers to do page based bitmap ops). And I don't
-want to rely on contiguous memory. Why do you think handling of large
-pages (presumably you mean larger than page sized blocks) is strange?
-Conglomerating the constituent pages via the pagecache radix-tree seems
-logical to me.
+Index: linux-2.6.22-rc6-mm1/mm/slub.c
+===================================================================
+--- linux-2.6.22-rc6-mm1.orig/mm/slub.c	2007-07-09 15:04:46.000000000 -0700
++++ linux-2.6.22-rc6-mm1/mm/slub.c	2007-07-09 17:09:00.000000000 -0700
+@@ -1467,12 +1467,14 @@ static void *__slab_alloc(struct kmem_ca
+ {
+ 	void **object;
+ 	struct page *new;
++	unsigned long flags;
+ 
++	local_irq_save(flags);
+ 	if (!c->page)
+ 		goto new_slab;
+ 
+ 	slab_lock(c->page);
+-	if (unlikely(!node_match(c, node)))
++	if (unlikely(!node_match(c, node) || c->freelist))
+ 		goto another_slab;
+ load_freelist:
+ 	object = c->page->freelist;
+@@ -1486,7 +1488,14 @@ load_freelist:
+ 	c->page->inuse = s->objects;
+ 	c->page->freelist = NULL;
+ 	c->node = page_to_nid(c->page);
++out:
+ 	slab_unlock(c->page);
++	local_irq_restore(flags);
++	preempt_enable();
++
++	if (unlikely((gfpflags & __GFP_ZERO)))
++		memset(object, 0, c->objsize);
++
+ 	return object;
+ 
+ another_slab:
+@@ -1527,6 +1536,8 @@ new_slab:
+ 		c->page = new;
+ 		goto load_freelist;
+ 	}
++	local_irq_restore(flags);
++	preempt_enable();
+ 	return NULL;
+ debug:
+ 	c->freelist = NULL;
+@@ -1536,8 +1547,7 @@ debug:
+ 
+ 	c->page->inuse++;
+ 	c->page->freelist = object[c->offset];
+-	slab_unlock(c->page);
+-	return object;
++	goto out;
+ }
+ 
+ /*
+@@ -1554,23 +1564,20 @@ static void __always_inline *slab_alloc(
+ 		gfp_t gfpflags, int node, void *addr)
+ {
+ 	void **object;
+-	unsigned long flags;
+ 	struct kmem_cache_cpu *c;
+ 
+-	local_irq_save(flags);
++	preempt_disable();
+ 	c = get_cpu_slab(s, smp_processor_id());
+-	if (unlikely(!c->page || !c->freelist ||
+-					!node_match(c, node)))
++redo:
++	object = c->freelist;
++	if (unlikely(!object || !node_match(c, node)))
++		return __slab_alloc(s, gfpflags, node, addr, c);
+ 
+-		object = __slab_alloc(s, gfpflags, node, addr, c);
++	if (cmpxchg_local(&c->freelist, object, object[c->offset]) != object)
++		goto redo;
+ 
+-	else {
+-		object = c->freelist;
+-		c->freelist = object[c->offset];
+-	}
+-	local_irq_restore(flags);
+-
+-	if (unlikely((gfpflags & __GFP_ZERO) && object))
++	preempt_enable();
++	if (unlikely((gfpflags & __GFP_ZERO)))
+ 		memset(object, 0, c->objsize);
+ 
+ 	return object;
+@@ -1603,7 +1610,9 @@ static void __slab_free(struct kmem_cach
+ {
+ 	void *prior;
+ 	void **object = (void *)x;
++	unsigned long flags;
+ 
++	local_irq_save(flags);
+ 	slab_lock(page);
+ 
+ 	if (unlikely(SlabDebug(page)))
+@@ -1629,6 +1638,8 @@ checks_ok:
+ 
+ out_unlock:
+ 	slab_unlock(page);
++	local_irq_restore(flags);
++	preempt_enable();
+ 	return;
+ 
+ slab_empty:
+@@ -1639,6 +1650,8 @@ slab_empty:
+ 		remove_partial(s, page);
+ 
+ 	slab_unlock(page);
++	local_irq_restore(flags);
++	preempt_enable();
+ 	discard_slab(s, page);
+ 	return;
+ 
+@@ -1663,18 +1676,31 @@ static void __always_inline slab_free(st
+ 			struct page *page, void *x, void *addr)
+ {
+ 	void **object = (void *)x;
+-	unsigned long flags;
+ 	struct kmem_cache_cpu *c;
++	void **freelist;
+ 
+-	local_irq_save(flags);
++	preempt_disable();
+ 	c = get_cpu_slab(s, smp_processor_id());
+-	if (likely(page == c->page && c->freelist)) {
+-		object[c->offset] = c->freelist;
+-		c->freelist = object;
+-	} else
+-		__slab_free(s, page, x, addr, c->offset);
++redo:
++	freelist = c->freelist;
++	/*
++	 * Must read freelist before c->page. If a interrupt occurs and
++	 * changes c->page after we have read it here then it
++	 * will also have changed c->freelist and the cmpxchg will fail.
++	 *
++	 * If we would have checked c->page first then the freelist could
++	 * have been changed under us before we read c->freelist and we
++	 * would not be able to detect that situation.
++	 */
++	smp_rmb();
++	if (unlikely(page != c->page || !freelist))
++		return __slab_free(s, page, x, addr, c->offset);
++
++	object[c->offset] = freelist;
++	if (cmpxchg_local(&c->freelist, freelist, object) != freelist)
++		goto redo;
+ 
+-	local_irq_restore(flags);
++	preempt_enable();
+ }
+ 
+ void kmem_cache_free(struct kmem_cache *s, void *x)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
