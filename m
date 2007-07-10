@@ -1,84 +1,84 @@
 From: Dave McCracken <dave.mccracken@oracle.com>
-Subject: Re: -mm merge plans -- anti-fragmentation
-Date: Tue, 10 Jul 2007 12:11:45 -0500
-References: <20070710102043.GA20303@skynet.ie> <200707100929.46153.dave.mccracken@oracle.com> <20070710152355.GI8779@wotan.suse.de>
-In-Reply-To: <20070710152355.GI8779@wotan.suse.de>
+Subject: Re: [PATCH] include private data mappings in RLIMIT_DATA limit
+Date: Tue, 10 Jul 2007 12:19:29 -0500
+References: <4692D616.4010004@oracle.com> <200707091954.10502.dave.mccracken@oracle.com> <Pine.LNX.4.64.0707101727510.4717@blonde.wat.veritas.com>
+In-Reply-To: <Pine.LNX.4.64.0707101727510.4717@blonde.wat.veritas.com>
 MIME-Version: 1.0
 Content-Type: text/plain;
   charset="iso-8859-1"
 Content-Transfer-Encoding: 8BIT
 Content-Disposition: inline
-Message-Id: <200707101211.46003.dave.mccracken@oracle.com>
+Message-Id: <200707101219.29743.dave.mccracken@oracle.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nick Piggin <npiggin@suse.de>
-Cc: Mel Gorman <mel@skynet.ie>, Andrew Morton <akpm@linux-foundation.org>, kenchen@google.com, jschopp@austin.ibm.com, apw@shadowen.org, kamezawa.hiroyu@jp.fujitsu.com, a.p.zijlstra@chello.nl, y-goto@jp.fujitsu.com, clameter@sgi.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Hugh Dickins <hugh@veritas.com>
+Cc: herbert.van.den.bergh@oracle.com, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tuesday 10 July 2007, Nick Piggin wrote:
-> On Tue, Jul 10, 2007 at 09:29:45AM -0500, Dave McCracken wrote:
-> > I find myself wondering what "sufficiently convincing noises" are.  I
-> > think we can all agree that in the current kernel order>0 allocations are
-> > a disaster.
+On Tuesday 10 July 2007, Hugh Dickins wrote:
+> On Mon, 9 Jul 2007, Dave McCracken wrote:
+> > On Monday 09 July 2007, Herbert van den Bergh wrote:
+> > > With this patch, not only memory in the data segment of a process, but
+> > > also private data mappings, both file-based and anonymous, are counted
+> > > toward the RLIMIT_DATA resource limit.  Executable mappings, such as
+> > > text segments of shared objects, are not counted toward the private
+> > > data limit.  The result is that malloc() will fail once the combined
+> > > size of the data segment and private data mappings reaches this limit.
+> > >
+> > > This brings the Linux behavior in line with what is documented in the
+> > > POSIX man page for setrlimit(3p).
 >
-> Are they? For what the kernel currently uses them for, I don't think
-> the lower order ones are so bad. Now and again we used to get reports
-> of atomic order 3 allocation failures with e1000 for example, but a
-> lot of those were before kswapd would properly asynchronously start
-> reclaim for atomic and higher order allocations. The odd failure
-> sometimes catches my eye, but nothing I would call a disaster.
+> Which says malloc() can fail from it, but conspicuously not that mmap()
+> can fail from it: unlike the RLIMIT_AS case.  Would we be better off?
 
-Ok, maybe disaster is too strong a word.  But any kind of order>0 allocation 
-still has to be approached with fear and caution, with a well tested fallback 
-in the case of the inevitable failures.  How many driver writers would have 
-benefited from using order>0 pages, but turned aside to other less optimal 
-solutions due to their unreliability?  We don't know, and probably never 
-will.  Those people have moved on and won't revisit that design decision.
+True.  But keep in mind that when POSIX was written mmap() was new and shiny 
+and pretty much only used for shared mappings, and definitely not used by 
+malloc().
 
-> > The sheer list of patches lined up behind this set is strong evidence
-> > that there are useful features which depend on a working order>0.  When
-> > you add in the existing code that has to struggle with allocation
-> > failures or resort to special pools (ie hugetlbfs), I see a clear vote
-> > for the need for this patch.
+> > I believe this patch is a simple and obvious fix to a hole introduced
+> > when libc malloc() began using mmap() instead of brk().
 >
-> Really the only patches so far that I think have convincing reasons are
-> memory unplug and hugepage, and both of those can get a long way by using
-> a reserve zone (note it isn't entirely reserved, but still available for
-> things like pagecache). Beyond that, is there a big demand, and do we
-> want to make this fundamental change in direction in the kernel to
-> satisfy that demand?
+> But didn't libc start doing that many years ago?  Wouldn't that have
+> been the time for such a patch rather than now: when it can only break
+> apps that are currently working?
 
-Yes, these projects have workarounds, because they have to.  But the 
-workarounds are painful and often require that the user specify in advance 
-what memory they intend to use for this purpose, something users often have 
-to learn by trial and error.  Mel's patches would eliminate this barrier to 
-use of the features.
+Yes, probably.  But it got missed.
 
-I don't see Mel's patches as "a fundamental change in direction".  I think 
-you're overstating the case.  I see it as fixing a deficiency in the design 
-of the page allocator, and a long overdue fix.
-
-> > Some object because order>0 will still be able to fail.  I point out that
-> > order==0 can also fail, though we go to great lengths to prevent it.
-> >  Mel's patches raise the success rate of order>0 to within a few percent
-> > of order==0.  All this means is callers will need to decide how to handle
-> > the infrequent failure.  This should be true no matter what the order.
+> > We took away the ability
+> > to control how much data space processes could soak up.  This patch
+> > returns that control to the user.
 >
-> So small ones like order-1 and 2 seem reasonably good right now AFAIKS.
-> If you perhaps want to say start using order-4  pages for slab or
-> some other kernel memory allocations, then you can run into the situation
-> where memory gets fragmented such that you have one sixteenth of your
-> memory actualy used but you can't allocate from any of your slabs because
-> there are no order-4 pages left. I guess this is a big difference between
-> order-low failures and order-high.
+> I remember thinking that the idea of data ulimit had become obsolete
+> (just preserved for compatibility) back when mmap() got invented and
+> used for dynamic libraries.  I think that's when they brought in
+> RLIMIT_AS, something which could make sense in the mmap() world.
+>
+> This patch does give it more meaning.  But if we are prepared to
+> take the risk of breaking things in this way (I think not but don't
+> mind being corrected), it would be more accurate to take writability
+> into account, and use that quantity (sadly not stored in mm_struct,
+> would have to be added) which we do security_vm_enough_memory() upon,
+> which totals up into /proc/meminfo's Committed_AS.
 
-In summary, I think I can rephrase your arguments against the patches as 
-order>0 allocation pretty much works now for small orders, and people are 
-living with it".  Is that fairly accurate?  My counter argument is that we 
-can easily make it work much better and vastly simplify the code that is 
-having to work around the lack of it by applying Mel's patches.
+Given that RLIMIT_DATA is pretty much meaningless in current kernels, I would 
+put forward the argument that this change is extremely unlikely to break 
+anything because no one is currently setting it to anything other than 
+unlimited.  Adding this feature would give administrators another tool, a way 
+to control the private data size of a process without restricting its ability 
+to attach to large shared mappings.
 
-Dave McCracken
+> That change to /proc/PID/status VmData:
+> -	data = mm->total_vm - mm->shared_vm - mm->stack_vm;
+> +	data = mm->total_vm - mm->shared_vm - mm->stack_vm - mm->exec_vm;
+> looks plausible, but isn't exec_vm already counted as shared_vm,
+> so now being doubly subtracted?  Besides which, we wouldn't want
+> to change those numbers again without consulting Albert.
+
+As I recall, this was added after Herbert discovered that exec_vm is not 
+counted as shared_vm.  It's actually mapped as private/readonly.
+
+> Hugh
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
