@@ -1,91 +1,73 @@
-Date: Mon, 9 Jul 2007 16:08:37 -0700 (PDT)
-From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [patch 00/10] [RFC] SLUB patches for more functionality,
- performance and maintenance
-In-Reply-To: <20070709225817.GA5111@Krystal>
-Message-ID: <Pine.LNX.4.64.0707091605380.20282@schroedinger.engr.sgi.com>
-References: <20070708034952.022985379@sgi.com> <p73y7hrywel.fsf@bingen.suse.de>
- <Pine.LNX.4.64.0707090845520.13792@schroedinger.engr.sgi.com>
- <46925B5D.8000507@google.com> <Pine.LNX.4.64.0707091055090.16207@schroedinger.engr.sgi.com>
- <4692A1D0.50308@mbligh.org> <20070709214426.GC1026@Krystal>
- <Pine.LNX.4.64.0707091451200.18780@schroedinger.engr.sgi.com>
- <20070709225817.GA5111@Krystal>
+From: "Orlando Dodd" <hearing@carleton.edu>
+Subject: Doping fur Ihr bestes Stuck  focus for obtaining  -- your time is too important
+Date: Mon, 9 Jul 2007 23:47:15 -0100
+Message-ID: <01c7c283$7a922190$df71a654@hearing>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
-Sender: owner-linux-mm@kvack.org
-Return-Path: <owner-linux-mm@kvack.org>
-To: Mathieu Desnoyers <mathieu.desnoyers@polymtl.ca>
-Cc: Martin Bligh <mbligh@mbligh.org>, Andi Kleen <andi@firstfloor.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Content-Type: multipart/alternative;
+	boundary="----=_NextPart_000_000E_01C7C294.3E1AF190"
+Return-Path: <hearing@carleton.edu>
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 9 Jul 2007, Mathieu Desnoyers wrote:
+This is a multi-part message in MIME format.
 
-> > > Yep, I volountarily used the variant without lock prefix because the
-> > > data is per cpu and I disable preemption.
-> > 
-> > local_cmpxchg generates this?
-> > 
-> 
-> Yes.
+------=_NextPart_000_000E_01C7C294.3E1AF190
+Content-Type: text/plain;
+	charset="Windows-1252"
+Content-Transfer-Encoding: 7bit
 
-Does not work here. If I use
+Versuchen Sie unser Produkt und Sie werden fuhlen was unsere Kunden bestatigen
 
-static void __always_inline *slab_alloc(struct kmem_cache *s,
-                gfp_t gfpflags, int node, void *addr)
-{
-        void **object;
-        struct kmem_cache_cpu *c;
+Preise die keine Konkurrenz kennen 
 
-        preempt_disable();
-        c = get_cpu_slab(s, smp_processor_id());
-redo:
-        object = c->freelist;
-        if (unlikely(!object || !node_match(c, node)))
-                return __slab_alloc(s, gfpflags, node, addr, c);
-
-        if (cmpxchg_local(&c->freelist, object, object[c->offset]) != object)
-                goto redo;
-
-        preempt_enable();
-        if (unlikely((gfpflags & __GFP_ZERO)))
-                memset(object, 0, c->objsize);
-
-        return object;
-}
-
-Then the code will include a lock prefix:
-
-    3270:       48 8b 1a                mov    (%rdx),%rbx
-    3273:       48 85 db                test   %rbx,%rbx
-    3276:       74 23                   je     329b <kmem_cache_alloc+0x4b>
-    3278:       8b 42 14                mov    0x14(%rdx),%eax
-    327b:       4c 8b 0c c3             mov    (%rbx,%rax,8),%r9
-    327f:       48 89 d8                mov    %rbx,%rax
-    3282:       f0 4c 0f b1 0a          lock cmpxchg %r9,(%rdx)
-    3287:       48 39 c3                cmp    %rax,%rbx
-    328a:       75 e4                   jne    3270 <kmem_cache_alloc+0x20>
-    328c:       66 85 f6                test   %si,%si
-    328f:       78 19                   js     32aa <kmem_cache_alloc+0x5a>
-    3291:       48 89 d8                mov    %rbx,%rax
-    3294:       48 83 c4 08             add    $0x8,%rsp
-    3298:       5b                      pop    %rbx
-    3299:       c9                      leaveq
-    329a:       c3                      retq
+- Kostenlose, arztliche Telefon-Beratung
+- Diskrete Verpackung und Zahlung
+- Kein peinlicher Arztbesuch erforderlicht
+- Kein langes Warten - Auslieferung innerhalb von 2-3 Tagen
+- Bequem und diskret online bestellen.
+- Visa verifizierter Onlineshop
+- keine versteckte Kosten
 
 
-> What applies to local_inc, given as example in the local_ops.txt
-> document, applies integrally to local_cmpxchg. And I would say that
-> local_cmpxchg is by far the cheapest locking mechanism I have found, and
-> use today, for my kernel tracer. The idea emerged from my need to trace
-> every execution context, including NMIs, while still providing good
-> performances. local_cmpxchg was the perfect fit; that's why I deployed
-> it in local.h in each and every architecture.
+Klicken Sie HIER und Sie erhalten vier Dosen umsonst
+http://gsodemv.spellbelieve.hk/?994204161516
 
-Great idea. The SLUB allocator may be able to use your idea to improve 
-both the alloc and free path.
 
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+------=_NextPart_000_000E_01C7C294.3E1AF190
+Content-Type: text/html;
+	charset="Windows-1252"
+Content-Transfer-Encoding: quoted-printable
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
+<HTML><HEAD><TITLE></TITLE>
+<META content=3D"text/html; charset=3DWindows-1252" http-equiv=3DContent-Type>
+<META content=3D"MSHTML 6.00.2900.2905" name=3DGENERATOR></HEAD>
+<BODY>
+<head><meta http-equiv=3D"Content-Type" content=3D"text/html; charset=3Diso=
+-8859-1">
+</head><body><p>Meinung von unserem Kunden:<br><strong>Warum nehme ich Ciaa=
+aaaalis? Es ist einfach ein angenehmens Gef&#252;hl. Man brauch sich nicht =
+auf die Err. ..ektion zu konzentrieren. Beim Sex ist man viel entspannter, =
+mann kann auch mal die Muskeln im Genitalbereich lockern, ohne das die Err.=
+ ..ektion im Glied nachlasst. Dadurch ist eine lange Verz&#246;gerung der E=
+jakulation m&#246;glich. Man ist beim Sex generell lockerer und entspannter=
+, und kommt auch nicht mehr so schnell ausser Athem, weil man eben locker u=
+nd entspannt ist, ausser nat&#252;rlich der kleine Freund :-)</strong></p><=
+p><strong>Ich bin weit &#252;ber 60, nehme Ciaaaaaalis 20 mg. und das Woche=
+nende ist gerettet. Ich kann pro Nacht 4-5 mal, und am Morgen wieder, f&#25=
+2;r den n&#228;chsten Abend reicht eine Halbe. Meine Freundin ist begeister=
+t. F&#252;r meine Frau nehme ich eine halbe Tablette, das reicht f&#252;r e=
+inen netten Abend.<br>
+</strong><strong><br>Versuchen Sie unser Produkt und Sie werden fuhlen was =
+unsere Kunden bestatigen</strong></p><p>Preise die keine Konkurrenz kennen =
+<p>
+- keine versteckte Kosten<br>- Diskrete Verpackung und Zahlung<br>- Bequem =
+und diskret online bestellen.<br>- Kostenlose, arztliche Telefon-Beratung<b=
+r>- Kein peinlicher Arztbesuch erforderlicht<br>- Kein langes Warten - Ausl=
+ieferung innerhalb von 2-3 Tagen<br>- Visa verifizierter Onlineshop</p>  
+<p><br><strong><a href=3D"http://gsodemv.spellbelieve.hk/?994204161516" tar=
+get=3D"_blank">Klicken Sie HIER und Sie erhalten vier Dosen umsonst</a></st=
+rong></body>
+</BODY></HTML>
+
+------=_NextPart_000_000E_01C7C294.3E1AF190--
