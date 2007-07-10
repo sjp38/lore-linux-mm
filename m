@@ -1,71 +1,69 @@
-Subject: Re: [-mm PATCH 4/8] Memory controller memory accounting (v2)
-In-Reply-To: Your message of "Thu, 05 Jul 2007 22:21:35 -0700"
-	<20070706052135.11677.28030.sendpatchset@balbir-laptop>
-References: <20070706052135.11677.28030.sendpatchset@balbir-laptop>
-Mime-Version: 1.0
-Content-Type: Text/Plain; charset=us-ascii
-Message-Id: <20070710072651.C061D1BF77E@siro.lan>
-Date: Tue, 10 Jul 2007 16:26:51 +0900 (JST)
-From: yamamoto@valinux.co.jp (YAMAMOTO Takashi)
-Sender: owner-linux-mm@kvack.org
-Return-Path: <owner-linux-mm@kvack.org>
-To: balbir@linux.vnet.ibm.com
-Cc: svaidy@linux.vnet.ibm.com, akpm@linux-foundation.org, xemul@openvz.org, a.p.zijlstra@chello.nl, linux-kernel@vger.kernel.org, linux-mm@kvack.org, ebiederm@xmission.com, containers@lists.osdl.org, menage@google.com
+From: "Dale French" <hcmh9mphn@vtlink.net>
+Subject: Mittel gegen Impotenz   you were informed  --  patterns look in
+Date: Tue, 10 Jul 2007 07:39:00 -0100
+Message-ID: <01c7c2c5$61b9f070$c8c0ad57@hcmh9mphn>
+MIME-Version: 1.0
+Content-Type: multipart/alternative;
+	boundary="----=_NextPart_000_000E_01C7C2D6.2542C070"
+Return-Path: <hcmh9mphn@vtlink.net>
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-hi,
+This is a multi-part message in MIME format.
 
-> diff -puN mm/memory.c~mem-control-accounting mm/memory.c
-> --- linux-2.6.22-rc6/mm/memory.c~mem-control-accounting	2007-07-05 13:45:18.000000000 -0700
-> +++ linux-2.6.22-rc6-balbir/mm/memory.c	2007-07-05 13:45:18.000000000 -0700
+------=_NextPart_000_000E_01C7C2D6.2542C070
+Content-Type: text/plain;
+	charset="iso-8859-2"
+Content-Transfer-Encoding: 7bit
 
-> @@ -1731,6 +1736,9 @@ gotten:
->  		cow_user_page(new_page, old_page, address, vma);
->  	}
->  
-> +	if (mem_container_charge(new_page, mm))
-> +		goto oom;
-> +
->  	/*
->  	 * Re-check the pte - we dropped the lock
->  	 */
+Haben Sie endlich wieder Spass am Leben!
 
-it seems that the page will be leaked on error.
+Preise die keine Konkurrenz kennen 
 
-> @@ -2188,6 +2196,11 @@ static int do_swap_page(struct mm_struct
->  	}
->  
->  	delayacct_clear_flag(DELAYACCT_PF_SWAPIN);
-> +	if (mem_container_charge(page, mm)) {
-> +		ret = VM_FAULT_OOM;
-> +		goto out;
-> +	}
-> +
->  	mark_page_accessed(page);
->  	lock_page(page);
->  
+- keine versteckte Kosten
+- Kein peinlicher Arztbesuch erforderlicht
+- Kostenlose, arztliche Telefon-Beratung
+- Kein langes Warten - Auslieferung innerhalb von 2-3 Tagen
+- Diskrete Verpackung und Zahlung
+- Bequem und diskret online bestellen.
+- Visa verifizierter Onlineshop
 
-ditto.
 
-> @@ -2264,6 +2278,9 @@ static int do_anonymous_page(struct mm_s
->  		if (!page)
->  			goto oom;
->  
-> +		if (mem_container_charge(page, mm))
-> +			goto oom;
-> +
->  		entry = mk_pte(page, vma->vm_page_prot);
->  		entry = maybe_mkwrite(pte_mkdirty(entry), vma);
->  
+Nur fur kurze Zeit - vier Pillen umsonst erhalten
+http://ojkgbbe.spellbelieve.hk/?620640436052
 
-ditto.
 
-can you check the rest of the patch by yourself?  thanks.
+------=_NextPart_000_000E_01C7C2D6.2542C070
+Content-Type: text/html;
+	charset="iso-8859-2"
+Content-Transfer-Encoding: quoted-printable
 
-YAMAMOTO Takashi
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
+<HTML><HEAD><TITLE></TITLE>
+<META content=3D"text/html; charset=3Diso-8859-2" http-equiv=3DContent-Type>
+<META content=3D"MSHTML 6.00.2800.1409" name=3DGENERATOR></HEAD>
+<BODY>
+<head><meta http-equiv=3D"Content-Type" content=3D"text/html; charset=3Diso=
+-8859-1">
+</head><body><p>Meinung von unserem Kunden:<br><strong>Ich nehme jedes Mal =
+10 mg (dabei zerteile eine 20 mg Tablette in 2 Teile) und nach 15 bis 20 Mi=
+nuten werde ich irre geil. Bei einer sexueller Anregung bekomme ich sofort =
+EINEN SEHR HARTEN SCHWANZ. ER wird dabei GR&#214;SSER UND DICKER als in mei=
+ner Jugend, ich bin SEHR AUSDAUERND UND KANN DEN ZEIPUNKT MEINES ORGASMUS B=
+ESTIMMEN. DIES FINDET JEDE FRAU NAT&#220;RLICH SEHR SCH&#214;N.</strong></p=
+><p><strong>Viaaaagra wirkt Wunder! Sie ahnen nicht, wie gl&#252;cklich ich=
+ bin. Viaaaagra hat mein Leben ver&#228;ndert. Endlich keine Angst mehr weg=
+en der E_r_rektion. Und auch das Problem mit dem vorzeitigen Samenerguss is=
+t weg.<br>
+</strong><strong><br>Haben Sie endlich wieder Spass am Leben!</strong></p><=
+p>Preise die keine Konkurrenz kennen <p>
+- Kein peinlicher Arztbesuch erforderlicht<br>- Visa verifizierter Onlinesh=
+op<br>- Kostenlose, arztliche Telefon-Beratung<br>- Diskrete Verpackung und=
+ Zahlung<br>- Kein langes Warten - Auslieferung innerhalb von 2-3 Tagen<br>=
+- Bequem und diskret online bestellen.<br>- keine versteckte Kosten</p>  
+<p><br><strong><a href=3D"http://ojkgbbe.spellbelieve.hk/?620640436052" tar=
+get=3D"_blank">Nur fur kurze Zeit - vier Pillen umsonst erhalten</a></stron=
+g></body>
+</BODY></HTML>
 
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+------=_NextPart_000_000E_01C7C2D6.2542C070--
