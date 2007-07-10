@@ -1,61 +1,32 @@
-Received: from d03relay04.boulder.ibm.com (d03relay04.boulder.ibm.com [9.17.195.106])
-	by e31.co.us.ibm.com (8.13.8/8.13.8) with ESMTP id l6AIcfPL031689
-	for <linux-mm@kvack.org>; Tue, 10 Jul 2007 14:38:41 -0400
-Received: from d03av01.boulder.ibm.com (d03av01.boulder.ibm.com [9.17.195.167])
-	by d03relay04.boulder.ibm.com (8.13.8/8.13.8/NCO v8.3) with ESMTP id l6AIcfHc184126
-	for <linux-mm@kvack.org>; Tue, 10 Jul 2007 12:38:41 -0600
-Received: from d03av01.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av01.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l6AIcevj007251
-	for <linux-mm@kvack.org>; Tue, 10 Jul 2007 12:38:40 -0600
-Message-ID: <4693D23E.1010805@us.ibm.com>
-Date: Tue, 10 Jul 2007 11:38:54 -0700
-From: Badari Pulavarty <pbadari@us.ibm.com>
+Date: Tue, 10 Jul 2007 11:46:00 -0700 (PDT)
+From: Christoph Lameter <clameter@sgi.com>
+Subject: Re: -mm merge plans -- anti-fragmentation
+In-Reply-To: <20070710130356.GG8779@wotan.suse.de>
+Message-ID: <Pine.LNX.4.64.0707101142340.11906@schroedinger.engr.sgi.com>
+References: <20070710102043.GA20303@skynet.ie> <20070710130356.GG8779@wotan.suse.de>
 MIME-Version: 1.0
-Subject: Re: [RFC][PATCH] hugetlbfs read support
-References: <1184009291.31638.8.camel@dyn9047017100.beaverton.ibm.com> <20070710091720.GA28371@infradead.org>
-Content-Type: text/plain; charset=us-ascii; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Hellwig <hch@infradead.org>
-Cc: Linux Memory Management <linux-mm@kvack.org>, nacc@us.ibm.com, clameter@sgi.com, Bill Irwin <bill.irwin@oracle.com>, agl@us.ibm.com
+To: Nick Piggin <npiggin@suse.de>
+Cc: Mel Gorman <mel@skynet.ie>, Andrew Morton <akpm@linux-foundation.org>, kenchen@google.com, jschopp@austin.ibm.com, apw@shadowen.org, kamezawa.hiroyu@jp.fujitsu.com, a.p.zijlstra@chello.nl, y-goto@jp.fujitsu.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
+On Tue, 10 Jul 2007, Nick Piggin wrote:
 
-Christoph Hellwig wrote:
+> I realise in your pragmatic approach, you are encouraging users to
+> put fallbacks in place in case a higher order page cannot be allocated,
+> but I don't think either higher order pagecache or higher order slubs
+> have such fallbacks (fsblock or a combination of fsblock and higher
+> order pagecache could have, but...).
 
->On Mon, Jul 09, 2007 at 12:28:11PM -0700, Badari Pulavarty wrote:
->
->>Comments/flames ?
->>
->>Thanks,
->>Badari
->>
->>Support for reading from hugetlbfs files. libhugetlbfs lets application
->>text/data to be placed in large pages. When we do that, oprofile doesn't
->>work - since it tries to read from it.
->>
->>This code is very similar to what do_generic_mapping_read() does, but
->>I can't use it since it has PAGE_CACHE_SIZE assumptions. Christoph
->>Lamater's cleanup to pagecache would hopefully give me all of this.
->>
->
->The code looks fine, but I really hate that we need it all all.  We really
->should make the general VM/FS code large page aware and get rid of this
->whole hack called hugetlbfs..
->
-I would love to see *atleast* generic filemap handler routines does not 
-assume PAGE_SIZE.
-Clameter's cleanup patches hopefully would all of that for us - but I am 
-not sure how it handles
-largepages with kmap() to copy out the data.
+We have run mm kernels for month now without the need of a fallback. I 
+purpose of ZONE_MOVABLE was to guarantee that higher order pages could be 
+reclaimed and thus make the scheme reliable?
 
-But getting rid of hugetlbfs completely, needs bigger effort :(
-
-Thanks,
-Badari
-
-
+The experience so far shows that the approach works reliably. If there are 
+issues then they need to be fixed. Putting in workarounds in other places 
+such as in fsblock may just be hiding problems if there are any.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
