@@ -1,83 +1,55 @@
-From: Dave McCracken <dave.mccracken@oracle.com>
-Subject: Re: [PATCH] include private data mappings in RLIMIT_DATA limit
-Date: Tue, 10 Jul 2007 12:19:29 -0500
-References: <4692D616.4010004@oracle.com> <200707091954.10502.dave.mccracken@oracle.com> <Pine.LNX.4.64.0707101727510.4717@blonde.wat.veritas.com>
-In-Reply-To: <Pine.LNX.4.64.0707101727510.4717@blonde.wat.veritas.com>
+Received: from d03relay02.boulder.ibm.com (d03relay02.boulder.ibm.com [9.17.195.227])
+	by e35.co.us.ibm.com (8.13.8/8.13.8) with ESMTP id l6AIYBN4016585
+	for <linux-mm@kvack.org>; Tue, 10 Jul 2007 14:34:11 -0400
+Received: from d03av01.boulder.ibm.com (d03av01.boulder.ibm.com [9.17.195.167])
+	by d03relay02.boulder.ibm.com (8.13.8/8.13.8/NCO v8.3) with ESMTP id l6AIY47R033126
+	for <linux-mm@kvack.org>; Tue, 10 Jul 2007 12:34:08 -0600
+Received: from d03av01.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av01.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l6AIY1RR022752
+	for <linux-mm@kvack.org>; Tue, 10 Jul 2007 12:34:01 -0600
+Message-ID: <4693D126.2030004@us.ibm.com>
+Date: Tue, 10 Jul 2007 11:34:14 -0700
+From: Badari Pulavarty <pbadari@us.ibm.com>
 MIME-Version: 1.0
-Content-Type: text/plain;
-  charset="iso-8859-1"
-Content-Transfer-Encoding: 8BIT
-Content-Disposition: inline
-Message-Id: <200707101219.29743.dave.mccracken@oracle.com>
+Subject: Re: [RFC][PATCH] hugetlbfs read support
+References: <1184009291.31638.8.camel@dyn9047017100.beaverton.ibm.com> <20070710153752.GV26380@holomorphy.com> <20070710154312.GE27655@us.ibm.com> <20070710161217.GX26380@holomorphy.com>
+Content-Type: text/plain; charset=us-ascii; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Hugh Dickins <hugh@veritas.com>
-Cc: herbert.van.den.bergh@oracle.com, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Bill Irwin <bill.irwin@oracle.com>
+Cc: Nishanth Aravamudan <nacc@us.ibm.com>, Linux Memory Management <linux-mm@kvack.org>, clameter@sgi.com, agl@us.ibm.com
 List-ID: <linux-mm.kvack.org>
 
-On Tuesday 10 July 2007, Hugh Dickins wrote:
-> On Mon, 9 Jul 2007, Dave McCracken wrote:
-> > On Monday 09 July 2007, Herbert van den Bergh wrote:
-> > > With this patch, not only memory in the data segment of a process, but
-> > > also private data mappings, both file-based and anonymous, are counted
-> > > toward the RLIMIT_DATA resource limit.  Executable mappings, such as
-> > > text segments of shared objects, are not counted toward the private
-> > > data limit.  The result is that malloc() will fail once the combined
-> > > size of the data segment and private data mappings reaches this limit.
-> > >
-> > > This brings the Linux behavior in line with what is documented in the
-> > > POSIX man page for setrlimit(3p).
+
+Bill Irwin wrote:
+
+>On 10.07.2007 [08:37:52 -0700], Bill Irwin wrote:
 >
-> Which says malloc() can fail from it, but conspicuously not that mmap()
-> can fail from it: unlike the RLIMIT_AS case.  Would we be better off?
-
-True.  But keep in mind that when POSIX was written mmap() was new and shiny 
-and pretty much only used for shared mappings, and definitely not used by 
-malloc().
-
-> > I believe this patch is a simple and obvious fix to a hole introduced
-> > when libc malloc() began using mmap() instead of brk().
+>>>What's the testing status of all this? I thoroughly approve of the
+>>>concept, of course.
+>>>
 >
-> But didn't libc start doing that many years ago?  Wouldn't that have
-> been the time for such a patch rather than now: when it can only break
-> apps that are currently working?
-
-Yes, probably.  But it got missed.
-
-> > We took away the ability
-> > to control how much data space processes could soak up.  This patch
-> > returns that control to the user.
+>On Tue, Jul 10, 2007 at 08:43:12AM -0700, Nishanth Aravamudan wrote:
 >
-> I remember thinking that the idea of data ulimit had become obsolete
-> (just preserved for compatibility) back when mmap() got invented and
-> used for dynamic libraries.  I think that's when they brought in
-> RLIMIT_AS, something which could make sense in the mmap() world.
+>>With this change, OProfile is able to do symbol lookup (which is
+>>achieved via libbfd, which does reads() of the appropriate files) with
+>>relinked binaries in post-processing. The file utility is also able to
+>>recognize persistent text segments as ELF executables.
+>>If you would like further testing, let me know what.
+>>
 >
-> This patch does give it more meaning.  But if we are prepared to
-> take the risk of breaking things in this way (I think not but don't
-> mind being corrected), it would be more accurate to take writability
-> into account, and use that quantity (sadly not stored in mm_struct,
-> would have to be added) which we do security_vm_enough_memory() upon,
-> which totals up into /proc/meminfo's Committed_AS.
+>That's good enough for me.
+>
+>Acked-by: William Irwin <bill.irwin@oracle.com>
+>
+Thanks. I may have to handle memcpy() failures. I will fix that and send 
+out a patch.
 
-Given that RLIMIT_DATA is pretty much meaningless in current kernels, I would 
-put forward the argument that this change is extremely unlikely to break 
-anything because no one is currently setting it to anything other than 
-unlimited.  Adding this feature would give administrators another tool, a way 
-to control the private data size of a process without restricting its ability 
-to attach to large shared mappings.
+Thanks,
+Badari
 
-> That change to /proc/PID/status VmData:
-> -	data = mm->total_vm - mm->shared_vm - mm->stack_vm;
-> +	data = mm->total_vm - mm->shared_vm - mm->stack_vm - mm->exec_vm;
-> looks plausible, but isn't exec_vm already counted as shared_vm,
-> so now being doubly subtracted?  Besides which, we wouldn't want
-> to change those numbers again without consulting Albert.
 
-As I recall, this was added after Herbert discovered that exec_vm is not 
-counted as shared_vm.  It's actually mapped as private/readonly.
-
-> Hugh
 
 
 --
