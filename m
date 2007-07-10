@@ -1,72 +1,41 @@
-Message-ID: <46935BA1.90003@shadowen.org>
-Date: Tue, 10 Jul 2007 11:12:49 +0100
-From: Andy Whitcroft <apw@shadowen.org>
+From: Con Kolivas <kernel@kolivas.org>
+Subject: Re: -mm merge plans for 2.6.23
+Date: Tue, 10 Jul 2007 20:15:43 +1000
+References: <20070710013152.ef2cd200.akpm@linux-foundation.org>
+In-Reply-To: <20070710013152.ef2cd200.akpm@linux-foundation.org>
 MIME-Version: 1.0
-Subject: Re: zone movable patches comments
-References: <46933BD7.2020200@yahoo.com.au> <46934F9C.9060201@shadowen.org> <20070710182944.83D7.Y-GOTO@jp.fujitsu.com>
-In-Reply-To: <20070710182944.83D7.Y-GOTO@jp.fujitsu.com>
-Content-Type: text/plain; charset=US-ASCII
+Content-Type: text/plain;
+  charset="iso-8859-1"
 Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+Message-Id: <200707102015.44004.kernel@kolivas.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Yasunori Goto <y-goto@jp.fujitsu.com>
-Cc: Nick Piggin <nickpiggin@yahoo.com.au>, Mel Gorman <mel@skynet.ie>, Linux Memory Management <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, kamezawa.hiroyu@jp.fujitsu.com
+To: Andrew Morton <akpm@linux-foundation.org>, ck list <ck@vds.kolivas.org>, Ingo Molnar <mingo@elte.hu>, Paul Jackson <pj@sgi.com>, linux-mm@kvack.org
+Cc: linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-Yasunori Goto wrote:
->>> No I really don't see why kernelcore=toosmall is any better than
->>> movable_mem=toobig. And why do you think the admin knows how much
->>> memory is enough to run the kernel, or why should that be the same
->>> between different sized machines? If you have a huge machine, you
->>> need much more addressable kernel memory for the mem_map array
->>> before you even think about anything else.
->>>
->>> Actually, it is more likely that the admin knows exactly how much
->>> memory they need to reserve (eg. for their database's shared
->>> memory segment or to hot unplug or whatever), and in that case
->>> it is much better to be able to specify movable_mem= and just be
->>> given exactly what you asked for and the kernel can be given the
->>> rest.
-> 
-> If hot-unplug is invoked after bootup, then movable_mem will be
-> useful to specify removable memory size. It is true.
-> 
-> However, if hot-add is invoked at first after bootup, 
-> movable_mem is not so useful.
-> I think admin expects hot-add memory will be removable zone in many
-> case, because he wish the memory for his application rather than
-> for kernel.
-> But, movable mem can't specify size of hot-add memory in the future.
-> I suppose "kernelcore" is desirable for its case.
+On Tuesday 10 July 2007 18:31, Andrew Morton wrote:
+> When replying, please rewrite the subject suitably and try to Cc: the
+> appropriate developer(s).
 
-I would have expected either would interact successfully with
-hot-remove/hot-add.  It makes sense to the administrator to say "I will
-be removing this much memory" movable_mem=N.  For the hot-add case I
-would have expected a zero sized movable_mem would suffice, the new
-memory being added to and expanding the zone as it goes.
+~swap prefetch
 
-I envisioned "kernelcore" and "movable_mem" (that name is nasty btw can
-anyone think of a better one) being minimum's.  So the expansion of
-ZONE_MOVABLE on hot-plug of memory fits that semantically.  I think what
-I am saying is you really want movable_mem=, another sane use-case.
+Nick's only remaining issue which I could remotely identify was to make it 
+cpuset aware:
+http://marc.info/?l=linux-mm&m=117875557014098&w=2
+as discussed with Paul Jackson it was cpuset aware:
+http://marc.info/?l=linux-mm&m=117895463120843&w=2
 
->>> If somebody is playing with this parameter, they definitely know
->>> what they are doing and they are not just blindly throwing it out
->>> over their cluster because it might be a good idea.
->> It feels very much that there are two usage models.  Those who know how
->> much "kernel" memory works for them and want whatever is left usable for
->> their small/huge page workloads, and those who know how much they need
->> for their DB and are happy for the system to have the rest.  Both seem
->> like valid use cases, both would have the same underlying implementation
->> a sized ZONE_MOVABLE.
->>
->> How about we have two kernel options "kernelcore=" and "movable=" which
->> would both size ZONE_MOVABLE.  Both would be the minimum sizes, so the
->> effective differences would be the rounding to whole pageblocks.
-> 
-> I would like to vote it due to above mentioned. :-)
+I fixed all bugs I could find and improved it as much as I could last kernel 
+cycle.
 
--apw
+Put me and the users out of our misery and merge it now or delete it forever 
+please. And if the meaningless handwaving that I 100% expect as a response 
+begins again, then that's fine. I'll take that as a no and you can dump it.
+
+-- 
+-ck
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
