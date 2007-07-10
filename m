@@ -1,65 +1,56 @@
-Date: Tue, 10 Jul 2007 18:54:49 +0900
-From: Yasunori Goto <y-goto@jp.fujitsu.com>
-Subject: Re: zone movable patches comments
-In-Reply-To: <46934F9C.9060201@shadowen.org>
-References: <46933BD7.2020200@yahoo.com.au> <46934F9C.9060201@shadowen.org>
-Message-Id: <20070710182944.83D7.Y-GOTO@jp.fujitsu.com>
+Message-ID: <46935AE5.7050205@yahoo.com.au>
+Date: Tue, 10 Jul 2007 20:09:41 +1000
+From: Nick Piggin <nickpiggin@yahoo.com.au>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
+Subject: Re: [patch 09/10] Remove the SLOB allocator for 2.6.23
+References: <20070708034952.022985379@sgi.com>	 <20070708035018.074510057@sgi.com> <20070708075119.GA16631@elte.hu>	 <20070708110224.9cd9df5b.akpm@linux-foundation.org>	 <4691A415.6040208@yahoo.com.au>	 <84144f020707090404l657a62c7x89d7d06b3dd6c34b@mail.gmail.com>	 <Pine.LNX.4.64.0707090907010.13970@schroedinger.engr.sgi.com>	 <Pine.LNX.4.64.0707101049230.23040@sbz-30.cs.Helsinki.FI>	 <469342DC.8070007@yahoo.com.au> <84144f020707100231p5013e1aer767562c26fc52eeb@mail.gmail.com>
+In-Reply-To: <84144f020707100231p5013e1aer767562c26fc52eeb@mail.gmail.com>
+Content-Type: text/plain; charset=us-ascii; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andy Whitcroft <apw@shadowen.org>
-Cc: Nick Piggin <nickpiggin@yahoo.com.au>, Mel Gorman <mel@skynet.ie>, Linux Memory Management <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, kamezawa.hiroyu@jp.fujitsu.com
+To: Pekka Enberg <penberg@cs.helsinki.fi>
+Cc: Christoph Lameter <clameter@sgi.com>, Andrew Morton <akpm@linux-foundation.org>, Ingo Molnar <mingo@elte.hu>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, suresh.b.siddha@intel.com, corey.d.gough@intel.com, Matt Mackall <mpm@selenic.com>, Denis Vlasenko <vda.linux@googlemail.com>, Erik Andersen <andersen@codepoet.org>
 List-ID: <linux-mm.kvack.org>
 
-> > No I really don't see why kernelcore=toosmall is any better than
-> > movable_mem=toobig. And why do you think the admin knows how much
-> > memory is enough to run the kernel, or why should that be the same
-> > between different sized machines? If you have a huge machine, you
-> > need much more addressable kernel memory for the mem_map array
-> > before you even think about anything else.
-> > 
-> > Actually, it is more likely that the admin knows exactly how much
-> > memory they need to reserve (eg. for their database's shared
-> > memory segment or to hot unplug or whatever), and in that case
-> > it is much better to be able to specify movable_mem= and just be
-> > given exactly what you asked for and the kernel can be given the
-> > rest.
-
-If hot-unplug is invoked after bootup, then movable_mem will be
-useful to specify removable memory size. It is true.
-
-However, if hot-add is invoked at first after bootup, 
-movable_mem is not so useful.
-I think admin expects hot-add memory will be removable zone in many
-case, because he wish the memory for his application rather than
-for kernel.
-But, movable mem can't specify size of hot-add memory in the future.
-I suppose "kernelcore" is desirable for its case.
-
-
-> > If somebody is playing with this parameter, they definitely know
-> > what they are doing and they are not just blindly throwing it out
-> > over their cluster because it might be a good idea.
+Pekka Enberg wrote:
+> Hi Nick,
 > 
-> It feels very much that there are two usage models.  Those who know how
-> much "kernel" memory works for them and want whatever is left usable for
-> their small/huge page workloads, and those who know how much they need
-> for their DB and are happy for the system to have the rest.  Both seem
-> like valid use cases, both would have the same underlying implementation
-> a sized ZONE_MOVABLE.
+> Pekka J Enberg wrote:
 > 
-> How about we have two kernel options "kernelcore=" and "movable=" which
-> would both size ZONE_MOVABLE.  Both would be the minimum sizes, so the
-> effective differences would be the rounding to whole pageblocks.
+>> > That's 92 KB advantage for SLUB with debugging enabled and 240 KB when
+>> > debugging is disabled.
+> 
+> 
+> On 7/10/07, Nick Piggin <nickpiggin@yahoo.com.au> wrote:
+> 
+>> Interesting. What kernel version are you using?
+> 
+> 
+> Linus' git head from yesterday so the results are likely to be
+> sensitive to workload and mine doesn't represent real embedded use.
 
-I would like to vote it due to above mentioned. :-)
+Hi Pekka,
 
-Bye.
+There is one thing that the SLOB patches in -mm do besides result in
+slightly better packing and memory efficiency (which might be unlikely
+to explain the difference you are seeing), and that is that they do
+away with the delayed freeing of unused SLOB pages back to the page
+allocator.
+
+In git head, these pages are freed via a timer so they can take a
+while to make their way back to the buddy allocator so they don't
+register as free memory as such.
+
+Anyway, I would be very interested to see any situation where the
+SLOB in -mm uses more memory than SLUB, even on test configs like
+yours.
+
+Thanks,
+Nick
+
 -- 
-Yasunori Goto 
-
+SUSE Labs, Novell Inc.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
