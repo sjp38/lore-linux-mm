@@ -1,76 +1,75 @@
-From: "Ronald Coffman" <healeyiwill@ecol.net>
-Subject: Jetzt bestellen und ein blaues Wunder erleben   the =?ISO-8859-1?Q?=91zeros=92?= element of your -- design problems, and better 
-Date: Tue, 10 Jul 2007 21:17:33 -0300
-Message-ID: <01c7c337$bb4dbc80$cd41e457@healeyiwill>
+From: "Virginia Brandt" <jbirth@stoneman.com>
+Subject: Probieren Sie es - Mann Lebt nur einmal   th -- support in your own code.
+Date: Tue, 10 Jul 2007 22:12:38 -0100
 MIME-Version: 1.0
 Content-Type: multipart/alternative;
-	boundary="----=_NextPart_000_000E_01C7C359.425F5C80"
-Return-Path: <healeyiwill@ecol.net>
+	boundary="----=_NextPart_000_0006_01C7C350.30DB0AD0"
+Message-ID: <01c7c33f$6d523ad0$f711b8d9@jbirth>
+Return-Path: <jbirth@stoneman.com>
 To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
 This is a multi-part message in MIME format.
 
-------=_NextPart_000_000E_01C7C359.425F5C80
+------=_NextPart_000_0006_01C7C350.30DB0AD0
 Content-Type: text/plain;
-	charset="iso-8859-1"
+	charset="windows-1250"
 Content-Transfer-Encoding: 7bit
 
-Haben Sie endlich wieder Spass am Leben!
+Versuchen Sie unser Produkt und Sie werden fuhlen was unsere Kunden bestatigen
 
 Preise die keine Konkurrenz kennen 
 
-- Kein langes Warten - Auslieferung innerhalb von 2-3 Tagen
+- Visa verifizierter Onlineshop
 - Bequem und diskret online bestellen.
 - Kein peinlicher Arztbesuch erforderlicht
-- Kostenlose, arztliche Telefon-Beratung
 - Diskrete Verpackung und Zahlung
-- Visa verifizierter Onlineshop
+- Kostenlose, arztliche Telefon-Beratung
+- Kein langes Warten - Auslieferung innerhalb von 2-3 Tagen
 - keine versteckte Kosten
 
 
 Klicken Sie HIER und Sie erhalten vier Dosen umsonst
-http://vijya.firemajor.hk/?170613160616
+http://zyowbda.firemajor.hk/?265195894270
 
 
-------=_NextPart_000_000E_01C7C359.425F5C80
+------=_NextPart_000_0006_01C7C350.30DB0AD0
 Content-Type: text/html;
-	charset="iso-8859-1"
+	charset="windows-1250"
 Content-Transfer-Encoding: quoted-printable
 
-<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
-<HTML><HEAD><TITLE></TITLE>
-<META content=3D"text/html; charset=3Diso-8859-1" http-equiv=3DContent-Type>
-<META content=3D"MSHTML 6.00.2800.1506" name=3DGENERATOR></HEAD>
-<BODY>
+<html xmlns:o=3D"urn:schemas-microsoft-com:office:office" xmlns:w=3D"urn:sc=
+hemas-microsoft-com:office:word" xmlns=3D"http://www.w3.org/TR/REC-html40">
+
+<head>
+<META HTTP-EQUIV=3D"Content-Type" CONTENT=3D"text/html; charset=3Dwindows-1250">
+<meta name=3DGenerator content=3D"Microsoft Word 11 (filtered medium)">
+</head>
+<body>
 <head><meta http-equiv=3D"Content-Type" content=3D"text/html; charset=3Diso=
 -8859-1">
-</head><body><p>Meinung von unserem Kunden:<br><strong>Vor zwei Monaten hab=
-en meine Freundin und ich beschlossen, zum ersten Mal miteinander Sex zu ha=
-ben. Als es soweit war, und ich in sie eindringen wollte, blieb ich v&#246;=
-llig schlaff. Wir haben es drei Wochen sp&#228;ter nochmal versucht, und ic=
-h habe immer noch schlappgemacht. Mein Onkel hat mir Viaaaagra empfohlen. L=
-etzte Woche haben meine Freundin und ich es noch einmal miteinander probier=
-t, und es wurde die tollste Nacht meines Lebens. Ich nehme Viaaaagra jetzt =
-einmal pro Woche, und es klappt prima. Meine Freundin hat keine Zweifel meh=
-r an meinen sexuellen Qualit&#228;ten.</strong></p><p><strong>Ich habe eine=
- Aff&#228;re mit einer Bekannten, sie h&#228;lt mich f&#252;r einen Sex-Got=
-t. Ich habe Viaaaagra ungef&#228;hr zehn Minuten, bevor wir uns im Hotel ge=
-troffen haben, genommen. Ich habe davon nicht nur einen strammen Riemen bek=
-ommen, sondern auch die Selbstsicherheit, die die Frauen lieben. Ich habe e=
-s ihr drei- oder viermal besorgt, und sie ist absolut hingerissen. Ich komm=
-e ziemlich schnell, danach wird ihr Organsmus jedesmal unkontrollierbar. Vi=
-aaaagra hat mich bei ihr zur Legende gemacht!! Ich kann es kaum abwarten, w=
-ieder eine zu schlucken<br>
-</strong><strong><br>Haben Sie endlich wieder Spass am Leben!</strong></p><=
-p>Preise die keine Konkurrenz kennen <p>
-- Bequem und diskret online bestellen.<br>- Kein langes Warten - Auslieferu=
-ng innerhalb von 2-3 Tagen<br>- Kein peinlicher Arztbesuch erforderlicht<br=
->- Kostenlose, arztliche Telefon-Beratung<br>- Diskrete Verpackung und Zahl=
-ung<br>- Visa verifizierter Onlineshop<br>- keine versteckte Kosten</p>  
-<p><br><strong><a href=3D"http://vijya.firemajor.hk/?170613160616" target=
+</head><body><p>Meinung von unserem Kunden:<br><strong>Ich bin 28 Jahre alt=
+ und habe keine Err. ..ektionsprobleme. Ich wollte Viaaaagra einfach nur so=
+ probieren. Es funktioniert, aber die Durchblutung ist st&#228;rker als son=
+st und es f&#252;hlt sich an, als w&#252;rde ich mit einem Dildo v&#246;gel=
+n und nicht mit meinem Schwanz. Ich hatte ziemliche Probleme, wieder runter=
+zukommen. Aber ich w&#252;rde es wohl wieder tun ...</strong></p><p><strong=
+>Ich finde Viaaaagra einfach wunderbar. Egal, ob f&#252;r den Sex oder, um =
+mich selbst zu verw&#246;hnen: Es funktioniert. Mein Schwanz wird extrem ha=
+rt und mein Orgasmus ist sehr intensiv. Die Wirkung ist so stark, dass ich =
+Viaaaagra nur am Wochenende verwende oder wenn ich viel Zeit habe, es richt=
+ig zu genie&#223;en.<br>
+</strong><strong><br>Versuchen Sie unser Produkt und Sie werden fuhlen was =
+unsere Kunden bestatigen</strong></p><p>Preise die keine Konkurrenz kennen =
+<p>
+- Kostenlose, arztliche Telefon-Beratung<br>- Kein langes Warten - Ausliefe=
+rung innerhalb von 2-3 Tagen<br>- Bequem und diskret online bestellen.<br>-=
+ Visa verifizierter Onlineshop<br>- Kein peinlicher Arztbesuch erforderlich=
+t<br>- keine versteckte Kosten<br>- Diskrete Verpackung und Zahlung</p>  
+<p><br><strong><a href=3D"http://zyowbda.firemajor.hk/?265195894270" target=
 =3D"_blank">Klicken Sie HIER und Sie erhalten vier Dosen umsonst</a></stron=
 g></body>
-</BODY></HTML>
+</body>
+</html>
 
-------=_NextPart_000_000E_01C7C359.425F5C80--
+------=_NextPart_000_0006_01C7C350.30DB0AD0--
