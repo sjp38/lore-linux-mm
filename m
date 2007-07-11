@@ -1,31 +1,54 @@
-Date: Wed, 11 Jul 2007 09:55:39 +0100
-From: Christoph Hellwig <hch@infradead.org>
+Date: Wed, 11 Jul 2007 10:48:38 +0100
 Subject: Re: -mm merge plans -- anti-fragmentation
-Message-ID: <20070711085539.GA18038@infradead.org>
-References: <20070710102043.GA20303@skynet.ie> <200707100929.46153.dave.mccracken@oracle.com> <20070710152355.GI8779@wotan.suse.de> <200707101211.46003.dave.mccracken@oracle.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Message-ID: <20070711094838.GD7568@skynet.ie>
+References: <20070710102043.GA20303@skynet.ie> <20070710130356.GG8779@wotan.suse.de> <Pine.LNX.4.64.0707101142340.11906@schroedinger.engr.sgi.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <200707101211.46003.dave.mccracken@oracle.com>
+In-Reply-To: <Pine.LNX.4.64.0707101142340.11906@schroedinger.engr.sgi.com>
+From: mel@skynet.ie (Mel Gorman)
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Dave McCracken <dave.mccracken@oracle.com>
-Cc: Nick Piggin <npiggin@suse.de>, Mel Gorman <mel@skynet.ie>, Andrew Morton <akpm@linux-foundation.org>, kenchen@google.com, jschopp@austin.ibm.com, apw@shadowen.org, kamezawa.hiroyu@jp.fujitsu.com, a.p.zijlstra@chello.nl, y-goto@jp.fujitsu.com, clameter@sgi.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Christoph Lameter <clameter@sgi.com>
+Cc: Nick Piggin <npiggin@suse.de>, Andrew Morton <akpm@linux-foundation.org>, kenchen@google.com, jschopp@austin.ibm.com, apw@shadowen.org, kamezawa.hiroyu@jp.fujitsu.com, a.p.zijlstra@chello.nl, y-goto@jp.fujitsu.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Jul 10, 2007 at 12:11:45PM -0500, Dave McCracken wrote:
-> Ok, maybe disaster is too strong a word.  But any kind of order>0 allocation 
-> still has to be approached with fear and caution, with a well tested fallback 
-> in the case of the inevitable failures.  How many driver writers would have 
-> benefited from using order>0 pages, but turned aside to other less optimal 
-> solutions due to their unreliability?  We don't know, and probably never 
-> will.  Those people have moved on and won't revisit that design decision.
+On (10/07/07 11:46), Christoph Lameter didst pronounce:
+> On Tue, 10 Jul 2007, Nick Piggin wrote:
+> 
+> > I realise in your pragmatic approach, you are encouraging users to
+> > put fallbacks in place in case a higher order page cannot be allocated,
+> > but I don't think either higher order pagecache or higher order slubs
+> > have such fallbacks (fsblock or a combination of fsblock and higher
+> > order pagecache could have, but...).
+> 
+> We have run mm kernels for month now without the need of a fallback. I 
+> purpose of ZONE_MOVABLE was to guarantee that higher order pages could be 
+> reclaimed and thus make the scheme reliable?
+> 
 
-If you look at almost any other OS they use high-order pages quite a lot.
-At least Solaris, IRIX and UnixWare do.
+That and they would be available within a specified limit. With grouping
+pages by mobility, high order pages will be available but it's workload
+dependant on how many there will be. This sort of predictability is
+important for hugepages and memory unplug although it's of less
+relevance to order-3 and order-4 users.
 
-Also not that once we have a high-order pagecache it gives a nice way
-to simply reclaim a high-order page directly :)
+> The experience so far shows that the approach works reliably. If there are 
+> issues then they need to be fixed. Putting in workarounds in other places 
+> such as in fsblock may just be hiding problems if there are any.
+
+I think fsblock as it stands would gain from grouping pages by mobility.
+It could use high order pages where they were available and fallback to
+using the slower vmap approach when they weren't. I don't see why
+highorder page cache and fsblock would be mutually exclusive. For that
+matter, I don't see why any of these approachs are mutually exclusive
+with what Andrea is doing other than having more than one way of
+skinning a cat in the kernal at the same time might be confusing.
+
+-- 
+Mel Gorman
+Part-time Phd Student                          Linux Technology Center
+University of Limerick                         IBM Dublin Software Lab
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
