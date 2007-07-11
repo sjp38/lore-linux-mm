@@ -1,58 +1,31 @@
-Received: from d03relay04.boulder.ibm.com (d03relay04.boulder.ibm.com [9.17.195.106])
-	by e33.co.us.ibm.com (8.13.8/8.13.8) with ESMTP id l6BGuau3025321
-	for <linux-mm@kvack.org>; Wed, 11 Jul 2007 12:56:36 -0400
-Received: from d03av03.boulder.ibm.com (d03av03.boulder.ibm.com [9.17.195.169])
-	by d03relay04.boulder.ibm.com (8.13.8/8.13.8/NCO v8.3) with ESMTP id l6BGuCRE126542
-	for <linux-mm@kvack.org>; Wed, 11 Jul 2007 10:56:35 -0600
-Received: from d03av03.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av03.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l6BGb16k023708
-	for <linux-mm@kvack.org>; Wed, 11 Jul 2007 10:37:01 -0600
-Date: Wed, 11 Jul 2007 09:37:00 -0700
-From: Nishanth Aravamudan <nacc@us.ibm.com>
-Subject: Re: [patch 10/12] Memoryless nodes: Update memory policy and page migration
-Message-ID: <20070711163700.GP27655@us.ibm.com>
-References: <20070710215339.110895755@sgi.com> <20070710215456.394842768@sgi.com> <20070711164811.e94df898.kamezawa.hiroyu@jp.fujitsu.com> <20070711161653.GN27655@us.ibm.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20070711161653.GN27655@us.ibm.com>
+Date: Wed, 11 Jul 2007 10:23:32 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: buffered write patches, -mm merge plans for 2.6.23
+Message-Id: <20070711102332.d5ffd572.akpm@linux-foundation.org>
+In-Reply-To: <20070711113944.GC18665@lst.de>
+References: <20070710013152.ef2cd200.akpm@linux-foundation.org>
+	<20070711113944.GC18665@lst.de>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Christoph Lameter <clameter@sgi.com>, akpm@linux-foundation.org, kxr@sgi.com, linux-mm@kvack.org, Lee Schermerhorn <Lee.Schermerhorn@hp.com>
+To: Christoph Hellwig <hch@lst.de>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Nick Piggin <nickpiggin@yahoo.com.au>
 List-ID: <linux-mm.kvack.org>
 
-On 11.07.2007 [09:16:53 -0700], Nishanth Aravamudan wrote:
-> On 11.07.2007 [16:48:11 +0900], KAMEZAWA Hiroyuki wrote:
-> > On Tue, 10 Jul 2007 14:52:15 -0700
-> > Christoph Lameter <clameter@sgi.com> wrote:
-> > 
-> > > +			*nodes = node_memory_map;
-> > >  		else
-> > node_states[N_MEMORY]  ?
-> > 
-> > 
-> > >  		check_pgd_range(vma, vma->vm_start, vma->vm_end,
-> > > -				&node_online_map, MPOL_MF_STATS, md);
-> > > +				&node_memory_map, MPOL_MF_STATS, md);
-> > >  	}
-> > 
-> > Again here.
+On Wed, 11 Jul 2007 13:39:44 +0200 Christoph Hellwig <hch@lst.de> wrote:
+
+> >  pagefault-in-write deadlock fixes.  Will hold for 2.6.24.
 > 
-> I think Christoph missed a hunk in the node_memory_map patch, which
-> would
-> 
-> #define node_memory_map node_stats[N_MEMORY]
+> Why that?
 
-Or maybe it's intentional -- and your changes are appropriate (and
-in-line with the other changes Christoph's patches made).
+At Nick's request.  More work is needed and the code hasn't had a lot of
+testing/thought/exposure/review.
 
-Thanks,
-Nish
-
--- 
-Nishanth Aravamudan <nacc@us.ibm.com>
-IBM Linux Technology Center
+>  This stuff has been in forever and is needed at various
+> levels.  We need this in for anything to move forward on the buffered
+> write front.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
