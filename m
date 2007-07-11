@@ -1,74 +1,82 @@
-Date: Wed, 11 Jul 2007 11:05:41 +0100
-Subject: Re: -mm merge plans -- anti-fragmentation
-Message-ID: <20070711100540.GF7568@skynet.ie>
-References: <20070710102043.GA20303@skynet.ie> <200707100929.46153.dave.mccracken@oracle.com> <20070710152355.GI8779@wotan.suse.de> <Pine.LNX.4.64.0707101148161.11906@schroedinger.engr.sgi.com>
+From: "Lourdes Michael" <healy@cityofbradenton.com>
+Subject: Haben Sie wieder Spass am Leben!   2000 (letter to FSA dated 14 --  a book, you want 
+Date: Wed, 11 Jul 2007 11:08:20 -0300
+Message-ID: <01c7c3ab$ca2ba3b0$1a0e7a5b@healy>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <Pine.LNX.4.64.0707101148161.11906@schroedinger.engr.sgi.com>
-From: mel@skynet.ie (Mel Gorman)
-Sender: owner-linux-mm@kvack.org
-Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
-Cc: Nick Piggin <npiggin@suse.de>, Dave McCracken <dave.mccracken@oracle.com>, Andrew Morton <akpm@linux-foundation.org>, kenchen@google.com, jschopp@austin.ibm.com, apw@shadowen.org, kamezawa.hiroyu@jp.fujitsu.com, a.p.zijlstra@chello.nl, y-goto@jp.fujitsu.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Content-Type: multipart/alternative;
+	boundary="----=_NextPart_000_0006_01C7C3CD.513D43B0"
+Return-Path: <healy@cityofbradenton.com>
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On (10/07/07 11:50), Christoph Lameter didst pronounce:
-> On Tue, 10 Jul 2007, Nick Piggin wrote:
-> 
-> > > The sheer list of patches lined up behind this set is strong evidence that 
-> > > there are useful features which depend on a working order>0.  When you add in 
-> > > the existing code that has to struggle with allocation failures or resort to 
-> > > special pools (ie hugetlbfs), I see a clear vote for the need for this patch.
-> > 
-> > Really the only patches so far that I think have convincing reasons are
-> > memory unplug and hugepage, and both of those can get a long way by using
-> > a reserve zone (note it isn't entirely reserved, but still available for
-> > things like pagecache). Beyond that, is there a big demand, and do we
-> > want to make this fundamental change in direction in the kernel to
-> > satisfy that demand?
-> 
-> SLUB can use it to use large order pages which generate less lock 
-> contention which is important in SMP systems. Large pages also increase 
-> the object density in slabs.
-> 
+This is a multi-part message in MIME format.
 
-And this should be a measurable benefit at least.
+------=_NextPart_000_0006_01C7C3CD.513D43B0
+Content-Type: text/plain;
+	charset="us-ascii"
+Content-Transfer-Encoding: 7bit
 
-> > So small ones like order-1 and 2 seem reasonably good right now AFAIKS.
-> 
-> Sorry no. Without the antifrag patches I had failures even with order 1 
-> and 2 allocs from SLUB.
-> 
+Versuchen Sie unser Produkt und Sie werden fuhlen was unsere Kunden bestatigen
 
-Which doesn't really suprise me. Order-1 and order-2 allocation succeed
-today because there are so few users of them. Order-1 is sometimes used
-for stacks and the occasional wireless driver instead of on a regular
-basis.
+Preise die keine Konkurrenz kennen 
 
-We still need to revisit the watermark handling before pushing this
-aspect of SLUB forward but I'd like to see grouping pages by mobility go
-forward first so the work is not pie-in-the-sky. I'm sure it can be
-handled better than what we do in -mm today but it's good to know we
-have a comparison point. The first stab at watermark handling may not be
-the best approach but it's held up pretty well so far.
+- Kein langes Warten - Auslieferung innerhalb von 2-3 Tagen
+- Bequem und diskret online bestellen.
+- Kostenlose, arztliche Telefon-Beratung
+- Visa verifizierter Onlineshop
+- keine versteckte Kosten
+- Diskrete Verpackung und Zahlung
+- Kein peinlicher Arztbesuch erforderlicht
 
-> > If you perhaps want to say start using order-4  pages for slab or
-> > some other kernel memory allocations, then you can run into the situation
-> > where memory gets fragmented such that you have one sixteenth of your
-> > memory actualy used but you can't allocate from any of your slabs because
-> > there are no order-4 pages left. I guess this is a big difference between
-> > order-low failures and order-high.
-> 
-> The order that is readily reclaimable should be configurable.
 
--- 
-Mel Gorman
-Part-time Phd Student                          Linux Technology Center
-University of Limerick                         IBM Dublin Software Lab
+Klicken Sie HIER und Sie erhalten vier Dosen umsonst
+http://lweha.imaginetype.hk/?991504074289
 
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+------=_NextPart_000_0006_01C7C3CD.513D43B0
+Content-Type: text/html;
+	charset="us-ascii"
+Content-Transfer-Encoding: quoted-printable
+
+<html xmlns:v=3D"urn:schemas-microsoft-com:vml" xmlns:o=3D"urn:schemas-micr=
+osoft-com:office:office" xmlns:w=3D"urn:schemas-microsoft-com:office:word" =
+xmlns=3D"http://www.w3.org/TR/REC-html40">
+
+<head>
+<META HTTP-EQUIV=3D"Content-Type" CONTENT=3D"text/html; charset=3Dus-ascii">
+
+
+<meta name=3DProgId content=3DWord.Document>
+<meta name=3DGenerator content=3D"Microsoft Word 10">
+<meta name=3DOriginator content=3D"Microsoft Word 10">
+<link rel=3DFile-List href=3D"cid:filelist.xml@BB48DAB4.8D3F2195">
+<link rel=3DEdit-Time-Data href=3D"cid:editdata.mso@BB48DAB4.8D3F2195">
+</head>
+<body>
+<head><meta http-equiv=3D"Content-Type" content=3D"text/html; charset=3Diso=
+-8859-1">
+</head><body><p>Meinung von unserem Kunden:<br><strong>Ich habe eine Aff&#2=
+28;re mit einer Bekannten, sie h&#228;lt mich f&#252;r einen Sex-Gott. Ich =
+habe Viaaaagra ungef&#228;hr zehn Minuten, bevor wir uns im Hotel getroffen=
+ haben, genommen. Ich habe davon nicht nur einen strammen Riemen bekommen, =
+sondern auch die Selbstsicherheit, die die Frauen lieben. Ich habe es ihr d=
+rei- oder viermal besorgt, und sie ist absolut hingerissen. Ich komme zieml=
+ich schnell, danach wird ihr Organsmus jedesmal unkontrollierbar. Viaaaagra=
+ hat mich bei ihr zur Legende gemacht!! Ich kann es kaum abwarten, wieder e=
+ine zu schlucken</strong></p><p><strong>Ich glaube, ich habe bis jetzt Gl&#=
+252;ck gehabt (Ich klopfe auf Holz.), denn ich hatte bis jetzt noch nie Neb=
+enwirkungen durch Viaaaagra - au&#223;er einer brettharten Latte, und das f=
+&#252;r Stunden.<br>
+</strong><strong><br>Versuchen Sie unser Produkt und Sie werden fuhlen was =
+unsere Kunden bestatigen</strong></p><p>Preise die keine Konkurrenz kennen =
+<p>
+- Bequem und diskret online bestellen.<br>- Kein peinlicher Arztbesuch erfo=
+rderlicht<br>- Diskrete Verpackung und Zahlung<br>- Kostenlose, arztliche T=
+elefon-Beratung<br>- Kein langes Warten - Auslieferung innerhalb von 2-3 Ta=
+gen<br>- Visa verifizierter Onlineshop<br>- keine versteckte Kosten</p>  
+<p><br><strong><a href=3D"http://lweha.imaginetype.hk/?991504074289" target=
+=3D"_blank">Klicken Sie HIER und Sie erhalten vier Dosen umsonst</a></stron=
+g></body>
+</body>
+</html>
+
+------=_NextPart_000_0006_01C7C3CD.513D43B0--
