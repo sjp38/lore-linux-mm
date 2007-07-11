@@ -1,59 +1,83 @@
-From: Nick Piggin <nickpiggin@yahoo.com.au>
-Subject: Re: [RFC/PATCH] Use mmu_gather for fork() instead of flush_tlb_mm()
-Date: Mon, 09 Jul 2007 20:18:37 +1000
-Message-ID: <46920B7D.5090100@yahoo.com.au>
-References: <1183952874.3388.349.camel@localhost.localdomain>	 <1183962981.5961.3.camel@localhost.localdomain>	 <1183963544.5961.6.camel@localhost.localdomain>	 <4691E64F.5070506@yahoo.com.au>	 <1183972349.5961.25.camel@localhost.localdomain>	 <4691FFDC.5020808@yahoo.com.au> <1183974458.5961.42.camel@localhost.localdomain> <46920A0C.3040400@yahoo.com.au>
+From: "Matthew Hawkins" <darthmdh@gmail.com>
+Subject: Re: Re: -mm merge plans for 2.6.23
+Date: Wed, 11 Jul 2007 11:02:56 +1000
+Message-ID: <b21f8390707101802o2d546477n2a18c1c3547c3d7a@mail.gmail.com>
+References: <20070710013152.ef2cd200.akpm@linux-foundation.org>
+	<200707102015.44004.kernel@kolivas.org>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii; format=flowed
-Content-Transfer-Encoding: 7bit
-Return-path: <linux-kernel-owner+glk-linux-kernel-3=40m.gmane.org-S1755288AbXGIKSx@vger.kernel.org>
-In-Reply-To: <46920A0C.3040400@yahoo.com.au>
-Sender: linux-kernel-owner@vger.kernel.org
-Cc: Benjamin Herrenschmidt <benh@kernel.crashing.org>, linux-mm@kvack.org, Linux Kernel list <linux-kernel@vger.kernel.org>
+Content-Type: multipart/mixed; boundary="===============22357674416594286=="
+Return-path: <ck-bounces@vds.kolivas.org>
+In-Reply-To: <200707102015.44004.kernel@kolivas.org>
+List-Unsubscribe: <http://bhhdoa.org.au/mailman/listinfo/ck>,
+	<mailto:ck-request@vds.kolivas.org?subject=unsubscribe>
+List-Archive: <http://bhhdoa.org.au/pipermail/ck>
+List-Post: <mailto:ck@vds.kolivas.org>
+List-Help: <mailto:ck-request@vds.kolivas.org?subject=help>
+List-Subscribe: <http://bhhdoa.org.au/mailman/listinfo/ck>,
+	<mailto:ck-request@vds.kolivas.org?subject=subscribe>
+Sender: ck-bounces@vds.kolivas.org
+Errors-To: ck-bounces@vds.kolivas.org
+To: Con Kolivas <kernel@kolivas.org>
+Cc: linux-kernel@vger.kernel.org, ck list <ck@vds.kolivas.org>, linux-mm@kvack.org, Paul Jackson <pj@sgi.com>, Andrew Morton <akpm@linux-foundation.org>
 List-Id: linux-mm.kvack.org
 
-Nick Piggin wrote:
-> Benjamin Herrenschmidt wrote:
-> 
->> On Mon, 2007-07-09 at 19:29 +1000, Nick Piggin wrote:
->>
->>> They could just #define one to the other though, there are only a
->>> small
->>> number of them. Is there a downside to not making them distinct? i386
->>> for example probably would just keep doing a tlb flush for fork and
->>> not
->>> want to worry about touching the tlb gather stuff.
->>
->>
->>
->> But the tlb gather stuff just does ... a flush_tlb_mm() on x86 :-)
-> 
-> 
-> But it still does the get_cpu of the mmu gather data structure and
+--===============22357674416594286==
+Content-Type: multipart/alternative;
+	boundary="----=_Part_142421_17099742.1184115776248"
 
-To elaborate on this one... I realise for this one that in the kernel
-where this is currently used everything is non-preemptible anyway
-because of the ptl. And I also realise that -rt kernel issues don't
-really have a bearing on mainline kernel.. but the generic
-implementation of this API is fundamentally used to operate on a
-per-cpu data structure that is only required when tearing down page
-tables. That makes this necessarily non-preemptible.
+------=_Part_142421_17099742.1184115776248
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
 
-Which shows that it adds more restrictions that may not otherwise be
-required.
+On 7/10/07, Con Kolivas <kernel@kolivas.org> wrote:
+>
+> On Tuesday 10 July 2007 18:31, Andrew Morton wrote:
+> > When replying, please rewrite the subject suitably and try to Cc: the
+> > appropriate developer(s).
+>
+> ~swap prefetch
 
+[snip]
+Put me and the users out of our misery and merge it now
+[snip]
 
-> has to look in there and touch the cacheline. You're also having to
-> do more work when unlocking/relocking the ptl etc.
-> 
-> 
->> I really think it's the right API
+For the record; it merges, builds, and runs cleanly on x86_64 vanilla+CFS
+provided sched-add_above_background_load is also merged (you need the old
+one that adds an inline to sched.h, not the new one that depends on
+SD-isms).  I believe that is already merged with -mm anyway.
 
-OK, the *form* of the API is fine, I have no arguments. I just don't
-know why you have to reuse the same thing. If you provided a new set of
-names then you can trivially do a generic implementation which compiles
-to exactly the same code for all architectures right now. That seems to
-me like the right way to go...
+I'd also be interested to see if there is a better way of doing what
+above_background_load() does with CFS, I think v18 added some functionality
+along these lines...
+
+We all know swap prefetch has been tested out the wazoo since Moses was a
+little boy, is compile-time and runtime selectable, and gives an important
+and quantifiable performance increase to desktop systems.  Save a Redhat
+employee some time reinventing the wheel and just merge it.  This wheel
+already has dope 21" rims, homes ;-)
 
 -- 
-SUSE Labs, Novell Inc.
+Matt
+
+------=_Part_142421_17099742.1184115776248
+Content-Type: text/html; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+
+On 7/10/07, <b class="gmail_sendername">Con Kolivas</b> &lt;<a href="mailto:kernel@kolivas.org">kernel@kolivas.org</a>&gt; wrote:<div><span class="gmail_quote"></span><blockquote class="gmail_quote" style="border-left: 1px solid rgb(204, 204, 204); margin: 0pt 0pt 0pt 0.8ex; padding-left: 1ex;">
+On Tuesday 10 July 2007 18:31, Andrew Morton wrote:<br>&gt; When replying, please rewrite the subject suitably and try to Cc: the<br>&gt; appropriate developer(s).<br><br>~swap prefetch</blockquote><div>[snip] <br></div>Put me and the users out of our misery and merge it now
+</div>[snip]<br><br>For the record; it merges, builds, and runs cleanly on x86_64 vanilla+CFS provided sched-add_above_background_load is also merged (you need the old one that adds an inline to sched.h, not the new one that depends on SD-isms).&nbsp; I believe that is already merged with -mm anyway.
+<br clear="all"><br>I&#39;d also be interested to see if there is a better way of doing what above_background_load() does with CFS, I think v18 added some functionality along these lines...<br><br>We all know swap prefetch has been tested out the wazoo since Moses was a little boy, is compile-time and runtime selectable, and gives an important and quantifiable performance increase to desktop systems.&nbsp; Save a Redhat employee some time reinventing the wheel and just merge it.&nbsp; This wheel already has dope 21&quot; rims, homes ;-)
+<br><br>-- <br>Matt
+
+------=_Part_142421_17099742.1184115776248--
+
+--===============22357674416594286==
+Content-Type: text/plain; charset="us-ascii"
+MIME-Version: 1.0
+Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+
+
+--===============22357674416594286==--
