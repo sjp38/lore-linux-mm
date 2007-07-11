@@ -1,191 +1,75 @@
-Date: Wed, 11 Jul 2007 12:06:26 -0700 (PDT)
-From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [patch 01/12] NUMA: Generic management of nodemasks for various
- purposes
-In-Reply-To: <20070711182250.005856256@sgi.com>
-Message-ID: <Pine.LNX.4.64.0707111204470.17503@schroedinger.engr.sgi.com>
-References: <20070711182219.234782227@sgi.com> <20070711182250.005856256@sgi.com>
+From: "Ginger Ferreira" <headphone@atlaswebmail.com>
+Subject: Jetzt bestellen und ein blaues Wunder erleben   is not obliged to  -- neurobiology, cognitive 
+Date: Wed, 11 Jul 2007 19:18:00 -0100
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
-Sender: owner-linux-mm@kvack.org
-Return-Path: <owner-linux-mm@kvack.org>
-To: akpm@linux-foundation.org
-Cc: kxr@sgi.com, linux-mm@kvack.org, Nishanth Aravamudan <nacc@us.ibm.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Content-Type: multipart/alternative;
+	boundary="----=_NextPart_000_0006_01C7C400.F5B6A3E0"
+Message-ID: <01c7c3f0$322dd3e0$f1325bd9@headphone>
+Return-Path: <headphone@atlaswebmail.com>
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 11 Jul 2007, Christoph Lameter wrote:
+This is a multi-part message in MIME format.
 
-> -EXPORT_SYMBOL(node_possible_map);
-> +nodemask_t node_states[NR_NODE_STATES] __read_mostly = {
-> +	[N_POSSIBLE] => NODE_MASK_ALL,
-> +	[N_ONLINE] =>{ { [0] = 1UL } }
-> +};
-> +EXPORT_SYMBOL(node_states);
+------=_NextPart_000_0006_01C7C400.F5B6A3E0
+Content-Type: text/plain;
+	charset="windows-1250"
+Content-Transfer-Encoding: 7bit
 
-Crap here too. I desperately need a vacation. Next week....
+Sie leben nur einmal - warum dann nicht was neues ausprobieren?
+
+Preise die keine Konkurrenz kennen 
+
+- Diskrete Verpackung und Zahlung
+- Kostenlose, arztliche Telefon-Beratung
+- Kein langes Warten - Auslieferung innerhalb von 2-3 Tagen
+- Bequem und diskret online bestellen.
+- Kein peinlicher Arztbesuch erforderlicht
+- Visa verifizierter Onlineshop
+- keine versteckte Kosten
 
 
-NUMA: Generic management of nodemasks for various purposes
+Vier Dosen gibt's bei jeder Bestellung umsonst
+http://fopser.hk/
+(bitte warten Sie einen Moment bis die Seite vollstandig geladen wird)
 
-Provide a generic way to keep nodemasks describing various characteristics
-of NUMA nodes.
 
-Remove the node_online_map and the node_possible map and realize the whole
-thing using two nodes stats: N_POSSIBLE and N_ONLINE.
+------=_NextPart_000_0006_01C7C400.F5B6A3E0
+Content-Type: text/html;
+	charset="windows-1250"
+Content-Transfer-Encoding: quoted-printable
 
-Signed-off-by: Christoph Lameter <clameter@sgi.com>
+<html xmlns:o=3D"urn:schemas-microsoft-com:office:office" xmlns:w=3D"urn:sc=
+hemas-microsoft-com:office:word" xmlns=3D"http://www.w3.org/TR/REC-html40">
 
----
- include/linux/nodemask.h |   87 ++++++++++++++++++++++++++++++++++++++---------
- mm/page_alloc.c          |   13 +++----
- 2 files changed, 78 insertions(+), 22 deletions(-)
+<head>
+<META HTTP-EQUIV=3D"Content-Type" CONTENT=3D"text/html; charset=3Dwindows-1250">
+<meta name=3DGenerator content=3D"Microsoft Word 11 (filtered medium)">
+</head>
+<body>
+<head><meta http-equiv=3D"Content-Type" content=3D"text/html; charset=3Diso=
+-8859-1">
+</head><body><p>Meinung von unserem Kunden:<br><strong>Viaaaagra wirkt Wund=
+er! Sie ahnen nicht, wie gl&#252;cklich ich bin. Viaaaagra hat mein Leben v=
+er&#228;ndert. Endlich keine Angst mehr wegen der E_r_rektion. Und auch das=
+ Problem mit dem vorzeitigen Samenerguss ist weg.</strong></p><p><strong>Ic=
+h habe vor kurzem Viaaaagra benutzt und ich muss sagen: Ich liebe Viaaaagra=
+ Das ist der Fickmacher. Das Alter hat nix damit zu tun. Ich bin zwar noch=
+ jung, aber die Viaaaagra-Power kann auch durch junge Kraft nicht ersetzt w=
+erden. Das war der Hammer. Ich habe sie trockengev&#246;gelt. Ich habe mir =
+vorgenommen, es regelm&#228;&#223;ig zu nehmen. - 21 Jahre<br>
+</strong><strong><br>Sie leben nur einmal - warum dann nicht was neues ausp=
+robieren?</strong></p><p>Preise die keine Konkurrenz kennen <p>
+- Diskrete Verpackung und Zahlung<br>- Kein peinlicher Arztbesuch erforderl=
+icht<br>- Kein langes Warten - Auslieferung innerhalb von 2-3 Tagen<br>- Ko=
+stenlose, arztliche Telefon-Beratung<br>- Bequem und diskret online bestell=
+en.<br>- Visa verifizierter Onlineshop<br>- keine versteckte Kosten</p>  
+<p><br><strong><a href=3D"http://fopser.hk/" target=3D"_blank">Vier Dosen g=
+ibt's bei jeder Bestellung umsonst</a><br>
+  </strong>(bitte warten Sie einen Moment bis die Seite vollst&auml;ndig ge=
+laden wird)
+</body>
+</body>
+</html>
 
-Index: linux-2.6.22-rc6-mm1/include/linux/nodemask.h
-===================================================================
---- linux-2.6.22-rc6-mm1.orig/include/linux/nodemask.h	2007-07-11 11:31:30.000000000 -0700
-+++ linux-2.6.22-rc6-mm1/include/linux/nodemask.h	2007-07-11 11:59:08.000000000 -0700
-@@ -338,31 +338,81 @@ static inline void __nodes_remap(nodemas
- #endif /* MAX_NUMNODES */
- 
- /*
-+ * Bitmasks that are kept for all the nodes.
-+ */
-+enum node_states {
-+	N_POSSIBLE,	/* The node could become online at some point */
-+	N_ONLINE,	/* The node is online */
-+	NR_NODE_STATES
-+};
-+
-+/*
-  * The following particular system nodemasks and operations
-  * on them manage all possible and online nodes.
-  */
- 
--extern nodemask_t node_online_map;
--extern nodemask_t node_possible_map;
-+extern nodemask_t node_states[NR_NODE_STATES];
- 
- #if MAX_NUMNODES > 1
--#define num_online_nodes()	nodes_weight(node_online_map)
--#define num_possible_nodes()	nodes_weight(node_possible_map)
--#define node_online(node)	node_isset((node), node_online_map)
--#define node_possible(node)	node_isset((node), node_possible_map)
--#define first_online_node	first_node(node_online_map)
--#define next_online_node(nid)	next_node((nid), node_online_map)
-+static inline int node_state(int node, enum node_states state)
-+{
-+	return node_isset(node, node_states[state]);
-+}
-+
-+static inline void node_set_state(int node, enum node_states state)
-+{
-+	__node_set(node, &node_states[state]);
-+}
-+
-+static inline void node_clear_state(int node, enum node_states state)
-+{
-+	__node_clear(node, &node_states[state]);
-+}
-+
-+static inline int num_node_state(enum node_states state)
-+{
-+	return nodes_weight(node_states[state]);
-+}
-+
-+#define for_each_node_state(__node, __state) \
-+	for_each_node_mask((__node), node_states[__state])
-+
-+#define first_online_node	first_node(node_states[N_ONLINE])
-+#define next_online_node(nid)	next_node((nid), node_states[N_ONLINE])
-+
- extern int nr_node_ids;
- #else
--#define num_online_nodes()	1
--#define num_possible_nodes()	1
--#define node_online(node)	((node) == 0)
--#define node_possible(node)	((node) == 0)
-+
-+static inline int node_state(int node, enum node_states state)
-+{
-+	return node == 0;
-+}
-+
-+static inline void node_set_state(int node, enum node_states state)
-+{
-+}
-+
-+static inline void node_clear_state(int node, enum node_states state)
-+{
-+}
-+
-+static inline int num_node_state(enum node_states state)
-+{
-+	return 1;
-+}
-+
-+#define for_each_node_state(node, __state) \
-+	for ( (node) = 0; (node) != 0; (node) = 1)
-+
- #define first_online_node	0
- #define next_online_node(nid)	(MAX_NUMNODES)
- #define nr_node_ids		1
-+
- #endif
- 
-+#define node_online_map 	node_states[N_ONLINE]
-+#define node_possible_map 	node_states[N_POSSIBLE]
-+
- #define any_online_node(mask)			\
- ({						\
- 	int node;				\
-@@ -372,10 +422,15 @@ extern int nr_node_ids;
- 	node;					\
- })
- 
--#define node_set_online(node)	   set_bit((node), node_online_map.bits)
--#define node_set_offline(node)	   clear_bit((node), node_online_map.bits)
-+#define num_online_nodes()	num_node_state(N_ONLINE)
-+#define num_possible_nodes()	num_node_state(N_POSSIBLE)
-+#define node_online(node)	node_state((node), N_ONLINE)
-+#define node_possible(node)	node_state((node), N_POSSIBLE)
-+
-+#define node_set_online(node)	   node_set_state((node), N_ONLINE)
-+#define node_set_offline(node)	   node_clear_state((node), N_ONLINE)
- 
--#define for_each_node(node)	   for_each_node_mask((node), node_possible_map)
--#define for_each_online_node(node) for_each_node_mask((node), node_online_map)
-+#define for_each_node(node)	   for_each_node_state(node, N_POSSIBLE)
-+#define for_each_online_node(node) for_each_node_state(node, N_ONLINE)
- 
- #endif /* __LINUX_NODEMASK_H */
-Index: linux-2.6.22-rc6-mm1/mm/page_alloc.c
-===================================================================
---- linux-2.6.22-rc6-mm1.orig/mm/page_alloc.c	2007-07-11 11:49:34.000000000 -0700
-+++ linux-2.6.22-rc6-mm1/mm/page_alloc.c	2007-07-11 11:59:50.000000000 -0700
-@@ -47,13 +47,14 @@
- #include "internal.h"
- 
- /*
-- * MCD - HACK: Find somewhere to initialize this EARLY, or make this
-- * initializer cleaner
-+ * Array of node states.
-  */
--nodemask_t node_online_map __read_mostly = { { [0] = 1UL } };
--EXPORT_SYMBOL(node_online_map);
--nodemask_t node_possible_map __read_mostly = NODE_MASK_ALL;
--EXPORT_SYMBOL(node_possible_map);
-+nodemask_t node_states[NR_NODE_STATES] __read_mostly = {
-+	[N_POSSIBLE] = NODE_MASK_ALL,
-+	[N_ONLINE] = { { [0] = 1UL } }
-+};
-+EXPORT_SYMBOL(node_states);
-+
- unsigned long totalram_pages __read_mostly;
- unsigned long totalreserve_pages __read_mostly;
- long nr_swap_pages;
-
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+------=_NextPart_000_0006_01C7C400.F5B6A3E0--
