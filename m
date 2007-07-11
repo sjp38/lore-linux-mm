@@ -1,67 +1,75 @@
-Date: Wed, 11 Jul 2007 11:04:53 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: lguest, Re: -mm merge plans for 2.6.23
-Message-Id: <20070711110453.c4020526.akpm@linux-foundation.org>
-In-Reply-To: <20070711122324.GA21714@lst.de>
-References: <20070710013152.ef2cd200.akpm@linux-foundation.org>
-	<20070711122324.GA21714@lst.de>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
-Sender: owner-linux-mm@kvack.org
-Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Hellwig <hch@lst.de>
-Cc: linux-kernel@vger.kernel.org, rusty@rustcorp.com.au, linux-mm@kvack.org
+Message-ID: <01c7c3eb$1de5d180$4768bc54@jbuks>
+From: "Jamel Brand" <jbuks@sherwin.com>
+Subject: Energy fur ihren Schwanz, kaufen und 85% sparen  investment advisory service  -- In a way that lets you put 
+Date: Wed, 11 Jul 2007 18:41:38 -0100
+MIME-Version: 1.0
+Content-Type: multipart/alternative;
+	boundary="----=_NextPart_000_0007_01C7C3FB.E16EA180"
+Return-Path: <jbuks@sherwin.com>
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 11 Jul 2007 14:23:24 +0200
-Christoph Hellwig <hch@lst.de> wrote:
+This is a multi-part message in MIME format.
 
-> > lguest-export-symbols-for-lguest-as-a-module.patch
-> 
-> __put_task_struct is one of those no way in hell should this be exported
-> things because we don't want modules messing with task lifetimes.
-> 
-> Fortunately I can't find anything actually using this in lguest, so
-> it looks the issue has been solved in the meantime.
-> 
+------=_NextPart_000_0007_01C7C3FB.E16EA180
+Content-Type: text/plain;
+	charset="iso-8859-2"
+Content-Transfer-Encoding: quoted-printable
 
-Ther are a couple of calls to put_task_struct() in there, and that needs
-__put_task_struct() exported.
+Haben Sie endlich wieder Spass am Leben!
 
-> 
-> I also have a rather bad feeling about exporting access_process_vm.
-> This is the proverbial sledge hammer for access to user vm addresses
-> and I'd rather keep it away from module programmers with "if all
-> you have is a hammer ..." in mind.
+Preise die keine Konkurrenz kennen 
 
-hm, well, access_process_vm() is a convenience wrapper around
-get_user_pages(), whcih is exported.
+- keine versteckte Kosten
+- Bequem und diskret online bestellen.
+- Kostenlose, arztliche Telefon-Beratung
+- Kein langes Warten - Auslieferung innerhalb von 2-3 Tagen
+- Diskrete Verpackung und Zahlung
+- Kein peinlicher Arztbesuch erforderlicht
+- Visa verifizierter Onlineshop
 
-> In lguest this is used by send_dma which from my short reading of the
-> code seems to be the central IPC mechanism.  The double copy here
-> doesn't look very efficient to me either.  Maybe some VM folks could
-> look into a better way to archive this that might be both more
-> efficient and not require the export.
-> 
-> 
-> > lguest-the-guest-code.patch
-> > lguest-the-host-code.patch
-> > lguest-the-host-code-lguest-vs-clockevents-fix-resume-logic.patch
-> > lguest-the-asm-offsets.patch
-> > lguest-the-makefile-and-kconfig.patch
-> > lguest-the-console-driver.patch
-> > lguest-the-net-driver.patch
-> > lguest-the-block-driver.patch
-> > lguest-the-documentation-example-launcher.patch
-> 
-> Just started to reading this (again) so no useful comment here, but it
-> would be nice if the code could follow CodingStyle and place the || and
-> && at the end of the line in multiline conditionals instead of at the
-> beginning of the new one.
 
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+Klicken Sie HIER und Sie erhalten vier Dosen umsonst
+http://ovtkhja.beatlady.hk/?997977070643
+(bitte warten Sie einen Moment bis die Seite vollstandig geladen wird)
+------=_NextPart_000_0007_01C7C3FB.E16EA180
+Content-Type: text/html;
+	charset="iso-8859-2"
+Content-Transfer-Encoding: quoted-printable
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
+<HTML><HEAD>
+<META http-equiv=3DContent-Type content=3D"text/html; charset=3Diso-8859-2">
+<META content=3D"MSHTML 6.00.2800.1158" name=3DGENERATOR>
+<STYLE></STYLE>
+</HEAD>
+<BODY>
+<head><meta http-equiv=3D"Content-Type" content=3D"text/html; charset=3Diso=
+-8859-1">
+</head><body><p>Meinung von unserem Kunden:<br><strong>Fantastische Wirkung=
+! F&#252;nf Jahre lang hatte ich es nicht mehr geschafft, meine Err. ..ekti=
+on w&#228;hrend des Verkehrs zu halten und war richtig &#228;ngstlich gewor=
+den. Ich hatte auch ein Problem mit vorzeitigem Samenerguss. Au&#223;erdem =
+bin ich Zuckerkrank. Vor einiger Zeit habe ich eine 50-mg-Dosis Viaaaagra g=
+enommen und zwei Stunden sp&#228;ter mit einer 22-j&#228;hrigen geschlafen.=
+ Kurz vor dem Vorspiel wurde mein Penis hart und ich konnte es kaum glauben=
+ Ich habe in dieser Nacht dreimal Sex gehabt und es gab keine Probleme dab=
+ei. Kein Schuss ging daneben. Ich bin ein gl&#252;cklicher Mann. Achmet, 52=
+</strong></p><p><strong>Ich glaube, ich habe bis jetzt Gl&#252;ck gehabt (I=
+ch klopfe auf Holz.), denn ich hatte bis jetzt noch nie Nebenwirkungen durc=
+h Viaaaagra - au&#223;er einer brettharten Latte, und das f&#252;r Stunden.=
+<br>
+</strong><strong><br>Haben Sie endlich wieder Spass am Leben!</strong></p><=
+p>Preise die keine Konkurrenz kennen <p>
+- Diskrete Verpackung und Zahlung<br>- Kein peinlicher Arztbesuch erforderl=
+icht<br>- Bequem und diskret online bestellen.<br>- Kostenlose, arztliche T=
+elefon-Beratung<br>- Kein langes Warten - Auslieferung innerhalb von 2-3 Ta=
+gen<br>- Visa verifizierter Onlineshop<br>- keine versteckte Kosten</p>  
+<p><br><strong><a href=3D"http://ovtkhja.beatlady.hk/?997977070643" target=
+=3D"_blank">Klicken Sie HIER und Sie erhalten vier Dosen umsonst</a><br>
+  </strong>(bitte warten Sie einen Moment bis die Seite vollst&auml;ndig ge=
+laden wird)
+</body>
+</BODY></HTML>
+
+------=_NextPart_000_0007_01C7C3FB.E16EA180--
