@@ -1,1491 +1,1598 @@
-Date: Wed, 11 Jul 2007 13:51:25 +0200
+Date: Wed, 11 Jul 2007 13:54:16 +0200
 From: Nick Piggin <npiggin@suse.de>
-Subject: Re: [patch 1/2] mm: fault feedback 1
-Message-ID: <20070711115125.GB18204@wotan.suse.de>
-References: <20070711115004.GA18204@wotan.suse.de>
+Subject: [patch 2/2] mm: fault feedback 2
+Message-ID: <20070711115416.GC18204@wotan.suse.de>
+References: <20070711115004.GA18204@wotan.suse.de> <20070711115125.GB18204@wotan.suse.de>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20070711115004.GA18204@wotan.suse.de>
+In-Reply-To: <20070711115125.GB18204@wotan.suse.de>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>
 Cc: Linux Memory Management List <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Jul 11, 2007 at 01:50:04PM +0200, Nick Piggin wrote:
-> Feedback from Linus. Not really sure what to name this patch, but I
-> guess it can just be a fix for, and merged into the patch that introducdes
-> ->fault() (otoh I had prefered to stay back compatible and remove the
-> old APIs incrementally, but nobody seems to want this anyway).
-> 
-> I have your series file now looking like this:
-> 
-> mm-fix-fault-vs-invalidate-race-for-linear-mappings.patch
-> mm-fix-fault-vs-invalidate-race-for-linear-mappings-fix.patch
-> mm-merge-populate-and-nopage-into-fault-fixes-nonlinear.patch
-> mm-merge-populate-and-nopage-into-fault-fixes-nonlinear-fix.patch
-> ocfs2-release-page-lock-before-calling-page_mkwrite.patch
-> document-page_mkwrite-locking.patch
-> mm-fault-feedback.patch
-> mm-fault-feedback2.patch
-> #mm-merge-nopfn-into-fault.patch
-> #mm-merge-nopfn-into-fault-spufs-fix.patch
-> #convert-hugetlbfs-to-use-vm_ops-fault.patch
-> #mm-remove-legacy-cruft.patch
-> mm-debug-check-for-the-fault-vs-invalidate-race.patch
-> mm-fix-clear_page_dirty_for_io-vs-fault-race.patch
-> 
-> So if you take these next two patches, please drop the nopfn stuff
-> (that seems to be getting too far ahead of ourselves ATM), and the next
-> two patches got obsolted by these.
-> 
-> readahead-convert-filemap-invocations.patch
-> readahead-split-ondemand-readahead-interface-into-two-functions.patch
-> 
-> Both the above get rejects and need a `%s/fdata/vmf/g`.
+This again I'm not sure quite how it should logically be part of
+the first patch or a seperate one.
 
-Bah, forgot to cc linux-mm.
+
+
 --
-
-Change ->fault prototype. We now return an int, which contains VM_FAULT_xxx
-code in the low byte, and FAULT_RET_xxx code in the next byte. FAULT_RET_
-code tells the VM whether a page was found, whether it has been locked, and
-potentially other things. This is not quite the way he wanted it yet, but
-that's changed in the next patch (which requires changes to arch code).
-
-This means we no longer set VM_CAN_INVALIDATE in the vma in order to say
-that a page is locked which requires filemap_nopage to go away (because we
-can no longer remain backward compatible without that flag), but we were
-going to do that anyway.
-
-struct fault_data is renamed to struct vm_fault as Linus asked. address
-is now a void __user * that we should firmly encourage drivers not to use
-without really good reason.
-
-The page is now returned via a page pointer in the vm_fault struct.
+This patch completes Linus's wish that the fault return codes be made
+into bit flags, which I agree makes everything nicer. This requires
+requires all handle_mm_fault callers to be modified (possibly the
+modifications should go further and do things like fault accounting
+in handle_mm_fault -- however that would be for another patch).
 
 Signed-off-by: Nick Piggin <npiggin@suse.de>
 
----
- Documentation/feature-removal-schedule.txt |   20 --
- fs/gfs2/ops_file.c                         |    2 
- fs/gfs2/ops_vm.c                           |   47 ++--
- fs/ncpfs/mmap.c                            |   35 +--
- fs/ocfs2/mmap.c                            |   27 +-
- fs/xfs/linux-2.6/xfs_file.c                |   12 -
- include/linux/mm.h                         |   82 ++++----
- ipc/shm.c                                  |    5 
- mm/filemap.c                               |  283 ++++-------------------------
- mm/filemap_xip.c                           |   37 +--
- mm/memory.c                                |   97 ++++-----
- mm/nommu.c                                 |    2 
- mm/shmem.c                                 |   29 +-
- 13 files changed, 214 insertions(+), 464 deletions(-)
-
-Index: linux-2.6/fs/gfs2/ops_vm.c
+Index: linux-2.6/arch/i386/mm/fault.c
 ===================================================================
---- linux-2.6.orig/fs/gfs2/ops_vm.c
-+++ linux-2.6/fs/gfs2/ops_vm.c
-@@ -27,13 +27,12 @@
- #include "trans.h"
- #include "util.h"
+--- linux-2.6.orig/arch/i386/mm/fault.c
++++ linux-2.6/arch/i386/mm/fault.c
+@@ -305,6 +305,7 @@ fastcall void __kprobes do_page_fault(st
+ 	struct vm_area_struct * vma;
+ 	unsigned long address;
+ 	int write, si_code;
++	int fault;
  
--static struct page *gfs2_private_fault(struct vm_area_struct *vma,
--					struct fault_data *fdata)
-+static int gfs2_private_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
- {
- 	struct gfs2_inode *ip = GFS2_I(vma->vm_file->f_mapping->host);
- 
- 	set_bit(GIF_PAGED, &ip->i_flags);
--	return filemap_fault(vma, fdata);
-+	return filemap_fault(vma, vmf);
- }
- 
- static int alloc_page_backing(struct gfs2_inode *ip, struct page *page)
-@@ -104,55 +103,55 @@ out:
- 	return error;
- }
- 
--static struct page *gfs2_sharewrite_fault(struct vm_area_struct *vma,
--						struct fault_data *fdata)
-+static int gfs2_sharewrite_fault(struct vm_area_struct *vma,
-+						struct vm_fault *vmf)
- {
- 	struct file *file = vma->vm_file;
- 	struct gfs2_file *gf = file->private_data;
- 	struct gfs2_inode *ip = GFS2_I(file->f_mapping->host);
- 	struct gfs2_holder i_gh;
--	struct page *result = NULL;
- 	int alloc_required;
- 	int error;
-+	int ret = VM_FAULT_MINOR;
- 
- 	error = gfs2_glock_nq_init(ip->i_gl, LM_ST_EXCLUSIVE, 0, &i_gh);
- 	if (error)
--		return NULL;
-+		goto out;
- 
- 	set_bit(GIF_PAGED, &ip->i_flags);
- 	set_bit(GIF_SW_PAGED, &ip->i_flags);
- 
- 	error = gfs2_write_alloc_required(ip,
--					(u64)fdata->pgoff << PAGE_CACHE_SHIFT,
-+					(u64)vmf->pgoff << PAGE_CACHE_SHIFT,
- 					PAGE_CACHE_SIZE, &alloc_required);
- 	if (error) {
--		fdata->type = VM_FAULT_OOM; /* XXX: are these right? */
--		goto out;
-+		ret = VM_FAULT_OOM; /* XXX: are these right? */
-+		goto out_unlock;
+ 	/* get the address */
+         address = read_cr2();
+@@ -424,20 +425,18 @@ good_area:
+ 	 * make sure we exit gracefully rather than endlessly redo
+ 	 * the fault.
+ 	 */
+-	switch (handle_mm_fault(mm, vma, address, write)) {
+-		case VM_FAULT_MINOR:
+-			tsk->min_flt++;
+-			break;
+-		case VM_FAULT_MAJOR:
+-			tsk->maj_flt++;
+-			break;
+-		case VM_FAULT_SIGBUS:
+-			goto do_sigbus;
+-		case VM_FAULT_OOM:
++	fault = handle_mm_fault(mm, vma, address, write);
++	if (unlikely(fault & VM_FAULT_ERROR)) {
++		if (fault & VM_FAULT_OOM)
+ 			goto out_of_memory;
+-		default:
+-			BUG();
++		else if (fault & VM_FAULT_SIGBUS)
++			goto do_sigbus;
++		BUG();
  	}
- 
- 	set_bit(GFF_EXLOCK, &gf->f_flags);
--	result = filemap_fault(vma, fdata);
-+	ret = filemap_fault(vma, vmf);
- 	clear_bit(GFF_EXLOCK, &gf->f_flags);
--	if (!result)
--		goto out;
-+	if (ret & (VM_FAULT_ERROR | FAULT_RET_NOPAGE))
-+		goto out_unlock;
- 
- 	if (alloc_required) {
--		error = alloc_page_backing(ip, result);
-+		/* XXX: do we need to drop page lock around alloc_page_backing?*/
-+		error = alloc_page_backing(ip, vmf->page);
- 		if (error) {
--			if (vma->vm_flags & VM_CAN_INVALIDATE)
--				unlock_page(result);
--			page_cache_release(result);
--			fdata->type = VM_FAULT_OOM;
--			result = NULL;
--			goto out;
-+			if (ret & FAULT_RET_LOCKED)
-+				unlock_page(vmf->page);
-+			page_cache_release(vmf->page);
-+			ret = VM_FAULT_OOM;
-+			goto out_unlock;
- 		}
--		set_page_dirty(result);
-+		set_page_dirty(vmf->page);
- 	}
- 
--out:
-+out_unlock:
- 	gfs2_glock_dq_uninit(&i_gh);
--
--	return result;
-+out:
-+	return ret;
- }
- 
- struct vm_operations_struct gfs2_vm_ops_private = {
-Index: linux-2.6/fs/ncpfs/mmap.c
-===================================================================
---- linux-2.6.orig/fs/ncpfs/mmap.c
-+++ linux-2.6/fs/ncpfs/mmap.c
-@@ -24,33 +24,35 @@
- 
- /*
-  * Fill in the supplied page for mmap
-+ * XXX: how are we excluding truncate/invalidate here? Maybe need to lock
-+ * page?
-  */
--static struct page* ncp_file_mmap_fault(struct vm_area_struct *area,
--						struct fault_data *fdata)
-+static int ncp_file_mmap_fault(struct vm_area_struct *area,
-+					struct vm_fault *vmf)
- {
- 	struct file *file = area->vm_file;
- 	struct dentry *dentry = file->f_path.dentry;
- 	struct inode *inode = dentry->d_inode;
--	struct page* page;
- 	char *pg_addr;
- 	unsigned int already_read;
- 	unsigned int count;
- 	int bufsize;
--	int pos;
-+	int pos; /* XXX: loff_t ? */
- 
--	page = alloc_page(GFP_HIGHUSER); /* ncpfs has nothing against high pages
--	           as long as recvmsg and memset works on it */
--	if (!page) {
--		fdata->type = VM_FAULT_OOM;
--		return NULL;
--	}
--	pg_addr = kmap(page);
--	pos = fdata->pgoff << PAGE_SHIFT;
-+	/*
-+	 * ncpfs has nothing against high pages as long
-+	 * as recvmsg and memset works on it
-+	 */
-+	vmf->page = alloc_page(GFP_HIGHUSER);
-+	if (!vmf->page)
-+		return VM_FAULT_OOM;
-+	pg_addr = kmap(vmf->page);
-+	pos = vmf->pgoff << PAGE_SHIFT;
- 
- 	count = PAGE_SIZE;
--	if (fdata->address + PAGE_SIZE > area->vm_end) {
-+	if ((unsigned long)vmf->virtual_address + PAGE_SIZE > area->vm_end) {
- 		WARN_ON(1); /* shouldn't happen? */
--		count = area->vm_end - fdata->address;
-+		count = area->vm_end - (unsigned long)vmf->virtual_address;
- 	}
- 	/* what we can read in one go */
- 	bufsize = NCP_SERVER(inode)->buffer_size;
-@@ -85,17 +87,16 @@ static struct page* ncp_file_mmap_fault(
- 
- 	if (already_read < PAGE_SIZE)
- 		memset(pg_addr + already_read, 0, PAGE_SIZE - already_read);
--	flush_dcache_page(page);
--	kunmap(page);
-+	flush_dcache_page(vmf->page);
-+	kunmap(vmf->page);
++	if (fault & VM_FAULT_MAJOR)
++		tsk->maj_flt++;
++	else
++		tsk->min_flt++;
  
  	/*
- 	 * If I understand ncp_read_kernel() properly, the above always
- 	 * fetches from the network, here the analogue of disk.
- 	 * -- wli
- 	 */
--	fdata->type = VM_FAULT_MAJOR;
- 	count_vm_event(PGMAJFAULT);
--	return page;
-+	return VM_FAULT_MAJOR;
- }
- 
- static struct vm_operations_struct ncp_file_mmap =
-@@ -124,7 +125,6 @@ int ncp_mmap(struct file *file, struct v
- 		return -EFBIG;
- 
- 	vma->vm_ops = &ncp_file_mmap;
--	vma->vm_flags |= VM_CAN_INVALIDATE;
- 	file_accessed(file);
- 	return 0;
- }
-Index: linux-2.6/fs/ocfs2/mmap.c
-===================================================================
---- linux-2.6.orig/fs/ocfs2/mmap.c
-+++ linux-2.6/fs/ocfs2/mmap.c
-@@ -60,30 +60,28 @@ static inline int ocfs2_vm_op_unblock_si
- 	return sigprocmask(SIG_SETMASK, oldset, NULL);
- }
- 
--static struct page *ocfs2_fault(struct vm_area_struct *area,
--						struct fault_data *fdata)
-+static int ocfs2_fault(struct vm_area_struct *area, struct vm_fault *vmf)
- {
--	struct page *page = NULL;
- 	sigset_t blocked, oldset;
--	int ret;
-+	int error, ret;
- 
--	mlog_entry("(area=%p, page offset=%lu)\n", area, fdata->pgoff);
-+	mlog_entry("(area=%p, page offset=%lu)\n", area, vmf->pgoff);
- 
--	ret = ocfs2_vm_op_block_sigs(&blocked, &oldset);
--	if (ret < 0) {
--		fdata->type = VM_FAULT_SIGBUS;
--		mlog_errno(ret);
-+	error = ocfs2_vm_op_block_sigs(&blocked, &oldset);
-+	if (error < 0) {
-+		mlog_errno(error);
-+		ret = VM_FAULT_SIGBUS;
- 		goto out;
- 	}
- 
--	page = filemap_fault(area, fdata);
-+	ret = filemap_fault(area, vmf);
- 
--	ret = ocfs2_vm_op_unblock_sigs(&oldset);
--	if (ret < 0)
--		mlog_errno(ret);
-+	error = ocfs2_vm_op_unblock_sigs(&oldset);
-+	if (error < 0)
-+		mlog_errno(error);
- out:
--	mlog_exit_ptr(page);
--	return page;
-+	mlog_exit_ptr(vmf->page);
-+	return ret;
- }
- 
- static int __ocfs2_page_mkwrite(struct inode *inode, struct buffer_head *di_bh,
-@@ -225,7 +223,7 @@ int ocfs2_mmap(struct file *file, struct
- 	ocfs2_meta_unlock(file->f_dentry->d_inode, lock_level);
- out:
- 	vma->vm_ops = &ocfs2_file_vm_ops;
--	vma->vm_flags |= VM_CAN_INVALIDATE | VM_CAN_NONLINEAR;
-+	vma->vm_flags |= VM_CAN_NONLINEAR;
- 	return 0;
- }
- 
-Index: linux-2.6/fs/xfs/linux-2.6/xfs_file.c
-===================================================================
---- linux-2.6.orig/fs/xfs/linux-2.6/xfs_file.c
-+++ linux-2.6/fs/xfs/linux-2.6/xfs_file.c
-@@ -245,20 +245,18 @@ xfs_file_fsync(
- }
- 
- #ifdef CONFIG_XFS_DMAPI
--STATIC struct page *
-+STATIC int
- xfs_vm_fault(
- 	struct vm_area_struct	*vma,
--	struct fault_data	*fdata)
-+	struct vm_fault	*vmf)
- {
- 	struct inode	*inode = vma->vm_file->f_path.dentry->d_inode;
- 	bhv_vnode_t	*vp = vn_from_inode(inode);
- 
- 	ASSERT_ALWAYS(vp->v_vfsp->vfs_flag & VFS_DMI);
--	if (XFS_SEND_MMAP(XFS_VFSTOM(vp->v_vfsp), vma, 0)) {
--		fdata->type = VM_FAULT_SIGBUS;
--		return NULL;
--	}
--	return filemap_fault(vma, fdata);
-+	if (XFS_SEND_MMAP(XFS_VFSTOM(vp->v_vfsp), vma, 0))
-+		return VM_FAULT_SIGBUS;
-+	return filemap_fault(vma, vmf);
- }
- #endif /* CONFIG_XFS_DMAPI */
- 
-@@ -344,7 +342,7 @@ xfs_file_mmap(
- 	struct vm_area_struct *vma)
- {
- 	vma->vm_ops = &xfs_file_vm_ops;
--	vma->vm_flags |= VM_CAN_INVALIDATE | VM_CAN_NONLINEAR;
-+	vma->vm_flags |= VM_CAN_NONLINEAR;
- 
- #ifdef CONFIG_XFS_DMAPI
- 	if (vn_from_inode(filp->f_path.dentry->d_inode)->v_vfsp->vfs_flag & VFS_DMI)
+ 	 * Did it hit the DOS screen memory VA from vm86 mode?
 Index: linux-2.6/include/linux/mm.h
 ===================================================================
 --- linux-2.6.orig/include/linux/mm.h
 +++ linux-2.6/include/linux/mm.h
-@@ -170,12 +170,7 @@ extern unsigned int kobjsize(const void 
- #define VM_INSERTPAGE	0x02000000	/* The vma has had "vm_insert_page()" done on it */
- #define VM_ALWAYSDUMP	0x04000000	/* Always include in core dumps */
+@@ -198,25 +198,10 @@ extern pgprot_t protection_map[16];
+ #define FAULT_FLAG_NONLINEAR	0x02	/* Fault was via a nonlinear mapping */
  
--#define VM_CAN_INVALIDATE 0x08000000	/* The mapping may be invalidated,
--					 * eg. truncate or invalidate_inode_*.
--					 * In this case, do_no_page must
--					 * return with the page locked.
+ 
+-#define FAULT_RET_NOPAGE	0x0100	/* ->fault did not return a page. This
+-					 * can be used if the handler installs
+-					 * their own pte.
 -					 */
--#define VM_CAN_NONLINEAR 0x10000000	/* Has ->fault & does nonlinear pages */
-+#define VM_CAN_NONLINEAR 0x08000000	/* Has ->fault & does nonlinear pages */
- 
- #ifndef VM_STACK_DEFAULT_FLAGS		/* arch can override this */
- #define VM_STACK_DEFAULT_FLAGS VM_DATA_DEFAULT_FLAGS
-@@ -199,24 +194,44 @@ extern unsigned int kobjsize(const void 
-  */
- extern pgprot_t protection_map[16];
- 
--#define FAULT_FLAG_WRITE	0x01
--#define FAULT_FLAG_NONLINEAR	0x02
-+#define FAULT_FLAG_WRITE	0x01	/* Fault was a write access */
-+#define FAULT_FLAG_NONLINEAR	0x02	/* Fault was via a nonlinear mapping */
-+
-+
-+#define FAULT_RET_NOPAGE	0x0100	/* ->fault did not return a page. This
-+					 * can be used if the handler installs
-+					 * their own pte.
-+					 */
-+#define FAULT_RET_LOCKED	0x0200	/* ->fault locked the page, caller must
-+					 * unlock after installing the mapping.
-+					 * This is used by pagecache in
-+					 * particular, where the page lock is
-+					 * used to synchronise against truncate
-+					 * and invalidate. Mutually exclusive
-+					 * with FAULT_RET_NOPAGE.
-+					 */
- 
+-#define FAULT_RET_LOCKED	0x0200	/* ->fault locked the page, caller must
+-					 * unlock after installing the mapping.
+-					 * This is used by pagecache in
+-					 * particular, where the page lock is
+-					 * used to synchronise against truncate
+-					 * and invalidate. Mutually exclusive
+-					 * with FAULT_RET_NOPAGE.
+-					 */
+-
  /*
-- * fault_data is filled in the the pagefault handler and passed to the
-- * vma's ->fault function. That function is responsible for filling in
-- * 'type', which is the type of fault if a page is returned, or the type
-- * of error if NULL is returned.
-- *
-- * pgoff should be used in favour of address, if possible. If pgoff is
-- * used, one may set VM_CAN_NONLINEAR in the vma->vm_flags to get
-- * nonlinear mapping support.
-- */
--struct fault_data {
--	unsigned long address;
--	pgoff_t pgoff;
--	unsigned int flags;
--	int type;
-+ * vm_fault is filled by the the pagefault handler and passed to the vma's
-+ * ->fault function. The vma's ->fault is responsible for returning the
-+ * VM_FAULT_xxx type which occupies the lowest byte of the return code, ORed
-+ * with FAULT_RET_ flags that occupy the next byte and give details about
-+ * how the fault was handled.
-+ *
-+ * pgoff should be used in favour of virtual_address, if possible. If pgoff
-+ * is used, one may set VM_CAN_NONLINEAR in the vma->vm_flags to get nonlinear
-+ * mapping support.
-+ */
-+struct vm_fault {
-+	unsigned int flags;		/* FAULT_FLAG_xxx flags */
-+	pgoff_t pgoff;			/* Logical page offset based on vma */
-+	void __user *virtual_address;	/* Faulting virtual address */
-+
-+	struct page *page;		/* ->fault handlers should return a
-+					 * page here, unless FAULT_RET_NOPAGE
-+					 * is set (which is also implied by
-+					 * VM_FAULT_OOM or SIGBUS).
-+					 */
+  * vm_fault is filled by the the pagefault handler and passed to the vma's
+- * ->fault function. The vma's ->fault is responsible for returning the
+- * VM_FAULT_xxx type which occupies the lowest byte of the return code, ORed
+- * with FAULT_RET_ flags that occupy the next byte and give details about
+- * how the fault was handled.
++ * ->fault function. The vma's ->fault is responsible for returning a bitmask
++ * of VM_FAULT_xxx flags that give details about how the fault was handled.
+  *
+  * pgoff should be used in favour of virtual_address, if possible. If pgoff
+  * is used, one may set VM_CAN_NONLINEAR in the vma->vm_flags to get nonlinear
+@@ -228,9 +213,9 @@ struct vm_fault {
+ 	void __user *virtual_address;	/* Faulting virtual address */
+ 
+ 	struct page *page;		/* ->fault handlers should return a
+-					 * page here, unless FAULT_RET_NOPAGE
++					 * page here, unless VM_FAULT_NOPAGE
+ 					 * is set (which is also implied by
+-					 * VM_FAULT_OOM or SIGBUS).
++					 * VM_FAULT_ERROR).
+ 					 */
  };
  
- /*
-@@ -227,15 +242,11 @@ struct fault_data {
- struct vm_operations_struct {
- 	void (*open)(struct vm_area_struct * area);
- 	void (*close)(struct vm_area_struct * area);
--	struct page *(*fault)(struct vm_area_struct *vma,
--			struct fault_data *fdata);
-+	int (*fault)(struct vm_area_struct *vma, struct vm_fault *vmf);
- 	struct page *(*nopage)(struct vm_area_struct *area,
- 			unsigned long address, int *type);
- 	unsigned long (*nopfn)(struct vm_area_struct *area,
- 			unsigned long address);
--	int (*populate)(struct vm_area_struct *area, unsigned long address,
--			unsigned long len, pgprot_t prot, unsigned long pgoff,
--			int nonblock);
- 
- 	/* notification that a previously read-only page is about to become
- 	 * writable, if an error is returned it will cause a SIGBUS */
-@@ -701,8 +712,14 @@ static inline int page_mapped(struct pag
-  * Used to decide whether a process gets delivered SIGBUS or
+@@ -713,26 +698,15 @@ static inline int page_mapped(struct pag
   * just gets major/minor fault counters bumped up.
   */
--#define VM_FAULT_OOM	0x00
--#define VM_FAULT_SIGBUS	0x01
-+
-+/*
-+ * VM_FAULT_ERROR is set for the error cases, to make some tests simpler.
-+ */
-+#define VM_FAULT_ERROR	0x20
-+
-+#define VM_FAULT_OOM	(0x00 | VM_FAULT_ERROR)
-+#define VM_FAULT_SIGBUS	(0x01 | VM_FAULT_ERROR)
- #define VM_FAULT_MINOR	0x02
- #define VM_FAULT_MAJOR	0x03
- 
-@@ -712,6 +729,11 @@ static inline int page_mapped(struct pag
-  */
- #define VM_FAULT_WRITE	0x10
- 
-+/*
-+ * Mask of VM_FAULT_ flags
-+ */
-+#define VM_FAULT_MASK	0xff
-+
- #define offset_in_page(p)	((unsigned long)(p) & ~PAGE_MASK)
- 
- extern void show_free_areas(void);
-@@ -794,8 +816,6 @@ static inline void unmap_shared_mapping_
- 
- extern int vmtruncate(struct inode * inode, loff_t offset);
- extern int vmtruncate_range(struct inode * inode, loff_t offset, loff_t end);
--extern int install_page(struct mm_struct *mm, struct vm_area_struct *vma, unsigned long addr, struct page *page, pgprot_t prot);
--extern int install_file_pte(struct mm_struct *mm, struct vm_area_struct *vma, unsigned long addr, unsigned long pgoff, pgprot_t prot);
- 
- #ifdef CONFIG_MMU
- extern int __handle_mm_fault(struct mm_struct *mm,struct vm_area_struct *vma,
-@@ -1128,11 +1148,7 @@ extern void truncate_inode_pages_range(s
- 				       loff_t lstart, loff_t lend);
- 
- /* generic vm_area_ops exported for stackable file systems */
--extern struct page *filemap_fault(struct vm_area_struct *, struct fault_data *);
--extern struct page * __deprecated_for_modules
--filemap_nopage(struct vm_area_struct *, unsigned long, int *);
--extern int __deprecated_for_modules filemap_populate(struct vm_area_struct *,
--		unsigned long, unsigned long, pgprot_t, unsigned long, int);
-+extern int filemap_fault(struct vm_area_struct *, struct vm_fault *);
- 
- /* mm/page-writeback.c */
- int write_one_page(struct page *page, int wait);
-Index: linux-2.6/ipc/shm.c
-===================================================================
---- linux-2.6.orig/ipc/shm.c
-+++ linux-2.6/ipc/shm.c
-@@ -226,13 +226,12 @@ static void shm_close(struct vm_area_str
- 	mutex_unlock(&shm_ids(ns).mutex);
- }
- 
--static struct page *shm_fault(struct vm_area_struct *vma,
--					struct fault_data *fdata)
-+static int shm_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
- {
- 	struct file *file = vma->vm_file;
- 	struct shm_file_data *sfd = shm_file_data(file);
- 
--	return sfd->vm_ops->fault(vma, fdata);
-+	return sfd->vm_ops->fault(vma, vmf);
- }
- 
- #ifdef CONFIG_NUMA
-Index: linux-2.6/mm/filemap.c
-===================================================================
---- linux-2.6.orig/mm/filemap.c
-+++ linux-2.6/mm/filemap.c
-@@ -1335,8 +1335,8 @@ static int fastcall page_cache_read(stru
- 
- /**
-  * filemap_fault - read in file data for page fault handling
-- * @vma:	user vma (not used)
-- * @fdata:	the applicable fault_data
-+ * @vma:	vma in which the fault was taken
-+ * @vmf:	struct vm_fault containing details of the fault
-  *
-  * filemap_fault() is invoked via the vma operations vector for a
-  * mapped memory region to read in file data during a page fault.
-@@ -1345,7 +1345,7 @@ static int fastcall page_cache_read(stru
-  * it in the page cache, and handles the special cases reasonably without
-  * having a lot of duplicated code.
-  */
--struct page *filemap_fault(struct vm_area_struct *vma, struct fault_data *fdata)
-+int filemap_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
- {
- 	int error;
- 	struct file *file = vma->vm_file;
-@@ -1355,13 +1355,12 @@ struct page *filemap_fault(struct vm_are
- 	struct page *page;
- 	unsigned long size;
- 	int did_readaround = 0;
-+	int ret;
- 
--	fdata->type = VM_FAULT_MINOR;
--
--	BUG_ON(!(vma->vm_flags & VM_CAN_INVALIDATE));
-+	ret = VM_FAULT_MINOR;
- 
- 	size = (i_size_read(inode) + PAGE_CACHE_SIZE - 1) >> PAGE_CACHE_SHIFT;
--	if (fdata->pgoff >= size)
-+	if (vmf->pgoff >= size)
- 		goto outside_data_content;
- 
- 	/* If we don't want any read-ahead, don't bother */
-@@ -1375,18 +1374,18 @@ struct page *filemap_fault(struct vm_are
- 	 * For sequential accesses, we use the generic readahead logic.
- 	 */
- 	if (VM_SequentialReadHint(vma))
--		page_cache_readahead(mapping, ra, file, fdata->pgoff, 1);
-+		page_cache_readahead(mapping, ra, file, vmf->pgoff, 1);
- 
- 	/*
- 	 * Do we have something in the page cache already?
- 	 */
- retry_find:
--	page = find_lock_page(mapping, fdata->pgoff);
-+	page = find_lock_page(mapping, vmf->pgoff);
- 	if (!page) {
- 		unsigned long ra_pages;
- 
- 		if (VM_SequentialReadHint(vma)) {
--			handle_ra_miss(mapping, ra, fdata->pgoff);
-+			handle_ra_miss(mapping, ra, vmf->pgoff);
- 			goto no_cached_page;
- 		}
- 		ra->mmap_miss++;
-@@ -1403,7 +1402,7 @@ retry_find:
- 		 * check did_readaround, as this is an inner loop.
- 		 */
- 		if (!did_readaround) {
--			fdata->type = VM_FAULT_MAJOR;
-+			ret = VM_FAULT_MAJOR;
- 			count_vm_event(PGMAJFAULT);
- 		}
- 		did_readaround = 1;
-@@ -1411,11 +1410,11 @@ retry_find:
- 		if (ra_pages) {
- 			pgoff_t start = 0;
- 
--			if (fdata->pgoff > ra_pages / 2)
--				start = fdata->pgoff - ra_pages / 2;
-+			if (vmf->pgoff > ra_pages / 2)
-+				start = vmf->pgoff - ra_pages / 2;
- 			do_page_cache_readahead(mapping, file, start, ra_pages);
- 		}
--		page = find_lock_page(mapping, fdata->pgoff);
-+		page = find_lock_page(mapping, vmf->pgoff);
- 		if (!page)
- 			goto no_cached_page;
- 	}
-@@ -1432,7 +1431,7 @@ retry_find:
- 
- 	/* Must recheck i_size under page lock */
- 	size = (i_size_read(inode) + PAGE_CACHE_SIZE - 1) >> PAGE_CACHE_SHIFT;
--	if (unlikely(fdata->pgoff >= size)) {
-+	if (unlikely(vmf->pgoff >= size)) {
- 		unlock_page(page);
- 		goto outside_data_content;
- 	}
-@@ -1441,24 +1440,24 @@ retry_find:
- 	 * Found the page and have a reference on it.
- 	 */
- 	mark_page_accessed(page);
--	return page;
-+	vmf->page = page;
-+	return ret | FAULT_RET_LOCKED;
- 
- outside_data_content:
- 	/*
- 	 * An external ptracer can access pages that normally aren't
- 	 * accessible..
- 	 */
--	if (vma->vm_mm == current->mm) {
--		fdata->type = VM_FAULT_SIGBUS;
--		return NULL;
--	}
-+	if (vma->vm_mm == current->mm)
-+		return VM_FAULT_SIGBUS;
-+
- 	/* Fall through to the non-read-ahead case */
- no_cached_page:
- 	/*
- 	 * We're only likely to ever get here if MADV_RANDOM is in
- 	 * effect.
- 	 */
--	error = page_cache_read(file, fdata->pgoff);
-+	error = page_cache_read(file, vmf->pgoff);
- 
- 	/*
- 	 * The page we want has now been added to the page cache.
-@@ -1474,15 +1473,13 @@ no_cached_page:
- 	 * to schedule I/O.
- 	 */
- 	if (error == -ENOMEM)
--		fdata->type = VM_FAULT_OOM;
--	else
--		fdata->type = VM_FAULT_SIGBUS;
--	return NULL;
-+		return VM_FAULT_OOM;
-+	return VM_FAULT_SIGBUS;
- 
- page_not_uptodate:
- 	/* IO error path */
- 	if (!did_readaround) {
--		fdata->type = VM_FAULT_MAJOR;
-+		ret = VM_FAULT_MAJOR;
- 		count_vm_event(PGMAJFAULT);
- 	}
- 
-@@ -1501,206 +1498,10 @@ page_not_uptodate:
- 
- 	/* Things didn't work out. Return zero to tell the mm layer so. */
- 	shrink_readahead_size_eio(file, ra);
--	fdata->type = VM_FAULT_SIGBUS;
--	return NULL;
-+	return VM_FAULT_SIGBUS;
- }
- EXPORT_SYMBOL(filemap_fault);
  
 -/*
-- * filemap_nopage and filemap_populate are legacy exports that are not used
-- * in tree. Scheduled for removal.
+- * VM_FAULT_ERROR is set for the error cases, to make some tests simpler.
 - */
--struct page *filemap_nopage(struct vm_area_struct *area,
--				unsigned long address, int *type)
+-#define VM_FAULT_ERROR	0x20
++#define VM_FAULT_OOM	0x0001
++#define VM_FAULT_SIGBUS	0x0002
++#define VM_FAULT_MAJOR	0x0004
++#define VM_FAULT_WRITE	0x0008	/* Special case for get_user_pages */
+ 
+-#define VM_FAULT_OOM	(0x00 | VM_FAULT_ERROR)
+-#define VM_FAULT_SIGBUS	(0x01 | VM_FAULT_ERROR)
+-#define VM_FAULT_MINOR	0x02
+-#define VM_FAULT_MAJOR	0x03
++#define VM_FAULT_NOPAGE	0x0100	/* ->fault installed the pte, not return page */
++#define VM_FAULT_LOCKED	0x0200	/* ->fault locked the returned page */
+ 
+-/* 
+- * Special case for get_user_pages.
+- * Must be in a distinct bit from the above VM_FAULT_ flags.
+- */
+-#define VM_FAULT_WRITE	0x10
+-
+-/*
+- * Mask of VM_FAULT_ flags
+- */
+-#define VM_FAULT_MASK	0xff
++#define VM_FAULT_ERROR	(VM_FAULT_OOM | VM_FAULT_SIGBUS)
+ 
+ #define offset_in_page(p)	((unsigned long)(p) & ~PAGE_MASK)
+ 
+@@ -818,16 +792,8 @@ extern int vmtruncate(struct inode * ino
+ extern int vmtruncate_range(struct inode * inode, loff_t offset, loff_t end);
+ 
+ #ifdef CONFIG_MMU
+-extern int __handle_mm_fault(struct mm_struct *mm,struct vm_area_struct *vma,
++extern int handle_mm_fault(struct mm_struct *mm, struct vm_area_struct *vma,
+ 			unsigned long address, int write_access);
+-
+-static inline int handle_mm_fault(struct mm_struct *mm,
+-			struct vm_area_struct *vma, unsigned long address,
+-			int write_access)
 -{
--	struct page *page;
--	struct fault_data fdata;
--	fdata.address = address;
--	fdata.pgoff = ((address - area->vm_start) >> PAGE_CACHE_SHIFT)
--			+ area->vm_pgoff;
--	fdata.flags = 0;
--
--	page = filemap_fault(area, &fdata);
--	if (type)
--		*type = fdata.type;
--
--	return page;
+-	return __handle_mm_fault(mm, vma, address, write_access) &
+-				(~VM_FAULT_WRITE);
 -}
--EXPORT_SYMBOL(filemap_nopage);
--
--static struct page * filemap_getpage(struct file *file, unsigned long pgoff,
--					int nonblock)
--{
--	struct address_space *mapping = file->f_mapping;
--	struct page *page;
--	int error;
--
--	/*
--	 * Do we have something in the page cache already?
--	 */
--retry_find:
--	page = find_get_page(mapping, pgoff);
--	if (!page) {
--		if (nonblock)
--			return NULL;
--		goto no_cached_page;
--	}
--
--	/*
--	 * Ok, found a page in the page cache, now we need to check
--	 * that it's up-to-date.
--	 */
--	if (!PageUptodate(page)) {
--		if (nonblock) {
--			page_cache_release(page);
--			return NULL;
--		}
--		goto page_not_uptodate;
--	}
--
--success:
--	/*
--	 * Found the page and have a reference on it.
--	 */
--	mark_page_accessed(page);
--	return page;
--
--no_cached_page:
--	error = page_cache_read(file, pgoff);
--
--	/*
--	 * The page we want has now been added to the page cache.
--	 * In the unlikely event that someone removed it in the
--	 * meantime, we'll just come back here and read it again.
--	 */
--	if (error >= 0)
--		goto retry_find;
--
--	/*
--	 * An error return from page_cache_read can result if the
--	 * system is low on memory, or a problem occurs while trying
--	 * to schedule I/O.
--	 */
--	return NULL;
--
--page_not_uptodate:
--	lock_page(page);
--
--	/* Did it get truncated while we waited for it? */
--	if (!page->mapping) {
--		unlock_page(page);
--		goto err;
--	}
--
--	/* Did somebody else get it up-to-date? */
--	if (PageUptodate(page)) {
--		unlock_page(page);
--		goto success;
--	}
--
--	error = mapping->a_ops->readpage(file, page);
--	if (!error) {
--		wait_on_page_locked(page);
--		if (PageUptodate(page))
--			goto success;
--	} else if (error == AOP_TRUNCATED_PAGE) {
--		page_cache_release(page);
--		goto retry_find;
--	}
--
--	/*
--	 * Umm, take care of errors if the page isn't up-to-date.
--	 * Try to re-read it _once_. We do this synchronously,
--	 * because there really aren't any performance issues here
--	 * and we need to check for errors.
--	 */
--	lock_page(page);
--
--	/* Somebody truncated the page on us? */
--	if (!page->mapping) {
--		unlock_page(page);
--		goto err;
--	}
--	/* Somebody else successfully read it in? */
--	if (PageUptodate(page)) {
--		unlock_page(page);
--		goto success;
--	}
--
--	ClearPageError(page);
--	error = mapping->a_ops->readpage(file, page);
--	if (!error) {
--		wait_on_page_locked(page);
--		if (PageUptodate(page))
--			goto success;
--	} else if (error == AOP_TRUNCATED_PAGE) {
--		page_cache_release(page);
--		goto retry_find;
--	}
--
--	/*
--	 * Things didn't work out. Return zero to tell the
--	 * mm layer so, possibly freeing the page cache page first.
--	 */
--err:
--	page_cache_release(page);
--
--	return NULL;
--}
--
--int filemap_populate(struct vm_area_struct *vma, unsigned long addr,
--		unsigned long len, pgprot_t prot, unsigned long pgoff,
--		int nonblock)
--{
--	struct file *file = vma->vm_file;
--	struct address_space *mapping = file->f_mapping;
--	struct inode *inode = mapping->host;
--	unsigned long size;
--	struct mm_struct *mm = vma->vm_mm;
--	struct page *page;
--	int err;
--
--	if (!nonblock)
--		force_page_cache_readahead(mapping, vma->vm_file,
--					pgoff, len >> PAGE_CACHE_SHIFT);
--
--repeat:
--	size = (i_size_read(inode) + PAGE_CACHE_SIZE - 1) >> PAGE_CACHE_SHIFT;
--	if (pgoff + (len >> PAGE_CACHE_SHIFT) > size)
--		return -EINVAL;
--
--	page = filemap_getpage(file, pgoff, nonblock);
--
--	/* XXX: This is wrong, a filesystem I/O error may have happened. Fix that as
--	 * done in shmem_populate calling shmem_getpage */
--	if (!page && !nonblock)
--		return -ENOMEM;
--
--	if (page) {
--		err = install_page(mm, vma, addr, page, prot);
--		if (err) {
--			page_cache_release(page);
--			return err;
--		}
--	} else if (vma->vm_flags & VM_NONLINEAR) {
--		/* No page was found just because we can't read it in now (being
--		 * here implies nonblock != 0), but the page may exist, so set
--		 * the PTE to fault it in later. */
--		err = install_file_pte(mm, vma, addr, pgoff, prot);
--		if (err)
--			return err;
--	}
--
--	len -= PAGE_SIZE;
--	addr += PAGE_SIZE;
--	pgoff++;
--	if (len)
--		goto repeat;
--
--	return 0;
--}
--EXPORT_SYMBOL(filemap_populate);
--
- struct vm_operations_struct generic_file_vm_ops = {
- 	.fault		= filemap_fault,
- };
-@@ -1715,7 +1516,7 @@ int generic_file_mmap(struct file * file
- 		return -ENOEXEC;
- 	file_accessed(file);
- 	vma->vm_ops = &generic_file_vm_ops;
--	vma->vm_flags |= VM_CAN_INVALIDATE | VM_CAN_NONLINEAR;
-+	vma->vm_flags |= VM_CAN_NONLINEAR;
- 	return 0;
- }
- 
-Index: linux-2.6/mm/filemap_xip.c
-===================================================================
---- linux-2.6.orig/mm/filemap_xip.c
-+++ linux-2.6/mm/filemap_xip.c
-@@ -232,8 +232,7 @@ __xip_unmap (struct address_space * mapp
-  *
-  * This function is derived from filemap_fault, but used for execute in place
-  */
--static struct page *xip_file_fault(struct vm_area_struct *area,
--					struct fault_data *fdata)
-+static int xip_file_fault(struct vm_area_struct *area, struct vm_fault *vmf)
- {
- 	struct file *file = area->vm_file;
- 	struct address_space *mapping = file->f_mapping;
-@@ -244,19 +243,15 @@ static struct page *xip_file_fault(struc
- 	/* XXX: are VM_FAULT_ codes OK? */
- 
- 	size = (i_size_read(inode) + PAGE_CACHE_SIZE - 1) >> PAGE_CACHE_SHIFT;
--	if (fdata->pgoff >= size) {
--		fdata->type = VM_FAULT_SIGBUS;
--		return NULL;
--	}
-+	if (vmf->pgoff >= size)
-+		return VM_FAULT_SIGBUS;
- 
- 	page = mapping->a_ops->get_xip_page(mapping,
--					fdata->pgoff*(PAGE_SIZE/512), 0);
-+					vmf->pgoff*(PAGE_SIZE/512), 0);
- 	if (!IS_ERR(page))
- 		goto out;
--	if (PTR_ERR(page) != -ENODATA) {
--		fdata->type = VM_FAULT_OOM;
--		return NULL;
--	}
-+	if (PTR_ERR(page) != -ENODATA)
-+		return VM_FAULT_OOM;
- 
- 	/* sparse block */
- 	if ((area->vm_flags & (VM_WRITE | VM_MAYWRITE)) &&
-@@ -264,26 +259,22 @@ static struct page *xip_file_fault(struc
- 	    (!(mapping->host->i_sb->s_flags & MS_RDONLY))) {
- 		/* maybe shared writable, allocate new block */
- 		page = mapping->a_ops->get_xip_page(mapping,
--					fdata->pgoff*(PAGE_SIZE/512), 1);
--		if (IS_ERR(page)) {
--			fdata->type = VM_FAULT_SIGBUS;
--			return NULL;
--		}
-+					vmf->pgoff*(PAGE_SIZE/512), 1);
-+		if (IS_ERR(page))
-+			return VM_FAULT_SIGBUS;
- 		/* unmap page at pgoff from all other vmas */
--		__xip_unmap(mapping, fdata->pgoff);
-+		__xip_unmap(mapping, vmf->pgoff);
- 	} else {
- 		/* not shared and writable, use xip_sparse_page() */
- 		page = xip_sparse_page();
--		if (!page) {
--			fdata->type = VM_FAULT_OOM;
--			return NULL;
--		}
-+		if (!page)
-+			return VM_FAULT_OOM;
- 	}
- 
- out:
--	fdata->type = VM_FAULT_MINOR;
- 	page_cache_get(page);
--	return page;
-+	vmf->page = page;
-+	return VM_FAULT_MINOR;
- }
- 
- static struct vm_operations_struct xip_file_vm_ops = {
+ #else
+ static inline int handle_mm_fault(struct mm_struct *mm,
+ 			struct vm_area_struct *vma, unsigned long address,
 Index: linux-2.6/mm/memory.c
 ===================================================================
 --- linux-2.6.orig/mm/memory.c
 +++ linux-2.6/mm/memory.c
-@@ -1828,10 +1828,10 @@ static int unmap_mapping_range_vma(struc
+@@ -1062,31 +1062,30 @@ int get_user_pages(struct task_struct *t
+ 			cond_resched();
+ 			while (!(page = follow_page(vma, start, foll_flags))) {
+ 				int ret;
+-				ret = __handle_mm_fault(mm, vma, start,
++				ret = handle_mm_fault(mm, vma, start,
+ 						foll_flags & FOLL_WRITE);
++				if (ret & VM_FAULT_ERROR) {
++					if (ret & VM_FAULT_OOM)
++						return i ? i : -ENOMEM;
++					else if (ret & VM_FAULT_SIGBUS)
++						return i ? i : -EFAULT;
++					BUG();
++				}
++				if (ret & VM_FAULT_MAJOR)
++					tsk->maj_flt++;
++				else
++					tsk->min_flt++;
++
+ 				/*
+-				 * The VM_FAULT_WRITE bit tells us that do_wp_page has
+-				 * broken COW when necessary, even if maybe_mkwrite
+-				 * decided not to set pte_write. We can thus safely do
+-				 * subsequent page lookups as if they were reads.
++				 * The VM_FAULT_WRITE bit tells us that
++				 * do_wp_page has broken COW when necessary,
++				 * even if maybe_mkwrite decided not to set
++				 * pte_write. We can thus safely do subsequent
++				 * page lookups as if they were reads.
+ 				 */
+ 				if (ret & VM_FAULT_WRITE)
+ 					foll_flags &= ~FOLL_WRITE;
+-				
+-				switch (ret & ~VM_FAULT_WRITE) {
+-				case VM_FAULT_MINOR:
+-					tsk->min_flt++;
+-					break;
+-				case VM_FAULT_MAJOR:
+-					tsk->maj_flt++;
+-					break;
+-				case VM_FAULT_SIGBUS:
+-					return i ? i : -EFAULT;
+-				case VM_FAULT_OOM:
+-					return i ? i : -ENOMEM;
+-				default:
+-					BUG();
+-				}
++
+ 				cond_resched();
+ 			}
+ 			if (pages) {
+@@ -1633,7 +1632,7 @@ static int do_wp_page(struct mm_struct *
+ {
+ 	struct page *old_page, *new_page;
+ 	pte_t entry;
+-	int reuse = 0, ret = VM_FAULT_MINOR;
++	int reuse = 0, ret = 0;
+ 	struct page *dirty_page = NULL;
  
+ 	old_page = vm_normal_page(vma, address, orig_pte);
+@@ -1829,8 +1828,8 @@ static int unmap_mapping_range_vma(struc
  	/*
  	 * files that support invalidating or truncating portions of the
--	 * file from under mmaped areas must set the VM_CAN_INVALIDATE flag, and
--	 * have their .nopage function return the page locked.
-+	 * file from under mmaped areas must have their ->fault function
-+	 * return a locked page (and FAULT_RET_LOCKED code). This provides
-+	 * synchronisation against concurrent unmapping here.
+ 	 * file from under mmaped areas must have their ->fault function
+-	 * return a locked page (and FAULT_RET_LOCKED code). This provides
+-	 * synchronisation against concurrent unmapping here.
++	 * return a locked page (and set VM_FAULT_LOCKED in the return).
++	 * This provides synchronisation against concurrent unmapping here.
  	 */
--	BUG_ON(!(vma->vm_flags & VM_CAN_INVALIDATE));
  
  again:
- 	restart_addr = vma->vm_truncate_count;
-@@ -2300,63 +2300,62 @@ static int __do_fault(struct mm_struct *
- 		pgoff_t pgoff, unsigned int flags, pte_t orig_pte)
- {
- 	spinlock_t *ptl;
--	struct page *page, *faulted_page;
-+	struct page *page;
- 	pte_t entry;
- 	int anon = 0;
- 	struct page *dirty_page = NULL;
--	struct fault_data fdata;
-+	struct vm_fault vmf;
-+	int ret;
+@@ -2134,7 +2133,7 @@ static int do_swap_page(struct mm_struct
+ 	struct page *page;
+ 	swp_entry_t entry;
+ 	pte_t pte;
+-	int ret = VM_FAULT_MINOR;
++	int ret = 0;
  
--	fdata.address = address & PAGE_MASK;
--	fdata.pgoff = pgoff;
--	fdata.flags = flags;
-+	vmf.virtual_address = (void __user *)(address & PAGE_MASK);
-+	vmf.pgoff = pgoff;
-+	vmf.flags = flags;
-+	vmf.page = NULL;
+ 	if (!pte_unmap_same(mm, pmd, page_table, orig_pte))
+ 		goto out;
+@@ -2202,8 +2201,9 @@ static int do_swap_page(struct mm_struct
+ 	unlock_page(page);
  
- 	pte_unmap(page_table);
- 	BUG_ON(vma->vm_flags & VM_PFNMAP);
+ 	if (write_access) {
++		/* XXX: We could OR the do_wp_page code with this one? */
+ 		if (do_wp_page(mm, vma, address,
+-				page_table, pmd, ptl, pte) == VM_FAULT_OOM)
++				page_table, pmd, ptl, pte) & VM_FAULT_OOM)
+ 			ret = VM_FAULT_OOM;
+ 		goto out;
+ 	}
+@@ -2274,7 +2274,7 @@ static int do_anonymous_page(struct mm_s
+ 	lazy_mmu_prot_update(entry);
+ unlock:
+ 	pte_unmap_unlock(page_table, ptl);
+-	return VM_FAULT_MINOR;
++	return 0;
+ release:
+ 	page_cache_release(page);
+ 	goto unlock;
+@@ -2317,11 +2317,11 @@ static int __do_fault(struct mm_struct *
  
  	if (likely(vma->vm_ops->fault)) {
--		fdata.type = -1;
--		faulted_page = vma->vm_ops->fault(vma, &fdata);
--		WARN_ON(fdata.type == -1);
--		if (unlikely(!faulted_page))
--			return fdata.type;
-+		ret = vma->vm_ops->fault(vma, &vmf);
-+		if (unlikely(ret & (VM_FAULT_ERROR | FAULT_RET_NOPAGE)))
-+			return (ret & VM_FAULT_MASK);
+ 		ret = vma->vm_ops->fault(vma, &vmf);
+-		if (unlikely(ret & (VM_FAULT_ERROR | FAULT_RET_NOPAGE)))
+-			return (ret & VM_FAULT_MASK);
++		if (unlikely(ret & (VM_FAULT_ERROR | VM_FAULT_NOPAGE)))
++			return ret;
  	} else {
  		/* Legacy ->nopage path */
--		fdata.type = VM_FAULT_MINOR;
--		faulted_page = vma->vm_ops->nopage(vma, address & PAGE_MASK,
--								&fdata.type);
-+		ret = VM_FAULT_MINOR;
-+		vmf.page = vma->vm_ops->nopage(vma, address & PAGE_MASK, &ret);
+-		ret = VM_FAULT_MINOR;
++		ret = 0;
+ 		vmf.page = vma->vm_ops->nopage(vma, address & PAGE_MASK, &ret);
  		/* no page was available -- either SIGBUS or OOM */
--		if (unlikely(faulted_page == NOPAGE_SIGBUS))
-+		if (unlikely(vmf.page == NOPAGE_SIGBUS))
- 			return VM_FAULT_SIGBUS;
--		else if (unlikely(faulted_page == NOPAGE_OOM))
-+		else if (unlikely(vmf.page == NOPAGE_OOM))
- 			return VM_FAULT_OOM;
- 	}
- 
- 	/*
--	 * For consistency in subsequent calls, make the faulted_page always
-+	 * For consistency in subsequent calls, make the faulted page always
+ 		if (unlikely(vmf.page == NOPAGE_SIGBUS))
+@@ -2334,7 +2334,7 @@ static int __do_fault(struct mm_struct *
+ 	 * For consistency in subsequent calls, make the faulted page always
  	 * locked.
  	 */
--	if (unlikely(!(vma->vm_flags & VM_CAN_INVALIDATE)))
--		lock_page(faulted_page);
-+	if (unlikely(!(ret & FAULT_RET_LOCKED)))
-+		lock_page(vmf.page);
+-	if (unlikely(!(ret & FAULT_RET_LOCKED)))
++	if (unlikely(!(ret & VM_FAULT_LOCKED)))
+ 		lock_page(vmf.page);
  	else
--		BUG_ON(!PageLocked(faulted_page));
-+		VM_BUG_ON(!PageLocked(vmf.page));
- 
- 	/*
- 	 * Should we do an early C-O-W break?
- 	 */
--	page = faulted_page;
-+	page = vmf.page;
- 	if (flags & FAULT_FLAG_WRITE) {
- 		if (!(vma->vm_flags & VM_SHARED)) {
- 			anon = 1;
- 			if (unlikely(anon_vma_prepare(vma))) {
--				fdata.type = VM_FAULT_OOM;
-+				ret = VM_FAULT_OOM;
- 				goto out;
- 			}
- 			page = alloc_page_vma(GFP_HIGHUSER, vma, address);
- 			if (!page) {
--				fdata.type = VM_FAULT_OOM;
-+				ret = VM_FAULT_OOM;
- 				goto out;
- 			}
--			copy_user_highpage(page, faulted_page, address, vma);
-+			copy_user_highpage(page, vmf.page, address, vma);
- 		} else {
- 			/*
- 			 * If the page will be shareable, see if the backing
-@@ -2366,11 +2365,23 @@ static int __do_fault(struct mm_struct *
- 			if (vma->vm_ops->page_mkwrite) {
- 				unlock_page(page);
- 				if (vma->vm_ops->page_mkwrite(vma, page) < 0) {
--					fdata.type = VM_FAULT_SIGBUS;
--					anon = 1; /* no anon but release faulted_page */
-+					ret = VM_FAULT_SIGBUS;
-+					anon = 1; /* no anon but release vmf.page */
- 					goto out_unlocked;
+ 		VM_BUG_ON(!PageLocked(vmf.page));
+@@ -2378,7 +2378,7 @@ static int __do_fault(struct mm_struct *
+ 				 * is better done later.
+ 				 */
+ 				if (!page->mapping) {
+-					ret = VM_FAULT_MINOR;
++					ret = 0;
+ 					anon = 1; /* no anon but release vmf.page */
+ 					goto out;
  				}
- 				lock_page(page);
-+				/*
-+				 * XXX: this is not quite right (racy vs
-+				 * invalidate) to unlock and relock the page
-+				 * like this, however a better fix requires
-+				 * reworking page_mkwrite locking API, which
-+				 * is better done later.
-+				 */
-+				if (!page->mapping) {
-+					ret = VM_FAULT_MINOR;
-+					anon = 1; /* no anon but release vmf.page */
-+					goto out;
-+				}
- 			}
- 		}
- 
-@@ -2421,16 +2432,16 @@ static int __do_fault(struct mm_struct *
- 	pte_unmap_unlock(page_table, ptl);
- 
- out:
--	unlock_page(faulted_page);
-+	unlock_page(vmf.page);
- out_unlocked:
- 	if (anon)
--		page_cache_release(faulted_page);
-+		page_cache_release(vmf.page);
- 	else if (dirty_page) {
- 		set_page_dirty_balance(dirty_page);
+@@ -2441,7 +2441,7 @@ out_unlocked:
  		put_page(dirty_page);
  	}
  
--	return fdata.type;
-+	return (ret & VM_FAULT_MASK);
+-	return (ret & VM_FAULT_MASK);
++	return ret;
  }
  
  static int do_linear_fault(struct mm_struct *mm, struct vm_area_struct *vma,
-@@ -2441,18 +2452,10 @@ static int do_linear_fault(struct mm_str
- 			- vma->vm_start) >> PAGE_CACHE_SHIFT) + vma->vm_pgoff;
- 	unsigned int flags = (write_access ? FAULT_FLAG_WRITE : 0);
+@@ -2480,7 +2480,6 @@ static noinline int do_no_pfn(struct mm_
+ 	spinlock_t *ptl;
+ 	pte_t entry;
+ 	unsigned long pfn;
+-	int ret = VM_FAULT_MINOR;
  
--	return __do_fault(mm, vma, address, page_table, pmd, pgoff, flags, orig_pte);
-+	return __do_fault(mm, vma, address, page_table, pmd, pgoff,
-+							flags, orig_pte);
- }
+ 	pte_unmap(page_table);
+ 	BUG_ON(!(vma->vm_flags & VM_PFNMAP));
+@@ -2492,7 +2491,7 @@ static noinline int do_no_pfn(struct mm_
+ 	else if (unlikely(pfn == NOPFN_SIGBUS))
+ 		return VM_FAULT_SIGBUS;
+ 	else if (unlikely(pfn == NOPFN_REFAULT))
+-		return VM_FAULT_MINOR;
++		return 0;
  
--static int do_nonlinear_fault(struct mm_struct *mm, struct vm_area_struct *vma,
--		unsigned long address, pte_t *page_table, pmd_t *pmd,
--		int write_access, pgoff_t pgoff, pte_t orig_pte)
--{
--	unsigned int flags = FAULT_FLAG_NONLINEAR |
--				(write_access ? FAULT_FLAG_WRITE : 0);
--
--	return __do_fault(mm, vma, address, page_table, pmd, pgoff, flags, orig_pte);
--}
+ 	page_table = pte_offset_map_lock(mm, pmd, address, &ptl);
  
- /*
-  * do_no_pfn() tries to create a new page mapping for a page without
-@@ -2513,17 +2516,19 @@ static noinline int do_no_pfn(struct mm_
-  * but allow concurrent faults), and pte mapped but not yet locked.
-  * We return with mmap_sem still held, but pte unmapped and unlocked.
-  */
--static int do_file_page(struct mm_struct *mm, struct vm_area_struct *vma,
-+static int do_nonlinear_fault(struct mm_struct *mm, struct vm_area_struct *vma,
- 		unsigned long address, pte_t *page_table, pmd_t *pmd,
- 		int write_access, pte_t orig_pte)
- {
-+	unsigned int flags = FAULT_FLAG_NONLINEAR |
-+				(write_access ? FAULT_FLAG_WRITE : 0);
- 	pgoff_t pgoff;
--	int err;
- 
- 	if (!pte_unmap_same(mm, pmd, page_table, orig_pte))
- 		return VM_FAULT_MINOR;
- 
--	if (unlikely(!(vma->vm_flags & VM_NONLINEAR))) {
-+	if (unlikely(!(vma->vm_flags & VM_NONLINEAR) ||
-+			!(vma->vm_flags & VM_CAN_NONLINEAR))) {
- 		/*
- 		 * Page table corrupted: show pte and kill process.
- 		 */
-@@ -2533,18 +2538,8 @@ static int do_file_page(struct mm_struct
- 
- 	pgoff = pte_to_pgoff(orig_pte);
- 
--	if (vma->vm_ops && vma->vm_ops->fault)
--		return do_nonlinear_fault(mm, vma, address, page_table, pmd,
--					write_access, pgoff, orig_pte);
--
--	/* We can then assume vm->vm_ops && vma->vm_ops->populate */
--	err = vma->vm_ops->populate(vma, address & PAGE_MASK, PAGE_SIZE,
--					vma->vm_page_prot, pgoff, 0);
--	if (err == -ENOMEM)
--		return VM_FAULT_OOM;
--	if (err)
--		return VM_FAULT_SIGBUS;
--	return VM_FAULT_MAJOR;
-+	return __do_fault(mm, vma, address, page_table, pmd, pgoff,
-+							flags, orig_pte);
- }
- 
- /*
-@@ -2582,7 +2577,7 @@ static inline int handle_pte_fault(struc
- 						 pte, pmd, write_access);
- 		}
- 		if (pte_file(entry))
--			return do_file_page(mm, vma, address,
-+			return do_nonlinear_fault(mm, vma, address,
- 					pte, pmd, write_access, entry);
- 		return do_swap_page(mm, vma, address,
- 					pte, pmd, write_access, entry);
-Index: linux-2.6/mm/nommu.c
-===================================================================
---- linux-2.6.orig/mm/nommu.c
-+++ linux-2.6/mm/nommu.c
-@@ -1336,10 +1336,10 @@ int in_gate_area_no_task(unsigned long a
- 	return 0;
- }
- 
--struct page *filemap_fault(struct vm_area_struct *vma, struct fault_data *fdata)
-+int filemap_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
- {
- 	BUG();
--	return NULL;
+@@ -2504,7 +2503,7 @@ static noinline int do_no_pfn(struct mm_
+ 		set_pte_at(mm, address, page_table, entry);
+ 	}
+ 	pte_unmap_unlock(page_table, ptl);
+-	return ret;
 +	return 0;
  }
  
  /*
+@@ -2525,7 +2524,7 @@ static int do_nonlinear_fault(struct mm_
+ 	pgoff_t pgoff;
+ 
+ 	if (!pte_unmap_same(mm, pmd, page_table, orig_pte))
+-		return VM_FAULT_MINOR;
++		return 0;
+ 
+ 	if (unlikely(!(vma->vm_flags & VM_NONLINEAR) ||
+ 			!(vma->vm_flags & VM_CAN_NONLINEAR))) {
+@@ -2609,13 +2608,13 @@ static inline int handle_pte_fault(struc
+ 	}
+ unlock:
+ 	pte_unmap_unlock(pte, ptl);
+-	return VM_FAULT_MINOR;
++	return 0;
+ }
+ 
+ /*
+  * By the time we get here, we already hold the mm semaphore
+  */
+-int __handle_mm_fault(struct mm_struct *mm, struct vm_area_struct *vma,
++int handle_mm_fault(struct mm_struct *mm, struct vm_area_struct *vma,
+ 		unsigned long address, int write_access)
+ {
+ 	pgd_t *pgd;
+@@ -2644,7 +2643,7 @@ int __handle_mm_fault(struct mm_struct *
+ 	return handle_pte_fault(mm, vma, address, pte, pmd, write_access);
+ }
+ 
+-EXPORT_SYMBOL_GPL(__handle_mm_fault);
++EXPORT_SYMBOL_GPL(handle_mm_fault);
+ 
+ #ifndef __PAGETABLE_PUD_FOLDED
+ /*
+Index: linux-2.6/mm/filemap.c
+===================================================================
+--- linux-2.6.orig/mm/filemap.c
++++ linux-2.6/mm/filemap.c
+@@ -1355,9 +1355,7 @@ int filemap_fault(struct vm_area_struct 
+ 	struct page *page;
+ 	unsigned long size;
+ 	int did_readaround = 0;
+-	int ret;
+-
+-	ret = VM_FAULT_MINOR;
++	int ret = 0;
+ 
+ 	size = (i_size_read(inode) + PAGE_CACHE_SIZE - 1) >> PAGE_CACHE_SHIFT;
+ 	if (vmf->pgoff >= size)
+@@ -1441,7 +1439,7 @@ retry_find:
+ 	 */
+ 	mark_page_accessed(page);
+ 	vmf->page = page;
+-	return ret | FAULT_RET_LOCKED;
++	return ret | VM_FAULT_LOCKED;
+ 
+ outside_data_content:
+ 	/*
 Index: linux-2.6/mm/shmem.c
 ===================================================================
 --- linux-2.6.orig/mm/shmem.c
 +++ linux-2.6/mm/shmem.c
-@@ -1305,29 +1305,21 @@ failed:
- 	return error;
- }
+@@ -1099,7 +1099,7 @@ static int shmem_getpage(struct inode *i
+ 		return -EFBIG;
  
--static struct page *shmem_fault(struct vm_area_struct *vma,
--					struct fault_data *fdata)
-+static int shmem_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
- {
- 	struct inode *inode = vma->vm_file->f_path.dentry->d_inode;
--	struct page *page = NULL;
- 	int error;
-+	int ret;
+ 	if (type)
+-		*type = VM_FAULT_MINOR;
++		*type = 0;
  
--	BUG_ON(!(vma->vm_flags & VM_CAN_INVALIDATE));
-+	if (((loff_t)vmf->pgoff << PAGE_CACHE_SHIFT) >= i_size_read(inode))
-+		return VM_FAULT_SIGBUS;
+ 	/*
+ 	 * Normally, filepage is NULL on entry, and either found
+@@ -1134,9 +1134,9 @@ repeat:
+ 		if (!swappage) {
+ 			shmem_swp_unmap(entry);
+ 			/* here we actually do the io */
+-			if (type && *type == VM_FAULT_MINOR) {
++			if (type && !(*type & VM_FAULT_MAJOR)) {
+ 				__count_vm_event(PGMAJFAULT);
+-				*type = VM_FAULT_MAJOR;
++				*type |= VM_FAULT_MAJOR;
+ 			}
+ 			spin_unlock(&info->lock);
+ 			swappage = shmem_swapin(info, swap, idx);
+@@ -1319,7 +1319,7 @@ static int shmem_fault(struct vm_area_st
+ 		return ((error == -ENOMEM) ? VM_FAULT_OOM : VM_FAULT_SIGBUS);
  
--	if (((loff_t)fdata->pgoff << PAGE_CACHE_SHIFT) >= i_size_read(inode)) {
--		fdata->type = VM_FAULT_SIGBUS;
--		return NULL;
--	}
--
--	error = shmem_getpage(inode, fdata->pgoff, &page,
--						SGP_FAULT, &fdata->type);
--	if (error) {
--		fdata->type = ((error == -ENOMEM)?VM_FAULT_OOM:VM_FAULT_SIGBUS);
--		return NULL;
--	}
-+	error = shmem_getpage(inode, vmf->pgoff, &vmf->page, SGP_FAULT, &ret);
-+	if (error)
-+		return ((error == -ENOMEM) ? VM_FAULT_OOM : VM_FAULT_SIGBUS);
- 
--	mark_page_accessed(page);
--	return page;
-+	mark_page_accessed(vmf->page);
-+	return ret | FAULT_RET_LOCKED;
+ 	mark_page_accessed(vmf->page);
+-	return ret | FAULT_RET_LOCKED;
++	return ret | VM_FAULT_LOCKED;
  }
  
  #ifdef CONFIG_NUMA
-@@ -1374,7 +1366,7 @@ static int shmem_mmap(struct file *file,
- {
- 	file_accessed(file);
- 	vma->vm_ops = &shmem_vm_ops;
--	vma->vm_flags |= VM_CAN_INVALIDATE | VM_CAN_NONLINEAR;
-+	vma->vm_flags |= VM_CAN_NONLINEAR;
- 	return 0;
- }
- 
-@@ -2564,6 +2556,5 @@ int shmem_zero_setup(struct vm_area_stru
- 		fput(vma->vm_file);
- 	vma->vm_file = file;
- 	vma->vm_ops = &shmem_vm_ops;
--	vma->vm_flags |= VM_CAN_INVALIDATE;
- 	return 0;
- }
-Index: linux-2.6/fs/gfs2/ops_file.c
-===================================================================
---- linux-2.6.orig/fs/gfs2/ops_file.c
-+++ linux-2.6/fs/gfs2/ops_file.c
-@@ -364,8 +364,6 @@ static int gfs2_mmap(struct file *file, 
- 	else
- 		vma->vm_ops = &gfs2_vm_ops_private;
- 
--	vma->vm_flags |= VM_CAN_INVALIDATE|VM_CAN_NONLINEAR;
--
- 	gfs2_glock_dq_uninit(&i_gh);
- 
- 	return error;
-Index: linux-2.6/Documentation/feature-removal-schedule.txt
-===================================================================
---- linux-2.6.orig/Documentation/feature-removal-schedule.txt
-+++ linux-2.6/Documentation/feature-removal-schedule.txt
-@@ -145,26 +145,8 @@ Who:	Greg Kroah-Hartman <gregkh@suse.de>
- 
- ---------------------------
- 
--What:	filemap_nopage, filemap_populate
--When:	April 2007
--Why:	These legacy interfaces no longer have any callers in the kernel and
--	any functionality provided can be provided with filemap_fault. The
--	removal schedule is short because they are a big maintainence burden
--	and have some bugs.
--Who:	Nick Piggin <npiggin@suse.de>
--
-----------------------------
--
--What:	vm_ops.populate, install_page
--When:	April 2007
--Why:	These legacy interfaces no longer have any callers in the kernel and
--	any functionality provided can be provided with vm_ops.fault.
--Who:	Nick Piggin <npiggin@suse.de>
--
-----------------------------
--
- What:	vm_ops.nopage
--When:	February 2008, provided in-kernel callers have been converted
-+When:	Soon, provided in-kernel callers have been converted
- Why:	This interface is replaced by vm_ops.fault, but it has been around
- 	forever, is used by a lot of drivers, and doesn't cost much to
- 	maintain.
-Index: linux-2.6/Documentation/filesystems/Locking
-===================================================================
---- linux-2.6.orig/Documentation/filesystems/Locking
-+++ linux-2.6/Documentation/filesystems/Locking
-@@ -510,7 +510,7 @@ More details about quota locking can be 
- prototypes:
- 	void (*open)(struct vm_area_struct*);
- 	void (*close)(struct vm_area_struct*);
--	struct page *(*fault)(struct vm_area_struct*, struct fault_data *);
-+	int (*fault)(struct vm_area_struct*, struct vm_fault *);
- 	struct page *(*nopage)(struct vm_area_struct*, unsigned long, int *);
- 	int (*page_mkwrite)(struct vm_area_struct *, struct page *);
- 
-Index: linux-2.6/mm/fremap.c
-===================================================================
---- linux-2.6.orig/mm/fremap.c
-+++ linux-2.6/mm/fremap.c
-@@ -20,13 +20,14 @@
- #include <asm/cacheflush.h>
- #include <asm/tlbflush.h>
- 
--static int zap_pte(struct mm_struct *mm, struct vm_area_struct *vma,
-+static void zap_pte(struct mm_struct *mm, struct vm_area_struct *vma,
- 			unsigned long addr, pte_t *ptep)
- {
- 	pte_t pte = *ptep;
--	struct page *page = NULL;
- 
- 	if (pte_present(pte)) {
-+		struct page *page;
-+
- 		flush_cache_page(vma, addr, pte_pfn(pte));
- 		pte = ptep_clear_flush(vma, addr, ptep);
- 		page = vm_normal_page(vma, addr, pte);
-@@ -35,68 +36,21 @@ static int zap_pte(struct mm_struct *mm,
- 				set_page_dirty(page);
- 			page_remove_rmap(page, vma);
- 			page_cache_release(page);
-+			update_hiwater_rss(mm);
-+			dec_mm_counter(mm, file_rss);
- 		}
- 	} else {
- 		if (!pte_file(pte))
- 			free_swap_and_cache(pte_to_swp_entry(pte));
- 		pte_clear_not_present_full(mm, addr, ptep, 0);
- 	}
--	return !!page;
- }
- 
- /*
-- * Install a file page to a given virtual memory address, release any
-- * previously existing mapping.
-- */
--int install_page(struct mm_struct *mm, struct vm_area_struct *vma,
--		unsigned long addr, struct page *page, pgprot_t prot)
--{
--	struct inode *inode;
--	pgoff_t size;
--	int err = -ENOMEM;
--	pte_t *pte;
--	pte_t pte_val;
--	spinlock_t *ptl;
--
--	pte = get_locked_pte(mm, addr, &ptl);
--	if (!pte)
--		goto out;
--
--	/*
--	 * This page may have been truncated. Tell the
--	 * caller about it.
--	 */
--	err = -EINVAL;
--	inode = vma->vm_file->f_mapping->host;
--	size = (i_size_read(inode) + PAGE_CACHE_SIZE - 1) >> PAGE_CACHE_SHIFT;
--	if (!page->mapping || page->index >= size)
--		goto unlock;
--	err = -ENOMEM;
--	if (page_mapcount(page) > INT_MAX/2)
--		goto unlock;
--
--	if (pte_none(*pte) || !zap_pte(mm, vma, addr, pte))
--		inc_mm_counter(mm, file_rss);
--
--	flush_icache_page(vma, page);
--	pte_val = mk_pte(page, prot);
--	set_pte_at(mm, addr, pte, pte_val);
--	page_add_file_rmap(page);
--	update_mmu_cache(vma, addr, pte_val);
--	lazy_mmu_prot_update(pte_val);
--	err = 0;
--unlock:
--	pte_unmap_unlock(pte, ptl);
--out:
--	return err;
--}
--EXPORT_SYMBOL(install_page);
--
--/*
-  * Install a file pte to a given virtual memory address, release any
-  * previously existing mapping.
-  */
--int install_file_pte(struct mm_struct *mm, struct vm_area_struct *vma,
-+static int install_file_pte(struct mm_struct *mm, struct vm_area_struct *vma,
- 		unsigned long addr, unsigned long pgoff, pgprot_t prot)
- {
- 	int err = -ENOMEM;
-@@ -107,10 +61,8 @@ int install_file_pte(struct mm_struct *m
- 	if (!pte)
- 		goto out;
- 
--	if (!pte_none(*pte) && zap_pte(mm, vma, addr, pte)) {
--		update_hiwater_rss(mm);
--		dec_mm_counter(mm, file_rss);
--	}
-+	if (!pte_none(*pte))
-+		zap_pte(mm, vma, addr, pte);
- 
- 	set_pte_at(mm, addr, pte, pgoff_to_pte(pgoff));
- 	/*
-@@ -208,8 +160,7 @@ asmlinkage long sys_remap_file_pages(uns
- 	if (vma->vm_private_data && !(vma->vm_flags & VM_NONLINEAR))
- 		goto out;
- 
--	if ((!vma->vm_ops || !vma->vm_ops->populate) &&
--					!(vma->vm_flags & VM_CAN_NONLINEAR))
-+	if (!vma->vm_flags & VM_CAN_NONLINEAR)
- 		goto out;
- 
- 	if (end <= start || start < vma->vm_start || end > vma->vm_end)
-@@ -239,18 +190,14 @@ asmlinkage long sys_remap_file_pages(uns
- 		spin_unlock(&mapping->i_mmap_lock);
- 	}
- 
--	if (vma->vm_flags & VM_CAN_NONLINEAR) {
--		err = populate_range(mm, vma, start, size, pgoff);
--		if (!err && !(flags & MAP_NONBLOCK)) {
--			if (unlikely(has_write_lock)) {
--				downgrade_write(&mm->mmap_sem);
--				has_write_lock = 0;
--			}
--			make_pages_present(start, start+size);
-+	err = populate_range(mm, vma, start, size, pgoff);
-+	if (!err && !(flags & MAP_NONBLOCK)) {
-+		if (unlikely(has_write_lock)) {
-+			downgrade_write(&mm->mmap_sem);
-+			has_write_lock = 0;
- 		}
--	} else
--		err = vma->vm_ops->populate(vma, start, size, vma->vm_page_prot,
--					    	pgoff, flags & MAP_NONBLOCK);
-+		make_pages_present(start, start+size);
-+	}
- 
- 	/*
- 	 * We can't clear VM_NONLINEAR because we'd have to do
 Index: linux-2.6/mm/hugetlb.c
 ===================================================================
 --- linux-2.6.orig/mm/hugetlb.c
 +++ linux-2.6/mm/hugetlb.c
-@@ -292,15 +292,14 @@ unsigned long hugetlb_total_pages(void)
-  * hugegpage VMA.  do_page_fault() is supposed to trap this, so BUG is we get
-  * this far.
-  */
--static struct page *hugetlb_nopage(struct vm_area_struct *vma,
--				unsigned long address, int *unused)
-+static int hugetlb_vm_op_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
- {
- 	BUG();
--	return NULL;
+@@ -445,7 +445,7 @@ static int hugetlb_cow(struct mm_struct 
+ 	avoidcopy = (page_count(old_page) == 1);
+ 	if (avoidcopy) {
+ 		set_huge_ptep_writable(vma, address, ptep);
+-		return VM_FAULT_MINOR;
++		return 0;
+ 	}
+ 
+ 	page_cache_get(old_page);
+@@ -470,7 +470,7 @@ static int hugetlb_cow(struct mm_struct 
+ 	}
+ 	page_cache_release(new_page);
+ 	page_cache_release(old_page);
+-	return VM_FAULT_MINOR;
 +	return 0;
  }
  
- struct vm_operations_struct hugetlb_vm_ops = {
--	.nopage = hugetlb_nopage,
-+	.fault = hugetlb_vm_op_fault,
- };
+ int hugetlb_no_page(struct mm_struct *mm, struct vm_area_struct *vma,
+@@ -527,7 +527,7 @@ retry:
+ 	if (idx >= size)
+ 		goto backout;
  
- static pte_t make_huge_pte(struct vm_area_struct *vma, struct page *page,
+-	ret = VM_FAULT_MINOR;
++	ret = 0;
+ 	if (!pte_none(*ptep))
+ 		goto backout;
+ 
+@@ -578,7 +578,7 @@ int hugetlb_fault(struct mm_struct *mm, 
+ 		return ret;
+ 	}
+ 
+-	ret = VM_FAULT_MINOR;
++	ret = 0;
+ 
+ 	spin_lock(&mm->page_table_lock);
+ 	/* Check for a racing update before calling hugetlb_cow */
+@@ -617,7 +617,7 @@ int follow_hugetlb_page(struct mm_struct
+ 			spin_unlock(&mm->page_table_lock);
+ 			ret = hugetlb_fault(mm, vma, vaddr, 0);
+ 			spin_lock(&mm->page_table_lock);
+-			if (ret == VM_FAULT_MINOR)
++			if (!(ret & VM_FAULT_MAJOR))
+ 				continue;
+ 
+ 			remainder = 0;
+Index: linux-2.6/arch/alpha/mm/fault.c
+===================================================================
+--- linux-2.6.orig/arch/alpha/mm/fault.c
++++ linux-2.6/arch/alpha/mm/fault.c
+@@ -148,21 +148,17 @@ do_page_fault(unsigned long address, uns
+ 	   the fault.  */
+ 	fault = handle_mm_fault(mm, vma, address, cause > 0);
+ 	up_read(&mm->mmap_sem);
+-
+-	switch (fault) {
+-	      case VM_FAULT_MINOR:
+-		current->min_flt++;
+-		break;
+-	      case VM_FAULT_MAJOR:
+-		current->maj_flt++;
+-		break;
+-	      case VM_FAULT_SIGBUS:
+-		goto do_sigbus;
+-	      case VM_FAULT_OOM:
+-		goto out_of_memory;
+-	      default:
++	if (unlikely(fault & VM_FAULT_ERROR)) {
++		if (fault & VM_FAULT_OOM)
++			goto out_of_memory;
++		else if (fault & VM_FAULT_SIGBUS)
++			goto do_sigbus;
+ 		BUG();
+ 	}
++	if (fault & VM_FAULT_MAJOR)
++		tsk->maj_flt++;
++	else
++		tsk->min_flt++;
+ 	return;
+ 
+ 	/* Something tried to access memory that isn't in our memory map.
+Index: linux-2.6/arch/arm26/mm/fault.c
+===================================================================
+--- linux-2.6.orig/arch/arm26/mm/fault.c
++++ linux-2.6/arch/arm26/mm/fault.c
+@@ -170,20 +170,20 @@ good_area:
+ 	 */
+ survive:
+ 	fault = handle_mm_fault(mm, vma, addr & PAGE_MASK, DO_COW(fsr));
+-
+-	/*
+-	 * Handle the "normal" cases first - successful and sigbus
+-	 */
+-	switch (fault) {
+-	case VM_FAULT_MAJOR:
++	if (unlikely(fault & VM_FAULT_ERROR)) {
++		if (fault & VM_FAULT_OOM)
++			goto out_of_memory;
++		else if (fault & VM_FAULT_SIGBUS)
++			return fault;
++		BUG();
++	}
++	if (fault & VM_FAULT_MAJOR)
+ 		tsk->maj_flt++;
+-		return fault;
+-	case VM_FAULT_MINOR:
++	else
+ 		tsk->min_flt++;
+-	case VM_FAULT_SIGBUS:
+-		return fault;
+-	}
++	return fault;
+ 
++out_of_memory:
+ 	fault = -3; /* out of memory */
+ 	if (!is_init(tsk))
+ 		goto out;
+@@ -225,7 +225,7 @@ int do_page_fault(unsigned long addr, un
+ 	/*
+ 	 * Handle the "normal" case first
+ 	 */
+-	switch (fault) {
++	if (unlikely(fault & VM_FAULT_SIGBUS))
+ 	case VM_FAULT_MINOR:
+ 	case VM_FAULT_MAJOR:
+ 		return 0;
+Index: linux-2.6/arch/powerpc/mm/fault.c
+===================================================================
+--- linux-2.6.orig/arch/powerpc/mm/fault.c
++++ linux-2.6/arch/powerpc/mm/fault.c
+@@ -146,7 +146,7 @@ int __kprobes do_page_fault(struct pt_re
+ 	struct mm_struct *mm = current->mm;
+ 	siginfo_t info;
+ 	int code = SEGV_MAPERR;
+-	int is_write = 0;
++	int is_write = 0, ret;
+ 	int trap = TRAP(regs);
+  	int is_exec = trap == 0x400;
+ 
+@@ -331,22 +331,18 @@ good_area:
+ 	 * the fault.
+ 	 */
+  survive:
+-	switch (handle_mm_fault(mm, vma, address, is_write)) {
+-
+-	case VM_FAULT_MINOR:
+-		current->min_flt++;
+-		break;
+-	case VM_FAULT_MAJOR:
+-		current->maj_flt++;
+-		break;
+-	case VM_FAULT_SIGBUS:
+-		goto do_sigbus;
+-	case VM_FAULT_OOM:
+-		goto out_of_memory;
+-	default:
++	ret = handle_mm_fault(mm, vma, address, is_write);
++	if (unlikely(ret & VM_FAULT_ERROR)) {
++		if (ret & VM_FAULT_OOM)
++			goto out_of_memory;
++		else if (ret & VM_FAULT_SIGBUS)
++			goto do_sigbus;
+ 		BUG();
+ 	}
+-
++	if (ret & VM_FAULT_MAJOR)
++		current->maj_flt++;
++	else
++		current->min_flt++;
+ 	up_read(&mm->mmap_sem);
+ 	return 0;
+ 
+Index: linux-2.6/arch/x86_64/mm/fault.c
+===================================================================
+--- linux-2.6.orig/arch/x86_64/mm/fault.c
++++ linux-2.6/arch/x86_64/mm/fault.c
+@@ -307,7 +307,7 @@ asmlinkage void __kprobes do_page_fault(
+ 	struct vm_area_struct * vma;
+ 	unsigned long address;
+ 	const struct exception_table_entry *fixup;
+-	int write;
++	int write, fault;
+ 	unsigned long flags;
+ 	siginfo_t info;
+ 
+@@ -440,19 +440,18 @@ good_area:
+ 	 * make sure we exit gracefully rather than endlessly redo
+ 	 * the fault.
+ 	 */
+-	switch (handle_mm_fault(mm, vma, address, write)) {
+-	case VM_FAULT_MINOR:
+-		tsk->min_flt++;
+-		break;
+-	case VM_FAULT_MAJOR:
+-		tsk->maj_flt++;
+-		break;
+-	case VM_FAULT_SIGBUS:
+-		goto do_sigbus;
+-	default:
+-		goto out_of_memory;
++	fault = handle_mm_fault(mm, vma, address, write);
++	if (unlikely(fault & VM_FAULT_ERROR)) {
++		if (fault & VM_FAULT_OOM)
++			goto out_of_memory;
++		else if (fault & VM_FAULT_SIGBUS)
++			goto do_sigbus;
++		BUG();
+ 	}
+-
++	if (fault & VM_FAULT_MAJOR)
++		tsk->maj_flt++;
++	else
++		tsk->min_flt++;
+ 	up_read(&mm->mmap_sem);
+ 	return;
+ 
+Index: linux-2.6/fs/gfs2/ops_vm.c
+===================================================================
+--- linux-2.6.orig/fs/gfs2/ops_vm.c
++++ linux-2.6/fs/gfs2/ops_vm.c
+@@ -112,7 +112,7 @@ static int gfs2_sharewrite_fault(struct 
+ 	struct gfs2_holder i_gh;
+ 	int alloc_required;
+ 	int error;
+-	int ret = VM_FAULT_MINOR;
++	int ret = 0;
+ 
+ 	error = gfs2_glock_nq_init(ip->i_gl, LM_ST_EXCLUSIVE, 0, &i_gh);
+ 	if (error)
+@@ -132,14 +132,19 @@ static int gfs2_sharewrite_fault(struct 
+ 	set_bit(GFF_EXLOCK, &gf->f_flags);
+ 	ret = filemap_fault(vma, vmf);
+ 	clear_bit(GFF_EXLOCK, &gf->f_flags);
+-	if (ret & (VM_FAULT_ERROR | FAULT_RET_NOPAGE))
++	if (ret & VM_FAULT_ERROR)
+ 		goto out_unlock;
+ 
+ 	if (alloc_required) {
+ 		/* XXX: do we need to drop page lock around alloc_page_backing?*/
+ 		error = alloc_page_backing(ip, vmf->page);
+ 		if (error) {
+-			if (ret & FAULT_RET_LOCKED)
++			/*
++			 * VM_FAULT_LOCKED should always be the case for
++			 * filemap_fault, but it may not be in a future
++			 * implementation.
++			 */
++			if (ret & VM_FAULT_LOCKED)
+ 				unlock_page(vmf->page);
+ 			page_cache_release(vmf->page);
+ 			ret = VM_FAULT_OOM;
+Index: linux-2.6/mm/filemap_xip.c
+===================================================================
+--- linux-2.6.orig/mm/filemap_xip.c
++++ linux-2.6/mm/filemap_xip.c
+@@ -274,7 +274,7 @@ static int xip_file_fault(struct vm_area
+ out:
+ 	page_cache_get(page);
+ 	vmf->page = page;
+-	return VM_FAULT_MINOR;
++	return 0;
+ }
+ 
+ static struct vm_operations_struct xip_file_vm_ops = {
+Index: linux-2.6/arch/arm/mm/fault.c
+===================================================================
+--- linux-2.6.orig/arch/arm/mm/fault.c
++++ linux-2.6/arch/arm/mm/fault.c
+@@ -183,20 +183,20 @@ good_area:
+ 	 */
+ survive:
+ 	fault = handle_mm_fault(mm, vma, addr & PAGE_MASK, fsr & (1 << 11));
+-
+-	/*
+-	 * Handle the "normal" cases first - successful and sigbus
+-	 */
+-	switch (fault) {
+-	case VM_FAULT_MAJOR:
++	if (unlikely(fault & VM_FAULT_ERROR)) {
++		if (fault & VM_FAULT_OOM)
++			goto out_of_memory;
++		else if (fault & VM_FAULT_SIGBUS)
++			return fault;
++		BUG();
++	}
++	if (fault & VM_FAULT_MAJOR)
+ 		tsk->maj_flt++;
+-		return fault;
+-	case VM_FAULT_MINOR:
++	else
+ 		tsk->min_flt++;
+-	case VM_FAULT_SIGBUS:
+-		return fault;
+-	}
++	return fault;
+ 
++out_of_memory:
+ 	if (!is_init(tsk))
+ 		goto out;
+ 
+@@ -249,7 +249,7 @@ do_page_fault(unsigned long addr, unsign
+ 	/*
+ 	 * Handle the "normal" case first - VM_FAULT_MAJOR / VM_FAULT_MINOR
+ 	 */
+-	if (fault >= VM_FAULT_MINOR)
++	if (likely(!(fault & VM_FAULT_ERROR)))
+ 		return 0;
+ 
+ 	/*
+@@ -259,8 +259,7 @@ do_page_fault(unsigned long addr, unsign
+ 	if (!user_mode(regs))
+ 		goto no_context;
+ 
+-	switch (fault) {
+-	case VM_FAULT_OOM:
++	if (fault & VM_FAULT_OOM) {
+ 		/*
+ 		 * We ran out of memory, or some other thing
+ 		 * happened to us that made us unable to handle
+@@ -269,17 +268,15 @@ do_page_fault(unsigned long addr, unsign
+ 		printk("VM: killing process %s\n", tsk->comm);
+ 		do_exit(SIGKILL);
+ 		return 0;
+-
+-	case VM_FAULT_SIGBUS:
++	}
++	if (fault & VM_FAULT_SIGBUS) {
+ 		/*
+ 		 * We had some memory, but were unable to
+ 		 * successfully fix up this page fault.
+ 		 */
+ 		sig = SIGBUS;
+ 		code = BUS_ADRERR;
+-		break;
+-
+-	default:
++	} else {
+ 		/*
+ 		 * Something tried to access memory that
+ 		 * isn't in our memory map..
+@@ -287,7 +284,6 @@ do_page_fault(unsigned long addr, unsign
+ 		sig = SIGSEGV;
+ 		code = fault == VM_FAULT_BADACCESS ?
+ 			SEGV_ACCERR : SEGV_MAPERR;
+-		break;
+ 	}
+ 
+ 	__do_user_fault(tsk, addr, fsr, sig, code, regs);
+Index: linux-2.6/arch/avr32/mm/fault.c
+===================================================================
+--- linux-2.6.orig/arch/avr32/mm/fault.c
++++ linux-2.6/arch/avr32/mm/fault.c
+@@ -64,6 +64,7 @@ asmlinkage void do_page_fault(unsigned l
+ 	int writeaccess;
+ 	long signr;
+ 	int code;
++	int fault;
+ 
+ 	if (notify_page_fault(regs, ecr))
+ 		return;
+@@ -132,20 +133,18 @@ good_area:
+ 	 * fault.
+ 	 */
+ survive:
+-	switch (handle_mm_fault(mm, vma, address, writeaccess)) {
+-	case VM_FAULT_MINOR:
+-		tsk->min_flt++;
+-		break;
+-	case VM_FAULT_MAJOR:
+-		tsk->maj_flt++;
+-		break;
+-	case VM_FAULT_SIGBUS:
+-		goto do_sigbus;
+-	case VM_FAULT_OOM:
+-		goto out_of_memory;
+-	default:
++	fault = handle_mm_fault(mm, vma, address, writeaccess);
++	if (unlikely(fault & VM_FAULT_ERROR)) {
++		if (fault & VM_FAULT_OOM)
++			goto out_of_memory;
++		else if (fault & VM_FAULT_SIGBUS)
++			goto do_sigbus;
+ 		BUG();
+ 	}
++	if (fault & VM_FAULT_MAJOR)
++		tsk->maj_flt++;
++	else
++		tsk->min_flt++;
+ 
+ 	up_read(&mm->mmap_sem);
+ 	return;
+Index: linux-2.6/arch/cris/mm/fault.c
+===================================================================
+--- linux-2.6.orig/arch/cris/mm/fault.c
++++ linux-2.6/arch/cris/mm/fault.c
+@@ -179,6 +179,7 @@ do_page_fault(unsigned long address, str
+ 	struct mm_struct *mm;
+ 	struct vm_area_struct * vma;
+ 	siginfo_t info;
++	int fault;
+ 
+         D(printk("Page fault for %lX on %X at %lX, prot %d write %d\n",
+                  address, smp_processor_id(), instruction_pointer(regs),
+@@ -283,18 +284,18 @@ do_page_fault(unsigned long address, str
+ 	 * the fault.
+ 	 */
+ 
+-	switch (handle_mm_fault(mm, vma, address, writeaccess & 1)) {
+-	case VM_FAULT_MINOR:
+-		tsk->min_flt++;
+-		break;
+-	case VM_FAULT_MAJOR:
+-		tsk->maj_flt++;
+-		break;
+-	case VM_FAULT_SIGBUS:
+-		goto do_sigbus;
+-	default:
+-		goto out_of_memory;
++	fault = handle_mm_fault(mm, vma, address, writeaccess & 1);
++	if (unlikely(fault & VM_FAULT_ERROR)) {
++		if (fault & VM_FAULT_OOM)
++			goto out_of_memory;
++		else if (fault & VM_FAULT_SIGBUS)
++			goto do_sigbus;
++		BUG();
+ 	}
++	if (fault & VM_FAULT_MAJOR)
++		tsk->maj_flt++;
++	else
++		tsk->min_flt++;
+ 
+ 	up_read(&mm->mmap_sem);
+ 	return;
+Index: linux-2.6/arch/frv/mm/fault.c
+===================================================================
+--- linux-2.6.orig/arch/frv/mm/fault.c
++++ linux-2.6/arch/frv/mm/fault.c
+@@ -40,6 +40,7 @@ asmlinkage void do_page_fault(int datamm
+ 	pud_t *pue;
+ 	pte_t *pte;
+ 	int write;
++	int fault;
+ 
+ #if 0
+ 	const char *atxc[16] = {
+@@ -162,18 +163,18 @@ asmlinkage void do_page_fault(int datamm
+ 	 * make sure we exit gracefully rather than endlessly redo
+ 	 * the fault.
+ 	 */
+-	switch (handle_mm_fault(mm, vma, ear0, write)) {
+-	case VM_FAULT_MINOR:
+-		current->min_flt++;
+-		break;
+-	case VM_FAULT_MAJOR:
+-		current->maj_flt++;
+-		break;
+-	case VM_FAULT_SIGBUS:
+-		goto do_sigbus;
+-	default:
+-		goto out_of_memory;
++	fault = handle_mm_fault(mm, vma, ear0, write);
++	if (unlikely(fault & VM_FAULT_ERROR)) {
++		if (fault & VM_FAULT_OOM)
++			goto out_of_memory;
++		else if (fault & VM_FAULT_SIGBUS)
++			goto do_sigbus;
++		BUG();
+ 	}
++	if (fault & VM_FAULT_MAJOR)
++		current->maj_flt++;
++	else
++		current->min_flt++;
+ 
+ 	up_read(&mm->mmap_sem);
+ 	return;
+Index: linux-2.6/arch/ia64/mm/fault.c
+===================================================================
+--- linux-2.6.orig/arch/ia64/mm/fault.c
++++ linux-2.6/arch/ia64/mm/fault.c
+@@ -80,6 +80,7 @@ ia64_do_page_fault (unsigned long addres
+ 	struct mm_struct *mm = current->mm;
+ 	struct siginfo si;
+ 	unsigned long mask;
++	int fault;
+ 
+ 	/* mmap_sem is performance critical.... */
+ 	prefetchw(&mm->mmap_sem);
+@@ -147,26 +148,25 @@ ia64_do_page_fault (unsigned long addres
+ 	 * sure we exit gracefully rather than endlessly redo the
+ 	 * fault.
+ 	 */
+-	switch (handle_mm_fault(mm, vma, address, (mask & VM_WRITE) != 0)) {
+-	      case VM_FAULT_MINOR:
+-		++current->min_flt;
+-		break;
+-	      case VM_FAULT_MAJOR:
+-		++current->maj_flt;
+-		break;
+-	      case VM_FAULT_SIGBUS:
++	fault = handle_mm_fault(mm, vma, address, (mask & VM_WRITE) != 0);
++	if (unlikely(fault & VM_FAULT_ERROR)) {
+ 		/*
+ 		 * We ran out of memory, or some other thing happened
+ 		 * to us that made us unable to handle the page fault
+ 		 * gracefully.
+ 		 */
+-		signal = SIGBUS;
+-		goto bad_area;
+-	      case VM_FAULT_OOM:
+-		goto out_of_memory;
+-	      default:
++		if (fault & VM_FAULT_OOM) {
++			goto out_of_memory;
++			signal = SIGBUS;
++			goto bad_area;
++		} else if (fault & VM_FAULT_SIGBUS)
++			goto do_sigbus;
+ 		BUG();
+ 	}
++	if (fault & VM_FAULT_MAJOR)
++		current->maj_flt++;
++	else
++		current->min_flt++;
+ 	up_read(&mm->mmap_sem);
+ 	return;
+ 
+Index: linux-2.6/arch/m32r/mm/fault.c
+===================================================================
+--- linux-2.6.orig/arch/m32r/mm/fault.c
++++ linux-2.6/arch/m32r/mm/fault.c
+@@ -80,6 +80,7 @@ asmlinkage void do_page_fault(struct pt_
+ 	struct vm_area_struct * vma;
+ 	unsigned long page, addr;
+ 	int write;
++	int fault;
+ 	siginfo_t info;
+ 
+ 	/*
+@@ -195,20 +196,18 @@ survive:
+ 	 */
+ 	addr = (address & PAGE_MASK);
+ 	set_thread_fault_code(error_code);
+-	switch (handle_mm_fault(mm, vma, addr, write)) {
+-		case VM_FAULT_MINOR:
+-			tsk->min_flt++;
+-			break;
+-		case VM_FAULT_MAJOR:
+-			tsk->maj_flt++;
+-			break;
+-		case VM_FAULT_SIGBUS:
+-			goto do_sigbus;
+-		case VM_FAULT_OOM:
++	fault = handle_mm_fault(mm, vma, addr, write);
++	if (unlikely(fault & VM_FAULT_ERROR)) {
++		if (fault & VM_FAULT_OOM)
+ 			goto out_of_memory;
+-		default:
+-			BUG();
++		else if (fault & VM_FAULT_SIGBUS)
++			goto do_sigbus;
++		BUG();
+ 	}
++	if (fault & VM_FAULT_MAJOR)
++		tsk->maj_flt++;
++	else
++		tsk->min_flt++;
+ 	set_thread_fault_code(0);
+ 	up_read(&mm->mmap_sem);
+ 	return;
+Index: linux-2.6/arch/m68k/mm/fault.c
+===================================================================
+--- linux-2.6.orig/arch/m68k/mm/fault.c
++++ linux-2.6/arch/m68k/mm/fault.c
+@@ -159,18 +159,17 @@ good_area:
+ #ifdef DEBUG
+ 	printk("handle_mm_fault returns %d\n",fault);
+ #endif
+-	switch (fault) {
+-	case VM_FAULT_MINOR:
+-		current->min_flt++;
+-		break;
+-	case VM_FAULT_MAJOR:
+-		current->maj_flt++;
+-		break;
+-	case VM_FAULT_SIGBUS:
+-		goto bus_err;
+-	default:
+-		goto out_of_memory;
++	if (unlikely(fault & VM_FAULT_ERROR)) {
++		if (fault & VM_FAULT_OOM)
++			goto out_of_memory;
++		else if (fault & VM_FAULT_SIGBUS)
++			goto bus_err;
++		BUG();
+ 	}
++	if (fault & VM_FAULT_MAJOR)
++		current->maj_flt++;
++	else
++		current->min_flt++;
+ 
+ 	up_read(&mm->mmap_sem);
+ 	return 0;
+Index: linux-2.6/arch/mips/mm/fault.c
+===================================================================
+--- linux-2.6.orig/arch/mips/mm/fault.c
++++ linux-2.6/arch/mips/mm/fault.c
+@@ -39,6 +39,7 @@ asmlinkage void do_page_fault(struct pt_
+ 	struct mm_struct *mm = tsk->mm;
+ 	const int field = sizeof(unsigned long) * 2;
+ 	siginfo_t info;
++	int fault;
+ 
+ #if 0
+ 	printk("Cpu%d[%s:%d:%0*lx:%ld:%0*lx]\n", raw_smp_processor_id(),
+@@ -102,20 +103,18 @@ survive:
+ 	 * make sure we exit gracefully rather than endlessly redo
+ 	 * the fault.
+ 	 */
+-	switch (handle_mm_fault(mm, vma, address, write)) {
+-	case VM_FAULT_MINOR:
+-		tsk->min_flt++;
+-		break;
+-	case VM_FAULT_MAJOR:
+-		tsk->maj_flt++;
+-		break;
+-	case VM_FAULT_SIGBUS:
+-		goto do_sigbus;
+-	case VM_FAULT_OOM:
+-		goto out_of_memory;
+-	default:
++	fault = handle_mm_fault(mm, vma, address, write);
++	if (unlikely(fault & VM_FAULT_ERROR)) {
++		if (fault & VM_FAULT_OOM)
++			goto out_of_memory;
++		else if (fault & VM_FAULT_SIGBUS)
++			goto do_sigbus;
+ 		BUG();
+ 	}
++	if (fault & VM_FAULT_MAJOR)
++		tsk->maj_flt++;
++	else
++		tsk->min_flt++;
+ 
+ 	up_read(&mm->mmap_sem);
+ 	return;
+Index: linux-2.6/arch/parisc/mm/fault.c
+===================================================================
+--- linux-2.6.orig/arch/parisc/mm/fault.c
++++ linux-2.6/arch/parisc/mm/fault.c
+@@ -147,6 +147,7 @@ void do_page_fault(struct pt_regs *regs,
+ 	struct mm_struct *mm = tsk->mm;
+ 	const struct exception_table_entry *fix;
+ 	unsigned long acc_type;
++	int fault;
+ 
+ 	if (in_atomic() || !mm)
+ 		goto no_context;
+@@ -173,23 +174,23 @@ good_area:
+ 	 * fault.
+ 	 */
+ 
+-	switch (handle_mm_fault(mm, vma, address, (acc_type & VM_WRITE) != 0)) {
+-	      case VM_FAULT_MINOR:
+-		++current->min_flt;
+-		break;
+-	      case VM_FAULT_MAJOR:
+-		++current->maj_flt;
+-		break;
+-	      case VM_FAULT_SIGBUS:
++	fault = handle_mm_fault(mm, vma, address, (acc_type & VM_WRITE) != 0);
++	if (unlikely(fault & VM_FAULT_ERROR)) {
+ 		/*
+ 		 * We hit a shared mapping outside of the file, or some
+ 		 * other thing happened to us that made us unable to
+ 		 * handle the page fault gracefully.
+ 		 */
+-		goto bad_area;
+-	      default:
+-		goto out_of_memory;
++		if (fault & VM_FAULT_OOM)
++			goto out_of_memory;
++		else if (fault & VM_FAULT_SIGBUS)
++			goto bad_area;
++		BUG();
+ 	}
++	if (fault & VM_FAULT_MAJOR)
++		current->maj_flt++;
++	else
++		current->min_flt++;
+ 	up_read(&mm->mmap_sem);
+ 	return;
+ 
+Index: linux-2.6/arch/powerpc/platforms/cell/spufs/fault.c
+===================================================================
+--- linux-2.6.orig/arch/powerpc/platforms/cell/spufs/fault.c
++++ linux-2.6/arch/powerpc/platforms/cell/spufs/fault.c
+@@ -38,6 +38,7 @@ static int spu_handle_mm_fault(struct mm
+ 	struct vm_area_struct *vma;
+ 	unsigned long is_write;
+ 	int ret;
++	int fault;
+ 
+ #if 0
+ 	if (!IS_VALID_EA(ea)) {
+@@ -73,22 +74,21 @@ good_area:
+ 			goto bad_area;
+ 	}
+ 	ret = 0;
+-	switch (handle_mm_fault(mm, vma, ea, is_write)) {
+-	case VM_FAULT_MINOR:
+-		current->min_flt++;
+-		break;
+-	case VM_FAULT_MAJOR:
+-		current->maj_flt++;
+-		break;
+-	case VM_FAULT_SIGBUS:
+-		ret = -EFAULT;
+-		goto bad_area;
+-	case VM_FAULT_OOM:
+-		ret = -ENOMEM;
+-		goto bad_area;
+-	default:
++	fault = handle_mm_fault(mm, vma, ea, is_write);
++	if (unlikely(fault & VM_FAULT_ERROR)) {
++		if (fault & VM_FAULT_OOM) {
++			ret = -ENOMEM;
++			goto bad_area;
++		} else if (fault & VM_FAULT_SIGBUS) {
++			ret = -EFAULT;
++			goto bad_area;
++		}
+ 		BUG();
+ 	}
++	if (fault & VM_FAULT_MAJOR)
++		current->maj_flt++;
++	else
++		current->min_flt++;
+ 	up_read(&mm->mmap_sem);
+ 	return ret;
+ 
+Index: linux-2.6/arch/ppc/mm/fault.c
+===================================================================
+--- linux-2.6.orig/arch/ppc/mm/fault.c
++++ linux-2.6/arch/ppc/mm/fault.c
+@@ -97,6 +97,7 @@ int do_page_fault(struct pt_regs *regs, 
+ 	struct mm_struct *mm = current->mm;
+ 	siginfo_t info;
+ 	int code = SEGV_MAPERR;
++	int fault;
+ #if defined(CONFIG_4xx) || defined (CONFIG_BOOKE)
+ 	int is_write = error_code & ESR_DST;
+ #else
+@@ -250,20 +251,18 @@ good_area:
+ 	 * the fault.
+ 	 */
+  survive:
+-        switch (handle_mm_fault(mm, vma, address, is_write)) {
+-        case VM_FAULT_MINOR:
+-                current->min_flt++;
+-                break;
+-        case VM_FAULT_MAJOR:
+-                current->maj_flt++;
+-                break;
+-        case VM_FAULT_SIGBUS:
+-                goto do_sigbus;
+-        case VM_FAULT_OOM:
+-                goto out_of_memory;
+-	default:
++	fault = handle_mm_fault(mm, vma, address, is_write);
++	if (unlikely(fault & VM_FAULT_ERROR)) {
++		if (fault & VM_FAULT_OOM)
++			goto out_of_memory;
++		else if (fault & VM_FAULT_SIGBUS)
++			goto do_sigbus;
+ 		BUG();
+ 	}
++	if (fault & VM_FAULT_MAJOR)
++		tsk->maj_flt++;
++	else
++		tsk->min_flt++;
+ 
+ 	up_read(&mm->mmap_sem);
+ 	/*
+Index: linux-2.6/arch/s390/lib/uaccess_pt.c
+===================================================================
+--- linux-2.6.orig/arch/s390/lib/uaccess_pt.c
++++ linux-2.6/arch/s390/lib/uaccess_pt.c
+@@ -20,6 +20,7 @@ static int __handle_fault(struct mm_stru
+ {
+ 	struct vm_area_struct *vma;
+ 	int ret = -EFAULT;
++	int fault;
+ 
+ 	if (in_atomic())
+ 		return ret;
+@@ -44,20 +45,18 @@ static int __handle_fault(struct mm_stru
+ 	}
+ 
+ survive:
+-	switch (handle_mm_fault(mm, vma, address, write_access)) {
+-	case VM_FAULT_MINOR:
+-		current->min_flt++;
+-		break;
+-	case VM_FAULT_MAJOR:
+-		current->maj_flt++;
+-		break;
+-	case VM_FAULT_SIGBUS:
+-		goto out_sigbus;
+-	case VM_FAULT_OOM:
+-		goto out_of_memory;
+-	default:
++	fault = handle_mm_fault(mm, vma, address, write_access);
++	if (unlikely(fault & VM_FAULT_ERROR)) {
++		if (fault & VM_FAULT_OOM)
++			goto out_of_memory;
++		else if (fault & VM_FAULT_SIGBUS)
++			goto do_sigbus;
+ 		BUG();
+ 	}
++	if (fault & VM_FAULT_MAJOR)
++		current->maj_flt++;
++	else
++		current->min_flt++;
+ 	ret = 0;
+ out:
+ 	up_read(&mm->mmap_sem);
+Index: linux-2.6/arch/s390/mm/fault.c
+===================================================================
+--- linux-2.6.orig/arch/s390/mm/fault.c
++++ linux-2.6/arch/s390/mm/fault.c
+@@ -307,6 +307,7 @@ do_exception(struct pt_regs *regs, unsig
+ 	unsigned long address;
+ 	int space;
+ 	int si_code;
++	int fault;
+ 
+ 	if (notify_page_fault(regs, error_code))
+ 		return;
+@@ -377,23 +378,22 @@ survive:
+ 	 * make sure we exit gracefully rather than endlessly redo
+ 	 * the fault.
+ 	 */
+-	switch (handle_mm_fault(mm, vma, address, write)) {
+-	case VM_FAULT_MINOR:
+-		tsk->min_flt++;
+-		break;
+-	case VM_FAULT_MAJOR:
+-		tsk->maj_flt++;
+-		break;
+-	case VM_FAULT_SIGBUS:
+-		do_sigbus(regs, error_code, address);
+-		return;
+-	case VM_FAULT_OOM:
+-		if (do_out_of_memory(regs, error_code, address))
+-			goto survive;
+-		return;
+-	default:
++	fault = handle_mm_fault(mm, vma, address, write);
++	if (unlikely(fault & VM_FAULT_ERROR)) {
++		if (fault & VM_FAULT_OOM) {
++			if (do_out_of_memory(regs, error_code, address))
++				goto survive;
++			return;
++		} else if (fault & VM_FAULT_SIGBUS) {
++			do_sigbus(regs, error_code, address);
++			return;
++		}
+ 		BUG();
+ 	}
++	if (fault & VM_FAULT_MAJOR)
++		tsk->maj_flt++;
++	else
++		tsk->min_flt++;
+ 
+         up_read(&mm->mmap_sem);
+ 	/*
+Index: linux-2.6/arch/sh/mm/fault.c
+===================================================================
+--- linux-2.6.orig/arch/sh/mm/fault.c
++++ linux-2.6/arch/sh/mm/fault.c
+@@ -32,7 +32,7 @@ asmlinkage void __kprobes do_page_fault(
+ 	struct mm_struct *mm;
+ 	struct vm_area_struct * vma;
+ 	unsigned long page;
+-	int si_code;
++	int si_code, fault;
+ 	siginfo_t info;
+ 
+ 	trace_hardirqs_on();
+@@ -119,20 +119,18 @@ good_area:
+ 	 * the fault.
+ 	 */
+ survive:
+-	switch (handle_mm_fault(mm, vma, address, writeaccess)) {
+-		case VM_FAULT_MINOR:
+-			tsk->min_flt++;
+-			break;
+-		case VM_FAULT_MAJOR:
+-			tsk->maj_flt++;
+-			break;
+-		case VM_FAULT_SIGBUS:
+-			goto do_sigbus;
+-		case VM_FAULT_OOM:
++	fault = handle_mm_fault(mm, vma, address, writeaccess);
++	if (unlikely(fault & VM_FAULT_ERROR)) {
++		if (fault & VM_FAULT_OOM)
+ 			goto out_of_memory;
+-		default:
+-			BUG();
++		else if (fault & VM_FAULT_SIGBUS)
++			goto do_sigbus;
++		BUG();
+ 	}
++	if (fault & VM_FAULT_MAJOR)
++		tsk->maj_flt++;
++	else
++		tsk->min_flt++;
+ 
+ 	up_read(&mm->mmap_sem);
+ 	return;
+Index: linux-2.6/arch/sh64/mm/fault.c
+===================================================================
+--- linux-2.6.orig/arch/sh64/mm/fault.c
++++ linux-2.6/arch/sh64/mm/fault.c
+@@ -127,6 +127,7 @@ asmlinkage void do_page_fault(struct pt_
+ 	struct vm_area_struct * vma;
+ 	const struct exception_table_entry *fixup;
+ 	pte_t *pte;
++	int fault;
+ 
+ #if defined(CONFIG_SH64_PROC_TLB)
+         ++calls_to_do_slow_page_fault;
+@@ -221,18 +222,19 @@ good_area:
+ 	 * the fault.
+ 	 */
+ survive:
+-	switch (handle_mm_fault(mm, vma, address, writeaccess)) {
+-	case VM_FAULT_MINOR:
+-		tsk->min_flt++;
+-		break;
+-	case VM_FAULT_MAJOR:
+-		tsk->maj_flt++;
+-		break;
+-	case VM_FAULT_SIGBUS:
+-		goto do_sigbus;
+-	default:
+-		goto out_of_memory;
++	fault = handle_mm_fault(mm, vma, address, writeaccess);
++	if (unlikely(fault & VM_FAULT_ERROR)) {
++		if (fault & VM_FAULT_OOM)
++			goto out_of_memory;
++		else if (fault & VM_FAULT_SIGBUS)
++			goto do_sigbus;
++		BUG();
+ 	}
++	if (fault & VM_FAULT_MAJOR)
++		tsk->maj_flt++;
++	else
++		tsk->min_flt++;
++
+ 	/* If we get here, the page fault has been handled.  Do the TLB refill
+ 	   now from the newly-setup PTE, to avoid having to fault again right
+ 	   away on the same instruction. */
+Index: linux-2.6/arch/sparc/mm/fault.c
+===================================================================
+--- linux-2.6.orig/arch/sparc/mm/fault.c
++++ linux-2.6/arch/sparc/mm/fault.c
+@@ -289,19 +289,18 @@ good_area:
+ 	 * make sure we exit gracefully rather than endlessly redo
+ 	 * the fault.
+ 	 */
+-	switch (handle_mm_fault(mm, vma, address, write)) {
+-	case VM_FAULT_SIGBUS:
+-		goto do_sigbus;
+-	case VM_FAULT_OOM:
+-		goto out_of_memory;
+-	case VM_FAULT_MAJOR:
++	fault = handle_mm_fault(mm, vma, address, write);
++	if (unlikely(fault & VM_FAULT_ERROR)) {
++		if (fault & VM_FAULT_OOM)
++			goto out_of_memory;
++		else if (fault & VM_FAULT_SIGBUS)
++			goto do_sigbus;
++		BUG();
++	}
++	if (fault & VM_FAULT_MAJOR)
+ 		current->maj_flt++;
+-		break;
+-	case VM_FAULT_MINOR:
+-	default:
++	else
+ 		current->min_flt++;
+-		break;
+-	}
+ 	up_read(&mm->mmap_sem);
+ 	return;
+ 
+Index: linux-2.6/arch/sparc64/mm/fault.c
+===================================================================
+--- linux-2.6.orig/arch/sparc64/mm/fault.c
++++ linux-2.6/arch/sparc64/mm/fault.c
+@@ -278,7 +278,7 @@ asmlinkage void __kprobes do_sparc64_fau
+ 	struct mm_struct *mm = current->mm;
+ 	struct vm_area_struct *vma;
+ 	unsigned int insn = 0;
+-	int si_code, fault_code;
++	int si_code, fault_code, fault;
+ 	unsigned long address, mm_rss;
+ 
+ 	fault_code = get_thread_fault_code();
+@@ -415,20 +415,18 @@ good_area:
+ 			goto bad_area;
+ 	}
+ 
+-	switch (handle_mm_fault(mm, vma, address, (fault_code & FAULT_CODE_WRITE))) {
+-	case VM_FAULT_MINOR:
+-		current->min_flt++;
+-		break;
+-	case VM_FAULT_MAJOR:
+-		current->maj_flt++;
+-		break;
+-	case VM_FAULT_SIGBUS:
+-		goto do_sigbus;
+-	case VM_FAULT_OOM:
+-		goto out_of_memory;
+-	default:
++	fault = handle_mm_fault(mm, vma, address, (fault_code & FAULT_CODE_WRITE));
++	if (unlikely(fault & VM_FAULT_ERROR)) {
++		if (fault & VM_FAULT_OOM)
++			goto out_of_memory;
++		else if (fault & VM_FAULT_SIGBUS)
++			goto do_sigbus;
+ 		BUG();
+ 	}
++	if (fault & VM_FAULT_MAJOR)
++		tsk->maj_flt++;
++	else
++		tsk->min_flt++;
+ 
+ 	up_read(&mm->mmap_sem);
+ 
+Index: linux-2.6/arch/um/kernel/trap.c
+===================================================================
+--- linux-2.6.orig/arch/um/kernel/trap.c
++++ linux-2.6/arch/um/kernel/trap.c
+@@ -76,23 +76,24 @@ good_area:
+ 		goto out;
+ 
+ 	do {
++		int fault;
+ survive:
+-		switch (handle_mm_fault(mm, vma, address, is_write)){
+-		case VM_FAULT_MINOR:
+-			current->min_flt++;
+-			break;
+-		case VM_FAULT_MAJOR:
+-			current->maj_flt++;
+-			break;
+-		case VM_FAULT_SIGBUS:
+-			err = -EACCES;
+-			goto out;
+-		case VM_FAULT_OOM:
+-			err = -ENOMEM;
+-			goto out_of_memory;
+-		default:
++		fault = handle_mm_fault(mm, vma, address, is_write);
++		if (unlikely(fault & VM_FAULT_ERROR)) {
++			if (fault & VM_FAULT_OOM) {
++				err = -ENOMEM;
++				goto out_of_memory;
++			} else if (fault & VM_FAULT_SIGBUS) {
++				err = -EACCES;
++				goto out;
++			}
+ 			BUG();
+ 		}
++		if (fault & VM_FAULT_MAJOR)
++			current->maj_flt++;
++		else
++			current->min_flt++;
++
+ 		pgd = pgd_offset(mm, address);
+ 		pud = pud_offset(pgd, address);
+ 		pmd = pmd_offset(pud, address);
+Index: linux-2.6/arch/xtensa/mm/fault.c
+===================================================================
+--- linux-2.6.orig/arch/xtensa/mm/fault.c
++++ linux-2.6/arch/xtensa/mm/fault.c
+@@ -41,6 +41,7 @@ void do_page_fault(struct pt_regs *regs)
+ 	siginfo_t info;
+ 
+ 	int is_write, is_exec;
++	int fault;
+ 
+ 	info.si_code = SEGV_MAPERR;
+ 
+@@ -102,20 +103,18 @@ good_area:
+ 	 * the fault.
+ 	 */
+ survive:
+-	switch (handle_mm_fault(mm, vma, address, is_write)) {
+-	case VM_FAULT_MINOR:
+-		current->min_flt++;
+-		break;
+-	case VM_FAULT_MAJOR:
+-		current->maj_flt++;
+-		break;
+-	case VM_FAULT_SIGBUS:
+-		goto do_sigbus;
+-	case VM_FAULT_OOM:
+-		goto out_of_memory;
+-	default:
++	fault = handle_mm_fault(mm, vma, address, is_write);
++	if (unlikely(fault & VM_FAULT_ERROR)) {
++		if (fault & VM_FAULT_OOM)
++			goto out_of_memory;
++		else if (fault & VM_FAULT_SIGBUS)
++			goto do_sigbus;
+ 		BUG();
+ 	}
++	if (fault & VM_FAULT_MAJOR)
++		current->maj_flt++;
++	else
++		current->min_flt++;
+ 
+ 	up_read(&mm->mmap_sem);
+ 	return;
+Index: linux-2.6/kernel/futex.c
+===================================================================
+--- linux-2.6.orig/kernel/futex.c
++++ linux-2.6/kernel/futex.c
+@@ -317,15 +317,20 @@ static int futex_handle_fault(unsigned l
+ 	vma = find_vma(mm, address);
+ 	if (vma && address >= vma->vm_start &&
+ 	    (vma->vm_flags & VM_WRITE)) {
+-		switch (handle_mm_fault(mm, vma, address, 1)) {
+-		case VM_FAULT_MINOR:
+-			ret = 0;
+-			current->min_flt++;
+-			break;
+-		case VM_FAULT_MAJOR:
++		int fault;
++		fault = handle_mm_fault(mm, vma, address, 1);
++		if (unlikely((fault & VM_FAULT_ERROR))) {
++#if 0
++			/* XXX: let's do this when we verify it is OK */
++			if (ret & VM_FAULT_OOM)
++				ret = -ENOMEM;
++#endif
++		} else {
+ 			ret = 0;
+-			current->maj_flt++;
+-			break;
++			if (fault & VM_FAULT_MAJOR)
++				current->maj_flt++;
++			else
++				current->min_flt++;
+ 		}
+ 	}
+ 	if (!fshared)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
