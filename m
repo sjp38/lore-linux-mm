@@ -1,48 +1,40 @@
-Received: by ug-out-1314.google.com with SMTP id c2so32999ugf
-        for <linux-mm@kvack.org>; Tue, 10 Jul 2007 21:25:41 -0700 (PDT)
-Message-ID: <b8bf37780707102125x372be0adx1521510cf22c27e7@mail.gmail.com>
-Date: Wed, 11 Jul 2007 00:25:40 -0400
-From: "=?ISO-8859-1?Q?Andr=E9_Goddard_Rosa?=" <andre.goddard@gmail.com>
-Subject: Re: [ck] Re: -mm merge plans for 2.6.23
-In-Reply-To: <b8bf37780707101852g25d835b4ubbf8da5383755d4b@mail.gmail.com>
+Message-ID: <4694683B.3060705@yahoo.com.au>
+Date: Wed, 11 Jul 2007 15:18:51 +1000
+From: Nick Piggin <nickpiggin@yahoo.com.au>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 8BIT
-Content-Disposition: inline
-References: <20070710013152.ef2cd200.akpm@linux-foundation.org>
-	 <200707102015.44004.kernel@kolivas.org>
-	 <b21f8390707101802o2d546477n2a18c1c3547c3d7a@mail.gmail.com>
-	 <20070710181419.6d1b2f7e.akpm@linux-foundation.org>
-	 <b8bf37780707101852g25d835b4ubbf8da5383755d4b@mail.gmail.com>
+Subject: Re: [ck] Re: -mm merge plans for 2.6.23
+References: <20070710013152.ef2cd200.akpm@linux-foundation.org>	 <200707102015.44004.kernel@kolivas.org>	 <b21f8390707101802o2d546477n2a18c1c3547c3d7a@mail.gmail.com>	 <20070710181419.6d1b2f7e.akpm@linux-foundation.org> <b21f8390707101954s3ae69db8vc30287277941cb1f@mail.gmail.com>
+In-Reply-To: <b21f8390707101954s3ae69db8vc30287277941cb1f@mail.gmail.com>
+Content-Type: text/plain; charset=us-ascii; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
+To: Matthew Hawkins <darthmdh@gmail.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Con Kolivas <kernel@kolivas.org>, ck list <ck@vds.kolivas.org>, Ingo Molnar <mingo@elte.hu>, Paul Jackson <pj@sgi.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On 7/10/07, Andre Goddard Rosa <andre.goddard@gmail.com> wrote:
-> On 7/10/07, Andrew Morton <akpm@linux-foundation.org> wrote:
-> > On Wed, 11 Jul 2007 11:02:56 +1000 "Matthew Hawkins" <darthmdh@gmail.com>
-> wrote:
-> >
-> > > We all know swap prefetch has been tested out the wazoo since Moses was
-> a
-> > > little boy, is compile-time and runtime selectable, and gives an
-> important
-> > > and quantifiable performance increase to desktop systems.
-> >
-> > Always interested.  Please provide us more details on your usage and
-> > testing of that code.  Amount of memory, workload, observed results,
-> > etc?
-> >
+Matthew Hawkins wrote:
+> On 7/11/07, Andrew Morton <akpm@linux-foundation.org> wrote:
 
-It keeps my machine responsive after some time of inactivity,
-i.e.  when I try to use firefox in the morning after leaving it running
-overnight with multiple tabs open. I have 1Gb of memory in this machine.
+> Anyhow with swap prefetch, applications that may have been sitting
+> there idle for a while become responsive in the single-digit seconds
+> rather than double-digit or worse.  The same goes for a morning wakeup
+> (ie after nightly cron jobs throw things out)
 
-With regards,
+OK that's a good data point. It would be really good to be able to
+do an analysis on your overnight IO patterns and the corresponding
+memory reclaim behaviour and see why things are getting evicted.
+
+Not that swap prefetching isn't a good solution for this situation,
+but the fact that things are getting swapped out for you also means
+that mapped files and possibly important pagecache and dentries are
+being flushed out, which we might be able to avoid.
+
+Thanks,
+Nick
+
 -- 
-[]s,
-Andre Goddard
+SUSE Labs, Novell Inc.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
