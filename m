@@ -1,9 +1,10 @@
-Date: Wed, 11 Jul 2007 12:04:37 -0700 (PDT)
+Date: Wed, 11 Jul 2007 12:06:26 -0700 (PDT)
 From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [patch 11/12] Add N_CPU node state
-In-Reply-To: <20070711182252.376540447@sgi.com>
-Message-ID: <Pine.LNX.4.64.0707111156460.17503@schroedinger.engr.sgi.com>
-References: <20070711182219.234782227@sgi.com> <20070711182252.376540447@sgi.com>
+Subject: Re: [patch 01/12] NUMA: Generic management of nodemasks for various
+ purposes
+In-Reply-To: <20070711182250.005856256@sgi.com>
+Message-ID: <Pine.LNX.4.64.0707111204470.17503@schroedinger.engr.sgi.com>
+References: <20070711182219.234782227@sgi.com> <20070711182250.005856256@sgi.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
@@ -14,98 +15,174 @@ List-ID: <linux-mm.kvack.org>
 
 On Wed, 11 Jul 2007, Christoph Lameter wrote:
 
-> Index: linux-2.6.22-rc6-mm1/mm/migrate.c
-> ===================================================================
-> --- linux-2.6.22-rc6-mm1.orig/mm/migrate.c	2007-07-11 10:39:28.000000000 -0700
-> +++ linux-2.6.22-rc6-mm1/mm/migrate.c	2007-07-11 10:39:38.000000000 -0700
-> @@ -963,7 +963,7 @@ asmlinkage long sys_move_pages(pid_t pid
->  				goto out;
->  
->  			err = -ENODEV;
-> -			if (!node_memory(node))
-> +			if (!node_state(node, N_MEMORY))
->  				goto out;
->  
+> -EXPORT_SYMBOL(node_possible_map);
+> +nodemask_t node_states[NR_NODE_STATES] __read_mostly = {
+> +	[N_POSSIBLE] => NODE_MASK_ALL,
+> +	[N_ONLINE] =>{ { [0] = 1UL } }
+> +};
+> +EXPORT_SYMBOL(node_states);
 
-Papers over the last patch and first patch. Patch w/o those two chunks
+Crap here too. I desperately need a vacation. Next week....
 
 
-Add N_CPU node state
+NUMA: Generic management of nodemasks for various purposes
 
-We need the check for a node with cpu in zone reclaim. Zone reclaim will not
-allow remote zone reclaim if a node has a cpu.
+Provide a generic way to keep nodemasks describing various characteristics
+of NUMA nodes.
+
+Remove the node_online_map and the node_possible map and realize the whole
+thing using two nodes stats: N_POSSIBLE and N_ONLINE.
 
 Signed-off-by: Christoph Lameter <clameter@sgi.com>
 
 ---
- include/linux/nodemask.h |    1 +
- mm/page_alloc.c          |    4 +++-
- mm/vmscan.c              |    4 +---
- 3 files changed, 5 insertions(+), 4 deletions(-)
+ include/linux/nodemask.h |   87 ++++++++++++++++++++++++++++++++++++++---------
+ mm/page_alloc.c          |   13 +++----
+ 2 files changed, 78 insertions(+), 22 deletions(-)
 
 Index: linux-2.6.22-rc6-mm1/include/linux/nodemask.h
 ===================================================================
---- linux-2.6.22-rc6-mm1.orig/include/linux/nodemask.h	2007-07-11 12:00:29.000000000 -0700
-+++ linux-2.6.22-rc6-mm1/include/linux/nodemask.h	2007-07-11 12:01:10.000000000 -0700
-@@ -344,6 +344,7 @@ enum node_states {
- 	N_POSSIBLE,	/* The node could become online at some point */
- 	N_ONLINE,	/* The node is online */
- 	N_MEMORY,	/* The node has memory */
-+	N_CPU,		/* The node has cpus */
- 	NR_NODE_STATES
- };
+--- linux-2.6.22-rc6-mm1.orig/include/linux/nodemask.h	2007-07-11 11:31:30.000000000 -0700
++++ linux-2.6.22-rc6-mm1/include/linux/nodemask.h	2007-07-11 11:59:08.000000000 -0700
+@@ -338,31 +338,81 @@ static inline void __nodes_remap(nodemas
+ #endif /* MAX_NUMNODES */
  
-Index: linux-2.6.22-rc6-mm1/mm/vmscan.c
-===================================================================
---- linux-2.6.22-rc6-mm1.orig/mm/vmscan.c	2007-07-11 12:00:45.000000000 -0700
-+++ linux-2.6.22-rc6-mm1/mm/vmscan.c	2007-07-11 12:01:10.000000000 -0700
-@@ -1851,7 +1851,6 @@ static int __zone_reclaim(struct zone *z
+ /*
++ * Bitmasks that are kept for all the nodes.
++ */
++enum node_states {
++	N_POSSIBLE,	/* The node could become online at some point */
++	N_ONLINE,	/* The node is online */
++	NR_NODE_STATES
++};
++
++/*
+  * The following particular system nodemasks and operations
+  * on them manage all possible and online nodes.
+  */
  
- int zone_reclaim(struct zone *zone, gfp_t gfp_mask, unsigned int order)
- {
--	cpumask_t mask;
- 	int node_id;
+-extern nodemask_t node_online_map;
+-extern nodemask_t node_possible_map;
++extern nodemask_t node_states[NR_NODE_STATES];
  
- 	/*
-@@ -1888,8 +1887,7 @@ int zone_reclaim(struct zone *zone, gfp_
- 	 * as wide as possible.
- 	 */
- 	node_id = zone_to_nid(zone);
--	mask = node_to_cpumask(node_id);
--	if (!cpus_empty(mask) && node_id != numa_node_id())
-+	if (node_state(node_id, N_CPU) && node_id != numa_node_id())
- 		return 0;
- 	return __zone_reclaim(zone, gfp_mask, order);
- }
+ #if MAX_NUMNODES > 1
+-#define num_online_nodes()	nodes_weight(node_online_map)
+-#define num_possible_nodes()	nodes_weight(node_possible_map)
+-#define node_online(node)	node_isset((node), node_online_map)
+-#define node_possible(node)	node_isset((node), node_possible_map)
+-#define first_online_node	first_node(node_online_map)
+-#define next_online_node(nid)	next_node((nid), node_online_map)
++static inline int node_state(int node, enum node_states state)
++{
++	return node_isset(node, node_states[state]);
++}
++
++static inline void node_set_state(int node, enum node_states state)
++{
++	__node_set(node, &node_states[state]);
++}
++
++static inline void node_clear_state(int node, enum node_states state)
++{
++	__node_clear(node, &node_states[state]);
++}
++
++static inline int num_node_state(enum node_states state)
++{
++	return nodes_weight(node_states[state]);
++}
++
++#define for_each_node_state(__node, __state) \
++	for_each_node_mask((__node), node_states[__state])
++
++#define first_online_node	first_node(node_states[N_ONLINE])
++#define next_online_node(nid)	next_node((nid), node_states[N_ONLINE])
++
+ extern int nr_node_ids;
+ #else
+-#define num_online_nodes()	1
+-#define num_possible_nodes()	1
+-#define node_online(node)	((node) == 0)
+-#define node_possible(node)	((node) == 0)
++
++static inline int node_state(int node, enum node_states state)
++{
++	return node == 0;
++}
++
++static inline void node_set_state(int node, enum node_states state)
++{
++}
++
++static inline void node_clear_state(int node, enum node_states state)
++{
++}
++
++static inline int num_node_state(enum node_states state)
++{
++	return 1;
++}
++
++#define for_each_node_state(node, __state) \
++	for ( (node) = 0; (node) != 0; (node) = 1)
++
+ #define first_online_node	0
+ #define next_online_node(nid)	(MAX_NUMNODES)
+ #define nr_node_ids		1
++
+ #endif
+ 
++#define node_online_map 	node_states[N_ONLINE]
++#define node_possible_map 	node_states[N_POSSIBLE]
++
+ #define any_online_node(mask)			\
+ ({						\
+ 	int node;				\
+@@ -372,10 +422,15 @@ extern int nr_node_ids;
+ 	node;					\
+ })
+ 
+-#define node_set_online(node)	   set_bit((node), node_online_map.bits)
+-#define node_set_offline(node)	   clear_bit((node), node_online_map.bits)
++#define num_online_nodes()	num_node_state(N_ONLINE)
++#define num_possible_nodes()	num_node_state(N_POSSIBLE)
++#define node_online(node)	node_state((node), N_ONLINE)
++#define node_possible(node)	node_state((node), N_POSSIBLE)
++
++#define node_set_online(node)	   node_set_state((node), N_ONLINE)
++#define node_set_offline(node)	   node_clear_state((node), N_ONLINE)
+ 
+-#define for_each_node(node)	   for_each_node_mask((node), node_possible_map)
+-#define for_each_online_node(node) for_each_node_mask((node), node_online_map)
++#define for_each_node(node)	   for_each_node_state(node, N_POSSIBLE)
++#define for_each_online_node(node) for_each_node_state(node, N_ONLINE)
+ 
+ #endif /* __LINUX_NODEMASK_H */
 Index: linux-2.6.22-rc6-mm1/mm/page_alloc.c
 ===================================================================
---- linux-2.6.22-rc6-mm1.orig/mm/page_alloc.c	2007-07-11 12:00:29.000000000 -0700
-+++ linux-2.6.22-rc6-mm1/mm/page_alloc.c	2007-07-11 12:01:10.000000000 -0700
-@@ -2728,6 +2728,7 @@ static struct per_cpu_pageset boot_pages
- static int __cpuinit process_zones(int cpu)
- {
- 	struct zone *zone, *dzone;
-+	int node = cpu_to_node(cpu);
+--- linux-2.6.22-rc6-mm1.orig/mm/page_alloc.c	2007-07-11 11:49:34.000000000 -0700
++++ linux-2.6.22-rc6-mm1/mm/page_alloc.c	2007-07-11 11:59:50.000000000 -0700
+@@ -47,13 +47,14 @@
+ #include "internal.h"
  
- 	for_each_zone(zone) {
- 
-@@ -2735,7 +2736,7 @@ static int __cpuinit process_zones(int c
- 			continue;
- 
- 		zone_pcp(zone, cpu) = kmalloc_node(sizeof(struct per_cpu_pageset),
--					 GFP_KERNEL, cpu_to_node(cpu));
-+					 GFP_KERNEL, node);
- 		if (!zone_pcp(zone, cpu))
- 			goto bad;
- 
-@@ -2746,6 +2747,7 @@ static int __cpuinit process_zones(int c
- 			 	(zone->present_pages / percpu_pagelist_fraction));
- 	}
- 
-+	node_set_state(node, N_CPU);
- 	return 0;
- bad:
- 	for_each_zone(dzone) {
+ /*
+- * MCD - HACK: Find somewhere to initialize this EARLY, or make this
+- * initializer cleaner
++ * Array of node states.
+  */
+-nodemask_t node_online_map __read_mostly = { { [0] = 1UL } };
+-EXPORT_SYMBOL(node_online_map);
+-nodemask_t node_possible_map __read_mostly = NODE_MASK_ALL;
+-EXPORT_SYMBOL(node_possible_map);
++nodemask_t node_states[NR_NODE_STATES] __read_mostly = {
++	[N_POSSIBLE] = NODE_MASK_ALL,
++	[N_ONLINE] = { { [0] = 1UL } }
++};
++EXPORT_SYMBOL(node_states);
++
+ unsigned long totalram_pages __read_mostly;
+ unsigned long totalreserve_pages __read_mostly;
+ long nr_swap_pages;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
