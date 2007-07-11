@@ -1,61 +1,74 @@
-Date: Tue, 10 Jul 2007 15:50:56 -0700 (PDT)
-From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [patch 09/10] Remove the SLOB allocator for 2.6.23
-In-Reply-To: <20070710224046.GV11115@waste.org>
-Message-ID: <Pine.LNX.4.64.0707101549520.5919@schroedinger.engr.sgi.com>
-References: <20070708075119.GA16631@elte.hu> <20070708110224.9cd9df5b.akpm@linux-foundation.org>
- <4691A415.6040208@yahoo.com.au> <84144f020707090404l657a62c7x89d7d06b3dd6c34b@mail.gmail.com>
- <Pine.LNX.4.64.0707090907010.13970@schroedinger.engr.sgi.com>
- <Pine.LNX.4.64.0707101049230.23040@sbz-30.cs.Helsinki.FI> <469342DC.8070007@yahoo.com.au>
- <84144f020707100231p5013e1aer767562c26fc52eeb@mail.gmail.com>
- <20070710120224.GP11115@waste.org> <Pine.LNX.4.64.0707101510410.5490@schroedinger.engr.sgi.com>
- <20070710224046.GV11115@waste.org>
+From: "Esther Villegas" <hbprince@ttslinx.com>
+Subject: Energy fur ihren Schwanz, kaufen und 85% sparen  that you have --  You want to learn the 
+Date: Tue, 10 Jul 2007 23:37:38 -0300
+Message-ID: <01c7c34b$4ccdd5b0$8d186c59@hbprince>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
-Sender: owner-linux-mm@kvack.org
-Return-Path: <owner-linux-mm@kvack.org>
-To: Matt Mackall <mpm@selenic.com>
-Cc: Pekka Enberg <penberg@cs.helsinki.fi>, Nick Piggin <nickpiggin@yahoo.com.au>, Andrew Morton <akpm@linux-foundation.org>, Ingo Molnar <mingo@elte.hu>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, suresh.b.siddha@intel.com, corey.d.gough@intel.com, Denis Vlasenko <vda.linux@googlemail.com>, Erik Andersen <andersen@codepoet.org>
+Content-Type: multipart/alternative;
+	boundary="----=_NextPart_000_000E_01C7C364.721B0DB0"
+Return-Path: <hbprince@ttslinx.com>
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 10 Jul 2007, Matt Mackall wrote:
+This is a multi-part message in MIME format.
 
-> Without the parameter, as the other way doesn't compile in -mm1.
+------=_NextPart_000_000E_01C7C364.721B0DB0
+Content-Type: text/plain;
+	charset="us-ascii"
+Content-Transfer-Encoding: 7bit
 
-here is the patch that went into mm after mm1 was released.
+Verpassen Sie nichts am Lebem - Sie werden fuhlen was unsere Kunden bestatigen!
 
----
- mm/slub.c |    4 ++++
- 1 file changed, 4 insertions(+)
+Preise die keine Konkurrenz kennen 
 
-Index: linux-2.6.22-rc6-mm1/mm/slub.c
-===================================================================
---- linux-2.6.22-rc6-mm1.orig/mm/slub.c	2007-07-06 13:28:57.000000000 -0700
-+++ linux-2.6.22-rc6-mm1/mm/slub.c	2007-07-06 13:29:01.000000000 -0700
-@@ -1868,7 +1868,9 @@ static void init_kmem_cache_node(struct 
- 	atomic_long_set(&n->nr_slabs, 0);
- 	spin_lock_init(&n->list_lock);
- 	INIT_LIST_HEAD(&n->partial);
-+#ifdef CONFIG_SLUB_DEBUG
- 	INIT_LIST_HEAD(&n->full);
-+#endif
- }
- 
- #ifdef CONFIG_NUMA
-@@ -1898,8 +1900,10 @@ static struct kmem_cache_node * __init e
- 	page->freelist = get_freepointer(kmalloc_caches, n);
- 	page->inuse++;
- 	kmalloc_caches->node[node] = n;
-+#ifdef CONFIG_SLUB_DEBUG
- 	init_object(kmalloc_caches, n, 1);
- 	init_tracking(kmalloc_caches, n);
-+#endif
- 	init_kmem_cache_node(n);
- 	atomic_long_inc(&n->nr_slabs);
- 	add_partial(n, page);
+- Kein peinlicher Arztbesuch erforderlicht
+- Kostenlose, arztliche Telefon-Beratung
+- Kein langes Warten - Auslieferung innerhalb von 2-3 Tagen
+- Bequem und diskret online bestellen.
+- Visa verifizierter Onlineshop
+- Diskrete Verpackung und Zahlung
+- keine versteckte Kosten
 
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+
+Vier Dosen gibt's bei jeder Bestellung umsonst
+http://nakutwn.continuemany.hk/?445140436070
+
+
+------=_NextPart_000_000E_01C7C364.721B0DB0
+Content-Type: text/html;
+	charset="us-ascii"
+Content-Transfer-Encoding: quoted-printable
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
+<HTML><HEAD><TITLE></TITLE>
+<META content=3D"text/html; charset=3Dus-ascii" http-equiv=3DContent-Type>
+<META content=3D"MSHTML 6.00.2900.2527" name=3DGENERATOR></HEAD>
+<BODY>
+<head><meta http-equiv=3D"Content-Type" content=3D"text/html; charset=3Diso=
+-8859-1">
+</head><body><p>Meinung von unserem Kunden:<br><strong>Warum nehme ich Ciaa=
+aaaalis? Es ist einfach ein angenehmens Gef&#252;hl. Man brauch sich nicht =
+auf die Err. ..ektion zu konzentrieren. Beim Sex ist man viel entspannter, =
+mann kann auch mal die Muskeln im Genitalbereich lockern, ohne das die Err.=
+ ..ektion im Glied nachlasst. Dadurch ist eine lange Verz&#246;gerung der E=
+jakulation m&#246;glich. Man ist beim Sex generell lockerer und entspannter=
+, und kommt auch nicht mehr so schnell ausser Athem, weil man eben locker u=
+nd entspannt ist, ausser nat&#252;rlich der kleine Freund :-)</strong></p><=
+p><strong>Meine Frau und ich haben Viaaaagra am letzten Wochenende ausprobi=
+ert. Sie fand, mein bestes St&#252;ck w&#228;re in letzter Zeit nicht ganz =
+auf der H&#246;he gewesen. Also dachten wir, wir probieren es einfach einma=
+l.Es gibt nur ein Wort, dass das Gef&#252;hl beschreibt: Wahnsinn. Seit ich=
+ zwanzig war, konnte ich nicht mehr so lang und so oft. Was soll ich sagen?=
+ Gute Arbeit, Viaaaagra!<br>
+</strong><strong><br>Verpassen Sie nichts am Lebem - Sie werden fuhlen was =
+unsere Kunden bestatigen!</strong></p><p>Preise die keine Konkurrenz kennen=
+ <p>
+- Visa verifizierter Onlineshop<br>- Kein langes Warten - Auslieferung inne=
+rhalb von 2-3 Tagen<br>- Kostenlose, arztliche Telefon-Beratung<br>- Bequem=
+ und diskret online bestellen.<br>- Kein peinlicher Arztbesuch erforderlich=
+t<br>- keine versteckte Kosten<br>- Diskrete Verpackung und Zahlung</p>  
+<p><br><strong><a href=3D"http://nakutwn.continuemany.hk/?445140436070" tar=
+get=3D"_blank">Vier Dosen gibt's bei jeder Bestellung umsonst</a></strong><=
+/body>
+</BODY></HTML>
+
+------=_NextPart_000_000E_01C7C364.721B0DB0--
