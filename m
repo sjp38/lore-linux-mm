@@ -1,74 +1,38 @@
-From: "Esther Villegas" <hbprince@ttslinx.com>
-Subject: Energy fur ihren Schwanz, kaufen und 85% sparen  that you have --  You want to learn the 
-Date: Tue, 10 Jul 2007 23:37:38 -0300
-Message-ID: <01c7c34b$4ccdd5b0$8d186c59@hbprince>
-MIME-Version: 1.0
-Content-Type: multipart/alternative;
-	boundary="----=_NextPart_000_000E_01C7C364.721B0DB0"
-Return-Path: <hbprince@ttslinx.com>
-To: linux-mm@kvack.org
+Date: Tue, 10 Jul 2007 18:14:19 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [ck] Re: -mm merge plans for 2.6.23
+Message-Id: <20070710181419.6d1b2f7e.akpm@linux-foundation.org>
+In-Reply-To: <b21f8390707101802o2d546477n2a18c1c3547c3d7a@mail.gmail.com>
+References: <20070710013152.ef2cd200.akpm@linux-foundation.org>
+	<200707102015.44004.kernel@kolivas.org>
+	<b21f8390707101802o2d546477n2a18c1c3547c3d7a@mail.gmail.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
+Sender: owner-linux-mm@kvack.org
+Return-Path: <owner-linux-mm@kvack.org>
+To: Matthew Hawkins <darthmdh@gmail.com>
+Cc: Con Kolivas <kernel@kolivas.org>, ck list <ck@vds.kolivas.org>, Ingo Molnar <mingo@elte.hu>, Paul Jackson <pj@sgi.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-This is a multi-part message in MIME format.
+On Wed, 11 Jul 2007 11:02:56 +1000 "Matthew Hawkins" <darthmdh@gmail.com> wrote:
 
-------=_NextPart_000_000E_01C7C364.721B0DB0
-Content-Type: text/plain;
-	charset="us-ascii"
-Content-Transfer-Encoding: 7bit
+> We all know swap prefetch has been tested out the wazoo since Moses was a
+> little boy, is compile-time and runtime selectable, and gives an important
+> and quantifiable performance increase to desktop systems.
 
-Verpassen Sie nichts am Lebem - Sie werden fuhlen was unsere Kunden bestatigen!
+Always interested.  Please provide us more details on your usage and
+testing of that code.  Amount of memory, workload, observed results,
+etc?
 
-Preise die keine Konkurrenz kennen 
+>  Save a Redhat
+> employee some time reinventing the wheel and just merge it.  This wheel
+> already has dope 21" rims, homes ;-)
 
-- Kein peinlicher Arztbesuch erforderlicht
-- Kostenlose, arztliche Telefon-Beratung
-- Kein langes Warten - Auslieferung innerhalb von 2-3 Tagen
-- Bequem und diskret online bestellen.
-- Visa verifizierter Onlineshop
-- Diskrete Verpackung und Zahlung
-- keine versteckte Kosten
+ooh, kernel bling.
 
-
-Vier Dosen gibt's bei jeder Bestellung umsonst
-http://nakutwn.continuemany.hk/?445140436070
-
-
-------=_NextPart_000_000E_01C7C364.721B0DB0
-Content-Type: text/html;
-	charset="us-ascii"
-Content-Transfer-Encoding: quoted-printable
-
-<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
-<HTML><HEAD><TITLE></TITLE>
-<META content=3D"text/html; charset=3Dus-ascii" http-equiv=3DContent-Type>
-<META content=3D"MSHTML 6.00.2900.2527" name=3DGENERATOR></HEAD>
-<BODY>
-<head><meta http-equiv=3D"Content-Type" content=3D"text/html; charset=3Diso=
--8859-1">
-</head><body><p>Meinung von unserem Kunden:<br><strong>Warum nehme ich Ciaa=
-aaaalis? Es ist einfach ein angenehmens Gef&#252;hl. Man brauch sich nicht =
-auf die Err. ..ektion zu konzentrieren. Beim Sex ist man viel entspannter, =
-mann kann auch mal die Muskeln im Genitalbereich lockern, ohne das die Err.=
- ..ektion im Glied nachlasst. Dadurch ist eine lange Verz&#246;gerung der E=
-jakulation m&#246;glich. Man ist beim Sex generell lockerer und entspannter=
-, und kommt auch nicht mehr so schnell ausser Athem, weil man eben locker u=
-nd entspannt ist, ausser nat&#252;rlich der kleine Freund :-)</strong></p><=
-p><strong>Meine Frau und ich haben Viaaaagra am letzten Wochenende ausprobi=
-ert. Sie fand, mein bestes St&#252;ck w&#228;re in letzter Zeit nicht ganz =
-auf der H&#246;he gewesen. Also dachten wir, wir probieren es einfach einma=
-l.Es gibt nur ein Wort, dass das Gef&#252;hl beschreibt: Wahnsinn. Seit ich=
- zwanzig war, konnte ich nicht mehr so lang und so oft. Was soll ich sagen?=
- Gute Arbeit, Viaaaagra!<br>
-</strong><strong><br>Verpassen Sie nichts am Lebem - Sie werden fuhlen was =
-unsere Kunden bestatigen!</strong></p><p>Preise die keine Konkurrenz kennen=
- <p>
-- Visa verifizierter Onlineshop<br>- Kein langes Warten - Auslieferung inne=
-rhalb von 2-3 Tagen<br>- Kostenlose, arztliche Telefon-Beratung<br>- Bequem=
- und diskret online bestellen.<br>- Kein peinlicher Arztbesuch erforderlich=
-t<br>- keine versteckte Kosten<br>- Diskrete Verpackung und Zahlung</p>  
-<p><br><strong><a href=3D"http://nakutwn.continuemany.hk/?445140436070" tar=
-get=3D"_blank">Vier Dosen gibt's bei jeder Bestellung umsonst</a></strong><=
-/body>
-</BODY></HTML>
-
-------=_NextPart_000_000E_01C7C364.721B0DB0--
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
