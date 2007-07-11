@@ -1,42 +1,64 @@
-Received: by nz-out-0506.google.com with SMTP id s1so1039454nze
-        for <linux-mm@kvack.org>; Wed, 11 Jul 2007 05:36:03 -0700 (PDT)
-Message-ID: <9a8748490707110536k1ec1465bl7497190f16c97af@mail.gmail.com>
-Date: Wed, 11 Jul 2007 14:36:01 +0200
-From: "Jesper Juhl" <jesper.juhl@gmail.com>
-Subject: Re: [ck] Re: -mm merge plans for 2.6.23
-In-Reply-To: <20070711092658.645023b9.kjwinchester@gmail.com>
+Date: Wed, 11 Jul 2007 14:03:28 +0100
+From: Andy Whitcroft <apw@shadowen.org>
+Subject: Re: -mm merge plans -- anti-fragmentation
+Message-ID: <20070711130328.GA14807@shadowen.org>
+References: <20070710102043.GA20303@skynet.ie> <200707100929.46153.dave.mccracken@oracle.com> <20070710152355.GI8779@wotan.suse.de> <200707101211.46003.dave.mccracken@oracle.com> <20070711025946.GD27475@wotan.suse.de>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-References: <20070710013152.ef2cd200.akpm@linux-foundation.org>
-	 <200707102015.44004.kernel@kolivas.org>
-	 <b21f8390707101802o2d546477n2a18c1c3547c3d7a@mail.gmail.com>
-	 <20070710181419.6d1b2f7e.akpm@linux-foundation.org>
-	 <20070711092658.645023b9.kjwinchester@gmail.com>
+In-Reply-To: <20070711025946.GD27475@wotan.suse.de>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Kevin Winchester <kjwinchester@gmail.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Matthew Hawkins <darthmdh@gmail.com>, Con Kolivas <kernel@kolivas.org>, ck list <ck@vds.kolivas.org>, Ingo Molnar <mingo@elte.hu>, Paul Jackson <pj@sgi.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Nick Piggin <npiggin@suse.de>
+Cc: Dave McCracken <dave.mccracken@oracle.com>, Mel Gorman <mel@skynet.ie>, Andrew Morton <akpm@linux-foundation.org>, kenchen@google.com, jschopp@austin.ibm.com, kamezawa.hiroyu@jp.fujitsu.com, a.p.zijlstra@chello.nl, y-goto@jp.fujitsu.com, clameter@sgi.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On 11/07/07, Kevin Winchester <kjwinchester@gmail.com> wrote:
-[snip]
->
-> [1] Is there a graphical browser for linux that doesn't suck huge amounts of RAM?
->
+On Wed, Jul 11, 2007 at 04:59:46AM +0200, Nick Piggin wrote:
 
-Dillo (http://www.dillo.org/) is really really tiny , a memory
-footprint somewhere in the hundreds of K area IIRC.
+> > Yes, these projects have workarounds, because they have to.  But the 
+> > workarounds are painful and often require that the user specify in advance 
+> > what memory they intend to use for this purpose, something users often have 
+> > to learn by trial and error.  Mel's patches would eliminate this barrier to 
+> > use of the features.
+> > 
+> > I don't see Mel's patches as "a fundamental change in direction".  I think 
+> > you're overstating the case.  I see it as fixing a deficiency in the design 
+> > of the page allocator, and a long overdue fix.
+> 
+> I would still say that with Mel's patches in, you need to have a fallback
+> to order-0 because memory can still get fragemnted. But no Mel's patches
+> are not exactly a fundamental change in direction itself, but introducing
+> higher order allocations without fallbacks is a change (OK, order 1 or 2
+> is used today, and mostly because of the nature of the allocator they're OK
+> too, but if we're talking about like 64K+ of contiguous pages).
 
-links 2 (http://links.twibright.com/) has a graphical mode in addition
-to the traditional text only mode (links -g) and the memory footprint
-is really tiny.
+However much one improves fragmentation the chances of finding a
+higher order page is always going to be lower than that of geting
+an order-0, there are less of them for a start.  It is pretty much
+inevitable that you would want to have a fallback for anything
+which is critical for system continuation.  The thrust of the
+anti-fragmentation work is not to claim a guarenteed availability but
+to expand the range of order over which we find a high probability
+of availability.  As you say elsewhere orders 0-2 pretty much work
+with buddy even in the face of random allocation, where intution
+might indicate it should not.  Simplistic reclaim can find us a page.
+Indeed you then find that the kernel uses those sizes in preference
+to order-0 for simplicity as they can be pretty much relied on, as
+is done with the process kernel stacks.  Much of what is proposed
+as uses for this work is an extension of this, using bigger pages
+where available for performance or simplicity.  SLUB as an example is
+making use of the fact that general availablity of near zero order
+is virtually guarenteed.  Obviously as order increases cirtainly
+decreases and you have to trade off the ramifications of failure
+to allocate against the cost of handling that failure.
 
--- 
-Jesper Juhl <jesper.juhl@gmail.com>
-Don't top-post  http://www.catb.org/~esr/jargon/html/T/top-post.html
-Plain text mails only, please      http://www.expita.com/nomime.html
+Specifically thinking about the pagecache, a fusion of Christoph's
+high order pagecache with fsblocks ability to handle discontigious
+pages at higher order sounds like it could be a very powerful
+solution to both problems, offering contigious pages where available
+and working regardless where not.
+
+-apw
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
