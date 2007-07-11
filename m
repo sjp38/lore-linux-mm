@@ -1,31 +1,28 @@
-Date: Wed, 11 Jul 2007 10:23:32 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: buffered write patches, -mm merge plans for 2.6.23
-Message-Id: <20070711102332.d5ffd572.akpm@linux-foundation.org>
-In-Reply-To: <20070711113944.GC18665@lst.de>
-References: <20070710013152.ef2cd200.akpm@linux-foundation.org>
-	<20070711113944.GC18665@lst.de>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Date: Wed, 11 Jul 2007 10:35:45 -0700 (PDT)
+From: Christoph Lameter <clameter@sgi.com>
+Subject: Re: [patch 10/12] Memoryless nodes: Update memory policy and page
+ migration
+In-Reply-To: <20070711161653.GN27655@us.ibm.com>
+Message-ID: <Pine.LNX.4.64.0707111035290.14201@schroedinger.engr.sgi.com>
+References: <20070710215339.110895755@sgi.com> <20070710215456.394842768@sgi.com>
+ <20070711164811.e94df898.kamezawa.hiroyu@jp.fujitsu.com>
+ <20070711161653.GN27655@us.ibm.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Hellwig <hch@lst.de>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Nick Piggin <nickpiggin@yahoo.com.au>
+To: Nishanth Aravamudan <nacc@us.ibm.com>
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, akpm@linux-foundation.org, kxr@sgi.com, linux-mm@kvack.org, Lee Schermerhorn <Lee.Schermerhorn@hp.com>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 11 Jul 2007 13:39:44 +0200 Christoph Hellwig <hch@lst.de> wrote:
+On Wed, 11 Jul 2007, Nishanth Aravamudan wrote:
 
-> >  pagefault-in-write deadlock fixes.  Will hold for 2.6.24.
+> I think Christoph missed a hunk in the node_memory_map patch, which
+> would
 > 
-> Why that?
+> #define node_memory_map node_stats[N_MEMORY]
 
-At Nick's request.  More work is needed and the code hasn't had a lot of
-testing/thought/exposure/review.
-
->  This stuff has been in forever and is needed at various
-> levels.  We need this in for anything to move forward on the buffered
-> write front.
+No. Somehow the patch was not updated. Need to send out a new rev.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
