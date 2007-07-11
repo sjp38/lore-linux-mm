@@ -1,49 +1,115 @@
-Received: from midway.site ([71.117.236.25]) by xenotime.net for <linux-mm@kvack.org>; Wed, 11 Jul 2007 08:42:02 -0700
-Date: Wed, 11 Jul 2007 08:45:49 -0700
-From: Randy Dunlap <rdunlap@xenotime.net>
-Subject: Re: lguest, Re: -mm merge plans for 2.6.23
-Message-Id: <20070711084549.93bb433e.rdunlap@xenotime.net>
-In-Reply-To: <20070711122324.GA21714@lst.de>
-References: <20070710013152.ef2cd200.akpm@linux-foundation.org>
-	<20070711122324.GA21714@lst.de>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Date: Wed, 11 Jul 2007 13:51:23 -0300
+From: "Casino Royal VIP" <coproduct@classifiedtoday.com>
+Subject: =?iso-8859-1?Q?300%_Bonus_f=FCr_Ihre_erste_Einzahlung!?=
+Message-ID: <71364182.87270172@roast.com>
+MIME-Version: 1.0
+Content-Type: text/html; charset=iso-8859-1
 Content-Transfer-Encoding: 7bit
-Sender: owner-linux-mm@kvack.org
-Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Hellwig <hch@lst.de>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, rusty@rustcorp.com.au, linux-mm@kvack.org
+Return-Path: <coproduct@classifiedtoday.com>
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 11 Jul 2007 14:23:24 +0200 Christoph Hellwig wrote:
+<html>
 
-...
+<head>
+<meta http-equiv=Content-Type content="text/html; charset=iso-8859-1">
 
-> > lguest-the-guest-code.patch
-> > lguest-the-host-code.patch
-> > lguest-the-host-code-lguest-vs-clockevents-fix-resume-logic.patch
-> > lguest-the-asm-offsets.patch
-> > lguest-the-makefile-and-kconfig.patch
-> > lguest-the-console-driver.patch
-> > lguest-the-net-driver.patch
-> > lguest-the-block-driver.patch
-> > lguest-the-documentation-example-launcher.patch
-> 
-> Just started to reading this (again) so no useful comment here, but it
-> would be nice if the code could follow CodingStyle and place the || and
-> && at the end of the line in multiline conditionals instead of at the
-> beginning of the new one.
+<title>Nur vom nobelsten aller</title>
 
-I prefer them at the ends of lines also, but that's not in CodingStyle,
-it's just how we do it most of the time (so "coding style", without
-caps).
+<style>
+<!--
+ /* Style Definitions */
+ p.MsoNormal, li.MsoNormal, div.MsoNormal
+	{mso-style-parent:"";
+	margin:0cm;
+	margin-bottom:.0001pt;
+	mso-pagination:widow-orphan;
+	font-size:12.0pt;
+	font-family:"Times New Roman";
+	mso-fareast-font-family:"Times New Roman";
+	mso-ansi-language:EN-US;
+	mso-fareast-language:EN-US;}
+a:link, span.MsoHyperlink
+	{color:blue;
+	text-decoration:underline;
+	text-underline:single;}
+a:visited, span.MsoHyperlinkFollowed
+	{color:purple;
+	text-decoration:underline;
+	text-underline:single;}
+@page Section1
+	{size:595.3pt 841.9pt;
+	margin:2.0cm 42.5pt 2.0cm 3.0cm;
+	mso-header-margin:35.4pt;
+	mso-footer-margin:35.4pt;
+	mso-paper-source:0;}
+div.Section1
+	{page:Section1;}
+-->
+</style>
 
----
-~Randy
-*** Remember to use Documentation/SubmitChecklist when testing your code ***
+</head>
 
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+<body lang=DE link=blue vlink=purple style='tab-interval:35.4pt'>
+
+<div class=Section1>
+
+<p class=MsoNormal>
+<span lang=DE style='mso-ansi-language:DE'>
+Nur vom nobelsten aller Casinos k&ouml;nnen 
+Sie ein so vornehmes Geschenk erwarten:
+<o:p></o:p></span></p>
+
+<p class=MsoNormal>
+<span lang=DE style='mso-ansi-language:DE'>
+<o:p>&nbsp;</o:p></span></p>
+
+<p class=MsoNormal>
+<span lang=DE style='mso-ansi-language:DE'>
+300% Bonus f&uuml;r Ihre erste Einzahlung!
+<o:p></o:p></span></p>
+
+<p class=MsoNormal>
+<span lang=DE style='mso-ansi-language:DE'>
+<o:p>&nbsp;</o:p></span></p>
+
+<p class=MsoNormal>
+<span lang=DE style='mso-ansi-language:DE'>
+Zahlen Sie 100&#8364;/$ ein und spielen 
+Sie mit 400 &#8364;/$!
+<o:p></o:p></span></p>
+
+<p class=MsoNormal>
+<span lang=DE style='mso-ansi-language:DE'>
+<o:p>&nbsp;</o:p></span></p>
+
+<p class=MsoNormal>
+<span lang=DE style='mso-ansi-language:DE'>
+Oben drauf bekommen Sie bei uns einen 
+k&ouml;niglichen Service!
+<o:p></o:p></span></p>
+
+<p class=MsoNormal>
+<span lang=DE style='mso-ansi-language:DE'>
+<o:p>&nbsp;</o:p></span></p>
+
+<p class=MsoNormal>
+<span lang=DE style='mso-ansi-language:DE'>
+Kommen und spielen Sie im Royal VIP Casino!
+<o:p></o:p></span></p>
+
+<p class=MsoNormal>
+<span lang=DE style='mso-ansi-language:DE'>
+<o:p>&nbsp;</o:p></span></p>
+
+<p class=MsoNormal>
+<span lang=DE style='mso-ansi-language:DE'>
+<a href="http://royal-play.com/lang-de/">
+http://royal-play.com/lang-de/</a>
+<o:p></o:p></span></p>
+
+</div>
+
+</body>
+
+</html>
