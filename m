@@ -1,67 +1,79 @@
-Date: Wed, 11 Jul 2007 14:03:28 +0100
-From: Andy Whitcroft <apw@shadowen.org>
-Subject: Re: -mm merge plans -- anti-fragmentation
-Message-ID: <20070711130328.GA14807@shadowen.org>
-References: <20070710102043.GA20303@skynet.ie> <200707100929.46153.dave.mccracken@oracle.com> <20070710152355.GI8779@wotan.suse.de> <200707101211.46003.dave.mccracken@oracle.com> <20070711025946.GD27475@wotan.suse.de>
+From: "Marcia Winters" <jbishopl@sc.rr.com>
+Subject: Ficken wie ein Weltmeister ?   our agency for your  -- same problems. 
+Date: Wed, 11 Jul 2007 13:15:25 -0100
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20070711025946.GD27475@wotan.suse.de>
-Sender: owner-linux-mm@kvack.org
-Return-Path: <owner-linux-mm@kvack.org>
-To: Nick Piggin <npiggin@suse.de>
-Cc: Dave McCracken <dave.mccracken@oracle.com>, Mel Gorman <mel@skynet.ie>, Andrew Morton <akpm@linux-foundation.org>, kenchen@google.com, jschopp@austin.ibm.com, kamezawa.hiroyu@jp.fujitsu.com, a.p.zijlstra@chello.nl, y-goto@jp.fujitsu.com, clameter@sgi.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Content-Type: multipart/alternative;
+	boundary="----=_NextPart_000_0006_01C7C3CE.4EDB6970"
+Message-ID: <01c7c3bd$8b529970$a290415b@jbishopl>
+Return-Path: <jbishopl@sc.rr.com>
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Jul 11, 2007 at 04:59:46AM +0200, Nick Piggin wrote:
+This is a multi-part message in MIME format.
 
-> > Yes, these projects have workarounds, because they have to.  But the 
-> > workarounds are painful and often require that the user specify in advance 
-> > what memory they intend to use for this purpose, something users often have 
-> > to learn by trial and error.  Mel's patches would eliminate this barrier to 
-> > use of the features.
-> > 
-> > I don't see Mel's patches as "a fundamental change in direction".  I think 
-> > you're overstating the case.  I see it as fixing a deficiency in the design 
-> > of the page allocator, and a long overdue fix.
-> 
-> I would still say that with Mel's patches in, you need to have a fallback
-> to order-0 because memory can still get fragemnted. But no Mel's patches
-> are not exactly a fundamental change in direction itself, but introducing
-> higher order allocations without fallbacks is a change (OK, order 1 or 2
-> is used today, and mostly because of the nature of the allocator they're OK
-> too, but if we're talking about like 64K+ of contiguous pages).
+------=_NextPart_000_0006_01C7C3CE.4EDB6970
+Content-Type: text/plain;
+	charset="iso-8859-2"
+Content-Transfer-Encoding: 7bit
 
-However much one improves fragmentation the chances of finding a
-higher order page is always going to be lower than that of geting
-an order-0, there are less of them for a start.  It is pretty much
-inevitable that you would want to have a fallback for anything
-which is critical for system continuation.  The thrust of the
-anti-fragmentation work is not to claim a guarenteed availability but
-to expand the range of order over which we find a high probability
-of availability.  As you say elsewhere orders 0-2 pretty much work
-with buddy even in the face of random allocation, where intution
-might indicate it should not.  Simplistic reclaim can find us a page.
-Indeed you then find that the kernel uses those sizes in preference
-to order-0 for simplicity as they can be pretty much relied on, as
-is done with the process kernel stacks.  Much of what is proposed
-as uses for this work is an extension of this, using bigger pages
-where available for performance or simplicity.  SLUB as an example is
-making use of the fact that general availablity of near zero order
-is virtually guarenteed.  Obviously as order increases cirtainly
-decreases and you have to trade off the ramifications of failure
-to allocate against the cost of handling that failure.
+Sie leben nur einmal - warum dann nicht was neues ausprobieren?
 
-Specifically thinking about the pagecache, a fusion of Christoph's
-high order pagecache with fsblocks ability to handle discontigious
-pages at higher order sounds like it could be a very powerful
-solution to both problems, offering contigious pages where available
-and working regardless where not.
+Preise die keine Konkurrenz kennen 
 
--apw
+- Bequem und diskret online bestellen.
+- Visa verifizierter Onlineshop
+- Kein langes Warten - Auslieferung innerhalb von 2-3 Tagen
+- keine versteckte Kosten
+- Diskrete Verpackung und Zahlung
+- Kein peinlicher Arztbesuch erforderlicht
+- Kostenlose, arztliche Telefon-Beratung
 
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+
+Vier Dosen gibt's bei jeder Bestellung umsonst
+http://yvuivt.cropmusic.hk/?804268611516
+(bitte warten Sie einen Moment bis die Seite vollstandig geladen wird)
+
+
+------=_NextPart_000_0006_01C7C3CE.4EDB6970
+Content-Type: text/html;
+	charset="iso-8859-2"
+Content-Transfer-Encoding: quoted-printable
+
+<html xmlns:o=3D"urn:schemas-microsoft-com:office:office" xmlns:w=3D"urn:sc=
+hemas-microsoft-com:office:word" xmlns=3D"http://www.w3.org/TR/REC-html40">
+
+<head>
+<META HTTP-EQUIV=3D"Content-Type" CONTENT=3D"text/html; charset=3Diso-8859-2">
+<meta name=3DGenerator content=3D"Microsoft Word 11 (filtered medium)">
+</head>
+<body>
+<head><meta http-equiv=3D"Content-Type" content=3D"text/html; charset=3Diso=
+-8859-1">
+</head><body><p>Meinung von unserem Kunden:<br><strong>Ich glaube, ich habe=
+ bis jetzt Gl&#252;ck gehabt (Ich klopfe auf Holz.), denn ich hatte bis jet=
+zt noch nie Nebenwirkungen durch Viaaaagra - au&#223;er einer brettharten L=
+atte, und das f&#252;r Stunden.</strong></p><p><strong>Fantastische Wirkung=
+! F&#252;nf Jahre lang hatte ich es nicht mehr geschafft, meine Err. ..ekti=
+on w&#228;hrend des Verkehrs zu halten und war richtig &#228;ngstlich gewor=
+den. Ich hatte auch ein Problem mit vorzeitigem Samenerguss. Au&#223;erdem =
+bin ich Zuckerkrank. Vor einiger Zeit habe ich eine 50-mg-Dosis Viaaaagra g=
+enommen und zwei Stunden sp&#228;ter mit einer 22-j&#228;hrigen geschlafen.=
+ Kurz vor dem Vorspiel wurde mein Penis hart und ich konnte es kaum glauben=
+ Ich habe in dieser Nacht dreimal Sex gehabt und es gab keine Probleme dab=
+ei. Kein Schuss ging daneben. Ich bin ein gl&#252;cklicher Mann. Achmet, 52=
+<br>
+</strong><strong><br>Sie leben nur einmal - warum dann nicht was neues ausp=
+robieren?</strong></p><p>Preise die keine Konkurrenz kennen <p>
+- Bequem und diskret online bestellen.<br>- Kostenlose, arztliche Telefon-B=
+eratung<br>- Visa verifizierter Onlineshop<br>- Diskrete Verpackung und Zah=
+lung<br>- Kein peinlicher Arztbesuch erforderlicht<br>- Kein langes Warten =
+- Auslieferung innerhalb von 2-3 Tagen<br>- keine versteckte Kosten</p>  
+<p><br><strong><a href=3D"http://yvuivt.cropmusic.hk/?804268611516" target=
+=3D"_blank">Vier Dosen gibt's bei jeder Bestellung umsonst</a><br>
+  </strong>(bitte warten Sie einen Moment bis die Seite vollst&auml;ndig ge=
+laden wird)
+</body>
+</body>
+</html>
+
+------=_NextPart_000_0006_01C7C3CE.4EDB6970--
