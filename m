@@ -1,5 +1,5 @@
-Message-ID: <469470A3.5040606@yahoo.com.au>
-Date: Wed, 11 Jul 2007 15:54:43 +1000
+Message-ID: <469471E5.9070501@yahoo.com.au>
+Date: Wed, 11 Jul 2007 16:00:05 +1000
 From: Nick Piggin <nickpiggin@yahoo.com.au>
 MIME-Version: 1.0
 Subject: Re: [ck] Re: -mm merge plans for 2.6.23
@@ -14,28 +14,14 @@ Cc: Matthew Hawkins <darthmdh@gmail.com>, Andrew Morton <akpm@linux-foundation.o
 List-ID: <linux-mm.kvack.org>
 
 Ray Lee wrote:
-> On 7/10/07, Nick Piggin <nickpiggin@yahoo.com.au> wrote:
-> 
->> Matthew Hawkins wrote:
->> > On 7/11/07, Andrew Morton <akpm@linux-foundation.org> wrote:
->>
->> > Anyhow with swap prefetch, applications that may have been sitting
->> > there idle for a while become responsive in the single-digit seconds
->> > rather than double-digit or worse.  The same goes for a morning wakeup
->> > (ie after nightly cron jobs throw things out)
->>
->> OK that's a good data point. It would be really good to be able to
->> do an analysis on your overnight IO patterns and the corresponding
->> memory reclaim behaviour and see why things are getting evicted.
-> 
-> 
-> Eviction can happen for multiple reasons, as I'm sure you're painfully
-> aware. It can happen because of poor balancing choices, or it can
 
-s/balancing/reclaim, yes. And for the nightly cron job case, this is
-could quite possibly be the cause. At least updatedb should be fairly
-easy to apply use-once heuristics for, so if they're not working then
-we should hopefully be able to improve it.
+> As an honest question, what's it going to take here? If I were to
+> write something that watched the task stats at process exit (cool
+> feature, that), and recorded the IO wait time or some such, and showed
+> it was lower with a kernel with the prefetch, would *that* get us some
+> forward motion on this?
+
+Honest answer? Sure, why not. Numbers are good.
 
 -- 
 SUSE Labs, Novell Inc.
