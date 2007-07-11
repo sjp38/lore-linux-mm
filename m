@@ -1,75 +1,74 @@
-Message-ID: <01c7c3eb$1de5d180$4768bc54@jbuks>
-From: "Jamel Brand" <jbuks@sherwin.com>
-Subject: Energy fur ihren Schwanz, kaufen und 85% sparen  investment advisory service  -- In a way that lets you put 
-Date: Wed, 11 Jul 2007 18:41:38 -0100
+Received: from d03relay02.boulder.ibm.com (d03relay02.boulder.ibm.com [9.17.195.227])
+	by e31.co.us.ibm.com (8.13.8/8.13.8) with ESMTP id l6BIku1N024834
+	for <linux-mm@kvack.org>; Wed, 11 Jul 2007 14:46:56 -0400
+Received: from d03av04.boulder.ibm.com (d03av04.boulder.ibm.com [9.17.195.170])
+	by d03relay02.boulder.ibm.com (8.13.8/8.13.8/NCO v8.3) with ESMTP id l6BIkifQ231956
+	for <linux-mm@kvack.org>; Wed, 11 Jul 2007 12:46:49 -0600
+Received: from d03av04.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av04.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l6BIkiMH028035
+	for <linux-mm@kvack.org>; Wed, 11 Jul 2007 12:46:44 -0600
+Date: Wed, 11 Jul 2007 11:46:43 -0700
+From: Nishanth Aravamudan <nacc@us.ibm.com>
+Subject: Re: [patch 10/12] Memoryless nodes: Update memory policy and page migration
+Message-ID: <20070711184643.GA32035@us.ibm.com>
+References: <20070711182219.234782227@sgi.com> <20070711182252.138829364@sgi.com>
 MIME-Version: 1.0
-Content-Type: multipart/alternative;
-	boundary="----=_NextPart_000_0007_01C7C3FB.E16EA180"
-Return-Path: <jbuks@sherwin.com>
-To: linux-mm@kvack.org
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20070711182252.138829364@sgi.com>
+Sender: owner-linux-mm@kvack.org
+Return-Path: <owner-linux-mm@kvack.org>
+To: Christoph Lameter <clameter@sgi.com>
+Cc: akpm@linux-foundation.org, kxr@sgi.com, linux-mm@kvack.org, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-This is a multi-part message in MIME format.
+On 11.07.2007 [11:22:29 -0700], Christoph Lameter wrote:
+> Online nodes now may have no memory. The checks and initialization must therefore
+> be changed to no longer use the online functions.
+> 
+> This will correctly initialize the interleave on bootup to only target
+> nodes with memory and will make sys_move_pages return an error when a page
+> is to be moved to a memoryless node. Similarly we will get an error if
+> MPOL_BIND and MPOL_INTERLEAVE is used on a memoryless node.
+> 
+> These are somewhat new semantics. So far one could specify memoryless nodes
+> and we would maybe do the right thing and just ignore the node (or we'd do
+> something strange like with MPOL_INTERLEAVE). If we want to allow the
+> specification of memoryless nodes via memory policies then we need to keep
+> checking for online nodes.
+> 
+> Signed-off-by: Christoph Lameter <clameter@sgi.com>
+> Acked-by: Nishanth Aravamudan <nacc@us.ibm.com>
+> 
+> ---
+>  mm/mempolicy.c |   10 +++++-----
+>  mm/migrate.c   |    2 +-
+>  2 files changed, 6 insertions(+), 6 deletions(-)
+> 
+> Index: linux-2.6.22-rc6-mm1/mm/migrate.c
+> ===================================================================
+> --- linux-2.6.22-rc6-mm1.orig/mm/migrate.c	2007-07-09 21:23:18.000000000 -0700
+> +++ linux-2.6.22-rc6-mm1/mm/migrate.c	2007-07-11 10:37:03.000000000 -0700
+> @@ -963,7 +963,7 @@ asmlinkage long sys_move_pages(pid_t pid
+>  				goto out;
+> 
+>  			err = -ENODEV;
+> -			if (!node_online(node))
+> +			if (!node_memory(node))
 
-------=_NextPart_000_0007_01C7C3FB.E16EA180
-Content-Type: text/plain;
-	charset="iso-8859-2"
-Content-Transfer-Encoding: quoted-printable
+			if (!node_state(node, N_MEMORY))
 
-Haben Sie endlich wieder Spass am Leben!
+?
 
-Preise die keine Konkurrenz kennen 
+Thanks,
+Nish
 
-- keine versteckte Kosten
-- Bequem und diskret online bestellen.
-- Kostenlose, arztliche Telefon-Beratung
-- Kein langes Warten - Auslieferung innerhalb von 2-3 Tagen
-- Diskrete Verpackung und Zahlung
-- Kein peinlicher Arztbesuch erforderlicht
-- Visa verifizierter Onlineshop
+-- 
+Nishanth Aravamudan <nacc@us.ibm.com>
+IBM Linux Technology Center
 
-
-Klicken Sie HIER und Sie erhalten vier Dosen umsonst
-http://ovtkhja.beatlady.hk/?997977070643
-(bitte warten Sie einen Moment bis die Seite vollstandig geladen wird)
-------=_NextPart_000_0007_01C7C3FB.E16EA180
-Content-Type: text/html;
-	charset="iso-8859-2"
-Content-Transfer-Encoding: quoted-printable
-
-<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
-<HTML><HEAD>
-<META http-equiv=3DContent-Type content=3D"text/html; charset=3Diso-8859-2">
-<META content=3D"MSHTML 6.00.2800.1158" name=3DGENERATOR>
-<STYLE></STYLE>
-</HEAD>
-<BODY>
-<head><meta http-equiv=3D"Content-Type" content=3D"text/html; charset=3Diso=
--8859-1">
-</head><body><p>Meinung von unserem Kunden:<br><strong>Fantastische Wirkung=
-! F&#252;nf Jahre lang hatte ich es nicht mehr geschafft, meine Err. ..ekti=
-on w&#228;hrend des Verkehrs zu halten und war richtig &#228;ngstlich gewor=
-den. Ich hatte auch ein Problem mit vorzeitigem Samenerguss. Au&#223;erdem =
-bin ich Zuckerkrank. Vor einiger Zeit habe ich eine 50-mg-Dosis Viaaaagra g=
-enommen und zwei Stunden sp&#228;ter mit einer 22-j&#228;hrigen geschlafen.=
- Kurz vor dem Vorspiel wurde mein Penis hart und ich konnte es kaum glauben=
- Ich habe in dieser Nacht dreimal Sex gehabt und es gab keine Probleme dab=
-ei. Kein Schuss ging daneben. Ich bin ein gl&#252;cklicher Mann. Achmet, 52=
-</strong></p><p><strong>Ich glaube, ich habe bis jetzt Gl&#252;ck gehabt (I=
-ch klopfe auf Holz.), denn ich hatte bis jetzt noch nie Nebenwirkungen durc=
-h Viaaaagra - au&#223;er einer brettharten Latte, und das f&#252;r Stunden.=
-<br>
-</strong><strong><br>Haben Sie endlich wieder Spass am Leben!</strong></p><=
-p>Preise die keine Konkurrenz kennen <p>
-- Diskrete Verpackung und Zahlung<br>- Kein peinlicher Arztbesuch erforderl=
-icht<br>- Bequem und diskret online bestellen.<br>- Kostenlose, arztliche T=
-elefon-Beratung<br>- Kein langes Warten - Auslieferung innerhalb von 2-3 Ta=
-gen<br>- Visa verifizierter Onlineshop<br>- keine versteckte Kosten</p>  
-<p><br><strong><a href=3D"http://ovtkhja.beatlady.hk/?997977070643" target=
-=3D"_blank">Klicken Sie HIER und Sie erhalten vier Dosen umsonst</a><br>
-  </strong>(bitte warten Sie einen Moment bis die Seite vollst&auml;ndig ge=
-laden wird)
-</body>
-</BODY></HTML>
-
-------=_NextPart_000_0007_01C7C3FB.E16EA180--
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
