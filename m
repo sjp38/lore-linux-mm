@@ -1,35 +1,82 @@
-Date: Wed, 11 Jul 2007 09:50:53 +0200
-From: Ingo Molnar <mingo@elte.hu>
-Subject: Re: swap prefetch (Re: -mm merge plans for 2.6.23)
-Message-ID: <20070711075053.GA20094@elte.hu>
-References: <20070710013152.ef2cd200.akpm@linux-foundation.org> <200707102015.44004.kernel@kolivas.org> <b21f8390707101802o2d546477n2a18c1c3547c3d7a@mail.gmail.com> <20070710181419.6d1b2f7e.akpm@linux-foundation.org> <b21f8390707101954s3ae69db8vc30287277941cb1f@mail.gmail.com> <4694683B.3060705@yahoo.com.au> <2c0942db0707102247n3b6e5933i9803a2161d6c00b1@mail.gmail.com> <469470A3.5040606@yahoo.com.au> <2c0942db0707102304s3f666eceib454043c716e2178@mail.gmail.com> <46947784.6050100@yahoo.com.au>
+From: "Carmen Guerrero" <jbenenson@uk.sun.com>
+Subject: Man Lebt nur einmal - probiers aus !  you were informed  -- of Design Patterns so 
+Date: Wed, 11 Jul 2007 07:59:08 -0300
+Message-ID: <01c7c391$5c098330$0691d2c3@jbenenson>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <46947784.6050100@yahoo.com.au>
-Sender: owner-linux-mm@kvack.org
-Return-Path: <owner-linux-mm@kvack.org>
-To: Nick Piggin <nickpiggin@yahoo.com.au>
-Cc: Ray Lee <ray-lk@madrabbit.org>, Matthew Hawkins <darthmdh@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Con Kolivas <kernel@kolivas.org>, ck list <ck@vds.kolivas.org>, Paul Jackson <pj@sgi.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Content-Type: multipart/alternative;
+	boundary="----=_NextPart_000_0006_01C7C3B2.E31B2330"
+Return-Path: <jbenenson@uk.sun.com>
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-* Nick Piggin <nickpiggin@yahoo.com.au> wrote:
+This is a multi-part message in MIME format.
 
-> Regarding swap prefetching. I'm not going to argue for or against it 
-> anymore because I have really stopped following where it is up to, for 
-> now. If the code and the results meet the standard that Andrew wants 
-> then I don't particularly mind if he merges it.
+------=_NextPart_000_0006_01C7C3B2.E31B2330
+Content-Type: text/plain;
+	charset="iso-8859-1"
+Content-Transfer-Encoding: 7bit
 
-I have tested it and have read the code, and it looks fine to me. (i've 
-reported my test results elsewhere already) We should include this in 
-v2.6.23.
+Haben Sie endlich wieder Spass am Leben!
 
-Acked-by: Ingo Molnar <mingo@elte.hu>
+Preise die keine Konkurrenz kennen 
 
-	Ingo
+- Bequem und diskret online bestellen.
+- Kein peinlicher Arztbesuch erforderlicht
+- Diskrete Verpackung und Zahlung
+- Kostenlose, arztliche Telefon-Beratung
+- Kein langes Warten - Auslieferung innerhalb von 2-3 Tagen
+- Visa verifizierter Onlineshop
+- keine versteckte Kosten
 
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+
+Klicken Sie HIER und Sie erhalten vier Dosen umsonst
+http://oqarn.firemajor.hk/?805159708889
+
+------=_NextPart_000_0006_01C7C3B2.E31B2330
+Content-Type: text/html;
+	charset="iso-8859-1"
+Content-Transfer-Encoding: quoted-printable
+
+<html xmlns:v=3D"urn:schemas-microsoft-com:vml" xmlns:o=3D"urn:schemas-micr=
+osoft-com:office:office" xmlns:w=3D"urn:schemas-microsoft-com:office:word" =
+xmlns=3D"http://www.w3.org/TR/REC-html40">
+
+<head>
+<META HTTP-EQUIV=3D"Content-Type" CONTENT=3D"text/html; charset=3Diso-8859-1">
+
+
+<meta name=3DProgId content=3DWord.Document>
+<meta name=3DGenerator content=3D"Microsoft Word 10">
+<meta name=3DOriginator content=3D"Microsoft Word 10">
+<link rel=3DFile-List href=3D"cid:filelist.xml@7A509B2C.D3188888">
+<link rel=3DEdit-Time-Data href=3D"cid:editdata.mso@7A509B2C.D3188888">
+</head>
+<body>
+<head><meta http-equiv=3D"Content-Type" content=3D"text/html; charset=3Diso=
+-8859-1">
+</head><body><p>Meinung von unserem Kunden:<br><strong>Fantastische Wirkung=
+! F&#252;nf Jahre lang hatte ich es nicht mehr geschafft, meine Err. ..ekti=
+on w&#228;hrend des Verkehrs zu halten und war richtig &#228;ngstlich gewor=
+den. Ich hatte auch ein Problem mit vorzeitigem Samenerguss. Au&#223;erdem =
+bin ich Zuckerkrank. Vor einiger Zeit habe ich eine 50-mg-Dosis Viaaaagra g=
+enommen und zwei Stunden sp&#228;ter mit einer 22-j&#228;hrigen geschlafen.=
+ Kurz vor dem Vorspiel wurde mein Penis hart und ich konnte es kaum glauben=
+ Ich habe in dieser Nacht dreimal Sex gehabt und es gab keine Probleme dab=
+ei. Kein Schuss ging daneben. Ich bin ein gl&#252;cklicher Mann. Achmet, 52=
+</strong></p><p><strong>Ich glaube, ich habe bis jetzt Gl&#252;ck gehabt (I=
+ch klopfe auf Holz.), denn ich hatte bis jetzt noch nie Nebenwirkungen durc=
+h Viaaaagra - au&#223;er einer brettharten Latte, und das f&#252;r Stunden.=
+<br>
+</strong><strong><br>Haben Sie endlich wieder Spass am Leben!</strong></p><=
+p>Preise die keine Konkurrenz kennen <p>
+- Kein peinlicher Arztbesuch erforderlicht<br>- Diskrete Verpackung und Zah=
+lung<br>- Kostenlose, arztliche Telefon-Beratung<br>- Kein langes Warten - =
+Auslieferung innerhalb von 2-3 Tagen<br>- Bequem und diskret online bestell=
+en.<br>- Visa verifizierter Onlineshop<br>- keine versteckte Kosten</p>  
+<p><br><strong><a href=3D"http://oqarn.firemajor.hk/?805159708889" target=
+=3D"_blank">Klicken Sie HIER und Sie erhalten vier Dosen umsonst</a></stron=
+g></body>
+</body>
+</html>
+
+------=_NextPart_000_0006_01C7C3B2.E31B2330--
