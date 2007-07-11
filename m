@@ -1,77 +1,41 @@
-From: "Rickey Osborne" <heavymetal4614@cox.com>
-Subject: Haben Sie wieder Spass am Leben!   which details the  -- at speaking the language 
-Date: Wed, 11 Jul 2007 22:28:14 -0100
+Received: by wa-out-1112.google.com with SMTP id m33so2384585wag
+        for <linux-mm@kvack.org>; Wed, 11 Jul 2007 15:37:18 -0700 (PDT)
+Message-ID: <eada2a070707111537p20ab429anebd8b1840f5e5b5f@mail.gmail.com>
+Date: Wed, 11 Jul 2007 15:37:17 -0700
+From: "Tim Pepper" <lnxninja@us.ibm.com>
+Subject: Re: [RFT][PATCH] mm: drop behind
+In-Reply-To: <1184007008.1913.45.camel@twins>
 MIME-Version: 1.0
-Content-Type: multipart/alternative;
-	boundary="----=_NextPart_000_0006_01C7C41B.88ECA640"
-Message-ID: <01c7c40a$c563d640$e907e450@heavymetal4614>
-Return-Path: <heavymetal4614@cox.com>
-To: linux-mm@kvack.org
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+References: <1184007008.1913.45.camel@twins>
+Sender: owner-linux-mm@kvack.org
+Return-Path: <owner-linux-mm@kvack.org>
+To: Peter Zijlstra <peterz@infradead.org>
+Cc: linux-kernel <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Fengguang Wu <wfg@mail.ustc.edu.cn>, riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Rusty Russell <rusty@rustcorp.com.au>
 List-ID: <linux-mm.kvack.org>
 
-This is a multi-part message in MIME format.
+On 7/9/07, Peter Zijlstra <peterz@infradead.org> wrote:
+> Use the read-ahead code to provide hints to page reclaim.
+>
+> This patch has the potential to solve the streaming-IO trashes my
+> desktop problem.
+>
+> It tries to aggressively reclaim pages that were loaded in a strong
+> sequential pattern and have been consumed. Thereby limiting the damage
+> to the current resident set.
 
-------=_NextPart_000_0006_01C7C41B.88ECA640
-Content-Type: text/plain;
-	charset="windows-1250"
-Content-Transfer-Encoding: 7bit
+Interesting...
 
-Versuchen Sie unser Produkt und Sie werden fuhlen was unsere Kunden bestatigen
-
-Preise die keine Konkurrenz kennen 
-
-- keine versteckte Kosten
-- Kein peinlicher Arztbesuch erforderlicht
-- Kostenlose, arztliche Telefon-Beratung
-- Diskrete Verpackung und Zahlung
-- Kein langes Warten - Auslieferung innerhalb von 2-3 Tagen
-- Bequem und diskret online bestellen.
-- Visa verifizierter Onlineshop
+Would it make sense to tie this into (finally) making
+POSIX_FADV_NOREUSE something more than a noop?
 
 
-Vier Dosen gibt's bei jeder Bestellung umsonst
-http://mokera.hk/
-(bitte warten Sie einen Moment bis die Seite vollstandig geladen wird)
+Tim
 
-
-------=_NextPart_000_0006_01C7C41B.88ECA640
-Content-Type: text/html;
-	charset="windows-1250"
-Content-Transfer-Encoding: quoted-printable
-
-<html xmlns:o=3D"urn:schemas-microsoft-com:office:office" xmlns:w=3D"urn:sc=
-hemas-microsoft-com:office:word" xmlns=3D"http://www.w3.org/TR/REC-html40">
-
-<head>
-<META HTTP-EQUIV=3D"Content-Type" CONTENT=3D"text/html; charset=3Dwindows-1250">
-<meta name=3DGenerator content=3D"Microsoft Word 11 (filtered medium)">
-</head>
-<body>
-<head><meta http-equiv=3D"Content-Type" content=3D"text/html; charset=3Diso=
--8859-1">
-</head><body><p>Meinung von unserem Kunden:<br><strong>Ich finde Viaaaagra =
-einfach wunderbar. Egal, ob f&#252;r den Sex oder, um mich selbst zu verw&#=
-246;hnen: Es funktioniert. Mein Schwanz wird extrem hart und mein Orgasmus =
-ist sehr intensiv. Die Wirkung ist so stark, dass ich Viaaaagra nur am Woch=
-enende verwende oder wenn ich viel Zeit habe, es richtig zu genie&#223;en.<=
-/strong></p><p><strong>Als wir Liebe gemacht haben, f&#252;hlte ich mich wi=
-eder wie ein Neunzehnj&#228;hriger. "Er" war so hart, ich h&#228;tte N&#228=
-;gel damit einklopfen k&#246;nnen. Meiner Frau sagt, ich h&#228;tte sie noc=
-h nie so lang und so hart geliebt. Sie ist ganz versessen auf mich. Und ich=
- brauche wohl bald einen Nachf&#252;llpack.<br>
-</strong><strong><br>Versuchen Sie unser Produkt und Sie werden fuhlen was =
-unsere Kunden bestatigen</strong></p><p>Preise die keine Konkurrenz kennen =
-<p>
-- Diskrete Verpackung und Zahlung<br>- Kein langes Warten - Auslieferung in=
-nerhalb von 2-3 Tagen<br>- Bequem und diskret online bestellen.<br>- Kein p=
-einlicher Arztbesuch erforderlicht<br>- Kostenlose, arztliche Telefon-Berat=
-ung<br>- Visa verifizierter Onlineshop<br>- keine versteckte Kosten</p>  
-<p><br><strong><a href=3D"http://mokera.hk/" target=3D"_blank">Vier Dosen g=
-ibt's bei jeder Bestellung umsonst</a><br>
-  </strong>(bitte warten Sie einen Moment bis die Seite vollst&auml;ndig ge=
-laden wird)
-</body>
-</body>
-</html>
-
-------=_NextPart_000_0006_01C7C41B.88ECA640--
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
