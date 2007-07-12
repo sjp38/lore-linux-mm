@@ -1,77 +1,44 @@
-From: "Gretchen Byers" <jborgmann@swedishamerican.org>
-Subject: Potenzprobleme? Ab jetzt nicht mehr  including registration of corporation,  -- you have. You know
-Date: Thu, 12 Jul 2007 10:56:44 -0100
+Message-ID: <46960C27.5040803@qumranet.com>
+Date: Thu, 12 Jul 2007 14:10:31 +0300
+From: Avi Kivity <avi@qumranet.com>
 MIME-Version: 1.0
-Content-Type: multipart/alternative;
-	boundary="----=_NextPart_000_0006_01C7C484.192F35C0"
-Message-ID: <01c7c473$55a665c0$392e8e50@jborgmann>
-Return-Path: <jborgmann@swedishamerican.org>
-To: linux-mm@kvack.org
+Subject: Re: lguest, Re: -mm merge plans for 2.6.23
+References: <20070710013152.ef2cd200.akpm@linux-foundation.org>	 <20070711122324.GA21714@lst.de>	 <1184203311.6005.664.camel@localhost.localdomain>	 <20070711.192829.08323972.davem@davemloft.net>	 <1184208521.6005.695.camel@localhost.localdomain>	 <20070711212435.abd33524.akpm@linux-foundation.org> <1184215943.6005.745.camel@localhost.localdomain>
+In-Reply-To: <1184215943.6005.745.camel@localhost.localdomain>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
+Sender: owner-linux-mm@kvack.org
+Return-Path: <owner-linux-mm@kvack.org>
+To: Rusty Russell <rusty@rustcorp.com.au>
+Cc: Andrew Morton <akpm@linux-foundation.org>, David Miller <davem@davemloft.net>, hch@lst.de, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-This is a multi-part message in MIME format.
+Rusty Russell wrote:
+> Remove export of __put_task_struct, and usage in lguest
+>
+> lguest takes a reference count of tasks for two reasons.  The first is
+> bogus: the /dev/lguest close callback will be called before the task
+> is destroyed anyway, so no need to take a reference on open.
+>
+>   
 
-------=_NextPart_000_0006_01C7C484.192F35C0
-Content-Type: text/plain;
-	charset="windows-1250"
-Content-Transfer-Encoding: 7bit
+What about
 
-Haben Sie endlich wieder Spass am Leben!
+  Open /dev/lguest
+  transfer fd using SCM_RIGHTS (or clone()?)
+  close fd in original task
+  exit()
 
-Preise die keine Konkurrenz kennen 
+?
 
-- Visa verifizierter Onlineshop
-- keine versteckte Kosten
-- Kein peinlicher Arztbesuch erforderlicht
-- Kostenlose, arztliche Telefon-Beratung
-- Diskrete Verpackung und Zahlung
-- Kein langes Warten - Auslieferung innerhalb von 2-3 Tagen
-- Bequem und diskret online bestellen.
+My feeling is that if you want to be bound to a task, not a file, you 
+need to use syscalls, not ioctls.
 
+-- 
+error compiling committee.c: too many arguments to function
 
-Vier Dosen gibt's bei jeder Bestellung umsonst
-http://pfaafk.togethernote.hk/?085104896061
-(bitte warten Sie einen Moment bis die Seite vollstandig geladen wird)
-
-
-------=_NextPart_000_0006_01C7C484.192F35C0
-Content-Type: text/html;
-	charset="windows-1250"
-Content-Transfer-Encoding: quoted-printable
-
-<html xmlns:o=3D"urn:schemas-microsoft-com:office:office" xmlns:w=3D"urn:sc=
-hemas-microsoft-com:office:word" xmlns=3D"http://www.w3.org/TR/REC-html40">
-
-<head>
-<META HTTP-EQUIV=3D"Content-Type" CONTENT=3D"text/html; charset=3Dwindows-1250">
-<meta name=3DGenerator content=3D"Microsoft Word 11 (filtered medium)">
-</head>
-<body>
-<head><meta http-equiv=3D"Content-Type" content=3D"text/html; charset=3Diso=
--8859-1">
-</head><body><p>Meinung von unserem Kunden:<br><strong>Bin restlos begeiste=
-rt. Bin 50 und schlage mich seit einem guten Jahre damit herum, dass meinem=
- Freund im entscheidenden Moment die Standfestigkeit abhanden kommt. Aber n=
-un ist es wie in allerbesten Zeiten. 10 mg reichen f&#252;r ein sehr LUSTig=
-es Weekend. Null Nebenwirkungen - abgesehen vom Muskelkater am n&#228;chten=
- Tag. Aber der verschwindet ja durch ausreichendes Training ;-))</strong></=
-p><p><strong>Als wir Liebe gemacht haben, f&#252;hlte ich mich wieder wie e=
-in Neunzehnj&#228;hriger. "Er" war so hart, ich h&#228;tte N&#228;gel damit=
- einklopfen k&#246;nnen. Meiner Frau sagt, ich h&#228;tte sie noch nie so l=
-ang und so hart geliebt. Sie ist ganz versessen auf mich. Und ich brauche w=
-ohl bald einen Nachf&#252;llpack.<br>
-</strong><strong><br>Haben Sie endlich wieder Spass am Leben!</strong></p><=
-p>Preise die keine Konkurrenz kennen <p>
-- keine versteckte Kosten<br>- Diskrete Verpackung und Zahlung<br>- Kostenl=
-ose, arztliche Telefon-Beratung<br>- Kein peinlicher Arztbesuch erforderlic=
-ht<br>- Kein langes Warten - Auslieferung innerhalb von 2-3 Tagen<br>- Bequ=
-em und diskret online bestellen.<br>- Visa verifizierter Onlineshop</p>  
-<p><br><strong><a href=3D"http://pfaafk.togethernote.hk/?085104896061" targ=
-et=3D"_blank">Vier Dosen gibt's bei jeder Bestellung umsonst</a><br>
-  </strong>(bitte warten Sie einen Moment bis die Seite vollst&auml;ndig ge=
-laden wird)
-</body>
-</body>
-</html>
-
-------=_NextPart_000_0006_01C7C484.192F35C0--
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
