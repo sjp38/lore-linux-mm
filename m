@@ -1,52 +1,62 @@
-Message-ID: <46959516.30007@yahoo.com.au>
-Date: Thu, 12 Jul 2007 12:42:30 +1000
-From: Nick Piggin <nickpiggin@yahoo.com.au>
-MIME-Version: 1.0
-Subject: Re: block_page_mkwrite? (Re: fault vs invalidate race (Re: -mm merge
- plans for 2.6.23))
-References: <20070710013152.ef2cd200.akpm@linux-foundation.org> <46957BE1.1010104@yahoo.com.au> <20070712023100.GX12413810@sgi.com>
-In-Reply-To: <20070712023100.GX12413810@sgi.com>
-Content-Type: text/plain; charset=us-ascii; format=flowed
+Subject: Re: lguest, Re: -mm merge plans for 2.6.23
+From: Rusty Russell <rusty@rustcorp.com.au>
+In-Reply-To: <20070711.192829.08323972.davem@davemloft.net>
+References: <20070710013152.ef2cd200.akpm@linux-foundation.org>
+	 <20070711122324.GA21714@lst.de>
+	 <1184203311.6005.664.camel@localhost.localdomain>
+	 <20070711.192829.08323972.davem@davemloft.net>
+Content-Type: text/plain
+Date: Thu, 12 Jul 2007 12:48:41 +1000
+Message-Id: <1184208521.6005.695.camel@localhost.localdomain>
+Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: David Chinner <dgc@sgi.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, Linux Memory Management <linux-mm@kvack.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, xfs-oss <xfs@oss.sgi.com>
+To: David Miller <davem@davemloft.net>
+Cc: hch@lst.de, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-David Chinner wrote:
-> On Thu, Jul 12, 2007 at 10:54:57AM +1000, Nick Piggin wrote:
+On Wed, 2007-07-11 at 19:28 -0700, David Miller wrote:
+> From: Rusty Russell <rusty@rustcorp.com.au>
+> Date: Thu, 12 Jul 2007 11:21:51 +1000
 > 
->>Andrew Morton wrote:
->>
->>>The fault-vs-invalidate race fix.  I have belatedly learned that these 
->>>need
->>>more work, so their state is uncertain.
->>
->>The more work may turn out being too much for you (although it is nothing
->>exactly tricky that would introduce subtle bugs, it is a fair amont of 
->>churn).
+> > To do inter-guest (ie. inter-process) I/O you really have to make sure
+> > the other side doesn't go away.
 > 
+> You should just let it exit and when it does you receive some kind of
+> exit notification that resets your virtual device channel.
 > 
-> OK, so does that mean we can finally get the block_page_mkwrite
-> patches merged?
-> 
-> i.e.:
-> 
-> http://marc.info/?l=linux-kernel&m=117426058311032&w=2
-> http://marc.info/?l=linux-kernel&m=117426070111136&w=2
-> 
-> I've got up-to-date versions of them ready to go and they've been
-> consistently tested thanks to the XFSQA test I wrote for the bug
-> that it fixes. I've been holding them out-of-tree for months now
-> because ->fault was supposed to supercede this interface.....
+> I think the reference counting approach is error and deadlock prone.
+> Be more loose and let the events reset the virtual devices when
+> guests go splat.
 
-Yeah, as I've said, don't hold them back because of me. They are
-relatively simple enough that I don't see why they couldn't be
-merged in this window.
+There are two places where we grab task refcnt.  One might be avoidable
+(will test and get back) but the deferred wakeup isn't really:
 
--- 
-SUSE Labs, Novell Inc.
+        /* We cache one process to wakeup: helps for batching & wakes outside locks. */
+        void set_wakeup_process(struct lguest *lg, struct task_struct *p)
+        {
+        	if (p == lg->wake)
+        		return;
+        
+        	if (lg->wake) {
+        		wake_up_process(lg->wake);
+        		put_task_struct(lg->wake);
+        	}
+        	lg->wake = p;
+        	if (lg->wake)
+        		get_task_struct(lg->wake);
+        }
+
+We drop the lock after I/O, and then do this wakeup.  Meanwhile the
+other task might have exited.
+
+I could get rid of it, but I don't think there's anything wrong with the
+code...
+
+Cheers,
+Rusty.
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
