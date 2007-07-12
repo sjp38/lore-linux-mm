@@ -1,72 +1,76 @@
-From: "Lilly Chase" <reaveyj@gohip.com>
-Subject: Vier Doosen umsonst  it would be useful  -- applications. You 
-Date: Thu, 12 Jul 2007 20:00:31 -0100
-Message-ID: <01c7c4bf$4d2a8ba0$c5202053@reaveyj>
+Message-ID: <01c7c4c3$74a70c40$492e8354@realmode>
+From: "Gerardo Frey" <realmode@kxtv.com>
+Subject: Blaues Wunder - dann klappts auch mit der Nachbarin   does appear that the  --  and why everything 
+Date: Thu, 12 Jul 2007 20:30:15 -0100
 MIME-Version: 1.0
 Content-Type: multipart/alternative;
-	boundary="----=_NextPart_000_000E_01C7C4D0.10B35BA0"
-Return-Path: <reaveyj@gohip.com>
+	boundary="----=_NextPart_000_0007_01C7C4D4.382FDC40"
+Return-Path: <realmode@kxtv.com>
 To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
 This is a multi-part message in MIME format.
 
-------=_NextPart_000_000E_01C7C4D0.10B35BA0
+------=_NextPart_000_0007_01C7C4D4.382FDC40
 Content-Type: text/plain;
-	charset="windows-1250"
-Content-Transfer-Encoding: 7bit
+	charset="us-ascii"
+Content-Transfer-Encoding: quoted-printable
 
-Haben Sie endlich wieder Spass am Leben!
+Verpassen Sie nichts am Lebem - Sie werden fuhlen was unsere Kunden bestati=
+gen!
 
 Preise die keine Konkurrenz kennen 
 
-- Kein langes Warten - Auslieferung innerhalb von 2-3 Tagen
-- Kostenlose, arztliche Telefon-Beratung
 - Bequem und diskret online bestellen.
+- Diskrete Verpackung und Zahlung
+- Kostenlose, arztliche Telefon-Beratung
+- Kein langes Warten - Auslieferung innerhalb von 2-3 Tagen
 - Kein peinlicher Arztbesuch erforderlicht
 - Visa verifizierter Onlineshop
-- Diskrete Verpackung und Zahlung
 - keine versteckte Kosten
 
 
-Klicken Sie HIER und Sie erhalten vier Dosen umsonst
-http://ntucuw.rosemap.hk/?088886986098
+Nur fur kurze Zeit - vier Pillen umsonst erhalten
+http://hozfokx.rosemap.hk/?359786896034
 (bitte warten Sie einen Moment bis die Seite vollstandig geladen wird)
-
-
-------=_NextPart_000_000E_01C7C4D0.10B35BA0
+------=_NextPart_000_0007_01C7C4D4.382FDC40
 Content-Type: text/html;
-	charset="windows-1250"
+	charset="us-ascii"
 Content-Transfer-Encoding: quoted-printable
 
 <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
-<HTML><HEAD><TITLE></TITLE>
-<META content=3D"text/html; charset=3Dwindows-1250" http-equiv=3DContent-Type>
-<META content=3D"MSHTML 6.00.2900.2180" name=3DGENERATOR></HEAD>
+<HTML><HEAD>
+<META http-equiv=3DContent-Type content=3D"text/html; charset=3Dus-ascii">
+<META content=3D"MSHTML 6.00.2900.2527" name=3DGENERATOR>
+<STYLE></STYLE>
+</HEAD>
 <BODY>
 <head><meta http-equiv=3D"Content-Type" content=3D"text/html; charset=3Diso=
 -8859-1">
-</head><body><p>Meinung von unserem Kunden:<br><strong>Ich muss sagen, Ciaa=
-aalis ist wirklich nochmals viel besser als Viaaaagra. Es ist alles viel na=
-t&#252;rlicher als mit Viaaaagra. Aufgrund der langen Wirkungszeit von 24 S=
-tunden kann man sich richtig Zeit lassen und mehrer Runden einlegen.</stron=
-g></p><p><strong>Ich habe drei Jahre lang keine befriedigende Er_rektio_n h=
-inbekommen. Das hat mich fertig gemacht. Viaaaagra haben meine Frau, sie is=
-t 54, und ich in zwei Jahren nicht einmal auf befriedigen Sex verzichten m&=
-#252;ssen. Und die Liebe ist genauso intensiv wie vor einem halben Jahrhund=
-ert! Jetzt machen wir es wieder drei- bis f&#252;nfmal pro Woche. Ich bin 7=
-5 Jahre alt und dankbar, dass ich Viaaaagra kennengelernt habe.<br>
-</strong><strong><br>Haben Sie endlich wieder Spass am Leben!</strong></p><=
-p>Preise die keine Konkurrenz kennen <p>
-- Bequem und diskret online bestellen.<br>- Kein peinlicher Arztbesuch erfo=
-rderlicht<br>- Kostenlose, arztliche Telefon-Beratung<br>- Kein langes Wart=
-en - Auslieferung innerhalb von 2-3 Tagen<br>- Visa verifizierter Onlinesho=
-p<br>- keine versteckte Kosten<br>- Diskrete Verpackung und Zahlung</p>  
-<p><br><strong><a href=3D"http://ntucuw.rosemap.hk/?088886986098" target=3D=
-"_blank">Klicken Sie HIER und Sie erhalten vier Dosen umsonst</a><br>
+</head><body><p>Meinung von unserem Kunden:<br><strong>Vor zwei Monaten hab=
+en meine Freundin und ich beschlossen, zum ersten Mal miteinander Sex zu ha=
+ben. Als es soweit war, und ich in sie eindringen wollte, blieb ich v&#246;=
+llig schlaff. Wir haben es drei Wochen sp&#228;ter nochmal versucht, und ic=
+h habe immer noch schlappgemacht. Mein Onkel hat mir Viaaaagra empfohlen. L=
+etzte Woche haben meine Freundin und ich es noch einmal miteinander probier=
+t, und es wurde die tollste Nacht meines Lebens. Ich nehme Viaaaagra jetzt =
+einmal pro Woche, und es klappt prima. Meine Freundin hat keine Zweifel meh=
+r an meinen sexuellen Qualit&#228;ten.</strong></p><p><strong>Ich glaube, i=
+ch habe bis jetzt Gl&#252;ck gehabt (Ich klopfe auf Holz.), denn ich hatte =
+bis jetzt noch nie Nebenwirkungen durch Viaaaagra - au&#223;er einer bretth=
+arten Latte, und das f&#252;r Stunden.<br>
+</strong><strong><br>Verpassen Sie nichts am Lebem - Sie werden fuhlen was =
+unsere Kunden bestatigen!</strong></p><p>Preise die keine Konkurrenz kennen=
+ <p>
+- Kostenlose, arztliche Telefon-Beratung<br>- Diskrete Verpackung und Zahlu=
+ng<br>- Kein langes Warten - Auslieferung innerhalb von 2-3 Tagen<br>- Kein=
+ peinlicher Arztbesuch erforderlicht<br>- Bequem und diskret online bestell=
+en.<br>- Visa verifizierter Onlineshop<br>- keine versteckte Kosten</p>  
+<p><br><strong><a href=3D"http://hozfokx.rosemap.hk/?359786896034" target=
+=3D"_blank">Nur fur kurze Zeit - vier Pillen umsonst erhalten</a><br>
   </strong>(bitte warten Sie einen Moment bis die Seite vollst&auml;ndig ge=
 laden wird)
 </body>
 </BODY></HTML>
 
-------=_NextPart_000_000E_01C7C4D0.10B35BA0--
+------=_NextPart_000_0007_01C7C4D4.382FDC40--
