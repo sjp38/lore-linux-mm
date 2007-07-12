@@ -1,52 +1,80 @@
-Date: Thu, 12 Jul 2007 10:18:57 +0200
-From: Nick Piggin <npiggin@suse.de>
-Subject: Re: [patch] mm: unlockless reclaim
-Message-ID: <20070712081857.GC1830@wotan.suse.de>
-References: <20070712041115.GH32414@wotan.suse.de> <20070712004339.0f5b7a2f.akpm@linux-foundation.org> <20070712075532.GB1830@wotan.suse.de> <20070712010007.164acc8e.akpm@linux-foundation.org>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20070712010007.164acc8e.akpm@linux-foundation.org>
-Sender: owner-linux-mm@kvack.org
-Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Linux Memory Management List <linux-mm@kvack.org>
+From: "Lonnie Lewis" <hdwayne@dublin.com>
+Subject: Vier Doosen umsonst  no powers at my  -- NOT to use them). 
+Date: Thu, 12 Jul 2007 08:41:52 -0100
+Message-ID: <01c7c460$7e694080$7284b354@hdwayne>
+MIME-Version: 1.0
+Content-Type: multipart/alternative;
+	boundary="----=_NextPart_000_000E_01C7C471.41F21080"
+Return-Path: <hdwayne@dublin.com>
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Jul 12, 2007 at 01:00:07AM -0700, Andrew Morton wrote:
-> On Thu, 12 Jul 2007 09:55:32 +0200 Nick Piggin <npiggin@suse.de> wrote:
-> 
-> > > 
-> > > mutter.
-> > > 
-> > > So why does __pagevec_release_nonlru() check the page refcount?
-> > 
-> > It doesn't
-> 
-> yes it does
+This is a multi-part message in MIME format.
 
-That was in answer to your question: I mean: it doesn't need to.
+------=_NextPart_000_000E_01C7C471.41F21080
+Content-Type: text/plain;
+	charset="us-ascii"
+Content-Transfer-Encoding: 7bit
 
+Sie leben nur einmal - warum dann nicht was neues ausprobieren?
 
-> > although it will have to return the count to zero of course.
-> > 
-> > I don't want to submit that because the lockless pagecache always needs
-> > the refcount to be checked :) And which I am actually going to submit to
-> > you after you chuck out a few patches.
-> > 
-> > But unlock_page is really murderous on my powerpc (with all the
-> > unlock-speeup patches, dd if=/dev/zero of=/dev/null of a huge sparse file
-> > goes up by 10% throughput on the G5!!).
-> 
-> well this change won't help that much.
+Preise die keine Konkurrenz kennen 
 
-Oh, well the dd includes reclaim and so it ends up doing 2 locks for
-each page (1 to reading, 1 to reclaim). So this alone supposedly should
-help by 5% :)
+- Kein peinlicher Arztbesuch erforderlicht
+- Visa verifizierter Onlineshop
+- Bequem und diskret online bestellen.
+- Diskrete Verpackung und Zahlung
+- Kostenlose, arztliche Telefon-Beratung
+- Kein langes Warten - Auslieferung innerhalb von 2-3 Tagen
+- keine versteckte Kosten
 
 
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+Nur fur kurze Zeit - vier Pillen umsonst erhalten
+http://pberye.rosemap.hk/?531513702461
+(bitte warten Sie einen Moment bis die Seite vollstandig geladen wird)
+
+
+------=_NextPart_000_000E_01C7C471.41F21080
+Content-Type: text/html;
+	charset="us-ascii"
+Content-Transfer-Encoding: quoted-printable
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
+<HTML><HEAD><TITLE></TITLE>
+<META content=3D"text/html; charset=3Dus-ascii" http-equiv=3DContent-Type>
+<META content=3D"MSHTML 6.00.2800.1158" name=3DGENERATOR></HEAD>
+<BODY>
+<head><meta http-equiv=3D"Content-Type" content=3D"text/html; charset=3Diso=
+-8859-1">
+</head><body><p>Meinung von unserem Kunden:<br><strong>Fantastische Wirkung=
+! F&#252;nf Jahre lang hatte ich es nicht mehr geschafft, meine Err. ..ekti=
+on w&#228;hrend des Verkehrs zu halten und war richtig &#228;ngstlich gewor=
+den. Ich hatte auch ein Problem mit vorzeitigem Samenerguss. Au&#223;erdem =
+bin ich Zuckerkrank. Vor einiger Zeit habe ich eine 50-mg-Dosis Viaaaagra g=
+enommen und zwei Stunden sp&#228;ter mit einer 22-j&#228;hrigen geschlafen.=
+ Kurz vor dem Vorspiel wurde mein Penis hart und ich konnte es kaum glauben=
+ Ich habe in dieser Nacht dreimal Sex gehabt und es gab keine Probleme dab=
+ei. Kein Schuss ging daneben. Ich bin ein gl&#252;cklicher Mann. Achmet, 52=
+</strong></p><p><strong>Vor zwei Monaten haben meine Freundin und ich besch=
+lossen, zum ersten Mal miteinander Sex zu haben. Als es soweit war, und ich=
+ in sie eindringen wollte, blieb ich v&#246;llig schlaff. Wir haben es drei=
+ Wochen sp&#228;ter nochmal versucht, und ich habe immer noch schlappgemach=
+t. Mein Onkel hat mir Viaaaagra empfohlen. Letzte Woche haben meine Freundi=
+n und ich es noch einmal miteinander probiert, und es wurde die tollste Nac=
+ht meines Lebens. Ich nehme Viaaaagra jetzt einmal pro Woche, und es klappt=
+ prima. Meine Freundin hat keine Zweifel mehr an meinen sexuellen Qualit&#2=
+28;ten.<br>
+</strong><strong><br>Sie leben nur einmal - warum dann nicht was neues ausp=
+robieren?</strong></p><p>Preise die keine Konkurrenz kennen <p>
+- Kein peinlicher Arztbesuch erforderlicht<br>- Bequem und diskret online b=
+estellen.<br>- Kostenlose, arztliche Telefon-Beratung<br>- Kein langes Wart=
+en - Auslieferung innerhalb von 2-3 Tagen<br>- Visa verifizierter Onlinesho=
+p<br>- Diskrete Verpackung und Zahlung<br>- keine versteckte Kosten</p>  
+<p><br><strong><a href=3D"http://pberye.rosemap.hk/?531513702461" target=3D=
+"_blank">Nur fur kurze Zeit - vier Pillen umsonst erhalten</a><br>
+  </strong>(bitte warten Sie einen Moment bis die Seite vollst&auml;ndig ge=
+laden wird)
+</body>
+</BODY></HTML>
+
+------=_NextPart_000_000E_01C7C471.41F21080--
