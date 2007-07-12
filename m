@@ -1,67 +1,47 @@
-Date: Thu, 12 Jul 2007 12:20:39 -0700
+Date: Thu, 12 Jul 2007 12:29:25 -0700
 From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [patch] mm: unlockless reclaim
-Message-Id: <20070712122039.2702724f.akpm@linux-foundation.org>
-In-Reply-To: <20070712041115.GH32414@wotan.suse.de>
-References: <20070712041115.GH32414@wotan.suse.de>
+Subject: Re: -mm merge plans -- anti-fragmentation
+Message-Id: <20070712122925.192a6601.akpm@linux-foundation.org>
+In-Reply-To: <20070710102043.GA20303@skynet.ie>
+References: <20070710102043.GA20303@skynet.ie>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nick Piggin <npiggin@suse.de>
-Cc: Linux Memory Management List <linux-mm@kvack.org>
+To: Mel Gorman <mel@skynet.ie>
+Cc: npiggin@suse.de, kenchen@google.com, jschopp@austin.ibm.com, apw@shadowen.org, kamezawa.hiroyu@jp.fujitsu.com, a.p.zijlstra@chello.nl, y-goto@jp.fujitsu.com, clameter@sgi.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 12 Jul 2007 06:11:15 +0200
-Nick Piggin <npiggin@suse.de> wrote:
+On Tue, 10 Jul 2007 11:20:43 +0100
+mel@skynet.ie (Mel Gorman) wrote:
 
-> unlock_page is pretty expensive. Even after my patches to optimise the
-> memory order and away the waitqueue hit for uncontended pages, it is
-> still a locked operation, which may be anywhere up to hundreds of cycles
-> on some CPUs.
+> > create-the-zone_movable-zone.patch
+> > allow-huge-page-allocations-to-use-gfp_high_movable.patch
+> > handle-kernelcore=-generic.patch
+> > 
+> >  Mel's moveable-zone work.  In a similar situation.  We need to stop whatever
+> >  we're doing and get down and work out what we're going to do with all this
+> >  stuff.
+> > 
 > 
-> When we reclaim a page, we don't need to "unlock" it as such, because
-> we know there will be no contention (if there was, it would be a bug
-> because the page is just about to get freed).
-> 
-> Signed-off-by: Nick Piggin <npiggin@suse.de>
-> 
-> Index: linux-2.6/include/linux/page-flags.h
-> ===================================================================
-> --- linux-2.6.orig/include/linux/page-flags.h
-> +++ linux-2.6/include/linux/page-flags.h
-> @@ -115,6 +115,8 @@
->  		test_and_set_bit(PG_locked, &(page)->flags)
->  #define ClearPageLocked(page)		\
->  		clear_bit(PG_locked, &(page)->flags)
-> +#define __ClearPageLocked(page)		\
-> +		__clear_bit(PG_locked, &(page)->flags)
->  #define TestClearPageLocked(page)	\
->  		test_and_clear_bit(PG_locked, &(page)->flags)
->  
-> Index: linux-2.6/mm/vmscan.c
-> ===================================================================
-> --- linux-2.6.orig/mm/vmscan.c
-> +++ linux-2.6/mm/vmscan.c
-> @@ -576,7 +576,7 @@ static unsigned long shrink_page_list(st
->  			goto keep_locked;
->  
->  free_it:
-> -		unlock_page(page);
-> +		__ClearPageLocked(page);
->  		nr_reclaimed++;
->  		if (!pagevec_add(&freed_pvec, page))
->  			__pagevec_release_nonlru(&freed_pvec);
+> Whatever about grouping pages by mobility, I would like to see these go
+> through. They have a real application for hugetlb pool resizing where the
+> administrator knows the range of hugepages that will be required but doesn't
+> want to waste memory when the required number of hugepages is small. I've
+> cc'd Kenneth Chen as I believe he has run into this problem recently where
+> I believe partitioning memory would have helped. He'll either confirm or deny.
 
-I really hate this patch :(  For the usual reasons.
+Still no decision here, really.
 
-I'd have thought that such a terrifying point-cannon-at-someone-else's-foot
-hack would at least merit a comment explaining (fully) to the reader why it
-is a safe thing to do at this site.
+Should we at least go for
 
-And explaining to them why __pagevec_release_nonlru() immediately
-contradicts the assumption which this code is making.
+add-__gfp_movable-for-callers-to-flag-allocations-from-high-memory-that-may-be-migrated.patch
+create-the-zone_movable-zone.patch
+allow-huge-page-allocations-to-use-gfp_high_movable.patch
+handle-kernelcore=-generic.patch
+
+in 2.6.23?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
