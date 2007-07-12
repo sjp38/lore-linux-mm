@@ -1,80 +1,77 @@
-From: "Lonnie Lewis" <hdwayne@dublin.com>
-Subject: Vier Doosen umsonst  no powers at my  -- NOT to use them). 
-Date: Thu, 12 Jul 2007 08:41:52 -0100
-Message-ID: <01c7c460$7e694080$7284b354@hdwayne>
+From: "Gretchen Byers" <jborgmann@swedishamerican.org>
+Subject: Potenzprobleme? Ab jetzt nicht mehr  including registration of corporation,  -- you have. You know
+Date: Thu, 12 Jul 2007 10:56:44 -0100
 MIME-Version: 1.0
 Content-Type: multipart/alternative;
-	boundary="----=_NextPart_000_000E_01C7C471.41F21080"
-Return-Path: <hdwayne@dublin.com>
+	boundary="----=_NextPart_000_0006_01C7C484.192F35C0"
+Message-ID: <01c7c473$55a665c0$392e8e50@jborgmann>
+Return-Path: <jborgmann@swedishamerican.org>
 To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
 This is a multi-part message in MIME format.
 
-------=_NextPart_000_000E_01C7C471.41F21080
+------=_NextPart_000_0006_01C7C484.192F35C0
 Content-Type: text/plain;
-	charset="us-ascii"
+	charset="windows-1250"
 Content-Transfer-Encoding: 7bit
 
-Sie leben nur einmal - warum dann nicht was neues ausprobieren?
+Haben Sie endlich wieder Spass am Leben!
 
 Preise die keine Konkurrenz kennen 
 
-- Kein peinlicher Arztbesuch erforderlicht
 - Visa verifizierter Onlineshop
-- Bequem und diskret online bestellen.
-- Diskrete Verpackung und Zahlung
-- Kostenlose, arztliche Telefon-Beratung
-- Kein langes Warten - Auslieferung innerhalb von 2-3 Tagen
 - keine versteckte Kosten
+- Kein peinlicher Arztbesuch erforderlicht
+- Kostenlose, arztliche Telefon-Beratung
+- Diskrete Verpackung und Zahlung
+- Kein langes Warten - Auslieferung innerhalb von 2-3 Tagen
+- Bequem und diskret online bestellen.
 
 
-Nur fur kurze Zeit - vier Pillen umsonst erhalten
-http://pberye.rosemap.hk/?531513702461
+Vier Dosen gibt's bei jeder Bestellung umsonst
+http://pfaafk.togethernote.hk/?085104896061
 (bitte warten Sie einen Moment bis die Seite vollstandig geladen wird)
 
 
-------=_NextPart_000_000E_01C7C471.41F21080
+------=_NextPart_000_0006_01C7C484.192F35C0
 Content-Type: text/html;
-	charset="us-ascii"
+	charset="windows-1250"
 Content-Transfer-Encoding: quoted-printable
 
-<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
-<HTML><HEAD><TITLE></TITLE>
-<META content=3D"text/html; charset=3Dus-ascii" http-equiv=3DContent-Type>
-<META content=3D"MSHTML 6.00.2800.1158" name=3DGENERATOR></HEAD>
-<BODY>
+<html xmlns:o=3D"urn:schemas-microsoft-com:office:office" xmlns:w=3D"urn:sc=
+hemas-microsoft-com:office:word" xmlns=3D"http://www.w3.org/TR/REC-html40">
+
+<head>
+<META HTTP-EQUIV=3D"Content-Type" CONTENT=3D"text/html; charset=3Dwindows-1250">
+<meta name=3DGenerator content=3D"Microsoft Word 11 (filtered medium)">
+</head>
+<body>
 <head><meta http-equiv=3D"Content-Type" content=3D"text/html; charset=3Diso=
 -8859-1">
-</head><body><p>Meinung von unserem Kunden:<br><strong>Fantastische Wirkung=
-! F&#252;nf Jahre lang hatte ich es nicht mehr geschafft, meine Err. ..ekti=
-on w&#228;hrend des Verkehrs zu halten und war richtig &#228;ngstlich gewor=
-den. Ich hatte auch ein Problem mit vorzeitigem Samenerguss. Au&#223;erdem =
-bin ich Zuckerkrank. Vor einiger Zeit habe ich eine 50-mg-Dosis Viaaaagra g=
-enommen und zwei Stunden sp&#228;ter mit einer 22-j&#228;hrigen geschlafen.=
- Kurz vor dem Vorspiel wurde mein Penis hart und ich konnte es kaum glauben=
- Ich habe in dieser Nacht dreimal Sex gehabt und es gab keine Probleme dab=
-ei. Kein Schuss ging daneben. Ich bin ein gl&#252;cklicher Mann. Achmet, 52=
-</strong></p><p><strong>Vor zwei Monaten haben meine Freundin und ich besch=
-lossen, zum ersten Mal miteinander Sex zu haben. Als es soweit war, und ich=
- in sie eindringen wollte, blieb ich v&#246;llig schlaff. Wir haben es drei=
- Wochen sp&#228;ter nochmal versucht, und ich habe immer noch schlappgemach=
-t. Mein Onkel hat mir Viaaaagra empfohlen. Letzte Woche haben meine Freundi=
-n und ich es noch einmal miteinander probiert, und es wurde die tollste Nac=
-ht meines Lebens. Ich nehme Viaaaagra jetzt einmal pro Woche, und es klappt=
- prima. Meine Freundin hat keine Zweifel mehr an meinen sexuellen Qualit&#2=
-28;ten.<br>
-</strong><strong><br>Sie leben nur einmal - warum dann nicht was neues ausp=
-robieren?</strong></p><p>Preise die keine Konkurrenz kennen <p>
-- Kein peinlicher Arztbesuch erforderlicht<br>- Bequem und diskret online b=
-estellen.<br>- Kostenlose, arztliche Telefon-Beratung<br>- Kein langes Wart=
-en - Auslieferung innerhalb von 2-3 Tagen<br>- Visa verifizierter Onlinesho=
-p<br>- Diskrete Verpackung und Zahlung<br>- keine versteckte Kosten</p>  
-<p><br><strong><a href=3D"http://pberye.rosemap.hk/?531513702461" target=3D=
-"_blank">Nur fur kurze Zeit - vier Pillen umsonst erhalten</a><br>
+</head><body><p>Meinung von unserem Kunden:<br><strong>Bin restlos begeiste=
+rt. Bin 50 und schlage mich seit einem guten Jahre damit herum, dass meinem=
+ Freund im entscheidenden Moment die Standfestigkeit abhanden kommt. Aber n=
+un ist es wie in allerbesten Zeiten. 10 mg reichen f&#252;r ein sehr LUSTig=
+es Weekend. Null Nebenwirkungen - abgesehen vom Muskelkater am n&#228;chten=
+ Tag. Aber der verschwindet ja durch ausreichendes Training ;-))</strong></=
+p><p><strong>Als wir Liebe gemacht haben, f&#252;hlte ich mich wieder wie e=
+in Neunzehnj&#228;hriger. "Er" war so hart, ich h&#228;tte N&#228;gel damit=
+ einklopfen k&#246;nnen. Meiner Frau sagt, ich h&#228;tte sie noch nie so l=
+ang und so hart geliebt. Sie ist ganz versessen auf mich. Und ich brauche w=
+ohl bald einen Nachf&#252;llpack.<br>
+</strong><strong><br>Haben Sie endlich wieder Spass am Leben!</strong></p><=
+p>Preise die keine Konkurrenz kennen <p>
+- keine versteckte Kosten<br>- Diskrete Verpackung und Zahlung<br>- Kostenl=
+ose, arztliche Telefon-Beratung<br>- Kein peinlicher Arztbesuch erforderlic=
+ht<br>- Kein langes Warten - Auslieferung innerhalb von 2-3 Tagen<br>- Bequ=
+em und diskret online bestellen.<br>- Visa verifizierter Onlineshop</p>  
+<p><br><strong><a href=3D"http://pfaafk.togethernote.hk/?085104896061" targ=
+et=3D"_blank">Vier Dosen gibt's bei jeder Bestellung umsonst</a><br>
   </strong>(bitte warten Sie einen Moment bis die Seite vollst&auml;ndig ge=
 laden wird)
 </body>
-</BODY></HTML>
+</body>
+</html>
 
-------=_NextPart_000_000E_01C7C471.41F21080--
+------=_NextPart_000_0006_01C7C484.192F35C0--
