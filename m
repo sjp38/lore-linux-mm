@@ -1,47 +1,26 @@
-Message-ID: <46957BE1.1010104@yahoo.com.au>
-Date: Thu, 12 Jul 2007 10:54:57 +1000
-From: Nick Piggin <nickpiggin@yahoo.com.au>
+Message-ID: <46957EC6.7080006@google.com>
+Date: Wed, 11 Jul 2007 18:07:18 -0700
+From: Ethan Solomita <solo@google.com>
 MIME-Version: 1.0
-Subject: fault vs invalidate race (Re: -mm merge plans for 2.6.23)
-References: <20070710013152.ef2cd200.akpm@linux-foundation.org>
-In-Reply-To: <20070710013152.ef2cd200.akpm@linux-foundation.org>
-Content-Type: text/plain; charset=us-ascii; format=flowed
+Subject: Re: [RFC 1/7] cpuset write dirty map
+References: <465FB6CF.4090801@google.com> <Pine.LNX.4.64.0706041138410.24412@schroedinger.engr.sgi.com> <46646A33.6090107@google.com> <Pine.LNX.4.64.0706041250440.25535@schroedinger.engr.sgi.com> <468023CA.2090401@google.com> <Pine.LNX.4.64.0706261216110.20282@schroedinger.engr.sgi.com> <46952D0A.1090304@google.com> <Pine.LNX.4.64.0707111311040.18429@schroedinger.engr.sgi.com>
+In-Reply-To: <Pine.LNX.4.64.0707111311040.18429@schroedinger.engr.sgi.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-kernel@vger.kernel.org, Linux Memory Management <linux-mm@kvack.org>
+To: Christoph Lameter <clameter@sgi.com>
+Cc: Andrew Morton <akpm@google.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, a.p.zijlstra@chello.nl
 List-ID: <linux-mm.kvack.org>
 
-Andrew Morton wrote:
-
-> mm-fix-fault-vs-invalidate-race-for-linear-mappings.patch
-> mm-merge-populate-and-nopage-into-fault-fixes-nonlinear.patch
-> mm-merge-nopfn-into-fault.patch
-> convert-hugetlbfs-to-use-vm_ops-fault.patch
-> mm-remove-legacy-cruft.patch
-> mm-debug-check-for-the-fault-vs-invalidate-race.patch
-> mm-fix-clear_page_dirty_for_io-vs-fault-race.patch
-> invalidate_mapping_pages-add-cond_resched.patch
-> ocfs2-release-page-lock-before-calling-page_mkwrite.patch
-> document-page_mkwrite-locking.patch
+Christoph Lameter wrote:
 > 
->  The fault-vs-invalidate race fix.  I have belatedly learned that these need
->  more work, so their state is uncertain.
+> This may be a leftover from earlier times when the logic was different in 
+> throttle vm writeout? 
 
-The more work may turn out being too much for you (although it is nothing
-exactly tricky that would introduce subtle bugs, it is a fair amont of churn).
-
-However, in that case we can still merge these two:
-
-mm-fix-fault-vs-invalidate-race-for-linear-mappings.patch
-mm-fix-clear_page_dirty_for_io-vs-fault-race.patch
-
-Which fix real bugs that need fixing (and will at least help to get some of
-my patches off your hands).
-
--- 
-SUSE Labs, Novell Inc.
+	Sorry -- my merge error when looking at an earlier kernel, no issue
+with mainline  or -mm.
+	-- Ethan
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
