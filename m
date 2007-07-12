@@ -1,38 +1,47 @@
-Date: Wed, 11 Jul 2007 17:07:36 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [patch 07/12] Memoryless nodes: SLUB support
-Message-Id: <20070711170736.f6c304d3.akpm@linux-foundation.org>
-In-Reply-To: <20070711182251.433134748@sgi.com>
-References: <20070711182219.234782227@sgi.com>
-	<20070711182251.433134748@sgi.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Message-ID: <46957BE1.1010104@yahoo.com.au>
+Date: Thu, 12 Jul 2007 10:54:57 +1000
+From: Nick Piggin <nickpiggin@yahoo.com.au>
+MIME-Version: 1.0
+Subject: fault vs invalidate race (Re: -mm merge plans for 2.6.23)
+References: <20070710013152.ef2cd200.akpm@linux-foundation.org>
+In-Reply-To: <20070710013152.ef2cd200.akpm@linux-foundation.org>
+Content-Type: text/plain; charset=us-ascii; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
-Cc: kxr@sgi.com, linux-mm@kvack.org, Nishanth Aravamudan <nacc@us.ibm.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-kernel@vger.kernel.org, Linux Memory Management <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 11 Jul 2007 11:22:26 -0700
-Christoph Lameter <clameter@sgi.com> wrote:
+Andrew Morton wrote:
 
-> Simply switch all for_each_online_node to for_each_memory_node. That way
-> SLUB only operates on nodes with memory. Any allocation attempt on a
-> memoryless node will fall whereupon SLUB will fetch memory from a nearby
-> node (depending on how memory policies and cpuset describe fallback).
+> mm-fix-fault-vs-invalidate-race-for-linear-mappings.patch
+> mm-merge-populate-and-nopage-into-fault-fixes-nonlinear.patch
+> mm-merge-nopfn-into-fault.patch
+> convert-hugetlbfs-to-use-vm_ops-fault.patch
+> mm-remove-legacy-cruft.patch
+> mm-debug-check-for-the-fault-vs-invalidate-race.patch
+> mm-fix-clear_page_dirty_for_io-vs-fault-race.patch
+> invalidate_mapping_pages-add-cond_resched.patch
+> ocfs2-release-page-lock-before-calling-page_mkwrite.patch
+> document-page_mkwrite-locking.patch
 > 
+>  The fault-vs-invalidate race fix.  I have belatedly learned that these need
+>  more work, so their state is uncertain.
 
-This is as far as I got when a reject storm hit.
+The more work may turn out being too much for you (although it is nothing
+exactly tricky that would introduce subtle bugs, it is a fair amont of churn).
 
-> -	for_each_online_node(node)
-> +	for_each_node_state(node, N_MEMORY)
->  		__kmem_cache_shrink(s, get_node(s, node), scratch);
+However, in that case we can still merge these two:
 
-I can find no sign of any __kmem_cache_shrink's anywhere.
+mm-fix-fault-vs-invalidate-race-for-linear-mappings.patch
+mm-fix-clear_page_dirty_for_io-vs-fault-race.patch
 
-Let's park all this until post-merge-window please.  Generally, now is not
-a good time for me to be merging 2.6.24 stuff.
+Which fix real bugs that need fixing (and will at least help to get some of
+my patches off your hands).
+
+-- 
+SUSE Labs, Novell Inc.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
