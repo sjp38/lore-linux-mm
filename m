@@ -1,36 +1,52 @@
-Date: Wed, 11 Jul 2007 20:35:18 -0700 (PDT)
-Message-Id: <20070711.203518.59469474.davem@davemloft.net>
-Subject: Re: lguest, Re: -mm merge plans for 2.6.23
-From: David Miller <davem@davemloft.net>
-In-Reply-To: <1184210118.6005.719.camel@localhost.localdomain>
-References: <1184208521.6005.695.camel@localhost.localdomain>
-	<20070711.195126.02300228.davem@davemloft.net>
-	<1184210118.6005.719.camel@localhost.localdomain>
+Date: Thu, 12 Jul 2007 06:11:15 +0200
+From: Nick Piggin <npiggin@suse.de>
+Subject: [patch] mm: unlockless reclaim
+Message-ID: <20070712041115.GH32414@wotan.suse.de>
 Mime-Version: 1.0
-Content-Type: Text/Plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
-From: Rusty Russell <rusty@rustcorp.com.au>
-Date: Thu, 12 Jul 2007 13:15:18 +1000
 Return-Path: <owner-linux-mm@kvack.org>
-To: rusty@rustcorp.com.au
-Cc: hch@lst.de, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Andrew Morton <akpm@linux-foundation.org>, Linux Memory Management List <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-> Sure, the process has /dev/lguest open, so I can do something in the
-> close routine.  Instead of keeping a reference to the tsk, I can keep a
-> reference to the struct lguest (currently it doesn't have or need a
-> refcnt).  Then I need another lock, to protect lg->tsk.
-> 
-> This seems like a lot of dancing to avoid one export.  If it's that
-> important I'd far rather drop the code and do a normal wakeup under the
-> big lguest lock for 2.6.23.
+unlock_page is pretty expensive. Even after my patches to optimise the
+memory order and away the waitqueue hit for uncontended pages, it is
+still a locked operation, which may be anywhere up to hundreds of cycles
+on some CPUs.
 
-I'm not against the export, so use if it really helps.
+When we reclaim a page, we don't need to "unlock" it as such, because
+we know there will be no contention (if there was, it would be a bug
+because the page is just about to get freed).
 
-Ref-counting just seems clumsy to me given how the hw assisted
-virtualization stuff works on platforms I am intimately familiar with
-:)
+Signed-off-by: Nick Piggin <npiggin@suse.de>
+
+Index: linux-2.6/include/linux/page-flags.h
+===================================================================
+--- linux-2.6.orig/include/linux/page-flags.h
++++ linux-2.6/include/linux/page-flags.h
+@@ -115,6 +115,8 @@
+ 		test_and_set_bit(PG_locked, &(page)->flags)
+ #define ClearPageLocked(page)		\
+ 		clear_bit(PG_locked, &(page)->flags)
++#define __ClearPageLocked(page)		\
++		__clear_bit(PG_locked, &(page)->flags)
+ #define TestClearPageLocked(page)	\
+ 		test_and_clear_bit(PG_locked, &(page)->flags)
+ 
+Index: linux-2.6/mm/vmscan.c
+===================================================================
+--- linux-2.6.orig/mm/vmscan.c
++++ linux-2.6/mm/vmscan.c
+@@ -576,7 +576,7 @@ static unsigned long shrink_page_list(st
+ 			goto keep_locked;
+ 
+ free_it:
+-		unlock_page(page);
++		__ClearPageLocked(page);
+ 		nr_reclaimed++;
+ 		if (!pagevec_add(&freed_pvec, page))
+ 			__pagevec_release_nonlru(&freed_pvec);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
