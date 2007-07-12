@@ -1,35 +1,50 @@
-From: Daniel Phillips <phillips@phunq.net>
-Subject: Re: [PATCH RFC] extent mapped page cache
-Date: Thu, 12 Jul 2007 00:00:28 -0700
-References: <20070710210326.GA29963@think.oraclecorp.com>
-In-Reply-To: <20070710210326.GA29963@think.oraclecorp.com>
-MIME-Version: 1.0
-Content-Type: text/plain;
-  charset="iso-8859-1"
+Subject: Re: [RFT][PATCH] mm: drop behind
+From: Peter Zijlstra <peterz@infradead.org>
+In-Reply-To: <eada2a070707111537p20ab429anebd8b1840f5e5b5f@mail.gmail.com>
+References: <1184007008.1913.45.camel@twins>
+	 <eada2a070707111537p20ab429anebd8b1840f5e5b5f@mail.gmail.com>
+Content-Type: text/plain
+Date: Thu, 12 Jul 2007 09:24:46 +0200
+Message-Id: <1184225086.20032.45.camel@twins>
+Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
-Message-Id: <200707120000.28501.phillips@phunq.net>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Chris Mason <chris.mason@oracle.com>
-Cc: Nick Piggin <npiggin@suse.de>, Christoph Lameter <clameter@sgi.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>, linux-fsdevel@vger.kernel.org
+To: Tim Pepper <lnxninja@us.ibm.com>
+Cc: linux-kernel <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Fengguang Wu <wfg@mail.ustc.edu.cn>, riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Rusty Russell <rusty@rustcorp.com.au>
 List-ID: <linux-mm.kvack.org>
 
-On Tuesday 10 July 2007 14:03, Chris Mason wrote:
-> This patch aims to demonstrate one way to replace buffer heads with a
-> few extent trees...
+Hi Tim,
 
-Hi Chris,
+On Wed, 2007-07-11 at 15:37 -0700, Tim Pepper wrote:
+> On 7/9/07, Peter Zijlstra <peterz@infradead.org> wrote:
+> > Use the read-ahead code to provide hints to page reclaim.
+> >
+> > This patch has the potential to solve the streaming-IO trashes my
+> > desktop problem.
+> >
+> > It tries to aggressively reclaim pages that were loaded in a strong
+> > sequential pattern and have been consumed. Thereby limiting the damage
+> > to the current resident set.
+> 
+> Interesting...
+> 
+> Would it make sense to tie this into (finally) making
+> POSIX_FADV_NOREUSE something more than a noop?
 
-Quite terse commentary on algorithms and data structures, but I suppose
-that is not a problem because Jon has a whole week to reverse engineer
-it for us.
+We talked about that, but the thing is, if we make the functionality
+conditional, nobody will ever use it :-/
 
-What did you have in mind for subpages?
+So, yes, in a perfect world that would indeed make sense. However since
+nobody ever uses these [fm]advise calls,..
 
-Regards,
+So the big question is, does this functionally hurt any workload? If it
+turns out it does (which I still doubt) then we might hide it behind
+knobs, otherwise I'd like to keep it always on.
 
-Daniel
+Peter
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
