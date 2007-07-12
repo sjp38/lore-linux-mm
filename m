@@ -1,76 +1,101 @@
-Message-ID: <01c7c4c3$74a70c40$492e8354@realmode>
-From: "Gerardo Frey" <realmode@kxtv.com>
-Subject: Blaues Wunder - dann klappts auch mit der Nachbarin   does appear that the  --  and why everything 
-Date: Thu, 12 Jul 2007 20:30:15 -0100
+Date: Thu, 12 Jul 2007 22:32:41 +0100
+Subject: Re: -mm merge plans -- anti-fragmentation
+Message-ID: <20070712213241.GA7279@skynet.ie>
+References: <20070710102043.GA20303@skynet.ie> <20070712122925.192a6601.akpm@linux-foundation.org>
 MIME-Version: 1.0
-Content-Type: multipart/alternative;
-	boundary="----=_NextPart_000_0007_01C7C4D4.382FDC40"
-Return-Path: <realmode@kxtv.com>
-To: linux-mm@kvack.org
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <20070712122925.192a6601.akpm@linux-foundation.org>
+From: mel@skynet.ie (Mel Gorman)
+Sender: owner-linux-mm@kvack.org
+Return-Path: <owner-linux-mm@kvack.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: npiggin@suse.de, kenchen@google.com, jschopp@austin.ibm.com, apw@shadowen.org, kamezawa.hiroyu@jp.fujitsu.com, a.p.zijlstra@chello.nl, y-goto@jp.fujitsu.com, clameter@sgi.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-This is a multi-part message in MIME format.
+On (12/07/07 12:29), Andrew Morton didst pronounce:
+> On Tue, 10 Jul 2007 11:20:43 +0100
+> mel@skynet.ie (Mel Gorman) wrote:
+> 
+> > > create-the-zone_movable-zone.patch
+> > > allow-huge-page-allocations-to-use-gfp_high_movable.patch
+> > > handle-kernelcore=-generic.patch
+> > > 
+> > >  Mel's moveable-zone work.  In a similar situation.  We need to stop whatever
+> > >  we're doing and get down and work out what we're going to do with all this
+> > >  stuff.
+> > > 
+> > 
+> > Whatever about grouping pages by mobility, I would like to see these go
+> > through. They have a real application for hugetlb pool resizing where the
+> > administrator knows the range of hugepages that will be required but doesn't
+> > want to waste memory when the required number of hugepages is small. I've
+> > cc'd Kenneth Chen as I believe he has run into this problem recently where
+> > I believe partitioning memory would have helped. He'll either confirm or deny.
+> 
+> Still no decision here, really.
+> 
+> Should we at least go for
+> 
+> add-__gfp_movable-for-callers-to-flag-allocations-from-high-memory-that-may-be-migrated.patch
+> create-the-zone_movable-zone.patch
+> allow-huge-page-allocations-to-use-gfp_high_movable.patch
+> handle-kernelcore=-generic.patch
+> 
+> in 2.6.23?
 
-------=_NextPart_000_0007_01C7C4D4.382FDC40
-Content-Type: text/plain;
-	charset="us-ascii"
-Content-Transfer-Encoding: quoted-printable
+Well, yes please from me obviously :) . There is one additional patch
+I would like to send on tomorrow and that is providing the movablecore=
+switch as well as kernelcore=. This is based on Nick's feedback where he
+felt the configuration item might be not be the ideal in all situations -
+Yasunori Goto agreed with him. I've posted a candidate patch and Andy had
+a minor problem with it that I will correct.
 
-Verpassen Sie nichts am Lebem - Sie werden fuhlen was unsere Kunden bestati=
-gen!
+While I would of course like grouping pages by mobility to go in as well,
+I recognise that it probably needs a resubmission to -mm so people can take
+another look in the next cycle.
 
-Preise die keine Konkurrenz kennen 
+On the positive side with just these patches, they gain us a few things;
 
-- Bequem und diskret online bestellen.
-- Diskrete Verpackung und Zahlung
-- Kostenlose, arztliche Telefon-Beratung
-- Kein langes Warten - Auslieferung innerhalb von 2-3 Tagen
-- Kein peinlicher Arztbesuch erforderlicht
-- Visa verifizierter Onlineshop
-- keine versteckte Kosten
+1. A zone where the huge page pool can likely grow to at runtime. On
+batch systems between jobs, the next job owner could grow the pool to
+the size of ZONE_MOVABLE with reasonable reliability. This means an
+administrator can set the zone to be a given size and let users decide
+for themselves what size the hugepage pool will be. This gives us a
+fairly reliable pool without the downside of wasting memory. Talking
+to Kenneth Chen at OLS led me to believe that this would be a useful
+feature in real world situations. He's been quite at the moment so
+hopefully this will nudge him into saying something.
 
+2. It does help the memory unplug case to some extent. The page
+isolation code in that patchset does depend on grouping pages by
+mobility but I could cut down grouping pages by mobility to *just* the
+parts they need as a starting point
 
-Nur fur kurze Zeit - vier Pillen umsonst erhalten
-http://hozfokx.rosemap.hk/?359786896034
-(bitte warten Sie einen Moment bis die Seite vollstandig geladen wird)
-------=_NextPart_000_0007_01C7C4D4.382FDC40
-Content-Type: text/html;
-	charset="us-ascii"
-Content-Transfer-Encoding: quoted-printable
+3. In contrast to grouping pages by mobility, you know well in advance how
+many hugepages are likely to be allocated. The success rates of grouping
+pages by mobility on it's own is workload dependant.
 
-<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
-<HTML><HEAD>
-<META http-equiv=3DContent-Type content=3D"text/html; charset=3Dus-ascii">
-<META content=3D"MSHTML 6.00.2900.2527" name=3DGENERATOR>
-<STYLE></STYLE>
-</HEAD>
-<BODY>
-<head><meta http-equiv=3D"Content-Type" content=3D"text/html; charset=3Diso=
--8859-1">
-</head><body><p>Meinung von unserem Kunden:<br><strong>Vor zwei Monaten hab=
-en meine Freundin und ich beschlossen, zum ersten Mal miteinander Sex zu ha=
-ben. Als es soweit war, und ich in sie eindringen wollte, blieb ich v&#246;=
-llig schlaff. Wir haben es drei Wochen sp&#228;ter nochmal versucht, und ic=
-h habe immer noch schlappgemacht. Mein Onkel hat mir Viaaaagra empfohlen. L=
-etzte Woche haben meine Freundin und ich es noch einmal miteinander probier=
-t, und es wurde die tollste Nacht meines Lebens. Ich nehme Viaaaagra jetzt =
-einmal pro Woche, und es klappt prima. Meine Freundin hat keine Zweifel meh=
-r an meinen sexuellen Qualit&#228;ten.</strong></p><p><strong>Ich glaube, i=
-ch habe bis jetzt Gl&#252;ck gehabt (Ich klopfe auf Holz.), denn ich hatte =
-bis jetzt noch nie Nebenwirkungen durch Viaaaagra - au&#223;er einer bretth=
-arten Latte, und das f&#252;r Stunden.<br>
-</strong><strong><br>Verpassen Sie nichts am Lebem - Sie werden fuhlen was =
-unsere Kunden bestatigen!</strong></p><p>Preise die keine Konkurrenz kennen=
- <p>
-- Kostenlose, arztliche Telefon-Beratung<br>- Diskrete Verpackung und Zahlu=
-ng<br>- Kein langes Warten - Auslieferung innerhalb von 2-3 Tagen<br>- Kein=
- peinlicher Arztbesuch erforderlicht<br>- Bequem und diskret online bestell=
-en.<br>- Visa verifizierter Onlineshop<br>- keine versteckte Kosten</p>  
-<p><br><strong><a href=3D"http://hozfokx.rosemap.hk/?359786896034" target=
-=3D"_blank">Nur fur kurze Zeit - vier Pillen umsonst erhalten</a><br>
-  </strong>(bitte warten Sie einen Moment bis die Seite vollst&auml;ndig ge=
-laden wird)
-</body>
-</BODY></HTML>
+4. The zone is lower risk than grouping pages by mobility. It's less
+complicated, the complexity is at the side and the code at runtime is the
+same as todays.
 
-------=_NextPart_000_0007_01C7C4D4.382FDC40--
+So it's lower risk than grouping pages by mobility, has predictable behaviour
+and helps some cases.  As Nick points out as well, we can see how far we can
+get with just this reserve zone without taking the full plunge with grouping
+pages by mobility.
+
+Hopefully other people will throw their 2 cents in here too.
+
+Thanks
+
+-- 
+Mel Gorman
+Part-time Phd Student                          Linux Technology Center
+University of Limerick                         IBM Dublin Software Lab
+
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
