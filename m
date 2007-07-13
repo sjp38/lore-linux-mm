@@ -1,43 +1,40 @@
-Date: Fri, 13 Jul 2007 10:23:27 -0700 (PDT)
-From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [patch 00/12] NUMA: Memoryless node support V3
-In-Reply-To: <1184347239.5579.3.camel@localhost>
-Message-ID: <Pine.LNX.4.64.0707131022140.22340@schroedinger.engr.sgi.com>
-References: <20070711182219.234782227@sgi.com>  <20070713151431.GG10067@us.ibm.com>
-  <Pine.LNX.4.64.0707130942030.21777@schroedinger.engr.sgi.com>
- <1184347239.5579.3.camel@localhost>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Date: Fri, 13 Jul 2007 10:31:32 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH] do not limit locked memory when RLIMIT_MEMLOCK is
+ RLIM_INFINITY
+Message-Id: <20070713103132.38e782e5.akpm@linux-foundation.org>
+In-Reply-To: <46979C4E.6000205@oracle.com>
+References: <4692D9E0.1000308@oracle.com>
+	<20070713004408.b7162501.akpm@linux-foundation.org>
+	<46979C4E.6000205@oracle.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
-Cc: Nishanth Aravamudan <nacc@us.ibm.com>, akpm@linux-foundation.org, kxr@sgi.com, linux-mm@kvack.org, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+To: Herbert van den Bergh <herbert.van.den.bergh@oracle.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Dave McCracken <dave.mccracken@oracle.com>, Chris Mason <chris.mason@oracle.com>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 13 Jul 2007, Lee Schermerhorn wrote:
+On Fri, 13 Jul 2007 08:37:50 -0700 Herbert van den Bergh <herbert.van.den.bergh@oracle.com> wrote:
 
-> I'm up to my eyeballs right now, setting up a large system for testing
-> VM scalability with Oracle.  I hope to have time early next week to test
-> your patches.  In a mail exchange between you and Andrew, you mentioned
-> that your memoryless-node patches are atop your slab defrag?  Shall I
-> test them that way?  Or try to rebase against the then current -mm tree?
-
-You can skip the slab defrag. I posted a rediffed patch in my response 
-to Andrew. Use that one.
-
-> I.e., what's the probability that the slab defrag patches make it into
-> -mm before the memoryless node patches?
-
-No idea. Use the patch that does not rely on slab defrag.
-
-> > You probably have somewhere to publish them? I will be on vacation next 
-> > week (and yes I will leave my laptop at home, somehow I have to get back 
-> > my sanity).
+> Andrew Morton wrote:
+> > 
+> > OK.  Seems like a nasty bug if one happens to want to do that.  Should we
+> > backport this into 2.6.22.x?
+> > 
 > 
-> You mean in addition to posting?  I can stick a copy on my
-> free.linux.hp.com http site.
+> Yes, please.  Do you need me to do anything for that?
+> 
 
-Yes. Seems that many people want that.
+Nope.  I stick a "Cc: <stable@kernel.org>" into the changelog and then
+magic happens: the -stable maintainers get a copy of the patch when it goes
+to Linus, they get notification when I drop it after Linus merged it and
+then they (hopeully) take the patch from Linus's tree.
+
+(But the last step is a bit of a hassle - I suspect they take my emailed
+version instead, but it would be super-rare for that to differ from the
+version which Linus merged)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
