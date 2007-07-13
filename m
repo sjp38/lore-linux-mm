@@ -1,67 +1,95 @@
-Date: Sat, 14 Jul 2007 08:12:10 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCH 3/7] Generic Virtual Memmap support for SPARSEMEM
-Message-Id: <20070714081210.1440db40.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <Pine.LNX.4.64.0707131541540.26109@schroedinger.engr.sgi.com>
-References: <exportbomb.1184333503@pinky>
-	<E1I9LJY-00006o-GK@hellhawk.shadowen.org>
-	<20070713235121.538ddcaf.kamezawa.hiroyu@jp.fujitsu.com>
-	<Pine.LNX.4.64.0707131541540.26109@schroedinger.engr.sgi.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Received: by nf-out-0910.google.com with SMTP id h3so38524nfh
+        for <linux-mm@kvack.org>; Fri, 13 Jul 2007 16:15:24 -0700 (PDT)
+Message-ID: <29495f1d0707131615u75ffc714h2f4a2785a8e458ec@mail.gmail.com>
+Date: Fri, 13 Jul 2007 16:15:24 -0700
+From: "Nish Aravamudan" <nish.aravamudan@gmail.com>
+Subject: Re: [PATCH 5/5] [hugetlb] Try to grow pool for MAP_SHARED mappings
+In-Reply-To: <1184360742.16671.55.camel@localhost.localdomain>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+References: <20070713151621.17750.58171.stgit@kernel>
+	 <20070713151717.17750.44865.stgit@kernel>
+	 <20070713130508.6f5b9bbb.pj@sgi.com>
+	 <1184360742.16671.55.camel@localhost.localdomain>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
-Cc: apw@shadowen.org, linux-mm@kvack.org, linux-arch@vger.kernel.org, npiggin@suse.de, mel@csn.ul.ie
+To: Adam Litke <agl@us.ibm.com>
+Cc: Paul Jackson <pj@sgi.com>, linux-mm@kvack.org, mel@skynet.ie, apw@shadowen.org, wli@holomorphy.com, clameter@sgi.com, kenchen@google.com
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 13 Jul 2007 15:42:30 -0700 (PDT)
-Christoph Lameter <clameter@sgi.com> wrote:
+On 7/13/07, Adam Litke <agl@us.ibm.com> wrote:
+> On Fri, 2007-07-13 at 13:05 -0700, Paul Jackson wrote:
+> > Adam wrote:
+> > > +   /*
+> > > +    * I haven't figured out how to incorporate this cpuset bodge into
+> > > +    * the dynamic hugetlb pool yet.  Hopefully someone more familiar with
+> > > +    * cpusets can weigh in on their desired semantics.  Maybe we can just
+> > > +    * drop this check?
+> > > +    *
+> > >     if (chg > cpuset_mems_nr(free_huge_pages_node))
+> > >             return -ENOMEM;
+> > > +    */
+> >
+> > I can't figure out the value of this check either -- Ken Chen added it, perhaps
+> > he can comment.
+>
+> To be honest, I just don't think a global hugetlb pool and cpusets are
+> compatible, period.  I wonder if moving to the mempool interface and
+> having dynamic adjustable per-cpuset hugetlb mempools (ick) could make
+> things work saner.  It's on my list to see if mempools could be used to
+> replace the custom hugetlb pool code.  Otherwise, Mel's zone_movable
+> stuff could possibly remove the need for hugetlb pools as we know them.
+>
+> > But the cpuset behaviour of this hugetlb stuff looks suspicious to me:
+> >  1) The code in alloc_fresh_huge_page() seems to round robin over
+> >     the entire system, spreading the hugetlb pages uniformly on all nodes.
+> >     If one a task in one small cpuset starts aggressively allocating hugetlb
+> >     pages, do you think this will work, Adam -- looks to me like we will end
+> >     up calling alloc_fresh_huge_page() many times, most of which will fail to
+> >     alloc_pages_node() anything because the 'static nid' clock hand will be
+> >     pointing at a node outside of the current tasks cpuset (not in that tasks
+> >     mems_allowed).  Inefficient, but I guess ok.
+>
+> Very good point.  I guess we call alloc_fresh_huge_page in two scenarios
+> now... 1) By echoing a number into /proc/sys/vm/nr_hugepages, and 2) by
+> trying to dynamically increase the pool size for a particular process.
+> Case 1 is not in the context of any process (per se) and so
+> node_online_map makes sense.  For case 2 we could teach the
+> __alloc_fresh_huge_page() to take a nodemask.  That could get nasty
+> though since we'd have to move away from a static variable to get proper
+> interleaving.
 
-> On Fri, 13 Jul 2007, KAMEZAWA Hiroyuki wrote:
-> 
-> > On Fri, 13 Jul 2007 14:36:08 +0100
-> > Andy Whitcroft <apw@shadowen.org> wrote:
-> > 
-> > > SPARSEMEM is a pretty nice framework that unifies quite a bit of
-> > > code over all the arches. It would be great if it could be the
-> > > default so that we can get rid of various forms of DISCONTIG and
-> > > other variations on memory maps. So far what has hindered this are
-> > > the additional lookups that SPARSEMEM introduces for virt_to_page
-> > > and page_address. This goes so far that the code to do this has to
-> > > be kept in a separate function and cannot be used inline.
-> > > 
-> > Maybe it will be our(my or Goto-san's) work to implement MEMORY_HOTADD support
-> > for this. Could you add !MEMORY_HOTPLUG in Kconfig ? Then, we'll write
-> > patch later.
-> > Or..If you'll add memory hotplug support by yourself, It's great, 
-> 
-> Why would hotadd not work as is?
-> 
-Just because this patch takes care of boot path. Maybe small problem.
-Basically, I welcome this patch. I like this.
-If we can remove DISCONTIG+VMEMMAP after this is merged, we can say good-bye
-to terrible CONFIG_HOLES_IN_ZONE :)
+<snip>
 
-Note
->From memory hotplug development/enhancement view, I have following thinking now.
- 
- 1. memmap's section is *not* aligned to "big page size". We have to take care
-    of this at adding support for memory_hotplug/unplug.
+<snip>
 
- 2. With an appropriate patch, we can allocate new section's memmap from
-    itself. This will reduce possibility of memory hotplug failure becasue of
-    large size kmalloc/vmalloc. And it guarantees locality of memmap.
-    But maybe need some amount of work for implementing this in clean way.
-    This will depend on vmemmap.
+> Perhaps if we make sure __alloc_fresh_huge_page() can be restricted to a
+> nodemask then we can avoid stealing pages from other cpusets.  But we'd
+> still be stuck with the existing problem for shared mappings: cpusets +
+> our strict_reservation algorithm cannot provide guarantees (like we can
+> without cpusets).
 
- 3. removin memmap code for memory unplug will be necessary. But there is no code
-    for removing memmap in usual SPARSEMEM. So this is not real problem of vmemmap
-    now. 
+<snip>
+
+> I'll cook up a __alloc_fresh_huge_page(nodemask) patch and see if that
+> makes things better.  Thanks for your review and comments.
+
+Already done, to some extent. Please see my set of three patches
+(which I'll be posting again shortly), which stack on Christoph's
+memoryless nodes patches. The first, which fixes hugepage interleaving
+on memoryless node systems addes a mempolicy to
+alloc_fresh_huge_page(). The second numafies most of the hugetlb.c API
+to make things a little clearer. It might make sense to rebase some of
+these patches of those changes? The third adds a per-node sysfs
+interface for hugepage allocation. I think given those three, we might
+be able to make cpusets and hugepages co-exist easier?
+
+I'll post soon, just waiting for some test results to return.
 
 Thanks,
- -Kame
+Nish
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
