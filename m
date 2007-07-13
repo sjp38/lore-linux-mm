@@ -1,16 +1,16 @@
-Received: from d03relay02.boulder.ibm.com (d03relay02.boulder.ibm.com [9.17.195.227])
-	by e32.co.us.ibm.com (8.12.11.20060308/8.13.8) with ESMTP id l6DFBaak014516
-	for <linux-mm@kvack.org>; Fri, 13 Jul 2007 11:11:36 -0400
-Received: from d03av03.boulder.ibm.com (d03av03.boulder.ibm.com [9.17.195.169])
-	by d03relay02.boulder.ibm.com (8.13.8/8.13.8/NCO v8.3) with ESMTP id l6DFH8IE257796
-	for <linux-mm@kvack.org>; Fri, 13 Jul 2007 09:17:09 -0600
-Received: from d03av03.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av03.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l6DFH8l5031013
-	for <linux-mm@kvack.org>; Fri, 13 Jul 2007 09:17:08 -0600
+Received: from d03relay04.boulder.ibm.com (d03relay04.boulder.ibm.com [9.17.195.106])
+	by e31.co.us.ibm.com (8.13.8/8.13.8) with ESMTP id l6DFHMCM004068
+	for <linux-mm@kvack.org>; Fri, 13 Jul 2007 11:17:22 -0400
+Received: from d03av01.boulder.ibm.com (d03av01.boulder.ibm.com [9.17.195.167])
+	by d03relay04.boulder.ibm.com (8.13.8/8.13.8/NCO v8.3) with ESMTP id l6DFHKCL184470
+	for <linux-mm@kvack.org>; Fri, 13 Jul 2007 09:17:20 -0600
+Received: from d03av01.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av01.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l6DFHJvk002279
+	for <linux-mm@kvack.org>; Fri, 13 Jul 2007 09:17:20 -0600
 From: Adam Litke <agl@us.ibm.com>
-Subject: [PATCH 4/5] [hugetlb] Try to grow pool on alloc_huge_page failure
-Date: Fri, 13 Jul 2007 08:17:06 -0700
-Message-Id: <20070713151706.17750.89107.stgit@kernel>
+Subject: [PATCH 5/5] [hugetlb] Try to grow pool for MAP_SHARED mappings
+Date: Fri, 13 Jul 2007 08:17:17 -0700
+Message-Id: <20070713151717.17750.44865.stgit@kernel>
 In-Reply-To: <20070713151621.17750.58171.stgit@kernel>
 References: <20070713151621.17750.58171.stgit@kernel>
 Content-Type: text/plain; charset=utf-8; format=fixed
@@ -21,154 +21,136 @@ To: linux-mm@kvack.org
 Cc: Mel Gorman <mel@skynet.ie>, Andy Whitcroft <apw@shadowen.org>, William Lee Irwin III <wli@holomorphy.com>, Christoph Lameter <clameter@sgi.com>, Ken Chen <kenchen@google.com>, Adam Litke <agl@us.ibm.com>
 List-ID: <linux-mm.kvack.org>
 
-Because we overcommit hugepages for MAP_PRIVATE mappings, it is possible that
-the hugetlb pool will be exhausted (or fully reserved) when a hugepage is
-needed to satisfy a page fault.  Before killing the process in this situation,
-try to allocate a hugepage directly from the buddy allocator.  Only do this if
-the process would remain within its locked_vm memory limits.
+Allow the hugetlb pool to grow dynamically for shared mappings as well.
+Due to strict reservations, this is a bit more complex than the private
+case.  We must grow the pool at mmap time so we can create a reservation.
+The algorithm works as follows:
 
-Hugepages allocated directly from the buddy allocator (surplus pages)
-should be freed back to the buddy allocator to prevent unbounded growth of
-the hugetlb pool.  Introduce a per-node surplus pages counter which is then
-used by free_huge_page to determine how the page should be freed.
+1) Determine and allocate the full hugetlb page shortage
+2) If allocations fail, goto step 5
+3) Take the hugetlb_lock and make sure we still have the right number.  If
+   not, go back to step 1.
+4) Add surplus pages to the hugetlb pool and mark them reserved
+5) Free the rest of the surplus pages
 
-Signed-off-by: Mel Gorman <mel@csn.ul.ie>
 Signed-off-by: Adam Litke <agl@us.ibm.com>
 ---
 
- mm/hugetlb.c |   82 ++++++++++++++++++++++++++++++++++++++++++++++++++++++----
- 1 files changed, 77 insertions(+), 5 deletions(-)
+ mm/hugetlb.c |   82 +++++++++++++++++++++++++++++++++++++++++++++++++++++++---
+ 1 files changed, 78 insertions(+), 4 deletions(-)
 
 diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-index a754c20..f03db67 100644
+index f03db67..82cd935 100644
 --- a/mm/hugetlb.c
 +++ b/mm/hugetlb.c
-@@ -27,6 +27,7 @@ unsigned long max_huge_pages;
- static struct list_head hugepage_freelists[MAX_NUMNODES];
- static unsigned int nr_huge_pages_node[MAX_NUMNODES];
- static unsigned int free_huge_pages_node[MAX_NUMNODES];
-+static unsigned int surplus_huge_pages_node[MAX_NUMNODES];
- /*
-  * Protects updates to hugepage_freelists, nr_huge_pages, and free_huge_pages
-  */
-@@ -105,16 +106,22 @@ static void update_and_free_page(struct page *page)
- 
- static void free_huge_page(struct page *page)
- {
--	BUG_ON(page_count(page));
-+	int nid = page_to_nid(page);
- 
-+	BUG_ON(page_count(page));
- 	INIT_LIST_HEAD(&page->lru);
- 
- 	spin_lock(&hugetlb_lock);
--	enqueue_huge_page(page);
-+	if (surplus_huge_pages_node[nid]) {
-+		update_and_free_page(page);
-+		surplus_huge_pages_node[nid]--;
-+	} else {
-+		enqueue_huge_page(page);
-+	}
- 	spin_unlock(&hugetlb_lock);
- }
- 
--static int alloc_fresh_huge_page(void)
-+static struct page *__alloc_fresh_huge_page(void)
- {
- 	static int nid = 0;
- 	struct page *page;
-@@ -129,16 +136,72 @@ static int alloc_fresh_huge_page(void)
- 		nr_huge_pages++;
- 		nr_huge_pages_node[page_to_nid(page)]++;
- 		spin_unlock(&hugetlb_lock);
-+	}
-+	return page;
-+}
-+
-+static int alloc_fresh_huge_page(void)
-+{
-+	struct page *page;
-+
-+	page = __alloc_fresh_huge_page();
-+	if (page) {
- 		put_page(page); /* free it into the hugepage allocator */
- 		return 1;
- 	}
- 	return 0;
+@@ -198,6 +198,70 @@ static struct page *alloc_buddy_huge_page(struct vm_area_struct *vma,
+ 	return page;
  }
  
 +/*
-+ * Returns 1 if a process remains within lock limits after locking
-+ * hpage_delta huge pages. It is expected that mmap_sem is held
-+ * when calling this function, otherwise the locked_vm counter may
-+ * change unexpectedly
++ * Increase the hugetlb pool such that it can accomodate a reservation
++ * of size 'delta'.
 + */
-+static int within_locked_vm_limits(long hpage_delta)
++static int gather_surplus_pages(int delta)
 +{
-+	unsigned long locked_pages, locked_pages_limit;
++	struct list_head surplus_list;
++	struct page *page, *tmp;
++	int ret, i, needed, allocated;
 +
-+	/* Check locked page limits */
-+	locked_pages = current->mm->locked_vm;
-+	locked_pages += hpage_delta * BASE_PAGES_PER_HPAGE;
-+	locked_pages_limit = current->signal->rlim[RLIMIT_MEMLOCK].rlim_cur;
-+	locked_pages_limit >>= PAGE_SHIFT;
++	/* Try and allocate all of the pages first */
++	needed = delta - free_huge_pages + resv_huge_pages;
++	allocated = 0;
++	INIT_LIST_HEAD(&surplus_list);
 +
-+	/* Return 0 if we would exceed locked_vm limits */
-+	if (locked_pages > locked_pages_limit)
-+		return 0;
++	ret = -ENOMEM;
++retry:
++	spin_unlock(&hugetlb_lock);
++	for (i = 0; i < needed; i++) {
++		page = alloc_buddy_huge_page(NULL, 0);
++		if (!page) {
++			spin_lock(&hugetlb_lock);
++			needed = 0;
++			goto free;
++		}
 +
-+	/* Nice, we're within limits */
-+	return 1;
-+}
++		list_add(&page->lru, &surplus_list);
++	}
++	allocated += needed;
 +
-+static struct page *alloc_buddy_huge_page(struct vm_area_struct *vma,
-+						unsigned long address)
-+{
-+	struct page *page = NULL;
++	/*
++	 * After retaking hugetlb_lock, we may find that some of the
++	 * free_huge_pages we were planning on using are no longer free.
++	 * In this case we need to allocate some additional pages.
++	 */
++	spin_lock(&hugetlb_lock);
++	needed = delta - free_huge_pages + resv_huge_pages - allocated;
++	if (needed > 0)
++		goto retry;
 +
-+	/* Check we remain within limits if 1 huge page is allocated */
-+	if (!within_locked_vm_limits(1))
-+		return NULL;
-+
-+	page = __alloc_fresh_huge_page();
-+	if (page) {
-+		INIT_LIST_HEAD(&page->lru);
-+
-+		/* We now have a surplus huge page, keep track of it */
-+		spin_lock(&hugetlb_lock);
-+		surplus_huge_pages_node[page_to_nid(page)]++;
-+		spin_unlock(&hugetlb_lock);
++	/*
++	 * Dispense the pages on the surplus list by adding them to the pool
++	 * or by freeing them back to the allocator.
++	 * We will have extra pages to free in one of two cases:
++	 * 1) We were not able to allocate enough pages to satisfy the entire
++	 *    reservation so we free all allocated pages.
++	 * 2) While we were allocating some surplus pages with the hugetlb_lock
++	 *    unlocked, some pool pages were freed.  Use those instead and
++	 *    free the surplus pages we allocated.
++	 */
++	needed += allocated;
++	ret = 0;
++free:
++	list_for_each_entry_safe(page, tmp, &surplus_list, lru) {
++		list_del(&page->lru);
++		if ((--needed) >= 0)
++			enqueue_huge_page(page);
++		else
++			update_and_free_page(page);
 +	}
 +
-+	return page;
++	return ret;
 +}
 +
  static struct page *alloc_huge_page(struct vm_area_struct *vma,
  				    unsigned long addr)
  {
--	struct page *page;
-+	struct page *page = NULL;
+@@ -893,13 +957,16 @@ static long region_truncate(struct list_head *head, long end)
+ 
+ static int hugetlb_acct_memory(long delta)
+ {
+-	int ret = -ENOMEM;
++	int ret = 0;
  
  	spin_lock(&hugetlb_lock);
- 	if (vma->vm_flags & VM_MAYSHARE)
-@@ -158,7 +221,16 @@ fail:
- 	if (vma->vm_flags & VM_MAYSHARE)
- 		resv_huge_pages++;
+-	if ((delta + resv_huge_pages) <= free_huge_pages) {
++
++	if (((delta + resv_huge_pages) > free_huge_pages) &&
++			gather_surplus_pages(delta))
++		ret = -ENOMEM;
++	else
+ 		resv_huge_pages += delta;
+-		ret = 0;
+-	}
++
  	spin_unlock(&hugetlb_lock);
--	return NULL;
-+
-+	/*
-+	 * Private mappings do not use reserved huge pages so the allocation
-+	 * may have failed due to an undersized hugetlb pool.  Try to grab a
-+	 * surplus huge page from the buddy allocator.
-+	 */
-+	if (!(vma->vm_flags & VM_MAYSHARE))
-+		page = alloc_buddy_huge_page(vma, addr);
-+
-+	return page;
+ 	return ret;
  }
+@@ -928,8 +995,15 @@ int hugetlb_reserve_pages(struct inode *inode, long from, long to)
+ 	 * a best attempt and hopefully to minimize the impact of changing
+ 	 * semantics that cpuset has.
+ 	 */
++	/*
++	 * I haven't figured out how to incorporate this cpuset bodge into
++	 * the dynamic hugetlb pool yet.  Hopefully someone more familiar with
++	 * cpusets can weigh in on their desired semantics.  Maybe we can just
++	 * drop this check?
++	 *
+ 	if (chg > cpuset_mems_nr(free_huge_pages_node))
+ 		return -ENOMEM;
++	 */
  
- static int __init hugetlb_init(void)
+ 	ret = hugetlb_acct_memory(chg);
+ 	if (ret < 0)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
