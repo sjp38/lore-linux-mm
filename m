@@ -1,66 +1,73 @@
-Message-ID: <469751E9.7060904@shadowen.org>
-Date: Fri, 13 Jul 2007 11:20:25 +0100
-From: Andy Whitcroft <apw@shadowen.org>
+From: "Scot Henry" <headake@comcast.net>
+Subject: Energy fur ihren Schwanz, kaufen und 85% sparen   and comprehensive  -- at speaking the language 
+Date: Fri, 13 Jul 2007 10:33:19 -0100
+Message-ID: <01c7c539$3adedbc0$c9baa757@headake>
 MIME-Version: 1.0
-Subject: Re: -mm merge plans -- anti-fragmentation
-References: <20070710102043.GA20303@skynet.ie> <20070712122925.192a6601.akpm@linux-foundation.org>
-In-Reply-To: <20070712122925.192a6601.akpm@linux-foundation.org>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
-Sender: owner-linux-mm@kvack.org
-Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Mel Gorman <mel@skynet.ie>, npiggin@suse.de, kenchen@google.com, jschopp@austin.ibm.com, kamezawa.hiroyu@jp.fujitsu.com, a.p.zijlstra@chello.nl, y-goto@jp.fujitsu.com, clameter@sgi.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Content-Type: multipart/alternative;
+	boundary="----=_NextPart_000_000E_01C7C549.FE67ABC0"
+Return-Path: <headake@comcast.net>
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Andrew Morton wrote:
-> On Tue, 10 Jul 2007 11:20:43 +0100
-> mel@skynet.ie (Mel Gorman) wrote:
-> 
->>> create-the-zone_movable-zone.patch
->>> allow-huge-page-allocations-to-use-gfp_high_movable.patch
->>> handle-kernelcore=-generic.patch
->>>
->>>  Mel's moveable-zone work.  In a similar situation.  We need to stop whatever
->>>  we're doing and get down and work out what we're going to do with all this
->>>  stuff.
->>>
->> Whatever about grouping pages by mobility, I would like to see these go
->> through. They have a real application for hugetlb pool resizing where the
->> administrator knows the range of hugepages that will be required but doesn't
->> want to waste memory when the required number of hugepages is small. I've
->> cc'd Kenneth Chen as I believe he has run into this problem recently where
->> I believe partitioning memory would have helped. He'll either confirm or deny.
-> 
-> Still no decision here, really.
-> 
-> Should we at least go for
-> 
-> add-__gfp_movable-for-callers-to-flag-allocations-from-high-memory-that-may-be-migrated.patch
-> create-the-zone_movable-zone.patch
-> allow-huge-page-allocations-to-use-gfp_high_movable.patch
-> handle-kernelcore=-generic.patch
-> 
-> in 2.6.23?
+This is a multi-part message in MIME format.
 
-These patches are pretty simple and self-contained utilising the
-existing zone infrastructure.  They provide a significant degree of
-placement control when configured, which gives a lot of the benefits of
-grouping-pages-by-mobility.  Merging these would seem like a low-risk
-option.
+------=_NextPart_000_000E_01C7C549.FE67ABC0
+Content-Type: text/plain;
+	charset="Windows-1252"
+Content-Transfer-Encoding: 7bit
 
-Having a degree of placement control as delivered by ZONE_MOVABLE
-greatly increases the effectiveness of lumpy reclaim at higher orders.
-These patches plus lumpy would (IMO) provide a good base for further
-development.  In particular I would envisage better usability for
-hugepage users in terms of simpler configuration.
+Verpassen Sie nichts am Lebem - Sie werden fuhlen was unsere Kunden bestatigen!
 
-I would like to see ZONE_MOVABLE and lumpy considered for 2.6.23.
+Preise die keine Konkurrenz kennen 
 
--apw
+- Visa verifizierter Onlineshop
+- Kein langes Warten - Auslieferung innerhalb von 2-3 Tagen
+- Diskrete Verpackung und Zahlung
+- Kostenlose, arztliche Telefon-Beratung
+- Bequem und diskret online bestellen.
+- Kein peinlicher Arztbesuch erforderlicht
+- keine versteckte Kosten
 
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+
+Vier Dosen gibt's bei jeder Bestellung umsonst
+http://hoxekx.radioam.hk/?358877524225
+(bitte warten Sie einen Moment bis die Seite vollstandig geladen wird)
+
+
+------=_NextPart_000_000E_01C7C549.FE67ABC0
+Content-Type: text/html;
+	charset="Windows-1252"
+Content-Transfer-Encoding: quoted-printable
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
+<HTML><HEAD><TITLE></TITLE>
+<META content=3D"text/html; charset=3DWindows-1252" http-equiv=3DContent-Type>
+<META content=3D"MSHTML 6.00.2900.2527" name=3DGENERATOR></HEAD>
+<BODY>
+<head><meta http-equiv=3D"Content-Type" content=3D"text/html; charset=3Diso=
+-8859-1">
+</head><body><p>Meinung von unserem Kunden:<br><strong>Ich muss sagen, Ciaa=
+aalis ist wirklich nochmals viel besser als Viaaaagra. Es ist alles viel na=
+t&#252;rlicher als mit Viaaaagra. Aufgrund der langen Wirkungszeit von 24 S=
+tunden kann man sich richtig Zeit lassen und mehrer Runden einlegen.</stron=
+g></p><p><strong>Meine Frau und ich haben Viaaaagra am letzten Wochenende a=
+usprobiert. Sie fand, mein bestes St&#252;ck w&#228;re in letzter Zeit nich=
+t ganz auf der H&#246;he gewesen. Also dachten wir, wir probieren es einfac=
+h einmal.Es gibt nur ein Wort, dass das Gef&#252;hl beschreibt: Wahnsinn. S=
+eit ich zwanzig war, konnte ich nicht mehr so lang und so oft. Was soll ich=
+ sagen? Gute Arbeit, Viaaaagra!<br>
+</strong><strong><br>Verpassen Sie nichts am Lebem - Sie werden fuhlen was =
+unsere Kunden bestatigen!</strong></p><p>Preise die keine Konkurrenz kennen=
+ <p>
+- Diskrete Verpackung und Zahlung<br>- Kein peinlicher Arztbesuch erforderl=
+icht<br>- Kostenlose, arztliche Telefon-Beratung<br>- Kein langes Warten - =
+Auslieferung innerhalb von 2-3 Tagen<br>- Bequem und diskret online bestell=
+en.<br>- Visa verifizierter Onlineshop<br>- keine versteckte Kosten</p>  
+<p><br><strong><a href=3D"http://hoxekx.radioam.hk/?358877524225" target=3D=
+"_blank">Vier Dosen gibt's bei jeder Bestellung umsonst</a><br>
+  </strong>(bitte warten Sie einen Moment bis die Seite vollst&auml;ndig ge=
+laden wird)
+</body>
+</BODY></HTML>
+
+------=_NextPart_000_000E_01C7C549.FE67ABC0--
