@@ -1,36 +1,38 @@
-Received: from zps35.corp.google.com (zps35.corp.google.com [172.25.146.35])
-	by smtp-out.google.com with ESMTP id l6DMHHAN012817
-	for <linux-mm@kvack.org>; Fri, 13 Jul 2007 15:17:18 -0700
-Received: from an-out-0708.google.com (andd30.prod.google.com [10.100.30.30])
-	by zps35.corp.google.com with ESMTP id l6DMHEcH008093
-	for <linux-mm@kvack.org>; Fri, 13 Jul 2007 15:17:15 -0700
-Received: by an-out-0708.google.com with SMTP id d30so150795and
-        for <linux-mm@kvack.org>; Fri, 13 Jul 2007 15:17:14 -0700 (PDT)
-Message-ID: <b040c32a0707131517m4cc20d3an2123e324746d3e7@mail.gmail.com>
-Date: Fri, 13 Jul 2007 15:17:14 -0700
-From: "Ken Chen" <kenchen@google.com>
-Subject: Re: [patch] fix periodic superblock dirty inode flushing
-In-Reply-To: <20070712120519.8a7241dd.akpm@linux-foundation.org>
+Date: Fri, 13 Jul 2007 15:21:43 -0700 (PDT)
+From: Christoph Lameter <clameter@sgi.com>
+Subject: RE: [PATCH 0/7] Sparsemem Virtual Memmap V5
+In-Reply-To: <617E1C2C70743745A92448908E030B2A01EA6524@scsmsx411.amr.corp.intel.com>
+Message-ID: <Pine.LNX.4.64.0707131510350.25753@schroedinger.engr.sgi.com>
+References: <617E1C2C70743745A92448908E030B2A01EA6524@scsmsx411.amr.corp.intel.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
-References: <b040c32a0707112121y21d08438u8ca7f138931827b0@mail.gmail.com>
-	 <20070712120519.8a7241dd.akpm@linux-foundation.org>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org
+To: "Luck, Tony" <tony.luck@intel.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-arch@vger.kernel.org, Andy Whitcroft <apw@shadowen.org>, Nick Piggin <npiggin@suse.de>, Mel Gorman <mel@csn.ul.ie>
 List-ID: <linux-mm.kvack.org>
 
-On 7/12/07, Andrew Morton <akpm@linux-foundation.org> wrote:
-> Was this tested in combination with check_dirty_inode_list.patch,
-> to make sure that the time-orderedness is being retained?
+On Fri, 13 Jul 2007, Luck, Tony wrote:
 
-I think I tested with the debug patch.  And just to be sure, I ran the
-test again with the time-order check in place.  It passed the test.
+> 1) There is a small performance regression for ia64 (which is promised
+> to go away when bigger pages are used for the mem_map, but I'd like to
+> see that this really does fix the issue).
 
-- Ken
+The performance should be better than the existing one since we have even 
+less code here than discontig. We do no have to fetch the base anymore or 
+check boundaries (discontig was the baseline right?) but we have exactly 
+the same method of pfn_to_page and page_to_pfn as discontig/vmemmap.
+
+These types of variation may come about due to the concurrency in memory 
+detection / reservations in the PROM on Altix systems which results in 
+variances in the placement of key memory areas. Performance often varies 
+slightly because of these issues.
+
+If performance testing done on an Altix then the solution is to redo 
+the tests a couple of time, each time rebooting the box. Or redo it again 
+on a SMP box that does not have these variations.
+
+How many tests were done and on what platform?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
