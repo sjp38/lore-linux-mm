@@ -1,51 +1,34 @@
-Date: Fri, 13 Jul 2007 00:44:08 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH] do not limit locked memory when RLIMIT_MEMLOCK is
- RLIM_INFINITY
-Message-Id: <20070713004408.b7162501.akpm@linux-foundation.org>
-In-Reply-To: <4692D9E0.1000308@oracle.com>
-References: <4692D9E0.1000308@oracle.com>
+Subject: Re: [RFT][PATCH] mm: drop behind
+From: Peter Zijlstra <peterz@infradead.org>
+In-Reply-To: <46967EE2.8020803@redhat.com>
+References: <1184007008.1913.45.camel@twins>
+	 <eada2a070707111537p20ab429anebd8b1840f5e5b5f@mail.gmail.com>
+	 <1184225086.20032.45.camel@twins>  <46967EE2.8020803@redhat.com>
+Content-Type: text/plain
+Date: Fri, 13 Jul 2007 10:12:09 +0200
+Message-Id: <1184314329.20032.70.camel@twins>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Herbert van den Bergh <Herbert.van.den.Bergh@oracle.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Dave McCracken <dave.mccracken@oracle.com>, Chris Mason <chris.mason@oracle.com>
+To: Chris Snook <csnook@redhat.com>
+Cc: Tim Pepper <lnxninja@us.ibm.com>, linux-kernel <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Fengguang Wu <wfg@mail.ustc.edu.cn>, riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Rusty Russell <rusty@rustcorp.com.au>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 09 Jul 2007 17:59:12 -0700 Herbert van den Bergh <Herbert.van.den.Bergh@oracle.com> wrote:
+On Thu, 2007-07-12 at 15:20 -0400, Chris Snook wrote:
 
+> Then do what we do for FADV_SEQUENTIAL.  With that advice, we double the 
+> readahead window.  We're already doing readahead, but we do a lot more 
+> when we have the advice.  NOREUSE should put much greater pressure on 
+> the vm to drop these pages quickly, or perhaps simply eliminate the 
+> heuristic evaluation of the access pattern and short-circuit straight to 
+> dropping the pages.
 > 
-> [resending, since my previous message had tabs converted to spaces]
-> 
-> This patch fixes a bug in mm/mlock.c on 32-bit architectures that prevents
-> a user from locking more than 4GB of shared memory, or allocating more
-> than 4GB of shared memory in hugepages, when rlim[RLIMIT_MEMLOCK] is
-> set to RLIM_INFINITY.
-> 
-> Signed-off-by: Herbert van den Bergh <herbert.van.den.bergh@oracle.com>
-> Acked-by: Chris Mason <chris.mason@oracle.com>
-> 
-> --- linux-2.6.22/mm/mlock.c.orig	2007-07-09 10:19:31.000000000 -0700
-> +++ linux-2.6.22/mm/mlock.c	2007-07-09 10:19:19.000000000 -0700
-> @@ -244,9 +244,12 @@ int user_shm_lock(size_t size, struct us
->  
->  	locked = (size + PAGE_SIZE - 1) >> PAGE_SHIFT;
->  	lock_limit = current->signal->rlim[RLIMIT_MEMLOCK].rlim_cur;
-> +	if (lock_limit == RLIM_INFINITY)
-> +		allowed = 1;
->  	lock_limit >>= PAGE_SHIFT;
->  	spin_lock(&shmlock_user_lock);
-> -	if (locked + user->locked_shm > lock_limit && !capable(CAP_IPC_LOCK))
-> +	if (!allowed &&
-> +	    locked + user->locked_shm > lock_limit && !capable(CAP_IPC_LOCK))
->  		goto out;
->  	get_uid(user);
->  	user->locked_shm += locked;
+> We should be encouraging application writers to actually use things like 
+> fadvise when they can tune things more intelligently than kernel 
+> heuristics can.
 
-OK.  Seems like a nasty bug if one happens to want to do that.  Should we
-backport this into 2.6.22.x?
+I like this, I'll see what I can do.. :-)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
