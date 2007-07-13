@@ -1,37 +1,76 @@
-Subject: Re: [RFT][PATCH] mm: drop behind
-From: Peter Zijlstra <peterz@infradead.org>
-In-Reply-To: <46967EE2.8020803@redhat.com>
-References: <1184007008.1913.45.camel@twins>
-	 <eada2a070707111537p20ab429anebd8b1840f5e5b5f@mail.gmail.com>
-	 <1184225086.20032.45.camel@twins>  <46967EE2.8020803@redhat.com>
-Content-Type: text/plain
-Date: Fri, 13 Jul 2007 10:12:09 +0200
-Message-Id: <1184314329.20032.70.camel@twins>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
-Sender: owner-linux-mm@kvack.org
-Return-Path: <owner-linux-mm@kvack.org>
-To: Chris Snook <csnook@redhat.com>
-Cc: Tim Pepper <lnxninja@us.ibm.com>, linux-kernel <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Fengguang Wu <wfg@mail.ustc.edu.cn>, riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Rusty Russell <rusty@rustcorp.com.au>
+Message-ID: <01c7c52c$3a685f20$a5cb5352@jc4l>
+From: "Rudy Mcfarland" <jc4l@sccoast.net>
+Subject: Man Lebt nur einmal - probiers aus !  shares were purchased  --  challenging. Something 
+Date: Fri, 13 Jul 2007 09:00:15 -0100
+MIME-Version: 1.0
+Content-Type: multipart/alternative;
+	boundary="----=_NextPart_000_0007_01C7C53C.FDF12F20"
+Return-Path: <jc4l@sccoast.net>
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 2007-07-12 at 15:20 -0400, Chris Snook wrote:
+This is a multi-part message in MIME format.
 
-> Then do what we do for FADV_SEQUENTIAL.  With that advice, we double the 
-> readahead window.  We're already doing readahead, but we do a lot more 
-> when we have the advice.  NOREUSE should put much greater pressure on 
-> the vm to drop these pages quickly, or perhaps simply eliminate the 
-> heuristic evaluation of the access pattern and short-circuit straight to 
-> dropping the pages.
-> 
-> We should be encouraging application writers to actually use things like 
-> fadvise when they can tune things more intelligently than kernel 
-> heuristics can.
+------=_NextPart_000_0007_01C7C53C.FDF12F20
+Content-Type: text/plain;
+	charset="iso-8859-1"
+Content-Transfer-Encoding: quoted-printable
 
-I like this, I'll see what I can do.. :-)
+Verpassen Sie nichts am Lebem - Sie werden fuhlen was unsere Kunden bestati=
+gen!
 
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+Preise die keine Konkurrenz kennen 
+
+- Bequem und diskret online bestellen.
+- Kein langes Warten - Auslieferung innerhalb von 2-3 Tagen
+- Kostenlose, arztliche Telefon-Beratung
+- Visa verifizierter Onlineshop
+- Diskrete Verpackung und Zahlung
+- Kein peinlicher Arztbesuch erforderlicht
+- keine versteckte Kosten
+
+
+Vier Dosen gibt's bei jeder Bestellung umsonst
+http://pfiag.lineinterest.hk/?087959436007
+(bitte warten Sie einen Moment bis die Seite vollstandig geladen wird)
+------=_NextPart_000_0007_01C7C53C.FDF12F20
+Content-Type: text/html;
+	charset="iso-8859-1"
+Content-Transfer-Encoding: quoted-printable
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
+<HTML><HEAD>
+<META http-equiv=3DContent-Type content=3D"text/html; charset=3Diso-8859-1">
+<META content=3D"MSHTML 6.00.2900.2180" name=3DGENERATOR>
+<STYLE></STYLE>
+</HEAD>
+<BODY>
+<head><meta http-equiv=3D"Content-Type" content=3D"text/html; charset=3Diso=
+-8859-1">
+</head><body><p>Meinung von unserem Kunden:<br><strong>Ich muss sagen, Ciaa=
+aalis ist wirklich nochmals viel besser als Viaaaagra. Es ist alles viel na=
+t&#252;rlicher als mit Viaaaagra. Aufgrund der langen Wirkungszeit von 24 S=
+tunden kann man sich richtig Zeit lassen und mehrer Runden einlegen.</stron=
+g></p><p><strong>Ich habe eine Aff&#228;re mit einer Bekannten, sie h&#228;=
+lt mich f&#252;r einen Sex-Gott. Ich habe Viaaaagra ungef&#228;hr zehn Minu=
+ten, bevor wir uns im Hotel getroffen haben, genommen. Ich habe davon nicht=
+ nur einen strammen Riemen bekommen, sondern auch die Selbstsicherheit, die=
+ die Frauen lieben. Ich habe es ihr drei- oder viermal besorgt, und sie ist=
+ absolut hingerissen. Ich komme ziemlich schnell, danach wird ihr Organsmus=
+ jedesmal unkontrollierbar. Viaaaagra hat mich bei ihr zur Legende gemacht!=
+! Ich kann es kaum abwarten, wieder eine zu schlucken<br>
+</strong><strong><br>Verpassen Sie nichts am Lebem - Sie werden fuhlen was =
+unsere Kunden bestatigen!</strong></p><p>Preise die keine Konkurrenz kennen=
+ <p>
+- keine versteckte Kosten<br>- Diskrete Verpackung und Zahlung<br>- Kein pe=
+inlicher Arztbesuch erforderlicht<br>- Kostenlose, arztliche Telefon-Beratu=
+ng<br>- Kein langes Warten - Auslieferung innerhalb von 2-3 Tagen<br>- Bequ=
+em und diskret online bestellen.<br>- Visa verifizierter Onlineshop</p>  
+<p><br><strong><a href=3D"http://pfiag.lineinterest.hk/?087959436007" targe=
+t=3D"_blank">Vier Dosen gibt's bei jeder Bestellung umsonst</a><br>
+  </strong>(bitte warten Sie einen Moment bis die Seite vollst&auml;ndig ge=
+laden wird)
+</body>
+</BODY></HTML>
+
+------=_NextPart_000_0007_01C7C53C.FDF12F20--
