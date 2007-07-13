@@ -1,132 +1,146 @@
 From: Andy Whitcroft <apw@shadowen.org>
-Subject: [PATCH 7/7] ppc64: SPARSEMEM_VMEMMAP support
-References: <exportbomb.1184333503@pinky>
-Message-Id: <E1I9LLW-00009n-HH@hellhawk.shadowen.org>
-Date: Fri, 13 Jul 2007 14:38:10 +0100
+Subject: [PATCH] Bah, hoisted by my own petard.  Below is an updated version
+References: <E1I9LJ4-00006d-03@hellhawk.shadowen.org>
+Message-Id: <E1I9M4P-0000Q6-T2@hellhawk.shadowen.org>
+Date: Fri, 13 Jul 2007 15:24:33 +0100
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: linux-mm@kvack.org
-Cc: linux-arch@vger.kernel.org, Nick Piggin <npiggin@suse.de>, Christoph Lameter <clameter@sgi.com>, Mel Gorman <mel@csn.ul.ie>, Andy Whitcroft <apw@shadowen.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-arch@vger.kernel.org, Nick Piggin <npiggin@suse.de>, Christoph Lameter <clameter@sgi.com>, Mel Gorman <mel@csn.ul.ie>, Andy Whitcroft <apw@shadowen.org>
 List-ID: <linux-mm.kvack.org>
 
-Enable virtual memmap support for SPARSEMEM on PPC64 systems.
-Slice a 16th off the end of the linear mapping space and use that
-to hold the vmemmap.  Uses the same size mapping as uses in the
-linear 1:1 kernel mapping.
+of this patch with the whitespace style violations fixed.  *shame*.
+At least my automated test robot picked it up and whined thoroughly
+about my folly.
+
+Please replace 2/7 with this one.
+
+-apw
+===
+sparsemem: record when a section has a valid mem_map
+
+We have flags to indicate whether a section actually has a valid
+mem_map associated with it.  This is never set and we rely solely
+on the present bit to indicate a section is valid.  By definition
+a section is not valid if it has no mem_map and there is a window
+during init where the present bit is set but there is no mem_map,
+during which pfn_valid() will return true incorrectly.
+
+Use the existing SECTION_HAS_MEM_MAP flag to indicate the presence
+of a valid mem_map.  Switch valid_section{,_nr} and pfn_valid()
+to this bit.  Add a new present_section{,_nr} and pfn_present()
+interfaces for those users who care to know that a section is going
+to be valid.
 
 Signed-off-by: Andy Whitcroft <apw@shadowen.org>
 Acked-by: Mel Gorman <mel@csn.ul.ie>
 ---
-diff --git a/arch/powerpc/Kconfig b/arch/powerpc/Kconfig
-index 5c5c487..c1212f0 100644
---- a/arch/powerpc/Kconfig
-+++ b/arch/powerpc/Kconfig
-@@ -277,6 +277,14 @@ config ARCH_POPULATES_NODE_MAP
+diff --git a/drivers/base/memory.c b/drivers/base/memory.c
+index 74b9679..f1f0af8 100644
+--- a/drivers/base/memory.c
++++ b/drivers/base/memory.c
+@@ -239,7 +239,7 @@ store_mem_state(struct sys_device *dev, const char *buf, size_t count)
+ 	mem = container_of(dev, struct memory_block, sysdev);
+ 	phys_section_nr = mem->phys_index;
  
- source "mm/Kconfig"
+-	if (!valid_section_nr(phys_section_nr))
++	if (!present_section_nr(phys_section_nr))
+ 		goto out;
  
-+config SPARSEMEM_VMEMMAP
-+	def_bool y
-+	depends on SPARSEMEM
-+
-+config ARCH_POPULATES_SPARSEMEM_VMEMMAP
-+	def_bool y
-+	depends on SPARSEMEM_VMEMMAP
-+
- config ARCH_MEMORY_PROBE
- 	def_bool y
- 	depends on MEMORY_HOTPLUG
-diff --git a/arch/powerpc/mm/init_64.c b/arch/powerpc/mm/init_64.c
-index 1d6edf7..2de3b5d 100644
---- a/arch/powerpc/mm/init_64.c
-+++ b/arch/powerpc/mm/init_64.c
-@@ -182,3 +182,67 @@ void pgtable_cache_init(void)
- 						     NULL);
- 	}
+ 	if (!strncmp(buf, "online", min((int)count, 6)))
+@@ -419,7 +419,7 @@ int register_new_memory(struct mem_section *section)
+ 
+ int unregister_memory_section(struct mem_section *section)
+ {
+-	if (!valid_section(section))
++	if (!present_section(section))
+ 		return -EINVAL;
+ 
+ 	return remove_memory_block(0, section, 0);
+@@ -444,7 +444,7 @@ int __init memory_dev_init(void)
+ 	 * during boot and have been initialized
+ 	 */
+ 	for (i = 0; i < NR_MEM_SECTIONS; i++) {
+-		if (!valid_section_nr(i))
++		if (!present_section_nr(i))
+ 			continue;
+ 		err = add_memory_block(0, __nr_to_section(i), MEM_ONLINE, 0);
+ 		if (!ret)
+diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
+index 26341a6..6e068c2 100644
+--- a/include/linux/mmzone.h
++++ b/include/linux/mmzone.h
+@@ -792,12 +792,17 @@ static inline struct page *__section_mem_map_addr(struct mem_section *section)
+ 	return (struct page *)map;
  }
-+
-+#ifdef CONFIG_ARCH_POPULATES_SPARSEMEM_VMEMMAP
-+
-+/*
-+ * Convert an address within the vmemmap into a pfn.  Note that we have
-+ * to do this by hand as the proffered address may not be correctly aligned.
-+ * Subtraction of non-aligned pointers produces undefined results.
-+ */
-+#define VMM_SECTION(addr) \
-+		(((((unsigned long)(addr)) - ((unsigned long)(vmemmap))) / \
-+		sizeof(struct page)) >> PFN_SECTION_SHIFT)
-+#define VMM_SECTION_PAGE(addr)	(VMM_SECTION(addr) << PFN_SECTION_SHIFT)
-+
-+/*
-+ * Check if this vmemmap page is already initialised.  If any section
-+ * which overlaps this vmemmap page is initialised then this page is
-+ * initialised already.
-+ */
-+int __meminit vmemmap_populated(unsigned long start, int page_size)
-+{
-+	unsigned long end = start + page_size;
-+
-+	for (; start < end; start += (PAGES_PER_SECTION * sizeof(struct page)))
-+		if (pfn_valid(VMM_SECTION_PAGE(start)))
-+			return 1;
-+
-+	return 0;
-+}
-+
-+int __meminit vmemmap_populate(struct page *start_page,
-+					unsigned long nr_pages, int node)
-+{
-+	unsigned long mode_rw;
-+	unsigned long start = (unsigned long)start_page;
-+	unsigned long end = (unsigned long)(start_page + nr_pages);
-+	unsigned long page_size = 1 << mmu_psize_defs[mmu_linear_psize].shift;
-+
-+	mode_rw = _PAGE_ACCESSED | _PAGE_DIRTY | _PAGE_COHERENT | PP_RWXX;
-+
-+	/* Align to the page size of the linear mapping. */
-+	start = _ALIGN_DOWN(start, page_size);
-+
-+	for (; start < end; start += page_size) {
-+		int mapped;
-+		void *p;
-+
-+		if (vmemmap_populated(start, page_size))
-+			continue;
-+
-+		p = vmemmap_alloc_block(page_size, node);
-+		if (!p)
-+			return -ENOMEM;
-+
-+		printk(KERN_WARNING "vmemmap %08lx allocated at %p, "
-+					"physical %p.\n", start, p, __pa(p));
-+
-+		mapped = htab_bolt_mapping(start, start + page_size,
-+					__pa(p), mode_rw, mmu_linear_psize);
-+		BUG_ON(mapped < 0);
-+	}
-+
-+	return 0;
-+}
-+#endif
-diff --git a/include/asm-powerpc/pgtable-ppc64.h b/include/asm-powerpc/pgtable-ppc64.h
-index 7ca8b5c..9577650 100644
---- a/include/asm-powerpc/pgtable-ppc64.h
-+++ b/include/asm-powerpc/pgtable-ppc64.h
-@@ -68,6 +68,14 @@
- #define USER_REGION_ID		(0UL)
  
- /*
-+ * Defines the address of the vmemap area, in the top 16th of the
-+ * kernel region.
-+ */
-+#define VMEMMAP_BASE (ASM_CONST(CONFIG_KERNEL_START) + \
-+					(0xfUL << (REGION_SHIFT - 4)))
-+#define vmemmap ((struct page *)VMEMMAP_BASE)
+-static inline int valid_section(struct mem_section *section)
++static inline int present_section(struct mem_section *section)
+ {
+ 	return (section && (section->section_mem_map & SECTION_MARKED_PRESENT));
+ }
+ 
+-static inline int section_has_mem_map(struct mem_section *section)
++static inline int present_section_nr(unsigned long nr)
++{
++	return present_section(__nr_to_section(nr));
++}
 +
-+/*
-  * Common bits in a linux-style PTE.  These match the bits in the
-  * (hardware-defined) PowerPC PTE as closely as possible. Additional
-  * bits may be defined in pgtable-*.h
++static inline int valid_section(struct mem_section *section)
+ {
+ 	return (section && (section->section_mem_map & SECTION_HAS_MEM_MAP));
+ }
+@@ -819,6 +824,13 @@ static inline int pfn_valid(unsigned long pfn)
+ 	return valid_section(__nr_to_section(pfn_to_section_nr(pfn)));
+ }
+ 
++static inline int pfn_present(unsigned long pfn)
++{
++	if (pfn_to_section_nr(pfn) >= NR_MEM_SECTIONS)
++		return 0;
++	return present_section(__nr_to_section(pfn_to_section_nr(pfn)));
++}
++
+ /*
+  * These are _only_ used during initialisation, therefore they
+  * can use __initdata ...  They could have names to indicate
+diff --git a/mm/sparse.c b/mm/sparse.c
+index ec6ead6..d6678ab 100644
+--- a/mm/sparse.c
++++ b/mm/sparse.c
+@@ -170,7 +170,7 @@ unsigned long __init node_memmap_size_bytes(int nid, unsigned long start_pfn,
+ 		if (nid != early_pfn_to_nid(pfn))
+ 			continue;
+ 
+-		if (pfn_valid(pfn))
++		if (pfn_present(pfn))
+ 			nr_pages += PAGES_PER_SECTION;
+ 	}
+ 
+@@ -201,11 +201,12 @@ static int __meminit sparse_init_one_section(struct mem_section *ms,
+ 		unsigned long pnum, struct page *mem_map,
+ 		unsigned long *pageblock_bitmap)
+ {
+-	if (!valid_section(ms))
++	if (!present_section(ms))
+ 		return -EINVAL;
+ 
+ 	ms->section_mem_map &= ~SECTION_MAP_MASK;
+-	ms->section_mem_map |= sparse_encode_mem_map(mem_map, pnum);
++	ms->section_mem_map |= sparse_encode_mem_map(mem_map, pnum) |
++							SECTION_HAS_MEM_MAP;
+ 	ms->pageblock_flags = pageblock_bitmap;
+ 
+ 	return 1;
+@@ -282,7 +283,7 @@ void __init sparse_init(void)
+ 	unsigned long *usemap;
+ 
+ 	for (pnum = 0; pnum < NR_MEM_SECTIONS; pnum++) {
+-		if (!valid_section_nr(pnum))
++		if (!present_section_nr(pnum))
+ 			continue;
+ 
+ 		map = sparse_early_mem_map_alloc(pnum);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
