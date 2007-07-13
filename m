@@ -1,40 +1,52 @@
-Date: Fri, 13 Jul 2007 10:31:32 -0700
+Date: Fri, 13 Jul 2007 10:40:44 -0700
 From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH] do not limit locked memory when RLIMIT_MEMLOCK is
- RLIM_INFINITY
-Message-Id: <20070713103132.38e782e5.akpm@linux-foundation.org>
-In-Reply-To: <46979C4E.6000205@oracle.com>
-References: <4692D9E0.1000308@oracle.com>
-	<20070713004408.b7162501.akpm@linux-foundation.org>
-	<46979C4E.6000205@oracle.com>
+Subject: Re: [PATCH 0/7] Sparsemem Virtual Memmap V5
+Message-Id: <20070713104044.0d090c79.akpm@linux-foundation.org>
+In-Reply-To: <Pine.LNX.4.64.0707131001060.21777@schroedinger.engr.sgi.com>
+References: <exportbomb.1184333503@pinky>
+	<Pine.LNX.4.64.0707131001060.21777@schroedinger.engr.sgi.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Herbert van den Bergh <herbert.van.den.bergh@oracle.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Dave McCracken <dave.mccracken@oracle.com>, Chris Mason <chris.mason@oracle.com>
+To: Christoph Lameter <clameter@sgi.com>
+Cc: linux-mm@kvack.org, linux-arch@vger.kernel.org, Andy Whitcroft <apw@shadowen.org>, Nick Piggin <npiggin@suse.de>, Mel Gorman <mel@csn.ul.ie>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 13 Jul 2007 08:37:50 -0700 Herbert van den Bergh <herbert.van.den.bergh@oracle.com> wrote:
+On Fri, 13 Jul 2007 10:04:45 -0700 (PDT) Christoph Lameter <clameter@sgi.com> wrote:
 
-> Andrew Morton wrote:
-> > 
-> > OK.  Seems like a nasty bug if one happens to want to do that.  Should we
-> > backport this into 2.6.22.x?
-> > 
+> On Fri, 13 Jul 2007, Andy Whitcroft wrote:
 > 
-> Yes, please.  Do you need me to do anything for that?
+> > Andrew, please consider for -mm.
+> > 
+> > Note that I am away from my keyboard all of next week, but I figured
+> > it better to get this out for testing.
 > 
+> Yes grumble. Why does it take so long...
 
-Nope.  I stick a "Cc: <stable@kernel.org>" into the changelog and then
-magic happens: the -stable maintainers get a copy of the patch when it goes
-to Linus, they get notification when I drop it after Linus merged it and
-then they (hopeully) take the patch from Linus's tree.
+gaah, I read linux-arch and linux-mm rather intermittently and I haven't
+even seen these yet.
 
-(But the last step is a bit of a hassle - I suspect they take my emailed
-version instead, but it would be super-rare for that to differ from the
-version which Linus merged)
+> Would it be possible to merge this for 2.6.23 (maybe late?).
+
+It would be nice to see a bit of spirited reviewing from the affected arch
+maintainers and mm people...
+
+There's already an enormous amount of mm stuff banked up and it looks like
+I get to hold onto a lot of that until 2.6.24.  We seem to be spending too
+little time on the first 90% of new stuff and too little time on the last
+10% of existing stuff.
+
+
+> This has been 
+> around for 6 months now. It removes the troubling lookups in 
+> virt_to_page and page_address in sparsemem that have spooked many of us. 
+> 
+> virt_to_page efficiency is a performance issue for kfree and 
+> kmem_cache_free in the slab allocators. I inserted probles and saw 
+> that the patchset cuts down the cycles spend in virt_to_page by 50%.
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
