@@ -1,52 +1,51 @@
-Date: Thu, 12 Jul 2007 19:21:14 -0700
+Date: Fri, 13 Jul 2007 00:44:08 -0700
 From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH] Simplify /proc/<pid|self>/exe symlink code
-Message-Id: <20070712192114.bb357ce4.akpm@linux-foundation.org>
-In-Reply-To: <1184292012.13479.14.camel@localhost.localdomain>
-References: <1184292012.13479.14.camel@localhost.localdomain>
+Subject: Re: [PATCH] do not limit locked memory when RLIMIT_MEMLOCK is
+ RLIM_INFINITY
+Message-Id: <20070713004408.b7162501.akpm@linux-foundation.org>
+In-Reply-To: <4692D9E0.1000308@oracle.com>
+References: <4692D9E0.1000308@oracle.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Matt Helsley <matthltc@us.ibm.com>
-Cc: Chris Wright <chrisw@sous-sol.org>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Christoph Hellwig <hch@lst.de>, "Hallyn, Serge" <serue@us.ibm.com>, Peter Zijlstra <peterz@infradead.org>
+To: Herbert van den Bergh <Herbert.van.den.Bergh@oracle.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Dave McCracken <dave.mccracken@oracle.com>, Chris Mason <chris.mason@oracle.com>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 12 Jul 2007 19:00:12 -0700 Matt Helsley <matthltc@us.ibm.com> wrote:
+On Mon, 09 Jul 2007 17:59:12 -0700 Herbert van den Bergh <Herbert.van.den.Bergh@oracle.com> wrote:
 
-> This patch avoids holding the mmap semaphore while walking VMAs in response to
-> programs which read or follow the /proc/<pid|self>/exe symlink. This also allows
-> us to merge mmu and nommu proc_exe_link() functions. The costs are holding the
-> task lock, a separate reference to the executable file stored in the task
-> struct, and increased code in fork, exec, and exit paths.
 > 
-> Signed-off-by: Matt Helsley <matthltc@us.ibm.com>
-> ---
+> [resending, since my previous message had tabs converted to spaces]
 > 
-> Changelog:
+> This patch fixes a bug in mm/mlock.c on 32-bit architectures that prevents
+> a user from locking more than 4GB of shared memory, or allocating more
+> than 4GB of shared memory in hugepages, when rlim[RLIMIT_MEMLOCK] is
+> set to RLIM_INFINITY.
 > 
-> Hold task_lock() while using task->exe_file. With this change I haven't
-> 	been able to reproduce Chris Wright's Oops report:
-> 		http://lkml.org/lkml/2007/5/31/34 
-> 	I used a 4-way, x86 system running kernbench. I also tried a 4-way x86_64
-> 	system running pidof. I used oprofile during all runs but I could not
-> 	reproduce Chris' Oops with the new patch.
+> Signed-off-by: Herbert van den Bergh <herbert.van.den.bergh@oracle.com>
+> Acked-by: Chris Mason <chris.mason@oracle.com>
 > 
-> Compiled and passed simple tests for regressions when patched against a 2.6.20
-> and a 2.6.22 kernel. Regression tests included a variety of file operations on
-> /proc/<pid|self>/exe such as stat, lstat, open, close, readlink, and unlink. All
-> produced the expected, baseline output results.
-> 
-> Andrew, please consider this patch for inclusion in -mm.
+> --- linux-2.6.22/mm/mlock.c.orig	2007-07-09 10:19:31.000000000 -0700
+> +++ linux-2.6.22/mm/mlock.c	2007-07-09 10:19:19.000000000 -0700
+> @@ -244,9 +244,12 @@ int user_shm_lock(size_t size, struct us
+>  
+>  	locked = (size + PAGE_SIZE - 1) >> PAGE_SHIFT;
+>  	lock_limit = current->signal->rlim[RLIMIT_MEMLOCK].rlim_cur;
+> +	if (lock_limit == RLIM_INFINITY)
+> +		allowed = 1;
+>  	lock_limit >>= PAGE_SHIFT;
+>  	spin_lock(&shmlock_user_lock);
+> -	if (locked + user->locked_shm > lock_limit && !capable(CAP_IPC_LOCK))
+> +	if (!allowed &&
+> +	    locked + user->locked_shm > lock_limit && !capable(CAP_IPC_LOCK))
+>  		goto out;
+>  	get_uid(user);
+>  	user->locked_shm += locked;
 
-I wish we had a description of the bug which this fixes.  That email of
-Chris's is referencing code which diddles with task_struct.exe_file, but
-your patch _adds_ task_struct.exe_file, so I am all confused.
-
-Your patch does lots of fput()s under task_lock(), but fput() can sleep.
-
-Plus what Al said.
+OK.  Seems like a nasty bug if one happens to want to do that.  Should we
+backport this into 2.6.22.x?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
