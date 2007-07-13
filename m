@@ -1,136 +1,307 @@
 From: Andy Whitcroft <apw@shadowen.org>
-Subject: [PATCH 2/7] sparsemem: record when a section has a valid mem_map
+Subject: [PATCH 3/7] Generic Virtual Memmap support for SPARSEMEM
 References: <exportbomb.1184333503@pinky>
-Message-Id: <E1I9LJ4-00006d-03@hellhawk.shadowen.org>
-Date: Fri, 13 Jul 2007 14:35:38 +0100
+Message-Id: <E1I9LJY-00006o-GK@hellhawk.shadowen.org>
+Date: Fri, 13 Jul 2007 14:36:08 +0100
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: linux-mm@kvack.org
 Cc: linux-arch@vger.kernel.org, Nick Piggin <npiggin@suse.de>, Christoph Lameter <clameter@sgi.com>, Mel Gorman <mel@csn.ul.ie>, Andy Whitcroft <apw@shadowen.org>
 List-ID: <linux-mm.kvack.org>
 
-We have flags to indicate whether a section actually has a valid
-mem_map associated with it.  This is never set and we rely solely
-on the present bit to indicate a section is valid.  By definition
-a section is not valid if it has no mem_map and there is a window
-during init where the present bit is set but there is no mem_map,
-during which pfn_valid() will return true incorrectly.
+SPARSEMEM is a pretty nice framework that unifies quite a bit of
+code over all the arches. It would be great if it could be the
+default so that we can get rid of various forms of DISCONTIG and
+other variations on memory maps. So far what has hindered this are
+the additional lookups that SPARSEMEM introduces for virt_to_page
+and page_address. This goes so far that the code to do this has to
+be kept in a separate function and cannot be used inline.
 
-Use the existing SECTION_HAS_MEM_MAP flag to indicate the presence
-of a valid mem_map.  Switch valid_section{,_nr} and pfn_valid()
-to this bit.  Add a new present_section{,_nr} and pfn_present()
-interfaces for those users who care to know that a section is going
-to be valid.
+This patch introduces a virtual memmap mode for SPARSEMEM, in which
+the memmap is mapped into a virtually contigious area, only the
+active sections are physically backed.  This allows virt_to_page
+page_address and cohorts become simple shift/add operations.
+No page flag fields, no table lookups, nothing involving memory
+is required.
 
+The two key operations pfn_to_page and page_to_page become:
+
+   #define __pfn_to_page(pfn)      (vmemmap + (pfn))
+   #define __page_to_pfn(page)     ((page) - vmemmap)
+
+By having a virtual mapping for the memmap we allow simple access
+without wasting physical memory.  As kernel memory is typically
+already mapped 1:1 this introduces no additional overhead.
+The virtual mapping must be big enough to allow a struct page to
+be allocated and mapped for all valid physical pages.  This vill
+make a virtual memmap difficult to use on 32 bit platforms that
+support 36 address bits.
+
+However, if there is enough virtual space available and the arch
+already maps its 1-1 kernel space using TLBs (f.e. true of IA64
+and x86_64) then this technique makes SPARSEMEM lookups even more
+efficient than CONFIG_FLATMEM.  FLATMEM needs to read the contents
+of the mem_map variable to get the start of the memmap and then add
+the offset to the required entry.  vmemmap is a constant to which
+we can simply add the offset.
+
+This patch has the potential to allow us to make SPARSMEM the default
+(and even the only) option for most systems.  It should be optimal
+on UP, SMP and NUMA on most platforms.  Then we may even be able
+to remove the other memory models: FLATMEM, DISCONTIG etc.
+
+[apw@shadowen.org: config cleanups, resplit code etc]
+From: Christoph Lameter <clameter@sgi.com>
+Signed-off-by: Christoph Lameter <clameter@sgi.com>
 Signed-off-by: Andy Whitcroft <apw@shadowen.org>
 Acked-by: Mel Gorman <mel@csn.ul.ie>
 ---
-diff --git a/drivers/base/memory.c b/drivers/base/memory.c
-index 74b9679..f1f0af8 100644
---- a/drivers/base/memory.c
-+++ b/drivers/base/memory.c
-@@ -239,7 +239,7 @@ store_mem_state(struct sys_device *dev, const char *buf, size_t count)
- 	mem = container_of(dev, struct memory_block, sysdev);
- 	phys_section_nr = mem->phys_index;
+diff --git a/include/asm-generic/memory_model.h b/include/asm-generic/memory_model.h
+index 30d8d33..52226e1 100644
+--- a/include/asm-generic/memory_model.h
++++ b/include/asm-generic/memory_model.h
+@@ -46,6 +46,12 @@
+ 	 __pgdat->node_start_pfn;					\
+ })
  
--	if (!valid_section_nr(phys_section_nr))
-+	if (!present_section_nr(phys_section_nr))
- 		goto out;
- 
- 	if (!strncmp(buf, "online", min((int)count, 6)))
-@@ -419,7 +419,7 @@ int register_new_memory(struct mem_section *section)
- 
- int unregister_memory_section(struct mem_section *section)
- {
--	if (!valid_section(section))
-+	if (!present_section(section))
- 		return -EINVAL;
- 
- 	return remove_memory_block(0, section, 0);
-@@ -444,7 +444,7 @@ int __init memory_dev_init(void)
- 	 * during boot and have been initialized
- 	 */
- 	for (i = 0; i < NR_MEM_SECTIONS; i++) {
--		if (!valid_section_nr(i))
-+		if (!present_section_nr(i))
- 			continue;
- 		err = add_memory_block(0, __nr_to_section(i), MEM_ONLINE, 0);
- 		if (!ret)
-diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
-index 26341a6..f83317b 100644
---- a/include/linux/mmzone.h
-+++ b/include/linux/mmzone.h
-@@ -792,12 +792,17 @@ static inline struct page *__section_mem_map_addr(struct mem_section *section)
- 	return (struct page *)map;
- }
- 
--static inline int valid_section(struct mem_section *section)
-+static inline int present_section(struct mem_section *section)
- {
- 	return (section && (section->section_mem_map & SECTION_MARKED_PRESENT));
- }
- 
--static inline int section_has_mem_map(struct mem_section *section)
-+static inline int present_section_nr(unsigned long nr)
-+{
-+	return present_section(__nr_to_section(nr));
-+}
++#elif defined(CONFIG_SPARSEMEM_VMEMMAP)
 +
-+static inline int valid_section(struct mem_section *section)
- {
- 	return (section && (section->section_mem_map & SECTION_HAS_MEM_MAP));
- }
-@@ -819,6 +824,13 @@ static inline int pfn_valid(unsigned long pfn)
- 	return valid_section(__nr_to_section(pfn_to_section_nr(pfn)));
- }
- 
-+static inline int pfn_present(unsigned long pfn)
-+{
-+        if (pfn_to_section_nr(pfn) >= NR_MEM_SECTIONS)
-+                return 0;
-+        return present_section(__nr_to_section(pfn_to_section_nr(pfn)));
-+}
++/* memmap is virtually contigious.  */
++#define __pfn_to_page(pfn)	(vmemmap + (pfn))
++#define __page_to_pfn(page)	((page) - vmemmap)
 +
+ #elif defined(CONFIG_SPARSEMEM)
  /*
-  * These are _only_ used during initialisation, therefore they
-  * can use __initdata ...  They could have names to indicate
+  * Note: section's mem_map is encorded to reflect its start_pfn.
+diff --git a/include/linux/mm.h b/include/linux/mm.h
+index 69f4210..e9d8c32 100644
+--- a/include/linux/mm.h
++++ b/include/linux/mm.h
+@@ -1261,5 +1261,10 @@ extern int randomize_va_space;
+ 
+ __attribute__((weak)) const char *arch_vma_name(struct vm_area_struct *vma);
+ 
++int vmemmap_populate(struct page *start_page, unsigned long pages, int node);
++int vmemmap_populate_pmd(pud_t *, unsigned long, unsigned long, int);
++void *vmemmap_alloc_block(unsigned long size, int node);
++void vmemmap_verify(pte_t *, int, unsigned long, unsigned long);
++
+ #endif /* __KERNEL__ */
+ #endif /* _LINUX_MM_H */
 diff --git a/mm/sparse.c b/mm/sparse.c
-index ec6ead6..d6678ab 100644
+index d6678ab..5cc6e74 100644
 --- a/mm/sparse.c
 +++ b/mm/sparse.c
-@@ -170,7 +170,7 @@ unsigned long __init node_memmap_size_bytes(int nid, unsigned long start_pfn,
- 		if (nid != early_pfn_to_nid(pfn))
- 			continue;
+@@ -9,6 +9,8 @@
+ #include <linux/spinlock.h>
+ #include <linux/vmalloc.h>
+ #include <asm/dma.h>
++#include <asm/pgalloc.h>
++#include <asm/pgtable.h>
  
--		if (pfn_valid(pfn))
-+		if (pfn_present(pfn))
- 			nr_pages += PAGES_PER_SECTION;
- 	}
+ /*
+  * Permanent SPARSEMEM data:
+@@ -218,6 +220,192 @@ void *alloc_bootmem_high_node(pg_data_t *pgdat, unsigned long size)
+ 	return NULL;
+ }
  
-@@ -201,11 +201,12 @@ static int __meminit sparse_init_one_section(struct mem_section *ms,
- 		unsigned long pnum, struct page *mem_map,
- 		unsigned long *pageblock_bitmap)
++#ifdef CONFIG_SPARSEMEM_VMEMMAP
++/*
++ * Virtual Memory Map support
++ *
++ * (C) 2007 sgi. Christoph Lameter <clameter@sgi.com>.
++ *
++ * Virtual memory maps allow VM primitives pfn_to_page, page_to_pfn,
++ * virt_to_page, page_address() to be implemented as a base offset
++ * calculation without memory access.
++ *
++ * However, virtual mappings need a page table and TLBs. Many Linux
++ * architectures already map their physical space using 1-1 mappings
++ * via TLBs. For those arches the virtual memmory map is essentially
++ * for free if we use the same page size as the 1-1 mappings. In that
++ * case the overhead consists of a few additional pages that are
++ * allocated to create a view of memory for vmemmap.
++ *
++ * Special Kconfig settings:
++ *
++ * CONFIG_ARCH_POPULATES_SPARSEMEM_VMEMMAP
++ *
++ * 	The architecture has its own functions to populate the memory
++ * 	map and provides a vmemmap_populate function.
++ *
++ * CONFIG_ARCH_POPULATES_SPARSEMEM_VMEMMAP_PMD
++ *
++ * 	The architecture provides functions to populate the pmd level
++ * 	of the vmemmap mappings.  Allowing mappings using large pages
++ * 	where available.
++ *
++ * 	If neither are set then PAGE_SIZE mappings are generated which
++ * 	require one PTE/TLB per PAGE_SIZE chunk of the virtual memory map.
++ */
++
++/*
++ * Allocate a block of memory to be used to back the virtual memory map
++ * or to back the page tables that are used to create the mapping.
++ * Uses the main allocators if they are available, else bootmem.
++ */
++void * __meminit vmemmap_alloc_block(unsigned long size, int node)
++{
++	/* If the main allocator is up use that, fallback to bootmem. */
++	if (slab_is_available()) {
++		struct page *page = alloc_pages_node(node,
++				GFP_KERNEL | __GFP_ZERO, get_order(size));
++		if (page)
++			return page_address(page);
++		return NULL;
++	} else
++		return __alloc_bootmem_node(NODE_DATA(node), size, size,
++				__pa(MAX_DMA_ADDRESS));
++}
++
++#ifndef CONFIG_ARCH_POPULATES_SPARSEMEM_VMEMMAP
++void __meminit vmemmap_verify(pte_t *pte, int node,
++				unsigned long start, unsigned long end)
++{
++	unsigned long pfn = pte_pfn(*pte);
++	int actual_node = early_pfn_to_nid(pfn);
++
++	if (actual_node != node)
++		printk(KERN_WARNING "[%lx-%lx] potential offnode "
++			"page_structs\n", start, end - 1);
++}
++
++#ifndef CONFIG_ARCH_POPULATES_SPARSEMEM_VMEMMAP_PMD
++static int __meminit vmemmap_populate_pte(pmd_t *pmd, unsigned long addr,
++					unsigned long end, int node)
++{
++	pte_t *pte;
++
++	for (pte = pte_offset_map(pmd, addr); addr < end;
++						pte++, addr += PAGE_SIZE)
++		if (pte_none(*pte)) {
++			pte_t entry;
++			void *p = vmemmap_alloc_block(PAGE_SIZE, node);
++			if (!p)
++				return -ENOMEM;
++
++			entry = pfn_pte(__pa(p) >> PAGE_SHIFT, PAGE_KERNEL);
++			set_pte(pte, entry);
++
++			printk(KERN_DEBUG "[%lx-%lx] PTE ->%p on node %d\n",
++				addr, addr + PAGE_SIZE - 1, p, node);
++
++		} else
++			vmemmap_verify(pte, node, addr + PAGE_SIZE, end);
++
++	return 0;
++}
++
++int __meminit vmemmap_populate_pmd(pud_t *pud, unsigned long addr,
++						unsigned long end, int node)
++{
++	pmd_t *pmd;
++	int error = 0;
++
++	for (pmd = pmd_offset(pud, addr); addr < end && !error;
++						pmd++, addr += PMD_SIZE) {
++		if (pmd_none(*pmd)) {
++			void *p = vmemmap_alloc_block(PAGE_SIZE, node);
++			if (!p)
++				return -ENOMEM;
++
++			pmd_populate_kernel(&init_mm, pmd, p);
++		} else
++			vmemmap_verify((pte_t *)pmd, node,
++					pmd_addr_end(addr, end), end);
++
++		error = vmemmap_populate_pte(pmd, addr,
++					pmd_addr_end(addr, end), node);
++	}
++	return error;
++}
++#endif /* CONFIG_ARCH_POPULATES_SPARSEMEM_VMEMMAP_PMD */
++
++static int __meminit vmemmap_populate_pud(pgd_t *pgd, unsigned long addr,
++						unsigned long end, int node)
++{
++	pud_t *pud;
++	int error = 0;
++
++	for (pud = pud_offset(pgd, addr); addr < end && !error;
++						pud++, addr += PUD_SIZE) {
++		if (pud_none(*pud)) {
++			void *p = vmemmap_alloc_block(PAGE_SIZE, node);
++			if (!p)
++				return -ENOMEM;
++
++			pud_populate(&init_mm, pud, p);
++		}
++		error = vmemmap_populate_pmd(pud, addr,
++					pud_addr_end(addr, end), node);
++	}
++	return error;
++}
++
++int __meminit vmemmap_populate(struct page *start_page,
++						unsigned long nr, int node)
++{
++	pgd_t *pgd;
++	unsigned long addr = (unsigned long)start_page;
++	unsigned long end = (unsigned long)(start_page + nr);
++	int error = 0;
++
++	printk(KERN_DEBUG "[%lx-%lx] Virtual memory section"
++		" (%ld pages) node %d\n", addr, end - 1, nr, node);
++
++	for (pgd = pgd_offset_k(addr); addr < end && !error;
++					pgd++, addr += PGDIR_SIZE) {
++		if (pgd_none(*pgd)) {
++			void *p = vmemmap_alloc_block(PAGE_SIZE, node);
++			if (!p)
++				return -ENOMEM;
++
++			pgd_populate(&init_mm, pgd, p);
++		}
++		error = vmemmap_populate_pud(pgd, addr,
++					pgd_addr_end(addr, end), node);
++	}
++	return error;
++}
++#endif /* !CONFIG_ARCH_POPULATES_SPARSEMEM_VMEMMAP */
++
++static struct page * __init sparse_early_mem_map_alloc(unsigned long pnum)
++{
++	struct page *map;
++	struct mem_section *ms = __nr_to_section(pnum);
++	int nid = sparse_early_nid(ms);
++	int error;
++
++	map = pfn_to_page(pnum * PAGES_PER_SECTION);
++	error = vmemmap_populate(map, PAGES_PER_SECTION, nid);
++	if (error) {
++		printk(KERN_ERR "%s: allocation failed. Error=%d\n",
++							__FUNCTION__, error);
++		printk(KERN_ERR "%s: virtual memory map backing failed "
++			"some memory will not be available.\n", __FUNCTION__);
++		ms->section_mem_map = 0;
++		return NULL;
++	}
++	return map;
++}
++
++#else /* CONFIG_SPARSEMEM_VMEMMAP */
++
+ static struct page __init *sparse_early_mem_map_alloc(unsigned long pnum)
  {
--	if (!valid_section(ms))
-+	if (!present_section(ms))
- 		return -EINVAL;
+ 	struct page *map;
+@@ -242,6 +430,7 @@ static struct page __init *sparse_early_mem_map_alloc(unsigned long pnum)
+ 	ms->section_mem_map = 0;
+ 	return NULL;
+ }
++#endif /* !CONFIG_SPARSEMEM_VMEMMAP */
  
- 	ms->section_mem_map &= ~SECTION_MAP_MASK;
--	ms->section_mem_map |= sparse_encode_mem_map(mem_map, pnum);
-+	ms->section_mem_map |= sparse_encode_mem_map(mem_map, pnum) |
-+							SECTION_HAS_MEM_MAP;
- 	ms->pageblock_flags = pageblock_bitmap;
- 
- 	return 1;
-@@ -282,7 +283,7 @@ void __init sparse_init(void)
- 	unsigned long *usemap;
- 
- 	for (pnum = 0; pnum < NR_MEM_SECTIONS; pnum++) {
--		if (!valid_section_nr(pnum))
-+		if (!present_section_nr(pnum))
- 			continue;
- 
- 		map = sparse_early_mem_map_alloc(pnum);
+ static unsigned long usemap_size(void)
+ {
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
