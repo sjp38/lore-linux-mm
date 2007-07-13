@@ -1,64 +1,83 @@
-Date: Fri, 13 Jul 2007 16:17:32 -0700 (PDT)
-From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [PATCH 3/7] Generic Virtual Memmap support for SPARSEMEM
-In-Reply-To: <20070714081210.1440db40.kamezawa.hiroyu@jp.fujitsu.com>
-Message-ID: <Pine.LNX.4.64.0707131612530.26795@schroedinger.engr.sgi.com>
-References: <exportbomb.1184333503@pinky> <E1I9LJY-00006o-GK@hellhawk.shadowen.org>
- <20070713235121.538ddcaf.kamezawa.hiroyu@jp.fujitsu.com>
- <Pine.LNX.4.64.0707131541540.26109@schroedinger.engr.sgi.com>
- <20070714081210.1440db40.kamezawa.hiroyu@jp.fujitsu.com>
+Received: from d01relay02.pok.ibm.com (d01relay02.pok.ibm.com [9.56.227.234])
+	by e4.ny.us.ibm.com (8.13.8/8.13.8) with ESMTP id l6DNIJUt017249
+	for <linux-mm@kvack.org>; Fri, 13 Jul 2007 19:18:19 -0400
+Received: from d01av02.pok.ibm.com (d01av02.pok.ibm.com [9.56.224.216])
+	by d01relay02.pok.ibm.com (8.13.8/8.13.8/NCO v8.4) with ESMTP id l6DNIJGi450642
+	for <linux-mm@kvack.org>; Fri, 13 Jul 2007 19:18:19 -0400
+Received: from d01av02.pok.ibm.com (loopback [127.0.0.1])
+	by d01av02.pok.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l6DNIIkj010690
+	for <linux-mm@kvack.org>; Fri, 13 Jul 2007 19:18:18 -0400
+Date: Fri, 13 Jul 2007 16:18:17 -0700
+From: Nishanth Aravamudan <nacc@us.ibm.com>
+Subject: Re: [patch 00/12] NUMA: Memoryless node support V3
+Message-ID: <20070713231817.GB31518@us.ibm.com>
+References: <20070711182219.234782227@sgi.com> <20070713151431.GG10067@us.ibm.com> <Pine.LNX.4.64.0707130942030.21777@schroedinger.engr.sgi.com> <1184347239.5579.3.camel@localhost> <Pine.LNX.4.64.0707131022140.22340@schroedinger.engr.sgi.com> <1184360032.5579.17.camel@localhost>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1184360032.5579.17.camel@localhost>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: apw@shadowen.org, linux-mm@kvack.org, linux-arch@vger.kernel.org, npiggin@suse.de, mel@csn.ul.ie
+To: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
+Cc: Christoph Lameter <clameter@sgi.com>, akpm@linux-foundation.org, kxr@sgi.com, linux-mm@kvack.org, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-On Sat, 14 Jul 2007, KAMEZAWA Hiroyuki wrote:
-
-> Just because this patch takes care of boot path. Maybe small problem.
-
-Ahh. I just looked at it. Yes we did not modify the hotplug path. It needs
-to call the new vmemmap alloc functions.
-
-> Basically, I welcome this patch. I like this.
-
-Yes you proposed the initial version of this last year. Thanks.
-
-> If we can remove DISCONTIG+VMEMMAP after this is merged, we can say good-bye
-> to terrible CONFIG_HOLES_IN_ZONE :)
-
-Right. Horrible stuff. Lots of useless cachelines that have to be 
-references in critical paths.
-
-> Note
-> >From memory hotplug development/enhancement view, I have following thinking now.
->  
->  1. memmap's section is *not* aligned to "big page size". We have to take care
->     of this at adding support for memory_hotplug/unplug.
-
-You can call the functions for virtual memmap allocation directly. They 
-are already generic and will call the page allocator instead of the 
-bootmem allocator if the system is already. They will give you the 
-properly aligned memory. Perhaps you can just change a few lines 
-in sparse_add_one_section to call the vmemmap functions instead?
-
->  2. With an appropriate patch, we can allocate new section's memmap from
->     itself. This will reduce possibility of memory hotplug failure becasue of
->     large size kmalloc/vmalloc. And it guarantees locality of memmap.
->     But maybe need some amount of work for implementing this in clean way.
->     This will depend on vmemmap.
-
-That is a good idea. Maybe do the simple approach first and then the other 
-one?
-
+On 13.07.2007 [16:53:52 -0400], Lee Schermerhorn wrote:
+> Christoph:
 > 
->  3. removin memmap code for memory unplug will be necessary. But there is no code
->     for removing memmap in usual SPARSEMEM. So this is not real problem of vmemmap
->     now. 
+> Had a chance to build/boot the latest series with the updated #7, ...
+> 
+> Quite a few offsets and one reject in #7, but easy to resolve.
+> 
+> Boots OK.  Quick test of hugetlb allocation on my platform shows the
+> old behavior with huge pages doubling up on the node that the
+> "memoryless" one falls back on.  Guess this is expected until we get
+> Nish's patch atop this one.
 
-Right. It would have to be added later anyways.
+Yep, I've tested his stack as well (just got some results and it seems
+ok).
+
+> Next week I'll reconfig a platform fully interleaved which will result
+> in all of the real nodes appearing memoryless and do more testing.
+> 
+> Have a nice vacation.
+> 
+> Nish:
+> 
+> Shall I try to rebase your patches atop Christoph's in my tree?
+
+I've got all three of my patches rebased. I'll repost them shortly, am
+just trying to verify they still work as expected on NUMA, NUMA w/
+memoryless and non-NUMA, as before.
+
+Thanks,
+Nish
+
+> The last ones I have are from 19jul:
+> 
+> 	01-fix-hugetlb-pool-allocation-with-memoryless-nodes
+
+FWIW, you just need to
+
+sed -i 's/node_memory_map/node_states(N_MEMORY)/g' mm/hugetlb.c
+
+for this patch and
+
+> 	02-hugetlb-numafy-several-functions
+> 	03-add-per-node-nr_hugepages-sysfs-attribute
+
+these two apply cleanly. Everything should build at that point, as well.
+
+> Do you have more recent ones?
+
+I'll make sure you're on the Cc once I repost.
+
+Thanks,
+Nish
+
+-- 
+Nishanth Aravamudan <nacc@us.ibm.com>
+IBM Linux Technology Center
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
