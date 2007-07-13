@@ -1,56 +1,69 @@
-Received: from d01relay02.pok.ibm.com (d01relay02.pok.ibm.com [9.56.227.234])
-	by e5.ny.us.ibm.com (8.13.8/8.13.8) with ESMTP id l6DGqLC0018118
-	for <linux-mm@kvack.org>; Fri, 13 Jul 2007 12:52:21 -0400
-Received: from d01av02.pok.ibm.com (d01av02.pok.ibm.com [9.56.224.216])
-	by d01relay02.pok.ibm.com (8.13.8/8.13.8/NCO v8.4) with ESMTP id l6DGqL1a477544
-	for <linux-mm@kvack.org>; Fri, 13 Jul 2007 12:52:21 -0400
-Received: from d01av02.pok.ibm.com (loopback [127.0.0.1])
-	by d01av02.pok.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l6DGqLbh019445
-	for <linux-mm@kvack.org>; Fri, 13 Jul 2007 12:52:21 -0400
-Date: Fri, 13 Jul 2007 09:52:16 -0700
-From: Nishanth Aravamudan <nacc@us.ibm.com>
-Subject: Re: [patch 00/12] NUMA: Memoryless node support V3
-Message-ID: <20070713165216.GH10067@us.ibm.com>
-References: <20070711182219.234782227@sgi.com> <20070713151431.GG10067@us.ibm.com> <Pine.LNX.4.64.0707130942030.21777@schroedinger.engr.sgi.com>
+Date: Fri, 13 Jul 2007 11:54:54 -0500
+From: Matt Mackall <mpm@selenic.com>
+Subject: Re: [PATCH] slob: sparsemem support.
+Message-ID: <20070713165454.GI11115@waste.org>
+References: <20070713093557.GA3403@linux-sh.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <Pine.LNX.4.64.0707130942030.21777@schroedinger.engr.sgi.com>
+In-Reply-To: <20070713093557.GA3403@linux-sh.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
-Cc: Lee Schermerhorn <Lee.Schermerhorn@hp.com>, akpm@linux-foundation.org, kxr@sgi.com, linux-mm@kvack.org, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+To: Paul Mundt <lethal@linux-sh.org>, Andrew Morton <akpm@linux-foundation.org>, Yasunori Goto <y-goto@jp.fujitsu.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 13.07.2007 [09:43:25 -0700], Christoph Lameter wrote:
-> On Fri, 13 Jul 2007, Nishanth Aravamudan wrote:
+On Fri, Jul 13, 2007 at 06:35:57PM +0900, Paul Mundt wrote:
+> Currently slob is disabled if we're using sparsemem, due to an earlier
+> patch from Goto-san. Slob and static sparsemem work without any trouble
+> as it is, and the only hiccup is a missing slab_is_available() in the
+> case of sparsemem extreme. With this, we're rid of the last set of
+> restrictions for slob usage.
 > 
-> > On 11.07.2007 [11:22:19 -0700], Christoph Lameter wrote:
-> > > Changes V2->V3:
-> > > - Refresh patches (sigh)
-> > > - Add comments suggested by Kamezawa Hiroyuki
-> > > - Add signoff by Jes Sorensen
-> > 
-> > Christoph, would it be possible to get the current patches up on
-> > kernel.org in your people-space? That way I know I have the current
-> > versions of these, including any fixlets that come by?
+> Signed-off-by: Paul Mundt <lethal@linux-sh.org>
 > 
-> Lee: Would you repost the patches after testing them and fixing them up? 
+> --
+> 
+>  init/Kconfig |    2 +-
+>  mm/slob.c    |    8 ++++++++
+>  2 files changed, 9 insertions(+), 1 deletion(-)
+> 
+> diff -urN linux-2.6.22-rc6-mm1.orig/init/Kconfig linux-2.6.22-rc6-mm1/init/Kconfig
+> --- linux-2.6.22-rc6-mm1.orig/init/Kconfig	2007-07-06 07:47:49.000000000 +0900
+> +++ linux-2.6.22-rc6-mm1/init/Kconfig	2007-07-06 09:50:29.000000000 +0900
+> @@ -625,7 +625,7 @@
+>  	   and has enhanced diagnostics.
+>  
+>  config SLOB
+> -	depends on EMBEDDED && !SPARSEMEM
+> +	depends on EMBEDDED
+>  	bool "SLOB (Simple Allocator)"
+>  	help
+>  	   SLOB replaces the SLAB allocator with a drastically simpler
+> diff -urN linux-2.6.22-rc6-mm1.orig/mm/slob.c linux-2.6.22-rc6-mm1/mm/slob.c
+> --- linux-2.6.22-rc6-mm1.orig/mm/slob.c	2007-07-06 07:47:50.000000000 +0900
+> +++ linux-2.6.22-rc6-mm1/mm/slob.c	2007-07-06 09:56:16.000000000 +0900
+> @@ -606,6 +606,14 @@
+>  	return 0;
+>  }
+>  
+> +static unsigned int slob_ready __read_mostly;
+> +
+> +int slab_is_available(void)
+> +{
+> +	return slob_ready;
+> +}
+> +
+>  void __init kmem_cache_init(void)
+>  {
+> +	slob_ready = 1;
+>  }
 
-That will work too.
+Looks fine. Thanks, Paul.
 
-> You probably have somewhere to publish them? I will be on vacation
-> next week (and yes I will leave my laptop at home, somehow I have to
-> get back my sanity).
-
-Enjoy your vacation and good luck with the sanity :) Thanks again for
-working through these memoryless node issues.
-
--Nish
+Acked-by: Matt Mackall <mpm@selenic.com>
 
 -- 
-Nishanth Aravamudan <nacc@us.ibm.com>
-IBM Linux Technology Center
+Mathematics is the supreme nostalgia of our time.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
