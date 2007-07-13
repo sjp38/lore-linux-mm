@@ -1,33 +1,52 @@
-Date: Fri, 13 Jul 2007 10:04:45 -0700 (PDT)
-From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [PATCH 0/7] Sparsemem Virtual Memmap V5
-In-Reply-To: <exportbomb.1184333503@pinky>
-Message-ID: <Pine.LNX.4.64.0707131001060.21777@schroedinger.engr.sgi.com>
-References: <exportbomb.1184333503@pinky>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: [patch 00/12] NUMA: Memoryless node support V3
+From: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
+In-Reply-To: <Pine.LNX.4.64.0707130942030.21777@schroedinger.engr.sgi.com>
+References: <20070711182219.234782227@sgi.com>
+	 <20070713151431.GG10067@us.ibm.com>
+	 <Pine.LNX.4.64.0707130942030.21777@schroedinger.engr.sgi.com>
+Content-Type: text/plain
+Date: Fri, 13 Jul 2007 13:20:39 -0400
+Message-Id: <1184347239.5579.3.camel@localhost>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: akpm@linux-foundation.org
-Cc: linux-mm@kvack.org, linux-arch@vger.kernel.org, Andy Whitcroft <apw@shadowen.org>, Nick Piggin <npiggin@suse.de>, Mel Gorman <mel@csn.ul.ie>
+To: Christoph Lameter <clameter@sgi.com>
+Cc: Nishanth Aravamudan <nacc@us.ibm.com>, akpm@linux-foundation.org, kxr@sgi.com, linux-mm@kvack.org, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 13 Jul 2007, Andy Whitcroft wrote:
-
-> Andrew, please consider for -mm.
+On Fri, 2007-07-13 at 09:43 -0700, Christoph Lameter wrote:
+> On Fri, 13 Jul 2007, Nishanth Aravamudan wrote:
 > 
-> Note that I am away from my keyboard all of next week, but I figured
-> it better to get this out for testing.
+> > On 11.07.2007 [11:22:19 -0700], Christoph Lameter wrote:
+> > > Changes V2->V3:
+> > > - Refresh patches (sigh)
+> > > - Add comments suggested by Kamezawa Hiroyuki
+> > > - Add signoff by Jes Sorensen
+> > 
+> > Christoph, would it be possible to get the current patches up on
+> > kernel.org in your people-space? That way I know I have the current
+> > versions of these, including any fixlets that come by?
+> 
+> Lee: Would you repost the patches after testing them and fixing them up? 
 
-Yes grumble. Why does it take so long...
+I'm up to my eyeballs right now, setting up a large system for testing
+VM scalability with Oracle.  I hope to have time early next week to test
+your patches.  In a mail exchange between you and Andrew, you mentioned
+that your memoryless-node patches are atop your slab defrag?  Shall I
+test them that way?  Or try to rebase against the then current -mm tree?
+I.e., what's the probability that the slab defrag patches make it into
+-mm before the memoryless node patches?
 
-Would it be possible to merge this for 2.6.23 (maybe late?). This has been 
-around for 6 months now. It removes the troubling lookups in 
-virt_to_page and page_address in sparsemem that have spooked many of us. 
+> 
+> You probably have somewhere to publish them? I will be on vacation next 
+> week (and yes I will leave my laptop at home, somehow I have to get back 
+> my sanity).
 
-virt_to_page efficiency is a performance issue for kfree and 
-kmem_cache_free in the slab allocators. I inserted probles and saw 
-that the patchset cuts down the cycles spend in virt_to_page by 50%.
+You mean in addition to posting?  I can stick a copy on my
+free.linux.hp.com http site.
+
+Lee
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
