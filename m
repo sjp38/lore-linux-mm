@@ -1,52 +1,36 @@
-Content-class: urn:content-classes:message
+Received: from zps35.corp.google.com (zps35.corp.google.com [172.25.146.35])
+	by smtp-out.google.com with ESMTP id l6DMHHAN012817
+	for <linux-mm@kvack.org>; Fri, 13 Jul 2007 15:17:18 -0700
+Received: from an-out-0708.google.com (andd30.prod.google.com [10.100.30.30])
+	by zps35.corp.google.com with ESMTP id l6DMHEcH008093
+	for <linux-mm@kvack.org>; Fri, 13 Jul 2007 15:17:15 -0700
+Received: by an-out-0708.google.com with SMTP id d30so150795and
+        for <linux-mm@kvack.org>; Fri, 13 Jul 2007 15:17:14 -0700 (PDT)
+Message-ID: <b040c32a0707131517m4cc20d3an2123e324746d3e7@mail.gmail.com>
+Date: Fri, 13 Jul 2007 15:17:14 -0700
+From: "Ken Chen" <kenchen@google.com>
+Subject: Re: [patch] fix periodic superblock dirty inode flushing
+In-Reply-To: <20070712120519.8a7241dd.akpm@linux-foundation.org>
 MIME-Version: 1.0
-Content-Type: text/plain;
-	charset="iso-8859-1"
-Content-Transfer-Encoding: 8BIT
-Subject: RE: [PATCH 0/7] Sparsemem Virtual Memmap V5
-Date: Fri, 13 Jul 2007 15:02:17 -0700
-Message-ID: <617E1C2C70743745A92448908E030B2A01EA6524@scsmsx411.amr.corp.intel.com>
-In-Reply-To: <20070713104044.0d090c79.akpm@linux-foundation.org>
-From: "Luck, Tony" <tony.luck@intel.com>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+References: <b040c32a0707112121y21d08438u8ca7f138931827b0@mail.gmail.com>
+	 <20070712120519.8a7241dd.akpm@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <clameter@sgi.com>
-Cc: linux-mm@kvack.org, linux-arch@vger.kernel.org, Andy Whitcroft <apw@shadowen.org>, Nick Piggin <npiggin@suse.de>, Mel Gorman <mel@csn.ul.ie>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-> It would be nice to see a bit of spirited reviewing from the affected arch
-> maintainers and mm people...
+On 7/12/07, Andrew Morton <akpm@linux-foundation.org> wrote:
+> Was this tested in combination with check_dirty_inode_list.patch,
+> to make sure that the time-orderedness is being retained?
 
-I'm 100% in favour of the direction this patch is taking ... eventually
-it will allow getting rid of several config options, and thus 2^several
-less config options to test.
+I think I tested with the debug patch.  And just to be sure, I ran the
+test again with the time-order check in place.  It passed the test.
 
-On the question of whether it should be squeezed into 2.6.23 ... I have
-mixed feelings.  On the negative side:
-
-1) There is a small performance regression for ia64 (which is promised
-to go away when bigger pages are used for the mem_map, but I'd like to
-see that this really does fix the issue).
-
-2) Fujitsu pointed out that there is work to be done to port HOTPLUG
-code to this.
-
-On the positive side:
-1) There are few ia64 developers working on -mm ... so progress will
-continue to be glacial unless this goes into mainline.
-
-2) The patch appears to co-exist with all the existing CONFIG options,
-so it doesn't break anything (well, all my test configs still compile
-cleanly ... I haven't actually test booted them all yet).
-
-Finally one gripe with the current version of the patch.  This debug
-trace is WAY too verbose during boot!
-
-mm/sparse.c
-+			printk(KERN_DEBUG "[%lx-%lx] PTE ->%p on node %d\n",
-+				addr, addr + PAGE_SIZE - 1, p, node);
-
--Tony
+- Ken
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
