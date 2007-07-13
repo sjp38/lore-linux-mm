@@ -1,41 +1,29 @@
-Date: Sat, 14 Jul 2007 08:27:36 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Date: Fri, 13 Jul 2007 16:28:47 -0700 (PDT)
+From: Christoph Lameter <clameter@sgi.com>
 Subject: Re: [PATCH 0/7] Sparsemem Virtual Memmap V5
-Message-Id: <20070714082736.10af5f13.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <Pine.LNX.4.64.0707131553120.26572@schroedinger.engr.sgi.com>
+In-Reply-To: <20070714082736.10af5f13.kamezawa.hiroyu@jp.fujitsu.com>
+Message-ID: <Pine.LNX.4.64.0707131628150.27014@schroedinger.engr.sgi.com>
 References: <617E1C2C70743745A92448908E030B2A01EA65B9@scsmsx411.amr.corp.intel.com>
-	<Pine.LNX.4.64.0707131553120.26572@schroedinger.engr.sgi.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+ <Pine.LNX.4.64.0707131553120.26572@schroedinger.engr.sgi.com>
+ <20070714082736.10af5f13.kamezawa.hiroyu@jp.fujitsu.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 Cc: tony.luck@intel.com, akpm@linux-foundation.org, linux-mm@kvack.org, linux-arch@vger.kernel.org, apw@shadowen.org, npiggin@suse.de, mel@csn.ul.ie
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 13 Jul 2007 15:54:25 -0700 (PDT)
-Christoph Lameter <clameter@sgi.com> wrote:
+On Sat, 14 Jul 2007, KAMEZAWA Hiroyuki wrote:
 
-> On Fri, 13 Jul 2007, Luck, Tony wrote:
-> 
-> > > How many tests were done and on what platform?
+> > I'd be very surprised if there is any difference because the IA64 code for 
+> > virtual memmap is the source of ideas and implementation for SPARSE_VIRTUAL.
 > > 
-> > Andy's part 0/7 post starts off with the performance numbers.  He
-> > didn't say which ia64 platform was used for the tests.
-> > 
-> > Looking my logs for the last few kernel builds (some built on a
-> > tiger_defconfig kernel which uses CONFIG_VIRTUAL_MEM_MAP=y, and
-> > some with the new CONFIG_SPARSEMEM_VMEMMAP) I'd have a tough time
-> > saying whether there was a regression or not).
-> 
-> I'd be very surprised if there is any difference because the IA64 code for 
-> virtual memmap is the source of ideas and implementation for SPARSE_VIRTUAL.
-> 
-Maybe pfn_valid() implementation is different from ?
+> Maybe pfn_valid() implementation is different from ?
 
-Thanks,
--Kame
+Right but that should increase the speed and not decrease it since we do 
+not have the CONFIG HOLES anymore.
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
