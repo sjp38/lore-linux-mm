@@ -1,73 +1,63 @@
-Received: from d03relay04.boulder.ibm.com (d03relay04.boulder.ibm.com [9.17.195.106])
-	by e35.co.us.ibm.com (8.13.8/8.13.8) with ESMTP id l6DJsRkN015125
-	for <linux-mm@kvack.org>; Fri, 13 Jul 2007 15:54:27 -0400
-Received: from d03av04.boulder.ibm.com (d03av04.boulder.ibm.com [9.17.195.170])
-	by d03relay04.boulder.ibm.com (8.13.8/8.13.8/NCO v8.4) with ESMTP id l6DJsRiU163078
-	for <linux-mm@kvack.org>; Fri, 13 Jul 2007 13:54:27 -0600
-Received: from d03av04.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av04.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l6DJsRig027904
-	for <linux-mm@kvack.org>; Fri, 13 Jul 2007 13:54:27 -0600
-Subject: Re: [PATCH] Simplify /proc/<pid|self>/exe symlink code
-From: Matt Helsley <matthltc@us.ibm.com>
-In-Reply-To: <20070712192114.bb357ce4.akpm@linux-foundation.org>
-References: <1184292012.13479.14.camel@localhost.localdomain>
-	 <20070712192114.bb357ce4.akpm@linux-foundation.org>
-Content-Type: text/plain
-Date: Fri, 13 Jul 2007 12:54:20 -0700
-Message-Id: <1184356460.16131.4.camel@localhost.localdomain>
+Date: Fri, 13 Jul 2007 13:05:08 -0700
+From: Paul Jackson <pj@sgi.com>
+Subject: Re: [PATCH 5/5] [hugetlb] Try to grow pool for MAP_SHARED mappings
+Message-Id: <20070713130508.6f5b9bbb.pj@sgi.com>
+In-Reply-To: <20070713151717.17750.44865.stgit@kernel>
+References: <20070713151621.17750.58171.stgit@kernel>
+	<20070713151717.17750.44865.stgit@kernel>
 Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Chris Wright <chrisw@sous-sol.org>, Al Viro <viro@ftp.linux.org.uk>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Christoph Hellwig <hch@lst.de>, "Hallyn, Serge" <serue@us.ibm.com>, Peter Zijlstra <peterz@infradead.org>
+To: Adam Litke <agl@us.ibm.com>
+Cc: linux-mm@kvack.org, mel@skynet.ie, apw@shadowen.org, wli@holomorphy.com, clameter@sgi.com, kenchen@google.com
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 2007-07-12 at 19:21 -0700, Andrew Morton wrote:
-> On Thu, 12 Jul 2007 19:00:12 -0700 Matt Helsley <matthltc@us.ibm.com> wrote:
-> 
-> > This patch avoids holding the mmap semaphore while walking VMAs in response to
-> > programs which read or follow the /proc/<pid|self>/exe symlink. This also allows
-> > us to merge mmu and nommu proc_exe_link() functions. The costs are holding the
-> > task lock, a separate reference to the executable file stored in the task
-> > struct, and increased code in fork, exec, and exit paths.
-> > 
-> > Signed-off-by: Matt Helsley <matthltc@us.ibm.com>
-> > ---
-> > 
-> > Changelog:
-> > 
-> > Hold task_lock() while using task->exe_file. With this change I haven't
-> > 	been able to reproduce Chris Wright's Oops report:
-> > 		http://lkml.org/lkml/2007/5/31/34 
-> > 	I used a 4-way, x86 system running kernbench. I also tried a 4-way x86_64
-> > 	system running pidof. I used oprofile during all runs but I could not
-> > 	reproduce Chris' Oops with the new patch.
-> > 
-> > Compiled and passed simple tests for regressions when patched against a 2.6.20
-> > and a 2.6.22 kernel. Regression tests included a variety of file operations on
-> > /proc/<pid|self>/exe such as stat, lstat, open, close, readlink, and unlink. All
-> > produced the expected, baseline output results.
-> > 
-> > Andrew, please consider this patch for inclusion in -mm.
-> 
-> I wish we had a description of the bug which this fixes.  That email of
-> Chris's is referencing code which diddles with task_struct.exe_file, but
-> your patch _adds_ task_struct.exe_file, so I am all confused.
+Adam wrote:
+> +	/*
+> +	 * I haven't figured out how to incorporate this cpuset bodge into
+> +	 * the dynamic hugetlb pool yet.  Hopefully someone more familiar with
+> +	 * cpusets can weigh in on their desired semantics.  Maybe we can just
+> +	 * drop this check?
+> +	 *
+>  	if (chg > cpuset_mems_nr(free_huge_pages_node))
+>  		return -ENOMEM;
+> +	 */
 
-Chris was testing the patch. The patch isn't a bug fix so much as a
-failed attempt to remove one use of the mm's mmap lock.
+I can't figure out the value of this check either -- Ken Chen added it, perhaps
+he can comment.
 
-> Your patch does lots of fput()s under task_lock(), but fput() can sleep.
+But the cpuset behaviour of this hugetlb stuff looks suspicious to me:
+ 1) The code in alloc_fresh_huge_page() seems to round robin over
+    the entire system, spreading the hugetlb pages uniformly on all nodes.
+    If one a task in one small cpuset starts aggressively allocating hugetlb
+    pages, do you think this will work, Adam -- looks to me like we will end
+    up calling alloc_fresh_huge_page() many times, most of which will fail to
+    alloc_pages_node() anything because the 'static nid' clock hand will be
+    pointing at a node outside of the current tasks cpuset (not in that tasks
+    mems_allowed).  Inefficient, but I guess ok.
+ 2) I don't see what keeps us from picking hugetlb pages off -any- node in the
+    system, perhaps way outside the current cpuset.  We shouldn't be looking for
+    enough available (free_huge_pages - resv_huge_pages) pages in the whole
+    system.  Rather we should be looking for and reserving enough such pages
+    that are in the current tasks cpuset (set in its mems_allowed, to be precise)
+    Folks aren't going to want their hugetlb pages coming from outside their
+    tasks cpuset.
+ 3) If there is some code I missed (good chance) that enforces the rule that
+    a task can only get a hugetlb page from a node in its cpuset, then this
+    uniform global allocation of hugetlb pages, as noted in (1) above, can't
+    be right.  Either it will force all nodes, including many nodes outside
+    of the current tasks cpuset, to bulk up on free hugetlb pages, just to
+    get enough of them on nodes allowed by the current tasks cpuset, or else
+    it will fail to get enough on nodes local to the current tasks cpuset.
+    I don't understand the logic well enough to know which, but either way
+    sucks.
 
-Ack, you're right.
-
-> Plus what Al said.
-
-Yup.
-
-Thanks,
-	-Matt Helsley
+-- 
+                  I won't rest till it's the best ...
+                  Programmer, Linux Scalability
+                  Paul Jackson <pj@sgi.com> 1.925.600.0401
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
