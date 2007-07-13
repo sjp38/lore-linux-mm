@@ -1,36 +1,43 @@
-Date: Fri, 13 Jul 2007 23:51:21 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCH 3/7] Generic Virtual Memmap support for SPARSEMEM
-Message-Id: <20070713235121.538ddcaf.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <E1I9LJY-00006o-GK@hellhawk.shadowen.org>
-References: <exportbomb.1184333503@pinky>
-	<E1I9LJY-00006o-GK@hellhawk.shadowen.org>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from d01relay04.pok.ibm.com (d01relay04.pok.ibm.com [9.56.227.236])
+	by e6.ny.us.ibm.com (8.13.8/8.13.8) with ESMTP id l6DFFjOZ011647
+	for <linux-mm@kvack.org>; Fri, 13 Jul 2007 11:15:45 -0400
+Received: from d01av02.pok.ibm.com (d01av02.pok.ibm.com [9.56.224.216])
+	by d01relay04.pok.ibm.com (8.13.8/8.13.8/NCO v8.3) with ESMTP id l6DFEWv4535948
+	for <linux-mm@kvack.org>; Fri, 13 Jul 2007 11:14:32 -0400
+Received: from d01av02.pok.ibm.com (loopback [127.0.0.1])
+	by d01av02.pok.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l6DFEWoI022135
+	for <linux-mm@kvack.org>; Fri, 13 Jul 2007 11:14:32 -0400
+Date: Fri, 13 Jul 2007 08:14:31 -0700
+From: Nishanth Aravamudan <nacc@us.ibm.com>
+Subject: Re: [patch 00/12] NUMA: Memoryless node support V3
+Message-ID: <20070713151431.GG10067@us.ibm.com>
+References: <20070711182219.234782227@sgi.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20070711182219.234782227@sgi.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andy Whitcroft <apw@shadowen.org>
-Cc: linux-mm@kvack.org, linux-arch@vger.kernel.org, npiggin@suse.de, clameter@sgi.com, mel@csn.ul.ie
+To: Christoph Lameter <clameter@sgi.com>
+Cc: akpm@linux-foundation.org, kxr@sgi.com, linux-mm@kvack.org, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 13 Jul 2007 14:36:08 +0100
-Andy Whitcroft <apw@shadowen.org> wrote:
+On 11.07.2007 [11:22:19 -0700], Christoph Lameter wrote:
+> Changes V2->V3:
+> - Refresh patches (sigh)
+> - Add comments suggested by Kamezawa Hiroyuki
+> - Add signoff by Jes Sorensen
 
-> SPARSEMEM is a pretty nice framework that unifies quite a bit of
-> code over all the arches. It would be great if it could be the
-> default so that we can get rid of various forms of DISCONTIG and
-> other variations on memory maps. So far what has hindered this are
-> the additional lookups that SPARSEMEM introduces for virt_to_page
-> and page_address. This goes so far that the code to do this has to
-> be kept in a separate function and cannot be used inline.
-> 
-Maybe it will be our(my or Goto-san's) work to implement MEMORY_HOTADD support
-for this. Could you add !MEMORY_HOTPLUG in Kconfig ? Then, we'll write
-patch later.
-Or..If you'll add memory hotplug support by yourself, It's great, 
+Christoph, would it be possible to get the current patches up on
+kernel.org in your people-space? That way I know I have the current
+versions of these, including any fixlets that come by?
 
--Kame
+Thanks,
+Nish
+
+-- 
+Nishanth Aravamudan <nacc@us.ibm.com>
+IBM Linux Technology Center
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
