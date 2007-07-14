@@ -1,40 +1,37 @@
-Date: Sat, 14 Jul 2007 10:49:31 +0200
-From: Nick Piggin <npiggin@suse.de>
+Date: Sat, 14 Jul 2007 09:57:54 +0100
+From: Russell King <rmk@arm.linux.org.uk>
 Subject: Re: [PATCH 0/7] Sparsemem Virtual Memmap V5
-Message-ID: <20070714084931.GE1198@wotan.suse.de>
-References: <617E1C2C70743745A92448908E030B2A01EA6524@scsmsx411.amr.corp.intel.com> <Pine.LNX.4.64.0707131510350.25753@schroedinger.engr.sgi.com>
+Message-ID: <20070714085754.GA28581@flint.arm.linux.org.uk>
+References: <exportbomb.1184333503@pinky> <Pine.LNX.4.64.0707131001060.21777@schroedinger.engr.sgi.com> <20070713104044.0d090c79.akpm@linux-foundation.org> <Pine.LNX.4.64.0707131116080.22727@schroedinger.engr.sgi.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <Pine.LNX.4.64.0707131510350.25753@schroedinger.engr.sgi.com>
+In-Reply-To: <Pine.LNX.4.64.0707131116080.22727@schroedinger.engr.sgi.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Christoph Lameter <clameter@sgi.com>
-Cc: "Luck, Tony" <tony.luck@intel.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-arch@vger.kernel.org, Andy Whitcroft <apw@shadowen.org>, Mel Gorman <mel@csn.ul.ie>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-arch@vger.kernel.org, Andy Whitcroft <apw@shadowen.org>, Nick Piggin <npiggin@suse.de>, Mel Gorman <mel@csn.ul.ie>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Jul 13, 2007 at 03:21:43PM -0700, Christoph Lameter wrote:
-> On Fri, 13 Jul 2007, Luck, Tony wrote:
-> 
-> > 1) There is a small performance regression for ia64 (which is promised
-> > to go away when bigger pages are used for the mem_map, but I'd like to
-> > see that this really does fix the issue).
-> 
-> The performance should be better than the existing one since we have even 
-> less code here than discontig. We do no have to fetch the base anymore or 
-> check boundaries (discontig was the baseline right?) but we have exactly 
-> the same method of pfn_to_page and page_to_pfn as discontig/vmemmap.
+On Fri, Jul 13, 2007 at 11:23:20AM -0700, Christoph Lameter wrote:
+> Well without this we cannot perform the cleanup of the miscellaneous 
+> memory models around. The longer this is held up the longer the discontig 
+> etc will stay in the tree with all the associated #ifdeffery.
 
-Isn't it still possible that you could have TLB pressure that would
-result in lower performance? I wonder why the large page support for
-ia64 was shelved?
+It would also be nice to convert ARM to using sparsemem rather than
+discontigmem, but despite having a patch adding the supporting common
+infrastructure for the last year and a half or so, no one in the ARM
+community is interested in it.
 
-FWIW, since I was cc'ed for comments: I really like the patches as well
-although much of it is in memory model and arch code which I'm not so
-involved with.
+Since I've no machines which use the present discontig support and
+have more than a single bank of memory, I've no way to test and
+progress sparsemem on ARM - and since no one's interested I'm probably
+going to drop the ARM sparsemem git branch soon.
 
-It should allow better performance, and unification of most if not all
-memory models which will be really nice.
+-- 
+Russell King
+ Linux kernel    2.6 ARM Linux   - http://www.arm.linux.org.uk/
+ maintainer of:
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
