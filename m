@@ -1,37 +1,67 @@
-Date: Sat, 14 Jul 2007 09:57:54 +0100
-From: Russell King <rmk@arm.linux.org.uk>
-Subject: Re: [PATCH 0/7] Sparsemem Virtual Memmap V5
-Message-ID: <20070714085754.GA28581@flint.arm.linux.org.uk>
-References: <exportbomb.1184333503@pinky> <Pine.LNX.4.64.0707131001060.21777@schroedinger.engr.sgi.com> <20070713104044.0d090c79.akpm@linux-foundation.org> <Pine.LNX.4.64.0707131116080.22727@schroedinger.engr.sgi.com>
+Date: Sat, 14 Jul 2007 12:21:11 +0200
+From: Nick Piggin <npiggin@suse.de>
+Subject: [patch 1/4] introduce write_begin write_end aops important fix
+Message-ID: <20070714102111.GA12215@wotan.suse.de>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <Pine.LNX.4.64.0707131116080.22727@schroedinger.engr.sgi.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-arch@vger.kernel.org, Andy Whitcroft <apw@shadowen.org>, Nick Piggin <npiggin@suse.de>, Mel Gorman <mel@csn.ul.ie>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Linux Memory Management List <linux-mm@kvack.org>, Hugh Dickins <hugh@veritas.com>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Jul 13, 2007 at 11:23:20AM -0700, Christoph Lameter wrote:
-> Well without this we cannot perform the cleanup of the miscellaneous 
-> memory models around. The longer this is held up the longer the discontig 
-> etc will stay in the tree with all the associated #ifdeffery.
+Credit for these next 4 patches goes to Hugh. He found and fixed the
+problem, I just split them up and added a bit of a changelog and 
+hopefully no new bugs.
 
-It would also be nice to convert ARM to using sparsemem rather than
-discontigmem, but despite having a patch adding the supporting common
-infrastructure for the last year and a half or so, no one in the ARM
-community is interested in it.
+--
 
-Since I've no machines which use the present discontig support and
-have more than a single bank of memory, I've no way to test and
-progress sparsemem on ARM - and since no one's interested I'm probably
-going to drop the ARM sparsemem git branch soon.
+When running kbuild stress testing, it data corruptions on ext2 were
+noticed occasionally.
 
--- 
-Russell King
- Linux kernel    2.6 ARM Linux   - http://www.arm.linux.org.uk/
- maintainer of:
+The page being written to by write(2) was being unlocked in generic_write_end
+before updating i_size, and that renders an extending-write vulnerable to have
+its newly written data zeroed out if writepage comes at the wrong time and
+finds the page unlocked but i_size is not yet updated.
+
+Fortunately ext3 wasn't affected by this bug, but ext2 and others using
+generic_write_end would be.
+
+Signed-off-by: Hugh Dickins <hugh@veritas.com>
+Signed-off-by: Nick Piggin <npiggin@suse.de>
+
+Index: linux-2.6/fs/buffer.c
+===================================================================
+--- linux-2.6.orig/fs/buffer.c
++++ linux-2.6/fs/buffer.c
+@@ -2013,19 +2013,22 @@ int generic_write_end(struct file *file,
+ 
+ 	copied = block_write_end(file, mapping, pos, len, copied, page, fsdata);
+ 
+-	unlock_page(page);
+-	mark_page_accessed(page); /* XXX: put this in caller? */
+-	page_cache_release(page);
+-
+ 	/*
+ 	 * No need to use i_size_read() here, the i_size
+ 	 * cannot change under us because we hold i_mutex.
++	 *
++	 * But it's important to update i_size while still holding page lock:
++	 * page writeout could otherwise come in and zero beyond i_size.
+ 	 */
+ 	if (pos+copied > inode->i_size) {
+ 		i_size_write(inode, pos+copied);
+ 		mark_inode_dirty(inode);
+ 	}
+ 
++	unlock_page(page);
++	mark_page_accessed(page);
++	page_cache_release(page);
++
+ 	return copied;
+ }
+ EXPORT_SYMBOL(generic_write_end);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
