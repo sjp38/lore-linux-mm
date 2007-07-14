@@ -1,208 +1,214 @@
-Received: from d03relay02.boulder.ibm.com (d03relay02.boulder.ibm.com [9.17.195.227])
-	by e34.co.us.ibm.com (8.13.8/8.13.8) with ESMTP id l6EKbZp7007745
-	for <linux-mm@kvack.org>; Sat, 14 Jul 2007 16:37:35 -0400
-Received: from d03av04.boulder.ibm.com (d03av04.boulder.ibm.com [9.17.195.170])
-	by d03relay02.boulder.ibm.com (8.13.8/8.13.8/NCO v8.4) with ESMTP id l6EKbZ2b261242
-	for <linux-mm@kvack.org>; Sat, 14 Jul 2007 14:37:35 -0600
-Received: from d03av04.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av04.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l6EKbYvl016259
-	for <linux-mm@kvack.org>; Sat, 14 Jul 2007 14:37:34 -0600
-Date: Sat, 14 Jul 2007 13:37:33 -0700
+Received: from d01relay02.pok.ibm.com (d01relay02.pok.ibm.com [9.56.227.234])
+	by e4.ny.us.ibm.com (8.13.8/8.13.8) with ESMTP id l6EKfFP2011660
+	for <linux-mm@kvack.org>; Sat, 14 Jul 2007 16:41:15 -0400
+Received: from d01av03.pok.ibm.com (d01av03.pok.ibm.com [9.56.224.217])
+	by d01relay02.pok.ibm.com (8.13.8/8.13.8/NCO v8.4) with ESMTP id l6EKfF5x455956
+	for <linux-mm@kvack.org>; Sat, 14 Jul 2007 16:41:15 -0400
+Received: from d01av03.pok.ibm.com (loopback [127.0.0.1])
+	by d01av03.pok.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l6EKfFG3006183
+	for <linux-mm@kvack.org>; Sat, 14 Jul 2007 16:41:15 -0400
+Date: Sat, 14 Jul 2007 13:41:14 -0700
 From: Nishanth Aravamudan <nacc@us.ibm.com>
-Subject: [PATCH v8] Fix hugetlb pool allocation with empty nodes
-Message-ID: <20070714203733.GA17929@us.ibm.com>
+Subject: [PATCH 2/3] hugetlb: numafy several functions
+Message-ID: <20070714204114.GB17929@us.ibm.com>
+References: <20070714203733.GA17929@us.ibm.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
+In-Reply-To: <20070714203733.GA17929@us.ibm.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: clameter@sgi.com
-Cc: anton@samba.org, lee.schermerhorn@hp.com, wli@holomorphy.com, kxr@sgi.com, akpm@linux-foundation.org, linux-mm@kvack.org
+Cc: lee.schermerhorn@hp.com, wli@holomorphy.com, akpm@linux-foundation.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Fix hugetlb pool allocation with empty nodes
-
-Anton found a problem with the hugetlb pool allocation when some nodes
-have no memory (http://marc.info/?l=linux-mm&m=118133042025995&w=2). Lee
-worked on versions that tried to fix it, but none were accepted.
-Christoph has created a set of patches which allow for GFP_THISNODE
-allocations to fail if the node has no memory and for exporting a
-node_memory_map indicating which nodes have memory. Since mempolicy.c
-already has a number of functions which support interleaving, create a
-mempolicy when we invoke alloc_fresh_huge_page() that specifies
-interleaving across all the nodes in node_memory_map, rather than custom
-interleaving code in hugetlb.c.  This requires adding some dummy
-functions, and some declarations, in mempolicy.h to compile with NUMA or
-!NUMA.
-
-Compile tested on x86, x86_64 and ppc64. Run tested on 4-node x86-64 (no
-memoryless nodes), non-NUMA x86 and 4-node ppc64 (2 memoryless nodes).
-
-Depends on Christoph's memoryless node patch stack to guarantee THISNODE
-allocations stay on the requested node.
+Add node-parameterized helpers for dequeue_huge_page,
+alloc_fresh_huge_page and try_to_free_low. Also have
+update_and_free_page() take a nid parameter. This is necessary to add a
+per-node sysfs attribute to specify the number of hugepages on that
+node.
 
 Signed-off-by: Nishanth Aravamudan <nacc@us.ibm.com>
-Cc: Anton Blanchard <anton@samba.org>
+Acked-by: Christoph Lameter <clameter@sgi.com>
 Cc: Lee Schermerhorn <lee.schermerhon@hp.com>
-Cc: Christoph Lameter <clameter@sgi.com>
 Cc: William Lee Irwin III <wli@holomorphy.com>
-Cc: Keith Rich <kxr@sgi.com>
 Cc: Andrew Morton <akpm@linux-foundation.org>
 
 ---
 
- include/linux/mempolicy.h |   14 ++++++++++++++
- mm/hugetlb.c              |   39 +++++++++++++++++++++++++++++----------
- mm/mempolicy.c            |    4 ++--
- 3 files changed, 45 insertions(+), 12 deletions(-)
+ mm/hugetlb.c |   99 +++++++++++++++++++++++++++++++++++++----------------------
+ 1 file changed, 63 insertions(+), 36 deletions(-)
 
-diff --git a/include/linux/mempolicy.h b/include/linux/mempolicy.h
-index 9e1734a..6d7099c 100644
---- a/include/linux/mempolicy.h
-+++ b/include/linux/mempolicy.h
-@@ -76,6 +76,8 @@ struct mempolicy {
-  * The default fast path of a NULL MPOL_DEFAULT policy is always inlined.
-  */
- 
-+extern struct mempolicy *mpol_new(int mode, nodemask_t *nodes);
-+
- extern void __mpol_free(struct mempolicy *pol);
- static inline void mpol_free(struct mempolicy *pol)
- {
-@@ -162,6 +164,8 @@ static inline void check_highest_zone(enum zone_type k)
- 		policy_zone = k;
- }
- 
-+extern unsigned interleave_nodes(struct mempolicy *policy);
-+
- int do_migrate_pages(struct mm_struct *mm,
- 	const nodemask_t *from_nodes, const nodemask_t *to_nodes, int flags);
- 
-@@ -177,6 +181,11 @@ static inline int mpol_equal(struct mempolicy *a, struct mempolicy *b)
- 
- #define mpol_set_vma_default(vma) do {} while(0)
- 
-+static inline struct mempolicy *mpol_new(int mode, nodemask_t *nodes)
-+{
-+	return NULL;
-+}
-+
- static inline void mpol_free(struct mempolicy *p)
- {
- }
-@@ -259,6 +268,11 @@ static inline int do_migrate_pages(struct mm_struct *mm,
- static inline void check_highest_zone(int k)
- {
- }
-+
-+static inline unsigned interleave_nodes(struct mempolicy *policy)
-+{
-+	return 0;
-+}
- #endif /* CONFIG_NUMA */
- #endif /* __KERNEL__ */
- 
 diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-index 858c0b3..1cd3118 100644
+index 1cd3118..31c4359 100644
 --- a/mm/hugetlb.c
 +++ b/mm/hugetlb.c
-@@ -103,15 +103,22 @@ static void free_huge_page(struct page *page)
+@@ -66,11 +66,22 @@ static void enqueue_huge_page(struct page *page)
+ 	free_huge_pages_node[nid]++;
+ }
+ 
++static struct page *dequeue_huge_page_node(int nid)
++{
++	struct page *page;
++
++	page = list_entry(hugepage_freelists[nid].next,
++					  struct page, lru);
++	list_del(&page->lru);
++	free_huge_pages--;
++	free_huge_pages_node[nid]--;
++	return page;
++}
++
+ static struct page *dequeue_huge_page(struct vm_area_struct *vma,
+ 				unsigned long address)
+ {
+ 	int nid;
+-	struct page *page = NULL;
+ 	struct zonelist *zonelist = huge_zonelist(vma, address,
+ 						htlb_alloc_mask);
+ 	struct zone **z;
+@@ -82,14 +93,9 @@ static struct page *dequeue_huge_page(struct vm_area_struct *vma,
+ 			break;
+ 	}
+ 
+-	if (*z) {
+-		page = list_entry(hugepage_freelists[nid].next,
+-				  struct page, lru);
+-		list_del(&page->lru);
+-		free_huge_pages--;
+-		free_huge_pages_node[nid]--;
+-	}
+-	return page;
++	if (*z)
++		return dequeue_huge_page_node(nid);
++	return NULL;
+ }
+ 
+ static void free_huge_page(struct page *page)
+@@ -103,6 +109,25 @@ static void free_huge_page(struct page *page)
  	spin_unlock(&hugetlb_lock);
  }
  
--static int alloc_fresh_huge_page(void)
-+static int alloc_fresh_huge_page(struct mempolicy *policy)
- {
--	static int nid = 0;
-+	int nid;
- 	struct page *page;
--	page = alloc_pages_node(nid, htlb_alloc_mask|__GFP_COMP|__GFP_NOWARN,
--					HUGETLB_PAGE_ORDER);
--	nid = next_node(nid, node_online_map);
--	if (nid == MAX_NUMNODES)
--		nid = first_node(node_online_map);
-+	int start_nid = interleave_nodes(policy);
++static struct page *alloc_fresh_huge_page_node(int nid)
++{
++	struct page *page;
 +
-+	nid = start_nid;
++	page = alloc_pages_node(nid,
++			GFP_HIGHUSER|__GFP_COMP|GFP_THISNODE,
++			HUGETLB_PAGE_ORDER);
++	if (page) {
++		set_compound_page_dtor(page, free_huge_page);
++		spin_lock(&hugetlb_lock);
++		nr_huge_pages++;
++		nr_huge_pages_node[nid]++;
++		spin_unlock(&hugetlb_lock);
++		put_page(page); /* free it into the hugepage allocator */
++	}
 +
-+	do {
-+		page = alloc_pages_node(nid,
-+				htlb_alloc_mask|__GFP_COMP|GFP_THISNODE,
-+				HUGETLB_PAGE_ORDER);
-+		if (page)
-+			break;
-+		nid = interleave_nodes(policy);
-+	} while (nid != start_nid);
- 	if (page) {
- 		set_compound_page_dtor(page, free_huge_page);
- 		spin_lock(&hugetlb_lock);
-@@ -153,6 +160,7 @@ fail:
- static int __init hugetlb_init(void)
++	return page;
++}
++
+ static int alloc_fresh_huge_page(struct mempolicy *policy)
  {
- 	unsigned long i;
-+	struct mempolicy *pol;
+ 	int nid;
+@@ -112,22 +137,12 @@ static int alloc_fresh_huge_page(struct mempolicy *policy)
+ 	nid = start_nid;
  
- 	if (HPAGE_SHIFT == 0)
- 		return 0;
-@@ -160,11 +168,16 @@ static int __init hugetlb_init(void)
- 	for (i = 0; i < MAX_NUMNODES; ++i)
- 		INIT_LIST_HEAD(&hugepage_freelists[i]);
- 
-+	pol = mpol_new(MPOL_INTERLEAVE, &node_states[N_MEMORY]);
-+	if (IS_ERR(pol))
-+		goto quit;
- 	for (i = 0; i < max_huge_pages; ++i) {
--		if (!alloc_fresh_huge_page())
-+		if (!alloc_fresh_huge_page(pol))
- 			break;
- 	}
-+	mpol_free(pol);
- 	max_huge_pages = free_huge_pages = nr_huge_pages = i;
-+quit:
- 	printk("Total HugeTLB memory allocated, %ld\n", free_huge_pages);
+ 	do {
+-		page = alloc_pages_node(nid,
+-				htlb_alloc_mask|__GFP_COMP|GFP_THISNODE,
+-				HUGETLB_PAGE_ORDER);
++		page = alloc_fresh_huge_page_node(nid);
+ 		if (page)
+-			break;
++			return 1;
+ 		nid = interleave_nodes(policy);
+ 	} while (nid != start_nid);
+-	if (page) {
+-		set_compound_page_dtor(page, free_huge_page);
+-		spin_lock(&hugetlb_lock);
+-		nr_huge_pages++;
+-		nr_huge_pages_node[page_to_nid(page)]++;
+-		spin_unlock(&hugetlb_lock);
+-		put_page(page); /* free it into the hugepage allocator */
+-		return 1;
+-	}
++
  	return 0;
  }
-@@ -232,10 +245,16 @@ static inline void try_to_free_low(unsigned long count)
  
- static unsigned long set_max_huge_pages(unsigned long count)
+@@ -203,11 +218,11 @@ static unsigned int cpuset_mems_nr(unsigned int *array)
+ }
+ 
+ #ifdef CONFIG_SYSCTL
+-static void update_and_free_page(struct page *page)
++static void update_and_free_page(int nid, struct page *page)
  {
-+	struct mempolicy *pol;
+ 	int i;
+ 	nr_huge_pages--;
+-	nr_huge_pages_node[page_to_nid(page)]--;
++	nr_huge_pages_node[nid]--;
+ 	for (i = 0; i < (HPAGE_SIZE / PAGE_SIZE); i++) {
+ 		page[i].flags &= ~(1 << PG_locked | 1 << PG_error | 1 << PG_referenced |
+ 				1 << PG_dirty | 1 << PG_active | 1 << PG_reserved |
+@@ -219,25 +234,37 @@ static void update_and_free_page(struct page *page)
+ }
+ 
+ #ifdef CONFIG_HIGHMEM
++static void try_to_free_low_node(int nid, unsigned long count)
++{
++	struct page *page, *next;
 +
-+	pol = mpol_new(MPOL_INTERLEAVE, &node_states[N_MEMORY]);
-+	if (IS_ERR(pol))
-+		return nr_huge_pages;
- 	while (count > nr_huge_pages) {
--		if (!alloc_fresh_huge_page())
--			return nr_huge_pages;
-+		if (!alloc_fresh_huge_page(pol))
++	list_for_each_entry_safe(page, next,
++				&hugepage_freelists[nid], lru) {
++		if (PageHighMem(page))
++			continue;
++		list_del(&page->lru);
++		update_and_free_page(nid, page);
++		free_huge_pages--;
++		free_huge_pages_node[nid]--;
++		if (count >= nr_huge_pages_node[nid])
++			return;
++	}
++}
++
+ static void try_to_free_low(unsigned long count)
+ {
+ 	int i;
+ 
+ 	for (i = 0; i < MAX_NUMNODES; ++i) {
+-		struct page *page, *next;
+-		list_for_each_entry_safe(page, next, &hugepage_freelists[i], lru) {
+-			if (PageHighMem(page))
+-				continue;
+-			list_del(&page->lru);
+-			update_and_free_page(page);
+-			free_huge_pages--;
+-			free_huge_pages_node[page_to_nid(page)]--;
+-			if (count >= nr_huge_pages)
+-				return;
+-		}
++		try_to_free_low_node(i, count);
++		if (count >= nr_huge_pages)
 +			break;
  	}
-+	mpol_free(pol);
- 	if (count >= nr_huge_pages)
- 		return nr_huge_pages;
- 
-diff --git a/mm/mempolicy.c b/mm/mempolicy.c
-index d401414..6ccd658 100644
---- a/mm/mempolicy.c
-+++ b/mm/mempolicy.c
-@@ -169,7 +169,7 @@ static struct zonelist *bind_zonelist(nodemask_t *nodes)
  }
- 
- /* Create a new policy */
--static struct mempolicy *mpol_new(int mode, nodemask_t *nodes)
-+struct mempolicy *mpol_new(int mode, nodemask_t *nodes)
+ #else
++static inline void try_to_free_low_node(int nid, unsigned long count)
++{
++}
+ static inline void try_to_free_low(unsigned long count)
  {
- 	struct mempolicy *policy;
- 
-@@ -1122,7 +1122,7 @@ static struct zonelist *zonelist_policy(gfp_t gfp, struct mempolicy *policy)
  }
- 
- /* Do dynamic interleaving for a process */
--static unsigned interleave_nodes(struct mempolicy *policy)
-+unsigned interleave_nodes(struct mempolicy *policy)
- {
- 	unsigned nid, next;
- 	struct task_struct *me = current;
+@@ -265,7 +292,7 @@ static unsigned long set_max_huge_pages(unsigned long count)
+ 		struct page *page = dequeue_huge_page(NULL, 0);
+ 		if (!page)
+ 			break;
+-		update_and_free_page(page);
++		update_and_free_page(page_to_nid(page), page);
+ 	}
+ 	spin_unlock(&hugetlb_lock);
+ 	return nr_huge_pages;
 
 -- 
 Nishanth Aravamudan <nacc@us.ibm.com>
