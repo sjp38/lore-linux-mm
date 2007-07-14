@@ -1,70 +1,35 @@
-Date: Sat, 14 Jul 2007 14:02:08 +0100
-Subject: Re: [PATCH] Add a movablecore= parameter for sizing ZONE_MOVABLE
-Message-ID: <20070714130207.GA15864@skynet.ie>
-References: <20070710102043.GA20303@skynet.ie> <20070712122925.192a6601.akpm@linux-foundation.org> <20070712213241.GA7279@skynet.ie> <20070713155610.GD14125@skynet.ie> <20070714082807.GC1198@wotan.suse.de>
+Date: Sat, 14 Jul 2007 08:07:43 -0700 (PDT)
+From: Christoph Lameter <clameter@sgi.com>
+Subject: Re: [PATCH 0/7] Sparsemem Virtual Memmap V5
+In-Reply-To: <20070714084931.GE1198@wotan.suse.de>
+Message-ID: <Pine.LNX.4.64.0707140803300.30485@schroedinger.engr.sgi.com>
+References: <617E1C2C70743745A92448908E030B2A01EA6524@scsmsx411.amr.corp.intel.com>
+ <Pine.LNX.4.64.0707131510350.25753@schroedinger.engr.sgi.com>
+ <20070714084931.GE1198@wotan.suse.de>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <20070714082807.GC1198@wotan.suse.de>
-From: mel@skynet.ie (Mel Gorman)
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Nick Piggin <npiggin@suse.de>
-Cc: Andrew Morton <akpm@linux-foundation.org>, kenchen@google.com, jschopp@austin.ibm.com, apw@shadowen.org, kamezawa.hiroyu@jp.fujitsu.com, a.p.zijlstra@chello.nl, y-goto@jp.fujitsu.com, clameter@sgi.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: "Luck, Tony" <tony.luck@intel.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-arch@vger.kernel.org, Andy Whitcroft <apw@shadowen.org>, Mel Gorman <mel@csn.ul.ie>
 List-ID: <linux-mm.kvack.org>
 
-On (14/07/07 10:28), Nick Piggin didst pronounce:
-> On Fri, Jul 13, 2007 at 04:56:10PM +0100, Mel Gorman wrote:
-> > On (12/07/07 22:32), Mel Gorman didst pronounce:
-> > 
-> > > > Should we at least go for
-> > > > 
-> > > > add-__gfp_movable-for-callers-to-flag-allocations-from-high-memory-that-may-be-migrated.patch
-> > > > create-the-zone_movable-zone.patch
-> > > > allow-huge-page-allocations-to-use-gfp_high_movable.patch
-> > > > handle-kernelcore=-generic.patch
-> > > > 
-> > > > in 2.6.23?
-> > > 
-> > > Well, yes please from me obviously :) . There is one additional patch
-> > > I would like to send on tomorrow and that is providing the movablecore=
-> > 
-> > This is the patch. It has been boot-tested on a number of machines and
-> > behaves as expected. Nick, with this in addition, do you have any
-> > objection to the ZONE_MOVABLE patches going through to 2.6.23?
-> 
-> What's the status of making it configurable? I didn't see something
-> in -mm for that yet?
-> 
+On Sat, 14 Jul 2007, Nick Piggin wrote:
 
-I have a patch that makes it configurable but Kamezawa-san posted a very
-promising patch about making all zones configurable in a very clever way
-which is more general than what I did. He posted it as an RFC[1] and there
-was feedback from Andy Whitcroft on how it could be made better so it wouldn't
-have been picked up for -mm but something is in the pipeline.
+> Isn't it still possible that you could have TLB pressure that would
+> result in lower performance? I wonder why the large page support for
+> ia64 was shelved?
 
-I've tested his patch for zone movable and it worked as advertised so I
-intended to see post-merge window what else could be done with it clean-up
-wise. I am curious to see if it can also make ZONE_NORMAL configurable on
-machines that only have ZONE_DMA for example.
+16M Large memmap support was shelved because 16M is too large a size for 
+a vmemmap block. It results in the vmemmap overlapping multiple nodes.
 
-> But that's not as important as ensuring the concept and user visible
-> stuff is in good shape, which I no longer have any problems with.
+The TLB pressure for the 16k support is the same since its the same 
+algorithm. We are measuring discontig/vmemmap 16k against sparse/vmemmap 
+16k here.
 
-Excellent.
-
-> So
-> yeah I think it would be good to get this in and get people up and
-> running with it.
-
-Thanks Nick.
-
-[1] http://marc.info/?l=linux-mm&m=118405871911268&w=2
-
--- 
-Mel Gorman
-Part-time Phd Student                          Linux Technology Center
-University of Limerick                         IBM Dublin Software Lab
+We would likely see a different if we would compare sparsemem vs. 
+sparse/vmemmap. Then there may be a difference in TLB pressure. But 16k 
+discontig/vmemmap is the current default on IA64.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
