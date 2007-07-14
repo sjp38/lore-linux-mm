@@ -1,52 +1,119 @@
-Received: from d03relay04.boulder.ibm.com (d03relay04.boulder.ibm.com [9.17.195.106])
-	by e33.co.us.ibm.com (8.13.8/8.13.8) with ESMTP id l6EKiVaU015417
-	for <linux-mm@kvack.org>; Sat, 14 Jul 2007 16:44:31 -0400
-Received: from d03av04.boulder.ibm.com (d03av04.boulder.ibm.com [9.17.195.170])
-	by d03relay04.boulder.ibm.com (8.13.8/8.13.8/NCO v8.4) with ESMTP id l6EKiUUq208634
-	for <linux-mm@kvack.org>; Sat, 14 Jul 2007 14:44:30 -0600
-Received: from d03av04.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av04.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l6EKiUul026199
-	for <linux-mm@kvack.org>; Sat, 14 Jul 2007 14:44:30 -0600
-Date: Sat, 14 Jul 2007 13:44:29 -0700
-From: Nishanth Aravamudan <nacc@us.ibm.com>
-Subject: Re: [PATCH 3/3] hugetlb: add per-node nr_hugepages sysfs attribute
-Message-ID: <20070714204429.GE17929@us.ibm.com>
-References: <20070714203733.GA17929@us.ibm.com> <20070714204114.GB17929@us.ibm.com> <20070714204317.GD17929@us.ibm.com>
+Message-ID: <086601c7c701$3bfc63a0$6081d9d0@eliftedv>
+Reply-To: "Perry Berger" <deuslacken@spasticated.com>
+From: "Perry Berger" <deuslacken@spasticated.com>
+Subject: Sonia_file_63001_1984.pdf
+Date: Sat, 14 Jul 2007 23:41:28 +0100
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20070714204317.GD17929@us.ibm.com>
-Sender: owner-linux-mm@kvack.org
-Return-Path: <owner-linux-mm@kvack.org>
-To: clameter@sgi.com
-Cc: lee.schermerhorn@hp.com, wli@holomorphy.com, akpm@linux-foundation.org, linux-mm@kvack.org
+Content-Type: multipart/mixed;
+	boundary="----=_NextPart_000_0000_01F6B45A.B51E3EA0"
+Return-Path: <deuslacken@spasticated.com>
+To: linux-mm-archive@kvack.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 14.07.2007 [13:43:17 -0700], Nishanth Aravamudan wrote:
-> hugetlb: add per-node nr_hugepages sysfs attribute
-> 
-> Allow specifying the number of hugepages to allocate on a particular
-> node. Our current global sysctl will try its best to put hugepages
-> equally on each node, but htat may not always be desired. This allows
-> the admin to control the layout of hugepage allocation at a finer level
-> (while not breaking the existing interface).  Add callbacks in the sysfs
-> node registration and unregistration functions into hugetlb to add the
-> nr_hugepages attribute, which is a no-op if !NUMA or !HUGETLB.
+This is a multi-part message in MIME format.
 
-Eep, forgot to append the following:
+------=_NextPart_000_0000_01F6B45A.B51E3EA0
+Content-Type: text/plain;
+	format=flowed;
+	charset="iso-8859-1";
+	reply-type=original
+Content-Transfer-Encoding: 7bit
 
-Compile tested on x86, x86_64 and ppc64. Run tested on 4-node x86-64 (no
-memoryless nodes), non-NUMA x86 and 4-node ppc64 (2 memoryless nodes).
+Attached find Sonia_file_63001_1984.pdf;
 
-Thanks,
-Nish
+------=_NextPart_000_0000_01F6B45A.B51E3EA0
+Content-Type: application/pdf;
+	name="Sonia_file_63001_1984.pdf"
+Content-Transfer-Encoding: base64
+Content-Disposition: attachment;
+	filename="Sonia_file_63001_1984.pdf"
 
--- 
-Nishanth Aravamudan <nacc@us.ibm.com>
-IBM Linux Technology Center
+JVBERi0xLjMKJeLjz9MKMiAwIG9iago8PAovQ3JlYXRpb25EYXRlIChEOjIwMDcwNzE0MDk1
+MDA2LTA3JzAwJykKL01vZERhdGUgKEQ6MjAwNzA3MTQwOTUwMDYtMDcnMDAnKQovUHJvZHVj
+ZXIgKEJDTCBlYXN5UERGIDQuMzAgXCgwNjE1XCkpCi9DcmVhdG9yIChlYXN5UERGIFNESyA0
+LjMpCj4+CmVuZG9iagoKOCAwIG9iagpbCjAgMCAwIDAgMCAwIDAgMCAwIDAgMCAwIDAgMCAw
+IDAKMCAwIDAgMCAwIDAgMCAwIDAgMCAwIDAgMCAwIDc1MCA3NTAKMjc4IDMzMyA0NzQgNTU2
+IDU1NiA4ODkgNzIyIDIzOCAzMzMgMzMzIDM4OSA1ODQgMjc4IDMzMyAyNzggMjc4CjU1NiA1
+NTYgNTU2IDU1NiA1NTYgNTU2IDU1NiA1NTYgNTU2IDU1NiAzMzMgMzMzIDU4NCA1ODQgNTg0
+IDYxMQo5NzUgNzIyIDcyMiA3MjIgNzIyIDY2NyA2MTEgNzc4IDcyMiAyNzggNTU2IDcyMiA2
+MTEgODMzIDcyMiA3NzgKNjY3IDc3OCA3MjIgNjY3IDYxMSA3MjIgNjY3IDk0NCA2NjcgNjY3
+IDYxMSAzMzMgMjc4IDMzMyA1ODQgNTU2CjMzMyA1NTYgNjExIDU1NiA2MTEgNTU2IDMzMyA2
+MTEgNjExIDI3OCAyNzggNTU2IDI3OCA4ODkgNjExIDYxMQo2MTEgNjExIDM4OSA1NTYgMzMz
+IDYxMSA1NTYgNzc4IDU1NiA1NTYgNTAwIDM4OSAyODAgMzg5IDU4NCA3NTAKNTU2IDc1MCAy
+NzggNTU2IDUwMCAxMDAwIDU1NiA1NTYgMzMzIDEwMDAgNjY3IDMzMyAxMDAwIDc1MCA2MTEg
+NzUwCjc1MCAyNzggMjc4IDUwMCA1MDAgMzUwIDU1NiAxMDAwIDMzMyAxMDAwIDU1NiAzMzMg
+OTQ0IDc1MCA1MDAgNjY3CjI3OCAzMzMgNTU2IDU1NiA1NTYgNTU2IDI4MCA1NTYgMzMzIDcz
+NyAzNzAgNTU2IDU4NCAzMzMgNzM3IDU1Mgo0MDAgNTQ5IDMzMyAzMzMgMzMzIDU3NiA1NTYg
+Mjc4IDMzMyAzMzMgMzY1IDU1NiA4MzQgODM0IDgzNCA2MTEKNzIyIDcyMiA3MjIgNzIyIDcy
+MiA3MjIgMTAwMCA3MjIgNjY3IDY2NyA2NjcgNjY3IDI3OCAyNzggMjc4IDI3OAo3MjIgNzIy
+IDc3OCA3NzggNzc4IDc3OCA3NzggNTg0IDc3OCA3MjIgNzIyIDcyMiA3MjIgNjY3IDY2NyA2
+MTEKNTU2IDU1NiA1NTYgNTU2IDU1NiA1NTYgODg5IDU1NiA1NTYgNTU2IDU1NiA1NTYgMjc4
+IDI3OCAyNzggMjc4CjYxMSA2MTEgNjExIDYxMSA2MTEgNjExIDYxMSA1NDkgNjExIDYxMSA2
+MTEgNjExIDYxMSA1NTYgNjExIDU1NgpdCmVuZG9iagoKMTEgMCBvYmoKWwowIDAgMCAwIDAg
+MCAwIDAgMCAwIDAgMCAwIDAgMCAwCjAgMCAwIDAgMCAwIDAgMCAwIDAgMCAwIDAgMCA3Nzgg
+Nzc4CjI1MCAzMzMgNDA4IDUwMCA1MDAgODMzIDc3OCAxODAgMzMzIDMzMyA1MDAgNTY0IDI1
+MCAzMzMgMjUwIDI3OAo1MDAgNTAwIDUwMCA1MDAgNTAwIDUwMCA1MDAgNTAwIDUwMCA1MDAg
+Mjc4IDI3OCA1NjQgNTY0IDU2NCA0NDQKOTIxIDcyMiA2NjcgNjY3IDcyMiA2MTEgNTU2IDcy
+MiA3MjIgMzMzIDM4OSA3MjIgNjExIDg4OSA3MjIgNzIyCjU1NiA3MjIgNjY3IDU1NiA2MTEg
+NzIyIDcyMiA5NDQgNzIyIDcyMiA2MTEgMzMzIDI3OCAzMzMgNDY5IDUwMAozMzMgNDQ0IDUw
+MCA0NDQgNTAwIDQ0NCAzMzMgNTAwIDUwMCAyNzggMjc4IDUwMCAyNzggNzc4IDUwMCA1MDAK
+NTAwIDUwMCAzMzMgMzg5IDI3OCA1MDAgNTAwIDcyMiA1MDAgNTAwIDQ0NCA0ODAgMjAwIDQ4
+MCA1NDEgNzc4CjUwMCA3NzggMzMzIDUwMCA0NDQgMTAwMCA1MDAgNTAwIDMzMyAxMDAwIDU1
+NiAzMzMgODg5IDc3OCA2MTEgNzc4Cjc3OCAzMzMgMzMzIDQ0NCA0NDQgMzUwIDUwMCAxMDAw
+IDMzMyA5ODAgMzg5IDMzMyA3MjIgNzc4IDQ0NCA3MjIKMjUwIDMzMyA1MDAgNTAwIDUwMCA1
+MDAgMjAwIDUwMCAzMzMgNzYwIDI3NiA1MDAgNTY0IDMzMyA3NjAgNTAwCjQwMCA1NDkgMzAw
+IDMwMCAzMzMgNTc2IDQ1MyAyNTAgMzMzIDMwMCAzMTAgNTAwIDc1MCA3NTAgNzUwIDQ0NAo3
+MjIgNzIyIDcyMiA3MjIgNzIyIDcyMiA4ODkgNjY3IDYxMSA2MTEgNjExIDYxMSAzMzMgMzMz
+IDMzMyAzMzMKNzIyIDcyMiA3MjIgNzIyIDcyMiA3MjIgNzIyIDU2NCA3MjIgNzIyIDcyMiA3
+MjIgNzIyIDcyMiA1NTYgNTAwCjQ0NCA0NDQgNDQ0IDQ0NCA0NDQgNDQ0IDY2NyA0NDQgNDQ0
+IDQ0NCA0NDQgNDQ0IDI3OCAyNzggMjc4IDI3OAo1MDAgNTAwIDUwMCA1MDAgNTAwIDUwMCA1
+MDAgNTQ5IDUwMCA1MDAgNTAwIDUwMCA1MDAgNTAwIDUwMCA1MDAKXQplbmRvYmoKCjEgMCBv
+YmoKPDwKL0NvdW50IDAKPj4KZW5kb2JqCgozIDAgb2JqCjw8Ci9UeXBlIC9DYXRhbG9nCi9Q
+YWdlcyA0IDAgUgovT3V0bGluZXMgMSAwIFIKPj4KZW5kb2JqCgoxMyAwIG9iago8PAovTGVu
+Z3RoIDk2OAovRmlsdGVyIC9GbGF0ZURlY29kZQo+PgpzdHJlYW0KeNqFVU1z4jgQvfMreqrm
+YKqI1zYfgeyJgCfLTAJZ7NksNbUHYStGG1lyZDkM/35asp2CwNYWVUYW3a9fv34St3Hnty/+
+EHyInzv+0J2MvAl4+GnXEw+uvaEbDCDOOz+c6NtmvZp9C+PFsnsVBM4dRDG+g32ZdvFxH67t
+S9z9B+KvHQ+ufNcfen2I044TaSVFBrffN/C14gfwB12I/z2m4LnD4XhUU2jWQX/sDgYwmgzM
+F9Jw9M6m+TZMZf/fwmjouV7TwlMIq+X9Bm7Xi+UdbFbf4ckSXiyX4TrC5cj59Kkl3xTALgK3
+741928UjOYzHsFjOXEvjpEWU6JBvJb9BoLHnPE43i3chjiFWiyicQ7yC8O/H+9U8bJFMjDeq
+keIdK2Em84IIS+sA+K4oSQ+gJWTSPM0YrmvlozmuB870zx6sKeFwMoDrcY0ZEiWYyMoe7Jne
+1YFfGGeY6ju4X2+H87vuVb+Z6PqkgZbcwzSKFn+F8Dnw4YFxbgGYFPBA1AvVMCPFpcZnlVJU
+aLjBRNebnAvohD8LmmiampCx63nHytQgP5yVSCgYbVEFWrY6BA4pU/IKTGMXnAP9WXCZUmPO
+oYMxn/uebY8JuGTOOTmUl4pNt6XklaYQVQVVQtpZvBGItExeaiC06mDQP0EzHn+QIiWHjxbv
+H1m8WaNFg9HYHdcOtapvZaVB7yga4KahixijBiOo0wOb2R+5o8bc1po9WIjEBSoykqE62K7B
+SVmpFdtW2gyJiBSdVFLO0Qwgn6FQtCCmLktBCtyl8MZSijYjOYWEqLQ8Fc02aWBsJmZpymmx
+k6KN1juigXAu97Z8VVJlBlVwcjivUMKzVJDSkmWCmOEfG6MuhUja/KIZhruw0Ej7maqyBcsr
+rplBxzqWtAnsAUFLY5vmm4AiIqPv7SLplGVMm7PysZztoYfaJbxKrUb/UaUJPOq8Z9WlaZUQ
+q7Xd/N1unpWRKI2CRIqyynFRKIlp2oinZJXtTocmqN5L9WInOsN62SsS6+GSCWLh26yzMvv9
+3mUkN/Omyk1kjhzNJDSqnlvpNUpTopzK9JpjLweLmJOXo+aLSiU7Uhr5YxzpuWj2rsJMXkok
+qalI7eHcVoynWPGJbk87eqdgjKGk8QOgT95Y0jjiQgkh8HowpFL2huNnzwxN0SS1IOgKw/6j
+rlBWRcGZ+RkLKqoJ423spUo2+f0AGZ3xyKAm5oJz4fis7YnhW4kUuWB4YK5Jg4oX9g4v7NeK
+KE3VJV9j9C3eyaXGsB4s6R7+IHlR7pii9d9LGHd+AfGZObYKZW5kc3RyZWFtCmVuZG9iagoK
+NiAwIG9iago8PAovVHlwZSAvUGFnZQovUGFyZW50IDQgMCBSCi9NZWRpYUJveCBbIDAgMCA2
+MTIgNzkyIF0KL1Jlc291cmNlcyA8PAovRm9udCA8PAovRjE1IDcgMCBSCi9GMTYgMTAgMCBS
+Cj4+Ci9Qcm9jU2V0IFsvUERGIC9UZXh0IC9JbWFnZUIgL0ltYWdlQ10gPj4KL0NvbnRlbnRz
+IDEzIDAgUgo+PgplbmRvYmoKCjQgMCBvYmoKPDwKL1R5cGUgL1BhZ2VzCi9LaWRzIFsKNiAw
+IFIKXQovQ291bnQgMQo+PgplbmRvYmoKCjkgMCBvYmoKPDwKL1R5cGUgL0ZvbnREZXNjcmlw
+dG9yCi9Bc2NlbnQgOTA1Ci9DYXBIZWlnaHQgNzg4Ci9EZXNjZW50IC0yMTIKL0ZsYWdzIDMy
+Ci9Gb250QkJveCBbMCAtMjEyIDI2MjggOTA1XQovSXRhbGljQW5nbGUgMAovU3RlbVYgMAov
+Rm9udE5hbWUgL0FyaWFsLUJvbGRNVAo+PgplbmRvYmoKCjcgMCBvYmoKPDwKL1R5cGUgL0Zv
+bnQKL1N1YnR5cGUgL1RydWVUeXBlCi9CYXNlRm9udCAvQXJpYWwtQm9sZE1UCi9FbmNvZGlu
+ZyAvV2luQW5zaUVuY29kaW5nCi9GaXJzdENoYXIgMAovTGFzdENoYXIgMjU1Ci9Gb250RGVz
+Y3JpcHRvciA5IDAgUgovV2lkdGhzIDggMCBSCj4+CmVuZG9iagoKMTIgMCBvYmoKPDwKL1R5
+cGUgL0ZvbnREZXNjcmlwdG9yCi9Bc2NlbnQgODkxCi9DYXBIZWlnaHQgNzg0Ci9EZXNjZW50
+IC0yMTYKL0ZsYWdzIDM0Ci9Gb250QkJveCBbMCAtMjE2IDI1NjggODkxXQovSXRhbGljQW5n
+bGUgMAovU3RlbVYgMAovRm9udE5hbWUgL1RpbWVzTmV3Um9tYW5QU01UCj4+CmVuZG9iagoK
+MTAgMCBvYmoKPDwKL1R5cGUgL0ZvbnQKL1N1YnR5cGUgL1RydWVUeXBlCi9CYXNlRm9udCAv
+VGltZXNOZXdSb21hblBTTVQKL0VuY29kaW5nIC9XaW5BbnNpRW5jb2RpbmcKL0ZpcnN0Q2hh
+ciAwCi9MYXN0Q2hhciAyNTUKL0ZvbnREZXNjcmlwdG9yIDEyIDAgUgovV2lkdGhzIDExIDAg
+Ugo+PgplbmRvYmoKCnhyZWYKMCAxNAowMDAwMDAwMDAwIDY1NTM1IGYgCjAwMDAwMDIxNTUg
+MDAwMDAgbiAKMDAwMDAwMDAxNSAwMDAwMCBuIAowMDAwMDAyMTg2IDAwMDAwIG4gCjAwMDAw
+MDM0NzUgMDAwMDAgbiAKMDAwMDAwMDAwMCAwMDAwMCBuIAowMDAwMDAzMjk0IDAwMDAwIG4g
+CjAwMDAwMDM3MDYgMDAwMDAgbiAKMDAwMDAwMDE3NyAwMDAwMCBuIAowMDAwMDAzNTM1IDAw
+MDAwIG4gCjAwMDAwMDQwNTAgMDAwMDAgbiAKMDAwMDAwMTE2NyAwMDAwMCBuIAowMDAwMDAz
+ODczIDAwMDAwIG4gCjAwMDAwMDIyNTIgMDAwMDAgbiAKdHJhaWxlcgo8PAovU2l6ZSAxNAov
+Um9vdCAzIDAgUgovSW5mbyAyIDAgUgovSURbPGQ5NzFmMmVkODFlMzIyYTI2MDZjMzQ3YTZm
+YjFmMWQ2PjxkOTcxZjJlZDgxZTMyMmEyNjA2YzM0N2E2ZmIxZjFkNj5dCj4+CnN0YXJ0eHJl
+Zgo0MjI1CiUlRU9GCg==
 
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+------=_NextPart_000_0000_01F6B45A.B51E3EA0--
