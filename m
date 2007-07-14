@@ -1,55 +1,70 @@
-Date: Sat, 14 Jul 2007 12:24:41 +0200
-From: Nick Piggin <npiggin@suse.de>
-Subject: [patch 4/4] hostfs convert to new aops fix
-Message-ID: <20070714102441.GD12215@wotan.suse.de>
-References: <20070714102111.GA12215@wotan.suse.de>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Date: Sat, 14 Jul 2007 14:02:08 +0100
+Subject: Re: [PATCH] Add a movablecore= parameter for sizing ZONE_MOVABLE
+Message-ID: <20070714130207.GA15864@skynet.ie>
+References: <20070710102043.GA20303@skynet.ie> <20070712122925.192a6601.akpm@linux-foundation.org> <20070712213241.GA7279@skynet.ie> <20070713155610.GD14125@skynet.ie> <20070714082807.GC1198@wotan.suse.de>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <20070714102111.GA12215@wotan.suse.de>
+In-Reply-To: <20070714082807.GC1198@wotan.suse.de>
+From: mel@skynet.ie (Mel Gorman)
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Linux Memory Management List <linux-mm@kvack.org>, Hugh Dickins <hugh@veritas.com>
+To: Nick Piggin <npiggin@suse.de>
+Cc: Andrew Morton <akpm@linux-foundation.org>, kenchen@google.com, jschopp@austin.ibm.com, apw@shadowen.org, kamezawa.hiroyu@jp.fujitsu.com, a.p.zijlstra@chello.nl, y-goto@jp.fujitsu.com, clameter@sgi.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-Fix lock ordering for hostfs. It seems that this filesystem may not be
-vulnerable to the bug, given that it implements its own writepage, but
-it is better to retain the safe ordering.
+On (14/07/07 10:28), Nick Piggin didst pronounce:
+> On Fri, Jul 13, 2007 at 04:56:10PM +0100, Mel Gorman wrote:
+> > On (12/07/07 22:32), Mel Gorman didst pronounce:
+> > 
+> > > > Should we at least go for
+> > > > 
+> > > > add-__gfp_movable-for-callers-to-flag-allocations-from-high-memory-that-may-be-migrated.patch
+> > > > create-the-zone_movable-zone.patch
+> > > > allow-huge-page-allocations-to-use-gfp_high_movable.patch
+> > > > handle-kernelcore=-generic.patch
+> > > > 
+> > > > in 2.6.23?
+> > > 
+> > > Well, yes please from me obviously :) . There is one additional patch
+> > > I would like to send on tomorrow and that is providing the movablecore=
+> > 
+> > This is the patch. It has been boot-tested on a number of machines and
+> > behaves as expected. Nick, with this in addition, do you have any
+> > objection to the ZONE_MOVABLE patches going through to 2.6.23?
+> 
+> What's the status of making it configurable? I didn't see something
+> in -mm for that yet?
+> 
 
-Signed-off-by: Hugh Dickins <hugh@veritas.com>
-Signed-off-by: Nick Piggin <npiggin@suse.de>
+I have a patch that makes it configurable but Kamezawa-san posted a very
+promising patch about making all zones configurable in a very clever way
+which is more general than what I did. He posted it as an RFC[1] and there
+was feedback from Andy Whitcroft on how it could be made better so it wouldn't
+have been picked up for -mm but something is in the pipeline.
 
-Index: linux-2.6/fs/hostfs/hostfs_kern.c
-===================================================================
---- linux-2.6.orig/fs/hostfs/hostfs_kern.c
-+++ linux-2.6/fs/hostfs/hostfs_kern.c
-@@ -16,6 +16,7 @@
- #include <linux/list.h>
- #include <linux/statfs.h>
- #include <linux/kdev_t.h>
-+#include <linux/swap.h> /* mark_page_accessed */
- #include <asm/uaccess.h>
- #include "hostfs.h"
- #include "kern_util.h"
-@@ -493,14 +494,15 @@ int hostfs_write_end(struct file *file, 
- 
- 	if (!PageUptodate(page) && err == PAGE_CACHE_SIZE)
- 		SetPageUptodate(page);
--	unlock_page(page);
--	page_cache_release(page);
- 
- 	/* If err > 0, write_file has added err to pos, so we are comparing
- 	 * i_size against the last byte written.
- 	 */
- 	if (err > 0 && (pos > inode->i_size))
- 		inode->i_size = pos;
-+	unlock_page(page);
-+	mark_page_accessed(page);
-+	page_cache_release(page);
- 
- 	return err;
- }
+I've tested his patch for zone movable and it worked as advertised so I
+intended to see post-merge window what else could be done with it clean-up
+wise. I am curious to see if it can also make ZONE_NORMAL configurable on
+machines that only have ZONE_DMA for example.
+
+> But that's not as important as ensuring the concept and user visible
+> stuff is in good shape, which I no longer have any problems with.
+
+Excellent.
+
+> So
+> yeah I think it would be good to get this in and get people up and
+> running with it.
+
+Thanks Nick.
+
+[1] http://marc.info/?l=linux-mm&m=118405871911268&w=2
+
+-- 
+Mel Gorman
+Part-time Phd Student                          Linux Technology Center
+University of Limerick                         IBM Dublin Software Lab
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
