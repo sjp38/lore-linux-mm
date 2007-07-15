@@ -1,24 +1,48 @@
-Subject: We're #1 OnlinePharmacy, Save up  to 80% on your prescription drugs    e40dpx29eu5
-From: "Jaime William" <jwilliamwv@panalpina.com>
-Message-ID: <1184490918.0286@panalpina.com>
-Date: Sun, 15 Jul 2007 02:15:18 -0700
-Content-Type: text/plain;
-	charset="iso-8859-2"
-Content-Transfer-Encoding: 8bit
-Return-Path: <jwilliamwv@panalpina.com>
-To: kernel@kvack.org, aart@kvack.org, kelda@kvack.org, bcrl@kvack.org, linux-mm@kvack.org, linux-aio@kvack.org, owner-linux-ns83820@kvack.org, linux-mm-archive@kvack.org, ian@kvack.org
+Date: Sun, 15 Jul 2007 22:47:57 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [PATCH] Add a movablecore= parameter for sizing ZONE_MOVABLE
+Message-Id: <20070715224757.6432e977.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20070714130207.GA15864@skynet.ie>
+References: <20070710102043.GA20303@skynet.ie>
+	<20070712122925.192a6601.akpm@linux-foundation.org>
+	<20070712213241.GA7279@skynet.ie>
+	<20070713155610.GD14125@skynet.ie>
+	<20070714082807.GC1198@wotan.suse.de>
+	<20070714130207.GA15864@skynet.ie>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
+Sender: owner-linux-mm@kvack.org
+Return-Path: <owner-linux-mm@kvack.org>
+To: Mel Gorman <mel@skynet.ie>
+Cc: npiggin@suse.de, akpm@linux-foundation.org, kenchen@google.com, jschopp@austin.ibm.com, apw@shadowen.org, a.p.zijlstra@chello.nl, y-goto@jp.fujitsu.com, clameter@sgi.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-Save up to 80% on your prescription drugs!!!  
+On Sat, 14 Jul 2007 14:02:08 +0100
+mel@skynet.ie (Mel Gorman) wrote:
+> > What's the status of making it configurable? I didn't see something
+> > in -mm for that yet?
+> > 
+> 
+> I have a patch that makes it configurable but Kamezawa-san posted a very
+> promising patch about making all zones configurable in a very clever way
+> which is more general than what I did. He posted it as an RFC[1] and there
+> was feedback from Andy Whitcroft on how it could be made better so it wouldn't
+> have been picked up for -mm but something is in the pipeline.
+> 
+I'll post it when I can. against the newest -mm.
 
-We're #1 OnlinePharmacy. You can buy prescription drugs WITHOUT PRESCRIPTION or buy online prescription drugs without prescription or buy discount prescription drugs WITHOUT A PRESCRIPTION.            
+> I've tested his patch for zone movable and it worked as advertised so I
+> intended to see post-merge window what else could be done with it clean-up
+> wise. I am curious to see if it can also make ZONE_NORMAL configurable on
+> machines that only have ZONE_DMA for example.
+> 
+I think it as an interesting idea, Hmm....
 
+-Kame
 
-== please click either links below to view what we have to save you 80% ==         
-
-http://k6eb35335szw2.companynowknow.com
-
-
-
-
-between affect day easy, central truly remember teacher easy bread handwriting. lgtrq5brwm 75btdf1u0et4e
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
