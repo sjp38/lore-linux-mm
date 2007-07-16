@@ -1,64 +1,101 @@
-Received: from d01relay02.pok.ibm.com (d01relay02.pok.ibm.com [9.56.227.234])
-	by e2.ny.us.ibm.com (8.13.8/8.13.8) with ESMTP id l6GJVHQh001905
-	for <linux-mm@kvack.org>; Mon, 16 Jul 2007 15:31:17 -0400
-Received: from d01av01.pok.ibm.com (d01av01.pok.ibm.com [9.56.224.215])
-	by d01relay02.pok.ibm.com (8.13.8/8.13.8/NCO v8.4) with ESMTP id l6GJVHBd407474
-	for <linux-mm@kvack.org>; Mon, 16 Jul 2007 15:31:17 -0400
-Received: from d01av01.pok.ibm.com (loopback [127.0.0.1])
-	by d01av01.pok.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l6GJVGGn029058
-	for <linux-mm@kvack.org>; Mon, 16 Jul 2007 15:31:17 -0400
-Subject: Re: [PATCH] Simplify /proc/<pid|self>/exe symlink code
-From: Matt Helsley <matthltc@us.ibm.com>
-In-Reply-To: <20070713020710.GA21668@ftp.linux.org.uk>
-References: <1184292012.13479.14.camel@localhost.localdomain>
-	 <20070713020710.GA21668@ftp.linux.org.uk>
-Content-Type: text/plain
-Date: Mon, 16 Jul 2007 12:31:14 -0700
-Message-Id: <1184614274.4877.49.camel@localhost.localdomain>
-Mime-Version: 1.0
+Date: Tue, 17 Jul 2007 02:32:31 +0600
+Message-ID: <37440445.79696493@elude.com>
+From: "Euro_VIP_Casino" <brew@letterbox.org>
+Subject: Willkommensbonus 400 Euro!
+MIME-Version: 1.0
+Content-Type: text/html; charset=iso-8859-1
 Content-Transfer-Encoding: 7bit
-Sender: owner-linux-mm@kvack.org
-Return-Path: <owner-linux-mm@kvack.org>
-To: Al Viro <viro@ftp.linux.org.uk>
-Cc: Andrew Morton <akpm@osdl.org>, Chris Wright <chrisw@sous-sol.org>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Christoph Hellwig <hch@lst.de>, "Hallyn, Serge" <serue@us.ibm.com>, Peter Zijlstra <peterz@infradead.org>
+Return-Path: <brew@letterbox.org>
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 2007-07-13 at 03:07 +0100, Al Viro wrote:
-> On Thu, Jul 12, 2007 at 07:00:12PM -0700, Matt Helsley wrote:
-> > This patch avoids holding the mmap semaphore while walking VMAs in response to
-> > programs which read or follow the /proc/<pid|self>/exe symlink. This also allows
-> > us to merge mmu and nommu proc_exe_link() functions. The costs are holding the
-> > task lock, a separate reference to the executable file stored in the task
-> > struct, and increased code in fork, exec, and exit paths.
-> 
-> I don't think it's a food idea.  Consider a program that deliberately
-> creates an executable anon memory, copies the binary there, jumps there
-> and unmaps the original.   In the current tree you'll get nothing
-> pinning the binary; with your patch it will remained busy.
+<html>
 
-	Yes, it will prevent the filesystem with the executable file from being
-unmounted. Do you have an example where the original filesystem urgently
-needs to be unmounted while this unusual executable is running? Or is
-umount -l sufficient here?
+<head>
+<meta http-equiv=Content-Type content="text/html; charset=iso-8859-1">
 
-> It's not a common situation, of course, but there are legitimate uses
-> for such technics...
+<title>Nur im alten aristokratischen Europa </title>
 
-	Yes, I'm aware of at least one example where this technique has
-legitimate uses: libhugetlbfs. I'm interested in testing others you may
-be able to recommend as well.
+<style>
+<!--
+ /* Style Definitions */
+ p.MsoNormal, li.MsoNormal, div.MsoNormal
+	{mso-style-parent:"";
+	margin:0cm;
+	margin-bottom:.0001pt;
+	mso-pagination:widow-orphan;
+	font-size:12.0pt;
+	font-family:"Times New Roman";
+	mso-fareast-font-family:"Times New Roman";
+	mso-ansi-language:EN-US;
+	mso-fareast-language:EN-US;}
+a:link, span.MsoHyperlink
+	{color:blue;
+	text-decoration:underline;
+	text-underline:single;}
+a:visited, span.MsoHyperlinkFollowed
+	{color:purple;
+	text-decoration:underline;
+	text-underline:single;}
+@page Section1
+	{size:595.3pt 841.9pt;
+	margin:2.0cm 42.5pt 2.0cm 3.0cm;
+	mso-header-margin:35.4pt;
+	mso-footer-margin:35.4pt;
+	mso-paper-source:0;}
+div.Section1
+	{page:Section1;}
+-->
+</style>
 
-	Furthermore, in your example the VMA walk would make /proc/self/exe a
-symlink to the file that backs the next executable VMA: libc, libdl,
-etc. That seems rather odd to me. In contrast, with my
-patch /proc/self/exe would always be a symlink to the original
-executable.
+</head>
 
-Cheers,
-	-Matt Helsley
+<body lang=DE link=blue vlink=purple style='tab-interval:35.4pt'>
 
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+<div class=Section1>
+
+<p class=MsoNormal>
+<span lang=EN-US>Nur im alten aristokratischen Europa k&ouml;nnen
+Sie so ein elitistisches Casino zum Spielen finden:<o:p></o:p></span></p>
+
+<p class=MsoNormal><span lang=EN-US>Euro VIP Casino!!<o:p></o:p></span></p>
+
+<p class=MsoNormal><span lang=EN-US><o:p>&nbsp;</o:p></span></p>
+
+<p class=MsoNormal><span lang=EN-US>Hoher Standard ist einzigartig:
+<o:p></o:p></span></p>
+
+<p class=MsoNormal><span lang=EN-US>Ein grossz&uuml;giger Willkommensbonus von
+mindestens 100% bis zu 100 &#8364;/$ auf<span style='mso-spacerun:yes'> 
+</span>Ihre ersten vier Einzahlungen, mit maximalem 400 &#8364;/$ hohem 
+Bonus!!!<o:p></o:p></span></p>
+
+<p class=MsoNormal><span lang=EN-US>Unglaubliche Jackpots welche die
+Millionengrenze weit &uuml;berschreiten!<o:p></o:p></span></p>
+
+<p class=MsoNormal><span lang=EN-US>Sagenhafte last generation Software!
+<o:p></o:p></span></p>
+
+<p class=MsoNormal><span lang=EN-US><o:p>&nbsp;</o:p></span></p>
+
+<p class=MsoNormal>
+<span lang=EN-US>All das macht es zum besten Platz online zu
+spielen.<o:p></o:p></span></p>
+
+<p class=MsoNormal><span lang=EN-US><o:p>&nbsp;</o:p></span></p>
+
+<p class=MsoNormal><span lang=EN-US>Also kommen und spielen Sie bei Euro VIP
+Casino und treten Sie der noblen Gesellschaft der europ&auml;ischen 
+Spielelite bei!<o:p></o:p></span></p>
+
+<p class=MsoNormal><span lang=EN-US><o:p>&nbsp;</o:p></span></p>
+
+<p class=MsoNormal><span lang=EN-US>
+<a href="http://eurovipgambling.com/lang-de/">
+http://eurovipgambling.com/lang-de/</a><o:p></o:p></span></p>
+
+</div>
+
+</body>
+
+</html>
