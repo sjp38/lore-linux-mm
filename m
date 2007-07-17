@@ -1,115 +1,59 @@
-Date: Tue, 17 Jul 2007 11:01:16 -0400
-From: "Casino Royal VIP" <aspirate@femenino.com>
-Subject: =?iso-8859-1?Q?300%_Bonus_f=FCr_Ihre_erste_Einzahlung!?=
-Message-ID: <08377254.69573443@optometry.com>
-MIME-Version: 1.0
-Content-Type: text/html; charset=iso-8859-1
-Content-Transfer-Encoding: 7bit
-Return-Path: <aspirate@femenino.com>
-To: linux-mm@kvack.org
+Date: Tue, 17 Jul 2007 12:32:43 -0400
+From: Josef Sipek <jsipek@fsl.cs.sunysb.edu>
+Subject: Re: [PATCH 05/17] lib: percpu_count_sum_signed()
+Message-ID: <20070717163243.GA15421@filer.fsl.cs.sunysb.edu>
+References: <20070614215817.389524447@chello.nl> <20070614220446.659716697@chello.nl>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20070614220446.659716697@chello.nl>
+Sender: owner-linux-mm@kvack.org
+Return-Path: <owner-linux-mm@kvack.org>
+To: Peter Zijlstra <a.p.zijlstra@chello.nl>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, miklos@szeredi.hu, akpm@linux-foundation.org, neilb@suse.de, dgc@sgi.com, tomoki.sekiyama.qu@hitachi.com, nikita@clusterfs.com, trond.myklebust@fys.uio.no, yingchao.zhou@gmail.com, andrea@suse.de
 List-ID: <linux-mm.kvack.org>
 
-<html>
+On Thu, Jun 14, 2007 at 11:58:22PM +0200, Peter Zijlstra wrote:
+> Provide an accurate version of percpu_counter_read.
+> 
+> Should we go and replace the current use of percpu_counter_sum()
+> with percpu_counter_sum_positive(), and call this new primitive
+> percpu_counter_sum() instead?
+> 
+> Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
+> ---
+>  include/linux/percpu_counter.h |   18 +++++++++++++++++-
+>  lib/percpu_counter.c           |    6 +++---
+>  2 files changed, 20 insertions(+), 4 deletions(-)
+> 
+> Index: linux-2.6/include/linux/percpu_counter.h
+> ===================================================================
+> --- linux-2.6.orig/include/linux/percpu_counter.h	2007-05-23 20:37:54.000000000 +0200
+> +++ linux-2.6/include/linux/percpu_counter.h	2007-05-23 20:38:09.000000000 +0200
+> @@ -35,7 +35,18 @@ void percpu_counter_destroy(struct percp
+>  void percpu_counter_set(struct percpu_counter *fbc, s64 amount);
+>  void __percpu_counter_mod(struct percpu_counter *fbc, s32 amount, s32 batch);
+>  void __percpu_counter_mod64(struct percpu_counter *fbc, s64 amount, s32 batch);
+> -s64 percpu_counter_sum(struct percpu_counter *fbc);
+> +s64 __percpu_counter_sum(struct percpu_counter *fbc);
+> +
+> +static inline s64 percpu_counter_sum(struct percpu_counter *fbc)
+> +{
+> +	s64 ret = __percpu_counter_sum(fbc);
+> +	return ret < 0 ? 0 : ret;
 
-<head>
-<meta http-equiv=Content-Type content="text/html; charset=iso-8859-1">
+max(0, ret) maybe?
 
-<title>Nur vom nobelsten aller</title>
+Josef 'Jeff' Sipek.
 
-<style>
-<!--
- /* Style Definitions */
- p.MsoNormal, li.MsoNormal, div.MsoNormal
-	{mso-style-parent:"";
-	margin:0cm;
-	margin-bottom:.0001pt;
-	mso-pagination:widow-orphan;
-	font-size:12.0pt;
-	font-family:"Times New Roman";
-	mso-fareast-font-family:"Times New Roman";
-	mso-ansi-language:EN-US;
-	mso-fareast-language:EN-US;}
-a:link, span.MsoHyperlink
-	{color:blue;
-	text-decoration:underline;
-	text-underline:single;}
-a:visited, span.MsoHyperlinkFollowed
-	{color:purple;
-	text-decoration:underline;
-	text-underline:single;}
-@page Section1
-	{size:595.3pt 841.9pt;
-	margin:2.0cm 42.5pt 2.0cm 3.0cm;
-	mso-header-margin:35.4pt;
-	mso-footer-margin:35.4pt;
-	mso-paper-source:0;}
-div.Section1
-	{page:Section1;}
--->
-</style>
+-- 
+Real Programmers consider "what you see is what you get" to be just as bad a
+concept in Text Editors as it is in women. No, the Real Programmer wants a
+"you asked for it, you got it" text editor -- complicated, cryptic,
+powerful, unforgiving, dangerous.
 
-</head>
-
-<body lang=DE link=blue vlink=purple style='tab-interval:35.4pt'>
-
-<div class=Section1>
-
-<p class=MsoNormal>
-<span lang=DE style='mso-ansi-language:DE'>
-Nur vom nobelsten aller Casinos k&ouml;nnen 
-Sie ein so vornehmes Geschenk erwarten:
-<o:p></o:p></span></p>
-
-<p class=MsoNormal>
-<span lang=DE style='mso-ansi-language:DE'>
-<o:p>&nbsp;</o:p></span></p>
-
-<p class=MsoNormal>
-<span lang=DE style='mso-ansi-language:DE'>
-300% Bonus f&uuml;r Ihre erste Einzahlung!
-<o:p></o:p></span></p>
-
-<p class=MsoNormal>
-<span lang=DE style='mso-ansi-language:DE'>
-<o:p>&nbsp;</o:p></span></p>
-
-<p class=MsoNormal>
-<span lang=DE style='mso-ansi-language:DE'>
-Zahlen Sie 100&#8364;/$ ein und spielen 
-Sie mit 400 &#8364;/$!
-<o:p></o:p></span></p>
-
-<p class=MsoNormal>
-<span lang=DE style='mso-ansi-language:DE'>
-<o:p>&nbsp;</o:p></span></p>
-
-<p class=MsoNormal>
-<span lang=DE style='mso-ansi-language:DE'>
-Oben drauf bekommen Sie bei uns einen 
-k&ouml;niglichen Service!
-<o:p></o:p></span></p>
-
-<p class=MsoNormal>
-<span lang=DE style='mso-ansi-language:DE'>
-<o:p>&nbsp;</o:p></span></p>
-
-<p class=MsoNormal>
-<span lang=DE style='mso-ansi-language:DE'>
-Kommen und spielen Sie im Royal VIP Casino!
-<o:p></o:p></span></p>
-
-<p class=MsoNormal>
-<span lang=DE style='mso-ansi-language:DE'>
-<o:p>&nbsp;</o:p></span></p>
-
-<p class=MsoNormal>
-<span lang=DE style='mso-ansi-language:DE'>
-<a href="http://theroyalgames.com/lang-de/">
-http://theroyalgames.com/lang-de/</a>
-<o:p></o:p></span></p>
-
-</div>
-
-</body>
-
-</html>
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
