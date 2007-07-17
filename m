@@ -1,59 +1,51 @@
-Date: Tue, 17 Jul 2007 12:35:58 -0400
-From: Josef Sipek <jsipek@fsl.cs.sunysb.edu>
-Subject: Re: [PATCH 05/17] lib: percpu_count_sum_signed()
-Message-ID: <20070717163558.GC15421@filer.fsl.cs.sunysb.edu>
-References: <20070614215817.389524447@chello.nl> <20070614220446.659716697@chello.nl> <20070717163243.GA15421@filer.fsl.cs.sunysb.edu>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20070717163243.GA15421@filer.fsl.cs.sunysb.edu>
+Message-ID: <469D3342.3080405@google.com>
+Date: Tue, 17 Jul 2007 14:23:14 -0700
+From: Ethan Solomita <solo@google.com>
+MIME-Version: 1.0
+Subject: [PATCH 0/6] cpuset aware writeback
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, miklos@szeredi.hu, akpm@linux-foundation.org, neilb@suse.de, dgc@sgi.com, tomoki.sekiyama.qu@hitachi.com, nikita@clusterfs.com, trond.myklebust@fys.uio.no, yingchao.zhou@gmail.com, andrea@suse.de
+To: linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@google.com>, Christoph Lameter <clameter@sgi.com>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Jul 17, 2007 at 12:32:43PM -0400, Josef Sipek wrote:
-> On Thu, Jun 14, 2007 at 11:58:22PM +0200, Peter Zijlstra wrote:
-> > Provide an accurate version of percpu_counter_read.
-> > 
-> > Should we go and replace the current use of percpu_counter_sum()
-> > with percpu_counter_sum_positive(), and call this new primitive
-> > percpu_counter_sum() instead?
-> > 
-> > Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
-> > ---
-> >  include/linux/percpu_counter.h |   18 +++++++++++++++++-
-> >  lib/percpu_counter.c           |    6 +++---
-> >  2 files changed, 20 insertions(+), 4 deletions(-)
-> > 
-> > Index: linux-2.6/include/linux/percpu_counter.h
-> > ===================================================================
-> > --- linux-2.6.orig/include/linux/percpu_counter.h	2007-05-23 20:37:54.000000000 +0200
-> > +++ linux-2.6/include/linux/percpu_counter.h	2007-05-23 20:38:09.000000000 +0200
-> > @@ -35,7 +35,18 @@ void percpu_counter_destroy(struct percp
-> >  void percpu_counter_set(struct percpu_counter *fbc, s64 amount);
-> >  void __percpu_counter_mod(struct percpu_counter *fbc, s32 amount, s32 batch);
-> >  void __percpu_counter_mod64(struct percpu_counter *fbc, s64 amount, s32 batch);
-> > -s64 percpu_counter_sum(struct percpu_counter *fbc);
-> > +s64 __percpu_counter_sum(struct percpu_counter *fbc);
-> > +
-> > +static inline s64 percpu_counter_sum(struct percpu_counter *fbc)
-> > +{
-> > +	s64 ret = __percpu_counter_sum(fbc);
-> > +	return ret < 0 ? 0 : ret;
-> 
-> max(0, ret) maybe?
-> 
-> Josef 'Jeff' Sipek.
+Perform writeback and dirty throttling with awareness of cpuset mem_allowed.
 
-Ok, replying to email that's more than a month old may not be the best idea
-:)
+The theory of operation has two primary elements:
 
-Josef 'Jeff' Sipek.
+1. Add a nodemask per mapping which indicates the nodes
+   which have set PageDirty on any page of the mappings.
 
--- 
-We have joy, we have fun, we have Linux on a Sun...
+2. Add a nodemask argument to wakeup_pdflush() which is
+   propagated down to sync_sb_inodes.
+
+This leaves sync_sb_inodes() with two nodemasks. One is passed to it and
+specifies the nodes the caller is interested in syncing, and will either
+be null (i.e. all nodes) or will be cpuset_current_mems_allowed in the
+caller's context.
+
+The second nodemask is attached to the inode's mapping and shows who has
+modified data in the inode. sync_sb_inodes() will then skip syncing of
+inodes if the nodemask argument does not intersect with the mapping
+nodemask.
+
+cpuset_current_mems_allowed will be passed in to pdflush
+background_writeout by try_to_free_pages and balance_dirty_pages.
+balance_dirty_pages also passes the nodemask in to writeback_inodes
+directly when doing active reclaim.
+
+Other callers do not limit inode writeback, passing in a NULL nodemask
+pointer.
+
+A final change is to get_dirty_limits. It takes a nodemask argument, and
+when it is null there is no change in behavior. If the nodemask is set,
+page statistics are accumulated only for specified nodes, and the
+background and throttle dirty ratios will be read from a new per-cpuset
+ratio feature.
+
+These patches are mostly unchanged from Chris Lameter's original
+changelist posted previously to linux-mm.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
