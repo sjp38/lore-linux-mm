@@ -1,54 +1,59 @@
-Date: Tue, 17 Jul 2007 12:35:08 -0400
+Date: Tue, 17 Jul 2007 12:35:58 -0400
 From: Josef Sipek <jsipek@fsl.cs.sunysb.edu>
-Subject: Re: [PATCH 06/17] lib: percpu_counter_init_irq
-Message-ID: <20070717163508.GB15421@filer.fsl.cs.sunysb.edu>
-References: <20070614215817.389524447@chello.nl> <20070614220446.724626895@chello.nl>
+Subject: Re: [PATCH 05/17] lib: percpu_count_sum_signed()
+Message-ID: <20070717163558.GC15421@filer.fsl.cs.sunysb.edu>
+References: <20070614215817.389524447@chello.nl> <20070614220446.659716697@chello.nl> <20070717163243.GA15421@filer.fsl.cs.sunysb.edu>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20070614220446.724626895@chello.nl>
+In-Reply-To: <20070717163243.GA15421@filer.fsl.cs.sunysb.edu>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Peter Zijlstra <a.p.zijlstra@chello.nl>
 Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, miklos@szeredi.hu, akpm@linux-foundation.org, neilb@suse.de, dgc@sgi.com, tomoki.sekiyama.qu@hitachi.com, nikita@clusterfs.com, trond.myklebust@fys.uio.no, yingchao.zhou@gmail.com, andrea@suse.de
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Jun 14, 2007 at 11:58:23PM +0200, Peter Zijlstra wrote:
-> provide a way to init percpu_counters that are supposed to be used from irq
-> safe contexts.
+On Tue, Jul 17, 2007 at 12:32:43PM -0400, Josef Sipek wrote:
+> On Thu, Jun 14, 2007 at 11:58:22PM +0200, Peter Zijlstra wrote:
+> > Provide an accurate version of percpu_counter_read.
+> > 
+> > Should we go and replace the current use of percpu_counter_sum()
+> > with percpu_counter_sum_positive(), and call this new primitive
+> > percpu_counter_sum() instead?
+> > 
+> > Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
+> > ---
+> >  include/linux/percpu_counter.h |   18 +++++++++++++++++-
+> >  lib/percpu_counter.c           |    6 +++---
+> >  2 files changed, 20 insertions(+), 4 deletions(-)
+> > 
+> > Index: linux-2.6/include/linux/percpu_counter.h
+> > ===================================================================
+> > --- linux-2.6.orig/include/linux/percpu_counter.h	2007-05-23 20:37:54.000000000 +0200
+> > +++ linux-2.6/include/linux/percpu_counter.h	2007-05-23 20:38:09.000000000 +0200
+> > @@ -35,7 +35,18 @@ void percpu_counter_destroy(struct percp
+> >  void percpu_counter_set(struct percpu_counter *fbc, s64 amount);
+> >  void __percpu_counter_mod(struct percpu_counter *fbc, s32 amount, s32 batch);
+> >  void __percpu_counter_mod64(struct percpu_counter *fbc, s64 amount, s32 batch);
+> > -s64 percpu_counter_sum(struct percpu_counter *fbc);
+> > +s64 __percpu_counter_sum(struct percpu_counter *fbc);
+> > +
+> > +static inline s64 percpu_counter_sum(struct percpu_counter *fbc)
+> > +{
+> > +	s64 ret = __percpu_counter_sum(fbc);
+> > +	return ret < 0 ? 0 : ret;
 > 
-> Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
-> ---
->  include/linux/percpu_counter.h |    4 ++++
->  lib/percpu_counter.c           |    8 ++++++++
->  2 files changed, 12 insertions(+)
+> max(0, ret) maybe?
 > 
-> Index: linux-2.6/include/linux/percpu_counter.h
-> ===================================================================
-> --- linux-2.6.orig/include/linux/percpu_counter.h
-> +++ linux-2.6/include/linux/percpu_counter.h
-> @@ -31,6 +31,8 @@ struct percpu_counter {
->  #endif
->  
->  void percpu_counter_init(struct percpu_counter *fbc, s64 amount);
-> +void percpu_counter_init_irq(struct percpu_counter *fbc, s64 amount);
-> +
->  void percpu_counter_destroy(struct percpu_counter *fbc);
->  void percpu_counter_set(struct percpu_counter *fbc, s64 amount);
->  void __percpu_counter_mod(struct percpu_counter *fbc, s32 amount, s32 batch);
-> @@ -89,6 +91,8 @@ static inline void percpu_counter_init(s
->  	fbc->count = amount;
->  }
->  
-> +#define percpu_counter_init_irq percpu_counter_init
+> Josef 'Jeff' Sipek.
 
-Huh? I'm confused. You have prototypes for both, and now a #define?
+Ok, replying to email that's more than a month old may not be the best idea
+:)
 
 Josef 'Jeff' Sipek.
 
 -- 
-Hegh QaQ law'
-quvHa'ghach QaQ puS
+We have joy, we have fun, we have Linux on a Sun...
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
