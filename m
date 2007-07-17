@@ -1,101 +1,48 @@
-Date: Tue, 17 Jul 2007 02:32:31 +0600
-Message-ID: <37440445.79696493@elude.com>
-From: "Euro_VIP_Casino" <brew@letterbox.org>
-Subject: Willkommensbonus 400 Euro!
+Received: from zps19.corp.google.com (zps19.corp.google.com [172.25.146.19])
+	by smtp-out.google.com with ESMTP id l6H01WVZ019074
+	for <linux-mm@kvack.org>; Mon, 16 Jul 2007 17:01:32 -0700
+Received: from an-out-0708.google.com (andd11.prod.google.com [10.100.30.11])
+	by zps19.corp.google.com with ESMTP id l6H01Vn3008529
+	for <linux-mm@kvack.org>; Mon, 16 Jul 2007 17:01:31 -0700
+Received: by an-out-0708.google.com with SMTP id d11so391690and
+        for <linux-mm@kvack.org>; Mon, 16 Jul 2007 17:01:31 -0700 (PDT)
+Message-ID: <b040c32a0707161701q49ad150di6387b029a39b39c3@mail.gmail.com>
+Date: Mon, 16 Jul 2007 17:01:31 -0700
+From: "Ken Chen" <kenchen@google.com>
+Subject: Re: [patch] fix periodic superblock dirty inode flushing
+In-Reply-To: <b040c32a0707131517m4cc20d3an2123e324746d3e7@mail.gmail.com>
 MIME-Version: 1.0
-Content-Type: text/html; charset=iso-8859-1
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
-Return-Path: <brew@letterbox.org>
-To: linux-mm@kvack.org
+Content-Disposition: inline
+References: <b040c32a0707112121y21d08438u8ca7f138931827b0@mail.gmail.com>
+	 <20070712120519.8a7241dd.akpm@linux-foundation.org>
+	 <b040c32a0707131517m4cc20d3an2123e324746d3e7@mail.gmail.com>
+Sender: owner-linux-mm@kvack.org
+Return-Path: <owner-linux-mm@kvack.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-<html>
+On 7/13/07, Ken Chen <kenchen@google.com> wrote:
+> On 7/12/07, Andrew Morton <akpm@linux-foundation.org> wrote:
+> > Was this tested in combination with check_dirty_inode_list.patch,
+> > to make sure that the time-orderedness is being retained?
+>
+> I think I tested with the debug patch.  And just to be sure, I ran the
+> test again with the time-order check in place.  It passed the test.
 
-<head>
-<meta http-equiv=Content-Type content="text/html; charset=iso-8859-1">
+I ran some more tests over the weekend with the debug turned on. There
+are a few fall out that the order-ness of sb-s_dirty is corrupted.  We
+probably should drop this patch until I figure out a real solution to
+this.
 
-<title>Nur im alten aristokratischen Europa </title>
+One idea is to use rb-tree for sorting and use a in-tree dummy node as
+a tree iterator.  Do you think that will work better?  I will hack on
+that.
 
-<style>
-<!--
- /* Style Definitions */
- p.MsoNormal, li.MsoNormal, div.MsoNormal
-	{mso-style-parent:"";
-	margin:0cm;
-	margin-bottom:.0001pt;
-	mso-pagination:widow-orphan;
-	font-size:12.0pt;
-	font-family:"Times New Roman";
-	mso-fareast-font-family:"Times New Roman";
-	mso-ansi-language:EN-US;
-	mso-fareast-language:EN-US;}
-a:link, span.MsoHyperlink
-	{color:blue;
-	text-decoration:underline;
-	text-underline:single;}
-a:visited, span.MsoHyperlinkFollowed
-	{color:purple;
-	text-decoration:underline;
-	text-underline:single;}
-@page Section1
-	{size:595.3pt 841.9pt;
-	margin:2.0cm 42.5pt 2.0cm 3.0cm;
-	mso-header-margin:35.4pt;
-	mso-footer-margin:35.4pt;
-	mso-paper-source:0;}
-div.Section1
-	{page:Section1;}
--->
-</style>
-
-</head>
-
-<body lang=DE link=blue vlink=purple style='tab-interval:35.4pt'>
-
-<div class=Section1>
-
-<p class=MsoNormal>
-<span lang=EN-US>Nur im alten aristokratischen Europa k&ouml;nnen
-Sie so ein elitistisches Casino zum Spielen finden:<o:p></o:p></span></p>
-
-<p class=MsoNormal><span lang=EN-US>Euro VIP Casino!!<o:p></o:p></span></p>
-
-<p class=MsoNormal><span lang=EN-US><o:p>&nbsp;</o:p></span></p>
-
-<p class=MsoNormal><span lang=EN-US>Hoher Standard ist einzigartig:
-<o:p></o:p></span></p>
-
-<p class=MsoNormal><span lang=EN-US>Ein grossz&uuml;giger Willkommensbonus von
-mindestens 100% bis zu 100 &#8364;/$ auf<span style='mso-spacerun:yes'> 
-</span>Ihre ersten vier Einzahlungen, mit maximalem 400 &#8364;/$ hohem 
-Bonus!!!<o:p></o:p></span></p>
-
-<p class=MsoNormal><span lang=EN-US>Unglaubliche Jackpots welche die
-Millionengrenze weit &uuml;berschreiten!<o:p></o:p></span></p>
-
-<p class=MsoNormal><span lang=EN-US>Sagenhafte last generation Software!
-<o:p></o:p></span></p>
-
-<p class=MsoNormal><span lang=EN-US><o:p>&nbsp;</o:p></span></p>
-
-<p class=MsoNormal>
-<span lang=EN-US>All das macht es zum besten Platz online zu
-spielen.<o:p></o:p></span></p>
-
-<p class=MsoNormal><span lang=EN-US><o:p>&nbsp;</o:p></span></p>
-
-<p class=MsoNormal><span lang=EN-US>Also kommen und spielen Sie bei Euro VIP
-Casino und treten Sie der noblen Gesellschaft der europ&auml;ischen 
-Spielelite bei!<o:p></o:p></span></p>
-
-<p class=MsoNormal><span lang=EN-US><o:p>&nbsp;</o:p></span></p>
-
-<p class=MsoNormal><span lang=EN-US>
-<a href="http://eurovipgambling.com/lang-de/">
-http://eurovipgambling.com/lang-de/</a><o:p></o:p></span></p>
-
-</div>
-
-</body>
-
-</html>
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
