@@ -1,29 +1,74 @@
-Message-ID: <ZTKTYEJQFM443762859@cvpqv>
-Reply-To: "QTracey Kaitlin" <emphasizef@ejmdevelopment.com>
-From: "QTracey Kaitlin" <emphasizef@ejmdevelopment.com>
-Subject: bistable odorous
-Date: Tue, 17 Jul 2007 14:03:03 +0800
+Date: Tue, 17 Jul 2007 15:09:28 +0900
+From: Yasunori Goto <y-goto@jp.fujitsu.com>
+Subject: Re: [PATCH] slob: sparsemem support.
+In-Reply-To: <20070713093557.GA3403@linux-sh.org>
+References: <20070713093557.GA3403@linux-sh.org>
+Message-Id: <20070717150606.5E1E.Y-GOTO@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain;
-Return-Path: <emphasizef@ejmdevelopment.com>
-To: linux-mm-archive@kvack.org, linux-mm@kvack.org
+Content-Type: text/plain; charset="US-ASCII"
+Content-Transfer-Encoding: 7bit
+Sender: owner-linux-mm@kvack.org
+Return-Path: <owner-linux-mm@kvack.org>
+To: Paul Mundt <lethal@linux-sh.org>, Andrew Morton <akpm@linux-foundation.org>, Matt Mackall <mpm@selenic.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Pay88, Inc. (PAYI.OB)
-$2.50
+Looks good to me too. 
+Thanks.
 
-Many Sites have added PAYI to their Radar
+Acked-by: Yasunori Goto <y-goto@jp.fujitsu.com>
 
-Read the report and pick up on Tuesday
 
-"Many people told me they want to return to their normal lives as quickly as possible," Abe told reporters in Kashiwazaki. "The government will make every effort to help with recovery."
+> Currently slob is disabled if we're using sparsemem, due to an earlier
+> patch from Goto-san. Slob and static sparsemem work without any trouble
+> as it is, and the only hiccup is a missing slab_is_available() in the
+> case of sparsemem extreme. With this, we're rid of the last set of
+> restrictions for slob usage.
+> 
+> Signed-off-by: Paul Mundt <lethal@linux-sh.org>
+> 
+> --
+> 
+>  init/Kconfig |    2 +-
+>  mm/slob.c    |    8 ++++++++
+>  2 files changed, 9 insertions(+), 1 deletion(-)
+> 
+> diff -urN linux-2.6.22-rc6-mm1.orig/init/Kconfig linux-2.6.22-rc6-mm1/init/Kconfig
+> --- linux-2.6.22-rc6-mm1.orig/init/Kconfig	2007-07-06 07:47:49.000000000 +0900
+> +++ linux-2.6.22-rc6-mm1/init/Kconfig	2007-07-06 09:50:29.000000000 +0900
+> @@ -625,7 +625,7 @@
+>  	   and has enhanced diagnostics.
+>  
+>  config SLOB
+> -	depends on EMBEDDED && !SPARSEMEM
+> +	depends on EMBEDDED
+>  	bool "SLOB (Simple Allocator)"
+>  	help
+>  	   SLOB replaces the SLAB allocator with a drastically simpler
+> diff -urN linux-2.6.22-rc6-mm1.orig/mm/slob.c linux-2.6.22-rc6-mm1/mm/slob.c
+> --- linux-2.6.22-rc6-mm1.orig/mm/slob.c	2007-07-06 07:47:50.000000000 +0900
+> +++ linux-2.6.22-rc6-mm1/mm/slob.c	2007-07-06 09:56:16.000000000 +0900
+> @@ -606,6 +606,14 @@
+>  	return 0;
+>  }
+>  
+> +static unsigned int slob_ready __read_mostly;
+> +
+> +int slab_is_available(void)
+> +{
+> +	return slob_ready;
+> +}
+> +
+>  void __init kmem_cache_init(void)
+>  {
+> +	slob_ready = 1;
+>  }
 
-State Rep. Edward Casso said he saw the gunman after the shooting and described him as being in his 30s or 40s, dressed in a white shirt and dark slacks.
+-- 
+Yasunori Goto 
 
-Prime Minister Shinzo Abe -- whose ruling party is trailing in the polls -- interrupted a campaign stop in southern Japan for upcoming parliamentary elections, rushed back to Tokyo and announced he would head to the damaged area. He later arrived in a blue uniform to survey the damage.
 
-1 of 3 more photos >>  Flames and billows of black smoke poured from the Kashiwazaki nuclear plant -- the world's largest in terms of power output capacity. It took two hours to extinguish the fire in an electrical transformer, said Motoyasu Tamaki, a Tokyo Electric Power Co. official.
-
-The reactor automatically shut down at the time of the leak, the report said. The quake triggered a fire at an electrical transformer at the plant, but Tokyo Electric said earlier in the day that the reactor was not damaged.  See crumbled roads and homes after the killer quake >>
-
-Tsunami warnings were issued along the coast of Niigata but later lifted.
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
