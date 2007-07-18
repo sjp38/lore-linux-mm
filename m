@@ -1,67 +1,86 @@
-Date: Wed, 18 Jul 2007 10:18:39 -0400
-From: Chris Mason <chris.mason@oracle.com>
-Subject: Re: [PATCH RFC] extent mapped page cache
-Message-ID: <20070718101839.0aabc08c@think.oraclecorp.com>
-In-Reply-To: <200707120000.28501.phillips@phunq.net>
-References: <20070710210326.GA29963@think.oraclecorp.com>
-	<200707120000.28501.phillips@phunq.net>
+Subject: Re: [PATCH 5/5] [hugetlb] Try to grow pool for MAP_SHARED mappings
+From: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
+In-Reply-To: <29495f1d0707171642t7c1a26d7l1c36a896e1ba3b47@mail.gmail.com>
+References: <20070713151621.17750.58171.stgit@kernel>
+	 <20070713151717.17750.44865.stgit@kernel>
+	 <20070713130508.6f5b9bbb.pj@sgi.com>
+	 <1184360742.16671.55.camel@localhost.localdomain>
+	 <20070713143838.02c3fa95.pj@sgi.com>
+	 <29495f1d0707171642t7c1a26d7l1c36a896e1ba3b47@mail.gmail.com>
+Content-Type: text/plain
+Date: Wed, 18 Jul 2007 10:44:49 -0400
+Message-Id: <1184769889.5899.16.camel@localhost>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Daniel Phillips <phillips@phunq.net>
-Cc: Nick Piggin <npiggin@suse.de>, Christoph Lameter <clameter@sgi.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>, linux-fsdevel@vger.kernel.org
+To: Nish Aravamudan <nish.aravamudan@gmail.com>
+Cc: Paul Jackson <pj@sgi.com>, Adam Litke <agl@us.ibm.com>, linux-mm@kvack.org, mel@skynet.ie, apw@shadowen.org, wli@holomorphy.com, clameter@sgi.com, kenchen@google.com, Paul Mundt <lethal@linux-sh.org>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 12 Jul 2007 00:00:28 -0700
-Daniel Phillips <phillips@phunq.net> wrote:
-
-> On Tuesday 10 July 2007 14:03, Chris Mason wrote:
-> > This patch aims to demonstrate one way to replace buffer heads with
-> > a few extent trees...
+On Tue, 2007-07-17 at 16:42 -0700, Nish Aravamudan wrote:
+> On 7/13/07, Paul Jackson <pj@sgi.com> wrote:
+> > Adam wrote:
+> > > To be honest, I just don't think a global hugetlb pool and cpusets are
+> > > compatible, period.
+> >
+> > It's not an easy fit, that's for sure ;).
 > 
-> Hi Chris,
+> In the context of my patches to make the hugetlb pool's interleave
+> work with memoryless nodes, I may have pseudo-solution for growing the
+> pool while respecting cpusets.
 > 
-> Quite terse commentary on algorithms and data structures, but I
-> suppose that is not a problem because Jon has a whole week to reverse
-> engineer it for us.
+> Essentially, given that GFP_THISNODE allocations stay on the node
+> requested (which is the case after Christoph's set of memoryless node
+> patches go in), we invoke:
 > 
-> What did you have in mind for subpages?
+>   pol = mpol_new(MPOL_INTERLEAVE, &node_states[N_MEMORY])
 > 
+> in the two callers of alloc_fresh_huge_page(pol) in hugetlb.c.
+> alloc_fresh_huge_page() in turn invokes interleave_nodes(pol) so that
+> we request hugepages in an interleaved fashion over all nodes with
+> memory.
+> 
+> Now, what I'm wondering is why interleave_nodes() is not cpuset aware?
+> Or is it expected that the caller do the right thing with the policy
+> beforehand? If so, I think I could just make those two callers do
+> 
+>   pol = mpol_new(MPOL_INTERLEAVE, cpuset_mems_allowed(current))
+> 
+> ?
+> 
+> Or am I way off here?
 
-This partially depends on input here.  The goal is to have one
-interface that works for subpages, highmem and superpages, and for
-the FS maintainers to not care if the mappings come magically from
-clameter's work or vmap or whatever.
 
-Given the whole extent based theme, I plan on something like this:
+Nish:
 
-struct extent_ptr {
-	char *ptr;
-	some way to indicate size and type of map
-	struct page pages[];
-};
+I have always considered the huge page pool, as populated by
+alloc_fresh_huge_page() in response to changes in nr_hugepages, to be a
+system global resource.  I think the system "does the right
+thing"--well, almost--with Christoph's memoryless patches and your
+hugetlb patches.  Certaintly, the huge pages allocated at boot time,
+based on the command line parameter, are system-wide.  cpusets have not
+been set up at that time.  
 
-struct extent_ptr *alloc_extent_ptr(struct extent_map_tree *tree,
-				    u64 start, u64 end);
-void free_extent_ptr(struct extent_map_tree *tree,
-                     struct extent_ptr *ptr);
+It requires privilege to write to the nr_hugepages sysctl, so allowing
+it to spread pages across all available nodes [with memory], regardless
+of cpusets, makes sense to me.  Altho' I don't expect many folks are
+currently changing nr_hugepages from within a constrained cpuset, I
+wouldn't want to see us change existing behavior, in this respect.  Your
+per node attributes will provide the mechanism to allocate different
+numbers of hugepages for, e.g., nodes in cpusets that have applications
+that need them.
 
-And then some calls along the lines of kmap/kunmap that gives you a
-pointer you can use for accessing the ram.  read/write calls would also
-be fine by me, but harder to convert filesystems to use.
-
-The struct extent_ptr would increase the ref count on the pages, but
-the pages would have no back pointers to it.  All
-dirty/locked/writeback state would go in the extent state tree and would
-not be stored in the struct extent_ptr.  
-
-The idea is to make a simple mapping entity, and not complicate it
-by storing FS specific state in there. It could be variably sized to
-hold an array of pages, and allocated via kmap.
-
--chris
+Re: the "well, almost":  nr_hugepages is still "broken" for me on some
+of my platforms where the interleaved, dma-only pseudo-node contains
+sufficient memory to satisfy a hugepage request.  I'll end up with a few
+hugepages consuming most of the dma memory.  Consuming the dma isn't the
+issue--there should be enough remaining for any dma needs.  I just want
+more control over what gets placed on the interleaved pseudo-node by
+default.  I think that Paul Mundt [added to cc list] has similar
+concerns about default policies on the sh platforms.  I have some ideas,
+but I'm waiting for the memoryless nodes and your patches to stabilize
+in the mm tree.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
