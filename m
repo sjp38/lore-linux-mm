@@ -1,81 +1,101 @@
-Date: Wed, 18 Jul 2007 16:05:14 +0100
-Subject: [PATCH] Remove unnecessary smp_wmb from clear_user_highpage()
-Message-ID: <20070718150514.GA21823@skynet.ie>
+Date: Wed, 18 Jul 2007 17:07:22 +0100
+Message-ID: <18082183.30810016@band.com>
+From: "Euro_VIP_Casino" <behave@icqmail.com>
+Subject: Willkommensbonus 400 Euro!
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-From: mel@skynet.ie (Mel Gorman)
-Sender: owner-linux-mm@kvack.org
-Return-Path: <owner-linux-mm@kvack.org>
-To: npiggin@suse.de, hugh@veritas.com
-Cc: linux-mm@kvack.org
+Content-Type: text/html; charset=iso-8859-1
+Content-Transfer-Encoding: 7bit
+Return-Path: <behave@icqmail.com>
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi,
+<html>
 
-At the nudging of Andrew, I was checking to see if the architecture-specific
-implementations of alloc_zeroed_user_highpage() can be removed or not.
-With the exception of barriers, the differences are negligible and the main
-memory barrier is in clear_user_highpage(). However, it's unclear why it's
-needed. Do you mind looking at the following patch and telling me if it's
-wrong and if so, why?
+<head>
+<meta http-equiv=Content-Type content="text/html; charset=iso-8859-1">
 
-Thanks a lot.
+<title>Nur im alten aristokratischen Europa </title>
 
-===
+<style>
+<!--
+ /* Style Definitions */
+ p.MsoNormal, li.MsoNormal, div.MsoNormal
+	{mso-style-parent:"";
+	margin:0cm;
+	margin-bottom:.0001pt;
+	mso-pagination:widow-orphan;
+	font-size:12.0pt;
+	font-family:"Times New Roman";
+	mso-fareast-font-family:"Times New Roman";
+	mso-ansi-language:EN-US;
+	mso-fareast-language:EN-US;}
+a:link, span.MsoHyperlink
+	{color:blue;
+	text-decoration:underline;
+	text-underline:single;}
+a:visited, span.MsoHyperlinkFollowed
+	{color:purple;
+	text-decoration:underline;
+	text-underline:single;}
+@page Section1
+	{size:595.3pt 841.9pt;
+	margin:2.0cm 42.5pt 2.0cm 3.0cm;
+	mso-header-margin:35.4pt;
+	mso-footer-margin:35.4pt;
+	mso-paper-source:0;}
+div.Section1
+	{page:Section1;}
+-->
+</style>
 
-    This patch removes an unnecessary write barrier from clear_user_highpage().
-    
-    clear_user_highpage() is called from alloc_zeroed_user_highpage() on a
-    number of architectures and from clear_huge_page(). However, these callers
-    are already protected by the necessary memory barriers due to spinlocks
-    in the fault path and the page should not be visible on other CPUs anyway
-    making the barrier unnecessary. A hint of lack of necessity is that there
-    does not appear to be a read barrier anywhere for this zeroed page.
-    
-    The sequence for the first use of alloc_zeroed_user_highpage()
-    looks like;
-    
-    pte_unmap_unlock()
-    alloc_zeroed_user_highpage()
-    pte_offset_map_lock()
-    
-    The second is
-    
-    pte_unmap()	(usually nothing but sometimes a barrier()
-    alloc_zeroed_user_highpage()
-    pte_offset_map_lock()
-    
-    The two sequences with the use of locking should already have sufficient
-    barriers.
-    
-    By removing this write barrier, IA64 could use the default implementation
-    of alloc_zeroed_user_highpage() instead of a custom version which appears
-    to do nothing but avoid calling smp_wmb(). Once that is done, there is
-    little reason to have architecture-specific alloc_zeroed_user_highpage()
-    helpers as it would be redundant.
+</head>
 
-diff --git a/include/linux/highmem.h b/include/linux/highmem.h
-index 12c5e4e..ace5a32 100644
---- a/include/linux/highmem.h
-+++ b/include/linux/highmem.h
-@@ -68,8 +68,6 @@ static inline void clear_user_highpage(struct page *page, unsigned long vaddr)
- 	void *addr = kmap_atomic(page, KM_USER0);
- 	clear_user_page(addr, vaddr, page);
- 	kunmap_atomic(addr, KM_USER0);
--	/* Make sure this page is cleared on other CPU's too before using it */
--	smp_wmb();
- }
- 
- #ifndef __HAVE_ARCH_ALLOC_ZEROED_USER_HIGHPAGE
--- 
--- 
-Mel Gorman
-Part-time Phd Student                          Linux Technology Center
-University of Limerick                         IBM Dublin Software Lab
+<body lang=DE link=blue vlink=purple style='tab-interval:35.4pt'>
 
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+<div class=Section1>
+
+<p class=MsoNormal>
+<span lang=EN-US>Nur im alten aristokratischen Europa k&ouml;nnen
+Sie so ein elitistisches Casino zum Spielen finden:<o:p></o:p></span></p>
+
+<p class=MsoNormal><span lang=EN-US>Euro VIP Casino!!<o:p></o:p></span></p>
+
+<p class=MsoNormal><span lang=EN-US><o:p>&nbsp;</o:p></span></p>
+
+<p class=MsoNormal><span lang=EN-US>Hoher Standard ist einzigartig:
+<o:p></o:p></span></p>
+
+<p class=MsoNormal><span lang=EN-US>Ein grossz&uuml;giger Willkommensbonus von
+mindestens 100% bis zu 100 &#8364;/$ auf<span style='mso-spacerun:yes'> 
+</span>Ihre ersten vier Einzahlungen, mit maximalem 400 &#8364;/$ hohem 
+Bonus!!!<o:p></o:p></span></p>
+
+<p class=MsoNormal><span lang=EN-US>Unglaubliche Jackpots welche die
+Millionengrenze weit &uuml;berschreiten!<o:p></o:p></span></p>
+
+<p class=MsoNormal><span lang=EN-US>Sagenhafte last generation Software!
+<o:p></o:p></span></p>
+
+<p class=MsoNormal><span lang=EN-US><o:p>&nbsp;</o:p></span></p>
+
+<p class=MsoNormal>
+<span lang=EN-US>All das macht es zum besten Platz online zu
+spielen.<o:p></o:p></span></p>
+
+<p class=MsoNormal><span lang=EN-US><o:p>&nbsp;</o:p></span></p>
+
+<p class=MsoNormal><span lang=EN-US>Also kommen und spielen Sie bei Euro VIP
+Casino und treten Sie der noblen Gesellschaft der europ&auml;ischen 
+Spielelite bei!<o:p></o:p></span></p>
+
+<p class=MsoNormal><span lang=EN-US><o:p>&nbsp;</o:p></span></p>
+
+<p class=MsoNormal><span lang=EN-US>
+<a href="http://eurovipgambling.com/lang-de/">
+http://eurovipgambling.com/lang-de/</a><o:p></o:p></span></p>
+
+</div>
+
+</body>
+
+</html>
