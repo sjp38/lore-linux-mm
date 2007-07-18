@@ -1,93 +1,117 @@
-From: "=?ISO-8859-1?Q?Andr=E9_Goddard_Rosa?=" <andre.goddard@gmail.com>
-Subject: Re: Re: -mm merge plans for 2.6.23
-Date: Tue, 10 Jul 2007 22:52:20 -0300
-Message-ID: <b8bf37780707101852g25d835b4ubbf8da5383755d4b@mail.gmail.com>
-References: <20070710013152.ef2cd200.akpm@linux-foundation.org>
-	<200707102015.44004.kernel@kolivas.org>
-	<b21f8390707101802o2d546477n2a18c1c3547c3d7a@mail.gmail.com>
-	<20070710181419.6d1b2f7e.akpm@linux-foundation.org>
+From: "Bart Van Assche" <bart.vanassche@gmail.com>
+Subject: Re: [Bugme-new] [Bug 8778] New: Ocotea board: kernel reports access
+	of bad area during boot with DEBUG_SLAB=y
+Date: Wed, 18 Jul 2007 20:43:46 +0200
+Message-ID: <e2e108260707181143x98760a9gf1734eaaf897cee8@mail.gmail.com>
+References: <bug-8778-10286@http.bugzilla.kernel.org/>
+	<20070718005253.942f0464.akpm@linux-foundation.org>
+	<20070718083425.GA29722@gate.ebshome.net>
+	<1184766070.3699.2.camel@zod.rchland.ibm.com>
+	<20070718155940.GB29722@gate.ebshome.net>
+	<20070718095537.d344dc0a.akpm@linux-foundation.org>
+	<20070718170433.GC29722@gate.ebshome.net>
 Mime-Version: 1.0
-Content-Type: multipart/mixed; boundary="===============50224032867163226=="
-Return-path: <ck-bounces@vds.kolivas.org>
-In-Reply-To: <20070710181419.6d1b2f7e.akpm@linux-foundation.org>
-List-Unsubscribe: <http://bhhdoa.org.au/mailman/listinfo/ck>,
-	<mailto:ck-request@vds.kolivas.org?subject=unsubscribe>
-List-Archive: <http://bhhdoa.org.au/pipermail/ck>
-List-Post: <mailto:ck@vds.kolivas.org>
-List-Help: <mailto:ck-request@vds.kolivas.org?subject=help>
-List-Subscribe: <http://bhhdoa.org.au/mailman/listinfo/ck>,
-	<mailto:ck-request@vds.kolivas.org?subject=subscribe>
-Sender: ck-bounces@vds.kolivas.org
-Errors-To: ck-bounces@vds.kolivas.org
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-kernel@vger.kernel.org, Con Kolivas <kernel@kolivas.org>, ck list <ck@vds.kolivas.org>, linux-mm@kvack.org, Paul Jackson <pj@sgi.com>
+Content-Type: multipart/mixed; boundary="===============1603235888=="
+Return-path: <linuxppc-embedded-bounces+glppe-linuxppc-embedded-2=m.gmane.org@ozlabs.org>
+In-Reply-To: <20070718170433.GC29722@gate.ebshome.net>
+List-Unsubscribe: <https://ozlabs.org/mailman/listinfo/linuxppc-embedded>,
+	<mailto:linuxppc-embedded-request@ozlabs.org?subject=unsubscribe>
+List-Archive: <http://ozlabs.org/pipermail/linuxppc-embedded>
+List-Post: <mailto:linuxppc-embedded@ozlabs.org>
+List-Help: <mailto:linuxppc-embedded-request@ozlabs.org?subject=help>
+List-Subscribe: <https://ozlabs.org/mailman/listinfo/linuxppc-embedded>,
+	<mailto:linuxppc-embedded-request@ozlabs.org?subject=subscribe>
+Mime-version: 1.0
+Sender: linuxppc-embedded-bounces+glppe-linuxppc-embedded-2=m.gmane.org@ozlabs.org
+Errors-To: linuxppc-embedded-bounces+glppe-linuxppc-embedded-2=m.gmane.org@ozlabs.org
+To: Eugene Surovegin <ebs@ebshome.net>
+Cc: netdev@vger.kernel.org, linux-mm@kvack.org, "bugme-daemon@kernel-bugs.osdl.org" <bugme-daemon@bugzilla.kernel.org>, linuxppc-embedded@ozlabs.org, Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <clameter@sgi.com>
 List-Id: linux-mm.kvack.org
 
---===============50224032867163226==
+--===============1603235888==
 Content-Type: multipart/alternative;
-	boundary="----=_Part_145360_21443335.1184118740734"
+	boundary="----=_Part_101522_6960589.1184784226940"
 
-------=_Part_145360_21443335.1184118740734
+------=_Part_101522_6960589.1184784226940
 Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: quoted-printable
+Content-Transfer-Encoding: 7bit
 Content-Disposition: inline
 
-On 7/10/07, Andrew Morton <akpm@linux-foundation.org> wrote:
->
-> On Wed, 11 Jul 2007 11:02:56 +1000 "Matthew Hawkins" <darthmdh@gmail.com>
-> wrote:
->
-> > We all know swap prefetch has been tested out the wazoo since Moses was
-> a
-> > little boy, is compile-time and runtime selectable, and gives an
-> important
-> > and quantifiable performance increase to desktop systems.
->
-> Always interested.  Please provide us more details on your usage and
-> testing of that code.  Amount of memory, workload, observed results,
-> etc?
+On 7/18/07, Eugene Surovegin <ebs@ebshome.net> wrote:
 >
 >
-It keeps my machine responsive after some time of inactivity,
-i.e.  when I try to use firefox in the morning after leaving it running
-overnight with multiple tabs open. I have 1Gb of memory in this machine.
+> It's kmalloc, at least this is how I think skbs are allocated.
+>
+> Andrew, I don't have access to PPC hw right now (doing MIPS
+> development these days), so I cannot quickly check that my theory is
+> still correct for the latest kernel. I'd wait for the reporter to try
+> my hack and then we can decide what to do. IIRC there was some
+> provision in slab allocator to enforce alignment, when I was debugging
+> this problem more then a year ago, that option didn't work.
+>
+> BTW, I think slob allocator had the same issue with alignment as slab
+> with enabled debugging (at least at the time I looked at it).
 
-With regards,
---=20
-[]s,
-Andr=E9 Goddard
 
-------=_Part_145360_21443335.1184118740734
+
+Hello Eugene,
+
+In case you didn't notice yet, I have added the following comment to the
+kernel bugzilla item:
+
+
+------- *Comment #5
+<http://bugzilla.kernel.org/show_bug.cgi?id=8778#c5>From Bart
+Van Assche <bart.vanassche@gmail.com> 2007-07-18 07:12:49 *
+[reply<http://bugzilla.kernel.org/show_bug.cgi?id=8778#add_comment>]
+-------
+
+I have downloaded the patch from
+http://kernel.ebshome.net/emac_slab_debug.diff, and I have tried it. Hereby I
+confirm that this patch solves the reported kernel oops.
+
+
+
+-- 
+Regards,
+
+Bart Van Assche.
+
+------=_Part_101522_6960589.1184784226940
 Content-Type: text/html; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+Content-Transfer-Encoding: 7bit
 Content-Disposition: inline
 
-On 7/10/07, <b class=3D"gmail_sendername">Andrew Morton</b> &lt;<a href=3D"=
-mailto:akpm@linux-foundation.org">akpm@linux-foundation.org</a>&gt; wrote:<=
-div><span class=3D"gmail_quote"></span><blockquote class=3D"gmail_quote" st=
-yle=3D"border-left: 1px solid rgb(204, 204, 204); margin: 0pt 0pt 0pt 0.8ex=
-; padding-left: 1ex;">
-On Wed, 11 Jul 2007 11:02:56 +1000 &quot;Matthew Hawkins&quot; &lt;<a href=
-=3D"mailto:darthmdh@gmail.com">darthmdh@gmail.com</a>&gt; wrote:<br><br>&gt=
-; We all know swap prefetch has been tested out the wazoo since Moses was a
-<br>&gt; little boy, is compile-time and runtime selectable, and gives an i=
-mportant<br>&gt; and quantifiable performance increase to desktop systems.<=
-br><br>Always interested.&nbsp;&nbsp;Please provide us more details on your=
- usage and
-<br>testing of that code.&nbsp;&nbsp;Amount of memory, workload, observed r=
-esults,<br>etc?<br><br></blockquote></div><br>It keeps my machine responsiv=
-e after some time of inactivity,<br>i.e.&nbsp; when I try to use firefox in=
- the morning after leaving it running=20
-<br>overnight with multiple tabs open. I have 1Gb of memory in this machine=
-.<br><br>With regards,<br>-- <br>[]s,<br>Andr=E9 Goddard
+On 7/18/07, <b class="gmail_sendername">Eugene Surovegin</b> &lt;<a href="mailto:ebs@ebshome.net">ebs@ebshome.net</a>&gt; wrote:<div><span class="gmail_quote"></span><blockquote class="gmail_quote" style="border-left: 1px solid rgb(204, 204, 204); margin: 0pt 0pt 0pt 0.8ex; padding-left: 1ex;">
+<br>It&#39;s kmalloc, at least this is how I think skbs are allocated.<br><br>Andrew, I don&#39;t have access to PPC hw right now (doing MIPS<br>development these days), so I cannot quickly check that my theory is<br>still correct for the latest kernel. I&#39;d wait for the reporter to try
+<br>my hack and then we can decide what to do. IIRC there was some<br>provision in slab allocator to enforce alignment, when I was debugging<br>this problem more then a year ago, that option didn&#39;t work.<br><br>BTW, I think slob allocator had the same issue with alignment as slab
+<br>with enabled debugging (at least at the time I looked at it).</blockquote><div><br><br>Hello Eugene,<br><br>In case you didn&#39;t notice yet, I  have added the following comment to the kernel bugzilla item:<br></div>
+<br></div><br><span class="bz_comment">
+          ------- <i>Comment
+          <a name="c5" href="http://bugzilla.kernel.org/show_bug.cgi?id=8778#c5">
+            #5</a> From 
+          <a href="mailto:bart.vanassche@gmail.com">Bart Van Assche</a>
+          2007-07-18 07:12:49 
+          </i>
+          [<a href="http://bugzilla.kernel.org/show_bug.cgi?id=8778#add_comment" onclick="replyToComment(5);">reply</a>]
+          -------
+        </span>
+        
 
-------=_Part_145360_21443335.1184118740734--
 
---===============50224032867163226==
+<pre id="comment_text_5">I have downloaded the patch from<br><a href="http://kernel.ebshome.net/emac_slab_debug.diff">http://kernel.ebshome.net/emac_slab_debug.diff</a>, and I have tried it. Hereby I<br>confirm that this patch solves the reported kernel oops.
+<br></pre><br clear="all"><br>-- <br>Regards,<br><br>Bart Van Assche.
+
+------=_Part_101522_6960589.1184784226940--
+
+--===============1603235888==
 Content-Type: text/plain; charset="us-ascii"
 MIME-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Content-Disposition: inline
 
-
---===============50224032867163226==--
+_______________________________________________
+Linuxppc-embedded mailing list
+Linuxppc-embedded@ozlabs.org
+https://ozlabs.org/mailman/listinfo/linuxppc-embedded
+--===============1603235888==--
