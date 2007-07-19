@@ -1,41 +1,51 @@
-Received: by an-out-0708.google.com with SMTP id d33so145766and
-        for <linux-mm@kvack.org>; Thu, 19 Jul 2007 07:10:26 -0700 (PDT)
-Message-ID: <44c63dc40707190710rcd97947jbb044cb22c73f11b@mail.gmail.com>
-Date: Thu, 19 Jul 2007 23:10:26 +0900
-From: barrios <barrioskmc@gmail.com>
-Subject: __pdflush have an unnecessary code ?
+Message-ID: <469F71E7.4050200@bull.net>
+Date: Thu, 19 Jul 2007 16:15:03 +0200
+From: Zoltan Menyhart <Zoltan.Menyhart@bull.net>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Subject: Re: [BUGFIX]{PATCH] flush icache on ia64 take2
+References: <20070706112901.16bb5f8a.kamezawa.hiroyu@jp.fujitsu.com>	<20070719155632.7dbfb110.kamezawa.hiroyu@jp.fujitsu.com>	<469F5372.7010703@bull.net> <20070719220118.73f40346.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20070719220118.73f40346.kamezawa.hiroyu@jp.fujitsu.com>
 Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
+Content-Type: text/plain; charset=us-ascii; format=flowed
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-kernel@vger.kernel.org, linux-mm@kvack.org
-Cc: akpm@linux-foundation.org
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: linux-ia64@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, tony.luck@intel.com, nickpiggin@yahoo.com.au, mike@stroyan.net, dmosberger@gmail.com, y-goto@jp.fujitsu.com
 List-ID: <linux-mm.kvack.org>
 
-When pdflush kernel thread is died, Why do it store current jiffies in
-when_i_went_to_sleep variable ?
-IMHO, __pdflush function have an unnecessary code although it is trivial.
-If my thought is wrong, please give me a answer.
+KAMEZAWA Hiroyuki wrote:
 
----
- mm/pdflush.c |    1 -
- 1 files changed, 0 insertions(+), 1 deletions(-)
+> But is it too costly that flushing icache page only if a page is newly
+> installed into the system (PG_arch1) && it is mapped as executable ?
 
-diff --git a/mm/pdflush.c b/mm/pdflush.c
-index 8f6ee07..96aa1da 100644
---- a/mm/pdflush.c
-+++ b/mm/pdflush.c
-@@ -153,7 +153,6 @@ static int __pdflush(struct pdflush_work *my_work)
-                pdf = list_entry(pdflush_list.prev, struct pdflush_work, list);
-                if (jiffies - pdf->when_i_went_to_sleep > 1 * HZ) {
-                        /* Limit exit rate */
--                       pdf->when_i_went_to_sleep = jiffies;
-                        break;                                  /* exeunt */
-                }
-        }
---
+Well it was a bit long time ago, I measured on a Tiger box with
+CPUs of 1.3 GHz:
+
+Flushing a page of 64 Kbytes, with modified data in D-cache
+(it's slower that not having modified data in the D-cache):
+
+13.1 ... 14.7 usec.
+
+You may have quicker machines, but having more CPUs or a NUMA architecture
+can slow it down considerably:
+- more CPUs have to agree that that's the moment to carry out a flush
+- NUMA adds delay
+
+We may have, say 1 Gbyte / sec local i/o activity (using some RAIDs).
+Assume a few % of this 1 Gbyte is the program execution, or program swap in.
+It gives some hundreds of new exec pages / sec =>
+some msec-s can be lost each sec.
+
+I can agree that it should not be a big deal :-)
+
+> I don't want to leak this (stupid) corner case to the file system layer.
+> Hmm...can't we do clever flushing (like your idea) in VM layer ?
+
+As the VM layer is designed to be independent of the page read in stuff...
+
+Thanks,
+
+Zoltan
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
