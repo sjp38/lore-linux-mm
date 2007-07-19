@@ -1,30 +1,45 @@
-Date: Thu, 19 Jul 2007 10:52:07 -0700
-From: Bill Irwin <bill.irwin@oracle.com>
-Subject: Re: [PATCH] hugetlbfs read() support
-Message-ID: <20070719175207.GH26380@holomorphy.com>
-References: <1184376214.15968.9.camel@dyn9047017100.beaverton.ibm.com> <20070718221950.35bbdb76.akpm@linux-foundation.org> <1184860309.18188.90.camel@dyn9047017100.beaverton.ibm.com> <20070719095850.6e09b0e8.akpm@linux-foundation.org> <20070719170759.GE2083@us.ibm.com>
+Date: Thu, 19 Jul 2007 21:32:49 -0100
+From: "Dana Suggs" <carboxyburton@counsellor.com>
+Reply-To: carboxyburton@counsellor.com
+Message-ID: <418778838.09826800057687@counsellor.com>
+Subject: Personale Nachricht fur linux-mm@kvack.org
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20070719170759.GE2083@us.ibm.com>
-Sender: owner-linux-mm@kvack.org
-Return-Path: <owner-linux-mm@kvack.org>
-To: Nishanth Aravamudan <nacc@us.ibm.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Badari Pulavarty <pbadari@us.ibm.com>, Bill Irwin <bill.irwin@oracle.com>, lkml <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Nick Piggin <nickpiggin@yahoo.com.au>
+Content-Type: multipart/alternative;
+  boundary="----------F215A867215A8DA"
+Return-Path: <carboxyburton@counsellor.com>
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Jul 19, 2007 at 10:07:59AM -0700, Nishanth Aravamudan wrote:
-> But I do think a second reason to do this is to make hugetlbfs behave
-> like a normal fs -- that is read(), write(), etc. work on files in the
-> mountpoint. But that is simply my opinion.
+------------F215A867215A8DA
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
 
-Mine as well.
+Fur die Email Adresse linux-mm@kvack.org wurde eine personale Nachricht auf unserem Server abgelegt.
+Um diese zu lesen loggen Sie sich bitte unter folgendem Link ein: http://singelrussianladies.info/?idAff=34
+
+Falls Sie bei uns noch nicht registriert sind dann konnen Sie dies kostenlos nachholen.
 
 
--- wli
+Mit freundlichen Grussen Ihr Singel-Team
+------------F215A867215A8DA
+Content-Type: text/html; charset=us-ascii
+Content-Transfer-Encoding: 7bit
 
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE></TITLE>
+</HEAD>
+<BODY>
+
+<html><head>
+<meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+</head>
+<body>
+<p>F&uuml;r die Email Adresse <strong>linux-mm@kvack.org</strong> wurde eine personale Nachricht auf unserem Server abgelegt.<br>
+Um diese zu lesen loggen Sie sich bitte unter folgendem Link ein: <a href="http://singelrussianladies.info/?idAff=34" target="_blank">http://singelrussianladies.info/?idAff=34</a></p>
+<p>Falls Sie bei uns noch nicht registriert sind dann k&#246;nnen Sie dies kostenlos nachholen.</p>
+<p><br>
+  Mit freundlichen Gr&#252;&#223;en Ihr Singel-Team</p>
+</body></html>
+
+</BODY></HTML>
+------------F215A867215A8DA--
