@@ -1,72 +1,186 @@
-Date: Wed, 18 Jul 2007 20:10:18 -0700
+Date: Wed, 18 Jul 2007 22:19:50 -0700
 From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [patch] fix periodic superblock dirty inode flushing
-Message-Id: <20070718201018.9beb0f90.akpm@linux-foundation.org>
-In-Reply-To: <384813965.25550@ustc.edu.cn>
-References: <b040c32a0707112121y21d08438u8ca7f138931827b0@mail.gmail.com>
-	<20070712120519.8a7241dd.akpm@linux-foundation.org>
-	<b040c32a0707131517m4cc20d3an2123e324746d3e7@mail.gmail.com>
-	<b040c32a0707161701q49ad150di6387b029a39b39c3@mail.gmail.com>
-	<384813965.25550@ustc.edu.cn>
+Subject: Re: [PATCH] hugetlbfs read() support
+Message-Id: <20070718221950.35bbdb76.akpm@linux-foundation.org>
+In-Reply-To: <1184376214.15968.9.camel@dyn9047017100.beaverton.ibm.com>
+References: <1184376214.15968.9.camel@dyn9047017100.beaverton.ibm.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Fengguang Wu <fengguang.wu@gmail.com>
-Cc: Ken Chen <kenchen@google.com>, linux-mm@kvack.org
+To: Badari Pulavarty <pbadari@us.ibm.com>
+Cc: Bill Irwin <bill.irwin@oracle.com>, nacc@us.ibm.com, lkml <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 19 Jul 2007 10:59:27 +0800 Fengguang Wu <fengguang.wu@gmail.com> wrote:
+On Fri, 13 Jul 2007 18:23:33 -0700 Badari Pulavarty <pbadari@us.ibm.com> wrote:
 
-> On Mon, Jul 16, 2007 at 05:01:31PM -0700, Ken Chen wrote:
-> > On 7/13/07, Ken Chen <kenchen@google.com> wrote:
-> > >On 7/12/07, Andrew Morton <akpm@linux-foundation.org> wrote:
-> > >> Was this tested in combination with check_dirty_inode_list.patch,
-> > >> to make sure that the time-orderedness is being retained?
-> > >
-> > >I think I tested with the debug patch.  And just to be sure, I ran the
-> > >test again with the time-order check in place.  It passed the test.
-> > 
-> > I ran some more tests over the weekend with the debug turned on. There
-> > are a few fall out that the order-ness of sb-s_dirty is corrupted.  We
-> > probably should drop this patch until I figure out a real solution to
-> > this.
-> > 
-> > One idea is to use rb-tree for sorting and use a in-tree dummy node as
-> > a tree iterator.  Do you think that will work better?  I will hack on
-> > that.
+> Hi Andrew,
 > 
-> Sorry if I'm not backgrounded.
+> Here is the patch to support read() for hugetlbfs, needed to get
+> oprofile working on executables backed by largepages. 
 > 
-> But what's the problem of a list? If we always do the two actions
-> *together*:
->         1) update inode->dirtied_when
->         2) requeue inode in the correct place
-> the list will be in order.
-> linux-2.6.22-rc6-mm1/fs/fs-writeback.c obviously obeys this rule.
+> If you plan to consider Christoph Lameter's pagecache cleanup patches,
+> I will re-write this. Otherwise, please consider this for -mm.
 > 
-> I don't see how can a new data structure make life easier.
-> 1) and 2) should still be safeguarded, isn't it?
+> Thanks,
+> Badari
+> 
+> Support for reading from hugetlbfs files. libhugetlbfs lets application
+> text/data to be placed in large pages. When we do that, oprofile doesn't
+> work - since libbfd tries to read from it.
+> 
+> This code is very similar to what do_generic_mapping_read() does, but
+> I can't use it since it has PAGE_CACHE_SIZE assumptions.
+> 
+> Signed-off-by: Badari Pulavarty <pbadari@us.ibm.com>
+> Acked-by: William Irwin <bill.irwin@oracle.com>
+> Tested-by: Nishanth Aravamudan <nacc@us.ibm.com>
+> 
+>  fs/hugetlbfs/inode.c |  113 +++++++++++++++++++++++++++++++++++++++++++++++++++
+>  1 file changed, 113 insertions(+)
+> 
+> Index: linux-2.6.22/fs/hugetlbfs/inode.c
+> ===================================================================
+> --- linux-2.6.22.orig/fs/hugetlbfs/inode.c	2007-07-08 16:32:17.000000000 -0700
+> +++ linux-2.6.22/fs/hugetlbfs/inode.c	2007-07-13 19:24:36.000000000 -0700
+> @@ -156,6 +156,118 @@ full_search:
+>  }
+>  #endif
+>  
+> +static int
+> +hugetlbfs_read_actor(struct page *page, unsigned long offset,
+> +			char __user *buf, unsigned long count,
+> +			unsigned long size)
+> +{
+> +	char *kaddr;
+> +	unsigned long left, copied = 0;
+> +	int i, chunksize;
+> +
+> +	if (size > count)
+> +		size = count;
+> +
+> +	/* Find which 4k chunk and offset with in that chunk */
+> +	i = offset >> PAGE_CACHE_SHIFT;
+> +	offset = offset & ~PAGE_CACHE_MASK;
+> +
+> +	while (size) {
+> +		chunksize = PAGE_CACHE_SIZE;
+> +		if (offset)
+> +			chunksize -= offset;
+> +		if (chunksize > size)
+> +			chunksize = size;
+> +		kaddr = kmap(&page[i]);
+> +		left = __copy_to_user(buf, kaddr + offset, chunksize);
+> +		kunmap(&page[i]);
+> +		if (left) {
+> +			copied += (chunksize - left);
+> +			break;
+> +		}
+> +		offset = 0;
+> +		size -= chunksize;
+> +		buf += chunksize;
+> +		copied += chunksize;
+> +		i++;
+> +	}
+> +	return copied ? copied : -EFAULT;
+> +}
 
-Well yes, the existing implementation does its best to work, and almost
-does work correctly but it was really hard to do and it is hard to maintain.
+This returns -EFAULT when asked to read zero bytes.  The caller prevents
+that, but it's a little bit ugly.  Livable with.
 
-Whereas if we had a better data structure it would be cleaner and easier to
-implement and to maintain, I expect.
+> +/*
+> + * Support for read() - Find the page attached to f_mapping and copy out the
+> + * data. Its *very* similar to do_generic_mapping_read(), we can't use that
+> + * since it has PAGE_CACHE_SIZE assumptions.
+> + */
+> +ssize_t
+> +hugetlbfs_read(struct file *filp, char __user *buf, size_t len, loff_t *ppos)
+> +{
+> +	struct address_space *mapping = filp->f_mapping;
+> +	struct inode *inode = mapping->host;
+> +	unsigned long index = *ppos >> HPAGE_SHIFT;
+> +	unsigned long end_index;
+> +	loff_t isize;
+> +	unsigned long offset;
+> +	ssize_t retval = 0;
+> +
+> +	/* validate length */
+> +	if (len == 0)
+> +		goto out;
+> +
+> +	isize = i_size_read(inode);
+> +	if (!isize)
+> +		goto out;
+> +
+> +	offset = *ppos & ~HPAGE_MASK;
+> +	end_index = (isize - 1) >> HPAGE_SHIFT;
+> +	for (;;) {
+> +		struct page *page;
+> +		int nr, ret;
+> +
+> +		/* nr is the maximum number of bytes to copy from this page */
+> +		nr = HPAGE_SIZE;
+> +		if (index >= end_index) {
+> +			if (index > end_index)
+> +				goto out;
+> +			nr = ((isize - 1) & ~HPAGE_MASK) + 1;
+> +			if (nr <= offset) {
+> +				goto out;
+> +			}
+> +		}
+> +		nr = nr - offset;
+> +
+> +		/* Find the page */
+> +		page = find_get_page(mapping, index);
+> +		if (unlikely(page == NULL)) {
+> +			/*
+> +			 * We can't find the page in the cache - bail out ?
+> +			 */
+> +			goto out;
+> +		}
+> +		/*
+> +		 * Ok, we have the page, copy it to user space buffer.
+> +		 */
+> +		ret = hugetlbfs_read_actor(page, offset, buf, len, nr);
+> +		if (ret < 0) {
+> +			retval = retval ? : ret;
+> +			goto out;
 
-With an indexed data structure (ie: radix-tree or rbtree) the writeback
-code can remember where it was up to in the ordered list of inodes so it
-can drop locks, do writeback, remember where it was up to for the next
-pass, etc.
+Missing put_page().
 
-Basically, the walk of the per-superblock inodes would follow the same
-model as the walk of the per-inode pages.  And the latter has worked out
-*really* well.  It would be great if the per-sb inode traversal was as
-flexible and as powerful as the page walks.
+> +		}
+> +
+> +		offset += ret;
+> +		retval += ret;
+> +		len -= ret;
+> +		index += offset >> HPAGE_SHIFT;
+> +		offset &= ~HPAGE_MASK;
+> +
+> +		page_cache_release(page);
+> +		if (ret == nr && len)
+> +			continue;
+> +		goto out;
+> +	}
+> +out:
+> +	return retval;
+> +}
 
-Probably it never will be, because I suspect we'd need to order the inodes
-by multiple indices.  I hn't thought it through, really.  
+This code doesn't have all the ghastly tricks which we deploy to handle
+concurrent truncate.
+
+>  /*
+>   * Read a page. Again trivial. If it didn't already exist
+>   * in the page cache, it is zero-filled.
+> @@ -560,6 +672,7 @@ static void init_once(void *foo, struct 
+>  }
+>  
+>  const struct file_operations hugetlbfs_file_operations = {
+> +	.read			= hugetlbfs_read,
+>  	.mmap			= hugetlbfs_file_mmap,
+>  	.fsync			= simple_sync_file,
+>  	.get_unmapped_area	= hugetlb_get_unmapped_area,
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
