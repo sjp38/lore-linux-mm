@@ -1,77 +1,108 @@
-Date: Thu, 19 Jul 2007 10:52:31 +0900
-From: Paul Mundt <lethal@linux-sh.org>
-Subject: Re: [PATCH 5/5] [hugetlb] Try to grow pool for MAP_SHARED mappings
-Message-ID: <20070719015231.GA16796@linux-sh.org>
-References: <20070713151621.17750.58171.stgit@kernel> <20070713151717.17750.44865.stgit@kernel> <20070713130508.6f5b9bbb.pj@sgi.com> <1184360742.16671.55.camel@localhost.localdomain> <20070713143838.02c3fa95.pj@sgi.com> <29495f1d0707171642t7c1a26d7l1c36a896e1ba3b47@mail.gmail.com> <1184769889.5899.16.camel@localhost> <29495f1d0707180817n7a5709dcr78b641a02cb18057@mail.gmail.com> <1184774524.5899.49.camel@localhost>
-MIME-Version: 1.0
+Date: Thu, 19 Jul 2007 03:57:22 +0200
+From: Nick Piggin <npiggin@suse.de>
+Subject: Re: [PATCH] Remove unnecessary smp_wmb from clear_user_highpage()
+Message-ID: <20070719015722.GB23641@wotan.suse.de>
+References: <20070718150514.GA21823@skynet.ie>
+Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1184774524.5899.49.camel@localhost>
+In-Reply-To: <20070718150514.GA21823@skynet.ie>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
-Cc: Nish Aravamudan <nish.aravamudan@gmail.com>, Paul Jackson <pj@sgi.com>, Adam Litke <agl@us.ibm.com>, linux-mm@kvack.org, mel@skynet.ie, apw@shadowen.org, wli@holomorphy.com, clameter@sgi.com, kenchen@google.com
+To: Mel Gorman <mel@skynet.ie>
+Cc: hugh@veritas.com, linux-mm@kvack.org, Linus Torvalds <torvalds@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Jul 18, 2007 at 12:02:03PM -0400, Lee Schermerhorn wrote:
-> On Wed, 2007-07-18 at 08:17 -0700, Nish Aravamudan wrote:
-> > On 7/18/07, Lee Schermerhorn <Lee.Schermerhorn@hp.com> wrote:
-> > > I have always considered the huge page pool, as populated by
-> > > alloc_fresh_huge_page() in response to changes in nr_hugepages, to be a
-> > > system global resource.  I think the system "does the right
-> > > thing"--well, almost--with Christoph's memoryless patches and your
-> > > hugetlb patches.  Certaintly, the huge pages allocated at boot time,
-> > > based on the command line parameter, are system-wide.  cpusets have not
-> > > been set up at that time.
-> > 
-> > I fully agree that hugepages are a global resource.
-> > 
-> > > It requires privilege to write to the nr_hugepages sysctl, so allowing
-> > > it to spread pages across all available nodes [with memory], regardless
-> > > of cpusets, makes sense to me.  Altho' I don't expect many folks are
-> > > currently changing nr_hugepages from within a constrained cpuset, I
-> > > wouldn't want to see us change existing behavior, in this respect.  Your
-> > > per node attributes will provide the mechanism to allocate different
-> > > numbers of hugepages for, e.g., nodes in cpusets that have applications
-> > > that need them.
-> > 
-> > The issue is that with Adam's patches, the hugepage pool will grow on
-> > demand, presuming the process owner's mlock limit is sufficiently
-> > high. If said process were running within a constrained cpuset, it
-> > seems slightly out-of-whack to allow it grow the pool on other nodes
-> > to satisfy the demand.
+On Wed, Jul 18, 2007 at 04:05:14PM +0100, Mel Gorman wrote:
+> Hi,
 > 
-> Ah, I see.  In that case, it might make sense to grow just for the
-> cpuset.  A couple of things come to mind tho':
+> At the nudging of Andrew, I was checking to see if the architecture-specific
+> implementations of alloc_zeroed_user_highpage() can be removed or not.
+> With the exception of barriers, the differences are negligible and the main
+> memory barrier is in clear_user_highpage(). However, it's unclear why it's
+> needed. Do you mind looking at the following patch and telling me if it's
+> wrong and if so, why?
 > 
-> 1) we might want a per cpuset control to enable/disable hugetlb pool
-> growth on demand, or to limit the max size of the pool--especially if
-> the memories are not exclusively owned by the cpuset.  Otherwise,
-> non-privileged processes could grow the hugetlb pool in memories shared
-> with other cpusets [maybe the root cpuset?], thereby reducing the amount
-> of normal, managed pages available to the other cpusets.  Probably want
-> such a control in the absense of cpusets as well, if on-demand hugetlb
-> pool growth is implemented.  
+> Thanks a lot.
 > 
-I don't see that the two are mutually exclusive. Hugetlb pools have to be
-node-local anyways due to the varying distances, so perhaps the global
-resource thing is the wrong way to approach it. There are already hooks
-for spreading slab and page cache pages in cpusets, perhaps it makes
-sense to add a hugepage spread variant to balance across the constrained
-set?
+> ===
+> 
+>     This patch removes an unnecessary write barrier from clear_user_highpage().
+>     
+>     clear_user_highpage() is called from alloc_zeroed_user_highpage() on a
+>     number of architectures and from clear_huge_page(). However, these callers
+>     are already protected by the necessary memory barriers due to spinlocks
+>     in the fault path and the page should not be visible on other CPUs anyway
+>     making the barrier unnecessary. A hint of lack of necessity is that there
+>     does not appear to be a read barrier anywhere for this zeroed page.
+>     
+>     The sequence for the first use of alloc_zeroed_user_highpage()
+>     looks like;
+>     
+>     pte_unmap_unlock()
+>     alloc_zeroed_user_highpage()
 
-nr_hugepages is likely something that should still be global, so the
-sum of the hugepages in the per-node pools don't exceed this value.
+pte_offset_map_lock only provides acquire semantics. So stores from
+alloc_zeroed_user_highpage can sit in store buffers and not hit the
+cache coherency until...
 
-It would be quite nice to have some way to have nodes opt-in to the sort
-of behaviour they're willing to tolerate. Some nodes are never going to
-tolerate spreading of any sort, hugepages, and so forth. Perhaps it makes
-more sense to have some flags in the pgdat where we can more strongly
-type the sort of behaviour the node is willing to put up with (or capable
-of supporting), at least in this case the nodes that explicitly can't
-cope are factored out before we even get to cpuset constraints (plus this
-gives us a hook for setting up the interleave nodes in both the system
-init and default policies). Thoughts?
+>     pte_offset_map_lock()
+
+      set_pte()
+
+... here. By which time the store from the set_pte may already be
+in cache (and it is likely -- a previous fault to an adjacent pte
+will probably have brought the line in).
+
+So then along comes another CPU and fills the TLB with the now visible
+pte and returns to let userspace play with uninitilized memory (and it
+doesn't matter how much memory synchronisation ops this guy does, because
+the problem stores are sitting in the first CPU).
+
+I'm pretty sure this was actually observed in powerpc CPUs (what fun to
+debug).
+
+>     
+>     The second is
+>     
+>     pte_unmap()	(usually nothing but sometimes a barrier()
+>     alloc_zeroed_user_highpage()
+>     pte_offset_map_lock()
+>     
+>     The two sequences with the use of locking should already have sufficient
+>     barriers.
+>     
+>     By removing this write barrier, IA64 could use the default implementation
+>     of alloc_zeroed_user_highpage() instead of a custom version which appears
+>     to do nothing but avoid calling smp_wmb(). Once that is done, there is
+>     little reason to have architecture-specific alloc_zeroed_user_highpage()
+>     helpers as it would be redundant.
+
+I'd say that either ia64 didn't realise they need the wmb, or did
+realise they didn't need it :) Either way you have to talk them into
+adding an smp_wmb here, rather than us removing it, if you just want
+a single version.
+
+
+> 
+> diff --git a/include/linux/highmem.h b/include/linux/highmem.h
+> index 12c5e4e..ace5a32 100644
+> --- a/include/linux/highmem.h
+> +++ b/include/linux/highmem.h
+> @@ -68,8 +68,6 @@ static inline void clear_user_highpage(struct page *page, unsigned long vaddr)
+>  	void *addr = kmap_atomic(page, KM_USER0);
+>  	clear_user_page(addr, vaddr, page);
+>  	kunmap_atomic(addr, KM_USER0);
+> -	/* Make sure this page is cleared on other CPU's too before using it */
+> -	smp_wmb();
+>  }
+>  
+>  #ifndef __HAVE_ARCH_ALLOC_ZEROED_USER_HIGHPAGE
+> -- 
+> -- 
+> Mel Gorman
+> Part-time Phd Student                          Linux Technology Center
+> University of Limerick                         IBM Dublin Software Lab
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
