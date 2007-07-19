@@ -1,93 +1,48 @@
-Date: Thu, 19 Jul 2007 23:11:17 -0100
-Message-ID: <81509783.72454130@upside.com>
-From: "Arnold" <holm@certifiedmail.com>
-Subject: Ich habe ein Online Casino mit unglaublichen Spielen entdeckt!
-MIME-Version: 1.0
-Content-Type: text/html; charset=iso-8859-1
+Date: Thu, 19 Jul 2007 16:25:29 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH 4/7] x86_64: SPARSEMEM_VMEMMAP 2M page size support
+Message-Id: <20070719162529.66302406.akpm@linux-foundation.org>
+In-Reply-To: <E1I9LK3-00007i-2T@hellhawk.shadowen.org>
+References: <exportbomb.1184333503@pinky>
+	<E1I9LK3-00007i-2T@hellhawk.shadowen.org>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
-Return-Path: <holm@certifiedmail.com>
-To: linux-mm@kvack.org
+Sender: owner-linux-mm@kvack.org
+Return-Path: <owner-linux-mm@kvack.org>
+To: Andy Whitcroft <apw@shadowen.org>
+Cc: linux-mm@kvack.org, linux-arch@vger.kernel.org, Nick Piggin <npiggin@suse.de>, Christoph Lameter <clameter@sgi.com>, Mel Gorman <mel@csn.ul.ie>
 List-ID: <linux-mm.kvack.org>
 
-<html>
+On Fri, 13 Jul 2007 14:36:39 +0100
+Andy Whitcroft <apw@shadowen.org> wrote:
 
-<head>
-<meta http-equiv=Content-Type content="text/html; charset=iso-8859-1">
+> x86_64 uses 2M page table entries to map its 1-1 kernel space.
+> We also implement the virtual memmap using 2M page table entries.  So
+> there is no additional runtime overhead over FLATMEM, initialisation
+> is slightly more complex.  As FLATMEM still references memory to
+> obtain the mem_map pointer and SPARSEMEM_VMEMMAP uses a compile
+> time constant, SPARSEMEM_VMEMMAP should be superior.
+> 
+> With this SPARSEMEM becomes the most efficient way of handling
+> virt_to_page, pfn_to_page and friends for UP, SMP and NUMA on x86_64.
+> 
+> [apw@shadowen.org: code resplit, style fixups]
+> From: Christoph Lameter <clameter@sgi.com>
+> Signed-off-by: Christoph Lameter <clameter@sgi.com>
+> Signed-off-by: Andy Whitcroft <apw@shadowen.org>
+> Acked-by: Mel Gorman <mel@csn.ul.ie>
+> ---
+> diff --git a/Documentation/x86_64/mm.txt b/Documentation/x86_64/mm.txt
 
-<title>Schade, dass Sie das grosse Spiel verpasst haben&#8230; aber ich glaube
-noch ein besseres gefunden zu haben</title>
+Please put the From: attribution right at the top of the changelog.
 
-<style>
-<!--
- /* Style Definitions */
- p.MsoNormal, li.MsoNormal, div.MsoNormal
-	{mso-style-parent:"";
-	margin:0cm;
-	margin-bottom:.0001pt;
-	mso-pagination:widow-orphan;
-	font-size:12.0pt;
-	font-family:"Times New Roman";
-	mso-fareast-font-family:"Times New Roman";
-	mso-ansi-language:FR;
-	mso-fareast-language:EN-US;
-	mso-bidi-language:HE;}
-a:link, span.MsoHyperlink
-	{color:blue;
-	text-decoration:underline;
-	text-underline:single;}
-a:visited, span.MsoHyperlinkFollowed
-	{color:purple;
-	text-decoration:underline;
-	text-underline:single;}
-@page Section1
-	{size:595.3pt 841.9pt;
-	margin:2.0cm 42.5pt 2.0cm 3.0cm;
-	mso-header-margin:35.4pt;
-	mso-footer-margin:35.4pt;
-	mso-paper-source:0;}
-div.Section1
-	{page:Section1;}
--->
-</style>
+Please alter your scripts to include diffstat output after the ^---
 
-</head>
+Thanks.
 
-<body lang=DE link=blue vlink=purple style='tab-interval:35.4pt'>
-
-<div class=Section1>
-
-<p class=MsoNormal><span lang=FR>Schade, dass Sie das grosse Spiel verpasst
-haben&#8230; aber ich glaube noch ein besseres gefunden zu haben!
-<o:p></o:p></span></p>
-
-<p class=MsoNormal><span lang=FR><o:p>&nbsp;</o:p></span></p>
-
-<p class=MsoNormal><span lang=FR>Ich habe ein Online Casino mit unglaublichen
-Spielen entdeckt &#8211; von Tischspielen &uuml;ber Automaten bis hin zu 
-Turnieren, hier wird alles geboten. <o:p></o:p></span></p>
-
-<p class=MsoNormal><span lang=FR><o:p>&nbsp;</o:p></span></p>
-
-<p class=MsoNormal><span lang=FR>Und wenn Sie sich heute noch anmelden, 
-k&ouml;nnen Sie einen Willkommensbonus von bis zu 555&#8364; erhalten!
-<o:p></o:p></span></p>
-
-<p class=MsoNormal><span lang=FR><o:p>&nbsp;</o:p></span></p>
-
-<p class=MsoNormal><span lang=FR>Also worauf warten Sie noch? 
-<o:p></o:p></span></p>
-
-<p class=MsoNormal><span lang=FR>Schauen Sie vorbei!<o:p></o:p></span></p>
-
-<p class=MsoNormal><span lang=FR>
-<a href="http://vipnovuscasino.com/lang-de/">
-http://vipnovuscasino.com/lang-de/</a></span><span
-lang=FR style='mso-bidi-font-size:10.0pt'><o:p></o:p></span></p>
-
-<p class=MsoNormal><span lang=FR><o:p>&nbsp;</o:p></span></p>
-
-</div>
-
-</body>
-
-</html>
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
