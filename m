@@ -1,44 +1,49 @@
-Message-ID: <01c7caab$047d08f0$1159ba57@distractions>
-From: "Stewart Muniz" <distractions@mib.com>
+From: "Jonah Medeiros" <bobross838@bellsouth.net>
 Subject: Personale Nachricht fur linux-mm@kvack.org
-Date: Fri, 20 Jul 2007 08:50:26 -0100
+Date: Fri, 20 Jul 2007 09:30:30 -0100
+Message-ID: <01c7cab0$9d41f9b0$daaab854@bobross838>
 MIME-Version: 1.0
 Content-Type: multipart/alternative;
-	boundary="----=_NextPart_000_0007_01C7CABB.C805D8F0"
-Return-Path: <distractions@mib.com>
+	boundary="----=_NextPart_000_0006_01C7CAC1.60CAC9B0"
+Return-Path: <bobross838@bellsouth.net>
 To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
 This is a multi-part message in MIME format.
 
-------=_NextPart_000_0007_01C7CABB.C805D8F0
+------=_NextPart_000_0006_01C7CAC1.60CAC9B0
 Content-Type: text/plain;
-	charset="us-ascii"
-Content-Transfer-Encoding: quoted-printable
+	charset="Windows-1252"
+Content-Transfer-Encoding: 7bit
 
-Fur die Email Adresse linux-mm@kvack.org wurde eine personale Nachricht auf=
- unserem Server abgelegt.
-Um diese zu lesen loggen Sie sich bitte unter folgendem Link ein: http://si=
-ngelrussianladies.info/?idAff=3D34
+Fur die Email Adresse linux-mm@kvack.org wurde eine personale Nachricht auf unserem Server abgelegt.
+Um diese zu lesen loggen Sie sich bitte unter folgendem Link ein: http://singelrussianladies.info/?idAff=34
 
-Falls Sie bei uns noch nicht registriert sind dann konnen Sie dies kostenlo=
-s nachholen.
+Falls Sie bei uns noch nicht registriert sind dann konnen Sie dies kostenlos nachholen.
 
 
 Mit freundlichen Grussen Ihr Singel-Team
 
-------=_NextPart_000_0007_01C7CABB.C805D8F0
+------=_NextPart_000_0006_01C7CAC1.60CAC9B0
 Content-Type: text/html;
-	charset="us-ascii"
+	charset="Windows-1252"
 Content-Transfer-Encoding: quoted-printable
 
-<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
-<HTML><HEAD>
-<META http-equiv=3DContent-Type content=3D"text/html; charset=3Dus-ascii">
-<META content=3D"MSHTML 4.72.3110.3" name=3DGENERATOR>
-<STYLE></STYLE>
-</HEAD>
-<BODY>
+<html xmlns:v=3D"urn:schemas-microsoft-com:vml" xmlns:o=3D"urn:schemas-micr=
+osoft-com:office:office" xmlns:w=3D"urn:schemas-microsoft-com:office:word" =
+xmlns=3D"http://www.w3.org/TR/REC-html40">
+
+<head>
+<META HTTP-EQUIV=3D"Content-Type" CONTENT=3D"text/html; charset=3DWindows-1252">
+
+
+<meta name=3DProgId content=3DWord.Document>
+<meta name=3DGenerator content=3D"Microsoft Word 10">
+<meta name=3DOriginator content=3D"Microsoft Word 10">
+<link rel=3DFile-List href=3D"cid:filelist.xml@305C17F6.E4B80C9A">
+<link rel=3DEdit-Time-Data href=3D"cid:editdata.mso@305C17F6.E4B80C9A">
+</head>
+<body>
 <html><head>
 <meta http-equiv=3D"Content-Type" content=3D"text/html; charset=3Diso-8859-=
 1">
@@ -54,6 +59,7 @@ kostenlos nachholen.</p>
 <p><br>
   Mit freundlichen Gr&#252;&#223;en Ihr Singel-Team</p>
 </body></html>
-</BODY></HTML>
+</body>
+</html>
 
-------=_NextPart_000_0007_01C7CABB.C805D8F0--
+------=_NextPart_000_0006_01C7CAC1.60CAC9B0--
