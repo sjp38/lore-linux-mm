@@ -1,77 +1,76 @@
-Received: by mu-out-0910.google.com with SMTP id g7so1147843muf
-        for <linux-mm@kvack.org>; Fri, 20 Jul 2007 14:12:16 -0700 (PDT)
-Message-ID: <29495f1d0707201412y29329807v33cdf1854ade9928@mail.gmail.com>
-Date: Fri, 20 Jul 2007 14:12:16 -0700
-From: "Nish Aravamudan" <nish.aravamudan@gmail.com>
-Subject: Re: [PATCH 5/5] [hugetlb] Try to grow pool for MAP_SHARED mappings
-In-Reply-To: <1184964838.9651.70.camel@localhost>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Received: from d03relay04.boulder.ibm.com (d03relay04.boulder.ibm.com [9.17.195.106])
+	by e35.co.us.ibm.com (8.13.8/8.13.8) with ESMTP id l6KLDfdY002228
+	for <linux-mm@kvack.org>; Fri, 20 Jul 2007 17:13:41 -0400
+Received: from d03av01.boulder.ibm.com (d03av01.boulder.ibm.com [9.17.195.167])
+	by d03relay04.boulder.ibm.com (8.13.8/8.13.8/NCO v8.4) with ESMTP id l6KLDfj9169634
+	for <linux-mm@kvack.org>; Fri, 20 Jul 2007 15:13:41 -0600
+Received: from d03av01.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av01.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l6KLDfG8025207
+	for <linux-mm@kvack.org>; Fri, 20 Jul 2007 15:13:41 -0600
+Subject: Re: [PATCH] hugetlbfs read() support
+From: Badari Pulavarty <pbadari@us.ibm.com>
+In-Reply-To: <46A03A17.8090708@yahoo.com.au>
+References: <1184376214.15968.9.camel@dyn9047017100.beaverton.ibm.com>
+	 <20070718221950.35bbdb76.akpm@linux-foundation.org>
+	 <1184860309.18188.90.camel@dyn9047017100.beaverton.ibm.com>
+	 <20070719095850.6e09b0e8.akpm@linux-foundation.org>
+	 <46A03A17.8090708@yahoo.com.au>
+Content-Type: text/plain
+Date: Fri, 20 Jul 2007 14:15:33 -0700
+Message-Id: <1184966133.21127.0.camel@dyn9047017100.beaverton.ibm.com>
+Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
-References: <20070713151621.17750.58171.stgit@kernel>
-	 <1184360742.16671.55.camel@localhost.localdomain>
-	 <20070713143838.02c3fa95.pj@sgi.com>
-	 <29495f1d0707171642t7c1a26d7l1c36a896e1ba3b47@mail.gmail.com>
-	 <1184769889.5899.16.camel@localhost>
-	 <29495f1d0707180817n7a5709dcr78b641a02cb18057@mail.gmail.com>
-	 <1184774524.5899.49.camel@localhost>
-	 <20070719015231.GA16796@linux-sh.org>
-	 <29495f1d0707201335u5fbc9565o2a53a18e45d8b28@mail.gmail.com>
-	 <1184964838.9651.70.camel@localhost>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
-Cc: Paul Mundt <lethal@linux-sh.org>, Paul Jackson <pj@sgi.com>, Adam Litke <agl@us.ibm.com>, linux-mm@kvack.org, mel@skynet.ie, apw@shadowen.org, wli@holomorphy.com, clameter@sgi.com, kenchen@google.com
+To: Nick Piggin <nickpiggin@yahoo.com.au>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Bill Irwin <bill.irwin@oracle.com>, nacc@us.ibm.com, lkml <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On 7/20/07, Lee Schermerhorn <Lee.Schermerhorn@hp.com> wrote:
-> On Fri, 2007-07-20 at 13:35 -0700, Nish Aravamudan wrote:
-> > On 7/18/07, Paul Mundt <lethal@linux-sh.org> wrote:
-> <snip>
-> > > It would be quite nice to have some way to have nodes opt-in to the sort
-> > > of behaviour they're willing to tolerate. Some nodes are never going to
-> > > tolerate spreading of any sort, hugepages, and so forth. Perhaps it makes
-> > > more sense to have some flags in the pgdat where we can more strongly
-> > > type the sort of behaviour the node is willing to put up with (or capable
-> > > of supporting), at least in this case the nodes that explicitly can't
-> > > cope are factored out before we even get to cpuset constraints (plus this
-> > > gives us a hook for setting up the interleave nodes in both the system
-> > > init and default policies). Thoughts?
-> >
-> > I guess I don't understand which nodes you're talking about now? How
-> > do you spread across any particular single node (how I read "Some
-> > nodes are never going to tolerate spreading of any sort")? Or do you
-> > mean that some cpusets aren't going to want to spread (interleave?).
-> >
-> > Oh, are you trying to say that some nodes should be dropped from
-> > interleave masks (explicitly excluded from all possible interleave
-> > masks)? What kind of nodes would these be? We're doing something
-> > similar to deal with memoryless nodes, perhaps it could be
-> > generalized?
->
-> If that's what Paul means [and I think it is, based on a converstation
-> at OLS], I have a similar requirement.  I'd like to be able to specify,
-> on the command line, at least [run time reconfig not a hard requirement]
-> nodes to be excluded from interleave masks, including the hugetlb
-> allocation mask [if this is different from the regular interleaving
-> nodemask].
+On Fri, 2007-07-20 at 14:29 +1000, Nick Piggin wrote:
+> Andrew Morton wrote:
+> > On Thu, 19 Jul 2007 08:51:49 -0700 Badari Pulavarty <pbadari@us.ibm.com> wrote:
+> > 
+> > 
+> >>>>+		}
+> >>>>+
+> >>>>+		offset += ret;
+> >>>>+		retval += ret;
+> >>>>+		len -= ret;
+> >>>>+		index += offset >> HPAGE_SHIFT;
+> >>>>+		offset &= ~HPAGE_MASK;
+> >>>>+
+> >>>>+		page_cache_release(page);
+> >>>>+		if (ret == nr && len)
+> >>>>+			continue;
+> >>>>+		goto out;
+> >>>>+	}
+> >>>>+out:
+> >>>>+	return retval;
+> >>>>+}
+> >>>
+> >>>This code doesn't have all the ghastly tricks which we deploy to handle
+> >>>concurrent truncate.
+> >>
+> >>Do I need to ? Baaahh!!  I don't want to deal with them. 
+> > 
+> > 
+> > Nick, can you think of any serious consequences of a read/truncate race in
+> > there?  I can't..
+> 
+> As it doesn't allow writes, then I _think_ it should be OK. If you
+> ever did want to add write(2) support, then you would have transient
+> zeroes problems.
 
-Right this would avoid using that DMA node for your systems.
+I have no plans to add write() support - unless there is real reason
+for doing so.
 
-> And, I agree, I think we can add another node_states[] entry or two to
-> hold these nodes.  I'll try to work up a patch next week if noone beats
-> me to it.
+> 
+> But why not just hold i_mutex around the whole thing just to be safe?
 
-Sounds good. I think the commandline interface might be a bit hairy --
-but I'll leave that to you :)
-
-So then, I'd say, by default the interleave masks should be and'd with
-this node_states(N_INTERLEAVE), where if not otherwise specified,
-node_states(N_INTERLEAVE) == node_states[N_MEMORY]?
+Yeah. I can do that, just to be safe for future..
 
 Thanks,
-Nish
+Badari
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
