@@ -1,31 +1,56 @@
-Message-ID: <46A0E76B.5050606@s5r6.in-berlin.de>
-Date: Fri, 20 Jul 2007 18:48:43 +0200
-From: Stefan Richter <stefanr@s5r6.in-berlin.de>
+Message-ID: <46A03A17.8090708@yahoo.com.au>
+Date: Fri, 20 Jul 2007 14:29:11 +1000
+From: Nick Piggin <nickpiggin@yahoo.com.au>
 MIME-Version: 1.0
-Subject: Re: [RFC 1/4] CONFIG_STABLE: Define it
-References: <20070531002047.702473071@sgi.com>	 <20070531003012.302019683@sgi.com>	 <a781481a0707200341o21381742rdb15e6a9dc770d27@mail.gmail.com>	 <46A097FE.3000701@redhat.com>	 <a781481a0707200427y7a29257fpfa5978c391eb3534@mail.gmail.com>	 <46A09DB2.5040408@redhat.com> <a781481a0707200440v48dcf70fv621aec863562880c@mail.gmail.com> <46A0A186.4030908@redhat.com>
-In-Reply-To: <46A0A186.4030908@redhat.com>
-Content-Type: text/plain; charset=ISO-8859-1
+Subject: Re: [PATCH] hugetlbfs read() support
+References: <1184376214.15968.9.camel@dyn9047017100.beaverton.ibm.com>	<20070718221950.35bbdb76.akpm@linux-foundation.org>	<1184860309.18188.90.camel@dyn9047017100.beaverton.ibm.com> <20070719095850.6e09b0e8.akpm@linux-foundation.org>
+In-Reply-To: <20070719095850.6e09b0e8.akpm@linux-foundation.org>
+Content-Type: text/plain; charset=us-ascii; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Chris Snook <csnook@redhat.com>
-Cc: Satyam Sharma <satyam.sharma@gmail.com>, "clameter@sgi.com" <clameter@sgi.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, akpm@linux-foundation.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Badari Pulavarty <pbadari@us.ibm.com>, Bill Irwin <bill.irwin@oracle.com>, nacc@us.ibm.com, lkml <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-Chris Snook wrote:
-> There are many different ways you can use it.  If I'm writing a configurable 
-> feature, I could make it depend on !CONFIG_STABLE, or I could ifdef my code out 
-> if CONFIG_STABLE is set, unless a more granular option is also set.  The 
-> maintainer of the code that uses the config option has a lot of flexibility,
+Andrew Morton wrote:
+> On Thu, 19 Jul 2007 08:51:49 -0700 Badari Pulavarty <pbadari@us.ibm.com> wrote:
+> 
+> 
+>>>>+		}
+>>>>+
+>>>>+		offset += ret;
+>>>>+		retval += ret;
+>>>>+		len -= ret;
+>>>>+		index += offset >> HPAGE_SHIFT;
+>>>>+		offset &= ~HPAGE_MASK;
+>>>>+
+>>>>+		page_cache_release(page);
+>>>>+		if (ret == nr && len)
+>>>>+			continue;
+>>>>+		goto out;
+>>>>+	}
+>>>>+out:
+>>>>+	return retval;
+>>>>+}
+>>>
+>>>This code doesn't have all the ghastly tricks which we deploy to handle
+>>>concurrent truncate.
+>>
+>>Do I need to ? Baaahh!!  I don't want to deal with them. 
+> 
+> 
+> Nick, can you think of any serious consequences of a read/truncate race in
+> there?  I can't..
 
-In other words, nobody will ever know what this config option really does.
+As it doesn't allow writes, then I _think_ it should be OK. If you
+ever did want to add write(2) support, then you would have transient
+zeroes problems.
 
-> at least until we start enforcing standards.
+But why not just hold i_mutex around the whole thing just to be safe?
+
 -- 
-Stefan Richter
--=====-=-=== -=== =-=--
-http://arcgraph.de/sr/
+SUSE Labs, Novell Inc.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
