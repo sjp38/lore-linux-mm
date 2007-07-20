@@ -1,50 +1,34 @@
-Date: Fri, 20 Jul 2007 10:51:23 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [BUGFIX]{PATCH] flush icache on ia64 take2
-Message-Id: <20070720105123.e9bd9577.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <469F80E3.3040007@bull.net>
-References: <20070706112901.16bb5f8a.kamezawa.hiroyu@jp.fujitsu.com>
-	<20070719155632.7dbfb110.kamezawa.hiroyu@jp.fujitsu.com>
-	<469F5372.7010703@bull.net>
-	<20070719220118.73f40346.kamezawa.hiroyu@jp.fujitsu.com>
-	<469F71E7.4050200@bull.net>
-	<20070719235157.9715baff.kamezawa.hiroyu@jp.fujitsu.com>
-	<469F80E3.3040007@bull.net>
+Subject: Re: lguest, Re: -mm merge plans for 2.6.23
+From: Rusty Russell <rusty@rustcorp.com.au>
+In-Reply-To: <20070719172746.GA17710@lst.de>
+References: <20070710013152.ef2cd200.akpm@linux-foundation.org>
+	 <20070711122324.GA21714@lst.de>
+	 <1184203311.6005.664.camel@localhost.localdomain>
+	 <20070711.192829.08323972.davem@davemloft.net>
+	 <1184208521.6005.695.camel@localhost.localdomain>
+	 <20070711212435.abd33524.akpm@linux-foundation.org>
+	 <1184215943.6005.745.camel@localhost.localdomain>
+	 <20070719172746.GA17710@lst.de>
+Content-Type: text/plain
+Date: Fri, 20 Jul 2007 13:27:26 +1000
+Message-Id: <1184902046.10380.257.camel@localhost.localdomain>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Zoltan Menyhart <Zoltan.Menyhart@bull.net>
-Cc: linux-ia64@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, tony.luck@intel.com, nickpiggin@yahoo.com.au, mike@stroyan.net, dmosberger@gmail.com, y-goto@jp.fujitsu.com
+To: Christoph Hellwig <hch@lst.de>
+Cc: Andrew Morton <akpm@linux-foundation.org>, David Miller <davem@davemloft.net>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 19 Jul 2007 17:18:59 +0200
-Zoltan Menyhart <Zoltan.Menyhart@bull.net> wrote:
+On Thu, 2007-07-19 at 19:27 +0200, Christoph Hellwig wrote:
+> The version that just got into mainline still has the __put_task_struct
+> export despite not needing it anymore.  Care to fix this up?
 
-> KAMEZAWA Hiroyuki wrote:
-> 
-> > Hmm...but the current code flushes the page. just do it in "lazy" way.
-> > much difference ?
-> 
-> I agree the current code flushes the I-cache for all kinds of file
-> systems (for PTEs with the exec bit on).
-> 
-> The error is that it does it after the PTE is written.
-> 
-> In addition, I wanted to optimize it to gain a few %.
-I'm glad, too if we can do it. But it seems that we need a bit
-clever way to do that.
+No, it got patched in then immediately patched out again.  Andrew
+mis-mixed my patches, but there have been so many of them I find it hard
+to blame him.
 
-> Apparently this idea is not much welcome.
-> 
-> I can agree that flushing the I-cache (if the architecture requires it)
-> before setting the PTE eliminates the error.
-> 
-Hm, I'll refresh and repost the patch. 
-
-Thanks,
--Kame
+Rusty.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
