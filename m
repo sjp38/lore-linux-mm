@@ -1,5 +1,5 @@
-Message-ID: <46A03C70.1080603@yahoo.com.au>
-Date: Fri, 20 Jul 2007 14:39:12 +1000
+Message-ID: <46A05270.5040205@yahoo.com.au>
+Date: Fri, 20 Jul 2007 16:13:04 +1000
 From: Nick Piggin <nickpiggin@yahoo.com.au>
 MIME-Version: 1.0
 Subject: Re: [PATCH] hugetlbfs read() support
@@ -12,6 +12,8 @@ Return-Path: <owner-linux-mm@kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: Badari Pulavarty <pbadari@us.ibm.com>, Bill Irwin <bill.irwin@oracle.com>, nacc@us.ibm.com, lkml <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
+
+(sorry if this is a resend... something bad seems to have happened to me)
 
 Andrew Morton wrote:
 > On Thu, 19 Jul 2007 08:51:49 -0700 Badari Pulavarty <pbadari@us.ibm.com> wrote:
