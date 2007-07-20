@@ -1,52 +1,63 @@
-Received: from zps36.corp.google.com (zps36.corp.google.com [172.25.146.36])
-	by smtp-out.google.com with ESMTP id l6KKe719006659
-	for <linux-mm@kvack.org>; Fri, 20 Jul 2007 13:40:07 -0700
-Received: from an-out-0708.google.com (andd26.prod.google.com [10.100.30.26])
-	by zps36.corp.google.com with ESMTP id l6KKdSlP015406
-	for <linux-mm@kvack.org>; Fri, 20 Jul 2007 13:39:58 -0700
-Received: by an-out-0708.google.com with SMTP id d26so202655and
-        for <linux-mm@kvack.org>; Fri, 20 Jul 2007 13:39:58 -0700 (PDT)
-Message-ID: <6599ad830707201339u413d860co739dc301fb6c9405@mail.gmail.com>
-Date: Fri, 20 Jul 2007 13:39:58 -0700
-From: "Paul Menage" <menage@google.com>
-Subject: Re: [RFC][-mm PATCH 3/8] Memory controller accounting setup (v3)
-In-Reply-To: <6599ad830707201333s527f20eeuc39424c7b79626@mail.gmail.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Subject: Re: [PATCH 5/5] [hugetlb] Try to grow pool for MAP_SHARED mappings
+From: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
+In-Reply-To: <29495f1d0707201335u5fbc9565o2a53a18e45d8b28@mail.gmail.com>
+References: <20070713151621.17750.58171.stgit@kernel>
+	 <20070713151717.17750.44865.stgit@kernel>
+	 <20070713130508.6f5b9bbb.pj@sgi.com>
+	 <1184360742.16671.55.camel@localhost.localdomain>
+	 <20070713143838.02c3fa95.pj@sgi.com>
+	 <29495f1d0707171642t7c1a26d7l1c36a896e1ba3b47@mail.gmail.com>
+	 <1184769889.5899.16.camel@localhost>
+	 <29495f1d0707180817n7a5709dcr78b641a02cb18057@mail.gmail.com>
+	 <1184774524.5899.49.camel@localhost> <20070719015231.GA16796@linux-sh.org>
+	 <29495f1d0707201335u5fbc9565o2a53a18e45d8b28@mail.gmail.com>
+Content-Type: text/plain
+Date: Fri, 20 Jul 2007 16:53:58 -0400
+Message-Id: <1184964838.9651.70.camel@localhost>
+Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
-References: <20070720082352.20752.37209.sendpatchset@balbir-laptop>
-	 <20070720082429.20752.63919.sendpatchset@balbir-laptop>
-	 <6599ad830707201333s527f20eeuc39424c7b79626@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Balbir Singh <balbir@linux.vnet.ibm.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Linux Containers <containers@lists.osdl.org>, YAMAMOTO Takashi <yamamoto@valinux.co.jp>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Dave Hansen <haveblue@us.ibm.com>, Linux MM Mailing List <linux-mm@kvack.org>, Vaidyanathan Srinivasan <svaidy@linux.vnet.ibm.com>, Pavel Emelianov <xemul@openvz.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Eric W Biederman <ebiederm@xmission.com>
+To: Nish Aravamudan <nish.aravamudan@gmail.com>
+Cc: Paul Mundt <lethal@linux-sh.org>, Paul Jackson <pj@sgi.com>, Adam Litke <agl@us.ibm.com>, linux-mm@kvack.org, mel@skynet.ie, apw@shadowen.org, wli@holomorphy.com, clameter@sgi.com, kenchen@google.com
 List-ID: <linux-mm.kvack.org>
 
-On 7/20/07, Paul Menage <menage@google.com> wrote:
-> On 7/20/07, Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
-> > +       mem = mem_container_from_cont(task_container(p,
-> > +                                       mem_container_subsys_id));
-> > +       css_get(&mem->css);
->
-> The container framework won't try to free a subsystem's root container
-> state, so this isn't needed.
+On Fri, 2007-07-20 at 13:35 -0700, Nish Aravamudan wrote:
+> On 7/18/07, Paul Mundt <lethal@linux-sh.org> wrote:
+<snip>
+> > It would be quite nice to have some way to have nodes opt-in to the sort
+> > of behaviour they're willing to tolerate. Some nodes are never going to
+> > tolerate spreading of any sort, hugepages, and so forth. Perhaps it makes
+> > more sense to have some flags in the pgdat where we can more strongly
+> > type the sort of behaviour the node is willing to put up with (or capable
+> > of supporting), at least in this case the nodes that explicitly can't
+> > cope are factored out before we even get to cpuset constraints (plus this
+> > gives us a hook for setting up the interleave nodes in both the system
+> > init and default policies). Thoughts?
+> 
+> I guess I don't understand which nodes you're talking about now? How
+> do you spread across any particular single node (how I read "Some
+> nodes are never going to tolerate spreading of any sort")? Or do you
+> mean that some cpusets aren't going to want to spread (interleave?).
+> 
+> Oh, are you trying to say that some nodes should be dropped from
+> interleave masks (explicitly excluded from all possible interleave
+> masks)? What kind of nodes would these be? We're doing something
+> similar to deal with memoryless nodes, perhaps it could be
+> generalized?
 
-Sorry, this was a reply to the wrong patch hunk.
+If that's what Paul means [and I think it is, based on a converstation
+at OLS], I have a similar requirement.  I'd like to be able to specify,
+on the command line, at least [run time reconfig not a hard requirement]
+nodes to be excluded from interleave masks, including the hugetlb
+allocation mask [if this is different from the regular interleaving
+nodemask].  
 
-The css_get() in mem_container_create() is the unnecessary one.
+And, I agree, I think we can add another node_states[] entry or two to
+hold these nodes.  I'll try to work up a patch next week if noone beats
+me to it.
 
-Also, rather than doing something like:
-
-mem_container_from_cont(task_container(p, mem_container_subsys_id))
-
-you'd be better off defining a similar wrapper to
-mem_container_from_cont() called mem_container_from_task() that uses
-task_subsys_state() rather than container_subsys_state() - you'll save
-a few indirections.
-
-Paul
+Lee
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
