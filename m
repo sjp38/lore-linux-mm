@@ -1,22 +1,27 @@
-Message-ID: <46A0E49A.3040302@s5r6.in-berlin.de>
-Date: Fri, 20 Jul 2007 18:36:42 +0200
+Message-ID: <46A0E76B.5050606@s5r6.in-berlin.de>
+Date: Fri, 20 Jul 2007 18:48:43 +0200
 From: Stefan Richter <stefanr@s5r6.in-berlin.de>
 MIME-Version: 1.0
 Subject: Re: [RFC 1/4] CONFIG_STABLE: Define it
-References: <20070531002047.702473071@sgi.com>	 <20070531003012.302019683@sgi.com> <a781481a0707200341o21381742rdb15e6a9dc770d27@mail.gmail.com> <46A0E2A9.6000308@s5r6.in-berlin.de>
-In-Reply-To: <46A0E2A9.6000308@s5r6.in-berlin.de>
+References: <20070531002047.702473071@sgi.com>	 <20070531003012.302019683@sgi.com>	 <a781481a0707200341o21381742rdb15e6a9dc770d27@mail.gmail.com>	 <46A097FE.3000701@redhat.com>	 <a781481a0707200427y7a29257fpfa5978c391eb3534@mail.gmail.com>	 <46A09DB2.5040408@redhat.com> <a781481a0707200440v48dcf70fv621aec863562880c@mail.gmail.com> <46A0A186.4030908@redhat.com>
+In-Reply-To: <46A0A186.4030908@redhat.com>
 Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-kernel@vger.kernel.org
-Cc: Satyam Sharma <satyam.sharma@gmail.com>, "clameter@sgi.com" <clameter@sgi.com>, linux-mm@kvack.org, akpm@linux-foundation.org, Chris Snook <csnook@redhat.com>
+To: Chris Snook <csnook@redhat.com>
+Cc: Satyam Sharma <satyam.sharma@gmail.com>, "clameter@sgi.com" <clameter@sgi.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, akpm@linux-foundation.org
 List-ID: <linux-mm.kvack.org>
 
->>> +config STABLE
->>> +       bool "Stable kernel"
+Chris Snook wrote:
+> There are many different ways you can use it.  If I'm writing a configurable 
+> feature, I could make it depend on !CONFIG_STABLE, or I could ifdef my code out 
+> if CONFIG_STABLE is set, unless a more granular option is also set.  The 
+> maintainer of the code that uses the config option has a lot of flexibility,
 
-PS:  Imagine the headlines at Slashdot, CNET et al when this gets in.
+In other words, nobody will ever know what this config option really does.
+
+> at least until we start enforcing standards.
 -- 
 Stefan Richter
 -=====-=-=== -=== =-=--
