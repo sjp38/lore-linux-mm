@@ -1,136 +1,77 @@
-Date: Fri, 20 Jul 2007 14:08:49 +0100
-Subject: Re: [PATCH] Remove unnecessary smp_wmb from clear_user_highpage()
-Message-ID: <20070720130848.GA15214@skynet.ie>
-References: <20070718150514.GA21823@skynet.ie> <Pine.LNX.4.64.0707181645590.26413@blonde.wat.veritas.com> <20070719021743.GC23641@wotan.suse.de>
+Message-ID: <01c7cad8$7a71bf10$292c7b4d@fhpoy>
+From: "Bryant Connors" <fhpoy@pfizer.com>
+Subject: Man Lebt nur einmal - probiers aus !provided, this letter sets  -- In a way that lets you put 
+Date: Fri, 20 Jul 2007 14:15:51 -0200
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <20070719021743.GC23641@wotan.suse.de>
-From: mel@skynet.ie (Mel Gorman)
-Sender: owner-linux-mm@kvack.org
-Return-Path: <owner-linux-mm@kvack.org>
-To: Nick Piggin <npiggin@suse.de>
-Cc: Hugh Dickins <hugh@veritas.com>, Linus Torvalds <torvalds@linux-foundation.org>, linux-mm@kvack.org
+Content-Type: multipart/alternative;
+	boundary="----=_NextPart_000_0007_01C7CAF1.9FBEF710"
+Return-Path: <fhpoy@pfizer.com>
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On (19/07/07 04:17), Nick Piggin didst pronounce:
-> On Wed, Jul 18, 2007 at 05:45:22PM +0100, Hugh Dickins wrote:
-> > On Wed, 18 Jul 2007, Mel Gorman wrote:
-> > > 
-> > > At the nudging of Andrew, I was checking to see if the architecture-specific
-> > > implementations of alloc_zeroed_user_highpage() can be removed or not.
-> > 
-> > Ah, so that was part of the deal for getting MOVABLE in, eh ;-?
-> > 
-> > > With the exception of barriers, the differences are negligible and the main
-> > > memory barrier is in clear_user_highpage(). However, it's unclear why it's
-> > > needed. Do you mind looking at the following patch and telling me if it's
-> > > wrong and if so, why?
-> > > 
-> > > Thanks a lot.
-> > 
-> > I laugh when someone approaches me with a question on barriers ;)
-> > I usually get confused and have to go ask someone else.
-> > 
-> > And I should really to leave this query to Nick: he'll be glad of the
-> > opportunity to post his PageUptodate memorder patches again (looking
-> > in my mailbox I see versions from February, but I'm pretty sure he put
-> > out a more compact, less scary one later on).  He contends that the
-> > barrier in clear_user_highpage should not be there, but instead
-> > barriers (usually) needed when setting and testing PageUptodate.
-> > 
-> > Andrew and I weren't entirely convinced: I don't think we found
-> > him wrong, just didn't find time to think about it deeply enough,
-> > suspicious of a fix in search of a problem, scared by the extent
-> > of the first patch, put off by the usual host of __..._nolock
-> > variants and micro-optimizations.  It is worth another look.
-> 
-> Well, at least I probably won't have to debug the remaining problem --
-> the IBM guys will :)
-> 
+This is a multi-part message in MIME format.
 
-I weep for joy. I'll go looking for a test case for this. It sounds like
-something that we'll need anyway if this area is to be kicked at all.
+------=_NextPart_000_0007_01C7CAF1.9FBEF710
+Content-Type: text/plain;
+	charset="us-ascii"
+Content-Transfer-Encoding: quoted-printable
 
-> > But setting aside PageUptodate futures...  "git blame" is handy,
-> > and took me to the patch from Linus appended.  I think there's
-> > as much need for that smp_wmb() now as there was then.  (But
-> > am I really _thinking_?  No, just pointing you in directions.)
-> > 
-> > > ===
-> > > 
-> > >     This patch removes an unnecessary write barrier from clear_user_highpage().
-> > >     
-> > >     clear_user_highpage() is called from alloc_zeroed_user_highpage() on a
-> > >     number of architectures and from clear_huge_page(). However, these callers
-> > >     are already protected by the necessary memory barriers due to spinlocks
-> > 
-> > Be careful: as Linus indicates, spinlocks on x86 act as good barriers,
-> > but on some architectures they guarantee no more than is strictly
-> > necessary.  alpha, powerpc and ia64 spring to my mind as particularly
-> > difficult ordering-wise, but I bet there are others too.
-> 
-> The problem cases here are those which don't provide an smp_mb() over
-> locks (eg. ones which only give acquire semantics). I think these only
-> are ia64 and powerpc.
+Haben Sie endlich wieder Spass am Leben!
 
-If IA64 has these sort of semantics, then it's current behaviour is
-buggy unless their call to flush_dcache_page() has a similar effect to
-having a write barrier elsewhere. I'll ask them.
+Preise die keine Konkurrenz kennen 
 
-> Of those, I think only powerpc implementations have
-> a really deep out of order memory system (at least on the store side)...
-> which is probably why they see and have to fix most of our barrier
-> problems :)
-> 
+- Kein langes Warten - Auslieferung innerhalb von 2-3 Tagen
+- Kein peinlicher Arztbesuch erforderlich
+- Bequem und diskret online bestellen.
+- Visa verifizierter Onlineshop
+- Diskrete Verpackung und Zahlung
+- Kostenlose, arztliche Telefon-Beratung
+- keine versteckte Kosten
 
-Yeah, this could be more of the same.
+Ciaaaaaalis 10 Pack. 27,00 Euro
+Viaaaagra 10 Pack. 21,00 Euro
 
-> 
-> > >     in the fault path and the page should not be visible on other CPUs anyway
-> > 
-> > The page may not be intentionally visible on another CPU yet.  But imagine
-> > interesting stale data in the page being cleared, and another thread
-> > peeking racily at unfaulted areas, hoping to catch sight of that data.
-> > 
-> > >     making the barrier unnecessary. A hint of lack of necessity is that there
-> > >     does not appear to be a read barrier anywhere for this zeroed page.
-> > 
-> > Yes, I think Nick was similarly suspicious of a wmb without an rmb; but
-> > Linus is _very_ barrier-savvy, so we might want to ask him about it (CC'ed).
-> 
-> I was not so suspicious in the page fault case: there is a causal
-> ordering between loading the valid pte and dereferencing it to load
-> the page data. Potentially I think alpha is the only thing that
-> could have problems here, but a) if any implementations did hardware
-> TLB fills, they would have to do the rmb in microcode; and b) the
-> software path appears to use the regular fault handler, so it would
-> be subject to synchronisatoin via ptl. But maybe they are unsafe...
-> 
+Nur fur kurze Zeit - vier Pillen umsonst erhalten
+http://bebeb.beennatural.cn/?800686437970
 
-One way to find out. Minimally, I think the cleanup here if it exists at
-all is to replace the arch-specific alloc_zeroed helpers with barrier and
-no-barrier versions and have architectures specify when they do not require
-barrier to exist so the default behaviour is the safer choice. At least the
-issue will be a bit clearer then to the next guy. IA64 will still be the
-different but maybe it can be brought in line with other arches behaviour.
+(bitte warten Sie einen Moment bis die Seite vollstandig geladen wird)
+------=_NextPart_000_0007_01C7CAF1.9FBEF710
+Content-Type: text/html;
+	charset="us-ascii"
+Content-Transfer-Encoding: quoted-printable
 
-> What I am worried about is exactly the same race at the read(2)/write(2)
-> level where there is _no_ spinlock synchronisation, and no wmb, let
-> alone a rmb :)
-> 
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
+<HTML><HEAD>
+<META http-equiv=3DContent-Type content=3D"text/html; charset=3Dus-ascii">
+<META content=3D"MSHTML 6.00.2900.2180" name=3DGENERATOR>
+<STYLE></STYLE>
+</HEAD>
+<BODY>
+<head><meta http-equiv=3D"Content-Type" content=3D"text/html; charset=3Diso=
+-8859-1">
+</head><body><p>Meinung von unserem Kunden:<br><strong>Viaaaagra wirkt Wund=
+er! Sie ahnen nicht, wie gl&#252;cklich ich bin. Viaaaagra hat mein Leben v=
+er&#228;ndert. Endlich keine Angst mehr wegen der E_r_rektion. Und auch das=
+ Problem mit dem vorzeitigen Samenerguss ist weg.</strong></p><p><strong>Ic=
+h bin weit &#252;ber 60, nehme Ciaaaaaalis 20 mg. und das Wochenende ist ge=
+rettet. Ich kann pro Nacht 4-5 mal, und am Morgen wieder, f&#252;r den n&#2=
+28;chsten Abend reicht eine Halbe. Meine Freundin ist begeistert. F&#252;r =
+meine Frau nehme ich eine halbe Tablette, das reicht f&#252;r einen netten =
+Abend.<br>
+</strong><strong><br>Haben Sie endlich wieder Spass am Leben!</strong></p><=
+p>Preise die keine Konkurrenz kennen <p>
+- Diskrete Verpackung und Zahlung<br>- Kostenlose, arztliche Telefon-Beratu=
+ng<br>- Kein langes Warten - Auslieferung innerhalb von 2-3 Tagen<br>- Kein=
+ peinlicher Arztbesuch erforderlich<br>- Bequem und diskret online bestelle=
+n.<br>- Visa verifizierter Onlineshop<br>- keine versteckte Kosten</p>  
+<p><strong>Ciaaaaaalis 10 Pack. 27,00 Euro</strong><br>
+  <strong>Viaaaagra 10 Pack. 21,00 Euro</strong><br>
+   <br>
+  <strong><a href=3D"http://bebeb.beennatural.cn/?800686437970" target=3D"_=
+blank">Nur fur kurze Zeit - vier Pillen umsonst erhalten</a><br>
+  </strong>(bitte warten Sie einen Moment bis die Seite vollst&auml;ndig ge=
+laden wird)
+</body>
+</BODY></HTML>
 
-Where is the race in read/write that is affected by the behaviour of
-clear_user_highpage()? Is it where a sparse file is mmap()ed and being read
-at the same time or what?
-
--- 
-Mel Gorman
-Part-time Phd Student                          Linux Technology Center
-University of Limerick                         IBM Dublin Software Lab
-
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+------=_NextPart_000_0007_01C7CAF1.9FBEF710--
