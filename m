@@ -1,65 +1,55 @@
-From: "Jonah Medeiros" <bobross838@bellsouth.net>
-Subject: Personale Nachricht fur linux-mm@kvack.org
-Date: Fri, 20 Jul 2007 09:30:30 -0100
-Message-ID: <01c7cab0$9d41f9b0$daaab854@bobross838>
+Received: by wr-out-0506.google.com with SMTP id 67so629957wri
+        for <linux-mm@kvack.org>; Fri, 20 Jul 2007 03:41:39 -0700 (PDT)
+Message-ID: <a781481a0707200341o21381742rdb15e6a9dc770d27@mail.gmail.com>
+Date: Fri, 20 Jul 2007 16:11:38 +0530
+From: "Satyam Sharma" <satyam.sharma@gmail.com>
+Subject: Re: [RFC 1/4] CONFIG_STABLE: Define it
+In-Reply-To: <20070531003012.302019683@sgi.com>
 MIME-Version: 1.0
-Content-Type: multipart/alternative;
-	boundary="----=_NextPart_000_0006_01C7CAC1.60CAC9B0"
-Return-Path: <bobross838@bellsouth.net>
-To: linux-mm@kvack.org
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+References: <20070531002047.702473071@sgi.com>
+	 <20070531003012.302019683@sgi.com>
+Sender: owner-linux-mm@kvack.org
+Return-Path: <owner-linux-mm@kvack.org>
+To: "clameter@sgi.com" <clameter@sgi.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, akpm@linux-foundation.org
 List-ID: <linux-mm.kvack.org>
 
-This is a multi-part message in MIME format.
-
-------=_NextPart_000_0006_01C7CAC1.60CAC9B0
-Content-Type: text/plain;
-	charset="Windows-1252"
-Content-Transfer-Encoding: 7bit
-
-Fur die Email Adresse linux-mm@kvack.org wurde eine personale Nachricht auf unserem Server abgelegt.
-Um diese zu lesen loggen Sie sich bitte unter folgendem Link ein: http://singelrussianladies.info/?idAff=34
-
-Falls Sie bei uns noch nicht registriert sind dann konnen Sie dies kostenlos nachholen.
+[ Just cleaning up my inbox, and stumbled across this thread ... ]
 
 
-Mit freundlichen Grussen Ihr Singel-Team
+On 5/31/07, clameter@sgi.com <clameter@sgi.com> wrote:
+> Introduce CONFIG_STABLE to control checks only useful for development.
+>
+> Signed-off-by: Christoph Lameter <clameter@sgi.com>
+> [...]
+>  menu "General setup"
+>
+> +config STABLE
+> +       bool "Stable kernel"
+> +       help
+> +         If the kernel is configured to be a stable kernel then various
+> +         checks that are only of interest to kernel development will be
+> +         omitted.
+> +
 
-------=_NextPart_000_0006_01C7CAC1.60CAC9B0
-Content-Type: text/html;
-	charset="Windows-1252"
-Content-Transfer-Encoding: quoted-printable
 
-<html xmlns:v=3D"urn:schemas-microsoft-com:vml" xmlns:o=3D"urn:schemas-micr=
-osoft-com:office:office" xmlns:w=3D"urn:schemas-microsoft-com:office:word" =
-xmlns=3D"http://www.w3.org/TR/REC-html40">
-
-<head>
-<META HTTP-EQUIV=3D"Content-Type" CONTENT=3D"text/html; charset=3DWindows-1252">
+"A programmer who uses assertions during testing and turns them off
+during production is like a sailor who wears a life vest while drilling
+on shore and takes it off at sea."
+                                                - Tony Hoare
 
 
-<meta name=3DProgId content=3DWord.Document>
-<meta name=3DGenerator content=3D"Microsoft Word 10">
-<meta name=3DOriginator content=3D"Microsoft Word 10">
-<link rel=3DFile-List href=3D"cid:filelist.xml@305C17F6.E4B80C9A">
-<link rel=3DEdit-Time-Data href=3D"cid:editdata.mso@305C17F6.E4B80C9A">
-</head>
-<body>
-<html><head>
-<meta http-equiv=3D"Content-Type" content=3D"text/html; charset=3Diso-8859-=
-1">
-</head>
-<body>
-<p>F&uuml;r die Email Adresse <strong>linux-mm@kvack.org</strong> wurde ein=
-e personale Nachricht auf unserem Server abgelegt.<br>
-Um diese zu lesen loggen Sie sich bitte unter folgendem Link ein: <a href=
-=3D"http://singelrussianladies.info/?idAff=3D34" target=3D"_blank">http://s=
-ingelrussianladies.info/?idAff=3D34</a></p>
-<p>Falls Sie bei uns noch nicht registriert sind dann k&#246;nnen Sie dies =
-kostenlos nachholen.</p>
-<p><br>
-  Mit freundlichen Gr&#252;&#223;en Ihr Singel-Team</p>
-</body></html>
-</body>
-</html>
+Probably you meant to turn off debug _output_ (and not _checks_)
+with this config option? But we already have CONFIG_FOO_DEBUG_BAR
+for those situations ...
 
-------=_NextPart_000_0006_01C7CAC1.60CAC9B0--
+Satyam
+
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
