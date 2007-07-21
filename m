@@ -1,188 +1,121 @@
-Date: Sat, 21 Jul 2007 16:03:36 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: [RFC][PATCH] zone config patch set [2/2] CONFIG_ZONE_MOVABLE
-Message-Id: <20070721160336.28ec3ad8.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20070721160049.75bc8d9f.kamezawa.hiroyu@jp.fujitsu.com>
-References: <20070721160049.75bc8d9f.kamezawa.hiroyu@jp.fujitsu.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Date: Sun, 22 Jul 2007 01:57:55 +0900
+From: Paul Mundt <lethal@linux-sh.org>
+Subject: Re: [PATCH 5/5] [hugetlb] Try to grow pool for MAP_SHARED mappings
+Message-ID: <20070721165755.GB4043@linux-sh.org>
+References: <20070713151717.17750.44865.stgit@kernel> <20070713130508.6f5b9bbb.pj@sgi.com> <1184360742.16671.55.camel@localhost.localdomain> <20070713143838.02c3fa95.pj@sgi.com> <29495f1d0707171642t7c1a26d7l1c36a896e1ba3b47@mail.gmail.com> <1184769889.5899.16.camel@localhost> <29495f1d0707180817n7a5709dcr78b641a02cb18057@mail.gmail.com> <1184774524.5899.49.camel@localhost> <20070719015231.GA16796@linux-sh.org> <29495f1d0707201335u5fbc9565o2a53a18e45d8b28@mail.gmail.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <29495f1d0707201335u5fbc9565o2a53a18e45d8b28@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "mel@csn.ul.ie" <mel@csn.ul.ie>, "apw@shadowen.org" <apw@shadowen.org>, Andrew Morton <akpm@linux-foundation.org>, nickpiggin@yahoo.com.au, Christoph Lameter <clameter@sgi.com>
+To: Nish Aravamudan <nish.aravamudan@gmail.com>
+Cc: Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Paul Jackson <pj@sgi.com>, Adam Litke <agl@us.ibm.com>, linux-mm@kvack.org, mel@skynet.ie, apw@shadowen.org, wli@holomorphy.com, clameter@sgi.com, kenchen@google.com
 List-ID: <linux-mm.kvack.org>
 
-Makes ZONE_MOVABLE as configurable
+On Fri, Jul 20, 2007 at 01:35:52PM -0700, Nish Aravamudan wrote:
+> On 7/18/07, Paul Mundt <lethal@linux-sh.org> wrote:
+> >On Wed, Jul 18, 2007 at 12:02:03PM -0400, Lee Schermerhorn wrote:
+> >> On Wed, 2007-07-18 at 08:17 -0700, Nish Aravamudan wrote:
+> >> > On 7/18/07, Lee Schermerhorn <Lee.Schermerhorn@hp.com> wrote:
+> >> > > I have always considered the huge page pool, as populated by
+> >> > > alloc_fresh_huge_page() in response to changes in nr_hugepages, to 
+> >be a
+> >> > > system global resource.  I think the system "does the right
+> >> > > thing"--well, almost--with Christoph's memoryless patches and your
+> >> > > hugetlb patches.  Certaintly, the huge pages allocated at boot time,
+> >> > > based on the command line parameter, are system-wide.  cpusets have 
+> >not
+> >> > > been set up at that time.
+> >> >
+> >> > I fully agree that hugepages are a global resource.
+> >> >
+> >> > > It requires privilege to write to the nr_hugepages sysctl, so 
+> >allowing
+> >> > > it to spread pages across all available nodes [with memory], 
+> >regardless
+> >> > > of cpusets, makes sense to me.  Altho' I don't expect many folks are
+> >> > > currently changing nr_hugepages from within a constrained cpuset, I
+> >> > > wouldn't want to see us change existing behavior, in this respect.  
+> >Your
+> >> > > per node attributes will provide the mechanism to allocate different
+> >> > > numbers of hugepages for, e.g., nodes in cpusets that have 
+> >applications
+> >> > > that need them.
+> >> >
+> >> > The issue is that with Adam's patches, the hugepage pool will grow on
+> >> > demand, presuming the process owner's mlock limit is sufficiently
+> >> > high. If said process were running within a constrained cpuset, it
+> >> > seems slightly out-of-whack to allow it grow the pool on other nodes
+> >> > to satisfy the demand.
+> >>
+> >> Ah, I see.  In that case, it might make sense to grow just for the
+> >> cpuset.  A couple of things come to mind tho':
+> >>
+> >> 1) we might want a per cpuset control to enable/disable hugetlb pool
+> >> growth on demand, or to limit the max size of the pool--especially if
+> >> the memories are not exclusively owned by the cpuset.  Otherwise,
+> >> non-privileged processes could grow the hugetlb pool in memories shared
+> >> with other cpusets [maybe the root cpuset?], thereby reducing the amount
+> >> of normal, managed pages available to the other cpusets.  Probably want
+> >> such a control in the absense of cpusets as well, if on-demand hugetlb
+> >> pool growth is implemented.
+> >>
+> >I don't see that the two are mutually exclusive. Hugetlb pools have to be
+> >node-local anyways due to the varying distances, so perhaps the global
+> >resource thing is the wrong way to approach it. There are already hooks
+> >for spreading slab and page cache pages in cpusets, perhaps it makes
+> >sense to add a hugepage spread variant to balance across the constrained
+> >set?
+> 
+> I'm not sure I understand why you say "hugetlb pools"? There is no
+> plural in the kernel, there is only the global pool. Now, on NUMA
+> machines, yes, the pool is spread across nodes, but, well, that's just
+> because of where the memory is. We already spread out the allocation
+> of hugepages across all NUMA nodes (or will, once my patches go in).
+> And I think with my earlier suggestion (of just changing the
+> interleave mask used for those allocations to be cpuset-aware), that
+> we'd spread across the cpuset too, if there is one. Is that what you
+> mean by "spread variant"?
+> 
+Yes, that's what I was referring to. The main thing is that there may
+simply be nodes where we don't want to spread the huge pages (mostly due
+to size constraints). For instance, nodes that don't make it in to
+the interleave map are a reasonable candidate for also never spreading
+hugepage pages to.
 
-Based on "zone_ifdef_cleanup_by_renumbering.patch"
+> >It would be quite nice to have some way to have nodes opt-in to the sort
+> >of behaviour they're willing to tolerate. Some nodes are never going to
+> >tolerate spreading of any sort, hugepages, and so forth. Perhaps it makes
+> >more sense to have some flags in the pgdat where we can more strongly
+> >type the sort of behaviour the node is willing to put up with (or capable
+> >of supporting), at least in this case the nodes that explicitly can't
+> >cope are factored out before we even get to cpuset constraints (plus this
+> >gives us a hook for setting up the interleave nodes in both the system
+> >init and default policies). Thoughts?
+> 
+> I guess I don't understand which nodes you're talking about now? How
+> do you spread across any particular single node (how I read "Some
+> nodes are never going to tolerate spreading of any sort")? Or do you
+> mean that some cpusets aren't going to want to spread (interleave?).
+> 
+> Oh, are you trying to say that some nodes should be dropped from
+> interleave masks (explicitly excluded from all possible interleave
+> masks)? What kind of nodes would these be? We're doing something
+> similar to deal with memoryless nodes, perhaps it could be
+> generalized?
+> 
+Correct. You can see some the changes in mm/mempolicy,c:numa_policy_init() 
+for keeping nodes out of the system init policy. While we want to be able
+to let the kernel manage the node and let applications do node-local
+allocation, this nodes will never want slab pages or anything like that
+due to the size constraints.
 
-Signed-Off-By: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-
-
-
----
- include/linux/gfp.h    |    3 ++-
- include/linux/mmzone.h |   11 +++++++----
- include/linux/vmstat.h |   13 +++++++++++--
- mm/Kconfig             |   13 +++++++++++++
- mm/page_alloc.c        |    6 ++++++
- mm/vmstat.c            |    8 +++++++-
- 6 files changed, 46 insertions(+), 8 deletions(-)
-
-Index: linux-2.6.22-rc6-mm1/include/linux/mmzone.h
-===================================================================
---- linux-2.6.22-rc6-mm1.orig/include/linux/mmzone.h
-+++ linux-2.6.22-rc6-mm1/include/linux/mmzone.h
-@@ -177,7 +177,9 @@ enum zone_type {
- 	 */
- 	ZONE_HIGHMEM,
- #endif
-+#ifdef CONFIG_ZONE_MOVABLE
- 	ZONE_MOVABLE,
-+#endif
- 	MAX_NR_ZONES,
- #ifndef CONFIG_ZONE_DMA
- 	ZONE_DMA,
-@@ -188,6 +190,9 @@ enum zone_type {
- #ifndef CONFIG_HIGHMEM
- 	ZONE_HIGHMEM,
- #endif
-+#ifndef CONFIG_ZONE_MOVABLE
-+	ZONE_MOVABLE,
-+#endif
- 	MAX_POSSIBLE_ZONES,
- };
- 
-@@ -567,11 +572,9 @@ static inline int zone_idx_is(enum zone_
- 
- static inline int zone_movable_is_highmem(void)
- {
--#if CONFIG_ARCH_POPULATES_NODE_MAP
--	if (is_configured_zone(ZONE_HIGHMEM))
--		return movable_zone == ZONE_HIGHMEM;
--#endif
--	return 0;
-+	return is_configured_zone(ZONE_HIGHMEM) &&
-+	       is_configured_zone(ZONE_MOVABLE) &&
-+		(movable_zone == ZONE_HIGHMEM);
- }
- 
- static inline int is_highmem_idx(enum zone_type idx)
-Index: linux-2.6.22-rc6-mm1/include/linux/gfp.h
-===================================================================
---- linux-2.6.22-rc6-mm1.orig/include/linux/gfp.h
-+++ linux-2.6.22-rc6-mm1/include/linux/gfp.h
-@@ -122,7 +122,8 @@ static inline enum zone_type gfp_zone(gf
- 	if (is_configured_zone(ZONE_DMA32) && (flags & __GFP_DMA32))
- 		return ZONE_DMA32;
- 
--	if ((flags & (__GFP_HIGHMEM | __GFP_MOVABLE)) ==
-+	if (is_configured_zone(ZONE_MOVABLE) &&
-+	    (flags & (__GFP_HIGHMEM | __GFP_MOVABLE)) ==
- 			(__GFP_HIGHMEM | __GFP_MOVABLE))
- 		return ZONE_MOVABLE;
- 
-Index: linux-2.6.22-rc6-mm1/mm/Kconfig
-===================================================================
---- linux-2.6.22-rc6-mm1.orig/mm/Kconfig
-+++ linux-2.6.22-rc6-mm1/mm/Kconfig
-@@ -112,6 +112,19 @@ config SPARSEMEM_EXTREME
- 	def_bool y
- 	depends on SPARSEMEM && !SPARSEMEM_STATIC
- 
-+
-+config ZONE_MOVABLE
-+	bool	"A zone for movable pages"
-+	depends on ARCH_POPULATES_NODE_MAP
-+	help
-+	  Allows creating a zone type only for movable pages, i.e page cache
-+	  and anonymous memory. Because movable pages are tend to be easily
-+	  reclaimed and page migration technique can move them, your chance
-+	  for allocating big size memory will be better in this zone than
-+  	  other zones.
-+	  To use this zone, please see "kernelcore=" or "movablecore=" in
-+	  Documentation/kernel-parameters.txt
-+
- # eventually, we can have this option just 'select SPARSEMEM'
- config MEMORY_HOTPLUG
- 	bool "Allow for memory hot-add"
-Index: linux-2.6.22-rc6-mm1/mm/page_alloc.c
-===================================================================
---- linux-2.6.22-rc6-mm1.orig/mm/page_alloc.c
-+++ linux-2.6.22-rc6-mm1/mm/page_alloc.c
-@@ -86,7 +86,9 @@ int sysctl_lowmem_reserve_ratio[MAX_NR_Z
- #ifdef CONFIG_HIGHMEM
- 	 32,
- #endif
-+#ifdef CONFIG_ZONE_MOVABLE
- 	 32,
-+#endif
- };
- 
- EXPORT_SYMBOL(totalram_pages);
-@@ -3883,6 +3885,10 @@ static int __init cmdline_parse_kernelco
- 	if (!p)
- 		return -EINVAL;
- 
-+	if (!is_configured_zone(ZONE_MOVABLE)) {
-+		printk ("ZONE_MOVABLE is not configured, kernelcore= is ignored.\n");
-+		return 0;
-+	}
- 	coremem = memparse(p, &p);
- 	required_kernelcore = coremem >> PAGE_SHIFT;
- 
-Index: linux-2.6.22-rc6-mm1/mm/vmstat.c
-===================================================================
---- linux-2.6.22-rc6-mm1.orig/mm/vmstat.c
-+++ linux-2.6.22-rc6-mm1/mm/vmstat.c
-@@ -694,8 +694,14 @@ const struct seq_operations pagetypeinfo
- #define TEXT_FOR_HIGHMEM(xx)
- #endif
- 
-+#ifdef CONFIG_ZONE_MOVABLE
-+#define TEXT_FOR_MOVABLE(xx) xx "_movable",
-+#else
-+#define TEXT_FOR_MOVABLE(xx)
-+#endif
-+
- #define TEXTS_FOR_ZONES(xx) TEXT_FOR_DMA(xx) TEXT_FOR_DMA32(xx) xx "_normal", \
--					TEXT_FOR_HIGHMEM(xx) xx "_movable",
-+					TEXT_FOR_HIGHMEM(xx) xx TEXT_FOR_MOVABLE(xx)
- 
- static const char * const vmstat_text[] = {
- 	/* Zoned VM counters */
-Index: linux-2.6.22-rc6-mm1/include/linux/vmstat.h
-===================================================================
---- linux-2.6.22-rc6-mm1.orig/include/linux/vmstat.h
-+++ linux-2.6.22-rc6-mm1/include/linux/vmstat.h
-@@ -25,7 +25,14 @@
- #define HIGHMEM_ZONE(xx)
- #endif
- 
--#define FOR_ALL_ZONES(xx) DMA_ZONE(xx) DMA32_ZONE(xx) xx##_NORMAL HIGHMEM_ZONE(xx) , xx##_MOVABLE
-+#ifdef CONFIG_ZONE_MOVABLE
-+#define MOVABLE_ZONE(xx) , xx##_MOVABLE
-+#else
-+#define MOVABLE_ZONE(xx)
-+#endif
-+
-+
-+#define FOR_ALL_ZONES(xx) DMA_ZONE(xx) DMA32_ZONE(xx) xx##_NORMAL HIGHMEM_ZONE(xx) MOVABLE_ZONE(xx)
- 
- enum vm_event_item { PGPGIN, PGPGOUT, PSWPIN, PSWPOUT,
- 		FOR_ALL_ZONES(PGALLOC),
-@@ -170,7 +177,9 @@ static inline unsigned long node_page_st
- 	if (is_configured_zone(ZONE_HIGHMEM))
- 		val += zone_page_state(&zones[ZONE_HIGHMEM], item);
- 
--	val += zone_page_state(&zones[ZONE_MOVABLE], item);
-+	if (is_configured_zone(ZONE_MOVABLE))
-+		val += zone_page_state(&zones[ZONE_MOVABLE], item);
-+
- 	return val;
- }
- 
+Christoph had posted some earlier slub patches for excluding certain
+nodes from slub entirely, this may also be something you want to pick up
+and work on for memoryless nodes. I've been opting for SLOB + NUMA on my
+platforms, but if something like this is tidied up generically then slub
+is certainly something to support as an alternative.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
