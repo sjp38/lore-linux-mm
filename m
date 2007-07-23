@@ -1,63 +1,27 @@
-Subject: Re: [PATCH v4][RFC] hugetlb: add per-node nr_hugepages sysfs
-	attribute
-From: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
-In-Reply-To: <20070723122327.3610adf4@schroedinger.engr.sgi.com>
-References: <20070612001542.GJ14458@us.ibm.com>
-	 <20070612034407.GB11773@holomorphy.com> <20070612050910.GU3798@us.ibm.com>
-	 <20070612051512.GC11773@holomorphy.com> <20070612174503.GB3798@us.ibm.com>
-	 <20070612191347.GE11781@holomorphy.com> <20070613000446.GL3798@us.ibm.com>
-	 <20070613152649.GN3798@us.ibm.com> <20070613152847.GO3798@us.ibm.com>
-	 <1181759027.6148.77.camel@localhost> <20070613191908.GR3798@us.ibm.com>
-	 <1181765111.6148.98.camel@localhost>
-	 <20070723122327.3610adf4@schroedinger.engr.sgi.com>
-Content-Type: text/plain
-Date: Mon, 23 Jul 2007 16:14:05 -0400
-Message-Id: <1185221645.5074.32.camel@localhost>
+Date: Mon, 23 Jul 2007 13:18:41 -0700
+From: Christoph Lameter <clameter@sgi.com>
+Subject: Re: [PATCH 0/6] cpuset aware writeback
+Message-ID: <20070723131841.02c9b109@schroedinger.engr.sgi.com>
+In-Reply-To: <469D3342.3080405@google.com>
+References: <469D3342.3080405@google.com>
 Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
-Cc: Nishanth Aravamudan <nacc@us.ibm.com>, William Lee Irwin III <wli@holomorphy.com>, anton@samba.org, akpm@linux-foundation.org, linux-mm@kvack.org
+To: Ethan Solomita <solo@google.com>
+Cc: linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@google.com>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 2007-07-23 at 12:23 -0700, Christoph Lameter wrote:
-> On Wed, 13 Jun 2007 16:05:10 -0400
-> Lee Schermerhorn <Lee.Schermerhorn@hp.com> wrote:
-> 
-> > I tried to "tighten up"  alloc_pages_node() to check the location of
-> > the first zone in the selected zonelist, as discussed in previous
-> > exchange. When I do this, I hit a BUG() in slub.c in
-> > early_kmem_cache_node_alloc(), as it apparently can't handle
-> > new_slab() returning a NULL page, even tho' it calls it with
-> > GFP_THISNODE.  Slub should be able to handle memoryless nodes,
-> > right?  I'm looking for a work around to this now.
-> 
-> The memoryless node patchset results in SLUB not attempting to allocate
-> on memoryless nodes during bootstrap.
-> 
+On Tue, 17 Jul 2007 14:23:14 -0700
+Ethan Solomita <solo@google.com> wrote:
 
-Christoph:
+> These patches are mostly unchanged from Chris Lameter's original
+> changelist posted previously to linux-mm.
 
-The message that you're responding to is from 13jun, before your
-memoryless nodes patch.  We discussed it and have more or less resolved
-it.  I was trying to ensure that GFP_THISNODE would fail on my funky
-interleaved node with just DMA memory, when you ask for a higher zone.
-I.e., no fallback.  You disagreed with this, so I'm waiting for the
-memoryless nodes patches to get into -mm, so I can address the issue of
-hugepages [and regular interleaved pages] being allocated from a node
-where they shouldn't on my platform.  
-
-This has been discussed in the past week by Nish, Paul Mundt, and others
-in the -mm thread:
-
-	[hugetlb] Try to grow pool for MAP_SHARED mappings
-
-I think we can handle the fundamental issue [even nodes with memory are
-not necessarily candidates for interleave, hugepages, ...] by adding
-another node_state[].  See the mentioned thread.
-
-Lee
+Thanks for keeping these patches up to date. Add you signoff if you
+did modifications to a patch. Also include the description of the tests
+in the introduction to the patchset.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
