@@ -1,39 +1,38 @@
-Date: Mon, 23 Jul 2007 14:53:23 -0700 (PDT)
-From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [PATCH 0/6] cpuset aware writeback
-In-Reply-To: <46A51DEB.6090603@google.com>
-Message-ID: <Pine.LNX.4.64.0707231452290.32152@schroedinger.engr.sgi.com>
-References: <469D3342.3080405@google.com> <20070723131841.02c9b109@schroedinger.engr.sgi.com>
- <46A51DEB.6090603@google.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Date: Mon, 23 Jul 2007 15:13:06 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH] add __GFP_ZERP to GFP_LEVEL_MASK
+Message-Id: <20070723151306.86e3e0ce.akpm@linux-foundation.org>
+In-Reply-To: <20070723144323.1ac34b16@schroedinger.engr.sgi.com>
+References: <1185185020.8197.11.camel@twins>
+	<20070723113712.c0ee29e5.akpm@linux-foundation.org>
+	<1185216048.5535.1.camel@lappy>
+	<20070723144323.1ac34b16@schroedinger.engr.sgi.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Ethan Solomita <solo@google.com>
-Cc: linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@google.com>
+To: Christoph Lameter <clameter@sgi.com>
+Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, Linus Torvalds <torvalds@linux-foundation.org>, linux-kernel <linux-kernel@vger.kernel.org>, Daniel Phillips <phillips@google.com>, linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 23 Jul 2007, Ethan Solomita wrote:
+On Mon, 23 Jul 2007 14:43:23 -0700
+Christoph Lameter <clameter@sgi.com> wrote:
 
-> Christoph Lameter wrote:
-> > On Tue, 17 Jul 2007 14:23:14 -0700
-> > Ethan Solomita <solo@google.com> wrote:
-> > 
-> >> These patches are mostly unchanged from Chris Lameter's original
-> >> changelist posted previously to linux-mm.
-> > 
-> > Thanks for keeping these patches up to date. Add you signoff if you
-> > did modifications to a patch. Also include the description of the tests
-> > in the introduction to the patchset.
-> 
-> 	So switch from an Ack to a signed-off? OK, and I'll add descriptions of
+> __GFP_ZERO is implemented by the slab allocators (the page allocator
+> has no knowledge about the length of the object to be zeroed). The slab
+> allocators do not pass __GFP_ZERO to the page allocator.
 
-No. Do a signed-off if you have modified the patch.
+OK, well that was weird.  So
 
-> testing. Everyone other than you has been silent on these patches. Does
-> silence equal consent?
+	kmalloc(42, GFP_KERNEL|__GFP_ZERO);
 
-Sometimes. Howerver, the audience for NUMA and cpusets is rather limited.
+duplicates
+
+	kzalloc(42, GFP_KERNEL);
+
+
+Why do it both ways?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
