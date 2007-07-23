@@ -1,115 +1,73 @@
-Date: Mon, 23 Jul 2007 11:15:26 -0100
-From: "Casino Royal VIP" <demean@fdt.net>
-Subject: =?iso-8859-1?Q?300%_Bonus_f=FCr_Ihre_erste_Einzahlung!?=
-Message-ID: <28013866.81292133@baylor.com>
+Date: Mon, 23 Jul 2007 12:21:43 +0100
+Subject: Re: [PATCH] add __GFP_ZERP to GFP_LEVEL_MASK
+Message-ID: <20070723112143.GB19437@skynet.ie>
+References: <1185185020.8197.11.camel@twins>
 MIME-Version: 1.0
-Content-Type: text/html; charset=iso-8859-1
-Content-Transfer-Encoding: 7bit
-Return-Path: <demean@fdt.net>
-To: linux-mm@kvack.org
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <1185185020.8197.11.camel@twins>
+From: mel@skynet.ie (Mel Gorman)
+Sender: owner-linux-mm@kvack.org
+Return-Path: <owner-linux-mm@kvack.org>
+To: Peter Zijlstra <a.p.zijlstra@chello.nl>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, linux-kernel <linux-kernel@vger.kernel.org>, Christoph Lameter <clameter@sgi.com>, Daniel Phillips <phillips@google.com>, linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-<html>
+On (23/07/07 12:03), Peter Zijlstra didst pronounce:
+> 
+> Daniel recently spotted that __GFP_ZERO is not (and has never been)
+> part of GFP_LEVEL_MASK. I could not find a reason for this in the
+> original patch: 3977971c7f09ce08ed1b8d7a67b2098eb732e4cd in the -bk
+> tree.
+> 
+> This of course is in stark contradiction with the comment accompanying
+> GFP_LEVEL_MASK.
 
-<head>
-<meta http-equiv=Content-Type content="text/html; charset=iso-8859-1">
+This probably never showed up as a problem because slab is not using
+__GFP_ZERO. If a flag is used with slab that is not in the level mask,
+it goes *bang* as described in the comment.
 
-<title>Nur vom nobelsten aller</title>
+Does this patch compile though?
 
-<style>
-<!--
- /* Style Definitions */
- p.MsoNormal, li.MsoNormal, div.MsoNormal
-	{mso-style-parent:"";
-	margin:0cm;
-	margin-bottom:.0001pt;
-	mso-pagination:widow-orphan;
-	font-size:12.0pt;
-	font-family:"Times New Roman";
-	mso-fareast-font-family:"Times New Roman";
-	mso-ansi-language:EN-US;
-	mso-fareast-language:EN-US;}
-a:link, span.MsoHyperlink
-	{color:blue;
-	text-decoration:underline;
-	text-underline:single;}
-a:visited, span.MsoHyperlinkFollowed
-	{color:purple;
-	text-decoration:underline;
-	text-underline:single;}
-@page Section1
-	{size:595.3pt 841.9pt;
-	margin:2.0cm 42.5pt 2.0cm 3.0cm;
-	mso-header-margin:35.4pt;
-	mso-footer-margin:35.4pt;
-	mso-paper-source:0;}
-div.Section1
-	{page:Section1;}
--->
-</style>
+> 
+> Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
 
-</head>
+> ---
+>  include/linux/gfp.h |    2 +-
+>  1 file changed, 1 insertion(+), 1 deletion(-)
+> 
+> Index: linux-2.6-2/include/linux/gfp.h
+> ===================================================================
+> --- linux-2.6-2.orig/include/linux/gfp.h
+> +++ linux-2.6-2/include/linux/gfp.h
+> @@ -56,7 +56,7 @@ struct vm_area_struct;
+>  /* if you forget to add the bitmask here kernel will crash, period */
+>  #define GFP_LEVEL_MASK (__GFP_WAIT|__GFP_HIGH|__GFP_IO|__GFP_FS| \
+>  			__GFP_COLD|__GFP_NOWARN|__GFP_REPEAT| \
+> -			__GFP_NOFAIL|__GFP_NORETRY|__GFP_COMP| \
+> +			__GFP_NOFAIL|__GFP_NORETRY|__GFP_COMP|__GFP_ZERO \
 
-<body lang=DE link=blue vlink=purple style='tab-interval:35.4pt'>
+Should there be a | at the end there?
 
-<div class=Section1>
+>  			__GFP_NOMEMALLOC|__GFP_HARDWALL|__GFP_THISNODE| \
+>  			__GFP_MOVABLE)
+>  
+> 
+> 
+> -
+> To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
+> the body of a message to majordomo@vger.kernel.org
+> More majordomo info at  http://vger.kernel.org/majordomo-info.html
+> Please read the FAQ at  http://www.tux.org/lkml/
 
-<p class=MsoNormal>
-<span lang=DE style='mso-ansi-language:DE'>
-Nur vom nobelsten aller Casinos k&ouml;nnen 
-Sie ein so vornehmes Geschenk erwarten:
-<o:p></o:p></span></p>
+-- 
+-- 
+Mel Gorman
+Part-time Phd Student                          Linux Technology Center
+University of Limerick                         IBM Dublin Software Lab
 
-<p class=MsoNormal>
-<span lang=DE style='mso-ansi-language:DE'>
-<o:p>&nbsp;</o:p></span></p>
-
-<p class=MsoNormal>
-<span lang=DE style='mso-ansi-language:DE'>
-300% Bonus f&uuml;r Ihre erste Einzahlung!
-<o:p></o:p></span></p>
-
-<p class=MsoNormal>
-<span lang=DE style='mso-ansi-language:DE'>
-<o:p>&nbsp;</o:p></span></p>
-
-<p class=MsoNormal>
-<span lang=DE style='mso-ansi-language:DE'>
-Zahlen Sie 100&#8364;/$ ein und spielen 
-Sie mit 400 &#8364;/$!
-<o:p></o:p></span></p>
-
-<p class=MsoNormal>
-<span lang=DE style='mso-ansi-language:DE'>
-<o:p>&nbsp;</o:p></span></p>
-
-<p class=MsoNormal>
-<span lang=DE style='mso-ansi-language:DE'>
-Oben drauf bekommen Sie bei uns einen 
-k&ouml;niglichen Service!
-<o:p></o:p></span></p>
-
-<p class=MsoNormal>
-<span lang=DE style='mso-ansi-language:DE'>
-<o:p>&nbsp;</o:p></span></p>
-
-<p class=MsoNormal>
-<span lang=DE style='mso-ansi-language:DE'>
-Kommen und spielen Sie im Royal VIP Casino!
-<o:p></o:p></span></p>
-
-<p class=MsoNormal>
-<span lang=DE style='mso-ansi-language:DE'>
-<o:p>&nbsp;</o:p></span></p>
-
-<p class=MsoNormal>
-<span lang=DE style='mso-ansi-language:DE'>
-<a href="http://royallifecasinos.com/lang-de/">
-http://royallifecasinos.com/lang-de/</a>
-<o:p></o:p></span></p>
-
-</div>
-
-</body>
-
-</html>
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
