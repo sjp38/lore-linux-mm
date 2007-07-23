@@ -1,38 +1,39 @@
-Date: Mon, 23 Jul 2007 12:36:18 -0700
+Date: Mon, 23 Jul 2007 12:43:03 -0700
 From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [PATCH 3/7] Generic Virtual Memmap support for SPARSEMEM
-Message-ID: <20070723123618.4a25f902@schroedinger.engr.sgi.com>
-In-Reply-To: <20070714163319.GA14184@infradead.org>
-References: <exportbomb.1184333503@pinky>
-	<E1I9LJY-00006o-GK@hellhawk.shadowen.org>
-	<20070714152058.GA12478@infradead.org>
-	<Pine.LNX.4.64.0707140905140.31138@schroedinger.engr.sgi.com>
-	<20070714163319.GA14184@infradead.org>
+Subject: Re: [PATCH 1/5] [hugetlb] Introduce BASE_PAGES_PER_HPAGE constant
+Message-ID: <20070723124303.27b32989@schroedinger.engr.sgi.com>
+In-Reply-To: <20070713151631.17750.44881.stgit@kernel>
+References: <20070713151621.17750.58171.stgit@kernel>
+	<20070713151631.17750.44881.stgit@kernel>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Hellwig <hch@infradead.org>
-Cc: Andy Whitcroft <apw@shadowen.org>, linux-mm@kvack.org, linux-arch@vger.kernel.org, Nick Piggin <npiggin@suse.de>, Mel Gorman <mel@csn.ul.ie>
+To: Adam Litke <agl@us.ibm.com>
+Cc: linux-mm@kvack.org, Mel Gorman <mel@skynet.ie>, Andy Whitcroft <apw@shadowen.org>, William Lee Irwin III <wli@holomorphy.com>, Ken Chen <kenchen@google.com>
 List-ID: <linux-mm.kvack.org>
 
-On Sat, 14 Jul 2007 17:33:19 +0100
-Christoph Hellwig <hch@infradead.org> wrote:
- 
-> It's not generic.  Most of it is under a maze of obscure config
-> options. The patchset in it's current form is a complete mess of
-> obscure ifefery and not quite generic code.  And it only adds new
-> memory models without ripping old stuff out.  So while I really like
-> the basic idea the patches need quite a lot more work until they're
-> mergeable.
+On Fri, 13 Jul 2007 08:16:31 -0700
+Adam Litke <agl@us.ibm.com> wrote:
 
-It is generic. If you would put the components into each arch then you
-would needlessly duplicate code. In order to rip stuff out we first
-need to have sparsemem contain all the features of discontig.
 
-Then we can start to get rid of discontig and then we will be able to
-reduce the number of memory models supported by sparsemem.
+> In many places throughout the kernel, the expression
+> (HPAGE_SIZE/PAGE_SIZE) is used to convert quantities in huge page
+> units to a number of base pages. Reduce redundancy and make the code
+> more readable by introducing a constant BASE_PAGES_PER_HPAGE whose
+> name more clearly conveys the intended conversion.
+
+It may be better to put in a generic way of determining the pages of a
+compound page.
+
+Usually
+
+1 << compound_order(page) will do the trick.
+
+See also 
+
+http://marc.info/?l=linux-kernel&m=118236495611300&w=2
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
