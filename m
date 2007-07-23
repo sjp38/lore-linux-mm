@@ -1,67 +1,74 @@
-Message-ID: <46A44B98.8060807@gmx.net>
-Date: Mon, 23 Jul 2007 08:32:56 +0200
+Message-ID: <46A44BA0.6020400@gmx.net>
+Date: Mon, 23 Jul 2007 08:33:04 +0200
 From: Michael Kerrisk <mtk-manpages@gmx.net>
 MIME-Version: 1.0
-Subject: get_mempolicy.2 man page patch
+Subject: set_mempolicy.2 man page patch
 References: <1180467234.5067.52.camel@localhost>	 <Pine.LNX.4.64.0705291247001.26308@schroedinger.engr.sgi.com>	 <200705292216.31102.ak@suse.de> <1180541849.5850.30.camel@localhost>	 <20070531082016.19080@gmx.net> <1180732544.5278.158.camel@localhost>
 In-Reply-To: <1180732544.5278.158.camel@localhost>
 Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: ak@suse.de, clameter@sgi.com
-Cc: Lee Schermerhorn <Lee.Schermerhorn@hp.com>, akpm@linux-foundation.org, linux-mm@kvack.org
+To: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
+Cc: ak@suse.de, akpm@linux-foundation.org, linux-mm@kvack.org, clameter@sgi.com
 List-ID: <linux-mm.kvack.org>
 
 Andi, Christoph
 
-Could you please review these changes by Lee to the get_mempolicy.2 page?
+Could you please review these changes by Lee to the set_mempolicy.2 page?
 Patch against man-pages-2.63 (available from
 http://www.kernel.org/pub/linux/docs/manpages).
-
-Andi/ Christoph / Lee: There are a few points marked FIXME about which I'd
-particularly like some input.
 
 Cheers,
 
 Michael
 
 
---- get_mempolicy.2.orig        2007-06-23 09:18:02.000000000 +0200
-+++ get_mempolicy.2     2007-07-21 09:18:46.000000000 +0200
+
+--- set_mempolicy.2.orig        2007-06-23 09:18:02.000000000 +0200
++++ set_mempolicy.2     2007-07-21 09:17:44.000000000 +0200
 @@ -1,4 +1,5 @@
  .\" Copyright 2003,2004 Andi Kleen, SuSE Labs.
 +.\" and Copyright (C) 2007 Lee Schermerhorn <Lee.Schermerhorn@hp.com>
  .\"
  .\" Permission is granted to make and distribute verbatim copies of this
  .\" manual provided the copyright notice and this permission notice are
-@@ -18,19 +19,22 @@
+@@ -18,93 +19,161 @@
  .\" the source, must acknowledge the copyright and authors of this work.
  .\"
  .\" 2006-02-03, mtk, substantial wording changes and other improvements
 +.\" 2007-06-01, Lee Schermerhorn <Lee.Schermerhorn@hp.com>
 +.\"     more precise specification of behavior.
  .\"
--.TH GET_MEMPOLICY 2 2006-02-07 "Linux" "Linux Programmer's Manual"
-+.TH GET_MEMPOLICY 2 2007-07-20 Linux "Linux Programmer's Manual"
+-.TH SET_MEMPOLICY 2 2006-02-07 "Linux" "Linux Programmer's Manual"
++.TH SET_MEMPOLICY 2 2007-07-20 Linux "Linux Programmer's Manual"
  .SH NAME
- get_mempolicy \- Retrieve NUMA memory policy for a process
+-set_mempolicy \- set default NUMA memory policy for a process and its
+children.
++set_mempolicy \- set default NUMA memory policy for a process
++and its children
  .SH SYNOPSIS
- .B "#include <numaif.h>"
  .nf
+ .B "#include <numaif.h>"
  .sp
--.BI "int get_mempolicy(int *" policy ", unsigned long *" nodemask ,
-+.BI "int get_mempolicy(int *" mode ", unsigned long *" nodemask ,
- .BI "                  unsigned long " maxnode ", unsigned long " addr ,
- .BI "                  unsigned long " flags );
+-.BI "int set_mempolicy(int " policy ", unsigned long *" nodemask ,
++.BI "int set_mempolicy(int " mode ", unsigned long *" nodemask ,
+ .BI "                  unsigned long " maxnode );
 +.sp
 +Link with \fI\-lnuma\fP.
  .fi
--.\" FIXME rewrite this DESCRIPTION. it is confusing.
  .SH DESCRIPTION
- .BR get_mempolicy ()
- retrieves the NUMA policy of the calling process or of a memory address,
-@@ -39,7 +43,7 @@
+ .BR set_mempolicy ()
+-sets the NUMA memory policy of the calling process to
+-.IR policy .
++sets the NUMA memory policy of the calling process,
++which consists of a policy mode and zero or more nodes,
++to the values specified by the
++.IR mode ,
++.I nodemask
++and
++.IR maxnode
++arguments.
 
  A NUMA machine has different
  memory controllers with different distances to specific CPUs.
@@ -69,202 +76,203 @@ Michael
 +The memory policy defines the node on which memory is allocated for
  the process.
 
- If
-@@ -58,58 +62,84 @@
- address given in
- .IR addr .
- This policy may be different from the process's default policy if
--.BR set_mempolicy (2)
--has been used to establish a policy for the page containing
-+.\" FIXME Lee changed "set_mempolicy" to "mbind" in the following;
-+.\" is that correct?
-+.BR mbind (2)
-+or one of the helper functions described in
-+.BR numa(3)
-+has been used to establish a policy for the memory range containing
- .IR addr .
-
--If
--.I policy
--is not NULL, then it is used to return the policy.
-+If the
-+.I mode
-+argument is not NULL, then
-+.BR get_mempolicy ()
-+will store the policy mode of the requested NUMA policy in the location
-+pointed to by this argument.
- If
- .IR nodemask
--is not NULL, then it is used to return the nodemask associated
--with the policy.
-+is not NULL, then the nodemask associated with the policy will be stored
-+in the location pointed to by this argument.
- .I maxnode
--is the maximum bit number plus one that can be stored into
--.IR nodemask .
--The bit number is always rounded to a multiple of
--.IR "unsigned long" .
--.\"
--.\" If
--.\" .I flags
--.\" specifies both
--.\" .B MPOL_F_NODE
--.\" and
--.\" .BR MPOL_F_ADDR ,
--.\" then
--.\" .I policy
--.\" instead returns the number of the node on which the address
--.\" .I addr
--.\" is allocated.
--.\"
--.\" If
--.\" .I flags
--.\" specifies
--.\" .B MPOL_F_NODE
--.\" but not
--.\" .BR MPOL_F_ADDR ,
--.\" and the process's current policy is
--.\" .BR MPOL_INTERLEAVE ,
--.\" then
--.\" checkme: Andi's text below says that the info is returned in
--.\" 'nodemask', not 'policy':
--.\" .I policy
--.\" instead returns the number of the next node that will be used for
--.\" interleaving allocation.
--.\" FIXME .
--.\" The other valid flag is
--.\" .I MPOL_F_NODE.
--.\" It is only valid when the policy is
--.\" .I MPOL_INTERLEAVE.
--.\" In this case not the interleave mask, but an unsigned long with the next
--.\" node that would be used for interleaving is returned in
--.\" .I nodemask.
--.\" Other flag values are reserved.
-+specifies the number of node IDs
-+that can be stored into
-+.IR nodemask
-+(i.e.,
-+the maximum node ID plus one).
-+The value specified by
-+.I maxnode
-+is always rounded up to a multiple of
-+.IR "sizeof(unsigned long)" .
-+.\" FIXME: does the preceding sentence mean that if maxnode is (say)
-+.\" 22, then the call could neverthless return node IDs in node mask
-+.\" up to 31 -- e.g., node 26?
-+
-+If
-+.I flags
-+specifies both
-+.B MPOL_F_NODE
-+and
-+.BR MPOL_F_ADDR ,
-+.BR get_mempolicy ()
-+will return the node ID of the node on which the address
-+.I addr
-+is allocated.
-+The node ID is returned in the location pointed to by
-+.IR mode .
-+If no page has yet been allocated for the specified address,
-+.BR get_mempolicy ()
-+will allocate a page as if the process had performed a read
-+[load] access at that address, and return the ID of the node
-+where that page was allocated.
-+
-+If
-+.I flags
-+specifies
-+.BR MPOL_F_NODE ,
-+but not
-+.BR MPOL_F_ADDR ,
-+and the process's current policy is
-+.BR MPOL_INTERLEAVE ,
-+then
-+.BR get_mempolicy ()
-+will return in the location pointed to by a non-NULL
-+.I mode
-+argument,
-+the node ID of the next node that will be used for
-+interleaving of internal kernel pages allocated on behalf
-+of the process.
-+.\" Note:  code returns next interleave node via 'mode'
-+.\" argument -- Lee Schermerhorn
-+These allocations include pages for memory mapped files in
-+process memory ranges mapped using the
-+.IR mmap (2)
+-This system call defines the default policy for the process;
+-in addition a policy can be set for specific memory ranges using
++This system call defines the default policy for the process.
++The process policy governs allocation of pages in the process's
++address space outside of memory ranges
++controlled by a more specific policy set by
+ .BR mbind (2).
++The process default policy also controls allocation of any pages for
++memory mapped files mapped using the
++.BR mmap (2)
 +call with the
 +.B MAP_PRIVATE
-+flag for read accesses, and in memory ranges mapped with the
++flag and that are only read [loaded] by the task,
++and of memory mapped files mapped using the
++.BR mmap (2)
++call with the
 +.B MAP_SHARED
-+flag for all accesses.
-+
-+Other flag values are reserved.
++flag, regardless of the access type.
+ The policy is only applied when a new page is allocated
+ for the process.
+ For anonymous memory this is when the page is first
+ touched by the application.
 
- For an overview of the possible policies see
- .BR set_mempolicy (2).
-@@ -120,49 +150,89 @@
+-Available policies are
++The
++.I mode
++argument must specify one of
+ .BR MPOL_DEFAULT ,
+ .BR MPOL_BIND ,
+-.BR MPOL_INTERLEAVE ,
++.B MPOL_INTERLEAVE
++or
+ .BR MPOL_PREFERRED .
+-All policies except
++All modes except
+ .B MPOL_DEFAULT
+-require the caller to specify the nodes to which the policy applies in the
++require the caller to specify one of more nodes to which the mode
++applies, via the
+ .I nodemask
+-parameter.
++argument.
++
+ .I nodemask
+-is pointer to a bit field of nodes that contains up to
++points to a bit mask of node IDs that contains up to
+ .I maxnode
+ bits.
+-The bit field size is rounded to the next multiple of
++The actual number of bytes transferred via
++.I nodemask
++is rounded up to the next multiple of
+ .IR "sizeof(unsigned long)" ,
+ but the kernel will only use bits up to
+ .IR maxnode .
++A NULL value for
++.IR nodemask ,
++or a
++.I maxnode
++value of zero specifies the empty set of nodes.
++If the value of
++.I maxnode
++is zero,
++the
++.I nodemask
++argument is ignored.
+
+ The
+ .B MPOL_DEFAULT
+-policy is the default and means to allocate memory locally,
+-i.e., on the node of the CPU that triggered the allocation.
++mode is the default and means to allocate memory locally
++(i.e., on the node of the CPU that triggered the allocation).
+ .I nodemask
+-should be specified as NULL.
++must be specified as NULL.
++If the "local node" contains no free memory, the system will
++attempt to allocate memory from a "nearby" node.
+
+ The
+ .B MPOL_BIND
+-policy is a strict policy that restricts memory allocation to the
++mode defines a strict policy that restricts memory allocation to the
+ nodes specified in
+ .IR nodemask .
+-There won't be allocations on other nodes.
++If
++.I nodemask
++specifies more than one node, page allocations will come from
++the node with the lowest numeric node ID first, until that node
++contains no free memory.
++Allocations will then come from the node with the next highest
++node ID specified in
++.I nodemask
++and so forth, until none of the specified nodes contain free memory.
++Pages will not be allocated from any node not specified in the
++.IR nodemask .
+
+ .B MPOL_INTERLEAVE
+-interleaves allocations to the nodes specified in
+-.IR nodemask .
+-This optimizes for bandwidth instead of latency.
+-To be effective the memory area should be fairly large,
+-at least 1MB or bigger.
++interleaves page allocations across the nodes specified in
++.I nodemask
++in numeric node ID order.
++This optimizes for bandwidth instead of latency
++by spreading out pages and memory accesses to those pages across
++multiple nodes.
++However, accesses to a single page will still be limited to
++the memory bandwidth of a single node.
++.\" NOTE:  the following sentence doesn't make sense in the context
++.\" of set_mempolicy() -- no memory area specified.
++.\" To be effective the memory area should be fairly large,
++.\" at least 1MB or bigger.
+
+ .B MPOL_PREFERRED
+ sets the preferred node for allocation.
+-The kernel will try to allocate in this
+-node first and fall back to other nodes if the preferred node is low on free
++The kernel will try to allocate pages from this node first
++and fall back to "nearby" nodes if the preferred node is low on free
+ memory.
+-Only the first node in the
++If
+ .I nodemask
+-is used.
+-If no node is set in the mask, then the memory is allocated on
+-the node of the CPU that triggered the allocation allocation (like
++specifies more than one node ID, the first node in the
++mask will be selected as the preferred node.
++If the
++.I nodemask
++and
++.I maxnode
++arguments specify the empty set, then the memory is allocated on
++the node of the CPU that triggered the allocation (like
+ .BR MPOL_DEFAULT ).
+
+-The memory policy is preserved across an
++The process memory policy is preserved across an
+ .BR execve (2),
+ and is inherited by child processes created using
+ .BR fork (2)
+ or
+ .BR clone (2).
++.SH CONFORMING TO
++This system call is Linux specific.
+ .SH RETURN VALUE
+ On success,
+ .BR set_mempolicy ()
+@@ -112,21 +181,62 @@
  on error, \-1 is returned and
  .I errno
  is set to indicate the error.
 -.\" .SH ERRORS
--.\" FIXME -- no errors are listed on this page
+-.\" FIXME no errors are listed on this page
 -.\" .
 -.\" .TP
 -.\" .B EINVAL
--.\" .I nodemask
--.\" is non-NULL, and
--.\" .I maxnode
--.\" is too small;
--.\" or
--.\" .I flags
--.\" specified values other than
--.\" .B MPOL_F_NODE
--.\" or
--.\" .BR MPOL_F_ADDR ;
--.\" or
--.\" .I flags
--.\" specified
--.\" .B MPOL_F_ADDR
--.\" and
--.\" .I addr
--.\" is NULL.
--.\" (And there are other
--.\" .B EINVAL
--.\" cases.)
+-.\" .I mode is invalid.
+-.SH CONFORMING TO
+-This system call is Linux specific.
 +.SH ERRORS
 +.TP
 +.B EINVAL
-+The value specified by
-+.I maxnode
-+is less than the number of node IDs supported by the system.
-+Or
-+.I flags
-+specified values other than
-+.B MPOL_F_NODE
-+or
-+.BR MPOL_F_ADDR ;
-+or
-+.I flags
-+specified
-+.B MPOL_F_ADDR
-+and
-+.I addr
-+is NULL,
-+or
-+.I flags
-+did not specify
-+.B MPOL_F_ADDR
-+and
-+.I addr
-+is not NULL.
++.I mode is invalid.
 +Or,
-+.I flags
-+specified
-+.B MPOL_F_NODE
-+but not
-+.B MPOL_F_ADDR
-+and the current process policy is not
-+.BR MPOL_INTERLEAVE .
++.I mode
++is
++.B MPOL_DEFAULT
++and
++.I nodemask
++is non-empty,
++or
++.I mode
++is
++.B MPOL_BIND
++or
++.B MPOL_INTERLEAVE
++and
++.I nodemask
++is empty.
++Or,
++.I maxnode
++specifies more than a page worth of bits.
++Or,
++.I nodemask
++specifies one or more node IDs that are
++greater than the maximum supported node ID,
++or are not allowed in the calling task's context.
++.\" "calling task's context" refers to cpusets.
++.\" No man page avail to ref. --Lee Schermerhorn
++Or, none of the node IDs specified by
++.I nodemask
++are on-line, or none of the specified nodes contain memory.
 +.TP
 +.B EFAULT
 +Part or all of the memory range specified by
@@ -272,64 +280,28 @@ Michael
 +and
 +.I maxnode
 +points outside your accessible address space.
- .SH CONFORMING TO
- This system call is Linux specific.
++.TP
++.B ENOMEM
++Insufficient kernel memory was available.
  .SH NOTES
--This manual page is incomplete:
--it does not document the details the
--.BR MPOL_F_NODE
--flag,
--which modifies the operation of
--.BR get_mempolicy ().
--This is deliberate: this flag is not intended for application use,
--and its operation may change or it may be removed altogether in
--future kernel versions.
--.B Do not use it.
-+If the mode of the process policy or the policy governing allocations
-+at the specified address is
-+.B MPOL_PREFERRED
-+and this policy was installed with an empty
-+.IR nodemask
-+(i.e., specifying local allocation),
-+.BR get_mempolicy ()
-+will return the mask of on-line node IDs, in the location pointed to by
-+a non-NULL
-+.I nodemask
-+argument.
-+This mask does not take into consideration any adminstratively imposed
-+restrictions on the process's context.
-+.\" "context" above refers to cpusets.
-+.\" No man page to reference. -- Lee Schermerhorn
-+.\"
-+.\" FIXME: Andi / Lee -- can you please resolve the following (mtk):
-+.\"
-+.\"  Christoph says the following is untrue.  These are "fully supported."
-+.\"  Andi concedes that he has lost this battle and approves [?]
-+.\"  updating the man pages to document the behavior.  -- Lee Schermerhorn
-+.\" This manual page is incomplete:
-+.\" it does not document the details the
-+.\" .BR MPOL_F_NODE
-+.\" flag,
-+.\" which modifies the operation of
-+.\" .BR get_mempolicy ().
-+.\" This is deliberate: this flag is not intended for application use,
-+.\" and its operation may change or it may be removed altogether in
-+.\" future kernel versions.
-+.\" .B Do not use it.
+ Process policy is not remembered if the page is swapped out.
++When such a page is paged back in, it will use the policy of
++the process or memory range that is in effect at the time the
++page is allocated.
  .SS "Versions and Library Support"
  See
  .BR mbind (2).
 +.SH CONFORMING TO
 +This system call is Linux specific.
  .SH SEE ALSO
- .BR mbind (2),
-+.BR mmap (2),
- .BR set_mempolicy (2),
+-.BR mbind (2),
+ .BR get_mempolicy (2),
 -.BR numactl (8),
 -.BR numa (3)
++.BR mbind (2),
++.BR mmap (2),
 +.BR numa (3),
 +.BR numactl (8)
-
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
