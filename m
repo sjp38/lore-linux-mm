@@ -1,64 +1,35 @@
-Message-ID: <46A4DC9F.9080903@shadowen.org>
-Date: Mon, 23 Jul 2007 17:51:43 +0100
-From: Andy Whitcroft <apw@shadowen.org>
-MIME-Version: 1.0
-Subject: Re: [PATCH 1/1] Wait for page writeback when directly reclaiming
- contiguous areas
-References: <20070720194120.16126.56046.sendpatchset@skynet.skynet.ie> <20070720194140.16126.75148.sendpatchset@skynet.skynet.ie>
-In-Reply-To: <20070720194140.16126.75148.sendpatchset@skynet.skynet.ie>
-Content-Type: text/plain; charset=ISO-8859-1
+Date: Mon, 23 Jul 2007 11:37:12 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH] add __GFP_ZERP to GFP_LEVEL_MASK
+Message-Id: <20070723113712.c0ee29e5.akpm@linux-foundation.org>
+In-Reply-To: <1185185020.8197.11.camel@twins>
+References: <1185185020.8197.11.camel@twins>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: linux-mm@kvack.org
+To: Peter Zijlstra <a.p.zijlstra@chello.nl>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, linux-kernel <linux-kernel@vger.kernel.org>, Christoph Lameter <clameter@sgi.com>, Daniel Phillips <phillips@google.com>, linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-Mel Gorman wrote:
-> Lumpy reclaim works by selecting a lead page from the LRU list and then
-> selecting pages for reclaim from the order-aligned area of pages. In the
-> situation were all pages in that region are inactive and not referenced by
-> any process over time, it works well.
-> 
-> In the situation where there is even light load on the system, the pages may
-> not free quickly. Out of a area of 1024 pages, maybe only 950 of them are
-> freed when the allocation attempt occurs because lumpy reclaim returned early.
-> This patch alters the behaviour of direct reclaim for large contiguous blocks.
+On Mon, 23 Jul 2007 12:03:40 +0200 Peter Zijlstra <a.p.zijlstra@chello.nl> wrote:
 
-Yes, lumpy is prone to starting reclaim on an area and moving on to the
-next.  Generally where there are a lot of areas, the areas are smaller
-and the number of requests larger, this is sufficient.  However for
-higher orders it will tend to suffer from the effect you indicate.  As
-you say when the system is unloaded even at very high orders we will get
-good success rates, but higher orders on a loaded machine are problematic.
+> Daniel recently spotted that __GFP_ZERO is not (and has never been)
+> part of GFP_LEVEL_MASK. I could not find a reason for this in the
+> original patch: 3977971c7f09ce08ed1b8d7a67b2098eb732e4cd in the -bk
+> tree.
 
-It seems logical that if we could know when all reclaim for a targeted
-area is completed that we would have a higher chance of subsequent
-success allocating.  Looking at your patch, you are using synchronising
-with the completion of all pending writeback on pages in the targeted
-area which, pretty much gives us that.
+It doesn't make a lot of sense to be passing __GFP_ZERO into slab
+allocation functions.  It's not really for the caller to be telling slab
+how it should arrange for its new memory to get zeroed.
 
-I am surprised to see a need for a retry loop here, I would have
-expected to see an async start and a sync complete pass with the
-expectation that this would be sufficient.  Otherwise the patch is
-surprisingly simple.
+And the caller of slab functions will need to zero the memory anyway,
+because you don't know whether your new object came direct from the page
+allocator or if it is recycled memory from a partial slab.
 
-I will try and reproduce with your test script and also do some general
-testing to see how this might effect the direct allocation latencies,
-which I see as key.  It may well improve those for larger allocations.
-
-> The first attempt to call shrink_page_list() is asynchronous but if it
-> fails, the pages are submitted a second time and the calling process waits
-> for the IO to complete. It'll retry up to 5 times for the pages to be
-> fully freed. This may stall allocators waiting for contiguous memory but
-> that should be expected behaviour for high-order users. It is preferable
-> behaviour to potentially queueing unnecessary areas for IO. Note that kswapd
-> will not stall in this fashion.
-> 
-> Signed-off-by: Mel Gorman <mel@csn.ul.ie>
-[...]
-
--apw
+I have a feeling that we did support passing __GFP_ZERO into the slab
+allocation functions for a while, but took it out.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
