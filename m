@@ -1,39 +1,41 @@
-Message-ID: <7c1e01c7cd87$96f69550$97d921d1@ibussonnluju>
-Reply-To: "Scarlet Fuller" <ibussonnluju@dialog.net.pl>
-From: "Scarlet Fuller" <ibussonnluju@dialog.net.pl>
-Subject: Hows it looking
-Date: Tue, 24 Jul 2007 00:14:24 +0500
-MIME-Version: 1.0
-Content-Type: text/plain;
-	charset="us-ascii"
-Content-Transfer-Encoding: 8bit
-Return-Path: <ibussonnluju@dialog.net.pl>
-To: Bryon Bishop <adrian@kvack.org>
-Cc: Nakia Young <blah@kvack.org>, Dina Bishop <linux-aio@kvack.org>, Terica Alvarez <owner-linux-mm@kvack.org>Arianne Mitchell <linux-mm@kvack.org>, Michelina <linux-mm-archive@kvack.org>, Johnathan Hart <aart@kvack.org>, Tamala George <majordomo@kvack.org>, Hien <linux-ns83820@kvack.org>, Shelton Coleman <kelda@kvack.org>
+Date: Mon, 23 Jul 2007 12:36:18 -0700
+From: Christoph Lameter <clameter@sgi.com>
+Subject: Re: [PATCH 3/7] Generic Virtual Memmap support for SPARSEMEM
+Message-ID: <20070723123618.4a25f902@schroedinger.engr.sgi.com>
+In-Reply-To: <20070714163319.GA14184@infradead.org>
+References: <exportbomb.1184333503@pinky>
+	<E1I9LJY-00006o-GK@hellhawk.shadowen.org>
+	<20070714152058.GA12478@infradead.org>
+	<Pine.LNX.4.64.0707140905140.31138@schroedinger.engr.sgi.com>
+	<20070714163319.GA14184@infradead.org>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
+Sender: owner-linux-mm@kvack.org
+Return-Path: <owner-linux-mm@kvack.org>
+To: Christoph Hellwig <hch@infradead.org>
+Cc: Andy Whitcroft <apw@shadowen.org>, linux-mm@kvack.org, linux-arch@vger.kernel.org, Nick Piggin <npiggin@suse.de>, Mel Gorman <mel@csn.ul.ie>
 List-ID: <linux-mm.kvack.org>
 
-Helping over 250,000 clientele DiscountPharmacy is your safety source for
-the discounted prices for all your e-mail order medicine treatment(s). At
-Discount-Pharmacy your health is our number one concern. Our educated team
-of doctors and pharmacists will do their finest to make your  experience
-stress-free and pleasurable, to guarantee that you obtain the premium
-quality service. Towards to excellent customer service, low prices and
-high-speed shipping, we set the standards.
+On Sat, 14 Jul 2007 17:33:19 +0100
+Christoph Hellwig <hch@infradead.org> wrote:
+ 
+> It's not generic.  Most of it is under a maze of obscure config
+> options. The patchset in it's current form is a complete mess of
+> obscure ifefery and not quite generic code.  And it only adds new
+> memory models without ripping old stuff out.  So while I really like
+> the basic idea the patches need quite a lot more work until they're
+> mergeable.
 
-We suggest a choice of brand name and general drugs at cheap prices for all
-your prescription needs. If you find your medical recommendation cost lower
-, we will match that value for you. With DiscountPharmacy you will receive
-the best amount on your medical instruction.
-If you do not already have a medicine then our medical doctors can work
-with you to provide you with your medicine treatment.
+It is generic. If you would put the components into each arch then you
+would needlessly duplicate code. In order to rip stuff out we first
+need to have sparsemem contain all the features of discontig.
 
-Pay a quick visit at: www.bytemeds.org
+Then we can start to get rid of discontig and then we will be able to
+reduce the number of memory models supported by sparsemem.
 
-
-Arthur Donnithorne looked flushed and excited; more he had gracefully tried
-spoon sneeze to make unpleasant feelings more bearabl fork tip Joyless mine
-led is the day's return It had knit seemed call to the unsuspecting Silas
-that the friendship hear had suffered cling no chill even from his form 
-He set statement down the basket and took trust rid naughty the rose from
-his button-hole. Poor Arthur felt produce that bumpy Adam ought to tired be
-affected by this announcement--ought to have taste a movement of sy
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
