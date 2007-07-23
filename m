@@ -1,85 +1,67 @@
-From: "Richard Bush" <bobgoblin@cox.net>
-Subject: Ficken wie ein Weltmeister ?   you would be  -- In a way that lets you put 
-Date: Mon, 23 Jul 2007 16:34:40 -0100
+Message-ID: <46A4DC9F.9080903@shadowen.org>
+Date: Mon, 23 Jul 2007 17:51:43 +0100
+From: Andy Whitcroft <apw@shadowen.org>
 MIME-Version: 1.0
-Content-Type: multipart/alternative;
-	boundary="----=_NextPart_000_0006_01C7CD58.21A201B0"
-Message-ID: <01c7cd47$5e1ba2b0$33b88d54@bobgoblin>
-Return-Path: <bobgoblin@cox.net>
-To: linux-mm@kvack.org
+Subject: Re: [PATCH 1/1] Wait for page writeback when directly reclaiming
+ contiguous areas
+References: <20070720194120.16126.56046.sendpatchset@skynet.skynet.ie> <20070720194140.16126.75148.sendpatchset@skynet.skynet.ie>
+In-Reply-To: <20070720194140.16126.75148.sendpatchset@skynet.skynet.ie>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
+Sender: owner-linux-mm@kvack.org
+Return-Path: <owner-linux-mm@kvack.org>
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-This is a multi-part message in MIME format.
+Mel Gorman wrote:
+> Lumpy reclaim works by selecting a lead page from the LRU list and then
+> selecting pages for reclaim from the order-aligned area of pages. In the
+> situation were all pages in that region are inactive and not referenced by
+> any process over time, it works well.
+> 
+> In the situation where there is even light load on the system, the pages may
+> not free quickly. Out of a area of 1024 pages, maybe only 950 of them are
+> freed when the allocation attempt occurs because lumpy reclaim returned early.
+> This patch alters the behaviour of direct reclaim for large contiguous blocks.
 
-------=_NextPart_000_0006_01C7CD58.21A201B0
-Content-Type: text/plain;
-	charset="iso-8859-1"
-Content-Transfer-Encoding: 7bit
+Yes, lumpy is prone to starting reclaim on an area and moving on to the
+next.  Generally where there are a lot of areas, the areas are smaller
+and the number of requests larger, this is sufficient.  However for
+higher orders it will tend to suffer from the effect you indicate.  As
+you say when the system is unloaded even at very high orders we will get
+good success rates, but higher orders on a loaded machine are problematic.
 
-Versuchen Sie unser Produkt und Sie werden fuhlen was unsere Kunden bestatigen
+It seems logical that if we could know when all reclaim for a targeted
+area is completed that we would have a higher chance of subsequent
+success allocating.  Looking at your patch, you are using synchronising
+with the completion of all pending writeback on pages in the targeted
+area which, pretty much gives us that.
 
-Preise die keine Konkurrenz kennen 
+I am surprised to see a need for a retry loop here, I would have
+expected to see an async start and a sync complete pass with the
+expectation that this would be sufficient.  Otherwise the patch is
+surprisingly simple.
 
-- keine versteckte Kosten
-- Kein langes Warten - Auslieferung innerhalb von 2-3 Tagen
-- Kostenlose, arztliche Telefon-Beratung
-- Bequem und diskret online bestellen.
-- Visa verifizierter Onlineshop
-- Kein peinlicher Arztbesuch erforderlich
-- Diskrete Verpackung und Zahlung
+I will try and reproduce with your test script and also do some general
+testing to see how this might effect the direct allocation latencies,
+which I see as key.  It may well improve those for larger allocations.
 
-Originalmedikamente
-Ciaaaaaalis 10 Pack. 27,00 Euro
-Viaaaagra 10 Pack. 21,00 Euro
+> The first attempt to call shrink_page_list() is asynchronous but if it
+> fails, the pages are submitted a second time and the calling process waits
+> for the IO to complete. It'll retry up to 5 times for the pages to be
+> fully freed. This may stall allocators waiting for contiguous memory but
+> that should be expected behaviour for high-order users. It is preferable
+> behaviour to potentially queueing unnecessary areas for IO. Note that kswapd
+> will not stall in this fashion.
+> 
+> Signed-off-by: Mel Gorman <mel@csn.ul.ie>
+[...]
 
-Vier Dosen gibt's bei jeder Bestellung umsonst
-http://oobnybz.suchbetween.cn/?995195523352
+-apw
 
-(bitte warten Sie einen Moment bis die Seite vollstandig geladen wird)
-
-
-------=_NextPart_000_0006_01C7CD58.21A201B0
-Content-Type: text/html;
-	charset="iso-8859-1"
-Content-Transfer-Encoding: quoted-printable
-
-<html xmlns:o=3D"urn:schemas-microsoft-com:office:office" xmlns:w=3D"urn:sc=
-hemas-microsoft-com:office:word" xmlns=3D"http://www.w3.org/TR/REC-html40">
-
-<head>
-<META HTTP-EQUIV=3D"Content-Type" CONTENT=3D"text/html; charset=3Diso-8859-1">
-<meta name=3DGenerator content=3D"Microsoft Word 11 (filtered medium)">
-</head>
-<body>
-<head><meta http-equiv=3D"Content-Type" content=3D"text/html; charset=3Diso=
--8859-1">
-</head><body><p>Meinung von unserem Kunden:<br><strong>Ich finde Viaaaagra =
-einfach wunderbar. Egal, ob f&#252;r den Sex oder, um mich selbst zu verw&#=
-246;hnen: Es funktioniert. Mein Schwanz wird extrem hart und mein Orgasmus =
-ist sehr intensiv. Die Wirkung ist so stark, dass ich Viaaaagra nur am Woch=
-enende verwende oder wenn ich viel Zeit habe, es richtig zu genie&#223;en.<=
-/strong></p><p><strong>Ich bin weit &#252;ber 60, nehme Ciaaaaaalis 20 mg. =
-und das Wochenende ist gerettet. Ich kann pro Nacht 4-5 mal, und am Morgen =
-wieder, f&#252;r den n&#228;chsten Abend reicht eine Halbe. Meine Freundin =
-ist begeistert. F&#252;r meine Frau nehme ich eine halbe Tablette, das reic=
-ht f&#252;r einen netten Abend.<br>
-</strong><strong><br>Versuchen Sie unser Produkt und Sie werden fuhlen was =
-unsere Kunden bestatigen</strong></p><p>Preise die keine Konkurrenz kennen =
-<p>
-- Kein peinlicher Arztbesuch erforderlich<br>- Kostenlose, arztliche Telefo=
-n-Beratung<br>- Kein langes Warten - Auslieferung innerhalb von 2-3 Tagen<b=
-r>- Diskrete Verpackung und Zahlung<br>- Bequem und diskret online bestelle=
-n.<br>- Visa verifizierter Onlineshop<br>- keine versteckte Kosten</p>
-<p>Originalmedikamente<br>
-  <strong>Ciaaaaaalis 10 Pack. 27,00 Euro</strong><br>
-  <strong>Viaaaagra 10 Pack. 21,00 Euro</strong><br>
-   <br>
-  <strong><a href=3D"http://oobnybz.suchbetween.cn/?995195523352" target=3D=
-"_blank">Vier Dosen gibt's bei jeder Bestellung umsonst</a><br>
-</strong>(bitte warten Sie einen Moment bis die Seite vollst&auml;ndig gela=
-den wird) </p>
-</body>
-</body>
-</html>
-
-------=_NextPart_000_0006_01C7CD58.21A201B0--
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
