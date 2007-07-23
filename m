@@ -1,38 +1,53 @@
-Date: Mon, 23 Jul 2007 16:00:24 -0700 (PDT)
-From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [PATCH] add __GFP_ZERP to GFP_LEVEL_MASK
-In-Reply-To: <20070723155603.f1b1a735.akpm@linux-foundation.org>
-Message-ID: <Pine.LNX.4.64.0707231558590.32630@schroedinger.engr.sgi.com>
-References: <1185185020.8197.11.camel@twins> <20070723113712.c0ee29e5.akpm@linux-foundation.org>
- <1185216048.5535.1.camel@lappy> <20070723144323.1ac34b16@schroedinger.engr.sgi.com>
- <20070723151306.86e3e0ce.akpm@linux-foundation.org>
- <alpine.LFD.0.999.0707231539520.3607@woody.linux-foundation.org>
- <20070723155603.f1b1a735.akpm@linux-foundation.org>
+Received: by nz-out-0506.google.com with SMTP id s1so1290327nze
+        for <linux-mm@kvack.org>; Mon, 23 Jul 2007 16:08:35 -0700 (PDT)
+Message-ID: <9a8748490707231608h453eefffx68b9c391897aba70@mail.gmail.com>
+Date: Tue, 24 Jul 2007 01:08:35 +0200
+From: "Jesper Juhl" <jesper.juhl@gmail.com>
+Subject: Re: -mm merge plans for 2.6.23
+In-Reply-To: <200707102015.44004.kernel@kolivas.org>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+References: <20070710013152.ef2cd200.akpm@linux-foundation.org>
+	 <200707102015.44004.kernel@kolivas.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, linux-kernel <linux-kernel@vger.kernel.org>, Daniel Phillips <phillips@google.com>, linux-mm <linux-mm@kvack.org>
+To: Con Kolivas <kernel@kolivas.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, ck list <ck@vds.kolivas.org>, Ingo Molnar <mingo@elte.hu>, Paul Jackson <pj@sgi.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 23 Jul 2007, Andrew Morton wrote:
+On 10/07/07, Con Kolivas <kernel@kolivas.org> wrote:
+> On Tuesday 10 July 2007 18:31, Andrew Morton wrote:
+> > When replying, please rewrite the subject suitably and try to Cc: the
+> > appropriate developer(s).
+>
+> ~swap prefetch
+>
+> Nick's only remaining issue which I could remotely identify was to make it
+> cpuset aware:
+> http://marc.info/?l=linux-mm&m=117875557014098&w=2
+> as discussed with Paul Jackson it was cpuset aware:
+> http://marc.info/?l=linux-mm&m=117895463120843&w=2
+>
+> I fixed all bugs I could find and improved it as much as I could last kernel
+> cycle.
+>
+> Put me and the users out of our misery and merge it now or delete it forever
+> please. And if the meaningless handwaving that I 100% expect as a response
+> begins again, then that's fine. I'll take that as a no and you can dump it.
+>
+For what it's worth; put me down as supporting the merger of swap
+prefetch. I've found it useful in the past, Con has maintained it
+nicely and cleaned up everything that people have pointed out - it's
+mature, does no harm - let's just get it merged.  It's too late for
+2.6.23-rc1 now, but let's try and get this in by -rc2 - it's long
+overdue...
 
-> So this:
-> 
-> 	/*
-> 	 * Be lazy and only check for valid flags here,  keeping it out of the
-> 	 * critical path in kmem_cache_alloc().
-> 	 */
-> 	BUG_ON(flags & ~(GFP_DMA | __GFP_ZERO | GFP_LEVEL_MASK));
-> 
-> would no longer need the __GFP_ZERO.  Ditto in slob's new_slab().
-
-That __GFP_ZERO is needed to avoid triggering the BUG_ON. The next line
-
-	local_flags = (flags & GFP_LEVEL_MASK);
-
-filters out the __GFP_ZERO before calling the page allocator.
+-- 
+Jesper Juhl <jesper.juhl@gmail.com>
+Don't top-post  http://www.catb.org/~esr/jargon/html/T/top-post.html
+Plain text mails only, please      http://www.expita.com/nomime.html
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
