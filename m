@@ -1,224 +1,80 @@
-Date: Mon, 23 Jul 2007 14:45:17 +0100
-Subject: Re: [RFC][PATCH] zone config patch set [2/2] CONFIG_ZONE_MOVABLE
-Message-ID: <20070723134517.GA15510@skynet.ie>
-References: <20070721160049.75bc8d9f.kamezawa.hiroyu@jp.fujitsu.com> <20070721160336.28ec3ad8.kamezawa.hiroyu@jp.fujitsu.com>
+From: "Leslie Darnell" <atty@hazen.com>
+Subject: Jetzt bestellen und ein blaues Wunder erleben   Having reviewed all  -- "secret language" 
+Date: Mon, 23 Jul 2007 14:07:49 -0300
+Message-ID: <01c7cd32$da56f7e0$a87455d5@atty>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <20070721160336.28ec3ad8.kamezawa.hiroyu@jp.fujitsu.com>
-From: mel@skynet.ie (Mel Gorman)
-Sender: owner-linux-mm@kvack.org
-Return-Path: <owner-linux-mm@kvack.org>
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "apw@shadowen.org" <apw@shadowen.org>, Andrew Morton <akpm@linux-foundation.org>, nickpiggin@yahoo.com.au, Christoph Lameter <clameter@sgi.com>
+Content-Type: multipart/alternative;
+	boundary="----=_NextPart_000_000E_01C7CD54.616897E0"
+Return-Path: <atty@hazen.com>
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On (21/07/07 16:03), KAMEZAWA Hiroyuki didst pronounce:
-> 
-> Makes ZONE_MOVABLE as configurable
-> 
-> Based on "zone_ifdef_cleanup_by_renumbering.patch"
-> 
-> Signed-Off-By: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-> 
-> 
-> 
-> ---
->  include/linux/gfp.h    |    3 ++-
->  include/linux/mmzone.h |   11 +++++++----
->  include/linux/vmstat.h |   13 +++++++++++--
->  mm/Kconfig             |   13 +++++++++++++
->  mm/page_alloc.c        |    6 ++++++
->  mm/vmstat.c            |    8 +++++++-
->  6 files changed, 46 insertions(+), 8 deletions(-)
-> 
-> Index: linux-2.6.22-rc6-mm1/include/linux/mmzone.h
-> ===================================================================
-> --- linux-2.6.22-rc6-mm1.orig/include/linux/mmzone.h
-> +++ linux-2.6.22-rc6-mm1/include/linux/mmzone.h
-> @@ -177,7 +177,9 @@ enum zone_type {
->  	 */
->  	ZONE_HIGHMEM,
->  #endif
-> +#ifdef CONFIG_ZONE_MOVABLE
->  	ZONE_MOVABLE,
-> +#endif
->  	MAX_NR_ZONES,
->  #ifndef CONFIG_ZONE_DMA
->  	ZONE_DMA,
-> @@ -188,6 +190,9 @@ enum zone_type {
->  #ifndef CONFIG_HIGHMEM
->  	ZONE_HIGHMEM,
->  #endif
-> +#ifndef CONFIG_ZONE_MOVABLE
-> +	ZONE_MOVABLE,
-> +#endif
->  	MAX_POSSIBLE_ZONES,
->  };
->  
-> @@ -567,11 +572,9 @@ static inline int zone_idx_is(enum zone_
->  
->  static inline int zone_movable_is_highmem(void)
->  {
-> -#if CONFIG_ARCH_POPULATES_NODE_MAP
-> -	if (is_configured_zone(ZONE_HIGHMEM))
-> -		return movable_zone == ZONE_HIGHMEM;
-> -#endif
-> -	return 0;
-> +	return is_configured_zone(ZONE_HIGHMEM) &&
-> +	       is_configured_zone(ZONE_MOVABLE) &&
-> +		(movable_zone == ZONE_HIGHMEM);
->  }
+This is a multi-part message in MIME format.
 
-I think this should remain inside the check for
-CONFIG_ARCH_POPULATES_NODE_MAP . movable_zone is not defined if it is
-not set. While this works with a cross-compiler for ARM (doesn't use
-CONFIG_ARCH_POPULATES_NODE_MAP), it's because the optimiser is getting
-rid of the references as opposed to the code being correct.
+------=_NextPart_000_000E_01C7CD54.616897E0
+Content-Type: text/plain;
+	charset="iso-8859-2"
+Content-Transfer-Encoding: 7bit
 
->  
->  static inline int is_highmem_idx(enum zone_type idx)
-> Index: linux-2.6.22-rc6-mm1/include/linux/gfp.h
-> ===================================================================
-> --- linux-2.6.22-rc6-mm1.orig/include/linux/gfp.h
-> +++ linux-2.6.22-rc6-mm1/include/linux/gfp.h
-> @@ -122,7 +122,8 @@ static inline enum zone_type gfp_zone(gf
->  	if (is_configured_zone(ZONE_DMA32) && (flags & __GFP_DMA32))
->  		return ZONE_DMA32;
->  
-> -	if ((flags & (__GFP_HIGHMEM | __GFP_MOVABLE)) ==
-> +	if (is_configured_zone(ZONE_MOVABLE) &&
-> +	    (flags & (__GFP_HIGHMEM | __GFP_MOVABLE)) ==
->  			(__GFP_HIGHMEM | __GFP_MOVABLE))
->  		return ZONE_MOVABLE;
->  
-> Index: linux-2.6.22-rc6-mm1/mm/Kconfig
-> ===================================================================
-> --- linux-2.6.22-rc6-mm1.orig/mm/Kconfig
-> +++ linux-2.6.22-rc6-mm1/mm/Kconfig
-> @@ -112,6 +112,19 @@ config SPARSEMEM_EXTREME
->  	def_bool y
->  	depends on SPARSEMEM && !SPARSEMEM_STATIC
->  
-> +
-> +config ZONE_MOVABLE
-> +	bool	"A zone for movable pages"
-> +	depends on ARCH_POPULATES_NODE_MAP
-> +	help
-> +	  Allows creating a zone type only for movable pages, i.e page cache
+Sie leben nur einmal - warum dann nicht was neues ausprobieren?
 
-e.g. instead of i.e. here
+Preise die keine Konkurrenz kennen 
 
-i.e. implies that only page cache and anonymous memory can use the zone.
-e.g. implies that page cache and anonymous memory are just two types
-that can use it.
+- Kein peinlicher Arztbesuch erforderlich
+- Bequem und diskret online bestellen.
+- Kostenlose, arztliche Telefon-Beratung
+- Diskrete Verpackung und Zahlung
+- Kein langes Warten - Auslieferung innerhalb von 2-3 Tagen
+- Visa verifizierter Onlineshop
+- keine versteckte Kosten
 
-> +	  and anonymous memory. Because movable pages are to end to be easily
+Originalmedikamente
+Ciaaaaaalis 10 Pack. 27,00 Euro
+Viaaaagra 10 Pack. 21,00 Euro
 
-Because movable pages are easily reclaimed .....
+Nur fur kurze Zeit - vier Pillen umsonst erhalten
+http://haobb.melodynoise.cn/?718877432489
 
-> +	  reclaimed and page migration technique can move them, your chance
-> +	  for allocating big size memory will be better in this zone than
+(bitte warten Sie einen Moment bis die Seite vollstandig geladen wird)
 
-allocating contiguous memory such as huge pages will be better ....
 
-> +  	  other zones.
-> +	  To use this zone, please see "kernelcore=" or "movablecore=" in
-> +	  Documentation/kernel-parameters.txt
-> +
->  # eventually, we can have this option just 'select SPARSEMEM'
->  config MEMORY_HOTPLUG
->  	bool "Allow for memory hot-add"
-> Index: linux-2.6.22-rc6-mm1/mm/page_alloc.c
-> ===================================================================
-> --- linux-2.6.22-rc6-mm1.orig/mm/page_alloc.c
-> +++ linux-2.6.22-rc6-mm1/mm/page_alloc.c
-> @@ -86,7 +86,9 @@ int sysctl_lowmem_reserve_ratio[MAX_NR_Z
->  #ifdef CONFIG_HIGHMEM
->  	 32,
->  #endif
-> +#ifdef CONFIG_ZONE_MOVABLE
->  	 32,
-> +#endif
->  };
->  
->  EXPORT_SYMBOL(totalram_pages);
-> @@ -3883,6 +3885,10 @@ static int __init cmdline_parse_kernelco
->  	if (!p)
->  		return -EINVAL;
->  
-> +	if (!is_configured_zone(ZONE_MOVABLE)) {
-> +		printk ("ZONE_MOVABLE is not configured, kernelcore= is ignored.\n");
-> +		return 0;
-> +	}
+------=_NextPart_000_000E_01C7CD54.616897E0
+Content-Type: text/html;
+	charset="iso-8859-2"
+Content-Transfer-Encoding: quoted-printable
 
-This is a good check but bear in mind that in 2.6.23-rc1, this block of
-code looks different and there is both cmdline_parse_kernelcore() and
-cmdline_parse_movablecore().
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
+<HTML><HEAD><TITLE></TITLE>
+<META content=3D"text/html; charset=3Diso-8859-2" http-equiv=3DContent-Type>
+<META content=3D"MSHTML 6.00.2800.1478" name=3DGENERATOR></HEAD>
+<BODY>
+<head><meta http-equiv=3D"Content-Type" content=3D"text/html; charset=3Diso=
+-8859-1">
+</head><body><p>Meinung von unserem Kunden:<br><strong>Ich muss sagen, Ciaa=
+aalis ist wirklich nochmals viel besser als Viaaaagra. Es ist alles viel na=
+t&#252;rlicher als mit Viaaaagra. Aufgrund der langen Wirkungszeit von 24 S=
+tunden kann man sich richtig Zeit lassen und mehrer Runden einlegen.</stron=
+g></p><p><strong>Bin restlos begeistert. Bin 50 und schlage mich seit einem=
+ guten Jahre damit herum, dass meinem Freund im entscheidenden Moment die S=
+tandfestigkeit abhanden kommt. Aber nun ist es wie in allerbesten Zeiten. 1=
+0 mg reichen f&#252;r ein sehr LUSTiges Weekend. Null Nebenwirkungen - abge=
+sehen vom Muskelkater am n&#228;chten Tag. Aber der verschwindet ja durch a=
+usreichendes Training ;-))<br>
+</strong><strong><br>Sie leben nur einmal - warum dann nicht was neues ausp=
+robieren?</strong></p><p>Preise die keine Konkurrenz kennen <p>
+- Kostenlose, arztliche Telefon-Beratung<br>- Diskrete Verpackung und Zahlu=
+ng<br>- Kein langes Warten - Auslieferung innerhalb von 2-3 Tagen<br>- Bequ=
+em und diskret online bestellen.<br>- Kein peinlicher Arztbesuch erforderli=
+ch<br>- Visa verifizierter Onlineshop<br>- keine versteckte Kosten</p>
+<p>Originalmedikamente<br>
+  <strong>Ciaaaaaalis 10 Pack. 27,00 Euro</strong><br>
+  <strong>Viaaaagra 10 Pack. 21,00 Euro</strong><br>
+   <br>
+  <strong><a href=3D"http://haobb.melodynoise.cn/?718877432489" target=3D"_=
+blank">Nur fur kurze Zeit - vier Pillen umsonst erhalten</a><br>
+</strong>(bitte warten Sie einen Moment bis die Seite vollst&auml;ndig gela=
+den wird) </p>
+</body>
+</BODY></HTML>
 
->  	coremem = memparse(p, &p);
->  	required_kernelcore = coremem >> PAGE_SHIFT;
->  
-> Index: linux-2.6.22-rc6-mm1/mm/vmstat.c
-> ===================================================================
-> --- linux-2.6.22-rc6-mm1.orig/mm/vmstat.c
-> +++ linux-2.6.22-rc6-mm1/mm/vmstat.c
-> @@ -694,8 +694,14 @@ const struct seq_operations pagetypeinfo
->  #define TEXT_FOR_HIGHMEM(xx)
->  #endif
->  
-> +#ifdef CONFIG_ZONE_MOVABLE
-> +#define TEXT_FOR_MOVABLE(xx) xx "_movable",
-> +#else
-> +#define TEXT_FOR_MOVABLE(xx)
-> +#endif
-> +
->  #define TEXTS_FOR_ZONES(xx) TEXT_FOR_DMA(xx) TEXT_FOR_DMA32(xx) xx "_normal", \
-> -					TEXT_FOR_HIGHMEM(xx) xx "_movable",
-> +					TEXT_FOR_HIGHMEM(xx) xx TEXT_FOR_MOVABLE(xx)
->  
->  static const char * const vmstat_text[] = {
->  	/* Zoned VM counters */
-> Index: linux-2.6.22-rc6-mm1/include/linux/vmstat.h
-> ===================================================================
-> --- linux-2.6.22-rc6-mm1.orig/include/linux/vmstat.h
-> +++ linux-2.6.22-rc6-mm1/include/linux/vmstat.h
-> @@ -25,7 +25,14 @@
->  #define HIGHMEM_ZONE(xx)
->  #endif
->  
-> -#define FOR_ALL_ZONES(xx) DMA_ZONE(xx) DMA32_ZONE(xx) xx##_NORMAL HIGHMEM_ZONE(xx) , xx##_MOVABLE
-> +#ifdef CONFIG_ZONE_MOVABLE
-> +#define MOVABLE_ZONE(xx) , xx##_MOVABLE
-> +#else
-> +#define MOVABLE_ZONE(xx)
-> +#endif
-> +
-> +
-> +#define FOR_ALL_ZONES(xx) DMA_ZONE(xx) DMA32_ZONE(xx) xx##_NORMAL HIGHMEM_ZONE(xx) MOVABLE_ZONE(xx)
->  
->  enum vm_event_item { PGPGIN, PGPGOUT, PSWPIN, PSWPOUT,
->  		FOR_ALL_ZONES(PGALLOC),
-> @@ -170,7 +177,9 @@ static inline unsigned long node_page_st
->  	if (is_configured_zone(ZONE_HIGHMEM))
->  		val += zone_page_state(&zones[ZONE_HIGHMEM], item);
->  
-> -	val += zone_page_state(&zones[ZONE_MOVABLE], item);
-> +	if (is_configured_zone(ZONE_MOVABLE))
-> +		val += zone_page_state(&zones[ZONE_MOVABLE], item);
-> +
->  	return val;
->  }
->  
-
--- 
--- 
-Mel Gorman
-Part-time Phd Student                          Linux Technology Center
-University of Limerick                         IBM Dublin Software Lab
-
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+------=_NextPart_000_000E_01C7CD54.616897E0--
