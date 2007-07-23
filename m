@@ -1,33 +1,23 @@
-Message-ID: <46A51DEB.6090603@google.com>
-Date: Mon, 23 Jul 2007 14:30:19 -0700
-From: Ethan Solomita <solo@google.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH 0/6] cpuset aware writeback
-References: <469D3342.3080405@google.com> <20070723131841.02c9b109@schroedinger.engr.sgi.com>
-In-Reply-To: <20070723131841.02c9b109@schroedinger.engr.sgi.com>
-Content-Type: text/plain; charset=ISO-8859-1
+Date: Mon, 23 Jul 2007 14:43:23 -0700
+From: Christoph Lameter <clameter@sgi.com>
+Subject: Re: [PATCH] add __GFP_ZERP to GFP_LEVEL_MASK
+Message-ID: <20070723144323.1ac34b16@schroedinger.engr.sgi.com>
+In-Reply-To: <1185216048.5535.1.camel@lappy>
+References: <1185185020.8197.11.camel@twins>
+	<20070723113712.c0ee29e5.akpm@linux-foundation.org>
+	<1185216048.5535.1.camel@lappy>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
-Cc: linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@google.com>
+To: Peter Zijlstra <a.p.zijlstra@chello.nl>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, linux-kernel <linux-kernel@vger.kernel.org>, Daniel Phillips <phillips@google.com>, linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-Christoph Lameter wrote:
-> On Tue, 17 Jul 2007 14:23:14 -0700
-> Ethan Solomita <solo@google.com> wrote:
-> 
->> These patches are mostly unchanged from Chris Lameter's original
->> changelist posted previously to linux-mm.
-> 
-> Thanks for keeping these patches up to date. Add you signoff if you
-> did modifications to a patch. Also include the description of the tests
-> in the introduction to the patchset.
-
-	So switch from an Ack to a signed-off? OK, and I'll add descriptions of
-testing. Everyone other than you has been silent on these patches. Does
-silence equal consent?
-	-- Ethan
+__GFP_ZERO is implemented by the slab allocators (the page allocator
+has no knowledge about the length of the object to be zeroed). The slab
+allocators do not pass __GFP_ZERO to the page allocator.
 
 
 --
