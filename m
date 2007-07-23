@@ -1,52 +1,67 @@
-Subject: Re: [PATCH] add __GFP_ZERP to GFP_LEVEL_MASK
-From: Peter Zijlstra <a.p.zijlstra@chello.nl>
-In-Reply-To: <20070723113712.c0ee29e5.akpm@linux-foundation.org>
-References: <1185185020.8197.11.camel@twins>
-	 <20070723113712.c0ee29e5.akpm@linux-foundation.org>
-Content-Type: text/plain
-Date: Mon, 23 Jul 2007 20:40:48 +0200
-Message-Id: <1185216048.5535.1.camel@lappy>
+Received: from agmgw2.us.oracle.com (agmgw2.us.oracle.com [152.68.180.213])
+	by agminet01.oracle.com (Switch-3.2.4/Switch-3.1.7) with ESMTP id l6NJ08gL008784
+	for <linux-mm@kvack.org>; Mon, 23 Jul 2007 14:00:08 -0500
+Received: from acsmt351.oracle.com (acsmt351.oracle.com [141.146.40.151])
+	by agmgw2.us.oracle.com (Switch-3.2.0/Switch-3.2.0) with ESMTP id l6N8ZA1p026123
+	for <linux-mm@kvack.org>; Mon, 23 Jul 2007 13:00:08 -0600
+Date: Mon, 23 Jul 2007 12:04:09 -0700
+From: Randy Dunlap <randy.dunlap@oracle.com>
+Subject: hugepage test failures
+Message-Id: <20070723120409.477a1c31.randy.dunlap@oracle.com>
 Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>, linux-kernel <linux-kernel@vger.kernel.org>, Christoph Lameter <clameter@sgi.com>, Daniel Phillips <phillips@google.com>, linux-mm <linux-mm@kvack.org>
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 2007-07-23 at 11:37 -0700, Andrew Morton wrote:
-> On Mon, 23 Jul 2007 12:03:40 +0200 Peter Zijlstra <a.p.zijlstra@chello.nl> wrote:
-> 
-> > Daniel recently spotted that __GFP_ZERO is not (and has never been)
-> > part of GFP_LEVEL_MASK. I could not find a reason for this in the
-> > original patch: 3977971c7f09ce08ed1b8d7a67b2098eb732e4cd in the -bk
-> > tree.
-> 
-> It doesn't make a lot of sense to be passing __GFP_ZERO into slab
-> allocation functions.  It's not really for the caller to be telling slab
-> how it should arrange for its new memory to get zeroed.
-> 
-> And the caller of slab functions will need to zero the memory anyway,
-> because you don't know whether your new object came direct from the page
-> allocator or if it is recycled memory from a partial slab.
-> 
-> I have a feeling that we did support passing __GFP_ZERO into the slab
-> allocation functions for a while, but took it out.
+Hi,
 
-Didn't we just reinstate doing that?
+I'm a few hundred linux-mm emails behind, so maybe this has been
+addressed already.  I hope so.
 
-/me goes look at .23-rc1
+I run hugepage-mmap and hugepage-shm tests (from Doc/vm/hugetlbpage.txt)
+on a regular basis.  Lately they have been failing, usually with -ENOMEM,
+but sometimes the mmap() succeeds and hugepage-mmap gets a SIGBUS:
 
-# grep __GFP_ZERO mm/sl[uoa]b.c
-mm/slab.c:      BUG_ON(flags & ~(GFP_DMA | __GFP_ZERO | GFP_LEVEL_MASK));
-mm/slab.c:      if (unlikely((flags & __GFP_ZERO) && ptr))
-mm/slab.c:      if (unlikely((flags & __GFP_ZERO) && objp))
-mm/slob.c:      if (unlikely((gfp & __GFP_ZERO) && b))
-mm/slub.c:      BUG_ON(flags & ~(GFP_DMA | __GFP_ZERO | GFP_LEVEL_MASK));
-mm/slub.c:      if (unlikely((gfpflags & __GFP_ZERO) && object))
+open("/mnt/hugetlbfs/hugepagefile", O_RDWR|O_CREAT, 0755) = 3
+mmap(NULL, 268435456, PROT_READ|PROT_WRITE, MAP_SHARED, 3, 0) = 0x2af31d2c3000
+fstat(1, {st_mode=S_IFCHR|0620, st_rdev=makedev(136, 1), ...}) = 0
+mmap(NULL, 4096, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS, -1, 0) = 0x2af32d2c3000
+write(1, "Returned address is 0x2af31d2c30"..., 35) = 35
+--- SIGBUS (Bus error) @ 0 (0) ---
++++ killed by SIGBUS +++
 
 
-seems to suggest we do.
+and:
+
+# ./hugepage-shm
+shmget: Cannot allocate memory
+
+
+I added printk()s in many mm/mmap.c and mm/hugetlb.c error return
+locations and got this:
+
+hugetlb_reserve_pages: -ENOMEM
+
+which comes from mm/hugetlb.c::hugetlb_reserve_pages():
+
+        if (chg > cpuset_mems_nr(free_huge_pages_node)) {
+                printk(KERN_DEBUG "%s: -ENOMEM\n", __func__);
+                return -ENOMEM;
+        }
+
+I had CONFIG_CPUSETS=y so I disabled it, but the same error
+still happens.
+
+
+Suggestions?  Fixex?
+
+Thanks.
+---
+~Randy
+*** Remember to use Documentation/SubmitChecklist when testing your code ***
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
