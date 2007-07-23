@@ -1,56 +1,83 @@
-Subject: Re: [PATCH] add __GFP_ZERO to GFP_LEVEL_MASK
-From: Peter Zijlstra <a.p.zijlstra@chello.nl>
-In-Reply-To: <20070723112143.GB19437@skynet.ie>
-References: <1185185020.8197.11.camel@twins>
-	 <20070723112143.GB19437@skynet.ie>
-Content-Type: text/plain
-Date: Mon, 23 Jul 2007 13:38:31 +0200
-Message-Id: <1185190711.8197.15.camel@twins>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
-Sender: owner-linux-mm@kvack.org
-Return-Path: <owner-linux-mm@kvack.org>
-To: Mel Gorman <mel@skynet.ie>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, linux-kernel <linux-kernel@vger.kernel.org>, Christoph Lameter <clameter@sgi.com>, Daniel Phillips <phillips@google.com>, linux-mm <linux-mm@kvack.org>
+Message-ID: <01c7cd25$3717f730$78c4ab54@candy.hue>
+From: "Keven Decker" <candy.hue@msa.hinet.net>
+Subject: Potenzprobleme? Ab jetzt nicht mehr  history of corporation, --  and Adapter. With Head First
+Date: Mon, 23 Jul 2007 12:30:12 -0100
+MIME-Version: 1.0
+Content-Type: multipart/alternative;
+	boundary="----=_NextPart_000_0007_01C7CD35.FAA0C730"
+Return-Path: <candy.hue@msa.hinet.net>
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 2007-07-23 at 12:21 +0100, Mel Gorman wrote:
+This is a multi-part message in MIME format.
 
-> Does this patch compile though?
+------=_NextPart_000_0007_01C7CD35.FAA0C730
+Content-Type: text/plain;
+	charset="windows-1250"
+Content-Transfer-Encoding: quoted-printable
 
-Ugh, the fix landed in another patch :-(
+Versuchen Sie unser Produkt und Sie werden fuhlen was unsere Kunden bestati=
+gen
 
-updated patch below.
+Preise die keine Konkurrenz kennen 
 
----
-Daniel recently spotted that __GFP_ZERO is not (and has never been)
-part of GFP_LEVEL_MASK. I could not find a reason for this in the
-original patch: 3977971c7f09ce08ed1b8d7a67b2098eb732e4cd in the -bk
-tree.
+- Kein langes Warten - Auslieferung innerhalb von 2-3 Tagen
+- Diskrete Verpackung und Zahlung
+- Bequem und diskret online bestellen.
+- Kein peinlicher Arztbesuch erforderlich
+- Kostenlose, arztliche Telefon-Beratung
+- Visa verifizierter Onlineshop
+- keine versteckte Kosten
 
-This of course is in stark contradiction with the comment accompanying
-GFP_LEVEL_MASK.
----
- include/linux/gfp.h |    2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+Originalmedikamente
+Ciaaaaaalis 10 Pack. 27,00 Euro
+Viaaaagra 10 Pack. 21,00 Euro
 
-Index: linux-2.6-2/include/linux/gfp.h
-===================================================================
---- linux-2.6-2.orig/include/linux/gfp.h
-+++ linux-2.6-2/include/linux/gfp.h
-@@ -56,7 +56,7 @@ struct vm_area_struct;
- /* if you forget to add the bitmask here kernel will crash, period */
- #define GFP_LEVEL_MASK (__GFP_WAIT|__GFP_HIGH|__GFP_IO|__GFP_FS| \
- 			__GFP_COLD|__GFP_NOWARN|__GFP_REPEAT| \
--			__GFP_NOFAIL|__GFP_NORETRY|__GFP_COMP| \
-+			__GFP_NOFAIL|__GFP_NORETRY|__GFP_COMP|__GFP_ZERO| \
- 			__GFP_NOMEMALLOC|__GFP_HARDWALL|__GFP_THISNODE| \
- 			__GFP_MOVABLE)
- 
+Jetzt bestellen - und vier Pillen umsonst erhalten
+http://rowxkoq.largeprobable.com/?535168896016
 
+(bitte warten Sie einen Moment bis die Seite vollstandig geladen wird)
+------=_NextPart_000_0007_01C7CD35.FAA0C730
+Content-Type: text/html;
+	charset="windows-1250"
+Content-Transfer-Encoding: quoted-printable
 
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
+<HTML><HEAD>
+<META http-equiv=3DContent-Type content=3D"text/html; charset=3Dwindows-1250">
+<META content=3D"MSHTML 6.00.2900.2527" name=3DGENERATOR>
+<STYLE></STYLE>
+</HEAD>
+<BODY>
+<head><meta http-equiv=3D"Content-Type" content=3D"text/html; charset=3Diso=
+-8859-1">
+</head><body><p>Meinung von unserem Kunden:<br><strong>Meine Frau und ich h=
+aben Viaaaagra am letzten Wochenende ausprobiert. Sie fand, mein bestes St&=
+#252;ck w&#228;re in letzter Zeit nicht ganz auf der H&#246;he gewesen. Als=
+o dachten wir, wir probieren es einfach einmal.Es gibt nur ein Wort, dass d=
+as Gef&#252;hl beschreibt: Wahnsinn. Seit ich zwanzig war, konnte ich nicht=
+ mehr so lang und so oft. Was soll ich sagen? Gute Arbeit, Viaaaagra!</stro=
+ng></p><p><strong>Ich finde Viaaaagra einfach wunderbar. Egal, ob f&#252;r =
+den Sex oder, um mich selbst zu verw&#246;hnen: Es funktioniert. Mein Schwa=
+nz wird extrem hart und mein Orgasmus ist sehr intensiv. Die Wirkung ist so=
+ stark, dass ich Viaaaagra nur am Wochenende verwende oder wenn ich viel Ze=
+it habe, es richtig zu genie&#223;en.<br>
+</strong><strong><br>Versuchen Sie unser Produkt und Sie werden fuhlen was =
+unsere Kunden bestatigen</strong></p><p>Preise die keine Konkurrenz kennen =
+<p>
+- Kein langes Warten - Auslieferung innerhalb von 2-3 Tagen<br>- Visa verif=
+izierter Onlineshop<br>- Kostenlose, arztliche Telefon-Beratung<br>- Bequem=
+ und diskret online bestellen.<br>- keine versteckte Kosten<br>- Kein peinl=
+icher Arztbesuch erforderlich<br>- Diskrete Verpackung und Zahlung</p>
+<p>Originalmedikamente<br>
+  <strong>Ciaaaaaalis 10 Pack. 27,00 Euro</strong><br>
+  <strong>Viaaaagra 10 Pack. 21,00 Euro</strong><br>
+   <br>
+  <strong><a href=3D"http://rowxkoq.largeprobable.com/?535168896016" target=
+=3D"_blank">Jetzt bestellen - und vier Pillen umsonst erhalten</a><br>
+</strong>(bitte warten Sie einen Moment bis die Seite vollst&auml;ndig gela=
+den wird) </p>
+</body>
+</BODY></HTML>
+
+------=_NextPart_000_0007_01C7CD35.FAA0C730--
