@@ -1,80 +1,99 @@
-From: "Leslie Darnell" <atty@hazen.com>
-Subject: Jetzt bestellen und ein blaues Wunder erleben   Having reviewed all  -- "secret language" 
-Date: Mon, 23 Jul 2007 14:07:49 -0300
-Message-ID: <01c7cd32$da56f7e0$a87455d5@atty>
+Received: from d03relay04.boulder.ibm.com (d03relay04.boulder.ibm.com [9.17.195.106])
+	by e35.co.us.ibm.com (8.13.8/8.13.8) with ESMTP id l6NEL53a027775
+	for <linux-mm@kvack.org>; Mon, 23 Jul 2007 10:21:05 -0400
+Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
+	by d03relay04.boulder.ibm.com (8.13.8/8.13.8/NCO v8.4) with ESMTP id l6NE6CiS081736
+	for <linux-mm@kvack.org>; Mon, 23 Jul 2007 08:21:05 -0600
+Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av02.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l6NE2P0p013361
+	for <linux-mm@kvack.org>; Mon, 23 Jul 2007 08:02:25 -0600
+Date: Mon, 23 Jul 2007 07:02:24 -0700
+From: Nishanth Aravamudan <nacc@us.ibm.com>
+Subject: Re: [PATCH] hugetlbfs read() support
+Message-ID: <20070723140224.GC23148@us.ibm.com>
+References: <1184376214.15968.9.camel@dyn9047017100.beaverton.ibm.com> <20070718221950.35bbdb76.akpm@linux-foundation.org> <1184860309.18188.90.camel@dyn9047017100.beaverton.ibm.com> <20070719095850.6e09b0e8.akpm@linux-foundation.org> <20070719170759.GE2083@us.ibm.com> <46A03E63.2080508@yahoo.com.au>
 MIME-Version: 1.0
-Content-Type: multipart/alternative;
-	boundary="----=_NextPart_000_000E_01C7CD54.616897E0"
-Return-Path: <atty@hazen.com>
-To: linux-mm@kvack.org
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <46A03E63.2080508@yahoo.com.au>
+Sender: owner-linux-mm@kvack.org
+Return-Path: <owner-linux-mm@kvack.org>
+To: Nick Piggin <nickpiggin@yahoo.com.au>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Badari Pulavarty <pbadari@us.ibm.com>, Bill Irwin <bill.irwin@oracle.com>, lkml <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-This is a multi-part message in MIME format.
+On 20.07.2007 [14:47:31 +1000], Nick Piggin wrote:
+> Nishanth Aravamudan wrote:
+> >On 19.07.2007 [09:58:50 -0700], Andrew Morton wrote:
+> >
+> >>On Thu, 19 Jul 2007 08:51:49 -0700 Badari Pulavarty <pbadari@us.ibm.com> 
+> >>wrote:
+> >>
+> >>
+> >>>>>+		}
+> >>>>>+
+> >>>>>+		offset += ret;
+> >>>>>+		retval += ret;
+> >>>>>+		len -= ret;
+> >>>>>+		index += offset >> HPAGE_SHIFT;
+> >>>>>+		offset &= ~HPAGE_MASK;
+> >>>>>+
+> >>>>>+		page_cache_release(page);
+> >>>>>+		if (ret == nr && len)
+> >>>>>+			continue;
+> >>>>>+		goto out;
+> >>>>>+	}
+> >>>>>+out:
+> >>>>>+	return retval;
+> >>>>>+}
+> >>>>
+> >>>>This code doesn't have all the ghastly tricks which we deploy to
+> >>>>handle concurrent truncate.
+> >>>
+> >>>Do I need to ? Baaahh!!  I don't want to deal with them. 
+> >>
+> >>Nick, can you think of any serious consequences of a read/truncate
+> >>race in there?  I can't..
+> >>
+> >>
+> >>>All I want is a simple read() to get my oprofile working.  Please
+> >>>advise.
+> >>
+> >>Did you consider changing oprofile userspace to read the executable
+> >>with mmap?
+> >
+> >
+> >It's not actually oprofile's code, though, it's libbfd (used by
+> >oprofile). And it works fine (presumably) for other binaries.
+> 
+> So... what's the problem with changing it? The fact that it is a
+> library doesn't really make a difference except that you'll also help
+> everyone else who links with it.
 
-------=_NextPart_000_000E_01C7CD54.616897E0
-Content-Type: text/plain;
-	charset="iso-8859-2"
-Content-Transfer-Encoding: 7bit
+Well, I'm more concerned about testing that change libbfd is rather core
+code and used in a number of places. Also, libbfd's current code 'just
+works' for every other filesystem concerned, or I'd expect it would have
+been changed to mmap() before. I'm also terrified of binutils code :)
+I'm also not sure who I'm 'helping', exactly by changing it, beyond
+users of libhugetlbfs and OProfile, who are equally helped by this
+kernel patch (which, again, also has the added benefit of making
+hugetlbfs appear to be more like a normal filesystem).
 
-Sie leben nur einmal - warum dann nicht was neues ausprobieren?
+> It won't break backwards compatibility, and it will work on older
+> kernels...
 
-Preise die keine Konkurrenz kennen 
+Fair enough. I'm looking into it, but I can't make any promises on
+timelines.
 
-- Kein peinlicher Arztbesuch erforderlich
-- Bequem und diskret online bestellen.
-- Kostenlose, arztliche Telefon-Beratung
-- Diskrete Verpackung und Zahlung
-- Kein langes Warten - Auslieferung innerhalb von 2-3 Tagen
-- Visa verifizierter Onlineshop
-- keine versteckte Kosten
+Thanks,
+Nish
 
-Originalmedikamente
-Ciaaaaaalis 10 Pack. 27,00 Euro
-Viaaaagra 10 Pack. 21,00 Euro
+-- 
+Nishanth Aravamudan <nacc@us.ibm.com>
+IBM Linux Technology Center
 
-Nur fur kurze Zeit - vier Pillen umsonst erhalten
-http://haobb.melodynoise.cn/?718877432489
-
-(bitte warten Sie einen Moment bis die Seite vollstandig geladen wird)
-
-
-------=_NextPart_000_000E_01C7CD54.616897E0
-Content-Type: text/html;
-	charset="iso-8859-2"
-Content-Transfer-Encoding: quoted-printable
-
-<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
-<HTML><HEAD><TITLE></TITLE>
-<META content=3D"text/html; charset=3Diso-8859-2" http-equiv=3DContent-Type>
-<META content=3D"MSHTML 6.00.2800.1478" name=3DGENERATOR></HEAD>
-<BODY>
-<head><meta http-equiv=3D"Content-Type" content=3D"text/html; charset=3Diso=
--8859-1">
-</head><body><p>Meinung von unserem Kunden:<br><strong>Ich muss sagen, Ciaa=
-aalis ist wirklich nochmals viel besser als Viaaaagra. Es ist alles viel na=
-t&#252;rlicher als mit Viaaaagra. Aufgrund der langen Wirkungszeit von 24 S=
-tunden kann man sich richtig Zeit lassen und mehrer Runden einlegen.</stron=
-g></p><p><strong>Bin restlos begeistert. Bin 50 und schlage mich seit einem=
- guten Jahre damit herum, dass meinem Freund im entscheidenden Moment die S=
-tandfestigkeit abhanden kommt. Aber nun ist es wie in allerbesten Zeiten. 1=
-0 mg reichen f&#252;r ein sehr LUSTiges Weekend. Null Nebenwirkungen - abge=
-sehen vom Muskelkater am n&#228;chten Tag. Aber der verschwindet ja durch a=
-usreichendes Training ;-))<br>
-</strong><strong><br>Sie leben nur einmal - warum dann nicht was neues ausp=
-robieren?</strong></p><p>Preise die keine Konkurrenz kennen <p>
-- Kostenlose, arztliche Telefon-Beratung<br>- Diskrete Verpackung und Zahlu=
-ng<br>- Kein langes Warten - Auslieferung innerhalb von 2-3 Tagen<br>- Bequ=
-em und diskret online bestellen.<br>- Kein peinlicher Arztbesuch erforderli=
-ch<br>- Visa verifizierter Onlineshop<br>- keine versteckte Kosten</p>
-<p>Originalmedikamente<br>
-  <strong>Ciaaaaaalis 10 Pack. 27,00 Euro</strong><br>
-  <strong>Viaaaagra 10 Pack. 21,00 Euro</strong><br>
-   <br>
-  <strong><a href=3D"http://haobb.melodynoise.cn/?718877432489" target=3D"_=
-blank">Nur fur kurze Zeit - vier Pillen umsonst erhalten</a><br>
-</strong>(bitte warten Sie einen Moment bis die Seite vollst&auml;ndig gela=
-den wird) </p>
-</body>
-</BODY></HTML>
-
-------=_NextPart_000_000E_01C7CD54.616897E0--
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
