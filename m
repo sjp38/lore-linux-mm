@@ -1,107 +1,69 @@
-Message-ID: <46A51384.2020509@oracle.com>
-Date: Mon, 23 Jul 2007 13:45:56 -0700
-From: Randy Dunlap <randy.dunlap@oracle.com>
-MIME-Version: 1.0
-Subject: Re: hugepage test failures
-References: <20070723120409.477a1c31.randy.dunlap@oracle.com>	 <29495f1d0707231318n5e76d141t5f81431ead007b53@mail.gmail.com>	 <46A50FD0.2020001@oracle.com> <29495f1d0707231329y5db98284y5ade99eee7305c23@mail.gmail.com>
-In-Reply-To: <29495f1d0707231329y5db98284y5ade99eee7305c23@mail.gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Subject: Re: [PATCH] Memoryless nodes:  use "node_memory_map" for cpuset
+	mems_allowed validation
+From: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
+In-Reply-To: <20070723190922.GA6036@us.ibm.com>
+References: <20070711182219.234782227@sgi.com>
+	 <20070711182250.005856256@sgi.com>
+	 <Pine.LNX.4.64.0707111204470.17503@schroedinger.engr.sgi.com>
+	 <1184964564.9651.66.camel@localhost>  <20070723190922.GA6036@us.ibm.com>
+Content-Type: text/plain
+Date: Mon, 23 Jul 2007 16:59:52 -0400
+Message-Id: <1185224393.23917.6.camel@localhost>
+Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nish Aravamudan <nish.aravamudan@gmail.com>
-Cc: linux-mm@kvack.org
+To: Nishanth Aravamudan <nacc@us.ibm.com>
+Cc: Christoph Lameter <clameter@sgi.com>, Paul Jackson <pj@sgi.com>, akpm@linux-foundation.org, kxr@sgi.com, linux-mm@kvack.org, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-Nish Aravamudan wrote:
-> On 7/23/07, Randy Dunlap <randy.dunlap@oracle.com> wrote:
->> Nish Aravamudan wrote:
->> > On 7/23/07, Randy Dunlap <randy.dunlap@oracle.com> wrote:
->> >> Hi,
->> >>
->> >> I'm a few hundred linux-mm emails behind, so maybe this has been
->> >> addressed already.  I hope so.
->> >>
->> >> I run hugepage-mmap and hugepage-shm tests (from 
->> Doc/vm/hugetlbpage.txt)
->> >> on a regular basis.  Lately they have been failing, usually with 
->> -ENOMEM,
->> >> but sometimes the mmap() succeeds and hugepage-mmap gets a SIGBUS:
->> >
->> > Would it be possible for you instead to run the libhugetlbfs tests?
->>
->> OK, I'm downloading that now.
+On Mon, 2007-07-23 at 12:09 -0700, Nishanth Aravamudan wrote: 
+> On 20.07.2007 [16:49:24 -0400], Lee Schermerhorn wrote:
+> > This fixes a problem I encountered testing Christoph's memoryless nodes
+> > series.  Applies atop that series.  Other than this, series holds up
+> > under what testing I've been able to do this week.
+> > 
+> > Memoryless Nodes:  use "node_memory_map" for cpusets mems_allowed validation
+> > 
+> > cpusets try to ensure that any node added to a cpuset's 
+> > mems_allowed is on-line and contains memory.  The assumption
+> > was that online nodes contained memory.  Thus, it is possible
+> > to add memoryless nodes to a cpuset and then add tasks to this
+> > cpuset.  This results in continuous series of oom-kill and other
+> > console stack traces and apparent system hang.
+> > 
+> > Change cpusets to use node_states[N_MEMORY] [a.k.a.
+> > node_memory_map] in place of node_online_map when vetting 
+> > memories.  Return error if admin attempts to write a non-empty
+> > mems_allowed node mask containing only memoryless-nodes.
+> > 
+> > Signed-off-by:  Lee Schermerhorn <lee.schermerhorn@hp.com>
 > 
-> Great, thanks. I believe the same tests that are intended by
-> Doc/vm/hugetlbpage.txt will be run by `make func`.
+> Lee, while looking at this change, I think it ends up fixing
+> cpuset_mems_allowed() to return nodemasks that only include nodes in
+> node_states[N_MEMORY]. However, cpuset_current_mems_allowed is a
+> lockless macro which would still be broken. I think it would need to
+> becom a static inline nodes_and() in the CPUSET case and a #define
+> node_states[N_MEMORY] in the non-CPUSET case?
 > 
->> > They are kept uptodate, at least.
->>
->> You mean that the Doc/ tree is not kept up to date?  ;(
-> 
-> Well, I think we all know that is true. But I wasn't aware there was a
-> testcase in the Documentation directory. I'll see what I can do about
-> making sure that is uptodate.
+> Or perhaps we should adjust cpusets to make it so that the mems_allowed
+> member only includes nodes that are set in node_states[N_MEMORY]?
 
-You could begin with my (old) patch to make them standalone .c files
-instead of being buried in a txt file.  (All programs in Doc/ should
-be like this IMO.)
 
->> But this represents an R*word (regression).
->> These tests ran successfully until recently (I can't say when).
-> 
-> Ok. I'm not sure a lot of hugetlb.c stuff has gone in very recently.
-> Any chance you can narrow down the window?
+I thought that's what my patch to nodelist_parse() did.  It ensures that
+current->mems_allowed is correct [contains at least one node with
+memory, and only nodes with memory] at the time it is installed, but
+doesn't consider memory hot plug and node off-lining.  Is this
+[offline/hotplug] your point?
 
-Maybe.
+Seems like that is an issue that exists in the unpatched code as
+well--i.e., unlike cpuset_mems_allowed(), the lockless, "_current_"
+version does not vet current->mems_allowed against the
+nodes_online_mask.  So, all valid nodes in current->mems_allowed could
+have been off-lined since the mask was installed.  Am I reading this
+right?
 
->> >> open("/mnt/hugetlbfs/hugepagefile", O_RDWR|O_CREAT, 0755) = 3
->> >> mmap(NULL, 268435456, PROT_READ|PROT_WRITE, MAP_SHARED, 3, 0) =
->> >> 0x2af31d2c3000
->> >> fstat(1, {st_mode=S_IFCHR|0620, st_rdev=makedev(136, 1), ...}) = 0
->> >> mmap(NULL, 4096, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS, -1,
->> >> 0) = 0x2af32d2c3000
->> >> write(1, "Returned address is 0x2af31d2c30"..., 35) = 35
->> >> --- SIGBUS (Bus error) @ 0 (0) ---
->> >> +++ killed by SIGBUS +++
->> >>
->> >>
->> >> and:
->> >>
->> >> # ./hugepage-shm
->> >> shmget: Cannot allocate memory
->> >>
->> >>
->> >> I added printk()s in many mm/mmap.c and mm/hugetlb.c error return
->> >> locations and got this:
->> >>
->> >> hugetlb_reserve_pages: -ENOMEM
->> >>
->> >> which comes from mm/hugetlb.c::hugetlb_reserve_pages():
->> >>
->> >>         if (chg > cpuset_mems_nr(free_huge_pages_node)) {
->> >>                 printk(KERN_DEBUG "%s: -ENOMEM\n", __func__);
->> >>                 return -ENOMEM;
->> >>         }
->> >>
->> >> I had CONFIG_CPUSETS=y so I disabled it, but the same error
->> >> still happens.
->> >
->> > As in the same cpusets_mems_nr() check fails?
->> >
->> >> Suggestions?  Fixex?
->> >
->> > Which kernel is this?
->>
->> Ah, sorry, 2.6.23-rc1.
-> 
-> Architecture? I'll try and reproduce here.
-
-x86_64.
-
--- 
-~Randy
-*** Remember to use Documentation/SubmitChecklist when testing your code ***
+Lee
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
