@@ -1,53 +1,36 @@
-Received: by nz-out-0506.google.com with SMTP id s1so1290327nze
-        for <linux-mm@kvack.org>; Mon, 23 Jul 2007 16:08:35 -0700 (PDT)
-Message-ID: <9a8748490707231608h453eefffx68b9c391897aba70@mail.gmail.com>
-Date: Tue, 24 Jul 2007 01:08:35 +0200
-From: "Jesper Juhl" <jesper.juhl@gmail.com>
-Subject: Re: -mm merge plans for 2.6.23
-In-Reply-To: <200707102015.44004.kernel@kolivas.org>
+Date: Mon, 23 Jul 2007 16:17:13 -0700 (PDT)
+From: Christoph Lameter <clameter@sgi.com>
+Subject: Re: [PATCH] add __GFP_ZERO to GFP_LEVEL_MASK
+In-Reply-To: <1185190711.8197.15.camel@twins>
+Message-ID: <Pine.LNX.4.64.0707231615310.427@schroedinger.engr.sgi.com>
+References: <1185185020.8197.11.camel@twins>  <20070723112143.GB19437@skynet.ie>
+ <1185190711.8197.15.camel@twins>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
-References: <20070710013152.ef2cd200.akpm@linux-foundation.org>
-	 <200707102015.44004.kernel@kolivas.org>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Con Kolivas <kernel@kolivas.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, ck list <ck@vds.kolivas.org>, Ingo Molnar <mingo@elte.hu>, Paul Jackson <pj@sgi.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Peter Zijlstra <a.p.zijlstra@chello.nl>
+Cc: Mel Gorman <mel@skynet.ie>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, linux-kernel <linux-kernel@vger.kernel.org>, Daniel Phillips <phillips@google.com>, linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On 10/07/07, Con Kolivas <kernel@kolivas.org> wrote:
-> On Tuesday 10 July 2007 18:31, Andrew Morton wrote:
-> > When replying, please rewrite the subject suitably and try to Cc: the
-> > appropriate developer(s).
->
-> ~swap prefetch
->
-> Nick's only remaining issue which I could remotely identify was to make it
-> cpuset aware:
-> http://marc.info/?l=linux-mm&m=117875557014098&w=2
-> as discussed with Paul Jackson it was cpuset aware:
-> http://marc.info/?l=linux-mm&m=117895463120843&w=2
->
-> I fixed all bugs I could find and improved it as much as I could last kernel
-> cycle.
->
-> Put me and the users out of our misery and merge it now or delete it forever
-> please. And if the meaningless handwaving that I 100% expect as a response
-> begins again, then that's fine. I'll take that as a no and you can dump it.
->
-For what it's worth; put me down as supporting the merger of swap
-prefetch. I've found it useful in the past, Con has maintained it
-nicely and cleaned up everything that people have pointed out - it's
-mature, does no harm - let's just get it merged.  It's too late for
-2.6.23-rc1 now, but let's try and get this in by -rc2 - it's long
-overdue...
+On Mon, 23 Jul 2007, Peter Zijlstra wrote:
 
--- 
-Jesper Juhl <jesper.juhl@gmail.com>
-Don't top-post  http://www.catb.org/~esr/jargon/html/T/top-post.html
-Plain text mails only, please      http://www.expita.com/nomime.html
+> ---
+> Daniel recently spotted that __GFP_ZERO is not (and has never been)
+> part of GFP_LEVEL_MASK. I could not find a reason for this in the
+> original patch: 3977971c7f09ce08ed1b8d7a67b2098eb732e4cd in the -bk
+> tree.
+> 
+> This of course is in stark contradiction with the comment accompanying
+> GFP_LEVEL_MASK.
+
+NACK.
+
+The effect that this patch will have is that __GFP_ZERO is passed through 
+to the page allocator which will needlessly zero pages. GFP_LEVEL_MASK is 
+used to filter out the flags that are to be passed to the page allocator. 
+__GFP_ZERO is not passed on but handled by the slab allocators.
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
