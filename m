@@ -1,73 +1,69 @@
-Subject: Re: [PATCH] add __GFP_ZERO to GFP_LEVEL_MASK
-From: Peter Zijlstra <a.p.zijlstra@chello.nl>
-In-Reply-To: <Pine.LNX.4.64.0707231615310.427@schroedinger.engr.sgi.com>
-References: <1185185020.8197.11.camel@twins>
-	 <20070723112143.GB19437@skynet.ie> <1185190711.8197.15.camel@twins>
-	 <Pine.LNX.4.64.0707231615310.427@schroedinger.engr.sgi.com>
-Content-Type: text/plain
-Date: Tue, 24 Jul 2007 08:01:09 +0200
-Message-Id: <1185256869.8197.27.camel@twins>
-Mime-Version: 1.0
+Received: by hu-out-0506.google.com with SMTP id 32so1651925huf
+        for <linux-mm@kvack.org>; Mon, 23 Jul 2007 23:01:41 -0700 (PDT)
+Message-ID: <2c0942db0707232301o5ab428bdrd1bc831cacf806c@mail.gmail.com>
+Date: Mon, 23 Jul 2007 23:01:41 -0700
+From: "Ray Lee" <ray-lk@madrabbit.org>
+Subject: Re: -mm merge plans for 2.6.23
+In-Reply-To: <20070723221846.d2744f42.akpm@linux-foundation.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8; format=flowed
 Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+References: <20070710013152.ef2cd200.akpm@linux-foundation.org>
+	 <200707102015.44004.kernel@kolivas.org>
+	 <9a8748490707231608h453eefffx68b9c391897aba70@mail.gmail.com>
+	 <46A57068.3070701@yahoo.com.au>
+	 <2c0942db0707232153j3670ef31kae3907dff1a24cb7@mail.gmail.com>
+	 <20070723221846.d2744f42.akpm@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
-Cc: Mel Gorman <mel@skynet.ie>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, linux-kernel <linux-kernel@vger.kernel.org>, Daniel Phillips <phillips@google.com>, linux-mm <linux-mm@kvack.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Nick Piggin <nickpiggin@yahoo.com.au>, Jesper Juhl <jesper.juhl@gmail.com>, ck list <ck@vds.kolivas.org>, Ingo Molnar <mingo@elte.hu>, Paul Jackson <pj@sgi.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 2007-07-23 at 16:17 -0700, Christoph Lameter wrote:
-> On Mon, 23 Jul 2007, Peter Zijlstra wrote:
-> 
-> > ---
-> > Daniel recently spotted that __GFP_ZERO is not (and has never been)
-> > part of GFP_LEVEL_MASK. I could not find a reason for this in the
-> > original patch: 3977971c7f09ce08ed1b8d7a67b2098eb732e4cd in the -bk
-> > tree.
-> > 
-> > This of course is in stark contradiction with the comment accompanying
-> > GFP_LEVEL_MASK.
-> 
-> NACK.
-> 
-> The effect that this patch will have is that __GFP_ZERO is passed through 
-> to the page allocator which will needlessly zero pages. GFP_LEVEL_MASK is 
-> used to filter out the flags that are to be passed to the page allocator. 
-> __GFP_ZERO is not passed on but handled by the slab allocators.
+On 7/23/07, Andrew Morton <akpm@linux-foundation.org> wrote:
+> Let it just be noted that Con is not the only one who has expended effort
+> on this patch.  It's been in -mm for nearly two years and it has meant
+> ongoing effort for me and, to a lesser extent, other MM developers to keep
+> it alive.
 
-Then we can either fixup the slab allocators to mask out __GFP_ZERO, or
-do something like the below.
+<nods> Yes, keeping patches from crufting up and stepping on other
+patches' toes is hard work; I did it for a bit, and it was one of the
+more thankless tasks I've tried a hand at.
 
-Personally I like the consistency of adding __GFP_ZERO here (removes
-this odd exception) and just masking it in the sl[aou]b thingies.
+So, thanks.
 
-Anybody else got a preference?
+> Critera are different for each patch, but it usually comes down to a
+> cost/benefit judgement.  Does the benefit of the patch exceed its
+> maintenance cost over the lifetime of the kernel (whatever that is).
 
-Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
----
- include/linux/gfp.h |    9 ++++++++-
- 1 file changed, 8 insertions(+), 1 deletion(-)
+Well, I suspect it's 'lifetime of the feature,' in this case as it's
+no more user visible than the page replacement algorithm in the first
+place.
 
-Index: linux-2.6-2/include/linux/gfp.h
-===================================================================
---- linux-2.6-2.orig/include/linux/gfp.h
-+++ linux-2.6-2/include/linux/gfp.h
-@@ -53,7 +53,14 @@ struct vm_area_struct;
- #define __GFP_BITS_SHIFT 20	/* Room for 20 __GFP_FOO bits */
- #define __GFP_BITS_MASK ((__force gfp_t)((1 << __GFP_BITS_SHIFT) - 1))
- 
--/* if you forget to add the bitmask here kernel will crash, period */
-+/*
-+ * If you forget to add the bitmask here kernel will crash, period!
-+ *
-+ * GFP_LEVEL_MASK is used to filter out the flags that are to be passed to the
-+ * page allocator.
-+ *
-+ * __GFP_ZERO is not passed on but handled by the slab allocators.
-+ */
- #define GFP_LEVEL_MASK (__GFP_WAIT|__GFP_HIGH|__GFP_IO|__GFP_FS| \
- 			__GFP_COLD|__GFP_NOWARN|__GFP_REPEAT| \
- 			__GFP_NOFAIL|__GFP_NORETRY|__GFP_COMP| \
+> The other consideration here is, as Nick points out, are the problems which
+> people see this patch solving for them solveable in other, better ways?
+> IOW, is this patch fixing up preexisting deficiencies post-facto?
 
+In some cases, it almost certainly is. It also has the troubling
+aspect of mitigating future regressions without anyone terribly
+noticing, due to it being able to paper over those hypothetical future
+deficiencies when they're introduced.
+
+> To attack the second question we could start out with bug reports: system A
+> with workload B produces result C.  I think result C is wrong for <reasons>
+> and would prefer to see result D.
+
+I spend a lot of time each day watching my computer fault my
+workingset back in when I switch contexts. I'd rather I didn't have to
+do that. Unfortunately, that's a pretty subjective problem report. For
+whatever it's worth, we have pretty subjective solution reports
+pointing to swap prefetch as providing a fix for them.
+
+My concern is that a subjective problem report may not be good enough.
+So, what do I measure to make this an objective problem report? And if
+I do that (and it shows a positive result), will that be good enough
+to argue for inclusion?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
