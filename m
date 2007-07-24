@@ -1,36 +1,43 @@
-Date: Mon, 23 Jul 2007 16:17:13 -0700 (PDT)
-From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [PATCH] add __GFP_ZERO to GFP_LEVEL_MASK
-In-Reply-To: <1185190711.8197.15.camel@twins>
-Message-ID: <Pine.LNX.4.64.0707231615310.427@schroedinger.engr.sgi.com>
-References: <1185185020.8197.11.camel@twins>  <20070723112143.GB19437@skynet.ie>
- <1185190711.8197.15.camel@twins>
+Received: from zps75.corp.google.com (zps75.corp.google.com [172.25.146.75])
+	by smtp-out.google.com with ESMTP id l6O027WE024165
+	for <linux-mm@kvack.org>; Mon, 23 Jul 2007 17:02:07 -0700
+Received: from an-out-0708.google.com (ancc31.prod.google.com [10.100.29.31])
+	by zps75.corp.google.com with ESMTP id l6O0246T026381
+	for <linux-mm@kvack.org>; Mon, 23 Jul 2007 17:02:04 -0700
+Received: by an-out-0708.google.com with SMTP id c31so336135anc
+        for <linux-mm@kvack.org>; Mon, 23 Jul 2007 17:02:04 -0700 (PDT)
+Message-ID: <b040c32a0707231702w622a10d4y18a6e127776ae7df@mail.gmail.com>
+Date: Mon, 23 Jul 2007 17:02:04 -0700
+From: "Ken Chen" <kenchen@google.com>
+Subject: Re: hugepage test failures
+In-Reply-To: <20070723120409.477a1c31.randy.dunlap@oracle.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+References: <20070723120409.477a1c31.randy.dunlap@oracle.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Cc: Mel Gorman <mel@skynet.ie>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, linux-kernel <linux-kernel@vger.kernel.org>, Daniel Phillips <phillips@google.com>, linux-mm <linux-mm@kvack.org>
+To: Randy Dunlap <randy.dunlap@oracle.com>
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 23 Jul 2007, Peter Zijlstra wrote:
+On 7/23/07, Randy Dunlap <randy.dunlap@oracle.com> wrote:
+> I'm a few hundred linux-mm emails behind, so maybe this has been
+> addressed already.  I hope so.
+>
+> I run hugepage-mmap and hugepage-shm tests (from Doc/vm/hugetlbpage.txt)
+> on a regular basis.  Lately they have been failing, usually with -ENOMEM,
+> but sometimes the mmap() succeeds and hugepage-mmap gets a SIGBUS:
 
-> ---
-> Daniel recently spotted that __GFP_ZERO is not (and has never been)
-> part of GFP_LEVEL_MASK. I could not find a reason for this in the
-> original patch: 3977971c7f09ce08ed1b8d7a67b2098eb732e4cd in the -bk
-> tree.
-> 
-> This of course is in stark contradiction with the comment accompanying
-> GFP_LEVEL_MASK.
+man, what did people do to hugetlb?
 
-NACK.
+In dequeue_huge_page(), it just loops around for all the alloc'able
+zones, even though this function is suppose to just allocate *ONE*
+hugetlb page.  That is a serious memory leak here.  We need a break
+statement in the inner if statement there.
 
-The effect that this patch will have is that __GFP_ZERO is passed through 
-to the page allocator which will needlessly zero pages. GFP_LEVEL_MASK is 
-used to filter out the flags that are to be passed to the page allocator. 
-__GFP_ZERO is not passed on but handled by the slab allocators.
-
+- Ken
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
