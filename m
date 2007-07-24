@@ -1,56 +1,67 @@
-Date: Tue, 24 Jul 2007 00:35:26 -0700 (PDT)
-From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [PATCH] add __GFP_ZERO to GFP_LEVEL_MASK
-In-Reply-To: <1185261894.8197.33.camel@twins>
-Message-ID: <Pine.LNX.4.64.0707240030110.3295@schroedinger.engr.sgi.com>
-References: <1185185020.8197.11.camel@twins>  <20070723112143.GB19437@skynet.ie>
- <1185190711.8197.15.camel@twins>  <Pine.LNX.4.64.0707231615310.427@schroedinger.engr.sgi.com>
-  <1185256869.8197.27.camel@twins>  <Pine.LNX.4.64.0707240007100.3128@schroedinger.engr.sgi.com>
- <1185261894.8197.33.camel@twins>
+Message-ID: <46A5C8B0.5060401@imap.cc>
+Date: Tue, 24 Jul 2007 11:38:56 +0200
+From: Tilman Schmidt <tilman@imap.cc>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: -mm merge plans for 2.6.23
+References: <20070710013152.ef2cd200.akpm@linux-foundation.org>	 <200707102015.44004.kernel@kolivas.org>	 <9a8748490707231608h453eefffx68b9c391897aba70@mail.gmail.com>	 <46A57068.3070701@yahoo.com.au>	 <2c0942db0707232153j3670ef31kae3907dff1a24cb7@mail.gmail.com>	 <20070723221846.d2744f42.akpm@linux-foundation.org> <2c0942db0707232301o5ab428bdrd1bc831cacf806c@mail.gmail.com>
+In-Reply-To: <2c0942db0707232301o5ab428bdrd1bc831cacf806c@mail.gmail.com>
+Content-Type: multipart/signed; micalg=pgp-sha1;
+ protocol="application/pgp-signature";
+ boundary="------------enig7D20BFFEDF91EB3B221A9A96"
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Cc: Mel Gorman <mel@skynet.ie>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, linux-kernel <linux-kernel@vger.kernel.org>, Daniel Phillips <phillips@google.com>, linux-mm <linux-mm@kvack.org>
+To: Ray Lee <ray-lk@madrabbit.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Nick Piggin <nickpiggin@yahoo.com.au>, Jesper Juhl <jesper.juhl@gmail.com>, ck list <ck@vds.kolivas.org>, Ingo Molnar <mingo@elte.hu>, Paul Jackson <pj@sgi.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 24 Jul 2007, Peter Zijlstra wrote:
+This is an OpenPGP/MIME signed message (RFC 2440 and 3156)
+--------------enig7D20BFFEDF91EB3B221A9A96
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
 
-> > There is another exception for __GFP_DMA.
-> 
-> non of the zone specifiers are
+Ray Lee schrieb:
+> I spend a lot of time each day watching my computer fault my
+> workingset back in when I switch contexts. I'd rather I didn't have to
+> do that. Unfortunately, that's a pretty subjective problem report. For
+> whatever it's worth, we have pretty subjective solution reports
+> pointing to swap prefetch as providing a fix for them.
 
-__GFP_DMA is handled in a similar way to __GFP_ZERO though. Its explicitly 
-listed in BUG_ON() because it can be specified in the gfpflags to kmalloc 
-but also set by having created a slab with SLAB_DMA. It is also cleared 
-by the & GFP_LEVEL_MASK.
- 
-> > > Anybody else got a preference?
-> > 
-> > >  #define __GFP_BITS_MASK ((__force gfp_t)((1 << __GFP_BITS_SHIFT) - 1))
-> > >  
-> > > -/* if you forget to add the bitmask here kernel will crash, period */
-> > > +/*
-> > > + * If you forget to add the bitmask here kernel will crash, period!
-> > > + *
-> > > + * GFP_LEVEL_MASK is used to filter out the flags that are to be passed to the
-> > > + * page allocator.
-> > > + *
-> > 
-> > GFP_LEVEL_MASK is also used in mm/vmalloc.c. We need a definition that 
-> > goes beyond slab allocators.
-> 
-> Right, bugger.
+Add me.
 
-Lets get rid of the cryptic sentence there and explain it in a better way. 
-GFP_LEVEL_MASK contains the flags that are passed to the page allocator
-by derived allocators (such as slab allocators and vmalloc, maybe the 
-uncached allocator may use it in the future?).
+> My concern is that a subjective problem report may not be good enough.
 
-__get_vm_area_node also relies on GFP_LEVEL_MASK to clear the __GFP_ZERO 
-flag. Otherwise the kmalloc_node there would needlessly return zeroed 
-memory (or have failed in the past).
+That's my impression too, seeing the insistence on numbers.
+
+> So, what do I measure to make this an objective problem report?
+
+That seems to be the crux of the matter: how to measure subjective
+usability issues (aka user experience) when simple reports along the
+lines of "A is much better than B for everyday work" are not enough.
+The same problem already impaired the "fair scheduler" discussion.
+It would really help to have a clear direction there.
+
+--=20
+Tilman Schmidt                    E-Mail: tilman@imap.cc
+Bonn, Germany
+Diese Nachricht besteht zu 100% aus wiederverwerteten Bits.
+Unge=C3=B6ffnet mindestens haltbar bis: (siehe R=C3=BCckseite)
+
+
+--------------enig7D20BFFEDF91EB3B221A9A96
+Content-Type: application/pgp-signature; name="signature.asc"
+Content-Description: OpenPGP digital signature
+Content-Disposition: attachment; filename="signature.asc"
+
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v1.4.4 (MingW32)
+Comment: Using GnuPG with Mozilla - http://enigmail.mozdev.org
+
+iD8DBQFGpciwMdB4Whm86/kRApXjAJ9DH12VDcvttfRPtDCRrEDs0emn+wCfZgl1
+pEWhTqYquIM2Hb/O7HE1gnY=
+=yI2D
+-----END PGP SIGNATURE-----
+
+--------------enig7D20BFFEDF91EB3B221A9A96--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
