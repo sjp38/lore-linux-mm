@@ -1,43 +1,99 @@
-Date: Mon, 23 Jul 2007 23:10:15 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: -mm merge plans for 2.6.23
-Message-Id: <20070723231015.34b22dcb.akpm@linux-foundation.org>
-In-Reply-To: <2c0942db0707232301o5ab428bdrd1bc831cacf806c@mail.gmail.com>
-References: <20070710013152.ef2cd200.akpm@linux-foundation.org>
-	<200707102015.44004.kernel@kolivas.org>
-	<9a8748490707231608h453eefffx68b9c391897aba70@mail.gmail.com>
-	<46A57068.3070701@yahoo.com.au>
-	<2c0942db0707232153j3670ef31kae3907dff1a24cb7@mail.gmail.com>
-	<20070723221846.d2744f42.akpm@linux-foundation.org>
-	<2c0942db0707232301o5ab428bdrd1bc831cacf806c@mail.gmail.com>
+Subject: Re: [PATCH] add __GFP_ZERO to GFP_LEVEL_MASK
+From: Peter Zijlstra <peterz@infradead.org>
+In-Reply-To: <1185256869.8197.27.camel@twins>
+References: <1185185020.8197.11.camel@twins>
+	 <20070723112143.GB19437@skynet.ie> <1185190711.8197.15.camel@twins>
+	 <Pine.LNX.4.64.0707231615310.427@schroedinger.engr.sgi.com>
+	 <1185256869.8197.27.camel@twins>
+Content-Type: text/plain
+Date: Tue, 24 Jul 2007 08:48:52 +0200
+Message-Id: <1185259732.8197.30.camel@twins>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Ray Lee <ray-lk@madrabbit.org>
-Cc: Nick Piggin <nickpiggin@yahoo.com.au>, Jesper Juhl <jesper.juhl@gmail.com>, ck list <ck@vds.kolivas.org>, Ingo Molnar <mingo@elte.hu>, Paul Jackson <pj@sgi.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Christoph Lameter <clameter@sgi.com>
+Cc: Mel Gorman <mel@skynet.ie>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, linux-kernel <linux-kernel@vger.kernel.org>, Daniel Phillips <phillips@google.com>, linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 23 Jul 2007 23:01:41 -0700 "Ray Lee" <ray-lk@madrabbit.org> wrote:
+On Tue, 2007-07-24 at 08:01 +0200, Peter Zijlstra wrote:
 
-> So, what do I measure to make this an objective problem report?
+> Then we can either fixup the slab allocators to mask out __GFP_ZERO, or
+> do something like the below.
+> 
+> Personally I like the consistency of adding __GFP_ZERO here (removes
+> this odd exception) and just masking it in the sl[aou]b thingies.
 
-Ideal would be to find a reproducible-by-others testcase which does what you
-believe to be the wrong thing.
+Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
+---
+ include/linux/gfp.h |    2 +-
+ mm/slab.c           |    4 +++-
+ mm/slob.c           |    2 ++
+ mm/slub.c           |    4 +++-
+ 4 files changed, 9 insertions(+), 3 deletions(-)
 
-> And if
-> I do that (and it shows a positive result), will that be good enough
-> to argue for inclusion?
+Index: linux-2.6-2/include/linux/gfp.h
+===================================================================
+--- linux-2.6-2.orig/include/linux/gfp.h
++++ linux-2.6-2/include/linux/gfp.h
+@@ -56,7 +56,7 @@ struct vm_area_struct;
+ /* if you forget to add the bitmask here kernel will crash, period */
+ #define GFP_LEVEL_MASK (__GFP_WAIT|__GFP_HIGH|__GFP_IO|__GFP_FS| \
+ 			__GFP_COLD|__GFP_NOWARN|__GFP_REPEAT| \
+-			__GFP_NOFAIL|__GFP_NORETRY|__GFP_COMP| \
++			__GFP_NOFAIL|__GFP_NORETRY|__GFP_COMP|__GFP_ZERO| \
+ 			__GFP_NOMEMALLOC|__GFP_HARDWALL|__GFP_THISNODE| \
+ 			__GFP_MOVABLE)
+ 
+Index: linux-2.6-2/mm/slab.c
+===================================================================
+--- linux-2.6-2.orig/mm/slab.c
++++ linux-2.6-2/mm/slab.c
+@@ -2739,11 +2739,13 @@ static int cache_grow(struct kmem_cache 
+ 	gfp_t local_flags;
+ 	struct kmem_list3 *l3;
+ 
++	flags &= ~__GFP_ZERO; /* slab has its own object zeroing */
++
+ 	/*
+ 	 * Be lazy and only check for valid flags here,  keeping it out of the
+ 	 * critical path in kmem_cache_alloc().
+ 	 */
+-	BUG_ON(flags & ~(GFP_DMA | __GFP_ZERO | GFP_LEVEL_MASK));
++	BUG_ON(flags & ~(GFP_DMA | GFP_LEVEL_MASK));
+ 
+ 	local_flags = (flags & GFP_LEVEL_MASK);
+ 	/* Take the l3 list lock to change the colour_next on this node */
+Index: linux-2.6-2/mm/slob.c
+===================================================================
+--- linux-2.6-2.orig/mm/slob.c
++++ linux-2.6-2/mm/slob.c
+@@ -223,6 +223,8 @@ static void *slob_new_page(gfp_t gfp, in
+ {
+ 	void *page;
+ 
++	gfp &= ~__GFP_ZERO; /* slob has its own object zeroing */
++
+ #ifdef CONFIG_NUMA
+ 	if (node != -1)
+ 		page = alloc_pages_node(node, gfp, order);
+Index: linux-2.6-2/mm/slub.c
+===================================================================
+--- linux-2.6-2.orig/mm/slub.c
++++ linux-2.6-2/mm/slub.c
+@@ -1078,7 +1078,9 @@ static struct page *new_slab(struct kmem
+ 	void *last;
+ 	void *p;
+ 
+-	BUG_ON(flags & ~(GFP_DMA | __GFP_ZERO | GFP_LEVEL_MASK));
++	flags &= ~__GFP_ZERO; /* slab has its own object zeroing */
++
++	BUG_ON(flags & ~(GFP_DMA | GFP_LEVEL_MASK));
+ 
+ 	if (flags & __GFP_WAIT)
+ 		local_irq_enable();
 
-That depends upon whether there are more suitable ways of fixing "the
-wrong thing".
 
-There may not be - it could well be that present behaviour
-is correct for the testcase, but it leaves the system in the wrong
-state for your large workload shift.  In that case, prefetching (ie:
-restoring system state approximately to that which prevailed prior to
-"testcase") might well be a suitable fix.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
