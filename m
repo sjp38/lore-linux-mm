@@ -1,47 +1,44 @@
-Date: Mon, 23 Jul 2007 17:20:19 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [patch] fix hugetlb page allocation leak
-Message-Id: <20070723172019.376ca936.akpm@linux-foundation.org>
-In-Reply-To: <b040c32a0707231711p3ea6b213wff15e7a58ee48f61@mail.gmail.com>
-References: <b040c32a0707231711p3ea6b213wff15e7a58ee48f61@mail.gmail.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Received: from zps19.corp.google.com (zps19.corp.google.com [172.25.146.19])
+	by smtp-out.google.com with ESMTP id l6O0NMea013248
+	for <linux-mm@kvack.org>; Mon, 23 Jul 2007 17:23:22 -0700
+Received: from an-out-0708.google.com (anac3.prod.google.com [10.100.54.3])
+	by zps19.corp.google.com with ESMTP id l6O0NIZX019858
+	for <linux-mm@kvack.org>; Mon, 23 Jul 2007 17:23:18 -0700
+Received: by an-out-0708.google.com with SMTP id c3so328611ana
+        for <linux-mm@kvack.org>; Mon, 23 Jul 2007 17:23:18 -0700 (PDT)
+Message-ID: <b040c32a0707231723h5411bb25oa56834f68457020e@mail.gmail.com>
+Date: Mon, 23 Jul 2007 17:23:18 -0700
+From: "Ken Chen" <kenchen@google.com>
+Subject: Re: hugepage test failures
+In-Reply-To: <46A50FD0.2020001@oracle.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+References: <20070723120409.477a1c31.randy.dunlap@oracle.com>
+	 <29495f1d0707231318n5e76d141t5f81431ead007b53@mail.gmail.com>
+	 <46A50FD0.2020001@oracle.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Ken Chen <kenchen@google.com>
-Cc: Randy Dunlap <randy.dunlap@oracle.com>, linux-mm@kvack.org
+To: Randy Dunlap <randy.dunlap@oracle.com>
+Cc: Nish Aravamudan <nish.aravamudan@gmail.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 23 Jul 2007 17:11:49 -0700
-"Ken Chen" <kenchen@google.com> wrote:
+On 7/23/07, Randy Dunlap <randy.dunlap@oracle.com> wrote:
+> > They are kept uptodate, at least.
+>
+> You mean that the Doc/ tree is not kept up to date?  ;(
 
-> dequeue_huge_page() has a serious memory leak upon hugetlb page
-> allocation.  The for loop continues on allocating hugetlb pages out of
-> all allowable zone, where this function is supposedly only dequeue one
-> and only one pages.
-> 
-> Fixed it by breaking out of the for loop once a hugetlb page is found.
-> 
-> 
-> Signed-off-by: Ken Chen <kenchen@google.com>
-> 
-> diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-> index f127940..d7ca59d 100644
-> --- a/mm/hugetlb.c
-> +++ b/mm/hugetlb.c
-> @@ -84,6 +84,7 @@ static struct page *dequeue_huge_page(st
->  			list_del(&page->lru);
->  			free_huge_pages--;
->  			free_huge_pages_node[nid]--;
-> +			break;
->  		}
->  	}
->  	return page;
+AFAICT, the sample code in Documentation/vm/hugetlbpage.txt is up to
+date.  I'm not aware any bug in the user space example code (except
+maybe the memory segment LENGTH is too big at 256MB).  If there are
+bugs there, I would like to hear about it.
 
-that would be due to some idiot merging untested stuff.
 
-Thanks.
+> But this represents an R*word (regression).
+> These tests ran successfully until recently (I can't say when).
+
+Yeah, it's a true regression.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
