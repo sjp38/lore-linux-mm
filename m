@@ -1,87 +1,75 @@
-Message-ID: <46A57068.3070701@yahoo.com.au>
-Date: Tue, 24 Jul 2007 13:22:16 +1000
-From: Nick Piggin <nickpiggin@yahoo.com.au>
-MIME-Version: 1.0
+Received: by ug-out-1314.google.com with SMTP id c2so114287ugf
+        for <linux-mm@kvack.org>; Mon, 23 Jul 2007 21:53:38 -0700 (PDT)
+Message-ID: <2c0942db0707232153j3670ef31kae3907dff1a24cb7@mail.gmail.com>
+Date: Mon, 23 Jul 2007 21:53:38 -0700
+From: "Ray Lee" <ray-lk@madrabbit.org>
 Subject: Re: -mm merge plans for 2.6.23
-References: <20070710013152.ef2cd200.akpm@linux-foundation.org>	 <200707102015.44004.kernel@kolivas.org> <9a8748490707231608h453eefffx68b9c391897aba70@mail.gmail.com>
-In-Reply-To: <9a8748490707231608h453eefffx68b9c391897aba70@mail.gmail.com>
-Content-Type: text/plain; charset=us-ascii; format=flowed
+In-Reply-To: <46A57068.3070701@yahoo.com.au>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8; format=flowed
 Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+References: <20070710013152.ef2cd200.akpm@linux-foundation.org>
+	 <200707102015.44004.kernel@kolivas.org>
+	 <9a8748490707231608h453eefffx68b9c391897aba70@mail.gmail.com>
+	 <46A57068.3070701@yahoo.com.au>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Jesper Juhl <jesper.juhl@gmail.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, ck list <ck@vds.kolivas.org>, Ingo Molnar <mingo@elte.hu>, Paul Jackson <pj@sgi.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Nick Piggin <nickpiggin@yahoo.com.au>
+Cc: Jesper Juhl <jesper.juhl@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, ck list <ck@vds.kolivas.org>, Ingo Molnar <mingo@elte.hu>, Paul Jackson <pj@sgi.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-Jesper Juhl wrote:
-> On 10/07/07, Con Kolivas <kernel@kolivas.org> wrote:
-> 
->> On Tuesday 10 July 2007 18:31, Andrew Morton wrote:
->> > When replying, please rewrite the subject suitably and try to Cc: the
->> > appropriate developer(s).
->>
->> ~swap prefetch
->>
->> Nick's only remaining issue which I could remotely identify was to 
->> make it
->> cpuset aware:
->> http://marc.info/?l=linux-mm&m=117875557014098&w=2
->> as discussed with Paul Jackson it was cpuset aware:
->> http://marc.info/?l=linux-mm&m=117895463120843&w=2
->>
->> I fixed all bugs I could find and improved it as much as I could last 
->> kernel
->> cycle.
->>
->> Put me and the users out of our misery and merge it now or delete it 
->> forever
->> please. And if the meaningless handwaving that I 100% expect as a 
->> response
->> begins again, then that's fine. I'll take that as a no and you can 
->> dump it.
->>
-> For what it's worth; put me down as supporting the merger of swap
-> prefetch. I've found it useful in the past, Con has maintained it
-> nicely and cleaned up everything that people have pointed out - it's
-> mature, does no harm - let's just get it merged.  It's too late for
-> 2.6.23-rc1 now, but let's try and get this in by -rc2 - it's long
-> overdue...
+On 7/23/07, Nick Piggin <nickpiggin@yahoo.com.au> wrote:
+> Not talking about swap prefetch itself, but everytime I have asked
+> anyone to instrument or produce some workload where swap prefetch
+> helps, they never do.
+[...]
+> so for all the people who a whining about merging this and don't want
+> to actually work on the code -- post some numbers for where it helps
+> you!!
 
+<Raised eyebrow> You sound frustrated. Perhaps we could be
+communicating better. I'll start.
 
-Not talking about swap prefetch itself, but everytime I have asked
-anyone to instrument or produce some workload where swap prefetch
-helps, they never do.
+Unlike others on the cc: line, I don't get paid to hack on the kernel,
+not even indirectly. So if you find that my lack of providing numbers
+is giving you heartache, I can only apologize and point at my paying
+work that requires my attention.
 
-Fair enough if swap prefetch helps them, but I also want to look at
-why that is the case and try to improve page reclaim in some of
-these situations (for example standard overnight cron jobs shouldn't
-need swap prefetch on a 1 or 2GB system, I would hope).
+That said, I'm willing to run my day to day life through both a swap
+prefetch kernel and a normal one. *However*, before I go through all
+the work of instrumenting the damn thing, I'd really like Andrew (or
+Linus) to lay out his acceptance criteria on the feature. Exactly what
+*should* I be paying attention to? I've suggested keeping track of
+process swapin delay total time, and comparing with and without. Is
+that reasonable? Is it incomplete?
 
-Anyway, back to swap prefetch, I don't know why I've been singled out
-as the bad guy here. I'm one of the only people who has had a look at
-the damn thing and tried to point out areas where it could be improved
-to the point of being included, and outlining things that are needed
-for it to be merged (ie. numbers). If anyone thinks that makes me the
-bad guy then they have an utterly inverted understanding of what peer
-review is for.
+Without Andrew's criteria, we're back to where we've been for a long
+time: lots of work, no forward motion. Perhaps it's a character flaw
+of mine, but I'd really like to know what would constitute proof here
+before I invest the effort. Especially given that Con has already
+written a test case that shows that swap prefetch works, and that I've
+given you a clear argument for why better (or even perfect) page
+reclaim can't provide full coverage to all the situations that swap
+prefetch helps. (Also, it's not like I've got tons free time, y'know?
+Just like all the rest of you all, I have to pick and choose my
+battles if I'm going to be effective.)
 
-Finally, everyone who has ever hacked on these heuristicy parts of the
-VM has heaps of patches that help some workload or some silly test
-case or (real or percieved) shortfall but have not been merged. It
-really isn't anything personal.
+Since this merge period has appeared particularly frazzling for
+Andrew, I've been keeping silent and waiting for him to get to a point
+where there's a breather. I didn't feel it would be polite to request
+yet more work out of him while he had a mess on his hands.
 
-If something really works, then it should be possible to get real
-numbers in real situations where it helps (OK, swap prefetching won't
-be as easy as a straight line performance improvement, but still much
-easier than trying to measure something like scheduler interactivity).
+But, given this has come to a head, I'm asking now.
 
-Numbers are the best way to add weight to the pro-merge argument, so
-for all the people who a whining about merging this and don't want
-to actually work on the code -- post some numbers for where it helps
-you!!
+Andrew? You've always given the impression that you want this run more
+as an engineering effort than an artistic endeavour, so help us out
+here. What are your concerns with swap prefetch? What sort of
+comparative data would you like to see to justify its inclusion, or to
+prove that it's not needed?
 
--- 
-SUSE Labs, Novell Inc.
+Or are we reading too much into the fact that it isn't merged? In
+short, communicate please, it will help.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
