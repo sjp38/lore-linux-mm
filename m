@@ -1,67 +1,104 @@
-Message-ID: <46A5C8B0.5060401@imap.cc>
-Date: Tue, 24 Jul 2007 11:38:56 +0200
-From: Tilman Schmidt <tilman@imap.cc>
+Date: Tue, 24 Jul 2007 11:23:32 +0100 (IST)
+From: Mel Gorman <mel@csn.ul.ie>
+Subject: Re: [PATCH 1/1] Wait for page writeback when directly reclaiming
+ contiguous areas
+In-Reply-To: <46A4DC9F.9080903@shadowen.org>
+Message-ID: <Pine.LNX.4.64.0707241058090.17909@skynet.skynet.ie>
+References: <20070720194120.16126.56046.sendpatchset@skynet.skynet.ie>
+ <20070720194140.16126.75148.sendpatchset@skynet.skynet.ie>
+ <46A4DC9F.9080903@shadowen.org>
 MIME-Version: 1.0
-Subject: Re: -mm merge plans for 2.6.23
-References: <20070710013152.ef2cd200.akpm@linux-foundation.org>	 <200707102015.44004.kernel@kolivas.org>	 <9a8748490707231608h453eefffx68b9c391897aba70@mail.gmail.com>	 <46A57068.3070701@yahoo.com.au>	 <2c0942db0707232153j3670ef31kae3907dff1a24cb7@mail.gmail.com>	 <20070723221846.d2744f42.akpm@linux-foundation.org> <2c0942db0707232301o5ab428bdrd1bc831cacf806c@mail.gmail.com>
-In-Reply-To: <2c0942db0707232301o5ab428bdrd1bc831cacf806c@mail.gmail.com>
-Content-Type: multipart/signed; micalg=pgp-sha1;
- protocol="application/pgp-signature";
- boundary="------------enig7D20BFFEDF91EB3B221A9A96"
+Content-Type: TEXT/PLAIN; charset=US-ASCII; format=flowed
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Ray Lee <ray-lk@madrabbit.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Nick Piggin <nickpiggin@yahoo.com.au>, Jesper Juhl <jesper.juhl@gmail.com>, ck list <ck@vds.kolivas.org>, Ingo Molnar <mingo@elte.hu>, Paul Jackson <pj@sgi.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Andy Whitcroft <apw@shadowen.org>
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-This is an OpenPGP/MIME signed message (RFC 2440 and 3156)
---------------enig7D20BFFEDF91EB3B221A9A96
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: quoted-printable
+On Mon, 23 Jul 2007, Andy Whitcroft wrote:
 
-Ray Lee schrieb:
-> I spend a lot of time each day watching my computer fault my
-> workingset back in when I switch contexts. I'd rather I didn't have to
-> do that. Unfortunately, that's a pretty subjective problem report. For
-> whatever it's worth, we have pretty subjective solution reports
-> pointing to swap prefetch as providing a fix for them.
+> Mel Gorman wrote:
+>> Lumpy reclaim works by selecting a lead page from the LRU list and then
+>> selecting pages for reclaim from the order-aligned area of pages. In the
+>> situation were all pages in that region are inactive and not referenced by
+>> any process over time, it works well.
+>>
+>> In the situation where there is even light load on the system, the pages may
+>> not free quickly. Out of a area of 1024 pages, maybe only 950 of them are
+>> freed when the allocation attempt occurs because lumpy reclaim returned early.
+>> This patch alters the behaviour of direct reclaim for large contiguous blocks.
+>
+> Yes, lumpy is prone to starting reclaim on an area and moving on to the
+> next.  Generally where there are a lot of areas, the areas are smaller
+> and the number of requests larger, this is sufficient.  However for
+> higher orders it will tend to suffer from the effect you indicate.  As
+> you say when the system is unloaded even at very high orders we will get
+> good success rates, but higher orders on a loaded machine are problematic.
+>
 
-Add me.
+All sounds about right. When I was testing on my desktop though, even an 
+"unloaded" machine had enough background activity to cause problems. I 
+imagine this will generally be the case.
 
-> My concern is that a subjective problem report may not be good enough.
+> It seems logical that if we could know when all reclaim for a targeted
+> area is completed that we would have a higher chance of subsequent
+> success allocating.  Looking at your patch, you are using synchronising
+> with the completion of all pending writeback on pages in the targeted
+> area which, pretty much gives us that.
+>
 
-That's my impression too, seeing the insistence on numbers.
+That was the intention. Critically, it queues up everything 
+asynchronously first and then waits for it to complete instead of 
+queueing and waiting on one page at a time. In pageout(), I was somewhat 
+suprised I could not have
 
-> So, what do I measure to make this an objective problem report?
+struct writeback_control wbc = {
+ 	.sync_mode = sync_writeback,
+ 	.nonblocking = 0,
+ 	...
+}
 
-That seems to be the crux of the matter: how to measure subjective
-usability issues (aka user experience) when simple reports along the
-lines of "A is much better than B for everyday work" are not enough.
-The same problem already impaired the "fair scheduler" discussion.
-It would really help to have a clear direction there.
+and have sync_writeback equal to WB_SYNC_NONE or WB_SYNC_ANY depending on 
+whether the caller to pageout() wanted to sync or not. This didn't work 
+out though and led to this retry logic you bring up later.
 
---=20
-Tilman Schmidt                    E-Mail: tilman@imap.cc
-Bonn, Germany
-Diese Nachricht besteht zu 100% aus wiederverwerteten Bits.
-Unge=C3=B6ffnet mindestens haltbar bis: (siehe R=C3=BCckseite)
+> I am surprised to see a need for a retry loop here, I would have
+> expected to see an async start and a sync complete pass with the
+> expectation that this would be sufficient.  Otherwise the patch is
+> surprisingly simple.
+>
 
+That retry loop should be gotten rid of because as you say, it should be a 
+single retry. This had been left over from an earlier version of the patch 
+and I should have gotten rid of it. I'll look at testing with a WARN_ON if 
+the "synchronous" returns with pages still on the list to see if it 
+happens.
 
---------------enig7D20BFFEDF91EB3B221A9A96
-Content-Type: application/pgp-signature; name="signature.asc"
-Content-Description: OpenPGP digital signature
-Content-Disposition: attachment; filename="signature.asc"
+> I will try and reproduce with your test script and also do some general
+> testing to see how this might effect the direct allocation latencies,
+> which I see as key.  It may well improve those for larger allocations.
+>
 
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v1.4.4 (MingW32)
-Comment: Using GnuPG with Mozilla - http://enigmail.mozdev.org
+Cool. Thanks.
 
-iD8DBQFGpciwMdB4Whm86/kRApXjAJ9DH12VDcvttfRPtDCRrEDs0emn+wCfZgl1
-pEWhTqYquIM2Hb/O7HE1gnY=
-=yI2D
------END PGP SIGNATURE-----
+>> The first attempt to call shrink_page_list() is asynchronous but if it
+>> fails, the pages are submitted a second time and the calling process waits
+>> for the IO to complete. It'll retry up to 5 times for the pages to be
+>> fully freed. This may stall allocators waiting for contiguous memory but
+>> that should be expected behaviour for high-order users. It is preferable
+>> behaviour to potentially queueing unnecessary areas for IO. Note that kswapd
+>> will not stall in this fashion.
+>>
+>> Signed-off-by: Mel Gorman <mel@csn.ul.ie>
+> [...]
+>
+> -apw
+>
 
---------------enig7D20BFFEDF91EB3B221A9A96--
+-- 
+Mel Gorman
+Part-time Phd Student                          Linux Technology Center
+University of Limerick                         IBM Dublin Software Lab
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
