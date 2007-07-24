@@ -1,66 +1,67 @@
-Date: Tue, 24 Jul 2007 16:35:31 +0100
-Subject: [PATCH] Do not trigger OOM-killer for high-order allocation failures
-Message-ID: <20070724153531.GA30585@skynet.ie>
+Received: by ug-out-1314.google.com with SMTP id c2so213848ugf
+        for <linux-mm@kvack.org>; Tue, 24 Jul 2007 08:44:07 -0700 (PDT)
+Message-ID: <29495f1d0707240844k2f08d210id76bd53c63cc9cd1@mail.gmail.com>
+Date: Tue, 24 Jul 2007 08:44:01 -0700
+From: "Nish Aravamudan" <nish.aravamudan@gmail.com>
+Subject: Re: [patch] fix hugetlb page allocation leak
+In-Reply-To: <20070723172019.376ca936.akpm@linux-foundation.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Content-Disposition: inline
-From: mel@skynet.ie (Mel Gorman)
+References: <b040c32a0707231711p3ea6b213wff15e7a58ee48f61@mail.gmail.com>
+	 <20070723172019.376ca936.akpm@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: akpm@linux-foundation.org
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Ken Chen <kenchen@google.com>, Randy Dunlap <randy.dunlap@oracle.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-out_of_memory() may be called when an allocation is failing and the direct
-reclaim is not making any progress. This does not take into account the
-requested order of the allocation. If the request if for an order larger
-than PAGE_ALLOC_COSTLY_ORDER, it is reasonable to fail the allocation
-because the kernel makes no guarantees about those allocations succeeding.
+On 7/23/07, Andrew Morton <akpm@linux-foundation.org> wrote:
+> On Mon, 23 Jul 2007 17:11:49 -0700
+> "Ken Chen" <kenchen@google.com> wrote:
+>
+> > dequeue_huge_page() has a serious memory leak upon hugetlb page
+> > allocation.  The for loop continues on allocating hugetlb pages out of
+> > all allowable zone, where this function is supposedly only dequeue one
+> > and only one pages.
+> >
+> > Fixed it by breaking out of the for loop once a hugetlb page is found.
+> >
+> >
+> > Signed-off-by: Ken Chen <kenchen@google.com>
+> >
+> > diff --git a/mm/hugetlb.c b/mm/hugetlb.c
+> > index f127940..d7ca59d 100644
+> > --- a/mm/hugetlb.c
+> > +++ b/mm/hugetlb.c
+> > @@ -84,6 +84,7 @@ static struct page *dequeue_huge_page(st
+> >                       list_del(&page->lru);
+> >                       free_huge_pages--;
+> >                       free_huge_pages_node[nid]--;
+> > +                     break;
+> >               }
+> >       }
+> >       return page;
+>
+> that would be due to some idiot merging untested stuff.
 
-This false OOM situation can occur if a user is trying to grow the hugepage
-pool in a script like;
+This would be due to 3abf7afd406866a84276d3ed04f4edf6070c9cb5 right?
 
-#!/bin/bash
-REQUIRED=$1
-echo 1 > /proc/sys/vm/hugepages_treat_as_movable
-echo $REQUIRED > /proc/sys/vm/nr_hugepages
-ACTUAL=`cat /proc/sys/vm/nr_hugepages`
-while [ $REQUIRED -ne $ACTUAL ]; do
-	echo Huge page pool at $ACTUAL growing to $REQUIRED
-	echo $REQUIRED > /proc/sys/vm/nr_hugepages
-	ACTUAL=`cat /proc/sys/vm/nr_hugepages`
-	sleep 1
-done
+Now, I wrote 31a5c6e4f25704f51f9a1373f0784034306d4cf1 which I'm
+assuming introduced this compile warning. But on my box, I see no such
+warning. I would like to think I wouldn't have submitted a patch that
+introduce the warning, even if it was trivial like that one. Which
+compiler were you using, Andrew?
 
-This is a reasonable scenario when ZONE_MOVABLE is in use but triggers OOM
-easily on 2.6.23-rc1. This patch will fail an allocation for an order above
-PAGE_ALLOC_COSTLY_ORDER instead of killing processes and retrying.
+And if anything, I think it's a gcc bug, no? I don't see how nid could
+be used if it wasn't initialized by the zone_to_nid() call. Shouldn't
+this have got one of those uninitialized_var() things? I guess the
+code reorder (if it had included the 'break') would be just as good,
+but I'm not sure.
 
-Signed-off-by: Mel Gorman <mel@csn.ul.ie>
-
----
- page_alloc.c |    4 ++++
- 1 file changed, 4 insertions(+)
-
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 40954fb..da57173 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -1350,6 +1350,10 @@ nofail_alloc:
- 		if (page)
- 			goto got_pg;
- 
-+		/* The OOM killer will not help higher order allocs so fail */
-+		if (order > PAGE_ALLOC_COSTLY_ORDER)
-+			goto nopage;
-+
- 		out_of_memory(zonelist, gfp_mask, order);
- 		goto restart;
- 	}
--- 
-Mel Gorman
-Part-time Phd Student                          Linux Technology Center
-University of Limerick                         IBM Dublin Software Lab
+Thanks,
+Nish
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
