@@ -1,86 +1,55 @@
-Subject: [PATCH/RFC] Memoryless nodes:  Suppress redundant "node with no
-	memory" messages
-From: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
-In-Reply-To: <Pine.LNX.4.64.0707111204470.17503@schroedinger.engr.sgi.com>
-References: <20070711182219.234782227@sgi.com>
-	 <20070711182250.005856256@sgi.com>
-	 <Pine.LNX.4.64.0707111204470.17503@schroedinger.engr.sgi.com>
+Subject: Re: [PATCH RFC] extent mapped page cache
+From: Peter Zijlstra <a.p.zijlstra@chello.nl>
+In-Reply-To: <1185307985.6586.50.camel@localhost>
+References: <20070710210326.GA29963@think.oraclecorp.com>
+	 <20070724160032.7a7097db@think.oraclecorp.com>
+	 <1185307985.6586.50.camel@localhost>
 Content-Type: text/plain
-Date: Tue, 24 Jul 2007 16:35:13 -0400
-Message-Id: <1185309313.5649.75.camel@localhost>
+Date: Tue, 24 Jul 2007 23:25:43 +0200
+Message-Id: <1185312343.5535.5.camel@lappy>
 Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
-Cc: Christoph Lameter <clameter@sgi.com>, Nishanth Aravamudan <nacc@us.ibm.com>, akpm@linux-foundation.org, kxr@sgi.com, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+To: Trond Myklebust <trond.myklebust@fys.uio.no>
+Cc: Chris Mason <chris.mason@oracle.com>, Nick Piggin <npiggin@suse.de>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>, linux-fsdevel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-Suppress redundant "node with no memory" messages
+On Tue, 2007-07-24 at 16:13 -0400, Trond Myklebust wrote:
+> On Tue, 2007-07-24 at 16:00 -0400, Chris Mason wrote:
+> > On Tue, 10 Jul 2007 17:03:26 -0400
+> > Chris Mason <chris.mason@oracle.com> wrote:
+> > 
+> > > This patch aims to demonstrate one way to replace buffer heads with a
+> > > few extent trees.  Buffer heads provide a few different features:
+> > > 
+> > > 1) Mapping of logical file offset to blocks on disk
+> > > 2) Recording state (dirty, locked etc)
+> > > 3) Providing a mechanism to access sub-page sized blocks.
+> > > 
+> > > This patch covers #1 and #2, I'll start on #3 a little later next
+> > > week.
+> > > 
+> > Well, almost.  I decided to try out an rbtree instead of the radix,
+> > which turned out to be much faster.  Even though individual operations
+> > are slower, the rbtree was able to do many fewer ops to accomplish the
+> > same thing, especially for merging extents together.  It also uses much
+> > less ram.
+> 
+> The problem with an rbtree is that you can't use it together with RCU to
+> do lockless lookups. You can probably modify it to allocate nodes
+> dynamically (like the radix tree does) and thus make it RCU-compatible,
+> but then you risk losing the two main benefits that you list above.
 
-Against 2.6.22-rc6-mm1 atop Christoph Lameter's memoryless
-node series.
+I thought on this, and I came to the conclusion that the tree rotations
+used to balance binary trees are incompatible with RCU. The rotation can
+hide one branch. Hence I started writing a B+tree that is RCU compatible
+much like the Radix tree.
 
-get_pfn_range_for_nid() is called multiple times for each node
-at boot time.  Each time, it will warn about nodes with no
-memory, resulting in boot messages like:
+Current code here:
+  http://programming.kicks-ass.net/kernel-patches/vma_lookup/btree.patch
 
-	Node 0 active with no memory
-	Node 0 active with no memory
-	Node 0 active with no memory
-	Node 0 active with no memory
-	Node 0 active with no memory
-	Node 0 active with no memory
-	On node 0 totalpages: 0
-	Node 0 active with no memory
-	Node 0 active with no memory
-	  DMA zone: 0 pages used for memmap
-	Node 0 active with no memory
-	Node 0 active with no memory
-	  Normal zone: 0 pages used for memmap
-	Node 0 active with no memory
-	Node 0 active with no memory
-	  Movable zone: 0 pages used for memmap
-
-and so on for each memoryless node.  Track [in init data]
-memoryless nodes that we've already reported to suppress
-the redundant messages.
-
-OR, we could eliminate the message altogether?  We do
-report zero totalpages.  Sufficient?
-
-Signed-off-by:  Lee Schermerhorn <lee.schermerhorn@hp.com>
-
- mm/page_alloc.c |    8 +++++++-
- 1 file changed, 7 insertions(+), 1 deletion(-)
-
-Index: Linux/mm/page_alloc.c
-===================================================================
---- Linux.orig/mm/page_alloc.c	2007-07-13 15:52:22.000000000 -0400
-+++ Linux/mm/page_alloc.c	2007-07-24 12:37:35.000000000 -0400
-@@ -3081,6 +3081,8 @@ static void __meminit account_node_bound
-  * with no available memory, a warning is printed and the start and end
-  * PFNs will be 0.
-  */
-+static nodemask_t __meminitdata memoryless_nodes;
-+
- void __meminit get_pfn_range_for_nid(unsigned int nid,
- 			unsigned long *start_pfn, unsigned long *end_pfn)
- {
-@@ -3094,7 +3096,11 @@ void __meminit get_pfn_range_for_nid(uns
- 	}
- 
- 	if (*start_pfn == -1UL) {
--		printk(KERN_WARNING "Node %u active with no memory\n", nid);
-+		if (!node_isset(nid, memoryless_nodes)) {
-+			printk(KERN_WARNING "Node %u active with no memory\n",
-+						 nid);
-+			node_set(nid, memoryless_nodes);
-+		}
- 		*start_pfn = 0;
- 	}
- 
-
+Still needs some work, but is usable.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
