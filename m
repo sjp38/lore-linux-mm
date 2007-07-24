@@ -1,44 +1,78 @@
-Received: from zps19.corp.google.com (zps19.corp.google.com [172.25.146.19])
-	by smtp-out.google.com with ESMTP id l6O0NMea013248
-	for <linux-mm@kvack.org>; Mon, 23 Jul 2007 17:23:22 -0700
-Received: from an-out-0708.google.com (anac3.prod.google.com [10.100.54.3])
-	by zps19.corp.google.com with ESMTP id l6O0NIZX019858
-	for <linux-mm@kvack.org>; Mon, 23 Jul 2007 17:23:18 -0700
-Received: by an-out-0708.google.com with SMTP id c3so328611ana
-        for <linux-mm@kvack.org>; Mon, 23 Jul 2007 17:23:18 -0700 (PDT)
-Message-ID: <b040c32a0707231723h5411bb25oa56834f68457020e@mail.gmail.com>
-Date: Mon, 23 Jul 2007 17:23:18 -0700
-From: "Ken Chen" <kenchen@google.com>
-Subject: Re: hugepage test failures
-In-Reply-To: <46A50FD0.2020001@oracle.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Date: Tue, 24 Jul 2007 10:28:42 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [RFC][PATCH] zone config patch set [2/2] CONFIG_ZONE_MOVABLE
+Message-Id: <20070724102842.bf470561.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20070723134517.GA15510@skynet.ie>
+References: <20070721160049.75bc8d9f.kamezawa.hiroyu@jp.fujitsu.com>
+	<20070721160336.28ec3ad8.kamezawa.hiroyu@jp.fujitsu.com>
+	<20070723134517.GA15510@skynet.ie>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
-References: <20070723120409.477a1c31.randy.dunlap@oracle.com>
-	 <29495f1d0707231318n5e76d141t5f81431ead007b53@mail.gmail.com>
-	 <46A50FD0.2020001@oracle.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Randy Dunlap <randy.dunlap@oracle.com>
-Cc: Nish Aravamudan <nish.aravamudan@gmail.com>, linux-mm@kvack.org
+To: Mel Gorman <mel@skynet.ie>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "apw@shadowen.org" <apw@shadowen.org>, Andrew Morton <akpm@linux-foundation.org>, nickpiggin@yahoo.com.au, Christoph Lameter <clameter@sgi.com>
 List-ID: <linux-mm.kvack.org>
 
-On 7/23/07, Randy Dunlap <randy.dunlap@oracle.com> wrote:
-> > They are kept uptodate, at least.
->
-> You mean that the Doc/ tree is not kept up to date?  ;(
+On Mon, 23 Jul 2007 14:45:17 +0100
+mel@skynet.ie (Mel Gorman) wrote:
 
-AFAICT, the sample code in Documentation/vm/hugetlbpage.txt is up to
-date.  I'm not aware any bug in the user space example code (except
-maybe the memory segment LENGTH is too big at 256MB).  If there are
-bugs there, I would like to hear about it.
+> > -	return 0;
+> > +	return is_configured_zone(ZONE_HIGHMEM) &&
+> > +	       is_configured_zone(ZONE_MOVABLE) &&
+> > +		(movable_zone == ZONE_HIGHMEM);
+> >  }
+> 
+> I think this should remain inside the check for
+> CONFIG_ARCH_POPULATES_NODE_MAP . movable_zone is not defined if it is
+> not set. While this works with a cross-compiler for ARM (doesn't use
+> CONFIG_ARCH_POPULATES_NODE_MAP), it's because the optimiser is getting
+> rid of the references as opposed to the code being correct.
+
+Hmm, ok.
 
 
-> But this represents an R*word (regression).
-> These tests ran successfully until recently (I can't say when).
+> > +
+> > +config ZONE_MOVABLE
+> > +	bool	"A zone for movable pages"
+> > +	depends on ARCH_POPULATES_NODE_MAP
+> > +	help
+> > +	  Allows creating a zone type only for movable pages, i.e page cache
+> 
+> e.g. instead of i.e. here
+> 
+> i.e. implies that only page cache and anonymous memory can use the zone.
+> e.g. implies that page cache and anonymous memory are just two types
+> that can use it.
+> 
 
-Yeah, it's a true regression.
+> > +	  and anonymous memory. Because movable pages are to end to be easily
+> 
+> Because movable pages are easily reclaimed .....
+> 
+> > +	  reclaimed and page migration technique can move them, your chance
+> > +	  for allocating big size memory will be better in this zone than
+> 
+> allocating contiguous memory such as huge pages will be better ....
+> 
+
+thanks, I'll merge above comments.
+
+
+> > +	if (!is_configured_zone(ZONE_MOVABLE)) {
+> > +		printk ("ZONE_MOVABLE is not configured, kernelcore= is ignored.\n");
+> > +		return 0;
+> > +	}
+> 
+> This is a good check but bear in mind that in 2.6.23-rc1, this block of
+> code looks different and there is both cmdline_parse_kernelcore() and
+> cmdline_parse_movablecore().
+> 
+yes. ok. I'll rebase.
+
+Thank you.
+-Kame
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
