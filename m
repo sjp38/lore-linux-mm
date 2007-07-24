@@ -1,55 +1,58 @@
-Subject: Re: [PATCH RFC] extent mapped page cache
-From: Peter Zijlstra <a.p.zijlstra@chello.nl>
-In-Reply-To: <1185307985.6586.50.camel@localhost>
-References: <20070710210326.GA29963@think.oraclecorp.com>
-	 <20070724160032.7a7097db@think.oraclecorp.com>
-	 <1185307985.6586.50.camel@localhost>
-Content-Type: text/plain
-Date: Tue, 24 Jul 2007 23:25:43 +0200
-Message-Id: <1185312343.5535.5.camel@lappy>
+Date: Tue, 24 Jul 2007 15:10:46 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH] add __GFP_ZERO to GFP_LEVEL_MASK
+Message-Id: <20070724151046.d8fbb7da.akpm@linux-foundation.org>
+In-Reply-To: <Pine.LNX.4.64.0707241234460.13653@schroedinger.engr.sgi.com>
+References: <1185185020.8197.11.camel@twins>
+	<20070723112143.GB19437@skynet.ie>
+	<1185190711.8197.15.camel@twins>
+	<Pine.LNX.4.64.0707231615310.427@schroedinger.engr.sgi.com>
+	<1185256869.8197.27.camel@twins>
+	<Pine.LNX.4.64.0707240007100.3128@schroedinger.engr.sgi.com>
+	<1185261894.8197.33.camel@twins>
+	<Pine.LNX.4.64.0707240030110.3295@schroedinger.engr.sgi.com>
+	<20070724120751.401bcbcb@schroedinger.engr.sgi.com>
+	<20070724122542.d4ac734a.akpm@linux-foundation.org>
+	<Pine.LNX.4.64.0707241234460.13653@schroedinger.engr.sgi.com>
 Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Trond Myklebust <trond.myklebust@fys.uio.no>
-Cc: Chris Mason <chris.mason@oracle.com>, Nick Piggin <npiggin@suse.de>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>, linux-fsdevel@vger.kernel.org
+To: Christoph Lameter <clameter@sgi.com>
+Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, Mel Gorman <mel@skynet.ie>, Linus Torvalds <torvalds@linux-foundation.org>, linux-kernel <linux-kernel@vger.kernel.org>, Daniel Phillips <phillips@google.com>, linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 2007-07-24 at 16:13 -0400, Trond Myklebust wrote:
-> On Tue, 2007-07-24 at 16:00 -0400, Chris Mason wrote:
-> > On Tue, 10 Jul 2007 17:03:26 -0400
-> > Chris Mason <chris.mason@oracle.com> wrote:
-> > 
-> > > This patch aims to demonstrate one way to replace buffer heads with a
-> > > few extent trees.  Buffer heads provide a few different features:
-> > > 
-> > > 1) Mapping of logical file offset to blocks on disk
-> > > 2) Recording state (dirty, locked etc)
-> > > 3) Providing a mechanism to access sub-page sized blocks.
-> > > 
-> > > This patch covers #1 and #2, I'll start on #3 a little later next
-> > > week.
-> > > 
-> > Well, almost.  I decided to try out an rbtree instead of the radix,
-> > which turned out to be much faster.  Even though individual operations
-> > are slower, the rbtree was able to do many fewer ops to accomplish the
-> > same thing, especially for merging extents together.  It also uses much
-> > less ram.
+On Tue, 24 Jul 2007 12:36:59 -0700 (PDT)
+Christoph Lameter <clameter@sgi.com> wrote:
+
+> On Tue, 24 Jul 2007, Andrew Morton wrote:
 > 
-> The problem with an rbtree is that you can't use it together with RCU to
-> do lockless lookups. You can probably modify it to allocate nodes
-> dynamically (like the radix tree does) and thus make it RCU-compatible,
-> but then you risk losing the two main benefits that you list above.
+> > > __GFP_MOVABLE	The movability of a slab is determined by the
+> > > 		options specified at kmem_cache_create time. If this is
+> > > 		specified at kmalloc time then we will have some random
+> > > 		slabs movable and others not. 
+> > 
+> > Yes, they seem inappropriate.  Especially the first two.
+> 
+> The third one would randomize __GFP_MOVABLE allocs from the page allocator 
+> since one __GFP_MOVABLE alloc may allocate a slab that is then used for 
+> !__GFP_MOVABLE allocs.
+> 
+> Maybe something like this? Note that we may get into some churn here 
+> since slab allocations that any of these flags will BUG.
+> 
+> 
+> 
+> GFP_LEVEL_MASK: Remove __GFP_COLD, __GFP_COMP and __GFPMOVABLE
+> 
+> Add an explanation for the GFP_LEVEL_MASK and remove the flags
+> that should not be passed through derived allocators.
+> 
+> Signed-off-by: Christoph Lameter <clameter@sgi.com>
 
-I thought on this, and I came to the conclusion that the tree rotations
-used to balance binary trees are incompatible with RCU. The rotation can
-hide one branch. Hence I started writing a B+tree that is RCU compatible
-much like the Radix tree.
-
-Current code here:
-  http://programming.kicks-ass.net/kernel-patches/vma_lookup/btree.patch
-
-Still needs some work, but is usable.
+I think I'll duck this for now.  Otherwise I have a suspicion that I'll
+be the first person to run it and I'm too old for such excitement.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
