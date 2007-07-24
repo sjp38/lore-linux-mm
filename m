@@ -1,54 +1,64 @@
-Received: by hu-out-0506.google.com with SMTP id 32so1647654huf
-        for <linux-mm@kvack.org>; Mon, 23 Jul 2007 22:18:05 -0700 (PDT)
-Message-ID: <2c0942db0707232218g4a742e92k925526c5cb962f3e@mail.gmail.com>
-Date: Mon, 23 Jul 2007 22:18:04 -0700
-From: "Ray Lee" <ray-lk@madrabbit.org>
+Date: Mon, 23 Jul 2007 22:18:46 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
 Subject: Re: -mm merge plans for 2.6.23
-In-Reply-To: <46A589D5.9050103@goop.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=UTF-8; format=flowed
-Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
+Message-Id: <20070723221846.d2744f42.akpm@linux-foundation.org>
+In-Reply-To: <2c0942db0707232153j3670ef31kae3907dff1a24cb7@mail.gmail.com>
 References: <20070710013152.ef2cd200.akpm@linux-foundation.org>
-	 <200707102015.44004.kernel@kolivas.org>
-	 <9a8748490707231608h453eefffx68b9c391897aba70@mail.gmail.com>
-	 <46A57068.3070701@yahoo.com.au>
-	 <2c0942db0707232153j3670ef31kae3907dff1a24cb7@mail.gmail.com>
-	 <46A589D5.9050103@goop.org>
+	<200707102015.44004.kernel@kolivas.org>
+	<9a8748490707231608h453eefffx68b9c391897aba70@mail.gmail.com>
+	<46A57068.3070701@yahoo.com.au>
+	<2c0942db0707232153j3670ef31kae3907dff1a24cb7@mail.gmail.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Jeremy Fitzhardinge <jeremy@goop.org>
-Cc: Nick Piggin <nickpiggin@yahoo.com.au>, Jesper Juhl <jesper.juhl@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, ck list <ck@vds.kolivas.org>, Ingo Molnar <mingo@elte.hu>, Paul Jackson <pj@sgi.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Ray Lee <ray-lk@madrabbit.org>
+Cc: Nick Piggin <nickpiggin@yahoo.com.au>, Jesper Juhl <jesper.juhl@gmail.com>, ck list <ck@vds.kolivas.org>, Ingo Molnar <mingo@elte.hu>, Paul Jackson <pj@sgi.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On 7/23/07, Jeremy Fitzhardinge <jeremy@goop.org> wrote:
-> Ray Lee wrote:
-> > That said, I'm willing to run my day to day life through both a swap
-> > prefetch kernel and a normal one. *However*, before I go through all
-> > the work of instrumenting the damn thing, I'd really like Andrew (or
-> > Linus) to lay out his acceptance criteria on the feature. Exactly what
-> > *should* I be paying attention to? I've suggested keeping track of
-> > process swapin delay total time, and comparing with and without. Is
-> > that reasonable? Is it incomplete?
->
-> Um, isn't it up to you?
+On Mon, 23 Jul 2007 21:53:38 -0700 "Ray Lee" <ray-lk@madrabbit.org> wrote:
 
-Huh? I'm not Linus or Andrew, with the power to merge a patch to the
-2.6 kernel, so I think that the answer to that is a really clear 'No.'
+> 
+> Since this merge period has appeared particularly frazzling for
+> Andrew, I've been keeping silent and waiting for him to get to a point
+> where there's a breather. I didn't feel it would be polite to request
+> yet more work out of him while he had a mess on his hands.
 
-> 4. Does it make anything worse?  A lot or a little?  Rare corner
-> cases, or a real world usage?  Again, numbers make the case most
-> strongly.
->
-> I can't say I've been following this particular feature very closely,
-> but these are the fundamental questions that need to be dealt with in
-> merging any significant change.  And as Nick says, historically point 4
-> is very important in VM tuning changes, because "obvious" improvements
-> have often ended up giving pathologically bad results on unexpected
-> workloads.
+Let it just be noted that Con is not the only one who has expended effort
+on this patch.  It's been in -mm for nearly two years and it has meant
+ongoing effort for me and, to a lesser extent, other MM developers to keep
+it alive.
 
-Dude. My whole question was *what* numbers. Please go back and read it
-all again. Maybe I was unclear, but I really don't think so.
+> But, given this has come to a head, I'm asking now.
+> 
+> Andrew? You've always given the impression that you want this run more
+> as an engineering effort than an artistic endeavour, so help us out
+> here. What are your concerns with swap prefetch? What sort of
+> comparative data would you like to see to justify its inclusion, or to
+> prove that it's not needed?
+
+Critera are different for each patch, but it usually comes down to a
+cost/benefit judgement.  Does the benefit of the patch exceed its
+maintenance cost over the lifetime of the kernel (whatever that is).
+
+In this case the answer to that has never been clear to me.  The (much
+older) fs-aio patches were (are) in a similar situation.
+
+The other consideration here is, as Nick points out, are the problems which
+people see this patch solving for them solveable in other, better ways? 
+IOW, is this patch fixing up preexisting deficiencies post-facto?
+
+To attack the second question we could start out with bug reports: system A
+with workload B produces result C.  I think result C is wrong for <reasons>
+and would prefer to see result D.
+
+> Or are we reading too much into the fact that it isn't merged? In
+> short, communicate please, it will help.
+
+Well.  The above, plus there's always a lot of stuff happening in MM land,
+and I haven't seen much in the way of enthusiasm from the usual MM
+developers.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
