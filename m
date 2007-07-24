@@ -1,64 +1,73 @@
-Subject: Re: [PATCH take2] Memoryless nodes:  use "node_memory_map" for
-	cpuset mems_allowed validation
-From: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
-In-Reply-To: <20070724161925.GB18510@us.ibm.com>
-References: <20070711182219.234782227@sgi.com>
-	 <20070711182250.005856256@sgi.com>
-	 <Pine.LNX.4.64.0707111204470.17503@schroedinger.engr.sgi.com>
-	 <1185286525.5649.27.camel@localhost>  <20070724161925.GB18510@us.ibm.com>
-Content-Type: text/plain
-Date: Tue, 24 Jul 2007 15:01:33 -0400
-Message-Id: <1185303693.5649.45.camel@localhost>
+Date: Tue, 24 Jul 2007 12:07:51 -0700
+From: Christoph Lameter <clameter@sgi.com>
+Subject: Re: [PATCH] add __GFP_ZERO to GFP_LEVEL_MASK
+Message-ID: <20070724120751.401bcbcb@schroedinger.engr.sgi.com>
+In-Reply-To: <Pine.LNX.4.64.0707240030110.3295@schroedinger.engr.sgi.com>
+References: <1185185020.8197.11.camel@twins>
+	<20070723112143.GB19437@skynet.ie>
+	<1185190711.8197.15.camel@twins>
+	<Pine.LNX.4.64.0707231615310.427@schroedinger.engr.sgi.com>
+	<1185256869.8197.27.camel@twins>
+	<Pine.LNX.4.64.0707240007100.3128@schroedinger.engr.sgi.com>
+	<1185261894.8197.33.camel@twins>
+	<Pine.LNX.4.64.0707240030110.3295@schroedinger.engr.sgi.com>
 Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nishanth Aravamudan <nacc@us.ibm.com>
-Cc: Christoph Lameter <clameter@sgi.com>, Paul Jackson <pj@sgi.com>, akpm@linux-foundation.org, kxr@sgi.com, linux-mm@kvack.org, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+To: Christoph Lameter <clameter@sgi.com>
+Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, Mel Gorman <mel@skynet.ie>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, linux-kernel <linux-kernel@vger.kernel.org>, Daniel Phillips <phillips@google.com>, linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 2007-07-24 at 09:19 -0700, Nishanth Aravamudan wrote:
-> On 24.07.2007 [10:15:25 -0400], Lee Schermerhorn wrote:
-> > Memoryless Nodes:  use "node_memory_map" for cpusets - take 2
-> > 
-> > Against 2.6.22-rc6-mm1 atop Christoph Lameter's memoryless nodes
-> > series
-> > 
-> > take 2:
-> > + replaced node_online_map in cpuset_current_mems_allowed()
-> >   with node_states[N_MEMORY]
-> > + replaced node_online_map in cpuset_init_smp() with
-> >   node_states[N_MEMORY]
-> > 
-> > cpusets try to ensure that any node added to a cpuset's 
-> > mems_allowed is on-line and contains memory.  The assumption
-> > was that online nodes contained memory.  Thus, it is possible
-> > to add memoryless nodes to a cpuset and then add tasks to this
-> > cpuset.  This results in continuous series of oom-kill and
-> > apparent system hang.
-> > 
-> > Change cpusets to use node_states[N_MEMORY] [a.k.a.
-> > node_memory_map] in place of node_online_map when vetting 
-> > memories.  Return error if admin attempts to write a non-empty
-> > mems_allowed node mask containing only memoryless-nodes.
-> 
-> I think you still are missing a few comment changes (anything mentioning
-> 'track'ing node_online_map will need to be changed, I think). Also, I
-> don't see the necessary change in common_cpu_mem_hotplug_unplug()
-> similar to cpuset_init_smp()'s change.
+GFP_LEVEL_MASK is used to allow the pass through of page allocator
+flags. Currently these are
 
-Sorry.  Multitasking meltdown...  Will fix.
+#define GFP_LEVEL_MASK (__GFP_WAIT|__GFP_HIGH|__GFP_IO|__GFP_FS| \
+                        __GFP_COLD|__GFP_NOWARN|__GFP_REPEAT| \
+                        __GFP_NOFAIL|__GFP_NORETRY|__GFP_COMP| \
+                        __GFP_NOMEMALLOC|__GFP_HARDWALL|__GFP_THISNODE|
+			__GFP_MOVABLE)
 
-Meanwhile:  
+Some of these flags control page allocator reclaim and fallback
+behavior. If they are specified for a slab alloc operation then they
+are effective if a new slab has to be allocated. These are
 
-I've tested your 3 patches atop Christoph's series [on 22-rc6-mm1], with
-and without my cpuset patch and I can't reproduce the hang I saw a
-couple of days ago :-(.  I hate it when that happens!  Perhaps some
-system daemon started up during the test that hung.
+1. Reclaim control
 
-Later,
-Lee
+__GFP_WAIT
+__GFP_IO
+__GFP_FS
+__GFP_NOWARN
+__GFP_REPEAT
+__GFP_NOFAIL
+__GFP_NORETRY
 
+2. Reserve control
+
+__GFP_HIGH
+__GFP_NOMEMALLOC
+
+2. Fallback control
+
+__GFP_HARDWALL	(cpuset contraints)
+__GFP_THISNODE (handled by SLAB on its own, SLUB/SLOB pass through)
+
+AFAIK these make sense.
+
+Then there are some other flags. I am wondering why they are in
+GFP_LEVEL_MASK?
+
+__GFP_COLD	Does not make sense for slab allocators since we have
+		to touch the page immediately.
+
+__GFP_COMP	No effect. Added by the page allocator on their own
+		if a higher order allocs are used for a slab.
+
+__GFP_MOVABLE	The movability of a slab is determined by the
+		options specified at kmem_cache_create time. If this is
+		specified at kmalloc time then we will have some random
+		slabs movable and others not. 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
