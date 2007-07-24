@@ -1,109 +1,134 @@
-Received: by ug-out-1314.google.com with SMTP id c2so220049ugf
-        for <linux-mm@kvack.org>; Tue, 24 Jul 2007 09:15:03 -0700 (PDT)
-Message-ID: <2c0942db0707240915h56e007e3l9110e24a065f2e73@mail.gmail.com>
-Date: Tue, 24 Jul 2007 09:15:01 -0700
-From: "Ray Lee" <ray-lk@madrabbit.org>
-Subject: Re: -mm merge plans for 2.6.23
-In-Reply-To: <46A58B49.3050508@yahoo.com.au>
+Received: from d01relay02.pok.ibm.com (d01relay02.pok.ibm.com [9.56.227.234])
+	by e4.ny.us.ibm.com (8.13.8/8.13.8) with ESMTP id l6OGGTZF023869
+	for <linux-mm@kvack.org>; Tue, 24 Jul 2007 12:16:29 -0400
+Received: from d01av04.pok.ibm.com (d01av04.pok.ibm.com [9.56.224.64])
+	by d01relay02.pok.ibm.com (8.13.8/8.13.8/NCO v8.4) with ESMTP id l6OGGSUP142702
+	for <linux-mm@kvack.org>; Tue, 24 Jul 2007 12:16:28 -0400
+Received: from d01av04.pok.ibm.com (loopback [127.0.0.1])
+	by d01av04.pok.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l6OGGSmR030629
+	for <linux-mm@kvack.org>; Tue, 24 Jul 2007 12:16:28 -0400
+Date: Tue, 24 Jul 2007 09:16:27 -0700
+From: Nishanth Aravamudan <nacc@us.ibm.com>
+Subject: Re: [PATCH] Memoryless nodes:  use "node_memory_map" for cpuset mems_allowed validation
+Message-ID: <20070724161627.GA18510@us.ibm.com>
+References: <20070711182219.234782227@sgi.com> <20070711182250.005856256@sgi.com> <Pine.LNX.4.64.0707111204470.17503@schroedinger.engr.sgi.com> <1184964564.9651.66.camel@localhost> <20070723190922.GA6036@us.ibm.com> <1185224393.23917.6.camel@localhost> <20070723214816.GC6036@us.ibm.com> <1185286264.5649.23.camel@localhost>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=UTF-8; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-References: <20070710013152.ef2cd200.akpm@linux-foundation.org>
-	 <200707102015.44004.kernel@kolivas.org>
-	 <9a8748490707231608h453eefffx68b9c391897aba70@mail.gmail.com>
-	 <46A57068.3070701@yahoo.com.au>
-	 <2c0942db0707232153j3670ef31kae3907dff1a24cb7@mail.gmail.com>
-	 <46A58B49.3050508@yahoo.com.au>
+In-Reply-To: <1185286264.5649.23.camel@localhost>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nick Piggin <nickpiggin@yahoo.com.au>
-Cc: Jesper Juhl <jesper.juhl@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, ck list <ck@vds.kolivas.org>, Ingo Molnar <mingo@elte.hu>, Paul Jackson <pj@sgi.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
+Cc: Christoph Lameter <clameter@sgi.com>, Paul Jackson <pj@sgi.com>, akpm@linux-foundation.org, kxr@sgi.com, linux-mm@kvack.org, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-On 7/23/07, Nick Piggin <nickpiggin@yahoo.com.au> wrote:
-> Ray Lee wrote:
-> > That said, I'm willing to run my day to day life through both a swap
-> > prefetch kernel and a normal one. *However*, before I go through all
-> > the work of instrumenting the damn thing, I'd really like Andrew (or
-> > Linus) to lay out his acceptance criteria on the feature. Exactly what
-> > *should* I be paying attention to? I've suggested keeping track of
-> > process swapin delay total time, and comparing with and without. Is
-> > that reasonable? Is it incomplete?
->
-> I don't feel it is so useful without more context. For example, in
-> most situations where pages get pushed to swap, there will *also* be
-> useful file backed pages being thrown out. Swap prefetch might
-> improve the total swapin delay time very significantly but that may
-> be just a tiny portion of the real problem.
+On 24.07.2007 [10:11:03 -0400], Lee Schermerhorn wrote:
+> On Mon, 2007-07-23 at 14:48 -0700, Nishanth Aravamudan wrote:
+> > On 23.07.2007 [16:59:52 -0400], Lee Schermerhorn wrote:
+> > > On Mon, 2007-07-23 at 12:09 -0700, Nishanth Aravamudan wrote: 
+> > > > On 20.07.2007 [16:49:24 -0400], Lee Schermerhorn wrote:
+> > > > > This fixes a problem I encountered testing Christoph's memoryless nodes
+> > > > > series.  Applies atop that series.  Other than this, series holds up
+> > > > > under what testing I've been able to do this week.
+> > > > > 
+> > > > > Memoryless Nodes:  use "node_memory_map" for cpusets mems_allowed validation
+> > > > > 
+> > > > > cpusets try to ensure that any node added to a cpuset's 
+> > > > > mems_allowed is on-line and contains memory.  The assumption
+> > > > > was that online nodes contained memory.  Thus, it is possible
+> > > > > to add memoryless nodes to a cpuset and then add tasks to this
+> > > > > cpuset.  This results in continuous series of oom-kill and other
+> > > > > console stack traces and apparent system hang.
+> > > > > 
+> > > > > Change cpusets to use node_states[N_MEMORY] [a.k.a.
+> > > > > node_memory_map] in place of node_online_map when vetting 
+> > > > > memories.  Return error if admin attempts to write a non-empty
+> > > > > mems_allowed node mask containing only memoryless-nodes.
+> > > > > 
+> > > > > Signed-off-by:  Lee Schermerhorn <lee.schermerhorn@hp.com>
+> > > > 
+> > > > Lee, while looking at this change, I think it ends up fixing
+> > > > cpuset_mems_allowed() to return nodemasks that only include nodes in
+> > > > node_states[N_MEMORY]. However, cpuset_current_mems_allowed is a
+> > > > lockless macro which would still be broken. I think it would need to
+> > > > becom a static inline nodes_and() in the CPUSET case and a #define
+> > > > node_states[N_MEMORY] in the non-CPUSET case?
+> > > > 
+> > > > Or perhaps we should adjust cpusets to make it so that the mems_allowed
+> > > > member only includes nodes that are set in node_states[N_MEMORY]?
+> > > 
+> > > 
+> > > I thought that's what my patch to nodelist_parse() did.  It ensures that
+> > > current->mems_allowed is correct [contains at least one node with
+> > > memory, and only nodes with memory] at the time it is installed, but
+> > > doesn't consider memory hot plug and node off-lining.  Is this
+> > > [offline/hotplug] your point?
+> > 
+> > And everytime it is updated, right? (current->mems_allowed).   My concern
+> > is purely whether I can then directly use cpuset_current_mems_allowed in
+> > the interleave code for hugetlb.c and it will do the right thing. It
+> > will work, if the #define is changed for !CPUSETS and if your change
+> > guarantess current->mems_allowed is always consistent with
+> > node_states[N_MEMORY].
+> 
+> Other than offlining/hot removal of memory, I think the only place
+> that current->mems_allowed gets updated in in update_nodelist() [I
+> wrote nodelist_parse() previously by mistake].  My patch to that
+> function tries to ensure that current->mems_allowed always contains at
+> least one node with memory.
 
-Agreed, it's important to make sure we're not being penny-wise and
-pound-foolish here.
+Ok.
 
-> Also a random day at the desktop, it is quite a broad scope and
-> pretty well impossible to analyse.
+> If by "gets updated" you're referring to
+> "cpuset_update_task_memory_state(), the latter calls
+> "guarantee_online_mems()", which I also patched to use
+> node_states[N_MEMORY] instead of "node_online_map".  So, I think you
+> can use current->mems_allowed in the hugetlb code.  Maybe call
+> "cpuset_update_task_memory_state()" before using it?  However, I think
+> that will have the effect of escaping the cpuset constraints if all of
+> the nodes in the current task's mems_allowed have been offlined or hot
+> removed since this mask was created/updated in update_nodelist().
 
-It is pretty broad, but that's also what swap prefetch is targetting.
-As for hard to analyze, I'm not sure I agree. One can black-box test
-this stuff with only a few controls. e.g., if I use the same apps each
-day (mercurial, firefox, xorg, gcc), and the total I/O wait time
-consistently goes down on a swap prefetch kernel (normalized by some
-control statistic, such as application CPU time or total I/O, or
-something), then that's a useful measurement.
+Ok, well, I'll test on a memoryless configuration here and see if just
+using cpuset_current_mems_allowed is sufficient.
 
-> If we can first try looking at
-> some specific problems that are easily identified.
+> > I think I simply was confused about the full impact of your changes,
+> > as I don't know cpusets that well. I'm going to try and test a
+> > memoryless node box I have at work w/ your change, though, and see
+> > what happens.
+> 
+> FYI:  I initially tried to test Christoph's memless nodes series with
+> your rebased hugetlb patches, but the system appeared to hang.  [Might
+> be related to Ken Chen's recent hugetlb patch?]
 
-Always easier, true. Let's start with "My mouse jerks around under
-memory load." A Google Summer of Code student working on X.Org claims
-that mlocking the mouse handling routines gives a smooth cursor under
-load ([1]). It's surprising that the kernel would swap that out in the
-first place.
+Were you running all of the patches on top of -mm? That's what I've been
+testing as well.
 
-[1] http://vignatti.wordpress.com/2007/07/06/xorg-input-thread-summary-or-something/
+> I backed off to just Christoph's series and things seem to run OK.
+> That's when I noticed that one could create a cpuset with just
+> memoryless nodes and posted the subject patch.  I'll get back to
+> testing your patches on my memoryless nodes system "real soon now".
 
-> Looking at your past email, you have a 1GB desktop system and your
-> overnight updatedb run is causing stuff to get swapped out such that
-> swap prefetch makes it significantly better. This is really
-> intriguing to me, and I would hope we can start by making this
-> particular workload "not suck" without swap prefetch (and hopefully
-> make it even better than it currently is with swap prefetch because
-> we'll try not to evict useful file backed pages as well).
+Cool, please keep me posted.
 
-updatedb is an annoying case, because one would hope that there would
-be a better way to deal with that highly specific workload. It's also
-pretty stat dominant, which puts it roughly in the same category as a
-git diff. (They differ in that updatedb does a lot of open()s and
-getdents on directories, git merely does a ton of lstat()s instead.)
+> Meanwhile, as you've pointed out, I missed the "node_online_map" usage
+> in the header and, I see, in the initialization of the top level
+> cpuset in cpuset_init_smp().  I'm testing this now.  I'll repost the
+> patch with these fixes shortly.
 
-Anyway, my point is that I worry that tuning for an unusual and
-infrequent workload (which updatedb certainly is), is the wrong way to
-go.
+Cool, I see it in my inbox.
 
-> After that we can look at other problems that swap prefetch helps
-> with, or think of some ways to measure your "whole day" scenario.
->
-> So when/if you have time, I can cook up a list of things to monitor
-> and possibly a patch to add some instrumentation over this updatedb
-> run.
+> For completeness, here's the numactl --hardware output [less the SLIT
+> info] from my test platform [ia64] in it's current config:
 
-That would be appreciated. Don't spend huge amounts of time on it,
-okay? Point me the right direction, and we'll see how far I can run
-with it.
+Good info to have. A very restricted configuration :)
 
-> Anyway, I realise swap prefetching has some situations where it will
-> fundamentally outperform even the page replacement oracle. This is
-> why I haven't asked for it to be dropped: it isn't a bad idea at all.
+Thanks,
+Nish
 
-<nod>
-
-> However, if we can improve basic page reclaim where it is obviously
-> lacking, that is always preferable. eg: being a highly speculative
-> operation, swap prefetch is not great for power efficiency -- but we
-> still want laptop users to have a good experience as well, right?
-
-Absolutely. Disk I/O is the enemy, and the best I/O is one you never
-had to do in the first place.
+-- 
+Nishanth Aravamudan <nacc@us.ibm.com>
+IBM Linux Technology Center
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
