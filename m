@@ -1,80 +1,109 @@
-Message-ID: <46A621B3.6060902@shadowen.org>
-Date: Tue, 24 Jul 2007 16:58:43 +0100
-From: Andy Whitcroft <apw@shadowen.org>
+Received: by ug-out-1314.google.com with SMTP id c2so220049ugf
+        for <linux-mm@kvack.org>; Tue, 24 Jul 2007 09:15:03 -0700 (PDT)
+Message-ID: <2c0942db0707240915h56e007e3l9110e24a065f2e73@mail.gmail.com>
+Date: Tue, 24 Jul 2007 09:15:01 -0700
+From: "Ray Lee" <ray-lk@madrabbit.org>
+Subject: Re: -mm merge plans for 2.6.23
+In-Reply-To: <46A58B49.3050508@yahoo.com.au>
 MIME-Version: 1.0
-Subject: Re: [PATCH] Do not trigger OOM-killer for high-order allocation failures
-References: <20070724153531.GA30585@skynet.ie>
-In-Reply-To: <20070724153531.GA30585@skynet.ie>
-Content-Type: text/plain; charset=ISO-8859-15
+Content-Type: text/plain; charset=UTF-8; format=flowed
 Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+References: <20070710013152.ef2cd200.akpm@linux-foundation.org>
+	 <200707102015.44004.kernel@kolivas.org>
+	 <9a8748490707231608h453eefffx68b9c391897aba70@mail.gmail.com>
+	 <46A57068.3070701@yahoo.com.au>
+	 <2c0942db0707232153j3670ef31kae3907dff1a24cb7@mail.gmail.com>
+	 <46A58B49.3050508@yahoo.com.au>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Mel Gorman <mel@skynet.ie>
-Cc: akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Nick Piggin <nickpiggin@yahoo.com.au>
+Cc: Jesper Juhl <jesper.juhl@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, ck list <ck@vds.kolivas.org>, Ingo Molnar <mingo@elte.hu>, Paul Jackson <pj@sgi.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-Mel Gorman wrote:
-> out_of_memory() may be called when an allocation is failing and the direct
-> reclaim is not making any progress. This does not take into account the
-> requested order of the allocation. If the request if for an order larger
-> than PAGE_ALLOC_COSTLY_ORDER, it is reasonable to fail the allocation
-> because the kernel makes no guarantees about those allocations succeeding.
-> 
-> This false OOM situation can occur if a user is trying to grow the hugepage
-> pool in a script like;
-> 
-> #!/bin/bash
-> REQUIRED=$1
-> echo 1 > /proc/sys/vm/hugepages_treat_as_movable
-> echo $REQUIRED > /proc/sys/vm/nr_hugepages
-> ACTUAL=`cat /proc/sys/vm/nr_hugepages`
-> while [ $REQUIRED -ne $ACTUAL ]; do
-> 	echo Huge page pool at $ACTUAL growing to $REQUIRED
-> 	echo $REQUIRED > /proc/sys/vm/nr_hugepages
-> 	ACTUAL=`cat /proc/sys/vm/nr_hugepages`
-> 	sleep 1
-> done
-> 
-> This is a reasonable scenario when ZONE_MOVABLE is in use but triggers OOM
-> easily on 2.6.23-rc1. This patch will fail an allocation for an order above
-> PAGE_ALLOC_COSTLY_ORDER instead of killing processes and retrying.
-> 
-> Signed-off-by: Mel Gorman <mel@csn.ul.ie>
+On 7/23/07, Nick Piggin <nickpiggin@yahoo.com.au> wrote:
+> Ray Lee wrote:
+> > That said, I'm willing to run my day to day life through both a swap
+> > prefetch kernel and a normal one. *However*, before I go through all
+> > the work of instrumenting the damn thing, I'd really like Andrew (or
+> > Linus) to lay out his acceptance criteria on the feature. Exactly what
+> > *should* I be paying attention to? I've suggested keeping track of
+> > process swapin delay total time, and comparing with and without. Is
+> > that reasonable? Is it incomplete?
+>
+> I don't feel it is so useful without more context. For example, in
+> most situations where pages get pushed to swap, there will *also* be
+> useful file backed pages being thrown out. Swap prefetch might
+> improve the total swapin delay time very significantly but that may
+> be just a tiny portion of the real problem.
 
-We have had this problem for a long time.  When allocating large pages
-we could find ourselves unable to allocate such a page nor reclaim one
-for ourselves.  At this point we will OOM with little hope of that
-actually changing the situation for the better.
+Agreed, it's important to make sure we're not being penny-wise and
+pound-foolish here.
 
-As you say PAGE_ALLOC_COSTLY_ORDER pretty much defines the orders at
-which any sort of guarantee of success is provided.  It seems preferable
-to fail a allocations above this order/ than killing things to try and
-make it available.  As higher order users already have to handle failure
-to allocate they should be best equipped to continue.
+> Also a random day at the desktop, it is quite a broad scope and
+> pretty well impossible to analyse.
 
-Acked-by: Andy Whitcroft <apw@shadowen.org>
+It is pretty broad, but that's also what swap prefetch is targetting.
+As for hard to analyze, I'm not sure I agree. One can black-box test
+this stuff with only a few controls. e.g., if I use the same apps each
+day (mercurial, firefox, xorg, gcc), and the total I/O wait time
+consistently goes down on a swap prefetch kernel (normalized by some
+control statistic, such as application CPU time or total I/O, or
+something), then that's a useful measurement.
 
-> ---
->  page_alloc.c |    4 ++++
->  1 file changed, 4 insertions(+)
-> 
-> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> index 40954fb..da57173 100644
-> --- a/mm/page_alloc.c
-> +++ b/mm/page_alloc.c
-> @@ -1350,6 +1350,10 @@ nofail_alloc:
->  		if (page)
->  			goto got_pg;
->  
-> +		/* The OOM killer will not help higher order allocs so fail */
-> +		if (order > PAGE_ALLOC_COSTLY_ORDER)
-> +			goto nopage;
-> +
->  		out_of_memory(zonelist, gfp_mask, order);
->  		goto restart;
->  	}
+> If we can first try looking at
+> some specific problems that are easily identified.
 
--apw
+Always easier, true. Let's start with "My mouse jerks around under
+memory load." A Google Summer of Code student working on X.Org claims
+that mlocking the mouse handling routines gives a smooth cursor under
+load ([1]). It's surprising that the kernel would swap that out in the
+first place.
+
+[1] http://vignatti.wordpress.com/2007/07/06/xorg-input-thread-summary-or-something/
+
+> Looking at your past email, you have a 1GB desktop system and your
+> overnight updatedb run is causing stuff to get swapped out such that
+> swap prefetch makes it significantly better. This is really
+> intriguing to me, and I would hope we can start by making this
+> particular workload "not suck" without swap prefetch (and hopefully
+> make it even better than it currently is with swap prefetch because
+> we'll try not to evict useful file backed pages as well).
+
+updatedb is an annoying case, because one would hope that there would
+be a better way to deal with that highly specific workload. It's also
+pretty stat dominant, which puts it roughly in the same category as a
+git diff. (They differ in that updatedb does a lot of open()s and
+getdents on directories, git merely does a ton of lstat()s instead.)
+
+Anyway, my point is that I worry that tuning for an unusual and
+infrequent workload (which updatedb certainly is), is the wrong way to
+go.
+
+> After that we can look at other problems that swap prefetch helps
+> with, or think of some ways to measure your "whole day" scenario.
+>
+> So when/if you have time, I can cook up a list of things to monitor
+> and possibly a patch to add some instrumentation over this updatedb
+> run.
+
+That would be appreciated. Don't spend huge amounts of time on it,
+okay? Point me the right direction, and we'll see how far I can run
+with it.
+
+> Anyway, I realise swap prefetching has some situations where it will
+> fundamentally outperform even the page replacement oracle. This is
+> why I haven't asked for it to be dropped: it isn't a bad idea at all.
+
+<nod>
+
+> However, if we can improve basic page reclaim where it is obviously
+> lacking, that is always preferable. eg: being a highly speculative
+> operation, swap prefetch is not great for power efficiency -- but we
+> still want laptop users to have a good experience as well, right?
+
+Absolutely. Disk I/O is the enemy, and the best I/O is one you never
+had to do in the first place.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
