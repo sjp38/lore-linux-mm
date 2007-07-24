@@ -1,54 +1,65 @@
-Date: Tue, 24 Jul 2007 16:12:47 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH] add __GFP_ZERO to GFP_LEVEL_MASK
-Message-Id: <20070724161247.ee1a2546.akpm@linux-foundation.org>
-In-Reply-To: <Pine.LNX.4.64.0707241541310.7288@schroedinger.engr.sgi.com>
-References: <1185185020.8197.11.camel@twins>
-	<20070723112143.GB19437@skynet.ie>
-	<1185190711.8197.15.camel@twins>
-	<Pine.LNX.4.64.0707231615310.427@schroedinger.engr.sgi.com>
-	<1185256869.8197.27.camel@twins>
-	<Pine.LNX.4.64.0707240007100.3128@schroedinger.engr.sgi.com>
-	<1185261894.8197.33.camel@twins>
-	<Pine.LNX.4.64.0707240030110.3295@schroedinger.engr.sgi.com>
-	<20070724120751.401bcbcb@schroedinger.engr.sgi.com>
-	<20070724122542.d4ac734a.akpm@linux-foundation.org>
-	<Pine.LNX.4.64.0707241234460.13653@schroedinger.engr.sgi.com>
-	<20070724151046.d8fbb7da.akpm@linux-foundation.org>
-	<Pine.LNX.4.64.0707241541310.7288@schroedinger.engr.sgi.com>
+Date: Tue, 24 Jul 2007 19:25:09 -0400
+From: Chris Mason <chris.mason@oracle.com>
+Subject: Re: [PATCH RFC] extent mapped page cache
+Message-ID: <20070724192509.5bc9b3fe@think.oraclecorp.com>
+In-Reply-To: <1185312343.5535.5.camel@lappy>
+References: <20070710210326.GA29963@think.oraclecorp.com>
+	<20070724160032.7a7097db@think.oraclecorp.com>
+	<1185307985.6586.50.camel@localhost>
+	<1185312343.5535.5.camel@lappy>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
-Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, Mel Gorman <mel@skynet.ie>, Linus Torvalds <torvalds@linux-foundation.org>, linux-kernel <linux-kernel@vger.kernel.org>, Daniel Phillips <phillips@google.com>, linux-mm <linux-mm@kvack.org>
+To: Peter Zijlstra <a.p.zijlstra@chello.nl>
+Cc: Trond Myklebust <trond.myklebust@fys.uio.no>, Nick Piggin <npiggin@suse.de>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>, linux-fsdevel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 24 Jul 2007 16:00:32 -0700 (PDT) Christoph Lameter <clameter@sgi.com> wrote:
+On Tue, 24 Jul 2007 23:25:43 +0200
+Peter Zijlstra <a.p.zijlstra@chello.nl> wrote:
 
-> On Tue, 24 Jul 2007, Andrew Morton wrote:
-> 
-> > I think I'll duck this for now.  Otherwise I have a suspicion that I'll
-> > be the first person to run it and I'm too old for such excitement.
-> 
-> I always had the suspicion that you have some magical script 
-> which will immediately tell you that a patch is not working ;-)
+> On Tue, 2007-07-24 at 16:13 -0400, Trond Myklebust wrote:
+> > On Tue, 2007-07-24 at 16:00 -0400, Chris Mason wrote:
+> > > On Tue, 10 Jul 2007 17:03:26 -0400
+> > > Chris Mason <chris.mason@oracle.com> wrote:
+> > > 
+> > > > This patch aims to demonstrate one way to replace buffer heads
+> > > > with a few extent trees.  Buffer heads provide a few different
+> > > > features:
+> > > > 
+> > > > 1) Mapping of logical file offset to blocks on disk
+> > > > 2) Recording state (dirty, locked etc)
+> > > > 3) Providing a mechanism to access sub-page sized blocks.
+> > > > 
+> > > > This patch covers #1 and #2, I'll start on #3 a little later
+> > > > next week.
+> > > > 
+> > > Well, almost.  I decided to try out an rbtree instead of the
+> > > radix, which turned out to be much faster.  Even though
+> > > individual operations are slower, the rbtree was able to do many
+> > > fewer ops to accomplish the same thing, especially for merging
+> > > extents together.  It also uses much less ram.
+> > 
+> > The problem with an rbtree is that you can't use it together with
+> > RCU to do lockless lookups. You can probably modify it to allocate
+> > nodes dynamically (like the radix tree does) and thus make it
+> > RCU-compatible, but then you risk losing the two main benefits that
+> > you list above.
 
-sort of a defensive crouch.
+The tree is a critical part of the patch, but it is also the easiest to
+rip out and replace.  Basically the code stores a range by inserting
+an object at an index corresponding to the end of the range.
 
-> Works fine on x86_64 (on top of the ctor cleanup patchset) and passes the 
-> kernel build test but then there may be creatively designed drivers and 
-> such that pass these flags to the slab allocators which will now BUG.
+Then it does searches by looking forward from the start of the range.
+More or less any tree that can search and return the first key >=
+than the requested key will work.
 
-__GFP_COLD looks OK.
+So, I'd be happy to rip out the tree and replace with something else.
+Going completely lockless will be tricky, its something that will deep
+thought once the rest of the interface is sane.
 
-__GFP_COMP I'm not so sure about. 
-drivers/char/drm/drm_pci.c:drm_pci_alloc() (and other places like infiniband)
-pass it into dma_alloc_coherent() which some architectures implement via slab.  umm,
-arch/arm/mm/consistent.c is one such.
-
-__GFP_MOVABLE looks OK.
+-chris
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
