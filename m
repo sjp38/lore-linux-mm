@@ -1,87 +1,47 @@
-From: "Leslie Nicholson" <campos@tekinc.com>
-Subject: Potenzprobleme? Ab jetzt nicht mehr  piece of accurate  -- or on the real relationship 
-Date: Wed, 25 Jul 2007 13:33:45 +0000
+Date: Wed, 25 Jul 2007 15:50:16 +0200
+From: Ingo Molnar <mingo@elte.hu>
+Subject: Re: [ck] Re: -mm merge plans for 2.6.23
+Message-ID: <20070725135016.GA18633@elte.hu>
+References: <46A6CC56.6040307@yahoo.com.au> <46A6D7D2.4050708@gmail.com> <Pine.LNX.4.64.0707242211210.2229@asgard.lang.hm> <46A6DFFD.9030202@gmail.com> <30701.1185347660@turing-police.cc.vt.edu> <46A7074B.50608@gmail.com> <20070725082822.GA13098@elte.hu> <46A70D37.3060005@gmail.com> <5c77e14b0707250353r48458316x5e6adde6dbce1fbd@mail.gmail.com> <46A75062.1050809@gmail.com>
 MIME-Version: 1.0
-Content-Type: multipart/alternative;
-	boundary="----=_NextPart_000_0006_01C7CEC8.CE7C9280"
-Message-ID: <01c7cec0$6cb82a80$a7596555@campos>
-Return-Path: <campos@tekinc.com>
-To: linux-mm@kvack.org
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <46A75062.1050809@gmail.com>
+Sender: owner-linux-mm@kvack.org
+Return-Path: <owner-linux-mm@kvack.org>
+To: Rene Herman <rene.herman@gmail.com>
+Cc: Jos Poortvliet <jos@mijnkamer.nl>, david@lang.hm, Nick Piggin <nickpiggin@yahoo.com.au>, Valdis.Kletnieks@vt.edu, Ray Lee <ray-lk@madrabbit.org>, Jesper Juhl <jesper.juhl@gmail.com>, linux-kernel@vger.kernel.org, ck list <ck@vds.kolivas.org>, linux-mm@kvack.org, Paul Jackson <pj@sgi.com>, Andrew Morton <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-This is a multi-part message in MIME format.
+* Rene Herman <rene.herman@gmail.com> wrote:
 
-------=_NextPart_000_0006_01C7CEC8.CE7C9280
-Content-Type: text/plain;
-	charset="iso-8859-2"
-Content-Transfer-Encoding: 7bit
+> Nick Piggin is the person to convince it seems and if I've read things 
+> right (I only stepped into this thing at the updatedb mention, so 
+> maybe I haven't) his main question is _why_ the hell it helps 
+> updatedb. [...]
 
-Sie leben nur einmal - warum dann nicht was neues ausprobieren?
+btw., i'd like to make this clear: if you want stuff to go upstream, do 
+not concentrate on 'convincing the maintainer'.
 
-Preise die keine Konkurrenz kennen 
+Instead concentrate on understanding the _problem_, concentrate on 
+making sure that both you and the maintainer understands the problem 
+correctly, possibly write some testcase that clearly exposes it, and 
+help the maintainer debug the problem. _Optionally_, if you find joy in 
+it, you are also free to write a proposed solution for that problem and 
+submit it to the maintainer.
 
-- Kein langes Warten - Auslieferung innerhalb von 2-3 Tagen
-- Diskrete Verpackung und Zahlung
-- Kostenlose, arztliche Telefon-Beratung
-- Kein peinlicher Arztbesuch erforderlich
-- Bequem und diskret online bestellen.
-- Visa verifizierter Onlineshop
-- keine versteckte Kosten
+But a "here is a solution, take it or leave it" approach, before having 
+communicated the problem to the maintainer and before having debugged 
+the problem is the wrong way around. It might still work out fine if the 
+solution is correct (especially if the patch is small and obvious), but 
+if there are any non-trivial tradeoffs involved, or if nontrivial amount 
+of code is involved, you might see your patch at the end of a really 
+long (and constantly growing) waiting list of patches.
 
-Originalmedikamente
-Ciaaaaaalis 10 Pack. 27,00 Euro
-Viaaaagra 10 Pack. 21,00 Euro
+	Ingo
 
-Vier Dosen gibt's bei jeder Bestellung umsonst
-http://aahdqnh.temperaturesugar.cn/?262477529734
-
-(bitte warten Sie einen Moment bis die Seite vollstandig geladen wird)
-
-
-------=_NextPart_000_0006_01C7CEC8.CE7C9280
-Content-Type: text/html;
-	charset="iso-8859-2"
-Content-Transfer-Encoding: quoted-printable
-
-<html xmlns:o=3D"urn:schemas-microsoft-com:office:office" xmlns:w=3D"urn:sc=
-hemas-microsoft-com:office:word" xmlns=3D"http://www.w3.org/TR/REC-html40">
-
-<head>
-<META HTTP-EQUIV=3D"Content-Type" CONTENT=3D"text/html; charset=3Diso-8859-2">
-<meta name=3DGenerator content=3D"Microsoft Word 11 (filtered medium)">
-</head>
-<body>
-<head><meta http-equiv=3D"Content-Type" content=3D"text/html; charset=3Diso=
--8859-1">
-</head><body><p>Meinung von unserem Kunden:<br><strong>Als wir Liebe gemach=
-t haben, f&#252;hlte ich mich wieder wie ein Neunzehnj&#228;hriger. "Er" wa=
-r so hart, ich h&#228;tte N&#228;gel damit einklopfen k&#246;nnen. Meiner F=
-rau sagt, ich h&#228;tte sie noch nie so lang und so hart geliebt. Sie ist =
-ganz versessen auf mich. Und ich brauche wohl bald einen Nachf&#252;llpack.=
-</strong></p><p><strong>Warum nehme ich Ciaaaaaalis? Es ist einfach ein ang=
-enehmens Gef&#252;hl. Man brauch sich nicht auf die Err. ..ektion zu konzen=
-trieren. Beim Sex ist man viel entspannter, mann kann auch mal die Muskeln =
-im Genitalbereich lockern, ohne das die Err. ..ektion im Glied nachlasst. D=
-adurch ist eine lange Verz&#246;gerung der Ejakulation m&#246;glich. Man is=
-t beim Sex generell lockerer und entspannter, und kommt auch nicht mehr so =
-schnell ausser Athem, weil man eben locker und entspannt ist, ausser nat&#2=
-52;rlich der kleine Freund :-)<br>
-</strong><strong><br>Sie leben nur einmal - warum dann nicht was neues ausp=
-robieren?</strong></p><p>Preise die keine Konkurrenz kennen <p>
-- Kein peinlicher Arztbesuch erforderlich<br>- Visa verifizierter Onlinesho=
-p<br>- Kostenlose, arztliche Telefon-Beratung<br>- Kein langes Warten - Aus=
-lieferung innerhalb von 2-3 Tagen<br>- Bequem und diskret online bestellen.=
-<br>- keine versteckte Kosten<br>- Diskrete Verpackung und Zahlung</p>
-<p>Originalmedikamente<br>
-  <strong>Ciaaaaaalis 10 Pack. 27,00 Euro</strong><br>
-  <strong>Viaaaagra 10 Pack. 21,00 Euro</strong><br>
-   <br>
-  <strong><a href=3D"http://aahdqnh.temperaturesugar.cn/?262477529734" targ=
-et=3D"_blank">Vier Dosen gibt's bei jeder Bestellung umsonst</a><br>
-</strong>(bitte warten Sie einen Moment bis die Seite vollst&auml;ndig gela=
-den wird) </p>
-</body>
-</body>
-</html>
-
-------=_NextPart_000_0006_01C7CEC8.CE7C9280--
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
