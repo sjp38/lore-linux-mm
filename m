@@ -1,88 +1,71 @@
-From: "Jamaal Nichols" <distort@pl.gmeds.com>
-Subject: Man Lebt nur einmal - probiers aus !  the investments within  -- when to use them, how 
-Date: Wed, 25 Jul 2007 15:14:06 -0200
+Received: by mu-out-0910.google.com with SMTP id g7so248563muf
+        for <linux-mm@kvack.org>; Wed, 25 Jul 2007 08:30:02 -0700 (PDT)
+Message-ID: <367a23780707250830i20a04a60n690e8da5630d39a9@mail.gmail.com>
+Date: Wed, 25 Jul 2007 17:30:02 +0200
+From: "Kacper Wysocki" <kacperw@online.no>
+Subject: howto get a patch merged (WAS: Re: -mm merge plans for 2.6.23)
 MIME-Version: 1.0
-Content-Type: multipart/alternative;
-	boundary="----=_NextPart_000_0006_01C7CEE7.96E425D0"
-Message-ID: <01c7cece$7196edd0$fb70c13e@distort>
-Return-Path: <distort@pl.gmeds.com>
-To: linux-mm@kvack.org
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+Sender: owner-linux-mm@kvack.org
+Return-Path: <owner-linux-mm@kvack.org>
+To: Ingo Molnar <mingo@elte.hu>
+Cc: Rene Herman <rene.herman@gmail.com>, david@lang.hm, Nick Piggin <nickpiggin@yahoo.com.au>, Valdis.Kletnieks@vt.edu, Ray Lee <ray-lk@madrabbit.org>, linux-kernel@vger.kernel.org, ck list <ck@vds.kolivas.org>, linux-mm@kvack.org, Paul Jackson <pj@sgi.com>, Andrew Morton <akpm@linux-foundation.org>, Jesper Juhl <jesper.juhl@gmail.com>
 List-ID: <linux-mm.kvack.org>
 
-This is a multi-part message in MIME format.
+On 7/25/07, Ingo Molnar <mingo@elte.hu> wrote:
+>
+> * Rene Herman <rene.herman@gmail.com> wrote:
+>
+> > Nick Piggin is the person to convince it seems and if I've read things
+> > right (I only stepped into this thing at the updatedb mention, so
+> > maybe I haven't) his main question is _why_ the hell it helps
+> > updatedb. [...]
+[snip howto get a patch merged]
+> But a "here is a solution, take it or leave it" approach, before having
+> communicated the problem to the maintainer and before having debugged
+> the problem is the wrong way around. It might still work out fine if the
+> solution is correct (especially if the patch is small and obvious), but
+> if there are any non-trivial tradeoffs involved, or if nontrivial amount
+> of code is involved, you might see your patch at the end of a really
+> long (and constantly growing) waiting list of patches.
 
-------=_NextPart_000_0006_01C7CEE7.96E425D0
-Content-Type: text/plain;
-	charset="us-ascii"
-Content-Transfer-Encoding: 7bit
+Is that what happened with swap prefetch these two years? The approach
+has been wrong?
 
-Versuchen Sie unser Produkt und Sie werden fuhlen was unsere Kunden bestatigen
+In this particular instance, there are lots of people who have looked
+at, tried, tested, reported on, advocated, and most importantly -been
+using for several years- swap prefetch. That's a lot of people, it's
+hard to coordinate a unified approach, eh?
 
-Preise die keine Konkurrenz kennen 
+You are the gatekeepers. The dudes with the keys. The guys who must
+claim technical and moral superiority over the rabble, the rest of us.
 
-- Kostenlose, arztliche Telefon-Beratung
-- Kein peinlicher Arztbesuch erforderlich
-- Kein langes Warten - Auslieferung innerhalb von 2-3 Tagen
-- Diskrete Verpackung und Zahlung
-- Bequem und diskret online bestellen.
-- Visa verifizierter Onlineshop
-- keine versteckte Kosten
+I always believed that the linux development model consisted of
+collaboration with technical merit as the prime goal in mind. But the
+sheer volume of patches and the small number of keyholders precludes
+such a scenario. So the gatekeepers have trusted advisors, and it's
+quicker to look at numbers than to try out all the random (and often
+crappy) patches that flow in.
 
-Originalmedikamente
-Ciaaaaaalis 10 Pack. 27,00 Euro
-Viaaaagra 10 Pack. 21,00 Euro
+It's easier to ask for more testing, more feedback, more "unbiased",
+easier to just drop it rather than to look at the new code itself.
+It's easier and less risky to try and understand a problem yourself,
+and write your own code. After all, you trust your own code, right?
 
-Klicken Sie HIER und Sie erhalten vier Dosen umsonst
-http://yaltxoy.temperaturesugar.cn/?717931981589
+Life is so much simpler without any alien objects around.
+However, cool things usually come from outside such a stable environment.
 
-(bitte warten Sie einen Moment bis die Seite vollstandig geladen wird)
+The problem isn't debugging the wrong way around. The problem is no
+matter how many people read it, test it, use it, brag about it,
+measure it, it doesn't matter at all unless they can convince one of
+these few dudes that he should really turn that key.
 
+0K
 
-------=_NextPart_000_0006_01C7CEE7.96E425D0
-Content-Type: text/html;
-	charset="us-ascii"
-Content-Transfer-Encoding: quoted-printable
-
-<html xmlns:o=3D"urn:schemas-microsoft-com:office:office" xmlns:w=3D"urn:sc=
-hemas-microsoft-com:office:word" xmlns=3D"http://www.w3.org/TR/REC-html40">
-
-<head>
-<META HTTP-EQUIV=3D"Content-Type" CONTENT=3D"text/html; charset=3Dus-ascii">
-<meta name=3DGenerator content=3D"Microsoft Word 11 (filtered medium)">
-</head>
-<body>
-<head><meta http-equiv=3D"Content-Type" content=3D"text/html; charset=3Diso=
--8859-1">
-</head><body><p>Meinung von unserem Kunden:<br><strong>Viaaaagra wirkt Wund=
-er! Sie ahnen nicht, wie gl&#252;cklich ich bin. Viaaaagra hat mein Leben v=
-er&#228;ndert. Endlich keine Angst mehr wegen der E_r_rektion. Und auch das=
- Problem mit dem vorzeitigen Samenerguss ist weg.</strong></p><p><strong>Fa=
-ntastische Wirkung! F&#252;nf Jahre lang hatte ich es nicht mehr geschafft,=
- meine Err. ..ektion w&#228;hrend des Verkehrs zu halten und war richtig &#=
-228;ngstlich geworden. Ich hatte auch ein Problem mit vorzeitigem Samenergu=
-ss. Au&#223;erdem bin ich Zuckerkrank. Vor einiger Zeit habe ich eine 50-mg=
--Dosis Viaaaagra genommen und zwei Stunden sp&#228;ter mit einer 22-j&#228;=
-hrigen geschlafen. Kurz vor dem Vorspiel wurde mein Penis hart und ich konn=
-te es kaum glauben. Ich habe in dieser Nacht dreimal Sex gehabt und es gab =
-keine Probleme dabei. Kein Schuss ging daneben. Ich bin ein gl&#252;ckliche=
-r Mann. Achmet, 52<br>
-</strong><strong><br>Versuchen Sie unser Produkt und Sie werden fuhlen was =
-unsere Kunden bestatigen</strong></p><p>Preise die keine Konkurrenz kennen =
-<p>
-- Kein peinlicher Arztbesuch erforderlich<br>- Kostenlose, arztliche Telefo=
-n-Beratung<br>- Kein langes Warten - Auslieferung innerhalb von 2-3 Tagen<b=
-r>- Bequem und diskret online bestellen.<br>- Visa verifizierter Onlineshop=
-<br>- keine versteckte Kosten<br>- Diskrete Verpackung und Zahlung</p>
-<p>Originalmedikamente<br>
-  <strong>Ciaaaaaalis 10 Pack. 27,00 Euro</strong><br>
-  <strong>Viaaaagra 10 Pack. 21,00 Euro</strong><br>
-   <br>
-  <strong><a href=3D"http://yaltxoy.temperaturesugar.cn/?717931981589" targ=
-et=3D"_blank">Klicken Sie HIER und Sie erhalten vier Dosen umsonst</a><br>
-</strong>(bitte warten Sie einen Moment bis die Seite vollst&auml;ndig gela=
-den wird) </p>
-</body>
-</body>
-</html>
-
-------=_NextPart_000_0006_01C7CEE7.96E425D0--
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
