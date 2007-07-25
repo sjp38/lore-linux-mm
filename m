@@ -1,75 +1,87 @@
-Date: Tue, 24 Jul 2007 17:06:48 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH] add __GFP_ZERO to GFP_LEVEL_MASK
-Message-Id: <20070724170648.97c1749b.akpm@linux-foundation.org>
-In-Reply-To: <Pine.LNX.4.64.0707241639440.9018@schroedinger.engr.sgi.com>
-References: <1185185020.8197.11.camel@twins>
-	<20070723112143.GB19437@skynet.ie>
-	<1185190711.8197.15.camel@twins>
-	<Pine.LNX.4.64.0707231615310.427@schroedinger.engr.sgi.com>
-	<1185256869.8197.27.camel@twins>
-	<Pine.LNX.4.64.0707240007100.3128@schroedinger.engr.sgi.com>
-	<1185261894.8197.33.camel@twins>
-	<Pine.LNX.4.64.0707240030110.3295@schroedinger.engr.sgi.com>
-	<20070724120751.401bcbcb@schroedinger.engr.sgi.com>
-	<20070724122542.d4ac734a.akpm@linux-foundation.org>
-	<Pine.LNX.4.64.0707241234460.13653@schroedinger.engr.sgi.com>
-	<20070724151046.d8fbb7da.akpm@linux-foundation.org>
-	<Pine.LNX.4.64.0707241541310.7288@schroedinger.engr.sgi.com>
-	<20070724161247.ee1a2546.akpm@linux-foundation.org>
-	<Pine.LNX.4.64.0707241639440.9018@schroedinger.engr.sgi.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Date: Tue, 24 Jul 2007 17:35:53 -0700 (PDT)
+From: Christoph Lameter <clameter@sgi.com>
+Subject: Re: Slab API: Remove useless ctor parameter and reorder parameters
+In-Reply-To: <20070724165914.a5945763.akpm@linux-foundation.org>
+Message-ID: <Pine.LNX.4.64.0707241705380.9633@schroedinger.engr.sgi.com>
+References: <Pine.LNX.4.64.0707232246400.2654@schroedinger.engr.sgi.com>
+ <20070724165914.a5945763.akpm@linux-foundation.org>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
-Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, Mel Gorman <mel@skynet.ie>, Linus Torvalds <torvalds@linux-foundation.org>, linux-kernel <linux-kernel@vger.kernel.org>, Daniel Phillips <phillips@google.com>, linux-mm <linux-mm@kvack.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, Pekka Enberg <penberg@cs.helsinki.fi>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 24 Jul 2007 16:58:51 -0700 (PDT) Christoph Lameter <clameter@sgi.com> wrote:
+On Tue, 24 Jul 2007, Andrew Morton wrote:
 
-> On Tue, 24 Jul 2007, Andrew Morton wrote:
-> 
-> > __GFP_COMP I'm not so sure about. 
-> > drivers/char/drm/drm_pci.c:drm_pci_alloc() (and other places like infiniband)
-> > pass it into dma_alloc_coherent() which some architectures implement via slab.  umm,
-> > arch/arm/mm/consistent.c is one such.
-> 
-> Should  drm_pci_alloc really aright in setting __GFP_COMP? 
+> arch/i386/mm/pgtable.c:197: error: conflicting types for 'pmd_ctor'
+> include/asm/pgtable.h:43: error: previous declaration of 'pmd_ctor' was here
 
-I don't see what's special about that dma_alloc_coherent() call.
+Ahh. External declaration of pmd_ctor missed in .h. Patch follows. 
+Checked  remainder of .h files for additional ctor/init_once declarations
 
-> dma_alloc_coherent does not set __GFP_COMP for other higher order allocs 
-> and expects to be able to operate on the page structs indepedently. That 
-> is not the case for a compound page.
-> 
-> Creates a really interesting case for SLAB. Slab did not use __GFP_COMP in 
-> order to be able to allow the use page->private (No longer an issue since 
-> the 2.6.22 cleanups and avoiding the use of page->private for the compound 
-> head).
-> 
-> Now the __GFP_COMP flag is passed through for any higher order page alloc 
-> (such as a kmalloc allocation > PAGE_SIZE). Then we may have allocated one 
-> slab that is a compound page amoung others higher order pages allocated 
-> without __GFP_COMP. May have caused rare and strange failures in 2.6.21 
-> and earlier because of the concurrent page->private use in compound head 
-> pages and arch pages.
-> 
-> SLUB will always use __GFP_COMP so the pages are consistent regardless if 
-> __GFP_COMP is passed in or not.
-> 
-> The strange scenarios come about by expecting a page allocation when 
-> sometimes we just substitute a slab alloc.
-> 
-> We could filter __GFP_COMP out to avoid the BUG()? Or deal with it on a 
-> case by case basis?
+> make[1]: *** [arch/i386/mm/pgtable.o] Error 1
+> make: *** [arch/i386/mm/pgtable.o] Error 2
+> make: *** Waiting for unfinished jobs....
+> fs/locks.c: In function 'filelock_init':
+> fs/locks.c:2276: warning: passing argument 5 of 'kmem_cache_create' from incompatible pointer type
+> mm/rmap.c: In function 'anon_vma_init':
+> mm/rmap.c:151: warning: passing argument 5 of 'kmem_cache_create' from incompatible pointer type
+> fs/inode.c: In function 'inode_init':
+> fs/inode.c:1391: warning: passing argument 5 of 'kmem_cache_create' from incompatible pointer type
+> mm/shmem.c: In function 'init_inodecache':
+> mm/shmem.c:2344: warning: passing argument 5 of 'kmem_cache_create' from incompatible pointer type
+> fs/block_dev.c: In function 'bdev_cache_init':
+> fs/block_dev.c:532: warning: passing argument 5 of 'kmem_cache_create' from incompatible pointer type
+> make: *** wait: No child processes.  Stop.
 
-Fix callers, I'd suggest.  There are a number of fishy-looking open-coded
-usages of __GFP_COMP around the place.
+slab.h changes missing. Sigh. I need a more scripted setup.... Rechecked 
+if I got everything.
 
-It's a bit sad that some architectures are using slab for dma_alloc_coherent()
-while others go to alloc_pages().
+> I might let these patches cook a little longer.
+> 
+> Now is the 100% worst time to merge this sort of thing btw: I get to carry
+> it for two months while the world churns.  Around the -rc7 timeframe would 
+> be better.
+
+We just got rid of the destructor parameter of kmem_cache_create. It would 
+be consistent to  also get rid of the useless flag in the ctor at the 
+same time.
+
+Did a build on i386 and it worked fine.
+
+
+---
+ include/asm-i386/pgtable.h |    2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+Index: linux-2.6/include/asm-i386/pgtable.h
+===================================================================
+--- linux-2.6.orig/include/asm-i386/pgtable.h	2007-07-23 13:02:16.000000000 -0700
++++ linux-2.6/include/asm-i386/pgtable.h	2007-07-24 17:09:38.000000000 -0700
+@@ -40,7 +40,7 @@ extern spinlock_t pgd_lock;
+ extern struct page *pgd_list;
+ void check_pgt_cache(void);
+ 
+-void pmd_ctor(void *, struct kmem_cache *, unsigned long);
++void pmd_ctor(struct kmem_cache *, void *);
+ void pgtable_cache_init(void);
+ void paging_init(void);
+ 
+Index: linux-2.6/include/linux/slab.h
+===================================================================
+--- linux-2.6.orig/include/linux/slab.h	2007-07-24 17:10:39.000000000 -0700
++++ linux-2.6/include/linux/slab.h	2007-07-24 17:10:49.000000000 -0700
+@@ -51,7 +51,7 @@ int slab_is_available(void);
+ 
+ struct kmem_cache *kmem_cache_create(const char *, size_t, size_t,
+ 			unsigned long,
+-			void (*)(void *, struct kmem_cache *, unsigned long));
++			void (*)(struct kmem_cache *, void *));
+ void kmem_cache_destroy(struct kmem_cache *);
+ int kmem_cache_shrink(struct kmem_cache *);
+ void kmem_cache_free(struct kmem_cache *, void *);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
