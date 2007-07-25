@@ -1,63 +1,105 @@
-Message-ID: <46A6D5E1.70407@yahoo.com.au>
-Date: Wed, 25 Jul 2007 14:47:29 +1000
-From: Nick Piggin <nickpiggin@yahoo.com.au>
+Date: Tue, 24 Jul 2007 21:46:51 -0700 (PDT)
+From: david@lang.hm
+Subject: Re: -mm merge plans for 2.6.23
+In-Reply-To: <2c0942db0707240915h56e007e3l9110e24a065f2e73@mail.gmail.com>
+Message-ID: <Pine.LNX.4.64.0707242130470.2229@asgard.lang.hm>
+References: <20070710013152.ef2cd200.akpm@linux-foundation.org>
+ <200707102015.44004.kernel@kolivas.org>  <9a8748490707231608h453eefffx68b9c391897aba70@mail.gmail.com>
+  <46A57068.3070701@yahoo.com.au>  <2c0942db0707232153j3670ef31kae3907dff1a24cb7@mail.gmail.com>
+  <46A58B49.3050508@yahoo.com.au> <2c0942db0707240915h56e007e3l9110e24a065f2e73@mail.gmail.com>
 MIME-Version: 1.0
-Subject: Re: NUMA policy issues with ZONE_MOVABLE
-References: <Pine.LNX.4.64.0707242120370.3829@schroedinger.engr.sgi.com>
-In-Reply-To: <Pine.LNX.4.64.0707242120370.3829@schroedinger.engr.sgi.com>
-Content-Type: text/plain; charset=us-ascii; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII; format=flowed
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
-Cc: linux-mm@kvack.org, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, ak@suse.de, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Mel Gorman <mel@skynet.ie>, akpm@linux-foundation.org
+To: Ray Lee <ray-lk@madrabbit.org>
+Cc: Nick Piggin <nickpiggin@yahoo.com.au>, Jesper Juhl <jesper.juhl@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, ck list <ck@vds.kolivas.org>, Ingo Molnar <mingo@elte.hu>, Paul Jackson <pj@sgi.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-Christoph Lameter wrote:
-> The outcome of the 2.6.23 merge was surprising. No antifrag but only 
-> ZONE_MOVABLE. ZONE_MOVABLE is the highest zone.
+On Tue, 24 Jul 2007, Ray Lee wrote:
 
-ZONE_MOVABLE is the way to be able to guarantee contiguous memory
-for hotplug and hugetlb without wasting too much memory, and is
-very unintrusive for what it does. I think it was a good step
-forward.
+> On 7/23/07, Nick Piggin <nickpiggin@yahoo.com.au> wrote:
+>>  Ray Lee wrote:
+>
+>>  Looking at your past email, you have a 1GB desktop system and your
+>>  overnight updatedb run is causing stuff to get swapped out such that
+>>  swap prefetch makes it significantly better. This is really
+>>  intriguing to me, and I would hope we can start by making this
+>>  particular workload "not suck" without swap prefetch (and hopefully
+>>  make it even better than it currently is with swap prefetch because
+>>  we'll try not to evict useful file backed pages as well).
+>
+> updatedb is an annoying case, because one would hope that there would
+> be a better way to deal with that highly specific workload. It's also
+> pretty stat dominant, which puts it roughly in the same category as a
+> git diff. (They differ in that updatedb does a lot of open()s and
+> getdents on directories, git merely does a ton of lstat()s instead.)
+>
+> Anyway, my point is that I worry that tuning for an unusual and
+> infrequent workload (which updatedb certainly is), is the wrong way to
+> go.
 
-There is still disagreement about the antifrag patches, so what
-is surprising about this outcome?
+updatedb pushing out program data may be able to be improved on with drop 
+behind or similar.
 
+however another scenerio that causes a similar problem is when a user is 
+busy useing one of the big memory hogs and then switches to another (think 
+switching between openoffice and firefox)
 
-> For the NUMA layer this has some weird consequences if ZONE_MOVABLE is populated
-> 
-> 1. It is the highest zone.
-> 
-> 2. Thus policy_zone == ZONE_MOVABLE
-> 
-> ZONE_MOVABLE contains only movable allocs by default. That is anonymous 
-> pages and page cache pages?
-> 
-> The NUMA layer only supports NUMA policies for the highest zone. 
-> Thus NUMA policies can control anonymous pages and the page cache pages 
-> allocated from ZONE_MOVABLE. 
-> 
-> However, NUMA policies will no longer affect non pagecache and non 
-> anonymous allocations. So policies can no longer redirect slab allocations 
-> and huge page allocations (unless huge page allocations are moved to 
-> ZONE_MOVABLE). And there are likely other allocations that are not 
-> movable.
-> 
-> If ZONE_MOVABLE is off then things should be working as normal.
-> 
-> Doesnt this mean that ZONE_MOVABLE is incompatible with CONFIG_NUMA?
+>>  After that we can look at other problems that swap prefetch helps
+>>  with, or think of some ways to measure your "whole day" scenario.
+>>
+>>  So when/if you have time, I can cook up a list of things to monitor
+>>  and possibly a patch to add some instrumentation over this updatedb
+>>  run.
+>
+> That would be appreciated. Don't spend huge amounts of time on it,
+> okay? Point me the right direction, and we'll see how far I can run
+> with it.
 
-I guess it has similar problems as ZONE_HIGHMEM etc. I think the
-zoned allocator and NUMA was there first, so it might be more
-correct to say that mempolicies are incompatible with them :)
+you could make a synthetic test by writing a memory hog that allocates 3/4 
+of your ram then pauses waiting for input and then randomly accesses the 
+memory for a while (say randomly accessing 2x # of pages allocated) and 
+then pausing again before repeating
 
-But I thought you had plans to fix mempolicies to do zones better?
-What happened to that?
+run two of these, alternating which one is running at any one time. time 
+how long it takes to do the random accesses.
 
--- 
-SUSE Labs, Novell Inc.
+the difference in this time should be a fair example of how much it would 
+impact the user.
+
+by the way, I've also seen comments on the Postgres performance mailing 
+list about how slow linux is compared to other OS's in pulling data back 
+in that's been pushed out to swap (not a factor on dedicated database 
+machines, but a big factor on multi-purpose machines)
+
+>>  Anyway, I realise swap prefetching has some situations where it will
+>>  fundamentally outperform even the page replacement oracle. This is
+>>  why I haven't asked for it to be dropped: it isn't a bad idea at all.
+>
+> <nod>
+>
+>>  However, if we can improve basic page reclaim where it is obviously
+>>  lacking, that is always preferable. eg: being a highly speculative
+>>  operation, swap prefetch is not great for power efficiency -- but we
+>>  still want laptop users to have a good experience as well, right?
+>
+> Absolutely. Disk I/O is the enemy, and the best I/O is one you never
+> had to do in the first place.
+
+almost always true, however there is some amount of I/O that is free with 
+todays drives (remember, they read the entire track into ram and then 
+give you the sectors on the track that you asked for). and if you have a 
+raid array this is even more true.
+
+if you read one sector in from a raid5 array you have done all the same 
+I/O that you would have to do to read in the entire stripe, but I don't 
+believe that the current system will keep it all around if it exceeds the 
+readahead limit.
+
+so in many cases readahead may end up being significantly cheaper then you 
+expect.
+
+David Lang
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
