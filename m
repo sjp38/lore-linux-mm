@@ -1,47 +1,42 @@
-Date: Tue, 24 Jul 2007 18:35:27 -0700 (PDT)
-Message-Id: <20070724.183527.45743058.davem@davemloft.net>
-Subject: Re: [ck] Re: -mm merge plans for 2.6.23
-From: David Miller <davem@davemloft.net>
-In-Reply-To: <b21f8390707241826o1422ca3aga9b6516a55dd961d@mail.gmail.com>
-References: <2c0942db0707232153j3670ef31kae3907dff1a24cb7@mail.gmail.com>
-	<20070723221846.d2744f42.akpm@linux-foundation.org>
-	<b21f8390707241826o1422ca3aga9b6516a55dd961d@mail.gmail.com>
+Date: Wed, 25 Jul 2007 04:32:17 +0200
+From: Nick Piggin <npiggin@suse.de>
+Subject: Re: [PATCH RFC] extent mapped page cache
+Message-ID: <20070725023217.GA32076@wotan.suse.de>
+References: <20070710210326.GA29963@think.oraclecorp.com> <20070724160032.7a7097db@think.oraclecorp.com> <1185307985.6586.50.camel@localhost> <1185312343.5535.5.camel@lappy> <20070724192509.5bc9b3fe@think.oraclecorp.com>
 Mime-Version: 1.0
-Content-Type: Text/Plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20070724192509.5bc9b3fe@think.oraclecorp.com>
 Sender: owner-linux-mm@kvack.org
-From: "Matthew Hawkins" <darthmdh@gmail.com>
-Date: Wed, 25 Jul 2007 11:26:57 +1000
 Return-Path: <owner-linux-mm@kvack.org>
-To: darthmdh@gmail.com
-Cc: akpm@linux-foundation.org, ray-lk@madrabbit.org, nickpiggin@yahoo.com.au, jesper.juhl@gmail.com, linux-kernel@vger.kernel.org, ck@vds.kolivas.org, linux-mm@kvack.org, pj@sgi.com
+To: Chris Mason <chris.mason@oracle.com>
+Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, Trond Myklebust <trond.myklebust@fys.uio.no>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>, linux-fsdevel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-> On 7/24/07, Andrew Morton <akpm@linux-foundation.org> wrote:
-> > The other consideration here is, as Nick points out, are the problems which
-> > people see this patch solving for them solveable in other, better ways?
-> > IOW, is this patch fixing up preexisting deficiencies post-facto?
+On Tue, Jul 24, 2007 at 07:25:09PM -0400, Chris Mason wrote:
+> On Tue, 24 Jul 2007 23:25:43 +0200
+> Peter Zijlstra <a.p.zijlstra@chello.nl> wrote:
 > 
-> So let me get this straight - you don't want to merge swap prefetch
-> which exists now and solves issues many people are seeing, and has
-> been tested more than a gazillion other bits & pieces that do get
-> merged - because it could be possible that in the future some other
-> patch, which doesn't yet exist and nobody is working on, may solve the
-> problem better?
+> The tree is a critical part of the patch, but it is also the easiest to
+> rip out and replace.  Basically the code stores a range by inserting
+> an object at an index corresponding to the end of the range.
+> 
+> Then it does searches by looking forward from the start of the range.
+> More or less any tree that can search and return the first key >=
+> than the requested key will work.
+> 
+> So, I'd be happy to rip out the tree and replace with something else.
+> Going completely lockless will be tricky, its something that will deep
+> thought once the rest of the interface is sane.
 
-I have to generally agree that the objections to the swap prefetch
-patches have been conjecture and in general wasting time and
-frustrating people.
+Just having the other tree and managing it is what makes me a little
+less positive of this approach, especially using it to store pagecache
+state when we already have the pagecache tree.
 
-There is a point at which it might be wise to just step back and let
-the river run it's course and see what happens.  Initially, it's good
-to play games of "what if", but after several months it's not a
-productive thing and slows down progress for no good reason.
-
-If a better mechanism gets implemented, great!  We'll can easily
-replace the swap prefetch stuff at such time.  But until then swap
-prefetch is what we have and it's sat long enough in -mm with no major
-problems to merge it.
+Having another tree to store block state I think is a good idea as I
+said in the fsblock thread with Dave, but I haven't clicked as to why
+it is a big advantage to use it to manage pagecache state. (and I can
+see some possible disadvantages in locking and tree manipulation overhead).
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
