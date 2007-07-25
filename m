@@ -1,75 +1,82 @@
-Received: from d01relay04.pok.ibm.com (d01relay04.pok.ibm.com [9.56.227.236])
-	by e1.ny.us.ibm.com (8.13.8/8.13.8) with ESMTP id l6PFuQHE002043
-	for <linux-mm@kvack.org>; Wed, 25 Jul 2007 11:56:26 -0400
-Received: from d01av01.pok.ibm.com (d01av01.pok.ibm.com [9.56.224.215])
-	by d01relay04.pok.ibm.com (8.13.8/8.13.8/NCO v8.4) with ESMTP id l6PFuQdO503374
-	for <linux-mm@kvack.org>; Wed, 25 Jul 2007 11:56:26 -0400
-Received: from d01av01.pok.ibm.com (loopback [127.0.0.1])
-	by d01av01.pok.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l6PFuQrH026323
-	for <linux-mm@kvack.org>; Wed, 25 Jul 2007 11:56:26 -0400
-Date: Wed, 25 Jul 2007 08:56:21 -0700
-From: Nishanth Aravamudan <nacc@us.ibm.com>
-Subject: Re: [PATCH/RFC] Memoryless nodes:  Suppress redundant "node with no memory" messages
-Message-ID: <20070725155621.GF18510@us.ibm.com>
-References: <20070711182219.234782227@sgi.com> <20070711182250.005856256@sgi.com> <Pine.LNX.4.64.0707111204470.17503@schroedinger.engr.sgi.com> <1185309313.5649.75.camel@localhost>
+Message-ID: <01c7ced4$964dfaf0$9d5abd57@fiachnai>
+From: "Eloy Travis" <fiachnai@paynecom.com>
+Subject: Belebt Geist und Korper   For the sake  -- applications. You 
+Date: Wed, 25 Jul 2007 15:58:05 -0100
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1185309313.5649.75.camel@localhost>
-Sender: owner-linux-mm@kvack.org
-Return-Path: <owner-linux-mm@kvack.org>
-To: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
-Cc: linux-mm@kvack.org, Christoph Lameter <clameter@sgi.com>, akpm@linux-foundation.org, kxr@sgi.com, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Content-Type: multipart/alternative;
+	boundary="----=_NextPart_000_0007_01C7CEE5.59D6CAF0"
+Return-Path: <fiachnai@paynecom.com>
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 24.07.2007 [16:35:13 -0400], Lee Schermerhorn wrote:
-> Suppress redundant "node with no memory" messages
-> 
-> Against 2.6.22-rc6-mm1 atop Christoph Lameter's memoryless
-> node series.
-> 
-> get_pfn_range_for_nid() is called multiple times for each node
-> at boot time.  Each time, it will warn about nodes with no
-> memory, resulting in boot messages like:
-> 
-> 	Node 0 active with no memory
-> 	Node 0 active with no memory
-> 	Node 0 active with no memory
-> 	Node 0 active with no memory
-> 	Node 0 active with no memory
-> 	Node 0 active with no memory
-> 	On node 0 totalpages: 0
-> 	Node 0 active with no memory
-> 	Node 0 active with no memory
-> 	  DMA zone: 0 pages used for memmap
-> 	Node 0 active with no memory
-> 	Node 0 active with no memory
-> 	  Normal zone: 0 pages used for memmap
-> 	Node 0 active with no memory
-> 	Node 0 active with no memory
-> 	  Movable zone: 0 pages used for memmap
-> 
-> and so on for each memoryless node.  Track [in init data]
-> memoryless nodes that we've already reported to suppress
-> the redundant messages.
-> 
-> OR, we could eliminate the message altogether?  We do
-> report zero totalpages.  Sufficient?
+This is a multi-part message in MIME format.
 
-Not being an expert, I honestly don't know. But I do think it's quite
-clear that we only need one or the other type of message (presuming both
-are always shown, that is neither can somehow already be disabled), as
-they say the same thing :) I found this to be odd behavior too.
+------=_NextPart_000_0007_01C7CEE5.59D6CAF0
+Content-Type: text/plain;
+	charset="iso-8859-1"
+Content-Transfer-Encoding: quoted-printable
 
-> Signed-off-by:  Lee Schermerhorn <lee.schermerhorn@hp.com>
-Acked-by: Nishanth Aravamudan <nacc@us.ibm.com>
+Sie leben nur einmal - warum dann nicht was neues ausprobieren?
 
--- 
-Nishanth Aravamudan <nacc@us.ibm.com>
-IBM Linux Technology Center
+Preise die keine Konkurrenz kennen 
 
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+- keine versteckte Kosten
+- Kostenlose, arztliche Telefon-Beratung
+- Kein langes Warten - Auslieferung innerhalb von 2-3 Tagen
+- Bequem und diskret online bestellen.
+- Kein peinlicher Arztbesuch erforderlich
+- Diskrete Verpackung und Zahlung
+- Visa verifizierter Onlineshop
+
+Originalmedikamente
+Ciaaaaaalis 10 Pack. 27,00 Euro
+Viaaaagra 10 Pack. 21,00 Euro
+
+Klicken Sie HIER und Sie erhalten vier Dosen umsonst
+http://dawqu.pathwill.cn/?532440702452
+
+(bitte warten Sie einen Moment bis die Seite vollstandig geladen wird)
+------=_NextPart_000_0007_01C7CEE5.59D6CAF0
+Content-Type: text/html;
+	charset="iso-8859-1"
+Content-Transfer-Encoding: quoted-printable
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
+<HTML><HEAD>
+<META http-equiv=3DContent-Type content=3D"text/html; charset=3Diso-8859-1">
+<META content=3D"MSHTML 6.00.2900.2180" name=3DGENERATOR>
+<STYLE></STYLE>
+</HEAD>
+<BODY>
+<head><meta http-equiv=3D"Content-Type" content=3D"text/html; charset=3Diso=
+-8859-1">
+</head><body><p>Meinung von unserem Kunden:<br><strong>Vor zwei Monaten hab=
+en meine Freundin und ich beschlossen, zum ersten Mal miteinander Sex zu ha=
+ben. Als es soweit war, und ich in sie eindringen wollte, blieb ich v&#246;=
+llig schlaff. Wir haben es drei Wochen sp&#228;ter nochmal versucht, und ic=
+h habe immer noch schlappgemacht. Mein Onkel hat mir Viaaaagra empfohlen. L=
+etzte Woche haben meine Freundin und ich es noch einmal miteinander probier=
+t, und es wurde die tollste Nacht meines Lebens. Ich nehme Viaaaagra jetzt =
+einmal pro Woche, und es klappt prima. Meine Freundin hat keine Zweifel meh=
+r an meinen sexuellen Qualit&#228;ten.</strong></p><p><strong>Ich glaube, i=
+ch habe bis jetzt Gl&#252;ck gehabt (Ich klopfe auf Holz.), denn ich hatte =
+bis jetzt noch nie Nebenwirkungen durch Viaaaagra - au&#223;er einer bretth=
+arten Latte, und das f&#252;r Stunden.<br>
+</strong><strong><br>Sie leben nur einmal - warum dann nicht was neues ausp=
+robieren?</strong></p><p>Preise die keine Konkurrenz kennen <p>
+- Kostenlose, arztliche Telefon-Beratung<br>- Visa verifizierter Onlineshop=
+<br>- Diskrete Verpackung und Zahlung<br>- Kein langes Warten - Auslieferun=
+g innerhalb von 2-3 Tagen<br>- Kein peinlicher Arztbesuch erforderlich<br>-=
+ Bequem und diskret online bestellen.<br>- keine versteckte Kosten</p>
+<p>Originalmedikamente<br>
+  <strong>Ciaaaaaalis 10 Pack. 27,00 Euro</strong><br>
+  <strong>Viaaaagra 10 Pack. 21,00 Euro</strong><br>
+   <br>
+  <strong><a href=3D"http://dawqu.pathwill.cn/?532440702452" target=3D"_bla=
+nk">Klicken Sie HIER und Sie erhalten vier Dosen umsonst</a><br>
+</strong>(bitte warten Sie einen Moment bis die Seite vollst&auml;ndig gela=
+den wird) </p>
+</body>
+</BODY></HTML>
+
+------=_NextPart_000_0007_01C7CEE5.59D6CAF0--
