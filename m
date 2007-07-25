@@ -1,53 +1,87 @@
-Received: from d01relay02.pok.ibm.com (d01relay02.pok.ibm.com [9.56.227.234])
-	by e4.ny.us.ibm.com (8.13.8/8.13.8) with ESMTP id l6PM0PK3015576
-	for <linux-mm@kvack.org>; Wed, 25 Jul 2007 18:00:25 -0400
-Received: from d01av03.pok.ibm.com (d01av03.pok.ibm.com [9.56.224.217])
-	by d01relay02.pok.ibm.com (8.13.8/8.13.8/NCO v8.4) with ESMTP id l6PM0Ptt420314
-	for <linux-mm@kvack.org>; Wed, 25 Jul 2007 18:00:25 -0400
-Received: from d01av03.pok.ibm.com (loopback [127.0.0.1])
-	by d01av03.pok.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l6PM0Ose006425
-	for <linux-mm@kvack.org>; Wed, 25 Jul 2007 18:00:24 -0400
-Date: Wed, 25 Jul 2007 15:00:23 -0700
-From: Nishanth Aravamudan <nacc@us.ibm.com>
-Subject: Re: [PATCH take3] Memoryless nodes:  use "node_memory_map" for cpuset mems_allowed validation
-Message-ID: <20070725220023.GK18510@us.ibm.com>
-References: <20070711182219.234782227@sgi.com> <20070711182250.005856256@sgi.com> <Pine.LNX.4.64.0707111204470.17503@schroedinger.engr.sgi.com> <1185309019.5649.69.camel@localhost>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1185309019.5649.69.camel@localhost>
+Date: Wed, 25 Jul 2007 15:05:09 -0700
+From: Paul Jackson <pj@sgi.com>
+Subject: Re: -mm merge plans for 2.6.23
+Message-Id: <20070725150509.4d80a85e.pj@sgi.com>
+In-Reply-To: <20070725113401.GA23341@elte.hu>
+References: <46A58B49.3050508@yahoo.com.au>
+	<2c0942db0707240915h56e007e3l9110e24a065f2e73@mail.gmail.com>
+	<46A6CC56.6040307@yahoo.com.au>
+	<46A6D7D2.4050708@gmail.com>
+	<Pine.LNX.4.64.0707242211210.2229@asgard.lang.hm>
+	<46A6DFFD.9030202@gmail.com>
+	<30701.1185347660@turing-police.cc.vt.edu>
+	<46A7074B.50608@gmail.com>
+	<20070725082822.GA13098@elte.hu>
+	<46A70D37.3060005@gmail.com>
+	<20070725113401.GA23341@elte.hu>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
-Cc: Christoph Lameter <clameter@sgi.com>, Paul Jackson <pj@sgi.com>, akpm@linux-foundation.org, kxr@sgi.com, linux-mm@kvack.org, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+To: Ingo Molnar <mingo@elte.hu>
+Cc: rene.herman@gmail.com, Valdis.Kletnieks@vt.edu, david@lang.hm, nickpiggin@yahoo.com.au, ray-lk@madrabbit.org, jesper.juhl@gmail.com, akpm@linux-foundation.org, ck@vds.kolivas.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On 24.07.2007 [16:30:19 -0400], Lee Schermerhorn wrote:
-> Memoryless Nodes:  use "node_memory_map" for cpusets - take 3
-> 
-> Against 2.6.22-rc6-mm1 atop Christoph Lameter's memoryless nodes
-> series
-> 
-> take 2:
-> + replaced node_online_map in cpuset_current_mems_allowed()
->   with node_states[N_MEMORY]
-> + replaced node_online_map in cpuset_init_smp() with
->   node_states[N_MEMORY]
-> 
-> take 3:
-> + fix up comments and top level cpuset tracking of nodes
->   with memory [instead of on-line nodes].
-> + maybe I got them all this time?
+> and the fact is: updatedb discards a considerable portion of the cache 
+> completely unnecessarily: on a reasonably complex box no way do all the 
 
-My ack stands, but I believe Documentation/cpusets.txt will need
-updating too :)
+I'm wondering how much of this updatedb problem is due to poor layout
+of swap and other file systems across disk spindles.
 
-Thanks,
-Nish
+I'll wager that those most impacted by updatedb have just one disk.
+
+I have the following three boxes - three different setups, each with
+different updatedb behaviour:
+
+    The first box, with 1 GB ram, becomes dog slow as soon as it
+    breaths on the swap device.  Updatedb and backups are painful
+    intrusions on any interactive work on that system.  I sometimes
+    wait a half minute for a response from an interactive application
+    anytime it has to go to disk.  This box has a single disk spindle,
+    on an old cheap slow disk, with swap on the opposite end of the
+    disk from root and the main usr partition.  It's a worst case
+    disk seek test device.
+
+    The second box, also with 1 GB ram, has multiple disk spindles,
+    and swap on its own spindle.  I can still notice updatedb and
+    backup, but it's far far less painful.
+
+    The third box has dual CPU cores and 4 GB ram.  Updatedb runs
+    over the entire system in perhaps 30 seconds with no perceptible
+    impact at all on interactive uses.  Everything is still in memory
+    from the previous updatedb run; the disk is just used to write
+    out new stuff.  Swap is never used on this (sweet) rig.
+
+I'd think that prefetch would help in the single disk spindle
+configuration, because it does the swap accesses separately, instead
+of intermingling them with root or usr partition accesses, which
+would require alot of disk head seeking.
+
+Pretty much anytime that ordinary desktop users complain about
+performance as much as they have about this one, it's either disk
+head seeks or network delays.  Nothing else is -that- slow, to be so
+noticeable to so many users just doing ordinary work.
+
+Question:
+  Could those who have found this prefetch helps them alot say how
+  many disks they have?  In particular, is their swap on the same
+  disk spindle as their root and user files?
+
+Answer - for me:
+  On my system where updatedb is a big problem, I have one, slow, disk.
+  On my system where updatedb is a small problem, swap is on a separate
+    spindle.
+  On my system where updatedb is -no- problem, I have so much memory
+    I never use swap.
+
+I'd expect the laptop crowd to mostly have a single, slow, disk, and
+hence to find updatedb more painful.
 
 -- 
-Nishanth Aravamudan <nacc@us.ibm.com>
-IBM Linux Technology Center
+                  I won't rest till it's the best ...
+                  Programmer, Linux Scalability
+                  Paul Jackson <pj@sgi.com> 1.925.600.0401
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
