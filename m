@@ -1,52 +1,53 @@
-Received: by wr-out-0506.google.com with SMTP id m59so242402wrm
-        for <linux-mm@kvack.org>; Wed, 25 Jul 2007 14:28:25 -0700 (PDT)
-Message-ID: <2c0942db0707251428r7a6a1cc9seea8dc59020f1bcb@mail.gmail.com>
-Date: Wed, 25 Jul 2007 14:28:24 -0700
-From: "Ray Lee" <ray-lk@madrabbit.org>
-Subject: Re: -mm merge plans for 2.6.23
-In-Reply-To: <1185396952.9409.5.camel@localhost>
+Received: from d01relay02.pok.ibm.com (d01relay02.pok.ibm.com [9.56.227.234])
+	by e4.ny.us.ibm.com (8.13.8/8.13.8) with ESMTP id l6PM0PK3015576
+	for <linux-mm@kvack.org>; Wed, 25 Jul 2007 18:00:25 -0400
+Received: from d01av03.pok.ibm.com (d01av03.pok.ibm.com [9.56.224.217])
+	by d01relay02.pok.ibm.com (8.13.8/8.13.8/NCO v8.4) with ESMTP id l6PM0Ptt420314
+	for <linux-mm@kvack.org>; Wed, 25 Jul 2007 18:00:25 -0400
+Received: from d01av03.pok.ibm.com (loopback [127.0.0.1])
+	by d01av03.pok.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l6PM0Ose006425
+	for <linux-mm@kvack.org>; Wed, 25 Jul 2007 18:00:24 -0400
+Date: Wed, 25 Jul 2007 15:00:23 -0700
+From: Nishanth Aravamudan <nacc@us.ibm.com>
+Subject: Re: [PATCH take3] Memoryless nodes:  use "node_memory_map" for cpuset mems_allowed validation
+Message-ID: <20070725220023.GK18510@us.ibm.com>
+References: <20070711182219.234782227@sgi.com> <20070711182250.005856256@sgi.com> <Pine.LNX.4.64.0707111204470.17503@schroedinger.engr.sgi.com> <1185309019.5649.69.camel@localhost>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=UTF-8; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-References: <20070710013152.ef2cd200.akpm@linux-foundation.org>
-	 <2c0942db0707232153j3670ef31kae3907dff1a24cb7@mail.gmail.com>
-	 <46A58B49.3050508@yahoo.com.au>
-	 <2c0942db0707240915h56e007e3l9110e24a065f2e73@mail.gmail.com>
-	 <46A6CC56.6040307@yahoo.com.au> <46A6D7D2.4050708@gmail.com>
-	 <Pine.LNX.4.64.0707242211210.2229@asgard.lang.hm>
-	 <46A6DFFD.9030202@gmail.com>
-	 <2c0942db0707250902v58e23d52v434bde82ba28f119@mail.gmail.com>
-	 <1185396952.9409.5.camel@localhost>
+In-Reply-To: <1185309019.5649.69.camel@localhost>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Zan Lynx <zlynx@acm.org>
-Cc: Rene Herman <rene.herman@gmail.com>, david@lang.hm, Nick Piggin <nickpiggin@yahoo.com.au>, Jesper Juhl <jesper.juhl@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, ck list <ck@vds.kolivas.org>, Ingo Molnar <mingo@elte.hu>, Paul Jackson <pj@sgi.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
+Cc: Christoph Lameter <clameter@sgi.com>, Paul Jackson <pj@sgi.com>, akpm@linux-foundation.org, kxr@sgi.com, linux-mm@kvack.org, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-On 7/25/07, Zan Lynx <zlynx@acm.org> wrote:
-> On Wed, 2007-07-25 at 09:02 -0700, Ray Lee wrote:
->
-> > I'd just like updatedb to amortize its work better. If we had some way
-> > to track all filesystem events, updatedb could keep a live and
-> > accurate index on the filesystem. And this isn't just updatedb that
-> > wants that, beagle and tracker et al also want to know filesystem
-> > events so that they can index the documents themselves as well as the
-> > metadata. And if they do it live, that spreads the cost out, including
-> > the VM pressure.
->
-> That would be nice.  It'd be great if there was a per-filesystem inotify
-> mode.  I can't help but think it'd be more efficient than recursing
-> every directory and adding a watch.
->
-> Or maybe a netlink thing that could buffer events since filesystem mount
-> until a daemon could get around to starting, so none were lost.
+On 24.07.2007 [16:30:19 -0400], Lee Schermerhorn wrote:
+> Memoryless Nodes:  use "node_memory_map" for cpusets - take 3
+> 
+> Against 2.6.22-rc6-mm1 atop Christoph Lameter's memoryless nodes
+> series
+> 
+> take 2:
+> + replaced node_online_map in cpuset_current_mems_allowed()
+>   with node_states[N_MEMORY]
+> + replaced node_online_map in cpuset_init_smp() with
+>   node_states[N_MEMORY]
+> 
+> take 3:
+> + fix up comments and top level cpuset tracking of nodes
+>   with memory [instead of on-line nodes].
+> + maybe I got them all this time?
 
-See "Filesystem Event Reporter" by Yi Yang, that does pretty much
-exactly that. http://lkml.org/lkml/2006/9/30/98 . Author had things to
-update, never resubmitted it as far as I can tell.
+My ack stands, but I believe Documentation/cpusets.txt will need
+updating too :)
 
-Ray
+Thanks,
+Nish
+
+-- 
+Nishanth Aravamudan <nacc@us.ibm.com>
+IBM Linux Technology Center
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
