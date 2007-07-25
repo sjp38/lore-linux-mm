@@ -1,40 +1,39 @@
-Message-ID: <46A70D37.3060005@gmail.com>
-Date: Wed, 25 Jul 2007 10:43:35 +0200
-From: Rene Herman <rene.herman@gmail.com>
+From: Andi Kleen <ak@suse.de>
+Subject: Re: NUMA policy issues with ZONE_MOVABLE
+Date: Wed, 25 Jul 2007 11:32:54 +0200
+References: <Pine.LNX.4.64.0707242120370.3829@schroedinger.engr.sgi.com> <Pine.LNX.4.64.0707242200380.4070@schroedinger.engr.sgi.com> <46A6DE75.70803@yahoo.com.au>
+In-Reply-To: <46A6DE75.70803@yahoo.com.au>
 MIME-Version: 1.0
-Subject: Re: -mm merge plans for 2.6.23
-References: <46A57068.3070701@yahoo.com.au> <2c0942db0707232153j3670ef31kae3907dff1a24cb7@mail.gmail.com> <46A58B49.3050508@yahoo.com.au> <2c0942db0707240915h56e007e3l9110e24a065f2e73@mail.gmail.com> <46A6CC56.6040307@yahoo.com.au> <46A6D7D2.4050708@gmail.com> <Pine.LNX.4.64.0707242211210.2229@asgard.lang.hm> <46A6DFFD.9030202@gmail.com> <30701.1185347660@turing-police.cc.vt.edu> <46A7074B.50608@gmail.com> <20070725082822.GA13098@elte.hu>
-In-Reply-To: <20070725082822.GA13098@elte.hu>
-Content-Type: text/plain; charset=ISO-8859-15; format=flowed
+Content-Type: text/plain;
+  charset="iso-8859-1"
 Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+Message-Id: <200707251132.54572.ak@suse.de>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Ingo Molnar <mingo@elte.hu>
-Cc: Valdis.Kletnieks@vt.edu, david@lang.hm, Nick Piggin <nickpiggin@yahoo.com.au>, Ray Lee <ray-lk@madrabbit.org>, Jesper Juhl <jesper.juhl@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, ck list <ck@vds.kolivas.org>, Paul Jackson <pj@sgi.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Nick Piggin <nickpiggin@yahoo.com.au>
+Cc: Christoph Lameter <clameter@sgi.com>, linux-mm@kvack.org, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Mel Gorman <mel@skynet.ie>, akpm@linux-foundation.org
 List-ID: <linux-mm.kvack.org>
 
-On 07/25/2007 10:28 AM, Ingo Molnar wrote:
+On Wednesday 25 July 2007 07:24:05 Nick Piggin wrote:
 
->> Regardless, I'll stand by "[by disabling updatedb] the problem will 
->> for a large part be solved" as I expect approximately 94.372 percent 
->> of Linux desktop users couldn't care less about locate.
-> 
-> i think that approach is illogical: because Linux mis-handled a mixed 
-> workload the answer is to ... remove a portion of that workload?
+> I don't understand what you mean. Aren't mempolicies also supposed to
+> work on NUMAQ too? How about DMA and DMA32 allocations?
 
-No. It got snipped but I introduced the comment by saying it was a "that's 
-not the point" kind of thing. Sometimes things that aren't the point are 
-still true though and in the case of Linux desktop users complaining about 
-updatedb runs, a comment that says that for many an obvious solution would 
-be to stop running the damned thing is not in any sense illogical.
+bind mempolicies only support one zone, always the highest. This means on numaq
+only highmem is policied.
 
-Also note I'm not against swap prefetch or anything. I don't use it and do 
-not believe I have a pressing need for it, but do suspect it has potential 
-to make quite a bit of difference on some things -- if only to drastically 
-reduce seeks if it means it's swapping in larger chunks than a randomly 
-faulting program would.
+DMA/DMA32 is not policied for obvious reasons (they often don't exist on
+all nodes) 
 
-Rene.
+> Well I guess you haven't succeeded in getting zones removed, so I think
+> we should make mempolicies work better with zones.
+
+Why? That would just complicate everything. In particular it would mean
+you would need multiple fallback lists per VMA, which would increase
+the memory usage significantly.
+
+-Andi
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
