@@ -1,93 +1,36 @@
-From: "Zane Noble" <disabusingsuki@queretaro.com>
-Subject: Haben Sie wieder Spass am Leben!   the documentation  -- "secret language" 
-Date: Wed, 25 Jul 2007 18:45:13 -0200
-Message-ID: <01c7ceeb$efc12f00$b2e06e57@disabusingsuki>
+Date: Wed, 25 Jul 2007 11:56:27 -0700 (PDT)
+From: Christoph Lameter <clameter@sgi.com>
+Subject: Re: Slab API: Remove useless ctor parameter and reorder parameters
+In-Reply-To: <84144f020707250333gc1c2f01l24c7b9ff6211a489@mail.gmail.com>
+Message-ID: <Pine.LNX.4.64.0707251153540.8731@schroedinger.engr.sgi.com>
+References: <Pine.LNX.4.64.0707232246400.2654@schroedinger.engr.sgi.com>
+ <20070724165914.a5945763.akpm@linux-foundation.org>
+ <Pine.LNX.4.64.0707241705380.9633@schroedinger.engr.sgi.com>
+ <20070724175332.41ade708.akpm@linux-foundation.org>
+ <Pine.LNX.4.64.0707242009080.3583@schroedinger.engr.sgi.com>
+ <84144f020707250333gc1c2f01l24c7b9ff6211a489@mail.gmail.com>
 MIME-Version: 1.0
-Content-Type: multipart/alternative;
-	boundary="----=_NextPart_000_0006_01C7CF05.150E6700"
-Return-Path: <disabusingsuki@queretaro.com>
-To: linux-mm@kvack.org
+Content-Type: TEXT/PLAIN; charset=US-ASCII
+Sender: owner-linux-mm@kvack.org
+Return-Path: <owner-linux-mm@kvack.org>
+To: Pekka Enberg <penberg@cs.helsinki.fi>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-This is a multi-part message in MIME format.
+On Wed, 25 Jul 2007, Pekka Enberg wrote:
 
-------=_NextPart_000_0006_01C7CF05.150E6700
-Content-Type: text/plain;
-	charset="us-ascii"
-Content-Transfer-Encoding: 7bit
+> We're gonna have API breakage with kmem_cache_ops thing too, right?
 
-Verpassen Sie nichts am Lebem - Sie werden fuhlen was unsere Kunden bestatigen!
+Not in the initial envisioned form. The unused pointer argument would have 
+simply change type leaving kmem_cache_create as is.
 
-Preise die keine Konkurrenz kennen 
+Now we may have to add a function to set the kmem_cache_ops to avoid 
+API changes. Or we change the ctor type argument to be kmem_cache_ops * 
+(as you wanted earlier). However that would require allocating a 
+kmem_cache_ops structure for each slab that uses an initializer.
 
-- Kostenlose, arztliche Telefon-Beratung
-- Diskrete Verpackung und Zahlung
-- Kein langes Warten - Auslieferung innerhalb von 2-3 Tagen
-- Kein peinlicher Arztbesuch erforderlich
-- Bequem und diskret online bestellen.
-- Visa verifizierter Onlineshop
-- keine versteckte Kosten
-
-Originalmedikamente
-Ciaaaaaalis 10 Pack. 27,00 Euro
-Viaaaagra 10 Pack. 21,00 Euro
-
-Nur fur kurze Zeit - vier Pillen umsonst erhalten
-http://bhuirx.beginclimb.cn/?264240896025
-
-(bitte warten Sie einen Moment bis die Seite vollstandig geladen wird)
-
-------=_NextPart_000_0006_01C7CF05.150E6700
-Content-Type: text/html;
-	charset="us-ascii"
-Content-Transfer-Encoding: quoted-printable
-
-<html xmlns:v=3D"urn:schemas-microsoft-com:vml" xmlns:o=3D"urn:schemas-micr=
-osoft-com:office:office" xmlns:w=3D"urn:schemas-microsoft-com:office:word" =
-xmlns=3D"http://www.w3.org/TR/REC-html40">
-
-<head>
-<META HTTP-EQUIV=3D"Content-Type" CONTENT=3D"text/html; charset=3Dus-ascii">
-
-
-<meta name=3DProgId content=3DWord.Document>
-<meta name=3DGenerator content=3D"Microsoft Word 10">
-<meta name=3DOriginator content=3D"Microsoft Word 10">
-<link rel=3DFile-List href=3D"cid:filelist.xml@42584092.CBD3AE90">
-<link rel=3DEdit-Time-Data href=3D"cid:editdata.mso@42584092.CBD3AE90">
-</head>
-<body>
-<head><meta http-equiv=3D"Content-Type" content=3D"text/html; charset=3Diso=
--8859-1">
-</head><body><p>Meinung von unserem Kunden:<br><strong>Ich habe eine Aff&#2=
-28;re mit einer Bekannten, sie h&#228;lt mich f&#252;r einen Sex-Gott. Ich =
-habe Viaaaagra ungef&#228;hr zehn Minuten, bevor wir uns im Hotel getroffen=
- haben, genommen. Ich habe davon nicht nur einen strammen Riemen bekommen, =
-sondern auch die Selbstsicherheit, die die Frauen lieben. Ich habe es ihr d=
-rei- oder viermal besorgt, und sie ist absolut hingerissen. Ich komme zieml=
-ich schnell, danach wird ihr Organsmus jedesmal unkontrollierbar. Viaaaagra=
- hat mich bei ihr zur Legende gemacht!! Ich kann es kaum abwarten, wieder e=
-ine zu schlucken</strong></p><p><strong>Ich glaube, ich habe bis jetzt Gl&#=
-252;ck gehabt (Ich klopfe auf Holz.), denn ich hatte bis jetzt noch nie Neb=
-enwirkungen durch Viaaaagra - au&#223;er einer brettharten Latte, und das f=
-&#252;r Stunden.<br>
-</strong><strong><br>Verpassen Sie nichts am Lebem - Sie werden fuhlen was =
-unsere Kunden bestatigen!</strong></p><p>Preise die keine Konkurrenz kennen=
- <p>
-- Visa verifizierter Onlineshop<br>- Kein langes Warten - Auslieferung inne=
-rhalb von 2-3 Tagen<br>- Bequem und diskret online bestellen.<br>- Kostenlo=
-se, arztliche Telefon-Beratung<br>- Diskrete Verpackung und Zahlung<br>- Ke=
-in peinlicher Arztbesuch erforderlich<br>- keine versteckte Kosten</p>
-<p>Originalmedikamente<br>
-  <strong>Ciaaaaaalis 10 Pack. 27,00 Euro</strong><br>
-  <strong>Viaaaagra 10 Pack. 21,00 Euro</strong><br>
-   <br>
-  <strong><a href=3D"http://bhuirx.beginclimb.cn/?264240896025" target=3D"_=
-blank">Nur fur kurze Zeit - vier Pillen umsonst erhalten</a><br>
-</strong>(bitte warten Sie einen Moment bis die Seite vollst&auml;ndig gela=
-den wird) </p>
-</body>
-</body>
-</html>
-
-------=_NextPart_000_0006_01C7CF05.150E6700--
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
