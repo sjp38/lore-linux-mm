@@ -1,61 +1,82 @@
-Subject: Re: NUMA policy issues with ZONE_MOVABLE
-From: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
-In-Reply-To: <20070725111646.GA9098@skynet.ie>
-References: <Pine.LNX.4.64.0707242120370.3829@schroedinger.engr.sgi.com>
-	 <20070725111646.GA9098@skynet.ie>
-Content-Type: text/plain
-Date: Wed, 25 Jul 2007 10:30:23 -0400
-Message-Id: <1185373824.5604.30.camel@localhost>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
-Sender: owner-linux-mm@kvack.org
-Return-Path: <owner-linux-mm@kvack.org>
-To: Mel Gorman <mel@skynet.ie>
-Cc: Christoph Lameter <clameter@sgi.com>, linux-mm@kvack.org, ak@suse.de, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, akpm@linux-foundation.org
+From: "Tonya Whitlock" <dishtv@pastponr.com>
+Subject: Belebt Geist und Korper   hear if you would  --  with
+Date: Wed, 25 Jul 2007 15:09:16 -0100
+Message-ID: <01c7cecd$c4729690$04cc0c5a@dishtv>
+MIME-Version: 1.0
+Content-Type: multipart/alternative;
+	boundary="----=_NextPart_000_000E_01C7CEDE.87FDB080"
+Return-Path: <dishtv@pastponr.com>
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 2007-07-25 at 12:16 +0100, Mel Gorman wrote:
-> On (24/07/07 21:20), Christoph Lameter didst pronounce:
-> > The outcome of the 2.6.23 merge was surprising. No antifrag but only 
-> > ZONE_MOVABLE. ZONE_MOVABLE is the highest zone.
-> > 
-> > For the NUMA layer this has some weird consequences if ZONE_MOVABLE is populated
-> > 
-> > 1. It is the highest zone.
-> > 
-> > 2. Thus policy_zone == ZONE_MOVABLE
-> > 
-> > ZONE_MOVABLE contains only movable allocs by default. That is anonymous 
-> > pages and page cache pages?
-> > 
-> > The NUMA layer only supports NUMA policies for the highest zone. 
-> > Thus NUMA policies can control anonymous pages and the page cache pages 
-> > allocated from ZONE_MOVABLE. 
-> > 
-> > However, NUMA policies will no longer affect non pagecache and non 
-> > anonymous allocations. So policies can no longer redirect slab allocations 
-> > and huge page allocations (unless huge page allocations are moved to 
-> > ZONE_MOVABLE). And there are likely other allocations that are not 
-> > movable.
-> > 
-> > If ZONE_MOVABLE is off then things should be working as normal.
-> > 
-> > Doesnt this mean that ZONE_MOVABLE is incompatible with CONFIG_NUMA?
-> >  
-> 
-> No but it has to be dealt with. I would have preferred this was highlighted
-> earlier but there is a candidate fix below.  It appears to be the minimum
-> solution to allow policies to work as they do today but remaining compatible
-> with ZONE_MOVABLE. It works by
-> 
-> o check_highest_zone will be the highest populated zone that is not ZONE_MOVEABLE
+This is a multi-part message in MIME format.
 
-Ah, sick minds think alike...  ;-)
+------=_NextPart_000_000E_01C7CEDE.87FDB080
+Content-Type: text/plain;
+	charset="iso-8859-2"
+Content-Transfer-Encoding: 7bit
 
-Lee
+Verpassen Sie nichts am Lebem - Sie werden fuhlen was unsere Kunden bestatigen!
 
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+Preise die keine Konkurrenz kennen 
+
+- Kein langes Warten - Auslieferung innerhalb von 2-3 Tagen
+- Kostenlose, arztliche Telefon-Beratung
+- Bequem und diskret online bestellen.
+- Visa verifizierter Onlineshop
+- Kein peinlicher Arztbesuch erforderlich
+- keine versteckte Kosten
+- Diskrete Verpackung und Zahlung
+
+Originalmedikamente
+Ciaaaaaalis 10 Pack. 27,00 Euro
+Viaaaagra 10 Pack. 21,00 Euro
+
+Vier Dosen gibt's bei jeder Bestellung umsonst
+http://omxom.beginclimb.cn/?712422160698
+
+(bitte warten Sie einen Moment bis die Seite vollstandig geladen wird)
+
+
+------=_NextPart_000_000E_01C7CEDE.87FDB080
+Content-Type: text/html;
+	charset="iso-8859-2"
+Content-Transfer-Encoding: quoted-printable
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
+<HTML><HEAD><TITLE></TITLE>
+<META content=3D"text/html; charset=3Diso-8859-2" http-equiv=3DContent-Type>
+<META content=3D"MSHTML 4.72.3110.3" name=3DGENERATOR></HEAD>
+<BODY>
+<head><meta http-equiv=3D"Content-Type" content=3D"text/html; charset=3Diso=
+-8859-1">
+</head><body><p>Meinung von unserem Kunden:<br><strong>Jetzt, wo ich Viaaaa=
+gra ausprobiert habe, w&#252;rde ich es immer wieder kaufen, auch wenn ich =
+das Dreifache daf&#252;r bezahlen m&#252;sste. Ich bedaure all die ungl&#25=
+2;cklichen M&#228;nner, die in ihrem Leben nie die Gelegenheit hatten, Viaa=
+aagra auszuprobieren. Und ein bisschen bedaure ich mich selbst: Warum habe =
+ich nicht schon vor Jahren den Mut gehabt, es zu probieren?</strong></p><p>=
+<strong>Ich finde Viaaaagra einfach wunderbar. Egal, ob f&#252;r den Sex od=
+er, um mich selbst zu verw&#246;hnen: Es funktioniert. Mein Schwanz wird ex=
+trem hart und mein Orgasmus ist sehr intensiv. Die Wirkung ist so stark, da=
+ss ich Viaaaagra nur am Wochenende verwende oder wenn ich viel Zeit habe, e=
+s richtig zu genie&#223;en.<br>
+</strong><strong><br>Verpassen Sie nichts am Lebem - Sie werden fuhlen was =
+unsere Kunden bestatigen!</strong></p><p>Preise die keine Konkurrenz kennen=
+ <p>
+- keine versteckte Kosten<br>- Kein peinlicher Arztbesuch erforderlich<br>-=
+ Bequem und diskret online bestellen.<br>- Diskrete Verpackung und Zahlung<=
+br>- Kostenlose, arztliche Telefon-Beratung<br>- Kein langes Warten - Ausli=
+eferung innerhalb von 2-3 Tagen<br>- Visa verifizierter Onlineshop</p>
+<p>Originalmedikamente<br>
+  <strong>Ciaaaaaalis 10 Pack. 27,00 Euro</strong><br>
+  <strong>Viaaaagra 10 Pack. 21,00 Euro</strong><br>
+   <br>
+  <strong><a href=3D"http://omxom.beginclimb.cn/?712422160698" target=3D"_b=
+lank">Vier Dosen gibt's bei jeder Bestellung umsonst</a><br>
+</strong>(bitte warten Sie einen Moment bis die Seite vollst&auml;ndig gela=
+den wird) </p>
+</body>
+</BODY></HTML>
+
+------=_NextPart_000_000E_01C7CEDE.87FDB080--
