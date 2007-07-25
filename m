@@ -1,143 +1,136 @@
-Date: Wed, 25 Jul 2007 22:35:23 +0200
-From: Ingo Molnar <mingo@elte.hu>
-Subject: Re: [ck] Re: -mm merge plans for 2.6.23
-Message-ID: <20070725203523.GA10750@elte.hu>
-References: <Pine.LNX.4.64.0707242211210.2229@asgard.lang.hm> <46A6DFFD.9030202@gmail.com> <30701.1185347660@turing-police.cc.vt.edu> <46A7074B.50608@gmail.com> <20070725082822.GA13098@elte.hu> <46A70D37.3060005@gmail.com> <5c77e14b0707250353r48458316x5e6adde6dbce1fbd@mail.gmail.com> <46A75062.1050809@gmail.com> <20070725135016.GA18633@elte.hu> <a781481a0707251033t5b95cde7k620810bcc0b98c1@mail.gmail.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <a781481a0707251033t5b95cde7k620810bcc0b98c1@mail.gmail.com>
+Date: Wed, 25 Jul 2007 13:36:55 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: 2.6.23-rc1-mm1
+Message-Id: <20070725133655.849574b5.akpm@linux-foundation.org>
+In-Reply-To: <64bb37e0707251322w38d19814pacea61d8cf69be63@mail.gmail.com>
+References: <20070725040304.111550f4.akpm@linux-foundation.org>
+	<46A7411C.80202@fr.ibm.com>
+	<200707251323.04594.lenb@kernel.org>
+	<20070725115804.5b8efe83.akpm@linux-foundation.org>
+	<64bb37e0707251213t6edcb0a5sabcf4a923c19bde7@mail.gmail.com>
+	<64bb37e0707251322w38d19814pacea61d8cf69be63@mail.gmail.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Satyam Sharma <satyam.sharma@gmail.com>
-Cc: Rene Herman <rene.herman@gmail.com>, Jos Poortvliet <jos@mijnkamer.nl>, david@lang.hm, Nick Piggin <nickpiggin@yahoo.com.au>, Valdis.Kletnieks@vt.edu, Ray Lee <ray-lk@madrabbit.org>, Jesper Juhl <jesper.juhl@gmail.com>, linux-kernel@vger.kernel.org, ck list <ck@vds.kolivas.org>, linux-mm@kvack.org, Paul Jackson <pj@sgi.com>, Andrew Morton <akpm@linux-foundation.org>
+To: Torsten Kaiser <just.for.lkml@googlemail.com>
+Cc: Len Brown <lenb@kernel.org>, Cedric Le Goater <clg@fr.ibm.com>, linux-kernel@vger.kernel.org, Shaohua Li <shaohua.li@intel.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-* Satyam Sharma <satyam.sharma@gmail.com> wrote:
+On Wed, 25 Jul 2007 22:22:41 +0200
+"Torsten Kaiser" <just.for.lkml@googlemail.com> wrote:
 
-> > concentrate on making sure that both you and the maintainer 
-> > understands the problem correctly,
+> On 7/25/07, Torsten Kaiser <just.for.lkml@googlemail.com> wrote:
+> > I hit something similar:
+> >
+> >   CC      init/version.o
+> >   LD      init/built-in.o
+> >   LD      .tmp_vmlinux1
+> > drivers/built-in.o: In function `acpi_pci_choose_state':
+> > drivers/pci/pci-acpi.c:253: undefined reference to `acpi_pm_device_sleep_state'
+> > drivers/built-in.o: In function `pnpacpi_suspend':
+> > drivers/pnp/pnpacpi/core.c:124: undefined reference to
+> > `acpi_pm_device_sleep_state'
+> > make: *** [.tmp_vmlinux1] Error 1
+> >
+> > I also have CONFIG_SMP=y and CONFIG_HOTPLUG_CPU=n
+> >
+> > Will try to investigate more...
 > 
-> This itself may require some "convincing" to do. What if the 
-> maintainer just doesn't recognize the problem? Note that the 
-> development model here is more about the "social" thing than purely a 
-> "technical" thing. People do handwave, possibly due to innocent 
-> misunderstandings, possibly without. Often it's just a case of seeing 
-> different reasons behind the "problematic behaviour". Or it could be a 
-> case of all of the above.
+> Removing (!SMP || SUSPEND_SMP) from the depends of ACPI_SLEEP and
+> activation this option lets me build the kernel.
 
-sure - but i was really not talking about from the user's perspective, 
-but from the enterprising kernel developer's perspective who'd like to 
-solve a particular problem. And the nice thing about concentrating on 
-the problem: if you do that well, it does not really matter what the 
-maintainer thinks!
+Yes, I'm trying to hunt down a fix for that.  Apparently it got repaired in
+the acpi pull which Linus just did.
 
-( Talking to the maintainer can of course be of enormous help in the 
-  quest for understanding the problem and figuring out the best fix - 
-  the maintainer will most likely know more about the subject than 
-  yourself. More communication never hurts. It's an additional bonus if 
-  you manage to convince the maintainer to take up the matter for 
-  himself. It's not a given right though - a maintainer's main task is 
-  to judge code that is being submitted, to keep a subsystem running
-  smoothly and to not let it regress - but otherwise there can easily be
-  different priorities of what tasks to tackle first, and in that sense 
-  the maintainer is just one of the many overworked kernel developers 
-  who has no real obligation what to tackle first. )
+Maybe your fix is suitable?
 
-If the maintainer rejects something despite it being well-reasoned, 
-well-researched and robustly implemented with no tradeoffs and 
-maintainance problems at all then it's a bad maintainer. (but from all 
-i've seen in the past few years the VM maintainers do their job pretty 
-damn fine.) And note that i _do_ disagree with them in this particular 
-swap-prefetch case, but still, the non-merging of swap-prefetch was not 
-a final decision at all. It was more of a "hm, dunno, i still dont 
-really like it - shouldnt this be done differently? Could we debug this 
-a bit better?" reaction. Yes, it can be frustrating after more than one 
-year.
+> But it does not boot:
 
-> > possibly write some testcase that clearly exposes it, and
+argh.
+
+> [    0.000000] Linux version 2.6.23-rc1-mm1 (root@treogen) (gcc
+> version 4.2.0 (Gentoo 4.2.0 p1.4)) #3 SMP Wed Jul 25 21:18:44 CEST
+> 2007
+> [    0.000000] Command line: earlyprintk=serial,ttyS0,38400
+> console=ttyS0,38400 console=tty1 crypt_root=/dev/md1
+> [    0.000000] BIOS-provided physical RAM map:
+> [    0.000000]  BIOS-e820: 0000000000000000 - 000000000009fc00 (usable)
+> [    0.000000]  BIOS-e820: 000000000009fc00 - 00000000000a0000 (reserved)
+> [    0.000000]  BIOS-e820: 00000000000e4000 - 0000000000100000 (reserved)
+> [    0.000000]  BIOS-e820: 0000000000100000 - 00000000dfff0000 (usable)
+> [    0.000000]  BIOS-e820: 00000000dfff0000 - 00000000dfffe000 (ACPI data)
+> [    0.000000]  BIOS-e820: 00000000dfffe000 - 00000000e0000000 (ACPI NVS)
+> [    0.000000]  BIOS-e820: 00000000fec00000 - 00000000fec01000 (reserved)
+> [    0.000000]  BIOS-e820: 00000000fee00000 - 00000000fef00000 (reserved)
+> [    0.000000]  BIOS-e820: 00000000ff700000 - 0000000100000000 (reserved)
+> [    0.000000]  BIOS-e820: 0000000100000000 - 0000000120000000 (usable)
+> [    0.000000] console [earlyser0] enabled
+> [    0.000000] end_pfn_map = 1179648
+> kernel direct mapping tables up to 120000000 @ 8000-e000
+> [    0.000000] DMI present.
+> [    0.000000] ACPI: RSDP 000FB5E0, 0014 (r0 ACPIAM)
+> [    0.000000] ACPI: RSDT DFFF0000, 003C (r1 A M I  OEMRSDT   6000626
+> MSFT       97)
+> [    0.000000] ACPI: FACP DFFF0200, 0084 (r2 A M I  OEMFACP   6000626
+> MSFT       97)
+> [    0.000000] ACPI: DSDT DFFF0450, 48E1 (r1  S0027 S0027000        0
+> INTL 20051117)
+> [    0.000000] ACPI: FACS DFFFE000, 0040
+> [    0.000000] ACPI: APIC DFFF0390, 0080 (r1 A M I  OEMAPIC   6000626
+> MSFT       97)
+> [    0.000000] ACPI: MCFG DFFF0410, 003C (r1 A M I  OEMMCFG   6000626
+> MSFT       97)
+> [    0.000000] ACPI: OEMB DFFFE040, 0060 (r1 A M I  AMI_OEM   6000626
+> MSFT       97)
+> [    0.000000] ACPI: SRAT DFFF4D40, 0110 (r1 AMD    HAMMER          1
+> AMD         1)
+> [    0.000000] ACPI: SSDT DFFF4E50, 04F0 (r1 A M I  ACPI2PPC        1
+> AMI         1)
+> [    0.000000] SRAT: PXM 0 -> APIC 0 -> Node 0
+> [    0.000000] SRAT: PXM 0 -> APIC 1 -> Node 0
+> [    0.000000] SRAT: PXM 1 -> APIC 2 -> Node 1
+> [    0.000000] SRAT: PXM 1 -> APIC 3 -> Node 1
+> [    0.000000] SRAT: Node 0 PXM 0 0-a0000
+> [    0.000000] SRAT: Node 0 PXM 0 0-80000000
+> [    0.000000] SRAT: Node 1 PXM 1 80000000-e0000000
+> [    0.000000] SRAT: Node 1 PXM 1 80000000-120000000
+> [    0.000000] Bootmem setup node 0 0000000000000000-0000000080000000
+> [    0.000000] Bootmem setup node 1 0000000080000000-0000000120000000
+> [    0.000000] Zone PFN ranges:
+> [    0.000000]   DMA             0 ->     4096
+> [    0.000000]   DMA32        4096 ->  1048576
+> [    0.000000]   Normal    1048576 ->  1179648
+> [    0.000000] Movable zone start PFN for each node
+> [    0.000000] early_node_map[4] active PFN ranges
+> [    0.000000]     0:        0 ->      159
+> [    0.000000]     0:      256 ->   524288
+> [    0.000000]     1:   524288 ->   917488
+> [    0.000000]     1:  1048576 ->  1179648
+> PANIC: early exception rip ffffffff807caac5 error 2 cr2 ffffe20003000010
+> [    0.000000]
+> [    0.000000] Call Trace:
 > 
-> Oh yes -- that'll be helpful, but definitely not necessarily a 
-> prerequisite for all issues, and then you can't even expect everybody 
-> to write or test/benchmark with testcases. (oh, btw, this is assuming 
-> you do find consensus on a testcase)
-
-no, but Con is/was certainly more than capable to write testcases and to 
-debug various scenarios. That's the way how new maintainers are found 
-within Linux: people take matters in their own hands and improve a 
-subsystem so that they'll either peacefully co-work with the other 
-maintainers or they replace them (sometimes not so peacefully - like in 
-the IDE/SATA/PATA saga).
-
-> > help the maintainer debug the problem.
+> ... but no Call Trace follows.
 > 
-> Umm ... well. Should this "dance-with-the-maintainer" and all be 
-> really necessary? What you're saying is easy if a "bug" is simple and 
-> objective, with mathematically few (probably just one) possible 
-> correct solutions. Often (most often, in fact) it's a subjective issue 
-> -- could be about APIs, high level design, tradeoffs, even little 
-> implementation nits ... with one person wanting to do it one way, 
-> another thinks there's something hacky or "band-aidy" about it and a 
-> more beautiful/elegant solution exists elsewhere. I think there's a 
-> similar deadlock here (?)
-
-you dont _have to_ cooperative with the maintainer, but it's certainly 
-useful to work with good maintainers, if your goal is to improve Linux. 
-Or if for some reason communication is not working out fine then grow 
-into the job and replace the maintainer by doing a better job.
-
-> > _Optionally_, if you find joy in it, you are also free to write a 
-> > proposed solution for that problem
+> (gdb) list *0xffffffff807caac5
+> 0xffffffff807caac5 is in memmap_init_zone (include/linux/list.h:32).
+> 27      #define LIST_HEAD(name) \
+> 28              struct list_head name = LIST_HEAD_INIT(name)
+> 29
+> 30      static inline void INIT_LIST_HEAD(struct list_head *list)
+> 31      {
+> 32              list->next = list;
+> 33              list->prev = list;
+> 34      }
+> 35
+> 36      /*
 > 
-> Oh yes. But why "optionally"? This is *precisely* what the spirit of 
-> development in such open / distributed projects is ... unless Linux 
-> wants to die the same, slow, ivory-towered, miserable death that *BSD 
-> have.
+> Torsten
 
-perhaps you misunderstood how i meant the 'optional': it is certainly 
-not required to write a solution for every problem you are reporting. 
-Best-case the maintainer picks the issue up and solves it. Worst-case 
-you get ignored. But you always have the option to take matters into 
-your own hands and solve the problem.
-
-> >and submit it to the maintainer.
-> 
-> Umm, ok ... pretty unlikely Linus or Andrew would take patches for any 
-> kernel subsystem (that isn't obvious/trivial) from anybody just like 
-> that, so you do need to Cc: the ones they trust (maintainer) to ensure 
-> they review/ack your work and pick it up.
-
-actually, it happens pretty frequently, and NACK-ing perfectly 
-reasonable patches is a sure way towards getting replaced as a 
-maintainer.
-
-> > is the wrong way around. It might still work out fine if the 
-> > solution is correct (especially if the patch is small and obvious), 
-> > but if there are any non-trivial tradeoffs involved, or if 
-> > nontrivial amount of code is involved, you might see your patch at 
-> > the end of a really long (and constantly growing) waiting list of 
-> > patches.
-> 
-> That's the whole point. For non-trivial / non-obvious / subjective 
-> issues, the "process" you laid out above could itself become a problem 
-> ...
-
-firstly, there's rarely any 'subjective' issue in maintainance 
-decisions, even when it comes to complex patches. The 'subjective' issue 
-becomes a factor mostly when a problem has not been researched well 
-enough, when it becomes more of a faith thing ('i believe it helps me') 
-than a fully fact-backed argument. Maintainers tend to dodge such issues 
-until they become more clearly fact-backed.
-
-providing more and more facts gradually reduces the 'judgement/taste' 
-leeway of maintainers, down to an almost algorithmic level.
-
-but in any case there's always the ultimate way out: prove that you can 
-do a better job yourself and replace the maintainer. But providing an 
-overwhelming, irresistable body of facts in favor of a patch does the 
-trick too in 99.9% of the cases.
-
-	Ingo
+Quite a few people have been playing in that area.  Can you please send the
+.config?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
