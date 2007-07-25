@@ -1,77 +1,52 @@
-Subject: Re: 2.6.23-rc1-mm1:  boot hang on ia64 with memoryless nodes
-From: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
-In-Reply-To: <Pine.LNX.4.64.0707251231570.8820@schroedinger.engr.sgi.com>
-References: <20070711182219.234782227@sgi.com>
-	 <20070713151431.GG10067@us.ibm.com>
-	 <Pine.LNX.4.64.0707130942030.21777@schroedinger.engr.sgi.com>
-	 <1185310277.5649.90.camel@localhost>
-	 <Pine.LNX.4.64.0707241402010.4773@schroedinger.engr.sgi.com>
-	 <1185372692.5604.22.camel@localhost>  <1185378322.5604.43.camel@localhost>
-	 <1185390991.5604.87.camel@localhost>
-	 <Pine.LNX.4.64.0707251231570.8820@schroedinger.engr.sgi.com>
-Content-Type: text/plain
-Date: Wed, 25 Jul 2007 17:18:57 -0400
-Message-Id: <1185398337.5604.96.camel@localhost>
-Mime-Version: 1.0
+Received: by wr-out-0506.google.com with SMTP id m59so242402wrm
+        for <linux-mm@kvack.org>; Wed, 25 Jul 2007 14:28:25 -0700 (PDT)
+Message-ID: <2c0942db0707251428r7a6a1cc9seea8dc59020f1bcb@mail.gmail.com>
+Date: Wed, 25 Jul 2007 14:28:24 -0700
+From: "Ray Lee" <ray-lk@madrabbit.org>
+Subject: Re: -mm merge plans for 2.6.23
+In-Reply-To: <1185396952.9409.5.camel@localhost>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8; format=flowed
 Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+References: <20070710013152.ef2cd200.akpm@linux-foundation.org>
+	 <2c0942db0707232153j3670ef31kae3907dff1a24cb7@mail.gmail.com>
+	 <46A58B49.3050508@yahoo.com.au>
+	 <2c0942db0707240915h56e007e3l9110e24a065f2e73@mail.gmail.com>
+	 <46A6CC56.6040307@yahoo.com.au> <46A6D7D2.4050708@gmail.com>
+	 <Pine.LNX.4.64.0707242211210.2229@asgard.lang.hm>
+	 <46A6DFFD.9030202@gmail.com>
+	 <2c0942db0707250902v58e23d52v434bde82ba28f119@mail.gmail.com>
+	 <1185396952.9409.5.camel@localhost>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
-Cc: kxr@sgi.com, Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, Bob Picco <bob.picco@hp.com>, Mel Gorman <mel@skynet.ie>, Eric Whitney <eric.whitney@hp.com>, Andy Whitcroft <apw@shadowen.org>
+To: Zan Lynx <zlynx@acm.org>
+Cc: Rene Herman <rene.herman@gmail.com>, david@lang.hm, Nick Piggin <nickpiggin@yahoo.com.au>, Jesper Juhl <jesper.juhl@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, ck list <ck@vds.kolivas.org>, Ingo Molnar <mingo@elte.hu>, Paul Jackson <pj@sgi.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 2007-07-25 at 12:38 -0700, Christoph Lameter wrote:
-> (ccing Andy who did the work on the config stuff)
-> 
-> On Wed, 25 Jul 2007, Lee Schermerhorn wrote:
-> 
-> > I tried to deselect SPARSEMEM_VMEMMAP.  Kconfig's "def_bool=y" wouldn't
-> > let me :-(.  After hacking the Kconfig and mm/sparse.c to allow that,
-> > boot hangs with no error messages shortly after "Built N zonelists..."
-> > message.
-> 
-> I get a similar hang here and see the system looping in softirq / hrtimer 
-> code.
-> 
-> > Backed off to DISCONTIGMEM+VIRTUAL_MEMORY_MAP, and saw same hang as with
-> > (SPARSMEM && !SPARSEMEM_VMEMMAP).   
-> 
-> So its not related to SPARSE VMEMMAP? General VMEMMAP issue on IA64?
+On 7/25/07, Zan Lynx <zlynx@acm.org> wrote:
+> On Wed, 2007-07-25 at 09:02 -0700, Ray Lee wrote:
+>
+> > I'd just like updatedb to amortize its work better. If we had some way
+> > to track all filesystem events, updatedb could keep a live and
+> > accurate index on the filesystem. And this isn't just updatedb that
+> > wants that, beagle and tracker et al also want to know filesystem
+> > events so that they can index the documents themselves as well as the
+> > metadata. And if they do it live, that spreads the cost out, including
+> > the VM pressure.
+>
+> That would be nice.  It'd be great if there was a per-filesystem inotify
+> mode.  I can't help but think it'd be more efficient than recursing
+> every directory and adding a watch.
+>
+> Or maybe a netlink thing that could buffer events since filesystem mount
+> until a daemon could get around to starting, so none were lost.
 
-This hang is different from the one I see with SPARSE VMEMMAP -- no
-"Unable to handle kernel paging request..." message.  Just hangs after
-"Built N zonelists..."  and some message about "color" that I didn't
-capture.  Next time [:-(]...
+See "Filesystem Event Reporter" by Yi Yang, that does pretty much
+exactly that. http://lkml.org/lkml/2006/9/30/98 . Author had things to
+update, never resubmitted it as far as I can tell.
 
->  
-> > I should mention that I have my test system in the "fully interleaved"
-> > configuration for testing the memoryless node patches.  This means that
-> > nodes 0-3 [the real nodes with the cpus attached] have no memory.  All
-> > memory resides in a cpu-less pseudo-node.  I'm wondering if
-> > SPARSEMEM_VMEMMAP can handle this?  22-rc6-mm1 booted OK on this config
-> > w/ SPARSEMEM_EXTREME.
-> 
-> The vmemmap page table blocks get allocated on the nodes where there 
-> is actual mmemory but sparse.c may not have been updated to only look for 
-> memory on nodes that have memory. If it looks for online nodes then we 
-> may have an issue there. Andy?
-
-In free_area_init_nodes(), free_area_init_node() [singular] is called
-for_each_online_node...   I'm looking into this.  I might need an
-additional memoryless node patch to test the memoryless node patches...
-
-> 
-> Were you able to run discontig/vmemmap in the past with this 
-> configuration?
-
-Yeah, way back ~2.6.14/15 or so.  My configs have all used SPARSEMEM
-since then.
-
-I'm going to switch back to "100% cell local memory" and try again.
-But, if you're seeing hangs w/o memoryless nodes, I'm not hopeful.
-
-Later,
-Lee
+Ray
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
