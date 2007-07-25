@@ -1,52 +1,63 @@
-Date: Wed, 25 Jul 2007 12:38:26 -0700 (PDT)
-From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: 2.6.23-rc1-mm1:  boot hang on ia64 with memoryless nodes
-In-Reply-To: <1185390991.5604.87.camel@localhost>
-Message-ID: <Pine.LNX.4.64.0707251231570.8820@schroedinger.engr.sgi.com>
-References: <20070711182219.234782227@sgi.com>  <20070713151431.GG10067@us.ibm.com>
-  <Pine.LNX.4.64.0707130942030.21777@schroedinger.engr.sgi.com>
- <1185310277.5649.90.camel@localhost>  <Pine.LNX.4.64.0707241402010.4773@schroedinger.engr.sgi.com>
-  <1185372692.5604.22.camel@localhost>  <1185378322.5604.43.camel@localhost>
- <1185390991.5604.87.camel@localhost>
+Subject: Re: -mm merge plans for 2.6.23
+References: <20070710013152.ef2cd200.akpm@linux-foundation.org>
+	<200707102015.44004.kernel@kolivas.org>
+	<9a8748490707231608h453eefffx68b9c391897aba70@mail.gmail.com>
+	<46A57068.3070701@yahoo.com.au>
+	<2c0942db0707232153j3670ef31kae3907dff1a24cb7@mail.gmail.com>
+	<46A58B49.3050508@yahoo.com.au>
+	<2c0942db0707240915h56e007e3l9110e24a065f2e73@mail.gmail.com>
+	<46A6CC56.6040307@yahoo.com.au>
+From: Andi Kleen <andi@firstfloor.org>
+Date: 25 Jul 2007 22:46:20 +0200
+In-Reply-To: <46A6CC56.6040307@yahoo.com.au>
+Message-ID: <p73abtkrz37.fsf@bingen.suse.de>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
-Cc: kxr@sgi.com, Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, Bob Picco <bob.picco@hp.com>, Mel Gorman <mel@skynet.ie>, Eric Whitney <eric.whitney@hp.com>, Andy Whitcroft <apw@shadowen.org>
+To: Nick Piggin <nickpiggin@yahoo.com.au>
+Cc: Ray Lee <ray-lk@madrabbit.org>, Jesper Juhl <jesper.juhl@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, ck list <ck@vds.kolivas.org>, Ingo Molnar <mingo@elte.hu>, Paul Jackson <pj@sgi.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-(ccing Andy who did the work on the config stuff)
+Nick Piggin <nickpiggin@yahoo.com.au> writes:
 
-On Wed, 25 Jul 2007, Lee Schermerhorn wrote:
+> Ray Lee wrote:
+> > On 7/23/07, Nick Piggin <nickpiggin@yahoo.com.au> wrote:
+> 
+> >> Also a random day at the desktop, it is quite a broad scope and
+> >> pretty well impossible to analyse.
+> > It is pretty broad, but that's also what swap prefetch is targetting.
+> > As for hard to analyze, I'm not sure I agree. One can black-box test
+> > this stuff with only a few controls. e.g., if I use the same apps each
+> > day (mercurial, firefox, xorg, gcc), and the total I/O wait time
+> > consistently goes down on a swap prefetch kernel (normalized by some
+> > control statistic, such as application CPU time or total I/O, or
+> > something), then that's a useful measurement.
+> 
+> I'm not saying that we can't try to tackle that problem, but first of
+> all you have a really nice narrow problem where updatedb seems to be
+> causing the kernel to completely do the wrong thing. So we start on
+> that.
 
-> I tried to deselect SPARSEMEM_VMEMMAP.  Kconfig's "def_bool=y" wouldn't
-> let me :-(.  After hacking the Kconfig and mm/sparse.c to allow that,
-> boot hangs with no error messages shortly after "Built N zonelists..."
-> message.
+One simple way to fix this would be to implement a fadvise() flag
+that puts the dentry/inode on a "soon to be expired" list if there
+are no other references. Then if a dentry allocation needs more
+memory try to reuse dentries from that list (or better queue) first. Any other
+access will remove the dentry from the list. 
 
-I get a similar hang here and see the system looping in softirq / hrtimer 
-code.
+Disadvantage would be that the userland would need to be patched,
+but I guess it's better than adding very dubious heuristics to the
+kernel.
 
-> Backed off to DISCONTIGMEM+VIRTUAL_MEMORY_MAP, and saw same hang as with
-> (SPARSMEM && !SPARSEMEM_VMEMMAP).   
+Similar thing could be done for directory buffers although they
+are probably less of a problem.
 
-So its not related to SPARSE VMEMMAP? General VMEMMAP issue on IA64?
- 
-> I should mention that I have my test system in the "fully interleaved"
-> configuration for testing the memoryless node patches.  This means that
-> nodes 0-3 [the real nodes with the cpus attached] have no memory.  All
-> memory resides in a cpu-less pseudo-node.  I'm wondering if
-> SPARSEMEM_VMEMMAP can handle this?  22-rc6-mm1 booted OK on this config
-> w/ SPARSEMEM_EXTREME.
+I expect that C.Lameter's directed dentry/inode freeing in slub will also
+make a big difference. People who have problems with updatedb should
+definitely try mm which has it I believe and enable SLUB.
 
-The vmemmap page table blocks get allocated on the nodes where there 
-is actual mmemory but sparse.c may not have been updated to only look for 
-memory on nodes that have memory. If it looks for online nodes then we 
-may have an issue there. Andy?
-
-Were you able to run discontig/vmemmap in the past with this 
-configuration?
+-Andi (who always thought swap prefetch was just a workaround, not
+a real solution) 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
