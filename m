@@ -1,81 +1,77 @@
-Message-ID: <01c7ceb3$9f88f7d0$4b408d55@audtpdia>
-From: "Clair Friedman" <audtpdia@hanmail.net>
-Subject: Ficken wie ein Weltmeister ?   of clarity I think  -- applications. You 
-Date: Wed, 25 Jul 2007 12:02:07 -0300
-MIME-Version: 1.0
-Content-Type: multipart/alternative;
-	boundary="----=_NextPart_000_0007_01C7CED5.269A97D0"
-Return-Path: <audtpdia@hanmail.net>
-To: linux-mm@kvack.org
+Date: Wed, 25 Jul 2007 08:18:53 -0400
+From: Chris Mason <chris.mason@oracle.com>
+Subject: Re: [PATCH RFC] extent mapped page cache
+Message-ID: <20070725081853.4b325e7f@think.oraclecorp.com>
+In-Reply-To: <20070725023217.GA32076@wotan.suse.de>
+References: <20070710210326.GA29963@think.oraclecorp.com>
+	<20070724160032.7a7097db@think.oraclecorp.com>
+	<1185307985.6586.50.camel@localhost>
+	<1185312343.5535.5.camel@lappy>
+	<20070724192509.5bc9b3fe@think.oraclecorp.com>
+	<20070725023217.GA32076@wotan.suse.de>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
+Sender: owner-linux-mm@kvack.org
+Return-Path: <owner-linux-mm@kvack.org>
+To: Nick Piggin <npiggin@suse.de>
+Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, Trond Myklebust <trond.myklebust@fys.uio.no>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>, linux-fsdevel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-This is a multi-part message in MIME format.
+On Wed, 25 Jul 2007 04:32:17 +0200
+Nick Piggin <npiggin@suse.de> wrote:
 
-------=_NextPart_000_0007_01C7CED5.269A97D0
-Content-Type: text/plain;
-	charset="iso-8859-2"
-Content-Transfer-Encoding: quoted-printable
+> On Tue, Jul 24, 2007 at 07:25:09PM -0400, Chris Mason wrote:
+> > On Tue, 24 Jul 2007 23:25:43 +0200
+> > Peter Zijlstra <a.p.zijlstra@chello.nl> wrote:
+> > 
+> > The tree is a critical part of the patch, but it is also the
+> > easiest to rip out and replace.  Basically the code stores a range
+> > by inserting an object at an index corresponding to the end of the
+> > range.
+> > 
+> > Then it does searches by looking forward from the start of the
+> > range. More or less any tree that can search and return the first
+> > key >= than the requested key will work.
+> > 
+> > So, I'd be happy to rip out the tree and replace with something
+> > else. Going completely lockless will be tricky, its something that
+> > will deep thought once the rest of the interface is sane.
+> 
+> Just having the other tree and managing it is what makes me a little
+> less positive of this approach, especially using it to store pagecache
+> state when we already have the pagecache tree.
+> 
+> Having another tree to store block state I think is a good idea as I
+> said in the fsblock thread with Dave, but I haven't clicked as to why
+> it is a big advantage to use it to manage pagecache state. (and I can
+> see some possible disadvantages in locking and tree manipulation
+> overhead).
 
-Verpassen Sie nichts am Lebem - Sie werden fuhlen was unsere Kunden bestati=
-gen!
+Yes, there are definitely costs with the state tree, it will take some
+careful benchmarking to convince me it is a feasible solution. But,
+storing all the state in the pages themselves is impossible unless the
+block size equals the page size. So, we end up with something like
+fsblock/buffer heads or the state tree.
 
-Preise die keine Konkurrenz kennen 
+One advantage to the state tree is that it separates the state from
+the memory being described, allowing a simple kmap style interface
+that covers subpages, highmem and superpages.
 
-- Visa verifizierter Onlineshop
-- Diskrete Verpackung und Zahlung
-- Kein langes Warten - Auslieferung innerhalb von 2-3 Tagen
-- Kostenlose, arztliche Telefon-Beratung
-- Kein peinlicher Arztbesuch erforderlich
-- Bequem und diskret online bestellen.
-- keine versteckte Kosten
+It also more naturally matches the way we want to do IO, making for
+easy clustering.
 
-Originalmedikamente
-Ciaaaaaalis 10 Pack. 27,00 Euro
-Viaaaagra 10 Pack. 21,00 Euro
+O_DIRECT becomes a special case of readpages and writepages....the
+memory used for IO just comes from userland instead of the page cache.
 
-Klicken Sie HIER und Sie erhalten vier Dosen umsonst
-http://cuwdu.beginclimb.cn/?806013612407
+The ability to put in additional tracking info like the process that
+first dirtied a range is also significant.  So, I think it is worth
+trying.
 
-(bitte warten Sie einen Moment bis die Seite vollstandig geladen wird)
-------=_NextPart_000_0007_01C7CED5.269A97D0
-Content-Type: text/html;
-	charset="iso-8859-2"
-Content-Transfer-Encoding: quoted-printable
+-chris
 
-<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
-<HTML><HEAD>
-<META http-equiv=3DContent-Type content=3D"text/html; charset=3Diso-8859-2">
-<META content=3D"MSHTML 6.00.2741.2600" name=3DGENERATOR>
-<STYLE></STYLE>
-</HEAD>
-<BODY>
-<head><meta http-equiv=3D"Content-Type" content=3D"text/html; charset=3Diso=
--8859-1">
-</head><body><p>Meinung von unserem Kunden:<br><strong>Ich glaube, ich habe=
- bis jetzt Gl&#252;ck gehabt (Ich klopfe auf Holz.), denn ich hatte bis jet=
-zt noch nie Nebenwirkungen durch Viaaaagra - au&#223;er einer brettharten L=
-atte, und das f&#252;r Stunden.</strong></p><p><strong>Jetzt, wo ich Viaaaa=
-gra ausprobiert habe, w&#252;rde ich es immer wieder kaufen, auch wenn ich =
-das Dreifache daf&#252;r bezahlen m&#252;sste. Ich bedaure all die ungl&#25=
-2;cklichen M&#228;nner, die in ihrem Leben nie die Gelegenheit hatten, Viaa=
-aagra auszuprobieren. Und ein bisschen bedaure ich mich selbst: Warum habe =
-ich nicht schon vor Jahren den Mut gehabt, es zu probieren?<br>
-</strong><strong><br>Verpassen Sie nichts am Lebem - Sie werden fuhlen was =
-unsere Kunden bestatigen!</strong></p><p>Preise die keine Konkurrenz kennen=
- <p>
-- keine versteckte Kosten<br>- Diskrete Verpackung und Zahlung<br>- Kein la=
-nges Warten - Auslieferung innerhalb von 2-3 Tagen<br>- Kostenlose, arztlic=
-he Telefon-Beratung<br>- Kein peinlicher Arztbesuch erforderlich<br>- Beque=
-m und diskret online bestellen.<br>- Visa verifizierter Onlineshop</p>
-<p>Originalmedikamente<br>
-  <strong>Ciaaaaaalis 10 Pack. 27,00 Euro</strong><br>
-  <strong>Viaaaagra 10 Pack. 21,00 Euro</strong><br>
-   <br>
-  <strong><a href=3D"http://cuwdu.beginclimb.cn/?806013612407" target=3D"_b=
-lank">Klicken Sie HIER und Sie erhalten vier Dosen umsonst</a><br>
-</strong>(bitte warten Sie einen Moment bis die Seite vollst&auml;ndig gela=
-den wird) </p>
-</body>
-</BODY></HTML>
-
-------=_NextPart_000_0007_01C7CED5.269A97D0--
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
