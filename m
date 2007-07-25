@@ -1,49 +1,65 @@
-Message-ID: <46A6DE75.70803@yahoo.com.au>
-Date: Wed, 25 Jul 2007 15:24:05 +1000
-From: Nick Piggin <nickpiggin@yahoo.com.au>
-MIME-Version: 1.0
-Subject: Re: NUMA policy issues with ZONE_MOVABLE
-References: <Pine.LNX.4.64.0707242120370.3829@schroedinger.engr.sgi.com> <46A6D5E1.70407@yahoo.com.au> <Pine.LNX.4.64.0707242200380.4070@schroedinger.engr.sgi.com>
-In-Reply-To: <Pine.LNX.4.64.0707242200380.4070@schroedinger.engr.sgi.com>
-Content-Type: text/plain; charset=us-ascii; format=flowed
+Subject: Re: -mm merge plans for 2.6.23
+From: Eric St-Laurent <ericstl34@sympatico.ca>
+In-Reply-To: <46A6D7D2.4050708@gmail.com>
+References: <20070710013152.ef2cd200.akpm@linux-foundation.org>
+	 <200707102015.44004.kernel@kolivas.org>
+	 <9a8748490707231608h453eefffx68b9c391897aba70@mail.gmail.com>
+	 <46A57068.3070701@yahoo.com.au>
+	 <2c0942db0707232153j3670ef31kae3907dff1a24cb7@mail.gmail.com>
+	 <46A58B49.3050508@yahoo.com.au>
+	 <2c0942db0707240915h56e007e3l9110e24a065f2e73@mail.gmail.com>
+	 <46A6CC56.6040307@yahoo.com.au>  <46A6D7D2.4050708@gmail.com>
+Content-Type: text/plain
+Date: Wed, 25 Jul 2007 01:30:49 -0400
+Message-Id: <1185341449.7105.53.camel@perkele>
+Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
-Cc: linux-mm@kvack.org, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, ak@suse.de, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Mel Gorman <mel@skynet.ie>, akpm@linux-foundation.org
+To: Rene Herman <rene.herman@gmail.com>
+Cc: Nick Piggin <nickpiggin@yahoo.com.au>, Ray Lee <ray-lk@madrabbit.org>, Jesper Juhl <jesper.juhl@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, ck list <ck@vds.kolivas.org>, Ingo Molnar <mingo@elte.hu>, Paul Jackson <pj@sgi.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-Christoph Lameter wrote:
-> On Wed, 25 Jul 2007, Nick Piggin wrote:
-> 
-> 
->>>Doesnt this mean that ZONE_MOVABLE is incompatible with CONFIG_NUMA?
->>
->>I guess it has similar problems as ZONE_HIGHMEM etc. I think the
->>zoned allocator and NUMA was there first, so it might be more
->>correct to say that mempolicies are incompatible with them :)
-> 
-> 
-> Highmem is only used on i386 NUMA and works fine on NUMAQ. The current 
-> zone types are carefully fitted to existing NUMA systems.
+On Wed, 2007-25-07 at 06:55 +0200, Rene Herman wrote:
 
-I don't understand what you mean. Aren't mempolicies also supposed to
-work on NUMAQ too? How about DMA and DMA32 allocations?
-
-
->>But I thought you had plans to fix mempolicies to do zones better?
+> It certainly doesn't run for me ever. Always kind of a "that's not the 
+> point" comment but I just keep wondering whenever I see anyone complain 
+> about updatedb why the _hell_ they are running it in the first place. If 
+> anyone who never uses "locate" for anything simply disable updatedb, the 
+> problem will for a large part be solved.
 > 
-> 
-> No sure where you got that from. I repeatedly suggested that more zones be 
-> removed because of this one and other issues.
+> This not just meant as a cheap comment; while I can think of a few similar 
+> loads even on the desktop (scanning a browser cache, a media player indexing 
+> a large amount of media files, ...) I've never heard of problems _other_ 
+> than updatedb. So just junk that crap and be happy.
 
-Oh I must have been mistaken.
+>From my POV there's two different problems discussed recently:
 
-Well I guess you haven't succeeded in getting zones removed, so I think
-we should make mempolicies work better with zones.
+- updatedb type of workloads that add tons of inodes and dentries in the
+slab caches which of course use the pagecache.
 
--- 
-SUSE Labs, Novell Inc.
+- streaming large files (read or copying) that fill the pagecache with
+useless used-once data
+
+swap prefetch fix the first case, drop-behind fix the second case.
+
+Both have the same symptoms but the cause is different.
+
+Personally updatedb doesn't really hurt me.  But I don't have that many
+files on my desktop.  I've tried the swap prefetch patch in the past and
+it was not so noticeable for me. (I don't doubt it's helpful for others)
+
+But every time I read or copy a large file around (usually from a
+server) the slowdown is noticeable for some moments.
+
+I just wanted to point this out, if it wasn't clean enough for everyone.
+I hope both problems get fixed.
+
+
+Best regards,
+
+- Eric
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
