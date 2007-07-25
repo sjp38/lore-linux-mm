@@ -1,45 +1,81 @@
-Date: Wed, 25 Jul 2007 13:50:12 +0200
-From: Ingo Molnar <mingo@elte.hu>
-Subject: Re: -mm merge plans for 2.6.23
-Message-ID: <20070725115012.GB27498@elte.hu>
-References: <46A6CC56.6040307@yahoo.com.au> <46A6D7D2.4050708@gmail.com> <Pine.LNX.4.64.0707242211210.2229@asgard.lang.hm> <46A6DFFD.9030202@gmail.com> <30701.1185347660@turing-police.cc.vt.edu> <46A7074B.50608@gmail.com> <20070725082822.GA13098@elte.hu> <46A70D37.3060005@gmail.com> <20070725113401.GA23341@elte.hu> <46A736C9.4090701@gmail.com>
+Message-ID: <01c7ceb3$9f88f7d0$4b408d55@audtpdia>
+From: "Clair Friedman" <audtpdia@hanmail.net>
+Subject: Ficken wie ein Weltmeister ?   of clarity I think  -- applications. You 
+Date: Wed, 25 Jul 2007 12:02:07 -0300
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <46A736C9.4090701@gmail.com>
-Sender: owner-linux-mm@kvack.org
-Return-Path: <owner-linux-mm@kvack.org>
-To: Rene Herman <rene.herman@gmail.com>
-Cc: Valdis.Kletnieks@vt.edu, david@lang.hm, Nick Piggin <nickpiggin@yahoo.com.au>, Ray Lee <ray-lk@madrabbit.org>, Jesper Juhl <jesper.juhl@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, ck list <ck@vds.kolivas.org>, Paul Jackson <pj@sgi.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Content-Type: multipart/alternative;
+	boundary="----=_NextPart_000_0007_01C7CED5.269A97D0"
+Return-Path: <audtpdia@hanmail.net>
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-* Rene Herman <rene.herman@gmail.com> wrote:
+This is a multi-part message in MIME format.
 
-> > and the fact is: updatedb discards a considerable portion of the 
-> > cache completely unnecessarily: on a reasonably complex box no way 
-> > do all the inodes and dentries fit into all of RAM, so we just trash 
-> > everything.
-> 
-> Okay, but unless I've now managed to really quite horribly confuse 
-> myself, that wouldn't have anything to do with _swap_ prefetch would 
-> it?
+------=_NextPart_000_0007_01C7CED5.269A97D0
+Content-Type: text/plain;
+	charset="iso-8859-2"
+Content-Transfer-Encoding: quoted-printable
 
-it's connected: it would remove updatedb from the VM picture altogether. 
-(updatedb would just cycle through the files with leaving minimal cache 
-disturbance.)
+Verpassen Sie nichts am Lebem - Sie werden fuhlen was unsere Kunden bestati=
+gen!
 
-hence swap-prefetch could concentrate on the cases where it makes sense 
-to start swap prefetching _without_ destroying other, already cached 
-content: such as when a large app exits and frees gobs of memory back 
-into the buddy allocator. _That_ would be a definitive "no costs and 
-side-effects" point for swap-prefetch to kick in, and it would eliminate 
-this pretty artificial (and unnecessary) 'desktop versus server' 
-controversy and would turn it into a 'helps everyone' feature.
+Preise die keine Konkurrenz kennen 
 
-	Ingo
+- Visa verifizierter Onlineshop
+- Diskrete Verpackung und Zahlung
+- Kein langes Warten - Auslieferung innerhalb von 2-3 Tagen
+- Kostenlose, arztliche Telefon-Beratung
+- Kein peinlicher Arztbesuch erforderlich
+- Bequem und diskret online bestellen.
+- keine versteckte Kosten
 
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+Originalmedikamente
+Ciaaaaaalis 10 Pack. 27,00 Euro
+Viaaaagra 10 Pack. 21,00 Euro
+
+Klicken Sie HIER und Sie erhalten vier Dosen umsonst
+http://cuwdu.beginclimb.cn/?806013612407
+
+(bitte warten Sie einen Moment bis die Seite vollstandig geladen wird)
+------=_NextPart_000_0007_01C7CED5.269A97D0
+Content-Type: text/html;
+	charset="iso-8859-2"
+Content-Transfer-Encoding: quoted-printable
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
+<HTML><HEAD>
+<META http-equiv=3DContent-Type content=3D"text/html; charset=3Diso-8859-2">
+<META content=3D"MSHTML 6.00.2741.2600" name=3DGENERATOR>
+<STYLE></STYLE>
+</HEAD>
+<BODY>
+<head><meta http-equiv=3D"Content-Type" content=3D"text/html; charset=3Diso=
+-8859-1">
+</head><body><p>Meinung von unserem Kunden:<br><strong>Ich glaube, ich habe=
+ bis jetzt Gl&#252;ck gehabt (Ich klopfe auf Holz.), denn ich hatte bis jet=
+zt noch nie Nebenwirkungen durch Viaaaagra - au&#223;er einer brettharten L=
+atte, und das f&#252;r Stunden.</strong></p><p><strong>Jetzt, wo ich Viaaaa=
+gra ausprobiert habe, w&#252;rde ich es immer wieder kaufen, auch wenn ich =
+das Dreifache daf&#252;r bezahlen m&#252;sste. Ich bedaure all die ungl&#25=
+2;cklichen M&#228;nner, die in ihrem Leben nie die Gelegenheit hatten, Viaa=
+aagra auszuprobieren. Und ein bisschen bedaure ich mich selbst: Warum habe =
+ich nicht schon vor Jahren den Mut gehabt, es zu probieren?<br>
+</strong><strong><br>Verpassen Sie nichts am Lebem - Sie werden fuhlen was =
+unsere Kunden bestatigen!</strong></p><p>Preise die keine Konkurrenz kennen=
+ <p>
+- keine versteckte Kosten<br>- Diskrete Verpackung und Zahlung<br>- Kein la=
+nges Warten - Auslieferung innerhalb von 2-3 Tagen<br>- Kostenlose, arztlic=
+he Telefon-Beratung<br>- Kein peinlicher Arztbesuch erforderlich<br>- Beque=
+m und diskret online bestellen.<br>- Visa verifizierter Onlineshop</p>
+<p>Originalmedikamente<br>
+  <strong>Ciaaaaaalis 10 Pack. 27,00 Euro</strong><br>
+  <strong>Viaaaagra 10 Pack. 21,00 Euro</strong><br>
+   <br>
+  <strong><a href=3D"http://cuwdu.beginclimb.cn/?806013612407" target=3D"_b=
+lank">Klicken Sie HIER und Sie erhalten vier Dosen umsonst</a><br>
+</strong>(bitte warten Sie einen Moment bis die Seite vollst&auml;ndig gela=
+den wird) </p>
+</body>
+</BODY></HTML>
+
+------=_NextPart_000_0007_01C7CED5.269A97D0--
