@@ -1,42 +1,38 @@
-Date: Wed, 25 Jul 2007 04:32:17 +0200
-From: Nick Piggin <npiggin@suse.de>
-Subject: Re: [PATCH RFC] extent mapped page cache
-Message-ID: <20070725023217.GA32076@wotan.suse.de>
-References: <20070710210326.GA29963@think.oraclecorp.com> <20070724160032.7a7097db@think.oraclecorp.com> <1185307985.6586.50.camel@localhost> <1185312343.5535.5.camel@lappy> <20070724192509.5bc9b3fe@think.oraclecorp.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20070724192509.5bc9b3fe@think.oraclecorp.com>
+Date: Tue, 24 Jul 2007 20:15:31 -0700 (PDT)
+From: Christoph Lameter <clameter@sgi.com>
+Subject: Re: Slab API: Remove useless ctor parameter and reorder parameters
+In-Reply-To: <20070724175332.41ade708.akpm@linux-foundation.org>
+Message-ID: <Pine.LNX.4.64.0707242009080.3583@schroedinger.engr.sgi.com>
+References: <Pine.LNX.4.64.0707232246400.2654@schroedinger.engr.sgi.com>
+ <20070724165914.a5945763.akpm@linux-foundation.org>
+ <Pine.LNX.4.64.0707241705380.9633@schroedinger.engr.sgi.com>
+ <20070724175332.41ade708.akpm@linux-foundation.org>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Chris Mason <chris.mason@oracle.com>
-Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, Trond Myklebust <trond.myklebust@fys.uio.no>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>, linux-fsdevel@vger.kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, Pekka Enberg <penberg@cs.helsinki.fi>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Jul 24, 2007 at 07:25:09PM -0400, Chris Mason wrote:
-> On Tue, 24 Jul 2007 23:25:43 +0200
-> Peter Zijlstra <a.p.zijlstra@chello.nl> wrote:
-> 
-> The tree is a critical part of the patch, but it is also the easiest to
-> rip out and replace.  Basically the code stores a range by inserting
-> an object at an index corresponding to the end of the range.
-> 
-> Then it does searches by looking forward from the start of the range.
-> More or less any tree that can search and return the first key >=
-> than the requested key will work.
-> 
-> So, I'd be happy to rip out the tree and replace with something else.
-> Going completely lockless will be tricky, its something that will deep
-> thought once the rest of the interface is sane.
+On Tue, 24 Jul 2007, Andrew Morton wrote:
 
-Just having the other tree and managing it is what makes me a little
-less positive of this approach, especially using it to store pagecache
-state when we already have the pagecache tree.
+> > We just got rid of the destructor parameter of kmem_cache_create.
+> 
+> Yeah, but that got merged into mainline.  It's too late to merge this one.
 
-Having another tree to store block state I think is a good idea as I
-said in the fsblock thread with Dave, but I haven't clicked as to why
-it is a big advantage to use it to manage pagecache state. (and I can
-see some possible disadvantages in locking and tree manipulation overhead).
+The destructor removal was merged last Friday. If we do not do it now then 
+we have another API breakage in 2.6.24.
+
+> Honest, it's easier for everyone if we shelve this until late -rc's.
+
+Yes I thought that to be the appropriate time for such things too and I 
+wanted to keep things the way they were until 2.6.24. But that no longer 
+seems to be the case. The destructor patch was only merged a few days ago 
+and it already breaks my other slab patches that I am holding. If we do 
+this then lets do a comprehensive job. I do not want to get through 
+another cycle of this next time. At some point all this slab API stuff 
+should be done.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
