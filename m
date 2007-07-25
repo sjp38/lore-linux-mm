@@ -1,44 +1,50 @@
-Date: Tue, 24 Jul 2007 17:53:32 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: Slab API: Remove useless ctor parameter and reorder parameters
-Message-Id: <20070724175332.41ade708.akpm@linux-foundation.org>
-In-Reply-To: <Pine.LNX.4.64.0707241705380.9633@schroedinger.engr.sgi.com>
-References: <Pine.LNX.4.64.0707232246400.2654@schroedinger.engr.sgi.com>
-	<20070724165914.a5945763.akpm@linux-foundation.org>
-	<Pine.LNX.4.64.0707241705380.9633@schroedinger.engr.sgi.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Received: by nz-out-0506.google.com with SMTP id s1so26365nze
+        for <linux-mm@kvack.org>; Tue, 24 Jul 2007 17:59:24 -0700 (PDT)
+Message-ID: <b21f8390707241759j7fe9e5eai7e47bb56e4a1b376@mail.gmail.com>
+Date: Wed, 25 Jul 2007 10:59:23 +1000
+From: "Matthew Hawkins" <darthmdh@gmail.com>
+Subject: Re: [ck] Re: -mm merge plans for 2.6.23 - Completely Fair Swap Prefetch
+In-Reply-To: <f858c6$2k3$1@sea.gmane.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+References: <20070710013152.ef2cd200.akpm@linux-foundation.org>
+	 <200707102015.44004.kernel@kolivas.org>
+	 <9a8748490707231608h453eefffx68b9c391897aba70@mail.gmail.com>
+	 <46A57068.3070701@yahoo.com.au>
+	 <2c0942db0707232153j3670ef31kae3907dff1a24cb7@mail.gmail.com>
+	 <46A58B49.3050508@yahoo.com.au> <f858c6$2k3$1@sea.gmane.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
-Cc: linux-mm@kvack.org, Pekka Enberg <penberg@cs.helsinki.fi>
+To: Frank Kingswood <frank@kingswood-consulting.co.uk>
+Cc: ck@vds.kolivas.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 24 Jul 2007 17:35:53 -0700 (PDT) Christoph Lameter <clameter@sgi.com> wrote:
+On 7/25/07, Frank Kingswood <frank@kingswood-consulting.co.uk> wrote:
+> Nick Piggin wrote:
+>
+> > However, if we can improve basic page reclaim where it is obviously
+> > lacking, that is always preferable. eg: being a highly speculative
+> > operation, swap prefetch is not great for power efficiency -- but we
+> > still want laptop users to have a good experience as well, right?
+>
+> Maybe we need someone (say, a Redhat engineer) to develop a "Completely
+> Fair Swap Prefetch"?
 
-> On Tue, 24 Jul 2007, Andrew Morton wrote:
-> 
-> > arch/i386/mm/pgtable.c:197: error: conflicting types for 'pmd_ctor'
-> > include/asm/pgtable.h:43: error: previous declaration of 'pmd_ctor' was here
-> 
-> Ahh. External declaration of pmd_ctor missed in .h. Patch follows. 
+swap prefetch is disabled by default on laptops.
 
-<regards it in terror>
+What I like about swap prefetch is that, being completely runtime
+selectable, it leaves it up to the sysadmin whether they want it or
+not.  A distribution can ask a question at install time (or, better
+still, since most distributions currently have separate server and
+desktop installs, just do the appropriate thing depending on what is
+being installed) and the sysadmin is free to alter that choice any
+time in the future.  They can even set up a cron job to alter it for
+them at multiple times in the future ;-)
 
-> > Now is the 100% worst time to merge this sort of thing btw: I get to carry
-> > it for two months while the world churns.  Around the -rc7 timeframe would 
-> > be better.
-> 
-> We just got rid of the destructor parameter of kmem_cache_create.
-
-Yeah, but that got merged into mainline.  It's too late to merge this one.
-
-> It would 
-> be consistent to  also get rid of the useless flag in the ctor at the 
-> same time.
-
-Honest, it's easier for everyone if we shelve this until late -rc's.
+-- 
+Matt
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
