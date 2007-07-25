@@ -1,78 +1,82 @@
-Date: Wed, 25 Jul 2007 18:39:07 +0100
-Subject: Re: NUMA policy issues with ZONE_MOVABLE
-Message-ID: <20070725173907.GA1750@skynet.ie>
-References: <Pine.LNX.4.64.0707242120370.3829@schroedinger.engr.sgi.com> <1185373621.5604.28.camel@localhost>
+From: "Fidel Puckett" <dirtbike09@sonic.net>
+Subject: Man Lebt nur einmal - probiers aus !against the firm and -- You want to learn about 
+Date: Wed, 25 Jul 2007 17:46:36 -0100
+Message-ID: <01c7cee3$bf570e00$b5e03954@dirtbike09>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <1185373621.5604.28.camel@localhost>
-From: mel@skynet.ie (Mel Gorman)
-Sender: owner-linux-mm@kvack.org
-Return-Path: <owner-linux-mm@kvack.org>
-To: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
-Cc: Christoph Lameter <clameter@sgi.com>, linux-mm@kvack.org, ak@suse.de, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, akpm@linux-foundation.org
+Content-Type: multipart/alternative;
+	boundary="----=_NextPart_000_000E_01C7CEF4.82E164A0"
+Return-Path: <dirtbike09@sonic.net>
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On (25/07/07 10:27), Lee Schermerhorn didst pronounce:
-> On Tue, 2007-07-24 at 21:20 -0700, Christoph Lameter wrote:
-> > The outcome of the 2.6.23 merge was surprising. No antifrag but only 
-> > ZONE_MOVABLE. ZONE_MOVABLE is the highest zone.
-> > 
-> > For the NUMA layer this has some weird consequences if ZONE_MOVABLE is populated
-> > 
-> > 1. It is the highest zone.
-> > 
-> > 2. Thus policy_zone == ZONE_MOVABLE
-> > 
-> > ZONE_MOVABLE contains only movable allocs by default. That is anonymous 
-> > pages and page cache pages?
-> > 
-> > The NUMA layer only supports NUMA policies for the highest zone. 
-> > Thus NUMA policies can control anonymous pages and the page cache pages 
-> > allocated from ZONE_MOVABLE. 
-> > 
-> > However, NUMA policies will no longer affect non pagecache and non 
-> > anonymous allocations. So policies can no longer redirect slab allocations 
-> > and huge page allocations (unless huge page allocations are moved to 
-> > ZONE_MOVABLE). And there are likely other allocations that are not 
-> > movable.
-> > 
-> > If ZONE_MOVABLE is off then things should be working as normal.
-> > 
-> > Doesnt this mean that ZONE_MOVABLE is incompatible with CONFIG_NUMA?
-> > 
-> > 
-> > The mobility approach used subcategories of a zone which would have 
-> > allowed the application of memory policies.
-> 
-> Isn't ZONE_MOVABLE always a subset of the memory in the highest "real"
-> zone--the one that WOULD be policy_zone if ZONE_MOVABLE weren't
-> configured? 
+This is a multi-part message in MIME format.
 
-Yes, it is always the case because the selected zone is always the same
-zone as policy_zone.
+------=_NextPart_000_000E_01C7CEF4.82E164A0
+Content-Type: text/plain;
+	charset="us-ascii"
+Content-Transfer-Encoding: 7bit
 
-> If so, perhaps we could just not assign ZONE_MOVABLE to
-> policy_zone in check_highest zone. 
+Haben Sie endlich wieder Spass am Leben!
 
-Yep.
+Preise die keine Konkurrenz kennen 
 
-> We already check for >= or <
-> policy_zone where it's checked [zonelist_policy() and vma_migratable()],
-> so ZONE_MOVABLE will get a free pass if we clip policy_zone at the
-> highest !MOVABLE zone.
-> 
+- Visa verifizierter Onlineshop
+- Kein langes Warten - Auslieferung innerhalb von 2-3 Tagen
+- Bequem und diskret online bestellen.
+- keine versteckte Kosten
+- Diskrete Verpackung und Zahlung
+- Kein peinlicher Arztbesuch erforderlich
+- Kostenlose, arztliche Telefon-Beratung
 
-Fully agreed on all counts. I'm pleased that this is pretty much
-identical to what I have in the patch.
+Originalmedikamente
+Ciaaaaaalis 10 Pack. 27,00 Euro
+Viaaaagra 10 Pack. 21,00 Euro
 
--- 
-Mel Gorman
-Part-time Phd Student                          Linux Technology Center
-University of Limerick                         IBM Dublin Software Lab
+Vier Dosen gibt's bei jeder Bestellung umsonst
+http://upobdp.segmentfresh.cn/?536077070689
 
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+(bitte warten Sie einen Moment bis die Seite vollstandig geladen wird)
+
+
+------=_NextPart_000_000E_01C7CEF4.82E164A0
+Content-Type: text/html;
+	charset="us-ascii"
+Content-Transfer-Encoding: quoted-printable
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
+<HTML><HEAD><TITLE></TITLE>
+<META content=3D"text/html; charset=3Dus-ascii" http-equiv=3DContent-Type>
+<META content=3D"MSHTML 6.00.2900.2869" name=3DGENERATOR></HEAD>
+<BODY>
+<head><meta http-equiv=3D"Content-Type" content=3D"text/html; charset=3Diso=
+-8859-1">
+</head><body><p>Meinung von unserem Kunden:<br><strong>Jetzt, wo ich Viaaaa=
+gra ausprobiert habe, w&#252;rde ich es immer wieder kaufen, auch wenn ich =
+das Dreifache daf&#252;r bezahlen m&#252;sste. Ich bedaure all die ungl&#25=
+2;cklichen M&#228;nner, die in ihrem Leben nie die Gelegenheit hatten, Viaa=
+aagra auszuprobieren. Und ein bisschen bedaure ich mich selbst: Warum habe =
+ich nicht schon vor Jahren den Mut gehabt, es zu probieren?</strong></p><p>=
+<strong>Meine Frau und ich haben Viaaaagra am letzten Wochenende ausprobier=
+t. Sie fand, mein bestes St&#252;ck w&#228;re in letzter Zeit nicht ganz au=
+f der H&#246;he gewesen. Also dachten wir, wir probieren es einfach einmal.=
+Es gibt nur ein Wort, dass das Gef&#252;hl beschreibt: Wahnsinn. Seit ich z=
+wanzig war, konnte ich nicht mehr so lang und so oft. Was soll ich sagen? G=
+ute Arbeit, Viaaaagra!<br>
+</strong><strong><br>Haben Sie endlich wieder Spass am Leben!</strong></p><=
+p>Preise die keine Konkurrenz kennen <p>
+- Visa verifizierter Onlineshop<br>- Kein peinlicher Arztbesuch erforderlic=
+h<br>- Kein langes Warten - Auslieferung innerhalb von 2-3 Tagen<br>- Koste=
+nlose, arztliche Telefon-Beratung<br>- Bequem und diskret online bestellen.=
+<br>- Diskrete Verpackung und Zahlung<br>- keine versteckte Kosten</p>
+<p>Originalmedikamente<br>
+  <strong>Ciaaaaaalis 10 Pack. 27,00 Euro</strong><br>
+  <strong>Viaaaagra 10 Pack. 21,00 Euro</strong><br>
+   <br>
+  <strong><a href=3D"http://upobdp.segmentfresh.cn/?536077070689" target=3D=
+"_blank">Vier Dosen gibt's bei jeder Bestellung umsonst</a><br>
+</strong>(bitte warten Sie einen Moment bis die Seite vollst&auml;ndig gela=
+den wird) </p>
+</body>
+</BODY></HTML>
+
+------=_NextPart_000_000E_01C7CEF4.82E164A0--
