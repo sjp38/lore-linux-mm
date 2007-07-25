@@ -1,82 +1,62 @@
-From: "Fidel Puckett" <dirtbike09@sonic.net>
-Subject: Man Lebt nur einmal - probiers aus !against the firm and -- You want to learn about 
-Date: Wed, 25 Jul 2007 17:46:36 -0100
-Message-ID: <01c7cee3$bf570e00$b5e03954@dirtbike09>
+Date: Wed, 25 Jul 2007 19:30:52 +0100
+Subject: [PATCH] Allow nodes to exist that only contain ZONE_MOVABLE
+Message-ID: <20070725183052.GB1750@skynet.ie>
 MIME-Version: 1.0
-Content-Type: multipart/alternative;
-	boundary="----=_NextPart_000_000E_01C7CEF4.82E164A0"
-Return-Path: <dirtbike09@sonic.net>
-To: linux-mm@kvack.org
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+From: mel@skynet.ie (Mel Gorman)
+Sender: owner-linux-mm@kvack.org
+Return-Path: <owner-linux-mm@kvack.org>
+To: akpm@linux-foundation.org
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, apw@shadowen.org
 List-ID: <linux-mm.kvack.org>
 
-This is a multi-part message in MIME format.
+With the introduction of kernelcore=, a configurable zone is created on
+request. In some cases, this value will be small enough that some nodes
+contain only ZONE_MOVABLE. On some NUMA configurations when this occurs,
+arch-independent zone-sizing will get the size of the memory holes within the
+node incorrect. The value of present_pages goes negative and the boot fails.
 
-------=_NextPart_000_000E_01C7CEF4.82E164A0
-Content-Type: text/plain;
-	charset="us-ascii"
-Content-Transfer-Encoding: 7bit
+This patch fixes the bug in the calculation of the size of the hole. The
+test case is to boot test a NUMA machine with a low value of kernelcore=
+before and after the patch is applied. While this bug exists in early kernel
+it cannot be triggered in practice.
 
-Haben Sie endlich wieder Spass am Leben!
+This patch has been boot-tested on a variety machines with and without
+kernelcore= set.
 
-Preise die keine Konkurrenz kennen 
+Signed-off-by: Mel Gorman <mel@csn.ul.ie>
 
-- Visa verifizierter Onlineshop
-- Kein langes Warten - Auslieferung innerhalb von 2-3 Tagen
-- Bequem und diskret online bestellen.
-- keine versteckte Kosten
-- Diskrete Verpackung und Zahlung
-- Kein peinlicher Arztbesuch erforderlich
-- Kostenlose, arztliche Telefon-Beratung
+---
+ page_alloc.c |    6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)
 
-Originalmedikamente
-Ciaaaaaalis 10 Pack. 27,00 Euro
-Viaaaagra 10 Pack. 21,00 Euro
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index 40954fb..6d3550c 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -2775,11 +2775,11 @@ unsigned long __meminit __absent_pages_in_range(int nid,
+ 	if (i == -1)
+ 		return 0;
+ 
++	prev_end_pfn = min(early_node_map[i].start_pfn, range_end_pfn);
++
+ 	/* Account for ranges before physical memory on this node */
+ 	if (early_node_map[i].start_pfn > range_start_pfn)
+-		hole_pages = early_node_map[i].start_pfn - range_start_pfn;
+-
+-	prev_end_pfn = early_node_map[i].start_pfn;
++		hole_pages = prev_end_pfn - range_start_pfn;
+ 
+ 	/* Find all holes for the zone within the node */
+ 	for (; i != -1; i = next_active_region_index_in_nid(i, nid)) {
+-- 
+Mel Gorman
+Part-time Phd Student                          Linux Technology Center
+University of Limerick                         IBM Dublin Software Lab
 
-Vier Dosen gibt's bei jeder Bestellung umsonst
-http://upobdp.segmentfresh.cn/?536077070689
-
-(bitte warten Sie einen Moment bis die Seite vollstandig geladen wird)
-
-
-------=_NextPart_000_000E_01C7CEF4.82E164A0
-Content-Type: text/html;
-	charset="us-ascii"
-Content-Transfer-Encoding: quoted-printable
-
-<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
-<HTML><HEAD><TITLE></TITLE>
-<META content=3D"text/html; charset=3Dus-ascii" http-equiv=3DContent-Type>
-<META content=3D"MSHTML 6.00.2900.2869" name=3DGENERATOR></HEAD>
-<BODY>
-<head><meta http-equiv=3D"Content-Type" content=3D"text/html; charset=3Diso=
--8859-1">
-</head><body><p>Meinung von unserem Kunden:<br><strong>Jetzt, wo ich Viaaaa=
-gra ausprobiert habe, w&#252;rde ich es immer wieder kaufen, auch wenn ich =
-das Dreifache daf&#252;r bezahlen m&#252;sste. Ich bedaure all die ungl&#25=
-2;cklichen M&#228;nner, die in ihrem Leben nie die Gelegenheit hatten, Viaa=
-aagra auszuprobieren. Und ein bisschen bedaure ich mich selbst: Warum habe =
-ich nicht schon vor Jahren den Mut gehabt, es zu probieren?</strong></p><p>=
-<strong>Meine Frau und ich haben Viaaaagra am letzten Wochenende ausprobier=
-t. Sie fand, mein bestes St&#252;ck w&#228;re in letzter Zeit nicht ganz au=
-f der H&#246;he gewesen. Also dachten wir, wir probieren es einfach einmal.=
-Es gibt nur ein Wort, dass das Gef&#252;hl beschreibt: Wahnsinn. Seit ich z=
-wanzig war, konnte ich nicht mehr so lang und so oft. Was soll ich sagen? G=
-ute Arbeit, Viaaaagra!<br>
-</strong><strong><br>Haben Sie endlich wieder Spass am Leben!</strong></p><=
-p>Preise die keine Konkurrenz kennen <p>
-- Visa verifizierter Onlineshop<br>- Kein peinlicher Arztbesuch erforderlic=
-h<br>- Kein langes Warten - Auslieferung innerhalb von 2-3 Tagen<br>- Koste=
-nlose, arztliche Telefon-Beratung<br>- Bequem und diskret online bestellen.=
-<br>- Diskrete Verpackung und Zahlung<br>- keine versteckte Kosten</p>
-<p>Originalmedikamente<br>
-  <strong>Ciaaaaaalis 10 Pack. 27,00 Euro</strong><br>
-  <strong>Viaaaagra 10 Pack. 21,00 Euro</strong><br>
-   <br>
-  <strong><a href=3D"http://upobdp.segmentfresh.cn/?536077070689" target=3D=
-"_blank">Vier Dosen gibt's bei jeder Bestellung umsonst</a><br>
-</strong>(bitte warten Sie einen Moment bis die Seite vollst&auml;ndig gela=
-den wird) </p>
-</body>
-</BODY></HTML>
-
-------=_NextPart_000_000E_01C7CEF4.82E164A0--
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
