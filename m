@@ -1,46 +1,38 @@
-Received: by wa-out-1112.google.com with SMTP id m33so402750wag
-        for <linux-mm@kvack.org>; Wed, 25 Jul 2007 15:28:46 -0700 (PDT)
-Message-ID: <b14e81f00707251528i275b0f6by235acce2d5b83473@mail.gmail.com>
-Date: Wed, 25 Jul 2007 18:28:46 -0400
-From: "Michael Chang" <thenewme91@gmail.com>
-Subject: Re: [ck] Re: -mm merge plans for 2.6.23
-In-Reply-To: <20070725150509.4d80a85e.pj@sgi.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=UTF-8; format=flowed
+Subject: Re: pte_offset_map for ppc assumes HIGHPTE
+From: Benjamin Herrenschmidt <benh@kernel.crashing.org>
+In-Reply-To: <acbcf3840707251516w301f834cj5f6a81a494d359ed@mail.gmail.com>
+References: <acbcf3840707251516w301f834cj5f6a81a494d359ed@mail.gmail.com>
+Content-Type: text/plain
+Date: Thu, 26 Jul 2007 09:10:15 +1000
+Message-Id: <1185405015.5439.369.camel@localhost.localdomain>
+Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
-References: <46A58B49.3050508@yahoo.com.au> <46A6D7D2.4050708@gmail.com>
-	 <Pine.LNX.4.64.0707242211210.2229@asgard.lang.hm>
-	 <46A6DFFD.9030202@gmail.com>
-	 <30701.1185347660@turing-police.cc.vt.edu> <46A7074B.50608@gmail.com>
-	 <20070725082822.GA13098@elte.hu> <46A70D37.3060005@gmail.com>
-	 <20070725113401.GA23341@elte.hu> <20070725150509.4d80a85e.pj@sgi.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Paul Jackson <pj@sgi.com>
-Cc: Ingo Molnar <mingo@elte.hu>, david@lang.hm, nickpiggin@yahoo.com.au, Valdis.Kletnieks@vt.edu, ray-lk@madrabbit.org, jesper.juhl@gmail.com, linux-kernel@vger.kernel.org, ck@vds.kolivas.org, linux-mm@kvack.org, akpm@linux-foundation.org, rene.herman@gmail.com
+To: Satya <satyakiran@gmail.com>
+Cc: linuxppc-dev@ozlabs.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On 7/25/07, Paul Jackson <pj@sgi.com> wrote:
-> Question:
->   Could those who have found this prefetch helps them alot say how
->   many disks they have?  In particular, is their swap on the same
->   disk spindle as their root and user files?
+On Wed, 2007-07-25 at 17:16 -0500, Satya wrote:
+> hello,
+> The implementation of pte_offset_map() for ppc assumes that PTEs are
+> kept in highmem (CONFIG_HIGHPTE). There is only one implmentation of
+> pte_offset_map() as follows (include/asm-ppc/pgtable.h):
+> 
+> #define pte_offset_map(dir, addr)               \
+>          ((pte_t *) kmap_atomic(pmd_page(*(dir)), KM_PTE0) + pte_index(addr))
+> 
+> Shouldn't this be made conditional according to CONFIG_HIGHPTE is
+> defined or not (as implemented in include/asm-i386/pgtable.h) ?
+> 
+> the same goes for pte_offset_map_nested and the corresponding unmap functions.
 
-I have found that swap prefetch helped on all of the four machines
-machine I have, although the effect is more noticeable on machines
-with slower disks. They all have one hard disk, and root and swap were
-always on the same disk. I have no idea how to determine how many disk
-spindles they have, but since the drives are mainly low-end consumer
-models sold with low-end sub $500 PCs...
+Do we have CONFIG_HIGHMEM without CONFIG_HIGHPTE ? If yes, then indeed,
+we should change that. Though I'm not sure I see the point of splitting
+those 2 options.
 
--- 
-Michael Chang
-
-Please avoid sending me Word or PowerPoint attachments. Send me ODT,
-RTF, or HTML instead.
-See http://www.gnu.org/philosophy/no-word-attachments.html
-Thank you.
+Ben.
+ 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
