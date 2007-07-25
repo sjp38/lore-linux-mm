@@ -1,15 +1,17 @@
-From: "Frank A. Kingswood" <frank@kingswood-consulting.co.uk>
+From: Al Boldi <a1426z@gawab.com>
 Subject: Re: -mm merge plans for 2.6.23
-Date: Wed, 25 Jul 2007 18:55:43 +0100
-Message-ID: <f882qv$grl$1@sea.gmane.org>
-References: <20070710013152.ef2cd200.akpm@linux-foundation.org>		<200707102015.44004.kernel@kolivas.org>		<9a8748490707231608h453eefffx68b9c391897aba70@mail.gmail.com>		<46A57068.3070701@yahoo.com.au>		<2c0942db0707232153j3670ef31kae3907dff1a24cb7@mail.gmail.com>		<46A58B49.3050508@yahoo.com.au>		<2c0942db0707240915h56e007e3l9110e24a065f2e73@mail.gmail.com>		<46A6CC56.6040307@yahoo.com.au>
-	<46A6D7D2.4050708@gmail.com>	<1185341449.7105.53.camel@perkele>
-	<46A6E1A1.4010508@yahoo.com.au>
+Date: Wed, 25 Jul 2007 23:16:01 +0300
+Message-ID: <200707252316.01021.a1426z@gawab.com>
+References: <20070710013152.ef2cd200.akpm@linux-foundation.org>
+	<Pine.LNX.4.64.0707242130470.2229@asgard.lang.hm>
+	<2c0942db0707250855v414cd72di1e859da423fa6a3a@mail.gmail.com>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Type: text/plain;
+  charset="utf-8"
 Content-Transfer-Encoding: 7bit
 Return-path: <ck-bounces@vds.kolivas.org>
-In-Reply-To: <46A6E1A1.4010508@yahoo.com.au>
+In-Reply-To: <2c0942db0707250855v414cd72di1e859da423fa6a3a@mail.gmail.com>
+Content-Disposition: inline
 List-Unsubscribe: <http://bhhdoa.org.au/mailman/listinfo/ck>,
 	<mailto:ck-request@vds.kolivas.org?subject=unsubscribe>
 List-Archive: <http://bhhdoa.org.au/pipermail/ck>
@@ -19,27 +21,68 @@ List-Subscribe: <http://bhhdoa.org.au/mailman/listinfo/ck>,
 	<mailto:ck-request@vds.kolivas.org?subject=subscribe>
 Sender: ck-bounces@vds.kolivas.org
 Errors-To: ck-bounces@vds.kolivas.org
-To: ck@vds.kolivas.org
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Ray Lee <ray-lk@madrabbit.org>, "david@lang.hm" <david@lang.hm>
+Cc: Nick Piggin <nickpiggin@yahoo.com.au>, Jesper Juhl <jesper.juhl@gmail.com>, linux-kernel@vger.kernel.org, ck list <ck@vds.kolivas.org>, linux-mm@kvack.org, Paul Jackson <pj@sgi.com>, Andrew Morton <akpm@linux-foundation.org>
 List-Id: linux-mm.kvack.org
 
-Nick Piggin wrote:
-> OK, this is where I start to worry. Swap prefetch AFAIKS doesn't fix
-> the updatedb problem very well, because if updatedb has caused swapout
-> then it has filled memory, and swap prefetch doesn't run unless there
-> is free memory (not to mention that updatedb would have paged out other
-> files as well).
+Ray Lee wrote:
+> On 7/24/07, david@lang.hm <david@lang.hm> wrote:
+> > by the way, I've also seen comments on the Postgres performance mailing
+> > list about how slow linux is compared to other OS's in pulling data back
+> > in that's been pushed out to swap (not a factor on dedicated database
+> > machines, but a big factor on multi-purpose machines)
+>
+> Yeah, akpm and... one of the usual suspects, had mentioned something
+> such as 2.6 is half the speed of 2.4 for swapin. (Let's see if I can
+> find a reference for that, it's been a year or more...) Okay,
+> misremembered. Swap in is half the speed of swap out (
+> http://lkml.org/lkml/2007/1/22/173 ). Al Boldi (added to the CC:, poor
+> sod), is the one who knows how to measure that, I'm guessing.
+>
+> Al? How are you coming up with those figures? I'm interested in
+> reproducing it. It could be due to something stupid, such as the VM
+> faulting things out in reverse order or something...
 
-It is *not* about updatedb. That is just a trivial case which people 
-notice. Therefore fixing updatedb to be nicer, as was discussed at 
-various points in this thread, is *not* the solution.
-Most users are also *not*at*all* interested in kernel builds as a metric 
-of system performance.
+Thanks for asking.  I'm rather surprised why nobody's noticing any of this 
+slowdown.  To be fair, it's not really a regression, on the contrary, 2.4 is 
+lot worse wrt swapin and swapout, and Rik van Riel even considers a 50% 
+swapin slowdown wrt swapout something like better than expected (see thread 
+'[RFC] kswapd: Kernel Swapper performance').  He probably meant random 
+swapin, which seems to offer a 4x slowdown.
 
-When I'm at work, I run a large, commercial, engineering application. 
-While running, it takes most of the system memory (4GB and up), and it 
-reads and writes very large files. Swap prefetch noticeably helps my 
-desktop too. Can I measure it? Not sure. Can people on lkml fix the 
-application? Certainly not.
+There are two ways to reproduce this:
 
-Frank
+1. swsusp to disk reports ~44mb/s swapout, and ~25mb/s swapin during resume
+
+2. tmpfs swapout is superfast, whereas swapin is really slow
+(see thread '[PATCH] free swap space when (re)activating page')
+
+Here is an excerpt from that thread (note machine config in first line):
+
+============================================
+ RAM 512mb , SWAP 1G
+ #mount -t tmpfs -o size=1G none /dev/shm
+ #time cat /dev/full > /dev/shm/x.dmp
+ 15sec
+ #time cat /dev/shm/x.dmp > /dev/null
+ 58sec
+ #time cat /dev/shm/x.dmp > /dev/null
+ 72sec
+ #time cat /dev/shm/x.dmp > /dev/null
+ 85sec
+ #time cat /dev/shm/x.dmp > /dev/null
+ 93sec
+ #time cat /dev/shm/x.dmp > /dev/null
+ 99sec
+============================================
+
+As you can see, swapout is running full wirespeed, whereas swapin not only is 
+4x slower, but increasingly gets the VM tangled up to end at a ~6x slowdown.
+
+So again, I'm really surprised people haven't noticed.
+
+
+Thanks!
+
+--
+Al
