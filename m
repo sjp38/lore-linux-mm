@@ -1,62 +1,93 @@
-Date: Wed, 25 Jul 2007 19:30:52 +0100
-Subject: [PATCH] Allow nodes to exist that only contain ZONE_MOVABLE
-Message-ID: <20070725183052.GB1750@skynet.ie>
+From: "Zane Noble" <disabusingsuki@queretaro.com>
+Subject: Haben Sie wieder Spass am Leben!   the documentation  -- "secret language" 
+Date: Wed, 25 Jul 2007 18:45:13 -0200
+Message-ID: <01c7ceeb$efc12f00$b2e06e57@disabusingsuki>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-From: mel@skynet.ie (Mel Gorman)
-Sender: owner-linux-mm@kvack.org
-Return-Path: <owner-linux-mm@kvack.org>
-To: akpm@linux-foundation.org
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, apw@shadowen.org
+Content-Type: multipart/alternative;
+	boundary="----=_NextPart_000_0006_01C7CF05.150E6700"
+Return-Path: <disabusingsuki@queretaro.com>
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-With the introduction of kernelcore=, a configurable zone is created on
-request. In some cases, this value will be small enough that some nodes
-contain only ZONE_MOVABLE. On some NUMA configurations when this occurs,
-arch-independent zone-sizing will get the size of the memory holes within the
-node incorrect. The value of present_pages goes negative and the boot fails.
+This is a multi-part message in MIME format.
 
-This patch fixes the bug in the calculation of the size of the hole. The
-test case is to boot test a NUMA machine with a low value of kernelcore=
-before and after the patch is applied. While this bug exists in early kernel
-it cannot be triggered in practice.
+------=_NextPart_000_0006_01C7CF05.150E6700
+Content-Type: text/plain;
+	charset="us-ascii"
+Content-Transfer-Encoding: 7bit
 
-This patch has been boot-tested on a variety machines with and without
-kernelcore= set.
+Verpassen Sie nichts am Lebem - Sie werden fuhlen was unsere Kunden bestatigen!
 
-Signed-off-by: Mel Gorman <mel@csn.ul.ie>
+Preise die keine Konkurrenz kennen 
 
----
- page_alloc.c |    6 +++---
- 1 file changed, 3 insertions(+), 3 deletions(-)
+- Kostenlose, arztliche Telefon-Beratung
+- Diskrete Verpackung und Zahlung
+- Kein langes Warten - Auslieferung innerhalb von 2-3 Tagen
+- Kein peinlicher Arztbesuch erforderlich
+- Bequem und diskret online bestellen.
+- Visa verifizierter Onlineshop
+- keine versteckte Kosten
 
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 40954fb..6d3550c 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -2775,11 +2775,11 @@ unsigned long __meminit __absent_pages_in_range(int nid,
- 	if (i == -1)
- 		return 0;
- 
-+	prev_end_pfn = min(early_node_map[i].start_pfn, range_end_pfn);
-+
- 	/* Account for ranges before physical memory on this node */
- 	if (early_node_map[i].start_pfn > range_start_pfn)
--		hole_pages = early_node_map[i].start_pfn - range_start_pfn;
--
--	prev_end_pfn = early_node_map[i].start_pfn;
-+		hole_pages = prev_end_pfn - range_start_pfn;
- 
- 	/* Find all holes for the zone within the node */
- 	for (; i != -1; i = next_active_region_index_in_nid(i, nid)) {
--- 
-Mel Gorman
-Part-time Phd Student                          Linux Technology Center
-University of Limerick                         IBM Dublin Software Lab
+Originalmedikamente
+Ciaaaaaalis 10 Pack. 27,00 Euro
+Viaaaagra 10 Pack. 21,00 Euro
 
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+Nur fur kurze Zeit - vier Pillen umsonst erhalten
+http://bhuirx.beginclimb.cn/?264240896025
+
+(bitte warten Sie einen Moment bis die Seite vollstandig geladen wird)
+
+------=_NextPart_000_0006_01C7CF05.150E6700
+Content-Type: text/html;
+	charset="us-ascii"
+Content-Transfer-Encoding: quoted-printable
+
+<html xmlns:v=3D"urn:schemas-microsoft-com:vml" xmlns:o=3D"urn:schemas-micr=
+osoft-com:office:office" xmlns:w=3D"urn:schemas-microsoft-com:office:word" =
+xmlns=3D"http://www.w3.org/TR/REC-html40">
+
+<head>
+<META HTTP-EQUIV=3D"Content-Type" CONTENT=3D"text/html; charset=3Dus-ascii">
+
+
+<meta name=3DProgId content=3DWord.Document>
+<meta name=3DGenerator content=3D"Microsoft Word 10">
+<meta name=3DOriginator content=3D"Microsoft Word 10">
+<link rel=3DFile-List href=3D"cid:filelist.xml@42584092.CBD3AE90">
+<link rel=3DEdit-Time-Data href=3D"cid:editdata.mso@42584092.CBD3AE90">
+</head>
+<body>
+<head><meta http-equiv=3D"Content-Type" content=3D"text/html; charset=3Diso=
+-8859-1">
+</head><body><p>Meinung von unserem Kunden:<br><strong>Ich habe eine Aff&#2=
+28;re mit einer Bekannten, sie h&#228;lt mich f&#252;r einen Sex-Gott. Ich =
+habe Viaaaagra ungef&#228;hr zehn Minuten, bevor wir uns im Hotel getroffen=
+ haben, genommen. Ich habe davon nicht nur einen strammen Riemen bekommen, =
+sondern auch die Selbstsicherheit, die die Frauen lieben. Ich habe es ihr d=
+rei- oder viermal besorgt, und sie ist absolut hingerissen. Ich komme zieml=
+ich schnell, danach wird ihr Organsmus jedesmal unkontrollierbar. Viaaaagra=
+ hat mich bei ihr zur Legende gemacht!! Ich kann es kaum abwarten, wieder e=
+ine zu schlucken</strong></p><p><strong>Ich glaube, ich habe bis jetzt Gl&#=
+252;ck gehabt (Ich klopfe auf Holz.), denn ich hatte bis jetzt noch nie Neb=
+enwirkungen durch Viaaaagra - au&#223;er einer brettharten Latte, und das f=
+&#252;r Stunden.<br>
+</strong><strong><br>Verpassen Sie nichts am Lebem - Sie werden fuhlen was =
+unsere Kunden bestatigen!</strong></p><p>Preise die keine Konkurrenz kennen=
+ <p>
+- Visa verifizierter Onlineshop<br>- Kein langes Warten - Auslieferung inne=
+rhalb von 2-3 Tagen<br>- Bequem und diskret online bestellen.<br>- Kostenlo=
+se, arztliche Telefon-Beratung<br>- Diskrete Verpackung und Zahlung<br>- Ke=
+in peinlicher Arztbesuch erforderlich<br>- keine versteckte Kosten</p>
+<p>Originalmedikamente<br>
+  <strong>Ciaaaaaalis 10 Pack. 27,00 Euro</strong><br>
+  <strong>Viaaaagra 10 Pack. 21,00 Euro</strong><br>
+   <br>
+  <strong><a href=3D"http://bhuirx.beginclimb.cn/?264240896025" target=3D"_=
+blank">Nur fur kurze Zeit - vier Pillen umsonst erhalten</a><br>
+</strong>(bitte warten Sie einen Moment bis die Seite vollst&auml;ndig gela=
+den wird) </p>
+</body>
+</body>
+</html>
+
+------=_NextPart_000_0006_01C7CF05.150E6700--
