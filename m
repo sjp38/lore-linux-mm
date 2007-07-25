@@ -1,74 +1,51 @@
-Date: Wed, 25 Jul 2007 08:18:53 -0400
-From: Chris Mason <chris.mason@oracle.com>
-Subject: Re: [PATCH RFC] extent mapped page cache
-Message-ID: <20070725081853.4b325e7f@think.oraclecorp.com>
-In-Reply-To: <20070725023217.GA32076@wotan.suse.de>
-References: <20070710210326.GA29963@think.oraclecorp.com>
-	<20070724160032.7a7097db@think.oraclecorp.com>
-	<1185307985.6586.50.camel@localhost>
-	<1185312343.5535.5.camel@lappy>
-	<20070724192509.5bc9b3fe@think.oraclecorp.com>
-	<20070725023217.GA32076@wotan.suse.de>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Date: Wed, 25 Jul 2007 14:06:49 +0100
+Subject: Re: [PATCH] add __GFP_ZERO to GFP_LEVEL_MASK
+Message-ID: <20070725130649.GC32445@skynet.ie>
+References: <1185185020.8197.11.camel@twins> <20070723112143.GB19437@skynet.ie> <1185190711.8197.15.camel@twins> <Pine.LNX.4.64.0707231615310.427@schroedinger.engr.sgi.com> <1185256869.8197.27.camel@twins> <Pine.LNX.4.64.0707240007100.3128@schroedinger.engr.sgi.com> <1185261894.8197.33.camel@twins> <Pine.LNX.4.64.0707240030110.3295@schroedinger.engr.sgi.com> <20070724120751.401bcbcb@schroedinger.engr.sgi.com> <20070724122542.d4ac734a.akpm@linux-foundation.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <20070724122542.d4ac734a.akpm@linux-foundation.org>
+From: mel@skynet.ie (Mel Gorman)
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nick Piggin <npiggin@suse.de>
-Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, Trond Myklebust <trond.myklebust@fys.uio.no>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>, linux-fsdevel@vger.kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Christoph Lameter <clameter@sgi.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Linus Torvalds <torvalds@linux-foundation.org>, linux-kernel <linux-kernel@vger.kernel.org>, Daniel Phillips <phillips@google.com>, linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 25 Jul 2007 04:32:17 +0200
-Nick Piggin <npiggin@suse.de> wrote:
-
-> On Tue, Jul 24, 2007 at 07:25:09PM -0400, Chris Mason wrote:
-> > On Tue, 24 Jul 2007 23:25:43 +0200
-> > Peter Zijlstra <a.p.zijlstra@chello.nl> wrote:
-> > 
-> > The tree is a critical part of the patch, but it is also the
-> > easiest to rip out and replace.  Basically the code stores a range
-> > by inserting an object at an index corresponding to the end of the
-> > range.
-> > 
-> > Then it does searches by looking forward from the start of the
-> > range. More or less any tree that can search and return the first
-> > key >= than the requested key will work.
-> > 
-> > So, I'd be happy to rip out the tree and replace with something
-> > else. Going completely lockless will be tricky, its something that
-> > will deep thought once the rest of the interface is sane.
+On (24/07/07 12:25), Andrew Morton didst pronounce:
+> On Tue, 24 Jul 2007 12:07:51 -0700
+> Christoph Lameter <clameter@sgi.com> wrote:
 > 
-> Just having the other tree and managing it is what makes me a little
-> less positive of this approach, especially using it to store pagecache
-> state when we already have the pagecache tree.
+> > Then there are some other flags. I am wondering why they are in
+> > GFP_LEVEL_MASK?
+> > 
+> > __GFP_COLD	Does not make sense for slab allocators since we have
+> > 		to touch the page immediately.
+> > 
+> > __GFP_COMP	No effect. Added by the page allocator on their own
+> > 		if a higher order allocs are used for a slab.
+> > 
+> > __GFP_MOVABLE	The movability of a slab is determined by the
+> > 		options specified at kmem_cache_create time. If this is
+> > 		specified at kmalloc time then we will have some random
+> > 		slabs movable and others not. 
 > 
-> Having another tree to store block state I think is a good idea as I
-> said in the fsblock thread with Dave, but I haven't clicked as to why
-> it is a big advantage to use it to manage pagecache state. (and I can
-> see some possible disadvantages in locking and tree manipulation
-> overhead).
+> Yes, they seem inappropriate.  Especially the first two.
 
-Yes, there are definitely costs with the state tree, it will take some
-careful benchmarking to convince me it is a feasible solution. But,
-storing all the state in the pages themselves is impossible unless the
-block size equals the page size. So, we end up with something like
-fsblock/buffer heads or the state tree.
+And the third one is also inappropriate by the definition of GFP_LEVEL_MASK
+Christoph is using. If GFP_LEVEL_MASK is to be used to filter out flags
+that are unsuitable for higher allocators such as slab and vmalloc, then
+they shouldn't be using __GFP_MOVABLE because they are unlikely to do the
+correct thing with the pages.
 
-One advantage to the state tree is that it separates the state from
-the memory being described, allowing a simple kmap style interface
-that covers subpages, highmem and superpages.
+When the flags were added, I was treating GFP_LEVEL_MASK as a set of
+allowed flags to the allocator.
 
-It also more naturally matches the way we want to do IO, making for
-easy clustering.
-
-O_DIRECT becomes a special case of readpages and writepages....the
-memory used for IO just comes from userland instead of the page cache.
-
-The ability to put in additional tracking info like the process that
-first dirtied a range is also significant.  So, I think it is worth
-trying.
-
--chris
+-- 
+Mel Gorman
+Part-time Phd Student                          Linux Technology Center
+University of Limerick                         IBM Dublin Software Lab
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
