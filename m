@@ -1,86 +1,47 @@
-Date: Tue, 24 Jul 2007 23:23:28 -0700 (PDT)
-From: david@lang.hm
-Subject: Re: -mm merge plans for 2.6.23
-In-Reply-To: <46A6E80B.6030704@yahoo.com.au>
-Message-ID: <Pine.LNX.4.64.0707242316410.2229@asgard.lang.hm>
-References: <20070710013152.ef2cd200.akpm@linux-foundation.org>
- <200707102015.44004.kernel@kolivas.org>  <9a8748490707231608h453eefffx68b9c391897aba70@mail.gmail.com>
-  <46A57068.3070701@yahoo.com.au>  <2c0942db0707232153j3670ef31kae3907dff1a24cb7@mail.gmail.com>
-  <46A58B49.3050508@yahoo.com.au>  <2c0942db0707240915h56e007e3l9110e24a065f2e73@mail.gmail.com>
-  <46A6CC56.6040307@yahoo.com.au>  <46A6D7D2.4050708@gmail.com>
- <1185341449.7105.53.camel@perkele> <46A6E1A1.4010508@yahoo.com.au>
- <Pine.LNX.4.64.0707242252250.2229@asgard.lang.hm> <46A6E80B.6030704@yahoo.com.au>
+Message-ID: <46A6EE09.1030307@yahoo.com.au>
+Date: Wed, 25 Jul 2007 16:30:33 +1000
+From: Nick Piggin <nickpiggin@yahoo.com.au>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII; format=flowed
+Subject: Re: [ck] Re: -mm merge plans for 2.6.23
+References: <20070710013152.ef2cd200.akpm@linux-foundation.org>	 <9a8748490707231608h453eefffx68b9c391897aba70@mail.gmail.com>	 <46A57068.3070701@yahoo.com.au>	 <2c0942db0707232153j3670ef31kae3907dff1a24cb7@mail.gmail.com>	 <46A58B49.3050508@yahoo.com.au>	 <2c0942db0707240915h56e007e3l9110e24a065f2e73@mail.gmail.com>	 <46A6CC56.6040307@yahoo.com.au> <46A6D7D2.4050708@gmail.com>	 <1185341449.7105.53.camel@perkele> <46A6E1A1.4010508@yahoo.com.au> <b21f8390707242319gb17e4c9h274635b4c7fc1801@mail.gmail.com>
+In-Reply-To: <b21f8390707242319gb17e4c9h274635b4c7fc1801@mail.gmail.com>
+Content-Type: text/plain; charset=us-ascii; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nick Piggin <nickpiggin@yahoo.com.au>
-Cc: Eric St-Laurent <ericstl34@sympatico.ca>, Rene Herman <rene.herman@gmail.com>, Ray Lee <ray-lk@madrabbit.org>, Jesper Juhl <jesper.juhl@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, ck list <ck@vds.kolivas.org>, Ingo Molnar <mingo@elte.hu>, Paul Jackson <pj@sgi.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Matthew Hawkins <darthmdh@gmail.com>
+Cc: Eric St-Laurent <ericstl34@sympatico.ca>, Ray Lee <ray-lk@madrabbit.org>, Jesper Juhl <jesper.juhl@gmail.com>, linux-kernel@vger.kernel.org, ck list <ck@vds.kolivas.org>, linux-mm@kvack.org, Paul Jackson <pj@sgi.com>, Andrew Morton <akpm@linux-foundation.org>, Rene Herman <rene.herman@gmail.com>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 25 Jul 2007, Nick Piggin wrote:
+Matthew Hawkins wrote:
+> On 7/25/07, Nick Piggin <nickpiggin@yahoo.com.au> wrote:
+> 
+>> Not to say that neither fix some problems, but for such conceptually
+>> big changes, it should take a little more effort than a constructed test
+>> case and no consideration of the alternatives to get it merged.
+> 
+> 
+> Swap Prefetch has existed since September 5, 2005.  Please Nick,
+> enlighten us all with your "alternatives" which have been offered (in
+> practical, not theoretical form) in the past 23 months, along with
+> their non-constructed benchmarks proving their case and the hordes of
+> happy users and kernel developers who have tested them out the wazoo
+> and given their backing.  Or just take a nice steaming jug of STFU.
 
-> david@lang.hm wrote:
->>  On Wed, 25 Jul 2007, Nick Piggin wrote:
->
->> >  OK, this is where I start to worry. Swap prefetch AFAIKS doesn't fix
->> >  the updatedb problem very well, because if updatedb has caused swapout
->> >  then it has filled memory, and swap prefetch doesn't run unless there
->> >  is free memory (not to mention that updatedb would have paged out other
->> >  files as well).
->> > 
->> >  And drop behind doesn't fix your usual problem where you are downloading
->> >  from a server, because that is use-once write(2) data which is the
->> >  problem. And this readahead-based drop behind also doesn't help if data
->> >  you were reading happened to be a sequence of small files, or otherwise
->> >  not in good readahead order.
->> > 
->> >  Not to say that neither fix some problems, but for such conceptually
->> >  big changes, it should take a little more effort than a constructed test
->> >  case and no consideration of the alternatives to get it merged.
->>
->>
->>  well, there appears to be a fairly large group of people who have
->>  subjective opinions that it helps them. but those were dismissed becouse
->>  they aren't measurements.
->
-> Not at all. But there is also seems to be some people also experiencing
-> problems with basic page reclaim on some of the workloads where these
-> things help. I am not dismissing anybody's claims about anything; I want
-> to try to solve some of these problems.
->
-> Interestingly, some of the people ranting the most about how the VM sucks
-> are the ones helping least in solving these basic problems.
->
->
->>  so now the measurements of the constructed test case aren't acceptable.
->>
->>  what sort of test case would be acceptable?
->
-> Well I never said real world tests aren't acceptable, they are. There is
-> a difference between an "it feels better for me", and some actual real
-> measurement and analysis of said workload.
->
-> And constructed test cases of course are useful as well, I didn't say
-> they weren't. I don't know what you mean by "acceptable", but you should
-> read my last paragraph again.
+The alternatives comment was in relation to the readahead based drop
+behind patch,for which an alternative would be improving use-once,
+possibly in the way I described.
 
-this problem has been around for many years, with many different people 
-working on solutions. it's hardly a case of getting a proposal and trying 
-to get it in without anyone looking at other options.
+As for swap prefetch, I don't know, I'm not in charge of it being
+merged or not merged. I do know some people have reported that their
+updatedb problem gets much better with swap prefetch turned on, and
+I am trying to work on that too.
 
-it seems that there are some people (not nessasarily including you) who 
-will oppose this feature until a test is created that shows that it's 
-better. the question is what sort of test will be accepted as valid? I'm 
-not useing this patch, but it sounds as if the people who are useing it 
-are interested in doing whatever testing is required, but so far the 
-situation seems to be a series of "here's a test", "that test isn't valid, 
-try again" loops. which don't seem to be doing anyone any good and are 
-frustrating lots of people, so like several people over the last few days 
-O'm asking the question, "what sort of test would be acceptable as proof 
-that this patch does some good?"
+For you? You also have the alternative to help improve things yourself,
+and you can modify your own kernel.
 
-David Lang
+-- 
+SUSE Labs, Novell Inc.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
