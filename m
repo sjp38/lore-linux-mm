@@ -1,51 +1,50 @@
-Date: Wed, 25 Jul 2007 01:07:25 -0700 (PDT)
-From: david@lang.hm
+Date: Wed, 25 Jul 2007 10:15:41 +0200
+From: Ingo Molnar <mingo@elte.hu>
 Subject: Re: -mm merge plans for 2.6.23
-In-Reply-To: <46A7031D.5080300@gmail.com>
-Message-ID: <Pine.LNX.4.64.0707250104180.2229@asgard.lang.hm>
-References: <20070710013152.ef2cd200.akpm@linux-foundation.org>
- <200707102015.44004.kernel@kolivas.org>  <9a8748490707231608h453eefffx68b9c391897aba70@mail.gmail.com>
-  <46A57068.3070701@yahoo.com.au>  <2c0942db0707232153j3670ef31kae3907dff1a24cb7@mail.gmail.com>
-  <46A58B49.3050508@yahoo.com.au> <2c0942db0707240915h56e007e3l9110e24a065f2e73@mail.gmail.com>
- <Pine.LNX.4.64.0707242130470.2229@asgard.lang.hm> <46A7031D.5080300@gmail.com>
+Message-ID: <20070725081541.GA10005@elte.hu>
+References: <46A6CC56.6040307@yahoo.com.au> <46A6D7D2.4050708@gmail.com> <1185341449.7105.53.camel@perkele> <46A6E1A1.4010508@yahoo.com.au> <Pine.LNX.4.64.0707242252250.2229@asgard.lang.hm> <46A6E80B.6030704@yahoo.com.au> <Pine.LNX.4.64.0707242316410.2229@asgard.lang.hm> <46A6FAD8.6050107@yahoo.com.au> <20070725074931.GA5125@elte.hu> <46A70299.50809@yahoo.com.au>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; CHARSET=US-ASCII; FORMAT=flowed
-Content-ID: <Pine.LNX.4.64.0707250104182.2229@asgard.lang.hm>
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <46A70299.50809@yahoo.com.au>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Rene Herman <rene.herman@gmail.com>
-Cc: Ray Lee <ray-lk@madrabbit.org>, Nick Piggin <nickpiggin@yahoo.com.au>, Jesper Juhl <jesper.juhl@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, ck list <ck@vds.kolivas.org>, Ingo Molnar <mingo@elte.hu>, Paul Jackson <pj@sgi.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Nick Piggin <nickpiggin@yahoo.com.au>
+Cc: david@lang.hm, Eric St-Laurent <ericstl34@sympatico.ca>, Rene Herman <rene.herman@gmail.com>, Ray Lee <ray-lk@madrabbit.org>, Jesper Juhl <jesper.juhl@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, ck list <ck@vds.kolivas.org>, Paul Jackson <pj@sgi.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 25 Jul 2007, Rene Herman wrote:
+* Nick Piggin <nickpiggin@yahoo.com.au> wrote:
 
-> On 07/25/2007 06:46 AM, david@lang.hm wrote:
->
->>  you could make a synthetic test by writing a memory hog that allocates 3/4
->>  of your ram then pauses waiting for input and then randomly accesses the
->>  memory for a while (say randomly accessing 2x # of pages allocated) and
->>  then pausing again before repeating
->
-> Something like this?
->
->>  run two of these, alternating which one is running at any one time. time
->>  how long it takes to do the random accesses.
->>
->>  the difference in this time should be a fair example of how much it would
->>  impact the user.
->
-> Notenotenote, not sure what you're going to show with it (times are simply as 
-> horrendous as I'd expect) but thought I'd try to inject something other than 
-> steaming cups of 4-letter beverages.
+> > > And yet despite my repeated pleas, none of those people has yet 
+> > > spent a bit of time with me to help analyse what is happening.
+> >
+> > btw., it might help to give specific, precise instructions about 
+> > what people should do to help you analyze this problem.
+> 
+> Ray has been the first one to offer (thank you), and yes I have asked 
+> him for precise details of info to collect to hopefully work out what 
+> is happening with his first problem.
 
-when the swap readahead is enabled does it make a significant difference 
-in the time to do the random access?
+do you mean this paragraph:
 
-if it does that should show a direct benifit of the patch in a simulation 
-of a relativly common workflow (startup a memory hog like openoffice then 
-try and go back to your prior work)
+| I guess /proc/meminfo, /proc/zoneinfo, /proc/vmstat, /proc/slabinfo 
+| before and after the updatedb run with the latest kernel would be a 
+| first step. top and vmstat output during the run wouldn't hurt either.
 
-David Lang
+correct? Does "latest kernel" mean v2.6.22.1, or does it have to be 
+v2.6.23-rc1? I guess v2.6.22.1 would be fine as this is a VM problem, 
+not a scheduling problem.
+
+the following script will gather all the above information for a 10 
+seconds interval:
+
+  http://people.redhat.com/mingo/cfs-scheduler/tools/cfs-debug-info.sh
+
+Ray, please run this script before the updatedb run, once during the 
+updatedb run and once after the updatedb run, and send Nick the 3 files 
+it creates. (feel free to Cc: me too)
+
+	Ingo
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
