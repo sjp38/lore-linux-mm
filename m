@@ -1,120 +1,75 @@
-Received: by qb-out-0506.google.com with SMTP id e21so2299975qba
-        for <linux-mm@kvack.org>; Wed, 25 Jul 2007 10:33:29 -0700 (PDT)
-Message-ID: <a781481a0707251033t5b95cde7k620810bcc0b98c1@mail.gmail.com>
-Date: Wed, 25 Jul 2007 23:03:28 +0530
-From: "Satyam Sharma" <satyam.sharma@gmail.com>
-Subject: Re: [ck] Re: -mm merge plans for 2.6.23
-In-Reply-To: <20070725135016.GA18633@elte.hu>
+Date: Wed, 25 Jul 2007 18:39:07 +0100
+Subject: Re: NUMA policy issues with ZONE_MOVABLE
+Message-ID: <20070725173907.GA1750@skynet.ie>
+References: <Pine.LNX.4.64.0707242120370.3829@schroedinger.engr.sgi.com> <1185373621.5604.28.camel@localhost>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-References: <46A6CC56.6040307@yahoo.com.au>
-	 <Pine.LNX.4.64.0707242211210.2229@asgard.lang.hm>
-	 <46A6DFFD.9030202@gmail.com>
-	 <30701.1185347660@turing-police.cc.vt.edu> <46A7074B.50608@gmail.com>
-	 <20070725082822.GA13098@elte.hu> <46A70D37.3060005@gmail.com>
-	 <5c77e14b0707250353r48458316x5e6adde6dbce1fbd@mail.gmail.com>
-	 <46A75062.1050809@gmail.com> <20070725135016.GA18633@elte.hu>
+In-Reply-To: <1185373621.5604.28.camel@localhost>
+From: mel@skynet.ie (Mel Gorman)
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Ingo Molnar <mingo@elte.hu>
-Cc: Rene Herman <rene.herman@gmail.com>, Jos Poortvliet <jos@mijnkamer.nl>, david@lang.hm, Nick Piggin <nickpiggin@yahoo.com.au>, Valdis.Kletnieks@vt.edu, Ray Lee <ray-lk@madrabbit.org>, Jesper Juhl <jesper.juhl@gmail.com>, linux-kernel@vger.kernel.org, ck list <ck@vds.kolivas.org>, linux-mm@kvack.org, Paul Jackson <pj@sgi.com>, Andrew Morton <akpm@linux-foundation.org>
+To: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
+Cc: Christoph Lameter <clameter@sgi.com>, linux-mm@kvack.org, ak@suse.de, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, akpm@linux-foundation.org
 List-ID: <linux-mm.kvack.org>
 
-Hi Ingo,
+On (25/07/07 10:27), Lee Schermerhorn didst pronounce:
+> On Tue, 2007-07-24 at 21:20 -0700, Christoph Lameter wrote:
+> > The outcome of the 2.6.23 merge was surprising. No antifrag but only 
+> > ZONE_MOVABLE. ZONE_MOVABLE is the highest zone.
+> > 
+> > For the NUMA layer this has some weird consequences if ZONE_MOVABLE is populated
+> > 
+> > 1. It is the highest zone.
+> > 
+> > 2. Thus policy_zone == ZONE_MOVABLE
+> > 
+> > ZONE_MOVABLE contains only movable allocs by default. That is anonymous 
+> > pages and page cache pages?
+> > 
+> > The NUMA layer only supports NUMA policies for the highest zone. 
+> > Thus NUMA policies can control anonymous pages and the page cache pages 
+> > allocated from ZONE_MOVABLE. 
+> > 
+> > However, NUMA policies will no longer affect non pagecache and non 
+> > anonymous allocations. So policies can no longer redirect slab allocations 
+> > and huge page allocations (unless huge page allocations are moved to 
+> > ZONE_MOVABLE). And there are likely other allocations that are not 
+> > movable.
+> > 
+> > If ZONE_MOVABLE is off then things should be working as normal.
+> > 
+> > Doesnt this mean that ZONE_MOVABLE is incompatible with CONFIG_NUMA?
+> > 
+> > 
+> > The mobility approach used subcategories of a zone which would have 
+> > allowed the application of memory policies.
+> 
+> Isn't ZONE_MOVABLE always a subset of the memory in the highest "real"
+> zone--the one that WOULD be policy_zone if ZONE_MOVABLE weren't
+> configured? 
 
-[ Going off-topic, nothing related to swap/prefetch/etc. Just getting
-a hang of how development goes on here ... ]
+Yes, it is always the case because the selected zone is always the same
+zone as policy_zone.
 
-On 7/25/07, Ingo Molnar <mingo@elte.hu> wrote:
->
-> * Rene Herman <rene.herman@gmail.com> wrote:
->
-> > Nick Piggin is the person to convince it seems and if I've read things
-> > right (I only stepped into this thing at the updatedb mention, so
-> > maybe I haven't) his main question is _why_ the hell it helps
-> > updatedb. [...]
->
-> btw., i'd like to make this clear: if you want stuff to go upstream, do
-> not concentrate on 'convincing the maintainer'.
+> If so, perhaps we could just not assign ZONE_MOVABLE to
+> policy_zone in check_highest zone. 
 
-It's not so easy or clear-cut, see below.
+Yep.
 
-> Instead concentrate on understanding the _problem_,
+> We already check for >= or <
+> policy_zone where it's checked [zonelist_policy() and vma_migratable()],
+> so ZONE_MOVABLE will get a free pass if we clip policy_zone at the
+> highest !MOVABLE zone.
+> 
 
-Of course -- that's a given.
+Fully agreed on all counts. I'm pleased that this is pretty much
+identical to what I have in the patch.
 
-> concentrate on
-> making sure that both you and the maintainer understands the problem
-> correctly,
-
-This itself may require some "convincing" to do. What if the maintainer
-just doesn't recognize the problem? Note that the development model
-here is more about the "social" thing than purely a "technical" thing.
-People do handwave, possibly due to innocent misunderstandings,
-possibly without. Often it's just a case of seeing different reasons behind
-the "problematic behaviour". Or it could be a case of all of the above.
-
-> possibly write some testcase that clearly exposes it, and
-
-Oh yes -- that'll be helpful, but definitely not necessarily a prerequisite
-for all issues, and then you can't even expect everybody to write or
-test/benchmark with testcases. (oh, btw, this is assuming you do find
-consensus on a testcase)
-
-> help the maintainer debug the problem.
-
-Umm ... well. Should this "dance-with-the-maintainer" and all be really
-necessary? What you're saying is easy if a "bug" is simple and objective,
-with mathematically few (probably just one) possible correct solutions.
-Often (most often, in fact) it's a subjective issue -- could be about APIs,
-high level design, tradeoffs, even little implementation nits ... with one
-person wanting to do it one way, another thinks there's something hacky
-or "band-aidy" about it and a more beautiful/elegant solution exists elsewhere.
-I think there's a similar deadlock here (?)
-
-> _Optionally_, if you find joy in
-> it, you are also free to write a proposed solution for that problem
-
-Oh yes. But why "optionally"? This is *precisely* what the spirit of
-development in such open / distributed projects is ... unless Linux
-wants to die the same, slow, ivory-towered, miserable death that
-*BSD have.
-
-> and
-> submit it to the maintainer.
-
-Umm, ok ... pretty unlikely Linus or Andrew would take patches for any
-kernel subsystem (that isn't obvious/trivial) from anybody just like that,
-so you do need to Cc: the ones they trust (maintainer) to ensure they
-review/ack your work and pick it up.
-
-> But a "here is a solution, take it or leave it" approach,
-
-Agreed. That's definitely not the way to go.
-
-> before having
-> communicated the problem to the maintainer
-
-Umm, well this could depend from problem-to-problem.
-
-> and before having debugged
-> the problem
-
-Again, agreed -- but people can plausibly see different root causes for
-the same symptoms -- and different solutions.
-
-> is the wrong way around. It might still work out fine if the
-> solution is correct (especially if the patch is small and obvious), but
-> if there are any non-trivial tradeoffs involved, or if nontrivial amount
-> of code is involved, you might see your patch at the end of a really
-> long (and constantly growing) waiting list of patches.
-
-That's the whole point. For non-trivial / non-obvious / subjective issues,
-the "process" you laid out above could itself become a problem ...
-
-Satyam
+-- 
+Mel Gorman
+Part-time Phd Student                          Linux Technology Center
+University of Limerick                         IBM Dublin Software Lab
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
