@@ -1,39 +1,39 @@
-From: Andi Kleen <ak@suse.de>
-Subject: Re: NUMA policy issues with ZONE_MOVABLE
-Date: Wed, 25 Jul 2007 11:32:54 +0200
-References: <Pine.LNX.4.64.0707242120370.3829@schroedinger.engr.sgi.com> <Pine.LNX.4.64.0707242200380.4070@schroedinger.engr.sgi.com> <46A6DE75.70803@yahoo.com.au>
-In-Reply-To: <46A6DE75.70803@yahoo.com.au>
+Received: by nz-out-0506.google.com with SMTP id s1so120644nze
+        for <linux-mm@kvack.org>; Wed, 25 Jul 2007 03:34:00 -0700 (PDT)
+Message-ID: <84144f020707250333gc1c2f01l24c7b9ff6211a489@mail.gmail.com>
+Date: Wed, 25 Jul 2007 13:33:55 +0300
+From: "Pekka Enberg" <penberg@cs.helsinki.fi>
+Subject: Re: Slab API: Remove useless ctor parameter and reorder parameters
+In-Reply-To: <Pine.LNX.4.64.0707242009080.3583@schroedinger.engr.sgi.com>
 MIME-Version: 1.0
-Content-Type: text/plain;
-  charset="iso-8859-1"
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
 Content-Disposition: inline
-Message-Id: <200707251132.54572.ak@suse.de>
+References: <Pine.LNX.4.64.0707232246400.2654@schroedinger.engr.sgi.com>
+	 <20070724165914.a5945763.akpm@linux-foundation.org>
+	 <Pine.LNX.4.64.0707241705380.9633@schroedinger.engr.sgi.com>
+	 <20070724175332.41ade708.akpm@linux-foundation.org>
+	 <Pine.LNX.4.64.0707242009080.3583@schroedinger.engr.sgi.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nick Piggin <nickpiggin@yahoo.com.au>
-Cc: Christoph Lameter <clameter@sgi.com>, linux-mm@kvack.org, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Mel Gorman <mel@skynet.ie>, akpm@linux-foundation.org
+To: Christoph Lameter <clameter@sgi.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wednesday 25 July 2007 07:24:05 Nick Piggin wrote:
+On 7/25/07, Christoph Lameter <clameter@sgi.com> wrote:
+> Yes I thought that to be the appropriate time for such things too and I
+> wanted to keep things the way they were until 2.6.24. But that no longer
+> seems to be the case. The destructor patch was only merged a few days ago
+> and it already breaks my other slab patches that I am holding. If we do
+> this then lets do a comprehensive job. I do not want to get through
+> another cycle of this next time. At some point all this slab API stuff
+> should be done.
 
-> I don't understand what you mean. Aren't mempolicies also supposed to
-> work on NUMAQ too? How about DMA and DMA32 allocations?
+We're gonna have API breakage with kmem_cache_ops thing too, right?
+And that's not going to make it in 2.6.24 anyway, so I don't see the
+problem with resending this to Andrew at -rc7 or so.
 
-bind mempolicies only support one zone, always the highest. This means on numaq
-only highmem is policied.
-
-DMA/DMA32 is not policied for obvious reasons (they often don't exist on
-all nodes) 
-
-> Well I guess you haven't succeeded in getting zones removed, so I think
-> we should make mempolicies work better with zones.
-
-Why? That would just complicate everything. In particular it would mean
-you would need multiple fallback lists per VMA, which would increase
-the memory usage significantly.
-
--Andi
+                                       Pekka
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
