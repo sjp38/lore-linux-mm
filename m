@@ -1,78 +1,147 @@
-Message-ID: <46A72EC9.4030706@yahoo.com.au>
-Date: Wed, 25 Jul 2007 21:06:49 +1000
-From: Nick Piggin <nickpiggin@yahoo.com.au>
+Date: Wed, 25 Jul 2007 12:16:46 +0100
+Subject: Re: NUMA policy issues with ZONE_MOVABLE
+Message-ID: <20070725111646.GA9098@skynet.ie>
+References: <Pine.LNX.4.64.0707242120370.3829@schroedinger.engr.sgi.com>
 MIME-Version: 1.0
-Subject: Re: [ck] Re: -mm merge plans for 2.6.23
-References: <46A57068.3070701@yahoo.com.au>	 <2c0942db0707240915h56e007e3l9110e24a065f2e73@mail.gmail.com>	 <46A6CC56.6040307@yahoo.com.au> <46A6D7D2.4050708@gmail.com>	 <Pine.LNX.4.64.0707242211210.2229@asgard.lang.hm>	 <46A6DFFD.9030202@gmail.com>	 <30701.1185347660@turing-police.cc.vt.edu> <46A7074B.50608@gmail.com>	 <20070725082822.GA13098@elte.hu> <46A70D37.3060005@gmail.com> <5c77e14b0707250353r48458316x5e6adde6dbce1fbd@mail.gmail.com>
-In-Reply-To: <5c77e14b0707250353r48458316x5e6adde6dbce1fbd@mail.gmail.com>
-Content-Type: text/plain; charset=us-ascii; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <Pine.LNX.4.64.0707242120370.3829@schroedinger.engr.sgi.com>
+From: mel@skynet.ie (Mel Gorman)
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Jos Poortvliet <jos@mijnkamer.nl>
-Cc: Rene Herman <rene.herman@gmail.com>, Ingo Molnar <mingo@elte.hu>, david@lang.hm, Valdis.Kletnieks@vt.edu, Ray Lee <ray-lk@madrabbit.org>, Jesper Juhl <jesper.juhl@gmail.com>, linux-kernel@vger.kernel.org, ck list <ck@vds.kolivas.org>, linux-mm@kvack.org, Paul Jackson <pj@sgi.com>, Andrew Morton <akpm@linux-foundation.org>
+To: Christoph Lameter <clameter@sgi.com>
+Cc: linux-mm@kvack.org, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, ak@suse.de, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, akpm@linux-foundation.org
 List-ID: <linux-mm.kvack.org>
 
-Jos Poortvliet wrote:
-
-> Nick
-> has been talking about 'fixing the updatedb thing' for years now, no patch
-> yet.
-
-Wrong Nick, I think.
-
-First I heard about the updatedb problem was a few months ago with people
-saying updatedb was causing their system to swap (that is, swap prefetching
-helped after updatedb). I haven't been able to even try to fix it because I
-can't reproduce it (I'm sitting on a machine with 256MB RAM), and nobody
-has wanted to help me.
-
-
-> Besides, he won't fix OO.o nor all other userspace stuff - so 
-> actually,
-> he does NOT even promise an alternative. Not that I think fixing updatedb
-> would be cool, btw - it sure would, but it's no reason not to include swap
-> prefetch - it's mostly unrelated.
+On (24/07/07 21:20), Christoph Lameter didst pronounce:
+> The outcome of the 2.6.23 merge was surprising. No antifrag but only 
+> ZONE_MOVABLE. ZONE_MOVABLE is the highest zone.
 > 
-> I think everyone with >1 gb ram should stop saying 'I don't need it' 
-> because
-> that's obvious for that hardware. Just like ppl having a dual- or quadcore
-> shouldn't even talk about scheduler interactivity stuff...
-
-Actually there are people with >1GB of ram who are saying it helps. Why do
-you want to shut people out of the discussion?
-
-
-> Desktop users want it, tests show it works, there is no alternative and the
-> maybe-promised-one won't even fix all cornercases. It's small, mostly
-> selfcontained. There is a maintainer. It's been stable for a long time. 
-> It's
-> been in MM for a long time.
+> For the NUMA layer this has some weird consequences if ZONE_MOVABLE is populated
 > 
-> Yet it doesn't make it. Andrew says 'some ppl have objections' (he means
-> Nick) and he doesn't see an advantage in it (at least 4 gig ram, right,
-> Andrew?).
+> 1. It is the highest zone.
 > 
-> Do I miss things?
-
-You could try constructively contributing?
-
-
-> Apparently, it didn't get in yet - and I find it hard to believe Andrew
-> holds swapprefetch for reasons like the above. So it must be something 
-> else.
+> 2. Thus policy_zone == ZONE_MOVABLE
 > 
+> ZONE_MOVABLE contains only movable allocs by default. That is anonymous 
+> pages and page cache pages?
 > 
-> Nick is saying tests have already proven swap prefetch to be helpfull,
-> that's not the problem. He calls the requirements to get in 'fuzzy'. OK.
+> The NUMA layer only supports NUMA policies for the highest zone. 
+> Thus NUMA policies can control anonymous pages and the page cache pages 
+> allocated from ZONE_MOVABLE. 
+> 
+> However, NUMA policies will no longer affect non pagecache and non 
+> anonymous allocations. So policies can no longer redirect slab allocations 
+> and huge page allocations (unless huge page allocations are moved to 
+> ZONE_MOVABLE). And there are likely other allocations that are not 
+> movable.
+> 
+> If ZONE_MOVABLE is off then things should be working as normal.
+> 
+> Doesnt this mean that ZONE_MOVABLE is incompatible with CONFIG_NUMA?
+>  
 
-The test I have seen is the one that forces a huge amount of memory to
-swap out, waits, then touches it. That speeds up, and that's fine. That's
-a good sanity test to ensure it is working. Beyond that there are other
-considerations to getting something merged.
+No but it has to be dealt with. I would have preferred this was highlighted
+earlier but there is a candidate fix below.  It appears to be the minimum
+solution to allow policies to work as they do today but remaining compatible
+with ZONE_MOVABLE. It works by
+
+o check_highest_zone will be the highest populated zone that is not ZONE_MOVEABLE
+o bind_zonelist builds a zonelist of all populated zones, not policy_zone and lower
+o The page allocator checks what the highest usable zone is and ignores
+  zones in the zonelist that should not be used
+
+This allows some other interesting possibilities
+
+o We could have just one zonelist per node if the page allocator will
+  skip over unsuitable zones for the gfp_mask. That would save memory
+o We could get rid of policy_zone altogether.
+
+On the second point here, policy_zone and how it is used is a bit
+mad. Particularly, its behaviour on machines with multiple zones is a
+little unpredictable with cross-platform applications potentially behaving
+different on IA64 than x86_64 for example.  However, a test patch that would
+delete it looked as if it would break NUMAQ if a process was bound to nodes
+2 and 3 but not 0 for example because slab allocations would fail. Similar,
+it would have consequences on x86_64 with NORMAL and DMA32.
+
+Here is the patch just to handle policies with ZONE_MOVABLE. The highest
+zone still gets treated as it does today but allocations using ZONE_MOVABLE
+will still be policied. It has been boot-tested and a basic compile job run
+on a x86_64 NUMA machine (elm3b6 on test.kernel.org). Is there a
+standard test for regression testing policies?
+
+Comments?
+
+Signed-off-by: Mel Gorman <mel@csn.ul.ie>
+
+diff --git a/include/linux/mempolicy.h b/include/linux/mempolicy.h
+index e147cf5..5bdd656 100644
+--- a/include/linux/mempolicy.h
++++ b/include/linux/mempolicy.h
+@@ -166,7 +166,7 @@ extern enum zone_type policy_zone;
+ 
+ static inline void check_highest_zone(enum zone_type k)
+ {
+-	if (k > policy_zone)
++	if (k > policy_zone && k != ZONE_MOVABLE)
+ 		policy_zone = k;
+ }
+ 
+diff --git a/mm/mempolicy.c b/mm/mempolicy.c
+index 71b84b4..e798be5 100644
+--- a/mm/mempolicy.c
++++ b/mm/mempolicy.c
+@@ -149,7 +144,7 @@ static struct zonelist *bind_zonelist(nodemask_t *nodes)
+ 	   lower zones etc. Avoid empty zones because the memory allocator
+ 	   doesn't like them. If you implement node hot removal you
+ 	   have to fix that. */
+-	k = policy_zone;
++	k = MAX_NR_ZONES - 1;
+ 	while (1) {
+ 		for_each_node_mask(nd, *nodes) { 
+ 			struct zone *z = &NODE_DATA(nd)->node_zones[k];
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index 40954fb..22485d5 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -1157,6 +1157,7 @@ get_page_from_freelist(gfp_t gfp_mask, unsigned int order,
+ 	nodemask_t *allowednodes = NULL;/* zonelist_cache approximation */
+ 	int zlc_active = 0;		/* set if using zonelist_cache */
+ 	int did_zlc_setup = 0;		/* just call zlc_setup() one time */
++	enum zone_type highest_zoneidx;
+ 
+ zonelist_scan:
+ 	/*
+@@ -1165,10 +1166,23 @@ zonelist_scan:
+ 	 */
+ 	z = zonelist->zones;
+ 
++	/* For memory policies, get the highest allowed zone by the flags */
++	if (NUMA_BUILD)
++		highest_zoneidx = gfp_zone(gfp_mask);
++
+ 	do {
+ 		if (NUMA_BUILD && zlc_active &&
+ 			!zlc_zone_worth_trying(zonelist, z, allowednodes))
+ 				continue;
++
++		/*
++		 * In NUMA, this could be a policy zonelist which contains
++		 * zones that may not be allowed by the current gfp_mask.
++		 * Check the zone is allowed by the current flags
++		 */
++		if (NUMA_BUILD && zone_idx(*z) > highest_zoneidx)
++			continue;
++
+ 		zone = *z;
+ 		if (unlikely(NUMA_BUILD && (gfp_mask & __GFP_THISNODE) &&
+ 			zone->zone_pgdat != zonelist->zones[0]->zone_pgdat))
 
 -- 
-SUSE Labs, Novell Inc.
+Mel Gorman
+Part-time Phd Student                          Linux Technology Center
+University of Limerick                         IBM Dublin Software Lab
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
