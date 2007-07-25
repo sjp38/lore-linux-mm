@@ -1,84 +1,47 @@
-Message-ID: <01c7cedc$08d56c00$75d836d9@disartain>
-From: "Juana Montano" <disartain@raytheon.com>
-Subject: Man Lebt nur einmal - probiers aus !  agency for China or  --  Patterns--the lessons
-Date: Wed, 25 Jul 2007 16:51:23 -0200
+Received: by wa-out-1112.google.com with SMTP id m33so295422wag
+        for <linux-mm@kvack.org>; Wed, 25 Jul 2007 10:15:49 -0700 (PDT)
+Message-ID: <a491f91d0707251015x75404d9fld7b3382f69112028@mail.gmail.com>
+Date: Wed, 25 Jul 2007 13:15:49 -0400
+From: "Robert Deaton" <false.hopes@gmail.com>
+Subject: Re: howto get a patch merged (WAS: Re: -mm merge plans for 2.6.23)
+In-Reply-To: <46A773EA.5030103@gmail.com>
 MIME-Version: 1.0
-Content-Type: multipart/alternative;
-	boundary="----=_NextPart_000_0007_01C7CEF5.2E22A400"
-Return-Path: <disartain@raytheon.com>
-To: linux-mm@kvack.org
+Content-Type: text/plain; charset=UTF-8; format=flowed
+Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+References: <367a23780707250830i20a04a60n690e8da5630d39a9@mail.gmail.com>
+	 <46A773EA.5030103@gmail.com>
+Sender: owner-linux-mm@kvack.org
+Return-Path: <owner-linux-mm@kvack.org>
+To: Rene Herman <rene.herman@gmail.com>
+Cc: linux-kernel@vger.kernel.org, ck list <ck@vds.kolivas.org>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-This is a multi-part message in MIME format.
+On 7/25/07, Rene Herman <rene.herman@gmail.com> wrote:
+> And there we go again -- off into blabber-land. Why does swap-prefetch help
+> updatedb? Or doesn't it? And if it doesn't, why should anyone trust anything
+> else someone who said it does says?
 
-------=_NextPart_000_0007_01C7CEF5.2E22A400
-Content-Type: text/plain;
-	charset="windows-1250"
-Content-Transfer-Encoding: quoted-printable
+I don't think anyone has ever argued that swap-prefetch directly helps
+the performance of updatedb in any way, however, I do recall people
+mentioning that updatedb, being a ram intensive task, will often cause
+things to be swapped out while it runs on say a nightly cronjob. If a
+person is not at their computer, updatedb will run, cause all their
+applications to be swapped out, finish its work, and exit, leaving all
+the other applications that would have otherwise been left in RAM for
+when the user returns to his/her computer in swap. Thus, when someone
+returns, you have to wait for all your applications to be swapped back
+in.
 
-Verpassen Sie nichts am Lebem - Sie werden fuhlen was unsere Kunden bestati=
-gen!
+Swap prefetch, on the other hand, would have kicked in shortly after
+updatedb finished, leaving the applications in swap for a speedy
+recovery when the person comes back to their computer.
 
-Preise die keine Konkurrenz kennen 
+-- 
+--Robert Deaton
 
-- Diskrete Verpackung und Zahlung
-- Visa verifizierter Onlineshop
-- Kostenlose, arztliche Telefon-Beratung
-- Kein peinlicher Arztbesuch erforderlich
-- Kein langes Warten - Auslieferung innerhalb von 2-3 Tagen
-- Bequem und diskret online bestellen.
-- keine versteckte Kosten
-
-Originalmedikamente
-Ciaaaaaalis 10 Pack. 27,00 Euro
-Viaaaagra 10 Pack. 21,00 Euro
-
-Vier Dosen gibt's bei jeder Bestellung umsonst
-http://ugsxiwq.segmentfresh.cn/?712477704252
-
-(bitte warten Sie einen Moment bis die Seite vollstandig geladen wird)
-------=_NextPart_000_0007_01C7CEF5.2E22A400
-Content-Type: text/html;
-	charset="windows-1250"
-Content-Transfer-Encoding: quoted-printable
-
-<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
-<HTML><HEAD>
-<META http-equiv=3DContent-Type content=3D"text/html; charset=3Dwindows-1250">
-<META content=3D"MSHTML 6.00.2900.2180" name=3DGENERATOR>
-<STYLE></STYLE>
-</HEAD>
-<BODY>
-<head><meta http-equiv=3D"Content-Type" content=3D"text/html; charset=3Diso=
--8859-1">
-</head><body><p>Meinung von unserem Kunden:<br><strong>Meine Frau und ich h=
-aben Viaaaagra am letzten Wochenende ausprobiert. Sie fand, mein bestes St&=
-#252;ck w&#228;re in letzter Zeit nicht ganz auf der H&#246;he gewesen. Als=
-o dachten wir, wir probieren es einfach einmal.Es gibt nur ein Wort, dass d=
-as Gef&#252;hl beschreibt: Wahnsinn. Seit ich zwanzig war, konnte ich nicht=
- mehr so lang und so oft. Was soll ich sagen? Gute Arbeit, Viaaaagra!</stro=
-ng></p><p><strong>Ich bin 28 Jahre alt und habe keine Err. ..ektionsproblem=
-e. Ich wollte Viaaaagra einfach nur so probieren. Es funktioniert, aber die=
- Durchblutung ist st&#228;rker als sonst und es f&#252;hlt sich an, als w&#=
-252;rde ich mit einem Dildo v&#246;geln und nicht mit meinem Schwanz. Ich h=
-atte ziemliche Probleme, wieder runterzukommen. Aber ich w&#252;rde es wohl=
- wieder tun ...<br>
-</strong><strong><br>Verpassen Sie nichts am Lebem - Sie werden fuhlen was =
-unsere Kunden bestatigen!</strong></p><p>Preise die keine Konkurrenz kennen=
- <p>
-- Diskrete Verpackung und Zahlung<br>- Kein peinlicher Arztbesuch erforderl=
-ich<br>- Kostenlose, arztliche Telefon-Beratung<br>- Kein langes Warten - A=
-uslieferung innerhalb von 2-3 Tagen<br>- Bequem und diskret online bestelle=
-n.<br>- Visa verifizierter Onlineshop<br>- keine versteckte Kosten</p>
-<p>Originalmedikamente<br>
-  <strong>Ciaaaaaalis 10 Pack. 27,00 Euro</strong><br>
-  <strong>Viaaaagra 10 Pack. 21,00 Euro</strong><br>
-   <br>
-  <strong><a href=3D"http://ugsxiwq.segmentfresh.cn/?712477704252" target=
-=3D"_blank">Vier Dosen gibt's bei jeder Bestellung umsonst</a><br>
-</strong>(bitte warten Sie einen Moment bis die Seite vollst&auml;ndig gela=
-den wird) </p>
-</body>
-</BODY></HTML>
-
-------=_NextPart_000_0007_01C7CEF5.2E22A400--
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
