@@ -1,44 +1,75 @@
-Date: Thu, 26 Jul 2007 11:13:26 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [ck] Re: -mm merge plans for 2.6.23
-Message-Id: <20070726111326.873f7b0a.akpm@linux-foundation.org>
-In-Reply-To: <b14e81f00707260719w63d8ab38jbf2a17a38bd07c1d@mail.gmail.com>
-References: <20070710013152.ef2cd200.akpm@linux-foundation.org>
-	<2c0942db0707232153j3670ef31kae3907dff1a24cb7@mail.gmail.com>
-	<46A58B49.3050508@yahoo.com.au>
-	<2c0942db0707240915h56e007e3l9110e24a065f2e73@mail.gmail.com>
-	<46A6CC56.6040307@yahoo.com.au>
-	<46A6D7D2.4050708@gmail.com>
-	<1185341449.7105.53.camel@perkele>
-	<46A6E1A1.4010508@yahoo.com.au>
-	<2c0942db0707250909r435fef75sa5cbf8b1c766000b@mail.gmail.com>
-	<20070725215717.df1d2eea.akpm@linux-foundation.org>
-	<b14e81f00707260719w63d8ab38jbf2a17a38bd07c1d@mail.gmail.com>
+Subject: Re: 2.6.23-rc1-mm1:  boot hang on ia64 with memoryless nodes
+From: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
+In-Reply-To: <20070726230031.d804aa60.kamezawa.hiroyu@jp.fujitsu.com>
+References: <20070711182219.234782227@sgi.com>
+	 <20070713151431.GG10067@us.ibm.com>
+	 <Pine.LNX.4.64.0707130942030.21777@schroedinger.engr.sgi.com>
+	 <1185310277.5649.90.camel@localhost>
+	 <Pine.LNX.4.64.0707241402010.4773@schroedinger.engr.sgi.com>
+	 <1185372692.5604.22.camel@localhost> <1185378322.5604.43.camel@localhost>
+	 <1185390991.5604.87.camel@localhost>
+	 <Pine.LNX.4.64.0707251231570.8820@schroedinger.engr.sgi.com>
+	 <1185398337.5604.96.camel@localhost> <1185458007.7653.1.camel@localhost>
+	 <20070726230031.d804aa60.kamezawa.hiroyu@jp.fujitsu.com>
+Content-Type: text/plain
+Date: Thu, 26 Jul 2007 14:10:46 -0400
+Message-Id: <1185473446.7653.24.camel@localhost>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Michael Chang <thenewme91@gmail.com>
-Cc: Ray Lee <ray-lk@madrabbit.org>, Nick Piggin <nickpiggin@yahoo.com.au>, Eric St-Laurent <ericstl34@sympatico.ca>, linux-kernel@vger.kernel.org, ck list <ck@vds.kolivas.org>, linux-mm@kvack.org, Paul Jackson <pj@sgi.com>, Jesper Juhl <jesper.juhl@gmail.com>, Rene Herman <rene.herman@gmail.com>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: clameter@sgi.com, linux-ia64@vger.kernel.org, kxr@sgi.com, akpm@linux-foundation.org, linux-mm@kvack.org, bob.picco@hp.com, mel@skynet.ie, eric.whitney@hp.com, apw@shadowen.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 26 Jul 2007 10:19:06 -0400 "Michael Chang" <thenewme91@gmail.com> wrote:
-
-> > All this would end up needing runtime configurability and tweakability and
-> > customisability.  All standard fare for userspace stuff - much easier than
-> > patching the kernel.
+On Thu, 2007-07-26 at 23:00 +0900, KAMEZAWA Hiroyuki wrote:
+> On Thu, 26 Jul 2007 09:53:27 -0400
+> Lee Schermerhorn <Lee.Schermerhorn@hp.com> wrote:
 > 
-> Maybe I'm missing something here, but if the problem is resource
-> allocation when switching from state A to state B, and from B to C,
-> etc.; wouldn't it be a bad thing if state B happened to be (in the
-> future) this state-shifting userspace daemon of which you speak? (Or
-> is that likely to be impossible/unlikely for some other reason which
-> alludes me at the moment?)
+> > On Wed, 2007-07-25 at 17:18 -0400, Lee Schermerhorn wrote: 
+> > > On Wed, 2007-07-25 at 12:38 -0700, Christoph Lameter wrote:
+> > > > (ccing Andy who did the work on the config stuff)
+> > > > 
+> > > > On Wed, 25 Jul 2007, Lee Schermerhorn wrote:
+> > > > 
+> > > > > I tried to deselect SPARSEMEM_VMEMMAP.  Kconfig's "def_bool=y" wouldn't
+> > > > > let me :-(.  After hacking the Kconfig and mm/sparse.c to allow that,
+> > > > > boot hangs with no error messages shortly after "Built N zonelists..."
+> > > > > message.
+> > > > 
+> > > > I get a similar hang here and see the system looping in softirq / hrtimer 
+> > > > code.
+> > > > 
+> > > > > Backed off to DISCONTIGMEM+VIRTUAL_MEMORY_MAP, and saw same hang as with
+> > > > > (SPARSMEM && !SPARSEMEM_VMEMMAP).   
+> > > > 
+> > > > So its not related to SPARSE VMEMMAP? General VMEMMAP issue on IA64?
+> > > 
+> > > This hang is different from the one I see with SPARSE VMEMMAP -- no
+> > > "Unable to handle kernel paging request..." message.  Just hangs after
+> > > "Built N zonelists..."  and some message about "color" that I didn't
+> > > capture.  Next time [:-(]...
+> > 
+> > The "color" message was actually:
+> > 
+> > Console:  colour dummy device 80x25
+> > 
+> > So, now I'm wondering if I'm hitting the "Regression in serial
+> > console..." issue, and the system was actually booting--I just didn't
+> > see any output.  If so, the "Unable to handle kernel paging request..."
+> > hang might well be a problem with SPARSEMEM_VMEMMAP...
+> > 
+> About SPARSEMEM_VMEMMAP try this:
+> http://lkml.org/lkml/2007/7/26/161
+> 
 
-Well.  I was assuming that the daemon wouldn't be a great memory pig. 
-I suspect it would do practically zero IO and would use little memory.
-It could even be mlocked, but I doubt if that would be needed.
+Kame-san:
+
+Thank you.  This solved my problem.  I can now boot with both zx1 and
+[with other patches from the mailing lists], generic kernels on my ia64
+platform.
+
+Lee
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
