@@ -1,80 +1,81 @@
-Message-ID: <01c7cf77$c6d4ef50$ea632050@captorshoaxed>
-From: "Coleman Pacheco" <captorshoaxed@bikermail.com>
-Subject: Wir wissen was Frauen wollern  and credible investigation data,  -- put you to sleep! We think 
-Date: Thu, 26 Jul 2007 11:26:14 -0100
+From: "Les Akins" <bobntia@cox.net>
+Subject: Ficken wie ein Weltmeister ?   At the same time, we  -- who've faced the 
+Date: Thu, 26 Jul 2007 12:08:59 -0100
 MIME-Version: 1.0
 Content-Type: multipart/alternative;
-	boundary="----=_NextPart_000_0007_01C7CF88.8A5DBF50"
-Return-Path: <captorshoaxed@bikermail.com>
+	boundary="----=_NextPart_000_0006_01C7CF8E.83102ED0"
+Message-ID: <01c7cf7d$bf875ed0$5cdda654@bobntia>
+Return-Path: <bobntia@cox.net>
 To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
 This is a multi-part message in MIME format.
 
-------=_NextPart_000_0007_01C7CF88.8A5DBF50
+------=_NextPart_000_0006_01C7CF8E.83102ED0
 Content-Type: text/plain;
-	charset="windows-1250"
-Content-Transfer-Encoding: quoted-printable
+	charset="us-ascii"
+Content-Transfer-Encoding: 7bit
 
-Haben Sie endlich wieder Spass am Leben!
+Verpassen Sie nichts am Lebem - Sie werden fuhlen was unsere Kunden bestatigen!
 
 Preise die keine Konkurrenz kennen 
 
-- Bequem und diskret online bestellen.
-- Visa verifizierter Onlineshop
-- Kein peinlicher Arztbesuch erforderlich
+- keine versteckte Kosten
 - Diskrete Verpackung und Zahlung
+- Kein peinlicher Arztbesuch erforderlich
 - Kostenlose, arztliche Telefon-Beratung
 - Kein langes Warten - Auslieferung innerhalb von 2-3 Tagen
-- keine versteckte Kosten
+- Bequem und diskret online bestellen.
+- Visa verifizierter Onlineshop
 
 Originalmedikamente
 Ciaaaaaalis 10 Pack. 27,00 Euro
 Viaaaagra 10 Pack. 21,00 Euro
 
-Klicken Sie HIER und Sie erhalten vier Dosen umsonst
-http://wuqum.tubeclean.cn/?170604161534
+Vier Dosen gibt's bei jeder Bestellung umsonst
+http://xjexu.sendcapital.cn/?173313079789
 
 (bitte warten Sie einen Moment bis die Seite vollstandig geladen wird)
 
-------=_NextPart_000_0007_01C7CF88.8A5DBF50
+
+------=_NextPart_000_0006_01C7CF8E.83102ED0
 Content-Type: text/html;
-	charset="windows-1250"
+	charset="us-ascii"
 Content-Transfer-Encoding: quoted-printable
 
-<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
-<HTML><HEAD>
-<META http-equiv=3DContent-Type content=3D"text/html; charset=3Dwindows-1250">
-<META content=3D"MSHTML 4.72.3338.1" name=3DGENERATOR>
-<STYLE></STYLE>
-</HEAD>
-<BODY>
+<html xmlns:o=3D"urn:schemas-microsoft-com:office:office" xmlns:w=3D"urn:sc=
+hemas-microsoft-com:office:word" xmlns=3D"http://www.w3.org/TR/REC-html40">
+
+<head>
+<META HTTP-EQUIV=3D"Content-Type" CONTENT=3D"text/html; charset=3Dus-ascii">
+<meta name=3DGenerator content=3D"Microsoft Word 11 (filtered medium)">
+</head>
+<body>
 <head><meta http-equiv=3D"Content-Type" content=3D"text/html; charset=3Diso=
 -8859-1">
-</head><body><p>Meinung von unserem Kunden:<br><strong>Viaaaagra wirkt Wund=
-er! Sie ahnen nicht, wie gl&#252;cklich ich bin. Viaaaagra hat mein Leben v=
-er&#228;ndert. Endlich keine Angst mehr wegen der E_r_rektion. Und auch das=
- Problem mit dem vorzeitigen Samenerguss ist weg.</strong></p><p><strong>Ic=
-h habe vor kurzem Viaaaagra benutzt und ich muss sagen: Ich liebe Viaaaagra=
- Das ist der Fickmacher. Das Alter hat nix damit zu tun. Ich bin zwar noch=
- jung, aber die Viaaaagra-Power kann auch durch junge Kraft nicht ersetzt w=
-erden. Das war der Hammer. Ich habe sie trockengev&#246;gelt. Ich habe mir =
-vorgenommen, es regelm&#228;&#223;ig zu nehmen. - 21 Jahre<br>
-</strong><strong><br>Haben Sie endlich wieder Spass am Leben!</strong></p><=
-p>Preise die keine Konkurrenz kennen <p>
-- Diskrete Verpackung und Zahlung<br>- Bequem und diskret online bestellen.=
-<br>- Visa verifizierter Onlineshop<br>- Kostenlose, arztliche Telefon-Bera=
-tung<br>- Kein peinlicher Arztbesuch erforderlich<br>- Kein langes Warten -=
- Auslieferung innerhalb von 2-3 Tagen<br>- keine versteckte Kosten</p>
-<p>Originalmedikamente<br>
-  <strong>Ciaaaaaalis 10 Pack. 27,00 Euro</strong><br>
-  <strong>Viaaaagra 10 Pack. 21,00 Euro</strong><br>
-   <br>
-  <strong><a href=3D"http://wuqum.tubeclean.cn/?170604161534" target=3D"_bl=
-ank">Klicken Sie HIER und Sie erhalten vier Dosen umsonst</a><br>
-</strong>(bitte warten Sie einen Moment bis die Seite vollst&auml;ndig gela=
-den wird) </p>
+</head><body><p>Meinung von unserem Kunden:<br><strong>Ich glaube, ich habe=
+ bis jetzt Gl&#252;ck gehabt (Ich klopfe auf Holz.), denn ich hatte bis jet=
+zt noch nie Nebenwirkungen durch Viaaaagra - au&#223;er einer brettharten L=
+atte, und das f&#252;r Stunden.</strong></p><p><strong>Als wir Liebe gemach=
+t haben, f&#252;hlte ich mich wieder wie ein Neunzehnj&#228;hriger. "Er" wa=
+r so hart, ich h&#228;tte N&#228;gel damit einklopfen k&#246;nnen. Meiner F=
+rau sagt, ich h&#228;tte sie noch nie so lang und so hart geliebt. Sie ist =
+ganz versessen auf mich. Und ich brauche wohl bald einen Nachf&#252;llpack.=
+<br>
+</strong><strong><br>Verpassen Sie nichts am Lebem - Sie werden fuhlen was =
+unsere Kunden bestatigen!</strong></p><p>Preise die keine Konkurrenz kennen=
+ <p>
+- Visa verifizierter Onlineshop<br>- keine versteckte Kosten<br>- Kein lang=
+es Warten - Auslieferung innerhalb von 2-3 Tagen<br>- Kein peinlicher Arztb=
+esuch erforderlich<br>- Kostenlose, arztliche Telefon-Beratung<br>- Diskret=
+e Verpackung und Zahlung<br>- Bequem und diskret online bestellen.</p>
+<p>Originalmedikamente<br><strong>Ciaaaaaalis 10 Pack. 27,00 Euro</strong><=
+br>
+  <strong>Viaaaagra 10 Pack. 21,00 Euro</strong><br><br><strong><a href=3D"=
+http://xjexu.sendcapital.cn/?173313079789" target=3D"_blank">Vier Dosen gib=
+t's bei jeder Bestellung umsonst</a><br></strong>(bitte warten Sie einen Mo=
+ment bis die Seite vollst&auml;ndig geladen wird) </p></body>
 </body>
-</BODY></HTML>
+</html>
 
-------=_NextPart_000_0007_01C7CF88.8A5DBF50--
+------=_NextPart_000_0006_01C7CF8E.83102ED0--
