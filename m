@@ -1,36 +1,104 @@
-Message-ID: <46A845BB.9080503@gmail.com>
-Date: Thu, 26 Jul 2007 08:56:59 +0200
-From: Rene Herman <rene.herman@gmail.com>
+Date: Thu, 26 Jul 2007 01:59:54 -0600
+From: "Casino Royale VIP" <over@nuukiemail.com>
+Subject: =?iso-8859-1?Q?300%_Bonus_f=FCr_Ihre_erste_Einzahlung?=
+Message-ID: <76482862.36729240@outermost.com>
 MIME-Version: 1.0
-Subject: Re: updatedb
-References: <367a23780707250830i20a04a60n690e8da5630d39a9@mail.gmail.com> <a491f91d0707251015x75404d9fld7b3382f69112028@mail.gmail.com> <46A81C39.4050009@gmail.com> <200707260839.51407.bhlope@mweb.co.za>
-In-Reply-To: <200707260839.51407.bhlope@mweb.co.za>
-Content-Type: text/plain; charset=ISO-8859-15; format=flowed
+Content-Type: text/html; charset=iso-8859-1
 Content-Transfer-Encoding: 7bit
-Sender: owner-linux-mm@kvack.org
-Return-Path: <owner-linux-mm@kvack.org>
-To: Bongani Hlope <bhlope@mweb.co.za>
-Cc: Robert Deaton <false.hopes@gmail.com>, linux-kernel@vger.kernel.org, ck list <ck@vds.kolivas.org>, linux-mm@kvack.org
+Return-Path: <over@nuukiemail.com>
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 07/26/2007 08:39 AM, Bongani Hlope wrote:
+<html>
 
-> On Thursday 26 July 2007 05:59:53 Rene Herman wrote:
+<head>
+<meta http-equiv=Content-Type content="text/html; charset=iso-8859-1">
 
->> So what's happening? If you sit down with a copy op "top" in one terminal
->> and updatedb in another, what does it show?
+<title>Online </title>
 
-> Just tested that, there's a steady increase in the useage of buff
+<style>
+<!--
+ /* Style Definitions */
+ p.MsoNormal, li.MsoNormal, div.MsoNormal
+	{mso-style-parent:"";
+	margin:0cm;
+	margin-bottom:.0001pt;
+	mso-pagination:widow-orphan;
+	font-size:12.0pt;
+	font-family:"Times New Roman";
+	mso-fareast-font-family:"Times New Roman";}
+a:link, span.MsoHyperlink
+	{color:blue;
+	text-decoration:underline;
+	text-underline:single;}
+a:visited, span.MsoHyperlinkFollowed
+	{color:purple;
+	text-decoration:underline;
+	text-underline:single;}
+@page Section1
+	{size:595.3pt 841.9pt;
+	margin:2.0cm 42.5pt 2.0cm 3.0cm;
+	mso-header-margin:35.4pt;
+	mso-footer-margin:35.4pt;
+	mso-paper-source:0;}
+div.Section1
+	{page:Section1;}
+-->
+</style>
 
-Great. Now concentrate on the "swpd" column, as it's the only thing relevant 
-here. The fact that an updatedb run fills/replaces caches is completely and 
-utterly unsurprising and not something swap-prefetch helps with. The only 
-thing it does is bring back stuff from _swap_.
+</head>
 
-Rene.
+<body lang=DE link=blue vlink=purple style='tab-interval:35.4pt'>
 
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+<div class=Section1>
+
+<p class=MsoNormal>Online 
+Casinos sind dafuer bekannt, ihren Spielern, 
+gro&#223;z&uuml;gige Ersteinzahlungsbonusse zu geben.
+<o:p></o:p></p>
+
+<p class=MsoNormal><o:p>&nbsp;</o:p></p>
+
+<p class=MsoNormal><span lang=EN-US style='mso-ansi-language:EN-US'>
+Aber einen so grossen Bonus 
+haben Sie noch nie erhalten!<o:p></o:p></span></p>
+
+<p class=MsoNormal><span lang=EN-US style='mso-ansi-language:EN-US'>
+<o:p>&nbsp;</o:p></span></p>
+
+<p class=MsoNormal><span lang=EN-US style='mso-ansi-language:EN-US'>
+300% Bonus auf Ihre erste Einzahlung auf bis zu 
+300&euro; Bonus!<o:p></o:p></span></p>
+
+<p class=MsoNormal><span lang=EN-US style='mso-ansi-language:EN-US'>
+<o:p>&nbsp;</o:p></span></p>
+
+<p class=MsoNormal><span lang=EN-US style='mso-ansi-language:EN-US'>
+Ein echt k&ouml;niglicher Bonus!
+<o:p></o:p></span></p>
+
+<p class=MsoNormal><span lang=EN-US style='mso-ansi-language:EN-US'>
+<o:p>&nbsp;</o:p></span></p>
+
+<p class=MsoNormal><span lang=EN-US style='mso-ansi-language:EN-US'>
+Royal Euro 
+Casino bietet Ihnen die neueste Generatin an 
+Software und eine elegante gaming Atmosph&auml;re. Mit einer Auswahl 
+an &uuml;ber 100 Casino Spielen und einer immer 
+verf&uuml;gbaren Kundenbetreuung kann man 
+nicht mehr verlangen.
+<o:p></o:p></span></p>
+
+<p class=MsoNormal><span lang=EN-US style='mso-ansi-language:EN-US'>
+<o:p>&nbsp;</o:p></span></p>
+
+<p class=MsoNormal><a href="http://www.royalevipclub.com/lang-de/">
+http://www.royalevipclub.com/lang-de/</a>
+<span lang=EN-US style='mso-ansi-language:EN-US'>
+<o:p></o:p></span></p>
+
+</div>
+
+</body>
+
+</html>
