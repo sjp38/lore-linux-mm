@@ -1,120 +1,57 @@
-Date: Thu, 26 Jul 2007 13:15:39 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: NUMA policy issues with ZONE_MOVABLE
-Message-Id: <20070726131539.8a05760f.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <Pine.LNX.4.64.0707251212300.8820@schroedinger.engr.sgi.com>
-References: <Pine.LNX.4.64.0707242120370.3829@schroedinger.engr.sgi.com>
-	<20070725111646.GA9098@skynet.ie>
-	<Pine.LNX.4.64.0707251212300.8820@schroedinger.engr.sgi.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Message-ID: <46A81F67.1040502@garzik.org>
+Date: Thu, 26 Jul 2007 00:13:27 -0400
+From: Jeff Garzik <jeff@garzik.org>
+MIME-Version: 1.0
+Subject: Re: [ck] Re: -mm merge plans for 2.6.23
+References: <Pine.LNX.4.64.0707242211210.2229@asgard.lang.hm> <a781481a0707251033t5b95cde7k620810bcc0b98c1@mail.gmail.com> <20070725203523.GA10750@elte.hu> <200707260432.52739.bzolnier@gmail.com>
+In-Reply-To: <200707260432.52739.bzolnier@gmail.com>
+Content-Type: text/plain; charset=iso-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
-Cc: Mel Gorman <mel@skynet.ie>, linux-mm@kvack.org, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, ak@suse.de, akpm@linux-foundation.org, pj@sgi.com
+To: Bartlomiej Zolnierkiewicz <bzolnier@gmail.com>
+Cc: Ingo Molnar <mingo@elte.hu>, Satyam Sharma <satyam.sharma@gmail.com>, Rene Herman <rene.herman@gmail.com>, Jos Poortvliet <jos@mijnkamer.nl>, david@lang.hm, Nick Piggin <nickpiggin@yahoo.com.au>, Valdis.Kletnieks@vt.edu, Ray Lee <ray-lk@madrabbit.org>, Jesper Juhl <jesper.juhl@gmail.com>, linux-kernel@vger.kernel.org, ck list <ck@vds.kolivas.org>, linux-mm@kvack.org, Paul Jackson <pj@sgi.com>, Andrew Morton <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 25 Jul 2007 12:31:21 -0700 (PDT)
-Christoph Lameter <clameter@sgi.com> wrote:
-> So for a __GFP_MOVABLE alloc we would scan all zones and for 
-> policy_zone just the policy zone.
+Bartlomiej Zolnierkiewicz wrote:
+> On Wednesday 25 July 2007, Ingo Molnar wrote:
+>> you dont _have to_ cooperative with the maintainer, but it's certainly 
+>> useful to work with good maintainers, if your goal is to improve Linux. 
+>> Or if for some reason communication is not working out fine then grow 
+>> into the job and replace the maintainer by doing a better job.
 > 
-> Lee should probably also review this in detail since he has recent 
-> experience fiddling around with memory policies. Paul has also 
-> experience in this area.
-> 
-> Maybe this can actually  help to deal with some of the corner cases of 
-> memory policies (just hope the performance impact is not significant).
-> 
-> 
-Hmm,  How about following patch ? (not tested, just an idea).
-I'm sorry if I misunderstand concept ot policy_zone.
+> The idea of growing into the job and replacing the maintainer by proving
+> the you are doing better job was viable few years ago but may not be
+> feasible today.
 
-==
-Index: linux-2.6.23-rc1/include/linux/mempolicy.h
-===================================================================
---- linux-2.6.23-rc1.orig/include/linux/mempolicy.h
-+++ linux-2.6.23-rc1/include/linux/mempolicy.h
-@@ -162,14 +162,11 @@ extern struct zonelist *huge_zonelist(st
- 		unsigned long addr, gfp_t gfp_flags);
- extern unsigned slab_node(struct mempolicy *policy);
- 
-+/*
-+ * The smalles zone_idx which all nodes can offer against GFP_xxx
-+ */
- extern enum zone_type policy_zone;
- 
--static inline void check_highest_zone(enum zone_type k)
--{
--	if (k > policy_zone)
--		policy_zone = k;
--}
--
- int do_migrate_pages(struct mm_struct *mm,
- 	const nodemask_t *from_nodes, const nodemask_t *to_nodes, int flags);
- 
-Index: linux-2.6.23-rc1/mm/page_alloc.c
-===================================================================
---- linux-2.6.23-rc1.orig/mm/page_alloc.c
-+++ linux-2.6.23-rc1/mm/page_alloc.c
-@@ -1648,7 +1648,6 @@ static int build_zonelists_node(pg_data_
- 		zone = pgdat->node_zones + zone_type;
- 		if (populated_zone(zone)) {
- 			zonelist->zones[nr_zones++] = zone;
--			check_highest_zone(zone_type);
- 		}
- 
- 	} while (zone_type);
-@@ -1857,7 +1856,6 @@ static void build_zonelists_in_zone_orde
- 				z = &NODE_DATA(node)->node_zones[zone_type];
- 				if (populated_zone(z)) {
- 					zonelist->zones[pos++] = z;
--					check_highest_zone(zone_type);
- 				}
- 			}
- 		}
-@@ -1934,6 +1932,7 @@ static void build_zonelists(pg_data_t *p
- 	int local_node, prev_node;
- 	struct zonelist *zonelist;
- 	int order = current_zonelist_order;
-+	int highest_zone;
- 
- 	/* initialize zonelists */
- 	for (i = 0; i < MAX_NR_ZONES; i++) {
-@@ -1981,6 +1980,32 @@ static void build_zonelists(pg_data_t *p
- 		/* calculate node order -- i.e., DMA last! */
- 		build_zonelists_in_zone_order(pgdat, j);
- 	}
-+	/*
-+	 * Find the lowest zone where mempolicy (MBID) can work well.
-+ 	 */
-+	highest_zone = 0;
-+	policy_zone = -1;
-+	for (i = 0; i < MAX_NR_ZONES; i++) {
-+		struct zone *first_zone;
-+		int success = 1;
-+		for_each_node_state(node, N_MEMORY) {
-+			first_zone = NODE_DATA(node)->node_zonelists[i][0];
-+			if (zone_idx(first_zone) > highest_zone)
-+				highest_zone = zone_idx(first_zone);
-+			if (first_zone->zone_pgdat != NODE_DATA(node)) {
-+				/* This node cannot offer right pages for this
-+				   GFP */
-+				success = 0;
-+				break;
-+			}
-+		}
-+		if (success) {
-+			policy_zone = i;
-+			break;
-+		}
-+	}
-+	if (policy_zone == -1)
-+		policy_zone = highest_zone;
- }
- 
- /* Construct the zonelist performance cache - see further mmzone.h */
+IMO...  Tejun is an excellent counter-example.  He showed up as an 
+independent developer, put a bunch of his own spare time and energy into 
+the codebase, and is probably libata's main engineer (in terms of code 
+output) today.  If I get hit by a bus tomorrow, I think the Linux 
+community would be quite happy with him as the libata maintainer.
+
+
+> The another problem is that sometimes it seems that independent developers
+> has to go through more hops than entreprise ones and it is really frustrating
+> experience for them.  There is no conspiracy here - it is only the natural
+> mechanism of trusting more in the code of people who you are working with more.
+
+I think Tejun is a counter-example here too :)  Everyone's experience is 
+different, but from my perspective, Tejun "appeared out of nowhere" 
+producing good code, and so, it got merged rapidly.
+
+Personally, for merging code, I tend to trust people who are most in 
+tune with "the Linux Way(tm)."  It is hard to quantify, but quite often, 
+independent developers "get it" when enterprise developers do not.
+
+
+> Now could I ask people to stop all this -ck threads and give the developers
+> involved in the recent events some time to calmly rethink the whole case.
+
+Indeed...
+
+	Jeff
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
