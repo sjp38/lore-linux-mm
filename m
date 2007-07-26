@@ -1,49 +1,81 @@
-Date: Thu, 26 Jul 2007 15:25:50 +0100
-Subject: Re: bind_zonelist() - are we definitely sizing this correctly?
-Message-ID: <20070726142550.GA14891@skynet.ie>
-References: <20070726141756.GB18825@skynet.ie>
+Message-ID: <01c7cf90$f94ef4d0$30553b53@attracts>
+From: "Mona Trujillo" <attracts@legendaryholdings.com>
+Subject: Man Lebt nur einmal - probiers aus !  elements of your -- somewhere in the world
+Date: Thu, 26 Jul 2007 14:26:36 -0100
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <20070726141756.GB18825@skynet.ie>
-From: mel@skynet.ie (Mel Gorman)
-Sender: owner-linux-mm@kvack.org
-Return-Path: <owner-linux-mm@kvack.org>
-To: Lee Schermerhorn <Lee.Schermerhorn@hp.com>, ak@suse.de, Christoph Lameter <clameter@sgi.com>, apw@shadowen.org, kamezawa.hiroyu@jp.fujitsu.com
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Content-Type: multipart/alternative;
+	boundary="----=_NextPart_000_0007_01C7CFA1.BCD7C4D0"
+Return-Path: <attracts@legendaryholdings.com>
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On (26/07/07 15:17), Mel Gorman didst pronounce:
-> I was looking closer at bind_zonelist() and it has the following snippet
-> 
->         struct zonelist *zl;
->         int num, max, nd;
->         enum zone_type k;
-> 
->         max = 1 + MAX_NR_ZONES * nodes_weight(*nodes);
->         max++;                  /* space for zlcache_ptr (see mmzone.h) */
->         zl = kmalloc(sizeof(struct zone *) * max, GFP_KERNEL);
->         if (!zl)
->                 return ERR_PTR(-ENOMEM);
-> 
-> That set off alarm bells because we are allocating based on the size of a
-> zone, not the size of the zonelist.
-> 
+This is a multi-part message in MIME format.
 
-Never mind me, I'm a tool as it's now semi-obvious. When statically defined,
-zlcache_ptr is pointing to something useful as it's setup at boottime. When
-dynamically allocated in bind_zonelist, the zlcache_ptr is set to NULL so
-it never gets used by zlc_setup().
+------=_NextPart_000_0007_01C7CFA1.BCD7C4D0
+Content-Type: text/plain;
+	charset="windows-1250"
+Content-Transfer-Encoding: quoted-printable
 
-This could have done with a comment.
+Haben Sie endlich wieder Spass am Leben!
 
--- 
-Mel Gorman
-Part-time Phd Student                          Linux Technology Center
-University of Limerick                         IBM Dublin Software Lab
+Preise die keine Konkurrenz kennen 
 
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+- Bequem und diskret online bestellen.
+- Kein peinlicher Arztbesuch erforderlich
+- Visa verifizierter Onlineshop
+- Kostenlose, arztliche Telefon-Beratung
+- Kein langes Warten - Auslieferung innerhalb von 2-3 Tagen
+- Diskrete Verpackung und Zahlung
+- keine versteckte Kosten
+
+Originalmedikamente
+Ciaaaaaalis 10 Pack. 27,00 Euro
+Viaaaagra 10 Pack. 21,00 Euro
+
+Jetzt bestellen - und vier Pillen umsonst erhalten
+http://vsjziyi.butseem.cn/?446059982443
+
+(bitte warten Sie einen Moment bis die Seite vollstandig geladen wird)
+------=_NextPart_000_0007_01C7CFA1.BCD7C4D0
+Content-Type: text/html;
+	charset="windows-1250"
+Content-Transfer-Encoding: quoted-printable
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
+<HTML><HEAD>
+<META http-equiv=3DContent-Type content=3D"text/html; charset=3Dwindows-1250">
+<META content=3D"MSHTML 5.50.4807.1700" name=3DGENERATOR>
+<STYLE></STYLE>
+</HEAD>
+<BODY>
+<head><meta http-equiv=3D"Content-Type" content=3D"text/html; charset=3Diso=
+-8859-1">
+</head><body><p>Meinung von unserem Kunden:<br><strong>Ich habe eine Aff&#2=
+28;re mit einer Bekannten, sie h&#228;lt mich f&#252;r einen Sex-Gott. Ich =
+habe Viaaaagra ungef&#228;hr zehn Minuten, bevor wir uns im Hotel getroffen=
+ haben, genommen. Ich habe davon nicht nur einen strammen Riemen bekommen, =
+sondern auch die Selbstsicherheit, die die Frauen lieben. Ich habe es ihr d=
+rei- oder viermal besorgt, und sie ist absolut hingerissen. Ich komme zieml=
+ich schnell, danach wird ihr Organsmus jedesmal unkontrollierbar. Viaaaagra=
+ hat mich bei ihr zur Legende gemacht!! Ich kann es kaum abwarten, wieder e=
+ine zu schlucken</strong></p><p><strong>Meine Frau und ich haben Viaaaagra =
+am letzten Wochenende ausprobiert. Sie fand, mein bestes St&#252;ck w&#228;=
+re in letzter Zeit nicht ganz auf der H&#246;he gewesen. Also dachten wir, =
+wir probieren es einfach einmal.Es gibt nur ein Wort, dass das Gef&#252;hl =
+beschreibt: Wahnsinn. Seit ich zwanzig war, konnte ich nicht mehr so lang u=
+nd so oft. Was soll ich sagen? Gute Arbeit, Viaaaagra!<br>
+</strong><strong><br>Haben Sie endlich wieder Spass am Leben!</strong></p><=
+p>Preise die keine Konkurrenz kennen <p>
+- keine versteckte Kosten<br>- Kein peinlicher Arztbesuch erforderlich<br>-=
+ Diskrete Verpackung und Zahlung<br>- Kostenlose, arztliche Telefon-Beratun=
+g<br>- Kein langes Warten - Auslieferung innerhalb von 2-3 Tagen<br>- Beque=
+m und diskret online bestellen.<br>- Visa verifizierter Onlineshop</p>
+<p>Originalmedikamente<br><strong>Ciaaaaaalis 10 Pack. 27,00 Euro</strong><=
+br>
+  <strong>Viaaaagra 10 Pack. 21,00 Euro</strong><br><br><strong><a href=3D"=
+http://vsjziyi.butseem.cn/?446059982443" target=3D"_blank">Jetzt bestellen =
+- und vier Pillen umsonst erhalten</a><br></strong>(bitte warten Sie einen =
+Moment bis die Seite vollst&auml;ndig geladen wird) </p></body>
+</BODY></HTML>
+
+------=_NextPart_000_0007_01C7CFA1.BCD7C4D0--
