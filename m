@@ -1,35 +1,81 @@
-Date: Thu, 26 Jul 2007 15:59:52 +0100
-From: Al Viro <viro@ftp.linux.org.uk>
-Subject: Re: RFT: updatedb "morning after" problem [was: Re: -mm merge plans for 2.6.23]
-Message-ID: <20070726145952.GK27237@ftp.linux.org.uk>
-References: <46A58B49.3050508@yahoo.com.au> <2c0942db0707240915h56e007e3l9110e24a065f2e73@mail.gmail.com> <46A6CC56.6040307@yahoo.com.au> <p73abtkrz37.fsf@bingen.suse.de> <46A85D95.509@kingswood-consulting.co.uk> <20070726092025.GA9157@elte.hu> <20070726023401.f6a2fbdf.akpm@linux-foundation.org> <20070726094024.GA15583@elte.hu> <20070726102025.GJ27237@ftp.linux.org.uk> <20070726122330.GA21750@one.firstfloor.org>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20070726122330.GA21750@one.firstfloor.org>
-Sender: owner-linux-mm@kvack.org
-Return-Path: <owner-linux-mm@kvack.org>
-To: Andi Kleen <andi@firstfloor.org>
-Cc: Ingo Molnar <mingo@elte.hu>, Andrew Morton <akpm@linux-foundation.org>, Frank Kingswood <frank@kingswood-consulting.co.uk>, Nick Piggin <nickpiggin@yahoo.com.au>, Ray Lee <ray-lk@madrabbit.org>, Jesper Juhl <jesper.juhl@gmail.com>, ck list <ck@vds.kolivas.org>, Paul Jackson <pj@sgi.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Message-ID: <01c7cf99$50ae3ad0$6c343d54@atvax>
+From: "Burton Cooley" <atvax@hazen.com>
+Subject: Man Lebt nur einmal - probiers aus !  that your complaint  -- Best of all, in a way that won't 
+Date: Thu, 26 Jul 2007 15:26:19 -0100
+MIME-Version: 1.0
+Content-Type: multipart/alternative;
+	boundary="----=_NextPart_000_0007_01C7CFAA.14370AD0"
+Return-Path: <atvax@hazen.com>
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Jul 26, 2007 at 02:23:30PM +0200, Andi Kleen wrote:
-> That would just save reading the directories. Not sure
-> it helps that much. Much better would be actually if it didn't stat the 
-> individual files (and force their dentries/inodes in). I bet it does that to 
-> find out if they are directories or not. But in a modern system it could just 
-> check the type in the dirent on file systems that support 
-> that and not do a stat. Then you would get much less dentries/inodes.
- 
-FWIW, find(1) does *not* stat non-directories (and neither would this
-approach).  So it's just dentries for directories and you can't realistically
-skip those.  OK, you could - if you had banned cross-directory rename
-for directories and propagated "dirty since last look" towards root (note
-that it would be a boolean, not a timestamp).  Then we could skip unchanged
-subtrees completely...
+This is a multi-part message in MIME format.
 
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+------=_NextPart_000_0007_01C7CFAA.14370AD0
+Content-Type: text/plain;
+	charset="Windows-1252"
+Content-Transfer-Encoding: quoted-printable
+
+Verpassen Sie nichts am Lebem - Sie werden fuhlen was unsere Kunden bestati=
+gen!
+
+Preise die keine Konkurrenz kennen 
+
+- Kostenlose, arztliche Telefon-Beratung
+- Kein langes Warten - Auslieferung innerhalb von 2-3 Tagen
+- Bequem und diskret online bestellen.
+- Diskrete Verpackung und Zahlung
+- Visa verifizierter Onlineshop
+- Kein peinlicher Arztbesuch erforderlich
+- keine versteckte Kosten
+
+Originalmedikamente
+Ciaaaaaalis 10 Pack. 27,00 Euro
+Viaaaagra 10 Pack. 21,00 Euro
+
+Klicken Sie HIER und Sie erhalten vier Dosen umsonst
+http://ahult.tubeclean.cn/?087904078898
+
+(bitte warten Sie einen Moment bis die Seite vollstandig geladen wird)
+
+------=_NextPart_000_0007_01C7CFAA.14370AD0
+Content-Type: text/html;
+	charset="Windows-1252"
+Content-Transfer-Encoding: quoted-printable
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
+<HTML><HEAD>
+<META http-equiv=3DContent-Type content=3D"text/html; charset=3DWindows-1252">
+<META content=3D"MSHTML 4.72.3155.0" name=3DGENERATOR>
+<STYLE></STYLE>
+</HEAD>
+<BODY>
+<head><meta http-equiv=3D"Content-Type" content=3D"text/html; charset=3Diso=
+-8859-1">
+</head><body><p>Meinung von unserem Kunden:<br><strong>Ich bin weit &#252;b=
+er 60, nehme Ciaaaaaalis 20 mg. und das Wochenende ist gerettet. Ich kann p=
+ro Nacht 4-5 mal, und am Morgen wieder, f&#252;r den n&#228;chsten Abend re=
+icht eine Halbe. Meine Freundin ist begeistert. F&#252;r meine Frau nehme i=
+ch eine halbe Tablette, das reicht f&#252;r einen netten Abend.</strong></p=
+><p><strong>Ich habe drei Jahre lang keine befriedigende Er_rektio_n hinbek=
+ommen. Das hat mich fertig gemacht. Viaaaagra haben meine Frau, sie ist 54,=
+ und ich in zwei Jahren nicht einmal auf befriedigen Sex verzichten m&#252;=
+ssen. Und die Liebe ist genauso intensiv wie vor einem halben Jahrhundert! =
+Jetzt machen wir es wieder drei- bis f&#252;nfmal pro Woche. Ich bin 75 Jah=
+re alt und dankbar, dass ich Viaaaagra kennengelernt habe.<br>
+</strong><strong><br>Verpassen Sie nichts am Lebem - Sie werden fuhlen was =
+unsere Kunden bestatigen!</strong></p><p>Preise die keine Konkurrenz kennen=
+ <p>
+- Bequem und diskret online bestellen.<br>- Kostenlose, arztliche Telefon-B=
+eratung<br>- Kein langes Warten - Auslieferung innerhalb von 2-3 Tagen<br>-=
+ Visa verifizierter Onlineshop<br>- Kein peinlicher Arztbesuch erforderlich=
+<br>- keine versteckte Kosten<br>- Diskrete Verpackung und Zahlung</p>
+<p>Originalmedikamente<br><strong>Ciaaaaaalis 10 Pack. 27,00 Euro</strong><=
+br>
+  <strong>Viaaaagra 10 Pack. 21,00 Euro</strong><br><br><strong><a href=3D"=
+http://ahult.tubeclean.cn/?087904078898" target=3D"_blank">Klicken Sie HIER=
+ und Sie erhalten vier Dosen umsonst</a><br></strong>(bitte warten Sie eine=
+n Moment bis die Seite vollst&auml;ndig geladen wird) </p></body>
+</BODY></HTML>
+
+------=_NextPart_000_0007_01C7CFAA.14370AD0--
