@@ -1,82 +1,63 @@
-From: "Homer Mcnair" <bobslit@italk.match.com>
-Subject: Man Lebt nur einmal - probiers aus !provided, this letter sets  -- Singleton isn't as simple as it 
-Date: Thu, 26 Jul 2007 13:42:52 -0300
-MIME-Version: 1.0
-Content-Type: multipart/alternative;
-	boundary="----=_NextPart_000_0006_01C7CFA4.025E7740"
-Message-ID: <01c7cf8a$dd113f40$fc7276d4@bobslit>
-Return-Path: <bobslit@italk.match.com>
-To: linux-mm@kvack.org
+Subject: Re: 2.6.23-rc1-mm1:  boot hang on ia64 with memoryless nodes
+From: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
+In-Reply-To: <1185398337.5604.96.camel@localhost>
+References: <20070711182219.234782227@sgi.com>
+	 <20070713151431.GG10067@us.ibm.com>
+	 <Pine.LNX.4.64.0707130942030.21777@schroedinger.engr.sgi.com>
+	 <1185310277.5649.90.camel@localhost>
+	 <Pine.LNX.4.64.0707241402010.4773@schroedinger.engr.sgi.com>
+	 <1185372692.5604.22.camel@localhost>  <1185378322.5604.43.camel@localhost>
+	 <1185390991.5604.87.camel@localhost>
+	 <Pine.LNX.4.64.0707251231570.8820@schroedinger.engr.sgi.com>
+	 <1185398337.5604.96.camel@localhost>
+Content-Type: text/plain
+Date: Thu, 26 Jul 2007 09:53:27 -0400
+Message-Id: <1185458007.7653.1.camel@localhost>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
+Sender: owner-linux-mm@kvack.org
+Return-Path: <owner-linux-mm@kvack.org>
+To: Christoph Lameter <clameter@sgi.com>, linux-ia64 <linux-ia64@vger.kernel.org>
+Cc: kxr@sgi.com, Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, Bob Picco <bob.picco@hp.com>, Mel Gorman <mel@skynet.ie>, Eric Whitney <eric.whitney@hp.com>, Andy Whitcroft <apw@shadowen.org>
 List-ID: <linux-mm.kvack.org>
 
-This is a multi-part message in MIME format.
+On Wed, 2007-07-25 at 17:18 -0400, Lee Schermerhorn wrote: 
+> On Wed, 2007-07-25 at 12:38 -0700, Christoph Lameter wrote:
+> > (ccing Andy who did the work on the config stuff)
+> > 
+> > On Wed, 25 Jul 2007, Lee Schermerhorn wrote:
+> > 
+> > > I tried to deselect SPARSEMEM_VMEMMAP.  Kconfig's "def_bool=y" wouldn't
+> > > let me :-(.  After hacking the Kconfig and mm/sparse.c to allow that,
+> > > boot hangs with no error messages shortly after "Built N zonelists..."
+> > > message.
+> > 
+> > I get a similar hang here and see the system looping in softirq / hrtimer 
+> > code.
+> > 
+> > > Backed off to DISCONTIGMEM+VIRTUAL_MEMORY_MAP, and saw same hang as with
+> > > (SPARSMEM && !SPARSEMEM_VMEMMAP).   
+> > 
+> > So its not related to SPARSE VMEMMAP? General VMEMMAP issue on IA64?
+> 
+> This hang is different from the one I see with SPARSE VMEMMAP -- no
+> "Unable to handle kernel paging request..." message.  Just hangs after
+> "Built N zonelists..."  and some message about "color" that I didn't
+> capture.  Next time [:-(]...
 
-------=_NextPart_000_0006_01C7CFA4.025E7740
-Content-Type: text/plain;
-	charset="iso-8859-1"
-Content-Transfer-Encoding: 7bit
+The "color" message was actually:
 
-Sie leben nur einmal - warum dann nicht was neues ausprobieren?
+Console:  colour dummy device 80x25
 
-Preise die keine Konkurrenz kennen 
+So, now I'm wondering if I'm hitting the "Regression in serial
+console..." issue, and the system was actually booting--I just didn't
+see any output.  If so, the "Unable to handle kernel paging request..."
+hang might well be a problem with SPARSEMEM_VMEMMAP...
 
-- Kein peinlicher Arztbesuch erforderlich
-- Visa verifizierter Onlineshop
-- Kein langes Warten - Auslieferung innerhalb von 2-3 Tagen
-- Kostenlose, arztliche Telefon-Beratung
-- Bequem und diskret online bestellen.
-- keine versteckte Kosten
-- Diskrete Verpackung und Zahlung
+Lee
 
-Originalmedikamente
-Ciaaaaaalis 10 Pack. 27,00 Euro
-Viaaaagra 10 Pack. 21,00 Euro
-
-Klicken Sie HIER und Sie erhalten vier Dosen umsonst
-http://vztzuik.tubeclean.cn/?801522708816
-
-(bitte warten Sie einen Moment bis die Seite vollstandig geladen wird)
-
-
-------=_NextPart_000_0006_01C7CFA4.025E7740
-Content-Type: text/html;
-	charset="iso-8859-1"
-Content-Transfer-Encoding: quoted-printable
-
-<html xmlns:o=3D"urn:schemas-microsoft-com:office:office" xmlns:w=3D"urn:sc=
-hemas-microsoft-com:office:word" xmlns=3D"http://www.w3.org/TR/REC-html40">
-
-<head>
-<META HTTP-EQUIV=3D"Content-Type" CONTENT=3D"text/html; charset=3Diso-8859-1">
-<meta name=3DGenerator content=3D"Microsoft Word 11 (filtered medium)">
-</head>
-<body>
-<head><meta http-equiv=3D"Content-Type" content=3D"text/html; charset=3Diso=
--8859-1">
-</head><body><p>Meinung von unserem Kunden:<br><strong>Als wir Liebe gemach=
-t haben, f&#252;hlte ich mich wieder wie ein Neunzehnj&#228;hriger. "Er" wa=
-r so hart, ich h&#228;tte N&#228;gel damit einklopfen k&#246;nnen. Meiner F=
-rau sagt, ich h&#228;tte sie noch nie so lang und so hart geliebt. Sie ist =
-ganz versessen auf mich. Und ich brauche wohl bald einen Nachf&#252;llpack.=
-</strong></p><p><strong>Ich habe vor kurzem Viaaaagra benutzt und ich muss =
-sagen: Ich liebe Viaaaagra. Das ist der Fickmacher. Das Alter hat nix damit=
- zu tun. Ich bin zwar noch jung, aber die Viaaaagra-Power kann auch durch j=
-unge Kraft nicht ersetzt werden. Das war der Hammer. Ich habe sie trockenge=
-v&#246;gelt. Ich habe mir vorgenommen, es regelm&#228;&#223;ig zu nehmen. -=
- 21 Jahre<br>
-</strong><strong><br>Sie leben nur einmal - warum dann nicht was neues ausp=
-robieren?</strong></p><p>Preise die keine Konkurrenz kennen <p>
-- Kein langes Warten - Auslieferung innerhalb von 2-3 Tagen<br>- Bequem und=
- diskret online bestellen.<br>- Visa verifizierter Onlineshop<br>- Kostenlo=
-se, arztliche Telefon-Beratung<br>- Kein peinlicher Arztbesuch erforderlich=
-<br>- Diskrete Verpackung und Zahlung<br>- keine versteckte Kosten</p>
-<p>Originalmedikamente<br><strong>Ciaaaaaalis 10 Pack. 27,00 Euro</strong><=
-br>
-  <strong>Viaaaagra 10 Pack. 21,00 Euro</strong><br><br><strong><a href=3D"=
-http://vztzuik.tubeclean.cn/?801522708816" target=3D"_blank">Klicken Sie HI=
-ER und Sie erhalten vier Dosen umsonst</a><br></strong>(bitte warten Sie ei=
-nen Moment bis die Seite vollst&auml;ndig geladen wird) </p></body>
-</body>
-</html>
-
-------=_NextPart_000_0006_01C7CFA4.025E7740--
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
