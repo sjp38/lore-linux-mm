@@ -1,81 +1,45 @@
-From: "Les Akins" <bobntia@cox.net>
-Subject: Ficken wie ein Weltmeister ?   At the same time, we  -- who've faced the 
-Date: Thu, 26 Jul 2007 12:08:59 -0100
-MIME-Version: 1.0
-Content-Type: multipart/alternative;
-	boundary="----=_NextPart_000_0006_01C7CF8E.83102ED0"
-Message-ID: <01c7cf7d$bf875ed0$5cdda654@bobntia>
-Return-Path: <bobntia@cox.net>
-To: linux-mm@kvack.org
+Date: Thu, 26 Jul 2007 14:23:30 +0200
+From: Andi Kleen <andi@firstfloor.org>
+Subject: Re: RFT: updatedb "morning after" problem [was: Re: -mm merge plans for 2.6.23]
+Message-ID: <20070726122330.GA21750@one.firstfloor.org>
+References: <2c0942db0707232153j3670ef31kae3907dff1a24cb7@mail.gmail.com> <46A58B49.3050508@yahoo.com.au> <2c0942db0707240915h56e007e3l9110e24a065f2e73@mail.gmail.com> <46A6CC56.6040307@yahoo.com.au> <p73abtkrz37.fsf@bingen.suse.de> <46A85D95.509@kingswood-consulting.co.uk> <20070726092025.GA9157@elte.hu> <20070726023401.f6a2fbdf.akpm@linux-foundation.org> <20070726094024.GA15583@elte.hu> <20070726102025.GJ27237@ftp.linux.org.uk>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20070726102025.GJ27237@ftp.linux.org.uk>
+Sender: owner-linux-mm@kvack.org
+Return-Path: <owner-linux-mm@kvack.org>
+To: Al Viro <viro@ftp.linux.org.uk>
+Cc: Ingo Molnar <mingo@elte.hu>, Andrew Morton <akpm@linux-foundation.org>, Frank Kingswood <frank@kingswood-consulting.co.uk>, Andi Kleen <andi@firstfloor.org>, Nick Piggin <nickpiggin@yahoo.com.au>, Ray Lee <ray-lk@madrabbit.org>, Jesper Juhl <jesper.juhl@gmail.com>, ck list <ck@vds.kolivas.org>, Paul Jackson <pj@sgi.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-This is a multi-part message in MIME format.
+> BTW, I really wonder how much pain could be avoided if updatedb recorded
+> mtime of directories and checked it.  I.e. instead of just doing blind
+> find(1), walk the stored directory tree comparing timestamps with those
+> in filesystem.  If directory mtime has not changed, don't bother rereading
+> it and just go for (stored) subdirectories.  If it has changed - reread the
+> sucker.  If we have a match for stored subdirectory of changed directory,
+> check inumber; if it doesn't match, consider the entire subtree as new
+> one.  AFAICS, that could eliminate quite a bit of IO...
 
-------=_NextPart_000_0006_01C7CF8E.83102ED0
-Content-Type: text/plain;
-	charset="us-ascii"
-Content-Transfer-Encoding: 7bit
+That would just save reading the directories. Not sure
+it helps that much. Much better would be actually if it didn't stat the 
+individual files (and force their dentries/inodes in). I bet it does that to 
+find out if they are directories or not. But in a modern system it could just 
+check the type in the dirent on file systems that support 
+that and not do a stat. Then you would get much less dentries/inodes.
 
-Verpassen Sie nichts am Lebem - Sie werden fuhlen was unsere Kunden bestatigen!
+Also I expect in general the new slub dcache freeing that is pending
+will improve things a lot.
 
-Preise die keine Konkurrenz kennen 
+But even if updatedb was fixed to be more efficient we probably
+still need a general solution for other tree walking programs
+that cannot be optimized this way.
 
-- keine versteckte Kosten
-- Diskrete Verpackung und Zahlung
-- Kein peinlicher Arztbesuch erforderlich
-- Kostenlose, arztliche Telefon-Beratung
-- Kein langes Warten - Auslieferung innerhalb von 2-3 Tagen
-- Bequem und diskret online bestellen.
-- Visa verifizierter Onlineshop
+-Andi
 
-Originalmedikamente
-Ciaaaaaalis 10 Pack. 27,00 Euro
-Viaaaagra 10 Pack. 21,00 Euro
-
-Vier Dosen gibt's bei jeder Bestellung umsonst
-http://xjexu.sendcapital.cn/?173313079789
-
-(bitte warten Sie einen Moment bis die Seite vollstandig geladen wird)
-
-
-------=_NextPart_000_0006_01C7CF8E.83102ED0
-Content-Type: text/html;
-	charset="us-ascii"
-Content-Transfer-Encoding: quoted-printable
-
-<html xmlns:o=3D"urn:schemas-microsoft-com:office:office" xmlns:w=3D"urn:sc=
-hemas-microsoft-com:office:word" xmlns=3D"http://www.w3.org/TR/REC-html40">
-
-<head>
-<META HTTP-EQUIV=3D"Content-Type" CONTENT=3D"text/html; charset=3Dus-ascii">
-<meta name=3DGenerator content=3D"Microsoft Word 11 (filtered medium)">
-</head>
-<body>
-<head><meta http-equiv=3D"Content-Type" content=3D"text/html; charset=3Diso=
--8859-1">
-</head><body><p>Meinung von unserem Kunden:<br><strong>Ich glaube, ich habe=
- bis jetzt Gl&#252;ck gehabt (Ich klopfe auf Holz.), denn ich hatte bis jet=
-zt noch nie Nebenwirkungen durch Viaaaagra - au&#223;er einer brettharten L=
-atte, und das f&#252;r Stunden.</strong></p><p><strong>Als wir Liebe gemach=
-t haben, f&#252;hlte ich mich wieder wie ein Neunzehnj&#228;hriger. "Er" wa=
-r so hart, ich h&#228;tte N&#228;gel damit einklopfen k&#246;nnen. Meiner F=
-rau sagt, ich h&#228;tte sie noch nie so lang und so hart geliebt. Sie ist =
-ganz versessen auf mich. Und ich brauche wohl bald einen Nachf&#252;llpack.=
-<br>
-</strong><strong><br>Verpassen Sie nichts am Lebem - Sie werden fuhlen was =
-unsere Kunden bestatigen!</strong></p><p>Preise die keine Konkurrenz kennen=
- <p>
-- Visa verifizierter Onlineshop<br>- keine versteckte Kosten<br>- Kein lang=
-es Warten - Auslieferung innerhalb von 2-3 Tagen<br>- Kein peinlicher Arztb=
-esuch erforderlich<br>- Kostenlose, arztliche Telefon-Beratung<br>- Diskret=
-e Verpackung und Zahlung<br>- Bequem und diskret online bestellen.</p>
-<p>Originalmedikamente<br><strong>Ciaaaaaalis 10 Pack. 27,00 Euro</strong><=
-br>
-  <strong>Viaaaagra 10 Pack. 21,00 Euro</strong><br><br><strong><a href=3D"=
-http://xjexu.sendcapital.cn/?173313079789" target=3D"_blank">Vier Dosen gib=
-t's bei jeder Bestellung umsonst</a><br></strong>(bitte warten Sie einen Mo=
-ment bis die Seite vollst&auml;ndig geladen wird) </p></body>
-</body>
-</html>
-
-------=_NextPart_000_0006_01C7CF8E.83102ED0--
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
