@@ -1,70 +1,76 @@
-From: Dirk Schoebel <dirk@liji-und-dirk.de>
-Subject: Re: [ck] Re: -mm merge plans for 2.6.23
-Date: Fri, 27 Jul 2007 00:04:38 +0200
-References: <20070710013152.ef2cd200.akpm@linux-foundation.org> <b14e81f00707260719w63d8ab38jbf2a17a38bd07c1d@mail.gmail.com> <20070726111326.873f7b0a.akpm@linux-foundation.org>
-In-Reply-To: <20070726111326.873f7b0a.akpm@linux-foundation.org>
+Received: by nz-out-0506.google.com with SMTP id s1so616546nze
+        for <linux-mm@kvack.org>; Thu, 26 Jul 2007 15:30:15 -0700 (PDT)
+Message-ID: <b14e81f00707261530i6ebe73derdebe52a0aee687a8@mail.gmail.com>
+Date: Thu, 26 Jul 2007 18:30:14 -0400
+From: "Michael Chang" <thenewme91@gmail.com>
+Subject: Re: -mm merge plans for 2.6.23
+In-Reply-To: <b21f8390707251815o767590acrf6a6c4d7290a26a8@mail.gmail.com>
 MIME-Version: 1.0
-Content-Type: multipart/signed;
-  boundary="nextPart2470270.ABJPYyX5vq";
-  protocol="application/pgp-signature";
-  micalg=pgp-sha1
+Content-Type: text/plain; charset=UTF-8; format=flowed
 Content-Transfer-Encoding: 7bit
-Message-Id: <200707270004.46211.dirk@liji-und-dirk.de>
+Content-Disposition: inline
+References: <20070710013152.ef2cd200.akpm@linux-foundation.org>
+	 <2c0942db0707232153j3670ef31kae3907dff1a24cb7@mail.gmail.com>
+	 <46A58B49.3050508@yahoo.com.au>
+	 <2c0942db0707240915h56e007e3l9110e24a065f2e73@mail.gmail.com>
+	 <46A6CC56.6040307@yahoo.com.au> <46A6D7D2.4050708@gmail.com>
+	 <Pine.LNX.4.64.0707242211210.2229@asgard.lang.hm>
+	 <46A6DFFD.9030202@gmail.com>
+	 <2c0942db0707250902v58e23d52v434bde82ba28f119@mail.gmail.com>
+	 <b21f8390707251815o767590acrf6a6c4d7290a26a8@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: ck@vds.kolivas.org
-Cc: Andrew Morton <akpm@linux-foundation.org>, Michael Chang <thenewme91@gmail.com>, Nick Piggin <nickpiggin@yahoo.com.au>, Ray Lee <ray-lk@madrabbit.org>, Eric St-Laurent <ericstl34@sympatico.ca>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Paul Jackson <pj@sgi.com>, Jesper Juhl <jesper.juhl@gmail.com>, Rene Herman <rene.herman@gmail.com>
+To: Matthew Hawkins <darthmdh@gmail.com>
+Cc: Ray Lee <ray-lk@madrabbit.org>, ck list <ck@vds.kolivas.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
---nextPart2470270.ABJPYyX5vq
-Content-Type: text/plain;
-  charset="iso-8859-1"
-Content-Transfer-Encoding: quoted-printable
-Content-Disposition: inline
+On 7/25/07, Matthew Hawkins <darthmdh@gmail.com> wrote:
+> On 7/26/07, Ray Lee <ray-lk@madrabbit.org> wrote:
+> > I'd just like updatedb to amortize its work better. If we had some way
+> > to track all filesystem events, updatedb could keep a live and
+> > accurate index on the filesystem. And this isn't just updatedb that
+> > wants that, beagle and tracker et al also want to know filesystem
+> > events so that they can index the documents themselves as well as the
+> > metadata. And if they do it live, that spreads the cost out, including
+> > the VM pressure.
+>
+> We already have this, its called inotify (and if I'm not mistaken,
+> beagle already uses it).  Several years ago when it was still a little
+> flakey patch, I built a custom filesystem indexer into an enterprise
+> search engine using it (I needed to pull apart Unix mbox files).  The
+> only trouble of course is the action is triggered immediately, which
+> may not always be ideal (but that's a userspace problem)
+>
 
-I don't really understand the reasons for all those discussions.
-As long as you have a maintainer, why don't you just put swap prefetch into=
-=20
-the kernel, marked experimental, default deactivated so anyone who just=20
-make[s] oldconfig (or defaultconfig) won't get it. If anyone finds a good=20
-solution for all those cache 'poisoning' problems and problems concerning=20
-swapin on workload changes and such swap prefetch can easily taken out agai=
-n=20
-and no one has to complain and continuing maintaining it.
-Actually the same goes for plugshed (having it might have kept Con as a=20
-valuable developer).
-I am actually waiting for more than 2 years that reiser4 will make it into =
-the=20
-kernel (sure, marked experimental or even highly experimental) so the=20
-patch-journey for every new kernel comes to an end. And most things in-kern=
-el=20
-will surely be tested more intense so bugs will come up much faster.=20
-(Constantly running MM kernels is not really an option since many things in=
-=20
-there can't be deactivated if they don't work as expected since lots of=20
-patches also concern 'vital' parts of the kernel.)
+With all this discussion about updatedb and locate and such, I thought
+I'd do a Google search, (considering I've never heard of locate before
+but I've seen updatedb here and there in ps lists) and I found this:
 
-=2E..just 2cents from a happy CK user for it made it possible to watch a mo=
-vie=20
-while compiling the system - which was impossible with mainline kernel, eve=
-n=20
-on dual core 2.2 GHz AMD64 with 4G RAM !
+http://www.linux.com/articles/114029
 
-Dirk.
+That page mentions something called "rlocate", which seems to provide
+some sort of almost-real-time mechanism, although the method it does
+so bothers me -- it uses a 2.6 kernel module AND a userspace daemon.
+And from what I can tell, there's no indication that this almost
+"real-time" (--I see mentions of a 2 second lag--) system
+replaces/eliminates updatedb in any way, shape, or form.
 
---nextPart2470270.ABJPYyX5vq
-Content-Type: application/pgp-signature; name=signature.asc 
-Content-Description: This is a digitally signed message part.
+http://rlocate.sourceforge.net/ - Project "Web Site"
+http://sourceforge.net/projects/rlocate/ - Source Forge Project Summary
 
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v2.0.5 (GNU/Linux)
+The last release also appears a bit dated on sourceforge... release
+0.4.0 on 2006-01-15.
 
-iD8DBQBGqRp+6YYnt7muP7IRArLyAJ91sIZPuxe6co3Swp7LjaCKGsoy5QCg6Hpy
-76zfIgZ9L7Iw7avW/ko6GeE=
-=CUXM
------END PGP SIGNATURE-----
+Just thought I'd mention it.
 
---nextPart2470270.ABJPYyX5vq--
+
+-- 
+Michael Chang
+
+Please avoid sending me Word or PowerPoint attachments. Send me ODT,
+RTF, or HTML instead.
+See http://www.gnu.org/philosophy/no-word-attachments.html
+Thank you.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
