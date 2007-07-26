@@ -1,51 +1,60 @@
-Message-ID: <46A83C7A.80601@yahoo.com.au>
-Date: Thu, 26 Jul 2007 16:17:30 +1000
-From: Nick Piggin <nickpiggin@yahoo.com.au>
+Received: by ug-out-1314.google.com with SMTP id c2so570824ugf
+        for <linux-mm@kvack.org>; Wed, 25 Jul 2007 23:23:03 -0700 (PDT)
+Message-ID: <7e0bae390707252323k2552c701x5673c55ff2cf119e@mail.gmail.com>
+Date: Thu, 26 Jul 2007 13:23:03 +0700
+From: "Andika Triwidada" <andika@gmail.com>
+Subject: Re: updatedb
+In-Reply-To: <46A81C39.4050009@gmail.com>
 MIME-Version: 1.0
-Subject: Re: -mm merge plans for 2.6.23
-References: <20070710013152.ef2cd200.akpm@linux-foundation.org>	<9a8748490707231608h453eefffx68b9c391897aba70@mail.gmail.com>	<46A57068.3070701@yahoo.com.au>	<2c0942db0707232153j3670ef31kae3907dff1a24cb7@mail.gmail.com>	<46A58B49.3050508@yahoo.com.au>	<2c0942db0707240915h56e007e3l9110e24a065f2e73@mail.gmail.com>	<46A6CC56.6040307@yahoo.com.au>	<46A6D7D2.4050708@gmail.com>	<1185341449.7105.53.camel@perkele>	<46A6E1A1.4010508@yahoo.com.au>	<2c0942db0707250909r435fef75sa5cbf8b1c766000b@mail.gmail.com>	<20070725215717.df1d2eea.akpm@linux-foundation.org>	<46A836E1.1000404@yahoo.com.au> <20070725230609.d2d1be59.akpm@linux-foundation.org>
-In-Reply-To: <20070725230609.d2d1be59.akpm@linux-foundation.org>
-Content-Type: text/plain; charset=us-ascii; format=flowed
+Content-Type: text/plain; charset=UTF-8; format=flowed
 Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+References: <367a23780707250830i20a04a60n690e8da5630d39a9@mail.gmail.com>
+	 <46A773EA.5030103@gmail.com>
+	 <a491f91d0707251015x75404d9fld7b3382f69112028@mail.gmail.com>
+	 <46A81C39.4050009@gmail.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Ray Lee <ray-lk@madrabbit.org>, Eric St-Laurent <ericstl34@sympatico.ca>, Rene Herman <rene.herman@gmail.com>, Jesper Juhl <jesper.juhl@gmail.com>, ck list <ck@vds.kolivas.org>, Ingo Molnar <mingo@elte.hu>, Paul Jackson <pj@sgi.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Rene Herman <rene.herman@gmail.com>
+Cc: Robert Deaton <false.hopes@gmail.com>, linux-kernel@vger.kernel.org, ck list <ck@vds.kolivas.org>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Andrew Morton wrote:
-> On Thu, 26 Jul 2007 15:53:37 +1000 Nick Piggin <nickpiggin@yahoo.com.au> wrote:
-> 
-> 
->>Not that I want to say anything about swap prefetch getting merged: my
->>inbox is already full of enough "helpful suggestions" about that,
-> 
-> 
-> give them the kernel interfaces, they can do it themselves ;)
+On 7/26/07, Rene Herman <rene.herman@gmail.com> wrote:
+> On 07/25/2007 07:15 PM, Robert Deaton wrote:
+>
+> > On 7/25/07, Rene Herman <rene.herman@gmail.com> wrote:
+>
+> >> And there we go again -- off into blabber-land. Why does swap-prefetch
+> >> help updatedb? Or doesn't it? And if it doesn't, why should anyone
+> >> trust anything else someone who said it does says?
+>
+> > I don't think anyone has ever argued that swap-prefetch directly helps
+> > the performance of updatedb in any way
+>
+> People have argued (claimed, rather) that swap-prefetch helps their system
+> after updatedb has run -- you are doing so now.
+>
+> > however, I do recall people mentioning that updatedb, being a ram
+> > intensive task, will often cause things to be swapped out while it runs
+> > on say a nightly cronjob.
+>
+> Problem spot no. 1.
+>
+> RAM intensive? If I run updatedb here, it never grows itself beyond 2M. Yes,
+> two. I'm certainly willing to accept that me and my systems are possibly not
+> the reference but assuming I'm _very_ special hasn't done much for me either
+> in the past.
 
-It is a good idea if we can give enough to get started. Then if
-they run into something they really need to do in the kernel, we
-can take a look.
+Might be insignificant, but updatedb calls find (~2M) and sort (~26M).
+Definitely not RAM intensive though (RAM is 1GB).
 
-Page eviction order / prefetch-back-in-order might be tricky to
-expose.
+>
+> The thing updatedb does do, or at least has the potential to do, is fill
+> memory with cached inodes/dentries but Linux does not swap to make room for
+> caches. So why will updatedb "often cause things to be swapped out"?
+>
 
-
->>so I'll
->>just be happy to have a look at little things like updatedb.
-> 
-> 
-> Yes, that is a little thing.  I mean, even if the kernel's behaviour
-> during an updatedb run was "perfect" (ie: does what we the designers
-> curently intend it to do (whatever that is)) then the core problem isn't
-> solved: short-term workload evicts your working set and you have to
-> synchronously reestablish it.
-
-Sure, I know and I was never against swap (and/or file) prefetching to
-solve this problem. I'm just saying, I'm staying out of that :)
-
--- 
-SUSE Labs, Novell Inc.
+[ snip ]
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
