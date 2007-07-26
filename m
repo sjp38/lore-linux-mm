@@ -1,40 +1,50 @@
+Message-ID: <46A8D787.4090202@gmx.net>
+Date: Thu, 26 Jul 2007 19:19:03 +0200
+From: Michael Kerrisk <mtk-manpages@gmx.net>
 MIME-Version: 1.0
-Subject: =?ISO-8859-1?Q?=A7RWe?= sell both BRAND(100% original)  & GENERIC(35% cheaper) medications, Up to 70% saving    46cghf12jach
-Date: Thu, 26 Jul 2007 10:39:08 -0700
-Message-ID: <1185471548.3382@honeywell.com>
-From: "Josephine McKinney" <mcKinney_px@honeywell.com>
-Content-Type: text/html;
-	charset="iso-8859-2"
-Content-Transfer-Encoding: 8bit
-Return-Path: <mcKinney_px@honeywell.com>
-To: linux-mm-archive@kvack.org, ian@kvack.org, adrian@kvack.org, blah@kvack.org, owner-linux-mm@kvack.org
+Subject: Re: mbind.2 man page patch
+References: <1180467234.5067.52.camel@localhost>	 <Pine.LNX.4.64.0705291247001.26308@schroedinger.engr.sgi.com>	 <200705292216.31102.ak@suse.de> <1180541849.5850.30.camel@localhost>	 <20070531082016.19080@gmx.net> <1180732544.5278.158.camel@localhost>	 <46A44B8D.2040200@gmx.net> <1185200768.5074.10.camel@localhost>
+In-Reply-To: <1185200768.5074.10.camel@localhost>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
+Sender: owner-linux-mm@kvack.org
+Return-Path: <owner-linux-mm@kvack.org>
+To: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
+Cc: ak@suse.de, clameter@sgi.com, akpm@linux-foundation.org, linux-mm@kvack.org, Samuel Thibault <samuel.thibault@ens-lyon.org>
 List-ID: <linux-mm.kvack.org>
 
-<html>
-<head>
-<meta http-equiv="Content-Type" content="text; charset=iso-8859-1">
-</head>
-<body>
-<center>
-<table border=8 cellspacing=0 cellpadding=8 width=545 bordercolor=C4FC30>
-<tr><td bgcolor=000000 align=center><font size=6 color=FFFF00 face=tahoma>
-<b>RELIABLE PHARMACY</b></font></td></tr><tr><td bgcolor=E8F8F8 align=left><font size=2 face=tahoma color=000000>
-- Pick the meds you want to order & 
-checkout (2 steps to finish an order)
-<br>
-- Fast delivery & discrete packaging to 
-your doorstep
-<br> 
-- We sell both BRAND(100% original brand) & 
-GENERIC(35% cheaper)<br>
-- We give up to 70% discount (on retail shop price) 
-for BOTH brand & generic meds<br>
-- Meds we sell: <font color=00C400 size=2><b>Cia|lisViagra, AmbiemValium, 
-AtivanXanax, CelebrexSoma, 
-PhenterminMeridia & other 20 popular meds
-</b></font>
-</font>
-<center>
-<a href=http://bwctm6d3xzo03c.adthesupplement.com target=_blank><font face=tahoma size=5 color=6060FF><b><u>View all medications we have (1st link)</a></font><br><br><a href=http://b2fv5sh1n0b.adthesupplement.com target=_blank><font face=tahoma size=5 color=6060FF>If above link not load up, try this 2nd link</a></b></font><br></center></td></tr></table><font color=FFEAD5 size=1>food between between truly; affect remember may easy modern clear horses; ukzfcj34vb1ph2 je2ti5frj1e</font>
-</body>
-</html>
+[...]
+>> +If the specified memory range includes a memory mapped file mapped using
+>> +.BR mmap (2)
+>> +with the
+>> +.B MAP_SHARED
+>> +flag, the specified policy will be ignored for all page allocations
+>> +in this range.
+>> +.\" FIXME Lee / Andi: can you clarify/confirm "the specified policy
+>> +.\" will be ignored for all page allocations in this range".
+>> +.\" That text seems to be saying that if the memory range contains
+>> +.\" (say) some mappings that are allocated with MAP_SHARED
+>> +.\" and others allocated with MAP_PRIVATE, then the policy
+>> +.\" will be ignored for all of the mappings, including even
+>> +.\" the MAP_PRIVATE mappings.  Right?  I just want to be
+>> +.\" sure that that is what the text is meaning.
+> 
+> I can see from the wording how you might think this.  However, policy
+> will only be ignored for the SHARED mappings.  
+
+So is a better wording something like:
+
+    The specified policy will be ignored for any MAP_SHARED
+    file mappings in the specified memory range.
+
+?
+
+Cheers,
+
+Michael
+
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
