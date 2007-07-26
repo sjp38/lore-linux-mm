@@ -1,44 +1,62 @@
-Date: Thu, 26 Jul 2007 12:24:06 +0200
-From: Ingo Molnar <mingo@elte.hu>
-Subject: Re: RFT: updatedb "morning after" problem [was: Re: -mm merge
-	plans for 2.6.23]
-Message-ID: <20070726102406.GA30165@elte.hu>
-References: <2c0942db0707232153j3670ef31kae3907dff1a24cb7@mail.gmail.com> <46A58B49.3050508@yahoo.com.au> <2c0942db0707240915h56e007e3l9110e24a065f2e73@mail.gmail.com> <46A6CC56.6040307@yahoo.com.au> <p73abtkrz37.fsf@bingen.suse.de> <46A85D95.509@kingswood-consulting.co.uk> <20070726092025.GA9157@elte.hu> <20070726023401.f6a2fbdf.akpm@linux-foundation.org> <20070726094024.GA15583@elte.hu> <20070726030902.02f5eab0.akpm@linux-foundation.org>
+Received: by ug-out-1314.google.com with SMTP id c2so601654ugf
+        for <linux-mm@kvack.org>; Thu, 26 Jul 2007 03:26:43 -0700 (PDT)
+From: Bartlomiej Zolnierkiewicz <bzolnier@gmail.com>
+Subject: Re: [ck] Re: -mm merge plans for 2.6.23
+Date: Thu, 26 Jul 2007 12:22:50 +0200
+References: <Pine.LNX.4.64.0707242211210.2229@asgard.lang.hm> <200707260432.52739.bzolnier@gmail.com> <46A81F67.1040502@garzik.org>
+In-Reply-To: <46A81F67.1040502@garzik.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain;
+  charset="iso-8859-1"
+Content-Transfer-Encoding: 7bit
 Content-Disposition: inline
-In-Reply-To: <20070726030902.02f5eab0.akpm@linux-foundation.org>
+Message-Id: <200707261222.50487.bzolnier@gmail.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Frank Kingswood <frank@kingswood-consulting.co.uk>, Andi Kleen <andi@firstfloor.org>, Nick Piggin <nickpiggin@yahoo.com.au>, Ray Lee <ray-lk@madrabbit.org>, Jesper Juhl <jesper.juhl@gmail.com>, ck list <ck@vds.kolivas.org>, Paul Jackson <pj@sgi.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Jeff Garzik <jeff@garzik.org>
+Cc: Ingo Molnar <mingo@elte.hu>, Satyam Sharma <satyam.sharma@gmail.com>, Rene Herman <rene.herman@gmail.com>, Jos Poortvliet <jos@mijnkamer.nl>, david@lang.hm, Nick Piggin <nickpiggin@yahoo.com.au>, Valdis.Kletnieks@vt.edu, Ray Lee <ray-lk@madrabbit.org>, Jesper Juhl <jesper.juhl@gmail.com>, linux-kernel@vger.kernel.org, ck list <ck@vds.kolivas.org>, linux-mm@kvack.org, Paul Jackson <pj@sgi.com>, Andrew Morton <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-* Andrew Morton <akpm@linux-foundation.org> wrote:
+On Thursday 26 July 2007, Jeff Garzik wrote:
+> Bartlomiej Zolnierkiewicz wrote:
+> > On Wednesday 25 July 2007, Ingo Molnar wrote:
+> >> you dont _have to_ cooperative with the maintainer, but it's certainly 
+> >> useful to work with good maintainers, if your goal is to improve Linux. 
+> >> Or if for some reason communication is not working out fine then grow 
+> >> into the job and replace the maintainer by doing a better job.
+> > 
+> > The idea of growing into the job and replacing the maintainer by proving
+> > the you are doing better job was viable few years ago but may not be
+> > feasible today.
+> 
+> IMO...  Tejun is an excellent counter-example.  He showed up as an 
 
-> Setting it to zero will maximise the preservation of the vfs caches.  
-> You wanted 10000 there.
+IMO this doesn't qualify as a counter-example here et all unless
+you are trying to say that Tejun does your job much better and that
+we should just replace you. ;)
 
-ok, updated patch below :-)
+> independent developer, put a bunch of his own spare time and energy into 
+> the codebase, and is probably libata's main engineer (in terms of code 
+> output) today.  If I get hit by a bus tomorrow, I think the Linux 
+> community would be quite happy with him as the libata maintainer.
 
-> <bets that nobody will test this>
+Fully agreed on this part.
 
-wrong, it's active on three of my boxes already :) But then again, i 
-never had these hangover problems. (not really expected with gigs of RAM 
-anyway)
+> > The another problem is that sometimes it seems that independent developers
+> > has to go through more hops than entreprise ones and it is really frustrating
+> > experience for them.  There is no conspiracy here - it is only the natural
+> > mechanism of trusting more in the code of people who you are working with more.
+> 
+> I think Tejun is a counter-example here too :)  Everyone's experience is 
+> different, but from my perspective, Tejun "appeared out of nowhere" 
+> producing good code, and so, it got merged rapidly.
 
-	Ingo
+Tejun (like any of other developers) spent some time in-the-making
+and this time was in large part spent in the IDE-land, and yes I'm also
+very glad of the effects. :)
 
---- /etc/cron.daily/mlocate.cron.orig
-+++ /etc/cron.daily/mlocate.cron
-@@ -1,4 +1,7 @@
- #!/bin/sh
- nodevs=$(< /proc/filesystems awk '$1 == "nodev" { print $2 }')
- renice +19 -p $$ >/dev/null 2>&1
-+PREV=`cat /proc/sys/vm/vfs_cache_pressure 2>/dev/null`
-+echo 10000 > /proc/sys/vm/vfs_cache_pressure 2>/dev/null
- /usr/bin/updatedb -f "$nodevs"
-+[ "$PREV" != "" ] && echo $PREV > /proc/sys/vm/vfs_cache_pressure 2>/dev/null
+Thanks,
+Bart
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
