@@ -1,76 +1,69 @@
-Received: by nz-out-0506.google.com with SMTP id s1so616546nze
-        for <linux-mm@kvack.org>; Thu, 26 Jul 2007 15:30:15 -0700 (PDT)
-Message-ID: <b14e81f00707261530i6ebe73derdebe52a0aee687a8@mail.gmail.com>
-Date: Thu, 26 Jul 2007 18:30:14 -0400
-From: "Michael Chang" <thenewme91@gmail.com>
-Subject: Re: -mm merge plans for 2.6.23
-In-Reply-To: <b21f8390707251815o767590acrf6a6c4d7290a26a8@mail.gmail.com>
+From: Dirk Schoebel <dirk@liji-und-dirk.de>
+Subject: Re: [ck] Re: -mm merge plans for 2.6.23
+Date: Fri, 27 Jul 2007 00:33:35 +0200
+References: <20070710013152.ef2cd200.akpm@linux-foundation.org> <20070726111326.873f7b0a.akpm@linux-foundation.org> <200707270004.46211.dirk@liji-und-dirk.de>
+In-Reply-To: <200707270004.46211.dirk@liji-und-dirk.de>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=UTF-8; format=flowed
+Content-Type: multipart/signed;
+  boundary="nextPart1403807.n4uH34JPFY";
+  protocol="application/pgp-signature";
+  micalg=pgp-sha1
 Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
-References: <20070710013152.ef2cd200.akpm@linux-foundation.org>
-	 <2c0942db0707232153j3670ef31kae3907dff1a24cb7@mail.gmail.com>
-	 <46A58B49.3050508@yahoo.com.au>
-	 <2c0942db0707240915h56e007e3l9110e24a065f2e73@mail.gmail.com>
-	 <46A6CC56.6040307@yahoo.com.au> <46A6D7D2.4050708@gmail.com>
-	 <Pine.LNX.4.64.0707242211210.2229@asgard.lang.hm>
-	 <46A6DFFD.9030202@gmail.com>
-	 <2c0942db0707250902v58e23d52v434bde82ba28f119@mail.gmail.com>
-	 <b21f8390707251815o767590acrf6a6c4d7290a26a8@mail.gmail.com>
+Message-Id: <200707270033.41055.dirk@liji-und-dirk.de>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Matthew Hawkins <darthmdh@gmail.com>
-Cc: Ray Lee <ray-lk@madrabbit.org>, ck list <ck@vds.kolivas.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: ck@vds.kolivas.org
+Cc: Nick Piggin <nickpiggin@yahoo.com.au>, Ray Lee <ray-lk@madrabbit.org>, Eric St-Laurent <ericstl34@sympatico.ca>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Paul Jackson <pj@sgi.com>, Jesper Juhl <jesper.juhl@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Rene Herman <rene.herman@gmail.com>
 List-ID: <linux-mm.kvack.org>
 
-On 7/25/07, Matthew Hawkins <darthmdh@gmail.com> wrote:
-> On 7/26/07, Ray Lee <ray-lk@madrabbit.org> wrote:
-> > I'd just like updatedb to amortize its work better. If we had some way
-> > to track all filesystem events, updatedb could keep a live and
-> > accurate index on the filesystem. And this isn't just updatedb that
-> > wants that, beagle and tracker et al also want to know filesystem
-> > events so that they can index the documents themselves as well as the
-> > metadata. And if they do it live, that spreads the cost out, including
-> > the VM pressure.
->
-> We already have this, its called inotify (and if I'm not mistaken,
-> beagle already uses it).  Several years ago when it was still a little
-> flakey patch, I built a custom filesystem indexer into an enterprise
-> search engine using it (I needed to pull apart Unix mbox files).  The
-> only trouble of course is the action is triggered immediately, which
-> may not always be ideal (but that's a userspace problem)
->
+--nextPart1403807.n4uH34JPFY
+Content-Type: text/plain;
+  charset="iso-8859-15"
+Content-Transfer-Encoding: quoted-printable
+Content-Disposition: inline
 
-With all this discussion about updatedb and locate and such, I thought
-I'd do a Google search, (considering I've never heard of locate before
-but I've seen updatedb here and there in ps lists) and I found this:
+=2E..sorry for the reply to myself.
 
-http://www.linux.com/articles/114029
+As Gentoo user i'm happy about the freedom of choice in almost every aspect=
+ of=20
+the system.
+But with the kernel this freedom is taken away and i'm left with largely=20
+choices other people did. Sure, i can get the sources and patch and change=
+=20
+the kernel myself in every aspect but thats more the possibility given by t=
+he=20
+freedom of the open source of the kernel.
+I think the kernel should be more open for new ideas, and as long as the=20
+maintainer follows the kernel development things can be left in, if the=20
+maintainer can't follow anymore they are taken out quite fast again. (This=
+=20
+statement mostly counts for parts of the kernel where a choice is possible =
+or=20
+the coding overhead of making such choice possible is quite low.)
+A problem of Linux is there are 100s of patches and patchsets out there but=
+ if=20
+you want to have more than one (since they offer advantages or functionalit=
+y=20
+in different places) you are mostly left alone, start to integrate all=20
+patches by hand and solve so many rejects.
 
-That page mentions something called "rlocate", which seems to provide
-some sort of almost-real-time mechanism, although the method it does
-so bothers me -- it uses a 2.6 kernel module AND a userspace daemon.
-And from what I can tell, there's no indication that this almost
-"real-time" (--I see mentions of a 2 second lag--) system
-replaces/eliminates updatedb in any way, shape, or form.
+=2E.still a happy CK user, but sad that Con left the scene.
 
-http://rlocate.sourceforge.net/ - Project "Web Site"
-http://sourceforge.net/projects/rlocate/ - Source Forge Project Summary
+Dirk.
 
-The last release also appears a bit dated on sourceforge... release
-0.4.0 on 2006-01-15.
+--nextPart1403807.n4uH34JPFY
+Content-Type: application/pgp-signature; name=signature.asc 
+Content-Description: This is a digitally signed message part.
 
-Just thought I'd mention it.
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v2.0.5 (GNU/Linux)
 
+iD8DBQBGqSFF6YYnt7muP7IRAhKYAJ4+Ddz90PWa8er9oIBfnXMNtiC74QCgoVV4
+QCwRObQ67uRaHoL2PXYa3qs=
+=VWbr
+-----END PGP SIGNATURE-----
 
--- 
-Michael Chang
-
-Please avoid sending me Word or PowerPoint attachments. Send me ODT,
-RTF, or HTML instead.
-See http://www.gnu.org/philosophy/no-word-attachments.html
-Thank you.
+--nextPart1403807.n4uH34JPFY--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
