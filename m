@@ -1,149 +1,54 @@
-Date: Thu, 26 Jul 2007 17:16:52 +0100
-Subject: Re: NUMA policy issues with ZONE_MOVABLE
-Message-ID: <20070726161652.GA16556@skynet.ie>
-References: <Pine.LNX.4.64.0707242120370.3829@schroedinger.engr.sgi.com> <20070725111646.GA9098@skynet.ie> <Pine.LNX.4.64.0707251212300.8820@schroedinger.engr.sgi.com> <20070726131539.8a05760f.kamezawa.hiroyu@jp.fujitsu.com>
+Date: Thu, 26 Jul 2007 16:33:25 -0100
+From: "Jodi Nickerson" <diva2damax@speedfactory.net>
+Reply-To: diva2damax@speedfactory.net
+Message-ID: <498193463.37341747362431@speedfactory.net>
+Subject: Man Lebt nur einmal - probiers aus !  complaint against the FSA.  -- that you can hold your
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <20070726131539.8a05760f.kamezawa.hiroyu@jp.fujitsu.com>
-From: mel@skynet.ie (Mel Gorman)
-Sender: owner-linux-mm@kvack.org
-Return-Path: <owner-linux-mm@kvack.org>
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Christoph Lameter <clameter@sgi.com>, linux-mm@kvack.org, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, ak@suse.de, akpm@linux-foundation.org, pj@sgi.com
+Content-Type: multipart/alternative;
+  boundary="----------7B829EFDA0C59EF6"
+Return-Path: <diva2damax@speedfactory.net>
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On (26/07/07 13:15), KAMEZAWA Hiroyuki didst pronounce:
-> On Wed, 25 Jul 2007 12:31:21 -0700 (PDT)
-> Christoph Lameter <clameter@sgi.com> wrote:
-> > So for a __GFP_MOVABLE alloc we would scan all zones and for 
-> > policy_zone just the policy zone.
-> > 
-> > Lee should probably also review this in detail since he has recent 
-> > experience fiddling around with memory policies. Paul has also 
-> > experience in this area.
-> > 
-> > Maybe this can actually  help to deal with some of the corner cases of 
-> > memory policies (just hope the performance impact is not significant).
-> > 
-> > 
->
-> Hmm,  How about following patch ? (not tested, just an idea).
-> I'm sorry if I misunderstand concept ot policy_zone.
-> 
+------------7B829EFDA0C59EF6
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
 
-The following seems like a good idea to do anyway.
+Verpassen Sie nichts am Lebem - Sie werden fuhlen was unsere Kunden bestatigen!
 
-> ==
-> Index: linux-2.6.23-rc1/include/linux/mempolicy.h
-> ===================================================================
-> --- linux-2.6.23-rc1.orig/include/linux/mempolicy.h
-> +++ linux-2.6.23-rc1/include/linux/mempolicy.h
-> @@ -162,14 +162,11 @@ extern struct zonelist *huge_zonelist(st
->  		unsigned long addr, gfp_t gfp_flags);
->  extern unsigned slab_node(struct mempolicy *policy);
->  
-> +/*
-> + * The smalles zone_idx which all nodes can offer against GFP_xxx
-> + */
->  extern enum zone_type policy_zone;
->  
+Preise die keine Konkurrenz kennen 
 
-The comment is a little misleading
+- Kein peinlicher Arztbesuch erforderlich
+- Visa verifizierter Onlineshop
+- Bequem und diskret online bestellen.
+- Kostenlose, arztliche Telefon-Beratung
+- Kein langes Warten - Auslieferung innerhalb von 2-3 Tagen
+- keine versteckte Kosten
+- Diskrete Verpackung und Zahlung
 
-/* policy_zone is the lowest zone index that is present on all nodes */
+Originalmedikamente
+Ciaaaaaalis 10 Pack. 27,00 Euro
+Viaaaagra 10 Pack. 21,00 Euro
 
-Right?
+Vier Dosen gibt's bei jeder Bestellung umsonst
+http://tqxjai.dealgave.com/?805195520652
 
-> -static inline void check_highest_zone(enum zone_type k)
-> -{
-> -	if (k > policy_zone)
-> -		policy_zone = k;
-> -}
-> -
->  int do_migrate_pages(struct mm_struct *mm,
->  	const nodemask_t *from_nodes, const nodemask_t *to_nodes, int flags);
->  
-> Index: linux-2.6.23-rc1/mm/page_alloc.c
-> ===================================================================
-> --- linux-2.6.23-rc1.orig/mm/page_alloc.c
-> +++ linux-2.6.23-rc1/mm/page_alloc.c
-> @@ -1648,7 +1648,6 @@ static int build_zonelists_node(pg_data_
->  		zone = pgdat->node_zones + zone_type;
->  		if (populated_zone(zone)) {
->  			zonelist->zones[nr_zones++] = zone;
-> -			check_highest_zone(zone_type);
->  		}
->  
->  	} while (zone_type);
-> @@ -1857,7 +1856,6 @@ static void build_zonelists_in_zone_orde
->  				z = &NODE_DATA(node)->node_zones[zone_type];
->  				if (populated_zone(z)) {
->  					zonelist->zones[pos++] = z;
-> -					check_highest_zone(zone_type);
->  				}
->  			}
->  		}
-> @@ -1934,6 +1932,7 @@ static void build_zonelists(pg_data_t *p
->  	int local_node, prev_node;
->  	struct zonelist *zonelist;
->  	int order = current_zonelist_order;
-> +	int highest_zone;
->  
->  	/* initialize zonelists */
->  	for (i = 0; i < MAX_NR_ZONES; i++) {
-> @@ -1981,6 +1980,32 @@ static void build_zonelists(pg_data_t *p
->  		/* calculate node order -- i.e., DMA last! */
->  		build_zonelists_in_zone_order(pgdat, j);
->  	}
-> +	/*
-> +	 * Find the lowest zone where mempolicy (MBID) can work well.
-> + 	 */
+(bitte warten Sie einen Moment bis die Seite vollstandig geladen wird)
+------------7B829EFDA0C59EF6
+Content-Type: text/html; charset=us-ascii
+Content-Transfer-Encoding: 7bit
 
-/*
- * Find the lowest zone such that using the MPOL_BIND policy with
- * an arbitrary set of nodes will not go OOM because a suitable
- * zone was unavailable
- */
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE></TITLE>
+</HEAD>
+<BODY>
 
-> +	highest_zone = 0;
-> +	policy_zone = -1;
-> +	for (i = 0; i < MAX_NR_ZONES; i++) {
-> +		struct zone *first_zone;
-> +		int success = 1;
-> +		for_each_node_state(node, N_MEMORY) {
-> +			first_zone = NODE_DATA(node)->node_zonelists[i][0];
-> +			if (zone_idx(first_zone) > highest_zone)
-> +				highest_zone = zone_idx(first_zone);
-> +			if (first_zone->zone_pgdat != NODE_DATA(node)) {
-> +				/* This node cannot offer right pages for this
-> +				   GFP */
-> +				success = 0;
-> +				break;
-> +			}
+<head><meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+</head><body><p>Meinung von unserem Kunden:<br><strong>Fantastische Wirkung! F&#252;nf Jahre lang hatte ich es nicht mehr geschafft, meine Err. ..ektion w&#228;hrend des Verkehrs zu halten und war richtig &#228;ngstlich geworden. Ich hatte auch ein Problem mit vorzeitigem Samenerguss. Au&#223;erdem bin ich Zuckerkrank. Vor einiger Zeit habe ich eine 50-mg-Dosis Viaaaagra genommen und zwei Stunden sp&#228;ter mit einer 22-j&#228;hrigen geschlafen. Kurz vor dem Vorspiel wurde mein Penis hart und ich konnte es kaum glauben. Ich habe in dieser Nacht dreimal Sex gehabt und es gab keine Probleme dabei. Kein Schuss ging daneben. Ich bin ein gl&#252;cklicher Mann. Achmet, 52</strong></p><p><strong>Viaaaagra wirkt Wunder! Sie ahnen nicht, wie gl&#252;cklich ich bin. Viaaaagra hat mein Leben ver&#228;ndert. Endlich keine Angst mehr wegen der E_r_rektion. Und auch das Problem mit dem vorzeitigen Samenerguss ist weg.<br>
+</strong><strong><br>Verpassen Sie nichts am Lebem - Sie werden fuhlen was unsere Kunden bestatigen!</strong></p><p>Preise die keine Konkurrenz kennen <p>
+- Kein peinlicher Arztbesuch erforderlich<br>- Visa verifizierter Onlineshop<br>- Bequem und diskret online bestellen.<br>- Kostenlose, arztliche Telefon-Beratung<br>- Kein langes Warten - Auslieferung innerhalb von 2-3 Tagen<br>- Diskrete Verpackung und Zahlung<br>- keine versteckte Kosten</p>
+<p>Originalmedikamente<br><strong>Ciaaaaaalis 10 Pack. 27,00 Euro</strong><br>
+  <strong>Viaaaagra 10 Pack. 21,00 Euro</strong><br><br><strong><a href="http://tqxjai.dealgave.com/?805195520652" target="_blank">Vier Dosen gibt's bei jeder Bestellung umsonst</a><br></strong>(bitte warten Sie einen Moment bis die Seite vollst&auml;ndig geladen wird) </p></body>
 
-The second "if" needs to go first I believe.
-
-> +		}
-> +		if (success) {
-> +			policy_zone = i;
-> +			break;
-> +		}
-> +	}
-> +	if (policy_zone == -1)
-> +		policy_zone = highest_zone;
->  }
->  
->  /* Construct the zonelist performance cache - see further mmzone.h */
-
--- 
--- 
-Mel Gorman
-Part-time Phd Student                          Linux Technology Center
-University of Limerick                         IBM Dublin Software Lab
-
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+</BODY></HTML>
+------------7B829EFDA0C59EF6--
