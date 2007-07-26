@@ -1,65 +1,44 @@
-Date: Thu, 26 Jul 2007 11:07:39 -0700 (PDT)
-From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: NUMA policy issues with ZONE_MOVABLE
-In-Reply-To: <20070726132336.GA18825@skynet.ie>
-Message-ID: <Pine.LNX.4.64.0707261104360.2374@schroedinger.engr.sgi.com>
-References: <Pine.LNX.4.64.0707242120370.3829@schroedinger.engr.sgi.com>
- <20070725111646.GA9098@skynet.ie> <Pine.LNX.4.64.0707251212300.8820@schroedinger.engr.sgi.com>
- <20070726132336.GA18825@skynet.ie>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Date: Thu, 26 Jul 2007 11:13:26 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [ck] Re: -mm merge plans for 2.6.23
+Message-Id: <20070726111326.873f7b0a.akpm@linux-foundation.org>
+In-Reply-To: <b14e81f00707260719w63d8ab38jbf2a17a38bd07c1d@mail.gmail.com>
+References: <20070710013152.ef2cd200.akpm@linux-foundation.org>
+	<2c0942db0707232153j3670ef31kae3907dff1a24cb7@mail.gmail.com>
+	<46A58B49.3050508@yahoo.com.au>
+	<2c0942db0707240915h56e007e3l9110e24a065f2e73@mail.gmail.com>
+	<46A6CC56.6040307@yahoo.com.au>
+	<46A6D7D2.4050708@gmail.com>
+	<1185341449.7105.53.camel@perkele>
+	<46A6E1A1.4010508@yahoo.com.au>
+	<2c0942db0707250909r435fef75sa5cbf8b1c766000b@mail.gmail.com>
+	<20070725215717.df1d2eea.akpm@linux-foundation.org>
+	<b14e81f00707260719w63d8ab38jbf2a17a38bd07c1d@mail.gmail.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Mel Gorman <mel@skynet.ie>
-Cc: linux-mm@kvack.org, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, ak@suse.de, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, akpm@linux-foundation.org, pj@sgi.com
+To: Michael Chang <thenewme91@gmail.com>
+Cc: Ray Lee <ray-lk@madrabbit.org>, Nick Piggin <nickpiggin@yahoo.com.au>, Eric St-Laurent <ericstl34@sympatico.ca>, linux-kernel@vger.kernel.org, ck list <ck@vds.kolivas.org>, linux-mm@kvack.org, Paul Jackson <pj@sgi.com>, Jesper Juhl <jesper.juhl@gmail.com>, Rene Herman <rene.herman@gmail.com>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 26 Jul 2007, Mel Gorman wrote:
+On Thu, 26 Jul 2007 10:19:06 -0400 "Michael Chang" <thenewme91@gmail.com> wrote:
 
-> > How about changing __alloc_pages to lookup the zonelist on its own based 
-> > on a node parameter and a set of allowed nodes? That may significantly 
-> > clean up the memory policy layer and the cpuset layer. But it will 
-> > increase the effort to scan zonelists on each allocation. A large system 
-> > with 1024 nodes may have more than 1024 zones on each nodelist!
-> > 
+> > All this would end up needing runtime configurability and tweakability and
+> > customisability.  All standard fare for userspace stuff - much easier than
+> > patching the kernel.
 > 
-> That sounds like it would require the creation of a zonelist for each
-> allocation attempt. That is not ideal as there is no place to allocate
-> the zonelist during __alloc_pages(). It's not like it can call
-> kmalloc().
+> Maybe I'm missing something here, but if the problem is resource
+> allocation when switching from state A to state B, and from B to C,
+> etc.; wouldn't it be a bad thing if state B happened to be (in the
+> future) this state-shifting userspace daemon of which you speak? (Or
+> is that likely to be impossible/unlikely for some other reason which
+> alludes me at the moment?)
 
-Nope it would just require scanning the full zonelists on every alloc as 
-you already propose.
-
-> > Nope it would not fail. NUMAQ has policy_zone == HIGHMEM and slab 
-> > allocations do not use highmem.
-> 
-> It would fail if policy_zone didn't exist, that was my point. Without
-> policy_zone, we apply policy to all allocations and that causes
-> problems.
-
-policy_zone can not exist due to ZONE_DMA32 ZONE_NORMAL issues. See my 
-other email.
-
-
-> I ran the patch on a wide variety of machines, NUMA and non-NUMA. The
-> non-NUMA machines showed no differences as you would expect for
-> kernbench and aim9. On NUMA machines, I saw both small gains and small
-> regressions. By and large, the performance was the same or within 0.08%
-> for kernbench which is within noise basically.
-
-Sound okay.
-
-> It might be more pronounced on larger NUMA machines though, I cannot
-> generate those figures.
-
-I say lets go with the filtering. That would allow us to also catch other 
-issues that are now developing on x86_64 with ZONE_NORMAL and ZONE_DMA32.
- 
-> I'll try adding a should_filter to zonelist that is only set for
-> MPOL_BIND and see what it looks like.
-
-Maybe that is not worth it.
+Well.  I was assuming that the daemon wouldn't be a great memory pig. 
+I suspect it would do practically zero IO and would use little memory.
+It could even be mlocked, but I doubt if that would be needed.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
