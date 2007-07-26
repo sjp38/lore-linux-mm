@@ -1,171 +1,146 @@
-Received: by ug-out-1314.google.com with SMTP id c2so572165ugf
-        for <linux-mm@kvack.org>; Wed, 25 Jul 2007 23:33:24 -0700 (PDT)
-Message-ID: <2c0942db0707252333uc7631fduadb080193f6ad323@mail.gmail.com>
-Date: Wed, 25 Jul 2007 23:33:24 -0700
-From: "Ray Lee" <ray-lk@madrabbit.org>
-Subject: Re: -mm merge plans for 2.6.23
-In-Reply-To: <20070725215717.df1d2eea.akpm@linux-foundation.org>
+From: Bongani Hlope <bhlope@mweb.co.za>
+Subject: Re: updatedb
+Date: Thu, 26 Jul 2007 08:39:51 +0200
+References: <367a23780707250830i20a04a60n690e8da5630d39a9@mail.gmail.com> <a491f91d0707251015x75404d9fld7b3382f69112028@mail.gmail.com> <46A81C39.4050009@gmail.com>
+In-Reply-To: <46A81C39.4050009@gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=UTF-8; format=flowed
+Content-Type: text/plain;
+  charset="iso-8859-15"
 Content-Transfer-Encoding: 7bit
 Content-Disposition: inline
-References: <20070710013152.ef2cd200.akpm@linux-foundation.org>
-	 <2c0942db0707232153j3670ef31kae3907dff1a24cb7@mail.gmail.com>
-	 <46A58B49.3050508@yahoo.com.au>
-	 <2c0942db0707240915h56e007e3l9110e24a065f2e73@mail.gmail.com>
-	 <46A6CC56.6040307@yahoo.com.au> <46A6D7D2.4050708@gmail.com>
-	 <1185341449.7105.53.camel@perkele> <46A6E1A1.4010508@yahoo.com.au>
-	 <2c0942db0707250909r435fef75sa5cbf8b1c766000b@mail.gmail.com>
-	 <20070725215717.df1d2eea.akpm@linux-foundation.org>
+Message-Id: <200707260839.51407.bhlope@mweb.co.za>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Nick Piggin <nickpiggin@yahoo.com.au>, Eric St-Laurent <ericstl34@sympatico.ca>, Rene Herman <rene.herman@gmail.com>, Jesper Juhl <jesper.juhl@gmail.com>, ck list <ck@vds.kolivas.org>, Ingo Molnar <mingo@elte.hu>, Paul Jackson <pj@sgi.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Rene Herman <rene.herman@gmail.com>
+Cc: Robert Deaton <false.hopes@gmail.com>, linux-kernel@vger.kernel.org, ck list <ck@vds.kolivas.org>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 7/25/07, Andrew Morton <akpm@linux-foundation.org> wrote:
-> On Wed, 25 Jul 2007 09:09:01 -0700
-> "Ray Lee" <ray-lk@madrabbit.org> wrote:
+On Thursday 26 July 2007 05:59:53 Rene Herman wrote:
 >
-> > No, there's a third case which I find the most annoying. I have
-> > multiple working sets, the sum of which won't fit into RAM. When I
-> > finish one, the kernel had time to preemptively swap back in the
-> > other, and yet it didn't. So, I sit around, twiddling my thumbs,
-> > waiting for my music player to come back to life, or thunderbird,
-> > or...
+> Problem spot no. 1.
 >
-> Yes, I'm thinking that's a good problem statement and it isn't something
-> which the kernel even vaguely attempts to address, apart from normal
-> demand paging.
+> RAM intensive? If I run updatedb here, it never grows itself beyond 2M.
+> Yes, two. I'm certainly willing to accept that me and my systems are
+> possibly not the reference but assuming I'm _very_ special hasn't done much
+> for me either in the past.
 >
-> We could perhaps improve things with larger and smarter fault readaround,
-> perhaps guided by refault-rate measurement.  But that's still demand-paged
-> rather than being proactive/predictive/whatever.
+> The thing updatedb does do, or at least has the potential to do, is fill
+> memory with cached inodes/dentries but Linux does not swap to make room for
+> caches. So why will updatedb "often cause things to be swapped out"?
 >
-> None of this is swap-specific though: exactly the same problem would need
-> to be solved for mmapped files and even plain old pagecache.
-
-<nod> Could be what I'm noticing, but it's important to note that as
-others have shown improvement with Con's swap prefetch, it's easily
-arguable that targeting just swap is good enough for a first
-approximation.
-
-> In fact I'd restate the problem as "system is in steady state A, then there
-> is a workload shift causing transition to state B, then the system goes
-> idle.  We now wish to reinstate state A in anticipation of a resumption of
-> the original workload".
-
-Yes, that's a fair transformation / generalization. It's always nice
-talking to someone with more clarity than one's self.
-
-> swap-prefetch solves a part of that.
+> [ snip ]
 >
-> A complete solution for anon and file-backed memory could be implemented
-> (ta-da) in userspace using the kernel inspection tools in -mm's maps2-*
-> patches.
-> We would need to add a means by which userspace can repopulate
-> swapcache,
-
-Okay, let's run with that for argument's sake.
-
-> but that doesn't sound too hard (especially when you haven't
-> thought about it).
-
-I've always thought your sense of humor was underappreciated.
-
-> And userspace can right now work out which pages from which files are in
-> pagecache so this application can handle pagecache, swap and file-backed
-> memory.  (file-backed memory might not even need special treatment, given
-> that it's pagecache anyway).
-
-So in your proposed scheme, would userspace be polling, er, <goes and
-looks through email for maps2 stuff, only finds Rusty's patches to
-it>, well, /proc/<pids>/something_or_another?
-
-A userspace daemon that wakes up regularly to poll a bunch of proc
-files fills me with glee. Wait, is that glee? I think, no... wait...
-horror, yes, horror is what I'm feeling.
-
-I'm wrong, right? I love being wrong about this kind of stuff.
-
-> And userspace can do a much better implementation of this
-> how-to-handle-large-load-shifts problem, because it is really quite
-> complex.  The system needs to be monitored to determine what is the "usual"
-> state (ie: the thing we wish to reestablish when the transient workload
-> subsides).  The system then needs to be monitored to determine when the
-> exceptional workload has started, and when it has subsided, and userspace
-> then needs to decide when to start reestablishing the old working set, at
-> what rate, when to abort doing that, etc.
-
-Oy. I mean this in the most respectful way possible, but you're too
-smart for your own good.
-
-I mean, sure, it's possible one could have multiply-chained transient
-workloads each of which have their optimum workingset, of which
-there's little overlap with the previous. Mainframes made their names
-on such loads. Workingset A starts, generates data, finishes and
-invokes workingset B, of which the only thing they share in common is
-said data. B finishes and invokes C, etc.
-
-So, yeah, that's way too complex to stuff into the kernel. Even if it
-were possible to do so, I cringe at the thought. And I can't believe
-that would be a common enough pattern nowadays to justify any
-hueristics on anyone's part. It's certainly complex enough that I'd
-like to punt that scenario out of the conversation entirely -- I think
-it has the potential to give a false impression as to how involved of
-a process we're talking about here.
-
-Let's go back to your restatement:
-
-> In fact I'd restate the problem as "system is in steady state A, then there
-> is a workload shift causing transition to state B, then the system goes
-> idle.  We now wish to reinstate state A in anticipation of a resumption of
-> the original workload".
-
-I'll take an 80% solution for that one problem, and happily declare
-that the kernel's job is done. In particular, when a resource hog
-exits (or whatever hueristics prefetch is currently hooking in to),
-the kernel (or userspace, if that interface could be made sane) could
-exercise a completely workload agnostic refetch of the last n things
-evicted, where n is determined by what's suddenly become free (or
-whatever Con came up with).
-
-Just, y'know, MRU style.
-
-> All this would end up needing runtime configurability and tweakability and
-> customisability.  All standard fare for userspace stuff - much easier than
-> patching the kernel.
-
-We're talking about patching the kernel for whatever API you're coming
-up with to repopulate pagecache, swap, and inodes, aren't we? If we
-are, it doesn't seem like we're saving any work here. Also we're
-talking about a creating a new user-visible API instead of augmenting
-a pre-existing hueristic -- page replacement -- that the kernel
-doesn't export and so can change at a moment's notice. Augmenting an
-opaque hueristic seems a lot more friendly to long-term maintenance.
-
-> So.  We can
+> > Swap prefetch, on the other hand, would have kicked in shortly after
+> > updatedb finished, leaving the applications in swap for a speedy
+> > recovery when the person comes back to their computer.
 >
-> a) provide a way for userspace to reload pagecache and
+> Problem spot no. 2.
 >
-> b) merge maps2 (once it's finished) (pokes mpm)
+> If updatedb filled all of RAM with inodes/dentries, that RAM is now used
+> (ie, not free) and swap-prefetch wouldn't have anywhere to prefetch into so
+> would _not_ have kicked in.
 >
-> and we're done?
+> So what's happening? If you sit down with a copy op "top" in one terminal
+> and updatedb in another, what does it show?
+>
+> Rene.
 
-Eh, dunno. Maybe?
+Just tested that, there's a steady increase in the useage of buff
 
-We're assuming we come up with an API for userspace to get
-notifications of evictions (without polling, though poll() would be
-fine -- you know what I mean), and an API for re-victing those things
-on demand. If you think that adding that API and maintaining it is
-simpler/better than including a variation on the above hueristic I
-offered, then yeah, I guess we are. It'll all have that vague
-userspace s2ram odor about it, but I'm sure it could be made to work.
+<start updatedb>
+procs -----------memory---------- ---swap-- -----io---- -system-- ----cpu----
+ r  b   swpd   free   buff  cache   si   so    bi    bo   in   cs us sy id wa
+ 2  1      0 1279412 201160 234720    0    0   193    29  558  657  5  1 89  5
+ 0  1      0 1276624 203436 234872    0    0  2276     0 1638 2456  4  2 48 48
+ 1  1      0 1273372 206292 235012    0    0  2852     0 1773 2755  3  3 48 46
+ 2  1      0 1270128 208376 235360    0    0  2084     0 1545 2168  5  2 47 46
 
-As I think I've successfully Peter Principled my way through this
-conversation to my level of incompetence, I'll shut up now.
+8<
 
-Ray
+ 0  1      0 1228004 237288 237836    0    0  2192     0 1669 2941  6  3 47 44
+ 1  1      0 1223424 239228 238020    0    0  1932   272 1580 2881  9  4 44 44
+ 1  1      0 1219692 241600 238208    0    0  2372     0 1719 2881 10  4 45 43
+ 0  1      0 1217296 243372 238312    0    0  1772     0 1526 2320  4  2 49 46
+
+8<
+
+ 0  1      0 1166852 277912 240840    0    0  2244     0 1699 3037  7  2 48 43
+ 0  1      0 1164016 279528 241016    0    0  1608   824 1512 2364  7  2 47 44
+ 1  1      0 1161256 281860 241264    0    0  2332     0 1709 2769  7  2 49 43
+ 1  1      0 1155632 284792 241452    0    0  2932     0 1835 3084  8  4 46 42
+
+8< 
+
+ 0  1      0 1104568 324788 243616    0    0  3500     4 1879 3054  5  4 46 46
+ 1  1      0 1099596 328524 243768    0    0  3736     0 1990 3257  7  4 48 43
+ 1  1      0 1093976 332516 244060    0    0  3984   572 2013 3348  6  3 48 43
+ 0  1      0 1090320 335396 244340    0    0  2880     0 1760 2925  5  3 47 46
+
+8<
+
+ 1  1      0 1025212 384380 248224    0    0  2940     0 1763 2864  6  3 46 46
+ 0  1      0 1022196 386444 248328    0    0  2064     8 1527 2543  5  2 45 47
+ 0  1      0 1018620 389476 248404    0    0  3032     0 1798 2988  6  3 47 45
+ 0  1      0 1014800 392364 248552    0    0  2888     0 1738 2821  5  2 48 45
+
+8<
+
+ 0  1      0 425200 839828 273392    0    0  1744     0 1441 2248  9  2 44 46
+ 0  1      0 423360 841220 273544    0    0  1384   368 1374 2144  3  1 48 48
+ 0  1      0 421288 842868 273576    0    0  1648     0 1400 2141  4  2 46 48
+ 0  1      0 418252 845172 273676    0    0  2300     0 1570 2492  3  1 49 48
+ 0  0      0 417300 846100 273776    0    0   928     0 1232 1837  3  2 72 24 
+
+<updatedb finished>
+
+ 0  0      0 416724 846100 273776    0    0     0     0 1025 1579  5  1 94  0
+ 0  0      0 417012 846100 273776    0    0     0     0 1002 1474  3  1 97  0
+ 1  0      0 417220 846100 273776    0    0     0     0 1026 1414  2  0 98  0
+
+So 32 percent of free memory went to the buffers.
+
+5 minutes later it's still not freed
+
+procs -----------memory---------- ---swap-- -----io---- -system-- ----cpu----
+ r  b   swpd   free   buff  cache   si   so    bi    bo   in   cs us sy id wa
+ 2  0      0 409500 846652 277320    0    0   286    31  585  766  6  1 83 10
+ 1  0      0 409328 846652 277320    0    0     0     0 1003 1442  3  1 97  0
+
+/proc/slabinfo
+ext3_inode_cache  176198 176200    816    5    1 : tunables   54   27    8 : 
+slabdata  35240  35240      0
+dentry            233054 233054    208   19    1 : tunables  120   60    8 : 
+slabdata  12266  12266      0
+buffer_head       228303 228327    104   37    1 : tunables  120   60    8 : 
+slabdata   6171   6171      0
+
+run OpenOffice
+
+procs -----------memory---------- ---swap-- -----io---- -system-- ----cpu----
+ r  b   swpd   free   buff  cache   si   so    bi    bo   in   cs us sy id wa
+ 1  0      0 403664 847056 277460    0    0   235    26  577  766  6  1 85  8
+ 0  0      0 403656 847056 277460    0    0     0     0 1003 1385  5  0 96  0
+ 0  0      0 403888 847056 277460    0    0     0     0 1237 1968  3  1 96  0
+
+8<
+
+<starts openoffice>
+ 0  0      0 400708 847088 277620    0    0     0     0 1058 1259  4  0 95  0
+ 0  0      0 400584 847088 277620    0    0     0     0 1246 1647  7  1 93  0
+ 1  1      0 389796 847164 284100    0    0  6528   116 1215 2663 10  4 71 14
+
+8<
+
+ 0  0      0 307000 847464 361384    0    0     0     0 1031 1398  5  1 95  0
+ 0  0      0 307000 847464 361384    0    0     0     0 1003 1369  3  1 95  0
+ 0  0      0 307124 847464 361384    0    0     0     0 1025 1535  4  1 95  0
+
+8<
+
+ 1  1      0 301920 847516 363176    0    0  1780   132 1092 1705 11  2 77 10
+ 1  1      0 289296 847588 367620    0    0  4608   152 1221 2280 31  4 48 18
+ 1  0      0 285672 847612 369572    0    0  1936     0 1061 3545 14  3 72 10
+<open office loaded>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
