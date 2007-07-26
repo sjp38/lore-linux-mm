@@ -1,44 +1,63 @@
-Received: by nz-out-0506.google.com with SMTP id s1so362337nze
-        for <linux-mm@kvack.org>; Wed, 25 Jul 2007 20:16:30 -0700 (PDT)
-Message-ID: <b21f8390707252016o7f24ca8eg99e6895c7ab5cc53@mail.gmail.com>
-Date: Thu, 26 Jul 2007 13:16:29 +1000
-From: "Matthew Hawkins" <darthmdh@gmail.com>
-Subject: Re: [ck] Re: -mm merge plans for 2.6.23
-In-Reply-To: <2c0942db0707251832i542249d5ve0006b3db0374678@mail.gmail.com>
+Message-ID: <46A81C39.4050009@gmail.com>
+Date: Thu, 26 Jul 2007 05:59:53 +0200
+From: Rene Herman <rene.herman@gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=ISO-8859-1
+Subject: updatedb
+References: <367a23780707250830i20a04a60n690e8da5630d39a9@mail.gmail.com>	 <46A773EA.5030103@gmail.com> <a491f91d0707251015x75404d9fld7b3382f69112028@mail.gmail.com>
+In-Reply-To: <a491f91d0707251015x75404d9fld7b3382f69112028@mail.gmail.com>
+Content-Type: text/plain; charset=ISO-8859-15; format=flowed
 Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
-References: <20070710013152.ef2cd200.akpm@linux-foundation.org>
-	 <46A58B49.3050508@yahoo.com.au>
-	 <2c0942db0707240915h56e007e3l9110e24a065f2e73@mail.gmail.com>
-	 <46A6CC56.6040307@yahoo.com.au> <46A6D7D2.4050708@gmail.com>
-	 <Pine.LNX.4.64.0707242211210.2229@asgard.lang.hm>
-	 <46A6DFFD.9030202@gmail.com>
-	 <2c0942db0707250902v58e23d52v434bde82ba28f119@mail.gmail.com>
-	 <b21f8390707251815o767590acrf6a6c4d7290a26a8@mail.gmail.com>
-	 <2c0942db0707251832i542249d5ve0006b3db0374678@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Ray Lee <ray-lk@madrabbit.org>
+To: Robert Deaton <false.hopes@gmail.com>
 Cc: linux-kernel@vger.kernel.org, ck list <ck@vds.kolivas.org>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 7/26/07, Ray Lee <ray-lk@madrabbit.org> wrote:
-> Yeah, I know about inotify, but it doesn't scale.
+On 07/25/2007 07:15 PM, Robert Deaton wrote:
 
-Yeah, the nonrecursive behaviour is a bugger.  Also I found it helped
-to queue operations in userspace and execute periodically rather than
-trying to execute on every single notification.  Worked well for
-indexing, for virus scanning though you'd want to do some risk
-analysis.
+> On 7/25/07, Rene Herman <rene.herman@gmail.com> wrote:
 
-It'd be nice to have a filesystem that handled that sort of thing
-internally *cough*winfs*cough*.  That was my hope for reiserfs a very
-long time ago with its pluggable fs modules feature.
+>> And there we go again -- off into blabber-land. Why does swap-prefetch 
+>> help updatedb? Or doesn't it? And if it doesn't, why should anyone 
+>> trust anything else someone who said it does says?
 
--- 
-Matt
+> I don't think anyone has ever argued that swap-prefetch directly helps 
+> the performance of updatedb in any way
+
+People have argued (claimed, rather) that swap-prefetch helps their system 
+after updatedb has run -- you are doing so now.
+
+> however, I do recall people mentioning that updatedb, being a ram
+> intensive task, will often cause things to be swapped out while it runs
+> on say a nightly cronjob.
+
+Problem spot no. 1.
+
+RAM intensive? If I run updatedb here, it never grows itself beyond 2M. Yes, 
+two. I'm certainly willing to accept that me and my systems are possibly not 
+the reference but assuming I'm _very_ special hasn't done much for me either 
+in the past.
+
+The thing updatedb does do, or at least has the potential to do, is fill 
+memory with cached inodes/dentries but Linux does not swap to make room for 
+caches. So why will updatedb "often cause things to be swapped out"?
+
+[ snip ]
+
+> Swap prefetch, on the other hand, would have kicked in shortly after
+> updatedb finished, leaving the applications in swap for a speedy
+> recovery when the person comes back to their computer.
+
+Problem spot no. 2.
+
+If updatedb filled all of RAM with inodes/dentries, that RAM is now used 
+(ie, not free) and swap-prefetch wouldn't have anywhere to prefetch into so 
+would _not_ have kicked in.
+
+So what's happening? If you sit down with a copy op "top" in one terminal 
+and updatedb in another, what does it show?
+
+Rene.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
