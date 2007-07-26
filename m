@@ -1,37 +1,50 @@
-Subject: Re: pte_offset_map for ppc assumes HIGHPTE
-From: Benjamin Herrenschmidt <benh@kernel.crashing.org>
-In-Reply-To: <200707251830.21944.dave.mccracken@oracle.com>
-References: <acbcf3840707251516w301f834cj5f6a81a494d359ed@mail.gmail.com>
-	 <jewswodqcn.fsf@sykes.suse.de>
-	 <1185405765.5439.371.camel@localhost.localdomain>
-	 <200707251830.21944.dave.mccracken@oracle.com>
-Content-Type: text/plain
-Date: Thu, 26 Jul 2007 10:18:13 +1000
-Message-Id: <1185409094.5495.0.camel@localhost.localdomain>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
-Sender: owner-linux-mm@kvack.org
-Return-Path: <owner-linux-mm@kvack.org>
-To: Dave McCracken <dave.mccracken@oracle.com>
-Cc: Andreas Schwab <schwab@suse.de>, Satya <satyakiran@gmail.com>, linuxppc-dev@ozlabs.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Subject: Super Saving Pills, NoPrescription,  Easy Ordering, From $57    7hxfuz
+Message-ID: <1185411978.9281@wipro.com>
+Date: Wed, 25 Jul 2007 18:06:18 -0700
+From: "Marci R. McCarty" <mmcCartyvi@wipro.com>
+MIME-Version: 1.0
+Content-Type: text/html;
+	charset="iso-8859-2"
+Content-Transfer-Encoding: 8bit
+Return-Path: <mmcCartyvi@wipro.com>
+To: ian@kvack.org, kelda@kvack.org, dlkong@kvack.org, linux-mm-archive@kvack.org, linux-aio@kvack.org, bcrl@kvack.org, linux-mm@kvack.org, aart@kvack.org, blah@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 2007-07-25 at 18:30 -0500, Dave McCracken wrote:
-> On Wednesday 25 July 2007, Benjamin Herrenschmidt wrote:
-> > Depends... if you have CONFIG_HIGHMEM and not CONFIG_HIGHPTE, you are
-> > wasting time going through kmap_atomic unnecessarily no ? it will probably
-> > not do anything because the PTE page is in lowmem but still...
-> 
-> Probably not much time.  You still need to do the page to virtual translation, 
-> which kmap_atomic does for you.
-
-Fair enough.
-
-Ben.
-
-
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text; charset=iso-8859-1">
+</head><body><center><table border=0 cellspacing=0 cellpadding=3><tr><td bgcolor=FBE239 align=center><font size=6 color=4FA7FF face="Century Gothic"><b>Quality <font color=0000FF>Drugs Pharmacy</font><br><font color=000000 size=4>Save hundred DOLLARs From Us<br><font color=00B900>
+More than 30 drugs to order instantly</font></b></font></font><br><table border=0 cellspacing=0 cellpadding=3 width=550>
+<tr>
+<td width=50% valign=top bgcolor=F5FFD7>
+<font face="Century Gothic" size=4 color=000000>
+<b>ViagraAs</b> 10pills $57
+<br>
+<b>CialiAs</b> 20pills $1xx
+<br>
+<b>PhenterminAs</b> 30pills $1xx
+<br>
+<b>ValiumAs</b> 30pills $95
+<br>
+<b>XanaxAs</b> 30pills $99
+<br>
+<b>LevitraAs</b> 10pills $73
+<br>
+plus <b>30 meds more</b>
+</font></td>
+<td width=50% valign=top bgcolor=E3FF91>
+<font face="Century Gothic" size=4 color=000000>
+<b>RivotrilAs</b> 30pills $70<br>
+<b>AtivanAs</b> 30pills $90
+<br>
+<b>AmbienAs</b> 30pills $1xx
+<br>
+<b>MeridiaAs</b> 30pills $1xx<br>
+<b>SomaAs</b> 30pills $1xx<br>
+<b>CelebrexAs</b> 30pills $1xx
+<br>
+plus <b>30 meds more</b>
+</font></td></tr></table><font size=6 face="Century Gothic"><u><b>
+<a href=http://ktnep5b2rwk.adsaredigested.com target=_blank><u><font color=FF0000>Order Now - Super Saving (Link 1)</font></u></a><br><a href=http://k2i7mqelxq34u3e.adsaredigested.com target=_blank><u><font color=FF0000 size=4>We do have 120 or 180pills pack at special price (Link 2)</u></font></font></a></b><br><br></center></td></tr></table><font color=FBECB7 size=1>miss ten lady pronunciation; quickly hurrying teacher day foot fancy truly, vpdu8d2qoj d13j5n2a3e6re</font>
+</center></body>
+</html>
