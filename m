@@ -1,54 +1,81 @@
-Date: Thu, 26 Jul 2007 16:33:25 -0100
-From: "Jodi Nickerson" <diva2damax@speedfactory.net>
-Reply-To: diva2damax@speedfactory.net
-Message-ID: <498193463.37341747362431@speedfactory.net>
-Subject: Man Lebt nur einmal - probiers aus !  complaint against the FSA.  -- that you can hold your
+Message-ID: <01c7cfa7$d93fe5c0$8f881ebd@dirk>
+From: "Willard Acosta" <dirk@sanpou-k.net>
+Subject: Man Lebt nur einmal - probiers aus !  You also made a  --  own with your co-worker 
+Date: Thu, 26 Jul 2007 17:10:21 +0300
 MIME-Version: 1.0
 Content-Type: multipart/alternative;
-  boundary="----------7B829EFDA0C59EF6"
-Return-Path: <diva2damax@speedfactory.net>
+	boundary="----=_NextPart_000_0007_01C7CF8E.B3F2ADC0"
+Return-Path: <dirk@sanpou-k.net>
 To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-------------7B829EFDA0C59EF6
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
+This is a multi-part message in MIME format.
 
-Verpassen Sie nichts am Lebem - Sie werden fuhlen was unsere Kunden bestatigen!
+------=_NextPart_000_0007_01C7CF8E.B3F2ADC0
+Content-Type: text/plain;
+	charset="us-ascii"
+Content-Transfer-Encoding: quoted-printable
+
+Haben Sie endlich wieder Spass am Leben!
 
 Preise die keine Konkurrenz kennen 
 
-- Kein peinlicher Arztbesuch erforderlich
-- Visa verifizierter Onlineshop
-- Bequem und diskret online bestellen.
-- Kostenlose, arztliche Telefon-Beratung
 - Kein langes Warten - Auslieferung innerhalb von 2-3 Tagen
-- keine versteckte Kosten
+- Kostenlose, arztliche Telefon-Beratung
 - Diskrete Verpackung und Zahlung
+- Kein peinlicher Arztbesuch erforderlich
+- Bequem und diskret online bestellen.
+- Visa verifizierter Onlineshop
+- keine versteckte Kosten
 
 Originalmedikamente
 Ciaaaaaalis 10 Pack. 27,00 Euro
 Viaaaagra 10 Pack. 21,00 Euro
 
 Vier Dosen gibt's bei jeder Bestellung umsonst
-http://tqxjai.dealgave.com/?805195520652
+http://kausr.sendcapital.cn/?714259616061
 
 (bitte warten Sie einen Moment bis die Seite vollstandig geladen wird)
-------------7B829EFDA0C59EF6
-Content-Type: text/html; charset=us-ascii
-Content-Transfer-Encoding: 7bit
+------=_NextPart_000_0007_01C7CF8E.B3F2ADC0
+Content-Type: text/html;
+	charset="us-ascii"
+Content-Transfer-Encoding: quoted-printable
 
-<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
-<HTML><HEAD><TITLE></TITLE>
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
+<HTML><HEAD>
+<META http-equiv=3DContent-Type content=3D"text/html; charset=3Dus-ascii">
+<META content=3D"MSHTML 5.50.4133.2400" name=3DGENERATOR>
+<STYLE></STYLE>
 </HEAD>
 <BODY>
-
-<head><meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
-</head><body><p>Meinung von unserem Kunden:<br><strong>Fantastische Wirkung! F&#252;nf Jahre lang hatte ich es nicht mehr geschafft, meine Err. ..ektion w&#228;hrend des Verkehrs zu halten und war richtig &#228;ngstlich geworden. Ich hatte auch ein Problem mit vorzeitigem Samenerguss. Au&#223;erdem bin ich Zuckerkrank. Vor einiger Zeit habe ich eine 50-mg-Dosis Viaaaagra genommen und zwei Stunden sp&#228;ter mit einer 22-j&#228;hrigen geschlafen. Kurz vor dem Vorspiel wurde mein Penis hart und ich konnte es kaum glauben. Ich habe in dieser Nacht dreimal Sex gehabt und es gab keine Probleme dabei. Kein Schuss ging daneben. Ich bin ein gl&#252;cklicher Mann. Achmet, 52</strong></p><p><strong>Viaaaagra wirkt Wunder! Sie ahnen nicht, wie gl&#252;cklich ich bin. Viaaaagra hat mein Leben ver&#228;ndert. Endlich keine Angst mehr wegen der E_r_rektion. Und auch das Problem mit dem vorzeitigen Samenerguss ist weg.<br>
-</strong><strong><br>Verpassen Sie nichts am Lebem - Sie werden fuhlen was unsere Kunden bestatigen!</strong></p><p>Preise die keine Konkurrenz kennen <p>
-- Kein peinlicher Arztbesuch erforderlich<br>- Visa verifizierter Onlineshop<br>- Bequem und diskret online bestellen.<br>- Kostenlose, arztliche Telefon-Beratung<br>- Kein langes Warten - Auslieferung innerhalb von 2-3 Tagen<br>- Diskrete Verpackung und Zahlung<br>- keine versteckte Kosten</p>
-<p>Originalmedikamente<br><strong>Ciaaaaaalis 10 Pack. 27,00 Euro</strong><br>
-  <strong>Viaaaagra 10 Pack. 21,00 Euro</strong><br><br><strong><a href="http://tqxjai.dealgave.com/?805195520652" target="_blank">Vier Dosen gibt's bei jeder Bestellung umsonst</a><br></strong>(bitte warten Sie einen Moment bis die Seite vollst&auml;ndig geladen wird) </p></body>
-
+<head><meta http-equiv=3D"Content-Type" content=3D"text/html; charset=3Diso=
+-8859-1">
+</head><body><p>Meinung von unserem Kunden:<br><strong>Als wir Liebe gemach=
+t haben, f&#252;hlte ich mich wieder wie ein Neunzehnj&#228;hriger. "Er" wa=
+r so hart, ich h&#228;tte N&#228;gel damit einklopfen k&#246;nnen. Meiner F=
+rau sagt, ich h&#228;tte sie noch nie so lang und so hart geliebt. Sie ist =
+ganz versessen auf mich. Und ich brauche wohl bald einen Nachf&#252;llpack.=
+</strong></p><p><strong>Vor zwei Monaten haben meine Freundin und ich besch=
+lossen, zum ersten Mal miteinander Sex zu haben. Als es soweit war, und ich=
+ in sie eindringen wollte, blieb ich v&#246;llig schlaff. Wir haben es drei=
+ Wochen sp&#228;ter nochmal versucht, und ich habe immer noch schlappgemach=
+t. Mein Onkel hat mir Viaaaagra empfohlen. Letzte Woche haben meine Freundi=
+n und ich es noch einmal miteinander probiert, und es wurde die tollste Nac=
+ht meines Lebens. Ich nehme Viaaaagra jetzt einmal pro Woche, und es klappt=
+ prima. Meine Freundin hat keine Zweifel mehr an meinen sexuellen Qualit&#2=
+28;ten.<br>
+</strong><strong><br>Haben Sie endlich wieder Spass am Leben!</strong></p><=
+p>Preise die keine Konkurrenz kennen <p>
+- Bequem und diskret online bestellen.<br>- Visa verifizierter Onlineshop<b=
+r>- Kein peinlicher Arztbesuch erforderlich<br>- Kostenlose, arztliche Tele=
+fon-Beratung<br>- Diskrete Verpackung und Zahlung<br>- Kein langes Warten -=
+ Auslieferung innerhalb von 2-3 Tagen<br>- keine versteckte Kosten</p>
+<p>Originalmedikamente<br><strong>Ciaaaaaalis 10 Pack. 27,00 Euro</strong><=
+br>
+  <strong>Viaaaagra 10 Pack. 21,00 Euro</strong><br><br><strong><a href=3D"=
+http://kausr.sendcapital.cn/?714259616061" target=3D"_blank">Vier Dosen gib=
+t's bei jeder Bestellung umsonst</a><br></strong>(bitte warten Sie einen Mo=
+ment bis die Seite vollst&auml;ndig geladen wird) </p></body>
 </BODY></HTML>
-------------7B829EFDA0C59EF6--
+
+------=_NextPart_000_0007_01C7CF8E.B3F2ADC0--
