@@ -1,76 +1,32 @@
-Subject: Re: 2.6.23-rc1-mm1:  boot hang on ia64 with memoryless nodes
-From: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
-In-Reply-To: <1185458007.7653.1.camel@localhost>
-References: <20070711182219.234782227@sgi.com>
-	 <20070713151431.GG10067@us.ibm.com>
-	 <Pine.LNX.4.64.0707130942030.21777@schroedinger.engr.sgi.com>
-	 <1185310277.5649.90.camel@localhost>
-	 <Pine.LNX.4.64.0707241402010.4773@schroedinger.engr.sgi.com>
-	 <1185372692.5604.22.camel@localhost>  <1185378322.5604.43.camel@localhost>
-	 <1185390991.5604.87.camel@localhost>
-	 <Pine.LNX.4.64.0707251231570.8820@schroedinger.engr.sgi.com>
-	 <1185398337.5604.96.camel@localhost>  <1185458007.7653.1.camel@localhost>
-Content-Type: text/plain
-Date: Thu, 26 Jul 2007 10:33:34 -0400
-Message-Id: <1185460415.7653.10.camel@localhost>
+Date: Thu, 26 Jul 2007 15:59:52 +0100
+From: Al Viro <viro@ftp.linux.org.uk>
+Subject: Re: RFT: updatedb "morning after" problem [was: Re: -mm merge plans for 2.6.23]
+Message-ID: <20070726145952.GK27237@ftp.linux.org.uk>
+References: <46A58B49.3050508@yahoo.com.au> <2c0942db0707240915h56e007e3l9110e24a065f2e73@mail.gmail.com> <46A6CC56.6040307@yahoo.com.au> <p73abtkrz37.fsf@bingen.suse.de> <46A85D95.509@kingswood-consulting.co.uk> <20070726092025.GA9157@elte.hu> <20070726023401.f6a2fbdf.akpm@linux-foundation.org> <20070726094024.GA15583@elte.hu> <20070726102025.GJ27237@ftp.linux.org.uk> <20070726122330.GA21750@one.firstfloor.org>
 Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20070726122330.GA21750@one.firstfloor.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>, linux-ia64 <linux-ia64@vger.kernel.org>
-Cc: kxr@sgi.com, Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, Bob Picco <bob.picco@hp.com>, Mel Gorman <mel@skynet.ie>, Eric Whitney <eric.whitney@hp.com>, Andy Whitcroft <apw@shadowen.org>
+To: Andi Kleen <andi@firstfloor.org>
+Cc: Ingo Molnar <mingo@elte.hu>, Andrew Morton <akpm@linux-foundation.org>, Frank Kingswood <frank@kingswood-consulting.co.uk>, Nick Piggin <nickpiggin@yahoo.com.au>, Ray Lee <ray-lk@madrabbit.org>, Jesper Juhl <jesper.juhl@gmail.com>, ck list <ck@vds.kolivas.org>, Paul Jackson <pj@sgi.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 2007-07-26 at 09:53 -0400, Lee Schermerhorn wrote:
-> On Wed, 2007-07-25 at 17:18 -0400, Lee Schermerhorn wrote: 
-> > On Wed, 2007-07-25 at 12:38 -0700, Christoph Lameter wrote:
-> > > (ccing Andy who did the work on the config stuff)
-> > > 
-> > > On Wed, 25 Jul 2007, Lee Schermerhorn wrote:
-> > > 
-> > > > I tried to deselect SPARSEMEM_VMEMMAP.  Kconfig's "def_bool=y" wouldn't
-> > > > let me :-(.  After hacking the Kconfig and mm/sparse.c to allow that,
-> > > > boot hangs with no error messages shortly after "Built N zonelists..."
-> > > > message.
-> > > 
-> > > I get a similar hang here and see the system looping in softirq / hrtimer 
-> > > code.
-> > > 
-> > > > Backed off to DISCONTIGMEM+VIRTUAL_MEMORY_MAP, and saw same hang as with
-> > > > (SPARSMEM && !SPARSEMEM_VMEMMAP).   
-> > > 
-> > > So its not related to SPARSE VMEMMAP? General VMEMMAP issue on IA64?
-> > 
-> > This hang is different from the one I see with SPARSE VMEMMAP -- no
-> > "Unable to handle kernel paging request..." message.  Just hangs after
-> > "Built N zonelists..."  and some message about "color" that I didn't
-> > capture.  Next time [:-(]...
-> 
-> The "color" message was actually:
-> 
-> Console:  colour dummy device 80x25
-> 
-> So, now I'm wondering if I'm hitting the "Regression in serial
-> console..." issue, and the system was actually booting--I just didn't
-> see any output.  If so, the "Unable to handle kernel paging request..."
-> hang might well be a problem with SPARSEMEM_VMEMMAP...
-> 
-
-After applying the hotfixes from Andrew's repository and the patches
-from the mailing lists listed below, I'm booting 23-rc1-mm1 with a zx1
-specific config [on an sx1000].  Gotta run for a meeting, but I'll try
-generic kernel this pm.  Then back to testing memoryless node
-patches, ...
-
-Other "hot fixes":
-
-2 of Mel Gorman's patches to fix ia64 mmap corruption [mm list]
-Yasuaki Ishimatsu's assign irq vector fix [ia64 list]
-Kenji Kaneshige's "wrong access to vector" patch [ia64 list]
-Kame-san's sparsemem-vmemmap fix [lkml]
-
-Lee
-
+On Thu, Jul 26, 2007 at 02:23:30PM +0200, Andi Kleen wrote:
+> That would just save reading the directories. Not sure
+> it helps that much. Much better would be actually if it didn't stat the 
+> individual files (and force their dentries/inodes in). I bet it does that to 
+> find out if they are directories or not. But in a modern system it could just 
+> check the type in the dirent on file systems that support 
+> that and not do a stat. Then you would get much less dentries/inodes.
+ 
+FWIW, find(1) does *not* stat non-directories (and neither would this
+approach).  So it's just dentries for directories and you can't realistically
+skip those.  OK, you could - if you had banned cross-directory rename
+for directories and propagated "dirty since last look" towards root (note
+that it would be a boolean, not a timestamp).  Then we could skip unchanged
+subtrees completely...
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
