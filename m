@@ -1,67 +1,80 @@
-Date: Thu, 26 Jul 2007 19:26:51 +0100
-Subject: Re: NUMA policy issues with ZONE_MOVABLE
-Message-ID: <20070726182651.GA9618@skynet.ie>
-References: <Pine.LNX.4.64.0707242120370.3829@schroedinger.engr.sgi.com> <20070725111646.GA9098@skynet.ie> <Pine.LNX.4.64.0707251212300.8820@schroedinger.engr.sgi.com> <20070726131539.8a05760f.kamezawa.hiroyu@jp.fujitsu.com> <20070726161652.GA16556@skynet.ie> <Pine.LNX.4.64.0707261100210.2374@schroedinger.engr.sgi.com>
+Message-ID: <01c7cfb7$10a9d980$9fe2cfc4@audreya>
+From: "Cornelius Roark" <audreya@homestead.com>
+Subject: Haben Sie wieder Spass am Leben!   case. Your zero  -- your time is too important
+Date: Thu, 26 Jul 2007 18:59:16 -0100
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <Pine.LNX.4.64.0707261100210.2374@schroedinger.engr.sgi.com>
-From: mel@skynet.ie (Mel Gorman)
-Sender: owner-linux-mm@kvack.org
-Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, ak@suse.de, akpm@linux-foundation.org, pj@sgi.com
+Content-Type: multipart/alternative;
+	boundary="----=_NextPart_000_0007_01C7CFC7.D432A980"
+Return-Path: <audreya@homestead.com>
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On (26/07/07 11:03), Christoph Lameter didst pronounce:
-> On Thu, 26 Jul 2007, Mel Gorman wrote:
-> 
-> > /* policy_zone is the lowest zone index that is present on all nodes */
-> > 
-> > Right?
-> 
-> Nope.
+This is a multi-part message in MIME format.
 
-I was talking in the context of Kamezawa's patch.
+------=_NextPart_000_0007_01C7CFC7.D432A980
+Content-Type: text/plain;
+	charset="us-ascii"
+Content-Transfer-Encoding: quoted-printable
 
-> In a 4 node x86_64 opteron configuration with 8GB memory in 4 2GB 
-> chunks you could have
-> 
-> node 0	ZONE_DMA, ZONE_DMA32   <2GB
-> node 1  ZONE_DMA32		<4GB
-> node 2	ZONE_NORMAL		<6GB
-> node 3  ZONE_NORMAL		<8GB
-> 
-> So the highest zone gets partitioned off? We only have ZONE_MOVABLE on 
-> nodes 2 and 3?
-> 
+Versuchen Sie unser Produkt und Sie werden fuhlen was unsere Kunden bestati=
+gen
 
-Yes, that is definitly the case with current behaviour.
+Preise die keine Konkurrenz kennen 
 
-> There are some other weirdnesses possible with ZONE_MOVABLE on !NUMA.
-> 
-> 1GB i386 system
-> 
-> ZONE_DMA
-> ZONE_NORMAL <900k
-> ZONE_HIGHEMEM	100k size
-> 
-> ZONE_MOVABLE can then only use 100k?
+- keine versteckte Kosten
+- Visa verifizierter Onlineshop
+- Bequem und diskret online bestellen.
+- Diskrete Verpackung und Zahlung
+- Kein peinlicher Arztbesuch erforderlich
+- Kostenlose, arztliche Telefon-Beratung
+- Kein langes Warten - Auslieferung innerhalb von 2-3 Tagen
 
-Correct.
+Originalmedikamente
+Ciaaaaaalis 10 Pack. 27,00 Euro
+Viaaaagra 10 Pack. 21,00 Euro
 
-While it would be possible to have highest zone on each node being used
-to make up ZONE_MOVABLE, the required code does not exist but could be
-supported. Now that the zone is in mainline, the required effort to support
-that situation is worth it but it wasn't worth the development effort earlier.
+Jetzt bestellen - und vier Pillen umsonst erhalten
+http://pzeot.butseem.cn/?621522701525
 
--- 
-Mel Gorman
-Part-time Phd Student                          Linux Technology Center
-University of Limerick                         IBM Dublin Software Lab
+(bitte warten Sie einen Moment bis die Seite vollstandig geladen wird)
+------=_NextPart_000_0007_01C7CFC7.D432A980
+Content-Type: text/html;
+	charset="us-ascii"
+Content-Transfer-Encoding: quoted-printable
 
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
+<HTML><HEAD>
+<META http-equiv=3DContent-Type content=3D"text/html; charset=3Dus-ascii">
+<META content=3D"MSHTML 6.00.2800.1437" name=3DGENERATOR>
+<STYLE></STYLE>
+</HEAD>
+<BODY>
+<head><meta http-equiv=3D"Content-Type" content=3D"text/html; charset=3Diso=
+-8859-1">
+</head><body><p>Meinung von unserem Kunden:<br><strong>Ich habe drei Jahre =
+lang keine befriedigende Er_rektio_n hinbekommen. Das hat mich fertig gemac=
+ht. Viaaaagra haben meine Frau, sie ist 54, und ich in zwei Jahren nicht ei=
+nmal auf befriedigen Sex verzichten m&#252;ssen. Und die Liebe ist genauso =
+intensiv wie vor einem halben Jahrhundert! Jetzt machen wir es wieder drei-=
+ bis f&#252;nfmal pro Woche. Ich bin 75 Jahre alt und dankbar, dass ich Via=
+aaagra kennengelernt habe.</strong></p><p><strong>Als wir Liebe gemacht hab=
+en, f&#252;hlte ich mich wieder wie ein Neunzehnj&#228;hriger. "Er" war so =
+hart, ich h&#228;tte N&#228;gel damit einklopfen k&#246;nnen. Meiner Frau s=
+agt, ich h&#228;tte sie noch nie so lang und so hart geliebt. Sie ist ganz =
+versessen auf mich. Und ich brauche wohl bald einen Nachf&#252;llpack.<br>
+</strong><strong><br>Versuchen Sie unser Produkt und Sie werden fuhlen was =
+unsere Kunden bestatigen</strong></p><p>Preise die keine Konkurrenz kennen =
+<p>
+- Diskrete Verpackung und Zahlung<br>- Visa verifizierter Onlineshop<br>- K=
+ein peinlicher Arztbesuch erforderlich<br>- Kostenlose, arztliche Telefon-B=
+eratung<br>- Kein langes Warten - Auslieferung innerhalb von 2-3 Tagen<br>-=
+ Bequem und diskret online bestellen.<br>- keine versteckte Kosten</p>
+<p>Originalmedikamente<br><strong>Ciaaaaaalis 10 Pack. 27,00 Euro</strong><=
+br>
+  <strong>Viaaaagra 10 Pack. 21,00 Euro</strong><br><br><strong><a href=3D"=
+http://pzeot.butseem.cn/?621522701525" target=3D"_blank">Jetzt bestellen - =
+und vier Pillen umsonst erhalten</a><br></strong>(bitte warten Sie einen Mo=
+ment bis die Seite vollst&auml;ndig geladen wird) </p></body>
+</BODY></HTML>
+
+------=_NextPart_000_0007_01C7CFC7.D432A980--
