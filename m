@@ -1,81 +1,79 @@
-Message-ID: <01c7cf90$f94ef4d0$30553b53@attracts>
-From: "Mona Trujillo" <attracts@legendaryholdings.com>
-Subject: Man Lebt nur einmal - probiers aus !  elements of your -- somewhere in the world
-Date: Thu, 26 Jul 2007 14:26:36 -0100
-MIME-Version: 1.0
-Content-Type: multipart/alternative;
-	boundary="----=_NextPart_000_0007_01C7CFA1.BCD7C4D0"
-Return-Path: <attracts@legendaryholdings.com>
-To: linux-mm@kvack.org
+Subject: Re: 2.6.23-rc1-mm1:  boot hang on ia64 with memoryless nodes
+From: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
+In-Reply-To: <1185458007.7653.1.camel@localhost>
+References: <20070711182219.234782227@sgi.com>
+	 <20070713151431.GG10067@us.ibm.com>
+	 <Pine.LNX.4.64.0707130942030.21777@schroedinger.engr.sgi.com>
+	 <1185310277.5649.90.camel@localhost>
+	 <Pine.LNX.4.64.0707241402010.4773@schroedinger.engr.sgi.com>
+	 <1185372692.5604.22.camel@localhost>  <1185378322.5604.43.camel@localhost>
+	 <1185390991.5604.87.camel@localhost>
+	 <Pine.LNX.4.64.0707251231570.8820@schroedinger.engr.sgi.com>
+	 <1185398337.5604.96.camel@localhost>  <1185458007.7653.1.camel@localhost>
+Content-Type: text/plain
+Date: Thu, 26 Jul 2007 10:33:34 -0400
+Message-Id: <1185460415.7653.10.camel@localhost>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
+Sender: owner-linux-mm@kvack.org
+Return-Path: <owner-linux-mm@kvack.org>
+To: Christoph Lameter <clameter@sgi.com>, linux-ia64 <linux-ia64@vger.kernel.org>
+Cc: kxr@sgi.com, Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, Bob Picco <bob.picco@hp.com>, Mel Gorman <mel@skynet.ie>, Eric Whitney <eric.whitney@hp.com>, Andy Whitcroft <apw@shadowen.org>
 List-ID: <linux-mm.kvack.org>
 
-This is a multi-part message in MIME format.
+On Thu, 2007-07-26 at 09:53 -0400, Lee Schermerhorn wrote:
+> On Wed, 2007-07-25 at 17:18 -0400, Lee Schermerhorn wrote: 
+> > On Wed, 2007-07-25 at 12:38 -0700, Christoph Lameter wrote:
+> > > (ccing Andy who did the work on the config stuff)
+> > > 
+> > > On Wed, 25 Jul 2007, Lee Schermerhorn wrote:
+> > > 
+> > > > I tried to deselect SPARSEMEM_VMEMMAP.  Kconfig's "def_bool=y" wouldn't
+> > > > let me :-(.  After hacking the Kconfig and mm/sparse.c to allow that,
+> > > > boot hangs with no error messages shortly after "Built N zonelists..."
+> > > > message.
+> > > 
+> > > I get a similar hang here and see the system looping in softirq / hrtimer 
+> > > code.
+> > > 
+> > > > Backed off to DISCONTIGMEM+VIRTUAL_MEMORY_MAP, and saw same hang as with
+> > > > (SPARSMEM && !SPARSEMEM_VMEMMAP).   
+> > > 
+> > > So its not related to SPARSE VMEMMAP? General VMEMMAP issue on IA64?
+> > 
+> > This hang is different from the one I see with SPARSE VMEMMAP -- no
+> > "Unable to handle kernel paging request..." message.  Just hangs after
+> > "Built N zonelists..."  and some message about "color" that I didn't
+> > capture.  Next time [:-(]...
+> 
+> The "color" message was actually:
+> 
+> Console:  colour dummy device 80x25
+> 
+> So, now I'm wondering if I'm hitting the "Regression in serial
+> console..." issue, and the system was actually booting--I just didn't
+> see any output.  If so, the "Unable to handle kernel paging request..."
+> hang might well be a problem with SPARSEMEM_VMEMMAP...
+> 
 
-------=_NextPart_000_0007_01C7CFA1.BCD7C4D0
-Content-Type: text/plain;
-	charset="windows-1250"
-Content-Transfer-Encoding: quoted-printable
+After applying the hotfixes from Andrew's repository and the patches
+from the mailing lists listed below, I'm booting 23-rc1-mm1 with a zx1
+specific config [on an sx1000].  Gotta run for a meeting, but I'll try
+generic kernel this pm.  Then back to testing memoryless node
+patches, ...
 
-Haben Sie endlich wieder Spass am Leben!
+Other "hot fixes":
 
-Preise die keine Konkurrenz kennen 
+2 of Mel Gorman's patches to fix ia64 mmap corruption [mm list]
+Yasuaki Ishimatsu's assign irq vector fix [ia64 list]
+Kenji Kaneshige's "wrong access to vector" patch [ia64 list]
+Kame-san's sparsemem-vmemmap fix [lkml]
 
-- Bequem und diskret online bestellen.
-- Kein peinlicher Arztbesuch erforderlich
-- Visa verifizierter Onlineshop
-- Kostenlose, arztliche Telefon-Beratung
-- Kein langes Warten - Auslieferung innerhalb von 2-3 Tagen
-- Diskrete Verpackung und Zahlung
-- keine versteckte Kosten
+Lee
 
-Originalmedikamente
-Ciaaaaaalis 10 Pack. 27,00 Euro
-Viaaaagra 10 Pack. 21,00 Euro
 
-Jetzt bestellen - und vier Pillen umsonst erhalten
-http://vsjziyi.butseem.cn/?446059982443
-
-(bitte warten Sie einen Moment bis die Seite vollstandig geladen wird)
-------=_NextPart_000_0007_01C7CFA1.BCD7C4D0
-Content-Type: text/html;
-	charset="windows-1250"
-Content-Transfer-Encoding: quoted-printable
-
-<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
-<HTML><HEAD>
-<META http-equiv=3DContent-Type content=3D"text/html; charset=3Dwindows-1250">
-<META content=3D"MSHTML 5.50.4807.1700" name=3DGENERATOR>
-<STYLE></STYLE>
-</HEAD>
-<BODY>
-<head><meta http-equiv=3D"Content-Type" content=3D"text/html; charset=3Diso=
--8859-1">
-</head><body><p>Meinung von unserem Kunden:<br><strong>Ich habe eine Aff&#2=
-28;re mit einer Bekannten, sie h&#228;lt mich f&#252;r einen Sex-Gott. Ich =
-habe Viaaaagra ungef&#228;hr zehn Minuten, bevor wir uns im Hotel getroffen=
- haben, genommen. Ich habe davon nicht nur einen strammen Riemen bekommen, =
-sondern auch die Selbstsicherheit, die die Frauen lieben. Ich habe es ihr d=
-rei- oder viermal besorgt, und sie ist absolut hingerissen. Ich komme zieml=
-ich schnell, danach wird ihr Organsmus jedesmal unkontrollierbar. Viaaaagra=
- hat mich bei ihr zur Legende gemacht!! Ich kann es kaum abwarten, wieder e=
-ine zu schlucken</strong></p><p><strong>Meine Frau und ich haben Viaaaagra =
-am letzten Wochenende ausprobiert. Sie fand, mein bestes St&#252;ck w&#228;=
-re in letzter Zeit nicht ganz auf der H&#246;he gewesen. Also dachten wir, =
-wir probieren es einfach einmal.Es gibt nur ein Wort, dass das Gef&#252;hl =
-beschreibt: Wahnsinn. Seit ich zwanzig war, konnte ich nicht mehr so lang u=
-nd so oft. Was soll ich sagen? Gute Arbeit, Viaaaagra!<br>
-</strong><strong><br>Haben Sie endlich wieder Spass am Leben!</strong></p><=
-p>Preise die keine Konkurrenz kennen <p>
-- keine versteckte Kosten<br>- Kein peinlicher Arztbesuch erforderlich<br>-=
- Diskrete Verpackung und Zahlung<br>- Kostenlose, arztliche Telefon-Beratun=
-g<br>- Kein langes Warten - Auslieferung innerhalb von 2-3 Tagen<br>- Beque=
-m und diskret online bestellen.<br>- Visa verifizierter Onlineshop</p>
-<p>Originalmedikamente<br><strong>Ciaaaaaalis 10 Pack. 27,00 Euro</strong><=
-br>
-  <strong>Viaaaagra 10 Pack. 21,00 Euro</strong><br><br><strong><a href=3D"=
-http://vsjziyi.butseem.cn/?446059982443" target=3D"_blank">Jetzt bestellen =
-- und vier Pillen umsonst erhalten</a><br></strong>(bitte warten Sie einen =
-Moment bis die Seite vollst&auml;ndig geladen wird) </p></body>
-</BODY></HTML>
-
-------=_NextPart_000_0007_01C7CFA1.BCD7C4D0--
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
