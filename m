@@ -1,70 +1,84 @@
-Date: Thu, 26 Jul 2007 15:17:57 +0100
-Subject: bind_zonelist() - are we definitely sizing this correctly?
-Message-ID: <20070726141756.GB18825@skynet.ie>
+Received: by nz-out-0506.google.com with SMTP id s1so485762nze
+        for <linux-mm@kvack.org>; Thu, 26 Jul 2007 07:19:07 -0700 (PDT)
+Message-ID: <b14e81f00707260719w63d8ab38jbf2a17a38bd07c1d@mail.gmail.com>
+Date: Thu, 26 Jul 2007 10:19:06 -0400
+From: "Michael Chang" <thenewme91@gmail.com>
+Subject: Re: [ck] Re: -mm merge plans for 2.6.23
+In-Reply-To: <20070725215717.df1d2eea.akpm@linux-foundation.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
+Content-Type: text/plain; charset=UTF-8; format=flowed
+Content-Transfer-Encoding: 7bit
 Content-Disposition: inline
-From: mel@skynet.ie (Mel Gorman)
+References: <20070710013152.ef2cd200.akpm@linux-foundation.org>
+	 <2c0942db0707232153j3670ef31kae3907dff1a24cb7@mail.gmail.com>
+	 <46A58B49.3050508@yahoo.com.au>
+	 <2c0942db0707240915h56e007e3l9110e24a065f2e73@mail.gmail.com>
+	 <46A6CC56.6040307@yahoo.com.au> <46A6D7D2.4050708@gmail.com>
+	 <1185341449.7105.53.camel@perkele> <46A6E1A1.4010508@yahoo.com.au>
+	 <2c0942db0707250909r435fef75sa5cbf8b1c766000b@mail.gmail.com>
+	 <20070725215717.df1d2eea.akpm@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Lee Schermerhorn <Lee.Schermerhorn@hp.com>, ak@suse.de, Christoph Lameter <clameter@sgi.com>, apw@shadowen.org, kamezawa.hiroyu@jp.fujitsu.com
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Ray Lee <ray-lk@madrabbit.org>, Nick Piggin <nickpiggin@yahoo.com.au>, Eric St-Laurent <ericstl34@sympatico.ca>, linux-kernel@vger.kernel.org, ck list <ck@vds.kolivas.org>, linux-mm@kvack.org, Paul Jackson <pj@sgi.com>, Jesper Juhl <jesper.juhl@gmail.com>, Rene Herman <rene.herman@gmail.com>
 List-ID: <linux-mm.kvack.org>
 
-I was looking closer at bind_zonelist() and it has the following snippet
+On 7/26/07, Andrew Morton <akpm@linux-foundation.org> wrote:
+> On Wed, 25 Jul 2007 09:09:01 -0700
+> "Ray Lee" <ray-lk@madrabbit.org> wrote:
+>
+> > No, there's a third case which I find the most annoying. I have
+> > multiple working sets, the sum of which won't fit into RAM. When I
+> > finish one, the kernel had time to preemptively swap back in the
+> > other, and yet it didn't. So, I sit around, twiddling my thumbs,
+> > waiting for my music player to come back to life, or thunderbird,
+> > or...
+>
+> In fact I'd restate the problem as "system is in steady state A, then there
+> is a workload shift causing transition to state B, then the system goes
+> idle.  We now wish to reinstate state A in anticipation of a resumption of
+> the original workload".
+>
+> swap-prefetch solves a part of that.
+>
+> A complete solution for anon and file-backed memory could be implemented
+> (ta-da) in userspace using the kernel inspection tools in -mm's maps2-*
+> patches.  We would need to add a means by which userspace can repopulate
+> swapcache, but that doesn't sound too hard (especially when you haven't
+> thought about it).
+>
+> And userspace can right now work out which pages from which files are in
+> pagecache so this application can handle pagecache, swap and file-backed
+> memory.  (file-backed memory might not even need special treatment, given
+> that it's pagecache anyway).
+>
+> And userspace can do a much better implementation of this
+> how-to-handle-large-load-shifts problem, because it is really quite
+> complex.  The system needs to be monitored to determine what is the "usual"
+> state (ie: the thing we wish to reestablish when the transient workload
+> subsides).  The system then needs to be monitored to determine when the
+> exceptional workload has started, and when it has subsided, and userspace
+> then needs to decide when to start reestablishing the old working set, at
+> what rate, when to abort doing that, etc.
+>
+> All this would end up needing runtime configurability and tweakability and
+> customisability.  All standard fare for userspace stuff - much easier than
+> patching the kernel.
 
-        struct zonelist *zl;
-        int num, max, nd;
-        enum zone_type k;
-
-        max = 1 + MAX_NR_ZONES * nodes_weight(*nodes);
-        max++;                  /* space for zlcache_ptr (see mmzone.h) */
-        zl = kmalloc(sizeof(struct zone *) * max, GFP_KERNEL);
-        if (!zl)
-                return ERR_PTR(-ENOMEM);
-
-That set off alarm bells because we are allocating based on the size of a
-zone, not the size of the zonelist.
-
-This is the definition of struct zonelist
-
-struct zonelist {
-        struct zonelist_cache *zlcache_ptr;                  // NULL or &zlcache
-        struct zone *zones[MAX_ZONES_PER_ZONELIST + 1];      // NULL delimited
-#ifdef CONFIG_NUMA
-        struct zonelist_cache zlcache;                       // optional ...
-#endif
-};
-
-Important thing to note here is that zlcache is after *zones and it is
-not a pointer. zlcache in turn is defined as
-
-struct zonelist_cache {
-        unsigned short z_to_n[MAX_ZONES_PER_ZONELIST];          /* zone->nid */
-        DECLARE_BITMAP(fullzones, MAX_ZONES_PER_ZONELIST);      /* zone full? */
-        unsigned long last_full_zap;            /* when last zap'd (jiffies) */
-};
-
-This is on NUMA only and it's a big structure.
-
-The intention of bind_zonelist() appears to be that we only allocate enough
-memory to hold all the zones in the active nodes. This was fine in 2.6.19
-but now with zlcache after *zones[], I think we are in danger of allocating
-too little memory and any reading of zlcache may be reading randomness when
-MPOL_BIND is in use because it will be using the full offset within the
-structure whether the memory is allocated or not.
-
-At the risk of sounding stupid, what obvious thing am I missing that makes
-this work?
-
-If I'm right and this is broken and we still want to allocate as little memory
-as possible, zlcache has to move before zones and the call to kmalloc needs
-to take the size of zlcache into account.
+Maybe I'm missing something here, but if the problem is resource
+allocation when switching from state A to state B, and from B to C,
+etc.; wouldn't it be a bad thing if state B happened to be (in the
+future) this state-shifting userspace daemon of which you speak? (Or
+is that likely to be impossible/unlikely for some other reason which
+alludes me at the moment?)
 
 -- 
-Mel Gorman
-Part-time Phd Student                          Linux Technology Center
-University of Limerick                         IBM Dublin Software Lab
+Michael Chang
+
+Please avoid sending me Word or PowerPoint attachments. Send me ODT,
+RTF, or HTML instead.
+See http://www.gnu.org/philosophy/no-word-attachments.html
+Thank you.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
