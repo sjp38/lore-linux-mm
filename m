@@ -1,69 +1,70 @@
-Date: Thu, 26 Jul 2007 23:00:31 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: 2.6.23-rc1-mm1:  boot hang on ia64 with memoryless nodes
-Message-Id: <20070726230031.d804aa60.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <1185458007.7653.1.camel@localhost>
-References: <20070711182219.234782227@sgi.com>
-	<20070713151431.GG10067@us.ibm.com>
-	<Pine.LNX.4.64.0707130942030.21777@schroedinger.engr.sgi.com>
-	<1185310277.5649.90.camel@localhost>
-	<Pine.LNX.4.64.0707241402010.4773@schroedinger.engr.sgi.com>
-	<1185372692.5604.22.camel@localhost>
-	<1185378322.5604.43.camel@localhost>
-	<1185390991.5604.87.camel@localhost>
-	<Pine.LNX.4.64.0707251231570.8820@schroedinger.engr.sgi.com>
-	<1185398337.5604.96.camel@localhost>
-	<1185458007.7653.1.camel@localhost>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Date: Thu, 26 Jul 2007 15:17:57 +0100
+Subject: bind_zonelist() - are we definitely sizing this correctly?
+Message-ID: <20070726141756.GB18825@skynet.ie>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+From: mel@skynet.ie (Mel Gorman)
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
-Cc: clameter@sgi.com, linux-ia64@vger.kernel.org, kxr@sgi.com, akpm@linux-foundation.org, linux-mm@kvack.org, bob.picco@hp.com, mel@skynet.ie, eric.whitney@hp.com, apw@shadowen.org
+To: Lee Schermerhorn <Lee.Schermerhorn@hp.com>, ak@suse.de, Christoph Lameter <clameter@sgi.com>, apw@shadowen.org, kamezawa.hiroyu@jp.fujitsu.com
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 26 Jul 2007 09:53:27 -0400
-Lee Schermerhorn <Lee.Schermerhorn@hp.com> wrote:
+I was looking closer at bind_zonelist() and it has the following snippet
 
-> On Wed, 2007-07-25 at 17:18 -0400, Lee Schermerhorn wrote: 
-> > On Wed, 2007-07-25 at 12:38 -0700, Christoph Lameter wrote:
-> > > (ccing Andy who did the work on the config stuff)
-> > > 
-> > > On Wed, 25 Jul 2007, Lee Schermerhorn wrote:
-> > > 
-> > > > I tried to deselect SPARSEMEM_VMEMMAP.  Kconfig's "def_bool=y" wouldn't
-> > > > let me :-(.  After hacking the Kconfig and mm/sparse.c to allow that,
-> > > > boot hangs with no error messages shortly after "Built N zonelists..."
-> > > > message.
-> > > 
-> > > I get a similar hang here and see the system looping in softirq / hrtimer 
-> > > code.
-> > > 
-> > > > Backed off to DISCONTIGMEM+VIRTUAL_MEMORY_MAP, and saw same hang as with
-> > > > (SPARSMEM && !SPARSEMEM_VMEMMAP).   
-> > > 
-> > > So its not related to SPARSE VMEMMAP? General VMEMMAP issue on IA64?
-> > 
-> > This hang is different from the one I see with SPARSE VMEMMAP -- no
-> > "Unable to handle kernel paging request..." message.  Just hangs after
-> > "Built N zonelists..."  and some message about "color" that I didn't
-> > capture.  Next time [:-(]...
-> 
-> The "color" message was actually:
-> 
-> Console:  colour dummy device 80x25
-> 
-> So, now I'm wondering if I'm hitting the "Regression in serial
-> console..." issue, and the system was actually booting--I just didn't
-> see any output.  If so, the "Unable to handle kernel paging request..."
-> hang might well be a problem with SPARSEMEM_VMEMMAP...
-> 
-About SPARSEMEM_VMEMMAP try this:
-http://lkml.org/lkml/2007/7/26/161
+        struct zonelist *zl;
+        int num, max, nd;
+        enum zone_type k;
 
-Thanks,
--Kame
+        max = 1 + MAX_NR_ZONES * nodes_weight(*nodes);
+        max++;                  /* space for zlcache_ptr (see mmzone.h) */
+        zl = kmalloc(sizeof(struct zone *) * max, GFP_KERNEL);
+        if (!zl)
+                return ERR_PTR(-ENOMEM);
+
+That set off alarm bells because we are allocating based on the size of a
+zone, not the size of the zonelist.
+
+This is the definition of struct zonelist
+
+struct zonelist {
+        struct zonelist_cache *zlcache_ptr;                  // NULL or &zlcache
+        struct zone *zones[MAX_ZONES_PER_ZONELIST + 1];      // NULL delimited
+#ifdef CONFIG_NUMA
+        struct zonelist_cache zlcache;                       // optional ...
+#endif
+};
+
+Important thing to note here is that zlcache is after *zones and it is
+not a pointer. zlcache in turn is defined as
+
+struct zonelist_cache {
+        unsigned short z_to_n[MAX_ZONES_PER_ZONELIST];          /* zone->nid */
+        DECLARE_BITMAP(fullzones, MAX_ZONES_PER_ZONELIST);      /* zone full? */
+        unsigned long last_full_zap;            /* when last zap'd (jiffies) */
+};
+
+This is on NUMA only and it's a big structure.
+
+The intention of bind_zonelist() appears to be that we only allocate enough
+memory to hold all the zones in the active nodes. This was fine in 2.6.19
+but now with zlcache after *zones[], I think we are in danger of allocating
+too little memory and any reading of zlcache may be reading randomness when
+MPOL_BIND is in use because it will be using the full offset within the
+structure whether the memory is allocated or not.
+
+At the risk of sounding stupid, what obvious thing am I missing that makes
+this work?
+
+If I'm right and this is broken and we still want to allocate as little memory
+as possible, zlcache has to move before zones and the call to kmalloc needs
+to take the size of zlcache into account.
+
+-- 
+Mel Gorman
+Part-time Phd Student                          Linux Technology Center
+University of Limerick                         IBM Dublin Software Lab
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
