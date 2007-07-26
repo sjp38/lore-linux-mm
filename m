@@ -1,54 +1,83 @@
-Received: by ug-out-1314.google.com with SMTP id c2so538704ugf
-        for <linux-mm@kvack.org>; Wed, 25 Jul 2007 18:32:49 -0700 (PDT)
-Message-ID: <2c0942db0707251832i542249d5ve0006b3db0374678@mail.gmail.com>
-Date: Wed, 25 Jul 2007 18:32:48 -0700
-From: "Ray Lee" <ray-lk@madrabbit.org>
-Subject: Re: [ck] Re: -mm merge plans for 2.6.23
-In-Reply-To: <b21f8390707251815o767590acrf6a6c4d7290a26a8@mail.gmail.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=UTF-8; format=flowed
-Content-Transfer-Encoding: 7bit
+Date: Thu, 26 Jul 2007 03:37:28 +0200
+From: Nick Piggin <npiggin@suse.de>
+Subject: Re: [PATCH RFC] extent mapped page cache
+Message-ID: <20070726013728.GB20727@wotan.suse.de>
+References: <20070710210326.GA29963@think.oraclecorp.com> <20070724160032.7a7097db@think.oraclecorp.com> <1185307985.6586.50.camel@localhost> <1185312343.5535.5.camel@lappy> <20070724192509.5bc9b3fe@think.oraclecorp.com> <20070725023217.GA32076@wotan.suse.de> <20070725081853.4b325e7f@think.oraclecorp.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-References: <20070710013152.ef2cd200.akpm@linux-foundation.org>
-	 <2c0942db0707232153j3670ef31kae3907dff1a24cb7@mail.gmail.com>
-	 <46A58B49.3050508@yahoo.com.au>
-	 <2c0942db0707240915h56e007e3l9110e24a065f2e73@mail.gmail.com>
-	 <46A6CC56.6040307@yahoo.com.au> <46A6D7D2.4050708@gmail.com>
-	 <Pine.LNX.4.64.0707242211210.2229@asgard.lang.hm>
-	 <46A6DFFD.9030202@gmail.com>
-	 <2c0942db0707250902v58e23d52v434bde82ba28f119@mail.gmail.com>
-	 <b21f8390707251815o767590acrf6a6c4d7290a26a8@mail.gmail.com>
+In-Reply-To: <20070725081853.4b325e7f@think.oraclecorp.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Matthew Hawkins <darthmdh@gmail.com>
-Cc: linux-kernel@vger.kernel.org, ck list <ck@vds.kolivas.org>, linux-mm@kvack.org
+To: Chris Mason <chris.mason@oracle.com>
+Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, Trond Myklebust <trond.myklebust@fys.uio.no>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>, linux-fsdevel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On 7/25/07, Matthew Hawkins <darthmdh@gmail.com> wrote:
-> On 7/26/07, Ray Lee <ray-lk@madrabbit.org> wrote:
-> > I'd just like updatedb to amortize its work better. If we had some way
-> > to track all filesystem events, updatedb could keep a live and
-> > accurate index on the filesystem. And this isn't just updatedb that
-> > wants that, beagle and tracker et al also want to know filesystem
-> > events so that they can index the documents themselves as well as the
-> > metadata. And if they do it live, that spreads the cost out, including
-> > the VM pressure.
->
-> We already have this, its called inotify (and if I'm not mistaken,
-> beagle already uses it).
+On Wed, Jul 25, 2007 at 08:18:53AM -0400, Chris Mason wrote:
+> On Wed, 25 Jul 2007 04:32:17 +0200
+> Nick Piggin <npiggin@suse.de> wrote:
+> 
+> > Having another tree to store block state I think is a good idea as I
+> > said in the fsblock thread with Dave, but I haven't clicked as to why
+> > it is a big advantage to use it to manage pagecache state. (and I can
+> > see some possible disadvantages in locking and tree manipulation
+> > overhead).
+> 
+> Yes, there are definitely costs with the state tree, it will take some
+> careful benchmarking to convince me it is a feasible solution. But,
+> storing all the state in the pages themselves is impossible unless the
+> block size equals the page size. So, we end up with something like
+> fsblock/buffer heads or the state tree.
 
-Yeah, I know about inotify, but it doesn't scale.
+Yep, we have to have something.
 
-ray@phoenix:~$ find ~ -type d | wc -l
-17933
-ray@phoenix:~$
+ 
+> One advantage to the state tree is that it separates the state from
+> the memory being described, allowing a simple kmap style interface
+> that covers subpages, highmem and superpages.
 
-That's not fun with inotify, and that's just my home directory. The
-vast majority of those are quiet the vast majority of the time, which
-is the crux of the problem, and why inotify isn't a great fit for
-on-demand virus scanners or indexers.
+I suppose so, although we should have added those interfaces long
+ago ;) The variants in fsblock are pretty good, and you could always
+do an arbitrary extent (rather than block) based API using the
+pagecache tree if it would be helpful.
+ 
 
-Ray
+> It also more naturally matches the way we want to do IO, making for
+> easy clustering.
+
+Well the pagecache tree is used to reasonable effect for that now.
+OK the code isn't beautiful ;). Granted, this might be an area where
+the seperate state tree ends up being better. We'll see.
+
+ 
+> O_DIRECT becomes a special case of readpages and writepages....the
+> memory used for IO just comes from userland instead of the page cache.
+
+Could be, although you'll probably also need to teach the mm about
+the state tree and/or still manipulate the pagecache tree to prevent
+concurrency?
+
+But isn't the main aim of O_DIRECT to do as little locking and
+synchronisation with the pagecache as possible? I thought this is
+why your race fixing patches got put on the back burner (although
+they did look fairly nice from a correctness POV).
+
+Well I'm kind of handwaving when it comes to O_DIRECT ;) It does look
+like this might be another advantage of the state tree (although you
+aren't allowed to slow down buffered IO to achieve the locking ;)).
+
+ 
+> The ability to put in additional tracking info like the process that
+> first dirtied a range is also significant.  So, I think it is worth
+> trying.
+
+Definitely, and I'm glad you are. You haven't converted me yet, but
+I look forward to finding the best ideas from our two approaches when
+the patches are further along (ext2 port of fsblock coming along, so
+we'll be able to have races soon :P).
+
+Thanks,
+Nick
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
