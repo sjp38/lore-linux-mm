@@ -1,42 +1,63 @@
-Subject: Re: NUMA policy issues with ZONE_MOVABLE
-From: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
-In-Reply-To: <20070726132336.GA18825@skynet.ie>
-References: <Pine.LNX.4.64.0707242120370.3829@schroedinger.engr.sgi.com>
-	 <20070725111646.GA9098@skynet.ie>
-	 <Pine.LNX.4.64.0707251212300.8820@schroedinger.engr.sgi.com>
-	 <20070726132336.GA18825@skynet.ie>
-Content-Type: text/plain
-Date: Thu, 26 Jul 2007 14:09:21 -0400
-Message-Id: <1185473361.7653.22.camel@localhost>
-Mime-Version: 1.0
+Message-ID: <46A8E592.2070209@gmx.net>
+Date: Thu, 26 Jul 2007 20:18:58 +0200
+From: Michael Kerrisk <mtk-manpages@gmx.net>
+MIME-Version: 1.0
+Subject: Re: mbind.2 man page patch
+References: <1180467234.5067.52.camel@localhost>	 <Pine.LNX.4.64.0705291247001.26308@schroedinger.engr.sgi.com>	 <200705292216.31102.ak@suse.de> <1180541849.5850.30.camel@localhost>	 <20070531082016.19080@gmx.net> <1180732544.5278.158.camel@localhost>	 <46A44B8D.2040200@gmx.net> <1185200768.5074.10.camel@localhost>	 <46A8D787.4090202@gmx.net> <1185473161.7653.20.camel@localhost>
+In-Reply-To: <1185473161.7653.20.camel@localhost>
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Mel Gorman <mel@skynet.ie>
-Cc: Christoph Lameter <clameter@sgi.com>, linux-mm@kvack.org, ak@suse.de, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, akpm@linux-foundation.org, pj@sgi.com
+To: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
+Cc: ak@suse.de, clameter@sgi.com, akpm@linux-foundation.org, linux-mm@kvack.org, Samuel Thibault <samuel.thibault@ens-lyon.org>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 2007-07-26 at 14:23 +0100, Mel Gorman wrote:
-> On (25/07/07 12:31), Christoph Lameter didst pronounce:
-<snip>
+
+Lee Schermerhorn wrote:
+> On Thu, 2007-07-26 at 19:19 +0200, Michael Kerrisk wrote:
+>> [...]
+>>>> +If the specified memory range includes a memory mapped file mapped using
+>>>> +.BR mmap (2)
+>>>> +with the
+>>>> +.B MAP_SHARED
+>>>> +flag, the specified policy will be ignored for all page allocations
+>>>> +in this range.
+>>>> +.\" FIXME Lee / Andi: can you clarify/confirm "the specified policy
+>>>> +.\" will be ignored for all page allocations in this range".
+>>>> +.\" That text seems to be saying that if the memory range contains
+>>>> +.\" (say) some mappings that are allocated with MAP_SHARED
+>>>> +.\" and others allocated with MAP_PRIVATE, then the policy
+>>>> +.\" will be ignored for all of the mappings, including even
+>>>> +.\" the MAP_PRIVATE mappings.  Right?  I just want to be
+>>>> +.\" sure that that is what the text is meaning.
+>>> I can see from the wording how you might think this.  However, policy
+>>> will only be ignored for the SHARED mappings.  
+>> So is a better wording something like:
+>>
+>>     The specified policy will be ignored for any MAP_SHARED
+>>     file mappings in the specified memory range.
+>>
 > 
-> > Lee should probably also review this in detail since he has recent 
-> > experience fiddling around with memory policies. Paul has also 
-> > experience in this area.
-> > 
-> 
-> Lee had suggested almost the exact same solution but I'd like to hear if
-> the implementation matches his expectation.
-> 
+> Wish I'd written that ;-)
 
-Mel:
+It's just like code.  Simpler is usually better ;0-).
 
-Your patch looks good to me.  I will add it to my test mix shortly.
+> Seriously, that is correct.
 
-Meanwhile, I see that Kame-san has posted an "idea patch" that I need to
-review....
+Good.
 
-Lee
+Cheers,
+
+Michael
+
+-- 
+Michael Kerrisk
+maintainer of Linux man pages Sections 2, 3, 4, 5, and 7
+
+Want to help with man page maintenance?  Grab the latest tarball at
+http://www.kernel.org/pub/linux/docs/manpages/
+read the HOWTOHELP file and grep the source files for 'FIXME'.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
