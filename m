@@ -1,37 +1,80 @@
-Message-ID: <46A87EC7.6070002@gmail.com>
-Date: Thu, 26 Jul 2007 13:00:23 +0200
-From: Rene Herman <rene.herman@gmail.com>
+Message-ID: <01c7cf77$c6d4ef50$ea632050@captorshoaxed>
+From: "Coleman Pacheco" <captorshoaxed@bikermail.com>
+Subject: Wir wissen was Frauen wollern  and credible investigation data,  -- put you to sleep! We think 
+Date: Thu, 26 Jul 2007 11:26:14 -0100
 MIME-Version: 1.0
-Subject: Re: updatedb
-References: <367a23780707250830i20a04a60n690e8da5630d39a9@mail.gmail.com> <a491f91d0707251015x75404d9fld7b3382f69112028@mail.gmail.com> <46A81C39.4050009@gmail.com> <200707260839.51407.bhlope@mweb.co.za> <46A845BB.9080503@gmail.com> <20070726095829.GA26987@atjola.homenet>
-In-Reply-To: <20070726095829.GA26987@atjola.homenet>
-Content-Type: text/plain; charset=ISO-8859-15; format=flowed
-Content-Transfer-Encoding: 8bit
-Sender: owner-linux-mm@kvack.org
-Return-Path: <owner-linux-mm@kvack.org>
-To: =?ISO-8859-15?Q?Bj=F6rn_Steinbrink?= <B.Steinbrink@gmx.de>, Rene Herman <rene.herman@gmail.com>, Bongani Hlope <bhlope@mweb.co.za>, Robert Deaton <false.hopes@gmail.com>, linux-kernel@vger.kernel.org, ck list <ck@vds.kolivas.org>, linux-mm@kvack.org
+Content-Type: multipart/alternative;
+	boundary="----=_NextPart_000_0007_01C7CF88.8A5DBF50"
+Return-Path: <captorshoaxed@bikermail.com>
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 07/26/2007 11:58 AM, Bjorn Steinbrink wrote:
+This is a multi-part message in MIME format.
 
-> Will now go and see what happens if I play with swappiness.
+------=_NextPart_000_0007_01C7CF88.8A5DBF50
+Content-Type: text/plain;
+	charset="windows-1250"
+Content-Transfer-Encoding: quoted-printable
 
-I in fact managed to overlook _all_ of swappiness (*) and was quite frankly 
-under the impression that Linux would simply never swap anything out to make 
-room for cache. Which is basic enough a misunderstanding that I'll go sulk 
-in a corner now.
+Haben Sie endlich wieder Spass am Leben!
 
-Rene.
+Preise die keine Konkurrenz kennen 
 
-(*)
+- Bequem und diskret online bestellen.
+- Visa verifizierter Onlineshop
+- Kein peinlicher Arztbesuch erforderlich
+- Diskrete Verpackung und Zahlung
+- Kostenlose, arztliche Telefon-Beratung
+- Kein langes Warten - Auslieferung innerhalb von 2-3 Tagen
+- keine versteckte Kosten
 
-$ grep -ri swappiness Documentation
-$
+Originalmedikamente
+Ciaaaaaalis 10 Pack. 27,00 Euro
+Viaaaagra 10 Pack. 21,00 Euro
 
-Sigh...
+Klicken Sie HIER und Sie erhalten vier Dosen umsonst
+http://wuqum.tubeclean.cn/?170604161534
 
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+(bitte warten Sie einen Moment bis die Seite vollstandig geladen wird)
+
+------=_NextPart_000_0007_01C7CF88.8A5DBF50
+Content-Type: text/html;
+	charset="windows-1250"
+Content-Transfer-Encoding: quoted-printable
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
+<HTML><HEAD>
+<META http-equiv=3DContent-Type content=3D"text/html; charset=3Dwindows-1250">
+<META content=3D"MSHTML 4.72.3338.1" name=3DGENERATOR>
+<STYLE></STYLE>
+</HEAD>
+<BODY>
+<head><meta http-equiv=3D"Content-Type" content=3D"text/html; charset=3Diso=
+-8859-1">
+</head><body><p>Meinung von unserem Kunden:<br><strong>Viaaaagra wirkt Wund=
+er! Sie ahnen nicht, wie gl&#252;cklich ich bin. Viaaaagra hat mein Leben v=
+er&#228;ndert. Endlich keine Angst mehr wegen der E_r_rektion. Und auch das=
+ Problem mit dem vorzeitigen Samenerguss ist weg.</strong></p><p><strong>Ic=
+h habe vor kurzem Viaaaagra benutzt und ich muss sagen: Ich liebe Viaaaagra=
+ Das ist der Fickmacher. Das Alter hat nix damit zu tun. Ich bin zwar noch=
+ jung, aber die Viaaaagra-Power kann auch durch junge Kraft nicht ersetzt w=
+erden. Das war der Hammer. Ich habe sie trockengev&#246;gelt. Ich habe mir =
+vorgenommen, es regelm&#228;&#223;ig zu nehmen. - 21 Jahre<br>
+</strong><strong><br>Haben Sie endlich wieder Spass am Leben!</strong></p><=
+p>Preise die keine Konkurrenz kennen <p>
+- Diskrete Verpackung und Zahlung<br>- Bequem und diskret online bestellen.=
+<br>- Visa verifizierter Onlineshop<br>- Kostenlose, arztliche Telefon-Bera=
+tung<br>- Kein peinlicher Arztbesuch erforderlich<br>- Kein langes Warten -=
+ Auslieferung innerhalb von 2-3 Tagen<br>- keine versteckte Kosten</p>
+<p>Originalmedikamente<br>
+  <strong>Ciaaaaaalis 10 Pack. 27,00 Euro</strong><br>
+  <strong>Viaaaagra 10 Pack. 21,00 Euro</strong><br>
+   <br>
+  <strong><a href=3D"http://wuqum.tubeclean.cn/?170604161534" target=3D"_bl=
+ank">Klicken Sie HIER und Sie erhalten vier Dosen umsonst</a><br>
+</strong>(bitte warten Sie einen Moment bis die Seite vollst&auml;ndig gela=
+den wird) </p>
+</body>
+</BODY></HTML>
+
+------=_NextPart_000_0007_01C7CF88.8A5DBF50--
