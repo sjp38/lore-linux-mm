@@ -1,32 +1,160 @@
-Date: Thu, 26 Jul 2007 11:20:25 +0100
-From: Al Viro <viro@ftp.linux.org.uk>
-Subject: Re: RFT: updatedb "morning after" problem [was: Re: -mm merge plans for 2.6.23]
-Message-ID: <20070726102025.GJ27237@ftp.linux.org.uk>
-References: <46A57068.3070701@yahoo.com.au> <2c0942db0707232153j3670ef31kae3907dff1a24cb7@mail.gmail.com> <46A58B49.3050508@yahoo.com.au> <2c0942db0707240915h56e007e3l9110e24a065f2e73@mail.gmail.com> <46A6CC56.6040307@yahoo.com.au> <p73abtkrz37.fsf@bingen.suse.de> <46A85D95.509@kingswood-consulting.co.uk> <20070726092025.GA9157@elte.hu> <20070726023401.f6a2fbdf.akpm@linux-foundation.org> <20070726094024.GA15583@elte.hu>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Date: Thu, 26 Jul 2007 12:23:59 +0200
+From: =?iso-8859-1?Q?Bj=F6rn?= Steinbrink <B.Steinbrink@gmx.de>
+Subject: Re: updatedb
+Message-ID: <20070726102359.GH31216@atjola.homenet>
+References: <367a23780707250830i20a04a60n690e8da5630d39a9@mail.gmail.com> <a491f91d0707251015x75404d9fld7b3382f69112028@mail.gmail.com> <46A81C39.4050009@gmail.com> <200707260839.51407.bhlope@mweb.co.za> <46A845BB.9080503@gmail.com> <20070726095829.GA26987@atjola.homenet>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-1
 Content-Disposition: inline
-In-Reply-To: <20070726094024.GA15583@elte.hu>
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <20070726095829.GA26987@atjola.homenet>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Ingo Molnar <mingo@elte.hu>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Frank Kingswood <frank@kingswood-consulting.co.uk>, Andi Kleen <andi@firstfloor.org>, Nick Piggin <nickpiggin@yahoo.com.au>, Ray Lee <ray-lk@madrabbit.org>, Jesper Juhl <jesper.juhl@gmail.com>, ck list <ck@vds.kolivas.org>, Paul Jackson <pj@sgi.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Rene Herman <rene.herman@gmail.com>, Bongani Hlope <bhlope@mweb.co.za>, Robert Deaton <false.hopes@gmail.com>, linux-kernel@vger.kernel.org, ck list <ck@vds.kolivas.org>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Jul 26, 2007 at 11:40:24AM +0200, Ingo Molnar wrote:
-> below is an updatedb hack that sets vfs_cache_pressure down to 0 during 
-> an updatedb run. Could someone who is affected by the 'morning after' 
-> problem give it a try? If this works then we can think about any other 
-> measures ...
+On 2007.07.26 11:58:29 +0200, Bjorn Steinbrink wrote:
+> Note that the total RSS usage of updatedb+sort was just about 50MB,
+> nevertheless swap grew to more than 300MB. It's also interesting that
+> swapping is so aggressive, that the amount of free memory is constantly
+> growing. I'm a missing something or wouldn't it be smarter to use that
+> free memory for buffers and cache first? (x86_64 system, so even if
+> highmem on x86 could be responsible, it's not the case here.)
+> 
+> Will now go and see what happens if I play with swappiness.
 
-BTW, I really wonder how much pain could be avoided if updatedb recorded
-mtime of directories and checked it.  I.e. instead of just doing blind
-find(1), walk the stored directory tree comparing timestamps with those
-in filesystem.  If directory mtime has not changed, don't bother rereading
-it and just go for (stored) subdirectories.  If it has changed - reread the
-sucker.  If we have a match for stored subdirectory of changed directory,
-check inumber; if it doesn't match, consider the entire subtree as new
-one.  AFAICS, that could eliminate quite a bit of IO...
+Hm, swappiness set to 0 looks even more weird to me, especially the
+beginning, where (AFAICT) basically buffers and caches are dropped just
+to get a pretty huge amount of free RAM.
+
+With swappiness set to 100, you basically get what you expect: swapping.
+But at least to me, that swapping looks _a lot_ smarter than what it did
+for the default swappiness of 60 or the 0 swappiness. Swap is growing,
+but so are the buffers, and the cache also only shrinks at a single
+point, probably when the "sort" process starts to grow. Plus, the amount
+of free memory isn't growing to insane sizes like in the other cases.
+
+vmstat output for both cases to be found below.
+
+Bjorn
+
+vmstat output for swappiness = 0
+
+procs -----------memory---------- ---swap-- -----io---- -system-- ----cpu----
+ r  b   swpd   free   buff  cache   si   so    bi    bo   in   cs us sy id wa
+ 1  0      0  25140  37712  65304    1    1     7    14    4   31  0  0 99  0
+ 4  0      0  25132  37736  65312    0    0     0    38  212  604  1  0 98  1
+ 2  0      0  25132  37736  65312    0    0     0     0  177  479  0  0 100  0
+ 3  1      0  17252  42568  65312    0    0  1516    23  641 2332  1  3 54 41
+ 3  2      0  15172  45412  59908    0    0  1567   482  585 2051  1  4 50 45
+ 2  2      0  20436  44320  54524    0    0   743     9  368 1196  0  1 50 49
+ 3  2      0  28416  36580  54520    0    0   533     4  312 1016  0  1 50 49
+ 1  2      4  44316  22780  54464    0    0   128   191  240  786  1  1 43 54
+ 3  0   3884  55256  18112  45772    0    0   356   277  318  937  0  3 39 57
+ 1  2   3924  57276  19004  40700    0    0   631   117  347 1160  0  1 50 48
+ 0  1   4108  61328  15348  40344    0    0   768   301  378 1218  0  1 50 49
+ 1  1   4276  60812  15612  40216    0  300   585   359  344 1045  0  1 50 49
+ 0  2   4276  62184  17484  39624    0  995   703  1208  370 1188  0  2 50 48
+ 0  2   4296  68244  14616  36268    0    0   360    11  275  973  0  1 50 49
+ 2  2   4296  75292   6976  36016    0  137   667   480  424 1315  0  3 50 47
+ 3  1   4300  78984   6344  33392    0    0   639   635  517 1142  0  3 49 47
+ 2  1   4300  80816   5520  32520    0    1   992   587  683 1479  0  7 48 45
+ 1  2   4556  82244   3704  32504    0   85   607   659  452 1040  0  3 50 47
+ 0  1   4556  81600   4972  32420    0    0   665    44  362 1040  0  1 50 49
+ 0  2   4940  80364   4588  32508    0  128   552   539  375  995  0  3 50 47
+ 0  1   5004  83116   3576  32420    0   21   416   591  405  862  0  3 49 47
+ 0  1   5004  80196   5388  32440    0    0   604     0  328 1014  0  2 50 48
+ 0  1   5004  82976   2548  32544    0    0   461   343  363  923  0  4 49 47
+ 1  1   5004  81528   3780  32472    0    0  1124   157  542 1524  1  4 49 47
+ 0  1   5516  81940   4000  32488    0  171   865   575  489 1356  0  4 49 46
+ 0  2   5804  82412   2380  32516    0   96   660   423  385 1160  1  6 42 51
+ 0  2   5804  81476   2868  32480    0    0   864   204  493 1242  0  5 50 45
+ 0  1   6268  83124   2088  32508    0  155   678   551  409 1107  0  7 46 47
+ 0  2   6268  83216   1576  32380    0    0   771   153  450 1330  1 11 43 46
+ 0  3  59420  97888    736  32224    0 17717   300 18035  375  869  0 27 12 60
+ 0  4 176160 214288    800  32316    0 38913    23 38917  347  502  0  6 30 64
+ 1  2 176212 242608   2752  32716    0   17   683    95  441 1256  0  4 41 54
+ 1  1 176212 237464   5492  32568    0    0   883   188  452 1488  1  2 50 48
+ 1  0 176212 232296   9628  32636    0    0  1368   263  533 1690  1  2 50 47
+ 0  1 176212 225852  13264  32652    0    0  1212     0  480 1818  1  3 50 46
+ 0  1 176212 202076  31708  32660    0    0  6143   348 1723 5654  2  7 50 41
+ 0  1 176212 177196  49952  32560    0    0  6081     0 1698 5413  1  6 50 43
+ 0  1 176212 147744  58332  32652    0    0  2791   467  884 3565  1  5 50 44
+ 0  1 176212 130604  63788  32664    0    0  1813   407  645 2637  1  5 50 44
+ 0  1 176212 119076  68012  32584    0    0  1408     0  529 2239  0  4 50 45
+ 2  1 176212  74112  83696  32600    0    0  5225   667 1496 7206  5 13 50 33
+ 1  1 176212  29296  99788  32620    0    0  5360    16 1524 7009  4 15 49 32
+ 0  1 176212  16012 105112  32660    0    0  1773  2901  891 2417  1  4 50 45
+ 1  1 194444  16656 117236  32624    0 6077  4036  6337 1228 6040  6  9 49 36
+ 1  1 194572  15996 122056  32568    0   43  1607    43  579 2740  1  5 50 44
+ 0  1 209788  15888 125520  32636    0 5072  1149  5520  503 1836  1  4 49 46
+ 0  1 231568  17304 133968  32884   21 7260  2933  7260  922 3912  2  9 46 43
+ 0  1 231568  16300 139004  32980    0    0  1695   523  636 2077  1  3 49 46
+ 1  1 238440  15900 145208  33072    0 2291  2102  2722  736 2482  1  5 49 46
+ 2  0 246140  15940 147788  32980    0 2545   860  2545  407 1353 21  3 39 36
+ 4  0 246140  16712 147680  32980    0    0     0   247  190  544 50  0 50  0
+ 3  0 246140  15392 147680  32980    0    0     0     0  177  508 50  1 49  0
+ 3  0 277644  18180 147688  32980    0 10501     0 10511  229  518 50  0 47  2
+ 4  0 277644  15940 147688  32980    0    0     0  1747  361  514 50  0 49  1
+ 4  0 277644  16880 147700  33212    0    0    79    15  221  519 49  0 50  1
+ 0  2 309192  13900 147560  61856    0 10516    11 10523  186  528 46  3 49  2
+ 4  0 315176  70264 149128  62880    0 1995   411 11668  506 2372  5  3 38 53
+ 0  0 315176  95912 149212  38104    0    0   132    68  197 16128 23  6 69  2
+ 0  0 315176  95920 149232  38104    0    0     0  1568  216  488  0  0 98  1
+ 0  0 315176  95920 149240  38104    0    0     0     9  201  662  0  1 99  0
+
+
+------------------------
+
+
+vmstat output for swappiness = 100
+
+procs -----------memory---------- ---swap-- -----io---- -system-- ----cpu----
+ r  b   swpd   free   buff  cache   si   so    bi    bo   in   cs us sy id wa
+ 1  0      0  17120 150356  45104    1    1     8    14    4   32  0  0 99  0
+ 1  0      0  17072 150360  45160    0    0     1     0  190  700  0  0 100  0
+ 0  0      0  17072 150380  45160    0    0     0    44  196  610  0  1 98  1
+ 0  1   6944  15320 154124  45304    0 2315  1211  2315  582 2141  0  4 54 41
+ 3  1  17752  16780 159000  45164    0 3603  1614  4039  618 2062  0  2 48 50
+ 2  1  17876  15700 163044  45228    0   41  1348    41  514 2013  0  2 50 48
+ 3  1  32372  16872 166124  45180    0 4832  1021  5104  491 1888  1  4 50 45
+ 0  1  39964  16640 168620  45184    0 2531   844  2564  427 1331  0  4 50 46
+ 0  1  39964  15868 170580  45216    0    0   651   331  351 1096  0  1 50 49
+ 0  1  47312  16164 172184  45240    0 2449   529  2653  336  915  0  1 50 49
+ 3  1  55180  15392 174656  45140    0 2623   825  2623  397 1212  1  1 50 48
+ 0  1  63256  15648 177380  45168    0 2692   904  3085  433 1527  1  4 50 45
+ 2  1  68672  15408 180608  45136    0 1805  1076  2199  516 1506  0  3 50 47
+ 2  1  73804  16628 182420  45156    0 1711   599  2144  352 1066  1  1 50 48
+ 2  1  77396  16412 184192  45152    0 1197   588  1559  337 1066  0  0 50 50
+ 2  1  79668  16492 185944  45112    0  757   581   773  334 1058  0  2 50 48
+ 3  1  88964  15588 187452  45092    0 3099   500  3480  331 1046  0  1 49 50
+ 2  1  89040  16700 188940  45072    0   25   495    55  313 1135  0  1 50 49
+ 4  1  97700  15716 192584  45108    0 2887  1212  3197  503 1706  0  3 49 48
+ 3  1  99952  15564 195144  45056    0  751   851  2420  650 1289  0  3 50 47
+ 2  1 108624  15988 198256  45084    0 2891  1035  3045  455 1449  0  2 50 48
+ 2  1 117380  16664 200972  45080    0 2919   911  3257  430 1368  1  3 50 46
+ 3  1 175564  44768 180728  43316   11 19383   321 19412  370 2982  4 22 43 31
+ 5  0 175664  53424 160468  43048   11   33  1617   189  586 2834  1  8 50 41
+ 2  1 175744  54132 153648  42920    0   27  1163  1571  495 2032  1  6 49 44
+ 2  1 176116  41212 144836  32460    0  103  5997   756 1692 8567  7 18 49 27
+ 4  0 197192  40988 150000  19180   11 5592  3716  5592 1133 5697  3  9 47 41
+ 2  1 212884  45396 156332  19144   11 5231  2119  5573  746 2952  0  5 49 46
+ 3  1 226452  25416 166504  19132    0 4523  4388  4527 1301 6233  4 14 49 33
+ 3  1 233632  26628 168816  19188   11 2393   779  2676  394 1376  0  2 50 48
+ 2  1 242304  25748 171292  19192   21 2891  1189  3339  496 1856  1  4 50 45
+ 3  0 259492  24100 176708  19192    0 5729  1871  5739  678 2703  1  5 50 44
+ 1  1 259512  16628 184492  18864    0    7  2591  1047  969 3416  1  7 50 42
+ 2  1 270404  16984 190096  18920   11 3631  2035  3643  712 2367  1  4 50 45
+ 2  1 276056  17440 191416  18860   43 1884   656  4713  575 1212  0  2 50 48
+ 3  0 280704  16040 192140  18932    0 1549   439  1561  301  950 41  1 38 20
+ 4  0 280704  16200 192124  18932   21    0    21  1384  348  531 50  0 49  0
+ 3  0 280704  16352 192132  18932   11    0    11     9  183  524 50  0 50  0
+ 3  0 280704  15396 192132  18932   11    0    11     0  180  519 50  0 50  0
+ 3  0 286300  15740 191632  18932   11 1865    11  1877  194  529 49  0 50  1
+ 3  0 286300  16216 191644  19032   85    0   128     0  183  539 50  0 49  1
+ 3  0 324104  15824 191784  48024   21 12601   108 15856  299  678 22  4 45 29
+ 4  0 323904  62648 193092  51844   11    0   375    28  347 16416 26  6 43 25
+ 2  0 323904  92140 193156  23880   11    0    82  1609  220 1439  1  2 95  3
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
