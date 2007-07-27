@@ -1,66 +1,48 @@
-Subject: Re: updatedb
+Subject: Re: RFT: updatedb "morning after" problem [was: Re: -mm merge
+	plans for 2.6.23]
 From: Mike Galbraith <efault@gmx.de>
-In-Reply-To: <46A9ACB2.9030302@gmail.com>
-References: <367a23780707250830i20a04a60n690e8da5630d39a9@mail.gmail.com>
-	 <46A773EA.5030103@gmail.com>
-	 <a491f91d0707251015x75404d9fld7b3382f69112028@mail.gmail.com>
-	 <46A81C39.4050009@gmail.com>
-	 <7e0bae390707252323k2552c701x5673c55ff2cf119e@mail.gmail.com>
-	 <9a8748490707261746p638e4a98p3cdb7d9912af068a@mail.gmail.com>
-	 <46A98A14.3040300@gmail.com> <1185522844.6295.64.camel@Homer.simpson.net>
-	 <46A9ACB2.9030302@gmail.com>
+In-Reply-To: <20070727014749.85370e77.akpm@linux-foundation.org>
+References: <9a8748490707231608h453eefffx68b9c391897aba70@mail.gmail.com>
+	 <46A57068.3070701@yahoo.com.au>
+	 <2c0942db0707232153j3670ef31kae3907dff1a24cb7@mail.gmail.com>
+	 <46A58B49.3050508@yahoo.com.au>
+	 <2c0942db0707240915h56e007e3l9110e24a065f2e73@mail.gmail.com>
+	 <46A6CC56.6040307@yahoo.com.au> <p73abtkrz37.fsf@bingen.suse.de>
+	 <46A85D95.509@kingswood-consulting.co.uk> <20070726092025.GA9157@elte.hu>
+	 <20070726023401.f6a2fbdf.akpm@linux-foundation.org>
+	 <20070726094024.GA15583@elte.hu>
+	 <20070726030902.02f5eab0.akpm@linux-foundation.org>
+	 <1185454019.6449.12.camel@Homer.simpson.net>
+	 <20070726110549.da3a7a0d.akpm@linux-foundation.org>
+	 <1185513177.6295.21.camel@Homer.simpson.net>
+	 <1185521021.6295.50.camel@Homer.simpson.net>
+	 <20070727014749.85370e77.akpm@linux-foundation.org>
 Content-Type: text/plain
-Date: Fri, 27 Jul 2007 11:26:08 +0200
-Message-Id: <1185528368.7851.44.camel@Homer.simpson.net>
+Date: Fri, 27 Jul 2007 11:40:44 +0200
+Message-Id: <1185529244.7851.51.camel@Homer.simpson.net>
 Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Rene Herman <rene.herman@gmail.com>
-Cc: Jesper Juhl <jesper.juhl@gmail.com>, Andika Triwidada <andika@gmail.com>, Robert Deaton <false.hopes@gmail.com>, linux-kernel@vger.kernel.org, ck list <ck@vds.kolivas.org>, linux-mm@kvack.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Ingo Molnar <mingo@elte.hu>, Frank Kingswood <frank@kingswood-consulting.co.uk>, Andi Kleen <andi@firstfloor.org>, Nick Piggin <nickpiggin@yahoo.com.au>, Ray Lee <ray-lk@madrabbit.org>, Jesper Juhl <jesper.juhl@gmail.com>, ck list <ck@vds.kolivas.org>, Paul Jackson <pj@sgi.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 2007-07-27 at 10:28 +0200, Rene Herman wrote:
-> On 07/27/2007 09:54 AM, Mike Galbraith wrote:
-> 
-> > On Fri, 2007-07-27 at 08:00 +0200, Rene Herman wrote:
-> > 
-> >> The remaining issue of updatedb unnecessarily blowing away VFS caches is 
-> >> being discussed (*) in a few thread-branches still running.
-> > 
-> > If you solve that, the swap thing dies too, they're one and the same
-> > problem.
-> 
-> I still wonder what the "the swap thing" is though. People just kept saying 
-> that swap-prefetch helped which would seem to indicate their problem didnt 
-> have anything to do with updatedb.
+On Fri, 2007-07-27 at 01:47 -0700, Andrew Morton wrote:
 
-I haven't rummaged around in the VM in quite a long while, so don't know
-exactly where the balance lies any more, and have never looked at
-swap-prefetch, but the mechanism of how swap-prefetch can help the
-"morning after syndrome" seems simple enough:
+> Anyway, blockdev pagecache is a problem, I expect.  It's worth playing with
+> that patch.
 
-Reclaim (swapout) a slew of application pages because there are
-truckloads of utterly bored pages laying about when updatedb comes along
-and introduces memory pressure in the middle of the night.  Updatedb
-finishes, freeing some ram (doesn't matter how much) swap-prefetch
-detects idle CPU, and begins faulting swapped out pages back in.  In the
-process of doing so, memory pressure is generated, and now these freshly
-accessed pages are a less lovely target than the now aging VFS caches
-that updatedb bloated up, so they shrink back down enough that the
-balance you had before updatedb ran is restored... with the notable
-exception that cached data is now toast, so what you gained by faulting
-god knows how frequently used pages back in isn't _necessarily_ going to
-help you.  Heck, it could even step on what was left of your cached
-working set after updatedb finished.
+(may tinker a bit, but i'm way rusty.  ain't had the urge to mutilate
+anything down there in quite a while... works just fine for me these
+days)
 
-> Also, I know shit about the VFS so this may well be not very educated but to 
-> me something like FADV_NOREUSE on a dirfd sounds like a much more promising 
-> approach than the convoluted userspace schemes being discussed, if only 
-> because it'll actually be implemented/used.
+> Another problem is atime updates.  You really do want to mount noatime. 
+> Because with atimes enabled, each touch of a file will touch its inode and
+> will keep its backing blockdev pagecache page in core.
 
-I like Andrew's mention of a future option... put that sucker and
-everybody who looks like him in a resource limited container.
+Yeah, I mount noatime,nodiratime,data=writeback.  ext3's journal with my
+crusty old disk/fs is painful as heck.
 
 	-Mike
 
