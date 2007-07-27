@@ -1,74 +1,56 @@
-Subject: [PATCH/RFC] Add MM_DEAD flag to struct mm_struct #2
-From: Benjamin Herrenschmidt <benh@kernel.crashing.org>
-In-Reply-To: <1185501659.5495.174.camel@localhost.localdomain>
-References: <1185501659.5495.174.camel@localhost.localdomain>
+Subject: Re: RFT: updatedb "morning after" problem [was: Re: -mm merge
+	plans for 2.6.23]
+From: Mike Galbraith <efault@gmx.de>
+In-Reply-To: <1185513177.6295.21.camel@Homer.simpson.net>
+References: <9a8748490707231608h453eefffx68b9c391897aba70@mail.gmail.com>
+	 <46A57068.3070701@yahoo.com.au>
+	 <2c0942db0707232153j3670ef31kae3907dff1a24cb7@mail.gmail.com>
+	 <46A58B49.3050508@yahoo.com.au>
+	 <2c0942db0707240915h56e007e3l9110e24a065f2e73@mail.gmail.com>
+	 <46A6CC56.6040307@yahoo.com.au> <p73abtkrz37.fsf@bingen.suse.de>
+	 <46A85D95.509@kingswood-consulting.co.uk> <20070726092025.GA9157@elte.hu>
+	 <20070726023401.f6a2fbdf.akpm@linux-foundation.org>
+	 <20070726094024.GA15583@elte.hu>
+	 <20070726030902.02f5eab0.akpm@linux-foundation.org>
+	 <1185454019.6449.12.camel@Homer.simpson.net>
+	 <20070726110549.da3a7a0d.akpm@linux-foundation.org>
+	 <1185513177.6295.21.camel@Homer.simpson.net>
 Content-Type: text/plain
-Date: Fri, 27 Jul 2007 17:13:18 +1000
-Message-Id: <1185520398.5495.190.camel@localhost.localdomain>
+Date: Fri, 27 Jul 2007 09:23:41 +0200
+Message-Id: <1185521021.6295.50.camel@Homer.simpson.net>
 Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm <linux-mm@kvack.org>
-Cc: Linux Kernel list <linux-kernel@vger.kernel.org>, "David S. Miller" <davem@davemloft.net>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Ingo Molnar <mingo@elte.hu>, Frank Kingswood <frank@kingswood-consulting.co.uk>, Andi Kleen <andi@firstfloor.org>, Nick Piggin <nickpiggin@yahoo.com.au>, Ray Lee <ray-lk@madrabbit.org>, Jesper Juhl <jesper.juhl@gmail.com>, ck list <ck@vds.kolivas.org>, Paul Jackson <pj@sgi.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-Some architectures like sparc can do useful optimizations when knowing
-that an entire MM is being destroyed. At the moment, they rely on
-fullmm in the mmu_gather structure. However, that doesn't always work
-out very well with some of the changes we are doing. Among other things,
-the TLB flushing on sparc64 is done using per-CPU tracking data, making
-the batch not per-CPU will break that link.
+On Fri, 2007-07-27 at 07:13 +0200, Mike Galbraith wrote:
+> On Thu, 2007-07-26 at 11:05 -0700, Andrew Morton wrote:
+> > > drops caches prior to both updatedb runs.
+> > 
+> > I think that was the wrong thing to do.  That will leave gobs of free
+> > memory for updatedb to populate with dentries and inodes.
+> > 
+> > Instead, fill all of memory up with pagecache, then do the updatedb.  See
+> > how much pagecache is left behind and see how large the vfs caches end up.
 
-So instead, we add a new flag to struct mm_struct that indicates that
-the mm is going away, for those archs to use. It also allows to use it
-in situations (such as PTE ops) where the batch isn't accessible (or
-there is no batch)
+I didn't _fill_ memory, but loaded it up a bit with some real workload
+data...
 
-Signed-off-by: Benjamin Herrenschmidt <benh@kernel.crashing.org>
----
+I tried time sh -c 'git diff v2.6.11 HEAD > /dev/null' to populate the
+cache, and tried different values for vfs_cache_pressure.  Nothing
+prevented git's data from being trashed by updatedb.  Turning the knob
+downward rapidly became very unpleasant due to swap, (with 0 not
+surprisingly being a true horror) but turning it up didn't help git one
+bit.  The amount of data that had to be re-read with stock 100 or 10000
+was the same, or at least so close that you couldn't see a difference in
+vmstat and wall-clock.  Cache sizes varied, but the bottom line didn't.
+(wasn't surprised, seems quite reasonable that git's data looks old and
+useless to the reclaim logic when updatedb runs in between git runs)
 
-And here's a version that clears it too...
-
-Index: linux-work/include/linux/sched.h
-===================================================================
---- linux-work.orig/include/linux/sched.h	2007-07-27 11:09:16.000000000 +1000
-+++ linux-work/include/linux/sched.h	2007-07-27 11:09:22.000000000 +1000
-@@ -353,6 +353,7 @@ extern int get_dumpable(struct mm_struct
- #define MMF_DUMPABLE      0  /* core dump is permitted */
- #define MMF_DUMP_SECURELY 1  /* core file is readable only by root */
- #define MMF_DUMPABLE_BITS 2
-+#define MMF_DEAD          3  /* mm is being destroyed */
- 
- /* coredump filter bits */
- #define MMF_DUMP_ANON_PRIVATE	2
-Index: linux-work/mm/mmap.c
-===================================================================
---- linux-work.orig/mm/mmap.c	2007-07-27 11:09:52.000000000 +1000
-+++ linux-work/mm/mmap.c	2007-07-27 11:10:05.000000000 +1000
-@@ -1991,6 +1991,9 @@ void exit_mmap(struct mm_struct *mm)
- 	unsigned long nr_accounted = 0;
- 	unsigned long end;
- 
-+	/* Mark the MM as dead */
-+	__set_bit(MMF_DEAD, &mm->flags);
-+
- 	/* mm's last user has gone, and its about to be pulled down */
- 	arch_exit_mmap(mm);
- 
-Index: linux-work/kernel/fork.c
-===================================================================
---- linux-work.orig/kernel/fork.c	2007-07-27 16:12:30.000000000 +1000
-+++ linux-work/kernel/fork.c	2007-07-27 16:12:52.000000000 +1000
-@@ -336,6 +336,7 @@ static struct mm_struct * mm_init(struct
- 	INIT_LIST_HEAD(&mm->mmlist);
- 	mm->flags = (current->mm) ? current->mm->flags
- 				  : MMF_DUMP_FILTER_DEFAULT;
-+	__clear_bit(MMF_DEAD, &mm->flags);
- 	mm->core_waiters = 0;
- 	mm->nr_ptes = 0;
- 	set_mm_counter(mm, file_rss, 0);
-
+	-Mike
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
