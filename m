@@ -1,53 +1,52 @@
-Subject: Re: [patch][rfc] 2.6.23-rc1 mm: NUMA replicated pagecache
-From: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
-In-Reply-To: <20070727084252.GA9347@wotan.suse.de>
-References: <20070727084252.GA9347@wotan.suse.de>
-Content-Type: text/plain
-Date: Fri, 27 Jul 2007 10:30:47 -0400
-Message-Id: <1185546647.5069.17.camel@localhost>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Date: Fri, 27 Jul 2007 08:21:54 -0700 (PDT)
+From: Linus Torvalds <torvalds@linux-foundation.org>
+Subject: Re: [patch][rfc] remove ZERO_PAGE?
+In-Reply-To: <20070727055406.GA22581@wotan.suse.de>
+Message-ID: <alpine.LFD.0.999.0707270811320.3442@woody.linux-foundation.org>
+References: <20070727021943.GD13939@wotan.suse.de>
+ <alpine.LFD.0.999.0707262226420.3442@woody.linux-foundation.org>
+ <20070727055406.GA22581@wotan.suse.de>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Nick Piggin <npiggin@suse.de>
-Cc: Linux Memory Management List <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Joachim Deguara <joachim.deguara@amd.com>, Eric Whitney <eric.whitney@hp.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hugh@veritas.com>, Andrea Arcangeli <andrea@suse.de>, Linux Memory Management List <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 2007-07-27 at 10:42 +0200, Nick Piggin wrote:
-> Hi,
+
+On Fri, 27 Jul 2007, Nick Piggin wrote:
 > 
-> Just got a bit of time to take another look at the replicated pagecache
-> patch. The nopage vs invalidate race and clear_page_dirty_for_io fixes
-> gives me more confidence in the locking now; the new ->fault API makes
-> MAP_SHARED write faults much more efficient; and a few bugs were found
-> and fixed.
+> What numbers, though? I can make up benchmarks to show that ZERO_PAGE
+> sucks just as much. The problem I don't think is finding a situatoin that
+> improves without it (we have an extreme case where the Altix livelocked)
+> but to get confidence that nothing is going to blow up.
+
+Well, the Altix livelock, for example, would seem to be simply because 
+setting up the ZERO_PAGE is so much *faster* that it makes it easier to 
+create humongous processes etc so quickly that you don't have time for 
+them to be interrupted at setup time.
+
+Is that the "fault" of ZERO_PAGE? Sure. But still..
+
+> > Last time this came up, the logic behind wanting to remove the zero page 
+> > was all screwed up, and it was all based on totally broken premises. So I 
+> > really want somethign else than just "I don't like it".
 > 
-> More stats were added: *repl* in /proc/vmstat. Survives some kbuilding
-> tests...
-> 
-> --
-> 
-> Page-based NUMA pagecache replication.
-<snip really big patch!>
+> I thought that last time this came up you thought it might be good to
+> try out in -mm initially.
 
-Hi, Nick.
+I was more thinking about all the churn that we got due to the reference 
+counting stuff. That was pretty painful, and removing ZERO_PAGE wasn't the 
+right answer then either.
 
-Glad to see you're back on this.  It's been on my list, but delayed by
-other patch streams...
+> OK, well what numbers would you like to see? I can always try a few
+> things.
 
-As I mentioned to you in prior mail, I want to try to integrate this
-atop my "auto/lazy migration" patches, such that when a task moves to a
-new node, we remove just that task's pte ref's to page cache pages
-[along with all refs to anon pages, as I do now] so that the task will
-take a fault on next touch and either use an existing local copy or
-replicate the page at that time.  Unfortunately, that's in the queue
-behind the memoryless node patches and my stalled shared policy patches,
-among other things :-(.
+Kernel builds with/without this? If the page faults really are that big a 
+deal, this should all be visible.
 
-Also, what kernel is this patch against?  Diffs just say "linux-2.6".
-Somewhat ambiguous...
-
-Lee
+		Linus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
