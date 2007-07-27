@@ -1,586 +1,495 @@
-Date: Fri, 27 Jul 2007 16:45:19 +0100
-Subject: Re: NUMA policy issues with ZONE_MOVABLE
-Message-ID: <20070727154519.GA21614@skynet.ie>
-References: <Pine.LNX.4.64.0707242120370.3829@schroedinger.engr.sgi.com> <20070725111646.GA9098@skynet.ie> <Pine.LNX.4.64.0707251212300.8820@schroedinger.engr.sgi.com> <20070726132336.GA18825@skynet.ie> <Pine.LNX.4.64.0707261104360.2374@schroedinger.engr.sgi.com> <20070726225920.GA10225@skynet.ie> <Pine.LNX.4.64.0707261819530.18210@schroedinger.engr.sgi.com> <20070727082046.GA6301@skynet.ie>
+Date: Fri, 27 Jul 2007 16:59:00 +0100 (BST)
+From: Hugh Dickins <hugh@veritas.com>
+Subject: Re: [patch][rfc] remove ZERO_PAGE?
+In-Reply-To: <20070727021943.GD13939@wotan.suse.de>
+Message-ID: <Pine.LNX.4.64.0707271630590.19638@blonde.wat.veritas.com>
+References: <20070727021943.GD13939@wotan.suse.de>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <20070727082046.GA6301@skynet.ie>
-From: mel@skynet.ie (Mel Gorman)
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
-Cc: linux-mm@kvack.org, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, ak@suse.de, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, akpm@linux-foundation.org, pj@sgi.com
+To: Nick Piggin <npiggin@suse.de>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, Andrea Arcangeli <andrea@suse.de>, Ingo Molnar <mingo@elte.hu>, Linux Memory Management List <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On (27/07/07 09:20), Mel Gorman didst pronounce:
-> On (26/07/07 18:22), Christoph Lameter didst pronounce:
-> > On Thu, 26 Jul 2007, Mel Gorman wrote:
-> > 
-> > > Comments?
-> > 
-> > Lets go with the unconditional filtering and get rid of some of the per 
-> > node zonelists?
+On Fri, 27 Jul 2007, Nick Piggin wrote:
 > 
-> I would prefer to go with this for 2.6.23 and work on that for 2.6.24.
-> The patch should be relatively straight-forward (I'll work on it today)
-> but it would need wider testing than what I can do here, particularly on
-> the larger machines that needed things like zlcache.
+> I'd like to see if we can get the ball rolling on this again, and try to
+> get it in 2.6.24 maybe. Any comments?
+
+I'd be glad to see it go in.  You omitted the diffstat:
+ 6 files changed, 43 insertions(+), 245 deletions(-)
+
 > 
-> > We could f.e. merge the lists for ZONE_MOVABLE and 
-> > ZONE_base_of_zone_movable?
+> ---
+> Inserting a ZERO_PAGE for anonymous read faults appears to be a false
+> optimisation: if an application is performance critical, it would not
+> be doing read faults of new memory or at least it could be expected to
+> write to that memory soon afterwards. If it is memory use is critical,
+> it should not be touching addresses that it knows to be zero anyway.
 > 
-> That will be fine for freelist management but a mess with respect to
-> reclaim. I'd rather not go down that rathole.
+> eg. Very sparse matrix code might benefit from the ZERO_PAGE, however it
+> would only be a naive implementation that isn't tuned for memory usage
+> anyway.
+
+Get into -mm soonest, in the hope of revealing anything weird which
+does regress (though sadly those tend to get reported only once in
+Linus' tree).
+
 > 
-> > That may increase the cacheability of the 
-> > zonelists and reduce cache footprint.
+> The motivation for this came from a situation where an Altix system
+> was essentially livelocked tearing down ZERO_PAGE pagetables when an
+> HPC app aborted during startup. This is also a case of a silly
+> userspace access pattern, but it did highlight the potential scalability
+> problem of the ZERO_PAGE, and corner cases where it can really hurt.
 > 
-> That should be the case. I'll work on the patch today and see what sort
-> of results I get.
+> Mesuring on my desktop system, there are never many mappings to the
+> ZERO_PAGE, thus memory usage should not increase too much if we remove
+> it. My desktop is by no means representative, but it gives some
+> indication.
 > 
+> When running a make -j4 kernel compile on my dual core system, there are
+> about 1,000 mappings to the ZERO_PAGE created per second, and about 1,000
+> ZERO_PAGE COW faults per second! (Less than 1 ZERO_PAGE mapping per second
+> is torn down without being COWed). So this patch will save 1,000 page
+> faults per second, and 2,000 bounces of the ZERO_PAGE struct page
+> cacheline per second when running kbuild, which might end up being a
+> significant scalability hit on big systems.
 
-This was fairly straight-forward but I wouldn't call it a bug fix for 2.6.23
-for the policys + ZONE_MOVABLE issue; I still prefer the last patch for
-the fix.
+I forget my exact numbers, but those are consistent with what
+I saw too, back when discouraging you from special casing the
+ZERO_PAGE from refcounting: before the Altix issue ever came up
+(though we agreed such an issue might emerge, and be fixed this way).
 
-This patch uses one zonelist per node and filters based on a gfp_mask where
-necessary. It consumes less memory and reduces cache pressure at the cost
-of CPU. It also adds a zone_id field to struct zone as zone_idx is used more
-than it was previously.
+> 
+> The /dev/zero ZERO_PAGE usage and TLB tricks also get nuked. I don't see
+> much use to them except complexity and useless benchmarks.
 
-Performance differences on kernbench for Total CPU time ranged from
--0.06% to +1.19%.
+If I'm not mistaken, it was Ingo who long ago put in that "For fun,
+we are using the MMU for this" code.  Cc'ed, he's older and wiser
+now ;) but might still have a compelling case for it.
 
-Obvious things that are outstanding;
+But I'd be relieved for it to go: it's easily overlooked and causes
+nasty surprises, as when we realized that filemap_xip's original
+use of ZERO_PAGE conflicted.
 
-o Compile-test parisc
-o Split patch in two to keep the zone_idx changes separetly
-o Verify zlccache is not broken
-o Have a version of __alloc_pages take a nodemask and ditch
-  bind_zonelist()
+> All other
+> users of ZERO_PAGE are converted just to use ZERO_PAGE(0) for simplicity.
+> We can look at replacing them all and ripping out ZERO_PAGE completely
+> if/when this patch gets in.
 
-I can work on bringing this up to scratch during the cycle.
+My guess is that enough scattered uses will always remain for it
+to be useful; though not necessarily wrapped up in that macro.
 
-Patch as follows. Comments?
+Hugh
 
---- 
- arch/parisc/mm/init.c     |    7 ++
- drivers/char/sysrq.c      |    2 
- fs/buffer.c               |    2 
- include/linux/gfp.h       |   10 +++-
- include/linux/mempolicy.h |    4 -
- include/linux/mmzone.h    |    7 +-
- mm/mempolicy.c            |    8 +--
- mm/oom_kill.c             |    7 ++
- mm/page_alloc.c           |  112 ++++++++++++++++++++++------------------------
- mm/slab.c                 |    7 ++
- mm/slub.c                 |    7 ++
- mm/vmscan.c               |    6 ++
- 12 files changed, 101 insertions(+), 78 deletions(-)
-
-diff --git a/arch/parisc/mm/init.c b/arch/parisc/mm/init.c
-index e724b36..4d417c4 100644
---- a/arch/parisc/mm/init.c
-+++ b/arch/parisc/mm/init.c
-@@ -602,12 +602,15 @@ void show_mem(void)
- 		int i, j, k;
- 
- 		for (i = 0; i < npmem_ranges; i++) {
-+			zl = &NODE_DATA(i)->node_zonelist;
- 			for (j = 0; j < MAX_NR_ZONES; j++) {
--				zl = NODE_DATA(i)->node_zonelists + j;
- 
- 				printk("Zone list for zone %d on node %d: ", j, i);
--				for (k = 0; zl->zones[k] != NULL; k++) 
-+				for (k = 0; zl->zones[k] != NULL; k++)  {
-+					if (should_filter_zone(zl->zones[k]), j)
-+						continue;
- 					printk("[%ld/%s] ", zone_to_nid(zl->zones[k]), zl->zones[k]->name);
-+				}
- 				printk("\n");
- 			}
- 		}
-diff --git a/drivers/char/sysrq.c b/drivers/char/sysrq.c
-index 39cc318..b56d17f 100644
---- a/drivers/char/sysrq.c
-+++ b/drivers/char/sysrq.c
-@@ -270,7 +270,7 @@ static struct sysrq_key_op sysrq_term_op = {
- 
- static void moom_callback(struct work_struct *ignored)
- {
--	out_of_memory(&NODE_DATA(0)->node_zonelists[ZONE_NORMAL],
-+	out_of_memory(&NODE_DATA(0)->node_zonelist,
- 			GFP_KERNEL, 0);
- }
- 
-diff --git a/fs/buffer.c b/fs/buffer.c
-index 0e5ec37..8e9bbef 100644
---- a/fs/buffer.c
-+++ b/fs/buffer.c
-@@ -354,7 +354,7 @@ static void free_more_memory(void)
- 	yield();
- 
- 	for_each_online_pgdat(pgdat) {
--		zones = pgdat->node_zonelists[gfp_zone(GFP_NOFS)].zones;
-+		zones = pgdat->node_zonelist.zones;
- 		if (*zones)
- 			try_to_free_pages(zones, 0, GFP_NOFS);
- 	}
-diff --git a/include/linux/gfp.h b/include/linux/gfp.h
-index bc68dd9..f2a597e 100644
---- a/include/linux/gfp.h
-+++ b/include/linux/gfp.h
-@@ -116,6 +116,13 @@ static inline enum zone_type gfp_zone(gfp_t flags)
- 	return ZONE_NORMAL;
- }
- 
-+static inline int should_filter_zone(struct zone *zone, int highest_zoneidx)
-+{
-+	if (zone_idx(zone) > highest_zoneidx)
-+		return 1;
-+	return 0;
-+}
-+
- /*
-  * There is only one page-allocator function, and two main namespaces to
-  * it. The alloc_page*() variants return 'struct page *' and as such
-@@ -151,8 +158,7 @@ static inline struct page *alloc_pages_node(int nid, gfp_t gfp_mask,
- 	if (nid < 0)
- 		nid = numa_node_id();
- 
--	return __alloc_pages(gfp_mask, order,
--		NODE_DATA(nid)->node_zonelists + gfp_zone(gfp_mask));
-+	return __alloc_pages(gfp_mask, order, &NODE_DATA(nid)->node_zonelist);
- }
- 
- #ifdef CONFIG_NUMA
-diff --git a/include/linux/mempolicy.h b/include/linux/mempolicy.h
-index e147cf5..83e5256 100644
---- a/include/linux/mempolicy.h
-+++ b/include/linux/mempolicy.h
-@@ -166,7 +166,7 @@ extern enum zone_type policy_zone;
- 
- static inline void check_highest_zone(enum zone_type k)
- {
--	if (k > policy_zone)
-+	if (k > policy_zone && k != ZONE_MOVABLE)
- 		policy_zone = k;
- }
- 
-@@ -258,7 +258,7 @@ static inline void mpol_fix_fork_child_flag(struct task_struct *p)
- static inline struct zonelist *huge_zonelist(struct vm_area_struct *vma,
- 		unsigned long addr, gfp_t gfp_flags)
- {
--	return NODE_DATA(0)->node_zonelists + gfp_zone(gfp_flags);
-+	return &NODE_DATA(0)->node_zonelist;
- }
- 
- static inline int do_migrate_pages(struct mm_struct *mm,
-diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
-index da8eb8a..7a0533e 100644
---- a/include/linux/mmzone.h
-+++ b/include/linux/mmzone.h
-@@ -202,6 +202,7 @@ struct zone {
- 	 */
- 	unsigned long		lowmem_reserve[MAX_NR_ZONES];
- 
-+	int zone_idx;
- #ifdef CONFIG_NUMA
- 	int node;
- 	/*
-@@ -438,7 +439,7 @@ extern struct page *mem_map;
- struct bootmem_data;
- typedef struct pglist_data {
- 	struct zone node_zones[MAX_NR_ZONES];
--	struct zonelist node_zonelists[MAX_NR_ZONES];
-+	struct zonelist node_zonelist;
- 	int nr_zones;
- #ifdef CONFIG_FLAT_NODE_MEM_MAP
- 	struct page *node_mem_map;
-@@ -502,7 +503,7 @@ unsigned long __init node_memmap_size_bytes(int, unsigned long, unsigned long);
- /*
-  * zone_idx() returns 0 for the ZONE_DMA zone, 1 for the ZONE_NORMAL zone, etc.
-  */
--#define zone_idx(zone)		((zone) - (zone)->zone_pgdat->node_zones)
-+#define zone_idx(zone)		((zone)->zone_idx)
- 
- static inline int populated_zone(struct zone *zone)
- {
-@@ -544,7 +545,7 @@ static inline int is_normal_idx(enum zone_type idx)
- static inline int is_highmem(struct zone *zone)
- {
- #ifdef CONFIG_HIGHMEM
--	int zone_idx = zone - zone->zone_pgdat->node_zones;
-+	int zone_idx = zone_idx(zone);
- 	return zone_idx == ZONE_HIGHMEM ||
- 		(zone_idx == ZONE_MOVABLE && zone_movable_is_highmem());
- #else
-diff --git a/mm/mempolicy.c b/mm/mempolicy.c
-index 71b84b4..8b16ca3 100644
---- a/mm/mempolicy.c
-+++ b/mm/mempolicy.c
-@@ -149,7 +149,7 @@ static struct zonelist *bind_zonelist(nodemask_t *nodes)
- 	   lower zones etc. Avoid empty zones because the memory allocator
- 	   doesn't like them. If you implement node hot removal you
- 	   have to fix that. */
--	k = policy_zone;
-+	k = MAX_NR_ZONES - 1;
- 	while (1) {
- 		for_each_node_mask(nd, *nodes) { 
- 			struct zone *z = &NODE_DATA(nd)->node_zones[k];
-@@ -1116,7 +1116,7 @@ static struct zonelist *zonelist_policy(gfp_t gfp, struct mempolicy *policy)
- 		nd = 0;
- 		BUG();
- 	}
--	return NODE_DATA(nd)->node_zonelists + gfp_zone(gfp);
-+	return &NODE_DATA(nd)->node_zonelist;
- }
- 
- /* Do dynamic interleaving for a process */
-@@ -1212,7 +1212,7 @@ struct zonelist *huge_zonelist(struct vm_area_struct *vma, unsigned long addr,
- 		unsigned nid;
- 
- 		nid = interleave_nid(pol, vma, addr, HPAGE_SHIFT);
--		return NODE_DATA(nid)->node_zonelists + gfp_zone(gfp_flags);
-+		return &NODE_DATA(nid)->node_zonelist;
- 	}
- 	return zonelist_policy(GFP_HIGHUSER, pol);
- }
-@@ -1226,7 +1226,7 @@ static struct page *alloc_page_interleave(gfp_t gfp, unsigned order,
- 	struct zonelist *zl;
- 	struct page *page;
- 
--	zl = NODE_DATA(nid)->node_zonelists + gfp_zone(gfp);
-+	zl = &NODE_DATA(nid)->node_zonelist;
- 	page = __alloc_pages(gfp, order, zl);
- 	if (page && page_zone(page) == zl->zones[0])
- 		inc_zone_page_state(page, NUMA_INTERLEAVE_HIT);
-diff --git a/mm/oom_kill.c b/mm/oom_kill.c
-index a700141..8b36019 100644
---- a/mm/oom_kill.c
-+++ b/mm/oom_kill.c
-@@ -178,6 +178,7 @@ static inline int constrained_alloc(struct zonelist *zonelist, gfp_t gfp_mask)
- 	struct zone **z;
- 	nodemask_t nodes;
- 	int node;
-+	enum zone_type highest_zoneidx = gfp_zone(gfp_mask);
- 
- 	nodes_clear(nodes);
- 	/* node has memory ? */
-@@ -185,11 +186,15 @@ static inline int constrained_alloc(struct zonelist *zonelist, gfp_t gfp_mask)
- 		if (NODE_DATA(node)->node_present_pages)
- 			node_set(node, nodes);
- 
--	for (z = zonelist->zones; *z; z++)
-+	for (z = zonelist->zones; *z; z++) {
-+
-+		if (should_filter_zone(*z, highest_zoneidx))
-+			continue;
- 		if (cpuset_zone_allowed_softwall(*z, gfp_mask))
- 			node_clear(zone_to_nid(*z), nodes);
- 		else
- 			return CONSTRAINT_CPUSET;
-+	}
- 
- 	if (!nodes_empty(nodes))
- 		return CONSTRAINT_MEMORY_POLICY;
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 40954fb..3ad57af 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -1157,6 +1157,7 @@ get_page_from_freelist(gfp_t gfp_mask, unsigned int order,
- 	nodemask_t *allowednodes = NULL;/* zonelist_cache approximation */
- 	int zlc_active = 0;		/* set if using zonelist_cache */
- 	int did_zlc_setup = 0;		/* just call zlc_setup() one time */
-+	enum zone_type highest_zoneidx = gfp_zone(gfp_mask);
- 
- zonelist_scan:
- 	/*
-@@ -1166,6 +1167,9 @@ zonelist_scan:
- 	z = zonelist->zones;
- 
- 	do {
-+		if (should_filter_zone(*z, highest_zoneidx))
-+			continue;
-+
- 		if (NUMA_BUILD && zlc_active &&
- 			!zlc_zone_worth_trying(zonelist, z, allowednodes))
- 				continue;
-@@ -1456,11 +1460,11 @@ static unsigned int nr_free_zone_pages(int offset)
- 	pg_data_t *pgdat = NODE_DATA(numa_node_id());
- 	unsigned int sum = 0;
- 
--	struct zonelist *zonelist = pgdat->node_zonelists + offset;
--	struct zone **zonep = zonelist->zones;
--	struct zone *zone;
-+	struct zone **zonep = pgdat->node_zonelist.zones;
-+	struct zone *zone = *zonep;
- 
--	for (zone = *zonep++; zone; zone = *zonep++) {
-+	for (zone = *zonep++; zone && zone_idx(zone) > offset; zone = *zonep++);
-+	for (; zone; zone = *zonep++) {
- 		unsigned long size = zone->present_pages;
- 		unsigned long high = zone->pages_high;
- 		if (size > high)
-@@ -1819,17 +1823,14 @@ static int find_next_best_node(int node, nodemask_t *used_node_mask)
-  */
- static void build_zonelists_in_node_order(pg_data_t *pgdat, int node)
- {
--	enum zone_type i;
- 	int j;
- 	struct zonelist *zonelist;
- 
--	for (i = 0; i < MAX_NR_ZONES; i++) {
--		zonelist = pgdat->node_zonelists + i;
--		for (j = 0; zonelist->zones[j] != NULL; j++)
--			;
-- 		j = build_zonelists_node(NODE_DATA(node), zonelist, j, i);
--		zonelist->zones[j] = NULL;
--	}
-+	zonelist = &pgdat->node_zonelist;
-+	for (j = 0; zonelist->zones[j] != NULL; j++)
-+		;
-+ 	j = build_zonelists_node(NODE_DATA(node), zonelist, j, MAX_NR_ZONES-1);
-+	zonelist->zones[j] = NULL;
- }
- 
- /*
-@@ -1842,27 +1843,24 @@ static int node_order[MAX_NUMNODES];
- 
- static void build_zonelists_in_zone_order(pg_data_t *pgdat, int nr_nodes)
- {
--	enum zone_type i;
- 	int pos, j, node;
- 	int zone_type;		/* needs to be signed */
- 	struct zone *z;
- 	struct zonelist *zonelist;
- 
--	for (i = 0; i < MAX_NR_ZONES; i++) {
--		zonelist = pgdat->node_zonelists + i;
--		pos = 0;
--		for (zone_type = i; zone_type >= 0; zone_type--) {
--			for (j = 0; j < nr_nodes; j++) {
--				node = node_order[j];
--				z = &NODE_DATA(node)->node_zones[zone_type];
--				if (populated_zone(z)) {
--					zonelist->zones[pos++] = z;
--					check_highest_zone(zone_type);
--				}
-+	zonelist = &pgdat->node_zonelist;
-+	pos = 0;
-+	for (zone_type = MAX_NR_ZONES-1; zone_type >= 0; zone_type--) {
-+		for (j = 0; j < nr_nodes; j++) {
-+			node = node_order[j];
-+			z = &NODE_DATA(node)->node_zones[zone_type];
-+			if (populated_zone(z)) {
-+				zonelist->zones[pos++] = z;
-+				check_highest_zone(zone_type);
- 			}
- 		}
--		zonelist->zones[pos] = NULL;
- 	}
-+	zonelist->zones[pos] = NULL;
- }
- 
- static int default_zonelist_order(void)
-@@ -1929,17 +1927,14 @@ static void set_zonelist_order(void)
- static void build_zonelists(pg_data_t *pgdat)
- {
- 	int j, node, load;
--	enum zone_type i;
- 	nodemask_t used_mask;
- 	int local_node, prev_node;
- 	struct zonelist *zonelist;
- 	int order = current_zonelist_order;
- 
--	/* initialize zonelists */
--	for (i = 0; i < MAX_NR_ZONES; i++) {
--		zonelist = pgdat->node_zonelists + i;
--		zonelist->zones[0] = NULL;
--	}
-+	/* initialize zonelist */
-+	zonelist = &pgdat->node_zonelist;
-+	zonelist->zones[0] = NULL;
- 
- 	/* NUMA-aware ordering of nodes */
- 	local_node = pgdat->node_id;
-@@ -1993,7 +1988,7 @@ static void build_zonelist_cache(pg_data_t *pgdat)
- 		struct zonelist_cache *zlc;
- 		struct zone **z;
- 
--		zonelist = pgdat->node_zonelists + i;
-+		zonelist = &pgdat->node_zonelist;
- 		zonelist->zlcache_ptr = zlc = &zonelist->zlcache;
- 		bitmap_zero(zlc->fullzones, MAX_ZONES_PER_ZONELIST);
- 		for (z = zonelist->zones; *z; z++)
-@@ -2012,36 +2007,36 @@ static void set_zonelist_order(void)
- static void build_zonelists(pg_data_t *pgdat)
- {
- 	int node, local_node;
--	enum zone_type i,j;
-+	enum zone_type j;
-+	struct zonelist *zonelist;
- 
- 	local_node = pgdat->node_id;
--	for (i = 0; i < MAX_NR_ZONES; i++) {
--		struct zonelist *zonelist;
- 
--		zonelist = pgdat->node_zonelists + i;
--
-- 		j = build_zonelists_node(pgdat, zonelist, 0, i);
-- 		/*
-- 		 * Now we build the zonelist so that it contains the zones
-- 		 * of all the other nodes.
-- 		 * We don't want to pressure a particular node, so when
-- 		 * building the zones for node N, we make sure that the
-- 		 * zones coming right after the local ones are those from
-- 		 * node N+1 (modulo N)
-- 		 */
--		for (node = local_node + 1; node < MAX_NUMNODES; node++) {
--			if (!node_online(node))
--				continue;
--			j = build_zonelists_node(NODE_DATA(node), zonelist, j, i);
--		}
--		for (node = 0; node < local_node; node++) {
--			if (!node_online(node))
--				continue;
--			j = build_zonelists_node(NODE_DATA(node), zonelist, j, i);
--		}
-+	zonelist = &pgdat->node_zonelist;
-+	j = build_zonelists_node(pgdat, zonelist, 0, MAX_NR_ZONES-1);
- 
--		zonelist->zones[j] = NULL;
-+ 	/*
-+	 * Now we build the zonelist so that it contains the zones
-+	 * of all the other nodes.
-+	 * We don't want to pressure a particular node, so when
-+	 * building the zones for node N, we make sure that the
-+	 * zones coming right after the local ones are those from
-+	 * node N+1 (modulo N)
-+	 */
-+	for (node = local_node + 1; node < MAX_NUMNODES; node++) {
-+		if (!node_online(node))
-+			continue;
-+		j = build_zonelists_node(NODE_DATA(node), zonelist, j,
-+								MAX_NR_ZONES-1);
- 	}
-+	for (node = 0; node < local_node; node++) {
-+		if (!node_online(node))
-+			continue;
-+		j = build_zonelists_node(NODE_DATA(node), zonelist, j,
-+								MAX_NR_ZONES-1);
-+	}
-+
-+	zonelist->zones[j] = NULL;
- }
- 
- /* non-NUMA variant of zonelist performance cache - just NULL zlcache_ptr */
-@@ -2050,7 +2045,7 @@ static void build_zonelist_cache(pg_data_t *pgdat)
- 	int i;
- 
- 	for (i = 0; i < MAX_NR_ZONES; i++)
--		pgdat->node_zonelists[i].zlcache_ptr = NULL;
-+		pgdat->node_zonelist.zlcache_ptr = NULL;
- }
- 
- #endif	/* CONFIG_NUMA */
-@@ -2936,6 +2931,7 @@ static void __meminit free_area_init_core(struct pglist_data *pgdat,
- 			nr_kernel_pages += realsize;
- 		nr_all_pages += realsize;
- 
-+		zone->zone_idx = j;
- 		zone->spanned_pages = size;
- 		zone->present_pages = realsize;
- #ifdef CONFIG_NUMA
-diff --git a/mm/slab.c b/mm/slab.c
-index bde271c..d73fe30 100644
---- a/mm/slab.c
-+++ b/mm/slab.c
-@@ -3216,12 +3216,12 @@ static void *fallback_alloc(struct kmem_cache *cache, gfp_t flags)
- 	struct zone **z;
- 	void *obj = NULL;
- 	int nid;
-+	enum zone_type highest_zoneidx = gfp_zone(flags);
- 
- 	if (flags & __GFP_THISNODE)
- 		return NULL;
- 
--	zonelist = &NODE_DATA(slab_node(current->mempolicy))
--			->node_zonelists[gfp_zone(flags)];
-+	zonelist = &NODE_DATA(slab_node(current->mempolicy))->node_zonelist;
- 	local_flags = (flags & GFP_LEVEL_MASK);
- 
- retry:
-@@ -3230,6 +3230,9 @@ retry:
- 	 * from existing per node queues.
- 	 */
- 	for (z = zonelist->zones; *z && !obj; z++) {
-+		if (should_filter_zone(*z, highest_zoneidx))
-+			continue;
-+
- 		nid = zone_to_nid(*z);
- 
- 		if (cpuset_zone_allowed_hardwall(*z, flags) &&
-diff --git a/mm/slub.c b/mm/slub.c
-index 9b2d617..a020a12 100644
---- a/mm/slub.c
-+++ b/mm/slub.c
-@@ -1276,6 +1276,7 @@ static struct page *get_any_partial(struct kmem_cache *s, gfp_t flags)
- 	struct zonelist *zonelist;
- 	struct zone **z;
- 	struct page *page;
-+	enum zone_type highest_zoneidx = gfp_zone(flags);
- 
- 	/*
- 	 * The defrag ratio allows a configuration of the tradeoffs between
-@@ -1298,11 +1299,13 @@ static struct page *get_any_partial(struct kmem_cache *s, gfp_t flags)
- 	if (!s->defrag_ratio || get_cycles() % 1024 > s->defrag_ratio)
- 		return NULL;
- 
--	zonelist = &NODE_DATA(slab_node(current->mempolicy))
--					->node_zonelists[gfp_zone(flags)];
-+	zonelist = &NODE_DATA(slab_node(current->mempolicy))->node_zonelist;
- 	for (z = zonelist->zones; *z; z++) {
- 		struct kmem_cache_node *n;
- 
-+		if (should_filter_zone(*z, highest_zoneidx))
-+			continue;
-+
- 		n = get_node(s, zone_to_nid(*z));
- 
- 		if (n && cpuset_zone_allowed_hardwall(*z, flags) &&
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index d419e10..8672d61 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -1124,6 +1124,7 @@ unsigned long try_to_free_pages(struct zone **zones, int order, gfp_t gfp_mask)
- 	unsigned long nr_reclaimed = 0;
- 	struct reclaim_state *reclaim_state = current->reclaim_state;
- 	unsigned long lru_pages = 0;
-+	enum zone_type highest_zoneidx;
- 	int i;
- 	struct scan_control sc = {
- 		.gfp_mask = gfp_mask,
-@@ -1136,9 +1137,14 @@ unsigned long try_to_free_pages(struct zone **zones, int order, gfp_t gfp_mask)
- 
- 	count_vm_event(ALLOCSTALL);
- 
-+	highest_zoneidx = gfp_zone(gfp_mask);
-+
- 	for (i = 0; zones[i] != NULL; i++) {
- 		struct zone *zone = zones[i];
- 
-+		if (should_filter_zone(zone, highest_zoneidx))
-+			continue;
-+
- 		if (!cpuset_zone_allowed_hardwall(zone, GFP_KERNEL))
- 			continue;
- 
--- 
-Mel Gorman
-Part-time Phd Student                          Linux Technology Center
-University of Limerick                         IBM Dublin Software Lab
+> 
+> Index: linux-2.6/drivers/char/mem.c
+> ===================================================================
+> --- linux-2.6.orig/drivers/char/mem.c
+> +++ linux-2.6/drivers/char/mem.c
+> @@ -625,65 +625,10 @@ static ssize_t splice_write_null(struct 
+>  	return splice_from_pipe(pipe, out, ppos, len, flags, pipe_to_null);
+>  }
+>  
+> -#ifdef CONFIG_MMU
+> -/*
+> - * For fun, we are using the MMU for this.
+> - */
+> -static inline size_t read_zero_pagealigned(char __user * buf, size_t size)
+> -{
+> -	struct mm_struct *mm;
+> -	struct vm_area_struct * vma;
+> -	unsigned long addr=(unsigned long)buf;
+> -
+> -	mm = current->mm;
+> -	/* Oops, this was forgotten before. -ben */
+> -	down_read(&mm->mmap_sem);
+> -
+> -	/* For private mappings, just map in zero pages. */
+> -	for (vma = find_vma(mm, addr); vma; vma = vma->vm_next) {
+> -		unsigned long count;
+> -
+> -		if (vma->vm_start > addr || (vma->vm_flags & VM_WRITE) == 0)
+> -			goto out_up;
+> -		if (vma->vm_flags & (VM_SHARED | VM_HUGETLB))
+> -			break;
+> -		count = vma->vm_end - addr;
+> -		if (count > size)
+> -			count = size;
+> -
+> -		zap_page_range(vma, addr, count, NULL);
+> -        	if (zeromap_page_range(vma, addr, count, PAGE_COPY))
+> -			break;
+> -
+> -		size -= count;
+> -		buf += count;
+> -		addr += count;
+> -		if (size == 0)
+> -			goto out_up;
+> -	}
+> -
+> -	up_read(&mm->mmap_sem);
+> -	
+> -	/* The shared case is hard. Let's do the conventional zeroing. */ 
+> -	do {
+> -		unsigned long unwritten = clear_user(buf, PAGE_SIZE);
+> -		if (unwritten)
+> -			return size + unwritten - PAGE_SIZE;
+> -		cond_resched();
+> -		buf += PAGE_SIZE;
+> -		size -= PAGE_SIZE;
+> -	} while (size);
+> -
+> -	return size;
+> -out_up:
+> -	up_read(&mm->mmap_sem);
+> -	return size;
+> -}
+> -
+>  static ssize_t read_zero(struct file * file, char __user * buf, 
+>  			 size_t count, loff_t *ppos)
+>  {
+> -	unsigned long left, unwritten, written = 0;
+> +	size_t written;
+>  
+>  	if (!count)
+>  		return 0;
+> @@ -691,69 +636,33 @@ static ssize_t read_zero(struct file * f
+>  	if (!access_ok(VERIFY_WRITE, buf, count))
+>  		return -EFAULT;
+>  
+> -	left = count;
+> -
+> -	/* do we want to be clever? Arbitrary cut-off */
+> -	if (count >= PAGE_SIZE*4) {
+> -		unsigned long partial;
+> -
+> -		/* How much left of the page? */
+> -		partial = (PAGE_SIZE-1) & -(unsigned long) buf;
+> -		unwritten = clear_user(buf, partial);
+> -		written = partial - unwritten;
+> +	written = 0;
+> +	while (count) {
+> +		unsigned long unwritten;
+> +		size_t chunk = count;
+> +
+> +		if (chunk > PAGE_SIZE)
+> +			chunk = PAGE_SIZE;	/* Just for latency reasons */
+> +		unwritten = clear_user(buf, chunk);
+> +		written += chunk - unwritten;
+>  		if (unwritten)
+> -			goto out;
+> -		left -= partial;
+> -		buf += partial;
+> -		unwritten = read_zero_pagealigned(buf, left & PAGE_MASK);
+> -		written += (left & PAGE_MASK) - unwritten;
+> -		if (unwritten)
+> -			goto out;
+> -		buf += left & PAGE_MASK;
+> -		left &= ~PAGE_MASK;
+> -	}
+> -	unwritten = clear_user(buf, left);
+> -	written += left - unwritten;
+> -out:
+> -	return written ? written : -EFAULT;
+> -}
+> -
+> -static int mmap_zero(struct file * file, struct vm_area_struct * vma)
+> -{
+> -	int err;
+> -
+> -	if (vma->vm_flags & VM_SHARED)
+> -		return shmem_zero_setup(vma);
+> -	err = zeromap_page_range(vma, vma->vm_start,
+> -			vma->vm_end - vma->vm_start, vma->vm_page_prot);
+> -	BUG_ON(err == -EEXIST);
+> -	return err;
+> -}
+> -#else /* CONFIG_MMU */
+> -static ssize_t read_zero(struct file * file, char * buf, 
+> -			 size_t count, loff_t *ppos)
+> -{
+> -	size_t todo = count;
+> -
+> -	while (todo) {
+> -		size_t chunk = todo;
+> -
+> -		if (chunk > 4096)
+> -			chunk = 4096;	/* Just for latency reasons */
+> -		if (clear_user(buf, chunk))
+> -			return -EFAULT;
+> +			break;
+>  		buf += chunk;
+> -		todo -= chunk;
+> +		count -= chunk;
+>  		cond_resched();
+>  	}
+> -	return count;
+> +	return written ? written : -EFAULT;
+>  }
+>  
+>  static int mmap_zero(struct file * file, struct vm_area_struct * vma)
+>  {
+> +#ifndef CONFIG_MMU
+>  	return -ENOSYS;
+> +#endif
+> +	if (vma->vm_flags & VM_SHARED)
+> +		return shmem_zero_setup(vma);
+> +	return 0;
+>  }
+> -#endif /* CONFIG_MMU */
+>  
+>  static ssize_t write_full(struct file * file, const char __user * buf,
+>  			  size_t count, loff_t *ppos)
+> Index: linux-2.6/include/linux/mm.h
+> ===================================================================
+> --- linux-2.6.orig/include/linux/mm.h
+> +++ linux-2.6/include/linux/mm.h
+> @@ -778,8 +778,6 @@ void free_pgtables(struct mmu_gather **t
+>  		unsigned long floor, unsigned long ceiling);
+>  int copy_page_range(struct mm_struct *dst, struct mm_struct *src,
+>  			struct vm_area_struct *vma);
+> -int zeromap_page_range(struct vm_area_struct *vma, unsigned long from,
+> -			unsigned long size, pgprot_t prot);
+>  void unmap_mapping_range(struct address_space *mapping,
+>  		loff_t const holebegin, loff_t const holelen, int even_cows);
+>  
+> Index: linux-2.6/mm/memory.c
+> ===================================================================
+> --- linux-2.6.orig/mm/memory.c
+> +++ linux-2.6/mm/memory.c
+> @@ -966,7 +966,7 @@ no_page_table:
+>  	 * has touched so far, we don't want to allocate page tables.
+>  	 */
+>  	if (flags & FOLL_ANON) {
+> -		page = ZERO_PAGE(address);
+> +		page = ZERO_PAGE(0);
+>  		if (flags & FOLL_GET)
+>  			get_page(page);
+>  		BUG_ON(flags & FOLL_WRITE);
+> @@ -1111,95 +1111,6 @@ int get_user_pages(struct task_struct *t
+>  }
+>  EXPORT_SYMBOL(get_user_pages);
+>  
+> -static int zeromap_pte_range(struct mm_struct *mm, pmd_t *pmd,
+> -			unsigned long addr, unsigned long end, pgprot_t prot)
+> -{
+> -	pte_t *pte;
+> -	spinlock_t *ptl;
+> -	int err = 0;
+> -
+> -	pte = pte_alloc_map_lock(mm, pmd, addr, &ptl);
+> -	if (!pte)
+> -		return -EAGAIN;
+> -	arch_enter_lazy_mmu_mode();
+> -	do {
+> -		struct page *page = ZERO_PAGE(addr);
+> -		pte_t zero_pte = pte_wrprotect(mk_pte(page, prot));
+> -
+> -		if (unlikely(!pte_none(*pte))) {
+> -			err = -EEXIST;
+> -			pte++;
+> -			break;
+> -		}
+> -		page_cache_get(page);
+> -		page_add_file_rmap(page);
+> -		inc_mm_counter(mm, file_rss);
+> -		set_pte_at(mm, addr, pte, zero_pte);
+> -	} while (pte++, addr += PAGE_SIZE, addr != end);
+> -	arch_leave_lazy_mmu_mode();
+> -	pte_unmap_unlock(pte - 1, ptl);
+> -	return err;
+> -}
+> -
+> -static inline int zeromap_pmd_range(struct mm_struct *mm, pud_t *pud,
+> -			unsigned long addr, unsigned long end, pgprot_t prot)
+> -{
+> -	pmd_t *pmd;
+> -	unsigned long next;
+> -	int err;
+> -
+> -	pmd = pmd_alloc(mm, pud, addr);
+> -	if (!pmd)
+> -		return -EAGAIN;
+> -	do {
+> -		next = pmd_addr_end(addr, end);
+> -		err = zeromap_pte_range(mm, pmd, addr, next, prot);
+> -		if (err)
+> -			break;
+> -	} while (pmd++, addr = next, addr != end);
+> -	return err;
+> -}
+> -
+> -static inline int zeromap_pud_range(struct mm_struct *mm, pgd_t *pgd,
+> -			unsigned long addr, unsigned long end, pgprot_t prot)
+> -{
+> -	pud_t *pud;
+> -	unsigned long next;
+> -	int err;
+> -
+> -	pud = pud_alloc(mm, pgd, addr);
+> -	if (!pud)
+> -		return -EAGAIN;
+> -	do {
+> -		next = pud_addr_end(addr, end);
+> -		err = zeromap_pmd_range(mm, pud, addr, next, prot);
+> -		if (err)
+> -			break;
+> -	} while (pud++, addr = next, addr != end);
+> -	return err;
+> -}
+> -
+> -int zeromap_page_range(struct vm_area_struct *vma,
+> -			unsigned long addr, unsigned long size, pgprot_t prot)
+> -{
+> -	pgd_t *pgd;
+> -	unsigned long next;
+> -	unsigned long end = addr + size;
+> -	struct mm_struct *mm = vma->vm_mm;
+> -	int err;
+> -
+> -	BUG_ON(addr >= end);
+> -	pgd = pgd_offset(mm, addr);
+> -	flush_cache_range(vma, addr, end);
+> -	do {
+> -		next = pgd_addr_end(addr, end);
+> -		err = zeromap_pud_range(mm, pgd, addr, next, prot);
+> -		if (err)
+> -			break;
+> -	} while (pgd++, addr = next, addr != end);
+> -	return err;
+> -}
+> -
+>  pte_t * fastcall get_locked_pte(struct mm_struct *mm, unsigned long addr, spinlock_t **ptl)
+>  {
+>  	pgd_t * pgd = pgd_offset(mm, addr);
+> @@ -1714,16 +1625,11 @@ gotten:
+>  
+>  	if (unlikely(anon_vma_prepare(vma)))
+>  		goto oom;
+> -	if (old_page == ZERO_PAGE(address)) {
+> -		new_page = alloc_zeroed_user_highpage_movable(vma, address);
+> -		if (!new_page)
+> -			goto oom;
+> -	} else {
+> -		new_page = alloc_page_vma(GFP_HIGHUSER_MOVABLE, vma, address);
+> -		if (!new_page)
+> -			goto oom;
+> -		cow_user_page(new_page, old_page, address, vma);
+> -	}
+> +	VM_BUG_ON(old_page == ZERO_PAGE(0));
+> +	new_page = alloc_page_vma(GFP_HIGHUSER_MOVABLE, vma, address);
+> +	if (!new_page)
+> +		goto oom;
+> +	cow_user_page(new_page, old_page, address, vma);
+>  
+>  	/*
+>  	 * Re-check the pte - we dropped the lock
+> @@ -2249,39 +2155,24 @@ static int do_anonymous_page(struct mm_s
+>  	spinlock_t *ptl;
+>  	pte_t entry;
+>  
+> -	if (write_access) {
+> -		/* Allocate our own private page. */
+> -		pte_unmap(page_table);
+> -
+> -		if (unlikely(anon_vma_prepare(vma)))
+> -			goto oom;
+> -		page = alloc_zeroed_user_highpage_movable(vma, address);
+> -		if (!page)
+> -			goto oom;
+> -
+> -		entry = mk_pte(page, vma->vm_page_prot);
+> -		entry = maybe_mkwrite(pte_mkdirty(entry), vma);
+> +	/* Allocate our own private page. */
+> +	pte_unmap(page_table);
+>  
+> -		page_table = pte_offset_map_lock(mm, pmd, address, &ptl);
+> -		if (!pte_none(*page_table))
+> -			goto release;
+> -		inc_mm_counter(mm, anon_rss);
+> -		lru_cache_add_active(page);
+> -		page_add_new_anon_rmap(page, vma, address);
+> -	} else {
+> -		/* Map the ZERO_PAGE - vm_page_prot is readonly */
+> -		page = ZERO_PAGE(address);
+> -		page_cache_get(page);
+> -		entry = mk_pte(page, vma->vm_page_prot);
+> +	if (unlikely(anon_vma_prepare(vma)))
+> +		goto oom;
+> +	page = alloc_zeroed_user_highpage_movable(vma, address);
+> +	if (!page)
+> +		goto oom;
+>  
+> -		ptl = pte_lockptr(mm, pmd);
+> -		spin_lock(ptl);
+> -		if (!pte_none(*page_table))
+> -			goto release;
+> -		inc_mm_counter(mm, file_rss);
+> -		page_add_file_rmap(page);
+> -	}
+> +	entry = mk_pte(page, vma->vm_page_prot);
+> +	entry = maybe_mkwrite(pte_mkdirty(entry), vma);
+>  
+> +	page_table = pte_offset_map_lock(mm, pmd, address, &ptl);
+> +	if (!pte_none(*page_table))
+> +		goto release;
+> +	inc_mm_counter(mm, anon_rss);
+> +	lru_cache_add_active(page);
+> +	page_add_new_anon_rmap(page, vma, address);
+>  	set_pte_at(mm, address, page_table, entry);
+>  
+>  	/* No need to invalidate - it was non-present before */
+> Index: linux-2.6/fs/binfmt_elf.c
+> ===================================================================
+> --- linux-2.6.orig/fs/binfmt_elf.c
+> +++ linux-2.6/fs/binfmt_elf.c
+> @@ -1733,7 +1733,7 @@ static int elf_core_dump(long signr, str
+>  						&page, &vma) <= 0) {
+>  				DUMP_SEEK(PAGE_SIZE);
+>  			} else {
+> -				if (page == ZERO_PAGE(addr)) {
+> +				if (page == ZERO_PAGE(0)) {
+>  					if (!dump_seek(file, PAGE_SIZE)) {
+>  						page_cache_release(page);
+>  						goto end_coredump;
+> Index: linux-2.6/fs/binfmt_elf_fdpic.c
+> ===================================================================
+> --- linux-2.6.orig/fs/binfmt_elf_fdpic.c
+> +++ linux-2.6/fs/binfmt_elf_fdpic.c
+> @@ -1488,7 +1488,7 @@ static int elf_fdpic_dump_segments(struc
+>  					   &page, &vma) <= 0) {
+>  				DUMP_SEEK(file->f_pos + PAGE_SIZE);
+>  			}
+> -			else if (page == ZERO_PAGE(addr)) {
+> +			else if (page == ZERO_PAGE(0)) {
+>  				page_cache_release(page);
+>  				DUMP_SEEK(file->f_pos + PAGE_SIZE);
+>  			}
+> Index: linux-2.6/fs/direct-io.c
+> ===================================================================
+> --- linux-2.6.orig/fs/direct-io.c
+> +++ linux-2.6/fs/direct-io.c
+> @@ -163,7 +163,7 @@ static int dio_refill_pages(struct dio *
+>  	up_read(&current->mm->mmap_sem);
+>  
+>  	if (ret < 0 && dio->blocks_available && (dio->rw & WRITE)) {
+> -		struct page *page = ZERO_PAGE(dio->curr_user_address);
+> +		struct page *page = ZERO_PAGE(0);
+>  		/*
+>  		 * A memory fault, but the filesystem has some outstanding
+>  		 * mapped blocks.  We need to use those blocks up to avoid
+> @@ -772,7 +772,7 @@ static void dio_zero_block(struct dio *d
+>  
+>  	this_chunk_bytes = this_chunk_blocks << dio->blkbits;
+>  
+> -	page = ZERO_PAGE(dio->curr_user_address);
+> +	page = ZERO_PAGE(0);
+>  	if (submit_page_section(dio, page, 0, this_chunk_bytes, 
+>  				dio->next_block_for_io))
+>  		return;
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
