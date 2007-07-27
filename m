@@ -1,217 +1,97 @@
-Received: from sd0109e.au.ibm.com (d23rh905.au.ibm.com [202.81.18.225])
-	by ausmtp05.au.ibm.com (8.13.8/8.13.8) with ESMTP id l6RKDhqI5718088
-	for <linux-mm@kvack.org>; Sat, 28 Jul 2007 06:13:43 +1000
-Received: from d23av01.au.ibm.com (d23av01.au.ibm.com [9.190.250.242])
-	by sd0109e.au.ibm.com (8.13.8/8.13.8/NCO v8.4) with ESMTP id l6RKExJ2063002
-	for <linux-mm@kvack.org>; Sat, 28 Jul 2007 06:14:59 +1000
-Received: from d23av01.au.ibm.com (loopback [127.0.0.1])
-	by d23av01.au.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l6RKBQAS009428
-	for <linux-mm@kvack.org>; Sat, 28 Jul 2007 06:11:26 +1000
-From: Balbir Singh <balbir@linux.vnet.ibm.com>
-Date: Sat, 28 Jul 2007 01:41:19 +0530
-Message-Id: <20070727201119.31565.8322.sendpatchset@balbir-laptop>
-In-Reply-To: <20070727200937.31565.78623.sendpatchset@balbir-laptop>
-References: <20070727200937.31565.78623.sendpatchset@balbir-laptop>
-Subject: [-mm PATCH 9/9] Memory controller make page_referenced() container aware (v4)
+From: Daniel Hazelton <dhazelton@enter.net>
+Subject: Re: RFT: updatedb "morning after" problem [was: Re: -mm merge plans for 2.6.23]
+Date: Fri, 27 Jul 2007 16:28:46 -0400
+References: <9a8748490707231608h453eefffx68b9c391897aba70@mail.gmail.com> <200707271345.55187.dhazelton@enter.net> <46AA3680.4010508@gmail.com>
+In-Reply-To: <46AA3680.4010508@gmail.com>
+MIME-Version: 1.0
+Content-Type: text/plain;
+  charset="iso-8859-15"
+Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+Message-Id: <200707271628.46804.dhazelton@enter.net>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Paul Menage <menage@google.com>, Linux Containers <containers@lists.osdl.org>, YAMAMOTO Takashi <yamamoto@valinux.co.jp>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Dave Hansen <haveblue@us.ibm.com>, Linux MM Mailing List <linux-mm@kvack.org>, Vaidyanathan Srinivasan <svaidy@linux.vnet.ibm.com>, Pavel Emelianov <xemul@openvz.org>, Dhaval Giani <dhaval@linux.vnet.ibm.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Eric W Biederman <ebiederm@xmission.com>
+To: Rene Herman <rene.herman@gmail.com>
+Cc: Mike Galbraith <efault@gmx.de>, Andrew Morton <akpm@linux-foundation.org>, Ingo Molnar <mingo@elte.hu>, Frank Kingswood <frank@kingswood-consulting.co.uk>, Andi Kleen <andi@firstfloor.org>, Nick Piggin <nickpiggin@yahoo.com.au>, Ray Lee <ray-lk@madrabbit.org>, Jesper Juhl <jesper.juhl@gmail.com>, ck list <ck@vds.kolivas.org>, Paul Jackson <pj@sgi.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-Make page_referenced() container aware. Without this patch, page_referenced()
-can cause a page to be skipped while reclaiming pages. This patch
-ensures that other containers do not hold pages in a particular container
-hostage. It is required to ensure that shared pages are freed from a container
-when they are not actively referenced from the container that brought
-them in
+On Friday 27 July 2007 14:16:32 Rene Herman wrote:
+> On 07/27/2007 07:45 PM, Daniel Hazelton wrote:
+> > Updatedb or another process that uses the FS heavily runs on a users
+> > 256MB P3-800 (when it is idle) and the VFS caches grow, causing memory
+> > pressure that causes other applications to be swapped to disk. In the
+> > morning the user has to wait for the system to swap those applications
+> > back in.
+> >
+> > Questions about it:
+> > Q) Does swap-prefetch help with this?
+> > A) [From all reports I've seen (*)] Yes, it does.
+>
+> No it does not. If updatedb filled memory to the point of causing swapping
+> (which noone is reproducing anyway) it HAS FILLED MEMORY and swap-prefetch
+> hasn't any memory to prefetch into -- updatedb itself doesn't use any
+> significant memory.
 
+Check the attitude at the door then re-read what I actually said:
+> > Updatedb or another process that uses the FS heavily runs on a users
+> > 256MB P3-800 (when it is idle) and the VFS caches grow, causing memory
+> > pressure that causes other applications to be swapped to disk. In the
+> > morning the user has to wait for the system to swap those applications
+> > back in.
 
-Signed-off-by: <balbir@linux.vnet.ibm.com>
----
+I never said that it was the *program* itself - or *any* specific program (I 
+used "Updatedb" because it has been the big name in the discussion) - doing 
+the filling of memory. I actually said that the problem is that the kernel's 
+caches - VFS and others - will grow *WITHOUT* *LIMIT*, filling all available 
+memory. 
 
- include/linux/memcontrol.h |    6 ++++++
- include/linux/rmap.h       |    5 +++--
- mm/memcontrol.c            |    5 +++++
- mm/rmap.c                  |   30 ++++++++++++++++++++++++------
- mm/vmscan.c                |    4 ++--
- 5 files changed, 40 insertions(+), 10 deletions(-)
+Swap prefetch on its own will not alleviate *all* of the problem, but it 
+appears to fix enough of it that the problem doesn't seem to bother people 
+anymore. (As I noted later on there are things that can be changes that would 
+also fix things. Those changes, however, are quite tricky and involve changes 
+to the page faulting mechanism, the way the various caches work and a number 
+of other things)
 
-diff -puN include/linux/rmap.h~mem-control-per-container-page-referenced include/linux/rmap.h
---- linux-2.6.23-rc1-mm1/include/linux/rmap.h~mem-control-per-container-page-referenced	2007-07-28 01:12:50.000000000 +0530
-+++ linux-2.6.23-rc1-mm1-balbir/include/linux/rmap.h	2007-07-28 01:12:50.000000000 +0530
-@@ -8,6 +8,7 @@
- #include <linux/slab.h>
- #include <linux/mm.h>
- #include <linux/spinlock.h>
-+#include <linux/memcontrol.h>
- 
- /*
-  * The anon_vma heads a list of private "related" vmas, to scan if
-@@ -86,7 +87,7 @@ static inline void page_dup_rmap(struct 
- /*
-  * Called from mm/vmscan.c to handle paging out
-  */
--int page_referenced(struct page *, int is_locked);
-+int page_referenced(struct page *, int is_locked, struct mem_container *cnt);
- int try_to_unmap(struct page *, int ignore_refs);
- 
- /*
-@@ -114,7 +115,7 @@ int page_mkclean(struct page *);
- #define anon_vma_prepare(vma)	(0)
- #define anon_vma_link(vma)	do {} while (0)
- 
--#define page_referenced(page,l) TestClearPageReferenced(page)
-+#define page_referenced(page,l,cnt) TestClearPageReferenced(page)
- #define try_to_unmap(page, refs) SWAP_FAIL
- 
- static inline int page_mkclean(struct page *page)
-diff -puN mm/rmap.c~mem-control-per-container-page-referenced mm/rmap.c
---- linux-2.6.23-rc1-mm1/mm/rmap.c~mem-control-per-container-page-referenced	2007-07-28 01:12:50.000000000 +0530
-+++ linux-2.6.23-rc1-mm1-balbir/mm/rmap.c	2007-07-28 01:12:50.000000000 +0530
-@@ -298,7 +298,8 @@ out:
- 	return referenced;
- }
- 
--static int page_referenced_anon(struct page *page)
-+static int page_referenced_anon(struct page *page,
-+				struct mem_container *mem_cont)
- {
- 	unsigned int mapcount;
- 	struct anon_vma *anon_vma;
-@@ -311,6 +312,13 @@ static int page_referenced_anon(struct p
- 
- 	mapcount = page_mapcount(page);
- 	list_for_each_entry(vma, &anon_vma->head, anon_vma_node) {
-+		/*
-+		 * If we are reclaiming on behalf of a container, skip
-+		 * counting on behalf of references from different
-+		 * containers
-+		 */
-+		if (mem_cont && (mm_container(vma->vm_mm) != mem_cont))
-+			continue;
- 		referenced += page_referenced_one(page, vma, &mapcount);
- 		if (!mapcount)
- 			break;
-@@ -331,7 +339,8 @@ static int page_referenced_anon(struct p
-  *
-  * This function is only called from page_referenced for object-based pages.
-  */
--static int page_referenced_file(struct page *page)
-+static int page_referenced_file(struct page *page,
-+				struct mem_container *mem_cont)
- {
- 	unsigned int mapcount;
- 	struct address_space *mapping = page->mapping;
-@@ -364,6 +373,13 @@ static int page_referenced_file(struct p
- 	mapcount = page_mapcount(page);
- 
- 	vma_prio_tree_foreach(vma, &iter, &mapping->i_mmap, pgoff, pgoff) {
-+		/*
-+		 * If we are reclaiming on behalf of a container, skip
-+		 * counting on behalf of references from different
-+		 * containers
-+		 */
-+		if (mem_cont && (mm_container(vma->vm_mm) != mem_cont))
-+			continue;
- 		if ((vma->vm_flags & (VM_LOCKED|VM_MAYSHARE))
- 				  == (VM_LOCKED|VM_MAYSHARE)) {
- 			referenced++;
-@@ -386,7 +402,8 @@ static int page_referenced_file(struct p
-  * Quick test_and_clear_referenced for all mappings to a page,
-  * returns the number of ptes which referenced the page.
-  */
--int page_referenced(struct page *page, int is_locked)
-+int page_referenced(struct page *page, int is_locked,
-+			struct mem_container *mem_cont)
- {
- 	int referenced = 0;
- 
-@@ -398,14 +415,15 @@ int page_referenced(struct page *page, i
- 
- 	if (page_mapped(page) && page->mapping) {
- 		if (PageAnon(page))
--			referenced += page_referenced_anon(page);
-+			referenced += page_referenced_anon(page, mem_cont);
- 		else if (is_locked)
--			referenced += page_referenced_file(page);
-+			referenced += page_referenced_file(page, mem_cont);
- 		else if (TestSetPageLocked(page))
- 			referenced++;
- 		else {
- 			if (page->mapping)
--				referenced += page_referenced_file(page);
-+				referenced +=
-+					page_referenced_file(page, mem_cont);
- 			unlock_page(page);
- 		}
- 	}
-diff -puN mm/vmscan.c~mem-control-per-container-page-referenced mm/vmscan.c
---- linux-2.6.23-rc1-mm1/mm/vmscan.c~mem-control-per-container-page-referenced	2007-07-28 01:12:50.000000000 +0530
-+++ linux-2.6.23-rc1-mm1-balbir/mm/vmscan.c	2007-07-28 01:12:50.000000000 +0530
-@@ -479,7 +479,7 @@ static unsigned long shrink_page_list(st
- 		if (PageWriteback(page))
- 			goto keep_locked;
- 
--		referenced = page_referenced(page, 1);
-+		referenced = page_referenced(page, 1, sc->mem_container);
- 		/* In active use or really unfreeable?  Activate it. */
- 		if (sc->order <= PAGE_ALLOC_COSTLY_ORDER &&
- 					referenced && page_mapping_inuse(page))
-@@ -971,7 +971,7 @@ force_reclaim_mapped:
- 		if (page_mapped(page)) {
- 			if (!reclaim_mapped ||
- 			    (total_swap_pages == 0 && PageAnon(page)) ||
--			    page_referenced(page, 0)) {
-+			    page_referenced(page, 0, sc->mem_container)) {
- 				list_add(&page->lru, &l_active);
- 				continue;
- 			}
-diff -puN include/linux/memcontrol.h~mem-control-per-container-page-referenced include/linux/memcontrol.h
---- linux-2.6.23-rc1-mm1/include/linux/memcontrol.h~mem-control-per-container-page-referenced	2007-07-28 01:12:50.000000000 +0530
-+++ linux-2.6.23-rc1-mm1-balbir/include/linux/memcontrol.h	2007-07-28 01:12:50.000000000 +0530
-@@ -42,6 +42,7 @@ extern unsigned long mem_container_isola
- 					int active);
- extern void mem_container_out_of_memory(struct mem_container *mem);
- extern int mem_container_cache_charge(struct page *page, struct mm_struct *mm);
-+extern struct mem_container *mm_container(struct mm_struct *mm);
- 
- static inline void mem_container_uncharge_page(struct page *page)
- {
-@@ -91,6 +92,11 @@ static inline int mem_container_cache_ch
- 	return 0;
- }
- 
-+static inline struct mem_container *mm_container(struct mm_struct *mm)
-+{
-+	return NULL;
-+}
-+
- #endif /* CONFIG_CONTAINER_MEM_CONT */
- 
- #endif /* _LINUX_MEMCONTROL_H */
-diff -puN mm/memcontrol.c~mem-control-per-container-page-referenced mm/memcontrol.c
---- linux-2.6.23-rc1-mm1/mm/memcontrol.c~mem-control-per-container-page-referenced	2007-07-28 01:12:50.000000000 +0530
-+++ linux-2.6.23-rc1-mm1-balbir/mm/memcontrol.c	2007-07-28 01:12:50.000000000 +0530
-@@ -100,6 +100,11 @@ struct mem_container *mem_container_from
- 				struct mem_container, css);
- }
- 
-+inline struct mem_container *mm_container(struct mm_struct *mm)
-+{
-+	return rcu_dereference(mm->mem_container);
-+}
-+
- void mm_init_container(struct mm_struct *mm, struct task_struct *p)
- {
- 	struct mem_container *mem;
-_
+In light of the fact that swap prefetch appears to solve the problem for the 
+people that have been vocal about it, and because it is a less intrusive 
+change than the other potential solutions, I'd like to know why all the 
+complaints and arguments against it come down to "Its treating the symptom".
+
+I mean it - because I fail to see how it isn't getting at the root of the 
+problem - which is, pretty much, that Swap has classically been and, in the 
+case of most modern systems, still is damned slow. By prefetching those pages 
+that have most recently been evicted the problem of "slow swap" is being 
+directly addressed.
+
+You want to know what causes the problem? The current design of the caches. 
+They will extend without much limit, to the point of actually pushing pages 
+to disk so they can grow even more. 
+
+> Here's swap-prefetch's author saying the same:
+>
+> http://lkml.org/lkml/2007/2/9/112
+>
+> | It can't help the updatedb scenario. Updatedb leaves the ram full and
+> | swap prefetch wants to cost as little as possible so it will never
+> | move anything out of ram in preference for the pages it wants to swap
+> | back in.
+>
+> Now please finally either understand this, or tell us how we're wrong.
+>
+> Rene.
+
+I already did. You completely ignored it because I happened to use the magic 
+words "updatedb" and "swap prefetch". 
+
+Did I ever say it was about "updatedb" in particular? You've got the statement 
+in the part of my post that you quoted. Nope, appears that I used the name as 
+a specific example - and one that has been used previously in the thread. Now 
+drop the damned attitude and start using your brain. Okay?
+
+DRH
 
 -- 
-	Warm Regards,
-	Balbir Singh
-	Linux Technology Center
-	IBM, ISTL
+Dialup is like pissing through a pipette. Slow and excruciatingly painful.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
