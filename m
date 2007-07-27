@@ -1,50 +1,87 @@
-Received: by el-out-1112.google.com with SMTP id r23so100203elf
-        for <linux-mm@kvack.org>; Thu, 26 Jul 2007 17:33:42 -0700 (PDT)
-Message-ID: <b21f8390707261733y19e00ca2w9961463bd60c8553@mail.gmail.com>
-Date: Fri, 27 Jul 2007 10:33:41 +1000
-From: "Matthew Hawkins" <darthmdh@gmail.com>
-Subject: Re: [ck] Re: RFT: updatedb "morning after" problem [was: Re: -mm merge plans for 2.6.23]
-In-Reply-To: <20070726102406.GA30165@elte.hu>
+Received: from d01relay02.pok.ibm.com (d01relay02.pok.ibm.com [9.56.227.234])
+	by e1.ny.us.ibm.com (8.13.8/8.13.8) with ESMTP id l6R0egY9007762
+	for <linux-mm@kvack.org>; Thu, 26 Jul 2007 20:40:42 -0400
+Received: from d01av02.pok.ibm.com (d01av02.pok.ibm.com [9.56.224.216])
+	by d01relay02.pok.ibm.com (8.13.8/8.13.8/NCO v8.4) with ESMTP id l6R0egvo529268
+	for <linux-mm@kvack.org>; Thu, 26 Jul 2007 20:40:42 -0400
+Received: from d01av02.pok.ibm.com (loopback [127.0.0.1])
+	by d01av02.pok.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l6R0efm5005568
+	for <linux-mm@kvack.org>; Thu, 26 Jul 2007 20:40:42 -0400
+Date: Thu, 26 Jul 2007 17:40:41 -0700
+From: Nishanth Aravamudan <nacc@us.ibm.com>
+Subject: Re: [PATCH take3] Memoryless nodes:  use "node_memory_map" for cpuset mems_allowed validation
+Message-ID: <20070727004041.GP18510@us.ibm.com>
+References: <20070711182219.234782227@sgi.com> <20070711182250.005856256@sgi.com> <Pine.LNX.4.64.0707111204470.17503@schroedinger.engr.sgi.com> <1185309019.5649.69.camel@localhost>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-References: <2c0942db0707232153j3670ef31kae3907dff1a24cb7@mail.gmail.com>
-	 <2c0942db0707240915h56e007e3l9110e24a065f2e73@mail.gmail.com>
-	 <46A6CC56.6040307@yahoo.com.au> <p73abtkrz37.fsf@bingen.suse.de>
-	 <46A85D95.509@kingswood-consulting.co.uk>
-	 <20070726092025.GA9157@elte.hu>
-	 <20070726023401.f6a2fbdf.akpm@linux-foundation.org>
-	 <20070726094024.GA15583@elte.hu>
-	 <20070726030902.02f5eab0.akpm@linux-foundation.org>
-	 <20070726102406.GA30165@elte.hu>
+In-Reply-To: <1185309019.5649.69.camel@localhost>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Ingo Molnar <mingo@elte.hu>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Nick Piggin <nickpiggin@yahoo.com.au>, Ray Lee <ray-lk@madrabbit.org>, Jesper Juhl <jesper.juhl@gmail.com>, linux-kernel@vger.kernel.org, ck list <ck@vds.kolivas.org>, linux-mm@kvack.org, Paul Jackson <pj@sgi.com>, Andi Kleen <andi@firstfloor.org>, Frank Kingswood <frank@kingswood-consulting.co.uk>
+To: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
+Cc: Christoph Lameter <clameter@sgi.com>, Paul Jackson <pj@sgi.com>, akpm@linux-foundation.org, kxr@sgi.com, linux-mm@kvack.org, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-On 7/26/07, Ingo Molnar <mingo@elte.hu> wrote:
-> wrong, it's active on three of my boxes already :) But then again, i
-> never had these hangover problems. (not really expected with gigs of RAM
-> anyway)
-[...]
-> --- /etc/cron.daily/mlocate.cron.orig
-[...]
+On 24.07.2007 [16:30:19 -0400], Lee Schermerhorn wrote:
+> Memoryless Nodes:  use "node_memory_map" for cpusets - take 3
+> 
+> Against 2.6.22-rc6-mm1 atop Christoph Lameter's memoryless nodes
+> series
+> 
+> take 2:
+> + replaced node_online_map in cpuset_current_mems_allowed()
+>   with node_states[N_MEMORY]
+> + replaced node_online_map in cpuset_init_smp() with
+>   node_states[N_MEMORY]
+> 
+> take 3:
+> + fix up comments and top level cpuset tracking of nodes
+>   with memory [instead of on-line nodes].
+> + maybe I got them all this time?
+> 
+> cpusets try to ensure that any node added to a cpuset's 
+> mems_allowed is on-line and contains memory.  The assumption
+> was that online nodes contained memory.  Thus, it is possible
+> to add memoryless nodes to a cpuset and then add tasks to this
+> cpuset.  This results in continuous series of oom-kill and
+> apparent system hang.
+> 
+> Change cpusets to use node_states[N_MEMORY] [a.k.a.
+> node_memory_map] in place of node_online_map when vetting 
+> memories.  Return error if admin attempts to write a non-empty
+> mems_allowed node mask containing only memoryless-nodes.
+> 
+> Signed-off-by:  Lee Schermerhorn <lee.schermerhorn@hp.com>
+> 
+>  include/linux/cpuset.h |    2 -
+>  kernel/cpuset.c        |   51 +++++++++++++++++++++++++++++++------------------
+>  2 files changed, 34 insertions(+), 19 deletions(-)
 
-mlocate by design doesn't thrash the cache as much.  People using
-slocate (distros other than Redhat ;) are going to be hit worse.  See
-http://carolina.mff.cuni.cz/~trmac/blog/mlocate/
+Small typo fix which prevents build with !CPUSETS.
 
-updatedb by itself doesn't really bug me, its just that on occasion
-its still running at 7am which then doesn't assist my single spindle
-come swapin of the other apps!  I'm considering getting one of the old
-ide drives out in the garage and shifting swap onto it.  The swap
-prefetch patch has mainly assisted me in the "state A -> B -> A"
-scenario.  A lot.
+---
+FYI: I noticed that oldconfig on 2.6.23-rc1-mm1 with CPUSETS=y disables
+CPUSETS because of the introduction of CONFIG_CONTAINERS :(
+
+Signed-off-by: Nishanth Aravamudan <nacc@us.ibm.com>
+
+diff --git a/include/linux/cpuset.h b/include/linux/cpuset.h
+index f8f4f68..d01b1bc 100644
+--- a/include/linux/cpuset.h
++++ b/include/linux/cpuset.h
+@@ -92,7 +92,7 @@ static inline nodemask_t cpuset_mems_allowed(struct task_struct *p)
+ 	return node_possible_map;
+ }
+ 
+-#define cpuset_current_mems_allowed (node_states[N_MEMORY))
++#define cpuset_current_mems_allowed (node_states[N_MEMORY])
+ static inline void cpuset_init_current_mems_allowed(void) {}
+ static inline void cpuset_update_task_memory_state(void) {}
+ #define cpuset_nodes_subset_current_mems_allowed(nodes) (1)
 
 -- 
-Matt
+Nishanth Aravamudan <nacc@us.ibm.com>
+IBM Linux Technology Center
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
