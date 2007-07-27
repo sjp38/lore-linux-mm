@@ -1,55 +1,66 @@
-Date: Fri, 27 Jul 2007 11:38:25 -0700 (PDT)
+Date: Fri, 27 Jul 2007 11:55:35 -0700 (PDT)
 From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: NUMA policy issues with ZONE_MOVABLE
-In-Reply-To: <20070727174622.GD646@skynet.ie>
-Message-ID: <Pine.LNX.4.64.0707271135020.16333@schroedinger.engr.sgi.com>
+Subject: Re: [PATCH] Document Linux Memory Policy - V2
+In-Reply-To: <1185559260.5069.40.camel@localhost>
+Message-ID: <Pine.LNX.4.64.0707271148170.16415@schroedinger.engr.sgi.com>
 References: <Pine.LNX.4.64.0707242120370.3829@schroedinger.engr.sgi.com>
- <20070725111646.GA9098@skynet.ie> <Pine.LNX.4.64.0707251212300.8820@schroedinger.engr.sgi.com>
- <20070726132336.GA18825@skynet.ie> <Pine.LNX.4.64.0707261104360.2374@schroedinger.engr.sgi.com>
- <20070726225920.GA10225@skynet.ie> <Pine.LNX.4.64.0707261819530.18210@schroedinger.engr.sgi.com>
- <20070727082046.GA6301@skynet.ie> <20070727154519.GA21614@skynet.ie>
+ <20070725111646.GA9098@skynet.ie>  <Pine.LNX.4.64.0707251212300.8820@schroedinger.engr.sgi.com>
+  <20070726132336.GA18825@skynet.ie>  <Pine.LNX.4.64.0707261104360.2374@schroedinger.engr.sgi.com>
+  <20070726225920.GA10225@skynet.ie>  <Pine.LNX.4.64.0707261819530.18210@schroedinger.engr.sgi.com>
+  <20070727082046.GA6301@skynet.ie> <20070727154519.GA21614@skynet.ie>
  <Pine.LNX.4.64.0707271026040.15990@schroedinger.engr.sgi.com>
- <20070727174622.GD646@skynet.ie>
+ <1185559260.5069.40.camel@localhost>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Mel Gorman <mel@skynet.ie>
-Cc: linux-mm@kvack.org, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, ak@suse.de, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, akpm@linux-foundation.org, pj@sgi.com
+To: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
+Cc: linux-mm@kvack.org, ak@suse.de, Mel Gorman <mel@skynet.ie>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, akpm@linux-foundation.org, pj@sgi.com, Michael Kerrisk <mtk-manpages@gmx.net>, Randy Dunlap <randy.dunlap@oracle.com>, Eric Whitney <eric.whitney@hp.com>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 27 Jul 2007, Mel Gorman wrote:
+On Fri, 27 Jul 2007, Lee Schermerhorn wrote:
 
-> Initial tests imply yes but I haven't done broader tests yet. It saves 64
-> bytes on the size of the node structure on a non-numa i386 machine so even
-> that might be noticable in some cases.
+> +    Shared Policy:  This policy applies to "memory objects" mapped shared into
+> +    one or more tasks' distinct address spaces.  Shared policies are applied
+> +    directly to the shared object.  Thus, all tasks that attach to the object
+> +    share the policy, and all pages allocated for the shared object, by any
+> +    task, will obey the shared policy.
 
-I think you can minimize the impact further by encoding information you
-are looking for in the zone pointer. We are scanning for zones and for
-node numbers. The zones require up to 2 bits and the nodes up to 10 bits.
-So if we page align the zones structure then we have enough bits to encode
-the information we are looking for in the pointers. Thus saving us
-dereferencing it to check.
+This applies to shmem only not to shared memory. Shared memory can also 
+come about by mmapping a file etc. Its better to describe shmem 
+as an exceptional situation later and warn of the surprises coming with 
+the use of memory policies on shmem in a separate section.
 
-This may even be a performance increase vs the current situation.
+> +	MPOL_BIND:  This mode specifies that memory must come from the
+> +	set of nodes specified by the policy.  The kernel builds a custom
+> +	zonelist pointed to by the zonelist member of struct mempolicy,
+> +	containing just the nodes specified by the Bind policy.  If the kernel
+> +	is unable to allocate a page from the first node in the custom zonelist,
+> +	it moves on to the next, and so forth.  If it is unable to allocate a
+> +	page from any of the nodes in this list, the allocation will fail.
 
-> > I think this should_filter() creates more overhead than which it saves.
-> 
-> It's why part of the patch adds a zone_idx field to struct zone instead
-> of mucking around with pgdat->node_zones.
+The implementation details may not be useful to explain here and may 
+change soon. Maybe just describe the effect?
 
-See above. Avoid cacheline fetch by using the low bits of the zone pointer 
-for zone_idx.
+> +	    The memory policy APIs do not specify an order in which the nodes
+> +	    will be searched.  However, unlike the per node zonelists mentioned
+> +	    above, the custom zonelist for the Bind policy do not consider the
+> +	    distance between the nodes.  Rather, the lists are built in order
+> +	    of numeric node id.
 
-> > Isnt there some way to fold these traversals into a common page allocator 
-> > function?
-> 
-> Probably. When I looked first, each of the users were traversing the zonelist
-> slightly differently so it wasn't obvious how to have a single iterator but
-> it's a point for improvement.
+Yea another reson to get the nodemask as a parameter for alloc_pages().
 
-I wrote most of those and I'd be glad if you could consolidate the code 
-somehow.
+> +2) when tasks in two cpusets share access to a memory region, such as shared
+> +   memory segments created by shmget() of mmap() with the MAP_ANONYMOUS and
+> +   MAP_SHARED flags, only nodes whose memories are allowed in both cpusets
+> +   may be used in the policies.  Again, obtaining this information requires
+> +   "stepping outside" the memory policy APIs to use the cpuset information.
+> +   Furthermore, if the cpusets' "allowed memory" sets are disjoint, "local"
+> +   allocation is the only valid policy.
+
+In general this works fine with a shared mapping via mmap (which is much 
+more common). The problem exists if one uses shmem with the strange shared 
+semantics.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
