@@ -1,105 +1,177 @@
-Subject: Re: [PATCH] Document Linux Memory Policy - V2
-From: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
-In-Reply-To: <Pine.LNX.4.64.0707271148170.16415@schroedinger.engr.sgi.com>
-References: <Pine.LNX.4.64.0707242120370.3829@schroedinger.engr.sgi.com>
-	 <20070725111646.GA9098@skynet.ie>
-	 <Pine.LNX.4.64.0707251212300.8820@schroedinger.engr.sgi.com>
-	 <20070726132336.GA18825@skynet.ie>
-	 <Pine.LNX.4.64.0707261104360.2374@schroedinger.engr.sgi.com>
-	 <20070726225920.GA10225@skynet.ie>
-	 <Pine.LNX.4.64.0707261819530.18210@schroedinger.engr.sgi.com>
-	 <20070727082046.GA6301@skynet.ie> <20070727154519.GA21614@skynet.ie>
-	 <Pine.LNX.4.64.0707271026040.15990@schroedinger.engr.sgi.com>
-	 <1185559260.5069.40.camel@localhost>
-	 <Pine.LNX.4.64.0707271148170.16415@schroedinger.engr.sgi.com>
-Content-Type: text/plain
-Date: Fri, 27 Jul 2007 15:24:33 -0400
-Message-Id: <1185564273.5069.91.camel@localhost>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+From: Lee Schermerhorn <lee.schermerhorn@hp.com>
+Date: Fri, 27 Jul 2007 15:43:22 -0400
+Message-Id: <20070727194322.18614.68855.sendpatchset@localhost>
+In-Reply-To: <20070727194316.18614.36380.sendpatchset@localhost>
+References: <20070727194316.18614.36380.sendpatchset@localhost>
+Subject: [PATCH 01/14] NUMA: Generic management of nodemasks for various purposes
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
-Cc: linux-mm@kvack.org, ak@suse.de, Mel Gorman <mel@skynet.ie>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, akpm@linux-foundation.org, pj@sgi.com, Michael Kerrisk <mtk-manpages@gmx.net>, Randy Dunlap <randy.dunlap@oracle.com>, Eric Whitney <eric.whitney@hp.com>
+To: linux-mm@kvack.org
+Cc: ak@suse.de, Lee Schermerhorn <lee.schermerhorn@hp.com>, Nishanth Aravamudan <nacc@us.ibm.com>, pj@sgi.com, kxr@sgi.com, Christoph Lameter <clameter@sgi.com>, Mel Gorman <mel@skynet.ie>, akpm@linux-foundation.org, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 2007-07-27 at 11:55 -0700, Christoph Lameter wrote:
-> On Fri, 27 Jul 2007, Lee Schermerhorn wrote:
-> 
-> > +    Shared Policy:  This policy applies to "memory objects" mapped shared into
-> > +    one or more tasks' distinct address spaces.  Shared policies are applied
-> > +    directly to the shared object.  Thus, all tasks that attach to the object
-> > +    share the policy, and all pages allocated for the shared object, by any
-> > +    task, will obey the shared policy.
-> 
-> This applies to shmem only not to shared memory. Shared memory can also 
-> come about by mmapping a file etc. Its better to describe shmem 
-> as an exceptional situation later and warn of the surprises coming with 
-> the use of memory policies on shmem in a separate section.
+[patch 1/14] NUMA: Generic management of nodemasks for various purposes
 
-I do explain that later in the doc.  I'll see if I can reword it to pull
-that up here.
+Preparation for memoryless node patches.
 
-> 
-> > +	MPOL_BIND:  This mode specifies that memory must come from the
-> > +	set of nodes specified by the policy.  The kernel builds a custom
-> > +	zonelist pointed to by the zonelist member of struct mempolicy,
-> > +	containing just the nodes specified by the Bind policy.  If the kernel
-> > +	is unable to allocate a page from the first node in the custom zonelist,
-> > +	it moves on to the next, and so forth.  If it is unable to allocate a
-> > +	page from any of the nodes in this list, the allocation will fail.
-> 
-> The implementation details may not be useful to explain here and may 
-> change soon. Maybe just describe the effect?
+Provide a generic way to keep nodemasks describing various characteristics
+of NUMA nodes.
 
-I wanted to explain it to contrast to node zonelists and as context for
-the next paragraph.  I think the notion of custom zonelists is important
-in the current implementation.  And, I plan to keep this up to date with
-the forth coming changes.  Maybe it'll change before this even get's
-merged into Linus' tree.  But, if I could get this into -mm, I can
-submit update patches making it clear what changed when.
+Remove the node_online_map and the node_possible map and realize the whole
+thing using two nodes stats: N_POSSIBLE and N_ONLINE.
 
-> 
-> > +	    The memory policy APIs do not specify an order in which the nodes
-> > +	    will be searched.  However, unlike the per node zonelists mentioned
-> > +	    above, the custom zonelist for the Bind policy do not consider the
-> > +	    distance between the nodes.  Rather, the lists are built in order
-> > +	    of numeric node id.
-> 
-> Yea another reson to get the nodemask as a parameter for alloc_pages().
+Signed-off-by: Christoph Lameter <clameter@sgi.com>
+Tested-by:  Lee Schermerhorn <lee.schermerhorn@hp.com>
+Acked-by:  Lee Schermerhorn <lee.schermerhorn@hp.com>
+Acked-by: Bob Picco <bob.picco@hp.com>
 
-OK.  Again, just wanted to make current behavior explicit.  Will update
-when it changes.
+ include/linux/nodemask.h |   87 ++++++++++++++++++++++++++++++++++++++---------
+ mm/page_alloc.c          |   13 +++----
+ 2 files changed, 78 insertions(+), 22 deletions(-)
 
-> 
-> > +2) when tasks in two cpusets share access to a memory region, such as shared
-> > +   memory segments created by shmget() of mmap() with the MAP_ANONYMOUS and
-> > +   MAP_SHARED flags, only nodes whose memories are allowed in both cpusets
-> > +   may be used in the policies.  Again, obtaining this information requires
-> > +   "stepping outside" the memory policy APIs to use the cpuset information.
-> > +   Furthermore, if the cpusets' "allowed memory" sets are disjoint, "local"
-> > +   allocation is the only valid policy.
-> 
-> In general this works fine with a shared mapping via mmap (which is much 
-> more common). The problem exists if one uses shmem with the strange shared 
-> semantics.
-
-If the shared mapping is with MAP_ANONYMOUS, I believe that you get
-"shmem"--same issues as with "shm" [SysV shared memory].  It works
-"fine" [your definition, I guess] for shared, mmap()ed files because the
-policy doesn't get applied to the object and the vma policy is ignored.
-As far as the shared policy semantics being "strange", let's not restart
-that, uh, "discussion" in this thread.  I've tried to avoid that topic
-in this document, and just describe the concepts/design/behavior in the
-interest of getting a baseline document.  That said, undoubtedly my bias
-sneaks through in places.
-
-As I mentioned to Randy, I'll make another pass after weekend.
-
-Have a good one,
-Lee  
-
-
+Index: Linux/include/linux/nodemask.h
+===================================================================
+--- Linux.orig/include/linux/nodemask.h	2007-07-08 19:32:17.000000000 -0400
++++ Linux/include/linux/nodemask.h	2007-07-25 11:36:25.000000000 -0400
+@@ -338,31 +338,81 @@ static inline void __nodes_remap(nodemas
+ #endif /* MAX_NUMNODES */
+ 
+ /*
++ * Bitmasks that are kept for all the nodes.
++ */
++enum node_states {
++	N_POSSIBLE,	/* The node could become online at some point */
++	N_ONLINE,	/* The node is online */
++	NR_NODE_STATES
++};
++
++/*
+  * The following particular system nodemasks and operations
+  * on them manage all possible and online nodes.
+  */
+ 
+-extern nodemask_t node_online_map;
+-extern nodemask_t node_possible_map;
++extern nodemask_t node_states[NR_NODE_STATES];
+ 
+ #if MAX_NUMNODES > 1
+-#define num_online_nodes()	nodes_weight(node_online_map)
+-#define num_possible_nodes()	nodes_weight(node_possible_map)
+-#define node_online(node)	node_isset((node), node_online_map)
+-#define node_possible(node)	node_isset((node), node_possible_map)
+-#define first_online_node	first_node(node_online_map)
+-#define next_online_node(nid)	next_node((nid), node_online_map)
++static inline int node_state(int node, enum node_states state)
++{
++	return node_isset(node, node_states[state]);
++}
++
++static inline void node_set_state(int node, enum node_states state)
++{
++	__node_set(node, &node_states[state]);
++}
++
++static inline void node_clear_state(int node, enum node_states state)
++{
++	__node_clear(node, &node_states[state]);
++}
++
++static inline int num_node_state(enum node_states state)
++{
++	return nodes_weight(node_states[state]);
++}
++
++#define for_each_node_state(__node, __state) \
++	for_each_node_mask((__node), node_states[__state])
++
++#define first_online_node	first_node(node_states[N_ONLINE])
++#define next_online_node(nid)	next_node((nid), node_states[N_ONLINE])
++
+ extern int nr_node_ids;
+ #else
+-#define num_online_nodes()	1
+-#define num_possible_nodes()	1
+-#define node_online(node)	((node) == 0)
+-#define node_possible(node)	((node) == 0)
++
++static inline int node_state(int node, enum node_states state)
++{
++	return node == 0;
++}
++
++static inline void node_set_state(int node, enum node_states state)
++{
++}
++
++static inline void node_clear_state(int node, enum node_states state)
++{
++}
++
++static inline int num_node_state(enum node_states state)
++{
++	return 1;
++}
++
++#define for_each_node_state(node, __state) \
++	for ( (node) = 0; (node) != 0; (node) = 1)
++
+ #define first_online_node	0
+ #define next_online_node(nid)	(MAX_NUMNODES)
+ #define nr_node_ids		1
++
+ #endif
+ 
++#define node_online_map 	node_states[N_ONLINE]
++#define node_possible_map 	node_states[N_POSSIBLE]
++
+ #define any_online_node(mask)			\
+ ({						\
+ 	int node;				\
+@@ -372,10 +422,15 @@ extern int nr_node_ids;
+ 	node;					\
+ })
+ 
+-#define node_set_online(node)	   set_bit((node), node_online_map.bits)
+-#define node_set_offline(node)	   clear_bit((node), node_online_map.bits)
++#define num_online_nodes()	num_node_state(N_ONLINE)
++#define num_possible_nodes()	num_node_state(N_POSSIBLE)
++#define node_online(node)	node_state((node), N_ONLINE)
++#define node_possible(node)	node_state((node), N_POSSIBLE)
++
++#define node_set_online(node)	   node_set_state((node), N_ONLINE)
++#define node_set_offline(node)	   node_clear_state((node), N_ONLINE)
+ 
+-#define for_each_node(node)	   for_each_node_mask((node), node_possible_map)
+-#define for_each_online_node(node) for_each_node_mask((node), node_online_map)
++#define for_each_node(node)	   for_each_node_state(node, N_POSSIBLE)
++#define for_each_online_node(node) for_each_node_state(node, N_ONLINE)
+ 
+ #endif /* __LINUX_NODEMASK_H */
+Index: Linux/mm/page_alloc.c
+===================================================================
+--- Linux.orig/mm/page_alloc.c	2007-07-25 09:29:50.000000000 -0400
++++ Linux/mm/page_alloc.c	2007-07-25 11:36:25.000000000 -0400
+@@ -48,13 +48,14 @@
+ #include "internal.h"
+ 
+ /*
+- * MCD - HACK: Find somewhere to initialize this EARLY, or make this
+- * initializer cleaner
++ * Array of node states.
+  */
+-nodemask_t node_online_map __read_mostly = { { [0] = 1UL } };
+-EXPORT_SYMBOL(node_online_map);
+-nodemask_t node_possible_map __read_mostly = NODE_MASK_ALL;
+-EXPORT_SYMBOL(node_possible_map);
++nodemask_t node_states[NR_NODE_STATES] __read_mostly = {
++	[N_POSSIBLE] = NODE_MASK_ALL,
++	[N_ONLINE] = { { [0] = 1UL } }
++};
++EXPORT_SYMBOL(node_states);
++
+ unsigned long totalram_pages __read_mostly;
+ unsigned long totalreserve_pages __read_mostly;
+ long nr_swap_pages;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
