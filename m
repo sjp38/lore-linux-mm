@@ -1,108 +1,72 @@
 From: Lee Schermerhorn <lee.schermerhorn@hp.com>
-Date: Fri, 27 Jul 2007 15:44:01 -0400
-Message-Id: <20070727194401.18614.15154.sendpatchset@localhost>
+Date: Fri, 27 Jul 2007 15:43:55 -0400
+Message-Id: <20070727194355.18614.71582.sendpatchset@localhost>
 In-Reply-To: <20070727194316.18614.36380.sendpatchset@localhost>
 References: <20070727194316.18614.36380.sendpatchset@localhost>
-Subject: [PATCH 07/14] Memoryless nodes: SLUB support
+Subject: [PATCH 06/14] Memoryless Node: Slab support
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: linux-mm@kvack.org
 Cc: ak@suse.de, Lee Schermerhorn <lee.schermerhorn@hp.com>, Nishanth Aravamudan <nacc@us.ibm.com>, pj@sgi.com, kxr@sgi.com, Christoph Lameter <clameter@sgi.com>, Mel Gorman <mel@skynet.ie>, akpm@linux-foundation.org, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-[patch 07/14] Memoryless nodes: SLUB support
+[patch 06/14] Memoryless Node: Slab support
 
-Memoryless nodes: SLUB support
+Slab should not allocate control structures for nodes without memory.
+This may seem to work right now but its unreliable since not all
+allocations can fall back due to the use of GFP_THISNODE.
 
-Simply switch all for_each_online_node to for_each_memory_node. That way
-SLUB only operates on nodes with memory. Any allocation attempt on a
-memoryless node will fall whereupon SLUB will fetch memory from a nearby
-node (depending on how memory policies and cpuset describe fallback).
+Switching a few for_each_online_node's to for_each_memory_node will
+allow us to only allocate for nodes that actually have memory.
 
 Signed-off-by: Christoph Lameter <clameter@sgi.com>
-Tested-by:  Lee Schermerhorn <lee.schermerhorn@hp.com>
+Acked-by: Nishanth Aravamudan <nacc@us.ibm.com>
 Acked-by: Lee Schermerhorn <lee.schermerhorn@hp.com>
 Acked-by: Bob Picco <bob.picco@hp.com>
 
- mm/slub.c |   16 ++++++++--------
- 1 file changed, 8 insertions(+), 8 deletions(-)
+ mm/slab.c |    8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)
 
-Index: Linux/mm/slub.c
+Index: Linux/mm/slab.c
 ===================================================================
---- Linux.orig/mm/slub.c	2007-07-25 09:29:50.000000000 -0400
-+++ Linux/mm/slub.c	2007-07-25 11:37:28.000000000 -0400
-@@ -1918,7 +1918,7 @@ static void free_kmem_cache_nodes(struct
+--- Linux.orig/mm/slab.c	2007-07-25 09:29:50.000000000 -0400
++++ Linux/mm/slab.c	2007-07-25 11:36:37.000000000 -0400
+@@ -1565,7 +1565,7 @@ void __init kmem_cache_init(void)
+ 		/* Replace the static kmem_list3 structures for the boot cpu */
+ 		init_list(&cache_cache, &initkmem_list3[CACHE_CACHE], node);
+ 
+-		for_each_online_node(nid) {
++		for_each_node_state(nid, N_MEMORY) {
+ 			init_list(malloc_sizes[INDEX_AC].cs_cachep,
+ 				  &initkmem_list3[SIZE_AC + nid], nid);
+ 
+@@ -1943,7 +1943,7 @@ static void __init set_up_list3s(struct 
  {
  	int node;
  
 -	for_each_online_node(node) {
 +	for_each_node_state(node, N_MEMORY) {
- 		struct kmem_cache_node *n = s->node[node];
- 		if (n && n != &s->local_node)
- 			kmem_cache_free(kmalloc_caches, n);
-@@ -1936,7 +1936,7 @@ static int init_kmem_cache_nodes(struct 
- 	else
- 		local_node = 0;
+ 		cachep->nodelists[node] = &initkmem_list3[index + node];
+ 		cachep->nodelists[node]->next_reap = jiffies +
+ 		    REAPTIMEOUT_LIST3 +
+@@ -2074,7 +2074,7 @@ static int __init_refok setup_cpu_cache(
+ 			g_cpucache_up = PARTIAL_L3;
+ 		} else {
+ 			int node;
+-			for_each_online_node(node) {
++			for_each_node_state(node, N_MEMORY) {
+ 				cachep->nodelists[node] =
+ 				    kmalloc_node(sizeof(struct kmem_list3),
+ 						GFP_KERNEL, node);
+@@ -3784,7 +3784,7 @@ static int alloc_kmemlist(struct kmem_ca
+ 	struct array_cache *new_shared;
+ 	struct array_cache **new_alien = NULL;
  
 -	for_each_online_node(node) {
 +	for_each_node_state(node, N_MEMORY) {
- 		struct kmem_cache_node *n;
  
- 		if (local_node == node)
-@@ -2189,7 +2189,7 @@ static inline int kmem_cache_close(struc
- 	flush_all(s);
- 
- 	/* Attempt to free all objects */
--	for_each_online_node(node) {
-+	for_each_node_state(node, N_MEMORY) {
- 		struct kmem_cache_node *n = get_node(s, node);
- 
- 		n->nr_partial -= free_list(s, n, &n->partial);
-@@ -2484,7 +2484,7 @@ int kmem_cache_shrink(struct kmem_cache 
- 		return -ENOMEM;
- 
- 	flush_all(s);
--	for_each_online_node(node) {
-+	for_each_node_state(node, N_MEMORY) {
- 		n = get_node(s, node);
- 
- 		if (!n->nr_partial)
-@@ -2884,7 +2884,7 @@ static long validate_slab_cache(struct k
- 		return -ENOMEM;
- 
- 	flush_all(s);
--	for_each_online_node(node) {
-+	for_each_node_state(node, N_MEMORY) {
- 		struct kmem_cache_node *n = get_node(s, node);
- 
- 		count += validate_slab_node(s, n, map);
-@@ -3104,7 +3104,7 @@ static int list_locations(struct kmem_ca
- 	/* Push back cpu slabs */
- 	flush_all(s);
- 
--	for_each_online_node(node) {
-+	for_each_node_state(node, N_MEMORY) {
- 		struct kmem_cache_node *n = get_node(s, node);
- 		unsigned long flags;
- 		struct page *page;
-@@ -3231,7 +3231,7 @@ static unsigned long slab_objects(struct
- 		}
- 	}
- 
--	for_each_online_node(node) {
-+	for_each_node_state(node, N_MEMORY) {
- 		struct kmem_cache_node *n = get_node(s, node);
- 
- 		if (flags & SO_PARTIAL) {
-@@ -3259,7 +3259,7 @@ static unsigned long slab_objects(struct
- 
- 	x = sprintf(buf, "%lu", total);
- #ifdef CONFIG_NUMA
--	for_each_online_node(node)
-+	for_each_node_state(node, N_MEMORY)
- 		if (nodes[node])
- 			x += sprintf(buf + x, " N%d=%lu",
- 					node, nodes[node]);
+                 if (use_alien_caches) {
+                         new_alien = alloc_alien_cache(node, cachep->limit);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
