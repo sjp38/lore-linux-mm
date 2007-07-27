@@ -1,166 +1,306 @@
-Subject: [PATCH/RFC] Allow selected nodes to be excluded from
-	MPOL_INTERLEAVE masks
-From: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
-Content-Type: text/plain
-Date: Fri, 27 Jul 2007 16:07:57 -0400
-Message-Id: <1185566878.5069.123.camel@localhost>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Received: from d23relay01.au.ibm.com (d23relay01.au.ibm.com [202.81.18.232])
+	by ausmtp04.au.ibm.com (8.13.8/8.13.8) with ESMTP id l6RKCRBh327130
+	for <linux-mm@kvack.org>; Sat, 28 Jul 2007 06:12:27 +1000
+Received: from d23av01.au.ibm.com (d23av01.au.ibm.com [9.190.250.242])
+	by d23relay01.au.ibm.com (8.13.8/8.13.8/NCO v8.4) with ESMTP id l6RK9Cb5242782
+	for <linux-mm@kvack.org>; Sat, 28 Jul 2007 06:09:12 +1000
+Received: from d23av01.au.ibm.com (loopback [127.0.0.1])
+	by d23av01.au.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l6RK9qJs008153
+	for <linux-mm@kvack.org>; Sat, 28 Jul 2007 06:09:53 +1000
+From: Balbir Singh <balbir@linux.vnet.ibm.com>
+Date: Sat, 28 Jul 2007 01:39:47 +0530
+Message-Id: <20070727200947.31565.44032.sendpatchset@balbir-laptop>
+In-Reply-To: <20070727200937.31565.78623.sendpatchset@balbir-laptop>
+References: <20070727200937.31565.78623.sendpatchset@balbir-laptop>
+Subject: [-mm PATCH 1/9] Memory controller resource counters (v4)
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm <linux-mm@kvack.org>
-Cc: Paul Mundt <lethal@linux-sh.org>, Christoph Lameter <clameter@sgi.com>, Nishanth Aravamudan <nacc@us.ibm.com>, kxr@sgi.com, ak@suse.de, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, akpm@linux-foundation.org, Eric Whitney <eric.whitney@hp.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Paul Menage <menage@google.com>, Linux Containers <containers@lists.osdl.org>, YAMAMOTO Takashi <yamamoto@valinux.co.jp>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Eric W Biederman <ebiederm@xmission.com>, Linux MM Mailing List <linux-mm@kvack.org>, Vaidyanathan Srinivasan <svaidy@linux.vnet.ibm.com>, Pavel Emelianov <xemul@openvz.org>, Dhaval Giani <dhaval@linux.vnet.ibm.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, Dave Hansen <haveblue@us.ibm.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-Allow selected nodes to be excluded from MPOL_INTERLEAVE masks
+From: Pavel Emelianov <xemul@openvz.org>
 
-Against:  2.6.23-rc1-mm1 atop Christoph Lameter's memoryless
-	  node patch set.
+Introduce generic structures and routines for resource accounting.
 
-This patch implements a new node state, N_INTERLEAVE, to specify
-the subset of nodes with memory [state N_MEMORY] that are valid
-for MPOL_INTERLEAVE node masks.  The new state mask is populated
-from the N_MEMORY state mask, less any nodes excluded by a new
-command line option, "no_interleave_nodes=<NodeList>".  Any nodemask
-specified for an interleave policy is then masked by the N_INTERLEAVE
-mask, including the temporary boot-time interleave policy.
+Each resource accounting container is supposed to aggregate it,
+container_subsystem_state and its resource-specific members within.
 
-Rationale:  some architectures and platforms include nodes with
-memory that, in some cases, should never appear in MPOL_INTERLEAVE
-node masks.  For example, the 'sh' architecture contains a small
-amount of SRAM that is local to each cpu.  In some applications,
-this memory should be reserved for explicit usage.  Another example
-is the pseudo-node on HP ia64 platforms that is already interleaved
-on a cache-line granularity by hardware.  Again, in some cases, we
-want to reserve this for explicit usage, as it has bandwidth and
-[average] latency characteristics quite different from the "real"
-nodes.
+Signed-off-by: Pavel Emelianov <xemul@openvz.org>
+Signed-off-by: <balbir@linux.vnet.ibm.com>
+---
 
-Note that allocation of fresh hugepages in response to increases
-in /proc/sys/vm/nr_hugepages is a form of interleaving.  I would
-like to propose that allocate_fresh_huge_page() use the 
-N_INTERLEAVE state as well as MPOL_INTERLEAVE.  Then, one can
-explicity allocate hugepages on the excluded nodes, when needed,
-using Nish Aravamundan's per node huge page sysfs attribute.
-NOT in this patch.
+ include/linux/res_counter.h |  102 +++++++++++++++++++++++++++++++++++++
+ init/Kconfig                |    7 ++
+ kernel/Makefile             |    1 
+ kernel/res_counter.c        |  120 ++++++++++++++++++++++++++++++++++++++++++++
+ 4 files changed, 230 insertions(+)
 
-Questions:
-
-* do we need/want a sysctl for run time modifications?  IMO, no.
-
-Signed-off-by:  Lee Schermerhorn <lee.schermerhorn@hp.com>
-
- Documentation/kernel-parameters.txt |    9 +++++++++
- include/linux/nodemask.h            |    1 +
- mm/mempolicy.c                      |    9 +++++----
- mm/page_alloc.c                     |   24 +++++++++++++++++++++++-
- 4 files changed, 38 insertions(+), 5 deletions(-)
-
-Index: Linux/include/linux/nodemask.h
-===================================================================
---- Linux.orig/include/linux/nodemask.h	2007-07-27 11:25:36.000000000 -0400
-+++ Linux/include/linux/nodemask.h	2007-07-27 11:36:15.000000000 -0400
-@@ -345,6 +345,7 @@ enum node_states {
- 	N_ONLINE,	/* The node is online */
- 	N_MEMORY,	/* The node has memory */
- 	N_CPU,		/* The node has cpus */
-+	N_INTERLEAVE,	/* The node is valid for MPOL_INTERLEAVE */
- 	NR_NODE_STATES
- };
- 
-Index: Linux/mm/page_alloc.c
-===================================================================
---- Linux.orig/mm/page_alloc.c	2007-07-27 11:25:36.000000000 -0400
-+++ Linux/mm/page_alloc.c	2007-07-27 12:03:29.000000000 -0400
-@@ -2003,6 +2003,21 @@ static char zonelist_order_name[3][8] = 
- 
- 
- #ifdef CONFIG_NUMA
-+/*
-+ * Command line:  no_interleave_nodes=<NodeList>
-+ * Specify nodes to exclude from MPOL_INTERLEAVE masks.
-+ */
-+static nodemask_t no_interleave_nodes;	/* default:  none */
+diff -puN /dev/null include/linux/res_counter.h
+--- /dev/null	2007-06-01 20:42:04.000000000 +0530
++++ linux-2.6.23-rc1-mm1-balbir/include/linux/res_counter.h	2007-07-28 01:12:48.000000000 +0530
+@@ -0,0 +1,102 @@
++#ifndef __RES_COUNTER_H__
++#define __RES_COUNTER_H__
 +
-+static __init int setup_no_interleave_nodes(char *nodelist)
++/*
++ * Resource Counters
++ * Contain common data types and routines for resource accounting
++ *
++ * Copyright 2007 OpenVZ SWsoft Inc
++ *
++ * Author: Pavel Emelianov <xemul@openvz.org>
++ *
++ */
++
++#include <linux/container.h>
++
++/*
++ * The core object. the container that wishes to account for some
++ * resource may include this counter into its structures and use
++ * the helpers described beyond
++ */
++
++struct res_counter {
++	/*
++	 * the current resource consumption level
++	 */
++	unsigned long usage;
++	/*
++	 * the limit that usage cannot exceed
++	 */
++	unsigned long limit;
++	/*
++	 * the number of unsuccessful attempts to consume the resource
++	 */
++	unsigned long failcnt;
++	/*
++	 * the lock to protect all of the above.
++	 * the routines below consider this to be IRQ-safe
++	 */
++	spinlock_t lock;
++};
++
++/*
++ * Helpers to interact with userspace
++ * res_counter_read/_write - put/get the specified fields from the
++ * res_counter struct to/from the user
++ *
++ * @counter:     the counter in question
++ * @member:  the field to work with (see RES_xxx below)
++ * @buf:     the buffer to opeate on,...
++ * @nbytes:  its size...
++ * @pos:     and the offset.
++ */
++
++ssize_t res_counter_read(struct res_counter *counter, int member,
++		const char __user *buf, size_t nbytes, loff_t *pos);
++ssize_t res_counter_write(struct res_counter *counter, int member,
++		const char __user *buf, size_t nbytes, loff_t *pos);
++
++/*
++ * the field descriptors. one for each member of res_counter
++ */
++
++enum {
++	RES_USAGE,
++	RES_LIMIT,
++	RES_FAILCNT,
++};
++
++/*
++ * helpers for accounting
++ */
++
++void res_counter_init(struct res_counter *counter);
++
++/*
++ * charge - try to consume more resource.
++ *
++ * @counter: the counter
++ * @val: the amount of the resource. each controller defines its own
++ *       units, e.g. numbers, bytes, Kbytes, etc
++ *
++ * returns 0 on success and <0 if the counter->usage will exceed the
++ * counter->limit _locked call expects the counter->lock to be taken
++ */
++
++int res_counter_charge_locked(struct res_counter *counter, unsigned long val);
++int res_counter_charge(struct res_counter *counter, unsigned long val);
++
++/*
++ * uncharge - tell that some portion of the resource is released
++ *
++ * @counter: the counter
++ * @val: the amount of the resource
++ *
++ * these calls check for usage underflow and show a warning on the console
++ * _locked call expects the counter->lock to be taken
++ */
++
++void res_counter_uncharge_locked(struct res_counter *counter, unsigned long val);
++void res_counter_uncharge(struct res_counter *counter, unsigned long val);
++
++#endif
+diff -puN init/Kconfig~res_counters_infra init/Kconfig
+--- linux-2.6.23-rc1-mm1/init/Kconfig~res_counters_infra	2007-07-28 01:12:48.000000000 +0530
++++ linux-2.6.23-rc1-mm1-balbir/init/Kconfig	2007-07-28 01:12:48.000000000 +0530
+@@ -321,6 +321,13 @@ config CPUSETS
+ 
+ 	  Say N if unsure.
+ 
++config RESOURCE_COUNTERS
++	bool "Resource counters"
++	help
++	  This option enables controller independent resource accounting
++          infrastructure that works with containers
++	depends on CONTAINERS
++
+ config SYSFS_DEPRECATED
+ 	bool "Create deprecated sysfs files"
+ 	default y
+diff -puN kernel/Makefile~res_counters_infra kernel/Makefile
+--- linux-2.6.23-rc1-mm1/kernel/Makefile~res_counters_infra	2007-07-28 01:12:48.000000000 +0530
++++ linux-2.6.23-rc1-mm1-balbir/kernel/Makefile	2007-07-28 01:12:48.000000000 +0530
+@@ -57,6 +57,7 @@ obj-$(CONFIG_RELAY) += relay.o
+ obj-$(CONFIG_SYSCTL) += utsname_sysctl.o
+ obj-$(CONFIG_TASK_DELAY_ACCT) += delayacct.o
+ obj-$(CONFIG_TASKSTATS) += taskstats.o tsacct.o
++obj-$(CONFIG_RESOURCE_COUNTERS) += res_counter.o
+ 
+ ifneq ($(CONFIG_SCHED_NO_NO_OMIT_FRAME_POINTER),y)
+ # According to Alan Modra <alan@linuxcare.com.au>, the -fno-omit-frame-pointer is
+diff -puN /dev/null kernel/res_counter.c
+--- /dev/null	2007-06-01 20:42:04.000000000 +0530
++++ linux-2.6.23-rc1-mm1-balbir/kernel/res_counter.c	2007-07-28 01:12:48.000000000 +0530
+@@ -0,0 +1,120 @@
++/*
++ * resource containers
++ *
++ * Copyright 2007 OpenVZ SWsoft Inc
++ *
++ * Author: Pavel Emelianov <xemul@openvz.org>
++ *
++ */
++
++#include <linux/types.h>
++#include <linux/parser.h>
++#include <linux/fs.h>
++#include <linux/res_counter.h>
++#include <linux/uaccess.h>
++
++void res_counter_init(struct res_counter *counter)
 +{
-+	if (nodelist) {
-+		return nodelist_parse(nodelist, no_interleave_nodes);
++	spin_lock_init(&counter->lock);
++	counter->limit = (unsigned long)LONG_MAX;
++}
++
++int res_counter_charge_locked(struct res_counter *counter, unsigned long val)
++{
++	if (counter->usage > (counter->limit - val)) {
++		counter->failcnt++;
++		return -ENOMEM;
 +	}
++
++	counter->usage += val;
 +	return 0;
 +}
-+early_param("no_interleave_nodes", setup_no_interleave_nodes);
 +
- /* The value user specified ....changed by config */
- static int user_zonelist_order = ZONELIST_ORDER_DEFAULT;
- /* string for sysctl */
-@@ -2410,8 +2425,15 @@ static int __build_all_zonelists(void *d
- 		build_zonelists(pgdat);
- 		build_zonelist_cache(pgdat);
- 
--		if (pgdat->node_present_pages)
-+		if (pgdat->node_present_pages) {
- 			node_set_state(nid, N_MEMORY);
-+			/*
-+			 * Only nodes with memory are valid for MPOL_INTERLEAVE,
-+			 * but maybe not all of them?
-+			 */
-+			if (!node_isset(nid, no_interleave_nodes))
-+				node_set_state(nid, N_INTERLEAVE);
-+		}
- 	}
- 	return 0;
- }
-Index: Linux/mm/mempolicy.c
-===================================================================
---- Linux.orig/mm/mempolicy.c	2007-07-27 11:25:36.000000000 -0400
-+++ Linux/mm/mempolicy.c	2007-07-27 11:50:01.000000000 -0400
-@@ -184,7 +184,7 @@ static struct mempolicy *mpol_new(int mo
- 	case MPOL_INTERLEAVE:
- 		policy->v.nodes = *nodes;
- 		nodes_and(policy->v.nodes, policy->v.nodes,
--					node_states[N_MEMORY]);
-+					node_states[N_INTERLEAVE]);
- 		if (nodes_weight(policy->v.nodes) == 0) {
- 			kmem_cache_free(policy_cache, policy);
- 			return ERR_PTR(-EINVAL);
-@@ -1612,11 +1612,12 @@ void __init numa_policy_init(void)
- 
- 	/*
- 	 * Set interleaving policy for system init. Interleaving is only
--	 * enabled across suitably sized nodes (default is >= 16MB), or
--	 * fall back to the largest node if they're all smaller.
-+	 * enabled across suitably sized nodes (hard coded >= 16MB) on which
-+	 * interleaving is allowed  Fall back to the largest node if all
-+	 * allowable nodes are smaller than the hard coded limit.
- 	 */
- 	nodes_clear(interleave_nodes);
--	for_each_node_state(nid, N_MEMORY) {
-+	for_each_node_state(nid, N_INTERLEAVE) {
- 		unsigned long total_pages = node_present_pages(nid);
- 
- 		/* Preserve the largest node */
-Index: Linux/Documentation/kernel-parameters.txt
-===================================================================
---- Linux.orig/Documentation/kernel-parameters.txt	2007-07-25 09:29:48.000000000 -0400
-+++ Linux/Documentation/kernel-parameters.txt	2007-07-27 11:43:54.000000000 -0400
-@@ -1181,6 +1181,15 @@ and is between 256 and 4096 characters. 
- 	noinitrd	[RAM] Tells the kernel not to load any configured
- 			initial RAM disk.
- 
-+	no_interleave_nodes [KNL, BOOT] Specifies a list of nodes to exclude
-+			[remove] from any nodemask specified with the
-+			MPOL_INTERLEAVE policy.  Some platforms have nodes
-+			that are "special" in some way and should not be
-+			used for policy based interleaving.
-+			Format:  no_interleave_nodes=<NodeList>
-+			NodeList format is described in
-+				Documentation/filesystems/tmpfs.txt
++int res_counter_charge(struct res_counter *counter, unsigned long val)
++{
++	int ret;
++	unsigned long flags;
 +
- 	nointroute	[IA-64]
- 
- 	nojitter	[IA64] Disables jitter checking for ITC timers.
++	spin_lock_irqsave(&counter->lock, flags);
++	ret = res_counter_charge_locked(counter, val);
++	spin_unlock_irqrestore(&counter->lock, flags);
++	return ret;
++}
++
++void res_counter_uncharge_locked(struct res_counter *counter, unsigned long val)
++{
++	if (WARN_ON(counter->usage < val))
++		val = counter->usage;
++
++	counter->usage -= val;
++}
++
++void res_counter_uncharge(struct res_counter *counter, unsigned long val)
++{
++	unsigned long flags;
++
++	spin_lock_irqsave(&counter->lock, flags);
++	res_counter_uncharge_locked(counter, val);
++	spin_unlock_irqrestore(&counter->lock, flags);
++}
++
++
++static inline unsigned long *res_counter_member(struct res_counter *counter,
++						int member)
++{
++	switch (member) {
++	case RES_USAGE:
++		return &counter->usage;
++	case RES_LIMIT:
++		return &counter->limit;
++	case RES_FAILCNT:
++		return &counter->failcnt;
++	};
++
++	BUG();
++	return NULL;
++}
++
++ssize_t res_counter_read(struct res_counter *counter, int member,
++		const char __user *userbuf, size_t nbytes, loff_t *pos)
++{
++	unsigned long *val;
++	char buf[64], *s;
++
++	s = buf;
++	val = res_counter_member(counter, member);
++	s += sprintf(s, "%lu\n", *val);
++	return simple_read_from_buffer((void __user *)userbuf, nbytes,
++			pos, buf, s - buf);
++}
++
++ssize_t res_counter_write(struct res_counter *counter, int member,
++		const char __user *userbuf, size_t nbytes, loff_t *pos)
++{
++	int ret;
++	char *buf, *end;
++	unsigned long tmp, *val;
++
++	buf = kmalloc(nbytes + 1, GFP_KERNEL);
++	ret = -ENOMEM;
++	if (buf == NULL)
++		goto out;
++
++	buf[nbytes] = '\0';
++	ret = -EFAULT;
++	if (copy_from_user(buf, userbuf, nbytes))
++		goto out_free;
++
++	ret = -EINVAL;
++	tmp = simple_strtoul(buf, &end, 10);
++	if (*end != '\0')
++		goto out_free;
++
++	val = res_counter_member(counter, member);
++	*val = tmp;
++	ret = nbytes;
++out_free:
++	kfree(buf);
++out:
++	return ret;
++}
+_
 
+-- 
+	Warm Regards,
+	Balbir Singh
+	Linux Technology Center
+	IBM, ISTL
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
