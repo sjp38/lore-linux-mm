@@ -1,79 +1,47 @@
-Subject: [PATCH/RFC] Add MM_DEAD flag to struct mm_struct #3
-From: Benjamin Herrenschmidt <benh@kernel.crashing.org>
-In-Reply-To: <1185520398.5495.190.camel@localhost.localdomain>
-References: <1185501659.5495.174.camel@localhost.localdomain>
-	 <1185520398.5495.190.camel@localhost.localdomain>
-Content-Type: text/plain
-Date: Fri, 27 Jul 2007 18:09:44 +1000
-Message-Id: <1185523784.5495.202.camel@localhost.localdomain>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Date: Fri, 27 Jul 2007 09:20:46 +0100
+Subject: Re: NUMA policy issues with ZONE_MOVABLE
+Message-ID: <20070727082046.GA6301@skynet.ie>
+References: <Pine.LNX.4.64.0707242120370.3829@schroedinger.engr.sgi.com> <20070725111646.GA9098@skynet.ie> <Pine.LNX.4.64.0707251212300.8820@schroedinger.engr.sgi.com> <20070726132336.GA18825@skynet.ie> <Pine.LNX.4.64.0707261104360.2374@schroedinger.engr.sgi.com> <20070726225920.GA10225@skynet.ie> <Pine.LNX.4.64.0707261819530.18210@schroedinger.engr.sgi.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <Pine.LNX.4.64.0707261819530.18210@schroedinger.engr.sgi.com>
+From: mel@skynet.ie (Mel Gorman)
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm <linux-mm@kvack.org>
-Cc: Linux Kernel list <linux-kernel@vger.kernel.org>, "David S. Miller" <davem@davemloft.net>
+To: Christoph Lameter <clameter@sgi.com>
+Cc: linux-mm@kvack.org, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, ak@suse.de, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, akpm@linux-foundation.org, pj@sgi.com
 List-ID: <linux-mm.kvack.org>
 
-Some architectures like sparc can do useful optimizations when knowing
-that an entire MM is being destroyed. At the moment, they rely on
-fullmm in the mmu_gather structure. However, that doesn't always work
-out very well with some of the changes we are doing. Among other things,
-the TLB flushing on sparc64 is done using per-CPU tracking data, making
-the batch not per-CPU will break that link.
+On (26/07/07 18:22), Christoph Lameter didst pronounce:
+> On Thu, 26 Jul 2007, Mel Gorman wrote:
+> 
+> > Comments?
+> 
+> Lets go with the unconditional filtering and get rid of some of the per 
+> node zonelists?
 
-So instead, we add a new flag to struct mm_struct that indicates that
-the mm is going away, for those archs to use. It also allows to use it
-in situations (such as PTE ops) where the batch isn't accessible (or
-there is no batch)
+I would prefer to go with this for 2.6.23 and work on that for 2.6.24.
+The patch should be relatively straight-forward (I'll work on it today)
+but it would need wider testing than what I can do here, particularly on
+the larger machines that needed things like zlcache.
 
-Signed-off-by: Benjamin Herrenschmidt <benh@kernel.crashing.org>
----
+> We could f.e. merge the lists for ZONE_MOVABLE and 
+> ZONE_base_of_zone_movable?
 
-And because I really have shit in my eyes today, here's a version that
-doesn't use a bit already used for something else... yuck. 
+That will be fine for freelist management but a mess with respect to
+reclaim. I'd rather not go down that rathole.
 
-Thanks David !
+> That may increase the cacheability of the 
+> zonelists and reduce cache footprint.
 
-Index: linux-work/include/linux/sched.h
-===================================================================
---- linux-work.orig/include/linux/sched.h	2007-07-27 11:09:16.000000000 +1000
-+++ linux-work/include/linux/sched.h	2007-07-27 18:06:37.000000000 +1000
-@@ -366,6 +366,8 @@ extern int get_dumpable(struct mm_struct
- #define MMF_DUMP_FILTER_DEFAULT \
- 	((1 << MMF_DUMP_ANON_PRIVATE) |	(1 << MMF_DUMP_ANON_SHARED))
- 
-+#define MMF_DEAD          	6  /* mm is being destroyed */
-+
- struct mm_struct {
- 	struct vm_area_struct * mmap;		/* list of VMAs */
- 	struct rb_root mm_rb;
-Index: linux-work/mm/mmap.c
-===================================================================
---- linux-work.orig/mm/mmap.c	2007-07-27 11:09:52.000000000 +1000
-+++ linux-work/mm/mmap.c	2007-07-27 11:10:05.000000000 +1000
-@@ -1991,6 +1991,9 @@ void exit_mmap(struct mm_struct *mm)
- 	unsigned long nr_accounted = 0;
- 	unsigned long end;
- 
-+	/* Mark the MM as dead */
-+	__set_bit(MMF_DEAD, &mm->flags);
-+
- 	/* mm's last user has gone, and its about to be pulled down */
- 	arch_exit_mmap(mm);
- 
-Index: linux-work/kernel/fork.c
-===================================================================
---- linux-work.orig/kernel/fork.c	2007-07-27 16:12:30.000000000 +1000
-+++ linux-work/kernel/fork.c	2007-07-27 16:12:52.000000000 +1000
-@@ -336,6 +336,7 @@ static struct mm_struct * mm_init(struct
- 	INIT_LIST_HEAD(&mm->mmlist);
- 	mm->flags = (current->mm) ? current->mm->flags
- 				  : MMF_DUMP_FILTER_DEFAULT;
-+	__clear_bit(MMF_DEAD, &mm->flags);
- 	mm->core_waiters = 0;
- 	mm->nr_ptes = 0;
- 	set_mm_counter(mm, file_rss, 0);
+That should be the case. I'll work on the patch today and see what sort
+of results I get.
 
+-- 
+Mel Gorman
+Part-time Phd Student                          Linux Technology Center
+University of Limerick                         IBM Dublin Software Lab
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
