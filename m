@@ -1,118 +1,238 @@
-Received: from d23relay01.au.ibm.com (d23relay01.au.ibm.com [202.81.18.232])
-	by ausmtp05.au.ibm.com (8.13.8/8.13.8) with ESMTP id l6RKBpD24575456
-	for <linux-mm@kvack.org>; Sat, 28 Jul 2007 06:11:51 +1000
-Received: from d23av02.au.ibm.com (d23av02.au.ibm.com [9.190.250.243])
-	by d23relay01.au.ibm.com (8.13.8/8.13.8/NCO v8.4) with ESMTP id l6RK92wp247274
-	for <linux-mm@kvack.org>; Sat, 28 Jul 2007 06:09:02 +1000
-Received: from d23av02.au.ibm.com (loopback [127.0.0.1])
-	by d23av02.au.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l6RK9guu014508
-	for <linux-mm@kvack.org>; Sat, 28 Jul 2007 06:09:43 +1000
+Received: from sd0109e.au.ibm.com (d23rh905.au.ibm.com [202.81.18.225])
+	by ausmtp04.au.ibm.com (8.13.8/8.13.8) with ESMTP id l6RKCcp5213774
+	for <linux-mm@kvack.org>; Sat, 28 Jul 2007 06:12:38 +1000
+Received: from d23av04.au.ibm.com (d23av04.au.ibm.com [9.190.250.237])
+	by sd0109e.au.ibm.com (8.13.8/8.13.8/NCO v8.4) with ESMTP id l6RKDaPj138762
+	for <linux-mm@kvack.org>; Sat, 28 Jul 2007 06:13:36 +1000
+Received: from d23av04.au.ibm.com (loopback [127.0.0.1])
+	by d23av04.au.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l6RKA3aS025568
+	for <linux-mm@kvack.org>; Sat, 28 Jul 2007 06:10:03 +1000
 From: Balbir Singh <balbir@linux.vnet.ibm.com>
-Date: Sat, 28 Jul 2007 01:39:37 +0530
-Message-Id: <20070727200937.31565.78623.sendpatchset@balbir-laptop>
-Subject: [-mm PATCH 0/9] Memory controller introduction (v4)
+Date: Sat, 28 Jul 2007 01:39:58 +0530
+Message-Id: <20070727200958.31565.67575.sendpatchset@balbir-laptop>
+In-Reply-To: <20070727200937.31565.78623.sendpatchset@balbir-laptop>
+References: <20070727200937.31565.78623.sendpatchset@balbir-laptop>
+Subject: [-mm PATCH 2/9] Memory controller containers setup (v4)
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, Linux Containers <containers@lists.osdl.org>, YAMAMOTO Takashi <yamamoto@valinux.co.jp>, Paul Menage <menage@google.com>, Dave Hansen <haveblue@us.ibm.com>, Linux MM Mailing List <linux-mm@kvack.org>, Vaidyanathan Srinivasan <svaidy@linux.vnet.ibm.com>, Pavel Emelianov <xemul@openvz.org>, Dhaval Giani <dhaval@linux.vnet.ibm.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Eric W Biederman <ebiederm@xmission.com>
+Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux Containers <containers@lists.osdl.org>, YAMAMOTO Takashi <yamamoto@valinux.co.jp>, Paul Menage <menage@google.com>, Linux MM Mailing List <linux-mm@kvack.org>, Vaidyanathan Srinivasan <svaidy@linux.vnet.ibm.com>, Pavel Emelianov <xemul@openvz.org>, Dhaval Giani <dhaval@linux.vnet.ibm.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, Dave Hansen <haveblue@us.ibm.com>, Eric W Biederman <ebiederm@xmission.com>
 List-ID: <linux-mm.kvack.org>
 
-Here's version 4 of the memory controller.
+Changelong
+1. use depends instead of select in init/Kconfig
+2. Port to v11
+3. Clean up the usage of names (container files) for v11
 
-Changelog since version 3
+Setup the memory container and add basic hooks and controls to integrate
+and work with the container.
 
-1. Ported to v11 of the containers patchset (2.6.23-rc1-mm1). Paul Menage
-   helped immensely with a detailed review of v3
-2. Reclaim is retried to allow reclaim of pages coming in as a result
-   of mapped pages reclaim (swap cache growing as a result of RSS reclaim)
-3. page_referenced() is now container aware. During container reclaim,
-   references from other containers do not prevent a page from being
-   reclaimed from a non-referencing container
-4. Fixed a possible race condition spotted by YAMAMOTO Takashi
+Signed-off-by: <balbir@linux.vnet.ibm.com>
+---
 
-Changelog since version 2
+ include/linux/container_subsys.h |    6 +
+ include/linux/memcontrol.h       |   21 ++++++
+ init/Kconfig                     |    7 ++
+ mm/Makefile                      |    1 
+ mm/memcontrol.c                  |  127 +++++++++++++++++++++++++++++++++++++++
+ 5 files changed, 162 insertions(+)
 
-1. Improved error handling in mm/memory.c (spotted by YAMAMOTO Takashi)
-2. Test results included
-3. try_to_free_mem_container_pages() bug fix (sc->may_writepage is now
-   set to !laptop_mode)
-
-Changelog since version 1
-
-1. Fixed some compile time errors (in mm/migrate.c from Vaidyanathan S)
-2. Fixed a panic seen when LIST_DEBUG is enabled
-3. Added a mechanism to control whether we track page cache or both
-   page cache and mapped pages (as requested by Pavel)
-4. Dave Hansen provided detail review comments on the code.
-
-This patchset implements another version of the memory controller. These
-patches have been through a big churn, the first set of patches were posted
-last year and earlier this year at
-	http://lkml.org/lkml/2007/2/19/10
-
-This patchset draws from the patches listed above and from some of the
-contents of the patches posted by Vaidyanathan for page cache control.
-	http://lkml.org/lkml/2007/6/20/92
-
-At OLS, the resource management BOF, it was discussed that we need to manage
-RSS and unmapped page cache together. This patchset is a step towards that
-
-TODO's
-
-1. Add memory controller water mark support. Reclaim on high water mark
-2. Add support for shrinking on limit change
-3. Add per zone per container LRU lists (this is being actively worked
-   on by Pavel Emelianov)
-4. Figure out a better CLUI for the controller
-5. Add better statistics
-6. Explore using read_unit64() as recommended by Paul Menage
-   (NOTE: read_ulong() would also be nice to have)
-
-In case you have been using/testing the RSS controller, you'll find that
-this controller works slower than the RSS controller. The reason being
-that both swap cache and page cache is accounted for, so pages do go
-out to swap upon reclaim (they cannot live in the swap cache).
-
-Any test output, feedback, comments, suggestions are welcome! I am committed
-to fixing any bugs and improving the performance of the memory controller.
-Do not hesitate to send any fixes, request for fixes that is required.
-
-Using the patches
-
-1. Enable Memory controller configuration
-2. Compile and boot the new kernel
-3. mount -t container container -o mem_container /container
-   will mount the memory controller to the /container mount point
-4. mkdir /container/a
-5. echo $$ > /container/a/tasks (add tasks to the new container)
-6. echo -n <num_pages> > /container/a/mem_limit
-   example
-   echo -n 204800 > /container/a/mem_limit, sets the limit to 800 MB
-   on a system with 4K page size
-7. run tasks, see the memory controller work
-8. Report results, provide feedback
-9. Develop/use new patches and go to step 1
-
-Test Results
-
-Results for version 3 of the patch were posted at
-http://lwn.net/Articles/242554/
-
-The code was also tested on a power box with regular machine usage scenarios,
-the config disabled and with a stress suite that touched all the memory
-in the system and was limited in a container.
-
-series
-
-res_counters_infra.patch
-mem-control-setup.patch
-mem-control-accounting-setup.patch
-mem-control-accounting.patch
-mem-control-task-migration.patch
-mem-control-lru-and-reclaim.patch
-mem-control-out-of-memory.patch
-mem-control-choose-rss-vs-rss-and-pagecache.patch
-mem-control-per-container-page-referenced.patch
+diff -puN include/linux/container_subsys.h~mem-control-setup include/linux/container_subsys.h
+--- linux-2.6.23-rc1-mm1/include/linux/container_subsys.h~mem-control-setup	2007-07-28 01:12:49.000000000 +0530
++++ linux-2.6.23-rc1-mm1-balbir/include/linux/container_subsys.h	2007-07-28 01:12:49.000000000 +0530
+@@ -30,3 +30,9 @@ SUBSYS(ns)
+ #endif
+ 
+ /* */
++
++#ifdef CONFIG_CONTAINER_MEM_CONT
++SUBSYS(mem_container)
++#endif
++
++/* */
+diff -puN /dev/null include/linux/memcontrol.h
+--- /dev/null	2007-06-01 20:42:04.000000000 +0530
++++ linux-2.6.23-rc1-mm1-balbir/include/linux/memcontrol.h	2007-07-28 01:12:49.000000000 +0530
+@@ -0,0 +1,21 @@
++/* memcontrol.h - Memory Controller
++ *
++ * Copyright IBM Corporation, 2007
++ * Author Balbir Singh <balbir@linux.vnet.ibm.com>
++ *
++ * This program is free software; you can redistribute it and/or modify
++ * it under the terms of the GNU General Public License as published by
++ * the Free Software Foundation; either version 2 of the License, or
++ * (at your option) any later version.
++ *
++ * This program is distributed in the hope that it will be useful,
++ * but WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++ * GNU General Public License for more details.
++ */
++
++#ifndef _LINUX_MEMCONTROL_H
++#define _LINUX_MEMCONTROL_H
++
++#endif /* _LINUX_MEMCONTROL_H */
++
+diff -puN init/Kconfig~mem-control-setup init/Kconfig
+--- linux-2.6.23-rc1-mm1/init/Kconfig~mem-control-setup	2007-07-28 01:12:49.000000000 +0530
++++ linux-2.6.23-rc1-mm1-balbir/init/Kconfig	2007-07-28 01:12:49.000000000 +0530
+@@ -357,6 +357,13 @@ config CONTAINER_NS
+           for instance virtual servers and checkpoint/restart
+           jobs.
+ 
++config CONTAINER_MEM_CONT
++	bool "Memory controller for containers"
++	depends on CONTAINERS && RESOURCE_COUNTERS
++	help
++	  Provides a memory controller that manages both page cache and
++	  RSS memory.
++
+ config PROC_PID_CPUSET
+ 	bool "Include legacy /proc/<pid>/cpuset file"
+ 	depends on CPUSETS
+diff -puN mm/Makefile~mem-control-setup mm/Makefile
+--- linux-2.6.23-rc1-mm1/mm/Makefile~mem-control-setup	2007-07-28 01:12:49.000000000 +0530
++++ linux-2.6.23-rc1-mm1-balbir/mm/Makefile	2007-07-28 01:12:49.000000000 +0530
+@@ -30,4 +30,5 @@ obj-$(CONFIG_FS_XIP) += filemap_xip.o
+ obj-$(CONFIG_MIGRATION) += migrate.o
+ obj-$(CONFIG_SMP) += allocpercpu.o
+ obj-$(CONFIG_QUICKLIST) += quicklist.o
++obj-$(CONFIG_CONTAINER_MEM_CONT) += memcontrol.o
+ 
+diff -puN /dev/null mm/memcontrol.c
+--- /dev/null	2007-06-01 20:42:04.000000000 +0530
++++ linux-2.6.23-rc1-mm1-balbir/mm/memcontrol.c	2007-07-28 01:12:49.000000000 +0530
+@@ -0,0 +1,127 @@
++/* memcontrol.c - Memory Controller
++ *
++ * Copyright IBM Corporation, 2007
++ * Author Balbir Singh <balbir@linux.vnet.ibm.com>
++ *
++ * This program is free software; you can redistribute it and/or modify
++ * it under the terms of the GNU General Public License as published by
++ * the Free Software Foundation; either version 2 of the License, or
++ * (at your option) any later version.
++ *
++ * This program is distributed in the hope that it will be useful,
++ * but WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++ * GNU General Public License for more details.
++ */
++
++#include <linux/res_counter.h>
++#include <linux/memcontrol.h>
++#include <linux/container.h>
++
++struct container_subsys mem_container_subsys;
++
++/*
++ * The memory controller data structure. The memory controller controls both
++ * page cache and RSS per container. We would eventually like to provide
++ * statistics based on the statistics developed by Rik Van Riel for clock-pro,
++ * to help the administrator determine what knobs to tune.
++ *
++ * TODO: Add a water mark for the memory controller. Reclaim will begin when
++ * we hit the water mark.
++ */
++struct mem_container {
++	struct container_subsys_state css;
++	/*
++	 * the counter to account for memory usage
++	 */
++	struct res_counter res;
++};
++
++/*
++ * A meta page is associated with every page descriptor. The meta page
++ * helps us identify information about the container
++ */
++struct meta_page {
++	struct list_head lru;		/* per container LRU list */
++	struct page *page;
++	struct mem_container *mem_container;
++};
++
++
++static inline
++struct mem_container *mem_container_from_cont(struct container *cont)
++{
++	return container_of(container_subsys_state(cont,
++				mem_container_subsys_id), struct mem_container,
++				css);
++}
++
++static ssize_t mem_container_read(struct container *cont, struct cftype *cft,
++			struct file *file, char __user *userbuf, size_t nbytes,
++			loff_t *ppos)
++{
++	return res_counter_read(&mem_container_from_cont(cont)->res,
++				cft->private, userbuf, nbytes, ppos);
++}
++
++static ssize_t mem_container_write(struct container *cont, struct cftype *cft,
++				struct file *file, const char __user *userbuf,
++				size_t nbytes, loff_t *ppos)
++{
++	return res_counter_write(&mem_container_from_cont(cont)->res,
++				cft->private, userbuf, nbytes, ppos);
++}
++
++static struct cftype mem_container_files[] = {
++	{
++		.name = "usage",
++		.private = RES_USAGE,
++		.read = mem_container_read,
++	},
++	{
++		.name = "limit",
++		.private = RES_LIMIT,
++		.write = mem_container_write,
++		.read = mem_container_read,
++	},
++	{
++		.name = "failcnt",
++		.private = RES_FAILCNT,
++		.read = mem_container_read,
++	},
++};
++
++static struct container_subsys_state *
++mem_container_create(struct container_subsys *ss, struct container *cont)
++{
++	struct mem_container *mem;
++
++	mem = kzalloc(sizeof(struct mem_container), GFP_KERNEL);
++	if (!mem)
++		return -ENOMEM;
++
++	res_counter_init(&mem->res);
++	return &mem->css;
++}
++
++static void mem_container_destroy(struct container_subsys *ss,
++				struct container *cont)
++{
++	kfree(mem_container_from_cont(cont));
++}
++
++static int mem_container_populate(struct container_subsys *ss,
++				struct container *cont)
++{
++	return container_add_files(cont, ss, mem_container_files,
++					ARRAY_SIZE(mem_container_files));
++}
++
++struct container_subsys mem_container_subsys = {
++	.name = "memory",
++	.subsys_id = mem_container_subsys_id,
++	.create = mem_container_create,
++	.destroy = mem_container_destroy,
++	.populate = mem_container_populate,
++	.early_init = 0,
++};
+_
 
 -- 
 	Warm Regards,
