@@ -1,50 +1,44 @@
-Date: Fri, 27 Jul 2007 07:54:07 +0200
-From: Nick Piggin <npiggin@suse.de>
-Subject: Re: [patch][rfc] remove ZERO_PAGE?
-Message-ID: <20070727055406.GA22581@wotan.suse.de>
-References: <20070727021943.GD13939@wotan.suse.de> <alpine.LFD.0.999.0707262226420.3442@woody.linux-foundation.org>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <alpine.LFD.0.999.0707262226420.3442@woody.linux-foundation.org>
+Message-ID: <46A98A14.3040300@gmail.com>
+Date: Fri, 27 Jul 2007 08:00:52 +0200
+From: Rene Herman <rene.herman@gmail.com>
+MIME-Version: 1.0
+Subject: Re: updatedb
+References: <367a23780707250830i20a04a60n690e8da5630d39a9@mail.gmail.com>	 <46A773EA.5030103@gmail.com>	 <a491f91d0707251015x75404d9fld7b3382f69112028@mail.gmail.com>	 <46A81C39.4050009@gmail.com>	 <7e0bae390707252323k2552c701x5673c55ff2cf119e@mail.gmail.com> <9a8748490707261746p638e4a98p3cdb7d9912af068a@mail.gmail.com>
+In-Reply-To: <9a8748490707261746p638e4a98p3cdb7d9912af068a@mail.gmail.com>
+Content-Type: text/plain; charset=ISO-8859-15; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hugh@veritas.com>, Andrea Arcangeli <andrea@suse.de>, Linux Memory Management List <linux-mm@kvack.org>
+To: Jesper Juhl <jesper.juhl@gmail.com>
+Cc: Andika Triwidada <andika@gmail.com>, Robert Deaton <false.hopes@gmail.com>, linux-kernel@vger.kernel.org, ck list <ck@vds.kolivas.org>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Jul 26, 2007 at 10:29:01PM -0700, Linus Torvalds wrote:
+On 07/27/2007 02:46 AM, Jesper Juhl wrote:
+
+> On 26/07/07, Andika Triwidada <andika@gmail.com> wrote:
+
+>> Might be insignificant, but updatedb calls find (~2M) and sort (~26M). 
+>> Definitely not RAM intensive though (RAM is 1GB).
 > 
-> 
-> On Fri, 27 Jul 2007, Nick Piggin wrote:
-> > 
-> > I'd like to see if we can get the ball rolling on this again, and try to
-> > get it in 2.6.24 maybe. Any comments?
-> 
-> I'd really want real performance numbers. I don't like the "remove it 
-> because I don't like it". I want real numbers for real loads before I'm 
-> really interested.
+> That doesn't match my box at all :
 
-What numbers, though? I can make up benchmarks to show that ZERO_PAGE
-sucks just as much. The problem I don't think is finding a situatoin that
-improves without it (we have an extreme case where the Altix livelocked)
-but to get confidence that nothing is going to blow up.
+[ ... ]
 
- 
-> Last time this came up, the logic behind wanting to remove the zero page 
-> was all screwed up, and it was all based on totally broken premises. So I 
-> really want somethign else than just "I don't like it".
+> This is a Slackware Linux 12.0 system.
 
-I thought that last time this came up you thought it might be good to
-try out in -mm initially.
+Yes, already identified that there are more updatedb's around. We are using 
+"Secure Locate" and others simply the locate from the GNU findutils. Either 
+version does not itself use significant memory though and seems irrelevant 
+to the orginal swap-prefetch issue -- if updatedb filled memory with inodes 
+and dentries the memory is no longer free and swap-prefetch can't prefetch 
+anything.
 
- 
-> Sorry. In the absense of numbers (and not just some made-up branchmark: 
-> something real - I can _easily_ make benchmarks that show that ZERO_PAGE 
-> is wonderful), I'm not at all interested.
+The remaining issue of updatedb unnecessarily blowing away VFS caches is 
+being discussed (*) in a few thread-branches still running.
 
-OK, well what numbers would you like to see? I can always try a few
-things.
+Rene.
+
+(*) I so much wanted to say "buried".
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
