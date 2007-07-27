@@ -1,234 +1,141 @@
-Date: Fri, 27 Jul 2007 10:18:46 -0700
-From: Randy Dunlap <randy.dunlap@oracle.com>
-Subject: Re: [RFC][Doc] memory hotplug documentaion take 2.
-Message-Id: <20070727101846.19f01671.randy.dunlap@oracle.com>
-In-Reply-To: <20070727230204.E920.Y-GOTO@jp.fujitsu.com>
-References: <20070727230204.E920.Y-GOTO@jp.fujitsu.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Date: Fri, 27 Jul 2007 10:35:39 -0700 (PDT)
+From: Christoph Lameter <clameter@sgi.com>
+Subject: Re: NUMA policy issues with ZONE_MOVABLE
+In-Reply-To: <20070727154519.GA21614@skynet.ie>
+Message-ID: <Pine.LNX.4.64.0707271026040.15990@schroedinger.engr.sgi.com>
+References: <Pine.LNX.4.64.0707242120370.3829@schroedinger.engr.sgi.com>
+ <20070725111646.GA9098@skynet.ie> <Pine.LNX.4.64.0707251212300.8820@schroedinger.engr.sgi.com>
+ <20070726132336.GA18825@skynet.ie> <Pine.LNX.4.64.0707261104360.2374@schroedinger.engr.sgi.com>
+ <20070726225920.GA10225@skynet.ie> <Pine.LNX.4.64.0707261819530.18210@schroedinger.engr.sgi.com>
+ <20070727082046.GA6301@skynet.ie> <20070727154519.GA21614@skynet.ie>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Yasunori Goto <y-goto@jp.fujitsu.com>
-Cc: linux-mm <linux-mm@kvack.org>, Linux Kernel ML <linux-kernel@vger.kernel.org>, Hiroyuki KAMEZAWA <kamezawa.hiroyu@jp.fujitsu.com>
+To: Mel Gorman <mel@skynet.ie>
+Cc: linux-mm@kvack.org, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, ak@suse.de, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, akpm@linux-foundation.org, pj@sgi.com
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 27 Jul 2007 23:07:45 +0900 Yasunori Goto wrote:
+On Fri, 27 Jul 2007, Mel Gorman wrote:
 
-> Change log from take 1.
-> - updates against comments from Randy-san (Thanks a lot!)
-> - mention about physical/logical phase of hotplug.
->   change sections for it.
-> - add description of kernel config option.
-> - add description of relationship against ACPI node-hotplug.
-> - make patch style.
-> - etc.
+> This was fairly straight-forward but I wouldn't call it a bug fix for 2.6.23
+> for the policys + ZONE_MOVABLE issue; I still prefer the last patch for
+> the fix.
 > 
+> This patch uses one zonelist per node and filters based on a gfp_mask where
+> necessary. It consumes less memory and reduces cache pressure at the cost
+> of CPU. It also adds a zone_id field to struct zone as zone_idx is used more
+> than it was previously.
 > 
-> -------
->  Documentation/memory-hotplug.txt |  322 +++++++++++++++++++++++++++++++++++++++
->  1 files changed, 322 insertions(+)
+> Performance differences on kernbench for Total CPU time ranged from
+> -0.06% to +1.19%.
+
+Performance is equal otherwise?
+ 
+> Obvious things that are outstanding;
 > 
-> Index: makedocument/Documentation/memory-hotplug.txt
-> ===================================================================
-> --- /dev/null	1970-01-01 00:00:00.000000000 +0000
-> +++ makedocument/Documentation/memory-hotplug.txt	2007-07-27 22:31:11.000000000 +0900
-> @@ -0,0 +1,322 @@
-> +==============
-> +Memory Hotplug
-> +==============
-> +
-> +Last Updated: Jul 27 2007
-> +
-...
-> +
-> +Note(1): x86_64's has special implementation for memory hotplug.
-> +         This test does not describe it.
+> o Compile-test parisc
+> o Split patch in two to keep the zone_idx changes separetly
+> o Verify zlccache is not broken
+> o Have a version of __alloc_pages take a nodemask and ditch
+>   bind_zonelist()
 
-                 text (?)
+Yeah. I think the NUMA folks would love this but the rest of the 
+developers may object.
 
-> +Note(2): This text assumes that sysfs is mounted at /sys.
-> +
-> +
-> +---------------
-> +1. Introduction
-> +---------------
-> +
-...
-> +
-> +
-> +1.2. Phases of memory hotplug
-> +---------------
-> +There are 2 phases in Memory Hotplug.
-> +  1) Physical Memory Hotplug phase
-> +  2) Logical Memory Hotplug phase.
-> +
-> +The First phase is to communicate hardware/firmware and make/erase
-> +environment for hotplugged memory. Basically, this phase is necessary
-> +for the purpose (B), but this is good phase for communication between
-> +highly virtulaized environments too.
+> I can work on bringing this up to scratch during the cycle.
+> 
+> Patch as follows. Comments?
 
-          virtualized
+Glad to see some movement in this area. 
 
+> index bc68dd9..f2a597e 100644
+> --- a/include/linux/gfp.h
+> +++ b/include/linux/gfp.h
+> @@ -116,6 +116,13 @@ static inline enum zone_type gfp_zone(gfp_t flags)
+>  	return ZONE_NORMAL;
+>  }
+>  
+> +static inline int should_filter_zone(struct zone *zone, int highest_zoneidx)
+> +{
+> +	if (zone_idx(zone) > highest_zoneidx)
+> +		return 1;
+> +	return 0;
+> +}
 > +
-> +When memory is hotplugged, the kernel recognizes new memory, makes new memory
-> +management tables, and makes sysfs files for new memory's operation.
+
+I think this should_filter() creates more overhead than which it saves. In 
+particular true for configurations with a small number of zones like SMP 
+systems. For large NUMA systems the cache savings will likely may it 
+beneficial.
+
+Simply filter all.
+
+> @@ -258,7 +258,7 @@ static inline void mpol_fix_fork_child_flag(struct task_struct *p)
+>  static inline struct zonelist *huge_zonelist(struct vm_area_struct *vma,
+>  		unsigned long addr, gfp_t gfp_flags)
+>  {
+> -	return NODE_DATA(0)->node_zonelists + gfp_zone(gfp_flags);
+> +	return &NODE_DATA(0)->node_zonelist;
+>  }
+
+These modifications look good in terrms of code size reduction.
+
+> @@ -438,7 +439,7 @@ extern struct page *mem_map;
+>  struct bootmem_data;
+>  typedef struct pglist_data {
+>  	struct zone node_zones[MAX_NR_ZONES];
+> -	struct zonelist node_zonelists[MAX_NR_ZONES];
+> +	struct zonelist node_zonelist;
+
+Looks like a significant memory savings on 1024 node numa. zonelist has
+#define MAX_ZONES_PER_ZONELIST (MAX_NUMNODES * MAX_NR_ZONES)
+zones.
+
+> @@ -185,11 +186,15 @@ static inline int constrained_alloc(struct zonelist *zonelist, gfp_t gfp_mask)
+>  		if (NODE_DATA(node)->node_present_pages)
+>  			node_set(node, nodes);
+>  
+> -	for (z = zonelist->zones; *z; z++)
+> +	for (z = zonelist->zones; *z; z++) {
 > +
-> +If firmware supports notification of connection of new memory to OS,
-> +this phase is triggered automatically. ACPI can notify this event. If not,
-> +"probe" operation by system administration works instead of it.
+> +		if (should_filter_zone(*z, highest_zoneidx))
+> +			continue;
 
-                                              is used instead.
+Huh? Why do you need it here? Note that this code is also going away with 
+the memoryless node patch. We can use the nodes with memory nodemask here.
 
-> +(see Section 4.).
+> diff --git a/mm/slub.c b/mm/slub.c
+> index 9b2d617..a020a12 100644
+> --- a/mm/slub.c
+> +++ b/mm/slub.c
+> @@ -1276,6 +1276,7 @@ static struct page *get_any_partial(struct kmem_cache *s, gfp_t flags)
+>  	struct zonelist *zonelist;
+>  	struct zone **z;
+>  	struct page *page;
+> +	enum zone_type highest_zoneidx = gfp_zone(flags);
+>  
+>  	/*
+>  	 * The defrag ratio allows a configuration of the tradeoffs between
+> @@ -1298,11 +1299,13 @@ static struct page *get_any_partial(struct kmem_cache *s, gfp_t flags)
+>  	if (!s->defrag_ratio || get_cycles() % 1024 > s->defrag_ratio)
+>  		return NULL;
+>  
+> -	zonelist = &NODE_DATA(slab_node(current->mempolicy))
+> -					->node_zonelists[gfp_zone(flags)];
+> +	zonelist = &NODE_DATA(slab_node(current->mempolicy))->node_zonelist;
+>  	for (z = zonelist->zones; *z; z++) {
+>  		struct kmem_cache_node *n;
+>  
+> +		if (should_filter_zone(*z, highest_zoneidx))
+> +			continue;
 > +
-> +Logical Memory Hotplug phase is to change memory state into
-> +avaiable/unavailable for users. Amount of memory from user's view is
-> +changed by this phase. The kernel makes all memory in it as free pages
-> +when a memory range is into available.
+>  		n = get_node(s, zone_to_nid(*z));
+>  
+>  		if (n && cpuset_zone_allowed_hardwall(*z, flags) &&
 
-                          ?? drop "into" ?
-or is a memory range always available?  Confusing.
-
-> +
-> +In this document, this phase is described online/offline.
-
-                                   described as online/offline.
-
-> +
-> +Logical Memory Hotplug phase is trigged by write of sysfs file by system
-
-                                   triggered
-
-> +administrator. When hot-add case, it must be executed after Physical Hotplug
-
-                  For the hot-add case,
-
-> +phase by hand.
-> +(However, if you writes udev's hotplug scripts for memory hotplug, these
-> + phases can be execute in seamless way.)
-> +
-> +
-> +1.3. Unit of Memory online/offline operation
-> +------------
-> +Memory hotplug uses SPARSEMEM memory model. SPARSEMEM divides the whole memory
-> +into chunks of the same size. The chunk is called a "section". The size of
-> +a section is architecture dependent. For example, power uses 16MiB, ia64 uses
-> +1GiB. The unit of online/offline operation is "one section". (see Section 3.)
-> +
-> +To know the size of sections, please read this file:
-
-   To determine the size ...
-
-> +
-> +/sys/devices/system/memory/block_size_bytes
-> +
-> +This file shows the size of sections in byte.
-> +
-> +-----------------------
-> +2. Kernel Configuration
-> +-----------------------
-> +To use memory hotplug feature, kernel must be compiled with following
-> +config options.
-> +
-> +- For all memory hotplug
-> +    Memory model -> Sparse Memory  (CONFIG_SPARSEMEM)
-> +    Allow for memory hot-add       (CONFIG_MEMORY_HOTPLUG)
-> +
-> +- For using remove memory, followings are necessary too
-
-     To enable memory removal, the following are also necessary
-
-> +    Allow for memory hot remove    (CONFIG_MEMORY_HOTREMOVE)
-> +    Page Migration                 (CONFIG_MIGRATION)
-> +
-> +- For ACPI memory hotplug, followings are necessary too
-
-                              the following are also necessary
-
-> +    Memory hotplug (under ACPI Support menu) (CONFIG_ACPI_HOTPLUG_MEMORY)
-> +    This option can be kernel module.
-> +
-> +- As a related configuration, if your box has a feature of NUMA-node hotplug
-> +  via ACPI, then this option is necessary too.
-> +    ACPI0004,PNP0A05 and PNP0A06 Container Driver (under ACPI Support menu)
-> +    (CONFIG_ACPI_CONTAINER).
-> +    This option can be kernel module too.
-> + 
-> +--------------------------------
-> +3 sysfs files for memory hotplug
-> +--------------------------------
-> +All sections have their device information under /sys/devices/system/memory as
-> +
-> +/sys/devices/system/memory/memoryXXX
-> +(XXX is section id.)
-> +
-> +Now, XXX is defined as start_address_of_section / secion_size.
-
-                                                     section_size.
-
-> +
-> +For example, assume 1GiB section size. A device for a memory starts from address
-
-                                                   for memory starting at
-
-> +0x100000000 is /sys/device/system/memory/memory4
-> +(0x100000000 / 1Gib = 4)
-> +This device covers address range [0x100000000 ... 0x140000000)
-> +
-> +Under each section, you can see 3 files.
-> +
-> +/sys/devices/system/memory/memoryXXX/phys_index
-> +/sys/devices/system/memory/memoryXXX/phys_device
-> +/sys/devices/system/memory/memoryXXX/state
-> +
-> +'phys_index' : read-only and contains section id, same as XXX.
-> +'state'      : read-write
-> +               at read:  contains online/offline state of memory.
-> +               at write: user can specify "online", "offline" command
-> +'phys_device': read-only: designed to show the name of physical memory device.
-> +               This is not well implemented now.
-> +
-> +NOTE: 
-> +  These directories/files appear after physical memory hotplug phase.
-> +
-> +
-> +--------------------------------
-> +4. Physical memory hot-add phase
-> +--------------------------------
-> +
-> +4.1 Hardware(Firmware) Support
-> +------------
-> +On x86_64/ia64 platform, memory hotplug by ACPI is supported.
-> +
-> +In general, the firmware (ACPI) which supports memory hotplug defines
-> +memory class object of _HID "PNP0C80". When a notify is asserted to PNP0C80,
-> +Linux's ACPI handler does hot-add memory to the system and calls a hotplug udev
-> +script. This will be done in automatically.
-
-                             drop "in"
-
-> +
-> +But scripts for memory hotplug are not contained in generic udev package(now).
-> +You may have to write it by yourself or online/offline memory by hand.
-> +Please see "How to online memory", "How to offline memory" in this text.
-> +
-> +If firmware supports NUMA-node hotplug, and define object of _HID "ACPI0004",
-
-                                               defines an object
-
-> +"PNP0A05", or "PNP0A06", notification is asserted to it, and ACPI hander
-
-                                                                     handler
-
-> +calls hotplug code for all of objects which are defined in it.
-> +If memory device is found, memory hotplug code will be called.
-
-...
-
----
-~Randy
-*** Remember to use Documentation/SubmitChecklist when testing your code ***
+Isnt there some way to fold these traversals into a common page allocator 
+function?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
