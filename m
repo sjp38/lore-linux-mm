@@ -1,767 +1,159 @@
-Received: from d23relay01.au.ibm.com (d23relay01.au.ibm.com [202.81.18.232])
-	by ausmtp06.au.ibm.com (8.13.8/8.13.8) with ESMTP id l6RKDCkM5816560
-	for <linux-mm@kvack.org>; Sat, 28 Jul 2007 06:13:12 +1000
-Received: from d23av02.au.ibm.com (d23av02.au.ibm.com [9.190.250.243])
-	by d23relay01.au.ibm.com (8.13.8/8.13.8/NCO v8.4) with ESMTP id l6RK9kHa210666
-	for <linux-mm@kvack.org>; Sat, 28 Jul 2007 06:09:46 +1000
-Received: from d23av02.au.ibm.com (loopback [127.0.0.1])
-	by d23av02.au.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l6RKAQVD015229
-	for <linux-mm@kvack.org>; Sat, 28 Jul 2007 06:10:27 +1000
+Received: from sd0109e.au.ibm.com (d23rh905.au.ibm.com [202.81.18.225])
+	by ausmtp05.au.ibm.com (8.13.8/8.13.8) with ESMTP id l6RKD7SF5603384
+	for <linux-mm@kvack.org>; Sat, 28 Jul 2007 06:13:07 +1000
+Received: from d23av03.au.ibm.com (d23av03.au.ibm.com [9.190.250.244])
+	by sd0109e.au.ibm.com (8.13.8/8.13.8/NCO v8.4) with ESMTP id l6RKEWq1160248
+	for <linux-mm@kvack.org>; Sat, 28 Jul 2007 06:14:32 +1000
+Received: from d23av03.au.ibm.com (loopback [127.0.0.1])
+	by d23av03.au.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l6RKAwQp015130
+	for <linux-mm@kvack.org>; Sat, 28 Jul 2007 06:10:59 +1000
 From: Balbir Singh <balbir@linux.vnet.ibm.com>
-Date: Sat, 28 Jul 2007 01:40:18 +0530
-Message-Id: <20070727201018.31565.42132.sendpatchset@balbir-laptop>
+Date: Sat, 28 Jul 2007 01:40:53 +0530
+Message-Id: <20070727201053.31565.49306.sendpatchset@balbir-laptop>
 In-Reply-To: <20070727200937.31565.78623.sendpatchset@balbir-laptop>
 References: <20070727200937.31565.78623.sendpatchset@balbir-laptop>
-Subject: [-mm PATCH 4/9] Memory controller memory accounting (v4)
+Subject: [-mm PATCH 7/9] Memory controller OOM handling (v4)
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, Linux Containers <containers@lists.osdl.org>, YAMAMOTO Takashi <yamamoto@valinux.co.jp>, Paul Menage <menage@google.com>, Eric W Biederman <ebiederm@xmission.com>, Linux MM Mailing List <linux-mm@kvack.org>, Vaidyanathan Srinivasan <svaidy@linux.vnet.ibm.com>, Pavel Emelianov <xemul@openvz.org>, Dhaval Giani <dhaval@linux.vnet.ibm.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, Dave Hansen <haveblue@us.ibm.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
+Cc: Paul Menage <menage@google.com>, Linux Containers <containers@lists.osdl.org>, YAMAMOTO Takashi <yamamoto@valinux.co.jp>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Eric W Biederman <ebiederm@xmission.com>, Linux MM Mailing List <linux-mm@kvack.org>, Vaidyanathan Srinivasan <svaidy@linux.vnet.ibm.com>, Pavel Emelianov <xemul@openvz.org>, Dhaval Giani <dhaval@linux.vnet.ibm.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, Dave Hansen <haveblue@us.ibm.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-Changelog for v3
+From: Pavel Emelianov <xemul@openvz.org>
 
-1. Fix a probable leak with meta_page's (pointed out by Paul Menage)
-2. Introduce a wrapper around mem_container_uncharge for uncharging pages
-   mem_container_uncharge_page()
+Out of memory handling for containers over their limit. A task from the
+container over limit is chosen using the existing OOM logic and killed.
 
-Changelog
+TODO:
+1. As discussed in the OLS BOF session, consider implementing a user
+space policy for OOM handling.
 
-1. Improved error handling, uncharge on errors and check to see if we are
-   leaking pages (review by YAMAMOTO Takashi)
+Signed-off-by: Pavel Emelianov <xemul@openvz.org>
 
-Add the accounting hooks. The accounting is carried out for RSS and Page
-Cache (unmapped) pages. There is now a common limit and accounting for both.
-The RSS accounting is accounted at page_add_*_rmap() and page_remove_rmap()
-time. Page cache is accounted at add_to_page_cache(),
-__delete_from_page_cache(). Swap cache is also accounted for.
-
-Each page's meta_page is protected with a bit in page flags, this makes
-handling of race conditions involving simultaneous mappings of a page easier.
-A reference count is kept in the meta_page to deal with cases where a page
-might be unmapped from the RSS of all tasks, but still lives in the page
-cache.
-
-Credits go to Vaidyanathan Srinivasan for helping with reference counting work
-of the meta page. Almost all of the page cache accounting code has help from
-Vaidyanathan Srinivasan.
-
-Signed-off-by: Vaidyanathan Srinivasan <svaidy@linux.vnet.ibm.com>
 Signed-off-by: <balbir@linux.vnet.ibm.com>
 ---
 
- include/linux/memcontrol.h |   20 ++++++
- include/linux/page-flags.h |    3 
- mm/filemap.c               |   12 +++
- mm/memcontrol.c            |  139 ++++++++++++++++++++++++++++++++++++++++++++-
- mm/memory.c                |   44 ++++++++++++--
- mm/migrate.c               |    6 +
- mm/page_alloc.c            |    3 
- mm/rmap.c                  |   16 ++++-
- mm/swap_state.c            |   12 +++
- mm/swapfile.c              |   40 +++++++-----
- 10 files changed, 270 insertions(+), 25 deletions(-)
+ include/linux/memcontrol.h |    1 +
+ mm/memcontrol.c            |    1 +
+ mm/oom_kill.c              |   42 ++++++++++++++++++++++++++++++++++++++----
+ 3 files changed, 40 insertions(+), 4 deletions(-)
 
-diff -puN include/linux/memcontrol.h~mem-control-accounting include/linux/memcontrol.h
---- linux-2.6.23-rc1-mm1/include/linux/memcontrol.h~mem-control-accounting	2007-07-28 01:12:49.000000000 +0530
-+++ linux-2.6.23-rc1-mm1-balbir/include/linux/memcontrol.h	2007-07-28 01:12:49.000000000 +0530
-@@ -29,6 +29,13 @@ extern void mm_init_container(struct mm_
- extern void mm_free_container(struct mm_struct *mm);
- extern void page_assign_meta_page(struct page *page, struct meta_page *mp);
- extern struct meta_page *page_get_meta_page(struct page *page);
-+extern int mem_container_charge(struct page *page, struct mm_struct *mm);
-+extern void mem_container_uncharge(struct meta_page *mp);
-+
-+static inline void mem_container_uncharge_page(struct page *page)
-+{
-+	mem_container_uncharge(page_get_meta_page(page));
-+}
+diff -puN include/linux/memcontrol.h~mem-control-out-of-memory include/linux/memcontrol.h
+--- linux-2.6.23-rc1-mm1/include/linux/memcontrol.h~mem-control-out-of-memory	2007-07-28 01:12:50.000000000 +0530
++++ linux-2.6.23-rc1-mm1-balbir/include/linux/memcontrol.h	2007-07-28 01:12:50.000000000 +0530
+@@ -38,6 +38,7 @@ extern unsigned long mem_container_isola
+ 					int mode, struct zone *z,
+ 					struct mem_container *mem_cont,
+ 					int active);
++extern void mem_container_out_of_memory(struct mem_container *mem);
  
- #else /* CONFIG_CONTAINER_MEM_CONT */
- static inline void mm_init_container(struct mm_struct *mm,
-@@ -50,6 +57,19 @@ static inline struct meta_page *page_get
- 	return NULL;
- }
+ static inline void mem_container_uncharge_page(struct page *page)
+ {
+diff -puN mm/memcontrol.c~mem-control-out-of-memory mm/memcontrol.c
+--- linux-2.6.23-rc1-mm1/mm/memcontrol.c~mem-control-out-of-memory	2007-07-28 01:12:50.000000000 +0530
++++ linux-2.6.23-rc1-mm1-balbir/mm/memcontrol.c	2007-07-28 01:12:50.000000000 +0530
+@@ -299,6 +299,7 @@ int mem_container_charge(struct page *pa
+ 		}
  
-+static inline int mem_container_charge(struct page *page, struct mm_struct *mm)
-+{
-+	return 0;
-+}
-+
-+static inline void mem_container_uncharge(struct meta_page *mp)
-+{
-+}
-+
-+static inline void mem_container_uncharge_page(struct page *page)
-+{
-+}
-+
- #endif /* CONFIG_CONTAINER_MEM_CONT */
+ 		css_put(&mem->css);
++		mem_container_out_of_memory(mem);
+ 		goto free_mp;
+ 	}
  
- #endif /* _LINUX_MEMCONTROL_H */
-diff -puN include/linux/page-flags.h~mem-control-accounting include/linux/page-flags.h
---- linux-2.6.23-rc1-mm1/include/linux/page-flags.h~mem-control-accounting	2007-07-28 01:12:49.000000000 +0530
-+++ linux-2.6.23-rc1-mm1-balbir/include/linux/page-flags.h	2007-07-28 01:12:49.000000000 +0530
-@@ -98,6 +98,9 @@
- #define PG_checked		PG_owner_priv_1 /* Used by some filesystems */
- #define PG_pinned		PG_owner_priv_1	/* Xen pinned pagetable */
- 
-+#define PG_metapage		21	/* Used for checking if a meta_page */
-+					/* is associated with a page	    */
-+
- #if (BITS_PER_LONG > 32)
- /*
-  * 64-bit-only flags build down from bit 31
-diff -puN mm/filemap.c~mem-control-accounting mm/filemap.c
---- linux-2.6.23-rc1-mm1/mm/filemap.c~mem-control-accounting	2007-07-28 01:12:49.000000000 +0530
-+++ linux-2.6.23-rc1-mm1-balbir/mm/filemap.c	2007-07-28 01:12:49.000000000 +0530
-@@ -31,6 +31,7 @@
- #include <linux/syscalls.h>
+diff -puN mm/oom_kill.c~mem-control-out-of-memory mm/oom_kill.c
+--- linux-2.6.23-rc1-mm1/mm/oom_kill.c~mem-control-out-of-memory	2007-07-28 01:12:50.000000000 +0530
++++ linux-2.6.23-rc1-mm1-balbir/mm/oom_kill.c	2007-07-28 01:12:50.000000000 +0530
+@@ -24,6 +24,7 @@
  #include <linux/cpuset.h>
- #include <linux/hardirq.h> /* for BUG_ON(!in_atomic()) only */
+ #include <linux/module.h>
+ #include <linux/notifier.h>
 +#include <linux/memcontrol.h>
- #include "internal.h"
  
- /*
-@@ -116,6 +117,7 @@ void __remove_from_page_cache(struct pag
+ int sysctl_panic_on_oom;
+ /* #define DEBUG */
+@@ -47,7 +48,8 @@ int sysctl_panic_on_oom;
+  *    of least surprise ... (be careful when you change it)
+  */
+ 
+-unsigned long badness(struct task_struct *p, unsigned long uptime)
++unsigned long badness(struct task_struct *p, unsigned long uptime,
++			struct mem_container *mem)
  {
- 	struct address_space *mapping = page->mapping;
- 
-+	mem_container_uncharge_page(page);
- 	radix_tree_delete(&mapping->page_tree, page->index);
- 	page->mapping = NULL;
- 	mapping->nrpages--;
-@@ -442,6 +444,11 @@ int add_to_page_cache(struct page *page,
- 	int error = radix_tree_preload(gfp_mask & ~__GFP_HIGHMEM);
- 
- 	if (error == 0) {
-+
-+		error = mem_container_charge(page, current->mm);
-+		if (error)
-+			goto out;
-+
- 		write_lock_irq(&mapping->tree_lock);
- 		error = radix_tree_insert(&mapping->page_tree, offset, page);
- 		if (!error) {
-@@ -451,10 +458,13 @@ int add_to_page_cache(struct page *page,
- 			page->index = offset;
- 			mapping->nrpages++;
- 			__inc_zone_page_state(page, NR_FILE_PAGES);
--		}
-+		} else
-+			mem_container_uncharge_page(page);
-+
- 		write_unlock_irq(&mapping->tree_lock);
- 		radix_tree_preload_end();
+ 	unsigned long points, cpu_time, run_time, s;
+ 	struct mm_struct *mm;
+@@ -60,6 +62,13 @@ unsigned long badness(struct task_struct
+ 		return 0;
  	}
-+out:
- 	return error;
- }
- EXPORT_SYMBOL(add_to_page_cache);
-diff -puN mm/memcontrol.c~mem-control-accounting mm/memcontrol.c
---- linux-2.6.23-rc1-mm1/mm/memcontrol.c~mem-control-accounting	2007-07-28 01:12:49.000000000 +0530
-+++ linux-2.6.23-rc1-mm1-balbir/mm/memcontrol.c	2007-07-28 01:12:49.000000000 +0530
-@@ -21,6 +21,9 @@
- #include <linux/memcontrol.h>
- #include <linux/container.h>
- #include <linux/mm.h>
-+#include <linux/page-flags.h>
-+#include <linux/bit_spinlock.h>
-+#include <linux/rcupdate.h>
  
- struct container_subsys mem_container_subsys;
- 
-@@ -31,7 +34,9 @@ struct container_subsys mem_container_su
-  * to help the administrator determine what knobs to tune.
++#ifdef CONFIG_CONTAINER_MEM_CONT
++	if (mem != NULL && mm->mem_container != mem) {
++		task_unlock(p);
++		return 0;
++	}
++#endif
++
+ 	/*
+ 	 * The memory size of the process is the basis for the badness.
+ 	 */
+@@ -204,7 +213,8 @@ static inline int constrained_alloc(stru
   *
-  * TODO: Add a water mark for the memory controller. Reclaim will begin when
-- * we hit the water mark.
-+ * we hit the water mark. May be even add a low water mark, such that
-+ * no reclaim occurs from a container at it's low water mark, this is
-+ * a feature that will be implemented much later in the future.
+  * (not docbooked, we don't want this one cluttering up the manual)
   */
- struct mem_container {
- 	struct container_subsys_state css;
-@@ -56,6 +61,8 @@ struct meta_page {
- 	struct list_head lru;		/* per container LRU list */
- 	struct page *page;
- 	struct mem_container *mem_container;
-+	atomic_t ref_cnt;		/* Helpful when pages move b/w  */
-+					/* mapped and cached states     */
- };
+-static struct task_struct *select_bad_process(unsigned long *ppoints)
++static struct task_struct *select_bad_process(unsigned long *ppoints,
++						struct mem_container *mem)
+ {
+ 	struct task_struct *g, *p;
+ 	struct task_struct *chosen = NULL;
+@@ -258,7 +268,7 @@ static struct task_struct *select_bad_pr
+ 		if (p->oomkilladj == OOM_DISABLE)
+ 			continue;
  
- 
-@@ -98,6 +105,134 @@ struct meta_page *page_get_meta_page(str
- 	return page->meta_page;
+-		points = badness(p, uptime.tv_sec);
++		points = badness(p, uptime.tv_sec, mem);
+ 		if (points > *ppoints || !chosen) {
+ 			chosen = p;
+ 			*ppoints = points;
+@@ -370,6 +380,30 @@ static int oom_kill_process(struct task_
+ 	return oom_kill_task(p);
  }
  
-+void __always_inline lock_meta_page(struct page *page)
++#ifdef CONFIG_CONTAINER_MEM_CONT
++void mem_container_out_of_memory(struct mem_container *mem)
 +{
-+	bit_spin_lock(PG_metapage, &page->flags);
-+	VM_BUG_ON(!test_bit(PG_metapage, &page->flags));
-+}
++	unsigned long points = 0;
++	struct task_struct *p;
 +
-+void __always_inline unlock_meta_page(struct page *page)
-+{
-+	bit_spin_unlock(PG_metapage, &page->flags);
-+}
-+
-+/*
-+ * Charge the memory controller for page usage.
-+ * Return
-+ * 0 if the charge was successful
-+ * < 0 if the container is over its limit
-+ */
-+int mem_container_charge(struct page *page, struct mm_struct *mm)
-+{
-+	struct mem_container *mem;
-+	struct meta_page *mp, *race_mp;
-+
-+	/*
-+	 * Should meta_page's go to their own slab?
-+	 * One could optimize the performance of the charging routine
-+	 * by saving a bit in the page_flags and using it as a lock
-+	 * to see if the container page already has a meta_page associated
-+	 * with it
-+	 */
-+	lock_meta_page(page);
-+	mp = page_get_meta_page(page);
-+	/*
-+	 * The meta_page exists and the page has already been accounted
-+	 */
-+	if (mp) {
-+		atomic_inc(&mp->ref_cnt);
-+		goto done;
-+	}
-+
-+	unlock_meta_page(page);
-+
-+	mp = kzalloc(sizeof(struct meta_page), GFP_KERNEL);
-+	if (mp == NULL)
-+		goto err;
-+
++	container_lock();
 +	rcu_read_lock();
-+	/*
-+	 * We always charge the container the mm_struct belongs to
-+	 * the mm_struct's mem_container changes on task migration if the
-+	 * thread group leader migrates. It's possible that mm is not
-+	 * set, if so charge the init_mm (happens for pagecache usage).
-+	 */
-+	if (!mm)
-+		mm = &init_mm;
-+
-+	mem = rcu_dereference(mm->mem_container);
-+	/*
-+	 * For every charge from the container, increment reference
-+	 * count
-+	 */
-+	css_get(&mem->css);
-+	rcu_read_unlock();
-+
-+	/*
-+	 * If we created the meta_page, we should free it on exceeding
-+	 * the container limit.
-+	 */
-+	if (res_counter_charge(&mem->res, 1)) {
-+		css_put(&mem->css);
-+		goto free_mp;
-+	}
-+
-+	lock_meta_page(page);
-+	/*
-+	 * Check if somebody else beat us to allocating the meta_page
-+	 */
-+	race_mp = page_get_meta_page(page);
-+	if (race_mp) {
-+		kfree(mp);
-+		mp = race_mp;
-+		atomic_inc(&mp->ref_cnt);
-+		res_counter_uncharge(&mem->res, 1);
-+		goto done;
-+	}
-+
-+	atomic_set(&mp->ref_cnt, 1);
-+	mp->mem_container = mem;
-+	mp->page = page;
-+	page_assign_meta_page(page, mp);
-+
-+done:
-+	unlock_meta_page(page);
-+	return 0;
-+free_mp:
-+	kfree(mp);
-+	return -ENOMEM;
-+err:
-+	unlock_meta_page(page);
-+	return -ENOMEM;
-+}
-+
-+/*
-+ * Uncharging is always a welcome operation, we never complain, simply
-+ * uncharge.
-+ */
-+void mem_container_uncharge(struct meta_page *mp)
-+{
-+	struct mem_container *mem;
-+	struct page *page;
-+
-+	/*
-+	 * This can happen for PAGE_ZERO
-+	 */
-+	if (!mp)
-+		return;
-+
-+	if (atomic_dec_and_test(&mp->ref_cnt)) {
-+		page = mp->page;
-+		lock_meta_page(page);
-+		mem = mp->mem_container;
-+		css_put(&mem->css);
-+		page_assign_meta_page(page, NULL);
-+		unlock_meta_page(page);
-+		res_counter_uncharge(&mem->res, 1);
-+		kfree(mp);
-+	}
-+}
-+
- static ssize_t mem_container_read(struct container *cont, struct cftype *cft,
- 			struct file *file, char __user *userbuf, size_t nbytes,
- 			loff_t *ppos)
-@@ -150,6 +285,8 @@ mem_container_create(struct container_su
- 		return NULL;
- 
- 	res_counter_init(&mem->res);
-+	INIT_LIST_HEAD(&mem->active_list);
-+	INIT_LIST_HEAD(&mem->inactive_list);
- 	return &mem->css;
- }
- 
-diff -puN mm/memory.c~mem-control-accounting mm/memory.c
---- linux-2.6.23-rc1-mm1/mm/memory.c~mem-control-accounting	2007-07-28 01:12:49.000000000 +0530
-+++ linux-2.6.23-rc1-mm1-balbir/mm/memory.c	2007-07-28 01:12:49.000000000 +0530
-@@ -50,6 +50,7 @@
- #include <linux/delayacct.h>
- #include <linux/init.h>
- #include <linux/writeback.h>
-+#include <linux/memcontrol.h>
- 
- #include <asm/pgalloc.h>
- #include <asm/uaccess.h>
-@@ -1225,14 +1226,18 @@ static int insert_page(struct mm_struct 
- 	pte_t *pte;
- 	spinlock_t *ptl;  
- 
-+	retval = mem_container_charge(page, mm);
-+	if (retval)
++retry:
++	p = select_bad_process(&points, mem);
++	if (PTR_ERR(p) == -1UL)
 +		goto out;
 +
- 	retval = -EINVAL;
- 	if (PageAnon(page))
--		goto out;
-+		goto out_uncharge;
- 	retval = -ENOMEM;
- 	flush_dcache_page(page);
- 	pte = get_locked_pte(mm, addr, &ptl);
- 	if (!pte)
--		goto out;
-+		goto out_uncharge;
- 	retval = -EBUSY;
- 	if (!pte_none(*pte))
- 		goto out_unlock;
-@@ -1244,8 +1249,11 @@ static int insert_page(struct mm_struct 
- 	set_pte_at(mm, addr, pte, mk_pte(page, prot));
- 
- 	retval = 0;
-+	return retval;
- out_unlock:
- 	pte_unmap_unlock(pte, ptl);
-+out_uncharge:
-+	mem_container_uncharge_page(page);
- out:
- 	return retval;
- }
-@@ -1725,6 +1733,9 @@ gotten:
- 		cow_user_page(new_page, old_page, address, vma);
- 	}
- 
-+	if (mem_container_charge(new_page, mm))
-+		goto oom_free_new;
++	if (!p)
++		p = current;
 +
- 	/*
- 	 * Re-check the pte - we dropped the lock
- 	 */
-@@ -1757,7 +1768,9 @@ gotten:
- 		/* Free the old page.. */
- 		new_page = old_page;
- 		ret |= VM_FAULT_WRITE;
--	}
-+	} else
-+		mem_container_uncharge_page(new_page);
-+
- 	if (new_page)
- 		page_cache_release(new_page);
- 	if (old_page)
-@@ -1778,6 +1791,8 @@ unlock:
- 		put_page(dirty_page);
- 	}
- 	return ret;
-+oom_free_new:
-+	__free_page(new_page);
- oom:
- 	if (old_page)
- 		page_cache_release(old_page);
-@@ -2182,6 +2197,11 @@ static int do_swap_page(struct mm_struct
- 	}
- 
- 	delayacct_clear_flag(DELAYACCT_PF_SWAPIN);
-+	if (mem_container_charge(page, mm)) {
-+		ret = VM_FAULT_OOM;
-+		goto out;
-+	}
-+
- 	mark_page_accessed(page);
- 	lock_page(page);
- 
-@@ -2218,8 +2238,10 @@ static int do_swap_page(struct mm_struct
- 	if (write_access) {
- 		/* XXX: We could OR the do_wp_page code with this one? */
- 		if (do_wp_page(mm, vma, address,
--				page_table, pmd, ptl, pte) & VM_FAULT_OOM)
-+				page_table, pmd, ptl, pte) & VM_FAULT_OOM) {
-+			mem_container_uncharge_page(page);
- 			ret = VM_FAULT_OOM;
-+		}
- 		goto out;
- 	}
- 
-@@ -2230,6 +2252,7 @@ unlock:
- out:
- 	return ret;
- out_nomap:
-+	mem_container_uncharge_page(page);
- 	pte_unmap_unlock(page_table, ptl);
- 	unlock_page(page);
- 	page_cache_release(page);
-@@ -2250,6 +2273,7 @@ static int do_anonymous_page(struct mm_s
- 	pte_t entry;
- 
- 	if (write_access) {
-+
- 		/* Allocate our own private page. */
- 		pte_unmap(page_table);
- 
-@@ -2259,6 +2283,9 @@ static int do_anonymous_page(struct mm_s
- 		if (!page)
- 			goto oom;
- 
-+		if (mem_container_charge(page, mm))
-+			goto oom_free_page;
-+
- 		entry = mk_pte(page, vma->vm_page_prot);
- 		entry = maybe_mkwrite(pte_mkdirty(entry), vma);
- 
-@@ -2291,8 +2318,11 @@ unlock:
- 	pte_unmap_unlock(page_table, ptl);
- 	return 0;
- release:
-+	mem_container_uncharge_page(page);
- 	page_cache_release(page);
- 	goto unlock;
-+oom_free_page:
-+	__free_page(page);
- oom:
- 	return VM_FAULT_OOM;
- }
-@@ -2403,6 +2433,11 @@ static int __do_fault(struct mm_struct *
- 
- 	}
- 
-+	if (mem_container_charge(page, mm)) {
-+		ret = VM_FAULT_OOM;
-+		goto out;
-+	}
-+
- 	page_table = pte_offset_map_lock(mm, pmd, address, &ptl);
- 
- 	/*
-@@ -2439,6 +2474,7 @@ static int __do_fault(struct mm_struct *
- 		update_mmu_cache(vma, address, entry);
- 		lazy_mmu_prot_update(entry);
- 	} else {
-+		mem_container_uncharge_page(page);
- 		if (anon)
- 			page_cache_release(page);
- 		else
-diff -puN mm/migrate.c~mem-control-accounting mm/migrate.c
---- linux-2.6.23-rc1-mm1/mm/migrate.c~mem-control-accounting	2007-07-28 01:12:49.000000000 +0530
-+++ linux-2.6.23-rc1-mm1-balbir/mm/migrate.c	2007-07-28 01:12:49.000000000 +0530
-@@ -28,6 +28,7 @@
- #include <linux/mempolicy.h>
- #include <linux/vmalloc.h>
- #include <linux/security.h>
-+#include <linux/memcontrol.h>
- 
- #include "internal.h"
- 
-@@ -156,6 +157,11 @@ static void remove_migration_pte(struct 
-  		return;
-  	}
- 
-+	if (mem_container_charge(new, mm)) {
-+		pte_unmap(ptep);
-+		return;
-+	}
-+
-  	ptl = pte_lockptr(mm, pmd);
-  	spin_lock(ptl);
- 	pte = *ptep;
-diff -puN mm/page_alloc.c~mem-control-accounting mm/page_alloc.c
---- linux-2.6.23-rc1-mm1/mm/page_alloc.c~mem-control-accounting	2007-07-28 01:12:49.000000000 +0530
-+++ linux-2.6.23-rc1-mm1-balbir/mm/page_alloc.c	2007-07-28 01:12:49.000000000 +0530
-@@ -42,6 +42,7 @@
- #include <linux/backing-dev.h>
- #include <linux/fault-inject.h>
- #include <linux/page-isolation.h>
-+#include <linux/memcontrol.h>
- 
- #include <asm/tlbflush.h>
- #include <asm/div64.h>
-@@ -1017,6 +1018,7 @@ static void fastcall free_hot_cold_page(
- 
- 	if (!PageHighMem(page))
- 		debug_check_no_locks_freed(page_address(page), PAGE_SIZE);
-+	page_assign_meta_page(page, NULL);
- 	arch_free_page(page, 0);
- 	kernel_map_pages(page, 1, 0);
- 
-@@ -2580,6 +2582,7 @@ void __meminit memmap_init_zone(unsigned
- 		set_page_links(page, zone, nid, pfn);
- 		init_page_count(page);
- 		reset_page_mapcount(page);
-+		page_assign_meta_page(page, NULL);
- 		SetPageReserved(page);
- 
- 		/*
-diff -puN mm/rmap.c~mem-control-accounting mm/rmap.c
---- linux-2.6.23-rc1-mm1/mm/rmap.c~mem-control-accounting	2007-07-28 01:12:49.000000000 +0530
-+++ linux-2.6.23-rc1-mm1-balbir/mm/rmap.c	2007-07-28 01:12:49.000000000 +0530
-@@ -551,8 +551,14 @@ void page_add_anon_rmap(struct page *pag
- 	VM_BUG_ON(address < vma->vm_start || address >= vma->vm_end);
- 	if (atomic_inc_and_test(&page->_mapcount))
- 		__page_set_anon_rmap(page, vma, address);
--	else
-+	else {
- 		__page_check_anon_rmap(page, vma, address);
-+		/*
-+		 * We unconditionally charged during prepare, we uncharge here
-+		 * This takes care of balancing the reference counts
-+		 */
-+		mem_container_uncharge_page(page);
-+	}
- }
- 
- /*
-@@ -583,6 +589,12 @@ void page_add_file_rmap(struct page *pag
- {
- 	if (atomic_inc_and_test(&page->_mapcount))
- 		__inc_zone_page_state(page, NR_FILE_MAPPED);
-+	else
-+		/*
-+		 * We unconditionally charged during prepare, we uncharge here
-+		 * This takes care of balancing the reference counts
-+		 */
-+		mem_container_uncharge_page(page);
- }
- 
- #ifdef CONFIG_DEBUG_VM
-@@ -643,6 +655,8 @@ void page_remove_rmap(struct page *page,
- 			page_clear_dirty(page);
- 			set_page_dirty(page);
- 		}
-+		mem_container_uncharge_page(page);
-+
- 		__dec_zone_page_state(page,
- 				PageAnon(page) ? NR_ANON_PAGES : NR_FILE_MAPPED);
- 	}
-diff -puN mm/swapfile.c~mem-control-accounting mm/swapfile.c
---- linux-2.6.23-rc1-mm1/mm/swapfile.c~mem-control-accounting	2007-07-28 01:12:49.000000000 +0530
-+++ linux-2.6.23-rc1-mm1-balbir/mm/swapfile.c	2007-07-28 01:12:49.000000000 +0530
-@@ -506,9 +506,12 @@ unsigned int count_swap_pages(int type, 
-  * just let do_wp_page work it out if a write is requested later - to
-  * force COW, vm_page_prot omits write permission from any private vma.
-  */
--static void unuse_pte(struct vm_area_struct *vma, pte_t *pte,
-+static int unuse_pte(struct vm_area_struct *vma, pte_t *pte,
- 		unsigned long addr, swp_entry_t entry, struct page *page)
- {
-+	if (mem_container_charge(page, vma->vm_mm))
-+		return -ENOMEM;
-+
- 	inc_mm_counter(vma->vm_mm, anon_rss);
- 	get_page(page);
- 	set_pte_at(vma->vm_mm, addr, pte,
-@@ -520,6 +523,7 @@ static void unuse_pte(struct vm_area_str
- 	 * immediately swapped out again after swapon.
- 	 */
- 	activate_page(page);
-+	return 1;
- }
- 
- static int unuse_pte_range(struct vm_area_struct *vma, pmd_t *pmd,
-@@ -529,7 +533,7 @@ static int unuse_pte_range(struct vm_are
- 	pte_t swp_pte = swp_entry_to_pte(entry);
- 	pte_t *pte;
- 	spinlock_t *ptl;
--	int found = 0;
-+	int ret = 0;
- 
- 	pte = pte_offset_map_lock(vma->vm_mm, pmd, addr, &ptl);
- 	do {
-@@ -538,13 +542,12 @@ static int unuse_pte_range(struct vm_are
- 		 * Test inline before going to call unuse_pte.
- 		 */
- 		if (unlikely(pte_same(*pte, swp_pte))) {
--			unuse_pte(vma, pte++, addr, entry, page);
--			found = 1;
-+			ret = unuse_pte(vma, pte++, addr, entry, page);
- 			break;
- 		}
- 	} while (pte++, addr += PAGE_SIZE, addr != end);
- 	pte_unmap_unlock(pte - 1, ptl);
--	return found;
-+	return ret;
- }
- 
- static inline int unuse_pmd_range(struct vm_area_struct *vma, pud_t *pud,
-@@ -553,14 +556,16 @@ static inline int unuse_pmd_range(struct
- {
- 	pmd_t *pmd;
- 	unsigned long next;
-+	int ret;
- 
- 	pmd = pmd_offset(pud, addr);
- 	do {
- 		next = pmd_addr_end(addr, end);
- 		if (pmd_none_or_clear_bad(pmd))
- 			continue;
--		if (unuse_pte_range(vma, pmd, addr, next, entry, page))
--			return 1;
-+		ret = unuse_pte_range(vma, pmd, addr, next, entry, page);
-+		if (ret)
-+			return ret;
- 	} while (pmd++, addr = next, addr != end);
- 	return 0;
- }
-@@ -571,14 +576,16 @@ static inline int unuse_pud_range(struct
- {
- 	pud_t *pud;
- 	unsigned long next;
-+	int ret;
- 
- 	pud = pud_offset(pgd, addr);
- 	do {
- 		next = pud_addr_end(addr, end);
- 		if (pud_none_or_clear_bad(pud))
- 			continue;
--		if (unuse_pmd_range(vma, pud, addr, next, entry, page))
--			return 1;
-+		ret = unuse_pmd_range(vma, pud, addr, next, entry, page);
-+		if (ret)
-+			return ret;
- 	} while (pud++, addr = next, addr != end);
- 	return 0;
- }
-@@ -588,6 +595,7 @@ static int unuse_vma(struct vm_area_stru
- {
- 	pgd_t *pgd;
- 	unsigned long addr, end, next;
-+	int ret;
- 
- 	if (page->mapping) {
- 		addr = page_address_in_vma(page, vma);
-@@ -605,8 +613,9 @@ static int unuse_vma(struct vm_area_stru
- 		next = pgd_addr_end(addr, end);
- 		if (pgd_none_or_clear_bad(pgd))
- 			continue;
--		if (unuse_pud_range(vma, pgd, addr, next, entry, page))
--			return 1;
-+		ret = unuse_pud_range(vma, pgd, addr, next, entry, page);
-+		if (ret)
-+			return ret;
- 	} while (pgd++, addr = next, addr != end);
- 	return 0;
- }
-@@ -615,6 +624,7 @@ static int unuse_mm(struct mm_struct *mm
- 				swp_entry_t entry, struct page *page)
- {
- 	struct vm_area_struct *vma;
-+	int ret = 0;
- 
- 	if (!down_read_trylock(&mm->mmap_sem)) {
- 		/*
-@@ -627,15 +637,11 @@ static int unuse_mm(struct mm_struct *mm
- 		lock_page(page);
- 	}
- 	for (vma = mm->mmap; vma; vma = vma->vm_next) {
--		if (vma->anon_vma && unuse_vma(vma, entry, page))
-+		if (vma->anon_vma && (ret = unuse_vma(vma, entry, page)))
- 			break;
- 	}
- 	up_read(&mm->mmap_sem);
--	/*
--	 * Currently unuse_mm cannot fail, but leave error handling
--	 * at call sites for now, since we change it from time to time.
--	 */
--	return 0;
-+	return ret;
- }
- 
- /*
-diff -puN mm/swap_state.c~mem-control-accounting mm/swap_state.c
---- linux-2.6.23-rc1-mm1/mm/swap_state.c~mem-control-accounting	2007-07-28 01:12:49.000000000 +0530
-+++ linux-2.6.23-rc1-mm1-balbir/mm/swap_state.c	2007-07-28 01:12:49.000000000 +0530
-@@ -17,6 +17,7 @@
- #include <linux/backing-dev.h>
- #include <linux/pagevec.h>
- #include <linux/migrate.h>
-+#include <linux/memcontrol.h>
- 
- #include <asm/pgtable.h>
- 
-@@ -79,6 +80,11 @@ static int __add_to_swap_cache(struct pa
- 	BUG_ON(PagePrivate(page));
- 	error = radix_tree_preload(gfp_mask);
- 	if (!error) {
-+
-+		error = mem_container_charge(page, current->mm);
-+		if (error)
-+			goto out;
-+
- 		write_lock_irq(&swapper_space.tree_lock);
- 		error = radix_tree_insert(&swapper_space.page_tree,
- 						entry.val, page);
-@@ -89,10 +95,13 @@ static int __add_to_swap_cache(struct pa
- 			set_page_private(page, entry.val);
- 			total_swapcache_pages++;
- 			__inc_zone_page_state(page, NR_FILE_PAGES);
--		}
-+		} else
-+			mem_container_uncharge_page(page);
-+
- 		write_unlock_irq(&swapper_space.tree_lock);
- 		radix_tree_preload_end();
- 	}
++	if (oom_kill_process(p, points, "Memory container out of memory"))
++		goto retry;
 +out:
- 	return error;
- }
++	rcu_read_unlock();
++	container_unlock();
++}
++#endif
++
+ static BLOCKING_NOTIFIER_HEAD(oom_notify_list);
  
-@@ -129,6 +138,7 @@ void __delete_from_swap_cache(struct pag
- 	BUG_ON(PageWriteback(page));
- 	BUG_ON(PagePrivate(page));
+ int register_oom_notifier(struct notifier_block *nb)
+@@ -442,7 +476,7 @@ retry:
+ 		 * Rambo mode: Shoot down a process and hope it solves whatever
+ 		 * issues we may have.
+ 		 */
+-		p = select_bad_process(&points);
++		p = select_bad_process(&points, NULL);
  
-+	mem_container_uncharge_page(page);
- 	radix_tree_delete(&swapper_space.page_tree, page_private(page));
- 	set_page_private(page, 0);
- 	ClearPageSwapCache(page);
+ 		if (PTR_ERR(p) == -1UL)
+ 			goto out;
 _
 
 -- 
