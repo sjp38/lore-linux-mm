@@ -1,50 +1,68 @@
-Date: Fri, 27 Jul 2007 02:02:32 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: RFT: updatedb "morning after" problem [was: Re: -mm merge plans
- for 2.6.23]
-Message-Id: <20070727020232.883be5a8.akpm@linux-foundation.org>
-In-Reply-To: <20070727085440.GT27237@ftp.linux.org.uk>
-References: <46A85D95.509@kingswood-consulting.co.uk>
-	<20070726092025.GA9157@elte.hu>
-	<20070726023401.f6a2fbdf.akpm@linux-foundation.org>
-	<20070726094024.GA15583@elte.hu>
-	<20070726030902.02f5eab0.akpm@linux-foundation.org>
-	<1185454019.6449.12.camel@Homer.simpson.net>
-	<20070726110549.da3a7a0d.akpm@linux-foundation.org>
-	<1185513177.6295.21.camel@Homer.simpson.net>
-	<1185521021.6295.50.camel@Homer.simpson.net>
-	<20070727014749.85370e77.akpm@linux-foundation.org>
-	<20070727085440.GT27237@ftp.linux.org.uk>
+Subject: Re: updatedb
+From: Mike Galbraith <efault@gmx.de>
+In-Reply-To: <46A9ACB2.9030302@gmail.com>
+References: <367a23780707250830i20a04a60n690e8da5630d39a9@mail.gmail.com>
+	 <46A773EA.5030103@gmail.com>
+	 <a491f91d0707251015x75404d9fld7b3382f69112028@mail.gmail.com>
+	 <46A81C39.4050009@gmail.com>
+	 <7e0bae390707252323k2552c701x5673c55ff2cf119e@mail.gmail.com>
+	 <9a8748490707261746p638e4a98p3cdb7d9912af068a@mail.gmail.com>
+	 <46A98A14.3040300@gmail.com> <1185522844.6295.64.camel@Homer.simpson.net>
+	 <46A9ACB2.9030302@gmail.com>
+Content-Type: text/plain
+Date: Fri, 27 Jul 2007 11:26:08 +0200
+Message-Id: <1185528368.7851.44.camel@Homer.simpson.net>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Al Viro <viro@ftp.linux.org.uk>
-Cc: Mike Galbraith <efault@gmx.de>, Ingo Molnar <mingo@elte.hu>, Frank Kingswood <frank@kingswood-consulting.co.uk>, Andi Kleen <andi@firstfloor.org>, Nick Piggin <nickpiggin@yahoo.com.au>, Ray Lee <ray-lk@madrabbit.org>, Jesper Juhl <jesper.juhl@gmail.com>, ck list <ck@vds.kolivas.org>, Paul Jackson <pj@sgi.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Rene Herman <rene.herman@gmail.com>
+Cc: Jesper Juhl <jesper.juhl@gmail.com>, Andika Triwidada <andika@gmail.com>, Robert Deaton <false.hopes@gmail.com>, linux-kernel@vger.kernel.org, ck list <ck@vds.kolivas.org>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 27 Jul 2007 09:54:41 +0100 Al Viro <viro@ftp.linux.org.uk> wrote:
-
-> On Fri, Jul 27, 2007 at 01:47:49AM -0700, Andrew Morton wrote:
-> > What I think is killing us here is the blockdev pagecache: the pagecache
-> > which backs those directory entries and inodes.  These pages get read
-> > multiple times because they hold multiple directory entries and multiple
-> > inodes.  These multiple touches will put those pages onto the active list
-> > so they stick around for a long time and everything else gets evicted.
+On Fri, 2007-07-27 at 10:28 +0200, Rene Herman wrote:
+> On 07/27/2007 09:54 AM, Mike Galbraith wrote:
 > 
-> I wonder what happens if you try that on ext2.  There we'd get directory
-> contents in per-directory page cache, so the picture might change...
+> > On Fri, 2007-07-27 at 08:00 +0200, Rene Herman wrote:
+> > 
+> >> The remaining issue of updatedb unnecessarily blowing away VFS caches is 
+> >> being discussed (*) in a few thread-branches still running.
+> > 
+> > If you solve that, the swap thing dies too, they're one and the same
+> > problem.
+> 
+> I still wonder what the "the swap thing" is though. People just kept saying 
+> that swap-prefetch helped which would seem to indicate their problem didnt 
+> have anything to do with updatedb.
 
-afacit ext2 just forgets to run mark_page_accessed for directory pages
-altogether, so it'll be equivalent to ext3 with that one-liner, I expect.
+I haven't rummaged around in the VM in quite a long while, so don't know
+exactly where the balance lies any more, and have never looked at
+swap-prefetch, but the mechanism of how swap-prefetch can help the
+"morning after syndrome" seems simple enough:
 
-The directory pagecache on ext2 might get reclaimed faster because those
-pages are eligible for reclaiming via the reclaim of their inodes, whereas
-ext3's directories are in blockdev pagecache, for which the reclaim-via-inode
-mechanism cannot happen.
+Reclaim (swapout) a slew of application pages because there are
+truckloads of utterly bored pages laying about when updatedb comes along
+and introduces memory pressure in the middle of the night.  Updatedb
+finishes, freeing some ram (doesn't matter how much) swap-prefetch
+detects idle CPU, and begins faulting swapped out pages back in.  In the
+process of doing so, memory pressure is generated, and now these freshly
+accessed pages are a less lovely target than the now aging VFS caches
+that updatedb bloated up, so they shrink back down enough that the
+balance you had before updatedb ran is restored... with the notable
+exception that cached data is now toast, so what you gained by faulting
+god knows how frequently used pages back in isn't _necessarily_ going to
+help you.  Heck, it could even step on what was left of your cached
+working set after updatedb finished.
 
-I should do some testing with mmapped files.
+> Also, I know shit about the VFS so this may well be not very educated but to 
+> me something like FADV_NOREUSE on a dirfd sounds like a much more promising 
+> approach than the convoluted userspace schemes being discussed, if only 
+> because it'll actually be implemented/used.
+
+I like Andrew's mention of a future option... put that sucker and
+everybody who looks like him in a resource limited container.
+
+	-Mike
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
