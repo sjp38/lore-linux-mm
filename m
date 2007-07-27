@@ -1,70 +1,90 @@
-From: Lee Schermerhorn <lee.schermerhorn@hp.com>
-Date: Fri, 27 Jul 2007 15:43:29 -0400
-Message-Id: <20070727194329.18614.33494.sendpatchset@localhost>
-In-Reply-To: <20070727194316.18614.36380.sendpatchset@localhost>
-References: <20070727194316.18614.36380.sendpatchset@localhost>
-Subject: [PATCH 02/14] Memoryless nodes:  introduce mask of nodes with memory
+Date: Fri, 27 Jul 2007 12:21:59 -0700
+From: Randy Dunlap <randy.dunlap@oracle.com>
+Subject: Re: [PATCH] Document Linux Memory Policy - V2
+Message-Id: <20070727122159.293b5a33.randy.dunlap@oracle.com>
+In-Reply-To: <1185562889.5069.68.camel@localhost>
+References: <Pine.LNX.4.64.0707242120370.3829@schroedinger.engr.sgi.com>
+	<20070725111646.GA9098@skynet.ie>
+	<Pine.LNX.4.64.0707251212300.8820@schroedinger.engr.sgi.com>
+	<20070726132336.GA18825@skynet.ie>
+	<Pine.LNX.4.64.0707261104360.2374@schroedinger.engr.sgi.com>
+	<20070726225920.GA10225@skynet.ie>
+	<Pine.LNX.4.64.0707261819530.18210@schroedinger.engr.sgi.com>
+	<20070727082046.GA6301@skynet.ie>
+	<20070727154519.GA21614@skynet.ie>
+	<Pine.LNX.4.64.0707271026040.15990@schroedinger.engr.sgi.com>
+	<1185559260.5069.40.camel@localhost>
+	<20070727113836.9471e35e.randy.dunlap@oracle.com>
+	<1185562889.5069.68.camel@localhost>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
-Cc: ak@suse.de, Lee Schermerhorn <lee.schermerhorn@hp.com>, Nishanth Aravamudan <nacc@us.ibm.com>, pj@sgi.com, kxr@sgi.com, Christoph Lameter <clameter@sgi.com>, Mel Gorman <mel@skynet.ie>, akpm@linux-foundation.org, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+To: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
+Cc: linux-mm@kvack.org, Christoph Lameter <clameter@sgi.com>, ak@suse.de, Mel Gorman <mel@skynet.ie>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, akpm@linux-foundation.org, pj@sgi.com, Michael Kerrisk <mtk-manpages@gmx.net>, Eric Whitney <eric.whitney@hp.com>
 List-ID: <linux-mm.kvack.org>
 
-[patch 2/14] Memoryless nodes:  introduce mask of nodes with memory
+On Fri, 27 Jul 2007 15:01:28 -0400 Lee Schermerhorn wrote:
 
-It is necessary to know if nodes have memory since we have recently
-begun to add support for memoryless nodes. For that purpose we introduce
-a new node state N_MEMORY.
+> On Fri, 2007-07-27 at 11:38 -0700, Randy Dunlap wrote:
+> > On Fri, 27 Jul 2007 14:00:59 -0400 Lee Schermerhorn wrote:
+> > 
+> > > [PATCH] Document Linux Memory Policy - V2
+> > > 
+> > >  Documentation/vm/memory_policy.txt |  278 +++++++++++++++++++++++++++++++++++++
+> > >  1 file changed, 278 insertions(+)
+> > > 
+> > > Index: Linux/Documentation/vm/memory_policy.txt
+> > > ===================================================================
+> > > --- /dev/null	1970-01-01 00:00:00.000000000 +0000
+> > > +++ Linux/Documentation/vm/memory_policy.txt	2007-07-27 13:40:45.000000000 -0400
+> > > @@ -0,0 +1,278 @@
+> > > +
+> > 
+> > ...
+> > 
+> > > +
+> > > +MEMORY POLICY CONCEPTS
+> > > +
+> > > +Scope of Memory Policies
+> > > +
+> > > +The Linux kernel supports four more or less distinct scopes of memory policy:
+> > > +
+> > > +    System Default Policy:  this policy is "hard coded" into the kernel.  It
+> > > +    is the policy that governs the all page allocations that aren't controlled
+> > 
+> >                               drop ^ "the"
+> > 
+> > > +    by one of the more specific policy scopes discussed below.
+> > 
+> > Are these policies listed in order of "less specific scope to more
+> > specific scope"?
+> 
+> Randy:
+> 
+> Thanks for the quick review.   I will make the edits you suggest and
+> re-post after the weekend [hoping for more feedback...].
 
-A node has its bit in node_memory_map set if it has memory. If a node
-has memory then it has at least one zone defined in its pgdat structure
-that is located in the pgdat itself.
+Sure.
 
-N_MEMORY can then be used in various places to insure that we
-do the right thing when we encounter a memoryless node.
+> To answer your question, yes, it was my intent to order them from least
+> specific [or most general?] to most specific.  Shall I say so?
 
-Signed-off-by: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
-Signed-off-by: Nishanth Aravamudan <nacc@us.ibm.com>
-Signed-off-by: Christoph Lameter <clameter@sgi.com>
-Tested-off-by: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
-Acked-by: Bob Picco <bob.picco@hp.com>
+Yes.  I would.
 
- include/linux/nodemask.h |    1 +
- mm/page_alloc.c          |    9 +++++++--
- 2 files changed, 8 insertions(+), 2 deletions(-)
+> Other than these items, does the document make sense?  Do you think it's
+> worth adding?  Andi was concerned about having documentation in too many
+> places [code + doc].
 
-Index: Linux/include/linux/nodemask.h
-===================================================================
---- Linux.orig/include/linux/nodemask.h	2007-07-25 11:36:25.000000000 -0400
-+++ Linux/include/linux/nodemask.h	2007-07-25 11:36:27.000000000 -0400
-@@ -343,6 +343,7 @@ static inline void __nodes_remap(nodemas
- enum node_states {
- 	N_POSSIBLE,	/* The node could become online at some point */
- 	N_ONLINE,	/* The node is online */
-+	N_MEMORY,	/* The node has memory */
- 	NR_NODE_STATES
- };
- 
-Index: Linux/mm/page_alloc.c
-===================================================================
---- Linux.orig/mm/page_alloc.c	2007-07-25 11:36:25.000000000 -0400
-+++ Linux/mm/page_alloc.c	2007-07-25 11:36:27.000000000 -0400
-@@ -2387,8 +2387,13 @@ static int __build_all_zonelists(void *d
- 	int nid;
- 
- 	for_each_online_node(nid) {
--		build_zonelists(NODE_DATA(nid));
--		build_zonelist_cache(NODE_DATA(nid));
-+		pg_data_t *pgdat = NODE_DATA(nid);
-+
-+		build_zonelists(pgdat);
-+		build_zonelist_cache(pgdat);
-+
-+		if (pgdat->node_present_pages)
-+			node_set_state(nid, N_MEMORY);
- 	}
- 	return 0;
- }
+Yes, I think that it's worth adding and makes sense, although
+Christoph's comment about documenting effects instead of internal
+workings also makes sense to me.  That would also tend to mitigate
+Andi's concern a bit.
+
+---
+~Randy
+*** Remember to use Documentation/SubmitChecklist when testing your code ***
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
