@@ -1,47 +1,38 @@
-Date: Fri, 27 Jul 2007 09:20:46 +0100
-Subject: Re: NUMA policy issues with ZONE_MOVABLE
-Message-ID: <20070727082046.GA6301@skynet.ie>
-References: <Pine.LNX.4.64.0707242120370.3829@schroedinger.engr.sgi.com> <20070725111646.GA9098@skynet.ie> <Pine.LNX.4.64.0707251212300.8820@schroedinger.engr.sgi.com> <20070726132336.GA18825@skynet.ie> <Pine.LNX.4.64.0707261104360.2374@schroedinger.engr.sgi.com> <20070726225920.GA10225@skynet.ie> <Pine.LNX.4.64.0707261819530.18210@schroedinger.engr.sgi.com>
+Message-ID: <46A9ACB2.9030302@gmail.com>
+Date: Fri, 27 Jul 2007 10:28:34 +0200
+From: Rene Herman <rene.herman@gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <Pine.LNX.4.64.0707261819530.18210@schroedinger.engr.sgi.com>
-From: mel@skynet.ie (Mel Gorman)
+Subject: Re: updatedb
+References: <367a23780707250830i20a04a60n690e8da5630d39a9@mail.gmail.com>	 <46A773EA.5030103@gmail.com>	 <a491f91d0707251015x75404d9fld7b3382f69112028@mail.gmail.com>	 <46A81C39.4050009@gmail.com>	 <7e0bae390707252323k2552c701x5673c55ff2cf119e@mail.gmail.com>	 <9a8748490707261746p638e4a98p3cdb7d9912af068a@mail.gmail.com>	 <46A98A14.3040300@gmail.com> <1185522844.6295.64.camel@Homer.simpson.net>
+In-Reply-To: <1185522844.6295.64.camel@Homer.simpson.net>
+Content-Type: text/plain; charset=ISO-8859-15; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
-Cc: linux-mm@kvack.org, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, ak@suse.de, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, akpm@linux-foundation.org, pj@sgi.com
+To: Mike Galbraith <efault@gmx.de>
+Cc: Jesper Juhl <jesper.juhl@gmail.com>, Andika Triwidada <andika@gmail.com>, Robert Deaton <false.hopes@gmail.com>, linux-kernel@vger.kernel.org, ck list <ck@vds.kolivas.org>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On (26/07/07 18:22), Christoph Lameter didst pronounce:
-> On Thu, 26 Jul 2007, Mel Gorman wrote:
+On 07/27/2007 09:54 AM, Mike Galbraith wrote:
+
+> On Fri, 2007-07-27 at 08:00 +0200, Rene Herman wrote:
 > 
-> > Comments?
+>> The remaining issue of updatedb unnecessarily blowing away VFS caches is 
+>> being discussed (*) in a few thread-branches still running.
 > 
-> Lets go with the unconditional filtering and get rid of some of the per 
-> node zonelists?
+> If you solve that, the swap thing dies too, they're one and the same
+> problem.
 
-I would prefer to go with this for 2.6.23 and work on that for 2.6.24.
-The patch should be relatively straight-forward (I'll work on it today)
-but it would need wider testing than what I can do here, particularly on
-the larger machines that needed things like zlcache.
+I still wonder what the "the swap thing" is though. People just kept saying 
+that swap-prefetch helped which would seem to indicate their problem didnt 
+have anything to do with updatedb.
 
-> We could f.e. merge the lists for ZONE_MOVABLE and 
-> ZONE_base_of_zone_movable?
+Also, I know shit about the VFS so this may well be not very educated but to 
+me something like FADV_NOREUSE on a dirfd sounds like a much more promising 
+approach than the convoluted userspace schemes being discussed, if only 
+because it'll actually be implemented/used.
 
-That will be fine for freelist management but a mess with respect to
-reclaim. I'd rather not go down that rathole.
-
-> That may increase the cacheability of the 
-> zonelists and reduce cache footprint.
-
-That should be the case. I'll work on the patch today and see what sort
-of results I get.
-
--- 
-Mel Gorman
-Part-time Phd Student                          Linux Technology Center
-University of Limerick                         IBM Dublin Software Lab
+Rene.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
