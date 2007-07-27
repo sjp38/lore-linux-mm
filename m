@@ -1,75 +1,41 @@
-Subject: Re: [PATCH] Document Linux Memory Policy - V2
-From: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
-In-Reply-To: <20070727113836.9471e35e.randy.dunlap@oracle.com>
-References: <Pine.LNX.4.64.0707242120370.3829@schroedinger.engr.sgi.com>
-	 <20070725111646.GA9098@skynet.ie>
-	 <Pine.LNX.4.64.0707251212300.8820@schroedinger.engr.sgi.com>
-	 <20070726132336.GA18825@skynet.ie>
-	 <Pine.LNX.4.64.0707261104360.2374@schroedinger.engr.sgi.com>
-	 <20070726225920.GA10225@skynet.ie>
-	 <Pine.LNX.4.64.0707261819530.18210@schroedinger.engr.sgi.com>
-	 <20070727082046.GA6301@skynet.ie> <20070727154519.GA21614@skynet.ie>
-	 <Pine.LNX.4.64.0707271026040.15990@schroedinger.engr.sgi.com>
-	 <1185559260.5069.40.camel@localhost>
-	 <20070727113836.9471e35e.randy.dunlap@oracle.com>
-Content-Type: text/plain
-Date: Fri, 27 Jul 2007 15:01:28 -0400
-Message-Id: <1185562889.5069.68.camel@localhost>
+Date: Fri, 27 Jul 2007 12:19:30 -0700
+From: Paul Jackson <pj@sgi.com>
+Subject: Re: RFT: updatedb "morning after" problem [was: Re: -mm merge plans
+ for 2.6.23]
+Message-Id: <20070727121930.30779cad.pj@sgi.com>
+In-Reply-To: <20070726102025.GJ27237@ftp.linux.org.uk>
+References: <46A57068.3070701@yahoo.com.au>
+	<2c0942db0707232153j3670ef31kae3907dff1a24cb7@mail.gmail.com>
+	<46A58B49.3050508@yahoo.com.au>
+	<2c0942db0707240915h56e007e3l9110e24a065f2e73@mail.gmail.com>
+	<46A6CC56.6040307@yahoo.com.au>
+	<p73abtkrz37.fsf@bingen.suse.de>
+	<46A85D95.509@kingswood-consulting.co.uk>
+	<20070726092025.GA9157@elte.hu>
+	<20070726023401.f6a2fbdf.akpm@linux-foundation.org>
+	<20070726094024.GA15583@elte.hu>
+	<20070726102025.GJ27237@ftp.linux.org.uk>
 Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Randy Dunlap <randy.dunlap@oracle.com>
-Cc: linux-mm@kvack.org, Christoph Lameter <clameter@sgi.com>, ak@suse.de, Mel Gorman <mel@skynet.ie>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, akpm@linux-foundation.org, pj@sgi.com, Michael Kerrisk <mtk-manpages@gmx.net>, Eric Whitney <eric.whitney@hp.com>
+To: Al Viro <viro@ftp.linux.org.uk>
+Cc: mingo@elte.hu, akpm@linux-foundation.org, frank@kingswood-consulting.co.uk, andi@firstfloor.org, nickpiggin@yahoo.com.au, ray-lk@madrabbit.org, jesper.juhl@gmail.com, ck@vds.kolivas.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 2007-07-27 at 11:38 -0700, Randy Dunlap wrote:
-> On Fri, 27 Jul 2007 14:00:59 -0400 Lee Schermerhorn wrote:
-> 
-> > [PATCH] Document Linux Memory Policy - V2
-> > 
-> >  Documentation/vm/memory_policy.txt |  278 +++++++++++++++++++++++++++++++++++++
-> >  1 file changed, 278 insertions(+)
-> > 
-> > Index: Linux/Documentation/vm/memory_policy.txt
-> > ===================================================================
-> > --- /dev/null	1970-01-01 00:00:00.000000000 +0000
-> > +++ Linux/Documentation/vm/memory_policy.txt	2007-07-27 13:40:45.000000000 -0400
-> > @@ -0,0 +1,278 @@
-> > +
-> 
-> ...
-> 
-> > +
-> > +MEMORY POLICY CONCEPTS
-> > +
-> > +Scope of Memory Policies
-> > +
-> > +The Linux kernel supports four more or less distinct scopes of memory policy:
-> > +
-> > +    System Default Policy:  this policy is "hard coded" into the kernel.  It
-> > +    is the policy that governs the all page allocations that aren't controlled
-> 
->                               drop ^ "the"
-> 
-> > +    by one of the more specific policy scopes discussed below.
-> 
-> Are these policies listed in order of "less specific scope to more
-> specific scope"?
+Al Viro wrote:
+> BTW, I really wonder how much pain could be avoided if updatedb recorded
+> mtime of directories and checked it.
 
-Randy:
+Someone mentioned a variant of slocate above that they called mlocate,
+and that Red Hat ships, that seems to do this (if I understand you and
+what mlocate does correctly.)
 
-Thanks for the quick review.   I will make the edits you suggest and
-re-post after the weekend [hoping for more feedback...].
-
-To answer your question, yes, it was my intent to order them from least
-specific [or most general?] to most specific.  Shall I say so?
-
-Other than these items, does the document make sense?  Do you think it's
-worth adding?  Andi was concerned about having documentation in too many
-places [code + doc].
-
-Lee
+-- 
+                  I won't rest till it's the best ...
+                  Programmer, Linux Scalability
+                  Paul Jackson <pj@sgi.com> 1.925.600.0401
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
