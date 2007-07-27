@@ -1,49 +1,52 @@
-Received: from d03relay04.boulder.ibm.com (d03relay04.boulder.ibm.com [9.17.195.106])
-	by e35.co.us.ibm.com (8.13.8/8.13.8) with ESMTP id l6RKxcAj008991
-	for <linux-mm@kvack.org>; Fri, 27 Jul 2007 16:59:38 -0400
-Received: from d03av03.boulder.ibm.com (d03av03.boulder.ibm.com [9.17.195.169])
-	by d03relay04.boulder.ibm.com (8.13.8/8.13.8/NCO v8.4) with ESMTP id l6RKxckh192848
-	for <linux-mm@kvack.org>; Fri, 27 Jul 2007 14:59:38 -0600
-Received: from d03av03.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av03.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l6RKxc6u006550
-	for <linux-mm@kvack.org>; Fri, 27 Jul 2007 14:59:38 -0600
-Date: Fri, 27 Jul 2007 13:59:37 -0700
-From: Nishanth Aravamudan <nacc@us.ibm.com>
-Subject: Re: [PATCH 00/14] NUMA: Memoryless node support V4
-Message-ID: <20070727205937.GU18510@us.ibm.com>
-References: <20070727194316.18614.36380.sendpatchset@localhost>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20070727194316.18614.36380.sendpatchset@localhost>
+Subject: Re: RFT: updatedb "morning after" problem [was: Re: -mm merge
+	plans for 2.6.23]
+From: Mike Galbraith <efault@gmx.de>
+In-Reply-To: <200707271345.55187.dhazelton@enter.net>
+References: <9a8748490707231608h453eefffx68b9c391897aba70@mail.gmail.com>
+	 <20070727030040.0ea97ff7.akpm@linux-foundation.org>
+	 <1185531918.8799.17.camel@Homer.simpson.net>
+	 <200707271345.55187.dhazelton@enter.net>
+Content-Type: text/plain
+Date: Sat, 28 Jul 2007 00:08:44 +0200
+Message-Id: <1185574124.6342.31.camel@Homer.simpson.net>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Lee Schermerhorn <lee.schermerhorn@hp.com>
-Cc: linux-mm@kvack.org, ak@suse.de, pj@sgi.com, kxr@sgi.com, Christoph Lameter <clameter@sgi.com>, Mel Gorman <mel@skynet.ie>, akpm@linux-foundation.org, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+To: Daniel Hazelton <dhazelton@enter.net>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Ingo Molnar <mingo@elte.hu>, Frank Kingswood <frank@kingswood-consulting.co.uk>, Andi Kleen <andi@firstfloor.org>, Nick Piggin <nickpiggin@yahoo.com.au>, Ray Lee <ray-lk@madrabbit.org>, Jesper Juhl <jesper.juhl@gmail.com>, ck list <ck@vds.kolivas.org>, Paul Jackson <pj@sgi.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On 27.07.2007 [15:43:16 -0400], Lee Schermerhorn wrote:
-> Changes V3->V4:
-> - Refresh against 23-rc1-mm1
-> - teach cpusets about memoryless nodes.
+On Fri, 2007-07-27 at 13:45 -0400, Daniel Hazelton wrote:
+> On Friday 27 July 2007 06:25:18 Mike Galbraith wrote:
+> > On Fri, 2007-07-27 at 03:00 -0700, Andrew Morton wrote:
+
+> > > So hrm.  Are we sure that updatedb is the problem?  There are quite a few
+> > > heavyweight things which happen in the wee small hours.
+> >
+> > The balance in _my_ world seems just fine.  I don't let any of those
+> > system maintenance things run while I'm using the system, and it doesn't
+> > bother me if my working set has to be reconstructed after heavy-weight
+> > maintenance things are allowed to run.  I'm not seeing anything I
+> > wouldn't expect to see when running a job the size of updatedb.
+> >
+> > 	-Mike
 > 
-> Changes V2->V3:
-> - Refresh patches (sigh)
-> - Add comments suggested by Kamezawa Hiroyuki
-> - Add signoff by Jes Sorensen
-> 
-> Changes V1->V2:
-> - Add a generic layer that allows the definition of additional node bitmaps
+> Do you realize you've totally missed the point?
 
-Are you carrying this stack anywhere publicly? Like in a git tree or
-even just big patch format?
+Did you notice that I didn't make one disparaging remark about the patch
+or the concept behind it?   Did you notice that I took _my time_  to
+test, to actually look at  the problem?  No, you're too busy running
+your mouth to appreciate the efforts of others.
+ 
+<snips load of useless spleen venting>
 
-Thanks,
-Nish, who will rebase on top of this set
+Do yourself a favor, go dig into the VM source.  Read it, understand it
+(not terribly easy), _then_ come back and preach to me.
 
--- 
-Nishanth Aravamudan <nacc@us.ibm.com>
-IBM Linux Technology Center
+Have a nice day.
+
+	-Mike
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
