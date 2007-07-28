@@ -1,43 +1,69 @@
-Received: by ug-out-1314.google.com with SMTP id c2so980443ugf
-        for <linux-mm@kvack.org>; Sat, 28 Jul 2007 09:29:56 -0700 (PDT)
-Message-ID: <2c0942db0707280929s56cc4588obb4abf78d766af66@mail.gmail.com>
-Date: Sat, 28 Jul 2007 09:29:55 -0700
-From: "Ray Lee" <ray-lk@madrabbit.org>
-Subject: Re: RFT: updatedb "morning after" problem [was: Re: -mm merge plans for 2.6.23]
-In-Reply-To: <20070728122139.3c7f4290@the-village.bc.nu>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
-References: <9a8748490707231608h453eefffx68b9c391897aba70@mail.gmail.com>
-	 <20070727030040.0ea97ff7.akpm@linux-foundation.org>
-	 <1185531918.8799.17.camel@Homer.simpson.net>
-	 <200707271345.55187.dhazelton@enter.net> <46AA3680.4010508@gmail.com>
-	 <Pine.LNX.4.64.0707271239300.26221@asgard.lang.hm>
-	 <46AAEDEB.7040003@gmail.com>
-	 <Pine.LNX.4.64.0707280138370.32476@asgard.lang.hm>
-	 <46AB166A.2000300@gmail.com>
-	 <20070728122139.3c7f4290@the-village.bc.nu>
+Received: from pd2mr3so.prod.shaw.ca
+ (pd2mr3so-qfe3.prod.shaw.ca [10.0.141.108]) by l-daemon
+ (Sun ONE Messaging Server 6.0 HotFix 1.01 (built Mar 15 2004))
+ with ESMTP id <0JLW004KWDYXXZ60@l-daemon> for linux-mm@kvack.org; Sat,
+ 28 Jul 2007 10:32:57 -0600 (MDT)
+Received: from pn2ml6so.prod.shaw.ca ([10.0.121.150])
+ by pd2mr3so.prod.shaw.ca (Sun Java System Messaging Server 6.2-7.05 (built Sep
+ 5 2006)) with ESMTP id <0JLW003SXDYU8520@pd2mr3so.prod.shaw.ca> for
+ linux-mm@kvack.org; Sat, 28 Jul 2007 10:32:54 -0600 (MDT)
+Received: from [192.168.1.113] ([70.64.1.86])
+ by l-daemon (Sun ONE Messaging Server 6.0 HotFix 1.01 (built Mar 15 2004))
+ with ESMTP id <0JLW00GOVDYTEM56@l-daemon> for linux-mm@kvack.org; Sat,
+ 28 Jul 2007 10:32:53 -0600 (MDT)
+Date: Sat, 28 Jul 2007 10:32:47 -0600
+From: Robert Hancock <hancockr@shaw.ca>
+Subject: Re: How can we make page replacement smarter (was: swap-prefetch)
+In-reply-to: <fa.0CL7DLsw6U7akTkW79pdCM5NPRk@ifi.uio.no>
+Message-id: <46AB6FAF.5030306@shaw.ca>
+MIME-version: 1.0
+Content-type: text/plain; charset=ISO-8859-1; format=flowed
+Content-transfer-encoding: 7bit
+References: <fa.RQO1FPcnWSV7f0LbL9tuLuh/fYY@ifi.uio.no>
+ <fa.FI89MRq1q0M+6SmmYNPsXQv2gC8@ifi.uio.no>
+ <fa./S2LBynIjozRhHfPsYxB9mQDpKE@ifi.uio.no>
+ <fa.0CL7DLsw6U7akTkW79pdCM5NPRk@ifi.uio.no>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Alan Cox <alan@lxorguk.ukuu.org.uk>
-Cc: Rene Herman <rene.herman@gmail.com>, david@lang.hm, Daniel Hazelton <dhazelton@enter.net>, Mike Galbraith <efault@gmx.de>, Andrew Morton <akpm@linux-foundation.org>, Ingo Molnar <mingo@elte.hu>, Frank Kingswood <frank@kingswood-consulting.co.uk>, Andi Kleen <andi@firstfloor.org>, Nick Piggin <nickpiggin@yahoo.com.au>, Jesper Juhl <jesper.juhl@gmail.com>, ck list <ck@vds.kolivas.org>, Paul Jackson <pj@sgi.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Al Boldi <a1426z@gawab.com>
+Cc: Chris Snook <csnook@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 7/28/07, Alan Cox <alan@lxorguk.ukuu.org.uk> wrote:
-> Actual physical disk ops are precious resource and anything that mostly
-> reduces the number will be a win - not to stay swap prefetch is the right
-> answer but accidentally or otherwise there are good reasons it may happen
-> to help.
->
-> Bigger more linear chunks of writeout/readin is much more important I
-> suspect than swap prefetching.
+Al Boldi wrote:
+> Chris Snook wrote:
+>> Al Boldi wrote:
+>>> Because it is hard to quantify the expected swap-in speed for random
+>>> pages, let's first tackle the swap-in of consecutive pages, which should
+>>> be at least as fast as swap-out.  So again, why is swap-in so slow?
+>> If I'm writing 20 pages to swap, I can find a suitable chunk of swap and
+>> write them all in one place.  If I'm reading 20 pages from swap, they
+>> could be anywhere.  Also, writes get buffered at one or more layers of
+>> hardware.
+> 
+> Ok, this explains swap-in of random pages.  Makes sense, but it doesn't 
+> explain the awful tmpfs performance degradation of consecutive read-in runs 
+> from swap, which should have at least stayed constant
+> 
+>> At best, reads can be read-ahead and cached, which is why
+>> sequential swap-in sucks less.  On-demand reads are as expensive as I/O
+>> can get.
+> 
+> Which means that it should be at least as fast as swap-out, even faster 
+> because write to disk is usually slower than read on modern disks.  But 
+> linux currently shows a distinct 2x slowdown for sequential swap-in wrt 
+> swap-out.  And to prove this point, just try suspend to disk where you can 
+> see sequential swap-out being reported at about twice the speed of 
+> sequential swap-in on resume.  Why is that?
 
-<nod>. The larger the chunks are that we swap out, the less it
-actually hurts to swap, which might make all this a moot point. Not
-all I/O is created equal...
+Depends if swap-in is doing any read-ahead. If it's reading one page at 
+a time in from the disk then the performance will definitely suck 
+because of all the overhead from the tiny I/O's. With random swap-in you 
+then pay the horrible seek penalty for all the reads as well.
 
-Ray
+-- 
+Robert Hancock      Saskatoon, SK, Canada
+To email, remove "nospam" from hancockr@nospamshaw.ca
+Home Page: http://www.roberthancock.com/
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
