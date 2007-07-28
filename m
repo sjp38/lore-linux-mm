@@ -1,356 +1,171 @@
-Message-ID: <46AB0CDB.8090600@gmx.net>
-Date: Sat, 28 Jul 2007 11:31:07 +0200
-From: Michael Kerrisk <mtk-manpages@gmx.net>
+Date: Sat, 28 Jul 2007 12:57:09 +0100 (IST)
+From: Mel Gorman <mel@csn.ul.ie>
+Subject: Re: NUMA policy issues with ZONE_MOVABLE
+In-Reply-To: <20070728162844.9d5b8c6e.kamezawa.hiroyu@jp.fujitsu.com>
+Message-ID: <Pine.LNX.4.64.0707281255480.7824@skynet.skynet.ie>
+References: <Pine.LNX.4.64.0707242120370.3829@schroedinger.engr.sgi.com>
+ <20070725111646.GA9098@skynet.ie> <Pine.LNX.4.64.0707251212300.8820@schroedinger.engr.sgi.com>
+ <20070726132336.GA18825@skynet.ie> <Pine.LNX.4.64.0707261104360.2374@schroedinger.engr.sgi.com>
+ <20070726225920.GA10225@skynet.ie> <Pine.LNX.4.64.0707261819530.18210@schroedinger.engr.sgi.com>
+ <20070727082046.GA6301@skynet.ie> <20070727154519.GA21614@skynet.ie>
+ <20070728162844.9d5b8c6e.kamezawa.hiroyu@jp.fujitsu.com>
 MIME-Version: 1.0
-Subject: Re: get_mempolicy.2 man page patch
-References: <1180467234.5067.52.camel@localhost>	 <Pine.LNX.4.64.0705291247001.26308@schroedinger.engr.sgi.com>	 <200705292216.31102.ak@suse.de> <1180541849.5850.30.camel@localhost>	 <20070531082016.19080@gmx.net> <1180732544.5278.158.camel@localhost> <46A44B98.8060807@gmx.net>
-In-Reply-To: <46A44B98.8060807@gmx.net>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII; format=flowed
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: ak@suse.de, clameter@sgi.com
-Cc: Michael Kerrisk <mtk-manpages@gmx.net>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, akpm@linux-foundation.org, linux-mm@kvack.org
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: Christoph Lameter <clameter@sgi.com>, Linux Memory Management List <linux-mm@kvack.org>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, ak@suse.de, akpm@linux-foundation.org, pj@sgi.com
 List-ID: <linux-mm.kvack.org>
 
-Andi, Christoph,
+On Sat, 28 Jul 2007, KAMEZAWA Hiroyuki wrote:
 
-Would one or both of you be willing to review the three man page patches by
- Lee (mbind.2, set_mempolicy.2, get_mempolict.2)?
+> On Fri, 27 Jul 2007 16:45:19 +0100
+> mel@skynet.ie (Mel Gorman) wrote:
+>
+>> Obvious things that are outstanding;
+>>
+>> o Compile-test parisc
+>> o Split patch in two to keep the zone_idx changes separetly
+>> o Verify zlccache is not broken
+>> o Have a version of __alloc_pages take a nodemask and ditch
+>>   bind_zonelist()
+>>
+>> I can work on bringing this up to scratch during the cycle.
+>>
+>> Patch as follows. Comments?
+>>
+>
+> I like this idea in general. My concern is zonelist scan cost.
+> Hmm, can this be help ?
+>
 
-Cheers,
+Does this not make the assumption that the zonelists are in zone-order as 
+opposed to node? i.e. that is is
 
-Michael
+H1N1D1H2N2D2H3N3D3 instead of
+H1H2H3N1N2N3D1D2D3
 
+If it's node-order, does this scheme break?
 
-Michael Kerrisk wrote:
-> Andi, Christoph
-> 
-> Could you please review these changes by Lee to the get_mempolicy.2 page?
-> Patch against man-pages-2.63 (available from
-> http://www.kernel.org/pub/linux/docs/manpages).
-> 
-> Andi/ Christoph / Lee: There are a few points marked FIXME about which I'd
-> particularly like some input.
-> 
-> Cheers,
-> 
-> Michael
-> 
-> 
-> --- get_mempolicy.2.orig        2007-06-23 09:18:02.000000000 +0200
-> +++ get_mempolicy.2     2007-07-21 09:18:46.000000000 +0200
-> @@ -1,4 +1,5 @@
->  .\" Copyright 2003,2004 Andi Kleen, SuSE Labs.
-> +.\" and Copyright (C) 2007 Lee Schermerhorn <Lee.Schermerhorn@hp.com>
->  .\"
->  .\" Permission is granted to make and distribute verbatim copies of this
->  .\" manual provided the copyright notice and this permission notice are
-> @@ -18,19 +19,22 @@
->  .\" the source, must acknowledge the copyright and authors of this work.
->  .\"
->  .\" 2006-02-03, mtk, substantial wording changes and other improvements
-> +.\" 2007-06-01, Lee Schermerhorn <Lee.Schermerhorn@hp.com>
-> +.\"     more precise specification of behavior.
->  .\"
-> -.TH GET_MEMPOLICY 2 2006-02-07 "Linux" "Linux Programmer's Manual"
-> +.TH GET_MEMPOLICY 2 2007-07-20 Linux "Linux Programmer's Manual"
->  .SH NAME
->  get_mempolicy \- Retrieve NUMA memory policy for a process
->  .SH SYNOPSIS
->  .B "#include <numaif.h>"
->  .nf
->  .sp
-> -.BI "int get_mempolicy(int *" policy ", unsigned long *" nodemask ,
-> +.BI "int get_mempolicy(int *" mode ", unsigned long *" nodemask ,
->  .BI "                  unsigned long " maxnode ", unsigned long " addr ,
->  .BI "                  unsigned long " flags );
-> +.sp
-> +Link with \fI\-lnuma\fP.
->  .fi
-> -.\" FIXME rewrite this DESCRIPTION. it is confusing.
->  .SH DESCRIPTION
->  .BR get_mempolicy ()
->  retrieves the NUMA policy of the calling process or of a memory address,
-> @@ -39,7 +43,7 @@
-> 
->  A NUMA machine has different
->  memory controllers with different distances to specific CPUs.
-> -The memory policy defines in which node memory is allocated for
-> +The memory policy defines the node on which memory is allocated for
->  the process.
-> 
->  If
-> @@ -58,58 +62,84 @@
->  address given in
->  .IR addr .
->  This policy may be different from the process's default policy if
-> -.BR set_mempolicy (2)
-> -has been used to establish a policy for the page containing
-> +.\" FIXME Lee changed "set_mempolicy" to "mbind" in the following;
-> +.\" is that correct?
-> +.BR mbind (2)
-> +or one of the helper functions described in
-> +.BR numa(3)
-> +has been used to establish a policy for the memory range containing
->  .IR addr .
-> 
-> -If
-> -.I policy
-> -is not NULL, then it is used to return the policy.
-> +If the
-> +.I mode
-> +argument is not NULL, then
-> +.BR get_mempolicy ()
-> +will store the policy mode of the requested NUMA policy in the location
-> +pointed to by this argument.
->  If
->  .IR nodemask
-> -is not NULL, then it is used to return the nodemask associated
-> -with the policy.
-> +is not NULL, then the nodemask associated with the policy will be stored
-> +in the location pointed to by this argument.
->  .I maxnode
-> -is the maximum bit number plus one that can be stored into
-> -.IR nodemask .
-> -The bit number is always rounded to a multiple of
-> -.IR "unsigned long" .
-> -.\"
-> -.\" If
-> -.\" .I flags
-> -.\" specifies both
-> -.\" .B MPOL_F_NODE
-> -.\" and
-> -.\" .BR MPOL_F_ADDR ,
-> -.\" then
-> -.\" .I policy
-> -.\" instead returns the number of the node on which the address
-> -.\" .I addr
-> -.\" is allocated.
-> -.\"
-> -.\" If
-> -.\" .I flags
-> -.\" specifies
-> -.\" .B MPOL_F_NODE
-> -.\" but not
-> -.\" .BR MPOL_F_ADDR ,
-> -.\" and the process's current policy is
-> -.\" .BR MPOL_INTERLEAVE ,
-> -.\" then
-> -.\" checkme: Andi's text below says that the info is returned in
-> -.\" 'nodemask', not 'policy':
-> -.\" .I policy
-> -.\" instead returns the number of the next node that will be used for
-> -.\" interleaving allocation.
-> -.\" FIXME .
-> -.\" The other valid flag is
-> -.\" .I MPOL_F_NODE.
-> -.\" It is only valid when the policy is
-> -.\" .I MPOL_INTERLEAVE.
-> -.\" In this case not the interleave mask, but an unsigned long with the next
-> -.\" node that would be used for interleaving is returned in
-> -.\" .I nodemask.
-> -.\" Other flag values are reserved.
-> +specifies the number of node IDs
-> +that can be stored into
-> +.IR nodemask
-> +(i.e.,
-> +the maximum node ID plus one).
-> +The value specified by
-> +.I maxnode
-> +is always rounded up to a multiple of
-> +.IR "sizeof(unsigned long)" .
-> +.\" FIXME: does the preceding sentence mean that if maxnode is (say)
-> +.\" 22, then the call could neverthless return node IDs in node mask
-> +.\" up to 31 -- e.g., node 26?
+> ---
+> include/linux/mmzone.h |    1
+> mm/page_alloc.c        |   51 +++++++++++++++++++++++++++++++++++++++++++++++--
+> 2 files changed, 50 insertions(+), 2 deletions(-)
+>
+> Index: linux-2.6.23-rc1.test/include/linux/mmzone.h
+> ===================================================================
+> --- linux-2.6.23-rc1.test.orig/include/linux/mmzone.h
+> +++ linux-2.6.23-rc1.test/include/linux/mmzone.h
+> @@ -406,6 +406,7 @@ struct zonelist_cache;
+>
+> struct zonelist {
+> 	struct zonelist_cache *zlcache_ptr;		     // NULL or &zlcache
+> +	unsigned short gfp_skip[MAX_NR_ZONES];
+> 	struct zone *zones[MAX_ZONES_PER_ZONELIST + 1];      // NULL delimited
+> #ifdef CONFIG_NUMA
+> 	struct zonelist_cache zlcache;			     // optional ...
+> Index: linux-2.6.23-rc1.test/mm/page_alloc.c
+> ===================================================================
+> --- linux-2.6.23-rc1.test.orig/mm/page_alloc.c
+> +++ linux-2.6.23-rc1.test/mm/page_alloc.c
+> @@ -1158,13 +1158,14 @@ get_page_from_freelist(gfp_t gfp_mask, u
+> 	int zlc_active = 0;		/* set if using zonelist_cache */
+> 	int did_zlc_setup = 0;		/* just call zlc_setup() one time */
+> 	enum zone_type highest_zoneidx = gfp_zone(gfp_mask);
+> +	int default_skip = zonelist->gfp_skip[highest_zoneidx];
+>
+> zonelist_scan:
+> 	/*
+> 	 * Scan zonelist, looking for a zone with enough free.
+> 	 * See also cpuset_zone_allowed() comment in kernel/cpuset.c.
+> 	 */
+> -	z = zonelist->zones;
+> +	z = zonelist->zones + default_skip;
+>
+> 	do {
+> 		if (should_filter_zone(*z, highest_zoneidx))
+> @@ -1235,6 +1236,7 @@ __alloc_pages(gfp_t gfp_mask, unsigned i
+> 	int do_retry;
+> 	int alloc_flags;
+> 	int did_some_progress;
+> +	int gfp_skip = zonelist->gfp_skip[gfp_zone(gfp_mask)];
+>
+> 	might_sleep_if(wait);
+>
+> @@ -1265,7 +1267,7 @@ restart:
+> 	if (NUMA_BUILD && (gfp_mask & GFP_THISNODE) == GFP_THISNODE)
+> 		goto nopage;
+>
+> -	for (z = zonelist->zones; *z; z++)
+> +	for (z = zonelist->zones + gfp_skip; *z; z++)
+> 		wakeup_kswapd(*z, order);
+>
+> 	/*
+> @@ -2050,6 +2052,50 @@ static void build_zonelist_cache(pg_data
+>
+> #endif	/* CONFIG_NUMA */
+>
+> +static inline
+> +unsigned short find_first_zone(enum zone_type target, struct zonelist *zl)
+> +{
+> +	unsigned short index = 0;
+> +	struct zone *z;
+> +	z = zl->zones[index];
+> +	while (z != NULL) {
+> +		if (!should_filter_zone(z, target))
+> +			return index;
+> +		z = zl->zones[++index];
+> +	}
+> +	return 0;
+> +}
+> +/*
+> + * record the first available zone per gfp.
+> + */
 > +
-> +If
-> +.I flags
-> +specifies both
-> +.B MPOL_F_NODE
-> +and
-> +.BR MPOL_F_ADDR ,
-> +.BR get_mempolicy ()
-> +will return the node ID of the node on which the address
-> +.I addr
-> +is allocated.
-> +The node ID is returned in the location pointed to by
-> +.IR mode .
-> +If no page has yet been allocated for the specified address,
-> +.BR get_mempolicy ()
-> +will allocate a page as if the process had performed a read
-> +[load] access at that address, and return the ID of the node
-> +where that page was allocated.
+> +static void build_zonelist_skip(pg_data_t *pgdat)
+> +{
+> +	enum zone_type target;
+> +	unsigned short index;
+> +	struct zonelist *zl = &pgdat->node_zonelist;
 > +
-> +If
-> +.I flags
-> +specifies
-> +.BR MPOL_F_NODE ,
-> +but not
-> +.BR MPOL_F_ADDR ,
-> +and the process's current policy is
-> +.BR MPOL_INTERLEAVE ,
-> +then
-> +.BR get_mempolicy ()
-> +will return in the location pointed to by a non-NULL
-> +.I mode
-> +argument,
-> +the node ID of the next node that will be used for
-> +interleaving of internal kernel pages allocated on behalf
-> +of the process.
-> +.\" Note:  code returns next interleave node via 'mode'
-> +.\" argument -- Lee Schermerhorn
-> +These allocations include pages for memory mapped files in
-> +process memory ranges mapped using the
-> +.IR mmap (2)
-> +call with the
-> +.B MAP_PRIVATE
-> +flag for read accesses, and in memory ranges mapped with the
-> +.B MAP_SHARED
-> +flag for all accesses.
+> +	target = gfp_zone(GFP_KERNEL|GFP_DMA);
+> +	index = find_first_zone(target, zl);
+> +	zl->gfp_skip[target] = index;
 > +
-> +Other flag values are reserved.
-> 
->  For an overview of the possible policies see
->  .BR set_mempolicy (2).
-> @@ -120,49 +150,89 @@
->  on error, \-1 is returned and
->  .I errno
->  is set to indicate the error.
-> -.\" .SH ERRORS
-> -.\" FIXME -- no errors are listed on this page
-> -.\" .
-> -.\" .TP
-> -.\" .B EINVAL
-> -.\" .I nodemask
-> -.\" is non-NULL, and
-> -.\" .I maxnode
-> -.\" is too small;
-> -.\" or
-> -.\" .I flags
-> -.\" specified values other than
-> -.\" .B MPOL_F_NODE
-> -.\" or
-> -.\" .BR MPOL_F_ADDR ;
-> -.\" or
-> -.\" .I flags
-> -.\" specified
-> -.\" .B MPOL_F_ADDR
-> -.\" and
-> -.\" .I addr
-> -.\" is NULL.
-> -.\" (And there are other
-> -.\" .B EINVAL
-> -.\" cases.)
-> +.SH ERRORS
-> +.TP
-> +.B EINVAL
-> +The value specified by
-> +.I maxnode
-> +is less than the number of node IDs supported by the system.
-> +Or
-> +.I flags
-> +specified values other than
-> +.B MPOL_F_NODE
-> +or
-> +.BR MPOL_F_ADDR ;
-> +or
-> +.I flags
-> +specified
-> +.B MPOL_F_ADDR
-> +and
-> +.I addr
-> +is NULL,
-> +or
-> +.I flags
-> +did not specify
-> +.B MPOL_F_ADDR
-> +and
-> +.I addr
-> +is not NULL.
-> +Or,
-> +.I flags
-> +specified
-> +.B MPOL_F_NODE
-> +but not
-> +.B MPOL_F_ADDR
-> +and the current process policy is not
-> +.BR MPOL_INTERLEAVE .
-> +.TP
-> +.B EFAULT
-> +Part or all of the memory range specified by
-> +.I nodemask
-> +and
-> +.I maxnode
-> +points outside your accessible address space.
->  .SH CONFORMING TO
->  This system call is Linux specific.
->  .SH NOTES
-> -This manual page is incomplete:
-> -it does not document the details the
-> -.BR MPOL_F_NODE
-> -flag,
-> -which modifies the operation of
-> -.BR get_mempolicy ().
-> -This is deliberate: this flag is not intended for application use,
-> -and its operation may change or it may be removed altogether in
-> -future kernel versions.
-> -.B Do not use it.
-> +If the mode of the process policy or the policy governing allocations
-> +at the specified address is
-> +.B MPOL_PREFERRED
-> +and this policy was installed with an empty
-> +.IR nodemask
-> +(i.e., specifying local allocation),
-> +.BR get_mempolicy ()
-> +will return the mask of on-line node IDs, in the location pointed to by
-> +a non-NULL
-> +.I nodemask
-> +argument.
-> +This mask does not take into consideration any adminstratively imposed
-> +restrictions on the process's context.
-> +.\" "context" above refers to cpusets.
-> +.\" No man page to reference. -- Lee Schermerhorn
-> +.\"
-> +.\" FIXME: Andi / Lee -- can you please resolve the following (mtk):
-> +.\"
-> +.\"  Christoph says the following is untrue.  These are "fully supported."
-> +.\"  Andi concedes that he has lost this battle and approves [?]
-> +.\"  updating the man pages to document the behavior.  -- Lee Schermerhorn
-> +.\" This manual page is incomplete:
-> +.\" it does not document the details the
-> +.\" .BR MPOL_F_NODE
-> +.\" flag,
-> +.\" which modifies the operation of
-> +.\" .BR get_mempolicy ().
-> +.\" This is deliberate: this flag is not intended for application use,
-> +.\" and its operation may change or it may be removed altogether in
-> +.\" future kernel versions.
-> +.\" .B Do not use it.
->  .SS "Versions and Library Support"
->  See
->  .BR mbind (2).
-> +.SH CONFORMING TO
-> +This system call is Linux specific.
->  .SH SEE ALSO
->  .BR mbind (2),
-> +.BR mmap (2),
->  .BR set_mempolicy (2),
-> -.BR numactl (8),
-> -.BR numa (3)
-> +.BR numa (3),
-> +.BR numactl (8)
-> 
-> 
-> 
+> +	target = gfp_zone(GFP_KERNEL|GFP_DMA32);
+> +	index = find_first_zone(target, zl);
+> +	zl->gfp_skip[target] = index;
+> +
+> +	target = gfp_zone(GFP_KERNEL);
+> +	index = find_first_zone(target, zl);
+> +	zl->gfp_skip[target] = index;
+> +
+> +	target = gfp_zone(GFP_HIGHUSER);
+> +	index = find_first_zone(target, zl);
+> +	zl->gfp_skip[target] = index;
+> +
+> +	target = gfp_zone(GFP_HIGHUSER_MOVABLE);
+> +	index = find_first_zone(target, zl);
+> +	zl->gfp_skip[target] = index;
+> +}
+> +
+> /* return values int ....just for stop_machine_run() */
+> static int __build_all_zonelists(void *dummy)
+> {
+> @@ -2058,6 +2104,7 @@ static int __build_all_zonelists(void *d
+> 	for_each_online_node(nid) {
+> 		build_zonelists(NODE_DATA(nid));
+> 		build_zonelist_cache(NODE_DATA(nid));
+> +		build_zonelist_skip(NODE_DATA(nid));
+> 	}
+> 	return 0;
+> }
+>
 
 -- 
-Michael Kerrisk
-maintainer of Linux man pages Sections 2, 3, 4, 5, and 7
-
-Want to help with man page maintenance?  Grab the latest tarball at
-http://www.kernel.org/pub/linux/docs/manpages/
-read the HOWTOHELP file and grep the source files for 'FIXME'.
+Mel Gorman
+Part-time Phd Student                          Linux Technology Center
+University of Limerick                         IBM Dublin Software Lab
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
