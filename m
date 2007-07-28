@@ -1,158 +1,69 @@
-Date: Sat, 28 Jul 2007 16:28:44 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: NUMA policy issues with ZONE_MOVABLE
-Message-Id: <20070728162844.9d5b8c6e.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20070727154519.GA21614@skynet.ie>
-References: <Pine.LNX.4.64.0707242120370.3829@schroedinger.engr.sgi.com>
-	<20070725111646.GA9098@skynet.ie>
-	<Pine.LNX.4.64.0707251212300.8820@schroedinger.engr.sgi.com>
-	<20070726132336.GA18825@skynet.ie>
-	<Pine.LNX.4.64.0707261104360.2374@schroedinger.engr.sgi.com>
-	<20070726225920.GA10225@skynet.ie>
-	<Pine.LNX.4.64.0707261819530.18210@schroedinger.engr.sgi.com>
-	<20070727082046.GA6301@skynet.ie>
-	<20070727154519.GA21614@skynet.ie>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Message-ID: <46AAF1CF.6060908@gmail.com>
+Date: Sat, 28 Jul 2007 09:35:43 +0200
+From: Rene Herman <rene.herman@gmail.com>
+MIME-Version: 1.0
+Subject: Re: RFT: updatedb "morning after" problem [was: Re: -mm merge	plans
+ for 2.6.23]
+References: <9a8748490707231608h453eefffx68b9c391897aba70@mail.gmail.com> <20070727030040.0ea97ff7.akpm@linux-foundation.org> <1185531918.8799.17.camel@Homer.simpson.net> <200707271345.55187.dhazelton@enter.net> <46AA3680.4010508@gmail.com> <20070727231545.GA14457@atjola.homenet>
+In-Reply-To: <20070727231545.GA14457@atjola.homenet>
+Content-Type: text/plain; charset=ISO-8859-15; format=flowed
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Mel Gorman <mel@skynet.ie>
-Cc: Christoph Lameter <clameter@sgi.com>, linux-mm@kvack.org, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, ak@suse.de, akpm@linux-foundation.org, pj@sgi.com
+To: =?ISO-8859-15?Q?Bj=F6rn_Steinbrink?= <B.Steinbrink@gmx.de>, Rene Herman <rene.herman@gmail.com>, Daniel Hazelton <dhazelton@enter.net>, Mike Galbraith <efault@gmx.de>, Andrew Morton <akpm@linux-foundation.org>, Ingo Molnar <mingo@elte.hu>, Frank Kingswood <frank@kingswood-consulting.co.uk>, Andi Kleen <andi@firstfloor.org>, Nick Piggin <nickpiggin@yahoo.com.au>, Ray Lee <ray-lk@madrabbit.org>, Jesper Juhl <jesper.juhl@gmail.com>, ck list <ck@vds.kolivas.org>, Paul Jackson <pj@sgi.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 27 Jul 2007 16:45:19 +0100
-mel@skynet.ie (Mel Gorman) wrote:
+On 07/28/2007 01:15 AM, Bjorn Steinbrink wrote:
 
-> Obvious things that are outstanding;
-> 
-> o Compile-test parisc
-> o Split patch in two to keep the zone_idx changes separetly
-> o Verify zlccache is not broken
-> o Have a version of __alloc_pages take a nodemask and ditch
->   bind_zonelist()
-> 
-> I can work on bringing this up to scratch during the cycle.
-> 
-> Patch as follows. Comments?
-> 
+> On 2007.07.27 20:16:32 +0200, Rene Herman wrote:
 
-I like this idea in general. My concern is zonelist scan cost.
- Hmm, can this be help ?
+>> Here's swap-prefetch's author saying the same:
+>>
+>> http://lkml.org/lkml/2007/2/9/112
+>>
+>> | It can't help the updatedb scenario. Updatedb leaves the ram full and
+>> | swap prefetch wants to cost as little as possible so it will never
+>> | move anything out of ram in preference for the pages it wants to swap
+>> | back in.
+>>
+>> Now please finally either understand this, or tell us how we're wrong.
+> 
+> Con might have been wrong there for boxes with really little memory.
 
----
- include/linux/mmzone.h |    1 
- mm/page_alloc.c        |   51 +++++++++++++++++++++++++++++++++++++++++++++++--
- 2 files changed, 50 insertions(+), 2 deletions(-)
+Note -- with "the updatedb scenario" both he in the above and I are talking 
+about the "VFS caches filling memory cause the problem" not updatedb in 
+particular.
 
-Index: linux-2.6.23-rc1.test/include/linux/mmzone.h
-===================================================================
---- linux-2.6.23-rc1.test.orig/include/linux/mmzone.h
-+++ linux-2.6.23-rc1.test/include/linux/mmzone.h
-@@ -406,6 +406,7 @@ struct zonelist_cache;
- 
- struct zonelist {
- 	struct zonelist_cache *zlcache_ptr;		     // NULL or &zlcache
-+	unsigned short gfp_skip[MAX_NR_ZONES];
- 	struct zone *zones[MAX_ZONES_PER_ZONELIST + 1];      // NULL delimited
- #ifdef CONFIG_NUMA
- 	struct zonelist_cache zlcache;			     // optional ...
-Index: linux-2.6.23-rc1.test/mm/page_alloc.c
-===================================================================
---- linux-2.6.23-rc1.test.orig/mm/page_alloc.c
-+++ linux-2.6.23-rc1.test/mm/page_alloc.c
-@@ -1158,13 +1158,14 @@ get_page_from_freelist(gfp_t gfp_mask, u
- 	int zlc_active = 0;		/* set if using zonelist_cache */
- 	int did_zlc_setup = 0;		/* just call zlc_setup() one time */
- 	enum zone_type highest_zoneidx = gfp_zone(gfp_mask);
-+	int default_skip = zonelist->gfp_skip[highest_zoneidx];
- 
- zonelist_scan:
- 	/*
- 	 * Scan zonelist, looking for a zone with enough free.
- 	 * See also cpuset_zone_allowed() comment in kernel/cpuset.c.
- 	 */
--	z = zonelist->zones;
-+	z = zonelist->zones + default_skip;
- 
- 	do {
- 		if (should_filter_zone(*z, highest_zoneidx))
-@@ -1235,6 +1236,7 @@ __alloc_pages(gfp_t gfp_mask, unsigned i
- 	int do_retry;
- 	int alloc_flags;
- 	int did_some_progress;
-+	int gfp_skip = zonelist->gfp_skip[gfp_zone(gfp_mask)];
- 
- 	might_sleep_if(wait);
- 
-@@ -1265,7 +1267,7 @@ restart:
- 	if (NUMA_BUILD && (gfp_mask & GFP_THISNODE) == GFP_THISNODE)
- 		goto nopage;
- 
--	for (z = zonelist->zones; *z; z++)
-+	for (z = zonelist->zones + gfp_skip; *z; z++)
- 		wakeup_kswapd(*z, order);
- 
- 	/*
-@@ -2050,6 +2052,50 @@ static void build_zonelist_cache(pg_data
- 
- #endif	/* CONFIG_NUMA */
- 
-+static inline 
-+unsigned short find_first_zone(enum zone_type target, struct zonelist *zl)
-+{
-+	unsigned short index = 0;
-+	struct zone *z;
-+	z = zl->zones[index];
-+	while (z != NULL) {
-+		if (!should_filter_zone(z, target))
-+			return index;
-+		z = zl->zones[++index];
-+	}
-+	return 0;
-+}
-+/*
-+ * record the first available zone per gfp.
-+ */
-+
-+static void build_zonelist_skip(pg_data_t *pgdat)
-+{
-+	enum zone_type target;
-+	unsigned short index;
-+	struct zonelist *zl = &pgdat->node_zonelist;
-+
-+	target = gfp_zone(GFP_KERNEL|GFP_DMA);
-+	index = find_first_zone(target, zl);
-+	zl->gfp_skip[target] = index;
-+
-+	target = gfp_zone(GFP_KERNEL|GFP_DMA32);
-+	index = find_first_zone(target, zl);
-+	zl->gfp_skip[target] = index;
-+
-+	target = gfp_zone(GFP_KERNEL);
-+	index = find_first_zone(target, zl);
-+	zl->gfp_skip[target] = index;
-+
-+	target = gfp_zone(GFP_HIGHUSER);
-+	index = find_first_zone(target, zl);
-+	zl->gfp_skip[target] = index;
-+
-+	target = gfp_zone(GFP_HIGHUSER_MOVABLE);
-+	index = find_first_zone(target, zl);
-+	zl->gfp_skip[target] = index;
-+}
-+
- /* return values int ....just for stop_machine_run() */
- static int __build_all_zonelists(void *dummy)
- {
-@@ -2058,6 +2104,7 @@ static int __build_all_zonelists(void *d
- 	for_each_online_node(nid) {
- 		build_zonelists(NODE_DATA(nid));
- 		build_zonelist_cache(NODE_DATA(nid));
-+		build_zonelist_skip(NODE_DATA(nid));
- 	}
- 	return 0;
- }
+> My desktop box has not even 300k inodes in use (IIRC someone posted a df 
+> -i output showing 1 million inodes in use). Still, the memory footprint 
+> of the "sort" process grows up to about 50MB. Assuming that the average 
+> filename length stays, that would mean 150MB for the 1 million inode 
+> case, just for the "sort" process.
+
+Even if it's not 150MB, 50MB is already a lot on a 128 or even a 256MB box. 
+So, yes, we're now at the expected scenario of some hog pushing out things 
+and freeing it upon exit again and it's something swap-prefetch definitely 
+has potential to help with.
+
+Said early in the thread it's hard to imagine how it would not help in any 
+such situation so that the discussion may as far as I'm concerned at that 
+point concentrate on whether swap-prefetch hurts anything in others.
+
+Some people I believe are not convinced it helps very significantly due to 
+at that point _everything_ having been thrown out but a copy of openoffice 
+with a large spreadsheet open should come back to life much quicker it would 
+seem.
+
+> Any faults in that reasoning?
+
+No. If the machine goes idle after some memory hog _itself_ pushes things 
+out and then exits, swap-prefetch helps, at the veryvery least potentially.
+
+By the way -- I'm unable to make my slocate grow substantial here but I'll 
+try what GNU locate does. If it's really as bad as I hear then regardless of 
+anything else it should really be either fixed or dumped...
+
+Rene.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
