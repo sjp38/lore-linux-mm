@@ -1,94 +1,105 @@
-From: Daniel Hazelton <dhazelton@enter.net>
-Subject: Re: RFT: updatedb "morning after" problem [was: Re: -mm merge plans for 2.6.23]
-Date: Fri, 27 Jul 2007 21:10:46 -0400
-References: <9a8748490707231608h453eefffx68b9c391897aba70@mail.gmail.com> <20070727231545.GA14457@atjola.homenet> <20070727232919.GA8960@one.firstfloor.org>
-In-Reply-To: <20070727232919.GA8960@one.firstfloor.org>
+Message-ID: <46AAA25E.7040301@redhat.com>
+Date: Fri, 27 Jul 2007 21:56:46 -0400
+From: Chris Snook <csnook@redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain;
-  charset="iso-8859-1"
-Content-Transfer-Encoding: 8BIT
-Content-Disposition: inline
-Message-Id: <200707272110.46860.dhazelton@enter.net>
+Subject: Re: swap-prefetch:  A smart way to make good use of idle resources
+ (was: updatedb)
+References: <200707272243.02336.a1426z@gawab.com>
+In-Reply-To: <200707272243.02336.a1426z@gawab.com>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andi Kleen <andi@firstfloor.org>
-Cc: =?iso-8859-1?q?Bj=F6rn_Steinbrink?= <B.Steinbrink@gmx.de>, Rene Herman <rene.herman@gmail.com>, Mike Galbraith <efault@gmx.de>, Andrew Morton <akpm@linux-foundation.org>, Ingo Molnar <mingo@elte.hu>, Frank Kingswood <frank@kingswood-consulting.co.uk>, Nick Piggin <nickpiggin@yahoo.com.au>, Ray Lee <ray-lk@madrabbit.org>, Jesper Juhl <jesper.juhl@gmail.com>, ck list <ck@vds.kolivas.org>, Paul Jackson <pj@sgi.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Al Boldi <a1426z@gawab.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Friday 27 July 2007 19:29:19 Andi Kleen wrote:
-> > Any faults in that reasoning?
->
-> GNU sort uses a merge sort with temporary files on disk. Not sure
-> how much it keeps in memory during that, but it's probably less
-> than 150MB. At some point the dirty limit should kick in and write back the
-> data of the temporary files; so it's not quite the same as anonymous
-> memory. But it's not that different given.
+Al Boldi wrote:
+> People wrote:
+>>>> I believe the users who say their apps really do get paged back in
+>>>> though, so suspect that's not the case.
+>>> Stopping the bush-circumference beating, I do not. -ck (and gentoo) have
+>>> this massive Calimero thing going among their users where people are
+>>> much less interested in technology than in how the nasty big kernel
+>>> meanies are keeping them down (*).
+>> I think the problem is elsewhere. Users don't say: "My apps get paged
+>> back in." They say: "My system is more responsive". They really don't
+>> care *why* the reaction to a mouse click that takes three seconds with
+>> a mainline kernel is instantaneous with -ck. Nasty big kernel meanies,
+>> OTOH, want to understand *why* a patch helps in order to decide whether
+>> it is really a good idea to merge it. So you've got a bunch of patches
+>> (aka -ck) which visibly improve the overall responsiveness of a desktop
+>> system, but apparently no one can conclusively explain why or how they
+>> achieve that, and therefore they cannot be merged into mainline.
+>>
+>> I don't have a solution to that dilemma either.
+> 
+> IMHO, what everybody agrees on, is that swap-prefetch has a positive effect 
+> in some cases, and nobody can prove an adverse effect (excluding power 
+> consumption).  The reason for this positive effect is also crystal clear:  
+> It prefetches from swap on idle into free memory, ie: it doesn't force 
+> anybody out, and they are the first to be dropped without further swap-out, 
+> which sounds really smart.
+> 
+> Conclusion:  Either prove swap-prefetch is broken, or get this merged quick.
 
-Yes, this should occur. But how many programs use temporary files like that? 
->From what I can tell FireFox and OpenOffice both keep all their data in 
-memory, only using a single file for some buffering purposes. When they get 
-pushed out by a memory hog (either short term or long term) it takes several 
-seconds for them to be swapped back in. (I'm on a P4-1.3GHz machine with 1G 
-of ram and rarely run more than four programs (Mail Client, XChat, FireFox 
-and a console window) and I've seen this lag in FireFox when switching to it 
-after starting OOo. I've also seen the same sort of lag when exiting OOo. 
-I'll see about getting some numbers about this)
+If you can't prove why it helps and doesn't hurt, then it's a hack, by 
+definition.  Behind any performance hack is some fundamental truth that can be 
+exploited to greater effect if we reason about it.  So let's reason about it. 
+I'll start.
 
-> It would be better to measure than to guess. At least Andrew's measurements
-> on 128MB actually didn't show updatedb being really that big a problem.
+Resource size has been outpacing processing latency since the dawn of time. 
+Disks get bigger much faster than seek times shrink.  Main memory and cache keep 
+growing, while single-threaded processing speed has nearly ground to a halt.
 
-I agree. As I've said previously, it isn't updatedb itself which causes the 
-problem. It's the way the VFS cache seems to just expand and expand - to the 
-point of evicting pages to make room for itself. However, I may be wrong 
-about that - I haven't actually tested it for myself, just looked at the 
-numbers and other information that has been posted in this thread.
+In the old days, it made lots of sense to manage resource allocation in pages 
+and blocks.  In the past few years, we started reserving blocks in ext3 
+automatically because it saves more in seek time than it costs in disk space. 
+Now we're taking preallocation and antifragmentation to the next level with 
+extent-based allocation in ext4.
 
-> Perhaps some people have much more files or simply a less efficient
-> updatedb implementation?
+Well, we're still using bitmap-style allocation for pages, and the prefetch-less 
+swap mechanism adheres to this design as well.  Maybe it's time to start 
+thinking about memory in a somewhat more extent-like fashion.
 
-Yes, it could be the proliferation of files. It could also be some other sort 
-of problem that is exposing a corner-case in the VFS cache or the MM. I, 
-personally, am of the opinion that it is likely the aforementioned corner 
-case for people reporting the "updatedb" problem. If it is, then 
-swap-prefetch is just papering over the problem. However I do not have the 
-knowledge and understanding of the subsystems involved to be able to do much 
-more than make a (probably wrong) guess.
+With swap prefetch, we're only optimizing the case when the box isn't loaded and 
+there's RAM free, but we're not optimizing the case when the box is heavily 
+loaded and we need for RAM to be free.  This is a complete reversal of sane 
+development priorities.  If swap batching is an optimization at all (and we have 
+empirical evidence that it is) then it should also be an optimization to swap 
+out chunks of pages when we need to free memory.
 
-> I guess the people who complain here that loudly really need to supply
-> some real numbers.
+So, how do we go about this grouping?  I suggest that if we keep per-VMA 
+reference/fault/dirty statistics, we can tell which logically distinct chunks of 
+memory are being regularly used.  This would also us to apply different page 
+replacement policies to chunks of memory that are being used in different fashions.
 
-I've seen numerous "real numbers" posted about this. As was said earlier in 
-the thread "every time numbers are posted they are claimed to be no good". 
-But hey, nobodies perfect :)
+With such statistics, we could then page out VMAs in 2MB chunks when we're under 
+memory pressure, also giving us the option of transparently paging them back in 
+to hugepages when we have the memory free, once anonymous hugepage support is in 
+place.
 
-Anyway, the discussion seems to be turning to the technical merits of 
-swap-prefetch...
+I'm inclined to view swap prefetch as a successful scientific experiment, and 
+use that data to inform a more reasoned engineering effort.  If we can design 
+something intelligent which happens to behave more or less like swap prefetch 
+does under the circumstances where swap prefetch helps, and does something else 
+smart under the circumstances where swap prefetch makes no discernable 
+difference, it'll be a much bigger improvement.
 
-Now, a completely different question:
-During the research (and lots of thinking) I've been doing while this thread 
-has been going on I've often wondered why swap prefetch wasn't already in the 
-kernel. The problem of slow swap-in has long been known, and, given current 
-hardware, the optimal solution would be some sort of data prefetch - similar 
-to what is done to speed up normal disk reads. Swap prefetch looks like it 
-does exactly that. The algo could be argued over and/or improved (to suggest 
-ways to do that I'd have to give it more than a 10 minute look) but it does 
-provide a speed-up.
+Because we cannot prove why the existing patch helps, we cannot say what impact 
+it will have when things like virtualization and solid state drives radically 
+change the coefficients of the equation we have not solved.  Providing a sysctl 
+to turn off a misbehaving feature is a poor substitute for doing it right the 
+first time, and leaving it off by default will ensure that it only gets used by 
+the handful of people who know enough to rebuild with the patch anyway.
 
-This speed increase will probably be enjoyed more by the home users, but the 
-performance increase could also help on enterprise systems.
+Let's talk about how we can make page replacement smarter, so it naturally 
+accomplishes what swap prefetch accomplishes, as part of a design we can reason 
+about.
 
-Now I'll be the first one to admit that there is a trade-off there - it will 
-cause more power to be used because the disk's don't get a chance to spin 
-down (or go through a cycle every time the prefetch system starts) but that 
-could, potentially, be alleviated by having "laptop mode" switch it off.
+CC-ing linux-mm, since that's where I think we should take this next.
 
-(And no, I'm not claiming that it is perfect - but then, what is when its 
-first merged into the kernel?)
-
-DRH
-
--- 
-Dialup is like pissing through a pipette. Slow and excruciatingly painful.
+	-- Chris
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
