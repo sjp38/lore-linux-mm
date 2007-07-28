@@ -1,46 +1,52 @@
-Date: Sat, 28 Jul 2007 14:03:01 -0700 (PDT)
+Date: Sat, 28 Jul 2007 14:06:50 -0700 (PDT)
 From: david@lang.hm
 Subject: Re: RFT: updatedb "morning after" problem [was: Re: -mm merge plans
  for 2.6.23]
-In-Reply-To: <20070728122139.3c7f4290@the-village.bc.nu>
-Message-ID: <Pine.LNX.4.64.0707281400580.32476@asgard.lang.hm>
+In-Reply-To: <200707281156.53439.dhazelton@enter.net>
+Message-ID: <Pine.LNX.4.64.0707281403510.32476@asgard.lang.hm>
 References: <9a8748490707231608h453eefffx68b9c391897aba70@mail.gmail.com>
- <20070727030040.0ea97ff7.akpm@linux-foundation.org> <1185531918.8799.17.camel@Homer.simpson.net>
- <200707271345.55187.dhazelton@enter.net> <46AA3680.4010508@gmail.com>
- <Pine.LNX.4.64.0707271239300.26221@asgard.lang.hm> <46AAEDEB.7040003@gmail.com>
- <Pine.LNX.4.64.0707280138370.32476@asgard.lang.hm> <46AB166A.2000300@gmail.com>
- <20070728122139.3c7f4290@the-village.bc.nu>
+ <46AAEDEB.7040003@gmail.com> <Pine.LNX.4.64.0707280138370.32476@asgard.lang.hm>
+ <200707281156.53439.dhazelton@enter.net>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII; format=flowed
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Alan Cox <alan@lxorguk.ukuu.org.uk>
-Cc: Rene Herman <rene.herman@gmail.com>, Daniel Hazelton <dhazelton@enter.net>, Mike Galbraith <efault@gmx.de>, Andrew Morton <akpm@linux-foundation.org>, Ingo Molnar <mingo@elte.hu>, Frank Kingswood <frank@kingswood-consulting.co.uk>, Andi Kleen <andi@firstfloor.org>, Nick Piggin <nickpiggin@yahoo.com.au>, Ray Lee <ray-lk@madrabbit.org>, Jesper Juhl <jesper.juhl@gmail.com>, ck list <ck@vds.kolivas.org>, Paul Jackson <pj@sgi.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Daniel Hazelton <dhazelton@enter.net>
+Cc: Rene Herman <rene.herman@gmail.com>, Mike Galbraith <efault@gmx.de>, Andrew Morton <akpm@linux-foundation.org>, Ingo Molnar <mingo@elte.hu>, Frank Kingswood <frank@kingswood-consulting.co.uk>, Andi Kleen <andi@firstfloor.org>, Nick Piggin <nickpiggin@yahoo.com.au>, Ray Lee <ray-lk@madrabbit.org>, Jesper Juhl <jesper.juhl@gmail.com>, ck list <ck@vds.kolivas.org>, Paul Jackson <pj@sgi.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Sat, 28 Jul 2007, Alan Cox wrote:
+On Sat, 28 Jul 2007, Daniel Hazelton wrote:
 
->> It is. Prefetched pages can be dropped on the floor without additional I/O.
+> 
+> On Saturday 28 July 2007 04:55:58 david@lang.hm wrote:
+>> On Sat, 28 Jul 2007, Rene Herman wrote:
+>>> On 07/27/2007 09:43 PM, david@lang.hm wrote:
+>>>>  On Fri, 27 Jul 2007, Rene Herman wrote:
+>>>>>  On 07/27/2007 07:45 PM, Daniel Hazelton wrote:
+>>
+>> nobody is arguing that swap prefetch helps in the second cast.
 >
-> Which is essentially free for most cases. In addition your disk access
-> may well have been in idle time (and should be for this sort of stuff)
-> and if it was in the same chunk as something nearby was effectively free
-> anyway.
+> Actually, I made a mistake when tracking the thread and reading the code for
+> the patch and started to argue just that. But I have to admit I made a
+> mistake - the patches author has stated (as Rene was kind enough to point
+> out) that swap prefetch can't help when memory is filled.
 
-as I understand it the swap-prefetch only kicks in if the device is idle
+I stand corrected, thaks for speaking up and correcting your position.
 
-> Actual physical disk ops are precious resource and anything that mostly
-> reduces the number will be a win - not to stay swap prefetch is the right
-> answer but accidentally or otherwise there are good reasons it may happen
-> to help.
+>> what people are arguing is that there are situations where it helps for
+>> the first case. on some machines and version of updatedb the nighly run of
+>> updatedb can cause both sets of problems. but the nightly updatedb run is
+>> not the only thing that can cause problems
 >
-> Bigger more linear chunks of writeout/readin is much more important I
-> suspect than swap prefetching.
+> Solving the cache filling memory case is difficult. There have been a number
+> of discussions about it. The simplest solution, IMHO, would be to place a
+> (configurable) hard limit on the maximum size any of the kernels caches can
+> grow to. (The only solution that was discussed, however, is a complex beast)
 
-I'm sure this is true while you are doing the swapout or swapin and the 
-system is waiting for it. but with prefetch you may be able to avoid doing 
-the swapin at a time when the system is waiting for it by doing it at a 
-time when the system is otherwise idle.
+limiting the size of the cache is also the wrong thing to do in many 
+situations. it's only right if the cache pushes out other data you care 
+about, if you are trying to do one thing as fast as you can you really do 
+want the system to use all the memory it can for the cache.
 
 David Lang
 
