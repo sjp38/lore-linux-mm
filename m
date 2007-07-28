@@ -1,53 +1,32 @@
 From: Andy Whitcroft <apw@shadowen.org>
-Subject: [PATCH 0/2] Synchronous Lumpy Reclaim V2
-Message-ID: <exportbomb.1185662485@pinky>
-Date: Sat, 28 Jul 2007 23:51:29 +0100
+Subject: [PATCH 1/2] ensure we count pages transitioning inactive via clear_active_flags
+References: <exportbomb.1185662485@pinky>
+Message-ID: <06a9050c636e7b489c2a4c91951d2141@pinky>
+Date: Sat, 28 Jul 2007 23:51:59 +0100
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Andrew Morton <akpm@osdl.org>
 Cc: Mel Gorman <mel@csn.ul.ie>, Andy Whitcroft <apw@shadowen.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-As pointed out by Mel when reclaim is applied at higher orders a
-significant amount of IO may be started.  As this takes finite time
-to drain reclaim will consider more areas than ultimatly needed
-to satisfy the request.  This leads to more reclaim than strictly
-required and reduced success rates.
+We are transitioning pages from active to inactive in
+clear_active_flags, those need counting as PGDEACTIVATE vm events.
 
-I was able to confirm Mel's test results on systems locally.
-These show that even under light load the success rates drop off far
-more than expected.  Testing with a modified version of his patch
-(which follows) I was able to allocate almost all of ZONE_MOVABLE
-with a near idle system.  I ran 5 test passes sequentially following
-system boot (the system has 29 hugepages in ZONE_MOVABLE):
-
-  2.6.23-rc1              11  8  6  7  7
-  sync_lumpy v2           28 28 29 29 26
-
-These show that although hugely better than the near 0% success
-normally expected we can only allocate about a 1/4 of the zone.
-Using synchronous reclaim for these allocations we get close to 100%
-as expected.
-
-I have also run our standard high order tests and these show no
-regressions in allocation success rates at rest, and some significant
-improvements under load.
-
-Following this email are two patches, both should be considered as
-bug fixes to lumpy reclaim:
-
-ensure-we-count-pages-transitioning-inactive-via-clear_active_flags:
-  this a bug fix for Lumpy Reclaim fixing up a bug in VM Event
-  accounting when it marks pages inactive, and
-
-Wait-for-page-writeback-when-directly-reclaiming-contiguous-areas:
-  updates reclaim making direct reclaim synchronous when applied
-  at orders above PAGE_ALLOC_COSTLY_ORDER.
-
-Patches against 2.6.23-rc1.  Andrew please consider for -mm and
-for pushing to mainline.
-
--apw
+Signed-off-by: Andy Whitcroft <apw@shadowen.org>
+Acked-by: Mel Gorman <mel@csn.ul.ie>
+---
+diff --git a/mm/vmscan.c b/mm/vmscan.c
+index d419e10..99ec7fa 100644
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -777,6 +777,7 @@ static unsigned long shrink_inactive_list(unsigned long max_scan,
+ 			     (sc->order > PAGE_ALLOC_COSTLY_ORDER)?
+ 					     ISOLATE_BOTH : ISOLATE_INACTIVE);
+ 		nr_active = clear_active_flags(&page_list);
++		__count_vm_events(PGDEACTIVATE, nr_active);
+ 
+ 		__mod_zone_page_state(zone, NR_ACTIVE, -nr_active);
+ 		__mod_zone_page_state(zone, NR_INACTIVE,
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
