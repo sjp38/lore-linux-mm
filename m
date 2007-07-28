@@ -1,62 +1,94 @@
-Date: Fri, 27 Jul 2007 19:24:03 -0500
-From: Matt Mackall <mpm@selenic.com>
-Subject: Re: -mm merge plans for 2.6.23
-Message-ID: <20070728002403.GK11166@waste.org>
-References: <46A58B49.3050508@yahoo.com.au> <2c0942db0707240915h56e007e3l9110e24a065f2e73@mail.gmail.com> <46A6CC56.6040307@yahoo.com.au> <46A6D7D2.4050708@gmail.com> <1185341449.7105.53.camel@perkele> <46A6E1A1.4010508@yahoo.com.au> <2c0942db0707250909r435fef75sa5cbf8b1c766000b@mail.gmail.com> <20070725215717.df1d2eea.akpm@linux-foundation.org> <2c0942db0707252333uc7631fduadb080193f6ad323@mail.gmail.com> <20070725235037.e59f30fc.akpm@linux-foundation.org>
+From: Daniel Hazelton <dhazelton@enter.net>
+Subject: Re: RFT: updatedb "morning after" problem [was: Re: -mm merge plans for 2.6.23]
+Date: Fri, 27 Jul 2007 21:10:46 -0400
+References: <9a8748490707231608h453eefffx68b9c391897aba70@mail.gmail.com> <20070727231545.GA14457@atjola.homenet> <20070727232919.GA8960@one.firstfloor.org>
+In-Reply-To: <20070727232919.GA8960@one.firstfloor.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain;
+  charset="iso-8859-1"
+Content-Transfer-Encoding: 8BIT
 Content-Disposition: inline
-In-Reply-To: <20070725235037.e59f30fc.akpm@linux-foundation.org>
+Message-Id: <200707272110.46860.dhazelton@enter.net>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Ray Lee <ray-lk@madrabbit.org>, Nick Piggin <nickpiggin@yahoo.com.au>, Eric St-Laurent <ericstl34@sympatico.ca>, Rene Herman <rene.herman@gmail.com>, Jesper Juhl <jesper.juhl@gmail.com>, ck list <ck@vds.kolivas.org>, Ingo Molnar <mingo@elte.hu>, Paul Jackson <pj@sgi.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Andi Kleen <andi@firstfloor.org>
+Cc: =?iso-8859-1?q?Bj=F6rn_Steinbrink?= <B.Steinbrink@gmx.de>, Rene Herman <rene.herman@gmail.com>, Mike Galbraith <efault@gmx.de>, Andrew Morton <akpm@linux-foundation.org>, Ingo Molnar <mingo@elte.hu>, Frank Kingswood <frank@kingswood-consulting.co.uk>, Nick Piggin <nickpiggin@yahoo.com.au>, Ray Lee <ray-lk@madrabbit.org>, Jesper Juhl <jesper.juhl@gmail.com>, ck list <ck@vds.kolivas.org>, Paul Jackson <pj@sgi.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Jul 25, 2007 at 11:50:37PM -0700, Andrew Morton wrote:
-> On Wed, 25 Jul 2007 23:33:24 -0700 "Ray Lee" <ray-lk@madrabbit.org> wrote:
-> 
-> > > So.  We can
-> > >
-> > > a) provide a way for userspace to reload pagecache and
-> > >
-> > > b) merge maps2 (once it's finished) (pokes mpm)
-> > >
-> > > and we're done?
-> > 
-> > Eh, dunno. Maybe?
-> > 
-> > We're assuming we come up with an API for userspace to get
-> > notifications of evictions (without polling, though poll() would be
-> > fine -- you know what I mean), and an API for re-victing those things
-> > on demand.
-> 
-> I was assuming that polling would work OK.  I expect it would.
-> 
-> > If you think that adding that API and maintaining it is
-> > simpler/better than including a variation on the above hueristic I
-> > offered, then yeah, I guess we are. It'll all have that vague
-> > userspace s2ram odor about it, but I'm sure it could be made to work.
-> 
-> Actually, I overdesigned the API, I suspect.  What we _could_ do is to
-> provide a way of allowing userspace to say "pretend process A touched page
-> B": adopt its mm and go touch the page.  We in fact already have that:
-> PTRACE_PEEKTEXT.
-> 
-> So I suspect this could all be done by polling maps2 and using PEEKTEXT. 
-> The tricky part would be working out when to poll, and when to reestablish.
-> 
-> A neater implementation than PEEKTEXT would be to make the maps2 files
-> writeable(!) so as a party trick you could tar 'em up and then, when you
-> want to reestablish firefox's previous working set, do a untar in
-> /proc/$(pidof firefox)/
+On Friday 27 July 2007 19:29:19 Andi Kleen wrote:
+> > Any faults in that reasoning?
+>
+> GNU sort uses a merge sort with temporary files on disk. Not sure
+> how much it keeps in memory during that, but it's probably less
+> than 150MB. At some point the dirty limit should kick in and write back the
+> data of the temporary files; so it's not quite the same as anonymous
+> memory. But it's not that different given.
 
-Sick. But thankfully, unnecessary. The pagemaps give you more than
-just a present bit, which is all we care about here. We simply need to
-record which pages are mapped, then reference them all back to life..
+Yes, this should occur. But how many programs use temporary files like that? 
+>From what I can tell FireFox and OpenOffice both keep all their data in 
+memory, only using a single file for some buffering purposes. When they get 
+pushed out by a memory hog (either short term or long term) it takes several 
+seconds for them to be swapped back in. (I'm on a P4-1.3GHz machine with 1G 
+of ram and rarely run more than four programs (Mail Client, XChat, FireFox 
+and a console window) and I've seen this lag in FireFox when switching to it 
+after starting OOo. I've also seen the same sort of lag when exiting OOo. 
+I'll see about getting some numbers about this)
+
+> It would be better to measure than to guess. At least Andrew's measurements
+> on 128MB actually didn't show updatedb being really that big a problem.
+
+I agree. As I've said previously, it isn't updatedb itself which causes the 
+problem. It's the way the VFS cache seems to just expand and expand - to the 
+point of evicting pages to make room for itself. However, I may be wrong 
+about that - I haven't actually tested it for myself, just looked at the 
+numbers and other information that has been posted in this thread.
+
+> Perhaps some people have much more files or simply a less efficient
+> updatedb implementation?
+
+Yes, it could be the proliferation of files. It could also be some other sort 
+of problem that is exposing a corner-case in the VFS cache or the MM. I, 
+personally, am of the opinion that it is likely the aforementioned corner 
+case for people reporting the "updatedb" problem. If it is, then 
+swap-prefetch is just papering over the problem. However I do not have the 
+knowledge and understanding of the subsystems involved to be able to do much 
+more than make a (probably wrong) guess.
+
+> I guess the people who complain here that loudly really need to supply
+> some real numbers.
+
+I've seen numerous "real numbers" posted about this. As was said earlier in 
+the thread "every time numbers are posted they are claimed to be no good". 
+But hey, nobodies perfect :)
+
+Anyway, the discussion seems to be turning to the technical merits of 
+swap-prefetch...
+
+Now, a completely different question:
+During the research (and lots of thinking) I've been doing while this thread 
+has been going on I've often wondered why swap prefetch wasn't already in the 
+kernel. The problem of slow swap-in has long been known, and, given current 
+hardware, the optimal solution would be some sort of data prefetch - similar 
+to what is done to speed up normal disk reads. Swap prefetch looks like it 
+does exactly that. The algo could be argued over and/or improved (to suggest 
+ways to do that I'd have to give it more than a 10 minute look) but it does 
+provide a speed-up.
+
+This speed increase will probably be enjoyed more by the home users, but the 
+performance increase could also help on enterprise systems.
+
+Now I'll be the first one to admit that there is a trade-off there - it will 
+cause more power to be used because the disk's don't get a chance to spin 
+down (or go through a cycle every time the prefetch system starts) but that 
+could, potentially, be alleviated by having "laptop mode" switch it off.
+
+(And no, I'm not claiming that it is perfect - but then, what is when its 
+first merged into the kernel?)
+
+DRH
 
 -- 
-Mathematics is the supreme nostalgia of our time.
+Dialup is like pissing through a pipette. Slow and excruciatingly painful.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
