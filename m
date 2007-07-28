@@ -1,171 +1,74 @@
-Date: Sat, 28 Jul 2007 12:57:09 +0100 (IST)
-From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: NUMA policy issues with ZONE_MOVABLE
-In-Reply-To: <20070728162844.9d5b8c6e.kamezawa.hiroyu@jp.fujitsu.com>
-Message-ID: <Pine.LNX.4.64.0707281255480.7824@skynet.skynet.ie>
-References: <Pine.LNX.4.64.0707242120370.3829@schroedinger.engr.sgi.com>
- <20070725111646.GA9098@skynet.ie> <Pine.LNX.4.64.0707251212300.8820@schroedinger.engr.sgi.com>
- <20070726132336.GA18825@skynet.ie> <Pine.LNX.4.64.0707261104360.2374@schroedinger.engr.sgi.com>
- <20070726225920.GA10225@skynet.ie> <Pine.LNX.4.64.0707261819530.18210@schroedinger.engr.sgi.com>
- <20070727082046.GA6301@skynet.ie> <20070727154519.GA21614@skynet.ie>
- <20070728162844.9d5b8c6e.kamezawa.hiroyu@jp.fujitsu.com>
+Received: by py-out-1112.google.com with SMTP id f31so3656239pyh
+        for <linux-mm@kvack.org>; Sat, 28 Jul 2007 07:03:49 -0700 (PDT)
+Message-ID: <64bb37e0707280703u42833adbje0ca9b4a2423d6c5@mail.gmail.com>
+Date: Sat, 28 Jul 2007 16:03:49 +0200
+From: "Torsten Kaiser" <just.for.lkml@googlemail.com>
+Subject: Re: 2.6.23-rc1-mm1
+In-Reply-To: <64bb37e0707261054j25691afnb1bbf3484af855f3@mail.gmail.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII; format=flowed
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+References: <20070725040304.111550f4.akpm@linux-foundation.org>
+	 <46A7411C.80202@fr.ibm.com> <200707251323.04594.lenb@kernel.org>
+	 <20070725115804.5b8efe83.akpm@linux-foundation.org>
+	 <64bb37e0707251213t6edcb0a5sabcf4a923c19bde7@mail.gmail.com>
+	 <64bb37e0707251322w38d19814pacea61d8cf69be63@mail.gmail.com>
+	 <20070725133655.849574b5.akpm@linux-foundation.org>
+	 <64bb37e0707251452u6bca43b6i2618bf6e54972dbc@mail.gmail.com>
+	 <20070726002543.de303fd7.akpm@linux-foundation.org>
+	 <64bb37e0707261054j25691afnb1bbf3484af855f3@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Christoph Lameter <clameter@sgi.com>, Linux Memory Management List <linux-mm@kvack.org>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, ak@suse.de, akpm@linux-foundation.org, pj@sgi.com
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Len Brown <lenb@kernel.org>, Cedric Le Goater <clg@fr.ibm.com>, linux-kernel@vger.kernel.org, Shaohua Li <shaohua.li@intel.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Sat, 28 Jul 2007, KAMEZAWA Hiroyuki wrote:
+On 7/26/07, Torsten Kaiser <just.for.lkml@googlemail.com> wrote:
+> DISCONTIGMEM+SLUB:
+> [   39.833272] ..MP-BIOS bug: 8254 timer not connected to IO-APIC
+> [   40.016659] Kernel panic - not syncing: IO-APIC + timer doesn't
+> work! Try using the 'noapic' kernel parameter
+> DISCONTIGMEM+SLAB:
+> Boots until it can't find / because I didn't append the correct initrd
+> It also hit the MP-BIOS bug, but was not bothered by it:
+> [   36.696965] ..MP-BIOS bug: 8254 timer not connected to IO-APIC
+> [   36.880537] Using local APIC timer interrupts.
+> [   36.932215] result 12500283
+> [   36.940581] Detected 12.500 MHz APIC timer.
+>
+> So I think, I will postpone SPARSEMEM until -mm2, as there are seem to
+> be some problems in that area (Re: 2.6.23-rc1-mm1 sparsemem_vmemamp
+> fix)
+>
+> But maybee I will get SLUB to work. ;)
 
-> On Fri, 27 Jul 2007 16:45:19 +0100
-> mel@skynet.ie (Mel Gorman) wrote:
->
->> Obvious things that are outstanding;
->>
->> o Compile-test parisc
->> o Split patch in two to keep the zone_idx changes separetly
->> o Verify zlccache is not broken
->> o Have a version of __alloc_pages take a nodemask and ditch
->>   bind_zonelist()
->>
->> I can work on bringing this up to scratch during the cycle.
->>
->> Patch as follows. Comments?
->>
->
-> I like this idea in general. My concern is zonelist scan cost.
-> Hmm, can this be help ?
->
+SLUB works, if I reboot (Alt+SysRq+B) from a 2.6.22-rc6-mm1 kernel.
 
-Does this not make the assumption that the zonelists are in zone-order as 
-opposed to node? i.e. that is is
+Otherwise it will panic with IO-APIC + timer not working.
 
-H1N1D1H2N2D2H3N3D3 instead of
-H1H2H3N1N2N3D1D2D3
+Differences in dmesg
+2.6.22-rc6-mm1 has:
+[    0.000000] Nvidia board detected. Ignoring ACPI timer override.
+[    0.000000] If you got timer trouble try acpi_use_timer_override
+and
+[    0.000000] ACPI: BIOS IRQ0 pin2 override ignored.
+and
+[    0.000000] TSC calibrated against PM_TIMER
 
-If it's node-order, does this scheme break?
+ 23-rc1-mm1 has:
+[    0.000000] ACPI: IRQ0 used by override.
+[    0.000000] ACPI: IRQ2 used by override.
+and
+[   37.340319] ..MP-BIOS bug: 8254 timer not connected to IO-APIC
 
-> ---
-> include/linux/mmzone.h |    1
-> mm/page_alloc.c        |   51 +++++++++++++++++++++++++++++++++++++++++++++++--
-> 2 files changed, 50 insertions(+), 2 deletions(-)
->
-> Index: linux-2.6.23-rc1.test/include/linux/mmzone.h
-> ===================================================================
-> --- linux-2.6.23-rc1.test.orig/include/linux/mmzone.h
-> +++ linux-2.6.23-rc1.test/include/linux/mmzone.h
-> @@ -406,6 +406,7 @@ struct zonelist_cache;
->
-> struct zonelist {
-> 	struct zonelist_cache *zlcache_ptr;		     // NULL or &zlcache
-> +	unsigned short gfp_skip[MAX_NR_ZONES];
-> 	struct zone *zones[MAX_ZONES_PER_ZONELIST + 1];      // NULL delimited
-> #ifdef CONFIG_NUMA
-> 	struct zonelist_cache zlcache;			     // optional ...
-> Index: linux-2.6.23-rc1.test/mm/page_alloc.c
-> ===================================================================
-> --- linux-2.6.23-rc1.test.orig/mm/page_alloc.c
-> +++ linux-2.6.23-rc1.test/mm/page_alloc.c
-> @@ -1158,13 +1158,14 @@ get_page_from_freelist(gfp_t gfp_mask, u
-> 	int zlc_active = 0;		/* set if using zonelist_cache */
-> 	int did_zlc_setup = 0;		/* just call zlc_setup() one time */
-> 	enum zone_type highest_zoneidx = gfp_zone(gfp_mask);
-> +	int default_skip = zonelist->gfp_skip[highest_zoneidx];
->
-> zonelist_scan:
-> 	/*
-> 	 * Scan zonelist, looking for a zone with enough free.
-> 	 * See also cpuset_zone_allowed() comment in kernel/cpuset.c.
-> 	 */
-> -	z = zonelist->zones;
-> +	z = zonelist->zones + default_skip;
->
-> 	do {
-> 		if (should_filter_zone(*z, highest_zoneidx))
-> @@ -1235,6 +1236,7 @@ __alloc_pages(gfp_t gfp_mask, unsigned i
-> 	int do_retry;
-> 	int alloc_flags;
-> 	int did_some_progress;
-> +	int gfp_skip = zonelist->gfp_skip[gfp_zone(gfp_mask)];
->
-> 	might_sleep_if(wait);
->
-> @@ -1265,7 +1267,7 @@ restart:
-> 	if (NUMA_BUILD && (gfp_mask & GFP_THISNODE) == GFP_THISNODE)
-> 		goto nopage;
->
-> -	for (z = zonelist->zones; *z; z++)
-> +	for (z = zonelist->zones + gfp_skip; *z; z++)
-> 		wakeup_kswapd(*z, order);
->
-> 	/*
-> @@ -2050,6 +2052,50 @@ static void build_zonelist_cache(pg_data
->
-> #endif	/* CONFIG_NUMA */
->
-> +static inline
-> +unsigned short find_first_zone(enum zone_type target, struct zonelist *zl)
-> +{
-> +	unsigned short index = 0;
-> +	struct zone *z;
-> +	z = zl->zones[index];
-> +	while (z != NULL) {
-> +		if (!should_filter_zone(z, target))
-> +			return index;
-> +		z = zl->zones[++index];
-> +	}
-> +	return 0;
-> +}
-> +/*
-> + * record the first available zone per gfp.
-> + */
-> +
-> +static void build_zonelist_skip(pg_data_t *pgdat)
-> +{
-> +	enum zone_type target;
-> +	unsigned short index;
-> +	struct zonelist *zl = &pgdat->node_zonelist;
-> +
-> +	target = gfp_zone(GFP_KERNEL|GFP_DMA);
-> +	index = find_first_zone(target, zl);
-> +	zl->gfp_skip[target] = index;
-> +
-> +	target = gfp_zone(GFP_KERNEL|GFP_DMA32);
-> +	index = find_first_zone(target, zl);
-> +	zl->gfp_skip[target] = index;
-> +
-> +	target = gfp_zone(GFP_KERNEL);
-> +	index = find_first_zone(target, zl);
-> +	zl->gfp_skip[target] = index;
-> +
-> +	target = gfp_zone(GFP_HIGHUSER);
-> +	index = find_first_zone(target, zl);
-> +	zl->gfp_skip[target] = index;
-> +
-> +	target = gfp_zone(GFP_HIGHUSER_MOVABLE);
-> +	index = find_first_zone(target, zl);
-> +	zl->gfp_skip[target] = index;
-> +}
-> +
-> /* return values int ....just for stop_machine_run() */
-> static int __build_all_zonelists(void *dummy)
-> {
-> @@ -2058,6 +2104,7 @@ static int __build_all_zonelists(void *d
-> 	for_each_online_node(nid) {
-> 		build_zonelists(NODE_DATA(nid));
-> 		build_zonelist_cache(NODE_DATA(nid));
-> +		build_zonelist_skip(NODE_DATA(nid));
-> 	}
-> 	return 0;
-> }
->
+I did not need to use acpi_use_timer_override with the older kernel.
 
--- 
-Mel Gorman
-Part-time Phd Student                          Linux Technology Center
-University of Limerick                         IBM Dublin Software Lab
+Do you need more info about my board/ BIOS/ ACPI tables?
+
+After the warm-boot trick 2.6.23-rc1-mm1 seems stable right now...
+
+Torsten
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
