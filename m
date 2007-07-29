@@ -1,65 +1,127 @@
-Message-ID: <46AC4B97.5050708@gmail.com>
-Date: Sun, 29 Jul 2007 10:11:03 +0200
+Message-ID: <46AC6771.8080000@gmail.com>
+Date: Sun, 29 Jul 2007 12:09:53 +0200
 From: Rene Herman <rene.herman@gmail.com>
 MIME-Version: 1.0
 Subject: Re: RFT: updatedb "morning after" problem [was: Re: -mm merge plans
  for 2.6.23]
-References: <9a8748490707231608h453eefffx68b9c391897aba70@mail.gmail.com>	<20070727030040.0ea97ff7.akpm@linux-foundation.org>	<1185531918.8799.17.camel@Homer.simpson.net>	<200707271345.55187.dhazelton@enter.net>	<46AA3680.4010508@gmail.com>	<Pine.LNX.4.64.0707271239300.26221@asgard.lang.hm>	<46AAEDEB.7040003@gmail.com>	<Pine.LNX.4.64.0707280138370.32476@asgard.lang.hm>	<46AB166A.2000300@gmail.com> <20070728122139.3c7f4290@the-village.bc.nu>
-In-Reply-To: <20070728122139.3c7f4290@the-village.bc.nu>
+References: <9a8748490707231608h453eefffx68b9c391897aba70@mail.gmail.com> <20070727030040.0ea97ff7.akpm@linux-foundation.org> <1185531918.8799.17.camel@Homer.simpson.net> <200707271345.55187.dhazelton@enter.net> <46AA3680.4010508@gmail.com> <Pine.LNX.4.64.0707271239300.26221@asgard.lang.hm> <46AAEDEB.7040003@gmail.com> <Pine.LNX.4.64.0707280138370.32476@asgard.lang.hm> <46AB166A.2000300@gmail.com> <Pine.LNX.4.64.0707281349540.32476@asgard.lang.hm>
+In-Reply-To: <Pine.LNX.4.64.0707281349540.32476@asgard.lang.hm>
 Content-Type: text/plain; charset=ISO-8859-15; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Alan Cox <alan@lxorguk.ukuu.org.uk>
-Cc: david@lang.hm, Daniel Hazelton <dhazelton@enter.net>, Mike Galbraith <efault@gmx.de>, Andrew Morton <akpm@linux-foundation.org>, Ingo Molnar <mingo@elte.hu>, Frank Kingswood <frank@kingswood-consulting.co.uk>, Andi Kleen <andi@firstfloor.org>, Nick Piggin <nickpiggin@yahoo.com.au>, Ray Lee <ray-lk@madrabbit.org>, Jesper Juhl <jesper.juhl@gmail.com>, ck list <ck@vds.kolivas.org>, Paul Jackson <pj@sgi.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: david@lang.hm
+Cc: Daniel Hazelton <dhazelton@enter.net>, Mike Galbraith <efault@gmx.de>, Andrew Morton <akpm@linux-foundation.org>, Ingo Molnar <mingo@elte.hu>, Frank Kingswood <frank@kingswood-consulting.co.uk>, Andi Kleen <andi@firstfloor.org>, Nick Piggin <nickpiggin@yahoo.com.au>, Ray Lee <ray-lk@madrabbit.org>, Jesper Juhl <jesper.juhl@gmail.com>, ck list <ck@vds.kolivas.org>, Paul Jackson <pj@sgi.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On 07/28/2007 01:21 PM, Alan Cox wrote:
+On 07/28/2007 11:00 PM, david@lang.hm wrote:
 
->> It is. Prefetched pages can be dropped on the floor without additional
->> I/O.
+>> many -mm users use it anyway? He himself said he's not convinced of 
+>> usefulness having not seen it help for him (and notice that most 
+>> developers are also users), turned it off due to it annoying him at 
+>> some point and hasn't seen a serious investigation into potential 
+>> downsides.
 > 
-> Which is essentially free for most cases. In addition your disk access 
-> may well have been in idle time (and should be for this sort of stuff)
-
-Yes. The swap-prefetch patch ensures that the machine (well, the VM) is very 
-idle before it allows itself to kick in.
-
-> and if it was in the same chunk as something nearby was effectively free 
-> anyway.
+> if that was the case then people should be responding to the request to 
+> get it merged with 'but it caused problems for me when I tried it'
 > 
-> Actual physical disk ops are precious resource and anything that mostly 
-> reduces the number will be a win - not to stay swap prefetch is the right
-> answer but accidentally or otherwise there are good reasons it may
-> happen to help.
+> I haven't seen any comments like that.
+
+So you're saying Andrew did not say that? You're jumping to the conclusion 
+that I am saying that it's causing problems.
+
+>>>  that the only significant con left is the potential to mask other
+>>>  problems.
+>>
+>> Which is not a madeup issue, mind you. As an example, I just now tried 
+>> GNU locate and saw it's a complete pig and specifically unsuitable for 
+>> the low memory boxes under discussion. Upon completion, it actually 
+>> frees enough memory that swap-prefetch _could_ help on some boxes, 
+>> while the real issue is that they should first and foremost dump GNU 
+>> locate.
 > 
-> Bigger more linear chunks of writeout/readin is much more important I 
-> suspect than swap prefetching.
+> I see the conclusion as being exactly the opposite.
 
-Yes, I believe this might be an important point. Earlier I posted a dumb 
-little VM thrasher:
+And now you do it again :-) There is no conclusion -- just the inescapable 
+observation that swap-prefetch was (or may have been) masking the problem of 
+GNU locate being a program that noone in their right mind should be using.
 
-http://lkml.org/lkml/2007/7/25/85
+> so there is a legitimate situation where swap-prefetch will help 
+> significantly, what is the downside that prevents it from being 
+> included?
 
-Contrived thing and all, but what it does do is show exactly how bad seeking 
-all over swap-space is. If you push it out before hitting enter, the time it 
-takes easily grows past 10 minutes (with my 768M) versus sub-second (!) when 
-it's all in to start with.
+People being unconvinced it helps all that much, no serious investigation 
+into possible downsides and no consideration of alternatives is three I've 
+personally heard.
 
-What are the tradeoffs here? What wants small chunks? Also, as far as I'm 
-aware Linux does not do things like up the granularity when it notices it's 
-swapping in heavily? That sounds sort of promising...
+You don't want to merge a conceptually core VM feature if you're not really 
+convinced. It's not a part of the kernel you can throw a feature into like 
+you could some driver saying "ah, heck, if it makes someone happy" since 
+everything in the VM ends up interacting -- that in fact is actually the 
+hard part of VM as far as I've seen it.
 
->> good overview of exactly how broken -mm can be at times. How many -mm users 
->> use it anyway? He himself said he's not convinced of usefulness having not 
-> 
-> I've been using it for months with no noticed problem. I turn it on
-> because it might as well get tested. I've not done comparison tests so I
-> can't comment on if its worth it.
-> 
-> Lots of -mm testers turn *everything* on because its a test kernel.
+And in this situation the proposed feature is something that "papers over a 
+problem" by design -- where it could certainly be that the problem is not 
+solveable in another way simply due to the kernel not growing the possiblity 
+to read user's minds anytime soon (which some might even like to rephrase as 
+"due to no problem existing") but that this gets people a bit anxious is not 
+surprising.
 
-Okay.
+> I've seen it mentioned that there is still a maintainer but I missed who
+> it is, but I haven't seen any concerns that can be addressed, they all 
+> seem to be 'this is a core concept, people need to think about it' or 
+> 'but someone may find a better answer in the future' type of things. it's
+> impossible to address these concerns directly.
+
+So do it indirectly. But please don't just say "it help some people (not me 
+mind you!) so merge it and if you don't it's all just politics and we can't 
+do anything about it anyway". Because that's mostly what I've been hearing.
+
+And no, I'm not subscribed to any ck mailinglists nor do I hang around its 
+IRC community which will can account for part of that. I expect though that 
+the same holds for the people that actually matter in this, such as Andrew 
+Morton and Nick Piggin.
+
+-- 1: people being unconvinced it helps all that much
+
+At least partly caused by the updatedb i/dcache red herring that infected 
+this issue. Also, at the point VM  pressure has mounted high enough to cause 
+enough to be swapped out to give you a bad experience, a lot of other things 
+have been dropped already as well.
+
+It's unsurprising though that it would for example help the issue of 
+openoffice with a large open spreadsheet having been thrown out overnight 
+meaning it's a matter of deciding whether or not this is an important enough 
+issue to fix inside the VM with something like swap-prefetch.
+
+Personally -- no opinion, I do not experience the problem (I even switch off 
+the machine at night and do not run cron at all).
+
+-- 2: no serious investigation into possible downsides
+
+Swap-prefetch tries hard to be as free as possible and it seems to largely 
+be succeeding at that. Thing that (obviously -- as in I wouldn't want to 
+state it's the only possible worry anyone could have left) remains is the 
+"papering over effect" it has by design that one might not care for.
+
+-- 3: no serious consideration of possible alternatives
+
+Tweaking existing use-oce logic is one I've heard but if we consider the 
+i/dcache issue dead, I believe that one is as well. Going to userspace is 
+another one. Largest theoretical potential. I myself am extremely sceptical 
+about the Linux userland, and largely equate it with "smallest _practical_ 
+potential" -- but that might just be me.
+
+A larger swap granularity, possible even a self-training granularity. Up to 
+now, seeks only get costlier and costlier with respect to reads with every 
+generation of disk (flash would largely overcome it though) and doing more 
+in one read/write _greatly_ improves throughput, maybe up to the point that 
+swap-prefetch is no longer very useful. I myself don't know about the 
+tradeoffs involved.
+
+Any other alternatives?
+
+Any 4th and higher points?
 
 Rene.
 
