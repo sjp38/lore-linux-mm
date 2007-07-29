@@ -1,153 +1,61 @@
-From: Andy Whitcroft <apw@shadowen.org>
-Subject: [PATCH 2/2] Wait for page writeback when directly reclaiming contiguous areas
-References: <exportbomb.1185662485@pinky>
-Message-ID: <ffcc80382e464d7a11a5194e1d327e96@pinky>
-Date: Sat, 28 Jul 2007 23:52:30 +0100
+Message-ID: <46ABEE87.5090907@redhat.com>
+Date: Sat, 28 Jul 2007 21:33:59 -0400
+From: Rik van Riel <riel@redhat.com>
+MIME-Version: 1.0
+Subject: Re: RFT: updatedb "morning after" problem [was: Re: -mm merge plans
+ for 2.6.23]
+References: <9a8748490707231608h453eefffx68b9c391897aba70@mail.gmail.com>	<46A57068.3070701@yahoo.com.au>	<2c0942db0707232153j3670ef31kae3907dff1a24cb7@mail.gmail.com>	<46A58B49.3050508@yahoo.com.au>	<2c0942db0707240915h56e007e3l9110e24a065f2e73@mail.gmail.com>	<46A6CC56.6040307@yahoo.com.au>	<p73abtkrz37.fsf@bingen.suse.de>	<46A85D95.509@kingswood-consulting.co.uk>	<20070726092025.GA9157@elte.hu>	<20070726023401.f6a2fbdf.akpm@linux-foundation.org>	<20070726094024.GA15583@elte.hu>	<20070726030902.02f5eab0.akpm@linux-foundation.org>	<1185454019.6449.12.camel@Homer.simpson.net>	<20070726110549.da3a7a0d.akpm@linux-foundation.org>	<1185513177.6295.21.camel@Homer.simpson.net>	<1185521021.6295.50.camel@Homer.simpson.net> <20070727014749.85370e77.akpm@linux-foundation.org>
+In-Reply-To: <20070727014749.85370e77.akpm@linux-foundation.org>
+Content-Type: text/plain; charset=UTF-8; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@osdl.org>
-Cc: Mel Gorman <mel@csn.ul.ie>, Andy Whitcroft <apw@shadowen.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Mike Galbraith <efault@gmx.de>, Ingo Molnar <mingo@elte.hu>, Frank Kingswood <frank@kingswood-consulting.co.uk>, Andi Kleen <andi@firstfloor.org>, Nick Piggin <nickpiggin@yahoo.com.au>, Ray Lee <ray-lk@madrabbit.org>, Jesper Juhl <jesper.juhl@gmail.com>, ck list <ck@vds.kolivas.org>, Paul Jackson <pj@sgi.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-From: Mel Gorman <mel@csn.ul.ie>
+Andrew Morton wrote:
 
-Lumpy reclaim works by selecting a lead page from the LRU list and then
-selecting pages for reclaim from the order-aligned area of pages. In the
-situation were all pages in that region are inactive and not referenced by
-any process over time, it works well.
+> What I think is killing us here is the blockdev pagecache: the pagecache
+> which backs those directory entries and inodes.  These pages get read
+> multiple times because they hold multiple directory entries and multiple
+> inodes.  These multiple touches will put those pages onto the active list
+> so they stick around for a long time and everything else gets evicted.
+> 
+> I've never been very sure about this policy for the metadata pagecache.  We
+> read the filesystem objects into the dcache and icache and then we won't
+> read from that page again for a long time (I expect).  But the page will
+> still hang around for a long time.
+> 
+> It could be that we should leave those pages inactive.
 
-In the situation where there is even light load on the system, the pages may
-not free quickly. Out of a area of 1024 pages, maybe only 950 of them are
-freed when the allocation attempt occurs because lumpy reclaim returned early.
-This patch alters the behaviour of direct reclaim for large contiguous blocks.
+Good idea for updatedb.
 
-The first attempt to call shrink_page_list() is asynchronous but if it
-fails, the pages are submitted a second time and the calling process waits
-for the IO to complete. It'll retry up to 5 times for the pages to be
-fully freed. This may stall allocators waiting for contiguous memory but
-that should be expected behaviour for high-order users. It is preferable
-behaviour to potentially queueing unnecessary areas for IO. Note that kswapd
-will not stall in this fashion.
+However, it may be a bad idea for files that are often
+written to.  Turning an inode write into a read plus a
+write does not sound like such a hot idea, we really
+want to keep those in the cache.
 
-[apw@shadowen.org: update to version 2]
-Signed-off-by: Mel Gorman <mel@csn.ul.ie>
-Signed-off-by: Andy Whitcroft <apw@shadowen.org>
+I think what you need is to ignore multiple references
+to the same page when they all happen in one time
+interval, counting them only if they happen in multiple
+time intervals.
 
-Changelog:
+The use-once cleanup (which takes a page flag for PG_new,
+I know...) would solve that problem.
 
-Changes in V2:
- - remove retry loop
- - fix up active accounting (count deactivate events correctly)
- - use our own sync/async flag type
----
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index 99ec7fa..1c21714 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -271,6 +271,12 @@ static void handle_write_error(struct address_space *mapping,
- 	unlock_page(page);
- }
- 
-+/* Request for sync pageout. */
-+typedef enum {
-+	PAGEOUT_IO_ASYNC,
-+	PAGEOUT_IO_SYNC,
-+} pageout_io_t;
-+
- /* possible outcome of pageout() */
- typedef enum {
- 	/* failed to write page out, page is locked */
-@@ -287,7 +293,8 @@ typedef enum {
-  * pageout is called by shrink_page_list() for each dirty page.
-  * Calls ->writepage().
-  */
--static pageout_t pageout(struct page *page, struct address_space *mapping)
-+static pageout_t pageout(struct page *page, struct address_space *mapping,
-+						pageout_io_t sync_writeback)
- {
- 	/*
- 	 * If the page is dirty, only perform writeback if that write
-@@ -346,6 +353,15 @@ static pageout_t pageout(struct page *page, struct address_space *mapping)
- 			ClearPageReclaim(page);
- 			return PAGE_ACTIVATE;
- 		}
-+
-+		/*
-+		 * Wait on writeback if requested to. This happens when
-+		 * direct reclaiming a large contiguous area and the
-+		 * first attempt to free a ranage of pages fails
-+		 */
-+		if (PageWriteback(page) && sync_writeback == PAGEOUT_IO_SYNC)
-+			wait_on_page_writeback(page);
-+
- 		if (!PageWriteback(page)) {
- 			/* synchronous write or broken a_ops? */
- 			ClearPageReclaim(page);
-@@ -423,7 +439,8 @@ cannot_free:
-  * shrink_page_list() returns the number of reclaimed pages
-  */
- static unsigned long shrink_page_list(struct list_head *page_list,
--					struct scan_control *sc)
-+					struct scan_control *sc,
-+					pageout_io_t sync_writeback)
- {
- 	LIST_HEAD(ret_pages);
- 	struct pagevec freed_pvec;
-@@ -458,8 +475,12 @@ static unsigned long shrink_page_list(struct list_head *page_list,
- 		if (page_mapped(page) || PageSwapCache(page))
- 			sc->nr_scanned++;
- 
--		if (PageWriteback(page))
--			goto keep_locked;
-+		if (PageWriteback(page)) {
-+			if (sync_writeback == PAGEOUT_IO_SYNC)
-+				wait_on_page_writeback(page);
-+			else
-+				goto keep_locked;
-+		}
- 
- 		referenced = page_referenced(page, 1);
- 		/* In active use or really unfreeable?  Activate it. */
-@@ -505,7 +526,7 @@ static unsigned long shrink_page_list(struct list_head *page_list,
- 				goto keep_locked;
- 
- 			/* Page is dirty, try to write it out here */
--			switch(pageout(page, mapping)) {
-+			switch (pageout(page, mapping, sync_writeback)) {
- 			case PAGE_KEEP:
- 				goto keep_locked;
- 			case PAGE_ACTIVATE:
-@@ -786,7 +807,29 @@ static unsigned long shrink_inactive_list(unsigned long max_scan,
- 		spin_unlock_irq(&zone->lru_lock);
- 
- 		nr_scanned += nr_scan;
--		nr_freed = shrink_page_list(&page_list, sc);
-+		nr_freed = shrink_page_list(&page_list, sc, PAGEOUT_IO_ASYNC);
-+
-+		/*
-+		 * If we are direct reclaiming for contiguous pages and we do
-+		 * not reclaim everything in the list, try again and wait
-+		 * for IO to complete. This will stall high-order allocations
-+		 * but that should be acceptable to the caller
-+		 */
-+		if (nr_freed < nr_taken && !current_is_kswapd() &&
-+					sc->order > PAGE_ALLOC_COSTLY_ORDER) {
-+			congestion_wait(WRITE, HZ/10);
-+
-+			/*
-+			 * The attempt at page out may have made some
-+			 * of the pages active, mark them inactive again.
-+			 */
-+			nr_active = clear_active_flags(&page_list);
-+			count_vm_events(PGDEACTIVATE, nr_active);
-+
-+			nr_freed += shrink_page_list(&page_list, sc,
-+							PAGEOUT_IO_SYNC);
-+		}
-+
- 		nr_reclaimed += nr_freed;
- 		local_irq_disable();
- 		if (current_is_kswapd()) {
+However, it would introduce the problem of having to scan
+all the pages on the list before a page becomes freeable.
+We would have to add some background scanning (or a separate
+list for PG_new pages) to make the initial pageout run use
+an acceptable amount of CPU time.
+
+Not sure that complexity will be worth it...
+
+-- 
+Politics is the struggle between those who want to make their country
+the best in the world, and those who believe it already is.  Each group
+calls the other unpatriotic.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
