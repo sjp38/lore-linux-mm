@@ -1,45 +1,70 @@
 From: Al Boldi <a1426z@gawab.com>
-Subject: Re: How can we make page replacement smarter (was: swap-prefetch)
-Date: Sat, 28 Jul 2007 14:11:57 +0300
-Message-ID: <200707281411.57823.a1426z@gawab.com>
-References: <200707272243.02336.a1426z@gawab.com> <200707280717.41250.a1426z@gawab.com> <46AAEFC4.8000006@redhat.com>
+Subject: Re: How can we make page replacement smarter
+Date: Sun, 29 Jul 2007 17:55:24 +0300
+Message-ID: <200707291755.24906.a1426z@gawab.com>
+References: <200707272243.02336.a1426z@gawab.com> <200707280717.41250.a1426z@gawab.com> <46ABF184.40803@redhat.com>
 Mime-Version: 1.0
 Content-Type: text/plain;
-  charset="iso-8859-1"
+  charset="utf-8"
 Content-Transfer-Encoding: 7bit
-Return-path: <linux-kernel-owner+glk-linux-kernel-3=40m.gmane.org-S1761969AbXG1LPX@vger.kernel.org>
-In-Reply-To: <46AAEFC4.8000006@redhat.com>
+Return-path: <linux-kernel-owner+glk-linux-kernel-3=40m.gmane.org-S1763778AbXG2O4S@vger.kernel.org>
+In-Reply-To: <46ABF184.40803@redhat.com>
 Content-Disposition: inline
 Sender: linux-kernel-owner@vger.kernel.org
-To: Chris Snook <csnook@redhat.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Rik van Riel <riel@redhat.com>
+Cc: Chris Snook <csnook@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-Id: linux-mm.kvack.org
 
-Chris Snook wrote:
+Rik van Riel wrote:
 > Al Boldi wrote:
+> > Good idea, but unless we understand the problems involved, we are bound
+> > to repeat it.  So my first question would be:  Why is swap-in so slow?
+> >
+> > As I have posted in other threads, swap-in of consecutive pages suffers
+> > a 2x slowdown wrt swap-out, whereas swap-in of random pages suffers over
+> > 6x slowdown.
+> >
 > > Because it is hard to quantify the expected swap-in speed for random
 > > pages, let's first tackle the swap-in of consecutive pages, which should
 > > be at least as fast as swap-out.  So again, why is swap-in so slow?
 >
-> If I'm writing 20 pages to swap, I can find a suitable chunk of swap and
-> write them all in one place.  If I'm reading 20 pages from swap, they
-> could be anywhere.  Also, writes get buffered at one or more layers of
-> hardware.
+> I suspect that this is a locality of reference issue.
+>
+> Anonymous memory can get jumbled up by repeated free and
+> malloc cycles of many smaller objects.  The amount of
+> anonymous memory is often smaller than or roughly the same
+> size as system memory.
 
-Ok, this explains swap-in of random pages.  Makes sense, but it doesn't 
-explain the awful tmpfs performance degradation of consecutive read-in runs 
-from swap, which should have at least stayed constant
+Sounds exactly like the tmpfs problem.
 
-> At best, reads can be read-ahead and cached, which is why
-> sequential swap-in sucks less.  On-demand reads are as expensive as I/O
-> can get.
+> Locality of refenence to anonymous memory tends to be
+> temporal in nature, with the same sets of pages being
+> accessed over and over again.
+>
+> Files are different.  File content tends to be grouped
+> in large related chunks, both logically in the file and
+> on disk.  Generally there is a lot more file data on a
+> system than what fits in memory.
+>
+> Locality of reference to file data tends to be spatial
+> in nature, with one file access leading up to the system
+> accessing "nearby" data.  The data is not necessarily
+> touched again any time soon.
+>
+> > Once we understand this problem, we may be able to suggest a smart
+> > improvement.
+>
+> Like the one on http://linux-mm.org/PageoutFailureModes ?
 
-Which means that it should be at least as fast as swap-out, even faster 
-because write to disk is usually slower than read on modern disks.  But 
-linux currently shows a distinct 2x slowdown for sequential swap-in wrt 
-swap-out.  And to prove this point, just try suspend to disk where you can 
-see sequential swap-out being reported at about twice the speed of 
-sequential swap-in on resume.  Why is that?
+Interesting to see that there are known problems, but it doesn't seem to list 
+the resume-from-disk swap-in slowdown.
+
+> I have the LRU lists split and am working on getting SEQ
+> replacement implemented for the anonymous pages.
+>
+> The most recent (untested) patches are attached.
+
+Applied against 2.6.22; the kernel crashes out on boot.
 
 
 Thanks!
