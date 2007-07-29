@@ -1,43 +1,40 @@
-Received: by hu-out-0506.google.com with SMTP id 32so824160huf
-        for <linux-mm@kvack.org>; Sun, 29 Jul 2007 13:23:54 -0700 (PDT)
-Message-ID: <2c0942db0707291323w1096007fr4bd43a58cb586256@mail.gmail.com>
-Date: Sun, 29 Jul 2007 13:23:54 -0700
-From: "Ray Lee" <ray-lk@madrabbit.org>
-Subject: Re: RFT: updatedb "morning after" problem [was: Re: -mm merge plans for 2.6.23]
-In-Reply-To: <20070729131849.15f29159.pj@sgi.com>
+Date: Sun, 29 Jul 2007 22:56:25 +0200
+From: Adrian Bunk <bunk@stusta.de>
+Subject: Re: Sparc32 not working:2.6.23-rc1 (git commit
+	1e4dcd22efa7d24f637ab2ea3a77dd65774eb005)
+Message-ID: <20070729205625.GK16817@stusta.de>
+References: <Pine.LNX.4.61.0707281903350.27869@mtfhpc.demon.co.uk> <20070728234856.0fb78952.krzysztof.h1@wp.pl> <20070729003855.1c5422ed.krzysztof.h1@wp.pl> <Pine.LNX.4.61.0707290011300.28457@mtfhpc.demon.co.uk> <20070729174535.9eb6d0aa.krzysztof.h1@wp.pl> <Pine.LNX.4.61.0707291900010.31211@mtfhpc.demon.co.uk>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=utf-8
 Content-Disposition: inline
-References: <9a8748490707231608h453eefffx68b9c391897aba70@mail.gmail.com>
-	 <46AC4B97.5050708@gmail.com>
-	 <20070729141215.08973d54@the-village.bc.nu>
-	 <46AC9F2C.8090601@gmail.com>
-	 <2c0942db0707290758p39fef2e8o68d67bec5c7ba6ab@mail.gmail.com>
-	 <46ACAB45.6080307@gmail.com>
-	 <2c0942db0707290820r2e31f40flb51a43846169a752@mail.gmail.com>
-	 <20070729123353.2bfb9630.pj@sgi.com>
-	 <2c0942db0707291300k3e30e410wdd0aba7644382e3b@mail.gmail.com>
-	 <20070729131849.15f29159.pj@sgi.com>
+In-Reply-To: <Pine.LNX.4.61.0707291900010.31211@mtfhpc.demon.co.uk>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Paul Jackson <pj@sgi.com>
-Cc: rene.herman@gmail.com, alan@lxorguk.ukuu.org.uk, david@lang.hm, dhazelton@enter.net, efault@gmx.de, akpm@linux-foundation.org, mingo@elte.hu, frank@kingswood-consulting.co.uk, andi@firstfloor.org, nickpiggin@yahoo.com.au, jesper.juhl@gmail.com, ck@vds.kolivas.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Mark Fortescue <mark@mtfhpc.demon.co.uk>
+Cc: Krzysztof Helt <krzysztof.h1@wp.pl>, sparclinux@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On 7/29/07, Paul Jackson <pj@sgi.com> wrote:
-> Ray wrote:
-> > Ah, so in a normal scenario where a working-set is getting faulted
-> > back in, we have the swap storage as well as the file-backed stuff
-> > that needs to be read as well. So even if swap is organized perfectly,
-> > we're still seeking. Damn.
->
-> Perhaps this applies in some cases ... perhaps.
+On Sun, Jul 29, 2007 at 07:26:29PM +0100, Mark Fortescue wrote:
+>...
+> I am going to try to cherry pick a set of commits to see if I can't get a 
+> better idear of where the memory corruption on sun4c is coming from. Build 
+> problems sue to the DMA changes make git bisecting un-usable untill I have 
+> found out which patches fix the DMA build issues.
 
-Yeah, point taken: better data would make this a lot easier to figure
-out and target fixes.
+You have any known-good kernel?
 
-Ray
+Boot back into this kernel for bisecting and compiling the kernels for 
+bisecting there.
+
+cu
+Adrian
+
+-- 
+
+       "Is there not promise of rain?" Ling Tan asked suddenly out
+        of the darkness. There had been need of rain for many days.
+       "Only a promise," Lao Er said.
+                                       Pearl S. Buck - Dragon Seed
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
