@@ -1,60 +1,60 @@
-Date: Sun, 29 Jul 2007 05:35:16 -0700
+Date: Sun, 29 Jul 2007 05:53:52 -0700
 From: Paul Jackson <pj@sgi.com>
-Subject: Re: [PATCH 00/14] NUMA: Memoryless node support V4
-Message-Id: <20070729053516.5d85738a.pj@sgi.com>
-In-Reply-To: <20070727194316.18614.36380.sendpatchset@localhost>
-References: <20070727194316.18614.36380.sendpatchset@localhost>
+Subject: Re: RFT: updatedb "morning after" problem [was: Re: -mm merge plans
+ for 2.6.23]
+Message-Id: <20070729055352.21797a85.pj@sgi.com>
+In-Reply-To: <20070727232919.GA8960@one.firstfloor.org>
+References: <9a8748490707231608h453eefffx68b9c391897aba70@mail.gmail.com>
+	<20070727030040.0ea97ff7.akpm@linux-foundation.org>
+	<1185531918.8799.17.camel@Homer.simpson.net>
+	<200707271345.55187.dhazelton@enter.net>
+	<46AA3680.4010508@gmail.com>
+	<20070727231545.GA14457@atjola.homenet>
+	<20070727232919.GA8960@one.firstfloor.org>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Lee Schermerhorn <lee.schermerhorn@hp.com>
-Cc: linux-mm@kvack.org, ak@suse.de, nacc@us.ibm.com, kxr@sgi.com, clameter@sgi.com, mel@skynet.ie, akpm@linux-foundation.org, kamezawa.hiroyu@jp.fujitsu.com
+To: Andi Kleen <andi@firstfloor.org>
+Cc: B.Steinbrink@gmx.de, rene.herman@gmail.com, dhazelton@enter.net, efault@gmx.de, akpm@linux-foundation.org, mingo@elte.hu, frank@kingswood-consulting.co.uk, nickpiggin@yahoo.com.au, ray-lk@madrabbit.org, jesper.juhl@gmail.com, ck@vds.kolivas.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-Lee,
+Andi wrote:
+> GNU sort uses a merge sort with temporary files on disk. Not sure
+> how much it keeps in memory during that, but it's probably less
+> than 150MB. 
 
-What is the motivation for memoryless nodes?  I'm not sure what I
-mean by that question -- perhaps the answer involves describing a
-piece of hardware, perhaps a somewhat hypothetical piece of hardware
-if the real hardware is proprietary.  But usually adding new mechanisms
-to the kernel should involve explaining why it is needed.
+If I'm reading the source code for GNU sort correctly, then the
+following snippet of shell code displays how much memory it uses
+for its primary buffer on typical GNU/Linux systems:
 
-In this case, it might further involve explaining why we need memoryless
-nodes, as opposed to say a hack for the above (hypothetical?) hardware
-in question that pretends that any CPUs on such memoryless nodes are on
-the nearest memory equipped node -- and then entirely drops the idea of
-memoryless nodes.  Most likely you have good reason not to go this way.
-Good chance even you've already explained this, and I missed it.
+    head -2 /proc/meminfo | awk '
+	NR == 1 { memtotal = $2 }
+	NR == 2 { memfree = $2 }
+	END     {
+		   if (memfree > memtotal/8)
+		       m = memfree
+		   else
+		       m = memtotal/8
+		   print "sort size:", m/2, "kB"
+	}
+    '
 
-===
+That is, over simplifying, GNU sort looks at the first two entries
+in /proc/meminfo, which for example on a machine near me happen to be:
 
-I have user level code that scans the 'cpu%d' entries below the
-/sys/devices/system/node%d directories, and then inverts the resulting
-<node, cpu> map, in order to provide, for any given cpu the nearest
-node.  This code is a simple form of node and cpu topology for user
-code that wants to setup cpusets with cpus and nodes 'near' each other.
+  MemTotal:      2336472 kB
+  MemFree:        110600 kB
 
-Could you post the results, from such a (possibly hypothetical) machine,
-of the following two commands:
+and then uses one-half of whichever is -greater- of MemTotal/8 or
+MemFree.
 
-  find /sys/devices/system/node* -name cpu[0-9]\*
-  ls /sys/devices/system/cpu
-
-And if the 'ls' shows cpus that the 'find' doesn't show, then can you
-recommend how user code should be written that would return, for any
-specified cpu (even one on a memoryless node) the number of the
-'nearest' node that does have memory (for some plausible definition,
-your choice pretty much, of 'nearest')?
-
-Granted, this is not a pressing issue ... not much chance that my user
-code will be running on your (hypothetical?) hardware anytime soon,
-unless there is some deal in the works I don't know about for hp to
-buy sgi ;).
-
-In short, how should user code find 'nearby' memory nodes for cpus that
-are on memoryless nodes?
+... However ... for the typical GNU locate updatedb run, it is sorting
+the list of pathnames for almost all files on the system, which is
+usually larger than fits in one of these sized buffers.   So it ends up
+using quite a few of the temporary files you mention, which tends to
+chew up easily freed memory.
 
 -- 
                   I won't rest till it's the best ...
