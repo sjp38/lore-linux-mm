@@ -1,185 +1,65 @@
-Date: Sun, 29 Jul 2007 04:41:05 -0700 (PDT)
-From: david@lang.hm
-Subject: Re: RFT: updatedb "morning after" problem [was: Re: -mm merge plans
- for 2.6.23]
-In-Reply-To: <46AC6771.8080000@gmail.com>
-Message-ID: <Pine.LNX.4.64.0707290420250.15835@asgard.lang.hm>
-References: <9a8748490707231608h453eefffx68b9c391897aba70@mail.gmail.com>
- <20070727030040.0ea97ff7.akpm@linux-foundation.org> <1185531918.8799.17.camel@Homer.simpson.net>
- <200707271345.55187.dhazelton@enter.net> <46AA3680.4010508@gmail.com>
- <Pine.LNX.4.64.0707271239300.26221@asgard.lang.hm> <46AAEDEB.7040003@gmail.com>
- <Pine.LNX.4.64.0707280138370.32476@asgard.lang.hm> <46AB166A.2000300@gmail.com>
- <Pine.LNX.4.64.0707281349540.32476@asgard.lang.hm> <46AC6771.8080000@gmail.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII; format=flowed
+Date: Sun, 29 Jul 2007 05:35:16 -0700
+From: Paul Jackson <pj@sgi.com>
+Subject: Re: [PATCH 00/14] NUMA: Memoryless node support V4
+Message-Id: <20070729053516.5d85738a.pj@sgi.com>
+In-Reply-To: <20070727194316.18614.36380.sendpatchset@localhost>
+References: <20070727194316.18614.36380.sendpatchset@localhost>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Rene Herman <rene.herman@gmail.com>
-Cc: Daniel Hazelton <dhazelton@enter.net>, Mike Galbraith <efault@gmx.de>, Andrew Morton <akpm@linux-foundation.org>, Ingo Molnar <mingo@elte.hu>, Frank Kingswood <frank@kingswood-consulting.co.uk>, Andi Kleen <andi@firstfloor.org>, Nick Piggin <nickpiggin@yahoo.com.au>, Ray Lee <ray-lk@madrabbit.org>, Jesper Juhl <jesper.juhl@gmail.com>, ck list <ck@vds.kolivas.org>, Paul Jackson <pj@sgi.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Lee Schermerhorn <lee.schermerhorn@hp.com>
+Cc: linux-mm@kvack.org, ak@suse.de, nacc@us.ibm.com, kxr@sgi.com, clameter@sgi.com, mel@skynet.ie, akpm@linux-foundation.org, kamezawa.hiroyu@jp.fujitsu.com
 List-ID: <linux-mm.kvack.org>
 
-On Sun, 29 Jul 2007, Rene Herman wrote:
+Lee,
 
-> On 07/28/2007 11:00 PM, david@lang.hm wrote:
->
->> >  many -mm users use it anyway? He himself said he's not convinced of 
->> >  usefulness having not seen it help for him (and notice that most 
->> >  developers are also users), turned it off due to it annoying him at some 
->> >  point and hasn't seen a serious investigation into potential downsides.
->>
->>  if that was the case then people should be responding to the request to
->>  get it merged with 'but it caused problems for me when I tried it'
->>
->>  I haven't seen any comments like that.
->
-> So you're saying Andrew did not say that? You're jumping to the conclusion 
-> that I am saying that it's causing problems.
+What is the motivation for memoryless nodes?  I'm not sure what I
+mean by that question -- perhaps the answer involves describing a
+piece of hardware, perhaps a somewhat hypothetical piece of hardware
+if the real hardware is proprietary.  But usually adding new mechanisms
+to the kernel should involve explaining why it is needed.
 
-I don't remember anyone saying that it actually caused problems (including 
-both you and andrew). I (and others) have been trying to learn what 
-problems people believe it has in the hope that they can be addressed one 
-way or another.
+In this case, it might further involve explaining why we need memoryless
+nodes, as opposed to say a hack for the above (hypothetical?) hardware
+in question that pretends that any CPUs on such memoryless nodes are on
+the nearest memory equipped node -- and then entirely drops the idea of
+memoryless nodes.  Most likely you have good reason not to go this way.
+Good chance even you've already explained this, and I missed it.
 
->> > >   that the only significant con left is the potential to mask other
->> > >   problems.
->> > 
->> >  Which is not a madeup issue, mind you. As an example, I just now tried 
->> >  GNU locate and saw it's a complete pig and specifically unsuitable for 
->> >  the low memory boxes under discussion. Upon completion, it actually 
->> >  frees enough memory that swap-prefetch _could_ help on some boxes, while 
->> >  the real issue is that they should first and foremost dump GNU locate.
->>
->>  I see the conclusion as being exactly the opposite.
->
-> And now you do it again :-) There is no conclusion -- just the inescapable 
-> observation that swap-prefetch was (or may have been) masking the problem of 
-> GNU locate being a program that noone in their right mind should be using.
+===
 
-isn't your conclusion then that if people just stopped useing that version 
-of updatedb the problem would be solved and there would be no need for the 
-swap prefetch patch? that seemed to be what you were strongly implying (if 
-not saying outright)
+I have user level code that scans the 'cpu%d' entries below the
+/sys/devices/system/node%d directories, and then inverts the resulting
+<node, cpu> map, in order to provide, for any given cpu the nearest
+node.  This code is a simple form of node and cpu topology for user
+code that wants to setup cpusets with cpus and nodes 'near' each other.
 
->>  so there is a legitimate situation where swap-prefetch will help
->>  significantly, what is the downside that prevents it from being included?
->
-> People being unconvinced it helps all that much, no serious investigation 
-> into possible downsides and no consideration of alternatives is three I've 
-> personally heard.
->
-> You don't want to merge a conceptually core VM feature if you're not really 
-> convinced. It's not a part of the kernel you can throw a feature into like 
-> you could some driver saying "ah, heck, if it makes someone happy" since 
-> everything in the VM ends up interacting -- that in fact is actually the hard 
-> part of VM as far as I've seen it.
->
-> And in this situation the proposed feature is something that "papers over a 
-> problem" by design -- where it could certainly be that the problem is not 
-> solveable in another way simply due to the kernel not growing the possiblity 
-> to read user's minds anytime soon (which some might even like to rephrase as 
-> "due to no problem existing") but that this gets people a bit anxious is not 
-> surprising.
+Could you post the results, from such a (possibly hypothetical) machine,
+of the following two commands:
 
-people who have lots of memory and so don't use swap will never see the 
-benifit of this patch. over the years many people have investigated the 
-problem and tried to address it in other ways (the better version of 
-updatedb is an attempt to fix it for that program as an example), but 
-there is still a problem.
+  find /sys/devices/system/node* -name cpu[0-9]\*
+  ls /sys/devices/system/cpu
 
-I agree that tinkering with the core VM code should not be done lightly, 
-but this has been put through the proper process and is stalled with no 
-hints on how to move forward.
+And if the 'ls' shows cpus that the 'find' doesn't show, then can you
+recommend how user code should be written that would return, for any
+specified cpu (even one on a memoryless node) the number of the
+'nearest' node that does have memory (for some plausible definition,
+your choice pretty much, of 'nearest')?
 
->>  I've seen it mentioned that there is still a maintainer but I missed who
->>  it is, but I haven't seen any concerns that can be addressed, they all
->>  seem to be 'this is a core concept, people need to think about it' or 'but
->>  someone may find a better answer in the future' type of things. it's
->>  impossible to address these concerns directly.
->
-> So do it indirectly. But please don't just say "it help some people (not me 
-> mind you!) so merge it and if you don't it's all just politics and we can't 
-> do anything about it anyway". Because that's mostly what I've been hearing.
->
-> And no, I'm not subscribed to any ck mailinglists nor do I hang around its 
-> IRC community which will can account for part of that. I expect though that 
-> the same holds for the people that actually matter in this, such as Andrew 
-> Morton and Nick Piggin.
->
-> -- 1: people being unconvinced it helps all that much
->
-> At least partly caused by the updatedb i/dcache red herring that infected 
-> this issue. Also, at the point VM  pressure has mounted high enough to cause 
-> enough to be swapped out to give you a bad experience, a lot of other things 
-> have been dropped already as well.
->
-> It's unsurprising though that it would for example help the issue of 
-> openoffice with a large open spreadsheet having been thrown out overnight 
-> meaning it's a matter of deciding whether or not this is an important enough 
-> issue to fix inside the VM with something like swap-prefetch.
->
-> Personally -- no opinion, I do not experience the problem (I even switch off 
-> the machine at night and do not run cron at all).
+Granted, this is not a pressing issue ... not much chance that my user
+code will be running on your (hypothetical?) hardware anytime soon,
+unless there is some deal in the works I don't know about for hp to
+buy sgi ;).
 
-forget the nightly cron jobs for the moment. think of this scenerio. you 
-have your memory fairly full with apps that you have open (including 
-firefox with many tabs), you receive a spreadsheet you need to look at, so 
-you fire up openoffice to look at it. then you exit openoffice and try to 
-go back to firefox (after a pause while you walk to the printer to get 
-the printout of the spreadsheet), only to find that it's going to be 
-sluggish becouse it got swapped out due to the preasure from openoffice.
+In short, how should user code find 'nearby' memory nodes for cpus that
+are on memoryless nodes?
 
-no nightly cron job needed, just enough of a memory hog or a small enough 
-amount of ram to have your working set exceed it.
-
-> -- 2: no serious investigation into possible downsides
->
-> Swap-prefetch tries hard to be as free as possible and it seems to largely be 
-> succeeding at that. Thing that (obviously -- as in I wouldn't want to state 
-> it's the only possible worry anyone could have left) remains is the "papering 
-> over effect" it has by design that one might not care for.
->
-> -- 3: no serious consideration of possible alternatives
->
-> Tweaking existing use-oce logic is one I've heard but if we consider the 
-> i/dcache issue dead, I believe that one is as well. Going to userspace is 
-> another one. Largest theoretical potential. I myself am extremely sceptical 
-> about the Linux userland, and largely equate it with "smallest _practical_ 
-> potential" -- but that might just be me.
->
-> A larger swap granularity, possible even a self-training granularity. Up to 
-> now, seeks only get costlier and costlier with respect to reads with every 
-> generation of disk (flash would largely overcome it though) and doing more in 
-> one read/write _greatly_ improves throughput, maybe up to the point that 
-> swap-prefetch is no longer very useful. I myself don't know about the 
-> tradeoffs involved.
-
-larger swap granularity may help, but waiting for the user to need the ram 
-and have to wait for it to be read back in is always going to be worse for 
-the user then pre-populating the free memory (for the case where the 
-pre-population is right, for other cases it's the same). so I see this as 
-a red herring
-
-> Any other alternatives?
->
-> Any 4th and higher points?
-
-there are fully legitimate situations where this is useful, the 'papering 
-over' effect is not referring to these, it's referring to other possible 
-problems in the future. I see this argument as being in the same catagory 
-as people wanting to remove the old, working driver for some hardware in 
-favor of the new, unreliable driver for the same hardware in order to get 
-more bug reports to find the holes in the new driver. that's causing users 
-unessasary pain and within the last week Linus was takeing a driver author 
-to task for attempting exactly that IIRC (and yes, there does come a point 
-where there are no further bugs known in the new driver, and it appears to 
-do everything the old driver did that you do remove the old driver, but 
-you don't remove it early to help the new driver stabilize)
-
-David Lang
-
-> Rene.
->
->
+-- 
+                  I won't rest till it's the best ...
+                  Programmer, Linux Scalability
+                  Paul Jackson <pj@sgi.com> 1.925.600.0401
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
