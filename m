@@ -1,28 +1,71 @@
-Message-ID: <46ACE4E3.9010108@gmail.com>
-Date: Sun, 29 Jul 2007 21:05:07 +0200
-From: Rene Herman <rene.herman@gmail.com>
-MIME-Version: 1.0
+Date: Sun, 29 Jul 2007 12:33:53 -0700
+From: Paul Jackson <pj@sgi.com>
 Subject: Re: RFT: updatedb "morning after" problem [was: Re: -mm merge plans
  for 2.6.23]
-References: <9a8748490707231608h453eefffx68b9c391897aba70@mail.gmail.com>	 <46AC9F2C.8090601@gmail.com>	 <2c0942db0707290758p39fef2e8o68d67bec5c7ba6ab@mail.gmail.com>	 <46ACAB45.6080307@gmail.com>	 <2c0942db0707290820r2e31f40flb51a43846169a752@mail.gmail.com>	 <46ACB40C.2040908@gmail.com>	 <2c0942db0707290904n4356582dt91ab96b77db1e84e@mail.gmail.com>	 <46ACC76A.3080303@gmail.com>	 <2c0942db0707291019q14f309d0jab3bf083aa37d707@mail.gmail.com>	 <46ACCF7A.1080207@gmail.com> <2c0942db0707291052r79bed95fv30ed6c3badf21338@mail.gmail.com>
-In-Reply-To: <2c0942db0707291052r79bed95fv30ed6c3badf21338@mail.gmail.com>
-Content-Type: text/plain; charset=ISO-8859-15; format=flowed
+Message-Id: <20070729123353.2bfb9630.pj@sgi.com>
+In-Reply-To: <2c0942db0707290820r2e31f40flb51a43846169a752@mail.gmail.com>
+References: <9a8748490707231608h453eefffx68b9c391897aba70@mail.gmail.com>
+	<46AAEDEB.7040003@gmail.com>
+	<Pine.LNX.4.64.0707280138370.32476@asgard.lang.hm>
+	<46AB166A.2000300@gmail.com>
+	<20070728122139.3c7f4290@the-village.bc.nu>
+	<46AC4B97.5050708@gmail.com>
+	<20070729141215.08973d54@the-village.bc.nu>
+	<46AC9F2C.8090601@gmail.com>
+	<2c0942db0707290758p39fef2e8o68d67bec5c7ba6ab@mail.gmail.com>
+	<46ACAB45.6080307@gmail.com>
+	<2c0942db0707290820r2e31f40flb51a43846169a752@mail.gmail.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Ray Lee <ray-lk@madrabbit.org>
-Cc: Alan Cox <alan@lxorguk.ukuu.org.uk>, david@lang.hm, Daniel Hazelton <dhazelton@enter.net>, Mike Galbraith <efault@gmx.de>, Andrew Morton <akpm@linux-foundation.org>, Ingo Molnar <mingo@elte.hu>, Frank Kingswood <frank@kingswood-consulting.co.uk>, Andi Kleen <andi@firstfloor.org>, Nick Piggin <nickpiggin@yahoo.com.au>, Jesper Juhl <jesper.juhl@gmail.com>, ck list <ck@vds.kolivas.org>, Paul Jackson <pj@sgi.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: rene.herman@gmail.com, alan@lxorguk.ukuu.org.uk, david@lang.hm, dhazelton@enter.net, efault@gmx.de, akpm@linux-foundation.org, mingo@elte.hu, frank@kingswood-consulting.co.uk, andi@firstfloor.org, nickpiggin@yahoo.com.au, jesper.juhl@gmail.com, ck@vds.kolivas.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On 07/29/2007 07:52 PM, Ray Lee wrote:
+Ray wrote:
+> a log structured scheme, where the writeout happens to sequential spaces
+> on the drive instead of scattered about.
 
-> <Shrug> Well, that doesn't match my systems. My laptop has 400MB in swap:
+If the problem is reading stuff back in from swap quickly when
+needed, then this likely helps, by reducing the seeks needed.
 
-Which in your case is slightly more than 1/3 of available swap space. Quite 
-a lot for a desktop indeed. And if it's more than a few percent fragmented, 
-please fix current swapout instead of log structuring it.
+If the problem is reading stuff back in from swap at the *same time*
+that the application is reading stuff from some user file system, and if
+that user file system is on the same drive as the swap partition
+(typical on laptops), then interleaving the user file system accesses
+with the swap partition accesses might overwhelm all other performance
+problems, due to the frequent long seeks between the two.
 
-Rene.
+In that case, swap layout and swap i/o block size are secondary.
+However, pre-fetching, so that swap read back is not interleaved
+with application file accesses, could help dramatically.
+
+===
+
+Perhaps we could have a 'wake-up' command, analogous to the various sleep
+and hibernate commands.  The 'wake-up' command could do whatever of the
+following it knew to do, in order to optimize for an anticipated change in
+usage patterns:
+ 1) pre-fetch swap
+ 2) clean (write out) dirty pages
+ 3) maximize free memory
+ 4) layout swap nicely
+ 5) pre-fetch a favorite set of apps
+
+Stumble out of bed in the morning, press 'wake-up', start boiling the
+water for your coffee, and in another ten minutes, one is ready to rock
+and roll.
+
+In case Andrew is so bored he read this far -- yes this wake-up sounds
+like user space code, with minimal kernel changes to support any
+particular lower level operation that we can't do already.
+
+-- 
+                  I won't rest till it's the best ...
+                  Programmer, Linux Scalability
+                  Paul Jackson <pj@sgi.com> 1.925.600.0401
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
