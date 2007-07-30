@@ -1,85 +1,154 @@
-Message-ID: <01c7d2ad$6dfd9920$2815b057@candice.sylvester>
-From: "Anna Charles" <candice.sylvester@msa.hinet.net>
-Subject: Endlich wieder Spass am Leben   =?ISO-8859-1?Q?hasn=92t?= resolved  --  a book, you want 
-Date: Mon, 30 Jul 2007 13:27:51 -0100
+Message-ID: <025601c7d2ae$ebd86b80$50a8205a@VAJTGYQ>
+From: "linux-owner" <linux-owner@lug.krems.cc>
+Subject: geosynchronous ballerina
+Date: Mon, 30 Jul 2007 12:31:26 -0200
 MIME-Version: 1.0
-Content-Type: multipart/alternative;
-	boundary="----=_NextPart_000_0007_01C7D2BE.31866920"
-Return-Path: <candice.sylvester@msa.hinet.net>
-To: linux-mm@kvack.org
+Content-Type: multipart/related;
+	boundary="----=_NextPart_000_0253_01C7D2BF.AF45EB50";
+	type="multipart/alternative"
+Return-Path: <linux-ntfs-dev@lists.sf.net>
+To: linux-mm-archive@kvack.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
 This is a multi-part message in MIME format.
 
-------=_NextPart_000_0007_01C7D2BE.31866920
+------=_NextPart_000_0253_01C7D2BF.AF45EB50
+Content-Type: multipart/alternative;
+	boundary="----=_NextPart_001_0254_01C7D2BF.AF45EB50"
+
+
+------=_NextPart_001_0254_01C7D2BF.AF45EB50
 Content-Type: text/plain;
-	charset="Windows-1252"
+	charset="us-ascii"
 Content-Transfer-Encoding: quoted-printable
 
-Haben Sie endlich wieder Spass am Leben!
-
-Preise die keine Konkurrenz kennen 
-
-- Kein langes Warten - Auslieferung innerhalb von 2-3 Tagen
-- Kein peinlicher Arztbesuch erforderlich
-- Diskrete Verpackung und Zahlung
-- Bequem und diskret online bestellen.
-- Kostenlose, arztliche Telefon-Beratung
-- Visa verifizierter Onlineshop
-- keine versteckte Kosten
-
-Originalmedikamente
-Ciiaaaaaalis 10 Pack. 27,00 Euro
-Viiaaaagra 10 Pack. 21,00 Euro
-
-Nur fur kurze Zeit - vier Pillen umsonst erhalten
-http://hrqtaim.takeresult.cn/?449795073352
-
-(bitte warten Sie einen Moment bis die Seite vollstandig geladen wird)
-
-------=_NextPart_000_0007_01C7D2BE.31866920
+tccct  jfaawnj  iirw 
+ ajsx
+------=_NextPart_001_0254_01C7D2BF.AF45EB50
 Content-Type: text/html;
-	charset="Windows-1252"
+	charset="us-ascii"
 Content-Transfer-Encoding: quoted-printable
+
 
 <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
-<HTML><HEAD>
-<META http-equiv=3DContent-Type content=3D"text/html; charset=3DWindows-1252">
-<META content=3D"MSHTML 4.71.2730.2" name=3DGENERATOR>
-<STYLE></STYLE>
+<HTML>=
+<HEAD>
+<META http-equiv=3DContent-Type content=3D"text/html; charset=3D=
+iso-8859-1">
+<META content=3D"MSHTML 6.00.2900.2963" name=3DGENERATOR>
+=
+
 </HEAD>
 <BODY>
-<head><meta http-equiv=3D"Content-Type" content=3D"text/html; charset=3Diso=
--8859-1">
-</head><body><p>Meinung von unserem Kunden:<br><strong>Ich habe eine Aff&#2=
-28;re mit einer Bekannten, sie h&#228;lt mich f&#252;r einen Sex-Gott. Ich =
-habe Viiaaaagra ungef&#228;hr zehn Minuten, bevor wir uns im Hotel getroffe=
-n haben, genommen. Ich habe davon nicht nur einen strammen Riemen bekommen,=
- sondern auch die Selbstsicherheit, die die Frauen lieben. Ich habe es ihr =
-drei- oder viermal besorgt, und sie ist absolut hingerissen. Ich komme ziem=
-lich schnell, danach wird ihr Organsmus jedesmal unkontrollierbar. Viiaaaag=
-ra hat mich bei ihr zur Legende gemacht!! Ich kann es kaum abwarten, wieder=
- eine zu schlucken</strong></p><p><strong>Fantastische Wirkung! F&#252;nf J=
-ahre lang hatte ich es nicht mehr geschafft, meine Err. ..ektion w&#228;hre=
-nd des Verkehrs zu halten und war richtig &#228;ngstlich geworden. Ich hatt=
-e auch ein Problem mit vorzeitigem Samenerguss. Au&#223;erdem bin ich Zucke=
-rkrank. Vor einiger Zeit habe ich eine 50-mg-Dosis Viiaaaagra genommen und =
-zwei Stunden sp&#228;ter mit einer 22-j&#228;hrigen geschlafen. Kurz vor de=
-m Vorspiel wurde mein Penis hart und ich konnte es kaum glauben. Ich habe i=
-n dieser Nacht dreimal Sex gehabt und es gab keine Probleme dabei. Kein Sch=
-uss ging daneben. Ich bin ein gl&#252;cklicher Mann. Achmet, 52<br>
-</strong><strong><br>Haben Sie endlich wieder Spass am Leben!</strong></p><=
-p>Preise die keine Konkurrenz kennen <p>
-- Kostenlose, arztliche Telefon-Beratung<br>- Kein peinlicher Arztbesuch er=
-forderlich<br>- Kein langes Warten - Auslieferung innerhalb von 2-3 Tagen<b=
-r>- Bequem und diskret online bestellen.<br>- Visa verifizierter Onlineshop=
-<br>- Diskrete Verpackung und Zahlung<br>- keine versteckte Kosten</p>
-<p>Originalmedikamente<br><strong>Ciiaaaaaalis 10 Pack. 27,00 Euro</strong>=
-<br>
-  <strong>Viiaaaagra 10 Pack. 21,00 Euro</strong><br><br><strong><a href=3D=
-"http://hrqtaim.takeresult.cn/?449795073352" target=3D"_blank">Nur fur kurz=
-e Zeit - vier Pillen umsonst erhalten</a><br></strong>(bitte warten Sie ein=
-en Moment bis die Seite vollst&auml;ndig geladen wird) </p></body>
+gluyd sxgptyswffff
+qveinsw<IMG src=3D"
+cid:025601c7d2ae$ebd86b80$50a8205a@VAJTGYQ">
+ojoskoolaejjychlm=20
 </BODY></HTML>
 
-------=_NextPart_000_0007_01C7D2BE.31866920--
+------=_NextPart_001_0254_01C7D2BF.AF45EB50--
+
+------=_NextPart_000_0253_01C7D2BF.AF45EB50
+Content-Type: image/jpeg;
+	name="curse.jpg"
+Content-Transfer-Encoding: base64
+Content-ID: <025601c7d2ae$ebd86b80$50a8205a@VAJTGYQ>
+
+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
+EuJUqauTKmSUMdpaf//Z
+
+------=_NextPart_000_0253_01C7D2BF.AF45EB50--
+	
