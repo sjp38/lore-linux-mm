@@ -1,48 +1,137 @@
-Subject: Re: [rfc] [patch] mm: zone_reclaim fix for pseudo file systems
+Subject: [PATCH/RFC] 2.6.23-rc1-mm1:  MPOL_PREFERRED fixups for
+	preferred_node < 0
 From: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
-In-Reply-To: <Pine.LNX.4.64.0707301331050.17543@schroedinger.engr.sgi.com>
-References: <20070727232753.GA10311@localdomain>
-	 <20070730132314.f6c8b4e1.akpm@linux-foundation.org>
-	 <Pine.LNX.4.64.0707301331050.17543@schroedinger.engr.sgi.com>
+In-Reply-To: <20070727194322.18614.68855.sendpatchset@localhost>
+References: <20070727194316.18614.36380.sendpatchset@localhost>
+	 <20070727194322.18614.68855.sendpatchset@localhost>
 Content-Type: text/plain
-Date: Mon, 30 Jul 2007 17:12:40 -0400
-Message-Id: <1185829960.5492.94.camel@localhost>
+Date: Mon, 30 Jul 2007 17:38:56 -0400
+Message-Id: <1185831537.5492.109.camel@localhost>
 Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Ravikiran G Thirumalai <kiran@scalex86.org>, linux-mm@kvack.org, Christoph Lameter <clameter@cthulhu.engr.sgi.com>, shai@scalex86.org
+To: linux-mm@kvack.org
+Cc: ak@suse.de, Nishanth Aravamudan <nacc@us.ibm.com>, pj@sgi.com, kxr@sgi.com, Christoph Lameter <clameter@sgi.com>, Mel Gorman <mel@skynet.ie>, akpm@linux-foundation.org, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 2007-07-30 at 13:31 -0700, Christoph Lameter wrote:
-> On Mon, 30 Jul 2007, Andrew Morton wrote:
-> 
-> > It is a numa-specific change which adds overhead to non-NUMA builds :(
-> 
-> It could be generalized to fix the other issues that we have with 
-> unreclaimable pages.
-> 
+These are some "issues" that I came across working on the Memoryless
+Node series.  I'm using the same cc: list as that series as the issues
+are somewhat related.
 
-For example, see the following patches that I posted in response to a
-discussion between Andrew, Rik van Riel and Andrea Arcangeli to
-resounding silence [for which, perhaps, I should be grateful?]: 
+Only boot tested at this point.
 
-http://marc.info/?l=linux-mm&m=118315682007044&w=4
-http://marc.info/?l=linux-mm&m=118315703313729&w=4
-http://marc.info/?l=linux-mm&m=118315713323641&w=4
-http://marc.info/?l=linux-mm&m=118315742025334&w=4
+Comments?
 
-[By the way:  I have another experimental patch in this series that uses
-Rik's page_anon() function from his "split LRU lists" patch to detect
-swap backed pages and push them to the "no reclaim list" when no swap
-space is available.]
-
-I haven't thought about it much, but perhaps my "page_reclaimable()"
-function could be taught to exclude RAMFS pages as well?
-
-Later,
 Lee
+
+---------------------------
+
+PATCH/RFC - MPOL_PREFERRED fixups for "local allocation"
+
+Here are a couple of potential "fixups" for MPOL_PREFERRED behavior
+when v.preferred_node < 0 -- i.e., "local allocation":
+
+1)  [do_]get_mempolicy() calls the misnamed get_zonemask() to fetch the
+    nodemask associated with a policy.  Currently, get_zonemask() returns
+    the set of nodes with memory, when the policy 'mode' is 'PREFERRED,
+    and the preferred_node is < 0.  Return the set of allowed nodes
+    instead.  This will already have been masked to include only nodes
+    with memory.
+
+2)  When a task is moved into a [new] cpuset, mpol_rebind_policy() is
+    called to adjust any task and vma policy nodes to be valid in the
+    new cpuset.  However, when the policy is MPOL_PREFERRED, and the
+    preferred_node is <0, no rebind is necessary.  The "local allocation"
+    indication is valid in any cpuset.
+
+3)  mpol_to_str() produces a printable, "human readable" string from a
+    struct mempolicy.  For MPOL_PREFERRED with preferred_node <0,  show
+    the entire set of valid nodes.  Although, technically, MPOL_PREFERRED
+    takes only a single node, preferred_node <0 is a local allocation policy,
+    with the preferred node determined by the context where the task
+    is executing.  All of the allowed nodes are possible, as the task
+    migrates amoung the nodes in the cpuset.  Indeed, the task/vma may have
+    memory from any of the allowed nodes.
+
+Comments?
+
+Signed-off-by:  Lee Schermerhorn <lee.schermerhorn@hp.com>
+
+ mm/mempolicy.c |   28 ++++++++++++++++++++++------
+ 1 file changed, 22 insertions(+), 6 deletions(-)
+
+Index: Linux/mm/mempolicy.c
+===================================================================
+--- Linux.orig/mm/mempolicy.c	2007-07-30 16:18:27.000000000 -0400
++++ Linux/mm/mempolicy.c	2007-07-30 16:37:19.000000000 -0400
+@@ -494,9 +494,11 @@ static void get_zonemask(struct mempolic
+ 		*nodes = p->v.nodes;
+ 		break;
+ 	case MPOL_PREFERRED:
+-		/* or use current node instead of memory_map? */
++		/*
++		 * for "local policy", return allowed memories
++		 */
+ 		if (p->v.preferred_node < 0)
+-			*nodes = node_states[N_MEMORY];
++			*nodes = cpuset_current_mems_allowed;
+ 		else
+ 			node_set(p->v.preferred_node, *nodes);
+ 		break;
+@@ -1650,6 +1652,7 @@ void mpol_rebind_policy(struct mempolicy
+ {
+ 	nodemask_t *mpolmask;
+ 	nodemask_t tmp;
++	int nid;
+ 
+ 	if (!pol)
+ 		return;
+@@ -1668,9 +1671,15 @@ void mpol_rebind_policy(struct mempolicy
+ 						*mpolmask, *newmask);
+ 		break;
+ 	case MPOL_PREFERRED:
+-		pol->v.preferred_node = node_remap(pol->v.preferred_node,
++		/*
++		 * no need to remap "local policy"
++		 */
++		nid = pol->v.preferred_node;
++		if (nid >= 0) {
++			pol->v.preferred_node = node_remap(nid,
+ 						*mpolmask, *newmask);
+-		*mpolmask = *newmask;
++			*mpolmask = *newmask;
++		}
+ 		break;
+ 	case MPOL_BIND: {
+ 		nodemask_t nodes;
+@@ -1745,7 +1754,7 @@ static const char * const policy_types[]
+ static inline int mpol_to_str(char *buffer, int maxlen, struct mempolicy *pol)
+ {
+ 	char *p = buffer;
+-	int l;
++	int nid, l;
+ 	nodemask_t nodes;
+ 	int mode = pol ? pol->policy : MPOL_DEFAULT;
+ 
+@@ -1756,7 +1765,14 @@ static inline int mpol_to_str(char *buff
+ 
+ 	case MPOL_PREFERRED:
+ 		nodes_clear(nodes);
+-		node_set(pol->v.preferred_node, nodes);
++		nid = pol->v.preferred_node;
++		/*
++		 * local interleave, show all valid nodes
++		 */
++		if (nid < 0 )
++			nodes_or(nodes, cpuset_current_mems_allowed);
++		else
++			node_set(nid, nodes);
+ 		break;
+ 
+ 	case MPOL_BIND:
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
