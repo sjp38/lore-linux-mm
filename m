@@ -1,34 +1,48 @@
-Date: Mon, 30 Jul 2007 11:12:48 -0700 (PDT)
+Date: Mon, 30 Jul 2007 11:29:33 -0700 (PDT)
 From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [rfc] [patch] mm: zone_reclaim fix for pseudo file systems
-In-Reply-To: <20070727232753.GA10311@localdomain>
-Message-ID: <Pine.LNX.4.64.0707301111440.743@schroedinger.engr.sgi.com>
-References: <20070727232753.GA10311@localdomain>
+Subject: Re: [PATCH/RFC] Allow selected nodes to be excluded from MPOL_INTERLEAVE
+ masks
+In-Reply-To: <1185812028.5492.79.camel@localhost>
+Message-ID: <Pine.LNX.4.64.0707301128400.1013@schroedinger.engr.sgi.com>
+References: <1185566878.5069.123.camel@localhost>
+ <20070728151912.c541aec0.kamezawa.hiroyu@jp.fujitsu.com>
+ <1185812028.5492.79.camel@localhost>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Ravikiran G Thirumalai <kiran@scalex86.org>
-Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <clameter@cthulhu.engr.sgi.com>, shai@scalex86.org
+To: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm <linux-mm@kvack.org>, Paul Mundt <lethal@linux-sh.org>, Nishanth Aravamudan <nacc@us.ibm.com>, ak@suse.de, akpm@linux-foundation.org, Eric Whitney <eric.whitney@hp.com>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 27 Jul 2007, Ravikiran G Thirumalai wrote:
+On Mon, 30 Jul 2007, Lee Schermerhorn wrote:
 
-> Don't go into zone_reclaim if there are no reclaimable pages.
-> 
-> While using RAMFS as scratch space for some tests, we found one of the
-> processes got into zone reclaim, and got stuck trying to reclaim pages
-> from a zone.  On examination of the code, we found that the VM was fooled
-> into believing that the zone had reclaimable pages, when it actually had
-> RAMFS backed pages, which could not be written back to the disk.
-> 
-> Fix this by adding a zvc "NR_PSEUDO_FS_PAGES" for file pages with no
-> backing store, and using this counter to determine if reclaim is possible.
+> +	return 0;
+> +}
+> +early_param("no_interleave_nodes", setup_no_interleave_nodes);
+> +
+>  /* The value user specified ....changed by config */
+>  static int user_zonelist_order = ZONELIST_ORDER_DEFAULT;
+>  /* string for sysctl */
+> @@ -2410,8 +2435,15 @@ static int __build_all_zonelists(void *d
+>  		build_zonelists(pgdat);
+>  		build_zonelist_cache(pgdat);
+>  
+> -		if (pgdat->node_present_pages)
+> +		if (pgdat->node_present_pages) {
+>  			node_set_state(nid, N_MEMORY);
+> +			/*
+> +			 * Only nodes with memory are valid for MPOL_INTERLEAVE,
+> +			 * but maybe not all of them?
+> +			 */
+> +			if (!node_isset(nid, no_interleave_nodes))
+> +				node_set_state(nid, N_INTERLEAVE);
 
-That is another case where we need a counter for unreclaimable pages. The 
-other types of pages that need this as mlocked pages and anonymous pages 
-if we have no swap. Could you look at Nick's and my work on mlocked pages 
-and come up with a general solution that covers all these cases?
+			else
+			 printk ....
+
+would be better since it will only list the nodes that have memory and are 
+excluded from interleave.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
