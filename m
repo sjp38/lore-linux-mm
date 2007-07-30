@@ -1,154 +1,84 @@
-Message-ID: <025601c7d2ae$ebd86b80$50a8205a@VAJTGYQ>
-From: "linux-owner" <linux-owner@lug.krems.cc>
-Subject: geosynchronous ballerina
-Date: Mon, 30 Jul 2007 12:31:26 -0200
+Received: from sd0109e.au.ibm.com (d23rh905.au.ibm.com [202.81.18.225])
+	by ausmtp05.au.ibm.com (8.13.8/8.13.8) with ESMTP id l6UDhgXQ4898910
+	for <linux-mm@kvack.org>; Mon, 30 Jul 2007 23:43:42 +1000
+Received: from d23av04.au.ibm.com (d23av04.au.ibm.com [9.190.250.237])
+	by sd0109e.au.ibm.com (8.13.8/8.13.8/NCO v8.4) with ESMTP id l6UDj8UG185160
+	for <linux-mm@kvack.org>; Mon, 30 Jul 2007 23:45:08 +1000
+Received: from d23av04.au.ibm.com (loopback [127.0.0.1])
+	by d23av04.au.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l6UDfYUG010820
+	for <linux-mm@kvack.org>; Mon, 30 Jul 2007 23:41:35 +1000
+Date: Mon, 30 Jul 2007 19:07:58 +0530
+From: Dhaval Giani <dhaval@linux.vnet.ibm.com>
+Subject: Re: [-mm PATCH 6/9] Memory controller add per container LRU and
+	reclaim (v4)
+Message-ID: <20070730133758.GB22952@linux.vnet.ibm.com>
+Reply-To: Dhaval Giani <dhaval@linux.vnet.ibm.com>
+References: <20070727200937.31565.78623.sendpatchset@balbir-laptop> <20070727201041.31565.14803.sendpatchset@balbir-laptop>
 MIME-Version: 1.0
-Content-Type: multipart/related;
-	boundary="----=_NextPart_000_0253_01C7D2BF.AF45EB50";
-	type="multipart/alternative"
-Return-Path: <linux-ntfs-dev@lists.sf.net>
-To: linux-mm-archive@kvack.org, linux-mm@kvack.org
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20070727201041.31565.14803.sendpatchset@balbir-laptop>
+Sender: owner-linux-mm@kvack.org
+Return-Path: <owner-linux-mm@kvack.org>
+To: Balbir Singh <balbir@linux.vnet.ibm.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Linux Containers <containers@lists.osdl.org>, YAMAMOTO Takashi <yamamoto@valinux.co.jp>, Paul Menage <menage@google.com>, Dave Hansen <haveblue@us.ibm.com>, Linux MM Mailing List <linux-mm@kvack.org>, Vaidyanathan Srinivasan <svaidy@linux.vnet.ibm.com>, Pavel Emelianov <xemul@openvz.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Eric W Biederman <ebiederm@xmission.com>, Gautham Shenoy <ego@in.ibm.com>
 List-ID: <linux-mm.kvack.org>
 
-This is a multi-part message in MIME format.
+Hi Balbir,
 
-------=_NextPart_000_0253_01C7D2BF.AF45EB50
-Content-Type: multipart/alternative;
-	boundary="----=_NextPart_001_0254_01C7D2BF.AF45EB50"
+> diff -puN mm/memcontrol.c~mem-control-lru-and-reclaim mm/memcontrol.c
+> --- linux-2.6.23-rc1-mm1/mm/memcontrol.c~mem-control-lru-and-reclaim	2007-07-28 01:12:50.000000000 +0530
+> +++ linux-2.6.23-rc1-mm1-balbir/mm/memcontrol.c	2007-07-28 01:12:50.000000000 +0530
+ 
+>  /*
+>   * The memory controller data structure. The memory controller controls both
+> @@ -51,6 +54,10 @@ struct mem_container {
+>  	 */
+>  	struct list_head active_list;
+>  	struct list_head inactive_list;
+> +	/*
+> +	 * spin_lock to protect the per container LRU
+> +	 */
+> +	spinlock_t lru_lock;
+>  };
+
+The spinlock is not annotated by lockdep. The following patch should do
+it.
+
+Signed-off-by: Dhaval Giani <dhaval@linux.vnet.ibm.com>
+Signed-off-by: Gautham Shenoy R <ego@in.ibm.com>
 
 
-------=_NextPart_001_0254_01C7D2BF.AF45EB50
-Content-Type: text/plain;
-	charset="us-ascii"
-Content-Transfer-Encoding: quoted-printable
+Index: linux-2.6.23-rc1/mm/memcontrol.c
+===================================================================
+--- linux-2.6.23-rc1.orig/mm/memcontrol.c	2007-07-30 17:27:24.000000000 +0530
++++ linux-2.6.23-rc1/mm/memcontrol.c	2007-07-30 18:43:40.000000000 +0530
+@@ -501,6 +501,9 @@
+ 
+ static struct mem_container init_mem_container;
+ 
++/* lockdep should know about lru_lock */
++static struct lock_class_key lru_lock_key;
++
+ static struct container_subsys_state *
+ mem_container_create(struct container_subsys *ss, struct container *cont)
+ {
+@@ -519,6 +522,7 @@
+ 	INIT_LIST_HEAD(&mem->active_list);
+ 	INIT_LIST_HEAD(&mem->inactive_list);
+ 	spin_lock_init(&mem->lru_lock);
++	lockdep_set_class(&mem->lru_lock, &lru_lock_key);
+ 	mem->control_type = MEM_CONTAINER_TYPE_ALL;
+ 	return &mem->css;
+ }
+-- 
+regards,
+Dhaval
 
-tccct  jfaawnj  iirw 
- ajsx
-------=_NextPart_001_0254_01C7D2BF.AF45EB50
-Content-Type: text/html;
-	charset="us-ascii"
-Content-Transfer-Encoding: quoted-printable
+I would like to change the world but they don't give me the source code!
 
-
-<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
-<HTML>=
-<HEAD>
-<META http-equiv=3DContent-Type content=3D"text/html; charset=3D=
-iso-8859-1">
-<META content=3D"MSHTML 6.00.2900.2963" name=3DGENERATOR>
-=
-
-</HEAD>
-<BODY>
-gluyd sxgptyswffff
-qveinsw<IMG src=3D"
-cid:025601c7d2ae$ebd86b80$50a8205a@VAJTGYQ">
-ojoskoolaejjychlm=20
-</BODY></HTML>
-
-------=_NextPart_001_0254_01C7D2BF.AF45EB50--
-
-------=_NextPart_000_0253_01C7D2BF.AF45EB50
-Content-Type: image/jpeg;
-	name="curse.jpg"
-Content-Transfer-Encoding: base64
-Content-ID: <025601c7d2ae$ebd86b80$50a8205a@VAJTGYQ>
-
-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
-EuJUqauTKmSUMdpaf//Z
-
-------=_NextPart_000_0253_01C7D2BF.AF45EB50--
-	
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
