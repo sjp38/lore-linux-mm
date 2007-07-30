@@ -1,143 +1,58 @@
-Subject: Re: [PATCH/RFC] 2.6.23-rc1-mm1:  MPOL_PREFERRED fixups for
-	preferred_node < 0
-From: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
-In-Reply-To: <1185831537.5492.109.camel@localhost>
+Date: Mon, 30 Jul 2007 15:06:57 -0700 (PDT)
+From: Christoph Lameter <clameter@sgi.com>
+Subject: Re: [PATCH 00/14] NUMA: Memoryless node support V4
+In-Reply-To: <20070730211937.GD5668@us.ibm.com>
+Message-ID: <Pine.LNX.4.64.0707301503560.21604@schroedinger.engr.sgi.com>
 References: <20070727194316.18614.36380.sendpatchset@localhost>
-	 <20070727194322.18614.68855.sendpatchset@localhost>
-	 <1185831537.5492.109.camel@localhost>
-Content-Type: text/plain
-Date: Mon, 30 Jul 2007 18:00:46 -0400
-Message-Id: <1185832846.5492.116.camel@localhost>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+ <20070730211937.GD5668@us.ibm.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
-Cc: ak@suse.de, Nishanth Aravamudan <nacc@us.ibm.com>, pj@sgi.com, kxr@sgi.com, Christoph Lameter <clameter@sgi.com>, Mel Gorman <mel@skynet.ie>, akpm@linux-foundation.org, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+To: Nishanth Aravamudan <nacc@us.ibm.com>
+Cc: Lee Schermerhorn <lee.schermerhorn@hp.com>, linux-mm@kvack.org, ak@suse.de, pj@sgi.com, kxr@sgi.com, Mel Gorman <mel@skynet.ie>, akpm@linux-foundation.org, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, apw@shadowen.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 2007-07-30 at 17:38 -0400, Lee Schermerhorn wrote:
-> These are some "issues" that I came across working on the Memoryless
-> Node series.  I'm using the same cc: list as that series as the issues
-> are somewhat related.
+On Mon, 30 Jul 2007, Nishanth Aravamudan wrote:
+
+> On moe, a NUMA-Q box (part of test.kernel.org), I didn't see the same
+> panic that Andy reported, instead I got:
 > 
-> Only boot tested at this point.
+> ------------[ cut here ]------------
+> kernel BUG at mm/slub.c:1895!
+> invalid opcode: 0000 [#1]
+> SMP 
+> Modules linked in:
+> CPU:    0
+> EIP:    0060:[<c105d0a8>]    Not tainted VLI
+> EFLAGS: 00010046   (2.6.23-rc1-mm1-autokern1 #1)
+> EIP is at early_kmem_cache_node_alloc+0x2b/0x8d
+> eax: 00000000   ebx: 00000001   ecx: d38014e4   edx: c12c3a60
+> esi: 00000000   edi: 00000001   ebp: 000000d0   esp: c1343f3c
+> ds: 007b   es: 007b   fs: 00d8  gs: 0000  ss: 0068
+> Process swapper (pid: 0, ti=c1342000 task=c12c3a60 task.ti=c1342000)
+> Stack: 00000001 c133c3e0 00000000 c105d20c 00000000 c133c3e0 00000000 000000d0 
+>        c105d5e7 00000003 c1343fa4 000000d0 00010e56 c1343fa4 c1276826 00000003 
+>        00000055 c127b3c1 00000000 000000d0 c133c3e0 0000001c c105d86e 0000001c 
+> Call Trace:
+>  [<c105d20c>] init_kmem_cache_nodes+0x8f/0xdd
+>  [<c105d5e7>] kmem_cache_open+0x86/0xdd
+>  [<c105d86e>] create_kmalloc_cache+0x51/0xa7
+>  [<c135a483>] kmem_cache_init+0x50/0x16e
+>  [<c101b72a>] printk+0x16/0x19
+>  [<c1355855>] test_wp_bit+0x7e/0x81
+>  [<c1348966>] start_kernel+0x19f/0x21c
+>  [<c13483d8>] unknown_bootoption+0x0/0x139
+>  =======================
+> Code: 83 3d e4 c3 33 c1 1b 57 89 d7 56 53 77 04 0f 0b eb fe 0d 00 12 04 00 89 d1 89 c2 b8 e0 c3 33 c1 e8 99 f5 ff ff 85 c0 89 c6 75 04 <0f> 0b eb fe 8b 58 14 85 db 75 04 0f 0b eb fe a1 ec c3 33 c1 b9 
+> EIP: [<c105d0a8>] early_kmem_cache_node_alloc+0x2b/0x8d SS:ESP 0068:c1343f3c
+> Kernel panic - not syncing: Attempted to kill the idle task!
 
-I sent the wrong patch--forgot to refresh before posting :-(.  Bogus
-code in mpol_to_str() in previous patch.
-
-Try this one.
-
-Lee
-
-> ---------------------------
-
-PATCH/RFC - MPOL_PREFERRED fixups for "local allocation"
-
-Here are a couple of potential "fixups" for MPOL_PREFERRED behavior
-when v.preferred_node < 0 -- i.e., "local allocation":
-
-1)  [do_]get_mempolicy() calls the misnamed get_zonemask() to fetch the
-    nodemask associated with a policy.  Currently, get_zonemask() returns
-    the set of nodes with memory, when the policy 'mode' is 'PREFERRED,
-    and the preferred_node is < 0.  Return the set of allowed nodes
-    instead.  This will already have been masked to include only nodes
-    with memory.
-
-2)  When a task is moved into a [new] cpuset, mpol_rebind_policy() is
-    called to adjust any task and vma policy nodes to be valid in the
-    new cpuset.  However, when the policy is MPOL_PREFERRED, and the
-    preferred_node is <0, no rebind is necessary.  The "local allocation"
-    indication is valid in any cpuset.
-
-3)  mpol_to_str() produces a printable, "human readable" string from a
-    struct mempolicy.  For MPOL_PREFERRED with preferred_node <0,  show
-    the entire set of valid nodes.  Although, technically, MPOL_PREFERRED
-    takes only a single node, preferred_node <0 is a local allocation policy,
-    with the preferred node determined by the context where the task
-    is executing.  All of the allowed nodes are possible, as the task
-    migrates amoung the nodes in the cpuset.
-
-Comments?
-
-Signed-off-by:  Lee Schermerhorn <lee.schermerhorn@hp.com>
-
- mm/mempolicy.c |   31 ++++++++++++++++++++++++-------
- 1 file changed, 24 insertions(+), 7 deletions(-)
-
-Index: Linux/mm/mempolicy.c
-===================================================================
---- Linux.orig/mm/mempolicy.c	2007-07-30 17:32:06.000000000 -0400
-+++ Linux/mm/mempolicy.c	2007-07-30 17:38:17.000000000 -0400
-@@ -494,9 +494,11 @@ static void get_zonemask(struct mempolic
- 		*nodes = p->v.nodes;
- 		break;
- 	case MPOL_PREFERRED:
--		/* or use current node instead of memory_map? */
-+		/*
-+		 * for "local policy", return allowed memories
-+		 */
- 		if (p->v.preferred_node < 0)
--			*nodes = node_states[N_MEMORY];
-+			*nodes = cpuset_current_mems_allowed;
- 		else
- 			node_set(p->v.preferred_node, *nodes);
- 		break;
-@@ -1650,6 +1652,7 @@ void mpol_rebind_policy(struct mempolicy
- {
- 	nodemask_t *mpolmask;
- 	nodemask_t tmp;
-+	int nid;
- 
- 	if (!pol)
- 		return;
-@@ -1668,9 +1671,15 @@ void mpol_rebind_policy(struct mempolicy
- 						*mpolmask, *newmask);
- 		break;
- 	case MPOL_PREFERRED:
--		pol->v.preferred_node = node_remap(pol->v.preferred_node,
-+		/*
-+		 * no need to remap "local policy"
-+		 */
-+		nid = pol->v.preferred_node;
-+		if (nid >= 0) {
-+			pol->v.preferred_node = node_remap(nid,
- 						*mpolmask, *newmask);
--		*mpolmask = *newmask;
-+			*mpolmask = *newmask;
-+		}
- 		break;
- 	case MPOL_BIND: {
- 		nodemask_t nodes;
-@@ -1745,7 +1754,7 @@ static const char * const policy_types[]
- static inline int mpol_to_str(char *buffer, int maxlen, struct mempolicy *pol)
- {
- 	char *p = buffer;
--	int l;
-+	int nid, l;
- 	nodemask_t nodes;
- 	int mode = pol ? pol->policy : MPOL_DEFAULT;
- 
-@@ -1755,8 +1764,16 @@ static inline int mpol_to_str(char *buff
- 		break;
- 
- 	case MPOL_PREFERRED:
--		nodes_clear(nodes);
--		node_set(pol->v.preferred_node, nodes);
-+		nid = pol->v.preferred_node;
-+		/*
-+		 * local interleave, show all valid nodes
-+		 */
-+		if (nid < 0 )
-+			nodes = cpuset_current_mems_allowed;
-+		else {
-+			nodes_clear(nodes);
-+			node_set(nid, nodes);
-+		}
- 		break;
- 
- 	case MPOL_BIND:
-
+Hmmm... yes trouble with NUMAQ is that the nodes only have HIGHMEM 
+but no NORMAL memory. The memory is not available to the slab allocator 
+(needs ZONE_NORMAL memory) and we cannot fall back anymore. We may need 
+something like N_SLAB that defines the allowed nodes for the slab 
+allocators. Sigh.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
