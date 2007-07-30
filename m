@@ -1,210 +1,46 @@
-Subject: Re: [PATCH/RFC] Allow selected nodes to be excluded from
-	MPOL_INTERLEAVE masks
-From: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
-In-Reply-To: <20070728151912.c541aec0.kamezawa.hiroyu@jp.fujitsu.com>
-References: <1185566878.5069.123.camel@localhost>
-	 <20070728151912.c541aec0.kamezawa.hiroyu@jp.fujitsu.com>
-Content-Type: text/plain
-Date: Mon, 30 Jul 2007 12:13:48 -0400
-Message-Id: <1185812028.5492.79.camel@localhost>
-Mime-Version: 1.0
+Received: by ik-out-1112.google.com with SMTP id c28so1008850ika
+        for <linux-mm@kvack.org>; Mon, 30 Jul 2007 09:25:48 -0700 (PDT)
+Message-ID: <b21f8390707300925i76cb08f2j55bba537cf853f88@mail.gmail.com>
+Date: Tue, 31 Jul 2007 02:25:47 +1000
+From: "Matthew Hawkins" <darthmdh@gmail.com>
+Subject: Re: [ck] Re: SD still better than CFS for 3d ?(was Re: 2.6.23-rc1)
+In-Reply-To: <d3380cee0707300831m33d896aufcbdb188576940a2@mail.gmail.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+References: <alpine.LFD.0.999.0707221351030.3607@woody.linux-foundation.org>
+	 <1185536610.502.8.camel@localhost> <20070729170641.GA26220@elte.hu>
+	 <930f95dc0707291154j102494d9m58f4cc452c7ff17c@mail.gmail.com>
+	 <20070729204716.GB1578@elte.hu>
+	 <930f95dc0707291431j4e50214di3c01cd44b5597502@mail.gmail.com>
+	 <20070730114649.GB19186@elte.hu> <op.tv90xghwatcbto@linux.site>
+	 <d3380cee0707300831m33d896aufcbdb188576940a2@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: linux-mm <linux-mm@kvack.org>, Paul Mundt <lethal@linux-sh.org>, Christoph Lameter <clameter@sgi.com>, Nishanth Aravamudan <nacc@us.ibm.com>, kxr@sgi.com, ak@suse.de, akpm@linux-foundation.org, Eric Whitney <eric.whitney@hp.com>
+To: Jacob Braun <jwbraun@gmail.com>
+Cc: kriko <kristjan.ugrin@gmail.com>, ck@vds.kolivas.org, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Martin Schwidefsky <schwidefsky@de.ibm.com>
 List-ID: <linux-mm.kvack.org>
 
-On Sat, 2007-07-28 at 15:19 +0900, KAMEZAWA Hiroyuki wrote:
-> On Fri, 27 Jul 2007 16:07:57 -0400
-> Lee Schermerhorn <Lee.Schermerhorn@hp.com> wrote:
-> 
-> > Questions:
-> > 
-> > * do we need/want a sysctl for run time modifications?  IMO, no.
-> > 
-> 
-> I can agree that runtime modification is not necessary. But applications or
-> libnuma will not use this information ? Doing all in implicit way is enough ?
-> (maybe enough)
+On 7/31/07, Jacob Braun <jwbraun@gmail.com> wrote:
+> On 7/30/07, kriko <kristjan.ugrin@gmail.com> wrote:
+> > I would try the new cfs how it performs, but it seems that nvidia drivers
+> > doesn't compile successfully under 2.6.23-rc1.
+> > http://files.myopera.com/kriko/files/nvidia-installer.log
+> >
+> > If someone has the solution, please share.
+>
+> There is a patch for the nvidia drivers here:
+> http://bugs.gentoo.org/attachment.cgi?id=125959
 
-I think it's enough.  But, maybe we should export this info as a node
-attribute in sysfs?  Would be easy enough to do, if demand exists.
+The ATI drivers (current 8.39.4) were broken by
+commit e21ea246bce5bb93dd822de420172ec280aed492
+Author: Martin Schwidefsky <schwidefsky@de.ibm.com>
 
-> 
-> BTW, could you print "nodes of XXXX are ignored in INTERLEAVE mempolicy" to
-> /var/log/messages at boot ?
+Bad call on the "nobody was using these", Martin :(
 
-Good idea.  It also prompts me to consider better error handling. 
-
-How about this?
-
----
-
-Introduce mask of nodes to exclude from MPOL_INTERLEAVE masks - V2
-
-Against:  2.6.23-rc1-mm1 atop Christoph Lameter's memoryless
-	  node patch set.
-
-V1 -> V2:
-+ issue KERN_NOTICE for successful parse of nodelist.
-  Suggestion by Kamezawa Hiroyuki.
-+ clear no_interleave_nodes nodemask and issue KERN_ERR for
-  invalid nodelist argument.
-
-This patch implements a new node state, N_INTERLEAVE to specify
-the subset of nodes with memory [state N_MEMORY] that are valid
-for MPOL_INTERLEAVE node masks.  The new state mask is populated
-from the N_MEMORY state mask, less any nodes excluded by a new
-command line option, no_interleave_nodes.
-
-Rationale:  some architectures and platforms include nodes with
-memory that, in some cases, should never appear in MPOL_INTERLEAVE
-node masks.  For example, the 'sh' architecture contains a small
-amount of SRAM that is local to each cpu.  In some applications,
-this memory should be reserved for explicit usage.  Another example
-is the pseudo-node on HP ia64 platforms that is already interleaved
-on a cache-line granularity by hardware.  Again, in some cases, we
-want to reserve this for explicit usage, as it has bandwidth and
-[average] latency characteristics quite different from the "real"
-nodes.
-
-Note that allocation of fresh hugepages in response to increases
-in /proc/sys/vm/nr_hugepages is a form of interleaving.  I would
-like to propose that allocate_fresh_huge_page() use the 
-N_INTERLEAVE state as well as MPOL_INTERLEAVE.  Then, one can
-explicity allocate hugepages on the excluded nodes, when needed,
-using Nish Aravamundan's per node huge page sysfs attribute.
-NOT in this patch.
-
-Questions:
-
-* do we need/want a sysctl for run time modifications?  IMO, no.
-	Kame-san votes "No".
-
-Signed-off-by:  Lee Schermerhorn <lee.schermerhorn@hp.com>
-
- Documentation/kernel-parameters.txt |    9 +++++++++
- include/linux/nodemask.h            |    1 +
- mm/mempolicy.c                      |    9 +++++----
- mm/page_alloc.c                     |   34 +++++++++++++++++++++++++++++++++-
- 4 files changed, 48 insertions(+), 5 deletions(-)
-
-Index: Linux/include/linux/nodemask.h
-===================================================================
---- Linux.orig/include/linux/nodemask.h	2007-07-27 15:23:53.000000000 -0400
-+++ Linux/include/linux/nodemask.h	2007-07-27 15:23:53.000000000 -0400
-@@ -345,6 +345,7 @@ enum node_states {
- 	N_ONLINE,	/* The node is online */
- 	N_MEMORY,	/* The node has memory */
- 	N_CPU,		/* The node has cpus */
-+	N_INTERLEAVE,	/* The node is valid for MPOL_INTERLEAVE */
- 	NR_NODE_STATES
- };
- 
-Index: Linux/mm/page_alloc.c
-===================================================================
---- Linux.orig/mm/page_alloc.c	2007-07-27 15:23:53.000000000 -0400
-+++ Linux/mm/page_alloc.c	2007-07-30 10:25:38.000000000 -0400
-@@ -2003,6 +2003,31 @@ static char zonelist_order_name[3][8] = 
- 
- 
- #ifdef CONFIG_NUMA
-+/*
-+ * Command line:  no_interleave_nodes=<NodeList>
-+ * Specify nodes to exclude from MPOL_INTERLEAVE masks.
-+ */
-+static nodemask_t no_interleave_nodes;	/* default:  none */
-+
-+static __init int setup_no_interleave_nodes(char *nodelist)
-+{
-+	if (nodelist) {
-+		int err = nodelist_parse(nodelist, no_interleave_nodes);
-+		if (err) {
-+			printk(KERN_ERR
-+				"Ignoring invalid no_interleave_nodes nodelist:"
-+				"  %s\n", nodelist);
-+			nodes_clear(no_interleave_nodes); /* all or nothing */
-+			return err;
-+		}
-+		printk(KERN_NOTICE
-+			"Nodes ignored for INTERLEAVE memory policy: %s\n",
-+			nodelist);
-+	}
-+	return 0;
-+}
-+early_param("no_interleave_nodes", setup_no_interleave_nodes);
-+
- /* The value user specified ....changed by config */
- static int user_zonelist_order = ZONELIST_ORDER_DEFAULT;
- /* string for sysctl */
-@@ -2410,8 +2435,15 @@ static int __build_all_zonelists(void *d
- 		build_zonelists(pgdat);
- 		build_zonelist_cache(pgdat);
- 
--		if (pgdat->node_present_pages)
-+		if (pgdat->node_present_pages) {
- 			node_set_state(nid, N_MEMORY);
-+			/*
-+			 * Only nodes with memory are valid for MPOL_INTERLEAVE,
-+			 * but maybe not all of them?
-+			 */
-+			if (!node_isset(nid, no_interleave_nodes))
-+				node_set_state(nid, N_INTERLEAVE);
-+		}
- 	}
- 	return 0;
- }
-Index: Linux/mm/mempolicy.c
-===================================================================
---- Linux.orig/mm/mempolicy.c	2007-07-27 15:23:53.000000000 -0400
-+++ Linux/mm/mempolicy.c	2007-07-30 11:09:20.000000000 -0400
-@@ -184,7 +184,7 @@ static struct mempolicy *mpol_new(int mo
- 	case MPOL_INTERLEAVE:
- 		policy->v.nodes = *nodes;
- 		nodes_and(policy->v.nodes, policy->v.nodes,
--					node_states[N_MEMORY]);
-+					node_states[N_INTERLEAVE]);
- 		if (nodes_weight(policy->v.nodes) == 0) {
- 			kmem_cache_free(policy_cache, policy);
- 			return ERR_PTR(-EINVAL);
-@@ -1612,11 +1612,12 @@ void __init numa_policy_init(void)
- 
- 	/*
- 	 * Set interleaving policy for system init. Interleaving is only
--	 * enabled across suitably sized nodes (default is >= 16MB), or
--	 * fall back to the largest node if they're all smaller.
-+	 * enabled across suitably sized nodes (hard coded >= 16MB) on which
-+	 * interleaving is allowed  Fall back to the largest node if all
-+	 * allowable nodes are smaller than the hard coded limit.
- 	 */
- 	nodes_clear(interleave_nodes);
--	for_each_node_state(nid, N_MEMORY) {
-+	for_each_node_state(nid, N_INTERLEAVE) {
- 		unsigned long total_pages = node_present_pages(nid);
- 
- 		/* Preserve the largest node */
-Index: Linux/Documentation/kernel-parameters.txt
-===================================================================
---- Linux.orig/Documentation/kernel-parameters.txt	2007-07-27 15:22:41.000000000 -0400
-+++ Linux/Documentation/kernel-parameters.txt	2007-07-27 15:23:53.000000000 -0400
-@@ -1181,6 +1181,15 @@ and is between 256 and 4096 characters. 
- 	noinitrd	[RAM] Tells the kernel not to load any configured
- 			initial RAM disk.
- 
-+	no_interleave_nodes [KNL, BOOT] Specifies a list of nodes to exclude
-+			[remove] from any nodemask specified with the
-+			MPOL_INTERLEAVE policy.  Some platforms have nodes
-+			that are "special" in some way and should not be
-+			used for policy based interleaving.
-+			Format:  no_interleave_nodes=<NodeList>
-+			NodeList format is described in
-+				Documentation/filesystems/tmpfs.txt
-+
- 	nointroute	[IA-64]
- 
- 	nojitter	[IA64] Disables jitter checking for ITC timers.
-
+-- 
+Matt
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
