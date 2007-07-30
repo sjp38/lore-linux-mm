@@ -1,33 +1,34 @@
-Date: Mon, 30 Jul 2007 11:06:45 -0700 (PDT)
+Date: Mon, 30 Jul 2007 11:12:48 -0700 (PDT)
 From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: NUMA policy issues with ZONE_MOVABLE
-In-Reply-To: <Pine.LNX.4.64.0707301338460.28698@skynet.skynet.ie>
-Message-ID: <Pine.LNX.4.64.0707301106250.743@schroedinger.engr.sgi.com>
-References: <Pine.LNX.4.64.0707242120370.3829@schroedinger.engr.sgi.com>
- <20070725111646.GA9098@skynet.ie> <Pine.LNX.4.64.0707251212300.8820@schroedinger.engr.sgi.com>
- <20070726132336.GA18825@skynet.ie> <Pine.LNX.4.64.0707261104360.2374@schroedinger.engr.sgi.com>
- <20070726225920.GA10225@skynet.ie> <Pine.LNX.4.64.0707261819530.18210@schroedinger.engr.sgi.com>
- <20070727082046.GA6301@skynet.ie> <20070727154519.GA21614@skynet.ie>
- <20070728162844.9d5b8c6e.kamezawa.hiroyu@jp.fujitsu.com>
- <Pine.LNX.4.64.0707281255480.7824@skynet.skynet.ie>
- <20070728231032.2ec7bd35.kamezawa.hiroyu@jp.fujitsu.com>
- <20070728232154.d84f0bcb.kamezawa.hiroyu@jp.fujitsu.com>
- <Pine.LNX.4.64.0707301338460.28698@skynet.skynet.ie>
+Subject: Re: [rfc] [patch] mm: zone_reclaim fix for pseudo file systems
+In-Reply-To: <20070727232753.GA10311@localdomain>
+Message-ID: <Pine.LNX.4.64.0707301111440.743@schroedinger.engr.sgi.com>
+References: <20070727232753.GA10311@localdomain>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org, Lee.Schermerhorn@hp.com, ak@suse.de, akpm@linux-foundation.org, pj@sgi.com
+To: Ravikiran G Thirumalai <kiran@scalex86.org>
+Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <clameter@cthulhu.engr.sgi.com>, shai@scalex86.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 30 Jul 2007, Mel Gorman wrote:
+On Fri, 27 Jul 2007, Ravikiran G Thirumalai wrote:
 
-> The results from kernbench were mixed. Small improves on some machines and
-> small regressions on others. I'll keep the patch on the stack and investigate
-> it further with other benchmarks.
+> Don't go into zone_reclaim if there are no reclaimable pages.
+> 
+> While using RAMFS as scratch space for some tests, we found one of the
+> processes got into zone reclaim, and got stuck trying to reclaim pages
+> from a zone.  On examination of the code, we found that the VM was fooled
+> into believing that the zone had reclaimable pages, when it actually had
+> RAMFS backed pages, which could not be written back to the disk.
+> 
+> Fix this by adding a zvc "NR_PSEUDO_FS_PAGES" for file pages with no
+> backing store, and using this counter to determine if reclaim is possible.
 
-Optimize the scanning by encodeing the zone type in the pointer.
+That is another case where we need a counter for unreclaimable pages. The 
+other types of pages that need this as mlocked pages and anonymous pages 
+if we have no swap. Could you look at Nick's and my work on mlocked pages 
+and come up with a general solution that covers all these cases?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
