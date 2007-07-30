@@ -1,90 +1,98 @@
-Received: from d01relay02.pok.ibm.com (d01relay02.pok.ibm.com [9.56.227.234])
-	by e5.ny.us.ibm.com (8.13.8/8.13.8) with ESMTP id l6UESKva005839
-	for <linux-mm@kvack.org>; Mon, 30 Jul 2007 10:28:20 -0400
-Received: from d01av02.pok.ibm.com (d01av02.pok.ibm.com [9.56.224.216])
-	by d01relay02.pok.ibm.com (8.13.8/8.13.8/NCO v8.4) with ESMTP id l6UESKXe466944
-	for <linux-mm@kvack.org>; Mon, 30 Jul 2007 10:28:20 -0400
-Received: from d01av02.pok.ibm.com (loopback [127.0.0.1])
-	by d01av02.pok.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l6UESJ5u026797
-	for <linux-mm@kvack.org>; Mon, 30 Jul 2007 10:28:19 -0400
-Date: Mon, 30 Jul 2007 19:58:18 +0530
-From: Gautham R Shenoy <ego@in.ibm.com>
-Subject: Re: [-mm PATCH 6/9] Memory controller add per container LRU and reclaim (v4)
-Message-ID: <20070730142818.GB22345@in.ibm.com>
-Reply-To: ego@in.ibm.com
-References: <20070727200937.31565.78623.sendpatchset@balbir-laptop> <20070727201041.31565.14803.sendpatchset@balbir-laptop> <20070730133758.GB22952@linux.vnet.ibm.com>
+Message-ID: <46ADF83B.3050406@shadowen.org>
+Date: Mon, 30 Jul 2007 15:39:55 +0100
+From: Andy Whitcroft <apw@shadowen.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20070730133758.GB22952@linux.vnet.ibm.com>
+Subject: Re: [PATCH 3/7] Generic Virtual Memmap support for SPARSEMEM
+References: <exportbomb.1184333503@pinky> <E1I9LJY-00006o-GK@hellhawk.shadowen.org> <20070714152058.GA12478@infradead.org>
+In-Reply-To: <20070714152058.GA12478@infradead.org>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Dhaval Giani <dhaval@linux.vnet.ibm.com>
-Cc: Balbir Singh <balbir@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Linux Containers <containers@lists.osdl.org>, YAMAMOTO Takashi <yamamoto@valinux.co.jp>, Paul Menage <menage@google.com>, Dave Hansen <haveblue@us.ibm.com>, Linux MM Mailing List <linux-mm@kvack.org>, Vaidyanathan Srinivasan <svaidy@linux.vnet.ibm.com>, Pavel Emelianov <xemul@openvz.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Eric W Biederman <ebiederm@xmission.com>
+To: Christoph Hellwig <hch@infradead.org>
+Cc: linux-mm@kvack.org, linux-arch@vger.kernel.org, Nick Piggin <npiggin@suse.de>, Christoph Lameter <clameter@sgi.com>, Mel Gorman <mel@csn.ul.ie>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Jul 30, 2007 at 07:07:58PM +0530, Dhaval Giani wrote:
-> Hi Balbir,
+Christoph Hellwig wrote:
+>> --- a/include/asm-generic/memory_model.h
+>> +++ b/include/asm-generic/memory_model.h
+>> @@ -46,6 +46,12 @@
+>>  	 __pgdat->node_start_pfn;					\
+>>  })
+>>  
+>> +#elif defined(CONFIG_SPARSEMEM_VMEMMAP)
+>> +
+>> +/* memmap is virtually contigious.  */
+>> +#define __pfn_to_page(pfn)	(vmemmap + (pfn))
+>> +#define __page_to_pfn(page)	((page) - vmemmap)
+>> +
+>>  #elif defined(CONFIG_SPARSEMEM)
 > 
-> > diff -puN mm/memcontrol.c~mem-control-lru-and-reclaim mm/memcontrol.c
-> > --- linux-2.6.23-rc1-mm1/mm/memcontrol.c~mem-control-lru-and-reclaim	2007-07-28 01:12:50.000000000 +0530
-> > +++ linux-2.6.23-rc1-mm1-balbir/mm/memcontrol.c	2007-07-28 01:12:50.000000000 +0530
-> 
-> >  /*
-> >   * The memory controller data structure. The memory controller controls both
-> > @@ -51,6 +54,10 @@ struct mem_container {
-> >  	 */
-> >  	struct list_head active_list;
-> >  	struct list_head inactive_list;
-> > +	/*
-> > +	 * spin_lock to protect the per container LRU
-> > +	 */
-> > +	spinlock_t lru_lock;
-> >  };
-> 
-> The spinlock is not annotated by lockdep. The following patch should do
-> it.
-> 
-> Signed-off-by: Dhaval Giani <dhaval@linux.vnet.ibm.com>
-> Signed-off-by: Gautham Shenoy R <ego@in.ibm.com>
-		 ^^^^^^^^^^^^^^^^
-		 Gautham R Shenoy
-> 
-> 
-> Index: linux-2.6.23-rc1/mm/memcontrol.c
-> ===================================================================
-> --- linux-2.6.23-rc1.orig/mm/memcontrol.c	2007-07-30 17:27:24.000000000 +0530
-> +++ linux-2.6.23-rc1/mm/memcontrol.c	2007-07-30 18:43:40.000000000 +0530
-> @@ -501,6 +501,9 @@
-> 
->  static struct mem_container init_mem_container;
-> 
-> +/* lockdep should know about lru_lock */
-> +static struct lock_class_key lru_lock_key;
-> +
->  static struct container_subsys_state *
->  mem_container_create(struct container_subsys *ss, struct container *cont)
->  {
-> @@ -519,6 +522,7 @@
->  	INIT_LIST_HEAD(&mem->active_list);
->  	INIT_LIST_HEAD(&mem->inactive_list);
->  	spin_lock_init(&mem->lru_lock);
-> +	lockdep_set_class(&mem->lru_lock, &lru_lock_key);
->  	mem->control_type = MEM_CONTAINER_TYPE_ALL;
->  	return &mem->css;
->  }
-> -- 
-> regards,
-> Dhaval
-> 
-> I would like to change the world but they don't give me the source code!
+> nice ifdef mess you have here.  and an sm-generic file should be something
+> truely generic instead of a complete ifdef forest.  I think we'd be
+> much better off duplicating the two lines above in architectures using
+> it anyway.
 
--- 
-Gautham R Shenoy
-Linux Technology Center
-IBM India.
-"Freedom comes with a price tag of responsibility, which is still a bargain,
-because Freedom is priceless!"
+The code itself is generic in the sense its architecture neutral.  This
+is "per memory model" code.  I am wondering however why it is in an
+asm-anything include file here.  This seems to the world like it should
+be in include/linux/memory_model.h.
+
+>> diff --git a/mm/sparse.c b/mm/sparse.c
+>> index d6678ab..5cc6e74 100644
+>> --- a/mm/sparse.c
+>> +++ b/mm/sparse.c
+>> @@ -9,6 +9,8 @@
+>>  #include <linux/spinlock.h>
+>>  #include <linux/vmalloc.h>
+>>  #include <asm/dma.h>
+>> +#include <asm/pgalloc.h>
+>> +#include <asm/pgtable.h>
+>>  
+>>  /*
+>>   * Permanent SPARSEMEM data:
+>> @@ -218,6 +220,192 @@ void *alloc_bootmem_high_node(pg_data_t *pgdat, unsigned long size)
+>>  	return NULL;
+>>  }
+>>  
+>> +#ifdef CONFIG_SPARSEMEM_VMEMMAP
+>> +/*
+>> + * Virtual Memory Map support
+>> + *
+>> + * (C) 2007 sgi. Christoph Lameter <clameter@sgi.com>.
+> 
+> When did we start putting copyright lines and large block comment in the
+> middle of the file?
+> 
+> Please sort this and the ifdef mess out, I suspect a new file for this
+> code would be best.
+
+I will have a look at how this would look pulled out into separate .c files.
+
+>> +void * __meminit vmemmap_alloc_block(unsigned long size, int node)
+> 
+> void * __meminit vmemmap_alloc_block(unsigned long size, int node)
+> 
+>> +#ifndef CONFIG_ARCH_POPULATES_SPARSEMEM_VMEMMAP
+>> +void __meminit vmemmap_verify(pte_t *pte, int node,
+>> +				unsigned long start, unsigned long end)
+>> +{
+>> +	unsigned long pfn = pte_pfn(*pte);
+>> +	int actual_node = early_pfn_to_nid(pfn);
+>> +
+>> +	if (actual_node != node)
+>> +		printk(KERN_WARNING "[%lx-%lx] potential offnode "
+>> +			"page_structs\n", start, end - 1);
+>> +}
+> 
+> Given tht this function is a tiny noop please just put them into the
+> arch dir for !CONFIG_ARCH_POPULATES_SPARSEMEM_VMEMMAP architectures
+> and save yourself both the ifdef mess and the config option.
+> 
+
+Will also look that over and see how it comes out.
+
+-apw
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
