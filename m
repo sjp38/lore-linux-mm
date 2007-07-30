@@ -1,98 +1,210 @@
-Message-ID: <46ADF83B.3050406@shadowen.org>
-Date: Mon, 30 Jul 2007 15:39:55 +0100
-From: Andy Whitcroft <apw@shadowen.org>
-MIME-Version: 1.0
-Subject: Re: [PATCH 3/7] Generic Virtual Memmap support for SPARSEMEM
-References: <exportbomb.1184333503@pinky> <E1I9LJY-00006o-GK@hellhawk.shadowen.org> <20070714152058.GA12478@infradead.org>
-In-Reply-To: <20070714152058.GA12478@infradead.org>
-Content-Type: text/plain; charset=ISO-8859-1
+Subject: Re: [PATCH/RFC] Allow selected nodes to be excluded from
+	MPOL_INTERLEAVE masks
+From: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
+In-Reply-To: <20070728151912.c541aec0.kamezawa.hiroyu@jp.fujitsu.com>
+References: <1185566878.5069.123.camel@localhost>
+	 <20070728151912.c541aec0.kamezawa.hiroyu@jp.fujitsu.com>
+Content-Type: text/plain
+Date: Mon, 30 Jul 2007 12:13:48 -0400
+Message-Id: <1185812028.5492.79.camel@localhost>
+Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Hellwig <hch@infradead.org>
-Cc: linux-mm@kvack.org, linux-arch@vger.kernel.org, Nick Piggin <npiggin@suse.de>, Christoph Lameter <clameter@sgi.com>, Mel Gorman <mel@csn.ul.ie>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: linux-mm <linux-mm@kvack.org>, Paul Mundt <lethal@linux-sh.org>, Christoph Lameter <clameter@sgi.com>, Nishanth Aravamudan <nacc@us.ibm.com>, kxr@sgi.com, ak@suse.de, akpm@linux-foundation.org, Eric Whitney <eric.whitney@hp.com>
 List-ID: <linux-mm.kvack.org>
 
-Christoph Hellwig wrote:
->> --- a/include/asm-generic/memory_model.h
->> +++ b/include/asm-generic/memory_model.h
->> @@ -46,6 +46,12 @@
->>  	 __pgdat->node_start_pfn;					\
->>  })
->>  
->> +#elif defined(CONFIG_SPARSEMEM_VMEMMAP)
->> +
->> +/* memmap is virtually contigious.  */
->> +#define __pfn_to_page(pfn)	(vmemmap + (pfn))
->> +#define __page_to_pfn(page)	((page) - vmemmap)
->> +
->>  #elif defined(CONFIG_SPARSEMEM)
+On Sat, 2007-07-28 at 15:19 +0900, KAMEZAWA Hiroyuki wrote:
+> On Fri, 27 Jul 2007 16:07:57 -0400
+> Lee Schermerhorn <Lee.Schermerhorn@hp.com> wrote:
 > 
-> nice ifdef mess you have here.  and an sm-generic file should be something
-> truely generic instead of a complete ifdef forest.  I think we'd be
-> much better off duplicating the two lines above in architectures using
-> it anyway.
+> > Questions:
+> > 
+> > * do we need/want a sysctl for run time modifications?  IMO, no.
+> > 
+> 
+> I can agree that runtime modification is not necessary. But applications or
+> libnuma will not use this information ? Doing all in implicit way is enough ?
+> (maybe enough)
 
-The code itself is generic in the sense its architecture neutral.  This
-is "per memory model" code.  I am wondering however why it is in an
-asm-anything include file here.  This seems to the world like it should
-be in include/linux/memory_model.h.
+I think it's enough.  But, maybe we should export this info as a node
+attribute in sysfs?  Would be easy enough to do, if demand exists.
 
->> diff --git a/mm/sparse.c b/mm/sparse.c
->> index d6678ab..5cc6e74 100644
->> --- a/mm/sparse.c
->> +++ b/mm/sparse.c
->> @@ -9,6 +9,8 @@
->>  #include <linux/spinlock.h>
->>  #include <linux/vmalloc.h>
->>  #include <asm/dma.h>
->> +#include <asm/pgalloc.h>
->> +#include <asm/pgtable.h>
->>  
->>  /*
->>   * Permanent SPARSEMEM data:
->> @@ -218,6 +220,192 @@ void *alloc_bootmem_high_node(pg_data_t *pgdat, unsigned long size)
->>  	return NULL;
->>  }
->>  
->> +#ifdef CONFIG_SPARSEMEM_VMEMMAP
->> +/*
->> + * Virtual Memory Map support
->> + *
->> + * (C) 2007 sgi. Christoph Lameter <clameter@sgi.com>.
 > 
-> When did we start putting copyright lines and large block comment in the
-> middle of the file?
-> 
-> Please sort this and the ifdef mess out, I suspect a new file for this
-> code would be best.
+> BTW, could you print "nodes of XXXX are ignored in INTERLEAVE mempolicy" to
+> /var/log/messages at boot ?
 
-I will have a look at how this would look pulled out into separate .c files.
+Good idea.  It also prompts me to consider better error handling. 
 
->> +void * __meminit vmemmap_alloc_block(unsigned long size, int node)
-> 
-> void * __meminit vmemmap_alloc_block(unsigned long size, int node)
-> 
->> +#ifndef CONFIG_ARCH_POPULATES_SPARSEMEM_VMEMMAP
->> +void __meminit vmemmap_verify(pte_t *pte, int node,
->> +				unsigned long start, unsigned long end)
->> +{
->> +	unsigned long pfn = pte_pfn(*pte);
->> +	int actual_node = early_pfn_to_nid(pfn);
->> +
->> +	if (actual_node != node)
->> +		printk(KERN_WARNING "[%lx-%lx] potential offnode "
->> +			"page_structs\n", start, end - 1);
->> +}
-> 
-> Given tht this function is a tiny noop please just put them into the
-> arch dir for !CONFIG_ARCH_POPULATES_SPARSEMEM_VMEMMAP architectures
-> and save yourself both the ifdef mess and the config option.
-> 
+How about this?
 
-Will also look that over and see how it comes out.
+---
 
--apw
+Introduce mask of nodes to exclude from MPOL_INTERLEAVE masks - V2
+
+Against:  2.6.23-rc1-mm1 atop Christoph Lameter's memoryless
+	  node patch set.
+
+V1 -> V2:
++ issue KERN_NOTICE for successful parse of nodelist.
+  Suggestion by Kamezawa Hiroyuki.
++ clear no_interleave_nodes nodemask and issue KERN_ERR for
+  invalid nodelist argument.
+
+This patch implements a new node state, N_INTERLEAVE to specify
+the subset of nodes with memory [state N_MEMORY] that are valid
+for MPOL_INTERLEAVE node masks.  The new state mask is populated
+from the N_MEMORY state mask, less any nodes excluded by a new
+command line option, no_interleave_nodes.
+
+Rationale:  some architectures and platforms include nodes with
+memory that, in some cases, should never appear in MPOL_INTERLEAVE
+node masks.  For example, the 'sh' architecture contains a small
+amount of SRAM that is local to each cpu.  In some applications,
+this memory should be reserved for explicit usage.  Another example
+is the pseudo-node on HP ia64 platforms that is already interleaved
+on a cache-line granularity by hardware.  Again, in some cases, we
+want to reserve this for explicit usage, as it has bandwidth and
+[average] latency characteristics quite different from the "real"
+nodes.
+
+Note that allocation of fresh hugepages in response to increases
+in /proc/sys/vm/nr_hugepages is a form of interleaving.  I would
+like to propose that allocate_fresh_huge_page() use the 
+N_INTERLEAVE state as well as MPOL_INTERLEAVE.  Then, one can
+explicity allocate hugepages on the excluded nodes, when needed,
+using Nish Aravamundan's per node huge page sysfs attribute.
+NOT in this patch.
+
+Questions:
+
+* do we need/want a sysctl for run time modifications?  IMO, no.
+	Kame-san votes "No".
+
+Signed-off-by:  Lee Schermerhorn <lee.schermerhorn@hp.com>
+
+ Documentation/kernel-parameters.txt |    9 +++++++++
+ include/linux/nodemask.h            |    1 +
+ mm/mempolicy.c                      |    9 +++++----
+ mm/page_alloc.c                     |   34 +++++++++++++++++++++++++++++++++-
+ 4 files changed, 48 insertions(+), 5 deletions(-)
+
+Index: Linux/include/linux/nodemask.h
+===================================================================
+--- Linux.orig/include/linux/nodemask.h	2007-07-27 15:23:53.000000000 -0400
++++ Linux/include/linux/nodemask.h	2007-07-27 15:23:53.000000000 -0400
+@@ -345,6 +345,7 @@ enum node_states {
+ 	N_ONLINE,	/* The node is online */
+ 	N_MEMORY,	/* The node has memory */
+ 	N_CPU,		/* The node has cpus */
++	N_INTERLEAVE,	/* The node is valid for MPOL_INTERLEAVE */
+ 	NR_NODE_STATES
+ };
+ 
+Index: Linux/mm/page_alloc.c
+===================================================================
+--- Linux.orig/mm/page_alloc.c	2007-07-27 15:23:53.000000000 -0400
++++ Linux/mm/page_alloc.c	2007-07-30 10:25:38.000000000 -0400
+@@ -2003,6 +2003,31 @@ static char zonelist_order_name[3][8] = 
+ 
+ 
+ #ifdef CONFIG_NUMA
++/*
++ * Command line:  no_interleave_nodes=<NodeList>
++ * Specify nodes to exclude from MPOL_INTERLEAVE masks.
++ */
++static nodemask_t no_interleave_nodes;	/* default:  none */
++
++static __init int setup_no_interleave_nodes(char *nodelist)
++{
++	if (nodelist) {
++		int err = nodelist_parse(nodelist, no_interleave_nodes);
++		if (err) {
++			printk(KERN_ERR
++				"Ignoring invalid no_interleave_nodes nodelist:"
++				"  %s\n", nodelist);
++			nodes_clear(no_interleave_nodes); /* all or nothing */
++			return err;
++		}
++		printk(KERN_NOTICE
++			"Nodes ignored for INTERLEAVE memory policy: %s\n",
++			nodelist);
++	}
++	return 0;
++}
++early_param("no_interleave_nodes", setup_no_interleave_nodes);
++
+ /* The value user specified ....changed by config */
+ static int user_zonelist_order = ZONELIST_ORDER_DEFAULT;
+ /* string for sysctl */
+@@ -2410,8 +2435,15 @@ static int __build_all_zonelists(void *d
+ 		build_zonelists(pgdat);
+ 		build_zonelist_cache(pgdat);
+ 
+-		if (pgdat->node_present_pages)
++		if (pgdat->node_present_pages) {
+ 			node_set_state(nid, N_MEMORY);
++			/*
++			 * Only nodes with memory are valid for MPOL_INTERLEAVE,
++			 * but maybe not all of them?
++			 */
++			if (!node_isset(nid, no_interleave_nodes))
++				node_set_state(nid, N_INTERLEAVE);
++		}
+ 	}
+ 	return 0;
+ }
+Index: Linux/mm/mempolicy.c
+===================================================================
+--- Linux.orig/mm/mempolicy.c	2007-07-27 15:23:53.000000000 -0400
++++ Linux/mm/mempolicy.c	2007-07-30 11:09:20.000000000 -0400
+@@ -184,7 +184,7 @@ static struct mempolicy *mpol_new(int mo
+ 	case MPOL_INTERLEAVE:
+ 		policy->v.nodes = *nodes;
+ 		nodes_and(policy->v.nodes, policy->v.nodes,
+-					node_states[N_MEMORY]);
++					node_states[N_INTERLEAVE]);
+ 		if (nodes_weight(policy->v.nodes) == 0) {
+ 			kmem_cache_free(policy_cache, policy);
+ 			return ERR_PTR(-EINVAL);
+@@ -1612,11 +1612,12 @@ void __init numa_policy_init(void)
+ 
+ 	/*
+ 	 * Set interleaving policy for system init. Interleaving is only
+-	 * enabled across suitably sized nodes (default is >= 16MB), or
+-	 * fall back to the largest node if they're all smaller.
++	 * enabled across suitably sized nodes (hard coded >= 16MB) on which
++	 * interleaving is allowed  Fall back to the largest node if all
++	 * allowable nodes are smaller than the hard coded limit.
+ 	 */
+ 	nodes_clear(interleave_nodes);
+-	for_each_node_state(nid, N_MEMORY) {
++	for_each_node_state(nid, N_INTERLEAVE) {
+ 		unsigned long total_pages = node_present_pages(nid);
+ 
+ 		/* Preserve the largest node */
+Index: Linux/Documentation/kernel-parameters.txt
+===================================================================
+--- Linux.orig/Documentation/kernel-parameters.txt	2007-07-27 15:22:41.000000000 -0400
++++ Linux/Documentation/kernel-parameters.txt	2007-07-27 15:23:53.000000000 -0400
+@@ -1181,6 +1181,15 @@ and is between 256 and 4096 characters. 
+ 	noinitrd	[RAM] Tells the kernel not to load any configured
+ 			initial RAM disk.
+ 
++	no_interleave_nodes [KNL, BOOT] Specifies a list of nodes to exclude
++			[remove] from any nodemask specified with the
++			MPOL_INTERLEAVE policy.  Some platforms have nodes
++			that are "special" in some way and should not be
++			used for policy based interleaving.
++			Format:  no_interleave_nodes=<NodeList>
++			NodeList format is described in
++				Documentation/filesystems/tmpfs.txt
++
+ 	nointroute	[IA-64]
+ 
+ 	nojitter	[IA64] Disables jitter checking for ITC timers.
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
