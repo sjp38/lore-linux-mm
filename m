@@ -1,61 +1,102 @@
-Date: Mon, 30 Jul 2007 05:16:08 +0200
-From: Nick Piggin <npiggin@suse.de>
-Subject: Re: [patch][rfc] 2.6.23-rc1 mm: NUMA replicated pagecache
-Message-ID: <20070730031608.GB17367@wotan.suse.de>
-References: <20070727084252.GA9347@wotan.suse.de> <1185546647.5069.17.camel@localhost>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1185546647.5069.17.camel@localhost>
+Date: Sun, 29 Jul 2007 20:45:25 -0700 (PDT)
+From: Linus Torvalds <torvalds@linux-foundation.org>
+Subject: Re: [patch][rfc] remove ZERO_PAGE?
+In-Reply-To: <20070730030806.GA17367@wotan.suse.de>
+Message-ID: <alpine.LFD.0.999.0707292026190.4161@woody.linux-foundation.org>
+References: <20070727021943.GD13939@wotan.suse.de>
+ <alpine.LFD.0.999.0707262226420.3442@woody.linux-foundation.org>
+ <20070727055406.GA22581@wotan.suse.de> <alpine.LFD.0.999.0707270811320.3442@woody.linux-foundation.org>
+ <20070730030806.GA17367@wotan.suse.de>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
-Cc: Linux Memory Management List <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Joachim Deguara <joachim.deguara@amd.com>, Eric Whitney <eric.whitney@hp.com>
+To: Nick Piggin <npiggin@suse.de>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hugh@veritas.com>, Andrea Arcangeli <andrea@suse.de>, Linux Memory Management List <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Jul 27, 2007 at 10:30:47AM -0400, Lee Schermerhorn wrote:
-> On Fri, 2007-07-27 at 10:42 +0200, Nick Piggin wrote:
-> > Hi,
-> > 
-> > Just got a bit of time to take another look at the replicated pagecache
-> > patch. The nopage vs invalidate race and clear_page_dirty_for_io fixes
-> > gives me more confidence in the locking now; the new ->fault API makes
-> > MAP_SHARED write faults much more efficient; and a few bugs were found
-> > and fixed.
-> > 
-> > More stats were added: *repl* in /proc/vmstat. Survives some kbuilding
-> > tests...
-> > 
-> > --
-> > 
-> > Page-based NUMA pagecache replication.
-> <snip really big patch!>
+
+On Mon, 30 Jul 2007, Nick Piggin wrote:
 > 
-> Hi, Nick.
+> Well the issue wasn't exactly that, but the fact that a lot of processes
+> all exitted at once, while each having a significant number of ZERO_PAGE
+> mappings. The freeing rate ends up going right down (OK it wasn't quite a
+> livelock, finishing in > 2 hours, but without ZERO_PAGE bouncing they
+> exit in 5 seconds).
+
+Umm. Isn't this because of the new page->mapping counting for reserved 
+pages?
+
+The one I was violently against, and told you (and Hugh) was pointless and 
+bad?
+
+Or what "bouncing" are you talking about?
+
+In other words, this doesn't really sound like a ZERO_PAGE problem at all, 
+but a problem that was engineered by unnecessarily trying to count those 
+pages in the first place. No?
+
+> > Kernel builds with/without this? If the page faults really are that big a 
+> > deal, this should all be visible.
 > 
-> Glad to see you're back on this.  It's been on my list, but delayed by
-> other patch streams...
+> Sorry if it was misleading: the kernel build numbers weren't really about
+> where ZERO_PAGE hurts us, but just trying to show that it doesn't help too
+> much (for which I realise anything short of a kernel.org release is sadly
+> inadequate).
+> 
+> Anyway, I'll see if I can get anything significant...
 
-Yeah, thought I should keep it alive :) Patch is against 2.6.23-rc1.
+The thing that really riles me up about this is that the whole damn thing 
+seems to be so pointless. This "ZERO_PAGE is bad" thing has been a 
+constant background noise, where people are pushing their opinions with no 
+real technical reasons.
 
- 
-> As I mentioned to you in prior mail, I want to try to integrate this
-> atop my "auto/lazy migration" patches, such that when a task moves to a
-> new node, we remove just that task's pte ref's to page cache pages
-> [along with all refs to anon pages, as I do now] so that the task will
-> take a fault on next touch and either use an existing local copy or
-> replicate the page at that time.  Unfortunately, that's in the queue
-> behind the memoryless node patches and my stalled shared policy patches,
-> among other things :-(.
+I want technical reasons, but I get the feeling that this pogrom is abotu 
+anything but technical arguments.
 
-That's OK. It will likely be a long process to get any of this in...
-As you know, replicated currently needs some of your automigration
-infrastructure in order to get ptes pointing to the right places
-after a task migration. I'd like to try some experiments with them on
-a larger system, once you get time to update your patchset...
+So I _really_ don't want to hear you blaming ZERO_PAGE for something that 
+you introduced yourself with Hugh, and that had _zero_ to do with 
+ZERO_PAGE, and that I spent weeks saying was pointless, to the point where 
+I just gave up.
 
-Thanks,
-Nick
+Now, that you apparently have found the perfect load that proved me right, 
+you instead of blaming the pointless refcounting, you want to blame the 
+poor ZERO_PAGE. Again. 
+
+And THAT is what makes me irritated with this patch. I hate the 
+background, and what looks like intellectual dishonesty. I _told_ people 
+that refcounting reserved pages was pointless and bad. Did you listen? No. 
+And now that it causes problems, rather than blame the refcounting, you 
+blame the victim.
+
+The zero page is *cheaper* to set up than normal pages. It always was. You 
+just *made* it more expensive, because of the irrational fear of 
+PageReserved() that protected us from all those unnecessary bounces in the 
+first place.
+
+So a totally equivalent fix would be to just re-instate the PageReserved 
+checks. It would likely even be easier these days (one logical place to do 
+so would be in "vm_normal_page()", which automatically would catch all 
+unmapping cases, but you'd still have to make sure you don't *increment* 
+the page count when you map it too, of course).
+
+But if you can actually show that ZERO_PAGE literally slows things down 
+(and none of this page count bouncing crud that you were the one that 
+introduced in the first place), then _that_ would be a totally different 
+issue. At that point, you have an independent reason for removing code 
+that has basically been there since day 1, and all my arguments go away.
+
+See?
+
+I'd love to hear "here's a real-life load, and yes, the ZERO_PAGE logic 
+really does hurt more than it helps, it's time to remove it". At that 
+point I'll happily apply the patch.
+
+But what I *don't* want to hear is "we screwed up the reference-counting 
+of ZERO_PAGE, so now it's so expensive that we want to remove the page 
+entirely". That just makes me sad. And a bit angry.
+
+			Linus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
