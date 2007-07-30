@@ -1,46 +1,40 @@
-Date: Sun, 29 Jul 2007 20:56:54 -0700 (PDT)
-From: Linus Torvalds <torvalds@linux-foundation.org>
-Subject: Re: [patch][rfc] remove ZERO_PAGE?
-In-Reply-To: <alpine.LFD.0.999.0707292026190.4161@woody.linux-foundation.org>
-Message-ID: <alpine.LFD.0.999.0707292049420.4161@woody.linux-foundation.org>
-References: <20070727021943.GD13939@wotan.suse.de>
- <alpine.LFD.0.999.0707262226420.3442@woody.linux-foundation.org>
- <20070727055406.GA22581@wotan.suse.de> <alpine.LFD.0.999.0707270811320.3442@woody.linux-foundation.org>
- <20070730030806.GA17367@wotan.suse.de>
- <alpine.LFD.0.999.0707292026190.4161@woody.linux-foundation.org>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=us-ascii
+Date: Sun, 29 Jul 2007 21:19:29 -0700 (PDT)
+Message-Id: <20070729.211929.78713482.davem@davemloft.net>
+Subject: Re: [SPARC32] NULL pointer derefference
+From: David Miller <davem@davemloft.net>
+In-Reply-To: <Pine.LNX.4.61.0707300301340.32210@mtfhpc.demon.co.uk>
+References: <Pine.LNX.4.61.0707300301340.32210@mtfhpc.demon.co.uk>
+Mime-Version: 1.0
+Content-Type: Text/Plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
+From: Mark Fortescue <mark@mtfhpc.demon.co.uk>
+Date: Mon, 30 Jul 2007 03:18:42 +0100 (BST)
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nick Piggin <npiggin@suse.de>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hugh@veritas.com>, Andrea Arcangeli <andrea@suse.de>, Linux Memory Management List <linux-mm@kvack.org>
+To: mark@mtfhpc.demon.co.uk
+Cc: aaw@google.com, akpm@linux-foundation.org, linux-arch@vger.kernel.org, sparclinux@vger.kernel.org, wli@holomorphy.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-
-On Sun, 29 Jul 2007, Linus Torvalds wrote:
+> Unfortunatly Sparc32 sun4c low level memory management apears to be 
+> incompatible with commit b6a2fea39318e43fee84fa7b0b90d68bed92d2ba
+> mm: variable length argument support.
 > 
-> I'd love to hear "here's a real-life load, and yes, the ZERO_PAGE logic 
-> really does hurt more than it helps, it's time to remove it". At that 
-> point I'll happily apply the patch.
+> For some reason, this commit corrupts the memory used by the low level 
+> context/pte handling ring buffers in arch/sparc/mm/sun4c (in 
+> add_ring_ordered, head->next becomes set to a NULL pointer).
+> 
+> I had a quick look at http://www.linux-mm.org to see if there were any 
+> diagrams that show what is going on in the memory management systems, to 
+> see if there was something that I could use to help me work out what is 
+> going on, but I could not see any.
 
-Btw, in the absense of that, I'd at least like to hear an acknowledgement 
-that the complexity isn't worth it, and that what used to work fine was 
-broken because the reference counting overhead gets us on large-scale 
-machines.
+One possible issue is sequencing, perhaps the stack argument copy
+is occuring before the new context is setup properly on sun4c.
 
-IOW, I certainly like removing lines of code. In that sense I _love_ that 
-patch. I really just react negatively because I really think you first set 
-ZERO_PAGE up to fail.
-
-So even if you cannot find a load where this all matters, at least point 
-to commit b5810039a54e5babf428e9a1e89fc1940fabff11 (or exactly whichever 
-one it was that started ref-counting ZERO_PAGE) and blame *that* one, 
-rather than blaming ZERO_PAGE for the problem.
-
-It has served us well for fifteen years, we shouldn't blame it for 
-problems that came from elsewhere.
-
-			Linus
+Another issue might be the new flush_cache_page() call in this
+new code in fs/exec.c, there are now cases where flush_cache_page()
+will be called on kernel addresses, and sun4c's implementation might
+not like that at all.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
