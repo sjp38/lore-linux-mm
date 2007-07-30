@@ -1,53 +1,27 @@
-Date: Mon, 30 Jul 2007 06:35:28 +0200
-From: Nick Piggin <npiggin@suse.de>
-Subject: Re: [patch][rfc] remove ZERO_PAGE?
-Message-ID: <20070730043528.GC7222@wotan.suse.de>
-References: <20070727021943.GD13939@wotan.suse.de> <alpine.LFD.0.999.0707262226420.3442@woody.linux-foundation.org> <20070727055406.GA22581@wotan.suse.de> <alpine.LFD.0.999.0707270811320.3442@woody.linux-foundation.org> <20070730030806.GA17367@wotan.suse.de> <alpine.LFD.0.999.0707292026190.4161@woody.linux-foundation.org> <alpine.LFD.0.999.0707292049420.4161@woody.linux-foundation.org>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <alpine.LFD.0.999.0707292049420.4161@woody.linux-foundation.org>
+Message-ID: <46ADB07A.6090209@aitel.hist.no>
+Date: Mon, 30 Jul 2007 11:33:46 +0200
+From: Helge Hafting <helge.hafting@aitel.hist.no>
+MIME-Version: 1.0
+Subject: Re: [ck] Re: RFT: updatedb "morning after" problem [was: Re: -mm
+ merge plans for 2.6.23]
+References: <2c0942db0707232153j3670ef31kae3907dff1a24cb7@mail.gmail.com>	 <2c0942db0707240915h56e007e3l9110e24a065f2e73@mail.gmail.com>	 <46A6CC56.6040307@yahoo.com.au> <p73abtkrz37.fsf@bingen.suse.de>	 <46A85D95.509@kingswood-consulting.co.uk>	 <20070726092025.GA9157@elte.hu>	 <20070726023401.f6a2fbdf.akpm@linux-foundation.org>	 <20070726094024.GA15583@elte.hu>	 <20070726030902.02f5eab0.akpm@linux-foundation.org>	 <20070726102406.GA30165@elte.hu> <b21f8390707261733y19e00ca2w9961463bd60c8553@mail.gmail.com>
+In-Reply-To: <b21f8390707261733y19e00ca2w9961463bd60c8553@mail.gmail.com>
+Content-Type: text/plain; charset=UTF-8; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hugh@veritas.com>, Andrea Arcangeli <andrea@suse.de>, Linux Memory Management List <linux-mm@kvack.org>
+To: Matthew Hawkins <darthmdh@gmail.com>
+Cc: Ingo Molnar <mingo@elte.hu>, Andrew Morton <akpm@linux-foundation.org>, Nick Piggin <nickpiggin@yahoo.com.au>, Ray Lee <ray-lk@madrabbit.org>, Jesper Juhl <jesper.juhl@gmail.com>, linux-kernel@vger.kernel.org, ck list <ck@vds.kolivas.org>, linux-mm@kvack.org, Paul Jackson <pj@sgi.com>, Andi Kleen <andi@firstfloor.org>, Frank Kingswood <frank@kingswood-consulting.co.uk>
 List-ID: <linux-mm.kvack.org>
 
-On Sun, Jul 29, 2007 at 08:56:54PM -0700, Linus Torvalds wrote:
-> 
-> 
-> On Sun, 29 Jul 2007, Linus Torvalds wrote:
-> > 
-> > I'd love to hear "here's a real-life load, and yes, the ZERO_PAGE logic 
-> > really does hurt more than it helps, it's time to remove it". At that 
-> > point I'll happily apply the patch.
-> 
-> Btw, in the absense of that, I'd at least like to hear an acknowledgement 
-> that the complexity isn't worth it, and that what used to work fine was 
-> broken because the reference counting overhead gets us on large-scale 
-> machines.
-> 
-> IOW, I certainly like removing lines of code. In that sense I _love_ that 
-> patch. I really just react negatively because I really think you first set 
-> ZERO_PAGE up to fail.
-> 
-> So even if you cannot find a load where this all matters, at least point 
-> to commit b5810039a54e5babf428e9a1e89fc1940fabff11 (or exactly whichever 
-> one it was that started ref-counting ZERO_PAGE) and blame *that* one, 
-> rather than blaming ZERO_PAGE for the problem.
-
-OK, as a patch, the changelog could be improved. But I state that
-complexity isn't worth it as "ZERO_PAGE appears to be a false optimisation".
+Matthew Hawkins wrote:
+> updatedb by itself doesn't really bug me, its just that on occasion
+> its still running at 7am 
+You should start it earlier then - assuming it doesn't
+already start at the earliest opportunity?
 
 
-> It has served us well for fifteen years, we shouldn't blame it for 
-> problems that came from elsewhere.
-
-Can it still serve us well, though? This is what I would really like to talk
-about, and I guess would decide whether we again special case the refcounting
-or remove it completely. I'm happy to do either (although I do *hope* that it
-can be removed, for complexity's sake).
-
+Helge Hafting
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
