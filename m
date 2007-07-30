@@ -1,96 +1,85 @@
-Date: Mon, 30 Jul 2007 11:57:51 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [patch][rfc] remove ZERO_PAGE?
-Message-Id: <20070730115751.a2aaa28f.akpm@linux-foundation.org>
-In-Reply-To: <e28f90730707300652g4a0d0f4ah10bd3c06564d624b@mail.gmail.com>
-References: <20070727021943.GD13939@wotan.suse.de>
-	<e28f90730707300652g4a0d0f4ah10bd3c06564d624b@mail.gmail.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
-Sender: owner-linux-mm@kvack.org
-Return-Path: <owner-linux-mm@kvack.org>
-To: "Luiz Fernando N. Capitulino" <lcapitulino@gmail.com>
-Cc: Nick Piggin <npiggin@suse.de>, Linus Torvalds <torvalds@linux-foundation.org>, Hugh Dickins <hugh@veritas.com>, Andrea Arcangeli <andrea@suse.de>, Linux Memory Management List <linux-mm@kvack.org>, lcapitulino@mandriva.com.br, Neil Brown <neilb@suse.de>, "J. Bruce Fields" <bfields@fieldses.org>
+From: "Jimmie Means" <boder4@excite.com>
+Subject: Man Lebt nur einmal - probiers aus !  complaints you  -- , and how to exploit 
+Date: Mon, 30 Jul 2007 19:04:16 +0800
+MIME-Version: 1.0
+Content-Type: multipart/alternative;
+	boundary="----=_NextPart_000_0006_01C7D2A1.C05C23A0"
+Message-ID: <01c7d2dc$6cbafba0$91a94418@boder4>
+Return-Path: <boder4@excite.com>
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 30 Jul 2007 10:52:27 -0300
-"Luiz Fernando N. Capitulino" <lcapitulino@gmail.com> wrote:
+This is a multi-part message in MIME format.
 
-> Hi Nick,
-> 
-> On 7/26/07, Nick Piggin <npiggin@suse.de> wrote:
-> 
-> > I'd like to see if we can get the ball rolling on this again, and try to
-> > get it in 2.6.24 maybe. Any comments?
-> 
->  I'm trying this patch and got this during the weekend (gmail will
-> probably break lines automatically, grrr):
-> 
-> """
-> [29711.081281] BUG: unable to handle kernel NULL pointer dereference
-> at virtual address 00000004
-> [29711.081300]  printing eip:
-> [29711.081305] dcb5aa49
-> [29711.081308] *pde = 00000000
-> [29711.081315] Oops: 0000 [#1]
-> [29711.081319] SMP
-> [29711.081325] Modules linked in: nfsd exportfs auth_rpcgss nfs lockd
-> nfs_acl sunrpc capability commoncap af_packet ipv6 ide_cd ide_core
-> binfmt_misc loop dm_mod floppy pcspkr snd_pcm_oss snd_mixer_oss
-> snd_via82xx gameport snd_ac97_codec i2c_viapro amd64_agp snd_pcm
-> snd_timer ac97_bus snd_page_alloc snd_mpu401_uart snd_rawmidi
-> snd_seq_device snd agpgart ehci_hcd uhci_hcd i2c_core via_rhine k8temp
-> mii usbcore evdev tsdev soundcore sr_mod sg ext3 jbd sd_mod pata_via
-> sata_via libata scsi_mod
-> [29711.081445] CPU:    0
-> [29711.081446] EIP:    0060:[<dcb5aa49>]    Not tainted VLI
-> [29711.081447] EFLAGS: 00010246   (2.6.23-rc1-zpage #1)
-> [29711.081511] EIP is at encode_fsid+0x89/0xb0 [nfsd]
-> [29711.081529] eax: d99f4000   ebx: d80af064   ecx: 00000000   edx: 00000002
-> [29711.081549] esi: d809204c   edi: d80af14c   ebp: d8788f04   esp: d8788efc
-> [29711.081569] ds: 007b   es: 007b   fs: 00d8  gs: 0000  ss: 0068
-> [29711.081589] Process nfsd (pid: 3474, ti=d8788000 task=dac07740
-> task.ti=d8788000)
-> [29711.081609] Stack: 00000000 d809203c d8788f28 dcb5ab25 d80af064
-> c0945160 dcb59202 00000000
-> [29711.081644]        d80b0000 dcb5bf90 dcb77404 d8788f38 dcb5bfb3
-> d80af14c d80b0000 d8788f68
-> [29711.081679]        dcb4d32c d87b4c44 d87b4a80 d8788f60 00000003
-> d8092018 d8092000 0000001c
-> [29711.081714] Call Trace:
-> [29711.081738]  [<c01053fa>] show_trace_log_lvl+0x1a/0x30
-> [29711.081760]  [<c01054bb>] show_stack_log_lvl+0xab/0xd0
-> [29711.081779]  [<c01056b1>] show_registers+0x1d1/0x2d0
-> [29711.081798]  [<c01058c6>] die+0x116/0x250
-> [29711.081815]  [<c011bb2b>] do_page_fault+0x28b/0x690
-> [29711.081836]  [<c02e95ba>] error_code+0x72/0x78
-> [29711.081856]  [<dcb5ab25>] encode_fattr3+0xb5/0x140 [nfsd]
-> [29711.081888]  [<dcb5bfb3>] nfs3svc_encode_attrstat+0x23/0x50 [nfsd]
-> [29711.081921]  [<dcb4d32c>] nfsd_dispatch+0x18c/0x220 [nfsd]
-> [29711.081950]  [<dcaf41fa>] svc_process+0x42a/0x7b0 [sunrpc]
-> [29711.081985]  [<dcb4d909>] nfsd+0x169/0x290 [nfsd]
-> [29711.082013]  [<c0104f9f>] kernel_thread_helper+0x7/0x18
-> [29711.082032]  =======================
-> [29711.082047] Code: 48 30 89 cb c1 fb 1f 89 d8 0f c8 89 06 89 c8 0f
-> c8 89 46 04 8d 46 08 5b 5e 5d c3 8d b4 26 00 00 00 00 8b 83 88 00 00
-> 00 8b 48 34 <8b> 51 04 33 51 0c 8b 01 33 41 08 89 d1 0f c8 0f c9 89 46
-> 04 8d
-> [29711.082150] EIP: [<dcb5aa49>] encode_fsid+0x89/0xb0 [nfsd] SS:ESP
-> 0068:d8788efc
-> """
-> 
->  Now I'm not sure if this was caused by your patch, or is a bug
-> somewhere else.
+------=_NextPart_000_0006_01C7D2A1.C05C23A0
+Content-Type: text/plain;
+	charset="iso-8859-1"
+Content-Transfer-Encoding: 7bit
 
-It's a little hard to see how Nick's patch could have caused that to
-happen.
+Versuchen Sie unser Produkt und Sie werden fuhlen was unsere Kunden bestatigen
 
-Neil, Bruce: does this look at all familiar?  We don't appear to have
-changed anything in there for months...
+Preise die keine Konkurrenz kennen 
 
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+- Bequem und diskret online bestellen.
+- Kein peinlicher Arztbesuch erforderlich
+- Kostenlose, arztliche Telefon-Beratung
+- Kein langes Warten - Auslieferung innerhalb von 2-3 Tagen
+- Visa verifizierter Onlineshop
+- keine versteckte Kosten
+- Diskrete Verpackung und Zahlung
+
+Originalmedikamente
+Ciiaaaaaalis 10 Pack. 27,00 Euro
+Viiaaaagra 10 Pack. 21,00 Euro
+
+Jetzt bestellen - und vier Pillen umsonst erhalten
+http://ojgujd.squarereply.cn/?443304983334
+
+(bitte warten Sie einen Moment bis die Seite vollstandig geladen wird)
+
+
+------=_NextPart_000_0006_01C7D2A1.C05C23A0
+Content-Type: text/html;
+	charset="iso-8859-1"
+Content-Transfer-Encoding: quoted-printable
+
+<html xmlns:o=3D"urn:schemas-microsoft-com:office:office" xmlns:w=3D"urn:sc=
+hemas-microsoft-com:office:word" xmlns=3D"http://www.w3.org/TR/REC-html40">
+
+<head>
+<META HTTP-EQUIV=3D"Content-Type" CONTENT=3D"text/html; charset=3Diso-8859-1">
+<meta name=3DGenerator content=3D"Microsoft Word 11 (filtered medium)">
+</head>
+<body>
+<head><meta http-equiv=3D"Content-Type" content=3D"text/html; charset=3Diso=
+-8859-1">
+</head><body><p>Meinung von unserem Kunden:<br><strong>Ich bin weit &#252;b=
+er 60, nehme Ciiaaaaaalis 20 mg. und das Wochenende ist gerettet. Ich kann =
+pro Nacht 4-5 mal, und am Morgen wieder, f&#252;r den n&#228;chsten Abend r=
+eicht eine Halbe. Meine Freundin ist begeistert. F&#252;r meine Frau nehme =
+ich eine halbe Tablette, das reicht f&#252;r einen netten Abend.</strong></=
+p><p><strong>Warum nehme ich Ciiaaaaaalis? Es ist einfach ein angenehmens G=
+ef&#252;hl. Man brauch sich nicht auf die Err. ..ektion zu konzentrieren. B=
+eim Sex ist man viel entspannter, mann kann auch mal die Muskeln im Genital=
+bereich lockern, ohne das die Err. ..ektion im Glied nachlasst. Dadurch ist=
+ eine lange Verz&#246;gerung der Ejakulation m&#246;glich. Man ist beim Sex=
+ generell lockerer und entspannter, und kommt auch nicht mehr so schnell au=
+sser Athem, weil man eben locker und entspannt ist, ausser nat&#252;rlich d=
+er kleine Freund :-)<br>
+</strong><strong><br>Versuchen Sie unser Produkt und Sie werden fuhlen was =
+unsere Kunden bestatigen</strong></p><p>Preise die keine Konkurrenz kennen =
+<p>
+- Bequem und diskret online bestellen.<br>- Kein peinlicher Arztbesuch erfo=
+rderlich<br>- Kein langes Warten - Auslieferung innerhalb von 2-3 Tagen<br>=
+- Kostenlose, arztliche Telefon-Beratung<br>- Visa verifizierter Onlineshop=
+<br>- Diskrete Verpackung und Zahlung<br>- keine versteckte Kosten</p>
+<p>Originalmedikamente<br><strong>Ciiaaaaaalis 10 Pack. 27,00 Euro</strong>=
+<br>
+  <strong>Viiaaaagra 10 Pack. 21,00 Euro</strong><br><br><strong><a href=3D=
+"http://ojgujd.squarereply.cn/?443304983334" target=3D"_blank">Jetzt bestel=
+len - und vier Pillen umsonst erhalten</a><br></strong>(bitte warten Sie ei=
+nen Moment bis die Seite vollst&auml;ndig geladen wird) </p></body>
+</body>
+</html>
+
+------=_NextPart_000_0006_01C7D2A1.C05C23A0--
