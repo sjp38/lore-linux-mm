@@ -1,48 +1,34 @@
-Date: Mon, 30 Jul 2007 11:29:33 -0700 (PDT)
-From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [PATCH/RFC] Allow selected nodes to be excluded from MPOL_INTERLEAVE
- masks
-In-Reply-To: <1185812028.5492.79.camel@localhost>
-Message-ID: <Pine.LNX.4.64.0707301128400.1013@schroedinger.engr.sgi.com>
-References: <1185566878.5069.123.camel@localhost>
- <20070728151912.c541aec0.kamezawa.hiroyu@jp.fujitsu.com>
- <1185812028.5492.79.camel@localhost>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Date: Mon, 30 Jul 2007 19:29:59 +0100
+From: Christoph Hellwig <hch@infradead.org>
+Subject: Re: [ck] Re: SD still better than CFS for 3d ?(was Re: 2.6.23-rc1)
+Message-ID: <20070730182959.GA29151@infradead.org>
+References: <alpine.LFD.0.999.0707221351030.3607@woody.linux-foundation.org> <1185536610.502.8.camel@localhost> <20070729170641.GA26220@elte.hu> <930f95dc0707291154j102494d9m58f4cc452c7ff17c@mail.gmail.com> <20070729204716.GB1578@elte.hu> <930f95dc0707291431j4e50214di3c01cd44b5597502@mail.gmail.com> <20070730114649.GB19186@elte.hu> <op.tv90xghwatcbto@linux.site> <d3380cee0707300831m33d896aufcbdb188576940a2@mail.gmail.com> <b21f8390707300925i76cb08f2j55bba537cf853f88@mail.gmail.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <b21f8390707300925i76cb08f2j55bba537cf853f88@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm <linux-mm@kvack.org>, Paul Mundt <lethal@linux-sh.org>, Nishanth Aravamudan <nacc@us.ibm.com>, ak@suse.de, akpm@linux-foundation.org, Eric Whitney <eric.whitney@hp.com>
+To: Matthew Hawkins <darthmdh@gmail.com>
+Cc: Jacob Braun <jwbraun@gmail.com>, kriko <kristjan.ugrin@gmail.com>, ck@vds.kolivas.org, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Martin Schwidefsky <schwidefsky@de.ibm.com>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 30 Jul 2007, Lee Schermerhorn wrote:
+On Tue, Jul 31, 2007 at 02:25:47AM +1000, Matthew Hawkins wrote:
+> 
+> The ATI drivers (current 8.39.4) were broken by
+> commit e21ea246bce5bb93dd822de420172ec280aed492
+> Author: Martin Schwidefsky <schwidefsky@de.ibm.com>
+> 
+> Bad call on the "nobody was using these", Martin :(
 
-> +	return 0;
-> +}
-> +early_param("no_interleave_nodes", setup_no_interleave_nodes);
-> +
->  /* The value user specified ....changed by config */
->  static int user_zonelist_order = ZONELIST_ORDER_DEFAULT;
->  /* string for sysctl */
-> @@ -2410,8 +2435,15 @@ static int __build_all_zonelists(void *d
->  		build_zonelists(pgdat);
->  		build_zonelist_cache(pgdat);
->  
-> -		if (pgdat->node_present_pages)
-> +		if (pgdat->node_present_pages) {
->  			node_set_state(nid, N_MEMORY);
-> +			/*
-> +			 * Only nodes with memory are valid for MPOL_INTERLEAVE,
-> +			 * but maybe not all of them?
-> +			 */
-> +			if (!node_isset(nid, no_interleave_nodes))
-> +				node_set_state(nid, N_INTERLEAVE);
+Sorry to use foul language once again after a while, but:
 
-			else
-			 printk ....
+	Fuck you Martin!
 
-would be better since it will only list the nodes that have memory and are 
-excluded from interleave.
+not only is complaining about illegal binary crap totally offtopic
+on this list, and making youself a fool for using that piece of shit
+is annoying enough, but don't even try to badmouth Martin for doing
+important and needed cleanups.  And now get out of here!
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
