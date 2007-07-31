@@ -1,34 +1,50 @@
-Subject: Re: [-mm PATCH 4/9] Memory controller memory accounting (v4)
-In-Reply-To: Your message of "Sat, 28 Jul 2007 01:40:18 +0530"
-	<20070727201018.31565.42132.sendpatchset@balbir-laptop>
-References: <20070727201018.31565.42132.sendpatchset@balbir-laptop>
+Date: Mon, 30 Jul 2007 21:47:56 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [rfc] [patch] mm: zone_reclaim fix for pseudo file systems
+Message-Id: <20070730214756.c4211678.akpm@linux-foundation.org>
+In-Reply-To: <Pine.LNX.4.64.0707301934300.27364@schroedinger.engr.sgi.com>
+References: <20070727232753.GA10311@localdomain>
+	<20070730132314.f6c8b4e1.akpm@linux-foundation.org>
+	<20070731000138.GA32468@localdomain>
+	<20070730172007.ddf7bdee.akpm@linux-foundation.org>
+	<Pine.LNX.4.64.0707301725280.25686@schroedinger.engr.sgi.com>
+	<20070731015647.GC32468@localdomain>
+	<Pine.LNX.4.64.0707301858280.26859@schroedinger.engr.sgi.com>
+	<20070730192721.eb220a9d.akpm@linux-foundation.org>
+	<Pine.LNX.4.64.0707301934300.27364@schroedinger.engr.sgi.com>
 Mime-Version: 1.0
-Content-Type: Text/Plain; charset=us-ascii
-Message-Id: <20070731033832.9E8B41BF6B4@siro.lan>
-Date: Tue, 31 Jul 2007 12:38:32 +0900 (JST)
-From: yamamoto@valinux.co.jp (YAMAMOTO Takashi)
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: balbir@linux.vnet.ibm.com
-Cc: akpm@linux-foundation.org, a.p.zijlstra@chello.nl, dhaval@linux.vnet.ibm.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, ebiederm@xmission.com, containers@lists.osdl.org, menage@google.com, xemul@openvz.org
+To: Christoph Lameter <clameter@sgi.com>
+Cc: Ravikiran G Thirumalai <kiran@scalex86.org>, linux-mm@kvack.org, shai@scalex86.org
 List-ID: <linux-mm.kvack.org>
 
-> +	lock_meta_page(page);
-> +	/*
-> +	 * Check if somebody else beat us to allocating the meta_page
-> +	 */
-> +	race_mp = page_get_meta_page(page);
-> +	if (race_mp) {
-> +		kfree(mp);
-> +		mp = race_mp;
-> +		atomic_inc(&mp->ref_cnt);
-> +		res_counter_uncharge(&mem->res, 1);
-> +		goto done;
-> +	}
+On Mon, 30 Jul 2007 19:36:04 -0700 (PDT) Christoph Lameter <clameter@sgi.com> wrote:
 
-i think you need css_put here.
+> On Mon, 30 Jul 2007, Andrew Morton wrote:
+> 
+> > That makes sense, but any fix we do here won't fix things for regular
+> > reclaim.
+> 
+> Standard reclaim has the same issues. It uselessly keeps 
+> scanning the unreclaimable file backed pages.
 
-YAMAMOTO Takashi
+Well it shouldn't.  That's what all_unreclaimable is for.  And it does
+work.  Or used to, five years ago.  Stuff like this has a habit of breaking
+because we don't have a test suite.
+
+> Fixing this will also 
+> enhance regular reclaim.
+> 
+> > - account file-backed pages, BDI_CAP_NO_ACCT_DIRTY pages and
+> >   BDI_CAP_NO_WRITEBACK separately.  ie: zone accounting pretty
+> >   much follows the BDI_CAP_ selectors.
+> 
+> Or BDI_CAP_UNRECLAIMABLE.... 
+
+Yeah, that's nice and direct.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
