@@ -1,43 +1,21 @@
-From: Andi Kleen <ak@suse.de>
-Subject: Re: [rfc] balance-on-fork NUMA placement
-Date: Tue, 31 Jul 2007 11:14:08 +0200
-References: <20070731054142.GB11306@wotan.suse.de>
-In-Reply-To: <20070731054142.GB11306@wotan.suse.de>
-MIME-Version: 1.0
-Content-Type: text/plain;
-  charset="iso-8859-1"
-Content-Transfer-Encoding: 7bit
+Date: Tue, 31 Jul 2007 13:13:52 +0100
+From: Christoph Hellwig <hch@infradead.org>
+Subject: Re: [ck] Re: SD still better than CFS for 3d ?
+Message-ID: <20070731121352.GA11380@infradead.org>
+References: <930f95dc0707291154j102494d9m58f4cc452c7ff17c@mail.gmail.com> <20070729204716.GB1578@elte.hu> <930f95dc0707291431j4e50214di3c01cd44b5597502@mail.gmail.com> <20070730114649.GB19186@elte.hu> <op.tv90xghwatcbto@linux.site> <d3380cee0707300831m33d896aufcbdb188576940a2@mail.gmail.com> <b21f8390707300925i76cb08f2j55bba537cf853f88@mail.gmail.com> <20070730182959.GA29151@infradead.org> <adaps29sm62.fsf@cisco.com> <b21f8390707302007n2f21018crc6b7cd83666e0f3c@mail.gmail.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-Message-Id: <200707311114.09284.ak@suse.de>
+In-Reply-To: <b21f8390707302007n2f21018crc6b7cd83666e0f3c@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nick Piggin <npiggin@suse.de>
-Cc: Ingo Molnar <mingo@elte.hu>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>
+To: Matthew Hawkins <darthmdh@gmail.com>
+Cc: Roland Dreier <rdreier@cisco.com>, Christoph Hellwig <hch@infradead.org>, Jacob Braun <jwbraun@gmail.com>, kriko <kristjan.ugrin@gmail.com>, ck@vds.kolivas.org, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Martin Schwidefsky <schwidefsky@de.ibm.com>
 List-ID: <linux-mm.kvack.org>
 
-On Tuesday 31 July 2007 07:41, Nick Piggin wrote:
-
-> I haven't given this idea testing yet, but I just wanted to get some
-> opinions on it first. NUMA placement still isn't ideal (eg. tasks with
-> a memory policy will not do any placement, and process migrations of
-> course will leave the memory behind...), but it does give a bit more
-> chance for the memory controllers and interconnects to get evenly
-> loaded.
-
-I didn't think slab honored mempolicies by default? 
-At least you seem to need to set special process flags.
-
-> NUMA balance-on-fork code is in a good position to allocate all of a new
-> process's memory on a chosen node. However, it really only starts
-> allocating on the correct node after the process starts running.
->
-> task and thread structures, stack, mm_struct, vmas, page tables etc. are
-> all allocated on the parent's node.
-
-The page tables should be only allocated when the process runs; except
-for the PGD.
-
--Andi
+Matthew, odd off.  ait binary crap is totally offtopic here on the list,
+and beeing prude for beeing a fuckhead and holding development back doesn't
+exactly helpe either.  Go back to your -ck fanboy land and shut up now.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
