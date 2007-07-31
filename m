@@ -1,53 +1,34 @@
-Received: by rv-out-0910.google.com with SMTP id f1so395384rvb
-        for <linux-mm@kvack.org>; Mon, 30 Jul 2007 20:07:30 -0700 (PDT)
-Message-ID: <b21f8390707302007n2f21018crc6b7cd83666e0f3c@mail.gmail.com>
-Date: Tue, 31 Jul 2007 13:07:30 +1000
-From: "Matthew Hawkins" <darthmdh@gmail.com>
-Subject: Re: [ck] Re: SD still better than CFS for 3d ?
-In-Reply-To: <adaps29sm62.fsf@cisco.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
-References: <alpine.LFD.0.999.0707221351030.3607@woody.linux-foundation.org>
-	 <930f95dc0707291154j102494d9m58f4cc452c7ff17c@mail.gmail.com>
-	 <20070729204716.GB1578@elte.hu>
-	 <930f95dc0707291431j4e50214di3c01cd44b5597502@mail.gmail.com>
-	 <20070730114649.GB19186@elte.hu> <op.tv90xghwatcbto@linux.site>
-	 <d3380cee0707300831m33d896aufcbdb188576940a2@mail.gmail.com>
-	 <b21f8390707300925i76cb08f2j55bba537cf853f88@mail.gmail.com>
-	 <20070730182959.GA29151@infradead.org> <adaps29sm62.fsf@cisco.com>
+Subject: Re: [-mm PATCH 4/9] Memory controller memory accounting (v4)
+In-Reply-To: Your message of "Sat, 28 Jul 2007 01:40:18 +0530"
+	<20070727201018.31565.42132.sendpatchset@balbir-laptop>
+References: <20070727201018.31565.42132.sendpatchset@balbir-laptop>
+Mime-Version: 1.0
+Content-Type: Text/Plain; charset=us-ascii
+Message-Id: <20070731033832.9E8B41BF6B4@siro.lan>
+Date: Tue, 31 Jul 2007 12:38:32 +0900 (JST)
+From: yamamoto@valinux.co.jp (YAMAMOTO Takashi)
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Roland Dreier <rdreier@cisco.com>
-Cc: Christoph Hellwig <hch@infradead.org>, Jacob Braun <jwbraun@gmail.com>, kriko <kristjan.ugrin@gmail.com>, ck@vds.kolivas.org, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Martin Schwidefsky <schwidefsky@de.ibm.com>
+To: balbir@linux.vnet.ibm.com
+Cc: akpm@linux-foundation.org, a.p.zijlstra@chello.nl, dhaval@linux.vnet.ibm.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, ebiederm@xmission.com, containers@lists.osdl.org, menage@google.com, xemul@openvz.org
 List-ID: <linux-mm.kvack.org>
 
-On 7/31/07, Roland Dreier <rdreier@cisco.com> wrote:
->  >      Fuck you Martin!
->
-> I think you meant to yell at Matthew, not Martin ;)
+> +	lock_meta_page(page);
+> +	/*
+> +	 * Check if somebody else beat us to allocating the meta_page
+> +	 */
+> +	race_mp = page_get_meta_page(page);
+> +	if (race_mp) {
+> +		kfree(mp);
+> +		mp = race_mp;
+> +		atomic_inc(&mp->ref_cnt);
+> +		res_counter_uncharge(&mem->res, 1);
+> +		goto done;
+> +	}
 
-What's amusing about this is he's yelling at me for something I didn't
-do, can't even get my name right, and has the audacity to claim that
-*I* am the one looking like a fool!  While we're descending into
-primary school theatrics, may I just say "takes one to know one" ;-)
+i think you need css_put here.
 
-I took the time to track down what caused a breakage - in an "illegal
-binary driver" (not against the law here, though defamation certainly
-is...) no less.  And contacted the vendor (separately).  Other people
-on desktop machines with an ATI card using the fglrx driver may have
-been interested to know that they can't do the benchmarking some
-people here on lkml and -mm are asking for with a current 2.6.23 git
-kernel, hence my post.
-
-Martin's cleanup patch is good and I never claimed otherwise, I just
-said the comment on the commit was a bad call (as there are users of
-that interface).  Certainly ATI should fix their dodgy drivers.
-That's been the cry of the community for a long time...
-
--- 
-Matt
+YAMAMOTO Takashi
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
