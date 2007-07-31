@@ -1,179 +1,251 @@
-Subject: Re: [PATCH/RFC] 2.6.23-rc1-mm1:  MPOL_PREFERRED fixups for
-	preferred_node < 0
-From: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
-In-Reply-To: <20070731153227.GB18506@skynet.ie>
-References: <20070727194316.18614.36380.sendpatchset@localhost>
-	 <20070727194322.18614.68855.sendpatchset@localhost>
-	 <1185831537.5492.109.camel@localhost> <1185832846.5492.116.camel@localhost>
-	 <20070731153227.GB18506@skynet.ie>
-Content-Type: text/plain
-Date: Tue, 31 Jul 2007 11:58:07 -0400
-Message-Id: <1185897487.6240.29.camel@localhost>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Received: by ik-out-1112.google.com with SMTP id c28so1144974ika
+        for <linux-mm@kvack.org>; Tue, 31 Jul 2007 09:37:05 -0700 (PDT)
+Message-ID: <b21f8390707310937i5f90fa2rae650221b3ff4880@mail.gmail.com>
+Date: Wed, 1 Aug 2007 02:37:03 +1000
+From: "Matthew Hawkins" <darthmdh@gmail.com>
+Subject: Re: [ck] Re: -mm merge plans for 2.6.23
+In-Reply-To: <46A6CC56.6040307@yahoo.com.au>
+MIME-Version: 1.0
+Content-Type: multipart/mixed;
+	boundary="----=_Part_47468_9228897.1185899823529"
+References: <20070710013152.ef2cd200.akpm@linux-foundation.org>
+	 <200707102015.44004.kernel@kolivas.org>
+	 <9a8748490707231608h453eefffx68b9c391897aba70@mail.gmail.com>
+	 <46A57068.3070701@yahoo.com.au>
+	 <2c0942db0707232153j3670ef31kae3907dff1a24cb7@mail.gmail.com>
+	 <46A58B49.3050508@yahoo.com.au>
+	 <2c0942db0707240915h56e007e3l9110e24a065f2e73@mail.gmail.com>
+	 <46A6CC56.6040307@yahoo.com.au>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Mel Gorman <mel@skynet.ie>
-Cc: linux-mm@kvack.org, ak@suse.de, Nishanth Aravamudan <nacc@us.ibm.com>, pj@sgi.com, kxr@sgi.com, Christoph Lameter <clameter@sgi.com>, akpm@linux-foundation.org, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+To: Nick Piggin <nickpiggin@yahoo.com.au>
+Cc: Ray Lee <ray-lk@madrabbit.org>, Jesper Juhl <jesper.juhl@gmail.com>, linux-kernel@vger.kernel.org, ck list <ck@vds.kolivas.org>, linux-mm@kvack.org, Paul Jackson <pj@sgi.com>, Andrew Morton <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 2007-07-31 at 16:32 +0100, Mel Gorman wrote:
-> On (30/07/07 18:00), Lee Schermerhorn didst pronounce:
-> > On Mon, 2007-07-30 at 17:38 -0400, Lee Schermerhorn wrote:
-> > > These are some "issues" that I came across working on the Memoryless
-> > > Node series.  I'm using the same cc: list as that series as the issues
-> > > are somewhat related.
-> > > 
-> > > Only boot tested at this point.
-> > 
-> > I sent the wrong patch--forgot to refresh before posting :-(.  Bogus
-> > code in mpol_to_str() in previous patch.
-> > 
-> > Try this one.
-> > 
-> > Lee
-> > 
-> > > ---------------------------
-> > 
-> > PATCH/RFC - MPOL_PREFERRED fixups for "local allocation"
-> > 
-> > Here are a couple of potential "fixups" for MPOL_PREFERRED behavior
-> > when v.preferred_node < 0 -- i.e., "local allocation":
-> > 
-> > 1)  [do_]get_mempolicy() calls the misnamed get_zonemask() to fetch the
-> >     nodemask associated with a policy.  Currently, get_zonemask() returns
-> >     the set of nodes with memory, when the policy 'mode' is 'PREFERRED,
-> 
-> Consider a cleanup that renames get_zonemask because the naming is
-> misleading.
+------=_Part_47468_9228897.1185899823529
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
 
-I can do that.  Wanted to hear from others, such as yourself first.
+On 7/25/07, Nick Piggin <nickpiggin@yahoo.com.au> wrote:
+> I guess /proc/meminfo, /proc/zoneinfo, /proc/vmstat, /proc/slabinfo
+> before and after the updatedb run with the latest kernel would be a
+> first step. top and vmstat output during the run wouldn't hurt either.
 
-> 
-> >     and the preferred_node is < 0.  Return the set of allowed nodes
-> >     instead.  This will already have been masked to include only nodes
-> >     with memory.
-> > 
-> > 2)  When a task is moved into a [new] cpuset, mpol_rebind_policy() is
-> >     called to adjust any task and vma policy nodes to be valid in the
-> >     new cpuset.  However, when the policy is MPOL_PREFERRED, and the
-> >     preferred_node is <0, no rebind is necessary.  The "local allocation"
-> >     indication is valid in any cpuset.
-> > 
-> > 3)  mpol_to_str() produces a printable, "human readable" string from a
-> >     struct mempolicy.  For MPOL_PREFERRED with preferred_node <0,  show
-> >     the entire set of valid nodes.  Although, technically, MPOL_PREFERRED
-> >     takes only a single node, preferred_node <0 is a local allocation policy,
-> >     with the preferred node determined by the context where the task
-> >     is executing.  All of the allowed nodes are possible, as the task
-> >     migrates amoung the nodes in the cpuset.
-> > 
-> > Comments?
-> > 
-> > Signed-off-by:  Lee Schermerhorn <lee.schermerhorn@hp.com>
-> > 
-> >  mm/mempolicy.c |   31 ++++++++++++++++++++++++-------
-> >  1 file changed, 24 insertions(+), 7 deletions(-)
-> > 
-> > Index: Linux/mm/mempolicy.c
-> > ===================================================================
-> > --- Linux.orig/mm/mempolicy.c	2007-07-30 17:32:06.000000000 -0400
-> > +++ Linux/mm/mempolicy.c	2007-07-30 17:38:17.000000000 -0400
-> > @@ -494,9 +494,11 @@ static void get_zonemask(struct mempolic
-> >  		*nodes = p->v.nodes;
-> >  		break;
-> >  	case MPOL_PREFERRED:
-> > -		/* or use current node instead of memory_map? */
-> > +		/*
-> > +		 * for "local policy", return allowed memories
-> > +		 */
-> >  		if (p->v.preferred_node < 0)
-> > -			*nodes = node_states[N_MEMORY];
-> > +			*nodes = cpuset_current_mems_allowed;
-> >  		else
-> 
-> Is this actually a bugfix? From this context, it looks like memory
-> policies using MPOL_PREFERRED can ignore cpusets.
+Hi Nick,
 
-Not a serious bug, if it is one.  More of a cleanup.   All this does is
-return a node mask in the case where the application has a task memory
-policy of 'PREFERRED with a node id of -1 [which happens when you
-specify an empty nodemask to set_mempolicy() or mbind()].  This means
-"local allocation"--the actual "current node id" is fetched at
-allocation time.  This is a little know "feature" of get_mempolicy().
-The results is misleading, but there isn't much the application can do
-with it.  Node masks are ANDed with cpuset_current_mems_allowed when
-installed via a syscall.
+I've attached two files with this kind of info.  Being up at the cron
+hours of the morning meant I got a better picture of what my system is
+doing.  Here's a short summary of what I saw in top:
 
-> 
-> >  			node_set(p->v.preferred_node, *nodes);
-> >  		break;
-> > @@ -1650,6 +1652,7 @@ void mpol_rebind_policy(struct mempolicy
-> >  {
-> >  	nodemask_t *mpolmask;
-> >  	nodemask_t tmp;
-> > +	int nid;
-> >  
-> >  	if (!pol)
-> >  		return;
-> > @@ -1668,9 +1671,15 @@ void mpol_rebind_policy(struct mempolicy
-> >  						*mpolmask, *newmask);
-> >  		break;
-> >  	case MPOL_PREFERRED:
-> > -		pol->v.preferred_node = node_remap(pol->v.preferred_node,
+beagleindexer used gobs of ram.  600M or so (I have 1G)
 
-Ultimately, node_remap() [the bitmap functions it calls] will return the
-old value of "-1" because it's outside the valid range for a the node
-bitmasks.  However, it doesn't seem right to be calling node_remap()
-with an invalid node id.  I think it's clearer this way:
+updatedb didn't use much ram, but while it was running kswapd kept on
+frequenting the top 10 cpu hogs - it would stick around for 5 seconds
+or so then disappear for no more than 10 seconds, then come back
+again.  This behaviour persisted during the run.  updatedb ran third
+(beagleindexer was first, then update-dlocatedb)
 
-> > +		/*
-> > +		 * no need to remap "local policy"
-> > +		 */
-> > +		nid = pol->v.preferred_node;
-> > +		if (nid >= 0) {
-> > +			pol->v.preferred_node = node_remap(nid,
-> >  						*mpolmask, *newmask);
-> > -		*mpolmask = *newmask;
-> > +			*mpolmask = *newmask;
-> > +		}
-> >  		break;
-> >  	case MPOL_BIND: {
-> >  		nodemask_t nodes;
-> > @@ -1745,7 +1754,7 @@ static const char * const policy_types[]
-> >  static inline int mpol_to_str(char *buffer, int maxlen, struct mempolicy *pol)
-> >  {
-> >  	char *p = buffer;
-> > -	int l;
-> > +	int nid, l;
-> >  	nodemask_t nodes;
-> >  	int mode = pol ? pol->policy : MPOL_DEFAULT;
-> >  
-> > @@ -1755,8 +1764,16 @@ static inline int mpol_to_str(char *buff
-> >  		break;
-> >  
-> >  	case MPOL_PREFERRED:
-> > -		nodes_clear(nodes);
-> > -		node_set(pol->v.preferred_node, nodes);
+I'm going to do this again, this time under a CFS kernel & use Ingo's
+sched_debug script to see what the scheduler is doing also.
 
-Here, I think set_bit() will set bit 31.  Again, misleading, IMO.
+Let me know if there's anything else you wish to see.  The running
+kernel at the time was 2.6.22.1-ck.  There's no slabinfo since I'm
+using slub instead (and I don't have slub debug enabled).
 
-> > +		nid = pol->v.preferred_node;
-> > +		/*
-> > +		 * local interleave, show all valid nodes
-> > +		 */
-> > +		if (nid < 0 )
-> > +			nodes = cpuset_current_mems_allowed;
-> > +		else {
-> > +			nodes_clear(nodes);
-> > +			node_set(nid, nodes);
-> > +		}
-> >  		break;
-> >  
-> >  	case MPOL_BIND:
-> > 
-> 
-> -- 
+Cheers,
+
+-- 
+Matt
+
+------=_Part_47468_9228897.1185899823529
+Content-Type: application/octet-stream; name=beaglecron.ck
+Content-Transfer-Encoding: base64
+X-Attachment-Id: f_f4sm3wzn
+Content-Disposition: attachment; filename="beaglecron.ck"
+
+TWVtVG90YWw6ICAgICAgMTAyODAxNiBrQgpNZW1GcmVlOiAgICAgICAgICA5MzY4IGtCCkJ1ZmZl
+cnM6ICAgICAgICAgNTY5MzIga0IKQ2FjaGVkOiAgICAgICAgIDExNTgyMCBrQgpTd2FwQ2FjaGVk
+OiAgICAgIDE5OTY4IGtCCkFjdGl2ZTogICAgICAgICA0NjMyODQga0IKSW5hY3RpdmU6ICAgICAg
+IDQxODk1MiBrQgpTd2FwVG90YWw6ICAgICAyMDk2NDcyIGtCClN3YXBGcmVlOiAgICAgIDE4NTU2
+MzIga0IKRGlydHk6ICAgICAgICAgICAgMjI3MiBrQgpXcml0ZWJhY2s6ICAgICAgICAgICAwIGtC
+CkFub25QYWdlczogICAgICA2OTU3NDQga0IKTWFwcGVkOiAgICAgICAgICA0MjczMiBrQgpTbGFi
+OiAgICAgICAgICAgIDg5NDUyIGtCClNSZWNsYWltYWJsZTogICAgNzQyMDQga0IKU1VucmVjbGFp
+bTogICAgICAxNTI0OCBrQgpQYWdlVGFibGVzOiAgICAgIDE0NjU2IGtCCk5GU19VbnN0YWJsZTog
+ICAgICAgIDAga0IKQm91bmNlOiAgICAgICAgICAgICAgMCBrQgpDb21taXRMaW1pdDogICAyNjEw
+NDgwIGtCCkNvbW1pdHRlZF9BUzogIDE0Nzg5ODgga0IKVm1hbGxvY1RvdGFsOiAzNDM1OTczODM2
+NyBrQgpWbWFsbG9jVXNlZDogICAgMzEzMjkyIGtCClZtYWxsb2NDaHVuazogMzQzNTk0MjQ1MDcg
+a0IKbnJfZnJlZV9wYWdlcyAzNDE1Cm5yX2luYWN0aXZlIDEwMjY1MQpucl9hY3RpdmUgMTE1MzA4
+Cm5yX2Fub25fcGFnZXMgMTY5OTQzCm5yX21hcHBlZCAxMDM1MQpucl9maWxlX3BhZ2VzIDQ5NTIx
+Cm5yX2RpcnR5IDc3NApucl93cml0ZWJhY2sgMApucl9zbGFiX3JlY2xhaW1hYmxlIDIwMDg4Cm5y
+X3NsYWJfdW5yZWNsYWltYWJsZSAzODk4Cm5yX3BhZ2VfdGFibGVfcGFnZXMgMzY2NApucl91bnN0
+YWJsZSAwCm5yX2JvdW5jZSAwCm5yX3Ztc2Nhbl93cml0ZSA2NDIwMwpwZ3BnaW4gNTk1OTgxCnBn
+cGdvdXQgNDcyNjAwCnBzd3BpbiAzNDA4CnBzd3BvdXQgNjMyMDgKcGdhbGxvY19kbWEgMwpwZ2Fs
+bG9jX2RtYTMyIDE5NzY4OTYKcGdhbGxvY19ub3JtYWwgMApwZ2ZyZWUgMTk4MDQzNgpwZ2FjdGl2
+YXRlIDExNzk2OApwZ2RlYWN0aXZhdGUgMjEzNzIzCnBnZmF1bHQgMzQ2ODQxOQpwZ21hamZhdWx0
+IDM0NjYKcGdyZWZpbGxfZG1hIDAKcGdyZWZpbGxfZG1hMzIgNTYyNTcwCnBncmVmaWxsX25vcm1h
+bCAwCnBnc3RlYWxfZG1hIDAKcGdzdGVhbF9kbWEzMiAxNzM4MDMKcGdzdGVhbF9ub3JtYWwgMApw
+Z3NjYW5fa3N3YXBkX2RtYSAwCnBnc2Nhbl9rc3dhcGRfZG1hMzIgMjQxNTY4CnBnc2Nhbl9rc3dh
+cGRfbm9ybWFsIDAKcGdzY2FuX2RpcmVjdF9kbWEgMApwZ3NjYW5fZGlyZWN0X2RtYTMyIDIxNzky
+CnBnc2Nhbl9kaXJlY3Rfbm9ybWFsIDAKcGdpbm9kZXN0ZWFsIDMKc2xhYnNfc2Nhbm5lZCA0NTU1
+NTIKa3N3YXBkX3N0ZWFsIDE2MjEzMQprc3dhcGRfaW5vZGVzdGVhbCAyNTE5CnBhZ2VvdXRydW4g
+MjQ5NwphbGxvY3N0YWxsIDE1OQpwZ3JvdGF0ZWQgNjMyMDIKMDAwMDAwMDAtMDAwOWY3ZmYgOiBT
+eXN0ZW0gUkFNCiAgMDAwMDAwMDAtMDAwMDAwMDAgOiBDcmFzaCBrZXJuZWwKMDAwOWY4MDAtMDAw
+OWZmZmYgOiByZXNlcnZlZAowMDBjYzgwMC0wMDBjZmZmZiA6IHBucCAwMDowYwowMDBmMDAwMC0w
+MDBmZmZmZiA6IHJlc2VydmVkCjAwMTAwMDAwLTNmZmVmZmZmIDogU3lzdGVtIFJBTQogIDAwMjAw
+MDAwLTAwNDNkYjVmIDogS2VybmVsIGNvZGUKICAwMDQzZGI2MC0wMDU2ZjZjZiA6IEtlcm5lbCBk
+YXRhCjNmZmYwMDAwLTNmZmYyZmZmIDogQUNQSSBOb24tdm9sYXRpbGUgU3RvcmFnZQozZmZmMzAw
+MC0zZmZmZmZmZiA6IEFDUEkgVGFibGVzCmQwMDAwMDAwLWRmZmZmZmZmIDogcmVzZXJ2ZWQKZTAw
+MDAwMDAtZWZmZmZmZmYgOiBQQ0kgQnVzICMwNQogIGUwMDAwMDAwLWVmZmZmZmZmIDogMDAwMDow
+NTowMC4wCmYwMDAwMDAwLWYzZmZmZmZmIDogUENJIEJ1cyAjMDUKICBmMDAwMDAwMC1mMWZmZmZm
+ZiA6IDAwMDA6MDU6MDAuMAogIGYyMDAwMDAwLWYyZmZmZmZmIDogMDAwMDowNTowMC4wCiAgICBm
+MjAwMDAwMC1mMmZmZmZmZiA6IG52aWRpYQogIGYzMDAwMDAwLWYzMDFmZmZmIDogMDAwMDowNTow
+MC4wCmY0MDAwMDAwLWY0MDAwZmZmIDogMDAwMDowMDowNC4wCiAgZjQwMDAwMDAtZjQwMDBmZmYg
+OiBOVmlkaWEgQ0s4MDQKZjQwMDEwMDAtZjQwMDFmZmYgOiAwMDAwOjAwOjA3LjAKICBmNDAwMTAw
+MC1mNDAwMWZmZiA6IHNhdGFfbnYKZjQwMDIwMDAtZjQwMDJmZmYgOiAwMDAwOjAwOjA4LjAKICBm
+NDAwMjAwMC1mNDAwMmZmZiA6IHNhdGFfbnYKZjQwMDMwMDAtZjQwMDNmZmYgOiAwMDAwOjAwOjBh
+LjAKICBmNDAwMzAwMC1mNDAwM2ZmZiA6IGZvcmNlZGV0aApmNDAwNDAwMC1mNDAwNGZmZiA6IDAw
+MDA6MDA6MDIuMAogIGY0MDA0MDAwLWY0MDA0ZmZmIDogb2hjaV9oY2QKZmViMDAwMDAtZmViMDAw
+ZmYgOiAwMDAwOjAwOjAyLjEKICBmZWIwMDAwMC1mZWIwMDBmZiA6IGVoY2lfaGNkCmZlYzAwMDAw
+LWZlYzAwZmZmIDogSU9BUElDIDAKZmVlMDAwMDAtZmVlMDBmZmYgOiBMb2NhbCBBUElDCk5vZGUg
+MCwgem9uZSAgICAgIERNQQogIHBhZ2VzIGZyZWUgICAgIDczNgogICAgICAgIG1pbiAgICAgIDEx
+CiAgICAgICAgbG93ICAgICAgMTMKICAgICAgICBoaWdoICAgICAxNgogICAgICAgIHNjYW5uZWQg
+IDAgKGE6IDkgaTogOSkKICAgICAgICBzcGFubmVkICA0MDk2CiAgICAgICAgcHJlc2VudCAgMjg1
+OAogICAgbnJfZnJlZV9wYWdlcyA3MzYKICAgIG5yX2luYWN0aXZlICAwCiAgICBucl9hY3RpdmUg
+ICAgMAogICAgbnJfYW5vbl9wYWdlcyAwCiAgICBucl9tYXBwZWQgICAgMQogICAgbnJfZmlsZV9w
+YWdlcyAwCiAgICBucl9kaXJ0eSAgICAgMAogICAgbnJfd3JpdGViYWNrIDAKICAgIG5yX3NsYWJf
+cmVjbGFpbWFibGUgMAogICAgbnJfc2xhYl91bnJlY2xhaW1hYmxlIDIKICAgIG5yX3BhZ2VfdGFi
+bGVfcGFnZXMgMAogICAgbnJfdW5zdGFibGUgIDAKICAgIG5yX2JvdW5jZSAgICAwCiAgICBucl92
+bXNjYW5fd3JpdGUgMAogICAgICAgIHByb3RlY3Rpb246ICgwLCA5OTQsIDk5NCkKICBwYWdlc2V0
+cwogICAgY3B1OiAwIHBjcDogMAogICAgICAgICAgICAgIGNvdW50OiAwCiAgICAgICAgICAgICAg
+aGlnaDogIDAKICAgICAgICAgICAgICBiYXRjaDogMQogICAgY3B1OiAwIHBjcDogMQogICAgICAg
+ICAgICAgIGNvdW50OiAwCiAgICAgICAgICAgICAgaGlnaDogIDAKICAgICAgICAgICAgICBiYXRj
+aDogMQogIHZtIHN0YXRzIHRocmVzaG9sZDogNAogICAgY3B1OiAxIHBjcDogMAogICAgICAgICAg
+ICAgIGNvdW50OiAwCiAgICAgICAgICAgICAgaGlnaDogIDAKICAgICAgICAgICAgICBiYXRjaDog
+MQogICAgY3B1OiAxIHBjcDogMQogICAgICAgICAgICAgIGNvdW50OiAwCiAgICAgICAgICAgICAg
+aGlnaDogIDAKICAgICAgICAgICAgICBiYXRjaDogMQogIHZtIHN0YXRzIHRocmVzaG9sZDogNAog
+IGFsbF91bnJlY2xhaW1hYmxlOiAxCiAgcHJldl9wcmlvcml0eTogICAgIDEyCiAgc3RhcnRfcGZu
+OiAgICAgICAgIDAKTm9kZSAwLCB6b25lICAgIERNQTMyCiAgcGFnZXMgZnJlZSAgICAgMTc4Ngog
+ICAgICAgIG1pbiAgICAgIDEwMDIKICAgICAgICBsb3cgICAgICAxMjUyCiAgICAgICAgaGlnaCAg
+ICAgMTUwMwogICAgICAgIHNjYW5uZWQgIDAgKGE6IDI5IGk6IDIzKQogICAgICAgIHNwYW5uZWQg
+IDI1ODAzMgogICAgICAgIHByZXNlbnQgIDI1NDUwNQogICAgbnJfZnJlZV9wYWdlcyAxNzg2CiAg
+ICBucl9pbmFjdGl2ZSAgOTM0MDYKICAgIG5yX2FjdGl2ZSAgICAxMTgwNDQKICAgIG5yX2Fub25f
+cGFnZXMgMTU0NTM5CiAgICBucl9tYXBwZWQgICAgOTgxOQogICAgbnJfZmlsZV9wYWdlcyA1ODQ2
+NgogICAgbnJfZGlydHkgICAgIDExNQogICAgbnJfd3JpdGViYWNrIDAKICAgIG5yX3NsYWJfcmVj
+bGFpbWFibGUgMjcyNjEKICAgIG5yX3NsYWJfdW5yZWNsYWltYWJsZSA0MjA1CiAgICBucl9wYWdl
+X3RhYmxlX3BhZ2VzIDM2NjQKICAgIG5yX3Vuc3RhYmxlICAwCiAgICBucl9ib3VuY2UgICAgMAog
+ICAgbnJfdm1zY2FuX3dyaXRlIDc4OTY2CiAgICAgICAgcHJvdGVjdGlvbjogKDAsIDAsIDApCiAg
+cGFnZXNldHMKICAgIGNwdTogMCBwY3A6IDAKICAgICAgICAgICAgICBjb3VudDogMjkKICAgICAg
+ICAgICAgICBoaWdoOiAgMTg2CiAgICAgICAgICAgICAgYmF0Y2g6IDMxCiAgICBjcHU6IDAgcGNw
+OiAxCiAgICAgICAgICAgICAgY291bnQ6IDMKICAgICAgICAgICAgICBoaWdoOiAgNjIKICAgICAg
+ICAgICAgICBiYXRjaDogMTUKICB2bSBzdGF0cyB0aHJlc2hvbGQ6IDE2CiAgICBjcHU6IDEgcGNw
+OiAwCiAgICAgICAgICAgICAgY291bnQ6IDIKICAgICAgICAgICAgICBoaWdoOiAgMTg2CiAgICAg
+ICAgICAgICAgYmF0Y2g6IDMxCiAgICBjcHU6IDEgcGNwOiAxCiAgICAgICAgICAgICAgY291bnQ6
+IDEzCiAgICAgICAgICAgICAgaGlnaDogIDYyCiAgICAgICAgICAgICAgYmF0Y2g6IDE1CiAgdm0g
+c3RhdHMgdGhyZXNob2xkOiAxNgogIGFsbF91bnJlY2xhaW1hYmxlOiAwCiAgcHJldl9wcmlvcml0
+eTogICAgIDEyCiAgc3RhcnRfcGZuOiAgICAgICAgIDQwOTYK
+------=_Part_47468_9228897.1185899823529
+Content-Type: application/octet-stream; name=updatedbcron.ck
+Content-Transfer-Encoding: base64
+X-Attachment-Id: f_f4sm4cpu
+Content-Disposition: attachment; filename="updatedbcron.ck"
+
+bnJfZnJlZV9wYWdlcyAzNDc4Cm5yX2luYWN0aXZlIDgxMDU3Cm5yX2FjdGl2ZSAxMzE2MTcKbnJf
+YW5vbl9wYWdlcyA5MjgxOApucl9tYXBwZWQgOTA5Mgpucl9maWxlX3BhZ2VzIDEzMDQyNwpucl9k
+aXJ0eSA0MTQ1Cm5yX3dyaXRlYmFjayAwCm5yX3NsYWJfcmVjbGFpbWFibGUgMjIxMDYKbnJfc2xh
+Yl91bnJlY2xhaW1hYmxlIDU5NTAKbnJfcGFnZV90YWJsZV9wYWdlcyAzNTcyCm5yX3Vuc3RhYmxl
+IDAKbnJfYm91bmNlIDAKbnJfdm1zY2FuX3dyaXRlIDE0NTEzMQpwZ3BnaW4gMTMwNTk2MQpwZ3Bn
+b3V0IDEzMjE0MjAKcHN3cGluIDIxMDAxCnBzd3BvdXQgMTQ0MDI4CnBnYWxsb2NfZG1hIDMKcGdh
+bGxvY19kbWEzMiAyNjQ5MzM4CnBnYWxsb2Nfbm9ybWFsIDAKcGdmcmVlIDI2NTI4ODQKcGdhY3Rp
+dmF0ZSAyNTE0MTIKcGdkZWFjdGl2YXRlIDI1MjI5MwpwZ2ZhdWx0IDM1NjU4NTgKcGdtYWpmYXVs
+dCA1ODY0CnBncmVmaWxsX2RtYSAwCnBncmVmaWxsX2RtYTMyIDgzNjkzNApwZ3JlZmlsbF9ub3Jt
+YWwgMApwZ3N0ZWFsX2RtYSAwCnBnc3RlYWxfZG1hMzIgMzUyMjE2CnBnc3RlYWxfbm9ybWFsIDAK
+cGdzY2FuX2tzd2FwZF9kbWEgMApwZ3NjYW5fa3N3YXBkX2RtYTMyIDUxMDQwMApwZ3NjYW5fa3N3
+YXBkX25vcm1hbCAwCnBnc2Nhbl9kaXJlY3RfZG1hIDAKcGdzY2FuX2RpcmVjdF9kbWEzMiAyMjEx
+MgpwZ3NjYW5fZGlyZWN0X25vcm1hbCAwCnBnaW5vZGVzdGVhbCAzCnNsYWJzX3NjYW5uZWQgODA5
+MDg4Cmtzd2FwZF9zdGVhbCAzNDAzNTIKa3N3YXBkX2lub2Rlc3RlYWwgNzI4NgpwYWdlb3V0cnVu
+IDQ2NjEKYWxsb2NzdGFsbCAxNjEKcGdyb3RhdGVkIDE0NDAyNAowMDAwMDAwMC0wMDA5ZjdmZiA6
+IFN5c3RlbSBSQU0KICAwMDAwMDAwMC0wMDAwMDAwMCA6IENyYXNoIGtlcm5lbAowMDA5ZjgwMC0w
+MDA5ZmZmZiA6IHJlc2VydmVkCjAwMGNjODAwLTAwMGNmZmZmIDogcG5wIDAwOjBjCjAwMGYwMDAw
+LTAwMGZmZmZmIDogcmVzZXJ2ZWQKMDAxMDAwMDAtM2ZmZWZmZmYgOiBTeXN0ZW0gUkFNCiAgMDAy
+MDAwMDAtMDA0M2RiNWYgOiBLZXJuZWwgY29kZQogIDAwNDNkYjYwLTAwNTZmNmNmIDogS2VybmVs
+IGRhdGEKM2ZmZjAwMDAtM2ZmZjJmZmYgOiBBQ1BJIE5vbi12b2xhdGlsZSBTdG9yYWdlCjNmZmYz
+MDAwLTNmZmZmZmZmIDogQUNQSSBUYWJsZXMKZDAwMDAwMDAtZGZmZmZmZmYgOiByZXNlcnZlZApl
+MDAwMDAwMC1lZmZmZmZmZiA6IFBDSSBCdXMgIzA1CiAgZTAwMDAwMDAtZWZmZmZmZmYgOiAwMDAw
+OjA1OjAwLjAKZjAwMDAwMDAtZjNmZmZmZmYgOiBQQ0kgQnVzICMwNQogIGYwMDAwMDAwLWYxZmZm
+ZmZmIDogMDAwMDowNTowMC4wCiAgZjIwMDAwMDAtZjJmZmZmZmYgOiAwMDAwOjA1OjAwLjAKICAg
+IGYyMDAwMDAwLWYyZmZmZmZmIDogbnZpZGlhCiAgZjMwMDAwMDAtZjMwMWZmZmYgOiAwMDAwOjA1
+OjAwLjAKZjQwMDAwMDAtZjQwMDBmZmYgOiAwMDAwOjAwOjA0LjAKICBmNDAwMDAwMC1mNDAwMGZm
+ZiA6IE5WaWRpYSBDSzgwNApmNDAwMTAwMC1mNDAwMWZmZiA6IDAwMDA6MDA6MDcuMAogIGY0MDAx
+MDAwLWY0MDAxZmZmIDogc2F0YV9udgpmNDAwMjAwMC1mNDAwMmZmZiA6IDAwMDA6MDA6MDguMAog
+IGY0MDAyMDAwLWY0MDAyZmZmIDogc2F0YV9udgpmNDAwMzAwMC1mNDAwM2ZmZiA6IDAwMDA6MDA6
+MGEuMAogIGY0MDAzMDAwLWY0MDAzZmZmIDogZm9yY2VkZXRoCmY0MDA0MDAwLWY0MDA0ZmZmIDog
+MDAwMDowMDowMi4wCiAgZjQwMDQwMDAtZjQwMDRmZmYgOiBvaGNpX2hjZApmZWIwMDAwMC1mZWIw
+MDBmZiA6IDAwMDA6MDA6MDIuMQogIGZlYjAwMDAwLWZlYjAwMGZmIDogZWhjaV9oY2QKZmVjMDAw
+MDAtZmVjMDBmZmYgOiBJT0FQSUMgMApmZWUwMDAwMC1mZWUwMGZmZiA6IExvY2FsIEFQSUMKTWVt
+VG90YWw6ICAgICAgMTAyODAxNiBrQgpNZW1GcmVlOiAgICAgICAgIDI2MDAwIGtCCkJ1ZmZlcnM6
+ICAgICAgICAzNTI3NTIga0IKQ2FjaGVkOiAgICAgICAgICA5ODY3MiBrQgpTd2FwQ2FjaGVkOiAg
+ICAgIDU0MjcyIGtCCkFjdGl2ZTogICAgICAgICA1MTM0NzYga0IKSW5hY3RpdmU6ICAgICAgIDMy
+MTMzNiBrQgpTd2FwVG90YWw6ICAgICAyMDk2NDcyIGtCClN3YXBGcmVlOiAgICAgIDE1MjMxMjQg
+a0IKRGlydHk6ICAgICAgICAgICAgIDg4NCBrQgpXcml0ZWJhY2s6ICAgICAgICAgICAwIGtCCkFu
+b25QYWdlczogICAgICAzNzE0MzIga0IKTWFwcGVkOiAgICAgICAgICAzNjM2OCBrQgpTbGFiOiAg
+ICAgICAgICAgMTE2MDE2IGtCClNSZWNsYWltYWJsZTogICAgOTE4NjQga0IKU1VucmVjbGFpbTog
+ICAgICAyNDE1MiBrQgpQYWdlVGFibGVzOiAgICAgIDE0Mjg4IGtCCk5GU19VbnN0YWJsZTogICAg
+ICAgIDAga0IKQm91bmNlOiAgICAgICAgICAgICAgMCBrQgpDb21taXRMaW1pdDogICAyNjEwNDgw
+IGtCCkNvbW1pdHRlZF9BUzogIDE0MjQzNTIga0IKVm1hbGxvY1RvdGFsOiAzNDM1OTczODM2NyBr
+QgpWbWFsbG9jVXNlZDogICAgMzEzMjkyIGtCClZtYWxsb2NDaHVuazogMzQzNTk0MjQ1MDcga0IK
+bnJfZnJlZV9wYWdlcyA0MjEwCm5yX2luYWN0aXZlIDgxMzg3Cm5yX2FjdGl2ZSAxMjkyMTcKbnJf
+YW5vbl9wYWdlcyA5Mjg2Nwpucl9tYXBwZWQgOTEwMApucl9maWxlX3BhZ2VzIDEyODMyMApucl9k
+aXJ0eSA1NDgKbnJfd3JpdGViYWNrIDAKbnJfc2xhYl9yZWNsYWltYWJsZSAyMzI5Ngpucl9zbGFi
+X3VucmVjbGFpbWFibGUgNjEyMApucl9wYWdlX3RhYmxlX3BhZ2VzIDM1NzIKbnJfdW5zdGFibGUg
+MApucl9ib3VuY2UgMApucl92bXNjYW5fd3JpdGUgMTQ1MTMxCnBncGdpbiAxMzU2MTI1CnBncGdv
+dXQgMTM0ODk0NApwc3dwaW4gMjEwNjYKcHN3cG91dCAxNDQwMjgKcGdhbGxvY19kbWEgMwpwZ2Fs
+bG9jX2RtYTMyIDI2ODc2NzMKcGdhbGxvY19ub3JtYWwgMApwZ2ZyZWUgMjY5MTkxOApwZ2FjdGl2
+YXRlIDI1NzEwNgpwZ2RlYWN0aXZhdGUgMjYwNDkxCnBnZmF1bHQgMzU2Njg0MwpwZ21hamZhdWx0
+IDU4ODAKcGdyZWZpbGxfZG1hIDAKcGdyZWZpbGxfZG1hMzIgODU5MzgwCnBncmVmaWxsX25vcm1h
+bCAwCnBnc3RlYWxfZG1hIDAKcGdzdGVhbF9kbWEzMiAzNjcwOTUKcGdzdGVhbF9ub3JtYWwgMApw
+Z3NjYW5fa3N3YXBkX2RtYSAwCnBnc2Nhbl9rc3dhcGRfZG1hMzIgNTI1MzEyCnBnc2Nhbl9rc3dh
+cGRfbm9ybWFsIDAKcGdzY2FuX2RpcmVjdF9kbWEgMApwZ3NjYW5fZGlyZWN0X2RtYTMyIDIyMTEy
+CnBnc2Nhbl9kaXJlY3Rfbm9ybWFsIDAKcGdpbm9kZXN0ZWFsIDMKc2xhYnNfc2Nhbm5lZCA4Mjg5
+MjgKa3N3YXBkX3N0ZWFsIDM1NTIzMQprc3dhcGRfaW5vZGVzdGVhbCA3Mjg2CnBhZ2VvdXRydW4g
+NDg5NwphbGxvY3N0YWxsIDE2MQpwZ3JvdGF0ZWQgMTQ0MDI0Ck5vZGUgMCwgem9uZSAgICAgIERN
+QQogIHBhZ2VzIGZyZWUgICAgIDczNgogICAgICAgIG1pbiAgICAgIDExCiAgICAgICAgbG93ICAg
+ICAgMTMKICAgICAgICBoaWdoICAgICAxNgogICAgICAgIHNjYW5uZWQgIDAgKGE6IDE4IGk6IDE4
+KQogICAgICAgIHNwYW5uZWQgIDQwOTYKICAgICAgICBwcmVzZW50ICAyODU4CiAgICBucl9mcmVl
+X3BhZ2VzIDczNgogICAgbnJfaW5hY3RpdmUgIDAKICAgIG5yX2FjdGl2ZSAgICAwCiAgICBucl9h
+bm9uX3BhZ2VzIDAKICAgIG5yX21hcHBlZCAgICAxCiAgICBucl9maWxlX3BhZ2VzIDAKICAgIG5y
+X2RpcnR5ICAgICAwCiAgICBucl93cml0ZWJhY2sgMAogICAgbnJfc2xhYl9yZWNsYWltYWJsZSAw
+CiAgICBucl9zbGFiX3VucmVjbGFpbWFibGUgMgogICAgbnJfcGFnZV90YWJsZV9wYWdlcyAwCiAg
+ICBucl91bnN0YWJsZSAgMAogICAgbnJfYm91bmNlICAgIDAKICAgIG5yX3Ztc2Nhbl93cml0ZSAw
+CiAgICAgICAgcHJvdGVjdGlvbjogKDAsIDk5NCwgOTk0KQogIHBhZ2VzZXRzCiAgICBjcHU6IDAg
+cGNwOiAwCiAgICAgICAgICAgICAgY291bnQ6IDAKICAgICAgICAgICAgICBoaWdoOiAgMAogICAg
+ICAgICAgICAgIGJhdGNoOiAxCiAgICBjcHU6IDAgcGNwOiAxCiAgICAgICAgICAgICAgY291bnQ6
+IDAKICAgICAgICAgICAgICBoaWdoOiAgMAogICAgICAgICAgICAgIGJhdGNoOiAxCiAgdm0gc3Rh
+dHMgdGhyZXNob2xkOiA0CiAgICBjcHU6IDEgcGNwOiAwCiAgICAgICAgICAgICAgY291bnQ6IDAK
+ICAgICAgICAgICAgICBoaWdoOiAgMAogICAgICAgICAgICAgIGJhdGNoOiAxCiAgICBjcHU6IDEg
+cGNwOiAxCiAgICAgICAgICAgICAgY291bnQ6IDAKICAgICAgICAgICAgICBoaWdoOiAgMAogICAg
+ICAgICAgICAgIGJhdGNoOiAxCiAgdm0gc3RhdHMgdGhyZXNob2xkOiA0CiAgYWxsX3VucmVjbGFp
+bWFibGU6IDEKICBwcmV2X3ByaW9yaXR5OiAgICAgMTIKICBzdGFydF9wZm46ICAgICAgICAgMApO
+b2RlIDAsIHpvbmUgICAgRE1BMzIKICBwYWdlcyBmcmVlICAgICAyODQ2CiAgICAgICAgbWluICAg
+ICAgMTAwMgogICAgICAgIGxvdyAgICAgIDEyNTIKICAgICAgICBoaWdoICAgICAxNTAzCiAgICAg
+ICAgc2Nhbm5lZCAgMCAoYTogMCBpOiAyMCkKICAgICAgICBzcGFubmVkICAyNTgwMzIKICAgICAg
+ICBwcmVzZW50ICAyNTQ1MDUKICAgIG5yX2ZyZWVfcGFnZXMgMjg0NgogICAgbnJfaW5hY3RpdmUg
+IDc4MzM3CiAgICBucl9hY3RpdmUgICAgMTMxMzgyCiAgICBucl9hbm9uX3BhZ2VzIDkyODg1CiAg
+ICBucl9tYXBwZWQgICAgOTA5OQogICAgbnJfZmlsZV9wYWdlcyAxMjc0MzMKICAgIG5yX2RpcnR5
+ICAgICA0MTEKICAgIG5yX3dyaXRlYmFjayAwCiAgICBucl9zbGFiX3JlY2xhaW1hYmxlIDI0NTk1
+CiAgICBucl9zbGFiX3VucmVjbGFpbWFibGUgNjMxNAogICAgbnJfcGFnZV90YWJsZV9wYWdlcyAz
+NTcyCiAgICBucl91bnN0YWJsZSAgMAogICAgbnJfYm91bmNlICAgIDAKICAgIG5yX3Ztc2Nhbl93
+cml0ZSAxNDUxMzEKICAgICAgICBwcm90ZWN0aW9uOiAoMCwgMCwgMCkKICBwYWdlc2V0cwogICAg
+Y3B1OiAwIHBjcDogMAogICAgICAgICAgICAgIGNvdW50OiAyOQogICAgICAgICAgICAgIGhpZ2g6
+ICAxODYKICAgICAgICAgICAgICBiYXRjaDogMzEKICAgIGNwdTogMCBwY3A6IDEKICAgICAgICAg
+ICAgICBjb3VudDogMTMKICAgICAgICAgICAgICBoaWdoOiAgNjIKICAgICAgICAgICAgICBiYXRj
+aDogMTUKICB2bSBzdGF0cyB0aHJlc2hvbGQ6IDE2CiAgICBjcHU6IDEgcGNwOiAwCiAgICAgICAg
+ICAgICAgY291bnQ6IDkKICAgICAgICAgICAgICBoaWdoOiAgMTg2CiAgICAgICAgICAgICAgYmF0
+Y2g6IDMxCiAgICBjcHU6IDEgcGNwOiAxCiAgICAgICAgICAgICAgY291bnQ6IDEyCiAgICAgICAg
+ICAgICAgaGlnaDogIDYyCiAgICAgICAgICAgICAgYmF0Y2g6IDE1CiAgdm0gc3RhdHMgdGhyZXNo
+b2xkOiAxNgogIGFsbF91bnJlY2xhaW1hYmxlOiAwCiAgcHJldl9wcmlvcml0eTogICAgIDEyCiAg
+c3RhcnRfcGZuOiAgICAgICAgIDQwOTYK
+------=_Part_47468_9228897.1185899823529--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
