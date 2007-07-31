@@ -1,48 +1,91 @@
-Date: Tue, 31 Jul 2007 12:50:20 -0700 (PDT)
-From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [rfc] [patch] mm: zone_reclaim fix for pseudo file systems
-In-Reply-To: <20070731124642.c43012cd.akpm@linux-foundation.org>
-Message-ID: <Pine.LNX.4.64.0707311247340.11078@schroedinger.engr.sgi.com>
-References: <20070727232753.GA10311@localdomain> <20070730132314.f6c8b4e1.akpm@linux-foundation.org>
- <20070731000138.GA32468@localdomain> <20070730172007.ddf7bdee.akpm@linux-foundation.org>
- <Pine.LNX.4.64.0707301725280.25686@schroedinger.engr.sgi.com>
- <20070731015647.GC32468@localdomain> <Pine.LNX.4.64.0707301858280.26859@schroedinger.engr.sgi.com>
- <20070730192721.eb220a9d.akpm@linux-foundation.org>
- <Pine.LNX.4.64.0707301934300.27364@schroedinger.engr.sgi.com>
- <20070730214756.c4211678.akpm@linux-foundation.org>
- <Pine.LNX.4.64.0707302156440.30284@schroedinger.engr.sgi.com>
- <20070730221736.ccf67c86.akpm@linux-foundation.org>
- <Pine.LNX.4.64.0707302224190.30889@schroedinger.engr.sgi.com>
- <20070730225809.ed0a95ff.akpm@linux-foundation.org>
- <Pine.LNX.4.64.0707302300090.874@schroedinger.engr.sgi.com>
- <20070730231806.da72a7ec.akpm@linux-foundation.org>
- <Pine.LNX.4.64.0707311232580.6093@schroedinger.engr.sgi.com>
- <20070731124642.c43012cd.akpm@linux-foundation.org>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: [PATCH] Document Linux Memory Policy - V2
+From: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
+In-Reply-To: <Pine.LNX.4.64.0707311206330.6053@schroedinger.engr.sgi.com>
+References: <20070725111646.GA9098@skynet.ie>
+	 <Pine.LNX.4.64.0707251212300.8820@schroedinger.engr.sgi.com>
+	 <20070726132336.GA18825@skynet.ie>
+	 <Pine.LNX.4.64.0707261104360.2374@schroedinger.engr.sgi.com>
+	 <20070726225920.GA10225@skynet.ie>
+	 <Pine.LNX.4.64.0707261819530.18210@schroedinger.engr.sgi.com>
+	 <20070727082046.GA6301@skynet.ie> <20070727154519.GA21614@skynet.ie>
+	 <Pine.LNX.4.64.0707271026040.15990@schroedinger.engr.sgi.com>
+	 <1185559260.5069.40.camel@localhost>  <20070731151434.GA18506@skynet.ie>
+	 <1185899686.6240.64.camel@localhost>
+	 <Pine.LNX.4.64.0707311206330.6053@schroedinger.engr.sgi.com>
+Content-Type: text/plain
+Date: Tue, 31 Jul 2007 15:46:55 -0400
+Message-Id: <1185911215.6240.100.camel@localhost>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Ravikiran G Thirumalai <kiran@scalex86.org>, linux-mm@kvack.org, shai@scalex86.org
+To: Christoph Lameter <clameter@sgi.com>
+Cc: Mel Gorman <mel@skynet.ie>, linux-mm@kvack.org, ak@suse.de, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, akpm@linux-foundation.org, pj@sgi.com, Michael Kerrisk <mtk-manpages@gmx.net>, Randy Dunlap <randy.dunlap@oracle.com>, Eric Whitney <eric.whitney@hp.com>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 31 Jul 2007, Andrew Morton wrote:
+On Tue, 2007-07-31 at 12:10 -0700, Christoph Lameter wrote:
+> On Tue, 31 Jul 2007, Lee Schermerhorn wrote:
+> 
+> > > Is it worth mentioning numactl here?
+> > 
+> > Actually, I tried not to mention numactl by name--just that that APIs
+> > and headers reside in an "out of tree" package.  This is a kernel doc
+> > and I wasn't sure about referencing out of tree "stuff"..  Andi
+> > suggested that I not try to describe the syscalls in any detail [thus my
+> > updates to the man pages], and I removed that.  But, I'll figure out a
+> > way to forward reference the brief API descriptions later in the doc.
+> 
+> numactl definitely must be mentioned because it is the user space API for 
+> these things.
 
-> They're different from Kiran's problem.  Not specifically ramfs and
-> zone-reclaim isn't (obviously) involved.  Yes, the solution is probably the
-> same one, but it'd be sad to "fix" Kiran's problem via finer-grained zone
-> accounting while leaving an undiscovered bug behind.
+OK.  I'll mention it, but won't go into any detail as this is a kernel
+tree doc.
 
-Zone reclaim would not occur if the counters would accurately describing 
-the unmapped pagecache pages that are presumably very easy to reclaim. 
-Zone reclaim is not a full reclaim implementation. Its just superficial 
-removal of easy to get pages.
+> 
+> > > This appears to contradict the previous paragram. The last paragraph
+> > > would imply that the policy is applied to mappings that are mmaped
+> > > MAP_SHARED where they really only apply to shmem mappings.
+> > 
+> > Conceptually, shared policies apply to shared "memory objects".
+> > However, the implementation is incomplete--only shmem/shm object
+> > currently support this concept.  [I'd REALLY like to fix this, but am
+> > getting major push back... :-(]  
+> 
+> The shmem implementation has bad semantics (affects other processes 
+> that are unaware of another process redirecting its memory accesses) and 
+> should not be extended to other types of object.
 
-> If we're going further down that path we should aim at removing the
-> all_unreclaimable logic completely.
+<heavy sigh>  I won't rise to the bait, Christoph...
 
-I think that is doable if we account for the unreclaimable pages and move 
-them off the LRU.
+> 
+> > > It's sufficent to say that MPOL_BIND will restrict the process to allocating
+> > > pages within a set of nodes specified by a nodemask because the end result
+> > > from the external observer will be similar.
+> > 
+> > OK.  But, I don't want to lose the idea that, with the BIND policy,
+> > pages will be allocated first from one of the nodes [lowest #] and then
+> > from the next and so on.  This is important, because I've had colleagues
+> > complain to me that it was broken.  They thought that if they bound a
+> > multithread application to cpus on several nodes and to the same nodes
+> > memories, they would get local allocation with fall back only to the
+> > nodes they specified.  They really wanted cpuset semantics, but these
+> > were not available at the time.
+> 
+> Right. That is something that would be fixed if we could pass a nodemask 
+> to alloc_pages.
+
+OK.  We can update the doc when/if that happens.
+
+> > OK.  I'll rework this entire section.  Again, I don't want to lose what
+> > I think are important semantics for a user.  And, maybe by documenting
+> > ugly behavior for all to see, we'll do something about it?
+> 
+> Correct. I hope you include the ugly shared shmem semantics with the 
+> effect on unsuspecting processes?
+
+Again, I refuse to bite...
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
