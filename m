@@ -1,35 +1,53 @@
-Date: Mon, 30 Jul 2007 19:36:04 -0700 (PDT)
-From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [rfc] [patch] mm: zone_reclaim fix for pseudo file systems
-In-Reply-To: <20070730192721.eb220a9d.akpm@linux-foundation.org>
-Message-ID: <Pine.LNX.4.64.0707301934300.27364@schroedinger.engr.sgi.com>
-References: <20070727232753.GA10311@localdomain> <20070730132314.f6c8b4e1.akpm@linux-foundation.org>
- <20070731000138.GA32468@localdomain> <20070730172007.ddf7bdee.akpm@linux-foundation.org>
- <Pine.LNX.4.64.0707301725280.25686@schroedinger.engr.sgi.com>
- <20070731015647.GC32468@localdomain> <Pine.LNX.4.64.0707301858280.26859@schroedinger.engr.sgi.com>
- <20070730192721.eb220a9d.akpm@linux-foundation.org>
+Received: by rv-out-0910.google.com with SMTP id f1so395384rvb
+        for <linux-mm@kvack.org>; Mon, 30 Jul 2007 20:07:30 -0700 (PDT)
+Message-ID: <b21f8390707302007n2f21018crc6b7cd83666e0f3c@mail.gmail.com>
+Date: Tue, 31 Jul 2007 13:07:30 +1000
+From: "Matthew Hawkins" <darthmdh@gmail.com>
+Subject: Re: [ck] Re: SD still better than CFS for 3d ?
+In-Reply-To: <adaps29sm62.fsf@cisco.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+References: <alpine.LFD.0.999.0707221351030.3607@woody.linux-foundation.org>
+	 <930f95dc0707291154j102494d9m58f4cc452c7ff17c@mail.gmail.com>
+	 <20070729204716.GB1578@elte.hu>
+	 <930f95dc0707291431j4e50214di3c01cd44b5597502@mail.gmail.com>
+	 <20070730114649.GB19186@elte.hu> <op.tv90xghwatcbto@linux.site>
+	 <d3380cee0707300831m33d896aufcbdb188576940a2@mail.gmail.com>
+	 <b21f8390707300925i76cb08f2j55bba537cf853f88@mail.gmail.com>
+	 <20070730182959.GA29151@infradead.org> <adaps29sm62.fsf@cisco.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Ravikiran G Thirumalai <kiran@scalex86.org>, linux-mm@kvack.org, shai@scalex86.org
+To: Roland Dreier <rdreier@cisco.com>
+Cc: Christoph Hellwig <hch@infradead.org>, Jacob Braun <jwbraun@gmail.com>, kriko <kristjan.ugrin@gmail.com>, ck@vds.kolivas.org, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Martin Schwidefsky <schwidefsky@de.ibm.com>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 30 Jul 2007, Andrew Morton wrote:
+On 7/31/07, Roland Dreier <rdreier@cisco.com> wrote:
+>  >      Fuck you Martin!
+>
+> I think you meant to yell at Matthew, not Martin ;)
 
-> That makes sense, but any fix we do here won't fix things for regular
-> reclaim.
+What's amusing about this is he's yelling at me for something I didn't
+do, can't even get my name right, and has the audacity to claim that
+*I* am the one looking like a fool!  While we're descending into
+primary school theatrics, may I just say "takes one to know one" ;-)
 
-Standard reclaim has the same issues. It uselessly keeps 
-scanning the unreclaimable file backed pages. Fixing this will also 
-enhance regular reclaim.
+I took the time to track down what caused a breakage - in an "illegal
+binary driver" (not against the law here, though defamation certainly
+is...) no less.  And contacted the vendor (separately).  Other people
+on desktop machines with an ATI card using the fglrx driver may have
+been interested to know that they can't do the benchmarking some
+people here on lkml and -mm are asking for with a current 2.6.23 git
+kernel, hence my post.
 
-> - account file-backed pages, BDI_CAP_NO_ACCT_DIRTY pages and
->   BDI_CAP_NO_WRITEBACK separately.  ie: zone accounting pretty
->   much follows the BDI_CAP_ selectors.
+Martin's cleanup patch is good and I never claimed otherwise, I just
+said the comment on the commit was a bad call (as there are users of
+that interface).  Certainly ATI should fix their dodgy drivers.
+That's been the cry of the community for a long time...
 
-Or BDI_CAP_UNRECLAIMABLE.... 
+-- 
+Matt
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
