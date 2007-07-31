@@ -1,48 +1,39 @@
-Date: Mon, 30 Jul 2007 22:00:15 -0700 (PDT)
-From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [rfc] [patch] mm: zone_reclaim fix for pseudo file systems
-In-Reply-To: <20070730214756.c4211678.akpm@linux-foundation.org>
-Message-ID: <Pine.LNX.4.64.0707302156440.30284@schroedinger.engr.sgi.com>
-References: <20070727232753.GA10311@localdomain> <20070730132314.f6c8b4e1.akpm@linux-foundation.org>
- <20070731000138.GA32468@localdomain> <20070730172007.ddf7bdee.akpm@linux-foundation.org>
- <Pine.LNX.4.64.0707301725280.25686@schroedinger.engr.sgi.com>
- <20070731015647.GC32468@localdomain> <Pine.LNX.4.64.0707301858280.26859@schroedinger.engr.sgi.com>
- <20070730192721.eb220a9d.akpm@linux-foundation.org>
- <Pine.LNX.4.64.0707301934300.27364@schroedinger.engr.sgi.com>
- <20070730214756.c4211678.akpm@linux-foundation.org>
+Received: from zps77.corp.google.com (zps77.corp.google.com [172.25.146.77])
+	by smtp-out.google.com with ESMTP id l6V5Aoo5014899
+	for <linux-mm@kvack.org>; Tue, 31 Jul 2007 06:10:51 +0100
+Received: from py-out-1112.google.com (pyia25.prod.google.com [10.34.253.25])
+	by zps77.corp.google.com with ESMTP id l6V5A1lm002320
+	for <linux-mm@kvack.org>; Mon, 30 Jul 2007 22:10:43 -0700
+Received: by py-out-1112.google.com with SMTP id a25so3165376pyi
+        for <linux-mm@kvack.org>; Mon, 30 Jul 2007 22:10:43 -0700 (PDT)
+Message-ID: <65dd6fd50707302210y5b79a70di58eb2d46f3958025@mail.gmail.com>
+Date: Mon, 30 Jul 2007 22:10:43 -0700
+From: "Ollie Wild" <aaw@google.com>
+Subject: Re: [SPARC32] NULL pointer derefference
+In-Reply-To: <Pine.LNX.4.61.0707300301340.32210@mtfhpc.demon.co.uk>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+References: <Pine.LNX.4.61.0707300301340.32210@mtfhpc.demon.co.uk>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Ravikiran G Thirumalai <kiran@scalex86.org>, linux-mm@kvack.org, shai@scalex86.org
+To: Mark Fortescue <mark@mtfhpc.demon.co.uk>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-arch@vger.kernel.org, sparclinux@vger.kernel.org, wli@holomorphy.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, davem@davemloft.net
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 30 Jul 2007, Andrew Morton wrote:
+On 7/29/07, Mark Fortescue <mark@mtfhpc.demon.co.uk> wrote:
+> Hi All,
+>
+> Unfortunatly Sparc32 sun4c low level memory management apears to be
+> incompatible with commit b6a2fea39318e43fee84fa7b0b90d68bed92d2ba
+> mm: variable length argument support.
 
-> On Mon, 30 Jul 2007 19:36:04 -0700 (PDT) Christoph Lameter <clameter@sgi.com> wrote:
-> 
-> > On Mon, 30 Jul 2007, Andrew Morton wrote:
-> > 
-> > > That makes sense, but any fix we do here won't fix things for regular
-> > > reclaim.
-> > 
-> > Standard reclaim has the same issues. It uselessly keeps 
-> > scanning the unreclaimable file backed pages.
-> 
-> Well it shouldn't.  That's what all_unreclaimable is for.  And it does
-> work.  Or used to, five years ago.  Stuff like this has a habit of breaking
-> because we don't have a test suite.
+I feel like I ought to help out with this since it's my change which
+broke things, but I don't have access to a Sparc32 box.  Does anyone
+have a remotely rebootable machine I can use?
 
-The current VM has never been able to handle it since we have never had 
-logic to remove unreclaimable pages from the LRU.
-
-Lets bring up the patchsets for the handling of unreclaimable pages up 
-again (mlocked and anonymous/no swap) again and make sure that it also 
-addresses the issue issue here so that we have a comprehensive solution.
-
-I am going over my old patchsets anyways. Kiran: Did you have a look at 
-the patches Nick and I did earlier this year for mlocked pages?
+Ollie
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
