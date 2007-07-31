@@ -1,114 +1,66 @@
-Date: Mon, 30 Jul 2007 16:09:14 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [patch][rfc] remove ZERO_PAGE?
-Message-Id: <20070730160914.3235cf46.akpm@linux-foundation.org>
-In-Reply-To: <20070730223912.GM2386@fieldses.org>
-References: <20070727021943.GD13939@wotan.suse.de>
-	<e28f90730707300652g4a0d0f4ah10bd3c06564d624b@mail.gmail.com>
-	<20070730115751.a2aaa28f.akpm@linux-foundation.org>
-	<20070730223912.GM2386@fieldses.org>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Date: Mon, 30 Jul 2007 17:01:38 -0700
+From: Ravikiran G Thirumalai <kiran@scalex86.org>
+Subject: Re: [rfc] [patch] mm: zone_reclaim fix for pseudo file systems
+Message-ID: <20070731000138.GA32468@localdomain>
+References: <20070727232753.GA10311@localdomain> <20070730132314.f6c8b4e1.akpm@linux-foundation.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20070730132314.f6c8b4e1.akpm@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "J. Bruce Fields" <bfields@fieldses.org>
-Cc: "Luiz Fernando N. Capitulino" <lcapitulino@gmail.com>, Nick Piggin <npiggin@suse.de>, Linus Torvalds <torvalds@linux-foundation.org>, Hugh Dickins <hugh@veritas.com>, Andrea Arcangeli <andrea@suse.de>, Linux Memory Management List <linux-mm@kvack.org>, lcapitulino@mandriva.com.br, Neil Brown <neilb@suse.de>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, Christoph Lameter <clameter@engr.sgi.com>, shai@scalex86.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 30 Jul 2007 18:39:12 -0400
-"J. Bruce Fields" <bfields@fieldses.org> wrote:
+On Mon, Jul 30, 2007 at 01:23:14PM -0700, Andrew Morton wrote:
+>On Fri, 27 Jul 2007 16:27:53 -0700
+>Ravikiran G Thirumalai <kiran@scalex86.org> wrote:
+>
+>> Don't go into zone_reclaim if there are no reclaimable pages.
+>> 
+>> While using RAMFS as scratch space for some tests, we found one of the
+>> processes got into zone reclaim, and got stuck trying to reclaim pages
+>> from a zone.
+>
+>Would like to see an expanded definition of "stuck", please ;)
 
-> On Mon, Jul 30, 2007 at 11:57:51AM -0700, Andrew Morton wrote:
-> > On Mon, 30 Jul 2007 10:52:27 -0300
-> > "Luiz Fernando N. Capitulino" <lcapitulino@gmail.com> wrote:
-> > 
-> > > Hi Nick,
-> > > 
-> > > On 7/26/07, Nick Piggin <npiggin@suse.de> wrote:
-> > > 
-> > > > I'd like to see if we can get the ball rolling on this again, and try to
-> > > > get it in 2.6.24 maybe. Any comments?
-> > > 
-> > >  I'm trying this patch and got this during the weekend (gmail will
-> > > probably break lines automatically, grrr):
-> > > 
-> > > """
-> > > [29711.081281] BUG: unable to handle kernel NULL pointer dereference
-> > > at virtual address 00000004
-> > > [29711.081300]  printing eip:
-> > > [29711.081305] dcb5aa49
-> > > [29711.081308] *pde = 00000000
-> > > [29711.081315] Oops: 0000 [#1]
-> > > [29711.081319] SMP
-> > > [29711.081325] Modules linked in: nfsd exportfs auth_rpcgss nfs lockd
-> > > nfs_acl sunrpc capability commoncap af_packet ipv6 ide_cd ide_core
-> > > binfmt_misc loop dm_mod floppy pcspkr snd_pcm_oss snd_mixer_oss
-> > > snd_via82xx gameport snd_ac97_codec i2c_viapro amd64_agp snd_pcm
-> > > snd_timer ac97_bus snd_page_alloc snd_mpu401_uart snd_rawmidi
-> > > snd_seq_device snd agpgart ehci_hcd uhci_hcd i2c_core via_rhine k8temp
-> > > mii usbcore evdev tsdev soundcore sr_mod sg ext3 jbd sd_mod pata_via
-> > > sata_via libata scsi_mod
-> > > [29711.081445] CPU:    0
-> > > [29711.081446] EIP:    0060:[<dcb5aa49>]    Not tainted VLI
-> > > [29711.081447] EFLAGS: 00010246   (2.6.23-rc1-zpage #1)
-> > > [29711.081511] EIP is at encode_fsid+0x89/0xb0 [nfsd]
-> > > [29711.081529] eax: d99f4000   ebx: d80af064   ecx: 00000000   edx: 00000002
-> > > [29711.081549] esi: d809204c   edi: d80af14c   ebp: d8788f04   esp: d8788efc
-> > > [29711.081569] ds: 007b   es: 007b   fs: 00d8  gs: 0000  ss: 0068
-> > > [29711.081589] Process nfsd (pid: 3474, ti=d8788000 task=dac07740
-> > > task.ti=d8788000)
-> > > [29711.081609] Stack: 00000000 d809203c d8788f28 dcb5ab25 d80af064
-> > > c0945160 dcb59202 00000000
-> > > [29711.081644]        d80b0000 dcb5bf90 dcb77404 d8788f38 dcb5bfb3
-> > > d80af14c d80b0000 d8788f68
-> > > [29711.081679]        dcb4d32c d87b4c44 d87b4a80 d8788f60 00000003
-> > > d8092018 d8092000 0000001c
-> > > [29711.081714] Call Trace:
-> > > [29711.081738]  [<c01053fa>] show_trace_log_lvl+0x1a/0x30
-> > > [29711.081760]  [<c01054bb>] show_stack_log_lvl+0xab/0xd0
-> > > [29711.081779]  [<c01056b1>] show_registers+0x1d1/0x2d0
-> > > [29711.081798]  [<c01058c6>] die+0x116/0x250
-> > > [29711.081815]  [<c011bb2b>] do_page_fault+0x28b/0x690
-> > > [29711.081836]  [<c02e95ba>] error_code+0x72/0x78
-> > > [29711.081856]  [<dcb5ab25>] encode_fattr3+0xb5/0x140 [nfsd]
-> > > [29711.081888]  [<dcb5bfb3>] nfs3svc_encode_attrstat+0x23/0x50 [nfsd]
-> > > [29711.081921]  [<dcb4d32c>] nfsd_dispatch+0x18c/0x220 [nfsd]
-> > > [29711.081950]  [<dcaf41fa>] svc_process+0x42a/0x7b0 [sunrpc]
-> > > [29711.081985]  [<dcb4d909>] nfsd+0x169/0x290 [nfsd]
-> > > [29711.082013]  [<c0104f9f>] kernel_thread_helper+0x7/0x18
-> > > [29711.082032]  =======================
-> > > [29711.082047] Code: 48 30 89 cb c1 fb 1f 89 d8 0f c8 89 06 89 c8 0f
-> > > c8 89 46 04 8d 46 08 5b 5e 5d c3 8d b4 26 00 00 00 00 8b 83 88 00 00
-> > > 00 8b 48 34 <8b> 51 04 33 51 0c 8b 01 33 41 08 89 d1 0f c8 0f c9 89 46
-> > > 04 8d
-> > > [29711.082150] EIP: [<dcb5aa49>] encode_fsid+0x89/0xb0 [nfsd] SS:ESP
-> > > 0068:d8788efc
-> > > """
-> > > 
-> > >  Now I'm not sure if this was caused by your patch, or is a bug
-> > > somewhere else.
-> > 
-> > It's a little hard to see how Nick's patch could have caused that to
-> > happen.
-> > 
-> > Neil, Bruce: does this look at all familiar?
-> 
-> Not to me.
-> 
-> > We don't appear to have changed anything in there for months...
-> 
-> Well, I've fooled around with the exports in 2.6.23-rc1, and Neil added
-> the uuid stuff some time around 2.6.21.
+Well, we were running a multiprocess finite element analysis HPC benchmark,
+and one of the processes went into 'system' and the benchmark never completed.
+Of course this happens only when we use ramfs for scratch IO.  What I mean
+is, on invoking 'top', we could see that one of the process was spending
+all its time in system - 100% system, for a compute benchmark which should
+not be spending any time in the system at all.
 
-uh.
+>
+>ie: let's see the bug report before we see the fix?
+>
+>>  On examination of the code, we found that the VM was fooled
+>> into believing that the zone had reclaimable pages, when it actually had
+>> RAMFS backed pages, which could not be written back to the disk.
+>> 
+>> Fix this by adding a zvc "NR_PSEUDO_FS_PAGES" for file pages with no
+>> backing store, and using this counter to determine if reclaim is possible.
+>> 
+>> Patch tested,on 2.6.22.  Fixes the above mentioned problem.
+>
+>The (cheesy) way in which reclaim currently handles this sort of thing is
+>to scan like mad, then to eventually set zone->all_unreclaimable.  Once
+>that has been set, the kernel will reduce the amount of scanning effort it
+>puts into that zone by a very large amount.  If the zone later comes back
+>to life, all_unreclaimable gets cleared and things proceed as normal.
 
-> It looks to me like it's oopsing at the deference of
-> fhp->fh_export->ex_uuid in encode_fsid(), which is exactly the case
-> commit b41eeef14d claims to fix.  Looks like that's been in since
-> v2.6.22-rc1; what kernel is this?
+I see.  But this obviously does not work in this case.  I have noticed the
+process getting into 'system' and staying there for hours.  I have never
+noticed the app complete.  Perhaps because I did not wait long enough.
+So do you think a more aggressive auto setting/unsetting of 'all_unreclaimable'
+is a better approach?
 
-I assume it is 2.6.23-rc1 (or later) plus Nick's remove-ZERO_PAGE patch.
+> ...
+>It is a numa-specific change which adds overhead to non-NUMA builds :(
+
+I can (and will) place it with other NUMA specific counters, so the non-NUMA
+builds will not have any overhead.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
