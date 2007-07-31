@@ -1,105 +1,43 @@
-Received: by wa-out-1112.google.com with SMTP id m33so2105564wag
-        for <linux-mm@kvack.org>; Mon, 30 Jul 2007 17:03:57 -0700 (PDT)
-Message-ID: <e28f90730707301703r3182bccdncfdaba2f956987e@mail.gmail.com>
-Date: Mon, 30 Jul 2007 21:03:57 -0300
-From: "Luiz Fernando N. Capitulino" <lcapitulino@gmail.com>
-Subject: Re: [patch][rfc] remove ZERO_PAGE?
-In-Reply-To: <20070730160914.3235cf46.akpm@linux-foundation.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: base64
-Content-Disposition: inline
-References: <20070727021943.GD13939@wotan.suse.de>
-	 <e28f90730707300652g4a0d0f4ah10bd3c06564d624b@mail.gmail.com>
-	 <20070730115751.a2aaa28f.akpm@linux-foundation.org>
-	 <20070730223912.GM2386@fieldses.org>
-	 <20070730160914.3235cf46.akpm@linux-foundation.org>
+Date: Mon, 30 Jul 2007 17:20:07 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [rfc] [patch] mm: zone_reclaim fix for pseudo file systems
+Message-Id: <20070730172007.ddf7bdee.akpm@linux-foundation.org>
+In-Reply-To: <20070731000138.GA32468@localdomain>
+References: <20070727232753.GA10311@localdomain>
+	<20070730132314.f6c8b4e1.akpm@linux-foundation.org>
+	<20070731000138.GA32468@localdomain>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: "J. Bruce Fields" <bfields@fieldses.org>, Nick Piggin <npiggin@suse.de>, Linus Torvalds <torvalds@linux-foundation.org>, Hugh Dickins <hugh@veritas.com>, Andrea Arcangeli <andrea@suse.de>, Linux Memory Management List <linux-mm@kvack.org>, lcapitulino@mandriva.com.br, Neil Brown <neilb@suse.de>
+To: Ravikiran G Thirumalai <kiran@scalex86.org>
+Cc: linux-mm@kvack.org, Christoph Lameter <clameter@engr.sgi.com>, shai@scalex86.org
 List-ID: <linux-mm.kvack.org>
 
-T24gNy8zMC8wNywgQW5kcmV3IE1vcnRvbiA8YWtwbUBsaW51eC1mb3VuZGF0aW9uLm9yZz4gd3Jv
-dGU6Cj4gT24gTW9uLCAzMCBKdWwgMjAwNyAxODozOToxMiAtMDQwMAo+ICJKLiBCcnVjZSBGaWVs
-ZHMiIDxiZmllbGRzQGZpZWxkc2VzLm9yZz4gd3JvdGU6Cj4KPiA+IE9uIE1vbiwgSnVsIDMwLCAy
-MDA3IGF0IDExOjU3OjUxQU0gLTA3MDAsIEFuZHJldyBNb3J0b24gd3JvdGU6Cj4gPiA+IE9uIE1v
-biwgMzAgSnVsIDIwMDcgMTA6NTI6MjcgLTAzMDAKPiA+ID4gIkx1aXogRmVybmFuZG8gTi4gQ2Fw
-aXR1bGlubyIgPGxjYXBpdHVsaW5vQGdtYWlsLmNvbT4gd3JvdGU6Cj4gPiA+Cj4gPiA+ID4gSGkg
-TmljaywKPiA+ID4gPgo+ID4gPiA+IE9uIDcvMjYvMDcsIE5pY2sgUGlnZ2luIDxucGlnZ2luQHN1
-c2UuZGU+IHdyb3RlOgo+ID4gPiA+Cj4gPiA+ID4gPiBJJ2QgbGlrZSB0byBzZWUgaWYgd2UgY2Fu
-IGdldCB0aGUgYmFsbCByb2xsaW5nIG9uIHRoaXMgYWdhaW4sIGFuZCB0cnkgdG8KPiA+ID4gPiA+
-IGdldCBpdCBpbiAyLjYuMjQgbWF5YmUuIEFueSBjb21tZW50cz8KPiA+ID4gPgo+ID4gPiA+ICBJ
-J20gdHJ5aW5nIHRoaXMgcGF0Y2ggYW5kIGdvdCB0aGlzIGR1cmluZyB0aGUgd2Vla2VuZCAoZ21h
-aWwgd2lsbAo+ID4gPiA+IHByb2JhYmx5IGJyZWFrIGxpbmVzIGF1dG9tYXRpY2FsbHksIGdycnIp
-Ogo+ID4gPiA+Cj4gPiA+ID4gIiIiCj4gPiA+ID4gWzI5NzExLjA4MTI4MV0gQlVHOiB1bmFibGUg
-dG8gaGFuZGxlIGtlcm5lbCBOVUxMIHBvaW50ZXIgZGVyZWZlcmVuY2UKPiA+ID4gPiBhdCB2aXJ0
-dWFsIGFkZHJlc3MgMDAwMDAwMDQKPiA+ID4gPiBbMjk3MTEuMDgxMzAwXSAgcHJpbnRpbmcgZWlw
-Ogo+ID4gPiA+IFsyOTcxMS4wODEzMDVdIGRjYjVhYTQ5Cj4gPiA+ID4gWzI5NzExLjA4MTMwOF0g
-KnBkZSA9IDAwMDAwMDAwCj4gPiA+ID4gWzI5NzExLjA4MTMxNV0gT29wczogMDAwMCBbIzFdCj4g
-PiA+ID4gWzI5NzExLjA4MTMxOV0gU01QCj4gPiA+ID4gWzI5NzExLjA4MTMyNV0gTW9kdWxlcyBs
-aW5rZWQgaW46IG5mc2QgZXhwb3J0ZnMgYXV0aF9ycGNnc3MgbmZzIGxvY2tkCj4gPiA+ID4gbmZz
-X2FjbCBzdW5ycGMgY2FwYWJpbGl0eSBjb21tb25jYXAgYWZfcGFja2V0IGlwdjYgaWRlX2NkIGlk
-ZV9jb3JlCj4gPiA+ID4gYmluZm10X21pc2MgbG9vcCBkbV9tb2QgZmxvcHB5IHBjc3BrciBzbmRf
-cGNtX29zcyBzbmRfbWl4ZXJfb3NzCj4gPiA+ID4gc25kX3ZpYTgyeHggZ2FtZXBvcnQgc25kX2Fj
-OTdfY29kZWMgaTJjX3ZpYXBybyBhbWQ2NF9hZ3Agc25kX3BjbQo+ID4gPiA+IHNuZF90aW1lciBh
-Yzk3X2J1cyBzbmRfcGFnZV9hbGxvYyBzbmRfbXB1NDAxX3VhcnQgc25kX3Jhd21pZGkKPiA+ID4g
-PiBzbmRfc2VxX2RldmljZSBzbmQgYWdwZ2FydCBlaGNpX2hjZCB1aGNpX2hjZCBpMmNfY29yZSB2
-aWFfcmhpbmUgazh0ZW1wCj4gPiA+ID4gbWlpIHVzYmNvcmUgZXZkZXYgdHNkZXYgc291bmRjb3Jl
-IHNyX21vZCBzZyBleHQzIGpiZCBzZF9tb2QgcGF0YV92aWEKPiA+ID4gPiBzYXRhX3ZpYSBsaWJh
-dGEgc2NzaV9tb2QKPiA+ID4gPiBbMjk3MTEuMDgxNDQ1XSBDUFU6ICAgIDAKPiA+ID4gPiBbMjk3
-MTEuMDgxNDQ2XSBFSVA6ICAgIDAwNjA6WzxkY2I1YWE0OT5dICAgIE5vdCB0YWludGVkIFZMSQo+
-ID4gPiA+IFsyOTcxMS4wODE0NDddIEVGTEFHUzogMDAwMTAyNDYgICAoMi42LjIzLXJjMS16cGFn
-ZSAjMSkKPiA+ID4gPiBbMjk3MTEuMDgxNTExXSBFSVAgaXMgYXQgZW5jb2RlX2ZzaWQrMHg4OS8w
-eGIwIFtuZnNkXQo+ID4gPiA+IFsyOTcxMS4wODE1MjldIGVheDogZDk5ZjQwMDAgICBlYng6IGQ4
-MGFmMDY0ICAgZWN4OiAwMDAwMDAwMCAgIGVkeDogMDAwMDAwMDIKPiA+ID4gPiBbMjk3MTEuMDgx
-NTQ5XSBlc2k6IGQ4MDkyMDRjICAgZWRpOiBkODBhZjE0YyAgIGVicDogZDg3ODhmMDQgICBlc3A6
-IGQ4Nzg4ZWZjCj4gPiA+ID4gWzI5NzExLjA4MTU2OV0gZHM6IDAwN2IgICBlczogMDA3YiAgIGZz
-OiAwMGQ4ICBnczogMDAwMCAgc3M6IDAwNjgKPiA+ID4gPiBbMjk3MTEuMDgxNTg5XSBQcm9jZXNz
-IG5mc2QgKHBpZDogMzQ3NCwgdGk9ZDg3ODgwMDAgdGFzaz1kYWMwNzc0MAo+ID4gPiA+IHRhc2su
-dGk9ZDg3ODgwMDApCj4gPiA+ID4gWzI5NzExLjA4MTYwOV0gU3RhY2s6IDAwMDAwMDAwIGQ4MDky
-MDNjIGQ4Nzg4ZjI4IGRjYjVhYjI1IGQ4MGFmMDY0Cj4gPiA+ID4gYzA5NDUxNjAgZGNiNTkyMDIg
-MDAwMDAwMDAKPiA+ID4gPiBbMjk3MTEuMDgxNjQ0XSAgICAgICAgZDgwYjAwMDAgZGNiNWJmOTAg
-ZGNiNzc0MDQgZDg3ODhmMzggZGNiNWJmYjMKPiA+ID4gPiBkODBhZjE0YyBkODBiMDAwMCBkODc4
-OGY2OAo+ID4gPiA+IFsyOTcxMS4wODE2NzldICAgICAgICBkY2I0ZDMyYyBkODdiNGM0NCBkODdi
-NGE4MCBkODc4OGY2MCAwMDAwMDAwMwo+ID4gPiA+IGQ4MDkyMDE4IGQ4MDkyMDAwIDAwMDAwMDFj
-Cj4gPiA+ID4gWzI5NzExLjA4MTcxNF0gQ2FsbCBUcmFjZToKPiA+ID4gPiBbMjk3MTEuMDgxNzM4
-XSAgWzxjMDEwNTNmYT5dIHNob3dfdHJhY2VfbG9nX2x2bCsweDFhLzB4MzAKPiA+ID4gPiBbMjk3
-MTEuMDgxNzYwXSAgWzxjMDEwNTRiYj5dIHNob3dfc3RhY2tfbG9nX2x2bCsweGFiLzB4ZDAKPiA+
-ID4gPiBbMjk3MTEuMDgxNzc5XSAgWzxjMDEwNTZiMT5dIHNob3dfcmVnaXN0ZXJzKzB4MWQxLzB4
-MmQwCj4gPiA+ID4gWzI5NzExLjA4MTc5OF0gIFs8YzAxMDU4YzY+XSBkaWUrMHgxMTYvMHgyNTAK
-PiA+ID4gPiBbMjk3MTEuMDgxODE1XSAgWzxjMDExYmIyYj5dIGRvX3BhZ2VfZmF1bHQrMHgyOGIv
-MHg2OTAKPiA+ID4gPiBbMjk3MTEuMDgxODM2XSAgWzxjMDJlOTViYT5dIGVycm9yX2NvZGUrMHg3
-Mi8weDc4Cj4gPiA+ID4gWzI5NzExLjA4MTg1Nl0gIFs8ZGNiNWFiMjU+XSBlbmNvZGVfZmF0dHIz
-KzB4YjUvMHgxNDAgW25mc2RdCj4gPiA+ID4gWzI5NzExLjA4MTg4OF0gIFs8ZGNiNWJmYjM+XSBu
-ZnMzc3ZjX2VuY29kZV9hdHRyc3RhdCsweDIzLzB4NTAgW25mc2RdCj4gPiA+ID4gWzI5NzExLjA4
-MTkyMV0gIFs8ZGNiNGQzMmM+XSBuZnNkX2Rpc3BhdGNoKzB4MThjLzB4MjIwIFtuZnNkXQo+ID4g
-PiA+IFsyOTcxMS4wODE5NTBdICBbPGRjYWY0MWZhPl0gc3ZjX3Byb2Nlc3MrMHg0MmEvMHg3YjAg
-W3N1bnJwY10KPiA+ID4gPiBbMjk3MTEuMDgxOTg1XSAgWzxkY2I0ZDkwOT5dIG5mc2QrMHgxNjkv
-MHgyOTAgW25mc2RdCj4gPiA+ID4gWzI5NzExLjA4MjAxM10gIFs8YzAxMDRmOWY+XSBrZXJuZWxf
-dGhyZWFkX2hlbHBlcisweDcvMHgxOAo+ID4gPiA+IFsyOTcxMS4wODIwMzJdICA9PT09PT09PT09
-PT09PT09PT09PT09PQo+ID4gPiA+IFsyOTcxMS4wODIwNDddIENvZGU6IDQ4IDMwIDg5IGNiIGMx
-IGZiIDFmIDg5IGQ4IDBmIGM4IDg5IDA2IDg5IGM4IDBmCj4gPiA+ID4gYzggODkgNDYgMDQgOGQg
-NDYgMDggNWIgNWUgNWQgYzMgOGQgYjQgMjYgMDAgMDAgMDAgMDAgOGIgODMgODggMDAgMDAKPiA+
-ID4gPiAwMCA4YiA0OCAzNCA8OGI+IDUxIDA0IDMzIDUxIDBjIDhiIDAxIDMzIDQxIDA4IDg5IGQx
-IDBmIGM4IDBmIGM5IDg5IDQ2Cj4gPiA+ID4gMDQgOGQKPiA+ID4gPiBbMjk3MTEuMDgyMTUwXSBF
-SVA6IFs8ZGNiNWFhNDk+XSBlbmNvZGVfZnNpZCsweDg5LzB4YjAgW25mc2RdIFNTOkVTUAo+ID4g
-PiA+IDAwNjg6ZDg3ODhlZmMKPiA+ID4gPiAiIiIKPiA+ID4gPgo+ID4gPiA+ICBOb3cgSSdtIG5v
-dCBzdXJlIGlmIHRoaXMgd2FzIGNhdXNlZCBieSB5b3VyIHBhdGNoLCBvciBpcyBhIGJ1Zwo+ID4g
-PiA+IHNvbWV3aGVyZSBlbHNlLgo+ID4gPgo+ID4gPiBJdCdzIGEgbGl0dGxlIGhhcmQgdG8gc2Vl
-IGhvdyBOaWNrJ3MgcGF0Y2ggY291bGQgaGF2ZSBjYXVzZWQgdGhhdCB0bwo+ID4gPiBoYXBwZW4u
-Cj4gPiA+Cj4gPiA+IE5laWwsIEJydWNlOiBkb2VzIHRoaXMgbG9vayBhdCBhbGwgZmFtaWxpYXI/
-Cj4gPgo+ID4gTm90IHRvIG1lLgo+ID4KPiA+ID4gV2UgZG9uJ3QgYXBwZWFyIHRvIGhhdmUgY2hh
-bmdlZCBhbnl0aGluZyBpbiB0aGVyZSBmb3IgbW9udGhzLi4uCj4gPgo+ID4gV2VsbCwgSSd2ZSBm
-b29sZWQgYXJvdW5kIHdpdGggdGhlIGV4cG9ydHMgaW4gMi42LjIzLXJjMSwgYW5kIE5laWwgYWRk
-ZWQKPiA+IHRoZSB1dWlkIHN0dWZmIHNvbWUgdGltZSBhcm91bmQgMi42LjIxLgo+Cj4gdWguCj4K
-PiA+IEl0IGxvb2tzIHRvIG1lIGxpa2UgaXQncyBvb3BzaW5nIGF0IHRoZSBkZWZlcmVuY2Ugb2YK
-PiA+IGZocC0+ZmhfZXhwb3J0LT5leF91dWlkIGluIGVuY29kZV9mc2lkKCksIHdoaWNoIGlzIGV4
-YWN0bHkgdGhlIGNhc2UKPiA+IGNvbW1pdCBiNDFlZWVmMTRkIGNsYWltcyB0byBmaXguICBMb29r
-cyBsaWtlIHRoYXQncyBiZWVuIGluIHNpbmNlCj4gPiB2Mi42LjIyLXJjMTsgd2hhdCBrZXJuZWwg
-aXMgdGhpcz8KPgo+IEkgYXNzdW1lIGl0IGlzIDIuNi4yMy1yYzEgKG9yIGxhdGVyKSBwbHVzIE5p
-Y2sncyByZW1vdmUtWkVST19QQUdFIHBhdGNoLgoKIFllcywgaXTCtHMgMi42LjIzLXJjMSBwbHVz
-IE5pY2vCtHMgcGF0Y2guCgotLSAKTHVpeiBGZXJuYW5kbyBOLiBDYXBpdHVsaW5vCg==
+On Mon, 30 Jul 2007 17:01:38 -0700
+Ravikiran G Thirumalai <kiran@scalex86.org> wrote:
+
+> >The (cheesy) way in which reclaim currently handles this sort of thing is
+> >to scan like mad, then to eventually set zone->all_unreclaimable.  Once
+> >that has been set, the kernel will reduce the amount of scanning effort it
+> >puts into that zone by a very large amount.  If the zone later comes back
+> >to life, all_unreclaimable gets cleared and things proceed as normal.
+> 
+> I see.  But this obviously does not work in this case.  I have noticed the
+> process getting into 'system' and staying there for hours.  I have never
+> noticed the app complete.  Perhaps because I did not wait long enough.
+> So do you think a more aggressive auto setting/unsetting of 'all_unreclaimable'
+> is a better approach?
+
+The problem is that __zone_reclaim() doesn't use all_unreclaimable at all.
+You'll note that all the other callers of shrink_zone() do take avoiding
+action if the zone is in all_unreclaimable state, but __zone_reclaim() forgot
+to.
+
+Fixing that could/should fix your CPU consumption problem.  It will further
+propagate the existing lameness, but replacing all_unreclaimable with something
+more efficient, more accurate and more complex is a separate problem.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
