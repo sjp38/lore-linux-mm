@@ -1,37 +1,48 @@
-In-reply-to: <20070801092909.GN3972@stusta.de> (message from Adrian Bunk on
-	Wed, 1 Aug 2007 11:29:09 +0200)
 Subject: Re: [RFC PATCH] type safe allocator
-References: <E1IGAAI-0006K6-00@dorka.pomaz.szeredi.hu> <20070801092909.GN3972@stusta.de>
-Message-Id: <E1IGAiD-0006Qf-00@dorka.pomaz.szeredi.hu>
-From: Miklos Szeredi <miklos@szeredi.hu>
-Date: Wed, 01 Aug 2007 11:41:49 +0200
+References: <E1IGAAI-0006K6-00@dorka.pomaz.szeredi.hu>
+From: Andi Kleen <andi@firstfloor.org>
+Date: 01 Aug 2007 12:44:52 +0200
+In-Reply-To: <E1IGAAI-0006K6-00@dorka.pomaz.szeredi.hu>
+Message-ID: <p73myxbpm8r.fsf@bingen.suse.de>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: bunk@stusta.de
-Cc: miklos@szeredi.hu, linux-kernel@vger.kernel.org, linux-mm@kvack.org, akpm@linux-foundation.org, torvalds@linux-foundation.org
+To: Miklos Szeredi <miklos@szeredi.hu>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, akpm@linux-foundation.org, torvalds@linux-foundation.org
 List-ID: <linux-mm.kvack.org>
 
-> > I wonder why we don't have type safe object allocators a-la new() in
-> > C++ or g_new() in glib?
-> > 
-> >   fooptr = k_new(struct foo, GFP_KERNEL);
-> > 
-> > is nicer and more descriptive than
-> > 
-> >   fooptr = kmalloc(sizeof(*fooptr), GFP_KERNEL);
-> >...
-> 
-> But it's much more likely to break when someone converts fooptr to a 
-> different struct.
-> 
-> It might not be a common case but it sometimes happens - and your type 
-> safe variant introduces the possibility for really nasty bugs.
+Miklos Szeredi <miklos@szeredi.hu> writes:
 
-The compiler would emit a warning about assigning to a pointer of
-different type.  That's a fairly strong hint that something just
-broke.
+> I wonder why we don't have type safe object allocators a-la new() in
+> C++ or g_new() in glib?
+> 
+>   fooptr = k_new(struct foo, GFP_KERNEL);
+> 
+> is nicer and more descriptive than
+> 
+>   fooptr = kmalloc(sizeof(*fooptr), GFP_KERNEL);
+> 
+> and more safe than
+> 
+>   fooptr = kmalloc(sizeof(struct foo), GFP_KERNEL);
 
-Miklos
+How is it more safe? It seems 100% equivalent to me,
+just a different syntax.
+
+> 
+> And we have zillions of both variants.
+
+In my own non kernel code i tend to define a pascal style NEW()
+
+#define NEW(p) ((p) = malloc(sizeof(*(p))))
+
+But I'm not sure such a untraditional solution would too popular.
+
+Also I don't think we have too many bugs in this area anyways; so
+it might be better to concentrate on more fruitful areas.
+
+-Andi
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
