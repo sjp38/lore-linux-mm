@@ -1,254 +1,88 @@
-Subject: Re: NUMA policy issues with ZONE_MOVABLE
-From: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
-In-Reply-To: <20070726225920.GA10225@skynet.ie>
-References: <Pine.LNX.4.64.0707242120370.3829@schroedinger.engr.sgi.com>
-	 <20070725111646.GA9098@skynet.ie>
-	 <Pine.LNX.4.64.0707251212300.8820@schroedinger.engr.sgi.com>
-	 <20070726132336.GA18825@skynet.ie>
-	 <Pine.LNX.4.64.0707261104360.2374@schroedinger.engr.sgi.com>
-	 <20070726225920.GA10225@skynet.ie>
-Content-Type: text/plain
-Date: Wed, 01 Aug 2007 14:59:39 -0400
-Message-Id: <1185994779.5059.87.camel@localhost>
+Date: Wed, 1 Aug 2007 14:17:49 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: 2.6.23-rc1-mm2
+Message-Id: <20070801141749.ecfe6803.akpm@linux-foundation.org>
+In-Reply-To: <64bb37e0708011352q33053acdxa753cd198fb4233c@mail.gmail.com>
+References: <20070731230932.a9459617.akpm@linux-foundation.org>
+	<12639.1186000208@turing-police.cc.vt.edu>
+	<20070801134055.7862b95e.akpm@linux-foundation.org>
+	<64bb37e0708011352q33053acdxa753cd198fb4233c@mail.gmail.com>
 Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Mel Gorman <mel@skynet.ie>
-Cc: Christoph Lameter <clameter@sgi.com>, linux-mm@kvack.org, ak@suse.de, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, akpm@linux-foundation.org, pj@sgi.com
+To: Torsten Kaiser <just.for.lkml@googlemail.com>
+Cc: Valdis.Kletnieks@vt.edu, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Mel Gorman <mel@csn.ul.ie>
 List-ID: <linux-mm.kvack.org>
 
-<snip>
-> This patch filters only when MPOL_BIND is in use. In non-numa, the
-> checks do not exist and in NUMA cases, the filtering usually does not
-> take place. I'd like this to be the bug fix for policy + ZONE_MOVABLE
-> and then deal with reducing zonelists to see if there is any performance
-> gain as well as a simplification in how policies and cpusets are
-> implemented.
+On Wed, 1 Aug 2007 22:52:44 +0200
+"Torsten Kaiser" <just.for.lkml@googlemail.com> wrote:
+
+> On 8/1/07, Andrew Morton <akpm@linux-foundation.org> wrote:
+> > On Wed, 01 Aug 2007 16:30:08 -0400
+> > Valdis.Kletnieks@vt.edu wrote:
+> >
+> > > As an aside, it looks like bits&pieces of dynticks-for-x86_64 are in there.
+> > > In particular, x86_64-enable-high-resolution-timers-and-dynticks.patch is in
+> > > there, adding a menu that depends on GENERIC_CLOCKEVENTS, but then nothing
+> > > in the x86_64 tree actually *sets* it.  There's a few other dynticks-related
+> > > prep patches in there as well.  Does this mean it's back to "coming soon to
+> > > a CPU near you" status? :)
+> >
+> > I've lost the plot on that stuff: I'm just leaving things as-is for now,
+> > wait for Thomas to return from vacation so we can have another run at it.
 > 
-> Testing shows no difference on non-numa as you'd expect and on NUMA machines,
-> there are very small differences on NUMA (kernbench figures range from -0.02%
-> to 0.15% differences on machines). Lee, can you test this patch in relation
-> to MPOL_BIND?  I'll look at the numactl tests tomorrow as well.
+> For what its worth: 2.6.22-rc6-mm1 with NO_HZ works for me on an AMD
+> SMP system without trouble.
 > 
+> Next try with 2.6.23-rc1-mm2 and SPARSEMEM:
+> Probably the same exception, but this time with Call Trace:
+> [    0.000000] Bootmem setup node 0 0000000000000000-0000000080000000
+> [    0.000000] Bootmem setup node 1 0000000080000000-0000000120000000
+> [    0.000000] Zone PFN ranges:
+> [    0.000000]   DMA             0 ->     4096
+> [    0.000000]   DMA32        4096 ->  1048576
+> [    0.000000]   Normal    1048576 ->  1179648
+> [    0.000000] Movable zone start PFN for each node
+> [    0.000000] early_node_map[4] active PFN ranges
+> [    0.000000]     0:        0 ->      159
+> [    0.000000]     0:      256 ->   524288
+> [    0.000000]     1:   524288 ->   917488
+> [    0.000000]     1:  1048576 ->  1179648
+> PANIC: early exception rip ffffffff807cddb5 error 2 cr2 ffffe20003000010
 
-The patches look OK to me.  I got around to testing it today. 
-Both atop the Memoryless Nodes series, and directly on 23-rc1-mm1.
+It's cryptically telling us that the code tried to access 0xffffe20003000010
 
-Test System: 32GB 4-node ia64, booted with kernelcore=24G.
-Yields, about 2GB Movable, and 6G Normal per node.
+> [    0.000000]
+> [    0.000000] Call Trace:
+> [    0.000000]  [<ffffffff807cddb5>] memmap_init_zone+0xb5/0x130
+> [    0.000000]  [<ffffffff807ce874>] init_currently_empty_zone+0x84/0x110
+> [    0.000000]  [<ffffffff807cec93>] free_area_init_node+0x393/0x3e0
+> [    0.000000]  [<ffffffff807cefea>] free_area_init_nodes+0x2da/0x320
+> [    0.000000]  [<ffffffff807c9c97>] paging_init+0x87/0x90
+> [    0.000000]  [<ffffffff807c0f85>] setup_arch+0x355/0x470
+> [    0.000000]  [<ffffffff807bc967>] start_kernel+0x57/0x330
+> [    0.000000]  [<ffffffff807bc12d>] _sinittext+0x12d/0x140
+> [    0.000000]
+> [    0.000000] RIP memmap_init_zone+0xb5/0x130
+> 
+> (gdb) list *0xffffffff807cddb5
+> 0xffffffff807cddb5 is in memmap_init_zone (include/linux/list.h:32).
+> 27      #define LIST_HEAD(name) \
+> 28              struct list_head name = LIST_HEAD_INIT(name)
+> 29
+> 30      static inline void INIT_LIST_HEAD(struct list_head *list)
+> 31      {
+> 32              list->next = list;
+> 33              list->prev = list;
+> 34      }
+> 35
+> 36      /*
+>
+> I will test more tomorrow...
 
-Filtered zoneinfo:
-
-Node 0, zone   Normal
-  pages free     416464
-        spanned  425984
-        present  424528
-Node 0, zone  Movable
-  pages free     47195
-        spanned  60416
-        present  60210
-Node 1, zone   Normal
-  pages free     388011
-        spanned  393216
-        present  391871
-Node 1, zone  Movable
-  pages free     125940
-        spanned  126976
-        present  126542
-Node 2, zone   Normal
-  pages free     387849
-        spanned  393216
-        present  391872
-Node 2, zone  Movable
-  pages free     126285
-        spanned  126976
-        present  126542
-Node 3, zone   Normal
-  pages free     388256
-        spanned  393216
-        present  391872
-Node 3, zone  Movable
-  pages free     126575
-        spanned  126966
-        present  126490
-Node 4, zone      DMA
-  pages free     31689
-        spanned  32767
-        present  32656
----
-Attempt to allocate a 12G--i.e., > 4*2G--segment interleaved
-across nodes 0-3 with memtoy.   I figured this would use up
-all of ZONE_MOVABLE on each node and then dip into NORMAL.
-
-root@gwydyr(root):memtoy
-memtoy pid:  6558
-memtoy>anon a1 12g
-memtoy>map a1
-memtoy>mbind a1 interleave 0,1,2,3
-memtoy>touch a1 w
-memtoy:  touched 786432 pages in 10.542 secs
-
-Yields:
-
-Node 0, zone   Normal
-  pages free     328392
-        spanned  425984
-        present  424528
-Node 0, zone  Movable
-  pages free     37
-        spanned  60416
-        present  60210
-Node 1, zone   Normal
-  pages free     300293
-        spanned  393216
-        present  391871
-Node 1, zone  Movable
-  pages free     91
-        spanned  126976
-        present  126542
-Node 2, zone   Normal
-  pages free     300193
-        spanned  393216
-        present  391872
-Node 2, zone  Movable
-  pages free     49
-        spanned  126976
-        present  126542
-Node 3, zone   Normal
-  pages free     300448
-        spanned  393216
-        present  391872
-Node 3, zone  Movable
-  pages free     56
-        spanned  126966
-        present  126490
-Node 4, zone      DMA
-  pages free     31689
-        spanned  32767
-        present  32656
-
-Looks like most of the movable zone in each node [~8G]
-and remainder from normal zones.  Should be ~1G from 
-zone normal of each node.  However, memtoy shows something
-weird, looking at the location of the 1st 64 pages at each
-1G boundary.  Most pages are located as I "expect" [well, I'm
-not sure why we start with node 2 at offset 0, instead of 
-node 0].
-
-memtoy>where a1
-a 0x2000000003c08000 0x000300000000 0x000000000000  rw- private a1
-page offset    +00 +01 +02 +03 +04 +05 +06 +07
-           0:    2   3   0   1   2   3   0   1
-           8:    2   3   0   1   2   3   0   1
-          10:    2   3   0   1   2   3   0   1
-          18:    2   3   0   1   2   3   0   1
-          20:    2   3   0   1   2   3   0   1
-          28:    2   3   0   1   2   3   0   1
-          30:    2   3   0   1   2   3   0   1
-          38:    2   3   0   1   2   3   0   1
-
-Same at 1G, 2G and 3G
-But, between ~4G through 6+G [I didn't check any finer
-granuality and didn't want to watch > 780K pages scroll
-by] show:
-
-memtoy>where a1 4g 64p
-a 0x2000000003c08000 0x000300000000 0x000000000000  rw- private a1
-page offset    +00 +01 +02 +03 +04 +05 +06 +07
-       40000:    2   3   1   1   2   3   1   1
-       40008:    2   3   1   1   2   3   1   1
-       40010:    2   3   1   1   2   3   1   1
-       40018:    2   3   1   1   2   3   1   1
-       40020:    2   3   1   1   2   3   1   1
-       40028:    2   3   1   1   2   3   1   1
-       40030:    2   3   1   1   2   3   1   1
-       40038:    2   3   1   1   2   3   1   1
-
-Same at 5G, then:
-
-memtoy>where a1 6g 64p
-a 0x2000000003c08000 0x000300000000 0x000000000000  rw- private a1
-page offset    +00 +01 +02 +03 +04 +05 +06 +07
-       60000:    2   3   2   2   2   3   2   2
-       60008:    2   3   2   2   2   3   2   2
-       60010:    2   3   2   2   2   3   2   2
-       60018:    2   3   2   2   2   3   2   2
-       60020:    2   3   2   2   2   3   2   2
-       60028:    2   3   2   2   2   3   2   2
-       60030:    2   3   2   2   2   3   2   2
-       60038:    2   3   2   2   2   3   2   2
-
-7G, 8G, ... 11G back to expected pattern.
-
-Thought this might be due to interaction with memoryless node patches, 
-so I backed those out and tested Mel's patch again.  This time I
-ran memtoy in batch mode and dumped the entire segment page locations
-to a file.  Did this twice.   Both looked pretty much the same--i.e.,
-the change in pattern occurs at around the same offset into the
-segment.  Note that here, the interleave starts at node 3 at offset
-zero.
-
-memtoy>where a1 0 0
-a 0x200000000047c000 0x000300000000 0x000000000000  rw- private a1
-page offset    +00 +01 +02 +03 +04 +05 +06 +07
-           0:    3   0   1   2   3   0   1   2
-           8:    3   0   1   2   3   0   1   2
-          10:    3   0   1   2   3   0   1   2
-...
-       38c20:    3   0   1   2   3   0   1   2
-       38c28:    3   0   1   2   3   0   1   2
-       38c30:    3   1   1   2   3   1   1   2
-       38c38:    3   1   1   2   3   1   1   2
-       38c40:    3   1   1   2   3   1   1   2
-...
-       5a0c0:    3   1   1   2   3   1   1   2
-       5a0c8:    3   1   1   2   3   1   1   2
-       5a0d0:    3   1   1   2   3   2   2   2
-       5a0d8:    3   2   2   2   3   2   2   2
-       5a0e0:    3   2   2   2   3   2   2   2
-...
-       65230:    3   2   2   2   3   2   2   2
-       65238:    3   2   2   2   3   2   2   2
-       65240:    3   2   2   2   3   3   3   3
-       65248:    3   3   3   3   3   3   3   3
-       65250:    3   3   3   3   3   3   3   3
-...
-       6ab60:    3   3   3   3   3   3   3   3
-       6ab68:    3   3   3   3   3   3   3   3
-       6ab70:    3   3   3   2   3   0   1   2
-       6ab78:    3   0   1   2   3   0   1   2
-       6ab80:    3   0   1   2   3   0   1   2
-...
-and so on to the end of the segment:
-       bffe8:    3   0   1   2   3   0   1   2
-       bfff0:    3   0   1   2   3   0   1   2
-       bfff8:    3   0   1   2   3   0   1   2
-
-The pattern changes occur at about page offsets:
-
-0x38800 = ~ 3.6G
-0x5a000 = ~ 5.8G
-0x65000 = ~ 6.4G
-0x6aa00 = ~ 6.8G
-
-Then I checked zonelist order:
-Built 5 zonelists in Zone order, mobility grouping on.  Total pages: 2072583
-
-Looks like we're falling back to ZONE_MOVABLE on the next node when ZONE_MOVABLE
-on target node overflows.
-
-Rebooted to "Node order" [numa_zonelist_order sysctl missing in 23-rc1-mm1]
-and tried again.  Saw "expected" interleave pattern across entire 12G segment.
-
-Kame-san's patch to just exclude the DMA zones from the zonelists is looking
-better--better than changing zonelist order when zone_movable is populated!
-
-But, Mel's patch seems to work OK.  I'll keep it in my stack for later 
-stress testing.
-
-Lee
-
+Thanks.  Please send the .config?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
