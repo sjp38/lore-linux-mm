@@ -1,81 +1,37 @@
-Date: Wed, 1 Aug 2007 19:16:51 +0900
-From: Paul Mundt <lethal@linux-sh.org>
-Subject: Re: [PATCH/RFC] Allow selected nodes to be excluded from MPOL_INTERLEAVE masks
-Message-ID: <20070801101651.GA9113@linux-sh.org>
-References: <1185566878.5069.123.camel@localhost> <20070728151912.c541aec0.kamezawa.hiroyu@jp.fujitsu.com> <1185812028.5492.79.camel@localhost>
+Date: Wed, 1 Aug 2007 11:24:49 +0100
+Subject: Re: [PATCH 01/14] NUMA: Generic management of nodemasks for various purposes
+Message-ID: <20070801102449.GD31440@skynet.ie>
+References: <20070727194316.18614.36380.sendpatchset@localhost> <20070727194322.18614.68855.sendpatchset@localhost> <20070731192241.380e93a0.akpm@linux-foundation.org> <Pine.LNX.4.64.0707311946530.6158@schroedinger.engr.sgi.com> <20070731200522.c19b3b95.akpm@linux-foundation.org> <Pine.LNX.4.64.0707312006550.22443@schroedinger.engr.sgi.com> <20070731203203.2691ca59.akpm@linux-foundation.org> <Pine.LNX.4.64.0707312151400.2894@schroedinger.engr.sgi.com> <20070731220727.1fd4b699.akpm@linux-foundation.org> <Pine.LNX.4.64.0707312214350.2997@schroedinger.engr.sgi.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <1185812028.5492.79.camel@localhost>
+In-Reply-To: <Pine.LNX.4.64.0707312214350.2997@schroedinger.engr.sgi.com>
+From: mel@skynet.ie (Mel Gorman)
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm <linux-mm@kvack.org>, Christoph Lameter <clameter@sgi.com>, Nishanth Aravamudan <nacc@us.ibm.com>, kxr@sgi.com, ak@suse.de, akpm@linux-foundation.org, Eric Whitney <eric.whitney@hp.com>
+To: Christoph Lameter <clameter@sgi.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Lee Schermerhorn <lee.schermerhorn@hp.com>, linux-mm@kvack.org, ak@suse.de, Nishanth Aravamudan <nacc@us.ibm.com>, pj@sgi.com, kxr@sgi.com, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Jul 30, 2007 at 12:13:48PM -0400, Lee Schermerhorn wrote:
-> Rationale:  some architectures and platforms include nodes with
-> memory that, in some cases, should never appear in MPOL_INTERLEAVE
-> node masks.  For example, the 'sh' architecture contains a small
-> amount of SRAM that is local to each cpu.  In some applications,
-> this memory should be reserved for explicit usage.  Another example
-> is the pseudo-node on HP ia64 platforms that is already interleaved
-> on a cache-line granularity by hardware.  Again, in some cases, we
-> want to reserve this for explicit usage, as it has bandwidth and
-> [average] latency characteristics quite different from the "real"
-> nodes.
+On (31/07/07 22:22), Christoph Lameter didst pronounce:
+> On Tue, 31 Jul 2007, Andrew Morton wrote:
 > 
-Well, it's not so much the interleave that's the problem so much as
-_when_ we interleave. The problem with the interleave node mask at system
-init is that the kernel attempts to spread out data structures across
-these nodes, which results in us being completely out of memory by the
-time we get to userspace. After we've booted, supporting MPOL_INTERLEAVE
-is not so much of a problem, applications just have to be careful with
-their allocations.
-
-The main thing is keeping the kernel away from these nodes unless it's
-been specifically asked to fetch some memory from there. Every page does
-count.
-
-The real problem is how we want to deal with the node avoidance mask. In
-SLOB things presently work quite well in this regard, Christoph's
-slub_nodes= patch did a similar thing:
-
-	http://marc.info/?l=linux-mm&m=118127465421877&w=2
-	http://marc.info/?l=linux-mm&m=118127688911359&w=2
-
-> Note that allocation of fresh hugepages in response to increases
-> in /proc/sys/vm/nr_hugepages is a form of interleaving.  I would
-> like to propose that allocate_fresh_huge_page() use the 
-> N_INTERLEAVE state as well as MPOL_INTERLEAVE.  Then, one can
-> explicity allocate hugepages on the excluded nodes, when needed,
-> using Nish Aravamundan's per node huge page sysfs attribute.
-> NOT in this patch.
+> > > Anyone have a 32 bit NUMA system for testing this out?
+> > test.kernel.org has a NUMAQ
 > 
-If we can differentiate between MPOL_INTERLEAVE from the kernel's point
-of view, and explicit MPOL_INTERLEAVE specifiers via mbind() from
-userspace, that works fine for my case. However, the mpol_new() changes
-in this patch deny small nodes the ability to ever be included in an
-MPOL_INTERLEAVE policy, when it's only the kernel policy that I have a
-problem with.
+> Ok someone do this please. SGI still has IA64 issues that need fixing 
+> after the merge (nothing works on SN2 it seems) and that takes precedence.
+> 
 
-Having said that, I do like the node states and using that to exclude a
-node from the system init interleave nodelist, but this still won't
-completely solve the tiny node problems.
+I've queued up what was in the numa.git tree for a number of machines
+including elm3b132 and elm3b133 on test.kernel.org again 2.6.23-rc1-mm2. With
+the release of -mm though there is a long queue so it'll be several hours
+before I have any results; tomorrow if it does not go smoothly.
 
-> @@ -184,7 +184,7 @@ static struct mempolicy *mpol_new(int mo
->  	case MPOL_INTERLEAVE:
->  		policy->v.nodes = *nodes;
->  		nodes_and(policy->v.nodes, policy->v.nodes,
-> -					node_states[N_MEMORY]);
-> +					node_states[N_INTERLEAVE]);
->  		if (nodes_weight(policy->v.nodes) == 0) {
->  			kmem_cache_free(policy_cache, policy);
->  			return ERR_PTR(-EINVAL);
-
-Leaving this as node_states[N_MEMORY] combined with the rest of the patch
-would work for me, but that sort of changes the scope of the entire patch
-;-)
+-- 
+Mel Gorman
+Part-time Phd Student                          Linux Technology Center
+University of Limerick                         IBM Dublin Software Lab
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
