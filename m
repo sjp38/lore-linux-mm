@@ -1,88 +1,82 @@
-Date: Wed, 1 Aug 2007 14:17:49 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: 2.6.23-rc1-mm2
-Message-Id: <20070801141749.ecfe6803.akpm@linux-foundation.org>
-In-Reply-To: <64bb37e0708011352q33053acdxa753cd198fb4233c@mail.gmail.com>
-References: <20070731230932.a9459617.akpm@linux-foundation.org>
-	<12639.1186000208@turing-police.cc.vt.edu>
-	<20070801134055.7862b95e.akpm@linux-foundation.org>
-	<64bb37e0708011352q33053acdxa753cd198fb4233c@mail.gmail.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Message-ID: <46B10E9B.2030907@mbligh.org>
+Date: Wed, 01 Aug 2007 15:52:11 -0700
+From: Martin Bligh <mbligh@mbligh.org>
+MIME-Version: 1.0
+Subject: Re: [rfc] balance-on-fork NUMA placement
+References: <20070731054142.GB11306@wotan.suse.de>	 <200707311114.09284.ak@suse.de> <20070801002313.GC31006@wotan.suse.de>	 <46B0C8A3.8090506@mbligh.org> <1185993169.5059.79.camel@localhost>
+In-Reply-To: <1185993169.5059.79.camel@localhost>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Torsten Kaiser <just.for.lkml@googlemail.com>
-Cc: Valdis.Kletnieks@vt.edu, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Mel Gorman <mel@csn.ul.ie>
+To: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
+Cc: Nick Piggin <npiggin@suse.de>, Andi Kleen <ak@suse.de>, Ingo Molnar <mingo@elte.hu>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>, Eric Whitney <eric.whitney@hp.com>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 1 Aug 2007 22:52:44 +0200
-"Torsten Kaiser" <just.for.lkml@googlemail.com> wrote:
-
-> On 8/1/07, Andrew Morton <akpm@linux-foundation.org> wrote:
-> > On Wed, 01 Aug 2007 16:30:08 -0400
-> > Valdis.Kletnieks@vt.edu wrote:
-> >
-> > > As an aside, it looks like bits&pieces of dynticks-for-x86_64 are in there.
-> > > In particular, x86_64-enable-high-resolution-timers-and-dynticks.patch is in
-> > > there, adding a menu that depends on GENERIC_CLOCKEVENTS, but then nothing
-> > > in the x86_64 tree actually *sets* it.  There's a few other dynticks-related
-> > > prep patches in there as well.  Does this mean it's back to "coming soon to
-> > > a CPU near you" status? :)
-> >
-> > I've lost the plot on that stuff: I'm just leaving things as-is for now,
-> > wait for Thomas to return from vacation so we can have another run at it.
+>> This topic seems to come up periodically every since we first introduced
+>> the NUMA scheduler, and every time we decide it's a bad idea. What's
+>> changed? What workloads does this improve (aside from some artificial
+>> benchmark like stream)?
+>>
+>> To repeat the conclusions of last time ... the primary problem is that
+>> 99% of the time, we exec after we fork, and it makes that fork/exec
+>> cycle slower, not faster, so exec is generally a much better time to do
+>> this. There's no good predictor of whether we'll exec after fork, unless
+>> one has magically appeared since late 2.5.x ?
+>>
 > 
-> For what its worth: 2.6.22-rc6-mm1 with NO_HZ works for me on an AMD
-> SMP system without trouble.
+> As Nick points out, one reason to balance on fork() rather than exec()
+> is that with balance on exec you already have the new task's kernel
+> structs allocated on the "wrong" node.  However, as you point out, this
+> slows down the fork/exec cycle.  This is especially noticeable on larger
+> node-count systems in, e.g., shell scripts that spawn a lot of short
+> lived child processes.  "Back in the day", we got bitten by this on the
+> Alpha EV7 [a.k.a. Marvel] platform with just ~64 nodes--small compared
+> to, say, the current Altix platform.  
 > 
-> Next try with 2.6.23-rc1-mm2 and SPARSEMEM:
-> Probably the same exception, but this time with Call Trace:
-> [    0.000000] Bootmem setup node 0 0000000000000000-0000000080000000
-> [    0.000000] Bootmem setup node 1 0000000080000000-0000000120000000
-> [    0.000000] Zone PFN ranges:
-> [    0.000000]   DMA             0 ->     4096
-> [    0.000000]   DMA32        4096 ->  1048576
-> [    0.000000]   Normal    1048576 ->  1179648
-> [    0.000000] Movable zone start PFN for each node
-> [    0.000000] early_node_map[4] active PFN ranges
-> [    0.000000]     0:        0 ->      159
-> [    0.000000]     0:      256 ->   524288
-> [    0.000000]     1:   524288 ->   917488
-> [    0.000000]     1:  1048576 ->  1179648
-> PANIC: early exception rip ffffffff807cddb5 error 2 cr2 ffffe20003000010
-
-It's cryptically telling us that the code tried to access 0xffffe20003000010
-
-> [    0.000000]
-> [    0.000000] Call Trace:
-> [    0.000000]  [<ffffffff807cddb5>] memmap_init_zone+0xb5/0x130
-> [    0.000000]  [<ffffffff807ce874>] init_currently_empty_zone+0x84/0x110
-> [    0.000000]  [<ffffffff807cec93>] free_area_init_node+0x393/0x3e0
-> [    0.000000]  [<ffffffff807cefea>] free_area_init_nodes+0x2da/0x320
-> [    0.000000]  [<ffffffff807c9c97>] paging_init+0x87/0x90
-> [    0.000000]  [<ffffffff807c0f85>] setup_arch+0x355/0x470
-> [    0.000000]  [<ffffffff807bc967>] start_kernel+0x57/0x330
-> [    0.000000]  [<ffffffff807bc12d>] _sinittext+0x12d/0x140
-> [    0.000000]
-> [    0.000000] RIP memmap_init_zone+0xb5/0x130
+> On the other hand, if you're launching a few larger, long-lived
+> applications with any significant %-age of system time, you might want
+> to consider spreading them out across nodes and having their warmer
+> kernel data structures close to them.  A dilemma.
 > 
-> (gdb) list *0xffffffff807cddb5
-> 0xffffffff807cddb5 is in memmap_init_zone (include/linux/list.h:32).
-> 27      #define LIST_HEAD(name) \
-> 28              struct list_head name = LIST_HEAD_INIT(name)
-> 29
-> 30      static inline void INIT_LIST_HEAD(struct list_head *list)
-> 31      {
-> 32              list->next = list;
-> 33              list->prev = list;
-> 34      }
-> 35
-> 36      /*
->
-> I will test more tomorrow...
+> Altho' I was no longer working on this platform when this issue came up,
+> I believe that the kernel developers came up with something along these
+> lines:
+> 
+> + define a "credit" member of the "task" struct, initialized to, say,
+> zero.
+> 
+> + when "credit" is zero, or below some threshold, balance on fork--i.e.,
+> spread out the load--otherwise fork "locally" and decrement credit
+> [maybe not < 0].
+> 
+> + when reaping dead children, if the poor thing's cpu utilization is
+> below some threshold, give the parent some credit.  [blood money?]
+> 
+> And so forth.  Initial forks will balance.  If the children refuse to
+> die, forks will continue to balance.  If the parent starts seeing short
+> lived children, fork()s will eventually start to stay local.  
 
-Thanks.  Please send the .config?
+Fork without exec is much more rare than without. Optimising for
+the uncommon case is the Wrong Thing to Do (tm). What we decided
+the last time(s) this came up was to allow userspace to pass
+a hint in if they wanted to fork and not exec.
+
+> I believe that this solved the pathological behavior we were seeing with
+> shell scripts taking way longer on the larger, supposedly more powerful,
+> platforms.
+> 
+> Of course, that OS could migrate the equivalent of task structs and
+> kernel stack [the old Unix user struct that was traditionally swappable,
+> so fairly easy to migrate].  On Linux, all bets are off, once the
+> scheduler starts migrating tasks away from the node that contains their
+> task struct, ...  [Remember Eric Focht's "NUMA Affine Scheduler" patch
+> with it's "home node"?]
+
+Task migration doesn't work well at all without userspace hints.
+SGI tried for ages (with IRIX) and failed. There's long discussions
+of all of these things back in the days when we merged the original
+NUMA scheduler in late 2.5 ...
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
