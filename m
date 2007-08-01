@@ -1,73 +1,44 @@
-From: Al Boldi <a1426z@gawab.com>
-Subject: Re: How can we make page replacement smarter
-Date: Sun, 29 Jul 2007 17:55:24 +0300
-Message-ID: <200707291755.24906.a1426z@gawab.com>
-References: <200707272243.02336.a1426z@gawab.com> <200707280717.41250.a1426z@gawab.com> <46ABF184.40803@redhat.com>
+Date: Tue, 31 Jul 2007 22:07:27 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH 01/14] NUMA: Generic management of nodemasks for various
+ purposes
+Message-Id: <20070731220727.1fd4b699.akpm@linux-foundation.org>
+In-Reply-To: <Pine.LNX.4.64.0707312151400.2894@schroedinger.engr.sgi.com>
+References: <20070727194316.18614.36380.sendpatchset@localhost>
+	<20070727194322.18614.68855.sendpatchset@localhost>
+	<20070731192241.380e93a0.akpm@linux-foundation.org>
+	<Pine.LNX.4.64.0707311946530.6158@schroedinger.engr.sgi.com>
+	<20070731200522.c19b3b95.akpm@linux-foundation.org>
+	<Pine.LNX.4.64.0707312006550.22443@schroedinger.engr.sgi.com>
+	<20070731203203.2691ca59.akpm@linux-foundation.org>
+	<Pine.LNX.4.64.0707312151400.2894@schroedinger.engr.sgi.com>
 Mime-Version: 1.0
-Content-Type: text/plain;
-  charset="utf-8"
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
-Return-path: <linux-kernel-owner+glk-linux-kernel-3=40m.gmane.org-S1763778AbXG2O4S@vger.kernel.org>
-In-Reply-To: <46ABF184.40803@redhat.com>
-Content-Disposition: inline
-Sender: linux-kernel-owner@vger.kernel.org
-To: Rik van Riel <riel@redhat.com>
-Cc: Chris Snook <csnook@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
-List-Id: linux-mm.kvack.org
+Sender: owner-linux-mm@kvack.org
+Return-Path: <owner-linux-mm@kvack.org>
+To: Christoph Lameter <clameter@sgi.com>
+Cc: Lee Schermerhorn <lee.schermerhorn@hp.com>, linux-mm@kvack.org, ak@suse.de, Nishanth Aravamudan <nacc@us.ibm.com>, pj@sgi.com, kxr@sgi.com, Mel Gorman <mel@skynet.ie>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+List-ID: <linux-mm.kvack.org>
 
-Rik van Riel wrote:
-> Al Boldi wrote:
-> > Good idea, but unless we understand the problems involved, we are bound
-> > to repeat it.  So my first question would be:  Why is swap-in so slow?
-> >
-> > As I have posted in other threads, swap-in of consecutive pages suffers
-> > a 2x slowdown wrt swap-out, whereas swap-in of random pages suffers over
-> > 6x slowdown.
-> >
-> > Because it is hard to quantify the expected swap-in speed for random
-> > pages, let's first tackle the swap-in of consecutive pages, which should
-> > be at least as fast as swap-out.  So again, why is swap-in so slow?
->
-> I suspect that this is a locality of reference issue.
->
-> Anonymous memory can get jumbled up by repeated free and
-> malloc cycles of many smaller objects.  The amount of
-> anonymous memory is often smaller than or roughly the same
-> size as system memory.
+On Tue, 31 Jul 2007 21:55:41 -0700 (PDT) Christoph Lameter <clameter@sgi.com> wrote:
 
-Sounds exactly like the tmpfs problem.
+> Anyone have a 32 bit NUMA system for testing this out?
+> 
 
-> Locality of refenence to anonymous memory tends to be
-> temporal in nature, with the same sets of pages being
-> accessed over and over again.
->
-> Files are different.  File content tends to be grouped
-> in large related chunks, both logically in the file and
-> on disk.  Generally there is a lot more file data on a
-> system than what fits in memory.
->
-> Locality of reference to file data tends to be spatial
-> in nature, with one file access leading up to the system
-> accessing "nearby" data.  The data is not necessarily
-> touched again any time soon.
->
-> > Once we understand this problem, we may be able to suggest a smart
-> > improvement.
->
-> Like the one on http://linux-mm.org/PageoutFailureModes ?
+test.kernel.org has a NUMAQ
 
-Interesting to see that there are known problems, but it doesn't seem to list 
-the resume-from-disk swap-in slowdown.
+> 
+> Available from the git tree at
+> 
+> git://git.kernel.org/pub/scm/linux/kernel/git/christoph/slab.git memoryless_nodes
 
-> I have the LRU lists split and am working on getting SEQ
-> replacement implemented for the anonymous pages.
->
-> The most recent (untested) patches are attached.
-
-Applied against 2.6.22; the kernel crashes out on boot.
-
-
-Thanks!
+Please send 'em against rc1-mm2 (hopefully an hour away, if x86_64 box #2
+works) (after runtime testing CONFIG_NUMA=n, please) and I can add them to next -mm
+for test.k.o to look at.
 
 --
-Al
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
