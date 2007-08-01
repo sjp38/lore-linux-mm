@@ -1,45 +1,84 @@
-Date: Tue, 31 Jul 2007 19:22:41 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH 01/14] NUMA: Generic management of nodemasks for various
- purposes
-Message-Id: <20070731192241.380e93a0.akpm@linux-foundation.org>
-In-Reply-To: <20070727194322.18614.68855.sendpatchset@localhost>
-References: <20070727194316.18614.36380.sendpatchset@localhost>
-	<20070727194322.18614.68855.sendpatchset@localhost>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Date: Wed, 1 Aug 2007 04:30:13 +0200
+From: Andrea Arcangeli <andrea@suse.de>
+Subject: Re: make swappiness safer to use
+Message-ID: <20070801023013.GA6910@v2.random>
+References: <20070731215228.GU6910@v2.random> <20070731151244.3395038e.akpm@linux-foundation.org> <20070731224052.GW6910@v2.random> <20070731155109.228b4f19.akpm@linux-foundation.org> <20070731230251.GX6910@v2.random> <20070801011925.GB20109@mail.ustc.edu.cn>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20070801011925.GB20109@mail.ustc.edu.cn>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Lee Schermerhorn <lee.schermerhorn@hp.com>
-Cc: linux-mm@kvack.org, ak@suse.de, Nishanth Aravamudan <nacc@us.ibm.com>, pj@sgi.com, kxr@sgi.com, Christoph Lameter <clameter@sgi.com>, Mel Gorman <mel@skynet.ie>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+To: Fengguang Wu <fengguang.wu@gmail.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Nick Piggin <npiggin@suse.de>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 27 Jul 2007 15:43:22 -0400 Lee Schermerhorn <lee.schermerhorn@hp.com> wrote:
+On Wed, Aug 01, 2007 at 09:19:25AM +0800, Fengguang Wu wrote:
+> On Wed, Aug 01, 2007 at 01:02:51AM +0200, Andrea Arcangeli wrote:
+> > diff --git a/mm/vmscan.c b/mm/vmscan.c
+> [...]
+> > @@ -912,6 +913,44 @@ static void shrink_active_list(unsigned 
+> >  		 * altogether.
+> >  		 */
+> >  		swap_tendency = mapped_ratio / 2 + distress + sc->swappiness;
+> > +
+> > +		/*
+> > +		 * If there's huge imbalance between active and inactive
+> > +		 * (think active 100 times larger than inactive) we should
+> > +		 * become more permissive, or the system will take too much
+> > +		 * cpu before it start swapping during memory pressure.
+> > +		 * Distress is about avoiding early-oom, this is about
+> > +		 * making swappiness graceful despite setting it to low
+> > +		 * values.
+> > +		 *
+> > +		 * Avoid div by zero with nr_inactive+1, and max resulting
+> > +		 * value is vm_total_pages.
+> > +		 */
+> > +		imbalance = zone_page_state(zone, NR_ACTIVE) /
+> > +                        (zone_page_state(zone, NR_INACTIVE) + 1);
+> > +
+> > +		/*
+> > +		 * Reduce the effect of imbalance if swappiness is low,
+> > +		 * this means for a swappiness very low, the imbalance
+> > +		 * must be much higher than 100 for this logic to make
+> > +		 * the difference.
+> > +		 *
+> > +		 * Max temporary value is vm_total_pages*100.
+> > +		 */
+> > +		imbalance *= (vm_swappiness + 1) / 100;
+>                              ~~~~~~~~~~~~~~~~~~~~~~~~~ It will be zero!
 
-> [patch 1/14] NUMA: Generic management of nodemasks for various purposes
+You know what, while editing I even wrote "imbalance = imbalance *
+((vm_swappiness + 1) / 100" because I felt it was different, then I
+edited it back to the cut-and-pasted version thinking it was actually
+the same, but it's not.
+
+> Better to scale it up before the division:
+> 		imbalance *= (vm_swappiness + 1) * 1024 / 100;
 > 
-> Preparation for memoryless node patches.
+> > +
+> > +		/*
+> > +		 * If not much of the ram is mapped, makes the imbalance
+> > +		 * less relevant, it's high priority we refill the inactive
+> > +		 * list with mapped pages only in presence of high ratio of
+> > +		 * mapped pages.
+> > +		 *
+> > +		 * Max temporary value is vm_total_pages*100.
+> > +		 */
+> > +		imbalance *= mapped_ratio / 100;
 > 
-> Provide a generic way to keep nodemasks describing various characteristics
-> of NUMA nodes.
+> 		imbalance *= mapped_ratio * 1024 / 100;
 > 
-> Remove the node_online_map and the node_possible map and realize the whole
-> thing using two nodes stats: N_POSSIBLE and N_ONLINE.
+> > +		/* apply imbalance feedback to swap_tendency */
+> > +		swap_tendency += imbalance;
 > 
-> ...
->
-> +#define for_each_node_state(node, __state) \
-> +	for ( (node) = 0; (node) != 0; (node) = 1)
+> 		swap_tendency += imbalance / 1024 / 1024;
 
-That looks weird.
+No this is exactly what we want to avoid. We must not allow more than
+100 times higher the number of pages.
 
-
-
-This patch causes early crashes on i386.
-
-http://userweb.kernel.org/~akpm/dsc03671.jpg
-http://userweb.kernel.org/~akpm/config-vmm.txt
+The fix is only to do "imbalance = imbalance *" instead of "imbalance
+*=".
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
