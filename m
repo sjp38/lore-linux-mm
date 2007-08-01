@@ -1,48 +1,37 @@
+In-reply-to: <p73myxbpm8r.fsf@bingen.suse.de> (message from Andi Kleen on 01
+	Aug 2007 12:44:52 +0200)
 Subject: Re: [RFC PATCH] type safe allocator
-References: <E1IGAAI-0006K6-00@dorka.pomaz.szeredi.hu>
-From: Andi Kleen <andi@firstfloor.org>
-Date: 01 Aug 2007 12:44:52 +0200
-In-Reply-To: <E1IGAAI-0006K6-00@dorka.pomaz.szeredi.hu>
-Message-ID: <p73myxbpm8r.fsf@bingen.suse.de>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+References: <E1IGAAI-0006K6-00@dorka.pomaz.szeredi.hu> <p73myxbpm8r.fsf@bingen.suse.de>
+Message-Id: <E1IGAx0-0006TK-00@dorka.pomaz.szeredi.hu>
+From: Miklos Szeredi <miklos@szeredi.hu>
+Date: Wed, 01 Aug 2007 11:57:06 +0200
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Miklos Szeredi <miklos@szeredi.hu>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, akpm@linux-foundation.org, torvalds@linux-foundation.org
+To: andi@firstfloor.org
+Cc: miklos@szeredi.hu, linux-kernel@vger.kernel.org, linux-mm@kvack.org, akpm@linux-foundation.org, torvalds@linux-foundation.org
 List-ID: <linux-mm.kvack.org>
 
-Miklos Szeredi <miklos@szeredi.hu> writes:
-
-> I wonder why we don't have type safe object allocators a-la new() in
-> C++ or g_new() in glib?
+> > I wonder why we don't have type safe object allocators a-la new() in
+> > C++ or g_new() in glib?
+> > 
+> >   fooptr = k_new(struct foo, GFP_KERNEL);
+> > 
+> > is nicer and more descriptive than
+> > 
+> >   fooptr = kmalloc(sizeof(*fooptr), GFP_KERNEL);
+> > 
+> > and more safe than
+> > 
+> >   fooptr = kmalloc(sizeof(struct foo), GFP_KERNEL);
 > 
->   fooptr = k_new(struct foo, GFP_KERNEL);
-> 
-> is nicer and more descriptive than
-> 
->   fooptr = kmalloc(sizeof(*fooptr), GFP_KERNEL);
-> 
-> and more safe than
-> 
->   fooptr = kmalloc(sizeof(struct foo), GFP_KERNEL);
+> How is it more safe? It seems 100% equivalent to me,
+> just a different syntax.
 
-How is it more safe? It seems 100% equivalent to me,
-just a different syntax.
+Note the (type *) cast:
 
-> 
-> And we have zillions of both variants.
+#define k_new(type, flags) ((type *) kmalloc(sizeof(type), flags))
 
-In my own non kernel code i tend to define a pascal style NEW()
-
-#define NEW(p) ((p) = malloc(sizeof(*(p))))
-
-But I'm not sure such a untraditional solution would too popular.
-
-Also I don't think we have too many bugs in this area anyways; so
-it might be better to concentrate on more fruitful areas.
-
--Andi
+Miklos
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
