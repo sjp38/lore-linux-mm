@@ -1,36 +1,43 @@
-Date: Tue, 31 Jul 2007 22:22:38 -0700 (PDT)
-From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [PATCH 01/14] NUMA: Generic management of nodemasks for various
- purposes
-In-Reply-To: <20070731220727.1fd4b699.akpm@linux-foundation.org>
-Message-ID: <Pine.LNX.4.64.0707312214350.2997@schroedinger.engr.sgi.com>
-References: <20070727194316.18614.36380.sendpatchset@localhost>
- <20070727194322.18614.68855.sendpatchset@localhost>
- <20070731192241.380e93a0.akpm@linux-foundation.org>
- <Pine.LNX.4.64.0707311946530.6158@schroedinger.engr.sgi.com>
- <20070731200522.c19b3b95.akpm@linux-foundation.org>
- <Pine.LNX.4.64.0707312006550.22443@schroedinger.engr.sgi.com>
- <20070731203203.2691ca59.akpm@linux-foundation.org>
- <Pine.LNX.4.64.0707312151400.2894@schroedinger.engr.sgi.com>
- <20070731220727.1fd4b699.akpm@linux-foundation.org>
+Date: Wed, 1 Aug 2007 07:25:14 +0200
+From: Adrian Bunk <bunk@stusta.de>
+Subject: Re: [ck] Re: SD still better than CFS for 3d ?
+Message-ID: <20070801052513.GL3972@stusta.de>
+References: <930f95dc0707291154j102494d9m58f4cc452c7ff17c@mail.gmail.com> <20070729204716.GB1578@elte.hu> <930f95dc0707291431j4e50214di3c01cd44b5597502@mail.gmail.com> <20070730114649.GB19186@elte.hu> <op.tv90xghwatcbto@linux.site> <d3380cee0707300831m33d896aufcbdb188576940a2@mail.gmail.com> <b21f8390707300925i76cb08f2j55bba537cf853f88@mail.gmail.com> <20070730182959.GA29151@infradead.org> <adaps29sm62.fsf@cisco.com> <b21f8390707302007n2f21018crc6b7cd83666e0f3c@mail.gmail.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=utf-8
+Content-Disposition: inline
+In-Reply-To: <b21f8390707302007n2f21018crc6b7cd83666e0f3c@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Lee Schermerhorn <lee.schermerhorn@hp.com>, linux-mm@kvack.org, ak@suse.de, Nishanth Aravamudan <nacc@us.ibm.com>, pj@sgi.com, kxr@sgi.com, Mel Gorman <mel@skynet.ie>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+To: Matthew Hawkins <darthmdh@gmail.com>
+Cc: Roland Dreier <rdreier@cisco.com>, Christoph Hellwig <hch@infradead.org>, Jacob Braun <jwbraun@gmail.com>, kriko <kristjan.ugrin@gmail.com>, ck@vds.kolivas.org, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Martin Schwidefsky <schwidefsky@de.ibm.com>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 31 Jul 2007, Andrew Morton wrote:
+On Tue, Jul 31, 2007 at 01:07:30PM +1000, Matthew Hawkins wrote:
+>...
+> I took the time to track down what caused a breakage - in an "illegal
+> binary driver" (not against the law here, though defamation certainly
+> is...) no less.  And contacted the vendor (separately).  Other people
+> on desktop machines with an ATI card using the fglrx driver may have
+> been interested to know that they can't do the benchmarking some
+> people here on lkml and -mm are asking for with a current 2.6.23 git
+> kernel, hence my post.
+>...
 
-> > Anyone have a 32 bit NUMA system for testing this out?
-> test.kernel.org has a NUMAQ
+But there's not much value in benchmarking if an important part of the 
+performance critical code is in some undebuggable driver...
 
-Ok someone do this please. SGI still has IA64 issues that need fixing 
-after the merge (nothing works on SN2 it seems) and that takes precedence.
+> Matt
 
+cu
+Adrian
 
+-- 
 
+       "Is there not promise of rain?" Ling Tan asked suddenly out
+        of the darkness. There had been need of rain for many days.
+       "Only a promise," Lao Er said.
+                                       Pearl S. Buck - Dragon Seed
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
