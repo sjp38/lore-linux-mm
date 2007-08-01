@@ -1,43 +1,61 @@
-Date: Wed, 1 Aug 2007 07:25:14 +0200
-From: Adrian Bunk <bunk@stusta.de>
-Subject: Re: [ck] Re: SD still better than CFS for 3d ?
-Message-ID: <20070801052513.GL3972@stusta.de>
-References: <930f95dc0707291154j102494d9m58f4cc452c7ff17c@mail.gmail.com> <20070729204716.GB1578@elte.hu> <930f95dc0707291431j4e50214di3c01cd44b5597502@mail.gmail.com> <20070730114649.GB19186@elte.hu> <op.tv90xghwatcbto@linux.site> <d3380cee0707300831m33d896aufcbdb188576940a2@mail.gmail.com> <b21f8390707300925i76cb08f2j55bba537cf853f88@mail.gmail.com> <20070730182959.GA29151@infradead.org> <adaps29sm62.fsf@cisco.com> <b21f8390707302007n2f21018crc6b7cd83666e0f3c@mail.gmail.com>
+Date: Wed, 1 Aug 2007 14:36:42 +0900
+From: Paul Mundt <lethal@linux-sh.org>
+Subject: Re: [PATCH 01/14] NUMA: Generic management of nodemasks for various purposes
+Message-ID: <20070801053642.GA7581@linux-sh.org>
+References: <20070727194316.18614.36380.sendpatchset@localhost> <20070727194322.18614.68855.sendpatchset@localhost> <20070731192241.380e93a0.akpm@linux-foundation.org> <Pine.LNX.4.64.0707311946530.6158@schroedinger.engr.sgi.com> <20070731200522.c19b3b95.akpm@linux-foundation.org> <Pine.LNX.4.64.0707312006550.22443@schroedinger.engr.sgi.com> <20070731203203.2691ca59.akpm@linux-foundation.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <b21f8390707302007n2f21018crc6b7cd83666e0f3c@mail.gmail.com>
+In-Reply-To: <20070731203203.2691ca59.akpm@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Matthew Hawkins <darthmdh@gmail.com>
-Cc: Roland Dreier <rdreier@cisco.com>, Christoph Hellwig <hch@infradead.org>, Jacob Braun <jwbraun@gmail.com>, kriko <kristjan.ugrin@gmail.com>, ck@vds.kolivas.org, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Martin Schwidefsky <schwidefsky@de.ibm.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Christoph Lameter <clameter@sgi.com>, Lee Schermerhorn <lee.schermerhorn@hp.com>, linux-mm@kvack.org, ak@suse.de, Nishanth Aravamudan <nacc@us.ibm.com>, pj@sgi.com, kxr@sgi.com, Mel Gorman <mel@skynet.ie>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Jul 31, 2007 at 01:07:30PM +1000, Matthew Hawkins wrote:
->...
-> I took the time to track down what caused a breakage - in an "illegal
-> binary driver" (not against the law here, though defamation certainly
-> is...) no less.  And contacted the vendor (separately).  Other people
-> on desktop machines with an ATI card using the fglrx driver may have
-> been interested to know that they can't do the benchmarking some
-> people here on lkml and -mm are asking for with a current 2.6.23 git
-> kernel, hence my post.
->...
+On Tue, Jul 31, 2007 at 08:32:03PM -0700, Andrew Morton wrote:
+> On Tue, 31 Jul 2007 20:14:08 -0700 (PDT) Christoph Lameter <clameter@sgi.com> wrote:
+> > Andi wants to drop support for NUMAQ again. Is that possible? NUMA only on 
+> > 64 bit?
+> 
+> umm, that would need wide circulation.  I have a feeling that some
+> implementations of some of the more obscure 32-bit architectures can (or
+> will) have numa characteristics.  Looks like mips might already.
+> 
+> And doesn't i386 summit do numa?
+> 
+> We could do it, but it would take some chin-scratching.  It'd be good if we
+> could pull it off.
+> 
+No, SH also requires this due to the abundance of multiple memories with
+varying costs, both in UP and SMP configurations. This was the motivation
+behind SLOB + NUMA and the mempolicy work.
 
-But there's not much value in benchmarking if an important part of the 
-performance critical code is in some undebuggable driver...
+In the SMP case we have 4 CPUs and system memory + 5 SRAM blocks,
+those blocks not only have differing access costs, there are also
+implications for bus and cache controller contention. This works out to
+6 nodes in practice, as each one has a differing cost.
 
-> Matt
+More and more embedded processors are shipping with both on-chip and
+external SRAM blocks in increasingly larger sizes (from 128kB - 1MB
+on-chip, and more shared between CPUs). These often have special
+characteristics, like bypassing the cache completely, so it's possible to
+map workloads with certain latency constraints there while alleviating
+pressure from the snoop controller. Some folks also opt for the SRAM
+instead of an L2 due to die constraints, for example. In any event,
+current processes make this sort of thing quite common, and I expect
+there will be more embedded CPUs with blocks of memory they can't really
+do a damn thing with otherwise besides statically allocating it all for a
+single application.
 
-cu
-Adrian
+As of -rc1, using SLOB on a 128kB SRAM node, I'm left with 124kB usable.
+Since we give up a node-local pfn for the pgdat, this is what's expected.
+There's still some work to be done in this area, but the current scheme
+works well enough. If anything, we should be looking at ways to make it
+more light-weight, rather than simply trying to push it all off.
 
--- 
-
-       "Is there not promise of rain?" Ling Tan asked suddenly out
-        of the darkness. There had been need of rain for many days.
-       "Only a promise," Lao Er said.
-                                       Pearl S. Buck - Dragon Seed
+I would expect other embedded platforms with similar use cases to start
+adding support as well in the future.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
