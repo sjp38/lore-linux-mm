@@ -1,51 +1,44 @@
-From: Andi Kleen <ak@suse.de>
-Subject: Re: [PATCH 01/14] NUMA: Generic management of nodemasks for various purposes
-Date: Wed, 1 Aug 2007 11:19:33 +0200
-References: <20070727194316.18614.36380.sendpatchset@localhost> <Pine.LNX.4.64.0707312006550.22443@schroedinger.engr.sgi.com> <20070731203203.2691ca59.akpm@linux-foundation.org>
-In-Reply-To: <20070731203203.2691ca59.akpm@linux-foundation.org>
+Date: Wed, 1 Aug 2007 11:29:09 +0200
+From: Adrian Bunk <bunk@stusta.de>
+Subject: Re: [RFC PATCH] type safe allocator
+Message-ID: <20070801092909.GN3972@stusta.de>
+References: <E1IGAAI-0006K6-00@dorka.pomaz.szeredi.hu>
 MIME-Version: 1.0
-Content-Type: text/plain;
-  charset="ansi_x3.4-1968"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=utf-8
 Content-Disposition: inline
-Message-Id: <200708011119.33242.ak@suse.de>
+In-Reply-To: <E1IGAAI-0006K6-00@dorka.pomaz.szeredi.hu>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Christoph Lameter <clameter@sgi.com>, Lee Schermerhorn <lee.schermerhorn@hp.com>, linux-mm@kvack.org, Nishanth Aravamudan <nacc@us.ibm.com>, pj@sgi.com, kxr@sgi.com, Mel Gorman <mel@skynet.ie>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+To: Miklos Szeredi <miklos@szeredi.hu>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, akpm@linux-foundation.org, torvalds@linux-foundation.org
 List-ID: <linux-mm.kvack.org>
 
-On Wednesday 01 August 2007 05:32:03 Andrew Morton wrote:
-> On Tue, 31 Jul 2007 20:14:08 -0700 (PDT) Christoph Lameter <clameter@sgi.com> wrote:
+On Wed, Aug 01, 2007 at 11:06:46AM +0200, Miklos Szeredi wrote:
+> I wonder why we don't have type safe object allocators a-la new() in
+> C++ or g_new() in glib?
 > 
-> > On Tue, 31 Jul 2007, Andrew Morton wrote:
-> > 
-> > > ooookay...   I don't think I want to be the first person who gets
-> > > to do that, so I shall duck them for -mm2.
-> > > 
-> > > I think there were updates pending anyway.   I saw several under-replied-to
-> > > patches from Lee but it wasn't clear it they were relevant to these changes
-> > > or what.
-> > 
-> > I have not seen those. We also have the issue with slab allocations 
-> > failing on NUMAQ with its HIGHMEM zones. 
-> > 
-> > Andi wants to drop support for NUMAQ again. Is that possible? NUMA only on 
-> > 64 bit?
+>   fooptr = k_new(struct foo, GFP_KERNEL);
 > 
-> umm, that would need wide circulation.  I have a feeling that some
-> implementations of some of the more obscure 32-bit architectures can (or
-> will) have numa characteristics.  Looks like mips might already.
+> is nicer and more descriptive than
+> 
+>   fooptr = kmalloc(sizeof(*fooptr), GFP_KERNEL);
+>...
 
-The problem here is really highmem and NUMA. If they only have lowmem
-i guess it would be reasonably easy to support.
+But it's much more likely to break when someone converts fooptr to a 
+different struct.
 
-> And doesn't i386 summit do numa?
+It might not be a common case but it sometimes happens - and your type 
+safe variant introduces the possibility for really nasty bugs.
 
-Yes, it does. But I don't think many are run in NUMA mode.
+cu
+Adrian
 
+-- 
 
--Andi
+       "Is there not promise of rain?" Ling Tan asked suddenly out
+        of the darkness. There had been need of rain for many days.
+       "Only a promise," Lao Er said.
+                                       Pearl S. Buck - Dragon Seed
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
