@@ -1,39 +1,42 @@
-Date: Tue, 31 Jul 2007 23:03:06 -0400
-Subject: Re: [patch][rfc] remove ZERO_PAGE?
-Message-ID: <20070801030306.GA29507@fieldses.org>
-References: <20070727021943.GD13939@wotan.suse.de> <e28f90730707300652g4a0d0f4ah10bd3c06564d624b@mail.gmail.com> <20070730115751.a2aaa28f.akpm@linux-foundation.org> <20070730223912.GM2386@fieldses.org> <20070801014739.GA30549@wotan.suse.de> <20070801015306.GB24887@fieldses.org> <e28f90730707311919y7e48c7f9we4f974d844d17739@mail.gmail.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <e28f90730707311919y7e48c7f9we4f974d844d17739@mail.gmail.com>
-From: "J. Bruce Fields" <bfields@fieldses.org>
+Date: Tue, 31 Jul 2007 20:05:22 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH 01/14] NUMA: Generic management of nodemasks for various
+ purposes
+Message-Id: <20070731200522.c19b3b95.akpm@linux-foundation.org>
+In-Reply-To: <Pine.LNX.4.64.0707311946530.6158@schroedinger.engr.sgi.com>
+References: <20070727194316.18614.36380.sendpatchset@localhost>
+	<20070727194322.18614.68855.sendpatchset@localhost>
+	<20070731192241.380e93a0.akpm@linux-foundation.org>
+	<Pine.LNX.4.64.0707311946530.6158@schroedinger.engr.sgi.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "Luiz Fernando N. Capitulino" <lcapitulino@gmail.com>
-Cc: Nick Piggin <npiggin@suse.de>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, Hugh Dickins <hugh@veritas.com>, Andrea Arcangeli <andrea@suse.de>, Linux Memory Management List <linux-mm@kvack.org>, lcapitulino@mandriva.com.br, Neil Brown <neilb@suse.de>
+To: Christoph Lameter <clameter@sgi.com>
+Cc: Lee Schermerhorn <lee.schermerhorn@hp.com>, linux-mm@kvack.org, ak@suse.de, Nishanth Aravamudan <nacc@us.ibm.com>, pj@sgi.com, kxr@sgi.com, Mel Gorman <mel@skynet.ie>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Jul 31, 2007 at 11:19:00PM -0300, Luiz Fernando N. Capitulino wrote:
-> On 7/31/07, J. Bruce Fields <bfields@fieldses.org> wrote:
-> > On Wed, Aug 01, 2007 at 03:47:39AM +0200, Nick Piggin wrote:
-> > > On Mon, Jul 30, 2007 at 06:39:12PM -0400, J. Bruce Fields wrote:
-> > > > It looks to me like it's oopsing at the deference of
-> > > > fhp->fh_export->ex_uuid in encode_fsid(), which is exactly the case
-> > > > commit b41eeef14d claims to fix.  Looks like that's been in since
-> > > > v2.6.22-rc1; what kernel is this?
-> > >
-> > > Any progress with this? I'm fairly sure ZERO_PAGE removal wouldn't
-> > > have triggered it.
-> >
-> > I agree that it's most likely an nfsd bug.  I'll take another look, but
-> > it probably won't be till tommorow afternoon.
+On Tue, 31 Jul 2007 19:52:23 -0700 (PDT) Christoph Lameter <clameter@sgi.com> wrote:
+
+> On Tue, 31 Jul 2007, Andrew Morton wrote:
 > 
->  Bruce, is there a way to reproduce the bug b41eeef14d claims to fix?
+> > >
+> > > +#define for_each_node_state(node, __state) \
+> > > +	for ( (node) = 0; (node) != 0; (node) = 1)
+> > 
+> > That looks weird.
+> 
+> Yup and we have committed the usual sin of not testing !NUMA.
 
-Neil might have a test case.  Otherwise I'll try to cook one up for you
-tommorow.
+ooookay...   I don't think I want to be the first person who gets
+to do that, so I shall duck them for -mm2.
 
---b.
+I think there were updates pending anyway.   I saw several under-replied-to
+patches from Lee but it wasn't clear it they were relevant to these changes
+or what.
+
+I'll let things cook a bit more.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
