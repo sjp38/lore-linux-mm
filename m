@@ -1,77 +1,51 @@
-Subject: [RFC PATCH] type safe allocator
-Message-Id: <E1IGAAI-0006K6-00@dorka.pomaz.szeredi.hu>
-From: Miklos Szeredi <miklos@szeredi.hu>
-Date: Wed, 01 Aug 2007 11:06:46 +0200
+From: Andi Kleen <ak@suse.de>
+Subject: Re: [PATCH 01/14] NUMA: Generic management of nodemasks for various purposes
+Date: Wed, 1 Aug 2007 11:19:33 +0200
+References: <20070727194316.18614.36380.sendpatchset@localhost> <Pine.LNX.4.64.0707312006550.22443@schroedinger.engr.sgi.com> <20070731203203.2691ca59.akpm@linux-foundation.org>
+In-Reply-To: <20070731203203.2691ca59.akpm@linux-foundation.org>
+MIME-Version: 1.0
+Content-Type: text/plain;
+  charset="ansi_x3.4-1968"
+Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+Message-Id: <200708011119.33242.ak@suse.de>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-kernel@vger.kernel.org
-Cc: linux-mm@kvack.org, akpm@linux-foundation.org, torvalds@linux-foundation.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Christoph Lameter <clameter@sgi.com>, Lee Schermerhorn <lee.schermerhorn@hp.com>, linux-mm@kvack.org, Nishanth Aravamudan <nacc@us.ibm.com>, pj@sgi.com, kxr@sgi.com, Mel Gorman <mel@skynet.ie>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-I wonder why we don't have type safe object allocators a-la new() in
-C++ or g_new() in glib?
+On Wednesday 01 August 2007 05:32:03 Andrew Morton wrote:
+> On Tue, 31 Jul 2007 20:14:08 -0700 (PDT) Christoph Lameter <clameter@sgi.com> wrote:
+> 
+> > On Tue, 31 Jul 2007, Andrew Morton wrote:
+> > 
+> > > ooookay...   I don't think I want to be the first person who gets
+> > > to do that, so I shall duck them for -mm2.
+> > > 
+> > > I think there were updates pending anyway.   I saw several under-replied-to
+> > > patches from Lee but it wasn't clear it they were relevant to these changes
+> > > or what.
+> > 
+> > I have not seen those. We also have the issue with slab allocations 
+> > failing on NUMAQ with its HIGHMEM zones. 
+> > 
+> > Andi wants to drop support for NUMAQ again. Is that possible? NUMA only on 
+> > 64 bit?
+> 
+> umm, that would need wide circulation.  I have a feeling that some
+> implementations of some of the more obscure 32-bit architectures can (or
+> will) have numa characteristics.  Looks like mips might already.
 
-  fooptr = k_new(struct foo, GFP_KERNEL);
+The problem here is really highmem and NUMA. If they only have lowmem
+i guess it would be reasonably easy to support.
 
-is nicer and more descriptive than
+> And doesn't i386 summit do numa?
 
-  fooptr = kmalloc(sizeof(*fooptr), GFP_KERNEL);
+Yes, it does. But I don't think many are run in NUMA mode.
 
-and more safe than
 
-  fooptr = kmalloc(sizeof(struct foo), GFP_KERNEL);
-
-And we have zillions of both variants.
-
-Note, I'm not advocating mass replacement, but using this in new code,
-and gradually converting old ones whenever they need touching anyway.
-
-Signed-off-by: Miklos Szeredi <mszeredi@suse.cz>
----
-
-Index: linux-2.6.22/include/linux/slab.h
-===================================================================
---- linux-2.6.22.orig/include/linux/slab.h	2007-07-09 01:32:17.000000000 +0200
-+++ linux-2.6.22/include/linux/slab.h	2007-08-01 10:42:45.000000000 +0200
-@@ -110,6 +110,38 @@ static inline void *kcalloc(size_t n, si
- 	return __kzalloc(n * size, flags);
- }
- 
-+/**
-+ * k_new - allocate given type object
-+ * @type: the type of the object to allocate
-+ * @flags: the type of memory to allocate.
-+ */
-+#define k_new(type, flags) ((type *) kmalloc(sizeof(type), flags))
-+
-+/**
-+ * k_new0 - allocate given type object, zero out allocated space
-+ * @type: the type of the object to allocate
-+ * @flags: the type of memory to allocate.
-+ */
-+#define k_new0(type, flags) ((type *) kzalloc(sizeof(type), flags))
-+
-+/**
-+ * k_new_array - allocate array of given type object
-+ * @type: the type of the object to allocate
-+ * @len: the length of the array
-+ * @flags: the type of memory to allocate.
-+ */
-+#define k_new_array(type, len, flags) \
-+	((type *) kmalloc(sizeof(type) * (len), flags))
-+
-+/**
-+ * k_new0_array - allocate array of given type object, zero out allocated space
-+ * @type: the type of the object to allocate
-+ * @len: the length of the array
-+ * @flags: the type of memory to allocate.
-+ */
-+#define k_new0_array(type, len, flags) \
-+	((type *) kzalloc(sizeof(type) * (len), flags))
-+
- /*
-  * Allocator specific definitions. These are mainly used to establish optimized
-  * ways to convert kmalloc() calls to kmem_cache_alloc() invocations by selecting
+-Andi
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
