@@ -1,42 +1,29 @@
-Date: Wed, 1 Aug 2007 09:50:05 +0200
-From: Adrian Bunk <bunk@stusta.de>
-Subject: Re: [ck] Re: SD still better than CFS for 3d ?
-Message-ID: <20070801075005.GM3972@stusta.de>
-References: <930f95dc0707291431j4e50214di3c01cd44b5597502@mail.gmail.com> <20070730114649.GB19186@elte.hu> <op.tv90xghwatcbto@linux.site> <d3380cee0707300831m33d896aufcbdb188576940a2@mail.gmail.com> <b21f8390707300925i76cb08f2j55bba537cf853f88@mail.gmail.com> <20070730182959.GA29151@infradead.org> <adaps29sm62.fsf@cisco.com> <b21f8390707302007n2f21018crc6b7cd83666e0f3c@mail.gmail.com> <20070801052513.GL3972@stusta.de> <b21f8390707312319l3ffd8e7cn85984e32344a41f2@mail.gmail.com>
+From: Andi Kleen <ak@suse.de>
+Subject: Re: [rfc] balance-on-fork NUMA placement
+Date: Wed, 1 Aug 2007 10:39:23 +0200
+References: <20070731054142.GB11306@wotan.suse.de> <200707311114.09284.ak@suse.de> <Pine.LNX.4.64.0707311639450.31337@schroedinger.engr.sgi.com>
+In-Reply-To: <Pine.LNX.4.64.0707311639450.31337@schroedinger.engr.sgi.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
+Content-Type: text/plain;
+  charset="ansi_x3.4-1968"
+Content-Transfer-Encoding: 7bit
 Content-Disposition: inline
-In-Reply-To: <b21f8390707312319l3ffd8e7cn85984e32344a41f2@mail.gmail.com>
+Message-Id: <200708011039.23356.ak@suse.de>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Matthew Hawkins <darthmdh@gmail.com>
-Cc: Roland Dreier <rdreier@cisco.com>, Christoph Hellwig <hch@infradead.org>, Jacob Braun <jwbraun@gmail.com>, kriko <kristjan.ugrin@gmail.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Martin Schwidefsky <schwidefsky@de.ibm.com>
+To: Christoph Lameter <clameter@sgi.com>
+Cc: Nick Piggin <npiggin@suse.de>, Ingo Molnar <mingo@elte.hu>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Aug 01, 2007 at 04:19:36PM +1000, Matthew Hawkins wrote:
-> On 8/1/07, Adrian Bunk <bunk@stusta.de> wrote:
-> > But there's not much value in benchmarking if an important part of the
-> > performance critical code is in some undebuggable driver...
-> 
-> In this case we don't care about the performance of the video driver.
-> This isn't a race to see who can get the most fps.  The driver can be
-> thought of as a black box so long as comparative benchmarks are done
-> with the same driver.
->...
+On Wednesday 01 August 2007 01:40:18 Christoph Lameter wrote:
+ 
+> It does in the sense that slabs are allocated following policies. If you 
+> want to place individual objects then you need to use kmalloc_node().
 
-What if your "black box" e.g. uses the BKL?
+Nick wants to place individual objects here
 
-> Matt
+-Andi
 
-cu
-Adrian
-
--- 
-
-       "Is there not promise of rain?" Ling Tan asked suddenly out
-        of the darkness. There had been need of rain for many days.
-       "Only a promise," Lao Er said.
-                                       Pearl S. Buck - Dragon Seed
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
