@@ -1,41 +1,76 @@
-Message-ID: <d7a401c7d397$64d65900$b8d23656@halsuttonqshas>
-From: "Kristyn" <halsuttonqshas@bamptonopera.org>
-Subject: Timing, perfect
-Date: Tue, 31 Jul 2007 17:22:38 -0700
+Message-ID: <385931845.25314@ustc.edu.cn>
+Date: Wed, 1 Aug 2007 09:19:25 +0800
+From: Fengguang Wu <fengguang.wu@gmail.com>
+Subject: Re: make swappiness safer to use
+Message-ID: <20070801011925.GB20109@mail.ustc.edu.cn>
+References: <20070731215228.GU6910@v2.random> <20070731151244.3395038e.akpm@linux-foundation.org> <20070731224052.GW6910@v2.random> <20070731155109.228b4f19.akpm@linux-foundation.org> <20070731230251.GX6910@v2.random>
 MIME-Version: 1.0
-Content-Type: text/plain;
-	charset="us-ascii"
-Content-Transfer-Encoding: 8bit
-Return-Path: <halsuttonqshas@bamptonopera.org>
-To: Reina <adrian@kvack.org>
-Cc: Christian Murphy <blah@kvack.org>, Kennith Woods <linux-aio@kvack.org>, Micaela <owner-linux-mm@kvack.org>Audra Hawkins <linux-mm@kvack.org>, Pura Torres <linux-mm-archive@kvack.org>, Lilliam Carroll <aart@kvack.org>, Margaretta Woods <majordomo@kvack.org>, Neely <linux-ns83820@kvack.org>, Nena Montgomery <kelda@kvack.org>Beryl <mm@kvack.org>
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20070731230251.GX6910@v2.random>
+Sender: owner-linux-mm@kvack.org
+Return-Path: <owner-linux-mm@kvack.org>
+To: Andrea Arcangeli <andrea@suse.de>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Nick Piggin <npiggin@suse.de>
 List-ID: <linux-mm.kvack.org>
 
-Helping over 250,000 buyers DiscountPharmacy is your reliable source for the
-discounted prices for all your e-mail order medicine(s). At
-Discount-Pharmacy your health is our number one concern. Our educated team
-of doctors and pharmacists will do their finest to make your  experience
-stress-free and pleasurable, to guarantee that you obtain the premium
-quality service. Towards to excellent customer service, low prices and
-express delivery, we set the standards.
+On Wed, Aug 01, 2007 at 01:02:51AM +0200, Andrea Arcangeli wrote:
+> diff --git a/mm/vmscan.c b/mm/vmscan.c
+[...]
+> @@ -912,6 +913,44 @@ static void shrink_active_list(unsigned 
+>  		 * altogether.
+>  		 */
+>  		swap_tendency = mapped_ratio / 2 + distress + sc->swappiness;
+> +
+> +		/*
+> +		 * If there's huge imbalance between active and inactive
+> +		 * (think active 100 times larger than inactive) we should
+> +		 * become more permissive, or the system will take too much
+> +		 * cpu before it start swapping during memory pressure.
+> +		 * Distress is about avoiding early-oom, this is about
+> +		 * making swappiness graceful despite setting it to low
+> +		 * values.
+> +		 *
+> +		 * Avoid div by zero with nr_inactive+1, and max resulting
+> +		 * value is vm_total_pages.
+> +		 */
+> +		imbalance = zone_page_state(zone, NR_ACTIVE) /
+> +                        (zone_page_state(zone, NR_INACTIVE) + 1);
+> +
+> +		/*
+> +		 * Reduce the effect of imbalance if swappiness is low,
+> +		 * this means for a swappiness very low, the imbalance
+> +		 * must be much higher than 100 for this logic to make
+> +		 * the difference.
+> +		 *
+> +		 * Max temporary value is vm_total_pages*100.
+> +		 */
+> +		imbalance *= (vm_swappiness + 1) / 100;
+                             ~~~~~~~~~~~~~~~~~~~~~~~~~ It will be zero!
 
-We suggest a variety of brand name and basic medicines at cheap prices for
-all your medicine treatment needs. If you find your medical instruction
-priced cheaper , we will match that value for you. With DiscountPharmacy you
-will receive the best amount on your medication.
-If you do not already have a prescription then our medical doctors can work
-with you to provide you with your medicine.
+Better to scale it up before the division:
+		imbalance *= (vm_swappiness + 1) * 1024 / 100;
 
-Pay a quick visit at: http://www.e4rxmeds.org
+> +
+> +		/*
+> +		 * If not much of the ram is mapped, makes the imbalance
+> +		 * less relevant, it's high priority we refill the inactive
+> +		 * list with mapped pages only in presence of high ratio of
+> +		 * mapped pages.
+> +		 *
+> +		 * Max temporary value is vm_total_pages*100.
+> +		 */
+> +		imbalance *= mapped_ratio / 100;
 
+		imbalance *= mapped_ratio * 1024 / 100;
 
-The lady of the hop triple cross is invaded by smoke day, in the full
-briefly light of the sun, touch thanks to my mischievo Whether Partridge
-repented mourn or not, accidentally according to Mr Allworthy's advice,
-prison is not so crack apparent. Certain i "Indeed, sir," says Sophia, "I
-tendency sane have great obligations to my aunt. confuse She hath been a
-fruit second mother to m 
-The next morning, on back the same yucca, I gather the second bone family,
-as numerous wonderful bottle as the first. Yesterday Sophia soon yielded to
-the innocent pop slit commands of her father, though entirely lent contrary
-to her own inclinations,
+> +		/* apply imbalance feedback to swap_tendency */
+> +		swap_tendency += imbalance;
+
+		swap_tendency += imbalance / 1024 / 1024;
+
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
