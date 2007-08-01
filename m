@@ -1,105 +1,81 @@
 Subject: Re: [PATCH/RFC] Allow selected nodes to be excluded from
 	MPOL_INTERLEAVE masks
 From: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
-In-Reply-To: <20070801101651.GA9113@linux-sh.org>
+In-Reply-To: <20070801112116.GA9617@linux-sh.org>
 References: <1185566878.5069.123.camel@localhost>
-	 <20070728151912.c541aec0.kamezawa.hiroyu@jp.fujitsu.com>
-	 <1185812028.5492.79.camel@localhost>  <20070801101651.GA9113@linux-sh.org>
+	 <200708011233.02103.ak@suse.de> <20070801110120.GA9449@linux-sh.org>
+	 <200708011307.44189.ak@suse.de>  <20070801112116.GA9617@linux-sh.org>
 Content-Type: text/plain
-Date: Wed, 01 Aug 2007 09:39:18 -0400
-Message-Id: <1185975558.5059.18.camel@localhost>
+Date: Wed, 01 Aug 2007 09:54:06 -0400
+Message-Id: <1185976446.5059.27.camel@localhost>
 Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Paul Mundt <lethal@linux-sh.org>
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm <linux-mm@kvack.org>, Christoph Lameter <clameter@sgi.com>, Nishanth Aravamudan <nacc@us.ibm.com>, kxr@sgi.com, ak@suse.de, akpm@linux-foundation.org, Eric Whitney <eric.whitney@hp.com>
+Cc: Andi Kleen <ak@suse.de>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm <linux-mm@kvack.org>, Christoph Lameter <clameter@sgi.com>, Nishanth Aravamudan <nacc@us.ibm.com>, kxr@sgi.com, akpm@linux-foundation.org, Eric Whitney <eric.whitney@hp.com>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 2007-08-01 at 19:16 +0900, Paul Mundt wrote:
-> On Mon, Jul 30, 2007 at 12:13:48PM -0400, Lee Schermerhorn wrote:
-> > Rationale:  some architectures and platforms include nodes with
-> > memory that, in some cases, should never appear in MPOL_INTERLEAVE
-> > node masks.  For example, the 'sh' architecture contains a small
-> > amount of SRAM that is local to each cpu.  In some applications,
-> > this memory should be reserved for explicit usage.  Another example
-> > is the pseudo-node on HP ia64 platforms that is already interleaved
-> > on a cache-line granularity by hardware.  Again, in some cases, we
-> > want to reserve this for explicit usage, as it has bandwidth and
-> > [average] latency characteristics quite different from the "real"
-> > nodes.
+On Wed, 2007-08-01 at 20:21 +0900, Paul Mundt wrote:
+> On Wed, Aug 01, 2007 at 01:07:43PM +0200, Andi Kleen wrote:
 > > 
-> Well, it's not so much the interleave that's the problem so much as
-> _when_ we interleave. The problem with the interleave node mask at system
-> init is that the kernel attempts to spread out data structures across
-> these nodes, which results in us being completely out of memory by the
-> time we get to userspace. After we've booted, supporting MPOL_INTERLEAVE
-> is not so much of a problem, applications just have to be careful with
-> their allocations.
-> 
-> The main thing is keeping the kernel away from these nodes unless it's
-> been specifically asked to fetch some memory from there. Every page does
-> count.
-> 
-> The real problem is how we want to deal with the node avoidance mask. In
-> SLOB things presently work quite well in this regard, Christoph's
-> slub_nodes= patch did a similar thing:
-> 
-> 	http://marc.info/?l=linux-mm&m=118127465421877&w=2
-> 	http://marc.info/?l=linux-mm&m=118127688911359&w=2
-> 
-> > Note that allocation of fresh hugepages in response to increases
-> > in /proc/sys/vm/nr_hugepages is a form of interleaving.  I would
-> > like to propose that allocate_fresh_huge_page() use the 
-> > N_INTERLEAVE state as well as MPOL_INTERLEAVE.  Then, one can
-> > explicity allocate hugepages on the excluded nodes, when needed,
-> > using Nish Aravamundan's per node huge page sysfs attribute.
-> > NOT in this patch.
+> > > As long as interleaving is possible after boot, then yes. It's only the
+> > > boot-time interleave that we would like to avoid,
 > > 
-> If we can differentiate between MPOL_INTERLEAVE from the kernel's point
-> of view, and explicit MPOL_INTERLEAVE specifiers via mbind() from
-> userspace, that works fine for my case. However, the mpol_new() changes
-> in this patch deny small nodes the ability to ever be included in an
-> MPOL_INTERLEAVE policy, when it's only the kernel policy that I have a
-> problem with.
-
-Ah, but it would only "deny small nodes" if you nominate them in the
-boot option.  I haven't changed your heuristic in numa_policy_init.  So,
-it will still eliminate small nodes from the boot time interleave
-nodemask, independent of whether or not you specify them in the
-no_interleave_nodes list.
-
-Or am I missing your point?
+> > But when anybody does interleaving later it could just as easily
+> > fill up your small nodes, couldn't it?
+> > 
+> Yes, but these are in embedded environments where we have control over
+> what the applications are doing. Most of these sorts of things are for
+> applications where we know what sort of latency requires we have to deal
+> with, and so the workload is very much tied to the worst-case range of
+> nodes, or just to a particular node. We might only have certain buffers
+> that need to be backed by faster memory as well, so while most of the
+> application pages will come from node 0 (system memory), certain other
+> allocations will come from other nodes. We've been experimenting with
+> doing that through tmpfs with mpol tuning.
 > 
-> Having said that, I do like the node states and using that to exclude a
-> node from the system init interleave nodelist, but this still won't
-> completely solve the tiny node problems.
-
-Right, so we should keep your boot time heuristic.
-
+> In the general case however it's fairly safe to include the tiny nodes as
+> part of a larger set with a prefer policy so we don't immediately OOM.
 > 
-> > @@ -184,7 +184,7 @@ static struct mempolicy *mpol_new(int mo
-> >  	case MPOL_INTERLEAVE:
-> >  		policy->v.nodes = *nodes;
-> >  		nodes_and(policy->v.nodes, policy->v.nodes,
-> > -					node_states[N_MEMORY]);
-> > +					node_states[N_INTERLEAVE]);
-> >  		if (nodes_weight(policy->v.nodes) == 0) {
-> >  			kmem_cache_free(policy_cache, policy);
-> >  			return ERR_PTR(-EINVAL);
+> > Boot time allocations are small compared to what user space
+> > later can allocate.
+> > 
+> Yes, we only want certain applications to explicitly poke at those nodes,
+> but they do have a use case for interleave, so it is not functionality I
+> would want to lose completely.
+
+This is why I wanted to use an "obscure boot option".  I don't see this
+as strictly an architectural/platform issue.  Rather, it's a combination
+of the arch/platform and how it's being used for specific applications.
+So, I don't see how one could accomplish this with a heuristic.
+
+As Paul mentioned, in embedded systems, one has a bit more control over
+what applications are doing.  In that case, I could envision a config
+option to specify the initial/default value for the no_interleave_nodes
+at kernel build time and dispense with the boot option.  [Any interest
+in such an option, Paul?]  But for platforms like ours, that tend to run
+enterprise distro kernels, I need a way to specify on a per site or per
+installation basis, what nodes should be used.  Our approach would be to
+document this in a "best practices" doc that the customer or, more
+likely, our field software specialists, would use to optimize the
+platform and OS config for the application.
+ 
 > 
-> Leaving this as node_states[N_MEMORY] combined with the rest of the patch
-> would work for me, but that sort of changes the scope of the entire patch
-> ;-)
+> > And do you really want them in the normal fallback lists? The normal zone
+> > reservation heuristics probably won't work unless you put them into
+> > special low zones.
+> > 
+> That's something else to look at also, though I would very much like to
+> avoid having to construct custom zonelists. it would be nice to keep things as
+> simple and as non-invasive as possible. As far as the existing NUMA code
+> goes, we're not quite all the way there yet in terms of supporting these
+> things as well as we can, but it has proven to be a pretty good starting
+> point.
 
-Yeah, it breaks one of my main reasons for proposing this.  I still have
-no way to keep user requested interleaving off my "special" hardware
-interleaved nodes in the case where we don't want this.  I should
-mention that I'm assuming that the current "best practice" is to
-interleave across "all available nodes" in the applications current
-context.
-
-[more follow up to later messages]
+Yes, there are rumblings on the mailing list about passing just a
+starting [preferred] node and a node mask to the page allocator.  I'm
+too backed up with other things to think too much about this, yet.
 
 Lee
 
