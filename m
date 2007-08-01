@@ -1,44 +1,45 @@
-Received: by rv-out-0910.google.com with SMTP id f1so40076rvb
-        for <linux-mm@kvack.org>; Tue, 31 Jul 2007 19:19:07 -0700 (PDT)
-Message-ID: <e28f90730707311919y7e48c7f9we4f974d844d17739@mail.gmail.com>
-Date: Tue, 31 Jul 2007 23:19:00 -0300
-From: "Luiz Fernando N. Capitulino" <lcapitulino@gmail.com>
-Subject: Re: [patch][rfc] remove ZERO_PAGE?
-In-Reply-To: <20070801015306.GB24887@fieldses.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=UTF-8
+Date: Tue, 31 Jul 2007 19:22:41 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH 01/14] NUMA: Generic management of nodemasks for various
+ purposes
+Message-Id: <20070731192241.380e93a0.akpm@linux-foundation.org>
+In-Reply-To: <20070727194322.18614.68855.sendpatchset@localhost>
+References: <20070727194316.18614.36380.sendpatchset@localhost>
+	<20070727194322.18614.68855.sendpatchset@localhost>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
-References: <20070727021943.GD13939@wotan.suse.de>
-	 <e28f90730707300652g4a0d0f4ah10bd3c06564d624b@mail.gmail.com>
-	 <20070730115751.a2aaa28f.akpm@linux-foundation.org>
-	 <20070730223912.GM2386@fieldses.org>
-	 <20070801014739.GA30549@wotan.suse.de>
-	 <20070801015306.GB24887@fieldses.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "J. Bruce Fields" <bfields@fieldses.org>
-Cc: Nick Piggin <npiggin@suse.de>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, Hugh Dickins <hugh@veritas.com>, Andrea Arcangeli <andrea@suse.de>, Linux Memory Management List <linux-mm@kvack.org>, lcapitulino@mandriva.com.br, Neil Brown <neilb@suse.de>
+To: Lee Schermerhorn <lee.schermerhorn@hp.com>
+Cc: linux-mm@kvack.org, ak@suse.de, Nishanth Aravamudan <nacc@us.ibm.com>, pj@sgi.com, kxr@sgi.com, Christoph Lameter <clameter@sgi.com>, Mel Gorman <mel@skynet.ie>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-On 7/31/07, J. Bruce Fields <bfields@fieldses.org> wrote:
-> On Wed, Aug 01, 2007 at 03:47:39AM +0200, Nick Piggin wrote:
-> > On Mon, Jul 30, 2007 at 06:39:12PM -0400, J. Bruce Fields wrote:
-> > > It looks to me like it's oopsing at the deference of
-> > > fhp->fh_export->ex_uuid in encode_fsid(), which is exactly the case
-> > > commit b41eeef14d claims to fix.  Looks like that's been in since
-> > > v2.6.22-rc1; what kernel is this?
-> >
-> > Any progress with this? I'm fairly sure ZERO_PAGE removal wouldn't
-> > have triggered it.
+On Fri, 27 Jul 2007 15:43:22 -0400 Lee Schermerhorn <lee.schermerhorn@hp.com> wrote:
+
+> [patch 1/14] NUMA: Generic management of nodemasks for various purposes
+> 
+> Preparation for memoryless node patches.
+> 
+> Provide a generic way to keep nodemasks describing various characteristics
+> of NUMA nodes.
+> 
+> Remove the node_online_map and the node_possible map and realize the whole
+> thing using two nodes stats: N_POSSIBLE and N_ONLINE.
+> 
+> ...
 >
-> I agree that it's most likely an nfsd bug.  I'll take another look, but
-> it probably won't be till tommorow afternoon.
+> +#define for_each_node_state(node, __state) \
+> +	for ( (node) = 0; (node) != 0; (node) = 1)
 
- Bruce, is there a way to reproduce the bug b41eeef14d claims to fix?
+That looks weird.
 
--- 
-Luiz Fernando N. Capitulino
+
+
+This patch causes early crashes on i386.
+
+http://userweb.kernel.org/~akpm/dsc03671.jpg
+http://userweb.kernel.org/~akpm/config-vmm.txt
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
