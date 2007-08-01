@@ -1,59 +1,51 @@
-Date: Tue, 31 Jul 2007 16:49:38 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: make swappiness safer to use
-Message-Id: <20070731164938.aad531b5.akpm@linux-foundation.org>
-In-Reply-To: <46AFC676.4030907@mbligh.org>
-References: <20070731215228.GU6910@v2.random>
-	<20070731160943.30e9c13a.akpm@linux-foundation.org>
-	<46AFC676.4030907@mbligh.org>
+Date: Wed, 1 Aug 2007 02:21:14 +0200
+From: Nick Piggin <npiggin@suse.de>
+Subject: Re: [rfc] balance-on-fork NUMA placement
+Message-ID: <20070801002114.GB31006@wotan.suse.de>
+References: <20070731054142.GB11306@wotan.suse.de> <20070731080114.GA12367@elte.hu>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20070731080114.GA12367@elte.hu>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Martin Bligh <mbligh@mbligh.org>
-Cc: Andrea Arcangeli <andrea@suse.de>, linux-mm@kvack.org, Nick Piggin <npiggin@suse.de>
+To: Ingo Molnar <mingo@elte.hu>
+Cc: Andi Kleen <ak@suse.de>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 31 Jul 2007 16:32:06 -0700
-Martin Bligh <mbligh@mbligh.org> wrote:
-
-> > Anyway, we can say more if we see the patch (or, more accurately, the
-> > analysis which comes with that patch).
+On Tue, Jul 31, 2007 at 10:01:14AM +0200, Ingo Molnar wrote:
 > 
-> I must say, I don't see what's wrong with killing it and having it
-> local. We're rotating the list all the time, IIRC ... so if we start
-> off with only 1/2^12th of the list ... does it matter? we'll just
-> crank it up higher fairly quickly. Not sure why we want to start
-> with the same chunk size we did last time.
+> * Nick Piggin <npiggin@suse.de> wrote:
+> 
+> > This patch uses memory policies to attempt to improve this. It 
+> > requires that we ask the scheduler to suggest the child's new CPU 
+> > earlier in the fork, but that is not a fundamental difference.
+> 
+> no fundamental objections, but i think we could simply move sched_fork() 
+> to the following place:
+> 
+> > @@ -989,10 +990,13 @@ static struct task_struct *copy_process(
+> >  	if (retval)
+> >  		goto fork_out;
+> >  
+> > +	cpu = sched_fork_suggest_cpu(clone_flags);
+> > +	mpol_arg = mpol_prefer_cpu_start(cpu);
+> > +
+> >  	retval = -ENOMEM;
+> >  	p = dup_task_struct(current);
+> >  	if (!p)
+> > -		goto fork_out;
+> > +		goto fork_mpol;
+> >  
+> >  	rt_mutex_init_task(p);
+> 
+> 
+> _after_ the dup_task_struct(). Then change sched_fork() to return a CPU 
+> number - hence we dont have a separate sched_fork_suggest_cpu() 
+> initialization function, only one, obvious sched_fork() function. 
+> Agreed?
 
-This scenario:
-
-- a thread goes into shrink_active_list(), does scan, scan, scan, finding
-  only mapped pages.
-
-- eventually, we reach a sufficiently high priority to flip into
-  reclaim-mapped mode.
-
-- now, we quickly move SWAP_CLUSTER_MAX pages onto the inactive list, and
-  we're done.
-
-So we scanned a few thousand pages, then moved 32-odd down to the inactive
-list.
-
-Now, someone else comes in and does some reclaim.  It would be bad to scan
-another few thousand pages and to then move 32-odd pages down to the
-inactive list.  Think what that pattern looks like: lumps of 32-pages with a
-few thousand pages between them getting deactivated.
-
-To fix this, we attempt to start scanning out in the state which it was
-originally in: ie, the state which this caller to shrink_active_list()
-would have discovered for himself _anyway_.  After enough pages have been
-pointlessly recirculated.
-
-
-Can the current implemetnation make mistakes?  Sure.  But I'd suggest that
-it will make far less than (thousands/32) mistakes.
+That puts task struct, kernel stack, thread info on the wrong node.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
