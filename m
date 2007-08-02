@@ -1,51 +1,48 @@
-Subject: Re: [PATCH] Apply memory policies to top two highest zones when
-	highest zone is ZONE_MOVABLE
-From: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
-In-Reply-To: <20070802172118.GD23133@skynet.ie>
-References: <20070802172118.GD23133@skynet.ie>
-Content-Type: text/plain
-Date: Thu, 02 Aug 2007 15:41:51 -0400
-Message-Id: <1186083711.5040.74.camel@localhost>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Date: Thu, 2 Aug 2007 12:52:43 -0700 (PDT)
+From: Christoph Lameter <clameter@sgi.com>
+Subject: Re: NUMA policy issues with ZONE_MOVABLE
+In-Reply-To: <20070802194211.GE23133@skynet.ie>
+Message-ID: <Pine.LNX.4.64.0708021251180.8527@schroedinger.engr.sgi.com>
+References: <Pine.LNX.4.64.0707242120370.3829@schroedinger.engr.sgi.com>
+ <20070725111646.GA9098@skynet.ie> <Pine.LNX.4.64.0707251212300.8820@schroedinger.engr.sgi.com>
+ <20070802140904.GA16940@skynet.ie> <Pine.LNX.4.64.0708021152370.7719@schroedinger.engr.sgi.com>
+ <20070802194211.GE23133@skynet.ie>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Mel Gorman <mel@skynet.ie>
-Cc: akpm@linux-foundation.org, clameter@sgi.com, kamezawa.hiroyu@jp.fujitsu.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: linux-mm@kvack.org, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, ak@suse.de, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, akpm@linux-foundation.org, pj@sgi.com
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 2007-08-02 at 18:21 +0100, Mel Gorman wrote:
-> The NUMA layer only supports NUMA policies for the highest zone. When
-> ZONE_MOVABLE is configured with kernelcore=, the the highest zone becomes
-> ZONE_MOVABLE. The result is that policies are only applied to allocations
-> like anonymous pages and page cache allocated from ZONE_MOVABLE when the
-> zone is used.
+On Thu, 2 Aug 2007, Mel Gorman wrote:
+
 > 
-> This patch applies policies to the two highest zones when the highest zone
-> is ZONE_MOVABLE. As ZONE_MOVABLE consists of pages from the highest "real"
-> zone, it's always functionally equivalent.
-> 
-> The patch has been tested on a variety of machines both NUMA and non-NUMA
-> covering x86, x86_64 and ppc64. No abnormal results were seen in kernbench,
-> tbench, dbench or hackbench. It passes regression tests from the numactl
-> package with and without kernelcore= once numactl tests are patched to
-> wait for vmstat counters to update.
-> 
-> Signed-off-by: Mel Gorman <mel@csn.ul.ie>
+> --- 
+> diff --git a/drivers/base/node.c b/drivers/base/node.c
+> index cae346e..3656489 100644
+> --- a/drivers/base/node.c
+> +++ b/drivers/base/node.c
+> @@ -98,6 +98,7 @@ static SYSDEV_ATTR(meminfo, S_IRUGO, node_read_meminfo, NULL);
+>  
+>  static ssize_t node_read_numastat(struct sys_device * dev, char * buf)
+>  {
+> +	refresh_all_cpu_vm_stats();
 
+The function is called refresh_vmstats(). Just export it.
 
-And an ia_64 NUMA platform with some ad hoc, interactive functional
-testing with memtoy and an overnight run of a usex job mix.  Job mix
-included a 32-way kernel build, several povray tracing apps, IO tests,
-sequential and random vm fault tests and a number of 'bin' tests that
-simulate a half a dozen crazed monkeys pounding away at keyboards
-entering surprisingly error-free commands.  All of these loop until
-stopped or the system hangs/crashes--which it didn't...
+>  		       "numa_miss %lu\n"
+> diff --git a/include/linux/vmstat.h b/include/linux/vmstat.h
+> index 75370ec..31046e2 100644
+> --- a/include/linux/vmstat.h
+> +++ b/include/linux/vmstat.h
+> @@ -213,6 +213,7 @@ extern void dec_zone_state(struct zone *, enum zone_stat_item);
+>  extern void __dec_zone_state(struct zone *, enum zone_stat_item);
+>  
+>  void refresh_cpu_vm_stats(int);
+> +void refresh_all_cpu_vm_stats(void);
 
-
-Acked-by:  Lee Schermerhorn <lee.schermerhorn@hp.com>
-Tested-by:  Lee Schermerhorn <lee.schermerhorn@hp.com>
-
+No need to add another one.
 
 
 --
