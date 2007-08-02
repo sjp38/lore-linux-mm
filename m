@@ -1,46 +1,39 @@
-In-reply-to: <Pine.LNX.4.64.0708021417400.24572@fbirervta.pbzchgretzou.qr>
-	(message from Jan Engelhardt on Thu, 2 Aug 2007 14:24:44 +0200 (CEST))
-Subject: Re: [PATCH] type safe allocator
-References: <E1IGAAI-0006K6-00@dorka.pomaz.szeredi.hu>
- <E1IGYuK-0001Jj-00@dorka.pomaz.szeredi.hu> <b6fcc0a0708020504j7588061fq7e70a50499dcbdfe@mail.gmail.com> <Pine.LNX.4.64.0708021417400.24572@fbirervta.pbzchgretzou.qr>
-Message-Id: <E1IGaOE-0001a3-00@dorka.pomaz.szeredi.hu>
-From: Miklos Szeredi <miklos@szeredi.hu>
-Date: Thu, 02 Aug 2007 15:06:54 +0200
+Date: Thu, 2 Aug 2007 14:26:21 +0100
+From: Christoph Hellwig <hch@infradead.org>
+Subject: Re: [PATCH 3/4] vmemmap: pull out the vmemmap code into its own file
+Message-ID: <20070802132621.GA9511@infradead.org>
+References: <exportbomb.1186045945@pinky> <E1IGWw3-0002Xr-Dm@hellhawk.shadowen.org>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <E1IGWw3-0002Xr-Dm@hellhawk.shadowen.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: jengelh@computergmbh.de
-Cc: adobriyan@gmail.com, miklos@szeredi.hu, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, torvalds@linux-foundation.org
+To: Andy Whitcroft <apw@shadowen.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-arch@vger.kernel.org, Christoph Hellwig <hch@infradead.org>, Nick Piggin <npiggin@suse.de>, Christoph Lameter <clameter@sgi.com>, Mel Gorman <mel@csn.ul.ie>
 List-ID: <linux-mm.kvack.org>
 
-> On Aug 2 2007 16:04, Alexey Dobriyan wrote:
-> >On 8/2/07, Miklos Szeredi <miklos@szeredi.hu> wrote:
-> >>   fooptr = kmalloc(sizeof(struct foo), ...);
-> >
-> >Key word is "traditional". Good traditional form which even half-competent
-> >C programmers immediately parse in retina.
-> 
-> And being aware of the potential type-unsafety makes programmers more
-> careful IMHO.
+On Thu, Aug 02, 2007 at 10:25:35AM +0100, Andy Whitcroft wrote:
+> + * Special Kconfig settings:
+> + *
+> + * CONFIG_ARCH_POPULATES_SPARSEMEM_VMEMMAP
+> + *
+> + * 	The architecture has its own functions to populate the memory
+> + * 	map and provides a vmemmap_populate function.
+> + *
+> + * CONFIG_ARCH_POPULATES_SPARSEMEM_VMEMMAP_PMD
+> + *
+> + * 	The architecture provides functions to populate the pmd level
+> + * 	of the vmemmap mappings.  Allowing mappings using large pages
+> + * 	where available.
+> + *
+> + * 	If neither are set then PAGE_SIZE mappings are generated which
+> + * 	require one PTE/TLB per PAGE_SIZE chunk of the virtual memory map.
+> + */
 
-That's a _really_ good reason ;)
-
-> >> +/**
-> >> + * alloc_struct - allocate given type object
-> >> + * @type: the type of the object to allocate
-> >> + * @flags: the type of memory to allocate.
-> >> + */
-> >> +#define alloc_struct(type, flags) ((type *) kmalloc(sizeof(type), flags))
-> 
-> >someone will write alloc_struct(int, GFP_KERNEL), I promise.
-> 
-> and someone else will write
-> 
-> 	struct complexthing foo;
-> 	alloc_struct(foo, GFP_KERNEL);
-
-And the compiler will complain like mad about that.
-
-Miklos
+This is the kinda of mess I mean.  Which architecturs set either of these
+and why?  This code would be a lot more acceptable if we hadn't three
+different variants of the arch interface.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
