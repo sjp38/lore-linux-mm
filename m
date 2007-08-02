@@ -1,97 +1,125 @@
-Date: Thu, 2 Aug 2007 15:09:05 +0100
-Subject: Re: NUMA policy issues with ZONE_MOVABLE
-Message-ID: <20070802140904.GA16940@skynet.ie>
-References: <Pine.LNX.4.64.0707242120370.3829@schroedinger.engr.sgi.com> <20070725111646.GA9098@skynet.ie> <Pine.LNX.4.64.0707251212300.8820@schroedinger.engr.sgi.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <Pine.LNX.4.64.0707251212300.8820@schroedinger.engr.sgi.com>
-From: mel@skynet.ie (Mel Gorman)
+Subject: Re: [rfc] balance-on-fork NUMA placement
+From: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
+In-Reply-To: <46B10E9B.2030907@mbligh.org>
+References: <20070731054142.GB11306@wotan.suse.de>
+	 <200707311114.09284.ak@suse.de> <20070801002313.GC31006@wotan.suse.de>
+	 <46B0C8A3.8090506@mbligh.org> <1185993169.5059.79.camel@localhost>
+	 <46B10E9B.2030907@mbligh.org>
+Content-Type: text/plain
+Date: Thu, 02 Aug 2007 10:49:41 -0400
+Message-Id: <1186066181.5040.20.camel@localhost>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
-Cc: linux-mm@kvack.org, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, ak@suse.de, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, akpm@linux-foundation.org, pj@sgi.com
+To: Martin Bligh <mbligh@mbligh.org>
+Cc: Nick Piggin <npiggin@suse.de>, Andi Kleen <ak@suse.de>, Ingo Molnar <mingo@elte.hu>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>, Eric Whitney <eric.whitney@hp.com>
 List-ID: <linux-mm.kvack.org>
 
-On (25/07/07 12:31), Christoph Lameter didst pronounce:
-
-> > Here is the patch just to handle policies with ZONE_MOVABLE. The highest
-> > zone still gets treated as it does today but allocations using ZONE_MOVABLE
-> > will still be policied. It has been boot-tested and a basic compile job run
-> > on a x86_64 NUMA machine (elm3b6 on test.kernel.org). Is there a
-> > standard test for regression testing policies?
+On Wed, 2007-08-01 at 15:52 -0700, Martin Bligh wrote:
+> >> This topic seems to come up periodically every since we first introduced
+> >> the NUMA scheduler, and every time we decide it's a bad idea. What's
+> >> changed? What workloads does this improve (aside from some artificial
+> >> benchmark like stream)?
+> >>
+> >> To repeat the conclusions of last time ... the primary problem is that
+> >> 99% of the time, we exec after we fork, and it makes that fork/exec
+> >> cycle slower, not faster, so exec is generally a much better time to do
+> >> this. There's no good predictor of whether we'll exec after fork, unless
+> >> one has magically appeared since late 2.5.x ?
+> >>
+> > 
+> > As Nick points out, one reason to balance on fork() rather than exec()
+> > is that with balance on exec you already have the new task's kernel
+> > structs allocated on the "wrong" node.  However, as you point out, this
+> > slows down the fork/exec cycle.  This is especially noticeable on larger
+> > node-count systems in, e.g., shell scripts that spawn a lot of short
+> > lived child processes.  "Back in the day", we got bitten by this on the
+> > Alpha EV7 [a.k.a. Marvel] platform with just ~64 nodes--small compared
+> > to, say, the current Altix platform.  
+> > 
+> > On the other hand, if you're launching a few larger, long-lived
+> > applications with any significant %-age of system time, you might want
+> > to consider spreading them out across nodes and having their warmer
+> > kernel data structures close to them.  A dilemma.
+> > 
+> > Altho' I was no longer working on this platform when this issue came up,
+> > I believe that the kernel developers came up with something along these
+> > lines:
+> > 
+> > + define a "credit" member of the "task" struct, initialized to, say,
+> > zero.
+> > 
+> > + when "credit" is zero, or below some threshold, balance on fork--i.e.,
+> > spread out the load--otherwise fork "locally" and decrement credit
+> > [maybe not < 0].
+> > 
+> > + when reaping dead children, if the poor thing's cpu utilization is
+> > below some threshold, give the parent some credit.  [blood money?]
+> > 
+> > And so forth.  Initial forks will balance.  If the children refuse to
+> > die, forks will continue to balance.  If the parent starts seeing short
+> > lived children, fork()s will eventually start to stay local.  
 > 
-> There is a test in the numactl package by Andi Kleen.
+> Fork without exec is much more rare than without. Optimising for
+> the uncommon case is the Wrong Thing to Do (tm). What we decided
+> the last time(s) this came up was to allow userspace to pass
+> a hint in if they wanted to fork and not exec.
+
+I understand.  Again, as Nick mentioned, at exec time, you use the
+existing task struct, kernel stack, ... which might [probably will?] end
+up on the wrong node.  If the task uses a significant amount of system
+time, this can hurt performance/scalability.  And, for short lived, low
+cpu usage tasks, such as you can get with shell scripts, you might not
+even want to balance at exec time.
+
+I agree with your assertion regarding optimizing for uncommon cases.
+The mechanism I described [probably poorly, memory fades and it was only
+a "hallway conversation" with the person who implemented it--in response
+to a customer complaint] attempted to detect situations where local vs
+balanced fork would be beneficial.  I will note, however, that when
+balancing, we did look across the entire system.  Linux scheduling
+domains has the intermediate "node" level that constrains this balancing
+to a subset of the system.  
+
+I'm not suggesting we submit this, nor am I particulary interested in
+investigating it myself.  Just pointing out a solution to a workload
+scalability issue on an existing, albeit dated, numa platform.  
+
 > 
+> > I believe that this solved the pathological behavior we were seeing with
+> > shell scripts taking way longer on the larger, supposedly more powerful,
+> > platforms.
+> > 
+> > Of course, that OS could migrate the equivalent of task structs and
+> > kernel stack [the old Unix user struct that was traditionally swappable,
+> > so fairly easy to migrate].  On Linux, all bets are off, once the
+> > scheduler starts migrating tasks away from the node that contains their
+> > task struct, ...  [Remember Eric Focht's "NUMA Affine Scheduler" patch
+> > with it's "home node"?]
+> 
+> Task migration doesn't work well at all without userspace hints.
+> SGI tried for ages (with IRIX) and failed. There's long discussions
+> of all of these things back in the days when we merged the original
+> NUMA scheduler in late 2.5 ...
 
-This was a whole pile of fun. I tried to use the regression test from numactl
-0.9.10 and found it failed on a number of kernels - 2.6.23-rc1, 2.6.22,
-2.6.21, 2.6.20 etc with an x86_64. Was this known or did it just work for
-other people? Whether this test is buggy or not is a matter of definition.
+I'm not one to cast aspersions on the IRIX engineers.  However, as I
+recall [could be wrong here], they were trying to use hardware counters
+to predict what pages to migrate.  On the same OS discussed above, we
+found that automatic, lazy migration of pages worked very well for some
+workloads.  
 
-The regression tests depend on reading a numastat file from /sys before and
-after running a program that consumes memory called memhog. The tests both
-numactl and the numa APIs. The values in numastat are checked before and
-after memhog runs to make sure the values are as expected.
+I have patches and data [presented at LCA 2007] that shows, on a heavily
+loaded 4-node, 16-cpu ia64 numa platform, ~14% reduction in real time
+for a kernel build [make -j 32] and something like 22% reduction in
+system time and 4% reduction in user time.  This with automatic, lazy
+migration enabled vs not, on the same build of a 2.6.19-rc6-mm? kernel.
+I'll also note that the reduction in system time was in spite of the
+cost of the auto/lazy page migration whenever the tasks migrated to a
+different node.
 
-This is all great and grand until you realise those counters are not guaranteed
-to be up-to-date. They are per-cpu variables were are refreshed every second
-by default. This means when the regression test reads them immediately after
-memhog exits, it may read a stale value and "fail". If it had waited a few
-seconds and tried again, it would have got the right value and passed.
-
-Hence the regression test is dependant on timing. The question is if the values
-should always be up-to-date when read from userspace. I put together one patch
-that would refresh the counters when numastat or vmstat was being read but it
-requires a per-cpu function to be called. This may be undesirable as it would
-be punishing on large systems running tools that frequently read /proc/vmstat
-for example. Was it done this way on purpose? The comments around the stats
-code would led me to believe this lag is on purpose to avoid per-cpu calls.
-
-The alternative was to apply this patch to numactl so that the
-regression test waits on the timers to update. With this patch, the
-regression tests passed on a 4-node x86_64 machine.
-
-Signed-off-by: Mel Gorman <mel.csn.ul.ie>
-
----
- regress |    8 ++++++++
- 1 file changed, 8 insertions(+)
-
-diff -ru numactl-0.9.10-orig/test/regress numactl-0.9.10/test/regress
---- numactl-0.9.10-orig/test/regress	2007-08-01 19:56:07.000000000 +0100
-+++ numactl-0.9.10/test/regress	2007-08-02 14:49:16.000000000 +0100
-@@ -7,11 +7,18 @@
- SIZE=$[30 * $MB]
- DEMOSIZE=$[10 * $MB]
- VALGRIND=${VALGRIND:-}
-+STAT_INTERVAL=5
- 
- numactl() { 
- 	$VALGRIND ../numactl "$@"
- }
- 
-+# Get the interval vm statistics refresh at
-+if [ -e /proc/sys/vm/stat_interval ]; then
-+	STAT_INTERVAL=`cat /proc/sys/vm/stat_interval`
-+	STAT_INTERVAL=`expr $STAT_INTERVAL \* 2`
-+fi
-+
- BASE=`pwd`/..
- export LD_LIBRARY_PATH=$BASE
- export PATH=$BASE:$PATH
-@@ -40,6 +47,7 @@
- 
- # args: statname node
- nstat() { 
-+    sleep $STAT_INTERVAL
-     declare -a fields
-     numastat | grep $1 | while read -a fields ; do	
- 	echo ${fields[$[1 + $2]]}
--- 
-Mel Gorman
-Part-time Phd Student                          Linux Technology Center
-University of Limerick                         IBM Dublin Software Lab
+Later,
+Lee
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
