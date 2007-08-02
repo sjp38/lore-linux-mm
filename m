@@ -1,62 +1,55 @@
-Received: from d01relay04.pok.ibm.com (d01relay04.pok.ibm.com [9.56.227.236])
-	by e3.ny.us.ibm.com (8.13.8/8.13.8) with ESMTP id l72GuSVQ012281
-	for <linux-mm@kvack.org>; Thu, 2 Aug 2007 12:56:28 -0400
-Received: from d01av02.pok.ibm.com (d01av02.pok.ibm.com [9.56.224.216])
-	by d01relay04.pok.ibm.com (8.13.8/8.13.8/NCO v8.4) with ESMTP id l72I0xCF505478
-	for <linux-mm@kvack.org>; Thu, 2 Aug 2007 14:00:59 -0400
-Received: from d01av02.pok.ibm.com (loopback [127.0.0.1])
-	by d01av02.pok.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l72I0wr6020877
-	for <linux-mm@kvack.org>; Thu, 2 Aug 2007 14:00:59 -0400
-Subject: Re: [PATCH 4/4] vmemmap ppc64: convert VMM_* macros to a
-	real	function
-From: Dave Hansen <haveblue@us.ibm.com>
-In-Reply-To: <46B216ED.9090404@shadowen.org>
-References: <exportbomb.1186045945@pinky>
-	 <E1IGWwO-0002Yc-8h@hellhawk.shadowen.org>
-	 <1186072295.18414.257.camel@localhost>  <46B216ED.9090404@shadowen.org>
-Content-Type: text/plain
-Date: Thu, 02 Aug 2007 11:00:56 -0700
-Message-Id: <1186077656.18414.267.camel@localhost>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+From: Andy Whitcroft <apw@shadowen.org>
+Subject: [PATCH 0/2] Synchronous Lumpy Reclaim V3
+Message-ID: <exportbomb.1186077923@pinky>
+Date: Thu, 02 Aug 2007 19:17:42 +0100
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andy Whitcroft <apw@shadowen.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-arch@vger.kernel.org, Christoph Hellwig <hch@infradead.org>, Nick Piggin <npiggin@suse.de>, Christoph Lameter <clameter@sgi.com>, Mel Gorman <mel@csn.ul.ie>
+To: Andrew Morton <akpm@osdl.org>
+Cc: Mel Gorman <mel@csn.ul.ie>, Andy Whitcroft <apw@shadowen.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 2007-08-02 at 18:39 +0100, Andy Whitcroft wrote:
-> Dave Hansen wrote:
-> > On Thu, 2007-08-02 at 10:25 +0100, Andy Whitcroft wrote:
-> >> +unsigned long __meminit vmemmap_section_start(struct page *page)
-> >> +{
-> >> +       unsigned long offset = ((unsigned long)page) -
-> >> +                                               ((unsigned long)(vmemmap)); 
-> > 
-> > Isn't this basically page_to_pfn()?  Can we use it here?
-> 
-> No, as that does direct subtraction of the two pointers.  Our 'page'
-> here is not guarenteed to be aligned even to a struct page boundary.
+[This is a re-spin based on feedback from akpm.]
 
-Are you saying that it isn't PAGE_MASK (((unsigned long)page)&PAGE_MASK
-== page) aligned.  Or, that it isn't sizeof(struct page) aligned?
+As pointed out by Mel when reclaim is applied at higher orders a
+significant amount of IO may be started.  As this takes finite time
+to drain reclaim will consider more areas than ultimatly needed
+to satisfy the request.  This leads to more reclaim than strictly
+required and reduced success rates.
 
-> +unsigned long __meminit vmemmap_section_start(struct page *page)
-...
-> @@ -204,7 +209,7 @@ int __meminit vmemmap_populated(unsigned long start, int page_size)
->         unsigned long end = start + page_size;
-> 
->         for (; start < end; start += (PAGES_PER_SECTION * sizeof(struct page)))
-> -               if (pfn_valid(VMM_SECTION_PAGE(start)))
-> +               if (pfn_valid(vmemmap_section_start(start)))
->                         return 1;
+I was able to confirm Mel's test results on systems locally.
+These show that even under light load the success rates drop off far
+more than expected.  Testing with a modified version of his patch
+(which follows) I was able to allocate almost all of ZONE_MOVABLE
+with a near idle system.  I ran 5 test passes sequentially following
+system boot (the system has 29 hugepages in ZONE_MOVABLE):
 
-If "start" is an "unsigned long", why is it being passed into a function
-that takes a "struct page"?
+  2.6.23-rc1              11  8  6  7  7
+  sync_lumpy              28 28 29 29 26
 
-I think the types are confusing me a bit.
+These show that although hugely better than the near 0% success
+normally expected we can only allocate about a 1/4 of the zone.
+Using synchronous reclaim for these allocations we get close to 100%
+as expected.
 
--- Dave
+I have also run our standard high order tests and these show no
+regressions in allocation success rates at rest, and some significant
+improvements under load.
+
+Following this email are two patches, both should be considered as
+bug fixes to lumpy reclaim for 2.6.23:
+
+ensure-we-count-pages-transitioning-inactive-via-clear_active_flags:
+  this a bug fix for Lumpy Reclaim fixing up a bug in VM Event
+  accounting when it marks pages inactive, and
+
+Wait-for-page-writeback-when-directly-reclaiming-contiguous-areas:
+  updates reclaim making direct reclaim synchronous when applied
+  at orders above PAGE_ALLOC_COSTLY_ORDER.
+
+Patches against 2.6.23-rc1.  Andrew please consider for -mm and
+for pushing to mainline.
+
+-apw
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
