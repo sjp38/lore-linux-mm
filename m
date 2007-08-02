@@ -1,49 +1,54 @@
-Date: Thu, 2 Aug 2007 12:52:43 -0700 (PDT)
-From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: NUMA policy issues with ZONE_MOVABLE
-In-Reply-To: <20070802194211.GE23133@skynet.ie>
-Message-ID: <Pine.LNX.4.64.0708021251180.8527@schroedinger.engr.sgi.com>
-References: <Pine.LNX.4.64.0707242120370.3829@schroedinger.engr.sgi.com>
- <20070725111646.GA9098@skynet.ie> <Pine.LNX.4.64.0707251212300.8820@schroedinger.engr.sgi.com>
- <20070802140904.GA16940@skynet.ie> <Pine.LNX.4.64.0708021152370.7719@schroedinger.engr.sgi.com>
- <20070802194211.GE23133@skynet.ie>
+Message-ID: <46B23666.3020205@redhat.com>
+Date: Thu, 02 Aug 2007 15:54:14 -0400
+From: Chuck Ebbert <cebbert@redhat.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: [PATCH] balance_dirty_pages - exit loop when no more pages	available
+References: <1185901890.3133.33.camel@castor.rsk.org>
+In-Reply-To: <1185901890.3133.33.camel@castor.rsk.org>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Mel Gorman <mel@skynet.ie>
-Cc: linux-mm@kvack.org, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, ak@suse.de, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, akpm@linux-foundation.org, pj@sgi.com
+To: Peter Zijlstra <a.p.zijlstra@chello.nl>
+Cc: richard kennedy <richard@rsk.demon.co.uk>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 2 Aug 2007, Mel Gorman wrote:
+On 07/31/2007 01:11 PM, richard kennedy wrote:
 
+Peter, did you see this?
+
+> exit loop in balance_dirty_pages when no more pages available to write
 > 
-> --- 
-> diff --git a/drivers/base/node.c b/drivers/base/node.c
-> index cae346e..3656489 100644
-> --- a/drivers/base/node.c
-> +++ b/drivers/base/node.c
-> @@ -98,6 +98,7 @@ static SYSDEV_ATTR(meminfo, S_IRUGO, node_read_meminfo, NULL);
->  
->  static ssize_t node_read_numastat(struct sys_device * dev, char * buf)
->  {
-> +	refresh_all_cpu_vm_stats();
-
-The function is called refresh_vmstats(). Just export it.
-
->  		       "numa_miss %lu\n"
-> diff --git a/include/linux/vmstat.h b/include/linux/vmstat.h
-> index 75370ec..31046e2 100644
-> --- a/include/linux/vmstat.h
-> +++ b/include/linux/vmstat.h
-> @@ -213,6 +213,7 @@ extern void dec_zone_state(struct zone *, enum zone_stat_item);
->  extern void __dec_zone_state(struct zone *, enum zone_stat_item);
->  
->  void refresh_cpu_vm_stats(int);
-> +void refresh_all_cpu_vm_stats(void);
-
-No need to add another one.
-
+> On a bdi that has very little traffic balance_dirty_pages can loop
+> needlessly waiting until do_writepages has written enough pages.
+> 
+> do_writepages will return encountered_congestion==0 && nr_to_write > 0 
+> when it has completed a pass but did not find enough pages available to
+> write. balance_dirty_pages ignores this and keeps looping until a total
+> of chunk pages was written. 
+> 
+> this patch adds an extra exit condition to break out of the loop in this
+> case. 
+> 
+> I've tested this on my amd64 desktop, and I also have a version of this
+> patch that includes a printk and a test case that occasionally does
+> trigger this condition.  
+> 
+> Signed-off-by: Richard Kennedy <richard@rsk.demon.co.uk>
+> 
+> ------
+> --- linux-2.6.22.1/mm/page-writeback.c.orig	2007-07-30 16:36:09.000000000 +0100
+> +++ linux-2.6.22.1/mm/page-writeback.c	2007-07-31 16:26:43.000000000 +0100
+> @@ -250,6 +250,8 @@ static void balance_dirty_pages(struct a
+>  			pages_written += write_chunk - wbc.nr_to_write;
+>  			if (pages_written >= write_chunk)
+>  				break;		/* We've done our duty */
+> +			if (!wbc.encountered_congestion && wbc.nr_to_write > 0)
+> +				break;	/* didn't find enough to do */
+>  		}
+>  		congestion_wait(WRITE, HZ/10);
+>  	}
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
