@@ -1,44 +1,89 @@
-Date: Thu, 2 Aug 2007 00:37:02 -0400
-Subject: Re: [patch][rfc] remove ZERO_PAGE?
-Message-ID: <20070802043702.GE14660@fieldses.org>
-References: <20070727021943.GD13939@wotan.suse.de> <e28f90730707300652g4a0d0f4ah10bd3c06564d624b@mail.gmail.com> <20070730115751.a2aaa28f.akpm@linux-foundation.org> <20070730223912.GM2386@fieldses.org> <20070801014739.GA30549@wotan.suse.de> <20070801015306.GB24887@fieldses.org> <e28f90730707311919y7e48c7f9we4f974d844d17739@mail.gmail.com>
-MIME-Version: 1.0
+Date: Thu, 2 Aug 2007 06:50:48 +0200
+From: Nick Piggin <npiggin@suse.de>
+Subject: [patch] mm: use lockless radix-tree probe
+Message-ID: <20070802045047.GB13591@wotan.suse.de>
+Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <e28f90730707311919y7e48c7f9we4f974d844d17739@mail.gmail.com>
-From: "J. Bruce Fields" <bfields@fieldses.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "Luiz Fernando N. Capitulino" <lcapitulino@gmail.com>
-Cc: Nick Piggin <npiggin@suse.de>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, Hugh Dickins <hugh@veritas.com>, Andrea Arcangeli <andrea@suse.de>, Linux Memory Management List <linux-mm@kvack.org>, lcapitulino@mandriva.com.br, Neil Brown <neilb@suse.de>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Linux Memory Management List <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Jul 31, 2007 at 11:19:00PM -0300, Luiz Fernando N. Capitulino wrote:
-> On 7/31/07, J. Bruce Fields <bfields@fieldses.org> wrote:
-> > On Wed, Aug 01, 2007 at 03:47:39AM +0200, Nick Piggin wrote:
-> > > On Mon, Jul 30, 2007 at 06:39:12PM -0400, J. Bruce Fields wrote:
-> > > > It looks to me like it's oopsing at the deference of
-> > > > fhp->fh_export->ex_uuid in encode_fsid(), which is exactly the case
-> > > > commit b41eeef14d claims to fix.  Looks like that's been in since
-> > > > v2.6.22-rc1; what kernel is this?
-> > >
-> > > Any progress with this? I'm fairly sure ZERO_PAGE removal wouldn't
-> > > have triggered it.
-> >
-> > I agree that it's most likely an nfsd bug.  I'll take another look, but
-> > it probably won't be till tommorow afternoon.
-> 
->  Bruce, is there a way to reproduce the bug b41eeef14d claims to fix?
+Let me tell you I'm going to get the lockless pagecache merged one day...
 
-OK, sorry, it's taking me a little time to figure out what's going on.
+Until then, here is a little sampler: we've already got the RCU radix-tree
+merged so it's a crime that we're not taking advantage of it here...
 
-But fh_verify() was responsible for checking and filling in the fhp that
-is wrong here, and I don't see the safeguards in fh_verify() (or in the
-export-lookup process) that would ensure that the export associated with
-a filehandle has a non-NULL ex_uuid whenever the filehandle has a uuid
-fsid type.  But I can't create a test case yet.
+--
 
---b.
+Probing pages and radix_tree_tagged are lockless operations with the
+lockless radix-tree. Convert these users to RCU locking rather than
+using tree_lock.
+
+Signed-off-by: Nick Piggin <npiggin@suse.de>
+
+Index: linux-2.6/mm/page-writeback.c
+===================================================================
+--- linux-2.6.orig/mm/page-writeback.c
++++ linux-2.6/mm/page-writeback.c
+@@ -1022,17 +1022,15 @@ int test_set_page_writeback(struct page 
+ EXPORT_SYMBOL(test_set_page_writeback);
+ 
+ /*
+- * Return true if any of the pages in the mapping are marged with the
++ * Return true if any of the pages in the mapping are marked with the
+  * passed tag.
+  */
+ int mapping_tagged(struct address_space *mapping, int tag)
+ {
+-	unsigned long flags;
+ 	int ret;
+-
+-	read_lock_irqsave(&mapping->tree_lock, flags);
++	rcu_read_lock();
+ 	ret = radix_tree_tagged(&mapping->page_tree, tag);
+-	read_unlock_irqrestore(&mapping->tree_lock, flags);
++	rcu_read_unlock();
+ 	return ret;
+ }
+ EXPORT_SYMBOL(mapping_tagged);
+Index: linux-2.6/mm/readahead.c
+===================================================================
+--- linux-2.6.orig/mm/readahead.c
++++ linux-2.6/mm/readahead.c
+@@ -156,20 +156,19 @@ __do_page_cache_readahead(struct address
+ 	/*
+ 	 * Preallocate as many pages as we will need.
+ 	 */
+-	read_lock_irq(&mapping->tree_lock);
+ 	for (page_idx = 0; page_idx < nr_to_read; page_idx++) {
+ 		pgoff_t page_offset = offset + page_idx;
+ 
+ 		if (page_offset > end_index)
+ 			break;
+ 
++		rcu_read_lock();
+ 		page = radix_tree_lookup(&mapping->page_tree, page_offset);
++		rcu_read_unlock();
+ 		if (page)
+ 			continue;
+ 
+-		read_unlock_irq(&mapping->tree_lock);
+ 		page = page_cache_alloc_cold(mapping);
+-		read_lock_irq(&mapping->tree_lock);
+ 		if (!page)
+ 			break;
+ 		page->index = page_offset;
+@@ -178,7 +177,6 @@ __do_page_cache_readahead(struct address
+ 			SetPageReadahead(page);
+ 		ret++;
+ 	}
+-	read_unlock_irq(&mapping->tree_lock);
+ 
+ 	/*
+ 	 * Now start the IO.  We ignore I/O errors - if the page is not
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
