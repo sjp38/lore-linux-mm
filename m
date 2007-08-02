@@ -1,39 +1,42 @@
-Date: Thu, 2 Aug 2007 05:42:01 +0200
-From: Nick Piggin <npiggin@suse.de>
-Subject: Re: [rfc] balance-on-fork NUMA placement
-Message-ID: <20070802034201.GA32631@wotan.suse.de>
-References: <20070731054142.GB11306@wotan.suse.de> <200707311114.09284.ak@suse.de> <Pine.LNX.4.64.0707311639450.31337@schroedinger.engr.sgi.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <Pine.LNX.4.64.0707311639450.31337@schroedinger.engr.sgi.com>
+Date: Wed, 1 Aug 2007 20:56:13 -0700 (PDT)
+From: Linus Torvalds <torvalds@linux-foundation.org>
+Subject: Re: [RFC PATCH] type safe allocator
+In-Reply-To: <E1IGAAI-0006K6-00@dorka.pomaz.szeredi.hu>
+Message-ID: <alpine.LFD.0.999.0708012051100.3582@woody.linux-foundation.org>
+References: <E1IGAAI-0006K6-00@dorka.pomaz.szeredi.hu>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
-Cc: Andi Kleen <ak@suse.de>, Ingo Molnar <mingo@elte.hu>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>
+To: Miklos Szeredi <miklos@szeredi.hu>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, akpm@linux-foundation.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Jul 31, 2007 at 04:40:18PM -0700, Christoph Lameter wrote:
-> On Tue, 31 Jul 2007, Andi Kleen wrote:
-> 
-> > On Tuesday 31 July 2007 07:41, Nick Piggin wrote:
-> > 
-> > > I haven't given this idea testing yet, but I just wanted to get some
-> > > opinions on it first. NUMA placement still isn't ideal (eg. tasks with
-> > > a memory policy will not do any placement, and process migrations of
-> > > course will leave the memory behind...), but it does give a bit more
-> > > chance for the memory controllers and interconnects to get evenly
-> > > loaded.
-> > 
-> > I didn't think slab honored mempolicies by default? 
-> > At least you seem to need to set special process flags.
-> 
-> It does in the sense that slabs are allocated following policies. If you 
-> want to place individual objects then you need to use kmalloc_node().
 
-Is there no way to place objects via policy? At least kernel stack and page
-tables on x86-64 should be covered by page allocator policy, so the patch
-will still be useful.
+On Wed, 1 Aug 2007, Miklos Szeredi wrote:
+>
+> I wonder why we don't have type safe object allocators a-la new() in
+> C++ or g_new() in glib?
+> 
+>   fooptr = k_new(struct foo, GFP_KERNEL);
+
+I would object to this if only because of the horrible name.
+
+C++ is not a good language to take ideas from, and "new()" was not it's 
+best feature to begin with. "k_new()" is just disgusting.
+
+I'd call it something like "alloc_struct()" instead, which tells you 
+exactly what it's all about. Especially since we try to avoid typedefs in 
+the kernel, and as a result, it's basically almost always a struct thing.
+
+That said, I'm not at all sure it's worth it. Especially not with all the 
+various variations on a theme (zeroed, arrays, etc etc).
+
+Quite frankly, I suspect you would be better off just instrumenting 
+"sparse" instead, and matching up the size of the allocation with the type 
+it gets assigned to.
+
+		Linus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
