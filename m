@@ -1,43 +1,42 @@
+In-reply-to: <Pine.LNX.4.64.0708021534050.24572@fbirervta.pbzchgretzou.qr>
+	(message from Jan Engelhardt on Thu, 2 Aug 2007 15:35:56 +0200 (CEST))
 Subject: Re: [PATCH] type safe allocator
-From: Peter Zijlstra <peterz@infradead.org>
-In-Reply-To: <b6fcc0a0708020504j7588061fq7e70a50499dcbdfe@mail.gmail.com>
 References: <E1IGAAI-0006K6-00@dorka.pomaz.szeredi.hu>
-	 <E1IGYuK-0001Jj-00@dorka.pomaz.szeredi.hu>
-	 <b6fcc0a0708020504j7588061fq7e70a50499dcbdfe@mail.gmail.com>
-Content-Type: text/plain
-Date: Thu, 02 Aug 2007 15:47:56 +0200
-Message-Id: <1186062476.12034.115.camel@twins>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+ <E1IGYuK-0001Jj-00@dorka.pomaz.szeredi.hu> <b6fcc0a0708020504j7588061fq7e70a50499dcbdfe@mail.gmail.com>
+ <Pine.LNX.4.64.0708021417400.24572@fbirervta.pbzchgretzou.qr>
+ <E1IGaOE-0001a3-00@dorka.pomaz.szeredi.hu> <Pine.LNX.4.64.0708021534050.24572@fbirervta.pbzchgretzou.qr>
+Message-Id: <E1IGb3I-0001js-00@dorka.pomaz.szeredi.hu>
+From: Miklos Szeredi <miklos@szeredi.hu>
+Date: Thu, 02 Aug 2007 15:49:20 +0200
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Alexey Dobriyan <adobriyan@gmail.com>
-Cc: Miklos Szeredi <miklos@szeredi.hu>, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, torvalds@linux-foundation.org
+To: jengelh@computergmbh.de
+Cc: miklos@szeredi.hu, adobriyan@gmail.com, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, torvalds@linux-foundation.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 2007-08-02 at 16:04 +0400, Alexey Dobriyan wrote:
-> On 8/2/07, Miklos Szeredi <miklos@szeredi.hu> wrote:
-> > The linux kernel doesn't have a type safe object allocator a-la new()
-> > in C++ or g_new() in glib.
+> >> On Aug 2 2007 16:04, Alexey Dobriyan wrote:
+> >> >On 8/2/07, Miklos Szeredi <miklos@szeredi.hu> wrote:
+> >> >>   fooptr = kmalloc(sizeof(struct foo), ...);
+> >> >
+> >> >Key word is "traditional". Good traditional form which even half-competent
+> >> >C programmers immediately parse in retina.
+> >> 
+> >> And being aware of the potential type-unsafety makes programmers more
+> >> careful IMHO.
 > >
-> > Introduce two helpers for this purpose:
-> >
-> >    alloc_struct(type, gfp_flags);
-> >
-> >    zalloc_struct(type, gfp_flags);
+> >That's a _really_ good reason ;)
 > 
-> ick.
-> 
-> > These macros take a type name (usually a 'struct foo') as first
-> > argument
-> 
-> So one has to type struct twice.
+> Yes, a good reason not to use g_new(), so people do get bitten when
+> they are doingitwrong.
 
-thrice in some cases like alloc_struct(struct task_struct, GFP_KERNEL)
+Should we turn off all warnings then, to make people more careful
+after constantly being bitten by stupid mistakes?
 
-I've always found this _struct postfix a little daft, perhaps its time
-to let the janitors clean that out?
+That's one way to think of it, yes.  But I think most would agree,
+that we have better things to do than being careful about things that
+the compiler can check for us.
 
+Miklos
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
