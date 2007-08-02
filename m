@@ -1,65 +1,64 @@
-Date: Thu, 2 Aug 2007 06:55:46 +0200
+Date: Thu, 2 Aug 2007 07:08:42 +0200
 From: Nick Piggin <npiggin@suse.de>
-Subject: [patch] mm: improve find_lock_page
-Message-ID: <20070802045546.GC13591@wotan.suse.de>
+Subject: [patch] mm: clarify __add_to_swap_cache locking
+Message-ID: <20070802050842.GB31121@wotan.suse.de>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Linux Memory Management List <linux-mm@kvack.org>, Hugh Dickins <hugh@veritas.com>
+Cc: Hugh Dickins <hugh@veritas.com>, Linux Memory Management List <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-OK this patch isn't really going to help performance much (it's all
-slowpath stuff), but it does help to clarify the locking.
+__add_to_swap_cache unconditionally sets the page locked, which can be
+a bit alarming to the unsuspecting reader: in the code paths where the
+page is visible to other CPUs, the page should be (and is) already locked.
 
---
-
-find_lock_page does not need to recheck ->index because if the page
-is in the right mapping then the index must be the same. Also, tree_lock
-does not need to be retaken after the page is locked in order to test
-that ->mapping has not changed, because holding the page lock pins its
-mapping.
+Instead, just add a check to ensure the page is locked here, and teach
+the one path relying on the old behaviour to call SetPageLocked itself.
 
 Signed-off-by: Nick Piggin <npiggin@suse.de>
 
-Index: linux-2.6/mm/filemap.c
+Index: linux-2.6/mm/swap_state.c
 ===================================================================
---- linux-2.6.orig/mm/filemap.c
-+++ linux-2.6/mm/filemap.c
-@@ -621,26 +621,27 @@ struct page *find_lock_page(struct addre
+--- linux-2.6.orig/mm/swap_state.c
++++ linux-2.6/mm/swap_state.c
+@@ -74,6 +74,7 @@ static int __add_to_swap_cache(struct pa
  {
- 	struct page *page;
+ 	int error;
  
--	read_lock_irq(&mapping->tree_lock);
- repeat:
-+	read_lock_irq(&mapping->tree_lock);
- 	page = radix_tree_lookup(&mapping->page_tree, offset);
- 	if (page) {
- 		page_cache_get(page);
- 		if (TestSetPageLocked(page)) {
- 			read_unlock_irq(&mapping->tree_lock);
- 			__lock_page(page);
--			read_lock_irq(&mapping->tree_lock);
- 
- 			/* Has the page been truncated while we slept? */
--			if (unlikely(page->mapping != mapping ||
--				     page->index != offset)) {
-+			if (unlikely(page->mapping != mapping)) {
- 				unlock_page(page);
- 				page_cache_release(page);
- 				goto repeat;
- 			}
-+			VM_BUG_ON(page->index != offset);
-+			goto out;
++	BUG_ON(!PageLocked(page));
+ 	BUG_ON(PageSwapCache(page));
+ 	BUG_ON(PagePrivate(page));
+ 	error = radix_tree_preload(gfp_mask);
+@@ -83,7 +84,6 @@ static int __add_to_swap_cache(struct pa
+ 						entry.val, page);
+ 		if (!error) {
+ 			page_cache_get(page);
+-			SetPageLocked(page);
+ 			SetPageSwapCache(page);
+ 			set_page_private(page, entry.val);
+ 			total_swapcache_pages++;
+@@ -338,6 +338,7 @@ struct page *read_swap_cache_async(swp_e
+ 								vma, addr);
+ 			if (!new_page)
+ 				break;		/* Out of memory */
++			SetPageLocked(new_page);/* could be non-atomic op */
  		}
- 	}
- 	read_unlock_irq(&mapping->tree_lock);
-+out:
- 	return page;
+ 
+ 		/*
+@@ -361,7 +362,9 @@ struct page *read_swap_cache_async(swp_e
+ 		}
+ 	} while (err != -ENOENT && err != -ENOMEM);
+ 
+-	if (new_page)
++	if (new_page) {
++		ClearPageLocked(new_page);
+ 		page_cache_release(new_page);
++	}
+ 	return found_page;
  }
- EXPORT_SYMBOL(find_lock_page);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
