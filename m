@@ -1,38 +1,54 @@
-Date: Thu, 2 Aug 2007 11:56:35 -0700 (PDT)
+Date: Thu, 2 Aug 2007 12:16:23 -0700 (PDT)
 From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: NUMA policy issues with ZONE_MOVABLE
-In-Reply-To: <20070802140904.GA16940@skynet.ie>
-Message-ID: <Pine.LNX.4.64.0708021152370.7719@schroedinger.engr.sgi.com>
-References: <Pine.LNX.4.64.0707242120370.3829@schroedinger.engr.sgi.com>
- <20070725111646.GA9098@skynet.ie> <Pine.LNX.4.64.0707251212300.8820@schroedinger.engr.sgi.com>
- <20070802140904.GA16940@skynet.ie>
+Subject: Re: [RFC PATCH] type safe allocator
+In-Reply-To: <E1IGVGf-0000sv-00@dorka.pomaz.szeredi.hu>
+Message-ID: <Pine.LNX.4.64.0708021211100.7948@schroedinger.engr.sgi.com>
+References: <E1IGAAI-0006K6-00@dorka.pomaz.szeredi.hu>
+ <Pine.LNX.4.64.0708012223520.3265@schroedinger.engr.sgi.com>
+ <E1IGVGf-0000sv-00@dorka.pomaz.szeredi.hu>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Mel Gorman <mel@skynet.ie>
-Cc: linux-mm@kvack.org, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, ak@suse.de, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, akpm@linux-foundation.org, pj@sgi.com
+To: Miklos Szeredi <miklos@szeredi.hu>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, akpm@linux-foundation.org, torvalds@linux-foundation.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 2 Aug 2007, Mel Gorman wrote:
+On Thu, 2 Aug 2007, Miklos Szeredi wrote:
 
-> Hence the regression test is dependant on timing. The question is if the values
-> should always be up-to-date when read from userspace. I put together one patch
-> that would refresh the counters when numastat or vmstat was being read but it
-> requires a per-cpu function to be called. This may be undesirable as it would
-> be punishing on large systems running tools that frequently read /proc/vmstat
-> for example. Was it done this way on purpose? The comments around the stats
-> code would led me to believe this lag is on purpose to avoid per-cpu calls.
+> > If you define a new flag like GFP_ZERO_ATOMIC and GFP_ZERO_KERNEL you 
+> > could do
+> > 
+> > 	kalloc(struct, GFP_ZERO_KERNEL)
+> > 
+> > instead of adding new variants?
+> 
+> I don't really like this, introducing new gfp flags just makes
+> grepping harder.
 
-The lag was introduced with the vm statistics rework since ZVCs use 
-deferred updates. We could call refresh_vm_stats before handing out the 
-counters?
+The __GFP_ZERO flag has been around for a long time. GFP_ZERO_ATOMIC and 
+GFP_ZERO_KERNEL or so could just be a shorthand notation.
 
-> The alternative was to apply this patch to numactl so that the
-> regression test waits on the timers to update. With this patch, the
-> regression tests passed on a 4-node x86_64 machine.
+Maybe
 
-Another possible solution. Andi: Which solution would you prefer?
+#define GFP_ZATOMIC (GFP_ATOMIC | __GFP_ZERO)
+#define GFP_ZKERNEL (GFP_KERNEL | __GFP_ZERO)
+
+?
+
+> I do think that at least having a zeroing and a non-zeroing variant
+> makes sense.
+
+They require a duplication of the API and have led to inconsistencies 
+because the complete API was not available with zeroing capabilities 
+(there is still no kzalloc_node f.e.). 
+Using a gfp flag allows all allocation functions to optionally zero data 
+without having to define multiple functions.
+
+The definition of new variants is a bit complicated since the allocator 
+functions contain lots of smarts to do inline constant folding. This is 
+necessary to determine the correct slab at compile time. I'd rather have 
+as few of those as possible.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
