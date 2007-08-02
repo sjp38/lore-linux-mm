@@ -1,37 +1,34 @@
-Date: Thu, 2 Aug 2007 12:58:13 -0700 (PDT)
+Date: Thu, 2 Aug 2007 13:00:03 -0700 (PDT)
 From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [rfc] balance-on-fork NUMA placement
-In-Reply-To: <20070802034201.GA32631@wotan.suse.de>
-Message-ID: <Pine.LNX.4.64.0708021254160.8527@schroedinger.engr.sgi.com>
-References: <20070731054142.GB11306@wotan.suse.de> <200707311114.09284.ak@suse.de>
- <Pine.LNX.4.64.0707311639450.31337@schroedinger.engr.sgi.com>
- <20070802034201.GA32631@wotan.suse.de>
+Subject: Re: [PATCH 01/14] NUMA: Generic management of nodemasks for various
+ purposes
+In-Reply-To: <20070802162348.GA23133@skynet.ie>
+Message-ID: <Pine.LNX.4.64.0708021259150.8527@schroedinger.engr.sgi.com>
+References: <20070727194316.18614.36380.sendpatchset@localhost>
+ <20070727194322.18614.68855.sendpatchset@localhost>
+ <20070731192241.380e93a0.akpm@linux-foundation.org>
+ <Pine.LNX.4.64.0707311946530.6158@schroedinger.engr.sgi.com>
+ <20070731200522.c19b3b95.akpm@linux-foundation.org>
+ <Pine.LNX.4.64.0707312006550.22443@schroedinger.engr.sgi.com>
+ <20070731203203.2691ca59.akpm@linux-foundation.org>
+ <Pine.LNX.4.64.0707312151400.2894@schroedinger.engr.sgi.com>
+ <20070731220727.1fd4b699.akpm@linux-foundation.org>
+ <Pine.LNX.4.64.0707312214350.2997@schroedinger.engr.sgi.com>
+ <20070802162348.GA23133@skynet.ie>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nick Piggin <npiggin@suse.de>
-Cc: Andi Kleen <ak@suse.de>, Ingo Molnar <mingo@elte.hu>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>
+To: Mel Gorman <mel@skynet.ie>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Lee Schermerhorn <lee.schermerhorn@hp.com>, linux-mm@kvack.org, ak@suse.de, Nishanth Aravamudan <nacc@us.ibm.com>, pj@sgi.com, kxr@sgi.com, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 2 Aug 2007, Nick Piggin wrote:
+On Thu, 2 Aug 2007, Mel Gorman wrote:
 
-> > It does in the sense that slabs are allocated following policies. If you 
-> > want to place individual objects then you need to use kmalloc_node().
-> 
-> Is there no way to place objects via policy? At least kernel stack and page
-> tables on x86-64 should be covered by page allocator policy, so the patch
-> will still be useful.
+> With the pci_create_bus() issue fixed up, I was able to boot on numaq
+> with the patch from your git tree applied. It survived running kernbench,
 
-Implementing policies on an object level introduces significant allocator 
-overhead. Tried to do it in SLAB which created a mess.
-
-Add a (slow) kmalloc_policy? Strict Object round robin for interleave 
-right? It probably needs its own RR counter otherwise it disturbs the per 
-task page RR.
-
-For interleave kmalloc() does allocate the slabs round robin not the 
-objects.
+Thanks!
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
