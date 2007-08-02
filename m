@@ -1,39 +1,40 @@
-Date: Thu, 2 Aug 2007 14:26:21 +0100
-From: Christoph Hellwig <hch@infradead.org>
-Subject: Re: [PATCH 3/4] vmemmap: pull out the vmemmap code into its own file
-Message-ID: <20070802132621.GA9511@infradead.org>
-References: <exportbomb.1186045945@pinky> <E1IGWw3-0002Xr-Dm@hellhawk.shadowen.org>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <E1IGWw3-0002Xr-Dm@hellhawk.shadowen.org>
+Date: Thu, 2 Aug 2007 15:35:56 +0200 (CEST)
+From: Jan Engelhardt <jengelh@computergmbh.de>
+Subject: Re: [PATCH] type safe allocator
+In-Reply-To: <E1IGaOE-0001a3-00@dorka.pomaz.szeredi.hu>
+Message-ID: <Pine.LNX.4.64.0708021534050.24572@fbirervta.pbzchgretzou.qr>
+References: <E1IGAAI-0006K6-00@dorka.pomaz.szeredi.hu>
+ <E1IGYuK-0001Jj-00@dorka.pomaz.szeredi.hu> <b6fcc0a0708020504j7588061fq7e70a50499dcbdfe@mail.gmail.com>
+ <Pine.LNX.4.64.0708021417400.24572@fbirervta.pbzchgretzou.qr>
+ <E1IGaOE-0001a3-00@dorka.pomaz.szeredi.hu>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andy Whitcroft <apw@shadowen.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-arch@vger.kernel.org, Christoph Hellwig <hch@infradead.org>, Nick Piggin <npiggin@suse.de>, Christoph Lameter <clameter@sgi.com>, Mel Gorman <mel@csn.ul.ie>
+To: Miklos Szeredi <miklos@szeredi.hu>
+Cc: adobriyan@gmail.com, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, torvalds@linux-foundation.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Aug 02, 2007 at 10:25:35AM +0100, Andy Whitcroft wrote:
-> + * Special Kconfig settings:
-> + *
-> + * CONFIG_ARCH_POPULATES_SPARSEMEM_VMEMMAP
-> + *
-> + * 	The architecture has its own functions to populate the memory
-> + * 	map and provides a vmemmap_populate function.
-> + *
-> + * CONFIG_ARCH_POPULATES_SPARSEMEM_VMEMMAP_PMD
-> + *
-> + * 	The architecture provides functions to populate the pmd level
-> + * 	of the vmemmap mappings.  Allowing mappings using large pages
-> + * 	where available.
-> + *
-> + * 	If neither are set then PAGE_SIZE mappings are generated which
-> + * 	require one PTE/TLB per PAGE_SIZE chunk of the virtual memory map.
-> + */
+On Aug 2 2007 15:06, Miklos Szeredi wrote:
+>> On Aug 2 2007 16:04, Alexey Dobriyan wrote:
+>> >On 8/2/07, Miklos Szeredi <miklos@szeredi.hu> wrote:
+>> >>   fooptr = kmalloc(sizeof(struct foo), ...);
+>> >
+>> >Key word is "traditional". Good traditional form which even half-competent
+>> >C programmers immediately parse in retina.
+>> 
+>> And being aware of the potential type-unsafety makes programmers more
+>> careful IMHO.
+>
+>That's a _really_ good reason ;)
 
-This is the kinda of mess I mean.  Which architecturs set either of these
-and why?  This code would be a lot more acceptable if we hadn't three
-different variants of the arch interface.
+Yes, a good reason not to use g_new(), so people do get bitten when
+they are doingitwrong.
+
+
+
+	Jan
+-- 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
