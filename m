@@ -1,84 +1,103 @@
-Message-ID: <01c7d4f8$55b56e40$48605e55@bobrown101>
-From: "Drew Medeiros" <bobrown101@prodigy.net>
-Subject: Vier Doosen umsonst  provided, this letter sets  --  the same software 
-Date: Thu, 2 Aug 2007 11:29:05 -0100
-MIME-Version: 1.0
-Content-Type: multipart/alternative;
-	boundary="----=_NextPart_000_0007_01C7D509.193E3E40"
-Return-Path: <bobrown101@prodigy.net>
-To: linux-mm@kvack.org
+Subject: [PATCH] type safe allocator
+References: <E1IGAAI-0006K6-00@dorka.pomaz.szeredi.hu>
+Message-Id: <E1IGYuK-0001Jj-00@dorka.pomaz.szeredi.hu>
+From: Miklos Szeredi <miklos@szeredi.hu>
+Date: Thu, 02 Aug 2007 13:31:56 +0200
+Sender: owner-linux-mm@kvack.org
+From: Miklos Szeredi <mszeredi@suse.cz>
+Return-Path: <owner-linux-mm@kvack.org>
+To: akpm@linux-foundation.org
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, torvalds@linux-foundation.org
 List-ID: <linux-mm.kvack.org>
 
-This is a multi-part message in MIME format.
+The linux kernel doesn't have a type safe object allocator a-la new()
+in C++ or g_new() in glib.
 
-------=_NextPart_000_0007_01C7D509.193E3E40
-Content-Type: text/plain;
-	charset="windows-1250"
-Content-Transfer-Encoding: quoted-printable
+Introduce two helpers for this purpose:
 
-Verpassen Sie nichts am Lebem - Sie werden fuhlen was unsere Kunden bestati=
-gen!
+   alloc_struct(type, gfp_flags);
 
-Preise die keine Konkurrenz kennen 
+   zalloc_struct(type, gfp_flags);
 
-- Visa verifizierter Onlineshop
-- Diskrete Verpackung und Zahlung
-- Kein peinlicher Arztbesuch erforderlich
-- Kostenlose, arztliche Telefon-Beratung
-- Kein langes Warten - Auslieferung innerhalb von 2-3 Tagen
-- Bequem und diskret online bestellen.
-- keine versteckte Kosten
+These macros take a type name (usually a 'struct foo') as first
+argument and the usual gfp-flags as second argument.  They return a
+pointer cast to 'type *'.
 
-Originalmedikamente
-Ciiaaaaaalis 10 Pack. 27,00 Euro
-Viiaaaagra 10 Pack. 21,00 Euro
+The traditional forms of allocating a structure are:
 
-Nur fur kurze Zeit - vier Pillen umsonst erhalten
-http://ajzqdu.tallname.cn/?627940432452
+  fooptr = kmalloc(sizeof(*fooptr), ...);
 
-(bitte warten Sie einen Moment bis die Seite vollstandig geladen wird)
-------=_NextPart_000_0007_01C7D509.193E3E40
-Content-Type: text/html;
-	charset="windows-1250"
-Content-Transfer-Encoding: quoted-printable
+  fooptr = kmalloc(sizeof(struct foo), ...);
 
-<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
-<HTML><HEAD>
-<META http-equiv=3DContent-Type content=3D"text/html; charset=3Dwindows-1250">
-<META content=3D"MSHTML 5.50.4963.1700" name=3DGENERATOR>
-<STYLE></STYLE>
-</HEAD>
-<BODY>
-<head><meta http-equiv=3D"Content-Type" content=3D"text/html; charset=3Diso=
--8859-1">
-</head><body><p>Meinung von unserem Kunden:<br><strong>Jetzt, wo ich Viiaaa=
-agra ausprobiert habe, w&#252;rde ich es immer wieder kaufen, auch wenn ich=
- das Dreifache daf&#252;r bezahlen m&#252;sste. Ich bedaure all die ungl&#2=
-52;cklichen M&#228;nner, die in ihrem Leben nie die Gelegenheit hatten, Vii=
-aaaagra auszuprobieren. Und ein bisschen bedaure ich mich selbst: Warum hab=
-e ich nicht schon vor Jahren den Mut gehabt, es zu probieren?</strong></p><=
-p><strong>Fantastische Wirkung! F&#252;nf Jahre lang hatte ich es nicht meh=
-r geschafft, meine Err. ..ektion w&#228;hrend des Verkehrs zu halten und wa=
-r richtig &#228;ngstlich geworden. Ich hatte auch ein Problem mit vorzeitig=
-em Samenerguss. Au&#223;erdem bin ich Zuckerkrank. Vor einiger Zeit habe ic=
-h eine 50-mg-Dosis Viiaaaagra genommen und zwei Stunden sp&#228;ter mit ein=
-er 22-j&#228;hrigen geschlafen. Kurz vor dem Vorspiel wurde mein Penis hart=
- und ich konnte es kaum glauben. Ich habe in dieser Nacht dreimal Sex gehab=
-t und es gab keine Probleme dabei. Kein Schuss ging daneben. Ich bin ein gl=
-&#252;cklicher Mann. Achmet, 52<br>
-</strong><strong><br>Verpassen Sie nichts am Lebem - Sie werden fuhlen was =
-unsere Kunden bestatigen!</strong></p><p>Preise die keine Konkurrenz kennen=
- <p>
-- keine versteckte Kosten<br>- Kostenlose, arztliche Telefon-Beratung<br>- =
-Diskrete Verpackung und Zahlung<br>- Kein langes Warten - Auslieferung inne=
-rhalb von 2-3 Tagen<br>- Bequem und diskret online bestellen.<br>- Kein pei=
-nlicher Arztbesuch erforderlich<br>- Visa verifizierter Onlineshop</p>
-<p>Originalmedikamente<br><strong>Ciiaaaaaalis 10 Pack. 27,00 Euro</strong>=
-<br>
-  <strong>Viiaaaagra 10 Pack. 21,00 Euro</strong><br><br><strong><a href=3D=
-"http://ajzqdu.tallname.cn/?627940432452" target=3D"_blank">Nur fur kurze Z=
-eit - vier Pillen umsonst erhalten</a><br></strong>(bitte warten Sie einen =
-Moment bis die Seite vollst&auml;ndig geladen wird) </p></body>
-</BODY></HTML>
+The new form is preferred over these, because of it's type safety and
+more descriptive nature.
 
-------=_NextPart_000_0007_01C7D509.193E3E40--
+Signed-off-by: Miklos Szeredi <mszeredi@suse.cz>
+---
+
+Index: linux-2.6.22/include/linux/slab.h
+===================================================================
+--- linux-2.6.22.orig/include/linux/slab.h	2007-08-01 16:47:41.000000000 +0200
++++ linux-2.6.22/include/linux/slab.h	2007-08-02 12:55:20.000000000 +0200
+@@ -110,6 +110,20 @@ static inline void *kcalloc(size_t n, si
+ 	return __kzalloc(n * size, flags);
+ }
+ 
++/**
++ * alloc_struct - allocate given type object
++ * @type: the type of the object to allocate
++ * @flags: the type of memory to allocate.
++ */
++#define alloc_struct(type, flags) ((type *) kmalloc(sizeof(type), flags))
++
++/**
++ * zalloc_struct - allocate given type object, zero out the contents
++ * @type: the type of the object to allocate
++ * @flags: the type of memory to allocate.
++ */
++#define zalloc_struct(type, flags) ((type *) kzalloc(sizeof(type), flags))
++
+ /*
+  * Allocator specific definitions. These are mainly used to establish optimized
+  * ways to convert kmalloc() calls to kmem_cache_alloc() invocations by selecting
+Index: linux-2.6.22/Documentation/CodingStyle
+===================================================================
+--- linux-2.6.22.orig/Documentation/CodingStyle	2007-07-09 01:32:17.000000000 +0200
++++ linux-2.6.22/Documentation/CodingStyle	2007-08-02 13:03:48.000000000 +0200
+@@ -631,21 +631,20 @@ Printing numbers in parentheses (%d) add
+ 		Chapter 14: Allocating memory
+ 
+ The kernel provides the following general purpose memory allocators:
+-kmalloc(), kzalloc(), kcalloc(), and vmalloc().  Please refer to the API
++kmalloc(), kzalloc(), kcalloc(), and vmalloc(), and the following
++helpers: alloc_struct() and zalloc_struct().  Please refer to the API
+ documentation for further information about them.
+ 
+-The preferred form for passing a size of a struct is the following:
++The preferred form for allocating a structure is the following:
+ 
+-	p = kmalloc(sizeof(*p), ...);
++	p = alloc_struct(struct name, ...);
+ 
+-The alternative form where struct name is spelled out hurts readability and
+-introduces an opportunity for a bug when the pointer variable type is changed
+-but the corresponding sizeof that is passed to a memory allocator is not.
+-
+-Casting the return value which is a void pointer is redundant. The conversion
+-from void pointer to any other pointer type is guaranteed by the C programming
+-language.
++The alternatives are less readable or introduce an opportunity for a bug
++when the pointer variable type is changed but the corresponding sizeof that
++is passed to a memory allocator is not.
+ 
++The return value of alloc_struct() and zalloc_struct() have the right type,
++so the compiler will warn if it is assigned to a pointer of different type.
+ 
+ 		Chapter 15: The inline disease
+ 
+
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
