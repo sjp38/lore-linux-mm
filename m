@@ -1,42 +1,44 @@
-Date: Wed, 1 Aug 2007 20:56:13 -0700 (PDT)
-From: Linus Torvalds <torvalds@linux-foundation.org>
-Subject: Re: [RFC PATCH] type safe allocator
-In-Reply-To: <E1IGAAI-0006K6-00@dorka.pomaz.szeredi.hu>
-Message-ID: <alpine.LFD.0.999.0708012051100.3582@woody.linux-foundation.org>
-References: <E1IGAAI-0006K6-00@dorka.pomaz.szeredi.hu>
+Date: Thu, 2 Aug 2007 00:37:02 -0400
+Subject: Re: [patch][rfc] remove ZERO_PAGE?
+Message-ID: <20070802043702.GE14660@fieldses.org>
+References: <20070727021943.GD13939@wotan.suse.de> <e28f90730707300652g4a0d0f4ah10bd3c06564d624b@mail.gmail.com> <20070730115751.a2aaa28f.akpm@linux-foundation.org> <20070730223912.GM2386@fieldses.org> <20070801014739.GA30549@wotan.suse.de> <20070801015306.GB24887@fieldses.org> <e28f90730707311919y7e48c7f9we4f974d844d17739@mail.gmail.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=us-ascii
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <e28f90730707311919y7e48c7f9we4f974d844d17739@mail.gmail.com>
+From: "J. Bruce Fields" <bfields@fieldses.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Miklos Szeredi <miklos@szeredi.hu>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, akpm@linux-foundation.org
+To: "Luiz Fernando N. Capitulino" <lcapitulino@gmail.com>
+Cc: Nick Piggin <npiggin@suse.de>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, Hugh Dickins <hugh@veritas.com>, Andrea Arcangeli <andrea@suse.de>, Linux Memory Management List <linux-mm@kvack.org>, lcapitulino@mandriva.com.br, Neil Brown <neilb@suse.de>
 List-ID: <linux-mm.kvack.org>
 
-
-On Wed, 1 Aug 2007, Miklos Szeredi wrote:
->
-> I wonder why we don't have type safe object allocators a-la new() in
-> C++ or g_new() in glib?
+On Tue, Jul 31, 2007 at 11:19:00PM -0300, Luiz Fernando N. Capitulino wrote:
+> On 7/31/07, J. Bruce Fields <bfields@fieldses.org> wrote:
+> > On Wed, Aug 01, 2007 at 03:47:39AM +0200, Nick Piggin wrote:
+> > > On Mon, Jul 30, 2007 at 06:39:12PM -0400, J. Bruce Fields wrote:
+> > > > It looks to me like it's oopsing at the deference of
+> > > > fhp->fh_export->ex_uuid in encode_fsid(), which is exactly the case
+> > > > commit b41eeef14d claims to fix.  Looks like that's been in since
+> > > > v2.6.22-rc1; what kernel is this?
+> > >
+> > > Any progress with this? I'm fairly sure ZERO_PAGE removal wouldn't
+> > > have triggered it.
+> >
+> > I agree that it's most likely an nfsd bug.  I'll take another look, but
+> > it probably won't be till tommorow afternoon.
 > 
->   fooptr = k_new(struct foo, GFP_KERNEL);
+>  Bruce, is there a way to reproduce the bug b41eeef14d claims to fix?
 
-I would object to this if only because of the horrible name.
+OK, sorry, it's taking me a little time to figure out what's going on.
 
-C++ is not a good language to take ideas from, and "new()" was not it's 
-best feature to begin with. "k_new()" is just disgusting.
+But fh_verify() was responsible for checking and filling in the fhp that
+is wrong here, and I don't see the safeguards in fh_verify() (or in the
+export-lookup process) that would ensure that the export associated with
+a filehandle has a non-NULL ex_uuid whenever the filehandle has a uuid
+fsid type.  But I can't create a test case yet.
 
-I'd call it something like "alloc_struct()" instead, which tells you 
-exactly what it's all about. Especially since we try to avoid typedefs in 
-the kernel, and as a result, it's basically almost always a struct thing.
-
-That said, I'm not at all sure it's worth it. Especially not with all the 
-various variations on a theme (zeroed, arrays, etc etc).
-
-Quite frankly, I suspect you would be better off just instrumenting 
-"sparse" instead, and matching up the size of the allocation with the type 
-it gets assigned to.
-
-		Linus
+--b.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
