@@ -1,62 +1,42 @@
-Subject: Re: [PATCH 0/2] Synchronous Lumpy Reclaim V3
-From: Peter Zijlstra <a.p.zijlstra@chello.nl>
-In-Reply-To: <exportbomb.1186077923@pinky>
-References: <exportbomb.1186077923@pinky>
-Content-Type: text/plain
-Date: Thu, 02 Aug 2007 20:35:10 +0200
-Message-Id: <1186079710.11797.12.camel@lappy>
+Date: Thu, 2 Aug 2007 11:36:26 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH] type safe allocator
+Message-Id: <20070802113626.634a6bd9.akpm@linux-foundation.org>
+In-Reply-To: <E1IGYuK-0001Jj-00@dorka.pomaz.szeredi.hu>
+References: <E1IGAAI-0006K6-00@dorka.pomaz.szeredi.hu>
+	<E1IGYuK-0001Jj-00@dorka.pomaz.szeredi.hu>
 Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andy Whitcroft <apw@shadowen.org>
-Cc: Andrew Morton <akpm@osdl.org>, Mel Gorman <mel@csn.ul.ie>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Miklos Szeredi <miklos@szeredi.hu>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, torvalds@linux-foundation.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 2007-08-02 at 19:17 +0100, Andy Whitcroft wrote:
-> [This is a re-spin based on feedback from akpm.]
-> 
-> As pointed out by Mel when reclaim is applied at higher orders a
-> significant amount of IO may be started.  As this takes finite time
-> to drain reclaim will consider more areas than ultimatly needed
-> to satisfy the request.  This leads to more reclaim than strictly
-> required and reduced success rates.
-> 
-> I was able to confirm Mel's test results on systems locally.
-> These show that even under light load the success rates drop off far
-> more than expected.  Testing with a modified version of his patch
-> (which follows) I was able to allocate almost all of ZONE_MOVABLE
-> with a near idle system.  I ran 5 test passes sequentially following
-> system boot (the system has 29 hugepages in ZONE_MOVABLE):
-> 
->   2.6.23-rc1              11  8  6  7  7
->   sync_lumpy              28 28 29 29 26
-> 
-> These show that although hugely better than the near 0% success
-> normally expected we can only allocate about a 1/4 of the zone.
-> Using synchronous reclaim for these allocations we get close to 100%
-> as expected.
-> 
-> I have also run our standard high order tests and these show no
-> regressions in allocation success rates at rest, and some significant
-> improvements under load.
-> 
-> Following this email are two patches, both should be considered as
-> bug fixes to lumpy reclaim for 2.6.23:
-> 
-> ensure-we-count-pages-transitioning-inactive-via-clear_active_flags:
->   this a bug fix for Lumpy Reclaim fixing up a bug in VM Event
->   accounting when it marks pages inactive, and
-> 
-> Wait-for-page-writeback-when-directly-reclaiming-contiguous-areas:
->   updates reclaim making direct reclaim synchronous when applied
->   at orders above PAGE_ALLOC_COSTLY_ORDER.
-> 
-> Patches against 2.6.23-rc1.  Andrew please consider for -mm and
-> for pushing to mainline.
+On Thu, 02 Aug 2007 13:31:56 +0200
+Miklos Szeredi <miklos@szeredi.hu> wrote:
 
-Acked-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
+> The linux kernel doesn't have a type safe object allocator a-la new()
+> in C++ or g_new() in glib.
+> 
+> Introduce two helpers for this purpose:
+> 
+>    alloc_struct(type, gfp_flags);
+> 
+>    zalloc_struct(type, gfp_flags);
 
+whimper.
+
+On a practical note, I'm still buried in convert-to-kzalloc patches, and
+your proposal invites a two-year stream of 10,000 convert-to-alloc_struct
+patches.
+
+So if this goes in (and I can't say I'm terribly excited about the idea)
+then I think we'd also need a maintainer who is going to handle all the
+subsequent patches, run a git tree, (a quilt tree would be better, or maybe
+a git tree with 100 branches), work with all the affected maintainers, make
+sure there aren't clashes with other people's work and all that blah.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
