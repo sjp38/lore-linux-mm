@@ -1,57 +1,49 @@
-Date: Thu, 2 Aug 2007 13:45:23 -0700 (PDT)
-From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [PATCH] Apply memory policies to top two highest zones when
- highest zone is ZONE_MOVABLE
-In-Reply-To: <20070802172118.GD23133@skynet.ie>
-Message-ID: <Pine.LNX.4.64.0708021343420.10244@schroedinger.engr.sgi.com>
-References: <20070802172118.GD23133@skynet.ie>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: Audit of "all uses of node_online()"
+From: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
+In-Reply-To: <20070802133341.74ce084a.akpm@linux-foundation.org>
+References: <20070727194316.18614.36380.sendpatchset@localhost>
+	 <20070727194322.18614.68855.sendpatchset@localhost>
+	 <20070731192241.380e93a0.akpm@linux-foundation.org>
+	 <Pine.LNX.4.64.0707311946530.6158@schroedinger.engr.sgi.com>
+	 <20070731200522.c19b3b95.akpm@linux-foundation.org>
+	 <Pine.LNX.4.64.0707312006550.22443@schroedinger.engr.sgi.com>
+	 <20070731203203.2691ca59.akpm@linux-foundation.org>
+	 <1185977011.5059.36.camel@localhost>
+	 <Pine.LNX.4.64.0708011037510.20795@schroedinger.engr.sgi.com>
+	 <1186085994.5040.98.camel@localhost>
+	 <20070802133341.74ce084a.akpm@linux-foundation.org>
+Content-Type: text/plain
+Date: Thu, 02 Aug 2007 16:45:35 -0400
+Message-Id: <1186087535.5040.100.camel@localhost>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Mel Gorman <mel@skynet.ie>
-Cc: akpm@linux-foundation.org, pj@sgi.com, Lee.Schermerhorn@hp.com, kamezawa.hiroyu@jp.fujitsu.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Christoph Lameter <clameter@sgi.com>, linux-mm@kvack.org, ak@suse.de, Nishanth Aravamudan <nacc@us.ibm.com>, pj@sgi.com, kxr@sgi.com, Mel Gorman <mel@skynet.ie>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 2 Aug 2007, Mel Gorman wrote:
+On Thu, 2007-08-02 at 13:33 -0700, Andrew Morton wrote:
+> On Thu, 02 Aug 2007 16:19:53 -0400
+> Lee Schermerhorn <Lee.Schermerhorn@hp.com> wrote:
+> 
+> > Note that the list includes a lot of architectural dependent files.
+> > Shall I do a separate patch for each arch, so that arch maintainer can
+> > focus on that [I assume they'll want to review], or a single "jumbo
+> > patch" to reduce traffic?
+> 
+> Separate patches please, if they are independent.
+> 
+> Even if they are dependencies, a base patch plus a string of
+> arch patches would be a nice presentation.
+> 
 
-> +#ifdef CONFIG_NUMA
-> +/*
-> + * Only custom zonelists like MPOL_BIND need to be filtered as part of
-> + * policies. As described in the comment for struct zonelist_cache, these
-> + * zonelists will not have a zlcache so zlcache_ptr will not be set. Use
-> + * that to determine if the zonelists needs to be filtered or not.
-> + */
-> +static inline int alloc_should_filter_zonelist(struct zonelist *zonelist)
-> +{
-> +	return !zonelist->zlcache_ptr;
-> +}
+Will do.  As I get to them.
 
-I guess Paul needs to have a look at this one.
+I'll repost the file list with annotations as well.  I've already seen
+that some files are probably OK as is.
 
-Otherwise
-
-Acked-by: Christoph Lameter <clameter@sgi.com>
-
-> @@ -1166,6 +1167,18 @@ zonelist_scan:
->  	z = zonelist->zones;
->  
->  	do {
-> +		/*
-> +		 * In NUMA, this could be a policy zonelist which contains
-> +		 * zones that may not be allowed by the current gfp_mask.
-> +		 * Check the zone is allowed by the current flags
-> +		 */
-> +		if (unlikely(alloc_should_filter_zonelist(zonelist))) {
-> +			if (highest_zoneidx == -1)
-> +				highest_zoneidx = gfp_zone(gfp_mask);
-> +			if (zone_idx(*z) > highest_zoneidx)
-> +				continue;
-> +		}
-> +
->  		if (NUMA_BUILD && zlc_active &&
-
-Hotpath. Sigh.
+Lee
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
