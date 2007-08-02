@@ -1,42 +1,64 @@
-In-reply-to: <Pine.LNX.4.64.0708021534050.24572@fbirervta.pbzchgretzou.qr>
-	(message from Jan Engelhardt on Thu, 2 Aug 2007 15:35:56 +0200 (CEST))
+Received: from ns.firmix.at (localhost [127.0.0.1])
+	by ns.firmix.at (8.13.6/8.13.6) with ESMTP id l72E6lPC032467
+	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-SHA bits=256 verify=NO)
+	for <linux-mm@kvack.org>; Thu, 2 Aug 2007 16:06:49 +0200
+Received: (from defang@localhost)
+	by ns.firmix.at (8.13.6/8.13.6/Submit) id l72E6l0Z032461
+	for <linux-mm@kvack.org>; Thu, 2 Aug 2007 16:06:47 +0200
 Subject: Re: [PATCH] type safe allocator
+From: Bernd Petrovitsch <bernd@firmix.at>
+In-Reply-To: <1186062476.12034.115.camel@twins>
 References: <E1IGAAI-0006K6-00@dorka.pomaz.szeredi.hu>
- <E1IGYuK-0001Jj-00@dorka.pomaz.szeredi.hu> <b6fcc0a0708020504j7588061fq7e70a50499dcbdfe@mail.gmail.com>
- <Pine.LNX.4.64.0708021417400.24572@fbirervta.pbzchgretzou.qr>
- <E1IGaOE-0001a3-00@dorka.pomaz.szeredi.hu> <Pine.LNX.4.64.0708021534050.24572@fbirervta.pbzchgretzou.qr>
-Message-Id: <E1IGb3I-0001js-00@dorka.pomaz.szeredi.hu>
-From: Miklos Szeredi <miklos@szeredi.hu>
-Date: Thu, 02 Aug 2007 15:49:20 +0200
+	 <E1IGYuK-0001Jj-00@dorka.pomaz.szeredi.hu>
+	 <b6fcc0a0708020504j7588061fq7e70a50499dcbdfe@mail.gmail.com>
+	 <1186062476.12034.115.camel@twins>
+Content-Type: text/plain
+Date: Thu, 02 Aug 2007 16:06:45 +0200
+Message-Id: <1186063605.8085.82.camel@tara.firmix.at>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: jengelh@computergmbh.de
-Cc: miklos@szeredi.hu, adobriyan@gmail.com, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, torvalds@linux-foundation.org
+To: Peter Zijlstra <peterz@infradead.org>
+Cc: Alexey Dobriyan <adobriyan@gmail.com>, Miklos Szeredi <miklos@szeredi.hu>, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, torvalds@linux-foundation.org
 List-ID: <linux-mm.kvack.org>
 
-> >> On Aug 2 2007 16:04, Alexey Dobriyan wrote:
-> >> >On 8/2/07, Miklos Szeredi <miklos@szeredi.hu> wrote:
-> >> >>   fooptr = kmalloc(sizeof(struct foo), ...);
-> >> >
-> >> >Key word is "traditional". Good traditional form which even half-competent
-> >> >C programmers immediately parse in retina.
-> >> 
-> >> And being aware of the potential type-unsafety makes programmers more
-> >> careful IMHO.
-> >
-> >That's a _really_ good reason ;)
+On Thu, 2007-08-02 at 15:47 +0200, Peter Zijlstra wrote:
+> On Thu, 2007-08-02 at 16:04 +0400, Alexey Dobriyan wrote:
+> > On 8/2/07, Miklos Szeredi <miklos@szeredi.hu> wrote:
+> > > The linux kernel doesn't have a type safe object allocator a-la new()
+> > > in C++ or g_new() in glib.
+> > >
+> > > Introduce two helpers for this purpose:
+> > >
+> > >    alloc_struct(type, gfp_flags);
+> > >
+> > >    zalloc_struct(type, gfp_flags);
+> > 
+> > ick.
+> > 
+> > > These macros take a type name (usually a 'struct foo') as first
+> > > argument
+> > 
+> > So one has to type struct twice.
 > 
-> Yes, a good reason not to use g_new(), so people do get bitten when
-> they are doingitwrong.
+> thrice in some cases like alloc_struct(struct task_struct, GFP_KERNEL)
 
-Should we turn off all warnings then, to make people more careful
-after constantly being bitten by stupid mistakes?
+Save the explicit "struct" and put it into the macro (and force people
+to not use typedefs).
 
-That's one way to think of it, yes.  But I think most would agree,
-that we have better things to do than being careful about things that
-the compiler can check for us.
+#define alloc_struct(type, flags) ((type *)kmalloc(sizeof(struct type), (flags)))
 
-Miklos
+Obious drawback: We may need alloc_union().
+
+SCNR ...
+	Bernd
+-- 
+Firmix Software GmbH                   http://www.firmix.at/
+mobil: +43 664 4416156                 fax: +43 1 7890849-55
+          Embedded Linux Development and Services
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
