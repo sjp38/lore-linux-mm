@@ -1,47 +1,39 @@
-Date: Mon, 9 Jul 2007 02:27:21 +0200
-From: =?utf-8?B?SsO2cm4=?= Engel <joern@logfs.org>
-Subject: Re: vm/fs meetup details
-Message-ID: <20070709002720.GA13081@lazybastard.org>
-References: <20070705040138.GG32240@wotan.suse.de> <468D303E.4040902@redhat.com> <20070706020042.GD14215@wotan.suse.de> <Pine.LNX.4.64.0707061339100.24812@schroedinger.engr.sgi.com> <20070707104534.GA5686@lazybastard.org> <20070708232938.GG12413810@sgi.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <20070708232938.GG12413810@sgi.com>
-Sender: owner-linux-mm@kvack.org
-Return-Path: <owner-linux-mm@kvack.org>
-To: David Chinner <dgc@sgi.com>
-Cc: =?utf-8?B?SsO2cm4=?= Engel <joern@logfs.org>, Christoph Lameter <clameter@sgi.com>, Nick Piggin <npiggin@suse.de>, Rik van Riel <riel@redhat.com>, Anton Altaparmakov <aia21@cam.ac.uk>, Suparna Bhattacharya <suparna@in.ibm.com>, Christoph Hellwig <hch@infradead.org>, Zach Brown <zach.brown@oracle.com>, Hugh Dickins <hugh@veritas.com>, Jared Hulbert <jaredeh@gmail.com>, Chris Mason <chris.mason@oracle.com>, "Martin J. Bligh" <mbligh@mbligh.org>, Trond Myklebust <trond.myklebust@fys.uio.no>, Neil Brown <neilb@suse.de>, Miklos Szeredi <miklos@szeredi.hu>, Mingming Cao <cmm@us.ibm.com>, Linux Memory Management List <linux-mm@kvack.org>, linux-fsdevel@vger.kernel.org
+From: "Leta Waters" <jbotts@uniconfinancial.com>
+Subject: Wir wissen was Frauen wollern  case. Your zero  --  and Adapter. With Head First
+Date: Thu, 2 Aug 2007 02:19:44 -0300
+MIME-Version: 1.0
+Content-Type: multipart/alternative;
+	boundary="----=_NextPart_000_0006_01C7D4C4.BCA42120"
+Message-ID: <01c7d4ab$9756e920$46d20559@jbotts>
+Return-Path: <jbotts@uniconfinancial.com>
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 9 July 2007 09:29:38 +1000, David Chinner wrote:
-> On Sat, Jul 07, 2007 at 12:45:35PM +0200, JA?A?rn Engel wrote:
-> > 
-> > Oh certainly!  I should dust off my dcache_static patch.  Some dentries
-> > are hands-off for the shrinker, basically mountpoints and tmpfs.  The
-> > patch moves those to a seperate slab cache.
-> 
-> I doubt there's enough of those to make any difference - putting all
-> the directories into another slab did little to reduce fragmentation
-> (~18 months ago we tried that), so I don't think that this would help
-> at all...
+This is a multi-part message in MIME format.
 
-Interesting.  I suspect that the de-facto random cache eviction has a
-bigger effect and overshadows everything else.  So the decisive step
-would be to nuke all dentries in a given slab.
+------=_NextPart_000_0006_01C7D4C4.BCA42120
+Content-Type: text/plain;
+	charset="Windows-1252"
+Content-Transfer-Encoding: 7bit
 
-It wouldn't surprise me if your patch did make a difference afterwards.
-With 32 dentries per slab, it doesn't take many pinned objects to pin
-most slabs.
+ 
 
-JA?rn
+Sie leben nur einmal - warum dann nicht was neues ausprobieren?
 
--- 
-All art is but imitation of nature.
--- Lucius Annaeus Seneca
+Preise die keine Konkurrenz kennen 
 
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+- Diskrete Verpackung und Zahlung
+- Kein peinlicher Arztbesuch erforderlicht
+- Bequem und diskret online bestellen.
+- Kostenlose, arztliche Telefon-Beratung
+- Kein langes Warten - Auslieferung innerhalb von 2-3 Tagen
+- Visa verifizierter Onlineshop
+- keine versteckte Kosten
+
+
+Klicken Sie HIER und Sie erhalten vier Dosen umsonst
+http://qkowels.betweenduck.hk/?266086896025
+
+
+
+------=_NextPart_000_0006_01C7D4C4.BCA42120--
