@@ -1,46 +1,62 @@
-Message-ID: <46B22383.5020109@mbligh.org>
-Date: Thu, 02 Aug 2007 11:33:39 -0700
-From: Martin Bligh <mbligh@mbligh.org>
-MIME-Version: 1.0
-Subject: Re: [rfc] balance-on-fork NUMA placement
-References: <20070731054142.GB11306@wotan.suse.de> <200707311114.09284.ak@suse.de> <20070801002313.GC31006@wotan.suse.de> <46B0C8A3.8090506@mbligh.org> <1185993169.5059.79.camel@localhost> <46B10E9B.2030907@mbligh.org> <20070802013631.GA15595@wotan.suse.de>
-In-Reply-To: <20070802013631.GA15595@wotan.suse.de>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Subject: Re: [PATCH 0/2] Synchronous Lumpy Reclaim V3
+From: Peter Zijlstra <a.p.zijlstra@chello.nl>
+In-Reply-To: <exportbomb.1186077923@pinky>
+References: <exportbomb.1186077923@pinky>
+Content-Type: text/plain
+Date: Thu, 02 Aug 2007 20:35:10 +0200
+Message-Id: <1186079710.11797.12.camel@lappy>
+Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nick Piggin <npiggin@suse.de>
-Cc: Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Andi Kleen <ak@suse.de>, Ingo Molnar <mingo@elte.hu>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>, Eric Whitney <eric.whitney@hp.com>
+To: Andy Whitcroft <apw@shadowen.org>
+Cc: Andrew Morton <akpm@osdl.org>, Mel Gorman <mel@csn.ul.ie>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-Nick Piggin wrote:
-> On Wed, Aug 01, 2007 at 03:52:11PM -0700, Martin Bligh wrote:
->>> And so forth.  Initial forks will balance.  If the children refuse to
->>> die, forks will continue to balance.  If the parent starts seeing short
->>> lived children, fork()s will eventually start to stay local.  
->> Fork without exec is much more rare than without. Optimising for
->> the uncommon case is the Wrong Thing to Do (tm). What we decided
+On Thu, 2007-08-02 at 19:17 +0100, Andy Whitcroft wrote:
+> [This is a re-spin based on feedback from akpm.]
 > 
-> It's only the wrong thing to do if it hurts the common case too
-> much. Considering we _already_ balance on exec, then adding another
-> balance on fork is not going to introduce some order of magnitude
-> problem -- at worst it would be 2x but it really isn't too slow
-> anyway (at least nobody complained when we added it).
+> As pointed out by Mel when reclaim is applied at higher orders a
+> significant amount of IO may be started.  As this takes finite time
+> to drain reclaim will consider more areas than ultimatly needed
+> to satisfy the request.  This leads to more reclaim than strictly
+> required and reduced success rates.
 > 
-> One place where we found it helps is clone for threads.
+> I was able to confirm Mel's test results on systems locally.
+> These show that even under light load the success rates drop off far
+> more than expected.  Testing with a modified version of his patch
+> (which follows) I was able to allocate almost all of ZONE_MOVABLE
+> with a near idle system.  I ran 5 test passes sequentially following
+> system boot (the system has 29 hugepages in ZONE_MOVABLE):
 > 
-> If we didn't do such a bad job at keeping tasks together with their
-> local memory, then we might indeed reduce some of the balance-on-crap
-> and increase the aggressiveness of periodic balancing.
+>   2.6.23-rc1              11  8  6  7  7
+>   sync_lumpy              28 28 29 29 26
 > 
-> Considering we _already_ balance on fork/clone, I don't know what
-> your argument is against this patch is? Doing the balance earlier
-> and allocating more stuff on the local node is surely not a bad
-> idea.
+> These show that although hugely better than the near 0% success
+> normally expected we can only allocate about a 1/4 of the zone.
+> Using synchronous reclaim for these allocations we get close to 100%
+> as expected.
+> 
+> I have also run our standard high order tests and these show no
+> regressions in allocation success rates at rest, and some significant
+> improvements under load.
+> 
+> Following this email are two patches, both should be considered as
+> bug fixes to lumpy reclaim for 2.6.23:
+> 
+> ensure-we-count-pages-transitioning-inactive-via-clear_active_flags:
+>   this a bug fix for Lumpy Reclaim fixing up a bug in VM Event
+>   accounting when it marks pages inactive, and
+> 
+> Wait-for-page-writeback-when-directly-reclaiming-contiguous-areas:
+>   updates reclaim making direct reclaim synchronous when applied
+>   at orders above PAGE_ALLOC_COSTLY_ORDER.
+> 
+> Patches against 2.6.23-rc1.  Andrew please consider for -mm and
+> for pushing to mainline.
 
-I don't know who turned that on ;-( I suspect nobody bothered
-actually measuring it at the time though, or used some crap
-benchmark like stream to do so. It should get reverted.
+Acked-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
