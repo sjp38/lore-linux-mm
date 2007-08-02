@@ -1,81 +1,40 @@
-Message-ID: <01c6be69$6d116d60$6ff3d359@atter>
-From: "Eunice Cox" <atter@katzmanberry.com>
-Subject: Haben Sie wieder Spass am Leben!   complaint about  -- format designed for the way 
-Date: Sat, 12 Aug 2006 23:45:43 +0800
-MIME-Version: 1.0
-Content-Type: multipart/alternative;
-	boundary="----=_NextPart_000_0007_01C6BE2E.C0B29560"
-Return-Path: <atter@katzmanberry.com>
-To: linux-mm@kvack.org
+Date: Thu, 2 Aug 2007 09:36:23 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: NUMA policy issues with ZONE_MOVABLE
+Message-Id: <20070802093623.05dfd39e.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <1185994779.5059.87.camel@localhost>
+References: <Pine.LNX.4.64.0707242120370.3829@schroedinger.engr.sgi.com>
+	<20070725111646.GA9098@skynet.ie>
+	<Pine.LNX.4.64.0707251212300.8820@schroedinger.engr.sgi.com>
+	<20070726132336.GA18825@skynet.ie>
+	<Pine.LNX.4.64.0707261104360.2374@schroedinger.engr.sgi.com>
+	<20070726225920.GA10225@skynet.ie>
+	<1185994779.5059.87.camel@localhost>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
+Sender: owner-linux-mm@kvack.org
+Return-Path: <owner-linux-mm@kvack.org>
+To: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
+Cc: Mel Gorman <mel@skynet.ie>, Christoph Lameter <clameter@sgi.com>, linux-mm@kvack.org, ak@suse.de, akpm@linux-foundation.org, pj@sgi.com
 List-ID: <linux-mm.kvack.org>
 
-This is a multi-part message in MIME format.
+On Wed, 01 Aug 2007 14:59:39 -0400
+Lee Schermerhorn <Lee.Schermerhorn@hp.com> wrote:
 
-------=_NextPart_000_0007_01C6BE2E.C0B29560
-Content-Type: text/plain;
-	charset="iso-8859-1"
-Content-Transfer-Encoding: quoted-printable
+> Kame-san's patch to just exclude the DMA zones from the zonelists is looking
+> better--better than changing zonelist order when zone_movable is populated!
+> 
 
-Haben Sie endlich wieder Spass am Leben!
+I'm now considering setting "lowmem_reserve_ratio" to appropriate value can
+help node-order case. (Many cutomer uses the default (in RHEL4 = 0) and saw
+troubles.). Is it not enough ?
 
-Preise die keine Konkurrenz kennen 
+Thanks,
+-Kame.
 
-- Kein langes Warten - Auslieferung innerhalb von 2-3 Tagen
-- Visa verifizierter Onlineshop
-- Kostenlose, arztliche Telefon-Beratung
-- Bequem und diskret online bestellen.
-- keine versteckte Kosten
-- Diskrete Verpackung und Zahlung
-- Kein peinlicher Arztbesuch erforderlich
-
-Originalmedikamente
-Ciiaaaaaalis 10 Pack. 27,00 Euro
-Viiaaaagra 10 Pack. 21,00 Euro
-
-Vier Dosen gibt's bei jeder Bestellung umsonst
-http://eqfra.movesince.com/?999704986061
-
-(bitte warten Sie einen Moment bis die Seite vollstandig geladen wird)
-
-------=_NextPart_000_0007_01C6BE2E.C0B29560
-Content-Type: text/html;
-	charset="iso-8859-1"
-Content-Transfer-Encoding: quoted-printable
-
-<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
-<HTML><HEAD>
-<META http-equiv=3DContent-Type content=3D"text/html; charset=3Diso-8859-1">
-<META content=3D"MSHTML 4.71.1712.3" name=3DGENERATOR>
-<STYLE></STYLE>
-</HEAD>
-<BODY>
-<head><meta http-equiv=3D"Content-Type" content=3D"text/html; charset=3Diso=
--8859-1">
-</head><body><p>Meinung von unserem Kunden:<br><strong>Warum nehme ich Ciia=
-aaaaalis? Es ist einfach ein angenehmens Gef&#252;hl. Man brauch sich nicht=
- auf die Err. ..ektion zu konzentrieren. Beim Sex ist man viel entspannter,=
- mann kann auch mal die Muskeln im Genitalbereich lockern, ohne das die Err=
- ..ektion im Glied nachlasst. Dadurch ist eine lange Verz&#246;gerung der =
-Ejakulation m&#246;glich. Man ist beim Sex generell lockerer und entspannte=
-r, und kommt auch nicht mehr so schnell ausser Athem, weil man eben locker =
-und entspannt ist, ausser nat&#252;rlich der kleine Freund :-)</strong></p>=
-<p><strong>Als wir Liebe gemacht haben, f&#252;hlte ich mich wieder wie ein=
- Neunzehnj&#228;hriger. "Er" war so hart, ich h&#228;tte N&#228;gel damit e=
-inklopfen k&#246;nnen. Meiner Frau sagt, ich h&#228;tte sie noch nie so lan=
-g und so hart geliebt. Sie ist ganz versessen auf mich. Und ich brauche woh=
-l bald einen Nachf&#252;llpack.<br>
-</strong><strong><br>Haben Sie endlich wieder Spass am Leben!</strong></p><=
-p>Preise die keine Konkurrenz kennen <p>
-- keine versteckte Kosten<br>- Kostenlose, arztliche Telefon-Beratung<br>- =
-Diskrete Verpackung und Zahlung<br>- Kein langes Warten - Auslieferung inne=
-rhalb von 2-3 Tagen<br>- Kein peinlicher Arztbesuch erforderlich<br>- Beque=
-m und diskret online bestellen.<br>- Visa verifizierter Onlineshop</p>
-<p>Originalmedikamente<br><strong>Ciiaaaaaalis 10 Pack. 27,00 Euro</strong>=
-<br>
-  <strong>Viiaaaagra 10 Pack. 21,00 Euro</strong><br><br><strong><a href=3D=
-"http://eqfra.movesince.com/?999704986061" target=3D"_blank">Vier Dosen gib=
-t's bei jeder Bestellung umsonst</a><br></strong>(bitte warten Sie einen Mo=
-ment bis die Seite vollst&auml;ndig geladen wird) </p></body>
-</BODY></HTML>
-
-------=_NextPart_000_0007_01C6BE2E.C0B29560--
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
