@@ -1,52 +1,100 @@
-Date: Thu, 2 Aug 2007 10:23:51 -0700 (PDT)
-From: Linus Torvalds <torvalds@linux-foundation.org>
-Subject: Re: [RFC PATCH] type safe allocator
-In-Reply-To: <E1IGV6D-0000rM-00@dorka.pomaz.szeredi.hu>
-Message-ID: <alpine.LFD.0.999.0708021019070.32351@woody.linux-foundation.org>
-References: <E1IGAAI-0006K6-00@dorka.pomaz.szeredi.hu>
- <alpine.LFD.0.999.0708012051100.3582@woody.linux-foundation.org>
- <E1IGV6D-0000rM-00@dorka.pomaz.szeredi.hu>
+Date: Thu, 2 Aug 2007 10:38:25 -0700
+From: Mark Gross <mgross@linux.intel.com>
+Subject: Re: [PATCH/RFC] Allow selected nodes to be excluded from MPOL_INTERLEAVE masks
+Message-ID: <20070802173825.GA7815@linux.intel.com>
+Reply-To: mgross@linux.intel.com
+References: <1185566878.5069.123.camel@localhost> <200708011233.02103.ak@suse.de> <20070801110120.GA9449@linux-sh.org> <200708011307.44189.ak@suse.de> <20070801112116.GA9617@linux-sh.org> <1185976446.5059.27.camel@localhost>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=us-ascii
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1185976446.5059.27.camel@localhost>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Miklos Szeredi <miklos@szeredi.hu>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, akpm@linux-foundation.org
+To: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
+Cc: Paul Mundt <lethal@linux-sh.org>, Andi Kleen <ak@suse.de>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm <linux-mm@kvack.org>, Christoph Lameter <clameter@sgi.com>, Nishanth Aravamudan <nacc@us.ibm.com>, kxr@sgi.com, akpm@linux-foundation.org, Eric Whitney <eric.whitney@hp.com>
 List-ID: <linux-mm.kvack.org>
 
-
-On Thu, 2 Aug 2007, Miklos Szeredi wrote:
+On Wed, Aug 01, 2007 at 09:54:06AM -0400, Lee Schermerhorn wrote:
+> On Wed, 2007-08-01 at 20:21 +0900, Paul Mundt wrote:
+> > On Wed, Aug 01, 2007 at 01:07:43PM +0200, Andi Kleen wrote:
+> > > 
+> > > > As long as interleaving is possible after boot, then yes. It's only the
+> > > > boot-time interleave that we would like to avoid,
+> > > 
+> > > But when anybody does interleaving later it could just as easily
+> > > fill up your small nodes, couldn't it?
+> > > 
+> > Yes, but these are in embedded environments where we have control over
+> > what the applications are doing. Most of these sorts of things are for
+> > applications where we know what sort of latency requires we have to deal
+> > with, and so the workload is very much tied to the worst-case range of
+> > nodes, or just to a particular node. We might only have certain buffers
+> > that need to be backed by faster memory as well, so while most of the
+> > application pages will come from node 0 (system memory), certain other
+> > allocations will come from other nodes. We've been experimenting with
+> > doing that through tmpfs with mpol tuning.
+> > 
+> > In the general case however it's fairly safe to include the tiny nodes as
+> > part of a larger set with a prefer policy so we don't immediately OOM.
+> > 
+> > > Boot time allocations are small compared to what user space
+> > > later can allocate.
+> > > 
+> > Yes, we only want certain applications to explicitly poke at those nodes,
+> > but they do have a use case for interleave, so it is not functionality I
+> > would want to lose completely.
 > 
-> The number of variations can be reduced to just zeroing/nonzeroing, by
-> making the array length mandatory.  That's what glib does in g_new().
+> This is why I wanted to use an "obscure boot option".  I don't see this
+> as strictly an architectural/platform issue.  Rather, it's a combination
+> of the arch/platform and how it's being used for specific applications.
+> So, I don't see how one could accomplish this with a heuristic.
+> 
+> As Paul mentioned, in embedded systems, one has a bit more control over
+> what applications are doing.  In that case, I could envision a config
+> option to specify the initial/default value for the no_interleave_nodes
+> at kernel build time and dispense with the boot option.  [Any interest
 
-Quite frankly, you don't need the zeroing. That's what __GFP_ZERO does in 
-the flags.
+Having the interleave as a build time option won't work for some power
+managed memory applications.  I posted an RFC a few months back and will
+be coming back to it in a few weeks, so take this comment with a grain
+of salt.  But I want to be able to switch on some ACPI table entries to
+trigger the non-interleave boot time allocation behavior for some FBDIM
+based platforms.  My needs are in surprising alignment with Paul's on
+this stuff.
 
-That said, I'm not at all sure that it's at all more readable to add some 
-new abstraction layer and do
 
-	struct random_struct *ptr;
+--mgross
 
-	ptr = alloc_struct(random_struct, 1, GFP_KERNEL | __GFP_ZERO);
-
-than just doing a
-
-	ptr = kmalloc(sizeof(*ptr), GFP_KERNEL | __GFP_ZERO);
-
-or
-
-	ptr = kzalloc(sizeof(*ptr), GFP_KERNEL);
-
-(and adding the zeroing variant of alloc_struct() just adds *more* 
-confusing issues).
-
-The fact is, type safety in this area is probably less important than the 
-code just being readable. And have fifteen different interfaces to memory 
-allocation just isn't ever going to readable - regardless of how good they 
-are individually.
-
-		Linus
+> in such an option, Paul?]  But for platforms like ours, that tend to run
+> enterprise distro kernels, I need a way to specify on a per site or per
+> installation basis, what nodes should be used.  Our approach would be to
+> document this in a "best practices" doc that the customer or, more
+> likely, our field software specialists, would use to optimize the
+> platform and OS config for the application.
+>  
+> > 
+> > > And do you really want them in the normal fallback lists? The normal zone
+> > > reservation heuristics probably won't work unless you put them into
+> > > special low zones.
+> > > 
+> > That's something else to look at also, though I would very much like to
+> > avoid having to construct custom zonelists. it would be nice to keep things as
+> > simple and as non-invasive as possible. As far as the existing NUMA code
+> > goes, we're not quite all the way there yet in terms of supporting these
+> > things as well as we can, but it has proven to be a pretty good starting
+> > point.
+> 
+> Yes, there are rumblings on the mailing list about passing just a
+> starting [preferred] node and a node mask to the page allocator.  I'm
+> too backed up with other things to think too much about this, yet.
+> 
+> Lee
+> 
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
