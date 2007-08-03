@@ -1,76 +1,96 @@
-Date: Thu, 2 Aug 2007 17:31:06 -0700 (PDT)
+Date: Thu, 2 Aug 2007 17:47:26 -0700 (PDT)
 From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [PATCH/RFC/WIP]  cpuset-independent interleave policy
-In-Reply-To: <1186088655.5040.115.camel@localhost>
-Message-ID: <Pine.LNX.4.64.0708021728100.13270@schroedinger.engr.sgi.com>
-References: <20070727194316.18614.36380.sendpatchset@localhost>
- <20070727194322.18614.68855.sendpatchset@localhost>
- <20070731192241.380e93a0.akpm@linux-foundation.org>
- <Pine.LNX.4.64.0707311946530.6158@schroedinger.engr.sgi.com>
- <20070731200522.c19b3b95.akpm@linux-foundation.org>
- <Pine.LNX.4.64.0707312006550.22443@schroedinger.engr.sgi.com>
- <20070731203203.2691ca59.akpm@linux-foundation.org>  <1185977011.5059.36.camel@localhost>
-  <Pine.LNX.4.64.0708011037510.20795@schroedinger.engr.sgi.com>
- <1186085156.5040.83.camel@localhost>  <Pine.LNX.4.64.0708021326320.9795@schroedinger.engr.sgi.com>
- <1186088655.5040.115.camel@localhost>
+Subject: Re: [PATCH] Fix two potential mem leaks in MPT Fusion (mpt_attach())
+In-Reply-To: <9a8748490708021626s58f0f7cew54932e523800e982@mail.gmail.com>
+Message-ID: <Pine.LNX.4.64.0708021738050.13312@schroedinger.engr.sgi.com>
+References: <200708020155.33690.jesper.juhl@gmail.com>
+ <20070801172653.1fd44e99.akpm@linux-foundation.org>
+ <9a8748490708020120w4bbfe6d1n6f6986aec507316@mail.gmail.com>
+ <200708030053.45297.jesper.juhl@gmail.com>  <20070802160406.5c5b5ff6.akpm@linux-foundation.org>
+  <9a8748490708021610k31a86c17y58fb631a36dfdb6a@mail.gmail.com>
+ <20070802161730.1d5bb55b.akpm@linux-foundation.org>
+ <9a8748490708021626s58f0f7cew54932e523800e982@mail.gmail.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
-Cc: linux-mm@kvack.org, ak@suse.de, Nishanth Aravamudan <nacc@us.ibm.com>, pj@sgi.com, kxr@sgi.com, Mel Gorman <mel@skynet.ie>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, Eric Whitney <eric.whitney@hp.com>
+To: Jesper Juhl <jesper.juhl@gmail.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, James Bottomley <James.Bottomley@steeleye.com>, Pekka Enberg <penberg@cs.helsinki.fi>, linux-mm@kvack.org, Ingo Molnar <mingo@elte.hu>, Matt Mackall <mpm@selenic.com>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 2 Aug 2007, Lee Schermerhorn wrote:
+Mempools do not want to wait if there is an allocation failure. Its like 
+GFP_THISNODE in that we want a failure.
 
-> > AFAICT we would need something like relative node numbers to make this 
-> > work across all policy types?
-> > 
-> > Maybe treat the nodemask as a nodemask relative to the nodes of the cpuset
-> > (or other constraint) if a certain flag is set? Nodes that go beyond the 
-> > end of the allowed nodes in a certain context wrap around to the first 
-> > again?
-> 
-> One could expose the "MPOL_CONTEXT" flag via the API, but then a task
-> might have a mix of policy types.  Maybe a per cpuset control to enable
-> relative node ids?  [see below re: translating policies...]
+I had to add a
 
-Maybe generally only use relative nodemasks in a cpuset?
+if (NUMA_BUILD && (gfp_mask & GFP_THISNODE) == GFP_THISNODE)
+                goto nopage;
 
-> > to node 7. [0-2] would be referring to all. [0-7] would map to multiple 
-> > nodes.
-> > 
-> > So you could specify a relative interleave policy on [0-MAX_NUMNODES] and 
-> > it would disperse it evenly across the allowed nodes regardless of the 
-> > cpuset that the policy is being used in?
-> 
-> Yeah, but if the # nodes in the node mask aren't a multiple of the # of
-> memory nodes in the cpuset, you might get more pages on one or more
-> nodes.
+in page_alloc.c to make GFP_THISNODE fail.
 
-Ok so we may have to modify interleave to stop on the last relative node 
-that has memory and then start over?
+Maybe add a GFP_FAIL and check for that?
 
-> You might still want to do the translation, but only in the
-> current->mems_allowed mask.  If we had a per cpuset control [all
-> policies have absolute or relative node ids], you wouldn't have to look
-> at the task policy and all of the vma policies in the relative node id
-> case, since basically, all node masks would be valid
 
-Well maybe simply say all policies in a cpuset use relative numbering. 
-period?
+diff --git a/include/linux/gfp.h b/include/linux/gfp.h
+index bc68dd9..41b6aa3 100644
+--- a/include/linux/gfp.h
++++ b/include/linux/gfp.h
+@@ -43,6 +43,7 @@ struct vm_area_struct;
+ #define __GFP_REPEAT	((__force gfp_t)0x400u)	/* Retry the allocation.  Might fail */
+ #define __GFP_NOFAIL	((__force gfp_t)0x800u)	/* Retry for ever.  Cannot fail */
+ #define __GFP_NORETRY	((__force gfp_t)0x1000u)/* Do not retry.  Might fail */
++#define __GFP_FAIL	((__force gfp_t)0x2000u)/* Fail immediately if there is a problem */
+ #define __GFP_COMP	((__force gfp_t)0x4000u)/* Add compound page metadata */
+ #define __GFP_ZERO	((__force gfp_t)0x8000u)/* Return zeroed page on success */
+ #define __GFP_NOMEMALLOC ((__force gfp_t)0x10000u) /* Don't use emergency reserves */
+@@ -81,7 +82,8 @@ struct vm_area_struct;
+ 				 __GFP_MOVABLE)
+ 
+ #ifdef CONFIG_NUMA
+-#define GFP_THISNODE	(__GFP_THISNODE | __GFP_NOWARN | __GFP_NORETRY)
++#define GFP_THISNODE	(__GFP_THISNODE | __GFP_NOWARN | __GFP_NORETRY |\
++				__GFP_FAIL)
+ #else
+ #define GFP_THISNODE	((__force gfp_t)0)
+ #endif
+diff --git a/mm/mempool.c b/mm/mempool.c
+index 02d5ec3..c1ac622 100644
+--- a/mm/mempool.c
++++ b/mm/mempool.c
+@@ -211,8 +211,9 @@ void * mempool_alloc(mempool_t *pool, gfp_t gfp_mask)
+ 	gfp_mask |= __GFP_NOMEMALLOC;	/* don't allocate emergency reserves */
+ 	gfp_mask |= __GFP_NORETRY;	/* don't loop in __alloc_pages */
+ 	gfp_mask |= __GFP_NOWARN;	/* failures are OK */
++	gfp_mask |= __GFP_FAIL;
+ 
+-	gfp_temp = gfp_mask & ~(__GFP_WAIT|__GFP_IO);
++	gfp_temp = gfp_mask & ~__GFP_IO;
+ 
+ repeat_alloc:
+ 
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index 3da85b8..58c1a4d 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -1250,15 +1250,7 @@ restart:
+ 	if (page)
+ 		goto got_pg;
+ 
+-	/*
+-	 * GFP_THISNODE (meaning __GFP_THISNODE, __GFP_NORETRY and
+-	 * __GFP_NOWARN set) should not cause reclaim since the subsystem
+-	 * (f.e. slab) using GFP_THISNODE may choose to trigger reclaim
+-	 * using a larger set of nodes after it has established that the
+-	 * allowed per node queues are empty and that nodes are
+-	 * over allocated.
+-	 */
+-	if (NUMA_BUILD && (gfp_mask & GFP_THISNODE) == GFP_THISNODE)
++	if (gfp_mask & __GFP_FAIL)
+ 		goto nopage;
+ 
+ 	for (z = zonelist->zones; *z; z++)
 
-> > Doing so would fix one of the issues with "memory based" object policies. 
-> > However, there will still be the case where the policy desired for one 
-> > memory area be node local and or interleave depending on the cpuset.
-> 
-> Yeah, still got a ways to go, huh?  Anyway, I wanted to start folks
-> thinking about it.
 
-Relative node numbers are a great feature regardless. It would allow one 
-to write scripts that can run in any cpuset or write applications that can 
-set memory policies without worrying too much about where the nodes are 
-located.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
