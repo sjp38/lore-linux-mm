@@ -1,75 +1,85 @@
-Message-Id: <20070803125236.547639000@chello.nl>
+Message-Id: <20070803125234.380203000@chello.nl>
 References: <20070803123712.987126000@chello.nl>
-Date: Fri, 03 Aug 2007 14:37:26 +0200
+Date: Fri, 03 Aug 2007 14:37:16 +0200
 From: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Subject: [PATCH 13/23] mtd: clean up the backing_dev_info usage
-Content-Disposition: inline; filename=mtd-bdi-fixups.patch
+Subject: [PATCH 03/23] lib: percpu_counter variable batch
+Content-Disposition: inline; filename=percpu_counter_batch.patch
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 Cc: miklos@szeredi.hu, akpm@linux-foundation.org, neilb@suse.de, dgc@sgi.com, tomoki.sekiyama.qu@hitachi.com, a.p.zijlstra@chello.nl, nikita@clusterfs.com, trond.myklebust@fys.uio.no, yingchao.zhou@gmail.com, richard@rsk.demon.co.uk, torvalds@linux-foundation.org
 List-ID: <linux-mm.kvack.org>
 
-Give each mtd device its own backing_dev_info instance.
+Because the current batch setup has an quadric error bound on the counter,
+allow for an alternative setup.
 
 Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
 ---
- drivers/mtd/mtdcore.c   |    8 +++++---
- include/linux/mtd/mtd.h |    2 ++
- 2 files changed, 7 insertions(+), 3 deletions(-)
+ include/linux/percpu_counter.h |   10 +++++++++-
+ lib/percpu_counter.c           |    6 +++---
+ 2 files changed, 12 insertions(+), 4 deletions(-)
 
-Index: linux-2.6/drivers/mtd/mtdcore.c
+Index: linux-2.6/include/linux/percpu_counter.h
 ===================================================================
---- linux-2.6.orig/drivers/mtd/mtdcore.c
-+++ linux-2.6/drivers/mtd/mtdcore.c
-@@ -19,6 +19,7 @@
- #include <linux/init.h>
- #include <linux/mtd/compatmac.h>
- #include <linux/proc_fs.h>
-+#include <linux/backing-dev.h>
+--- linux-2.6.orig/include/linux/percpu_counter.h	2007-05-23 20:34:12.000000000 +0200
++++ linux-2.6/include/linux/percpu_counter.h	2007-05-23 20:36:06.000000000 +0200
+@@ -32,9 +32,14 @@ struct percpu_counter {
  
- #include <linux/mtd/mtd.h>
- #include "internal.h"
-@@ -53,15 +54,16 @@ int add_mtd_device(struct mtd_info *mtd)
- 	if (!mtd->backing_dev_info) {
- 		switch (mtd->type) {
- 		case MTD_RAM:
--			mtd->backing_dev_info = &mtd_bdi_rw_mappable;
-+			mtd->mtd_backing_dev_info = mtd_bdi_rw_mappable;
- 			break;
- 		case MTD_ROM:
--			mtd->backing_dev_info = &mtd_bdi_ro_mappable;
-+			mtd->mtd_backing_dev_info = mtd_bdi_ro_mappable;
- 			break;
- 		default:
--			mtd->backing_dev_info = &mtd_bdi_unmappable;
-+			mtd->mtd_backing_dev_info = mtd_bdi_unmappable;
- 			break;
- 		}
-+		mtd->backing_dev_info = &mtd->mtd_backing_dev_info;
+ void percpu_counter_init(struct percpu_counter *fbc, s64 amount);
+ void percpu_counter_destroy(struct percpu_counter *fbc);
+-void percpu_counter_add(struct percpu_counter *fbc, s32 amount);
++void __percpu_counter_add(struct percpu_counter *fbc, s32 amount, s32 batch);
+ s64 percpu_counter_sum(struct percpu_counter *fbc);
+ 
++static inline void percpu_counter_add(struct percpu_counter *fbc, s32 amount)
++{
++	__percpu_counter_add(fbc, amount, FBC_BATCH);
++}
++
+ static inline s64 percpu_counter_read(struct percpu_counter *fbc)
+ {
+ 	return fbc->count;
+@@ -70,6 +75,9 @@ static inline void percpu_counter_destro
+ {
+ }
+ 
++#define __percpu_counter_add(fbc, amount, batch) \
++	percpu_counter_add(fbc, amount)
++
+ static inline void
+ percpu_counter_add(struct percpu_counter *fbc, s32 amount)
+ {
+Index: linux-2.6/lib/percpu_counter.c
+===================================================================
+--- linux-2.6.orig/lib/percpu_counter.c	2007-05-23 20:34:12.000000000 +0200
++++ linux-2.6/lib/percpu_counter.c	2007-05-23 20:36:21.000000000 +0200
+@@ -14,7 +14,7 @@ static LIST_HEAD(percpu_counters);
+ static DEFINE_MUTEX(percpu_counters_lock);
+ #endif
+ 
+-void percpu_counter_add(struct percpu_counter *fbc, s32 amount)
++void __percpu_counter_add(struct percpu_counter *fbc, s32 amount, s32 batch)
+ {
+ 	long count;
+ 	s32 *pcount;
+@@ -22,7 +22,7 @@ void percpu_counter_add(struct percpu_co
+ 
+ 	pcount = per_cpu_ptr(fbc->counters, cpu);
+ 	count = *pcount + amount;
+-	if (count >= FBC_BATCH || count <= -FBC_BATCH) {
++	if (count >= batch || count <= -batch) {
+ 		spin_lock(&fbc->lock);
+ 		fbc->count += count;
+ 		*pcount = 0;
+@@ -32,7 +32,7 @@ void percpu_counter_add(struct percpu_co
  	}
- 	err = bdi_init(mtd->backing_dev_info);
- 	if (err)
-Index: linux-2.6/include/linux/mtd/mtd.h
-===================================================================
---- linux-2.6.orig/include/linux/mtd/mtd.h
-+++ linux-2.6/include/linux/mtd/mtd.h
-@@ -13,6 +13,7 @@
- #include <linux/module.h>
- #include <linux/uio.h>
- #include <linux/notifier.h>
-+#include <linux/backing-dev.h>
+ 	put_cpu();
+ }
+-EXPORT_SYMBOL(percpu_counter_add);
++EXPORT_SYMBOL(__percpu_counter_add);
  
- #include <linux/mtd/compatmac.h>
- #include <mtd/mtd-abi.h>
-@@ -154,6 +155,7 @@ struct mtd_info {
- 	 * - provides mmap capabilities
- 	 */
- 	struct backing_dev_info *backing_dev_info;
-+	struct backing_dev_info mtd_backing_dev_info;
- 
- 
- 	int (*read) (struct mtd_info *mtd, loff_t from, size_t len, size_t *retlen, u_char *buf);
+ /*
+  * Add up all the per-cpu counts, return the result.  This is a more accurate
 
 --
 
