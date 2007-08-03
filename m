@@ -1,40 +1,44 @@
-Date: Fri, 3 Aug 2007 09:27:55 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCH] 2.6.23-rc1-mm1 - fix missing numa_zonelist_order sysctl
-Message-Id: <20070803092755.55220aa0.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <1186067258.5040.33.camel@localhost>
-References: <1185994972.5059.91.camel@localhost>
-	<20070802094445.6495e25d.kamezawa.hiroyu@jp.fujitsu.com>
-	<1186067258.5040.33.camel@localhost>
+Date: Fri, 3 Aug 2007 02:26:39 +0200
+From: Nick Piggin <npiggin@suse.de>
+Subject: Re: [rfc] balance-on-fork NUMA placement
+Message-ID: <20070803002639.GC14775@wotan.suse.de>
+References: <20070731054142.GB11306@wotan.suse.de> <200707311114.09284.ak@suse.de> <Pine.LNX.4.64.0707311639450.31337@schroedinger.engr.sgi.com> <20070802034201.GA32631@wotan.suse.de> <Pine.LNX.4.64.0708021254160.8527@schroedinger.engr.sgi.com>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <Pine.LNX.4.64.0708021254160.8527@schroedinger.engr.sgi.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Christoph Lameter <clameter@sgi.com>
+To: Christoph Lameter <clameter@sgi.com>
+Cc: Andi Kleen <ak@suse.de>, Ingo Molnar <mingo@elte.hu>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 02 Aug 2007 11:07:38 -0400
-Lee Schermerhorn <Lee.Schermerhorn@hp.com> wrote:
-
-> Of course, I don't have any idea of what is a "reasonable amount".
-> Guess I could look at non-movable zone memory usage in a system at
-> typical or peak load to get an idea.  Anyone have any data in this
-> regard?
+On Thu, Aug 02, 2007 at 12:58:13PM -0700, Christoph Lameter wrote:
+> On Thu, 2 Aug 2007, Nick Piggin wrote:
 > 
-I'm sorry that I have no data and idea. 
-ZONE_MOVABLE is too young to be used under business workload...
+> > > It does in the sense that slabs are allocated following policies. If you 
+> > > want to place individual objects then you need to use kmalloc_node().
+> > 
+> > Is there no way to place objects via policy? At least kernel stack and page
+> > tables on x86-64 should be covered by page allocator policy, so the patch
+> > will still be useful.
+> 
+> Implementing policies on an object level introduces significant allocator 
+> overhead. Tried to do it in SLAB which created a mess.
+> 
+> Add a (slow) kmalloc_policy? Strict Object round robin for interleave 
+> right? It probably needs its own RR counter otherwise it disturbs the per 
+> task page RR.
 
-just I feel...
-Considering i686 which divides memory into NORMAL and HIGHMEM, it seems
-that 4G to 8G servers looks stable under various workload in my experience.
+I guess interleave could be nice for other things, but for this, I
+just want MPOL_BIND to work. The problem is that the pagetable copying
+etc codepaths cover a lot of code and some of it (eg pagetable allocation)
+is used for other paths as well.. so I was just hoping to do something
+less intrusive for now if possible.
 
-Then, at least, 12.5% to 25% of "Total Memory - Hugepages" memory should be
-under ZONE_NORMAL. But this is from experience of 32bit/SMP :(
 
-Thanks,
--Kame
+> For interleave kmalloc() does allocate the slabs round robin not the 
+> objects.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
