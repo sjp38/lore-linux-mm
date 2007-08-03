@@ -1,63 +1,72 @@
-Message-Id: <20070803125236.426044000@chello.nl>
+Message-Id: <20070803125234.881136000@chello.nl>
 References: <20070803123712.987126000@chello.nl>
-Date: Fri, 03 Aug 2007 14:37:25 +0200
+Date: Fri, 03 Aug 2007 14:37:18 +0200
 From: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Subject: [PATCH 12/23] mtd: bdi init hooks
-Content-Disposition: inline; filename=bdi_init_mtd.patch
+Subject: [PATCH 05/23] lib: percpu_counter_set
+Content-Disposition: inline; filename=percpu_counter_set.patch
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 Cc: miklos@szeredi.hu, akpm@linux-foundation.org, neilb@suse.de, dgc@sgi.com, tomoki.sekiyama.qu@hitachi.com, a.p.zijlstra@chello.nl, nikita@clusterfs.com, trond.myklebust@fys.uio.no, yingchao.zhou@gmail.com, richard@rsk.demon.co.uk, torvalds@linux-foundation.org
 List-ID: <linux-mm.kvack.org>
 
-split off because the relevant mtd changes seem particular to -mm
+Provide a method to set a percpu counter to a specified value.
 
 Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
 ---
- drivers/mtd/mtdcore.c |    9 +++++++++
- 1 file changed, 9 insertions(+)
+ include/linux/percpu_counter.h |    6 ++++++
+ lib/percpu_counter.c           |   14 ++++++++++++++
+ 2 files changed, 20 insertions(+)
 
-Index: linux-2.6/drivers/mtd/mtdcore.c
+Index: linux-2.6/include/linux/percpu_counter.h
 ===================================================================
---- linux-2.6.orig/drivers/mtd/mtdcore.c
-+++ linux-2.6/drivers/mtd/mtdcore.c
-@@ -48,6 +48,7 @@ static LIST_HEAD(mtd_notifiers);
- int add_mtd_device(struct mtd_info *mtd)
+--- linux-2.6.orig/include/linux/percpu_counter.h
++++ linux-2.6/include/linux/percpu_counter.h
+@@ -32,6 +32,7 @@ struct percpu_counter {
+ 
+ void percpu_counter_init(struct percpu_counter *fbc, s64 amount);
+ void percpu_counter_destroy(struct percpu_counter *fbc);
++void percpu_counter_set(struct percpu_counter *fbc, s64 amount);
+ void __percpu_counter_add(struct percpu_counter *fbc, s64 amount, s32 batch);
+ s64 percpu_counter_sum(struct percpu_counter *fbc);
+ 
+@@ -75,6 +76,11 @@ static inline void percpu_counter_destro
  {
- 	int i;
-+	int err;
- 
- 	if (!mtd->backing_dev_info) {
- 		switch (mtd->type) {
-@@ -62,6 +63,9 @@ int add_mtd_device(struct mtd_info *mtd)
- 			break;
- 		}
- 	}
-+	err = bdi_init(mtd->backing_dev_info);
-+	if (err)
-+		return 1;
- 
- 	BUG_ON(mtd->writesize == 0);
- 	mutex_lock(&mtd_table_mutex);
-@@ -102,6 +106,7 @@ int add_mtd_device(struct mtd_info *mtd)
- 		}
- 
- 	mutex_unlock(&mtd_table_mutex);
-+	bdi_destroy(mtd->backing_dev_info);
- 	return 1;
  }
  
-@@ -144,6 +149,10 @@ int del_mtd_device (struct mtd_info *mtd
- 	}
- 
- 	mutex_unlock(&mtd_table_mutex);
++static inline void percpu_counter_set(struct percpu_counter *fbc, s64 amount)
++{
++	fbc->count = amount;
++}
 +
-+	if (mtd->backing_dev_info)
-+		bdi_destroy(mtd->backing_dev_info);
-+
- 	return ret;
- }
+ #define __percpu_counter_add(fbc, amount, batch) \
+ 	percpu_counter_add(fbc, amount)
  
+Index: linux-2.6/lib/percpu_counter.c
+===================================================================
+--- linux-2.6.orig/lib/percpu_counter.c
++++ linux-2.6/lib/percpu_counter.c
+@@ -14,6 +14,20 @@ static LIST_HEAD(percpu_counters);
+ static DEFINE_MUTEX(percpu_counters_lock);
+ #endif
+ 
++void percpu_counter_set(struct percpu_counter *fbc, s64 amount)
++{
++	int cpu;
++
++	spin_lock(&fbc->lock);
++	for_each_possible_cpu(cpu) {
++		s32 *pcount = per_cpu_ptr(fbc->counters, cpu);
++		*pcount = 0;
++	}
++	fbc->count = amount;
++	spin_unlock(&fbc->lock);
++}
++EXPORT_SYMBOL(percpu_counter_set);
++
+ void __percpu_counter_add(struct percpu_counter *fbc, s64 amount, s32 batch)
+ {
+ 	s64 count;
 
 --
 
