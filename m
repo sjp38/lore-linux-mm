@@ -1,36 +1,54 @@
-Date: Fri, 3 Aug 2007 09:58:02 -0700 (PDT)
-From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [PATCH 3/4] vmemmap: pull out the vmemmap code into its own file
-In-Reply-To: <46B3424F.7010800@shadowen.org>
-Message-ID: <Pine.LNX.4.64.0708030939140.17307@schroedinger.engr.sgi.com>
-References: <exportbomb.1186045945@pinky> <E1IGWw3-0002Xr-Dm@hellhawk.shadowen.org>
- <20070802132621.GA9511@infradead.org> <Pine.LNX.4.64.0708021220220.7948@schroedinger.engr.sgi.com>
- <46B3424F.7010800@shadowen.org>
+Date: Fri, 3 Aug 2007 17:46:02 -0100
+From: "Duane Ross" <bocavi1@cox.net>
+Reply-To: bocavi1@cox.net
+Message-ID: <386982756.81802975183441@cox.net>
+Subject: Potenzprobleme - ab heute nicht mehr   any possible  -- brain in a way that sticks. 
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
-Sender: owner-linux-mm@kvack.org
-Return-Path: <owner-linux-mm@kvack.org>
-To: Andy Whitcroft <apw@shadowen.org>
-Cc: Christoph Hellwig <hch@infradead.org>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-arch@vger.kernel.org, Nick Piggin <npiggin@suse.de>, Mel Gorman <mel@csn.ul.ie>
+Content-Type: multipart/alternative;
+  boundary="----------2932178217FD30"
+Return-Path: <bocavi1@cox.net>
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 3 Aug 2007, Andy Whitcroft wrote:
+------------2932178217FD30
+Content-Type: text/plain; charset=Windows-1252
+Content-Transfer-Encoding: 7bit
 
-> As the PMD initialisers are only used by x86_64 we could make it supply
-> a complete vmemmap_populate level initialiser but that would result in
-> us duplicating the PUD level initialier function there which seems like
-> a bad idea.
+Sie leben nur einmal - warum dann nicht was neues ausprobieren?
 
-Hmmm... at least i386 also uses it. Looked through the other arches but 
-cannot find evidence of them supporting PMD level huge page stuff.
+Preise die keine Konkurrenz kennen 
 
-There are some embedded archs (example FRV) which seem to be i386 knock 
-offs and those also support the same in hardware. There is some 
-rudimentary PSE suport in FRV. Has mk_pte_huge(). So I would expect that 
-at least i386, x86_64 and FRV would benefit from a generic implementation.
+- keine versteckte Kosten
+- Diskrete Verpackung und Zahlung
+- Bequem und diskret online bestellen.
+- Kein peinlicher Arztbesuch erforderlich
+- Kostenlose, arztliche Telefon-Beratung
+- Kein langes Warten - Auslieferung innerhalb von 2-3 Tagen
+- Visa verifizierter Onlineshop
 
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+Originalmedikamente
+Ciiaaaaaalis 10 Pack. 27,00 Euro
+Viiaaaagra 10 Pack. 21,00 Euro
+
+Jetzt bestellen - und vier Pillen umsonst erhalten
+http://nanac.electrictrouble.cn/?719795619789
+
+(bitte warten Sie einen Moment bis die Seite vollstandig geladen wird)
+------------2932178217FD30
+Content-Type: text/html; charset=Windows-1252
+Content-Transfer-Encoding: 7bit
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE></TITLE>
+</HEAD>
+<BODY>
+
+<head><meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+</head><body><p>Meinung von unserem Kunden:<br><strong>Ich habe drei Jahre lang keine befriedigende Er_rektio_n hinbekommen. Das hat mich fertig gemacht. Viiaaaagra haben meine Frau, sie ist 54, und ich in zwei Jahren nicht einmal auf befriedigen Sex verzichten m&#252;ssen. Und die Liebe ist genauso intensiv wie vor einem halben Jahrhundert! Jetzt machen wir es wieder drei- bis f&#252;nfmal pro Woche. Ich bin 75 Jahre alt und dankbar, dass ich Viiaaaagra kennengelernt habe.</strong></p><p><strong>Ich finde Viiaaaagra einfach wunderbar. Egal, ob f&#252;r den Sex oder, um mich selbst zu verw&#246;hnen: Es funktioniert. Mein Schwanz wird extrem hart und mein Orgasmus ist sehr intensiv. Die Wirkung ist so stark, dass ich Viiaaaagra nur am Wochenende verwende oder wenn ich viel Zeit habe, es richtig zu genie&#223;en.<br>
+</strong><strong><br>Sie leben nur einmal - warum dann nicht was neues ausprobieren?</strong></p><p>Preise die keine Konkurrenz kennen <p>
+- Kostenlose, arztliche Telefon-Beratung<br>- Kein peinlicher Arztbesuch erforderlich<br>- Diskrete Verpackung und Zahlung<br>- Kein langes Warten - Auslieferung innerhalb von 2-3 Tagen<br>- Bequem und diskret online bestellen.<br>- Visa verifizierter Onlineshop<br>- keine versteckte Kosten</p>
+<p>Originalmedikamente<br><strong>Ciiaaaaaalis 10 Pack. 27,00 Euro</strong><br>
+  <strong>Viiaaaagra 10 Pack. 21,00 Euro</strong><br><br><strong><a href="http://nanac.electrictrouble.cn/?719795619789" target="_blank">Jetzt bestellen - und vier Pillen umsonst erhalten</a><br></strong>(bitte warten Sie einen Moment bis die Seite vollst&auml;ndig geladen wird) </p></body>
+
+</BODY></HTML>
+------------2932178217FD30--
