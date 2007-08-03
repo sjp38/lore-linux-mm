@@ -1,402 +1,503 @@
-Message-Id: <20070803125237.324836000@chello.nl>
+Message-Id: <20070803125236.134466000@chello.nl>
 References: <20070803123712.987126000@chello.nl>
-Date: Fri, 03 Aug 2007 14:37:32 +0200
+Date: Fri, 03 Aug 2007 14:37:23 +0200
 From: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Subject: [PATCH 19/23] lib: floating proportions
-Content-Disposition: inline; filename=proportions.patch
+Subject: [PATCH 10/23] mm: bdi init hooks
+Content-Disposition: inline; filename=bdi_init.patch
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 Cc: miklos@szeredi.hu, akpm@linux-foundation.org, neilb@suse.de, dgc@sgi.com, tomoki.sekiyama.qu@hitachi.com, a.p.zijlstra@chello.nl, nikita@clusterfs.com, trond.myklebust@fys.uio.no, yingchao.zhou@gmail.com, richard@rsk.demon.co.uk, torvalds@linux-foundation.org
 List-ID: <linux-mm.kvack.org>
 
-Given a set of objects, floating proportions aims to efficiently give the
-proportional 'activity' of a single item as compared to the whole set. Where
-'activity' is a measure of a temporal property of the items.
-
-It is efficient in that it need not inspect any other items of the set
-in order to provide the answer. It is not even needed to know how many
-other items there are.
-
-It has one parameter, and that is the period of 'time' over which the 
-'activity' is measured.
+provide BDI constructor/destructor hooks
 
 Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
 ---
- include/linux/proportions.h |   81 +++++++++++++
- lib/Makefile                |    3 
- lib/proportions.c           |  264 ++++++++++++++++++++++++++++++++++++++++++++
- 3 files changed, 347 insertions(+), 1 deletion(-)
+ block/ll_rw_blk.c               |   13 ++++++++++---
+ drivers/block/rd.c              |   20 +++++++++++++++++++-
+ drivers/char/mem.c              |    5 +++++
+ fs/char_dev.c                   |    1 +
+ fs/configfs/configfs_internal.h |    2 ++
+ fs/configfs/inode.c             |    8 ++++++++
+ fs/configfs/mount.c             |    9 +++++++++
+ fs/fuse/inode.c                 |    9 +++++++++
+ fs/hugetlbfs/inode.c            |    9 ++++++++-
+ fs/nfs/client.c                 |    6 ++++++
+ fs/ocfs2/dlm/dlmfs.c            |    9 ++++++++-
+ fs/ramfs/inode.c                |   12 +++++++++++-
+ fs/sysfs/inode.c                |    5 +++++
+ fs/sysfs/mount.c                |    4 ++++
+ fs/sysfs/sysfs.h                |    1 +
+ include/linux/backing-dev.h     |    8 ++++++++
+ mm/readahead.c                  |    6 ++++++
+ mm/shmem.c                      |    6 ++++++
+ mm/swap.c                       |    4 ++++
+ 19 files changed, 130 insertions(+), 7 deletions(-)
 
-Index: linux-2.6/lib/proportions.c
+Index: linux-2.6/block/ll_rw_blk.c
 ===================================================================
---- /dev/null
-+++ linux-2.6/lib/proportions.c
-@@ -0,0 +1,264 @@
-+/*
-+ * Floating proportions
-+ *
-+ *  Copyright (C) 2007 Red Hat, Inc., Peter Zijlstra <pzijlstr@redhat.com>
-+ *
-+ * Description:
-+ *
-+ * The floating proportion is a time derivative with an exponentially decaying
-+ * history:
-+ *
-+ *   p_{j} = \Sum_{i=0} (dx_{j}/dt_{-i}) / 2^(1+i)
-+ *
-+ * Where j is an element from {prop_local}, x_{j} is j's number of events,
-+ * and i the time period over which the differential is taken. So d/dt_{-i} is
-+ * the differential over the i-th last period.
-+ *
-+ * The decaying history gives smooth transitions. The time differential carries
-+ * the notion of speed.
-+ *
-+ * The denominator is 2^(1+i) because we want the series to be normalised, ie.
-+ *
-+ *   \Sum_{i=0} 1/2^(1+i) = 1
-+ *
-+ * Further more, if we measure time (t) in the same events as x; so that:
-+ *
-+ *   t = \Sum_{j} x_{j}
-+ *
-+ * we get that:
-+ *
-+ *   \Sum_{j} p_{j} = 1
-+ *
-+ * Writing this in an iterative fashion we get (dropping the 'd's):
-+ *
-+ *   if (++x_{j}, ++t > period)
-+ *     t /= 2;
-+ *     for_each (j)
-+ *       x_{j} /= 2;
-+ *
-+ * so that:
-+ *
-+ *   p_{j} = x_{j} / t;
-+ *
-+ * We optimize away the '/= 2' for the global time delta by noting that:
-+ *
-+ *   if (++t > period) t /= 2:
-+ *
-+ * Can be approximated by:
-+ *
-+ *   period/2 + (++t % period/2)
-+ *
-+ * [ Furthermore, when we choose period to be 2^n it can be written in terms of
-+ *   binary operations and wraparound artefacts disappear. ]
-+ *
-+ * Also note that this yields a natural counter of the elapsed periods:
-+ *
-+ *   c = t / (period/2)
-+ *
-+ * [ Its monotonic increasing property can be applied to mitigate the wrap-
-+ *   around issue. ]
-+ *
-+ * This allows us to do away with the loop over all prop_locals on each period
-+ * expiration. By remembering the period count under which it was last accessed
-+ * as c_{j}, we can obtain the number of 'missed' cycles from:
-+ *
-+ *   c - c_{j}
-+ *
-+ * We can then lazily catch up to the global period count every time we are
-+ * going to use x_{j}, by doing:
-+ *
-+ *   x_{j} /= 2^(c - c_{j}), c_{j} = c
-+ */
+--- linux-2.6.orig/block/ll_rw_blk.c
++++ linux-2.6/block/ll_rw_blk.c
+@@ -1780,6 +1780,7 @@ static void blk_release_queue(struct kob
+ 
+ 	blk_trace_shutdown(q);
+ 
++	bdi_destroy(&q->backing_dev_info);
+ 	kmem_cache_free(requestq_cachep, q);
+ }
+ 
+@@ -1833,21 +1834,27 @@ static struct kobj_type queue_ktype;
+ struct request_queue *blk_alloc_queue_node(gfp_t gfp_mask, int node_id)
+ {
+ 	struct request_queue *q;
++	int err;
+ 
+ 	q = kmem_cache_alloc_node(requestq_cachep,
+ 				gfp_mask | __GFP_ZERO, node_id);
+ 	if (!q)
+ 		return NULL;
+ 
++	q->backing_dev_info.unplug_io_fn = blk_backing_dev_unplug;
++	q->backing_dev_info.unplug_io_data = q;
++	err = bdi_init(&q->backing_dev_info);
++	if (err) {
++		kmem_cache_free(requestq_cachep, q);
++		return NULL;
++	}
 +
-+#include <linux/proportions.h>
-+#include <linux/rcupdate.h>
+ 	init_timer(&q->unplug_timer);
+ 
+ 	snprintf(q->kobj.name, KOBJ_NAME_LEN, "%s", "queue");
+ 	q->kobj.ktype = &queue_ktype;
+ 	kobject_init(&q->kobj);
+ 
+-	q->backing_dev_info.unplug_io_fn = blk_backing_dev_unplug;
+-	q->backing_dev_info.unplug_io_data = q;
+-
+ 	mutex_init(&q->sysfs_lock);
+ 
+ 	return q;
+Index: linux-2.6/drivers/block/rd.c
+===================================================================
+--- linux-2.6.orig/drivers/block/rd.c
++++ linux-2.6/drivers/block/rd.c
+@@ -411,6 +411,9 @@ static void __exit rd_cleanup(void)
+ 		blk_cleanup_queue(rd_queue[i]);
+ 	}
+ 	unregister_blkdev(RAMDISK_MAJOR, "ramdisk");
 +
-+int prop_descriptor_init(struct prop_descriptor *pd, int shift)
-+{
++	bdi_destroy(&rd_file_backing_dev_info);
++	bdi_destroy(&rd_backing_dev_info);
+ }
+ 
+ /*
+@@ -419,7 +422,19 @@ static void __exit rd_cleanup(void)
+ static int __init rd_init(void)
+ {
+ 	int i;
+-	int err = -ENOMEM;
 +	int err;
 +
-+	pd->index = 0;
-+	pd->pg[0].shift = shift;
-+	mutex_init(&pd->mutex);
-+	err = percpu_counter_init_irq(&pd->pg[0].events, 0);
++	err = bdi_init(&rd_backing_dev_info);
 +	if (err)
-+		goto out;
++		goto out2;
 +
-+	err = percpu_counter_init_irq(&pd->pg[1].events, 0);
-+	if (err)
-+		percpu_counter_destroy(&pd->pg[0].events);
-+
-+out:
-+	return err;
-+}
-+
-+/*
-+ * We have two copies, and flip between them to make it seem like an atomic
-+ * update. The update is not really atomic wrt the events counter, but
-+ * it is internally consistent with the bit layout depending on shift.
-+ *
-+ * We copy the events count, move the bits around and flip the index.
-+ */
-+void prop_change_shift(struct prop_descriptor *pd, int shift)
-+{
-+	int index;
-+	int offset;
-+	u64 events;
-+	unsigned long flags;
-+
-+	mutex_lock(&pd->mutex);
-+
-+	index = pd->index ^ 1;
-+	offset = pd->pg[pd->index].shift - shift;
-+	if (!offset)
-+		goto out;
-+
-+	pd->pg[index].shift = shift;
-+
-+	local_irq_save(flags);
-+	events = percpu_counter_sum(
-+			&pd->pg[pd->index].events);
-+	if (offset < 0)
-+		events <<= -offset;
-+	else
-+		events >>= offset;
-+	percpu_counter_set(&pd->pg[index].events, events);
-+
-+	/*
-+	 * ensure the new pg is fully written before the switch
-+	 */
-+	smp_wmb();
-+	pd->index = index;
-+	local_irq_restore(flags);
-+
-+	synchronize_rcu();
-+
-+out:
-+	mutex_unlock(&pd->mutex);
-+}
-+
-+/*
-+ * wrap the access to the data in an rcu_read_lock() section;
-+ * this is used to track the active references.
-+ */
-+struct prop_global *prop_get_global(struct prop_descriptor *pd)
-+{
-+	int index;
-+
-+	rcu_read_lock();
-+	index = pd->index;
-+	/*
-+	 * match the wmb from vcd_flip()
-+	 */
-+	smp_rmb();
-+	return &pd->pg[index];
-+}
-+
-+void prop_put_global(struct prop_descriptor *pd, struct prop_global *pg)
-+{
-+	rcu_read_unlock();
-+}
-+
-+static void prop_adjust_shift(struct prop_local *pl, int new_shift)
-+{
-+	int offset = pl->shift - new_shift;
-+
-+	if (!offset)
-+		return;
-+
-+	if (offset < 0)
-+		pl->period <<= -offset;
-+	else
-+		pl->period >>= offset;
-+
-+	pl->shift = new_shift;
-+}
-+
-+int prop_local_init(struct prop_local *pl)
-+{
-+	spin_lock_init(&pl->lock);
-+	pl->shift = 0;
-+	pl->period = 0;
-+	return percpu_counter_init_irq(&pl->events, 0);
-+}
-+
-+void prop_local_destroy(struct prop_local *pl)
-+{
-+	percpu_counter_destroy(&pl->events);
-+}
-+
-+/*
-+ * Catch up with missed period expirations.
-+ *
-+ *   until (c_{j} == c)
-+ *     x_{j} -= x_{j}/2;
-+ *     c_{j}++;
-+ */
-+void prop_norm(struct prop_global *pg,
-+		struct prop_local *pl)
-+{
-+	unsigned long period = 1UL << (pg->shift - 1);
-+	unsigned long period_mask = ~(period - 1);
-+	unsigned long global_period;
-+	unsigned long flags;
-+
-+	global_period = percpu_counter_read(&pg->events);
-+	global_period &= period_mask;
-+
-+	/*
-+	 * Fast path - check if the local and global period count still match
-+	 * outside of the lock.
-+	 */
-+	if (pl->period == global_period)
-+		return;
-+
-+	spin_lock_irqsave(&pl->lock, flags);
-+	prop_adjust_shift(pl, pg->shift);
-+	/*
-+	 * For each missed period, we half the local counter.
-+	 * basically:
-+	 *   pl->events >> (global_period - pl->period);
-+	 *
-+	 * but since the distributed nature of percpu counters make division
-+	 * rather hard, use a regular subtraction loop. This is safe, because
-+	 * the events will only every be incremented, hence the subtraction
-+	 * can never result in a negative number.
-+	 */
-+	while (pl->period != global_period) {
-+		unsigned long val = percpu_counter_read(&pl->events);
-+		unsigned long half = (val + 1) >> 1;
-+
-+		/*
-+		 * Half of zero won't be much less, break out.
-+		 * This limits the loop to shift iterations, even
-+		 * if we missed a million.
-+		 */
-+		if (!val)
-+			break;
-+
-+		percpu_counter_add(&pl->events, -half);
-+		pl->period += period;
++	err = bdi_init(&rd_file_backing_dev_info);
++	if (err) {
++		bdi_destroy(&rd_backing_dev_info);
++		goto out2;
 +	}
-+	pl->period = global_period;
-+	spin_unlock_irqrestore(&pl->lock, flags);
-+}
 +
-+/*
-+ * Obtain an fraction of this proportion
-+ *
-+ *   p_{j} = x_{j} / (period/2 + t % period/2)
-+ */
-+void prop_fraction(struct prop_global *pg, struct prop_local *pl,
-+		long *numerator, long *denominator)
-+{
-+	unsigned long period_2 = 1UL << (pg->shift - 1);
-+	unsigned long counter_mask = period_2 - 1;
-+	unsigned long global_count;
-+
-+	prop_norm(pg, pl);
-+	*numerator = percpu_counter_read_positive(&pl->events);
-+
-+	global_count = percpu_counter_read(&pg->events);
-+	*denominator = period_2 + (global_count & counter_mask);
-+}
-+
-Index: linux-2.6/include/linux/proportions.h
-===================================================================
---- /dev/null
-+++ linux-2.6/include/linux/proportions.h
-@@ -0,0 +1,81 @@
-+/*
-+ * FLoating proportions
-+ *
-+ *  Copyright (C) 2007 Red Hat, Inc., Peter Zijlstra <pzijlstr@redhat.com>
-+ *
-+ * This file contains the public data structure and API definitions.
-+ */
-+
-+#ifndef _LINUX_PROPORTIONS_H
-+#define _LINUX_PROPORTIONS_H
-+
-+#include <linux/percpu_counter.h>
-+#include <linux/spinlock.h>
-+#include <linux/mutex.h>
-+
-+struct prop_global {
-+	/*
-+	 * The period over which we differentiate
-+	 *
-+	 *   period = 2^shift
-+	 */
-+	int shift;
-+	/*
-+	 * The total event counter aka 'time'.
-+	 *
-+	 * Treated as an unsigned long; the lower 'shift - 1' bits are the
-+	 * counter bits, the remaining upper bits the period counter.
-+	 */
-+	struct percpu_counter events;
-+};
-+
-+/*
-+ * global proportion descriptor
-+ *
-+ * this is needed to consitently flip prop_global structures.
-+ */
-+struct prop_descriptor {
-+	int index;
-+	struct prop_global pg[2];
-+	struct mutex mutex;		/* serialize the prop_global switch */
-+};
-+
-+int prop_descriptor_init(struct prop_descriptor *pd, int shift);
-+void prop_change_shift(struct prop_descriptor *pd, int new_shift);
-+struct prop_global *prop_get_global(struct prop_descriptor *pd);
-+void prop_put_global(struct prop_descriptor *pd, struct prop_global *pg);
-+
-+struct prop_local {
-+	/*
-+	 * the local events counter
-+	 */
-+	struct percpu_counter events;
-+
-+	/*
-+	 * snapshot of the last seen global state
-+	 */
-+	int shift;
-+	unsigned long period;
-+	spinlock_t lock;		/* protect the snapshot state */
-+};
-+
-+int prop_local_init(struct prop_local *pl);
-+void prop_local_destroy(struct prop_local *pl);
-+
-+void prop_norm(struct prop_global *pg, struct prop_local *pl);
-+
-+/*
-+ *   ++x_{j}, ++t
-+ */
-+static inline
-+void __prop_inc(struct prop_global *pg, struct prop_local *pl)
-+{
-+	prop_norm(pg, pl);
-+	percpu_counter_add(&pl->events, 1);
-+	percpu_counter_add(&pg->events, 1);
-+}
-+
-+void prop_fraction(struct prop_global *pg, struct prop_local *pl,
-+		long *numerator, long *denominator);
-+
-+#endif /* _LINUX_PROPORTIONS_H */
-Index: linux-2.6/lib/Makefile
-===================================================================
---- linux-2.6.orig/lib/Makefile
-+++ linux-2.6/lib/Makefile
-@@ -5,7 +5,8 @@
- lib-y := ctype.o string.o vsprintf.o cmdline.o \
- 	 rbtree.o radix-tree.o dump_stack.o \
- 	 idr.o int_sqrt.o bitmap.o extable.o prio_tree.o \
--	 sha1.o irq_regs.o reciprocal_div.o argv_split.o
-+	 sha1.o irq_regs.o reciprocal_div.o argv_split.o \
-+	 proportions.o
++	err = -ENOMEM;
  
- lib-$(CONFIG_MMU) += ioremap.o pagewalk.o
- lib-$(CONFIG_SMP) += cpumask.o
+ 	if (rd_blocksize > PAGE_SIZE || rd_blocksize < 512 ||
+ 			(rd_blocksize & (rd_blocksize-1))) {
+@@ -473,6 +488,9 @@ out:
+ 		put_disk(rd_disks[i]);
+ 		blk_cleanup_queue(rd_queue[i]);
+ 	}
++	bdi_destroy(&rd_backing_dev_info);
++	bdi_destroy(&rd_file_backing_dev_info);
++out2:
+ 	return err;
+ }
+ 
+Index: linux-2.6/drivers/char/mem.c
+===================================================================
+--- linux-2.6.orig/drivers/char/mem.c
++++ linux-2.6/drivers/char/mem.c
+@@ -984,6 +984,11 @@ static struct class *mem_class;
+ static int __init chr_dev_init(void)
+ {
+ 	int i;
++	int err;
++
++	err = bdi_init(&zero_bdi);
++	if (err)
++		return err;
+ 
+ 	if (register_chrdev(MEM_MAJOR,"mem",&memory_fops))
+ 		printk("unable to get major %d for memory devs\n", MEM_MAJOR);
+Index: linux-2.6/fs/char_dev.c
+===================================================================
+--- linux-2.6.orig/fs/char_dev.c
++++ linux-2.6/fs/char_dev.c
+@@ -545,6 +545,7 @@ static struct kobject *base_probe(dev_t 
+ void __init chrdev_init(void)
+ {
+ 	cdev_map = kobj_map_init(base_probe, &chrdevs_lock);
++	bdi_init(&directly_mappable_cdev_bdi);
+ }
+ 
+ 
+Index: linux-2.6/fs/fuse/inode.c
+===================================================================
+--- linux-2.6.orig/fs/fuse/inode.c
++++ linux-2.6/fs/fuse/inode.c
+@@ -418,6 +418,7 @@ static int fuse_show_options(struct seq_
+ static struct fuse_conn *new_conn(void)
+ {
+ 	struct fuse_conn *fc;
++	int err;
+ 
+ 	fc = kzalloc(sizeof(*fc), GFP_KERNEL);
+ 	if (fc) {
+@@ -433,10 +434,17 @@ static struct fuse_conn *new_conn(void)
+ 		atomic_set(&fc->num_waiting, 0);
+ 		fc->bdi.ra_pages = (VM_MAX_READAHEAD * 1024) / PAGE_CACHE_SIZE;
+ 		fc->bdi.unplug_io_fn = default_unplug_io_fn;
++		err = bdi_init(&fc->bdi);
++		if (err) {
++			kfree(fc);
++			fc = NULL;
++			goto out;
++		}
+ 		fc->reqctr = 0;
+ 		fc->blocked = 1;
+ 		get_random_bytes(&fc->scramble_key, sizeof(fc->scramble_key));
+ 	}
++out:
+ 	return fc;
+ }
+ 
+@@ -446,6 +454,7 @@ void fuse_conn_put(struct fuse_conn *fc)
+ 		if (fc->destroy_req)
+ 			fuse_request_free(fc->destroy_req);
+ 		mutex_destroy(&fc->inst_mutex);
++		bdi_destroy(&fc->bdi);
+ 		kfree(fc);
+ 	}
+ }
+Index: linux-2.6/fs/nfs/client.c
+===================================================================
+--- linux-2.6.orig/fs/nfs/client.c
++++ linux-2.6/fs/nfs/client.c
+@@ -632,6 +632,7 @@ static void nfs_server_set_fsinfo(struct
+ 	if (server->rsize > NFS_MAX_FILE_IO_SIZE)
+ 		server->rsize = NFS_MAX_FILE_IO_SIZE;
+ 	server->rpages = (server->rsize + PAGE_CACHE_SIZE - 1) >> PAGE_CACHE_SHIFT;
++
+ 	server->backing_dev_info.ra_pages = server->rpages * NFS_MAX_READAHEAD;
+ 
+ 	if (server->wsize > max_rpc_payload)
+@@ -682,6 +683,10 @@ static int nfs_probe_fsinfo(struct nfs_s
+ 		goto out_error;
+ 
+ 	nfs_server_set_fsinfo(server, &fsinfo);
++	error = bdi_init(&server->backing_dev_info);
++	if (error)
++		goto out_error;
++
+ 
+ 	/* Get some general file system info */
+ 	if (server->namelen == 0) {
+@@ -761,6 +766,7 @@ void nfs_free_server(struct nfs_server *
+ 	nfs_put_client(server->nfs_client);
+ 
+ 	nfs_free_iostats(server->io_stats);
++	bdi_destroy(&server->backing_dev_info);
+ 	kfree(server);
+ 	nfs_release_automount_timer();
+ 	dprintk("<-- nfs_free_server()\n");
+Index: linux-2.6/include/linux/backing-dev.h
+===================================================================
+--- linux-2.6.orig/include/linux/backing-dev.h
++++ linux-2.6/include/linux/backing-dev.h
+@@ -34,6 +34,14 @@ struct backing_dev_info {
+ 	void *unplug_io_data;
+ };
+ 
++static inline int bdi_init(struct backing_dev_info *bdi)
++{
++	return 0;
++}
++
++static inline void bdi_destroy(struct backing_dev_info *bdi)
++{
++}
+ 
+ /*
+  * Flags in backing_dev_info::capability
+Index: linux-2.6/fs/hugetlbfs/inode.c
+===================================================================
+--- linux-2.6.orig/fs/hugetlbfs/inode.c
++++ linux-2.6/fs/hugetlbfs/inode.c
+@@ -965,11 +965,15 @@ static int __init init_hugetlbfs_fs(void
+ 	int error;
+ 	struct vfsmount *vfsmount;
+ 
++	error = bdi_init(&hugetlbfs_backing_dev_info);
++	if (error)
++		return error;
++
+ 	hugetlbfs_inode_cachep = kmem_cache_create("hugetlbfs_inode_cache",
+ 					sizeof(struct hugetlbfs_inode_info),
+ 					0, 0, init_once);
+ 	if (hugetlbfs_inode_cachep == NULL)
+-		return -ENOMEM;
++		return out2;
+ 
+ 	error = register_filesystem(&hugetlbfs_fs_type);
+ 	if (error)
+@@ -987,6 +991,8 @@ static int __init init_hugetlbfs_fs(void
+  out:
+ 	if (error)
+ 		kmem_cache_destroy(hugetlbfs_inode_cachep);
++ out2:
++	bdi_destroy(&hugetlbfs_backing_dev_info);
+ 	return error;
+ }
+ 
+@@ -994,6 +1000,7 @@ static void __exit exit_hugetlbfs_fs(voi
+ {
+ 	kmem_cache_destroy(hugetlbfs_inode_cachep);
+ 	unregister_filesystem(&hugetlbfs_fs_type);
++	bdi_destroy(&hugetlbfs_backing_dev_info);
+ }
+ 
+ module_init(init_hugetlbfs_fs)
+Index: linux-2.6/fs/ocfs2/dlm/dlmfs.c
+===================================================================
+--- linux-2.6.orig/fs/ocfs2/dlm/dlmfs.c
++++ linux-2.6/fs/ocfs2/dlm/dlmfs.c
+@@ -588,13 +588,17 @@ static int __init init_dlmfs_fs(void)
+ 
+ 	dlmfs_print_version();
+ 
++	status = bdi_init(&dlmfs_backing_dev_info);
++	if (status)
++		return status;
++
+ 	dlmfs_inode_cache = kmem_cache_create("dlmfs_inode_cache",
+ 				sizeof(struct dlmfs_inode_private),
+ 				0, (SLAB_HWCACHE_ALIGN|SLAB_RECLAIM_ACCOUNT|
+ 					SLAB_MEM_SPREAD),
+ 				dlmfs_init_once);
+ 	if (!dlmfs_inode_cache)
+-		return -ENOMEM;
++		goto bail;
+ 	cleanup_inode = 1;
+ 
+ 	user_dlm_worker = create_singlethread_workqueue("user_dlm");
+@@ -611,6 +615,7 @@ bail:
+ 			kmem_cache_destroy(dlmfs_inode_cache);
+ 		if (cleanup_worker)
+ 			destroy_workqueue(user_dlm_worker);
++		bdi_destroy(&dlmfs_backing_dev_info);
+ 	} else
+ 		printk("OCFS2 User DLM kernel interface loaded\n");
+ 	return status;
+@@ -624,6 +629,8 @@ static void __exit exit_dlmfs_fs(void)
+ 	destroy_workqueue(user_dlm_worker);
+ 
+ 	kmem_cache_destroy(dlmfs_inode_cache);
++
++	bdi_destroy(&dlmfs_backing_dev_info);
+ }
+ 
+ MODULE_AUTHOR("Oracle");
+Index: linux-2.6/fs/configfs/configfs_internal.h
+===================================================================
+--- linux-2.6.orig/fs/configfs/configfs_internal.h
++++ linux-2.6/fs/configfs/configfs_internal.h
+@@ -56,6 +56,8 @@ extern int configfs_is_root(struct confi
+ 
+ extern struct inode * configfs_new_inode(mode_t mode, struct configfs_dirent *);
+ extern int configfs_create(struct dentry *, int mode, int (*init)(struct inode *));
++extern int configfs_inode_init(void);
++extern void configfs_inode_exit(void);
+ 
+ extern int configfs_create_file(struct config_item *, const struct configfs_attribute *);
+ extern int configfs_make_dirent(struct configfs_dirent *,
+Index: linux-2.6/fs/configfs/inode.c
+===================================================================
+--- linux-2.6.orig/fs/configfs/inode.c
++++ linux-2.6/fs/configfs/inode.c
+@@ -256,4 +256,12 @@ void configfs_hash_and_remove(struct den
+ 	mutex_unlock(&dir->d_inode->i_mutex);
+ }
+ 
++int __init configfs_inode_init(void)
++{
++	return bdi_init(&configfs_backing_dev_info);
++}
+ 
++void __exit configfs_inode_exit(void)
++{
++	bdi_destroy(&configfs_backing_dev_info);
++}
+Index: linux-2.6/fs/configfs/mount.c
+===================================================================
+--- linux-2.6.orig/fs/configfs/mount.c
++++ linux-2.6/fs/configfs/mount.c
+@@ -154,8 +154,16 @@ static int __init configfs_init(void)
+ 		subsystem_unregister(&config_subsys);
+ 		kmem_cache_destroy(configfs_dir_cachep);
+ 		configfs_dir_cachep = NULL;
++		goto out;
+ 	}
+ 
++	err = configfs_inode_init();
++	if (err) {
++		unregister_filesystem(&configfs_fs_type);
++		subsystem_unregister(&config_subsys);
++		kmem_cache_destroy(configfs_dir_cachep);
++		configfs_dir_cachep = NULL;
++	}
+ out:
+ 	return err;
+ }
+@@ -166,6 +174,7 @@ static void __exit configfs_exit(void)
+ 	subsystem_unregister(&config_subsys);
+ 	kmem_cache_destroy(configfs_dir_cachep);
+ 	configfs_dir_cachep = NULL;
++	configfs_inode_exit();
+ }
+ 
+ MODULE_AUTHOR("Oracle");
+Index: linux-2.6/fs/ramfs/inode.c
+===================================================================
+--- linux-2.6.orig/fs/ramfs/inode.c
++++ linux-2.6/fs/ramfs/inode.c
+@@ -223,7 +223,17 @@ module_exit(exit_ramfs_fs)
+ 
+ int __init init_rootfs(void)
+ {
+-	return register_filesystem(&rootfs_fs_type);
++	int err;
++
++	err = bdi_init(&ramfs_backing_dev_info);
++	if (err)
++		return err;
++
++	err = register_filesystem(&rootfs_fs_type);
++	if (err)
++		bdi_destroy(&ramfs_backing_dev_info);
++
++	return err;
+ }
+ 
+ MODULE_LICENSE("GPL");
+Index: linux-2.6/fs/sysfs/inode.c
+===================================================================
+--- linux-2.6.orig/fs/sysfs/inode.c
++++ linux-2.6/fs/sysfs/inode.c
+@@ -34,6 +34,11 @@ static const struct inode_operations sys
+ 	.setattr	= sysfs_setattr,
+ };
+ 
++int __init sysfs_inode_init(void)
++{
++	return bdi_init(&sysfs_backing_dev_info);
++}
++
+ int sysfs_setattr(struct dentry * dentry, struct iattr * iattr)
+ {
+ 	struct inode * inode = dentry->d_inode;
+Index: linux-2.6/fs/sysfs/mount.c
+===================================================================
+--- linux-2.6.orig/fs/sysfs/mount.c
++++ linux-2.6/fs/sysfs/mount.c
+@@ -90,6 +90,10 @@ int __init sysfs_init(void)
+ 	if (!sysfs_dir_cachep)
+ 		goto out;
+ 
++	err = sysfs_inode_init();
++	if (err)
++		goto out_err;
++
+ 	err = register_filesystem(&sysfs_fs_type);
+ 	if (!err) {
+ 		sysfs_mount = kern_mount(&sysfs_fs_type);
+Index: linux-2.6/fs/sysfs/sysfs.h
+===================================================================
+--- linux-2.6.orig/fs/sysfs/sysfs.h
++++ linux-2.6/fs/sysfs/sysfs.h
+@@ -78,6 +78,7 @@ extern int sysfs_addrm_finish(struct sys
+ 
+ extern struct inode * sysfs_get_inode(struct sysfs_dirent *sd);
+ extern void sysfs_instantiate(struct dentry *dentry, struct inode *inode);
++extern int sysfs_inode_init(void);
+ 
+ extern void release_sysfs_dirent(struct sysfs_dirent * sd);
+ extern struct sysfs_dirent *sysfs_find_dirent(struct sysfs_dirent *parent_sd,
+Index: linux-2.6/mm/shmem.c
+===================================================================
+--- linux-2.6.orig/mm/shmem.c
++++ linux-2.6/mm/shmem.c
+@@ -2460,6 +2460,10 @@ static int __init init_tmpfs(void)
+ {
+ 	int error;
+ 
++	error = bdi_init(&shmem_backing_dev_info);
++	if (error)
++		goto out4;
++
+ 	error = init_inodecache();
+ 	if (error)
+ 		goto out3;
+@@ -2484,6 +2488,8 @@ out1:
+ out2:
+ 	destroy_inodecache();
+ out3:
++	bdi_destroy(&shmem_backing_dev_info);
++out4:
+ 	shm_mnt = ERR_PTR(error);
+ 	return error;
+ }
+Index: linux-2.6/mm/swap.c
+===================================================================
+--- linux-2.6.orig/mm/swap.c
++++ linux-2.6/mm/swap.c
+@@ -548,6 +548,10 @@ void __init swap_setup(void)
+ {
+ 	unsigned long megs = num_physpages >> (20 - PAGE_SHIFT);
+ 
++#ifdef CONFIG_SWAP
++	bdi_init(swapper_space.backing_dev_info);
++#endif
++
+ 	/* Use a smaller cluster for small-memory machines */
+ 	if (megs < 16)
+ 		page_cluster = 2;
+Index: linux-2.6/mm/readahead.c
+===================================================================
+--- linux-2.6.orig/mm/readahead.c
++++ linux-2.6/mm/readahead.c
+@@ -234,6 +234,12 @@ unsigned long max_sane_readahead(unsigne
+ 		+ node_page_state(numa_node_id(), NR_FREE_PAGES)) / 2);
+ }
+ 
++static int __init readahead_init(void)
++{
++	return bdi_init(&default_backing_dev_info);
++}
++subsys_initcall(readahead_init);
++
+ /*
+  * Submit IO for the read-ahead request in file_ra_state.
+  */
 
 --
 
