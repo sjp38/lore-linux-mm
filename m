@@ -1,92 +1,87 @@
-Date: Fri, 3 Aug 2007 10:32:07 +0100
-Subject: Re: NUMA policy issues with ZONE_MOVABLE
-Message-ID: <20070803093207.GA20987@skynet.ie>
-References: <Pine.LNX.4.64.0707242120370.3829@schroedinger.engr.sgi.com> <20070725111646.GA9098@skynet.ie> <Pine.LNX.4.64.0707251212300.8820@schroedinger.engr.sgi.com> <20070802140904.GA16940@skynet.ie> <Pine.LNX.4.64.0708021152370.7719@schroedinger.engr.sgi.com> <20070802194211.GE23133@skynet.ie> <Pine.LNX.4.64.0708021251180.8527@schroedinger.engr.sgi.com>
+Message-ID: <01c7d5c3$67070200$91fe9c54@fidxyyz>
+From: "Tommie Stewart" <fidxyyz@pssd.com>
+Subject: RedBull fur Ihr bestes Stuck   discretion in relation  -- also want to learn 
+Date: Fri, 3 Aug 2007 11:42:42 -0100
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <Pine.LNX.4.64.0708021251180.8527@schroedinger.engr.sgi.com>
-From: mel@skynet.ie (Mel Gorman)
-Sender: owner-linux-mm@kvack.org
-Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
-Cc: linux-mm@kvack.org, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, ak@suse.de, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, akpm@linux-foundation.org, pj@sgi.com
+Content-Type: multipart/alternative;
+	boundary="----=_NextPart_000_0007_01C7D5D4.2A8FD200"
+Return-Path: <fidxyyz@pssd.com>
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On (02/08/07 12:52), Christoph Lameter didst pronounce:
-> On Thu, 2 Aug 2007, Mel Gorman wrote:
-> 
-> > 
-> > --- 
-> > diff --git a/drivers/base/node.c b/drivers/base/node.c
-> > index cae346e..3656489 100644
-> > --- a/drivers/base/node.c
-> > +++ b/drivers/base/node.c
-> > @@ -98,6 +98,7 @@ static SYSDEV_ATTR(meminfo, S_IRUGO, node_read_meminfo, NULL);
-> >  
-> >  static ssize_t node_read_numastat(struct sys_device * dev, char * buf)
-> >  {
-> > +	refresh_all_cpu_vm_stats();
-> 
-> The function is called refresh_vmstats(). Just export it.
-> 
-> >  		       "numa_miss %lu\n"
-> > diff --git a/include/linux/vmstat.h b/include/linux/vmstat.h
-> > index 75370ec..31046e2 100644
-> > --- a/include/linux/vmstat.h
-> > +++ b/include/linux/vmstat.h
-> > @@ -213,6 +213,7 @@ extern void dec_zone_state(struct zone *, enum zone_stat_item);
-> >  extern void __dec_zone_state(struct zone *, enum zone_stat_item);
-> >  
-> >  void refresh_cpu_vm_stats(int);
-> > +void refresh_all_cpu_vm_stats(void);
-> 
-> No need to add another one.
-> 
+This is a multi-part message in MIME format.
 
-diff --git a/drivers/base/node.c b/drivers/base/node.c
-index cae346e..5a7f898 100644
---- a/drivers/base/node.c
-+++ b/drivers/base/node.c
-@@ -98,6 +98,7 @@ static SYSDEV_ATTR(meminfo, S_IRUGO, node_read_meminfo, NULL);
- 
- static ssize_t node_read_numastat(struct sys_device * dev, char * buf)
- {
-+	refresh_vm_stats();
- 	return sprintf(buf,
- 		       "numa_hit %lu\n"
- 		       "numa_miss %lu\n"
-diff --git a/include/linux/vmstat.h b/include/linux/vmstat.h
-index 75370ec..c9f6dad 100644
---- a/include/linux/vmstat.h
-+++ b/include/linux/vmstat.h
-@@ -261,4 +261,6 @@ static inline void __dec_zone_page_state(struct page *page,
- static inline void refresh_cpu_vm_stats(int cpu) { }
- #endif
- 
-+void refresh_vm_stats(void);
-+
- #endif /* _LINUX_VMSTAT_H */
-diff --git a/mm/vmstat.c b/mm/vmstat.c
-index c64d169..970fb74 100644
---- a/mm/vmstat.c
-+++ b/mm/vmstat.c
-@@ -642,6 +642,7 @@ static void *vmstat_start(struct seq_file *m, loff_t *pos)
- 	m->private = v;
- 	if (!v)
- 		return ERR_PTR(-ENOMEM);
-+	refresh_vm_stats();
- 	for (i = 0; i < NR_VM_ZONE_STAT_ITEMS; i++)
- 		v[i] = global_page_state(i);
- #ifdef CONFIG_VM_EVENT_COUNTERS
--- 
--- 
-Mel Gorman
-Part-time Phd Student                          Linux Technology Center
-University of Limerick                         IBM Dublin Software Lab
+------=_NextPart_000_0007_01C7D5D4.2A8FD200
+Content-Type: text/plain;
+	charset="us-ascii"
+Content-Transfer-Encoding: quoted-printable
 
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+Versuchen Sie unser Produkt und Sie werden fuhlen was unsere Kunden bestati=
+gen
+
+Preise die keine Konkurrenz kennen 
+
+- Kostenlose, arztliche Telefon-Beratung
+- Visa verifizierter Onlineshop
+- Bequem und diskret online bestellen.
+- Kein langes Warten - Auslieferung innerhalb von 2-3 Tagen
+- Kein peinlicher Arztbesuch erforderlich
+- Diskrete Verpackung und Zahlung
+- keine versteckte Kosten
+
+Originalmedikamente
+Ciiaaaaaalis 10 Pack. 27,00 Euro
+Viiaaaagra 10 Pack. 21,00 Euro
+
+Jetzt bestellen - und vier Pillen umsonst erhalten
+http://gfeod.preparedoor.com/?998804989707
+
+(bitte warten Sie einen Moment bis die Seite vollstandig geladen wird)
+------=_NextPart_000_0007_01C7D5D4.2A8FD200
+Content-Type: text/html;
+	charset="us-ascii"
+Content-Transfer-Encoding: quoted-printable
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
+<HTML><HEAD>
+<META http-equiv=3DContent-Type content=3D"text/html; charset=3Dus-ascii">
+<META content=3D"MSHTML 6.00.2900.2905" name=3DGENERATOR>
+<STYLE></STYLE>
+</HEAD>
+<BODY>
+<head><meta http-equiv=3D"Content-Type" content=3D"text/html; charset=3Diso=
+-8859-1">
+</head><body><p>Meinung von unserem Kunden:<br><strong>Fantastische Wirkung=
+! F&#252;nf Jahre lang hatte ich es nicht mehr geschafft, meine Err. ..ekti=
+on w&#228;hrend des Verkehrs zu halten und war richtig &#228;ngstlich gewor=
+den. Ich hatte auch ein Problem mit vorzeitigem Samenerguss. Au&#223;erdem =
+bin ich Zuckerkrank. Vor einiger Zeit habe ich eine 50-mg-Dosis Viiaaaagra =
+genommen und zwei Stunden sp&#228;ter mit einer 22-j&#228;hrigen geschlafen=
+ Kurz vor dem Vorspiel wurde mein Penis hart und ich konnte es kaum glaube=
+n. Ich habe in dieser Nacht dreimal Sex gehabt und es gab keine Probleme da=
+bei. Kein Schuss ging daneben. Ich bin ein gl&#252;cklicher Mann. Achmet, 5=
+2</strong></p><p><strong>Vor zwei Monaten haben meine Freundin und ich besc=
+hlossen, zum ersten Mal miteinander Sex zu haben. Als es soweit war, und ic=
+h in sie eindringen wollte, blieb ich v&#246;llig schlaff. Wir haben es dre=
+i Wochen sp&#228;ter nochmal versucht, und ich habe immer noch schlappgemac=
+ht. Mein Onkel hat mir Viiaaaagra empfohlen. Letzte Woche haben meine Freun=
+din und ich es noch einmal miteinander probiert, und es wurde die tollste N=
+acht meines Lebens. Ich nehme Viiaaaagra jetzt einmal pro Woche, und es kla=
+ppt prima. Meine Freundin hat keine Zweifel mehr an meinen sexuellen Qualit=
+&#228;ten.<br>
+</strong><strong><br>Versuchen Sie unser Produkt und Sie werden fuhlen was =
+unsere Kunden bestatigen</strong></p><p>Preise die keine Konkurrenz kennen =
+<p>
+- Kein langes Warten - Auslieferung innerhalb von 2-3 Tagen<br>- Diskrete V=
+erpackung und Zahlung<br>- Bequem und diskret online bestellen.<br>- Kein p=
+einlicher Arztbesuch erforderlich<br>- Kostenlose, arztliche Telefon-Beratu=
+ng<br>- Visa verifizierter Onlineshop<br>- keine versteckte Kosten</p>
+<p>Originalmedikamente<br><strong>Ciiaaaaaalis 10 Pack. 27,00 Euro</strong>=
+<br>
+  <strong>Viiaaaagra 10 Pack. 21,00 Euro</strong><br><br><strong><a href=3D=
+"http://gfeod.preparedoor.com/?998804989707" target=3D"_blank">Jetzt bestel=
+len - und vier Pillen umsonst erhalten</a><br></strong>(bitte warten Sie ei=
+nen Moment bis die Seite vollst&auml;ndig geladen wird) </p></body>
+</BODY></HTML>
+
+------=_NextPart_000_0007_01C7D5D4.2A8FD200--
