@@ -1,180 +1,150 @@
-Message-Id: <20070803125235.632220000@chello.nl>
+Message-Id: <20070803125237.851592000@chello.nl>
 References: <20070803123712.987126000@chello.nl>
-Date: Fri, 03 Aug 2007 14:37:21 +0200
+Date: Fri, 03 Aug 2007 14:37:36 +0200
 From: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Subject: [PATCH 08/23] lib: percpu_counter_init error handling
-Content-Disposition: inline; filename=percpu_counter_init.patch
+Subject: [PATCH 23/23] debug: sysfs files for the current ratio/size/total
+Content-Disposition: inline; filename=bdi_stat_debug.patch
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 Cc: miklos@szeredi.hu, akpm@linux-foundation.org, neilb@suse.de, dgc@sgi.com, tomoki.sekiyama.qu@hitachi.com, a.p.zijlstra@chello.nl, nikita@clusterfs.com, trond.myklebust@fys.uio.no, yingchao.zhou@gmail.com, richard@rsk.demon.co.uk, torvalds@linux-foundation.org
 List-ID: <linux-mm.kvack.org>
 
-alloc_percpu can fail, propagate that error.
+Expose the per bdi dirty limits in sysfs
 
 Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
 ---
- fs/ext2/super.c                |   11 ++++++++---
- fs/ext3/super.c                |   11 ++++++++---
- fs/ext4/super.c                |   11 ++++++++---
- include/linux/percpu_counter.h |    5 +++--
- lib/percpu_counter.c           |    8 +++++++-
- 5 files changed, 34 insertions(+), 12 deletions(-)
+ block/ll_rw_blk.c   |   80 ++++++++++++++++++++++++++++++++++++++++++++++++++++
+ mm/page-writeback.c |    4 +-
+ 2 files changed, 82 insertions(+), 2 deletions(-)
 
-Index: linux-2.6/fs/ext2/super.c
+Index: linux-2.6/block/ll_rw_blk.c
 ===================================================================
---- linux-2.6.orig/fs/ext2/super.c
-+++ linux-2.6/fs/ext2/super.c
-@@ -725,6 +725,7 @@ static int ext2_fill_super(struct super_
- 	int db_count;
- 	int i, j;
- 	__le32 features;
-+	int err;
+--- linux-2.6.orig/block/ll_rw_blk.c
++++ linux-2.6/block/ll_rw_blk.c
+@@ -3995,6 +3995,56 @@ static ssize_t queue_nr_writeback_show(s
+ 			nr_writeback >> (PAGE_CACHE_SHIFT - 10));
+ }
  
- 	sbi = kzalloc(sizeof(*sbi), GFP_KERNEL);
- 	if (!sbi)
-@@ -996,12 +997,16 @@ static int ext2_fill_super(struct super_
- 	sbi->s_rsv_window_head.rsv_goal_size = 0;
- 	ext2_rsv_window_add(sb, &sbi->s_rsv_window_head);
- 
--	percpu_counter_init(&sbi->s_freeblocks_counter,
-+	err = percpu_counter_init(&sbi->s_freeblocks_counter,
- 				ext2_count_free_blocks(sb));
--	percpu_counter_init(&sbi->s_freeinodes_counter,
-+	err |= percpu_counter_init(&sbi->s_freeinodes_counter,
- 				ext2_count_free_inodes(sb));
--	percpu_counter_init(&sbi->s_dirs_counter,
-+	err |= percpu_counter_init(&sbi->s_dirs_counter,
- 				ext2_count_dirs(sb));
-+	if (err) {
-+		printk(KERN_ERR "EXT2-fs: insufficient memory\n");
-+		goto failed_mount3;
-+	}
- 	/*
- 	 * set up enough so that it can read an inode
- 	 */
-Index: linux-2.6/fs/ext3/super.c
-===================================================================
---- linux-2.6.orig/fs/ext3/super.c
-+++ linux-2.6/fs/ext3/super.c
-@@ -1485,6 +1485,7 @@ static int ext3_fill_super (struct super
- 	int i;
- 	int needs_recovery;
- 	__le32 features;
-+	int err;
- 
- 	sbi = kzalloc(sizeof(*sbi), GFP_KERNEL);
- 	if (!sbi)
-@@ -1745,12 +1746,16 @@ static int ext3_fill_super (struct super
- 	get_random_bytes(&sbi->s_next_generation, sizeof(u32));
- 	spin_lock_init(&sbi->s_next_gen_lock);
- 
--	percpu_counter_init(&sbi->s_freeblocks_counter,
-+	err = percpu_counter_init(&sbi->s_freeblocks_counter,
- 		ext3_count_free_blocks(sb));
--	percpu_counter_init(&sbi->s_freeinodes_counter,
-+	err |= percpu_counter_init(&sbi->s_freeinodes_counter,
- 		ext3_count_free_inodes(sb));
--	percpu_counter_init(&sbi->s_dirs_counter,
-+	err |= percpu_counter_init(&sbi->s_dirs_counter,
- 		ext3_count_dirs(sb));
-+	if (err) {
-+		printk(KERN_ERR "EXT3-fs: insufficient memory\n");
-+		goto failed_mount3;
-+	}
- 
- 	/* per fileystem reservation list head & lock */
- 	spin_lock_init(&sbi->s_rsv_window_lock);
-Index: linux-2.6/fs/ext4/super.c
-===================================================================
---- linux-2.6.orig/fs/ext4/super.c
-+++ linux-2.6/fs/ext4/super.c
-@@ -1576,6 +1576,7 @@ static int ext4_fill_super (struct super
- 	int needs_recovery;
- 	__le32 features;
- 	__u64 blocks_count;
-+	int err;
- 
- 	sbi = kzalloc(sizeof(*sbi), GFP_KERNEL);
- 	if (!sbi)
-@@ -1857,12 +1858,16 @@ static int ext4_fill_super (struct super
- 	get_random_bytes(&sbi->s_next_generation, sizeof(u32));
- 	spin_lock_init(&sbi->s_next_gen_lock);
- 
--	percpu_counter_init(&sbi->s_freeblocks_counter,
-+	err = percpu_counter_init(&sbi->s_freeblocks_counter,
- 		ext4_count_free_blocks(sb));
--	percpu_counter_init(&sbi->s_freeinodes_counter,
-+	err |= percpu_counter_init(&sbi->s_freeinodes_counter,
- 		ext4_count_free_inodes(sb));
--	percpu_counter_init(&sbi->s_dirs_counter,
-+	err |= percpu_counter_init(&sbi->s_dirs_counter,
- 		ext4_count_dirs(sb));
-+	if (err) {
-+		printk(KERN_ERR "EXT4-fs: insufficient memory\n");
-+		goto failed_mount3;
-+	}
- 
- 	/* per fileystem reservation list head & lock */
- 	spin_lock_init(&sbi->s_rsv_window_lock);
-Index: linux-2.6/include/linux/percpu_counter.h
-===================================================================
---- linux-2.6.orig/include/linux/percpu_counter.h
-+++ linux-2.6/include/linux/percpu_counter.h
-@@ -30,7 +30,7 @@ struct percpu_counter {
- #define FBC_BATCH	(NR_CPUS*4)
- #endif
- 
--void percpu_counter_init(struct percpu_counter *fbc, s64 amount);
-+int percpu_counter_init(struct percpu_counter *fbc, s64 amount);
- void percpu_counter_destroy(struct percpu_counter *fbc);
- void percpu_counter_set(struct percpu_counter *fbc, s64 amount);
- void __percpu_counter_add(struct percpu_counter *fbc, s64 amount, s32 batch);
-@@ -78,9 +78,10 @@ struct percpu_counter {
- 	s64 count;
++extern void bdi_writeout_fraction(struct backing_dev_info *bdi,
++		long *numerator, long *denominator);
++
++static ssize_t queue_nr_cache_ratio_show(struct request_queue *q, char *page)
++{
++	long scale, div;
++
++	bdi_writeout_fraction(&q->backing_dev_info, &scale, &div);
++	scale *= 1024;
++	scale /= div;
++
++	return sprintf(page, "%ld\n", scale);
++}
++
++static ssize_t queue_nr_cache_num_show(struct request_queue *q, char *page)
++{
++	long scale, div;
++
++	bdi_writeout_fraction(&q->backing_dev_info, &scale, &div);
++
++	return sprintf(page, "%ld\n", scale);
++}
++
++static ssize_t queue_nr_cache_denom_show(struct request_queue *q, char *page)
++{
++	long scale, div;
++
++	bdi_writeout_fraction(&q->backing_dev_info, &scale, &div);
++
++	return sprintf(page, "%ld\n", div);
++}
++
++extern void
++get_dirty_limits(long *pbackground, long *pdirty, long *pbdi_dirty,
++		struct backing_dev_info *bdi);
++
++static ssize_t queue_nr_cache_size_show(struct request_queue *q, char *page)
++{
++	long background, dirty, bdi_dirty;
++	get_dirty_limits(&background, &dirty, &bdi_dirty, &q->backing_dev_info);
++	return sprintf(page, "%ld\n", bdi_dirty);
++}
++
++static ssize_t queue_nr_cache_total_show(struct request_queue *q, char *page)
++{
++	long background, dirty, bdi_dirty;
++	get_dirty_limits(&background, &dirty, &bdi_dirty, &q->backing_dev_info);
++	return sprintf(page, "%ld\n", dirty);
++}
++
+ static struct queue_sysfs_entry queue_requests_entry = {
+ 	.attr = {.name = "nr_requests", .mode = S_IRUGO | S_IWUSR },
+ 	.show = queue_requests_show,
+@@ -4028,6 +4078,31 @@ static struct queue_sysfs_entry queue_wr
+ 	.show = queue_nr_writeback_show,
  };
  
--static inline void percpu_counter_init(struct percpu_counter *fbc, s64 amount)
-+static inline int percpu_counter_init(struct percpu_counter *fbc, s64 amount)
- {
- 	fbc->count = amount;
-+	return 0;
- }
- 
- static inline void percpu_counter_destroy(struct percpu_counter *fbc)
-Index: linux-2.6/lib/percpu_counter.c
-===================================================================
---- linux-2.6.orig/lib/percpu_counter.c
-+++ linux-2.6/lib/percpu_counter.c
-@@ -68,21 +68,27 @@ s64 __percpu_counter_sum(struct percpu_c
- }
- EXPORT_SYMBOL(__percpu_counter_sum);
- 
--void percpu_counter_init(struct percpu_counter *fbc, s64 amount)
-+int percpu_counter_init(struct percpu_counter *fbc, s64 amount)
- {
- 	spin_lock_init(&fbc->lock);
- 	fbc->count = amount;
- 	fbc->counters = alloc_percpu(s32);
-+	if (!fbc->counters)
-+		return -ENOMEM;
- #ifdef CONFIG_HOTPLUG_CPU
- 	mutex_lock(&percpu_counters_lock);
- 	list_add(&fbc->list, &percpu_counters);
- 	mutex_unlock(&percpu_counters_lock);
- #endif
-+	return 0;
- }
- EXPORT_SYMBOL(percpu_counter_init);
- 
- void percpu_counter_destroy(struct percpu_counter *fbc)
- {
-+	if (!fbc->counters)
-+		return;
++static struct queue_sysfs_entry queue_cache_ratio_entry = {
++	.attr = {.name = "cache_ratio", .mode = S_IRUGO },
++	.show = queue_nr_cache_ratio_show,
++};
 +
- 	free_percpu(fbc->counters);
- #ifdef CONFIG_HOTPLUG_CPU
- 	mutex_lock(&percpu_counters_lock);
++static struct queue_sysfs_entry queue_cache_num_entry = {
++	.attr = {.name = "cache_num", .mode = S_IRUGO },
++	.show = queue_nr_cache_num_show,
++};
++
++static struct queue_sysfs_entry queue_cache_denom_entry = {
++	.attr = {.name = "cache_denom", .mode = S_IRUGO },
++	.show = queue_nr_cache_denom_show,
++};
++
++static struct queue_sysfs_entry queue_cache_size_entry = {
++	.attr = {.name = "cache_size", .mode = S_IRUGO },
++	.show = queue_nr_cache_size_show,
++};
++
++static struct queue_sysfs_entry queue_cache_total_entry = {
++	.attr = {.name = "cache_total", .mode = S_IRUGO },
++	.show = queue_nr_cache_total_show,
++};
++
+ static struct queue_sysfs_entry queue_iosched_entry = {
+ 	.attr = {.name = "scheduler", .mode = S_IRUGO | S_IWUSR },
+ 	.show = elv_iosched_show,
+@@ -4041,6 +4116,11 @@ static struct attribute *default_attrs[]
+ 	&queue_max_sectors_entry.attr,
+ 	&queue_reclaimable_entry.attr,
+ 	&queue_writeback_entry.attr,
++	&queue_cache_ratio_entry.attr,
++	&queue_cache_num_entry.attr,
++	&queue_cache_denom_entry.attr,
++	&queue_cache_size_entry.attr,
++	&queue_cache_total_entry.attr,
+ 	&queue_iosched_entry.attr,
+ 	NULL,
+ };
+Index: linux-2.6/mm/page-writeback.c
+===================================================================
+--- linux-2.6.orig/mm/page-writeback.c
++++ linux-2.6/mm/page-writeback.c
+@@ -176,7 +176,7 @@ static void task_dirty_inc(struct task_s
+ /*
+  * Obtain an accurate fraction of the BDI's portion.
+  */
+-static void bdi_writeout_fraction(struct backing_dev_info *bdi,
++void bdi_writeout_fraction(struct backing_dev_info *bdi,
+ 		long *numerator, long *denominator)
+ {
+ 	if (bdi_cap_writeback_dirty(bdi)) {
+@@ -300,7 +300,7 @@ static unsigned long determine_dirtyable
+ 	return x + 1;	/* Ensure that we never return 0 */
+ }
+ 
+-static void
++void
+ get_dirty_limits(long *pbackground, long *pdirty, long *pbdi_dirty,
+ 		 struct backing_dev_info *bdi)
+ {
 
 --
 
