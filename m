@@ -1,123 +1,177 @@
-Message-Id: <20070803125235.135461000@chello.nl>
+Message-Id: <20070803125236.857669000@chello.nl>
 References: <20070803123712.987126000@chello.nl>
-Date: Fri, 03 Aug 2007 14:37:19 +0200
+Date: Fri, 03 Aug 2007 14:37:28 +0200
 From: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Subject: [PATCH 06/23] lib: percpu_counter_sum_positive
-Content-Disposition: inline; filename=percpu_counter_sum_positive.patch
+Subject: [PATCH 15/23] mm: scalable bdi statistics counters.
+Content-Disposition: inline; filename=bdi_stat.patch
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 Cc: miklos@szeredi.hu, akpm@linux-foundation.org, neilb@suse.de, dgc@sgi.com, tomoki.sekiyama.qu@hitachi.com, a.p.zijlstra@chello.nl, nikita@clusterfs.com, trond.myklebust@fys.uio.no, yingchao.zhou@gmail.com, richard@rsk.demon.co.uk, torvalds@linux-foundation.org
 List-ID: <linux-mm.kvack.org>
 
-Because its consitent with percpu_counter_read*
+Provide scalable per backing_dev_info statistics counters.
 
 Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
 ---
- fs/ext3/super.c                |    4 ++--
- fs/ext4/super.c                |    4 ++--
- fs/file_table.c                |    2 +-
- include/linux/percpu_counter.h |    4 ++--
- lib/percpu_counter.c           |    4 ++--
- 5 files changed, 9 insertions(+), 9 deletions(-)
+ include/linux/backing-dev.h |   85 ++++++++++++++++++++++++++++++++++++++++++--
+ mm/backing-dev.c            |   27 +++++++++++++
+ 2 files changed, 109 insertions(+), 3 deletions(-)
 
-Index: linux-2.6/fs/ext3/super.c
+Index: linux-2.6/include/linux/backing-dev.h
 ===================================================================
---- linux-2.6.orig/fs/ext3/super.c
-+++ linux-2.6/fs/ext3/super.c
-@@ -2472,13 +2472,13 @@ static int ext3_statfs (struct dentry * 
- 	buf->f_type = EXT3_SUPER_MAGIC;
- 	buf->f_bsize = sb->s_blocksize;
- 	buf->f_blocks = le32_to_cpu(es->s_blocks_count) - sbi->s_overhead_last;
--	buf->f_bfree = percpu_counter_sum(&sbi->s_freeblocks_counter);
-+	buf->f_bfree = percpu_counter_sum_positive(&sbi->s_freeblocks_counter);
- 	es->s_free_blocks_count = cpu_to_le32(buf->f_bfree);
- 	buf->f_bavail = buf->f_bfree - le32_to_cpu(es->s_r_blocks_count);
- 	if (buf->f_bfree < le32_to_cpu(es->s_r_blocks_count))
- 		buf->f_bavail = 0;
- 	buf->f_files = le32_to_cpu(es->s_inodes_count);
--	buf->f_ffree = percpu_counter_sum(&sbi->s_freeinodes_counter);
-+	buf->f_ffree = percpu_counter_sum_positive(&sbi->s_freeinodes_counter);
- 	es->s_free_inodes_count = cpu_to_le32(buf->f_ffree);
- 	buf->f_namelen = EXT3_NAME_LEN;
- 	fsid = le64_to_cpup((void *)es->s_uuid) ^
-Index: linux-2.6/fs/ext4/super.c
-===================================================================
---- linux-2.6.orig/fs/ext4/super.c
-+++ linux-2.6/fs/ext4/super.c
-@@ -2592,13 +2592,13 @@ static int ext4_statfs (struct dentry * 
- 	buf->f_type = EXT4_SUPER_MAGIC;
- 	buf->f_bsize = sb->s_blocksize;
- 	buf->f_blocks = ext4_blocks_count(es) - sbi->s_overhead_last;
--	buf->f_bfree = percpu_counter_sum(&sbi->s_freeblocks_counter);
-+	buf->f_bfree = percpu_counter_sum_positive(&sbi->s_freeblocks_counter);
- 	es->s_free_blocks_count = cpu_to_le32(buf->f_bfree);
- 	buf->f_bavail = buf->f_bfree - ext4_r_blocks_count(es);
- 	if (buf->f_bfree < ext4_r_blocks_count(es))
- 		buf->f_bavail = 0;
- 	buf->f_files = le32_to_cpu(es->s_inodes_count);
--	buf->f_ffree = percpu_counter_sum(&sbi->s_freeinodes_counter);
-+	buf->f_ffree = percpu_counter_sum_positive(&sbi->s_freeinodes_counter);
- 	es->s_free_inodes_count = cpu_to_le32(buf->f_ffree);
- 	buf->f_namelen = EXT4_NAME_LEN;
- 	fsid = le64_to_cpup((void *)es->s_uuid) ^
-Index: linux-2.6/fs/file_table.c
-===================================================================
---- linux-2.6.orig/fs/file_table.c
-+++ linux-2.6/fs/file_table.c
-@@ -98,7 +98,7 @@ struct file *get_empty_filp(void)
- 		 * percpu_counters are inaccurate.  Do an expensive check before
- 		 * we go and fail.
- 		 */
--		if (percpu_counter_sum(&nr_files) >= files_stat.max_files)
-+		if (percpu_counter_sum_positive(&nr_files) >= files_stat.max_files)
- 			goto over;
- 	}
+--- linux-2.6.orig/include/linux/backing-dev.h
++++ linux-2.6/include/linux/backing-dev.h
+@@ -8,6 +8,8 @@
+ #ifndef _LINUX_BACKING_DEV_H
+ #define _LINUX_BACKING_DEV_H
  
-Index: linux-2.6/include/linux/percpu_counter.h
-===================================================================
---- linux-2.6.orig/include/linux/percpu_counter.h
-+++ linux-2.6/include/linux/percpu_counter.h
-@@ -34,7 +34,7 @@ void percpu_counter_init(struct percpu_c
- void percpu_counter_destroy(struct percpu_counter *fbc);
- void percpu_counter_set(struct percpu_counter *fbc, s64 amount);
- void __percpu_counter_add(struct percpu_counter *fbc, s64 amount, s32 batch);
--s64 percpu_counter_sum(struct percpu_counter *fbc);
-+s64 percpu_counter_sum_positive(struct percpu_counter *fbc);
++#include <linux/percpu_counter.h>
++#include <linux/log2.h>
+ #include <asm/atomic.h>
  
- static inline void percpu_counter_add(struct percpu_counter *fbc, s64 amount)
+ struct page;
+@@ -24,6 +26,12 @@ enum bdi_state {
+ 
+ typedef int (congested_fn)(void *, int);
+ 
++enum bdi_stat_item {
++	NR_BDI_STAT_ITEMS
++};
++
++#define BDI_STAT_BATCH (8*(1+ilog2(nr_cpu_ids)))
++
+ struct backing_dev_info {
+ 	unsigned long ra_pages;	/* max readahead in PAGE_CACHE_SIZE units */
+ 	unsigned long state;	/* Always use atomic bitops on this */
+@@ -32,15 +40,86 @@ struct backing_dev_info {
+ 	void *congested_data;	/* Pointer to aux data for congested func */
+ 	void (*unplug_io_fn)(struct backing_dev_info *, struct page *);
+ 	void *unplug_io_data;
++
++	struct percpu_counter bdi_stat[NR_BDI_STAT_ITEMS];
+ };
+ 
+-static inline int bdi_init(struct backing_dev_info *bdi)
++int bdi_init(struct backing_dev_info *bdi);
++void bdi_destroy(struct backing_dev_info *bdi);
++
++static inline void __mod_bdi_stat(struct backing_dev_info *bdi,
++		enum bdi_stat_item item, s32 amount)
  {
-@@ -102,7 +102,7 @@ static inline s64 percpu_counter_read_po
- 	return fbc->count;
+-	return 0;
++	__percpu_counter_add(&bdi->bdi_stat[item], amount, BDI_STAT_BATCH);
  }
  
--static inline s64 percpu_counter_sum(struct percpu_counter *fbc)
-+static inline s64 percpu_counter_sum_positive(struct percpu_counter *fbc)
+-static inline void bdi_destroy(struct backing_dev_info *bdi)
++static inline void __inc_bdi_stat(struct backing_dev_info *bdi,
++		enum bdi_stat_item item)
  {
- 	return percpu_counter_read_positive(fbc);
++	__mod_bdi_stat(bdi, item, 1);
++}
++
++static inline void inc_bdi_stat(struct backing_dev_info *bdi,
++		enum bdi_stat_item item)
++{
++	unsigned long flags;
++
++	local_irq_save(flags);
++	__inc_bdi_stat(bdi, item);
++	local_irq_restore(flags);
++}
++
++static inline void __dec_bdi_stat(struct backing_dev_info *bdi,
++		enum bdi_stat_item item)
++{
++	__mod_bdi_stat(bdi, item, -1);
++}
++
++static inline void dec_bdi_stat(struct backing_dev_info *bdi,
++		enum bdi_stat_item item)
++{
++	unsigned long flags;
++
++	local_irq_save(flags);
++	__dec_bdi_stat(bdi, item);
++	local_irq_restore(flags);
++}
++
++static inline s64 bdi_stat(struct backing_dev_info *bdi,
++		enum bdi_stat_item item)
++{
++	return percpu_counter_read_positive(&bdi->bdi_stat[item]);
++}
++
++static inline s64 __bdi_stat_sum(struct backing_dev_info *bdi,
++		enum bdi_stat_item item)
++{
++	return percpu_counter_sum_positive(&bdi->bdi_stat[item]);
++}
++
++static inline s64 bdi_stat_sum(struct backing_dev_info *bdi,
++		enum bdi_stat_item item)
++{
++	s64 sum;
++	unsigned long flags;
++
++	local_irq_save(flags);
++	sum = __bdi_stat_sum(bdi, item);
++	local_irq_restore(flags);
++
++	return sum;
++}
++
++/*
++ * maximal error of a stat counter.
++ */
++static inline unsigned long bdi_stat_error(struct backing_dev_info *bdi)
++{
++#ifdef CONFIG_SMP
++	return nr_cpu_ids * BDI_STAT_BATCH;
++#else
++	return 1;
++#endif
  }
-Index: linux-2.6/lib/percpu_counter.c
-===================================================================
---- linux-2.6.orig/lib/percpu_counter.c
-+++ linux-2.6/lib/percpu_counter.c
-@@ -52,7 +52,7 @@ EXPORT_SYMBOL(__percpu_counter_add);
-  * Add up all the per-cpu counts, return the result.  This is a more accurate
-  * but much slower version of percpu_counter_read_positive()
-  */
--s64 percpu_counter_sum(struct percpu_counter *fbc)
-+s64 percpu_counter_sum_positive(struct percpu_counter *fbc)
- {
- 	s64 ret;
- 	int cpu;
-@@ -66,7 +66,7 @@ s64 percpu_counter_sum(struct percpu_cou
- 	spin_unlock(&fbc->lock);
- 	return ret < 0 ? 0 : ret;
- }
--EXPORT_SYMBOL(percpu_counter_sum);
-+EXPORT_SYMBOL(percpu_counter_sum_positive);
  
- void percpu_counter_init(struct percpu_counter *fbc, s64 amount)
- {
+ /*
+Index: linux-2.6/mm/backing-dev.c
+===================================================================
+--- linux-2.6.orig/mm/backing-dev.c
++++ linux-2.6/mm/backing-dev.c
+@@ -5,6 +5,33 @@
+ #include <linux/sched.h>
+ #include <linux/module.h>
+ 
++int bdi_init(struct backing_dev_info *bdi)
++{
++	int i, j;
++	int err;
++
++	for (i = 0; i < NR_BDI_STAT_ITEMS; i++) {
++		err = percpu_counter_init_irq(&bdi->bdi_stat[i], 0);
++		if (err) {
++			for (j = 0; j < i; j++)
++				perpcu_counter_destroy(&bdi->bdi_stat[i]);
++			break;
++		}
++	}
++
++	return err;
++}
++EXPORT_SYMBOL(bdi_init);
++
++void bdi_destroy(struct backing_dev_info *bdi)
++{
++	int i;
++
++	for (i = 0; i < NR_BDI_STAT_ITEMS; i++)
++		percpu_counter_destroy(&bdi->bdi_stat[i]);
++}
++EXPORT_SYMBOL(bdi_destroy);
++
+ static wait_queue_head_t congestion_wqh[2] = {
+ 		__WAIT_QUEUE_HEAD_INITIALIZER(congestion_wqh[0]),
+ 		__WAIT_QUEUE_HEAD_INITIALIZER(congestion_wqh[1])
 
 --
 
