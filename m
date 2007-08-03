@@ -1,54 +1,71 @@
-Date: Fri, 3 Aug 2007 17:46:02 -0100
-From: "Duane Ross" <bocavi1@cox.net>
-Reply-To: bocavi1@cox.net
-Message-ID: <386982756.81802975183441@cox.net>
-Subject: Potenzprobleme - ab heute nicht mehr   any possible  -- brain in a way that sticks. 
-MIME-Version: 1.0
-Content-Type: multipart/alternative;
-  boundary="----------2932178217FD30"
-Return-Path: <bocavi1@cox.net>
-To: linux-mm@kvack.org
+Date: Fri, 3 Aug 2007 13:10:13 -0700
+From: "Siddha, Suresh B" <suresh.b.siddha@intel.com>
+Subject: Re: [rfc] balance-on-fork NUMA placement
+Message-ID: <20070803201013.GA12874@linux-os.sc.intel.com>
+References: <20070731054142.GB11306@wotan.suse.de> <200707311114.09284.ak@suse.de> <20070801002313.GC31006@wotan.suse.de> <46B0C8A3.8090506@mbligh.org> <1185993169.5059.79.camel@localhost> <46B10E9B.2030907@mbligh.org> <20070802013631.GA15595@wotan.suse.de> <46B22383.5020109@mbligh.org> <20070803002010.GB14775@wotan.suse.de>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20070803002010.GB14775@wotan.suse.de>
+Sender: owner-linux-mm@kvack.org
+Return-Path: <owner-linux-mm@kvack.org>
+To: Nick Piggin <npiggin@suse.de>
+Cc: Martin Bligh <mbligh@mbligh.org>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Andi Kleen <ak@suse.de>, Ingo Molnar <mingo@elte.hu>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>, Eric Whitney <eric.whitney@hp.com>
 List-ID: <linux-mm.kvack.org>
 
-------------2932178217FD30
-Content-Type: text/plain; charset=Windows-1252
-Content-Transfer-Encoding: 7bit
+On Fri, Aug 03, 2007 at 02:20:10AM +0200, Nick Piggin wrote:
+> On Thu, Aug 02, 2007 at 11:33:39AM -0700, Martin Bligh wrote:
+> > Nick Piggin wrote:
+> > >On Wed, Aug 01, 2007 at 03:52:11PM -0700, Martin Bligh wrote:
+> > >>>And so forth.  Initial forks will balance.  If the children refuse to
+> > >>>die, forks will continue to balance.  If the parent starts seeing short
+> > >>>lived children, fork()s will eventually start to stay local.  
+> > >>Fork without exec is much more rare than without. Optimising for
+> > >>the uncommon case is the Wrong Thing to Do (tm). What we decided
+> > >
+> > >It's only the wrong thing to do if it hurts the common case too
+> > >much. Considering we _already_ balance on exec, then adding another
+> > >balance on fork is not going to introduce some order of magnitude
+> > >problem -- at worst it would be 2x but it really isn't too slow
+> > >anyway (at least nobody complained when we added it).
+> > >
+> > >One place where we found it helps is clone for threads.
+> > >
+> > >If we didn't do such a bad job at keeping tasks together with their
+> > >local memory, then we might indeed reduce some of the balance-on-crap
+> > >and increase the aggressiveness of periodic balancing.
+> > >
+> > >Considering we _already_ balance on fork/clone, I don't know what
+> > >your argument is against this patch is? Doing the balance earlier
+> > >and allocating more stuff on the local node is surely not a bad
+> > >idea.
+> > 
+> > I don't know who turned that on ;-( I suspect nobody bothered
+> > actually measuring it at the time though, or used some crap
+> > benchmark like stream to do so. It should get reverted.
+> 
+> So you have numbers to show it hurts? I tested some things where it
+> is not supposed to help, and it didn't make any difference. Nobody
+> else noticed either.
+> 
+> If the cost of doing the double balance is _really_ that painful,
+> then we ccould skip balance-on-exec for domains with balance-on-fork
+> set.
 
-Sie leben nur einmal - warum dann nicht was neues ausprobieren?
+Nick, Even if it is not painful, can we skip balance-on-exec if
+balance-on-fork is set. There is no need for double balance, right?
 
-Preise die keine Konkurrenz kennen 
+Especially with the optimization you are trying to do with this patch,
+balance-on-exec may lead to wrong decision making this optimization
+not work as expected.
 
-- keine versteckte Kosten
-- Diskrete Verpackung und Zahlung
-- Bequem und diskret online bestellen.
-- Kein peinlicher Arztbesuch erforderlich
-- Kostenlose, arztliche Telefon-Beratung
-- Kein langes Warten - Auslieferung innerhalb von 2-3 Tagen
-- Visa verifizierter Onlineshop
+or perhaps do balance-on-fork based on clone_flags..
 
-Originalmedikamente
-Ciiaaaaaalis 10 Pack. 27,00 Euro
-Viiaaaagra 10 Pack. 21,00 Euro
+thanks,
+suresh
 
-Jetzt bestellen - und vier Pillen umsonst erhalten
-http://nanac.electrictrouble.cn/?719795619789
-
-(bitte warten Sie einen Moment bis die Seite vollstandig geladen wird)
-------------2932178217FD30
-Content-Type: text/html; charset=Windows-1252
-Content-Transfer-Encoding: 7bit
-
-<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
-<HTML><HEAD><TITLE></TITLE>
-</HEAD>
-<BODY>
-
-<head><meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
-</head><body><p>Meinung von unserem Kunden:<br><strong>Ich habe drei Jahre lang keine befriedigende Er_rektio_n hinbekommen. Das hat mich fertig gemacht. Viiaaaagra haben meine Frau, sie ist 54, und ich in zwei Jahren nicht einmal auf befriedigen Sex verzichten m&#252;ssen. Und die Liebe ist genauso intensiv wie vor einem halben Jahrhundert! Jetzt machen wir es wieder drei- bis f&#252;nfmal pro Woche. Ich bin 75 Jahre alt und dankbar, dass ich Viiaaaagra kennengelernt habe.</strong></p><p><strong>Ich finde Viiaaaagra einfach wunderbar. Egal, ob f&#252;r den Sex oder, um mich selbst zu verw&#246;hnen: Es funktioniert. Mein Schwanz wird extrem hart und mein Orgasmus ist sehr intensiv. Die Wirkung ist so stark, dass ich Viiaaaagra nur am Wochenende verwende oder wenn ich viel Zeit habe, es richtig zu genie&#223;en.<br>
-</strong><strong><br>Sie leben nur einmal - warum dann nicht was neues ausprobieren?</strong></p><p>Preise die keine Konkurrenz kennen <p>
-- Kostenlose, arztliche Telefon-Beratung<br>- Kein peinlicher Arztbesuch erforderlich<br>- Diskrete Verpackung und Zahlung<br>- Kein langes Warten - Auslieferung innerhalb von 2-3 Tagen<br>- Bequem und diskret online bestellen.<br>- Visa verifizierter Onlineshop<br>- keine versteckte Kosten</p>
-<p>Originalmedikamente<br><strong>Ciiaaaaaalis 10 Pack. 27,00 Euro</strong><br>
-  <strong>Viiaaaagra 10 Pack. 21,00 Euro</strong><br><br><strong><a href="http://nanac.electrictrouble.cn/?719795619789" target="_blank">Jetzt bestellen - und vier Pillen umsonst erhalten</a><br></strong>(bitte warten Sie einen Moment bis die Seite vollst&auml;ndig geladen wird) </p></body>
-
-</BODY></HTML>
-------------2932178217FD30--
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
