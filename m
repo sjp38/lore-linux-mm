@@ -1,127 +1,83 @@
-Message-Id: <20070803125236.937080000@chello.nl>
-References: <20070803123712.987126000@chello.nl>
-Date: Fri, 03 Aug 2007 14:37:29 +0200
+Message-Id: <20070803123712.987126000@chello.nl>
+Date: Fri, 03 Aug 2007 14:37:13 +0200
 From: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Subject: [PATCH 16/23] mm: count reclaimable pages per BDI
-Content-Disposition: inline; filename=bdi_stat_reclaimable.patch
+Subject: [PATCH 00/23] per device dirty throttling -v8
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 Cc: miklos@szeredi.hu, akpm@linux-foundation.org, neilb@suse.de, dgc@sgi.com, tomoki.sekiyama.qu@hitachi.com, a.p.zijlstra@chello.nl, nikita@clusterfs.com, trond.myklebust@fys.uio.no, yingchao.zhou@gmail.com, richard@rsk.demon.co.uk, torvalds@linux-foundation.org
 List-ID: <linux-mm.kvack.org>
 
-Count per BDI reclaimable pages; nr_reclaimable = nr_dirty + nr_unstable.
+Per device dirty throttling patches
 
-Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
+These patches aim to improve balance_dirty_pages() and directly address three
+issues:
+  1) inter device starvation
+  2) stacked device deadlocks
+  3) inter process starvation
+
+1 and 2 are a direct result from removing the global dirty limit and using
+per device dirty limits. By giving each device its own dirty limit is will
+no longer starve another device, and the cyclic dependancy on the dirty limit
+is broken.
+
+In order to efficiently distribute the dirty limit across the independant
+devices a floating proportion is used, this will allocate a share of the total
+limit proportional to the device's recent activity.
+
+3 is done by also scaling the dirty limit proportional to the current task's
+recent dirty rate.
+
+Changes since -v7:
+ - perpcu_counter renames (partially suggested by Linus)
+ - percpu_counter error handling
+ - bdi_init error handling
+ - fwd port to .23-rc1-mm
+
+
 ---
- fs/buffer.c                 |    2 ++
- fs/nfs/write.c              |    7 +++++++
- include/linux/backing-dev.h |    1 +
- mm/page-writeback.c         |    4 ++++
- mm/truncate.c               |    2 ++
- 5 files changed, 16 insertions(+)
+#
+# cleanups
+#
+nfs_congestion_fixup.patch
+#
+# percpu_counter rework
+#
+percpu_counter_add.patch
+percpu_counter_batch.patch
+percpu_counter_add64.patch
+percpu_counter_set.patch
+percpu_counter_sum_positive.patch
+percpu_counter_sum.patch
+percpu_counter_init.patch
+percpu_counter_init_irq.patch
+#
+# per BDI dirty pages
+#
+bdi_init.patch
+bdi_init_container.patch
+bdi_init_mtd.patch
+mtd-bdi-fixups.patch
+bdi_mtdconcat.patch
+bdi_stat.patch
+bdi_stat_reclaimable.patch
+bdi_stat_writeback.patch
+bdi_stat_sysfs.patch
+#
+# floating proportions
+#
+proportions.patch
+proportions_single.patch
+#
+# per BDI dirty
+#
+writeback-balance-per-backing_dev.patch
+dirty_pages2.patch
+#
+# debug foo
+#
+bdi_stat_debug.patch
 
-Index: linux-2.6/fs/buffer.c
-===================================================================
---- linux-2.6.orig/fs/buffer.c
-+++ linux-2.6/fs/buffer.c
-@@ -697,6 +697,8 @@ static int __set_page_dirty(struct page 
- 
- 		if (mapping_cap_account_dirty(mapping)) {
- 			__inc_zone_page_state(page, NR_FILE_DIRTY);
-+			__inc_bdi_stat(mapping->backing_dev_info,
-+					BDI_RECLAIMABLE);
- 			task_io_account_write(PAGE_CACHE_SIZE);
- 		}
- 		radix_tree_tag_set(&mapping->page_tree,
-Index: linux-2.6/mm/page-writeback.c
-===================================================================
---- linux-2.6.orig/mm/page-writeback.c
-+++ linux-2.6/mm/page-writeback.c
-@@ -827,6 +827,8 @@ int __set_page_dirty_nobuffers(struct pa
- 			WARN_ON_ONCE(!PagePrivate(page) && !PageUptodate(page));
- 			if (mapping_cap_account_dirty(mapping)) {
- 				__inc_zone_page_state(page, NR_FILE_DIRTY);
-+				__inc_bdi_stat(mapping->backing_dev_info,
-+						BDI_RECLAIMABLE);
- 				task_io_account_write(PAGE_CACHE_SIZE);
- 			}
- 			radix_tree_tag_set(&mapping->page_tree,
-@@ -961,6 +963,8 @@ int clear_page_dirty_for_io(struct page 
- 		 */
- 		if (TestClearPageDirty(page)) {
- 			dec_zone_page_state(page, NR_FILE_DIRTY);
-+			dec_bdi_stat(mapping->backing_dev_info,
-+					BDI_RECLAIMABLE);
- 			return 1;
- 		}
- 		return 0;
-Index: linux-2.6/mm/truncate.c
-===================================================================
---- linux-2.6.orig/mm/truncate.c
-+++ linux-2.6/mm/truncate.c
-@@ -72,6 +72,8 @@ void cancel_dirty_page(struct page *page
- 		struct address_space *mapping = page->mapping;
- 		if (mapping && mapping_cap_account_dirty(mapping)) {
- 			dec_zone_page_state(page, NR_FILE_DIRTY);
-+			dec_bdi_stat(mapping->backing_dev_info,
-+					BDI_RECLAIMABLE);
- 			if (account_size)
- 				task_io_account_cancelled_write(account_size);
- 		}
-Index: linux-2.6/fs/nfs/write.c
-===================================================================
---- linux-2.6.orig/fs/nfs/write.c
-+++ linux-2.6/fs/nfs/write.c
-@@ -464,6 +464,7 @@ nfs_mark_request_commit(struct nfs_page 
- 			NFS_PAGE_TAG_COMMIT);
- 	spin_unlock(&inode->i_lock);
- 	inc_zone_page_state(req->wb_page, NR_UNSTABLE_NFS);
-+	inc_bdi_stat(req->wb_page->mapping->backing_dev_info, BDI_RECLAIMABLE);
- 	__mark_inode_dirty(inode, I_DIRTY_DATASYNC);
- }
- 
-@@ -550,6 +551,8 @@ static void nfs_cancel_commit_list(struc
- 	while(!list_empty(head)) {
- 		req = nfs_list_entry(head->next);
- 		dec_zone_page_state(req->wb_page, NR_UNSTABLE_NFS);
-+		dec_bdi_stat(req->wb_page->mapping->backing_dev_info,
-+				BDI_RECLAIMABLE);
- 		nfs_list_remove_request(req);
- 		clear_bit(PG_NEED_COMMIT, &(req)->wb_flags);
- 		nfs_inode_remove_request(req);
-@@ -1210,6 +1213,8 @@ nfs_commit_list(struct inode *inode, str
- 		nfs_list_remove_request(req);
- 		nfs_mark_request_commit(req);
- 		dec_zone_page_state(req->wb_page, NR_UNSTABLE_NFS);
-+		dec_bdi_stat(req->wb_page->mapping->backing_dev_info,
-+				BDI_RECLAIMABLE);
- 		nfs_clear_page_tag_locked(req);
- 	}
- 	return -ENOMEM;
-@@ -1235,6 +1240,8 @@ static void nfs_commit_done(struct rpc_t
- 		nfs_list_remove_request(req);
- 		clear_bit(PG_NEED_COMMIT, &(req)->wb_flags);
- 		dec_zone_page_state(req->wb_page, NR_UNSTABLE_NFS);
-+		dec_bdi_stat(req->wb_page->mapping->backing_dev_info,
-+				BDI_RECLAIMABLE);
- 
- 		dprintk("NFS: commit (%s/%Ld %d@%Ld)",
- 			req->wb_context->path.dentry->d_inode->i_sb->s_id,
-Index: linux-2.6/include/linux/backing-dev.h
-===================================================================
---- linux-2.6.orig/include/linux/backing-dev.h
-+++ linux-2.6/include/linux/backing-dev.h
-@@ -27,6 +27,7 @@ enum bdi_state {
- typedef int (congested_fn)(void *, int);
- 
- enum bdi_stat_item {
-+	BDI_RECLAIMABLE,
- 	NR_BDI_STAT_ITEMS
- };
- 
-
---
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
