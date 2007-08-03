@@ -1,396 +1,98 @@
-Date: Fri, 3 Aug 2007 14:52:53 +0100
-Subject: Re: [PATCH] Document Linux Memory Policy - V3
-Message-ID: <20070803135253.GA20048@skynet.ie>
-References: <Pine.LNX.4.64.0707261104360.2374@schroedinger.engr.sgi.com> <20070726225920.GA10225@skynet.ie> <Pine.LNX.4.64.0707261819530.18210@schroedinger.engr.sgi.com> <20070727082046.GA6301@skynet.ie> <20070727154519.GA21614@skynet.ie> <Pine.LNX.4.64.0707271026040.15990@schroedinger.engr.sgi.com> <1185559260.5069.40.camel@localhost> <20070731151434.GA18506@skynet.ie> <1185899686.6240.64.camel@localhost> <1185914902.6240.125.camel@localhost>
+Message-ID: <46B3424F.7010800@shadowen.org>
+Date: Fri, 03 Aug 2007 15:57:19 +0100
+From: Andy Whitcroft <apw@shadowen.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <1185914902.6240.125.camel@localhost>
-From: mel@skynet.ie (Mel Gorman)
+Subject: Re: [PATCH 3/4] vmemmap: pull out the vmemmap code into its own file
+References: <exportbomb.1186045945@pinky> <E1IGWw3-0002Xr-Dm@hellhawk.shadowen.org> <20070802132621.GA9511@infradead.org> <Pine.LNX.4.64.0708021220220.7948@schroedinger.engr.sgi.com>
+In-Reply-To: <Pine.LNX.4.64.0708021220220.7948@schroedinger.engr.sgi.com>
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
-Cc: linux-mm@kvack.org, Christoph Lameter <clameter@sgi.com>, ak@suse.de, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, akpm@linux-foundation.org, pj@sgi.com, Michael Kerrisk <mtk-manpages@gmx.net>, Randy Dunlap <randy.dunlap@oracle.com>, Eric Whitney <eric.whitney@hp.com>
+To: Christoph Hellwig <hch@infradead.org>
+Cc: Christoph Lameter <clameter@sgi.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-arch@vger.kernel.org, Nick Piggin <npiggin@suse.de>, Mel Gorman <mel@csn.ul.ie>
 List-ID: <linux-mm.kvack.org>
 
-On (31/07/07 16:48), Lee Schermerhorn didst pronounce:
-> [PATCH] Document Linux Memory Policy - V3
+Christoph Lameter wrote:
+> On Thu, 2 Aug 2007, Christoph Hellwig wrote:
 > 
-> V3 -> V2:
-> + edits and rework suggested by Randy Dunlap, Mel Gorman and Christoph
->   Lameter.  N.B., I couldn't make all of the changes exactly as suggested
->   and retain what I consider important semantics.  Therefor, I tried to
->   capture the spirit of the suggestions as best I could.
+>> On Thu, Aug 02, 2007 at 10:25:35AM +0100, Andy Whitcroft wrote:
+>>> + * Special Kconfig settings:
+>>> + *
+>>> + * CONFIG_ARCH_POPULATES_SPARSEMEM_VMEMMAP
+>>> + *
+>>> + * 	The architecture has its own functions to populate the memory
+>>> + * 	map and provides a vmemmap_populate function.
+>>> + *
+>>> + * CONFIG_ARCH_POPULATES_SPARSEMEM_VMEMMAP_PMD
 > 
-> V1 -> V2:
-> +  Uh, I forget the details.  Rework based on suggestions by Andi Kleen
->    and Christoph Lameter.  E.g., dropped syscall details and updated
->    the man pages, instead.
-> 
-> I couldn't find any memory policy documentation in the Documentation
-> directory, so here is my attempt to document it.
-> 
-> There's lots more that could be written about the internal design--including
-> data structures, functions, etc.  However, if you agree that this is better
-> that the nothing that exists now, perhaps it could be merged.  This will
-> provide a baseline for updates to document the many policy patches that are
-> currently being worked.
-> 
-> Signed-off-by:  Lee Schermerhorn <lee.schermerhorn@hp.com>
-> 
+> ?? Why was this added? The arch can populate the PMDs on its own already 
+> if CONFIG_ARCH_SPARSEMEM_VMEMMAP is set.
 
-I'm happy with that. It gets lots of useful information out in as clear
-as manner as you get.
+The defines are essentially the ones which were in the V3 version of
+VMEMMAP I picked up from you.  They had slightly different names:
 
-Acked-by: Mel Gorman <mel@csn.ul.ie>
+ * CONFIG_ARCH_POPULATES_VIRTUAL_MEMMAP
+ * CONFIG_ARCH_SUPPORTS_PMD_MAPPING
 
->  Documentation/vm/memory_policy.txt |  332 +++++++++++++++++++++++++++++++++++++
->  1 file changed, 332 insertions(+)
+The names were changed based on the PMD support not really being
+generic, and to better then describe what they did.  We still have the
+same three options.
+
+>> This is the kinda of mess I mean.  Which architecturs set either of these
+>> and why?  This code would be a lot more acceptable if we hadn't three
+>> different variants of the arch interface.
 > 
-> Index: Linux/Documentation/vm/memory_policy.txt
-> ===================================================================
-> --- /dev/null	1970-01-01 00:00:00.000000000 +0000
-> +++ Linux/Documentation/vm/memory_policy.txt	2007-07-31 15:54:50.000000000 -0400
-> @@ -0,0 +1,332 @@
-> +
-> +What is Linux Memory Policy?
-> +
-> +In the Linux kernel, "memory policy" determines from which node the kernel will
-> +allocate memory in a NUMA system or in an emulated NUMA system.  Linux has
-> +supported platforms with Non-Uniform Memory Access architectures since 2.4.?.
-> +The current memory policy support was added to Linux 2.6 around May 2004.  This
-> +document attempts to describe the concepts and APIs of the 2.6 memory policy
-> +support.
-> +
-> +Memory policies should not be confused with cpusets (Documentation/cpusets.txt)
-> +which is an administrative mechanism for restricting the nodes from which
-> +memory may be allocated by a set of processes. Memory policies are a
-> +programming interface that a NUMA-aware application can take advantage of.  When
-> +both cpusets and policies are applied to a task, the restrictions of the cpuset
-> +takes priority.  See "MEMORY POLICIES AND CPUSETS" below for more details.
-> +
-> +MEMORY POLICY CONCEPTS
-> +
-> +Scope of Memory Policies
-> +
-> +The Linux kernel supports _scopes_ of memory policy, described here from
-> +most general to most specific:
-> +
-> +    System Default Policy:  this policy is "hard coded" into the kernel.  It
-> +    is the policy that governs all page allocations that aren't controlled
-> +    by one of the more specific policy scopes discussed below.  When the
-> +    system is "up and running", the system default policy will use "local
-> +    allocation" described below.  However, during boot up, the system
-> +    default policy will be set to interleave allocations across all nodes
-> +    with "sufficient" memory, so as not to overload the initial boot node
-> +    with boot-time allocations.
-> +
-> +    Task/Process Policy:  this is an optional, per-task policy.  When defined
-> +    for a specific task, this policy controls all page allocations made by or
-> +    on behalf of the task that aren't controlled by a more specific scope.
-> +    If a task does not define a task policy, then all page allocations that
-> +    would have been controlled by the task policy "fall back" to the System
-> +    Default Policy.
-> +
-> +	The task policy applies to the entire address space of a task. Thus,
-> +	it is inheritable, and indeed is inherited, across both fork()
-> +	[clone() w/o the CLONE_VM flag] and exec*().  This allows a parent task
-> +	to establish the task policy for a child task exec()'d from an
-> +	executable image that has no awareness of memory policy.  See the
-> +	MEMORY POLICY APIS section, below, for an overview of the system call
-> +	that a task may use to set/change it's task/process policy.
-> +
-> +	In a multi-threaded task, task policies apply only to the thread
-> +	[Linux kernel task] that installs the policy and any threads
-> +	subsequently created by that thread.  Any sibling threads existing
-> +	at the time a new task policy is installed retain their current
-> +	policy.
-> +
-> +	A task policy applies only to pages allocated after the policy is
-> +	installed.  Any pages already faulted in by the task when the task
-> +	changes its task policy remain where they were allocated based on
-> +	the policy at the time they were allocated.
-> +
-> +    VMA Policy:  A "VMA" or "Virtual Memory Area" refers to a range of a task's
-> +    virtual adddress space.  A task may define a specific policy for a range
-> +    of its virtual address space.   See the MEMORY POLICIES APIS section,
-> +    below, for an overview of the mbind() system call used to set a VMA
-> +    policy.
-> +
-> +    A VMA policy will govern the allocation of pages that back this region of
-> +    the address space.  Any regions of the task's address space that don't
-> +    have an explicit VMA policy will fall back to the task policy, which may
-> +    itself fall back to the System Default Policy.
-> +
-> +    VMA policies have a few complicating details:
-> +
-> +	VMA policy applies ONLY to anonymous pages.  These include pages
-> +	allocated for anonymous segments, such as the task stack and heap, and
-> +	any regions of the address space mmap()ed with the MAP_ANONYMOUS flag.
-> +	If a VMA policy is applied to a file mapping, it will be ignored if
-> +	the mapping used the MAP_SHARED flag.  If the file mapping used the
-> +	MAP_PRIVATE flag, the VMA policy will only be applied when an
-> +	anonymous page is allocated on an attempt to write to the mapping--
-> +	i.e., at Copy-On-Write.
-> +
-> +	VMA policies are shared between all tasks that share a virtual address
-> +	space--a.k.a. threads--independent of when the policy is installed; and
-> +	they are inherited across fork().  However, because VMA policies refer
-> +	to a specific region of a task's address space, and because the address
-> +	space is discarded and recreated on exec*(), VMA policies are NOT
-> +	inheritable across exec().  Thus, only NUMA-aware applications may
-> +	use VMA policies.
-> +
-> +	A task may install a new VMA policy on a sub-range of a previously
-> +	mmap()ed region.  When this happens, Linux splits the existing virtual
-> +	memory area into 2 or 3 VMAs, each with it's own policy.
-> +
-> +	By default, VMA policy applies only to pages allocated after the policy
-> +	is installed.  Any pages already faulted into the VMA range remain
-> +	where they were allocated based on the policy at the time they were
-> +	allocated.  However, since 2.6.16, Linux supports page migration via
-> +	the mbind() system call, so that page contents can be moved to match
-> +	a newly installed policy.
-> +
-> +    Shared Policy:  Conceptually, shared policies apply to "memory objects"
-> +    mapped shared into one or more tasks' distinct address spaces.  An
-> +    application installs a shared policies the same way as VMA policies--using
-> +    the mbind() system call specifying a range of virtual addresses that map
-> +    the shared object.  However, unlike VMA policies, which can be considered
-> +    to be an attribute of a range of a task's address space, shared policies
-> +    apply directly to the shared object.  Thus, all tasks that attach to the
-> +    object share the policy, and all pages allocated for the shared object,
-> +    by any task, will obey the shared policy.
-> +
-> +	As of 2.6.22, only shared memory segments, created by shmget() or
-> +	mmap(MAP_ANONYMOUS|MAP_SHARED), support shared policy.  When shared
-> +	policy support was added to Linux, the associated data structures were
-> +	added to hugetlbfs shmem segments.  At the time, hugetlbfs did not
-> +	support allocation at fault time--a.k.a lazy allocation--so hugetlbfs
-> +	shmem segments were never "hooked up" to the shared policy support.
-> +	Although hugetlbfs segments now support lazy allocation, their support
-> +	for shared policy has not been completed.
-> +
-> +	As mentioned above [re: VMA policies], allocations of page cache
-> +	pages for regular files mmap()ed with MAP_SHARED ignore any VMA
-> +	policy installed on the virtual address range backed by the shared
-> +	file mapping.  Rather, shared page cache pages, including pages backing
-> +	private mappings that have not yet been written by the task, follow
-> +	task policy, if any, else System Default Policy.
-> +
-> +	The shared policy infrastructure supports different policies on subset
-> +	ranges of the shared object.  However, Linux still splits the VMA of
-> +	the task that installs the policy for each range of distinct policy.
-> +	Thus, different tasks that attach to a shared memory segment can have
-> +	different VMA configurations mapping that one shared object.  This
-> +	can be seen by examining the /proc/<pid>/numa_maps of tasks sharing
-> +	a shared memory region, when one task has installed shared policy on
-> +	one or more ranges of the region.
-> +
-> +Components of Memory Policies
-> +
-> +    A Linux memory policy is a tuple consisting of a "mode" and an optional set
-> +    of nodes.  The mode determine the behavior of the policy, while the
-> +    optional set of nodes can be viewed as the arguments to the behavior.
-> +
-> +   Internally, memory policies are implemented by a reference counted
-> +   structure, struct mempolicy.  Details of this structure will be discussed
-> +   in context, below, as required to explain the behavior.
-> +
-> +	Note:  in some functions AND in the struct mempolicy itself, the mode
-> +	is called "policy".  However, to avoid confusion with the policy tuple,
-> +	this document will continue to use the term "mode".
-> +
-> +   Linux memory policy supports the following 4 behavioral modes:
-> +
-> +	Default Mode--MPOL_DEFAULT:  The behavior specified by this mode is
-> +	context or scope dependent.
-> +
-> +	    As mentioned in the Policy Scope section above, during normal
-> +	    system operation, the System Default Policy is hard coded to
-> +	    contain the Default mode.
-> +
-> +	    In this context, default mode means "local" allocation--that is
-> +	    attempt to allocate the page from the node associated with the cpu
-> +	    where the fault occurs.  If the "local" node has no memory, or the
-> +	    node's memory can be exhausted [no free pages available], local
-> +	    allocation will "fallback to"--attempt to allocate pages from--
-> +	    "nearby" nodes, in order of increasing "distance".
-> +
-> +		Implementation detail -- subject to change:  "Fallback" uses
-> +		a per node list of sibling nodes--called zonelists--built at
-> +		boot time, or when nodes or memory are added or removed from
-> +		the system [memory hotplug].  These per node zonelist are
-> +		constructed with nodes in order of increasing distance based
-> +		on information provided by the platform firmware.
-> +
-> +	    When a task/process policy or a shared policy contains the Default
-> +	    mode, this also means "local allocation", as described above.
-> +
-> +	    In the context of a VMA, Default mode means "fall back to task
-> +	    policy"--which may or may not specify Default mode.  Thus, Default
-> +	    mode can not be counted on to mean local allocation when used
-> +	    on a non-shared region of the address space.  However, see
-> +	    MPOL_PREFERRED below.
-> +
-> +	    The Default mode does not use the optional set of nodes.
-> +
-> +	MPOL_BIND:  This mode specifies that memory must come from the
-> +	set of nodes specified by the policy.
-> +
-> +	    The memory policy APIs do not specify an order in which the nodes
-> +	    will be searched.  However, unlike "local allocation", the Bind
-> +	    policy does not consider the distance between the nodes.  Rather,
-> +	    allocations will fallback to the nodes specified by the policy in
-> +	    order of numeric node id.  Like everything in Linux, this is subject
-> +	    to change.
-> +
-> +	MPOL_PREFERRED:  This mode specifies that the allocation should be
-> +	attempted from the single node specified in the policy.  If that
-> +	allocation fails, the kernel will search other nodes, exactly as
-> +	it would for a local allocation that started at the preferred node
-> +	in increasing distance from the preferred node.  "Local" allocation
-> +	policy can be viewed as a Preferred policy that starts at the node
-> +	containing the cpu where the allocation takes place.
-> +
-> +	    Internally, the Preferred policy uses a single node--the
-> +	    preferred_node member of struct mempolicy.  A "distinguished
-> +	    value of this preferred_node, currently '-1', is interpreted
-> +	    as "the node containing the cpu where the allocation takes
-> +	    place"--local allocation.  This is the way to specify
-> +	    local allocation for a specific range of addresses--i.e. for
-> +	    VMA policies.
-> +
-> +	MPOL_INTERLEAVED:  This mode specifies that page allocations be
-> +	interleaved, on a page granularity, across the nodes specified in
-> +	the policy.  This mode also behaves slightly differently, based on
-> +	the context where it is used:
-> +
-> +	    For allocation of anonymous pages and shared memory pages,
-> +	    Interleave mode indexes the set of nodes specified by the policy
-> +	    using the page offset of the faulting address into the segment
-> +	    [VMA] containing the address modulo the number of nodes specified
-> +	    by the policy.  It then attempts to allocate a page, starting at
-> +	    the selected node, as if the node had been specified by a Preferred
-> +	    policy or had been selected by a local allocation.  That is,
-> +	    allocation will follow the per node zonelist.
-> +
-> +	    For allocation of page cache pages, Interleave mode indexes the set
-> +	    of nodes specified by the policy using a node counter maintained
-> +	    per task.  This counter wraps around to the lowest specified node
-> +	    after it reaches the highest specified node.  This will tend to
-> +	    spread the pages out over the nodes specified by the policy based
-> +	    on the order in which they are allocated, rather than based on any
-> +	    page offset into an address range or file.  During system boot up,
-> +	    the temporary interleaved system default policy works in this
-> +	    mode.
-> +
-> +MEMORY POLICY APIs
-> +
-> +Linux supports 3 system calls for controlling memory policy.  These APIS
-> +always affect only the calling task, the calling task's address space, or
-> +some shared object mapped into the calling task's address space.
-> +
-> +	Note:  the headers that define these APIs and the parameter data types
-> +	for user space applications reside in a package that is not part of
-> +	the Linux kernel.  The kernel system call interfaces, with the 'sys_'
-> +	prefix, are defined in <linux/syscalls.h>; the mode and flag
-> +	definitions are defined in <linux/mempolicy.h>.
-> +
-> +Set [Task] Memory Policy:
-> +
-> +	long set_mempolicy(int mode, const unsigned long *nmask,
-> +					unsigned long maxnode);
-> +
-> +	Set's the calling task's "task/process memory policy" to mode
-> +	specified by the 'mode' argument and the set of nodes defined
-> +	by 'nmask'.  'nmask' points to a bit mask of node ids containing
-> +	at least 'maxnode' ids.
-> +
-> +	See the set_mempolicy(2) man page for more details
-> +
-> +
-> +Get [Task] Memory Policy or Related Information
-> +
-> +	long get_mempolicy(int *mode,
-> +			   const unsigned long *nmask, unsigned long maxnode,
-> +			   void *addr, int flags);
-> +
-> +	Queries the "task/process memory policy" of the calling task, or
-> +	the policy or location of a specified virtual address, depending
-> +	on the 'flags' argument.
-> +
-> +	See the get_mempolicy(2) man page for more details
-> +
-> +
-> +Install VMA/Shared Policy for a Range of Task's Address Space
-> +
-> +	long mbind(void *start, unsigned long len, int mode,
-> +		   const unsigned long *nmask, unsigned long maxnode,
-> +		   unsigned flags);
-> +
-> +	mbind() installs the policy specified by (mode, nmask, maxnodes) as
-> +	a VMA policy for the range of the calling task's address space
-> +	specified by the 'start' and 'len' arguments.  Additional actions
-> +	may be requested via the 'flags' argument.
-> +
-> +	See the mbind(2) man page for more details.
-> +
-> +MEMORY POLICY COMMAND LINE INTERFACE
-> +
-> +Although not strictly part of the Linux implementation of memory policy,
-> +a command line tool, numactl(8), exists that allows one to:
-> +
-> ++ set the task policy for a specified program via set_mempolicy(2), fork(2) and
-> +  exec(2)
-> +
-> ++ set the shared policy for a shared memory segment via mbind(2)
-> +
-> +The numactl(8) tool is packages with the run-time version of the library
-> +containing the memory policy system call wrappers.  Some distributions
-> +package the headers and compile-time libraries in a separate development
-> +package.
-> +
-> +
-> +MEMORY POLICIES AND CPUSETS
-> +
-> +Memory policies work within cpusets as described above.  For memory policies
-> +that require a node or set of nodes, the nodes are restricted to the set of
-> +nodes whose memories are allowed by the cpuset constraints.  If the
-> +intersection of the set of nodes specified for the policy and the set of nodes
-> +allowed by the cpuset is the empty set, the policy is considered invalid and
-> +cannot be installed.
-> +
-> +The interaction of memory policies and cpusets can be problematic for a
-> +couple of reasons:
-> +
-> +1) the memory policy APIs take physical node id's as arguments.  However, the
-> +   memory policy APIs do not provide a way to determine what nodes are valid
-> +   in the context where the application is running.  An application MAY consult
-> +   the cpuset file system [directly or via an out of tree, and not generally
-> +   available, libcpuset API] to obtain this information, but then the
-> +   application must be aware that it is running in a cpuset and use what are
-> +   intended primarily as administrative APIs.
-> +
-> +   However, as long as the policy specifies at least one node that is valid
-> +   in the controlling cpuset, the policy can be used.
-> +
-> +2) when tasks in two cpusets share access to a memory region, such as shared
-> +   memory segments created by shmget() of mmap() with the MAP_ANONYMOUS and
-> +   MAP_SHARED flags, and any of the tasks install shared policy on the region,
-> +   only nodes whose memories are allowed in both cpusets may be used in the
-> +   policies.  Again, obtaining this information requires "stepping outside"
-> +   the memory policy APIs, as well as knowing in what cpusets other task might
-> +   be attaching to the shared region, to use the cpuset information.
-> +   Furthermore, if the cpusets' allowed memory sets are disjoint, "local"
-> +   allocation is the only valid policy.
+> Initially at least my scheme was the following:
 > 
+> In general the sparsemem code can take care of a vmemmap that is using a 
+> section of the vmalloc space. In that case no arch code is needed to 
+> populate the vmemmap. Typical use is by arches with large pages (like 
+> IA64). This is the default if no other options are set and can simply be 
+> enabled by defining some constants in the arch code to reserve a section 
+> of the vmalloc space.
+> 
+> Then there is the option of using the PMD to map a higher order page. This 
+> can also be done transparently and is used by arches that have this 
+> capability and a small page size. Those arches also require no additional 
+> code to populate their vmemmap. This is true f.e. for i386 and x86_64. 
+> These have to set CONFIG_ARCH_SUPPORTS_PMD_MAPPING
+> 
+> Then there are arches that have the vmemmap in non standard ways. Memory 
+> may not be taken from the vmalloc space, special flags may have to be set 
+> for the page tables (or one may use a different mechanism for mapping). 
+> Those arches have to set CONFIG_ARCH_POPULATES_VIRTUAL_MEMMAP. In that 
+> case the arch must provide its own function to populate the memory map.
 
--- 
--- 
-Mel Gorman
-Part-time Phd Student                          Linux Technology Center
-University of Limerick                         IBM Dublin Software Lab
+Yes in my view there is two parts to VMEMMAP.  There is the runtime side
+which is common to all architectures using the single virtually mapped
+mem_map using the simple addition accessors, none of these options alter
+the post-init behaviour of VMEMMAP.  Then there is the initialisation
+side, all of the configuration options here pertain to how that
+initialisation is done.
+
+There are three basic options:
+
+1) it can be completely generic in that we use base pages mapped using
+regular PTE's, or
+2) the architecture can supply a PMD level initialiser, or
+3) the architecture can supply a vmemmap_populate initialise which
+instantiates the entire map.
+
+As the PMD initialisers are only used by x86_64 we could make it supply
+a complete vmemmap_populate level initialiser but that would result in
+us duplicating the PUD level initialier function there which seems like
+a bad idea.
+
+I have been looking at a rejig of the configuration options to make them
+all positive, so that you only have to assert a single VMEMMAP_* define
+to get the correct code.  But that does not really get rid of the defines.
+
+The code as it stands would allow for us to pull out the "PTE/PMD"
+initialiser from the vmemmap code and allow the architecture to select
+it as a helper, it living in its own file again.  But that seems excessive.
+
+-apw
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
