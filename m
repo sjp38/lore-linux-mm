@@ -1,42 +1,33 @@
-From: Andi Kleen <ak@suse.de>
-Subject: Re: [PATCH] Apply memory policies to top two highest zones when highest zone is ZONE_MOVABLE
-Date: Sat, 4 Aug 2007 00:02:17 +0200
-References: <20070802172118.GD23133@skynet.ie>
-In-Reply-To: <20070802172118.GD23133@skynet.ie>
+Date: Fri, 3 Aug 2007 15:21:03 -0700 (PDT)
+From: Linus Torvalds <torvalds@linux-foundation.org>
+Subject: Re: [PATCH 00/23] per device dirty throttling -v8
+In-Reply-To: <20070803123712.987126000@chello.nl>
+Message-ID: <alpine.LFD.0.999.0708031518440.8184@woody.linux-foundation.org>
+References: <20070803123712.987126000@chello.nl>
 MIME-Version: 1.0
-Content-Type: text/plain;
-  charset="iso-8859-15"
-Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
-Message-Id: <200708040002.18167.ak@suse.de>
+Content-Type: TEXT/PLAIN; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Mel Gorman <mel@skynet.ie>
-Cc: akpm@linux-foundation.org, Lee.Schermerhorn@hp.com, clameter@sgi.com, kamezawa.hiroyu@jp.fujitsu.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Peter Zijlstra <a.p.zijlstra@chello.nl>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, miklos@szeredi.hu, akpm@linux-foundation.org, neilb@suse.de, dgc@sgi.com, tomoki.sekiyama.qu@hitachi.com, nikita@clusterfs.com, trond.myklebust@fys.uio.no, yingchao.zhou@gmail.com, richard@rsk.demon.co.uk
 List-ID: <linux-mm.kvack.org>
 
-On Thursday 02 August 2007 19:21:18 Mel Gorman wrote:
-> The NUMA layer only supports NUMA policies for the highest zone. When
-> ZONE_MOVABLE is configured with kernelcore=, the the highest zone becomes
-> ZONE_MOVABLE. The result is that policies are only applied to allocations
-> like anonymous pages and page cache allocated from ZONE_MOVABLE when the
-> zone is used.
-> 
-> This patch applies policies to the two highest zones when the highest zone
-> is ZONE_MOVABLE. As ZONE_MOVABLE consists of pages from the highest "real"
-> zone, it's always functionally equivalent.
-> 
-> The patch has been tested on a variety of machines both NUMA and non-NUMA
-> covering x86, x86_64 and ppc64. No abnormal results were seen in kernbench,
-> tbench, dbench or hackbench. It passes regression tests from the numactl
-> package with and without kernelcore= once numactl tests are patched to
-> wait for vmstat counters to update.
- 
-I must honestly say I really hate the patch. It's a horrible hack and makes fast paths
-slower. When I designed mempolicies I especially tried to avoid things
-like that, please don't add them through the backdoor now.
 
--Andi
+On Fri, 3 Aug 2007, Peter Zijlstra wrote:
+> 
+> These patches aim to improve balance_dirty_pages() and directly address three
+> issues:
+>   1) inter device starvation
+>   2) stacked device deadlocks
+>   3) inter process starvation
+
+Ok, the patches certainly look pretty enough, and you fixed the only thing 
+I complained about last time (naming), so as far as I'm concerned it's now 
+just a matter of whether it *works* or not. I guess being in -mm will help 
+somewhat, but it would be good to have people with several disks etc 
+actively test this out.
+
+		Linus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
