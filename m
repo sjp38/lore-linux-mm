@@ -1,60 +1,67 @@
-Date: Thu, 2 Aug 2007 22:47:13 -0700 (PDT)
-From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [rfc] balance-on-fork NUMA placement
-In-Reply-To: <20070803031426.GA28310@wotan.suse.de>
-Message-ID: <Pine.LNX.4.64.0708022234130.14362@schroedinger.engr.sgi.com>
-References: <200707311114.09284.ak@suse.de> <Pine.LNX.4.64.0707311639450.31337@schroedinger.engr.sgi.com>
- <20070802034201.GA32631@wotan.suse.de> <Pine.LNX.4.64.0708021254160.8527@schroedinger.engr.sgi.com>
- <20070803002639.GC14775@wotan.suse.de> <Pine.LNX.4.64.0708021748110.13312@schroedinger.engr.sgi.com>
- <20070803005700.GD14775@wotan.suse.de> <Pine.LNX.4.64.0708021801010.13312@schroedinger.engr.sgi.com>
- <20070803011448.GF14775@wotan.suse.de> <Pine.LNX.4.64.0708021827280.13538@schroedinger.engr.sgi.com>
- <20070803031426.GA28310@wotan.suse.de>
+Date: Fri, 3 Aug 2007 16:53:22 +0900
+From: Paul Mundt <lethal@linux-sh.org>
+Subject: Re: [PATCH/RFC] Allow selected nodes to be excluded from MPOL_INTERLEAVE masks
+Message-ID: <20070803075322.GA18267@linux-sh.org>
+References: <1185566878.5069.123.camel@localhost> <20070728151912.c541aec0.kamezawa.hiroyu@jp.fujitsu.com> <1185812028.5492.79.camel@localhost> <20070801101651.GA9113@linux-sh.org> <1185975558.5059.18.camel@localhost>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1185975558.5059.18.camel@localhost>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nick Piggin <npiggin@suse.de>
-Cc: Andi Kleen <ak@suse.de>, Ingo Molnar <mingo@elte.hu>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>
+To: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm <linux-mm@kvack.org>, Christoph Lameter <clameter@sgi.com>, Nishanth Aravamudan <nacc@us.ibm.com>, kxr@sgi.com, ak@suse.de, akpm@linux-foundation.org, Eric Whitney <eric.whitney@hp.com>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 3 Aug 2007, Nick Piggin wrote:
-
-> Well what's wrong with it? It seems to use memory policies for exactly
-> what they are intended (aside from it being kernel directed...).
-
-Sure I think you could do it with some effort. They were primarily 
-designed for user space. Lots of little side issues where surprises await 
-you. I think Lee documented many of them. See the recent mm commits.
-
-> > start the new thread and can the original processor wait on some flag 
-> > until that is complete?
+On Wed, Aug 01, 2007 at 09:39:18AM -0400, Lee Schermerhorn wrote:
+> On Wed, 2007-08-01 at 19:16 +0900, Paul Mundt wrote:
+> > If we can differentiate between MPOL_INTERLEAVE from the kernel's point
+> > of view, and explicit MPOL_INTERLEAVE specifiers via mbind() from
+> > userspace, that works fine for my case. However, the mpol_new() changes
+> > in this patch deny small nodes the ability to ever be included in an
+> > MPOL_INTERLEAVE policy, when it's only the kernel policy that I have a
+> > problem with.
 > 
-> I guess you could, but that is going to add a context switch to fork
-> (although it usually already has one in single-CPU situation because we
-> run child first)... I bet it will slow something down, but it would be
-> interesting to see.
-
-The context switch is needed at some point anyways to get the new process 
-running on the new CPU? Just do it before allocating structures. That way 
-the potential memory policy and cpuset context is preserved and followed.
-
-> I don't know the fork path well enough off the top of my head to know if
-> it will be that simple (with error handling etc). But I think it could
-> be done.
-
-I would think that the forking process has to wait on completion anyways
-and get an error code.
-
-> > Forking off from there not only places the data correctly but it also 
-> > warms up the caches for the new process and avoids evicting cacheline on 
-> > the original processor.
+> Ah, but it would only "deny small nodes" if you nominate them in the
+> boot option.  I haven't changed your heuristic in numa_policy_init.  So,
+> it will still eliminate small nodes from the boot time interleave
+> nodemask, independent of whether or not you specify them in the
+> no_interleave_nodes list.
 > 
-> Yeah, you might be right there. If the numbers say that approach is
-> better, then I'd not be against it. But we'd still need the simpler
-> mpol approach to compare it with. 
+> Or am I missing your point?
 
-Lets hope that the simpler process is really simpler after all the corner 
-cases have been dealt with.
+That's correct, as long as the size heuristic remains in
+numa_policy_init() there's no problem with this. The point was more that
+if we were able to use N_INTERLEAVE nodes for the system init policy, it
+would be possible to do away with the size heuristic entirely.
+
+Effectively we want the same things, but whereas you want the interleave
+nodes to be something applied to all policies, I'm mostly concerned with
+keeping the kernel away from the nodes we don't want to interleave.
+Userland is basically a free-for-all in terms of the allowable nodemask,
+so I don't have a need to restrict MPOL_INTERLEAVE policies once the
+system is up.
+
+The size heuristic itself is a bit of a kludge anyhow. I'd like to have a
+single point where I can tell the kernel "these nodes are special, don't
+use them unless you've been asked". And that's certainly something I
+don't have an issue flagging in the pgdat when constructing the nodes in
+the first place (at which point we already know which ones are special,
+without having to bother with command line options). Whether this is
+something that's best as a special node state or not is something that
+will need some toying with. On the other hand, simply being able to take the
+system init node list and keep that "pinned" is another option, so we
+don't end up allocating there even if node 0 is under pressure.
+
+Page migration also poses an interesting problem, in that we don't have a
+problem in migrating pages between and off of these nodes, but we do not
+want to migrate pages that started out in system memory to them, as the
+node will run out of pages too quickly (and also gives those pages up to
+whatever is migrated first, rather than something that actually _wants_
+those pages out of performance considerations). I don't see an easy way
+to do this without having a page flag that indicates whether migration to
+special nodes is permitted or not, and setting that when the page is
+allocated.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
