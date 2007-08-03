@@ -1,101 +1,54 @@
-Message-ID: <46B3424F.7010800@shadowen.org>
-Date: Fri, 03 Aug 2007 15:57:19 +0100
-From: Andy Whitcroft <apw@shadowen.org>
+Date: Fri, 3 Aug 2007 15:08:24 -0200
+From: "Gladys Winn" <fharsh@paperpower.com>
+Reply-To: fharsh@paperpower.com
+Message-ID: <957860673.20229965599141@paperpower.com>
+Subject: Jetzt bestellen und ein blaues Wunder erleben   become =?ISO-8859-1?Q?=91worthless=92?= .  -- brain in a way that sticks. 
 MIME-Version: 1.0
-Subject: Re: [PATCH 3/4] vmemmap: pull out the vmemmap code into its own file
-References: <exportbomb.1186045945@pinky> <E1IGWw3-0002Xr-Dm@hellhawk.shadowen.org> <20070802132621.GA9511@infradead.org> <Pine.LNX.4.64.0708021220220.7948@schroedinger.engr.sgi.com>
-In-Reply-To: <Pine.LNX.4.64.0708021220220.7948@schroedinger.engr.sgi.com>
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
-Sender: owner-linux-mm@kvack.org
-Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Hellwig <hch@infradead.org>
-Cc: Christoph Lameter <clameter@sgi.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-arch@vger.kernel.org, Nick Piggin <npiggin@suse.de>, Mel Gorman <mel@csn.ul.ie>
+Content-Type: multipart/alternative;
+  boundary="----------A7CB6E901DA7C4"
+Return-Path: <fharsh@paperpower.com>
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Christoph Lameter wrote:
-> On Thu, 2 Aug 2007, Christoph Hellwig wrote:
-> 
->> On Thu, Aug 02, 2007 at 10:25:35AM +0100, Andy Whitcroft wrote:
->>> + * Special Kconfig settings:
->>> + *
->>> + * CONFIG_ARCH_POPULATES_SPARSEMEM_VMEMMAP
->>> + *
->>> + * 	The architecture has its own functions to populate the memory
->>> + * 	map and provides a vmemmap_populate function.
->>> + *
->>> + * CONFIG_ARCH_POPULATES_SPARSEMEM_VMEMMAP_PMD
-> 
-> ?? Why was this added? The arch can populate the PMDs on its own already 
-> if CONFIG_ARCH_SPARSEMEM_VMEMMAP is set.
+------------A7CB6E901DA7C4
+Content-Type: text/plain; charset=windows-1250
+Content-Transfer-Encoding: 7bit
 
-The defines are essentially the ones which were in the V3 version of
-VMEMMAP I picked up from you.  They had slightly different names:
+Versuchen Sie unser Produkt und Sie werden fuhlen was unsere Kunden bestatigen
 
- * CONFIG_ARCH_POPULATES_VIRTUAL_MEMMAP
- * CONFIG_ARCH_SUPPORTS_PMD_MAPPING
+Preise die keine Konkurrenz kennen 
 
-The names were changed based on the PMD support not really being
-generic, and to better then describe what they did.  We still have the
-same three options.
+- Diskrete Verpackung und Zahlung
+- Kostenlose, arztliche Telefon-Beratung
+- Kein langes Warten - Auslieferung innerhalb von 2-3 Tagen
+- Bequem und diskret online bestellen.
+- Kein peinlicher Arztbesuch erforderlich
+- Visa verifizierter Onlineshop
+- keine versteckte Kosten
 
->> This is the kinda of mess I mean.  Which architecturs set either of these
->> and why?  This code would be a lot more acceptable if we hadn't three
->> different variants of the arch interface.
-> 
-> Initially at least my scheme was the following:
-> 
-> In general the sparsemem code can take care of a vmemmap that is using a 
-> section of the vmalloc space. In that case no arch code is needed to 
-> populate the vmemmap. Typical use is by arches with large pages (like 
-> IA64). This is the default if no other options are set and can simply be 
-> enabled by defining some constants in the arch code to reserve a section 
-> of the vmalloc space.
-> 
-> Then there is the option of using the PMD to map a higher order page. This 
-> can also be done transparently and is used by arches that have this 
-> capability and a small page size. Those arches also require no additional 
-> code to populate their vmemmap. This is true f.e. for i386 and x86_64. 
-> These have to set CONFIG_ARCH_SUPPORTS_PMD_MAPPING
-> 
-> Then there are arches that have the vmemmap in non standard ways. Memory 
-> may not be taken from the vmalloc space, special flags may have to be set 
-> for the page tables (or one may use a different mechanism for mapping). 
-> Those arches have to set CONFIG_ARCH_POPULATES_VIRTUAL_MEMMAP. In that 
-> case the arch must provide its own function to populate the memory map.
+Originalmedikamente
+Ciiaaaaaalis 10 Pack. 27,00 Euro
+Viiaaaagra 10 Pack. 21,00 Euro
 
-Yes in my view there is two parts to VMEMMAP.  There is the runtime side
-which is common to all architectures using the single virtually mapped
-mem_map using the simple addition accessors, none of these options alter
-the post-init behaviour of VMEMMAP.  Then there is the initialisation
-side, all of the configuration options here pertain to how that
-initialisation is done.
+Nur fur kurze Zeit - vier Pillen umsonst erhalten
+http://uzpup.preparedoor.com/?627968895198
 
-There are three basic options:
+(bitte warten Sie einen Moment bis die Seite vollstandig geladen wird)
+------------A7CB6E901DA7C4
+Content-Type: text/html; charset=windows-1250
+Content-Transfer-Encoding: 7bit
 
-1) it can be completely generic in that we use base pages mapped using
-regular PTE's, or
-2) the architecture can supply a PMD level initialiser, or
-3) the architecture can supply a vmemmap_populate initialise which
-instantiates the entire map.
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE></TITLE>
+</HEAD>
+<BODY>
 
-As the PMD initialisers are only used by x86_64 we could make it supply
-a complete vmemmap_populate level initialiser but that would result in
-us duplicating the PUD level initialier function there which seems like
-a bad idea.
+<head><meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+</head><body><p>Meinung von unserem Kunden:<br><strong>Ich habe eine Aff&#228;re mit einer Bekannten, sie h&#228;lt mich f&#252;r einen Sex-Gott. Ich habe Viiaaaagra ungef&#228;hr zehn Minuten, bevor wir uns im Hotel getroffen haben, genommen. Ich habe davon nicht nur einen strammen Riemen bekommen, sondern auch die Selbstsicherheit, die die Frauen lieben. Ich habe es ihr drei- oder viermal besorgt, und sie ist absolut hingerissen. Ich komme ziemlich schnell, danach wird ihr Organsmus jedesmal unkontrollierbar. Viiaaaagra hat mich bei ihr zur Legende gemacht!! Ich kann es kaum abwarten, wieder eine zu schlucken</strong></p><p><strong>Ich bin weit &#252;ber 60, nehme Ciiaaaaaalis 20 mg. und das Wochenende ist gerettet. Ich kann pro Nacht 4-5 mal, und am Morgen wieder, f&#252;r den n&#228;chsten Abend reicht eine Halbe. Meine Freundin ist begeistert. F&#252;r meine Frau nehme ich eine halbe Tablette, das reicht f&#252;r einen netten Abend.<br>
+</strong><strong><br>Versuchen Sie unser Produkt und Sie werden fuhlen was unsere Kunden bestatigen</strong></p><p>Preise die keine Konkurrenz kennen <p>
+- Kein langes Warten - Auslieferung innerhalb von 2-3 Tagen<br>- Bequem und diskret online bestellen.<br>- Visa verifizierter Onlineshop<br>- Kostenlose, arztliche Telefon-Beratung<br>- keine versteckte Kosten<br>- Diskrete Verpackung und Zahlung<br>- Kein peinlicher Arztbesuch erforderlich</p>
+<p>Originalmedikamente<br><strong>Ciiaaaaaalis 10 Pack. 27,00 Euro</strong><br>
+  <strong>Viiaaaagra 10 Pack. 21,00 Euro</strong><br><br><strong><a href="http://uzpup.preparedoor.com/?627968895198" target="_blank">Nur fur kurze Zeit - vier Pillen umsonst erhalten</a><br></strong>(bitte warten Sie einen Moment bis die Seite vollst&auml;ndig geladen wird) </p></body>
 
-I have been looking at a rejig of the configuration options to make them
-all positive, so that you only have to assert a single VMEMMAP_* define
-to get the correct code.  But that does not really get rid of the defines.
-
-The code as it stands would allow for us to pull out the "PTE/PMD"
-initialiser from the vmemmap code and allow the architecture to select
-it as a helper, it living in its own file again.  But that seems excessive.
-
--apw
-
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+</BODY></HTML>
+------------A7CB6E901DA7C4--
