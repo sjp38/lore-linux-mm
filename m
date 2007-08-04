@@ -1,64 +1,66 @@
-Received: from d03relay02.boulder.ibm.com (d03relay02.boulder.ibm.com [9.17.195.227])
-	by e36.co.us.ibm.com (8.13.8/8.13.8) with ESMTP id l743INae020126
-	for <linux-mm@kvack.org>; Fri, 3 Aug 2007 23:18:23 -0400
-Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
-	by d03relay02.boulder.ibm.com (8.13.8/8.13.8/NCO v8.4) with ESMTP id l743INPe255602
-	for <linux-mm@kvack.org>; Fri, 3 Aug 2007 21:18:23 -0600
-Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av02.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l743IMB2000620
-	for <linux-mm@kvack.org>; Fri, 3 Aug 2007 21:18:23 -0600
-Date: Fri, 3 Aug 2007 20:18:19 -0700
-From: Nishanth Aravamudan <nacc@us.ibm.com>
-Subject: Re: [patch 00/14] NUMA: Memoryless node support V3
-Message-ID: <20070804031819.GD15714@us.ibm.com>
-References: <20070804030100.862311140@sgi.com>
+Date: Sat, 4 Aug 2007 08:32:17 +0200
+From: Ingo Molnar <mingo@elte.hu>
+Subject: Re: [PATCH 00/23] per device dirty throttling -v8
+Message-ID: <20070804063217.GA25069@elte.hu>
+References: <20070803123712.987126000@chello.nl> <alpine.LFD.0.999.0708031518440.8184@woody.linux-foundation.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20070804030100.862311140@sgi.com>
+In-Reply-To: <alpine.LFD.0.999.0708031518440.8184@woody.linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
-Cc: akpm@linux-foundation.org, kxr@sgi.com, linux-mm@kvack.org, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Mel Gorman <mel@skynet.ie>
+To: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, miklos@szeredi.hu, akpm@linux-foundation.org, neilb@suse.de, dgc@sgi.com, tomoki.sekiyama.qu@hitachi.com, nikita@clusterfs.com, trond.myklebust@fys.uio.no, yingchao.zhou@gmail.com, richard@rsk.demon.co.uk
 List-ID: <linux-mm.kvack.org>
 
-On 03.08.2007 [20:01:00 -0700], Christoph Lameter wrote:
-> V4->V5
-> - Split N_MEMORY into N_NORMAL_MEMORY and N_HIGH_MEMORY to support
->   32 bit NUMA.
-> - Mel tested it on 32bit NUMA
-> - !NUMA Fixes
-> - Tested on SMP and UP.
-> 
-> V3->V4 (by Lee)
-> - Add fixes and testing.
-> 
-> V2->V3
-> - Refresh patches (sigh)
-> - Add comments suggested by Kamezawa Hiroyuki
-> - Add signoff by Jes Sorensen
-> 
-> V1->V2
-> - Add a generic layer that allows the definition of additional node bitmaps
-> 
-> This patchset is implementing additional node bitmaps that allow the system
-> to track nodes that are online without memory and nodes that have processors.
-> 
-> Note that this patch is only the beginning. All code portions that assume that
-> an online node has memory must be changed to use either N_NORMAL_MEMORY or
-> N_HIGH_MEMORY.
+* Linus Torvalds <torvalds@linux-foundation.org> wrote:
 
-I believe Andrew should drop the 9 memoryless node patches he had picked
-up and take these instead. The NORMAL_MEMORY/HIGH_MEMORY distinction is
-critical for booting 32-bit NUMA. I've rebased my stack of hugetlb
-related patches on top of these and am testing now.
+> On Fri, 3 Aug 2007, Peter Zijlstra wrote:
+> > 
+> > These patches aim to improve balance_dirty_pages() and directly address three
+> > issues:
+> >   1) inter device starvation
+> >   2) stacked device deadlocks
+> >   3) inter process starvation
+> 
+> Ok, the patches certainly look pretty enough, and you fixed the only 
+> thing I complained about last time (naming), so as far as I'm 
+> concerned it's now just a matter of whether it *works* or not. I guess 
+> being in -mm will help somewhat, but it would be good to have people 
+> with several disks etc actively test this out.
 
-Thanks,
-Nish
+There are positive reports in the never-ending "my system crawls like an 
+XT when copying large files" bugzilla entry:
 
--- 
-Nishanth Aravamudan <nacc@us.ibm.com>
-IBM Linux Technology Center
+ http://bugzilla.kernel.org/show_bug.cgi?id=7372
+
+ " vfs_cache_pressure=1
+   TCQ   nr_requests
+   8     128    not that bad
+   1     128    snappiest configuration, almost no pauses
+                (or unnoticable ones) "
+ 
+ " 1) vfs_cache_pressure at 100, 2.6.21.5+per bdi throttling patch 
+   Result is good, not as snappier as I'd want during a large copy but 
+   still usable. No process seems stuck for agen, but there seems to be 
+   some short (second or subsecond) moment where everything is stuck 
+   (like if you run a top d 0.5, the screen is not updated on a regular
+   basis).
+
+   2) vfs_cache_pressure at 1, 2.6.21.5+per bdi throttling patch Result
+   is at 2.6.17 level. It is the better combination since 2.6.17. "
+
+ " 1) I've applied the patches posted by Peter Zijlstra in comment #76 
+   to the 2.6.21-mm2 kernel to check if it removes the problem. My
+   impression is that the problem is still there with those patches,
+   although less visible then with the clean 2.6.21 kernel. "
+
+so the whole problem area seems to be a "perfect storm" created by a 
+combination of TCQ, IO scheduling and VM dirty handling weaknesses. Per 
+device dirty throttling is a good step forward and it makes a very 
+visible positive difference.
+
+	Ingo
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
