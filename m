@@ -1,47 +1,58 @@
-Message-ID: <46B4E161.9080100@garzik.org>
-Date: Sat, 04 Aug 2007 16:28:17 -0400
-From: Jeff Garzik <jeff@garzik.org>
-MIME-Version: 1.0
+Date: Sat, 4 Aug 2007 22:28:30 +0200
+From: Ingo Molnar <mingo@elte.hu>
 Subject: Re: [PATCH 00/23] per device dirty throttling -v8
-References: <20070803123712.987126000@chello.nl>	<alpine.LFD.0.999.0708031518440.8184@woody.linux-foundation.org>	<20070804063217.GA25069@elte.hu>	<20070804070737.GA940@elte.hu>	<20070804103347.GA1956@elte.hu>	<alpine.LFD.0.999.0708040915360.5037@woody.linux-foundation.org>	<20070804163733.GA31001@elte.hu>	<alpine.LFD.0.999.0708041030040.5037@woody.linux-foundation.org>	<46B4C0A8.1000902@garzik.org>	<20070804191205.GA24723@lazybastard.org>	<20070804192130.GA25346@elte.hu> <20070804211156.5f600d80@the-village.bc.nu>
+Message-ID: <20070804202830.GA4538@elte.hu>
+References: <20070804063217.GA25069@elte.hu> <20070804070737.GA940@elte.hu> <20070804103347.GA1956@elte.hu> <alpine.LFD.0.999.0708040915360.5037@woody.linux-foundation.org> <20070804163733.GA31001@elte.hu> <alpine.LFD.0.999.0708041030040.5037@woody.linux-foundation.org> <46B4C0A8.1000902@garzik.org> <20070804191205.GA24723@lazybastard.org> <20070804192130.GA25346@elte.hu> <20070804211156.5f600d80@the-village.bc.nu>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
 In-Reply-To: <20070804211156.5f600d80@the-village.bc.nu>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Alan Cox <alan@lxorguk.ukuu.org.uk>
-Cc: Ingo Molnar <mingo@elte.hu>, =?ISO-8859-1?Q?J=F6rn_Engel?= <joern@logfs.org>, Linus Torvalds <torvalds@linux-foundation.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, linux-mm@kvack.org, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, miklos@szeredi.hu, akpm@linux-foundation.org, neilb@suse.de, dgc@sgi.com, tomoki.sekiyama.qu@hitachi.com, nikita@clusterfs.com, trond.myklebust@fys.uio.no, yingchao.zhou@gmail.com, richard@rsk.demon.co.uk, david@lang.hm
+Cc: J??rn Engel <joern@logfs.org>, Jeff Garzik <jeff@garzik.org>, Linus Torvalds <torvalds@linux-foundation.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, linux-mm@kvack.org, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, miklos@szeredi.hu, akpm@linux-foundation.org, neilb@suse.de, dgc@sgi.com, tomoki.sekiyama.qu@hitachi.com, nikita@clusterfs.com, trond.myklebust@fys.uio.no, yingchao.zhou@gmail.com, richard@rsk.demon.co.uk, david@lang.hm
 List-ID: <linux-mm.kvack.org>
 
-Alan Cox wrote:
-> In some setups it will and in others it won't. Nor is it the only
-> application that has this requirement. Ext3 currently is a standards
-> compliant file system. Turn off atime and its very non standards
-> compliant, turn to relatime and its not standards compliant but nobody
-> will break (which is good)
+* Alan Cox <alan@lxorguk.ukuu.org.uk> wrote:
 
-Linux has always been a "POSIX unless its stupid" type of system.  For 
-the upstream kernel, we should do the right thing -- noatime by default 
--- but allow distros and people that care about rigid compliance to 
-easily change the default.
+> Either change is a big user/kernel interface change and no major 
+> vendor targets desktop as primary market so I'm not suprised they 
+> haven't done this. [...]
 
+earlier in the thread it was claimed that Ubuntu is now defaulting to 
+noatime+nodiratime, and has done so for several months. Could be one of 
+the reasons why:
 
-(from another message)
-> If you want to sort this in Fedora for example you just need to package
-> and announce a desktop-tuning rpm which makes the relevant updates on
-> install and reverses them on remove. Stick the scheduler/vm tuning values
-> in as well and the disk queue tweaks.
-> 
-> Regardless of the kernel defaults people will install such a package
-> en-mass...
+   http://www.google.com/trends?q=fedora%2C+ubuntu
 
-<chuckle>  Sounds like an effective idea :)
+> People just need to know about the performance differences - very few 
+> realise its more than a fraction of a percent. I'm sure Gentoo will 
+> use relatime the moment anyone knows its > 5% 8)
 
-Though strictly in the context of atime vs. noatime, servers benefit 
-from that too, not just desktop.
+noatime,nodiratime gave 50% of wall-clock kernel rpm build performance 
+improvement for Dave Jones, on a beefy box. Unless i misunderstood what 
+you meant under 'fraction of a percent' your numbers are _WAY_ off. 
+Atime updates are a _huge everyday deal_, from laptops to servers. 
+Everywhere on the planet. Give me a Linux desktop anywhere and i can 
+tell you whether it has atimes on or off, just by clicking around and 
+using apps (without looking at the mount options). That's how i notice 
+it that i forgot to turn off atime on any newly installed system - the 
+system has weird desktop lags and unnecessary disk trashing.
 
-	Jeff
+> [...] Ext3 currently is a standards compliant file system. Turn off 
+> atime and its very non standards compliant, turn to relatime and its 
+> not standards compliant but nobody will break (which is good)
 
+come on! Any standards testsuite needs tons of tweaks to the system to 
+run through to completion. Mounting the filesystem atime will just be 
+one more item in the long list of (mostly silly) 'needed for standards 
+compliance' items (most of which nobody configures). What matters are 
+the apps, and nary any app depends on atime, and those people who depend 
+on them can turn on atime just fine. (it's the same as for extended 
+attributes for example - and attributes are infinitely _more_ useful 
+than atime.)
+
+	Ingo
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
