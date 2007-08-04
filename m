@@ -1,74 +1,47 @@
-Date: Sat, 4 Aug 2007 00:44:40 -0700 (PDT)
-From: david@lang.hm
-Subject: Re: [PATCH 00/23] per device dirty throttling -v8
-In-Reply-To: <20070804070737.GA940@elte.hu>
-Message-ID: <Pine.LNX.4.64.0708040032570.6905@asgard.lang.hm>
-References: <20070803123712.987126000@chello.nl>
- <alpine.LFD.0.999.0708031518440.8184@woody.linux-foundation.org>
- <20070804063217.GA25069@elte.hu> <20070804070737.GA940@elte.hu>
+From: Andi Kleen <ak@suse.de>
+Subject: Re: [PATCH] Apply memory policies to top two highest zones when highest zone is ZONE_MOVABLE
+Date: Sat, 4 Aug 2007 10:51:13 +0200
+References: <20070802172118.GD23133@skynet.ie> <200708040002.18167.ak@suse.de> <20070804002354.GA2841@skynet.ie>
+In-Reply-To: <20070804002354.GA2841@skynet.ie>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII; format=flowed
+Content-Type: text/plain;
+  charset="iso-8859-15"
+Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+Message-Id: <200708041051.14324.ak@suse.de>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Ingo Molnar <mingo@elte.hu>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, miklos@szeredi.hu, akpm@linux-foundation.org, neilb@suse.de, dgc@sgi.com, tomoki.sekiyama.qu@hitachi.com, nikita@clusterfs.com, trond.myklebust@fys.uio.no, yingchao.zhou@gmail.com, richard@rsk.demon.co.uk
+To: Mel Gorman <mel@skynet.ie>
+Cc: akpm@linux-foundation.org, Lee.Schermerhorn@hp.com, clameter@sgi.com, kamezawa.hiroyu@jp.fujitsu.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Sat, 4 Aug 2007, Ingo Molnar wrote:
+> It only affects hot paths in the NUMA case so non-NUMA users will not care.
 
-> * Ingo Molnar <mingo@elte.hu> wrote:
->
->> There are positive reports in the never-ending "my system crawls like
->> an XT when copying large files" bugzilla entry:
->>
->>  http://bugzilla.kernel.org/show_bug.cgi?id=7372
->
-> i forgot this entry:
->
-> " We recently upgraded our office to gigabit Ethernet and got some big
->   AMD64 / 3ware boxes for file and vmware servers... only to find them
->   almost useless under any kind of real load. I've built some patched
->   2.6.21.6 kernels (using the bdi throttling patch you mentioned) to
->   see if our various Debian Etch boxes run better. So far my testing
->   shows a *great* improvement over the stock Debian 2.6.18 kernel on
->   our configurations. "
->
-> and bdi has been in -mm in the past i think, so we also know (to a
-> certain degree) that it does not hurt those workloads that are fine
-> either.
->
-> [ my personal interest in this is the following regression: every time i
->  start a large kernel build with DEBUG_INFO on a quad-core 4GB RAM box,
->  i get up to 30 seconds complete pauses in Vim (and most other tasks),
->  during plain editing of the source code. (which happens when Vim tries
->  to write() to its swap/undo-file.) ]
+For x86-64 most distribution kernels are NUMA these days.
 
-I have an issue that sounds like it's related.
+> For NUMA users,  I have posted patches that eliminate multiple zonelists
+> altogether which will reduce cache footprint (something like 7K per node on
+> x86_64)
 
-I've got a syslog server that's got two Opteron 246 cpu's, 16G ram, 2x140G 
-15k rpm drives (fusion MPT hardware mirroring), 16x500G 7200rpm SATA 
-drives on 3ware 9500 cards (software raid6) running 2.6.20.3 with hz set 
-at default and preempt turned off.
+How do you get to 7k? We got worst case 3 zones node (normally less);
+that's three pointers per GFP level.
 
-I have syslog doing buffered writes to the SCSI drives and every 5 min a 
-cron job copies the data to the raid array.
+> and make things like MPOL_BIND behave in a consistent manner. That 
+> would cost on CPU but save on cache which would (hopefully) result in a net
+> gain in most cases.
 
-I've found that if I do anything significant on the large raid array that 
-the system looses a significant amount of the UDP syslog traffic, even 
-though there should be pleanty of ram and cpu (and the spindles involved 
-in the writes are not being touched), even a grep can cause up to 40% 
-losses in the syslog traffic. I've experimented with nice levels (nicing 
-down the grep and nicing up the syslogd) without a noticable effect on the 
-losses.
+That might be a good tradeoff, but without seeing the patch 
+the 7k number sounds very dubious.
 
-I've been planning to try a new kernel with hz=1000 to see if that would 
-help, and after that experiment with the various preempt settings, but it 
-sounds like the per-device queues may actually be more relavent to the 
-problem.
+> I would like to go with this patch for now just for policies but for
+> 2.6.23, we could leave it as "policies only apply to ZONE_MOVABLE when it
+> is used" if you really insisted on it. It's less than ideal though for
+> sure.
 
-what would you suggest I test, and in what order and combination?
+Or disable ZONE_MOVABLE. It seems to be clearly not well thought
+out well yet. Perhaps make it dependent on !CONFIG_NUMA.
 
-David Lang
+-Andi
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
