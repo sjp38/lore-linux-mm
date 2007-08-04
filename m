@@ -1,11 +1,12 @@
-Date: Sat, 4 Aug 2007 09:15:24 -0700 (PDT)
+Date: Sat, 4 Aug 2007 09:17:44 -0700 (PDT)
 From: Linus Torvalds <torvalds@linux-foundation.org>
 Subject: Re: [PATCH 00/23] per device dirty throttling -v8
-In-Reply-To: <20070804070737.GA940@elte.hu>
-Message-ID: <alpine.LFD.0.999.0708040912480.5037@woody.linux-foundation.org>
+In-Reply-To: <20070804103347.GA1956@elte.hu>
+Message-ID: <alpine.LFD.0.999.0708040915360.5037@woody.linux-foundation.org>
 References: <20070803123712.987126000@chello.nl>
  <alpine.LFD.0.999.0708031518440.8184@woody.linux-foundation.org>
  <20070804063217.GA25069@elte.hu> <20070804070737.GA940@elte.hu>
+ <20070804103347.GA1956@elte.hu>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
@@ -16,40 +17,29 @@ List-ID: <linux-mm.kvack.org>
 
 
 On Sat, 4 Aug 2007, Ingo Molnar wrote:
+
+> > [ my personal interest in this is the following regression: every time 
+> >   i start a large kernel build with DEBUG_INFO on a quad-core 4GB RAM 
+> >   box, i get up to 30 seconds complete pauses in Vim (and most other 
+> >   tasks), during plain editing of the source code. (which happens when 
+> >   Vim tries to write() to its swap/undo-file.) ]
 > 
-> i forgot this entry:
-> 
->  " We recently upgraded our office to gigabit Ethernet and got some big 
->    AMD64 / 3ware boxes for file and vmware servers... only to find them 
->    almost useless under any kind of real load. I've built some patched 
->    2.6.21.6 kernels (using the bdi throttling patch you mentioned) to 
->    see if our various Debian Etch boxes run better. So far my testing 
->    shows a *great* improvement over the stock Debian 2.6.18 kernel on 
->    our configurations. "
+> hm, it turns out that it's due to vim doing an occasional fsync not only 
+> on writeout, but during normal use too. "set nofsync" in the .vimrc 
+> solves this problem.
 
-Well, quite frankly, there are other changes between 2.6.18 and 2.6.21 
-that are more likely to be a big deal than Peter's patches. No offense to 
-Peter, but we also cut the default dirty percentage by a factor of four in 
-that timeframe, and that made a *huge* difference for some setups (and 
-admittedly not so much on others ;)
+Yes, that's independent. The fact is, ext3 *sucks* at fsync. I hate hate 
+hate it. It's totally unusable, imnsho.
 
-> and bdi has been in -mm in the past i think, so we also know (to a 
-> certain degree) that it does not hurt those workloads that are fine 
-> either.
+The whole point of fsync() is that it should sync only that one file, and 
+avoid syncing all the other stuff that is going on, and ext3 violates 
+that, because it ends up having to sync the whole log, or something like 
+that. So even if vim really wants to sync a small file, you end up waiting 
+for megabytes of data being written out.
 
-Hey, I'm not complaining. I think the code looks fine. I just want to make 
-sure that it actually helps.
+I detest logging filesystems. 
 
-> [ my personal interest in this is the following regression: every time i
->   start a large kernel build with DEBUG_INFO on a quad-core 4GB RAM box,
->   i get up to 30 seconds complete pauses in Vim (and most other tasks),
->   during plain editing of the source code. (which happens when Vim tries
->   to write() to its swap/undo-file.) ]
-
-So do the patches really end up helping your case? Or is this just why 
-you're following it, and hoping they'll eventually do so?
-
-		Linus
+			Linus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
