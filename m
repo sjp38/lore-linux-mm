@@ -1,52 +1,59 @@
-Date: Sun, 5 Aug 2007 11:00:29 -0400
-From: Theodore Tso <tytso@mit.edu>
+Date: Sun, 5 Aug 2007 09:45:19 -0700 (PDT)
+From: Linus Torvalds <torvalds@linux-foundation.org>
 Subject: Re: [PATCH 00/23] per device dirty throttling -v8
-Message-ID: <20070805150029.GB28263@thunk.org>
-References: <20070803123712.987126000@chello.nl> <alpine.LFD.0.999.0708031518440.8184@woody.linux-foundation.org> <20070804063217.GA25069@elte.hu> <20070804070737.GA940@elte.hu> <20070804103347.GA1956@elte.hu> <alpine.LFD.0.999.0708040915360.5037@woody.linux-foundation.org> <20070804163733.GA31001@elte.hu> <p73hcnen7w2.fsf@bingen.suse.de>
+In-Reply-To: <20070805124648.GA21173@elte.hu>
+Message-ID: <alpine.LFD.0.999.0708050944470.5037@woody.linux-foundation.org>
+References: <20070804063217.GA25069@elte.hu> <20070804070737.GA940@elte.hu>
+ <20070804103347.GA1956@elte.hu> <alpine.LFD.0.999.0708040915360.5037@woody.linux-foundation.org>
+ <20070804163733.GA31001@elte.hu> <alpine.LFD.0.999.0708041030040.5037@woody.linux-foundation.org>
+ <46B4C0A8.1000902@garzik.org> <20070805102021.GA4246@unthought.net>
+ <46B5A996.5060006@garzik.org> <20070805105850.GC4246@unthought.net>
+ <20070805124648.GA21173@elte.hu>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <p73hcnen7w2.fsf@bingen.suse.de>
+Content-Type: TEXT/PLAIN; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andi Kleen <andi@firstfloor.org>
-Cc: Ingo Molnar <mingo@elte.hu>, Linus Torvalds <torvalds@linux-foundation.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, miklos@szeredi.hu, akpm@linux-foundation.org, neilb@suse.de, dgc@sgi.com, tomoki.sekiyama.qu@hitachi.com, nikita@clusterfs.com, trond.myklebust@fys.uio.no, yingchao.zhou@gmail.com, richard@rsk.demon.co.uk
+To: Ingo Molnar <mingo@elte.hu>
+Cc: Jakob Oestergaard <jakob@unthought.net>, Jeff Garzik <jeff@garzik.org>, miklos@szeredi.hu, akpm@linux-foundation.org, neilb@suse.de, dgc@sgi.com, tomoki.sekiyama.qu@hitachi.com, Peter Zijlstra <a.p.zijlstra@chello.nl>, linux-mm@kvack.org, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, nikita@clusterfs.com, trond.myklebust@fys.uio.no, yingchao.zhou@gmail.com, richard@rsk.demon.co.uk, david@lang.hm
 List-ID: <linux-mm.kvack.org>
 
-On Sun, Aug 05, 2007 at 02:26:53AM +0200, Andi Kleen wrote:
-> I always thought the right solution would be to just sync atime only
-> very very lazily. This means if a inode is only dirty because of an
-> atime update put it on a "only write out when there is nothing to do
-> or the memory is really needed" list.
+On Sun, 5 Aug 2007, Ingo Molnar wrote:
+> 
+> you mean tmpwatch? The trivial change below fixes this. And with that 
+> we've come to the end of an extremely short list of atime dependencies.
 
-As I've mentioend earlier, the memory balancing issues that arise when
-we add an "atime dirty" bit scare me a little.  It can be addressed,
-obviously, but at the cost of more code complexity.
+You wouldn't even need these kinds of games.
 
-An alternative is to simply have a tunable parameter, via either a
-mount option or stashed in the superblock which controls atime's
-granularity guarantee.  That is, only update the atime if it is older
-than some set time that could be configurable as a mount option or in
-the superblock.  Most of the time, an HSM system simply wants to know
-if a file has been used sometime "recently", where recently might be
-measured in hours or in days.
+What we could do is to make "relatime" updates a bit smarter.
 
-This is IMHO slightly better than relatime, since it keeps the spirit
-of the atime update, while keeping the performance impact to a very
-minimal (and tunable) level.
+A bit smarter would be:
 
-						- Ted
+ - update atime if the old atime is <= than mtime/ctime
 
-P.S.  Yet alternative is to specify noatime on an individual
-file/directory basis.  We've had this capability for a *long* time,
-and if a distro were to set noatime for all files in certain
-hierarchies (i.e., /usr/include) and certain top-level directories
-(since the chattr +A flag is inherited), I think folks would find that
-this would reduce the I/O traffic of noatime by a huge amount.  This
-also would be 100% POSIX compliant, since we are extending the
-filesystem and setting certain files to use it.  But if users want to
-know when was the last time they looked at a particular file in their
-home directory, they would still have that facility.
+   Logic: things like mailers can care about whether some new state has 
+   been read or not. This is the current relatime.
+
+ - update atime if the old atime is more than X seconds in the past 
+   (defaulting to one day or something)
+
+   Logic: things like tmpwatch and backup software may want to remove 
+   stuff that hasn't been touched in a long time, but they sure don't care 
+   about "exact" atime.
+
+Now, you could also make the rule be that "X" depends on mtime/ctime, ie 
+if a file has been "recently" created or modified, we keep more exact 
+track of it and use one hour instead of one day, but if it's some old file 
+that hasn't been modified in the last six months, we change X to a week. 
+IOW, the "exactness" of atime is relative to how old the inode 
+modifications are.
+
+We could obviously do with an additional rule:
+
+ - update atime if the inode is dirty anyway. Logic: there's no downside.
+
+which just says that we'll make it exact if there is no reason not to.
+
+			Linus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
