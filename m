@@ -1,67 +1,89 @@
-Date: Sun, 5 Aug 2007 12:03:21 -0700 (PDT)
-From: david@lang.hm
+Date: Sun, 5 Aug 2007 20:11:46 +0100
+From: Alan Cox <alan@lxorguk.ukuu.org.uk>
 Subject: Re: [PATCH 00/23] per device dirty throttling -v8
-In-Reply-To: <20070805152231.aba9428a.diegocg@gmail.com>
-Message-ID: <Pine.LNX.4.64.0708051158260.6905@asgard.lang.hm>
-References: <20070804103347.GA1956@elte.hu>
- <alpine.LFD.0.999.0708040915360.5037@woody.linux-foundation.org>
- <20070804163733.GA31001@elte.hu> <alpine.LFD.0.999.0708041030040.5037@woody.linux-foundation.org>
- <46B4C0A8.1000902@garzik.org> <20070804191205.GA24723@lazybastard.org>
- <20070804192130.GA25346@elte.hu> <20070804211156.5f600d80@the-village.bc.nu>
- <20070804202830.GA4538@elte.hu> <20070804224834.5187f9b7@the-village.bc.nu>
- <20070805071320.GC515@elte.hu> <20070805152231.aba9428a.diegocg@gmail.com>
-MIME-Version: 1.0
-Content-Type: MULTIPART/MIXED; BOUNDARY="680960-1699270386-1186340601=:6905"
+Message-ID: <20070805201146.1082f8c0@the-village.bc.nu>
+In-Reply-To: <20070805180826.GD3244@elte.hu>
+References: <20070804191205.GA24723@lazybastard.org>
+	<20070804192130.GA25346@elte.hu>
+	<20070804211156.5f600d80@the-village.bc.nu>
+	<20070804202830.GA4538@elte.hu>
+	<20070804210351.GA9784@elte.hu>
+	<20070804225121.5c7b66e0@the-village.bc.nu>
+	<20070805073709.GA6325@elte.hu>
+	<20070805134328.1a4474dd@the-village.bc.nu>
+	<20070805125433.GA22060@elte.hu>
+	<20070805143708.279f51f8@the-village.bc.nu>
+	<20070805180826.GD3244@elte.hu>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Diego Calleja <diegocg@gmail.com>
-Cc: Ingo Molnar <mingo@elte.hu>, Alan Cox <alan@lxorguk.ukuu.org.uk>, J??rn Engel <joern@logfs.org>, Jeff Garzik <jeff@garzik.org>, Linus Torvalds <torvalds@linux-foundation.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, linux-mm@kvack.org, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, miklos@szeredi.hu, akpm@linux-foundation.org, neilb@suse.de, dgc@sgi.com, tomoki.sekiyama.qu@hitachi.com, nikita@clusterfs.com, trond.myklebust@fys.uio.no, yingchao.zhou@gmail.com, richard@rsk.demon.co.uk
+To: Ingo Molnar <mingo@elte.hu>
+Cc: J??rn Engel <joern@logfs.org>, Jeff Garzik <jeff@garzik.org>, Linus Torvalds <torvalds@linux-foundation.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, linux-mm@kvack.org, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, miklos@szeredi.hu, akpm@linux-foundation.org, neilb@suse.de, dgc@sgi.com, tomoki.sekiyama.qu@hitachi.com, nikita@clusterfs.com, trond.myklebust@fys.uio.no, yingchao.zhou@gmail.com, richard@rsk.demon.co.uk, david@lang.hm
 List-ID: <linux-mm.kvack.org>
 
---680960-1699270386-1186340601=:6905
-Content-Type: TEXT/PLAIN; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 8BIT
+On Sun, 5 Aug 2007 20:08:26 +0200
+Ingo Molnar <mingo@elte.hu> wrote:
 
-On Sun, 5 Aug 2007, Diego Calleja wrote:
+> 
+> * Alan Cox <alan@lxorguk.ukuu.org.uk> wrote:
+> 
+> > And you honestly think that putting it in Kconfig as well as allowing 
+> > users to screw up horribly and creating incompatible defaults you
+> 
+> So far you've not offered one realistic scenario of "screw up horribly". 
+> People have been using noatime for a long time and there are no horror 
+> stories about that. _Which_ OSS HSM software relies on atime?
 
-> El Sun, 5 Aug 2007 09:13:20 +0200, Ingo Molnar <mingo@elte.hu> escribio:
->
->> Measurements show that noatime helps 20-30% on regular desktop
->> workloads, easily 50% for kernel builds and much more than that (in
->> excess of 100%) for file-read-intense workloads. We cannot just walk
->
->
-> And as everybody knows in servers is a popular practice to disable it.
-> According to an interview to the kernel.org admins....
->
-> "Beyond that, Peter noted, "very little fancy is going on, and that is good
-> because fancy is hard to maintain." He explained that the only fancy thing
-> being done is that all filesystems are mounted noatime meaning that the
-> system doesn't have to make writes to the filesystem for files which are
-> simply being read, "that cut the load average in half."
->
-> I bet that some people would consider such performance hit a bug...
->
+Whats this about "OSS". OSS or proprietary. And you've been given one
+example already - tmpwatch. Although its more of a trash compactor than
+HSM.
 
-actually, it's popular practice to disable it by people who know how big a 
-hit it is and know how few programs use it.
+> > can't test for in a user space app where it matters is going to 
+> > *change* this.
+> 
+> The patch i posted today adds /proc/sys/kernel/mount_with_atime. That 
+> can be tested by user-space, if it truly cares about atime.
 
-i've been a linux sysadmin for 10 years, and have known about noatime for 
-at least 7 years, but I always thought of it in the catagory of 'use it 
-only on your performance critical machines where you are trying to extract 
-every ounce of performance, and keep an eye out for things misbehaving'
+We have an existing API and ABI thank you. See man mount.
 
-I never imagined that itwas the 20%+ hit that is being described, and with 
-so little impact, or I would have switched to it across the board years 
-ago.
+> > Do you really think anyone who said "noatime, compatibility, umm errr" 
+> > is going to say "noatime, compatibility, but hey its in Kconfig lets 
+> > do it". You argument doesn't hold up to minimal rational 
+> > consideration. Posting to the distribution devel list with: "Its a 50% 
+> > performance win, we need to fix these corner cases, here's a tmpwatch 
+> > patch" is *exactly* what is needed to change it, and Kconfig options 
+> > are irrelevant to that.
+> 
+> i did exactly that 6 months ago, check your email folders. I went by the 
+> "process". But it doesnt really matter anymore, Ubuntu has done the step 
 
-I'll bet there are a lot of admins out there in the same boat.
+And your Kconfig argument is still not rational. A question I note you
+chose not to answer. Anyway if Ubuntu has switched to noatime by default
+(or relatime) and hasn't used a Kconfig line that proves my whole point -
+we don't need one and its pointless to add so.
 
-adding an option in the kernel to change the default sounds like a very 
-good first step, even if the default isn't changed today.
+> we really have to ask ourselves whether the "process" is correct if 
+> advantages to the user of this order of magnitude can be brushed aside 
+> with simple "this breaks binary-only HSM" and "it's not standards 
+> compliant" arguments.
 
-David Lang
---680960-1699270386-1186340601=:6905--
+Thats a discussion to have with your distribution development team. The
+kernel provides the required facilities already. Open source means
+everyone can do cool stuff as they see fit and natural selection will do
+the rest.
+
+Look I agree entirely with you that relatime, or noatime + minor package
+patches is the right thing to do for FC8. I've also pointed out you can
+build and release tuning packages for FC 7 and they'll make the
+distribution. FC8 beta 1 approaches so now is the time to be talking to
+the distribution people and to the ever kernel building Dave Jones about
+it.
+
+But none of this makes stupid Kconfig hacks the right answer.
+
+Alan
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
