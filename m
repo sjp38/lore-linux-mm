@@ -1,43 +1,51 @@
-Date: Sun, 5 Aug 2007 14:56:49 +0200
+Date: Sun, 5 Aug 2007 14:58:47 +0200
 From: Ingo Molnar <mingo@elte.hu>
 Subject: Re: [PATCH 00/23] per device dirty throttling -v8
-Message-ID: <20070805125649.GB22060@elte.hu>
-References: <alpine.LFD.0.999.0708041030040.5037@woody.linux-foundation.org> <46B4C0A8.1000902@garzik.org> <20070804191205.GA24723@lazybastard.org> <20070804192130.GA25346@elte.hu> <20070804211156.5f600d80@the-village.bc.nu> <20070804202830.GA4538@elte.hu> <20070804210351.GA9784@elte.hu> <20070804225121.5c7b66e0@the-village.bc.nu> <20070805072141.GA4414@elte.hu> <20070805134750.691e2e74@the-village.bc.nu>
+Message-ID: <20070805125847.GC22060@elte.hu>
+References: <20070803123712.987126000@chello.nl> <46B4E161.9080100@garzik.org> <20070804224706.617500a0@the-village.bc.nu> <200708050051.40758.ctpm@ist.utl.pt> <20070805014926.400d0608@the-village.bc.nu> <20070805072805.GB4414@elte.hu> <20070805134640.2c7d1140@the-village.bc.nu>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20070805134750.691e2e74@the-village.bc.nu>
+In-Reply-To: <20070805134640.2c7d1140@the-village.bc.nu>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Alan Cox <alan@lxorguk.ukuu.org.uk>
-Cc: J??rn Engel <joern@logfs.org>, Jeff Garzik <jeff@garzik.org>, Linus Torvalds <torvalds@linux-foundation.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, linux-mm@kvack.org, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, miklos@szeredi.hu, akpm@linux-foundation.org, neilb@suse.de, dgc@sgi.com, tomoki.sekiyama.qu@hitachi.com, nikita@clusterfs.com, trond.myklebust@fys.uio.no, yingchao.zhou@gmail.com, richard@rsk.demon.co.uk, david@lang.hm
+Cc: Claudio Martins <ctpm@ist.utl.pt>, Jeff Garzik <jeff@garzik.org>, =?iso-8859-1?Q?J=F6rn?= Engel <joern@logfs.org>, Linus Torvalds <torvalds@linux-foundation.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, linux-mm@kvack.org, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, miklos@szeredi.hu, akpm@linux-foundation.org, neilb@suse.de, dgc@sgi.com, tomoki.sekiyama.qu@hitachi.com, nikita@clusterfs.com, trond.myklebust@fys.uio.no, yingchao.zhou@gmail.com, richard@rsk.demon.co.uk, david@lang.hm
 List-ID: <linux-mm.kvack.org>
 
 * Alan Cox <alan@lxorguk.ukuu.org.uk> wrote:
 
-> > > we can move from atime to noatime by default on FC8 with 
-> > > appropriate release note warnings and having a couple of betas to 
-> > > find out what other than mutt goes boom.
-> > 
-> > btw., Mutt does not go boom, i use it myself. It works just fine and 
-> > notices new mails even on a noatime,nodiratime filesystem.
+> > The only remotely valid compatibility argument would be Mutt - but even 
+> > that handles it just fine. (we broke way more software via noexec)
 > 
-> Configuration dependant, and also mutt and the shell will misreport 
-> new mail with noatime on the mail spool. The shell should probably use 
-> inotify of course but that change has to be made.
+> And went through a sensible process of resolving it.
+>
+> And its not just mutt. HSM stuff stops working which is a big deal as 
+> stuff clogs up. The /tmp/ cleaning tools go wrong as well.
 
-just to quote from this same email thread:
-
-| I too use mutt and noatime,nodiratime everywhere (same 10 year-old 
-| thinko), and the only side effect is that when I have a new mail, it 
-| is reported in all of my xterms until I read it, clearly something I 
-| can live with (and sometimes it's even desirable).
-|
-| In fact, mutt is pretty good at this. It updates atime and ctime 
-| itself as soon as it opens the mbox, so the shell is happy and only 
-| reports "you have mail" afterwards.
+what OSS HSM software stops working and what is its failure mode? /tmp 
+cleaning tools will work _just fine_ if we report back max(mtime,ctime) 
+as atime - they'll zap more /tmp stuff as they used to. There's no 
+guarantee for /tmp contents anyway if tmpwatch is running. Or the patch 
+below.
 
 	Ingo
+
+--- /etc/cron.daily/tmpwatch.orig	2007-08-05 14:44:25.000000000 +0200
++++ /etc/cron.daily/tmpwatch	2007-08-05 14:45:10.000000000 +0200
+@@ -1,9 +1,9 @@
+ #! /bin/sh
+-/usr/sbin/tmpwatch -x /tmp/.X11-unix -x /tmp/.XIM-unix -x /tmp/.font-unix \
++/usr/sbin/tmpwatch --mtime -x /tmp/.X11-unix -x /tmp/.XIM-unix -x /tmp/.font-unix \
+ 	-x /tmp/.ICE-unix -x /tmp/.Test-unix 10d /tmp
+-/usr/sbin/tmpwatch 30d /var/tmp
++/usr/sbin/tmpwatch --mtime 30d /var/tmp
+ for d in /var/{cache/man,catman}/{cat?,X11R6/cat?,local/cat?}; do
+     if [ -d "$d" ]; then
+-	/usr/sbin/tmpwatch -f 30d "$d"
++	/usr/sbin/tmpwatch --mtime -f 30d "$d"
+     fi
+ done
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
