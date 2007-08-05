@@ -1,50 +1,52 @@
-Date: Sun, 5 Aug 2007 10:46:45 -0400
+Date: Sun, 5 Aug 2007 11:00:29 -0400
 From: Theodore Tso <tytso@mit.edu>
 Subject: Re: [PATCH 00/23] per device dirty throttling -v8
-Message-ID: <20070805144645.GA28263@thunk.org>
-References: <20070803123712.987126000@chello.nl> <46B4E161.9080100@garzik.org> <20070804224706.617500a0@the-village.bc.nu> <200708050051.40758.ctpm@ist.utl.pt> <20070805014926.400d0608@the-village.bc.nu>
+Message-ID: <20070805150029.GB28263@thunk.org>
+References: <20070803123712.987126000@chello.nl> <alpine.LFD.0.999.0708031518440.8184@woody.linux-foundation.org> <20070804063217.GA25069@elte.hu> <20070804070737.GA940@elte.hu> <20070804103347.GA1956@elte.hu> <alpine.LFD.0.999.0708040915360.5037@woody.linux-foundation.org> <20070804163733.GA31001@elte.hu> <p73hcnen7w2.fsf@bingen.suse.de>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20070805014926.400d0608@the-village.bc.nu>
+In-Reply-To: <p73hcnen7w2.fsf@bingen.suse.de>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Alan Cox <alan@lxorguk.ukuu.org.uk>
-Cc: Claudio Martins <ctpm@ist.utl.pt>, Jeff Garzik <jeff@garzik.org>, Ingo Molnar <mingo@elte.hu>, =?iso-8859-1?Q?J=F6rn?= Engel <joern@logfs.org>, Linus Torvalds <torvalds@linux-foundation.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, linux-mm@kvack.org, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, miklos@szeredi.hu, akpm@linux-foundation.org, neilb@suse.de, dgc@sgi.com, tomoki.sekiyama.qu@hitachi.com, nikita@clusterfs.com, trond.myklebust@fys.uio.no, yingchao.zhou@gmail.com, richard@rsk.demon.co.uk, david@lang.hm
+To: Andi Kleen <andi@firstfloor.org>
+Cc: Ingo Molnar <mingo@elte.hu>, Linus Torvalds <torvalds@linux-foundation.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, miklos@szeredi.hu, akpm@linux-foundation.org, neilb@suse.de, dgc@sgi.com, tomoki.sekiyama.qu@hitachi.com, nikita@clusterfs.com, trond.myklebust@fys.uio.no, yingchao.zhou@gmail.com, richard@rsk.demon.co.uk
 List-ID: <linux-mm.kvack.org>
 
-On Sun, Aug 05, 2007 at 01:49:26AM +0100, Alan Cox wrote:
-> HSM is the usual one, and to a large extent probably why Unix originally
-> had atime. Basically migrating less used files away so as to keep the
-> system disks tidy.
-> 
-> Its not something usally found on desktop boxes so it doesn't in anyway
-> argue against the distribution using noatime or relative atime, but on
-> big server boxes it matters
+On Sun, Aug 05, 2007 at 02:26:53AM +0200, Andi Kleen wrote:
+> I always thought the right solution would be to just sync atime only
+> very very lazily. This means if a inode is only dirty because of an
+> atime update put it on a "only write out when there is nothing to do
+> or the memory is really needed" list.
 
-In addition, big server boxes are usually not reading a huge *number*
-of files per second.  The place where you see this as a problem is (a)
-compilation, thanks to huge /usr/include hierarchies (and here things
-have gotten worse over time as include files have gotten much more
-complex than in the early Unix days), and (b) silly desktop apps that
-want to scan huge numbers of XML files or who want to read every
-single image file on the desktop or in an open file browser window to
-show c00l icons.  Oh, and I guess I should include Maildir setups.
+As I've mentioend earlier, the memory balancing issues that arise when
+we add an "atime dirty" bit scare me a little.  It can be addressed,
+obviously, but at the cost of more code complexity.
 
-If you are always reading from the same small set of files (i.e., a
-database workload), then those inodes only get updated every 5 seconds
-(the traditional/default metadata update sync time, as well as the
-default ext3 journal update time), it's no big deal.  Or if you are
-running a mail server, most of the time the mail queue files are
-getting updated anyway as you process them, and usually the mail is
-delivered before 5 seconds is up anyway.  
+An alternative is to simply have a tunable parameter, via either a
+mount option or stashed in the superblock which controls atime's
+granularity guarantee.  That is, only update the atime if it is older
+than some set time that could be configurable as a mount option or in
+the superblock.  Most of the time, an HSM system simply wants to know
+if a file has been used sometime "recently", where recently might be
+measured in hours or in days.
 
-So earlier, when Ingo characterized it as, "whenever you read from a
-file, even one in memory cache.... do a write!", it's probably a bit
-unfair.  Traditional Unix systems simply had very different workload
-characteristics than many modern dekstop systems today.
+This is IMHO slightly better than relatime, since it keeps the spirit
+of the atime update, while keeping the performance impact to a very
+minimal (and tunable) level.
 
-							- Ted
+						- Ted
+
+P.S.  Yet alternative is to specify noatime on an individual
+file/directory basis.  We've had this capability for a *long* time,
+and if a distro were to set noatime for all files in certain
+hierarchies (i.e., /usr/include) and certain top-level directories
+(since the chattr +A flag is inherited), I think folks would find that
+this would reduce the I/O traffic of noatime by a huge amount.  This
+also would be 100% POSIX compliant, since we are extending the
+filesystem and setting certain files to use it.  But if users want to
+know when was the last time they looked at a particular file in their
+home directory, they would still have that facility.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
