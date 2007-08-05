@@ -1,33 +1,43 @@
-Date: Sun, 5 Aug 2007 00:29:34 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
+Date: Sun, 5 Aug 2007 09:37:09 +0200
+From: Ingo Molnar <mingo@elte.hu>
 Subject: Re: [PATCH 00/23] per device dirty throttling -v8
-Message-Id: <20070805002934.fc6a8e54.akpm@linux-foundation.org>
-In-Reply-To: <20070805072141.GA4414@elte.hu>
-References: <alpine.LFD.0.999.0708040915360.5037@woody.linux-foundation.org>
-	<20070804163733.GA31001@elte.hu>
-	<alpine.LFD.0.999.0708041030040.5037@woody.linux-foundation.org>
-	<46B4C0A8.1000902@garzik.org>
-	<20070804191205.GA24723@lazybastard.org>
-	<20070804192130.GA25346@elte.hu>
-	<20070804211156.5f600d80@the-village.bc.nu>
-	<20070804202830.GA4538@elte.hu>
-	<20070804210351.GA9784@elte.hu>
-	<20070804225121.5c7b66e0@the-village.bc.nu>
-	<20070805072141.GA4414@elte.hu>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Message-ID: <20070805073709.GA6325@elte.hu>
+References: <alpine.LFD.0.999.0708040915360.5037@woody.linux-foundation.org> <20070804163733.GA31001@elte.hu> <alpine.LFD.0.999.0708041030040.5037@woody.linux-foundation.org> <46B4C0A8.1000902@garzik.org> <20070804191205.GA24723@lazybastard.org> <20070804192130.GA25346@elte.hu> <20070804211156.5f600d80@the-village.bc.nu> <20070804202830.GA4538@elte.hu> <20070804210351.GA9784@elte.hu> <20070804225121.5c7b66e0@the-village.bc.nu>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20070804225121.5c7b66e0@the-village.bc.nu>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Ingo Molnar <mingo@elte.hu>
-Cc: Alan Cox <alan@lxorguk.ukuu.org.uk>, J??rn Engel <joern@logfs.org>, Jeff Garzik <jeff@garzik.org>, Linus Torvalds <torvalds@linux-foundation.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, linux-mm@kvack.org, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, miklos@szeredi.hu, neilb@suse.de, dgc@sgi.com, tomoki.sekiyama.qu@hitachi.com, nikita@clusterfs.com, trond.myklebust@fys.uio.no, yingchao.zhou@gmail.com, richard@rsk.demon.co.uk, david@lang.hm
+To: Alan Cox <alan@lxorguk.ukuu.org.uk>
+Cc: J??rn Engel <joern@logfs.org>, Jeff Garzik <jeff@garzik.org>, Linus Torvalds <torvalds@linux-foundation.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, linux-mm@kvack.org, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, miklos@szeredi.hu, akpm@linux-foundation.org, neilb@suse.de, dgc@sgi.com, tomoki.sekiyama.qu@hitachi.com, nikita@clusterfs.com, trond.myklebust@fys.uio.no, yingchao.zhou@gmail.com, richard@rsk.demon.co.uk, david@lang.hm
 List-ID: <linux-mm.kvack.org>
 
-On Sun, 5 Aug 2007 09:21:41 +0200 Ingo Molnar <mingo@elte.hu> wrote:
+* Alan Cox <alan@lxorguk.ukuu.org.uk> wrote:
 
-> even on a noatime,nodiratime filesystem
+> > it's also perhaps the most stupid Unix design idea of all times. 
+> > Unix is really nice and well done, but think about this a bit:
+> 
+> Think about the user for a moment instead.
+> 
+> Do things right. The job of the kernel is not to "correct" for 
+> distribution policy decisions. The distributions need to change 
+> policy. You do that by showing the distributions the numbers.
 
-noatime is a superset of nodiratime, btw.
+you try to put the blame into distribution makers' shoes but in reality, 
+had the kernel stepped forward with a neat .config option sooner 
+(combined with a neat boot option as well to turn it off), we'd have had 
+noatime systems 10 years ago. A new entry into relnotes and done. It's 
+_much less_ of a compatibility impact than many of the changes that 
+happen in a new distro release. (new glibc, new compiler, new kernel) 
+
+Distro makers did not dare to do this sooner because some kernel 
+developers came forward with these mostly bogus arguments ... The impact 
+of atime is far better understood by the kernel community, so it is the 
+responsibility of _us_ to signal such things towards distributors, not 
+the other way around.
+
+	Ingo
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
