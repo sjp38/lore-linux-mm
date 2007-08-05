@@ -1,283 +1,149 @@
-Date: Sun, 5 Aug 2007 21:22:26 +0200
-From: Ingo Molnar <mingo@elte.hu>
-Subject: [patch] implement smarter atime updates support
-Message-ID: <20070805192226.GA20234@elte.hu>
-References: <alpine.LFD.0.999.0708040915360.5037@woody.linux-foundation.org> <20070804163733.GA31001@elte.hu> <alpine.LFD.0.999.0708041030040.5037@woody.linux-foundation.org> <46B4C0A8.1000902@garzik.org> <20070805102021.GA4246@unthought.net> <46B5A996.5060006@garzik.org> <20070805105850.GC4246@unthought.net> <20070805124648.GA21173@elte.hu> <alpine.LFD.0.999.0708050944470.5037@woody.linux-foundation.org> <20070805190928.GA17433@elte.hu>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
+Date: Sun, 5 Aug 2007 20:29:30 +0100
+From: Alan Cox <alan@lxorguk.ukuu.org.uk>
+Subject: Re: [PATCH 00/23] per device dirty throttling -v8
+Message-ID: <20070805202930.4ce62542@the-village.bc.nu>
 In-Reply-To: <20070805190928.GA17433@elte.hu>
+References: <20070804103347.GA1956@elte.hu>
+	<alpine.LFD.0.999.0708040915360.5037@woody.linux-foundation.org>
+	<20070804163733.GA31001@elte.hu>
+	<alpine.LFD.0.999.0708041030040.5037@woody.linux-foundation.org>
+	<46B4C0A8.1000902@garzik.org>
+	<20070805102021.GA4246@unthought.net>
+	<46B5A996.5060006@garzik.org>
+	<20070805105850.GC4246@unthought.net>
+	<20070805124648.GA21173@elte.hu>
+	<alpine.LFD.0.999.0708050944470.5037@woody.linux-foundation.org>
+	<20070805190928.GA17433@elte.hu>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Jakob Oestergaard <jakob@unthought.net>, Jeff Garzik <jeff@garzik.org>, miklos@szeredi.hu, akpm@linux-foundation.org, neilb@suse.de, dgc@sgi.com, tomoki.sekiyama.qu@hitachi.com, Peter Zijlstra <a.p.zijlstra@chello.nl>, linux-mm@kvack.org, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, nikita@clusterfs.com, trond.myklebust@fys.uio.no, yingchao.zhou@gmail.com, richard@rsk.demon.co.uk, david@lang.hm
+To: Ingo Molnar <mingo@elte.hu>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, Jakob Oestergaard <jakob@unthought.net>, Jeff Garzik <jeff@garzik.org>, miklos@szeredi.hu, akpm@linux-foundation.org, neilb@suse.de, dgc@sgi.com, tomoki.sekiyama.qu@hitachi.com, Peter Zijlstra <a.p.zijlstra@chello.nl>, linux-mm@kvack.org, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, nikita@clusterfs.com, trond.myklebust@fys.uio.no, yingchao.zhou@gmail.com, richard@rsk.demon.co.uk, david@lang.hm
 List-ID: <linux-mm.kvack.org>
 
-* Ingo Molnar <mingo@elte.hu> wrote:
+> change relatime updates to be performed once per day. This makes
+> relatime a compatible solution for HSM, mailer-notification and
+> tmpwatch applications too.
 
-> tested it by moving the date forward:
+Sweet
 > 
->   # date
->   Sun Aug  5 22:55:14 CEST 2007
->   # date -s "Tue Aug  7 22:55:14 CEST 2007"
->   Tue Aug  7 22:55:14 CEST 2007
-> 
-> access to a file did not generate disk IO before the date was set, and 
-> it generated exactly one IO after the date was set.
-> 
-> ( should i perhaps reduce the number of boot options and only use a
->   single "norelatime_default" boot option to turn this off? )
 
-ok, cleaned it up some more: only a single, consistent boot option and 
-all the switches (be that config, boot or sysctl) are now called 
-"default_relatime". Also, got rid of that #ifdef ugliness in namespace.c 
-via a cleaner Kconfig solution (suggested by Peter Zijlstra).
+> also add the CONFIG_DEFAULT_RELATIME kernel option, which makes
+> "norelatime" the default for all mounts without an extra kernel
+> boot option.
 
-	Ingo
+Should be a mount option.
 
----------------------------->
-Subject: [patch] implement smarter atime updates support
-From: Ingo Molnar <mingo@elte.hu>
 
-change relatime updates to be performed once per day. This makes
-relatime a compatible solution for HSM, mailer-notification and
-tmpwatch applications too.
+> +	relatime        [FS] default to enabled relatime updates on all
+> +			filesystems.
+> +
+> +	relatime=       [FS] default to enabled/disabled relatime updates on
+> +			all filesystems.
+> +
 
-also add the CONFIG_DEFAULT_RELATIME kernel option, which makes
-"norelatime" the default for all mounts without an extra kernel
-boot option.
+Double patch
 
-add the "default_relatime=0" boot option to turn this off.
+>  	atkbd.extra=	[HW] Enable extra LEDs and keys on IBM RapidAccess,
+>  			EzKey and similar keyboards
+>  
+> @@ -1100,6 +1106,12 @@ and is between 256 and 4096 characters. 
+>  	noasync		[HW,M68K] Disables async and sync negotiation for
+>  			all devices.
+>  
+> +	norelatime      [FS] default to disabled relatime updates on all
+> +			filesystems.
+> +
+> +	norelatime=     [FS] default to disabled/enabled relatime updates
+> +			on all filesystems.
+> +
 
-also add the /proc/sys/kernel/default_relatime flag which can be changed
-runtime to modify the behavior of subsequent new mounts.
+Double patch
 
-tested by moving the date forward:
+> +config DEFAULT_RELATIME
+> +	bool "Mount all filesystems with relatime by default"
+> +	default y
 
-   # date
-   Sun Aug  5 22:55:14 CEST 2007
-   # date -s "Tue Aug  7 22:55:14 CEST 2007"
-   Tue Aug  7 22:55:14 CEST 2007
+Changes behaviour so probably should default n. Better yet it should be
+the mount option so its flexible and strongly encouraged for vendors.
 
-access to a file did not generate disk IO before the date was set, and
-it generated exactly one IO after the date was set.
+>  /*
+> + * Allow users to disable (or enable) atime updates via a .config
+> + * option or via the boot line, or via /proc/sys/fs/mount_with_relatime:
+> + */
+> +int mount_with_relatime __read_mostly =
+> +#ifdef CONFIG_DEFAULT_RELATIME
+> +1
+> +#else
+> +0
+> +#endif
+> +;
 
-Signed-off-by: Ingo Molnar <mingo@elte.hu>
----
- Documentation/kernel-parameters.txt |    4 +++
- fs/Kconfig                          |   22 ++++++++++++++++
- fs/inode.c                          |   48 ++++++++++++++++++++++++++----------
- fs/namespace.c                      |   25 ++++++++++++++++++
- include/linux/mount.h               |    2 +
- kernel/sysctl.c                     |    9 ++++++
- 6 files changed, 97 insertions(+), 13 deletions(-)
+This ifdef mess would go away for a mount option
 
-Index: linux/Documentation/kernel-parameters.txt
-===================================================================
---- linux.orig/Documentation/kernel-parameters.txt
-+++ linux/Documentation/kernel-parameters.txt
-@@ -525,6 +525,10 @@ and is between 256 and 4096 characters. 
- 			This is a 16-member array composed of values
- 			ranging from 0-255.
- 
-+	default_relatime=
-+			[FS] mount all filesystems with relative atime
-+			updates by default.
-+
- 	default_utf8=   [VT]
- 			Format=<0|1>
- 			Set system-wide default UTF-8 mode for all tty's.
-Index: linux/fs/Kconfig
-===================================================================
---- linux.orig/fs/Kconfig
-+++ linux/fs/Kconfig
-@@ -2060,6 +2060,28 @@ config 9P_FS
- 
- endmenu
- 
-+config DEFAULT_RELATIME
-+	bool "Mount all filesystems with relatime by default"
-+	default y
-+	help
-+	  If you say Y here, all your filesystems will be mounted
-+	  with the "relatime" mount option. This eliminates many atime
-+	  ('file last accessed' timestamp) updates (which otherwise
-+	  is performed on every file access and generates a write
-+	  IO to the inode) and thus speeds up IO. Atime is still updated,
-+	  but only once per day.
-+
-+	  The mtime ('file last modified') and ctime ('file created')
-+	  timestamp are unaffected by this change.
-+
-+	  Use the "norelatime" kernel boot option to turn off this
-+	  feature.
-+
-+config DEFAULT_RELATIME_VAL
-+	int
-+	default "1" if DEFAULT_RELATIME
-+	default "0"
-+
- if BLOCK
- menu "Partition Types"
- 
-Index: linux/fs/inode.c
-===================================================================
---- linux.orig/fs/inode.c
-+++ linux/fs/inode.c
-@@ -1162,6 +1162,36 @@ sector_t bmap(struct inode * inode, sect
- }
- EXPORT_SYMBOL(bmap);
- 
-+/*
-+ * With relative atime, only update atime if the
-+ * previous atime is earlier than either the ctime or
-+ * mtime.
-+ */
-+static int relatime_need_update(struct inode *inode, struct timespec now)
-+{
-+	/*
-+	 * Is mtime younger than atime? If yes, update atime:
-+	 */
-+	if (timespec_compare(&inode->i_mtime, &inode->i_atime) >= 0)
-+		return 1;
-+	/*
-+	 * Is ctime younger than atime? If yes, update atime:
-+	 */
-+	if (timespec_compare(&inode->i_ctime, &inode->i_atime) >= 0)
-+		return 1;
-+
-+	/*
-+	 * Is the previous atime value older than a day? If yes,
-+	 * update atime:
-+	 */
-+	if ((long)(now.tv_sec - inode->i_atime.tv_sec) >= 24*60*60)
-+		return 1;
-+	/*
-+	 * Good, we can skip the atime update:
-+	 */
-+	return 0;
-+}
-+
- /**
-  *	touch_atime	-	update the access time
-  *	@mnt: mount the inode is accessed on
-@@ -1191,22 +1221,14 @@ void touch_atime(struct vfsmount *mnt, s
- 			return;
- 		if ((mnt->mnt_flags & MNT_NODIRATIME) && S_ISDIR(inode->i_mode))
- 			return;
--
--		if (mnt->mnt_flags & MNT_RELATIME) {
--			/*
--			 * With relative atime, only update atime if the
--			 * previous atime is earlier than either the ctime or
--			 * mtime.
--			 */
--			if (timespec_compare(&inode->i_mtime,
--						&inode->i_atime) < 0 &&
--			    timespec_compare(&inode->i_ctime,
--						&inode->i_atime) < 0)
-+	}
-+	now = current_fs_time(inode->i_sb);
-+	if (mnt) {
-+		if (mnt->mnt_flags & MNT_RELATIME)
-+			if (!relatime_need_update(inode, now))
- 				return;
--		}
- 	}
- 
--	now = current_fs_time(inode->i_sb);
- 	if (timespec_equal(&inode->i_atime, &now))
- 		return;
- 
-Index: linux/fs/namespace.c
-===================================================================
---- linux.orig/fs/namespace.c
-+++ linux/fs/namespace.c
-@@ -1107,6 +1107,8 @@ int do_add_mount(struct vfsmount *newmnt
- 		goto unlock;
- 
- 	newmnt->mnt_flags = mnt_flags;
-+	WARN_ON_ONCE(newmnt->mnt_flags & MNT_RELATIME);
-+
- 	if ((err = graft_tree(newmnt, nd)))
- 		goto unlock;
- 
-@@ -1362,6 +1364,24 @@ int copy_mount_options(const void __user
- }
- 
- /*
-+ * Allow users to disable (or enable) atime updates via a .config
-+ * option or via the boot line, or via /proc/sys/fs/default_relatime:
-+ */
-+int default_relatime __read_mostly = CONFIG_DEFAULT_RELATIME_VAL;
-+
-+static int __init set_default_relatime(char *str)
-+{
-+	get_option(&str, &default_relatime);
-+
-+	printk(KERN_INFO "Mount all filesystems with"
-+		"default relative atime updates: %s.\n",
-+		default_relatime ? "enabled" : "disabled");
-+
-+	return 1;
-+}
-+__setup("default_relatime=", set_default_relatime);
-+
-+/*
-  * Flags is a 32-bit value that allows up to 31 non-fs dependent flags to
-  * be given to the mount() call (ie: read-only, no-dev, no-suid etc).
-  *
-@@ -1409,6 +1429,11 @@ long do_mount(char *dev_name, char *dir_
- 		mnt_flags |= MNT_NODIRATIME;
- 	if (flags & MS_RELATIME)
- 		mnt_flags |= MNT_RELATIME;
-+	else if (default_relatime &&
-+				!(flags & (MNT_NOATIME | MNT_NODIRATIME))) {
-+		mnt_flags |= MNT_RELATIME;
-+		flags |= MS_RELATIME;
-+	}
- 
- 	flags &= ~(MS_NOSUID | MS_NOEXEC | MS_NODEV | MS_ACTIVE |
- 		   MS_NOATIME | MS_NODIRATIME | MS_RELATIME);
-Index: linux/include/linux/mount.h
-===================================================================
---- linux.orig/include/linux/mount.h
-+++ linux/include/linux/mount.h
-@@ -103,5 +103,7 @@ extern void shrink_submounts(struct vfsm
- extern spinlock_t vfsmount_lock;
- extern dev_t name_to_dev_t(char *name);
- 
-+extern int default_relatime;
-+
- #endif
- #endif /* _LINUX_MOUNT_H */
-Index: linux/kernel/sysctl.c
-===================================================================
---- linux.orig/kernel/sysctl.c
-+++ linux/kernel/sysctl.c
-@@ -30,6 +30,7 @@
- #include <linux/capability.h>
- #include <linux/smp_lock.h>
- #include <linux/fs.h>
-+#include <linux/mount.h>
- #include <linux/init.h>
- #include <linux/kernel.h>
- #include <linux/kobject.h>
-@@ -1206,6 +1207,14 @@ static ctl_table fs_table[] = {
- 		.mode		= 0644,
- 		.proc_handler	= &proc_dointvec,
- 	},
-+	{
-+		.ctl_name	= CTL_UNNUMBERED,
-+		.procname	= "default_relatime",
-+		.data		= &default_relatime,
-+		.maxlen		= sizeof(int),
-+		.mode		= 0644,
-+		.proc_handler	= &proc_dointvec,
-+	},
- #if defined(CONFIG_BINFMT_MISC) || defined(CONFIG_BINFMT_MISC_MODULE)
- 	{
- 		.ctl_name	= CTL_UNNUMBERED,
+> +/*
+> + * The "norelatime=", "atime=", "norelatime" and "relatime" boot parameters:
+> + */
+> +static int toggle_relatime_updates(int val)
+> +{
+> +	mount_with_relatime = val;
+> +
+> +	printk("Relative atime updates are: %s\n", val ? "on" : "off");
+> +
+> +	return 1;
+> +}
+> +
+> +static int __init set_relatime_setup(char *str)
+> +{
+> +	int val;
+> +
+> +	get_option(&str, &val);
+> +	return toggle_relatime_updates(val);
+> +}
+> +__setup("relatime=", set_relatime_setup);
+> +
+> +static int __init set_norelatime_setup(char *str)
+> +{
+> +	int val;
+> +
+> +	get_option(&str, &val);
+> +	return toggle_relatime_updates(!val);
+> +}
+> +__setup("norelatime=", set_norelatime_setup);
+> +
+> +static int __init set_relatime(char *str)
+> +{
+> +	return toggle_relatime_updates(1);
+> +}
+> +__setup("relatime", set_relatime);
+> +
+> +static int __init set_norelatime(char *str)
+> +{
+> +	return toggle_relatime_updates(0);
+> +}
+> +__setup("norelatime", set_norelatime);
+
+
+All the above chunk is unneccessary as it can be a mount option. That
+avoids tons of messy extra code and complication. Users are far safer
+editing fstab than grub.conf.
+
+> +	{
+> +		.ctl_name	= CTL_UNNUMBERED,
+> +		.procname	= "mount_with_relatime",
+> +		.data		= &mount_with_relatime,
+> +		.maxlen		= sizeof(int),
+> +		.mode		= 0644,
+> +		.proc_handler	= &proc_dointvec,
+> +	},
+
+More code you don't need if you just leave it as a mount option.
+
+I'd much rather see the small clean patch for this as a mount option.
+Leave the rest to users/distros/lwn and it'll just happen now you've
+sorted the compabitility problems.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
