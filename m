@@ -1,57 +1,81 @@
-Subject: Re: [patch] implement smarter atime updates support
-From: Arjan van de Ven <arjan@infradead.org>
-In-Reply-To: <20070805210446.57aa66f6@the-village.bc.nu>
-References: <alpine.LFD.0.999.0708040915360.5037@woody.linux-foundation.org>
-	 <20070804163733.GA31001@elte.hu>
-	 <alpine.LFD.0.999.0708041030040.5037@woody.linux-foundation.org>
-	 <46B4C0A8.1000902@garzik.org> <20070805102021.GA4246@unthought.net>
-	 <46B5A996.5060006@garzik.org> <20070805105850.GC4246@unthought.net>
-	 <20070805124648.GA21173@elte.hu>
-	 <alpine.LFD.0.999.0708050944470.5037@woody.linux-foundation.org>
-	 <20070805190928.GA17433@elte.hu> <20070805192226.GA20234@elte.hu>
-	 <1186343582.25667.3.camel@laptopd505.fenrus.org>
-	 <20070805210446.57aa66f6@the-village.bc.nu>
-Content-Type: text/plain
-Date: Sun, 05 Aug 2007 13:22:36 -0700
-Message-Id: <1186345356.25667.7.camel@laptopd505.fenrus.org>
+Date: Sun, 5 Aug 2007 22:21:12 +0200
+From: =?utf-8?B?SsO2cm4=?= Engel <joern@logfs.org>
+Subject: Re: [PATCH 00/23] per device dirty throttling -v8
+Message-ID: <20070805202112.GA32088@lazybastard.org>
+References: <20070804192130.GA25346@elte.hu> <20070804211156.5f600d80@the-village.bc.nu> <20070804202830.GA4538@elte.hu> <20070804210351.GA9784@elte.hu> <20070804225121.5c7b66e0@the-village.bc.nu> <20070805072141.GA4414@elte.hu> <20070805085354.GC6002@1wt.eu> <20070805141708.GB25753@lazybastard.org> <1186336953.2777.17.camel@laptopd505.fenrus.org> <20070805183714.GA31606@lazybastard.org>
 Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=utf-8
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <20070805183714.GA31606@lazybastard.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Alan Cox <alan@lxorguk.ukuu.org.uk>
-Cc: Ingo Molnar <mingo@elte.hu>, Linus Torvalds <torvalds@linux-foundation.org>, Jakob Oestergaard <jakob@unthought.net>, Jeff Garzik <jeff@garzik.org>, miklos@szeredi.hu, akpm@linux-foundation.org, neilb@suse.de, dgc@sgi.com, tomoki.sekiyama.qu@hitachi.com, Peter Zijlstra <a.p.zijlstra@chello.nl>, linux-mm@kvack.org, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, nikita@clusterfs.com, trond.myklebust@fys.uio.no, yingchao.zhou@gmail.com, richard@rsk.demon.co.uk, david@lang.hm
+To: Ingo Molnar <mingo@elte.hu>
+Cc: Arjan van de Ven <arjan@infradead.org>, Willy Tarreau <w@1wt.eu>, =?utf-8?B?SsO2cm4=?= Engel <joern@logfs.org>, Alan Cox <alan@lxorguk.ukuu.org.uk>, Jeff Garzik <jeff@garzik.org>, Linus Torvalds <torvalds@linux-foundation.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, linux-mm@kvack.org, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, miklos@szeredi.hu, akpm@linux-foundation.org, neilb@suse.de, dgc@sgi.com, tomoki.sekiyama.qu@hitachi.com, nikita@clusterfs.com, trond.myklebust@fys.uio.no, yingchao.zhou@gmail.com, richard@rsk.demon.co.uk, david@lang.hm
 List-ID: <linux-mm.kvack.org>
 
-On Sun, 2007-08-05 at 21:04 +0100, Alan Cox wrote:
-> O> you might want to add
-> > 
-> > 	/* 
-> > 	 * if the inode is dirty already, do the atime update since
-> > 	 * we'll be doing the disk IO anyway to clean the inode.
-> > 	 */
-> > 	if (inode->i_state & I_DIRTY)
-> > 		return 1;
+On Sun, 5 August 2007 20:37:14 +0200, JA?rn Engel wrote:
 > 
-> This makes the actual result somewhat less predictable. Is that wise ?
-> Right now its clear what happens based on what user sequence of events
-> and that this is easily repeatable.
+> Guess I should throw in a kernel compile test as well, just to get a
+> feel for the performance.
 
-I can see the repeatability argument; on the flipside, having a system
-of "opportunistic atime", eg as good as you can go cheaply, but with
-minimum guarantees has some attraction as well. For example one could
-imagine a system where the inode gets it's atime updated anyway, just
-not flagged for writing back to disk. If it later undergoes some event
-that would cause it to go to disk, it gets preserved...
+Three runs each of noatime, relatime and atime, both with cold caches
+and with warm caches.  Scripts below.  Run on a Thinkpad T40, 1.5GHz,
+2GiB RAM, 60GB 2.5" IDE disk, ext3.
 
-otoh that's even more unpredictable since VM pressure could drop this
-update early.
+Biggest difference between atime and noatime (median run, cold cache) is
+~2.3%, nowhere near the numbers claimed by Ingo.  Ingo, how did you
+measure 10% and more?
 
-For the dirty case, such drawbacks don't exist; it's just one more step
-of "when we can cheaply".
+noatime, cold cache	relatime, cold cache	atime, cold cache
+	                	                
+real    2m10.242s	real    2m10.549s	real    2m10.388s
+user    1m46.886s	user    1m46.680s	user    1m47.000s
+sys     0m8.243s	sys     0m8.423s	sys     0m8.239s
+	                	                
+real    2m11.270s	real    2m11.212s	real    2m14.280s
+user    1m46.940s	user    1m46.776s	user    1m46.670s
+sys     0m8.139s	sys     0m8.283s	sys     0m8.503s
+	                	                
+real    2m11.601s	real    2m14.861s	real    2m14.335s
+user    1m46.920s	user    1m47.103s	user    1m46.846s
+sys     0m8.246s	sys     0m8.266s	sys     0m8.349s
+	                	                
+noatime, warm cache	relatime, warm cache	atime, warm cache
+	                	                
+real    1m55.894s	real    1m56.053s	real    1m56.905s
+user    1m46.683s	user    1m46.600s	user    1m46.853s
+sys     0m8.186s	sys     0m8.349s	sys     0m8.249s
+	                	                
+real    1m55.823s	real    1m56.093s	real    1m57.077s
+user    1m46.583s	user    1m46.913s	user    1m46.590s
+sys     0m8.259s	sys     0m7.966s	sys     0m8.523s
+	                	                
+real    1m55.789s	real    1m56.214s	real    1m57.224s
+user    1m46.803s	user    1m46.753s	user    1m46.953s
+sys     0m8.053s	sys     0m8.113s	sys     0m8.113s
+
+JA?rn
 
 -- 
-if you want to mail me at work (you don't), use arjan (at) linux.intel.com
-Test the interaction between Linux and your BIOS via http://www.linuxfirmwarekit.org
+Data expands to fill the space available for storage.
+-- Parkinson's Law
+
+Cold cache script:
+#!/bin/sh
+make distclean
+echo 1 > /proc/sys/vm/drop_caches
+echo 2 > /proc/sys/vm/drop_caches
+echo 3 > /proc/sys/vm/drop_caches
+make allnoconfig
+time make
+
+Warm cache script:
+#!/bin/sh
+make distclean
+make allnoconfig
+rgrep laksdflkdsaflkadsfja .
+time make
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
