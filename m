@@ -1,39 +1,42 @@
-Date: Mon, 6 Aug 2007 08:57:12 +0200
+Date: Mon, 6 Aug 2007 08:58:34 +0200
 From: Ingo Molnar <mingo@elte.hu>
 Subject: Re: [PATCH 00/23] per device dirty throttling -v8
-Message-ID: <20070806065712.GA2818@elte.hu>
-References: <20070803123712.987126000@chello.nl> <46B4E161.9080100@garzik.org> <20070804224706.617500a0@the-village.bc.nu> <200708050051.40758.ctpm@ist.utl.pt> <20070805014926.400d0608@the-village.bc.nu> <20070805072805.GB4414@elte.hu> <20070805134640.2c7d1140@the-village.bc.nu> <20070805125847.GC22060@elte.hu> <20070805132925.GA4089@1wt.eu>
+Message-ID: <20070806065834.GB2818@elte.hu>
+References: <20070804163733.GA31001@elte.hu> <alpine.LFD.0.999.0708041030040.5037@woody.linux-foundation.org> <46B4C0A8.1000902@garzik.org> <20070804191205.GA24723@lazybastard.org> <20070804192130.GA25346@elte.hu> <20070804211156.5f600d80@the-village.bc.nu> <20070804202830.GA4538@elte.hu> <20070804224834.5187f9b7@the-village.bc.nu> <20070805071320.GC515@elte.hu> <20070805152231.aba9428a.diegocg@gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20070805132925.GA4089@1wt.eu>
+In-Reply-To: <20070805152231.aba9428a.diegocg@gmail.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Willy Tarreau <w@1wt.eu>
-Cc: Alan Cox <alan@lxorguk.ukuu.org.uk>, Claudio Martins <ctpm@ist.utl.pt>, Jeff Garzik <jeff@garzik.org>, =?iso-8859-1?Q?J=F6rn?= Engel <joern@logfs.org>, Linus Torvalds <torvalds@linux-foundation.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, linux-mm@kvack.org, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, miklos@szeredi.hu, akpm@linux-foundation.org, neilb@suse.de, dgc@sgi.com, tomoki.sekiyama.qu@hitachi.com, nikita@clusterfs.com, trond.myklebust@fys.uio.no, yingchao.zhou@gmail.com, richard@rsk.demon.co.uk, david@lang.hm
+To: Diego Calleja <diegocg@gmail.com>
+Cc: Alan Cox <alan@lxorguk.ukuu.org.uk>, J??rn Engel <joern@logfs.org>, Jeff Garzik <jeff@garzik.org>, Linus Torvalds <torvalds@linux-foundation.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, linux-mm@kvack.org, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, miklos@szeredi.hu, akpm@linux-foundation.org, neilb@suse.de, dgc@sgi.com, tomoki.sekiyama.qu@hitachi.com, nikita@clusterfs.com, trond.myklebust@fys.uio.no, yingchao.zhou@gmail.com, richard@rsk.demon.co.uk, david@lang.hm
 List-ID: <linux-mm.kvack.org>
 
-* Willy Tarreau <w@1wt.eu> wrote:
+* Diego Calleja <diegocg@gmail.com> wrote:
 
-> In your example above, maybe it's the opposite, users know they can 
-> keep a file in /tmp one more week by simply cat'ing it.
+> > Measurements show that noatime helps 20-30% on regular desktop 
+> > workloads, easily 50% for kernel builds and much more than that (in 
+> > excess of 100%) for file-read-intense workloads. We cannot just walk
+> 
+> And as everybody knows in servers is a popular practice to disable it. 
+> According to an interview to the kernel.org admins....
 
-sure - and i'm not arguing that noatime should the kernel-wide default. 
-In every single patch i sent it was a .config option (and a boot option 
-_and_ a sysctl option that i think you missed) that a user/distro 
-enables or disabled. But i think the /tmp argument is not very strong: 
-/tmp is fundamentally volatile, and you can grow dependencies on pretty 
-much _any_ aspect of the kernel. So the question isnt "is there impact" 
-(there is, at least for noatime), the question is "is it still worth 
-doing it".
+yeah - but i'd be surprised if more than 1% of all Linux servers out 
+there had noatime.
 
-> Changing the kernel in a non-easily reversible way is not kind to the 
-> users.
+> "Beyond that, Peter noted, "very little fancy is going on, and that is 
+> good because fancy is hard to maintain." He explained that the only 
+> fancy thing being done is that all filesystems are mounted noatime 
+> meaning that the system doesn't have to make writes to the filesystem 
+> for files which are simply being read, "that cut the load average in 
+> half."
 
-none of my patches did any of that...
+nice quote :-)
 
-anyway, my latest patch doesnt do noatime, it does the "more intelligent 
-relatime" approach.
+> I bet that some people would consider such performance hit a bug...
+
+yeah.
 
 	Ingo
 
