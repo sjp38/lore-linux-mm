@@ -1,31 +1,59 @@
-Message-ID: <46B77AB3.40006@redhat.com>
-Date: Mon, 06 Aug 2007 15:46:59 -0400
-From: Chuck Ebbert <cebbert@redhat.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH 00/23] per device dirty throttling -v8
-References: <20070804070737.GA940@elte.hu>	<20070804103347.GA1956@elte.hu>	<alpine.LFD.0.999.0708040915360.5037@woody.linux-foundation.org>	<20070804163733.GA31001@elte.hu>	<alpine.LFD.0.999.0708041030040.5037@woody.linux-foundation.org>	<46B4C0A8.1000902@garzik.org>	<20070804191205.GA24723@lazybastard.org>	<20070804192130.GA25346@elte.hu>	<20070804192615.GA25600@lazybastard.org>	<20070804194259.GA25753@lazybastard.org>	<20070805203602.GB25107@infradead.org>	<46B7626C.6050403@redhat.com> <20070806203710.39bdc42e@the-village.bc.nu>
-In-Reply-To: <20070806203710.39bdc42e@the-village.bc.nu>
-Content-Type: text/plain; charset=ISO-8859-1
+Subject: Re: [RFC][PATCH 1/5] Fix hugetlb pool allocation with empty nodes
+	V9
+From: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
+In-Reply-To: <Pine.LNX.4.64.0708061136260.3152@schroedinger.engr.sgi.com>
+References: <20070806163254.GJ15714@us.ibm.com>
+	 <20070806163726.GK15714@us.ibm.com>
+	 <Pine.LNX.4.64.0708061059400.24256@schroedinger.engr.sgi.com>
+	 <20070806181912.GS15714@us.ibm.com>
+	 <Pine.LNX.4.64.0708061136260.3152@schroedinger.engr.sgi.com>
+Content-Type: text/plain
+Date: Mon, 06 Aug 2007 15:52:21 -0400
+Message-Id: <1186429941.5065.24.camel@localhost>
+Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Alan Cox <alan@lxorguk.ukuu.org.uk>
-Cc: Christoph Hellwig <hch@infradead.org>, J??rn Engel <joern@logfs.org>, Ingo Molnar <mingo@elte.hu>, Jeff Garzik <jeff@garzik.org>, Linus Torvalds <torvalds@linux-foundation.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, linux-mm@kvack.org, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, miklos@szeredi.hu, akpm@linux-foundation.org, neilb@suse.de, dgc@sgi.com, tomoki.sekiyama.qu@hitachi.com, nikita@clusterfs.com, trond.myklebust@fys.uio.no, yingchao.zhou@gmail.com, richard@rsk.demon.co.uk, david@lang.hm
+To: Christoph Lameter <clameter@sgi.com>
+Cc: Nishanth Aravamudan <nacc@us.ibm.com>, anton@samba.org, wli@holomorphy.com, melgor@ie.ibm.com, akpm@linux-foundation.org, linux-mm@kvack.org, agl@us.ibm.com
 List-ID: <linux-mm.kvack.org>
 
-On 08/06/2007 03:37 PM, Alan Cox wrote:
->> We already tried that here. The response: "If noatime is so great, why
->> isn't it the default in the kernel?"
+On Mon, 2007-08-06 at 11:37 -0700, Christoph Lameter wrote:
+> On Mon, 6 Aug 2007, Nishanth Aravamudan wrote:
 > 
-> Ok so we have a pile of people @redhat.com sitting on linux-kernel
-> complaining about Red Hat distributions not taking it up. Guys - can
-> we just fix it internally please like sensible folk ?
+> > Uh, interleave_nodes() takes a policy. Hence I need a policy to use.
+> > This was your suggestion, Christoph and I'm doing exactly what you
+> > asked.
 > 
-> Ingo's latest 'not quite noatime' seems to cure mutt/tmpwatch so it might
-> finally make sense to do so.
+> That would make sense if the policy can be overridden. You may be able to 
+> avoid exporting mpol_new by callig just the functions that generate the 
+> interleave nodes.
 
-Do we report max(ctime, mtime) as the atime by default when noatime
-is set or do we still need that to be done?
+I don't understand what you're asking either.  The function that Nish is
+allocating the initial free huge page pool.  I thought that the intended
+behavior of this function was to distribute new allocated huge pages
+evenly across the nodes.  It was broken, in that for systems with
+memoryless nodes, the allocation would immediately fall back to the next
+node in the zonelist, overloading that node with huge page.  
+
+IMO, we should try to preserve the current behavior of nr_hugepages, as
+"fixed" by Nish, and use the new per node sysfs attributes to handle or
+fixup asymmetric allocation of hugepages, if required.
+
+That being said, I was never a fan of using mempolicy for this.  Not
+strongly opposed, just not a fan.  I'd like to see modification to
+nr_hugepages, including incremental increase or decrease, try to keep
+the number of huge pages balanced across the nodes.  Without breaking
+any extra per node additions or deletions via the sysfs attribute.  I
+had something in mind like remembering where the last change in
+nr_hugepages left off [like the unpatched code with the static node id
+variable did].  Thenm scan the mask of nodes with memory in one
+direction when increasing nr_hugepages and in the opposite direction
+when decreasing.  It'll be a while before I can put together a patch,
+tho'.  In any case, I'd want to wait for the current memoryless node and
+hugetlb patch streams to settle down.
+
+Lee
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
