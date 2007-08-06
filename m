@@ -1,43 +1,31 @@
-From: Daniel Phillips <phillips@phunq.net>
-Subject: Re: [PATCH 02/10] mm: system wide ALLOC_NO_WATERMARK
-Date: Mon, 6 Aug 2007 12:15:16 -0700
-References: <20070806102922.907530000@chello.nl> <200708061148.43870.phillips@phunq.net> <Pine.LNX.4.64.0708061150270.7603@schroedinger.engr.sgi.com>
-In-Reply-To: <Pine.LNX.4.64.0708061150270.7603@schroedinger.engr.sgi.com>
+Date: Mon, 6 Aug 2007 12:16:11 -0700 (PDT)
+From: Christoph Lameter <clameter@sgi.com>
+Subject: Re: [PATCH 03/10] mm: tag reseve pages
+In-Reply-To: <20070806121053.baed9691.akpm@linux-foundation.org>
+Message-ID: <Pine.LNX.4.64.0708061212550.7603@schroedinger.engr.sgi.com>
+References: <20070806102922.907530000@chello.nl> <20070806103658.356795000@chello.nl>
+ <Pine.LNX.4.64.0708061111390.25069@schroedinger.engr.sgi.com>
+ <p73r6mglaog.fsf@bingen.suse.de> <Pine.LNX.4.64.0708061143050.3152@schroedinger.engr.sgi.com>
+ <1186426079.11797.88.camel@lappy> <20070806185926.GB22499@one.firstfloor.org>
+ <20070806121053.baed9691.akpm@linux-foundation.org>
 MIME-Version: 1.0
-Content-Type: text/plain;
-  charset="iso-8859-1"
-Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
-Message-Id: <200708061215.16427.phillips@phunq.net>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
-Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, David Miller <davem@davemloft.net>, Andrew Morton <akpm@linux-foundation.org>, Daniel Phillips <phillips@google.com>, Pekka Enberg <penberg@cs.helsinki.fi>, Matt Mackall <mpm@selenic.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Steve Dickson <SteveD@redhat.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Andi Kleen <andi@firstfloor.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, David Miller <davem@davemloft.net>, Daniel Phillips <phillips@google.com>, Pekka Enberg <penberg@cs.helsinki.fi>, Matt Mackall <mpm@selenic.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Steve Dickson <SteveD@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
-On Monday 06 August 2007 11:51, Christoph Lameter wrote:
-> On Mon, 6 Aug 2007, Daniel Phillips wrote:
-> > On Monday 06 August 2007 11:42, Christoph Lameter wrote:
-> > > On Mon, 6 Aug 2007, Daniel Phillips wrote:
-> > > > Currently your system likely would have died here, so ending up
-> > > > with a reserve page temporarily on the wrong node is already an
-> > > > improvement.
-> > >
-> > > The system would have died? Why?
-> >
-> > Because a block device may have deadlocked here, leaving the system
-> > unable to clean dirty memory, or unable to load executables over
-> > the network for example.
->
-> So this is a locking problem that has not been taken care of?
+On Mon, 6 Aug 2007, Andrew Morton wrote:
 
-A deadlock problem that we used to call memory recursion deadlock, aka: 
-somebody in the vm writeout path needs to allocate memory, but there is 
-no memory, so vm writeout stops forever.
+> Plus I don't think there are many flags left in the upper 32-bits.  ia64
+> swooped in and gobbled lots of them, although it's not immediately clear
+> how many were consumed.
 
-Regards,
+IA64 uses one of these bits for the uncached allocator.  10 bits used for 
+the node. Sparsemem may use some of the rest.
 
-Daniel
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
