@@ -1,30 +1,41 @@
-Date: Mon, 6 Aug 2007 11:43:43 -0700 (PDT)
-From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [PATCH 03/10] mm: tag reseve pages
-In-Reply-To: <p73r6mglaog.fsf@bingen.suse.de>
-Message-ID: <Pine.LNX.4.64.0708061143050.3152@schroedinger.engr.sgi.com>
-References: <20070806102922.907530000@chello.nl> <20070806103658.356795000@chello.nl>
- <Pine.LNX.4.64.0708061111390.25069@schroedinger.engr.sgi.com>
- <p73r6mglaog.fsf@bingen.suse.de>
+From: Daniel Phillips <phillips@phunq.net>
+Subject: Re: [PATCH 02/10] mm: system wide ALLOC_NO_WATERMARK
+Date: Mon, 6 Aug 2007 11:48:43 -0700
+References: <20070806102922.907530000@chello.nl> <200708061121.50351.phillips@phunq.net> <Pine.LNX.4.64.0708061141511.3152@schroedinger.engr.sgi.com>
+In-Reply-To: <Pine.LNX.4.64.0708061141511.3152@schroedinger.engr.sgi.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain;
+  charset="iso-8859-1"
+Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+Message-Id: <200708061148.43870.phillips@phunq.net>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andi Kleen <andi@firstfloor.org>
+To: Christoph Lameter <clameter@sgi.com>
 Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, David Miller <davem@davemloft.net>, Andrew Morton <akpm@linux-foundation.org>, Daniel Phillips <phillips@google.com>, Pekka Enberg <penberg@cs.helsinki.fi>, Matt Mackall <mpm@selenic.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Steve Dickson <SteveD@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 6 Aug 2007, Andi Kleen wrote:
+On Monday 06 August 2007 11:42, Christoph Lameter wrote:
+> On Mon, 6 Aug 2007, Daniel Phillips wrote:
+> > Currently your system likely would have died here, so ending up
+> > with a reserve page temporarily on the wrong node is already an
+> > improvement.
+>
+> The system would have died? Why?
 
-> > >  		pgoff_t index;		/* Our offset within mapping. */
-> > >  		void *freelist;		/* SLUB: freelist req. slab lock */
-> > > +		int reserve;		/* page_alloc: page is a reserve page */
-> > 
-> > Extending page struct ???
-> 
-> Note it's an union.
+Because a block device may have deadlocked here, leaving the system 
+unable to clean dirty memory, or unable to load executables over the 
+network for example.
 
-Ok. Then under what conditions can we use reserve? Right after alloc?
+> The application in the cpuset that ran out of memory should have died
+> not the system. 
+
+If your "application" is a virtual block device then you can land in 
+deep doodoo.
+
+Regards,
+
+Daniel
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
