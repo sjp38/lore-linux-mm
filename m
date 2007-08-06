@@ -1,53 +1,29 @@
-Received: by rv-out-0910.google.com with SMTP id f1so860876rvb
-        for <linux-mm@kvack.org>; Mon, 06 Aug 2007 02:55:33 -0700 (PDT)
-Message-ID: <4d8e3fd30708060255w79a3bbj40f33f7eb80a743f@mail.gmail.com>
-Date: Mon, 6 Aug 2007 11:55:32 +0200
-From: "Paolo Ciarrocchi" <paolo.ciarrocchi@gmail.com>
-Subject: Re: RFT: updatedb "morning after" problem [was: Re: -mm merge plans for 2.6.23]
-In-Reply-To: <997038.92524.qm@web53809.mail.re2.yahoo.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Date: Mon, 6 Aug 2007 12:42:06 +0200
+From: Andi Kleen <andi@firstfloor.org>
+Subject: Re: [PATCH 00/23] per device dirty throttling -v8
+Message-ID: <20070806104206.GB16133@one.firstfloor.org>
+References: <20070803123712.987126000@chello.nl> <alpine.LFD.0.999.0708031518440.8184@woody.linux-foundation.org> <20070804063217.GA25069@elte.hu> <20070804070737.GA940@elte.hu> <20070804103347.GA1956@elte.hu> <alpine.LFD.0.999.0708040915360.5037@woody.linux-foundation.org> <20070804163733.GA31001@elte.hu> <p73hcnen7w2.fsf@bingen.suse.de> <20070805204112.GC25107@infradead.org>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-References: <Pine.LNX.4.64.0708051916430.6905@asgard.lang.hm>
-	 <997038.92524.qm@web53809.mail.re2.yahoo.com>
+In-Reply-To: <20070805204112.GC25107@infradead.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nick Piggin <nickpiggin@yahoo.com.au>, Andrew Morton <akpm@linux-foundation.org>
-Cc: david@lang.hm, Rene Herman <rene.herman@gmail.com>, Daniel Hazelton <dhazelton@enter.net>, Mike Galbraith <efault@gmx.de>, Ingo Molnar <mingo@elte.hu>, Frank Kingswood <frank@kingswood-consulting.co.uk>, Andi Kleen <andi@firstfloor.org>, Ray Lee <ray-lk@madrabbit.org>, Jesper Juhl <jesper.juhl@gmail.com>, ck list <ck@vds.kolivas.org>, Paul Jackson <pj@sgi.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Christoph Hellwig <hch@infradead.org>, Andi Kleen <andi@firstfloor.org>, Ingo Molnar <mingo@elte.hu>, Linus Torvalds <torvalds@linux-foundation.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, miklos@szeredi.hu, akpm@linux-foundation.org, neilb@suse.de, dgc@sgi.com, tomoki.sekiyama.qu@hitachi.com, nikita@clusterfs.com, trond.myklebust@fys.uio.no, yingchao.zhou@gmail.com, richard@rsk.demon.co.uk
 List-ID: <linux-mm.kvack.org>
 
-On 8/6/07, Nick Piggin <nickpiggin@yahoo.com.au> wrote:
-[...]
-> > this completely ignores the use case where the
-> > swapping was exactly the
-> > right thing to do, but memory has been freed up from
-> > a program exiting so
-> > that you couldnow fill that empty ram with data that
-> > was swapped out.
->
-> Yeah. However, merging patches (especially when
-> changing heuristics, especially in page reclaim) is
-> not about just thinking up a use-case that it works
-> well for and telling people that they're putting their
-> heads in the sand if they say anything against it.
-> Read this thread and you'll find other examples of
-> patches that have been around for as long or longer
-> and also have some good use-cases and also have not
-> been merged.
+On Sun, Aug 05, 2007 at 09:41:12PM +0100, Christoph Hellwig wrote:
+> On Sun, Aug 05, 2007 at 02:26:53AM +0200, Andi Kleen wrote:
+> > I always thought the right solution would be to just sync atime only
+> > very very lazily. This means if a inode is only dirty because of an
+> > atime update put it on a "only write out when there is nothing to do
+> > or the memory is really needed" list.
+> 
+> Which is the policy I implemented for XFS a while ago.
 
-What do you think Andrew?
-Swap prefetch is not the panacea, it's not going to solve all the
-problems but it seems to improve the "desktop experience" and it has
-been discussed and reviewed a lot (it's has even been discussed more
-than it should have be).
+How would that work? I didn't think XFS had separate inode lists.
 
-Are you going to push upstream the patch?
-
-Ciao,
--- 
-Paolo
-http://paolo.ciarrocchi.googlepages.com/
+-Andi
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
