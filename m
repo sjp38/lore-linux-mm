@@ -1,40 +1,33 @@
-Date: Mon, 6 Aug 2007 20:37:10 +0100
-From: Alan Cox <alan@lxorguk.ukuu.org.uk>
-Subject: Re: [PATCH 00/23] per device dirty throttling -v8
-Message-ID: <20070806203710.39bdc42e@the-village.bc.nu>
-In-Reply-To: <46B7626C.6050403@redhat.com>
-References: <20070804070737.GA940@elte.hu>
-	<20070804103347.GA1956@elte.hu>
-	<alpine.LFD.0.999.0708040915360.5037@woody.linux-foundation.org>
-	<20070804163733.GA31001@elte.hu>
-	<alpine.LFD.0.999.0708041030040.5037@woody.linux-foundation.org>
-	<46B4C0A8.1000902@garzik.org>
-	<20070804191205.GA24723@lazybastard.org>
-	<20070804192130.GA25346@elte.hu>
-	<20070804192615.GA25600@lazybastard.org>
-	<20070804194259.GA25753@lazybastard.org>
-	<20070805203602.GB25107@infradead.org>
-	<46B7626C.6050403@redhat.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+From: Daniel Phillips <phillips@phunq.net>
+Subject: Re: [PATCH 00/10] foundations for reserve-based allocation
+Date: Mon, 6 Aug 2007 12:31:04 -0700
+References: <20070806102922.907530000@chello.nl> <200708061035.18742.phillips@phunq.net> <1186424248.11797.66.camel@lappy>
+In-Reply-To: <1186424248.11797.66.camel@lappy>
+MIME-Version: 1.0
+Content-Type: text/plain;
+  charset="iso-8859-1"
 Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+Message-Id: <200708061231.04982.phillips@phunq.net>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Chuck Ebbert <cebbert@redhat.com>
-Cc: Christoph Hellwig <hch@infradead.org>, J??rn Engel <joern@logfs.org>, Ingo Molnar <mingo@elte.hu>, Jeff Garzik <jeff@garzik.org>, Linus Torvalds <torvalds@linux-foundation.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, linux-mm@kvack.org, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, miklos@szeredi.hu, akpm@linux-foundation.org, neilb@suse.de, dgc@sgi.com, tomoki.sekiyama.qu@hitachi.com, nikita@clusterfs.com, trond.myklebust@fys.uio.no, yingchao.zhou@gmail.com, richard@rsk.demon.co.uk, david@lang.hm
+To: Peter Zijlstra <a.p.zijlstra@chello.nl>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, David Miller <davem@davemloft.net>, Andrew Morton <akpm@linux-foundation.org>, Daniel Phillips <phillips@google.com>, Pekka Enberg <penberg@cs.helsinki.fi>, Christoph Lameter <clameter@sgi.com>, Matt Mackall <mpm@selenic.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Steve Dickson <SteveD@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
-> We already tried that here. The response: "If noatime is so great, why
-> isn't it the default in the kernel?"
+On Monday 06 August 2007 11:17, Peter Zijlstra wrote:
+> And how do we know a page was taken out of the reserves?
 
-Ok so we have a pile of people @redhat.com sitting on linux-kernel
-complaining about Red Hat distributions not taking it up. Guys - can
-we just fix it internally please like sensible folk ?
+Why not return that in the low bit of the page address?  This is a 
+little more cache efficient, does not leave that odd footprint in the 
+page union and forces the caller to examine the 
+alloc_pages(...P_MEMALLOC) return, making it harder to overlook the 
+fact that it got a page out of reserve and forget to put one back 
+later.
 
-Ingo's latest 'not quite noatime' seems to cure mutt/tmpwatch so it might
-finally make sense to do so.
+Regards,
 
-Alan
+Daniel
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
