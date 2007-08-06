@@ -1,38 +1,38 @@
-From: Andi Kleen <ak@suse.de>
-Subject: Re: [PATCH] Apply memory policies to top two highest zones when highest zone is ZONE_MOVABLE
-Date: Mon, 6 Aug 2007 22:31:49 +0200
-References: <20070802172118.GD23133@skynet.ie> <200708040002.18167.ak@suse.de> <20070806121558.e1977ba5.akpm@linux-foundation.org>
-In-Reply-To: <20070806121558.e1977ba5.akpm@linux-foundation.org>
+Date: Mon, 6 Aug 2007 14:05:32 -0700 (PDT)
+From: Christoph Lameter <clameter@sgi.com>
+Subject: Re: [PATCH 02/10] mm: system wide ALLOC_NO_WATERMARK
+In-Reply-To: <1186431992.7182.33.camel@twins>
+Message-ID: <Pine.LNX.4.64.0708061404300.3116@schroedinger.engr.sgi.com>
+References: <20070806102922.907530000@chello.nl>  <200708061121.50351.phillips@phunq.net>
+  <Pine.LNX.4.64.0708061141511.3152@schroedinger.engr.sgi.com>
+ <200708061148.43870.phillips@phunq.net>  <Pine.LNX.4.64.0708061150270.7603@schroedinger.engr.sgi.com>
+  <20070806201257.GG11115@waste.org>  <Pine.LNX.4.64.0708061315510.7603@schroedinger.engr.sgi.com>
+ <1186431992.7182.33.camel@twins>
 MIME-Version: 1.0
-Content-Type: text/plain;
-  charset="iso-8859-1"
-Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
-Message-Id: <200708062231.49247.ak@suse.de>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Mel Gorman <mel@skynet.ie>, Lee.Schermerhorn@hp.com, clameter@sgi.com, kamezawa.hiroyu@jp.fujitsu.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Peter Zijlstra <a.p.zijlstra@chello.nl>
+Cc: Matt Mackall <mpm@selenic.com>, Daniel Phillips <phillips@phunq.net>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, David Miller <davem@davemloft.net>, Andrew Morton <akpm@linux-foundation.org>, Daniel Phillips <phillips@google.com>, Pekka Enberg <penberg@cs.helsinki.fi>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Steve Dickson <SteveD@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
-> If correct, I would suggest merging the horrible hack for .23 then taking
-> it out when we merge "grouping pages by mobility".  But what if we don't do
-> that merge?
+On Mon, 6 Aug 2007, Peter Zijlstra wrote:
 
-Or disable ZONE_MOVABLE until it is usable? I don't think we have the
-infrastructure to really use it anyways, so it shouldn't make too much difference
-in terms of features. And it's not that there is some sort of deadline
-around for it. 
+> > The solution may be as simple as configuring the reserves right and 
+> > avoid the unbounded memory allocations. 
+> 
+> Which is what the next series of patches will be doing. Please do look
+> in detail at these networked swap patches I've been posting for the last
+> year or so.
+> 
+> > That is possible if one 
+> > would make sure that the network layer triggers reclaim once in a 
+> > while.
+> 
+> This does not make sense, we cannot reclaim from reclaim.
 
-Or mark it CONFIG_EXPERIMENTAL with a warning that it'll break NUMA. But disabling 
-is probably better.
-
-Then for .24 or .25 a better solution can be developed.
-
-I would prefer that instead of merging bandaid horrible hacks -- they have
-a tendency to stay around.
-
--Andi
+But we should limit the amounts of allocation we do while performing 
+reclaim. F.e. refilling memory pools during reclaim should be disabled.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
