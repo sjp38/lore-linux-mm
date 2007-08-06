@@ -1,63 +1,31 @@
-Date: Mon, 6 Aug 2007 12:44:08 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH] Apply memory policies to top two highest zones when
- highest zone is ZONE_MOVABLE
-Message-Id: <20070806124408.16034ab8.akpm@linux-foundation.org>
-In-Reply-To: <Pine.LNX.4.64.0708021343420.10244@schroedinger.engr.sgi.com>
-References: <20070802172118.GD23133@skynet.ie>
-	<Pine.LNX.4.64.0708021343420.10244@schroedinger.engr.sgi.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Message-ID: <46B77AB3.40006@redhat.com>
+Date: Mon, 06 Aug 2007 15:46:59 -0400
+From: Chuck Ebbert <cebbert@redhat.com>
+MIME-Version: 1.0
+Subject: Re: [PATCH 00/23] per device dirty throttling -v8
+References: <20070804070737.GA940@elte.hu>	<20070804103347.GA1956@elte.hu>	<alpine.LFD.0.999.0708040915360.5037@woody.linux-foundation.org>	<20070804163733.GA31001@elte.hu>	<alpine.LFD.0.999.0708041030040.5037@woody.linux-foundation.org>	<46B4C0A8.1000902@garzik.org>	<20070804191205.GA24723@lazybastard.org>	<20070804192130.GA25346@elte.hu>	<20070804192615.GA25600@lazybastard.org>	<20070804194259.GA25753@lazybastard.org>	<20070805203602.GB25107@infradead.org>	<46B7626C.6050403@redhat.com> <20070806203710.39bdc42e@the-village.bc.nu>
+In-Reply-To: <20070806203710.39bdc42e@the-village.bc.nu>
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
-Cc: Mel Gorman <mel@skynet.ie>, pj@sgi.com, Lee.Schermerhorn@hp.com, kamezawa.hiroyu@jp.fujitsu.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Paul Mundt <lethal@linux-sh.org>
+To: Alan Cox <alan@lxorguk.ukuu.org.uk>
+Cc: Christoph Hellwig <hch@infradead.org>, J??rn Engel <joern@logfs.org>, Ingo Molnar <mingo@elte.hu>, Jeff Garzik <jeff@garzik.org>, Linus Torvalds <torvalds@linux-foundation.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, linux-mm@kvack.org, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, miklos@szeredi.hu, akpm@linux-foundation.org, neilb@suse.de, dgc@sgi.com, tomoki.sekiyama.qu@hitachi.com, nikita@clusterfs.com, trond.myklebust@fys.uio.no, yingchao.zhou@gmail.com, richard@rsk.demon.co.uk, david@lang.hm
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 2 Aug 2007 13:45:23 -0700 (PDT) Christoph Lameter <clameter@sgi.com> wrote:
+On 08/06/2007 03:37 PM, Alan Cox wrote:
+>> We already tried that here. The response: "If noatime is so great, why
+>> isn't it the default in the kernel?"
+> 
+> Ok so we have a pile of people @redhat.com sitting on linux-kernel
+> complaining about Red Hat distributions not taking it up. Guys - can
+> we just fix it internally please like sensible folk ?
+> 
+> Ingo's latest 'not quite noatime' seems to cure mutt/tmpwatch so it might
+> finally make sense to do so.
 
-> On Thu, 2 Aug 2007, Mel Gorman wrote:
-> 
-> > +#ifdef CONFIG_NUMA
-> > +/*
-> > + * Only custom zonelists like MPOL_BIND need to be filtered as part of
-> > + * policies. As described in the comment for struct zonelist_cache, these
-> > + * zonelists will not have a zlcache so zlcache_ptr will not be set. Use
-> > + * that to determine if the zonelists needs to be filtered or not.
-> > + */
-> > +static inline int alloc_should_filter_zonelist(struct zonelist *zonelist)
-> > +{
-> > +	return !zonelist->zlcache_ptr;
-> > +}
-> 
-> I guess Paul needs to have a look at this one.
-
-Which Paul?
-
-> Otherwise
-> 
-> Acked-by: Christoph Lameter <clameter@sgi.com>
-> 
-> > @@ -1166,6 +1167,18 @@ zonelist_scan:
-> >  	z = zonelist->zones;
-> >  
-> >  	do {
-> > +		/*
-> > +		 * In NUMA, this could be a policy zonelist which contains
-> > +		 * zones that may not be allowed by the current gfp_mask.
-> > +		 * Check the zone is allowed by the current flags
-> > +		 */
-> > +		if (unlikely(alloc_should_filter_zonelist(zonelist))) {
-> > +			if (highest_zoneidx == -1)
-> > +				highest_zoneidx = gfp_zone(gfp_mask);
-> > +			if (zone_idx(*z) > highest_zoneidx)
-> > +				continue;
-> > +		}
-> > +
-> >  		if (NUMA_BUILD && zlc_active &&
-> 
-> Hotpath. Sigh.
+Do we report max(ctime, mtime) as the atime by default when noatime
+is set or do we still need that to be done?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
