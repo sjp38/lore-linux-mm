@@ -1,46 +1,72 @@
-Date: Mon, 6 Aug 2007 10:24:13 +1000
-From: David Chinner <dgc@sgi.com>
-Subject: Re: [PATCH 00/23] per device dirty throttling -v8
-Message-ID: <20070806002413.GJ31489@sgi.com>
-References: <20070803123712.987126000@chello.nl> <alpine.LFD.0.999.0708031518440.8184@woody.linux-foundation.org> <20070804063217.GA25069@elte.hu> <20070804070737.GA940@elte.hu> <20070804103347.GA1956@elte.hu> <alpine.LFD.0.999.0708040915360.5037@woody.linux-foundation.org> <20070804094119.81d8e533.akpm@linux-foundation.org> <87wswbjejw.fsf@mid.deneb.enyo.de>
+Date: Mon, 6 Aug 2007 03:20:25 +0200
+From: Nick Piggin <npiggin@suse.de>
+Subject: Re: [rfc] balance-on-fork NUMA placement
+Message-ID: <20070806012025.GA9265@wotan.suse.de>
+References: <20070731054142.GB11306@wotan.suse.de> <200707311114.09284.ak@suse.de> <20070801002313.GC31006@wotan.suse.de> <46B0C8A3.8090506@mbligh.org> <1185993169.5059.79.camel@localhost> <46B10E9B.2030907@mbligh.org> <20070802013631.GA15595@wotan.suse.de> <46B22383.5020109@mbligh.org> <20070803002010.GB14775@wotan.suse.de> <20070803201013.GA12874@linux-os.sc.intel.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <87wswbjejw.fsf@mid.deneb.enyo.de>
+In-Reply-To: <20070803201013.GA12874@linux-os.sc.intel.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Florian Weimer <fw@deneb.enyo.de>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, Ingo Molnar <mingo@elte.hu>, Peter Zijlstra <a.p.zijlstra@chello.nl>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, miklos@szeredi.hu, neilb@suse.de, dgc@sgi.com, tomoki.sekiyama.qu@hitachi.com, nikita@clusterfs.com, trond.myklebust@fys.uio.no, yingchao.zhou@gmail.com, richard@rsk.demon.co.uk
+To: "Siddha, Suresh B" <suresh.b.siddha@intel.com>
+Cc: Martin Bligh <mbligh@mbligh.org>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Andi Kleen <ak@suse.de>, Ingo Molnar <mingo@elte.hu>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>, Eric Whitney <eric.whitney@hp.com>
 List-ID: <linux-mm.kvack.org>
 
-On Sat, Aug 04, 2007 at 09:16:35PM +0200, Florian Weimer wrote:
-> * Andrew Morton:
+On Fri, Aug 03, 2007 at 01:10:13PM -0700, Suresh B wrote:
+> On Fri, Aug 03, 2007 at 02:20:10AM +0200, Nick Piggin wrote:
+> > On Thu, Aug 02, 2007 at 11:33:39AM -0700, Martin Bligh wrote:
+> > > Nick Piggin wrote:
+> > > >On Wed, Aug 01, 2007 at 03:52:11PM -0700, Martin Bligh wrote:
+> > > >>>And so forth.  Initial forks will balance.  If the children refuse to
+> > > >>>die, forks will continue to balance.  If the parent starts seeing short
+> > > >>>lived children, fork()s will eventually start to stay local.  
+> > > >>Fork without exec is much more rare than without. Optimising for
+> > > >>the uncommon case is the Wrong Thing to Do (tm). What we decided
+> > > >
+> > > >It's only the wrong thing to do if it hurts the common case too
+> > > >much. Considering we _already_ balance on exec, then adding another
+> > > >balance on fork is not going to introduce some order of magnitude
+> > > >problem -- at worst it would be 2x but it really isn't too slow
+> > > >anyway (at least nobody complained when we added it).
+> > > >
+> > > >One place where we found it helps is clone for threads.
+> > > >
+> > > >If we didn't do such a bad job at keeping tasks together with their
+> > > >local memory, then we might indeed reduce some of the balance-on-crap
+> > > >and increase the aggressiveness of periodic balancing.
+> > > >
+> > > >Considering we _already_ balance on fork/clone, I don't know what
+> > > >your argument is against this patch is? Doing the balance earlier
+> > > >and allocating more stuff on the local node is surely not a bad
+> > > >idea.
+> > > 
+> > > I don't know who turned that on ;-( I suspect nobody bothered
+> > > actually measuring it at the time though, or used some crap
+> > > benchmark like stream to do so. It should get reverted.
+> > 
+> > So you have numbers to show it hurts? I tested some things where it
+> > is not supposed to help, and it didn't make any difference. Nobody
+> > else noticed either.
+> > 
+> > If the cost of doing the double balance is _really_ that painful,
+> > then we ccould skip balance-on-exec for domains with balance-on-fork
+> > set.
 > 
-> > The easy preventive is to mount with data=writeback.  Maybe that should
-> > have been the default.
-> 
-> The documentation I could find suggests that this may lead to a
-> security weakness (old data in blocks of a file that was grown just
-> before the crash leaks to a different user).  XFS overwrites that data
-> with zeros upon reboot, which tends to irritate users when it happens.
+> Nick, Even if it is not painful, can we skip balance-on-exec if
+> balance-on-fork is set. There is no need for double balance, right?
 
-XFS has never overwritten data on reboot. It leaves holes when the kernel has
-failed to write out data. A hole == zeros so XFS does not expose stale data in
-this situation. As it is, the underlying XFS problem (lack of synchronisation
-between inode size update and data writes has been mostly fixed in 2.6.22 by
-only updating the file size to be written to disk on data I/O completion.
+I guess we could. There is no need for the double balance if the exec
+happens immediately after the fork which is surely the common case. I
+think there can be some other weird cases (eg multi-threaded code) that
+does funny things though...
 
-FWIW, fsync() would prevent this from happening, but many application writers
-seem strangely reluctant to put fsync() calls into code to ensure the data
-they write is safely on disk.....
 
-Cheers,
+> Especially with the optimization you are trying to do with this patch,
+> balance-on-exec may lead to wrong decision making this optimization
+> not work as expected.
 
-Dave.
--- 
-Dave Chinner
-Principal Engineer
-SGI Australian Software Group
+That's true.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
