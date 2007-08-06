@@ -1,300 +1,56 @@
-Date: Mon, 6 Aug 2007 08:39:09 +0200
+Date: Mon, 6 Aug 2007 08:52:29 +0200
 From: Ingo Molnar <mingo@elte.hu>
 Subject: Re: [PATCH 00/23] per device dirty throttling -v8
-Message-ID: <20070806063909.GB31321@elte.hu>
-References: <alpine.LFD.0.999.0708041030040.5037@woody.linux-foundation.org> <46B4C0A8.1000902@garzik.org> <20070804191205.GA24723@lazybastard.org> <20070804192130.GA25346@elte.hu> <20070804211156.5f600d80@the-village.bc.nu> <20070804202830.GA4538@elte.hu> <20070804210351.GA9784@elte.hu> <20070804225121.5c7b66e0@the-village.bc.nu> <20070805072141.GA4414@elte.hu> <20070805184408.GB22639@redhat.com>
+Message-ID: <20070806065229.GC31321@elte.hu>
+References: <alpine.LFD.0.999.0708041030040.5037@woody.linux-foundation.org> <46B4C0A8.1000902@garzik.org> <20070804191205.GA24723@lazybastard.org> <20070804192130.GA25346@elte.hu> <20070804211156.5f600d80@the-village.bc.nu> <20070804202830.GA4538@elte.hu> <20070804224834.5187f9b7@the-village.bc.nu> <20070805071320.GC515@elte.hu> <20070805152231.aba9428a.diegocg@gmail.com> <Pine.LNX.4.64.0708051158260.6905@asgard.lang.hm>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20070805184408.GB22639@redhat.com>
+In-Reply-To: <Pine.LNX.4.64.0708051158260.6905@asgard.lang.hm>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Dave Jones <davej@redhat.com>, Alan Cox <alan@lxorguk.ukuu.org.uk>, J??rn Engel <joern@logfs.org>, Jeff Garzik <jeff@garzik.org>, Linus Torvalds <torvalds@linux-foundation.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, linux-mm@kvack.org, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, miklos@szeredi.hu, akpm@linux-foundation.org, neilb@suse.de, dgc@sgi.com, tomoki.sekiyama.qu@hitachi.com, nikita@clusterfs.com, trond.myklebust@fys.uio.no, yingchao.zhou@gmail.com, richard@rsk.demon.co.uk, david@lang.hm
+To: david@lang.hm
+Cc: Diego Calleja <diegocg@gmail.com>, Alan Cox <alan@lxorguk.ukuu.org.uk>, J??rn Engel <joern@logfs.org>, Jeff Garzik <jeff@garzik.org>, Linus Torvalds <torvalds@linux-foundation.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, linux-mm@kvack.org, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, miklos@szeredi.hu, akpm@linux-foundation.org, neilb@suse.de, dgc@sgi.com, tomoki.sekiyama.qu@hitachi.com, nikita@clusterfs.com, trond.myklebust@fys.uio.no, yingchao.zhou@gmail.com, richard@rsk.demon.co.uk
 List-ID: <linux-mm.kvack.org>
 
-* Dave Jones <davej@redhat.com> wrote:
+* david@lang.hm <david@lang.hm> wrote:
 
->  > btw., Mutt does not go boom, i use it myself. It works just fine 
->  > and notices new mails even on a noatime,nodiratime filesystem.
->  
-> It still fails miserably for me.
+> i've been a linux sysadmin for 10 years, and have known about noatime 
+> for at least 7 years, but I always thought of it in the catagory of 
+> 'use it only on your performance critical machines where you are 
+> trying to extract every ounce of performance, and keep an eye out for 
+> things misbehaving'
 > 
-> If I hit 'C' and '?' I get a list of my mail folders, with some of 
-> them marked 'N' if they have new mail.  Without atime, those N's never 
-> show up and every mbox looks like it has no new mail.
+> I never imagined that itwas the 20%+ hit that is being described, and 
+> with so little impact, or I would have switched to it across the board 
+> years ago.
+> 
+> I'll bet there are a lot of admins out there in the same boat.
+> 
+> adding an option in the kernel to change the default sounds like a 
+> very good first step, even if the default isn't changed today.
 
-does it work with the "atime on steroids" patch below? (no need to 
-configure anything, just apply the patch and go.)
+yep - but note that this was a gradual effect along the years, today the 
+assymetry between CPU performance and disk-seek performance is 
+proportionally larger than 10 years ago. Today CPUs are nearly 100 times 
+faster than 10 years ago, but disk seeks got only 2-3 times faster. (and 
+even that only if you have a high rpm disk - most desktops dont.)
+
+10 years ago noatime was a nifty hack that made a difference if you had 
+lots of files. But it still was a problem with no immediate easy 
+solution and people developed their counter-arguments. Today the same 
+counter-arguments are used, but the situation has evolved alot.
+
+and note that often this has a bigger everyday effect than the tweaking 
+of CPU scheduling, IO scheduling or swapping behavior (!). My desktop 
+systems rarely swap, have plenty of CPU power to spare, but atime 
+updates still have a noticeable latency impact, regardless of the memory 
+pressure. Linux has _lots_ of "performance reserves", so people dont 
+normally notice when comparing it to other OSs, but still we should not 
+be so wasteful with our IO performance, for such a fundamental thing as 
+reading files.
 
 	Ingo
-
------------------------>
-Subject: [patch] [patch] implement smarter atime updates support
-From: Ingo Molnar <mingo@elte.hu>
-
-change relatime updates to be performed once per day. This makes
-relatime a compatible solution for HSM, mailer-notification and
-tmpwatch applications too.
-
-also add the CONFIG_DEFAULT_RELATIME kernel option, which makes
-"norelatime" the default for all mounts without an extra kernel
-boot option.
-
-add the "default_relatime=0" boot option to turn this off.
-
-also add the /proc/sys/kernel/default_relatime flag which can be changed
-runtime to modify the behavior of subsequent new mounts.
-
-tested by moving the date forward:
-
-   # date
-   Sun Aug  5 22:55:14 CEST 2007
-   # date -s "Tue Aug  7 22:55:14 CEST 2007"
-   Tue Aug  7 22:55:14 CEST 2007
-
-access to a file did not generate disk IO before the date was set, and
-it generated exactly one IO after the date was set.
-
-Signed-off-by: Ingo Molnar <mingo@elte.hu>
----
- Documentation/kernel-parameters.txt |    8 +++++
- fs/Kconfig                          |   22 ++++++++++++++
- fs/inode.c                          |   53 +++++++++++++++++++++++++++---------
- fs/namespace.c                      |   24 ++++++++++++++++
- include/linux/mount.h               |    3 ++
- kernel/sysctl.c                     |   17 +++++++++++
- 6 files changed, 114 insertions(+), 13 deletions(-)
-
-Index: linux/Documentation/kernel-parameters.txt
-===================================================================
---- linux.orig/Documentation/kernel-parameters.txt
-+++ linux/Documentation/kernel-parameters.txt
-@@ -525,6 +525,10 @@ and is between 256 and 4096 characters. 
- 			This is a 16-member array composed of values
- 			ranging from 0-255.
- 
-+	default_relatime=
-+			[FS] mount all filesystems with relative atime
-+			updates by default.
-+
- 	default_utf8=   [VT]
- 			Format=<0|1>
- 			Set system-wide default UTF-8 mode for all tty's.
-@@ -1468,6 +1472,10 @@ and is between 256 and 4096 characters. 
- 			Format: <reboot_mode>[,<reboot_mode2>[,...]]
- 			See arch/*/kernel/reboot.c or arch/*/kernel/process.c			
- 
-+	relatime_interval=
-+			[FS] relative atime update frequency, in seconds.
-+			(default: 1 day: 86400 seconds)
-+
- 	reserve=	[KNL,BUGS] Force the kernel to ignore some iomem area
- 
- 	reservetop=	[X86-32]
-Index: linux/fs/Kconfig
-===================================================================
---- linux.orig/fs/Kconfig
-+++ linux/fs/Kconfig
-@@ -2060,6 +2060,28 @@ config 9P_FS
- 
- endmenu
- 
-+config DEFAULT_RELATIME
-+	bool "Mount all filesystems with relatime by default"
-+	default y
-+	help
-+	  If you say Y here, all your filesystems will be mounted
-+	  with the "relatime" mount option. This eliminates many atime
-+	  ('file last accessed' timestamp) updates (which otherwise
-+	  is performed on every file access and generates a write
-+	  IO to the inode) and thus speeds up IO. Atime is still updated,
-+	  but only once per day.
-+
-+	  The mtime ('file last modified') and ctime ('file created')
-+	  timestamp are unaffected by this change.
-+
-+	  Use the "norelatime" kernel boot option to turn off this
-+	  feature.
-+
-+config DEFAULT_RELATIME_VAL
-+	int
-+	default "1" if DEFAULT_RELATIME
-+	default "0"
-+
- if BLOCK
- menu "Partition Types"
- 
-Index: linux/fs/inode.c
-===================================================================
---- linux.orig/fs/inode.c
-+++ linux/fs/inode.c
-@@ -1162,6 +1162,41 @@ sector_t bmap(struct inode * inode, sect
- }
- EXPORT_SYMBOL(bmap);
- 
-+/*
-+ * Relative atime updates frequency (default: 1 day):
-+ */
-+int relatime_interval __read_mostly = 24*60*60;
-+
-+/*
-+ * With relative atime, only update atime if the
-+ * previous atime is earlier than either the ctime or
-+ * mtime.
-+ */
-+static int relatime_need_update(struct inode *inode, struct timespec now)
-+{
-+	/*
-+	 * Is mtime younger than atime? If yes, update atime:
-+	 */
-+	if (timespec_compare(&inode->i_mtime, &inode->i_atime) >= 0)
-+		return 1;
-+	/*
-+	 * Is ctime younger than atime? If yes, update atime:
-+	 */
-+	if (timespec_compare(&inode->i_ctime, &inode->i_atime) >= 0)
-+		return 1;
-+
-+	/*
-+	 * Is the previous atime value older than a day? If yes,
-+	 * update atime:
-+	 */
-+	if ((long)(now.tv_sec - inode->i_atime.tv_sec) >= relatime_interval)
-+		return 1;
-+	/*
-+	 * Good, we can skip the atime update:
-+	 */
-+	return 0;
-+}
-+
- /**
-  *	touch_atime	-	update the access time
-  *	@mnt: mount the inode is accessed on
-@@ -1191,22 +1226,14 @@ void touch_atime(struct vfsmount *mnt, s
- 			return;
- 		if ((mnt->mnt_flags & MNT_NODIRATIME) && S_ISDIR(inode->i_mode))
- 			return;
--
--		if (mnt->mnt_flags & MNT_RELATIME) {
--			/*
--			 * With relative atime, only update atime if the
--			 * previous atime is earlier than either the ctime or
--			 * mtime.
--			 */
--			if (timespec_compare(&inode->i_mtime,
--						&inode->i_atime) < 0 &&
--			    timespec_compare(&inode->i_ctime,
--						&inode->i_atime) < 0)
-+	}
-+	now = current_fs_time(inode->i_sb);
-+	if (mnt) {
-+		if (mnt->mnt_flags & MNT_RELATIME)
-+			if (!relatime_need_update(inode, now))
- 				return;
--		}
- 	}
- 
--	now = current_fs_time(inode->i_sb);
- 	if (timespec_equal(&inode->i_atime, &now))
- 		return;
- 
-Index: linux/fs/namespace.c
-===================================================================
---- linux.orig/fs/namespace.c
-+++ linux/fs/namespace.c
-@@ -1107,6 +1107,7 @@ int do_add_mount(struct vfsmount *newmnt
- 		goto unlock;
- 
- 	newmnt->mnt_flags = mnt_flags;
-+
- 	if ((err = graft_tree(newmnt, nd)))
- 		goto unlock;
- 
-@@ -1362,6 +1363,24 @@ int copy_mount_options(const void __user
- }
- 
- /*
-+ * Allow users to disable (or enable) atime updates via a .config
-+ * option or via the boot line, or via /proc/sys/fs/default_relatime:
-+ */
-+int default_relatime __read_mostly = CONFIG_DEFAULT_RELATIME_VAL;
-+
-+static int __init set_default_relatime(char *str)
-+{
-+	get_option(&str, &default_relatime);
-+
-+	printk(KERN_INFO "Mount all filesystems with"
-+		"default relative atime updates: %s.\n",
-+		default_relatime ? "enabled" : "disabled");
-+
-+	return 1;
-+}
-+__setup("default_relatime=", set_default_relatime);
-+
-+/*
-  * Flags is a 32-bit value that allows up to 31 non-fs dependent flags to
-  * be given to the mount() call (ie: read-only, no-dev, no-suid etc).
-  *
-@@ -1409,6 +1428,11 @@ long do_mount(char *dev_name, char *dir_
- 		mnt_flags |= MNT_NODIRATIME;
- 	if (flags & MS_RELATIME)
- 		mnt_flags |= MNT_RELATIME;
-+	else if (default_relatime &&
-+				!(flags & (MNT_NOATIME | MNT_NODIRATIME))) {
-+		mnt_flags |= MNT_RELATIME;
-+		flags |= MS_RELATIME;
-+	}
- 
- 	flags &= ~(MS_NOSUID | MS_NOEXEC | MS_NODEV | MS_ACTIVE |
- 		   MS_NOATIME | MS_NODIRATIME | MS_RELATIME);
-Index: linux/include/linux/mount.h
-===================================================================
---- linux.orig/include/linux/mount.h
-+++ linux/include/linux/mount.h
-@@ -103,5 +103,8 @@ extern void shrink_submounts(struct vfsm
- extern spinlock_t vfsmount_lock;
- extern dev_t name_to_dev_t(char *name);
- 
-+extern int default_relatime;
-+extern int relatime_interval;
-+
- #endif
- #endif /* _LINUX_MOUNT_H */
-Index: linux/kernel/sysctl.c
-===================================================================
---- linux.orig/kernel/sysctl.c
-+++ linux/kernel/sysctl.c
-@@ -30,6 +30,7 @@
- #include <linux/capability.h>
- #include <linux/smp_lock.h>
- #include <linux/fs.h>
-+#include <linux/mount.h>
- #include <linux/init.h>
- #include <linux/kernel.h>
- #include <linux/kobject.h>
-@@ -1206,6 +1207,22 @@ static ctl_table fs_table[] = {
- 		.mode		= 0644,
- 		.proc_handler	= &proc_dointvec,
- 	},
-+	{
-+		.ctl_name	= CTL_UNNUMBERED,
-+		.procname	= "default_relatime",
-+		.data		= &default_relatime,
-+		.maxlen		= sizeof(int),
-+		.mode		= 0644,
-+		.proc_handler	= &proc_dointvec,
-+	},
-+	{
-+		.ctl_name	= CTL_UNNUMBERED,
-+		.procname	= "relatime_interval",
-+		.data		= &relatime_interval,
-+		.maxlen		= sizeof(int),
-+		.mode		= 0644,
-+		.proc_handler	= &proc_dointvec,
-+	},
- #if defined(CONFIG_BINFMT_MISC) || defined(CONFIG_BINFMT_MISC_MODULE)
- 	{
- 		.ctl_name	= CTL_UNNUMBERED,
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
