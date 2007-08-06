@@ -1,47 +1,63 @@
-Date: Mon, 6 Aug 2007 14:38:42 -0500
-From: Matt Mackall <mpm@selenic.com>
-Subject: Re: [PATCH 03/10] mm: tag reseve pages
-Message-ID: <20070806193842.GB11115@waste.org>
-References: <20070806102922.907530000@chello.nl> <20070806103658.356795000@chello.nl> <Pine.LNX.4.64.0708061111390.25069@schroedinger.engr.sgi.com> <p73r6mglaog.fsf@bingen.suse.de> <Pine.LNX.4.64.0708061143050.3152@schroedinger.engr.sgi.com> <1186426079.11797.88.camel@lappy> <20070806185926.GB22499@one.firstfloor.org> <20070806121053.baed9691.akpm@linux-foundation.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20070806121053.baed9691.akpm@linux-foundation.org>
+Date: Mon, 6 Aug 2007 12:44:08 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH] Apply memory policies to top two highest zones when
+ highest zone is ZONE_MOVABLE
+Message-Id: <20070806124408.16034ab8.akpm@linux-foundation.org>
+In-Reply-To: <Pine.LNX.4.64.0708021343420.10244@schroedinger.engr.sgi.com>
+References: <20070802172118.GD23133@skynet.ie>
+	<Pine.LNX.4.64.0708021343420.10244@schroedinger.engr.sgi.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Andi Kleen <andi@firstfloor.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Christoph Lameter <clameter@sgi.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, David Miller <davem@davemloft.net>, Daniel Phillips <phillips@google.com>, Pekka Enberg <penberg@cs.helsinki.fi>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Steve Dickson <SteveD@redhat.com>
+To: Christoph Lameter <clameter@sgi.com>
+Cc: Mel Gorman <mel@skynet.ie>, pj@sgi.com, Lee.Schermerhorn@hp.com, kamezawa.hiroyu@jp.fujitsu.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Paul Mundt <lethal@linux-sh.org>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Aug 06, 2007 at 12:10:53PM -0700, Andrew Morton wrote:
-> On Mon, 6 Aug 2007 20:59:26 +0200 Andi Kleen <andi@firstfloor.org> wrote:
-> 
-> > > precious page flag
-> > 
-> > I always cringe when I hear that. It's really more than node/sparsemem
-> > use too many bits. If we get rid of 32bit NUMA that problem would be
-> > gone for the node at least because it could be moved into the mostly
-> > unused upper 32bit part on 64bit architectures.
-> 
-> Removing 32-bit NUMA is attractive - NUMAQ we can probably live without,
-> not sure about summit.  But superh is starting to use NUMA now, due to
-> varying access times of various sorts of memory, and one can envisage other
-> embedded setups doing that.
-> 
-> Plus I don't think there are many flags left in the upper 32-bits.  ia64
-> swooped in and gobbled lots of them, although it's not immediately clear
-> how many were consumed.
-> 
-> > The alternative would be to investigate again what it does to the
-> > kernel to just use different lookup methods for this.
-> 
-> That's cringeworthy too, I expect.
+On Thu, 2 Aug 2007 13:45:23 -0700 (PDT) Christoph Lameter <clameter@sgi.com> wrote:
 
-Perhaps the node info could be pulled out into a parallel and
-effectively read-only array of shorts.
+> On Thu, 2 Aug 2007, Mel Gorman wrote:
+> 
+> > +#ifdef CONFIG_NUMA
+> > +/*
+> > + * Only custom zonelists like MPOL_BIND need to be filtered as part of
+> > + * policies. As described in the comment for struct zonelist_cache, these
+> > + * zonelists will not have a zlcache so zlcache_ptr will not be set. Use
+> > + * that to determine if the zonelists needs to be filtered or not.
+> > + */
+> > +static inline int alloc_should_filter_zonelist(struct zonelist *zonelist)
+> > +{
+> > +	return !zonelist->zlcache_ptr;
+> > +}
+> 
+> I guess Paul needs to have a look at this one.
 
--- 
-Mathematics is the supreme nostalgia of our time.
+Which Paul?
+
+> Otherwise
+> 
+> Acked-by: Christoph Lameter <clameter@sgi.com>
+> 
+> > @@ -1166,6 +1167,18 @@ zonelist_scan:
+> >  	z = zonelist->zones;
+> >  
+> >  	do {
+> > +		/*
+> > +		 * In NUMA, this could be a policy zonelist which contains
+> > +		 * zones that may not be allowed by the current gfp_mask.
+> > +		 * Check the zone is allowed by the current flags
+> > +		 */
+> > +		if (unlikely(alloc_should_filter_zonelist(zonelist))) {
+> > +			if (highest_zoneidx == -1)
+> > +				highest_zoneidx = gfp_zone(gfp_mask);
+> > +			if (zone_idx(*z) > highest_zoneidx)
+> > +				continue;
+> > +		}
+> > +
+> >  		if (NUMA_BUILD && zlc_active &&
+> 
+> Hotpath. Sigh.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
