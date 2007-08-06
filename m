@@ -1,49 +1,89 @@
-Date: Mon, 6 Aug 2007 15:23:23 -0500
-From: Matt Mackall <mpm@selenic.com>
-Subject: Re: [PATCH 00/10] foundations for reserve-based allocation
-Message-ID: <20070806202323.GH11115@waste.org>
+Subject: Re: [PATCH 02/10] mm: system wide ALLOC_NO_WATERMARK
+From: Peter Zijlstra <a.p.zijlstra@chello.nl>
+In-Reply-To: <Pine.LNX.4.64.0708061315510.7603@schroedinger.engr.sgi.com>
 References: <20070806102922.907530000@chello.nl>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20070806102922.907530000@chello.nl>
+	 <200708061121.50351.phillips@phunq.net>
+	 <Pine.LNX.4.64.0708061141511.3152@schroedinger.engr.sgi.com>
+	 <200708061148.43870.phillips@phunq.net>
+	 <Pine.LNX.4.64.0708061150270.7603@schroedinger.engr.sgi.com>
+	 <20070806201257.GG11115@waste.org>
+	 <Pine.LNX.4.64.0708061315510.7603@schroedinger.engr.sgi.com>
+Content-Type: multipart/signed; micalg=pgp-sha1; protocol="application/pgp-signature"; boundary="=-j9ombzTnzJ7u0ISCI54Z"
+Date: Mon, 06 Aug 2007 22:26:32 +0200
+Message-Id: <1186431992.7182.33.camel@twins>
+Mime-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, David Miller <davem@davemloft.net>, Andrew Morton <akpm@linux-foundation.org>, Daniel Phillips <phillips@google.com>, Pekka Enberg <penberg@cs.helsinki.fi>, Christoph Lameter <clameter@sgi.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Steve Dickson <SteveD@redhat.com>
+To: Christoph Lameter <clameter@sgi.com>
+Cc: Matt Mackall <mpm@selenic.com>, Daniel Phillips <phillips@phunq.net>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, David Miller <davem@davemloft.net>, Andrew Morton <akpm@linux-foundation.org>, Daniel Phillips <phillips@google.com>, Pekka Enberg <penberg@cs.helsinki.fi>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Steve Dickson <SteveD@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Aug 06, 2007 at 12:29:22PM +0200, Peter Zijlstra wrote:
-> 
-> In the interrest of getting swap over network working and posting in smaller
-> series, here is the first series.
-> 
-> This series lays the foundations needed to do reserve based allocation.
-> Traditionally we have used mempools (and others like radix_tree_preload) to
-> handle the problem.
-> 
-> However this does not fit the network stack. It is built around variable
-> sized allocations using kmalloc().
-> 
-> This calls for a different approach.
+--=-j9ombzTnzJ7u0ISCI54Z
+Content-Type: text/plain
+Content-Transfer-Encoding: quoted-printable
 
-One wonders if containers are a possible solution. I can already solve
-this problem with virtualization: have one VM manage all the network
-I/O and export the device as a simpler virtual block device to other
-VMs. Provided this VM isn't doing any "real" work and is sized
-appropriately, it won't get wedged. Since the other VMs now submit I/O
-through the simpler block interface, they can avoid getting wedged
-with the standard mempool approach.
+On Mon, 2007-08-06 at 13:19 -0700, Christoph Lameter wrote:
+> On Mon, 6 Aug 2007, Matt Mackall wrote:
+>=20
+> > > > Because a block device may have deadlocked here, leaving the system=
+=20
+> > > > unable to clean dirty memory, or unable to load executables over th=
+e=20
+> > > > network for example.
+> > >=20
+> > > So this is a locking problem that has not been taken care of?
+> >=20
+> > No.
+> >=20
+> > It's very simple:
+> >=20
+> > 1) memory becomes full
+>=20
+> We do have limits to avoid memory getting too full.
+>=20
+> > 2) we try to free memory by paging or swapping
+> > 3) I/O requires a memory allocation which fails because memory is full
+> > 4) box dies because it's unable to dig itself out of OOM
+> >=20
+> > Most I/O paths can deal with this by having a mempool for their I/O
+> > needs. For network I/O, this turns out to be prohibitively hard due to
+> > the complexity of the stack.
+>=20
+> The common solution is to have a reserve (min_free_kbytes).=20
 
-If we can run nbd and friends inside their own container that can give
-similar isolation, we might not need to add this other complexity.
+This patch set builds on that. Trouble with min_free_kbytes is the
+relative nature of ALLOC_HIGH and ALLOC_HARDER.
 
-Just food for thought. I haven't looked closely enough at the
-containers implementations yet to determine whether this is possible
-or if the overhead in performance or complexity is acceptable.
+> The problem=20
+> with the network stack seems to be that the amount of reserve needed=20
+> cannot be predicted accurately.
+>=20
+> The solution may be as simple as configuring the reserves right and=20
+> avoid the unbounded memory allocations.=20
 
--- 
-Mathematics is the supreme nostalgia of our time.
+Which is what the next series of patches will be doing. Please do look
+in detail at these networked swap patches I've been posting for the last
+year or so.
+
+> That is possible if one=20
+> would make sure that the network layer triggers reclaim once in a=20
+> while.
+
+This does not make sense, we cannot reclaim from reclaim.
+
+--=-j9ombzTnzJ7u0ISCI54Z
+Content-Type: application/pgp-signature; name=signature.asc
+Content-Description: This is a digitally signed message part
+
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v1.4.6 (GNU/Linux)
+
+iD8DBQBGt4P4XA2jU0ANEf4RAvHDAJ4hcHpsFJPqLHGQMoQ1hCNYsYxC5ACfd6E3
+ciEp6wvG+MRy3AItvJtVcLk=
+=nuNO
+-----END PGP SIGNATURE-----
+
+--=-j9ombzTnzJ7u0ISCI54Z--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
