@@ -1,50 +1,38 @@
-Date: Mon, 6 Aug 2007 18:38:51 +0100 (BST)
-From: Mark Fortescue <mark@mtfhpc.demon.co.uk>
-Subject: Help understanding SPARC32 Sun4c PTE handling
-Message-ID: <Pine.LNX.4.61.0708061749230.29956@mtfhpc.demon.co.uk>
+From: Daniel Phillips <phillips@phunq.net>
+Subject: Re: [PATCH 03/10] mm: tag reseve pages
+Date: Mon, 6 Aug 2007 11:13:42 -0700
+References: <20070806102922.907530000@chello.nl> <20070806103658.356795000@chello.nl> <Pine.LNX.4.64.0708061111390.25069@schroedinger.engr.sgi.com>
+In-Reply-To: <Pine.LNX.4.64.0708061111390.25069@schroedinger.engr.sgi.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII; format=flowed
+Content-Type: text/plain;
+  charset="iso-8859-1"
+Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+Message-Id: <200708061113.42578.phillips@phunq.net>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "David S. Miller" <davem@davemloft.net>
-Cc: sparclinux@vger.kernel.org, linux-mm@kvack.org
+To: Christoph Lameter <clameter@sgi.com>
+Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, David Miller <davem@davemloft.net>, Andrew Morton <akpm@linux-foundation.org>, Daniel Phillips <phillips@google.com>, Pekka Enberg <penberg@cs.helsinki.fi>, Matt Mackall <mpm@selenic.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Steve Dickson <SteveD@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
-Hi David,
+On Monday 06 August 2007 11:11, Christoph Lameter wrote:
+> On Mon, 6 Aug 2007, Peter Zijlstra wrote:
+> > ===================================================================
+> > --- linux-2.6-2.orig/include/linux/mm_types.h
+> > +++ linux-2.6-2/include/linux/mm_types.h
+> > @@ -60,6 +60,7 @@ struct page {
+> >  	union {
+> >  		pgoff_t index;		/* Our offset within mapping. */
+> >  		void *freelist;		/* SLUB: freelist req. slab lock */
+> > +		int reserve;		/* page_alloc: page is a reserve page */
+>
+> Extending page struct ???
 
-If you have the time ..., if not, hopfully, some one from linux-mm will 
-explain.
+See my comment above, I do not think this is necessary.
 
-I have been investigating the differences between SunOS PTE and Linux PTE 
-bits. There are some differences that I would like to understand.
+Regards,
 
-What is the pte_file() function intended for. The bit in the PTE that
-is used (0x02000000) is set by hardware (definatly on page write and in 
-theory on page read if the SunOS PTE description is to be believed. It 
-is described as the 'refferenced' bit).
-
-The linux-mm documentation only states that it is for swappable non-linear 
-VMAs (exactly what we have in the sun4c unless you assume VMA is signed 
-[like the INMOS Transputer], in which case it is linear from -512MB to 
-+512MB :-). The down size of sigend address mappings is that NULL is 
-nolonger zero and too many people have got lazy and assumed it is.).
-
-Re-arranging the bits so that _SUN4C_PAGE_ACCESSED and 
-_SUN4C_PAGE_MODIFIED bits match the MMU hardware bits seems to make boots 
-more stable (I have been gettimg non-repeatable boots where the init 
-script goes through the motions but does not actually do what I am 
-expecting or just gets skipped. SLAB is worse than SLUB.) but the changes 
-I have tried sofar, break swapon.
-
-Linux uses four bits that do not get saved in the MMU PTE 
-(_SUN4C_PAGE_READ, _SUN4C_PAGE_WRITE, _SUN4C_PAGE_MODIFIED and 
-_SUN4C_PAGE_ACCESSED). I have assumed that these are preserved externally 
-in a software copy of the PTE somewhere (I have not found anything that I 
-recognise as specific storage for this in the sparc32 code) as reading the 
-MMU PTE will return zero for these bits.
-
-Regards
- 	Mark Fortescue.
+Daniel
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
