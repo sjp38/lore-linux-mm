@@ -1,44 +1,102 @@
-Date: Mon, 6 Aug 2007 08:58:34 +0200
-From: Ingo Molnar <mingo@elte.hu>
-Subject: Re: [PATCH 00/23] per device dirty throttling -v8
-Message-ID: <20070806065834.GB2818@elte.hu>
-References: <20070804163733.GA31001@elte.hu> <alpine.LFD.0.999.0708041030040.5037@woody.linux-foundation.org> <46B4C0A8.1000902@garzik.org> <20070804191205.GA24723@lazybastard.org> <20070804192130.GA25346@elte.hu> <20070804211156.5f600d80@the-village.bc.nu> <20070804202830.GA4538@elte.hu> <20070804224834.5187f9b7@the-village.bc.nu> <20070805071320.GC515@elte.hu> <20070805152231.aba9428a.diegocg@gmail.com>
+Date: Mon, 6 Aug 2007 19:21:29 +1000 (EST)
+From: Nick Piggin <nickpiggin@yahoo.com.au>
+Subject: Re: RFT: updatedb "morning after" problem [was: Re: -mm merge plans for 2.6.23]
+In-Reply-To: <Pine.LNX.4.64.0708051916430.6905@asgard.lang.hm>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20070805152231.aba9428a.diegocg@gmail.com>
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7BIT
+Message-ID: <997038.92524.qm@web53809.mail.re2.yahoo.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Diego Calleja <diegocg@gmail.com>
-Cc: Alan Cox <alan@lxorguk.ukuu.org.uk>, J??rn Engel <joern@logfs.org>, Jeff Garzik <jeff@garzik.org>, Linus Torvalds <torvalds@linux-foundation.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, linux-mm@kvack.org, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, miklos@szeredi.hu, akpm@linux-foundation.org, neilb@suse.de, dgc@sgi.com, tomoki.sekiyama.qu@hitachi.com, nikita@clusterfs.com, trond.myklebust@fys.uio.no, yingchao.zhou@gmail.com, richard@rsk.demon.co.uk, david@lang.hm
+To: david@lang.hm
+Cc: Rene Herman <rene.herman@gmail.com>, Daniel Hazelton <dhazelton@enter.net>, Mike Galbraith <efault@gmx.de>, Andrew Morton <akpm@linux-foundation.org>, Ingo Molnar <mingo@elte.hu>, Frank Kingswood <frank@kingswood-consulting.co.uk>, Andi Kleen <andi@firstfloor.org>, Ray Lee <ray-lk@madrabbit.org>, Jesper Juhl <jesper.juhl@gmail.com>, ck list <ck@vds.kolivas.org>, Paul Jackson <pj@sgi.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-* Diego Calleja <diegocg@gmail.com> wrote:
+--- david@lang.hm wrote:
 
-> > Measurements show that noatime helps 20-30% on regular desktop 
-> > workloads, easily 50% for kernel builds and much more than that (in 
-> > excess of 100%) for file-read-intense workloads. We cannot just walk
+> On Mon, 6 Aug 2007, Nick Piggin wrote:
 > 
-> And as everybody knows in servers is a popular practice to disable it. 
-> According to an interview to the kernel.org admins....
+> > david@lang.hm wrote:
+> >>  On Sun, 29 Jul 2007, Rene Herman wrote:
+> >> 
+> >> >  On 07/29/2007 01:41 PM, david@lang.hm wrote:
+> >> > 
+> >> > >  I agree that tinkering with the core VM code
+> should not be done 
+> >> > >  lightly,
+> >> > >   but this has been put through the proper
+> process and is stalled with 
+> >> > >   no
+> >> > >   hints on how to move forward.
+> >> > 
+> >> > 
+> >> >  It has not. Concerns that were raised (by
+> specifically Nick Piggin) 
+> >> >  weren't being addressed.
+> >>
+> >>
+> >>  I may have missed them, but what I saw from him
+> weren't specific issues,
+> >>  but instead a nebulous 'something better may
+> come along later'
+> >
+> > Something better, ie. the problems with page
+> reclaim being fixed.
+> > Why is that nebulous?
+> 
+> becouse that doesn't begin to address all the
+> benifits.
 
-yeah - but i'd be surprised if more than 1% of all Linux servers out 
-there had noatime.
+What do you mean "address the benefits"? What I want
+to address is the page reclaim problems.
 
-> "Beyond that, Peter noted, "very little fancy is going on, and that is 
-> good because fancy is hard to maintain." He explained that the only 
-> fancy thing being done is that all filesystems are mounted noatime 
-> meaning that the system doesn't have to make writes to the filesystem 
-> for files which are simply being read, "that cut the load average in 
-> half."
 
-nice quote :-)
+> the approach of fixing page reclaim and updatedb is
+> pretending that if you 
+> only do everything right pages won't get pushed to
+> swap in the first 
+> place, and therefor swap prefetch won't be needed.
 
-> I bet that some people would consider such performance hit a bug...
+You should read what I wrote.
 
-yeah.
+Anyway, the fact of the matter is that there are still
+fairly significant problems with page reclaim in this
+workload which I would like to see fixed.
 
-	Ingo
+I personally still think some of the low hanging fruit
+*might* be better fixed before swap prefetch gets
+merged, but I've repeatedly said I'm sick of getting
+dragged back into the whole debate so I'm happy with
+whatever Andrew decides to do with it.
+
+I think it is sad to turn it off for laptops, if it
+really makes the "desktop" experience so much better.
+Surely for _most_ workloads we should be able to
+manage 1-2GB of RAM reasonably well.
+
+ 
+> this completely ignores the use case where the
+> swapping was exactly the 
+> right thing to do, but memory has been freed up from
+> a program exiting so 
+> that you couldnow fill that empty ram with data that
+> was swapped out.
+
+Yeah. However, merging patches (especially when
+changing heuristics, especially in page reclaim) is
+not about just thinking up a use-case that it works
+well for and telling people that they're putting their
+heads in the sand if they say anything against it.
+Read this thread and you'll find other examples of
+patches that have been around for as long or longer
+and also have some good use-cases and also have not
+been merged.
+
+
+
+      ____________________________________________________________________________________
+Yahoo!7 Mail has just got even bigger and better with unlimited storage on all webmail accounts. 
+http://au.docs.yahoo.com/mail/unlimitedstorage.html
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
