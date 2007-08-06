@@ -1,9 +1,9 @@
-Date: Mon, 6 Aug 2007 11:11:03 -0700 (PDT)
+Date: Mon, 6 Aug 2007 11:11:54 -0700 (PDT)
 From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [PATCH 02/10] mm: system wide ALLOC_NO_WATERMARK
-In-Reply-To: <20070806103658.107883000@chello.nl>
-Message-ID: <Pine.LNX.4.64.0708061108430.25069@schroedinger.engr.sgi.com>
-References: <20070806102922.907530000@chello.nl> <20070806103658.107883000@chello.nl>
+Subject: Re: [PATCH 03/10] mm: tag reseve pages
+In-Reply-To: <20070806103658.356795000@chello.nl>
+Message-ID: <Pine.LNX.4.64.0708061111390.25069@schroedinger.engr.sgi.com>
+References: <20070806102922.907530000@chello.nl> <20070806103658.356795000@chello.nl>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
@@ -14,12 +14,16 @@ List-ID: <linux-mm.kvack.org>
 
 On Mon, 6 Aug 2007, Peter Zijlstra wrote:
 
-> Change ALLOC_NO_WATERMARK page allocation such that dipping into the reserves
-> becomes a system wide event.
+> ===================================================================
+> --- linux-2.6-2.orig/include/linux/mm_types.h
+> +++ linux-2.6-2/include/linux/mm_types.h
+> @@ -60,6 +60,7 @@ struct page {
+>  	union {
+>  		pgoff_t index;		/* Our offset within mapping. */
+>  		void *freelist;		/* SLUB: freelist req. slab lock */
+> +		int reserve;		/* page_alloc: page is a reserve page */
 
-Shudder. That can just be a desaster for NUMA. Both performance wise and 
-logic wise. One cpuset being low on memory should not affect applications 
-in other cpusets.
+Extending page struct ???
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
