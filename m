@@ -1,46 +1,58 @@
-Subject: Re: [PATCH 02/10] mm: system wide ALLOC_NO_WATERMARK
+Subject: Re: [PATCH 00/10] foundations for reserve-based allocation
 From: Peter Zijlstra <a.p.zijlstra@chello.nl>
-In-Reply-To: <200708061121.50351.phillips@phunq.net>
+In-Reply-To: <Pine.LNX.4.64.0708061052160.24256@schroedinger.engr.sgi.com>
 References: <20070806102922.907530000@chello.nl>
-	 <20070806103658.107883000@chello.nl>
-	 <Pine.LNX.4.64.0708061108430.25069@schroedinger.engr.sgi.com>
-	 <200708061121.50351.phillips@phunq.net>
+	 <Pine.LNX.4.64.0708061052160.24256@schroedinger.engr.sgi.com>
 Content-Type: text/plain
-Date: Mon, 06 Aug 2007 20:31:02 +0200
-Message-Id: <1186425063.11797.80.camel@lappy>
+Date: Mon, 06 Aug 2007 20:33:51 +0200
+Message-Id: <1186425231.11797.84.camel@lappy>
 Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Daniel Phillips <phillips@phunq.net>
-Cc: Christoph Lameter <clameter@sgi.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, David Miller <davem@davemloft.net>, Andrew Morton <akpm@linux-foundation.org>, Daniel Phillips <phillips@google.com>, Pekka Enberg <penberg@cs.helsinki.fi>, Matt Mackall <mpm@selenic.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Steve Dickson <SteveD@redhat.com>
+To: Christoph Lameter <clameter@sgi.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, David Miller <davem@davemloft.net>, Andrew Morton <akpm@linux-foundation.org>, Daniel Phillips <phillips@google.com>, Pekka Enberg <penberg@cs.helsinki.fi>, Matt Mackall <mpm@selenic.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Steve Dickson <SteveD@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 2007-08-06 at 11:21 -0700, Daniel Phillips wrote:
-> On Monday 06 August 2007 11:11, Christoph Lameter wrote:
-> > On Mon, 6 Aug 2007, Peter Zijlstra wrote:
-> > > Change ALLOC_NO_WATERMARK page allocation such that dipping into
-> > > the reserves becomes a system wide event.
-> >
-> > Shudder. That can just be a desaster for NUMA. Both performance wise
-> > and logic wise. One cpuset being low on memory should not affect
-> > applications in other cpusets.
-
-Do note that these are only PF_MEMALLOC allocations that will break the
-cpuset. And one can argue that these are not application allocation but
-system allocations.
-
-> Currently your system likely would have died here, so ending up with a 
-> reserve page temporarily on the wrong node is already an improvement. 
+On Mon, 2007-08-06 at 10:56 -0700, Christoph Lameter wrote:
+> On Mon, 6 Aug 2007, Peter Zijlstra wrote:
 > 
-> I agree that the reserve pool should be per-node in the end, but I do 
-> not think that serves the interest of simplifying the initial patch 
-> set.  How about a numa performance patch that adds onto the end of 
-> Peter's series?
+> > We want a guarantee for N bytes from kmalloc(), this translates to a demand
+> > on the slab allocator for 2*N+m (due to the power-of-two nature of kmalloc 
+> > slabs), where m is the meta-data needed by the allocator itself.
+> 
+> The guarantee occurs in what context? Looks like its global here but 
+> allocations may be restricted to a cpuset context? What happens in a 
+> GFP_THISNODE allocation? Or a memory policy restricted allocations?
 
-Trouble with keeping this per node is that all the code dealing with the
-reserve needs to keep per-cpu state, which given that the system is
-really crawling at that moment, seems excessive.
+>From what I could understand of the low level network allocations these
+try to be node affine at best and are not subject to mempolicies due to
+taking place from irq context.
+
+> > So we need functions translating our demanded kmalloc space into a page
+> > reserve limit, and then need to provide a reserve of pages.
+> 
+> Only kmalloc? What about skb heads and such?
+
+kmalloc is the hardest thing to get right, there are also functions to
+calculate the reserves for kmem_cache like allocations, see
+kmem_estimate_pages().
+
+> > And we need to ensure that once we hit the reserve, the slab allocator honours
+> > the reserve's access. That is, a regular allocation may not get objects from
+> > a slab allocated from the reserves.
+> 
+> From a cpuset we may hit the reserves since cpuset memory is out and then 
+> the rest of the system fails allocations?
+
+No, do see patch 2/10. What we do is we fail cpuset local allocations,
+_except_ PF_MEMALLOC (or __GFP_MEMALLOC). These will break out of the
+mempolicy bounds before dipping into the reserves.
+
+This has the effect that all nodes will be low before we hit the
+reserves. Also, given that PF_MEMALLOC will usually use only a little
+amount of memory the impact of breaking out of these bounds is quite
+limited.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
