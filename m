@@ -1,185 +1,149 @@
-Received: from d01relay02.pok.ibm.com (d01relay02.pok.ibm.com [9.56.227.234])
-	by e4.ny.us.ibm.com (8.13.8/8.13.8) with ESMTP id l76GevhH022478
-	for <linux-mm@kvack.org>; Mon, 6 Aug 2007 12:40:57 -0400
-Received: from d01av01.pok.ibm.com (d01av01.pok.ibm.com [9.56.224.215])
-	by d01relay02.pok.ibm.com (8.13.8/8.13.8/NCO v8.4) with ESMTP id l76GevTe378614
-	for <linux-mm@kvack.org>; Mon, 6 Aug 2007 12:40:57 -0400
-Received: from d01av01.pok.ibm.com (loopback [127.0.0.1])
-	by d01av01.pok.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l76Geup4024618
-	for <linux-mm@kvack.org>; Mon, 6 Aug 2007 12:40:56 -0400
-Date: Mon, 6 Aug 2007 09:40:55 -0700
+Received: from d01relay04.pok.ibm.com (d01relay04.pok.ibm.com [9.56.227.236])
+	by e1.ny.us.ibm.com (8.13.8/8.13.8) with ESMTP id l76GiCWA006904
+	for <linux-mm@kvack.org>; Mon, 6 Aug 2007 12:44:12 -0400
+Received: from d01av04.pok.ibm.com (d01av04.pok.ibm.com [9.56.224.64])
+	by d01relay04.pok.ibm.com (8.13.8/8.13.8/NCO v8.4) with ESMTP id l76GiCnZ552046
+	for <linux-mm@kvack.org>; Mon, 6 Aug 2007 12:44:12 -0400
+Received: from d01av04.pok.ibm.com (loopback [127.0.0.1])
+	by d01av04.pok.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l76GiBIq026822
+	for <linux-mm@kvack.org>; Mon, 6 Aug 2007 12:44:12 -0400
+Date: Mon, 6 Aug 2007 09:44:10 -0700
 From: Nishanth Aravamudan <nacc@us.ibm.com>
-Subject: [RFC][PATCH 3/5] hugetlb: add per-node nr_hugepages sysfs attribute
-Message-ID: <20070806164055.GN15714@us.ibm.com>
-References: <20070806163254.GJ15714@us.ibm.com> <20070806163726.GK15714@us.ibm.com> <20070806163841.GL15714@us.ibm.com>
+Subject: [RFC][PATCH 4/5] hugetlb: fix cpuset-constrained pool resizing
+Message-ID: <20070806164410.GO15714@us.ibm.com>
+References: <20070806163254.GJ15714@us.ibm.com> <20070806163726.GK15714@us.ibm.com> <20070806163841.GL15714@us.ibm.com> <20070806164055.GN15714@us.ibm.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20070806163841.GL15714@us.ibm.com>
+In-Reply-To: <20070806164055.GN15714@us.ibm.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: clameter@sgi.com
-Cc: lee.schermerhorn@hp.com, wli@holomorphy.com, melgor@ie.ibm.com, akpm@linux-foundation.org, linux-mm@kvack.org, agl@us.ibm.com
+Cc: lee.schermerhorn@hp.com, wli@holomorphy.com, melgor@ie.ibm.com, akpm@linux-foundation.org, linux-mm@kvack.org, agl@us.ibm.com, pj@sgi.com
 List-ID: <linux-mm.kvack.org>
 
-Allow specifying the number of hugepages to allocate on a particular
-node. Our current global sysctl will try its best to put hugepages
-equally on each node, but that may not always be desired. This allows
-the admin to control the layout of hugepage allocation at a finer level
-(while not breaking the existing interface).  Add callbacks in the sysfs
-node registration and unregistration functions into hugetlb to add the
-nr_hugepages attribute, which is a no-op if !NUMA or !HUGETLB.
+With the previous 3 patches in this series applied, if a process is in a
+constrained cpuset, and tries to grow the hugetlb pool, hugepages may be
+allocated on nodes outside of the process' cpuset. More concretely,
+growing the pool via
 
-Tested on: 2-node IA64, 4-node ppc64 (2 memoryless nodes), 4-node ppc64
-(no memoryless nodes), 4-node x86_64, !NUMA x86, 1-node x86 (NUMA-Q)
+echo some_value > /proc/sys/vm/nr_hugepages
+
+interleaves across all nodes with memory such that hugepage allocations
+occur on nodes outside the cpuset. Similarly, this process is able to
+change the values in values in
+/sys/devices/system/node/nodeX/nr_hugepages, even when X is not in the
+cpuset. This directly violates the isolation that cpusets is supposed to
+guarantee.
+
+For pool growth: fix the sysctl case by only interleaving across the
+nodes in current's cpuset; fix the sysfs attribute case by verifying the
+requested node is in current's cpuset. For pool shrinking: both cases
+are mostly already covered by the cpuset_zone_allowed_softwall() check
+in dequeue_huge_page_node(), but make sure that we only iterate over the
+cpusets's nodes in try_to_free_low().
+
+Before:
+
+Trying to resize the pool back to     100 from the top cpuset
+Node 3 HugePages_Free:      0
+Node 2 HugePages_Free:      0
+Node 1 HugePages_Free:    100
+Node 0 HugePages_Free:      0
+Done.     100 free
+/cpuset/set1 /cpuset ~
+Trying to resize the pool to     200 from a cpuset restricted to node 1
+Node 3 HugePages_Free:      0
+Node 2 HugePages_Free:      0
+Node 1 HugePages_Free:    150
+Node 0 HugePages_Free:     50
+Done.     200 free
+Trying to shrink the pool on node 0 down to 0 from a cpuset restricted
+to node 1
+Node 3 HugePages_Free:      0
+Node 2 HugePages_Free:      0
+Node 1 HugePages_Free:    150
+Node 0 HugePages_Free:      0
+Done.     150 free
+
+After:
+
+Trying to resize the pool back to     100 from the top cpuset
+Node 3 HugePages_Free:      0
+Node 2 HugePages_Free:      0
+Node 1 HugePages_Free:    100
+Node 0 HugePages_Free:      0
+Done.     100 free
+/cpuset/set1 /cpuset ~
+Trying to resize the pool to     200 from a cpuset restricted to node 1
+Node 3 HugePages_Free:      0
+Node 2 HugePages_Free:      0
+Node 1 HugePages_Free:    200
+Node 0 HugePages_Free:      0
+Done.     200 free
+Trying to grow the pool on node 0 up to 50 from a cpuset restricted to
+node 1
+Node 3 HugePages_Free:      0
+Node 2 HugePages_Free:      0
+Node 1 HugePages_Free:    200
+Node 0 HugePages_Free:      0
+Done.     200 free
 
 Signed-off-by: Nishanth Aravamudan <nacc@us.ibm.com>
 
-diff --git a/drivers/base/node.c b/drivers/base/node.c
-index cae346e..c9d531f 100644
---- a/drivers/base/node.c
-+++ b/drivers/base/node.c
-@@ -151,6 +151,7 @@ int register_node(struct node *node, int num, struct node *parent)
- 		sysdev_create_file(&node->sysdev, &attr_meminfo);
- 		sysdev_create_file(&node->sysdev, &attr_numastat);
- 		sysdev_create_file(&node->sysdev, &attr_distance);
-+		hugetlb_register_node(node);
- 	}
- 	return error;
- }
-@@ -168,6 +169,7 @@ void unregister_node(struct node *node)
- 	sysdev_remove_file(&node->sysdev, &attr_meminfo);
- 	sysdev_remove_file(&node->sysdev, &attr_numastat);
- 	sysdev_remove_file(&node->sysdev, &attr_distance);
-+	hugetlb_unregister_node(node);
- 
- 	sysdev_unregister(&node->sysdev);
- }
-diff --git a/include/linux/hugetlb.h b/include/linux/hugetlb.h
-index 49b7053..2fc188a 100644
---- a/include/linux/hugetlb.h
-+++ b/include/linux/hugetlb.h
-@@ -4,7 +4,9 @@
- #ifdef CONFIG_HUGETLB_PAGE
- 
- #include <linux/mempolicy.h>
-+#include <linux/node.h>
- #include <linux/shm.h>
-+#include <linux/sysdev.h>
- #include <asm/tlbflush.h>
- 
- struct ctl_table;
-@@ -23,6 +25,13 @@ void __unmap_hugepage_range(struct vm_area_struct *, unsigned long, unsigned lon
- int hugetlb_prefault(struct address_space *, struct vm_area_struct *);
- int hugetlb_report_meminfo(char *);
- int hugetlb_report_node_meminfo(int, char *);
-+#ifdef CONFIG_NUMA
-+int hugetlb_register_node(struct node *);
-+void hugetlb_unregister_node(struct node *);
-+#else
-+#define hugetlb_register_node(node)		0
-+#define hugetlb_unregister_node(node)		((void)0)
-+#endif
- unsigned long hugetlb_total_pages(void);
- int hugetlb_fault(struct mm_struct *mm, struct vm_area_struct *vma,
- 			unsigned long address, int write_access);
-@@ -114,6 +123,8 @@ static inline unsigned long hugetlb_total_pages(void)
- #define unmap_hugepage_range(vma, start, end)	BUG()
- #define hugetlb_report_meminfo(buf)		0
- #define hugetlb_report_node_meminfo(n, buf)	0
-+#define hugetlb_register_node(node)		0
-+#define hugetlb_unregister_node(node)		((void)0)
- #define follow_huge_pmd(mm, addr, pmd, write)	NULL
- #define prepare_hugepage_range(addr,len,pgoff)	(-EINVAL)
- #define pmd_huge(x)	0
 diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-index 31c4359..3f3df46 100644
+index 09ad639..af07a0b 100644
 --- a/mm/hugetlb.c
 +++ b/mm/hugetlb.c
-@@ -217,7 +217,6 @@ static unsigned int cpuset_mems_nr(unsigned int *array)
- 	return nr;
- }
+@@ -181,6 +181,10 @@ static int __init hugetlb_init(void)
+ 	for_each_node_state(i, N_HIGH_MEMORY)
+ 		INIT_LIST_HEAD(&hugepage_freelists[i]);
  
--#ifdef CONFIG_SYSCTL
- static void update_and_free_page(int nid, struct page *page)
++	/*
++	 * at boot-time, interleave across all available nodes as there
++	 * is not any corresponding cpuset/process
++	 */
+ 	pol = mpol_new(MPOL_INTERLEAVE, &node_states[N_HIGH_MEMORY]);
+ 	if (IS_ERR(pol))
+ 		goto quit;
+@@ -258,7 +262,7 @@ static void try_to_free_low(unsigned long count)
  {
  	int i;
-@@ -270,6 +269,7 @@ static inline void try_to_free_low(unsigned long count)
- }
- #endif
  
-+#ifdef CONFIG_SYSCTL
- static unsigned long set_max_huge_pages(unsigned long count)
+-	for_each_node_state(i, N_HIGH_MEMORY) {
++	for_each_node_mask(i, cpuset_current_mems_allowed) {
+ 		try_to_free_low_node(i, count);
+ 		if (count >= nr_huge_pages)
+ 			return;
+@@ -278,7 +282,7 @@ static unsigned long set_max_huge_pages(unsigned long count)
  {
  	struct mempolicy *pol;
-@@ -343,6 +343,67 @@ int hugetlb_report_node_meminfo(int nid, char *buf)
- 		nid, free_huge_pages_node[nid]);
- }
  
-+#ifdef CONFIG_NUMA
-+static ssize_t hugetlb_read_nr_hugepages_node(struct sys_device *dev,
-+							char *buf)
-+{
-+	return sprintf(buf, "%u\n", nr_huge_pages_node[dev->id]);
-+}
-+
-+static ssize_t hugetlb_write_nr_hugepages_node(struct sys_device *dev,
-+					const char *buf, size_t count)
-+{
-+	int nid = dev->id;
-+	unsigned long target;
-+	unsigned long free_on_other_nodes;
-+	unsigned long nr_huge_pages_req = simple_strtoul(buf, NULL, 10);
-+
-+	while (nr_huge_pages_req > nr_huge_pages_node[nid]) {
-+		if (!alloc_fresh_huge_page_node(nid))
-+			return count;
-+	}
-+	if (nr_huge_pages_req >= nr_huge_pages_node[nid])
+-	pol = mpol_new(MPOL_INTERLEAVE, &node_states[N_HIGH_MEMORY]);
++	pol = mpol_new(MPOL_INTERLEAVE, &cpuset_current_mems_allowed);
+ 	if (IS_ERR(pol))
+ 		return nr_huge_pages;
+ 	/*
+@@ -286,7 +290,7 @@ static unsigned long set_max_huge_pages(unsigned long count)
+ 	 * process, we need to make sure il_next has a good starting
+ 	 * value
+ 	 */
+-	set_first_interleave_node(node_states[N_HIGH_MEMORY]);
++	set_first_interleave_node(cpuset_current_mems_allowed);
+ 	while (count > nr_huge_pages) {
+ 		if (!alloc_fresh_huge_page(pol))
+ 			break;
+@@ -368,6 +372,10 @@ static ssize_t hugetlb_write_nr_hugepages_node(struct sys_device *dev,
+ 	unsigned long free_on_other_nodes;
+ 	unsigned long nr_huge_pages_req = simple_strtoul(buf, NULL, 10);
+ 
++	/* prevent per-node allocations from outside the allowed cpuset */
++	if (!node_isset(nid, cpuset_current_mems_allowed))
 +		return count;
 +
-+	/* need to ensure that our counts are accurate */
-+	spin_lock(&hugetlb_lock);
-+	free_on_other_nodes = free_huge_pages - free_huge_pages_node[nid];
-+	if (free_on_other_nodes >= resv_huge_pages) {
-+		/* other nodes can satisfy reserve */
-+		target = nr_huge_pages_req;
-+	} else {
-+		/* this node needs some free to satisfy reserve */
-+		target = max((resv_huge_pages - free_on_other_nodes),
-+						nr_huge_pages_req);
-+	}
-+	try_to_free_low_node(nid, target);
-+	while (target < nr_huge_pages_node[nid]) {
-+		struct page *page = dequeue_huge_page_node(nid);
-+		if (!page)
-+			break;
-+		update_and_free_page(nid, page);
-+	}
-+	spin_unlock(&hugetlb_lock);
-+
-+	return count;
-+}
-+
-+static SYSDEV_ATTR(nr_hugepages, S_IRUGO | S_IWUSR,
-+			hugetlb_read_nr_hugepages_node,
-+			hugetlb_write_nr_hugepages_node);
-+
-+int hugetlb_register_node(struct node *node)
-+{
-+	return sysdev_create_file(&node->sysdev, &attr_nr_hugepages);
-+}
-+
-+void hugetlb_unregister_node(struct node *node)
-+{
-+	sysdev_remove_file(&node->sysdev, &attr_nr_hugepages);
-+}
-+
-+#endif
-+
- /* Return the number pages of memory we physically have, in PAGE_SIZE units. */
- unsigned long hugetlb_total_pages(void)
- {
+ 	while (nr_huge_pages_req > nr_huge_pages_node[nid]) {
+ 		if (!alloc_fresh_huge_page_node(nid))
+ 			return count;
 
 -- 
 Nishanth Aravamudan <nacc@us.ibm.com>
