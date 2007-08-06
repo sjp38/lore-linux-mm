@@ -1,31 +1,39 @@
-Date: Mon, 6 Aug 2007 12:18:13 -0700 (PDT)
-From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [PATCH] Apply memory policies to top two highest zones when
- highest zone is ZONE_MOVABLE
-In-Reply-To: <20070806121558.e1977ba5.akpm@linux-foundation.org>
-Message-ID: <Pine.LNX.4.64.0708061216570.7603@schroedinger.engr.sgi.com>
-References: <20070802172118.GD23133@skynet.ie> <200708040002.18167.ak@suse.de>
- <20070806121558.e1977ba5.akpm@linux-foundation.org>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Date: Mon, 6 Aug 2007 12:22:04 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH 2/2] wait for page writeback when directly reclaiming
+ contiguous areas
+Message-Id: <20070806122204.924fa0e9.akpm@linux-foundation.org>
+In-Reply-To: <7bdbf266c3f68dc57a9cf7469c2652a5@pinky>
+References: <exportbomb.1186077923@pinky>
+	<7bdbf266c3f68dc57a9cf7469c2652a5@pinky>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Andi Kleen <ak@suse.de>, Mel Gorman <mel@skynet.ie>, Lee.Schermerhorn@hp.com, kamezawa.hiroyu@jp.fujitsu.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Andy Whitcroft <apw@shadowen.org>
+Cc: Mel Gorman <mel@csn.ul.ie>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 6 Aug 2007, Andrew Morton wrote:
+On Thu, 02 Aug 2007 19:18:43 +0100 Andy Whitcroft <apw@shadowen.org> wrote:
 
-> If correct, I would suggest merging the horrible hack for .23 then taking
-> it out when we merge "grouping pages by mobility".  But what if we don't do
-> that merge?
+> @@ -458,8 +475,15 @@ static unsigned long shrink_page_list(struct list_head *page_list,
+>  		if (page_mapped(page) || PageSwapCache(page))
+>  			sc->nr_scanned++;
+>  
+> -		if (PageWriteback(page))
+> -			goto keep_locked;
+> +		may_enter_fs = (sc->gfp_mask & __GFP_FS) ||
+> +			(PageSwapCache(page) && (sc->gfp_mask & __GFP_IO));
+> +
+> +		if (PageWriteback(page)) {
+> +			if (sync_writeback == PAGEOUT_IO_SYNC && may_enter_fs)
+> +				wait_on_page_writeback(page);
+> +			else
+> +				goto keep_locked;
+> +		}
 
-Take the horrible hack for .23.
-
-For .24 either merge the mobility or get the other solution that Mel is 
-working on. That solution would only use a single zonelist per node and 
-filter on the fly. That may help performance and also help to make memory 
-policies work better.
+this bit could do with a comment explaining the design decisions, please.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
