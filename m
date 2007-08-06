@@ -1,89 +1,39 @@
-Subject: Re: [PATCH 02/10] mm: system wide ALLOC_NO_WATERMARK
-From: Peter Zijlstra <a.p.zijlstra@chello.nl>
-In-Reply-To: <Pine.LNX.4.64.0708061315510.7603@schroedinger.engr.sgi.com>
-References: <20070806102922.907530000@chello.nl>
-	 <200708061121.50351.phillips@phunq.net>
-	 <Pine.LNX.4.64.0708061141511.3152@schroedinger.engr.sgi.com>
-	 <200708061148.43870.phillips@phunq.net>
-	 <Pine.LNX.4.64.0708061150270.7603@schroedinger.engr.sgi.com>
-	 <20070806201257.GG11115@waste.org>
-	 <Pine.LNX.4.64.0708061315510.7603@schroedinger.engr.sgi.com>
-Content-Type: multipart/signed; micalg=pgp-sha1; protocol="application/pgp-signature"; boundary="=-j9ombzTnzJ7u0ISCI54Z"
-Date: Mon, 06 Aug 2007 22:26:32 +0200
-Message-Id: <1186431992.7182.33.camel@twins>
-Mime-Version: 1.0
+In-reply-to: <20070803123712.987126000@chello.nl> (message from Peter Zijlstra
+	on Fri, 03 Aug 2007 14:37:13 +0200)
+Subject: Re: [PATCH 00/23] per device dirty throttling -v8
+References: <20070803123712.987126000@chello.nl>
+Message-Id: <E1II99f-0005mv-00@dorka.pomaz.szeredi.hu>
+From: Miklos Szeredi <miklos@szeredi.hu>
+Date: Mon, 06 Aug 2007 22:26:19 +0200
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
-Cc: Matt Mackall <mpm@selenic.com>, Daniel Phillips <phillips@phunq.net>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, David Miller <davem@davemloft.net>, Andrew Morton <akpm@linux-foundation.org>, Daniel Phillips <phillips@google.com>, Pekka Enberg <penberg@cs.helsinki.fi>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Steve Dickson <SteveD@redhat.com>
+To: a.p.zijlstra@chello.nl
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, miklos@szeredi.hu, akpm@linux-foundation.org, neilb@suse.de, dgc@sgi.com, tomoki.sekiyama.qu@hitachi.com, nikita@clusterfs.com, trond.myklebust@fys.uio.no, yingchao.zhou@gmail.com, richard@rsk.demon.co.uk, torvalds@linux-foundation.org
 List-ID: <linux-mm.kvack.org>
 
---=-j9ombzTnzJ7u0ISCI54Z
-Content-Type: text/plain
-Content-Transfer-Encoding: quoted-printable
+> Per device dirty throttling patches
 
-On Mon, 2007-08-06 at 13:19 -0700, Christoph Lameter wrote:
-> On Mon, 6 Aug 2007, Matt Mackall wrote:
->=20
-> > > > Because a block device may have deadlocked here, leaving the system=
-=20
-> > > > unable to clean dirty memory, or unable to load executables over th=
-e=20
-> > > > network for example.
-> > >=20
-> > > So this is a locking problem that has not been taken care of?
-> >=20
-> > No.
-> >=20
-> > It's very simple:
-> >=20
-> > 1) memory becomes full
->=20
-> We do have limits to avoid memory getting too full.
->=20
-> > 2) we try to free memory by paging or swapping
-> > 3) I/O requires a memory allocation which fails because memory is full
-> > 4) box dies because it's unable to dig itself out of OOM
-> >=20
-> > Most I/O paths can deal with this by having a mempool for their I/O
-> > needs. For network I/O, this turns out to be prohibitively hard due to
-> > the complexity of the stack.
->=20
-> The common solution is to have a reserve (min_free_kbytes).=20
+Andrew, may I inquire about your plans with this?
 
-This patch set builds on that. Trouble with min_free_kbytes is the
-relative nature of ALLOC_HIGH and ALLOC_HARDER.
+> These patches aim to improve balance_dirty_pages() and directly address three
+> issues:
+>   1) inter device starvation
+>   2) stacked device deadlocks
 
-> The problem=20
-> with the network stack seems to be that the amount of reserve needed=20
-> cannot be predicted accurately.
->=20
-> The solution may be as simple as configuring the reserves right and=20
-> avoid the unbounded memory allocations.=20
+This one interests me most, due to various real life, reported
+problems with fuse filesystems.  For this reason I'd really like to
+get this or a subset of it into mainline as soon as possible.
 
-Which is what the next series of patches will be doing. Please do look
-in detail at these networked swap patches I've been posting for the last
-year or so.
+This patchset (or rather the -v7 version) has been running on my
+laptop for a couple of weeks without problems.  I've also verified
+that it solves the fuse and loop issues.
 
-> That is possible if one=20
-> would make sure that the network layer triggers reclaim once in a=20
-> while.
+I have some qualms about the complexity of various parts though.
+Especially the "proportions" library, which I'm having problems
+understanding.  I'm not sure that this level of sophistication is
+really needed to solve the issues with the old code.
 
-This does not make sense, we cannot reclaim from reclaim.
-
---=-j9ombzTnzJ7u0ISCI54Z
-Content-Type: application/pgp-signature; name=signature.asc
-Content-Description: This is a digitally signed message part
-
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v1.4.6 (GNU/Linux)
-
-iD8DBQBGt4P4XA2jU0ANEf4RAvHDAJ4hcHpsFJPqLHGQMoQ1hCNYsYxC5ACfd6E3
-ciEp6wvG+MRy3AItvJtVcLk=
-=nuNO
------END PGP SIGNATURE-----
-
---=-j9ombzTnzJ7u0ISCI54Z--
+Miklos
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
