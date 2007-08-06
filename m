@@ -1,55 +1,43 @@
-Date: Mon, 6 Aug 2007 09:47:18 -0400
-From: Chris Mason <chris.mason@oracle.com>
+Date: Mon, 6 Aug 2007 11:59:19 -0400
+From: Dave Jones <davej@redhat.com>
 Subject: Re: [PATCH 00/23] per device dirty throttling -v8
-Message-ID: <20070806094718.73a4539c@think.oraclecorp.com>
-In-Reply-To: <20070805150029.GB28263@thunk.org>
-References: <20070803123712.987126000@chello.nl>
-	<alpine.LFD.0.999.0708031518440.8184@woody.linux-foundation.org>
-	<20070804063217.GA25069@elte.hu>
-	<20070804070737.GA940@elte.hu>
-	<20070804103347.GA1956@elte.hu>
-	<alpine.LFD.0.999.0708040915360.5037@woody.linux-foundation.org>
-	<20070804163733.GA31001@elte.hu>
-	<p73hcnen7w2.fsf@bingen.suse.de>
-	<20070805150029.GB28263@thunk.org>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Message-ID: <20070806155919.GA21066@redhat.com>
+References: <46B4C0A8.1000902@garzik.org> <20070804191205.GA24723@lazybastard.org> <20070804192130.GA25346@elte.hu> <20070804211156.5f600d80@the-village.bc.nu> <20070804202830.GA4538@elte.hu> <20070804210351.GA9784@elte.hu> <20070804225121.5c7b66e0@the-village.bc.nu> <20070805072141.GA4414@elte.hu> <20070805184408.GB22639@redhat.com> <20070806063909.GB31321@elte.hu>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20070806063909.GB31321@elte.hu>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Theodore Tso <tytso@mit.edu>
-Cc: Andi Kleen <andi@firstfloor.org>, Ingo Molnar <mingo@elte.hu>, Linus Torvalds <torvalds@linux-foundation.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, miklos@szeredi.hu, akpm@linux-foundation.org, neilb@suse.de, dgc@sgi.com, tomoki.sekiyama.qu@hitachi.com, nikita@clusterfs.com, trond.myklebust@fys.uio.no, yingchao.zhou@gmail.com, richard@rsk.demon.co.uk
+To: Ingo Molnar <mingo@elte.hu>
+Cc: Alan Cox <alan@lxorguk.ukuu.org.uk>, J??rn Engel <joern@logfs.org>, Jeff Garzik <jeff@garzik.org>, Linus Torvalds <torvalds@linux-foundation.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, linux-mm@kvack.org, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, miklos@szeredi.hu, akpm@linux-foundation.org, neilb@suse.de, dgc@sgi.com, tomoki.sekiyama.qu@hitachi.com, nikita@clusterfs.com, trond.myklebust@fys.uio.no, yingchao.zhou@gmail.com, richard@rsk.demon.co.uk, david@lang.hm
 List-ID: <linux-mm.kvack.org>
 
-On Sun, 5 Aug 2007 11:00:29 -0400
-Theodore Tso <tytso@mit.edu> wrote:
+On Mon, Aug 06, 2007 at 08:39:09AM +0200, Ingo Molnar wrote:
+ > 
+ > * Dave Jones <davej@redhat.com> wrote:
+ > 
+ > >  > btw., Mutt does not go boom, i use it myself. It works just fine 
+ > >  > and notices new mails even on a noatime,nodiratime filesystem.
+ > >  
+ > > It still fails miserably for me.
+ > > 
+ > > If I hit 'C' and '?' I get a list of my mail folders, with some of 
+ > > them marked 'N' if they have new mail.  Without atime, those N's never 
+ > > show up and every mbox looks like it has no new mail.
+ > 
+ > does it work with the "atime on steroids" patch below? (no need to 
+ > configure anything, just apply the patch and go.)
 
-> On Sun, Aug 05, 2007 at 02:26:53AM +0200, Andi Kleen wrote:
-> > I always thought the right solution would be to just sync atime only
-> > very very lazily. This means if a inode is only dirty because of an
-> > atime update put it on a "only write out when there is nothing to do
-> > or the memory is really needed" list.
-> 
-> As I've mentioend earlier, the memory balancing issues that arise when
-> we add an "atime dirty" bit scare me a little.  It can be addressed,
-> obviously, but at the cost of more code complexity.
+people have reported that relatime does work, but my util-linux
+isn't new enough to support it, so I've never got it to work.
+I'll give your diff a try later, though as it seems to be
+equivalent I expect it'll work.
 
-ext3 and reiser both use a dirty_inode method to make sure that we
-don't actually have dirty inodes.  This way, kswapd doesn't get stuck
-on the log and is able to do real work.
+	Dave
 
-It would be interesting to see a comparison of relatime with a kinoded
-that is willing to get stuck on the log.  The FS would need a few
-tweaks so that write_inode() could know if it really needed to log or
-not, but for testing you could just drop ext3_dirty_inode and have
-ext3_write_inode do real work.
-
-Then just change kswapd to kick a new kinoded and benchmark away.  A
-real patch would have to look for places where mark_inode_dirty was
-used and expected the dirty_inode callback to log things right away,
-but for testing its good enough.
-
--chris
+-- 
+http://www.codemonkey.org.uk
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
