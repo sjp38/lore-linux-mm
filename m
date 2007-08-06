@@ -1,54 +1,50 @@
-Received: by wa-out-1112.google.com with SMTP id m33so1864608wag
-        for <linux-mm@kvack.org>; Mon, 06 Aug 2007 05:53:21 -0700 (PDT)
-Message-ID: <288dbef70708060553i4405f8d9lefa6132c86190d7b@mail.gmail.com>
-Date: Mon, 6 Aug 2007 20:53:20 +0800
-From: "Shaohua Li" <shaoh.li@gmail.com>
-Subject: swap out memory
-MIME-Version: 1.0
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Date: Mon, 6 Aug 2007 15:12:15 +0200
+From: Willy Tarreau <w@1wt.eu>
+Subject: Re: [PATCH 00/23] per device dirty throttling -v8
+Message-ID: <20070806131215.GC10999@1wt.eu>
+References: <20070803123712.987126000@chello.nl> <46B4E161.9080100@garzik.org> <20070804224706.617500a0@the-village.bc.nu> <200708050051.40758.ctpm@ist.utl.pt> <20070805014926.400d0608@the-village.bc.nu> <20070805072805.GB4414@elte.hu> <20070805134640.2c7d1140@the-village.bc.nu> <20070805125847.GC22060@elte.hu> <20070805132925.GA4089@1wt.eu> <20070806065712.GA2818@elte.hu>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
+In-Reply-To: <20070806065712.GA2818@elte.hu>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-fsdevel@vger.kernel.org, linux-mm@kvack.org
-Cc: hch@infradead.org
+To: Ingo Molnar <mingo@elte.hu>
+Cc: Alan Cox <alan@lxorguk.ukuu.org.uk>, Claudio Martins <ctpm@ist.utl.pt>, Jeff Garzik <jeff@garzik.org>, =?iso-8859-1?Q?J=F6rn?= Engel <joern@logfs.org>, Linus Torvalds <torvalds@linux-foundation.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, linux-mm@kvack.org, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, miklos@szeredi.hu, akpm@linux-foundation.org, neilb@suse.de, dgc@sgi.com, tomoki.sekiyama.qu@hitachi.com, nikita@clusterfs.com, trond.myklebust@fys.uio.no, yingchao.zhou@gmail.com, richard@rsk.demon.co.uk, david@lang.hm
 List-ID: <linux-mm.kvack.org>
 
-Hi,
-I'm trying to swap out kvm guest pages. The idea is to free some pages
-when memory pressure is high. kvm has special things to handle like
-shadow page tables. Before guest page is released, we need free some
-data, that is guest page has 'private' data, so we can't directly make
-the guest page swapout with Linux swapout mechanism. I'd like write
-guest pages to a file or swap. kvm guest pages are in its address
-space and added into lru list like normal page (the address space is
-very like a shmem file's, kvm has a memory based file system). When
-vmscan decided to free one guest page, kvm guest pages's
-aops.writepage will free the private data and then write it out to
-block device. The problem is how to write guest pages. I thought we
-have some choices:
+On Mon, Aug 06, 2007 at 08:57:12AM +0200, Ingo Molnar wrote:
+> 
+> * Willy Tarreau <w@1wt.eu> wrote:
+> 
+> > In your example above, maybe it's the opposite, users know they can 
+> > keep a file in /tmp one more week by simply cat'ing it.
+> 
+> sure - and i'm not arguing that noatime should the kernel-wide default. 
+> In every single patch i sent it was a .config option (and a boot option 
+> _and_ a sysctl option that i think you missed) that a user/distro 
+> enables or disabled. But i think the /tmp argument is not very strong: 
+> /tmp is fundamentally volatile, and you can grow dependencies on pretty 
+> much _any_ aspect of the kernel. So the question isnt "is there impact" 
+> (there is, at least for noatime), the question is "is it still worth 
+> doing it".
+> 
+> > Changing the kernel in a non-easily reversible way is not kind to the 
+> > users.
+> 
+> none of my patches did any of that...
 
-1. swap it to swapfile. Like shmem does, using move_to_swap_cache to
-move guest page from its address space to swap address space, and
-finally it's written to swapfile. This method works well, but as kvm
-is a module, I must export some swap relelated APIs, which Christoph
-Hellwig dislike.
+I did not notice you talked about a sysctl. A sysctl provides the ability
+to switch the behaviour without rebooting, while both the config option
+and the command line require a reboot.
 
-2. write it to a file. Just like the stack fs does, in kvm address
-space's .writepage, let low fs's aops write the page. This involves
-allocating a new page for low fs file and copy kvm page to the new
-page. As this (doing swap) is done when memory is tight, allocating
-new page isn't good. The copy isn't good too.
+> anyway, my latest patch doesnt do noatime, it does the "more intelligent 
+> relatime" approach.
 
-3.write it to a file. Using bmap to get file's block info and using
-low level sumbit_bio for read/write. This is like what swapfile does,
-but we do it by ourselves, so don't need use swap symbols.
+... which is not equivalent noatime in the initial example.
 
-Do you have any suggestion which method is good, or if you have better
-choice I could try?
-
-Thanks,
-Shaohua
+Regards,
+Willy
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
