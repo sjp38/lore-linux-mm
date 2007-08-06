@@ -1,54 +1,48 @@
-From: Daniel Phillips <phillips@phunq.net>
+Date: Mon, 6 Aug 2007 16:14:59 -0700 (PDT)
+From: Christoph Lameter <clameter@sgi.com>
 Subject: Re: [PATCH 02/10] mm: system wide ALLOC_NO_WATERMARK
-Date: Mon, 6 Aug 2007 15:59:41 -0700
-References: <20070806102922.907530000@chello.nl> <1186431992.7182.33.camel@twins> <Pine.LNX.4.64.0708061404300.3116@schroedinger.engr.sgi.com>
-In-Reply-To: <Pine.LNX.4.64.0708061404300.3116@schroedinger.engr.sgi.com>
+In-Reply-To: <200708061559.41680.phillips@phunq.net>
+Message-ID: <Pine.LNX.4.64.0708061605400.5090@schroedinger.engr.sgi.com>
+References: <20070806102922.907530000@chello.nl> <1186431992.7182.33.camel@twins>
+ <Pine.LNX.4.64.0708061404300.3116@schroedinger.engr.sgi.com>
+ <200708061559.41680.phillips@phunq.net>
 MIME-Version: 1.0
-Content-Type: text/plain;
-  charset="iso-8859-1"
-Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
-Message-Id: <200708061559.41680.phillips@phunq.net>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
+To: Daniel Phillips <phillips@phunq.net>
 Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, Matt Mackall <mpm@selenic.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, David Miller <davem@davemloft.net>, Andrew Morton <akpm@linux-foundation.org>, Daniel Phillips <phillips@google.com>, Pekka Enberg <penberg@cs.helsinki.fi>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Steve Dickson <SteveD@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
-On Monday 06 August 2007 14:05, Christoph Lameter wrote:
-> > > That is possible if one
-> > > would make sure that the network layer triggers reclaim once in a
-> > > while.
-> >
-> > This does not make sense, we cannot reclaim from reclaim.
->
-> But we should limit the amounts of allocation we do while performing
-> reclaim...
+On Mon, 6 Aug 2007, Daniel Phillips wrote:
 
-Correct.  That is what the throttling part of these patches is about.  
-In order to fix the vm writeout deadlock problem properly, two things 
-are necessary:
+> Correct.  That is what the throttling part of these patches is about.  
 
-  1) Throttle the vm writeout path to use a bounded amount of memory
+Where are those patches?
 
-  2) Provide access to a sufficiently large amount of reserve memory for 
-each memory user in the vm writeout path
+> In order to fix the vm writeout deadlock problem properly, two things 
+> are necessary:
+> 
+>   1) Throttle the vm writeout path to use a bounded amount of memory
+> 
+>   2) Provide access to a sufficiently large amount of reserve memory for 
+> each memory user in the vm writeout path
+> 
+> You can understand every detail of this patch set and the following ones 
+> coming from Peter in terms of those two requirements.
 
-You can understand every detail of this patch set and the following ones 
-coming from Peter in terms of those two requirements.
+AFAICT: This patchset is not throttling processes but failing allocations. 
+The patchset does not reconfigure the memory reserves as expected. Instead 
+new reserve logic is added. And I suspect that we have the same issues as 
+in earlier releases with various corner cases not being covered. Code is 
+added that is supposedly not used. If it ever is on a large config then we 
+are in very deep trouble by the new code paths themselves that serialize 
+things in order to give some allocations precendence over the other 
+allocations that are made to fail ....
 
-> F.e. refilling memory pools during reclaim should be disabled.
 
-Actually, recursing into the vm should be disabled entirely but that is 
-a rather deeply ingrained part of mm culture we do not propose to 
-fiddle with just now.
 
-Memory pools are refilled when the pool user frees some memory, not ever 
-by the mm.
 
-Regards,
-
-Daniel
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
