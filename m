@@ -1,157 +1,82 @@
-Received: from d01relay02.pok.ibm.com (d01relay02.pok.ibm.com [9.56.227.234])
-	by e2.ny.us.ibm.com (8.13.8/8.13.8) with ESMTP id l76GmhuC029536
-	for <linux-mm@kvack.org>; Mon, 6 Aug 2007 12:48:43 -0400
-Received: from d01av03.pok.ibm.com (d01av03.pok.ibm.com [9.56.224.217])
-	by d01relay02.pok.ibm.com (8.13.8/8.13.8/NCO v8.4) with ESMTP id l76GmhOJ452908
-	for <linux-mm@kvack.org>; Mon, 6 Aug 2007 12:48:43 -0400
-Received: from d01av03.pok.ibm.com (loopback [127.0.0.1])
-	by d01av03.pok.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l76GmhRG015434
-	for <linux-mm@kvack.org>; Mon, 6 Aug 2007 12:48:43 -0400
-Date: Mon, 6 Aug 2007 09:48:42 -0700
-From: Nishanth Aravamudan <nacc@us.ibm.com>
-Subject: [RFC][PATCH 5/5] hugetlb: interleave dequeueing of huge pages
-Message-ID: <20070806164842.GQ15714@us.ibm.com>
-References: <20070806163254.GJ15714@us.ibm.com> <20070806163726.GK15714@us.ibm.com> <20070806163841.GL15714@us.ibm.com> <20070806164055.GN15714@us.ibm.com> <20070806164410.GO15714@us.ibm.com>
+From: Daniel Phillips <phillips@phunq.net>
+Subject: Re: [PATCH 00/10] foundations for reserve-based allocation
+Date: Mon, 6 Aug 2007 10:35:18 -0700
+References: <20070806102922.907530000@chello.nl>
+In-Reply-To: <20070806102922.907530000@chello.nl>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain;
+  charset="iso-8859-1"
+Content-Transfer-Encoding: 7bit
 Content-Disposition: inline
-In-Reply-To: <20070806164410.GO15714@us.ibm.com>
+Message-Id: <200708061035.18742.phillips@phunq.net>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: clameter@sgi.com
-Cc: lee.schermerhorn@hp.com, wli@holomorphy.com, melgor@ie.ibm.com, akpm@linux-foundation.org, linux-mm@kvack.org, agl@us.ibm.com
+To: Peter Zijlstra <a.p.zijlstra@chello.nl>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, David Miller <davem@davemloft.net>, Andrew Morton <akpm@linux-foundation.org>, Daniel Phillips <phillips@google.com>, Pekka Enberg <penberg@cs.helsinki.fi>, Christoph Lameter <clameter@sgi.com>, Matt Mackall <mpm@selenic.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Steve Dickson <SteveD@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
-Currently, when shrinking the hugetlb pool, we free all of the pages on
-node 0, then all the pages on node 1, etc. Instead, we interleave over
-the valid nodes, as constrained by the enclosing cpuset (or populated
-nodes if !CPUSETS). If some particularly node should be cleared first,
-the sysfs allocator can be used for finer-grained control. This also
-helps with keeping the pool balanced as we change the pool at run-time.
+On Monday 06 August 2007 03:29, Peter Zijlstra wrote:
+> In the interrest of getting swap over network working and posting in
+> smaller series, here is the first series.
+>
+> This series lays the foundations needed to do reserve based
+> allocation. Traditionally we have used mempools (and others like
+> radix_tree_preload) to handle the problem.
+>
+> However this does not fit the network stack. It is built around
+> variable sized allocations using kmalloc().
+>
+> This calls for a different approach.
+>
+> We want a guarantee for N bytes from kmalloc(), this translates to a
+> demand on the slab allocator for 2*N+m (due to the power-of-two
+> nature of kmalloc slabs), where m is the meta-data needed by the
+> allocator itself.
 
-Before:
+Where does the 2* come from?  Isn't it exp2(ceil(log2(N + m)))?
 
-Trying to clear the hugetlb pool
-Done.       0 free
-Trying to resize the pool to 100
-Node 3 HugePages_Free:      0
-Node 2 HugePages_Free:      0
-Node 1 HugePages_Free:     50
-Node 0 HugePages_Free:     50
-Done. Initially     100 free
-Trying to resize the pool to 200
-Node 3 HugePages_Free:      0
-Node 2 HugePages_Free:      0
-Node 1 HugePages_Free:    100
-Node 0 HugePages_Free:    100
-Done.     200 free
-Trying to resize the pool back to     100
-Node 3 HugePages_Free:      0
-Node 2 HugePages_Free:      0
-Node 1 HugePages_Free:    100
-Node 0 HugePages_Free:      0
-Done.     100 free
+> The slab allocator then puts a demand of P pages on the page
+> allocator.
+>
+> So we need functions translating our demanded kmalloc space into a
+> page reserve limit, and then need to provide a reserve of pages.
+> 
+> And we need to ensure that once we hit the reserve, the slab
+> allocator honours the reserve's access. That is, a regular allocation
+> may not get objects from a slab allocated from the reserves.
 
-After:
+Patch [3/10] adds a new field to struct page.  I do not think this is 
+necessary.   Allocating a page from reserve does not make it special.  
+All we care about is that the total number of pages taken out of 
+reserve is balanced by the total pages freed by a user of the reserve.
 
-Trying to clear the hugetlb pool
-Done.       0 free
-Trying to resize the pool to 100
-Node 3 HugePages_Free:      0
-Node 2 HugePages_Free:      0
-Node 1 HugePages_Free:     50
-Node 0 HugePages_Free:     50
-Done. Initially     100 free
-Trying to resize the pool to 200
-Node 3 HugePages_Free:      0
-Node 2 HugePages_Free:      0
-Node 1 HugePages_Free:    100
-Node 0 HugePages_Free:    100
-Done.     200 free
-Trying to resize the pool back to     100
-Node 3 HugePages_Free:      0
-Node 2 HugePages_Free:      0
-Node 1 HugePages_Free:     50
-Node 0 HugePages_Free:     50
-Done.     100 free
+We do care about slab fragmentation in the sense that a slab page may be 
+pinned in the slab by an unprivileged allocation and so that page may 
+never be returned to the global page reserve.  One way to solve this is 
+to have a per slabpage flag indicating the page came from reserve, and 
+prevent mixing of privileged and unprivileged allocations on such a 
+page.
 
-Tested on: 2-node IA64, 4-node ppc64 (2 memoryless nodes), 4-node ppc64
-(no memoryless nodes), 4-node x86_64, !NUMA x86, 1-node x86 (NUMA-Q)
+> There is already a page reserve, but it does not fully comply with
+> our needs. For example, it does not guarantee a strict level (due to
+> the relative nature of ALLOC_HIGH and ALLOC_HARDER). Hence we augment
+> this reserve with a strict limit.
+>
+> Furthermore a new __GFP flag is added to allow easy access to the
+> reserves along-side the existing PF_MEMALLOC.
+>
+> Users of this infrastructure will need to do the necessary bean
+> counting to ensure they stay within the requested limits.
 
-Signed-off-by: Nishanth Aravamudan <nacc@us.ibm.com>
+This patch set is _way_ less intimidating than its predecessor.  
+However, I see we have entered the era of sets of patch sets, since it 
+is impossible to understand the need for this allocation infrastructure 
+without reading the dependent network patch set.  Waiting with 
+breathless anticipation.
 
-diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-index af07a0b..f6d1811 100644
---- a/mm/hugetlb.c
-+++ b/mm/hugetlb.c
-@@ -78,7 +78,27 @@ static struct page *dequeue_huge_page_node(int nid)
- 	return page;
- }
- 
--static struct page *dequeue_huge_page(struct vm_area_struct *vma,
-+static struct page *dequeue_huge_page(struct mempolicy *policy)
-+{
-+	struct page *page;
-+	int nid;
-+	int start_nid = interleave_nodes(policy);
-+
-+	nid = start_nid;
-+
-+	do {
-+		if (!list_empty(&hugepage_freelists[nid])) {
-+			page = dequeue_huge_page_node(nid);
-+			if (page)
-+				return page;
-+		}
-+		nid = interleave_nodes(policy);
-+	} while (nid != start_nid);
-+
-+	return NULL;
-+}
-+
-+static struct page *dequeue_huge_page_vma(struct vm_area_struct *vma,
- 				unsigned long address)
- {
- 	int nid;
-@@ -155,7 +175,7 @@ static struct page *alloc_huge_page(struct vm_area_struct *vma,
- 	else if (free_huge_pages <= resv_huge_pages)
- 		goto fail;
- 
--	page = dequeue_huge_page(vma, addr);
-+	page = dequeue_huge_page_vma(vma, addr);
- 	if (!page)
- 		goto fail;
- 
-@@ -295,20 +315,23 @@ static unsigned long set_max_huge_pages(unsigned long count)
- 		if (!alloc_fresh_huge_page(pol))
- 			break;
- 	}
--	mpol_free(pol);
--	if (count >= nr_huge_pages)
-+	if (count >= nr_huge_pages) {
-+		mpol_free(pol);
- 		return nr_huge_pages;
-+	}
- 
- 	spin_lock(&hugetlb_lock);
- 	count = max(count, resv_huge_pages);
- 	try_to_free_low(count);
-+	set_first_interleave_node(cpuset_current_mems_allowed);
- 	while (count < nr_huge_pages) {
--		struct page *page = dequeue_huge_page(NULL, 0);
-+		struct page *page = dequeue_huge_page(pol);
- 		if (!page)
- 			break;
- 		update_and_free_page(page_to_nid(page), page);
- 	}
- 	spin_unlock(&hugetlb_lock);
-+	mpol_free(pol);
- 	return nr_huge_pages;
- }
- 
--- 
-Nishanth Aravamudan <nacc@us.ibm.com>
-IBM Linux Technology Center
+Regards,
+
+Daniel
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
