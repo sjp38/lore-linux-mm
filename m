@@ -1,37 +1,47 @@
-Subject: Re: [PATCH 00/10] foundations for reserve-based allocation
-From: Peter Zijlstra <a.p.zijlstra@chello.nl>
-In-Reply-To: <200708061231.04982.phillips@phunq.net>
-References: <20070806102922.907530000@chello.nl>
-	 <200708061035.18742.phillips@phunq.net> <1186424248.11797.66.camel@lappy>
-	 <200708061231.04982.phillips@phunq.net>
-Content-Type: text/plain
-Date: Mon, 06 Aug 2007 21:36:58 +0200
-Message-Id: <1186429018.11797.100.camel@lappy>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Date: Mon, 6 Aug 2007 14:38:42 -0500
+From: Matt Mackall <mpm@selenic.com>
+Subject: Re: [PATCH 03/10] mm: tag reseve pages
+Message-ID: <20070806193842.GB11115@waste.org>
+References: <20070806102922.907530000@chello.nl> <20070806103658.356795000@chello.nl> <Pine.LNX.4.64.0708061111390.25069@schroedinger.engr.sgi.com> <p73r6mglaog.fsf@bingen.suse.de> <Pine.LNX.4.64.0708061143050.3152@schroedinger.engr.sgi.com> <1186426079.11797.88.camel@lappy> <20070806185926.GB22499@one.firstfloor.org> <20070806121053.baed9691.akpm@linux-foundation.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20070806121053.baed9691.akpm@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Daniel Phillips <phillips@phunq.net>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, David Miller <davem@davemloft.net>, Andrew Morton <akpm@linux-foundation.org>, Daniel Phillips <phillips@google.com>, Pekka Enberg <penberg@cs.helsinki.fi>, Christoph Lameter <clameter@sgi.com>, Matt Mackall <mpm@selenic.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Steve Dickson <SteveD@redhat.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Andi Kleen <andi@firstfloor.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Christoph Lameter <clameter@sgi.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, David Miller <davem@davemloft.net>, Daniel Phillips <phillips@google.com>, Pekka Enberg <penberg@cs.helsinki.fi>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Steve Dickson <SteveD@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 2007-08-06 at 12:31 -0700, Daniel Phillips wrote:
-> On Monday 06 August 2007 11:17, Peter Zijlstra wrote:
-> > And how do we know a page was taken out of the reserves?
+On Mon, Aug 06, 2007 at 12:10:53PM -0700, Andrew Morton wrote:
+> On Mon, 6 Aug 2007 20:59:26 +0200 Andi Kleen <andi@firstfloor.org> wrote:
 > 
-> Why not return that in the low bit of the page address?  This is a 
-> little more cache efficient, does not leave that odd footprint in the 
-> page union and forces the caller to examine the 
-> alloc_pages(...P_MEMALLOC) return, making it harder to overlook the 
-> fact that it got a page out of reserve and forget to put one back 
-> later.
+> > > precious page flag
+> > 
+> > I always cringe when I hear that. It's really more than node/sparsemem
+> > use too many bits. If we get rid of 32bit NUMA that problem would be
+> > gone for the node at least because it could be moved into the mostly
+> > unused upper 32bit part on 64bit architectures.
+> 
+> Removing 32-bit NUMA is attractive - NUMAQ we can probably live without,
+> not sure about summit.  But superh is starting to use NUMA now, due to
+> varying access times of various sorts of memory, and one can envisage other
+> embedded setups doing that.
+> 
+> Plus I don't think there are many flags left in the upper 32-bits.  ia64
+> swooped in and gobbled lots of them, although it's not immediately clear
+> how many were consumed.
+> 
+> > The alternative would be to investigate again what it does to the
+> > kernel to just use different lookup methods for this.
+> 
+> That's cringeworthy too, I expect.
 
-This would require auditing all page allocation sites to ensure they
-ever happen under PF_MEMALLOC or the like. Because if an allocator ever
-fails to check the low bit and assumes its a valid struct page *, stuff
-will go *bang*.
+Perhaps the node info could be pulled out into a parallel and
+effectively read-only array of shorts.
 
-
+-- 
+Mathematics is the supreme nostalgia of our time.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
