@@ -1,34 +1,33 @@
-Date: Mon, 6 Aug 2007 11:51:45 -0700 (PDT)
-From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [PATCH 02/10] mm: system wide ALLOC_NO_WATERMARK
-In-Reply-To: <200708061148.43870.phillips@phunq.net>
-Message-ID: <Pine.LNX.4.64.0708061150270.7603@schroedinger.engr.sgi.com>
-References: <20070806102922.907530000@chello.nl> <200708061121.50351.phillips@phunq.net>
- <Pine.LNX.4.64.0708061141511.3152@schroedinger.engr.sgi.com>
- <200708061148.43870.phillips@phunq.net>
+Message-ID: <46B76E23.7090102@garzik.org>
+Date: Mon, 06 Aug 2007 14:53:23 -0400
+From: Jeff Garzik <jeff@garzik.org>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: [PATCH 00/23] per device dirty throttling -v8
+References: <20070804070737.GA940@elte.hu> <20070804103347.GA1956@elte.hu> <alpine.LFD.0.999.0708040915360.5037@woody.linux-foundation.org> <20070804163733.GA31001@elte.hu> <alpine.LFD.0.999.0708041030040.5037@woody.linux-foundation.org> <46B4C0A8.1000902@garzik.org> <20070804191205.GA24723@lazybastard.org> <20070804192130.GA25346@elte.hu> <20070804192615.GA25600@lazybastard.org> <20070804194259.GA25753@lazybastard.org> <20070805203602.GB25107@infradead.org> <46B7626C.6050403@redhat.com>
+In-Reply-To: <46B7626C.6050403@redhat.com>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Daniel Phillips <phillips@phunq.net>
-Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, David Miller <davem@davemloft.net>, Andrew Morton <akpm@linux-foundation.org>, Daniel Phillips <phillips@google.com>, Pekka Enberg <penberg@cs.helsinki.fi>, Matt Mackall <mpm@selenic.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Steve Dickson <SteveD@redhat.com>
+To: Chuck Ebbert <cebbert@redhat.com>
+Cc: Christoph Hellwig <hch@infradead.org>, J??rn Engel <joern@logfs.org>, Ingo Molnar <mingo@elte.hu>, Linus Torvalds <torvalds@linux-foundation.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, linux-mm@kvack.org, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, miklos@szeredi.hu, akpm@linux-foundation.org, neilb@suse.de, dgc@sgi.com, tomoki.sekiyama.qu@hitachi.com, nikita@clusterfs.com, trond.myklebust@fys.uio.no, yingchao.zhou@gmail.com, richard@rsk.demon.co.uk, david@lang.hm
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 6 Aug 2007, Daniel Phillips wrote:
+Chuck Ebbert wrote:
+> On 08/05/2007 04:36 PM, Christoph Hellwig wrote:
+>> Umm, no f**king way.  atime selection is 100% policy and belongs into
+>> userspace.  Add to that the problem that we can't actually re-enable
+>> atimes because of the way the vfs-level mount flags API is designed.
+>> Instead of doing such a fugly kernel patch just talk to the handfull
+>> of distributions that matter to update their defaults.
 
-> On Monday 06 August 2007 11:42, Christoph Lameter wrote:
-> > On Mon, 6 Aug 2007, Daniel Phillips wrote:
-> > > Currently your system likely would have died here, so ending up
-> > > with a reserve page temporarily on the wrong node is already an
-> > > improvement.
-> >
-> > The system would have died? Why?
-> 
-> Because a block device may have deadlocked here, leaving the system 
-> unable to clean dirty memory, or unable to load executables over the 
-> network for example.
+> We already tried that here. The response: "If noatime is so great, why
+> isn't it the default in the kernel?"
 
-So this is a locking problem that has not been taken care of?
+Yes, and around and around we go :/
+
+	Jeff
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
