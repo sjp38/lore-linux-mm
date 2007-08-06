@@ -1,52 +1,49 @@
-Date: Mon, 6 Aug 2007 13:19:26 -0700 (PDT)
-From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [PATCH 02/10] mm: system wide ALLOC_NO_WATERMARK
-In-Reply-To: <20070806201257.GG11115@waste.org>
-Message-ID: <Pine.LNX.4.64.0708061315510.7603@schroedinger.engr.sgi.com>
-References: <20070806102922.907530000@chello.nl> <200708061121.50351.phillips@phunq.net>
- <Pine.LNX.4.64.0708061141511.3152@schroedinger.engr.sgi.com>
- <200708061148.43870.phillips@phunq.net> <Pine.LNX.4.64.0708061150270.7603@schroedinger.engr.sgi.com>
- <20070806201257.GG11115@waste.org>
+Date: Mon, 6 Aug 2007 15:23:23 -0500
+From: Matt Mackall <mpm@selenic.com>
+Subject: Re: [PATCH 00/10] foundations for reserve-based allocation
+Message-ID: <20070806202323.GH11115@waste.org>
+References: <20070806102922.907530000@chello.nl>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20070806102922.907530000@chello.nl>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Matt Mackall <mpm@selenic.com>
-Cc: Daniel Phillips <phillips@phunq.net>, Peter Zijlstra <a.p.zijlstra@chello.nl>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, David Miller <davem@davemloft.net>, Andrew Morton <akpm@linux-foundation.org>, Daniel Phillips <phillips@google.com>, Pekka Enberg <penberg@cs.helsinki.fi>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Steve Dickson <SteveD@redhat.com>
+To: Peter Zijlstra <a.p.zijlstra@chello.nl>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, David Miller <davem@davemloft.net>, Andrew Morton <akpm@linux-foundation.org>, Daniel Phillips <phillips@google.com>, Pekka Enberg <penberg@cs.helsinki.fi>, Christoph Lameter <clameter@sgi.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Steve Dickson <SteveD@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 6 Aug 2007, Matt Mackall wrote:
-
-> > > Because a block device may have deadlocked here, leaving the system 
-> > > unable to clean dirty memory, or unable to load executables over the 
-> > > network for example.
-> > 
-> > So this is a locking problem that has not been taken care of?
+On Mon, Aug 06, 2007 at 12:29:22PM +0200, Peter Zijlstra wrote:
 > 
-> No.
+> In the interrest of getting swap over network working and posting in smaller
+> series, here is the first series.
 > 
-> It's very simple:
+> This series lays the foundations needed to do reserve based allocation.
+> Traditionally we have used mempools (and others like radix_tree_preload) to
+> handle the problem.
 > 
-> 1) memory becomes full
-
-We do have limits to avoid memory getting too full.
-
-> 2) we try to free memory by paging or swapping
-> 3) I/O requires a memory allocation which fails because memory is full
-> 4) box dies because it's unable to dig itself out of OOM
+> However this does not fit the network stack. It is built around variable
+> sized allocations using kmalloc().
 > 
-> Most I/O paths can deal with this by having a mempool for their I/O
-> needs. For network I/O, this turns out to be prohibitively hard due to
-> the complexity of the stack.
+> This calls for a different approach.
 
-The common solution is to have a reserve (min_free_kbytes). The problem 
-with the network stack seems to be that the amount of reserve needed 
-cannot be predicted accurately.
+One wonders if containers are a possible solution. I can already solve
+this problem with virtualization: have one VM manage all the network
+I/O and export the device as a simpler virtual block device to other
+VMs. Provided this VM isn't doing any "real" work and is sized
+appropriately, it won't get wedged. Since the other VMs now submit I/O
+through the simpler block interface, they can avoid getting wedged
+with the standard mempool approach.
 
-The solution may be as simple as configuring the reserves right and 
-avoid the unbounded memory allocations. That is possible if one 
-would make sure that the network layer triggers reclaim once in a 
-while.
+If we can run nbd and friends inside their own container that can give
+similar isolation, we might not need to add this other complexity.
+
+Just food for thought. I haven't looked closely enough at the
+containers implementations yet to determine whether this is possible
+or if the overhead in performance or complexity is acceptable.
+
+-- 
+Mathematics is the supreme nostalgia of our time.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
