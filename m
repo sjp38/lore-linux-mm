@@ -1,36 +1,65 @@
-Date: Mon, 6 Aug 2007 07:36:17 +0200
-From: Ingo Molnar <mingo@elte.hu>
-Subject: Re: [patch] implement smarter atime updates support, v2
-Message-ID: <20070806053617.GB14881@elte.hu>
-References: <46B4C0A8.1000902@garzik.org> <20070805102021.GA4246@unthought.net> <46B5A996.5060006@garzik.org> <20070805105850.GC4246@unthought.net> <20070805124648.GA21173@elte.hu> <alpine.LFD.0.999.0708050944470.5037@woody.linux-foundation.org> <20070805190928.GA17433@elte.hu> <20070805192226.GA20234@elte.hu> <20070805192838.GA21704@elte.hu> <20070805204220.GB32217@thunk.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20070805204220.GB32217@thunk.org>
+Subject: Re: What archs need flush_tlb_page() in handle_pte_fault() ?
+From: Benjamin Herrenschmidt <benh@kernel.crashing.org>
+In-Reply-To: <1186018621.5495.558.camel@localhost.localdomain>
+References: <1186018621.5495.558.camel@localhost.localdomain>
+Content-Type: text/plain
+Date: Mon, 06 Aug 2007 16:37:42 +1000
+Message-Id: <1186382262.938.35.camel@localhost.localdomain>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Theodore Tso <tytso@mit.edu>, Linus Torvalds <torvalds@linux-foundation.org>, Jakob Oestergaard <jakob@unthought.net>, Jeff Garzik <jeff@garzik.org>, miklos@szeredi.hu, akpm@linux-foundation.org, neilb@suse.de, dgc@sgi.com, tomoki.sekiyama.qu@hitachi.com, Peter Zijlstra <a.p.zijlstra@chello.nl>, linux-mm@kvack.org, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, nikita@clusterfs.com, trond.myklebust@fys.uio.no, yingchao.zhou@gmail.com, richard@rsk.demon.co.uk, david@lang.hm
+To: linux-mm@kvack.org
+Cc: Linux Kernel list <linux-kernel@vger.kernel.org>, Linux Arch list <linux-arch@vger.kernel.org>, Linus Torvalds <torvalds@osdl.org>
 List-ID: <linux-mm.kvack.org>
 
-* Theodore Tso <tytso@mit.edu> wrote:
-
-> On Sun, Aug 05, 2007 at 09:28:38PM +0200, Ingo Molnar wrote:
-> > 
-> > added the relatime_interval sysctl that allows the changing of the 
-> > atime update frequency. (default: 1 day / 86400 seconds)
+On Thu, 2007-08-02 at 11:37 +1000, Benjamin Herrenschmidt wrote:
+> Heya !
 > 
-> What if you specify the interval as a per-mount option?  i.e.,
-> 
-> 	mount -o relatime=86400 /dev/sda2 /u1
-> 
-> If you had this, I don't think we would need the sysctl tuning 
-> parameter.
+> In my page table accessor spring cleaning, one of my targets is
+> flush_tlb_page(). At this stage, it's only called by generic code in one
+> place (in addition to the asm-generic bits that use it to implement
+> missing accessors, but I'm taking care of those spearately) :
 
-it's much more flexible if there are _more_ options available. People 
-can thus make use of the feature earlier, use it even on distros that 
-dont support it yet, etc.
+ .../...
 
-	Ingo
+No reply, so I suppose I can rip it out ? :-)
+
+Thus any reason why that patch wouln't fly ? (not for 2.6.23 of course)
+
+This removes the last occurence of flush_tlb_page() from generic code,
+thus making this hook now optional for architectures that don't use
+the helpers in asm-generic/pgtable.h
+
+I couldn't find a case where this is actually needed, but I may well
+have missed something. If I did though, please tell me what. If an
+architecture need that call for obscure reason, it could be simply
+folded in that architecture's implementation ptep_set_access_flags().
+
+Signed-off-by: Benjamin Herrenschmidt <benh@kernel.crashing.org>
+---
+
+Index: linux-work/mm/memory.c
+===================================================================
+--- linux-work.orig/mm/memory.c	2007-08-06 16:32:12.000000000 +1000
++++ linux-work/mm/memory.c	2007-08-06 16:34:07.000000000 +1000
+@@ -2609,15 +2609,6 @@ static inline int handle_pte_fault(struc
+ 	if (ptep_set_access_flags(vma, address, pte, entry, write_access)) {
+ 		update_mmu_cache(vma, address, entry);
+ 		lazy_mmu_prot_update(entry);
+-	} else {
+-		/*
+-		 * This is needed only for protection faults but the arch code
+-		 * is not yet telling us if this is a protection fault or not.
+-		 * This still avoids useless tlb flushes for .text page faults
+-		 * with threads.
+-		 */
+-		if (write_access)
+-			flush_tlb_page(vma, address);
+ 	}
+ unlock:
+ 	pte_unmap_unlock(pte, ptl);
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
