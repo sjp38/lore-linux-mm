@@ -1,29 +1,37 @@
-Date: Mon, 6 Aug 2007 11:37:35 -0700 (PDT)
-From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [RFC][PATCH 1/5] Fix hugetlb pool allocation with empty nodes
- V9
-In-Reply-To: <20070806181912.GS15714@us.ibm.com>
-Message-ID: <Pine.LNX.4.64.0708061136260.3152@schroedinger.engr.sgi.com>
-References: <20070806163254.GJ15714@us.ibm.com> <20070806163726.GK15714@us.ibm.com>
- <Pine.LNX.4.64.0708061059400.24256@schroedinger.engr.sgi.com>
- <20070806181912.GS15714@us.ibm.com>
+Subject: Re: [PATCH 03/10] mm: tag reseve pages
+References: <20070806102922.907530000@chello.nl>
+	<20070806103658.356795000@chello.nl>
+	<Pine.LNX.4.64.0708061111390.25069@schroedinger.engr.sgi.com>
+From: Andi Kleen <andi@firstfloor.org>
+Date: 06 Aug 2007 21:34:07 +0200
+In-Reply-To: <Pine.LNX.4.64.0708061111390.25069@schroedinger.engr.sgi.com>
+Message-ID: <p73r6mglaog.fsf@bingen.suse.de>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nishanth Aravamudan <nacc@us.ibm.com>
-Cc: anton@samba.org, lee.schermerhorn@hp.com, wli@holomorphy.com, melgor@ie.ibm.com, akpm@linux-foundation.org, linux-mm@kvack.org, agl@us.ibm.com
+To: Christoph Lameter <clameter@sgi.com>
+Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, David Miller <davem@davemloft.net>, Andrew Morton <akpm@linux-foundation.org>, Daniel Phillips <phillips@google.com>, Pekka Enberg <penberg@cs.helsinki.fi>, Matt Mackall <mpm@selenic.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Steve Dickson <SteveD@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 6 Aug 2007, Nishanth Aravamudan wrote:
+Christoph Lameter <clameter@sgi.com> writes:
 
-> Uh, interleave_nodes() takes a policy. Hence I need a policy to use.
-> This was your suggestion, Christoph and I'm doing exactly what you
-> asked.
+> On Mon, 6 Aug 2007, Peter Zijlstra wrote:
+> 
+> > ===================================================================
+> > --- linux-2.6-2.orig/include/linux/mm_types.h
+> > +++ linux-2.6-2/include/linux/mm_types.h
+> > @@ -60,6 +60,7 @@ struct page {
+> >  	union {
+> >  		pgoff_t index;		/* Our offset within mapping. */
+> >  		void *freelist;		/* SLUB: freelist req. slab lock */
+> > +		int reserve;		/* page_alloc: page is a reserve page */
+> 
+> Extending page struct ???
 
-That would make sense if the policy can be overridden. You may be able to 
-avoid exporting mpol_new by callig just the functions that generate the 
-interleave nodes.
+Note it's an union.
+
+-Andi
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
