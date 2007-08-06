@@ -1,28 +1,71 @@
-Message-ID: <46B7626C.6050403@redhat.com>
-Date: Mon, 06 Aug 2007 14:03:24 -0400
-From: Chuck Ebbert <cebbert@redhat.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH 00/23] per device dirty throttling -v8
-References: <20070804070737.GA940@elte.hu> <20070804103347.GA1956@elte.hu> <alpine.LFD.0.999.0708040915360.5037@woody.linux-foundation.org> <20070804163733.GA31001@elte.hu> <alpine.LFD.0.999.0708041030040.5037@woody.linux-foundation.org> <46B4C0A8.1000902@garzik.org> <20070804191205.GA24723@lazybastard.org> <20070804192130.GA25346@elte.hu> <20070804192615.GA25600@lazybastard.org> <20070804194259.GA25753@lazybastard.org> <20070805203602.GB25107@infradead.org>
-In-Reply-To: <20070805203602.GB25107@infradead.org>
-Content-Type: text/plain; charset=ISO-8859-1
+Subject: Re: [PATCH 00/10] foundations for reserve-based allocation
+From: Peter Zijlstra <a.p.zijlstra@chello.nl>
+In-Reply-To: <200708061035.18742.phillips@phunq.net>
+References: <20070806102922.907530000@chello.nl>
+	 <200708061035.18742.phillips@phunq.net>
+Content-Type: text/plain
+Date: Mon, 06 Aug 2007 20:17:28 +0200
+Message-Id: <1186424248.11797.66.camel@lappy>
+Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Hellwig <hch@infradead.org>, J??rn Engel <joern@logfs.org>, Ingo Molnar <mingo@elte.hu>, Jeff Garzik <jeff@garzik.org>, Linus Torvalds <torvalds@linux-foundation.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, linux-mm@kvack.org, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, miklos@szeredi.hu, akpm@linux-foundation.org, neilb@suse.de, dgc@sgi.com, tomoki.sekiyama.qu@hitachi.com, nikita@clusterfs.com, trond.myklebust@fys.uio.no, yingchao.zhou@gmail.com, richard@rsk.demon.co.uk, david@lang.hm
+To: Daniel Phillips <phillips@phunq.net>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, David Miller <davem@davemloft.net>, Andrew Morton <akpm@linux-foundation.org>, Daniel Phillips <phillips@google.com>, Pekka Enberg <penberg@cs.helsinki.fi>, Christoph Lameter <clameter@sgi.com>, Matt Mackall <mpm@selenic.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Steve Dickson <SteveD@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
-On 08/05/2007 04:36 PM, Christoph Hellwig wrote:
-> 
-> Umm, no f**king way.  atime selection is 100% policy and belongs into
-> userspace.  Add to that the problem that we can't actually re-enable
-> atimes because of the way the vfs-level mount flags API is designed.
-> Instead of doing such a fugly kernel patch just talk to the handfull
-> of distributions that matter to update their defaults.
-> 
+On Mon, 2007-08-06 at 10:35 -0700, Daniel Phillips wrote:
+> On Monday 06 August 2007 03:29, Peter Zijlstra wrote:
 
-We already tried that here. The response: "If noatime is so great, why
-isn't it the default in the kernel?"
+> > We want a guarantee for N bytes from kmalloc(), this translates to a
+> > demand on the slab allocator for 2*N+m (due to the power-of-two
+> > nature of kmalloc slabs), where m is the meta-data needed by the
+> > allocator itself.
+> 
+> Where does the 2* come from?  Isn't it exp2(ceil(log2(N + m)))?
+
+Given a size distribution of 2^n the worst slack space is 100% - see how
+allocations of (2^m) + 1 will always need 2^(m+1) bytes.
+
+lim_{n -> inf} (2^(n+1)/((2^n)+1)) = 
+2^lim_{n -> inf} ((n+1)-n) = 2^1 = 2
+
+> Patch [3/10] adds a new field to struct page.
+
+No it doesn't.
+
+>   I do not think this is 
+> necessary.   Allocating a page from reserve does not make it special.  
+> All we care about is that the total number of pages taken out of 
+> reserve is balanced by the total pages freed by a user of the reserve.
+
+And how do we know a page was taken out of the reserves?
+
+This is done by looking at page->reserve (overload of page->index) and
+this value can be destroyed as soon as its observed. It is in a sense an
+extra return value.
+
+> We do care about slab fragmentation in the sense that a slab page may be 
+> pinned in the slab by an unprivileged allocation and so that page may 
+> never be returned to the global page reserve.
+
+A slab page obtained from the reseserve will never serve an object to an
+unprivilidged allocation.
+
+>   One way to solve this is 
+> to have a per slabpage flag indicating the page came from reserve, and 
+> prevent mixing of privileged and unprivileged allocations on such a 
+> page.
+
+is done.
+
+> This patch set is _way_ less intimidating than its predecessor.  
+> However, I see we have entered the era of sets of patch sets, since it 
+> is impossible to understand the need for this allocation infrastructure 
+> without reading the dependent network patch set.  Waiting with 
+> breathless anticipation.
+
+Yeah, there were some objections to the size of it.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
