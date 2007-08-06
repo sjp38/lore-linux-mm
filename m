@@ -1,53 +1,52 @@
-Date: Mon, 6 Aug 2007 22:18:12 +0200
-From: Andi Kleen <andi@firstfloor.org>
-Subject: Re: [PATCH 03/10] mm: tag reseve pages
-Message-ID: <20070806201812.GA23635@one.firstfloor.org>
-References: <20070806102922.907530000@chello.nl> <20070806103658.356795000@chello.nl> <Pine.LNX.4.64.0708061111390.25069@schroedinger.engr.sgi.com> <p73r6mglaog.fsf@bingen.suse.de> <Pine.LNX.4.64.0708061143050.3152@schroedinger.engr.sgi.com> <1186426079.11797.88.camel@lappy> <20070806185926.GB22499@one.firstfloor.org> <20070806121053.baed9691.akpm@linux-foundation.org>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20070806121053.baed9691.akpm@linux-foundation.org>
+Date: Mon, 6 Aug 2007 13:19:26 -0700 (PDT)
+From: Christoph Lameter <clameter@sgi.com>
+Subject: Re: [PATCH 02/10] mm: system wide ALLOC_NO_WATERMARK
+In-Reply-To: <20070806201257.GG11115@waste.org>
+Message-ID: <Pine.LNX.4.64.0708061315510.7603@schroedinger.engr.sgi.com>
+References: <20070806102922.907530000@chello.nl> <200708061121.50351.phillips@phunq.net>
+ <Pine.LNX.4.64.0708061141511.3152@schroedinger.engr.sgi.com>
+ <200708061148.43870.phillips@phunq.net> <Pine.LNX.4.64.0708061150270.7603@schroedinger.engr.sgi.com>
+ <20070806201257.GG11115@waste.org>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Andi Kleen <andi@firstfloor.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Christoph Lameter <clameter@sgi.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, David Miller <davem@davemloft.net>, Daniel Phillips <phillips@google.com>, Pekka Enberg <penberg@cs.helsinki.fi>, Matt Mackall <mpm@selenic.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Steve Dickson <SteveD@redhat.com>
+To: Matt Mackall <mpm@selenic.com>
+Cc: Daniel Phillips <phillips@phunq.net>, Peter Zijlstra <a.p.zijlstra@chello.nl>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, David Miller <davem@davemloft.net>, Andrew Morton <akpm@linux-foundation.org>, Daniel Phillips <phillips@google.com>, Pekka Enberg <penberg@cs.helsinki.fi>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Steve Dickson <SteveD@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Aug 06, 2007 at 12:10:53PM -0700, Andrew Morton wrote:
-> On Mon, 6 Aug 2007 20:59:26 +0200 Andi Kleen <andi@firstfloor.org> wrote:
-> 
-> > > precious page flag
+On Mon, 6 Aug 2007, Matt Mackall wrote:
+
+> > > Because a block device may have deadlocked here, leaving the system 
+> > > unable to clean dirty memory, or unable to load executables over the 
+> > > network for example.
 > > 
-> > I always cringe when I hear that. It's really more than node/sparsemem
-> > use too many bits. If we get rid of 32bit NUMA that problem would be
-> > gone for the node at least because it could be moved into the mostly
-> > unused upper 32bit part on 64bit architectures.
+> > So this is a locking problem that has not been taken care of?
 > 
-> Removing 32-bit NUMA is attractive - NUMAQ we can probably live without,
-> not sure about summit.  But superh is starting to use NUMA now, due to
-> varying access times of various sorts of memory, and one can envisage other
-> embedded setups doing that.
+> No.
+> 
+> It's very simple:
+> 
+> 1) memory becomes full
 
-They can just use phys_to_nid() or equivalent instead. Putting the node
-into the page flags is just a very minor optimization.  I doubt
-actually you could benchmark the difference. While in theory the
-hash lookup could be another cache miss in practice this should
-be already hot since it's used elsewhere.
+We do have limits to avoid memory getting too full.
 
-> Plus I don't think there are many flags left in the upper 32-bits.  ia64
-> swooped in and gobbled lots of them, although it's not immediately clear
-> how many were consumed.
+> 2) we try to free memory by paging or swapping
+> 3) I/O requires a memory allocation which fails because memory is full
+> 4) box dies because it's unable to dig itself out of OOM
+> 
+> Most I/O paths can deal with this by having a mempool for their I/O
+> needs. For network I/O, this turns out to be prohibitively hard due to
+> the complexity of the stack.
 
-Really?  They forgot to document it then.
+The common solution is to have a reserve (min_free_kbytes). The problem 
+with the network stack seems to be that the amount of reserve needed 
+cannot be predicted accurately.
 
-Anyways, if they don't have enough bits left they can always just
-use the hash table and drop the node completely. Shouldn't make too much 
-difference and IA64 has gobs of cache anyways.
-
-I'm actually thinking about a PG_arch_2 on x86_64 too. arch_1 is already
-used now but another one would be useful in c_p_a().
-
--Andi
+The solution may be as simple as configuring the reserves right and 
+avoid the unbounded memory allocations. That is possible if one 
+would make sure that the network layer triggers reclaim once in a 
+while.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
