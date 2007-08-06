@@ -1,72 +1,61 @@
-Date: Mon, 6 Aug 2007 03:20:25 +0200
-From: Nick Piggin <npiggin@suse.de>
-Subject: Re: [rfc] balance-on-fork NUMA placement
-Message-ID: <20070806012025.GA9265@wotan.suse.de>
-References: <20070731054142.GB11306@wotan.suse.de> <200707311114.09284.ak@suse.de> <20070801002313.GC31006@wotan.suse.de> <46B0C8A3.8090506@mbligh.org> <1185993169.5059.79.camel@localhost> <46B10E9B.2030907@mbligh.org> <20070802013631.GA15595@wotan.suse.de> <46B22383.5020109@mbligh.org> <20070803002010.GB14775@wotan.suse.de> <20070803201013.GA12874@linux-os.sc.intel.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20070803201013.GA12874@linux-os.sc.intel.com>
+Message-ID: <46B68369.1090802@yahoo.com.au>
+Date: Mon, 06 Aug 2007 12:11:53 +1000
+From: Nick Piggin <nickpiggin@yahoo.com.au>
+MIME-Version: 1.0
+Subject: Re: [ck] Re: -mm merge plans for 2.6.23
+References: <20070710013152.ef2cd200.akpm@linux-foundation.org>	 <200707102015.44004.kernel@kolivas.org>	 <9a8748490707231608h453eefffx68b9c391897aba70@mail.gmail.com>	 <46A57068.3070701@yahoo.com.au>	 <2c0942db0707232153j3670ef31kae3907dff1a24cb7@mail.gmail.com>	 <46A58B49.3050508@yahoo.com.au>	 <2c0942db0707240915h56e007e3l9110e24a065f2e73@mail.gmail.com>	 <46A6CC56.6040307@yahoo.com.au> <b21f8390707310937i5f90fa2rae650221b3ff4880@mail.gmail.com>
+In-Reply-To: <b21f8390707310937i5f90fa2rae650221b3ff4880@mail.gmail.com>
+Content-Type: text/plain; charset=us-ascii; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "Siddha, Suresh B" <suresh.b.siddha@intel.com>
-Cc: Martin Bligh <mbligh@mbligh.org>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Andi Kleen <ak@suse.de>, Ingo Molnar <mingo@elte.hu>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>, Eric Whitney <eric.whitney@hp.com>
+To: Matthew Hawkins <darthmdh@gmail.com>
+Cc: Ray Lee <ray-lk@madrabbit.org>, Jesper Juhl <jesper.juhl@gmail.com>, linux-kernel@vger.kernel.org, ck list <ck@vds.kolivas.org>, linux-mm@kvack.org, Paul Jackson <pj@sgi.com>, Andrew Morton <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Aug 03, 2007 at 01:10:13PM -0700, Suresh B wrote:
-> On Fri, Aug 03, 2007 at 02:20:10AM +0200, Nick Piggin wrote:
-> > On Thu, Aug 02, 2007 at 11:33:39AM -0700, Martin Bligh wrote:
-> > > Nick Piggin wrote:
-> > > >On Wed, Aug 01, 2007 at 03:52:11PM -0700, Martin Bligh wrote:
-> > > >>>And so forth.  Initial forks will balance.  If the children refuse to
-> > > >>>die, forks will continue to balance.  If the parent starts seeing short
-> > > >>>lived children, fork()s will eventually start to stay local.  
-> > > >>Fork without exec is much more rare than without. Optimising for
-> > > >>the uncommon case is the Wrong Thing to Do (tm). What we decided
-> > > >
-> > > >It's only the wrong thing to do if it hurts the common case too
-> > > >much. Considering we _already_ balance on exec, then adding another
-> > > >balance on fork is not going to introduce some order of magnitude
-> > > >problem -- at worst it would be 2x but it really isn't too slow
-> > > >anyway (at least nobody complained when we added it).
-> > > >
-> > > >One place where we found it helps is clone for threads.
-> > > >
-> > > >If we didn't do such a bad job at keeping tasks together with their
-> > > >local memory, then we might indeed reduce some of the balance-on-crap
-> > > >and increase the aggressiveness of periodic balancing.
-> > > >
-> > > >Considering we _already_ balance on fork/clone, I don't know what
-> > > >your argument is against this patch is? Doing the balance earlier
-> > > >and allocating more stuff on the local node is surely not a bad
-> > > >idea.
-> > > 
-> > > I don't know who turned that on ;-( I suspect nobody bothered
-> > > actually measuring it at the time though, or used some crap
-> > > benchmark like stream to do so. It should get reverted.
-> > 
-> > So you have numbers to show it hurts? I tested some things where it
-> > is not supposed to help, and it didn't make any difference. Nobody
-> > else noticed either.
-> > 
-> > If the cost of doing the double balance is _really_ that painful,
-> > then we ccould skip balance-on-exec for domains with balance-on-fork
-> > set.
+Matthew Hawkins wrote:
+> On 7/25/07, Nick Piggin <nickpiggin@yahoo.com.au> wrote:
 > 
-> Nick, Even if it is not painful, can we skip balance-on-exec if
-> balance-on-fork is set. There is no need for double balance, right?
+>>I guess /proc/meminfo, /proc/zoneinfo, /proc/vmstat, /proc/slabinfo
+>>before and after the updatedb run with the latest kernel would be a
+>>first step. top and vmstat output during the run wouldn't hurt either.
+> 
+> 
+> Hi Nick,
+> 
+> I've attached two files with this kind of info.  Being up at the cron
+> hours of the morning meant I got a better picture of what my system is
+> doing.  Here's a short summary of what I saw in top:
+> 
+> beagleindexer used gobs of ram.  600M or so (I have 1G)
 
-I guess we could. There is no need for the double balance if the exec
-happens immediately after the fork which is surely the common case. I
-think there can be some other weird cases (eg multi-threaded code) that
-does funny things though...
+Hmm OK, beagleindexer. I thought beagle didn't need frequent reindexing
+because of inotify? Oh well...
 
 
-> Especially with the optimization you are trying to do with this patch,
-> balance-on-exec may lead to wrong decision making this optimization
-> not work as expected.
+> updatedb didn't use much ram, but while it was running kswapd kept on
+> frequenting the top 10 cpu hogs - it would stick around for 5 seconds
+> or so then disappear for no more than 10 seconds, then come back
+> again.  This behaviour persisted during the run.  updatedb ran third
+> (beagleindexer was first, then update-dlocatedb)
 
-That's true.
+Kswapd will use CPU when memory is low, even if there is no swapping.
+
+Your "buffers" grew by 600% (from 50MB to 350MB), and slab also grew
+by a few thousand entries. This is not just a problem when it pushes
+out swap, it will also harm filebacked working set.
+
+This (which Ray's traces also show) is a bit of a problem. As Andrew
+noticed, use-once isn't working well for buffer cache, and it doesn't
+really for dentry and inode cache either (although those don't seem
+to be as much of a problem on your workload).
+
+Andrew has done a little test patch for this in -mm, but it probably
+wants more work and testing. If you can test the -mm kernel and see
+if things are improved, that would help.
+
+-- 
+SUSE Labs, Novell Inc.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
