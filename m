@@ -1,153 +1,102 @@
-Received: from d01relay04.pok.ibm.com (d01relay04.pok.ibm.com [9.56.227.236])
-	by e1.ny.us.ibm.com (8.13.8/8.13.8) with ESMTP id l76GiCWA006904
-	for <linux-mm@kvack.org>; Mon, 6 Aug 2007 12:44:12 -0400
-Received: from d01av04.pok.ibm.com (d01av04.pok.ibm.com [9.56.224.64])
-	by d01relay04.pok.ibm.com (8.13.8/8.13.8/NCO v8.4) with ESMTP id l76GiCnZ552046
-	for <linux-mm@kvack.org>; Mon, 6 Aug 2007 12:44:12 -0400
-Received: from d01av04.pok.ibm.com (loopback [127.0.0.1])
-	by d01av04.pok.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l76GiBIq026822
-	for <linux-mm@kvack.org>; Mon, 6 Aug 2007 12:44:12 -0400
-Date: Mon, 6 Aug 2007 09:44:10 -0700
-From: Nishanth Aravamudan <nacc@us.ibm.com>
-Subject: [RFC][PATCH 4/5] hugetlb: fix cpuset-constrained pool resizing
-Message-ID: <20070806164410.GO15714@us.ibm.com>
-References: <20070806163254.GJ15714@us.ibm.com> <20070806163726.GK15714@us.ibm.com> <20070806163841.GL15714@us.ibm.com> <20070806164055.GN15714@us.ibm.com>
+Date: Mon, 6 Aug 2007 09:42:37 -0700
+From: Mark Gross <mgross@linux.intel.com>
+Subject: Re: [PATCH/RFC] Allow selected nodes to be excluded from MPOL_INTERLEAVE masks
+Message-ID: <20070806164237.GA21133@linux.intel.com>
+Reply-To: mgross@linux.intel.com
+References: <1185566878.5069.123.camel@localhost> <200708011233.02103.ak@suse.de> <20070801110120.GA9449@linux-sh.org> <200708011307.44189.ak@suse.de> <20070801112116.GA9617@linux-sh.org> <1185976446.5059.27.camel@localhost> <20070802173825.GA7815@linux.intel.com> <1186080363.5040.63.camel@localhost>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20070806164055.GN15714@us.ibm.com>
+In-Reply-To: <1186080363.5040.63.camel@localhost>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: clameter@sgi.com
-Cc: lee.schermerhorn@hp.com, wli@holomorphy.com, melgor@ie.ibm.com, akpm@linux-foundation.org, linux-mm@kvack.org, agl@us.ibm.com, pj@sgi.com
+To: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
+Cc: Paul Mundt <lethal@linux-sh.org>, Andi Kleen <ak@suse.de>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm <linux-mm@kvack.org>, Christoph Lameter <clameter@sgi.com>, Nishanth Aravamudan <nacc@us.ibm.com>, kxr@sgi.com, akpm@linux-foundation.org, Eric Whitney <eric.whitney@hp.com>
 List-ID: <linux-mm.kvack.org>
 
-With the previous 3 patches in this series applied, if a process is in a
-constrained cpuset, and tries to grow the hugetlb pool, hugepages may be
-allocated on nodes outside of the process' cpuset. More concretely,
-growing the pool via
+On Thu, Aug 02, 2007 at 02:46:03PM -0400, Lee Schermerhorn wrote:
+> On Thu, 2007-08-02 at 10:38 -0700, Mark Gross wrote:
+> > On Wed, Aug 01, 2007 at 09:54:06AM -0400, Lee Schermerhorn wrote:
+> > > On Wed, 2007-08-01 at 20:21 +0900, Paul Mundt wrote:
+> > > > On Wed, Aug 01, 2007 at 01:07:43PM +0200, Andi Kleen wrote:
+> > > > > 
+> > > > > > As long as interleaving is possible after boot, then yes. It's only the
+> > > > > > boot-time interleave that we would like to avoid,
+> > > > > 
+> > > > > But when anybody does interleaving later it could just as easily
+> > > > > fill up your small nodes, couldn't it?
+> > > > > 
+> > > > Yes, but these are in embedded environments where we have control over
+> > > > what the applications are doing. Most of these sorts of things are for
+> > > > applications where we know what sort of latency requires we have to deal
+> > > > with, and so the workload is very much tied to the worst-case range of
+> > > > nodes, or just to a particular node. We might only have certain buffers
+> > > > that need to be backed by faster memory as well, so while most of the
+> > > > application pages will come from node 0 (system memory), certain other
+> > > > allocations will come from other nodes. We've been experimenting with
+> > > > doing that through tmpfs with mpol tuning.
+> > > > 
+> > > > In the general case however it's fairly safe to include the tiny nodes as
+> > > > part of a larger set with a prefer policy so we don't immediately OOM.
+> > > > 
+> > > > > Boot time allocations are small compared to what user space
+> > > > > later can allocate.
+> > > > > 
+> > > > Yes, we only want certain applications to explicitly poke at those nodes,
+> > > > but they do have a use case for interleave, so it is not functionality I
+> > > > would want to lose completely.
+> > > 
+> > > This is why I wanted to use an "obscure boot option".  I don't see this
+> > > as strictly an architectural/platform issue.  Rather, it's a combination
+> > > of the arch/platform and how it's being used for specific applications.
+> > > So, I don't see how one could accomplish this with a heuristic.
+> > > 
+> > > As Paul mentioned, in embedded systems, one has a bit more control over
+> > > what applications are doing.  In that case, I could envision a config
+> > > option to specify the initial/default value for the no_interleave_nodes
+> > > at kernel build time and dispense with the boot option.  [Any interest
+> > 
+> > Having the interleave as a build time option won't work for some power
+> > managed memory applications.  I posted an RFC a few months back and will
+> > be coming back to it in a few weeks, so take this comment with a grain
+> > of salt.  But I want to be able to switch on some ACPI table entries to
+> > trigger the non-interleave boot time allocation behavior for some FBDIM
+> > based platforms.  My needs are in surprising alignment with Paul's on
+> > this stuff.
+> > 
+> > 
+> > --mgross
+> <snip>
+> 
+> Mark:  you mean "boot time option", right?
 
-echo some_value > /proc/sys/vm/nr_hugepages
+I meant to express a preffence of avoiding a compile time only
+enablement of the non-interleave nodes.  (I like the boot time
+option better.)
 
-interleaves across all nodes with memory such that hugepage allocations
-occur on nodes outside the cpuset. Similarly, this process is able to
-change the values in values in
-/sys/devices/system/node/nodeX/nr_hugepages, even when X is not in the
-cpuset. This directly violates the isolation that cpusets is supposed to
-guarantee.
+> 
+> When you get back to it, can you verify that this patch won't affect
+> what you want to do in policy init [boot time interleave mask]--?  ...as
 
-For pool growth: fix the sysctl case by only interleaving across the
-nodes in current's cpuset; fix the sysfs attribute case by verifying the
-requested node is in current's cpuset. For pool shrinking: both cases
-are mostly already covered by the cpuset_zone_allowed_softwall() check
-in dequeue_huge_page_node(), but make sure that we only iterate over the
-cpusets's nodes in try_to_free_low().
+I will.
 
-Before:
+> long as no one specifies any no_interleave_nodes, of course.  And even
+> then, all that happens is that maybe more nodes get excluded from the
+> boot time policy mask than you would have excluded based on ACPI info.  
 
-Trying to resize the pool back to     100 from the top cpuset
-Node 3 HugePages_Free:      0
-Node 2 HugePages_Free:      0
-Node 1 HugePages_Free:    100
-Node 0 HugePages_Free:      0
-Done.     100 free
-/cpuset/set1 /cpuset ~
-Trying to resize the pool to     200 from a cpuset restricted to node 1
-Node 3 HugePages_Free:      0
-Node 2 HugePages_Free:      0
-Node 1 HugePages_Free:    150
-Node 0 HugePages_Free:     50
-Done.     200 free
-Trying to shrink the pool on node 0 down to 0 from a cpuset restricted
-to node 1
-Node 3 HugePages_Free:      0
-Node 2 HugePages_Free:      0
-Node 1 HugePages_Free:    150
-Node 0 HugePages_Free:      0
-Done.     150 free
+yes.
 
-After:
+> 
+> Until you have the ACPI table info and parsing in place [or maybe you
+> already have this], this patch could allow you to test with the desired
+> nodes excluded...
 
-Trying to resize the pool back to     100 from the top cpuset
-Node 3 HugePages_Free:      0
-Node 2 HugePages_Free:      0
-Node 1 HugePages_Free:    100
-Node 0 HugePages_Free:      0
-Done.     100 free
-/cpuset/set1 /cpuset ~
-Trying to resize the pool to     200 from a cpuset restricted to node 1
-Node 3 HugePages_Free:      0
-Node 2 HugePages_Free:      0
-Node 1 HugePages_Free:    200
-Node 0 HugePages_Free:      0
-Done.     200 free
-Trying to grow the pool on node 0 up to 50 from a cpuset restricted to
-node 1
-Node 3 HugePages_Free:      0
-Node 2 HugePages_Free:      0
-Node 1 HugePages_Free:    200
-Node 0 HugePages_Free:      0
-Done.     200 free
+We have a custom bios / table for this, but having a boot option would
+enable easier testing.
 
-Signed-off-by: Nishanth Aravamudan <nacc@us.ibm.com>
+thanks,
 
-diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-index 09ad639..af07a0b 100644
---- a/mm/hugetlb.c
-+++ b/mm/hugetlb.c
-@@ -181,6 +181,10 @@ static int __init hugetlb_init(void)
- 	for_each_node_state(i, N_HIGH_MEMORY)
- 		INIT_LIST_HEAD(&hugepage_freelists[i]);
- 
-+	/*
-+	 * at boot-time, interleave across all available nodes as there
-+	 * is not any corresponding cpuset/process
-+	 */
- 	pol = mpol_new(MPOL_INTERLEAVE, &node_states[N_HIGH_MEMORY]);
- 	if (IS_ERR(pol))
- 		goto quit;
-@@ -258,7 +262,7 @@ static void try_to_free_low(unsigned long count)
- {
- 	int i;
- 
--	for_each_node_state(i, N_HIGH_MEMORY) {
-+	for_each_node_mask(i, cpuset_current_mems_allowed) {
- 		try_to_free_low_node(i, count);
- 		if (count >= nr_huge_pages)
- 			return;
-@@ -278,7 +282,7 @@ static unsigned long set_max_huge_pages(unsigned long count)
- {
- 	struct mempolicy *pol;
- 
--	pol = mpol_new(MPOL_INTERLEAVE, &node_states[N_HIGH_MEMORY]);
-+	pol = mpol_new(MPOL_INTERLEAVE, &cpuset_current_mems_allowed);
- 	if (IS_ERR(pol))
- 		return nr_huge_pages;
- 	/*
-@@ -286,7 +290,7 @@ static unsigned long set_max_huge_pages(unsigned long count)
- 	 * process, we need to make sure il_next has a good starting
- 	 * value
- 	 */
--	set_first_interleave_node(node_states[N_HIGH_MEMORY]);
-+	set_first_interleave_node(cpuset_current_mems_allowed);
- 	while (count > nr_huge_pages) {
- 		if (!alloc_fresh_huge_page(pol))
- 			break;
-@@ -368,6 +372,10 @@ static ssize_t hugetlb_write_nr_hugepages_node(struct sys_device *dev,
- 	unsigned long free_on_other_nodes;
- 	unsigned long nr_huge_pages_req = simple_strtoul(buf, NULL, 10);
- 
-+	/* prevent per-node allocations from outside the allowed cpuset */
-+	if (!node_isset(nid, cpuset_current_mems_allowed))
-+		return count;
-+
- 	while (nr_huge_pages_req > nr_huge_pages_node[nid]) {
- 		if (!alloc_fresh_huge_page_node(nid))
- 			return count;
-
--- 
-Nishanth Aravamudan <nacc@us.ibm.com>
-IBM Linux Technology Center
+--mgross
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
