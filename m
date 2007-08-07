@@ -1,188 +1,80 @@
-Received: from d01relay02.pok.ibm.com (d01relay02.pok.ibm.com [9.56.227.234])
-	by e6.ny.us.ibm.com (8.13.8/8.13.8) with ESMTP id l77ME0Oh013616
-	for <linux-mm@kvack.org>; Tue, 7 Aug 2007 18:14:00 -0400
-Received: from d01av03.pok.ibm.com (d01av03.pok.ibm.com [9.56.224.217])
-	by d01relay02.pok.ibm.com (8.13.8/8.13.8/NCO v8.4) with ESMTP id l77MCfWJ506732
-	for <linux-mm@kvack.org>; Tue, 7 Aug 2007 18:12:41 -0400
-Received: from d01av03.pok.ibm.com (loopback [127.0.0.1])
-	by d01av03.pok.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l77MCfkL022802
-	for <linux-mm@kvack.org>; Tue, 7 Aug 2007 18:12:41 -0400
-Date: Tue, 7 Aug 2007 15:12:40 -0700
-From: Nishanth Aravamudan <nacc@us.ibm.com>
-Subject: [RFC][PATCH 1/2][UPDATED] hugetlb: search harder for memory in alloc_fresh_huge_page()
-Message-ID: <20070807221240.GB15714@us.ibm.com>
-References: <20070807171432.GY15714@us.ibm.com> <1186517722.5067.31.camel@localhost>
+Date: Tue, 7 Aug 2007 15:18:36 -0700 (PDT)
+From: Christoph Lameter <clameter@sgi.com>
+Subject: Re: [PATCH 02/10] mm: system wide ALLOC_NO_WATERMARK
+In-Reply-To: <200708061649.56487.phillips@phunq.net>
+Message-ID: <Pine.LNX.4.64.0708071513290.3683@schroedinger.engr.sgi.com>
+References: <20070806102922.907530000@chello.nl> <200708061559.41680.phillips@phunq.net>
+ <Pine.LNX.4.64.0708061605400.5090@schroedinger.engr.sgi.com>
+ <200708061649.56487.phillips@phunq.net>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1186517722.5067.31.camel@localhost>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
-Cc: clameter@sgi.com, anton@samba.org, wli@holomorphy.com, linux-mm@kvack.org
+To: Daniel Phillips <phillips@phunq.net>
+Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, Matt Mackall <mpm@selenic.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, David Miller <davem@davemloft.net>, Andrew Morton <akpm@linux-foundation.org>, Daniel Phillips <phillips@google.com>, Pekka Enberg <penberg@cs.helsinki.fi>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Steve Dickson <SteveD@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
-On 07.08.2007 [16:15:22 -0400], Lee Schermerhorn wrote:
-> On Tue, 2007-08-07 at 10:14 -0700, Nishanth Aravamudan wrote:
-> > hugetlb: search harder for memory in alloc_fresh_huge_page()
-> > 
-> > Currently, alloc_fresh_huge_page() returns NULL when it is not able to
-> > allocate a huge page on the current node, as specified by its custom
-> > interleave variable. The callers of this function, though, assume that a
-> > failure in alloc_fresh_huge_page() indicates no hugepages can be
-> > allocated on the system period. This might not be the case, for
-> > instance, if we have an uneven NUMA system, and we happen to try to
-> > allocate a hugepage on a node with less memory and fail, while there is
-> > still plenty of free memory on the other nodes.
-> > 
-> > To correct this, make alloc_fresh_huge_page() search through all online
-> > nodes before deciding no hugepages can be allocated. Add a helper
-> > function for actually allocating the hugepage.
-> > 
-> > While there are interleave interfaces that could be exported from the
-> > mempolicy layer, that seems like an inappropriate design decision. Work
-> > is needed on a subsystem-level interleaving interface, but I'm still not
-> > quite sure how that should look. Hence the custom interleaving here.
-> > 
-> > Signed-off-by: Nishanth Aravamudan <nacc@us.ibm.com>
-> > 
+On Mon, 6 Aug 2007, Daniel Phillips wrote:
 
-<snip>
-
-> > -	page = alloc_pages_node(nid, htlb_alloc_mask|__GFP_COMP|__GFP_NOWARN,
-> > -					HUGETLB_PAGE_ORDER);
-> > +	page = alloc_pages_node(nid,
-> > +		htlb_alloc_mask|__GFP_COMP|__GFP_THISNODE|__GFP_NOWARN,
-> > +		HUGETLB_PAGE_ORDER);
-> >  	if (page) {
-> >  		set_compound_page_dtor(page, free_huge_page);
-> >  		spin_lock(&hugetlb_lock);
-> >  		nr_huge_pages++;
-> > -		nr_huge_pages_node[page_to_nid(page)]++;
-> > +		nr_huge_pages_node[nid]++;
+> > AFAICT: This patchset is not throttling processes but failing
+> > allocations.
 > 
-> Not that I don't trust __GFP_THISNODE, but may I suggest a
-> "VM_BUG_ON(page_to_nid(page) != nid)" -- up above the spin_lock(), of
-> course.  Better yet, add the assertion and drop this one line change?
-> This isn't a hot path, I think.
+> Failing allocations?  Where do you see that?  As far as I can see, 
+> Peter's patch set allows allocations to fail exactly where the user has 
+> always specified they may fail, and in no new places.  If there is a 
+> flaw in that logic, please let us know.
 
-Hrm, I think if it's really a concern then the VM_BUG_ON should be in
-alloc_pages_node() itself? Or somewhere lower level, I mean, it's a bug
-everywhere, not just in hugetlb.c. And, more importantly, if
-__GFP_THISNODE doesn't work, it pretty much defeats the purpose of my
-sysfs attribute patch. Echo'ing a value for node 0 and getting hugepages
-on node 1 would be bad :)
+See the code added to slub: Allocations are satisfied from the reserve 
+patch or they are failing.
 
-But here's the patch respun, as requested:
+> > The patchset does not reconfigure the memory reserves as 
+> > expected.
+> 
+> What do you mean by that?  Expected by who?
 
-hugetlb: search harder for memory in alloc_fresh_huge_page()
+What would be expected it some recalculation of min_freekbytes?
 
-Currently, alloc_fresh_huge_page() returns NULL when it is not able to
-allocate a huge page on the current node, as specified by its custom
-interleave variable. The callers of this function, though, assume that a
-failure in alloc_fresh_huge_page() indicates no hugepages can be
-allocated on the system period. This might not be the case, for
-instance, if we have an uneven NUMA system, and we happen to try to
-allocate a hugepage on a node with less memory and fail, while there is
-still plenty of free memory on the other nodes.
+> > And I suspect that we  
+> > have the same issues as in earlier releases with various corner cases
+> > not being covered.
+> 
+> Do you have an example?
 
-To correct this, make alloc_fresh_huge_page() search through all online
-nodes before deciding no hugepages can be allocated. Add a helper
-function for actually allocating the hugepage. Also, since we expect
-particular semantics for __GFP_THISNODE, which are newly enforced, add a
-VM_BUG_ON when allocations occur off the requested node.
-
-Signed-off-by: Nishanth Aravamudan <nacc@us.ibm.com>
-
-diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-index d7ca59d..e7b103d 100644
---- a/mm/hugetlb.c
-+++ b/mm/hugetlb.c
-@@ -101,36 +101,60 @@ static void free_huge_page(struct page *page)
- 	spin_unlock(&hugetlb_lock);
- }
+Try NUMA constraints and zone limitations.
  
--static int alloc_fresh_huge_page(void)
-+static struct page *alloc_fresh_huge_page_node(int nid)
- {
--	static int prev_nid;
- 	struct page *page;
--	int nid;
--
--	/*
--	 * Copy static prev_nid to local nid, work on that, then copy it
--	 * back to prev_nid afterwards: otherwise there's a window in which
--	 * a racer might pass invalid nid MAX_NUMNODES to alloc_pages_node.
--	 * But we don't need to use a spin_lock here: it really doesn't
--	 * matter if occasionally a racer chooses the same nid as we do.
--	 */
--	nid = next_node(prev_nid, node_online_map);
--	if (nid == MAX_NUMNODES)
--		nid = first_node(node_online_map);
--	prev_nid = nid;
- 
--	page = alloc_pages_node(nid, htlb_alloc_mask|__GFP_COMP|__GFP_NOWARN,
--					HUGETLB_PAGE_ORDER);
-+	page = alloc_pages_node(nid,
-+		htlb_alloc_mask|__GFP_COMP|__GFP_THISNODE|__GFP_NOWARN,
-+		HUGETLB_PAGE_ORDER);
- 	if (page) {
-+		VM_BUG_ON(nid != page_to_nid(page));
- 		set_compound_page_dtor(page, free_huge_page);
- 		spin_lock(&hugetlb_lock);
- 		nr_huge_pages++;
--		nr_huge_pages_node[page_to_nid(page)]++;
-+		nr_huge_pages_node[page_to_nid(nid)]++;
- 		spin_unlock(&hugetlb_lock);
- 		put_page(page); /* free it into the hugepage allocator */
--		return 1;
- 	}
--	return 0;
-+
-+	return page;
-+}
-+
-+static int alloc_fresh_huge_page(void)
-+{
-+	static int nid = -1;
-+	struct page *page;
-+	int start_nid;
-+	int next_nid;
-+	int ret = 0;
-+
-+	if (nid < 0)
-+		nid = first_node(node_online_map);
-+	start_nid = nid;
-+
-+	do {
-+		page = alloc_fresh_huge_page_node(nid);
-+		if (page)
-+			ret = 1;
-+		/*
-+		 * Use a helper variable to find the next node and then
-+		 * copy it back to nid nid afterwards: otherwise there's
-+		 * a window in which a racer might pass invalid nid
-+		 * MAX_NUMNODES to alloc_pages_node.  But we don't need
-+		 * to use a spin_lock here: it really doesn't matter if
-+		 * occasionally a racer chooses the same nid as we do.
-+		 * Move nid forward in the mask even if we just
-+		 * successfully allocated a hugepage so that the next
-+		 * caller gets hugepages on the next node.
-+		 */
-+		next_nid = next_node(nid, node_online_map);
-+		if (next_nid == MAX_NUMNODES)
-+			next_nid = first_node(node_online_map);
-+		nid = next_nid;
-+	} while (!page && nid != start_nid);
-+
-+	return ret;
- }
- 
- static struct page *alloc_huge_page(struct vm_area_struct *vma,
+> > Code is added that is supposedly not used.
+> 
+> What makes you think that?
 
--- 
-Nishanth Aravamudan <nacc@us.ibm.com>
-IBM Linux Technology Center
+Because the argument is that performance does not matter since the code 
+patchs are not used.
+
+> > If it  ever is on a large config then we are in very deep trouble by
+> > the new code paths themselves that serialize things in order to give
+> > some allocations precendence over the other allocations that are made
+> > to fail ....
+> 
+> You mean by allocating the reserve memory on the wrong node in NUMA?  
+
+No I mean all 1024 processors of our system running into this fail/succeed 
+thingy that was added.
+
+> That is on a code path that avoids destroying your machine performance 
+> or killing the machine entirely as with current kernels, for which a 
+
+As far as I know from our systems: The current kernels do not kill the 
+machine if the reserves are configured the right way.
+
+> few cachelines pulled to another node is a small price to pay.  And you 
+> are free to use your special expertise in NUMA to make those fallback 
+> paths even more efficient, but first you need to understand what they 
+> are doing and why.
+
+There is your problem. The justification is not clear at all and the 
+solution likely causes unrelated problems.
+
+
+ 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
