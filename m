@@ -1,34 +1,49 @@
-Received: from cragnux.laika.com ([209.162.219.253]:64654 helo=dogma.ljc.laika.com)
-	by serv01.siteground137.com with esmtpsa (TLSv1:RC4-MD5:128)
-	(Exim 4.63)
-	(envelope-from <linux@j-davis.com>)
-	id 1IICgG-0005RB-9N
-	for linux-mm@kvack.org; Mon, 06 Aug 2007 19:12:12 -0500
-Subject: OOM killer overcounts memory usage
-From: Jeff Davis <linux@j-davis.com>
-Content-Type: text/plain
-Date: Mon, 06 Aug 2007 17:12:12 -0700
-Message-Id: <1186445532.27681.28.camel@dogma.ljc.laika.com>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Received: from d03relay02.boulder.ibm.com (d03relay02.boulder.ibm.com [9.17.195.227])
+	by e35.co.us.ibm.com (8.13.8/8.13.8) with ESMTP id l770YnUs030093
+	for <linux-mm@kvack.org>; Mon, 6 Aug 2007 20:34:50 -0400
+Received: from d03av01.boulder.ibm.com (d03av01.boulder.ibm.com [9.17.195.167])
+	by d03relay02.boulder.ibm.com (8.13.8/8.13.8/NCO v8.4) with ESMTP id l770YnS7249970
+	for <linux-mm@kvack.org>; Mon, 6 Aug 2007 18:34:49 -0600
+Received: from d03av01.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av01.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l770YnFT029444
+	for <linux-mm@kvack.org>; Mon, 6 Aug 2007 18:34:49 -0600
+Date: Mon, 6 Aug 2007 17:34:46 -0700
+From: Nishanth Aravamudan <nacc@us.ibm.com>
+Subject: Re: [RFC][PATCH 2/5] hugetlb: numafy several functions
+Message-ID: <20070807003446.GW15714@us.ibm.com>
+References: <20070806163254.GJ15714@us.ibm.com> <20070806163726.GK15714@us.ibm.com> <20070806163841.GL15714@us.ibm.com> <Pine.LNX.4.64.0708061058380.24256@schroedinger.engr.sgi.com> <20070806181532.GR15714@us.ibm.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20070806181532.GR15714@us.ibm.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
+To: Christoph Lameter <clameter@sgi.com>
+Cc: lee.schermerhorn@hp.com, wli@holomorphy.com, melgor@ie.ibm.com, akpm@linux-foundation.org, linux-mm@kvack.org, agl@us.ibm.com
 List-ID: <linux-mm.kvack.org>
 
-The OOM killer badness() function (mm/oom_kill.c) overcounts shared
-memory many times over when the memory is shared between a parent
-process and its children.
+On 06.08.2007 [11:15:32 -0700], Nishanth Aravamudan wrote:
+> On 06.08.2007 [10:59:20 -0700], Christoph Lameter wrote:
+> > On Mon, 6 Aug 2007, Nishanth Aravamudan wrote:
+> > 
+> > > +	page = alloc_pages_node(nid,
+> > > +			GFP_HIGHUSER|__GFP_COMP|GFP_THISNODE,
+> > > +			HUGETLB_PAGE_ORDER);
+> > 
+> > GFP_THISNODE disables reclaim. With Mel Gorman's ZONE_MOVABLE you may
+> > want to enable reclaim here. Use __GFP_THISNODE?
+> 
+> It is GFP_THISNODE currently. That seems like a separate logical
+> change which I'll have to consider separately.
 
-Each byte of shared memory is counted 1+N/2 times for the parent, where
-N is the number of children of the process with which the parent shares
-memory.
+Bah, sorry, I'm confused. You're right and I'll make this change.
 
-We may not even want to count the parent's shared memory at all, because
-there's already limit with kernel.shmmax.
+Thanks,
+Nish
 
-Regards,
-        Jeff Davis
+-- 
+Nishanth Aravamudan <nacc@us.ibm.com>
+IBM Linux Technology Center
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
