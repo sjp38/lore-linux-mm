@@ -1,70 +1,83 @@
-Received: from d01relay02.pok.ibm.com (d01relay02.pok.ibm.com [9.56.227.234])
-	by e2.ny.us.ibm.com (8.13.8/8.13.8) with ESMTP id l77HFQjD029048
-	for <linux-mm@kvack.org>; Tue, 7 Aug 2007 13:15:26 -0400
-Received: from d01av03.pok.ibm.com (d01av03.pok.ibm.com [9.56.224.217])
-	by d01relay02.pok.ibm.com (8.13.8/8.13.8/NCO v8.4) with ESMTP id l77HFQO3477054
-	for <linux-mm@kvack.org>; Tue, 7 Aug 2007 13:15:26 -0400
-Received: from d01av03.pok.ibm.com (loopback [127.0.0.1])
-	by d01av03.pok.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l77HFP3a029700
-	for <linux-mm@kvack.org>; Tue, 7 Aug 2007 13:15:26 -0400
-Date: Tue, 7 Aug 2007 10:15:25 -0700
-From: Nishanth Aravamudan <nacc@us.ibm.com>
-Subject: [RFC][PATCH 2/2][V10] hugetlb: fix pool allocation with memoryless nodes
-Message-ID: <20070807171525.GZ15714@us.ibm.com>
-References: <20070807171432.GY15714@us.ibm.com>
+From: "May Hooker" <fhdowntown@prou.com>
+Subject: Potenzprobleme? Ab jetzt nicht mehr  it would be useful  -- , and how to exploit 
+Date: Tue, 7 Aug 2007 17:33:22 +0500
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20070807171432.GY15714@us.ibm.com>
-Sender: owner-linux-mm@kvack.org
-Return-Path: <owner-linux-mm@kvack.org>
-To: clameter@sgi.com
-Cc: anton@samba.org, lee.schermerhorn@hp.com, wli@holomorphy.com, linux-mm@kvack.org
+Content-Type: multipart/alternative;
+	boundary="----=_NextPart_000_0006_01C7D8EF.24A365A0"
+Message-ID: <01c7d919$0d796da0$844c6ac8@fhdowntown>
+Return-Path: <fhdowntown@prou.com>
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-[V10] hugetlb: fix pool allocation with empty nodes
+This is a multi-part message in MIME format.
 
-Anton found a problem with the hugetlb pool allocation when some nodes
-have no memory (http://marc.info/?l=linux-mm&m=118133042025995&w=2). Lee
-worked on versions that tried to fix it, but none were accepted.
-Christoph has created a set of patches which allow for GFP_THISNODE
-allocations to fail if the node has no memory and for exporting a
-nodemask indicating which nodes have memory. Simply interleave across
-this nodemask rather than the online nodemask.
+------=_NextPart_000_0006_01C7D8EF.24A365A0
+Content-Type: text/plain;
+	charset="iso-8859-2"
+Content-Transfer-Encoding: 7bit
 
-Signed-off-by: Nishanth Aravamudan <nacc@us.ibm.com>
+Versuchen Sie unser Produkt und Sie werden fuhlen was unsere Kunden bestatigen
 
-diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-index 17a377e..1f872ca 100644
---- a/mm/hugetlb.c
-+++ b/mm/hugetlb.c
-@@ -129,7 +129,7 @@ static int alloc_fresh_huge_page(void)
- 	int ret = 0;
- 
- 	if (nid < 0)
--		nid = first_node(node_online_map);
-+		nid = first_node(node_states[N_HIGH_MEMORY]);
- 	start_nid = nid;
- 
- 	do {
-@@ -147,9 +147,9 @@ static int alloc_fresh_huge_page(void)
- 		 * successfully allocated a hugepage so that the next
- 		 * caller gets hugepages on the next node.
- 		 */
--		next_nid = next_node(nid, node_online_map);
-+		next_nid = next_node(nid, node_states[N_HIGH_MEMORY]);
- 		if (next_nid == MAX_NUMNODES)
--			next_nid = first_node(node_online_map);
-+			next_nid = first_node(node_states[N_HIGH_MEMORY]);
- 		nid = next_nid;
- 	} while (!page && nid != start_nid);
- 
--- 
-Nishanth Aravamudan <nacc@us.ibm.com>
-IBM Linux Technology Center
+Preise die keine Konkurrenz kennen 
 
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+- Kostenlose, arztliche Telefon-Beratung
+- Kein langes Warten - Auslieferung innerhalb von 2-3 Tagen
+- Bequem und diskret online bestellen.
+- Diskrete Verpackung und Zahlung
+- Kein peinlicher Arztbesuch erforderlich
+- Visa verifizierter Onlineshop
+- keine versteckte Kosten
+
+Originalmedikamente
+Ciiaaaaaalis 10 Pack. 27,00 Euro
+Viiaaaagra 10 Pack. 21,00 Euro
+
+Nur fur kurze Zeit - vier Pillen umsonst erhalten
+http://yoixtq.segmentcharge.cn/?083395070698
+
+(bitte warten Sie einen Moment bis die Seite vollstandig geladen wird)
+
+
+------=_NextPart_000_0006_01C7D8EF.24A365A0
+Content-Type: text/html;
+	charset="iso-8859-2"
+Content-Transfer-Encoding: quoted-printable
+
+<html xmlns:o=3D"urn:schemas-microsoft-com:office:office" xmlns:w=3D"urn:sc=
+hemas-microsoft-com:office:word" xmlns=3D"http://www.w3.org/TR/REC-html40">
+
+<head>
+<META HTTP-EQUIV=3D"Content-Type" CONTENT=3D"text/html; charset=3Diso-8859-2">
+<meta name=3DGenerator content=3D"Microsoft Word 11 (filtered medium)">
+</head>
+<body>
+<head><meta http-equiv=3D"Content-Type" content=3D"text/html; charset=3Diso=
+-8859-1">
+</head><body><p>Meinung von unserem Kunden:<br><strong>Ich finde Viiaaaagra=
+ einfach wunderbar. Egal, ob f&#252;r den Sex oder, um mich selbst zu verw&=
+#246;hnen: Es funktioniert. Mein Schwanz wird extrem hart und mein Orgasmus=
+ ist sehr intensiv. Die Wirkung ist so stark, dass ich Viiaaaagra nur am Wo=
+chenende verwende oder wenn ich viel Zeit habe, es richtig zu genie&#223;en=
+</strong></p><p><strong>Meine Frau und ich haben Viiaaaagra am letzten Woc=
+henende ausprobiert. Sie fand, mein bestes St&#252;ck w&#228;re in letzter =
+Zeit nicht ganz auf der H&#246;he gewesen. Also dachten wir, wir probieren =
+es einfach einmal.Es gibt nur ein Wort, dass das Gef&#252;hl beschreibt: Wa=
+hnsinn. Seit ich zwanzig war, konnte ich nicht mehr so lang und so oft. Was=
+ soll ich sagen? Gute Arbeit, Viiaaaagra!<br>
+</strong><strong><br>Versuchen Sie unser Produkt und Sie werden fuhlen was =
+unsere Kunden bestatigen</strong></p><p>Preise die keine Konkurrenz kennen =
+<p>
+- Kostenlose, arztliche Telefon-Beratung<br>- Kein peinlicher Arztbesuch er=
+forderlich<br>- Diskrete Verpackung und Zahlung<br>- Kein langes Warten - A=
+uslieferung innerhalb von 2-3 Tagen<br>- Bequem und diskret online bestelle=
+n.<br>- Visa verifizierter Onlineshop<br>- keine versteckte Kosten</p>
+<p>Originalmedikamente<br><strong>Ciiaaaaaalis 10 Pack. 27,00 Euro</strong>=
+<br>
+  <strong>Viiaaaagra 10 Pack. 21,00 Euro</strong><br><br><strong><a href=3D=
+"http://yoixtq.segmentcharge.cn/?083395070698" target=3D"_blank">Nur fur ku=
+rze Zeit - vier Pillen umsonst erhalten</a><br></strong>(bitte warten Sie e=
+inen Moment bis die Seite vollst&auml;ndig geladen wird) </p></body>
+</body>
+</html>
+
+------=_NextPart_000_0006_01C7D8EF.24A365A0--
