@@ -1,53 +1,97 @@
-Date: Tue, 7 Aug 2007 11:14:30 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH] Apply memory policies to top two highest zones when
- highest zone is ZONE_MOVABLE
-Message-Id: <20070807111430.f35c03c0.akpm@linux-foundation.org>
-In-Reply-To: <20070807165546.GA7603@skynet.ie>
-References: <20070802172118.GD23133@skynet.ie>
-	<200708040002.18167.ak@suse.de>
-	<20070806121558.e1977ba5.akpm@linux-foundation.org>
-	<200708062231.49247.ak@suse.de>
-	<20070806215541.GC6142@skynet.ie>
-	<20070806221252.aa1e9048.akpm@linux-foundation.org>
-	<20070807165546.GA7603@skynet.ie>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Received: from d23relay03.au.ibm.com (d23relay03.au.ibm.com [202.81.18.234])
+	by ausmtp05.au.ibm.com (8.13.8/8.13.8) with ESMTP id l77IWN4J3911690
+	for <linux-mm@kvack.org>; Wed, 8 Aug 2007 04:32:23 +1000
+Received: from d23av03.au.ibm.com (d23av03.au.ibm.com [9.190.250.244])
+	by d23relay03.au.ibm.com (8.13.8/8.13.8/NCO v8.5) with ESMTP id l77IUHdx3137652
+	for <linux-mm@kvack.org>; Wed, 8 Aug 2007 04:30:17 +1000
+Received: from d23av03.au.ibm.com (loopback [127.0.0.1])
+	by d23av03.au.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l77IUH6G004713
+	for <linux-mm@kvack.org>; Wed, 8 Aug 2007 04:30:17 +1000
+Message-ID: <46B8BA33.7020800@linux.vnet.ibm.com>
+Date: Wed, 08 Aug 2007 00:00:11 +0530
+From: Vaidyanathan Srinivasan <svaidy@linux.vnet.ibm.com>
+MIME-Version: 1.0
+Subject: Re: [-mm PATCH 6/9] Memory controller add per container LRU and reclaim
+ (v4)
+References: <20070727201041.31565.14803.sendpatchset@balbir-laptop> <20070731051459.E827E1BF77B@siro.lan> <46AF314C.7030404@linux.vnet.ibm.com>
+In-Reply-To: <46AF314C.7030404@linux.vnet.ibm.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Mel Gorman <mel@skynet.ie>
-Cc: Andi Kleen <ak@suse.de>, Lee.Schermerhorn@hp.com, clameter@sgi.com, kamezawa.hiroyu@jp.fujitsu.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Vaidyanathan Srinivasan <svaidy@linux.vnet.ibm.com>
+Cc: YAMAMOTO Takashi <yamamoto@valinux.co.jp>, a.p.zijlstra@chello.nl, dhaval@linux.vnet.ibm.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, ebiederm@xmission.com, containers@lists.osdl.org, akpm@linux-foundation.org, xemul@openvz.org, menage@google.com, balbir@linux.vnet.ibm.com
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 7 Aug 2007 17:55:47 +0100 mel@skynet.ie (Mel Gorman) wrote:
 
-> On (06/08/07 22:12), Andrew Morton didst pronounce:
-> > On Mon, 6 Aug 2007 22:55:41 +0100 mel@skynet.ie (Mel Gorman) wrote:
-> > 
-> > > On (06/08/07 22:31), Andi Kleen didst pronounce:
-> > > > 
-> > > > > If correct, I would suggest merging the horrible hack for .23 then taking
-> > > > > it out when we merge "grouping pages by mobility".  But what if we don't do
-> > > > > that merge?
-> > > > 
-> > > > Or disable ZONE_MOVABLE until it is usable?
-> > > 
-> > > It's usable now. The issue with policies only occurs if the user specifies
-> > > kernelcore= or movablecore= on the command-line. Your language suggests
-> > > that you believe policies are not applied when ZONE_MOVABLE is configured
-> > > at build-time.
-> > 
-> > So..  the problem which we're fixing here is only present when someone
-> > use kernelcore=.  This is in fact an argument for _not_ merging the
-> > horrible-hack.
-> > 
+Vaidyanathan Srinivasan wrote:
 > 
-> It's even more constrained than that. It only applies to the MPOL_BIND
-> policy when kernelcore= is specified. The other policies work the same
-> as they ever did.
+> YAMAMOTO Takashi wrote:
+>>> +unsigned long mem_container_isolate_pages(unsigned long nr_to_scan,
+>>> +					struct list_head *dst,
+>>> +					unsigned long *scanned, int order,
+>>> +					int mode, struct zone *z,
+>>> +					struct mem_container *mem_cont,
+>>> +					int active)
+>>> +{
+>>> +	unsigned long nr_taken = 0;
+>>> +	struct page *page;
+>>> +	unsigned long scan;
+>>> +	LIST_HEAD(mp_list);
+>>> +	struct list_head *src;
+>>> +	struct meta_page *mp;
+>>> +
+>>> +	if (active)
+>>> +		src = &mem_cont->active_list;
+>>> +	else
+>>> +		src = &mem_cont->inactive_list;
+>>> +
+>>> +	for (scan = 0; scan < nr_to_scan && !list_empty(src); scan++) {
+>>> +		mp = list_entry(src->prev, struct meta_page, lru);
+>> what prevents another thread from freeing mp here?
+> 
+> mem_cont->lru_lock protects the list and validity of mp.  If we hold
+> mem_cont->lru_lock for this entire loop, then we preserve the validity
+> of mp.  However that will be holding up container charge and uncharge.
+> 
+> This entire routing is called with zone->lru_lock held by the caller.
+>  So within a zone, this routine is serialized.
+> 
+> However page uncharge may race with isolate page.  But will that lead
+> to any corruption of the list?  We may be holding the lock for too
+> much time just to be on the safe side.
+> 
+> Please allow us some time to verify whether this is indeed inadequate
+> locking that will lead to corruption of the list.
 
-so.. should we forget about merging the horrible-hack?
+I did few runs and checked for ref_cnt on meta_page and there seems to
+be a race between isolate pages and uncharge.  We will probably have
+to increase the ref_cnt on meta_page while we are isolating it.  I am
+trying to see if we can solve the problem by manipulating the ref_cnt
+on the meta_page.
+
+--Vaidy
+
+> Thanks for pointing out this situation.
+> --Vaidy
+> 
+>>> +		spin_lock(&mem_cont->lru_lock);
+>>> +		if (mp)
+>>> +			page = mp->page;
+>>> +		spin_unlock(&mem_cont->lru_lock);
+>>> +		if (!mp)
+>>> +			continue;
+>> YAMAMOTO Takashi
+>> _______________________________________________
+>> Containers mailing list
+>> Containers@lists.linux-foundation.org
+>> https://lists.linux-foundation.org/mailman/listinfo/containers
+>>
+> _______________________________________________
+> Containers mailing list
+> Containers@lists.linux-foundation.org
+> https://lists.linux-foundation.org/mailman/listinfo/containers
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
