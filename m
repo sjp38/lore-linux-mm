@@ -1,30 +1,40 @@
-Received: from mtfhpc.demon.co.uk ([83.104.139.140])
-	by anchor-post-34.mail.demon.net with esmtp (Exim 4.42)
-	id 1IINEK-000FJg-F4
-	for linux-mm@kvack.org; Tue, 07 Aug 2007 11:28:08 +0000
-Received: from localhost (mark@localhost)
-	by mtfhpc.demon.co.uk (8.9.3/8.9.3) with ESMTP id MAA32171
-	for <linux-mm@kvack.org>; Tue, 7 Aug 2007 12:28:01 +0100
-Date: Tue, 7 Aug 2007 12:28:00 +0100 (BST)
-From: Mark Fortescue <mark@mtfhpc.demon.co.uk>
-Subject: Broken Link on //linux-mm.org/MemoryManagementLinks
-Message-ID: <Pine.LNX.4.61.0708071224390.32113@mtfhpc.demon.co.uk>
-MIME-Version: 1.0
-Content-Type: MULTIPART/MIXED; BOUNDARY="1750305931-189212110-1186486080=:32113"
+From: Andy Whitcroft <apw@shadowen.org>
+Subject: [PATCH] synchronous lumpy: improve commentary on writeback wait
+References: <20070806122204.924fa0e9.akpm@linux-foundation.org>
+Message-ID: <5de3a4f206c81c41e8b1ce5eeb245851@pinky>
+Date: Tue, 07 Aug 2007 16:31:40 +0100
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
+To: Andrew Morton <akpm@osdl.org>
+Cc: Mel Gorman <mel@csn.ul.ie>, Andy Whitcroft <apw@shadowen.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-Hi,
+Improve code commentary on the initial writeback wait in synchronous
+reclaim mode.
 
-Can any one confirm if the attached document is the document that was 
-pointed to by the 'SunOS Virtual Memory Implementation' link?
-
-Regards
-	Mark Fortescue.
-
-
+Signed-off-by: Andy Whitcroft <apw@shadowen.org>
+---
+ mm/vmscan.c |    8 ++++++++
+ 1 files changed, 8 insertions(+), 0 deletions(-)
+diff --git a/mm/vmscan.c b/mm/vmscan.c
+index b1e9291..a6e65d0 100644
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -479,6 +479,14 @@ static unsigned long shrink_page_list(struct list_head *page_list,
+ 			(PageSwapCache(page) && (sc->gfp_mask & __GFP_IO));
+ 
+ 		if (PageWriteback(page)) {
++			/*
++			 * Synchronous reclaim is performed in two passes,
++			 * first an asynchronous pass over the list to
++			 * start parallel writeback, and a second synchronous
++			 * pass to wait for the IO to complete.  Wait here
++			 * for any page for which writeback has already
++			 * started.
++			 */
+ 			if (sync_writeback == PAGEOUT_IO_SYNC && may_enter_fs)
+ 				wait_on_page_writeback(page);
+ 			else
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
