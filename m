@@ -1,82 +1,39 @@
-Message-ID: <01c7d934$8cdeb1c0$ecdeb154@boclair>
-From: "Madelyn Barnett" <boclair@drizzle.com>
-Subject: Man Lebt nur einmal - probiers aus !  complaint against the FSA.  -- more complex. 
-Date: Tue, 7 Aug 2007 20:50:12 -0100
+Message-ID: <46B8E227.1010300@tmr.com>
+Date: Tue, 07 Aug 2007 17:20:39 -0400
+From: Bill Davidsen <davidsen@tmr.com>
 MIME-Version: 1.0
-Content-Type: multipart/alternative;
-	boundary="----=_NextPart_000_0007_01C7D945.506781C0"
-Return-Path: <boclair@drizzle.com>
-To: linux-mm@kvack.org
+Subject: Re: [PATCH 00/23] per device dirty throttling -v8
+References: <20070803123712.987126000@chello.nl> <46B4E161.9080100@garzik.org> <20070804224706.617500a0@the-village.bc.nu> <200708050051.40758.ctpm@ist.utl.pt>
+In-Reply-To: <200708050051.40758.ctpm@ist.utl.pt>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
+Sender: owner-linux-mm@kvack.org
+Return-Path: <owner-linux-mm@kvack.org>
+To: Claudio Martins <ctpm@ist.utl.pt>
+Cc: Alan Cox <alan@lxorguk.ukuu.org.uk>, Jeff Garzik <jeff@garzik.org>, Ingo Molnar <mingo@elte.hu>, =?ISO-8859-1?Q?J=F6rn_Engel?= <joern@logfs.org>, Linus Torvalds <torvalds@linux-foundation.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, linux-mm@kvack.org, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, miklos@szeredi.hu, akpm@linux-foundation.org, neilb@suse.de, dgc@sgi.com, tomoki.sekiyama.qu@hitachi.com, nikita@clusterfs.com, trond.myklebust@fys.uio.no, yingchao.zhou@gmail.com, richard@rsk.demon.co.uk, david@lang.hm
 List-ID: <linux-mm.kvack.org>
 
-This is a multi-part message in MIME format.
+Claudio Martins wrote:
+> On Saturday 04 August 2007, Alan Cox wrote:
+>> Linux has never been a "suprise your kernel interfaces all just changed
+>> today" kernel, nor a "gosh you upgraded and didn't notice your backups
+>> broke" kernel.
+>>
+> 
+>  Can you give examples of backup solutions that rely on atime being updated?
+> I can understand backup tools using mtime/ctime for incremental backups (like 
+> tar + Amanda, etc), but I'm having trouble figuring out why someone would 
+> want to use atime for that.
+> 
+Programs which migrate unused files or delete them are the usual cases.
 
-------=_NextPart_000_0007_01C7D945.506781C0
-Content-Type: text/plain;
-	charset="us-ascii"
-Content-Transfer-Encoding: quoted-printable
+-- 
+Bill Davidsen <davidsen@tmr.com>
+   "We have more to fear from the bungling of the incompetent than from
+the machinations of the wicked."  - from Slashdot
 
-Haben Sie endlich wieder Spass am Leben!
-
-Preise die keine Konkurrenz kennen 
-
-- Diskrete Verpackung und Zahlung
-- Kein peinlicher Arztbesuch erforderlich
-- Kostenlose, arztliche Telefon-Beratung
-- Kein langes Warten - Auslieferung innerhalb von 2-3 Tagen
-- Bequem und diskret online bestellen.
-- Visa verifizierter Onlineshop
-- keine versteckte Kosten
-
-Originalmedikamente
-Ciiaaaaaalis 10 Pack. 27,00 Euro
-Viiaaaagra 10 Pack. 21,00 Euro
-
-Jetzt bestellen - und vier Pillen umsonst erhalten
-http://votug.whatshore.com/?448895162434
-
-(bitte warten Sie einen Moment bis die Seite vollstandig geladen wird)
-------=_NextPart_000_0007_01C7D945.506781C0
-Content-Type: text/html;
-	charset="us-ascii"
-Content-Transfer-Encoding: quoted-printable
-
-<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
-<HTML><HEAD>
-<META http-equiv=3DContent-Type content=3D"text/html; charset=3Dus-ascii">
-<META content=3D"MSHTML 5.00.2919.6600" name=3DGENERATOR>
-<STYLE></STYLE>
-</HEAD>
-<BODY>
-<head><meta http-equiv=3D"Content-Type" content=3D"text/html; charset=3Diso=
--8859-1">
-</head><body><p>Meinung von unserem Kunden:<br><strong>Jetzt, wo ich Viiaaa=
-agra ausprobiert habe, w&#252;rde ich es immer wieder kaufen, auch wenn ich=
- das Dreifache daf&#252;r bezahlen m&#252;sste. Ich bedaure all die ungl&#2=
-52;cklichen M&#228;nner, die in ihrem Leben nie die Gelegenheit hatten, Vii=
-aaaagra auszuprobieren. Und ein bisschen bedaure ich mich selbst: Warum hab=
-e ich nicht schon vor Jahren den Mut gehabt, es zu probieren?</strong></p><=
-p><strong>Fantastische Wirkung! F&#252;nf Jahre lang hatte ich es nicht meh=
-r geschafft, meine Err. ..ektion w&#228;hrend des Verkehrs zu halten und wa=
-r richtig &#228;ngstlich geworden. Ich hatte auch ein Problem mit vorzeitig=
-em Samenerguss. Au&#223;erdem bin ich Zuckerkrank. Vor einiger Zeit habe ic=
-h eine 50-mg-Dosis Viiaaaagra genommen und zwei Stunden sp&#228;ter mit ein=
-er 22-j&#228;hrigen geschlafen. Kurz vor dem Vorspiel wurde mein Penis hart=
- und ich konnte es kaum glauben. Ich habe in dieser Nacht dreimal Sex gehab=
-t und es gab keine Probleme dabei. Kein Schuss ging daneben. Ich bin ein gl=
-&#252;cklicher Mann. Achmet, 52<br>
-</strong><strong><br>Haben Sie endlich wieder Spass am Leben!</strong></p><=
-p>Preise die keine Konkurrenz kennen <p>
-- keine versteckte Kosten<br>- Bequem und diskret online bestellen.<br>- Di=
-skrete Verpackung und Zahlung<br>- Kein peinlicher Arztbesuch erforderlich<=
-br>- Kostenlose, arztliche Telefon-Beratung<br>- Kein langes Warten - Ausli=
-eferung innerhalb von 2-3 Tagen<br>- Visa verifizierter Onlineshop</p>
-<p>Originalmedikamente<br><strong>Ciiaaaaaalis 10 Pack. 27,00 Euro</strong>=
-<br>
-  <strong>Viiaaaagra 10 Pack. 21,00 Euro</strong><br><br><strong><a href=3D=
-"http://votug.whatshore.com/?448895162434" target=3D"_blank">Jetzt bestelle=
-n - und vier Pillen umsonst erhalten</a><br></strong>(bitte warten Sie eine=
-n Moment bis die Seite vollst&auml;ndig geladen wird) </p></body>
-</BODY></HTML>
-
-------=_NextPart_000_0007_01C7D945.506781C0--
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
