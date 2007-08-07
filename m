@@ -1,46 +1,42 @@
-Date: Mon, 6 Aug 2007 22:12:52 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH] Apply memory policies to top two highest zones when
- highest zone is ZONE_MOVABLE
-Message-Id: <20070806221252.aa1e9048.akpm@linux-foundation.org>
-In-Reply-To: <20070806215541.GC6142@skynet.ie>
-References: <20070802172118.GD23133@skynet.ie>
-	<200708040002.18167.ak@suse.de>
-	<20070806121558.e1977ba5.akpm@linux-foundation.org>
-	<200708062231.49247.ak@suse.de>
-	<20070806215541.GC6142@skynet.ie>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Date: Tue, 7 Aug 2007 16:44:31 +1000
+From: David Gibson <david@gibson.dropbear.id.au>
+Subject: Re: + hugetlb-allow-extending-ftruncate-on-hugetlbfs.patch added to -mm tree
+Message-ID: <20070807064431.GC8351@localhost.localdomain>
+References: <200708061830.l76IUA6j008338@imap1.linux-foundation.org> <20070807041559.GH13522@localhost.localdomain> <b040c32a0708062128r42d6a067l3a0c8c3818660e13@mail.gmail.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <b040c32a0708062128r42d6a067l3a0c8c3818660e13@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Mel Gorman <mel@skynet.ie>
-Cc: Andi Kleen <ak@suse.de>, Lee.Schermerhorn@hp.com, clameter@sgi.com, kamezawa.hiroyu@jp.fujitsu.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Ken Chen <kenchen@google.com>
+Cc: akpm@linux-foundation.org, agl@us.ibm.com, nacc@us.ibm.com, wli@holomorphy.com, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 6 Aug 2007 22:55:41 +0100 mel@skynet.ie (Mel Gorman) wrote:
-
-> On (06/08/07 22:31), Andi Kleen didst pronounce:
-> > 
-> > > If correct, I would suggest merging the horrible hack for .23 then taking
-> > > it out when we merge "grouping pages by mobility".  But what if we don't do
-> > > that merge?
-> > 
-> > Or disable ZONE_MOVABLE until it is usable?
+On Mon, Aug 06, 2007 at 09:28:01PM -0700, Ken Chen wrote:
+> On 8/6/07, David Gibson <david@gibson.dropbear.id.au> wrote:
+> > Ken, is this quite sufficient?  At least if we're expanding a
+> > MAP_SHARED hugepage mapping, we should pre-reserve hugepages on an
+> > expanding ftruncate().
 > 
-> It's usable now. The issue with policies only occurs if the user specifies
-> kernelcore= or movablecore= on the command-line. Your language suggests
-> that you believe policies are not applied when ZONE_MOVABLE is configured
-> at build-time.
+> why do we need to reserve them?  mmap segments aren't extended, e.g.
+> vma length remains the same.  We only expand file size.
 
-So..  the problem which we're fixing here is only present when someone
-use kernelcore=.  This is in fact an argument for _not_ merging the
-horrible-hack.
+Well.. I suppose it doesn't have to (sorry, I was thinking of my old
+version of reservation, where the file's reserve was based on the file
+size rather than permitting non-contiguous reserved regions).
 
-How commonly do we expect people to specify kernelcore=?  If "not much" then
-it isn't worth adding the __alloc_pages() overhead?
+But since ftruncate()ing to shorten unreserves pages, it would seem
+logical that ftruncate()ing to lengthen would reserve them.  In
+general the notion of reserved pages for shared mappings is a
+reservation in the inode address space, rather than a reservation for
+any process's particular mapping of it.
 
-(It's a pretty darn small overhead, I must say)
+-- 
+David Gibson			| I'll have my music baroque, and my code
+david AT gibson.dropbear.id.au	| minimalist, thank you.  NOT _the_ _other_
+				| _way_ _around_!
+http://www.ozlabs.org/~dgibson
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
