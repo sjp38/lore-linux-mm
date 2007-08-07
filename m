@@ -1,137 +1,79 @@
+Subject: Re: Help understanding SPARC32 Sun4c PTE handling
 From: Benjamin Herrenschmidt <benh@kernel.crashing.org>
-Date: Tue, 07 Aug 2007 17:19:51 +1000
-Subject: [RFC/PATCH 8/12] remove ptep_get_and_clear_full
-In-Reply-To: <1186471185.826251.312410898174.qpush@grosgo>
-Message-Id: <20070807071958.0FE4EDDE11@ozlabs.org>
+In-Reply-To: <Pine.LNX.4.61.0708061749230.29956@mtfhpc.demon.co.uk>
+References: <Pine.LNX.4.61.0708061749230.29956@mtfhpc.demon.co.uk>
+Content-Type: text/plain
+Date: Tue, 07 Aug 2007 17:30:48 +1000
+Message-Id: <1186471848.938.127.camel@localhost.localdomain>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Linux Memory Management <linux-mm@kvack.org>
-Cc: linux-kernel@vger.kernel.org
+To: Mark Fortescue <mark@mtfhpc.demon.co.uk>
+Cc: "David S. Miller" <davem@davemloft.net>, sparclinux@vger.kernel.org, linux-mm@kvack.org, "Antonino A. Daplas" <adaplas@hotpop.com>
 List-ID: <linux-mm.kvack.org>
 
-This patch removes it, instead, the arch implementations that
-care use the new MMF_DEAD flag in the mm_struct.
+On Mon, 2007-08-06 at 18:38 +0100, Mark Fortescue wrote:
+> Hi David,
+> 
+> If you have the time ..., if not, hopfully, some one from linux-mm will 
+> explain.
+> 
+> I have been investigating the differences between SunOS PTE and Linux PTE 
+> bits. There are some differences that I would like to understand.
 
-Signed-off-by: Benjamin Herrenschmidt <benh@kernel.crashing.org>
----
+I'm no specific of sun4c but I can answer on generalities. Maybe Anton
+knows more, I've added him to the CC list :-)
 
-NOTE: I'm not necessarily convinced yet this is the right approach,
-but I needed to get rid of it because my current new batch structure
-doesn't have this fullmm field anymore.
+> What is the pte_file() function intended for. The bit in the PTE that
+> is used (0x02000000) is set by hardware (definatly on page write and in 
+> theory on page read if the SunOS PTE description is to be believed. It 
+> is described as the 'refferenced' bit).
 
-However, I'm thinking about putting it back in and replacing
-ptep_get_and_clear with a tlb_get_and_clear_pte() which would
-take a batch as an argument instead once I'm done moving all
-page table walkers to use the batch for TLB operations.
+_PAGE_FILE in linux is a software-only bit that is set on PTEs that are
+not present (_PAGE_PRESENT not set) (and thus normally not used by HW,
+that is, not seen as valid). It's used to indicate that the page is part
+of a file mapping (rather than an anonymous page).
 
- include/asm-generic/pgtable.h |    9 ---------
- include/asm-i386/pgtable.h    |   17 +++++++----------
- include/asm-x86_64/pgtable.h  |    8 ++++----
- mm/memory.c                   |    3 +--
- 4 files changed, 12 insertions(+), 25 deletions(-)
+The linux PTE contains other bits like that, used on non-present PTEs,
+mostly encoding where in the swap or where in the file the page for a
+non-present PTE is backed.
 
-Index: linux-work/include/asm-generic/pgtable.h
-===================================================================
---- linux-work.orig/include/asm-generic/pgtable.h	2007-08-07 16:19:14.000000000 +1000
-+++ linux-work/include/asm-generic/pgtable.h	2007-08-07 16:19:19.000000000 +1000
-@@ -58,15 +58,6 @@
- })
- #endif
- 
--#ifndef __HAVE_ARCH_PTEP_GET_AND_CLEAR_FULL
--#define ptep_get_and_clear_full(__mm, __address, __ptep, __full)	\
--({									\
--	pte_t __pte;							\
--	__pte = ptep_get_and_clear((__mm), (__address), (__ptep));	\
--	__pte;								\
--})
--#endif
--
- /*
-  * Some architectures may be able to avoid expensive synchronization
-  * primitives when modifications are made to PTE's which are already
-Index: linux-work/include/asm-i386/pgtable.h
-===================================================================
---- linux-work.orig/include/asm-i386/pgtable.h	2007-08-07 16:20:05.000000000 +1000
-+++ linux-work/include/asm-i386/pgtable.h	2007-08-07 16:22:05.000000000 +1000
-@@ -311,15 +311,9 @@ static inline pte_t native_local_ptep_ge
- })
- 
- #define __HAVE_ARCH_PTEP_GET_AND_CLEAR
--static inline pte_t ptep_get_and_clear(struct mm_struct *mm, unsigned long addr, pte_t *ptep)
--{
--	pte_t pte = native_ptep_get_and_clear(ptep);
--	pte_update(mm, addr, ptep);
--	return pte;
--}
--
--#define __HAVE_ARCH_PTEP_GET_AND_CLEAR_FULL
--static inline pte_t ptep_get_and_clear_full(struct mm_struct *mm, unsigned long addr, pte_t *ptep, int full)
-+static inline pte_t __ptep_get_and_clear(struct mm_struct *mm,
-+					 unsigned long addr, pte_t *ptep,
-+					 int full)
- {
- 	pte_t pte;
- 	if (full) {
-@@ -329,10 +323,13 @@ static inline pte_t ptep_get_and_clear_f
- 		 */
- 		pte = native_local_ptep_get_and_clear(ptep);
- 	} else {
--		pte = ptep_get_and_clear(mm, addr, ptep);
-+		pte = native_ptep_get_and_clear(ptep);
-+		pte_update(mm, addr, ptep);
- 	}
- 	return pte;
- }
-+#define ptep_get_and_clear(mm, addr, ptep)				\
-+	__ptep_get_and_clear(mm, addr, ptep, test_bit(MMF_DEAD, &mm->flags))
- 
- #define __HAVE_ARCH_PTEP_SET_WRPROTECT
- static inline void ptep_set_wrprotect(struct mm_struct *mm, unsigned long addr, pte_t *ptep)
-Index: linux-work/include/asm-x86_64/pgtable.h
-===================================================================
---- linux-work.orig/include/asm-x86_64/pgtable.h	2007-08-07 16:22:23.000000000 +1000
-+++ linux-work/include/asm-x86_64/pgtable.h	2007-08-07 16:23:14.000000000 +1000
-@@ -102,21 +102,21 @@ static inline void pgd_clear (pgd_t * pg
- 	set_pgd(pgd, __pgd(0));
- }
- 
--#define ptep_get_and_clear(mm,addr,xp)	__pte(xchg(&(xp)->pte, 0))
--
- struct mm_struct;
- 
--static inline pte_t ptep_get_and_clear_full(struct mm_struct *mm, unsigned long addr, pte_t *ptep, int full)
-+static inline pte_t __ptep_get_and_clear(struct mm_struct *mm, unsigned long addr, pte_t *ptep, int full)
- {
- 	pte_t pte;
- 	if (full) {
- 		pte = *ptep;
- 		*ptep = __pte(0);
- 	} else {
--		pte = ptep_get_and_clear(mm, addr, ptep);
-+		__pte(xchg(&(xp)->pte, 0))
- 	}
- 	return pte;
- }
-+#define ptep_get_and_clear(mm, addr, ptep)				\
-+	__ptep_get_and_clear(mm, addr, ptep, test_bit(MMF_DEAD, &mm->flags))
- 
- #define pte_same(a, b)		((a).pte == (b).pte)
- 
-Index: linux-work/mm/memory.c
-===================================================================
---- linux-work.orig/mm/memory.c	2007-08-07 16:18:43.000000000 +1000
-+++ linux-work/mm/memory.c	2007-08-07 16:18:48.000000000 +1000
-@@ -658,8 +658,7 @@ static unsigned long zap_pte_range(struc
- 				     page->index > details->last_index))
- 					continue;
- 			}
--			ptent = ptep_get_and_clear_full(mm, addr, pte,
--							tlb->fullmm);
-+			ptent = ptep_get_and_clear(mm, addr, pte);
- 			tlb_remove_tlb_entry(tlb, pte, addr);
- 			if (unlikely(!page))
- 				continue;
+> The linux-mm documentation only states that it is for swappable non-linear 
+> VMAs (exactly what we have in the sun4c unless you assume VMA is signed 
+> [like the INMOS Transputer], in which case it is linear from -512MB to 
+> +512MB :-). The down size of sigend address mappings is that NULL is 
+> nolonger zero and too many people have got lazy and assumed it is.).
+
+In general it's used for file mappings.
+
+> Re-arranging the bits so that _SUN4C_PAGE_ACCESSED and 
+> _SUN4C_PAGE_MODIFIED bits match the MMU hardware bits seems to make boots 
+> more stable (I have been gettimg non-repeatable boots where the init 
+> script goes through the motions but does not actually do what I am 
+> expecting or just gets skipped. SLAB is worse than SLUB.) but the changes 
+> I have tried sofar, break swapon.
+
+I don't think that _ACCESSED and _DIRTY are ever used on a non-present
+PTE so it wouldn't be a problem to have them overlap _PAGE_FILE but I
+may be wrong on this one (on ppc, we overlap _PAGE_FILE with some other
+bits only relevant to present PTEs). It would make sense, if the HW
+provides ACCESSED and DIRTY writeback, to have the PTE bits match what
+the HW does, though I've seen cases where we deliberately avoid using
+the HW writeback to avoid nasty race conditions. In that later case, we
+just make sure the HW "accessed" and "dirty" bits are always set, and
+maintain software ones separately. I don't know what the sun4c code
+does.
+
+> Linux uses four bits that do not get saved in the MMU PTE 
+> (_SUN4C_PAGE_READ, _SUN4C_PAGE_WRITE, _SUN4C_PAGE_MODIFIED and 
+> _SUN4C_PAGE_ACCESSED). I have assumed that these are preserved externally 
+> in a software copy of the PTE somewhere (I have not found anything that I 
+> recognise as specific storage for this in the sparc32 code) as reading the 
+> MMU PTE will return zero for these bits.
+
+Ben.
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
