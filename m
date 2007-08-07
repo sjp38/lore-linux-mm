@@ -1,680 +1,307 @@
 From: Benjamin Herrenschmidt <benh@kernel.crashing.org>
-Date: Tue, 07 Aug 2007 17:19:49 +1000
-Subject: [RFC/PATCH 6/12] Add "address" argument to pte/pmd/pud_free_tlb()
+Date: Tue, 07 Aug 2007 17:19:53 +1000
+Subject: [RFC/PATCH 11/12] Use mmu_gather for fork() instead of flush_tlb_mm()
 In-Reply-To: <1186471185.826251.312410898174.qpush@grosgo>
-Message-Id: <20070807071956.7B5B0DDE09@ozlabs.org>
+Message-Id: <20070807072000.2E5D9DDE09@ozlabs.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Linux Memory Management <linux-mm@kvack.org>
 Cc: linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-Architectures like ia64 who use a virtual page table can benefit
-from knowing the virtual address range affected by a page table
-being removed. We already pass that information to the alloc
-functions, let's pass it to the free ones. I've only changed
-the tlb_* versions for simplicity.
+This patch uses an mmu_gather for copying page tables instead of
+flush_tlb_mm(). This allows archs like ppc32 with hash table to
+avoid walking the page tables a second time to invalidate hash
+entries, and to only flush PTEs that have actually been changed
+from RW to RO.
 
 Signed-off-by: Benjamin Herrenschmidt <benh@kernel.crashing.org>
 ---
 
- arch/powerpc/mm/hugetlbpage.c       |    4 ++--
- include/asm-alpha/tlb.h             |    4 ++--
- include/asm-arm/tlb.h               |    4 ++--
- include/asm-cris/pgalloc.h          |    2 +-
- include/asm-frv/pgalloc.h           |    4 ++--
- include/asm-generic/4level-fixup.h  |    4 ++--
- include/asm-generic/pgtable-nopmd.h |    2 +-
- include/asm-generic/pgtable-nopud.h |    2 +-
- include/asm-generic/tlb.h           |   12 ++++++------
- include/asm-i386/pgalloc.h          |    4 ++--
- include/asm-ia64/pgalloc.h          |    6 +++---
- include/asm-ia64/tlb.h              |   12 ++++++------
- include/asm-m32r/pgalloc.h          |    4 ++--
- include/asm-m68k/motorola_pgalloc.h |    6 ++++--
- include/asm-m68k/sun3_pgalloc.h     |    4 ++--
- include/asm-mips/pgalloc.h          |    6 +++---
- include/asm-parisc/tlb.h            |    4 ++--
- include/asm-powerpc/pgalloc-32.h    |    4 ++--
- include/asm-powerpc/pgalloc-64.h    |    6 +++---
- include/asm-ppc/pgalloc.h           |    4 ++--
- include/asm-s390/pgalloc.h          |    6 +++---
- include/asm-sh/pgalloc.h            |    4 ++--
- include/asm-sh64/pgalloc.h          |    7 +++----
- include/asm-sparc/pgalloc.h         |    4 ++--
- include/asm-sparc64/tlb.h           |    6 +++---
- include/asm-x86_64/pgalloc.h        |    6 +++---
- include/asm-xtensa/tlb.h            |    2 +-
- mm/memory.c                         |   11 ++++++-----
- 28 files changed, 73 insertions(+), 71 deletions(-)
+ include/linux/hugetlb.h |    4 ++--
+ include/linux/mm.h      |    4 ++--
+ kernel/fork.c           |   10 ++++++++--
+ mm/hugetlb.c            |   11 ++++++++---
+ mm/memory.c             |   45 ++++++++++++++++++++++++++++-----------------
+ 5 files changed, 48 insertions(+), 26 deletions(-)
 
-Index: linux-work/include/asm-m68k/sun3_pgalloc.h
+Index: linux-work/include/linux/hugetlb.h
 ===================================================================
---- linux-work.orig/include/asm-m68k/sun3_pgalloc.h	2007-08-06 16:15:18.000000000 +1000
-+++ linux-work/include/asm-m68k/sun3_pgalloc.h	2007-08-06 16:15:18.000000000 +1000
-@@ -31,7 +31,7 @@ static inline void pte_free(struct mm_st
-         __free_page(page);
- }
+--- linux-work.orig/include/linux/hugetlb.h	2007-08-07 16:23:53.000000000 +1000
++++ linux-work/include/linux/hugetlb.h	2007-08-07 16:51:37.000000000 +1000
+@@ -18,7 +18,7 @@ static inline int is_vm_hugetlb_page(str
  
--#define __pte_free_tlb(tlb,pte) tlb_remove_page((tlb),(pte))
-+#define __pte_free_tlb(tlb,pte,address) tlb_remove_page((tlb),(pte))
+ int hugetlb_sysctl_handler(struct ctl_table *, int, struct file *, void __user *, size_t *, loff_t *);
+ int hugetlb_treat_movable_handler(struct ctl_table *, int, struct file *, void __user *, size_t *, loff_t *);
+-int copy_hugetlb_page_range(struct mm_struct *, struct mm_struct *, struct vm_area_struct *);
++int copy_hugetlb_page_range(struct mmu_gather *tlb, struct mm_struct *, struct mm_struct *, struct vm_area_struct *);
+ int follow_hugetlb_page(struct mm_struct *, struct vm_area_struct *, struct page **, struct vm_area_struct **, unsigned long *, int *, int);
+ void unmap_hugepage_range(struct vm_area_struct *, unsigned long, unsigned long);
+ void __unmap_hugepage_range(struct vm_area_struct *, unsigned long, unsigned long);
+@@ -111,7 +111,7 @@ static inline unsigned long hugetlb_tota
  
- static inline pte_t *pte_alloc_one_kernel(struct mm_struct *mm,
- 					  unsigned long address)
-@@ -73,7 +73,7 @@ static inline void pmd_populate(struct m
-  * inside the pgd, so has no extra memory associated with it.
-  */
- #define pmd_free(mm, x)			do { } while (0)
--#define __pmd_free_tlb(tlb, x)		do { } while (0)
-+#define __pmd_free_tlb(tlb, x, a)	do { } while (0)
- 
- static inline void pgd_free(struct mm_struct *mm, pgd_t * pgd)
- {
-Index: linux-work/include/asm-generic/tlb.h
+ #define follow_hugetlb_page(m,v,p,vs,a,b,i)	({ BUG(); 0; })
+ #define follow_huge_addr(mm, addr, write)	ERR_PTR(-EINVAL)
+-#define copy_hugetlb_page_range(src, dst, vma)	({ BUG(); 0; })
++#define copy_hugetlb_page_range(tlb, src, dst, vma)	({ BUG(); 0; })
+ #define hugetlb_prefault(mapping, vma)		({ BUG(); 0; })
+ #define unmap_hugepage_range(vma, start, end)	BUG()
+ #define hugetlb_report_meminfo(buf)		0
+Index: linux-work/include/linux/mm.h
 ===================================================================
---- linux-work.orig/include/asm-generic/tlb.h	2007-08-06 13:48:31.000000000 +1000
-+++ linux-work/include/asm-generic/tlb.h	2007-08-06 16:15:18.000000000 +1000
-@@ -123,24 +123,24 @@ static inline void tlb_remove_page(struc
- 		__tlb_remove_tlb_entry(tlb, ptep, address);	\
- 	} while (0)
- 
--#define pte_free_tlb(tlb, ptep)					\
-+#define pte_free_tlb(tlb, ptep, address)			\
- 	do {							\
- 		tlb->need_flush = 1;				\
--		__pte_free_tlb(tlb, ptep);			\
-+		__pte_free_tlb(tlb, ptep, address);		\
- 	} while (0)
- 
- #ifndef __ARCH_HAS_4LEVEL_HACK
--#define pud_free_tlb(tlb, pudp)					\
-+#define pud_free_tlb(tlb, pudp, address)			\
- 	do {							\
- 		tlb->need_flush = 1;				\
--		__pud_free_tlb(tlb, pudp);			\
-+		__pud_free_tlb(tlb, pudp, address);		\
- 	} while (0)
- #endif
- 
--#define pmd_free_tlb(tlb, pmdp)					\
-+#define pmd_free_tlb(tlb, pmdp, address)			\
- 	do {							\
- 		tlb->need_flush = 1;				\
--		__pmd_free_tlb(tlb, pmdp);			\
-+		__pmd_free_tlb(tlb, pmdp, address);		\
- 	} while (0)
- 
- #define tlb_migrate_finish(mm) do {} while (0)
-Index: linux-work/include/asm-alpha/tlb.h
+--- linux-work.orig/include/linux/mm.h	2007-08-07 16:23:53.000000000 +1000
++++ linux-work/include/linux/mm.h	2007-08-07 16:48:03.000000000 +1000
+@@ -777,8 +777,8 @@ void free_pgd_range(struct mmu_gather *t
+ 		unsigned long end, unsigned long floor, unsigned long ceiling);
+ void free_pgtables(struct mmu_gather *tlb, struct vm_area_struct *start_vma,
+ 		unsigned long floor, unsigned long ceiling);
+-int copy_page_range(struct mm_struct *dst, struct mm_struct *src,
+-			struct vm_area_struct *vma);
++int copy_page_range(struct mmu_gather *tlb, struct mm_struct *dst,
++		    struct mm_struct *src, struct vm_area_struct *vma);
+ int zeromap_page_range(struct vm_area_struct *vma, unsigned long from,
+ 			unsigned long size, pgprot_t prot);
+ void unmap_mapping_range(struct address_space *mapping,
+Index: linux-work/kernel/fork.c
 ===================================================================
---- linux-work.orig/include/asm-alpha/tlb.h	2007-08-06 16:15:18.000000000 +1000
-+++ linux-work/include/asm-alpha/tlb.h	2007-08-06 16:15:18.000000000 +1000
-@@ -9,7 +9,7 @@
- 
- #include <asm-generic/tlb.h>
- 
--#define __pte_free_tlb(tlb,pte)			pte_free((tlb)->mm, pte)
--#define __pmd_free_tlb(tlb,pmd)			pmd_free((tlb)->mm, pmd)
-+#define __pte_free_tlb(tlb,pte,address)		pte_free((tlb)->mm, pte)
-+#define __pmd_free_tlb(tlb,pmd,address)		pmd_free((tlb)->mm, pmd)
-  
- #endif
-Index: linux-work/include/asm-arm/tlb.h
-===================================================================
---- linux-work.orig/include/asm-arm/tlb.h	2007-08-06 16:15:18.000000000 +1000
-+++ linux-work/include/asm-arm/tlb.h	2007-08-06 16:15:18.000000000 +1000
-@@ -85,8 +85,8 @@ tlb_end_vma(struct mmu_gather *tlb, stru
- }
- 
- #define tlb_remove_page(tlb,page)	free_page_and_swap_cache(page)
--#define pte_free_tlb(tlb,ptep)		pte_free((tlb)->mm, ptep)
--#define pmd_free_tlb(tlb,pmdp)		pmd_free((tlb)->mm, pmdp)
-+#define pte_free_tlb(tlb,ptep,address)	pte_free((tlb)->mm, ptep)
-+#define pmd_free_tlb(tlb,pmdp,address)	pmd_free((tlb)->mm, pmdp)
- 
- #define tlb_migrate_finish(mm)		do { } while (0)
- 
-Index: linux-work/include/asm-cris/pgalloc.h
-===================================================================
---- linux-work.orig/include/asm-cris/pgalloc.h	2007-08-06 16:15:18.000000000 +1000
-+++ linux-work/include/asm-cris/pgalloc.h	2007-08-06 16:15:18.000000000 +1000
-@@ -45,7 +45,7 @@ static inline void pte_free(struct mm_st
- }
- 
- 
--#define __pte_free_tlb(tlb,pte) tlb_remove_page((tlb),(pte))
-+#define __pte_free_tlb(tlb,pte,address) tlb_remove_page((tlb),(pte))
- 
- #define check_pgt_cache()          do { } while (0)
- 
-Index: linux-work/include/asm-frv/pgalloc.h
-===================================================================
---- linux-work.orig/include/asm-frv/pgalloc.h	2007-08-06 16:15:18.000000000 +1000
-+++ linux-work/include/asm-frv/pgalloc.h	2007-08-06 16:15:18.000000000 +1000
-@@ -47,7 +47,7 @@ static inline void pte_free(struct mm_st
- 	__free_page(pte);
- }
- 
--#define __pte_free_tlb(tlb,pte)		tlb_remove_page((tlb),(pte))
-+#define __pte_free_tlb(tlb,pte,address)		tlb_remove_page((tlb),(pte))
+--- linux-work.orig/kernel/fork.c	2007-08-07 16:07:08.000000000 +1000
++++ linux-work/kernel/fork.c	2007-08-07 16:52:32.000000000 +1000
+@@ -57,6 +57,7 @@
+ #include <asm/mmu_context.h>
+ #include <asm/cacheflush.h>
+ #include <asm/tlbflush.h>
++#include <asm/tlb.h>
  
  /*
-  * allocating and freeing a pmd is trivial: the 1-entry pmd is
-@@ -56,7 +56,7 @@ static inline void pte_free(struct mm_st
-  */
- #define pmd_alloc_one(mm, addr)		({ BUG(); ((pmd_t *) 2); })
- #define pmd_free(mm, x)			do { } while (0)
--#define __pmd_free_tlb(tlb,x)		do { } while (0)
-+#define __pmd_free_tlb(tlb,x,a)		do { } while (0)
+  * Protected counters by write_lock_irq(&tasklist_lock)
+@@ -202,6 +203,7 @@ static inline int dup_mmap(struct mm_str
+ 	int retval;
+ 	unsigned long charge;
+ 	struct mempolicy *pol;
++	struct mmu_gather tlb;
  
- #endif /* CONFIG_MMU */
+ 	down_write(&oldmm->mmap_sem);
+ 	flush_cache_dup_mm(oldmm);
+@@ -222,6 +224,8 @@ static inline int dup_mmap(struct mm_str
+ 	rb_parent = NULL;
+ 	pprev = &mm->mmap;
  
-Index: linux-work/include/asm-i386/pgalloc.h
++	tlb_gather_mmu(&tlb, oldmm);
++
+ 	for (mpnt = oldmm->mmap; mpnt; mpnt = mpnt->vm_next) {
+ 		struct file *file;
+ 
+@@ -243,6 +247,7 @@ static inline int dup_mmap(struct mm_str
+ 		if (!tmp)
+ 			goto fail_nomem;
+ 		*tmp = *mpnt;
++
+ 		pol = mpol_copy(vma_policy(mpnt));
+ 		retval = PTR_ERR(pol);
+ 		if (IS_ERR(pol))
+@@ -279,7 +284,7 @@ static inline int dup_mmap(struct mm_str
+ 		rb_parent = &tmp->vm_rb;
+ 
+ 		mm->map_count++;
+-		retval = copy_page_range(mm, oldmm, mpnt);
++		retval = copy_page_range(&tlb, mm, oldmm, mpnt);
+ 
+ 		if (tmp->vm_ops && tmp->vm_ops->open)
+ 			tmp->vm_ops->open(tmp);
+@@ -292,12 +297,13 @@ static inline int dup_mmap(struct mm_str
+ 	retval = 0;
+ out:
+ 	up_write(&mm->mmap_sem);
+-	flush_tlb_mm(oldmm);
++	tlb_finish_mmu(&tlb);
+ 	up_write(&oldmm->mmap_sem);
+ 	return retval;
+ fail_nomem_policy:
+ 	kmem_cache_free(vm_area_cachep, tmp);
+ fail_nomem:
++	tlb_finish_mmu(&tlb);
+ 	retval = -ENOMEM;
+ 	vm_unacct_memory(charge);
+ 	goto out;
+Index: linux-work/mm/hugetlb.c
 ===================================================================
---- linux-work.orig/include/asm-i386/pgalloc.h	2007-08-06 16:15:18.000000000 +1000
-+++ linux-work/include/asm-i386/pgalloc.h	2007-08-06 16:15:18.000000000 +1000
-@@ -49,7 +49,7 @@ static inline void pte_free(struct mm_st
- }
+--- linux-work.orig/mm/hugetlb.c	2007-08-06 13:48:31.000000000 +1000
++++ linux-work/mm/hugetlb.c	2007-08-07 16:53:49.000000000 +1000
+@@ -17,6 +17,8 @@
  
- 
--#define __pte_free_tlb(tlb,pte) 					\
-+#define __pte_free_tlb(tlb,pte,address) 					\
- do {									\
- 	paravirt_release_pt(page_to_pfn(pte));				\
- 	tlb_remove_page((tlb),(pte));					\
-@@ -61,7 +61,7 @@ do {									\
-  */
- #define pmd_alloc_one(mm, addr)		({ BUG(); ((pmd_t *)2); })
- #define pmd_free(mm,x)			do { } while (0)
--#define __pmd_free_tlb(tlb,x)		do { } while (0)
-+#define __pmd_free_tlb(tlb,x,a)		do { } while (0)
- #define pud_populate(mm, pmd, pte)	BUG()
- #endif
- 
-Index: linux-work/include/asm-ia64/pgalloc.h
-===================================================================
---- linux-work.orig/include/asm-ia64/pgalloc.h	2007-08-06 16:15:18.000000000 +1000
-+++ linux-work/include/asm-ia64/pgalloc.h	2007-08-06 16:15:18.000000000 +1000
-@@ -48,7 +48,7 @@ static inline void pud_free(struct mm_st
- {
- 	quicklist_free(0, NULL, pud);
- }
--#define __pud_free_tlb(tlb, pud)	pud_free((tlb)->mm, pud)
-+#define __pud_free_tlb(tlb, pud, address)	pud_free((tlb)->mm, pud)
- #endif /* CONFIG_PGTABLE_4 */
- 
- static inline void
-@@ -67,7 +67,7 @@ static inline void pmd_free(struct mm_st
- 	quicklist_free(0, NULL, pmd);
- }
- 
--#define __pmd_free_tlb(tlb, pmd)	pmd_free((tlb)->mm, pmd)
-+#define __pmd_free_tlb(tlb, pmd, address)	pmd_free((tlb)->mm, pmd)
- 
- static inline void
- pmd_populate(struct mm_struct *mm, pmd_t * pmd_entry, struct page *pte)
-@@ -109,6 +109,6 @@ static inline void check_pgt_cache(void)
- 	quicklist_trim(0, NULL, 25, 16);
- }
- 
--#define __pte_free_tlb(tlb, pte)	pte_free((tlb)->mm, pte)
-+#define __pte_free_tlb(tlb, pte, address)	pte_free((tlb)->mm, pte)
- 
- #endif				/* _ASM_IA64_PGALLOC_H */
-Index: linux-work/include/asm-m32r/pgalloc.h
-===================================================================
---- linux-work.orig/include/asm-m32r/pgalloc.h	2007-08-06 16:15:18.000000000 +1000
-+++ linux-work/include/asm-m32r/pgalloc.h	2007-08-06 16:15:18.000000000 +1000
-@@ -56,7 +56,7 @@ static __inline__ void pte_free(struct m
- 	__free_page(pte);
- }
- 
--#define __pte_free_tlb(tlb, pte)	pte_free((tlb)->mm, (pte))
-+#define __pte_free_tlb(tlb, pte, address)	pte_free((tlb)->mm, (pte))
- 
- /*
-  * allocating and freeing a pmd is trivial: the 1-entry pmd is
-@@ -66,7 +66,7 @@ static __inline__ void pte_free(struct m
- 
- #define pmd_alloc_one(mm, addr)		({ BUG(); ((pmd_t *)2); })
- #define pmd_free(mm,x)			do { } while (0)
--#define __pmd_free_tlb(tlb, x)		do { } while (0)
-+#define __pmd_free_tlb(tlb, x, a)	do { } while (0)
- #define pgd_populate(mm, pmd, pte)	BUG()
- 
- #define check_pgt_cache()	do { } while (0)
-Index: linux-work/include/asm-m68k/motorola_pgalloc.h
-===================================================================
---- linux-work.orig/include/asm-m68k/motorola_pgalloc.h	2007-08-06 16:15:18.000000000 +1000
-+++ linux-work/include/asm-m68k/motorola_pgalloc.h	2007-08-06 16:15:18.000000000 +1000
-@@ -54,7 +54,8 @@ static inline void pte_free(struct mm_st
- 	__free_page(page);
- }
- 
--static inline void __pte_free_tlb(struct mmu_gather *tlb, struct page *page)
-+static inline void __pte_free_tlb(struct mmu_gather *tlb, struct page *page,
-+				  unsigned long address)
- {
- 	cache_page(kmap(page));
- 	kunmap(page);
-@@ -72,7 +73,8 @@ static inline int pmd_free(struct mm_str
- 	return free_pointer_table(pmd);
- }
- 
--static inline int __pmd_free_tlb(struct mmu_gather *tlb, pmd_t *pmd)
-+static inline int __pmd_free_tlb(struct mmu_gather *tlb, pmd_t *pmd,
-+				 unsigned long address)
- {
- 	return free_pointer_table(pmd);
- }
-Index: linux-work/include/asm-mips/pgalloc.h
-===================================================================
---- linux-work.orig/include/asm-mips/pgalloc.h	2007-08-06 16:15:18.000000000 +1000
-+++ linux-work/include/asm-mips/pgalloc.h	2007-08-06 16:15:18.000000000 +1000
-@@ -95,7 +95,7 @@ static inline void pte_free(struct mm_st
- 	__free_pages(pte, PTE_ORDER);
- }
- 
--#define __pte_free_tlb(tlb,pte)		tlb_remove_page((tlb),(pte))
-+#define __pte_free_tlb(tlb,pte,address)	tlb_remove_page((tlb),(pte))
- 
- #ifdef CONFIG_32BIT
- 
-@@ -104,7 +104,7 @@ static inline void pte_free(struct mm_st
-  * inside the pgd, so has no extra memory associated with it.
-  */
- #define pmd_free(mm, x)			do { } while (0)
--#define __pmd_free_tlb(tlb,x)		do { } while (0)
-+#define __pmd_free_tlb(tlb,x,a)		do { } while (0)
- 
- #endif
- 
-@@ -125,7 +125,7 @@ static inline void pmd_free(struct mm_st
- 	free_pages((unsigned long)pmd, PMD_ORDER);
- }
- 
--#define __pmd_free_tlb(tlb,x)	pmd_free((tlb)->mm, x)
-+#define __pmd_free_tlb(tlb,x,a)	pmd_free((tlb)->mm, x)
- 
- #endif
- 
-Index: linux-work/include/asm-parisc/tlb.h
-===================================================================
---- linux-work.orig/include/asm-parisc/tlb.h	2007-08-06 16:15:18.000000000 +1000
-+++ linux-work/include/asm-parisc/tlb.h	2007-08-06 16:15:18.000000000 +1000
-@@ -21,7 +21,7 @@ do {	if (!(tlb)->fullmm)	\
- 
- #include <asm-generic/tlb.h>
- 
--#define __pmd_free_tlb(tlb, pmd)	pmd_free((tlb)->mm, pmd)
--#define __pte_free_tlb(tlb, pte)	pte_free((tlb)->mm, pte)
-+#define __pmd_free_tlb(tlb, pmd, address)	pmd_free((tlb)->mm, pmd)
-+#define __pte_free_tlb(tlb, pte, address)	pte_free((tlb)->mm, pte)
- 
- #endif
-Index: linux-work/include/asm-powerpc/pgalloc-32.h
-===================================================================
---- linux-work.orig/include/asm-powerpc/pgalloc-32.h	2007-08-06 16:15:18.000000000 +1000
-+++ linux-work/include/asm-powerpc/pgalloc-32.h	2007-08-06 16:15:18.000000000 +1000
-@@ -14,7 +14,7 @@ extern void pgd_free(struct mm_struct *m
-  */
- /* #define pmd_alloc_one(mm,address)       ({ BUG(); ((pmd_t *)2); }) */
- #define pmd_free(mm, x)                 do { } while (0)
--#define __pmd_free_tlb(tlb,x)		do { } while (0)
-+#define __pmd_free_tlb(tlb,x,a)		do { } while (0)
- /* #define pgd_populate(mm, pmd, pte)      BUG() */
- 
- #ifndef CONFIG_BOOKE
-@@ -34,7 +34,7 @@ extern struct page *pte_alloc_one(struct
- extern void pte_free_kernel(pte_t *pte);
- extern void pte_free(struct mm_struct *mm, struct page *pte);
- 
--#define __pte_free_tlb(tlb, pte)	pte_free((tlb)->mm, (pte))
-+#define __pte_free_tlb(tlb, pte, address)	pte_free((tlb)->mm, (pte))
- 
- #define check_pgt_cache()	do { } while (0)
- 
-Index: linux-work/include/asm-powerpc/pgalloc-64.h
-===================================================================
---- linux-work.orig/include/asm-powerpc/pgalloc-64.h	2007-08-06 16:15:18.000000000 +1000
-+++ linux-work/include/asm-powerpc/pgalloc-64.h	2007-08-06 16:15:18.000000000 +1000
-@@ -131,14 +131,14 @@ static inline void pgtable_free(pgtable_
- 
- extern void pgtable_free_tlb(struct mmu_gather *tlb, pgtable_free_t pgf);
- 
--#define __pte_free_tlb(tlb, ptepage)	\
-+#define __pte_free_tlb(tlb, ptepage, address)	\
- 	pgtable_free_tlb(tlb, pgtable_free_cache(page_address(ptepage), \
- 		PTE_NONCACHE_NUM, PTE_TABLE_SIZE-1))
--#define __pmd_free_tlb(tlb, pmd) 	\
-+#define __pmd_free_tlb(tlb, pmd, address) 	\
- 	pgtable_free_tlb(tlb, pgtable_free_cache(pmd, \
- 		PMD_CACHE_NUM, PMD_TABLE_SIZE-1))
- #ifndef CONFIG_PPC_64K_PAGES
--#define __pud_free_tlb(tlb, pud)	\
-+#define __pud_free_tlb(tlb, pud, address)	\
- 	pgtable_free_tlb(tlb, pgtable_free_cache(pud, \
- 		PUD_CACHE_NUM, PUD_TABLE_SIZE-1))
- #endif /* CONFIG_PPC_64K_PAGES */
-Index: linux-work/include/asm-ppc/pgalloc.h
-===================================================================
---- linux-work.orig/include/asm-ppc/pgalloc.h	2007-08-06 16:15:18.000000000 +1000
-+++ linux-work/include/asm-ppc/pgalloc.h	2007-08-06 16:15:18.000000000 +1000
-@@ -15,7 +15,7 @@ extern void pgd_free(struct mm_struct *m
-  */
- #define pmd_alloc_one(mm,address)       ({ BUG(); ((pmd_t *)2); })
- #define pmd_free(mm,x)                  do { } while (0)
--#define __pmd_free_tlb(tlb,x)		do { } while (0)
-+#define __pmd_free_tlb(tlb,x,a)		do { } while (0)
- #define pgd_populate(mm, pmd, pte)      BUG()
- 
- #ifndef CONFIG_BOOKE
-@@ -35,7 +35,7 @@ extern struct page *pte_alloc_one(struct
- extern void pte_free_kernel(pte_t *pte);
- extern void pte_free(struct mm_struct *mm, struct page *pte);
- 
--#define __pte_free_tlb(tlb, pte)	pte_free((tlb)->mm, (pte))
-+#define __pte_free_tlb(tlb, pte, addr)	pte_free((tlb)->mm, (pte))
- 
- #define check_pgt_cache()	do { } while (0)
- 
-Index: linux-work/include/asm-s390/pgalloc.h
-===================================================================
---- linux-work.orig/include/asm-s390/pgalloc.h	2007-08-06 16:15:18.000000000 +1000
-+++ linux-work/include/asm-s390/pgalloc.h	2007-08-06 16:15:18.000000000 +1000
-@@ -84,7 +84,7 @@ static inline void pgd_free(struct mm_st
-  */
- #define pmd_alloc_one(mm,address)       ({ BUG(); ((pmd_t *)2); })
- #define pmd_free(mm, x)                 do { } while (0)
--#define __pmd_free_tlb(tlb,x)		do { } while (0)
-+#define __pmd_free_tlb(tlb,x,a)		do { } while (0)
- #define pgd_populate(mm, pmd, pte)      BUG()
- #define pgd_populate_kernel(mm, pmd, pte)	BUG()
- #else /* __s390x__ */
-@@ -120,7 +120,7 @@ static inline void pmd_free (struct mm_s
- 	free_pages((unsigned long) pmd, PMD_ALLOC_ORDER);
- }
- 
--#define __pmd_free_tlb(tlb,pmd)			\
-+#define __pmd_free_tlb(tlb,pmd,address)		\
- 	do {					\
- 		tlb_flush_mmu(tlb, 0, 0);	\
- 		pmd_free((tlb)->mm, pmd);	\
-@@ -226,7 +226,7 @@ static inline void pte_free(struct mm_st
- 	__free_page(pte);
- }
- 
--#define __pte_free_tlb(tlb, pte)					\
-+#define __pte_free_tlb(tlb, pte, address)				\
- ({									\
- 	struct mmu_gather *__tlb = (tlb);				\
- 	struct page *__pte = (pte);					\
-Index: linux-work/include/asm-sh/pgalloc.h
-===================================================================
---- linux-work.orig/include/asm-sh/pgalloc.h	2007-08-06 16:15:18.000000000 +1000
-+++ linux-work/include/asm-sh/pgalloc.h	2007-08-06 16:15:18.000000000 +1000
-@@ -64,7 +64,7 @@ static inline void pte_free(struct mm_st
- 	quicklist_free_page(QUICK_PT, NULL, pte);
- }
- 
--#define __pte_free_tlb(tlb,pte) tlb_remove_page((tlb),(pte))
-+#define __pte_free_tlb(tlb,pte,address) tlb_remove_page((tlb),(pte))
- 
- /*
-  * allocating and freeing a pmd is trivial: the 1-entry pmd is
-@@ -72,7 +72,7 @@ static inline void pte_free(struct mm_st
-  */
- 
- #define pmd_free(mm,x)			do { } while (0)
--#define __pmd_free_tlb(tlb,x)		do { } while (0)
-+#define __pmd_free_tlb(tlb,x,a)		do { } while (0)
- 
- static inline void check_pgt_cache(void)
- {
-Index: linux-work/include/asm-sh64/pgalloc.h
-===================================================================
---- linux-work.orig/include/asm-sh64/pgalloc.h	2007-08-06 16:15:18.000000000 +1000
-+++ linux-work/include/asm-sh64/pgalloc.h	2007-08-06 16:15:18.000000000 +1000
-@@ -74,7 +74,7 @@ static inline pte_t *pte_alloc_one_kerne
- 	return quicklist_alloc(0, GFP_KERNEL, NULL);
- }
- 
--#define __pte_free_tlb(tlb,pte) tlb_remove_page((tlb),(pte))
-+#define __pte_free_tlb(tlb,pte,address) tlb_remove_page((tlb),(pte))
- 
- /*
-  * allocating and freeing a pmd is trivial: the 1-entry pmd is
-@@ -86,8 +86,7 @@ static inline pte_t *pte_alloc_one_kerne
- #define pmd_alloc_one(mm, addr)		({ BUG(); ((pmd_t *)2); })
- #define pmd_free(mm, x)			do { } while (0)
- #define pgd_populate(mm, pmd, pte)	BUG()
--#define __pte_free_tlb(tlb,pte)		tlb_remove_page((tlb),(pte))
--#define __pmd_free_tlb(tlb,pmd)		do { } while (0)
-+#define __pmd_free_tlb(tlb,pmd,addr)	do { } while (0)
- 
- #elif defined(CONFIG_SH64_PGTABLE_3_LEVEL)
- 
-@@ -102,7 +101,7 @@ static inline void pmd_free(struct mm_st
- }
- 
- #define pgd_populate(mm, pgd, pmd)	pgd_set(pgd, pmd)
--#define __pmd_free_tlb(tlb,pmd)		pmd_free((tlb)->mm, pmd)
-+#define __pmd_free_tlb(tlb,pmd,addr)	pmd_free((tlb)->mm, pmd)
- 
- #else
- #error "No defined page table size"
-Index: linux-work/include/asm-sparc/pgalloc.h
-===================================================================
---- linux-work.orig/include/asm-sparc/pgalloc.h	2007-08-06 16:15:18.000000000 +1000
-+++ linux-work/include/asm-sparc/pgalloc.h	2007-08-06 16:15:18.000000000 +1000
-@@ -46,7 +46,7 @@ BTFIXUPDEF_CALL(void, free_pmd_fast, pmd
- #define free_pmd_fast(pmd)	BTFIXUP_CALL(free_pmd_fast)(pmd)
- 
- #define pmd_free(mm,pmd)	free_pmd_fast(pmd)
--#define __pmd_free_tlb(tlb, pmd) pmd_free((tlb)->mm, pmd)
-+#define __pmd_free_tlb(tlb, pmd, address) pmd_free((tlb)->mm, pmd)
- 
- BTFIXUPDEF_CALL(void, pmd_populate, pmd_t *, struct page *)
- #define pmd_populate(MM, PMD, PTE)        BTFIXUP_CALL(pmd_populate)(PMD, PTE)
-@@ -63,6 +63,6 @@ BTFIXUPDEF_CALL(void, free_pte_fast, pte
- 
- BTFIXUPDEF_CALL(void, pte_free, struct page *)
- #define pte_free(mm,pte)	BTFIXUP_CALL(pte_free)(pte)
--#define __pte_free_tlb(tlb, pte)	pte_free((tlb)->mm, pte)
-+#define __pte_free_tlb(tlb, pte, address)	pte_free((tlb)->mm, pte)
- 
- #endif /* _SPARC_PGALLOC_H */
-Index: linux-work/include/asm-sparc64/tlb.h
-===================================================================
---- linux-work.orig/include/asm-sparc64/tlb.h	2007-08-06 16:15:18.000000000 +1000
-+++ linux-work/include/asm-sparc64/tlb.h	2007-08-06 16:15:18.000000000 +1000
-@@ -48,9 +48,9 @@ extern void smp_flush_tlb_mm(struct mm_s
- #define do_flush_tlb_mm(mm) __flush_tlb_mm(CTX_HWBITS(mm->context), SECONDARY_CONTEXT)
- #endif
- 
--#define __tlb_remove_tlb_entry(mp,ptep,addr) do { } while (0)
--#define __pte_free_tlb(mp,ptepage) pte_free((mp)->mm,ptepage)
--#define __pmd_free_tlb(mp,pmdp) pmd_free((mp)->mm,pmdp)
-+#define __tlb_remove_tlb_entry(mp,ptep,addr)	do { } while (0)
-+#define __pte_free_tlb(mp,ptepage,address)	pte_free((mp)->mm,ptepage)
-+#define __pmd_free_tlb(mp,pmdp,address)		pmd_free((mp)->mm,pmdp)
- 
- #define tlb_start_vma(tlb, vma) do { } while (0)
- #define tlb_end_vma(tlb, vma)	do { } while (0)
-Index: linux-work/include/asm-x86_64/pgalloc.h
-===================================================================
---- linux-work.orig/include/asm-x86_64/pgalloc.h	2007-08-06 16:15:18.000000000 +1000
-+++ linux-work/include/asm-x86_64/pgalloc.h	2007-08-06 16:15:18.000000000 +1000
-@@ -131,10 +131,10 @@ static inline void pte_free(struct mm_st
- 	quicklist_free_page(QUICK_PT, NULL, pte);
- }
- 
--#define __pte_free_tlb(tlb,pte) quicklist_free_page(QUICK_PT, NULL,(pte))
-+#define __pte_free_tlb(tlb,pte,addr)  quicklist_free_page(QUICK_PT, NULL,(pte))
- 
--#define __pmd_free_tlb(tlb,x)   quicklist_free(QUICK_PT, NULL, (x))
--#define __pud_free_tlb(tlb,x)   quicklist_free(QUICK_PT, NULL, (x))
-+#define __pmd_free_tlb(tlb,x,addr)    quicklist_free(QUICK_PT, NULL, (x))
-+#define __pud_free_tlb(tlb,x,addr)    quicklist_free(QUICK_PT, NULL, (x))
- 
- static inline void check_pgt_cache(void)
- {
-Index: linux-work/include/asm-xtensa/tlb.h
-===================================================================
---- linux-work.orig/include/asm-xtensa/tlb.h	2007-08-06 16:15:18.000000000 +1000
-+++ linux-work/include/asm-xtensa/tlb.h	2007-08-06 16:15:18.000000000 +1000
-@@ -20,6 +20,6 @@
- #include <asm-generic/tlb.h>
  #include <asm/page.h>
+ #include <asm/pgtable.h>
++#include <asm/tlbflush.h>
++#include <asm/tlb.h>
  
--#define __pte_free_tlb(tlb,pte)			pte_free((tlb)->mm, pte)
-+#define __pte_free_tlb(tlb,pte,address)		pte_free((tlb)->mm, pte)
- 
- #endif	/* _XTENSA_TLB_H */
-Index: linux-work/arch/powerpc/mm/hugetlbpage.c
-===================================================================
---- linux-work.orig/arch/powerpc/mm/hugetlbpage.c	2007-08-06 13:48:27.000000000 +1000
-+++ linux-work/arch/powerpc/mm/hugetlbpage.c	2007-08-06 16:15:18.000000000 +1000
-@@ -192,7 +192,7 @@ static void hugetlb_free_pmd_range(struc
- 
- 	pmd = pmd_offset(pud, start);
- 	pud_clear(pud);
--	pmd_free_tlb(tlb, pmd);
-+	pmd_free_tlb(tlb, pmd, addr);
- }
- #endif
- 
-@@ -232,7 +232,7 @@ static void hugetlb_free_pud_range(struc
- 
- 	pud = pud_offset(pgd, start);
- 	pgd_clear(pgd);
--	pud_free_tlb(tlb, pud);
-+	pud_free_tlb(tlb, pud, addr);
+ #include <linux/hugetlb.h>
+ #include "internal.h"
+@@ -358,8 +360,8 @@ static void set_huge_ptep_writable(struc
  }
  
- /*
+ 
+-int copy_hugetlb_page_range(struct mm_struct *dst, struct mm_struct *src,
+-			    struct vm_area_struct *vma)
++int copy_hugetlb_page_range(struct mmu_gather *tlb, struct mm_struct *dst,
++			    struct mm_struct *src, struct vm_area_struct *vma)
+ {
+ 	pte_t *src_pte, *dst_pte, entry;
+ 	struct page *ptepage;
+@@ -378,8 +380,10 @@ int copy_hugetlb_page_range(struct mm_st
+ 		spin_lock(&dst->page_table_lock);
+ 		spin_lock(&src->page_table_lock);
+ 		if (!pte_none(*src_pte)) {
+-			if (cow)
++			if (cow) {
+ 				ptep_set_wrprotect(src, addr, src_pte);
++				tlb_remove_tlb_entry(tlb, src_pte, addr);
++			}
+ 			entry = *src_pte;
+ 			ptepage = pte_page(entry);
+ 			get_page(ptepage);
+@@ -388,6 +392,7 @@ int copy_hugetlb_page_range(struct mm_st
+ 		spin_unlock(&src->page_table_lock);
+ 		spin_unlock(&dst->page_table_lock);
+ 	}
++
+ 	return 0;
+ 
+ nomem:
 Index: linux-work/mm/memory.c
 ===================================================================
---- linux-work.orig/mm/memory.c	2007-08-06 16:15:18.000000000 +1000
-+++ linux-work/mm/memory.c	2007-08-06 16:15:18.000000000 +1000
-@@ -120,12 +120,13 @@ void pmd_clear_bad(pmd_t *pmd)
-  * Note: this doesn't free the actual pages themselves. That
-  * has been handled earlier when unmapping all the memory regions.
+--- linux-work.orig/mm/memory.c	2007-08-07 16:27:30.000000000 +1000
++++ linux-work/mm/memory.c	2007-08-07 16:50:03.000000000 +1000
+@@ -430,9 +430,9 @@ struct page *vm_normal_page(struct vm_ar
   */
--static void free_pte_range(struct mmu_gather *tlb, pmd_t *pmd)
-+static void free_pte_range(struct mmu_gather *tlb, pmd_t *pmd,
-+			   unsigned long addr)
+ 
+ static inline void
+-copy_one_pte(struct mm_struct *dst_mm, struct mm_struct *src_mm,
+-		pte_t *dst_pte, pte_t *src_pte, struct vm_area_struct *vma,
+-		unsigned long addr, int *rss)
++copy_one_pte(struct mmu_gather *tlb, struct mm_struct *dst_mm,
++	     struct mm_struct *src_mm, pte_t *dst_pte, pte_t *src_pte,
++	     struct vm_area_struct *vma, unsigned long addr, int *rss)
  {
- 	struct page *page = pmd_page(*pmd);
- 	pmd_clear(pmd);
- 	pte_lock_deinit(page);
--	pte_free_tlb(tlb, page);
-+	pte_free_tlb(tlb, page, addr);
- 	dec_zone_page_state(page, NR_PAGETABLE);
- 	tlb->mm->nr_ptes--;
+ 	unsigned long vm_flags = vma->vm_flags;
+ 	pte_t pte = *src_pte;
+@@ -471,8 +471,11 @@ copy_one_pte(struct mm_struct *dst_mm, s
+ 	 * in the parent and the child
+ 	 */
+ 	if (is_cow_mapping(vm_flags)) {
++		pte_t old = *src_pte;
+ 		ptep_set_wrprotect(src_mm, addr, src_pte);
+ 		pte = pte_wrprotect(pte);
++		if (tlb && !pte_same(old, *src_pte))
++			tlb_remove_tlb_entry(tlb, src_pte, addr);
+ 	}
+ 
+ 	/*
+@@ -494,12 +497,14 @@ out_set_pte:
+ 	set_pte_at(dst_mm, addr, dst_pte, pte);
  }
-@@ -144,7 +145,7 @@ static inline void free_pmd_range(struct
- 		next = pmd_addr_end(addr, end);
- 		if (pmd_none_or_clear_bad(pmd))
+ 
+-static int copy_pte_range(struct mm_struct *dst_mm, struct mm_struct *src_mm,
++static int copy_pte_range(struct mmu_gather *tlb,
++		struct mm_struct *dst_mm, struct mm_struct *src_mm,
+ 		pmd_t *dst_pmd, pmd_t *src_pmd, struct vm_area_struct *vma,
+ 		unsigned long addr, unsigned long end)
+ {
+ 	pte_t *src_pte, *dst_pte;
+ 	spinlock_t *src_ptl, *dst_ptl;
++	unsigned long start_addr = addr;
+ 	int progress = 0;
+ 	int rss[2];
+ 
+@@ -529,22 +534,27 @@ again:
+ 			progress++;
  			continue;
--		free_pte_range(tlb, pmd);
-+		free_pte_range(tlb, pmd, addr);
- 	} while (pmd++, addr = next, addr != end);
+ 		}
+-		copy_one_pte(dst_mm, src_mm, dst_pte, src_pte, vma, addr, rss);
++		copy_one_pte(tlb, dst_mm, src_mm, dst_pte, src_pte,
++			     vma, addr, rss);
+ 		progress += 8;
+ 	} while (dst_pte++, src_pte++, addr += PAGE_SIZE, addr != end);
  
- 	start &= PUD_MASK;
-@@ -160,7 +161,7 @@ static inline void free_pmd_range(struct
- 
- 	pmd = pmd_offset(pud, start);
- 	pud_clear(pud);
--	pmd_free_tlb(tlb, pmd);
-+	pmd_free_tlb(tlb, pmd, addr);
+ 	arch_leave_lazy_mmu_mode();
++	tlb_pte_lock_break(tlb);
+ 	spin_unlock(src_ptl);
+ 	pte_unmap_nested(src_pte - 1);
+ 	add_mm_rss(dst_mm, rss[0], rss[1]);
+ 	pte_unmap_unlock(dst_pte - 1, dst_ptl);
+ 	cond_resched();
+-	if (addr != end)
++	if (addr != end) {
++		start_addr = addr;
+ 		goto again;
++	}
+ 	return 0;
  }
  
- static inline void free_pud_range(struct mmu_gather *tlb, pgd_t *pgd,
-@@ -193,7 +194,7 @@ static inline void free_pud_range(struct
- 
- 	pud = pud_offset(pgd, start);
- 	pgd_clear(pgd);
--	pud_free_tlb(tlb, pud);
-+	pud_free_tlb(tlb, pud, addr);
+-static inline int copy_pmd_range(struct mm_struct *dst_mm, struct mm_struct *src_mm,
++static inline int copy_pmd_range(struct mmu_gather *tlb,
++		struct mm_struct *dst_mm, struct mm_struct *src_mm,
+ 		pud_t *dst_pud, pud_t *src_pud, struct vm_area_struct *vma,
+ 		unsigned long addr, unsigned long end)
+ {
+@@ -559,14 +569,15 @@ static inline int copy_pmd_range(struct 
+ 		next = pmd_addr_end(addr, end);
+ 		if (pmd_none_or_clear_bad(src_pmd))
+ 			continue;
+-		if (copy_pte_range(dst_mm, src_mm, dst_pmd, src_pmd,
+-						vma, addr, next))
++		if (copy_pte_range(tlb, dst_mm, src_mm, dst_pmd, src_pmd,
++				   vma, addr, next))
+ 			return -ENOMEM;
+ 	} while (dst_pmd++, src_pmd++, addr = next, addr != end);
+ 	return 0;
  }
  
- /*
-Index: linux-work/include/asm-ia64/tlb.h
-===================================================================
---- linux-work.orig/include/asm-ia64/tlb.h	2007-07-27 13:44:45.000000000 +1000
-+++ linux-work/include/asm-ia64/tlb.h	2007-08-06 16:24:42.000000000 +1000
-@@ -210,22 +210,22 @@ do {							\
- 	__tlb_remove_tlb_entry(tlb, ptep, addr);	\
- } while (0)
+-static inline int copy_pud_range(struct mm_struct *dst_mm, struct mm_struct *src_mm,
++static inline int copy_pud_range(struct mmu_gather *tlb,
++		struct mm_struct *dst_mm, struct mm_struct *src_mm,
+ 		pgd_t *dst_pgd, pgd_t *src_pgd, struct vm_area_struct *vma,
+ 		unsigned long addr, unsigned long end)
+ {
+@@ -581,15 +592,15 @@ static inline int copy_pud_range(struct 
+ 		next = pud_addr_end(addr, end);
+ 		if (pud_none_or_clear_bad(src_pud))
+ 			continue;
+-		if (copy_pmd_range(dst_mm, src_mm, dst_pud, src_pud,
+-						vma, addr, next))
++		if (copy_pmd_range(tlb, dst_mm, src_mm, dst_pud, src_pud,
++				   vma, addr, next))
+ 			return -ENOMEM;
+ 	} while (dst_pud++, src_pud++, addr = next, addr != end);
+ 	return 0;
+ }
  
--#define pte_free_tlb(tlb, ptep)				\
-+#define pte_free_tlb(tlb, ptep, addr)			\
- do {							\
- 	tlb->need_flush = 1;				\
--	__pte_free_tlb(tlb, ptep);			\
-+	__pte_free_tlb(tlb, ptep, addr);		\
- } while (0)
+-int copy_page_range(struct mm_struct *dst_mm, struct mm_struct *src_mm,
+-		struct vm_area_struct *vma)
++int copy_page_range(struct mmu_gather *tlb, struct mm_struct *dst_mm,
++		    struct mm_struct *src_mm, struct vm_area_struct *vma)
+ {
+ 	pgd_t *src_pgd, *dst_pgd;
+ 	unsigned long next;
+@@ -608,7 +619,7 @@ int copy_page_range(struct mm_struct *ds
+ 	}
  
--#define pmd_free_tlb(tlb, ptep)				\
-+#define pmd_free_tlb(tlb, ptep, addr)			\
- do {							\
- 	tlb->need_flush = 1;				\
--	__pmd_free_tlb(tlb, ptep);			\
-+	__pmd_free_tlb(tlb, ptep, addr);		\
- } while (0)
+ 	if (is_vm_hugetlb_page(vma))
+-		return copy_hugetlb_page_range(dst_mm, src_mm, vma);
++		return copy_hugetlb_page_range(tlb, dst_mm, src_mm, vma);
  
--#define pud_free_tlb(tlb, pudp)				\
-+#define pud_free_tlb(tlb, pudp, addr)			\
- do {							\
- 	tlb->need_flush = 1;				\
--	__pud_free_tlb(tlb, pudp);			\
-+	__pud_free_tlb(tlb, pudp, addr);		\
- } while (0)
- 
- #endif /* _ASM_IA64_TLB_H */
-Index: linux-work/include/asm-generic/4level-fixup.h
-===================================================================
---- linux-work.orig/include/asm-generic/4level-fixup.h	2007-08-06 16:25:33.000000000 +1000
-+++ linux-work/include/asm-generic/4level-fixup.h	2007-08-06 16:25:49.000000000 +1000
-@@ -27,9 +27,9 @@
- #define pud_page_vaddr(pud)		pgd_page_vaddr(pud)
- 
- #undef pud_free_tlb
--#define pud_free_tlb(tlb, x)            do { } while (0)
-+#define pud_free_tlb(tlb, x, a)         do { } while (0)
- #define pud_free(mm,x)			do { } while (0)
--#define __pud_free_tlb(tlb, x)		do { } while (0)
-+#define __pud_free_tlb(tlb, x, a)	do { } while (0)
- 
- #undef  pud_addr_end
- #define pud_addr_end(addr, end)		(end)
-Index: linux-work/include/asm-generic/pgtable-nopmd.h
-===================================================================
---- linux-work.orig/include/asm-generic/pgtable-nopmd.h	2007-08-06 16:24:54.000000000 +1000
-+++ linux-work/include/asm-generic/pgtable-nopmd.h	2007-08-06 16:25:06.000000000 +1000
-@@ -55,7 +55,7 @@ static inline pmd_t * pmd_offset(pud_t *
-  */
- #define pmd_alloc_one(mm, address)		NULL
- #define pmd_free(mm,x)				do { } while (0)
--#define __pmd_free_tlb(tlb, x)			do { } while (0)
-+#define __pmd_free_tlb(tlb, x, a)		do { } while (0)
- 
- #undef  pmd_addr_end
- #define pmd_addr_end(addr, end)			(end)
-Index: linux-work/include/asm-generic/pgtable-nopud.h
-===================================================================
---- linux-work.orig/include/asm-generic/pgtable-nopud.h	2007-08-06 16:25:21.000000000 +1000
-+++ linux-work/include/asm-generic/pgtable-nopud.h	2007-08-06 16:25:25.000000000 +1000
-@@ -52,7 +52,7 @@ static inline pud_t * pud_offset(pgd_t *
-  */
- #define pud_alloc_one(mm, address)		NULL
- #define pud_free(mm,x)				do { } while (0)
--#define __pud_free_tlb(tlb, x)			do { } while (0)
-+#define __pud_free_tlb(tlb, x, a)		do { } while (0)
- 
- #undef  pud_addr_end
- #define pud_addr_end(addr, end)			(end)
+ 	dst_pgd = pgd_offset(dst_mm, addr);
+ 	src_pgd = pgd_offset(src_mm, addr);
+@@ -616,8 +627,8 @@ int copy_page_range(struct mm_struct *ds
+ 		next = pgd_addr_end(addr, end);
+ 		if (pgd_none_or_clear_bad(src_pgd))
+ 			continue;
+-		if (copy_pud_range(dst_mm, src_mm, dst_pgd, src_pgd,
+-						vma, addr, next))
++		if (copy_pud_range(tlb, dst_mm, src_mm, dst_pgd, src_pgd,
++				   vma, addr, next))
+ 			return -ENOMEM;
+ 	} while (dst_pgd++, src_pgd++, addr = next, addr != end);
+ 	return 0;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
