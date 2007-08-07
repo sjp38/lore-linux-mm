@@ -1,41 +1,62 @@
 From: Benjamin Herrenschmidt <benh@kernel.crashing.org>
-Date: Tue, 07 Aug 2007 17:19:46 +1000
-Subject: [RFC/PATCH 1/12] remove frv usage of flush_tlb_pgtables()
-In-Reply-To: <1186471185.826251.312410898174.qpush@grosgo>
-Message-Id: <20070807071952.E421FDDE09@ozlabs.org>
+Date: Tue, 07 Aug 2007 17:19:45 +1000
+Subject: [RFC/PATCH 0/12] WIP mmu_gather and PTE accessors work
+Message-Id: <1186471185.826251.312410898174.qpush@grosgo>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Linux Memory Management <linux-mm@kvack.org>
 Cc: linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-frv is the last user in the tree of that dubious hook, and it's my
-understanding that it's not even needed. It's only called by memory.c
-free_pgd_range() which is always called within an mmu_gather, and
-tlb_flush() on frv will do a flush_tlb_mm(), which from my reading
-of the code, seems to do what flush_tlb_ptables() does, which is
-to clear the cached PGE.
+This is a snapshot of my current work on PTE accessors and
+mmu_gather. It's not complete but it should show the direction
+I'm heading toward.
 
-Signed-off-by: Benjamin Herrenschmidt <benh@kernel.crashing.org>
----
+The main goals are:
 
- include/asm-frv/tlbflush.h |    3 +--
- 1 file changed, 1 insertion(+), 2 deletions(-)
+ - Make mmu_gather used for all page table walk operations that
+also need to invalidate TLB entries, thus obsoleting flush_tlb_range()
+and flush_tlb_mm() as generic APIs to the TLB flushing.
 
-Index: linux-work/include/asm-frv/tlbflush.h
-===================================================================
---- linux-work.orig/include/asm-frv/tlbflush.h	2007-07-27 09:40:38.000000000 +1000
-+++ linux-work/include/asm-frv/tlbflush.h	2007-07-27 09:43:17.000000000 +1000
-@@ -57,8 +57,7 @@ do {								\
- #define __flush_tlb_global()			flush_tlb_all()
- #define flush_tlb()				flush_tlb_all()
- #define flush_tlb_kernel_range(start, end)	flush_tlb_all()
--#define flush_tlb_pgtables(mm,start,end) \
--	asm volatile("movgs %0,scr0 ! movgs %0,scr1" :: "r"(ULONG_MAX) : "memory");
-+#define flush_tlb_pgtables(mm,start,end)	do { } while(0)
- 
- #else
- 
+ - Make mmu_gather stack based. The cleans quite a bit of stuff up,
+and once fully done, should allow to reduce latencies caused by the
+need to use get_cpu() for a long time.
+
+ - Make mmu_gather more flexible so that archs who need to do more than
+what the standard implementation does don't have to copy all of it and
+do their own implementation.
+
+ - Make mmu_gather suitable for batching on powerpc :-) This involves
+mostly adding a hook before PTE pages are unlocked and some work on
+the interaction between PTE accessors and tlb_remove_tlb_entry()
+
+ - Remove other remaings of flush_tlb_*, keeping only for now
+flush_tlb_kernel_range() which will be harder to "fix" (provided we
+want to do it at all)
+
+ - Go through all remaining page table accessors, remove all the unused
+ones (there's still a few), there should be only a handful left and redo
+the documentation accordingly.
+
+These goals are _NOT_ yet met by this patch serie and some of the bits
+in there may want to be done a bit differently. As I did the patches,
+and hacked various archs, I got a better visibility on what is done and
+why and thus some of my initial directions end up not looking so good.
+
+Most notably, the MMF_DEAD flag doesn't sound like such a good idea
+anymore and I'm considering instead replacing ptep_get_and_clear()
+and tlb_remove_tlb_entry() with a version that takes the batch as an
+argument.
+
+Also, I haven't fully moved the batch off the per-cpu, only "part 1" is
+there at this stage.
+
+However, I'll be travelling for a while and won't have much time to work
+on it until I'm back mid september, so I decided now was a good time to
+post what I have for comments and discussions on the approach taken.
+
+Cheers,
+Ben.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
