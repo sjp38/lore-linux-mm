@@ -1,54 +1,80 @@
-Date: Tue, 7 Aug 2007 16:32:57 -0100
-From: "Robin Egan" <bobl9@excite.com>
-Reply-To: bobl9@excite.com
-Message-ID: <350980914.09524591358204@excite.com>
-Subject: Vier Doosen umsonst  be noted that  -- brain in a way that sticks. 
+Date: Tue, 7 Aug 2007 17:55:47 +0100
+Subject: Re: [PATCH] Apply memory policies to top two highest zones when highest zone is ZONE_MOVABLE
+Message-ID: <20070807165546.GA7603@skynet.ie>
+References: <20070802172118.GD23133@skynet.ie> <200708040002.18167.ak@suse.de> <20070806121558.e1977ba5.akpm@linux-foundation.org> <200708062231.49247.ak@suse.de> <20070806215541.GC6142@skynet.ie> <20070806221252.aa1e9048.akpm@linux-foundation.org>
 MIME-Version: 1.0
-Content-Type: multipart/alternative;
-  boundary="----------25DA14677E3C098"
-Return-Path: <bobl9@excite.com>
-To: linux-mm@kvack.org
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <20070806221252.aa1e9048.akpm@linux-foundation.org>
+From: mel@skynet.ie (Mel Gorman)
+Sender: owner-linux-mm@kvack.org
+Return-Path: <owner-linux-mm@kvack.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Andi Kleen <ak@suse.de>, Lee.Schermerhorn@hp.com, clameter@sgi.com, kamezawa.hiroyu@jp.fujitsu.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-------------25DA14677E3C098
-Content-Type: text/plain; charset=iso-8859-1
-Content-Transfer-Encoding: 7bit
+On (06/08/07 22:12), Andrew Morton didst pronounce:
+> On Mon, 6 Aug 2007 22:55:41 +0100 mel@skynet.ie (Mel Gorman) wrote:
+> 
+> > On (06/08/07 22:31), Andi Kleen didst pronounce:
+> > > 
+> > > > If correct, I would suggest merging the horrible hack for .23 then taking
+> > > > it out when we merge "grouping pages by mobility".  But what if we don't do
+> > > > that merge?
+> > > 
+> > > Or disable ZONE_MOVABLE until it is usable?
+> > 
+> > It's usable now. The issue with policies only occurs if the user specifies
+> > kernelcore= or movablecore= on the command-line. Your language suggests
+> > that you believe policies are not applied when ZONE_MOVABLE is configured
+> > at build-time.
+> 
+> So..  the problem which we're fixing here is only present when someone
+> use kernelcore=.  This is in fact an argument for _not_ merging the
+> horrible-hack.
+> 
 
-Versuchen Sie unser Produkt und Sie werden fuhlen was unsere Kunden bestatigen
+It's even more constrained than that. It only applies to the MPOL_BIND
+policy when kernelcore= is specified. The other policies work the same
+as they ever did.
 
-Preise die keine Konkurrenz kennen 
+> How commonly do we expect people to specify kernelcore=?  If "not much" then
+> it isn't worth adding the __alloc_pages() overhead?
+> 
 
-- Visa verifizierter Onlineshop
-- Bequem und diskret online bestellen.
-- Kein langes Warten - Auslieferung innerhalb von 2-3 Tagen
-- Kostenlose, arztliche Telefon-Beratung
-- keine versteckte Kosten
-- Diskrete Verpackung und Zahlung
-- Kein peinlicher Arztbesuch erforderlich
+For 2.6.23 at least, it'll be "not much". While I'm not keen on leaving
+MPOL_BIND as it is for 2.6.23, we can postpone the final decision until
+we've bashed the one-zonelist-per-node patches a bit and see do we want to
+do that instead.
 
-Originalmedikamente
-Ciiaaaaaalis 10 Pack. 27,00 Euro
-Viiaaaagra 10 Pack. 21,00 Euro
+> (It's a pretty darn small overhead, I must say)
 
-Vier Dosen gibt's bei jeder Bestellung umsonst
-http://tuissv.segmentcharge.cn/?620640251543
+And it's simplier than the one-zone-list-per-node patches. The
+current draft of the patch I'm working on looks something like;
 
-(bitte warten Sie einen Moment bis die Seite vollstandig geladen wird)
-------------25DA14677E3C098
-Content-Type: text/html; charset=iso-8859-1
-Content-Transfer-Encoding: 7bit
+ arch/parisc/mm/init.c     |   10 ++-
+ drivers/char/sysrq.c      |    2 
+ fs/buffer.c               |    2 
+ include/linux/gfp.h       |    3 -
+ include/linux/mempolicy.h |    2 
+ include/linux/mmzone.h    |   42 +++++++++++++++
+ include/linux/swap.h      |    2 
+ mm/mempolicy.c            |    6 +-
+ mm/mmzone.c               |   28 ++++++++++
+ mm/oom_kill.c             |    8 +--
+ mm/page_alloc.c           |  122 +++++++++++++++++++++-------------------------
+ mm/slab.c                 |   11 ++--
+ mm/slub.c                 |   11 ++--
+ mm/vmscan.c               |   16 +++---
+ 14 files changed, 164 insertions(+), 101 deletions(-)
 
-<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
-<HTML><HEAD><TITLE></TITLE>
-</HEAD>
-<BODY>
+-- 
+Mel Gorman
+Part-time Phd Student                          Linux Technology Center
+University of Limerick                         IBM Dublin Software Lab
 
-<head><meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
-</head><body><p>Meinung von unserem Kunden:<br><strong>Vor zwei Monaten haben meine Freundin und ich beschlossen, zum ersten Mal miteinander Sex zu haben. Als es soweit war, und ich in sie eindringen wollte, blieb ich v&#246;llig schlaff. Wir haben es drei Wochen sp&#228;ter nochmal versucht, und ich habe immer noch schlappgemacht. Mein Onkel hat mir Viiaaaagra empfohlen. Letzte Woche haben meine Freundin und ich es noch einmal miteinander probiert, und es wurde die tollste Nacht meines Lebens. Ich nehme Viiaaaagra jetzt einmal pro Woche, und es klappt prima. Meine Freundin hat keine Zweifel mehr an meinen sexuellen Qualit&#228;ten.</strong></p><p><strong>Fantastische Wirkung! F&#252;nf Jahre lang hatte ich es nicht mehr geschafft, meine Err. ..ektion w&#228;hrend des Verkehrs zu halten und war richtig &#228;ngstlich geworden. Ich hatte auch ein Problem mit vorzeitigem Samenerguss. Au&#223;erdem bin ich Zuckerkrank. Vor einiger Zeit habe ich eine 50-mg-Dosis Viiaaaagra genommen und zwei Stunden sp&#228;ter mit einer 22-j&#228;hrigen geschlafen. Kurz vor dem Vorspiel wurde mein Penis hart und ich konnte es kaum glauben. Ich habe in dieser Nacht dreimal Sex gehabt und es gab keine Probleme dabei. Kein Schuss ging daneben. Ich bin ein gl&#252;cklicher Mann. Achmet, 52<br>
-</strong><strong><br>Versuchen Sie unser Produkt und Sie werden fuhlen was unsere Kunden bestatigen</strong></p><p>Preise die keine Konkurrenz kennen <p>
-- Diskrete Verpackung und Zahlung<br>- Kein peinlicher Arztbesuch erforderlich<br>- Kostenlose, arztliche Telefon-Beratung<br>- Kein langes Warten - Auslieferung innerhalb von 2-3 Tagen<br>- Bequem und diskret online bestellen.<br>- Visa verifizierter Onlineshop<br>- keine versteckte Kosten</p>
-<p>Originalmedikamente<br><strong>Ciiaaaaaalis 10 Pack. 27,00 Euro</strong><br>
-  <strong>Viiaaaagra 10 Pack. 21,00 Euro</strong><br><br><strong><a href="http://tuissv.segmentcharge.cn/?620640251543" target="_blank">Vier Dosen gibt's bei jeder Bestellung umsonst</a><br></strong>(bitte warten Sie einen Moment bis die Seite vollst&auml;ndig geladen wird) </p></body>
-
-</BODY></HTML>
-------------25DA14677E3C098--
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
