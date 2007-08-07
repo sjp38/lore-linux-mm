@@ -1,37 +1,82 @@
-Date: Tue, 7 Aug 2007 13:37:24 -0700 (PDT)
-From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [PATCH] Apply memory policies to top two highest zones when
- highest zone is ZONE_MOVABLE
-In-Reply-To: <20070807111430.f35c03c0.akpm@linux-foundation.org>
-Message-ID: <Pine.LNX.4.64.0708071334430.3430@schroedinger.engr.sgi.com>
-References: <20070802172118.GD23133@skynet.ie> <200708040002.18167.ak@suse.de>
- <20070806121558.e1977ba5.akpm@linux-foundation.org> <200708062231.49247.ak@suse.de>
- <20070806215541.GC6142@skynet.ie> <20070806221252.aa1e9048.akpm@linux-foundation.org>
- <20070807165546.GA7603@skynet.ie> <20070807111430.f35c03c0.akpm@linux-foundation.org>
+Message-ID: <01c7d934$8cdeb1c0$ecdeb154@boclair>
+From: "Madelyn Barnett" <boclair@drizzle.com>
+Subject: Man Lebt nur einmal - probiers aus !  complaint against the FSA.  -- more complex. 
+Date: Tue, 7 Aug 2007 20:50:12 -0100
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
-Sender: owner-linux-mm@kvack.org
-Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Mel Gorman <mel@skynet.ie>, Andi Kleen <ak@suse.de>, Lee.Schermerhorn@hp.com, kamezawa.hiroyu@jp.fujitsu.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Content-Type: multipart/alternative;
+	boundary="----=_NextPart_000_0007_01C7D945.506781C0"
+Return-Path: <boclair@drizzle.com>
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 7 Aug 2007, Andrew Morton wrote:
+This is a multi-part message in MIME format.
 
-> > It's even more constrained than that. It only applies to the MPOL_BIND
-> > policy when kernelcore= is specified. The other policies work the same
-> > as they ever did.
-> 
-> so.. should we forget about merging the horrible-hack?
+------=_NextPart_000_0007_01C7D945.506781C0
+Content-Type: text/plain;
+	charset="us-ascii"
+Content-Transfer-Encoding: quoted-printable
 
-Support MPOL_BIND is a basic NUMA feature. This is going to make .23 
-unusable for us if kernelcore= is used. If we cannot use kernelcore then 
-NUMA systems cannot use the features that depend on kernelcore.
+Haben Sie endlich wieder Spass am Leben!
 
+Preise die keine Konkurrenz kennen 
 
+- Diskrete Verpackung und Zahlung
+- Kein peinlicher Arztbesuch erforderlich
+- Kostenlose, arztliche Telefon-Beratung
+- Kein langes Warten - Auslieferung innerhalb von 2-3 Tagen
+- Bequem und diskret online bestellen.
+- Visa verifizierter Onlineshop
+- keine versteckte Kosten
 
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+Originalmedikamente
+Ciiaaaaaalis 10 Pack. 27,00 Euro
+Viiaaaagra 10 Pack. 21,00 Euro
+
+Jetzt bestellen - und vier Pillen umsonst erhalten
+http://votug.whatshore.com/?448895162434
+
+(bitte warten Sie einen Moment bis die Seite vollstandig geladen wird)
+------=_NextPart_000_0007_01C7D945.506781C0
+Content-Type: text/html;
+	charset="us-ascii"
+Content-Transfer-Encoding: quoted-printable
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
+<HTML><HEAD>
+<META http-equiv=3DContent-Type content=3D"text/html; charset=3Dus-ascii">
+<META content=3D"MSHTML 5.00.2919.6600" name=3DGENERATOR>
+<STYLE></STYLE>
+</HEAD>
+<BODY>
+<head><meta http-equiv=3D"Content-Type" content=3D"text/html; charset=3Diso=
+-8859-1">
+</head><body><p>Meinung von unserem Kunden:<br><strong>Jetzt, wo ich Viiaaa=
+agra ausprobiert habe, w&#252;rde ich es immer wieder kaufen, auch wenn ich=
+ das Dreifache daf&#252;r bezahlen m&#252;sste. Ich bedaure all die ungl&#2=
+52;cklichen M&#228;nner, die in ihrem Leben nie die Gelegenheit hatten, Vii=
+aaaagra auszuprobieren. Und ein bisschen bedaure ich mich selbst: Warum hab=
+e ich nicht schon vor Jahren den Mut gehabt, es zu probieren?</strong></p><=
+p><strong>Fantastische Wirkung! F&#252;nf Jahre lang hatte ich es nicht meh=
+r geschafft, meine Err. ..ektion w&#228;hrend des Verkehrs zu halten und wa=
+r richtig &#228;ngstlich geworden. Ich hatte auch ein Problem mit vorzeitig=
+em Samenerguss. Au&#223;erdem bin ich Zuckerkrank. Vor einiger Zeit habe ic=
+h eine 50-mg-Dosis Viiaaaagra genommen und zwei Stunden sp&#228;ter mit ein=
+er 22-j&#228;hrigen geschlafen. Kurz vor dem Vorspiel wurde mein Penis hart=
+ und ich konnte es kaum glauben. Ich habe in dieser Nacht dreimal Sex gehab=
+t und es gab keine Probleme dabei. Kein Schuss ging daneben. Ich bin ein gl=
+&#252;cklicher Mann. Achmet, 52<br>
+</strong><strong><br>Haben Sie endlich wieder Spass am Leben!</strong></p><=
+p>Preise die keine Konkurrenz kennen <p>
+- keine versteckte Kosten<br>- Bequem und diskret online bestellen.<br>- Di=
+skrete Verpackung und Zahlung<br>- Kein peinlicher Arztbesuch erforderlich<=
+br>- Kostenlose, arztliche Telefon-Beratung<br>- Kein langes Warten - Ausli=
+eferung innerhalb von 2-3 Tagen<br>- Visa verifizierter Onlineshop</p>
+<p>Originalmedikamente<br><strong>Ciiaaaaaalis 10 Pack. 27,00 Euro</strong>=
+<br>
+  <strong>Viiaaaagra 10 Pack. 21,00 Euro</strong><br><br><strong><a href=3D=
+"http://votug.whatshore.com/?448895162434" target=3D"_blank">Jetzt bestelle=
+n - und vier Pillen umsonst erhalten</a><br></strong>(bitte warten Sie eine=
+n Moment bis die Seite vollst&auml;ndig geladen wird) </p></body>
+</BODY></HTML>
+
+------=_NextPart_000_0007_01C7D945.506781C0--
