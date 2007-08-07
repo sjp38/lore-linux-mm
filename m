@@ -1,94 +1,62 @@
-From: Daniel Phillips <phillips@phunq.net>
-Subject: Re: [PATCH 02/10] mm: system wide ALLOC_NO_WATERMARK
-Date: Mon, 6 Aug 2007 16:49:55 -0700
-References: <20070806102922.907530000@chello.nl> <200708061559.41680.phillips@phunq.net> <Pine.LNX.4.64.0708061605400.5090@schroedinger.engr.sgi.com>
-In-Reply-To: <Pine.LNX.4.64.0708061605400.5090@schroedinger.engr.sgi.com>
+Received: from d03relay04.boulder.ibm.com (d03relay04.boulder.ibm.com [9.17.195.106])
+	by e33.co.us.ibm.com (8.13.8/8.13.8) with ESMTP id l7703URO008566
+	for <linux-mm@kvack.org>; Mon, 6 Aug 2007 20:03:30 -0400
+Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
+	by d03relay04.boulder.ibm.com (8.13.8/8.13.8/NCO v8.4) with ESMTP id l7703U2l212918
+	for <linux-mm@kvack.org>; Mon, 6 Aug 2007 18:03:30 -0600
+Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av02.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l7703UCf009535
+	for <linux-mm@kvack.org>; Mon, 6 Aug 2007 18:03:30 -0600
+Date: Mon, 6 Aug 2007 17:03:29 -0700
+From: Nishanth Aravamudan <nacc@us.ibm.com>
+Subject: Re: [RFC][PATCH 4/5] hugetlb: fix cpuset-constrained pool resizing
+Message-ID: <20070807000329.GU15714@us.ibm.com>
+References: <20070806163254.GJ15714@us.ibm.com> <20070806163726.GK15714@us.ibm.com> <20070806163841.GL15714@us.ibm.com> <20070806164055.GN15714@us.ibm.com> <20070806164410.GO15714@us.ibm.com> <Pine.LNX.4.64.0708061101470.24256@schroedinger.engr.sgi.com> <20070806182616.GT15714@us.ibm.com> <Pine.LNX.4.64.0708061137510.3152@schroedinger.engr.sgi.com>
 MIME-Version: 1.0
-Content-Type: text/plain;
-  charset="iso-8859-1"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-Message-Id: <200708061649.56487.phillips@phunq.net>
+In-Reply-To: <Pine.LNX.4.64.0708061137510.3152@schroedinger.engr.sgi.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Christoph Lameter <clameter@sgi.com>
-Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, Matt Mackall <mpm@selenic.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, David Miller <davem@davemloft.net>, Andrew Morton <akpm@linux-foundation.org>, Daniel Phillips <phillips@google.com>, Pekka Enberg <penberg@cs.helsinki.fi>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Steve Dickson <SteveD@redhat.com>
+Cc: lee.schermerhorn@hp.com, wli@holomorphy.com, melgor@ie.ibm.com, akpm@linux-foundation.org, linux-mm@kvack.org, agl@us.ibm.com, pj@sgi.com
 List-ID: <linux-mm.kvack.org>
 
-On Monday 06 August 2007 16:14, Christoph Lameter wrote:
-> On Mon, 6 Aug 2007, Daniel Phillips wrote:
-> > Correct.  That is what the throttling part of these patches is
-> > about.
->
-> Where are those patches?
+On 06.08.2007 [11:41:12 -0700], Christoph Lameter wrote:
+> On Mon, 6 Aug 2007, Nishanth Aravamudan wrote:
+> 
+> > I understand what you mean, that root should be able to do whatever it
+> > wants, but at the same time, if a root-owned process is running in a
+> > cpuset, it's constrained for a reason.
+> 
+> Yes but the constraint is for an application running under a regular 
+> user id not for the root user.
+> 
+> > More importantly, let's say your process (owned by root or not) is
+> > running in a restricted cpuset on  nodes 2 and 3 of a 4-node system and
+> > wants to use 100 hugepages. Using the global sysctl, presuming an equal
+> > distribution of free memory on all nodes, said process would need to
+> > allocate 200 hugepages on the system (50 on each node), to get 100
+> > hugepages on nodes 2 and 3. With this patch, it only needs to allocate
+> > 100 hugepages.
+> 
+> The app is not able to use the sysctl. The root user must be able to do 
+> whatever desired. Does not make sense to impose restrictions on sysctls.
+> 
+> > Become dependent on the *proccess* context, which is, to me, what would
+> > be expected. If a process is restricted in some way, I would expect it
+> > to be restricted in that way across the board.
+> 
+> Nope these values are global. Cpuset relative data belongs in /dev/cpuset.
 
-Here is one user:
+Ok, I'll respin the patches with this in mind and resubmit.
 
-   http://zumastor.googlecode.com/svn/trunk/ddsnap/kernel/dm-ddsnap.c
-   down(&info->throttle_sem);
+Thanks for the feedback,
+Nish
 
-Peter has another (swap over net).  A third is the network stack itself, 
-which is in the full patch set that Peter has posted a number of times 
-in the past but did not appear today because Peter broke the full patch 
-set up into multiple sets to make it all easier to understand.
-
-> AFAICT: This patchset is not throttling processes but failing
-> allocations.
-
-Failing allocations?  Where do you see that?  As far as I can see, 
-Peter's patch set allows allocations to fail exactly where the user has 
-always specified they may fail, and in no new places.  If there is a 
-flaw in that logic, please let us know.
-
-What the current patch set actually does is allow some critical 
-allocations that would have failed or recursed into deadlock before to 
-succeed instead, allowing vm writeout to complete successfully.  You 
-may quibble with exactly how he accomplishes that, but preventing these 
-allocations from failing is not optional.
-
-> The patchset does not reconfigure the memory reserves as 
-> expected.
-
-What do you mean by that?  Expected by who?
-
-> Instead new reserve logic is added.
-
-Peter did not actually have to add a new layer of abstraction to 
-alloc_pages to impose order on the hardcoded hacks that currently live 
-in there to decide how far various callers can dig into reserves.  It 
-would probably help people understand this patch set if that part were 
-taken out for now and replaced with the original seat-of-the-pants two 
-line hack I had in the original.  But I do not see anything wrong with 
-what Peter has written there, it just takes a little more time to read.
-
-> And I suspect that we  
-> have the same issues as in earlier releases with various corner cases
-> not being covered.
-
-Do you have an example?
-
-> Code is added that is supposedly not used.
-
-What makes you think that?
-
-> If it  ever is on a large config then we are in very deep trouble by
-> the new code paths themselves that serialize things in order to give
-> some allocations precendence over the other allocations that are made
-> to fail ....
-
-You mean by allocating the reserve memory on the wrong node in NUMA?  
-That is on a code path that avoids destroying your machine performance 
-or killing the machine entirely as with current kernels, for which a 
-few cachelines pulled to another node is a small price to pay.  And you 
-are free to use your special expertise in NUMA to make those fallback 
-paths even more efficient, but first you need to understand what they 
-are doing and why.
-
-At your service for any more questions :-)
-
-Regards,
-
-Daniel
+-- 
+Nishanth Aravamudan <nacc@us.ibm.com>
+IBM Linux Technology Center
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
