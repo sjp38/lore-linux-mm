@@ -1,36 +1,188 @@
-Message-ID: <46B8E227.1010300@tmr.com>
-Date: Tue, 07 Aug 2007 17:20:39 -0400
-From: Bill Davidsen <davidsen@tmr.com>
+Received: from d01relay02.pok.ibm.com (d01relay02.pok.ibm.com [9.56.227.234])
+	by e6.ny.us.ibm.com (8.13.8/8.13.8) with ESMTP id l77ME0Oh013616
+	for <linux-mm@kvack.org>; Tue, 7 Aug 2007 18:14:00 -0400
+Received: from d01av03.pok.ibm.com (d01av03.pok.ibm.com [9.56.224.217])
+	by d01relay02.pok.ibm.com (8.13.8/8.13.8/NCO v8.4) with ESMTP id l77MCfWJ506732
+	for <linux-mm@kvack.org>; Tue, 7 Aug 2007 18:12:41 -0400
+Received: from d01av03.pok.ibm.com (loopback [127.0.0.1])
+	by d01av03.pok.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l77MCfkL022802
+	for <linux-mm@kvack.org>; Tue, 7 Aug 2007 18:12:41 -0400
+Date: Tue, 7 Aug 2007 15:12:40 -0700
+From: Nishanth Aravamudan <nacc@us.ibm.com>
+Subject: [RFC][PATCH 1/2][UPDATED] hugetlb: search harder for memory in alloc_fresh_huge_page()
+Message-ID: <20070807221240.GB15714@us.ibm.com>
+References: <20070807171432.GY15714@us.ibm.com> <1186517722.5067.31.camel@localhost>
 MIME-Version: 1.0
-Subject: Re: [PATCH 00/23] per device dirty throttling -v8
-References: <20070803123712.987126000@chello.nl> <46B4E161.9080100@garzik.org> <20070804224706.617500a0@the-village.bc.nu> <200708050051.40758.ctpm@ist.utl.pt>
-In-Reply-To: <200708050051.40758.ctpm@ist.utl.pt>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1186517722.5067.31.camel@localhost>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Claudio Martins <ctpm@ist.utl.pt>
-Cc: Alan Cox <alan@lxorguk.ukuu.org.uk>, Jeff Garzik <jeff@garzik.org>, Ingo Molnar <mingo@elte.hu>, =?ISO-8859-1?Q?J=F6rn_Engel?= <joern@logfs.org>, Linus Torvalds <torvalds@linux-foundation.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, linux-mm@kvack.org, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, miklos@szeredi.hu, akpm@linux-foundation.org, neilb@suse.de, dgc@sgi.com, tomoki.sekiyama.qu@hitachi.com, nikita@clusterfs.com, trond.myklebust@fys.uio.no, yingchao.zhou@gmail.com, richard@rsk.demon.co.uk, david@lang.hm
+To: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
+Cc: clameter@sgi.com, anton@samba.org, wli@holomorphy.com, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Claudio Martins wrote:
-> On Saturday 04 August 2007, Alan Cox wrote:
->> Linux has never been a "suprise your kernel interfaces all just changed
->> today" kernel, nor a "gosh you upgraded and didn't notice your backups
->> broke" kernel.
->>
+On 07.08.2007 [16:15:22 -0400], Lee Schermerhorn wrote:
+> On Tue, 2007-08-07 at 10:14 -0700, Nishanth Aravamudan wrote:
+> > hugetlb: search harder for memory in alloc_fresh_huge_page()
+> > 
+> > Currently, alloc_fresh_huge_page() returns NULL when it is not able to
+> > allocate a huge page on the current node, as specified by its custom
+> > interleave variable. The callers of this function, though, assume that a
+> > failure in alloc_fresh_huge_page() indicates no hugepages can be
+> > allocated on the system period. This might not be the case, for
+> > instance, if we have an uneven NUMA system, and we happen to try to
+> > allocate a hugepage on a node with less memory and fail, while there is
+> > still plenty of free memory on the other nodes.
+> > 
+> > To correct this, make alloc_fresh_huge_page() search through all online
+> > nodes before deciding no hugepages can be allocated. Add a helper
+> > function for actually allocating the hugepage.
+> > 
+> > While there are interleave interfaces that could be exported from the
+> > mempolicy layer, that seems like an inappropriate design decision. Work
+> > is needed on a subsystem-level interleaving interface, but I'm still not
+> > quite sure how that should look. Hence the custom interleaving here.
+> > 
+> > Signed-off-by: Nishanth Aravamudan <nacc@us.ibm.com>
+> > 
+
+<snip>
+
+> > -	page = alloc_pages_node(nid, htlb_alloc_mask|__GFP_COMP|__GFP_NOWARN,
+> > -					HUGETLB_PAGE_ORDER);
+> > +	page = alloc_pages_node(nid,
+> > +		htlb_alloc_mask|__GFP_COMP|__GFP_THISNODE|__GFP_NOWARN,
+> > +		HUGETLB_PAGE_ORDER);
+> >  	if (page) {
+> >  		set_compound_page_dtor(page, free_huge_page);
+> >  		spin_lock(&hugetlb_lock);
+> >  		nr_huge_pages++;
+> > -		nr_huge_pages_node[page_to_nid(page)]++;
+> > +		nr_huge_pages_node[nid]++;
 > 
->  Can you give examples of backup solutions that rely on atime being updated?
-> I can understand backup tools using mtime/ctime for incremental backups (like 
-> tar + Amanda, etc), but I'm having trouble figuring out why someone would 
-> want to use atime for that.
-> 
-Programs which migrate unused files or delete them are the usual cases.
+> Not that I don't trust __GFP_THISNODE, but may I suggest a
+> "VM_BUG_ON(page_to_nid(page) != nid)" -- up above the spin_lock(), of
+> course.  Better yet, add the assertion and drop this one line change?
+> This isn't a hot path, I think.
+
+Hrm, I think if it's really a concern then the VM_BUG_ON should be in
+alloc_pages_node() itself? Or somewhere lower level, I mean, it's a bug
+everywhere, not just in hugetlb.c. And, more importantly, if
+__GFP_THISNODE doesn't work, it pretty much defeats the purpose of my
+sysfs attribute patch. Echo'ing a value for node 0 and getting hugepages
+on node 1 would be bad :)
+
+But here's the patch respun, as requested:
+
+hugetlb: search harder for memory in alloc_fresh_huge_page()
+
+Currently, alloc_fresh_huge_page() returns NULL when it is not able to
+allocate a huge page on the current node, as specified by its custom
+interleave variable. The callers of this function, though, assume that a
+failure in alloc_fresh_huge_page() indicates no hugepages can be
+allocated on the system period. This might not be the case, for
+instance, if we have an uneven NUMA system, and we happen to try to
+allocate a hugepage on a node with less memory and fail, while there is
+still plenty of free memory on the other nodes.
+
+To correct this, make alloc_fresh_huge_page() search through all online
+nodes before deciding no hugepages can be allocated. Add a helper
+function for actually allocating the hugepage. Also, since we expect
+particular semantics for __GFP_THISNODE, which are newly enforced, add a
+VM_BUG_ON when allocations occur off the requested node.
+
+Signed-off-by: Nishanth Aravamudan <nacc@us.ibm.com>
+
+diff --git a/mm/hugetlb.c b/mm/hugetlb.c
+index d7ca59d..e7b103d 100644
+--- a/mm/hugetlb.c
++++ b/mm/hugetlb.c
+@@ -101,36 +101,60 @@ static void free_huge_page(struct page *page)
+ 	spin_unlock(&hugetlb_lock);
+ }
+ 
+-static int alloc_fresh_huge_page(void)
++static struct page *alloc_fresh_huge_page_node(int nid)
+ {
+-	static int prev_nid;
+ 	struct page *page;
+-	int nid;
+-
+-	/*
+-	 * Copy static prev_nid to local nid, work on that, then copy it
+-	 * back to prev_nid afterwards: otherwise there's a window in which
+-	 * a racer might pass invalid nid MAX_NUMNODES to alloc_pages_node.
+-	 * But we don't need to use a spin_lock here: it really doesn't
+-	 * matter if occasionally a racer chooses the same nid as we do.
+-	 */
+-	nid = next_node(prev_nid, node_online_map);
+-	if (nid == MAX_NUMNODES)
+-		nid = first_node(node_online_map);
+-	prev_nid = nid;
+ 
+-	page = alloc_pages_node(nid, htlb_alloc_mask|__GFP_COMP|__GFP_NOWARN,
+-					HUGETLB_PAGE_ORDER);
++	page = alloc_pages_node(nid,
++		htlb_alloc_mask|__GFP_COMP|__GFP_THISNODE|__GFP_NOWARN,
++		HUGETLB_PAGE_ORDER);
+ 	if (page) {
++		VM_BUG_ON(nid != page_to_nid(page));
+ 		set_compound_page_dtor(page, free_huge_page);
+ 		spin_lock(&hugetlb_lock);
+ 		nr_huge_pages++;
+-		nr_huge_pages_node[page_to_nid(page)]++;
++		nr_huge_pages_node[page_to_nid(nid)]++;
+ 		spin_unlock(&hugetlb_lock);
+ 		put_page(page); /* free it into the hugepage allocator */
+-		return 1;
+ 	}
+-	return 0;
++
++	return page;
++}
++
++static int alloc_fresh_huge_page(void)
++{
++	static int nid = -1;
++	struct page *page;
++	int start_nid;
++	int next_nid;
++	int ret = 0;
++
++	if (nid < 0)
++		nid = first_node(node_online_map);
++	start_nid = nid;
++
++	do {
++		page = alloc_fresh_huge_page_node(nid);
++		if (page)
++			ret = 1;
++		/*
++		 * Use a helper variable to find the next node and then
++		 * copy it back to nid nid afterwards: otherwise there's
++		 * a window in which a racer might pass invalid nid
++		 * MAX_NUMNODES to alloc_pages_node.  But we don't need
++		 * to use a spin_lock here: it really doesn't matter if
++		 * occasionally a racer chooses the same nid as we do.
++		 * Move nid forward in the mask even if we just
++		 * successfully allocated a hugepage so that the next
++		 * caller gets hugepages on the next node.
++		 */
++		next_nid = next_node(nid, node_online_map);
++		if (next_nid == MAX_NUMNODES)
++			next_nid = first_node(node_online_map);
++		nid = next_nid;
++	} while (!page && nid != start_nid);
++
++	return ret;
+ }
+ 
+ static struct page *alloc_huge_page(struct vm_area_struct *vma,
 
 -- 
-Bill Davidsen <davidsen@tmr.com>
-   "We have more to fear from the bungling of the incompetent than from
-the machinations of the wicked."  - from Slashdot
+Nishanth Aravamudan <nacc@us.ibm.com>
+IBM Linux Technology Center
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
