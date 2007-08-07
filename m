@@ -1,42 +1,31 @@
-Date: Tue, 7 Aug 2007 16:44:31 +1000
-From: David Gibson <david@gibson.dropbear.id.au>
-Subject: Re: + hugetlb-allow-extending-ftruncate-on-hugetlbfs.patch added to -mm tree
-Message-ID: <20070807064431.GC8351@localhost.localdomain>
-References: <200708061830.l76IUA6j008338@imap1.linux-foundation.org> <20070807041559.GH13522@localhost.localdomain> <b040c32a0708062128r42d6a067l3a0c8c3818660e13@mail.gmail.com>
+Date: Tue, 7 Aug 2007 09:05:21 +0200
+From: Ingo Molnar <mingo@elte.hu>
+Subject: Re: [PATCH 00/23] per device dirty throttling -v8
+Message-ID: <20070807070521.GC19745@elte.hu>
+References: <alpine.LFD.0.999.0708041030040.5037@woody.linux-foundation.org> <46B4C0A8.1000902@garzik.org> <20070804191205.GA24723@lazybastard.org> <20070804192130.GA25346@elte.hu> <20070804192615.GA25600@lazybastard.org> <20070804194259.GA25753@lazybastard.org> <20070805203602.GB25107@infradead.org> <46B7626C.6050403@redhat.com> <20070806203710.39bdc42e@the-village.bc.nu> <46B77AB3.40006@redhat.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <b040c32a0708062128r42d6a067l3a0c8c3818660e13@mail.gmail.com>
+In-Reply-To: <46B77AB3.40006@redhat.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Ken Chen <kenchen@google.com>
-Cc: akpm@linux-foundation.org, agl@us.ibm.com, nacc@us.ibm.com, wli@holomorphy.com, linux-mm@kvack.org
+To: Chuck Ebbert <cebbert@redhat.com>
+Cc: Alan Cox <alan@lxorguk.ukuu.org.uk>, Christoph Hellwig <hch@infradead.org>, J??rn Engel <joern@logfs.org>, Jeff Garzik <jeff@garzik.org>, Linus Torvalds <torvalds@linux-foundation.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, linux-mm@kvack.org, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, miklos@szeredi.hu, akpm@linux-foundation.org, neilb@suse.de, dgc@sgi.com, tomoki.sekiyama.qu@hitachi.com, nikita@clusterfs.com, trond.myklebust@fys.uio.no, yingchao.zhou@gmail.com, richard@rsk.demon.co.uk, david@lang.hm
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Aug 06, 2007 at 09:28:01PM -0700, Ken Chen wrote:
-> On 8/6/07, David Gibson <david@gibson.dropbear.id.au> wrote:
-> > Ken, is this quite sufficient?  At least if we're expanding a
-> > MAP_SHARED hugepage mapping, we should pre-reserve hugepages on an
-> > expanding ftruncate().
+* Chuck Ebbert <cebbert@redhat.com> wrote:
+
+> > Ingo's latest 'not quite noatime' seems to cure mutt/tmpwatch so it 
+> > might finally make sense to do so.
 > 
-> why do we need to reserve them?  mmap segments aren't extended, e.g.
-> vma length remains the same.  We only expand file size.
+> Do we report max(ctime, mtime) as the atime by default when noatime is 
+> set or do we still need that to be done?
 
-Well.. I suppose it doesn't have to (sorry, I was thinking of my old
-version of reservation, where the file's reserve was based on the file
-size rather than permitting non-contiguous reserved regions).
+noatime is unchanged by my patch (it is not the same as the 'improved 
+relatime' mode my patch activates), but it would make sense to do your 
+change, independently.
 
-But since ftruncate()ing to shorten unreserves pages, it would seem
-logical that ftruncate()ing to lengthen would reserve them.  In
-general the notion of reserved pages for shared mappings is a
-reservation in the inode address space, rather than a reservation for
-any process's particular mapping of it.
-
--- 
-David Gibson			| I'll have my music baroque, and my code
-david AT gibson.dropbear.id.au	| minimalist, thank you.  NOT _the_ _other_
-				| _way_ _around_!
-http://www.ozlabs.org/~dgibson
+	Ingo
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
