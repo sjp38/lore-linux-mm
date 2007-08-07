@@ -1,77 +1,137 @@
-Date: Tue, 7 Aug 2007 17:55:47 +0100
-Subject: Re: [PATCH] Apply memory policies to top two highest zones when highest zone is ZONE_MOVABLE
-Message-ID: <20070807165546.GA7603@skynet.ie>
-References: <20070802172118.GD23133@skynet.ie> <200708040002.18167.ak@suse.de> <20070806121558.e1977ba5.akpm@linux-foundation.org> <200708062231.49247.ak@suse.de> <20070806215541.GC6142@skynet.ie> <20070806221252.aa1e9048.akpm@linux-foundation.org>
+Received: from d01relay04.pok.ibm.com (d01relay04.pok.ibm.com [9.56.227.236])
+	by e2.ny.us.ibm.com (8.13.8/8.13.8) with ESMTP id l77HEYUa027664
+	for <linux-mm@kvack.org>; Tue, 7 Aug 2007 13:14:34 -0400
+Received: from d01av02.pok.ibm.com (d01av02.pok.ibm.com [9.56.224.216])
+	by d01relay04.pok.ibm.com (8.13.8/8.13.8/NCO v8.4) with ESMTP id l77HEXeB509408
+	for <linux-mm@kvack.org>; Tue, 7 Aug 2007 13:14:33 -0400
+Received: from d01av02.pok.ibm.com (loopback [127.0.0.1])
+	by d01av02.pok.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l77HEXMk028096
+	for <linux-mm@kvack.org>; Tue, 7 Aug 2007 13:14:33 -0400
+Date: Tue, 7 Aug 2007 10:14:32 -0700
+From: Nishanth Aravamudan <nacc@us.ibm.com>
+Subject: [RFC][PATCH 1/2] hugetlb: search harder for memory in alloc_fresh_huge_page()
+Message-ID: <20070807171432.GY15714@us.ibm.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20070806221252.aa1e9048.akpm@linux-foundation.org>
-From: mel@skynet.ie (Mel Gorman)
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Andi Kleen <ak@suse.de>, Lee.Schermerhorn@hp.com, clameter@sgi.com, kamezawa.hiroyu@jp.fujitsu.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: clameter@sgi.com
+Cc: anton@samba.org, lee.schermerhorn@hp.com, wli@holomorphy.com, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On (06/08/07 22:12), Andrew Morton didst pronounce:
-> On Mon, 6 Aug 2007 22:55:41 +0100 mel@skynet.ie (Mel Gorman) wrote:
-> 
-> > On (06/08/07 22:31), Andi Kleen didst pronounce:
-> > > 
-> > > > If correct, I would suggest merging the horrible hack for .23 then taking
-> > > > it out when we merge "grouping pages by mobility".  But what if we don't do
-> > > > that merge?
-> > > 
-> > > Or disable ZONE_MOVABLE until it is usable?
-> > 
-> > It's usable now. The issue with policies only occurs if the user specifies
-> > kernelcore= or movablecore= on the command-line. Your language suggests
-> > that you believe policies are not applied when ZONE_MOVABLE is configured
-> > at build-time.
-> 
-> So..  the problem which we're fixing here is only present when someone
-> use kernelcore=.  This is in fact an argument for _not_ merging the
-> horrible-hack.
-> 
+Currently, alloc_fresh_huge_page() returns NULL when it is not able to
+allocate a huge page on the current node, as specified by its custom
+interleave variable. The callers of this function, though, assume that a
+failure in alloc_fresh_huge_page() indicates no hugepages can be
+allocated on the system period. This might not be the case, for
+instance, if we have an uneven NUMA system, and we happen to try to
+allocate a hugepage on a node with less memory and fail, while there is
+still plenty of free memory on the other nodes.
 
-It's even more constrained than that. It only applies to the MPOL_BIND
-policy when kernelcore= is specified. The other policies work the same
-as they ever did.
+To correct this, make alloc_fresh_huge_page() search through all online
+nodes before deciding no hugepages can be allocated. Add a helper
+function for actually allocating the hugepage.
 
-> How commonly do we expect people to specify kernelcore=?  If "not much" then
-> it isn't worth adding the __alloc_pages() overhead?
-> 
+While there are interleave interfaces that could be exported from the
+mempolicy layer, that seems like an inappropriate design decision. Work
+is needed on a subsystem-level interleaving interface, but I'm still not
+quite sure how that should look. Hence the custom interleaving here.
 
-For 2.6.23 at least, it'll be "not much". While I'm not keen on leaving
-MPOL_BIND as it is for 2.6.23, we can postpone the final decision until
-we've bashed the one-zonelist-per-node patches a bit and see do we want to
-do that instead.
+Signed-off-by: Nishanth Aravamudan <nacc@us.ibm.com>
 
-> (It's a pretty darn small overhead, I must say)
+---
+I split up patch 1/5 into two bits, as they are really two logical
+changes. Does this look better, Christoph?
 
-And it's simplier than the one-zone-list-per-node patches. The
-current draft of the patch I'm working on looks something like;
-
- arch/parisc/mm/init.c     |   10 ++-
- drivers/char/sysrq.c      |    2 
- fs/buffer.c               |    2 
- include/linux/gfp.h       |    3 -
- include/linux/mempolicy.h |    2 
- include/linux/mmzone.h    |   42 +++++++++++++++
- include/linux/swap.h      |    2 
- mm/mempolicy.c            |    6 +-
- mm/mmzone.c               |   28 ++++++++++
- mm/oom_kill.c             |    8 +--
- mm/page_alloc.c           |  122 +++++++++++++++++++++-------------------------
- mm/slab.c                 |   11 ++--
- mm/slub.c                 |   11 ++--
- mm/vmscan.c               |   16 +++---
- 14 files changed, 164 insertions(+), 101 deletions(-)
+diff --git a/mm/hugetlb.c b/mm/hugetlb.c
+index d7ca59d..17a377e 100644
+--- a/mm/hugetlb.c
++++ b/mm/hugetlb.c
+@@ -101,36 +101,59 @@ static void free_huge_page(struct page *page)
+ 	spin_unlock(&hugetlb_lock);
+ }
+ 
+-static int alloc_fresh_huge_page(void)
++static struct page *alloc_fresh_huge_page_node(int nid)
+ {
+-	static int prev_nid;
+ 	struct page *page;
+-	int nid;
+-
+-	/*
+-	 * Copy static prev_nid to local nid, work on that, then copy it
+-	 * back to prev_nid afterwards: otherwise there's a window in which
+-	 * a racer might pass invalid nid MAX_NUMNODES to alloc_pages_node.
+-	 * But we don't need to use a spin_lock here: it really doesn't
+-	 * matter if occasionally a racer chooses the same nid as we do.
+-	 */
+-	nid = next_node(prev_nid, node_online_map);
+-	if (nid == MAX_NUMNODES)
+-		nid = first_node(node_online_map);
+-	prev_nid = nid;
+ 
+-	page = alloc_pages_node(nid, htlb_alloc_mask|__GFP_COMP|__GFP_NOWARN,
+-					HUGETLB_PAGE_ORDER);
++	page = alloc_pages_node(nid,
++		htlb_alloc_mask|__GFP_COMP|__GFP_THISNODE|__GFP_NOWARN,
++		HUGETLB_PAGE_ORDER);
+ 	if (page) {
+ 		set_compound_page_dtor(page, free_huge_page);
+ 		spin_lock(&hugetlb_lock);
+ 		nr_huge_pages++;
+-		nr_huge_pages_node[page_to_nid(page)]++;
++		nr_huge_pages_node[nid]++;
+ 		spin_unlock(&hugetlb_lock);
+ 		put_page(page); /* free it into the hugepage allocator */
+-		return 1;
+ 	}
+-	return 0;
++
++	return page;
++}
++
++static int alloc_fresh_huge_page(void)
++{
++	static int nid = -1;
++	struct page *page;
++	int start_nid;
++	int next_nid;
++	int ret = 0;
++
++	if (nid < 0)
++		nid = first_node(node_online_map);
++	start_nid = nid;
++
++	do {
++		page = alloc_fresh_huge_page_node(nid);
++		if (page)
++			ret = 1;
++		/*
++		 * Use a helper variable to find the next node and then
++		 * copy it back to nid nid afterwards: otherwise there's
++		 * a window in which a racer might pass invalid nid
++		 * MAX_NUMNODES to alloc_pages_node.  But we don't need
++		 * to use a spin_lock here: it really doesn't matter if
++		 * occasionally a racer chooses the same nid as we do.
++		 * Move nid forward in the mask even if we just
++		 * successfully allocated a hugepage so that the next
++		 * caller gets hugepages on the next node.
++		 */
++		next_nid = next_node(nid, node_online_map);
++		if (next_nid == MAX_NUMNODES)
++			next_nid = first_node(node_online_map);
++		nid = next_nid;
++	} while (!page && nid != start_nid);
++
++	return ret;
+ }
+ 
+ static struct page *alloc_huge_page(struct vm_area_struct *vma,
 
 -- 
-Mel Gorman
-Part-time Phd Student                          Linux Technology Center
-University of Limerick                         IBM Dublin Software Lab
+Nishanth Aravamudan <nacc@us.ibm.com>
+IBM Linux Technology Center
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
