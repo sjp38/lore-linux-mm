@@ -1,97 +1,41 @@
-Received: from d23relay03.au.ibm.com (d23relay03.au.ibm.com [202.81.18.234])
-	by ausmtp05.au.ibm.com (8.13.8/8.13.8) with ESMTP id l77IWN4J3911690
-	for <linux-mm@kvack.org>; Wed, 8 Aug 2007 04:32:23 +1000
-Received: from d23av03.au.ibm.com (d23av03.au.ibm.com [9.190.250.244])
-	by d23relay03.au.ibm.com (8.13.8/8.13.8/NCO v8.5) with ESMTP id l77IUHdx3137652
-	for <linux-mm@kvack.org>; Wed, 8 Aug 2007 04:30:17 +1000
-Received: from d23av03.au.ibm.com (loopback [127.0.0.1])
-	by d23av03.au.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l77IUH6G004713
-	for <linux-mm@kvack.org>; Wed, 8 Aug 2007 04:30:17 +1000
-Message-ID: <46B8BA33.7020800@linux.vnet.ibm.com>
-Date: Wed, 08 Aug 2007 00:00:11 +0530
-From: Vaidyanathan Srinivasan <svaidy@linux.vnet.ibm.com>
+Message-ID: <46B8C016.6090806@tmr.com>
+Date: Tue, 07 Aug 2007 14:55:18 -0400
+From: Bill Davidsen <davidsen@tmr.com>
 MIME-Version: 1.0
-Subject: Re: [-mm PATCH 6/9] Memory controller add per container LRU and reclaim
- (v4)
-References: <20070727201041.31565.14803.sendpatchset@balbir-laptop> <20070731051459.E827E1BF77B@siro.lan> <46AF314C.7030404@linux.vnet.ibm.com>
-In-Reply-To: <46AF314C.7030404@linux.vnet.ibm.com>
-Content-Type: text/plain; charset=ISO-8859-1
+Subject: Re: [PATCH 00/23] per device dirty throttling -v8
+References: <20070803123712.987126000@chello.nl>	<alpine.LFD.0.999.0708031518440.8184@woody.linux-foundation.org>	<20070804063217.GA25069@elte.hu>	<20070804070737.GA940@elte.hu>	<20070804103347.GA1956@elte.hu>	<alpine.LFD.0.999.0708040915360.5037@woody.linux-foundation.org>	<20070804163733.GA31001@elte.hu>	<alpine.LFD.0.999.0708041030040.5037@woody.linux-foundation.org>	<46B4C0A8.1000902@garzik.org>	<20070804191205.GA24723@lazybastard.org>	<20070804192130.GA25346@elte.hu> <20070804211156.5f600d80@the-village.bc.nu> <46B4E161.9080100@garzik.org>
+In-Reply-To: <46B4E161.9080100@garzik.org>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Vaidyanathan Srinivasan <svaidy@linux.vnet.ibm.com>
-Cc: YAMAMOTO Takashi <yamamoto@valinux.co.jp>, a.p.zijlstra@chello.nl, dhaval@linux.vnet.ibm.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, ebiederm@xmission.com, containers@lists.osdl.org, akpm@linux-foundation.org, xemul@openvz.org, menage@google.com, balbir@linux.vnet.ibm.com
+To: Jeff Garzik <jeff@garzik.org>
+Cc: Alan Cox <alan@lxorguk.ukuu.org.uk>, Ingo Molnar <mingo@elte.hu>, =?ISO-8859-1?Q?J=F6rn_Engel?= <joern@logfs.org>, Linus Torvalds <torvalds@linux-foundation.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, linux-mm@kvack.org, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, miklos@szeredi.hu, akpm@linux-foundation.org, neilb@suse.de, dgc@sgi.com, tomoki.sekiyama.qu@hitachi.com, nikita@clusterfs.com, trond.myklebust@fys.uio.no, yingchao.zhou@gmail.com, richard@rsk.demon.co.uk, david@lang.hm
 List-ID: <linux-mm.kvack.org>
 
+Jeff Garzik wrote:
+> Alan Cox wrote:
+>> In some setups it will and in others it won't. Nor is it the only
+>> application that has this requirement. Ext3 currently is a standards
+>> compliant file system. Turn off atime and its very non standards
+>> compliant, turn to relatime and its not standards compliant but nobody
+>> will break (which is good)
+> 
+> Linux has always been a "POSIX unless its stupid" type of system.  For 
+> the upstream kernel, we should do the right thing -- noatime by default 
+> -- but allow distros and people that care about rigid compliance to 
+> easily change the default.
+> 
+However, relatime has the POSIX behavior without the overhead. Therefore 
+that (and maybe reldiratime?) are a far better choice. I don't see a big 
+problem with some version of utils not supporting it, since it can be in 
+the kernel and will be in the utils soon enough. We have lived without 
+it this long, sounds as if we could live a bit longer.
 
-Vaidyanathan Srinivasan wrote:
-> 
-> YAMAMOTO Takashi wrote:
->>> +unsigned long mem_container_isolate_pages(unsigned long nr_to_scan,
->>> +					struct list_head *dst,
->>> +					unsigned long *scanned, int order,
->>> +					int mode, struct zone *z,
->>> +					struct mem_container *mem_cont,
->>> +					int active)
->>> +{
->>> +	unsigned long nr_taken = 0;
->>> +	struct page *page;
->>> +	unsigned long scan;
->>> +	LIST_HEAD(mp_list);
->>> +	struct list_head *src;
->>> +	struct meta_page *mp;
->>> +
->>> +	if (active)
->>> +		src = &mem_cont->active_list;
->>> +	else
->>> +		src = &mem_cont->inactive_list;
->>> +
->>> +	for (scan = 0; scan < nr_to_scan && !list_empty(src); scan++) {
->>> +		mp = list_entry(src->prev, struct meta_page, lru);
->> what prevents another thread from freeing mp here?
-> 
-> mem_cont->lru_lock protects the list and validity of mp.  If we hold
-> mem_cont->lru_lock for this entire loop, then we preserve the validity
-> of mp.  However that will be holding up container charge and uncharge.
-> 
-> This entire routing is called with zone->lru_lock held by the caller.
->  So within a zone, this routine is serialized.
-> 
-> However page uncharge may race with isolate page.  But will that lead
-> to any corruption of the list?  We may be holding the lock for too
-> much time just to be on the safe side.
-> 
-> Please allow us some time to verify whether this is indeed inadequate
-> locking that will lead to corruption of the list.
-
-I did few runs and checked for ref_cnt on meta_page and there seems to
-be a race between isolate pages and uncharge.  We will probably have
-to increase the ref_cnt on meta_page while we are isolating it.  I am
-trying to see if we can solve the problem by manipulating the ref_cnt
-on the meta_page.
-
---Vaidy
-
-> Thanks for pointing out this situation.
-> --Vaidy
-> 
->>> +		spin_lock(&mem_cont->lru_lock);
->>> +		if (mp)
->>> +			page = mp->page;
->>> +		spin_unlock(&mem_cont->lru_lock);
->>> +		if (!mp)
->>> +			continue;
->> YAMAMOTO Takashi
->> _______________________________________________
->> Containers mailing list
->> Containers@lists.linux-foundation.org
->> https://lists.linux-foundation.org/mailman/listinfo/containers
->>
-> _______________________________________________
-> Containers mailing list
-> Containers@lists.linux-foundation.org
-> https://lists.linux-foundation.org/mailman/listinfo/containers
-> 
+-- 
+Bill Davidsen <davidsen@tmr.com>
+   "We have more to fear from the bungling of the incompetent than from
+the machinations of the wicked."  - from Slashdot
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
