@@ -1,12 +1,13 @@
-Date: Wed, 8 Aug 2007 16:26:59 -0700 (PDT)
+Date: Wed, 8 Aug 2007 16:28:57 -0700 (PDT)
 From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [PATCH 0/3] Use one zonelist per node instead of multiple
- zonelists v2
-In-Reply-To: <20070808210429.GA32462@skynet.ie>
-Message-ID: <Pine.LNX.4.64.0708081626420.17224@schroedinger.engr.sgi.com>
+Subject: Re: [PATCH 2/3] Use one zonelist that is filtered instead of multiple
+ zonelists
+In-Reply-To: <20070808211032.GB2441@skynet.ie>
+Message-ID: <Pine.LNX.4.64.0708081627520.17224@schroedinger.engr.sgi.com>
 References: <20070808161504.32320.79576.sendpatchset@skynet.skynet.ie>
- <Pine.LNX.4.64.0708081025330.12652@schroedinger.engr.sgi.com>
- <20070808210429.GA32462@skynet.ie>
+ <20070808161545.32320.41940.sendpatchset@skynet.skynet.ie>
+ <Pine.LNX.4.64.0708081041240.12652@schroedinger.engr.sgi.com>
+ <20070808211032.GB2441@skynet.ie>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
@@ -17,10 +18,12 @@ List-ID: <linux-mm.kvack.org>
 
 On Wed, 8 Aug 2007, Mel Gorman wrote:
 
-> I'll revisit it again just in case but for now I'd rather not get
-> sidetracked from the patchset at hand.
+> The zone_id is the one I'm really interested in. It looks like the most
+> promising optimisation for avoiding zone_idx in the hotpath.
 
-Sure. This is more long term.
+Certainly the highest priority. However, if the nodeid could be coded in 
+then we may be able to also avoid the GFP_THISNODE zonelists and improve 
+the speed of matching a zonelist to a node mask.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
