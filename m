@@ -1,11 +1,12 @@
-Date: Wed, 8 Aug 2007 13:04:27 -0700 (PDT)
+Date: Wed, 8 Aug 2007 13:05:12 -0700 (PDT)
 From: Christoph Lameter <clameter@sgi.com>
 Subject: Re: [patch 02/14] Memoryless nodes: introduce mask of nodes with
  memory
-In-Reply-To: <20070808195514.GE16588@us.ibm.com>
-Message-ID: <Pine.LNX.4.64.0708081303280.14275@schroedinger.engr.sgi.com>
+In-Reply-To: <20070808200349.GF16588@us.ibm.com>
+Message-ID: <Pine.LNX.4.64.0708081304370.14275@schroedinger.engr.sgi.com>
 References: <20070804030100.862311140@sgi.com> <20070804030152.843011254@sgi.com>
  <20070808123804.d3b3bc79.akpm@linux-foundation.org> <20070808195514.GE16588@us.ibm.com>
+ <20070808200349.GF16588@us.ibm.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
@@ -16,14 +17,10 @@ List-ID: <linux-mm.kvack.org>
 
 On Wed, 8 Aug 2007, Nishanth Aravamudan wrote:
 
-> > but we continue to have some significant testing issues out there.		
-> 
-> This would be because the patch that Christoph submitted here is not the
-> same as the patch that Mel and I tested...There was no
-> check_for_regular_memory() function in the kernels I was building.
+> To try and remedy this -- I'll regrab this stack and rebase my patches
+> again. Test everything and resubmit mine.
 
-Right. I added that to #ifdef out the HIGHMEM/NORMAL distinction for 
-regular NUMA boxes. I only tested on regular NUMA and not on NUMAQ.
+Ummmm... These are the patches that you said you would test earlier.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
