@@ -1,30 +1,46 @@
-Subject: Re: [PATCH 00/23] per device dirty throttling -v8
-References: <20070803123712.987126000@chello.nl>
-	<1186575947.3106.23.camel@castor.rsk.org>
-From: Andi Kleen <andi@firstfloor.org>
-Date: 08 Aug 2007 15:54:15 +0200
-In-Reply-To: <1186575947.3106.23.camel@castor.rsk.org>
-Message-ID: <p734pjarv20.fsf@bingen.suse.de>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Subject: Re: [RFC][PATCH 1/2][UPDATED] hugetlb: search harder for memory in
+	alloc_fresh_huge_page()
+From: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
+In-Reply-To: <20070808013256.GE15714@us.ibm.com>
+References: <20070807171432.GY15714@us.ibm.com>
+	 <1186517722.5067.31.camel@localhost> <20070807221240.GB15714@us.ibm.com>
+	 <Pine.LNX.4.64.0708071553440.4438@schroedinger.engr.sgi.com>
+	 <20070807230200.GC15714@us.ibm.com>
+	 <Pine.LNX.4.64.0708071714060.5001@schroedinger.engr.sgi.com>
+	 <20070808013256.GE15714@us.ibm.com>
+Content-Type: text/plain
+Date: Wed, 08 Aug 2007 09:20:29 -0400
+Message-Id: <1186579229.5055.8.camel@localhost>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: richard kennedy <richard@rsk.demon.co.uk>
-Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, miklos@szeredi.hu, akpm@linux-foundation.org, neilb@suse.de, dgc@sgi.com, tomoki.sekiyama.qu@hitachi.com, nikita@clusterfs.com, trond.myklebust@fys.uio.no, yingchao.zhou@gmail.com, torvalds@linux-foundation.org
+To: Nishanth Aravamudan <nacc@us.ibm.com>
+Cc: Christoph Lameter <clameter@sgi.com>, anton@samba.org, wli@holomorphy.com, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-richard kennedy <richard@rsk.demon.co.uk> writes:
+On Tue, 2007-08-07 at 18:32 -0700, Nishanth Aravamudan wrote:
+> On 07.08.2007 [17:14:31 -0700], Christoph Lameter wrote:
+> > On Tue, 7 Aug 2007, Nishanth Aravamudan wrote:
+> > 
+> > > Which change? Using nid without a VM_BUG_ON (as in the original patch)
+> > > or adding a VM_BUG_ON and using page_to_nid()?
+> > 
+> > Adding VM_BUG_ON. If page_alloc does not work then something basic is 
+> > broken.
 > 
-> This is on a standard desktop machine so there are lots of other
-> processes running on it, and although there is a degree of variability
-> in the numbers,they are very repeatable and your patch always out
-> performs the stock mm2.
-> looks good to me
+> I agree. So perhaps there needs to be a VM_BUG_ON_ONCE() or something
+> somewhere in the core code for the case of a __GFP_THISNODE allocation
+> going off node?
 
-iirc the goal of this is less to get better performance, but to avoid long user visible
-latencies.  Of course if it's faster it's great too, but that's only secondary.
+That would work for me.  But, I would like to see us use the existing
+page_to_nid() for the accounting.  I like to avoid silent corruption of
+the accounting.  Things will work--for a while anyway--if pages get
+returned on the wrong node and the accounting gets messed up.  But, it
+can result in non-obvious problems some time later.  I hate it when that
+happens :-).
 
--Andi
+Lee
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
