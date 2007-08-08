@@ -1,55 +1,84 @@
-Message-ID: <46BA09CC.7070007@tmr.com>
-Date: Wed, 08 Aug 2007 14:22:04 -0400
-From: Bill Davidsen <davidsen@tmr.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH 00/23] per device dirty throttling -v8
-References: <20070804191205.GA24723@lazybastard.org> <20070804192130.GA25346@elte.hu> <20070804211156.5f600d80@the-village.bc.nu> <20070804202830.GA4538@elte.hu> <20070804210351.GA9784@elte.hu> <20070804225121.5c7b66e0@the-village.bc.nu> <20070805073709.GA6325@elte.hu> <20070805134328.1a4474dd@the-village.bc.nu> <20070805125433.GA22060@elte.hu> <20070805143708.279f51f8@the-village.bc.nu> <20070805180826.GD3244@elte.hu>
-In-Reply-To: <20070805180826.GD3244@elte.hu>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Subject: Re: [PATCH 0/3] Use one zonelist per node instead of multiple
+	zonelists v2
+From: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
+In-Reply-To: <Pine.LNX.4.64.0708081025330.12652@schroedinger.engr.sgi.com>
+References: <20070808161504.32320.79576.sendpatchset@skynet.skynet.ie>
+	 <Pine.LNX.4.64.0708081025330.12652@schroedinger.engr.sgi.com>
+Content-Type: text/plain
+Date: Wed, 08 Aug 2007 14:30:19 -0400
+Message-Id: <1186597819.5055.37.camel@localhost>
+Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Ingo Molnar <mingo@elte.hu>
-Cc: Alan Cox <alan@lxorguk.ukuu.org.uk>, J??rn Engel <joern@logfs.org>, Jeff Garzik <jeff@garzik.org>, Linus Torvalds <torvalds@linux-foundation.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, linux-mm@kvack.org, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, miklos@szeredi.hu, akpm@linux-foundation.org, neilb@suse.de, dgc@sgi.com, tomoki.sekiyama.qu@hitachi.com, nikita@clusterfs.com, trond.myklebust@fys.uio.no, yingchao.zhou@gmail.com, richard@rsk.demon.co.uk, david@lang.hm
+To: Christoph Lameter <clameter@sgi.com>
+Cc: Mel Gorman <mel@csn.ul.ie>, pj@sgi.com, ak@suse.de, kamezawa.hiroyu@jp.fujitsu.com, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Ingo Molnar wrote:
-
-> || ...For me, I would say 50% is not enough to describe the _visible_ 
-> || benefits... Not talking any specific number but past 10sec-1min+ 
-> || lagging in X is history, it's gone and I really don't miss it that 
-> || much... :-) Cannot reproduce even a second long delay anymore in 
-> || window focusing under considerable load as it's basically 
-> || instantaneous (I can see that it's loaded but doesn't affect the 
-> || feeling of responsiveness I'm now getting), even on some loads that I 
-> || couldn't previously even dream of... [...]
+On Wed, 2007-08-08 at 10:36 -0700, Christoph Lameter wrote:
+> On Wed, 8 Aug 2007, Mel Gorman wrote:
 > 
-> we really have to ask ourselves whether the "process" is correct if 
-> advantages to the user of this order of magnitude can be brushed aside 
-> with simple "this breaks binary-only HSM" and "it's not standards 
-> compliant" arguments.
+> > These are the range of performance losses/gains I found when running against
+> > 2.6.23-rc1-mm2. The set and these machines are a mix of i386, x86_64 and
+> > ppc64 both NUMA and non-NUMA.
+> > 
+> > Total CPU time on Kernbench: -0.20% to  3.70%
+> > Elapsed   time on Kernbench: -0.32% to  3.62%
+> > page_test from aim9:         -2.17% to 12.42%
+> > brk_test  from aim9:         -6.03% to 11.49%
+> > fork_test from aim9:         -2.30% to  5.42%
+> > exec_test from aim9:         -0.68% to  3.39%
+> > Size reduction of pg_dat_t:   0     to  7808 bytes (depends on alignment)
 > 
-Being standards compliant is not an argument it's a design goal, a 
-requirement. Standards compliance is like pregant, you are or you're 
-not. And to deliberately ignore standards for speed is saying "it's too 
-hard to do it right, I'll do it wrong and it will be faster." The answer 
-is to do it smarter, with solutions like relatime (which can be enhanced 
-as Linus noted) which provide performance benefits without ignoring 
-standards, or use of a filesystem which does a better job. But when it 
-goes in the kernel the choice of having per-filesystem behavior either 
-vanishes or becomes an exercise in complex and as-yet unwritten mount 
-options.
+> Looks good.
+> 
+> > o Remove bind_zonelist() (Patch in progress, very messy right now)
+> 
+> Will this also allow us to avoid always hitting the first node of an 
+> MPOL_BIND first?
 
-There are certainly ways to improve ext3, not journaling atime updates 
-would certainly be one, less frequent updates of dirty inodes, whatever. 
-But if a user wants to give up standards compliance it should be a 
-deliberate choice, not something which the average user will not 
-understand or learn to do.
+An idea:
 
--- 
-Bill Davidsen <davidsen@tmr.com>
-   "We have more to fear from the bungling of the incompetent than from
-the machinations of the wicked."  - from Slashdot
+Apologies if someone already suggested this and I missed it.  Too much
+traffic...
+
+instead of passing a zonelist for BIND policy, how about passing [to
+__alloc_pages(), I think] a starting node, a nodemask, and gfp flags for
+zone and modifiers.  For various policies, the arguments would look like
+this:
+
+Policy		start node	nodemask
+
+default		local node	cpuset_current_mems_allowed
+
+preferred	preferred_node	cpuset_current_mems_allowed
+
+interleave	computed node	cpuset_current_mems_allowed
+
+bind		local node	policy nodemask [replaces bind
+				zonelist in mempolicy]
+
+Then, just walk the zonelist for the starting node--already ordered by
+distance--filtering by gfp_zone() and nodemask.  Done "right", this
+should always return memory from the closest allowed node [based on the
+nodemask argument] to the starting node.  And, it would eliminate the
+custom zonelists for bind policy.  Can also eliminate cpuset checks in
+the allocation loop because that constraint would already be applied to
+the nodemask argument.
+
+The fast path--when we hit in the target zone on the starting
+node--might be faster.  Once we have to start falling back to other
+nodes/zones, we've pretty much fallen off the fast path anyway, I think.
+
+Bind policy would suffer a hit when the nodemask does not include the
+local node from which the allocation occurs.  I.e., this would always be
+a fallback case.
+
+Too backed up to investigate further right now.  
+
+I will add Mel's patches to my test tree, tho'.
+
+Lee
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
