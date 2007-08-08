@@ -1,49 +1,128 @@
-Message-ID: <46BA2834.3080507@tmr.com>
-Date: Wed, 08 Aug 2007 16:31:48 -0400
-From: Bill Davidsen <davidsen@tmr.com>
+Date: Wed, 8 Aug 2007 22:04:29 +0100
+Subject: Re: [PATCH 0/3] Use one zonelist per node instead of multiple zonelists v2
+Message-ID: <20070808210429.GA32462@skynet.ie>
+References: <20070808161504.32320.79576.sendpatchset@skynet.skynet.ie> <Pine.LNX.4.64.0708081025330.12652@schroedinger.engr.sgi.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 00/23] per device dirty throttling -v8
-References: <20070804191205.GA24723@lazybastard.org> <20070804192130.GA25346@elte.hu> <20070804211156.5f600d80@the-village.bc.nu> <20070804202830.GA4538@elte.hu> <20070804210351.GA9784@elte.hu> <20070804225121.5c7b66e0@the-village.bc.nu> <20070805073709.GA6325@elte.hu> <20070805134328.1a4474dd@the-village.bc.nu> <20070805125433.GA22060@elte.hu> <20070805143708.279f51f8@the-village.bc.nu> <20070805180826.GD3244@elte.hu> <46BA09CC.7070007@tmr.com> <46BA1C08.4050904@garzik.org>
-In-Reply-To: <46BA1C08.4050904@garzik.org>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <Pine.LNX.4.64.0708081025330.12652@schroedinger.engr.sgi.com>
+From: mel@skynet.ie (Mel Gorman)
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Jeff Garzik <jeff@garzik.org>
-Cc: Ingo Molnar <mingo@elte.hu>, Alan Cox <alan@lxorguk.ukuu.org.uk>, J??rn Engel <joern@logfs.org>, Linus Torvalds <torvalds@linux-foundation.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, linux-mm@kvack.org, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, miklos@szeredi.hu, akpm@linux-foundation.org, neilb@suse.de, dgc@sgi.com, tomoki.sekiyama.qu@hitachi.com, nikita@clusterfs.com, trond.myklebust@fys.uio.no, yingchao.zhou@gmail.com, richard@rsk.demon.co.uk, david@lang.hm
+To: Christoph Lameter <clameter@sgi.com>
+Cc: Lee.Schermerhorn@hp.com, pj@sgi.com, ak@suse.de, kamezawa.hiroyu@jp.fujitsu.com, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Jeff Garzik wrote:
-> Bill Davidsen wrote:
->> Being standards compliant is not an argument it's a design goal, a 
->> requirement. Standards compliance is like pregant, you are or you're 
->
-> Linux history says different.  There was always the "final 1%" of 
-> compliance that required silliness we really did not want to bother with. 
+On (08/08/07 10:36), Christoph Lameter didst pronounce:
+> On Wed, 8 Aug 2007, Mel Gorman wrote:
+> 
+> > These are the range of performance losses/gains I found when running against
+> > 2.6.23-rc1-mm2. The set and these machines are a mix of i386, x86_64 and
+> > ppc64 both NUMA and non-NUMA.
+> > 
+> > Total CPU time on Kernbench: -0.20% to  3.70%
+> > Elapsed   time on Kernbench: -0.32% to  3.62%
+> > page_test from aim9:         -2.17% to 12.42%
+> > brk_test  from aim9:         -6.03% to 11.49%
+> > fork_test from aim9:         -2.30% to  5.42%
+> > exec_test from aim9:         -0.68% to  3.39%
+> > Size reduction of pg_dat_t:   0     to  7808 bytes (depends on alignment)
+> 
+> Looks good.
+> 
 
-This is not 1%, this is a user-visible change in behavior, relative to 
-all previous Linux versions. There has been a way for ages to trade 
-performance for standards for users or distributions, and standards have 
-been chosen. Given that there is now a way to get virtually all of the 
-performance without giving up atime completely, why the sudden attempt 
-to change to a less satisfactory default?
+Indeed.
 
-I could understand a push to quickly get relatime with a few 
-enhancements (the functionality if not the exact code) into 
-distributions, even as a default, but forcing user or distribution 
-changes just to retain the same dehavior doesn't seem reasonable. It 
-assumes that vendors and users are so stupid they can't understand why 
-benchmark results and more important than standards. People who run 
-servers are smart enough to decide if their application will run as 
-expected without atime.
+> > o Remove bind_zonelist() (Patch in progress, very messy right now)
+> 
+> Will this also allow us to avoid always hitting the first node of an 
+> MPOL_BIND first?
+> 
 
-People have lived with this compromise for a very long time, and it 
-seems that a far more balanced solution will be in the kernel soon.
+If by first node you mean avoid hitting nodes in numerical order, then
+yes. The patch changes __alloc_pages to be __alloc_pages_nodemask() with
+a wrapper __alloc_pages that passes in NULL for nodemask. The nodemask
+is then filtered similar to how zones are filtered in this patch. The
+patch is ugly right now and untested but it deletes policy-specific code
+and prehaps some of the cpuset code could be expressed in those terms as
+well.
+
+> > o Eliminate policy_zone (Trickier)
+> 
+> I doubt that this is possible given
+> 
+> 1. We need lower zones (DMA) in various context
+> 
+> 2. Those DMA zones are only available on particular nodes.
+> 
+
+Right.
+
+> Policy_zone could be made to only control allows of the highest (and with 
+> ZONE_MOVABLE) second highest zone on a node?
+> 
+> Think about the 8GB x86_64 configuration I mentioned earlier
+> 
+> node 0  up to 2 GB 		ZONE_DMA and ZONE_DMA32
+> node 1  up to 4 GB		ZONE_DMA32
+> node 2  up to 6 GB		ZONE_NORMAL
+> node 3  up to 8 GB		ZONE_NORMAL
+> 
+> If one wants the node restrictions to work on all nodes then we need to 
+> apply policy depending on the highest zone of the node.
+> 
+> Current MPOL_BIND would only apply policy to allocations on node 2 and 3.
+> 
+> With ZONE_MOVABLE splitting the highest zone (We will likely need that):
+> 
+> node 0  up to 2 GB              ZONE_DMA and ZONE_DMA32, ZONE_MOVABLE
+> node 1  up to 4 GB              ZONE_DMA32, ZONE_MOVABLE
+> node 2  up to 6 GB              ZONE_NORMAL, ZONE_MOVABLE
+> node 3  up to 8 GB              ZONE_NORMAL, ZONE_MOVABLE
+> 
+> So then the two highest zones on each node would need to be subject to 
+> policy control.
+> 
+
+One option would be to force that a node with ZONE_DMA is bound so that
+policies will get applied as much as possible but that would lead to an
+unfair use of one node for ZONE_DMA allocations for example.
+
+An alternative may be to work out at policy creation time what the lowest
+zone common to all nodes in the list is and apply the MPOL_BIND policy if
+the current allocation can use that zone. It's an improvement on the global
+policy_zone at least but depends on this one-zonelist-per-node patchset
+which we need to agree/disagree on first.
+
+> Another thing is that we may want to think about is maybe to evolve 
+> ZONE_MOVABLE to be more like the antifrag sections. That way we may be 
+> able to avoid the multiple types of pages on the pcp lists. That would 
+> work if we would only work with two page types: Movable and unmovable 
+> (fold reclaimable into movable after slab defrag)
+> 
+
+I'll keep it in mind. It's been suggested before so I revisit it every
+so often. The details were messy each time though and inferior to
+grouping pages by mobility in a number of respects.
+
+> Then would make blocks of memory movable between ZONE_MOVABLE and others. 
+> At that point we are almost at the functionality that antifrag offers and 
+> we may have simplified things a bit.
+> 
+
+It gets hard when the zone for unmovable pages is full, the zone with movable
+pages doesn't have a fully free block and the allocator cannot reclaim. Even
+though the blocks in the movable potion may contain free pages, there is
+no easy way to access them. At that point, we are in a similar situation
+grouping pages by mobility deals with except it's harder to work out.
+
+I'll revisit it again just in case but for now I'd rather not get
+sidetracked from the patchset at hand.
 
 -- 
-bill davidsen <davidsen@tmr.com>
-  CTO TMR Associates, Inc
-  Doing interesting things with small computers since 1979
+Mel Gorman
+Part-time Phd Student                          Linux Technology Center
+University of Limerick                         IBM Dublin Software Lab
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
