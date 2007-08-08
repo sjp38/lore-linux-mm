@@ -1,64 +1,32 @@
-Subject: Re: [RFC][PATCH 4/5] hugetlb: fix cpuset-constrained pool resizing
+Subject: Re: [RFC][PATCH 1/2][UPDATED] hugetlb: search harder for memory in
+	alloc_fresh_huge_page()
 From: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
-In-Reply-To: <20070808015042.GF15714@us.ibm.com>
-References: <20070806163254.GJ15714@us.ibm.com>
-	 <20070806163726.GK15714@us.ibm.com> <20070806163841.GL15714@us.ibm.com>
-	 <20070806164055.GN15714@us.ibm.com> <20070806164410.GO15714@us.ibm.com>
-	 <Pine.LNX.4.64.0708061101470.24256@schroedinger.engr.sgi.com>
-	 <20070808015042.GF15714@us.ibm.com>
+In-Reply-To: <Pine.LNX.4.64.0708071553440.4438@schroedinger.engr.sgi.com>
+References: <20070807171432.GY15714@us.ibm.com>
+	 <1186517722.5067.31.camel@localhost> <20070807221240.GB15714@us.ibm.com>
+	 <Pine.LNX.4.64.0708071553440.4438@schroedinger.engr.sgi.com>
 Content-Type: text/plain
-Date: Wed, 08 Aug 2007 09:26:38 -0400
-Message-Id: <1186579598.5055.11.camel@localhost>
+Date: Wed, 08 Aug 2007 09:17:28 -0400
+Message-Id: <1186579048.5055.5.camel@localhost>
 Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nishanth Aravamudan <nacc@us.ibm.com>
-Cc: Christoph Lameter <clameter@sgi.com>, wli@holomorphy.com, melgor@ie.ibm.com, akpm@linux-foundation.org, linux-mm@kvack.org, agl@us.ibm.com, pj@sgi.com
+To: Christoph Lameter <clameter@sgi.com>
+Cc: Nishanth Aravamudan <nacc@us.ibm.com>, anton@samba.org, wli@holomorphy.com, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 2007-08-07 at 18:50 -0700, Nishanth Aravamudan wrote:
-<snip>
-> Finally, after my hugetlb interleave dequeue patch is applied:
+On Tue, 2007-08-07 at 15:54 -0700, Christoph Lameter wrote:
+> On Tue, 7 Aug 2007, Nishanth Aravamudan wrote:
 > 
-> /cpuset ~
-> Trying to resize the pool to     200 from the top cpuset
-> Node 3 HugePages_Free:     50
-> Node 2 HugePages_Free:     50
-> Node 1 HugePages_Free:     50
-> Node 0 HugePages_Free:     50
-> Done.     200 free
-> Trying to resize the pool back to     100 from the top cpuset
-> Node 3 HugePages_Free:     25
-> Node 2 HugePages_Free:     25
-> Node 1 HugePages_Free:     25
-> Node 0 HugePages_Free:     25
-> Done.     100 free
-> /cpuset/set1 /cpuset ~
-> Trying to resize the pool to     200 from a cpuset restricted to node 1
-> Node 3 HugePages_Free:     50
-> Node 2 HugePages_Free:     50
-> Node 1 HugePages_Free:     50
-> Node 0 HugePages_Free:     50
-> Done.     200 free
-> Trying to shrink the pool down to 0 from a cpuset restricted to node 1
-> Node 3 HugePages_Free:      0
-> Node 2 HugePages_Free:      0
-> Node 1 HugePages_Free:      0
-> Node 0 HugePages_Free:      0
-> Done.       0 free
+> > > 
+> > > Not that I don't trust __GFP_THISNODE, but may I suggest a
+> > > "VM_BUG_ON(page_to_nid(page) != nid)" -- up above the spin_lock(), of
+> > > course.  Better yet, add the assertion and drop this one line change?
+> 
+> Dont do this change.
 
-That's the behavior I'd like to see!!!
-
-> 
-> So, it would appear that, in your opinion, this set of patches
-> constitutes a pseudo-bug-fix? Without the last patch, it seems, cpusets
-> are able to constrain what nodes a root process can remove hugepages
-> from.
-> 
-> Thanks,
-> Nish
-> 
+[being equally terse] Why?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
