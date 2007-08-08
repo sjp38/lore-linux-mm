@@ -1,58 +1,71 @@
-Received: by rv-out-0910.google.com with SMTP id f1so93911rvb
-        for <linux-mm@kvack.org>; Wed, 08 Aug 2007 05:03:48 -0700 (PDT)
-Message-ID: <288dbef70708080503k12c8a15w96ade47789dd26e0@mail.gmail.com>
-Date: Wed, 8 Aug 2007 20:03:48 +0800
-From: "Shaohua Li" <shaoh.li@gmail.com>
-Subject: Re: swap out memory
-In-Reply-To: <288dbef70708060553i4405f8d9lefa6132c86190d7b@mail.gmail.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=ISO-8859-1
+Subject: Re: [PATCH 00/23] per device dirty throttling -v8
+From: richard kennedy <richard@rsk.demon.co.uk>
+In-Reply-To: <20070803123712.987126000@chello.nl>
+References: <20070803123712.987126000@chello.nl>
+Content-Type: text/plain
+Date: Wed, 08 Aug 2007 13:25:47 +0100
+Message-Id: <1186575947.3106.23.camel@castor.rsk.org>
+Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
-References: <288dbef70708060553i4405f8d9lefa6132c86190d7b@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-fsdevel@vger.kernel.org, linux-mm@kvack.org
-Cc: hch@infradead.org, Avi Kivity <avi@qumranet.com>
+To: Peter Zijlstra <a.p.zijlstra@chello.nl>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, miklos@szeredi.hu, akpm@linux-foundation.org, neilb@suse.de, dgc@sgi.com, tomoki.sekiyama.qu@hitachi.com, nikita@clusterfs.com, trond.myklebust@fys.uio.no, yingchao.zhou@gmail.com, torvalds@linux-foundation.org
 List-ID: <linux-mm.kvack.org>
 
-2007/8/6, Shaohua Li <shaoh.li@gmail.com>:
-> Hi,
-> I'm trying to swap out kvm guest pages. The idea is to free some pages
-> when memory pressure is high. kvm has special things to handle like
-> shadow page tables. Before guest page is released, we need free some
-> data, that is guest page has 'private' data, so we can't directly make
-> the guest page swapout with Linux swapout mechanism. I'd like write
-> guest pages to a file or swap. kvm guest pages are in its address
-> space and added into lru list like normal page (the address space is
-> very like a shmem file's, kvm has a memory based file system). When
-> vmscan decided to free one guest page, kvm guest pages's
-> aops.writepage will free the private data and then write it out to
-> block device. The problem is how to write guest pages. I thought we
-> have some choices:
->
-> 1. swap it to swapfile. Like shmem does, using move_to_swap_cache to
-> move guest page from its address space to swap address space, and
-> finally it's written to swapfile. This method works well, but as kvm
-> is a module, I must export some swap relelated APIs, which Christoph
-> Hellwig dislike.
->
-> 2. write it to a file. Just like the stack fs does, in kvm address
-> space's .writepage, let low fs's aops write the page. This involves
-> allocating a new page for low fs file and copy kvm page to the new
-> page. As this (doing swap) is done when memory is tight, allocating
-> new page isn't good. The copy isn't good too.
->
-> 3.write it to a file. Using bmap to get file's block info and using
-> low level sumbit_bio for read/write. This is like what swapfile does,
-> but we do it by ourselves, so don't need use swap symbols.
->
-> Do you have any suggestion which method is good, or if you have better
-> choice I could try?
-Can anybody share some hints? I really apprecate any comments.
+On Fri, 2007-08-03 at 14:37 +0200, Peter Zijlstra wrote:
+> Per device dirty throttling patches
+> 
+> These patches aim to improve balance_dirty_pages() and directly address three
+> issues:
+>   1) inter device starvation
+>   2) stacked device deadlocks
+>   3) inter process starvation
+<snip>
+Hi Peter,
+I've been testing your patch with a simple test case that copies a 3GB
+file from sda -> sda, and copies a 1GB file from sda -> sdb.
+the script is roughly this :-
 
-Thanks,
-Shaohua
+dd bs=64k if=[sda]/data3g of=[sda]/temp_data3g &
+sleep 60
+dd bs=64k if=[sda]/data1g of=[sdb]/temp_data1g &
+wait
+sleep 200
+
+On my amd64x2 desktop machine where sda is a sata 250 GB drive & sdb is
+an ide 300 GB drive.
+
+Running this test 5 times gives
+2.6.23-rc1-mm2
+1GB copy MB/s	3GB copy MB/s
+16.2		16.1
+15.2		14.6
+17.3		14.6
+18.0		14.5
+19.0		14.6
+
+2.6.23-rc1-mm2+pddt_patch
+1GB copy MB/s	3GB copy MB/s
+23.0		14.7
+24.0		14.6
+20.4		14.8
+22.6		14.5
+23.2		14.5
+
+This is on a standard desktop machine so there are lots of other
+processes running on it, and although there is a degree of variability
+in the numbers,they are very repeatable and your patch always out
+performs the stock mm2.
+looks good to me
+
+Richard
+  
+
+
+
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
