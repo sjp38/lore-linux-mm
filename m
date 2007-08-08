@@ -1,45 +1,58 @@
-Date: Wed, 8 Aug 2007 12:43:09 +0200
-From: Karel Zak <kzak@redhat.com>
-Subject: Re: [PATCH 00/23] per device dirty throttling -v8
-Message-ID: <20070808104309.GA3173@petra.dvoda.cz>
-References: <20070803123712.987126000@chello.nl> <alpine.LFD.0.999.0708031518440.8184@woody.linux-foundation.org> <20070804063217.GA25069@elte.hu> <20070804070737.GA940@elte.hu> <20070804103347.GA1956@elte.hu> <alpine.LFD.0.999.0708040915360.5037@woody.linux-foundation.org> <20070804163733.GA31001@elte.hu> <20070804190210.8b1530dd.diegocg@gmail.com> <20070804171724.GA4740@elte.hu>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=utf-8
+Received: by rv-out-0910.google.com with SMTP id f1so93911rvb
+        for <linux-mm@kvack.org>; Wed, 08 Aug 2007 05:03:48 -0700 (PDT)
+Message-ID: <288dbef70708080503k12c8a15w96ade47789dd26e0@mail.gmail.com>
+Date: Wed, 8 Aug 2007 20:03:48 +0800
+From: "Shaohua Li" <shaoh.li@gmail.com>
+Subject: Re: swap out memory
+In-Reply-To: <288dbef70708060553i4405f8d9lefa6132c86190d7b@mail.gmail.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <20070804171724.GA4740@elte.hu>
+References: <288dbef70708060553i4405f8d9lefa6132c86190d7b@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Ingo Molnar <mingo@elte.hu>
-Cc: Diego Calleja <diegocg@gmail.com>, Linus Torvalds <torvalds@linux-foundation.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, miklos@szeredi.hu, akpm@linux-foundation.org, neilb@suse.de, dgc@sgi.com, tomoki.sekiyama.qu@hitachi.com, nikita@clusterfs.com, trond.myklebust@fys.uio.no, yingchao.zhou@gmail.com, richard@rsk.demon.co.uk
+To: linux-fsdevel@vger.kernel.org, linux-mm@kvack.org
+Cc: hch@infradead.org, Avi Kivity <avi@qumranet.com>
 List-ID: <linux-mm.kvack.org>
 
-On Sat, Aug 04, 2007 at 07:17:24PM +0200, Ingo Molnar wrote:
-> 
-> * Diego Calleja <diegocg@gmail.com> wrote:
-> 
-> > El Sat, 4 Aug 2007 18:37:33 +0200, Ingo Molnar <mingo@elte.hu> escribiA3:
-> > 
-> > > thousands of applications. So for most file workloads we give 
-> > > Windows a 20%-30% performance edge, for almost nothing. (for 
-> > > RAM-starved kernel builds the performance difference between atime 
-> > > and noatime+nodiratime setups is more on the order of 40%)
-> > 
-> > Just curious - do you have numbers with relatime?
-> 
-> nope. Stupid question, i just tried it and got this:
-> 
->  EXT3-fs: Unrecognized mount option "relatime" or missing value
-> 
-> i've got util-linux-2.13-0.46.fc6 and 2.6.22 on that box, shouldnt that 
+2007/8/6, Shaohua Li <shaoh.li@gmail.com>:
+> Hi,
+> I'm trying to swap out kvm guest pages. The idea is to free some pages
+> when memory pressure is high. kvm has special things to handle like
+> shadow page tables. Before guest page is released, we need free some
+> data, that is guest page has 'private' data, so we can't directly make
+> the guest page swapout with Linux swapout mechanism. I'd like write
+> guest pages to a file or swap. kvm guest pages are in its address
+> space and added into lru list like normal page (the address space is
+> very like a shmem file's, kvm has a memory based file system). When
+> vmscan decided to free one guest page, kvm guest pages's
+> aops.writepage will free the private data and then write it out to
+> block device. The problem is how to write guest pages. I thought we
+> have some choices:
+>
+> 1. swap it to swapfile. Like shmem does, using move_to_swap_cache to
+> move guest page from its address space to swap address space, and
+> finally it's written to swapfile. This method works well, but as kvm
+> is a module, I must export some swap relelated APIs, which Christoph
+> Hellwig dislike.
+>
+> 2. write it to a file. Just like the stack fs does, in kvm address
+> space's .writepage, let low fs's aops write the page. This involves
+> allocating a new page for low fs file and copy kvm page to the new
+> page. As this (doing swap) is done when memory is tight, allocating
+> new page isn't good. The copy isn't good too.
+>
+> 3.write it to a file. Using bmap to get file's block info and using
+> low level sumbit_bio for read/write. This is like what swapfile does,
+> but we do it by ourselves, so don't need use swap symbols.
+>
+> Do you have any suggestion which method is good, or if you have better
+> choice I could try?
+Can anybody share some hints? I really apprecate any comments.
 
- The relatime patch has been applied to util-lilnux-ng-2.13 (now -rc3),
- you will see it in Fedora 8 (and probably in the others distros).
-
-    Karel
-
--- 
- Karel Zak  <kzak@redhat.com>
+Thanks,
+Shaohua
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
