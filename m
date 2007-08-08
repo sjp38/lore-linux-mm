@@ -1,47 +1,213 @@
-Date: Tue, 7 Aug 2007 20:44:36 -0500
-From: Matt Mackall <mpm@selenic.com>
-Subject: Re: [PATCH 04/10] mm: slub: add knowledge of reserve pages
-Message-ID: <20070808014435.GG30556@waste.org>
-References: <20070806102922.907530000@chello.nl> <20070806103658.603735000@chello.nl> <Pine.LNX.4.64.0708071702560.4941@schroedinger.engr.sgi.com>
+Received: from d03relay04.boulder.ibm.com (d03relay04.boulder.ibm.com [9.17.195.106])
+	by e31.co.us.ibm.com (8.13.8/8.13.8) with ESMTP id l781oiMR030629
+	for <linux-mm@kvack.org>; Tue, 7 Aug 2007 21:50:44 -0400
+Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
+	by d03relay04.boulder.ibm.com (8.13.8/8.13.8/NCO v8.4) with ESMTP id l781ohoE192310
+	for <linux-mm@kvack.org>; Tue, 7 Aug 2007 19:50:43 -0600
+Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av02.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l781oh1l012245
+	for <linux-mm@kvack.org>; Tue, 7 Aug 2007 19:50:43 -0600
+Date: Tue, 7 Aug 2007 18:50:42 -0700
+From: Nishanth Aravamudan <nacc@us.ibm.com>
+Subject: Re: [RFC][PATCH 4/5] hugetlb: fix cpuset-constrained pool resizing
+Message-ID: <20070808015042.GF15714@us.ibm.com>
+References: <20070806163254.GJ15714@us.ibm.com> <20070806163726.GK15714@us.ibm.com> <20070806163841.GL15714@us.ibm.com> <20070806164055.GN15714@us.ibm.com> <20070806164410.GO15714@us.ibm.com> <Pine.LNX.4.64.0708061101470.24256@schroedinger.engr.sgi.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <Pine.LNX.4.64.0708071702560.4941@schroedinger.engr.sgi.com>
+In-Reply-To: <Pine.LNX.4.64.0708061101470.24256@schroedinger.engr.sgi.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Christoph Lameter <clameter@sgi.com>
-Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, David Miller <davem@davemloft.net>, Andrew Morton <akpm@linux-foundation.org>, Daniel Phillips <phillips@google.com>, Pekka Enberg <penberg@cs.helsinki.fi>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Steve Dickson <SteveD@redhat.com>
+Cc: lee.schermerhorn@hp.com, wli@holomorphy.com, melgor@ie.ibm.com, akpm@linux-foundation.org, linux-mm@kvack.org, agl@us.ibm.com, pj@sgi.com
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Aug 07, 2007 at 05:13:52PM -0700, Christoph Lameter wrote:
-> On Mon, 6 Aug 2007, Peter Zijlstra wrote:
+On 06.08.2007 [11:04:48 -0700], Christoph Lameter wrote:
+> On Mon, 6 Aug 2007, Nishanth Aravamudan wrote:
 > 
-> > Restrict objects from reserve slabs (ALLOC_NO_WATERMARKS) to allocation
-> > contexts that are entitled to it.
+> > hugetlb: fix cpuset-constrained pool resizing
+> > 
+> > With the previous 3 patches in this series applied, if a process is in a
+> > constrained cpuset, and tries to grow the hugetlb pool, hugepages may be
+> > allocated on nodes outside of the process' cpuset. More concretely,
+> > growing the pool via
+> > 
+> > echo some_value > /proc/sys/vm/nr_hugepages
+> > 
+> > interleaves across all nodes with memory such that hugepage allocations
+> > occur on nodes outside the cpuset. Similarly, this process is able to
+> > change the values in values in
+> > /sys/devices/system/node/nodeX/nr_hugepages, even when X is not in the
+> > cpuset. This directly violates the isolation that cpusets is supposed to
+> > guarantee.
 > 
-> Is this patch actually necessary?
->
- > If you are in an atomic context and bound to a cpu then a per cpu slab is 
-> assigned to you and no one else can take object aways from that process 
-> since nothing else can run on the cpu.
+> No it does not. Cpusets do not affect the administrative rights of users.
 
-Servicing I/O over the network requires an allocation to send a buffer
-and an allocation to later receive the acknowledgement. We can't free
-our send buffer (or the memory it's supposed to clean) until the
-relevant ack is received. We have to hold our reserves privately
-throughout, even if an interrupt that wants to do GFP_ATOMIC
-allocation shows up in-between.
+For reference here (as I just ran my simple script against
+2.6.23-rc1-mm2, 2.6.23-rc1-mm2 + your patches, 2.6.23-rc1-mm2 + your
+patches + each of my patches in turn), this is completely untrue with
+-mm2 and your patches. I was actually trying to restore this behavior
+with this patch. I realize I didn't mention this earlier... On a 4-node
+x86_64:
 
-> If you are not in an atomic context and are preemptable or can switch 
-> allocation context then you can create another context in which reclaim 
-> could be run to remove some clean pages and get you more memory. Again no 
-> need for the patch.
+2.6.23-rc1-mm2:
 
-By the point that this patch is relevant, there are already no clean
-pages. The only way to free up more memory is via I/O.
+/cpuset ~
+Trying to resize the pool to     200 from the top cpuset
+Node 3 HugePages_Free:     75
+Node 2 HugePages_Free:     75
+Node 1 HugePages_Free:     25
+Node 0 HugePages_Free:     25
+Done.     200 free
+Trying to resize the pool back to     100 from the top cpuset
+Node 3 HugePages_Free:     75
+Node 2 HugePages_Free:     25
+Node 1 HugePages_Free:      0
+Node 0 HugePages_Free:      0
+Done.     100 free
+/cpuset/set1 /cpuset ~
+Trying to resize the pool to     200 from a cpuset restricted to node 1
+Node 3 HugePages_Free:     75
+Node 2 HugePages_Free:     25
+Node 1 HugePages_Free:    100
+Node 0 HugePages_Free:      0
+Done.     200 free
+Trying to shrink the pool down to 0 from a cpuset restricted to node 1
+Node 3 HugePages_Free:     75
+Node 2 HugePages_Free:     25
+Node 1 HugePages_Free:      0
+Node 0 HugePages_Free:      0
+Done.     100 free
+
+2.6.23-rc1-mm2 + your patches:
+
+/cpuset ~
+Trying to resize the pool to     200 from the top cpuset
+Node 3 HugePages_Free:     75
+Node 2 HugePages_Free:     75
+Node 1 HugePages_Free:     25
+Node 0 HugePages_Free:     25
+Done.     200 free
+Trying to resize the pool back to     100 from the top cpuset
+Node 3 HugePages_Free:     75
+Node 2 HugePages_Free:     25
+Node 1 HugePages_Free:      0
+Node 0 HugePages_Free:      0
+Done.     100 free
+/cpuset/set1 /cpuset ~
+Trying to resize the pool to     200 from a cpuset restricted to node 1
+Node 3 HugePages_Free:     75
+Node 2 HugePages_Free:     25
+Node 1 HugePages_Free:    100
+Node 0 HugePages_Free:      0
+Done.     200 free
+Trying to shrink the pool down to 0 from a cpuset restricted to node 1
+Node 3 HugePages_Free:     75
+Node 2 HugePages_Free:     25
+Node 1 HugePages_Free:      0
+Node 0 HugePages_Free:      0
+Done.     100 free
+
+After my patch 1/2 (try harder) from this morning:
+
+/cpuset ~
+Trying to resize the pool to     200 from the top cpuset
+Node 3 HugePages_Free:     25
+Node 2 HugePages_Free:     75
+Node 1 HugePages_Free:     75
+Node 0 HugePages_Free:     25
+Done.     200 free
+Trying to resize the pool back to     100 from the top cpuset
+Node 3 HugePages_Free:      0
+Node 2 HugePages_Free:     75
+Node 1 HugePages_Free:     25
+Node 0 HugePages_Free:      0
+Done.     100 free
+/cpuset/set1 /cpuset ~
+Trying to resize the pool to     200 from a cpuset restricted to node 1
+Node 3 HugePages_Free:     25
+Node 2 HugePages_Free:    100
+Node 1 HugePages_Free:     50
+Node 0 HugePages_Free:     25
+Done.     200 free
+Trying to shrink the pool down to 0 from a cpuset restricted to node 1
+Node 3 HugePages_Free:     25
+Node 2 HugePages_Free:    100
+Node 1 HugePages_Free:      0
+Node 0 HugePages_Free:     25
+Done.     150 free
+
+After patch 2/2 (memoryless nodes) from this morning (the results are
+actually the same as the above, just that the values are shifted around
+the nodes a bit):
+
+/cpuset ~
+Trying to resize the pool to     200 from the top cpuset
+Node 3 HugePages_Free:     75
+Node 2 HugePages_Free:     75
+Node 1 HugePages_Free:     25
+Node 0 HugePages_Free:     25
+Done.     200 free
+Trying to resize the pool back to     100 from the top cpuset
+Node 3 HugePages_Free:     75
+Node 2 HugePages_Free:     25
+Node 1 HugePages_Free:      0
+Node 0 HugePages_Free:      0
+Done.     100 free
+/cpuset/set1 /cpuset ~
+Trying to resize the pool to     200 from a cpuset restricted to node 1
+Node 3 HugePages_Free:    100
+Node 2 HugePages_Free:     50
+Node 1 HugePages_Free:     25
+Node 0 HugePages_Free:     25
+Done.     200 free
+Trying to shrink the pool down to 0 from a cpuset restricted to node 1
+Node 3 HugePages_Free:    100
+Node 2 HugePages_Free:     50
+Node 1 HugePages_Free:      0
+Node 0 HugePages_Free:     25
+Done.     175 free
+
+Finally, after my hugetlb interleave dequeue patch is applied:
+
+/cpuset ~
+Trying to resize the pool to     200 from the top cpuset
+Node 3 HugePages_Free:     50
+Node 2 HugePages_Free:     50
+Node 1 HugePages_Free:     50
+Node 0 HugePages_Free:     50
+Done.     200 free
+Trying to resize the pool back to     100 from the top cpuset
+Node 3 HugePages_Free:     25
+Node 2 HugePages_Free:     25
+Node 1 HugePages_Free:     25
+Node 0 HugePages_Free:     25
+Done.     100 free
+/cpuset/set1 /cpuset ~
+Trying to resize the pool to     200 from a cpuset restricted to node 1
+Node 3 HugePages_Free:     50
+Node 2 HugePages_Free:     50
+Node 1 HugePages_Free:     50
+Node 0 HugePages_Free:     50
+Done.     200 free
+Trying to shrink the pool down to 0 from a cpuset restricted to node 1
+Node 3 HugePages_Free:      0
+Node 2 HugePages_Free:      0
+Node 1 HugePages_Free:      0
+Node 0 HugePages_Free:      0
+Done.       0 free
+
+So, it would appear that, in your opinion, this set of patches
+constitutes a pseudo-bug-fix? Without the last patch, it seems, cpusets
+are able to constrain what nodes a root process can remove hugepages
+from.
+
+Thanks,
+Nish
 
 -- 
-Mathematics is the supreme nostalgia of our time.
+Nishanth Aravamudan <nacc@us.ibm.com>
+IBM Linux Technology Center
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
