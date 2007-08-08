@@ -1,61 +1,50 @@
-Date: Wed, 8 Aug 2007 16:35:54 -0700 (PDT)
-From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [PATCH 0/3] Use one zonelist per node instead of multiple
- zonelists v2
-In-Reply-To: <20070808214420.GD2441@skynet.ie>
-Message-ID: <Pine.LNX.4.64.0708081633190.17335@schroedinger.engr.sgi.com>
-References: <20070808161504.32320.79576.sendpatchset@skynet.skynet.ie>
- <Pine.LNX.4.64.0708081025330.12652@schroedinger.engr.sgi.com>
- <1186597819.5055.37.camel@localhost> <20070808214420.GD2441@skynet.ie>
+Received: from d03relay04.boulder.ibm.com (d03relay04.boulder.ibm.com [9.17.195.106])
+	by e32.co.us.ibm.com (8.12.11.20060308/8.13.8) with ESMTP id l78MTL1Y007100
+	for <linux-mm@kvack.org>; Wed, 8 Aug 2007 18:29:21 -0400
+Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
+	by d03relay04.boulder.ibm.com (8.13.8/8.13.8/NCO v8.4) with ESMTP id l78NZnEY203214
+	for <linux-mm@kvack.org>; Wed, 8 Aug 2007 17:35:49 -0600
+Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av02.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l78NZm5K026576
+	for <linux-mm@kvack.org>; Wed, 8 Aug 2007 17:35:48 -0600
+Date: Wed, 8 Aug 2007 16:35:47 -0700
+From: Nishanth Aravamudan <nacc@us.ibm.com>
+Subject: Re: [patch 02/14] Memoryless nodes: introduce mask of nodes with memory
+Message-ID: <20070808233547.GG16588@us.ibm.com>
+References: <20070804030100.862311140@sgi.com> <20070804030152.843011254@sgi.com> <20070808123804.d3b3bc79.akpm@linux-foundation.org> <20070808195514.GE16588@us.ibm.com> <20070808200349.GF16588@us.ibm.com> <Pine.LNX.4.64.0708081304370.14275@schroedinger.engr.sgi.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <Pine.LNX.4.64.0708081304370.14275@schroedinger.engr.sgi.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Mel Gorman <mel@skynet.ie>
-Cc: Lee Schermerhorn <Lee.Schermerhorn@hp.com>, pj@sgi.com, ak@suse.de, kamezawa.hiroyu@jp.fujitsu.com, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Christoph Lameter <clameter@sgi.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, kxr@sgi.com, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Bob Picco <bob.picco@hp.com>, linux-mm@kvack.org, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Mel Gorman <mel@skynet.ie>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 8 Aug 2007, Mel Gorman wrote:
-
+On 08.08.2007 [13:05:12 -0700], Christoph Lameter wrote:
+> On Wed, 8 Aug 2007, Nishanth Aravamudan wrote:
 > 
-> >  For various policies, the arguments would look like this:
-> > Policy		start node	nodemask
-> > 
-> > default		local node	cpuset_current_mems_allowed
-> > 
-> > preferred	preferred_node	cpuset_current_mems_allowed
-> > 
-> > interleave	computed node	cpuset_current_mems_allowed
-> > 
-> > bind		local node	policy nodemask [replaces bind
-> > 				zonelist in mempolicy]
-> > 
-
-GFP_THISNODE could be realized by only setting the desired nodenumber in 
-the nodemask.
-
-> The last one is the most interesting. Much of the patch in development
-> involves deleting the custom node stuff. I've included the patch below if
-> you're curious. I wanted to get one-zonelist out first to see if we could
-> agree on that before going further with it.
-
-I think we do.
-
-> > Then, just walk the zonelist for the starting node--already ordered by
-> > distance--filtering by gfp_zone() and nodemask.  Done "right", this
-> > should always return memory from the closest allowed node [based on the
-> > nodemask argument] to the starting node.  And, it would eliminate the
-> > custom zonelists for bind policy.  Can also eliminate cpuset checks in
-> > the allocation loop because that constraint would already be applied to
-> > the nodemask argument.
-> > 
+> > To try and remedy this -- I'll regrab this stack and rebase my patches
+> > again. Test everything and resubmit mine.
 > 
-> This is what I'm hoping. I haven't looked closely enough to be sure this will
-> work but currently I see no reason why it couldn't and it might eliminate
-> some of the NUMA-specific paths in the allocator.
+> Ummmm... These are the patches that you said you would test earlier.
 
-Right. But lets first get the general case for the single nodelist 
-accepted (with the zoneid optimizations?)
+Yes, sorry, I had leafed through the patches and didn't see any changes
+and didn't see any subject changes indicated UPDATED or a new version,
+so I incorrectly assumed that the patches were the same as before.
+
+This stack has now been successfully compile & boot-tested on:
+
+4-node x86 (NUMAQ), 1-node x86 (NUMAQ), !NUMA x86, 2-node IA64, 4-node
+ppc64 (2 memoryless nodes).
+
+Thanks,
+Nish
+
+-- 
+Nishanth Aravamudan <nacc@us.ibm.com>
+IBM Linux Technology Center
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
