@@ -1,44 +1,79 @@
-Date: Wed, 8 Aug 2007 10:39:46 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH 04/10] mm: slub: add knowledge of reserve pages
-Message-Id: <20070808103946.4cece16c.akpm@linux-foundation.org>
-In-Reply-To: <Pine.LNX.4.64.0708081004290.12652@schroedinger.engr.sgi.com>
-References: <20070806102922.907530000@chello.nl>
-	<20070806103658.603735000@chello.nl>
-	<Pine.LNX.4.64.0708071702560.4941@schroedinger.engr.sgi.com>
-	<20070808014435.GG30556@waste.org>
-	<Pine.LNX.4.64.0708081004290.12652@schroedinger.engr.sgi.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Date: Wed, 8 Aug 2007 10:46:14 -0700 (PDT)
+From: Christoph Lameter <clameter@sgi.com>
+Subject: Re: [PATCH 2/3] Use one zonelist that is filtered instead of multiple
+ zonelists
+In-Reply-To: <20070808161545.32320.41940.sendpatchset@skynet.skynet.ie>
+Message-ID: <Pine.LNX.4.64.0708081041240.12652@schroedinger.engr.sgi.com>
+References: <20070808161504.32320.79576.sendpatchset@skynet.skynet.ie>
+ <20070808161545.32320.41940.sendpatchset@skynet.skynet.ie>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
-Cc: Matt Mackall <mpm@selenic.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, David Miller <davem@davemloft.net>, Daniel Phillips <phillips@google.com>, Pekka Enberg <penberg@cs.helsinki.fi>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Steve Dickson <SteveD@redhat.com>
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: Lee.Schermerhorn@hp.com, pj@sgi.com, ak@suse.de, kamezawa.hiroyu@jp.fujitsu.com, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 8 Aug 2007 10:13:05 -0700 (PDT)
-Christoph Lameter <clameter@sgi.com> wrote:
+On Wed, 8 Aug 2007, Mel Gorman wrote:
 
-> I think there are two ways to address this in a simpler way:
-> 
-> 1. Allow recursive calls into reclaim. If we are in a PF_MEMALLOC context 
-> then we can still scan lru lists and free up memory of clean pages. Idea 
-> patch follows.
-> 
-> 2. Make pageout figure out if the write action requires actual I/O 
-> submission. If so then the submission will *not* immediately free memory 
-> and we have to wait for I/O to complete. In that case do not immediately
-> initiate I/O (which would not free up memory and its bad to initiate 
-> I/O when we have not enough free memory) but put all those pages on a 
-> pageout list. When reclaim has reclaimed enough memory then go through the 
-> pageout list and trigger I/O. That can be done without PF_MEMALLOC so that 
-> additional reclaim could be triggered as needed. Maybe we can just get rid 
-> of PF_MEMALLOC and some of the contorted code around it?
+>  		for (i = 0; i < npmem_ranges; i++) {
+> +			zl = &NODE_DATA(i)->node_zonelist;
 
-3.  Perform page reclaim from hard IRQ context.  Pretty simple to
-implement, most of the work would be needed in the rmap code.  It might be
-better to make it opt-in via a new __GFP_flag.
+The above shows up again and again. Maybe add a new inline function?
+
+struct zonelist *zonelist_node(int node)
+
+
+>  {
+> -	return NODE_DATA(0)->node_zonelists + gfp_zone(gfp_flags);
+> +	return &NODE_DATA(0)->node_zonelist;
+
+How many callers of gfp_zone are left? Do we still need the function?
+
+Note that the memoryless_node patchset modifies gfp_zone and adds some 
+more zonelists (sigh).
+
+> diff -rup -X /usr/src/patchset-0.6/bin//dontdiff linux-2.6.23-rc1-mm2-005_freepages_zonelist/mm/oom_kill.c linux-2.6.23-rc1-mm2-010_use_zonelist/mm/oom_kill.c
+> --- linux-2.6.23-rc1-mm2-005_freepages_zonelist/mm/oom_kill.c	2007-08-07 14:45:11.000000000 +0100
+> +++ linux-2.6.23-rc1-mm2-010_use_zonelist/mm/oom_kill.c	2007-08-08 11:35:09.000000000 +0100
+> @@ -177,8 +177,10 @@ static inline int constrained_alloc(stru
+>  {
+>  #ifdef CONFIG_NUMA
+>  	struct zone **z;
+> +	struct zone *zone;
+>  	nodemask_t nodes;
+>  	int node;
+> +	enum zone_type high_zoneidx = gfp_zone(gfp_mask);
+>  
+>  	nodes_clear(nodes);
+>  	/* node has memory ? */
+> @@ -186,9 +188,9 @@ static inline int constrained_alloc(stru
+>  		if (NODE_DATA(node)->node_present_pages)
+>  			node_set(node, nodes);
+>  
+> -	for (z = zonelist->zones; *z; z++)
+> -		if (cpuset_zone_allowed_softwall(*z, gfp_mask))
+> -			node_clear(zone_to_nid(*z), nodes);
+> +	for_each_zone_zonelist(zone, z, zonelist, high_zoneidx)
+> +		if (cpuset_zone_allowed_softwall(zone, gfp_mask))
+> +			node_clear(zone_to_nid(zone), nodes);
+>  		else
+>  			return CONSTRAINT_CPUSET;
+>  
+
+The above portion has already been changed to no longer use a zonelist by 
+the memoryless_node patchset in mm.
+
+> +	zonelist = &NODE_DATA(slab_node(current->mempolicy))->node_zonelist;
+> +	for_each_zone_zonelist(zone, z, zonelist, high_zoneidx) {
+>  		struct kmem_cache_node *n;
+>  
+> -		n = get_node(s, zone_to_nid(*z));
+> +		n = get_node(s, zone_to_nid(zone));
+
+Encoding the node in the zonelist pointer would help these loops but they 
+are fallback lists and not on the critical path.
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
