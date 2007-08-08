@@ -1,51 +1,55 @@
-Date: Wed, 8 Aug 2007 11:09:06 -0700 (PDT)
-From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [PATCH 02/10] mm: system wide ALLOC_NO_WATERMARK
-In-Reply-To: <4a5909270708080037n32be2a73k5c28d33bb02f770b@mail.gmail.com>
-Message-ID: <Pine.LNX.4.64.0708081106230.12652@schroedinger.engr.sgi.com>
-References: <20070806102922.907530000@chello.nl>  <200708061559.41680.phillips@phunq.net>
-  <Pine.LNX.4.64.0708061605400.5090@schroedinger.engr.sgi.com>
- <200708061649.56487.phillips@phunq.net>  <Pine.LNX.4.64.0708071513290.3683@schroedinger.engr.sgi.com>
- <4a5909270708080037n32be2a73k5c28d33bb02f770b@mail.gmail.com>
+Message-ID: <46BA09CC.7070007@tmr.com>
+Date: Wed, 08 Aug 2007 14:22:04 -0400
+From: Bill Davidsen <davidsen@tmr.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: [PATCH 00/23] per device dirty throttling -v8
+References: <20070804191205.GA24723@lazybastard.org> <20070804192130.GA25346@elte.hu> <20070804211156.5f600d80@the-village.bc.nu> <20070804202830.GA4538@elte.hu> <20070804210351.GA9784@elte.hu> <20070804225121.5c7b66e0@the-village.bc.nu> <20070805073709.GA6325@elte.hu> <20070805134328.1a4474dd@the-village.bc.nu> <20070805125433.GA22060@elte.hu> <20070805143708.279f51f8@the-village.bc.nu> <20070805180826.GD3244@elte.hu>
+In-Reply-To: <20070805180826.GD3244@elte.hu>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Daniel Phillips <daniel.raymond.phillips@gmail.com>
-Cc: Daniel Phillips <phillips@phunq.net>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Matt Mackall <mpm@selenic.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, David Miller <davem@davemloft.net>, Andrew Morton <akpm@linux-foundation.org>, Daniel Phillips <phillips@google.com>
+To: Ingo Molnar <mingo@elte.hu>
+Cc: Alan Cox <alan@lxorguk.ukuu.org.uk>, J??rn Engel <joern@logfs.org>, Jeff Garzik <jeff@garzik.org>, Linus Torvalds <torvalds@linux-foundation.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, linux-mm@kvack.org, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, miklos@szeredi.hu, akpm@linux-foundation.org, neilb@suse.de, dgc@sgi.com, tomoki.sekiyama.qu@hitachi.com, nikita@clusterfs.com, trond.myklebust@fys.uio.no, yingchao.zhou@gmail.com, richard@rsk.demon.co.uk, david@lang.hm
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 8 Aug 2007, Daniel Phillips wrote:
+Ingo Molnar wrote:
 
->   1. If the allocation can be satisified in the usual way, do that.
->   2. Otherwise, if the GFP flags do not include __GFP_MEMALLOC or
-> PF_MEMALLOC is not set, fail the allocation
->   3. Otherwise, if the memcache's reserve quota is not reached,
-> satisfy the request, allocating a new page from the MEMALLOC reserve,
-> but the memcache's reserve counter and succeed
-
-Maybe we need to kill PF_MEMALLOC....
-
-> > Try NUMA constraints and zone limitations.
+> || ...For me, I would say 50% is not enough to describe the _visible_ 
+> || benefits... Not talking any specific number but past 10sec-1min+ 
+> || lagging in X is history, it's gone and I really don't miss it that 
+> || much... :-) Cannot reproduce even a second long delay anymore in 
+> || window focusing under considerable load as it's basically 
+> || instantaneous (I can see that it's loaded but doesn't affect the 
+> || feeling of responsiveness I'm now getting), even on some loads that I 
+> || couldn't previously even dream of... [...]
 > 
-> Are you worried about a correctness issue that would prevent the
-> machine from operating, or are you just worried about allocating
-> reserve pages to the local node for performance reasons?
-
-I am worried that allocation constraints will make the approach incorrect. 
-Because logically you must have distinct pools for each set of allocations 
-constraints. Otherwise something will drain the precious reserve slab.
-
-> > No I mean all 1024 processors of our system running into this fail/succeed
-> > thingy that was added.
+> we really have to ask ourselves whether the "process" is correct if 
+> advantages to the user of this order of magnitude can be brushed aside 
+> with simple "this breaks binary-only HSM" and "it's not standards 
+> compliant" arguments.
 > 
-> If an allocation now fails that would have succeeded in the past, the
-> patch set is buggy.  I can't say for sure one way or another at this
-> time of night.  If you see something, could you please mention a
-> file/line number?
+Being standards compliant is not an argument it's a design goal, a 
+requirement. Standards compliance is like pregant, you are or you're 
+not. And to deliberately ignore standards for speed is saying "it's too 
+hard to do it right, I'll do it wrong and it will be faster." The answer 
+is to do it smarter, with solutions like relatime (which can be enhanced 
+as Linus noted) which provide performance benefits without ignoring 
+standards, or use of a filesystem which does a better job. But when it 
+goes in the kernel the choice of having per-filesystem behavior either 
+vanishes or becomes an exercise in complex and as-yet unwritten mount 
+options.
 
-It seems that allocations fail that the reclaim logic should have taken 
-care of letting succeed. Not good.
+There are certainly ways to improve ext3, not journaling atime updates 
+would certainly be one, less frequent updates of dirty inodes, whatever. 
+But if a user wants to give up standards compliance it should be a 
+deliberate choice, not something which the average user will not 
+understand or learn to do.
+
+-- 
+Bill Davidsen <davidsen@tmr.com>
+   "We have more to fear from the bungling of the incompetent than from
+the machinations of the wicked."  - from Slashdot
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
