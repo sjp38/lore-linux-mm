@@ -1,101 +1,51 @@
-Date: Wed, 8 Aug 2007 22:10:32 +0100
-Subject: Re: [PATCH 2/3] Use one zonelist that is filtered instead of multiple zonelists
-Message-ID: <20070808211032.GB2441@skynet.ie>
-References: <20070808161504.32320.79576.sendpatchset@skynet.skynet.ie> <20070808161545.32320.41940.sendpatchset@skynet.skynet.ie> <Pine.LNX.4.64.0708081041240.12652@schroedinger.engr.sgi.com>
+Message-ID: <46BA3137.3020701@mbligh.org>
+Date: Wed, 08 Aug 2007 14:10:15 -0700
+From: "Martin J. Bligh" <mbligh@mbligh.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <Pine.LNX.4.64.0708081041240.12652@schroedinger.engr.sgi.com>
-From: mel@skynet.ie (Mel Gorman)
+Subject: Re: [PATCH 00/23] per device dirty throttling -v8
+References: <20070804070737.GA940@elte.hu> <20070804103347.GA1956@elte.hu> <alpine.LFD.0.999.0708040915360.5037@woody.linux-foundation.org> <20070804163733.GA31001@elte.hu> <alpine.LFD.0.999.0708041030040.5037@woody.linux-foundation.org> <46B4C0A8.1000902@garzik.org> <20070804191205.GA24723@lazybastard.org> <20070804192130.GA25346@elte.hu> <20070804192615.GA25600@lazybastard.org> <20070804194259.GA25753@lazybastard.org> <20070805203602.GB25107@infradead.org>
+In-Reply-To: <20070805203602.GB25107@infradead.org>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
-Cc: Lee.Schermerhorn@hp.com, pj@sgi.com, ak@suse.de, kamezawa.hiroyu@jp.fujitsu.com, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Christoph Hellwig <hch@infradead.org>, J??rn Engel <joern@logfs.org>, Ingo Molnar <mingo@elte.hu>, Jeff Garzik <jeff@garzik.org>, Linus Torvalds <torvalds@linux-foundation.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, linux-mm@kvack.org, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, miklos@szeredi.hu, akpm@linux-foundation.org, neilb@suse.de, dgc@sgi.com, tomoki.sekiyama.qu@hitachi.com, nikita@clusterfs.com, trond.myklebust@fys.uio.no, yingchao.zhou@gmail.com, richard@rsk.demon.co.uk, david@lang.hm
 List-ID: <linux-mm.kvack.org>
 
-On (08/08/07 10:46), Christoph Lameter didst pronounce:
-> On Wed, 8 Aug 2007, Mel Gorman wrote:
-> 
-> >  		for (i = 0; i < npmem_ranges; i++) {
-> > +			zl = &NODE_DATA(i)->node_zonelist;
-> 
-> The above shows up again and again. Maybe add a new inline function?
-> 
-> struct zonelist *zonelist_node(int node)
-> 
+Christoph Hellwig wrote:
+> On Sat, Aug 04, 2007 at 09:42:59PM +0200, J??rn Engel wrote:
+>   
+>> On Sat, 4 August 2007 21:26:15 +0200, J??rn Engel wrote:
+>>     
+>>> Given the choice between only "atime" and "noatime" I'd agree with you.
+>>> Heck, I use it myself.  But "relatime" seems to combine the best of both
+>>> worlds.  It currently just suffers from mount not supporting it in any
+>>> relevant distro.
+>>>       
+>> And here is a completely untested patch to enable it by default.  Ingo,
+>> can you see how good this fares compared to "atime" and
+>> "noatime,nodiratime"?
+>>     
+>
+> Umm, no f**king way.  atime selection is 100% policy and belongs into
+> userspace.  Add to that the problem that we can't actually re-enable
+> atimes because of the way the vfs-level mount flags API is designed.
+> Instead of doing such a fugly kernel patch just talk to the handfull
+> of distributions that matter to update their defaults.
+>   
 
-Not a bad plan. There are least 5 instances of calls like this in mm/
-alone so might as well.
+ From what I've seen the problem seems to be that the inode
+gets marked dirty when we update atime.
 
-> 
-> >  {
-> > -	return NODE_DATA(0)->node_zonelists + gfp_zone(gfp_flags);
-> > +	return &NODE_DATA(0)->node_zonelist;
-> 
-> How many callers of gfp_zone are left? Do we still need the function?
-> 
+Why isn't this easily fixable by just adding an additional dirty
+flag that says atime has changed? Then we only cause a write
+when we remove the inode from the inode cache, if only atime
+is updated.
 
-Well, the iterator needs it because it expects a high_zoneidx parameter
-which is == gfp_zone(gfp_flags). It also appears quite a bit the code
-according to grep. I don't think it can be got rid of now anyway.
-
-> Note that the memoryless_node patchset modifies gfp_zone and adds some 
-> more zonelists (sigh).
-> 
-> > diff -rup -X /usr/src/patchset-0.6/bin//dontdiff linux-2.6.23-rc1-mm2-005_freepages_zonelist/mm/oom_kill.c linux-2.6.23-rc1-mm2-010_use_zonelist/mm/oom_kill.c
-> > --- linux-2.6.23-rc1-mm2-005_freepages_zonelist/mm/oom_kill.c	2007-08-07 14:45:11.000000000 +0100
-> > +++ linux-2.6.23-rc1-mm2-010_use_zonelist/mm/oom_kill.c	2007-08-08 11:35:09.000000000 +0100
-> > @@ -177,8 +177,10 @@ static inline int constrained_alloc(stru
-> >  {
-> >  #ifdef CONFIG_NUMA
-> >  	struct zone **z;
-> > +	struct zone *zone;
-> >  	nodemask_t nodes;
-> >  	int node;
-> > +	enum zone_type high_zoneidx = gfp_zone(gfp_mask);
-> >  
-> >  	nodes_clear(nodes);
-> >  	/* node has memory ? */
-> > @@ -186,9 +188,9 @@ static inline int constrained_alloc(stru
-> >  		if (NODE_DATA(node)->node_present_pages)
-> >  			node_set(node, nodes);
-> >  
-> > -	for (z = zonelist->zones; *z; z++)
-> > -		if (cpuset_zone_allowed_softwall(*z, gfp_mask))
-> > -			node_clear(zone_to_nid(*z), nodes);
-> > +	for_each_zone_zonelist(zone, z, zonelist, high_zoneidx)
-> > +		if (cpuset_zone_allowed_softwall(zone, gfp_mask))
-> > +			node_clear(zone_to_nid(zone), nodes);
-> >  		else
-> >  			return CONSTRAINT_CPUSET;
-> >  
-> 
-> The above portion has already been changed to no longer use a zonelist by 
-> the memoryless_node patchset in mm.
-> 
-
-Oh, well that's good. One less thing to worry about even though we'll be
-colliding a bit. I'll split the patch in two to have the second part that
-collides with memoryless_node as a standalone patch.
-
-> > +	zonelist = &NODE_DATA(slab_node(current->mempolicy))->node_zonelist;
-> > +	for_each_zone_zonelist(zone, z, zonelist, high_zoneidx) {
-> >  		struct kmem_cache_node *n;
-> >  
-> > -		n = get_node(s, zone_to_nid(*z));
-> > +		n = get_node(s, zone_to_nid(zone));
-> 
-> Encoding the node in the zonelist pointer would help these loops but they 
-> are fallback lists and not on the critical path.
-> 
-
-The zone_id is the one I'm really interested in. It looks like the most
-promising optimisation for avoiding zone_idx in the hotpath.
-
--- 
-Mel Gorman
-Part-time Phd Student                          Linux Technology Center
-University of Limerick                         IBM Dublin Software Lab
+Unlike relatime, there's no user-visible change (unless the
+machine crashes without clean unmount, but not sure anyone
+cares that much about that cornercase). Atime changes are
+thus kept in-ram until umount / inode reclaim.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
