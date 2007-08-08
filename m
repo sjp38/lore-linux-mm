@@ -1,27 +1,79 @@
-Message-ID: <46BA1C08.4050904@garzik.org>
-Date: Wed, 08 Aug 2007 15:39:52 -0400
-From: Jeff Garzik <jeff@garzik.org>
+Received: from d03relay02.boulder.ibm.com (d03relay02.boulder.ibm.com [9.17.195.227])
+	by e31.co.us.ibm.com (8.13.8/8.13.8) with ESMTP id l78JtF38031192
+	for <linux-mm@kvack.org>; Wed, 8 Aug 2007 15:55:15 -0400
+Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
+	by d03relay02.boulder.ibm.com (8.13.8/8.13.8/NCO v8.4) with ESMTP id l78JtFMD248388
+	for <linux-mm@kvack.org>; Wed, 8 Aug 2007 13:55:15 -0600
+Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av02.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l78JtEEs004475
+	for <linux-mm@kvack.org>; Wed, 8 Aug 2007 13:55:15 -0600
+Date: Wed, 8 Aug 2007 12:55:14 -0700
+From: Nishanth Aravamudan <nacc@us.ibm.com>
+Subject: Re: [patch 02/14] Memoryless nodes: introduce mask of nodes with memory
+Message-ID: <20070808195514.GE16588@us.ibm.com>
+References: <20070804030100.862311140@sgi.com> <20070804030152.843011254@sgi.com> <20070808123804.d3b3bc79.akpm@linux-foundation.org>
 MIME-Version: 1.0
-Subject: Re: [PATCH 00/23] per device dirty throttling -v8
-References: <20070804191205.GA24723@lazybastard.org> <20070804192130.GA25346@elte.hu> <20070804211156.5f600d80@the-village.bc.nu> <20070804202830.GA4538@elte.hu> <20070804210351.GA9784@elte.hu> <20070804225121.5c7b66e0@the-village.bc.nu> <20070805073709.GA6325@elte.hu> <20070805134328.1a4474dd@the-village.bc.nu> <20070805125433.GA22060@elte.hu> <20070805143708.279f51f8@the-village.bc.nu> <20070805180826.GD3244@elte.hu> <46BA09CC.7070007@tmr.com>
-In-Reply-To: <46BA09CC.7070007@tmr.com>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20070808123804.d3b3bc79.akpm@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Bill Davidsen <davidsen@tmr.com>
-Cc: Ingo Molnar <mingo@elte.hu>, Alan Cox <alan@lxorguk.ukuu.org.uk>, J??rn Engel <joern@logfs.org>, Linus Torvalds <torvalds@linux-foundation.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, linux-mm@kvack.org, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, miklos@szeredi.hu, akpm@linux-foundation.org, neilb@suse.de, dgc@sgi.com, tomoki.sekiyama.qu@hitachi.com, nikita@clusterfs.com, trond.myklebust@fys.uio.no, yingchao.zhou@gmail.com, richard@rsk.demon.co.uk, david@lang.hm
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Christoph Lameter <clameter@sgi.com>, kxr@sgi.com, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Bob Picco <bob.picco@hp.com>, linux-mm@kvack.org, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Mel Gorman <mel@skynet.ie>
 List-ID: <linux-mm.kvack.org>
 
-Bill Davidsen wrote:
-> Being standards compliant is not an argument it's a design goal, a 
-> requirement. Standards compliance is like pregant, you are or you're 
+On 08.08.2007 [12:38:04 -0700], Andrew Morton wrote:
+> On Fri, 03 Aug 2007 20:01:02 -0700
+> Christoph Lameter <clameter@sgi.com> wrote:
+> 
+> > +/* Any regular memory on that node ? */
+> > +static void check_for_regular_memory(pg_data_t *pgdat)
+> > +{
+> > +#ifdef CONFIG_HIGHMEM
+> > +	enum zone_type zone;
+> > +
+> > +	for (zone = 0; zone <= ZONE_NORMAL; zone++)
+> > +		if (pgdat->node_zones[zone].present_pages)
+> > +			node_set_state(nid, N_NORMAL_MEMORY);
+> > +	}
+> > +#endif
+> > +}
+> 
+> mm/page_alloc.c: In function 'check_for_regular_memory':
+> mm/page_alloc.c:2427: error: 'nid' undeclared (first use in this function)
+> mm/page_alloc.c:2427: error: (Each undeclared identifier is reported only once
+> mm/page_alloc.c:2427: error: for each function it appears in.)
+> mm/page_alloc.c: At top level:
+> mm/page_alloc.c:2430: error: expected identifier or '(' before '}' token
+> 
+> OK, easily fixable with
+> 
+> /* Any regular memory on that node ? */
+> static void check_for_regular_memory(pg_data_t *pgdat)
+> {
+> #ifdef CONFIG_HIGHMEM
+> 	enum zone_type zone_type;
+> 	
+> 	for (zone_type = 0; zone_type <= ZONE_NORMAL; zone_type++) {
+> 		struct zone *zone = &pgdat->node_zones[zone_type];
+> 		if (zone->present_pages)
+> 			node_set_state(zone_to_nid(zone), N_NORMAL_MEMORY);
+> 	}
+> #endif
+> }
+> 
+> but we continue to have some significant testing issues out there.		
 
-Linux history says different.  There was always the "final 1%" of 
-compliance that required silliness we really did not want to bother with.
+This would be because the patch that Christoph submitted here is not the
+same as the patch that Mel and I tested...There was no
+check_for_regular_memory() function in the kernels I was building.
 
-	Jeff
+Thanks,
+Nish
 
+-- 
+Nishanth Aravamudan <nacc@us.ibm.com>
+IBM Linux Technology Center
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
