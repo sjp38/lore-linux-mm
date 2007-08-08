@@ -1,42 +1,44 @@
-Message-ID: <46BA0114.7040801@tmr.com>
-Date: Wed, 08 Aug 2007 13:44:52 -0400
-From: Bill Davidsen <davidsen@tmr.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH 00/23] per device dirty throttling -v8
-References: <20070803123712.987126000@chello.nl>	<alpine.LFD.0.999.0708031518440.8184@woody.linux-foundation.org>	<20070804063217.GA25069@elte.hu>	<20070804070737.GA940@elte.hu>	<20070804103347.GA1956@elte.hu>	<alpine.LFD.0.999.0708040915360.5037@woody.linux-foundation.org>	<20070804163733.GA31001@elte.hu>	<alpine.LFD.0.999.0708041030040.5037@woody.linux-foundation.org>	<46B4C0A8.1000902@garzik.org>	<20070804191205.GA24723@lazybastard.org>	<20070804192130.GA25346@elte.hu>	<20070804211156.5f600d80@the-village.bc.nu>	<46B4E161.9080100@garzik.org>	<46B8C016.6090806@tmr.com> <20070807203502.66b9ebda@the-village.bc.nu>
-In-Reply-To: <20070807203502.66b9ebda@the-village.bc.nu>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Date: Wed, 8 Aug 2007 10:39:46 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH 04/10] mm: slub: add knowledge of reserve pages
+Message-Id: <20070808103946.4cece16c.akpm@linux-foundation.org>
+In-Reply-To: <Pine.LNX.4.64.0708081004290.12652@schroedinger.engr.sgi.com>
+References: <20070806102922.907530000@chello.nl>
+	<20070806103658.603735000@chello.nl>
+	<Pine.LNX.4.64.0708071702560.4941@schroedinger.engr.sgi.com>
+	<20070808014435.GG30556@waste.org>
+	<Pine.LNX.4.64.0708081004290.12652@schroedinger.engr.sgi.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Alan Cox <alan@lxorguk.ukuu.org.uk>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Christoph Lameter <clameter@sgi.com>
+Cc: Matt Mackall <mpm@selenic.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, David Miller <davem@davemloft.net>, Daniel Phillips <phillips@google.com>, Pekka Enberg <penberg@cs.helsinki.fi>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Steve Dickson <SteveD@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
-Alan Cox wrote:
->> However, relatime has the POSIX behavior without the overhead. Therefore 
+On Wed, 8 Aug 2007 10:13:05 -0700 (PDT)
+Christoph Lameter <clameter@sgi.com> wrote:
+
+> I think there are two ways to address this in a simpler way:
 > 
-> No. relatime has approximately SuS behaviour. Its not the same as
-> "correct" behaviour.
+> 1. Allow recursive calls into reclaim. If we are in a PF_MEMALLOC context 
+> then we can still scan lru lists and free up memory of clean pages. Idea 
+> patch follows.
 > 
-Actually correct, but in terms of what can or does break, relatime seems 
-a lot closer than noatime, I can't (personally) come up with any 
-scenario where real applications would see something which would change 
-behavior adversely.
+> 2. Make pageout figure out if the write action requires actual I/O 
+> submission. If so then the submission will *not* immediately free memory 
+> and we have to wait for I/O to complete. In that case do not immediately
+> initiate I/O (which would not free up memory and its bad to initiate 
+> I/O when we have not enough free memory) but put all those pages on a 
+> pageout list. When reclaim has reclaimed enough memory then go through the 
+> pageout list and trigger I/O. That can be done without PF_MEMALLOC so that 
+> additional reclaim could be triggered as needed. Maybe we can just get rid 
+> of PF_MEMALLOC and some of the contorted code around it?
 
-Making noatime a default in the kernel requiring a boot option to 
-restore current behavior seems to be a turn toward the "it doesn't 
-really work right but it's *fast*" model. If vendors wanted noatime they 
-are smart enough to enable it. Now with relatime giving most of the 
-benefits and few (of any) of the side effects, I would expect a change.
-
-By all means relatime by default in FC8, but not noatime, and let those 
-who find some measurable benefit from noatime use it.
-
--- 
-Bill Davidsen <davidsen@tmr.com>
-   "We have more to fear from the bungling of the incompetent than from
-the machinations of the wicked."  - from Slashdot
+3.  Perform page reclaim from hard IRQ context.  Pretty simple to
+implement, most of the work would be needed in the rmap code.  It might be
+better to make it opt-in via a new __GFP_flag.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
