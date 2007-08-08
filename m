@@ -1,46 +1,64 @@
-Subject: Re: [RFC][PATCH 1/2][UPDATED] hugetlb: search harder for memory in
-	alloc_fresh_huge_page()
+Subject: Re: [RFC][PATCH 4/5] hugetlb: fix cpuset-constrained pool resizing
 From: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
-In-Reply-To: <20070808013256.GE15714@us.ibm.com>
-References: <20070807171432.GY15714@us.ibm.com>
-	 <1186517722.5067.31.camel@localhost> <20070807221240.GB15714@us.ibm.com>
-	 <Pine.LNX.4.64.0708071553440.4438@schroedinger.engr.sgi.com>
-	 <20070807230200.GC15714@us.ibm.com>
-	 <Pine.LNX.4.64.0708071714060.5001@schroedinger.engr.sgi.com>
-	 <20070808013256.GE15714@us.ibm.com>
+In-Reply-To: <20070808015042.GF15714@us.ibm.com>
+References: <20070806163254.GJ15714@us.ibm.com>
+	 <20070806163726.GK15714@us.ibm.com> <20070806163841.GL15714@us.ibm.com>
+	 <20070806164055.GN15714@us.ibm.com> <20070806164410.GO15714@us.ibm.com>
+	 <Pine.LNX.4.64.0708061101470.24256@schroedinger.engr.sgi.com>
+	 <20070808015042.GF15714@us.ibm.com>
 Content-Type: text/plain
-Date: Wed, 08 Aug 2007 09:20:29 -0400
-Message-Id: <1186579229.5055.8.camel@localhost>
+Date: Wed, 08 Aug 2007 09:26:38 -0400
+Message-Id: <1186579598.5055.11.camel@localhost>
 Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Nishanth Aravamudan <nacc@us.ibm.com>
-Cc: Christoph Lameter <clameter@sgi.com>, anton@samba.org, wli@holomorphy.com, linux-mm@kvack.org
+Cc: Christoph Lameter <clameter@sgi.com>, wli@holomorphy.com, melgor@ie.ibm.com, akpm@linux-foundation.org, linux-mm@kvack.org, agl@us.ibm.com, pj@sgi.com
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 2007-08-07 at 18:32 -0700, Nishanth Aravamudan wrote:
-> On 07.08.2007 [17:14:31 -0700], Christoph Lameter wrote:
-> > On Tue, 7 Aug 2007, Nishanth Aravamudan wrote:
-> > 
-> > > Which change? Using nid without a VM_BUG_ON (as in the original patch)
-> > > or adding a VM_BUG_ON and using page_to_nid()?
-> > 
-> > Adding VM_BUG_ON. If page_alloc does not work then something basic is 
-> > broken.
+On Tue, 2007-08-07 at 18:50 -0700, Nishanth Aravamudan wrote:
+<snip>
+> Finally, after my hugetlb interleave dequeue patch is applied:
 > 
-> I agree. So perhaps there needs to be a VM_BUG_ON_ONCE() or something
-> somewhere in the core code for the case of a __GFP_THISNODE allocation
-> going off node?
+> /cpuset ~
+> Trying to resize the pool to     200 from the top cpuset
+> Node 3 HugePages_Free:     50
+> Node 2 HugePages_Free:     50
+> Node 1 HugePages_Free:     50
+> Node 0 HugePages_Free:     50
+> Done.     200 free
+> Trying to resize the pool back to     100 from the top cpuset
+> Node 3 HugePages_Free:     25
+> Node 2 HugePages_Free:     25
+> Node 1 HugePages_Free:     25
+> Node 0 HugePages_Free:     25
+> Done.     100 free
+> /cpuset/set1 /cpuset ~
+> Trying to resize the pool to     200 from a cpuset restricted to node 1
+> Node 3 HugePages_Free:     50
+> Node 2 HugePages_Free:     50
+> Node 1 HugePages_Free:     50
+> Node 0 HugePages_Free:     50
+> Done.     200 free
+> Trying to shrink the pool down to 0 from a cpuset restricted to node 1
+> Node 3 HugePages_Free:      0
+> Node 2 HugePages_Free:      0
+> Node 1 HugePages_Free:      0
+> Node 0 HugePages_Free:      0
+> Done.       0 free
 
-That would work for me.  But, I would like to see us use the existing
-page_to_nid() for the accounting.  I like to avoid silent corruption of
-the accounting.  Things will work--for a while anyway--if pages get
-returned on the wrong node and the accounting gets messed up.  But, it
-can result in non-obvious problems some time later.  I hate it when that
-happens :-).
+That's the behavior I'd like to see!!!
 
-Lee
+> 
+> So, it would appear that, in your opinion, this set of patches
+> constitutes a pseudo-bug-fix? Without the last patch, it seems, cpusets
+> are able to constrain what nodes a root process can remove hugepages
+> from.
+> 
+> Thanks,
+> Nish
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
