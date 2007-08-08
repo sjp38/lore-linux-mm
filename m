@@ -1,46 +1,47 @@
-Received: from d03relay02.boulder.ibm.com (d03relay02.boulder.ibm.com [9.17.195.227])
-	by e34.co.us.ibm.com (8.13.8/8.13.8) with ESMTP id l781X1YS001085
-	for <linux-mm@kvack.org>; Tue, 7 Aug 2007 21:33:01 -0400
-Received: from d03av01.boulder.ibm.com (d03av01.boulder.ibm.com [9.17.195.167])
-	by d03relay02.boulder.ibm.com (8.13.8/8.13.8/NCO v8.4) with ESMTP id l781X0pY269500
-	for <linux-mm@kvack.org>; Tue, 7 Aug 2007 19:33:01 -0600
-Received: from d03av01.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av01.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l781X00A002125
-	for <linux-mm@kvack.org>; Tue, 7 Aug 2007 19:33:00 -0600
-Date: Tue, 7 Aug 2007 18:32:56 -0700
-From: Nishanth Aravamudan <nacc@us.ibm.com>
-Subject: Re: [RFC][PATCH 1/2][UPDATED] hugetlb: search harder for memory in alloc_fresh_huge_page()
-Message-ID: <20070808013256.GE15714@us.ibm.com>
-References: <20070807171432.GY15714@us.ibm.com> <1186517722.5067.31.camel@localhost> <20070807221240.GB15714@us.ibm.com> <Pine.LNX.4.64.0708071553440.4438@schroedinger.engr.sgi.com> <20070807230200.GC15714@us.ibm.com> <Pine.LNX.4.64.0708071714060.5001@schroedinger.engr.sgi.com>
+Date: Tue, 7 Aug 2007 20:44:36 -0500
+From: Matt Mackall <mpm@selenic.com>
+Subject: Re: [PATCH 04/10] mm: slub: add knowledge of reserve pages
+Message-ID: <20070808014435.GG30556@waste.org>
+References: <20070806102922.907530000@chello.nl> <20070806103658.603735000@chello.nl> <Pine.LNX.4.64.0708071702560.4941@schroedinger.engr.sgi.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <Pine.LNX.4.64.0708071714060.5001@schroedinger.engr.sgi.com>
+In-Reply-To: <Pine.LNX.4.64.0708071702560.4941@schroedinger.engr.sgi.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Christoph Lameter <clameter@sgi.com>
-Cc: Lee Schermerhorn <Lee.Schermerhorn@hp.com>, anton@samba.org, wli@holomorphy.com, linux-mm@kvack.org
+Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, David Miller <davem@davemloft.net>, Andrew Morton <akpm@linux-foundation.org>, Daniel Phillips <phillips@google.com>, Pekka Enberg <penberg@cs.helsinki.fi>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Steve Dickson <SteveD@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
-On 07.08.2007 [17:14:31 -0700], Christoph Lameter wrote:
-> On Tue, 7 Aug 2007, Nishanth Aravamudan wrote:
+On Tue, Aug 07, 2007 at 05:13:52PM -0700, Christoph Lameter wrote:
+> On Mon, 6 Aug 2007, Peter Zijlstra wrote:
 > 
-> > Which change? Using nid without a VM_BUG_ON (as in the original patch)
-> > or adding a VM_BUG_ON and using page_to_nid()?
+> > Restrict objects from reserve slabs (ALLOC_NO_WATERMARKS) to allocation
+> > contexts that are entitled to it.
 > 
-> Adding VM_BUG_ON. If page_alloc does not work then something basic is 
-> broken.
+> Is this patch actually necessary?
+>
+ > If you are in an atomic context and bound to a cpu then a per cpu slab is 
+> assigned to you and no one else can take object aways from that process 
+> since nothing else can run on the cpu.
 
-I agree. So perhaps there needs to be a VM_BUG_ON_ONCE() or something
-somewhere in the core code for the case of a __GFP_THISNODE allocation
-going off node?
+Servicing I/O over the network requires an allocation to send a buffer
+and an allocation to later receive the acknowledgement. We can't free
+our send buffer (or the memory it's supposed to clean) until the
+relevant ack is received. We have to hold our reserves privately
+throughout, even if an interrupt that wants to do GFP_ATOMIC
+allocation shows up in-between.
 
-Thanks,
-Nish
+> If you are not in an atomic context and are preemptable or can switch 
+> allocation context then you can create another context in which reclaim 
+> could be run to remove some clean pages and get you more memory. Again no 
+> need for the patch.
+
+By the point that this patch is relevant, there are already no clean
+pages. The only way to free up more memory is via I/O.
 
 -- 
-Nishanth Aravamudan <nacc@us.ibm.com>
-IBM Linux Technology Center
+Mathematics is the supreme nostalgia of our time.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
