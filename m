@@ -1,38 +1,40 @@
-Date: Wed, 8 Aug 2007 16:37:27 -0700 (PDT)
+Date: Wed, 8 Aug 2007 16:40:50 -0700 (PDT)
 From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [PATCH 0/3] Use one zonelist per node instead of multiple
- zonelists v2
-In-Reply-To: <1186612807.5055.106.camel@localhost>
-Message-ID: <Pine.LNX.4.64.0708081636130.17335@schroedinger.engr.sgi.com>
-References: <20070808161504.32320.79576.sendpatchset@skynet.skynet.ie>
- <Pine.LNX.4.64.0708081025330.12652@schroedinger.engr.sgi.com>
- <1186597819.5055.37.camel@localhost>  <20070808214420.GD2441@skynet.ie>
- <1186612807.5055.106.camel@localhost>
+Subject: Re: Audit of "all uses of node_online()"
+In-Reply-To: <1186611582.5055.95.camel@localhost>
+Message-ID: <Pine.LNX.4.64.0708081638270.17335@schroedinger.engr.sgi.com>
+References: <20070727194316.18614.36380.sendpatchset@localhost>
+ <20070727194322.18614.68855.sendpatchset@localhost>
+ <20070731192241.380e93a0.akpm@linux-foundation.org>
+ <Pine.LNX.4.64.0707311946530.6158@schroedinger.engr.sgi.com>
+ <20070731200522.c19b3b95.akpm@linux-foundation.org>
+ <Pine.LNX.4.64.0707312006550.22443@schroedinger.engr.sgi.com>
+ <20070731203203.2691ca59.akpm@linux-foundation.org>  <1185977011.5059.36.camel@localhost>
+  <Pine.LNX.4.64.0708011037510.20795@schroedinger.engr.sgi.com>
+ <1186085994.5040.98.camel@localhost>  <Pine.LNX.4.64.0708021323390.9711@schroedinger.engr.sgi.com>
+ <1186611582.5055.95.camel@localhost>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
-Cc: Mel Gorman <mel@skynet.ie>, pj@sgi.com, ak@suse.de, kamezawa.hiroyu@jp.fujitsu.com, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Cc: ak@suse.de, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Nishanth Aravamudan <nacc@us.ibm.com>, pj@sgi.com, kxr@sgi.com, Mel Gorman <mel@skynet.ie>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
 On Wed, 8 Aug 2007, Lee Schermerhorn wrote:
 
-> It'll take me a while to absorb the patch, so I'll just ask:  Where does
-> the zonelist for the argument come from?  If the the bind policy
-> zonelist is removed, then does it come from a node?  There'll be only
+> First note that mpol_check_policy() is always called just before
+> mpol_new() [except in the case of share policy init which is covered by
+> the fix mentioned below in previous mail re: parsing mount options].
+> Now, looking at this more, I think mpol_check_policy() could [should?]
+> ensure that the argument nodemask is non-null after ANDing with the
+> N_HIGH_MEMORY mask--i.e., contains at least one node with memory.
 
-Right.
-
-> one per node with your other patches, right?  So you had to have a node
-> id, to look up the zonelist?  Do you need the zonelist elsewhere,
-> outside of alloc_pages()?  If not, why not just let alloc_pages look it
-> up from a starting node [which I think can be determined from the
-> policy]?  
- 
-Exactly. The starting node is passed to alloc_pages_nodemask. We could 
-just pass -1 for numa_node_id().
-
+Hmmm... I thought about this yesterday and I thought that maybe the 
+nodemask needs to allow all possible nodes? What if the nodemask is going 
+to be used to select a node for a device? Or a cpu on a certain set of 
+nodes? If we restrict it to the set of valid memory nodes then the policy
+can only be used to select memory nodes.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
