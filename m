@@ -1,46 +1,83 @@
-Date: Thu, 9 Aug 2007 08:25:11 +0200
-From: Lionel Elie Mamane <lionel@mamane.lu>
-Subject: Re: [PATCH 00/23] per device dirty throttling -v8
-Message-ID: <20070809062511.GA23435@capsaicin.mamane.lu>
-References: <20070803123712.987126000@chello.nl> <alpine.LFD.0.999.0708031518440.8184@woody.linux-foundation.org> <20070804063217.GA25069@elte.hu> <20070804070737.GA940@elte.hu> <20070804103347.GA1956@elte.hu> <20070804163733.GA31001@elte.hu>
+Message-ID: <01c7da50$01acf720$a06d373b@fiestyrd>
+From: "Carla Vigil" <fiestyrd@raex.com>
+Subject: Man Lebt nur einmal - probiers aus !case. Your zero  --  what to expect--a visually-rich 
+Date: Thu, 9 Aug 2007 06:39:16 -0800
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20070804163733.GA31001@elte.hu>
-Sender: owner-linux-mm@kvack.org
-Return-Path: <owner-linux-mm@kvack.org>
-To: Ingo Molnar <mingo@elte.hu>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, miklos@szeredi.hu, akpm@linux-foundation.org, neilb@suse.de, dgc@sgi.com, tomoki.sekiyama.qu@hitachi.com, nikita@clusterfs.com, trond.myklebust@fys.uio.no, yingcha@pimp.vs19.net
+Content-Type: multipart/alternative;
+	boundary="----=_NextPart_000_0007_01C7DA93.0FD03720"
+Return-Path: <fiestyrd@raex.com>
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Sat, Aug 04, 2007 at 06:37:33PM +0200, Ingo Molnar wrote:
-> * Linus Torvalds <torvalds@linux-foundation.org> wrote:
+This is a multi-part message in MIME format.
 
->> The fact is, ext3 *sucks* at fsync. I hate hate hate it. It's
->> totally unusable, imnsho.
+------=_NextPart_000_0007_01C7DA93.0FD03720
+Content-Type: text/plain;
+	charset="Windows-1252"
+Content-Transfer-Encoding: quoted-printable
 
-> yeah, it's really ugly. But otherwise i've got no real complaint
-> about ext3 - with the obligatory qualification that
-> "noatime,nodiratime" in /etc/fstab is a must. This speeds up things
-> very visibly (...). So for most file workloads we give Windows a
-> 20%-30% performance edge, for almost nothing.
+Versuchen Sie unser Produkt und Sie werden fuhlen was unsere Kunden bestati=
+gen
 
-It has been years since I used MS Windows much, but from my memories
-of my these days, I was under the impression that it (at least the NT
-line, the only surviving line these days) also maintained "last
-accessed" times. Except I only ever saw it at "right now" because the
-file explorer ... accesses the file before getting this metadata or
-something like that (when you right-click on a file and ask for its
-properties). It has creation and last modification time, too.
+Preise die keine Konkurrenz kennen 
 
-So, if my memories are correct, there is no performance edge to be
-conceded by having atime (but one to be gained by not having atime).
+- keine versteckte Kosten
+- Kein peinlicher Arztbesuch erforderlich
+- Kostenlose, arztliche Telefon-Beratung
+- Kein langes Warten - Auslieferung innerhalb von 2-3 Tagen
+- Bequem und diskret online bestellen.
+- Visa verifizierter Onlineshop
+- Diskrete Verpackung und Zahlung
 
--- 
-Lionel
+Originalmedikamente
+Ciiaaaaaalis 10 Pack. 27,00 Euro
+Viiaaaagra 10 Pack. 21,00 Euro
 
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+Jetzt bestellen - und vier Pillen umsonst erhalten
+http://thoda.dependtube.cn/?177940165152
+
+(bitte warten Sie einen Moment bis die Seite vollstandig geladen wird)
+------=_NextPart_000_0007_01C7DA93.0FD03720
+Content-Type: text/html;
+	charset="Windows-1252"
+Content-Transfer-Encoding: quoted-printable
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
+<HTML><HEAD>
+<META http-equiv=3DContent-Type content=3D"text/html; charset=3DWindows-1252">
+<META content=3D"MSHTML 6.00.2800.1409" name=3DGENERATOR>
+<STYLE></STYLE>
+</HEAD>
+<BODY>
+<head><meta http-equiv=3D"Content-Type" content=3D"text/html; charset=3Diso=
+-8859-1">
+</head><body><p>Meinung von unserem Kunden:<br><strong>Ich bin weit &#252;b=
+er 60, nehme Ciiaaaaaalis 20 mg. und das Wochenende ist gerettet. Ich kann =
+pro Nacht 4-5 mal, und am Morgen wieder, f&#252;r den n&#228;chsten Abend r=
+eicht eine Halbe. Meine Freundin ist begeistert. F&#252;r meine Frau nehme =
+ich eine halbe Tablette, das reicht f&#252;r einen netten Abend.</strong></=
+p><p><strong>Fantastische Wirkung! F&#252;nf Jahre lang hatte ich es nicht =
+mehr geschafft, meine Err. ..ektion w&#228;hrend des Verkehrs zu halten und=
+ war richtig &#228;ngstlich geworden. Ich hatte auch ein Problem mit vorzei=
+tigem Samenerguss. Au&#223;erdem bin ich Zuckerkrank. Vor einiger Zeit habe=
+ ich eine 50-mg-Dosis Viiaaaagra genommen und zwei Stunden sp&#228;ter mit =
+einer 22-j&#228;hrigen geschlafen. Kurz vor dem Vorspiel wurde mein Penis h=
+art und ich konnte es kaum glauben. Ich habe in dieser Nacht dreimal Sex ge=
+habt und es gab keine Probleme dabei. Kein Schuss ging daneben. Ich bin ein=
+ gl&#252;cklicher Mann. Achmet, 52<br>
+</strong><strong><br>Versuchen Sie unser Produkt und Sie werden fuhlen was =
+unsere Kunden bestatigen</strong></p><p>Preise die keine Konkurrenz kennen =
+<p>
+- Kein peinlicher Arztbesuch erforderlich<br>- Kein langes Warten - Auslief=
+erung innerhalb von 2-3 Tagen<br>- Bequem und diskret online bestellen.<br>=
+- Diskrete Verpackung und Zahlung<br>- Kostenlose, arztliche Telefon-Beratu=
+ng<br>- Visa verifizierter Onlineshop<br>- keine versteckte Kosten</p>
+<p>Originalmedikamente<br><strong>Ciiaaaaaalis 10 Pack. 27,00 Euro</strong>=
+<br>
+  <strong>Viiaaaagra 10 Pack. 21,00 Euro</strong><br><br><strong><a href=3D=
+"http://thoda.dependtube.cn/?177940165152" target=3D"_blank">Jetzt bestelle=
+n - und vier Pillen umsonst erhalten</a><br></strong>(bitte warten Sie eine=
+n Moment bis die Seite vollst&auml;ndig geladen wird) </p></body>
+</BODY></HTML>
+
+------=_NextPart_000_0007_01C7DA93.0FD03720--
