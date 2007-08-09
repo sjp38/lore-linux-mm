@@ -1,88 +1,39 @@
-Date: Thu, 9 Aug 2007 15:47:26 +0100
-Subject: Re: [PATCH 0/3] Use one zonelist per node instead of multiple zonelists v2
-Message-ID: <20070809144726.GA22405@skynet.ie>
-References: <20070808161504.32320.79576.sendpatchset@skynet.skynet.ie> <Pine.LNX.4.64.0708081025330.12652@schroedinger.engr.sgi.com> <1186597819.5055.37.camel@localhost> <20070808214420.GD2441@skynet.ie> <1186612807.5055.106.camel@localhost>
+Message-ID: <46BB2C8E.2050205@redhat.com>
+Date: Thu, 09 Aug 2007 11:02:38 -0400
+From: Chuck Ebbert <cebbert@redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <1186612807.5055.106.camel@localhost>
-From: mel@skynet.ie (Mel Gorman)
+Subject: Re: [PATCH 00/23] per device dirty throttling -v8
+References: <20070803123712.987126000@chello.nl> <alpine.LFD.0.999.0708031518440.8184@woody.linux-foundation.org> <20070804063217.GA25069@elte.hu> <20070804070737.GA940@elte.hu> <20070804103347.GA1956@elte.hu> <20070804163733.GA31001@elte.hu> <20070809062511.GA23435@capsaicin.mamane.lu>
+In-Reply-To: <20070809062511.GA23435@capsaicin.mamane.lu>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
-Cc: Christoph Lameter <clameter@sgi.com>, pj@sgi.com, ak@suse.de, kamezawa.hiroyu@jp.fujitsu.com, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Lionel Elie Mamane <lionel@mamane.lu>, Ingo Molnar <mingo@elte.hu>, Linus Torvalds <torvalds@linux-foundation.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, miklos@szeredi.hu, akpm@linux-foundation.org, neilb@suse.de, dgc@sgi.com, tomoki.sekiyama.qu@hitachi.com, nikita@clusterfs.com, trond.myklebust@fys.uio.no, yingcha@pimp.vs19.net
 List-ID: <linux-mm.kvack.org>
 
-On (08/08/07 18:40), Lee Schermerhorn didst pronounce:
-> On Wed, 2007-08-08 at 22:44 +0100, Mel Gorman wrote:
->
-> <SNIP>
->
-> > With the patch currently, a a nodemask is passed in for
-> > filtering which should be enough as the zonelist being used should be enough
-> > information to indicate the starting node.
+On 08/09/2007 02:25 AM, Lionel Elie Mamane wrote:
 > 
-> It'll take me a while to absorb the patch, so I'll just ask:  Where does
-> the zonelist for the argument come from? If the the bind policy
-> zonelist is removed, then does it come from a node? 
-
-Yes, it gets the zonelist from the node and uses a nodemask to ignore
-zones within it.
-
-> There'll be only
-> one per node with your other patches, right?  So you had to have a node
-> id, to look up the zonelist? 
-
-You have the local node_id to lookup the zonelist with. The policy
-provides a nodemask then instead of a zonelist for filtering purposes.
-
-> Do you need the zonelist elsewhere,
-> outside of alloc_pages()?  If not, why not just let alloc_pages look it
-> up from a starting node [which I think can be determined from the
-> policy]?
+>> yeah, it's really ugly. But otherwise i've got no real complaint
+>> about ext3 - with the obligatory qualification that
+>> "noatime,nodiratime" in /etc/fstab is a must. This speeds up things
+>> very visibly (...). So for most file workloads we give Windows a
+>> 20%-30% performance edge, for almost nothing.
+> 
+> It has been years since I used MS Windows much, but from my memories
+> of my these days, I was under the impression that it (at least the NT
+> line, the only surviving line these days) also maintained "last
+> accessed" times. Except I only ever saw it at "right now" because the
+> file explorer ... accesses the file before getting this metadata or
+> something like that (when you right-click on a file and ask for its
+> properties). It has creation and last modification time, too.
 > 
 
-The starting node can be determined from where we are currently running
-on. Even if the local node is not in the nodemask, we'd still filter it
-as normal.
+NT maintains atimes by default, at least up to XP. You have to edit the
+registry to turn them off, and it is a single global switch -- not per
+mountpoint like Unix.
 
-> OK, that's a lot of questions.  no need to answer.  That's just what I'm
-> thinking re: all this.  I'll wait and see how the patch develops.
->   
-> > 
-> > The signature of __alloc_pages() becomes
-> > 
-> > static page * fastcall
-> > __alloc_pages_nodemask(gfp_t gfp_mask, nodemask_t *nodemask,
-> >                unsigned int order, struct zonelist *zonelist)
-> > 
-> > >  For various policies, the arguments would look like this:
-> > > Policy		start node	nodemask
-> > > 
-> > > default		local node	cpuset_current_mems_allowed
-> > > 
-> > > preferred	preferred_node	cpuset_current_mems_allowed
-> > > 
-> > > interleave	computed node	cpuset_current_mems_allowed
-> > > 
-> > > bind		local node	policy nodemask [replaces bind
-> > > 				zonelist in mempolicy]
-> > > 
-> > 
-> > The last one is the most interesting. Much of the patch in development
-> > involves deleting the custom node stuff. I've included the patch below if
-> > you're curious. I wanted to get one-zonelist out first to see if we could
-> > agree on that before going further with it.
-> 
-> Again, it'll be a while. 
-> 
-
-Thanks anyway.
-
--- 
-Mel Gorman
-Part-time Phd Student                          Linux Technology Center
-University of Limerick                         IBM Dublin Software Lab
+And it makes a huge difference there, too.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
