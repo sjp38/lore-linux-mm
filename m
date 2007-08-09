@@ -1,38 +1,39 @@
-Date: Thu, 9 Aug 2007 21:51:27 +0100
-Subject: Re: [PATCH 0/3] Use one zonelist per node instead of multiple zonelists v2
-Message-ID: <20070809205126.GA8746@skynet.ie>
-References: <20070808161504.32320.79576.sendpatchset@skynet.skynet.ie> <20070809131943.64cb0921.akpm@linux-foundation.org>
+Message-ID: <46BB7FC8.3020909@gmx.net>
+Date: Thu, 09 Aug 2007 22:57:44 +0200
+From: Michael Kerrisk <mtk-manpages@gmx.net>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <20070809131943.64cb0921.akpm@linux-foundation.org>
-From: mel@skynet.ie (Mel Gorman)
+Subject: Re: get_mempolicy.2 man page patch
+References: <1180467234.5067.52.camel@localhost>	 <Pine.LNX.4.64.0705291247001.26308@schroedinger.engr.sgi.com>	 <200705292216.31102.ak@suse.de> <1180541849.5850.30.camel@localhost>	 <20070531082016.19080@gmx.net> <1180732544.5278.158.camel@localhost>	 <46A44B98.8060807@gmx.net>  <46AB0CDB.8090600@gmx.net> <1186684988.6009.3.camel@localhost>
+In-Reply-To: <1186684988.6009.3.camel@localhost>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Lee.Schermerhorn@hp.com, pj@sgi.com, ak@suse.de, kamezawa.hiroyu@jp.fujitsu.com, clameter@sgi.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
+Cc: ak@suse.de, clameter@sgi.com, akpm@linux-foundation.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On (09/08/07 13:19), Andrew Morton didst pronounce:
-> On Wed,  8 Aug 2007 17:15:04 +0100 (IST)
-> Mel Gorman <mel@csn.ul.ie> wrote:
-> 
-> > The following patches replace multiple zonelists per node with one zonelist
-> > that is filtered based on the GFP flags.
-> 
-> I think I'll duck this for now on im-trying-to-vaguely-stabilize-mm grounds.
-> Let's go with the horrible-hack for 2.6.23, then revert it and get this
-> new approach merged and stabilised over the next week or two?
-> 
 
-I'm happy with that plan. I am about to release V3 of the one-zonelist
-patchset that includes optimisations so I'm reasonably confident we can
-get it to a state we like over the next few weeks.
+Lee Schermerhorn wrote:
+> On Sat, 2007-07-28 at 11:31 +0200, Michael Kerrisk wrote:
+>> Andi, Christoph,
+>>
+>> Would one or both of you be willing to review the three man page patches by
+>>  Lee (mbind.2, set_mempolicy.2, get_mempolict.2)?
+>>
+>> Cheers,
+>>
+>> Michael
+> 
+> Michael:
+> 
+> what's that status of these man page updates?
 
--- 
-Mel Gorman
-Part-time Phd Student                          Linux Technology Center
-University of Limerick                         IBM Dublin Software Lab
+I'm still waiting for review comment from either Andi or Christoph...
+
+Cheers,
+
+Michael
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
