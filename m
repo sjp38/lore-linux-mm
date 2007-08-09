@@ -1,83 +1,91 @@
-From: "Muriel Quintero" <distractions@ogilvy.com>
-Subject: Haben Sie wieder Spass am Leben!   It should be noted  -- better at solving software 
-Date: Thu, 9 Aug 2007 12:40:51 -0900
+Date: Thu, 9 Aug 2007 15:47:26 +0100
+Subject: Re: [PATCH 0/3] Use one zonelist per node instead of multiple zonelists v2
+Message-ID: <20070809144726.GA22405@skynet.ie>
+References: <20070808161504.32320.79576.sendpatchset@skynet.skynet.ie> <Pine.LNX.4.64.0708081025330.12652@schroedinger.engr.sgi.com> <1186597819.5055.37.camel@localhost> <20070808214420.GD2441@skynet.ie> <1186612807.5055.106.camel@localhost>
 MIME-Version: 1.0
-Content-Type: multipart/alternative;
-	boundary="----=_NextPart_000_0006_01C7DACD.F4F7CD60"
-Message-ID: <01c7da82$85102560$88499479@distractions>
-Return-Path: <distractions@ogilvy.com>
-To: linux-mm@kvack.org
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <1186612807.5055.106.camel@localhost>
+From: mel@skynet.ie (Mel Gorman)
+Sender: owner-linux-mm@kvack.org
+Return-Path: <owner-linux-mm@kvack.org>
+To: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
+Cc: Christoph Lameter <clameter@sgi.com>, pj@sgi.com, ak@suse.de, kamezawa.hiroyu@jp.fujitsu.com, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-This is a multi-part message in MIME format.
+On (08/08/07 18:40), Lee Schermerhorn didst pronounce:
+> On Wed, 2007-08-08 at 22:44 +0100, Mel Gorman wrote:
+>
+> <SNIP>
+>
+> > With the patch currently, a a nodemask is passed in for
+> > filtering which should be enough as the zonelist being used should be enough
+> > information to indicate the starting node.
+> 
+> It'll take me a while to absorb the patch, so I'll just ask:  Where does
+> the zonelist for the argument come from? If the the bind policy
+> zonelist is removed, then does it come from a node? 
 
-------=_NextPart_000_0006_01C7DACD.F4F7CD60
-Content-Type: text/plain;
-	charset="iso-8859-1"
-Content-Transfer-Encoding: 7bit
+Yes, it gets the zonelist from the node and uses a nodemask to ignore
+zones within it.
 
-Versuchen Sie unser Produkt und Sie werden fuhlen was unsere Kunden bestatigen
+> There'll be only
+> one per node with your other patches, right?  So you had to have a node
+> id, to look up the zonelist? 
 
-Preise die keine Konkurrenz kennen 
+You have the local node_id to lookup the zonelist with. The policy
+provides a nodemask then instead of a zonelist for filtering purposes.
 
-- Kein peinlicher Arztbesuch erforderlich
-- Bequem und diskret online bestellen.
-- Kostenlose, arztliche Telefon-Beratung
-- Kein langes Warten - Auslieferung innerhalb von 2-3 Tagen
-- Visa verifizierter Onlineshop
-- keine versteckte Kosten
-- Diskrete Verpackung und Zahlung
+> Do you need the zonelist elsewhere,
+> outside of alloc_pages()?  If not, why not just let alloc_pages look it
+> up from a starting node [which I think can be determined from the
+> policy]?
+> 
 
-Originalmedikamente
-Ciiaaaaaalis 10 Pack. 27,00 Euro
-Viiaaaagra 10 Pack. 21,00 Euro
+The starting node can be determined from where we are currently running
+on. Even if the local node is not in the nodemask, we'd still filter it
+as normal.
 
-Vier Dosen gibt's bei jeder Bestellung umsonst
-http://hihvvon.ideahope.cn/?805168527934
+> OK, that's a lot of questions.  no need to answer.  That's just what I'm
+> thinking re: all this.  I'll wait and see how the patch develops.
+>   
+> > 
+> > The signature of __alloc_pages() becomes
+> > 
+> > static page * fastcall
+> > __alloc_pages_nodemask(gfp_t gfp_mask, nodemask_t *nodemask,
+> >                unsigned int order, struct zonelist *zonelist)
+> > 
+> > >  For various policies, the arguments would look like this:
+> > > Policy		start node	nodemask
+> > > 
+> > > default		local node	cpuset_current_mems_allowed
+> > > 
+> > > preferred	preferred_node	cpuset_current_mems_allowed
+> > > 
+> > > interleave	computed node	cpuset_current_mems_allowed
+> > > 
+> > > bind		local node	policy nodemask [replaces bind
+> > > 				zonelist in mempolicy]
+> > > 
+> > 
+> > The last one is the most interesting. Much of the patch in development
+> > involves deleting the custom node stuff. I've included the patch below if
+> > you're curious. I wanted to get one-zonelist out first to see if we could
+> > agree on that before going further with it.
+> 
+> Again, it'll be a while. 
+> 
 
-(bitte warten Sie einen Moment bis die Seite vollstandig geladen wird)
+Thanks anyway.
 
+-- 
+Mel Gorman
+Part-time Phd Student                          Linux Technology Center
+University of Limerick                         IBM Dublin Software Lab
 
-------=_NextPart_000_0006_01C7DACD.F4F7CD60
-Content-Type: text/html;
-	charset="iso-8859-1"
-Content-Transfer-Encoding: quoted-printable
-
-<html xmlns:o=3D"urn:schemas-microsoft-com:office:office" xmlns:w=3D"urn:sc=
-hemas-microsoft-com:office:word" xmlns=3D"http://www.w3.org/TR/REC-html40">
-
-<head>
-<META HTTP-EQUIV=3D"Content-Type" CONTENT=3D"text/html; charset=3Diso-8859-1">
-<meta name=3DGenerator content=3D"Microsoft Word 11 (filtered medium)">
-</head>
-<body>
-<head><meta http-equiv=3D"Content-Type" content=3D"text/html; charset=3Diso=
--8859-1">
-</head><body><p>Meinung von unserem Kunden:<br><strong>Ich habe vor kurzem =
-Viiaaaagra benutzt und ich muss sagen: Ich liebe Viiaaaagra. Das ist der Fi=
-ckmacher. Das Alter hat nix damit zu tun. Ich bin zwar noch jung, aber die =
-Viiaaaagra-Power kann auch durch junge Kraft nicht ersetzt werden. Das war =
-der Hammer. Ich habe sie trockengev&#246;gelt. Ich habe mir vorgenommen, es=
- regelm&#228;&#223;ig zu nehmen. - 21 Jahre</strong></p><p><strong>Ich find=
-e Viiaaaagra einfach wunderbar. Egal, ob f&#252;r den Sex oder, um mich sel=
-bst zu verw&#246;hnen: Es funktioniert. Mein Schwanz wird extrem hart und m=
-ein Orgasmus ist sehr intensiv. Die Wirkung ist so stark, dass ich Viiaaaag=
-ra nur am Wochenende verwende oder wenn ich viel Zeit habe, es richtig zu g=
-enie&#223;en.<br>
-</strong><strong><br>Versuchen Sie unser Produkt und Sie werden fuhlen was =
-unsere Kunden bestatigen</strong></p><p>Preise die keine Konkurrenz kennen =
-<p>
-- Diskrete Verpackung und Zahlung<br>- Bequem und diskret online bestellen.=
-<br>- Kein peinlicher Arztbesuch erforderlich<br>- Kein langes Warten - Aus=
-lieferung innerhalb von 2-3 Tagen<br>- Kostenlose, arztliche Telefon-Beratu=
-ng<br>- Visa verifizierter Onlineshop<br>- keine versteckte Kosten</p>
-<p>Originalmedikamente<br><strong>Ciiaaaaaalis 10 Pack. 27,00 Euro</strong>=
-<br>
-  <strong>Viiaaaagra 10 Pack. 21,00 Euro</strong><br><br><strong><a href=3D=
-"http://hihvvon.ideahope.cn/?805168527934" target=3D"_blank">Vier Dosen gib=
-t's bei jeder Bestellung umsonst</a><br></strong>(bitte warten Sie einen Mo=
-ment bis die Seite vollst&auml;ndig geladen wird) </p></body>
-</body>
-</html>
-
-------=_NextPart_000_0006_01C7DACD.F4F7CD60--
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
