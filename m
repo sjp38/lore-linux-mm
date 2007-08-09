@@ -1,36 +1,24 @@
-From: Andi Kleen <ak@suse.de>
-Subject: Re: [PATCH 0/3] Use one zonelist per node instead of multiple zonelists v2
-Date: Thu, 9 Aug 2007 23:20:01 +0200
-References: <20070808161504.32320.79576.sendpatchset@skynet.skynet.ie> <20070809131943.64cb0921.akpm@linux-foundation.org>
-In-Reply-To: <20070809131943.64cb0921.akpm@linux-foundation.org>
+Date: Thu, 9 Aug 2007 14:27:39 -0700 (PDT)
+From: Christoph Lameter <clameter@sgi.com>
+Subject: Re: [PATCH 2/4] Use one zonelist that is filtered instead of multiple
+ zonelists
+In-Reply-To: <20070809210656.14702.61074.sendpatchset@skynet.skynet.ie>
+Message-ID: <Pine.LNX.4.64.0708091425340.32324@schroedinger.engr.sgi.com>
+References: <20070809210616.14702.73376.sendpatchset@skynet.skynet.ie>
+ <20070809210656.14702.61074.sendpatchset@skynet.skynet.ie>
 MIME-Version: 1.0
-Content-Type: text/plain;
-  charset="iso-8859-1"
-Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
-Message-Id: <200708092320.01669.ak@suse.de>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Mel Gorman <mel@csn.ul.ie>, Lee.Schermerhorn@hp.com, pj@sgi.com, kamezawa.hiroyu@jp.fujitsu.com, clameter@sgi.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: Lee.Schermerhorn@hp.com, ak@suse.de, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thursday 09 August 2007 22:19:43 Andrew Morton wrote:
-> On Wed,  8 Aug 2007 17:15:04 +0100 (IST)
-> Mel Gorman <mel@csn.ul.ie> wrote:
-> 
-> > The following patches replace multiple zonelists per node with one zonelist
-> > that is filtered based on the GFP flags.
-> 
-> I think I'll duck this for now on im-trying-to-vaguely-stabilize-mm grounds.
-> Let's go with the horrible-hack for 2.6.23, then revert it and get this
-> new approach merged and stabilised over the next week or two?
+Some uses of the loops over online nodes that suppose memory is present on 
+these nodes. These will have to be updated at some point to only loop over 
+nodes with memory (memoryless nodes).
 
-I would prefer to not have horrible hacks even temporary
-
--Andi
-
-
+Acked-by: Christoph Lameter <clameter@sgi.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
