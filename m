@@ -1,28 +1,30 @@
-Date: Thu, 9 Aug 2007 09:06:55 -0100
-From: "Richard Mcrae" <bobgold@columbus.rr.com>
-Reply-To: bobgold@columbus.rr.com
-Message-ID: <953369520.19077262412412@columbus.rr.com>
-Subject: Potenzschwache - wir haben die Losung  services in China.  --  to learn how those 
+From: "Waldo Arias" <atul_kakade@logitech.com>
+Subject: Potenzprobleme? Ab jetzt nicht mehr  liquidation and  --  texts. If you've read a 
+Date: Thu, 9 Aug 2007 09:59:04 -0100
+Message-ID: <01c7da6b$eb580ac0$3f69115b@atul_kakade>
 MIME-Version: 1.0
 Content-Type: multipart/alternative;
-  boundary="----------DA1B2C01B2C0146E"
-Return-Path: <bobgold@columbus.rr.com>
+	boundary="----=_NextPart_000_0006_01C7DA7C.AEE0DAC0"
+Return-Path: <atul_kakade@logitech.com>
 To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-------------DA1B2C01B2C0146E
-Content-Type: text/plain; charset=Windows-1252
+This is a multi-part message in MIME format.
+
+------=_NextPart_000_0006_01C7DA7C.AEE0DAC0
+Content-Type: text/plain;
+	charset="iso-8859-2"
 Content-Transfer-Encoding: 7bit
 
-Verpassen Sie nichts am Lebem - Sie werden fuhlen was unsere Kunden bestatigen!
+Versuchen Sie unser Produkt und Sie werden fuhlen was unsere Kunden bestatigen
 
 Preise die keine Konkurrenz kennen 
 
-- Diskrete Verpackung und Zahlung
-- Bequem und diskret online bestellen.
-- Kein peinlicher Arztbesuch erforderlich
 - Kein langes Warten - Auslieferung innerhalb von 2-3 Tagen
+- Kein peinlicher Arztbesuch erforderlich
+- Bequem und diskret online bestellen.
 - Kostenlose, arztliche Telefon-Beratung
+- Diskrete Verpackung und Zahlung
 - Visa verifizierter Onlineshop
 - keine versteckte Kosten
 
@@ -30,25 +32,57 @@ Originalmedikamente
 Ciiaaaaaalis 10 Pack. 27,00 Euro
 Viiaaaagra 10 Pack. 21,00 Euro
 
-Vier Dosen gibt's bei jeder Bestellung umsonst
-http://ajdazq.ideahope.cn/?262431167961
+Nur fur kurze Zeit - vier Pillen umsonst erhalten
+http://afrbchi.houreither.cn/?178886073370
 
 (bitte warten Sie einen Moment bis die Seite vollstandig geladen wird)
-------------DA1B2C01B2C0146E
-Content-Type: text/html; charset=Windows-1252
-Content-Transfer-Encoding: 7bit
 
-<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
-<HTML><HEAD><TITLE></TITLE>
-</HEAD>
-<BODY>
+------=_NextPart_000_0006_01C7DA7C.AEE0DAC0
+Content-Type: text/html;
+	charset="iso-8859-2"
+Content-Transfer-Encoding: quoted-printable
 
-<head><meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
-</head><body><p>Meinung von unserem Kunden:<br><strong>Ich habe drei Jahre lang keine befriedigende Er_rektio_n hinbekommen. Das hat mich fertig gemacht. Viiaaaagra haben meine Frau, sie ist 54, und ich in zwei Jahren nicht einmal auf befriedigen Sex verzichten m&#252;ssen. Und die Liebe ist genauso intensiv wie vor einem halben Jahrhundert! Jetzt machen wir es wieder drei- bis f&#252;nfmal pro Woche. Ich bin 75 Jahre alt und dankbar, dass ich Viiaaaagra kennengelernt habe.</strong></p><p><strong>Warum nehme ich Ciiaaaaaalis? Es ist einfach ein angenehmens Gef&#252;hl. Man brauch sich nicht auf die Err. ..ektion zu konzentrieren. Beim Sex ist man viel entspannter, mann kann auch mal die Muskeln im Genitalbereich lockern, ohne das die Err. ..ektion im Glied nachlasst. Dadurch ist eine lange Verz&#246;gerung der Ejakulation m&#246;glich. Man ist beim Sex generell lockerer und entspannter, und kommt auch nicht mehr so schnell ausser Athem, weil man eben locker und entspannt ist, ausser nat&#252;rlich der kleine Freund :-)<br>
-</strong><strong><br>Verpassen Sie nichts am Lebem - Sie werden fuhlen was unsere Kunden bestatigen!</strong></p><p>Preise die keine Konkurrenz kennen <p>
-- Kostenlose, arztliche Telefon-Beratung<br>- Kein langes Warten - Auslieferung innerhalb von 2-3 Tagen<br>- Bequem und diskret online bestellen.<br>- Visa verifizierter Onlineshop<br>- keine versteckte Kosten<br>- Diskrete Verpackung und Zahlung<br>- Kein peinlicher Arztbesuch erforderlich</p>
-<p>Originalmedikamente<br><strong>Ciiaaaaaalis 10 Pack. 27,00 Euro</strong><br>
-  <strong>Viiaaaagra 10 Pack. 21,00 Euro</strong><br><br><strong><a href="http://ajdazq.ideahope.cn/?262431167961" target="_blank">Vier Dosen gibt's bei jeder Bestellung umsonst</a><br></strong>(bitte warten Sie einen Moment bis die Seite vollst&auml;ndig geladen wird) </p></body>
+<html xmlns:v=3D"urn:schemas-microsoft-com:vml" xmlns:o=3D"urn:schemas-micr=
+osoft-com:office:office" xmlns:w=3D"urn:schemas-microsoft-com:office:word" =
+xmlns=3D"http://www.w3.org/TR/REC-html40">
 
-</BODY></HTML>
-------------DA1B2C01B2C0146E--
+<head>
+<META HTTP-EQUIV=3D"Content-Type" CONTENT=3D"text/html; charset=3Diso-8859-2">
+
+
+<meta name=3DProgId content=3DWord.Document>
+<meta name=3DGenerator content=3D"Microsoft Word 10">
+<meta name=3DOriginator content=3D"Microsoft Word 10">
+<link rel=3DFile-List href=3D"cid:filelist.xml@F4D31F46.EEE731F4">
+<link rel=3DEdit-Time-Data href=3D"cid:editdata.mso@F4D31F46.EEE731F4">
+</head>
+<body>
+<head><meta http-equiv=3D"Content-Type" content=3D"text/html; charset=3Diso=
+-8859-1">
+</head><body><p>Meinung von unserem Kunden:<br><strong>Viiaaaagra wirkt Wun=
+der! Sie ahnen nicht, wie gl&#252;cklich ich bin. Viiaaaagra hat mein Leben=
+ ver&#228;ndert. Endlich keine Angst mehr wegen der E_r_rektion. Und auch d=
+as Problem mit dem vorzeitigen Samenerguss ist weg.</strong></p><p><strong>=
+Ich bin 28 Jahre alt und habe keine Err. ..ektionsprobleme. Ich wollte Viia=
+aaagra einfach nur so probieren. Es funktioniert, aber die Durchblutung ist=
+ st&#228;rker als sonst und es f&#252;hlt sich an, als w&#252;rde ich mit e=
+inem Dildo v&#246;geln und nicht mit meinem Schwanz. Ich hatte ziemliche Pr=
+obleme, wieder runterzukommen. Aber ich w&#252;rde es wohl wieder tun ...<b=
+r>
+</strong><strong><br>Versuchen Sie unser Produkt und Sie werden fuhlen was =
+unsere Kunden bestatigen</strong></p><p>Preise die keine Konkurrenz kennen =
+<p>
+- Bequem und diskret online bestellen.<br>- Diskrete Verpackung und Zahlung=
+<br>- Kein peinlicher Arztbesuch erforderlich<br>- Kostenlose, arztliche Te=
+lefon-Beratung<br>- Kein langes Warten - Auslieferung innerhalb von 2-3 Tag=
+en<br>- Visa verifizierter Onlineshop<br>- keine versteckte Kosten</p>
+<p>Originalmedikamente<br><strong>Ciiaaaaaalis 10 Pack. 27,00 Euro</strong>=
+<br>
+  <strong>Viiaaaagra 10 Pack. 21,00 Euro</strong><br><br><strong><a href=3D=
+"http://afrbchi.houreither.cn/?178886073370" target=3D"_blank">Nur fur kurz=
+e Zeit - vier Pillen umsonst erhalten</a><br></strong>(bitte warten Sie ein=
+en Moment bis die Seite vollst&auml;ndig geladen wird) </p></body>
+</body>
+</html>
+
+------=_NextPart_000_0006_01C7DA7C.AEE0DAC0--
