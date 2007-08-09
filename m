@@ -1,35 +1,66 @@
-Date: Thu, 9 Aug 2007 14:40:22 -0700 (PDT)
-From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [PATCH 0/3] Use one zonelist per node instead of multiple
- zonelists v2
-In-Reply-To: <200708092320.01669.ak@suse.de>
-Message-ID: <Pine.LNX.4.64.0708091437580.32324@schroedinger.engr.sgi.com>
-References: <20070808161504.32320.79576.sendpatchset@skynet.skynet.ie>
- <20070809131943.64cb0921.akpm@linux-foundation.org> <200708092320.01669.ak@suse.de>
+Date: Fri, 10 Aug 2007 00:33:01 +0100
+Subject: Re: [PATCH 3/4] Embed zone_id information within the zonelist->zones pointer
+Message-ID: <20070809233300.GA31644@skynet.ie>
+References: <20070809210616.14702.73376.sendpatchset@skynet.skynet.ie> <20070809210716.14702.43074.sendpatchset@skynet.skynet.ie> <Pine.LNX.4.64.0708091431560.32324@schroedinger.engr.sgi.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <Pine.LNX.4.64.0708091431560.32324@schroedinger.engr.sgi.com>
+From: mel@skynet.ie (Mel Gorman)
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andi Kleen <ak@suse.de>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, Lee.Schermerhorn@hp.com, pj@sgi.com, kamezawa.hiroyu@jp.fujitsu.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Christoph Lameter <clameter@sgi.com>
+Cc: Lee.Schermerhorn@hp.com, ak@suse.de, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 9 Aug 2007, Andi Kleen wrote:
-
-> > I think I'll duck this for now on im-trying-to-vaguely-stabilize-mm grounds.
-> > Let's go with the horrible-hack for 2.6.23, then revert it and get this
-> > new approach merged and stabilised over the next week or two?
+On (09/08/07 14:37), Christoph Lameter didst pronounce:
+> On Thu, 9 Aug 2007, Mel Gorman wrote:
 > 
-> I would prefer to not have horrible hacks even temporary
+> >  }
+> >  
+> > +#if defined(CONFIG_SMP) && INTERNODE_CACHE_SHIFT > ZONES_SHIFT
+> 
+> Is this necessary? ZONES_SHIFT is always <= 2 so it will work with 
+> any pointer. Why disable this for UP?
+> 
 
-The changes that we are considering for 2.6.24 will result in a single 
-zonelist per zone that will filter the zoneslist in alloc_pages. This lead 
-to a performance improvement in the page allocator.
+Caution in case the number of zones increases. There was no guarantee of
+zone alignment. It's the same reason I have a BUG_ON in the encode
+function so that if we don't catch problems at compile-time, it'll go
+BANG in a nice predictable fashion.
 
-What you call a hack is doing the same for the special policy zonelist in 
-2.6.23 in order to be able to apply policies to the two highest zones. We 
-apply a limited portion of the changes for 2.6.24 to .23 to fix the 
-ZONE_MOVABLE issue.
+> > --- linux-2.6.23-rc1-mm2-010_use_zonelist/mm/vmstat.c	2007-08-07 14:45:11.000000000 +0100
+> > +++ linux-2.6.23-rc1-mm2-015_zoneid_zonelist/mm/vmstat.c	2007-08-09 15:52:12.000000000 +0100
+> > @@ -365,11 +365,11 @@ void refresh_cpu_vm_stats(int cpu)
+> >   */
+> >  void zone_statistics(struct zonelist *zonelist, struct zone *z)
+> >  {
+> > -	if (z->zone_pgdat == zonelist->zones[0]->zone_pgdat) {
+> > +	if (z->zone_pgdat == zonelist_zone(zonelist->_zones[0])->zone_pgdat) {
+> >  		__inc_zone_state(z, NUMA_HIT);
+> >  	} else {
+> >  		__inc_zone_state(z, NUMA_MISS);
+> > -		__inc_zone_state(zonelist->zones[0], NUMA_FOREIGN);
+> > +		__inc_zone_state(zonelist_zone(zonelist->_zones[0]), NUMA_FOREIGN);
+> >  	}
+> >  	if (z->node == numa_node_id())
+> >  		__inc_zone_state(z, NUMA_LOCAL);
+> 
+> Hmmmm. I hope the compiler does subexpression optimization on 
+> 
+> 	zonelist_zone(zonelist->_zones[0]) 
+> 
+
+I'll check
+
+> Acked-by: Christoph Lameter <clameter@sgi.com>
+> 
+
+-- 
+-- 
+Mel Gorman
+Part-time Phd Student                          Linux Technology Center
+University of Limerick                         IBM Dublin Software Lab
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
