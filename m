@@ -1,57 +1,50 @@
-Date: Thu, 9 Aug 2007 19:01:41 -0700 (PDT)
-From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [PATCH 04/10] mm: slub: add knowledge of reserve pages
-In-Reply-To: <4a5909270708091854n7c84ae9aj84170092a5eb61db@mail.gmail.com>
-Message-ID: <Pine.LNX.4.64.0708091857230.3368@schroedinger.engr.sgi.com>
-References: <20070806102922.907530000@chello.nl>  <20070806103658.603735000@chello.nl>
-  <Pine.LNX.4.64.0708071702560.4941@schroedinger.engr.sgi.com>
- <20070808014435.GG30556@waste.org>  <Pine.LNX.4.64.0708081004290.12652@schroedinger.engr.sgi.com>
-  <Pine.LNX.4.64.0708081050590.12652@schroedinger.engr.sgi.com>
- <20070808114636.7c6f26ab.akpm@linux-foundation.org>
- <4a5909270708091854n7c84ae9aj84170092a5eb61db@mail.gmail.com>
+Received: by wa-out-1112.google.com with SMTP id m33so771949wag
+        for <linux-mm@kvack.org>; Thu, 09 Aug 2007 20:34:20 -0700 (PDT)
+Message-ID: <4a5909270708092034yaa0a583w70084ef93266df48@mail.gmail.com>
+Date: Thu, 9 Aug 2007 23:34:20 -0400
+From: "Daniel Phillips" <daniel.raymond.phillips@gmail.com>
+Subject: Re: [PATCH 02/10] mm: system wide ALLOC_NO_WATERMARK
+In-Reply-To: <Pine.LNX.4.64.0708091844450.3185@schroedinger.engr.sgi.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+References: <20070806102922.907530000@chello.nl>
+	 <Pine.LNX.4.64.0708061605400.5090@schroedinger.engr.sgi.com>
+	 <200708061649.56487.phillips@phunq.net>
+	 <Pine.LNX.4.64.0708071513290.3683@schroedinger.engr.sgi.com>
+	 <4a5909270708080037n32be2a73k5c28d33bb02f770b@mail.gmail.com>
+	 <Pine.LNX.4.64.0708081106230.12652@schroedinger.engr.sgi.com>
+	 <4a5909270708091141tb259eddyb2bba1270751ef1@mail.gmail.com>
+	 <Pine.LNX.4.64.0708091146410.25220@schroedinger.engr.sgi.com>
+	 <4a5909270708091717n2f93fcb5i284d82edfd235145@mail.gmail.com>
+	 <Pine.LNX.4.64.0708091844450.3185@schroedinger.engr.sgi.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Daniel Phillips <daniel.raymond.phillips@gmail.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Matt Mackall <mpm@selenic.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, David Miller <davem@davemloft.net>, Pekka Enberg <penberg@cs.helsinki.fi>
+To: Christoph Lameter <clameter@sgi.com>
+Cc: Daniel Phillips <phillips@phunq.net>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Matt Mackall <mpm@selenic.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, David Miller <davem@davemloft.net>, Andrew Morton <akpm@linux-foundation.org>, Daniel Phillips <phillips@google.com>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 9 Aug 2007, Daniel Phillips wrote:
+On 8/9/07, Christoph Lameter <clameter@sgi.com> wrote:
+> The allocations problems that this patch addresses can be fixed by making reclaim
+> more intelligent.
 
-> No matter how you look at this problem, you still need to have _some_
-> sort of reserve, and limit access to it.  We extend existing methods,
+If you believe that the deadlock problems we address here can be
+better fixed by making reclaim more intelligent then please post a
+patch and we will test it.  I am highly skeptical, but the proof is in
+the patch.
 
-The reserve is in the memory in the zone and reclaim can guarantee that 
-there are a sufficient number of easily reclaimable pages in it.
+> If we can reclaim in an emergency even in ATOMIC contexts then things get much
+> easier.
 
-> you are proposing to what seems like an entirely new reserve
+It is already easy, and it is already fixed in this patch series.
+Sure, we can pare these patches down a little more, but you are going
+to have a really hard time coming up with something simpler that
+actually works.
 
-The reserve always has been managed by per zone counters. Nothing new 
-there.
+Regards,
 
-> management system.  Great idea, maybe, but it does not solve the
-> deadlocks.  You still need some organized way of being sure that your
-> reserve is as big as you need (hopefully not an awful lot bigger) and
-> you still have to make sure that nobody dips into that reserve further
-> than they are allowed to.
-
-Nope there is no need to have additional reserves. You delay the writeout 
-until you are finished with reclaim. Then you do the writeout. During 
-writeout reclaim may be called as needed. After the writeout is complete 
-then you recheck the vm counters again to be sure that dirty ratio / 
-easily reclaimable ratio and mem low / high boundaries are still okay. If not go 
-back to reclaim.
-
-> So translation: reclaim from "easily freeable" lists is an
-> optimization, maybe a great one.  Probably great.  Reclaim from atomic
-> context is also a great idea, probably. But you are talking about a
-> whole nuther patch set.  Neither of those are in themselves a fix for
-> these deadlocks.
-
-Yes they are a much better fix and may allow code cleanup by getting rid 
-of checks for PF_MEMALLOC. They integrate in a straightforward way 
-into the existing reclaim methods.
+Daniel
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
