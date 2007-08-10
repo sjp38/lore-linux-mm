@@ -1,69 +1,53 @@
 From: Andy Whitcroft <apw@shadowen.org>
-Subject: [PATCH 4/5] vmemmap sparc64: convert to new config options
+Subject: [PATCH 5/5] vmemmap ia64: convert to new helper based initialisation
 References: <exportbomb.1186756801@pinky>
-Message-Id: <E1IJVg2-000553-Rf@localhost.localdomain>
-Date: Fri, 10 Aug 2007 15:41:22 +0100
+Message-Id: <E1IJVgN-0005Am-4m@localhost.localdomain>
+Date: Fri, 10 Aug 2007 15:41:43 +0100
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>, Christoph Hellwig <hch@infradead.org>
 Cc: linux-mm@kvack.org, linux-arch@vger.kernel.org, Nick Piggin <npiggin@suse.de>, Christoph Lameter <clameter@sgi.com>, Mel Gorman <mel@csn.ul.ie>, Andy Whitcroft <apw@shadowen.org>
 List-ID: <linux-mm.kvack.org>
 
-Convert over to the new Kconfig options.
+Convert over to the new helper initialialisation and Kconfig options.
 
 Signed-off-by: Andy Whitcroft <apw@shadowen.org>
 ---
- arch/sparc64/Kconfig   |    9 +--------
- arch/sparc64/mm/init.c |    4 ++--
- 2 files changed, 3 insertions(+), 10 deletions(-)
-diff --git a/arch/sparc64/Kconfig b/arch/sparc64/Kconfig
-index 9953b4e..59c4d75 100644
---- a/arch/sparc64/Kconfig
-+++ b/arch/sparc64/Kconfig
-@@ -240,20 +240,13 @@ config ARCH_SELECT_MEMORY_MODEL
- 
+ arch/ia64/Kconfig        |    5 +----
+ arch/ia64/mm/discontig.c |    8 ++++++++
+ 2 files changed, 9 insertions(+), 4 deletions(-)
+diff --git a/arch/ia64/Kconfig b/arch/ia64/Kconfig
+index 92d2c2d..66fafbd 100644
+--- a/arch/ia64/Kconfig
++++ b/arch/ia64/Kconfig
+@@ -363,10 +363,7 @@ config ARCH_FLATMEM_ENABLE
  config ARCH_SPARSEMEM_ENABLE
  	def_bool y
-+	select SPARSEMEM_VMEMMAP_ENABLE
- 
- config ARCH_SPARSEMEM_DEFAULT
- 	def_bool y
- 
- source "mm/Kconfig"
- 
+ 	depends on ARCH_DISCONTIGMEM_ENABLE
+-
 -config SPARSEMEM_VMEMMAP
 -	def_bool y
 -	depends on SPARSEMEM
--
--config ARCH_POPULATES_SPARSEMEM_VMEMMAP
--	def_bool y
--	depends on SPARSEMEM_VMEMMAP
--
- config ISA
- 	bool
- 	help
-diff --git a/arch/sparc64/mm/init.c b/arch/sparc64/mm/init.c
-index 19cac53..4e1df9a 100644
---- a/arch/sparc64/mm/init.c
-+++ b/arch/sparc64/mm/init.c
-@@ -1655,7 +1655,7 @@ EXPORT_SYMBOL(_PAGE_E);
- unsigned long _PAGE_CACHE __read_mostly;
- EXPORT_SYMBOL(_PAGE_CACHE);
++	select SPARSEMEM_VMEMMAP_ENABLE
  
--#ifdef CONFIG_ARCH_POPULATES_SPARSEMEM_VMEMMAP
-+#ifdef CONFIG_SPARSEMEM_VMEMMAP
- 
- #define VMEMMAP_CHUNK_SHIFT	22
- #define VMEMMAP_CHUNK		(1UL << VMEMMAP_CHUNK_SHIFT)
-@@ -1705,7 +1705,7 @@ int __meminit vmemmap_populate(struct page *start, unsigned long nr, int node)
- 	}
- 	return 0;
+ config ARCH_DISCONTIGMEM_DEFAULT
+ 	def_bool y if (IA64_SGI_SN2 || IA64_GENERIC || IA64_HP_ZX1 || IA64_HP_ZX1_SWIOTLB)
+diff --git a/arch/ia64/mm/discontig.c b/arch/ia64/mm/discontig.c
+index 8a5c1c9..05b374c 100644
+--- a/arch/ia64/mm/discontig.c
++++ b/arch/ia64/mm/discontig.c
+@@ -715,3 +715,11 @@ void arch_refresh_nodedata(int update_node, pg_data_t *update_pgdat)
+ 	scatter_node_data();
  }
--#endif /* CONFIG_ARCH_POPULATES_SPARSEMEM_VMEMMAP */
-+#endif /* CONFIG_SPARSEMEM_VMEMMAP */
- 
- static void prot_init_common(unsigned long page_none,
- 			     unsigned long page_shared,
+ #endif
++
++#ifdef CONFIG_SPARSEMEM_VMEMMAP
++int __meminit vmemmap_populate(struct page *start_page,
++						unsigned long size, int node)
++{
++	return vmemmap_populate_basepages(start_page, size, node);
++}
++#endif
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
