@@ -1,83 +1,60 @@
-Message-ID: <01c7db9a$f246ef10$343f6e55@udyaxjlqdf>
-From: "Weston Devine" <udyaxjlqdf@borlandracing.com>
-Subject: Energy fur ihren Schwanz, kaufen und 85% sparen   July 2005). They have since  -- better at solving software 
-Date: Fri, 10 Aug 2007 22:08:13 -0200
+Received: by wa-out-1112.google.com with SMTP id m33so1056646wag
+        for <linux-mm@kvack.org>; Fri, 10 Aug 2007 16:25:35 -0700 (PDT)
+Message-ID: <4a5909270708101625q407a240ck6109ef536fdbed4a@mail.gmail.com>
+Date: Fri, 10 Aug 2007 19:25:34 -0400
+From: "Daniel Phillips" <daniel.raymond.phillips@gmail.com>
+Subject: Re: [PATCH 02/10] mm: system wide ALLOC_NO_WATERMARK
+In-Reply-To: <Pine.LNX.4.64.0708101041040.12758@schroedinger.engr.sgi.com>
 MIME-Version: 1.0
-Content-Type: multipart/alternative;
-	boundary="----=_NextPart_000_0007_01C7DBB4.17942710"
-Return-Path: <udyaxjlqdf@borlandracing.com>
-To: owner-linux-mm@kvack.org
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+References: <20070806102922.907530000@chello.nl>
+	 <Pine.LNX.4.64.0708081106230.12652@schroedinger.engr.sgi.com>
+	 <4a5909270708091141tb259eddyb2bba1270751ef1@mail.gmail.com>
+	 <Pine.LNX.4.64.0708091146410.25220@schroedinger.engr.sgi.com>
+	 <4a5909270708091717n2f93fcb5i284d82edfd235145@mail.gmail.com>
+	 <Pine.LNX.4.64.0708091844450.3185@schroedinger.engr.sgi.com>
+	 <4a5909270708092034yaa0a583w70084ef93266df48@mail.gmail.com>
+	 <Pine.LNX.4.64.0708092045120.27164@schroedinger.engr.sgi.com>
+	 <4a5909270708100115v4ad10c4es697d216edf29b07d@mail.gmail.com>
+	 <Pine.LNX.4.64.0708101041040.12758@schroedinger.engr.sgi.com>
+Sender: owner-linux-mm@kvack.org
+Return-Path: <owner-linux-mm@kvack.org>
+To: Christoph Lameter <clameter@sgi.com>
+Cc: Daniel Phillips <phillips@phunq.net>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Matt Mackall <mpm@selenic.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, David Miller <davem@davemloft.net>, Andrew Morton <akpm@linux-foundation.org>, Daniel Phillips <phillips@google.com>
 List-ID: <linux-mm.kvack.org>
 
-This is a multi-part message in MIME format.
+On 8/10/07, Christoph Lameter <clameter@sgi.com> wrote:
+> The idea of adding code to deal with "I have no memory" situations
+> in a kernel that based on have as much memory as possible in use at all
+> times is plainly the wrong approach.
 
-------=_NextPart_000_0007_01C7DBB4.17942710
-Content-Type: text/plain;
-	charset="iso-8859-1"
-Content-Transfer-Encoding: quoted-printable
+No.  It is you who have read the patches wrongly, because what you
+imply here is exactly backwards.
 
-Haben Sie endlich wieder Spass am Leben!
+> If you need memory then memory needs
+> to be reclaimed. That is the basic way that things work
 
-Preise die keine Konkurrenz kennen 
+Wrong.  A naive reading of your comment would suggest you do not
+understand how PF_MEMALLOC works, and that it has worked that way from
+day one (well, since long before I arrived) and that we just do more
+of the same, except better.
 
-- keine versteckte Kosten
-- Kein peinlicher Arztbesuch erforderlich
-- Kostenlose, arztliche Telefon-Beratung
-- Kein langes Warten - Auslieferung innerhalb von 2-3 Tagen
-- Diskrete Verpackung und Zahlung
-- Bequem und diskret online bestellen.
-- Visa verifizierter Onlineshop
+> and following that
+> through brings about a much less invasive solution without all the issues
+> that the proposed solution creates.
 
-Originalmedikamente
-Ciiaaaaaalis 10 Pack. 27,00 Euro
-Viiaaaagra 10 Pack. 21,00 Euro
+What issues?  Test case please, a real one that you have run yourself.
+ Please, no more theoretical issues that cannot be demonstrated in
+practice because they do not exist.
 
-Nur fur kurze Zeit - vier Pillen umsonst erhalten
-http://mbifip.hardagree.com/?622495389079
+Regards,
 
-(bitte warten Sie einen Moment bis die Seite vollstandig geladen ist)
-------=_NextPart_000_0007_01C7DBB4.17942710
-Content-Type: text/html;
-	charset="iso-8859-1"
-Content-Transfer-Encoding: quoted-printable
+Daniel
 
-<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
-<HTML><HEAD>
-<META http-equiv=3DContent-Type content=3D"text/html; charset=3Diso-8859-1">
-<META content=3D"MSHTML 5.00.2919.6700" name=3DGENERATOR>
-<STYLE></STYLE>
-</HEAD>
-<BODY>
-<head><meta http-equiv=3D"Content-Type" content=3D"text/html; charset=3Diso=
--8859-1">
-</head><body><p>Meinung von unserem Kunden:<br><strong>Ich habe drei Jahre =
-lang keine befriedigende Er_rektio_n hinbekommen. Das hat mich fertig gemac=
-ht. Viiaaaagra haben meine Frau, sie ist 54, und ich in zwei Jahren nicht e=
-inmal auf befriedigen Sex verzichten m&#252;ssen. Und die Liebe ist genauso=
- intensiv wie vor einem halben Jahrhundert! Jetzt machen wir es wieder drei=
-- bis f&#252;nfmal pro Woche. Ich bin 75 Jahre alt und dankbar, dass ich Vi=
-iaaaagra kennengelernt habe.</strong></p><p><strong>Fantastische Wirkung! F=
-&#252;nf Jahre lang hatte ich es nicht mehr geschafft, meine Err. ..ektion =
-w&#228;hrend des Verkehrs zu halten und war richtig &#228;ngstlich geworden=
- Ich hatte auch ein Problem mit vorzeitigem Samenerguss. Au&#223;erdem bin=
- ich Zuckerkrank. Vor einiger Zeit habe ich eine 50-mg-Dosis Viiaaaagra gen=
-ommen und zwei Stunden sp&#228;ter mit einer 22-j&#228;hrigen geschlafen. K=
-urz vor dem Vorspiel wurde mein Penis hart und ich konnte es kaum glauben. =
-Ich habe in dieser Nacht dreimal Sex gehabt und es gab keine Probleme dabei=
- Kein Schuss ging daneben. Ich bin ein gl&#252;cklicher Mann. Achmet, 52<b=
-r>
-</strong><strong><br>Haben Sie endlich wieder Spass am Leben!</strong></p><=
-p>Preise die keine Konkurrenz kennen <p>
-- Diskrete Verpackung und Zahlung<br>- Visa verifizierter Onlineshop<br>- K=
-ein peinlicher Arztbesuch erforderlich<br>- Kostenlose, arztliche Telefon-B=
-eratung<br>- Kein langes Warten - Auslieferung innerhalb von 2-3 Tagen<br>-=
- Bequem und diskret online bestellen.<br>- keine versteckte Kosten</p>
-<p>Originalmedikamente<br><strong>Ciiaaaaaalis 10 Pack. 27,00 Euro</strong>=
-<br>
-  <strong>Viiaaaagra 10 Pack. 21,00 Euro</strong><br><br><strong><a href=3D=
-"http://mbifip.hardagree.com/?622495389079" target=3D"_blank">Nur fur kurze=
- Zeit - vier Pillen umsonst erhalten</a><br></strong>(bitte warten Sie eine=
-n Moment bis die Seite vollst&auml;ndig geladen ist) </p></body>
-</BODY></HTML>
-
-------=_NextPart_000_0007_01C7DBB4.17942710--
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
