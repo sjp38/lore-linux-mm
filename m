@@ -1,47 +1,47 @@
-Date: Fri, 10 Aug 2007 11:47:49 +0100
-Subject: Re: [PATCH 3/4] Embed zone_id information within the zonelist->zones pointer
-Message-ID: <20070810104749.GA14300@skynet.ie>
-References: <20070809210616.14702.73376.sendpatchset@skynet.skynet.ie> <20070809210716.14702.43074.sendpatchset@skynet.skynet.ie> <Pine.LNX.4.64.0708091431560.32324@schroedinger.engr.sgi.com> <20070809233300.GA31644@skynet.ie> <Pine.LNX.4.64.0708091843230.3185@schroedinger.engr.sgi.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <Pine.LNX.4.64.0708091843230.3185@schroedinger.engr.sgi.com>
-From: mel@skynet.ie (Mel Gorman)
+From: Andy Whitcroft <apw@shadowen.org>
+Subject: [PATCH 0/5] vmemmap updates to V7
+Message-ID: <exportbomb.1186756801@pinky>
+Date: Fri, 10 Aug 2007 15:40:01 +0100
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
-Cc: Lee.Schermerhorn@hp.com, ak@suse.de, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Andrew Morton <akpm@linux-foundation.org>, Christoph Hellwig <hch@infradead.org>
+Cc: linux-mm@kvack.org, linux-arch@vger.kernel.org, Nick Piggin <npiggin@suse.de>, Christoph Lameter <clameter@sgi.com>, Mel Gorman <mel@csn.ul.ie>, Andy Whitcroft <apw@shadowen.org>
 List-ID: <linux-mm.kvack.org>
 
-On (09/08/07 18:44), Christoph Lameter didst pronounce:
-> 
-> On Fri, 10 Aug 2007, Mel Gorman wrote:
-> 
-> > > > +#if defined(CONFIG_SMP) && INTERNODE_CACHE_SHIFT > ZONES_SHIFT
-> > > 
-> > > Is this necessary? ZONES_SHIFT is always <= 2 so it will work with 
-> > > any pointer. Why disable this for UP?
-> > > 
-> > 
-> > Caution in case the number of zones increases. There was no guarantee of
-> > zone alignment. It's the same reason I have a BUG_ON in the encode
-> > function so that if we don't catch problems at compile-time, it'll go
-> > BANG in a nice predictable fashion.
-> 
-> Caution would lead to a BUG_ON but why the #if? Why exclude UP?
+Following this email are a five patches which represent the second
+batch of feedback on version V5.  These represent a significant
+simplification in the configuration options.  There is still the
+issue of the contents of memory_model.h to deal with, will look at
+that next.
 
-On x86_64 would have ZONE_DMA, ZONE_DMA32, ZONE_NORMAL, ZONE_HIGHMEM and
-ZONE_MOVABLE. On SMP, that's more than two bits worth and would fail t
-runtime. Well, it should at least I didn't actually try it out.
+The thrust of this set of changes is to standardise the architecture
+interface to vmemmap at the vmemmap_populate() function.  All
+architectures implementing this sparsemem variant must implement
+this function.  As part of this sparsemem offers several vmemmap
+related helper functions to help initialise PUD, PGD, PMD and
+PTE pages.  It also offers a standard basepage initialiser.
 
-However, I accept that the SMP check is less than than ideal. I considered
-comparing it against MAX_NR_ZONES but as it's an enum, it can't be checked
-at compile time. What else would make a better check?
+vmemmap-generify-initialisation-via-helpers
+  conversion of the main infrastructure over to a helper based
+  system.  General helpers for initialising pte pages are supplied,
+  plus a general helper for architectures using base pages.
 
--- 
-Mel Gorman
-Part-time Phd Student                          Linux Technology Center
-University of Limerick                         IBM Dublin Software Lab
+vmemmap-x86_64-convert-to-new-helper-based-initialisation
+vmemmap-ppc64-convert-to-new-config-options
+vmemmap-sparc64-convert-to-new-config-options
+vmemmap-ia64-convert-to-new-helper-based-initialisation
+  conversion of each of the supported architectures to the new helper
+  system.  These remain broken out in the expectation that they would
+  merge with the main architecture implementations in -mm.
+
+All against 2.6.23-rc2-mm2, in addition to the patches already there.
+Again, they are split by architecture as I am assuming they will
+slot into the current vmemmap stack before merging up.  They are
+not bisectable otherwise.
+
+Andrew please consider for -mm.
+
+-apw
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
