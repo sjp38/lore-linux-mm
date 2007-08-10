@@ -1,73 +1,47 @@
-Received: by rv-out-0910.google.com with SMTP id f1so507105rvb
-        for <linux-mm@kvack.org>; Fri, 10 Aug 2007 01:15:56 -0700 (PDT)
-Message-ID: <4a5909270708100115v4ad10c4es697d216edf29b07d@mail.gmail.com>
-Date: Fri, 10 Aug 2007 04:15:56 -0400
-From: "Daniel Phillips" <daniel.raymond.phillips@gmail.com>
-Subject: Re: [PATCH 02/10] mm: system wide ALLOC_NO_WATERMARK
-In-Reply-To: <Pine.LNX.4.64.0708092045120.27164@schroedinger.engr.sgi.com>
+Date: Fri, 10 Aug 2007 11:47:49 +0100
+Subject: Re: [PATCH 3/4] Embed zone_id information within the zonelist->zones pointer
+Message-ID: <20070810104749.GA14300@skynet.ie>
+References: <20070809210616.14702.73376.sendpatchset@skynet.skynet.ie> <20070809210716.14702.43074.sendpatchset@skynet.skynet.ie> <Pine.LNX.4.64.0708091431560.32324@schroedinger.engr.sgi.com> <20070809233300.GA31644@skynet.ie> <Pine.LNX.4.64.0708091843230.3185@schroedinger.engr.sgi.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-References: <20070806102922.907530000@chello.nl>
-	 <Pine.LNX.4.64.0708071513290.3683@schroedinger.engr.sgi.com>
-	 <4a5909270708080037n32be2a73k5c28d33bb02f770b@mail.gmail.com>
-	 <Pine.LNX.4.64.0708081106230.12652@schroedinger.engr.sgi.com>
-	 <4a5909270708091141tb259eddyb2bba1270751ef1@mail.gmail.com>
-	 <Pine.LNX.4.64.0708091146410.25220@schroedinger.engr.sgi.com>
-	 <4a5909270708091717n2f93fcb5i284d82edfd235145@mail.gmail.com>
-	 <Pine.LNX.4.64.0708091844450.3185@schroedinger.engr.sgi.com>
-	 <4a5909270708092034yaa0a583w70084ef93266df48@mail.gmail.com>
-	 <Pine.LNX.4.64.0708092045120.27164@schroedinger.engr.sgi.com>
+In-Reply-To: <Pine.LNX.4.64.0708091843230.3185@schroedinger.engr.sgi.com>
+From: mel@skynet.ie (Mel Gorman)
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Christoph Lameter <clameter@sgi.com>
-Cc: Daniel Phillips <phillips@phunq.net>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Matt Mackall <mpm@selenic.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, David Miller <davem@davemloft.net>, Andrew Morton <akpm@linux-foundation.org>, Daniel Phillips <phillips@google.com>
+Cc: Lee.Schermerhorn@hp.com, ak@suse.de, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 8/9/07, Christoph Lameter <clameter@sgi.com> wrote:
-> > If you believe that the deadlock problems we address here can be
-> > better fixed by making reclaim more intelligent then please post a
-> > patch and we will test it.  I am highly skeptical, but the proof is in
-> > the patch.
->
-> Then please test the patch that I posted here earlier to reclaim even if
-> PF_MEMALLOC is set. It may require some fixups but it should address your
-> issues in most vm load situations.
+On (09/08/07 18:44), Christoph Lameter didst pronounce:
+> 
+> On Fri, 10 Aug 2007, Mel Gorman wrote:
+> 
+> > > > +#if defined(CONFIG_SMP) && INTERNODE_CACHE_SHIFT > ZONES_SHIFT
+> > > 
+> > > Is this necessary? ZONES_SHIFT is always <= 2 so it will work with 
+> > > any pointer. Why disable this for UP?
+> > > 
+> > 
+> > Caution in case the number of zones increases. There was no guarantee of
+> > zone alignment. It's the same reason I have a BUG_ON in the encode
+> > function so that if we don't catch problems at compile-time, it'll go
+> > BANG in a nice predictable fashion.
+> 
+> Caution would lead to a BUG_ON but why the #if? Why exclude UP?
 
-It is quite clear what is in your patch.  Instead of just grabbing a
-page off the buddy free lists in a critical allocation situation you
-go invoke shrink_caches.  Why oh why?  All the memory needed to get
-through these crunches is already sitting right there on the buddy
-free lists, ready to be used, why would you go off scanning instead?
-And this does not work in atomic contexts at all, that is a whole
-thing you would have to develop, and why?  You just offered us
-functionality that we already have, except your idea has issues.
+On x86_64 would have ZONE_DMA, ZONE_DMA32, ZONE_NORMAL, ZONE_HIGHMEM and
+ZONE_MOVABLE. On SMP, that's more than two bits worth and would fail t
+runtime. Well, it should at least I didn't actually try it out.
 
-You do not do anything to prevent mixing of ordinary slab allocations
-of unknown duration with critical allocations of controlled duration.
- This  is _very important_ for sk_alloc.  How are you going to take
-care of that?
+However, I accept that the SMP check is less than than ideal. I considered
+comparing it against MAX_NR_ZONES but as it's an enum, it can't be checked
+at compile time. What else would make a better check?
 
-In short, you provide a piece we don't need because we already have it
-in a more efficient form, your approach does not work in atomic
-context, and you need to solve the slab object problem.  You also need
-integration with sk_alloc.   That is just what I noticed on a
-once-over-lightly.  Your patch has a _long_ way to go before it is
-ready to try.
-
-We have already presented a patch set that is tested and is known to
-solve the deadlocks.  This patch set has been more than two years in
-development.  It covers problems you have not even begun to think
-about, which we have been aware of for years.  Your idea is not
-anywhere close to working.  Why don't you just work with us instead?
-There are certainly improvements that can be made to the posted patch
-set.  Running off and learning from scratch how to do this is not
-really helpful.
-
-Regards,
-
-Daniel
+-- 
+Mel Gorman
+Part-time Phd Student                          Linux Technology Center
+University of Limerick                         IBM Dublin Software Lab
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
