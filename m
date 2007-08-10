@@ -1,101 +1,115 @@
-Received: from d23relay03.au.ibm.com (d23relay03.au.ibm.com [202.81.18.234])
-	by ausmtp04.au.ibm.com (8.13.8/8.13.8) with ESMTP id l7A6pZRP334374
-	for <linux-mm@kvack.org>; Fri, 10 Aug 2007 16:51:36 +1000
-Received: from d23av03.au.ibm.com (d23av03.au.ibm.com [9.190.250.244])
-	by d23relay03.au.ibm.com (8.13.8/8.13.8/NCO v8.5) with ESMTP id l7A6mMdd2805986
-	for <linux-mm@kvack.org>; Fri, 10 Aug 2007 16:48:22 +1000
-Received: from d23av03.au.ibm.com (loopback [127.0.0.1])
-	by d23av03.au.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l7A6mMfU002745
-	for <linux-mm@kvack.org>; Fri, 10 Aug 2007 16:48:22 +1000
-Message-ID: <46BC0A34.9050806@linux.vnet.ibm.com>
-Date: Fri, 10 Aug 2007 12:18:20 +0530
-From: Kamalesh Babulal <kamalesh@linux.vnet.ibm.com>
-MIME-Version: 1.0
-Subject: kernel BUG at mm/swap_state.c:78 with the 2.6.23-rc2-mm1
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Date: Fri, 10 Aug 2007 00:40:59 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: SLUB: Fix dynamic dma kmalloc cache creation
+Message-Id: <20070810004059.8aa2aadb.akpm@linux-foundation.org>
+In-Reply-To: <200708100559.l7A5x3r2019930@hera.kernel.org>
+References: <200708100559.l7A5x3r2019930@hera.kernel.org>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Christoph Lameter <clameter@sgi.com>
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi,
+On Fri, 10 Aug 2007 05:59:03 GMT Linux Kernel Mailing List <linux-kernel@vger.kernel.org> wrote:
 
-I got the following kernel Bug  on the 2.6.23-rc2-mm1 kernel on
-a Dual Core AMD Opteron (processor 270),  while testing the  LTP
-runall
+> Gitweb:     http://git.kernel.org/git/?p=linux/kernel/git/torvalds/linux-2.6.git;a=commit;h=1ceef40249f21eceabf8633934d94962e7d8e1d7
+> Commit:     1ceef40249f21eceabf8633934d94962e7d8e1d7
+> Parent:     fcda3d89bf1366f6801447eab2d8a75ac5b9c4ce
+> Author:     Christoph Lameter <clameter@sgi.com>
+> AuthorDate: Tue Aug 7 15:11:48 2007 -0700
+> Committer:  Christoph Lameter <clameter@sgi.com>
+> CommitDate: Thu Aug 9 21:57:16 2007 -0700
+> 
+>     SLUB: Fix dynamic dma kmalloc cache creation
+>     
+>     The dynamic dma kmalloc creation can run into trouble if a
+>     GFP_ATOMIC allocation is the first one performed for a certain size
+>     of dma kmalloc slab.
+>     
+>     - Move the adding of the slab to sysfs into a workqueue
+>       (sysfs does GFP_KERNEL allocations)
+>     - Do not call kmem_cache_destroy() (uses slub_lock)
+>     - Only acquire the slub_lock once and--if we cannot wait--do a trylock.
+>     
+>       This introduces a slight risk of the first kmalloc(x, GFP_DMA|GFP_ATOMIC)
+>       for a range of sizes failing due to another process holding the slub_lock.
+>       However, we only need to acquire the spinlock once in order to establish
+>       each power of two DMA kmalloc cache. The possible conflict is with the
+>       slub_lock taken during slab management actions (create / remove slab cache).
+>     
+>       It is rather typical that a driver will first fill its buffers using
+>       GFP_KERNEL allocations which will wait until the slub_lock can be acquired.
+>       Drivers will also create its slab caches first outside of an atomic
+>       context before starting to use atomic kmalloc from an interrupt context.
+>     
+>       If there are any failures then they will occur early after boot or when
+>       loading of multiple drivers concurrently. Drivers can already accomodate
+>       failures of GFP_ATOMIC for other reasons. Retries will then create the slab.
+>     
 
-================================================
-kernel BUG at mm/swap_state.c:78!
+Well that was fairly foul.  What was wrong wih turning slub_lock into a
+spinlock?
 
-invalid opcode: 0000 [1] SMP
+>  static noinline struct kmem_cache *dma_kmalloc_cache(int index, gfp_t flags)
+>  {
+>  	struct kmem_cache *s;
+> -	struct kmem_cache *x;
+>  	char *text;
+>  	size_t realsize;
+>  
+> @@ -2289,22 +2306,36 @@ static noinline struct kmem_cache *dma_kmalloc_cache(int index, gfp_t flags)
+>  		return s;
+>  
+>  	/* Dynamically create dma cache */
+> -	x = kmalloc(kmem_size, flags & ~SLUB_DMA);
+> -	if (!x)
+> -		panic("Unable to allocate memory for dma cache\n");
+> +	if (flags & __GFP_WAIT)
+> +		down_write(&slub_lock);
+> +	else {
+> +		if (!down_write_trylock(&slub_lock))
+> +			goto out;
+> +	}
+> +
+> +	if (kmalloc_caches_dma[index])
+> +		goto unlock_out;
+>  
+>  	realsize = kmalloc_caches[index].objsize;
+> -	text = kasprintf(flags & ~SLUB_DMA, "kmalloc_dma-%d",
+> -			(unsigned int)realsize);
+> -	s = create_kmalloc_cache(x, text, realsize, flags);
+> -	down_write(&slub_lock);
+> -	if (!kmalloc_caches_dma[index]) {
+> -		kmalloc_caches_dma[index] = s;
+> -		up_write(&slub_lock);
+> -		return s;
+> +	text = kasprintf(flags & ~SLUB_DMA, "kmalloc_dma-%d", (unsigned int)realsize),
+> +	s = kmalloc(kmem_size, flags & ~SLUB_DMA);
+> +
+> +	if (!s || !text || !kmem_cache_open(s, flags, text,
+> +			realsize, ARCH_KMALLOC_MINALIGN,
+> +			SLAB_CACHE_DMA|__SYSFS_ADD_DEFERRED, NULL)) {
+> +		kfree(s);
+> +		kfree(text);
+> +		goto unlock_out;
+>  	}
+> +
+> +	list_add(&s->list, &slab_caches);
+> +	kmalloc_caches_dma[index] = s;
+> +
+> +	schedule_work(&sysfs_add_work);
 
-CPU 0
+sysfs_add_work could be already pending, or running.  boom.
 
-Modules linked in: ipv6 hidp rfcomm l2cap bluetooth sunrpc battery ac lp 
-parport_pc parport nvram amd_rng rng_core i2c_amd756 i2c_core button
-
-Pid: 262, comm: kprefetchd Not tainted 2.6.23-rc2-mm1-autokern1 #1
-
-RIP: 0010:[<ffffffff8027c443>]  [<ffffffff8027c443>] 
-__add_to_swap_cache+0x12/0xa6
-
-RSP: 0018:ffff81000299bea0  EFLAGS: 00010246
-
-RAX: 0000000000000000 RBX: ffff81003f3baec0 RCX: ffff8100048c33b0
-
-RDX: 00000000000000d0 RSI: 0000000000000001 RDI: 00000000000000d0
-
-RBP: ffff81003f3baec0 R08: ffff810001423f14 R09: 000000000000bb27
-
-R10: 0000000000000000 R11: 0000000000000001 R12: 0000000000000001
-
-R13: 0000000000000002 R14: 0000000000000001 R15: ffff8100048c33b0
-
-FS:  00002b941f4a40f0(0000) GS:ffffffff80670000(0000) knlGS:0000000000000000
-
-CS:  0010 DS: 0018 ES: 0018 CR0: 000000008005003b
-
-CR2: 00000000005b9db0 CR3: 0000000004ed7000 CR4: 00000000000006e0
-
-DR0: 0000000000000000 DR1: 0000000000000000 DR2: 0000000000000000
-
-DR3: 0000000000000000 DR6: 00000000ffff0ff0 DR7: 0000000000000400
-
-Process kprefetchd (pid: 262, threadinfo ffff81000299a000, task 
-ffff810001c98040)
-
-Stack:  0000000000000001 ffff81003f3baec0 0000000000000000 ffffffff8027c50d
-
- 0000000000000002 ffff81003f3baec0 0000000000000000 ffffffff8027f318
-
- 0000000000000000 0000000000000000 ffff81000299bf20 0000000000000000
-
-Call Trace:
-
- [<ffffffff8027c50d>] add_to_swap_cache+0x36/0x5f
-
- [<ffffffff8027f318>] kprefetchd+0x248/0x40c
-
- [<ffffffff8027f0d0>] kprefetchd+0x0/0x40c
-
- [<ffffffff80248360>] kthread+0x47/0x73
-
- [<ffffffff8020ca78>] child_rip+0xa/0x12
-
- [<ffffffff80248319>] kthread+0x0/0x73
-
- [<ffffffff8020ca6e>] child_rip+0x0/0x12
-
-
-
-
-
-Code: 0f 0b eb fe 8b 03 66 85 c0 79 04 0f 0b eb fe 8b 03 f6 c4 08
-
-Thanks,
-Kamalesh Babulal.
+> +unlock_out:
+>  	up_write(&slub_lock);
+> -	kmem_cache_destroy(s);
+> +out:
+>  	return kmalloc_caches_dma[index];
+>  }
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
