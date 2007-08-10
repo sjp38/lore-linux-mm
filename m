@@ -1,45 +1,59 @@
-Date: Thu, 9 Aug 2007 18:48:50 -0700 (PDT)
-From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [PATCH 02/10] mm: system wide ALLOC_NO_WATERMARK
-In-Reply-To: <4a5909270708091717n2f93fcb5i284d82edfd235145@mail.gmail.com>
-Message-ID: <Pine.LNX.4.64.0708091844450.3185@schroedinger.engr.sgi.com>
-References: <20070806102922.907530000@chello.nl>  <200708061559.41680.phillips@phunq.net>
-  <Pine.LNX.4.64.0708061605400.5090@schroedinger.engr.sgi.com>
- <200708061649.56487.phillips@phunq.net>  <Pine.LNX.4.64.0708071513290.3683@schroedinger.engr.sgi.com>
-  <4a5909270708080037n32be2a73k5c28d33bb02f770b@mail.gmail.com>
- <Pine.LNX.4.64.0708081106230.12652@schroedinger.engr.sgi.com>
- <4a5909270708091141tb259eddyb2bba1270751ef1@mail.gmail.com>
- <Pine.LNX.4.64.0708091146410.25220@schroedinger.engr.sgi.com>
- <4a5909270708091717n2f93fcb5i284d82edfd235145@mail.gmail.com>
+Received: by wa-out-1112.google.com with SMTP id m33so750373wag
+        for <linux-mm@kvack.org>; Thu, 09 Aug 2007 18:54:01 -0700 (PDT)
+Message-ID: <4a5909270708091854n7c84ae9aj84170092a5eb61db@mail.gmail.com>
+Date: Thu, 9 Aug 2007 21:54:01 -0400
+From: "Daniel Phillips" <daniel.raymond.phillips@gmail.com>
+Subject: Re: [PATCH 04/10] mm: slub: add knowledge of reserve pages
+In-Reply-To: <20070808114636.7c6f26ab.akpm@linux-foundation.org>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+References: <20070806102922.907530000@chello.nl>
+	 <20070806103658.603735000@chello.nl>
+	 <Pine.LNX.4.64.0708071702560.4941@schroedinger.engr.sgi.com>
+	 <20070808014435.GG30556@waste.org>
+	 <Pine.LNX.4.64.0708081004290.12652@schroedinger.engr.sgi.com>
+	 <Pine.LNX.4.64.0708081050590.12652@schroedinger.engr.sgi.com>
+	 <20070808114636.7c6f26ab.akpm@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Daniel Phillips <daniel.raymond.phillips@gmail.com>
-Cc: Daniel Phillips <phillips@phunq.net>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Matt Mackall <mpm@selenic.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, David Miller <davem@davemloft.net>, Andrew Morton <akpm@linux-foundation.org>, Daniel Phillips <phillips@google.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Christoph Lameter <clameter@sgi.com>, Matt Mackall <mpm@selenic.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, David Miller <davem@davemloft.net>, Pekka Enberg <penberg@cs.helsinki.fi>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 9 Aug 2007, Daniel Phillips wrote:
+On 8/8/07, Andrew Morton <akpm@linux-foundation.org> wrote:
+> On Wed, 8 Aug 2007 10:57:13 -0700 (PDT)
+> Christoph Lameter <clameter@sgi.com> wrote:
+>
+> > I think in general irq context reclaim is doable. Cannot see obvious
+> > issues on a first superficial pass through rmap.c. The irq holdoff would
+> > be pretty long though which may make it unacceptable.
+>
+> The IRQ holdoff could be tremendous.  But if it is sufficiently infrequent
+> and if the worst effect is merely a network rx ring overflow then the tradeoff
+> might be a good one.
 
-> You can fix reclaim as much as you want and the basic deadlock will
-> still not go away.  When you finally do get to writing something out,
-> memory consumers in the writeout path are going to cause problems,
-> which this patch set fixes.
+Hi Andrew,
 
-We currently also do *not* write out immediately. I/O is queued when 
-submitted so it does *not* reduce memory. It is better to actually delay 
-writeout until you have thrown out clean pages. At that point the free 
-memory is at its high point. If memory goes below the high point again by 
-these writes then we can again reclaim until things are right.
+No matter how you look at this problem, you still need to have _some_
+sort of reserve, and limit access to it.  We extend existing methods,
+you are proposing to what seems like an entirely new reserve
+management system.  Great idea, maybe, but it does not solve the
+deadlocks.  You still need some organized way of being sure that your
+reserve is as big as you need (hopefully not an awful lot bigger) and
+you still have to make sure that nobody dips into that reserve further
+than they are allowed to.
 
-> Agreed that the idea of mempool always sounded strange, and we show
-> how to get rid of them, but that is not the immediate purpose of this
-> patch set.
+So translation: reclaim from "easily freeable" lists is an
+optimization, maybe a great one.  Probably great.  Reclaim from atomic
+context is also a great idea, probably. But you are talking about a
+whole nuther patch set.  Neither of those are in themselves a fix for
+these deadlocks.
 
-Ok mempools are unrelated. The allocations problems that this patch 
-addresses can be fixed by making reclaim more intelligent. This may likely 
-make mempools less of an issue in the kernel. If we can reclaim in an 
-emergency even in ATOMIC contexts then things get much easier.
+Regards,
+
+Daniel
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
