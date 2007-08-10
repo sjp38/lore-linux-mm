@@ -1,94 +1,77 @@
-Date: Fri, 10 Aug 2007 11:37:13 -0700 (PDT)
-From: Christoph Lameter <clameter@sgi.com>
+Date: Fri, 10 Aug 2007 11:40:33 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
 Subject: Re: SLUB: Fix dynamic dma kmalloc cache creation
-In-Reply-To: <20070810004059.8aa2aadb.akpm@linux-foundation.org>
-Message-ID: <Pine.LNX.4.64.0708101125390.17312@schroedinger.engr.sgi.com>
+Message-Id: <20070810114033.f655c905.akpm@linux-foundation.org>
+In-Reply-To: <Pine.LNX.4.64.0708101037290.12758@schroedinger.engr.sgi.com>
 References: <200708100559.l7A5x3r2019930@hera.kernel.org>
- <20070810004059.8aa2aadb.akpm@linux-foundation.org>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+	<20070810004059.8aa2aadb.akpm@linux-foundation.org>
+	<Pine.LNX.4.64.0708101037290.12758@schroedinger.engr.sgi.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
+To: Christoph Lameter <clameter@sgi.com>
 Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-> > +	schedule_work(&sysfs_add_work);
-On Fri, 10 Aug 2007, Andrew Morton wrote:
-> sysfs_add_work could be already pending, or running.  boom.
+On Fri, 10 Aug 2007 10:40:15 -0700 (PDT)
+Christoph Lameter <clameter@sgi.com> wrote:
 
-Ok so queue_work serializes with run_workqueue but does not check that the 
-entry is already inserted?
+> On Fri, 10 Aug 2007, Andrew Morton wrote:
+> 
+> > Well that was fairly foul.  What was wrong wih turning slub_lock into a
+> > spinlock?
+> 
+> It would make things even worse because we would have always to do atomic 
+> allocs when holding the lock.
 
-static void __queue_work(struct cpu_workqueue_struct *cwq,
-                         struct work_struct *work)
-{
-        unsigned long flags;
+That would be dumb.
 
-        spin_lock_irqsave(&cwq->lock, flags);
-        insert_work(cwq, work, 1);
-        spin_unlock_irqrestore(&cwq->lock, flags);
-}
+> Or allocate before and then take the 
+> lock to check if someone else has created it.
 
-run_workqueue
+Obviously better.
 
-static void run_workqueue(struct cpu_workqueue_struct *cwq)
-{
-        spin_lock_irq(&cwq->lock);
-        cwq->run_depth++;
-        if (cwq->run_depth > 3) {
+> If so we would need to fall 
+> back meaning we cannot avoid kmem_cache_destroy() from dynamic cache 
+> creation.
 
-...
+I think you meant kmem_cache_close().  There's nothing wrong with running
+kmem_cache_close() synchronously, inside spinlock.
 
+> The trylock avoids the kmem_cache_destroy() and is minimally 
+> invasive.
 
+I see no need for a kmem_cache_destroy() call.  The sysfs stuff hasn't
+been created yet.
 
-Then we need this patch?
+The trylock is *revolting*.  They always are.  They introduce
+rarely-occurring special cases which get little runtime testing and they
+introduce special-cases which often only get exercised with certain
+configs.
 
-SLUB dynamic kmalloc cache create: Prevent scheduling sysfs_add_slab workqueue twice.
+As an example, look at what this patch did.  There are crufty old drivers
+out there which do GFP_ATOMIC allocations at init-time because they got
+themselves in a locking mess.  Old scsi drivers come to mind.  Old scsi
+drivers often use GFP_DMA too.  We've now gone and increased the
+probability of those allocations failing.
 
-If another dynamic slab creation is done shortly after an earlier one and 
-the sysfs_add_slab function has not been run yet then we may corrupt the
-workqueue list since we schedule the work structure twice.
+Contrary to the assertions in the changelog, those allocations will not be
+retried.  Generally if an allocation fails at initialisation time a crufty
+old driver will either a) fail the initialisation (ie: boot failure), b)
+panic or c) oops the kernel.
 
-Avoid that by setting a flag indicating that the sysfs add work has 
-already been scheduled. sysfs_add_func can handle adding multiple 
-dma kmalloc slab in one go so we do not need to schedule it again.
+> > > +	schedule_work(&sysfs_add_work);
+> > 
+> > sysfs_add_work could be already pending, or running.  boom.
+> 
+> sysfs_add_work takes the slub_lock. It cannot be running.
 
-Signed-off-by: Christoph Lameter <clameter@sgi.com>
-
-Index: linux-2.6/mm/slub.c
-===================================================================
---- linux-2.6.orig/mm/slub.c	2007-08-10 11:14:28.000000000 -0700
-+++ linux-2.6/mm/slub.c	2007-08-10 11:25:13.000000000 -0700
-@@ -2279,6 +2279,8 @@ panic:
- 
- #ifdef CONFIG_ZONE_DMA
- 
-+static int sysfs_add_scheduled = 0;
-+
- static void sysfs_add_func(struct work_struct *w)
- {
- 	struct kmem_cache *s;
-@@ -2290,6 +2292,7 @@ static void sysfs_add_func(struct work_s
- 			sysfs_slab_add(s);
- 		}
- 	}
-+	sysfs_add_scheduled = 0;
- 	up_write(&slub_lock);
- }
- 
-@@ -2331,7 +2334,10 @@ static noinline struct kmem_cache *dma_k
- 	list_add(&s->list, &slab_caches);
- 	kmalloc_caches_dma[index] = s;
- 
--	schedule_work(&sysfs_add_work);
-+	if (!sysfs_add_scheduled) {
-+		schedule_work(&sysfs_add_work);
-+		sysfs_add_scheduled = 1;
-+	}
- 
- unlock_out:
- 	up_write(&slub_lock);
+It _can_ be running and it _can_ be pending.  But yes, given
+schedule_work()'s behaviour when an already-pending work is rescheduled and
+given the locking which you have in there, that part of the code appears to
+be reliable.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
