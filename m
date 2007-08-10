@@ -1,53 +1,53 @@
-From: Andy Whitcroft <apw@shadowen.org>
-Subject: [PATCH 5/5] vmemmap ia64: convert to new helper based initialisation
-References: <exportbomb.1186756801@pinky>
-Message-Id: <E1IJVgN-0005Am-4m@localhost.localdomain>
-Date: Fri, 10 Aug 2007 15:41:43 +0100
+Date: Fri, 10 Aug 2007 10:37:02 -0700 (PDT)
+From: Christoph Lameter <clameter@sgi.com>
+Subject: Re: [PATCH 3/4] Embed zone_id information within the zonelist->zones
+ pointer
+In-Reply-To: <20070810104749.GA14300@skynet.ie>
+Message-ID: <Pine.LNX.4.64.0708101035020.12758@schroedinger.engr.sgi.com>
+References: <20070809210616.14702.73376.sendpatchset@skynet.skynet.ie>
+ <20070809210716.14702.43074.sendpatchset@skynet.skynet.ie>
+ <Pine.LNX.4.64.0708091431560.32324@schroedinger.engr.sgi.com>
+ <20070809233300.GA31644@skynet.ie> <Pine.LNX.4.64.0708091843230.3185@schroedinger.engr.sgi.com>
+ <20070810104749.GA14300@skynet.ie>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>, Christoph Hellwig <hch@infradead.org>
-Cc: linux-mm@kvack.org, linux-arch@vger.kernel.org, Nick Piggin <npiggin@suse.de>, Christoph Lameter <clameter@sgi.com>, Mel Gorman <mel@csn.ul.ie>, Andy Whitcroft <apw@shadowen.org>
+To: Mel Gorman <mel@skynet.ie>
+Cc: Lee.Schermerhorn@hp.com, ak@suse.de, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Convert over to the new helper initialialisation and Kconfig options.
+On Fri, 10 Aug 2007, Mel Gorman wrote:
 
-Signed-off-by: Andy Whitcroft <apw@shadowen.org>
----
- arch/ia64/Kconfig        |    5 +----
- arch/ia64/mm/discontig.c |    8 ++++++++
- 2 files changed, 9 insertions(+), 4 deletions(-)
-diff --git a/arch/ia64/Kconfig b/arch/ia64/Kconfig
-index 92d2c2d..66fafbd 100644
---- a/arch/ia64/Kconfig
-+++ b/arch/ia64/Kconfig
-@@ -363,10 +363,7 @@ config ARCH_FLATMEM_ENABLE
- config ARCH_SPARSEMEM_ENABLE
- 	def_bool y
- 	depends on ARCH_DISCONTIGMEM_ENABLE
--
--config SPARSEMEM_VMEMMAP
--	def_bool y
--	depends on SPARSEMEM
-+	select SPARSEMEM_VMEMMAP_ENABLE
+> On (09/08/07 18:44), Christoph Lameter didst pronounce:
+> > 
+> > On Fri, 10 Aug 2007, Mel Gorman wrote:
+> > 
+> > > > > +#if defined(CONFIG_SMP) && INTERNODE_CACHE_SHIFT > ZONES_SHIFT
+> > > > 
+> > > > Is this necessary? ZONES_SHIFT is always <= 2 so it will work with 
+> > > > any pointer. Why disable this for UP?
+> > > > 
+> > > 
+> > > Caution in case the number of zones increases. There was no guarantee of
+> > > zone alignment. It's the same reason I have a BUG_ON in the encode
+> > > function so that if we don't catch problems at compile-time, it'll go
+> > > BANG in a nice predictable fashion.
+> > 
+> > Caution would lead to a BUG_ON but why the #if? Why exclude UP?
+> 
+> On x86_64 would have ZONE_DMA, ZONE_DMA32, ZONE_NORMAL, ZONE_HIGHMEM and
+> ZONE_MOVABLE. On SMP, that's more than two bits worth and would fail t
+> runtime. Well, it should at least I didn't actually try it out.
+
+x86_64 does not support ZONE_HIGHMEM. The number of zones is 
+depending on SMP?
  
- config ARCH_DISCONTIGMEM_DEFAULT
- 	def_bool y if (IA64_SGI_SN2 || IA64_GENERIC || IA64_HP_ZX1 || IA64_HP_ZX1_SWIOTLB)
-diff --git a/arch/ia64/mm/discontig.c b/arch/ia64/mm/discontig.c
-index 8a5c1c9..05b374c 100644
---- a/arch/ia64/mm/discontig.c
-+++ b/arch/ia64/mm/discontig.c
-@@ -715,3 +715,11 @@ void arch_refresh_nodedata(int update_node, pg_data_t *update_pgdat)
- 	scatter_node_data();
- }
- #endif
-+
-+#ifdef CONFIG_SPARSEMEM_VMEMMAP
-+int __meminit vmemmap_populate(struct page *start_page,
-+						unsigned long size, int node)
-+{
-+	return vmemmap_populate_basepages(start_page, size, node);
-+}
-+#endif
+> However, I accept that the SMP check is less than than ideal. I considered
+> comparing it against MAX_NR_ZONES but as it's an enum, it can't be checked
+> at compile time. What else would make a better check?
+
+You could do a BUILD_BUG_ON() instead?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
