@@ -1,8 +1,8 @@
 From: Andy Whitcroft <apw@shadowen.org>
-Subject: [PATCH 3/5] vmemmap ppc64: convert to new config options
+Subject: [PATCH 4/5] vmemmap sparc64: convert to new config options
 References: <exportbomb.1186756801@pinky>
-Message-Id: <E1IJVfi-0004zn-Ka@localhost.localdomain>
-Date: Fri, 10 Aug 2007 15:41:02 +0100
+Message-Id: <E1IJVg2-000553-Rf@localhost.localdomain>
+Date: Fri, 10 Aug 2007 15:41:22 +0100
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>, Christoph Hellwig <hch@infradead.org>
@@ -13,22 +13,21 @@ Convert over to the new Kconfig options.
 
 Signed-off-by: Andy Whitcroft <apw@shadowen.org>
 ---
- arch/powerpc/Kconfig      |    9 +--------
- arch/powerpc/mm/init_64.c |    3 +--
- 2 files changed, 2 insertions(+), 10 deletions(-)
-diff --git a/arch/powerpc/Kconfig b/arch/powerpc/Kconfig
-index f5124cf..111bc25 100644
---- a/arch/powerpc/Kconfig
-+++ b/arch/powerpc/Kconfig
-@@ -265,6 +265,7 @@ config ARCH_FLATMEM_ENABLE
+ arch/sparc64/Kconfig   |    9 +--------
+ arch/sparc64/mm/init.c |    4 ++--
+ 2 files changed, 3 insertions(+), 10 deletions(-)
+diff --git a/arch/sparc64/Kconfig b/arch/sparc64/Kconfig
+index 9953b4e..59c4d75 100644
+--- a/arch/sparc64/Kconfig
++++ b/arch/sparc64/Kconfig
+@@ -240,20 +240,13 @@ config ARCH_SELECT_MEMORY_MODEL
+ 
  config ARCH_SPARSEMEM_ENABLE
  	def_bool y
- 	depends on PPC64
 +	select SPARSEMEM_VMEMMAP_ENABLE
  
  config ARCH_SPARSEMEM_DEFAULT
  	def_bool y
-@@ -275,14 +276,6 @@ config ARCH_POPULATES_NODE_MAP
  
  source "mm/Kconfig"
  
@@ -40,23 +39,31 @@ index f5124cf..111bc25 100644
 -	def_bool y
 -	depends on SPARSEMEM_VMEMMAP
 -
- config ARCH_MEMORY_PROBE
- 	def_bool y
- 	depends on MEMORY_HOTPLUG
-diff --git a/arch/powerpc/mm/init_64.c b/arch/powerpc/mm/init_64.c
-index 05c7e93..4f543f8 100644
---- a/arch/powerpc/mm/init_64.c
-+++ b/arch/powerpc/mm/init_64.c
-@@ -182,8 +182,7 @@ void pgtable_cache_init(void)
- 	}
- }
+ config ISA
+ 	bool
+ 	help
+diff --git a/arch/sparc64/mm/init.c b/arch/sparc64/mm/init.c
+index 19cac53..4e1df9a 100644
+--- a/arch/sparc64/mm/init.c
++++ b/arch/sparc64/mm/init.c
+@@ -1655,7 +1655,7 @@ EXPORT_SYMBOL(_PAGE_E);
+ unsigned long _PAGE_CACHE __read_mostly;
+ EXPORT_SYMBOL(_PAGE_CACHE);
  
 -#ifdef CONFIG_ARCH_POPULATES_SPARSEMEM_VMEMMAP
--
 +#ifdef CONFIG_SPARSEMEM_VMEMMAP
- /*
-  * Given an address within the vmemmap, determine the pfn of the page that
-  * represents the start of the section it is within.  Note that we have to
+ 
+ #define VMEMMAP_CHUNK_SHIFT	22
+ #define VMEMMAP_CHUNK		(1UL << VMEMMAP_CHUNK_SHIFT)
+@@ -1705,7 +1705,7 @@ int __meminit vmemmap_populate(struct page *start, unsigned long nr, int node)
+ 	}
+ 	return 0;
+ }
+-#endif /* CONFIG_ARCH_POPULATES_SPARSEMEM_VMEMMAP */
++#endif /* CONFIG_SPARSEMEM_VMEMMAP */
+ 
+ static void prot_init_common(unsigned long page_none,
+ 			     unsigned long page_shared,
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
