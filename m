@@ -1,66 +1,73 @@
-Date: Fri, 10 Aug 2007 00:33:01 +0100
-Subject: Re: [PATCH 3/4] Embed zone_id information within the zonelist->zones pointer
-Message-ID: <20070809233300.GA31644@skynet.ie>
-References: <20070809210616.14702.73376.sendpatchset@skynet.skynet.ie> <20070809210716.14702.43074.sendpatchset@skynet.skynet.ie> <Pine.LNX.4.64.0708091431560.32324@schroedinger.engr.sgi.com>
+Received: by wa-out-1112.google.com with SMTP id m33so729559wag
+        for <linux-mm@kvack.org>; Thu, 09 Aug 2007 17:17:08 -0700 (PDT)
+Message-ID: <4a5909270708091717n2f93fcb5i284d82edfd235145@mail.gmail.com>
+Date: Thu, 9 Aug 2007 20:17:08 -0400
+From: "Daniel Phillips" <daniel.raymond.phillips@gmail.com>
+Subject: Re: [PATCH 02/10] mm: system wide ALLOC_NO_WATERMARK
+In-Reply-To: <Pine.LNX.4.64.0708091146410.25220@schroedinger.engr.sgi.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Content-Disposition: inline
-In-Reply-To: <Pine.LNX.4.64.0708091431560.32324@schroedinger.engr.sgi.com>
-From: mel@skynet.ie (Mel Gorman)
+References: <20070806102922.907530000@chello.nl>
+	 <200708061559.41680.phillips@phunq.net>
+	 <Pine.LNX.4.64.0708061605400.5090@schroedinger.engr.sgi.com>
+	 <200708061649.56487.phillips@phunq.net>
+	 <Pine.LNX.4.64.0708071513290.3683@schroedinger.engr.sgi.com>
+	 <4a5909270708080037n32be2a73k5c28d33bb02f770b@mail.gmail.com>
+	 <Pine.LNX.4.64.0708081106230.12652@schroedinger.engr.sgi.com>
+	 <4a5909270708091141tb259eddyb2bba1270751ef1@mail.gmail.com>
+	 <Pine.LNX.4.64.0708091146410.25220@schroedinger.engr.sgi.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Christoph Lameter <clameter@sgi.com>
-Cc: Lee.Schermerhorn@hp.com, ak@suse.de, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Cc: Daniel Phillips <phillips@phunq.net>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Matt Mackall <mpm@selenic.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, David Miller <davem@davemloft.net>, Andrew Morton <akpm@linux-foundation.org>, Daniel Phillips <phillips@google.com>
 List-ID: <linux-mm.kvack.org>
 
-On (09/08/07 14:37), Christoph Lameter didst pronounce:
-> On Thu, 9 Aug 2007, Mel Gorman wrote:
-> 
-> >  }
-> >  
-> > +#if defined(CONFIG_SMP) && INTERNODE_CACHE_SHIFT > ZONES_SHIFT
-> 
-> Is this necessary? ZONES_SHIFT is always <= 2 so it will work with 
-> any pointer. Why disable this for UP?
-> 
+On 8/9/07, Christoph Lameter <clameter@sgi.com> wrote:
+> On Thu, 9 Aug 2007, Daniel Phillips wrote:
+> > On 8/8/07, Christoph Lameter <clameter@sgi.com> wrote:
+> > > On Wed, 8 Aug 2007, Daniel Phillips wrote:
+> > > Maybe we need to kill PF_MEMALLOC....
+> > Shrink_caches needs to be able to recurse into filesystems at least,
+> > and for the duration of the recursion the filesystem must have
+> > privileged access to reserves.  Consider the difficulty of handling
+> > that with anything other than a process flag.
+>
+> Shrink_caches needs to allocate memory? Hmmm... Maybe we can only limit
+> the PF_MEMALLOC use.
 
-Caution in case the number of zones increases. There was no guarantee of
-zone alignment. It's the same reason I have a BUG_ON in the encode
-function so that if we don't catch problems at compile-time, it'll go
-BANG in a nice predictable fashion.
+PF_MEMALLOC is not such a bad thing.  It will usually be less code
+than mempool for the same use case, besides being able to handle a
+wider range of problems.  We  introduce __GPF_MEMALLOC for situations
+where the need for reserve memory is locally known, as in the network
+stack, which is similar or identical to the use case for mempool.  One
+could reasonably ask why we need mempool with a lighter alternative
+available.  But this is a case of to each their own I think.  Either
+technique will work for reserve management.
 
-> > --- linux-2.6.23-rc1-mm2-010_use_zonelist/mm/vmstat.c	2007-08-07 14:45:11.000000000 +0100
-> > +++ linux-2.6.23-rc1-mm2-015_zoneid_zonelist/mm/vmstat.c	2007-08-09 15:52:12.000000000 +0100
-> > @@ -365,11 +365,11 @@ void refresh_cpu_vm_stats(int cpu)
-> >   */
-> >  void zone_statistics(struct zonelist *zonelist, struct zone *z)
-> >  {
-> > -	if (z->zone_pgdat == zonelist->zones[0]->zone_pgdat) {
-> > +	if (z->zone_pgdat == zonelist_zone(zonelist->_zones[0])->zone_pgdat) {
-> >  		__inc_zone_state(z, NUMA_HIT);
-> >  	} else {
-> >  		__inc_zone_state(z, NUMA_MISS);
-> > -		__inc_zone_state(zonelist->zones[0], NUMA_FOREIGN);
-> > +		__inc_zone_state(zonelist_zone(zonelist->_zones[0]), NUMA_FOREIGN);
-> >  	}
-> >  	if (z->node == numa_node_id())
-> >  		__inc_zone_state(z, NUMA_LOCAL);
-> 
-> Hmmmm. I hope the compiler does subexpression optimization on 
-> 
-> 	zonelist_zone(zonelist->_zones[0]) 
-> 
+> > In theory, we could reduce the size of the global memalloc pool by
+> > including "easily freeable" memory in it.  This is just an
+> > optimization and does not belong in this patch set, which fixes a
+> > system integrity issue.
+>
+> I think the main thing would be to fix reclaim to not do stupid things
+> like triggering writeout early in the reclaim pass and to allow reentry
+> into reclaim. The idea of memory pools always sounded strange to me given
+> that you have a lot of memory in a zone that is reclaimable as needed.
 
-I'll check
+You can fix reclaim as much as you want and the basic deadlock will
+still not go away.  When you finally do get to writing something out,
+memory consumers in the writeout path are going to cause problems,
+which this patch set fixes.
 
-> Acked-by: Christoph Lameter <clameter@sgi.com>
-> 
+Agreed that the idea of mempool always sounded strange, and we show
+how to get rid of them, but that is not the immediate purpose of this
+patch set.
 
--- 
--- 
-Mel Gorman
-Part-time Phd Student                          Linux Technology Center
-University of Limerick                         IBM Dublin Software Lab
+Regards,
+
+Daniel
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
