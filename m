@@ -1,115 +1,73 @@
-Date: Fri, 10 Aug 2007 00:40:59 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: SLUB: Fix dynamic dma kmalloc cache creation
-Message-Id: <20070810004059.8aa2aadb.akpm@linux-foundation.org>
-In-Reply-To: <200708100559.l7A5x3r2019930@hera.kernel.org>
-References: <200708100559.l7A5x3r2019930@hera.kernel.org>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Received: by rv-out-0910.google.com with SMTP id f1so507105rvb
+        for <linux-mm@kvack.org>; Fri, 10 Aug 2007 01:15:56 -0700 (PDT)
+Message-ID: <4a5909270708100115v4ad10c4es697d216edf29b07d@mail.gmail.com>
+Date: Fri, 10 Aug 2007 04:15:56 -0400
+From: "Daniel Phillips" <daniel.raymond.phillips@gmail.com>
+Subject: Re: [PATCH 02/10] mm: system wide ALLOC_NO_WATERMARK
+In-Reply-To: <Pine.LNX.4.64.0708092045120.27164@schroedinger.engr.sgi.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+References: <20070806102922.907530000@chello.nl>
+	 <Pine.LNX.4.64.0708071513290.3683@schroedinger.engr.sgi.com>
+	 <4a5909270708080037n32be2a73k5c28d33bb02f770b@mail.gmail.com>
+	 <Pine.LNX.4.64.0708081106230.12652@schroedinger.engr.sgi.com>
+	 <4a5909270708091141tb259eddyb2bba1270751ef1@mail.gmail.com>
+	 <Pine.LNX.4.64.0708091146410.25220@schroedinger.engr.sgi.com>
+	 <4a5909270708091717n2f93fcb5i284d82edfd235145@mail.gmail.com>
+	 <Pine.LNX.4.64.0708091844450.3185@schroedinger.engr.sgi.com>
+	 <4a5909270708092034yaa0a583w70084ef93266df48@mail.gmail.com>
+	 <Pine.LNX.4.64.0708092045120.27164@schroedinger.engr.sgi.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Christoph Lameter <clameter@sgi.com>
-Cc: linux-mm@kvack.org
+Cc: Daniel Phillips <phillips@phunq.net>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Matt Mackall <mpm@selenic.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, David Miller <davem@davemloft.net>, Andrew Morton <akpm@linux-foundation.org>, Daniel Phillips <phillips@google.com>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 10 Aug 2007 05:59:03 GMT Linux Kernel Mailing List <linux-kernel@vger.kernel.org> wrote:
+On 8/9/07, Christoph Lameter <clameter@sgi.com> wrote:
+> > If you believe that the deadlock problems we address here can be
+> > better fixed by making reclaim more intelligent then please post a
+> > patch and we will test it.  I am highly skeptical, but the proof is in
+> > the patch.
+>
+> Then please test the patch that I posted here earlier to reclaim even if
+> PF_MEMALLOC is set. It may require some fixups but it should address your
+> issues in most vm load situations.
 
-> Gitweb:     http://git.kernel.org/git/?p=linux/kernel/git/torvalds/linux-2.6.git;a=commit;h=1ceef40249f21eceabf8633934d94962e7d8e1d7
-> Commit:     1ceef40249f21eceabf8633934d94962e7d8e1d7
-> Parent:     fcda3d89bf1366f6801447eab2d8a75ac5b9c4ce
-> Author:     Christoph Lameter <clameter@sgi.com>
-> AuthorDate: Tue Aug 7 15:11:48 2007 -0700
-> Committer:  Christoph Lameter <clameter@sgi.com>
-> CommitDate: Thu Aug 9 21:57:16 2007 -0700
-> 
->     SLUB: Fix dynamic dma kmalloc cache creation
->     
->     The dynamic dma kmalloc creation can run into trouble if a
->     GFP_ATOMIC allocation is the first one performed for a certain size
->     of dma kmalloc slab.
->     
->     - Move the adding of the slab to sysfs into a workqueue
->       (sysfs does GFP_KERNEL allocations)
->     - Do not call kmem_cache_destroy() (uses slub_lock)
->     - Only acquire the slub_lock once and--if we cannot wait--do a trylock.
->     
->       This introduces a slight risk of the first kmalloc(x, GFP_DMA|GFP_ATOMIC)
->       for a range of sizes failing due to another process holding the slub_lock.
->       However, we only need to acquire the spinlock once in order to establish
->       each power of two DMA kmalloc cache. The possible conflict is with the
->       slub_lock taken during slab management actions (create / remove slab cache).
->     
->       It is rather typical that a driver will first fill its buffers using
->       GFP_KERNEL allocations which will wait until the slub_lock can be acquired.
->       Drivers will also create its slab caches first outside of an atomic
->       context before starting to use atomic kmalloc from an interrupt context.
->     
->       If there are any failures then they will occur early after boot or when
->       loading of multiple drivers concurrently. Drivers can already accomodate
->       failures of GFP_ATOMIC for other reasons. Retries will then create the slab.
->     
+It is quite clear what is in your patch.  Instead of just grabbing a
+page off the buddy free lists in a critical allocation situation you
+go invoke shrink_caches.  Why oh why?  All the memory needed to get
+through these crunches is already sitting right there on the buddy
+free lists, ready to be used, why would you go off scanning instead?
+And this does not work in atomic contexts at all, that is a whole
+thing you would have to develop, and why?  You just offered us
+functionality that we already have, except your idea has issues.
 
-Well that was fairly foul.  What was wrong wih turning slub_lock into a
-spinlock?
+You do not do anything to prevent mixing of ordinary slab allocations
+of unknown duration with critical allocations of controlled duration.
+ This  is _very important_ for sk_alloc.  How are you going to take
+care of that?
 
->  static noinline struct kmem_cache *dma_kmalloc_cache(int index, gfp_t flags)
->  {
->  	struct kmem_cache *s;
-> -	struct kmem_cache *x;
->  	char *text;
->  	size_t realsize;
->  
-> @@ -2289,22 +2306,36 @@ static noinline struct kmem_cache *dma_kmalloc_cache(int index, gfp_t flags)
->  		return s;
->  
->  	/* Dynamically create dma cache */
-> -	x = kmalloc(kmem_size, flags & ~SLUB_DMA);
-> -	if (!x)
-> -		panic("Unable to allocate memory for dma cache\n");
-> +	if (flags & __GFP_WAIT)
-> +		down_write(&slub_lock);
-> +	else {
-> +		if (!down_write_trylock(&slub_lock))
-> +			goto out;
-> +	}
-> +
-> +	if (kmalloc_caches_dma[index])
-> +		goto unlock_out;
->  
->  	realsize = kmalloc_caches[index].objsize;
-> -	text = kasprintf(flags & ~SLUB_DMA, "kmalloc_dma-%d",
-> -			(unsigned int)realsize);
-> -	s = create_kmalloc_cache(x, text, realsize, flags);
-> -	down_write(&slub_lock);
-> -	if (!kmalloc_caches_dma[index]) {
-> -		kmalloc_caches_dma[index] = s;
-> -		up_write(&slub_lock);
-> -		return s;
-> +	text = kasprintf(flags & ~SLUB_DMA, "kmalloc_dma-%d", (unsigned int)realsize),
-> +	s = kmalloc(kmem_size, flags & ~SLUB_DMA);
-> +
-> +	if (!s || !text || !kmem_cache_open(s, flags, text,
-> +			realsize, ARCH_KMALLOC_MINALIGN,
-> +			SLAB_CACHE_DMA|__SYSFS_ADD_DEFERRED, NULL)) {
-> +		kfree(s);
-> +		kfree(text);
-> +		goto unlock_out;
->  	}
-> +
-> +	list_add(&s->list, &slab_caches);
-> +	kmalloc_caches_dma[index] = s;
-> +
-> +	schedule_work(&sysfs_add_work);
+In short, you provide a piece we don't need because we already have it
+in a more efficient form, your approach does not work in atomic
+context, and you need to solve the slab object problem.  You also need
+integration with sk_alloc.   That is just what I noticed on a
+once-over-lightly.  Your patch has a _long_ way to go before it is
+ready to try.
 
-sysfs_add_work could be already pending, or running.  boom.
+We have already presented a patch set that is tested and is known to
+solve the deadlocks.  This patch set has been more than two years in
+development.  It covers problems you have not even begun to think
+about, which we have been aware of for years.  Your idea is not
+anywhere close to working.  Why don't you just work with us instead?
+There are certainly improvements that can be made to the posted patch
+set.  Running off and learning from scratch how to do this is not
+really helpful.
 
-> +unlock_out:
->  	up_write(&slub_lock);
-> -	kmem_cache_destroy(s);
-> +out:
->  	return kmalloc_caches_dma[index];
->  }
+Regards,
+
+Daniel
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
