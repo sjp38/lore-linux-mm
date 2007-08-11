@@ -1,127 +1,83 @@
-Subject: Re: [patch][rfc] 2.6.23-rc1 mm: NUMA replicated pagecache
-From: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
-In-Reply-To: <1186604723.5055.47.camel@localhost>
-References: <20070727084252.GA9347@wotan.suse.de>
-	 <1186604723.5055.47.camel@localhost>
-Content-Type: text/plain
-Date: Fri, 10 Aug 2007 17:08:18 -0400
-Message-Id: <1186780099.5246.6.camel@localhost>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
-Sender: owner-linux-mm@kvack.org
-Return-Path: <owner-linux-mm@kvack.org>
-To: Nick Piggin <npiggin@suse.de>
-Cc: Linux Memory Management List <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Joachim Deguara <joachim.deguara@amd.com>, Christoph Lameter <clameter@sgi.com>, Mel Gorman <mel@csn.ul.ie>, Eric Whitney <eric.whitney@hp.com>
+Message-ID: <01c7db9a$f246ef10$343f6e55@udyaxjlqdf>
+From: "Weston Devine" <udyaxjlqdf@borlandracing.com>
+Subject: Energy fur ihren Schwanz, kaufen und 85% sparen   July 2005). They have since  -- better at solving software 
+Date: Fri, 10 Aug 2007 22:08:13 -0200
+MIME-Version: 1.0
+Content-Type: multipart/alternative;
+	boundary="----=_NextPart_000_0007_01C7DBB4.17942710"
+Return-Path: <udyaxjlqdf@borlandracing.com>
+To: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 2007-08-08 at 16:25 -0400, Lee Schermerhorn wrote:
-> On Fri, 2007-07-27 at 10:42 +0200, Nick Piggin wrote:
-> > Hi,
-> > 
-> > Just got a bit of time to take another look at the replicated pagecache
-> > patch. The nopage vs invalidate race and clear_page_dirty_for_io fixes
-> > gives me more confidence in the locking now; the new ->fault API makes
-> > MAP_SHARED write faults much more efficient; and a few bugs were found
-> > and fixed.
-> > 
-> > More stats were added: *repl* in /proc/vmstat. Survives some kbuilding
-> > tests...
-> > 
-> 
-> Sending this out to give Nick an update and to give the list a
-> heads up on what I've found so far with the replication patch.
-> 
-> I have rebased Nick's recent pagecache replication patch against
-> 2.6.23-rc1-mm2, atop my memory policy and auto/lazy migration
-> patch sets.  These include:
-> 
-> + shared policy
-> + migrate-on-fault a.k.a. lazy migration
-> + auto-migration - trigger lazy migration on inter-node task
->                    task migration
-> + migration cache - pseudo-swap cache for parking unmapped
->                     anon pages awaiting migrate-on-fault
-> 
-> I added a couple of patches to fix up the interaction of replication
-> with migration [discussed more below] and a per cpuset control to
-> enable/disable replication.  The latter allowed me to boot successfully
-> and to survive any bugs encountered by restricting the effects to 
-> tasks in the test cpuset with replication enabled.  That was the
-> theory, anyway :-).  Mostly worked...
+This is a multi-part message in MIME format.
 
-After I sent out the last update, I ran a usex job mix overnight ~19.5 hours.
-When I came in the next morning, the console window was full of soft lockups
-on various cpus with varions stack traces.  /var/log/messages showed 142, in
-all.
+------=_NextPart_000_0007_01C7DBB4.17942710
+Content-Type: text/plain;
+	charset="iso-8859-1"
+Content-Transfer-Encoding: quoted-printable
 
-I've placed the soft lockup reports from /var/log/messages in the Replication
-directory on free.linux:
+Haben Sie endlich wieder Spass am Leben!
 
-	http://free.linux.hp.com/~lts/Patches/Replication.
+Preise die keine Konkurrenz kennen 
 
-The lockups appeared in several places in the traces I looked at.  Here's a
-couple of examples:
+- keine versteckte Kosten
+- Kein peinlicher Arztbesuch erforderlich
+- Kostenlose, arztliche Telefon-Beratung
+- Kein langes Warten - Auslieferung innerhalb von 2-3 Tagen
+- Diskrete Verpackung und Zahlung
+- Bequem und diskret online bestellen.
+- Visa verifizierter Onlineshop
 
-+ unlink_file_vma() from free_pgtables() during task exit:
-	mapping->i_mmap_lock ???
+Originalmedikamente
+Ciiaaaaaalis 10 Pack. 27,00 Euro
+Viiaaaagra 10 Pack. 21,00 Euro
 
-+ smp_call_function() from ia64_global_tlb_purge().
-	  Maybe the 'call_lock' in arch/ia64/kernel/smp.c ?
-  Traces show us getting to here in one of 2 ways:
+Nur fur kurze Zeit - vier Pillen umsonst erhalten
+http://mbifip.hardagree.com/?622495389079
 
-  1) try_to_unmap* during auto task migration [migrate_pages_unmap_only()...]
+(bitte warten Sie einen Moment bis die Seite vollstandig geladen ist)
+------=_NextPart_000_0007_01C7DBB4.17942710
+Content-Type: text/html;
+	charset="iso-8859-1"
+Content-Transfer-Encoding: quoted-printable
 
-  2) from zap_page_range() when __unreplicate_pcache() calls unmap_mapping_range.
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
+<HTML><HEAD>
+<META http-equiv=3DContent-Type content=3D"text/html; charset=3Diso-8859-1">
+<META content=3D"MSHTML 5.00.2919.6700" name=3DGENERATOR>
+<STYLE></STYLE>
+</HEAD>
+<BODY>
+<head><meta http-equiv=3D"Content-Type" content=3D"text/html; charset=3Diso=
+-8859-1">
+</head><body><p>Meinung von unserem Kunden:<br><strong>Ich habe drei Jahre =
+lang keine befriedigende Er_rektio_n hinbekommen. Das hat mich fertig gemac=
+ht. Viiaaaagra haben meine Frau, sie ist 54, und ich in zwei Jahren nicht e=
+inmal auf befriedigen Sex verzichten m&#252;ssen. Und die Liebe ist genauso=
+ intensiv wie vor einem halben Jahrhundert! Jetzt machen wir es wieder drei=
+- bis f&#252;nfmal pro Woche. Ich bin 75 Jahre alt und dankbar, dass ich Vi=
+iaaaagra kennengelernt habe.</strong></p><p><strong>Fantastische Wirkung! F=
+&#252;nf Jahre lang hatte ich es nicht mehr geschafft, meine Err. ..ektion =
+w&#228;hrend des Verkehrs zu halten und war richtig &#228;ngstlich geworden=
+ Ich hatte auch ein Problem mit vorzeitigem Samenerguss. Au&#223;erdem bin=
+ ich Zuckerkrank. Vor einiger Zeit habe ich eine 50-mg-Dosis Viiaaaagra gen=
+ommen und zwei Stunden sp&#228;ter mit einer 22-j&#228;hrigen geschlafen. K=
+urz vor dem Vorspiel wurde mein Penis hart und ich konnte es kaum glauben. =
+Ich habe in dieser Nacht dreimal Sex gehabt und es gab keine Probleme dabei=
+ Kein Schuss ging daneben. Ich bin ein gl&#252;cklicher Mann. Achmet, 52<b=
+r>
+</strong><strong><br>Haben Sie endlich wieder Spass am Leben!</strong></p><=
+p>Preise die keine Konkurrenz kennen <p>
+- Diskrete Verpackung und Zahlung<br>- Visa verifizierter Onlineshop<br>- K=
+ein peinlicher Arztbesuch erforderlich<br>- Kostenlose, arztliche Telefon-B=
+eratung<br>- Kein langes Warten - Auslieferung innerhalb von 2-3 Tagen<br>-=
+ Bequem und diskret online bestellen.<br>- keine versteckte Kosten</p>
+<p>Originalmedikamente<br><strong>Ciiaaaaaalis 10 Pack. 27,00 Euro</strong>=
+<br>
+  <strong>Viiaaaagra 10 Pack. 21,00 Euro</strong><br><br><strong><a href=3D=
+"http://mbifip.hardagree.com/?622495389079" target=3D"_blank">Nur fur kurze=
+ Zeit - vier Pillen umsonst erhalten</a><br></strong>(bitte warten Sie eine=
+n Moment bis die Seite vollst&auml;ndig geladen ist) </p></body>
+</BODY></HTML>
 
-+ get_page_from_freelist -> zone_lru_lock?
-
-An interesting point:  all of the soft lockup messages said that the cpu was
-locked for 11s.  Ring any bells?
-
-
-I should note that I was trying to unmap all mappings to the file backed pages
-on internode task migration, instead of just the current task's pte's.  However,
-I was only attempting this on pages with  mapcount <= 4.  So, I don't think I 
-was looping trying to unmap pages with mapcounts of several 10s--such as I see
-on some page cache pages in my traces.
-
-Today, after rebasing to 23-rc2-mm2, I added a patch to unmap only the current
-task's ptes for ALL !anon pages, regardless of mapcount.  I've started the test
-again and will let it run over the weekend--or as long as it stays up, which 
-ever is shorter :-).
-
-I put a tarball with the rebased series in the Replication directory linked
-above, in case you're interested.  I haven't added the patch description for
-the new patch yet, but it's pretty simple.  Maybe even correct.
-
-----
-
-Unrelated to the lockups  [I think]:
-
-I forgot to look before I rebooted, but earlier the previous evening, I checked
-the vmstats and at that point [~1.5 hours into the test] we had done ~4.88 million
-replications and ~4.8 million "zaps" [collapse of replicated page].  That's around
-98% zaps.  Do we need some filter in the fault path to reduce the "thrashing"--if
-that's what I'm seeing.  
-
-A while back I took a look at the Virtual Iron page replication patch.  They had
-set VM_DENY_WRITE when mapping shared executable segments, and only replicated pages
-in those VMAs.  Maybe 'DENY_WRITE isn't exactly what we want.  Possibly set another
-flag for shared executables, if we can detect them, and any shared mapping that has
-no writable mappings ?
-
-I'll try to remember to check the replication statistics after the currently
-running test.  If the system stays up, that is.  A quick look < 10 minutes into
-the test shows that zaps are now ~84% of replications.  Also, ~47k replicated pages
-out of ~287K file pages.
-
-Lee
-
-
-
-
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+------=_NextPart_000_0007_01C7DBB4.17942710--
