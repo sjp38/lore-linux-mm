@@ -1,55 +1,86 @@
-Subject: Re: [PATCH 17/23] mm: count writeback pages per BDI
-From: Peter Zijlstra <a.p.zijlstra@chello.nl>
-In-Reply-To: <Pine.LNX.4.64.0708091225470.28074@schroedinger.engr.sgi.com>
-References: <20070803123712.987126000@chello.nl>
-	 <20070803125237.072937000@chello.nl>
-	 <Pine.LNX.4.64.0708091214330.27092@schroedinger.engr.sgi.com>
-	 <1186687416.11797.182.camel@lappy>
-	 <Pine.LNX.4.64.0708091225470.28074@schroedinger.engr.sgi.com>
-Content-Type: multipart/signed; micalg=pgp-sha1; protocol="application/pgp-signature"; boundary="=-fONaKnYZIJSZEqCzSeXq"
-Date: Mon, 13 Aug 2007 10:36:39 +0200
-Message-Id: <1186994199.20108.53.camel@twins>
-Mime-Version: 1.0
+Received: from d12nrmr1607.megacenter.de.ibm.com (d12nrmr1607.megacenter.de.ibm.com [9.149.167.49])
+	by mtagate1.de.ibm.com (8.13.8/8.13.8) with ESMTP id l7DBXffe566354
+	for <linux-mm@kvack.org>; Mon, 13 Aug 2007 11:33:41 GMT
+Received: from d12av02.megacenter.de.ibm.com (d12av02.megacenter.de.ibm.com [9.149.165.228])
+	by d12nrmr1607.megacenter.de.ibm.com (8.13.8/8.13.8/NCO v8.4) with ESMTP id l7DBXf0x1962186
+	for <linux-mm@kvack.org>; Mon, 13 Aug 2007 13:33:41 +0200
+Received: from d12av02.megacenter.de.ibm.com (loopback [127.0.0.1])
+	by d12av02.megacenter.de.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l7DBXfRj018810
+	for <linux-mm@kvack.org>; Mon, 13 Aug 2007 13:33:41 +0200
+Date: Mon, 13 Aug 2007 13:33:40 +0200
+From: Heiko Carstens <heiko.carstens@de.ibm.com>
+Subject: Re: [PATCH] dm: Fix deadlock under high i/o load in raid1 setup.
+Message-ID: <20070813113340.GB30198@osiris.boeblingen.de.ibm.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, miklos@szeredi.hu, akpm@linux-foundation.org, neilb@suse.de, dgc@sgi.com, tomoki.sekiyama.qu@hitachi.com, nikita@clusterfs.com, trond.myklebust@fys.uio.no, yingchao.zhou@gmail.com, richard@rsk.demon.co.uk, torvalds@linux-foundation.org
+To: linux-mm@kvack.org, dm-devel@redhat.com
+Cc: Daniel Kobras <kobras@linux.de>, Alasdair G Kergon <agk@redhat.com>, Stefan Weinhuber <wein@de.ibm.com>, Stefan Bader <shbader@de.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
---=-fONaKnYZIJSZEqCzSeXq
-Content-Type: text/plain
-Content-Transfer-Encoding: quoted-printable
+Hi,
 
-On Thu, 2007-08-09 at 12:27 -0700, Christoph Lameter wrote:
-> On Thu, 9 Aug 2007, Peter Zijlstra wrote:
->=20
-> > Less conditionals. We already have a branch for mapping, why create
-> > another?
->=20
-> Ah. Okay. This also avoids an interrupt enable disable since you can use=20
-> __ functions. Hmmm... Would be good if we could move the vmstat=20
-> NR_WRITEBACK update there too. Can a page without a mapping be under=20
-> writeback? (Direct I/O?)
+the patch below went into 2.6.18. Now my question is: why doesn't it check
+if kmalloc(..., GFP_NOIO) returns with a NULL pointer?
+Did I miss anything that guarentees that this will always succeed or is it
+just a bug?
 
-DIO still uses the mapping afaik (it needs to invalidate the page before
-and after the OP).
+commit c06aad854fdb9da38fcc22dccfe9d72919453e43
+Author: Daniel Kobras <kobras@linux.de>
+Date:   Sun Aug 27 01:23:24 2006 -0700
 
-But you could put the increment in both paths, and use the irq disable
-from the mapping branch - which should be the most frequent case anyway.
+    [PATCH] dm: Fix deadlock under high i/o load in raid1 setup.
+    
+    On an nForce4-equipped machine with two SATA disk in raid1 setup using dmraid,
+    we experienced frequent deadlock of the system under high i/o load.  'cat
+    /dev/zero > ~/zero' was the most reliable way to reproduce them: Randomly
+    after a few GB, 'cp' would be left in 'D' state along with kjournald and
+    kmirrord.  The functions cp and kjournald were blocked in did vary, but
+    kmirrord's wchan always pointed to 'mempool_alloc()'.  We've seen this pattern
+    on 2.6.15 and 2.6.17 kernels.  http://lkml.org/lkml/2005/4/20/142 indicates
+    that this problem has been around even before.
+    
+    So much for the facts, here's my interpretation: mempool_alloc() first tries
+    to atomically allocate the requested memory, or falls back to hand out
+    preallocated chunks from the mempool.  If both fail, it puts the calling
+    process (kmirrord in this case) on a private waitqueue until somebody refills
+    the pool.  Where the only 'somebody' is kmirrord itself, so we have a
+    deadlock.
+    
+    I worked around this problem by falling back to a (blocking) kmalloc when
+    before kmirrord would have ended up on the waitqueue.  This defeats part of
+    the benefits of using the mempool, but at least keeps the system running.  And
+    it could be done with a two-line change.  Note that mempool_alloc() clears the
+    GFP_NOIO flag internally, and only uses it to decide whether to wait or return
+    an error if immediate allocation fails, so the attached patch doesn't change
+    behaviour in the non-deadlocking case.  Path is against current git
+    (2.6.18-rc4), but should apply to earlier versions as well.  I've tested on
+    2.6.15, where this patch makes the difference between random lockup and a
+    stable system.
+    
+    Signed-off-by: Daniel Kobras <kobras@linux.de>
+    Acked-by: Alasdair G Kergon <agk@redhat.com>
+    Cc: <stable@kernel.org>
+    Signed-off-by: Andrew Morton <akpm@osdl.org>
+    Signed-off-by: Linus Torvalds <torvalds@osdl.org>
 
---=-fONaKnYZIJSZEqCzSeXq
-Content-Type: application/pgp-signature; name=signature.asc
-Content-Description: This is a digitally signed message part
-
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v1.4.6 (GNU/Linux)
-
-iD8DBQBGwBgXXA2jU0ANEf4RAsxcAJ9Kn809Vlp9vaVlD7HocGpCA2CA7gCfZmu+
-GNyVHt1++OkEBR3zQPx/PNg=
-=ejba
------END PGP SIGNATURE-----
-
---=-fONaKnYZIJSZEqCzSeXq--
+diff --git a/drivers/md/dm-raid1.c b/drivers/md/dm-raid1.c
+index be48ced..c54de98 100644
+--- a/drivers/md/dm-raid1.c
++++ b/drivers/md/dm-raid1.c
+@@ -255,7 +255,9 @@ static struct region *__rh_alloc(struct region_hash *rh, region_t region)
+ 	struct region *reg, *nreg;
+ 
+ 	read_unlock(&rh->hash_lock);
+-	nreg = mempool_alloc(rh->region_pool, GFP_NOIO);
++	nreg = mempool_alloc(rh->region_pool, GFP_ATOMIC);
++	if (unlikely(!nreg))
++		nreg = kmalloc(sizeof(struct region), GFP_NOIO);
+ 	nreg->state = rh->log->type->in_sync(rh->log, region, 1) ?
+ 		RH_CLEAN : RH_NOSYNC;
+ 	nreg->rh = rh;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
