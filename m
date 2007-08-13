@@ -1,172 +1,244 @@
-Subject: Re: [patch][rfc] 2.6.23-rc1 mm: NUMA replicated pagecache
-From: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
-In-Reply-To: <20070813074351.GA15609@wotan.suse.de>
-References: <20070727084252.GA9347@wotan.suse.de>
-	 <1186604723.5055.47.camel@localhost> <1186780099.5246.6.camel@localhost>
-	 <20070813074351.GA15609@wotan.suse.de>
-Content-Type: text/plain
-Date: Mon, 13 Aug 2007 10:05:01 -0400
-Message-Id: <1187013901.5592.24.camel@localhost>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Received: from d23relay03.au.ibm.com (d23relay03.au.ibm.com [202.81.18.234])
+	by ausmtp06.au.ibm.com (8.13.8/8.13.8) with ESMTP id l7DHiBRd745684
+	for <linux-mm@kvack.org>; Tue, 14 Aug 2007 03:44:11 +1000
+Received: from d23av02.au.ibm.com (d23av02.au.ibm.com [9.190.250.243])
+	by d23relay03.au.ibm.com (8.13.8/8.13.8/NCO v8.5) with ESMTP id l7DHfdR52338824
+	for <linux-mm@kvack.org>; Tue, 14 Aug 2007 03:41:40 +1000
+Received: from d23av02.au.ibm.com (loopback [127.0.0.1])
+	by d23av02.au.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l7DHfdT2031684
+	for <linux-mm@kvack.org>; Tue, 14 Aug 2007 03:41:39 +1000
+From: Balbir Singh <balbir@linux.vnet.ibm.com>
+Date: Mon, 13 Aug 2007 23:11:34 +0530
+Message-Id: <20070813174134.13180.80106.sendpatchset@balbir-laptop>
+In-Reply-To: <20070813174113.13180.60178.sendpatchset@balbir-laptop>
+References: <20070813174113.13180.60178.sendpatchset@balbir-laptop>
+Subject: [-mm PATCH 2/9] Memory controller containers setup (v5)
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nick Piggin <npiggin@suse.de>
-Cc: Linux Memory Management List <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Joachim Deguara <joachim.deguara@amd.com>, Christoph Lameter <clameter@sgi.com>, Mel Gorman <mel@csn.ul.ie>, Eric Whitney <eric.whitney@hp.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux Containers <containers@lists.osdl.org>, YAMAMOTO Takashi <yamamoto@valinux.co.jp>, Paul Menage <menage@google.com>, Linux MM Mailing List <linux-mm@kvack.org>, Nick Piggin <npiggin@suse.de>, Vaidyanathan Srinivasan <svaidy@linux.vnet.ibm.com>, Pavel Emelianov <xemul@openvz.org>, Dhaval Giani <dhaval@linux.vnet.ibm.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, Dave Hansen <haveblue@us.ibm.com>, Eric W Biederman <ebiederm@xmission.com>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 2007-08-13 at 09:43 +0200, Nick Piggin wrote:
-> On Fri, Aug 10, 2007 at 05:08:18PM -0400, Lee Schermerhorn wrote:
-> > On Wed, 2007-08-08 at 16:25 -0400, Lee Schermerhorn wrote:
-> > > On Fri, 2007-07-27 at 10:42 +0200, Nick Piggin wrote:
-> > > > Hi,
-> > > > 
-> > > > Just got a bit of time to take another look at the replicated pagecache
-> > > > patch. The nopage vs invalidate race and clear_page_dirty_for_io fixes
-> > > > gives me more confidence in the locking now; the new ->fault API makes
-> > > > MAP_SHARED write faults much more efficient; and a few bugs were found
-> > > > and fixed.
-> > > > 
-> > > > More stats were added: *repl* in /proc/vmstat. Survives some kbuilding
-> > > > tests...
-> > > > 
+Changelong
+1. use depends instead of select in init/Kconfig
+2. Port to v11
+3. Clean up the usage of names (container files) for v11
 
-<snip>
-> 
-> Hi Lee,
-> 
-> Am sick with the flu for the past few days, so I haven't done much more
-> work here, but I'll just add some (not very useful) comments....
-> 
-> The get_page_from_freelist hang is quite strange. It would be zone->lock,
-> which shouldn't have too much contention...
-> 
-> Replication may be putting more stress on some locks. It will cause more
-> tlb flushing that can not be batched well, which could cause the call_lock
-> to get hotter. Then i_mmap_lock is held over tlb flushing, so it will
-> inherit the latency from call_lock. (If this is the case, we could
-> potentially extend the tlb flushing API slightly to cope better with
-> unmapping of pages from multiple mm's, but that comes way down the track
-> when/if replication proves itself!).
-> 
-> tlb flushing AFAIKS should not do the IPI unless it is deadling with a
-> multithreaded mm... does usex use threads?
+Setup the memory container and add basic hooks and controls to integrate
+and work with the container.
 
-Yes.  Apparently, there are some tests, perhaps some of the /usr/bin
-apps that get run repeatedly, that are multi-threaded.  This job mix
-caught a number of races in my auto-migration patches when
-multi-threaded tasks race in the page fault paths.
+Signed-off-by: <balbir@linux.vnet.ibm.com>
+---
 
-More below...
+ include/linux/container_subsys.h |    6 +
+ include/linux/memcontrol.h       |   21 ++++++
+ init/Kconfig                     |    7 ++
+ mm/Makefile                      |    1 
+ mm/memcontrol.c                  |  127 +++++++++++++++++++++++++++++++++++++++
+ 5 files changed, 162 insertions(+)
 
-> 
-> 
-> > I should note that I was trying to unmap all mappings to the file backed pages
-> > on internode task migration, instead of just the current task's pte's.  However,
-> > I was only attempting this on pages with  mapcount <= 4.  So, I don't think I 
-> > was looping trying to unmap pages with mapcounts of several 10s--such as I see
-> > on some page cache pages in my traces.
-> 
-> Replication teardown would still have to unmap all... but that shouldn't
-> particularly be any worse than, say, page reclaim (except I guess that it
-> could occur more often).
-> 
->  
-> > Today, after rebasing to 23-rc2-mm2, I added a patch to unmap only the current
-> > task's ptes for ALL !anon pages, regardless of mapcount.  I've started the test
-> > again and will let it run over the weekend--or as long as it stays up, which 
-> > ever is shorter :-).
-> 
-> Ah, so it does eventually die? Any hints of why?
+diff -puN include/linux/container_subsys.h~mem-control-setup include/linux/container_subsys.h
+--- linux-2.6.23-rc1-mm1/include/linux/container_subsys.h~mem-control-setup	2007-08-13 23:06:11.000000000 +0530
++++ linux-2.6.23-rc1-mm1-balbir/include/linux/container_subsys.h	2007-08-13 23:06:11.000000000 +0530
+@@ -30,3 +30,9 @@ SUBSYS(ns)
+ #endif
+ 
+ /* */
++
++#ifdef CONFIG_CONTAINER_MEM_CONT
++SUBSYS(mem_container)
++#endif
++
++/* */
+diff -puN /dev/null include/linux/memcontrol.h
+--- /dev/null	2007-06-01 20:42:04.000000000 +0530
++++ linux-2.6.23-rc1-mm1-balbir/include/linux/memcontrol.h	2007-08-13 23:06:11.000000000 +0530
+@@ -0,0 +1,21 @@
++/* memcontrol.h - Memory Controller
++ *
++ * Copyright IBM Corporation, 2007
++ * Author Balbir Singh <balbir@linux.vnet.ibm.com>
++ *
++ * This program is free software; you can redistribute it and/or modify
++ * it under the terms of the GNU General Public License as published by
++ * the Free Software Foundation; either version 2 of the License, or
++ * (at your option) any later version.
++ *
++ * This program is distributed in the hope that it will be useful,
++ * but WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++ * GNU General Public License for more details.
++ */
++
++#ifndef _LINUX_MEMCONTROL_H
++#define _LINUX_MEMCONTROL_H
++
++#endif /* _LINUX_MEMCONTROL_H */
++
+diff -puN init/Kconfig~mem-control-setup init/Kconfig
+--- linux-2.6.23-rc1-mm1/init/Kconfig~mem-control-setup	2007-08-13 23:06:11.000000000 +0530
++++ linux-2.6.23-rc1-mm1-balbir/init/Kconfig	2007-08-13 23:06:11.000000000 +0530
+@@ -357,6 +357,13 @@ config CONTAINER_NS
+           for instance virtual servers and checkpoint/restart
+           jobs.
+ 
++config CONTAINER_MEM_CONT
++	bool "Memory controller for containers"
++	depends on CONTAINERS && RESOURCE_COUNTERS
++	help
++	  Provides a memory controller that manages both page cache and
++	  RSS memory.
++
+ config PROC_PID_CPUSET
+ 	bool "Include legacy /proc/<pid>/cpuset file"
+ 	depends on CPUSETS
+diff -puN mm/Makefile~mem-control-setup mm/Makefile
+--- linux-2.6.23-rc1-mm1/mm/Makefile~mem-control-setup	2007-08-13 23:06:11.000000000 +0530
++++ linux-2.6.23-rc1-mm1-balbir/mm/Makefile	2007-08-13 23:06:11.000000000 +0530
+@@ -30,4 +30,5 @@ obj-$(CONFIG_FS_XIP) += filemap_xip.o
+ obj-$(CONFIG_MIGRATION) += migrate.o
+ obj-$(CONFIG_SMP) += allocpercpu.o
+ obj-$(CONFIG_QUICKLIST) += quicklist.o
++obj-$(CONFIG_CONTAINER_MEM_CONT) += memcontrol.o
+ 
+diff -puN /dev/null mm/memcontrol.c
+--- /dev/null	2007-06-01 20:42:04.000000000 +0530
++++ linux-2.6.23-rc1-mm1-balbir/mm/memcontrol.c	2007-08-13 23:06:11.000000000 +0530
+@@ -0,0 +1,127 @@
++/* memcontrol.c - Memory Controller
++ *
++ * Copyright IBM Corporation, 2007
++ * Author Balbir Singh <balbir@linux.vnet.ibm.com>
++ *
++ * This program is free software; you can redistribute it and/or modify
++ * it under the terms of the GNU General Public License as published by
++ * the Free Software Foundation; either version 2 of the License, or
++ * (at your option) any later version.
++ *
++ * This program is distributed in the hope that it will be useful,
++ * but WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++ * GNU General Public License for more details.
++ */
++
++#include <linux/res_counter.h>
++#include <linux/memcontrol.h>
++#include <linux/container.h>
++
++struct container_subsys mem_container_subsys;
++
++/*
++ * The memory controller data structure. The memory controller controls both
++ * page cache and RSS per container. We would eventually like to provide
++ * statistics based on the statistics developed by Rik Van Riel for clock-pro,
++ * to help the administrator determine what knobs to tune.
++ *
++ * TODO: Add a water mark for the memory controller. Reclaim will begin when
++ * we hit the water mark.
++ */
++struct mem_container {
++	struct container_subsys_state css;
++	/*
++	 * the counter to account for memory usage
++	 */
++	struct res_counter res;
++};
++
++/*
++ * A meta page is associated with every page descriptor. The meta page
++ * helps us identify information about the container
++ */
++struct meta_page {
++	struct list_head lru;		/* per container LRU list */
++	struct page *page;
++	struct mem_container *mem_container;
++};
++
++
++static inline
++struct mem_container *mem_container_from_cont(struct container *cont)
++{
++	return container_of(container_subsys_state(cont,
++				mem_container_subsys_id), struct mem_container,
++				css);
++}
++
++static ssize_t mem_container_read(struct container *cont, struct cftype *cft,
++			struct file *file, char __user *userbuf, size_t nbytes,
++			loff_t *ppos)
++{
++	return res_counter_read(&mem_container_from_cont(cont)->res,
++				cft->private, userbuf, nbytes, ppos);
++}
++
++static ssize_t mem_container_write(struct container *cont, struct cftype *cft,
++				struct file *file, const char __user *userbuf,
++				size_t nbytes, loff_t *ppos)
++{
++	return res_counter_write(&mem_container_from_cont(cont)->res,
++				cft->private, userbuf, nbytes, ppos);
++}
++
++static struct cftype mem_container_files[] = {
++	{
++		.name = "usage",
++		.private = RES_USAGE,
++		.read = mem_container_read,
++	},
++	{
++		.name = "limit",
++		.private = RES_LIMIT,
++		.write = mem_container_write,
++		.read = mem_container_read,
++	},
++	{
++		.name = "failcnt",
++		.private = RES_FAILCNT,
++		.read = mem_container_read,
++	},
++};
++
++static struct container_subsys_state *
++mem_container_create(struct container_subsys *ss, struct container *cont)
++{
++	struct mem_container *mem;
++
++	mem = kzalloc(sizeof(struct mem_container), GFP_KERNEL);
++	if (!mem)
++		return -ENOMEM;
++
++	res_counter_init(&mem->res);
++	return &mem->css;
++}
++
++static void mem_container_destroy(struct container_subsys *ss,
++				struct container *cont)
++{
++	kfree(mem_container_from_cont(cont));
++}
++
++static int mem_container_populate(struct container_subsys *ss,
++				struct container *cont)
++{
++	return container_add_files(cont, ss, mem_container_files,
++					ARRAY_SIZE(mem_container_files));
++}
++
++struct container_subsys mem_container_subsys = {
++	.name = "memory",
++	.subsys_id = mem_container_subsys_id,
++	.create = mem_container_create,
++	.destroy = mem_container_destroy,
++	.populate = mem_container_populate,
++	.early_init = 0,
++};
+_
 
-No, doesn't die--as in panic.  I was just commenting that I'd leave it
-running ...  However [:-(], it DID hang again.  The test window said
-that the tests ran for 62h:28m before the screen stopped updating.  In
-another window, I was running a script to snap the replication and #
-file pages vmstats, along with a timestamp, every 10 minutes.  That
-stopped reporting stats at about 7:30am on Saturday--about 14h:30m into
-the test.  It still wrote the timestamps [date command] until around 7am
-this morning [Monday]--or ~62 hours into test.
-
-So, I do have ~14 hours of replication stats that I can send you or plot
-up...
-
-Re: the hang:  again, console was scrolling soft lockups continuously.
-Checking the messages file, I see hangs in copy_process(),
-smp_call_function [as in prev test], vma_link [from mmap], ...
-
-I also see a number of NaT ["not a thing"] consumptions--ia64 specific
-error, probably invalid pointer deref--in swapin_readahead, which my
-patches hack.  These might be the cause of the fork/mmap hangs.
-
-Didn't see that in the 8-9Aug runs, so it might be a result of continued
-operation after other hangs/problems; or a botch in the rebase to
-rc2-mm2.  In any case, I have some work to do there...
-
-> 
-> > 
-> > I put a tarball with the rebased series in the Replication directory linked
-> > above, in case you're interested.  I haven't added the patch description for
-> > the new patch yet, but it's pretty simple.  Maybe even correct.
-> > 
-> > ----
-> > 
-> > Unrelated to the lockups  [I think]:
-> > 
-> > I forgot to look before I rebooted, but earlier the previous evening, I checked
-> > the vmstats and at that point [~1.5 hours into the test] we had done ~4.88 million
-> > replications and ~4.8 million "zaps" [collapse of replicated page].  That's around
-> > 98% zaps.  Do we need some filter in the fault path to reduce the "thrashing"--if
-> > that's what I'm seeing.  
-> 
-> Yep. The current replication patch is very much only infrastructure at
-> this stage (and is good for stress testing). I feel sure that heuristics
-> and perhaps tunables would be needed to make the most of it.
-
-Yeah.  I have some ideas to try...
-
-At the end of the 14.5 hours when it stopped dumping vmstats, we were at
-~95% zaps.
-
-> 
-> 
-> > A while back I took a look at the Virtual Iron page replication patch.  They had
-> > set VM_DENY_WRITE when mapping shared executable segments, and only replicated pages
-> > in those VMAs.  Maybe 'DENY_WRITE isn't exactly what we want.  Possibly set another
-> > flag for shared executables, if we can detect them, and any shared mapping that has
-> > no writable mappings ?
-> 
-> mapping_writably_mapped would be a good one to try. That may be too
-> broad in some corner cases where we do want occasionally-written files
-> or even parts of files to be replicated, but if we were ever to enable
-> CONFIG_REPLICATION by default, I imagine mapping_writably_mapped would
-> be the default heuristic.
-> 
-> Still, I appreciate the testing of the "thrashing" case, because with
-> the mapping_writably_mapped heuristic, it is likely that bugs could
-> remain lurking even in production workloads on huge systems (because
-> they will hardly ever get unreplicated).
-> 
->  
-> > I'll try to remember to check the replication statistics after the currently
-> > running test.  If the system stays up, that is.  A quick look < 10 minutes into
-> > the test shows that zaps are now ~84% of replications.  Also, ~47k replicated pages
-> > out of ~287K file pages.
-> 
-> Yeah I guess it can be a little misleading: as time approaches infinity,
-> zaps will probably approach replications. But that doesn't tell you how
-> long a replica stayed around and usefully fed CPUs with local memory...
-
-May be able to capture that info with a more invasive patch -- e.g., add
-a timestamp to the page struct.  I'll think about it.
-
-And, I'll keep you posted.  Not sure how much time I'll be able to
-dedicate to this patch stream.  Got a few others I need to get back
-to...
-
-Later,
-Lee
-
+-- 
+	Warm Regards,
+	Balbir Singh
+	Linux Technology Center
+	IBM, ISTL
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
