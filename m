@@ -1,209 +1,153 @@
-Received: from sd0109e.au.ibm.com (d23rh905.au.ibm.com [202.81.18.225])
-	by ausmtp06.au.ibm.com (8.13.8/8.13.8) with ESMTP id l7DHmsUJ3510386
-	for <linux-mm@kvack.org>; Tue, 14 Aug 2007 03:48:54 +1000
-Received: from d23av03.au.ibm.com (d23av03.au.ibm.com [9.190.250.244])
-	by sd0109e.au.ibm.com (8.13.8/8.13.8/NCO v8.4) with ESMTP id l7DHnrrf208968
-	for <linux-mm@kvack.org>; Tue, 14 Aug 2007 03:49:53 +1000
-Received: from d23av03.au.ibm.com (loopback [127.0.0.1])
-	by d23av03.au.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l7DHkJlk006111
-	for <linux-mm@kvack.org>; Tue, 14 Aug 2007 03:46:20 +1000
+Received: from d23relay03.au.ibm.com (d23relay03.au.ibm.com [202.81.18.234])
+	by ausmtp06.au.ibm.com (8.13.8/8.13.8) with ESMTP id l7DHhoxf5107918
+	for <linux-mm@kvack.org>; Tue, 14 Aug 2007 03:43:59 +1000
+Received: from d23av04.au.ibm.com (d23av04.au.ibm.com [9.190.235.139])
+	by d23relay03.au.ibm.com (8.13.8/8.13.8/NCO v8.5) with ESMTP id l7DHfJYI4730972
+	for <linux-mm@kvack.org>; Tue, 14 Aug 2007 03:41:19 +1000
+Received: from d23av04.au.ibm.com (loopback [127.0.0.1])
+	by d23av04.au.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l7DIfI2Z001660
+	for <linux-mm@kvack.org>; Tue, 14 Aug 2007 04:41:19 +1000
 From: Balbir Singh <balbir@linux.vnet.ibm.com>
-Date: Mon, 13 Aug 2007 23:16:14 +0530
-Message-Id: <20070813174614.15896.61951.sendpatchset@balbir-laptop>
-Subject: [-mm PATCH 9/9] Memory controller make page_referenced() container aware (v5)
+Date: Mon, 13 Aug 2007 23:11:13 +0530
+Message-Id: <20070813174113.13180.60178.sendpatchset@balbir-laptop>
+Subject: [-mm PATCH 0/9] Memory controller introduction (v5)
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, Linux Containers <containers@lists.osdl.org>, YAMAMOTO Takashi <yamamoto@valinux.co.jp>, Paul Menage <menage@google.com>, Dave Hansen <haveblue@us.ibm.com>, Linux MM Mailing List <linux-mm@kvack.org>, Nick Piggin <npiggin@suse.de>, Vaidyanathan Srinivasan <svaidy@linux.vnet.ibm.com>, Pavel Emelianov <xemul@openvz.org>, Dhaval Giani <dhaval@linux.vnet.ibm.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Eric W Biederman <ebiederm@xmission.com>
 List-ID: <linux-mm.kvack.org>
 
-Make page_referenced() container aware. Without this patch, page_referenced()
-can cause a page to be skipped while reclaiming pages. This patch
-ensures that other containers do not hold pages in a particular container
-hostage. It is required to ensure that shared pages are freed from a container
-when they are not actively referenced from the container that brought
-them in
+Hi, Andrew,
 
+Here's version 5 of the memory controller (against 2.6.23-rc1-mm1).
 
-Signed-off-by: <balbir@linux.vnet.ibm.com>
----
+I've tested it and made several changes based on review comments from
+several people in the community. I would consider this version as
+ready for inclusion and thus request you to include it into the -mm tree.
+Including it in the -mm tree would help
 
- include/linux/memcontrol.h |    6 ++++++
- include/linux/rmap.h       |    5 +++--
- mm/memcontrol.c            |    5 +++++
- mm/rmap.c                  |   30 ++++++++++++++++++++++++------
- mm/vmscan.c                |    4 ++--
- 5 files changed, 40 insertions(+), 10 deletions(-)
+1. Iron out any major bugs
+2. Get more review comments and testing in the community
+3. Help it evolve iteratively
 
-diff -puN include/linux/rmap.h~mem-control-per-container-page-referenced include/linux/rmap.h
---- linux-2.6.23-rc1-mm1/include/linux/rmap.h~mem-control-per-container-page-referenced	2007-08-13 23:06:13.000000000 +0530
-+++ linux-2.6.23-rc1-mm1-balbir/include/linux/rmap.h	2007-08-13 23:06:13.000000000 +0530
-@@ -8,6 +8,7 @@
- #include <linux/slab.h>
- #include <linux/mm.h>
- #include <linux/spinlock.h>
-+#include <linux/memcontrol.h>
- 
- /*
-  * The anon_vma heads a list of private "related" vmas, to scan if
-@@ -86,7 +87,7 @@ static inline void page_dup_rmap(struct 
- /*
-  * Called from mm/vmscan.c to handle paging out
-  */
--int page_referenced(struct page *, int is_locked);
-+int page_referenced(struct page *, int is_locked, struct mem_container *cnt);
- int try_to_unmap(struct page *, int ignore_refs);
- 
- /*
-@@ -114,7 +115,7 @@ int page_mkclean(struct page *);
- #define anon_vma_prepare(vma)	(0)
- #define anon_vma_link(vma)	do {} while (0)
- 
--#define page_referenced(page,l) TestClearPageReferenced(page)
-+#define page_referenced(page,l,cnt) TestClearPageReferenced(page)
- #define try_to_unmap(page, refs) SWAP_FAIL
- 
- static inline int page_mkclean(struct page *page)
-diff -puN mm/rmap.c~mem-control-per-container-page-referenced mm/rmap.c
---- linux-2.6.23-rc1-mm1/mm/rmap.c~mem-control-per-container-page-referenced	2007-08-13 23:06:13.000000000 +0530
-+++ linux-2.6.23-rc1-mm1-balbir/mm/rmap.c	2007-08-13 23:06:13.000000000 +0530
-@@ -299,7 +299,8 @@ out:
- 	return referenced;
- }
- 
--static int page_referenced_anon(struct page *page)
-+static int page_referenced_anon(struct page *page,
-+				struct mem_container *mem_cont)
- {
- 	unsigned int mapcount;
- 	struct anon_vma *anon_vma;
-@@ -312,6 +313,13 @@ static int page_referenced_anon(struct p
- 
- 	mapcount = page_mapcount(page);
- 	list_for_each_entry(vma, &anon_vma->head, anon_vma_node) {
-+		/*
-+		 * If we are reclaiming on behalf of a container, skip
-+		 * counting on behalf of references from different
-+		 * containers
-+		 */
-+		if (mem_cont && (mm_container(vma->vm_mm) != mem_cont))
-+			continue;
- 		referenced += page_referenced_one(page, vma, &mapcount);
- 		if (!mapcount)
- 			break;
-@@ -332,7 +340,8 @@ static int page_referenced_anon(struct p
-  *
-  * This function is only called from page_referenced for object-based pages.
-  */
--static int page_referenced_file(struct page *page)
-+static int page_referenced_file(struct page *page,
-+				struct mem_container *mem_cont)
- {
- 	unsigned int mapcount;
- 	struct address_space *mapping = page->mapping;
-@@ -365,6 +374,13 @@ static int page_referenced_file(struct p
- 	mapcount = page_mapcount(page);
- 
- 	vma_prio_tree_foreach(vma, &iter, &mapping->i_mmap, pgoff, pgoff) {
-+		/*
-+		 * If we are reclaiming on behalf of a container, skip
-+		 * counting on behalf of references from different
-+		 * containers
-+		 */
-+		if (mem_cont && (mm_container(vma->vm_mm) != mem_cont))
-+			continue;
- 		if ((vma->vm_flags & (VM_LOCKED|VM_MAYSHARE))
- 				  == (VM_LOCKED|VM_MAYSHARE)) {
- 			referenced++;
-@@ -387,7 +403,8 @@ static int page_referenced_file(struct p
-  * Quick test_and_clear_referenced for all mappings to a page,
-  * returns the number of ptes which referenced the page.
-  */
--int page_referenced(struct page *page, int is_locked)
-+int page_referenced(struct page *page, int is_locked,
-+			struct mem_container *mem_cont)
- {
- 	int referenced = 0;
- 
-@@ -399,14 +416,15 @@ int page_referenced(struct page *page, i
- 
- 	if (page_mapped(page) && page->mapping) {
- 		if (PageAnon(page))
--			referenced += page_referenced_anon(page);
-+			referenced += page_referenced_anon(page, mem_cont);
- 		else if (is_locked)
--			referenced += page_referenced_file(page);
-+			referenced += page_referenced_file(page, mem_cont);
- 		else if (TestSetPageLocked(page))
- 			referenced++;
- 		else {
- 			if (page->mapping)
--				referenced += page_referenced_file(page);
-+				referenced +=
-+					page_referenced_file(page, mem_cont);
- 			unlock_page(page);
- 		}
- 	}
-diff -puN mm/vmscan.c~mem-control-per-container-page-referenced mm/vmscan.c
---- linux-2.6.23-rc1-mm1/mm/vmscan.c~mem-control-per-container-page-referenced	2007-08-13 23:06:13.000000000 +0530
-+++ linux-2.6.23-rc1-mm1-balbir/mm/vmscan.c	2007-08-13 23:06:13.000000000 +0530
-@@ -479,7 +479,7 @@ static unsigned long shrink_page_list(st
- 		if (PageWriteback(page))
- 			goto keep_locked;
- 
--		referenced = page_referenced(page, 1);
-+		referenced = page_referenced(page, 1, sc->mem_container);
- 		/* In active use or really unfreeable?  Activate it. */
- 		if (sc->order <= PAGE_ALLOC_COSTLY_ORDER &&
- 					referenced && page_mapping_inuse(page))
-@@ -971,7 +971,7 @@ force_reclaim_mapped:
- 		if (page_mapped(page)) {
- 			if (!reclaim_mapped ||
- 			    (total_swap_pages == 0 && PageAnon(page)) ||
--			    page_referenced(page, 0)) {
-+			    page_referenced(page, 0, sc->mem_container)) {
- 				list_add(&page->lru, &l_active);
- 				continue;
- 			}
-diff -puN include/linux/memcontrol.h~mem-control-per-container-page-referenced include/linux/memcontrol.h
---- linux-2.6.23-rc1-mm1/include/linux/memcontrol.h~mem-control-per-container-page-referenced	2007-08-13 23:06:13.000000000 +0530
-+++ linux-2.6.23-rc1-mm1-balbir/include/linux/memcontrol.h	2007-08-13 23:06:13.000000000 +0530
-@@ -43,6 +43,7 @@ extern unsigned long mem_container_isola
- 					int active);
- extern void mem_container_out_of_memory(struct mem_container *mem);
- extern int mem_container_cache_charge(struct page *page, struct mm_struct *mm);
-+extern struct mem_container *mm_container(struct mm_struct *mm);
- 
- static inline void mem_container_uncharge_page(struct page *page)
- {
-@@ -93,6 +94,11 @@ static inline int mem_container_cache_ch
- 	return 0;
- }
- 
-+static inline struct mem_container *mm_container(struct mm_struct *mm)
-+{
-+	return NULL;
-+}
-+
- #endif /* CONFIG_CONTAINER_MEM_CONT */
- 
- #endif /* _LINUX_MEMCONTROL_H */
-diff -puN mm/memcontrol.c~mem-control-per-container-page-referenced mm/memcontrol.c
---- linux-2.6.23-rc1-mm1/mm/memcontrol.c~mem-control-per-container-page-referenced	2007-08-13 23:06:13.000000000 +0530
-+++ linux-2.6.23-rc1-mm1-balbir/mm/memcontrol.c	2007-08-13 23:06:13.000000000 +0530
-@@ -108,6 +108,11 @@ struct mem_container *mem_container_from
- 				struct mem_container, css);
- }
- 
-+inline struct mem_container *mm_container(struct mm_struct *mm)
-+{
-+	return rcu_dereference(mm->mem_container);
-+}
-+
- void mm_init_container(struct mm_struct *mm, struct task_struct *p)
- {
- 	struct mem_container *mem;
-_
+I do however that this version is *not* bug free, I am however committed
+to fixing/resolving any issues reported against the patches/code.
+
+Changelog since version 4
+
+1. Renamed meta_page to page_container (Nick Piggin)
+2. Moved locking from page flags to last bit of the page_container pointer
+   (Nick Piggin)
+3. Fixed a rare race in mem_container_isolate_pages (YAMAMOTO Takashi)
+
+Changelog since version 3
+
+1. Ported to v11 of the containers patchset (2.6.23-rc1-mm1). Paul Menage
+   helped immensely with a detailed review of v3
+2. Reclaim is retried to allow reclaim of pages coming in as a result
+   of mapped pages reclaim (swap cache growing as a result of RSS reclaim)
+3. page_referenced() is now container aware. During container reclaim,
+   references from other containers do not prevent a page from being
+   reclaimed from a non-referencing container
+4. Fixed a possible race condition spotted by YAMAMOTO Takashi
+
+Changelog since version 2
+
+1. Improved error handling in mm/memory.c (spotted by YAMAMOTO Takashi)
+2. Test results included
+3. try_to_free_mem_container_pages() bug fix (sc->may_writepage is now
+   set to !laptop_mode)
+
+Changelog since version 1
+
+1. Fixed some compile time errors (in mm/migrate.c from Vaidyanathan S)
+2. Fixed a panic seen when LIST_DEBUG is enabled
+3. Added a mechanism to control whether we track page cache or both
+   page cache and mapped pages (as requested by Pavel)
+4. Dave Hansen provided detail review comments on the code.
+
+This patchset implements another version of the memory controller. These
+patches have been through a big churn, the first set of patches were posted
+last year and earlier this year at
+	http://lkml.org/lkml/2007/2/19/10
+
+This patchset draws from the patches listed above and from some of the
+contents of the patches posted by Vaidyanathan for page cache control.
+	http://lkml.org/lkml/2007/6/20/92
+
+At OLS, the resource management BOF, it was discussed that we need to manage
+RSS and unmapped page cache together. This patchset is a step towards that
+
+TODO's
+
+1. Add memory controller water mark support. Reclaim on high water mark
+2. Add support for shrinking on limit change
+3. Add per zone per container LRU lists (this is being actively worked
+   on by Pavel Emelianov)
+4. Figure out a better CLUI for the controller
+5. Add better statistics
+6. Explore using read_unit64() as recommended by Paul Menage
+   (NOTE: read_ulong() would also be nice to have)
+
+In case you have been using/testing the RSS controller, you'll find that
+this controller works slower than the RSS controller. The reason being
+that both swap cache and page cache is accounted for, so pages do go
+out to swap upon reclaim (they cannot live in the swap cache).
+
+Any test output, feedback, comments, suggestions are welcome! I am committed
+to fixing any bugs and improving the performance of the memory controller.
+Do not hesitate to send any fixes, request for fixes that is required.
+
+Using the patches
+
+1. Enable Memory controller configuration
+2. Compile and boot the new kernel
+3. mount -t container container -o memory /container
+   will mount the memory controller to the /container mount point
+4. mkdir /container/a
+5. echo $$ > /container/a/tasks (add tasks to the new container)
+6. echo -n <num_pages> > /container/a/memory.limit
+   example
+   echo -n 204800 > /container/a/memory.limit, sets the limit to 800 MB
+   on a system with 4K page size
+7. run tasks, see the memory controller work
+8. Report results, provide feedback
+9. Develop/use new patches and go to step 1
+
+Test Results
+
+Results for version 3 of the patch were posted at
+http://lwn.net/Articles/242554/
+
+The code was also tested on a power box with regular machine usage scenarios,
+the config disabled and with a stress suite that touched all the memory
+in the system and was limited in a container.
+
+Documentation
+
+An article describing the design of the memory controller is available
+at http://lwn.net/Articles/243795/
+
+Observations
+
+You might find some pages left over after all tasks have exited the
+container. Even a sync followed by echo 1 > /proc/sys/vm/drop_caches
+will not clean up all pages. The pages left behind are swap cache pages.
+This problem can be easily solved by switching accounting to just
+mapped pages. A mechanism to force all memory out of a container is
+under investigation.
+
+series
+
+res_counters_infra.patch
+mem-control-setup.patch
+mem-control-accounting-setup.patch
+mem-control-accounting.patch
+mem-control-task-migration.patch
+mem-control-lru-and-reclaim.patch
+mem-control-out-of-memory.patch
+mem-control-choose-rss-vs-rss-and-pagecache.patch
+mem-control-per-container-page-referenced.patch
 
 -- 
 	Warm Regards,
