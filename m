@@ -1,15 +1,15 @@
-Date: Mon, 13 Aug 2007 15:52:54 -0700 (PDT)
+Date: Mon, 13 Aug 2007 15:54:34 -0700 (PDT)
 From: Christoph Lameter <clameter@sgi.com>
 Subject: Re: [PATCH 3/4] Embed zone_id information within the zonelist->zones
  pointer
-In-Reply-To: <20070813234217.GI3406@bingen.suse.de>
-Message-ID: <Pine.LNX.4.64.0708131550100.30626@schroedinger.engr.sgi.com>
+In-Reply-To: <20070813234322.GJ3406@bingen.suse.de>
+Message-ID: <Pine.LNX.4.64.0708131553050.30626@schroedinger.engr.sgi.com>
 References: <200708102013.49170.ak@suse.de> <Pine.LNX.4.64.0708101201240.17549@schroedinger.engr.sgi.com>
  <200708110304.55433.ak@suse.de> <Pine.LNX.4.64.0708131423050.28026@schroedinger.engr.sgi.com>
  <20070813225020.GE3406@bingen.suse.de> <Pine.LNX.4.64.0708131457190.28445@schroedinger.engr.sgi.com>
  <20070813225841.GG3406@bingen.suse.de> <Pine.LNX.4.64.0708131506030.28502@schroedinger.engr.sgi.com>
- <20070813230801.GH3406@bingen.suse.de> <Pine.LNX.4.64.0708131518320.28626@schroedinger.engr.sgi.com>
- <20070813234217.GI3406@bingen.suse.de>
+ <20070813230801.GH3406@bingen.suse.de> <Pine.LNX.4.64.0708131536340.29946@schroedinger.engr.sgi.com>
+ <20070813234322.GJ3406@bingen.suse.de>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
@@ -20,34 +20,38 @@ List-ID: <linux-mm.kvack.org>
 
 On Tue, 14 Aug 2007, Andi Kleen wrote:
 
-> > I am not sure what you mean by that. Ia64 ZONE_DMA == x86_84 ZONE_DMA32?
+> On Mon, Aug 13, 2007 at 03:38:10PM -0700, Christoph Lameter wrote:
+> > I just did a grep for GFP_DMA and I still see a large list of GFP_DMA 
+> > kmallocs???
 > 
-> Hmm, when I wrote GFP_DMA32 it was a #define GFP_DMA32 GFP_DMA 
-> on ia64 so that drivers not need to ifdef.  Someone nasty
-> seems to have removed that too. I guess it would be best
-> to readd.
+> I converted all of those that applied to x86.
 
-What would be the point?
+Converted to what?
 
-> But then it wouldn't make sense to have GFP_DMA on ia64 and GFP_DMA32
-> on x86. Since driver writers are more likely to test on x86
-> I would recommend ia64 having compatible semantics. It'll
-> save everybody trouble long term. This means it wouldn't 
-> help on IA64 machines that don't have a DMA zone -- they
-> would still need to validate drivers especially -- but at least
-> the others.
+drivers/scsi/sr_ioctl.c:	buffer = kmalloc(32, GFP_KERNEL | SR_GFP_DMA(cd));
+drivers/scsi/sr_ioctl.c:	buffer = kmalloc(32, GFP_KERNEL | SR_GFP_DMA(cd));
+drivers/scsi/sr_ioctl.c:	char *buffer = kmalloc(32, GFP_KERNEL | SR_GFP_DMA(cd));
+drivers/scsi/sr_ioctl.c:	raw_sector = kmalloc(2048, GFP_KERNEL | SR_GFP_DMA(cd));
+drivers/scsi/sr.c:	buffer = kmalloc(512, GFP_KERNEL | GFP_DMA);
+drivers/scsi/sr.c:	buffer = kmalloc(512, GFP_KERNEL | GFP_DMA);
+drivers/scsi/ch.c:	buffer = kmalloc(512, GFP_KERNEL | GFP_DMA);
+drivers/scsi/ch.c:		buffer = kmalloc(512, GFP_KERNEL | GFP_DMA);
 
-There are no compatible semantics. ZONE_DMA may mean something different 
-for each arch depending on its need. An arch may not have a need for a 4GB 
-boundary (such as s390).
+^^^ looks generic to mme.
 
-> Also from my driver review driver authors often seem to have
-> trouble understanding what GFP_DMA really does. With GFP_DMA32 it 
-> is clearer that it applies to a address range and is not
-> some synonym for pci_map_*
+drivers/net/tokenring/3c359.c:	xl_priv->xl_tx_ring = kmalloc((sizeof(struct xl_tx_desc) * XL_TX_RING_SIZE) + 7, GFP_DMA | GFP_KERNEL) ; 
+drivers/net/tokenring/3c359.c:	xl_priv->xl_rx_ring = kmalloc((sizeof(struct xl_rx_desc) * XL_RX_RING_SIZE) +7, GFP_DMA | GFP_KERNEL) ; 
 
-GFP_DMA32 is clear because there are no other arches to muddy up the 
-waters.
+Tokenring not supported on x86?
+
+drivers/net/znet.c:	if (!(znet->rx_start = kmalloc (DMA_BUF_SIZE, GFP_KERNEL | GFP_DMA)))
+drivers/net/znet.c:	if (!(znet->tx_start = kmalloc (DMA_BUF_SIZE, GFP_KERNEL | GFP_DMA)))
+drivers/net/lance.c:			rx_buff = kmalloc(PKT_BUF_SZ, GFP_DMA | gfp);
+drivers/net/wan/cosa.c:	cosa->bouncebuf = kmalloc(COSA_MTU, GFP_KERNEL|GFP_DMA);
+drivers/net/wan/cosa.c:	if ((chan->rxdata = kmalloc(COSA_MTU, GFP_DMA|GFP_KERNEL)) == NULL) {
+drivers/net/wan/cosa.c:	if ((kbuf = kmalloc(count, GFP_KERNEL|GFP_DMA)) == NULL) {
+
+None of the above are supported on x86?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
