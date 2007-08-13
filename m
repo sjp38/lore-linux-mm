@@ -1,36 +1,56 @@
-Subject: Re: [PATCH] [438/2many] MAINTAINERS - SLAB ALLOCATOR
-From: Joe Perches <joe@perches.com>
-In-Reply-To: <Pine.LNX.4.64.0708131421070.28026@schroedinger.engr.sgi.com>
-References: <46bffbc9.9Jtz7kOTKn1mqlkq%joe@perches.com>
-	 <Pine.LNX.4.64.0708131345130.27728@schroedinger.engr.sgi.com>
-	 <1187039557.10249.312.camel@localhost>
-	 <Pine.LNX.4.64.0708131421070.28026@schroedinger.engr.sgi.com>
-Content-Type: text/plain
-Date: Mon, 13 Aug 2007 14:27:46 -0700
-Message-Id: <1187040466.10249.326.camel@localhost>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Date: Tue, 14 Aug 2007 00:50:20 +0200
+From: Andi Kleen <ak@suse.de>
+Subject: Re: [PATCH 3/4] Embed zone_id information within the zonelist->zones pointer
+Message-ID: <20070813225020.GE3406@bingen.suse.de>
+References: <20070809210616.14702.73376.sendpatchset@skynet.skynet.ie> <200708102013.49170.ak@suse.de> <Pine.LNX.4.64.0708101201240.17549@schroedinger.engr.sgi.com> <200708110304.55433.ak@suse.de> <Pine.LNX.4.64.0708131423050.28026@schroedinger.engr.sgi.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <Pine.LNX.4.64.0708131423050.28026@schroedinger.engr.sgi.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Christoph Lameter <clameter@sgi.com>
-Cc: torvalds@linux-foundation.org, penberg@cs.helsinki.fi, linux-mm@kvack.org, linux-kernel@vger.kernel.org, akpm@linux-foundation.org
+Cc: Andi Kleen <ak@suse.de>, Mel Gorman <mel@skynet.ie>, Lee.Schermerhorn@hp.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 2007-08-13 at 14:21 -0700, Christoph Lameter wrote:
-> On Mon, 13 Aug 2007, Joe Perches wrote:
-> > Do you want slob too?
-> Sure we usually have to update all the slab allocators for changes.
+On Mon, Aug 13, 2007 at 02:25:36PM -0700, Christoph Lameter wrote:
+> On Sat, 11 Aug 2007, Andi Kleen wrote:
+> 
+> > > Hallelujah. You are my hero! x86_64 will switch off CONFIG_ZONE_DMA?
+> > 
+> > Yes. i386 too actually.
+> > 
+> > The DMA zone will be still there, but only reachable with special functions.
+> 
+> Not too happy with that one but this is going the right direcrtion.
+> 
+> On NUMA this would still mean allocating space for the DMA zone on all 
+> nodes although we only need this on node 0.
 
-SLAB/SLOB/SLUB ALLOCATORS
-P:	Christoph Lameter
-M:	clameter@sgi.com
-P:	Pekka Enberg
-M:	penberg@cs.helsinki.fi
-L:	linux-mm@kvack.org
-S:	Maintained
-F:	include/linux/sl?b*.h
-F:	mm/sl?b.c
+The DMA allocator is NUMA unaware. This means it doesn't require multiple
+dma zones per node, but is happy with a global one that can live somewhere
+else outside the pgdat. I also removed PCP and other fanciness so it's
+really quite independent and much simpler than the normal one.  It also
+doesn't need try_to_free_pages() because in a isolated zone there
+shouldn't be any freeable pages.
 
+The big difference is that it can go into a slower than O(1) mode that tries
+to find pages based on the DMA mask
+
+> > This also means the DMA support in sl[a-z]b is not needed anymore.
+> 
+> Tell me when. SLUB has an #ifdef CONFIG_ZONE_DMA. We can just drop that 
+> code in the #ifdef's if you are ready.
+
+There are still other architectures that use it. Biggest offender
+is s390. I'll leave them to their respective maintainers.
+
+It's not clear s390 really needs the mask allocator anyways.
+e.g. I suspect they just need to put data into a specific 
+range, but if there are no subranges then it might be
+overkill.
+
+-Andi
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
