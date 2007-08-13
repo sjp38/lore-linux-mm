@@ -1,43 +1,52 @@
-Message-ID: <82d601c7dcc7$d0f55490$a367a8e9@mcardleouavj>
-From: "Classie Hawkins" <mcardleouavj@telecomitalia.it>
-Subject: Got it. No reason to hide
-Date: Sun, 12 Aug 2007 10:01:56 -0700
-MIME-Version: 1.0
-Content-Type: text/plain;
-	charset="us-ascii"
-Content-Transfer-Encoding: 8bit
-Return-Path: <mcardleouavj@telecomitalia.it>
-To: Donnie Cruz <linux-mm@kvack.org>
-Cc: Ozie <linux-mm-archive@kvack.org>, Lacy Nguyen <aart@kvack.org>, Alene Carter <majordomo@kvack.org>, Kiana <linux-ns83820@kvack.org>, Gerry <kelda@kvack.org>, Jerrod <jokker@kvack.org>, Celine <dlkong@kvack.org>
+Subject: Re: [-mm PATCH 8/9] Memory controller add switch to control what type
+	of pages to limit (v4)
+In-Reply-To: Your message of "Sat, 28 Jul 2007 01:41:03 +0530"
+	<20070727201103.31565.3104.sendpatchset@balbir-laptop>
+References: <20070727201103.31565.3104.sendpatchset@balbir-laptop>
+Mime-Version: 1.0
+Content-Type: Text/Plain; charset=us-ascii
+Message-Id: <20070813003348.91E3E1BF943@siro.lan>
+Date: Mon, 13 Aug 2007 09:33:48 +0900 (JST)
+From: yamamoto@valinux.co.jp (YAMAMOTO Takashi)
+Sender: owner-linux-mm@kvack.org
+Return-Path: <owner-linux-mm@kvack.org>
+To: balbir@linux.vnet.ibm.com
+Cc: akpm@linux-foundation.org, a.p.zijlstra@chello.nl, dhaval@linux.vnet.ibm.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, ebiederm@xmission.com, containers@lists.osdl.org, menage@google.com, xemul@openvz.org
 List-ID: <linux-mm.kvack.org>
 
-Dear MapleLeaf Pharmacy,
+> Choose if we want cached pages to be accounted or not. By default both
+> are accounted for. A new set of tunables are added.
+> 
+> echo -n 1 > mem_control_type
+> 
+> switches the accounting to account for only mapped pages
+> 
+> echo -n 2 > mem_control_type
+> 
+> switches the behaviour back
 
-For years now I have been uenjoying your prescription services for all of
-my
-medications. I was acquiring from the procuring US pharmacy and paying a
-lesser fortune for my doctor recommendation.  Then I got sharp and
-established
-purchasing from your Canadian firm. I didn't even need a doctor direction
-to
-order from you.  You have saved me clearly over $10,850 in the last five
-yrs..
-Your assistance are speedy, trustworthy, you present more than 2000 medical
-treatment and
-your class is 2nd to none.  
+MEM_CONTAINER_TYPE_ALL is 3, not 2.
 
-Your happy customer,
+YAMAMOTO Takashi
 
-Jim J
-Omaha Nebraska 
+> +enum {
+> +	MEM_CONTAINER_TYPE_UNSPEC = 0,
+> +	MEM_CONTAINER_TYPE_MAPPED,
+> +	MEM_CONTAINER_TYPE_CACHED,
+> +	MEM_CONTAINER_TYPE_ALL,
+> +	MEM_CONTAINER_TYPE_MAX,
+> +} mem_control_type;
+> +
+> +static struct mem_container init_mem_container;
 
-Visit us here to set up saving on your medical instruction: 
-www.doseabc.org
+> +	mem = rcu_dereference(mm->mem_container);
+> +	if (mem->control_type == MEM_CONTAINER_TYPE_ALL)
+> +		return mem_container_charge(page, mm);
+> +	else
+> +		return 0;
 
-
-Smart submunitions Subsequently reasonthat is, practise philosophytook
-possession powerful of this God who had straight arisen broken in the human
-cons enchanting And it was around train this dogma, inwardly body
-experienced by Paul, sneeze the dogma of the resurrection and immort
- The fact that society humor is cost guilty aggravates the guilt of
-connection each structure one, and he is most guilty who most is
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
