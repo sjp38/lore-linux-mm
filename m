@@ -1,299 +1,302 @@
-Received: from d23relay03.au.ibm.com (d23relay03.au.ibm.com [202.81.18.234])
-	by ausmtp05.au.ibm.com (8.13.8/8.13.8) with ESMTP id l7DHiHbD1982534
-	for <linux-mm@kvack.org>; Tue, 14 Aug 2007 03:44:17 +1000
-Received: from d23av03.au.ibm.com (d23av03.au.ibm.com [9.190.250.244])
-	by d23relay03.au.ibm.com (8.13.8/8.13.8/NCO v8.5) with ESMTP id l7DHfT0e3764338
-	for <linux-mm@kvack.org>; Tue, 14 Aug 2007 03:41:29 +1000
-Received: from d23av03.au.ibm.com (loopback [127.0.0.1])
-	by d23av03.au.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l7DHfTOn001278
-	for <linux-mm@kvack.org>; Tue, 14 Aug 2007 03:41:29 +1000
+Received: from sd0109e.au.ibm.com (d23rh905.au.ibm.com [202.81.18.225])
+	by ausmtp04.au.ibm.com (8.13.8/8.13.8) with ESMTP id l7DHlFV4009000
+	for <linux-mm@kvack.org>; Tue, 14 Aug 2007 03:47:15 +1000
+Received: from d23av04.au.ibm.com (d23av04.au.ibm.com [9.190.235.139])
+	by sd0109e.au.ibm.com (8.13.8/8.13.8/NCO v8.4) with ESMTP id l7DHlOXb157402
+	for <linux-mm@kvack.org>; Tue, 14 Aug 2007 03:47:25 +1000
+Received: from d23av04.au.ibm.com (loopback [127.0.0.1])
+	by d23av04.au.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l7DIhpRu004193
+	for <linux-mm@kvack.org>; Tue, 14 Aug 2007 04:43:51 +1000
 From: Balbir Singh <balbir@linux.vnet.ibm.com>
-Date: Mon, 13 Aug 2007 23:11:23 +0530
-Message-Id: <20070813174123.13180.83517.sendpatchset@balbir-laptop>
-In-Reply-To: <20070813174113.13180.60178.sendpatchset@balbir-laptop>
-References: <20070813174113.13180.60178.sendpatchset@balbir-laptop>
-Subject: [-mm PATCH 1/9] Memory controller resource counters (v5)
+Date: Mon, 13 Aug 2007 23:13:46 +0530
+Message-Id: <20070813174346.14593.30033.sendpatchset@balbir-laptop>
+Subject: [-mm PATCH 3/9] Memory controller accounting setup (v5)
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Paul Menage <menage@google.com>, Linux Containers <containers@lists.osdl.org>, YAMAMOTO Takashi <yamamoto@valinux.co.jp>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Eric W Biederman <ebiederm@xmission.com>, Linux MM Mailing List <linux-mm@kvack.org>, Nick Piggin <npiggin@suse.de>, Vaidyanathan Srinivasan <svaidy@linux.vnet.ibm.com>, Pavel Emelianov <xemul@openvz.org>, Dhaval Giani <dhaval@linux.vnet.ibm.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, Dave Hansen <haveblue@us.ibm.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
+Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, Linux Containers <containers@lists.osdl.org>, YAMAMOTO Takashi <yamamoto@valinux.co.jp>, Paul Menage <menage@google.com>, Dave Hansen <haveblue@us.ibm.com>, Linux MM Mailing List <linux-mm@kvack.org>, Nick Piggin <npiggin@suse.de>, Vaidyanathan Srinivasan <svaidy@linux.vnet.ibm.com>, Pavel Emelianov <xemul@openvz.org>, Dhaval Giani <dhaval@linux.vnet.ibm.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Eric W Biederman <ebiederm@xmission.com>
 List-ID: <linux-mm.kvack.org>
 
 From: Pavel Emelianov <xemul@openvz.org>
 
-Introduce generic structures and routines for resource accounting.
+Changelog for v5
 
-Each resource accounting container is supposed to aggregate it,
-container_subsystem_state and its resource-specific members within.
+1. Remove inclusion of memcontrol.h from mm_types.h
+
+Changelog
+
+As per Paul's review comments
+
+1. Drop css_get() for the root memory container
+2. Use mem_container_from_task() as an optimization instead of using
+   mem_container_from_cont() along with task_container.
+
+Basic setup routines, the mm_struct has a pointer to the container that
+it belongs to and the the page has a meta_page associated with it.
 
 Signed-off-by: Pavel Emelianov <xemul@openvz.org>
+
 Signed-off-by: <balbir@linux.vnet.ibm.com>
 ---
 
- include/linux/res_counter.h |  102 +++++++++++++++++++++++++++++++++++++
- init/Kconfig                |    7 ++
- kernel/Makefile             |    1 
- kernel/res_counter.c        |  120 ++++++++++++++++++++++++++++++++++++++++++++
- 4 files changed, 230 insertions(+)
+ include/linux/memcontrol.h |   35 +++++++++++++++++++++++++++
+ include/linux/mm_types.h   |    3 ++
+ include/linux/sched.h      |    4 +++
+ kernel/fork.c              |   11 ++++++--
+ mm/memcontrol.c            |   57 +++++++++++++++++++++++++++++++++++++++++----
+ 5 files changed, 103 insertions(+), 7 deletions(-)
 
-diff -puN /dev/null include/linux/res_counter.h
---- /dev/null	2007-06-01 20:42:04.000000000 +0530
-+++ linux-2.6.23-rc1-mm1-balbir/include/linux/res_counter.h	2007-08-13 23:06:11.000000000 +0530
-@@ -0,0 +1,102 @@
-+#ifndef __RES_COUNTER_H__
-+#define __RES_COUNTER_H__
-+
-+/*
-+ * Resource Counters
-+ * Contain common data types and routines for resource accounting
-+ *
+diff -puN include/linux/memcontrol.h~mem-control-accounting-setup include/linux/memcontrol.h
+--- linux-2.6.23-rc1-mm1/include/linux/memcontrol.h~mem-control-accounting-setup	2007-08-13 23:06:11.000000000 +0530
++++ linux-2.6.23-rc1-mm1-balbir/include/linux/memcontrol.h	2007-08-13 23:06:11.000000000 +0530
+@@ -3,6 +3,9 @@
+  * Copyright IBM Corporation, 2007
+  * Author Balbir Singh <balbir@linux.vnet.ibm.com>
+  *
 + * Copyright 2007 OpenVZ SWsoft Inc
-+ *
 + * Author: Pavel Emelianov <xemul@openvz.org>
 + *
-+ */
-+
-+#include <linux/container.h>
-+
-+/*
-+ * The core object. the container that wishes to account for some
-+ * resource may include this counter into its structures and use
-+ * the helpers described beyond
-+ */
-+
-+struct res_counter {
-+	/*
-+	 * the current resource consumption level
-+	 */
-+	unsigned long usage;
-+	/*
-+	 * the limit that usage cannot exceed
-+	 */
-+	unsigned long limit;
-+	/*
-+	 * the number of unsuccessful attempts to consume the resource
-+	 */
-+	unsigned long failcnt;
-+	/*
-+	 * the lock to protect all of the above.
-+	 * the routines below consider this to be IRQ-safe
-+	 */
-+	spinlock_t lock;
-+};
-+
-+/*
-+ * Helpers to interact with userspace
-+ * res_counter_read/_write - put/get the specified fields from the
-+ * res_counter struct to/from the user
-+ *
-+ * @counter:     the counter in question
-+ * @member:  the field to work with (see RES_xxx below)
-+ * @buf:     the buffer to opeate on,...
-+ * @nbytes:  its size...
-+ * @pos:     and the offset.
-+ */
-+
-+ssize_t res_counter_read(struct res_counter *counter, int member,
-+		const char __user *buf, size_t nbytes, loff_t *pos);
-+ssize_t res_counter_write(struct res_counter *counter, int member,
-+		const char __user *buf, size_t nbytes, loff_t *pos);
-+
-+/*
-+ * the field descriptors. one for each member of res_counter
-+ */
-+
-+enum {
-+	RES_USAGE,
-+	RES_LIMIT,
-+	RES_FAILCNT,
-+};
-+
-+/*
-+ * helpers for accounting
-+ */
-+
-+void res_counter_init(struct res_counter *counter);
-+
-+/*
-+ * charge - try to consume more resource.
-+ *
-+ * @counter: the counter
-+ * @val: the amount of the resource. each controller defines its own
-+ *       units, e.g. numbers, bytes, Kbytes, etc
-+ *
-+ * returns 0 on success and <0 if the counter->usage will exceed the
-+ * counter->limit _locked call expects the counter->lock to be taken
-+ */
-+
-+int res_counter_charge_locked(struct res_counter *counter, unsigned long val);
-+int res_counter_charge(struct res_counter *counter, unsigned long val);
-+
-+/*
-+ * uncharge - tell that some portion of the resource is released
-+ *
-+ * @counter: the counter
-+ * @val: the amount of the resource
-+ *
-+ * these calls check for usage underflow and show a warning on the console
-+ * _locked call expects the counter->lock to be taken
-+ */
-+
-+void res_counter_uncharge_locked(struct res_counter *counter, unsigned long val);
-+void res_counter_uncharge(struct res_counter *counter, unsigned long val);
-+
-+#endif
-diff -puN init/Kconfig~res_counters_infra init/Kconfig
---- linux-2.6.23-rc1-mm1/init/Kconfig~res_counters_infra	2007-08-13 23:06:11.000000000 +0530
-+++ linux-2.6.23-rc1-mm1-balbir/init/Kconfig	2007-08-13 23:06:11.000000000 +0530
-@@ -321,6 +321,13 @@ config CPUSETS
+  * This program is free software; you can redistribute it and/or modify
+  * it under the terms of the GNU General Public License as published by
+  * the Free Software Foundation; either version 2 of the License, or
+@@ -17,5 +20,37 @@
+ #ifndef _LINUX_MEMCONTROL_H
+ #define _LINUX_MEMCONTROL_H
  
- 	  Say N if unsure.
- 
-+config RESOURCE_COUNTERS
-+	bool "Resource counters"
-+	help
-+	  This option enables controller independent resource accounting
-+          infrastructure that works with containers
-+	depends on CONTAINERS
++struct mem_container;
++struct meta_page;
 +
- config SYSFS_DEPRECATED
- 	bool "Create deprecated sysfs files"
- 	default y
-diff -puN kernel/Makefile~res_counters_infra kernel/Makefile
---- linux-2.6.23-rc1-mm1/kernel/Makefile~res_counters_infra	2007-08-13 23:06:11.000000000 +0530
-+++ linux-2.6.23-rc1-mm1-balbir/kernel/Makefile	2007-08-13 23:06:11.000000000 +0530
-@@ -57,6 +57,7 @@ obj-$(CONFIG_RELAY) += relay.o
- obj-$(CONFIG_SYSCTL) += utsname_sysctl.o
- obj-$(CONFIG_TASK_DELAY_ACCT) += delayacct.o
- obj-$(CONFIG_TASKSTATS) += taskstats.o tsacct.o
-+obj-$(CONFIG_RESOURCE_COUNTERS) += res_counter.o
- 
- ifneq ($(CONFIG_SCHED_NO_NO_OMIT_FRAME_POINTER),y)
- # According to Alan Modra <alan@linuxcare.com.au>, the -fno-omit-frame-pointer is
-diff -puN /dev/null kernel/res_counter.c
---- /dev/null	2007-06-01 20:42:04.000000000 +0530
-+++ linux-2.6.23-rc1-mm1-balbir/kernel/res_counter.c	2007-08-13 23:06:11.000000000 +0530
-@@ -0,0 +1,120 @@
-+/*
-+ * resource containers
-+ *
-+ * Copyright 2007 OpenVZ SWsoft Inc
-+ *
-+ * Author: Pavel Emelianov <xemul@openvz.org>
-+ *
-+ */
++#ifdef CONFIG_CONTAINER_MEM_CONT
 +
-+#include <linux/types.h>
-+#include <linux/parser.h>
-+#include <linux/fs.h>
-+#include <linux/res_counter.h>
-+#include <linux/uaccess.h>
++extern void mm_init_container(struct mm_struct *mm, struct task_struct *p);
++extern void mm_free_container(struct mm_struct *mm);
++extern void page_assign_meta_page(struct page *page, struct meta_page *mp);
++extern struct meta_page *page_get_meta_page(struct page *page);
 +
-+void res_counter_init(struct res_counter *counter)
++#else /* CONFIG_CONTAINER_MEM_CONT */
++static inline void mm_init_container(struct mm_struct *mm,
++					struct task_struct *p)
 +{
-+	spin_lock_init(&counter->lock);
-+	counter->limit = (unsigned long)LONG_MAX;
 +}
 +
-+int res_counter_charge_locked(struct res_counter *counter, unsigned long val)
++static inline void mm_free_container(struct mm_struct *mm)
 +{
-+	if (counter->usage > (counter->limit - val)) {
-+		counter->failcnt++;
-+		return -ENOMEM;
-+	}
-+
-+	counter->usage += val;
-+	return 0;
 +}
 +
-+int res_counter_charge(struct res_counter *counter, unsigned long val)
++static inline void page_assign_meta_page(struct page *page,
++						struct meta_page *mp)
 +{
-+	int ret;
-+	unsigned long flags;
-+
-+	spin_lock_irqsave(&counter->lock, flags);
-+	ret = res_counter_charge_locked(counter, val);
-+	spin_unlock_irqrestore(&counter->lock, flags);
-+	return ret;
 +}
 +
-+void res_counter_uncharge_locked(struct res_counter *counter, unsigned long val)
++static inline struct meta_page *page_get_meta_page(struct page *page)
 +{
-+	if (WARN_ON(counter->usage < val))
-+		val = counter->usage;
-+
-+	counter->usage -= val;
-+}
-+
-+void res_counter_uncharge(struct res_counter *counter, unsigned long val)
-+{
-+	unsigned long flags;
-+
-+	spin_lock_irqsave(&counter->lock, flags);
-+	res_counter_uncharge_locked(counter, val);
-+	spin_unlock_irqrestore(&counter->lock, flags);
-+}
-+
-+
-+static inline unsigned long *res_counter_member(struct res_counter *counter,
-+						int member)
-+{
-+	switch (member) {
-+	case RES_USAGE:
-+		return &counter->usage;
-+	case RES_LIMIT:
-+		return &counter->limit;
-+	case RES_FAILCNT:
-+		return &counter->failcnt;
-+	};
-+
-+	BUG();
 +	return NULL;
 +}
 +
-+ssize_t res_counter_read(struct res_counter *counter, int member,
-+		const char __user *userbuf, size_t nbytes, loff_t *pos)
-+{
-+	unsigned long *val;
-+	char buf[64], *s;
++#endif /* CONFIG_CONTAINER_MEM_CONT */
 +
-+	s = buf;
-+	val = res_counter_member(counter, member);
-+	s += sprintf(s, "%lu\n", *val);
-+	return simple_read_from_buffer((void __user *)userbuf, nbytes,
-+			pos, buf, s - buf);
+ #endif /* _LINUX_MEMCONTROL_H */
+ 
+diff -puN include/linux/mm_types.h~mem-control-accounting-setup include/linux/mm_types.h
+--- linux-2.6.23-rc1-mm1/include/linux/mm_types.h~mem-control-accounting-setup	2007-08-13 23:06:11.000000000 +0530
++++ linux-2.6.23-rc1-mm1-balbir/include/linux/mm_types.h	2007-08-13 23:06:11.000000000 +0530
+@@ -83,6 +83,9 @@ struct page {
+ 	unsigned int gfp_mask;
+ 	unsigned long trace[8];
+ #endif
++#ifdef CONFIG_CONTAINER_MEM_CONT
++	unsigned long page_container;
++#endif
+ };
+ 
+ #endif /* _LINUX_MM_TYPES_H */
+diff -puN include/linux/sched.h~mem-control-accounting-setup include/linux/sched.h
+--- linux-2.6.23-rc1-mm1/include/linux/sched.h~mem-control-accounting-setup	2007-08-13 23:06:11.000000000 +0530
++++ linux-2.6.23-rc1-mm1-balbir/include/linux/sched.h	2007-08-13 23:06:11.000000000 +0530
+@@ -89,6 +89,7 @@ struct sched_param {
+ 
+ #include <asm/processor.h>
+ 
++struct mem_container;
+ struct exec_domain;
+ struct futex_pi_state;
+ struct bio;
+@@ -433,6 +434,9 @@ struct mm_struct {
+ 	/* aio bits */
+ 	rwlock_t		ioctx_list_lock;
+ 	struct kioctx		*ioctx_list;
++#ifdef CONFIG_CONTAINER_MEM_CONT
++	struct mem_container *mem_container;
++#endif
+ };
+ 
+ struct sighand_struct {
+diff -puN kernel/fork.c~mem-control-accounting-setup kernel/fork.c
+--- linux-2.6.23-rc1-mm1/kernel/fork.c~mem-control-accounting-setup	2007-08-13 23:06:11.000000000 +0530
++++ linux-2.6.23-rc1-mm1-balbir/kernel/fork.c	2007-08-13 23:06:11.000000000 +0530
+@@ -50,6 +50,7 @@
+ #include <linux/taskstats_kern.h>
+ #include <linux/random.h>
+ #include <linux/tty.h>
++#include <linux/memcontrol.h>
+ 
+ #include <asm/pgtable.h>
+ #include <asm/pgalloc.h>
+@@ -328,7 +329,7 @@ __cacheline_aligned_in_smp DEFINE_SPINLO
+ 
+ #include <linux/init_task.h>
+ 
+-static struct mm_struct * mm_init(struct mm_struct * mm)
++static struct mm_struct * mm_init(struct mm_struct * mm, struct task_struct *p)
+ {
+ 	atomic_set(&mm->mm_users, 1);
+ 	atomic_set(&mm->mm_count, 1);
+@@ -345,11 +346,14 @@ static struct mm_struct * mm_init(struct
+ 	mm->ioctx_list = NULL;
+ 	mm->free_area_cache = TASK_UNMAPPED_BASE;
+ 	mm->cached_hole_size = ~0UL;
++	mm_init_container(mm, p);
+ 
+ 	if (likely(!mm_alloc_pgd(mm))) {
+ 		mm->def_flags = 0;
+ 		return mm;
+ 	}
++
++	mm_free_container(mm);
+ 	free_mm(mm);
+ 	return NULL;
+ }
+@@ -364,7 +368,7 @@ struct mm_struct * mm_alloc(void)
+ 	mm = allocate_mm();
+ 	if (mm) {
+ 		memset(mm, 0, sizeof(*mm));
+-		mm = mm_init(mm);
++		mm = mm_init(mm, current);
+ 	}
+ 	return mm;
+ }
+@@ -378,6 +382,7 @@ void fastcall __mmdrop(struct mm_struct 
+ {
+ 	BUG_ON(mm == &init_mm);
+ 	mm_free_pgd(mm);
++	mm_free_container(mm);
+ 	destroy_context(mm);
+ 	free_mm(mm);
+ }
+@@ -498,7 +503,7 @@ static struct mm_struct *dup_mm(struct t
+ 	mm->token_priority = 0;
+ 	mm->last_interval = 0;
+ 
+-	if (!mm_init(mm))
++	if (!mm_init(mm, tsk))
+ 		goto fail_nomem;
+ 
+ 	if (init_new_context(tsk, mm))
+diff -puN mm/memcontrol.c~mem-control-accounting-setup mm/memcontrol.c
+--- linux-2.6.23-rc1-mm1/mm/memcontrol.c~mem-control-accounting-setup	2007-08-13 23:06:11.000000000 +0530
++++ linux-2.6.23-rc1-mm1-balbir/mm/memcontrol.c	2007-08-13 23:06:11.000000000 +0530
+@@ -3,6 +3,9 @@
+  * Copyright IBM Corporation, 2007
+  * Author Balbir Singh <balbir@linux.vnet.ibm.com>
+  *
++ * Copyright 2007 OpenVZ SWsoft Inc
++ * Author: Pavel Emelianov <xemul@openvz.org>
++ *
+  * This program is free software; you can redistribute it and/or modify
+  * it under the terms of the GNU General Public License as published by
+  * the Free Software Foundation; either version 2 of the License, or
+@@ -17,6 +20,7 @@
+ #include <linux/res_counter.h>
+ #include <linux/memcontrol.h>
+ #include <linux/container.h>
++#include <linux/mm.h>
+ 
+ struct container_subsys mem_container_subsys;
+ 
+@@ -35,6 +39,13 @@ struct mem_container {
+ 	 * the counter to account for memory usage
+ 	 */
+ 	struct res_counter res;
++	/*
++	 * Per container active and inactive list, similar to the
++	 * per zone LRU lists.
++	 * TODO: Consider making these lists per zone
++	 */
++	struct list_head active_list;
++	struct list_head inactive_list;
+ };
+ 
+ /*
+@@ -56,6 +67,37 @@ struct mem_container *mem_container_from
+ 				css);
+ }
+ 
++static inline
++struct mem_container *mem_container_from_task(struct task_struct *p)
++{
++	return container_of(task_subsys_state(p, mem_container_subsys_id),
++				struct mem_container, css);
 +}
 +
-+ssize_t res_counter_write(struct res_counter *counter, int member,
-+		const char __user *userbuf, size_t nbytes, loff_t *pos)
++void mm_init_container(struct mm_struct *mm, struct task_struct *p)
 +{
-+	int ret;
-+	char *buf, *end;
-+	unsigned long tmp, *val;
++	struct mem_container *mem;
 +
-+	buf = kmalloc(nbytes + 1, GFP_KERNEL);
-+	ret = -ENOMEM;
-+	if (buf == NULL)
-+		goto out;
-+
-+	buf[nbytes] = '\0';
-+	ret = -EFAULT;
-+	if (copy_from_user(buf, userbuf, nbytes))
-+		goto out_free;
-+
-+	ret = -EINVAL;
-+	tmp = simple_strtoul(buf, &end, 10);
-+	if (*end != '\0')
-+		goto out_free;
-+
-+	val = res_counter_member(counter, member);
-+	*val = tmp;
-+	ret = nbytes;
-+out_free:
-+	kfree(buf);
-+out:
-+	return ret;
++	mem = mem_container_from_task(p);
++	css_get(&mem->css);
++	mm->mem_container = mem;
 +}
++
++void mm_free_container(struct mm_struct *mm)
++{
++	css_put(&mm->mem_container->css);
++}
++
++void page_assign_meta_page(struct page *page, struct meta_page *mp)
++{
++	page->meta_page = mp;
++}
++
++struct meta_page *page_get_meta_page(struct page *page)
++{
++	return page->meta_page;
++}
++
+ static ssize_t mem_container_read(struct container *cont, struct cftype *cft,
+ 			struct file *file, char __user *userbuf, size_t nbytes,
+ 			loff_t *ppos)
+@@ -91,14 +133,21 @@ static struct cftype mem_container_files
+ 	},
+ };
+ 
++static struct mem_container init_mem_container;
++
+ static struct container_subsys_state *
+ mem_container_create(struct container_subsys *ss, struct container *cont)
+ {
+ 	struct mem_container *mem;
+ 
+-	mem = kzalloc(sizeof(struct mem_container), GFP_KERNEL);
+-	if (!mem)
+-		return -ENOMEM;
++	if (unlikely((cont->parent) == NULL)) {
++		mem = &init_mem_container;
++		init_mm.mem_container = mem;
++	} else
++		mem = kzalloc(sizeof(struct mem_container), GFP_KERNEL);
++
++	if (mem == NULL)
++		return NULL;
+ 
+ 	res_counter_init(&mem->res);
+ 	return &mem->css;
+@@ -123,5 +172,5 @@ struct container_subsys mem_container_su
+ 	.create = mem_container_create,
+ 	.destroy = mem_container_destroy,
+ 	.populate = mem_container_populate,
+-	.early_init = 0,
++	.early_init = 1,
+ };
 _
 
 -- 
