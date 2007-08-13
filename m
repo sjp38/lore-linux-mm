@@ -1,843 +1,592 @@
 Received: from sd0109e.au.ibm.com (d23rh905.au.ibm.com [202.81.18.225])
-	by ausmtp04.au.ibm.com (8.13.8/8.13.8) with ESMTP id l7DHlReG343140
-	for <linux-mm@kvack.org>; Tue, 14 Aug 2007 03:47:27 +1000
-Received: from d23av03.au.ibm.com (d23av03.au.ibm.com [9.190.250.244])
-	by sd0109e.au.ibm.com (8.13.8/8.13.8/NCO v8.4) with ESMTP id l7DHlaEp154644
-	for <linux-mm@kvack.org>; Tue, 14 Aug 2007 03:47:36 +1000
-Received: from d23av03.au.ibm.com (loopback [127.0.0.1])
-	by d23av03.au.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l7DHi3Jh003802
-	for <linux-mm@kvack.org>; Tue, 14 Aug 2007 03:44:03 +1000
+	by ausmtp06.au.ibm.com (8.13.8/8.13.8) with ESMTP id l7DHlX6D5730408
+	for <linux-mm@kvack.org>; Tue, 14 Aug 2007 03:47:33 +1000
+Received: from d23av04.au.ibm.com (d23av04.au.ibm.com [9.190.235.139])
+	by sd0109e.au.ibm.com (8.13.8/8.13.8/NCO v8.4) with ESMTP id l7DHmYiq207380
+	for <linux-mm@kvack.org>; Tue, 14 Aug 2007 03:48:34 +1000
+Received: from d23av04.au.ibm.com (loopback [127.0.0.1])
+	by d23av04.au.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l7DIj09U005218
+	for <linux-mm@kvack.org>; Tue, 14 Aug 2007 04:45:01 +1000
 From: Balbir Singh <balbir@linux.vnet.ibm.com>
-Date: Mon, 13 Aug 2007 23:13:56 +0530
-Message-Id: <20070813174356.14593.22107.sendpatchset@balbir-laptop>
-In-Reply-To: <20070813174346.14593.30033.sendpatchset@balbir-laptop>
-References: <20070813174346.14593.30033.sendpatchset@balbir-laptop>
-Subject: [-mm PATCH 4/9] Memory controller memory accounting (v5)
+Date: Mon, 13 Aug 2007 23:14:54 +0530
+Message-Id: <20070813174454.15210.40573.sendpatchset@balbir-laptop>
+Subject: [-mm PATCH 6/9] Memory controller add per container LRU and reclaim (v5)
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Paul Menage <menage@google.com>, Linux Containers <containers@lists.osdl.org>, YAMAMOTO Takashi <yamamoto@valinux.co.jp>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Eric W Biederman <ebiederm@xmission.com>, Linux MM Mailing List <linux-mm@kvack.org>, Nick Piggin <npiggin@suse.de>, Vaidyanathan Srinivasan <svaidy@linux.vnet.ibm.com>, Pavel Emelianov <xemul@openvz.org>, Dhaval Giani <dhaval@linux.vnet.ibm.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, Dave Hansen <haveblue@us.ibm.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
+Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, Linux Containers <containers@lists.osdl.org>, YAMAMOTO Takashi <yamamoto@valinux.co.jp>, Paul Menage <menage@google.com>, Dave Hansen <haveblue@us.ibm.com>, Linux MM Mailing List <linux-mm@kvack.org>, Nick Piggin <npiggin@suse.de>, Vaidyanathan Srinivasan <svaidy@linux.vnet.ibm.com>, Pavel Emelianov <xemul@openvz.org>, Dhaval Giani <dhaval@linux.vnet.ibm.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Eric W Biederman <ebiederm@xmission.com>
 List-ID: <linux-mm.kvack.org>
 
 
-Changelog for v5
-1. Rename meta_page to page_container
-2. Remove PG_metapage and use the lower bit of the page_container pointer
-   for locking
-
-Changelog for v3
-
-1. Fix a probable leak with meta_page's (pointed out by Paul Menage)
-2. Introduce a wrapper around mem_container_uncharge for uncharging pages
-   mem_container_uncharge_page()
+Changelog since v3
+1. Added reclaim retry logic to avoid being OOM'ed due to pages from
+   swap cache (coming in due to reclaim) don't overwhelm the container.
 
 Changelog
+1. Fix probable NULL pointer dereference based on review comments
+   by YAMAMOTO Takashi
 
-1. Improved error handling, uncharge on errors and check to see if we are
-   leaking pages (review by YAMAMOTO Takashi)
+Add the meta_page to the per container LRU. The reclaim algorithm has been
+modified to make the isolate_lru_pages() as a pluggable component. The
+scan_control data structure now accepts the container on behalf of which
+reclaims are carried out. try_to_free_pages() has been extended to become
+container aware.
 
-Add the accounting hooks. The accounting is carried out for RSS and Page
-Cache (unmapped) pages. There is now a common limit and accounting for both.
-The RSS accounting is accounted at page_add_*_rmap() and page_remove_rmap()
-time. Page cache is accounted at add_to_page_cache(),
-__delete_from_page_cache(). Swap cache is also accounted for.
-
-Each page's meta_page is protected with a bit in page flags, this makes
-handling of race conditions involving simultaneous mappings of a page easier.
-A reference count is kept in the meta_page to deal with cases where a page
-might be unmapped from the RSS of all tasks, but still lives in the page
-cache.
-
-Credits go to Vaidyanathan Srinivasan for helping with reference counting work
-of the meta page. Almost all of the page cache accounting code has help from
-Vaidyanathan Srinivasan.
-
-Signed-off-by: Vaidyanathan Srinivasan <svaidy@linux.vnet.ibm.com>
+Signed-off-by: Pavel Emelianov <xemul@openvz.org>
 Signed-off-by: <balbir@linux.vnet.ibm.com>
 ---
 
- include/linux/memcontrol.h |   33 +++++++-
- mm/filemap.c               |   12 ++-
- mm/memcontrol.c            |  171 +++++++++++++++++++++++++++++++++++++++++++--
- mm/memory.c                |   44 ++++++++++-
- mm/migrate.c               |    6 +
- mm/page_alloc.c            |    3 
- mm/rmap.c                  |   17 ++++
- mm/swap_state.c            |   12 ++-
- mm/swapfile.c              |   41 ++++++----
- 9 files changed, 303 insertions(+), 36 deletions(-)
+ include/linux/memcontrol.h  |   12 +++
+ include/linux/res_counter.h |   23 +++++++
+ include/linux/swap.h        |    3 
+ mm/memcontrol.c             |  134 +++++++++++++++++++++++++++++++++++++++++++-
+ mm/swap.c                   |    2 
+ mm/vmscan.c                 |  126 +++++++++++++++++++++++++++++++++--------
+ 6 files changed, 274 insertions(+), 26 deletions(-)
 
-diff -puN include/linux/memcontrol.h~mem-control-accounting include/linux/memcontrol.h
---- linux-2.6.23-rc1-mm1/include/linux/memcontrol.h~mem-control-accounting	2007-08-13 23:06:11.000000000 +0530
-+++ linux-2.6.23-rc1-mm1-balbir/include/linux/memcontrol.h	2007-08-13 23:06:11.000000000 +0530
-@@ -21,14 +21,22 @@
- #define _LINUX_MEMCONTROL_H
+diff -puN include/linux/memcontrol.h~mem-control-lru-and-reclaim include/linux/memcontrol.h
+--- linux-2.6.23-rc1-mm1/include/linux/memcontrol.h~mem-control-lru-and-reclaim	2007-08-13 23:06:12.000000000 +0530
++++ linux-2.6.23-rc1-mm1-balbir/include/linux/memcontrol.h	2007-08-13 23:06:12.000000000 +0530
+@@ -32,6 +32,13 @@ extern void page_assign_page_container(s
+ extern struct page_container *page_get_page_container(struct page *page);
+ extern int mem_container_charge(struct page *page, struct mm_struct *mm);
+ extern void mem_container_uncharge(struct page_container *pc);
++extern void mem_container_move_lists(struct page_container *pc, bool active);
++extern unsigned long mem_container_isolate_pages(unsigned long nr_to_scan,
++					struct list_head *dst,
++					unsigned long *scanned, int order,
++					int mode, struct zone *z,
++					struct mem_container *mem_cont,
++					int active);
  
- struct mem_container;
--struct meta_page;
-+struct page_container;
- 
- #ifdef CONFIG_CONTAINER_MEM_CONT
- 
- extern void mm_init_container(struct mm_struct *mm, struct task_struct *p);
- extern void mm_free_container(struct mm_struct *mm);
--extern void page_assign_meta_page(struct page *page, struct meta_page *mp);
--extern struct meta_page *page_get_meta_page(struct page *page);
-+extern void page_assign_page_container(struct page *page,
-+					struct page_container *pc);
-+extern struct page_container *page_get_page_container(struct page *page);
-+extern int mem_container_charge(struct page *page, struct mm_struct *mm);
-+extern void mem_container_uncharge(struct page_container *pc);
-+
-+static inline void mem_container_uncharge_page(struct page *page)
-+{
-+	mem_container_uncharge(page_get_page_container(page));
-+}
- 
- #else /* CONFIG_CONTAINER_MEM_CONT */
- static inline void mm_init_container(struct mm_struct *mm,
-@@ -40,16 +48,29 @@ static inline void mm_free_container(str
+ static inline void mem_container_uncharge_page(struct page *page)
+ {
+@@ -71,6 +78,11 @@ static inline void mem_container_uncharg
  {
  }
  
--static inline void page_assign_meta_page(struct page *page,
--						struct meta_page *mp)
-+static inline void page_assign_page_container(struct page *page,
-+						struct page_container *pc)
- {
- }
- 
--static inline struct meta_page *page_get_meta_page(struct page *page)
-+static inline struct page_container *page_get_page_container(struct page *page)
- {
- 	return NULL;
- }
- 
-+static inline int mem_container_charge(struct page *page, struct mm_struct *mm)
-+{
-+	return 0;
-+}
-+
-+static inline void mem_container_uncharge(struct page_container *pc)
-+{
-+}
-+
-+static inline void mem_container_uncharge_page(struct page *page)
++static inline void mem_container_move_lists(struct page_container *pc,
++						bool active)
 +{
 +}
 +
  #endif /* CONFIG_CONTAINER_MEM_CONT */
  
  #endif /* _LINUX_MEMCONTROL_H */
-diff -puN include/linux/page-flags.h~mem-control-accounting include/linux/page-flags.h
-diff -puN mm/filemap.c~mem-control-accounting mm/filemap.c
---- linux-2.6.23-rc1-mm1/mm/filemap.c~mem-control-accounting	2007-08-13 23:06:11.000000000 +0530
-+++ linux-2.6.23-rc1-mm1-balbir/mm/filemap.c	2007-08-13 23:06:11.000000000 +0530
-@@ -31,6 +31,7 @@
- #include <linux/syscalls.h>
- #include <linux/cpuset.h>
- #include <linux/hardirq.h> /* for BUG_ON(!in_atomic()) only */
+diff -puN include/linux/res_counter.h~mem-control-lru-and-reclaim include/linux/res_counter.h
+--- linux-2.6.23-rc1-mm1/include/linux/res_counter.h~mem-control-lru-and-reclaim	2007-08-13 23:06:12.000000000 +0530
++++ linux-2.6.23-rc1-mm1-balbir/include/linux/res_counter.h	2007-08-13 23:06:12.000000000 +0530
+@@ -99,4 +99,27 @@ int res_counter_charge(struct res_counte
+ void res_counter_uncharge_locked(struct res_counter *counter, unsigned long val);
+ void res_counter_uncharge(struct res_counter *counter, unsigned long val);
+ 
++static inline bool res_counter_limit_check_locked(struct res_counter *cnt)
++{
++	if (cnt->usage < cnt->limit)
++		return true;
++
++	return false;
++}
++
++/*
++ * Helper function to detect if the container is within it's limit or
++ * not. It's currently called from container_rss_prepare()
++ */
++static inline bool res_counter_check_under_limit(struct res_counter *cnt)
++{
++	bool ret;
++	unsigned long flags;
++
++	spin_lock_irqsave(&cnt->lock, flags);
++	ret = res_counter_limit_check_locked(cnt);
++	spin_unlock_irqrestore(&cnt->lock, flags);
++	return ret;
++}
++
+ #endif
+diff -puN include/linux/swap.h~mem-control-lru-and-reclaim include/linux/swap.h
+--- linux-2.6.23-rc1-mm1/include/linux/swap.h~mem-control-lru-and-reclaim	2007-08-13 23:06:12.000000000 +0530
++++ linux-2.6.23-rc1-mm1-balbir/include/linux/swap.h	2007-08-13 23:06:12.000000000 +0530
+@@ -6,6 +6,7 @@
+ #include <linux/mmzone.h>
+ #include <linux/list.h>
+ #include <linux/sched.h>
 +#include <linux/memcontrol.h>
- #include "internal.h"
  
- /*
-@@ -116,6 +117,7 @@ void __remove_from_page_cache(struct pag
- {
- 	struct address_space *mapping = page->mapping;
- 
-+	mem_container_uncharge_page(page);
- 	radix_tree_delete(&mapping->page_tree, page->index);
- 	page->mapping = NULL;
- 	mapping->nrpages--;
-@@ -442,6 +444,11 @@ int add_to_page_cache(struct page *page,
- 	int error = radix_tree_preload(gfp_mask & ~__GFP_HIGHMEM);
- 
- 	if (error == 0) {
-+
-+		error = mem_container_charge(page, current->mm);
-+		if (error)
-+			goto out;
-+
- 		write_lock_irq(&mapping->tree_lock);
- 		error = radix_tree_insert(&mapping->page_tree, offset, page);
- 		if (!error) {
-@@ -451,10 +458,13 @@ int add_to_page_cache(struct page *page,
- 			page->index = offset;
- 			mapping->nrpages++;
- 			__inc_zone_page_state(page, NR_FILE_PAGES);
--		}
-+		} else
-+			mem_container_uncharge_page(page);
-+
- 		write_unlock_irq(&mapping->tree_lock);
- 		radix_tree_preload_end();
- 	}
-+out:
- 	return error;
- }
- EXPORT_SYMBOL(add_to_page_cache);
-diff -puN mm/memcontrol.c~mem-control-accounting mm/memcontrol.c
---- linux-2.6.23-rc1-mm1/mm/memcontrol.c~mem-control-accounting	2007-08-13 23:06:11.000000000 +0530
-+++ linux-2.6.23-rc1-mm1-balbir/mm/memcontrol.c	2007-08-13 23:06:11.000000000 +0530
-@@ -21,6 +21,9 @@
- #include <linux/memcontrol.h>
- #include <linux/container.h>
- #include <linux/mm.h>
-+#include <linux/page-flags.h>
-+#include <linux/bit_spinlock.h>
-+#include <linux/rcupdate.h>
+ #include <asm/atomic.h>
+ #include <asm/page.h>
+@@ -191,6 +192,8 @@ extern void swap_setup(void);
+ /* linux/mm/vmscan.c */
+ extern unsigned long try_to_free_pages(struct zone **zones, int order,
+ 					gfp_t gfp_mask);
++extern unsigned long try_to_free_mem_container_pages(struct mem_container *mem);
++extern int __isolate_lru_page(struct page *page, int mode);
+ extern unsigned long shrink_all_memory(unsigned long nr_pages);
+ extern int vm_swappiness;
+ extern int remove_mapping(struct address_space *mapping, struct page *page);
+diff -puN mm/memcontrol.c~mem-control-lru-and-reclaim mm/memcontrol.c
+--- linux-2.6.23-rc1-mm1/mm/memcontrol.c~mem-control-lru-and-reclaim	2007-08-13 23:06:12.000000000 +0530
++++ linux-2.6.23-rc1-mm1-balbir/mm/memcontrol.c	2007-08-13 23:06:12.000000000 +0530
+@@ -24,8 +24,11 @@
+ #include <linux/page-flags.h>
+ #include <linux/bit_spinlock.h>
+ #include <linux/rcupdate.h>
++#include <linux/swap.h>
++#include <linux/spinlock.h>
  
  struct container_subsys mem_container_subsys;
++static const int MEM_CONTAINER_RECLAIM_RETRIES = 5;
  
-@@ -31,7 +34,9 @@ struct container_subsys mem_container_su
-  * to help the administrator determine what knobs to tune.
-  *
-  * TODO: Add a water mark for the memory controller. Reclaim will begin when
-- * we hit the water mark.
-+ * we hit the water mark. May be even add a low water mark, such that
-+ * no reclaim occurs from a container at it's low water mark, this is
-+ * a feature that will be implemented much later in the future.
-  */
- struct mem_container {
- 	struct container_subsys_state css;
-@@ -49,13 +54,23 @@ struct mem_container {
+ /*
+  * The memory controller data structure. The memory controller controls both
+@@ -51,6 +54,10 @@ struct mem_container {
+ 	 */
+ 	struct list_head active_list;
+ 	struct list_head inactive_list;
++	/*
++	 * spin_lock to protect the per container LRU
++	 */
++	spinlock_t lru_lock;
  };
  
  /*
-+ * We use the lower bit of the page->page_container pointer as a bit spin
-+ * lock. We need to ensure that page->page_container is atleast two
-+ * byte aligned (based on comments from Nick Piggin)
-+ */
-+#define PAGE_CONTAINER_LOCK_BIT 	0x0
-+#define PAGE_CONTAINER_LOCK 		(1 << PAGE_CONTAINER_LOCK_BIT)
-+
-+/*
-  * A meta page is associated with every page descriptor. The meta page
-  * helps us identify information about the container
-  */
--struct meta_page {
-+struct page_container {
- 	struct list_head lru;		/* per container LRU list */
- 	struct page *page;
- 	struct mem_container *mem_container;
-+	atomic_t ref_cnt;		/* Helpful when pages move b/w  */
-+					/* mapped and cached states     */
- };
- 
- 
-@@ -88,14 +103,156 @@ void mm_free_container(struct mm_struct 
- 	css_put(&mm->mem_container->css);
+@@ -141,6 +148,94 @@ void __always_inline unlock_page_contain
+ 	bit_spin_unlock(PAGE_CONTAINER_LOCK_BIT, &page->page_container);
  }
  
--void page_assign_meta_page(struct page *page, struct meta_page *mp)
-+static inline int page_container_locked(struct page *page)
++void __mem_container_move_lists(struct page_container *pc, bool active)
 +{
-+	return bit_spin_is_locked(PAGE_CONTAINER_LOCK_BIT,
-+					&page->page_container);
-+}
-+
-+void page_assign_page_container(struct page *page, struct page_container *pc)
-+{
-+	int locked;
-+
-+	/*
-+	 * While resetting the page_container we might not hold the
-+	 * page_container lock. free_hot_cold_page() is an example
-+	 * of such a scenario
-+	 */
-+	if (pc)
-+		VM_BUG_ON(!page_container_locked(page));
-+	locked = (page->page_container & PAGE_CONTAINER_LOCK);
-+	page->page_container = ((unsigned long)pc | locked);
-+}
-+
-+struct page_container *page_get_page_container(struct page *page)
- {
--	page->meta_page = mp;
-+	return (struct page_container *)
-+		(page->page_container & ~PAGE_CONTAINER_LOCK);
-+}
-+
-+void __always_inline lock_page_container(struct page *page)
-+{
-+	bit_spin_lock(PAGE_CONTAINER_LOCK_BIT, &page->page_container);
-+	VM_BUG_ON(!page_container_locked(page));
-+}
-+
-+void __always_inline unlock_page_container(struct page *page)
-+{
-+	bit_spin_unlock(PAGE_CONTAINER_LOCK_BIT, &page->page_container);
++	if (active)
++		list_move(&pc->lru, &pc->mem_container->active_list);
++	else
++		list_move(&pc->lru, &pc->mem_container->inactive_list);
 +}
 +
 +/*
-+ * Charge the memory controller for page usage.
-+ * Return
-+ * 0 if the charge was successful
-+ * < 0 if the container is over its limit
++ * This routine assumes that the appropriate zone's lru lock is already held
 + */
-+int mem_container_charge(struct page *page, struct mm_struct *mm)
++void mem_container_move_lists(struct page_container *pc, bool active)
 +{
 +	struct mem_container *mem;
-+	struct page_container *pc, *race_pc;
-+
-+	/*
-+	 * Should page_container's go to their own slab?
-+	 * One could optimize the performance of the charging routine
-+	 * by saving a bit in the page_flags and using it as a lock
-+	 * to see if the container page already has a page_container associated
-+	 * with it
-+	 */
-+	lock_page_container(page);
-+	pc = page_get_page_container(page);
-+	/*
-+	 * The page_container exists and the page has already been accounted
-+	 */
-+	if (pc) {
-+		atomic_inc(&pc->ref_cnt);
-+		goto done;
-+	}
-+
-+	unlock_page_container(page);
-+
-+	pc = kzalloc(sizeof(struct page_container), GFP_KERNEL);
-+	if (pc == NULL)
-+		goto err;
-+
-+	rcu_read_lock();
-+	/*
-+	 * We always charge the container the mm_struct belongs to
-+	 * the mm_struct's mem_container changes on task migration if the
-+	 * thread group leader migrates. It's possible that mm is not
-+	 * set, if so charge the init_mm (happens for pagecache usage).
-+	 */
-+	if (!mm)
-+		mm = &init_mm;
-+
-+	mem = rcu_dereference(mm->mem_container);
-+	/*
-+	 * For every charge from the container, increment reference
-+	 * count
-+	 */
-+	css_get(&mem->css);
-+	rcu_read_unlock();
-+
-+	/*
-+	 * If we created the page_container, we should free it on exceeding
-+	 * the container limit.
-+	 */
-+	if (res_counter_charge(&mem->res, 1)) {
-+		css_put(&mem->css);
-+		goto free_pc;
-+	}
-+
-+	lock_page_container(page);
-+	/*
-+	 * Check if somebody else beat us to allocating the page_container
-+	 */
-+	race_pc = page_get_page_container(page);
-+	if (race_pc) {
-+		kfree(pc);
-+		pc = race_pc;
-+		atomic_inc(&pc->ref_cnt);
-+		res_counter_uncharge(&mem->res, 1);
-+		goto done;
-+	}
-+
-+	atomic_set(&pc->ref_cnt, 1);
-+	pc->mem_container = mem;
-+	pc->page = page;
-+	page_assign_page_container(page, pc);
-+
-+done:
-+	unlock_page_container(page);
-+	return 0;
-+free_pc:
-+	kfree(pc);
-+	return -ENOMEM;
-+err:
-+	unlock_page_container(page);
-+	return -ENOMEM;
- }
- 
--struct meta_page *page_get_meta_page(struct page *page)
-+/*
-+ * Uncharging is always a welcome operation, we never complain, simply
-+ * uncharge.
-+ */
-+void mem_container_uncharge(struct page_container *pc)
- {
--	return page->meta_page;
-+	struct mem_container *mem;
-+	struct page *page;
-+
 +	if (!pc)
 +		return;
 +
-+	if (atomic_dec_and_test(&pc->ref_cnt)) {
++	mem = pc->mem_container;
++
++	spin_lock(&mem->lru_lock);
++	__mem_container_move_lists(pc, active);
++	spin_unlock(&mem->lru_lock);
++}
++
++unsigned long mem_container_isolate_pages(unsigned long nr_to_scan,
++					struct list_head *dst,
++					unsigned long *scanned, int order,
++					int mode, struct zone *z,
++					struct mem_container *mem_cont,
++					int active)
++{
++	unsigned long nr_taken = 0;
++	struct page *page;
++	unsigned long scan;
++	LIST_HEAD(pc_list);
++	struct list_head *src;
++	struct page_container *pc;
++
++	if (active)
++		src = &mem_cont->active_list;
++	else
++		src = &mem_cont->inactive_list;
++
++	spin_lock(&mem_cont->lru_lock);
++	for (scan = 0; scan < nr_to_scan && !list_empty(src); scan++) {
++		pc = list_entry(src->prev, struct page_container, lru);
 +		page = pc->page;
-+		lock_page_container(page);
-+		mem = pc->mem_container;
-+		css_put(&mem->css);
-+		page_assign_page_container(page, NULL);
-+		unlock_page_container(page);
-+		res_counter_uncharge(&mem->res, 1);
-+		kfree(pc);
++		VM_BUG_ON(!pc);
++
++		if (PageActive(page) && !active) {
++			__mem_container_move_lists(pc, true);
++			scan--;
++			continue;
++		}
++		if (!PageActive(page) && active) {
++			__mem_container_move_lists(pc, false);
++			scan--;
++			continue;
++		}
++
++		/*
++		 * Reclaim, per zone
++		 * TODO: make the active/inactive lists per zone
++		 */
++		if (page_zone(page) != z)
++			continue;
++
++		/*
++		 * Check if the meta page went away from under us
++		 */
++		if (!list_empty(&pc->lru))
++			list_move(&pc->lru, &pc_list);
++		else
++			continue;
++
++		if (__isolate_lru_page(page, mode) == 0) {
++			list_move(&page->lru, dst);
++			nr_taken++;
++		}
 +	}
++
++	list_splice(&pc_list, src);
++	spin_unlock(&mem_cont->lru_lock);
++
++	*scanned = scan;
++	return nr_taken;
++}
++
+ /*
+  * Charge the memory controller for page usage.
+  * Return
+@@ -151,6 +246,8 @@ int mem_container_charge(struct page *pa
+ {
+ 	struct mem_container *mem;
+ 	struct page_container *pc, *race_pc;
++	unsigned long flags;
++	unsigned long nr_retries = MEM_CONTAINER_RECLAIM_RETRIES;
+ 
+ 	/*
+ 	 * Should page_container's go to their own slab?
+@@ -197,7 +294,32 @@ int mem_container_charge(struct page *pa
+ 	 * If we created the page_container, we should free it on exceeding
+ 	 * the container limit.
+ 	 */
+-	if (res_counter_charge(&mem->res, 1)) {
++	while (res_counter_charge(&mem->res, 1)) {
++		if (try_to_free_mem_container_pages(mem))
++			continue;
++
++		/*
++ 		 * try_to_free_mem_container_pages() might not give us a full
++ 		 * picture of reclaim. Some pages are reclaimed and might be
++ 		 * moved to swap cache or just unmapped from the container.
++ 		 * Check the limit again to see if the reclaim reduced the
++ 		 * current usage of the container before giving up
++ 		 */
++		if (res_counter_check_under_limit(&mem->res))
++			continue;
++			/*
++			 * Since we control both RSS and cache, we end up with a
++			 * very interesting scenario where we end up reclaiming
++			 * memory (essentially RSS), since the memory is pushed
++			 * to swap cache, we eventually end up adding those
++			 * pages back to our list. Hence we give ourselves a
++			 * few chances before we fail
++			 */
++		else if (nr_retries--) {
++			congestion_wait(WRITE, HZ/10);
++			continue;
++		}
++
+ 		css_put(&mem->css);
+ 		goto free_pc;
+ 	}
+@@ -220,6 +342,10 @@ int mem_container_charge(struct page *pa
+ 	pc->page = page;
+ 	page_assign_page_container(page, pc);
+ 
++	spin_lock_irqsave(&mem->lru_lock, flags);
++	list_add(&pc->lru, &mem->active_list);
++	spin_unlock_irqrestore(&mem->lru_lock, flags);
++
+ done:
+ 	unlock_page_container(page);
+ 	return 0;
+@@ -239,6 +365,7 @@ void mem_container_uncharge(struct page_
+ {
+ 	struct mem_container *mem;
+ 	struct page *page;
++	unsigned long flags;
+ 
+ 	if (!pc)
+ 		return;
+@@ -251,6 +378,10 @@ void mem_container_uncharge(struct page_
+ 		page_assign_page_container(page, NULL);
+ 		unlock_page_container(page);
+ 		res_counter_uncharge(&mem->res, 1);
++
++ 		spin_lock_irqsave(&mem->lru_lock, flags);
++ 		list_del_init(&pc->lru);
++ 		spin_unlock_irqrestore(&mem->lru_lock, flags);
+ 		kfree(pc);
+ 	}
  }
- 
- static ssize_t mem_container_read(struct container *cont, struct cftype *cft,
-@@ -150,6 +307,8 @@ mem_container_create(struct container_su
- 		return NULL;
- 
+@@ -309,6 +440,7 @@ mem_container_create(struct container_su
  	res_counter_init(&mem->res);
-+	INIT_LIST_HEAD(&mem->active_list);
-+	INIT_LIST_HEAD(&mem->inactive_list);
+ 	INIT_LIST_HEAD(&mem->active_list);
+ 	INIT_LIST_HEAD(&mem->inactive_list);
++	spin_lock_init(&mem->lru_lock);
  	return &mem->css;
  }
  
-diff -puN mm/memory.c~mem-control-accounting mm/memory.c
---- linux-2.6.23-rc1-mm1/mm/memory.c~mem-control-accounting	2007-08-13 23:06:11.000000000 +0530
-+++ linux-2.6.23-rc1-mm1-balbir/mm/memory.c	2007-08-13 23:06:11.000000000 +0530
-@@ -50,6 +50,7 @@
- #include <linux/delayacct.h>
- #include <linux/init.h>
- #include <linux/writeback.h>
+diff -puN mm/swap.c~mem-control-lru-and-reclaim mm/swap.c
+--- linux-2.6.23-rc1-mm1/mm/swap.c~mem-control-lru-and-reclaim	2007-08-13 23:06:12.000000000 +0530
++++ linux-2.6.23-rc1-mm1-balbir/mm/swap.c	2007-08-13 23:06:12.000000000 +0530
+@@ -29,6 +29,7 @@
+ #include <linux/percpu.h>
+ #include <linux/cpu.h>
+ #include <linux/notifier.h>
 +#include <linux/memcontrol.h>
  
- #include <asm/pgalloc.h>
- #include <asm/uaccess.h>
-@@ -1225,14 +1226,18 @@ static int insert_page(struct mm_struct 
- 	pte_t *pte;
- 	spinlock_t *ptl;  
- 
-+	retval = mem_container_charge(page, mm);
-+	if (retval)
-+		goto out;
-+
- 	retval = -EINVAL;
- 	if (PageAnon(page))
--		goto out;
-+		goto out_uncharge;
- 	retval = -ENOMEM;
- 	flush_dcache_page(page);
- 	pte = get_locked_pte(mm, addr, &ptl);
- 	if (!pte)
--		goto out;
-+		goto out_uncharge;
- 	retval = -EBUSY;
- 	if (!pte_none(*pte))
- 		goto out_unlock;
-@@ -1244,8 +1249,11 @@ static int insert_page(struct mm_struct 
- 	set_pte_at(mm, addr, pte, mk_pte(page, prot));
- 
- 	retval = 0;
-+	return retval;
- out_unlock:
- 	pte_unmap_unlock(pte, ptl);
-+out_uncharge:
-+	mem_container_uncharge_page(page);
- out:
- 	return retval;
+ /* How many pages do we try to swap or page in/out together? */
+ int page_cluster;
+@@ -146,6 +147,7 @@ void fastcall activate_page(struct page 
+ 		SetPageActive(page);
+ 		add_page_to_active_list(zone, page);
+ 		__count_vm_event(PGACTIVATE);
++		mem_container_move_lists(page_get_page_container(page), true);
+ 	}
+ 	spin_unlock_irq(&zone->lru_lock);
  }
-@@ -1725,6 +1733,9 @@ gotten:
- 		cow_user_page(new_page, old_page, address, vma);
- 	}
- 
-+	if (mem_container_charge(new_page, mm))
-+		goto oom_free_new;
-+
- 	/*
- 	 * Re-check the pte - we dropped the lock
- 	 */
-@@ -1757,7 +1768,9 @@ gotten:
- 		/* Free the old page.. */
- 		new_page = old_page;
- 		ret |= VM_FAULT_WRITE;
--	}
-+	} else
-+		mem_container_uncharge_page(new_page);
-+
- 	if (new_page)
- 		page_cache_release(new_page);
- 	if (old_page)
-@@ -1778,6 +1791,8 @@ unlock:
- 		put_page(dirty_page);
- 	}
- 	return ret;
-+oom_free_new:
-+	__free_page(new_page);
- oom:
- 	if (old_page)
- 		page_cache_release(old_page);
-@@ -2182,6 +2197,11 @@ static int do_swap_page(struct mm_struct
- 	}
- 
- 	delayacct_clear_flag(DELAYACCT_PF_SWAPIN);
-+	if (mem_container_charge(page, mm)) {
-+		ret = VM_FAULT_OOM;
-+		goto out;
-+	}
-+
- 	mark_page_accessed(page);
- 	lock_page(page);
- 
-@@ -2218,8 +2238,10 @@ static int do_swap_page(struct mm_struct
- 	if (write_access) {
- 		/* XXX: We could OR the do_wp_page code with this one? */
- 		if (do_wp_page(mm, vma, address,
--				page_table, pmd, ptl, pte) & VM_FAULT_OOM)
-+				page_table, pmd, ptl, pte) & VM_FAULT_OOM) {
-+			mem_container_uncharge_page(page);
- 			ret = VM_FAULT_OOM;
-+		}
- 		goto out;
- 	}
- 
-@@ -2230,6 +2252,7 @@ unlock:
- out:
- 	return ret;
- out_nomap:
-+	mem_container_uncharge_page(page);
- 	pte_unmap_unlock(page_table, ptl);
- 	unlock_page(page);
- 	page_cache_release(page);
-@@ -2250,6 +2273,7 @@ static int do_anonymous_page(struct mm_s
- 	pte_t entry;
- 
- 	if (write_access) {
-+
- 		/* Allocate our own private page. */
- 		pte_unmap(page_table);
- 
-@@ -2259,6 +2283,9 @@ static int do_anonymous_page(struct mm_s
- 		if (!page)
- 			goto oom;
- 
-+		if (mem_container_charge(page, mm))
-+			goto oom_free_page;
-+
- 		entry = mk_pte(page, vma->vm_page_prot);
- 		entry = maybe_mkwrite(pte_mkdirty(entry), vma);
- 
-@@ -2291,8 +2318,11 @@ unlock:
- 	pte_unmap_unlock(page_table, ptl);
- 	return 0;
- release:
-+	mem_container_uncharge_page(page);
- 	page_cache_release(page);
- 	goto unlock;
-+oom_free_page:
-+	__free_page(page);
- oom:
- 	return VM_FAULT_OOM;
- }
-@@ -2403,6 +2433,11 @@ static int __do_fault(struct mm_struct *
- 
- 	}
- 
-+	if (mem_container_charge(page, mm)) {
-+		ret = VM_FAULT_OOM;
-+		goto out;
-+	}
-+
- 	page_table = pte_offset_map_lock(mm, pmd, address, &ptl);
- 
- 	/*
-@@ -2439,6 +2474,7 @@ static int __do_fault(struct mm_struct *
- 		update_mmu_cache(vma, address, entry);
- 		lazy_mmu_prot_update(entry);
- 	} else {
-+		mem_container_uncharge_page(page);
- 		if (anon)
- 			page_cache_release(page);
- 		else
-diff -puN mm/migrate.c~mem-control-accounting mm/migrate.c
---- linux-2.6.23-rc1-mm1/mm/migrate.c~mem-control-accounting	2007-08-13 23:06:11.000000000 +0530
-+++ linux-2.6.23-rc1-mm1-balbir/mm/migrate.c	2007-08-13 23:06:11.000000000 +0530
-@@ -28,6 +28,7 @@
- #include <linux/mempolicy.h>
- #include <linux/vmalloc.h>
- #include <linux/security.h>
-+#include <linux/memcontrol.h>
- 
- #include "internal.h"
- 
-@@ -156,6 +157,11 @@ static void remove_migration_pte(struct 
-  		return;
-  	}
- 
-+	if (mem_container_charge(new, mm)) {
-+		pte_unmap(ptep);
-+		return;
-+	}
-+
-  	ptl = pte_lockptr(mm, pmd);
-  	spin_lock(ptl);
- 	pte = *ptep;
-diff -puN mm/page_alloc.c~mem-control-accounting mm/page_alloc.c
---- linux-2.6.23-rc1-mm1/mm/page_alloc.c~mem-control-accounting	2007-08-13 23:06:11.000000000 +0530
-+++ linux-2.6.23-rc1-mm1-balbir/mm/page_alloc.c	2007-08-13 23:06:11.000000000 +0530
-@@ -42,6 +42,7 @@
- #include <linux/backing-dev.h>
- #include <linux/fault-inject.h>
- #include <linux/page-isolation.h>
+diff -puN mm/vmscan.c~mem-control-lru-and-reclaim mm/vmscan.c
+--- linux-2.6.23-rc1-mm1/mm/vmscan.c~mem-control-lru-and-reclaim	2007-08-13 23:06:12.000000000 +0530
++++ linux-2.6.23-rc1-mm1-balbir/mm/vmscan.c	2007-08-13 23:06:12.000000000 +0530
+@@ -39,6 +39,7 @@
+ #include <linux/delay.h>
+ #include <linux/kthread.h>
+ #include <linux/freezer.h>
 +#include <linux/memcontrol.h>
  
  #include <asm/tlbflush.h>
  #include <asm/div64.h>
-@@ -1017,6 +1018,7 @@ static void fastcall free_hot_cold_page(
+@@ -70,6 +71,15 @@ struct scan_control {
+ 	int all_unreclaimable;
  
- 	if (!PageHighMem(page))
- 		debug_check_no_locks_freed(page_address(page), PAGE_SIZE);
-+	page_assign_page_container(page, NULL);
- 	arch_free_page(page, 0);
- 	kernel_map_pages(page, 1, 0);
- 
-@@ -2580,6 +2582,7 @@ void __meminit memmap_init_zone(unsigned
- 		set_page_links(page, zone, nid, pfn);
- 		init_page_count(page);
- 		reset_page_mapcount(page);
-+		page_assign_page_container(page, NULL);
- 		SetPageReserved(page);
- 
- 		/*
-diff -puN mm/rmap.c~mem-control-accounting mm/rmap.c
---- linux-2.6.23-rc1-mm1/mm/rmap.c~mem-control-accounting	2007-08-13 23:06:11.000000000 +0530
-+++ linux-2.6.23-rc1-mm1-balbir/mm/rmap.c	2007-08-13 23:06:11.000000000 +0530
-@@ -48,6 +48,7 @@
- #include <linux/rcupdate.h>
- #include <linux/module.h>
- #include <linux/kallsyms.h>
-+#include <linux/memcontrol.h>
- 
- #include <asm/tlbflush.h>
- 
-@@ -551,8 +552,14 @@ void page_add_anon_rmap(struct page *pag
- 	VM_BUG_ON(address < vma->vm_start || address >= vma->vm_end);
- 	if (atomic_inc_and_test(&page->_mapcount))
- 		__page_set_anon_rmap(page, vma, address);
--	else
-+	else {
- 		__page_check_anon_rmap(page, vma, address);
-+		/*
-+		 * We unconditionally charged during prepare, we uncharge here
-+		 * This takes care of balancing the reference counts
-+		 */
-+		mem_container_uncharge_page(page);
-+	}
- }
- 
- /*
-@@ -583,6 +590,12 @@ void page_add_file_rmap(struct page *pag
- {
- 	if (atomic_inc_and_test(&page->_mapcount))
- 		__inc_zone_page_state(page, NR_FILE_MAPPED);
-+	else
-+		/*
-+		 * We unconditionally charged during prepare, we uncharge here
-+		 * This takes care of balancing the reference counts
-+		 */
-+		mem_container_uncharge_page(page);
- }
- 
- #ifdef CONFIG_DEBUG_VM
-@@ -643,6 +656,8 @@ void page_remove_rmap(struct page *page,
- 			page_clear_dirty(page);
- 			set_page_dirty(page);
- 		}
-+		mem_container_uncharge_page(page);
+ 	int order;
 +
- 		__dec_zone_page_state(page,
- 				PageAnon(page) ? NR_ANON_PAGES : NR_FILE_MAPPED);
- 	}
-diff -puN mm/swapfile.c~mem-control-accounting mm/swapfile.c
---- linux-2.6.23-rc1-mm1/mm/swapfile.c~mem-control-accounting	2007-08-13 23:06:11.000000000 +0530
-+++ linux-2.6.23-rc1-mm1-balbir/mm/swapfile.c	2007-08-13 23:06:11.000000000 +0530
-@@ -27,6 +27,7 @@
- #include <linux/mutex.h>
- #include <linux/capability.h>
- #include <linux/syscalls.h>
-+#include <linux/memcontrol.h>
++	/* Which container do we reclaim from */
++	struct mem_container *mem_container;
++
++	/* Pluggable isolate pages callback */
++	unsigned long (*isolate_pages)(unsigned long nr, struct list_head *dst,
++			unsigned long *scanned, int order, int mode,
++			struct zone *z, struct mem_container *mem_cont,
++			int active);
+ };
  
- #include <asm/pgtable.h>
- #include <asm/tlbflush.h>
-@@ -506,9 +507,12 @@ unsigned int count_swap_pages(int type, 
-  * just let do_wp_page work it out if a write is requested later - to
-  * force COW, vm_page_prot omits write permission from any private vma.
+ #define lru_to_page(_head) (list_entry((_head)->prev, struct page, lru))
+@@ -604,7 +614,7 @@ keep:
+  *
+  * returns 0 on success, -ve errno on failure.
   */
--static void unuse_pte(struct vm_area_struct *vma, pte_t *pte,
-+static int unuse_pte(struct vm_area_struct *vma, pte_t *pte,
- 		unsigned long addr, swp_entry_t entry, struct page *page)
+-static int __isolate_lru_page(struct page *page, int mode)
++int __isolate_lru_page(struct page *page, int mode)
  {
-+	if (mem_container_charge(page, vma->vm_mm))
-+		return -ENOMEM;
+ 	int ret = -EINVAL;
+ 
+@@ -738,6 +748,21 @@ static unsigned long isolate_lru_pages(u
+ 	return nr_taken;
+ }
+ 
++static unsigned long isolate_pages_global(unsigned long nr,
++					struct list_head *dst,
++					unsigned long *scanned, int order,
++					int mode, struct zone *z,
++					struct mem_container *mem_cont,
++					int active)
++{
++	if (active)
++		return isolate_lru_pages(nr, &z->active_list, dst,
++						scanned, order, mode);
++	else
++		return isolate_lru_pages(nr, &z->inactive_list, dst,
++						scanned, order, mode);
++}
 +
- 	inc_mm_counter(vma->vm_mm, anon_rss);
- 	get_page(page);
- 	set_pte_at(vma->vm_mm, addr, pte,
-@@ -520,6 +524,7 @@ static void unuse_pte(struct vm_area_str
- 	 * immediately swapped out again after swapon.
- 	 */
- 	activate_page(page);
-+	return 1;
- }
- 
- static int unuse_pte_range(struct vm_area_struct *vma, pmd_t *pmd,
-@@ -529,7 +534,7 @@ static int unuse_pte_range(struct vm_are
- 	pte_t swp_pte = swp_entry_to_pte(entry);
- 	pte_t *pte;
- 	spinlock_t *ptl;
--	int found = 0;
-+	int ret = 0;
- 
- 	pte = pte_offset_map_lock(vma->vm_mm, pmd, addr, &ptl);
- 	do {
-@@ -538,13 +543,12 @@ static int unuse_pte_range(struct vm_are
- 		 * Test inline before going to call unuse_pte.
- 		 */
- 		if (unlikely(pte_same(*pte, swp_pte))) {
--			unuse_pte(vma, pte++, addr, entry, page);
--			found = 1;
-+			ret = unuse_pte(vma, pte++, addr, entry, page);
- 			break;
- 		}
- 	} while (pte++, addr += PAGE_SIZE, addr != end);
- 	pte_unmap_unlock(pte - 1, ptl);
--	return found;
-+	return ret;
- }
- 
- static inline int unuse_pmd_range(struct vm_area_struct *vma, pud_t *pud,
-@@ -553,14 +557,16 @@ static inline int unuse_pmd_range(struct
- {
- 	pmd_t *pmd;
- 	unsigned long next;
-+	int ret;
- 
- 	pmd = pmd_offset(pud, addr);
- 	do {
- 		next = pmd_addr_end(addr, end);
- 		if (pmd_none_or_clear_bad(pmd))
- 			continue;
--		if (unuse_pte_range(vma, pmd, addr, next, entry, page))
--			return 1;
-+		ret = unuse_pte_range(vma, pmd, addr, next, entry, page);
-+		if (ret)
-+			return ret;
- 	} while (pmd++, addr = next, addr != end);
- 	return 0;
- }
-@@ -571,14 +577,16 @@ static inline int unuse_pud_range(struct
- {
- 	pud_t *pud;
- 	unsigned long next;
-+	int ret;
- 
- 	pud = pud_offset(pgd, addr);
- 	do {
- 		next = pud_addr_end(addr, end);
- 		if (pud_none_or_clear_bad(pud))
- 			continue;
--		if (unuse_pmd_range(vma, pud, addr, next, entry, page))
--			return 1;
-+		ret = unuse_pmd_range(vma, pud, addr, next, entry, page);
-+		if (ret)
-+			return ret;
- 	} while (pud++, addr = next, addr != end);
- 	return 0;
- }
-@@ -588,6 +596,7 @@ static int unuse_vma(struct vm_area_stru
- {
- 	pgd_t *pgd;
- 	unsigned long addr, end, next;
-+	int ret;
- 
- 	if (page->mapping) {
- 		addr = page_address_in_vma(page, vma);
-@@ -605,8 +614,9 @@ static int unuse_vma(struct vm_area_stru
- 		next = pgd_addr_end(addr, end);
- 		if (pgd_none_or_clear_bad(pgd))
- 			continue;
--		if (unuse_pud_range(vma, pgd, addr, next, entry, page))
--			return 1;
-+		ret = unuse_pud_range(vma, pgd, addr, next, entry, page);
-+		if (ret)
-+			return ret;
- 	} while (pgd++, addr = next, addr != end);
- 	return 0;
- }
-@@ -615,6 +625,7 @@ static int unuse_mm(struct mm_struct *mm
- 				swp_entry_t entry, struct page *page)
- {
- 	struct vm_area_struct *vma;
-+	int ret = 0;
- 
- 	if (!down_read_trylock(&mm->mmap_sem)) {
- 		/*
-@@ -627,15 +638,11 @@ static int unuse_mm(struct mm_struct *mm
- 		lock_page(page);
- 	}
- 	for (vma = mm->mmap; vma; vma = vma->vm_next) {
--		if (vma->anon_vma && unuse_vma(vma, entry, page))
-+		if (vma->anon_vma && (ret = unuse_vma(vma, entry, page)))
- 			break;
- 	}
- 	up_read(&mm->mmap_sem);
--	/*
--	 * Currently unuse_mm cannot fail, but leave error handling
--	 * at call sites for now, since we change it from time to time.
--	 */
--	return 0;
-+	return ret;
- }
- 
  /*
-diff -puN mm/swap_state.c~mem-control-accounting mm/swap_state.c
---- linux-2.6.23-rc1-mm1/mm/swap_state.c~mem-control-accounting	2007-08-13 23:06:11.000000000 +0530
-+++ linux-2.6.23-rc1-mm1-balbir/mm/swap_state.c	2007-08-13 23:06:11.000000000 +0530
-@@ -17,6 +17,7 @@
- #include <linux/backing-dev.h>
- #include <linux/pagevec.h>
- #include <linux/migrate.h>
-+#include <linux/memcontrol.h>
+  * clear_active_flags() is a helper for shrink_active_list(), clearing
+  * any active bits from the pages in the list.
+@@ -779,11 +804,11 @@ static unsigned long shrink_inactive_lis
+ 		unsigned long nr_freed;
+ 		unsigned long nr_active;
  
- #include <asm/pgtable.h>
+-		nr_taken = isolate_lru_pages(sc->swap_cluster_max,
+-			     &zone->inactive_list,
++		nr_taken = sc->isolate_pages(sc->swap_cluster_max,
+ 			     &page_list, &nr_scan, sc->order,
+ 			     (sc->order > PAGE_ALLOC_COSTLY_ORDER)?
+-					     ISOLATE_BOTH : ISOLATE_INACTIVE);
++					     ISOLATE_BOTH : ISOLATE_INACTIVE,
++				zone, sc->mem_container, 0);
+ 		nr_active = clear_active_flags(&page_list);
  
-@@ -79,6 +80,11 @@ static int __add_to_swap_cache(struct pa
- 	BUG_ON(PagePrivate(page));
- 	error = radix_tree_preload(gfp_mask);
- 	if (!error) {
-+
-+		error = mem_container_charge(page, current->mm);
-+		if (error)
-+			goto out;
-+
- 		write_lock_irq(&swapper_space.tree_lock);
- 		error = radix_tree_insert(&swapper_space.page_tree,
- 						entry.val, page);
-@@ -89,10 +95,13 @@ static int __add_to_swap_cache(struct pa
- 			set_page_private(page, entry.val);
- 			total_swapcache_pages++;
- 			__inc_zone_page_state(page, NR_FILE_PAGES);
--		}
-+		} else
-+			mem_container_uncharge_page(page);
-+
- 		write_unlock_irq(&swapper_space.tree_lock);
- 		radix_tree_preload_end();
+ 		__mod_zone_page_state(zone, NR_ACTIVE, -nr_active);
+@@ -932,8 +957,9 @@ force_reclaim_mapped:
+ 
+ 	lru_add_drain();
+ 	spin_lock_irq(&zone->lru_lock);
+-	pgmoved = isolate_lru_pages(nr_pages, &zone->active_list,
+-			    &l_hold, &pgscanned, sc->order, ISOLATE_ACTIVE);
++	pgmoved = sc->isolate_pages(nr_pages, &l_hold, &pgscanned, sc->order,
++					ISOLATE_ACTIVE, zone,
++					sc->mem_container, 1);
+ 	zone->pages_scanned += pgscanned;
+ 	__mod_zone_page_state(zone, NR_ACTIVE, -pgmoved);
+ 	spin_unlock_irq(&zone->lru_lock);
+@@ -968,6 +994,7 @@ force_reclaim_mapped:
+ 		ClearPageActive(page);
+ 
+ 		list_move(&page->lru, &zone->inactive_list);
++		mem_container_move_lists(page_get_page_container(page), false);
+ 		pgmoved++;
+ 		if (!pagevec_add(&pvec, page)) {
+ 			__mod_zone_page_state(zone, NR_INACTIVE, pgmoved);
+@@ -996,6 +1023,7 @@ force_reclaim_mapped:
+ 		SetPageLRU(page);
+ 		VM_BUG_ON(!PageActive(page));
+ 		list_move(&page->lru, &zone->active_list);
++		mem_container_move_lists(page_get_page_container(page), true);
+ 		pgmoved++;
+ 		if (!pagevec_add(&pvec, page)) {
+ 			__mod_zone_page_state(zone, NR_ACTIVE, pgmoved);
+@@ -1127,7 +1155,8 @@ static unsigned long shrink_zones(int pr
+  * holds filesystem locks which prevent writeout this might not work, and the
+  * allocation attempt will fail.
+  */
+-unsigned long try_to_free_pages(struct zone **zones, int order, gfp_t gfp_mask)
++unsigned long do_try_to_free_pages(struct zone **zones, gfp_t gfp_mask,
++					struct scan_control *sc)
+ {
+ 	int priority;
+ 	int ret = 0;
+@@ -1136,14 +1165,6 @@ unsigned long try_to_free_pages(struct z
+ 	struct reclaim_state *reclaim_state = current->reclaim_state;
+ 	unsigned long lru_pages = 0;
+ 	int i;
+-	struct scan_control sc = {
+-		.gfp_mask = gfp_mask,
+-		.may_writepage = !laptop_mode,
+-		.swap_cluster_max = SWAP_CLUSTER_MAX,
+-		.may_swap = 1,
+-		.swappiness = vm_swappiness,
+-		.order = order,
+-	};
+ 
+ 	delay_swap_prefetch();
+ 	count_vm_event(ALLOCSTALL);
+@@ -1159,17 +1180,22 @@ unsigned long try_to_free_pages(struct z
  	}
-+out:
- 	return error;
+ 
+ 	for (priority = DEF_PRIORITY; priority >= 0; priority--) {
+-		sc.nr_scanned = 0;
++		sc->nr_scanned = 0;
+ 		if (!priority)
+ 			disable_swap_token();
+-		nr_reclaimed += shrink_zones(priority, zones, &sc);
+-		shrink_slab(sc.nr_scanned, gfp_mask, lru_pages);
++		nr_reclaimed += shrink_zones(priority, zones, sc);
++		/*
++		 * Don't shrink slabs when reclaiming memory from
++		 * over limit containers
++		 */
++		if (sc->mem_container == NULL)
++			shrink_slab(sc->nr_scanned, gfp_mask, lru_pages);
+ 		if (reclaim_state) {
+ 			nr_reclaimed += reclaim_state->reclaimed_slab;
+ 			reclaim_state->reclaimed_slab = 0;
+ 		}
+-		total_scanned += sc.nr_scanned;
+-		if (nr_reclaimed >= sc.swap_cluster_max) {
++		total_scanned += sc->nr_scanned;
++		if (nr_reclaimed >= sc->swap_cluster_max) {
+ 			ret = 1;
+ 			goto out;
+ 		}
+@@ -1181,18 +1207,18 @@ unsigned long try_to_free_pages(struct z
+ 		 * that's undesirable in laptop mode, where we *want* lumpy
+ 		 * writeout.  So in laptop mode, write out the whole world.
+ 		 */
+-		if (total_scanned > sc.swap_cluster_max +
+-					sc.swap_cluster_max / 2) {
++		if (total_scanned > sc->swap_cluster_max +
++					sc->swap_cluster_max / 2) {
+ 			wakeup_pdflush(laptop_mode ? 0 : total_scanned);
+-			sc.may_writepage = 1;
++			sc->may_writepage = 1;
+ 		}
+ 
+ 		/* Take a nap, wait for some writeback to complete */
+-		if (sc.nr_scanned && priority < DEF_PRIORITY - 2)
++		if (sc->nr_scanned && priority < DEF_PRIORITY - 2)
+ 			congestion_wait(WRITE, HZ/10);
+ 	}
+ 	/* top priority shrink_caches still had more to do? don't OOM, then */
+-	if (!sc.all_unreclaimable)
++	if (!sc->all_unreclaimable && sc->mem_container == NULL)
+ 		ret = 1;
+ out:
+ 	/*
+@@ -1215,6 +1241,54 @@ out:
+ 	return ret;
  }
  
-@@ -129,6 +138,7 @@ void __delete_from_swap_cache(struct pag
- 	BUG_ON(PageWriteback(page));
- 	BUG_ON(PagePrivate(page));
- 
-+	mem_container_uncharge_page(page);
- 	radix_tree_delete(&swapper_space.page_tree, page_private(page));
- 	set_page_private(page, 0);
- 	ClearPageSwapCache(page);
++unsigned long try_to_free_pages(struct zone **zones, int order, gfp_t gfp_mask)
++{
++	struct scan_control sc = {
++		.gfp_mask = gfp_mask,
++		.may_writepage = !laptop_mode,
++		.swap_cluster_max = SWAP_CLUSTER_MAX,
++		.may_swap = 1,
++		.swappiness = vm_swappiness,
++		.order = order,
++		.mem_container = NULL,
++		.isolate_pages = isolate_pages_global,
++	};
++
++	return do_try_to_free_pages(zones, gfp_mask, &sc);
++}
++
++#ifdef CONFIG_CONTAINER_MEM_CONT
++
++#ifdef CONFIG_HIGHMEM
++#define ZONE_USERPAGES ZONE_HIGHMEM
++#else
++#define ZONE_USERPAGES ZONE_NORMAL
++#endif
++
++unsigned long try_to_free_mem_container_pages(struct mem_container *mem_cont)
++{
++	struct scan_control sc = {
++		.gfp_mask = GFP_KERNEL,
++		.may_writepage = !laptop_mode,
++		.may_swap = 1,
++		.swap_cluster_max = SWAP_CLUSTER_MAX,
++		.swappiness = vm_swappiness,
++		.order = 1,
++		.mem_container = mem_cont,
++		.isolate_pages = mem_container_isolate_pages,
++	};
++	int node;
++	struct zone **zones;
++
++	for_each_online_node(node) {
++		zones = NODE_DATA(node)->node_zonelists[ZONE_USERPAGES].zones;
++		if (do_try_to_free_pages(zones, sc.gfp_mask, &sc))
++			return 1;
++	}
++	return 0;
++}
++#endif
++
+ /*
+  * For kswapd, balance_pgdat() will work across all this node's zones until
+  * they are all at pages_high.
+@@ -1250,6 +1324,8 @@ static unsigned long balance_pgdat(pg_da
+ 		.swap_cluster_max = SWAP_CLUSTER_MAX,
+ 		.swappiness = vm_swappiness,
+ 		.order = order,
++		.mem_container = NULL,
++		.isolate_pages = isolate_pages_global,
+ 	};
+ 	/*
+ 	 * temp_priority is used to remember the scanning priority at which
 _
 
 -- 
