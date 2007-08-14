@@ -1,127 +1,110 @@
-Message-Id: <20070814153502.468501385@sgi.com>
+Message-Id: <20070814153501.075312763@sgi.com>
 References: <20070814153021.446917377@sgi.com>
-Date: Tue, 14 Aug 2007 08:30:28 -0700
+Date: Tue, 14 Aug 2007 08:30:22 -0700
 From: Christoph Lameter <clameter@sgi.com>
-Subject: [RFC 7/9] Save flags in swap.c
-Content-Disposition: inline; filename=vmscan_swap_lock_irqsave
+Subject: [RFC 1/9] Allow reclaim via __GFP_NOMEMALLOC reclaim
+Content-Disposition: inline; filename=vmscan_nomemalloc
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: linux-mm@kvack.org
 Cc: linux-kernel@vger.kernel.org, akpm@linux-foundation.org, dkegel@google.com, Peter Zijlstra <a.p.zijlstra@chello.nl>, David Miller <davem@davemloft.net>, Nick Piggin <npiggin@suse.de>
 List-ID: <linux-mm.kvack.org>
 
-We need to call various LRU management functions with interrupts
-disabled for atomic reclaim. Make them save flags.
+Make try_to_free_pages() not perform any allocations if __GFP_NOMEMALLOC
+is set.
+
+We can avoid allocations by not writing pages out or swapping. So on entry
+to try_to_free_pages() we check for __GFP_NOMEMALLOC. If it is set
+then sc.may_writepage and sc.mayswap are switched off and we short
+circuit the writeout handling.
+
+The throttling of VM writeout is also bypassed since there is no
+writeout occurring.
+
+It is likely difficult to make sure that the slab shrinkers do
+not perform any allocations. So we simply do not shrink slabs.
+
+The type of pages that can be reclaimed by a call to try_to_free_pages()
+with the __GFP_NOMEMALLOC parameter is:
+
+- Unmapped clean page cache pages.
+- Mapped clean pages
 
 Signed-off-by: Christoph Lameter <clameter@sgi.com>
 
----
- mm/swap.c |   22 +++++++++++++---------
- 1 file changed, 13 insertions(+), 9 deletions(-)
 
-Index: linux-2.6/mm/swap.c
+---
+ mm/vmscan.c |   25 ++++++++++++++++++++++---
+ 1 file changed, 22 insertions(+), 3 deletions(-)
+
+Index: linux-2.6/mm/vmscan.c
 ===================================================================
---- linux-2.6.orig/mm/swap.c	2007-08-14 08:00:57.000000000 -0700
-+++ linux-2.6/mm/swap.c	2007-08-14 08:03:50.000000000 -0700
-@@ -140,15 +140,16 @@ int rotate_reclaimable_page(struct page 
- void fastcall activate_page(struct page *page)
- {
- 	struct zone *zone = page_zone(page);
-+	unsigned long flags;
+--- linux-2.6.orig/mm/vmscan.c	2007-08-13 23:43:45.000000000 -0700
++++ linux-2.6/mm/vmscan.c	2007-08-13 23:51:05.000000000 -0700
+@@ -161,6 +161,13 @@ unsigned long shrink_slab(unsigned long 
+ 	if (scanned == 0)
+ 		scanned = SWAP_CLUSTER_MAX;
  
--	spin_lock_irq(&zone->lru_lock);
-+	spin_lock_irqsave(&zone->lru_lock, flags);
- 	if (PageLRU(page) && !PageActive(page)) {
- 		del_page_from_inactive_list(zone, page);
- 		SetPageActive(page);
- 		add_page_to_active_list(zone, page);
- 		__count_vm_event(PGACTIVATE);
- 	}
--	spin_unlock_irq(&zone->lru_lock);
-+	spin_unlock_irqrestore(&zone->lru_lock, flags);
- }
++	/*
++	 * Not sure if we can keep this clean of allocs.
++	 * Better leave it off for now
++	 */
++	if (gfp_mask & __GFP_NOMEMALLOC)
++		return 1;
++
+ 	if (!down_read_trylock(&shrinker_rwsem))
+ 		return 1;	/* Assume we'll be able to shrink next time */
  
- /*
-@@ -258,6 +259,7 @@ void release_pages(struct page **pages, 
- 	int i;
- 	struct pagevec pages_to_free;
- 	struct zone *zone = NULL;
-+	unsigned long flags = 0;
- 
- 	pagevec_init(&pages_to_free, cold);
- 	for (i = 0; i < nr; i++) {
-@@ -281,7 +283,7 @@ void release_pages(struct page **pages, 
- 				if (zone)
- 					spin_unlock_irq(&zone->lru_lock);
- 				zone = pagezone;
--				spin_lock_irq(&zone->lru_lock);
-+				spin_lock_irqsave(&zone->lru_lock, flags);
- 			}
- 			VM_BUG_ON(!PageLRU(page));
- 			__ClearPageLRU(page);
-@@ -298,7 +300,7 @@ void release_pages(struct page **pages, 
-   		}
- 	}
- 	if (zone)
--		spin_unlock_irq(&zone->lru_lock);
-+		spin_unlock_irqrestore(&zone->lru_lock, flags);
- 
- 	pagevec_free(&pages_to_free);
- }
-@@ -352,6 +354,7 @@ void __pagevec_lru_add(struct pagevec *p
- {
- 	int i;
- 	struct zone *zone = NULL;
-+	unsigned long flags = 0;
- 
- 	for (i = 0; i < pagevec_count(pvec); i++) {
- 		struct page *page = pvec->pages[i];
-@@ -361,14 +364,14 @@ void __pagevec_lru_add(struct pagevec *p
- 			if (zone)
- 				spin_unlock_irq(&zone->lru_lock);
- 			zone = pagezone;
--			spin_lock_irq(&zone->lru_lock);
-+			spin_lock_irqsave(&zone->lru_lock, flags);
+@@ -1053,7 +1060,8 @@ static unsigned long shrink_zone(int pri
  		}
- 		VM_BUG_ON(PageLRU(page));
- 		SetPageLRU(page);
- 		add_page_to_inactive_list(zone, page);
  	}
- 	if (zone)
--		spin_unlock_irq(&zone->lru_lock);
-+		spin_unlock_irqrestore(&zone->lru_lock, flags);
- 	release_pages(pvec->pages, pvec->nr, pvec->cold);
- 	pagevec_reinit(pvec);
- }
-@@ -379,6 +382,7 @@ void __pagevec_lru_add_active(struct pag
+ 
+-	throttle_vm_writeout(sc->gfp_mask);
++	if (!(sc->gfp_mask & __GFP_NOMEMALLOC))
++		throttle_vm_writeout(sc->gfp_mask);
+ 
+ 	atomic_dec(&zone->reclaim_in_progress);
+ 	return nr_reclaimed;
+@@ -1115,6 +1123,9 @@ static unsigned long shrink_zones(int pr
+  * hope that some of these pages can be written.  But if the allocating task
+  * holds filesystem locks which prevent writeout this might not work, and the
+  * allocation attempt will fail.
++ *
++ * The __GFP_NOMEMALLOC flag has a special role. If it is set then no memory
++ * allocations or writeout will occur.
+  */
+ unsigned long try_to_free_pages(struct zone **zones, int order, gfp_t gfp_mask)
  {
+@@ -1127,15 +1138,17 @@ unsigned long try_to_free_pages(struct z
  	int i;
- 	struct zone *zone = NULL;
-+	unsigned long flags = 0;
+ 	struct scan_control sc = {
+ 		.gfp_mask = gfp_mask,
+-		.may_writepage = !laptop_mode,
+ 		.swap_cluster_max = SWAP_CLUSTER_MAX,
+-		.may_swap = 1,
+ 		.swappiness = vm_swappiness,
+ 		.order = order,
+ 	};
  
- 	for (i = 0; i < pagevec_count(pvec); i++) {
- 		struct page *page = pvec->pages[i];
-@@ -386,9 +390,9 @@ void __pagevec_lru_add_active(struct pag
+ 	count_vm_event(ALLOCSTALL);
  
- 		if (pagezone != zone) {
- 			if (zone)
--				spin_unlock_irq(&zone->lru_lock);
-+				spin_unlock_irqrestore(&zone->lru_lock, flags);
- 			zone = pagezone;
--			spin_lock_irq(&zone->lru_lock);
-+			spin_lock_irqsave(&zone->lru_lock, flags);
++	if (!(gfp_mask & __GFP_NOMEMALLOC)) {
++		sc.may_writepage = !laptop_mode;
++		sc.may_swap = 1;
++	}
+ 	for (i = 0; zones[i] != NULL; i++) {
+ 		struct zone *zone = zones[i];
+ 
+@@ -1162,6 +1175,9 @@ unsigned long try_to_free_pages(struct z
+ 			goto out;
  		}
- 		VM_BUG_ON(PageLRU(page));
- 		SetPageLRU(page);
-@@ -397,7 +401,7 @@ void __pagevec_lru_add_active(struct pag
- 		add_page_to_active_list(zone, page);
- 	}
- 	if (zone)
--		spin_unlock_irq(&zone->lru_lock);
-+		spin_unlock_irqrestore(&zone->lru_lock, flags);
- 	release_pages(pvec->pages, pvec->nr, pvec->cold);
- 	pagevec_reinit(pvec);
- }
+ 
++		if (!(gfp_mask & __GFP_NOMEMALLOC))
++			continue;
++
+ 		/*
+ 		 * Try to write back as many pages as we just scanned.  This
+ 		 * tends to cause slow streaming writers to write data to the
 
 -- 
 
