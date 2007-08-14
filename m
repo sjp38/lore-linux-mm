@@ -1,37 +1,37 @@
-Date: Tue, 14 Aug 2007 06:36:31 -0500
-Subject: [PATCH] calculation of pgoff in do_linear_fault() uses mixed
- units
-Message-ID: <46C193BF.mailxDHL111USQ@aqua.americas.sgi.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
-From: dcn@sgi.com (Dean Nelson)
+Message-Id: <20070814142103.204771292@sgi.com>
+Date: Tue, 14 Aug 2007 07:21:03 -0700
+From: Christoph Lameter <clameter@sgi.com>
+Subject: [RFC 0/3] Recursive reclaim (on __PF_MEMALLOC)
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: npiggin@suse.de, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: linux-mm@kvack.org
+Cc: linux-kernel@vger.kernel.org, akpm@linux-foundation.org, dkegel@google.com, Peter Zijlstra <a.p.zijlstra@chello.nl>, David Miller <davem@davemloft.net>, Nick Piggin <npiggin@suse.de>
 List-ID: <linux-mm.kvack.org>
 
-The calculation of pgoff in do_linear_fault() should use PAGE_SHIFT and not
-PAGE_CACHE_SHIFT since vma->vm_pgoff is in units of PAGE_SIZE and not
-PAGE_CACHE_SIZE. At the moment linux/pagemap.h has PAGE_CACHE_SHIFT defined
-as PAGE_SHIFT, but should that ever change this calculation would break.
+The following patchset implements recursive reclaim. Recursive reclaim
+is necessary if we run out of memory in the writeout patch from reclaim.
 
-Signed-off-by: Dean Nelson <dcn@sgi.com>
+This is f.e. important for stacked filesystems or anything that does
+complicated processing in the writeout path.
 
+Recursive reclaim works because it limits itself to only reclaim pages
+that do not require writeout. It will only remove clean pages from the LRU.
+The dirty throttling of the VM during regular reclaim insures that the amount
+of dirty pages is limited. If recursive reclaim causes too many clean pages
+to be removed then regular reclaim will throttle all processes until the
+dirty ratio is restored. This means that the amount of memory that can
+be reclaimed via recursive reclaim is limited to clean memory. The default
+ratio is 10%. This means that recursive reclaim can reclaim 90% of memory
+before failing. Reclaiming excessive amounts of clean pages may have a
+significant performance impact because this means that executable pages
+will be removed. However, it ensures that we will no longer fail in the
+writeout path.
 
-Index: linux-2.6/mm/memory.c
-===================================================================
---- linux-2.6.orig/mm/memory.c	2007-08-10 09:11:32.000000000 -0500
-+++ linux-2.6/mm/memory.c	2007-08-14 06:26:11.731319983 -0500
-@@ -2466,7 +2466,7 @@
- 		int write_access, pte_t orig_pte)
- {
- 	pgoff_t pgoff = (((address & PAGE_MASK)
--			- vma->vm_start) >> PAGE_CACHE_SHIFT) + vma->vm_pgoff;
-+			- vma->vm_start) >> PAGE_SHIFT) + vma->vm_pgoff;
- 	unsigned int flags = (write_access ? FAULT_FLAG_WRITE : 0);
- 
- 	return __do_fault(mm, vma, address, page_table, pmd, pgoff,
+A patch is included to test this functionality. The test involved allocating
+12 Megabytes from the reclaim paths when __PF_MEMALLOC is set. This is enough
+to exhaust the reserves.
+
+-- 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
