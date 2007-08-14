@@ -1,125 +1,71 @@
-Message-Id: <20070814153502.997795796@sgi.com>
+Message-Id: <20070814153501.545101191@sgi.com>
 References: <20070814153021.446917377@sgi.com>
-Date: Tue, 14 Aug 2007 08:30:30 -0700
+Date: Tue, 14 Aug 2007 08:30:24 -0700
 From: Christoph Lameter <clameter@sgi.com>
-Subject: [RFC 9/9] Testing: Perform GFP_ATOMIC overallocation
-Content-Disposition: inline; filename=test_timer
+Subject: [RFC 3/9] Make cond_rescheds conditional on __GFP_WAIT
+Content-Disposition: inline; filename=vmscan_reclaim_resched
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: linux-mm@kvack.org
 Cc: linux-kernel@vger.kernel.org, akpm@linux-foundation.org, dkegel@google.com, Peter Zijlstra <a.p.zijlstra@chello.nl>, David Miller <davem@davemloft.net>, Nick Piggin <npiggin@suse.de>
 List-ID: <linux-mm.kvack.org>
 
-Trigger a failure or reclaim by allocating large amounts of memory from the
-timer interrupt.
-
-This will show a protocol of what happened. F.e.
-
-Timer: Excesssive Atomic allocs
-Atomically reclaimed 64 pages
-Atomically reclaimed 64 pages
-Atomically reclaimed 64 pages
-Atomically reclaimed 64 pages
-Atomically reclaimed 64 pages
-Atomically reclaimed 64 pages
-Atomically reclaimed 64 pages
-Atomically reclaimed 64 pages
-Atomically reclaimed 64 pages
-Atomically reclaimed 64 pages
-Atomically reclaimed 64 pages
-Atomically reclaimed 96 pages
-Atomically reclaimed 64 pages
-Atomically reclaimed 64 pages
-Atomically reclaimed 64 pages
-Atomically reclaimed 64 pages
-Atomically reclaimed 64 pages
-Atomically reclaimed 64 pages
-Atomically reclaimed 64 pages
-Atomically reclaimed 64 pages
-Atomically reclaimed 64 pages
-Atomically reclaimed 64 pages
-Atomically reclaimed 64 pages
-Atomically reclaimed 64 pages
-Atomically reclaimed 64 pages
-Timer: Memory freed
+We cannot reschedule if we are in atomic reclaim. So make
+the calls to cond_resched depending on the __GFP_WAIT flag.
 
 Signed-off-by: Christoph Lameter <clameter@sgi.com>
 
 ---
- kernel/timer.c |   30 ++++++++++++++++++++++++++++++
- mm/vmscan.c    |    4 ++++
- 2 files changed, 34 insertions(+)
+ mm/vmscan.c |   15 ++++++++++++---
+ 1 file changed, 12 insertions(+), 3 deletions(-)
 
-Index: linux-2.6/kernel/timer.c
-===================================================================
---- linux-2.6.orig/kernel/timer.c	2007-08-14 07:43:21.000000000 -0700
-+++ linux-2.6/kernel/timer.c	2007-08-14 07:43:22.000000000 -0700
-@@ -817,6 +817,12 @@ unsigned long next_timer_interrupt(void)
- #endif
- 
- /*
-+ * Min freekbytes is 2m. 3000 pages give us 12M which is
-+ * able to exhaust the reserves
-+ */
-+#define NR_TEST 3000
-+
-+/*
-  * Called from the timer interrupt handler to charge one tick to the current 
-  * process.  user_tick is 1 if the tick is user time, 0 for system.
-  */
-@@ -824,6 +830,9 @@ void update_process_times(int user_tick)
- {
- 	struct task_struct *p = current;
- 	int cpu = smp_processor_id();
-+	struct page **base;
-+	int i;
-+	static unsigned long lasttime = 0;
- 
- 	/* Note: this timer irq context must be accounted for as well. */
- 	if (user_tick)
-@@ -835,6 +844,27 @@ void update_process_times(int user_tick)
- 		rcu_check_callbacks(cpu, user_tick);
- 	scheduler_tick();
- 	run_posix_cpu_timers(p);
-+
-+	/* Every 2 minutes */
-+	if (jiffies % (120 * HZ) == 0 && time_after(jiffies, lasttime)) {
-+		printk(KERN_CRIT "Timer: Excesssive Atomic allocs\n");
-+		/* Force memory to become exhausted */
-+		base = kzalloc(NR_TEST * sizeof(void *), GFP_ATOMIC);
-+
-+		for (i = 0; i < NR_TEST; i++) {
-+			base[i] = alloc_page(GFP_ATOMIC);
-+			if (!base[i]) {
-+				printk("Alloc failed at %d\n", i);
-+				break;
-+			}
-+		}
-+		for (i = 0; i < NR_TEST; i++)
-+			if (base[i])
-+				put_page(base[i]);
-+		kfree(base);
-+		printk(KERN_CRIT "Timer: Memory freed\n");
-+		lasttime = jiffies;
-+	}
- }
- 
- /*
 Index: linux-2.6/mm/vmscan.c
 ===================================================================
---- linux-2.6.orig/mm/vmscan.c	2007-08-14 07:53:17.000000000 -0700
-+++ linux-2.6/mm/vmscan.c	2007-08-14 08:09:12.000000000 -0700
-@@ -1232,6 +1232,10 @@ out:
- 
- 		zone->prev_priority = priority;
- 	}
-+
-+	if (!(gfp_mask & __GFP_WAIT))
-+		printk(KERN_WARNING "Atomically reclaimed %lu pages\n", nr_reclaimed);
-+
- 	return ret;
+--- linux-2.6.orig/mm/vmscan.c	2007-08-14 07:34:18.000000000 -0700
++++ linux-2.6/mm/vmscan.c	2007-08-14 07:34:25.000000000 -0700
+@@ -258,6 +258,15 @@ static int may_write_to_queue(struct bac
  }
  
+ /*
++ * Reschedule if we are not in atomic mode
++ */
++static void reclaim_resched(struct scan_control *sc)
++{
++	if (sc->gfp_mask & __GFP_WAIT)
++		cond_resched();
++}
++
++/*
+  * We detected a synchronous write error writing a page out.  Probably
+  * -ENOSPC.  We need to propagate that into the address_space for a subsequent
+  * fsync(), msync() or close().
+@@ -437,7 +446,7 @@ static unsigned long shrink_page_list(st
+ 	int pgactivate = 0;
+ 	unsigned long nr_reclaimed = 0;
+ 
+-	cond_resched();
++	reclaim_resched(sc);
+ 
+ 	pagevec_init(&freed_pvec, 1);
+ 	while (!list_empty(page_list)) {
+@@ -446,7 +455,7 @@ static unsigned long shrink_page_list(st
+ 		int may_enter_fs;
+ 		int referenced;
+ 
+-		cond_resched();
++		reclaim_resched(sc);
+ 
+ 		page = lru_to_page(page_list);
+ 		list_del(&page->lru);
+@@ -938,7 +947,7 @@ force_reclaim_mapped:
+ 	spin_unlock_irq(&zone->lru_lock);
+ 
+ 	while (!list_empty(&l_hold)) {
+-		cond_resched();
++		reclaim_resched(sc);
+ 		page = lru_to_page(&l_hold);
+ 		list_del(&page->lru);
+ 		if (page_mapped(page)) {
 
 -- 
 
