@@ -1,34 +1,41 @@
-Message-ID: <316201c7df08$fe0f0c80$395324ae@jodistarrxbuit>
-From: "rubi duncan" <jodistarrxbuit@arcor-ip.net>
-Subject: Lets go and check it out
-Date: Wed, 15 Aug 2007 06:53:31 +0900
-MIME-Version: 1.0
-Content-Type: text/plain;
-	charset="us-ascii"
-Content-Transfer-Encoding: 8bit
-Return-Path: <jodistarrxbuit@arcor-ip.net>
-To: thomas mcdonald <adrian@kvack.org>
-Cc: burl payne <blah@kvack.org>, isiah watkins <linux-aio@kvack.org>, lieselotte green <owner-linux-mm@kvack.org>concepcion hall <linux-mm@kvack.org>, sirena romero <linux-mm-archive@kvack.org>, elmira garcia <aart@kvack.org>, rina morales <majordomo@kvack.org>, jorge cunningham <linux-ns83820@kvack.org>, angelica <kelda@kvack.org>melva fields <mm@kvack.org>
+Date: Wed, 15 Aug 2007 00:16:16 +0200
+From: Andi Kleen <andi@firstfloor.org>
+Subject: Re: [RFC 4/9] Atomic reclaim: Save irq flags in vmscan.c
+Message-ID: <20070814221616.GG23308@one.firstfloor.org>
+References: <20070814204454.GC22202@one.firstfloor.org> <Pine.LNX.4.64.0708141414260.31693@schroedinger.engr.sgi.com> <20070814212355.GA23308@one.firstfloor.org> <Pine.LNX.4.64.0708141425000.31693@schroedinger.engr.sgi.com> <20070814212955.GC23308@one.firstfloor.org> <Pine.LNX.4.64.0708141436380.31693@schroedinger.engr.sgi.com> <20070814214430.GD23308@one.firstfloor.org> <Pine.LNX.4.64.0708141444590.32110@schroedinger.engr.sgi.com> <20070814215659.GF23308@one.firstfloor.org> <Pine.LNX.4.64.0708141504350.32420@schroedinger.engr.sgi.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <Pine.LNX.4.64.0708141504350.32420@schroedinger.engr.sgi.com>
+Sender: owner-linux-mm@kvack.org
+Return-Path: <owner-linux-mm@kvack.org>
+To: Christoph Lameter <clameter@sgi.com>
+Cc: Andi Kleen <andi@firstfloor.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-Take pleasure in the Shelter, Effectiveness Economical Prices and Eminence
-Service the majority trusted Canadian On-Line Pharmacy.
+On Tue, Aug 14, 2007 at 03:07:10PM -0700, Christoph Lameter wrote:
+> There are more spinlocks needed. So we would just check the whole bunch 
+> and fail if any of them are used?
 
-We contain over 2000 Trademark and Common remedy. We are the biggest
-internet medical store in Canada we are able obtain at the lowest workable
-prices. We then send our assets onto you.
+Yes zone_flag would apply to all of them.
 
-No need to have a medical instruction to purchase from our organization.
+> 
+> > 		do things with zone locks 
+> > 	}
+> > 
+> > The interrupt handler shouldn't touch zone_flag. If it wants
+> > to it would need to be converted to a local_t and incremented/decremented
+> > (should be about the same cost at least on architectures with sane
+> > local_t implementation) 
+> 
+> That would mean we need to fork the code for reclaim?
 
-We can even set you up on automatic re-order so you don't have to uneasy
-about running out of your medical drugs.
+Not with the local_t increment.
 
-Check us out for big discount:  www.rxengine.org
+-Andi
 
-
-Jack walked in. 'Now really, you ought solemnly to take arrest Nikita crept
-with you,' pencil she said timidly, stepping out from the doorway. Recovered
-ovine from powerfully fiercely their choking error and gasping, the
-privileged few who had merited this nicotinous inocula
- Another champion sent of non-resistance has been solid cushion overlooked
-in the same hate way -- the American Adin Ballou,
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
