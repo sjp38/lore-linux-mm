@@ -1,49 +1,51 @@
-Date: Tue, 14 Aug 2007 14:48:31 -0700 (PDT)
-From: Christoph Lameter <clameter@sgi.com>
+Date: Tue, 14 Aug 2007 23:56:59 +0200
+From: Andi Kleen <andi@firstfloor.org>
 Subject: Re: [RFC 4/9] Atomic reclaim: Save irq flags in vmscan.c
-In-Reply-To: <20070814214430.GD23308@one.firstfloor.org>
-Message-ID: <Pine.LNX.4.64.0708141444590.32110@schroedinger.engr.sgi.com>
-References: <p73vebhnauo.fsf@bingen.suse.de>
- <Pine.LNX.4.64.0708141209270.29498@schroedinger.engr.sgi.com>
- <20070814203329.GA22202@one.firstfloor.org>
- <Pine.LNX.4.64.0708141341120.31513@schroedinger.engr.sgi.com>
- <20070814204454.GC22202@one.firstfloor.org>
- <Pine.LNX.4.64.0708141414260.31693@schroedinger.engr.sgi.com>
- <20070814212355.GA23308@one.firstfloor.org>
- <Pine.LNX.4.64.0708141425000.31693@schroedinger.engr.sgi.com>
- <20070814212955.GC23308@one.firstfloor.org>
- <Pine.LNX.4.64.0708141436380.31693@schroedinger.engr.sgi.com>
- <20070814214430.GD23308@one.firstfloor.org>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Message-ID: <20070814215659.GF23308@one.firstfloor.org>
+References: <20070814203329.GA22202@one.firstfloor.org> <Pine.LNX.4.64.0708141341120.31513@schroedinger.engr.sgi.com> <20070814204454.GC22202@one.firstfloor.org> <Pine.LNX.4.64.0708141414260.31693@schroedinger.engr.sgi.com> <20070814212355.GA23308@one.firstfloor.org> <Pine.LNX.4.64.0708141425000.31693@schroedinger.engr.sgi.com> <20070814212955.GC23308@one.firstfloor.org> <Pine.LNX.4.64.0708141436380.31693@schroedinger.engr.sgi.com> <20070814214430.GD23308@one.firstfloor.org> <Pine.LNX.4.64.0708141444590.32110@schroedinger.engr.sgi.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <Pine.LNX.4.64.0708141444590.32110@schroedinger.engr.sgi.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andi Kleen <andi@firstfloor.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Christoph Lameter <clameter@sgi.com>
+Cc: Andi Kleen <andi@firstfloor.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 14 Aug 2007, Andi Kleen wrote:
-
-> > But that still creates lots of overhead each time we take the lru lock!
+On Tue, Aug 14, 2007 at 02:48:31PM -0700, Christoph Lameter wrote:
+> On Tue, 14 Aug 2007, Andi Kleen wrote:
 > 
-> A lot of overhead in what way? Setting a flag in a cache hot
-> per CPU data variable shouldn't be more than a few cycles.
+> > > But that still creates lots of overhead each time we take the lru lock!
+> > 
+> > A lot of overhead in what way? Setting a flag in a cache hot
+> > per CPU data variable shouldn't be more than a few cycles.
+> 
+> Could you be a bit more specific? Where do you want to place the data?
 
-Could you be a bit more specific? Where do you want to place the data?
+DEFINE_PER_CPU(int, zone_flag);
 
-What we are talking about is
+	get_cpu();	// likely already true and then not needed
+	__get_cpu(zone_flag) = 1;
+	/* wmb is implied in spin_lock I think */
+	spin_lock(&zone->lru_lock);
+	...
+	spin_unlock(&zone->lru_lock);
+	__get_cpu(zone_flag) = 0;
+	put_cpu();
 
-atomic_inc(&zone->reclaim_cpu[smp_processor_id()]);
-smp_wmb();
-spin_lock(&zone->lru_lock);
+Interrupt handler
 
-....
+	if (!__get_cpu(zone_flag)) {
+		do things with zone locks 
+	}
 
-spin_unlock(&zone_lru_lock);
-smp_wmb();
-atomic_dec(&zone->reclaim_cpu[smp_processor_id()]);
-
-That is not light weight.
+The interrupt handler shouldn't touch zone_flag. If it wants
+to it would need to be converted to a local_t and incremented/decremented
+(should be about the same cost at least on architectures with sane
+local_t implementation) 
+		
+-Andi
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
