@@ -1,39 +1,29 @@
-Subject: Re: [PATCH] Use MPOL_PREFERRED for system default policy
-From: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
-In-Reply-To: <Pine.LNX.4.64.0708141250200.30703@schroedinger.engr.sgi.com>
-References: <1187120671.6281.67.camel@localhost>
-	 <Pine.LNX.4.64.0708141250200.30703@schroedinger.engr.sgi.com>
-Content-Type: text/plain
-Date: Tue, 14 Aug 2007 16:09:15 -0400
-Message-Id: <1187122156.6281.77.camel@localhost>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Date: Tue, 14 Aug 2007 23:05:51 +0200
+From: Andi Kleen <ak@suse.de>
+Subject: Re: [PATCH 3/4] Embed zone_id information within the zonelist->zones pointer
+Message-ID: <20070814210551.GU3406@bingen.suse.de>
+References: <20070813230801.GH3406@bingen.suse.de> <Pine.LNX.4.64.0708131536340.29946@schroedinger.engr.sgi.com> <20070813234322.GJ3406@bingen.suse.de> <Pine.LNX.4.64.0708131553050.30626@schroedinger.engr.sgi.com> <20070814000041.GL3406@bingen.suse.de> <20070814002223.2d8d42c5@the-village.bc.nu> <20070814001441.GN3406@bingen.suse.de> <20070814191158.GB14093@hexapodia.org> <20070814202350.GT3406@bingen.suse.de> <20070814194356.GL21492@hexapodia.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20070814194356.GL21492@hexapodia.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
-Cc: Andi Kleen <ak@suse.de>, Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, Eric Whitney <eric.whitney@hp.com>
+To: Andy Isaacson <adi@hexapodia.org>
+Cc: Andi Kleen <ak@suse.de>, Alan Cox <alan@lxorguk.ukuu.org.uk>, Christoph Lameter <clameter@sgi.com>, Mel Gorman <mel@skynet.ie>, Lee.Schermerhorn@hp.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-mips@linux-mips.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 2007-08-14 at 12:51 -0700, Christoph Lameter wrote:
-> On Tue, 14 Aug 2007, Lee Schermerhorn wrote:
-> 
-> > Now, system default policy, except during boot, is "local 
-> > allocation".  By using the MPOL_PREFERRED mode with a negative
-> > value of preferred node for system default policy, MPOL_DEFAULT
-> > will never occur in the 'policy' member of a struct mempolicy.
-> > Thus, we can remove all checks for MPOL_DEFAULT when converting
-> > policy to a node id/zonelist in the allocation paths.
-> 
-> Isnt it possible to set a task policy or VMA policy to MPOL_DEFAULT 
-> through the API? For the VMA policy this would mean fall back to task 
-> policy. Is that still possible?
+> Yeah, if you stick a PCI chip with a 30-bit PCI DMA mask into a machine
+> with memory above 1GB, then copying has to happen.  Unless the memory
+> allocator can avoid returning memory in the un-dma-able region...
 
-No.  mpol_new() returns NULL if policy==MPOL_DEFAULT, so you end up just
-deleting any existing task policy and replacing it with a NULL pointer.
-This is pretty cool, I think.  I have checked back, but Andi may have
-done this from day 1.
+With GFP_DMA this was possible, but the capability will be gone
+for x86 systems if your required DMA region is < 4GB.
 
-Lee
+Besides I'm currently not planning to change mips so it might
+stay the same if Ralf prefers that.
+
+-Andi
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
