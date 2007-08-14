@@ -1,110 +1,125 @@
-Message-Id: <20070814153501.075312763@sgi.com>
+Message-Id: <20070814153502.997795796@sgi.com>
 References: <20070814153021.446917377@sgi.com>
-Date: Tue, 14 Aug 2007 08:30:22 -0700
+Date: Tue, 14 Aug 2007 08:30:30 -0700
 From: Christoph Lameter <clameter@sgi.com>
-Subject: [RFC 1/9] Allow reclaim via __GFP_NOMEMALLOC reclaim
-Content-Disposition: inline; filename=vmscan_nomemalloc
+Subject: [RFC 9/9] Testing: Perform GFP_ATOMIC overallocation
+Content-Disposition: inline; filename=test_timer
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: linux-mm@kvack.org
 Cc: linux-kernel@vger.kernel.org, akpm@linux-foundation.org, dkegel@google.com, Peter Zijlstra <a.p.zijlstra@chello.nl>, David Miller <davem@davemloft.net>, Nick Piggin <npiggin@suse.de>
 List-ID: <linux-mm.kvack.org>
 
-Make try_to_free_pages() not perform any allocations if __GFP_NOMEMALLOC
-is set.
+Trigger a failure or reclaim by allocating large amounts of memory from the
+timer interrupt.
 
-We can avoid allocations by not writing pages out or swapping. So on entry
-to try_to_free_pages() we check for __GFP_NOMEMALLOC. If it is set
-then sc.may_writepage and sc.mayswap are switched off and we short
-circuit the writeout handling.
+This will show a protocol of what happened. F.e.
 
-The throttling of VM writeout is also bypassed since there is no
-writeout occurring.
-
-It is likely difficult to make sure that the slab shrinkers do
-not perform any allocations. So we simply do not shrink slabs.
-
-The type of pages that can be reclaimed by a call to try_to_free_pages()
-with the __GFP_NOMEMALLOC parameter is:
-
-- Unmapped clean page cache pages.
-- Mapped clean pages
+Timer: Excesssive Atomic allocs
+Atomically reclaimed 64 pages
+Atomically reclaimed 64 pages
+Atomically reclaimed 64 pages
+Atomically reclaimed 64 pages
+Atomically reclaimed 64 pages
+Atomically reclaimed 64 pages
+Atomically reclaimed 64 pages
+Atomically reclaimed 64 pages
+Atomically reclaimed 64 pages
+Atomically reclaimed 64 pages
+Atomically reclaimed 64 pages
+Atomically reclaimed 96 pages
+Atomically reclaimed 64 pages
+Atomically reclaimed 64 pages
+Atomically reclaimed 64 pages
+Atomically reclaimed 64 pages
+Atomically reclaimed 64 pages
+Atomically reclaimed 64 pages
+Atomically reclaimed 64 pages
+Atomically reclaimed 64 pages
+Atomically reclaimed 64 pages
+Atomically reclaimed 64 pages
+Atomically reclaimed 64 pages
+Atomically reclaimed 64 pages
+Atomically reclaimed 64 pages
+Timer: Memory freed
 
 Signed-off-by: Christoph Lameter <clameter@sgi.com>
 
-
 ---
- mm/vmscan.c |   25 ++++++++++++++++++++++---
- 1 file changed, 22 insertions(+), 3 deletions(-)
+ kernel/timer.c |   30 ++++++++++++++++++++++++++++++
+ mm/vmscan.c    |    4 ++++
+ 2 files changed, 34 insertions(+)
 
+Index: linux-2.6/kernel/timer.c
+===================================================================
+--- linux-2.6.orig/kernel/timer.c	2007-08-14 07:43:21.000000000 -0700
++++ linux-2.6/kernel/timer.c	2007-08-14 07:43:22.000000000 -0700
+@@ -817,6 +817,12 @@ unsigned long next_timer_interrupt(void)
+ #endif
+ 
+ /*
++ * Min freekbytes is 2m. 3000 pages give us 12M which is
++ * able to exhaust the reserves
++ */
++#define NR_TEST 3000
++
++/*
+  * Called from the timer interrupt handler to charge one tick to the current 
+  * process.  user_tick is 1 if the tick is user time, 0 for system.
+  */
+@@ -824,6 +830,9 @@ void update_process_times(int user_tick)
+ {
+ 	struct task_struct *p = current;
+ 	int cpu = smp_processor_id();
++	struct page **base;
++	int i;
++	static unsigned long lasttime = 0;
+ 
+ 	/* Note: this timer irq context must be accounted for as well. */
+ 	if (user_tick)
+@@ -835,6 +844,27 @@ void update_process_times(int user_tick)
+ 		rcu_check_callbacks(cpu, user_tick);
+ 	scheduler_tick();
+ 	run_posix_cpu_timers(p);
++
++	/* Every 2 minutes */
++	if (jiffies % (120 * HZ) == 0 && time_after(jiffies, lasttime)) {
++		printk(KERN_CRIT "Timer: Excesssive Atomic allocs\n");
++		/* Force memory to become exhausted */
++		base = kzalloc(NR_TEST * sizeof(void *), GFP_ATOMIC);
++
++		for (i = 0; i < NR_TEST; i++) {
++			base[i] = alloc_page(GFP_ATOMIC);
++			if (!base[i]) {
++				printk("Alloc failed at %d\n", i);
++				break;
++			}
++		}
++		for (i = 0; i < NR_TEST; i++)
++			if (base[i])
++				put_page(base[i]);
++		kfree(base);
++		printk(KERN_CRIT "Timer: Memory freed\n");
++		lasttime = jiffies;
++	}
+ }
+ 
+ /*
 Index: linux-2.6/mm/vmscan.c
 ===================================================================
---- linux-2.6.orig/mm/vmscan.c	2007-08-13 23:43:45.000000000 -0700
-+++ linux-2.6/mm/vmscan.c	2007-08-13 23:51:05.000000000 -0700
-@@ -161,6 +161,13 @@ unsigned long shrink_slab(unsigned long 
- 	if (scanned == 0)
- 		scanned = SWAP_CLUSTER_MAX;
+--- linux-2.6.orig/mm/vmscan.c	2007-08-14 07:53:17.000000000 -0700
++++ linux-2.6/mm/vmscan.c	2007-08-14 08:09:12.000000000 -0700
+@@ -1232,6 +1232,10 @@ out:
  
-+	/*
-+	 * Not sure if we can keep this clean of allocs.
-+	 * Better leave it off for now
-+	 */
-+	if (gfp_mask & __GFP_NOMEMALLOC)
-+		return 1;
-+
- 	if (!down_read_trylock(&shrinker_rwsem))
- 		return 1;	/* Assume we'll be able to shrink next time */
- 
-@@ -1053,7 +1060,8 @@ static unsigned long shrink_zone(int pri
- 		}
+ 		zone->prev_priority = priority;
  	}
- 
--	throttle_vm_writeout(sc->gfp_mask);
-+	if (!(sc->gfp_mask & __GFP_NOMEMALLOC))
-+		throttle_vm_writeout(sc->gfp_mask);
- 
- 	atomic_dec(&zone->reclaim_in_progress);
- 	return nr_reclaimed;
-@@ -1115,6 +1123,9 @@ static unsigned long shrink_zones(int pr
-  * hope that some of these pages can be written.  But if the allocating task
-  * holds filesystem locks which prevent writeout this might not work, and the
-  * allocation attempt will fail.
-+ *
-+ * The __GFP_NOMEMALLOC flag has a special role. If it is set then no memory
-+ * allocations or writeout will occur.
-  */
- unsigned long try_to_free_pages(struct zone **zones, int order, gfp_t gfp_mask)
- {
-@@ -1127,15 +1138,17 @@ unsigned long try_to_free_pages(struct z
- 	int i;
- 	struct scan_control sc = {
- 		.gfp_mask = gfp_mask,
--		.may_writepage = !laptop_mode,
- 		.swap_cluster_max = SWAP_CLUSTER_MAX,
--		.may_swap = 1,
- 		.swappiness = vm_swappiness,
- 		.order = order,
- 	};
- 
- 	count_vm_event(ALLOCSTALL);
- 
-+	if (!(gfp_mask & __GFP_NOMEMALLOC)) {
-+		sc.may_writepage = !laptop_mode;
-+		sc.may_swap = 1;
-+	}
- 	for (i = 0; zones[i] != NULL; i++) {
- 		struct zone *zone = zones[i];
- 
-@@ -1162,6 +1175,9 @@ unsigned long try_to_free_pages(struct z
- 			goto out;
- 		}
- 
-+		if (!(gfp_mask & __GFP_NOMEMALLOC))
-+			continue;
 +
- 		/*
- 		 * Try to write back as many pages as we just scanned.  This
- 		 * tends to cause slow streaming writers to write data to the
++	if (!(gfp_mask & __GFP_WAIT))
++		printk(KERN_WARNING "Atomically reclaimed %lu pages\n", nr_reclaimed);
++
+ 	return ret;
+ }
+ 
 
 -- 
 
