@@ -1,48 +1,37 @@
-Date: Tue, 14 Aug 2007 12:41:10 -0700 (PDT)
-From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [RFC 0/3] Recursive reclaim (on __PF_MEMALLOC)
-In-Reply-To: <1187119978.5337.1.camel@lappy>
-Message-ID: <Pine.LNX.4.64.0708141233370.30435@schroedinger.engr.sgi.com>
-References: <20070814142103.204771292@sgi.com>  <1187102203.6114.2.camel@twins>
-  <Pine.LNX.4.64.0708140828060.27248@schroedinger.engr.sgi.com>
- <1187119978.5337.1.camel@lappy>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Date: Tue, 14 Aug 2007 12:43:56 -0700
+From: Andy Isaacson <adi@hexapodia.org>
+Subject: Re: [PATCH 3/4] Embed zone_id information within the zonelist->zones pointer
+Message-ID: <20070814194356.GL21492@hexapodia.org>
+References: <Pine.LNX.4.64.0708131506030.28502@schroedinger.engr.sgi.com> <20070813230801.GH3406@bingen.suse.de> <Pine.LNX.4.64.0708131536340.29946@schroedinger.engr.sgi.com> <20070813234322.GJ3406@bingen.suse.de> <Pine.LNX.4.64.0708131553050.30626@schroedinger.engr.sgi.com> <20070814000041.GL3406@bingen.suse.de> <20070814002223.2d8d42c5@the-village.bc.nu> <20070814001441.GN3406@bingen.suse.de> <20070814191158.GB14093@hexapodia.org> <20070814202350.GT3406@bingen.suse.de>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20070814202350.GT3406@bingen.suse.de>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Peter Zijlstra <peterz@infradead.org>
-Cc: linux-mm@kvack.org, akpm@linux-foundation.org, linux-kernel@vger.kernel.org
+To: Andi Kleen <ak@suse.de>
+Cc: Alan Cox <alan@lxorguk.ukuu.org.uk>, Christoph Lameter <clameter@sgi.com>, Mel Gorman <mel@skynet.ie>, Lee.Schermerhorn@hp.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-mips@linux-mips.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 14 Aug 2007, Peter Zijlstra wrote:
-
-> > Ok but that could be addressed by making sure that a certain portion of 
-> > memory is reserved for clean file backed pages.
+On Tue, Aug 14, 2007 at 10:23:51PM +0200, Andi Kleen wrote:
+> > bcm43xx hardware does show up on low-end MIPS boxes (wrt54g anybody?)
+> > that would be sorely hurt by excess copies.
 > 
-> Which gets us back to the initial problem of sizing this portion and
-> ensuring it is big enough to service the need.
+> Lowend boxes don't have more than 1GB of RAM. With <= 1GB you don't
+> need to copy on bcm43xx.
 
-Clean file backed pages dominate memory on most boxes. They can be 
-calculated by NR_FILE_PAGES - NR_FILE_DIRTY
+OK, that makes sense and is reassuring, but note that some MIPS boxes
+have only part of their physical memory below 1GB; IIRC the
+BCM4704/BCM5836 supports up to 512MB of physical memory, with 256MB in
+the first GB and the second 256MB located above the 1GB line.  (But it's
+been a while since I've run such a machine, so I could be misremembering
+the sizes and offsets.)
 
-On my 2G system that is 
+Yeah, if you stick a PCI chip with a 30-bit PCI DMA mask into a machine
+with memory above 1GB, then copying has to happen.  Unless the memory
+allocator can avoid returning memory in the un-dma-able region...
 
-Cached:        1731480 kB
-Dirty:             424 kB
-
-So for most load the patch as is will fix your issues. The problem arises 
-if you have extreme loads that are making the majority of pages anonymous.
-
-We could change min_free_kbytes to specify the number of free + clean 
-pages required (if we can do atomic reclaim then we do not need it 
-anymore). Then we can specify a large portion of memory for 
-min_free_kbytes. 20%? That would give you 400M on my box which would 
-certainly suffice.
-
-If the amount of clean file backed pages falls below that limit then do 
-the usual reclaim. If we write anonymous pages out to swap then they 
-can also become clean and reclaimable.
-
+-andy
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
