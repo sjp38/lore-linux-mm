@@ -1,53 +1,39 @@
-Subject: Re: [RFC 4/9] Atomic reclaim: Save irq flags in vmscan.c
-From: Peter Zijlstra <a.p.zijlstra@chello.nl>
-In-Reply-To: <Pine.LNX.4.64.0708141209270.29498@schroedinger.engr.sgi.com>
-References: <20070814153021.446917377@sgi.com>
-	 <20070814153501.766137366@sgi.com> <p73vebhnauo.fsf@bingen.suse.de>
-	 <Pine.LNX.4.64.0708141209270.29498@schroedinger.engr.sgi.com>
+Subject: Re: [PATCH] Use MPOL_PREFERRED for system default policy
+From: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
+In-Reply-To: <Pine.LNX.4.64.0708141250200.30703@schroedinger.engr.sgi.com>
+References: <1187120671.6281.67.camel@localhost>
+	 <Pine.LNX.4.64.0708141250200.30703@schroedinger.engr.sgi.com>
 Content-Type: text/plain
-Date: Tue, 14 Aug 2007 22:05:51 +0200
-Message-Id: <1187121951.5337.4.camel@lappy>
+Date: Tue, 14 Aug 2007 16:09:15 -0400
+Message-Id: <1187122156.6281.77.camel@localhost>
 Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Christoph Lameter <clameter@sgi.com>
-Cc: Andi Kleen <andi@firstfloor.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Ingo Molnar <mingo@elte.hu>
+Cc: Andi Kleen <ak@suse.de>, Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, Eric Whitney <eric.whitney@hp.com>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 2007-08-14 at 12:12 -0700, Christoph Lameter wrote:
-> On Tue, 14 Aug 2007, Andi Kleen wrote:
+On Tue, 2007-08-14 at 12:51 -0700, Christoph Lameter wrote:
+> On Tue, 14 Aug 2007, Lee Schermerhorn wrote:
 > 
-> > Christoph Lameter <clameter@sgi.com> writes:
-> > 
-> > > Reclaim can be called with interrupts disabled in atomic reclaim.
-> > > vmscan.c is currently using spinlock_irq(). Switch to spin_lock_irqsave().
-> > 
-> > I like the idea in principle. If this fully works out we could
-> > potentially keep less memory free by default which would be a good
-> > thing in general: free memory is bad memory.
+> > Now, system default policy, except during boot, is "local 
+> > allocation".  By using the MPOL_PREFERRED mode with a negative
+> > value of preferred node for system default policy, MPOL_DEFAULT
+> > will never occur in the 'policy' member of a struct mempolicy.
+> > Thus, we can remove all checks for MPOL_DEFAULT when converting
+> > policy to a node id/zonelist in the allocation paths.
 > 
-> Right.
->  
-> > But would be interesting to measure what the lock
-> > changes do to interrupt latency. Probably nothing good.
-> 
-> Yup.
->  
-> > A more benign alternative might be to just set a per CPU flag during
-> > these critical sections and then only do atomic reclaim on a local
-> > interrupt when the flag is not set.  That would make it a little less
-> > reliable, but much less intrusive and with some luck still give many
-> > of the benefits.
-> 
-> There are other lock interactions that may cause problems. If we do not 
-> switch to the saving of irq flags then all involved spinlocks must become 
-> trylocks because the interrupt could have happened while the spinlock is 
-> held. So interrupts must be disabled on locks acquired during an 
-> interrupt.
+> Isnt it possible to set a task policy or VMA policy to MPOL_DEFAULT 
+> through the API? For the VMA policy this would mean fall back to task 
+> policy. Is that still possible?
 
-A much simpler approach to this seems to use threaded interrupts like
--rt does.
+No.  mpol_new() returns NULL if policy==MPOL_DEFAULT, so you end up just
+deleting any existing task policy and replacing it with a NULL pointer.
+This is pretty cool, I think.  I have checked back, but Andi may have
+done this from day 1.
+
+Lee
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
