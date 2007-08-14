@@ -1,25 +1,45 @@
-Date: Tue, 14 Aug 2007 22:23:51 +0200
-From: Andi Kleen <ak@suse.de>
-Subject: Re: [PATCH 3/4] Embed zone_id information within the zonelist->zones pointer
-Message-ID: <20070814202350.GT3406@bingen.suse.de>
-References: <20070813225841.GG3406@bingen.suse.de> <Pine.LNX.4.64.0708131506030.28502@schroedinger.engr.sgi.com> <20070813230801.GH3406@bingen.suse.de> <Pine.LNX.4.64.0708131536340.29946@schroedinger.engr.sgi.com> <20070813234322.GJ3406@bingen.suse.de> <Pine.LNX.4.64.0708131553050.30626@schroedinger.engr.sgi.com> <20070814000041.GL3406@bingen.suse.de> <20070814002223.2d8d42c5@the-village.bc.nu> <20070814001441.GN3406@bingen.suse.de> <20070814191158.GB14093@hexapodia.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20070814191158.GB14093@hexapodia.org>
+Subject: Re: [RFC 0/3] Recursive reclaim (on __PF_MEMALLOC)
+From: Peter Zijlstra <peterz@infradead.org>
+In-Reply-To: <Pine.LNX.4.64.0708140828060.27248@schroedinger.engr.sgi.com>
+References: <20070814142103.204771292@sgi.com>
+	 <1187102203.6114.2.camel@twins>
+	 <Pine.LNX.4.64.0708140828060.27248@schroedinger.engr.sgi.com>
+Content-Type: text/plain
+Date: Tue, 14 Aug 2007 21:32:58 +0200
+Message-Id: <1187119978.5337.1.camel@lappy>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andy Isaacson <adi@hexapodia.org>
-Cc: Andi Kleen <ak@suse.de>, Alan Cox <alan@lxorguk.ukuu.org.uk>, Christoph Lameter <clameter@sgi.com>, Mel Gorman <mel@skynet.ie>, Lee.Schermerhorn@hp.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-mips@linux-mips.org
+To: Christoph Lameter <clameter@sgi.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-> bcm43xx hardware does show up on low-end MIPS boxes (wrt54g anybody?)
-> that would be sorely hurt by excess copies.
+On Tue, 2007-08-14 at 08:29 -0700, Christoph Lameter wrote:
+> On Tue, 14 Aug 2007, Peter Zijlstra wrote:
+> 
+> > On Tue, 2007-08-14 at 07:21 -0700, Christoph Lameter wrote:
+> > > The following patchset implements recursive reclaim. Recursive reclaim
+> > > is necessary if we run out of memory in the writeout patch from reclaim.
+> > > 
+> > > This is f.e. important for stacked filesystems or anything that does
+> > > complicated processing in the writeout path.
+> > > 
+> > > Recursive reclaim works because it limits itself to only reclaim pages
+> > > that do not require writeout. It will only remove clean pages from the LRU.
+> > > The dirty throttling of the VM during regular reclaim insures that the amount
+> > > of dirty pages is limited. 
+> > 
+> > No it doesn't. All memory can be tied up by anonymous pages - who are
+> > dirty by definition and are not clamped by the dirty limit.
+> 
+> Ok but that could be addressed by making sure that a certain portion of 
+> memory is reserved for clean file backed pages.
 
-Lowend boxes don't have more than 1GB of RAM. With <= 1GB you don't
-need to copy on bcm43xx.
+Which gets us back to the initial problem of sizing this portion and
+ensuring it is big enough to service the need.
 
--Andi
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
