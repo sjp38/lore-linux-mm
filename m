@@ -1,45 +1,42 @@
-Subject: Re: [RFC 0/3] Recursive reclaim (on __PF_MEMALLOC)
-From: Peter Zijlstra <peterz@infradead.org>
-In-Reply-To: <Pine.LNX.4.64.0708140828060.27248@schroedinger.engr.sgi.com>
-References: <20070814142103.204771292@sgi.com>
-	 <1187102203.6114.2.camel@twins>
-	 <Pine.LNX.4.64.0708140828060.27248@schroedinger.engr.sgi.com>
-Content-Type: text/plain
-Date: Tue, 14 Aug 2007 21:32:58 +0200
-Message-Id: <1187119978.5337.1.camel@lappy>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Date: Tue, 14 Aug 2007 12:33:30 -0700 (PDT)
+From: Christoph Lameter <clameter@sgi.com>
+Subject: Re: Minor [?] page migration bug in check_pte_range()
+In-Reply-To: <1187105148.6281.38.camel@localhost>
+Message-ID: <Pine.LNX.4.64.0708141231210.30435@schroedinger.engr.sgi.com>
+References: <1187105148.6281.38.camel@localhost>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
+Cc: Andi Kleen <ak@suse.de>, Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 2007-08-14 at 08:29 -0700, Christoph Lameter wrote:
-> On Tue, 14 Aug 2007, Peter Zijlstra wrote:
+On Tue, 14 Aug 2007, Lee Schermerhorn wrote:
+
+> What I see is that when you attempt to install an interleave policy and
+> migrate the pages to match that policy, any pages on nodes included in
+> the interleave node mask will not be migrated to match policy.  This
+
+Right. The pages are already on permitted nodes.
+
+> occurs because of the clever, but overly simplistic test in
+> check_pte_range():
 > 
-> > On Tue, 2007-08-14 at 07:21 -0700, Christoph Lameter wrote:
-> > > The following patchset implements recursive reclaim. Recursive reclaim
-> > > is necessary if we run out of memory in the writeout patch from reclaim.
-> > > 
-> > > This is f.e. important for stacked filesystems or anything that does
-> > > complicated processing in the writeout path.
-> > > 
-> > > Recursive reclaim works because it limits itself to only reclaim pages
-> > > that do not require writeout. It will only remove clean pages from the LRU.
-> > > The dirty throttling of the VM during regular reclaim insures that the amount
-> > > of dirty pages is limited. 
-> > 
-> > No it doesn't. All memory can be tied up by anonymous pages - who are
-> > dirty by definition and are not clamped by the dirty limit.
+> 	if (node_isset(nid, *nodes) == !!(flags & MPOL_MF_INVERT))
+> 		continue;
 > 
-> Ok but that could be addressed by making sure that a certain portion of 
-> memory is reserved for clean file backed pages.
+> Fixing this would, I think, involve checking each page against the
+> location dictated by the new policy.  Altho' I don't think this is a
+> performance critical path, it is the inner-most loop of check_range().
+> 
+> Is this worth addressing, do you think?
 
-Which gets us back to the initial problem of sizing this portion and
-ensuring it is big enough to service the need.
+This is not going to be easy because you would have to move each 
+individual pages to a particular node. Or setup lists for each node and 
+then do several calls to migrate page.
 
-
+I think we can leave it as is.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
