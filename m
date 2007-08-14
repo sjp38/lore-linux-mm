@@ -1,42 +1,48 @@
-Date: Tue, 14 Aug 2007 12:33:30 -0700 (PDT)
+Date: Tue, 14 Aug 2007 12:41:10 -0700 (PDT)
 From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: Minor [?] page migration bug in check_pte_range()
-In-Reply-To: <1187105148.6281.38.camel@localhost>
-Message-ID: <Pine.LNX.4.64.0708141231210.30435@schroedinger.engr.sgi.com>
-References: <1187105148.6281.38.camel@localhost>
+Subject: Re: [RFC 0/3] Recursive reclaim (on __PF_MEMALLOC)
+In-Reply-To: <1187119978.5337.1.camel@lappy>
+Message-ID: <Pine.LNX.4.64.0708141233370.30435@schroedinger.engr.sgi.com>
+References: <20070814142103.204771292@sgi.com>  <1187102203.6114.2.camel@twins>
+  <Pine.LNX.4.64.0708140828060.27248@schroedinger.engr.sgi.com>
+ <1187119978.5337.1.camel@lappy>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
-Cc: Andi Kleen <ak@suse.de>, Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>
+To: Peter Zijlstra <peterz@infradead.org>
+Cc: linux-mm@kvack.org, akpm@linux-foundation.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 14 Aug 2007, Lee Schermerhorn wrote:
+On Tue, 14 Aug 2007, Peter Zijlstra wrote:
 
-> What I see is that when you attempt to install an interleave policy and
-> migrate the pages to match that policy, any pages on nodes included in
-> the interleave node mask will not be migrated to match policy.  This
-
-Right. The pages are already on permitted nodes.
-
-> occurs because of the clever, but overly simplistic test in
-> check_pte_range():
+> > Ok but that could be addressed by making sure that a certain portion of 
+> > memory is reserved for clean file backed pages.
 > 
-> 	if (node_isset(nid, *nodes) == !!(flags & MPOL_MF_INVERT))
-> 		continue;
-> 
-> Fixing this would, I think, involve checking each page against the
-> location dictated by the new policy.  Altho' I don't think this is a
-> performance critical path, it is the inner-most loop of check_range().
-> 
-> Is this worth addressing, do you think?
+> Which gets us back to the initial problem of sizing this portion and
+> ensuring it is big enough to service the need.
 
-This is not going to be easy because you would have to move each 
-individual pages to a particular node. Or setup lists for each node and 
-then do several calls to migrate page.
+Clean file backed pages dominate memory on most boxes. They can be 
+calculated by NR_FILE_PAGES - NR_FILE_DIRTY
 
-I think we can leave it as is.
+On my 2G system that is 
+
+Cached:        1731480 kB
+Dirty:             424 kB
+
+So for most load the patch as is will fix your issues. The problem arises 
+if you have extreme loads that are making the majority of pages anonymous.
+
+We could change min_free_kbytes to specify the number of free + clean 
+pages required (if we can do atomic reclaim then we do not need it 
+anymore). Then we can specify a large portion of memory for 
+min_free_kbytes. 20%? That would give you 400M on my box which would 
+certainly suffice.
+
+If the amount of clean file backed pages falls below that limit then do 
+the usual reclaim. If we write anonymous pages out to swap then they 
+can also become clean and reclaimable.
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
