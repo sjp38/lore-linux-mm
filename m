@@ -1,47 +1,37 @@
-Message-ID: <46C1F573.4000403@redhat.com>
-Date: Tue, 14 Aug 2007 14:33:23 -0400
-From: Chris Snook <csnook@redhat.com>
+Subject: Re: [RFC 4/9] Atomic reclaim: Save irq flags in vmscan.c
+References: <20070814153021.446917377@sgi.com>
+	<20070814153501.766137366@sgi.com>
+From: Andi Kleen <andi@firstfloor.org>
+Date: 14 Aug 2007 22:02:23 +0200
+In-Reply-To: <20070814153501.766137366@sgi.com>
+Message-ID: <p73vebhnauo.fsf@bingen.suse.de>
 MIME-Version: 1.0
-Subject: Re: L2 cache alignment and page coloring
-References: <46C1F194.8080405@llnl.gov>
-In-Reply-To: <46C1F194.8080405@llnl.gov>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: keasler@llnl.gov
-Cc: linux-mm@kvack.org
+To: Christoph Lameter <clameter@sgi.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-Jeff Keasler wrote:
-> Hi,
-> 
-> I work in an HPC environment where we run a process with a tight inner 
-> loop (entirely contained in the I-cache) to work on large quantities of 
-> data.  We've reduced system services to minimize our process getting 
-> swapped out.
-> 
-> I am concerned that using malloc(L2_CACHE_SIZE) in user space is mapping 
-> the underlying physical pages such that they do not form a cover of the 
-> L2 cache (i.e. several physical pages are aliasing into the same part of 
-> the L2 cache).
-> 
-> Are there any tricks available to force a more cache friendly 
-> virtual-to-physical mapping from user space?
-> 
-> Thanks,
-> -Jeff
-> 
-> PS  Even better if it is likely to work for L3 cache.
+Christoph Lameter <clameter@sgi.com> writes:
 
-There may be easier methods depending on your architecture, but if the memory 
-region is contiguous in both virtual and physical memory, it's pretty much 
-impossible for any set-associative cache implementation (even L3) to alias it 
-inefficiently.  Therefore I suggest using hugepages.  Just make sure that either 
-you're using CPUs with lots of hugepage TLB entries, or that you won't be using 
-very many of them at once.
+> Reclaim can be called with interrupts disabled in atomic reclaim.
+> vmscan.c is currently using spinlock_irq(). Switch to spin_lock_irqsave().
 
-	-- Chris
+I like the idea in principle. If this fully works out we could
+potentially keep less memory free by default which would be a good
+thing in general: free memory is bad memory.
+
+But would be interesting to measure what the lock
+changes do to interrupt latency. Probably nothing good.
+
+A more benign alternative might be to just set a per CPU flag during
+these critical sections and then only do atomic reclaim on a local
+interrupt when the flag is not set.  That would make it a little less
+reliable, but much less intrusive and with some luck still give many
+of the benefits.
+
+-Andi
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
