@@ -1,43 +1,53 @@
-Date: Tue, 14 Aug 2007 12:56:11 -0700 (PDT)
-From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [PATCH 3/4] Embed zone_id information within the zonelist->zones
- pointer
-In-Reply-To: <20070814002635.GR3406@bingen.suse.de>
-Message-ID: <Pine.LNX.4.64.0708141255340.30766@schroedinger.engr.sgi.com>
-References: <20070813225841.GG3406@bingen.suse.de>
- <Pine.LNX.4.64.0708131506030.28502@schroedinger.engr.sgi.com>
- <20070813230801.GH3406@bingen.suse.de> <Pine.LNX.4.64.0708131536340.29946@schroedinger.engr.sgi.com>
- <20070813234322.GJ3406@bingen.suse.de> <Pine.LNX.4.64.0708131553050.30626@schroedinger.engr.sgi.com>
- <20070814000041.GL3406@bingen.suse.de> <Pine.LNX.4.64.0708131614270.19910@schroedinger.engr.sgi.com>
- <20070814001659.GP3406@bingen.suse.de> <Pine.LNX.4.64.0708131625320.19910@schroedinger.engr.sgi.com>
- <20070814002635.GR3406@bingen.suse.de>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: [RFC 4/9] Atomic reclaim: Save irq flags in vmscan.c
+From: Peter Zijlstra <a.p.zijlstra@chello.nl>
+In-Reply-To: <Pine.LNX.4.64.0708141209270.29498@schroedinger.engr.sgi.com>
+References: <20070814153021.446917377@sgi.com>
+	 <20070814153501.766137366@sgi.com> <p73vebhnauo.fsf@bingen.suse.de>
+	 <Pine.LNX.4.64.0708141209270.29498@schroedinger.engr.sgi.com>
+Content-Type: text/plain
+Date: Tue, 14 Aug 2007 22:05:51 +0200
+Message-Id: <1187121951.5337.4.camel@lappy>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andi Kleen <ak@suse.de>
-Cc: Mel Gorman <mel@skynet.ie>, Lee.Schermerhorn@hp.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Christoph Lameter <clameter@sgi.com>
+Cc: Andi Kleen <andi@firstfloor.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Ingo Molnar <mingo@elte.hu>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 14 Aug 2007, Andi Kleen wrote:
-
-> > pci_set_consistent_dma_mask
+On Tue, 2007-08-14 at 12:12 -0700, Christoph Lameter wrote:
+> On Tue, 14 Aug 2007, Andi Kleen wrote:
+> 
+> > Christoph Lameter <clameter@sgi.com> writes:
 > > 
-> > has that.
+> > > Reclaim can be called with interrupts disabled in atomic reclaim.
+> > > vmscan.c is currently using spinlock_irq(). Switch to spin_lock_irqsave().
+> > 
+> > I like the idea in principle. If this fully works out we could
+> > potentially keep less memory free by default which would be a good
+> > thing in general: free memory is bad memory.
 > 
-> While on x86 it is roughly identical (although the low level
-> allocator is currently not very reliable) it makes a significant
-> difference on some platforms. e.g. I was told on PA-RISC
-> consistent memory is much more costly than non consistent ones.
-> That's probably true on anything that's not full IO cache
-> consistent.
+> Right.
+>  
+> > But would be interesting to measure what the lock
+> > changes do to interrupt latency. Probably nothing good.
 > 
-> So while it would be reasonable semantics for x86 and IA64
-> it's not for everybody else.
+> Yup.
+>  
+> > A more benign alternative might be to just set a per CPU flag during
+> > these critical sections and then only do atomic reclaim on a local
+> > interrupt when the flag is not set.  That would make it a little less
+> > reliable, but much less intrusive and with some luck still give many
+> > of the benefits.
+> 
+> There are other lock interactions that may cause problems. If we do not 
+> switch to the saving of irq flags then all involved spinlocks must become 
+> trylocks because the interrupt could have happened while the spinlock is 
+> held. So interrupts must be disabled on locks acquired during an 
+> interrupt.
 
-Right. That is the point of the function. It isolates these strange 
-platform dependencies. That is why there is no need for ZONE_DMA32 on any 
-other platform.
+A much simpler approach to this seems to use threaded interrupts like
+-rt does.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
