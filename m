@@ -1,47 +1,25 @@
-Date: Tue, 14 Aug 2007 12:12:15 -0700 (PDT)
-From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [RFC 4/9] Atomic reclaim: Save irq flags in vmscan.c
-In-Reply-To: <p73vebhnauo.fsf@bingen.suse.de>
-Message-ID: <Pine.LNX.4.64.0708141209270.29498@schroedinger.engr.sgi.com>
-References: <20070814153021.446917377@sgi.com> <20070814153501.766137366@sgi.com>
- <p73vebhnauo.fsf@bingen.suse.de>
+Date: Tue, 14 Aug 2007 22:23:51 +0200
+From: Andi Kleen <ak@suse.de>
+Subject: Re: [PATCH 3/4] Embed zone_id information within the zonelist->zones pointer
+Message-ID: <20070814202350.GT3406@bingen.suse.de>
+References: <20070813225841.GG3406@bingen.suse.de> <Pine.LNX.4.64.0708131506030.28502@schroedinger.engr.sgi.com> <20070813230801.GH3406@bingen.suse.de> <Pine.LNX.4.64.0708131536340.29946@schroedinger.engr.sgi.com> <20070813234322.GJ3406@bingen.suse.de> <Pine.LNX.4.64.0708131553050.30626@schroedinger.engr.sgi.com> <20070814000041.GL3406@bingen.suse.de> <20070814002223.2d8d42c5@the-village.bc.nu> <20070814001441.GN3406@bingen.suse.de> <20070814191158.GB14093@hexapodia.org>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20070814191158.GB14093@hexapodia.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andi Kleen <andi@firstfloor.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Andy Isaacson <adi@hexapodia.org>
+Cc: Andi Kleen <ak@suse.de>, Alan Cox <alan@lxorguk.ukuu.org.uk>, Christoph Lameter <clameter@sgi.com>, Mel Gorman <mel@skynet.ie>, Lee.Schermerhorn@hp.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-mips@linux-mips.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 14 Aug 2007, Andi Kleen wrote:
+> bcm43xx hardware does show up on low-end MIPS boxes (wrt54g anybody?)
+> that would be sorely hurt by excess copies.
 
-> Christoph Lameter <clameter@sgi.com> writes:
-> 
-> > Reclaim can be called with interrupts disabled in atomic reclaim.
-> > vmscan.c is currently using spinlock_irq(). Switch to spin_lock_irqsave().
-> 
-> I like the idea in principle. If this fully works out we could
-> potentially keep less memory free by default which would be a good
-> thing in general: free memory is bad memory.
+Lowend boxes don't have more than 1GB of RAM. With <= 1GB you don't
+need to copy on bcm43xx.
 
-Right.
- 
-> But would be interesting to measure what the lock
-> changes do to interrupt latency. Probably nothing good.
-
-Yup.
- 
-> A more benign alternative might be to just set a per CPU flag during
-> these critical sections and then only do atomic reclaim on a local
-> interrupt when the flag is not set.  That would make it a little less
-> reliable, but much less intrusive and with some luck still give many
-> of the benefits.
-
-There are other lock interactions that may cause problems. If we do not 
-switch to the saving of irq flags then all involved spinlocks must become 
-trylocks because the interrupt could have happened while the spinlock is 
-held. So interrupts must be disabled on locks acquired during an 
-interrupt.
+-Andi
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
