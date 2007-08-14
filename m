@@ -1,48 +1,30 @@
-Subject: Re: [PATCH] Use MPOL_PREFERRED for system default policy
-From: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
-In-Reply-To: <1187122156.6281.77.camel@localhost>
-References: <1187120671.6281.67.camel@localhost>
-	 <Pine.LNX.4.64.0708141250200.30703@schroedinger.engr.sgi.com>
-	 <1187122156.6281.77.camel@localhost>
-Content-Type: text/plain
-Date: Tue, 14 Aug 2007 16:22:24 -0400
-Message-Id: <1187122945.6281.92.camel@localhost>
+Date: Tue, 14 Aug 2007 22:33:29 +0200
+From: Andi Kleen <andi@firstfloor.org>
+Subject: Re: [RFC 4/9] Atomic reclaim: Save irq flags in vmscan.c
+Message-ID: <20070814203329.GA22202@one.firstfloor.org>
+References: <20070814153021.446917377@sgi.com> <20070814153501.766137366@sgi.com> <p73vebhnauo.fsf@bingen.suse.de> <Pine.LNX.4.64.0708141209270.29498@schroedinger.engr.sgi.com>
 Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <Pine.LNX.4.64.0708141209270.29498@schroedinger.engr.sgi.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Christoph Lameter <clameter@sgi.com>
-Cc: Andi Kleen <ak@suse.de>, Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, Eric Whitney <eric.whitney@hp.com>
+Cc: Andi Kleen <andi@firstfloor.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 2007-08-14 at 16:09 -0400, Lee Schermerhorn wrote:
-> On Tue, 2007-08-14 at 12:51 -0700, Christoph Lameter wrote:
-> > On Tue, 14 Aug 2007, Lee Schermerhorn wrote:
-> > 
-> > > Now, system default policy, except during boot, is "local 
-> > > allocation".  By using the MPOL_PREFERRED mode with a negative
-> > > value of preferred node for system default policy, MPOL_DEFAULT
-> > > will never occur in the 'policy' member of a struct mempolicy.
-> > > Thus, we can remove all checks for MPOL_DEFAULT when converting
-> > > policy to a node id/zonelist in the allocation paths.
-> > 
-> > Isnt it possible to set a task policy or VMA policy to MPOL_DEFAULT 
-> > through the API? For the VMA policy this would mean fall back to task 
-> > policy. Is that still possible?
-> 
-> No.  mpol_new() returns NULL if policy==MPOL_DEFAULT, so you end up just
-> deleting any existing task policy and replacing it with a NULL pointer.
-> This is pretty cool, I think.  I have checked back, but Andi may have
-                                   ^^^^ haven't!
-> done this from day 1.
-> 
-> Lee
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+> There are other lock interactions that may cause problems. If we do not 
+> switch to the saving of irq flags then all involved spinlocks must become 
+> trylocks because the interrupt could have happened while the spinlock is 
+> held. So interrupts must be disabled on locks acquired during an 
+> interrupt.
+
+I was thinking of a per cpu flag that is set before and unset after
+taking the lock in process context. If the flag is set the interrupt
+will never try to take the spinlock and return NULL instead. 
+That should be equivalent to cli/sti for this special case.
+
+-Andi
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
