@@ -1,48 +1,36 @@
-Subject: Minor [?] page migration bug in check_pte_range()
-From: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
-Content-Type: text/plain
-Date: Tue, 14 Aug 2007 11:25:48 -0400
-Message-Id: <1187105148.6281.38.camel@localhost>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Date: Tue, 14 Aug 2007 08:29:20 -0700 (PDT)
+From: Christoph Lameter <clameter@sgi.com>
+Subject: Re: [RFC 0/3] Recursive reclaim (on __PF_MEMALLOC)
+In-Reply-To: <1187102203.6114.2.camel@twins>
+Message-ID: <Pine.LNX.4.64.0708140828060.27248@schroedinger.engr.sgi.com>
+References: <20070814142103.204771292@sgi.com> <1187102203.6114.2.camel@twins>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
-Cc: Andi Kleen <ak@suse.de>, Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>
+To: Peter Zijlstra <peterz@infradead.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-I was testing memory policy and page migration with memtoy commands,
-something like this:
+On Tue, 14 Aug 2007, Peter Zijlstra wrote:
 
-	# create/map an 8 page anon segment
-	anon a1 8p
-	map a1
-	# write to fault in new pages with default/local policy
-	touch a1 w
-	# on what node do the pages get allocated?
-	where a1
-	# attempt to install interleave policy and migrate pages
-	mbind a1 interleave+move <node-list>
-	# where <node-list> includes the node where the pages reside
-	# what happened?
-	where a1
+> On Tue, 2007-08-14 at 07:21 -0700, Christoph Lameter wrote:
+> > The following patchset implements recursive reclaim. Recursive reclaim
+> > is necessary if we run out of memory in the writeout patch from reclaim.
+> > 
+> > This is f.e. important for stacked filesystems or anything that does
+> > complicated processing in the writeout path.
+> > 
+> > Recursive reclaim works because it limits itself to only reclaim pages
+> > that do not require writeout. It will only remove clean pages from the LRU.
+> > The dirty throttling of the VM during regular reclaim insures that the amount
+> > of dirty pages is limited. 
+> 
+> No it doesn't. All memory can be tied up by anonymous pages - who are
+> dirty by definition and are not clamped by the dirty limit.
 
-What I see is that when you attempt to install an interleave policy and
-migrate the pages to match that policy, any pages on nodes included in
-the interleave node mask will not be migrated to match policy.  This
-occurs because of the clever, but overly simplistic test in
-check_pte_range():
-
-	if (node_isset(nid, *nodes) == !!(flags & MPOL_MF_INVERT))
-		continue;
-
-Fixing this would, I think, involve checking each page against the
-location dictated by the new policy.  Altho' I don't think this is a
-performance critical path, it is the inner-most loop of check_range().
-
-Is this worth addressing, do you think?
-
-Lee
+Ok but that could be addressed by making sure that a certain portion of 
+memory is reserved for clean file backed pages.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
