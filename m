@@ -1,44 +1,36 @@
-Date: Tue, 14 Aug 2007 02:14:41 +0200
+Date: Tue, 14 Aug 2007 02:16:24 +0200
 From: Andi Kleen <ak@suse.de>
 Subject: Re: [PATCH 3/4] Embed zone_id information within the zonelist->zones pointer
-Message-ID: <20070814001441.GN3406@bingen.suse.de>
-References: <20070813225020.GE3406@bingen.suse.de> <Pine.LNX.4.64.0708131457190.28445@schroedinger.engr.sgi.com> <20070813225841.GG3406@bingen.suse.de> <Pine.LNX.4.64.0708131506030.28502@schroedinger.engr.sgi.com> <20070813230801.GH3406@bingen.suse.de> <Pine.LNX.4.64.0708131536340.29946@schroedinger.engr.sgi.com> <20070813234322.GJ3406@bingen.suse.de> <Pine.LNX.4.64.0708131553050.30626@schroedinger.engr.sgi.com> <20070814000041.GL3406@bingen.suse.de> <20070814002223.2d8d42c5@the-village.bc.nu>
+Message-ID: <20070814001624.GO3406@bingen.suse.de>
+References: <20070813225020.GE3406@bingen.suse.de> <Pine.LNX.4.64.0708131457190.28445@schroedinger.engr.sgi.com> <20070813225841.GG3406@bingen.suse.de> <Pine.LNX.4.64.0708131506030.28502@schroedinger.engr.sgi.com> <20070813230801.GH3406@bingen.suse.de> <Pine.LNX.4.64.0708131518320.28626@schroedinger.engr.sgi.com> <20070813234217.GI3406@bingen.suse.de> <Pine.LNX.4.64.0708131550100.30626@schroedinger.engr.sgi.com> <20070813235518.GK3406@bingen.suse.de> <Pine.LNX.4.64.0708131611001.19910@schroedinger.engr.sgi.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20070814002223.2d8d42c5@the-village.bc.nu>
+In-Reply-To: <Pine.LNX.4.64.0708131611001.19910@schroedinger.engr.sgi.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Alan Cox <alan@lxorguk.ukuu.org.uk>
-Cc: Andi Kleen <ak@suse.de>, Christoph Lameter <clameter@sgi.com>, Mel Gorman <mel@skynet.ie>, Lee.Schermerhorn@hp.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Christoph Lameter <clameter@sgi.com>
+Cc: Andi Kleen <ak@suse.de>, Mel Gorman <mel@skynet.ie>, Lee.Schermerhorn@hp.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Aug 14, 2007 at 12:22:23AM +0100, Alan Cox wrote:
-> > The only tricky part were skbs in a few drivers, but luckily they are only
-> > needed for bouncing which can be done without a skb too. For RX it adds
-> > one copy, but we can live with that because they're only slow devices.
+On Mon, Aug 13, 2007 at 04:12:17PM -0700, Christoph Lameter wrote:
+> On Tue, 14 Aug 2007, Andi Kleen wrote:
 > 
-> Usually found on slow hardware that can't cope with extra copies very
-> well.
+> > > What would be the point?
+> > 
+> > "so that drivers not need to ifdef" 
+> 
+> But they use GFP_DMA right now and drivers cannot use DMA32 if they want 
 
-It's essentially only lance, meth, b44 and bcm43xx and lots of s390.
+The way it was originally designed was that they use GFP_DMA32,
+which would map to itself on x86-64, to GFP_DMA on ia64 and to
+GFP_KERNEL on i386. Unfortunately that seems to have bitrotted
+(perhaps I should have better documented it) 
 
-meth is only used on SGI O2s which are not that slow and unlikely
-to work in tree anyways.
+> to be cross platforms compatible? Doesnt the dma API completely do away 
+> with these things?
 
-b44 and bcm43xx run in fast enough new systems to have no trouble
-with copies.
-
-s390 won't change.
-
-That only leaves lance. If it runs in a system with <= 16MB 
-of memory is fine. I checked with David if he would consider
-adding a second destructor to the skb for this case and he 
-said no. Which was an answer which was fine for m.e
-
-So the only systems really affected are lance systems with >16MB.
-I don't think we can stop Linux evolution for those sorry. They'll
-just have to live with it.
+No GFP_DMA32 in my current plan is still there.
 
 -Andi
 
