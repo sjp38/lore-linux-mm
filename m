@@ -1,26 +1,28 @@
-Date: Wed, 15 Aug 2007 16:34:22 +0200
-From: Andi Kleen <andi@firstfloor.org>
-Subject: Re: [RFC 0/3] Recursive reclaim (on __PF_MEMALLOC)
-Message-ID: <20070815143422.GA653@one.firstfloor.org>
-References: <20070814142103.204771292@sgi.com> <20070815122253.GA15268@wotan.suse.de> <1187183526.6114.45.camel@twins> <p731we43muw.fsf@bingen.suse.de> <1187186120.6114.56.camel@twins>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1187186120.6114.56.camel@twins>
+Message-ID: <46C313B3.4020409@shadowen.org>
+Date: Wed, 15 Aug 2007 15:54:43 +0100
+From: Andy Whitcroft <apw@shadowen.org>
+MIME-Version: 1.0
+Subject: Re: [PATCH 1/5] vmemmap: generify initialisation via helpers
+References: <exportbomb.1186756801@pinky> <E1IJVf4-0004oZ-6G@localhost.localdomain> <Pine.LNX.4.64.0708101055360.13640@schroedinger.engr.sgi.com>
+In-Reply-To: <Pine.LNX.4.64.0708101055360.13640@schroedinger.engr.sgi.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Cc: Andi Kleen <andi@firstfloor.org>, Nick Piggin <npiggin@suse.de>, Christoph Lameter <clameter@sgi.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, dkegel@google.com, David Miller <davem@davemloft.net>, Daniel Phillips <phillips@google.com>
+To: Christoph Lameter <clameter@sgi.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Christoph Hellwig <hch@infradead.org>, linux-mm@kvack.org, linux-arch@vger.kernel.org, Nick Piggin <npiggin@suse.de>, Mel Gorman <mel@csn.ul.ie>
 List-ID: <linux-mm.kvack.org>
 
-> That is his second patch-set, and I do worry about the irq latency that
-> that will introduce. It very much has the potential to ruin everything
-> that cares about interactiveness or latency.
+Christoph Lameter wrote:
+> That exports a series of new function. The function are always compiled in 
+> even if not needed right?
+> 
+> Acked-by: Christoph Lameter <clameter@sgi.com>
 
-I proposed a way to avoid increasing interrupt latency
-in a simple way.
+Yes.  We are assuming the compiler is going to help us out.  They are
+mostly trivial and all __meminit.
 
--Andi
+-apw
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
