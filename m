@@ -1,62 +1,32 @@
-Received: from sd0109e.au.ibm.com (d23rh905.au.ibm.com [202.81.18.225])
-	by ausmtp04.au.ibm.com (8.13.8/8.13.8) with ESMTP id l7FA8gOL302562
-	for <linux-mm@kvack.org>; Wed, 15 Aug 2007 20:08:43 +1000
-Received: from d23av03.au.ibm.com (d23av03.au.ibm.com [9.190.250.244])
-	by sd0109e.au.ibm.com (8.13.8/8.13.8/NCO v8.4) with ESMTP id l7FA6B9g159008
-	for <linux-mm@kvack.org>; Wed, 15 Aug 2007 20:06:17 +1000
-Received: from d23av03.au.ibm.com (loopback [127.0.0.1])
-	by d23av03.au.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l7FA2csT032545
-	for <linux-mm@kvack.org>; Wed, 15 Aug 2007 20:02:38 +1000
-Message-ID: <46C2CF36.7020308@linux.vnet.ibm.com>
-Date: Wed, 15 Aug 2007 15:32:30 +0530
-From: Balbir Singh <balbir@linux.vnet.ibm.com>
-Reply-To: balbir@linux.vnet.ibm.com
+Received: from localhost.localdomain ([127.0.0.1]:15078 "EHLO
+	dl5rb.ham-radio-op.net") by ftp.linux-mips.org with ESMTP
+	id S20021403AbXHOLhw (ORCPT <rfc822;linux-mm@kvack.org>);
+	Wed, 15 Aug 2007 12:37:52 +0100
+Date: Wed, 15 Aug 2007 12:37:49 +0100
+From: Ralf Baechle <ralf@linux-mips.org>
+Subject: Re: [PATCH 3/4] Embed zone_id information within the
+	zonelist->zones pointer
+Message-ID: <20070815113749.GA5862@linux-mips.org>
+References: <Pine.LNX.4.64.0708131457190.28445@schroedinger.engr.sgi.com> <20070813225841.GG3406@bingen.suse.de> <Pine.LNX.4.64.0708131506030.28502@schroedinger.engr.sgi.com> <20070813230801.GH3406@bingen.suse.de> <Pine.LNX.4.64.0708131536340.29946@schroedinger.engr.sgi.com> <20070813234322.GJ3406@bingen.suse.de> <Pine.LNX.4.64.0708131553050.30626@schroedinger.engr.sgi.com> <20070814000041.GL3406@bingen.suse.de> <20070814002223.2d8d42c5@the-village.bc.nu> <20070814001441.GN3406@bingen.suse.de>
 MIME-Version: 1.0
-Subject: Re: [-mm PATCH 4/9] Memory controller memory accounting (v4)
-References: <46AF2EAA.2080703@linux.vnet.ibm.com> <20070815084454.09B061BF982@siro.lan>
-In-Reply-To: <20070815084454.09B061BF982@siro.lan>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20070814001441.GN3406@bingen.suse.de>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: YAMAMOTO Takashi <yamamoto@valinux.co.jp>
-Cc: svaidy@linux.vnet.ibm.com, a.p.zijlstra@chello.nl, dhaval@linux.vnet.ibm.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, ebiederm@xmission.com, containers@lists.osdl.org, akpm@linux-foundation.org, xemul@openvz.org, menage@google.com
+To: Andi Kleen <ak@suse.de>
+Cc: Alan Cox <alan@lxorguk.ukuu.org.uk>, Christoph Lameter <clameter@sgi.com>, Mel Gorman <mel@skynet.ie>, Lee.Schermerhorn@hp.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-mips@linux-mips.org
 List-ID: <linux-mm.kvack.org>
 
-YAMAMOTO Takashi wrote:
->> YAMAMOTO Takashi wrote:
->>>> +	lock_meta_page(page);
->>>> +	/*
->>>> +	 * Check if somebody else beat us to allocating the meta_page
->>>> +	 */
->>>> +	race_mp = page_get_meta_page(page);
->>>> +	if (race_mp) {
->>>> +		kfree(mp);
->>>> +		mp = race_mp;
->>>> +		atomic_inc(&mp->ref_cnt);
->>>> +		res_counter_uncharge(&mem->res, 1);
->>>> +		goto done;
->>>> +	}
->>> i think you need css_put here.
->> Thats correct. We do need css_put in this path.
->>
->> Thanks,
->> Vaidy
-> 
-> v5 still seems to have the problem.
-> 
-> YAMAMOTO Takashi
-> 
+On Tue, Aug 14, 2007 at 02:14:41AM +0200, Andi Kleen wrote:
 
-Hi, 
+> meth is only used on SGI O2s which are not that slow and unlikely
+> to work in tree anyways.
 
-I've got the fix in v6 now, thanks for spotting it.
+O2 doesn't enable CONFIG_ZONE_DMA so there is no point in using GFP_DMA in
+an O2-specific device driver.  Will send out patch in separate mail.
 
--- 
-	Warm Regards,
-	Balbir Singh
-	Linux Technology Center
-	IBM, ISTL
+  Ralf
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
