@@ -1,44 +1,57 @@
-Received: from d23relay03.au.ibm.com (d23relay03.au.ibm.com [202.81.18.234])
-	by ausmtp06.au.ibm.com (8.13.8/8.13.8) with ESMTP id l7G5R5jV3104946
-	for <linux-mm@kvack.org>; Thu, 16 Aug 2007 15:27:05 +1000
-Received: from d23av04.au.ibm.com (d23av04.au.ibm.com [9.190.235.139])
-	by d23relay03.au.ibm.com (8.13.8/8.13.8/NCO v8.5) with ESMTP id l7G5No4L4243552
-	for <linux-mm@kvack.org>; Thu, 16 Aug 2007 15:23:50 +1000
-Received: from d23av04.au.ibm.com (loopback [127.0.0.1])
-	by d23av04.au.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l7G6NnGt030893
-	for <linux-mm@kvack.org>; Thu, 16 Aug 2007 16:23:49 +1000
-Date: Thu, 16 Aug 2007 15:12:56 +1000
-From: David Gibson <dwg@au1.ibm.com>
-Subject: Re: [Documentation] Page Table Layout diagrams
-Message-ID: <20070816051256.GF3540@localhost.localdomain>
-References: <1186598865.23817.76.camel@localhost.localdomain>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1186598865.23817.76.camel@localhost.localdomain>
+Date: Wed, 15 Aug 2007 23:06:26 -0700
+From: Paul Jackson <pj@sgi.com>
+Subject: Re: Question:  cpuset_update_task_memory_state() and mmap_sem ???
+Message-Id: <20070815230626.dac091b1.pj@sgi.com>
+In-Reply-To: <1187033902.5592.33.camel@localhost>
+References: <1187033902.5592.33.camel@localhost>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Adam Litke <agl@us.ibm.com>
-Cc: linux-mm <linux-mm@kvack.org>, linuxppc-dev@ozlabs.org, linux-kernel <linux-kernel@vger.kernel.org>
+To: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Aug 08, 2007 at 01:47:45PM -0500, Adam Litke wrote:
-> Hello all.  In an effort to understand how the page tables are laid out
-> across various architectures I put together some diagrams.  I have
-> posted them on the linux-mm wiki: http://linux-mm.org/PageTableStructure
-> and I hope they will be useful to others.  
+Lee wrote:
+> In the comment block for the subject function in cpuset.c, it notes that
+> "This routine also might acquire callback_mutex and
+> current->mm->mmap_sem."
 > 
-> Just to make sure I am not spreading misinformation, could a few of you
-> experts take a quick look at the three diagrams I've got finished so far
-> and point out any errors I have made?  Thanks.
+> Is this is a stale comment?  I can't find any path from this function to
+> a down_{read|write}() on the caller's mmap_sem [in 23-rc2-mm2].  I
+> suspect that one would have noticed, as
+> cpuset_update_task_memory_state() is called from
+> alloc_page_vma() which, according to its comment block, can only be
+> called with the mmap_sem held [for read, at least].
 
-Nice.  Didn't spot any innaccuracies.
+Hmmm ... you may be right  But I'm not sure.
+
+Obviously, the callback_mutex mention in the comment is correct,
+but the current->mm->mmap_sem mention seems bogus.
+
+The routine mpol_rebind_task() is called from the last line of
+cpuset_update_task_memory_state().  Whatever mmap_sem is taken
+would be within that call.  But I can't find any taking of
+mmap_sem within or below mpol_rebind_task(), and all the code
+paths in mm/mempolicy.c that do take mmap_sem locks seem to be
+on unrelated code paths.
+
+I tried looking in a few old versions of kernel/cpuset.c and
+mm/mempolicy.c to see if the mention of current->mm->mmap_sem
+made more sense in some old version, but didn't see any version
+of code that justified that comment.
+
+... would you like to propose a patch, nuking the phrase:
+
+   and current->mm->mmap_sem
+
+from that comment?
 
 -- 
-David Gibson			| I'll have my music baroque, and my code
-david AT gibson.dropbear.id.au	| minimalist, thank you.  NOT _the_ _other_
-				| _way_ _around_!
-http://www.ozlabs.org/~dgibson
+                  I won't rest till it's the best ...
+                  Programmer, Linux Scalability
+                  Paul Jackson <pj@sgi.com> 1.925.600.0401
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
