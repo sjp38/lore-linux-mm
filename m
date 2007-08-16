@@ -1,92 +1,30 @@
-Message-Id: <20070816074626.473901000@chello.nl>
-References: <20070816074525.065850000@chello.nl>
-Date: Thu, 16 Aug 2007 09:45:33 +0200
-From: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Subject: [PATCH 08/23] lib: percpu_count_sum()
-Content-Disposition: inline; filename=percpu_counter_sum.patch
+Message-ID: <46C4248C.1090408@aitel.hist.no>
+Date: Thu, 16 Aug 2007 12:18:52 +0200
+From: Helge Hafting <helge.hafting@aitel.hist.no>
+MIME-Version: 1.0
+Subject: Re: [PATCH 00/23] per device dirty throttling -v8
+References: <20070803123712.987126000@chello.nl>	<alpine.LFD.0.999.0708031518440.8184@woody.linux-foundation.org>	<20070804063217.GA25069@elte.hu> <20070804070737.GA940@elte.hu>	<20070804103347.GA1956@elte.hu>	<alpine.LFD.0.999.0708040915360.5037@woody.linux-foundation.org>	<20070804163733.GA31001@elte.hu> <p73hcnen7w2.fsf@bingen.suse.de>
+In-Reply-To: <p73hcnen7w2.fsf@bingen.suse.de>
+Content-Type: text/plain; charset=UTF-8; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
-Cc: miklos@szeredi.hu, akpm@linux-foundation.org, neilb@suse.de, dgc@sgi.com, tomoki.sekiyama.qu@hitachi.com, a.p.zijlstra@chello.nl, nikita@clusterfs.com, trond.myklebust@fys.uio.no, yingchao.zhou@gmail.com, richard@rsk.demon.co.uk, torvalds@linux-foundation.org
+To: Andi Kleen <andi@firstfloor.org>
+Cc: Ingo Molnar <mingo@elte.hu>, Linus Torvalds <torvalds@linux-foundation.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, miklos@szeredi.hu, akpm@linux-foundation.org, neilb@suse.de, dgc@sgi.com, tomoki.sekiyama.qu@hitachi.com, nikita@clusterfs.com, trond.myklebust@fys.uio.no, yingchao.zhou@gmail.com, richard@rsk.demon.co.uk
 List-ID: <linux-mm.kvack.org>
 
-Provide an accurate version of percpu_counter_read.
+Andi Kleen wrote:
+> I always thought the right solution would be to just sync atime only
+> very very lazily. This means if a inode is only dirty because of an
+> atime update put it on a "only write out when there is nothing to do
+> or the memory is really needed" list.
+>   
+Seems like a good idea.  atimes will then be written only by
+memory pressure - or umount.  The atimes could be wrong after
+a crash, but loosing atimes only is not something
+I'd worry about.
 
-Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
----
- include/linux/percpu_counter.h |   18 +++++++++++++++++-
- lib/percpu_counter.c           |    6 +++---
- 2 files changed, 20 insertions(+), 4 deletions(-)
-
-Index: linux-2.6/include/linux/percpu_counter.h
-===================================================================
---- linux-2.6.orig/include/linux/percpu_counter.h
-+++ linux-2.6/include/linux/percpu_counter.h
-@@ -34,13 +34,24 @@ void percpu_counter_init(struct percpu_c
- void percpu_counter_destroy(struct percpu_counter *fbc);
- void percpu_counter_set(struct percpu_counter *fbc, s64 amount);
- void __percpu_counter_add(struct percpu_counter *fbc, s64 amount, s32 batch);
--s64 percpu_counter_sum_positive(struct percpu_counter *fbc);
-+s64 __percpu_counter_sum(struct percpu_counter *fbc);
- 
- static inline void percpu_counter_add(struct percpu_counter *fbc, s64 amount)
- {
- 	__percpu_counter_add(fbc, amount, FBC_BATCH);
- }
- 
-+static inline s64 percpu_counter_sum_positive(struct percpu_counter *fbc)
-+{
-+	s64 ret = __percpu_counter_sum(fbc);
-+	return ret < 0 ? 0 : ret;
-+}
-+
-+static inline s64 percpu_counter_sum(struct percpu_counter *fbc)
-+{
-+	return __percpu_counter_sum(fbc);
-+}
-+
- static inline s64 percpu_counter_read(struct percpu_counter *fbc)
- {
- 	return fbc->count;
-@@ -107,6 +118,11 @@ static inline s64 percpu_counter_sum_pos
- 	return percpu_counter_read_positive(fbc);
- }
- 
-+static inline s64 percpu_counter_sum(struct percpu_counter *fbc)
-+{
-+	return percpu_counter_read(fbc);
-+}
-+
- #endif	/* CONFIG_SMP */
- 
- static inline void percpu_counter_inc(struct percpu_counter *fbc)
-Index: linux-2.6/lib/percpu_counter.c
-===================================================================
---- linux-2.6.orig/lib/percpu_counter.c
-+++ linux-2.6/lib/percpu_counter.c
-@@ -52,7 +52,7 @@ EXPORT_SYMBOL(__percpu_counter_add);
-  * Add up all the per-cpu counts, return the result.  This is a more accurate
-  * but much slower version of percpu_counter_read_positive()
-  */
--s64 percpu_counter_sum_positive(struct percpu_counter *fbc)
-+s64 __percpu_counter_sum(struct percpu_counter *fbc)
- {
- 	s64 ret;
- 	int cpu;
-@@ -64,9 +64,9 @@ s64 percpu_counter_sum_positive(struct p
- 		ret += *pcount;
- 	}
- 	spin_unlock(&fbc->lock);
--	return ret < 0 ? 0 : ret;
-+	return ret;
- }
--EXPORT_SYMBOL(percpu_counter_sum_positive);
-+EXPORT_SYMBOL(__percpu_counter_sum);
- 
- void percpu_counter_init(struct percpu_counter *fbc, s64 amount)
- {
-
---
+Helge Hafting
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
