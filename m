@@ -1,30 +1,60 @@
-Message-ID: <46C4248C.1090408@aitel.hist.no>
-Date: Thu, 16 Aug 2007 12:18:52 +0200
-From: Helge Hafting <helge.hafting@aitel.hist.no>
-MIME-Version: 1.0
-Subject: Re: [PATCH 00/23] per device dirty throttling -v8
-References: <20070803123712.987126000@chello.nl>	<alpine.LFD.0.999.0708031518440.8184@woody.linux-foundation.org>	<20070804063217.GA25069@elte.hu> <20070804070737.GA940@elte.hu>	<20070804103347.GA1956@elte.hu>	<alpine.LFD.0.999.0708040915360.5037@woody.linux-foundation.org>	<20070804163733.GA31001@elte.hu> <p73hcnen7w2.fsf@bingen.suse.de>
-In-Reply-To: <p73hcnen7w2.fsf@bingen.suse.de>
-Content-Type: text/plain; charset=UTF-8; format=flowed
+Subject: Re: Question:  cpuset_update_task_memory_state() and mmap_sem ???
+From: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
+In-Reply-To: <20070815230626.dac091b1.pj@sgi.com>
+References: <1187033902.5592.33.camel@localhost>
+	 <20070815230626.dac091b1.pj@sgi.com>
+Content-Type: text/plain
+Date: Thu, 16 Aug 2007 09:12:30 -0400
+Message-Id: <1187269951.5900.3.camel@localhost>
+Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andi Kleen <andi@firstfloor.org>
-Cc: Ingo Molnar <mingo@elte.hu>, Linus Torvalds <torvalds@linux-foundation.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, miklos@szeredi.hu, akpm@linux-foundation.org, neilb@suse.de, dgc@sgi.com, tomoki.sekiyama.qu@hitachi.com, nikita@clusterfs.com, trond.myklebust@fys.uio.no, yingchao.zhou@gmail.com, richard@rsk.demon.co.uk
+To: Paul Jackson <pj@sgi.com>
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Andi Kleen wrote:
-> I always thought the right solution would be to just sync atime only
-> very very lazily. This means if a inode is only dirty because of an
-> atime update put it on a "only write out when there is nothing to do
-> or the memory is really needed" list.
->   
-Seems like a good idea.  atimes will then be written only by
-memory pressure - or umount.  The atimes could be wrong after
-a crash, but loosing atimes only is not something
-I'd worry about.
+On Wed, 2007-08-15 at 23:06 -0700, Paul Jackson wrote:
+> Lee wrote:
+> > In the comment block for the subject function in cpuset.c, it notes that
+> > "This routine also might acquire callback_mutex and
+> > current->mm->mmap_sem."
+> > 
+> > Is this is a stale comment?  I can't find any path from this function to
+> > a down_{read|write}() on the caller's mmap_sem [in 23-rc2-mm2].  I
+> > suspect that one would have noticed, as
+> > cpuset_update_task_memory_state() is called from
+> > alloc_page_vma() which, according to its comment block, can only be
+> > called with the mmap_sem held [for read, at least].
+> 
+> Hmmm ... you may be right  But I'm not sure.
+> 
+> Obviously, the callback_mutex mention in the comment is correct,
+> but the current->mm->mmap_sem mention seems bogus.
+> 
+> The routine mpol_rebind_task() is called from the last line of
+> cpuset_update_task_memory_state().  Whatever mmap_sem is taken
+> would be within that call.  But I can't find any taking of
+> mmap_sem within or below mpol_rebind_task(), and all the code
+> paths in mm/mempolicy.c that do take mmap_sem locks seem to be
+> on unrelated code paths.
+> 
+> I tried looking in a few old versions of kernel/cpuset.c and
+> mm/mempolicy.c to see if the mention of current->mm->mmap_sem
+> made more sense in some old version, but didn't see any version
+> of code that justified that comment.
+> 
+> ... would you like to propose a patch, nuking the phrase:
+> 
+>    and current->mm->mmap_sem
+> 
+> from that comment?
 
-Helge Hafting
+If that's the correct thing to do, sure.  Just wanted to check with you
+whether I was missing something.   
+
+Lee
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
