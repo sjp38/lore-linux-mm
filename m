@@ -1,72 +1,76 @@
-Message-Id: <20070816074625.973836000@chello.nl>
+Message-Id: <20070816074629.274173000@chello.nl>
 References: <20070816074525.065850000@chello.nl>
-Date: Thu, 16 Aug 2007 09:45:31 +0200
+Date: Thu, 16 Aug 2007 09:45:44 +0200
 From: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Subject: [PATCH 06/23] lib: percpu_counter_set
-Content-Disposition: inline; filename=percpu_counter_set.patch
+Subject: [PATCH 19/23] mm: expose BDI statistics in sysfs.
+Content-Disposition: inline; filename=bdi_stat_sysfs.patch
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 Cc: miklos@szeredi.hu, akpm@linux-foundation.org, neilb@suse.de, dgc@sgi.com, tomoki.sekiyama.qu@hitachi.com, a.p.zijlstra@chello.nl, nikita@clusterfs.com, trond.myklebust@fys.uio.no, yingchao.zhou@gmail.com, richard@rsk.demon.co.uk, torvalds@linux-foundation.org
 List-ID: <linux-mm.kvack.org>
 
-Provide a method to set a percpu counter to a specified value.
+Expose the per BDI stats in /sys/block/<dev>/queue/*
 
 Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
 ---
- include/linux/percpu_counter.h |    6 ++++++
- lib/percpu_counter.c           |   14 ++++++++++++++
- 2 files changed, 20 insertions(+)
+ block/ll_rw_blk.c |   29 +++++++++++++++++++++++++++++
+ 1 file changed, 29 insertions(+)
 
-Index: linux-2.6/include/linux/percpu_counter.h
+Index: linux-2.6/block/ll_rw_blk.c
 ===================================================================
---- linux-2.6.orig/include/linux/percpu_counter.h
-+++ linux-2.6/include/linux/percpu_counter.h
-@@ -32,6 +32,7 @@ struct percpu_counter {
- 
- void percpu_counter_init(struct percpu_counter *fbc, s64 amount);
- void percpu_counter_destroy(struct percpu_counter *fbc);
-+void percpu_counter_set(struct percpu_counter *fbc, s64 amount);
- void __percpu_counter_add(struct percpu_counter *fbc, s64 amount, s32 batch);
- s64 percpu_counter_sum(struct percpu_counter *fbc);
- 
-@@ -75,6 +76,11 @@ static inline void percpu_counter_destro
- {
+--- linux-2.6.orig/block/ll_rw_blk.c
++++ linux-2.6/block/ll_rw_blk.c
+@@ -3982,6 +3982,23 @@ static ssize_t queue_max_hw_sectors_show
+ 	return queue_var_show(max_hw_sectors_kb, (page));
  }
  
-+static inline void percpu_counter_set(struct percpu_counter *fbc, s64 amount)
++static ssize_t queue_nr_reclaimable_show(struct request_queue *q, char *page)
 +{
-+	fbc->count = amount;
++	unsigned long long nr_reclaimable =
++		bdi_stat(&q->backing_dev_info, BDI_RECLAIMABLE);
++
++	return sprintf(page, "%llu\n",
++			nr_reclaimable >> (PAGE_CACHE_SHIFT - 10));
 +}
 +
- #define __percpu_counter_add(fbc, amount, batch) \
- 	percpu_counter_add(fbc, amount)
- 
-Index: linux-2.6/lib/percpu_counter.c
-===================================================================
---- linux-2.6.orig/lib/percpu_counter.c
-+++ linux-2.6/lib/percpu_counter.c
-@@ -14,6 +14,20 @@ static LIST_HEAD(percpu_counters);
- static DEFINE_MUTEX(percpu_counters_lock);
- #endif
- 
-+void percpu_counter_set(struct percpu_counter *fbc, s64 amount)
++static ssize_t queue_nr_writeback_show(struct request_queue *q, char *page)
 +{
-+	int cpu;
++	unsigned long long nr_writeback =
++		bdi_stat(&q->backing_dev_info, BDI_WRITEBACK);
 +
-+	spin_lock(&fbc->lock);
-+	for_each_possible_cpu(cpu) {
-+		s32 *pcount = per_cpu_ptr(fbc->counters, cpu);
-+		*pcount = 0;
-+	}
-+	fbc->count = amount;
-+	spin_unlock(&fbc->lock);
++	return sprintf(page, "%llu\n",
++			nr_writeback >> (PAGE_CACHE_SHIFT - 10));
 +}
-+EXPORT_SYMBOL(percpu_counter_set);
+ 
+ static struct queue_sysfs_entry queue_requests_entry = {
+ 	.attr = {.name = "nr_requests", .mode = S_IRUGO | S_IWUSR },
+@@ -4006,6 +4023,16 @@ static struct queue_sysfs_entry queue_ma
+ 	.show = queue_max_hw_sectors_show,
+ };
+ 
++static struct queue_sysfs_entry queue_reclaimable_entry = {
++	.attr = {.name = "reclaimable_kb", .mode = S_IRUGO },
++	.show = queue_nr_reclaimable_show,
++};
 +
- void __percpu_counter_add(struct percpu_counter *fbc, s64 amount, s32 batch)
- {
- 	s64 count;
++static struct queue_sysfs_entry queue_writeback_entry = {
++	.attr = {.name = "writeback_kb", .mode = S_IRUGO },
++	.show = queue_nr_writeback_show,
++};
++
+ static struct queue_sysfs_entry queue_iosched_entry = {
+ 	.attr = {.name = "scheduler", .mode = S_IRUGO | S_IWUSR },
+ 	.show = elv_iosched_show,
+@@ -4017,6 +4044,8 @@ static struct attribute *default_attrs[]
+ 	&queue_ra_entry.attr,
+ 	&queue_max_hw_sectors_entry.attr,
+ 	&queue_max_sectors_entry.attr,
++	&queue_reclaimable_entry.attr,
++	&queue_writeback_entry.attr,
+ 	&queue_iosched_entry.attr,
+ 	NULL,
+ };
 
 --
 
