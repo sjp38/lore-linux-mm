@@ -1,62 +1,63 @@
-Message-Id: <20070816074627.769915000@chello.nl>
+Message-Id: <20070816074627.494510000@chello.nl>
 References: <20070816074525.065850000@chello.nl>
-Date: Thu, 16 Aug 2007 09:45:38 +0200
+Date: Thu, 16 Aug 2007 09:45:37 +0200
 From: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Subject: [PATCH 13/23] mtd: bdi init hooks
-Content-Disposition: inline; filename=bdi_init_mtd.patch
+Subject: [PATCH 12/23] containers: bdi init hooks
+Content-Disposition: inline; filename=bdi_init_container.patch
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
-Cc: miklos@szeredi.hu, akpm@linux-foundation.org, neilb@suse.de, dgc@sgi.com, tomoki.sekiyama.qu@hitachi.com, a.p.zijlstra@chello.nl, nikita@clusterfs.com, trond.myklebust@fys.uio.no, yingchao.zhou@gmail.com, richard@rsk.demon.co.uk, torvalds@linux-foundation.org, David Woodhouse <dwmw2@infradead.org>
+Cc: miklos@szeredi.hu, akpm@linux-foundation.org, neilb@suse.de, dgc@sgi.com, tomoki.sekiyama.qu@hitachi.com, a.p.zijlstra@chello.nl, nikita@clusterfs.com, trond.myklebust@fys.uio.no, yingchao.zhou@gmail.com, richard@rsk.demon.co.uk, torvalds@linux-foundation.org
 List-ID: <linux-mm.kvack.org>
 
-split off because the relevant mtd changes seem particular to -mm
+split off from the large bdi_init patch because containers are not slated
+for mainline any time soon.
 
 Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Cc: David Woodhouse <dwmw2@infradead.org>
 ---
- drivers/mtd/mtdcore.c |    9 +++++++++
- 1 file changed, 9 insertions(+)
+ kernel/container.c |   14 +++++++++++---
+ 1 file changed, 11 insertions(+), 3 deletions(-)
 
-Index: linux-2.6/drivers/mtd/mtdcore.c
+Index: linux-2.6/kernel/container.c
 ===================================================================
---- linux-2.6.orig/drivers/mtd/mtdcore.c
-+++ linux-2.6/drivers/mtd/mtdcore.c
-@@ -48,6 +48,7 @@ static LIST_HEAD(mtd_notifiers);
- int add_mtd_device(struct mtd_info *mtd)
+--- linux-2.6.orig/kernel/container.c
++++ linux-2.6/kernel/container.c
+@@ -567,12 +567,13 @@ static int container_populate_dir(struct
+ static struct inode_operations container_dir_inode_operations;
+ static struct file_operations proc_containerstats_operations;
+ 
++static struct backing_dev_info container_backing_dev_info = {
++	.capabilities	= BDI_CAP_NO_ACCT_DIRTY | BDI_CAP_NO_WRITEBACK,
++};
++
+ static struct inode *container_new_inode(mode_t mode, struct super_block *sb)
  {
+ 	struct inode *inode = new_inode(sb);
+-	static struct backing_dev_info container_backing_dev_info = {
+-		.capabilities	= BDI_CAP_NO_ACCT_DIRTY | BDI_CAP_NO_WRITEBACK,
+-	};
+ 
+ 	if (inode) {
+ 		inode->i_mode = mode;
+@@ -2261,6 +2262,10 @@ int __init container_init(void)
  	int i;
-+	int err;
+ 	struct proc_dir_entry *entry;
  
- 	if (!mtd->backing_dev_info) {
- 		switch (mtd->type) {
-@@ -62,6 +63,9 @@ int add_mtd_device(struct mtd_info *mtd)
- 			break;
- 		}
- 	}
-+	err = bdi_init(mtd->backing_dev_info);
++	err = bdi_init(&container_backing_dev_info);
 +	if (err)
-+		return 1;
- 
- 	BUG_ON(mtd->writesize == 0);
- 	mutex_lock(&mtd_table_mutex);
-@@ -102,6 +106,7 @@ int add_mtd_device(struct mtd_info *mtd)
- 		}
- 
- 	mutex_unlock(&mtd_table_mutex);
-+	bdi_destroy(mtd->backing_dev_info);
- 	return 1;
- }
- 
-@@ -144,6 +149,10 @@ int del_mtd_device (struct mtd_info *mtd
- 	}
- 
- 	mutex_unlock(&mtd_table_mutex);
++		return err;
 +
-+	if (mtd->backing_dev_info)
-+		bdi_destroy(mtd->backing_dev_info);
+ 	for (i = 0; i < CONTAINER_SUBSYS_COUNT; i++) {
+ 		struct container_subsys *ss = subsys[i];
+ 		if (!ss->early_init)
+@@ -2276,6 +2281,9 @@ int __init container_init(void)
+ 		entry->proc_fops = &proc_containerstats_operations;
+ 
+ out:
++	if (err)
++		bdi_destroy(&container_backing_dev_info);
 +
- 	return ret;
+ 	return err;
  }
  
 
