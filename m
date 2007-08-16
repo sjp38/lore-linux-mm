@@ -1,50 +1,69 @@
-Subject: Re: [PATCH] Use MPOL_PREFERRED for system default policy
+Subject: Re: [PATCH/RFC] memoryless nodes - fixup uses of node_online_map
+	in generic code
 From: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
-In-Reply-To: <Pine.LNX.4.64.0708161133250.16816@schroedinger.engr.sgi.com>
-References: <1187120671.6281.67.camel@localhost>
-	 <Pine.LNX.4.64.0708141250200.30703@schroedinger.engr.sgi.com>
-	 <1187122156.6281.77.camel@localhost>  <1187122945.6281.92.camel@localhost>
-	 <1187274221.5900.27.camel@localhost>
-	 <Pine.LNX.4.64.0708161133250.16816@schroedinger.engr.sgi.com>
+In-Reply-To: <Pine.LNX.4.64.0708161130570.16816@schroedinger.engr.sgi.com>
+References: <20070727194316.18614.36380.sendpatchset@localhost>
+	 <20070727194322.18614.68855.sendpatchset@localhost>
+	 <20070731192241.380e93a0.akpm@linux-foundation.org>
+	 <Pine.LNX.4.64.0707311946530.6158@schroedinger.engr.sgi.com>
+	 <20070731200522.c19b3b95.akpm@linux-foundation.org>
+	 <Pine.LNX.4.64.0707312006550.22443@schroedinger.engr.sgi.com>
+	 <20070731203203.2691ca59.akpm@linux-foundation.org>
+	 <1185977011.5059.36.camel@localhost>
+	 <Pine.LNX.4.64.0708011037510.20795@schroedinger.engr.sgi.com>
+	 <1186085994.5040.98.camel@localhost>
+	 <Pine.LNX.4.64.0708021323390.9711@schroedinger.engr.sgi.com>
+	 <1186611582.5055.95.camel@localhost>
+	 <Pine.LNX.4.64.0708081638270.17335@schroedinger.engr.sgi.com>
+	 <1187273853.5900.21.camel@localhost>
+	 <Pine.LNX.4.64.0708161130570.16816@schroedinger.engr.sgi.com>
 Content-Type: text/plain
-Date: Thu, 16 Aug 2007 15:06:59 -0400
-Message-Id: <1187291219.5900.36.camel@localhost>
+Date: Thu, 16 Aug 2007 15:15:04 -0400
+Message-Id: <1187291704.5900.44.camel@localhost>
 Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Christoph Lameter <clameter@sgi.com>
-Cc: Andi Kleen <ak@suse.de>, Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, Eric Whitney <eric.whitney@hp.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, ak@suse.de, linux-mm@kvack.org, Nishanth Aravamudan <nacc@us.ibm.com>, pj@sgi.com, kxr@sgi.com, Mel Gorman <mel@skynet.ie>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Eric Whitney <eric.whitney@hp.com>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 2007-08-16 at 11:34 -0700, Christoph Lameter wrote:
+On Thu, 2007-08-16 at 11:33 -0700, Christoph Lameter wrote:
 > On Thu, 16 Aug 2007, Lee Schermerhorn wrote:
 > 
-> > Given that the mem policy does the right thing with this patch, can we
-> > merge it?  I think it cleans up the mem policy concepts to have
-> > MPOL_DEFAULT mean "use default policy for this context/scope" rather
-> > than have an additional allocation behavior of its own.
+> > Note questions about use of N_HIGH_MEMORY in find_next_best_node() and
+> > population of N_HIGH_MEMORY in early_calculate_totalpages().
+> > 
+> > Comments?
 > 
-> I still have not gotten my head around this one. Lets wait awhile.
+> The changes in early_calculate_totalpages duplicate the setting of the bit 
+> in the N_HIGH_MEMORY map. But that could be removed with an additional 
+> patch if we are sure that early_calculate_totalpages is always called.
+> 
+> Otherwise it looks fine.
+> 
+> Acked-by: Christoph Lameter <clameter@sgi.com>
+> 
+> > mm/page_alloc.c:find_next_best_node()
+> > 
+> > 	skip nodes w/o memory.
+> > 	N_HIGH_MEMORY state mask may not be initialized at this time,
+> > 	unless we want to depend on early_calculate_totalpages() [see
+> > 	below].  Will ZONE_MOVABLE ever be configurable?
+> 
+> Hopefully it will be removed at some point.
 
-Well, it doesn't get much additional testing just sitting in my tree.
+That was my concern.  I've heard that mentioned, so I didn't want to
+depend on the early_calculate_totalpages().  It's only called from the
+zone_movable setup, so I expect it will go away when zone movable goes.
 
-I have placed WARN_ON_ONCE() and a fall back to local in the 'default:'
-switch cases where I've removed the MPOL_DEFAULT cases.  So, it'll still
-have the same behavior while warning us that an MPOL_DEFAULT has snuck
-into a struct mempolicy.  There shouldn't be any occurrences of this in
-the kernel, once system default policy is changed to MPOL_PREFERRED w/
-preferred_node == -1.  I'd sure like to have more testing exposure,
-tho'.
+Maybe we could move the populating of N_*_MEMORY to
+free_area_init_nodes().  There's a loop over all on-line nodes there
+that calls free_area_init_node() from whence calculate_node_totalpages()
+is called.  On return from free_area_init_node(), the node's
+node_present_pages has been set.   I'll work up and test an additional
+patch.
 
-Still, if you need more time, please do look at what mpol_new() returns
-for MPOL_DEFAULT and how that result gets used.  From my investigations,
-system default policy is the only place where MPOL_DEFAULT occurs in a
-struct mempolicy.  Well, that and when we return a mempolicy to the kmem
-cache--we null out the policy member with MPOL_DEFAULT.  I've "fixed"
-that, too.
-
-Later,
 Lee
 
 --
