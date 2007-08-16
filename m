@@ -1,150 +1,208 @@
-Message-Id: <20070816074629.983607000@chello.nl>
+Message-Id: <20070816074624.963595000@chello.nl>
 References: <20070816074525.065850000@chello.nl>
-Date: Thu, 16 Aug 2007 09:45:48 +0200
+Date: Thu, 16 Aug 2007 09:45:27 +0200
 From: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Subject: [PATCH 23/23] debug: sysfs files for the current ratio/size/total
-Content-Disposition: inline; filename=bdi_stat_debug.patch
+Subject: [PATCH 02/23] lib: percpu_counter_add
+Content-Disposition: inline; filename=percpu_counter_add.patch
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 Cc: miklos@szeredi.hu, akpm@linux-foundation.org, neilb@suse.de, dgc@sgi.com, tomoki.sekiyama.qu@hitachi.com, a.p.zijlstra@chello.nl, nikita@clusterfs.com, trond.myklebust@fys.uio.no, yingchao.zhou@gmail.com, richard@rsk.demon.co.uk, torvalds@linux-foundation.org
 List-ID: <linux-mm.kvack.org>
 
-Expose the per bdi dirty limits in sysfs
+Because its a better name, _mod implies modulo.
 
 Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
 ---
- block/ll_rw_blk.c   |   80 ++++++++++++++++++++++++++++++++++++++++++++++++++++
- mm/page-writeback.c |    4 +-
- 2 files changed, 82 insertions(+), 2 deletions(-)
+ fs/ext2/balloc.c               |    6 +++---
+ fs/ext2/ialloc.c               |    2 +-
+ fs/ext3/balloc.c               |    4 ++--
+ fs/ext3/resize.c               |    4 ++--
+ fs/ext4/balloc.c               |    4 ++--
+ fs/ext4/resize.c               |    4 ++--
+ include/linux/percpu_counter.h |    8 ++++----
+ lib/percpu_counter.c           |    4 ++--
+ 8 files changed, 18 insertions(+), 18 deletions(-)
 
-Index: linux-2.6/block/ll_rw_blk.c
+Index: linux-2.6/fs/ext2/balloc.c
 ===================================================================
---- linux-2.6.orig/block/ll_rw_blk.c
-+++ linux-2.6/block/ll_rw_blk.c
-@@ -4000,6 +4000,56 @@ static ssize_t queue_nr_writeback_show(s
- 			nr_writeback >> (PAGE_CACHE_SHIFT - 10));
+--- linux-2.6.orig/fs/ext2/balloc.c
++++ linux-2.6/fs/ext2/balloc.c
+@@ -163,7 +163,7 @@ static int reserve_blocks(struct super_b
+ 			return 0;
+ 	}
+ 
+-	percpu_counter_mod(&sbi->s_freeblocks_counter, -count);
++	percpu_counter_add(&sbi->s_freeblocks_counter, -count);
+ 	sb->s_dirt = 1;
+ 	return count;
+ }
+@@ -173,7 +173,7 @@ static void release_blocks(struct super_
+ 	if (count) {
+ 		struct ext2_sb_info *sbi = EXT2_SB(sb);
+ 
+-		percpu_counter_mod(&sbi->s_freeblocks_counter, count);
++		percpu_counter_add(&sbi->s_freeblocks_counter, count);
+ 		sb->s_dirt = 1;
+ 	}
+ }
+@@ -1402,7 +1402,7 @@ allocated:
+ 	}
+ 
+ 	group_adjust_blocks(sb, group_no, gdp, gdp_bh, -num);
+-	percpu_counter_mod(&sbi->s_freeblocks_counter, -num);
++	percpu_counter_add(&sbi->s_freeblocks_counter, -num);
+ 
+ 	mark_buffer_dirty(bitmap_bh);
+ 	if (sb->s_flags & MS_SYNCHRONOUS)
+Index: linux-2.6/fs/ext2/ialloc.c
+===================================================================
+--- linux-2.6.orig/fs/ext2/ialloc.c
++++ linux-2.6/fs/ext2/ialloc.c
+@@ -534,7 +534,7 @@ got:
+ 		goto fail;
+ 	}
+ 
+-	percpu_counter_mod(&sbi->s_freeinodes_counter, -1);
++	percpu_counter_add(&sbi->s_freeinodes_counter, -1);
+ 	if (S_ISDIR(mode))
+ 		percpu_counter_inc(&sbi->s_dirs_counter);
+ 
+Index: linux-2.6/fs/ext3/balloc.c
+===================================================================
+--- linux-2.6.orig/fs/ext3/balloc.c
++++ linux-2.6/fs/ext3/balloc.c
+@@ -609,7 +609,7 @@ do_more:
+ 		cpu_to_le16(le16_to_cpu(desc->bg_free_blocks_count) +
+ 			group_freed);
+ 	spin_unlock(sb_bgl_lock(sbi, block_group));
+-	percpu_counter_mod(&sbi->s_freeblocks_counter, count);
++	percpu_counter_add(&sbi->s_freeblocks_counter, count);
+ 
+ 	/* We dirtied the bitmap block */
+ 	BUFFER_TRACE(bitmap_bh, "dirtied bitmap block");
+@@ -1672,7 +1672,7 @@ allocated:
+ 	gdp->bg_free_blocks_count =
+ 			cpu_to_le16(le16_to_cpu(gdp->bg_free_blocks_count)-num);
+ 	spin_unlock(sb_bgl_lock(sbi, group_no));
+-	percpu_counter_mod(&sbi->s_freeblocks_counter, -num);
++	percpu_counter_add(&sbi->s_freeblocks_counter, -num);
+ 
+ 	BUFFER_TRACE(gdp_bh, "journal_dirty_metadata for group descriptor");
+ 	err = ext3_journal_dirty_metadata(handle, gdp_bh);
+Index: linux-2.6/fs/ext3/resize.c
+===================================================================
+--- linux-2.6.orig/fs/ext3/resize.c
++++ linux-2.6/fs/ext3/resize.c
+@@ -884,9 +884,9 @@ int ext3_group_add(struct super_block *s
+ 		input->reserved_blocks);
+ 
+ 	/* Update the free space counts */
+-	percpu_counter_mod(&sbi->s_freeblocks_counter,
++	percpu_counter_add(&sbi->s_freeblocks_counter,
+ 			   input->free_blocks_count);
+-	percpu_counter_mod(&sbi->s_freeinodes_counter,
++	percpu_counter_add(&sbi->s_freeinodes_counter,
+ 			   EXT3_INODES_PER_GROUP(sb));
+ 
+ 	ext3_journal_dirty_metadata(handle, sbi->s_sbh);
+Index: linux-2.6/fs/ext4/balloc.c
+===================================================================
+--- linux-2.6.orig/fs/ext4/balloc.c
++++ linux-2.6/fs/ext4/balloc.c
+@@ -628,7 +628,7 @@ do_more:
+ 		cpu_to_le16(le16_to_cpu(desc->bg_free_blocks_count) +
+ 			group_freed);
+ 	spin_unlock(sb_bgl_lock(sbi, block_group));
+-	percpu_counter_mod(&sbi->s_freeblocks_counter, count);
++	percpu_counter_add(&sbi->s_freeblocks_counter, count);
+ 
+ 	/* We dirtied the bitmap block */
+ 	BUFFER_TRACE(bitmap_bh, "dirtied bitmap block");
+@@ -1697,7 +1697,7 @@ allocated:
+ 	gdp->bg_free_blocks_count =
+ 			cpu_to_le16(le16_to_cpu(gdp->bg_free_blocks_count)-num);
+ 	spin_unlock(sb_bgl_lock(sbi, group_no));
+-	percpu_counter_mod(&sbi->s_freeblocks_counter, -num);
++	percpu_counter_add(&sbi->s_freeblocks_counter, -num);
+ 
+ 	BUFFER_TRACE(gdp_bh, "journal_dirty_metadata for group descriptor");
+ 	err = ext4_journal_dirty_metadata(handle, gdp_bh);
+Index: linux-2.6/fs/ext4/resize.c
+===================================================================
+--- linux-2.6.orig/fs/ext4/resize.c
++++ linux-2.6/fs/ext4/resize.c
+@@ -893,9 +893,9 @@ int ext4_group_add(struct super_block *s
+ 		input->reserved_blocks);
+ 
+ 	/* Update the free space counts */
+-	percpu_counter_mod(&sbi->s_freeblocks_counter,
++	percpu_counter_add(&sbi->s_freeblocks_counter,
+ 			   input->free_blocks_count);
+-	percpu_counter_mod(&sbi->s_freeinodes_counter,
++	percpu_counter_add(&sbi->s_freeinodes_counter,
+ 			   EXT4_INODES_PER_GROUP(sb));
+ 
+ 	ext4_journal_dirty_metadata(handle, sbi->s_sbh);
+Index: linux-2.6/include/linux/percpu_counter.h
+===================================================================
+--- linux-2.6.orig/include/linux/percpu_counter.h
++++ linux-2.6/include/linux/percpu_counter.h
+@@ -32,7 +32,7 @@ struct percpu_counter {
+ 
+ void percpu_counter_init(struct percpu_counter *fbc, s64 amount);
+ void percpu_counter_destroy(struct percpu_counter *fbc);
+-void percpu_counter_mod(struct percpu_counter *fbc, s32 amount);
++void percpu_counter_add(struct percpu_counter *fbc, s32 amount);
+ s64 percpu_counter_sum(struct percpu_counter *fbc);
+ 
+ static inline s64 percpu_counter_read(struct percpu_counter *fbc)
+@@ -71,7 +71,7 @@ static inline void percpu_counter_destro
  }
  
-+extern void bdi_writeout_fraction(struct backing_dev_info *bdi,
-+		long *numerator, long *denominator);
-+
-+static ssize_t queue_nr_cache_ratio_show(struct request_queue *q, char *page)
-+{
-+	long scale, div;
-+
-+	bdi_writeout_fraction(&q->backing_dev_info, &scale, &div);
-+	scale *= 1024;
-+	scale /= div;
-+
-+	return sprintf(page, "%ld\n", scale);
-+}
-+
-+static ssize_t queue_nr_cache_num_show(struct request_queue *q, char *page)
-+{
-+	long scale, div;
-+
-+	bdi_writeout_fraction(&q->backing_dev_info, &scale, &div);
-+
-+	return sprintf(page, "%ld\n", scale);
-+}
-+
-+static ssize_t queue_nr_cache_denom_show(struct request_queue *q, char *page)
-+{
-+	long scale, div;
-+
-+	bdi_writeout_fraction(&q->backing_dev_info, &scale, &div);
-+
-+	return sprintf(page, "%ld\n", div);
-+}
-+
-+extern void
-+get_dirty_limits(long *pbackground, long *pdirty, long *pbdi_dirty,
-+		struct backing_dev_info *bdi);
-+
-+static ssize_t queue_nr_cache_size_show(struct request_queue *q, char *page)
-+{
-+	long background, dirty, bdi_dirty;
-+	get_dirty_limits(&background, &dirty, &bdi_dirty, &q->backing_dev_info);
-+	return sprintf(page, "%ld\n", bdi_dirty);
-+}
-+
-+static ssize_t queue_nr_cache_total_show(struct request_queue *q, char *page)
-+{
-+	long background, dirty, bdi_dirty;
-+	get_dirty_limits(&background, &dirty, &bdi_dirty, &q->backing_dev_info);
-+	return sprintf(page, "%ld\n", dirty);
-+}
-+
- static struct queue_sysfs_entry queue_requests_entry = {
- 	.attr = {.name = "nr_requests", .mode = S_IRUGO | S_IWUSR },
- 	.show = queue_requests_show,
-@@ -4033,6 +4083,31 @@ static struct queue_sysfs_entry queue_wr
- 	.show = queue_nr_writeback_show,
- };
+ static inline void
+-percpu_counter_mod(struct percpu_counter *fbc, s32 amount)
++percpu_counter_add(struct percpu_counter *fbc, s32 amount)
+ {
+ 	preempt_disable();
+ 	fbc->count += amount;
+@@ -97,12 +97,12 @@ static inline s64 percpu_counter_sum(str
  
-+static struct queue_sysfs_entry queue_cache_ratio_entry = {
-+	.attr = {.name = "cache_ratio", .mode = S_IRUGO },
-+	.show = queue_nr_cache_ratio_show,
-+};
-+
-+static struct queue_sysfs_entry queue_cache_num_entry = {
-+	.attr = {.name = "cache_num", .mode = S_IRUGO },
-+	.show = queue_nr_cache_num_show,
-+};
-+
-+static struct queue_sysfs_entry queue_cache_denom_entry = {
-+	.attr = {.name = "cache_denom", .mode = S_IRUGO },
-+	.show = queue_nr_cache_denom_show,
-+};
-+
-+static struct queue_sysfs_entry queue_cache_size_entry = {
-+	.attr = {.name = "cache_size", .mode = S_IRUGO },
-+	.show = queue_nr_cache_size_show,
-+};
-+
-+static struct queue_sysfs_entry queue_cache_total_entry = {
-+	.attr = {.name = "cache_total", .mode = S_IRUGO },
-+	.show = queue_nr_cache_total_show,
-+};
-+
- static struct queue_sysfs_entry queue_iosched_entry = {
- 	.attr = {.name = "scheduler", .mode = S_IRUGO | S_IWUSR },
- 	.show = elv_iosched_show,
-@@ -4046,6 +4121,11 @@ static struct attribute *default_attrs[]
- 	&queue_max_sectors_entry.attr,
- 	&queue_reclaimable_entry.attr,
- 	&queue_writeback_entry.attr,
-+	&queue_cache_ratio_entry.attr,
-+	&queue_cache_num_entry.attr,
-+	&queue_cache_denom_entry.attr,
-+	&queue_cache_size_entry.attr,
-+	&queue_cache_total_entry.attr,
- 	&queue_iosched_entry.attr,
- 	NULL,
- };
-Index: linux-2.6/mm/page-writeback.c
+ static inline void percpu_counter_inc(struct percpu_counter *fbc)
+ {
+-	percpu_counter_mod(fbc, 1);
++	percpu_counter_add(fbc, 1);
+ }
+ 
+ static inline void percpu_counter_dec(struct percpu_counter *fbc)
+ {
+-	percpu_counter_mod(fbc, -1);
++	percpu_counter_add(fbc, -1);
+ }
+ 
+ #endif /* _LINUX_PERCPU_COUNTER_H */
+Index: linux-2.6/lib/percpu_counter.c
 ===================================================================
---- linux-2.6.orig/mm/page-writeback.c
-+++ linux-2.6/mm/page-writeback.c
-@@ -169,7 +169,7 @@ static inline void task_dirty_inc(struct
+--- linux-2.6.orig/lib/percpu_counter.c
++++ linux-2.6/lib/percpu_counter.c
+@@ -14,7 +14,7 @@ static LIST_HEAD(percpu_counters);
+ static DEFINE_MUTEX(percpu_counters_lock);
+ #endif
+ 
+-void percpu_counter_mod(struct percpu_counter *fbc, s32 amount)
++void percpu_counter_add(struct percpu_counter *fbc, s32 amount)
+ {
+ 	long count;
+ 	s32 *pcount;
+@@ -32,7 +32,7 @@ void percpu_counter_mod(struct percpu_co
+ 	}
+ 	put_cpu();
+ }
+-EXPORT_SYMBOL(percpu_counter_mod);
++EXPORT_SYMBOL(percpu_counter_add);
+ 
  /*
-  * Obtain an accurate fraction of the BDI's portion.
-  */
--static void bdi_writeout_fraction(struct backing_dev_info *bdi,
-+void bdi_writeout_fraction(struct backing_dev_info *bdi,
- 		long *numerator, long *denominator)
- {
- 	if (bdi_cap_writeback_dirty(bdi)) {
-@@ -291,7 +291,7 @@ static unsigned long determine_dirtyable
- 	return x + 1;	/* Ensure that we never return 0 */
- }
- 
--static void
-+void
- get_dirty_limits(long *pbackground, long *pdirty, long *pbdi_dirty,
- 		 struct backing_dev_info *bdi)
- {
+  * Add up all the per-cpu counts, return the result.  This is a more accurate
 
 --
 
