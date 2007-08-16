@@ -1,38 +1,72 @@
-Message-Id: <20070816074525.065850000@chello.nl>
-Date: Thu, 16 Aug 2007 09:45:25 +0200
+Message-Id: <20070816074625.973836000@chello.nl>
+References: <20070816074525.065850000@chello.nl>
+Date: Thu, 16 Aug 2007 09:45:31 +0200
 From: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Subject: [PATCH 00/23] per device dirty throttling -v9
+Subject: [PATCH 06/23] lib: percpu_counter_set
+Content-Disposition: inline; filename=percpu_counter_set.patch
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 Cc: miklos@szeredi.hu, akpm@linux-foundation.org, neilb@suse.de, dgc@sgi.com, tomoki.sekiyama.qu@hitachi.com, a.p.zijlstra@chello.nl, nikita@clusterfs.com, trond.myklebust@fys.uio.no, yingchao.zhou@gmail.com, richard@rsk.demon.co.uk, torvalds@linux-foundation.org
 List-ID: <linux-mm.kvack.org>
 
-Per device dirty throttling patches
+Provide a method to set a percpu counter to a specified value.
 
-These patches aim to improve balance_dirty_pages() and directly address three
-issues:
-  1) inter device starvation
-  2) stacked device deadlocks
-  3) inter process starvation
+Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
+---
+ include/linux/percpu_counter.h |    6 ++++++
+ lib/percpu_counter.c           |   14 ++++++++++++++
+ 2 files changed, 20 insertions(+)
 
-1 and 2 are a direct result from removing the global dirty limit and using
-per device dirty limits. By giving each device its own dirty limit is will
-no longer starve another device, and the cyclic dependancy on the dirty limit
-is broken.
-
-In order to efficiently distribute the dirty limit across the independant
-devices a floating proportion is used, this will allocate a share of the total
-limit proportional to the device's recent activity.
-
-3 is done by also scaling the dirty limit proportional to the current task's
-recent dirty rate.
-
-Changes since -v8:
- - cleanup of the proportion code
- - fix percpu_counter_add(&counter, -(unsigned long))
- - fix per task dirty rate code
- - fwd port to .23-rc2-mm2
+Index: linux-2.6/include/linux/percpu_counter.h
+===================================================================
+--- linux-2.6.orig/include/linux/percpu_counter.h
++++ linux-2.6/include/linux/percpu_counter.h
+@@ -32,6 +32,7 @@ struct percpu_counter {
+ 
+ void percpu_counter_init(struct percpu_counter *fbc, s64 amount);
+ void percpu_counter_destroy(struct percpu_counter *fbc);
++void percpu_counter_set(struct percpu_counter *fbc, s64 amount);
+ void __percpu_counter_add(struct percpu_counter *fbc, s64 amount, s32 batch);
+ s64 percpu_counter_sum(struct percpu_counter *fbc);
+ 
+@@ -75,6 +76,11 @@ static inline void percpu_counter_destro
+ {
+ }
+ 
++static inline void percpu_counter_set(struct percpu_counter *fbc, s64 amount)
++{
++	fbc->count = amount;
++}
++
+ #define __percpu_counter_add(fbc, amount, batch) \
+ 	percpu_counter_add(fbc, amount)
+ 
+Index: linux-2.6/lib/percpu_counter.c
+===================================================================
+--- linux-2.6.orig/lib/percpu_counter.c
++++ linux-2.6/lib/percpu_counter.c
+@@ -14,6 +14,20 @@ static LIST_HEAD(percpu_counters);
+ static DEFINE_MUTEX(percpu_counters_lock);
+ #endif
+ 
++void percpu_counter_set(struct percpu_counter *fbc, s64 amount)
++{
++	int cpu;
++
++	spin_lock(&fbc->lock);
++	for_each_possible_cpu(cpu) {
++		s32 *pcount = per_cpu_ptr(fbc->counters, cpu);
++		*pcount = 0;
++	}
++	fbc->count = amount;
++	spin_unlock(&fbc->lock);
++}
++EXPORT_SYMBOL(percpu_counter_set);
++
+ void __percpu_counter_add(struct percpu_counter *fbc, s64 amount, s32 batch)
+ {
+ 	s64 count;
 
 --
 
