@@ -1,43 +1,55 @@
-Date: Thu, 16 Aug 2007 04:52:17 +0200
-From: Nick Piggin <npiggin@suse.de>
-Subject: Re: [PATCH] calculation of pgoff in do_linear_fault() uses mixed units
-Message-ID: <20070816025217.GC16372@wotan.suse.de>
-References: <46C33B3E.mailxBSH11HDLW@aqua.americas.sgi.com>
+Date: Wed, 15 Aug 2007 20:10:29 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH] dm: Fix deadlock under high i/o load in raid1 setup.
+Message-Id: <20070815201029.fb965871.akpm@linux-foundation.org>
+In-Reply-To: <20070815235956.GD8741@osiris.ibm.com>
+References: <20070813113340.GB30198@osiris.boeblingen.de.ibm.com>
+	<20070815155604.87318305.akpm@linux-foundation.org>
+	<20070815235956.GD8741@osiris.ibm.com>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <46C33B3E.mailxBSH11HDLW@aqua.americas.sgi.com>
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Dean Nelson <dcn@sgi.com>
-Cc: akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Heiko Carstens <heiko.carstens@de.ibm.com>
+Cc: linux-mm@kvack.org, dm-devel@redhat.com, Daniel Kobras <kobras@linux.de>, Alasdair G Kergon <agk@redhat.com>, Stefan Weinhuber <wein@de.ibm.com>, Stefan Bader <shbader@de.ibm.com>, Linus Torvalds <torvalds@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Aug 15, 2007 at 12:43:26PM -0500, Dean Nelson wrote:
-> The calculation of pgoff in do_linear_fault() should use PAGE_SHIFT and not
-> PAGE_CACHE_SHIFT since vma->vm_pgoff is in units of PAGE_SIZE and not
-> PAGE_CACHE_SIZE. At the moment linux/pagemap.h has PAGE_CACHE_SHIFT defined
-> as PAGE_SHIFT, but should that ever change this calculation would break.
-> 
-> Signed-off-by: Dean Nelson <dcn@sgi.com>
-> 
+On Thu, 16 Aug 2007 01:59:56 +0200 Heiko Carstens <heiko.carstens@de.ibm.com> wrote:
 
-Acked-by: Nick Piggin <npiggin@suse.de>
-
+> > So yes, I'd say this is a bug in DM.
+> > 
+> > Also, __rh_alloc() is called under read_lock(), via __rh_find().  If
+> > __rh_alloc()'s mempool_alloc() fails, it will perform a sleeping allocation
+> > under read_lock(), which is deadlockable and will generate might_sleep()
+> > warnings
 > 
-> Index: linux-2.6/mm/memory.c
-> ===================================================================
-> --- linux-2.6.orig/mm/memory.c	2007-08-14 06:42:18.322378070 -0500
-> +++ linux-2.6/mm/memory.c	2007-08-15 12:30:51.621604739 -0500
-> @@ -2465,7 +2465,7 @@
->  		int write_access, pte_t orig_pte)
->  {
->  	pgoff_t pgoff = (((address & PAGE_MASK)
-> -			- vma->vm_start) >> PAGE_CACHE_SHIFT) + vma->vm_pgoff;
-> +			- vma->vm_start) >> PAGE_SHIFT) + vma->vm_pgoff;
->  	unsigned int flags = (write_access ? FAULT_FLAG_WRITE : 0);
->  
->  	return __do_fault(mm, vma, address, page_table, pmd, pgoff,
+> The read_lock() is unlocked at the beginning of the function.
+
+Oh, OK.  Looks odd, but whatever.
+
+> Unless
+> you're talking of a different lock, but I couldn't find any.
+> 
+> So at least _currently_ this should work unless somebody uses fault
+> injection. Would it make sense then to add the __GFP_NOFAIL flag to
+> the kmalloc call?
+
+It would best to avoid that.  __GFP_NOFAIL was added as a way of
+consolidating a number of callsites which were performing open-coded
+infinite retries and it is also used as a "this is lame and needs to be
+fixed" indicator.
+
+It'd be better to fix the kmirrord design so that it can use mempools
+properly.  One possible way of doing that might be to notice when mempool
+exhaustion happens, submit whatever IO is thus-far buffered up and then do
+a sleeping mempool allocation, to wait for that memory to come free (via IO
+completion).
+
+That would be a bit abusive of the mempool intent though.  A more idiomatic
+fix would be to change kmirrord so that it no longer can consume all of the
+mempool's reserves without having submitted any I/O (which is what I assume
+it is doing).
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
