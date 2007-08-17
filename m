@@ -1,142 +1,75 @@
-Date: Fri, 17 Aug 2007 16:08:35 +0900
-From: Yasunori Goto <y-goto@jp.fujitsu.com>
-Subject: [Patch](memory hotplug) Hot-add with sparsemem-vmemmap
-Message-Id: <20070817155908.7D91.Y-GOTO@jp.fujitsu.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
-Content-Transfer-Encoding: 7bit
+Subject: Re: [PATCH 00/23] per device dirty throttling -v9
+From: Peter Zijlstra <a.p.zijlstra@chello.nl>
+In-Reply-To: <Pine.LNX.4.64.0708161424010.18861@schroedinger.engr.sgi.com>
+References: <20070816074525.065850000@chello.nl>
+	 <Pine.LNX.4.64.0708161424010.18861@schroedinger.engr.sgi.com>
+Content-Type: multipart/signed; micalg=pgp-sha1; protocol="application/pgp-signature"; boundary="=-NFkielK47NSqUScl3aI7"
+Date: Fri, 17 Aug 2007 09:19:17 +0200
+Message-Id: <1187335158.6114.119.camel@twins>
+Mime-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andy Whitcroft <apw@shadowen.org>, Andrew Morton <akpm@osdl.org>, Christoph Lameter <clameter@sgi.com>, Mel Gorman <mel@csn.ul.ie>
-Cc: linux-mm <linux-mm@kvack.org>
+To: Christoph Lameter <clameter@sgi.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, miklos@szeredi.hu, akpm@linux-foundation.org, neilb@suse.de, dgc@sgi.com, tomoki.sekiyama.qu@hitachi.com, nikita@clusterfs.com, trond.myklebust@fys.uio.no, yingchao.zhou@gmail.com, richard@rsk.demon.co.uk, torvalds@linux-foundation.org, pj@sgi.com
 List-ID: <linux-mm.kvack.org>
 
-Hello.
+--=-NFkielK47NSqUScl3aI7
+Content-Type: text/plain
+Content-Transfer-Encoding: quoted-printable
 
-This patch is to avoid panic when memory hot-add is executed with
-sparsemem-vmemmap. Current vmemmap-sparsemem code doesn't support
-memory hot-add. Vmemmap must be populated when hot-add.
-This is for 2.6.23-rc2-mm2.
+On Thu, 2007-08-16 at 14:29 -0700, Christoph Lameter wrote:
+> Is there any way to make the global limits on which the dirty rate=20
+> calculations are based cpuset specific?
+>=20
+> A process is part of a cpuset and that cpuset has only a fraction of=20
+> memory of the whole system.=20
+>=20
+> And only a fraction of that fraction can be dirtied. We do not currently=20
+> enforce such limits which can cause the amount of dirty pages in=20
+> cpusets to become excessively high. I have posted several patchsets that=20
+> deal with that issue. See http://lkml.org/lkml/2007/1/16/5
+>=20
+> It seems that limiting dirty pages in cpusets may be much easier to=20
+> realize in the context of this patchset. The tracking of the dirty pages=20
+> per node is not necessary if one would calculate the maximum amount of=20
+> dirtyable pages in a cpuset and use that as a base, right?
 
-Todo: # Even if this patch is applied, the message "[xxxx-xxxx] potential
-        offnode page_structs" is displayed. To allocate memmap on its node,
-        memmap (and pgdat) must be initialized itself like chicken and
-        egg relationship.
 
-      # vmemmap_unpopulate will be necessary for followings.
-         - For cancel hot-add due to error.
-         - For unplug.
+Currently we do:=20
+  dirty =3D total_dirty * bdi_completions_p * task_dirty_p
 
-Please comment.
+As dgc pointed out before, there is the issue of bdi/task correlation,
+that is, we do not track task dirty rates per bdi, so now a task that
+heavily dirties on one bdi will also get penalised on the others (and
+similar issues).
 
-Signed-off-by: Yasunori Goto <y-goto@jp.fujitsu.com>
+If we were to change it so:
+  dirty =3D cpuset_dirty * bdi_completions_p * task_dirty_p
 
----
- include/linux/mm.h  |    2 +-
- mm/sparse-vmemmap.c |    2 +-
- mm/sparse.c         |   24 +++++++++++++++++++++---
- 3 files changed, 23 insertions(+), 5 deletions(-)
+We get additional correlation issues: cpuset/bdi, cpuset/task.
+Which could yield surprising results if some bdis are strictly per
+cpuset.
 
-Index: vmemmap/mm/sparse-vmemmap.c
-===================================================================
---- vmemmap.orig/mm/sparse-vmemmap.c	2007-08-10 20:17:19.000000000 +0900
-+++ vmemmap/mm/sparse-vmemmap.c	2007-08-10 21:12:54.000000000 +0900
-@@ -170,7 +170,7 @@ int __meminit vmemmap_populate(struct pa
- }
- #endif /* !CONFIG_ARCH_POPULATES_SPARSEMEM_VMEMMAP */
- 
--struct page __init *sparse_early_mem_map_populate(unsigned long pnum, int nid)
-+struct page *sparse_mem_map_populate(unsigned long pnum, int nid)
- {
- 	struct page *map = pfn_to_page(pnum * PAGES_PER_SECTION);
- 	int error = vmemmap_populate(map, PAGES_PER_SECTION, nid);
-Index: vmemmap/include/linux/mm.h
-===================================================================
---- vmemmap.orig/include/linux/mm.h	2007-08-10 20:17:19.000000000 +0900
-+++ vmemmap/include/linux/mm.h	2007-08-10 21:06:34.000000000 +0900
-@@ -1146,7 +1146,7 @@ extern int randomize_va_space;
- 
- const char * arch_vma_name(struct vm_area_struct *vma);
- 
--struct page *sparse_early_mem_map_populate(unsigned long pnum, int nid);
-+struct page *sparse_mem_map_populate(unsigned long pnum, int nid);
- int vmemmap_populate(struct page *start_page, unsigned long pages, int node);
- int vmemmap_populate_pmd(pud_t *, unsigned long, unsigned long, int);
- void *vmemmap_alloc_block(unsigned long size, int node);
-Index: vmemmap/mm/sparse.c
-===================================================================
---- vmemmap.orig/mm/sparse.c	2007-08-10 20:17:19.000000000 +0900
-+++ vmemmap/mm/sparse.c	2007-08-10 21:21:01.000000000 +0900
-@@ -259,7 +259,7 @@ static unsigned long *sparse_early_usema
- }
- 
- #ifndef CONFIG_SPARSEMEM_VMEMMAP
--struct page __init *sparse_early_mem_map_populate(unsigned long pnum, int nid)
-+struct page __init *sparse_mem_map_populate(unsigned long pnum, int nid)
- {
- 	struct page *map;
- 
-@@ -284,7 +284,7 @@ struct page __init *sparse_early_mem_map
- 	struct mem_section *ms = __nr_to_section(pnum);
- 	int nid = sparse_early_nid(ms);
- 
--	map = sparse_early_mem_map_populate(pnum, nid);
-+	map = sparse_mem_map_populate(pnum, nid);
- 	if (map)
- 		return map;
- 
-@@ -322,6 +322,17 @@ void __init sparse_init(void)
- }
- 
- #ifdef CONFIG_MEMORY_HOTPLUG
-+#ifdef CONFIG_SPARSEMEM_VMEMMAP
-+static inline struct page *kmalloc_section_memmap(unsigned long pnum, int nid,
-+						 unsigned long nr_pages)
-+{
-+	return sparse_mem_map_populate(pnum, nid);
-+}
-+static void __kfree_section_memmap(struct page *memmap, unsigned long nr_pages)
-+{
-+	return; /* XXX: Not implemented yet */
-+}
-+#else
- static struct page *__kmalloc_section_memmap(unsigned long nr_pages)
- {
- 	struct page *page, *ret;
-@@ -344,6 +355,12 @@ got_map_ptr:
- 	return ret;
- }
- 
-+static inline struct page *kmalloc_section_memmap(unsigned long pnum, int nid,
-+						  unsigned long nr_pages)
-+{
-+	return __kmalloc_section_memmap(nr_pages);
-+}
-+
- static int vaddr_in_vmalloc_area(void *addr)
- {
- 	if (addr >= (void *)VMALLOC_START &&
-@@ -360,6 +377,7 @@ static void __kfree_section_memmap(struc
- 		free_pages((unsigned long)memmap,
- 			   get_order(sizeof(struct page) * nr_pages));
- }
-+#endif /* CONFIG_SPARSEMEM_VMEMMAP */
- 
- /*
-  * returns the number of sections whose mem_maps were properly
-@@ -382,7 +400,7 @@ int sparse_add_one_section(struct zone *
- 	 * plus, it does a kmalloc
- 	 */
- 	sparse_index_init(section_nr, pgdat->node_id);
--	memmap = __kmalloc_section_memmap(nr_pages);
-+	memmap = kmalloc_section_memmap(section_nr, pgdat->node_id, nr_pages);
- 	usemap = __kmalloc_section_usemap();
- 
- 	pgdat_resize_lock(pgdat, &flags);
+The cpuset/task correlation has a strict mapping and could be solved by
+keeping the vm_dirties counter per cpuset. However, this would seriously
+complicate the code and I'm not sure if it would gain us much.
 
--- 
-Yasunori Goto 
+Anyway, things to ponder. But overall it should be quite doable.
 
+
+--=-NFkielK47NSqUScl3aI7
+Content-Type: application/pgp-signature; name=signature.asc
+Content-Description: This is a digitally signed message part
+
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v1.4.6 (GNU/Linux)
+
+iD8DBQBGxUv1XA2jU0ANEf4RAhauAJ9CaAFbM558IzUrIRsxkDo0ItzpWwCfZQDZ
+Ce5wnissKbfHNdG1rGTkbuI=
+=nvts
+-----END PGP SIGNATURE-----
+
+--=-NFkielK47NSqUScl3aI7--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
