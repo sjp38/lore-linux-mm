@@ -1,128 +1,96 @@
-Received: from d23relay03.au.ibm.com (d23relay03.au.ibm.com [202.81.18.234])
-	by ausmtp06.au.ibm.com (8.13.8/8.13.8) with ESMTP id l7HFx7cs2343034
-	for <linux-mm@kvack.org>; Sat, 18 Aug 2007 01:59:07 +1000
-Received: from d23av02.au.ibm.com (d23av02.au.ibm.com [9.190.250.243])
-	by d23relay03.au.ibm.com (8.13.8/8.13.8/NCO v8.5) with ESMTP id l7HFuHFF4239480
-	for <linux-mm@kvack.org>; Sat, 18 Aug 2007 01:56:17 +1000
-Received: from d23av02.au.ibm.com (loopback [127.0.0.1])
-	by d23av02.au.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l7HFuGEC002090
-	for <linux-mm@kvack.org>; Sat, 18 Aug 2007 01:56:17 +1000
-Date: Fri, 17 Aug 2007 21:19:51 +0530
-From: Dhaval Giani <dhaval@linux.vnet.ibm.com>
-Subject: Re: [-mm PATCH 0/9] Memory controller introduction (v6)
-Message-ID: <20070817154951.GA1393@linux.vnet.ibm.com>
-Reply-To: Dhaval Giani <dhaval@linux.vnet.ibm.com>
-References: <20070817084228.26003.12568.sendpatchset@balbir-laptop>
+Date: Fri, 17 Aug 2007 11:56:59 -0400
+From: Josef Sipek <jsipek@fsl.cs.sunysb.edu>
+Subject: Re: [PATCH 09/23] lib: percpu_counter_init error handling
+Message-ID: <20070817155659.GD24323@filer.fsl.cs.sunysb.edu>
+References: <20070816074525.065850000@chello.nl> <20070816074626.739944000@chello.nl>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20070817084228.26003.12568.sendpatchset@balbir-laptop>
+In-Reply-To: <20070816074626.739944000@chello.nl>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Balbir Singh <balbir@linux.vnet.ibm.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Linux Containers <containers@lists.osdl.org>, YAMAMOTO Takashi <yamamoto@valinux.co.jp>, Paul Menage <menage@google.com>, Dave Hansen <haveblue@us.ibm.com>, Linux MM Mailing List <linux-mm@kvack.org>, Nick Piggin <npiggin@suse.de>, Vaidyanathan Srinivasan <svaidy@linux.vnet.ibm.com>, Pavel Emelianov <xemul@openvz.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Eric W Biederman <ebiederm@xmission.com>
+To: Peter Zijlstra <a.p.zijlstra@chello.nl>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, miklos@szeredi.hu, akpm@linux-foundation.org, neilb@suse.de, dgc@sgi.com, tomoki.sekiyama.qu@hitachi.com, nikita@clusterfs.com, trond.myklebust@fys.uio.no, yingchao.zhou@gmail.com, richard@rsk.demon.co.uk, torvalds@linux-foundation.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Aug 17, 2007 at 02:12:28PM +0530, Balbir Singh wrote:
-Hi Andrew,
- 
-> The code was also tested on a power box with regular machine usage scenarios,
-> the config disabled and with a stress suite that touched all the memory
-> in the system and was limited in a container.
+On Thu, Aug 16, 2007 at 09:45:34AM +0200, Peter Zijlstra wrote:
+> alloc_percpu can fail, propagate that error.
 > 
-> Dhaval ran several tests on v6 and gave his thumbs up to the controller
-> (a hard to achieve goal :-) ).
+> Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
+> ---
+>  fs/ext2/super.c                |   11 ++++++++---
+>  fs/ext3/super.c                |   11 ++++++++---
+>  fs/ext4/super.c                |   11 ++++++++---
+>  include/linux/percpu_counter.h |    5 +++--
+>  lib/percpu_counter.c           |    8 +++++++-
+>  5 files changed, 34 insertions(+), 12 deletions(-)
 > 
+> Index: linux-2.6/fs/ext2/super.c
+> ===================================================================
+> --- linux-2.6.orig/fs/ext2/super.c
+> +++ linux-2.6/fs/ext2/super.c
+> @@ -725,6 +725,7 @@ static int ext2_fill_super(struct super_
+>  	int db_count;
+>  	int i, j;
+>  	__le32 features;
+> +	int err;
+>  
+>  	sbi = kzalloc(sizeof(*sbi), GFP_KERNEL);
+>  	if (!sbi)
+> @@ -996,12 +997,16 @@ static int ext2_fill_super(struct super_
+>  	sbi->s_rsv_window_head.rsv_goal_size = 0;
+>  	ext2_rsv_window_add(sb, &sbi->s_rsv_window_head);
+>  
+> -	percpu_counter_init(&sbi->s_freeblocks_counter,
+> +	err = percpu_counter_init(&sbi->s_freeblocks_counter,
+>  				ext2_count_free_blocks(sb));
+> -	percpu_counter_init(&sbi->s_freeinodes_counter,
+> +	err |= percpu_counter_init(&sbi->s_freeinodes_counter,
+>  				ext2_count_free_inodes(sb));
+> -	percpu_counter_init(&sbi->s_dirs_counter,
+> +	err |= percpu_counter_init(&sbi->s_dirs_counter,
+>  				ext2_count_dirs(sb));
+> +	if (err) {
+> +		printk(KERN_ERR "EXT2-fs: insufficient memory\n");
+> +		goto failed_mount3;
+> +	}
 
-I've been running v6 on x86 and there are a few things I've tried. Most
-of those results Balbir has already posted.
+Can percpu_counter_init fail with only one error code? If not, the error
+code potentially used in future at failed_mount3 could be nonsensical
+because of the bitwise or-ing.
 
-> Run kernbench stress
-> --------------------
-> Three simultaneously and with one inside a container of 800 MB.
-> 
+> Index: linux-2.6/lib/percpu_counter.c
+> ===================================================================
+> --- linux-2.6.orig/lib/percpu_counter.c
+> +++ linux-2.6/lib/percpu_counter.c
+> @@ -68,21 +68,27 @@ s64 __percpu_counter_sum(struct percpu_c
+>  }
+>  EXPORT_SYMBOL(__percpu_counter_sum);
+>  
+> -void percpu_counter_init(struct percpu_counter *fbc, s64 amount)
+> +int percpu_counter_init(struct percpu_counter *fbc, s64 amount)
+>  {
+>  	spin_lock_init(&fbc->lock);
+>  	fbc->count = amount;
+>  	fbc->counters = alloc_percpu(s32);
+> +	if (!fbc->counters)
+> +		return -ENOMEM;
+>  #ifdef CONFIG_HOTPLUG_CPU
+>  	mutex_lock(&percpu_counters_lock);
+>  	list_add(&fbc->list, &percpu_counters);
+>  	mutex_unlock(&percpu_counters_lock);
+>  #endif
+> +	return 0;
+>  }
 
-The idea here was to create pressure inside the container while having
-global pressure.
+I guess this answers my question. But I'd still be weary because a trivial
+change here could produce very strange error codes in ext2/3/4.
 
-> 
-> Kernbench results running within the container of 800 MB
-> --------------------------------------------------------
-> 
-> Thu Aug 16 22:34:59 IST 2007
-> 2.6.23-rc2-mm2-mem-v6
-> Average Half load -j 4 Run (std deviation):
-> Elapsed Time 466.548 (47.6014)
-> User Time 876.598 (10.5273)
-> System Time 223.136 (1.29247)
-> Percent CPU 237.2 (23.2744)
-> Context Switches 146351 (6539.91)
-> Sleeps 174003 (5031.94)
-> 
-> Average Optimal load -j 32 Run (std deviation):
-> Elapsed Time 423.496 (60.625)
-> User Time 897.285 (23.0391)
-> System Time 228.836 (6.11205)
-> Percent CPU 257.1 (40.9022)
-> Context Switches 262134 (123397)
-> Sleeps 270815 (103597)
-> 
-> 
-> Kernbench results running within the default container
-> ------------------------------------------------------
-> 
-> Thu Aug 16 22:34:33 IST 2007
-> 2.6.23-rc2-mm2-mem-v6
-> Average Half load -j 4 Run (std deviation):
-> Elapsed Time 424.17 (3.45908)
-> User Time 841.992 (5.40178)
-> System Time 213.01 (0.706258)
-> Percent CPU 248.2 (0.83666)
-> Context Switches 134254 (9535.83)
-> Sleeps 167359 (6858.45)
-> 
-> Average Optimal load -j 32 Run (std deviation):
-> Elapsed Time 407.092 (108.932)
-> User Time 878.493 (38.6575)
-> System Time 222.155 (9.77127)
-> Percent CPU 278.4 (91.5826)
-> Context Switches 253836 (127708)
-> Sleeps 263760 (103468)
-> 
-> 
-> Kernbench results running within the default container
-> ------------------------------------------------------
-> 
-> Thu Aug 16 22:34:52 IST 2007
-> 2.6.23-rc2-mm2-mem-v6
-> Average Half load -j 4 Run (std deviation):
-> Elapsed Time 465.038 (48.5147)
-> User Time 874.742 (5.86563)
-> System Time 222.194 (0.561676)
-> Percent CPU 237.2 (22.5211)
-> Context Switches 144040 (7052.23)
-> Sleeps 172130 (5608.73)
-> 
-> Average Optimal load -j 32 Run (std deviation):
-> Elapsed Time 426.25 (62.34)
-> User Time 893.938 (20.6732)
-> System Time 227.717 (5.87502)
-> Percent CPU 255.6 (40.7163)
-> Context Switches 259560 (122953)
-> Sleeps 267402 (101801)
-> 
-
-I've been running v6 for sometime and it has been stable (still not
-been able to break/crash it, whereas v4 was broken within 1 hour :-) )
-
-Andrew, I feel these patches whould be included in mm so that it gets
-wider testing.
+Josef 'Jeff' Sipek.
 
 -- 
-regards,
-Dhaval
-
-I would like to change the world but they don't give me the source code!
+Once you have their hardware. Never give it back.
+(The First Rule of Hardware Acquisition)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
