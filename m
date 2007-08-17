@@ -1,11 +1,11 @@
-Date: Fri, 17 Aug 2007 14:02:01 -0700 (PDT)
+Date: Fri, 17 Aug 2007 14:03:45 -0700 (PDT)
 From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [PATCH 3/6] Embed zone_id information within the zonelist->zones
- pointer
-In-Reply-To: <20070817201748.14792.37660.sendpatchset@skynet.skynet.ie>
-Message-ID: <Pine.LNX.4.64.0708171400570.9635@schroedinger.engr.sgi.com>
+Subject: Re: [PATCH 4/6] Record how many zones can be safely skipped in the
+ zonelist
+In-Reply-To: <20070817201808.14792.13501.sendpatchset@skynet.skynet.ie>
+Message-ID: <Pine.LNX.4.64.0708171402540.9635@schroedinger.engr.sgi.com>
 References: <20070817201647.14792.2690.sendpatchset@skynet.skynet.ie>
- <20070817201748.14792.37660.sendpatchset@skynet.skynet.ie>
+ <20070817201808.14792.13501.sendpatchset@skynet.skynet.ie>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
@@ -14,16 +14,9 @@ To: Mel Gorman <mel@csn.ul.ie>
 Cc: Lee.Schermerhorn@hp.com, ak@suse.de, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 17 Aug 2007, Mel Gorman wrote:
-
-> +/*
-> + * SMP will align zones to a large boundary so the zone ID will fit in the
-> + * least significant biuts. Otherwise, ZONES_SHIFT must be 2 or less to
-> + * fit
-
-ZONES_SHIFT is always 2 or less....
-
-Acked-by: Christoph Lameter <clameter@sgi.com>
+Is there any performance improvement because of this patch? It looks 
+like processing got more expensive since an additional cacheline needs to 
+be fetches to get the skip factor.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
