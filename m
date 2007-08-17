@@ -1,11 +1,11 @@
-Date: Fri, 17 Aug 2007 13:59:26 -0700 (PDT)
+Date: Fri, 17 Aug 2007 14:02:01 -0700 (PDT)
 From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [PATCH 2/6] Use one zonelist that is filtered instead of multiple
- zonelists
-In-Reply-To: <20070817201728.14792.42873.sendpatchset@skynet.skynet.ie>
-Message-ID: <Pine.LNX.4.64.0708171355580.9635@schroedinger.engr.sgi.com>
+Subject: Re: [PATCH 3/6] Embed zone_id information within the zonelist->zones
+ pointer
+In-Reply-To: <20070817201748.14792.37660.sendpatchset@skynet.skynet.ie>
+Message-ID: <Pine.LNX.4.64.0708171400570.9635@schroedinger.engr.sgi.com>
 References: <20070817201647.14792.2690.sendpatchset@skynet.skynet.ie>
- <20070817201728.14792.42873.sendpatchset@skynet.skynet.ie>
+ <20070817201748.14792.37660.sendpatchset@skynet.skynet.ie>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
@@ -16,32 +16,14 @@ List-ID: <linux-mm.kvack.org>
 
 On Fri, 17 Aug 2007, Mel Gorman wrote:
 
-> +/* Returns the first zone at or below highest_zoneidx in a zonelist */
-> +static inline struct zone **first_zones_zonelist(struct zonelist *zonelist,
-> +					enum zone_type highest_zoneidx)
-> +{
-> +	struct zone **z;
-> +	for (z = zonelist->zones; zone_idx(*z) > highest_zoneidx; z++);
-> +	return z;
-> +}
+> +/*
+> + * SMP will align zones to a large boundary so the zone ID will fit in the
+> + * least significant biuts. Otherwise, ZONES_SHIFT must be 2 or less to
+> + * fit
 
-The formatting above is a bit confusing. Add requires empty lines and put 
-the ; on a separate line.
+ZONES_SHIFT is always 2 or less....
 
-
-> +/* Returns the next zone at or below highest_zoneidx in a zonelist */
-> +static inline struct zone **next_zones_zonelist(struct zone **z,
-> +					enum zone_type highest_zoneidx)
-> +{
-> +	for (++z; zone_idx(*z) > highest_zoneidx; z++);
-
-Looks weird too.
-
-++z on an earlier line and then
-
-	for ( ; zone_idx(*z) ...)
-
-?
+Acked-by: Christoph Lameter <clameter@sgi.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
