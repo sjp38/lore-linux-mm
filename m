@@ -1,64 +1,76 @@
-Subject: Re: [PATCH 09/23] lib: percpu_counter_init error handling
-From: Peter Zijlstra <a.p.zijlstra@chello.nl>
-In-Reply-To: <20070817155659.GD24323@filer.fsl.cs.sunysb.edu>
-References: <20070816074525.065850000@chello.nl>
-	 <20070816074626.739944000@chello.nl>
-	 <20070817155659.GD24323@filer.fsl.cs.sunysb.edu>
-Content-Type: multipart/signed; micalg=pgp-sha1; protocol="application/pgp-signature"; boundary="=-sEzITVMqsFIiu6cypp27"
-Date: Fri, 17 Aug 2007 18:03:16 +0200
-Message-Id: <1187366597.6114.127.camel@twins>
-Mime-Version: 1.0
+Date: Fri, 17 Aug 2007 12:10:55 -0400
+From: Josef Sipek <jsipek@fsl.cs.sunysb.edu>
+Subject: Re: [PATCH 11/23] mm: bdi init hooks
+Message-ID: <20070817161055.GE24323@filer.fsl.cs.sunysb.edu>
+References: <20070816074525.065850000@chello.nl> <20070816074627.235952000@chello.nl>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20070816074627.235952000@chello.nl>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Josef Sipek <jsipek@fsl.cs.sunysb.edu>
+To: Peter Zijlstra <a.p.zijlstra@chello.nl>
 Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, miklos@szeredi.hu, akpm@linux-foundation.org, neilb@suse.de, dgc@sgi.com, tomoki.sekiyama.qu@hitachi.com, nikita@clusterfs.com, trond.myklebust@fys.uio.no, yingchao.zhou@gmail.com, richard@rsk.demon.co.uk, torvalds@linux-foundation.org
 List-ID: <linux-mm.kvack.org>
 
---=-sEzITVMqsFIiu6cypp27
-Content-Type: text/plain
-Content-Transfer-Encoding: quoted-printable
+On Thu, Aug 16, 2007 at 09:45:36AM +0200, Peter Zijlstra wrote:
+> provide BDI constructor/destructor hooks
+...
+> Index: linux-2.6/drivers/block/rd.c
+> ===================================================================
+> --- linux-2.6.orig/drivers/block/rd.c
+> +++ linux-2.6/drivers/block/rd.c
+...
+> @@ -419,7 +422,19 @@ static void __exit rd_cleanup(void)
+>  static int __init rd_init(void)
+>  {
+>  	int i;
+> -	int err = -ENOMEM;
+> +	int err;
+> +
+> +	err = bdi_init(&rd_backing_dev_info);
+> +	if (err)
+> +		goto out2;
+> +
+> +	err = bdi_init(&rd_file_backing_dev_info);
+> +	if (err) {
+> +		bdi_destroy(&rd_backing_dev_info);
+> +		goto out2;
 
-On Fri, 2007-08-17 at 11:56 -0400, Josef Sipek wrote:
-> On Thu, Aug 16, 2007 at 09:45:34AM +0200, Peter Zijlstra wrote:
-> )
-> > @@ -996,12 +997,16 @@ static int ext2_fill_super(struct super_
-> >  	sbi->s_rsv_window_head.rsv_goal_size =3D 0;
-> >  	ext2_rsv_window_add(sb, &sbi->s_rsv_window_head);
-> > =20
-> > -	percpu_counter_init(&sbi->s_freeblocks_counter,
-> > +	err =3D percpu_counter_init(&sbi->s_freeblocks_counter,
-> >  				ext2_count_free_blocks(sb));
-> > -	percpu_counter_init(&sbi->s_freeinodes_counter,
-> > +	err |=3D percpu_counter_init(&sbi->s_freeinodes_counter,
-> >  				ext2_count_free_inodes(sb));
-> > -	percpu_counter_init(&sbi->s_dirs_counter,
-> > +	err |=3D percpu_counter_init(&sbi->s_dirs_counter,
-> >  				ext2_count_dirs(sb));
-> > +	if (err) {
-> > +		printk(KERN_ERR "EXT2-fs: insufficient memory\n");
-> > +		goto failed_mount3;
-> > +	}
->=20
-> Can percpu_counter_init fail with only one error code? If not, the error
-> code potentially used in future at failed_mount3 could be nonsensical
-> because of the bitwise or-ing.
+How about this...
 
-I guess I could have written saner code :-/ will try to come up with
-something that is both clear and short.
+if (err)
+	goto out3;
 
---=-sEzITVMqsFIiu6cypp27
-Content-Type: application/pgp-signature; name=signature.asc
-Content-Description: This is a digitally signed message part
+> +	}
+> +
+> +	err = -ENOMEM;
+>  
+>  	if (rd_blocksize > PAGE_SIZE || rd_blocksize < 512 ||
+>  			(rd_blocksize & (rd_blocksize-1))) {
+> @@ -473,6 +488,9 @@ out:
+>  		put_disk(rd_disks[i]);
+>  		blk_cleanup_queue(rd_queue[i]);
+>  	}
+> +	bdi_destroy(&rd_backing_dev_info);
+> +	bdi_destroy(&rd_file_backing_dev_info);
 
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v1.4.6 (GNU/Linux)
+	bdi_destroy(&rd_file_backing_dev_info);
+out3:
+	bdi_destroy(&rd_backing_dev_info);
 
-iD8DBQBGxcbEXA2jU0ANEf4RAngmAJ9iLoRbugFnY4WMorNM+fNCD6O8YACfSzEl
-Ov+UGUBAZY2uX4INn3sJxTw=
-=TFSt
------END PGP SIGNATURE-----
+Sure you might want to switch from numbered labels to something a bit more
+descriptive.
 
---=-sEzITVMqsFIiu6cypp27--
+> +out2:
+>  	return err;
+>  }
+>  
+
+Josef 'Jeff' Sipek.
+
+-- 
+The box said "Windows XP or better required". So I installed Linux.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
