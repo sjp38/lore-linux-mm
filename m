@@ -1,56 +1,47 @@
-Date: Fri, 17 Aug 2007 13:37:05 -0700 (PDT)
+Date: Fri, 17 Aug 2007 13:59:26 -0700 (PDT)
 From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [PATCH 00/23] per device dirty throttling -v9
-In-Reply-To: <1187335158.6114.119.camel@twins>
-Message-ID: <Pine.LNX.4.64.0708171333370.9404@schroedinger.engr.sgi.com>
-References: <20070816074525.065850000@chello.nl>
- <Pine.LNX.4.64.0708161424010.18861@schroedinger.engr.sgi.com>
- <1187335158.6114.119.camel@twins>
+Subject: Re: [PATCH 2/6] Use one zonelist that is filtered instead of multiple
+ zonelists
+In-Reply-To: <20070817201728.14792.42873.sendpatchset@skynet.skynet.ie>
+Message-ID: <Pine.LNX.4.64.0708171355580.9635@schroedinger.engr.sgi.com>
+References: <20070817201647.14792.2690.sendpatchset@skynet.skynet.ie>
+ <20070817201728.14792.42873.sendpatchset@skynet.skynet.ie>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, miklos@szeredi.hu, akpm@linux-foundation.org, neilb@suse.de, dgc@sgi.com, tomoki.sekiyama.qu@hitachi.com, nikita@clusterfs.com, trond.myklebust@fys.uio.no, yingchao.zhou@gmail.com, richard@rsk.demon.co.uk, torvalds@linux-foundation.org, pj@sgi.com
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: Lee.Schermerhorn@hp.com, ak@suse.de, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 17 Aug 2007, Peter Zijlstra wrote:
+On Fri, 17 Aug 2007, Mel Gorman wrote:
 
-> Currently we do: 
->   dirty = total_dirty * bdi_completions_p * task_dirty_p
-> 
-> As dgc pointed out before, there is the issue of bdi/task correlation,
-> that is, we do not track task dirty rates per bdi, so now a task that
-> heavily dirties on one bdi will also get penalised on the others (and
-> similar issues).
+> +/* Returns the first zone at or below highest_zoneidx in a zonelist */
+> +static inline struct zone **first_zones_zonelist(struct zonelist *zonelist,
+> +					enum zone_type highest_zoneidx)
+> +{
+> +	struct zone **z;
+> +	for (z = zonelist->zones; zone_idx(*z) > highest_zoneidx; z++);
+> +	return z;
+> +}
 
-I think that is tolerable.
-> 
-> If we were to change it so:
->   dirty = cpuset_dirty * bdi_completions_p * task_dirty_p
-> 
-> We get additional correlation issues: cpuset/bdi, cpuset/task.
-> Which could yield surprising results if some bdis are strictly per
-> cpuset.
+The formatting above is a bit confusing. Add requires empty lines and put 
+the ; on a separate line.
 
-If we do not do the above then the dirty page calculation for a small 
-cpuset (F.e. 1 node of a 128 node system) could allow an amount of dirty
-pages that will fill up all the node.
 
-> The cpuset/task correlation has a strict mapping and could be solved by
-> keeping the vm_dirties counter per cpuset. However, this would seriously
-> complicate the code and I'm not sure if it would gain us much.
+> +/* Returns the next zone at or below highest_zoneidx in a zonelist */
+> +static inline struct zone **next_zones_zonelist(struct zone **z,
+> +					enum zone_type highest_zoneidx)
+> +{
+> +	for (++z; zone_idx(*z) > highest_zoneidx; z++);
 
-The patchset that I referred to has code to calculate the dirty count and 
-ratio per cpuset by looping over the nodes. Currently we are having 
-trouble with small cpusets not performing writeout correctly. This 
-sometimes may result in OOM conditions because the whole node is full of 
-dirty pages. If the cpu boundaries are enforced in a strict way then the 
-application may fail with an OOM.
+Looks weird too.
 
-We can compensate by recalculating the dirty_ratio based on the smallest 
-cpuset but then larger cpusets are penalized. Also one cannot set the 
-dirty_ratio below a certain mininum.
+++z on an earlier line and then
+
+	for ( ; zone_idx(*z) ...)
+
+?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
