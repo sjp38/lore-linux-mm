@@ -1,96 +1,72 @@
-Subject: Re: [PATCH 11/23] mm: bdi init hooks
-From: Peter Zijlstra <a.p.zijlstra@chello.nl>
-In-Reply-To: <20070817161055.GE24323@filer.fsl.cs.sunysb.edu>
-References: <20070816074525.065850000@chello.nl>
-	 <20070816074627.235952000@chello.nl>
-	 <20070817161055.GE24323@filer.fsl.cs.sunysb.edu>
-Content-Type: multipart/signed; micalg=pgp-sha1; protocol="application/pgp-signature"; boundary="=-wwiR1msXhF1K3hk1Dp5Z"
-Date: Fri, 17 Aug 2007 18:15:07 +0200
-Message-Id: <1187367307.6114.129.camel@twins>
-Mime-Version: 1.0
+Date: Fri, 17 Aug 2007 12:20:30 -0400
+From: Josef Sipek <jsipek@fsl.cs.sunysb.edu>
+Subject: Re: [PATCH 16/23] mm: scalable bdi statistics counters.
+Message-ID: <20070817162030.GA27836@filer.fsl.cs.sunysb.edu>
+References: <20070816074525.065850000@chello.nl> <20070816074628.520798000@chello.nl>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20070816074628.520798000@chello.nl>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Josef Sipek <jsipek@fsl.cs.sunysb.edu>
+To: Peter Zijlstra <a.p.zijlstra@chello.nl>
 Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, miklos@szeredi.hu, akpm@linux-foundation.org, neilb@suse.de, dgc@sgi.com, tomoki.sekiyama.qu@hitachi.com, nikita@clusterfs.com, trond.myklebust@fys.uio.no, yingchao.zhou@gmail.com, richard@rsk.demon.co.uk, torvalds@linux-foundation.org
 List-ID: <linux-mm.kvack.org>
 
---=-wwiR1msXhF1K3hk1Dp5Z
-Content-Type: text/plain
-Content-Transfer-Encoding: quoted-printable
+On Thu, Aug 16, 2007 at 09:45:41AM +0200, Peter Zijlstra wrote:
+...
+> Index: linux-2.6/include/linux/backing-dev.h
+> ===================================================================
+> --- linux-2.6.orig/include/linux/backing-dev.h
+> +++ linux-2.6/include/linux/backing-dev.h
+...
+> @@ -24,6 +26,12 @@ enum bdi_state {
+>  
+>  typedef int (congested_fn)(void *, int);
+>  
+> +enum bdi_stat_item {
+> +	NR_BDI_STAT_ITEMS
+> +};
 
-On Fri, 2007-08-17 at 12:10 -0400, Josef Sipek wrote:
-> On Thu, Aug 16, 2007 at 09:45:36AM +0200, Peter Zijlstra wrote:
-> > provide BDI constructor/destructor hooks
-> ....
-> > Index: linux-2.6/drivers/block/rd.c
-> > =3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
-=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
-=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D
-> > --- linux-2.6.orig/drivers/block/rd.c
-> > +++ linux-2.6/drivers/block/rd.c
-> ....
-> > @@ -419,7 +422,19 @@ static void __exit rd_cleanup(void)
-> >  static int __init rd_init(void)
-> >  {
-> >  	int i;
-> > -	int err =3D -ENOMEM;
-> > +	int err;
-> > +
-> > +	err =3D bdi_init(&rd_backing_dev_info);
-> > +	if (err)
-> > +		goto out2;
-> > +
-> > +	err =3D bdi_init(&rd_file_backing_dev_info);
-> > +	if (err) {
-> > +		bdi_destroy(&rd_backing_dev_info);
-> > +		goto out2;
->=20
-> How about this...
+enum numbering starts at 0, so NR_BDI_STAT_ITEMS == 0
 
-seems like a sane idea.
+> +
+> +#define BDI_STAT_BATCH (8*(1+ilog2(nr_cpu_ids)))
+> +
+>  struct backing_dev_info {
+>  	unsigned long ra_pages;	/* max readahead in PAGE_CACHE_SIZE units */
+>  	unsigned long state;	/* Always use atomic bitops on this */
+> @@ -32,15 +40,86 @@ struct backing_dev_info {
+>  	void *congested_data;	/* Pointer to aux data for congested func */
+>  	void (*unplug_io_fn)(struct backing_dev_info *, struct page *);
+>  	void *unplug_io_data;
+> +
+> +	struct percpu_counter bdi_stat[NR_BDI_STAT_ITEMS];
 
-> if (err)
-> 	goto out3;
->=20
-> > +	}
-> > +
-> > +	err =3D -ENOMEM;
-> > =20
-> >  	if (rd_blocksize > PAGE_SIZE || rd_blocksize < 512 ||
-> >  			(rd_blocksize & (rd_blocksize-1))) {
-> > @@ -473,6 +488,9 @@ out:
-> >  		put_disk(rd_disks[i]);
-> >  		blk_cleanup_queue(rd_queue[i]);
-> >  	}
-> > +	bdi_destroy(&rd_backing_dev_info);
-> > +	bdi_destroy(&rd_file_backing_dev_info);
->=20
-> 	bdi_destroy(&rd_file_backing_dev_info);
-> out3:
-> 	bdi_destroy(&rd_backing_dev_info);
->=20
-> Sure you might want to switch from numbered labels to something a bit mor=
-e
-> descriptive.
+So, this is a 0-element array.
 
-I was just keeping in style here.
+>  };
+>  
+> -static inline int bdi_init(struct backing_dev_info *bdi)
+> +int bdi_init(struct backing_dev_info *bdi);
+> +void bdi_destroy(struct backing_dev_info *bdi);
+> +
+> +static inline void __add_bdi_stat(struct backing_dev_info *bdi,
+> +		enum bdi_stat_item item, s64 amount)
+>  {
+> -	return 0;
+> +	__percpu_counter_add(&bdi->bdi_stat[item], amount, BDI_STAT_BATCH);
 
-Thanks for looking this over, all these error paths did make my head
-spin a little.
+Boom!
 
---=-wwiR1msXhF1K3hk1Dp5Z
-Content-Type: application/pgp-signature; name=signature.asc
-Content-Description: This is a digitally signed message part
+>  }
 
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v1.4.6 (GNU/Linux)
+Josef 'Jeff' Sipek.
 
-iD8DBQBGxcmLXA2jU0ANEf4RAn7mAJ4+1ikx8tsJI2SMt2VxXPp9La9MdACcD3sk
-A6MNRImxz9iCKiPaXDiCAUs=
-=CLRJ
------END PGP SIGNATURE-----
-
---=-wwiR1msXhF1K3hk1Dp5Z--
+-- 
+You measure democracy by the freedom it gives its dissidents, not the
+freedom it gives its assimilated conformists.
+		- Abbie Hoffman
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
