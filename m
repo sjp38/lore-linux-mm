@@ -1,51 +1,30 @@
-Message-ID: <46C63D5D.3020107@google.com>
-Date: Fri, 17 Aug 2007 17:29:17 -0700
-From: Ethan Solomita <solo@google.com>
-MIME-Version: 1.0
+Date: Fri, 17 Aug 2007 18:07:07 -0700 (PDT)
+From: Christoph Lameter <clameter@sgi.com>
 Subject: Re: cpusets vs. mempolicy and how to get interleaving
-References: <46C63BDE.20602@google.com>
 In-Reply-To: <46C63BDE.20602@google.com>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Message-ID: <Pine.LNX.4.64.0708171805340.15278@schroedinger.engr.sgi.com>
+References: <46C63BDE.20602@google.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Paul Jackson <pj@sgi.com>, Christoph Lameter <clameter@sgi.com>, linux-mm@kvack.org
+To: Ethan Solomita <solo@google.com>
+Cc: Paul Jackson <pj@sgi.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-[Resend -- the original email seems to have lost its first line]
+On Fri, 17 Aug 2007, Ethan Solomita wrote:
 
-     I'm concerned that there isn't an adequate mechanism available for 
-an application to request NUMA interleaving in the face of cpusets and 
-modifications to mems_allowed. I'm hoping for some advice.
+> 	Ideally, we want a task to express its preference for interleaved
+> memory allocations without having to provide a list of nodes. The kernel will
+> automatically round-robin amongst the task's mems_allowed.
 
-What we want:
+You can do that by writing 1 to /dev/cpuset/<cpuset>/memory_spread_page
 
-     Ideally, we want a task to express its preference for interleaved 
-memory allocations without having to provide a list of nodes. The kernel 
-will automatically round-robin amongst the task's mems_allowed.
+> 	I realize that this doesn't work with backwards compatibility so I'm
+> looking for advice. A new policy MPOL_INTERLEAVE_ALL that doesn't take a
+> nodemask argument and interleaves within mems_allowed? Any better suggestions?
 
-The problem:
-
-     At least in our environment, an independent "cpuset manager" 
-process may choose to rewrite a cpuset's mems file at any time, possibly 
-increasing or decreasing the number of available nodes. If 
-weight(mems_allowed) is decreased, the task's MPOL_INTERLEAVE policy's 
-nodemask will be shrunk to fit the new mems_allowed. If 
-weight(mems_allowed) is grown, the policy's nodemask will not gain new 
-nodes.
-
-     What we want is for the task to "set it and forget it," i.e. to 
-express a preference for interleaving and then never worry about NUMA 
-again. If the nodemask sent via sys_mempolicy(MPOL_INTERLEAVE) served as 
-a mask against mems_allowed, then we would specify an all-1s nodemask.
-
-     I realize that this doesn't work with backwards compatibility so 
-I'm looking for advice. A new policy MPOL_INTERLEAVE_ALL that doesn't 
-take a nodemask argument and interleaves within mems_allowed? Any better 
-suggestions?
-
-     Thanks!
-     -- Ethan
+No need for a policy. Just use what I suggested above.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
