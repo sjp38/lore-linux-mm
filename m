@@ -1,47 +1,88 @@
-Date: Sat, 18 Aug 2007 07:10:36 +0000
-From: Pavel Machek <pavel@ucw.cz>
-Subject: Re: [RFC 2/9] Use NOMEMALLOC reclaim to allow reclaim if PF_MEMALLOC is set
-Message-ID: <20070818071035.GA4667@ucw.cz>
-References: <20070814153021.446917377@sgi.com> <20070814153501.305923060@sgi.com>
-Mime-Version: 1.0
+Date: Sat, 18 Aug 2007 15:00:59 +0400
+From: Dmitry Monakhov <dmonakhov@openvz.org>
+Subject: [PATCH] mm: add end_buffer_read helper function
+Message-ID: <20070818110059.GB10969@dnb.sw.ru>
+MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20070814153501.305923060@sgi.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, dkegel@google.com, Peter Zijlstra <a.p.zijlstra@chello.nl>, David Miller <davem@davemloft.net>, Nick Piggin <npiggin@suse.de>
+To: linux-kernel@vger.kernel.org
+Cc: linux-mm@kvack.org, akpm@linux-foundation.org
 List-ID: <linux-mm.kvack.org>
 
-Hi!
+This patch just move duplicated code from end_buffer_read_XXX
+methods to separate helper function.
 
-> If we exhaust the reserves in the page allocator when PF_MEMALLOC is set
-> then no longer give up but call into reclaim with PF_MEMALLOC set.
-> 
-> This is in essence a recursive call back into page reclaim with another
-> page flag (__GFP_NOMEMALLOC) set. The recursion is bounded since potential
-> allocations with __PF_NOMEMALLOC set will not enter that branch again.
-> 
-> This means that allocation under PF_MEMALLOC will no longer run out of
-> memory. Allocations under PF_MEMALLOC will do a limited form of reclaim
-> instead.
-> 
-> The reclaim is of particular important to stacked filesystems that may
-> do a lot of allocations in the write path. Reclaim will be working
-> as long as there are clean file backed pages to reclaim.
+Signed-off-by: Dmitry Monakhov <dmonakhov@openvz.org>
+---
+ fs/buffer.c |   32 +++++++++++++++++---------------
+ 1 files changed, 17 insertions(+), 15 deletions(-)
 
-I don't get it. Lets say that we have stacked filesystem that needs
-it. That filesystem is broken today.
-
-Now you give it second chance by reclaiming clean pages, but there are
-no guarantees that we have any.... so that filesystem is still broken
-with your patch...?
-
-Should we fix the filesystem instead?
-							Pavel
+diff --git a/fs/buffer.c b/fs/buffer.c
+index f95e444..6756524 100644
+--- a/fs/buffer.c
++++ b/fs/buffer.c
+@@ -118,10 +118,14 @@ static void buffer_io_error(struct buffer_head *bh)
+ }
+ 
+ /*
+- * Default synchronous end-of-IO handler..  Just mark it up-to-date and
+- * unlock the buffer. This is what ll_rw_block uses too.
++ * End-of-IO handler helper function which does not touch the bh after
++ * unlocking it.
++ * Note: unlock_buffer() sort-of does touch the bh after unlocking it, but
++ * a race there is benign: unlock_buffer() only use the bh's address for
++ * hashing after unlocking the buffer, so it doesn't actually touch the bh
++ * itself.
+  */
+-void end_buffer_read_sync(struct buffer_head *bh, int uptodate)
++static void __end_buffer_read_notouch(struct buffer_head *bh, int uptodate)
+ {
+ 	if (uptodate) {
+ 		set_buffer_uptodate(bh);
+@@ -130,6 +134,15 @@ void end_buffer_read_sync(struct buffer_head *bh, int uptodate)
+ 		clear_buffer_uptodate(bh);
+ 	}
+ 	unlock_buffer(bh);
++}
++
++/*
++ * Default synchronous end-of-IO handler..  Just mark it up-to-date and
++ * unlock the buffer. This is what ll_rw_block uses too.
++ */
++void end_buffer_read_sync(struct buffer_head *bh, int uptodate)
++{
++	__end_buffer_read_notouch(bh, uptodate);
+ 	put_bh(bh);
+ }
+ 
+@@ -2366,21 +2379,10 @@ out_unlock:
+  * nobh_prepare_write()'s prereads are special: the buffer_heads are freed
+  * immediately, while under the page lock.  So it needs a special end_io
+  * handler which does not touch the bh after unlocking it.
+- *
+- * Note: unlock_buffer() sort-of does touch the bh after unlocking it, but
+- * a race there is benign: unlock_buffer() only use the bh's address for
+- * hashing after unlocking the buffer, so it doesn't actually touch the bh
+- * itself.
+  */
+ static void end_buffer_read_nobh(struct buffer_head *bh, int uptodate)
+ {
+-	if (uptodate) {
+-		set_buffer_uptodate(bh);
+-	} else {
+-		/* This happens, due to failed READA attempts. */
+-		clear_buffer_uptodate(bh);
+-	}
+-	unlock_buffer(bh);
++	__end_buffer_read_notouch(bh, uptodate);
+ }
+ 
+ /*
 -- 
-(english) http://www.livejournal.com/~pavelmachek
-(cesky, pictures) http://atrey.karlin.mff.cuni.cz/~pavel/picture/horses/blog.html
+1.5.2.2
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
