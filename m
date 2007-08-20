@@ -1,29 +1,46 @@
-Date: Mon, 20 Aug 2007 12:07:16 -0700 (PDT)
+Date: Mon, 20 Aug 2007 12:15:01 -0700 (PDT)
 From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: cpusets vs. mempolicy and how to get interleaving
-In-Reply-To: <46C92AF4.20607@google.com>
-Message-ID: <Pine.LNX.4.64.0708201205450.28863@schroedinger.engr.sgi.com>
-References: <46C63BDE.20602@google.com> <46C63D5D.3020107@google.com>
- <alpine.DEB.0.99.0708190304510.7613@chino.kir.corp.google.com>
- <46C8E604.8040101@google.com> <20070819193431.dce5d4cf.pj@sgi.com>
- <46C92AF4.20607@google.com>
+Subject: Re: [RFC 0/3] Recursive reclaim (on __PF_MEMALLOC)
+In-Reply-To: <1187581894.6114.169.camel@twins>
+Message-ID: <Pine.LNX.4.64.0708201210440.29092@schroedinger.engr.sgi.com>
+References: <20070814142103.204771292@sgi.com>  <20070815122253.GA15268@wotan.suse.de>
+ <1187183526.6114.45.camel@twins>  <20070816032921.GA32197@wotan.suse.de>
+ <1187581894.6114.169.camel@twins>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
-Cc: Paul Jackson <pj@sgi.com>, Ethan Solomita <solo@google.com>, rientjes@google.com, linux-mm@kvack.org
+To: Peter Zijlstra <a.p.zijlstra@chello.nl>
+Cc: Nick Piggin <npiggin@suse.de>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, dkegel@google.com, David Miller <davem@davemloft.net>, Daniel Phillips <phillips@google.com>
 List-ID: <linux-mm.kvack.org>
 
-On Sun, 19 Aug 2007, Ethan Solomita wrote:
+On Mon, 20 Aug 2007, Peter Zijlstra wrote:
 
-> 	OK, then I'll proceed with a new MPOL. Do you believe that this will
-> be of general interest? i.e. worth placing in linux-mm?
+> > > <> What Christoph is proposing is doing recursive reclaim and not
+> > > initiating writeout. This will only work _IFF_ there are clean pages
+> > > about. Which in the general case need not be true (memory might be
+> > > packed with anonymous pages - consider an MPI cluster doing computation
+> > > stuff). So this gets us a workload dependant solution - which IMHO is
+> > > bad!
+> > 
+> > Although you will quite likely have at least a couple of MB worth of
+> > clean program text. The important part of recursive reclaim is that it
+> > doesn't so easily allow reclaim to blow all memory reserves (including
+> > interrupt context). Sure you still have theoretical deadlocks, but if
+> > I understand correctly, they are going to be lessened. I would be
+> > really interested to see if even just these recursive reclaim patches
+> > eliminate the problem in practice.
+> 
+> were we much bothered by the buffered write deadlock? - why accept a
+> known deadlock if a solid solution is quite attainable?
 
-Ummmm... Lets first get Lee onto this. AFAIK he already has an 
-implementation for such a thing.
+Buffered write deadlock? How does that exactly occur? Memory allocation in 
+the writeout path while we hold locks?
 
-Lee: Would you respond to these emails?
+There are many worst case scenarios in the current reclaim implementation 
+that are not addressed and we so far have not addressed these because the 
+code is very sensitive and it is not clear that the complexity introduced 
+by these changes is offset by the benefits gained.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
