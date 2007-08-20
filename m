@@ -1,64 +1,35 @@
-Date: Mon, 20 Aug 2007 11:40:37 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: cpusets vs. mempolicy and how to get interleaving
-In-Reply-To: <46C9DD62.8020803@google.com>
-Message-ID: <alpine.DEB.0.99.0708201131160.10747@chino.kir.corp.google.com>
-References: <46C63BDE.20602@google.com> <46C63D5D.3020107@google.com>
- <alpine.DEB.0.99.0708190304510.7613@chino.kir.corp.google.com>
- <46C8E604.8040101@google.com> <20070819193431.dce5d4cf.pj@sgi.com>
- <46C92AF4.20607@google.com> <20070819225320.6562fbd1.pj@sgi.com>
- <alpine.DEB.0.99.0708200104340.4218@chino.kir.corp.google.com>
- <46C9DD62.8020803@google.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=us-ascii
+Subject: Re: [PATCH 5/5] mm/... convert #include "linux/..." to #include
+	<linux/...>
+From: Joe Perches <joe@perches.com>
+In-Reply-To: <Pine.LNX.4.64.0708201106230.25248@schroedinger.engr.sgi.com>
+References: <1187561983.4200.145.camel@localhost>
+	 <Pine.LNX.4.64.0708201106230.25248@schroedinger.engr.sgi.com>
+Content-Type: text/plain
+Date: Mon, 20 Aug 2007 11:49:26 -0700
+Message-Id: <1187635766.5963.3.camel@localhost>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Ethan Solomita <solo@google.com>
-Cc: Paul Jackson <pj@sgi.com>, clameter@sgi.com, linux-mm@kvack.org
+To: Christoph Lameter <clameter@sgi.com>
+Cc: kernel-janitors@vger.kernel.org, linux-kernel@vger.kernel.org, Eric Dumazet <dada1@cosmosbay.com>, Pekka Enberg <penberg@cs.helsinki.fi>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 20 Aug 2007, Ethan Solomita wrote:
+On Mon, 2007-08-20 at 11:06 -0700, Christoph Lameter wrote:
+> On Sun, 19 Aug 2007, Joe Perches wrote:
+> > diff --git a/mm/slab.c b/mm/slab.c
+> > -#include "linux/kmalloc_sizes.h"
+> > +#include <linux/kmalloc_sizes.h>
+> But I think this was done intentionally to point out that the file 
+> includes is *not* a regular include file.
 
-> > Like I've already said, there is absolutely no reason to add a new MPOL
-> > variant for this case.  As Christoph already mentioned, PF_SPREAD_PAGE gets
-> > similar results.  So just modify mpol_rebind_policy() so that if
-> > /dev/cpuset/<cpuset>/memory_spread_page is true, you rebind the interleaved
-> > nodemask to all nodes in the new nodemask.  That's the well-defined cpuset
-> > interface for getting an interleaved behavior already.
-> 
-> 	memory_spread_page is only for file-backed pages, not anon pages.
+Maybe.  I think it's just a simple error.
 
-Please read what I said above, all you have to do is modify 
-mpol_rebind_policy() so that if /dev/cpuset/<cpuset>/memory_spread_page is 
-true, you rebind the interleaved nodemask to all nodes in the new 
-nodemask.
+mm/slab.c has 2 other includes of
 
-This only happens for the MPOL_INTERLEAVE case because the application has 
-made it quite clear through set_mempolicy(MPOL_INTERLEAVE, ...) that it 
-wants this behavior.
+	#include <linux/kmalloc_sizes.h>
 
-	int cpuset_is_spread_page(struct task_struct *task)
-	{
-		int ret;
-		task_lock(task);
-		ret = is_spread_page(task->cpuset);
-		task_unlock(task);
-		return ret;
-	}
-
-	void mpol_rebind_policy(struct mempolicy *pol, const nodemask_t *newmask)
-	{
-		...
-		case MPOL_INTERLEAVE:
-			if (cpuset_is_spread_page(current))
-				pol->v.nodes = *newmask;
-			else {
-				nodes_remap(tmp, pol->v.nodes, *mpolmask, *newmask);
-				pol->v.nodes = tmp;
-			}
-			...
-		...
-	}
+cheers, Joe
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
