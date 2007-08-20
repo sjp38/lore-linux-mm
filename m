@@ -1,75 +1,50 @@
-Subject: Re: [PATCH 04/10] mm: slub: add knowledge of reserve pages
+Subject: Re: [RFC 2/9] Use NOMEMALLOC reclaim to allow reclaim if
+	PF_MEMALLOC is set
 From: Peter Zijlstra <a.p.zijlstra@chello.nl>
-In-Reply-To: <Pine.LNX.4.64.0708201220500.29092@schroedinger.engr.sgi.com>
-References: <20070806102922.907530000@chello.nl>
-	 <20070806103658.603735000@chello.nl> <1187595513.6114.176.camel@twins>
-	 <Pine.LNX.4.64.0708201211240.20591@sbz-30.cs.Helsinki.FI>
-	 <1187601455.6114.189.camel@twins>
-	 <84144f020708200228v1af5248cx6f6da4a7a35400f3@mail.gmail.com>
-	 <Pine.LNX.4.64.0708201220500.29092@schroedinger.engr.sgi.com>
+In-Reply-To: <Pine.LNX.4.64.0708201158270.28863@schroedinger.engr.sgi.com>
+References: <20070814153021.446917377@sgi.com>
+	 <20070814153501.305923060@sgi.com> <20070818071035.GA4667@ucw.cz>
+	 <Pine.LNX.4.64.0708201158270.28863@schroedinger.engr.sgi.com>
 Content-Type: text/plain
-Date: Mon, 20 Aug 2007 22:08:53 +0200
-Message-Id: <1187640533.5337.27.camel@lappy>
+Date: Mon, 20 Aug 2007 22:17:36 +0200
+Message-Id: <1187641056.5337.32.camel@lappy>
 Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Christoph Lameter <clameter@sgi.com>
-Cc: Pekka Enberg <penberg@cs.helsinki.fi>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, David Miller <davem@davemloft.net>, Andrew Morton <akpm@linux-foundation.org>, Daniel Phillips <phillips@google.com>, Matt Mackall <mpm@selenic.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Steve Dickson <SteveD@redhat.com>
+Cc: Pavel Machek <pavel@ucw.cz>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, dkegel@google.com, David Miller <davem@davemloft.net>, Nick Piggin <npiggin@suse.de>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 2007-08-20 at 12:26 -0700, Christoph Lameter wrote:
-> On Mon, 20 Aug 2007, Pekka Enberg wrote:
+On Mon, 2007-08-20 at 12:00 -0700, Christoph Lameter wrote:
+> On Sat, 18 Aug 2007, Pavel Machek wrote:
 > 
-> > Hi Peter,
+> > > The reclaim is of particular important to stacked filesystems that may
+> > > do a lot of allocations in the write path. Reclaim will be working
+> > > as long as there are clean file backed pages to reclaim.
 > > 
-> > On Mon, 2007-08-20 at 12:12 +0300, Pekka J Enberg wrote:
-> > > > Any reason why the callers that are actually interested in this don't do
-> > > > page->reserve on their own?
+> > I don't get it. Lets say that we have stacked filesystem that needs
+> > it. That filesystem is broken today.
 > > 
-> > On 8/20/07, Peter Zijlstra <a.p.zijlstra@chello.nl> wrote:
-> > > because new_slab() destroys the content?
-> > 
-> > Right. So maybe we could move the initialization parts of new_slab()
-> > to __new_slab() so that the callers that are actually interested in
-> > 'reserve' could do allocate_slab(), store page->reserve and do rest of
-> > the initialization with it?
+> > Now you give it second chance by reclaiming clean pages, but there are
+> > no guarantees that we have any.... so that filesystem is still broken
+> > with your patch...?
 > 
-> I am still not convinced about this approach and there seems to be 
-> agreement that this is not working on large NUMA. So #ifdef it out? 
-> !CONFIG_NUMA? Some more general approach that does not rely on a single 
-> slab being a reserve?
+> There is a guarantee that we have some because the user space program is 
+> executing. Meaning the executable pages can be retrieved. The amount 
+> dirty memory in the system is limited by the dirty_ratio. So the VM can 
+> only get into trouble if there is a sufficient amount of anonymous pages 
+> and all executables have been reclaimed. That is pretty rare.
+> 
+> Plus the same issue can happen today. Writes are usually not completed 
+> during reclaim. If the writes are sufficiently deferred then you have the 
+> same issue now.
 
-See the patch I sent earlier today?
+Once we have initiated (disk) writeout we do not need more memory to
+complete it, all we need to do is wait for the completion interrupt.
 
-> The object is to check the alloc flags when having allocated a reserve 
-> slab right?
-
-The initial idea was to make each slab allocation respect the watermarks
-like page allocation does (the page rank thingies, if you remember).
-That is if the slab is allocated from below the ALLOC_MIN|ALLOC_HARDER
-threshold, an ALLOC_MIN|ALLOC_HIGH allocation would get memory, but an
-ALLOC_MIN would not.
-
-Now, we only needed the ALLOC_MIN|ALLOC_HIGH|ALLOC_HARDER <->
-ALLOC_NO_WATERMARKS transition and hence fell back to a binary system
-that is not quite fair wrt to all the other levels but suffices for the
-problem at hand.
-
-So we want to ensure that slab allocations that are _not_ entitled to
-ALLOC_NO_WATERMARK memory will not get objects when a page allocation
-with the same right would fail, even if there is a slab present.
-
->  Adding another flag SlabReserve and keying off on that one may 
-> be the easiest solution.
-
-Trouble with something like that is that page flags are peristent and
-you'd need to clean them when the status flips -> O(n) -> unwanted.
-
-> I have pending patches here that add per cpu structures. Those will make 
-> that job easier.
-
-Yeah, I've seen earlier versions of those.
+Networking is different here in that an unbounded amount of net traffic
+needs to be processed in order to find the completion event.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
