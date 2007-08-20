@@ -1,23 +1,45 @@
-Subject: Re: [PATCH 04/10] mm: slub: add knowledge of reserve pages
-From: Peter Zijlstra <peterz@infradead.org>
-In-Reply-To: <1187595513.6114.176.camel@twins>
-References: <20070806102922.907530000@chello.nl>
-	 <20070806103658.603735000@chello.nl>  <1187595513.6114.176.camel@twins>
-Content-Type: text/plain
-Date: Mon, 20 Aug 2007 09:43:13 +0200
-Message-Id: <1187595793.6114.177.camel@twins>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Date: Mon, 20 Aug 2007 01:10:07 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: cpusets vs. mempolicy and how to get interleaving
+In-Reply-To: <20070819225320.6562fbd1.pj@sgi.com>
+Message-ID: <alpine.DEB.0.99.0708200104340.4218@chino.kir.corp.google.com>
+References: <46C63BDE.20602@google.com> <46C63D5D.3020107@google.com>
+ <alpine.DEB.0.99.0708190304510.7613@chino.kir.corp.google.com>
+ <46C8E604.8040101@google.com> <20070819193431.dce5d4cf.pj@sgi.com>
+ <46C92AF4.20607@google.com> <20070819225320.6562fbd1.pj@sgi.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-kernel@vger.kernel.org
-Cc: linux-mm@kvack.org, David Miller <davem@davemloft.net>, Andrew Morton <akpm@linux-foundation.org>, Daniel Phillips <phillips@google.com>, Pekka Enberg <penberg@cs.helsinki.fi>, Christoph Lameter <clameter@sgi.com>, Matt Mackall <mpm@selenic.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Steve Dickson <SteveD@redhat.com>
+To: Paul Jackson <pj@sgi.com>
+Cc: Ethan Solomita <solo@google.com>, clameter@sgi.com, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 2007-08-20 at 09:38 +0200, Peter Zijlstra wrote:
-> Ok, so I got rid of the global stuff, this also obsoletes 3/10.
- 
-2/10 that is
+On Sun, 19 Aug 2007, Paul Jackson wrote:
+
+> > 	BTW, a slightly different MPOL_INTERLEAVE implementation would help, 
+> > wherein we save the nodemask originally specified by the user and do the 
+> > remap from the original nodemask rather than the current nodemask.
+> 
+> I kinda like this idea; though keep in mind that since I don't use
+> mempolicy mechanisms, I am not loosing any sleep over minor(?)
+> compatibility breakages.  It would take someone familiar with the
+> actual users or usages of MPOL_INTERLEAVE to know if or how much
+> this would bite actual users/usages.
+> 
+
+Like I've already said, there is absolutely no reason to add a new MPOL 
+variant for this case.  As Christoph already mentioned, PF_SPREAD_PAGE 
+gets similar results.  So just modify mpol_rebind_policy() so that if 
+/dev/cpuset/<cpuset>/memory_spread_page is true, you rebind the 
+interleaved nodemask to all nodes in the new nodemask.  That's the 
+well-defined cpuset interface for getting an interleaved behavior already.
+
+Let's not create new memory policies that only work for a very specific 
+and configurable case when the basic underlying mechanism to that policy 
+is already present in the cpuset interface, namely, PF_SPREAD_PAGE.
+
+		David
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
