@@ -1,62 +1,100 @@
-Message-Id: <20070820215317.202810753@sgi.com>
+Message-Id: <20070820215316.762304882@sgi.com>
 References: <20070820215040.937296148@sgi.com>
-Date: Mon, 20 Aug 2007 14:50:46 -0700
+Date: Mon, 20 Aug 2007 14:50:44 -0700
 From: Christoph Lameter <clameter@sgi.com>
-Subject: [RFC 6/7] kswapd: Do laundry after reclaim
-Content-Disposition: inline; filename=kswapd
+Subject: [RFC 4/7] Pass laundry through shrink_inactive_list() and shrink_zone()
+Content-Disposition: inline; filename=shrink_zones
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: linux-mm@kvack.org
 Cc: linux-kernel@vger.kernel.org, akpm@linux-foundation.org, dkegel@google.com, Peter Zijlstra <a.p.zijlstra@chello.nl>, David Miller <davem@davemloft.net>, Nick Piggin <npiggin@suse.de>
 List-ID: <linux-mm.kvack.org>
 
-Collect dirty pages and perform writeout when everything else is done.
+Both functions are equipped with an additional laundry parameter
+that is then passed to shrink_page_list.
 
 Signed-off-by: Christoph Lameter <clameter@sgi.com>
 
 ---
- mm/vmscan.c |    7 +++++--
- 1 file changed, 5 insertions(+), 2 deletions(-)
+ mm/vmscan.c |   16 ++++++++--------
+ 1 file changed, 8 insertions(+), 8 deletions(-)
 
 Index: linux-2.6/mm/vmscan.c
 ===================================================================
---- linux-2.6.orig/mm/vmscan.c	2007-08-19 23:53:43.000000000 -0700
-+++ linux-2.6/mm/vmscan.c	2007-08-19 23:53:47.000000000 -0700
-@@ -1273,6 +1273,7 @@ static unsigned long balance_pgdat(pg_da
- 	 * this zone was successfully refilled to free_pages == pages_high.
- 	 */
- 	int temp_priority[MAX_NR_ZONES];
-+	LIST_HEAD(laundry);
+--- linux-2.6.orig/mm/vmscan.c	2007-08-19 23:27:16.000000000 -0700
++++ linux-2.6/mm/vmscan.c	2007-08-19 23:30:15.000000000 -0700
+@@ -802,7 +802,7 @@ static unsigned long clear_active_flags(
+  * of reclaimed pages
+  */
+ static unsigned long shrink_inactive_list(unsigned long max_scan,
+-				struct zone *zone, struct scan_control *sc)
++	struct zone *zone, struct scan_control *sc, struct list_head *laundry)
+ {
+ 	LIST_HEAD(page_list);
+ 	unsigned long nr_scanned = 0;
+@@ -830,7 +830,7 @@ static unsigned long shrink_inactive_lis
+ 		spin_unlock_irq(&zone->lru_lock);
  
- loop_again:
- 	total_scanned = 0;
-@@ -1347,7 +1348,7 @@ loop_again:
+ 		nr_scanned += nr_scan;
+-		nr_freed = shrink_page_list(&page_list, sc, NULL);
++		nr_freed = shrink_page_list(&page_list, sc, laundry);
+ 		nr_reclaimed += nr_freed;
+ 		local_irq_disable();
+ 		if (current_is_kswapd()) {
+@@ -1030,7 +1030,7 @@ force_reclaim_mapped:
+  * This is a basic per-zone page freer.  Used by both kswapd and direct reclaim.
+  */
+ static unsigned long shrink_zone(int priority, struct zone *zone,
+-				struct scan_control *sc)
++			struct scan_control *sc, struct list_head *laundry)
+ {
+ 	unsigned long nr_active;
+ 	unsigned long nr_inactive;
+@@ -1072,7 +1072,7 @@ static unsigned long shrink_zone(int pri
+ 					(unsigned long)sc->swap_cluster_max);
+ 			nr_inactive -= nr_to_scan;
+ 			nr_reclaimed += shrink_inactive_list(nr_to_scan, zone,
+-								sc);
++								sc, laundry);
+ 		}
+ 	}
+ 
+@@ -1121,7 +1121,7 @@ static unsigned long shrink_zones(int pr
+ 
+ 		sc->all_unreclaimable = 0;
+ 
+-		nr_reclaimed += shrink_zone(priority, zone, sc);
++		nr_reclaimed += shrink_zone(priority, zone, sc, NULL);
+ 	}
+ 	return nr_reclaimed;
+ }
+@@ -1341,7 +1341,7 @@ loop_again:
  			temp_priority[i] = priority;
  			sc.nr_scanned = 0;
  			note_zone_scanning_priority(zone, priority);
--			nr_reclaimed += shrink_zone(priority, zone, &sc, NULL);
-+			nr_reclaimed += shrink_zone(priority, zone, &sc, &laundry);
+-			nr_reclaimed += shrink_zone(priority, zone, &sc);
++			nr_reclaimed += shrink_zone(priority, zone, &sc, NULL);
  			reclaim_state->reclaimed_slab = 0;
  			nr_slab = shrink_slab(sc.nr_scanned, GFP_KERNEL,
  						lru_pages);
-@@ -1374,6 +1375,7 @@ loop_again:
- 		 * OK, kswapd is getting into trouble.  Take a nap, then take
- 		 * another pass across the zones.
- 		 */
-+		throttle_vm_writeout(GFP_KERNEL);
- 		if (total_scanned && priority < DEF_PRIORITY - 2)
- 			congestion_wait(WRITE, HZ/10);
- 
-@@ -1404,7 +1406,8 @@ out:
- 
- 		goto loop_again;
+@@ -1539,7 +1539,7 @@ static unsigned long shrink_all_zones(un
+ 			zone->nr_scan_inactive = 0;
+ 			nr_to_scan = min(nr_pages,
+ 				zone_page_state(zone, NR_INACTIVE));
+-			ret += shrink_inactive_list(nr_to_scan, zone, sc);
++			ret += shrink_inactive_list(nr_to_scan, zone, sc, NULL);
+ 			if (ret >= nr_pages)
+ 				return ret;
+ 		}
+@@ -1780,7 +1780,7 @@ static int __zone_reclaim(struct zone *z
+ 		priority = ZONE_RECLAIM_PRIORITY;
+ 		do {
+ 			note_zone_scanning_priority(zone, priority);
+-			nr_reclaimed += shrink_zone(priority, zone, &sc);
++			nr_reclaimed += shrink_zone(priority, zone, &sc, NULL);
+ 			priority--;
+ 		} while (priority >= 0 && nr_reclaimed < nr_pages);
  	}
--
-+	nr_reclaimed += shrink_page_list(&laundry, &sc, NULL);
-+	release_lru_pages(&laundry);
- 	return nr_reclaimed;
- }
- 
 
 -- 
 
