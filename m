@@ -1,35 +1,41 @@
-Date: Mon, 20 Aug 2007 11:57:55 -0700 (PDT)
+Date: Mon, 20 Aug 2007 12:00:49 -0700 (PDT)
 From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [PATCH 5/5] mm/... convert #include "linux/..." to #include
- <linux/...>
-In-Reply-To: <1187635766.5963.3.camel@localhost>
-Message-ID: <Pine.LNX.4.64.0708201157320.28863@schroedinger.engr.sgi.com>
-References: <1187561983.4200.145.camel@localhost>
- <Pine.LNX.4.64.0708201106230.25248@schroedinger.engr.sgi.com>
- <1187635766.5963.3.camel@localhost>
+Subject: Re: [RFC 2/9] Use NOMEMALLOC reclaim to allow reclaim if PF_MEMALLOC
+ is set
+In-Reply-To: <20070818071035.GA4667@ucw.cz>
+Message-ID: <Pine.LNX.4.64.0708201158270.28863@schroedinger.engr.sgi.com>
+References: <20070814153021.446917377@sgi.com> <20070814153501.305923060@sgi.com>
+ <20070818071035.GA4667@ucw.cz>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Joe Perches <joe@perches.com>
-Cc: kernel-janitors@vger.kernel.org, linux-kernel@vger.kernel.org, Eric Dumazet <dada1@cosmosbay.com>, Pekka Enberg <penberg@cs.helsinki.fi>, linux-mm@kvack.org
+To: Pavel Machek <pavel@ucw.cz>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, dkegel@google.com, Peter Zijlstra <a.p.zijlstra@chello.nl>, David Miller <davem@davemloft.net>, Nick Piggin <npiggin@suse.de>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 20 Aug 2007, Joe Perches wrote:
+On Sat, 18 Aug 2007, Pavel Machek wrote:
 
-> Maybe.  I think it's just a simple error.
+> > The reclaim is of particular important to stacked filesystems that may
+> > do a lot of allocations in the write path. Reclaim will be working
+> > as long as there are clean file backed pages to reclaim.
 > 
-> mm/slab.c has 2 other includes of
+> I don't get it. Lets say that we have stacked filesystem that needs
+> it. That filesystem is broken today.
 > 
-> 	#include <linux/kmalloc_sizes.h>
-> 
-> cheers, Joe
+> Now you give it second chance by reclaiming clean pages, but there are
+> no guarantees that we have any.... so that filesystem is still broken
+> with your patch...?
 
-Ahh. ok.
+There is a guarantee that we have some because the user space program is 
+executing. Meaning the executable pages can be retrieved. The amount 
+dirty memory in the system is limited by the dirty_ratio. So the VM can 
+only get into trouble if there is a sufficient amount of anonymous pages 
+and all executables have been reclaimed. That is pretty rare.
 
-Then
-
-Acked-by: Christoph Lameter <clameter@sgi.com>
+Plus the same issue can happen today. Writes are usually not completed 
+during reclaim. If the writes are sufficiently deferred then you have the 
+same issue now.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
