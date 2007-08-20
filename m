@@ -1,36 +1,43 @@
-Date: Mon, 20 Aug 2007 11:06:48 -0700 (PDT)
-From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [PATCH 5/5] mm/... convert #include "linux/..." to #include
- <linux/...>
-In-Reply-To: <1187561983.4200.145.camel@localhost>
-Message-ID: <Pine.LNX.4.64.0708201106230.25248@schroedinger.engr.sgi.com>
-References: <1187561983.4200.145.camel@localhost>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Date: Mon, 20 Aug 2007 11:25:38 -0700
+From: Paul Jackson <pj@sgi.com>
+Subject: Re: cpusets vs. mempolicy and how to get interleaving
+Message-Id: <20070820112538.42337443.pj@sgi.com>
+In-Reply-To: <alpine.DEB.0.99.0708200104340.4218@chino.kir.corp.google.com>
+References: <46C63BDE.20602@google.com>
+	<46C63D5D.3020107@google.com>
+	<alpine.DEB.0.99.0708190304510.7613@chino.kir.corp.google.com>
+	<46C8E604.8040101@google.com>
+	<20070819193431.dce5d4cf.pj@sgi.com>
+	<46C92AF4.20607@google.com>
+	<20070819225320.6562fbd1.pj@sgi.com>
+	<alpine.DEB.0.99.0708200104340.4218@chino.kir.corp.google.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Joe Perches <joe@perches.com>
-Cc: kernel-janitors@vger.kernel.org, linux-kernel@vger.kernel.org, Eric Dumazet <dada1@cosmosbay.com>, Pekka Enberg <penberg@cs.helsinki.fi>, linux-mm@kvack.org
+To: David Rientjes <rientjes@google.com>
+Cc: solo@google.com, clameter@sgi.com, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Sun, 19 Aug 2007, Joe Perches wrote:
+David wrote:
+> Like I've already said, there is absolutely no reason to add a new MPOL 
+> variant for this case.  As Christoph already mentioned, PF_SPREAD_PAGE 
+> gets similar results.  So just modify mpol_rebind_policy() so that if 
+> /dev/cpuset/<cpuset>/memory_spread_page is true, you rebind the 
+> interleaved nodemask to all nodes in the new nodemask.  That's the 
+> well-defined cpuset interface for getting an interleaved behavior already.
 
-> diff --git a/mm/slab.c b/mm/slab.c
-> index a684778..976aeff 100644
-> --- a/mm/slab.c
-> +++ b/mm/slab.c
-> @@ -334,7 +334,7 @@ static __always_inline int index_of(const size_t size)
->  		return i; \
->  	else \
->  		i++;
-> -#include "linux/kmalloc_sizes.h"
-> +#include <linux/kmalloc_sizes.h>
->  #undef CACHE
->  		__bad_size();
->  	} else
+Hmm ... nice.
 
-But I think this was done intentionally to point out that the file 
-includes is *not* a regular include file.
+As David likely guesses, I didn't read his earlier suggestion of this.
+
+Thanks for repeating it.
+
+-- 
+                  I won't rest till it's the best ...
+                  Programmer, Linux Scalability
+                  Paul Jackson <pj@sgi.com> 1.925.600.0401
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
