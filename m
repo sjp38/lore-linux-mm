@@ -1,89 +1,62 @@
-Message-Id: <20070820215316.526397437@sgi.com>
+Message-Id: <20070820215317.202810753@sgi.com>
 References: <20070820215040.937296148@sgi.com>
-Date: Mon, 20 Aug 2007 14:50:43 -0700
+Date: Mon, 20 Aug 2007 14:50:46 -0700
 From: Christoph Lameter <clameter@sgi.com>
-Subject: [RFC 3/7] shrink_page_list: Support isolating dirty pages on laundry list
-Content-Disposition: inline; filename=shrink_modes
+Subject: [RFC 6/7] kswapd: Do laundry after reclaim
+Content-Disposition: inline; filename=kswapd
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: linux-mm@kvack.org
 Cc: linux-kernel@vger.kernel.org, akpm@linux-foundation.org, dkegel@google.com, Peter Zijlstra <a.p.zijlstra@chello.nl>, David Miller <davem@davemloft.net>, Nick Piggin <npiggin@suse.de>
 List-ID: <linux-mm.kvack.org>
 
-If a laundry list is specified then do not write out pages but put
-dirty pages on a laundry list for later processing.
+Collect dirty pages and perform writeout when everything else is done.
 
 Signed-off-by: Christoph Lameter <clameter@sgi.com>
 
 ---
- mm/vmscan.c |   23 ++++++++++++++++++-----
- 1 file changed, 18 insertions(+), 5 deletions(-)
+ mm/vmscan.c |    7 +++++--
+ 1 file changed, 5 insertions(+), 2 deletions(-)
 
 Index: linux-2.6/mm/vmscan.c
 ===================================================================
---- linux-2.6.orig/mm/vmscan.c	2007-08-19 23:13:28.000000000 -0700
-+++ linux-2.6/mm/vmscan.c	2007-08-19 23:27:00.000000000 -0700
-@@ -380,16 +380,22 @@ cannot_free:
+--- linux-2.6.orig/mm/vmscan.c	2007-08-19 23:53:43.000000000 -0700
++++ linux-2.6/mm/vmscan.c	2007-08-19 23:53:47.000000000 -0700
+@@ -1273,6 +1273,7 @@ static unsigned long balance_pgdat(pg_da
+ 	 * this zone was successfully refilled to free_pages == pages_high.
+ 	 */
+ 	int temp_priority[MAX_NR_ZONES];
++	LIST_HEAD(laundry);
+ 
+ loop_again:
+ 	total_scanned = 0;
+@@ -1347,7 +1348,7 @@ loop_again:
+ 			temp_priority[i] = priority;
+ 			sc.nr_scanned = 0;
+ 			note_zone_scanning_priority(zone, priority);
+-			nr_reclaimed += shrink_zone(priority, zone, &sc, NULL);
++			nr_reclaimed += shrink_zone(priority, zone, &sc, &laundry);
+ 			reclaim_state->reclaimed_slab = 0;
+ 			nr_slab = shrink_slab(sc.nr_scanned, GFP_KERNEL,
+ 						lru_pages);
+@@ -1374,6 +1375,7 @@ loop_again:
+ 		 * OK, kswapd is getting into trouble.  Take a nap, then take
+ 		 * another pass across the zones.
+ 		 */
++		throttle_vm_writeout(GFP_KERNEL);
+ 		if (total_scanned && priority < DEF_PRIORITY - 2)
+ 			congestion_wait(WRITE, HZ/10);
+ 
+@@ -1404,7 +1406,8 @@ out:
+ 
+ 		goto loop_again;
+ 	}
+-
++	nr_reclaimed += shrink_page_list(&laundry, &sc, NULL);
++	release_lru_pages(&laundry);
+ 	return nr_reclaimed;
  }
  
- /*
-- * shrink_page_list() returns the number of reclaimed pages
-+ * shrink_page_list() returns the number of reclaimed pages.
-+ *
-+ * If laundry is specified then dirty pages are put onto the
-+ * laundry list and no writes are triggered.
-  */
- static unsigned long shrink_page_list(struct list_head *page_list,
--					struct scan_control *sc)
-+		struct scan_control *sc, struct list_head *laundry)
- {
- 	LIST_HEAD(ret_pages);
- 	struct pagevec freed_pvec;
- 	int pgactivate = 0;
- 	unsigned long nr_reclaimed = 0;
- 
-+	if (list_empty(page_list))
-+		return 0;
-+
- 	cond_resched();
- 
- 	pagevec_init(&freed_pvec, 1);
-@@ -407,10 +413,11 @@ static unsigned long shrink_page_list(st
- 		if (TestSetPageLocked(page))
- 			goto keep;
- 
--		VM_BUG_ON(PageActive(page));
--
- 		sc->nr_scanned++;
- 
-+		if (PageActive(page))
-+			goto keep_locked;
-+
- 		if (!sc->may_swap && page_mapped(page))
- 			goto keep_locked;
- 
-@@ -506,6 +513,12 @@ static unsigned long shrink_page_list(st
- 			if (!may_write_to_queue(mapping->backing_dev_info))
- 				goto keep_locked;
- 
-+			if (laundry) {
-+				list_add(&page->lru, laundry);
-+				unlock_page(page);
-+				continue;
-+			}
-+
- 			/* Page is dirty, try to write it out here */
- 			switch(pageout(page, mapping)) {
- 			case PAGE_ACTIVATE:
-@@ -817,7 +830,7 @@ static unsigned long shrink_inactive_lis
- 		spin_unlock_irq(&zone->lru_lock);
- 
- 		nr_scanned += nr_scan;
--		nr_freed = shrink_page_list(&page_list, sc);
-+		nr_freed = shrink_page_list(&page_list, sc, NULL);
- 		nr_reclaimed += nr_freed;
- 		local_irq_disable();
- 		if (current_is_kswapd()) {
 
 -- 
 
