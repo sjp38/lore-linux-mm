@@ -1,46 +1,53 @@
-Date: Mon, 20 Aug 2007 12:15:01 -0700 (PDT)
+Date: Mon, 20 Aug 2007 12:26:09 -0700 (PDT)
 From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [RFC 0/3] Recursive reclaim (on __PF_MEMALLOC)
-In-Reply-To: <1187581894.6114.169.camel@twins>
-Message-ID: <Pine.LNX.4.64.0708201210440.29092@schroedinger.engr.sgi.com>
-References: <20070814142103.204771292@sgi.com>  <20070815122253.GA15268@wotan.suse.de>
- <1187183526.6114.45.camel@twins>  <20070816032921.GA32197@wotan.suse.de>
- <1187581894.6114.169.camel@twins>
+Subject: Re: [PATCH 04/10] mm: slub: add knowledge of reserve pages
+In-Reply-To: <84144f020708200228v1af5248cx6f6da4a7a35400f3@mail.gmail.com>
+Message-ID: <Pine.LNX.4.64.0708201220500.29092@schroedinger.engr.sgi.com>
+References: <20070806102922.907530000@chello.nl>  <20070806103658.603735000@chello.nl>
+ <1187595513.6114.176.camel@twins>  <Pine.LNX.4.64.0708201211240.20591@sbz-30.cs.Helsinki.FI>
+  <1187601455.6114.189.camel@twins> <84144f020708200228v1af5248cx6f6da4a7a35400f3@mail.gmail.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Cc: Nick Piggin <npiggin@suse.de>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, dkegel@google.com, David Miller <davem@davemloft.net>, Daniel Phillips <phillips@google.com>
+To: Pekka Enberg <penberg@cs.helsinki.fi>
+Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, David Miller <davem@davemloft.net>, Andrew Morton <akpm@linux-foundation.org>, Daniel Phillips <phillips@google.com>, Matt Mackall <mpm@selenic.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Steve Dickson <SteveD@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 20 Aug 2007, Peter Zijlstra wrote:
+On Mon, 20 Aug 2007, Pekka Enberg wrote:
 
-> > > <> What Christoph is proposing is doing recursive reclaim and not
-> > > initiating writeout. This will only work _IFF_ there are clean pages
-> > > about. Which in the general case need not be true (memory might be
-> > > packed with anonymous pages - consider an MPI cluster doing computation
-> > > stuff). So this gets us a workload dependant solution - which IMHO is
-> > > bad!
-> > 
-> > Although you will quite likely have at least a couple of MB worth of
-> > clean program text. The important part of recursive reclaim is that it
-> > doesn't so easily allow reclaim to blow all memory reserves (including
-> > interrupt context). Sure you still have theoretical deadlocks, but if
-> > I understand correctly, they are going to be lessened. I would be
-> > really interested to see if even just these recursive reclaim patches
-> > eliminate the problem in practice.
+> Hi Peter,
 > 
-> were we much bothered by the buffered write deadlock? - why accept a
-> known deadlock if a solid solution is quite attainable?
+> On Mon, 2007-08-20 at 12:12 +0300, Pekka J Enberg wrote:
+> > > Any reason why the callers that are actually interested in this don't do
+> > > page->reserve on their own?
+> 
+> On 8/20/07, Peter Zijlstra <a.p.zijlstra@chello.nl> wrote:
+> > because new_slab() destroys the content?
+> 
+> Right. So maybe we could move the initialization parts of new_slab()
+> to __new_slab() so that the callers that are actually interested in
+> 'reserve' could do allocate_slab(), store page->reserve and do rest of
+> the initialization with it?
 
-Buffered write deadlock? How does that exactly occur? Memory allocation in 
-the writeout path while we hold locks?
+I am still not convinced about this approach and there seems to be 
+agreement that this is not working on large NUMA. So #ifdef it out? 
+!CONFIG_NUMA? Some more general approach that does not rely on a single 
+slab being a reserve?
 
-There are many worst case scenarios in the current reclaim implementation 
-that are not addressed and we so far have not addressed these because the 
-code is very sensitive and it is not clear that the complexity introduced 
-by these changes is offset by the benefits gained.
+The object is to check the alloc flags when having allocated a reserve 
+slab right? Adding another flag SlabReserve and keying off on that one may 
+be the easiest solution.
+
+I have pending patches here that add per cpu structures. Those will make 
+that job easier.
+
+> As for the __GFP_WAIT handling, I *think* we can move the interrupt
+> enable/disable to allocate_slab()... Christoph?
+
+The reason the enable/disable is in new_slab is to minimize interrupt 
+holdoff time. If we move it to allocate slab then the slab preparation is 
+done with interrupts disabled.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
