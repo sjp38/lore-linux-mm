@@ -1,58 +1,40 @@
-Date: Tue, 21 Aug 2007 16:27:10 -0500
-From: Matt Mackall <mpm@selenic.com>
-Subject: Re: [RFC][PATCH 6/9] pagemap: give -1's a name
-Message-ID: <20070821212710.GK30556@waste.org>
-References: <20070821204248.0F506A29@kernel> <20070821204254.E248E22C@kernel>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20070821204254.E248E22C@kernel>
+Received: from d01relay04.pok.ibm.com (d01relay04.pok.ibm.com [9.56.227.236])
+	by e3.ny.us.ibm.com (8.13.8/8.13.8) with ESMTP id l7LLQnev008056
+	for <linux-mm@kvack.org>; Tue, 21 Aug 2007 17:26:49 -0400
+Received: from d01av02.pok.ibm.com (d01av02.pok.ibm.com [9.56.224.216])
+	by d01relay04.pok.ibm.com (8.13.8/8.13.8/NCO v8.5) with ESMTP id l7LLQnR6433074
+	for <linux-mm@kvack.org>; Tue, 21 Aug 2007 17:26:49 -0400
+Received: from d01av02.pok.ibm.com (loopback [127.0.0.1])
+	by d01av02.pok.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l7LLQmsc012069
+	for <linux-mm@kvack.org>; Tue, 21 Aug 2007 17:26:48 -0400
+Subject: Re: [RFC][PATCH 1/9] /proc/pid/pagemap update
+From: Dave Hansen <haveblue@us.ibm.com>
+In-Reply-To: <20070821212357.GG30556@waste.org>
+References: <20070821204248.0F506A29@kernel>
+	 <20070821212357.GG30556@waste.org>
+Content-Type: text/plain
+Date: Tue, 21 Aug 2007 14:26:43 -0700
+Message-Id: <1187731603.16177.82.camel@localhost>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Dave Hansen <haveblue@us.ibm.com>
+To: Matt Mackall <mpm@selenic.com>
 Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Aug 21, 2007 at 01:42:54PM -0700, Dave Hansen wrote:
+On Tue, 2007-08-21 at 16:23 -0500, Matt Mackall wrote:
 > 
-> -1 is a magic number in /proc/$pid/pagemap.  It means that
-> there was no pte present for a particular page.  We're
-> going to be refining that a bit shortly, so give this a
-> real name for now.
+> > Matt, if you're OK with these, do you mind if I send
+> > the update into -mm, or would you like to do it?
 > 
-> Signed-off-by: Dave Hansen <haveblue@us.ibm.com>
+> Hmmm, is the below working for you? I was having trouble with it. 
 
-Acked-by: Matt Mackall <mpm@selenic.com>
+I think that was just a patch you sent as your work-in-progress a couple
+of weeks ago.  Either I messed it up when merging, or it never compiled.
+The subsequent patches make it work again.
 
-> ---
-> 
->  lxc-dave/fs/proc/task_mmu.c |    3 ++-
->  1 file changed, 2 insertions(+), 1 deletion(-)
-> 
-> diff -puN fs/proc/task_mmu.c~give_-1s_a_name fs/proc/task_mmu.c
-> --- lxc/fs/proc/task_mmu.c~give_-1s_a_name	2007-08-21 13:30:53.000000000 -0700
-> +++ lxc-dave/fs/proc/task_mmu.c	2007-08-21 13:30:53.000000000 -0700
-> @@ -509,6 +509,7 @@ struct pagemapread {
->  };
->  
->  #define PM_ENTRY_BYTES sizeof(unsigned long)
-> +#define PM_NOT_PRESENT ((unsigned long)-1)
->  
->  static int add_to_pagemap(unsigned long addr, unsigned long pfn,
->  			  struct pagemapread *pm)
-> @@ -533,7 +534,7 @@ static int pagemap_pte_range(pmd_t *pmd,
->  		if (addr < pm->next)
->  			continue;
->  		if (!pte_present(*pte))
-> -			err = add_to_pagemap(addr, -1, pm);
-> +			err = add_to_pagemap(addr, PM_NOT_PRESENT, pm);
->  		else
->  			err = add_to_pagemap(addr, pte_pfn(*pte), pm);
->  		if (err)
-> _
-
--- 
-Mathematics is the supreme nostalgia of our time.
+-- Dave
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
