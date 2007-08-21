@@ -1,31 +1,60 @@
-Date: Tue, 21 Aug 2007 03:13:13 +0200
-From: Andi Kleen <andi@firstfloor.org>
-Subject: Re: [RFC 7/7] Switch of PF_MEMALLOC during writeout
-Message-ID: <20070821011313.GA23935@one.firstfloor.org>
-References: <20070820215040.937296148@sgi.com> <20070820215317.441134723@sgi.com> <p73ps1hztwp.fsf@bingen.suse.de> <Pine.LNX.4.64.0708201618060.32662@schroedinger.engr.sgi.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <Pine.LNX.4.64.0708201618060.32662@schroedinger.engr.sgi.com>
+Date: Tue, 21 Aug 2007 10:23:30 +0900
+From: Yasunori Goto <y-goto@jp.fujitsu.com>
+Subject: Re: [Patch](memory hotplug) Hot-add with sparsemem-vmemmap
+In-Reply-To: <Pine.LNX.4.64.0708201154280.28863@schroedinger.engr.sgi.com>
+References: <20070817155908.7D91.Y-GOTO@jp.fujitsu.com> <Pine.LNX.4.64.0708201154280.28863@schroedinger.engr.sgi.com>
+Message-Id: <20070821093414.AE00.Y-GOTO@jp.fujitsu.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset="US-ASCII"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Christoph Lameter <clameter@sgi.com>
-Cc: Andi Kleen <andi@firstfloor.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: Andy Whitcroft <apw@shadowen.org>, Andrew Morton <akpm@osdl.org>, Mel Gorman <mel@csn.ul.ie>, linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-> Right. I am not sure exactly how to handle that. There is also the issue 
-> of the writes being deferred. I thought maybe of using pdflush to writeout 
-> the pages? Maybe increase priority of the pdflush so that it runs 
-> immediately when notified. Shrink_page_list would gather the dirty pages 
-> in pvecs and then forward to a pdflush. That may make the whole thing much 
-> cleaner.
+> On Fri, 17 Aug 2007, Yasunori Goto wrote:
+> 
+> > Todo: # Even if this patch is applied, the message "[xxxx-xxxx] potential
+> >         offnode page_structs" is displayed. To allocate memmap on its node,
+> >         memmap (and pgdat) must be initialized itself like chicken and
+> >         egg relationship.
+> 
+> Hmmmm.... You need to create something like the bootmem allocator?
 
-Not sure anything complicated is needed.
+Right. I suppose it may be better.
 
-You could just add another process flag and set PF_MEMALLOC on the first
-recursion?
+> 
+> Or relocate the memory map later.
 
--Andi
+I suppose relocation will be messy way.....
+
+> 
+> Or just add a small piece of memory first so that only one memmap block is 
+> placed off line?
+
+I'm not sure what you mean about "add small piece".
+Do you mean reservation for memmap/pgdat block first?
+Then this is second choice.
+
+Even if either is chosen, kernel must remember memmap's place until
+unplug. I'll try easier way.
+
+>  
+> >       # vmemmap_unpopulate will be necessary for followings.
+> >          - For cancel hot-add due to error.
+> >          - For unplug.
+> > 
+> > Please comment.
+> 
+> Looks fine to me.
+
+Thanks :-)
+
+
+-- 
+Yasunori Goto 
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
