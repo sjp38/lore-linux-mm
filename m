@@ -1,281 +1,112 @@
-Date: Tue, 21 Aug 2007 17:07:24 -0500
-From: Matt Mackall <mpm@selenic.com>
-Subject: Re: [RFC][PATCH 1/9] /proc/pid/pagemap update
-Message-ID: <20070821220723.GN30556@waste.org>
-References: <20070821204248.0F506A29@kernel>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20070821204248.0F506A29@kernel>
+Subject: Re: [RFC 0/7] Postphone reclaim laundry to write at high water
+	marks
+From: Peter Zijlstra <peterz@infradead.org>
+In-Reply-To: <Pine.LNX.4.64.0708211418120.3267@schroedinger.engr.sgi.com>
+References: <20070820215040.937296148@sgi.com>
+	 <1187692586.6114.211.camel@twins>
+	 <Pine.LNX.4.64.0708211347480.3082@schroedinger.engr.sgi.com>
+	 <1187730812.5463.12.camel@lappy>
+	 <Pine.LNX.4.64.0708211418120.3267@schroedinger.engr.sgi.com>
+Content-Type: text/plain
+Date: Wed, 22 Aug 2007 00:09:03 +0200
+Message-Id: <1187734144.5463.35.camel@lappy>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Dave Hansen <haveblue@us.ibm.com>
-Cc: linux-mm@kvack.org
+To: Christoph Lameter <clameter@sgi.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Aug 21, 2007 at 01:42:48PM -0700, Dave Hansen wrote:
+On Tue, 2007-08-21 at 14:29 -0700, Christoph Lameter wrote:
+> On Tue, 21 Aug 2007, Peter Zijlstra wrote:
 > 
-> This is a series of patches to update /proc/pid/pagemap,
-> to simplify the code, and fix bugs which caused userspace
-> memory corruption.
+> > It quickly ends up with all of memory in the laundry list and then
+> > recursing into __alloc_pages which will fail to make progress and OOMs.
 > 
-> Since it is just in -mm, we should probably roll all of
-> these together and just update it all at once, or send
-> a simple drop-on replacement patch.  These patches are
-> all here mostly to help with review.
+> Hmmmm... Okay that needs to be addressed. Reserves need to be used and we 
+> only should enter reclaim if that runs out (like the first patch that I 
+> did).
 > 
-> Matt, if you're OK with these, do you mind if I send
-> the update into -mm, or would you like to do it?
+> > But aside from the numerous issues with the patch set as presented, I'm
+> > not seeing the seeing the big picture, why are you doing this.
+> 
+> I want general improvements to reclaim to address the issues that you see 
+> and other issues related to reclaim instead of the strange code that makes 
+> PF_MEMALLOC allocs compete for allocations from a single slab and putting 
+> logic into the kernel to decide which allocs to fail. We can reclaim after 
+> all. Its just a matter of finding the right way to do this. 
 
-I suppose I'll give this a spin tomorrow along with some other bits I
-have pending and push it to Andrew..
+The latest patch I posted got rid of that global slab.
 
-> --
-> From: Matt Mackall <mpm@selenic.com>
-> 
-> On Mon, Aug 06, 2007 at 01:44:19AM -0500, Dave Boutcher wrote:
-> > 
-> > Matt, this patch set replaces the two patches I sent earlier and
-> > contains additional fixes.  I've done some reasonably rigorous testing
-> > on x86_64, but not on a 32 bit arch.  I'm pretty sure this isn't worse
-> > than what's in mm right now, which has some user-space corruption and
-> > a nasty infinite kernel loop. YMMV.
-> 
-> Dave, here's my current work-in-progress patch to deal with a couple
-> locking issues, primarily a possible deadlock on the mm semaphore that
-> can occur if someone unmaps the target buffer while we're walking the
-> tree. It currently hangs on my box and I haven't had any free cycles
-> to finish debugging it, but you might want to take a peek at it.
-> 
-> Signed-off-by: Dave Hansen <haveblue@us.ibm.com>
-> ---
-> 
->  lxc-dave/fs/proc/task_mmu.c |  121 ++++++++++++++++++++------------------------
->  1 file changed, 55 insertions(+), 66 deletions(-)
-> 
-> diff -puN fs/proc/task_mmu.c~Re-_PATCH_0_3_proc_pid_pagemap_fixes fs/proc/task_mmu.c
-> --- lxc/fs/proc/task_mmu.c~Re-_PATCH_0_3_proc_pid_pagemap_fixes	2007-08-21 13:30:50.000000000 -0700
-> +++ lxc-dave/fs/proc/task_mmu.c	2007-08-21 13:30:50.000000000 -0700
-> @@ -501,37 +501,21 @@ const struct file_operations proc_clear_
->  };
->  
->  struct pagemapread {
-> -	struct mm_struct *mm;
->  	unsigned long next;
-> -	unsigned long *buf;
-> -	pte_t *ptebuf;
->  	unsigned long pos;
->  	size_t count;
->  	int index;
-> -	char __user *out;
-> +	unsigned long __user *out;
->  };
->  
-> -static int flush_pagemap(struct pagemapread *pm)
-> -{
-> -	int n = min(pm->count, pm->index * sizeof(unsigned long));
-> -	if (copy_to_user(pm->out, pm->buf, n))
-> -		return -EFAULT;
-> -	pm->out += n;
-> -	pm->pos += n;
-> -	pm->count -= n;
-> -	pm->index = 0;
-> -	cond_resched();
-> -	return 0;
-> -}
-> -
->  static int add_to_pagemap(unsigned long addr, unsigned long pfn,
->  			  struct pagemapread *pm)
->  {
-> -	pm->buf[pm->index++] = pfn;
-> +	__put_user(pfn, pm->out);
-> +	pm->out++;
-> +	pm->pos += sizeof(unsigned long);
-> +	pm->count -= sizeof(unsigned long);
->  	pm->next = addr + PAGE_SIZE;
-> -	if (pm->index * sizeof(unsigned long) >= PAGE_SIZE ||
-> -	    pm->index * sizeof(unsigned long) >= pm->count)
-> -		return flush_pagemap(pm);
->  	return 0;
->  }
->  
-> @@ -543,14 +527,6 @@ static int pagemap_pte_range(pmd_t *pmd,
->  	int err;
->  
->  	pte = pte_offset_map(pmd, addr);
-> -
-> -#ifdef CONFIG_HIGHPTE
-> -	/* copy PTE directory to temporary buffer and unmap it */
-> -	memcpy(pm->ptebuf, pte, PAGE_ALIGN((unsigned long)pte) - (unsigned long)pte);
-> -	pte_unmap(pte);
-> -	pte = pm->ptebuf;
-> -#endif
-> -
->  	for (; addr != end; pte++, addr += PAGE_SIZE) {
->  		if (addr < pm->next)
->  			continue;
-> @@ -560,11 +536,12 @@ static int pagemap_pte_range(pmd_t *pmd,
->  			err = add_to_pagemap(addr, pte_pfn(*pte), pm);
->  		if (err)
->  			return err;
-> +		if (pm->count == 0)
-> +			break;
->  	}
-> -
-> -#ifndef CONFIG_HIGHPTE
->  	pte_unmap(pte - 1);
-> -#endif
-> +
-> +	cond_resched();
->  
->  	return 0;
->  }
-> @@ -573,7 +550,7 @@ static int pagemap_fill(struct pagemapre
->  {
->  	int ret;
->  
-> -	while (pm->next != end) {
-> +	while (pm->next != end && pm->count > 0) {
->  		ret = add_to_pagemap(pm->next, -1UL, pm);
->  		if (ret)
->  			return ret;
-> @@ -608,15 +585,16 @@ static ssize_t pagemap_read(struct file 
->  {
->  	struct task_struct *task = get_proc_task(file->f_path.dentry->d_inode);
->  	unsigned long src = *ppos;
-> -	unsigned long *page;
-> -	unsigned long addr, end, vend, svpfn, evpfn;
-> +	struct page **pages, *page;
-> +	unsigned long addr, end, vend, svpfn, evpfn, uaddr, uend;
->  	struct mm_struct *mm;
->  	struct vm_area_struct *vma;
->  	struct pagemapread pm;
-> +	int pagecount;
->  	int ret = -ESRCH;
->  
->  	if (!task)
-> -		goto out_no_task;
-> +		goto out;
->  
->  	ret = -EACCES;
->  	if (!ptrace_may_attach(task))
-> @@ -628,39 +606,43 @@ static ssize_t pagemap_read(struct file 
->  	if ((svpfn + 1) * sizeof(unsigned long) != src)
->  		goto out;
->  	evpfn = min((src + count) / sizeof(unsigned long) - 1,
-> -		    ((~0UL) >> PAGE_SHIFT) + 1);
-> +		    ((~0UL) >> PAGE_SHIFT) + 1) - 1;
->  	count = (evpfn - svpfn) * sizeof(unsigned long);
->  	end = PAGE_SIZE * evpfn;
-> -
-> -	ret = -ENOMEM;
-> -	page = kzalloc(PAGE_SIZE, GFP_USER);
-> -	if (!page)
-> -		goto out;
-> -
-> -#ifdef CONFIG_HIGHPTE
-> -	pm.ptebuf = kzalloc(PAGE_SIZE, GFP_USER);
-> -	if (!pm.ptebuf)
-> -		goto out_free;
-> -#endif
-> +	//printk("src %ld svpfn %d evpfn %d count %d\n", src, svpfn, evpfn, count);
->  
->  	ret = 0;
->  	mm = get_task_mm(task);
->  	if (!mm)
-> -		goto out_freepte;
-> +		goto out;
-> +
-> +	ret = -ENOMEM;
-> +	uaddr = (unsigned long)buf & ~(PAGE_SIZE-1);
-> +	uend = (unsigned long)(buf + count);
-> +	pagecount = (uend - uaddr + PAGE_SIZE-1) / PAGE_SIZE;
-> +	pages = kmalloc(pagecount * sizeof(struct page *), GFP_KERNEL);
-> +	if (!pages)
-> +		goto out_task;
-> +
-> +	down_read(&current->mm->mmap_sem);
-> +	ret = get_user_pages(current, current->mm, uaddr, pagecount,
-> +			     1, 0, pages, NULL);
-> +	up_read(&current->mm->mmap_sem);
-> +
-> +	//printk("%x(%x):%x %d@%ld (%d pages) -> %d\n", uaddr, buf, uend, count, src, pagecount, ret);
-> +	if (ret < 0)
-> +		goto out_free;
->  
-> -	pm.mm = mm;
->  	pm.next = addr;
-> -	pm.buf = page;
->  	pm.pos = src;
->  	pm.count = count;
-> -	pm.index = 0;
-> -	pm.out = buf;
-> +	pm.out = (unsigned long __user *)buf;
->  
->  	if (svpfn == -1) {
-> -		((char *)page)[0] = (ntohl(1) != 1);
-> -		((char *)page)[1] = PAGE_SHIFT;
-> -		((char *)page)[2] = sizeof(unsigned long);
-> -		((char *)page)[3] = sizeof(unsigned long);
-> +		put_user((char)(ntohl(1) != 1), buf);
-> +		put_user((char)PAGE_SHIFT, buf + 1);
-> +		put_user((char)sizeof(unsigned long), buf + 2);
-> +		put_user((char)sizeof(unsigned long), buf + 3);
->  		add_to_pagemap(pm.next, page[0], &pm);
->  	}
->  
-> @@ -669,7 +651,8 @@ static ssize_t pagemap_read(struct file 
->  	while (pm.count > 0 && vma) {
->  		if (!ptrace_may_attach(task)) {
->  			ret = -EIO;
-> -			goto out_mm;
-> +			up_read(&mm->mmap_sem);
-> +			goto out_release;
->  		}
->  		vend = min(vma->vm_end - 1, end - 1) + 1;
->  		ret = pagemap_fill(&pm, vend);
-> @@ -682,23 +665,29 @@ static ssize_t pagemap_read(struct file 
->  	}
->  	up_read(&mm->mmap_sem);
->  
-> +	//printk("before fill at %ld\n", pm.pos);
->  	ret = pagemap_fill(&pm, end);
->  
-> +	printk("after fill at %ld\n", pm.pos);
->  	*ppos = pm.pos;
->  	if (!ret)
->  		ret = pm.pos - src;
->  
-> -out_mm:
-> +out_release:
-> +	printk("releasing pages\n");
-> +	for (; pagecount; pagecount--) {
-> +		page = pages[pagecount-1];
-> +		if (!PageReserved(page))
-> +			SetPageDirty(page);
-> +		page_cache_release(page);
-> +	}
->  	mmput(mm);
-> -out_freepte:
-> -#ifdef CONFIG_HIGHPTE
-> -	kfree(pm.ptebuf);
->  out_free:
-> -#endif
-> -	kfree(page);
-> -out:
-> +	kfree(pages);
-> +out_task:
->  	put_task_struct(task);
-> -out_no_task:
-> +out:
-> +	printk("returning\n");
->  	return ret;
->  }
->  
-> _
+Also, all I want is for slab to honour gfp flags like page allocation
+does, nothing more, nothing less.
 
--- 
-Mathematics is the supreme nostalgia of our time.
+(well, actually slightly less, since I'm only really interrested in the
+ALLOC_MIN|ALLOC_HIGH|ALLOC_HARDER -> ALLOC_NO_WATERMARKS transition and
+not all higher ones)
+
+I want slab to fail when a similar page alloc would fail, no magic.
+
+Strictly speaking:
+
+if:
+
+ page = alloc_page(gfp);
+
+fails but:
+
+ obj = kmem_cache_alloc(s, gfp);
+
+succeeds then its a bug.
+
+But I'm not actually needing it that strict, just the ALLOC_NO_WATERMARK
+part needs to be done, ALLOC_HARDER, ALLOC_HIGH those may fudge a bit.
+
+> > Anonymous pages are a there to stay, and we cannot tell people how to
+> > use them. So we need some free or freeable pages in order to avoid the
+> > vm deadlock that arises from all memory dirty.
+> 
+> No one is trying to abolish Anonymous pages. Free memory is readily 
+> available on demand if one calls reclaim. Your scheme introduces complex 
+> negotiations over a few scraps of memory when large amounts of memory 
+> would still be readily available if one would do the right thing and call 
+> into reclaim.
+
+This is the thing I contend, there need not be large amounts of memory
+around. In my test prog the hot code path fits into a single page, the
+rest can be anonymous.
+
+> > 'Optimizing' this by switching to freeable pages has mainly
+> > disadvantages IMHO, finding them scrambles LRU order and complexifies
+> > relcaim and all that for a relatively small gain in space for clean
+> > pagecache pages.
+> 
+> Sounds like you would like to change the way we handle memory in general 
+> in the VM? Reclaim (and thus finding freeable pages) is basic to Linux 
+> memory management.
+
+Not quite, currently we have free pages in the reserves, if you want to
+replace some (or all) of that by freeable pages then that is a change.
+
+I'm just using the reserves.
+
+> > Please, stop writing patches and write down a solid proposal of how you
+> > envision the VM working in the various scenarios and why its better than
+> > the current approach.
+> 
+> Sorry I just got into this a short time ago and I may need a few cycles 
+> to get this all straight. An approach that uses memory instead of 
+> ignoring available memory is certainly better.
+
+Sure if and when possible. There will always be need to fall back to the
+reserves.
+
+A bit off-topic, re that reclaim from atomic context:
+Currently we try to hold spinlocks only for short periods of time so
+that reclaim can be preempted, if you run all of reclaim from a
+non-preemptible context you get very large preemption latencies and if
+done from int context it'd also generate large int latencies.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
