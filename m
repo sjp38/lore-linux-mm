@@ -1,112 +1,97 @@
-Subject: Re: [RFC 0/7] Postphone reclaim laundry to write at high water
-	marks
-From: Peter Zijlstra <peterz@infradead.org>
-In-Reply-To: <Pine.LNX.4.64.0708211418120.3267@schroedinger.engr.sgi.com>
-References: <20070820215040.937296148@sgi.com>
-	 <1187692586.6114.211.camel@twins>
-	 <Pine.LNX.4.64.0708211347480.3082@schroedinger.engr.sgi.com>
-	 <1187730812.5463.12.camel@lappy>
-	 <Pine.LNX.4.64.0708211418120.3267@schroedinger.engr.sgi.com>
+Received: from d01relay04.pok.ibm.com (d01relay04.pok.ibm.com [9.56.227.236])
+	by e2.ny.us.ibm.com (8.13.8/8.13.8) with ESMTP id l7LMQec4028992
+	for <linux-mm@kvack.org>; Tue, 21 Aug 2007 18:26:40 -0400
+Received: from d01av02.pok.ibm.com (d01av02.pok.ibm.com [9.56.224.216])
+	by d01relay04.pok.ibm.com (8.13.8/8.13.8/NCO v8.5) with ESMTP id l7LMQeT8489248
+	for <linux-mm@kvack.org>; Tue, 21 Aug 2007 18:26:40 -0400
+Received: from d01av02.pok.ibm.com (loopback [127.0.0.1])
+	by d01av02.pok.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l7LMQdY7012302
+	for <linux-mm@kvack.org>; Tue, 21 Aug 2007 18:26:40 -0400
+Subject: Re: [RFC][PATCH 9/9] pagemap: export swap ptes
+From: Dave Hansen <haveblue@us.ibm.com>
+In-Reply-To: <20070821214944.GL30556@waste.org>
+References: <20070821204248.0F506A29@kernel>
+	 <20070821204259.1F6E8A44@kernel>  <20070821214944.GL30556@waste.org>
 Content-Type: text/plain
-Date: Wed, 22 Aug 2007 00:09:03 +0200
-Message-Id: <1187734144.5463.35.camel@lappy>
+Date: Tue, 21 Aug 2007 15:26:38 -0700
+Message-Id: <1187735198.16177.117.camel@localhost>
 Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Matt Mackall <mpm@selenic.com>
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 2007-08-21 at 14:29 -0700, Christoph Lameter wrote:
-> On Tue, 21 Aug 2007, Peter Zijlstra wrote:
+On Tue, 2007-08-21 at 16:49 -0500, Matt Mackall wrote:
+> On Tue, Aug 21, 2007 at 01:42:59PM -0700, Dave Hansen wrote:
+> > 
+> > In addition to understanding which physical pages are
+> > used by a process, it would also be very nice to
+> > enumerate how much swap space a process is using.
+> > 
+> > This patch enables /proc/<pid>/pagemap to display
+> > swap ptes.  In the process, it also changes the
+> > constant that we used to indicate non-present ptes
+> > before.
 > 
-> > It quickly ends up with all of memory in the laundry list and then
-> > recursing into __alloc_pages which will fail to make progress and OOMs.
+> Nice. Can you update the doc comment on pagemap_read to match? 
+
+Sure.
+
+> > +unsigned long swap_pte_to_pagemap_entry(pte_t pte)
+> > +{
+> > +	unsigned long ret = 0;
 > 
-> Hmmmm... Okay that needs to be addressed. Reserves need to be used and we 
-> only should enter reclaim if that runs out (like the first patch that I 
-> did).
+> Unused assignment?
+
+Yep.  I'll kill that.
+
+> > +	swp_entry_t entry = pte_to_swp_entry(pte);
+> > +	unsigned long offset;
+> > +	unsigned long swap_file_nr;
+> > +
+> > +	offset = swp_offset(entry);
+> > +	swap_file_nr = swp_type(entry);
+> > +	ret = PM_SWAP | swap_file_nr | (offset << MAX_SWAPFILES_SHIFT);
+> > +	return ret;
 > 
-> > But aside from the numerous issues with the patch set as presented, I'm
-> > not seeing the seeing the big picture, why are you doing this.
+> How about just return <expression>?
+
+I had intended to put some debugging in there, but I'll take it out for
+now.
+
+> This is a little problematic as we've added another not very visible
+> magic number to the mix. We're also not masking off swp_offset to
+> avoid colliding with our reserved bits. And we're also unpacking an
+> arch-independent value (swp_entry_t) just to repack it in more or less
+> the same shape? Or are we reversing the fields?
+
+I did it that way because swp_entry_t is implemented as an opaque type,
+and we don't have any real guarantees that it will stay in its current
+format, or that it will truly _stay_ arch independent, or not change
+format.  All we know is that running swp_offset/type() on it will get us
+the offset and swap file.
+
+> >  static int pagemap_pte_range(pmd_t *pmd, unsigned long addr, unsigned long end,
+> >  			     void *private)
+> >  {
+> > @@ -549,7 +570,9 @@ static int pagemap_pte_range(pmd_t *pmd,
+> >  	pte = pte_offset_map(pmd, addr);
+> >  	for (; addr != end; pte++, addr += PAGE_SIZE) {
+> >  		unsigned long pfn = PM_NOT_PRESENT;
+> > -		if (pte_present(*pte))
+> > +		if (is_swap_pte(*pte))
 > 
-> I want general improvements to reclaim to address the issues that you see 
-> and other issues related to reclaim instead of the strange code that makes 
-> PF_MEMALLOC allocs compete for allocations from a single slab and putting 
-> logic into the kernel to decide which allocs to fail. We can reclaim after 
-> all. Its just a matter of finding the right way to do this. 
+> Hmm, unlikely?
 
-The latest patch I posted got rid of that global slab.
+I tend to reserve unlikely()s for performance critical regions of code
+or in other cases where I know the compiler is being really stupid.  I
+don't think this one is horribly performance critical.  This whole
+little section of code looks to me to be ~22 bytes on i386.  It'll fit
+in a cacheline. :)
 
-Also, all I want is for slab to honour gfp flags like page allocation
-does, nothing more, nothing less.
-
-(well, actually slightly less, since I'm only really interrested in the
-ALLOC_MIN|ALLOC_HIGH|ALLOC_HARDER -> ALLOC_NO_WATERMARKS transition and
-not all higher ones)
-
-I want slab to fail when a similar page alloc would fail, no magic.
-
-Strictly speaking:
-
-if:
-
- page = alloc_page(gfp);
-
-fails but:
-
- obj = kmem_cache_alloc(s, gfp);
-
-succeeds then its a bug.
-
-But I'm not actually needing it that strict, just the ALLOC_NO_WATERMARK
-part needs to be done, ALLOC_HARDER, ALLOC_HIGH those may fudge a bit.
-
-> > Anonymous pages are a there to stay, and we cannot tell people how to
-> > use them. So we need some free or freeable pages in order to avoid the
-> > vm deadlock that arises from all memory dirty.
-> 
-> No one is trying to abolish Anonymous pages. Free memory is readily 
-> available on demand if one calls reclaim. Your scheme introduces complex 
-> negotiations over a few scraps of memory when large amounts of memory 
-> would still be readily available if one would do the right thing and call 
-> into reclaim.
-
-This is the thing I contend, there need not be large amounts of memory
-around. In my test prog the hot code path fits into a single page, the
-rest can be anonymous.
-
-> > 'Optimizing' this by switching to freeable pages has mainly
-> > disadvantages IMHO, finding them scrambles LRU order and complexifies
-> > relcaim and all that for a relatively small gain in space for clean
-> > pagecache pages.
-> 
-> Sounds like you would like to change the way we handle memory in general 
-> in the VM? Reclaim (and thus finding freeable pages) is basic to Linux 
-> memory management.
-
-Not quite, currently we have free pages in the reserves, if you want to
-replace some (or all) of that by freeable pages then that is a change.
-
-I'm just using the reserves.
-
-> > Please, stop writing patches and write down a solid proposal of how you
-> > envision the VM working in the various scenarios and why its better than
-> > the current approach.
-> 
-> Sorry I just got into this a short time ago and I may need a few cycles 
-> to get this all straight. An approach that uses memory instead of 
-> ignoring available memory is certainly better.
-
-Sure if and when possible. There will always be need to fall back to the
-reserves.
-
-A bit off-topic, re that reclaim from atomic context:
-Currently we try to hold spinlocks only for short periods of time so
-that reclaim can be preempted, if you run all of reclaim from a
-non-preemptible context you get very large preemption latencies and if
-done from int context it'd also generate large int latencies.
+-- Dave
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
