@@ -1,45 +1,41 @@
-Subject: Re: get_mempolicy.2 man page patch
-From: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
-In-Reply-To: <20070818055026.265030@gmx.net>
-References: <1180467234.5067.52.camel@localhost>
-	 <Pine.LNX.4.64.0705291247001.26308@schroedinger.engr.sgi.com>
-	 <200705292216.31102.ak@suse.de> <1180541849.5850.30.camel@localhost>
-	 <20070531082016.19080@gmx.net> <1180732544.5278.158.camel@localhost>
-	 <46A44B98.8060807@gmx.net> <46AB0CDB.8090600@gmx.net>
-	 <20070816200520.GB16680@bingen.suse.de>  <20070818055026.265030@gmx.net>
-Content-Type: text/plain
-Date: Tue, 21 Aug 2007 11:45:47 -0400
-Message-Id: <1187711147.5066.13.camel@localhost>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+From: Dave McCracken <dave.mccracken@oracle.com>
+Subject: Re: [RFC 0/7] Postphone reclaim laundry to write at high water marks
+Date: Tue, 21 Aug 2007 10:51:35 -0500
+References: <20070820215040.937296148@sgi.com>
+In-Reply-To: <20070820215040.937296148@sgi.com>
+MIME-Version: 1.0
+Content-Type: text/plain;
+  charset="iso-8859-1"
+Content-Transfer-Encoding: 8BIT
+Content-Disposition: inline
+Message-Id: <200708211051.36569.dave.mccracken@oracle.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Michael Kerrisk <mtk-manpages@gmx.net>
-Cc: Andi Kleen <ak@suse.de>, linux-mm@kvack.org, akpm@linux-foundation.org, clameter@sgi.com
+To: Christoph Lameter <clameter@sgi.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Sat, 2007-08-18 at 07:50 +0200, Michael Kerrisk wrote:
-> > Lee's changes are ok for me.
-> > 
-> > -Andi
-> 
-> Thanks Andi.
-> 
-> Lee, for each of th changed pages, could you write me a short summary
-> of the changes, suitable for inclusion in the change log?
+On Monday 20 August 2007, Christoph Lameter wrote:
+> 1. First reclaiming non dirty pages. Dirty pages are deferred until reclaim
+>    has reestablished the high marks. Then all the dirty pages (the laundry)
+>    is written out.
 
-Michael:
+I don't buy it.  What happens when there aren't enough clean pages in the 
+system to achieve the high water mark?  I'm guessing we'd get a quick OOM (as 
+observed by Peter).
 
-The terse and generic description re:  adding missing semantics and
-error returns to match kernel code is not sufficient?
+> 2. Reclaim is essentially complete during the writeout phase. So we remove
+>    PF_MEMALLOC and allow recursive reclaim if we still run into trouble
+>    during writeout.
 
-What level of detail would be?
+You're assuming the system is static and won't allocate new pages behind your 
+back.  We could be back to critically low memory before the write happens.
 
-I have rebased the patch against the 2.64 man pages if you'd like me to
-send that along.  There were a few conflicts, as you or someone had
-moved some text around.
+More broadly, we need to be proactive about getting dirty pages cleaned before 
+they consume the system.  Deferring the write just makes it harder to keep 
+up.
 
-Lee
+Dave McCracken
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
