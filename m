@@ -1,42 +1,161 @@
-Subject: Re: [RFC 0/7] Postphone reclaim laundry to write at high water
-	marks
-From: Peter Zijlstra <peterz@infradead.org>
-In-Reply-To: <20070820215040.937296148@sgi.com>
-References: <20070820215040.937296148@sgi.com>
-Content-Type: text/plain
-Date: Tue, 21 Aug 2007 12:36:26 +0200
-Message-Id: <1187692586.6114.211.camel@twins>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Date: Tue, 21 Aug 2007 13:59:22 +0100
+Subject: Re: [Patch](memory hotplug) Hot-add with sparsemem-vmemmap
+Message-ID: <20070821125922.GG11329@skynet.ie>
+References: <20070817155908.7D91.Y-GOTO@jp.fujitsu.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <20070817155908.7D91.Y-GOTO@jp.fujitsu.com>
+From: mel@skynet.ie (Mel Gorman)
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Yasunori Goto <y-goto@jp.fujitsu.com>
+Cc: Andy Whitcroft <apw@shadowen.org>, Andrew Morton <akpm@osdl.org>, Christoph Lameter <clameter@sgi.com>, linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 2007-08-20 at 14:50 -0700, Christoph Lameter wrote:
-> One of the problems with reclaim writeout is that it occurs when memory in a
-> zone is low. A particular bad problem can occur if memory in a zone is
-> already low and now the first page that we encounter during reclaim is dirty.
-> So the writeout function is called without the filesystem or device having
-> much of a reserve that would allow further allocations. Triggering writeout
-> of dirty pages early does not improve the memory situation since the actual
-> writeout of the page is a relatively long process. The call to writepage
-> will therefore not improve the low memory situation but make it worse
-> because extra memory may be needed to get the device to write the page.
+On (17/08/07 16:08), Yasunori Goto didst pronounce:
+> Hello.
 > 
-> This patchset fixes that issue by:
+> This patch is to avoid panic when memory hot-add is executed with
+> sparsemem-vmemmap. Current vmemmap-sparsemem code doesn't support
+> memory hot-add. Vmemmap must be populated when hot-add.
+> This is for 2.6.23-rc2-mm2.
 > 
-> 1. First reclaiming non dirty pages. Dirty pages are deferred until reclaim
->    has reestablished the high marks. Then all the dirty pages (the laundry)
->    is written out.
+> Todo: # Even if this patch is applied, the message "[xxxx-xxxx] potential
+>         offnode page_structs" is displayed. To allocate memmap on its node,
+>         memmap (and pgdat) must be initialized itself like chicken and
+>         egg relationship.
 > 
-> 2. Reclaim is essentially complete during the writeout phase. So we remove
->    PF_MEMALLOC and allow recursive reclaim if we still run into trouble
->    during writeout.
+>       # vmemmap_unpopulate will be necessary for followings.
+>          - For cancel hot-add due to error.
+>          - For unplug.
+> 
+> Please comment.
+> 
+> Signed-off-by: Yasunori Goto <y-goto@jp.fujitsu.com>
+> 
+> ---
+>  include/linux/mm.h  |    2 +-
+>  mm/sparse-vmemmap.c |    2 +-
+>  mm/sparse.c         |   24 +++++++++++++++++++++---
+>  3 files changed, 23 insertions(+), 5 deletions(-)
+> 
+> Index: vmemmap/mm/sparse-vmemmap.c
+> ===================================================================
+> --- vmemmap.orig/mm/sparse-vmemmap.c	2007-08-10 20:17:19.000000000 +0900
+> +++ vmemmap/mm/sparse-vmemmap.c	2007-08-10 21:12:54.000000000 +0900
+> @@ -170,7 +170,7 @@ int __meminit vmemmap_populate(struct pa
+>  }
+>  #endif /* !CONFIG_ARCH_POPULATES_SPARSEMEM_VMEMMAP */
+>  
+> -struct page __init *sparse_early_mem_map_populate(unsigned long pnum, int nid)
+> +struct page *sparse_mem_map_populate(unsigned long pnum, int nid)
 
-This almost insta-OOMs with anonymous workloads.
+__meminit here instead of __init?
 
+>  {
+>  	struct page *map = pfn_to_page(pnum * PAGES_PER_SECTION);
+>  	int error = vmemmap_populate(map, PAGES_PER_SECTION, nid);
+> Index: vmemmap/include/linux/mm.h
+> ===================================================================
+> --- vmemmap.orig/include/linux/mm.h	2007-08-10 20:17:19.000000000 +0900
+> +++ vmemmap/include/linux/mm.h	2007-08-10 21:06:34.000000000 +0900
+> @@ -1146,7 +1146,7 @@ extern int randomize_va_space;
+>  
+>  const char * arch_vma_name(struct vm_area_struct *vma);
+>  
+> -struct page *sparse_early_mem_map_populate(unsigned long pnum, int nid);
+> +struct page *sparse_mem_map_populate(unsigned long pnum, int nid);
+>  int vmemmap_populate(struct page *start_page, unsigned long pages, int node);
+>  int vmemmap_populate_pmd(pud_t *, unsigned long, unsigned long, int);
+>  void *vmemmap_alloc_block(unsigned long size, int node);
+> Index: vmemmap/mm/sparse.c
+> ===================================================================
+> --- vmemmap.orig/mm/sparse.c	2007-08-10 20:17:19.000000000 +0900
+> +++ vmemmap/mm/sparse.c	2007-08-10 21:21:01.000000000 +0900
+> @@ -259,7 +259,7 @@ static unsigned long *sparse_early_usema
+>  }
+>  
+>  #ifndef CONFIG_SPARSEMEM_VMEMMAP
+> -struct page __init *sparse_early_mem_map_populate(unsigned long pnum, int nid)
+> +struct page __init *sparse_mem_map_populate(unsigned long pnum, int nid)
+
+__meminit again possibly.
+
+>  {
+>  	struct page *map;
+>  
+> @@ -284,7 +284,7 @@ struct page __init *sparse_early_mem_map
+>  	struct mem_section *ms = __nr_to_section(pnum);
+>  	int nid = sparse_early_nid(ms);
+>  
+> -	map = sparse_early_mem_map_populate(pnum, nid);
+> +	map = sparse_mem_map_populate(pnum, nid);
+>  	if (map)
+>  		return map;
+>  
+> @@ -322,6 +322,17 @@ void __init sparse_init(void)
+>  }
+>  
+>  #ifdef CONFIG_MEMORY_HOTPLUG
+> +#ifdef CONFIG_SPARSEMEM_VMEMMAP
+> +static inline struct page *kmalloc_section_memmap(unsigned long pnum, int nid,
+> +						 unsigned long nr_pages)
+> +{
+> +	return sparse_mem_map_populate(pnum, nid);
+> +}
+
+In the other version of __kmalloc_section_memmap(), pages get allocated
+from alloc_pages() and it's obvious it's allocated there. A one line
+comment saying that sparse_mem_map_populate() will make the necessary
+allocations eventually would be nice.
+
+Not a big deal though.
+
+> +static void __kfree_section_memmap(struct page *memmap, unsigned long nr_pages)
+> +{
+> +	return; /* XXX: Not implemented yet */
+> +}
+> +#else
+>  static struct page *__kmalloc_section_memmap(unsigned long nr_pages)
+>  {
+>  	struct page *page, *ret;
+> @@ -344,6 +355,12 @@ got_map_ptr:
+>  	return ret;
+>  }
+>  
+> +static inline struct page *kmalloc_section_memmap(unsigned long pnum, int nid,
+> +						  unsigned long nr_pages)
+> +{
+> +	return __kmalloc_section_memmap(nr_pages);
+> +}
+> +
+>  static int vaddr_in_vmalloc_area(void *addr)
+>  {
+>  	if (addr >= (void *)VMALLOC_START &&
+> @@ -360,6 +377,7 @@ static void __kfree_section_memmap(struc
+>  		free_pages((unsigned long)memmap,
+>  			   get_order(sizeof(struct page) * nr_pages));
+>  }
+> +#endif /* CONFIG_SPARSEMEM_VMEMMAP */
+>  
+>  /*
+>   * returns the number of sections whose mem_maps were properly
+> @@ -382,7 +400,7 @@ int sparse_add_one_section(struct zone *
+>  	 * plus, it does a kmalloc
+>  	 */
+>  	sparse_index_init(section_nr, pgdat->node_id);
+> -	memmap = __kmalloc_section_memmap(nr_pages);
+> +	memmap = kmalloc_section_memmap(section_nr, pgdat->node_id, nr_pages);
+>  	usemap = __kmalloc_section_usemap();
+>  
+>  	pgdat_resize_lock(pgdat, &flags);
+> 
+
+-- 
+Mel Gorman
+Part-time Phd Student                          Linux Technology Center
+University of Limerick                         IBM Dublin Software Lab
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
