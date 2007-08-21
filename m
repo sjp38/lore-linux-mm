@@ -1,93 +1,46 @@
-Date: Tue, 21 Aug 2007 16:24:49 -0500
+Date: Tue, 21 Aug 2007 16:25:13 -0500
 From: Matt Mackall <mpm@selenic.com>
-Subject: Re: [RFC][PATCH 2/9] pagemap: remove file header
-Message-ID: <20070821212449.GH30556@waste.org>
-References: <20070821204248.0F506A29@kernel> <20070821204248.1F535365@kernel>
+Subject: Re: [RFC][PATCH 3/9] pagemap: use PAGE_MASK/PAGE_ALIGN()
+Message-ID: <20070821212512.GI30556@waste.org>
+References: <20070821204248.0F506A29@kernel> <20070821204250.65D94559@kernel>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20070821204248.1F535365@kernel>
+In-Reply-To: <20070821204250.65D94559@kernel>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Dave Hansen <haveblue@us.ibm.com>
 Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Aug 21, 2007 at 01:42:48PM -0700, Dave Hansen wrote:
+On Tue, Aug 21, 2007 at 01:42:50PM -0700, Dave Hansen wrote:
 > 
-> The /proc/<pid>/pagemap file has a header containing:
->  * first byte:   0 for big endian, 1 for little
->  * second byte:  page shift (eg 12 for 4096 byte pages)
->  * third byte:   entry size in bytes (currently either 4 or 8)
->  * fourth byte:  header size
-> 
-> The endianness is only useful when examining a raw dump of
-> pagemap from a different machine when you don't know the
-> source of the file.  This is pretty rare, and the programs
-> or scripts doing the copying off-machine can certainly be
-> made to hold this information.
-> 
-> The page size is available in userspace at least with libc's
-> getpagesize().  This will also never vary across processes,
-> so putting it in a per-process file doesn't make any difference.
-> If we need a "kernel's page size" exported to userspace,
-> perhaps we can put it in /proc/meminfo.
-> 
-> The entry size is the really tricky one.  This can't just
-> be sizeof(unsigned long) from userspace because we can have
-> 32-bit processes on 64-bit kernels.  But, userspace can
-> certainly derive this value if it lseek()s to the end of
-> the file, and divides the file position by the size of its
-> virtual address space.
-> 
-> In any case, I believe this information is redundant, and
-> can be removed.
+> Use existing macros (PAGE_MASK/PAGE_ALIGN()) instead of
+> open-coding them.
 > 
 > Signed-off-by: Dave Hansen <haveblue@us.ibm.com>
-
-Yeah, looks like various folks thought this ought to go. So:
-
 Acked-by: Matt Mackall <mpm@selenic.com>
 
 > ---
 > 
->  lxc-dave/fs/proc/task_mmu.c |   14 +++-----------
->  1 file changed, 3 insertions(+), 11 deletions(-)
+>  lxc-dave/fs/proc/task_mmu.c |    4 ++--
+>  1 file changed, 2 insertions(+), 2 deletions(-)
 > 
-> diff -puN fs/proc/task_mmu.c~pagemap-no-header fs/proc/task_mmu.c
-> --- lxc/fs/proc/task_mmu.c~pagemap-no-header	2007-08-21 13:30:50.000000000 -0700
-> +++ lxc-dave/fs/proc/task_mmu.c	2007-08-21 13:30:50.000000000 -0700
-> @@ -601,12 +601,12 @@ static ssize_t pagemap_read(struct file 
+> diff -puN fs/proc/task_mmu.c~pagemap-use-PAGE_MASK fs/proc/task_mmu.c
+> --- lxc/fs/proc/task_mmu.c~pagemap-use-PAGE_MASK	2007-08-21 13:30:51.000000000 -0700
+> +++ lxc-dave/fs/proc/task_mmu.c	2007-08-21 13:30:51.000000000 -0700
+> @@ -617,9 +617,9 @@ static ssize_t pagemap_read(struct file 
 >  		goto out;
 >  
->  	ret = -EIO;
-> -	svpfn = src / sizeof(unsigned long) - 1;
-> +	svpfn = src / sizeof(unsigned long);
->  	addr = PAGE_SIZE * svpfn;
-> -	if ((svpfn + 1) * sizeof(unsigned long) != src)
-> +	if (svpfn * sizeof(unsigned long) != src)
->  		goto out;
->  	evpfn = min((src + count) / sizeof(unsigned long) - 1,
-> -		    ((~0UL) >> PAGE_SHIFT) + 1) - 1;
-> +		    ((~0UL) >> PAGE_SHIFT) + 1);
->  	count = (evpfn - svpfn) * sizeof(unsigned long);
->  	end = PAGE_SIZE * evpfn;
->  	//printk("src %ld svpfn %d evpfn %d count %d\n", src, svpfn, evpfn, count);
-> @@ -638,14 +638,6 @@ static ssize_t pagemap_read(struct file 
->  	pm.count = count;
->  	pm.out = (unsigned long __user *)buf;
->  
-> -	if (svpfn == -1) {
-> -		put_user((char)(ntohl(1) != 1), buf);
-> -		put_user((char)PAGE_SHIFT, buf + 1);
-> -		put_user((char)sizeof(unsigned long), buf + 2);
-> -		put_user((char)sizeof(unsigned long), buf + 3);
-> -		add_to_pagemap(pm.next, page[0], &pm);
-> -	}
-> -
->  	down_read(&mm->mmap_sem);
->  	vma = find_vma(mm, pm.next);
->  	while (pm.count > 0 && vma) {
+>  	ret = -ENOMEM;
+> -	uaddr = (unsigned long)buf & ~(PAGE_SIZE-1);
+> +	uaddr = (unsigned long)buf & PAGE_MASK;
+>  	uend = (unsigned long)(buf + count);
+> -	pagecount = (uend - uaddr + PAGE_SIZE-1) / PAGE_SIZE;
+> +	pagecount = (PAGE_ALIGN(uend) - uaddr) / PAGE_SIZE;
+>  	pages = kmalloc(pagecount * sizeof(struct page *), GFP_KERNEL);
+>  	if (!pages)
+>  		goto out_task;
 > _
 
 -- 
