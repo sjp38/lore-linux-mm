@@ -1,60 +1,58 @@
-Date: Tue, 21 Aug 2007 15:32:25 -0700 (PDT)
-From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [RFC 0/7] Postphone reclaim laundry to write at high water marks
-In-Reply-To: <46CB5C89.2070807@redhat.com>
-Message-ID: <Pine.LNX.4.64.0708211521260.5728@schroedinger.engr.sgi.com>
-References: <20070820215040.937296148@sgi.com>  <1187692586.6114.211.camel@twins>
-  <Pine.LNX.4.64.0708211347480.3082@schroedinger.engr.sgi.com>
- <1187730812.5463.12.camel@lappy> <Pine.LNX.4.64.0708211418120.3267@schroedinger.engr.sgi.com>
- <46CB5C89.2070807@redhat.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from d03relay02.boulder.ibm.com (d03relay02.boulder.ibm.com [9.17.195.227])
+	by e31.co.us.ibm.com (8.13.8/8.13.8) with ESMTP id l7LMc9Aj024991
+	for <linux-mm@kvack.org>; Tue, 21 Aug 2007 18:38:09 -0400
+Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
+	by d03relay02.boulder.ibm.com (8.13.8/8.13.8/NCO v8.5) with ESMTP id l7LMc8nT261698
+	for <linux-mm@kvack.org>; Tue, 21 Aug 2007 16:38:08 -0600
+Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av02.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l7LMc8v5009779
+	for <linux-mm@kvack.org>; Tue, 21 Aug 2007 16:38:08 -0600
+Subject: Re: [RFC][PATCH 8/9] pagemap: use page walker pte_hole() helper
+From: Dave Hansen <haveblue@us.ibm.com>
+In-Reply-To: <20070821220103.GM30556@waste.org>
+References: <20070821204248.0F506A29@kernel>
+	 <20070821204257.BB3A4C17@kernel>  <20070821220103.GM30556@waste.org>
+Content-Type: text/plain
+Date: Tue, 21 Aug 2007 15:38:07 -0700
+Message-Id: <1187735887.16177.133.camel@localhost>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Rik van Riel <riel@redhat.com>
-Cc: Peter Zijlstra <peterz@infradead.org>, linux-mm@kvack.org, dkegel@google.com, akpm@linux-foundation.org, Nick Piggin <npiggin@suse.de>, ak@suse.de, linux-kernel@vger.kernel.org
+To: Matt Mackall <mpm@selenic.com>
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 21 Aug 2007, Rik van Riel wrote:
-
-> Christoph Lameter wrote:
+On Tue, 2007-08-21 at 17:01 -0500, Matt Mackall wrote:
+> > +	copy_to_user(pm->out, &pfn, out_len);
 > 
-> > I want general improvements to reclaim to address the issues that you see
-> > and other issues related to reclaim instead of the strange code that makes
-> > PF_MEMALLOC allocs compete for allocations from a single slab and putting
-> > logic into the kernel to decide which allocs to fail. We can reclaim after
-> > all. Its just a matter of finding the right way to do this. 
-> 
-> The simplest way of achieving that would be to allow
-> recursion of the page reclaim code, under the condition
-> that the second level call can only reclaim clean pages,
-> while the "outer" call does what the VM does today.
+> And I think we want to keep the put_user in the fast path.
 
-Yes that is what the precursor to this patchset does.
+OK, updated:
 
-See http://marc.info/?l=linux-mm&m=118710207203449&w=2
+static int add_to_pagemap(unsigned long addr, unsigned long pfn,
+                          struct pagemapread *pm)
+{
+        /*
+         * Make sure there's room in the buffer for an
+         * entire entry.  Otherwise, only copy part of
+         * the pfn.
+         */
+        if (pm->count >= PM_ENTRY_BYTES)
+                __put_user(pfn pm->out);
+        else
+                copy_to_user(pm->out, &pfn, pm->count);
 
-This one did not even come up to the level of the earlier one. Sigh.
+        pm->pos += PM_ENTRY_BYTES;
+        pm->count -= PM_ENTRY_BYTES;
+        if (pm->count <= 0)
+                return PAGEMAP_END_OF_BUFFER;
+        return 0;
+}
 
-The way forward may be:
+I'll patch-bomb you with the (small) updates I just made.
 
-1. Like in the earlier patchset allow reentry to reclaim under 
-   PF_MEMALLOC if we are out of all memory.
-
-2. Do the laundry as here but do not write out laundry directly.
-   Instead move laundry to a new lru style list in the zone structure.
-   This will allow the recursive reclaim to also trigger writeout
-   of pages (what this patchset was supposed to accomplish).
-
-3. Perform writeback only from kswapd. Make other threads
-   wait on kswapd if memory is low, we can wait and writeback still
-   has to progress.
-
-4. Then allow reclaim of GFP_ATOMIC allocs (see
-   http://marc.info/?l=linux-kernel&m=118710595617696&w=2). Atomic
-   reclaim can then also put pages onto the zone laundry lists from where
-   it is going to be picked up and written out by kswapd ASAP. This one
-   may be tricky so maybe keep this separate.
+-- Dave
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
