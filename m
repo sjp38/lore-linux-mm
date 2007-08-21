@@ -1,6 +1,6 @@
-Date: Tue, 21 Aug 2007 16:06:50 +0100
+Date: Tue, 21 Aug 2007 16:19:08 +0100
 Subject: Re: [RFC 5/7] Laundry handling for direct reclaim
-Message-ID: <20070821150650.GL11329@skynet.ie>
+Message-ID: <20070821151907.GM11329@skynet.ie>
 References: <20070820215040.937296148@sgi.com> <20070820215316.994224842@sgi.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=iso-8859-15
@@ -51,9 +51,6 @@ On (20/08/07 14:50), Christoph Lameter didst pronounce:
 >  		.order = order,
 >  	};
 > +	LIST_HEAD(laundry);
-
-Why is the laundry not made part of the scan_control?
-
 >  
 >  	count_vm_event(ALLOCSTALL);
 >  
@@ -75,6 +72,12 @@ Why is the laundry not made part of the scan_control?
 > +
 >  		total_scanned += sc.nr_scanned;
 > +
+
+Could this not isolate a load of dirty pages on the laundry list and then
+shortly later go to sleep in congestion_wait() ? It would appear that with
+writeout deferred that the going to sleep is going to do nothing to help
+the situation.
+
 >  		if (nr_reclaimed >= sc.swap_cluster_max) {
 >  			ret = 1;
 >  			goto out;
@@ -87,16 +90,7 @@ Why is the laundry not made part of the scan_control?
 >  	return ret;
 >  }
 >  
-> 
-> -- 
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
--- 
 -- 
 Mel Gorman
 Part-time Phd Student                          Linux Technology Center
