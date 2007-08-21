@@ -1,40 +1,63 @@
-Received: from d01relay04.pok.ibm.com (d01relay04.pok.ibm.com [9.56.227.236])
-	by e3.ny.us.ibm.com (8.13.8/8.13.8) with ESMTP id l7LLQnev008056
-	for <linux-mm@kvack.org>; Tue, 21 Aug 2007 17:26:49 -0400
-Received: from d01av02.pok.ibm.com (d01av02.pok.ibm.com [9.56.224.216])
-	by d01relay04.pok.ibm.com (8.13.8/8.13.8/NCO v8.5) with ESMTP id l7LLQnR6433074
-	for <linux-mm@kvack.org>; Tue, 21 Aug 2007 17:26:49 -0400
-Received: from d01av02.pok.ibm.com (loopback [127.0.0.1])
-	by d01av02.pok.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l7LLQmsc012069
-	for <linux-mm@kvack.org>; Tue, 21 Aug 2007 17:26:48 -0400
-Subject: Re: [RFC][PATCH 1/9] /proc/pid/pagemap update
-From: Dave Hansen <haveblue@us.ibm.com>
-In-Reply-To: <20070821212357.GG30556@waste.org>
-References: <20070821204248.0F506A29@kernel>
-	 <20070821212357.GG30556@waste.org>
-Content-Type: text/plain
-Date: Tue, 21 Aug 2007 14:26:43 -0700
-Message-Id: <1187731603.16177.82.camel@localhost>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Date: Tue, 21 Aug 2007 14:29:44 -0700 (PDT)
+From: Christoph Lameter <clameter@sgi.com>
+Subject: Re: [RFC 0/7] Postphone reclaim laundry to write at high water marks
+In-Reply-To: <1187730812.5463.12.camel@lappy>
+Message-ID: <Pine.LNX.4.64.0708211418120.3267@schroedinger.engr.sgi.com>
+References: <20070820215040.937296148@sgi.com>  <1187692586.6114.211.camel@twins>
+  <Pine.LNX.4.64.0708211347480.3082@schroedinger.engr.sgi.com>
+ <1187730812.5463.12.camel@lappy>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Matt Mackall <mpm@selenic.com>
-Cc: linux-mm@kvack.org
+To: Peter Zijlstra <peterz@infradead.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 2007-08-21 at 16:23 -0500, Matt Mackall wrote:
-> 
-> > Matt, if you're OK with these, do you mind if I send
-> > the update into -mm, or would you like to do it?
-> 
-> Hmmm, is the below working for you? I was having trouble with it. 
+On Tue, 21 Aug 2007, Peter Zijlstra wrote:
 
-I think that was just a patch you sent as your work-in-progress a couple
-of weeks ago.  Either I messed it up when merging, or it never compiled.
-The subsequent patches make it work again.
+> It quickly ends up with all of memory in the laundry list and then
+> recursing into __alloc_pages which will fail to make progress and OOMs.
 
--- Dave
+Hmmmm... Okay that needs to be addressed. Reserves need to be used and we 
+only should enter reclaim if that runs out (like the first patch that I 
+did).
+
+> But aside from the numerous issues with the patch set as presented, I'm
+> not seeing the seeing the big picture, why are you doing this.
+
+I want general improvements to reclaim to address the issues that you see 
+and other issues related to reclaim instead of the strange code that makes 
+PF_MEMALLOC allocs compete for allocations from a single slab and putting 
+logic into the kernel to decide which allocs to fail. We can reclaim after 
+all. Its just a matter of finding the right way to do this. 
+
+> Anonymous pages are a there to stay, and we cannot tell people how to
+> use them. So we need some free or freeable pages in order to avoid the
+> vm deadlock that arises from all memory dirty.
+
+No one is trying to abolish Anonymous pages. Free memory is readily 
+available on demand if one calls reclaim. Your scheme introduces complex 
+negotiations over a few scraps of memory when large amounts of memory 
+would still be readily available if one would do the right thing and call 
+into reclaim.
+
+> 'Optimizing' this by switching to freeable pages has mainly
+> disadvantages IMHO, finding them scrambles LRU order and complexifies
+> relcaim and all that for a relatively small gain in space for clean
+> pagecache pages.
+
+Sounds like you would like to change the way we handle memory in general 
+in the VM? Reclaim (and thus finding freeable pages) is basic to Linux 
+memory management.
+
+> Please, stop writing patches and write down a solid proposal of how you
+> envision the VM working in the various scenarios and why its better than
+> the current approach.
+
+Sorry I just got into this a short time ago and I may need a few cycles 
+to get this all straight. An approach that uses memory instead of 
+ignoring available memory is certainly better.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
