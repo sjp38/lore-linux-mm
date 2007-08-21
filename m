@@ -1,32 +1,40 @@
-Date: Tue, 21 Aug 2007 13:55:32 -0700 (PDT)
+Date: Tue, 21 Aug 2007 13:59:24 -0700 (PDT)
 From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [RFC 5/7] Laundry handling for direct reclaim
-In-Reply-To: <20070821150650.GL11329@skynet.ie>
-Message-ID: <Pine.LNX.4.64.0708211354010.3082@schroedinger.engr.sgi.com>
-References: <20070820215040.937296148@sgi.com> <20070820215316.994224842@sgi.com>
- <20070821150650.GL11329@skynet.ie>
+Subject: Re: [RFC 0/7] Postphone reclaim laundry to write at high water marks
+In-Reply-To: <46CB01B7.3050201@redhat.com>
+Message-ID: <Pine.LNX.4.64.0708211355430.3082@schroedinger.engr.sgi.com>
+References: <20070820215040.937296148@sgi.com> <46CB01B7.3050201@redhat.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Mel Gorman <mel@skynet.ie>
+To: Rik van Riel <riel@redhat.com>
 Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, dkegel@google.com, Peter Zijlstra <a.p.zijlstra@chello.nl>, David Miller <davem@davemloft.net>, Nick Piggin <npiggin@suse.de>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 21 Aug 2007, Mel Gorman wrote:
+On Tue, 21 Aug 2007, Rik van Riel wrote:
 
-> > @@ -1156,6 +1156,7 @@ unsigned long try_to_free_pages(struct z
-> >  		.swappiness = vm_swappiness,
-> >  		.order = order,
-> >  	};
-> > +	LIST_HEAD(laundry);
+> Christoph Lameter wrote:
 > 
-> Why is the laundry not made part of the scan_control?
+> > 1. First reclaiming non dirty pages. Dirty pages are deferred until reclaim
+> >    has reestablished the high marks. Then all the dirty pages (the laundry)
+> >    is written out.
+> 
+> That sounds like a horrendously bad idea.  While one process
+> is busy freeing all the non dirty pages, other processes can
+> allocate those pages, leaving you with no memory to free up
+> the dirty pages!
 
-That is one possibility. The other is to treat laundry as a lru type list 
-under zone->lru_lock. This would allow the writeback process (whichever 
-that is) to be independent of the producer of the laundry. Dirty pages 
-could be isolated from an atomic context.
+What is preventing that from occurring right now? If the dirty pags are 
+aligned in the right way you can have the exact same situation.
+ 
+> Also, writing out all the dirty pages at once seems like it
+> could hurt latency quite badly, especially on large systems.
+
+We only write back the dirty pages that we are about to reclaim not all of 
+them. The bigger batching occurs if we go through multiple priorities. 
+Plus writeback in the sync reclaim case is stopped if the device becomes 
+contended anyways.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
