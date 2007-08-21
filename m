@@ -1,58 +1,100 @@
-Received: from d03relay02.boulder.ibm.com (d03relay02.boulder.ibm.com [9.17.195.227])
-	by e31.co.us.ibm.com (8.13.8/8.13.8) with ESMTP id l7LMc9Aj024991
-	for <linux-mm@kvack.org>; Tue, 21 Aug 2007 18:38:09 -0400
-Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
-	by d03relay02.boulder.ibm.com (8.13.8/8.13.8/NCO v8.5) with ESMTP id l7LMc8nT261698
-	for <linux-mm@kvack.org>; Tue, 21 Aug 2007 16:38:08 -0600
-Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av02.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l7LMc8v5009779
-	for <linux-mm@kvack.org>; Tue, 21 Aug 2007 16:38:08 -0600
-Subject: Re: [RFC][PATCH 8/9] pagemap: use page walker pte_hole() helper
-From: Dave Hansen <haveblue@us.ibm.com>
-In-Reply-To: <20070821220103.GM30556@waste.org>
-References: <20070821204248.0F506A29@kernel>
-	 <20070821204257.BB3A4C17@kernel>  <20070821220103.GM30556@waste.org>
-Content-Type: text/plain
-Date: Tue, 21 Aug 2007 15:38:07 -0700
-Message-Id: <1187735887.16177.133.camel@localhost>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Date: Tue, 21 Aug 2007 15:43:21 -0700 (PDT)
+From: Christoph Lameter <clameter@sgi.com>
+Subject: Re: [RFC 0/7] Postphone reclaim laundry to write at high water marks
+In-Reply-To: <1187734144.5463.35.camel@lappy>
+Message-ID: <Pine.LNX.4.64.0708211532560.5728@schroedinger.engr.sgi.com>
+References: <20070820215040.937296148@sgi.com>  <1187692586.6114.211.camel@twins>
+  <Pine.LNX.4.64.0708211347480.3082@schroedinger.engr.sgi.com>
+ <1187730812.5463.12.camel@lappy>  <Pine.LNX.4.64.0708211418120.3267@schroedinger.engr.sgi.com>
+ <1187734144.5463.35.camel@lappy>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Matt Mackall <mpm@selenic.com>
-Cc: linux-mm@kvack.org
+To: Peter Zijlstra <peterz@infradead.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 2007-08-21 at 17:01 -0500, Matt Mackall wrote:
-> > +	copy_to_user(pm->out, &pfn, out_len);
+On Wed, 22 Aug 2007, Peter Zijlstra wrote:
+
+> Also, all I want is for slab to honour gfp flags like page allocation
+> does, nothing more, nothing less.
 > 
-> And I think we want to keep the put_user in the fast path.
+> (well, actually slightly less, since I'm only really interrested in the
+> ALLOC_MIN|ALLOC_HIGH|ALLOC_HARDER -> ALLOC_NO_WATERMARKS transition and
+> not all higher ones)
 
-OK, updated:
+I am still not sure what that brings you. There may be multiple 
+PF_MEMALLOC going on at the same time. On a large system with N cpus
+there may be more than N of these that can steal objects from one another. 
 
-static int add_to_pagemap(unsigned long addr, unsigned long pfn,
-                          struct pagemapread *pm)
-{
-        /*
-         * Make sure there's room in the buffer for an
-         * entire entry.  Otherwise, only copy part of
-         * the pfn.
-         */
-        if (pm->count >= PM_ENTRY_BYTES)
-                __put_user(pfn pm->out);
-        else
-                copy_to_user(pm->out, &pfn, pm->count);
+A NUMA system will be shot anyways if memory gets that problematic to 
+handle since the OS cannot effectively place memory if all zones are 
+overallocated so that only a few pages are left.
 
-        pm->pos += PM_ENTRY_BYTES;
-        pm->count -= PM_ENTRY_BYTES;
-        if (pm->count <= 0)
-                return PAGEMAP_END_OF_BUFFER;
-        return 0;
-}
 
-I'll patch-bomb you with the (small) updates I just made.
+> I want slab to fail when a similar page alloc would fail, no magic.
 
--- Dave
+Yes I know. I do not want allocations to fail but that reclaim occurs in 
+order to avoid failing any allocation. We need provisions that 
+make sure that we never get into such a bad memory situation that would
+cause severe slowless and usually end up in a livelock anyways.
+
+> > > Anonymous pages are a there to stay, and we cannot tell people how to
+> > > use them. So we need some free or freeable pages in order to avoid the
+> > > vm deadlock that arises from all memory dirty.
+> > 
+> > No one is trying to abolish Anonymous pages. Free memory is readily 
+> > available on demand if one calls reclaim. Your scheme introduces complex 
+> > negotiations over a few scraps of memory when large amounts of memory 
+> > would still be readily available if one would do the right thing and call 
+> > into reclaim.
+> 
+> This is the thing I contend, there need not be large amounts of memory
+> around. In my test prog the hot code path fits into a single page, the
+> rest can be anonymous.
+
+Thats a bit extreme.... We need to make sure that there are larger amounts 
+of memory around. Pages are used for all shorts of short term uses (like 
+slab shrinking etc etc.). If memory is that low that a single page matters
+then we are in very bad shape anyways.
+
+> > Sounds like you would like to change the way we handle memory in general 
+> > in the VM? Reclaim (and thus finding freeable pages) is basic to Linux 
+> > memory management.
+> 
+> Not quite, currently we have free pages in the reserves, if you want to
+> replace some (or all) of that by freeable pages then that is a change.
+
+We have free pages primarily to optimize the allocation. Meaning we do not 
+have to run reclaim on every call. We want to use all of memory. The 
+reserves are there for the case that we cannot call into reclaim. The easy 
+solution if that is problematic is to enhance the reclaim to work in the
+critical situations that we care about.
+
+
+> > Sorry I just got into this a short time ago and I may need a few cycles 
+> > to get this all straight. An approach that uses memory instead of 
+> > ignoring available memory is certainly better.
+> 
+> Sure if and when possible. There will always be need to fall back to the
+> reserves.
+
+Maybe. But we can certainly avoid that as much as possible which would 
+also increase our ability to use all available memory instead of leaving 
+some of it unused./
+
+> A bit off-topic, re that reclaim from atomic context:
+> Currently we try to hold spinlocks only for short periods of time so
+> that reclaim can be preempted, if you run all of reclaim from a
+> non-preemptible context you get very large preemption latencies and if
+> done from int context it'd also generate large int latencies.
+
+If you call into the page allocator from an interrupt context then you are 
+already in bad shape since we may check pcps lists and then potentially 
+have to traverse the zonelists and check all sorts of things. If we 
+would implement atomic reclaim then the reserves may become a latency 
+optimizations. At least we will not fail anymore if the reserves are out.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
