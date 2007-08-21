@@ -1,40 +1,37 @@
-Date: Tue, 21 Aug 2007 13:59:24 -0700 (PDT)
+Date: Tue, 21 Aug 2007 14:00:28 -0700 (PDT)
 From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [RFC 0/7] Postphone reclaim laundry to write at high water marks
-In-Reply-To: <46CB01B7.3050201@redhat.com>
-Message-ID: <Pine.LNX.4.64.0708211355430.3082@schroedinger.engr.sgi.com>
-References: <20070820215040.937296148@sgi.com> <46CB01B7.3050201@redhat.com>
+Subject: Re: [RFC 5/7] Laundry handling for direct reclaim
+In-Reply-To: <20070821151907.GM11329@skynet.ie>
+Message-ID: <Pine.LNX.4.64.0708211359340.3082@schroedinger.engr.sgi.com>
+References: <20070820215040.937296148@sgi.com> <20070820215316.994224842@sgi.com>
+ <20070821151907.GM11329@skynet.ie>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Rik van Riel <riel@redhat.com>
+To: Mel Gorman <mel@skynet.ie>
 Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, dkegel@google.com, Peter Zijlstra <a.p.zijlstra@chello.nl>, David Miller <davem@davemloft.net>, Nick Piggin <npiggin@suse.de>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 21 Aug 2007, Rik van Riel wrote:
+On Tue, 21 Aug 2007, Mel Gorman wrote:
 
-> Christoph Lameter wrote:
+> > +		nr_reclaimed += shrink_zones(priority, zones, &sc, &laundry);
+> >  		shrink_slab(sc.nr_scanned, gfp_mask, lru_pages);
+> >  		if (reclaim_state) {
+> >  			nr_reclaimed += reclaim_state->reclaimed_slab;
+> >  			reclaim_state->reclaimed_slab = 0;
+> >  		}
+> > +
+> >  		total_scanned += sc.nr_scanned;
+> > +
 > 
-> > 1. First reclaiming non dirty pages. Dirty pages are deferred until reclaim
-> >    has reestablished the high marks. Then all the dirty pages (the laundry)
-> >    is written out.
-> 
-> That sounds like a horrendously bad idea.  While one process
-> is busy freeing all the non dirty pages, other processes can
-> allocate those pages, leaving you with no memory to free up
-> the dirty pages!
+> Could this not isolate a load of dirty pages on the laundry list and then
+> shortly later go to sleep in congestion_wait() ? It would appear that with
+> writeout deferred that the going to sleep is going to do nothing to help
+> the situation.
 
-What is preventing that from occurring right now? If the dirty pags are 
-aligned in the right way you can have the exact same situation.
- 
-> Also, writing out all the dirty pages at once seems like it
-> could hurt latency quite badly, especially on large systems.
-
-We only write back the dirty pages that we are about to reclaim not all of 
-them. The bigger batching occurs if we go through multiple priorities. 
-Plus writeback in the sync reclaim case is stopped if the device becomes 
-contended anyways.
+Yep that seems to be the problem that Peter saw. We need to throttle 
+later.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
