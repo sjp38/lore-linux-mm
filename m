@@ -1,46 +1,280 @@
-Message-ID: <46CB55A8.4030501@redhat.com>
-Date: Tue, 21 Aug 2007 17:14:16 -0400
-From: Rik van Riel <riel@redhat.com>
+Date: Tue, 21 Aug 2007 16:23:57 -0500
+From: Matt Mackall <mpm@selenic.com>
+Subject: Re: [RFC][PATCH 1/9] /proc/pid/pagemap update
+Message-ID: <20070821212357.GG30556@waste.org>
+References: <20070821204248.0F506A29@kernel>
 MIME-Version: 1.0
-Subject: Re: [RFC 0/7] Postphone reclaim laundry to write at high water marks
-References: <20070820215040.937296148@sgi.com> <46CB01B7.3050201@redhat.com> <Pine.LNX.4.64.0708211355430.3082@schroedinger.engr.sgi.com>
-In-Reply-To: <Pine.LNX.4.64.0708211355430.3082@schroedinger.engr.sgi.com>
-Content-Type: text/plain; charset=UTF-8; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20070821204248.0F506A29@kernel>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, dkegel@google.com, Peter Zijlstra <a.p.zijlstra@chello.nl>, David Miller <davem@davemloft.net>, Nick Piggin <npiggin@suse.de>
+To: Dave Hansen <haveblue@us.ibm.com>
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Christoph Lameter wrote:
-> On Tue, 21 Aug 2007, Rik van Riel wrote:
+On Tue, Aug 21, 2007 at 01:42:48PM -0700, Dave Hansen wrote:
 > 
->> Christoph Lameter wrote:
->>
->>> 1. First reclaiming non dirty pages. Dirty pages are deferred until reclaim
->>>    has reestablished the high marks. Then all the dirty pages (the laundry)
->>>    is written out.
->> That sounds like a horrendously bad idea.  While one process
->> is busy freeing all the non dirty pages, other processes can
->> allocate those pages, leaving you with no memory to free up
->> the dirty pages!
+> This is a series of patches to update /proc/pid/pagemap,
+> to simplify the code, and fix bugs which caused userspace
+> memory corruption.
 > 
-> What is preventing that from occurring right now? If the dirty pags are 
-> aligned in the right way you can have the exact same situation.
+> Since it is just in -mm, we should probably roll all of
+> these together and just update it all at once, or send
+> a simple drop-on replacement patch.  These patches are
+> all here mostly to help with review.
+> 
+> Matt, if you're OK with these, do you mind if I send
+> the update into -mm, or would you like to do it?
 
-For one, dirty page writeout is done even when free memory
-is low.  The kernel will dig into the PF_MEMALLOC reserves,
-instead of deciding not to do writeout unless there is lots
-of free memory.
+Hmmm, is the below working for you? I was having trouble with it.
 
-Secondly, why would you want to recreate this worst case on
-purpose every time the pageout code runs?
+> --
+> From: Matt Mackall <mpm@selenic.com>
+> 
+> On Mon, Aug 06, 2007 at 01:44:19AM -0500, Dave Boutcher wrote:
+> > 
+> > Matt, this patch set replaces the two patches I sent earlier and
+> > contains additional fixes.  I've done some reasonably rigorous testing
+> > on x86_64, but not on a 32 bit arch.  I'm pretty sure this isn't worse
+> > than what's in mm right now, which has some user-space corruption and
+> > a nasty infinite kernel loop. YMMV.
+> 
+> Dave, here's my current work-in-progress patch to deal with a couple
+> locking issues, primarily a possible deadlock on the mm semaphore that
+> can occur if someone unmaps the target buffer while we're walking the
+> tree. It currently hangs on my box and I haven't had any free cycles
+> to finish debugging it, but you might want to take a peek at it.
+> 
+> Signed-off-by: Dave Hansen <haveblue@us.ibm.com>
+> ---
+> 
+>  lxc-dave/fs/proc/task_mmu.c |  121 ++++++++++++++++++++------------------------
+>  1 file changed, 55 insertions(+), 66 deletions(-)
+> 
+> diff -puN fs/proc/task_mmu.c~Re-_PATCH_0_3_proc_pid_pagemap_fixes fs/proc/task_mmu.c
+> --- lxc/fs/proc/task_mmu.c~Re-_PATCH_0_3_proc_pid_pagemap_fixes	2007-08-21 13:30:50.000000000 -0700
+> +++ lxc-dave/fs/proc/task_mmu.c	2007-08-21 13:30:50.000000000 -0700
+> @@ -501,37 +501,21 @@ const struct file_operations proc_clear_
+>  };
+>  
+>  struct pagemapread {
+> -	struct mm_struct *mm;
+>  	unsigned long next;
+> -	unsigned long *buf;
+> -	pte_t *ptebuf;
+>  	unsigned long pos;
+>  	size_t count;
+>  	int index;
+> -	char __user *out;
+> +	unsigned long __user *out;
+>  };
+>  
+> -static int flush_pagemap(struct pagemapread *pm)
+> -{
+> -	int n = min(pm->count, pm->index * sizeof(unsigned long));
+> -	if (copy_to_user(pm->out, pm->buf, n))
+> -		return -EFAULT;
+> -	pm->out += n;
+> -	pm->pos += n;
+> -	pm->count -= n;
+> -	pm->index = 0;
+> -	cond_resched();
+> -	return 0;
+> -}
+> -
+>  static int add_to_pagemap(unsigned long addr, unsigned long pfn,
+>  			  struct pagemapread *pm)
+>  {
+> -	pm->buf[pm->index++] = pfn;
+> +	__put_user(pfn, pm->out);
+> +	pm->out++;
+> +	pm->pos += sizeof(unsigned long);
+> +	pm->count -= sizeof(unsigned long);
+>  	pm->next = addr + PAGE_SIZE;
+> -	if (pm->index * sizeof(unsigned long) >= PAGE_SIZE ||
+> -	    pm->index * sizeof(unsigned long) >= pm->count)
+> -		return flush_pagemap(pm);
+>  	return 0;
+>  }
+>  
+> @@ -543,14 +527,6 @@ static int pagemap_pte_range(pmd_t *pmd,
+>  	int err;
+>  
+>  	pte = pte_offset_map(pmd, addr);
+> -
+> -#ifdef CONFIG_HIGHPTE
+> -	/* copy PTE directory to temporary buffer and unmap it */
+> -	memcpy(pm->ptebuf, pte, PAGE_ALIGN((unsigned long)pte) - (unsigned long)pte);
+> -	pte_unmap(pte);
+> -	pte = pm->ptebuf;
+> -#endif
+> -
+>  	for (; addr != end; pte++, addr += PAGE_SIZE) {
+>  		if (addr < pm->next)
+>  			continue;
+> @@ -560,11 +536,12 @@ static int pagemap_pte_range(pmd_t *pmd,
+>  			err = add_to_pagemap(addr, pte_pfn(*pte), pm);
+>  		if (err)
+>  			return err;
+> +		if (pm->count == 0)
+> +			break;
+>  	}
+> -
+> -#ifndef CONFIG_HIGHPTE
+>  	pte_unmap(pte - 1);
+> -#endif
+> +
+> +	cond_resched();
+>  
+>  	return 0;
+>  }
+> @@ -573,7 +550,7 @@ static int pagemap_fill(struct pagemapre
+>  {
+>  	int ret;
+>  
+> -	while (pm->next != end) {
+> +	while (pm->next != end && pm->count > 0) {
+>  		ret = add_to_pagemap(pm->next, -1UL, pm);
+>  		if (ret)
+>  			return ret;
+> @@ -608,15 +585,16 @@ static ssize_t pagemap_read(struct file 
+>  {
+>  	struct task_struct *task = get_proc_task(file->f_path.dentry->d_inode);
+>  	unsigned long src = *ppos;
+> -	unsigned long *page;
+> -	unsigned long addr, end, vend, svpfn, evpfn;
+> +	struct page **pages, *page;
+> +	unsigned long addr, end, vend, svpfn, evpfn, uaddr, uend;
+>  	struct mm_struct *mm;
+>  	struct vm_area_struct *vma;
+>  	struct pagemapread pm;
+> +	int pagecount;
+>  	int ret = -ESRCH;
+>  
+>  	if (!task)
+> -		goto out_no_task;
+> +		goto out;
+>  
+>  	ret = -EACCES;
+>  	if (!ptrace_may_attach(task))
+> @@ -628,39 +606,43 @@ static ssize_t pagemap_read(struct file 
+>  	if ((svpfn + 1) * sizeof(unsigned long) != src)
+>  		goto out;
+>  	evpfn = min((src + count) / sizeof(unsigned long) - 1,
+> -		    ((~0UL) >> PAGE_SHIFT) + 1);
+> +		    ((~0UL) >> PAGE_SHIFT) + 1) - 1;
+>  	count = (evpfn - svpfn) * sizeof(unsigned long);
+>  	end = PAGE_SIZE * evpfn;
+> -
+> -	ret = -ENOMEM;
+> -	page = kzalloc(PAGE_SIZE, GFP_USER);
+> -	if (!page)
+> -		goto out;
+> -
+> -#ifdef CONFIG_HIGHPTE
+> -	pm.ptebuf = kzalloc(PAGE_SIZE, GFP_USER);
+> -	if (!pm.ptebuf)
+> -		goto out_free;
+> -#endif
+> +	//printk("src %ld svpfn %d evpfn %d count %d\n", src, svpfn, evpfn, count);
+>  
+>  	ret = 0;
+>  	mm = get_task_mm(task);
+>  	if (!mm)
+> -		goto out_freepte;
+> +		goto out;
+> +
+> +	ret = -ENOMEM;
+> +	uaddr = (unsigned long)buf & ~(PAGE_SIZE-1);
+> +	uend = (unsigned long)(buf + count);
+> +	pagecount = (uend - uaddr + PAGE_SIZE-1) / PAGE_SIZE;
+> +	pages = kmalloc(pagecount * sizeof(struct page *), GFP_KERNEL);
+> +	if (!pages)
+> +		goto out_task;
+> +
+> +	down_read(&current->mm->mmap_sem);
+> +	ret = get_user_pages(current, current->mm, uaddr, pagecount,
+> +			     1, 0, pages, NULL);
+> +	up_read(&current->mm->mmap_sem);
+> +
+> +	//printk("%x(%x):%x %d@%ld (%d pages) -> %d\n", uaddr, buf, uend, count, src, pagecount, ret);
+> +	if (ret < 0)
+> +		goto out_free;
+>  
+> -	pm.mm = mm;
+>  	pm.next = addr;
+> -	pm.buf = page;
+>  	pm.pos = src;
+>  	pm.count = count;
+> -	pm.index = 0;
+> -	pm.out = buf;
+> +	pm.out = (unsigned long __user *)buf;
+>  
+>  	if (svpfn == -1) {
+> -		((char *)page)[0] = (ntohl(1) != 1);
+> -		((char *)page)[1] = PAGE_SHIFT;
+> -		((char *)page)[2] = sizeof(unsigned long);
+> -		((char *)page)[3] = sizeof(unsigned long);
+> +		put_user((char)(ntohl(1) != 1), buf);
+> +		put_user((char)PAGE_SHIFT, buf + 1);
+> +		put_user((char)sizeof(unsigned long), buf + 2);
+> +		put_user((char)sizeof(unsigned long), buf + 3);
+>  		add_to_pagemap(pm.next, page[0], &pm);
+>  	}
+>  
+> @@ -669,7 +651,8 @@ static ssize_t pagemap_read(struct file 
+>  	while (pm.count > 0 && vma) {
+>  		if (!ptrace_may_attach(task)) {
+>  			ret = -EIO;
+> -			goto out_mm;
+> +			up_read(&mm->mmap_sem);
+> +			goto out_release;
+>  		}
+>  		vend = min(vma->vm_end - 1, end - 1) + 1;
+>  		ret = pagemap_fill(&pm, vend);
+> @@ -682,23 +665,29 @@ static ssize_t pagemap_read(struct file 
+>  	}
+>  	up_read(&mm->mmap_sem);
+>  
+> +	//printk("before fill at %ld\n", pm.pos);
+>  	ret = pagemap_fill(&pm, end);
+>  
+> +	printk("after fill at %ld\n", pm.pos);
+>  	*ppos = pm.pos;
+>  	if (!ret)
+>  		ret = pm.pos - src;
+>  
+> -out_mm:
+> +out_release:
+> +	printk("releasing pages\n");
+> +	for (; pagecount; pagecount--) {
+> +		page = pages[pagecount-1];
+> +		if (!PageReserved(page))
+> +			SetPageDirty(page);
+> +		page_cache_release(page);
+> +	}
+>  	mmput(mm);
+> -out_freepte:
+> -#ifdef CONFIG_HIGHPTE
+> -	kfree(pm.ptebuf);
+>  out_free:
+> -#endif
+> -	kfree(page);
+> -out:
+> +	kfree(pages);
+> +out_task:
+>  	put_task_struct(task);
+> -out_no_task:
+> +out:
+> +	printk("returning\n");
+>  	return ret;
+>  }
+>  
+> _
 
 -- 
-Politics is the struggle between those who want to make their country
-the best in the world, and those who believe it already is.  Each group
-calls the other unpatriotic.
+Mathematics is the supreme nostalgia of our time.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
