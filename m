@@ -1,161 +1,60 @@
-Date: Tue, 21 Aug 2007 13:59:22 +0100
-Subject: Re: [Patch](memory hotplug) Hot-add with sparsemem-vmemmap
-Message-ID: <20070821125922.GG11329@skynet.ie>
-References: <20070817155908.7D91.Y-GOTO@jp.fujitsu.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <20070817155908.7D91.Y-GOTO@jp.fujitsu.com>
-From: mel@skynet.ie (Mel Gorman)
+Subject: Re: [RFC 2/9] Use NOMEMALLOC reclaim to allow reclaim if
+	PF_MEMALLOC is set
+From: Peter Zijlstra <a.p.zijlstra@chello.nl>
+In-Reply-To: <Pine.LNX.4.64.0708201415260.31167@schroedinger.engr.sgi.com>
+References: <20070814153021.446917377@sgi.com>
+	 <20070814153501.305923060@sgi.com> <20070818071035.GA4667@ucw.cz>
+	 <Pine.LNX.4.64.0708201158270.28863@schroedinger.engr.sgi.com>
+	 <1187641056.5337.32.camel@lappy>
+	 <Pine.LNX.4.64.0708201323590.30053@schroedinger.engr.sgi.com>
+	 <1187644449.5337.48.camel@lappy>
+	 <Pine.LNX.4.64.0708201415260.31167@schroedinger.engr.sgi.com>
+Content-Type: multipart/signed; micalg=pgp-sha1; protocol="application/pgp-signature"; boundary="=-niSah3lF9HtkpNpdlAU2"
+Date: Tue, 21 Aug 2007 16:07:11 +0200
+Message-Id: <1187705231.6114.245.camel@twins>
+Mime-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Yasunori Goto <y-goto@jp.fujitsu.com>
-Cc: Andy Whitcroft <apw@shadowen.org>, Andrew Morton <akpm@osdl.org>, Christoph Lameter <clameter@sgi.com>, linux-mm <linux-mm@kvack.org>
+To: Christoph Lameter <clameter@sgi.com>
+Cc: Pavel Machek <pavel@ucw.cz>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, dkegel@google.com, David Miller <davem@davemloft.net>, Nick Piggin <npiggin@suse.de>
 List-ID: <linux-mm.kvack.org>
 
-On (17/08/07 16:08), Yasunori Goto didst pronounce:
-> Hello.
-> 
-> This patch is to avoid panic when memory hot-add is executed with
-> sparsemem-vmemmap. Current vmemmap-sparsemem code doesn't support
-> memory hot-add. Vmemmap must be populated when hot-add.
-> This is for 2.6.23-rc2-mm2.
-> 
-> Todo: # Even if this patch is applied, the message "[xxxx-xxxx] potential
->         offnode page_structs" is displayed. To allocate memmap on its node,
->         memmap (and pgdat) must be initialized itself like chicken and
->         egg relationship.
-> 
->       # vmemmap_unpopulate will be necessary for followings.
->          - For cancel hot-add due to error.
->          - For unplug.
-> 
-> Please comment.
-> 
-> Signed-off-by: Yasunori Goto <y-goto@jp.fujitsu.com>
-> 
-> ---
->  include/linux/mm.h  |    2 +-
->  mm/sparse-vmemmap.c |    2 +-
->  mm/sparse.c         |   24 +++++++++++++++++++++---
->  3 files changed, 23 insertions(+), 5 deletions(-)
-> 
-> Index: vmemmap/mm/sparse-vmemmap.c
-> ===================================================================
-> --- vmemmap.orig/mm/sparse-vmemmap.c	2007-08-10 20:17:19.000000000 +0900
-> +++ vmemmap/mm/sparse-vmemmap.c	2007-08-10 21:12:54.000000000 +0900
-> @@ -170,7 +170,7 @@ int __meminit vmemmap_populate(struct pa
->  }
->  #endif /* !CONFIG_ARCH_POPULATES_SPARSEMEM_VMEMMAP */
->  
-> -struct page __init *sparse_early_mem_map_populate(unsigned long pnum, int nid)
-> +struct page *sparse_mem_map_populate(unsigned long pnum, int nid)
+--=-niSah3lF9HtkpNpdlAU2
+Content-Type: text/plain
+Content-Transfer-Encoding: quoted-printable
 
-__meminit here instead of __init?
+On Mon, 2007-08-20 at 14:17 -0700, Christoph Lameter wrote:
+> On Mon, 20 Aug 2007, Peter Zijlstra wrote:
+>=20
+> > > Its not that different.
+> >=20
+> > Yes it is, disk based completion does not require memory, network based
+> > completion requires unbounded memory.
+>=20
+> Disk based completion only require no memory if its not on a stack of=20
+> other devices and if the interrupt handles is appropriately shaped. If=20
+> there are multile levels below or there is some sort of complex=20
+> completion handling then this also may require memory.
 
->  {
->  	struct page *map = pfn_to_page(pnum * PAGES_PER_SECTION);
->  	int error = vmemmap_populate(map, PAGES_PER_SECTION, nid);
-> Index: vmemmap/include/linux/mm.h
-> ===================================================================
-> --- vmemmap.orig/include/linux/mm.h	2007-08-10 20:17:19.000000000 +0900
-> +++ vmemmap/include/linux/mm.h	2007-08-10 21:06:34.000000000 +0900
-> @@ -1146,7 +1146,7 @@ extern int randomize_va_space;
->  
->  const char * arch_vma_name(struct vm_area_struct *vma);
->  
-> -struct page *sparse_early_mem_map_populate(unsigned long pnum, int nid);
-> +struct page *sparse_mem_map_populate(unsigned long pnum, int nid);
->  int vmemmap_populate(struct page *start_page, unsigned long pages, int node);
->  int vmemmap_populate_pmd(pud_t *, unsigned long, unsigned long, int);
->  void *vmemmap_alloc_block(unsigned long size, int node);
-> Index: vmemmap/mm/sparse.c
-> ===================================================================
-> --- vmemmap.orig/mm/sparse.c	2007-08-10 20:17:19.000000000 +0900
-> +++ vmemmap/mm/sparse.c	2007-08-10 21:21:01.000000000 +0900
-> @@ -259,7 +259,7 @@ static unsigned long *sparse_early_usema
->  }
->  
->  #ifndef CONFIG_SPARSEMEM_VMEMMAP
-> -struct page __init *sparse_early_mem_map_populate(unsigned long pnum, int nid)
-> +struct page __init *sparse_mem_map_populate(unsigned long pnum, int nid)
+I'm not aware of such a scenario - but it could well be. Still if it
+would it would take a _bounded_ amount of memory per page.
 
-__meminit again possibly.
+Network would still differ in that it requires an _unbounded_ amount of
+packets to receive and process in order to receive that completion.
 
->  {
->  	struct page *map;
->  
-> @@ -284,7 +284,7 @@ struct page __init *sparse_early_mem_map
->  	struct mem_section *ms = __nr_to_section(pnum);
->  	int nid = sparse_early_nid(ms);
->  
-> -	map = sparse_early_mem_map_populate(pnum, nid);
-> +	map = sparse_mem_map_populate(pnum, nid);
->  	if (map)
->  		return map;
->  
-> @@ -322,6 +322,17 @@ void __init sparse_init(void)
->  }
->  
->  #ifdef CONFIG_MEMORY_HOTPLUG
-> +#ifdef CONFIG_SPARSEMEM_VMEMMAP
-> +static inline struct page *kmalloc_section_memmap(unsigned long pnum, int nid,
-> +						 unsigned long nr_pages)
-> +{
-> +	return sparse_mem_map_populate(pnum, nid);
-> +}
+--=-niSah3lF9HtkpNpdlAU2
+Content-Type: application/pgp-signature; name=signature.asc
+Content-Description: This is a digitally signed message part
 
-In the other version of __kmalloc_section_memmap(), pages get allocated
-from alloc_pages() and it's obvious it's allocated there. A one line
-comment saying that sparse_mem_map_populate() will make the necessary
-allocations eventually would be nice.
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v1.4.6 (GNU/Linux)
 
-Not a big deal though.
+iD8DBQBGyvGPXA2jU0ANEf4RAuOWAJ49JV4ljK+gdOLW/2nTnFEC9qGVpgCfWwPr
+IFXxD4k0PwA0Ynkv2tGmELY=
+=u2JR
+-----END PGP SIGNATURE-----
 
-> +static void __kfree_section_memmap(struct page *memmap, unsigned long nr_pages)
-> +{
-> +	return; /* XXX: Not implemented yet */
-> +}
-> +#else
->  static struct page *__kmalloc_section_memmap(unsigned long nr_pages)
->  {
->  	struct page *page, *ret;
-> @@ -344,6 +355,12 @@ got_map_ptr:
->  	return ret;
->  }
->  
-> +static inline struct page *kmalloc_section_memmap(unsigned long pnum, int nid,
-> +						  unsigned long nr_pages)
-> +{
-> +	return __kmalloc_section_memmap(nr_pages);
-> +}
-> +
->  static int vaddr_in_vmalloc_area(void *addr)
->  {
->  	if (addr >= (void *)VMALLOC_START &&
-> @@ -360,6 +377,7 @@ static void __kfree_section_memmap(struc
->  		free_pages((unsigned long)memmap,
->  			   get_order(sizeof(struct page) * nr_pages));
->  }
-> +#endif /* CONFIG_SPARSEMEM_VMEMMAP */
->  
->  /*
->   * returns the number of sections whose mem_maps were properly
-> @@ -382,7 +400,7 @@ int sparse_add_one_section(struct zone *
->  	 * plus, it does a kmalloc
->  	 */
->  	sparse_index_init(section_nr, pgdat->node_id);
-> -	memmap = __kmalloc_section_memmap(nr_pages);
-> +	memmap = kmalloc_section_memmap(section_nr, pgdat->node_id, nr_pages);
->  	usemap = __kmalloc_section_usemap();
->  
->  	pgdat_resize_lock(pgdat, &flags);
-> 
-
--- 
-Mel Gorman
-Part-time Phd Student                          Linux Technology Center
-University of Limerick                         IBM Dublin Software Lab
+--=-niSah3lF9HtkpNpdlAU2--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
