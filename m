@@ -1,183 +1,79 @@
-Received: from d03relay04.boulder.ibm.com (d03relay04.boulder.ibm.com [9.17.195.106])
-	by e35.co.us.ibm.com (8.13.8/8.13.8) with ESMTP id l7LKgxww015031
-	for <linux-mm@kvack.org>; Tue, 21 Aug 2007 16:42:59 -0400
-Received: from d03av04.boulder.ibm.com (d03av04.boulder.ibm.com [9.17.195.170])
-	by d03relay04.boulder.ibm.com (8.13.8/8.13.8/NCO v8.5) with ESMTP id l7LKgwsc210940
-	for <linux-mm@kvack.org>; Tue, 21 Aug 2007 14:42:58 -0600
-Received: from d03av04.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av04.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l7LKgw2K027036
-	for <linux-mm@kvack.org>; Tue, 21 Aug 2007 14:42:58 -0600
-Subject: [RFC][PATCH 7/9] pagewalk: add handler for empty ranges
+Received: from d01relay04.pok.ibm.com (d01relay04.pok.ibm.com [9.56.227.236])
+	by e1.ny.us.ibm.com (8.13.8/8.13.8) with ESMTP id l7LKh93V022562
+	for <linux-mm@kvack.org>; Tue, 21 Aug 2007 16:43:09 -0400
+Received: from d01av03.pok.ibm.com (d01av03.pok.ibm.com [9.56.224.217])
+	by d01relay04.pok.ibm.com (8.13.8/8.13.8/NCO v8.5) with ESMTP id l7LKgsrC558486
+	for <linux-mm@kvack.org>; Tue, 21 Aug 2007 16:43:09 -0400
+Received: from d01av03.pok.ibm.com (loopback [127.0.0.1])
+	by d01av03.pok.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l7LKgsNX009008
+	for <linux-mm@kvack.org>; Tue, 21 Aug 2007 16:42:54 -0400
+Subject: [RFC][PATCH 4/9] pagemap: remove open-coded sizeof(unsigned long)
 From: Dave Hansen <haveblue@us.ibm.com>
-Date: Tue, 21 Aug 2007 13:42:56 -0700
+Date: Tue, 21 Aug 2007 13:42:51 -0700
 References: <20070821204248.0F506A29@kernel>
 In-Reply-To: <20070821204248.0F506A29@kernel>
-Message-Id: <20070821204256.140D32D2@kernel>
+Message-Id: <20070821204251.67EF9E06@kernel>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: mpm@selenic.com
 Cc: linux-mm@kvack.org, Dave Hansen <haveblue@us.ibm.com>
 List-ID: <linux-mm.kvack.org>
 
-There's a pretty good deal of complexity surrounding dealing
-with a sparse address space in the /proc/<pid>/pagemap code.
-We have the pm->next pointer to help indicate how far we've
-walked in the pagetables.  We also attempt to fill empty
-areas without vmas manually.
+I think the code gets easier to read when we give symbolic names
+to some of the operations we're performing.  I was sure we needed
+this when I saw the header being built like this:
 
-This code adds an extension to the mm_walk code: a new handler
-for "empty" pte ranges.  Those are areas where there is no
-pte page present.  This allows us to get rid of the code that
-inspects VMAs or that trys to keep track of how much of the
-pagemap we have filled.
+	...
+	buf[2] = sizeof(unsigned long)
+	buf[3] = sizeof(unsigned long)
 
-Note that this truly does walk pte *holes*.  That isn't just
-places where we have a pte_none().  It includes places where
-there are any missing higher-level pagetable entries like
-puds.
+I really couldn't remember what either field did ;(
 
 Signed-off-by: Dave Hansen <haveblue@us.ibm.com>
 ---
 
- lxc-dave/include/linux/mm.h |    1 
- lxc-dave/lib/pagewalk.c     |   67 +++++++++++++++++++-------------------------
- 2 files changed, 30 insertions(+), 38 deletions(-)
+ lxc-dave/fs/proc/task_mmu.c |   12 +++++++-----
+ 1 file changed, 7 insertions(+), 5 deletions(-)
 
-diff -puN include/linux/mm.h~pagewalk-empty-ranges include/linux/mm.h
---- lxc/include/linux/mm.h~pagewalk-empty-ranges	2007-08-21 13:30:53.000000000 -0700
-+++ lxc-dave/include/linux/mm.h	2007-08-21 13:30:53.000000000 -0700
-@@ -699,6 +699,7 @@ struct mm_walk {
- 	int (*pud_entry)(pud_t *, unsigned long, unsigned long, void *);
- 	int (*pmd_entry)(pmd_t *, unsigned long, unsigned long, void *);
- 	int (*pte_entry)(pte_t *, unsigned long, unsigned long, void *);
-+	int (*pte_hole) (unsigned long, unsigned long, void *);
+diff -puN fs/proc/task_mmu.c~pagemap-use-ENTRY_SIZE fs/proc/task_mmu.c
+--- lxc/fs/proc/task_mmu.c~pagemap-use-ENTRY_SIZE	2007-08-21 13:30:51.000000000 -0700
++++ lxc-dave/fs/proc/task_mmu.c	2007-08-21 13:30:51.000000000 -0700
+@@ -508,14 +508,16 @@ struct pagemapread {
+ 	unsigned long __user *out;
  };
  
- int walk_page_range(struct mm_struct *, unsigned long addr, unsigned long end,
-diff -puN lib/pagewalk.c~pagewalk-empty-ranges lib/pagewalk.c
---- lxc/lib/pagewalk.c~pagewalk-empty-ranges	2007-08-21 13:30:53.000000000 -0700
-+++ lxc-dave/lib/pagewalk.c	2007-08-21 13:30:53.000000000 -0700
-@@ -6,17 +6,13 @@ static int walk_pte_range(pmd_t *pmd, un
- 			  struct mm_walk *walk, void *private)
++#define PM_ENTRY_BYTES sizeof(unsigned long)
++
+ static int add_to_pagemap(unsigned long addr, unsigned long pfn,
+ 			  struct pagemapread *pm)
  {
- 	pte_t *pte;
--	int err;
-+	int err = 0;
- 
- 	for (pte = pte_offset_map(pmd, addr); addr != end;
- 	     addr += PAGE_SIZE, pte++) {
--		if (pte_none(*pte))
--			continue;
- 		err = walk->pte_entry(pte, addr, addr, private);
--		if (err) {
--			pte_unmap(pte);
--			return err;
--		}
-+		if (err)
-+		       break;
- 	}
- 	pte_unmap(pte);
- 	return 0;
-@@ -27,25 +23,23 @@ static int walk_pmd_range(pud_t *pud, un
- {
- 	pmd_t *pmd;
- 	unsigned long next;
--	int err;
-+	int err = 0;
- 
- 	for (pmd = pmd_offset(pud, addr); addr != end;
- 	     pmd++, addr = next) {
- 		next = pmd_addr_end(addr, end);
--		if (pmd_none_or_clear_bad(pmd))
-+		if (pmd_none(*pmd)) {
-+			err = walk->pte_hole(addr, next, private);
-+		} else if (pmd_none_or_clear_bad(pmd))
- 			continue;
--		if (walk->pmd_entry) {
-+		if (!err && walk->pmd_entry)
- 			err = walk->pmd_entry(pmd, addr, next, private);
--			if (err)
--				return err;
--		}
--		if (walk->pte_entry) {
-+		if (!err && walk->pte_entry)
- 			err = walk_pte_range(pmd, addr, next, walk, private);
--			if (err)
--				return err;
--		}
-+		if (err)
-+			break;
- 	}
--	return 0;
-+	return err;
- }
- 
- static int walk_pud_range(pgd_t *pgd, unsigned long addr, unsigned long end,
-@@ -53,23 +47,21 @@ static int walk_pud_range(pgd_t *pgd, un
- {
- 	pud_t *pud;
- 	unsigned long next;
--	int err;
-+	int err = 0;
- 
- 	for (pud = pud_offset(pgd, addr); addr != end;
- 	     pud++, addr = next) {
- 		next = pud_addr_end(addr, end);
--		if (pud_none_or_clear_bad(pud))
-+		if (pud_none(*pud)) {
-+			err = walk->pte_hole(addr, next, private);
-+		} else if (pud_none_or_clear_bad(pud))
- 			continue;
--		if (walk->pud_entry) {
-+		if (!err && walk->pud_entry)
- 			err = walk->pud_entry(pud, addr, next, private);
--			if (err)
--				return err;
--		}
--		if (walk->pmd_entry || walk->pte_entry) {
-+		if (!err && (walk->pmd_entry || walk->pte_entry))
- 			err = walk_pmd_range(pud, addr, next, walk, private);
--			if (err)
--				return err;
--		}
-+		if (err)
-+			return err;
- 	}
+ 	__put_user(pfn, pm->out);
+ 	pm->out++;
+-	pm->pos += sizeof(unsigned long);
+-	pm->count -= sizeof(unsigned long);
+ 	pm->next = addr + PAGE_SIZE;
++	pm->pos += PM_ENTRY_BYTES;
++	pm->count -= PM_ENTRY_BYTES;
  	return 0;
  }
-@@ -91,23 +83,22 @@ int walk_page_range(struct mm_struct *mm
- {
- 	pgd_t *pgd;
- 	unsigned long next;
--	int err;
-+	int err = 0;
  
- 	for (pgd = pgd_offset(mm, addr); addr != end;
- 	     pgd++, addr = next) {
- 		next = pgd_addr_end(addr, end);
--		if (pgd_none_or_clear_bad(pgd))
-+		if (pgd_none(*pgd)) {
-+			err = walk->pte_hole(addr, next, private);
-+		} else if (pgd_none_or_clear_bad(pgd))
- 			continue;
--		if (walk->pgd_entry) {
-+		if (!err && walk->pgd_entry)
- 			err = walk->pgd_entry(pgd, addr, next, private);
--			if (err)
--				return err;
--		}
--		if (walk->pud_entry || walk->pmd_entry || walk->pte_entry) {
-+		if (!err &&
-+		    (walk->pud_entry || walk->pmd_entry || walk->pte_entry))
- 			err = walk_pud_range(pgd, addr, next, walk, private);
--			if (err)
--				return err;
--		}
-+		if (err)
-+			return err;
- 	}
- 	return 0;
- }
+@@ -601,13 +603,13 @@ static ssize_t pagemap_read(struct file 
+ 		goto out;
+ 
+ 	ret = -EIO;
+-	svpfn = src / sizeof(unsigned long);
++	svpfn = src / PM_ENTRY_BYTES;
+ 	addr = PAGE_SIZE * svpfn;
+-	if (svpfn * sizeof(unsigned long) != src)
++	if (svpfn * PM_ENTRY_BYTES != src)
+ 		goto out;
+ 	evpfn = min((src + count) / sizeof(unsigned long) - 1,
+ 		    ((~0UL) >> PAGE_SHIFT) + 1);
+-	count = (evpfn - svpfn) * sizeof(unsigned long);
++	count = (evpfn - svpfn) * PM_ENTRY_BYTES;
+ 	end = PAGE_SIZE * evpfn;
+ 	//printk("src %ld svpfn %d evpfn %d count %d\n", src, svpfn, evpfn, count);
+ 
 _
 
 --
