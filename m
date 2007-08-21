@@ -1,11 +1,11 @@
-Date: Tue, 21 Aug 2007 09:51:47 +0100
-Subject: Re: [PATCH 2/6] Use one zonelist that is filtered instead of multiple zonelists
-Message-ID: <20070821085147.GB29794@skynet.ie>
-References: <20070817201647.14792.2690.sendpatchset@skynet.skynet.ie> <20070817201728.14792.42873.sendpatchset@skynet.skynet.ie> <Pine.LNX.4.64.0708171355580.9635@schroedinger.engr.sgi.com>
+Date: Tue, 21 Aug 2007 09:54:23 +0100
+Subject: Re: [PATCH 3/6] Embed zone_id information within the zonelist->zones pointer
+Message-ID: <20070821085423.GC29794@skynet.ie>
+References: <20070817201647.14792.2690.sendpatchset@skynet.skynet.ie> <20070817201748.14792.37660.sendpatchset@skynet.skynet.ie> <Pine.LNX.4.64.0708171400570.9635@schroedinger.engr.sgi.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <Pine.LNX.4.64.0708171355580.9635@schroedinger.engr.sgi.com>
+In-Reply-To: <Pine.LNX.4.64.0708171400570.9635@schroedinger.engr.sgi.com>
 From: mel@skynet.ie (Mel Gorman)
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
@@ -13,68 +13,36 @@ To: Christoph Lameter <clameter@sgi.com>
 Cc: Lee.Schermerhorn@hp.com, ak@suse.de, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On (17/08/07 13:59), Christoph Lameter didst pronounce:
+On (17/08/07 14:02), Christoph Lameter didst pronounce:
 > On Fri, 17 Aug 2007, Mel Gorman wrote:
 > 
-> > +/* Returns the first zone at or below highest_zoneidx in a zonelist */
-> > +static inline struct zone **first_zones_zonelist(struct zonelist *zonelist,
-> > +					enum zone_type highest_zoneidx)
-> > +{
-> > +	struct zone **z;
-> > +	for (z = zonelist->zones; zone_idx(*z) > highest_zoneidx; z++);
-> > +	return z;
-> > +}
+> > +/*
+> > + * SMP will align zones to a large boundary so the zone ID will fit in the
+> > + * least significant biuts. Otherwise, ZONES_SHIFT must be 2 or less to
+> > + * fit
 > 
-> The formatting above is a bit confusing. Add requires empty lines and put 
-> the ; on a separate line.
-> 
-> 
-> > +/* Returns the next zone at or below highest_zoneidx in a zonelist */
-> > +static inline struct zone **next_zones_zonelist(struct zone **z,
-> > +					enum zone_type highest_zoneidx)
-> > +{
-> > +	for (++z; zone_idx(*z) > highest_zoneidx; z++);
-> 
-> Looks weird too.
-> 
-> ++z on an earlier line and then
-> 
-> 	for ( ; zone_idx(*z) ...)
-> 
-> ?
+> ZONES_SHIFT is always 2 or less....
 > 
 
-Ok, the relevant section now looks like
+Yeah, I get that but I was trying for future proof at build time.  However,
+there is no need to have dead code on the off-chance it is eventually
+used. Failing the compile should be enough so now the check looks like;
 
-+/* Returns the first zone at or below highest_zoneidx in a zonelist */
-+static inline struct zone **first_zones_zonelist(struct zonelist *zonelist,
-+					enum zone_type highest_zoneidx)
-+{
-+	struct zone **z;
++/*
++ * SMP will align zones to a large boundary so the zone ID will fit in the
++ * least significant biuts. Otherwise, ZONES_SHIFT must be 2 or less to
++ * fit. Error if it's not
++ */
++#if (defined(CONFIG_SMP) && INTERNODE_CACHE_SHIFT < ZONES_SHIFT) || \
++	ZONES_SHIFT > 2
++#error There is not enough space to embed zone IDs in the zonelist
++#endif
 +
-+	for (z = zonelist->zones;
-+			zone_idx(*z) > highest_zoneidx;
-+			z++)
-+		;
-+
-+	return z;
-+}
-+
-+/* Returns the next zone at or below highest_zoneidx in a zonelist */
-+static inline struct zone **next_zones_zonelist(struct zone **z,
-+					enum zone_type highest_zoneidx)
-+{
-+	/* Advance to the next zone in the zonelist */
-+	z++;
-+
-+	/* Find the next suitable zone to use for the allocation */
-+	for (; zone_idx(*z) > highest_zoneidx; z++)
-+		;
-+
-+	return z;
-+}
 
-Is that better?
+> Acked-by: Christoph Lameter <clameter@sgi.com>
+> 
+
+Thanks
 
 -- 
 Mel Gorman
