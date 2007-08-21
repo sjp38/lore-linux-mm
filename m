@@ -1,256 +1,274 @@
-Date: Tue, 21 Aug 2007 17:01:03 -0500
+Date: Tue, 21 Aug 2007 17:07:24 -0500
 From: Matt Mackall <mpm@selenic.com>
-Subject: Re: [RFC][PATCH 8/9] pagemap: use page walker pte_hole() helper
-Message-ID: <20070821220103.GM30556@waste.org>
-References: <20070821204248.0F506A29@kernel> <20070821204257.BB3A4C17@kernel>
+Subject: Re: [RFC][PATCH 1/9] /proc/pid/pagemap update
+Message-ID: <20070821220723.GN30556@waste.org>
+References: <20070821204248.0F506A29@kernel>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20070821204257.BB3A4C17@kernel>
+In-Reply-To: <20070821204248.0F506A29@kernel>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Dave Hansen <haveblue@us.ibm.com>
 Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Aug 21, 2007 at 01:42:57PM -0700, Dave Hansen wrote:
+On Tue, Aug 21, 2007 at 01:42:48PM -0700, Dave Hansen wrote:
 > 
-> I tried to do this a bit more incrementally, but it ended
-> up just looking like an even worse mess.  So, this does
-> a a couple of different things.
+> This is a series of patches to update /proc/pid/pagemap,
+> to simplify the code, and fix bugs which caused userspace
+> memory corruption.
 > 
-> 1. use page walker pte_hole() helper, which
-> 2. gets rid of the "next" value in "struct pagemapread"
-> 3. allow 1-3 byte reads from pagemap.  This at least
->    ensures that we don't write over user memory if they
->    ask us for 1 bytes and we tried to write 4.
-> 4. Instead of trying to calculate what ranges of pages
->    we are going to walk, simply start walking them,
->    then return PAGEMAP_END_OF_BUFFER at the end of the
->    buffer, error out, and stop walking.
-> 5. enforce that reads must be algined to PM_ENTRY_BYTES
+> Since it is just in -mm, we should probably roll all of
+> these together and just update it all at once, or send
+> a simple drop-on replacement patch.  These patches are
+> all here mostly to help with review.
 > 
-> Note that, despite these functional additions, and some
-> nice new comments, this patch still removes more code
-> than it adds.
+> Matt, if you're OK with these, do you mind if I send
+> the update into -mm, or would you like to do it?
 
-Ok, but deleting my debugging printks doesn't count!
+I suppose I'll give this a spin tomorrow along with some other bits I
+have pending and push it to Andrew..
 
+> --
+> From: Matt Mackall <mpm@selenic.com>
+> 
+> On Mon, Aug 06, 2007 at 01:44:19AM -0500, Dave Boutcher wrote:
+> > 
+> > Matt, this patch set replaces the two patches I sent earlier and
+> > contains additional fixes.  I've done some reasonably rigorous testing
+> > on x86_64, but not on a 32 bit arch.  I'm pretty sure this isn't worse
+> > than what's in mm right now, which has some user-space corruption and
+> > a nasty infinite kernel loop. YMMV.
+> 
+> Dave, here's my current work-in-progress patch to deal with a couple
+> locking issues, primarily a possible deadlock on the mm semaphore that
+> can occur if someone unmaps the target buffer while we're walking the
+> tree. It currently hangs on my box and I haven't had any free cycles
+> to finish debugging it, but you might want to take a peek at it.
+> 
 > Signed-off-by: Dave Hansen <haveblue@us.ibm.com>
 > ---
 > 
->  lxc-dave/fs/proc/task_mmu.c |  123 ++++++++++++++++++++------------------------
->  1 file changed, 56 insertions(+), 67 deletions(-)
+>  lxc-dave/fs/proc/task_mmu.c |  121 ++++++++++++++++++++------------------------
+>  1 file changed, 55 insertions(+), 66 deletions(-)
 > 
-> diff -puN fs/proc/task_mmu.c~bail-instead-of-tracking fs/proc/task_mmu.c
-> --- lxc/fs/proc/task_mmu.c~bail-instead-of-tracking	2007-08-21 13:30:54.000000000 -0700
-> +++ lxc-dave/fs/proc/task_mmu.c	2007-08-21 13:30:54.000000000 -0700
-> @@ -501,7 +501,6 @@ const struct file_operations proc_clear_
+> diff -puN fs/proc/task_mmu.c~Re-_PATCH_0_3_proc_pid_pagemap_fixes fs/proc/task_mmu.c
+> --- lxc/fs/proc/task_mmu.c~Re-_PATCH_0_3_proc_pid_pagemap_fixes	2007-08-21 13:30:50.000000000 -0700
+> +++ lxc-dave/fs/proc/task_mmu.c	2007-08-21 13:30:50.000000000 -0700
+> @@ -501,37 +501,21 @@ const struct file_operations proc_clear_
 >  };
 >  
 >  struct pagemapread {
-> -	unsigned long next;
+> -	struct mm_struct *mm;
+>  	unsigned long next;
+> -	unsigned long *buf;
+> -	pte_t *ptebuf;
 >  	unsigned long pos;
 >  	size_t count;
 >  	int index;
-> @@ -510,58 +509,64 @@ struct pagemapread {
+> -	char __user *out;
+> +	unsigned long __user *out;
+>  };
 >  
->  #define PM_ENTRY_BYTES sizeof(unsigned long)
->  #define PM_NOT_PRESENT ((unsigned long)-1)
-> +#define PAGEMAP_END_OF_BUFFER 1
->  
->  static int add_to_pagemap(unsigned long addr, unsigned long pfn,
->  			  struct pagemapread *pm)
->  {
-> -	__put_user(pfn, pm->out);
-> -	pm->out++;
-> -	pm->next = addr + PAGE_SIZE;
-> +	int out_len = PM_ENTRY_BYTES;
-> +	if (pm->count < PM_ENTRY_BYTES)
-> +		out_len = pm->count;
-
-This wants an unlikely.
-
-> +	copy_to_user(pm->out, &pfn, out_len);
-
-And I think we want to keep the put_user in the fast path.
-
->  	pm->pos += PM_ENTRY_BYTES;
->  	pm->count -= PM_ENTRY_BYTES;
-> +	if (pm->count <= 0)
-> +		return PAGEMAP_END_OF_BUFFER;
->  	return 0;
->  }
->  
-> +static int pagemap_pte_hole(unsigned long start, unsigned long end,
-> +				void *private)
-> +{
-> +	struct pagemapread *pm = private;
-> +	unsigned long addr;
-> +	int err = 0;
-> +	for (addr = start; addr < end; addr += PAGE_SIZE) {
-> +		err = add_to_pagemap(addr, PM_NOT_PRESENT, pm);
-> +		if (err)
-> +			break;
-> +	}
-> +	return err;
-> +}
-> +
->  static int pagemap_pte_range(pmd_t *pmd, unsigned long addr, unsigned long end,
->  			     void *private)
->  {
->  	struct pagemapread *pm = private;
->  	pte_t *pte;
-> -	int err;
-> +	int err = 0;
->  
->  	pte = pte_offset_map(pmd, addr);
->  	for (; addr != end; pte++, addr += PAGE_SIZE) {
-> -		if (addr < pm->next)
-> -			continue;
-> -		if (!pte_present(*pte))
-> -			err = add_to_pagemap(addr, PM_NOT_PRESENT, pm);
-> -		else
-> -			err = add_to_pagemap(addr, pte_pfn(*pte), pm);
-> +		unsigned long pfn = PM_NOT_PRESENT;
-> +		if (pte_present(*pte))
-> +			pfn = pte_pfn(*pte);
-> +		err = add_to_pagemap(addr, pfn, pm);
->  		if (err)
->  			return err;
-> -		if (pm->count == 0)
-> -			break;
->  	}
->  	pte_unmap(pte - 1);
->  
->  	cond_resched();
->  
-> -	return 0;
-> +	return err;
->  }
->  
-> -static int pagemap_fill(struct pagemapread *pm, unsigned long end)
-> +static struct mm_walk pagemap_walk =
->  {
-> -	int ret;
-> -
-> -	while (pm->next != end && pm->count > 0) {
-> -		ret = add_to_pagemap(pm->next, -1UL, pm);
-> -		if (ret)
-> -			return ret;
-> -	}
+> -static int flush_pagemap(struct pagemapread *pm)
+> -{
+> -	int n = min(pm->count, pm->index * sizeof(unsigned long));
+> -	if (copy_to_user(pm->out, pm->buf, n))
+> -		return -EFAULT;
+> -	pm->out += n;
+> -	pm->pos += n;
+> -	pm->count -= n;
+> -	pm->index = 0;
+> -	cond_resched();
 > -	return 0;
 > -}
 > -
-> -static struct mm_walk pagemap_walk = { .pmd_entry = pagemap_pte_range };
-> +	.pmd_entry = pagemap_pte_range,
-> +	.pte_hole = pagemap_pte_hole
-> +};
+>  static int add_to_pagemap(unsigned long addr, unsigned long pfn,
+>  			  struct pagemapread *pm)
+>  {
+> -	pm->buf[pm->index++] = pfn;
+> +	__put_user(pfn, pm->out);
+> +	pm->out++;
+> +	pm->pos += sizeof(unsigned long);
+> +	pm->count -= sizeof(unsigned long);
+>  	pm->next = addr + PAGE_SIZE;
+> -	if (pm->index * sizeof(unsigned long) >= PAGE_SIZE ||
+> -	    pm->index * sizeof(unsigned long) >= pm->count)
+> -		return flush_pagemap(pm);
+>  	return 0;
+>  }
 >  
->  /*
->   * /proc/pid/pagemap - an array mapping virtual pages to pfns
-> @@ -589,9 +594,8 @@ static ssize_t pagemap_read(struct file 
+> @@ -543,14 +527,6 @@ static int pagemap_pte_range(pmd_t *pmd,
+>  	int err;
+>  
+>  	pte = pte_offset_map(pmd, addr);
+> -
+> -#ifdef CONFIG_HIGHPTE
+> -	/* copy PTE directory to temporary buffer and unmap it */
+> -	memcpy(pm->ptebuf, pte, PAGE_ALIGN((unsigned long)pte) - (unsigned long)pte);
+> -	pte_unmap(pte);
+> -	pte = pm->ptebuf;
+> -#endif
+> -
+>  	for (; addr != end; pte++, addr += PAGE_SIZE) {
+>  		if (addr < pm->next)
+>  			continue;
+> @@ -560,11 +536,12 @@ static int pagemap_pte_range(pmd_t *pmd,
+>  			err = add_to_pagemap(addr, pte_pfn(*pte), pm);
+>  		if (err)
+>  			return err;
+> +		if (pm->count == 0)
+> +			break;
+>  	}
+> -
+> -#ifndef CONFIG_HIGHPTE
+>  	pte_unmap(pte - 1);
+> -#endif
+> +
+> +	cond_resched();
+>  
+>  	return 0;
+>  }
+> @@ -573,7 +550,7 @@ static int pagemap_fill(struct pagemapre
+>  {
+>  	int ret;
+>  
+> -	while (pm->next != end) {
+> +	while (pm->next != end && pm->count > 0) {
+>  		ret = add_to_pagemap(pm->next, -1UL, pm);
+>  		if (ret)
+>  			return ret;
+> @@ -608,15 +585,16 @@ static ssize_t pagemap_read(struct file 
+>  {
 >  	struct task_struct *task = get_proc_task(file->f_path.dentry->d_inode);
 >  	unsigned long src = *ppos;
->  	struct page **pages, *page;
-> -	unsigned long addr, end, vend, svpfn, evpfn, uaddr, uend;
-> +	unsigned long uaddr, uend;
+> -	unsigned long *page;
+> -	unsigned long addr, end, vend, svpfn, evpfn;
+> +	struct page **pages, *page;
+> +	unsigned long addr, end, vend, svpfn, evpfn, uaddr, uend;
 >  	struct mm_struct *mm;
-> -	struct vm_area_struct *vma;
+>  	struct vm_area_struct *vma;
 >  	struct pagemapread pm;
->  	int pagecount;
+> +	int pagecount;
 >  	int ret = -ESRCH;
-> @@ -603,16 +607,10 @@ static ssize_t pagemap_read(struct file 
->  	if (!ptrace_may_attach(task))
->  		goto out;
 >  
-> -	ret = -EIO;
-> -	svpfn = src / PM_ENTRY_BYTES;
-> -	addr = PAGE_SIZE * svpfn;
-> -	if (svpfn * PM_ENTRY_BYTES != src)
-> +	ret = -EINVAL;
-> +	/* file position must be aligned */
-> +	if (*ppos % PM_ENTRY_BYTES)
+>  	if (!task)
+> -		goto out_no_task;
+> +		goto out;
+>  
+>  	ret = -EACCES;
+>  	if (!ptrace_may_attach(task))
+> @@ -628,39 +606,43 @@ static ssize_t pagemap_read(struct file 
+>  	if ((svpfn + 1) * sizeof(unsigned long) != src)
 >  		goto out;
-> -	evpfn = min((src + count) / sizeof(unsigned long) - 1,
+>  	evpfn = min((src + count) / sizeof(unsigned long) - 1,
 > -		    ((~0UL) >> PAGE_SHIFT) + 1);
-> -	count = (evpfn - svpfn) * PM_ENTRY_BYTES;
-> -	end = PAGE_SIZE * evpfn;
-> -	//printk("src %ld svpfn %d evpfn %d count %d\n", src, svpfn, evpfn, count);
+> +		    ((~0UL) >> PAGE_SHIFT) + 1) - 1;
+>  	count = (evpfn - svpfn) * sizeof(unsigned long);
+>  	end = PAGE_SIZE * evpfn;
+> -
+> -	ret = -ENOMEM;
+> -	page = kzalloc(PAGE_SIZE, GFP_USER);
+> -	if (!page)
+> -		goto out;
+> -
+> -#ifdef CONFIG_HIGHPTE
+> -	pm.ptebuf = kzalloc(PAGE_SIZE, GFP_USER);
+> -	if (!pm.ptebuf)
+> -		goto out_free;
+> -#endif
+> +	//printk("src %ld svpfn %d evpfn %d count %d\n", src, svpfn, evpfn, count);
 >  
 >  	ret = 0;
 >  	mm = get_task_mm(task);
-> @@ -632,44 +630,36 @@ static ssize_t pagemap_read(struct file 
->  			     1, 0, pages, NULL);
->  	up_read(&current->mm->mmap_sem);
+>  	if (!mm)
+> -		goto out_freepte;
+> +		goto out;
+> +
+> +	ret = -ENOMEM;
+> +	uaddr = (unsigned long)buf & ~(PAGE_SIZE-1);
+> +	uend = (unsigned long)(buf + count);
+> +	pagecount = (uend - uaddr + PAGE_SIZE-1) / PAGE_SIZE;
+> +	pages = kmalloc(pagecount * sizeof(struct page *), GFP_KERNEL);
+> +	if (!pages)
+> +		goto out_task;
+> +
+> +	down_read(&current->mm->mmap_sem);
+> +	ret = get_user_pages(current, current->mm, uaddr, pagecount,
+> +			     1, 0, pages, NULL);
+> +	up_read(&current->mm->mmap_sem);
+> +
+> +	//printk("%x(%x):%x %d@%ld (%d pages) -> %d\n", uaddr, buf, uend, count, src, pagecount, ret);
+> +	if (ret < 0)
+> +		goto out_free;
 >  
-> -	//printk("%x(%x):%x %d@%ld (%d pages) -> %d\n", uaddr, buf, uend, count, src, pagecount, ret);
->  	if (ret < 0)
->  		goto out_free;
->  
-> -	pm.next = addr;
+> -	pm.mm = mm;
+>  	pm.next = addr;
+> -	pm.buf = page;
 >  	pm.pos = src;
 >  	pm.count = count;
->  	pm.out = (unsigned long __user *)buf;
+> -	pm.index = 0;
+> -	pm.out = buf;
+> +	pm.out = (unsigned long __user *)buf;
 >  
-> -	down_read(&mm->mmap_sem);
-> -	vma = find_vma(mm, pm.next);
-> -	while (pm.count > 0 && vma) {
-> -		if (!ptrace_may_attach(task)) {
-> -			ret = -EIO;
-> -			up_read(&mm->mmap_sem);
-> -			goto out_release;
-> -		}
-> -		vend = min(vma->vm_end - 1, end - 1) + 1;
-> -		ret = pagemap_fill(&pm, vend);
-> -		if (ret || !pm.count)
-> -			break;
-> -		vend = min(vma->vm_end - 1, end - 1) + 1;
-> -		ret = walk_page_range(mm, vma->vm_start, vend,
-> -				      &pagemap_walk, &pm);
-> -		vma = vma->vm_next;
-> +	if (!ptrace_may_attach(task)) {
-> +		ret = -EIO;
-> +	} else {
-> +		unsigned long src = *ppos;
-> +		unsigned long svpfn = src / PM_ENTRY_BYTES;
-> +		unsigned long start_vaddr = svpfn << PAGE_SHIFT;
-> +		unsigned long end_vaddr = TASK_SIZE_OF(task);
-> +		/*
-> +		 * The odds are that this will stop walking way
-> +		 * before end_vaddr, because the length of the
-> +		 * user buffer is tracked in "pm", and the walk
-> +		 * will stop when we hit the end of the buffer.
-> +		 */
-> +		ret = walk_page_range(mm, start_vaddr, end_vaddr,
-> +					&pagemap_walk, &pm);
-> +		if (ret == PAGEMAP_END_OF_BUFFER)
-> +			ret = 0;
-> +		/* don't need mmap_sem for these, but this looks cleaner */
-> +		*ppos = pm.pos;
-> +		if (!ret)
-> +			ret = pm.pos - src;
+>  	if (svpfn == -1) {
+> -		((char *)page)[0] = (ntohl(1) != 1);
+> -		((char *)page)[1] = PAGE_SHIFT;
+> -		((char *)page)[2] = sizeof(unsigned long);
+> -		((char *)page)[3] = sizeof(unsigned long);
+> +		put_user((char)(ntohl(1) != 1), buf);
+> +		put_user((char)PAGE_SHIFT, buf + 1);
+> +		put_user((char)sizeof(unsigned long), buf + 2);
+> +		put_user((char)sizeof(unsigned long), buf + 3);
+>  		add_to_pagemap(pm.next, page[0], &pm);
 >  	}
-> -	up_read(&mm->mmap_sem);
-> -
-> -	//printk("before fill at %ld\n", pm.pos);
-> -	ret = pagemap_fill(&pm, end);
-> -
-> -	printk("after fill at %ld\n", pm.pos);
-> -	*ppos = pm.pos;
-> -	if (!ret)
-> -		ret = pm.pos - src;
 >  
-> -out_release:
-> -	printk("releasing pages\n");
->  	for (; pagecount; pagecount--) {
->  		page = pages[pagecount-1];
->  		if (!PageReserved(page))
-> @@ -682,7 +672,6 @@ out_free:
->  out_task:
+> @@ -669,7 +651,8 @@ static ssize_t pagemap_read(struct file 
+>  	while (pm.count > 0 && vma) {
+>  		if (!ptrace_may_attach(task)) {
+>  			ret = -EIO;
+> -			goto out_mm;
+> +			up_read(&mm->mmap_sem);
+> +			goto out_release;
+>  		}
+>  		vend = min(vma->vm_end - 1, end - 1) + 1;
+>  		ret = pagemap_fill(&pm, vend);
+> @@ -682,23 +665,29 @@ static ssize_t pagemap_read(struct file 
+>  	}
+>  	up_read(&mm->mmap_sem);
+>  
+> +	//printk("before fill at %ld\n", pm.pos);
+>  	ret = pagemap_fill(&pm, end);
+>  
+> +	printk("after fill at %ld\n", pm.pos);
+>  	*ppos = pm.pos;
+>  	if (!ret)
+>  		ret = pm.pos - src;
+>  
+> -out_mm:
+> +out_release:
+> +	printk("releasing pages\n");
+> +	for (; pagecount; pagecount--) {
+> +		page = pages[pagecount-1];
+> +		if (!PageReserved(page))
+> +			SetPageDirty(page);
+> +		page_cache_release(page);
+> +	}
+>  	mmput(mm);
+> -out_freepte:
+> -#ifdef CONFIG_HIGHPTE
+> -	kfree(pm.ptebuf);
+>  out_free:
+> -#endif
+> -	kfree(page);
+> -out:
+> +	kfree(pages);
+> +out_task:
 >  	put_task_struct(task);
->  out:
-> -	printk("returning\n");
+> -out_no_task:
+> +out:
+> +	printk("returning\n");
 >  	return ret;
 >  }
 >  
