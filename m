@@ -1,53 +1,46 @@
-Subject: Re: [RFC 0/7] Postphone reclaim laundry to write at high water
-	marks
-From: Peter Zijlstra <peterz@infradead.org>
-In-Reply-To: <Pine.LNX.4.64.0708211347480.3082@schroedinger.engr.sgi.com>
-References: <20070820215040.937296148@sgi.com>
-	 <1187692586.6114.211.camel@twins>
-	 <Pine.LNX.4.64.0708211347480.3082@schroedinger.engr.sgi.com>
-Content-Type: text/plain
-Date: Tue, 21 Aug 2007 23:13:32 +0200
-Message-Id: <1187730812.5463.12.camel@lappy>
-Mime-Version: 1.0
+Message-ID: <46CB55A8.4030501@redhat.com>
+Date: Tue, 21 Aug 2007 17:14:16 -0400
+From: Rik van Riel <riel@redhat.com>
+MIME-Version: 1.0
+Subject: Re: [RFC 0/7] Postphone reclaim laundry to write at high water marks
+References: <20070820215040.937296148@sgi.com> <46CB01B7.3050201@redhat.com> <Pine.LNX.4.64.0708211355430.3082@schroedinger.engr.sgi.com>
+In-Reply-To: <Pine.LNX.4.64.0708211355430.3082@schroedinger.engr.sgi.com>
+Content-Type: text/plain; charset=UTF-8; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Christoph Lameter <clameter@sgi.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, dkegel@google.com, Peter Zijlstra <a.p.zijlstra@chello.nl>, David Miller <davem@davemloft.net>, Nick Piggin <npiggin@suse.de>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 2007-08-21 at 13:48 -0700, Christoph Lameter wrote:
-> On Tue, 21 Aug 2007, Peter Zijlstra wrote:
+Christoph Lameter wrote:
+> On Tue, 21 Aug 2007, Rik van Riel wrote:
 > 
-> > This almost insta-OOMs with anonymous workloads.
+>> Christoph Lameter wrote:
+>>
+>>> 1. First reclaiming non dirty pages. Dirty pages are deferred until reclaim
+>>>    has reestablished the high marks. Then all the dirty pages (the laundry)
+>>>    is written out.
+>> That sounds like a horrendously bad idea.  While one process
+>> is busy freeing all the non dirty pages, other processes can
+>> allocate those pages, leaving you with no memory to free up
+>> the dirty pages!
 > 
-> What does the workload do? So writeout needs to begin earlier. There are 
-> likely issues with throttling.
+> What is preventing that from occurring right now? If the dirty pags are 
+> aligned in the right way you can have the exact same situation.
 
-The workload is a single program mapping 256M of anonymous memory and
-cycling through it with writes ran on a 128M setup.
+For one, dirty page writeout is done even when free memory
+is low.  The kernel will dig into the PF_MEMALLOC reserves,
+instead of deciding not to do writeout unless there is lots
+of free memory.
 
-It quickly ends up with all of memory in the laundry list and then
-recursing into __alloc_pages which will fail to make progress and OOMs.
+Secondly, why would you want to recreate this worst case on
+purpose every time the pageout code runs?
 
-But aside from the numerous issues with the patch set as presented, I'm
-not seeing the seeing the big picture, why are you doing this.
-
-Anonymous pages are a there to stay, and we cannot tell people how to
-use them. So we need some free or freeable pages in order to avoid the
-vm deadlock that arises from all memory dirty.
-
-Currently we keep them free, this has the advantage that the buddy
-allocator can at least try to coalese them.
-
-'Optimizing' this by switching to freeable pages has mainly
-disadvantages IMHO, finding them scrambles LRU order and complexifies
-relcaim and all that for a relatively small gain in space for clean
-pagecache pages.
-
-Please, stop writing patches and write down a solid proposal of how you
-envision the VM working in the various scenarios and why its better than
-the current approach.
+-- 
+Politics is the struggle between those who want to make their country
+the best in the world, and those who believe it already is.  Each group
+calls the other unpatriotic.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
