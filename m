@@ -1,65 +1,53 @@
-Date: Tue, 21 Aug 2007 14:03:28 -0700 (PDT)
-From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [RFC 0/7] Postphone reclaim laundry to write at high water marks
-In-Reply-To: <200708211051.36569.dave.mccracken@oracle.com>
-Message-ID: <Pine.LNX.4.64.0708211400341.3082@schroedinger.engr.sgi.com>
-References: <20070820215040.937296148@sgi.com> <200708211051.36569.dave.mccracken@oracle.com>
-MIME-Version: 1.0
-Content-Type: MULTIPART/MIXED; BOUNDARY="-1700579579-1839598108-1187730208=:3082"
+Subject: Re: [RFC 0/7] Postphone reclaim laundry to write at high water
+	marks
+From: Peter Zijlstra <peterz@infradead.org>
+In-Reply-To: <Pine.LNX.4.64.0708211347480.3082@schroedinger.engr.sgi.com>
+References: <20070820215040.937296148@sgi.com>
+	 <1187692586.6114.211.camel@twins>
+	 <Pine.LNX.4.64.0708211347480.3082@schroedinger.engr.sgi.com>
+Content-Type: text/plain
+Date: Tue, 21 Aug 2007 23:13:32 +0200
+Message-Id: <1187730812.5463.12.camel@lappy>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Dave McCracken <dave.mccracken@oracle.com>
+To: Christoph Lameter <clameter@sgi.com>
 Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
----1700579579-1839598108-1187730208=:3082
-Content-Type: TEXT/PLAIN; charset=iso-8859-1
-Content-Transfer-Encoding: QUOTED-PRINTABLE
+On Tue, 2007-08-21 at 13:48 -0700, Christoph Lameter wrote:
+> On Tue, 21 Aug 2007, Peter Zijlstra wrote:
+> 
+> > This almost insta-OOMs with anonymous workloads.
+> 
+> What does the workload do? So writeout needs to begin earlier. There are 
+> likely issues with throttling.
 
-On Tue, 21 Aug 2007, Dave McCracken wrote:
+The workload is a single program mapping 256M of anonymous memory and
+cycling through it with writes ran on a 128M setup.
 
-> On Monday 20 August 2007, Christoph Lameter wrote:
-> > 1. First reclaiming non dirty pages. Dirty pages are deferred until rec=
-laim
-> > =A0 =A0has reestablished the high marks. Then all the dirty pages (the =
-laundry)
-> > =A0 =A0is written out.
->=20
-> I don't buy it.  What happens when there aren't enough clean pages in the=
-=20
-> system to achieve the high water mark?  I'm guessing we'd get a quick OOM=
- (as=20
-> observed by Peter).
+It quickly ends up with all of memory in the laundry list and then
+recursing into __alloc_pages which will fail to make progress and OOMs.
 
-We reclaim the clean pages that there are (removing the executable=20
-pages from memory) and then we do writeback.
+But aside from the numerous issues with the patch set as presented, I'm
+not seeing the seeing the big picture, why are you doing this.
 
-The quick OOM is due to throttling not working right AFAIK.
+Anonymous pages are a there to stay, and we cannot tell people how to
+use them. So we need some free or freeable pages in order to avoid the
+vm deadlock that arises from all memory dirty.
 
-> > 2. Reclaim is essentially complete during the writeout phase. So we rem=
-ove
-> > =A0 =A0PF_MEMALLOC and allow recursive reclaim if we still run into tro=
-uble
-> > =A0 =A0during writeout.
->=20
-> You're assuming the system is static and won't allocate new pages behind =
-your=20
-> back.  We could be back to critically low memory before the write happens=
-=2E
+Currently we keep them free, this has the advantage that the buddy
+allocator can at least try to coalese them.
 
-Yes and that occurs now too.
+'Optimizing' this by switching to freeable pages has mainly
+disadvantages IMHO, finding them scrambles LRU order and complexifies
+relcaim and all that for a relatively small gain in space for clean
+pagecache pages.
 
-> More broadly, we need to be proactive about getting dirty pages cleaned b=
-efore=20
-> they consume the system.  Deferring the write just makes it harder to kee=
-p=20
-> up.
-
-Cleaning dirty pages through writeout consumes memory. Writing dirty pages=
-=20
-out early makes the memory situation even worse.
-
----1700579579-1839598108-1187730208=:3082--
+Please, stop writing patches and write down a solid proposal of how you
+envision the VM working in the various scenarios and why its better than
+the current approach.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
