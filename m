@@ -1,40 +1,42 @@
-Date: Tue, 21 Aug 2007 11:25:35 +0100
-Subject: Re: [PATCH 6/6] Do not use FASTCALL for __alloc_pages_nodemask()
-Message-ID: <20070821102535.GF29794@skynet.ie>
-References: <20070817201647.14792.2690.sendpatchset@skynet.skynet.ie> <20070817201848.14792.58117.sendpatchset@skynet.skynet.ie> <Pine.LNX.4.64.0708171406520.9635@schroedinger.engr.sgi.com> <200708181451.47219.ak@suse.de>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <200708181451.47219.ak@suse.de>
-From: mel@skynet.ie (Mel Gorman)
+Subject: Re: [RFC 0/7] Postphone reclaim laundry to write at high water
+	marks
+From: Peter Zijlstra <peterz@infradead.org>
+In-Reply-To: <20070820215040.937296148@sgi.com>
+References: <20070820215040.937296148@sgi.com>
+Content-Type: text/plain
+Date: Tue, 21 Aug 2007 12:36:26 +0200
+Message-Id: <1187692586.6114.211.camel@twins>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andi Kleen <ak@suse.de>
-Cc: Christoph Lameter <clameter@sgi.com>, Lee.Schermerhorn@hp.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Christoph Lameter <clameter@sgi.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On (18/08/07 14:51), Andi Kleen didst pronounce:
-> On Friday 17 August 2007 23:07:33 Christoph Lameter wrote:
-> > On Fri, 17 Aug 2007, Mel Gorman wrote:
-> > 
-> > > Opinions as to why FASTCALL breaks on one machine are welcome.
-> > 
-> > Could we get rid of FASTCALL? AFAIK the compiler should automatically 
-> > choose the right calling convention?
+On Mon, 2007-08-20 at 14:50 -0700, Christoph Lameter wrote:
+> One of the problems with reclaim writeout is that it occurs when memory in a
+> zone is low. A particular bad problem can occur if memory in a zone is
+> already low and now the first page that we encounter during reclaim is dirty.
+> So the writeout function is called without the filesystem or device having
+> much of a reserve that would allow further allocations. Triggering writeout
+> of dirty pages early does not improve the memory situation since the actual
+> writeout of the page is a relatively long process. The call to writepage
+> will therefore not improve the low memory situation but make it worse
+> because extra memory may be needed to get the device to write the page.
 > 
-> It was a nop for some time because register parameters are always enabled
-> on i386 and AFAIK no other architectures ever used it. Some out of tree
-> trees some to disable register parameters though, but that's not 
-> really a concern.
+> This patchset fixes that issue by:
 > 
+> 1. First reclaiming non dirty pages. Dirty pages are deferred until reclaim
+>    has reestablished the high marks. Then all the dirty pages (the laundry)
+>    is written out.
+> 
+> 2. Reclaim is essentially complete during the writeout phase. So we remove
+>    PF_MEMALLOC and allow recursive reclaim if we still run into trouble
+>    during writeout.
 
-You're right. It now makes even less sense why it was a PPC64 machine that
-exhibited the problem. It should have made no difference at all.
+This almost insta-OOMs with anonymous workloads.
 
--- 
-Mel Gorman
-Part-time Phd Student                          Linux Technology Center
-University of Limerick                         IBM Dublin Software Lab
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
