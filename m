@@ -1,49 +1,49 @@
-Received: from d03relay04.boulder.ibm.com (d03relay04.boulder.ibm.com [9.17.195.106])
-	by e36.co.us.ibm.com (8.13.8/8.13.8) with ESMTP id l7MNI9LN003076
-	for <linux-mm@kvack.org>; Wed, 22 Aug 2007 19:18:09 -0400
-Received: from d03av04.boulder.ibm.com (d03av04.boulder.ibm.com [9.17.195.170])
-	by d03relay04.boulder.ibm.com (8.13.8/8.13.8/NCO v8.5) with ESMTP id l7MNI8ku207920
-	for <linux-mm@kvack.org>; Wed, 22 Aug 2007 17:18:08 -0600
-Received: from d03av04.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av04.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l7MNI840002838
-	for <linux-mm@kvack.org>; Wed, 22 Aug 2007 17:18:08 -0600
-Subject: [PATCH 3/9] pagemap: use PAGE_MASK/PAGE_ALIGN()
-From: Dave Hansen <haveblue@us.ibm.com>
-Date: Wed, 22 Aug 2007 16:18:06 -0700
-References: <20070822231804.1132556D@kernel>
-In-Reply-To: <20070822231804.1132556D@kernel>
-Message-Id: <20070822231806.3413021A@kernel>
+Date: Wed, 22 Aug 2007 18:54:24 -0500
+From: Matt Mackall <mpm@selenic.com>
+Subject: Re: [PATCH 8/9] pagemap: use page walker pte_hole() helper
+Message-ID: <20070822235424.GQ30556@waste.org>
+References: <20070822231804.1132556D@kernel> <20070822231813.B52D1961@kernel>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20070822231813.B52D1961@kernel>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: mpm@selenic.com
-Cc: linux-mm@kvack.org, Dave Hansen <haveblue@us.ibm.com>
+To: Dave Hansen <haveblue@us.ibm.com>
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Use existing macros (PAGE_MASK/PAGE_ALIGN()) instead of
-open-coding them.
+On Wed, Aug 22, 2007 at 04:18:13PM -0700, Dave Hansen wrote:
+> 
+> I tried to do this a bit more incrementally, but it ended
+> up just looking like an even worse mess.  So, this does
+> a a couple of different things.
+> 
+> 1. use page walker pte_hole() helper, which
+> 2. gets rid of the "next" value in "struct pagemapread"
+> 3. allow 1-3 byte reads from pagemap.  This at least
+>    ensures that we don't write over user memory if they
+>    ask us for 1 bytes and we tried to write 4.
+> 4. Instead of trying to calculate what ranges of pages
+>    we are going to walk, simply start walking them,
+>    then return PAGEMAP_END_OF_BUFFER at the end of the
+>    buffer, error out, and stop walking.
+> 5. enforce that reads must be algined to PM_ENTRY_BYTES
+> 
+> Note that, despite these functional additions, and some
+> nice new comments, this patch still removes more code
+> than it adds.
+> 
+> Signed-off-by: Dave Hansen <haveblue@us.ibm.com>
 
-Signed-off-by: Dave Hansen <haveblue@us.ibm.com>
----
+> +	if (pm->count >= PM_ENTRY_BYTES)
+> +		__put_user(pfn pm->out);
 
- lxc-dave/fs/proc/task_mmu.c |    4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+I suppose I should have mentioned this typo when I spotted it
+yesterday.. Will fix it on my end.
 
-diff -puN fs/proc/task_mmu.c~pagemap-use-PAGE_MASK fs/proc/task_mmu.c
---- lxc/fs/proc/task_mmu.c~pagemap-use-PAGE_MASK	2007-08-22 16:16:51.000000000 -0700
-+++ lxc-dave/fs/proc/task_mmu.c	2007-08-22 16:16:51.000000000 -0700
-@@ -617,9 +617,9 @@ static ssize_t pagemap_read(struct file 
- 		goto out;
- 
- 	ret = -ENOMEM;
--	uaddr = (unsigned long)buf & ~(PAGE_SIZE-1);
-+	uaddr = (unsigned long)buf & PAGE_MASK;
- 	uend = (unsigned long)(buf + count);
--	pagecount = (uend - uaddr + PAGE_SIZE-1) / PAGE_SIZE;
-+	pagecount = (PAGE_ALIGN(uend) - uaddr) / PAGE_SIZE;
- 	pages = kmalloc(pagecount * sizeof(struct page *), GFP_KERNEL);
- 	if (!pages)
- 		goto out_task;
-_
+-- 
+Mathematics is the supreme nostalgia of our time.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
