@@ -1,10 +1,11 @@
 Content-Type: text/plain; charset="us-ascii"
 MIME-Version: 1.0
 Content-Transfer-Encoding: 7bit
-Subject: [PATCH 08 of 24] don't depend on PF_EXITING tasks to go away
-Message-Id: <ffdc30241856d7155cee.1187786935@v2.random>
+Subject: [PATCH 10 of 24] stop useless vm trashing while we wait the
+	TIF_MEMDIE task to exit
+Message-Id: <edb3af3e0d4f2c083c8d.1187786937@v2.random>
 In-Reply-To: <patchbomb.1187786927@v2.random>
-Date: Wed, 22 Aug 2007 14:48:55 +0200
+Date: Wed, 22 Aug 2007 14:48:57 +0200
 From: Andrea Arcangeli <andrea@suse.de>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
@@ -15,54 +16,56 @@ List-ID: <linux-mm.kvack.org>
 # HG changeset patch
 # User Andrea Arcangeli <andrea@suse.de>
 # Date 1187778125 -7200
-# Node ID ffdc30241856d7155ceedd4132eef684f7cc7059
-# Parent  b66d8470c04ed836787f69c7578d5fea4f18c322
-don't depend on PF_EXITING tasks to go away
+# Node ID edb3af3e0d4f2c083c8ddd9857073a3c8393ab8e
+# Parent  9bf6a66eab3c52327daa831ef101d7802bc71791
+stop useless vm trashing while we wait the TIF_MEMDIE task to exit
 
-A PF_EXITING task don't have TIF_MEMDIE set so it might get stuck in
-memory allocations without access to the PF_MEMALLOC pool (said that
-ideally do_exit would better not require memory allocations, especially
-not before calling exit_mm). The same way we raise its privilege to
-TIF_MEMDIE if it's the current task, we should do it even if it's not
-the current task to speedup oom killing.
+There's no point in trying to free memory if we're oom.
 
 Signed-off-by: Andrea Arcangeli <andrea@suse.de>
 
-diff --git a/mm/oom_kill.c b/mm/oom_kill.c
---- a/mm/oom_kill.c
-+++ b/mm/oom_kill.c
-@@ -234,27 +234,13 @@ static struct task_struct *select_bad_pr
- 		 * Note: this may have a chance of deadlock if it gets
- 		 * blocked waiting for another task which itself is waiting
- 		 * for memory. Is there a better alternative?
-+		 *
-+		 * Better not to skip PF_EXITING tasks, since they
-+		 * don't have access to the PF_MEMALLOC pool until
-+		 * we select them here first.
- 		 */
- 		if (test_tsk_thread_flag(p, TIF_MEMDIE))
- 			return ERR_PTR(-1UL);
--
--		/*
--		 * This is in the process of releasing memory so wait for it
--		 * to finish before killing some other task by mistake.
--		 *
--		 * However, if p is the current task, we allow the 'kill' to
--		 * go ahead if it is exiting: this will simply set TIF_MEMDIE,
--		 * which will allow it to gain access to memory reserves in
--		 * the process of exiting and releasing its resources.
--		 * Otherwise we could get an easy OOM deadlock.
--		 */
--		if (p->flags & PF_EXITING) {
--			if (p != current)
--				return ERR_PTR(-1UL);
--
--			chosen = p;
--			*ppoints = ULONG_MAX;
--		}
+diff --git a/include/linux/swap.h b/include/linux/swap.h
+--- a/include/linux/swap.h
++++ b/include/linux/swap.h
+@@ -159,6 +159,8 @@ struct swap_list_t {
+ #define vm_swap_full() (nr_swap_pages*2 < total_swap_pages)
  
- 		if (p->oomkilladj == OOM_DISABLE)
- 			continue;
+ /* linux/mm/oom_kill.c */
++extern unsigned long VM_is_OOM;
++#define is_VM_OOM() unlikely(test_bit(0, &VM_is_OOM))
+ extern void out_of_memory(struct zonelist *zonelist, gfp_t gfp_mask, int order);
+ extern int register_oom_notifier(struct notifier_block *nb);
+ extern int unregister_oom_notifier(struct notifier_block *nb);
+diff --git a/mm/vmscan.c b/mm/vmscan.c
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -1028,6 +1028,8 @@ static unsigned long shrink_zone(int pri
+ 		nr_inactive = 0;
+ 
+ 	while (nr_active || nr_inactive) {
++		if (is_VM_OOM())
++			break;
+ 		if (nr_active) {
+ 			nr_to_scan = min(nr_active,
+ 					(unsigned long)sc->swap_cluster_max);
+@@ -1138,6 +1140,17 @@ unsigned long try_to_free_pages(struct z
+ 	}
+ 
+ 	for (priority = DEF_PRIORITY; priority >= 0; priority--) {
++		if (is_VM_OOM()) {
++			if (!test_thread_flag(TIF_MEMDIE)) {
++				/* get out of the way */
++				schedule_timeout_interruptible(1);
++				/* don't waste cpu if we're still oom */
++				if (is_VM_OOM())
++					goto out;
++			} else
++				goto out;
++		}
++
+ 		sc.nr_scanned = 0;
+ 		if (!priority)
+ 			disable_swap_token();
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
