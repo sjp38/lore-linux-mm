@@ -1,116 +1,183 @@
-Received: from d01relay04.pok.ibm.com (d01relay04.pok.ibm.com [9.56.227.236])
-	by e3.ny.us.ibm.com (8.13.8/8.13.8) with ESMTP id l7MNIG9L011730
-	for <linux-mm@kvack.org>; Wed, 22 Aug 2007 19:18:16 -0400
-Received: from d01av03.pok.ibm.com (d01av03.pok.ibm.com [9.56.224.217])
-	by d01relay04.pok.ibm.com (8.13.8/8.13.8/NCO v8.5) with ESMTP id l7MNIGsI496938
-	for <linux-mm@kvack.org>; Wed, 22 Aug 2007 19:18:16 -0400
-Received: from d01av03.pok.ibm.com (loopback [127.0.0.1])
-	by d01av03.pok.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l7MNIGkt021257
-	for <linux-mm@kvack.org>; Wed, 22 Aug 2007 19:18:16 -0400
-Subject: [PATCH 9/9] pagemap: export swap ptes
+Received: from d01relay02.pok.ibm.com (d01relay02.pok.ibm.com [9.56.227.234])
+	by e5.ny.us.ibm.com (8.13.8/8.13.8) with ESMTP id l7MNIDDC022418
+	for <linux-mm@kvack.org>; Wed, 22 Aug 2007 19:18:13 -0400
+Received: from d01av04.pok.ibm.com (d01av04.pok.ibm.com [9.56.224.64])
+	by d01relay02.pok.ibm.com (8.13.8/8.13.8/NCO v8.5) with ESMTP id l7MNIEiN404872
+	for <linux-mm@kvack.org>; Wed, 22 Aug 2007 19:18:14 -0400
+Received: from d01av04.pok.ibm.com (loopback [127.0.0.1])
+	by d01av04.pok.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l7MNIEnc030298
+	for <linux-mm@kvack.org>; Wed, 22 Aug 2007 19:18:14 -0400
+Subject: [PATCH 7/9] pagewalk: add handler for empty ranges
 From: Dave Hansen <haveblue@us.ibm.com>
-Date: Wed, 22 Aug 2007 16:18:14 -0700
+Date: Wed, 22 Aug 2007 16:18:12 -0700
 References: <20070822231804.1132556D@kernel>
 In-Reply-To: <20070822231804.1132556D@kernel>
-Message-Id: <20070822231814.8F5F37A0@kernel>
+Message-Id: <20070822231812.5304811E@kernel>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: mpm@selenic.com
 Cc: linux-mm@kvack.org, Dave Hansen <haveblue@us.ibm.com>
 List-ID: <linux-mm.kvack.org>
 
-In addition to understanding which physical pages are
-used by a process, it would also be very nice to
-enumerate how much swap space a process is using.
+There's a pretty good deal of complexity surrounding dealing
+with a sparse address space in the /proc/<pid>/pagemap code.
+We have the pm->next pointer to help indicate how far we've
+walked in the pagetables.  We also attempt to fill empty
+areas without vmas manually.
 
-This patch enables /proc/<pid>/pagemap to display
-swap ptes.  In the process, it also changes the
-constant that we used to indicate non-present ptes
-before.
+This code adds an extension to the mm_walk code: a new handler
+for "empty" pte ranges.  Those are areas where there is no
+pte page present.  This allows us to get rid of the code that
+inspects VMAs or that trys to keep track of how much of the
+pagemap we have filled.
+
+Note that this truly does walk pte *holes*.  That isn't just
+places where we have a pte_none().  It includes places where
+there are any missing higher-level pagetable entries like
+puds.
 
 Signed-off-by: Dave Hansen <haveblue@us.ibm.com>
 ---
 
- lxc-dave/fs/proc/task_mmu.c |   38 +++++++++++++++++++++++++++++++-------
- 1 file changed, 31 insertions(+), 7 deletions(-)
+ lxc-dave/include/linux/mm.h |    1 
+ lxc-dave/lib/pagewalk.c     |   67 +++++++++++++++++++-------------------------
+ 2 files changed, 30 insertions(+), 38 deletions(-)
 
-diff -puN fs/proc/task_mmu.c~pagemap-export-swap-ptes fs/proc/task_mmu.c
---- lxc/fs/proc/task_mmu.c~pagemap-export-swap-ptes	2007-08-22 16:16:55.000000000 -0700
-+++ lxc-dave/fs/proc/task_mmu.c	2007-08-22 16:16:55.000000000 -0700
-@@ -7,6 +7,8 @@
- #include <linux/pagemap.h>
- #include <linux/ptrace.h>
- #include <linux/mempolicy.h>
-+#include <linux/swap.h>
-+#include <linux/swapops.h>
- 
- #include <asm/elf.h>
- #include <asm/uaccess.h>
-@@ -506,9 +508,13 @@ struct pagemapread {
- 	int index;
- 	unsigned long __user *out;
+diff -puN include/linux/mm.h~pagewalk-empty-ranges include/linux/mm.h
+--- lxc/include/linux/mm.h~pagewalk-empty-ranges	2007-08-22 16:16:54.000000000 -0700
++++ lxc-dave/include/linux/mm.h	2007-08-22 16:16:54.000000000 -0700
+@@ -699,6 +699,7 @@ struct mm_walk {
+ 	int (*pud_entry)(pud_t *, unsigned long, unsigned long, void *);
+ 	int (*pmd_entry)(pmd_t *, unsigned long, unsigned long, void *);
+ 	int (*pte_entry)(pte_t *, unsigned long, unsigned long, void *);
++	int (*pte_hole) (unsigned long, unsigned long, void *);
  };
--
- #define PM_ENTRY_BYTES sizeof(unsigned long)
--#define PM_NOT_PRESENT ((unsigned long)-1)
-+#define PM_RESERVED_BITS	3
-+#define PM_RESERVED_OFFSET	(BITS_PER_LONG-PM_RESERVED_BITS)
-+#define PM_RESERVED_MASK	(((1<<PM_RESERVED_BITS)-1) << PM_RESERVED_OFFSET)
-+#define PM_SPECIAL(nr)		(((nr) << PM_RESERVED_OFFSET) | PM_RESERVED_MASK)
-+#define PM_NOT_PRESENT	PM_SPECIAL(1)
-+#define PM_SWAP		PM_SPECIAL(2)
- #define PAGEMAP_END_OF_BUFFER 1
  
- static int add_to_pagemap(unsigned long addr, unsigned long pfn,
-@@ -545,6 +551,19 @@ static int pagemap_pte_hole(unsigned lon
- 	return err;
+ int walk_page_range(struct mm_struct *, unsigned long addr, unsigned long end,
+diff -puN lib/pagewalk.c~pagewalk-empty-ranges lib/pagewalk.c
+--- lxc/lib/pagewalk.c~pagewalk-empty-ranges	2007-08-22 16:16:54.000000000 -0700
++++ lxc-dave/lib/pagewalk.c	2007-08-22 16:16:54.000000000 -0700
+@@ -6,17 +6,13 @@ static int walk_pte_range(pmd_t *pmd, un
+ 			  struct mm_walk *walk, void *private)
+ {
+ 	pte_t *pte;
+-	int err;
++	int err = 0;
+ 
+ 	for (pte = pte_offset_map(pmd, addr); addr != end;
+ 	     addr += PAGE_SIZE, pte++) {
+-		if (pte_none(*pte))
+-			continue;
+ 		err = walk->pte_entry(pte, addr, addr, private);
+-		if (err) {
+-			pte_unmap(pte);
+-			return err;
+-		}
++		if (err)
++		       break;
+ 	}
+ 	pte_unmap(pte);
+ 	return 0;
+@@ -27,25 +23,23 @@ static int walk_pmd_range(pud_t *pud, un
+ {
+ 	pmd_t *pmd;
+ 	unsigned long next;
+-	int err;
++	int err = 0;
+ 
+ 	for (pmd = pmd_offset(pud, addr); addr != end;
+ 	     pmd++, addr = next) {
+ 		next = pmd_addr_end(addr, end);
+-		if (pmd_none_or_clear_bad(pmd))
++		if (pmd_none(*pmd)) {
++			err = walk->pte_hole(addr, next, private);
++		} else if (pmd_none_or_clear_bad(pmd))
+ 			continue;
+-		if (walk->pmd_entry) {
++		if (!err && walk->pmd_entry)
+ 			err = walk->pmd_entry(pmd, addr, next, private);
+-			if (err)
+-				return err;
+-		}
+-		if (walk->pte_entry) {
++		if (!err && walk->pte_entry)
+ 			err = walk_pte_range(pmd, addr, next, walk, private);
+-			if (err)
+-				return err;
+-		}
++		if (err)
++			break;
+ 	}
+-	return 0;
++	return err;
  }
  
-+unsigned long swap_pte_to_pagemap_entry(pte_t pte)
-+{
-+	swp_entry_t entry = pte_to_swp_entry(pte);
-+	unsigned long offset;
-+	unsigned long swap_file_nr;
-+
-+	offset = swp_offset(entry);
-+	swap_file_nr = swp_type(entry);
-+	return PM_SWAP | swap_file_nr | (offset << MAX_SWAPFILES_SHIFT);
-+}
-+	
-+
-+
- static int pagemap_pte_range(pmd_t *pmd, unsigned long addr, unsigned long end,
- 			     void *private)
+ static int walk_pud_range(pgd_t *pgd, unsigned long addr, unsigned long end,
+@@ -53,23 +47,21 @@ static int walk_pud_range(pgd_t *pgd, un
  {
-@@ -555,7 +574,9 @@ static int pagemap_pte_range(pmd_t *pmd,
- 	pte = pte_offset_map(pmd, addr);
- 	for (; addr != end; pte++, addr += PAGE_SIZE) {
- 		unsigned long pfn = PM_NOT_PRESENT;
--		if (pte_present(*pte))
-+		if (is_swap_pte(*pte))
-+			pfn = swap_pte_to_pagemap_entry(*pte);
-+		else if (pte_present(*pte))
- 			pfn = pte_pfn(*pte);
- 		err = add_to_pagemap(addr, pfn, pm);
- 		if (err)
-@@ -578,10 +599,13 @@ static struct mm_walk pagemap_walk =
-  * /proc/pid/pagemap - an array mapping virtual pages to pfns
-  *
-  * For each page in the address space, this file contains one long
-- * representing the corresponding physical page frame number (PFN) or
-- * -1 if the page isn't present. This allows determining precisely
-- * which pages are mapped and comparing mapped pages between
-- * processes.
-+ * representing the corresponding physical page frame number (PFN)
-+ * if the page is present.  If there is a swap entry for the
-+ * physical page, then an encoding of the swap file number and the
-+ * page's offset into the swap file are returned.  If no page is
-+ * present at all, PM_NOT_PRESENT is returned.  This allows
-+ * determining precisely which pages are mapped (or in swap)  and
-+ * comparing mapped pages between processes.
-  *
-  * Efficient users of this interface will use /proc/pid/maps to
-  * determine which areas of memory are actually mapped and llseek to
+ 	pud_t *pud;
+ 	unsigned long next;
+-	int err;
++	int err = 0;
+ 
+ 	for (pud = pud_offset(pgd, addr); addr != end;
+ 	     pud++, addr = next) {
+ 		next = pud_addr_end(addr, end);
+-		if (pud_none_or_clear_bad(pud))
++		if (pud_none(*pud)) {
++			err = walk->pte_hole(addr, next, private);
++		} else if (pud_none_or_clear_bad(pud))
+ 			continue;
+-		if (walk->pud_entry) {
++		if (!err && walk->pud_entry)
+ 			err = walk->pud_entry(pud, addr, next, private);
+-			if (err)
+-				return err;
+-		}
+-		if (walk->pmd_entry || walk->pte_entry) {
++		if (!err && (walk->pmd_entry || walk->pte_entry))
+ 			err = walk_pmd_range(pud, addr, next, walk, private);
+-			if (err)
+-				return err;
+-		}
++		if (err)
++			return err;
+ 	}
+ 	return 0;
+ }
+@@ -91,23 +83,22 @@ int walk_page_range(struct mm_struct *mm
+ {
+ 	pgd_t *pgd;
+ 	unsigned long next;
+-	int err;
++	int err = 0;
+ 
+ 	for (pgd = pgd_offset(mm, addr); addr != end;
+ 	     pgd++, addr = next) {
+ 		next = pgd_addr_end(addr, end);
+-		if (pgd_none_or_clear_bad(pgd))
++		if (pgd_none(*pgd)) {
++			err = walk->pte_hole(addr, next, private);
++		} else if (pgd_none_or_clear_bad(pgd))
+ 			continue;
+-		if (walk->pgd_entry) {
++		if (!err && walk->pgd_entry)
+ 			err = walk->pgd_entry(pgd, addr, next, private);
+-			if (err)
+-				return err;
+-		}
+-		if (walk->pud_entry || walk->pmd_entry || walk->pte_entry) {
++		if (!err &&
++		    (walk->pud_entry || walk->pmd_entry || walk->pte_entry))
+ 			err = walk_pud_range(pgd, addr, next, walk, private);
+-			if (err)
+-				return err;
+-		}
++		if (err)
++			return err;
+ 	}
+ 	return 0;
+ }
 _
 
 --
