@@ -1,146 +1,67 @@
+Date: Wed, 22 Aug 2007 09:45:08 +0200
+From: Ingo Molnar <mingo@elte.hu>
 Subject: Re: [RFC 0/7] Postphone reclaim laundry to write at high water
 	marks
-From: Peter Zijlstra <peterz@infradead.org>
+Message-ID: <20070822074508.GA3160@elte.hu>
+References: <20070820215040.937296148@sgi.com> <1187692586.6114.211.camel@twins> <Pine.LNX.4.64.0708211347480.3082@schroedinger.engr.sgi.com> <1187730812.5463.12.camel@lappy> <Pine.LNX.4.64.0708211418120.3267@schroedinger.engr.sgi.com> <1187734144.5463.35.camel@lappy> <Pine.LNX.4.64.0708211532560.5728@schroedinger.engr.sgi.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
 In-Reply-To: <Pine.LNX.4.64.0708211532560.5728@schroedinger.engr.sgi.com>
-References: <20070820215040.937296148@sgi.com>
-	 <1187692586.6114.211.camel@twins>
-	 <Pine.LNX.4.64.0708211347480.3082@schroedinger.engr.sgi.com>
-	 <1187730812.5463.12.camel@lappy>
-	 <Pine.LNX.4.64.0708211418120.3267@schroedinger.engr.sgi.com>
-	 <1187734144.5463.35.camel@lappy>
-	 <Pine.LNX.4.64.0708211532560.5728@schroedinger.engr.sgi.com>
-Content-Type: text/plain
-Date: Wed, 22 Aug 2007 09:02:36 +0200
-Message-Id: <1187766156.6114.280.camel@twins>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Christoph Lameter <clameter@sgi.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, riel <riel@redhat.com>
+Cc: Peter Zijlstra <peterz@infradead.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 2007-08-21 at 15:43 -0700, Christoph Lameter wrote:
-> On Wed, 22 Aug 2007, Peter Zijlstra wrote:
-> 
-> > Also, all I want is for slab to honour gfp flags like page allocation
-> > does, nothing more, nothing less.
-> > 
-> > (well, actually slightly less, since I'm only really interrested in the
-> > ALLOC_MIN|ALLOC_HIGH|ALLOC_HARDER -> ALLOC_NO_WATERMARKS transition and
-> > not all higher ones)
-> 
-> I am still not sure what that brings you. There may be multiple 
-> PF_MEMALLOC going on at the same time. On a large system with N cpus
-> there may be more than N of these that can steal objects from one another. 
-
-Yes, quite aware of that, and have ideas on how to properly fix that.
-Once it is, the reserves can be shrunk too, perhaps you can work on
-this?
-
-> A NUMA system will be shot anyways if memory gets that problematic to 
-> handle since the OS cannot effectively place memory if all zones are 
-> overallocated so that only a few pages are left.
-
-Also not a new problem.
+* Christoph Lameter <clameter@sgi.com> wrote:
 
 > > I want slab to fail when a similar page alloc would fail, no magic.
 > 
-> Yes I know. I do not want allocations to fail but that reclaim occurs in 
-> order to avoid failing any allocation. We need provisions that 
-> make sure that we never get into such a bad memory situation that would
+> Yes I know. I do not want allocations to fail but that reclaim occurs 
+> in order to avoid failing any allocation. We need provisions that make 
+> sure that we never get into such a bad memory situation that would 
 > cause severe slowless and usually end up in a livelock anyways.
 
-Its unavoidable, at some point it just happens. Also using reclaim
-doesn't seem like the ideal way to get out of live-locks since reclaim
-itself can live-lock on these large boxen.
+Could you outline the "big picture" as you see it? To me your argument 
+that reclaim can always be done instantly and that the cases where it 
+cannot be done are pathological and need to be avoided is fundamentally 
+dangerous and quite a bit short-sighted at first glance.
 
-> > > > Anonymous pages are a there to stay, and we cannot tell people how to
-> > > > use them. So we need some free or freeable pages in order to avoid the
-> > > > vm deadlock that arises from all memory dirty.
-> > > 
-> > > No one is trying to abolish Anonymous pages. Free memory is readily 
-> > > available on demand if one calls reclaim. Your scheme introduces complex 
-> > > negotiations over a few scraps of memory when large amounts of memory 
-> > > would still be readily available if one would do the right thing and call 
-> > > into reclaim.
-> > 
-> > This is the thing I contend, there need not be large amounts of memory
-> > around. In my test prog the hot code path fits into a single page, the
-> > rest can be anonymous.
-> 
-> Thats a bit extreme.... We need to make sure that there are larger amounts 
-> of memory around. Pages are used for all shorts of short term uses (like 
-> slab shrinking etc etc.). If memory is that low that a single page matters
-> then we are in very bad shape anyways.
+The big picture way to think about this is the following: the free page 
+pool is the "cache" of the MM. It's what "greases" the mechanism and 
+bridges the inevitable reclaim latency and makes "atomic memory" 
+available to the reclaim mechanism itself. We _cannot_ remove that cache 
+without a conceptual replacement (or a _very_ robust argument and proof 
+that the free pages pool is not needed at all - this would be a major 
+design change (and a stupid mistake IMO)). Your patchset, in essence, 
+tries to claim that we dont really need this cache and that all that 
+matters is to keep enough clean pagecache pages around. That approach 
+misses the full picture and i dont think we can progress without 
+agreeing on the fundamentals first.
 
-Yes we are, but its a legitimate situation. Denying it won't get us very
-far. Also placing a large bound on anonymous memory usage is not going
-to be appreciated by the userspace people.
+That "cache" cannot be handled in your scheme: a fully or mostly 
+anonymous workload (tons of apps are like that) instantly destroys the 
+"there is always a minimal amount of atomically reclaimable pages 
+around" property of freelists, and this cannot be talked or tweaked 
+around by twiddling any existing property of anonymous reclaim. 
+Anonymous memory is dirty and takes ages to reclaim. The fact that your 
+patchset causes an easy anonymous OOM further underlines this flaw of 
+your thinking. Not making anonymous workloads OOM is the _hardest_ part 
+of the MM, by far. Pagecache reclaim is a breeze in comparison :-)
 
-Slab cache will also be at a minimum is the pressure persists for a
-while.
+So there is a large and fundamental rift between having pages on the 
+freelist (instantly available to any context) and having them on the 
+(current) LRU where they might or might not be clean, etc. The freelists 
+are an implicit guarantee of buffering and atomicity and they can and do 
+save the day if everything else fails to keep stuff insta-freeable. (And 
+then we havent even considered the performance and scalability 
+differences between picking from the pcp freelists versus picking pages 
+from the LRU, havent considered the better higher-order page allocation 
+property of the buddy pool and havent considered the atomicity of 
+in-irq-handler allocations.)
 
-> > > Sounds like you would like to change the way we handle memory in general 
-> > > in the VM? Reclaim (and thus finding freeable pages) is basic to Linux 
-> > > memory management.
-> > 
-> > Not quite, currently we have free pages in the reserves, if you want to
-> > replace some (or all) of that by freeable pages then that is a change.
-> 
-> We have free pages primarily to optimize the allocation. Meaning we do not 
-> have to run reclaim on every call. We want to use all of memory. The 
-> reserves are there for the case that we cannot call into reclaim. 
-
-> The easy 
-> solution if that is problematic is to enhance the reclaim to work in the
-> critical situations that we care about.
-
-As shown, there are cases where there just isn't any memory to reclaim.
-Please accept this.
-
-Also, by reclaiming memory and getting out of the tight spot you give
-the rest of the system access to that memory, and it can be used for
-other things than getting out of the tight spot.
-
-You really want a separate allocation state that allows only reclaim to
-access memory.
-
-> > > Sorry I just got into this a short time ago and I may need a few cycles 
-> > > to get this all straight. An approach that uses memory instead of 
-> > > ignoring available memory is certainly better.
-> > 
-> > Sure if and when possible. There will always be need to fall back to the
-> > reserves.
-> 
-> Maybe. But we can certainly avoid that as much as possible which would 
-> also increase our ability to use all available memory instead of leaving 
-> some of it unused./
-> 
-> > A bit off-topic, re that reclaim from atomic context:
-> > Currently we try to hold spinlocks only for short periods of time so
-> > that reclaim can be preempted, if you run all of reclaim from a
-> > non-preemptible context you get very large preemption latencies and if
-> > done from int context it'd also generate large int latencies.
-> 
-> If you call into the page allocator from an interrupt context then you are 
-> already in bad shape since we may check pcps lists and then potentially 
-> have to traverse the zonelists and check all sorts of things. 
-
-Only an issue on these obscenely large NUMA boxen, normal machines don't
-have large zone lists. No reason to hurt the small boxen in favour of
-the large boxen.
-
-> If we 
-> would implement atomic reclaim then the reserves may become a latency 
-> optimizations. At least we will not fail anymore if the reserves are out.
-
-Yes it will, because there is no guarantee that there is anything
-reclaimable.
-
-Also, failing a memory allocation isn't bad, why are you so worried
-about that? It happens all the time.
-
+	Ingo
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
