@@ -1,114 +1,88 @@
-Date: Wed, 22 Aug 2007 13:16:16 -0700 (PDT)
-From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [RFC 0/7] Postphone reclaim laundry to write at high water marks
-In-Reply-To: <1187813025.5463.85.camel@lappy>
-Message-ID: <Pine.LNX.4.64.0708221306080.15775@schroedinger.engr.sgi.com>
-References: <20070820215040.937296148@sgi.com>  <1187692586.6114.211.camel@twins>
-  <Pine.LNX.4.64.0708211347480.3082@schroedinger.engr.sgi.com>
- <1187730812.5463.12.camel@lappy>  <Pine.LNX.4.64.0708211418120.3267@schroedinger.engr.sgi.com>
-  <1187734144.5463.35.camel@lappy>  <Pine.LNX.4.64.0708211532560.5728@schroedinger.engr.sgi.com>
-  <1187766156.6114.280.camel@twins>  <Pine.LNX.4.64.0708221157180.13813@schroedinger.engr.sgi.com>
- <1187813025.5463.85.camel@lappy>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Date: Wed, 22 Aug 2007 13:48:00 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [BUG] 2.6.23-rc3-mm1 kernel BUG at mm/page_alloc.c:2876!
+Message-Id: <20070822134800.ce5a5a69.akpm@linux-foundation.org>
+In-Reply-To: <46CC9A7A.2030404@linux.vnet.ibm.com>
+References: <46CC9A7A.2030404@linux.vnet.ibm.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Peter Zijlstra <peterz@infradead.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, riel <riel@redhat.com>
+To: Kamalesh Babulal <kamalesh@linux.vnet.ibm.com>
+Cc: linux-kernel@vger.kernel.org, Balbir Singh <balbir@linux.vnet.ibm.com>, Christoph Lameter <clameter@sgi.com>, Mel Gorman <mel@csn.ul.ie>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 22 Aug 2007, Peter Zijlstra wrote:
+On Thu, 23 Aug 2007 01:50:10 +0530
+Kamalesh Babulal <kamalesh@linux.vnet.ibm.com> wrote:
 
-> > That is an extreme case that AFAIK we currently ignore and could be 
-> > avoided with some effort.
+> Hi Andrew,
 > 
-> Its not extreme, not even rare, and its handled now. Its what
-> PF_MEMALLOC is for.
-
-No its not. If you have all pages allocated as anonymous pages and your 
-writeout requires more pages than available in the reserves then you are 
-screwed either way regardless if you have PF_MEMALLOC set or not.
-
-> > The initial PF_MEMALLOC patchset seems to be 
-> > still enough to deal with your issues.
+> I see call trace followed by the kernel bug with the 2.6.23-rc3-mm1
+> kernel and have attached the boot log and config file.
 > 
-> Take the anonyous workload, user-space will block once the page
-> allocator hits ALLOC_MIN. Network will be able to receive until
-> ALLOC_MIN|ALLOC_HIGH - if the completion doesn't arrive by then it will
-> start dropping all packets until there is memory again. But userspace is
-> wedged and hence will not consume the network traffic, hence we
-> deadlock.
+> =======================================================
+> SLUB: Genslabs=12, HWalign=128, Order=0-1, MinObjects=4, CPUs=4, Nodes=16
+> Bad page state in process 'swapper'
+> page:cf00000000015818 flags:0x0000020000000400 mapping:0000000000000000 
+> mapcount:0 count:0
+> Trying to fix it up, but a reboot is needed
+> Backtrace:
+> Call Trace:
+> [c0000000005cbab0] [c000000000010344] .show_stack+0x68/0x1b4 (unreliable)
+> [c0000000005cbb60] [c0000000000a6c54] .bad_page+0x84/0x138
+> [c0000000005cbbf0] [c0000000000aa9e0] .free_hot_cold_page+0xdc/0x21c
+> [c0000000005cbc90] [c0000000000ad7ec] .put_page+0x158/0x180
+> [c0000000005cbd30] [c0000000000d4de8] .kfree+0x74/0xf0
+> [c0000000005cbdb0] [c0000000000a866c] .process_zones+0x1a8/0x1f8
+> [c0000000005cbe60] [c0000000004b5160] .setup_per_cpu_pageset+0x24/0x48
+> [c0000000005cbee0] [c0000000004978d8] .start_kernel+0x304/0x3f4
+> [c0000000005cbf90] [c0000000003bef10] .start_here_common+0x54/0x58
+> Hexdump:
+> 000: cf 00 00 00 00 01 57 d0 00 00 02 00 00 00 04 00
+> 010: 00 00 00 01 ff ff ff ff 00 00 00 00 00 00 00 00
+> 020: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+> 030: cf 00 00 00 00 01 58 08 cf 00 00 00 00 01 58 08
+> 040: 00 00 02 00 00 00 04 00 00 00 00 00 ff ff ff ff
+> 050: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+> 060: 00 00 00 00 00 00 00 00 cf 00 00 00 00 01 58 40
+> 070: cf 00 00 00 00 01 58 40 00 00 02 00 00 00 04 00
+> 080: 00 00 00 01 ff ff ff ff 00 00 00 00 00 00 00 00
+> 090: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+> 0a0: cf 00 00 00 00 01 58 78 cf 00 00 00 00 01 58 78
+> 0b0: 00 00 02 00 00 00 04 00 00 00 00 01 ff ff ff ff
+> ------------[ cut here ]------------
+> kernel BUG at mm/page_alloc.c:2876!
+> cpu 0x0: Vector: 700 (Program Check) at [c0000000005cbbe0]
+>     pc: c0000000004b5160: .setup_per_cpu_pageset+0x24/0x48
+>     lr: c0000000004b5160: .setup_per_cpu_pageset+0x24/0x48
+>     sp: c0000000005cbe60
+>    msr: 8000000000029032
+>   current = 0xc0000000004fd1b0
+>   paca    = 0xc0000000004fdd80
+>     pid   = 0, comm = swapper
+> kernel BUG at mm/page_alloc.c:2876!
 > 
-> Even if there is something to reclaim initially, if the pressure
-> persists that can eventually be exhausted.
 
-Sure ultimately you will end up with pages that are all unreclaimable if 
-you reclaim all reclaimable memory.
+Looks like process_zones() got a kmalloc_node() failure and then crashed in
+the recovery code.
 
-> > multiple critical tasks on various devices that have various memory needs. 
-> > So multiple critical spots can happen concurrently in multiple 
-> > application contexts.
-> 
-> yes, reclaim can be unbounded concurrent, and that is one of the
-> (theoretically) major problems we currently have.
+This:
 
-So your patchset is not fixing it?
+--- a/mm/page_alloc.c~a
++++ a/mm/page_alloc.c
+@@ -2814,6 +2814,8 @@ static int __cpuinit process_zones(int c
+ 	return 0;
+ bad:
+ 	for_each_zone(dzone) {
++		if (!populated_zone(zone))
++			continue;		
+ 		if (dzone == zone)
+ 			break;
+ 		kfree(zone_pcp(dzone, cpu));
+_
 
-> > We have that with PF_MEMALLOC.
-> 
-> Exactly. But if you recognise the need for PF_MEMALLOC then what is this
-> argument about?
-
-The PF_MEMALLOC patchset f.e. is about avoiding to go out of 
-memory when there is still memory available even if we are doing a 
-PF_MEMALLOC allocation and would OOM otherwise.
-
-> Networking can currently be seen as having two states:
-> 
->  1 receive packets and consume memory
->  2 drop all packets (when out of memory)
-> 
-> I need a 3rd state:
-> 
->  3 receiving packets but not consuming memory
-
-So far a good idea. If you are not consuming memory then why are the 
-allocators involved?
- 
-> Now, I need this state when we're in PF_MEMALLOC territory, because I
-> need to be able to process an unspecified amount of network traffic in
-> order to receive the writeout completion.
-> 
-> In order to operate this 3rd network state, some memory is needed in
-> which packets can be received and when deemed not important freed and
-> reused.
-> 
-> It needs a bounded amount of memory in order to process an unbounded
-> amount of network traffic.
-> 
-> What exactly is not clear about this? If you accept the need for
-> PF_MEMALLOC you surely must also agree that at the point you're using it
-> running reclaim is useless.
-
-Yes looks like you would like to add something to the network layer to 
-filter important packets. As long as you stay within PF_MEMALLOC 
-boundaries you can allocate and throw packets away. If you want to have a 
-reserve that is secure and just for you then you need to take it away from 
-the reserves (which in turn will lead reclaim to restore them).
-
-> > > Also, failing a memory allocation isn't bad, why are you so worried
-> > > about that? It happens all the time.
-> > 
-> > Its a performance impact and plainly does not make sense if there is 
-> > reclaimable memory availble. The common action of the vm is to reclaim if 
-> > there is a demand for memory. Now we suddenly abandon that approach?
-> 
-> I'm utterly confused by this, on one hand you recognise the need for
-> PF_MEMALLOC but on the other hand you're saying its not needed and
-> anybody needing memory (even reclaim itself) should use reclaim.
-
-The VM reclaims memory on demand but in exceptional limited cases where we 
-cannot do so we use the reserves. I am sure you know this.
+might help avoid the crash, but why did kmalloc_node() fail?
 
 
 --
