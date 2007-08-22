@@ -1,82 +1,55 @@
-Received: from d01relay04.pok.ibm.com (d01relay04.pok.ibm.com [9.56.227.236])
-	by e3.ny.us.ibm.com (8.13.8/8.13.8) with ESMTP id l7MNIAZ2011482
-	for <linux-mm@kvack.org>; Wed, 22 Aug 2007 19:18:10 -0400
-Received: from d01av01.pok.ibm.com (d01av01.pok.ibm.com [9.56.224.215])
-	by d01relay04.pok.ibm.com (8.13.8/8.13.8/NCO v8.5) with ESMTP id l7MNIA6m549682
-	for <linux-mm@kvack.org>; Wed, 22 Aug 2007 19:18:10 -0400
-Received: from d01av01.pok.ibm.com (loopback [127.0.0.1])
-	by d01av01.pok.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l7MNIAhq026628
-	for <linux-mm@kvack.org>; Wed, 22 Aug 2007 19:18:10 -0400
-Subject: [PATCH 4/9] pagemap: remove open-coded sizeof(unsigned long)
+Received: from d03relay02.boulder.ibm.com (d03relay02.boulder.ibm.com [9.17.195.227])
+	by e34.co.us.ibm.com (8.13.8/8.13.8) with ESMTP id l7MNIDk4025440
+	for <linux-mm@kvack.org>; Wed, 22 Aug 2007 19:18:13 -0400
+Received: from d03av04.boulder.ibm.com (d03av04.boulder.ibm.com [9.17.195.170])
+	by d03relay02.boulder.ibm.com (8.13.8/8.13.8/NCO v8.5) with ESMTP id l7MNICPx270432
+	for <linux-mm@kvack.org>; Wed, 22 Aug 2007 17:18:12 -0600
+Received: from d03av04.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av04.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l7MNICbd002962
+	for <linux-mm@kvack.org>; Wed, 22 Aug 2007 17:18:12 -0600
+Subject: [PATCH 6/9] pagemap: give -1's a name
 From: Dave Hansen <haveblue@us.ibm.com>
-Date: Wed, 22 Aug 2007 16:18:08 -0700
+Date: Wed, 22 Aug 2007 16:18:10 -0700
 References: <20070822231804.1132556D@kernel>
 In-Reply-To: <20070822231804.1132556D@kernel>
-Message-Id: <20070822231808.B64AC11E@kernel>
+Message-Id: <20070822231810.27E079C8@kernel>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: mpm@selenic.com
 Cc: linux-mm@kvack.org, Dave Hansen <haveblue@us.ibm.com>
 List-ID: <linux-mm.kvack.org>
 
-I think the code gets easier to read when we give symbolic names
-to some of the operations we're performing.  I was sure we needed
-this when I saw the header being built like this:
-
-	...
-	buf[2] = sizeof(unsigned long)
-	buf[3] = sizeof(unsigned long)
-
-I really couldn't remember what either field did ;(
-
-This particular use is gone (because of removing the header, but
-this patch is still a really good idea to clarify the code).
+-1 is a magic number in /proc/$pid/pagemap.  It means that
+there was no pte present for a particular page.  We're
+going to be refining that a bit shortly, so give this a
+real name for now.
 
 Signed-off-by: Dave Hansen <haveblue@us.ibm.com>
 ---
 
- lxc-dave/fs/proc/task_mmu.c |   12 +++++++-----
- 1 file changed, 7 insertions(+), 5 deletions(-)
+ lxc-dave/fs/proc/task_mmu.c |    3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
 
-diff -puN fs/proc/task_mmu.c~pagemap-use-ENTRY_SIZE fs/proc/task_mmu.c
---- lxc/fs/proc/task_mmu.c~pagemap-use-ENTRY_SIZE	2007-08-22 16:16:52.000000000 -0700
-+++ lxc-dave/fs/proc/task_mmu.c	2007-08-22 16:16:52.000000000 -0700
-@@ -508,14 +508,16 @@ struct pagemapread {
- 	unsigned long __user *out;
+diff -puN fs/proc/task_mmu.c~give_-1s_a_name fs/proc/task_mmu.c
+--- lxc/fs/proc/task_mmu.c~give_-1s_a_name	2007-08-22 16:16:53.000000000 -0700
++++ lxc-dave/fs/proc/task_mmu.c	2007-08-22 16:16:53.000000000 -0700
+@@ -509,6 +509,7 @@ struct pagemapread {
  };
  
-+#define PM_ENTRY_BYTES sizeof(unsigned long)
-+
+ #define PM_ENTRY_BYTES sizeof(unsigned long)
++#define PM_NOT_PRESENT ((unsigned long)-1)
+ 
  static int add_to_pagemap(unsigned long addr, unsigned long pfn,
  			  struct pagemapread *pm)
- {
- 	__put_user(pfn, pm->out);
- 	pm->out++;
--	pm->pos += sizeof(unsigned long);
--	pm->count -= sizeof(unsigned long);
- 	pm->next = addr + PAGE_SIZE;
-+	pm->pos += PM_ENTRY_BYTES;
-+	pm->count -= PM_ENTRY_BYTES;
- 	return 0;
- }
- 
-@@ -601,13 +603,13 @@ static ssize_t pagemap_read(struct file 
- 		goto out;
- 
- 	ret = -EIO;
--	svpfn = src / sizeof(unsigned long);
-+	svpfn = src / PM_ENTRY_BYTES;
- 	addr = PAGE_SIZE * svpfn;
--	if (svpfn * sizeof(unsigned long) != src)
-+	if (svpfn * PM_ENTRY_BYTES != src)
- 		goto out;
- 	evpfn = min((src + count) / sizeof(unsigned long) - 1,
- 		    ((~0UL) >> PAGE_SHIFT) + 1);
--	count = (evpfn - svpfn) * sizeof(unsigned long);
-+	count = (evpfn - svpfn) * PM_ENTRY_BYTES;
- 	end = PAGE_SIZE * evpfn;
- 	//printk("src %ld svpfn %d evpfn %d count %d\n", src, svpfn, evpfn, count);
- 
+@@ -533,7 +534,7 @@ static int pagemap_pte_range(pmd_t *pmd,
+ 		if (addr < pm->next)
+ 			continue;
+ 		if (!pte_present(*pte))
+-			err = add_to_pagemap(addr, -1, pm);
++			err = add_to_pagemap(addr, PM_NOT_PRESENT, pm);
+ 		else
+ 			err = add_to_pagemap(addr, pte_pfn(*pte), pm);
+ 		if (err)
 _
 
 --
