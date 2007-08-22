@@ -1,73 +1,57 @@
-Date: Wed, 22 Aug 2007 10:28:54 +0900
-From: Yasunori Goto <y-goto@jp.fujitsu.com>
-Subject: Re: [Patch](memory hotplug) Hot-add with sparsemem-vmemmap
-In-Reply-To: <20070821125922.GG11329@skynet.ie>
-References: <20070817155908.7D91.Y-GOTO@jp.fujitsu.com> <20070821125922.GG11329@skynet.ie>
-Message-Id: <20070822095447.05E5.Y-GOTO@jp.fujitsu.com>
+Content-Type: text/plain; charset="us-ascii"
+Date: Wed, 22 Aug 2007 06:10:50 +0200
+From: "Michael Kerrisk" <mtk-manpages@gmx.net>
+In-Reply-To: <1187711147.5066.13.camel@localhost>
+Message-ID: <20070822041050.158210@gmx.net>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
+References: <1180467234.5067.52.camel@localhost>	
+ <Pine.LNX.4.64.0705291247001.26308@schroedinger.engr.sgi.com>	
+ <200705292216.31102.ak@suse.de> <1180541849.5850.30.camel@localhost>	
+ <20070531082016.19080@gmx.net> <1180732544.5278.158.camel@localhost>	
+ <46A44B98.8060807@gmx.net> <46AB0CDB.8090600@gmx.net>	
+ <20070816200520.GB16680@bingen.suse.de>  <20070818055026.265030@gmx.net>
+ <1187711147.5066.13.camel@localhost>
+Subject: Re: get_mempolicy.2 man page patch
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Mel Gorman <mel@skynet.ie>
-Cc: Andy Whitcroft <apw@shadowen.org>, Andrew Morton <akpm@osdl.org>, Christoph Lameter <clameter@sgi.com>, linux-mm <linux-mm@kvack.org>
+To: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
+Cc: clameter@sgi.com, akpm@linux-foundation.org, linux-mm@kvack.org, ak@suse.de
 List-ID: <linux-mm.kvack.org>
 
-> > Index: vmemmap/mm/sparse-vmemmap.c
-> > ===================================================================
-> > --- vmemmap.orig/mm/sparse-vmemmap.c	2007-08-10 20:17:19.000000000 +0900
-> > +++ vmemmap/mm/sparse-vmemmap.c	2007-08-10 21:12:54.000000000 +0900
-> > @@ -170,7 +170,7 @@ int __meminit vmemmap_populate(struct pa
-> >  }
-> >  #endif /* !CONFIG_ARCH_POPULATES_SPARSEMEM_VMEMMAP */
-> >  
-> > -struct page __init *sparse_early_mem_map_populate(unsigned long pnum, int nid)
-> > +struct page *sparse_mem_map_populate(unsigned long pnum, int nid)
+> > Lee, for each of th changed pages, could you write me a short summary
+> > of the changes, suitable for inclusion in the change log?
 > 
-> __meminit here instead of __init?
-
-Ah, Yes. Thanks. I'll fix it.
-
->
-> > Index: vmemmap/mm/sparse.c
-> > ===================================================================
-> > --- vmemmap.orig/mm/sparse.c	2007-08-10 20:17:19.000000000 +0900
-> > +++ vmemmap/mm/sparse.c	2007-08-10 21:21:01.000000000 +0900
-> > @@ -259,7 +259,7 @@ static unsigned long *sparse_early_usema
-> >  }
-> >  
-> >  #ifndef CONFIG_SPARSEMEM_VMEMMAP
-> > -struct page __init *sparse_early_mem_map_populate(unsigned long pnum, int nid)
-> > +struct page __init *sparse_mem_map_populate(unsigned long pnum, int nid)
+> Michael:
 > 
-> __meminit again possibly.
+> The terse and generic description re:  adding missing semantics and
+> error returns to match kernel code is not sufficient?
 
-Here should use __init. It is called at boot time and uses
-alloc_bootmem(). 
+Too terse ;-).
 
+Perhaps you could briefly list which descriptions of semantics
+were added?
 
-> >  #ifdef CONFIG_MEMORY_HOTPLUG
-> > +#ifdef CONFIG_SPARSEMEM_VMEMMAP
-> > +static inline struct page *kmalloc_section_memmap(unsigned long pnum, int nid,
-> > +						 unsigned long nr_pages)
-> > +{
-> > +	return sparse_mem_map_populate(pnum, nid);
-> > +}
+> What level of detail would be?
 > 
-> In the other version of __kmalloc_section_memmap(), pages get allocated
-> from alloc_pages() and it's obvious it's allocated there. A one line
-> comment saying that sparse_mem_map_populate() will make the necessary
-> allocations eventually would be nice.
-> 
-> Not a big deal though.
+> I have rebased the patch against the 2.64 man pages if you'd like me to
+> send that along.  There were a few conflicts, as you or someone had
+> moved some text around.
 
-Ah, Ok. I'll add its comment.
+That would be great.
 
-Thanks.
+Cheers,
 
+Michael
 -- 
-Yasunori Goto 
+Michael Kerrisk
+maintainer of Linux man pages Sections 2, 3, 4, 5, and 7 
 
+Want to help with man page maintenance?  
+Grab the latest tarball at
+http://www.kernel.org/pub/linux/docs/manpages , 
+read the HOWTOHELP file and grep the source 
+files for 'FIXME'.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
