@@ -1,131 +1,71 @@
-Message-Id: <20070822172123.935063000@sgi.com>
+Message-Id: <20070822172124.071200000@sgi.com>
 References: <20070822172101.138513000@sgi.com>
-Date: Wed, 22 Aug 2007 10:21:05 -0700
+Date: Wed, 22 Aug 2007 10:21:06 -0700
 From: travis@sgi.com
-Subject: [PATCH 4/6] x86: Convert cpu_llc_id to be a per cpu variable
-Content-Disposition: inline; filename=convert-cpu_llc_id-to-per_cpu_data
+Subject: [PATCH 5/6] x86: fix cpu_to_node references
+Content-Disposition: inline; filename=fix-cpu_to_node-refs
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Andi Kleen <ak@suse.de>
 Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <clameter@sgi.com>
 List-ID: <linux-mm.kvack.org>
 
-Convert cpu_llc_id from a static array sized by NR_CPUS to a
-per_cpu variable.  This saves sizeof(cpu_llc_id) * NR unused
-cpus.  Access is mostly from startup and CPU HOTPLUG functions.
-
-Note the addtional change of the cpu_llc_id type from u8
-to int for ARCH x86_64 to correspond with ARCH i386.
+Fix four instances where cpu_to_node is referenced
+by array instead of via the cpu_to_node macro.  This
+is preparation to moving it to the per_cpu data area.
 
 Signed-off-by: Mike Travis <travis@sgi.com>
 ---
- arch/i386/kernel/cpu/intel_cacheinfo.c |    4 ++--
- arch/i386/kernel/smpboot.c             |    6 +++---
- arch/x86_64/kernel/smpboot.c           |    6 +++---
- include/asm-i386/processor.h           |    6 +++++-
- include/asm-x86_64/smp.h               |    8 +++-----
- 5 files changed, 16 insertions(+), 14 deletions(-)
+ arch/x86_64/kernel/vsyscall.c |    2 +-
+ arch/x86_64/mm/numa.c         |    4 ++--
+ arch/x86_64/mm/srat.c         |    4 ++--
+ 3 files changed, 5 insertions(+), 5 deletions(-)
 
---- a/arch/i386/kernel/cpu/intel_cacheinfo.c
-+++ b/arch/i386/kernel/cpu/intel_cacheinfo.c
-@@ -417,14 +417,14 @@ unsigned int __cpuinit init_intel_cachei
- 	if (new_l2) {
- 		l2 = new_l2;
- #ifdef CONFIG_X86_HT
--		cpu_llc_id[cpu] = l2_id;
-+		per_cpu(cpu_llc_id, cpu) = l2_id;
+--- a/arch/x86_64/kernel/vsyscall.c
++++ b/arch/x86_64/kernel/vsyscall.c
+@@ -283,7 +283,7 @@ static void __cpuinit vsyscall_set_cpu(i
+ 	unsigned long *d;
+ 	unsigned long node = 0;
+ #ifdef CONFIG_NUMA
+-	node = cpu_to_node[cpu];
++	node = cpu_to_node(cpu);
  #endif
+ 	if (cpu_has(&cpu_data[cpu], X86_FEATURE_RDTSCP))
+ 		write_rdtscp_aux((node << 12) | cpu);
+--- a/arch/x86_64/mm/numa.c
++++ b/arch/x86_64/mm/numa.c
+@@ -264,7 +264,7 @@ void __init numa_init_array(void)
+ 	   We round robin the existing nodes. */
+ 	rr = first_node(node_online_map);
+ 	for (i = 0; i < NR_CPUS; i++) {
+-		if (cpu_to_node[i] != NUMA_NO_NODE)
++		if (cpu_to_node(i) != NUMA_NO_NODE)
+ 			continue;
+  		numa_set_node(i, rr);
+ 		rr = next_node(rr, node_online_map);
+@@ -546,7 +546,7 @@ __cpuinit void numa_add_cpu(int cpu)
+ void __cpuinit numa_set_node(int cpu, int node)
+ {
+ 	cpu_pda(cpu)->nodenumber = node;
+-	cpu_to_node[cpu] = node;
++	cpu_to_node(cpu) = node;
+ }
+ 
+ unsigned long __init numa_free_all_bootmem(void) 
+--- a/arch/x86_64/mm/srat.c
++++ b/arch/x86_64/mm/srat.c
+@@ -431,9 +431,9 @@ int __init acpi_scan_nodes(unsigned long
+ 			setup_node_bootmem(i, nodes[i].start, nodes[i].end);
+ 
+ 	for (i = 0; i < NR_CPUS; i++) {
+-		if (cpu_to_node[i] == NUMA_NO_NODE)
++		if (cpu_to_node(i) == NUMA_NO_NODE)
+ 			continue;
+-		if (!node_isset(cpu_to_node[i], node_possible_map))
++		if (!node_isset(cpu_to_node(i), node_possible_map))
+ 			numa_set_node(i, NUMA_NO_NODE);
  	}
- 
- 	if (new_l3) {
- 		l3 = new_l3;
- #ifdef CONFIG_X86_HT
--		cpu_llc_id[cpu] = l3_id;
-+		per_cpu(cpu_llc_id, cpu) = l3_id;
- #endif
- 	}
- 
---- a/arch/i386/kernel/smpboot.c
-+++ b/arch/i386/kernel/smpboot.c
-@@ -67,7 +67,7 @@ int smp_num_siblings = 1;
- EXPORT_SYMBOL(smp_num_siblings);
- 
- /* Last level cache ID of each logical CPU */
--int cpu_llc_id[NR_CPUS] __cpuinitdata = {[0 ... NR_CPUS-1] = BAD_APICID};
-+DEFINE_PER_CPU(int, cpu_llc_id) = BAD_APICID;
- 
- /* representing HT siblings of each logical CPU */
- DEFINE_PER_CPU(cpumask_t, cpu_sibling_map);
-@@ -348,8 +348,8 @@ void __cpuinit set_cpu_sibling_map(int c
- 	}
- 
- 	for_each_cpu_mask(i, cpu_sibling_setup_map) {
--		if (cpu_llc_id[cpu] != BAD_APICID &&
--		    cpu_llc_id[cpu] == cpu_llc_id[i]) {
-+		if (per_cpu(cpu_llc_id, cpu) != BAD_APICID &&
-+		    per_cpu(cpu_llc_id, cpu) == per_cpu(cpu_llc_id, i)) {
- 			cpu_set(i, c[cpu].llc_shared_map);
- 			cpu_set(cpu, c[i].llc_shared_map);
- 		}
---- a/arch/x86_64/kernel/smpboot.c
-+++ b/arch/x86_64/kernel/smpboot.c
-@@ -65,7 +65,7 @@ int smp_num_siblings = 1;
- EXPORT_SYMBOL(smp_num_siblings);
- 
- /* Last level cache ID of each logical CPU */
--u8 cpu_llc_id[NR_CPUS] __cpuinitdata  = {[0 ... NR_CPUS-1] = BAD_APICID};
-+DEFINE_PER_CPU(int, cpu_llc_id) = BAD_APICID;
- 
- /* Bitmask of currently online CPUs */
- cpumask_t cpu_online_map __read_mostly;
-@@ -285,8 +285,8 @@ static inline void set_cpu_sibling_map(i
- 	}
- 
- 	for_each_cpu_mask(i, cpu_sibling_setup_map) {
--		if (cpu_llc_id[cpu] != BAD_APICID &&
--		    cpu_llc_id[cpu] == cpu_llc_id[i]) {
-+		if (per_cpu(cpu_llc_id, cpu) != BAD_APICID &&
-+		    per_cpu(cpu_llc_id, cpu) == per_cpu(cpu_llc_id, i)) {
- 			cpu_set(i, c[cpu].llc_shared_map);
- 			cpu_set(cpu, c[i].llc_shared_map);
- 		}
---- a/include/asm-i386/processor.h
-+++ b/include/asm-i386/processor.h
-@@ -110,7 +110,11 @@ extern struct cpuinfo_x86 cpu_data[];
- #define current_cpu_data boot_cpu_data
- #endif
- 
--extern	int cpu_llc_id[NR_CPUS];
-+/*
-+ * the following now lives in the per cpu area:
-+ * extern	int cpu_llc_id[NR_CPUS];
-+ */
-+DECLARE_PER_CPU(int, cpu_llc_id);
- extern char ignore_fpu_irq;
- 
- void __init cpu_detect(struct cpuinfo_x86 *c);
---- a/include/asm-x86_64/smp.h
-+++ b/include/asm-x86_64/smp.h
-@@ -39,16 +39,14 @@ extern int smp_num_siblings;
- extern void smp_send_reschedule(int cpu);
- 
- /*
-- * cpu_sibling_map and cpu_core_map now live
-- * in the per cpu area
-- *
-+ * the following now live in the per cpu area:
-  * extern cpumask_t cpu_sibling_map[NR_CPUS];
-  * extern cpumask_t cpu_core_map[NR_CPUS];
-+ * extern u8 cpu_llc_id[NR_CPUS];
-  */
- DECLARE_PER_CPU(cpumask_t, cpu_sibling_map);
- DECLARE_PER_CPU(cpumask_t, cpu_core_map);
--
--extern u8 cpu_llc_id[NR_CPUS];
-+DECLARE_PER_CPU(int, cpu_llc_id);
- 
- #define SMP_TRAMPOLINE_BASE 0x6000
- 
+ 	numa_init_array();
 
 -- 
 
