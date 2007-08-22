@@ -1,60 +1,69 @@
-Received: from d23relay03.au.ibm.com (d23relay03.au.ibm.com [202.81.18.234])
-	by e23smtp05.au.ibm.com (8.13.1/8.13.1) with ESMTP id l7MJKIMK013248
-	for <linux-mm@kvack.org>; Thu, 23 Aug 2007 05:20:18 +1000
-Received: from d23av02.au.ibm.com (d23av02.au.ibm.com [9.190.250.243])
-	by d23relay03.au.ibm.com (8.13.8/8.13.8/NCO v8.5) with ESMTP id l7MJKFks4177982
-	for <linux-mm@kvack.org>; Thu, 23 Aug 2007 05:20:16 +1000
-Received: from d23av02.au.ibm.com (loopback [127.0.0.1])
-	by d23av02.au.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l7MJKFXW029341
-	for <linux-mm@kvack.org>; Thu, 23 Aug 2007 05:20:15 +1000
-Message-ID: <46CC8C6A.7080904@linux.vnet.ibm.com>
-Date: Thu, 23 Aug 2007 00:50:10 +0530
-From: Balbir Singh <balbir@linux.vnet.ibm.com>
-Reply-To: balbir@linux.vnet.ibm.com
-MIME-Version: 1.0
-Subject: Re: [PATCH] Memory controller Add Documentation
-References: <20070822130612.18981.58696.sendpatchset@balbir-laptop> <6599ad830708221218t3c1eae51o1605f00b8f204b02@mail.gmail.com>
-In-Reply-To: <6599ad830708221218t3c1eae51o1605f00b8f204b02@mail.gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1
+Date: Wed, 22 Aug 2007 12:49:28 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [RFC 3/3] SGI Altix cross partition memory (XPMEM)
+Message-Id: <20070822124928.19bf0431.akpm@linux-foundation.org>
+In-Reply-To: <20070822191516.GA24018@sgi.com>
+References: <20070810010659.GA25427@sgi.com>
+	<20070810011435.GD25427@sgi.com>
+	<20070809231542.f6dcce8c.akpm@linux-foundation.org>
+	<20070822170011.GA20155@sgi.com>
+	<20070822110422.65c990e5.akpm@linux-foundation.org>
+	<20070822191516.GA24018@sgi.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Paul Menage <menage@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Linux Containers <containers@lists.osdl.org>, YAMAMOTO Takashi <yamamoto@valinux.co.jp>, Dave Hansen <haveblue@us.ibm.com>, Linux MM Mailing List <linux-mm@kvack.org>, Nick Piggin <npiggin@suse.de>, Vaidyanathan Srinivasan <svaidy@linux.vnet.ibm.com>, Pavel Emelianov <xemul@openvz.org>, Dhaval Giani <dhaval@linux.vnet.ibm.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Eric W Biederman <ebiederm@xmission.com>
+To: Dean Nelson <dcn@sgi.com>, Andy Whitcroft <apw@shadowen.org>
+Cc: linux-ia64@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, tony.luck@intel.com, jes@sgi.com
 List-ID: <linux-mm.kvack.org>
 
-Paul Menage wrote:
-> On 8/22/07, Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
->>
->> Signed-off-by: Balbir Singh <balbir@linux.vnet.ibm.com>
->> ---
->>
->>  Documentation/memcontrol.txt |  193 +++++++++++++++++++++++++++++++++++++++++++
->>  1 file changed, 193 insertions(+)
->>
->> diff -puN /dev/null Documentation/memcontrol.txt
->> --- /dev/null   2007-06-01 20:42:04.000000000 +0530
->> +++ linux-2.6.23-rc2-mm2-balbir/Documentation/memcontrol.txt    2007-08-22 18:29:29.000000000 +0530
->> @@ -0,0 +1,193 @@
->> +Memory Controller
->> +
->> +0. Salient features
->> +
->> +a. Enable control of both RSS and Page Cache pages
+On Wed, 22 Aug 2007 14:15:16 -0500
+Dean Nelson <dcn@sgi.com> wrote:
+
+> On Wed, Aug 22, 2007 at 11:04:22AM -0700, Andrew Morton wrote:
+> > On Wed, 22 Aug 2007 12:00:11 -0500
+> > Dean Nelson <dcn@sgi.com> wrote:
+> > 
+> > > 
+> > >   3) WARNING: declaring multiple variables together should be avoided
+> > > 
+> > > checkpatch.pl is erroneously commplaining about the following found in five
+> > > different functions in arch/ia64/sn/kernel/xpmem_pfn.c.
+> > > 
+> > > 	int n_pgs = xpmem_num_of_pages(vaddr, size);
+> > 
+> > What warning does it generate here?
 > 
-> s/RSS/anonymous/ (and generally throughout the document)? RSS can
-> include pages that are part of the page cache too.
+> The WARNING #3 above "declaring multiple variables together should be avoided".
+> There is only one variable being declared, which happens to be initialized by
+> the function xpmem_num_of_pages().
+
+Ah, I think I recall seeing a report of that earlier.  Maybe it's been fixed?
+
+> ...
+> > > I've switched from using nopage to using fault. I read that it is intended
+> > > that nopfn also goes away. If this is the case, then the BUG_ON if VM_PFNMAP
+> > > is set would make __do_fault() a rather unfriendly replacement for do_no_pfn().
+> > > 
+> > > > - xpmem_attach() does smp_processor_id() in preemptible code.  Lucky that
+> > > >   ia64 doesn't do preempt?
+> > > 
+> > > Actually, the code is fine as is even with preemption configured on. All it's
+> > > doing is ensuring that the thread was previously pinned to the CPU it's
+> > > currently running on. If it is, it can't be moved to another CPU via
+> > > preemption, and if it isn't, the check will fail and we'll return -EINVAL
+> > > and all is well.
+> > 
+> > OK.  Running smp_processor_id() from within preemptible code will generate
+> > a warning, but the code is sneaky enough to prevent that warning if the
+> > calling task happens to be pinned to a single CPU.
 > 
-> Paul
+> Would it make more sense in this particular case to replace the call to
+> smp_processor_id() in xpmem_attach() with a call to raw_smp_processor_id()
+> instead, and add a comment explaining why?
 
-Yes, thats a good point. I'll clean up the documentation.
-
-
--- 
-	Warm Regards,
-	Balbir Singh
-	Linux Technology Center
-	IBM, ISTL
+Your call ;)  Either will be OK, I expect.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
