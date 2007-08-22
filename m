@@ -1,10 +1,10 @@
 Content-Type: text/plain; charset="us-ascii"
 MIME-Version: 1.0
 Content-Transfer-Encoding: 7bit
-Subject: [PATCH 20 of 24] extract deadlock helper function
-Message-Id: <2c9417ab4c1ff81a77bc.1187786947@v2.random>
+Subject: [PATCH 21 of 24] select process to kill for cpusets
+Message-Id: <855dc37d74ab151d7a0c.1187786948@v2.random>
 In-Reply-To: <patchbomb.1187786927@v2.random>
-Date: Wed, 22 Aug 2007 14:49:07 +0200
+Date: Wed, 22 Aug 2007 14:49:08 +0200
 From: Andrea Arcangeli <andrea@suse.de>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
@@ -15,70 +15,99 @@ List-ID: <linux-mm.kvack.org>
 # HG changeset patch
 # User David Rientjes <rientjes@google.com>
 # Date 1187778125 -7200
-# Node ID 2c9417ab4c1ff81a77bca4767207338e43b5cd69
-# Parent  be2fc447cec06990a2a31658b166f0c909777260
-extract deadlock helper function
+# Node ID 855dc37d74ab151d7a0c640d687b34ee05996235
+# Parent  2c9417ab4c1ff81a77bca4767207338e43b5cd69
+select process to kill for cpusets
 
-Extracts the jiffies comparison operation, the assignment of the
-last_tif_memdie actual, and diagnostic message to its own function.
+Passes the memory allocation constraint into select_bad_process() so
+that, in the CONSTRAINT_CPUSET case, we can exclude tasks that do not
+overlap nodes with the triggering task's cpuset.
+
+The OOM killer now invokes select_bad_process() even in the cpuset case
+to select a rogue task to kill instead of simply using current.  Although
+killing current is guaranteed to help alleviate the OOM condition, it is
+by no means guaranteed to be the "best" process to kill.  The
+select_bad_process() heuristics will do a much better job of determining
+that.
+
+As an added bonus, this also addresses an issue whereas current could be
+set to OOM_DISABLE and is not respected for the CONSTRAINT_CPUSET case.
+Currently we loop back out to __alloc_pages() waiting for another cpuset
+task to trigger the OOM killer that hopefully won't be OOM_DISABLE.  With
+this patch, we're guaranteed to find a task to kill that is not
+OOM_DISABLE if it matches our eligibility requirements the first time.
+
+If we cannot find any tasks to kill in the cpuset case, we simply make
+the entire OOM killer a no-op since it's better for one cpuset to fail
+memory allocations repeatedly instead of panicing the entire system.
 
 Cc: Andrea Arcangeli <andrea@suse.de>
+Cc: Christoph Lameter <clameter@sgi.com>
 Signed-off-by: David Rientjes <rientjes@google.com>
 ---
- mm/oom_kill.c |   27 +++++++++++++++++++++------
- 1 files changed, 21 insertions(+), 6 deletions(-)
+ mm/oom_kill.c |   25 +++++++++++++++++--------
+ 1 files changed, 17 insertions(+), 8 deletions(-)
 
 diff --git a/mm/oom_kill.c b/mm/oom_kill.c
 --- a/mm/oom_kill.c
 +++ b/mm/oom_kill.c
-@@ -29,6 +29,8 @@ int sysctl_panic_on_oom;
- int sysctl_panic_on_oom;
- /* #define DEBUG */
- 
-+#define OOM_DEADLOCK_TIMEOUT	(10*HZ)
-+
- unsigned long VM_is_OOM __cacheline_aligned_in_smp;
- static unsigned long last_tif_memdie_jiffies;
- 
-@@ -366,6 +368,22 @@ int unregister_oom_notifier(struct notif
- }
- EXPORT_SYMBOL_GPL(unregister_oom_notifier);
- 
-+/*
-+ * Returns 1 if the OOM killer is deadlocked, meaning more than
-+ * OOM_DEADLOCK_TIMEOUT time has elapsed since the last task was set to
-+ * TIF_MEMDIE.  If it is deadlocked, the actual is updated to jiffies to check
-+ * for future timeouts.  Otherwise, return 0.
-+ */
-+static int oom_is_deadlocked(unsigned long *last_tif_memdie)
-+{
-+	if (unlikely(time_before(jiffies, *last_tif_memdie +
-+					  OOM_DEADLOCK_TIMEOUT)))
-+		return 0;
-+	*last_tif_memdie = jiffies;
-+	printk("detected probable OOM deadlock, so killing another task\n");
-+	return 1;
-+}
-+
- /**
-  * out_of_memory - kill the "best" process when we run out of memory
+@@ -188,9 +188,13 @@ static inline int constrained_alloc(stru
+  * Simple selection loop. We chose the process with the highest
+  * number of 'points'. We expect the caller will lock the tasklist.
   *
-@@ -422,12 +440,9 @@ void out_of_memory(struct zonelist *zone
- 		 * so it's equivalent to write_lock_irq(tasklist_lock) as
- 		 * far as VM_is_OOM is concerned.
- 		 */
--		if (unlikely(test_bit(0, &VM_is_OOM))) {
--			if (time_before(jiffies, last_tif_memdie_jiffies + 10*HZ))
--				goto out;
--			printk("detected probable OOM deadlock, so killing another task\n");
--			last_tif_memdie_jiffies = jiffies;
--		}
-+		if (unlikely(test_bit(0, &VM_is_OOM)) &&
-+		    !oom_is_deadlocked(&last_tif_memdie_jiffies))
-+			goto out;
++ * If constraint is CONSTRAINT_CPUSET, then only choose a task that overlaps
++ * the nodes of the task that triggered the OOM killer.
++ *
+  * (not docbooked, we don't want this one cluttering up the manual)
+  */
+-static struct task_struct *select_bad_process(unsigned long *ppoints)
++static struct task_struct *select_bad_process(unsigned long *ppoints,
++					      int constraint)
+ {
+ 	struct task_struct *g, *p;
+ 	struct task_struct *chosen = NULL;
+@@ -221,6 +225,9 @@ static struct task_struct *select_bad_pr
+ 		}
  
- 		if (sysctl_panic_on_oom) {
+ 		if (p->oomkilladj == OOM_DISABLE)
++			continue;
++		if (constraint == CONSTRAINT_CPUSET &&
++		    !cpuset_excl_nodes_overlap(p))
+ 			continue;
+ 
+ 		points = badness(p, uptime.tv_sec);
+@@ -424,12 +431,6 @@ void out_of_memory(struct zonelist *zone
+ 		break;
+ 
+ 	case CONSTRAINT_CPUSET:
+-		read_lock(&tasklist_lock);
+-		oom_kill_process(current, points,
+-				 "No available memory in cpuset", gfp_mask, order);
+-		read_unlock(&tasklist_lock);
+-		break;
+-
+ 	case CONSTRAINT_NONE:
+ 		if (down_trylock(&OOM_lock))
+ 			break;
+@@ -454,9 +455,17 @@ retry:
+ 		 * Rambo mode: Shoot down a process and hope it solves whatever
+ 		 * issues we may have.
+ 		 */
+-		p = select_bad_process(&points);
++		p = select_bad_process(&points, constraint);
+ 		/* Found nothing?!?! Either we hang forever, or we panic. */
+ 		if (unlikely(!p)) {
++			/*
++			 * We shouldn't panic the entire system if we can't
++			 * find any eligible tasks to kill in a
++			 * cpuset-constrained OOM condition.  Instead, we do
++			 * nothing and allow other cpusets to continue.
++			 */
++			if (constraint == CONSTRAINT_CPUSET)
++				goto out;
  			read_unlock(&tasklist_lock);
+ 			cpuset_unlock();
+ 			panic("Out of memory and no killable processes...\n");
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
