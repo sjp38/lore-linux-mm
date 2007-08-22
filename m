@@ -1,24 +1,27 @@
-Date: Wed, 22 Aug 2007 15:39:51 -0700 (PDT)
-Message-Id: <20070822.153951.67894132.davem@davemloft.net>
-Subject: Re: [PATCH] Do not fail if we cannot register a slab with sysfs
+Date: Wed, 22 Aug 2007 15:40:23 -0700 (PDT)
+Message-Id: <20070822.154023.20890574.davem@davemloft.net>
+Subject: Re: [PATCH] Limit the maximum size of merged slab caches
 From: David Miller <davem@davemloft.net>
-In-Reply-To: <Pine.LNX.4.64.0708221512260.17282@schroedinger.engr.sgi.com>
-References: <Pine.LNX.4.64.0708221512260.17282@schroedinger.engr.sgi.com>
+In-Reply-To: <Pine.LNX.4.64.0708221518200.17370@schroedinger.engr.sgi.com>
+References: <Pine.LNX.4.64.0708221518200.17370@schroedinger.engr.sgi.com>
 Mime-Version: 1.0
 Content-Type: Text/Plain; charset=us-ascii
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 From: Christoph Lameter <clameter@sgi.com>
-Date: Wed, 22 Aug 2007 15:14:49 -0700 (PDT)
+Date: Wed, 22 Aug 2007 15:19:19 -0700 (PDT)
 Return-Path: <owner-linux-mm@kvack.org>
 To: clameter@sgi.com
 Cc: akpm@linux-foundation.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-> Do not BUG() if we cannot register a slab with sysfs. Just print an
-> error. The only consequence of not registering is that the slab cache
-> is not visible via /sys/slab. A BUG() may not be visible that
-> early during boot and we have had multiple issues here already.
+> We always switch off the debugging bits of slabs that are too large
+> for free pointer relocationi (256k, 512k). This means that we may create
+> kmem_cache structures that look as if they are satisfying the requirements
+> for merging even if slub_debug is set. Sysfs handling may think they are
+> mergeable and thus creates unique ids that may then clash.
+> 
+> [Patches in the works are soon going to make that limit obsolete]
 > 
 > Signed-off-by: Christoph Lameter <clameter@sgi.com>
 
