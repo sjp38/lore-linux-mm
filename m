@@ -1,50 +1,91 @@
-Received: from d23relay03.au.ibm.com (d23relay03.au.ibm.com [202.81.18.234])
-	by e23smtp05.au.ibm.com (8.13.1/8.13.1) with ESMTP id l7MHSuSU028154
-	for <linux-mm@kvack.org>; Thu, 23 Aug 2007 03:28:56 +1000
-Received: from d23av04.au.ibm.com (d23av04.au.ibm.com [9.190.235.139])
-	by d23relay03.au.ibm.com (8.13.8/8.13.8/NCO v8.5) with ESMTP id l7MHSrsm3563712
-	for <linux-mm@kvack.org>; Thu, 23 Aug 2007 03:28:53 +1000
-Received: from d23av04.au.ibm.com (loopback [127.0.0.1])
-	by d23av04.au.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l7MISqa7031084
-	for <linux-mm@kvack.org>; Thu, 23 Aug 2007 04:28:52 +1000
-Message-ID: <46CC724A.7020305@linux.vnet.ibm.com>
-Date: Wed, 22 Aug 2007 22:58:42 +0530
-From: Balbir Singh <balbir@linux.vnet.ibm.com>
-Reply-To: balbir@linux.vnet.ibm.com
-MIME-Version: 1.0
-Subject: Re: [PATCH] Memory controller Add Documentation
-References: <20070822130612.18981.58696.sendpatchset@balbir-laptop> <20070822094633.733614c5.randy.dunlap@oracle.com>
-In-Reply-To: <20070822094633.733614c5.randy.dunlap@oracle.com>
-Content-Type: text/plain; charset=ISO-8859-1
+Date: Wed, 22 Aug 2007 11:04:22 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [RFC 3/3] SGI Altix cross partition memory (XPMEM)
+Message-Id: <20070822110422.65c990e5.akpm@linux-foundation.org>
+In-Reply-To: <20070822170011.GA20155@sgi.com>
+References: <20070810010659.GA25427@sgi.com>
+	<20070810011435.GD25427@sgi.com>
+	<20070809231542.f6dcce8c.akpm@linux-foundation.org>
+	<20070822170011.GA20155@sgi.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Randy Dunlap <randy.dunlap@oracle.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Linux Containers <containers@lists.osdl.org>, YAMAMOTO Takashi <yamamoto@valinux.co.jp>, Paul Menage <menage@google.com>, Dave Hansen <haveblue@us.ibm.com>, Linux MM Mailing List <linux-mm@kvack.org>, Nick Piggin <npiggin@suse.de>, Vaidyanathan Srinivasan <svaidy@linux.vnet.ibm.com>, Pavel Emelianov <xemul@openvz.org>, Dhaval Giani <dhaval@linux.vnet.ibm.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Eric W Biederman <ebiederm@xmission.com>
+To: Dean Nelson <dcn@sgi.com>
+Cc: linux-ia64@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, tony.luck@intel.com, jes@sgi.com
 List-ID: <linux-mm.kvack.org>
 
-Randy Dunlap wrote:
-> On Wed, 22 Aug 2007 18:36:12 +0530 Balbir Singh wrote:
-> 
->>  Documentation/memcontrol.txt |  193 +++++++++++++++++++++++++++++++++++++++++++
-> 
-> Is there some sub-dir that is appropriate for this, such as
-> vm/ or accounting/ or containers/ (new) ?
-> 
-> 
+On Wed, 22 Aug 2007 12:00:11 -0500
+Dean Nelson <dcn@sgi.com> wrote:
 
-<snip>
+> 
+>   3) WARNING: declaring multiple variables together should be avoided
+> 
+> checkpatch.pl is erroneously commplaining about the following found in five
+> different functions in arch/ia64/sn/kernel/xpmem_pfn.c.
+> 
+> 	int n_pgs = xpmem_num_of_pages(vaddr, size);
 
-Hi, Randy,
+What warning does it generate here?
 
-Thanks for the detailed review. Most of the comments seem valid,
-I will fix them in the next release.
+> > - xpmem_fault_handler() appears to have imposed a kernel-wide rule that
+> >   when taking multiple mmap_sems, one should take the lowest-addressed one
+> >   first?  If so, that probably wants a mention in that locking comment in
+> >   filemap.c
+> 
+> Sure. After looking at the lock ordering comment block in mm/filemap.c, it
+> wasn't clear to me how best to document this. Any suggestions/help would
+> be most appreciated.
 
--- 
-	Warm Regards,
-	Balbir Singh
-	Linux Technology Center
-	IBM, ISTL
+umm,
+
+ * when taking multiple mmap_sems, one should take the lowest-addressed one
+ * first
+
+ ;)
+
+> > - xpmem_fault_handler() does atomic_dec(&seg_tg->mm->mm_users).  What
+> >   happens if that was the last reference?
+> 
+> When /dev/xpmem is opened by a user process, xpmem_open() incs mm_users
+> and when it is flushed, xpmem_flush() decs it (via mmput()) after having
+> ensured that no XPMEM attachments exist of this mm. Thus the dec in
+> xpmem_fault_handler() will never take it to 0.
+
+OK.  Generally if a reviewer asks a question like this, it indicates that a
+code comment is needed.  Because it is likely that others will later wonder
+the same thing.
+
+> > - Has it all been tested with lockdep enabled?  Jugding from all the use
+> >   of SPIN_LOCK_UNLOCKED, it has not.
+> >
+> >   Oh, ia64 doesn't implement lockdep.  For this code, that is deeply
+> >   regrettable.
+> 
+> No, it hasn't been tested with lockdep. But I have switched it from using
+> SPIN_LOCK_UNLOCKED to spin_lock_init().
+> 
+> > ! This code all predates the nopage->fault conversion and won't work in
+> >   current kernels.
+> 
+> I've switched from using nopage to using fault. I read that it is intended
+> that nopfn also goes away. If this is the case, then the BUG_ON if VM_PFNMAP
+> is set would make __do_fault() a rather unfriendly replacement for do_no_pfn().
+> 
+> > - xpmem_attach() does smp_processor_id() in preemptible code.  Lucky that
+> >   ia64 doesn't do preempt?
+> 
+> Actually, the code is fine as is even with preemption configured on. All it's
+> doing is ensuring that the thread was previously pinned to the CPU it's
+> currently running on. If it is, it can't be moved to another CPU via
+> preemption, and if it isn't, the check will fail and we'll return -EINVAL
+> and all is well.
+
+OK.  Running smp_processor_id() from within preemptible code will generate
+a warning, but the code is sneaky enough to prevent that warning if the
+calling task happens to be pinned to a single CPU.
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
