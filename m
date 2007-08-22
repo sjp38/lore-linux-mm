@@ -1,100 +1,73 @@
-Date: Tue, 21 Aug 2007 15:43:21 -0700 (PDT)
-From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [RFC 0/7] Postphone reclaim laundry to write at high water marks
-In-Reply-To: <1187734144.5463.35.camel@lappy>
-Message-ID: <Pine.LNX.4.64.0708211532560.5728@schroedinger.engr.sgi.com>
-References: <20070820215040.937296148@sgi.com>  <1187692586.6114.211.camel@twins>
-  <Pine.LNX.4.64.0708211347480.3082@schroedinger.engr.sgi.com>
- <1187730812.5463.12.camel@lappy>  <Pine.LNX.4.64.0708211418120.3267@schroedinger.engr.sgi.com>
- <1187734144.5463.35.camel@lappy>
+Date: Wed, 22 Aug 2007 10:28:54 +0900
+From: Yasunori Goto <y-goto@jp.fujitsu.com>
+Subject: Re: [Patch](memory hotplug) Hot-add with sparsemem-vmemmap
+In-Reply-To: <20070821125922.GG11329@skynet.ie>
+References: <20070817155908.7D91.Y-GOTO@jp.fujitsu.com> <20070821125922.GG11329@skynet.ie>
+Message-Id: <20070822095447.05E5.Y-GOTO@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset="US-ASCII"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Peter Zijlstra <peterz@infradead.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Mel Gorman <mel@skynet.ie>
+Cc: Andy Whitcroft <apw@shadowen.org>, Andrew Morton <akpm@osdl.org>, Christoph Lameter <clameter@sgi.com>, linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 22 Aug 2007, Peter Zijlstra wrote:
-
-> Also, all I want is for slab to honour gfp flags like page allocation
-> does, nothing more, nothing less.
+> > Index: vmemmap/mm/sparse-vmemmap.c
+> > ===================================================================
+> > --- vmemmap.orig/mm/sparse-vmemmap.c	2007-08-10 20:17:19.000000000 +0900
+> > +++ vmemmap/mm/sparse-vmemmap.c	2007-08-10 21:12:54.000000000 +0900
+> > @@ -170,7 +170,7 @@ int __meminit vmemmap_populate(struct pa
+> >  }
+> >  #endif /* !CONFIG_ARCH_POPULATES_SPARSEMEM_VMEMMAP */
+> >  
+> > -struct page __init *sparse_early_mem_map_populate(unsigned long pnum, int nid)
+> > +struct page *sparse_mem_map_populate(unsigned long pnum, int nid)
 > 
-> (well, actually slightly less, since I'm only really interrested in the
-> ALLOC_MIN|ALLOC_HIGH|ALLOC_HARDER -> ALLOC_NO_WATERMARKS transition and
-> not all higher ones)
+> __meminit here instead of __init?
 
-I am still not sure what that brings you. There may be multiple 
-PF_MEMALLOC going on at the same time. On a large system with N cpus
-there may be more than N of these that can steal objects from one another. 
+Ah, Yes. Thanks. I'll fix it.
 
-A NUMA system will be shot anyways if memory gets that problematic to 
-handle since the OS cannot effectively place memory if all zones are 
-overallocated so that only a few pages are left.
-
-
-> I want slab to fail when a similar page alloc would fail, no magic.
-
-Yes I know. I do not want allocations to fail but that reclaim occurs in 
-order to avoid failing any allocation. We need provisions that 
-make sure that we never get into such a bad memory situation that would
-cause severe slowless and usually end up in a livelock anyways.
-
-> > > Anonymous pages are a there to stay, and we cannot tell people how to
-> > > use them. So we need some free or freeable pages in order to avoid the
-> > > vm deadlock that arises from all memory dirty.
-> > 
-> > No one is trying to abolish Anonymous pages. Free memory is readily 
-> > available on demand if one calls reclaim. Your scheme introduces complex 
-> > negotiations over a few scraps of memory when large amounts of memory 
-> > would still be readily available if one would do the right thing and call 
-> > into reclaim.
+>
+> > Index: vmemmap/mm/sparse.c
+> > ===================================================================
+> > --- vmemmap.orig/mm/sparse.c	2007-08-10 20:17:19.000000000 +0900
+> > +++ vmemmap/mm/sparse.c	2007-08-10 21:21:01.000000000 +0900
+> > @@ -259,7 +259,7 @@ static unsigned long *sparse_early_usema
+> >  }
+> >  
+> >  #ifndef CONFIG_SPARSEMEM_VMEMMAP
+> > -struct page __init *sparse_early_mem_map_populate(unsigned long pnum, int nid)
+> > +struct page __init *sparse_mem_map_populate(unsigned long pnum, int nid)
 > 
-> This is the thing I contend, there need not be large amounts of memory
-> around. In my test prog the hot code path fits into a single page, the
-> rest can be anonymous.
+> __meminit again possibly.
 
-Thats a bit extreme.... We need to make sure that there are larger amounts 
-of memory around. Pages are used for all shorts of short term uses (like 
-slab shrinking etc etc.). If memory is that low that a single page matters
-then we are in very bad shape anyways.
+Here should use __init. It is called at boot time and uses
+alloc_bootmem(). 
 
-> > Sounds like you would like to change the way we handle memory in general 
-> > in the VM? Reclaim (and thus finding freeable pages) is basic to Linux 
-> > memory management.
+
+> >  #ifdef CONFIG_MEMORY_HOTPLUG
+> > +#ifdef CONFIG_SPARSEMEM_VMEMMAP
+> > +static inline struct page *kmalloc_section_memmap(unsigned long pnum, int nid,
+> > +						 unsigned long nr_pages)
+> > +{
+> > +	return sparse_mem_map_populate(pnum, nid);
+> > +}
 > 
-> Not quite, currently we have free pages in the reserves, if you want to
-> replace some (or all) of that by freeable pages then that is a change.
-
-We have free pages primarily to optimize the allocation. Meaning we do not 
-have to run reclaim on every call. We want to use all of memory. The 
-reserves are there for the case that we cannot call into reclaim. The easy 
-solution if that is problematic is to enhance the reclaim to work in the
-critical situations that we care about.
-
-
-> > Sorry I just got into this a short time ago and I may need a few cycles 
-> > to get this all straight. An approach that uses memory instead of 
-> > ignoring available memory is certainly better.
+> In the other version of __kmalloc_section_memmap(), pages get allocated
+> from alloc_pages() and it's obvious it's allocated there. A one line
+> comment saying that sparse_mem_map_populate() will make the necessary
+> allocations eventually would be nice.
 > 
-> Sure if and when possible. There will always be need to fall back to the
-> reserves.
+> Not a big deal though.
 
-Maybe. But we can certainly avoid that as much as possible which would 
-also increase our ability to use all available memory instead of leaving 
-some of it unused./
+Ah, Ok. I'll add its comment.
 
-> A bit off-topic, re that reclaim from atomic context:
-> Currently we try to hold spinlocks only for short periods of time so
-> that reclaim can be preempted, if you run all of reclaim from a
-> non-preemptible context you get very large preemption latencies and if
-> done from int context it'd also generate large int latencies.
+Thanks.
 
-If you call into the page allocator from an interrupt context then you are 
-already in bad shape since we may check pcps lists and then potentially 
-have to traverse the zonelists and check all sorts of things. If we 
-would implement atomic reclaim then the reserves may become a latency 
-optimizations. At least we will not fail anymore if the reserves are out.
+-- 
+Yasunori Goto 
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
