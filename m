@@ -1,10 +1,10 @@
 Content-Type: text/plain; charset="us-ascii"
 MIME-Version: 1.0
 Content-Transfer-Encoding: 7bit
-Subject: [PATCH 04 of 24] serialize oom killer
-Message-Id: <871b7a4fd566de081120.1187786931@v2.random>
+Subject: [PATCH 05 of 24] avoid selecting already killed tasks
+Message-Id: <de62eb332b1dfee7e493.1187786932@v2.random>
 In-Reply-To: <patchbomb.1187786927@v2.random>
-Date: Wed, 22 Aug 2007 14:48:51 +0200
+Date: Wed, 22 Aug 2007 14:48:52 +0200
 From: Andrea Arcangeli <andrea@suse.de>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
@@ -15,42 +15,35 @@ List-ID: <linux-mm.kvack.org>
 # HG changeset patch
 # User Andrea Arcangeli <andrea@suse.de>
 # Date 1187778125 -7200
-# Node ID 871b7a4fd566de0811207628b74abea0a73341f6
-# Parent  5566f2af006a171cd47d596c6654f51beca74203
-serialize oom killer
+# Node ID de62eb332b1dfee7e493043b20e560283ef42f67
+# Parent  871b7a4fd566de0811207628b74abea0a73341f6
+avoid selecting already killed tasks
 
-It's risky and useless to run two oom killers in parallel, let serialize it to
-reduce the probability of spurious oom-killage.
+If the killed task doesn't go away because it's waiting on some other
+task who needs to allocate memory, to release the i_sem or some other
+lock, we must fallback to killing some other task in order to kill the
+original selected and already oomkilled task, but the logic that kills
+the childs first, would deadlock, if the already oom-killed task was
+actually the first child of the newly oom-killed task.
 
 Signed-off-by: Andrea Arcangeli <andrea@suse.de>
 
 diff --git a/mm/oom_kill.c b/mm/oom_kill.c
 --- a/mm/oom_kill.c
 +++ b/mm/oom_kill.c
-@@ -401,12 +401,15 @@ void out_of_memory(struct zonelist *zone
- 	unsigned long points = 0;
- 	unsigned long freed = 0;
- 	int constraint;
-+	static DECLARE_MUTEX(OOM_lock);
- 
- 	blocking_notifier_call_chain(&oom_notify_list, 0, &freed);
- 	if (freed > 0)
- 		/* Got some memory back in the last second. */
- 		return;
- 
-+	if (down_trylock(&OOM_lock))
-+		return;
- 	if (printk_ratelimit()) {
- 		printk(KERN_WARNING "%s invoked oom-killer: "
- 			"gfp_mask=0x%x, order=%d, oomkilladj=%d\n",
-@@ -473,4 +476,6 @@ out:
- 	 */
- 	if (!test_thread_flag(TIF_MEMDIE))
- 		schedule_timeout_uninterruptible(1);
--}
-+
-+	up(&OOM_lock);
-+}
+@@ -367,6 +367,12 @@ static int oom_kill_process(struct task_
+ 		c = list_entry(tsk, struct task_struct, sibling);
+ 		if (c->mm == p->mm)
+ 			continue;
++		/*
++		 * We cannot select tasks with TIF_MEMDIE already set
++		 * or we'll hard deadlock.
++		 */
++		if (unlikely(test_tsk_thread_flag(c, TIF_MEMDIE)))
++			continue;
+ 		if (!oom_kill_task(c))
+ 			return 0;
+ 	}
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
