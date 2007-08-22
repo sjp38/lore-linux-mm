@@ -1,10 +1,11 @@
 Content-Type: text/plain; charset="us-ascii"
 MIME-Version: 1.0
 Content-Transfer-Encoding: 7bit
-Subject: [PATCH 06 of 24] reduce the probability of an OOM livelock
-Message-Id: <49e2d90eb0d7b1021b1e.1187786933@v2.random>
+Subject: [PATCH 11 of 24] the oom schedule timeout isn't needed with the
+	VM_is_OOM logic
+Message-Id: <adf88d0ba0d17beaceee.1187786938@v2.random>
 In-Reply-To: <patchbomb.1187786927@v2.random>
-Date: Wed, 22 Aug 2007 14:48:53 +0200
+Date: Wed, 22 Aug 2007 14:48:58 +0200
 From: Andrea Arcangeli <andrea@suse.de>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
@@ -15,72 +16,31 @@ List-ID: <linux-mm.kvack.org>
 # HG changeset patch
 # User Andrea Arcangeli <andrea@suse.de>
 # Date 1187778125 -7200
-# Node ID 49e2d90eb0d7b1021b1e1e841bef22fdc647766e
-# Parent  de62eb332b1dfee7e493043b20e560283ef42f67
-reduce the probability of an OOM livelock
+# Node ID adf88d0ba0d17beaceee47f7b8e0acbd97ddc320
+# Parent  edb3af3e0d4f2c083c8ddd9857073a3c8393ab8e
+the oom schedule timeout isn't needed with the VM_is_OOM logic
 
-There's no need to loop way too many times over the lrus in order to
-declare defeat and decide to kill a task. The more loops we do the more
-likely there we'll run in a livelock with a page bouncing back and
-forth between tasks. The maximum number of entries to check in a loop
-that returns less than swap-cluster-max pages freed, should be the size
-of the list (or at most twice the size of the list if you want to be
-really paranoid about the PG_referenced bit).
-
-Our objective there is to know reliably when it's time that we kill a
-task, tring to free a few more pages at that already ciritical point is
-worthless.
-
-This seems to have the effect of reducing the "hang" time during oom
-killing.
+VM_is_OOM whole point is to give a proper time to the TIF_MEMDIE task
+in order to exit.
 
 Signed-off-by: Andrea Arcangeli <andrea@suse.de>
 
-diff --git a/mm/vmscan.c b/mm/vmscan.c
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -1112,7 +1112,7 @@ unsigned long try_to_free_pages(struct z
- 	int priority;
- 	int ret = 0;
- 	unsigned long total_scanned = 0;
--	unsigned long nr_reclaimed = 0;
-+	unsigned long nr_reclaimed;
- 	struct reclaim_state *reclaim_state = current->reclaim_state;
- 	unsigned long lru_pages = 0;
- 	int i;
-@@ -1141,12 +1141,12 @@ unsigned long try_to_free_pages(struct z
- 		sc.nr_scanned = 0;
- 		if (!priority)
- 			disable_swap_token();
--		nr_reclaimed += shrink_zones(priority, zones, &sc);
-+		nr_reclaimed = shrink_zones(priority, zones, &sc);
-+		if (reclaim_state)
-+			reclaim_state->reclaimed_slab = 0;
- 		shrink_slab(sc.nr_scanned, gfp_mask, lru_pages);
--		if (reclaim_state) {
-+		if (reclaim_state)
- 			nr_reclaimed += reclaim_state->reclaimed_slab;
--			reclaim_state->reclaimed_slab = 0;
--		}
- 		total_scanned += sc.nr_scanned;
- 		if (nr_reclaimed >= sc.swap_cluster_max) {
- 			ret = 1;
-@@ -1238,7 +1238,6 @@ static unsigned long balance_pgdat(pg_da
+diff --git a/mm/oom_kill.c b/mm/oom_kill.c
+--- a/mm/oom_kill.c
++++ b/mm/oom_kill.c
+@@ -469,12 +469,5 @@ out:
+ 	read_unlock(&tasklist_lock);
+ 	cpuset_unlock();
  
- loop_again:
- 	total_scanned = 0;
--	nr_reclaimed = 0;
- 	sc.may_writepage = !laptop_mode;
- 	count_vm_event(PAGEOUTRUN);
- 
-@@ -1293,6 +1292,7 @@ loop_again:
- 		 * pages behind kswapd's direction of progress, which would
- 		 * cause too much scanning of the lower zones.
- 		 */
-+		nr_reclaimed = 0;
- 		for (i = 0; i <= end_zone; i++) {
- 			struct zone *zone = pgdat->node_zones + i;
- 			int nr_slab;
+-	/*
+-	 * Give "p" a good chance of killing itself before we
+-	 * retry to allocate memory unless "p" is current
+-	 */
+-	if (!test_thread_flag(TIF_MEMDIE))
+-		schedule_timeout_uninterruptible(1);
+-
+ 	up(&OOM_lock);
+ }
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
