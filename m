@@ -1,329 +1,285 @@
-Subject: [PATCH] Mempolicy Man Pages 2.64 3/3 - get_mempolicy.2
-From: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
-In-Reply-To: <20070822041050.158210@gmx.net>
-References: <1180467234.5067.52.camel@localhost>
-	 <Pine.LNX.4.64.0705291247001.26308@schroedinger.engr.sgi.com>
-	 <200705292216.31102.ak@suse.de> <1180541849.5850.30.camel@localhost>
-	 <20070531082016.19080@gmx.net> <1180732544.5278.158.camel@localhost>
-	 <46A44B98.8060807@gmx.net> <46AB0CDB.8090600@gmx.net>
-	 <20070816200520.GB16680@bingen.suse.de>  <20070818055026.265030@gmx.net>
-	 <1187711147.5066.13.camel@localhost>  <20070822041050.158210@gmx.net>
-Content-Type: text/plain
-Date: Wed, 22 Aug 2007 12:12:24 -0400
-Message-Id: <1187799145.5166.18.camel@localhost>
+Date: Wed, 22 Aug 2007 09:46:33 -0700
+From: Randy Dunlap <randy.dunlap@oracle.com>
+Subject: Re: [PATCH] Memory controller Add Documentation
+Message-Id: <20070822094633.733614c5.randy.dunlap@oracle.com>
+In-Reply-To: <20070822130612.18981.58696.sendpatchset@balbir-laptop>
+References: <20070822130612.18981.58696.sendpatchset@balbir-laptop>
 Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Michael Kerrisk <mtk-manpages@gmx.net>
-Cc: clameter@sgi.com, akpm@linux-foundation.org, linux-mm@kvack.org, ak@suse.de, Eric Whitney <eric.whitney@hp.com>
+To: Balbir Singh <balbir@linux.vnet.ibm.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Linux Containers <containers@lists.osdl.org>, YAMAMOTO Takashi <yamamoto@valinux.co.jp>, Paul Menage <menage@google.com>, Dave Hansen <haveblue@us.ibm.com>, Linux MM Mailing List <linux-mm@kvack.org>, Nick Piggin <npiggin@suse.de>, Vaidyanathan Srinivasan <svaidy@linux.vnet.ibm.com>, Pavel Emelianov <xemul@openvz.org>, Dhaval Giani <dhaval@linux.vnet.ibm.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Eric W Biederman <ebiederm@xmission.com>
 List-ID: <linux-mm.kvack.org>
 
-[PATCH]  Mempolicy Man Pages 2.64 3/3 - get_mempolicy.2
+On Wed, 22 Aug 2007 18:36:12 +0530 Balbir Singh wrote:
 
-Against:  man pages 2.64
+>  Documentation/memcontrol.txt |  193 +++++++++++++++++++++++++++++++++++++++++++
 
-Changes:
-
-+ changed the "policy" parameter to "mode" through out the
-  descriptions in an attempt to promote the concept that the memory
-  policy is a tuple consisting of a mode and optional set of nodes.
-
-+ added requirement to link '-lnuma' to synopsis
-
-+ rewrite portions of description for clarification.
-
-+ added all errors currently returned by sys call.
-
-+ removed cautionary note that use of MPOL_F_NODE|MPOL_F_ADDR
-  is not supported.  This is no longer true.
-
-+ added mmap(2) to See Also list.
+Is there some sub-dir that is appropriate for this, such as
+vm/ or accounting/ or containers/ (new) ?
 
 
-Signed-off-by:  Lee Schermerhorn <lee.schermerhorn@hp.com>
+>  1 file changed, 193 insertions(+)
+> 
+> diff -puN /dev/null Documentation/memcontrol.txt
+> --- /dev/null	2007-06-01 20:42:04.000000000 +0530
+> +++ linux-2.6.23-rc2-mm2-balbir/Documentation/memcontrol.txt	2007-08-22 18:29:29.000000000 +0530
+> @@ -0,0 +1,193 @@
+> +Memory Controller
+> +
+> +0. Salient features
+> +
+> +a. Enable control of both RSS and Page Cache pages
+> +b. The infrastructures allows easy addition of other types of memory to control
 
-Index: Linux/man2/get_mempolicy.2
-===================================================================
---- Linux.orig/man2/get_mempolicy.2	2007-06-22 14:25:23.000000000 -0400
-+++ Linux/man2/get_mempolicy.2	2007-08-10 12:33:23.000000000 -0400
-@@ -18,6 +18,7 @@
- .\" the source, must acknowledge the copyright and authors of this work.
- .\"
- .\" 2006-02-03, mtk, substantial wording changes and other improvements
-+.\" 2007-06-01, lts, more precise specification of behavior.
- .\"
- .TH GET_MEMPOLICY 2 2006-02-07 "Linux" "Linux Programmer's Manual"
- .SH NAME
-@@ -26,9 +27,11 @@ get_mempolicy \- Retrieve NUMA memory po
- .B "#include <numaif.h>"
- .nf
- .sp
--.BI "int get_mempolicy(int *" policy ", unsigned long *" nodemask ,
-+.BI "int get_mempolicy(int *" mode ", unsigned long *" nodemask ,
- .BI "                  unsigned long " maxnode ", unsigned long " addr ,
- .BI "                  unsigned long " flags );
-+.sp
-+.BI "cc ... \-lnuma"
- .fi
- .\" FIXME rewrite this DESCRIPTION. it is confusing.
- .SH DESCRIPTION
-@@ -39,7 +42,7 @@ depending on the setting of
- 
- A NUMA machine has different
- memory controllers with different distances to specific CPUs.
--The memory policy defines in which node memory is allocated for
-+The memory policy defines from which node memory is allocated for
- the process.
- 
- If
-@@ -58,58 +61,75 @@ then information is returned about the p
- address given in
- .IR addr .
- This policy may be different from the process's default policy if
--.BR set_mempolicy (2)
--has been used to establish a policy for the page containing
-+.BR mbind (2)
-+or one of the helper functions described in
-+.BR numa(3)
-+has been used to establish a policy for the memory range containing
- .IR addr .
- 
--If
--.I policy
--is not NULL, then it is used to return the policy.
-+If the
-+.I mode
-+argument is not NULL, then
-+.IR get_mempolicy ()
-+will store the policy mode of the requested NUMA policy in the location
-+pointed to by this argument.
- If
- .IR nodemask
--is not NULL, then it is used to return the nodemask associated
--with the policy.
-+is not NULL, then the nodemask associated with the policy will be stored
-+in the location pointed to by this argument.
- .I maxnode
--is the maximum bit number plus one that can be stored into
--.IR nodemask .
--The bit number is always rounded to a multiple of
--.IR "unsigned long" .
--.\"
--.\" If
--.\" .I flags
--.\" specifies both
--.\" .B MPOL_F_NODE
--.\" and
--.\" .BR MPOL_F_ADDR ,
--.\" then
--.\" .I policy
--.\" instead returns the number of the node on which the address
--.\" .I addr
--.\" is allocated.
--.\"
--.\" If
--.\" .I flags
--.\" specifies
--.\" .B MPOL_F_NODE
--.\" but not
--.\" .BR MPOL_F_ADDR ,
--.\" and the process's current policy is
--.\" .BR MPOL_INTERLEAVE ,
--.\" then
--.\" checkme: Andi's text below says that the info is returned in
--.\" 'nodemask', not 'policy':
--.\" .I policy
--.\" instead returns the number of the next node that will be used for
--.\" interleaving allocation.
--.\" FIXME .
--.\" The other valid flag is
--.\" .I MPOL_F_NODE.
--.\" It is only valid when the policy is
--.\" .I MPOL_INTERLEAVE.
--.\" In this case not the interleave mask, but an unsigned long with the next
--.\" node that would be used for interleaving is returned in
--.\" .I nodemask.
--.\" Other flag values are reserved.
-+specifies the number of node ids
-+that can be stored into
-+.IR nodemask \(emthat
-+is, the maximum node id plus one.
-+The value specified by
-+.I maxnode
-+is always rounded to a multiple of
-+.IR "sizeof(unsigned long)" .
-+
-+If
-+.I flags
-+specifies both
-+.B MPOL_F_NODE
-+and
-+.BR MPOL_F_ADDR ,
-+.IR get_mempolicy ()
-+will return the node id of the node on which the address
-+.I addr
-+is allocated into the location pointed to by
-+.IR mode .
-+If no page has yet been allocated for the specified address,
-+.IR get_mempolicy ()
-+will allocate a page as if the process had performed a read
-+[load] access to that address, and return the id of the node
-+where that page was allocated.
-+
-+If
-+.I flags
-+specifies
-+.BR MPOL_F_NODE ,
-+but not
-+.BR MPOL_F_ADDR ,
-+and the process's current policy is
-+.BR MPOL_INTERLEAVE ,
-+then
-+.IR get_mempolicy ()
-+will return in the location pointed to by a non-NULL
-+.I mode
-+argument,
-+the node id of the next node that will be used for
-+interleaving of internal kernel pages allocated on behalf of the process.
-+.\" Note:  code returns next interleave node via 'mode' argument -lts
-+These allocations include pages for memory mapped files in
-+process memory ranges mapped using the
-+.IR mmap (2)
-+call with the
-+.I MAP_PRIVATE
-+flag for read accesses, and in memory ranges mapped with the
-+.I MAP_SHARED
-+flag for all accesses.
-+
-+Other flag values are reserved.
- 
- For an overview of the possible policies see
- .BR set_mempolicy (2).
-@@ -120,49 +140,84 @@ returns 0;
- on error, \-1 is returned and
- .I errno
- is set to indicate the error.
--.\" .SH ERRORS
--.\" FIXME -- no errors are listed on this page
--.\" .
--.\" .TP
--.\" .B EINVAL
--.\" .I nodemask
--.\" is non-NULL, and
--.\" .I maxnode
--.\" is too small;
--.\" or
--.\" .I flags
--.\" specified values other than
--.\" .B MPOL_F_NODE
--.\" or
--.\" .BR MPOL_F_ADDR ;
--.\" or
--.\" .I flags
--.\" specified
--.\" .B MPOL_F_ADDR
--.\" and
--.\" .I addr
--.\" is NULL.
--.\" (And there are other
--.\" .B EINVAL
--.\" cases.)
--.SH CONFORMING TO
--This system call is Linux specific.
-+.SH ERRORS
-+.TP
-+.B EINVAL
-+The value specified by
-+.I maxnode
-+is less than the number of node ids supported by the system.
-+Or
-+.I flags
-+specified values other than
-+.B MPOL_F_NODE
-+or
-+.BR MPOL_F_ADDR ;
-+or
-+.I flags
-+specified
-+.B MPOL_F_ADDR
-+and
-+.I addr
-+is NULL,
-+or
-+.I flags
-+did not specify
-+.B MPOL_F_ADDR
-+and
-+.I addr
-+is not NULL.
-+Or,
-+.I flags
-+specified
-+.B MPOL_F_NODE
-+but not
-+.B MPOL_F_ADDR
-+and the current process policy is not
-+.BR MPOL_INTERLEAVE .
-+(And there are other EINVAL cases.)
-+.TP
-+.B EFAULT
-+Part of all of the memory range specified by
-+.I nodemask
-+and
-+.I maxnode
-+points outside your accessible address space.
- .SH NOTES
--This manual page is incomplete:
--it does not document the details the
--.BR MPOL_F_NODE
--flag,
--which modifies the operation of
--.BR get_mempolicy ().
--This is deliberate: this flag is not intended for application use,
--and its operation may change or it may be removed altogether in
--future kernel versions.
--.B Do not use it.
-+If the mode of the process policy or the policy governing allocations at the
-+specified address is
-+.I MPOL_PREFERRED
-+and this policy was installed with an empty
-+.IR nodemask \(emspecifying
-+local allocation,
-+.IR get_mempolicy ()
-+will return the mask of on-line node ids in the location pointed to by
-+a non-NULL
-+.I nodemask
-+argument.
-+This mask does not take into consideration any adminstratively imposed
-+restrictions on the process' context.
-+.\" FIXME:
-+.\" "context" above refers to cpusets.  No man page to reference. --lts
-+
-+.\"  Christoph says the following is untrue.  These are "fully supported."
-+.\"  Andi concedes that he has lost this battle and approves [?]
-+.\"  updating the man pages to document the behavior.  --lts
-+.\" This manual page is incomplete:
-+.\" it does not document the details the
-+.\" .BR MPOL_F_NODE
-+.\" flag,
-+.\" which modifies the operation of
-+.\" .BR get_mempolicy ().
-+.\" This is deliberate: this flag is not intended for application use,
-+.\" and its operation may change or it may be removed altogether in
-+.\" future kernel versions.
-+.\" .B Do not use it.
- .SS "Versions and Library Support"
- See
- .BR mbind (2).
- .SH SEE ALSO
- .BR mbind (2),
-+.BR mmap (2),
- .BR set_mempolicy (2),
- .BR numactl (8),
- .BR numa (3)
+          infrastructure
+
+> +c. Provides *zero overhead* for non memory controller users
+> +d. Provides a double LRU, global memory pressure causes reclaim from the
+> +   global LRU, a container on hitting a limit, reclaims from the per
+> +   container LRU
+
+Punctuation:
+
+  Provides a double LRU: global memory pressure causes reclaim from the
+  global LRU; a container, on hitting a limit, reclaims from the per-
+  container LRU
+
+> +
+> +1. History
+> +
+> +The memory controller has a long history. A request for comments for the memory
+> +controller was posted by Balbir Singh [1]. At the time the RFC was posted
+> +there were several implementations for memory control, the goal of the
+
+s/, the/. The/
+
+> +RFC was to build consensus and agreement for the minimal features required
+> +for memory control. The first RSS controller was posted by Balbir Singh[2]
+> +in Feb 2007. Pavel Emelianov [3][4][5] has since posted three versions of the
+> +RSS controller. At OLS, at the resource management BoF, everyone suggested
+> +that we handle both page cache and RSS together. Another request was raised
+> +to allow user space handling of OOM. The current memory controller is
+> +at version 6, it combines both RSS and Page Cache Control [11].
+
+s/,/;/
+
+> +
+> +2. Memory Control
+> +
+> +Memory is a unique resource in the sense that it is present in a limited
+> +amount. If a task requires a lot of CPU processing, the task can spread
+> +its processing over a period of hours, days, months or years, but with
+> +memory, the same physical memory needs to be reused to accomplish the task.
+> +
+> +The memory controller implementation has been divided into phases, these
+> +are
+
+Punctuation:
+
+The memory controller implementation has been divided into phases. These
+are:
+
+> +
+> +1. Memory controller
+> +2. mlock(2) controller
+> +3. Kernel user memory accounting and slab control
+> +4. user mappings length controller
+> +
+> +The memory controller is the first controller developed.
+> +
+> +2.1. Design
+> +
+> +The core of the design is a counter called the res_counter. The res_counter
+> +tracks the current memory usage and limit of the group of processes associated
+> +with the controller. Each container has a memory controller specific data
+> +structure (mem_container) associated with it.
+> +
+> +2.2. Accounting
+> +
+> +		+--------------------+
+> +		|  mem_container     |
+> +		|  (res_counter)     |
+> +		+--------------------+
+> +		 /            ^      \
+> +		/             |       \
+> +           +---------------+  |        +---------------+
+> +           | mm_struct     |  |....    | mm_struct     |
+> +           |               |  |        |               |
+> +           +---------------+  |        +---------------+
+> +                              |
+> +                              + --------------+
+> +                                              |
+> +           +---------------+           +------+--------+
+> +           | page          +---------->  page_container|
+> +           |               |           |               |
+> +           +---------------+           +---------------+
+> +
+> +             (Figure 1: Hierarchy of Accounting)
+> +
+> +
+> +Figure 1 shows the important aspects of the controller
+> +
+> +1. Accounting happens per container
+> +2. Each mm_struct knows about which container they belong to
+
+                                                 it belongs to
+
+> +3. Each page has a pointer to the page_container, which in turn knows the
+> +   container it belongs to
+> +
+> +The accounting is done as follows, mem_container_charge() is invoked to setup
+
+                          as follows:
+
+> +the necessary data structures and check if the container that is being charged
+> +is over its limit. If it is then reclaim is invoked on the container.
+> +More details can be found in the reclaim section of this document.
+> +If everything goes well, a page meta-data-structure called page_container is
+> +allocated and associated with the page.  This routine also adds the page to
+> +the per container LRU.
+> +
+> +2.3 Shared Page Accounting
+> +
+> +Shared pages are accounted on the basis of the first touch approach. The
+> +container that first touches a page is accounted for the page. The principle
+> +behind this approach is that a container that aggressively uses a shared
+> +page, will eventually get charged for it (once it is uncharged from
+
+  drop comma
+
+> +the container that brought it in -- this will happen on memory pressure).
+> +
+> +2.4 Reclaim
+> +
+> +Each container maintains a per container LRU that consists of an active
+> +and inactive list. When a container goes over its limit, we first try
+> +and reclaim memory from the container so as to make space for the new
+
+   to reclaim memory 
+
+> +pages that the container has touched. If the reclaim is unsuccessful,
+> +an OOM routine is invoked to select and kill the bulkiest task in the
+> +container.
+> +
+> +The reclaim algorithm has not been modified for containers, except that
+> +pages that are selected for reclaiming come from the per container LRU
+> +list.
+> +
+> +2.5
+> +
+> +3. User Interface
+> +
+> +0. Configuration
+> +
+> +a. Enable CONFIG_CONTAINERS
+> +b. Enable CONFIG_RESOURCE_COUNTERS
+> +c. Enable CONFIG_CONTAINER_MEM_CONT
+> +
+> +1. Prepare the containers
+> +# mkdir -p /containers
+> +# mount -t container none /containers -o memory
+> +
+> +2. Make the new group and move bash into it
+> +# mkdir /containers/0
+> +# echo $$ >  /containers/0/tasks
+> +
+> +Since now we're in the 0 container.
+
+                                     s/./,/
+
+> +We can alter the memory limit
+
+   we can alter the memory limit:
+
+> +# echo -n 6000 > /containers/0/memory.limit
+> +
+> +We can check the usage
+
+                         :
+
+> +# cat /containers/0/memory.usage
+> +25
+> +
+> +The memory.failcnt gives the number of times that the container limit was
+
+       memory.failcnt field (?)
+
+> +exceeded.
+> +
+> +4. Testing
+> +
+> +Balbir posted lmbench, AIM9, LTP and vmmstress results [10] and [11].
+> +Apart from that v6 has been tested with several applications and regular
+> +daily use. The controller has also been tested on the PPC64, x86_64 and
+> +UML platforms.
+> +
+> +4.1 Troubleshooting
+> +
+> +Sometimes a user might find that the application under a container is
+> +terminated, there are several causes for this
+
+Punctuation + wording:
+
+  Sometimes a user might find that the application under a container is
+  terminated. There are several possible causes of this:
+
+> +
+> +1. The container limit is too low (just too low to do anything useful)
+> +2. The user is using anonymous memory and swap is turned off or too low
+> +
+> +echo 1 > /proc/sys/vm/drop_pages will help get rid of some of the pages
+> +cached in the container (page cache pages).
+> +
+> +5. TODO
+> +
+> +1. Add support for accounting huge pages (as a separate controller)
+> +2. Improve the user interface to accept/display memory limits in KB or MB
+> +   rather than pages (since page sizes can differ across platforms/machines).
+> +3. Make container lists per-zone
+> +4. Make per-container scanner reclaim not-shared pages first
+> +5. Teach controller to account for shared-pages
+> +6. Start reclamation when the limit is lowered
+> +7. Start reclamation in the background when the limit is
+> +   not yet hit but the usage is getting closer
+> +8. Create per zone LRU lists per container
+> +
+> +Summary
+> +
+> +Overall, the memory controller has been a stable controller and has been
+> +commented and discussed on quite extensively in the community.
+
+                     drop "on"
+
+> +
+> +References
+> +
+> +1. Singh, Balbir. RFC: Memory Controller, http://lwn.net/Articles/206697/
+> +2. Singh, Balbir. Memory Controller (RSS Control),
+> +   http://lwn.net/Articles/222762/
+> +3. Emelianov, Pavel. Resource controllers based on process containers
+> +   http://lkml.org/lkml/2007/3/6/198
+> +4. Emelianov, Pavel. RSS controller based on process containers (v2)
+> +   http://lkml.org/lkml/2007/4/9/74
+> +5. Emelianov, Pavel. RSS controller based on process containers (v3)
+> +   http://lkml.org/lkml/2007/5/30/244
+> +6. Menage, Paul. Containers v10, http://lwn.net/Articles/236032/
+> +7. Vaidyanathan, Srinivasan, Containers: Pagecache accounting and control
+> +   subsystem (v3), http://lwn.net/Articles/235534/
+> +8. Singh, Balbir. RSS controller V2 test results (lmbench),
+> +   http://lkml.org/lkml/2007/5/17/232
+> +9. Singh, Balbir. RSS controller V2 AIM9 results
+> +   http://lkml.org/lkml/2007/5/18/1
+> +10. Singh, Balbir. Memory controller v6 results,
+> +    http://lkml.org/lkml/2007/8/19/36
+> +11. Singh, Balbir. Memory controller v6, http://lkml.org/lkml/2007/8/17/69
 
 
+---
+~Randy
+*** Remember to use Documentation/SubmitChecklist when testing your code ***
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
