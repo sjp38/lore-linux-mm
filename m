@@ -1,26 +1,35 @@
-Date: Wed, 22 Aug 2007 02:05:15 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [patch 3/3] mm: variable length argument support
-Message-Id: <20070822020515.792c6bb0.akpm@linux-foundation.org>
-In-Reply-To: <1187772842.6114.282.camel@twins>
-References: <20070613100334.635756997@chello.nl>
-	<20070613100835.014096712@chello.nl>
-	<20070822084852.GA12314@localdomain>
-	<1187772842.6114.282.camel@twins>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Subject: Re: huge improvement with per-device dirty throttling
+References: <1187764638.6869.17.camel@hannibal>
+From: Andi Kleen <andi@firstfloor.org>
+Date: 22 Aug 2007 13:05:13 +0200
+In-Reply-To: <1187764638.6869.17.camel@hannibal>
+Message-ID: <p733aybzv6e.fsf@bingen.suse.de>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Cc: Dan Aloni <da-x@monatomic.org>, linux-kernel@vger.kernel.org, parisc-linux@lists.parisc-linux.org, linux-mm@kvack.org, linux-arch@vger.kernel.org, Ollie Wild <aaw@google.com>, Ingo Molnar <mingo@elte.hu>, Andi Kleen <ak@suse.de>, Alan Cox <alan@lxorguk.ukuu.org.uk>
+To: "Jeffrey W. Baker" <jwbaker@acm.org>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 22 Aug 2007 10:54:02 +0200 Peter Zijlstra <a.p.zijlstra@chello.nl> wrote:
+"Jeffrey W. Baker" <jwbaker@acm.org> writes:
+> 
+> My system is a Core 2 Duo, 2GB, single SATA disk.
 
-> Alan proposed this patch:
+Hmm, I thought the patch was only supposed to make a real difference
+if you have multiple devices? But you only got a single disk.   
 
-yeah, I have a great pile of stuff queued for Linus.  I'm bad.  Tomorrow.
+At least that was the case  it was supposed to fix: starvation of fast 
+devices from slow devices.
+
+Ok perhaps the new adaptive dirty limits helps your single disk
+a lot too. But your improvements seem to be more "collateral damage" @)
+
+But if that was true it might be enough to just change the dirty limits
+to get the same effect on your system. You might want to play with
+/proc/sys/vm/dirty_*
+
+-Andi
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
