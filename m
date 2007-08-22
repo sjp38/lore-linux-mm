@@ -1,10 +1,11 @@
 Content-Type: text/plain; charset="us-ascii"
 MIME-Version: 1.0
 Content-Transfer-Encoding: 7bit
-Subject: [PATCH 03 of 24] prevent oom deadlocks during read/write operations
-Message-Id: <5566f2af006a171cd47d.1187786930@v2.random>
+Subject: [PATCH 07 of 24] balance_pgdat doesn't return the number of pages
+	freed
+Message-Id: <b66d8470c04ed836787f.1187786934@v2.random>
 In-Reply-To: <patchbomb.1187786927@v2.random>
-Date: Wed, 22 Aug 2007 14:48:50 +0200
+Date: Wed, 22 Aug 2007 14:48:54 +0200
 From: Andrea Arcangeli <andrea@suse.de>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
@@ -14,48 +15,45 @@ List-ID: <linux-mm.kvack.org>
 
 # HG changeset patch
 # User Andrea Arcangeli <andrea@suse.de>
-# Date 1187778124 -7200
-# Node ID 5566f2af006a171cd47d596c6654f51beca74203
-# Parent  90afd499e8ca0dfd2e0284372dca50f2e6149700
-prevent oom deadlocks during read/write operations
+# Date 1187778125 -7200
+# Node ID b66d8470c04ed836787f69c7578d5fea4f18c322
+# Parent  49e2d90eb0d7b1021b1e1e841bef22fdc647766e
+balance_pgdat doesn't return the number of pages freed
 
-We need to react to SIGKILL during read/write with huge buffers or it
-becomes too easy to prevent a SIGKILLED task to run do_exit promptly
-after it has been selected for oom-killage.
+nr_reclaimed would be the number of pages freed in the last pass.
 
 Signed-off-by: Andrea Arcangeli <andrea@suse.de>
 
-diff --git a/mm/filemap.c b/mm/filemap.c
---- a/mm/filemap.c
-+++ b/mm/filemap.c
-@@ -925,6 +925,13 @@ page_ok:
- 			goto out;
- 		}
+diff --git a/mm/vmscan.c b/mm/vmscan.c
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -1198,8 +1198,6 @@ out:
+  * For kswapd, balance_pgdat() will work across all this node's zones until
+  * they are all at pages_high.
+  *
+- * Returns the number of pages which were actually freed.
+- *
+  * There is special handling here for zones which are full of pinned pages.
+  * This can happen if the pages are all mlocked, or if they are all used by
+  * device drivers (say, ZONE_DMA).  Or if they are all in use by hugetlb.
+@@ -1215,7 +1213,7 @@ out:
+  * the page allocator fallback scheme to ensure that aging of pages is balanced
+  * across the zones.
+  */
+-static unsigned long balance_pgdat(pg_data_t *pgdat, int order)
++static void balance_pgdat(pg_data_t *pgdat, int order)
+ {
+ 	int all_zones_ok;
+ 	int priority;
+@@ -1366,8 +1364,6 @@ out:
  
-+		if (unlikely(sigismember(&current->pending.signal, SIGKILL)))
-+			/*
-+			 * Must not hang almost forever in D state in presence of sigkill
-+			 * and lots of ram/swap (think during OOM).
-+			 */
-+			break;
-+
- 		/* nr is the maximum number of bytes to copy from this page */
- 		nr = PAGE_CACHE_SIZE;
- 		if (index == end_index) {
-@@ -1868,6 +1875,13 @@ generic_file_buffered_write(struct kiocb
- 		unsigned long index;
- 		unsigned long offset;
- 		size_t copied;
-+
-+		if (unlikely(sigismember(&current->pending.signal, SIGKILL)))
-+			/*
-+			 * Must not hang almost forever in D state in presence of sigkill
-+			 * and lots of ram/swap (think during OOM).
-+			 */
-+			break;
+ 		goto loop_again;
+ 	}
+-
+-	return nr_reclaimed;
+ }
  
- 		offset = (pos & (PAGE_CACHE_SIZE -1)); /* Within page */
- 		index = pos >> PAGE_CACHE_SHIFT;
+ /*
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
