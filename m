@@ -1,10 +1,10 @@
 Content-Type: text/plain; charset="us-ascii"
 MIME-Version: 1.0
 Content-Transfer-Encoding: 7bit
-Subject: [PATCH 02 of 24] avoid oom deadlock in nfs_create_request
-Message-Id: <90afd499e8ca0dfd2e02.1187786929@v2.random>
+Subject: [PATCH 04 of 24] serialize oom killer
+Message-Id: <871b7a4fd566de081120.1187786931@v2.random>
 In-Reply-To: <patchbomb.1187786927@v2.random>
-Date: Wed, 22 Aug 2007 14:48:49 +0200
+Date: Wed, 22 Aug 2007 14:48:51 +0200
 From: Andrea Arcangeli <andrea@suse.de>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
@@ -14,50 +14,43 @@ List-ID: <linux-mm.kvack.org>
 
 # HG changeset patch
 # User Andrea Arcangeli <andrea@suse.de>
-# Date 1187778124 -7200
-# Node ID 90afd499e8ca0dfd2e0284372dca50f2e6149700
-# Parent  c8ec651562ad6514753e408596e30d7d9e448a51
-avoid oom deadlock in nfs_create_request
+# Date 1187778125 -7200
+# Node ID 871b7a4fd566de0811207628b74abea0a73341f6
+# Parent  5566f2af006a171cd47d596c6654f51beca74203
+serialize oom killer
 
-When sigkill is pending after the oom killer set TIF_MEMDIE, the task
-must go away or the VM will malfunction.
+It's risky and useless to run two oom killers in parallel, let serialize it to
+reduce the probability of spurious oom-killage.
 
 Signed-off-by: Andrea Arcangeli <andrea@suse.de>
 
-diff --git a/fs/nfs/pagelist.c b/fs/nfs/pagelist.c
---- a/fs/nfs/pagelist.c
-+++ b/fs/nfs/pagelist.c
-@@ -61,16 +61,20 @@ nfs_create_request(struct nfs_open_conte
- 	struct nfs_server *server = NFS_SERVER(inode);
- 	struct nfs_page		*req;
+diff --git a/mm/oom_kill.c b/mm/oom_kill.c
+--- a/mm/oom_kill.c
++++ b/mm/oom_kill.c
+@@ -401,12 +401,15 @@ void out_of_memory(struct zonelist *zone
+ 	unsigned long points = 0;
+ 	unsigned long freed = 0;
+ 	int constraint;
++	static DECLARE_MUTEX(OOM_lock);
  
--	for (;;) {
--		/* try to allocate the request struct */
--		req = nfs_page_alloc();
--		if (req != NULL)
--			break;
--
--		if (signalled() && (server->flags & NFS_MOUNT_INTR))
--			return ERR_PTR(-ERESTARTSYS);
--		yield();
--	}
-+	/* try to allocate the request struct */
-+	req = nfs_page_alloc();
-+	if (unlikely(!req)) {
-+		/*
-+		 * -ENOMEM will be returned only when TIF_MEMDIE is set
-+		 * so userland shouldn't risk to get confused by a new
-+		 * unhandled ENOMEM errno.
-+		 */
-+		WARN_ON(!test_thread_flag(TIF_MEMDIE));
-+		return ERR_PTR(-ENOMEM);
-+	}
+ 	blocking_notifier_call_chain(&oom_notify_list, 0, &freed);
+ 	if (freed > 0)
+ 		/* Got some memory back in the last second. */
+ 		return;
+ 
++	if (down_trylock(&OOM_lock))
++		return;
+ 	if (printk_ratelimit()) {
+ 		printk(KERN_WARNING "%s invoked oom-killer: "
+ 			"gfp_mask=0x%x, order=%d, oomkilladj=%d\n",
+@@ -473,4 +476,6 @@ out:
+ 	 */
+ 	if (!test_thread_flag(TIF_MEMDIE))
+ 		schedule_timeout_uninterruptible(1);
+-}
 +
-+	if (signalled() && (server->flags & NFS_MOUNT_INTR))
-+		return ERR_PTR(-ERESTARTSYS);
- 
- 	/* Initialize the request struct. Initially, we assume a
- 	 * long write-back delay. This will be adjusted in
++	up(&OOM_lock);
++}
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
