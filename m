@@ -1,154 +1,139 @@
-Date: Wed, 22 Aug 2007 14:22:48 -0700
+Date: Wed, 22 Aug 2007 14:25:20 -0700
 From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [BUG] 2.6.23-rc3-mm1 oom-killer gets invoked
-Message-Id: <20070822142248.e9c04af2.akpm@linux-foundation.org>
-In-Reply-To: <46CCA14A.6060103@linux.vnet.ibm.com>
-References: <46CCA14A.6060103@linux.vnet.ibm.com>
+Subject: Re: [BUG] 2.6.23-rc3-mm1 Kernel panic - not syncing: Can't create
+ pid_1 cachep
+Message-Id: <20070822142520.4a914895.akpm@linux-foundation.org>
+In-Reply-To: <46CCA33E.5060905@linux.vnet.ibm.com>
+References: <46CC3F94.4050609@linux.vnet.ibm.com>
+	<46CC4AD2.2080306@openvz.org>
+	<46CCA33E.5060905@linux.vnet.ibm.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Kamalesh Babulal <kamalesh@linux.vnet.ibm.com>
-Cc: linux-kernel@vger.kernel.org, Balbir Singh <balbir@linux.vnet.ibm.com>, linux-mm@kvack.org
+To: Kamalesh Babulal <kamalesh@linux.vnet.ibm.com>, linux-mm@kvack.org
+Cc: Pavel Emelyanov <xemul@openvz.org>, linux-kernel@vger.kernel.org, Balbir Singh <balbir@linux.vnet.ibm.com>, Alexey Dobriyan <adobriyan@openvz.org>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 23 Aug 2007 02:19:14 +0530
+On Thu, 23 Aug 2007 02:27:34 +0530
 Kamalesh Babulal <kamalesh@linux.vnet.ibm.com> wrote:
 
-> I see the oom-killer getting invoked many times on the
-> 2.6.23-rc3-mm1 kernel and have attached the complete console
-> log and config file.
+> Pavel Emelyanov wrote:
+> > Kamalesh Babulal wrote:
+> >
+> > The creation of this cache consists of allocating ~30
+> > bytes and creating a new kmem cache. This looks strange
+> > that one of these allocation falied...
+> >
+> > Could you please check what has happened with this patch:
+> >
+> > diff --git a/kernel/pid.c b/kernel/pid.c
+> > index d267775..9d594eb 100644
+> > --- a/kernel/pid.c
+> > +++ b/kernel/pid.c
+> > @@ -458,15 +458,22 @@ static struct kmem_cache *create_pid_cac
+> >             goto out;
+> >
+> >     pcache = kmalloc(sizeof(struct pid_cache), GFP_KERNEL);
+> > -    if (pcache == NULL)
+> > +    if (pcache == NULL) {
+> > +        printk("Can't alloc pcache size %d\n",
+> > +                sizeof(struct pid_cache));
+> >         goto err_alloc;
+> > +    }
+> >
+> >     snprintf(pcache->name, sizeof(pcache->name), "pid_%d", nr_ids);
+> >     cachep = kmem_cache_create(pcache->name,
+> >             sizeof(struct pid) + (nr_ids - 1) * sizeof(struct upid),
+> >             0, SLAB_HWCACHE_ALIGN, NULL);
+> > -    if (cachep == NULL)
+> > +    if (cachep == NULL) {
+> > +        printk("Can't create cachep size %d\n",
+> > +                sizeof(struct pid) +
+> > +                (nr_ids - 1) * sizeof(struct upid));
+> >         goto err_cachep;
+> > +    }
+> >
+> >     pcache->nr_ids = nr_ids;
+> >     pcache->cachep = cachep;
+> >
+> >
+> >
+> >> Hi Andrew,
+> >>
+> >> Following Kernel panic is raised while booting up with 2.6.23-rc3-mm1 
+> >> kernel.
+> >>
+> >> ============================================================
+> >> Inode-cache hash table entries: 65536 (order: 6, 262144 bytes)
+> >> Initializing HighMem for node 0 (00038000:001fbe00)
+> >> Initializing HighMem for node 1 (00200000:003fbe00)
+> >> Initializing HighMem for node 2 (00400000:005fbe00)
+> >> Initializing HighMem for node 3 (00600000:007fbe00)
+> >> Memory: 32480436k/33554432k available (2146k kernel code, 278984k 
+> >> reserved, 1203k data, 216k init, 31842304k highmem)
+> >> virtual kernel memory layout:
+> >>    fixmap  : 0xffe1a000 - 0xfffff000   (1940 kB)
+> >>    pkmap   : 0xffc00000 - 0xffe00000   (2048 kB)
+> >>    vmalloc : 0xf8800000 - 0xffbfe000   ( 115 MB)
+> >>    lowmem  : 0xc0000000 - 0xf8000000   ( 896 MB)
+> >>      .init : 0xc134c000 - 0xc1382000   ( 216 kB)
+> >>      .data : 0xc12189e1 - 0xc1345758   (1203 kB)
+> >>      .text : 0xc1000000 - 0xc12189e1   (2146 kB)
+> >> Checking if this processor honours the WP bit even in supervisor 
+> >> mode... Ok.
+> >> SLUB: Genslabs=12, HWalign=32, Order=0-3, MinObjects=16, CPUs=16, 
+> >> Nodes=16
+> >> Calibrating delay using timer specific routine.. 1401.55 BogoMIPS 
+> >> (lpj=2803105)
+> >> Kernel panic - not syncing: Can't create pid_1 cachep
+> >>
+> >>
+> >> Thanks & Regards,
+> >> Kamalesh Babulal.
+> >> -
+> >> To unsubscribe from this list: send the line "unsubscribe 
+> >> linux-kernel" in
+> >> the body of a message to majordomo@vger.kernel.org
+> >> More majordomo info at  http://vger.kernel.org/majordomo-info.html
+> >> Please read the FAQ at  http://www.tux.org/lkml/
+> >>
+> >
+> > -
+> > To unsubscribe from this list: send the line "unsubscribe 
+> > linux-kernel" in
+> > the body of a message to majordomo@vger.kernel.org
+> > More majordomo info at  http://vger.kernel.org/majordomo-info.html
+> > Please read the FAQ at  http://www.tux.org/lkml/
+> after applying the patch, kernel panic looks like this
+> ===============================================================================
+> Inode-cache hash table entries: 65536 (order: 6, 262144 bytes)
+> Initializing HighMem for node 0 (00038000:001fbe00)
+> Initializing HighMem for node 1 (00200000:003fbe00)
+> Initializing HighMem for node 2 (00400000:005fbe00)
+> Initializing HighMem for node 3 (00600000:007fbe00)
+> Memory: 32479372k/33554432k available (2635k kernel code, 280048k 
+> reserved, 1282k data, 216k init, 31842304k highmem)
+> virtual kernel memory layout:
+>     fixmap  : 0xffe1a000 - 0xfffff000   (1940 kB)
+>     pkmap   : 0xffc00000 - 0xffe00000   (2048 kB)
+>     vmalloc : 0xf8800000 - 0xffbfe000   ( 115 MB)
+>     lowmem  : 0xc0000000 - 0xf8000000   ( 896 MB)
+>       .init : 0xc13da000 - 0xc1410000   ( 216 kB)
+>       .data : 0xc1292f51 - 0xc13d3758   (1282 kB)
+>       .text : 0xc1000000 - 0xc1292f51   (2635 kB)
+> Checking if this processor honours the WP bit even in supervisor mode... Ok.
+> SLUB: Genslabs=12, HWalign=32, Order=0-3, MinObjects=16, CPUs=16, Nodes=16
+> Calibrating delay using timer specific routine.. 1401.55 BogoMIPS 
+> (lpj=2803109)
+> Can't alloc pcache size 32
+> Kernel panic - not syncing: Can't create pid_1 cachep
 > 
-> ========================================================
-> cc1 invoked oom-killer: gfp_mask=0x280d2, order=0, oomkilladj=0
-> 
->  [<c0147386>] out_of_memory+0x70/0xf6
-> 
->  [<c01484c4>] <4>cc1 invoked oom-killer: gfp_mask=0x201d2, order=0, 
-> oomkilladj=0
-> 
->  [<c0147386>] out_of_memory+0x70/0xf6
-> 
->  [<c01484c4>] __alloc_pages+0x21b/0x2a8
-> 
->  [<c0173168>] mntput_no_expire+0x11/0x6e
-> 
->  [<c0149f29>] __do_page_cache_readahead+0xc8/0x13a
-> 
->  [<c014535b>] filemap_nopage+0x164/0x30d
-> 
->  [<c0150c7d>] do_no_page+0x91/0x2fb
-> 
->  [<c0151201>] __handle_mm_fault+0x151/0x2bc
-> 
->  [<c016000f>] do_filp_open+0x25/0x39
-> 
->  [<c0115990>] do_page_fault+0x2a3/0x5f7
-> 
->  [<c01156ed>] do_page_fault+0x0/0x5f7
-> 
->  [<c03336c4>] error_code+0x7c/0x84
-> 
->  [<c0330000>] packet_rcv+0xfd/0x2d7
-> 
->  =======================
-> 
-> DMA per-cpu:
-> 
-> CPU    0: Hot: hi:    0, btch:   1 usd:   0   Cold: hi:    0, btch:   1 
-> usd:   0
-> 
-> CPU    1: Hot: hi:    0, btch:   1 usd:   0   Cold: hi:    0, btch:   1 
-> usd:   0
-> 
-> CPU    2: Hot: hi:    0, btch:   1 usd:   0   Cold: hi:    0, btch:   1 
-> usd:   0
-> 
-> CPU    3: Hot: hi:    0, btch:   1 usd:   0   Cold: hi:    0, btch:   1 
-> usd:   0
-> 
-> Normal per-cpu:
-> 
-> CPU    0: Hot: hi:  186, btch:  31 usd:  67   Cold: hi:   62, btch:  15 
-> usd:  57
-> 
-> CPU    1: Hot: hi:  186, btch:  31 usd: 170   Cold: hi:   62, btch:  15 
-> usd:  57
-> 
-> CPU    2: Hot: hi:  186, btch:  31 usd: 126   Cold: hi:   62, btch:  15 
-> usd:  50
-> 
-> CPU    3: Hot: hi:  186, btch:  31 usd:  50   Cold: hi:   62, btch:  15 
-> usd:  19
-> 
-> HighMem per-cpu:
-> 
-> CPU    0: Hot: hi:  186, btch:  31 usd:  21   Cold: hi:   62, btch:  15 
-> usd:  10
-> 
-> CPU    1: Hot: hi:  186, btch:  31 usd:  23   Cold: hi:   62, btch:  15 
-> usd:  19
-> 
-> CPU    2: Hot: hi:  186, btch:  31 usd:   7   Cold: hi:   62, btch:  15 
-> usd:  27
-> 
-> CPU    3: Hot: hi:  186, btch:  31 usd:  20   Cold: hi:   62, btch:  15 
-> usd:  56
-> 
-> Active:228916 inactive:238880 dirty:0 writeback:0 unstable:0
-> 
->  free:12273 slab:14578 mapped:36 pagetables:10564 bounce:0
-> 
-> DMA free:8076kB min:68kB low:84kB high:100kB active:2496kB 
-> inactive:1716kB present:16224kB pages_scanned:171850 all_unreclaimable? yes
-> 
-> lowmem_reserve[]: 0 871 2011
-> 
-> Normal free:40400kB min:3740kB low:4672kB high:5608kB active:358456kB 
-> inactive:358000kB present:892320kB pages_scanned:1427617 
-> all_unreclaimable? yes
-> 
-> lowmem_reserve[]: 0 0 9123
-> 
-> HighMem free:616kB min:512kB low:1736kB high:2960kB active:554712kB 
-> inactive:595804kB present:1167812kB pages_scanned:2215902 
-> all_unreclaimable? yes
-> 
-> lowmem_reserve[]: 0 0 0
-> 
-> DMA: 1*4kB 1*8kB 2*16kB 1*32kB 1*64kB 0*128kB 1*256kB 1*512kB 1*1024kB 
-> 1*2048kB 1*4096kB = 8076kB
-> 
-> Normal: 70*4kB 25*8kB 1*16kB 1*32kB 1*64kB 33*128kB 7*256kB 0*512kB 
-> 1*1024kB 0*2048kB 8*4096kB = 40400kB
-> 
-> HighMem: 49*4kB 20*8kB 4*16kB 6*32kB 1*64kB 0*128kB 0*256kB 0*512kB 
-> 0*1024kB 0*2048kB 0*4096kB = 676kB
-> 
-> Swap cache: add 12954, delete 12954, find 2676/3551, race 0+1
-> 
-> Free swap  = 0kB
-> 
-> Total swap = 8024kB
-> 
-> Out of memory: kill process 27480 (make) score 2082 or a child
 
-It's a bit harsh, sending 330kb emails to linux-kernel.  Please try to
-strip these things down to the important information.  Also, it'd be nice
-if you could find the source of those double-linefeeds and make it stop.
+That's stupid.  Could be a startup ordering problem, but I can't spot it.
 
-
-I don't know whwy the VM decided that you've run out of memory.  After the
-oom-killing, does
-
-echo 3 > /proc/sys/vm/drop_caches
-
-make the numbers in /proc/meminfo change significantly?
-
-Which filesystem was being used here?
-
-Thanks.
+Please try setting CONFIG_SLUB=n, CONFIG_SLAB=y and then retest, thanks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
