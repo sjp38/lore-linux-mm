@@ -1,67 +1,75 @@
-Date: Wed, 22 Aug 2007 09:45:08 +0200
-From: Ingo Molnar <mingo@elte.hu>
-Subject: Re: [RFC 0/7] Postphone reclaim laundry to write at high water
-	marks
-Message-ID: <20070822074508.GA3160@elte.hu>
-References: <20070820215040.937296148@sgi.com> <1187692586.6114.211.camel@twins> <Pine.LNX.4.64.0708211347480.3082@schroedinger.engr.sgi.com> <1187730812.5463.12.camel@lappy> <Pine.LNX.4.64.0708211418120.3267@schroedinger.engr.sgi.com> <1187734144.5463.35.camel@lappy> <Pine.LNX.4.64.0708211532560.5728@schroedinger.engr.sgi.com>
+Date: Wed, 22 Aug 2007 11:48:52 +0300
+From: Dan Aloni <da-x@monatomic.org>
+Subject: Re: [patch 3/3] mm: variable length argument support
+Message-ID: <20070822084852.GA12314@localdomain>
+References: <20070613100334.635756997@chello.nl> <20070613100835.014096712@chello.nl>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <Pine.LNX.4.64.0708211532560.5728@schroedinger.engr.sgi.com>
+In-Reply-To: <20070613100835.014096712@chello.nl>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
-Cc: Peter Zijlstra <peterz@infradead.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Peter Zijlstra <a.p.zijlstra@chello.nl>
+Cc: linux-kernel@vger.kernel.org, parisc-linux@lists.parisc-linux.org, linux-mm@kvack.org, linux-arch@vger.kernel.org, Ollie Wild <aaw@google.com>, Andrew Morton <akpm@osdl.org>, Ingo Molnar <mingo@elte.hu>, Andi Kleen <ak@suse.de>
 List-ID: <linux-mm.kvack.org>
 
-* Christoph Lameter <clameter@sgi.com> wrote:
-
-> > I want slab to fail when a similar page alloc would fail, no magic.
+On Wed, Jun 13, 2007 at 12:03:37PM +0200, Peter Zijlstra wrote:
+> From: Ollie Wild <aaw@google.com>
 > 
-> Yes I know. I do not want allocations to fail but that reclaim occurs 
-> in order to avoid failing any allocation. We need provisions that make 
-> sure that we never get into such a bad memory situation that would 
-> cause severe slowless and usually end up in a livelock anyways.
+> Remove the arg+env limit of MAX_ARG_PAGES by copying the strings directly
+> from the old mm into the new mm.
+> 
+[...]
+> +static int __bprm_mm_init(struct linux_binprm *bprm)
+> +{
+[...]
+> +	vma->vm_flags = VM_STACK_FLAGS;
+> +	vma->vm_page_prot = protection_map[vma->vm_flags & 0x7];
+> +	err = insert_vm_struct(mm, vma);
+> +	if (err) {
+> +		up_write(&mm->mmap_sem);
+> +		goto err;
+> +	}
+> +
 
-Could you outline the "big picture" as you see it? To me your argument 
-that reclaim can always be done instantly and that the cases where it 
-cannot be done are pathological and need to be avoided is fundamentally 
-dangerous and quite a bit short-sighted at first glance.
+That change causes a crash in khelper when overcommit_memory = 2 
+under 2.6.23-rc3.
 
-The big picture way to think about this is the following: the free page 
-pool is the "cache" of the MM. It's what "greases" the mechanism and 
-bridges the inevitable reclaim latency and makes "atomic memory" 
-available to the reclaim mechanism itself. We _cannot_ remove that cache 
-without a conceptual replacement (or a _very_ robust argument and proof 
-that the free pages pool is not needed at all - this would be a major 
-design change (and a stupid mistake IMO)). Your patchset, in essence, 
-tries to claim that we dont really need this cache and that all that 
-matters is to keep enough clean pagecache pages around. That approach 
-misses the full picture and i dont think we can progress without 
-agreeing on the fundamentals first.
+When a khelper execs, at __bprm_mm_init() current->mm is still NULL.
+insert_vm_struct() calls security_vm_enough_memory(), which calls 
+__vm_enough_memory(), and that's where current->mm->total_vm gets 
+dereferenced.
 
-That "cache" cannot be handled in your scheme: a fully or mostly 
-anonymous workload (tons of apps are like that) instantly destroys the 
-"there is always a minimal amount of atomically reclaimable pages 
-around" property of freelists, and this cannot be talked or tweaked 
-around by twiddling any existing property of anonymous reclaim. 
-Anonymous memory is dirty and takes ages to reclaim. The fact that your 
-patchset causes an easy anonymous OOM further underlines this flaw of 
-your thinking. Not making anonymous workloads OOM is the _hardest_ part 
-of the MM, by far. Pagecache reclaim is a breeze in comparison :-)
 
-So there is a large and fundamental rift between having pages on the 
-freelist (instantly available to any context) and having them on the 
-(current) LRU where they might or might not be clean, etc. The freelists 
-are an implicit guarantee of buffering and atomicity and they can and do 
-save the day if everything else fails to keep stuff insta-freeable. (And 
-then we havent even considered the performance and scalability 
-differences between picking from the pcp freelists versus picking pages 
-from the LRU, havent considered the better higher-order page allocation 
-property of the buddy pool and havent considered the atomicity of 
-in-irq-handler allocations.)
+Signed-off-by: Dan Aloni <da-x@monatomic.org>
 
-	Ingo
+diff --git a/mm/mmap.c b/mm/mmap.c
+index 906ed40..6e021df 100644
+--- a/mm/mmap.c
++++ b/mm/mmap.c
+@@ -163,10 +163,12 @@ int __vm_enough_memory(long pages, int cap_sys_admin)
+ 	if (!cap_sys_admin)
+ 		allowed -= allowed / 32;
+ 	allowed += total_swap_pages;
+-
+-	/* Don't let a single process grow too big:
+-	   leave 3% of the size of this process for other processes */
+-	allowed -= current->mm->total_vm / 32;
++
++	if (current->mm) {
++		/* Don't let a single process grow too big:
++		   leave 3% of the size of this process for other processes */
++		allowed -= current->mm->total_vm / 32;
++	}
+ 
+ 	/*
+ 	 * cast `allowed' as a signed long because vm_committed_space
+
+
+-- 
+Dan Aloni
+XIV LTD, http://www.xivstorage.com
+da-x (at) monatomic.org, dan (at) xiv.co.il
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
