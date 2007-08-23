@@ -1,95 +1,62 @@
-Subject: Re: [RFC 2/9] Use NOMEMALLOC reclaim to allow reclaim if
-	PF_MEMALLOC is set
-From: Peter Zijlstra <a.p.zijlstra@chello.nl>
-In-Reply-To: <18125.23918.550443.628936@gargle.gargle.HOWL>
-References: <20070814153021.446917377@sgi.com>
-	 <20070814153501.305923060@sgi.com> <20070818071035.GA4667@ucw.cz>
-	 <Pine.LNX.4.64.0708201158270.28863@schroedinger.engr.sgi.com>
-	 <1187641056.5337.32.camel@lappy>
-	 <Pine.LNX.4.64.0708201323590.30053@schroedinger.engr.sgi.com>
-	 <1187644449.5337.48.camel@lappy> <20070821003922.GD8414@wotan.suse.de>
-	 <1187705235.6114.247.camel@twins> <20070823033826.GE18788@wotan.suse.de>
-	 <1187861208.6114.342.camel@twins>
-	 <18125.23918.550443.628936@gargle.gargle.HOWL>
-Content-Type: multipart/signed; micalg=pgp-sha1; protocol="application/pgp-signature"; boundary="=-f3sJQeQ7c8X6YWa59VwU"
-Date: Thu, 23 Aug 2007 15:58:57 +0200
-Message-Id: <1187877537.6114.398.camel@twins>
-Mime-Version: 1.0
+Message-ID: <46CD9281.3050600@shadowen.org>
+Date: Thu, 23 Aug 2007 14:58:25 +0100
+From: Andy Whitcroft <apw@shadowen.org>
+MIME-Version: 1.0
+Subject: Re: [RFC 3/3] SGI Altix cross partition memory (XPMEM)
+References: <20070810010659.GA25427@sgi.com>	<20070810011435.GD25427@sgi.com>	<20070809231542.f6dcce8c.akpm@linux-foundation.org>	<20070822170011.GA20155@sgi.com>	<20070822110422.65c990e5.akpm@linux-foundation.org>	<20070822191516.GA24018@sgi.com> <20070822124928.19bf0431.akpm@linux-foundation.org>
+In-Reply-To: <20070822124928.19bf0431.akpm@linux-foundation.org>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nikita Danilov <nikita@clusterfs.com>
-Cc: Nick Piggin <npiggin@suse.de>, Christoph Lameter <clameter@sgi.com>, Pavel Machek <pavel@ucw.cz>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, dkegel@google.com, David Miller <davem@davemloft.net>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Dean Nelson <dcn@sgi.com>, linux-ia64@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, tony.luck@intel.com, jes@sgi.com
 List-ID: <linux-mm.kvack.org>
 
---=-f3sJQeQ7c8X6YWa59VwU
-Content-Type: text/plain
-Content-Transfer-Encoding: quoted-printable
+Andrew Morton wrote:
+> On Wed, 22 Aug 2007 14:15:16 -0500
+> Dean Nelson <dcn@sgi.com> wrote:
+> 
+>> On Wed, Aug 22, 2007 at 11:04:22AM -0700, Andrew Morton wrote:
+>>> On Wed, 22 Aug 2007 12:00:11 -0500
+>>> Dean Nelson <dcn@sgi.com> wrote:
+>>>
+>>>>   3) WARNING: declaring multiple variables together should be avoided
+>>>>
+>>>> checkpatch.pl is erroneously commplaining about the following found in five
+>>>> different functions in arch/ia64/sn/kernel/xpmem_pfn.c.
+>>>>
+>>>> 	int n_pgs = xpmem_num_of_pages(vaddr, size);
+>>> What warning does it generate here?
+>> The WARNING #3 above "declaring multiple variables together should be avoided".
+>> There is only one variable being declared, which happens to be initialized by
+>> the function xpmem_num_of_pages().
+> 
+> Ah, I think I recall seeing a report of that earlier.  Maybe it's been fixed?
 
-On Thu, 2007-08-23 at 14:11 +0400, Nikita Danilov wrote:
-> Peter Zijlstra writes:
->=20
-> [...]
->=20
->  > My idea is to extend kswapd, run cpus_per_node instances of kswapd per
->  > node for each of GFP_KERNEL, GFP_NOFS, GFP_NOIO. (basically 3 kswapds
->  > per cpu)
->  >=20
->  > whenever we would hit direct reclaim, add ourselves to a special
->  > waitqueue corresponding to the type of GFP and kick all the
->  > corresponding kswapds.
->=20
-> There are two standard objections to this:
->=20
->     - direct reclaim was introduced to reduce memory allocation latency,
->       and going to scheduler kills this. But more importantly,
+Yep that got fixed.  Though the consensus was there were too many good
+uses for the multiple define form that it got put on ice after that too.
 
-The part you snipped:
-
-> > Here is were the 'special' part of the waitqueue comes into order.
-> >=20
-> > Instead of freeing pages to the page allocator, these kswapds would han=
-d
-> > out pages to the waiting processes in a round robin fashion. Only if
-> > there are no more waiting processes left, would the page go to the budd=
-y
-> > system.
-
-should deal with that, it allows processes to quickly get some memory.
-
->     - it might so happen that _all_ per-cpu kswapd instances are
->       blocked, e.g., waiting for IO on indirect blocks, or queue
->       congestion. In that case whole system stops waiting for IO to
->       complete. In the direct reclaim case, other threads can continue
->       zone scanning.
-
-By running separate GFP_KERNEL, GFP_NOFS and GFP_NOIO kswapds this
-should not occur. Much like it now does not occur.
-
-This approach would make it work pretty much like it does now. But
-instead of letting each separate context run into reclaim we then have a
-fixed set of reclaim contexts which evenly distribute their resulting
-free pages.
-
-The possible down sides are:
-
- - more schedule()s, but I don't think these will matter when we're that
-deep into reclaim
- - less concurrency - but I hope 1 set per cpu is enough, we could up
-this if it turns out to really help.
-
---=-f3sJQeQ7c8X6YWa59VwU
-Content-Type: application/pgp-signature; name=signature.asc
-Content-Description: This is a digitally signed message part
-
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v1.4.6 (GNU/Linux)
-
-iD8DBQBGzZKhXA2jU0ANEf4RAoxTAKCF5/2RtQPc6PJRtxtyZ8dWP0HYyACeJeAN
-D27wV5r+kz2Xvk9OGtLJuh4=
-=wYrF
------END PGP SIGNATURE-----
-
---=-f3sJQeQ7c8X6YWa59VwU--
+>> ...
+>>>> I've switched from using nopage to using fault. I read that it is intended
+>>>> that nopfn also goes away. If this is the case, then the BUG_ON if VM_PFNMAP
+>>>> is set would make __do_fault() a rather unfriendly replacement for do_no_pfn().
+>>>>
+>>>>> - xpmem_attach() does smp_processor_id() in preemptible code.  Lucky that
+>>>>>   ia64 doesn't do preempt?
+>>>> Actually, the code is fine as is even with preemption configured on. All it's
+>>>> doing is ensuring that the thread was previously pinned to the CPU it's
+>>>> currently running on. If it is, it can't be moved to another CPU via
+>>>> preemption, and if it isn't, the check will fail and we'll return -EINVAL
+>>>> and all is well.
+>>> OK.  Running smp_processor_id() from within preemptible code will generate
+>>> a warning, but the code is sneaky enough to prevent that warning if the
+>>> calling task happens to be pinned to a single CPU.
+>> Would it make more sense in this particular case to replace the call to
+>> smp_processor_id() in xpmem_attach() with a call to raw_smp_processor_id()
+>> instead, and add a comment explaining why?
+> 
+> Your call ;)  Either will be OK, I expect.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
