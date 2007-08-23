@@ -1,64 +1,41 @@
-Received: from sd0109e.au.ibm.com (d23rh905.au.ibm.com [202.81.18.225])
-	by ausmtp04.au.ibm.com (8.13.8/8.13.8) with ESMTP id l7N8gZg1188534
-	for <linux-mm@kvack.org>; Thu, 23 Aug 2007 18:42:38 +1000
-Received: from d23av03.au.ibm.com (d23av03.au.ibm.com [9.190.250.244])
-	by sd0109e.au.ibm.com (8.13.8/8.13.8/NCO v8.5) with ESMTP id l7N8gHDU200820
-	for <linux-mm@kvack.org>; Thu, 23 Aug 2007 18:42:17 +1000
-Received: from d23av03.au.ibm.com (loopback [127.0.0.1])
-	by d23av03.au.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l7N8chqT014371
-	for <linux-mm@kvack.org>; Thu, 23 Aug 2007 18:38:43 +1000
-Message-ID: <46CD478D.5060603@linux.vnet.ibm.com>
-Date: Thu, 23 Aug 2007 14:08:37 +0530
-From: Balbir Singh <balbir@linux.vnet.ibm.com>
-Reply-To: balbir@linux.vnet.ibm.com
-MIME-Version: 1.0
-Subject: Re: [PATCH] Memory controller Add Documentation
-References: <20070822130612.18981.58696.sendpatchset@balbir-laptop> <20070823173621.4539b376.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20070823173621.4539b376.kamezawa.hiroyu@jp.fujitsu.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Date: Thu, 23 Aug 2007 11:07:22 +0200
+From: Nick Piggin <npiggin@suse.de>
+Subject: Re: vmscan-give-referenced-active-and-unmapped-pages-a-second-trip-around-the-lru
+Message-ID: <20070823090722.GA25225@wotan.suse.de>
+References: <20070823041137.GH18788@wotan.suse.de> <20070823001517.1252911b.akpm@linux-foundation.org>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20070823001517.1252911b.akpm@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Linux Containers <containers@lists.osdl.org>, YAMAMOTO Takashi <yamamoto@valinux.co.jp>, Paul Menage <menage@google.com>, Dave Hansen <haveblue@us.ibm.com>, Linux MM Mailing List <linux-mm@kvack.org>, Nick Piggin <npiggin@suse.de>, Vaidyanathan Srinivasan <svaidy@linux.vnet.ibm.com>, Pavel Emelianov <xemul@openvz.org>, Dhaval Giani <dhaval@linux.vnet.ibm.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Eric W Biederman <ebiederm@xmission.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Martin Bligh <mbligh@mbligh.org>, Rik van Riel <riel@redhat.com>, Linux Memory Management List <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-KAMEZAWA Hiroyuki wrote:
-> Thank you for documentaion. How about adding following topics ?
+On Thu, Aug 23, 2007 at 12:15:17AM -0700, Andrew Morton wrote:
+> On Thu, 23 Aug 2007 06:11:37 +0200 Nick Piggin <npiggin@suse.de> wrote:
 > 
-> - Benefit and Purpose. When this function help a user.
-> - What is accounted as RSS.
-> - What is accounted as page-cache.
-> - What are not accoutned now.
-> - When a page is accounted (charged.)
-> - about mem_control_type
-> - When a user can remove memory controller with no tasks (by rmdir)
->   and What happens if a user does.
-> - What happens when a user migrates a task to other container.
+> > http://www.kernel.org/pub/linux/kernel/people/akpm/patches/2.6/2.6.23-rc3/2.6.23-rc3-mm1/broken-out/vmscan-give-referenced-active-and-unmapped-pages-a-second-trip-around-the-lru.patch
+> > 
+> > About this patch... I hope it doesn't get merged without good reason...
 > 
-
-Thanks for your input. I'll try and incorporate your comments into
-the documentation (I think it will help developers and users alike).
-
-> Writing all above may be too much :)
+> I have no intention at all of merging it until it's proven to be a net
+> benefit.  This is engineering.  We shouldn't merge VM changes based on
+> handwaving.
 > 
-> I'm sorry if I say something pointless.
+> It does fix a bug (ie: a difference between design intent and
+> implementation) but I have no idea whether it improves or worsens anything.
 > 
-
-No.. not at all! Thank you for reading the documentation and commenting
-on it.
-
-> Thanks,
-> -Kame
+> > [handwaving]
 > 
-> 
+> ;)
 
+Well what I say is handwaving too, but it is a situation that wouldn't be
+completely unusual to hit. Anyway, I know I don't need to make an airtight
+argument as to why _not_ to merge a patch, so this is just a heads-up to
+be on the lookout for one potential issue I have seen with a similar change.
 
--- 
-	Warm Regards,
-	Balbir Singh
-	Linux Technology Center
-	IBM, ISTL
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
