@@ -1,53 +1,68 @@
 From: Christoph Lameter <clameter@sgi.com>
-Subject: [patch 4/6] SLUB: Avoid touching page struct when freeing to per cpu slab
-Date: Wed, 22 Aug 2007 23:46:57 -0700
-Message-ID: <20070823064734.558994491@sgi.com>
+Subject: [patch 2/6] SLUB: Do not use page->mapping
+Date: Wed, 22 Aug 2007 23:46:55 -0700
+Message-ID: <20070823064734.099970139@sgi.com>
 References: <20070823064653.081843729@sgi.com>
-Return-path: <linux-kernel-owner+glk-linux-kernel-3=40m.gmane.org-S1756324AbXHWGsJ@vger.kernel.org>
-Content-Disposition: inline; filename=0008-SLUB-Avoid-touching-page-struct-when-freeing-to-per.patch
+Return-path: <linux-kernel-owner+glk-linux-kernel-3=40m.gmane.org-S1760431AbXHWGsb@vger.kernel.org>
+Content-Disposition: inline; filename=0006-SLUB-Do-not-use-page-mapping.patch
 Sender: linux-kernel-owner@vger.kernel.org
 To: akpm@linux-foundation.org
 Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Pekka Enberg <penberg@cs.helsinki.fi>
 List-Id: linux-mm.kvack.org
 
-Set c->node to -1 if we allocate from a debug slab instead for SlabDebug
-which requires access the page struct cacheline.
+After moving the lockless_freelist to kmem_cache_cpu we no longer need
+page->lockless_freelist. Restructure the use of the struct page fields in
+such a way that we never touch the mapping field.
+
+This is turn allows us to remove the special casing of SLUB when determining
+the mapping of a page (needed for corner cases of virtual caches machines that
+need to flush caches of processors mapping a page).
 
 Signed-off-by: Christoph Lameter <clameter@sgi.com>
 ---
- mm/slub.c |    6 +++---
- 1 file changed, 3 insertions(+), 3 deletions(-)
+ include/linux/mm_types.h |    9 ++-------
+ mm/slub.c                |    2 --
+ 2 files changed, 2 insertions(+), 9 deletions(-)
 
+Index: linux-2.6.23-rc3-mm1/include/linux/mm_types.h
+===================================================================
+--- linux-2.6.23-rc3-mm1.orig/include/linux/mm_types.h	2007-08-22 17:14:32.000000000 -0700
++++ linux-2.6.23-rc3-mm1/include/linux/mm_types.h	2007-08-22 17:20:13.000000000 -0700
+@@ -62,13 +62,8 @@ struct page {
+ #if NR_CPUS >= CONFIG_SPLIT_PTLOCK_CPUS
+ 	    spinlock_t ptl;
+ #endif
+-	    struct {			/* SLUB uses */
+-	    	void **lockless_freelist;
+-		struct kmem_cache *slab;	/* Pointer to slab */
+-	    };
+-	    struct {
+-		struct page *first_page;	/* Compound pages */
+-	    };
++	    struct kmem_cache *slab;	/* SLUB: Pointer to slab */
++	    struct page *first_page;	/* Compound tail pages */
+ 	};
+ 	union {
+ 		pgoff_t index;		/* Our offset within mapping. */
 Index: linux-2.6.23-rc3-mm1/mm/slub.c
 ===================================================================
---- linux-2.6.23-rc3-mm1.orig/mm/slub.c	2007-08-22 17:20:28.000000000 -0700
-+++ linux-2.6.23-rc3-mm1/mm/slub.c	2007-08-22 17:20:33.000000000 -0700
-@@ -1517,6 +1517,7 @@ debug:
+--- linux-2.6.23-rc3-mm1.orig/mm/slub.c	2007-08-22 17:20:05.000000000 -0700
++++ linux-2.6.23-rc3-mm1/mm/slub.c	2007-08-22 17:20:13.000000000 -0700
+@@ -1125,7 +1125,6 @@ static struct page *new_slab(struct kmem
+ 	set_freepointer(s, last, NULL);
  
- 	c->page->inuse++;
- 	c->page->freelist = object[c->offset];
-+	c->node = -1;
- 	slab_unlock(c->page);
- 	return object;
+ 	page->freelist = start;
+-	page->lockless_freelist = NULL;
+ 	page->inuse = 0;
+ out:
+ 	if (flags & __GFP_WAIT)
+@@ -1151,7 +1150,6 @@ static void __free_slab(struct kmem_cach
+ 		NR_SLAB_RECLAIMABLE : NR_SLAB_UNRECLAIMABLE,
+ 		- pages);
+ 
+-	page->mapping = NULL;
+ 	__free_pages(page, s->order);
  }
-@@ -1540,8 +1541,7 @@ static void __always_inline *slab_alloc(
  
- 	local_irq_save(flags);
- 	c = get_cpu_slab(s, smp_processor_id());
--	if (unlikely(!c->page || !c->freelist ||
--					!node_match(c, node)))
-+	if (unlikely(!c->freelist || !node_match(c, node)))
- 
- 		object = __slab_alloc(s, gfpflags, node, addr, c);
- 
-@@ -1650,7 +1650,7 @@ static void __always_inline slab_free(st
- 	local_irq_save(flags);
- 	debug_check_no_locks_freed(object, s->objsize);
- 	c = get_cpu_slab(s, smp_processor_id());
--	if (likely(page == c->page && !SlabDebug(page))) {
-+	if (likely(page == c->page && c->node >= 0)) {
- 		object[c->offset] = c->freelist;
- 		c->freelist = object;
- 	} else
 
 -- 
