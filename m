@@ -1,65 +1,103 @@
-Date: Thu, 23 Aug 2007 08:56:40 -0700
-From: Randy Dunlap <randy.dunlap@oracle.com>
-Subject: Re: [PATCH 2.6.20-rc5 1/1] MM: enhance Linux swap subsystem
-Message-Id: <20070823085640.f6b43ab3.randy.dunlap@oracle.com>
-In-Reply-To: <4df04b840708230247l69d03112lc5b66ff3359eac2@mail.gmail.com>
-References: <4df04b840701212309l2a283357jbdaa88794e5208a7@mail.gmail.com>
-	<4df04b840701301852i41687edfl1462c4ca3344431c@mail.gmail.com>
-	<Pine.LNX.4.64.0701312022340.26857@blonde.wat.veritas.com>
-	<4df04b840702122152o64b2d59cy53afcd43bb24cb7a@mail.gmail.com>
-	<4df04b840702200106q670ff944k118d218fed17b884@mail.gmail.com>
-	<4df04b840702211758t1906083x78fb53b6283349ca@mail.gmail.com>
-	<45DCFDBE.50209@redhat.com>
-	<4df04b840702221831x76626de1rfa70cb653b12f495@mail.gmail.com>
-	<45DE6080.6030904@redhat.com>
-	<4df04b840702241747ne903699w636d37b40351b752@mail.gmail.com>
-	<4df04b840708230247l69d03112lc5b66ff3359eac2@mail.gmail.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Received: from sd0109e.au.ibm.com (d23rh905.au.ibm.com [202.81.18.225])
+	by e23smtp05.au.ibm.com (8.13.1/8.13.1) with ESMTP id l7NHHPgr016184
+	for <linux-mm@kvack.org>; Fri, 24 Aug 2007 03:17:25 +1000
+Received: from d23av04.au.ibm.com (d23av04.au.ibm.com [9.190.235.139])
+	by sd0109e.au.ibm.com (8.13.8/8.13.8/NCO v8.5) with ESMTP id l7NHKtFW174336
+	for <linux-mm@kvack.org>; Fri, 24 Aug 2007 03:20:55 +1000
+Received: from d23av04.au.ibm.com (loopback [127.0.0.1])
+	by d23av04.au.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l7NIHL6S015755
+	for <linux-mm@kvack.org>; Fri, 24 Aug 2007 04:17:21 +1000
+Message-ID: <46CDC11E.2010008@linux.vnet.ibm.com>
+Date: Thu, 23 Aug 2007 22:47:18 +0530
+From: Kamalesh Babulal <kamalesh@linux.vnet.ibm.com>
+MIME-Version: 1.0
+Subject: Re: [BUG] 2.6.23-rc3-mm1 kernel BUG at mm/page_alloc.c:2876!
+References: <46CC9A7A.2030404@linux.vnet.ibm.com> <20070822134800.ce5a5a69.akpm@linux-foundation.org> <20070822135024.dde8ef5a.akpm@linux-foundation.org> <20070823130732.GC18456@skynet.ie>
+In-Reply-To: <20070823130732.GC18456@skynet.ie>
+Content-Type: text/plain; charset=iso-8859-15; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: yunfeng zhang <zyf.zeroos@gmail.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, hugh@veritas.com, riel@redhat.com
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Mel Gorman <mel@skynet.ie>, linux-kernel@vger.kernel.org, Balbir Singh <balbir@linux.vnet.ibm.com>, Christoph Lameter <clameter@sgi.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 23 Aug 2007 17:47:44 +0800 yunfeng zhang wrote:
+Mel Gorman wrote:
+> On (22/08/07 13:50), Andrew Morton didst pronounce:
+>   
+>> On Wed, 22 Aug 2007 13:48:00 -0700
+>> Andrew Morton <akpm@linux-foundation.org> wrote:
+>>
+>>     
+>>> This:
+>>>
+>>> --- a/mm/page_alloc.c~a
+>>> +++ a/mm/page_alloc.c
+>>> @@ -2814,6 +2814,8 @@ static int __cpuinit process_zones(int c
+>>>  	return 0;
+>>>  bad:
+>>>  	for_each_zone(dzone) {
+>>> +		if (!populated_zone(zone))
+>>> +			continue;		
+>>>  		if (dzone == zone)
+>>>  			break;
+>>>  		kfree(zone_pcp(dzone, cpu));
+>>> _
+>>>
+>>> might help avoid the crash
+>>>       
+>> err, make that
+>>
+>>     
+>
+> We're already in the error path at this point and it's going to blow up.
+> The real problem is kmalloc_node() returning NULL for whatever reason.
+>
+>   
+>> --- a/mm/page_alloc.c~a
+>> +++ a/mm/page_alloc.c
+>> @@ -2814,6 +2814,8 @@ static int __cpuinit process_zones(int c
+>>  	return 0;
+>>  bad:
+>>  	for_each_zone(dzone) {
+>> +		if (!populated_zone(dzone))
+>> +			continue;
+>>  		if (dzone == zone)
+>>  			break;
+>>  		kfree(zone_pcp(dzone, cpu));
+>> _
+>>
+>>
+>>     
+>
+>   
+After applying the patch, the call trace is gone but the kernel bug
+is still hit
 
-> Signed-off-by: Yunfeng Zhang <zyf.zeroos@gmail.com>
-> 
-> The mayor change is
-> 1) Using nail arithmetic to maximum SwapDevice performance.
-> 2) Add PG_pps bit to sign every pps page.
-> 3) Some discussion about NUMA.
-> See vm_pps.txt
-> 
-> Index: linux-2.6.22/Documentation/vm_pps.txt
-> ===================================================================
-> --- /dev/null	1970-01-01 00:00:00.000000000 +0000
-> +++ linux-2.6.22/Documentation/vm_pps.txt	2007-08-23 17:04:12.051837322 +0800
-> @@ -0,0 +1,365 @@
-> +
-> +                         Pure Private Page System (pps)
-> +                              zyf.zeroos@gmail.com
-> +                              December 24-26, 2006
-> +                            Revised on Aug 23, 2007
-> +
-> +// Purpose <([{
-> +The file is used to document the idea which is published firstly at
-> +http://www.ussg.iu.edu/hypermail/linux/kernel/0607.2/0451.html, as a part of my
-> +OS -- main page http://blog.chinaunix.net/u/21764/index.php. In brief, the
-> +patch of the document is for enchancing the performance of Linux swap
-> +subsystem. You can find the overview of the idea in section <How to Reclaim
-> +Pages more Efficiently> and how I patch it into Linux 2.6.21 in section
-> +<Pure Private Page System -- pps>.
-> +// }])>
 
-Hi,
-What (text) format/markup language is the vm_pps.txt file in?
+Memory: 4105840k/4194304k available (4964k kernel code, 88464k reserved, 
+948k data, 571k bss, 264k init)
+SLUB: Genslabs=12, HWalign=128, Order=0-1, MinObjects=4, CPUs=4, Nodes=16
+------------[ cut here ]------------
+kernel BUG at mm/page_alloc.c:2878!
+cpu 0x0: Vector: 700 (Program Check) at [c0000000005cbbe0]
+pc: c0000000004b5160: .setup_per_cpu_pageset+0x24/0x48
+lr: c0000000004b5160: .setup_per_cpu_pageset+0x24/0x48
+sp: c0000000005cbe60
+msr: 8000000000029032
+current = 0xc0000000004fd1b0
+paca = 0xc0000000004fdd80
+pid = 0, comm = swapper
+kernel BUG at mm/page_alloc.c:2878!
+enter ? for help
+[c0000000005cbee0] c0000000004978d8 .start_kernel+0x304/0x3f4
+[c0000000005cbf90] c0000000003bef1c .start_here_common+0x54/0x58
 
----
-~Randy
-*** Remember to use Documentation/SubmitChecklist when testing your code ***
+-
+Kamalesh Babulal
+
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
