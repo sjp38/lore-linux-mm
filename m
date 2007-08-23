@@ -1,62 +1,65 @@
-Message-ID: <46CD9281.3050600@shadowen.org>
-Date: Thu, 23 Aug 2007 14:58:25 +0100
-From: Andy Whitcroft <apw@shadowen.org>
-MIME-Version: 1.0
-Subject: Re: [RFC 3/3] SGI Altix cross partition memory (XPMEM)
-References: <20070810010659.GA25427@sgi.com>	<20070810011435.GD25427@sgi.com>	<20070809231542.f6dcce8c.akpm@linux-foundation.org>	<20070822170011.GA20155@sgi.com>	<20070822110422.65c990e5.akpm@linux-foundation.org>	<20070822191516.GA24018@sgi.com> <20070822124928.19bf0431.akpm@linux-foundation.org>
-In-Reply-To: <20070822124928.19bf0431.akpm@linux-foundation.org>
-Content-Type: text/plain; charset=ISO-8859-1
+Date: Thu, 23 Aug 2007 08:56:40 -0700
+From: Randy Dunlap <randy.dunlap@oracle.com>
+Subject: Re: [PATCH 2.6.20-rc5 1/1] MM: enhance Linux swap subsystem
+Message-Id: <20070823085640.f6b43ab3.randy.dunlap@oracle.com>
+In-Reply-To: <4df04b840708230247l69d03112lc5b66ff3359eac2@mail.gmail.com>
+References: <4df04b840701212309l2a283357jbdaa88794e5208a7@mail.gmail.com>
+	<4df04b840701301852i41687edfl1462c4ca3344431c@mail.gmail.com>
+	<Pine.LNX.4.64.0701312022340.26857@blonde.wat.veritas.com>
+	<4df04b840702122152o64b2d59cy53afcd43bb24cb7a@mail.gmail.com>
+	<4df04b840702200106q670ff944k118d218fed17b884@mail.gmail.com>
+	<4df04b840702211758t1906083x78fb53b6283349ca@mail.gmail.com>
+	<45DCFDBE.50209@redhat.com>
+	<4df04b840702221831x76626de1rfa70cb653b12f495@mail.gmail.com>
+	<45DE6080.6030904@redhat.com>
+	<4df04b840702241747ne903699w636d37b40351b752@mail.gmail.com>
+	<4df04b840708230247l69d03112lc5b66ff3359eac2@mail.gmail.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Dean Nelson <dcn@sgi.com>, linux-ia64@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, tony.luck@intel.com, jes@sgi.com
+To: yunfeng zhang <zyf.zeroos@gmail.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, hugh@veritas.com, riel@redhat.com
 List-ID: <linux-mm.kvack.org>
 
-Andrew Morton wrote:
-> On Wed, 22 Aug 2007 14:15:16 -0500
-> Dean Nelson <dcn@sgi.com> wrote:
-> 
->> On Wed, Aug 22, 2007 at 11:04:22AM -0700, Andrew Morton wrote:
->>> On Wed, 22 Aug 2007 12:00:11 -0500
->>> Dean Nelson <dcn@sgi.com> wrote:
->>>
->>>>   3) WARNING: declaring multiple variables together should be avoided
->>>>
->>>> checkpatch.pl is erroneously commplaining about the following found in five
->>>> different functions in arch/ia64/sn/kernel/xpmem_pfn.c.
->>>>
->>>> 	int n_pgs = xpmem_num_of_pages(vaddr, size);
->>> What warning does it generate here?
->> The WARNING #3 above "declaring multiple variables together should be avoided".
->> There is only one variable being declared, which happens to be initialized by
->> the function xpmem_num_of_pages().
-> 
-> Ah, I think I recall seeing a report of that earlier.  Maybe it's been fixed?
+On Thu, 23 Aug 2007 17:47:44 +0800 yunfeng zhang wrote:
 
-Yep that got fixed.  Though the consensus was there were too many good
-uses for the multiple define form that it got put on ice after that too.
-
->> ...
->>>> I've switched from using nopage to using fault. I read that it is intended
->>>> that nopfn also goes away. If this is the case, then the BUG_ON if VM_PFNMAP
->>>> is set would make __do_fault() a rather unfriendly replacement for do_no_pfn().
->>>>
->>>>> - xpmem_attach() does smp_processor_id() in preemptible code.  Lucky that
->>>>>   ia64 doesn't do preempt?
->>>> Actually, the code is fine as is even with preemption configured on. All it's
->>>> doing is ensuring that the thread was previously pinned to the CPU it's
->>>> currently running on. If it is, it can't be moved to another CPU via
->>>> preemption, and if it isn't, the check will fail and we'll return -EINVAL
->>>> and all is well.
->>> OK.  Running smp_processor_id() from within preemptible code will generate
->>> a warning, but the code is sneaky enough to prevent that warning if the
->>> calling task happens to be pinned to a single CPU.
->> Would it make more sense in this particular case to replace the call to
->> smp_processor_id() in xpmem_attach() with a call to raw_smp_processor_id()
->> instead, and add a comment explaining why?
+> Signed-off-by: Yunfeng Zhang <zyf.zeroos@gmail.com>
 > 
-> Your call ;)  Either will be OK, I expect.
+> The mayor change is
+> 1) Using nail arithmetic to maximum SwapDevice performance.
+> 2) Add PG_pps bit to sign every pps page.
+> 3) Some discussion about NUMA.
+> See vm_pps.txt
+> 
+> Index: linux-2.6.22/Documentation/vm_pps.txt
+> ===================================================================
+> --- /dev/null	1970-01-01 00:00:00.000000000 +0000
+> +++ linux-2.6.22/Documentation/vm_pps.txt	2007-08-23 17:04:12.051837322 +0800
+> @@ -0,0 +1,365 @@
+> +
+> +                         Pure Private Page System (pps)
+> +                              zyf.zeroos@gmail.com
+> +                              December 24-26, 2006
+> +                            Revised on Aug 23, 2007
+> +
+> +// Purpose <([{
+> +The file is used to document the idea which is published firstly at
+> +http://www.ussg.iu.edu/hypermail/linux/kernel/0607.2/0451.html, as a part of my
+> +OS -- main page http://blog.chinaunix.net/u/21764/index.php. In brief, the
+> +patch of the document is for enchancing the performance of Linux swap
+> +subsystem. You can find the overview of the idea in section <How to Reclaim
+> +Pages more Efficiently> and how I patch it into Linux 2.6.21 in section
+> +<Pure Private Page System -- pps>.
+> +// }])>
+
+Hi,
+What (text) format/markup language is the vm_pps.txt file in?
+
+---
+~Randy
+*** Remember to use Documentation/SubmitChecklist when testing your code ***
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
