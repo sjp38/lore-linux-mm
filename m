@@ -1,42 +1,93 @@
-Date: Thu, 23 Aug 2007 14:16:48 +0200
-From: Andrea Arcangeli <andrea@suse.de>
 Subject: Re: [RFC 0/7] Postphone reclaim laundry to write at high water
 	marks
-Message-ID: <20070823121643.GP13915@v2.random>
-References: <20070820215040.937296148@sgi.com> <1187692586.6114.211.camel@twins> <Pine.LNX.4.64.0708211347480.3082@schroedinger.engr.sgi.com> <1187730812.5463.12.camel@lappy> <Pine.LNX.4.64.0708211418120.3267@schroedinger.engr.sgi.com> <1187734144.5463.35.camel@lappy> <Pine.LNX.4.64.0708211532560.5728@schroedinger.engr.sgi.com> <1187766156.6114.280.camel@twins> <Pine.LNX.4.64.0708221157180.13813@schroedinger.engr.sgi.com> <1187813025.5463.85.camel@lappy>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1187813025.5463.85.camel@lappy>
+From: Peter Zijlstra <peterz@infradead.org>
+In-Reply-To: <20070823120819.GO13915@v2.random>
+References: <20070820215040.937296148@sgi.com>
+	 <1187692586.6114.211.camel@twins>
+	 <Pine.LNX.4.64.0708211347480.3082@schroedinger.engr.sgi.com>
+	 <1187730812.5463.12.camel@lappy>
+	 <Pine.LNX.4.64.0708211418120.3267@schroedinger.engr.sgi.com>
+	 <1187734144.5463.35.camel@lappy>  <20070823120819.GO13915@v2.random>
+Content-Type: text/plain
+Date: Thu, 23 Aug 2007 14:59:48 +0200
+Message-Id: <1187873988.6114.388.camel@twins>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Peter Zijlstra <peterz@infradead.org>
-Cc: Christoph Lameter <clameter@sgi.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, riel <riel@redhat.com>
+To: Andrea Arcangeli <andrea@suse.de>
+Cc: Christoph Lameter <clameter@sgi.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Aug 22, 2007 at 10:03:45PM +0200, Peter Zijlstra wrote:
-> Its not extreme, not even rare, and its handled now. Its what
-> PF_MEMALLOC is for.
+On Thu, 2007-08-23 at 14:08 +0200, Andrea Arcangeli wrote:
+> On Wed, Aug 22, 2007 at 12:09:03AM +0200, Peter Zijlstra wrote:
+> > Strictly speaking:
+> > 
+> > if:
+> > 
+> >  page = alloc_page(gfp);
+> > 
+> > fails but:
+> > 
+> >  obj = kmem_cache_alloc(s, gfp);
+> > 
+> > succeeds then its a bug.
+> 
+> Why? this is like saying that if alloc_pages(order=1) fails but
+> alloc_pages(order=0) succeeds then it's a bug. Obviously it's not a
+> bug.
+> 
+> The only bug is if slab allocations <=4k fails despite
+> alloc_pages(order=0) would succeed.
 
-Agreed. This is the whole point, either you limit the max amount of
-anon memory, slab, alloc_pages a driver can do or you reserve a
-pool. Guess what? In practice limiting the max ram a driver can eat in
-alloc_pages, at the same time while limting the max amount of pages
-that can be anon ram, etc..etc.. is called "reserving a pool of
-freepages for PF_MEMALLOC".
+That would be currently true. However I need it to be stricter.
 
-Now in theory we could try a may_writepage=0 second reclaim pass
-before using the PF_MEMALLOC pool but would that make any difference
-other than being slower? We can argue what should be done first but
-the PF_MEMALLOC pool isn't likely to go away with this patch... only
-way to make it go away is to have every subsystem including tcp
-incoming to have mempools for everything which is too complicated to
-implement so we've to live the imperfect world that just works good
-enough.
+I'm wanting to do networked swap. And in order to be able to receive
+writeout completions when in the PF_MEMALLOC region I need to introduce
+a new network state. This is because it needs to operate in a steady
+state with limited (bounded) memory use.
 
-This logic of falling back in a may_writepage=0 pass will make things
-a bit more reliable but certainly not perfect and it doesn't obsolete
-the need of the current code IMHO.
+Normal network either consumes memory, or fails to receive anything at
+all.
+
+So this new network state will allocate space for a packet, receive the
+packet from the NIC, inspect the packet, and toss the packet when its
+not found to be aimed at the VM (ie. does not contain a writeout
+completion).
+
+So the total memory consumption of this state is 0 - it always frees
+what it takes, but the memory use is non 0 but bounded - it does
+temporarily use memory, but will limit itself to never exceed a given
+maximum)
+
+Because the network stack runs on the slab allocator in generic (both
+kmem_cache and kmalloc) I need this extra guarantee so that a slab
+allocated from the reserves will not serve objects to some random
+non-critical application.
+
+If this is not restricted this network state can leak memory to outside
+of PF_MEMALLOC and will not be stable.
+
+So what I need is:
+
+  kmem_cache_alloc(s, gfp) to fail when alloc_page(gfp) fails
+
+agreeing on the extra condition:
+
+  when kmem_cache_size(s) <= PAGE_SIZE
+
+and the extra note that:
+
+  I only really need it to fail for ALLOC_NO_WATERMARKS, the other
+  levels like ALLOC_HIGH and ALLOC_HARDER are not critical.
+
+Which ends up with:
+
+  if the current gfp-context does not allow ALLOC_NO_WATERMARKS
+allocations, and alloc_page() fails, so must kmem_cache_alloc(s,) if
+kmem_cache_size(s) <= PAGE_SIZE.
+
+(yes this leaves jumbo frames broken)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
