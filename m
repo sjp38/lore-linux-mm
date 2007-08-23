@@ -1,53 +1,45 @@
-From: Nikita Danilov <nikita@clusterfs.com>
+Date: Thu, 23 Aug 2007 13:48:48 +0200
+From: Andrea Arcangeli <andrea@suse.de>
+Subject: Re:
+	vmscan-give-referenced-active-and-unmapped-pages-a-second-trip-aroun
+	d-the-lru
+Message-ID: <20070823114844.GM13915@v2.random>
+References: <20070823041137.GH18788@wotan.suse.de> <20070823001517.1252911b.akpm@linux-foundation.org> <20070823090722.GA25225@wotan.suse.de>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
-Message-ID: <18125.23918.550443.628936@gargle.gargle.HOWL>
-Date: Thu, 23 Aug 2007 14:11:58 +0400
-Subject: Re: [RFC 2/9] Use NOMEMALLOC reclaim to allow reclaim if
-	PF_MEMALLOC is set
-In-Reply-To: <1187861208.6114.342.camel@twins>
-References: <20070814153021.446917377@sgi.com>
-	<20070814153501.305923060@sgi.com>
-	<20070818071035.GA4667@ucw.cz>
-	<Pine.LNX.4.64.0708201158270.28863@schroedinger.engr.sgi.com>
-	<1187641056.5337.32.camel@lappy>
-	<Pine.LNX.4.64.0708201323590.30053@schroedinger.engr.sgi.com>
-	<1187644449.5337.48.camel@lappy>
-	<20070821003922.GD8414@wotan.suse.de>
-	<1187705235.6114.247.camel@twins>
-	<20070823033826.GE18788@wotan.suse.de>
-	<1187861208.6114.342.camel@twins>
+Content-Disposition: inline
+In-Reply-To: <20070823090722.GA25225@wotan.suse.de>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Cc: Nick Piggin <npiggin@suse.de>, Christoph Lameter <clameter@sgi.com>, Pavel Machek <pavel@ucw.cz>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, dkegel@google.com, David Miller <davem@davemloft.net>
+To: Nick Piggin <npiggin@suse.de>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Martin Bligh <mbligh@mbligh.org>, Rik van Riel <riel@redhat.com>, Linux Memory Management List <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-Peter Zijlstra writes:
+On Thu, Aug 23, 2007 at 11:07:22AM +0200, Nick Piggin wrote:
+> On Thu, Aug 23, 2007 at 12:15:17AM -0700, Andrew Morton wrote:
+> > On Thu, 23 Aug 2007 06:11:37 +0200 Nick Piggin <npiggin@suse.de> wrote:
+> > 
+> > > http://www.kernel.org/pub/linux/kernel/people/akpm/patches/2.6/2.6.23-rc3/2.6.23-rc3-mm1/broken-out/vmscan-give-referenced-active-and-unmapped-pages-a-second-trip-around-the-lru.patch
+> > > 
+> > > About this patch... I hope it doesn't get merged without good reason...
+> > 
+> > I have no intention at all of merging it until it's proven to be a net
+> > benefit.  This is engineering.  We shouldn't merge VM changes based on
+> > handwaving.
+> > 
+> > It does fix a bug (ie: a difference between design intent and
+> > implementation) but I have no idea whether it improves or worsens anything.
+> > 
+> > > [handwaving]
+> > 
+> > ;)
+> 
+> Well what I say is handwaving too, but it is a situation that wouldn't be
+> completely unusual to hit. Anyway, I know I don't need to make an airtight
+> argument as to why _not_ to merge a patch, so this is just a heads-up to
+> be on the lookout for one potential issue I have seen with a similar change.
 
-[...]
-
- > My idea is to extend kswapd, run cpus_per_node instances of kswapd per
- > node for each of GFP_KERNEL, GFP_NOFS, GFP_NOIO. (basically 3 kswapds
- > per cpu)
- > 
- > whenever we would hit direct reclaim, add ourselves to a special
- > waitqueue corresponding to the type of GFP and kick all the
- > corresponding kswapds.
-
-There are two standard objections to this:
-
-    - direct reclaim was introduced to reduce memory allocation latency,
-      and going to scheduler kills this. But more importantly,
-
-    - it might so happen that _all_ per-cpu kswapd instances are
-      blocked, e.g., waiting for IO on indirect blocks, or queue
-      congestion. In that case whole system stops waiting for IO to
-      complete. In the direct reclaim case, other threads can continue
-      zone scanning.
-
-Nikita.
+I like the patch, I consider it a fix but perhaps I'm biased ;)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
