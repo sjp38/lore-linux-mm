@@ -1,67 +1,53 @@
-Subject: Re: [RFC]  : mm : / Patch / Suggestion : Add 1 order or
-	agressiveness to wakeup_kswapd() : 1 line / 1 arg change
-From: Peter Zijlstra <peterz@infradead.org>
-In-Reply-To: <000501c7e569$023fa240$6501a8c0@earthlink.net>
-References: <000501c7e569$023fa240$6501a8c0@earthlink.net>
-Content-Type: text/plain
-Date: Thu, 23 Aug 2007 12:04:38 +0200
-Message-Id: <1187863478.6114.364.camel@twins>
-Mime-Version: 1.0
+From: Nikita Danilov <nikita@clusterfs.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Content-Transfer-Encoding: 7bit
+Message-ID: <18125.23918.550443.628936@gargle.gargle.HOWL>
+Date: Thu, 23 Aug 2007 14:11:58 +0400
+Subject: Re: [RFC 2/9] Use NOMEMALLOC reclaim to allow reclaim if
+	PF_MEMALLOC is set
+In-Reply-To: <1187861208.6114.342.camel@twins>
+References: <20070814153021.446917377@sgi.com>
+	<20070814153501.305923060@sgi.com>
+	<20070818071035.GA4667@ucw.cz>
+	<Pine.LNX.4.64.0708201158270.28863@schroedinger.engr.sgi.com>
+	<1187641056.5337.32.camel@lappy>
+	<Pine.LNX.4.64.0708201323590.30053@schroedinger.engr.sgi.com>
+	<1187644449.5337.48.camel@lappy>
+	<20070821003922.GD8414@wotan.suse.de>
+	<1187705235.6114.247.camel@twins>
+	<20070823033826.GE18788@wotan.suse.de>
+	<1187861208.6114.342.camel@twins>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Mitchell Erblich <erblichs@earthlink.net>
-Cc: Andrew Morton <akpm@linux-foundation.org>, "\"Ingo Molnar\"" <mingo@elte.hu>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Peter Zijlstra <a.p.zijlstra@chello.nl>
+Cc: Nick Piggin <npiggin@suse.de>, Christoph Lameter <clameter@sgi.com>, Pavel Machek <pavel@ucw.cz>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, dkegel@google.com, David Miller <davem@davemloft.net>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 2007-08-23 at 02:35 -0700, Mitchell Erblich wrote:
-> Group,
-> 
->     On the infrequent condition of failing to recieve a page from the
->     freelists, one of the things you do is call wakeup_kswapd()(exception of
->     NUMA or GFP_THISNODE).
-> 
->     Asuming that wakeup_kswapd() does what we want, this call is
->     such a high overhead call that you want to make sure that the
->     call is infrequent.
+Peter Zijlstra writes:
 
-It just wakes up a thread, it doesn't actually wait for anything.
-So the function is actually rather cheap.
+[...]
 
->     My initial guess is that it REALLY needs to re-populate the
->     freelists just before they/it is used up. However, the simple change
->     is being suggested NOW.
+ > My idea is to extend kswapd, run cpus_per_node instances of kswapd per
+ > node for each of GFP_KERNEL, GFP_NOFS, GFP_NOIO. (basically 3 kswapds
+ > per cpu)
+ > 
+ > whenever we would hit direct reclaim, add ourselves to a special
+ > waitqueue corresponding to the type of GFP and kick all the
+ > corresponding kswapds.
 
-kswapd will only stop once it has reached the high watermarks
+There are two standard objections to this:
 
->     Assuming that on avg that the order value will be used, you should
->     increase the order to cover two allocs of that same level of order,
->     thus the +1. If on the chance that later page_alloc() calls need
->     fewer pages (smaller order) then the extra pages will be available
->     for more page_allocs(). If later calls have larger orders, hopefully
->     the latency between the calls is great enough that other parts of
->     the system will respond to the low memory / on the freelist(s).
+    - direct reclaim was introduced to reduce memory allocation latency,
+      and going to scheduler kills this. But more importantly,
 
-by virtue of kswapd only stopping reclaim when it reaches the high
-watermark you already have that it will free more than one page (its
-started when we're below the low watermark, so it'll free at least
-high-min pages).
+    - it might so happen that _all_ per-cpu kswapd instances are
+      blocked, e.g., waiting for IO on indirect blocks, or queue
+      congestion. In that case whole system stops waiting for IO to
+      complete. In the direct reclaim case, other threads can continue
+      zone scanning.
 
-Changing the order has quite a different impact, esp now that we have
-lumpy reclaim.
-
->     Line 1265 within function __alloc_pages(), mm/page_alloc.c
-> 
-> wakeup_kswapd(*z, order);
->       to
-> wakeup_kswapd(*z, order + 1);
-> 
-> In addition, isn't a call needed to determine that the
-> freelist(s) are almost empty, but are still returning a page?
-
-didn't we just do that by finding out that ALLOC_WMARK_LOW fails to
-return a page?
-
+Nikita.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
