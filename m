@@ -1,49 +1,48 @@
-Date: Wed, 22 Aug 2007 18:54:24 -0500
-From: Matt Mackall <mpm@selenic.com>
-Subject: Re: [PATCH 8/9] pagemap: use page walker pte_hole() helper
-Message-ID: <20070822235424.GQ30556@waste.org>
-References: <20070822231804.1132556D@kernel> <20070822231813.B52D1961@kernel>
-MIME-Version: 1.0
+Date: Wed, 22 Aug 2007 19:06:26 -0600
+From: Valerie Henson <val@nmt.edu>
+Subject: [ANNOUNCE] ebizzy 0.2 released
+Message-ID: <20070823010626.GC11402@rainbow>
+Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20070822231813.B52D1961@kernel>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Dave Hansen <haveblue@us.ibm.com>
-Cc: linux-mm@kvack.org
+To: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Cc: Rodrigo Rubira Branco <rrbranco@br.ibm.com>, Brian Twichell <twichell@us.ibm.com>, Yong Cai <ycai@us.ibm.com>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Aug 22, 2007 at 04:18:13PM -0700, Dave Hansen wrote:
-> 
-> I tried to do this a bit more incrementally, but it ended
-> up just looking like an even worse mess.  So, this does
-> a a couple of different things.
-> 
-> 1. use page walker pte_hole() helper, which
-> 2. gets rid of the "next" value in "struct pagemapread"
-> 3. allow 1-3 byte reads from pagemap.  This at least
->    ensures that we don't write over user memory if they
->    ask us for 1 bytes and we tried to write 4.
-> 4. Instead of trying to calculate what ranges of pages
->    we are going to walk, simply start walking them,
->    then return PAGEMAP_END_OF_BUFFER at the end of the
->    buffer, error out, and stop walking.
-> 5. enforce that reads must be algined to PM_ENTRY_BYTES
-> 
-> Note that, despite these functional additions, and some
-> nice new comments, this patch still removes more code
-> than it adds.
-> 
-> Signed-off-by: Dave Hansen <haveblue@us.ibm.com>
+ebizzy is designed to generate a workload resembling common web
+application server workloads.  It is especially useful for testing
+changes to memory management, and whenever a highly threaded
+application with a large working set and many vmas is needed.
 
-> +	if (pm->count >= PM_ENTRY_BYTES)
-> +		__put_user(pfn pm->out);
+This is release 0.2 of ebizzy.  It reports a rate of transactions per
+second, compiles on Solaris, and scales better.  Thanks especially to
+Rodrigo Rubira Branco, Brian Twichell, and Yong Cai for their work on
+this release.
 
-I suppose I should have mentioned this typo when I spotted it
-yesterday.. Will fix it on my end.
+Available for download at the fancy new Sourceforge site:
 
--- 
-Mathematics is the supreme nostalgia of our time.
+http://sourceforge.net/projects/ebizzy/
+
+ChangeLog below.
+
+-VAL
+
+2008-08-15 Valerie Henson <val@nmt.edu>
+
+        * Release 0.2.
+
+        * Started reporting a rate of transactions per second rather than
+                just measuring the time.
+
+        * Solaris compatibility, thanks to Rodrigo Rubira Branco
+                <rrbranco@br.ibm.com> for frequent patches and testing.
+
+        * rand() was limiting scalability, use cheap dumb inline "random"
+                function to avoid that.  Thanks to Brian Twichell
+                <twichell@us.ibm.com> for finding it and Yong Cai
+                <ycai@us.ibm.com> for testing.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
