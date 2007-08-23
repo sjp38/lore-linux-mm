@@ -1,171 +1,259 @@
-Subject: Re: [RFC 0/7] Postphone reclaim laundry to write at high water
-	marks
-From: Peter Zijlstra <peterz@infradead.org>
-In-Reply-To: <Pine.LNX.4.64.0708221306080.15775@schroedinger.engr.sgi.com>
-References: <20070820215040.937296148@sgi.com>
-	 <1187692586.6114.211.camel@twins>
-	 <Pine.LNX.4.64.0708211347480.3082@schroedinger.engr.sgi.com>
-	 <1187730812.5463.12.camel@lappy>
-	 <Pine.LNX.4.64.0708211418120.3267@schroedinger.engr.sgi.com>
-	 <1187734144.5463.35.camel@lappy>
-	 <Pine.LNX.4.64.0708211532560.5728@schroedinger.engr.sgi.com>
-	 <1187766156.6114.280.camel@twins>
-	 <Pine.LNX.4.64.0708221157180.13813@schroedinger.engr.sgi.com>
-	 <1187813025.5463.85.camel@lappy>
-	 <Pine.LNX.4.64.0708221306080.15775@schroedinger.engr.sgi.com>
-Content-Type: text/plain
-Date: Thu, 23 Aug 2007 09:39:00 +0200
-Message-Id: <1187854740.6114.319.camel@twins>
+Date: Thu, 23 Aug 2007 17:36:21 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [PATCH] Memory controller Add Documentation
+Message-Id: <20070823173621.4539b376.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20070822130612.18981.58696.sendpatchset@balbir-laptop>
+References: <20070822130612.18981.58696.sendpatchset@balbir-laptop>
 Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, riel <riel@redhat.com>
+To: Balbir Singh <balbir@linux.vnet.ibm.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Linux Containers <containers@lists.osdl.org>, YAMAMOTO Takashi <yamamoto@valinux.co.jp>, Paul Menage <menage@google.com>, Dave Hansen <haveblue@us.ibm.com>, Linux MM Mailing List <linux-mm@kvack.org>, Nick Piggin <npiggin@suse.de>, Vaidyanathan Srinivasan <svaidy@linux.vnet.ibm.com>, Pavel Emelianov <xemul@openvz.org>, Dhaval Giani <dhaval@linux.vnet.ibm.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Eric W Biederman <ebiederm@xmission.com>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 2007-08-22 at 13:16 -0700, Christoph Lameter wrote:
-> On Wed, 22 Aug 2007, Peter Zijlstra wrote:
+Thank you for documentaion. How about adding following topics ?
+
+- Benefit and Purpose. When this function help a user.
+- What is accounted as RSS.
+- What is accounted as page-cache.
+- What are not accoutned now.
+- When a page is accounted (charged.)
+- about mem_control_type
+- When a user can remove memory controller with no tasks (by rmdir)
+  and What happens if a user does.
+- What happens when a user migrates a task to other container.
+
+Writing all above may be too much :)
+
+I'm sorry if I say something pointless.
+
+Thanks,
+-Kame
 
 
-> > > > As shown, there are cases where there just isn't any memory to reclaim.
-                                                                       ^^^^^^^
-> > > > Please accept this.
+On Wed, 22 Aug 2007 18:36:12 +0530
+Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
 
-> > > That is an extreme case that AFAIK we currently ignore and could be 
-> > > avoided with some effort.
-> > 
-> > Its not extreme, not even rare, and its handled now. Its what
-> > PF_MEMALLOC is for.
 > 
-> No its not. If you have all pages allocated as anonymous pages and your 
-> writeout requires more pages than available in the reserves then you are 
-> screwed either way regardless if you have PF_MEMALLOC set or not.
-
-Christoph, we were talking about memory to reclaim, no about exhausting
-the reserves.
-
-> > > The initial PF_MEMALLOC patchset seems to be 
-> > > still enough to deal with your issues.
-> > 
-> > Take the anonyous workload, user-space will block once the page
-> > allocator hits ALLOC_MIN. Network will be able to receive until
-> > ALLOC_MIN|ALLOC_HIGH - if the completion doesn't arrive by then it will
-> > start dropping all packets until there is memory again. But userspace is
-> > wedged and hence will not consume the network traffic, hence we
-> > deadlock.
-> > 
-> > Even if there is something to reclaim initially, if the pressure
-> > persists that can eventually be exhausted.
 > 
-> Sure ultimately you will end up with pages that are all unreclaimable if 
-> you reclaim all reclaimable memory.
+> Signed-off-by: Balbir Singh <balbir@linux.vnet.ibm.com>
+> ---
 > 
-> > > multiple critical tasks on various devices that have various memory needs. 
-> > > So multiple critical spots can happen concurrently in multiple 
-> > > application contexts.
-> > 
-> > yes, reclaim can be unbounded concurrent, and that is one of the
-> > (theoretically) major problems we currently have.
+>  Documentation/memcontrol.txt |  193 +++++++++++++++++++++++++++++++++++++++++++
+>  1 file changed, 193 insertions(+)
 > 
-> So your patchset is not fixing it?
-
-No, and I never said it would. I've been meaning to do one that does
-though. Just haven't come around to actually doing it :-/
-
-> > > We have that with PF_MEMALLOC.
-> > 
-> > Exactly. But if you recognise the need for PF_MEMALLOC then what is this
-> > argument about?
+> diff -puN /dev/null Documentation/memcontrol.txt
+> --- /dev/null	2007-06-01 20:42:04.000000000 +0530
+> +++ linux-2.6.23-rc2-mm2-balbir/Documentation/memcontrol.txt	2007-08-22 18:29:29.000000000 +0530
+> @@ -0,0 +1,193 @@
+> +Memory Controller
+> +
+> +0. Salient features
+> +
+> +a. Enable control of both RSS and Page Cache pages
+> +b. The infrastructures allows easy addition of other types of memory to control
+> +c. Provides *zero overhead* for non memory controller users
+> +d. Provides a double LRU, global memory pressure causes reclaim from the
+> +   global LRU, a container on hitting a limit, reclaims from the per
+> +   container LRU
+> +
+> +1. History
+> +
+> +The memory controller has a long history. A request for comments for the memory
+> +controller was posted by Balbir Singh [1]. At the time the RFC was posted
+> +there were several implementations for memory control, the goal of the
+> +RFC was to build consensus and agreement for the minimal features required
+> +for memory control. The first RSS controller was posted by Balbir Singh[2]
+> +in Feb 2007. Pavel Emelianov [3][4][5] has since posted three versions of the
+> +RSS controller. At OLS, at the resource management BoF, everyone suggested
+> +that we handle both page cache and RSS together. Another request was raised
+> +to allow user space handling of OOM. The current memory controller is
+> +at version 6, it combines both RSS and Page Cache Control [11].
+> +
+> +2. Memory Control
+> +
+> +Memory is a unique resource in the sense that it is present in a limited
+> +amount. If a task requires a lot of CPU processing, the task can spread
+> +its processing over a period of hours, days, months or years, but with
+> +memory, the same physical memory needs to be reused to accomplish the task.
+> +
+> +The memory controller implementation has been divided into phases, these
+> +are
+> +
+> +1. Memory controller
+> +2. mlock(2) controller
+> +3. Kernel user memory accounting and slab control
+> +4. user mappings length controller
+> +
+> +The memory controller is the first controller developed.
+> +
+> +2.1. Design
+> +
+> +The core of the design is a counter called the res_counter. The res_counter
+> +tracks the current memory usage and limit of the group of processes associated
+> +with the controller. Each container has a memory controller specific data
+> +structure (mem_container) associated with it.
+> +
+> +2.2. Accounting
+> +
+> +		+--------------------+
+> +		|  mem_container     |
+> +		|  (res_counter)     |
+> +		+--------------------+
+> +		 /            ^      \
+> +		/             |       \
+> +           +---------------+  |        +---------------+
+> +           | mm_struct     |  |....    | mm_struct     |
+> +           |               |  |        |               |
+> +           +---------------+  |        +---------------+
+> +                              |
+> +                              + --------------+
+> +                                              |
+> +           +---------------+           +------+--------+
+> +           | page          +---------->  page_container|
+> +           |               |           |               |
+> +           +---------------+           +---------------+
+> +
+> +             (Figure 1: Hierarchy of Accounting)
+> +
+> +
+> +Figure 1 shows the important aspects of the controller
+> +
+> +1. Accounting happens per container
+> +2. Each mm_struct knows about which container they belong to
+> +3. Each page has a pointer to the page_container, which in turn knows the
+> +   container it belongs to
+> +
+> +The accounting is done as follows, mem_container_charge() is invoked to setup
+> +the necessary data structures and check if the container that is being charged
+> +is over its limit. If it is then reclaim is invoked on the container.
+> +More details can be found in the reclaim section of this document.
+> +If everything goes well, a page meta-data-structure called page_container is
+> +allocated and associated with the page.  This routine also adds the page to
+> +the per container LRU.
+> +
+> +2.3 Shared Page Accounting
+> +
+> +Shared pages are accounted on the basis of the first touch approach. The
+> +container that first touches a page is accounted for the page. The principle
+> +behind this approach is that a container that aggressively uses a shared
+> +page, will eventually get charged for it (once it is uncharged from
+> +the container that brought it in -- this will happen on memory pressure).
+> +
+> +2.4 Reclaim
+> +
+> +Each container maintains a per container LRU that consists of an active
+> +and inactive list. When a container goes over its limit, we first try
+> +and reclaim memory from the container so as to make space for the new
+> +pages that the container has touched. If the reclaim is unsuccessful,
+> +an OOM routine is invoked to select and kill the bulkiest task in the
+> +container.
+> +
+> +The reclaim algorithm has not been modified for containers, except that
+> +pages that are selected for reclaiming come from the per container LRU
+> +list.
+> +
+> +2.5
+> +
+> +3. User Interface
+> +
+> +0. Configuration
+> +
+> +a. Enable CONFIG_CONTAINERS
+> +b. Enable CONFIG_RESOURCE_COUNTERS
+> +c. Enable CONFIG_CONTAINER_MEM_CONT
+> +
+> +1. Prepare the containers
+> +# mkdir -p /containers
+> +# mount -t container none /containers -o memory
+> +
+> +2. Make the new group and move bash into it
+> +# mkdir /containers/0
+> +# echo $$ >  /containers/0/tasks
+> +
+> +Since now we're in the 0 container.
+> +We can alter the memory limit
+> +# echo -n 6000 > /containers/0/memory.limit
+> +
+> +We can check the usage
+> +# cat /containers/0/memory.usage
+> +25
+> +
+> +The memory.failcnt gives the number of times that the container limit was
+> +exceeded.
+> +
+> +4. Testing
+> +
+> +Balbir posted lmbench, AIM9, LTP and vmmstress results [10] and [11].
+> +Apart from that v6 has been tested with several applications and regular
+> +daily use. The controller has also been tested on the PPC64, x86_64 and
+> +UML platforms.
+> +
+> +4.1 Troubleshooting
+> +
+> +Sometimes a user might find that the application under a container is
+> +terminated, there are several causes for this
+> +
+> +1. The container limit is too low (just too low to do anything useful)
+> +2. The user is using anonymous memory and swap is turned off or too low
+> +
+> +echo 1 > /proc/sys/vm/drop_pages will help get rid of some of the pages
+> +cached in the container (page cache pages).
+> +
+> +5. TODO
+> +
+> +1. Add support for accounting huge pages (as a separate controller)
+> +2. Improve the user interface to accept/display memory limits in KB or MB
+> +   rather than pages (since page sizes can differ across platforms/machines).
+> +3. Make container lists per-zone
+> +4. Make per-container scanner reclaim not-shared pages first
+> +5. Teach controller to account for shared-pages
+> +6. Start reclamation when the limit is lowered
+> +7. Start reclamation in the background when the limit is
+> +   not yet hit but the usage is getting closer
+> +8. Create per zone LRU lists per container
+> +
+> +Summary
+> +
+> +Overall, the memory controller has been a stable controller and has been
+> +commented and discussed on quite extensively in the community.
+> +
+> +References
+> +
+> +1. Singh, Balbir. RFC: Memory Controller, http://lwn.net/Articles/206697/
+> +2. Singh, Balbir. Memory Controller (RSS Control),
+> +   http://lwn.net/Articles/222762/
+> +3. Emelianov, Pavel. Resource controllers based on process containers
+> +   http://lkml.org/lkml/2007/3/6/198
+> +4. Emelianov, Pavel. RSS controller based on process containers (v2)
+> +   http://lkml.org/lkml/2007/4/9/74
+> +5. Emelianov, Pavel. RSS controller based on process containers (v3)
+> +   http://lkml.org/lkml/2007/5/30/244
+> +6. Menage, Paul. Containers v10, http://lwn.net/Articles/236032/
+> +7. Vaidyanathan, Srinivasan, Containers: Pagecache accounting and control
+> +   subsystem (v3), http://lwn.net/Articles/235534/
+> +8. Singh, Balbir. RSS controller V2 test results (lmbench),
+> +   http://lkml.org/lkml/2007/5/17/232
+> +9. Singh, Balbir. RSS controller V2 AIM9 results
+> +   http://lkml.org/lkml/2007/5/18/1
+> +10. Singh, Balbir. Memory controller v6 results,
+> +    http://lkml.org/lkml/2007/8/19/36
+> +11. Singh, Balbir. Memory controller v6, http://lkml.org/lkml/2007/8/17/69
+> _
 > 
-> The PF_MEMALLOC patchset f.e. is about avoiding to go out of 
-> memory when there is still memory available even if we are doing a 
-> PF_MEMALLOC allocation and would OOM otherwise.
-
-Right, but as long as there is a need for PF_MEMALLOC there is a need
-for the patches I proposed.
-
-> > Networking can currently be seen as having two states:
-> > 
-> >  1 receive packets and consume memory
-> >  2 drop all packets (when out of memory)
-> > 
-> > I need a 3rd state:
-> > 
-> >  3 receiving packets but not consuming memory
+> -- 
+> 	Warm Regards,
+> 	Balbir Singh
+> 	Linux Technology Center
+> 	IBM, ISTL
+> -
+> To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
+> the body of a message to majordomo@vger.kernel.org
+> More majordomo info at  http://vger.kernel.org/majordomo-info.html
+> Please read the FAQ at  http://www.tux.org/lkml/
 > 
-> So far a good idea. If you are not consuming memory then why are the 
-> allocators involved?
-
-Because I do need to receive some packets, its just that I'll free them
-again. So it won't keep consuming memory. This needs a little pool of
-memory in order to operate in a stable state.
-
-Its: alloc, receive, inspect, free
-total memory use: 0
-memory delta: a little
- 
-(its just that you need to be able to receive a significant number of
-packets, not 1, due to funny things like ip-defragmentation before you
-can be sure to actually receive 1 whole tcp packet - but the idea is the
-same)
-
-> > Now, I need this state when we're in PF_MEMALLOC territory, because I
-> > need to be able to process an unspecified amount of network traffic in
-> > order to receive the writeout completion.
-> > 
-> > In order to operate this 3rd network state, some memory is needed in
-> > which packets can be received and when deemed not important freed and
-> > reused.
-> > 
-> > It needs a bounded amount of memory in order to process an unbounded
-> > amount of network traffic.
-> > 
-> > What exactly is not clear about this? If you accept the need for
-> > PF_MEMALLOC you surely must also agree that at the point you're using it
-> > running reclaim is useless.
-> 
-> Yes looks like you would like to add something to the network layer to 
-> filter important packets. As long as you stay within PF_MEMALLOC 
-> boundaries you can allocate and throw packets away. If you want to have a 
-> reserve that is secure and just for you then you need to take it away from 
-> the reserves (which in turn will lead reclaim to restore them).
-
-Ah, but also note that _using_ PF_MEMALLOC is the trigger to enter that
-3rd network state. These two are tightly coupled. You only need this 3rd
-state when under PF_MEMALLOC, otherwise we could just receive normally.
-
-So, my thinking was that, if the current reserves are good enough to
-keep the system 'deadlock' free, I can just enlarge the reserves by
-whatever it is I need for that network state and we're all good, no?
-
-Why separate these two? If the current reserve is large enough (and
-theoretically it is not - but I'm meaning to fix that) it will not
-consume the extra memory I added below.
-
-Note how:
-  [PATCH 09/10] mm: emergency pool
-pushes up the current reserves in a fashion so as to maintain the
-relative operating range of the page allocator (distance between
-min,low,high and scaling of the wmarks under ALLOC_HIGH|ALLOC_HARDER).
-
-> > > > Also, failing a memory allocation isn't bad, why are you so worried
-> > > > about that? It happens all the time.
-> > > 
-> > > Its a performance impact and plainly does not make sense if there is 
-> > > reclaimable memory availble. The common action of the vm is to reclaim if 
-> > > there is a demand for memory. Now we suddenly abandon that approach?
-> > 
-> > I'm utterly confused by this, on one hand you recognise the need for
-> > PF_MEMALLOC but on the other hand you're saying its not needed and
-> > anybody needing memory (even reclaim itself) should use reclaim.
-> 
-> The VM reclaims memory on demand but in exceptional limited cases where we 
-> cannot do so we use the reserves. I am sure you know this.
-
-Its the abandon part I got confused about. I'm not at all abandoning
-reclaim, its just that I must operate under PF_MEMALLOC, so reclaim is
-pointless.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
