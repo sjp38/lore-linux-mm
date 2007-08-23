@@ -1,93 +1,65 @@
-Subject: Re: [RFC 0/7] Postphone reclaim laundry to write at high water
-	marks
-From: Peter Zijlstra <peterz@infradead.org>
-In-Reply-To: <20070823120819.GO13915@v2.random>
-References: <20070820215040.937296148@sgi.com>
-	 <1187692586.6114.211.camel@twins>
-	 <Pine.LNX.4.64.0708211347480.3082@schroedinger.engr.sgi.com>
-	 <1187730812.5463.12.camel@lappy>
-	 <Pine.LNX.4.64.0708211418120.3267@schroedinger.engr.sgi.com>
-	 <1187734144.5463.35.camel@lappy>  <20070823120819.GO13915@v2.random>
-Content-Type: text/plain
-Date: Thu, 23 Aug 2007 14:59:48 +0200
-Message-Id: <1187873988.6114.388.camel@twins>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Date: Thu, 23 Aug 2007 14:07:32 +0100
+Subject: Re: [BUG] 2.6.23-rc3-mm1 kernel BUG at mm/page_alloc.c:2876!
+Message-ID: <20070823130732.GC18456@skynet.ie>
+References: <46CC9A7A.2030404@linux.vnet.ibm.com> <20070822134800.ce5a5a69.akpm@linux-foundation.org> <20070822135024.dde8ef5a.akpm@linux-foundation.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <20070822135024.dde8ef5a.akpm@linux-foundation.org>
+From: mel@skynet.ie (Mel Gorman)
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrea Arcangeli <andrea@suse.de>
-Cc: Christoph Lameter <clameter@sgi.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Kamalesh Babulal <kamalesh@linux.vnet.ibm.com>, linux-kernel@vger.kernel.org, Balbir Singh <balbir@linux.vnet.ibm.com>, Christoph Lameter <clameter@sgi.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 2007-08-23 at 14:08 +0200, Andrea Arcangeli wrote:
-> On Wed, Aug 22, 2007 at 12:09:03AM +0200, Peter Zijlstra wrote:
-> > Strictly speaking:
-> > 
-> > if:
-> > 
-> >  page = alloc_page(gfp);
-> > 
-> > fails but:
-> > 
-> >  obj = kmem_cache_alloc(s, gfp);
-> > 
-> > succeeds then its a bug.
+On (22/08/07 13:50), Andrew Morton didst pronounce:
+> On Wed, 22 Aug 2007 13:48:00 -0700
+> Andrew Morton <akpm@linux-foundation.org> wrote:
 > 
-> Why? this is like saying that if alloc_pages(order=1) fails but
-> alloc_pages(order=0) succeeds then it's a bug. Obviously it's not a
-> bug.
+> > This:
+> > 
+> > --- a/mm/page_alloc.c~a
+> > +++ a/mm/page_alloc.c
+> > @@ -2814,6 +2814,8 @@ static int __cpuinit process_zones(int c
+> >  	return 0;
+> >  bad:
+> >  	for_each_zone(dzone) {
+> > +		if (!populated_zone(zone))
+> > +			continue;		
+> >  		if (dzone == zone)
+> >  			break;
+> >  		kfree(zone_pcp(dzone, cpu));
+> > _
+> > 
+> > might help avoid the crash
 > 
-> The only bug is if slab allocations <=4k fails despite
-> alloc_pages(order=0) would succeed.
+> err, make that
+> 
 
-That would be currently true. However I need it to be stricter.
+We're already in the error path at this point and it's going to blow up.
+The real problem is kmalloc_node() returning NULL for whatever reason.
 
-I'm wanting to do networked swap. And in order to be able to receive
-writeout completions when in the PF_MEMALLOC region I need to introduce
-a new network state. This is because it needs to operate in a steady
-state with limited (bounded) memory use.
+> --- a/mm/page_alloc.c~a
+> +++ a/mm/page_alloc.c
+> @@ -2814,6 +2814,8 @@ static int __cpuinit process_zones(int c
+>  	return 0;
+>  bad:
+>  	for_each_zone(dzone) {
+> +		if (!populated_zone(dzone))
+> +			continue;
+>  		if (dzone == zone)
+>  			break;
+>  		kfree(zone_pcp(dzone, cpu));
+> _
+> 
+> 
 
-Normal network either consumes memory, or fails to receive anything at
-all.
-
-So this new network state will allocate space for a packet, receive the
-packet from the NIC, inspect the packet, and toss the packet when its
-not found to be aimed at the VM (ie. does not contain a writeout
-completion).
-
-So the total memory consumption of this state is 0 - it always frees
-what it takes, but the memory use is non 0 but bounded - it does
-temporarily use memory, but will limit itself to never exceed a given
-maximum)
-
-Because the network stack runs on the slab allocator in generic (both
-kmem_cache and kmalloc) I need this extra guarantee so that a slab
-allocated from the reserves will not serve objects to some random
-non-critical application.
-
-If this is not restricted this network state can leak memory to outside
-of PF_MEMALLOC and will not be stable.
-
-So what I need is:
-
-  kmem_cache_alloc(s, gfp) to fail when alloc_page(gfp) fails
-
-agreeing on the extra condition:
-
-  when kmem_cache_size(s) <= PAGE_SIZE
-
-and the extra note that:
-
-  I only really need it to fail for ALLOC_NO_WATERMARKS, the other
-  levels like ALLOC_HIGH and ALLOC_HARDER are not critical.
-
-Which ends up with:
-
-  if the current gfp-context does not allow ALLOC_NO_WATERMARKS
-allocations, and alloc_page() fails, so must kmem_cache_alloc(s,) if
-kmem_cache_size(s) <= PAGE_SIZE.
-
-(yes this leaves jumbo frames broken)
+-- 
+-- 
+Mel Gorman
+Part-time Phd Student                          Linux Technology Center
+University of Limerick                         IBM Dublin Software Lab
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
