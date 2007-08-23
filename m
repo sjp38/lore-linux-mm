@@ -1,65 +1,137 @@
-Date: Thu, 23 Aug 2007 13:23:00 -0700 (PDT)
+Date: Thu, 23 Aug 2007 13:53:32 -0700 (PDT)
 From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [RFC 0/7] Postphone reclaim laundry to write at high water marks
-In-Reply-To: <20070823120506.GN13915@v2.random>
-Message-ID: <Pine.LNX.4.64.0708231318100.14720@schroedinger.engr.sgi.com>
-References: <20070820215040.937296148@sgi.com> <1187692586.6114.211.camel@twins>
- <Pine.LNX.4.64.0708211347480.3082@schroedinger.engr.sgi.com>
- <1187730812.5463.12.camel@lappy> <Pine.LNX.4.64.0708211418120.3267@schroedinger.engr.sgi.com>
- <46CB5C89.2070807@redhat.com> <Pine.LNX.4.64.0708211521260.5728@schroedinger.engr.sgi.com>
- <20070823120506.GN13915@v2.random>
+Subject: [PATCH] Reclaim if PF_MEMALLOC and no memory available V1
+Message-ID: <Pine.LNX.4.64.0708231348030.18337@schroedinger.engr.sgi.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrea Arcangeli <andrea@suse.de>
-Cc: Rik van Riel <riel@redhat.com>, Peter Zijlstra <peterz@infradead.org>, linux-mm@kvack.org, dkegel@google.com, akpm@linux-foundation.org, Nick Piggin <npiggin@suse.de>, ak@suse.de, linux-kernel@vger.kernel.org
+To: linux-kernel@vger.kernel.org
+Cc: linux-mm@kvack.org, Andrea Arcangeli <andrea@suse.de>, Rik van Riel <riel@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Nick Piggin <npiggin@suse.de>, ak@suse.de, akpm@linux-foundation.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 23 Aug 2007, Andrea Arcangeli wrote:
+If we exhaust the reserves in the page allocator when PF_MEMALLOC is set
+then no longer give up but call into reclaim with PF_MEMALLOC set.
 
-> On Tue, Aug 21, 2007 at 03:32:25PM -0700, Christoph Lameter wrote:
-> > 1. Like in the earlier patchset allow reentry to reclaim under 
-> >    PF_MEMALLOC if we are out of all memory.
-> 
-> Can you simply tweak on the may_writepage flag only to achieve the
-> second pass? We're talking here about a totally non-performance case,
-> almost impossible to hit in practice unless you do real weird things,
-> and certainly very unlikely to happen. So I'm unsure what's all that
-> complexity just to make a regular pass on the lru looking for clean
-> pages, something may_writepage=0 already does.
-> 
+This is in essence a recursive call back into page reclaim with another
+page flag (__GFP_NOMEMALLOC) set. The recursion is bounded since potential
+allocations with __GFP_NOMEMALLOC set will not enter that branch again.
 
-Yes that is what the PF_MEMALLOC patch that I posted before does. This 
-discussion gets me more and more to thinking that the recursive reclaim on 
-PF_MEMALLOC is all that is needed for emergency situations (to get out of 
-the "tight spot").
+Allocation under PF_MEMALLOC will no longer run out outmemory if there 
+memory that is reclaimable without additional memory
+allocations.
 
-See
-http://marc.info/?l=linux-kernel&m=118710219116624&w=2
+In order to make allocation-less reclaim working we need to avoid writing
+pages out or swapping. So on entry to try_to_free_pages() we check for
+__GFP_NOMEMALLOC. If it is set then sc.may_writepage and sc.mayswap are
+switched off and we short circuit the writeout throttling.
 
-> If the PF_MEMALLOC is found empty, I agree entering reclaim a second
-> time with may_writepage=0 sounds theoretically a good idea (in
-> practice it should never be necessary). printk must also be printed to
-> warn the user he was risking to deadlock for real and he has to
-> increase the min_free_kbytes.
+The types of pages that can be reclaimed by a call to try_to_free_pages()
+with the __GFP_NOMEMALLOC parameter are:
 
-Ok. I can add a printk to that one.
+- Unmapped clean page cache pages.
+- Mapped clean pages
+- slab shrinking
 
-> That sounds a bit risky, there are latency considerations here to
-> make, GFP_ATOMIC will run with irq locally disabled and it may hang
-> for indefinite amount of time (O(N)). So irq latency may break and it
-> may be better to lose a packet once in a while than to hang
-> interrupts. If you want to do this you'd probably need to add a new
-> GFP_ATOMIC_RECLAIM or similar.
+We print a warning if we get into the special reclaim mode because
+this means that the reserves are too low.
 
-Well we could do the same as for PF_MEMALLOC: print a warning and then 
-reclaim nevertheless if we cannot fail (We already have a GFP_NOFAIL 
-flag). It is better to generate a latency than the system failing 
-altogether. However the GFP_ATOMIC reclaim patchset is a 
-bit more invasive (http://marc.info/?l=linux-mm&m=118710584014150&w=2). 
-Maybe this is too much churn for the rare need of such a reclaim.
+Changes
+RFC->v1
+- Allow slab shrinking in recursive reclaim (is protected by a
+  semaphore and already had to deal with allocs failing under
+  PF_MEMALLOC)
+- Add printk to show that recursive reclaim is being used.
+
+Signed-off-by: Christoph Lameter <clameter@sgi.com>
+
+---
+ mm/vmscan.c |   25 ++++++++++++++++++++++---
+ 1 file changed, 22 insertions(+), 3 deletions(-)
+
+Index: linux-2.6/mm/vmscan.c
+===================================================================
+--- linux-2.6.orig/mm/vmscan.c	2007-08-23 13:28:32.000000000 -0700
++++ linux-2.6/mm/vmscan.c	2007-08-23 13:32:42.000000000 -0700
+@@ -1106,7 +1106,8 @@ static unsigned long shrink_zone(int pri
+ 		}
+ 	}
  
+-	throttle_vm_writeout(sc->gfp_mask);
++	if (!(sc->gfp_mask & __GFP_NOMEMALLOC))
++		throttle_vm_writeout(sc->gfp_mask);
+ 
+ 	atomic_dec(&zone->reclaim_in_progress);
+ 	return nr_reclaimed;
+@@ -1168,6 +1169,9 @@ static unsigned long shrink_zones(int pr
+  * hope that some of these pages can be written.  But if the allocating task
+  * holds filesystem locks which prevent writeout this might not work, and the
+  * allocation attempt will fail.
++ *
++ * The __GFP_NOMEMALLOC flag has a special role. If it is set then no memory
++ * allocations or writeout will occur.
+  */
+ unsigned long try_to_free_pages(struct zone **zones, int order, gfp_t gfp_mask)
+ {
+@@ -1180,15 +1184,21 @@ unsigned long try_to_free_pages(struct z
+ 	int i;
+ 	struct scan_control sc = {
+ 		.gfp_mask = gfp_mask,
+-		.may_writepage = !laptop_mode,
+ 		.swap_cluster_max = SWAP_CLUSTER_MAX,
+-		.may_swap = 1,
+ 		.swappiness = vm_swappiness,
+ 		.order = order,
+ 	};
+ 
+ 	count_vm_event(ALLOCSTALL);
+ 
++	if (gfp_mask & __GFP_NOMEMALLOC) {
++		if (printk_ratelimited())
++			printk(KERN_WARNING "Entering recursive reclaim due "
++					"to depleted memory reserves\n");
++	} else {
++		sc.may_writepage = !laptop_mode;
++		sc.may_swap = 1;
++	}
+ 	for (i = 0; zones[i] != NULL; i++) {
+ 		struct zone *zone = zones[i];
+ 
+@@ -1215,6 +1225,9 @@ unsigned long try_to_free_pages(struct z
+ 			goto out;
+ 		}
+ 
++		if (!(gfp_mask & __GFP_NOMEMALLOC))
++			continue;
++
+ 		/*
+ 		 * Try to write back as many pages as we just scanned.  This
+ 		 * tends to cause slow streaming writers to write data to the
+Index: linux-2.6/mm/page_alloc.c
+===================================================================
+--- linux-2.6.orig/mm/page_alloc.c	2007-08-23 13:34:50.000000000 -0700
++++ linux-2.6/mm/page_alloc.c	2007-08-23 13:36:59.000000000 -0700
+@@ -1319,6 +1319,20 @@ nofail_alloc:
+ 				zonelist, ALLOC_NO_WATERMARKS);
+ 			if (page)
+ 				goto got_pg;
++			/*
++			 * No memory is available at all.
++			 *
++			 * However, if we are already in reclaim then the
++			 * reclaim_state etc is already setup. Simply call
++			 * try_to_get_free_pages() with PF_MEMALLOC which
++			 * will reclaim without the need to allocate more
++			 * memory.
++			 */
++			if (p->flags & PF_MEMALLOC && wait &&
++				try_to_free_pages(zonelist->zones, order,
++						gfp_mask | __GFP_NOMEMALLOC))
++				goto restart;
++
+ 			if (gfp_mask & __GFP_NOFAIL) {
+ 				congestion_wait(WRITE, HZ/50);
+ 				goto nofail_alloc;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
