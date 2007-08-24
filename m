@@ -1,70 +1,140 @@
-Message-Id: <20070824222949.238692000@sgi.com>
+Message-Id: <20070824222949.107703000@sgi.com>
 References: <20070824222654.687510000@sgi.com>
-Date: Fri, 24 Aug 2007 15:27:00 -0700
+Date: Fri, 24 Aug 2007 15:26:59 -0700
 From: travis@sgi.com
-Subject: [PATCH 6/6] x86: acpi-use-cpu_physical_id (v2)
-Content-Disposition: inline; filename=acpi-use-cpu_physical_id
+Subject: [PATCH 5/6] x86: Convert cpu_llc_id to be a per cpu variable (v2)
+Content-Disposition: inline; filename=convert-cpu_llc_id-to-per_cpu_data
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Andi Kleen <ak@suse.de>
 Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <clameter@sgi.com>
 List-ID: <linux-mm.kvack.org>
 
-This is from an earlier message from Christoph Lameter:
+Convert cpu_llc_id from a static array sized by NR_CPUS to a
+per_cpu variable.  This saves sizeof(cpu_llc_id) * NR unused
+cpus.  Access is mostly from startup and CPU HOTPLUG functions.
 
-    processor_core.c currently tries to determine the apicid by special casing
-    for IA64 and x86. The desired information is readily available via
-
-	    cpu_physical_id()
-
-    on IA64, i386 and x86_64.
-
-    Signed-off-by: Christoph Lameter <clameter@sgi.com>
-
-Additionally, boot_cpu_id needed to be exported to fix compile errors in
-dma code when !CONFIG_SMP.
+Note there's an addtional change of the type of cpu_llc_id
+from int to u8 for ARCH i386 to correspond with the same
+type in ARCH x86_64.
 
 Signed-off-by: Mike Travis <travis@sgi.com>
 ---
- arch/x86_64/kernel/mpparse.c  |    2 ++
- drivers/acpi/processor_core.c |    8 +-------
- 2 files changed, 3 insertions(+), 7 deletions(-)
+ arch/i386/kernel/cpu/intel_cacheinfo.c |    4 ++--
+ arch/i386/kernel/smpboot.c             |    6 +++---
+ arch/x86_64/kernel/smpboot.c           |    6 +++---
+ include/asm-i386/processor.h           |    6 +++++-
+ include/asm-x86_64/smp.h               |    9 ++++-----
+ 5 files changed, 17 insertions(+), 14 deletions(-)
 
---- a/drivers/acpi/processor_core.c
-+++ b/drivers/acpi/processor_core.c
-@@ -420,12 +420,6 @@
- 	return 0;
- }
- 
--#ifdef CONFIG_IA64
--#define arch_cpu_to_apicid 	ia64_cpu_to_sapicid
--#else
--#define arch_cpu_to_apicid 	x86_cpu_to_apicid
--#endif
--
- static int map_madt_entry(u32 acpi_id)
- {
- 	unsigned long madt_end, entry;
-@@ -499,7 +493,7 @@
- 		return apic_id;
- 
- 	for (i = 0; i < NR_CPUS; ++i) {
--		if (arch_cpu_to_apicid[i] == apic_id)
-+		if (cpu_physical_id(i) == apic_id)
- 			return i;
+--- a/arch/i386/kernel/cpu/intel_cacheinfo.c
++++ b/arch/i386/kernel/cpu/intel_cacheinfo.c
+@@ -417,14 +417,14 @@
+ 	if (new_l2) {
+ 		l2 = new_l2;
+ #ifdef CONFIG_X86_HT
+-		cpu_llc_id[cpu] = l2_id;
++		per_cpu(cpu_llc_id, cpu) = l2_id;
+ #endif
  	}
- 	return -1;
---- a/arch/x86_64/kernel/mpparse.c
-+++ b/arch/x86_64/kernel/mpparse.c
-@@ -57,6 +57,8 @@
  
- /* Processor that is doing the boot up */
- unsigned int boot_cpu_id = -1U;
-+EXPORT_SYMBOL(boot_cpu_id);
-+
- /* Internal processor count */
- unsigned int num_processors __cpuinitdata = 0;
+ 	if (new_l3) {
+ 		l3 = new_l3;
+ #ifdef CONFIG_X86_HT
+-		cpu_llc_id[cpu] = l3_id;
++		per_cpu(cpu_llc_id, cpu) = l3_id;
+ #endif
+ 	}
  
+--- a/arch/i386/kernel/smpboot.c
++++ b/arch/i386/kernel/smpboot.c
+@@ -67,7 +67,7 @@
+ EXPORT_SYMBOL(smp_num_siblings);
+ 
+ /* Last level cache ID of each logical CPU */
+-int cpu_llc_id[NR_CPUS] __cpuinitdata = {[0 ... NR_CPUS-1] = BAD_APICID};
++DEFINE_PER_CPU(u8, cpu_llc_id) = BAD_APICID;
+ 
+ /* representing HT siblings of each logical CPU */
+ DEFINE_PER_CPU(cpumask_t, cpu_sibling_map);
+@@ -348,8 +348,8 @@
+ 	}
+ 
+ 	for_each_cpu_mask(i, cpu_sibling_setup_map) {
+-		if (cpu_llc_id[cpu] != BAD_APICID &&
+-		    cpu_llc_id[cpu] == cpu_llc_id[i]) {
++		if (per_cpu(cpu_llc_id, cpu) != BAD_APICID &&
++		    per_cpu(cpu_llc_id, cpu) == per_cpu(cpu_llc_id, i)) {
+ 			cpu_set(i, c[cpu].llc_shared_map);
+ 			cpu_set(cpu, c[i].llc_shared_map);
+ 		}
+--- a/arch/x86_64/kernel/smpboot.c
++++ b/arch/x86_64/kernel/smpboot.c
+@@ -65,7 +65,7 @@
+ EXPORT_SYMBOL(smp_num_siblings);
+ 
+ /* Last level cache ID of each logical CPU */
+-u8 cpu_llc_id[NR_CPUS] __cpuinitdata  = {[0 ... NR_CPUS-1] = BAD_APICID};
++DEFINE_PER_CPU(u8, cpu_llc_id) = BAD_APICID;
+ 
+ /* Bitmask of currently online CPUs */
+ cpumask_t cpu_online_map __read_mostly;
+@@ -285,8 +285,8 @@
+ 	}
+ 
+ 	for_each_cpu_mask(i, cpu_sibling_setup_map) {
+-		if (cpu_llc_id[cpu] != BAD_APICID &&
+-		    cpu_llc_id[cpu] == cpu_llc_id[i]) {
++		if (per_cpu(cpu_llc_id, cpu) != BAD_APICID &&
++		    per_cpu(cpu_llc_id, cpu) == per_cpu(cpu_llc_id, i)) {
+ 			cpu_set(i, c[cpu].llc_shared_map);
+ 			cpu_set(cpu, c[i].llc_shared_map);
+ 		}
+--- a/include/asm-i386/processor.h
++++ b/include/asm-i386/processor.h
+@@ -110,7 +110,11 @@
+ #define current_cpu_data boot_cpu_data
+ #endif
+ 
+-extern	int cpu_llc_id[NR_CPUS];
++/*
++ * the following now lives in the per cpu area:
++ * extern	int cpu_llc_id[NR_CPUS];
++ */
++DECLARE_PER_CPU(u8, cpu_llc_id);
+ extern char ignore_fpu_irq;
+ 
+ void __init cpu_detect(struct cpuinfo_x86 *c);
+--- a/include/asm-x86_64/smp.h
++++ b/include/asm-x86_64/smp.h
+@@ -39,16 +39,14 @@
+ extern void smp_send_reschedule(int cpu);
+ 
+ /*
+- * cpu_sibling_map and cpu_core_map now live
+- * in the per cpu area
+- *
++ * the following now live in the per cpu area:
+  * extern cpumask_t cpu_sibling_map[NR_CPUS];
+  * extern cpumask_t cpu_core_map[NR_CPUS];
++ * extern u8 cpu_llc_id[NR_CPUS];
+  */
+ DECLARE_PER_CPU(cpumask_t, cpu_sibling_map);
+ DECLARE_PER_CPU(cpumask_t, cpu_core_map);
+-
+-extern u8 cpu_llc_id[NR_CPUS];
++DECLARE_PER_CPU(u8, cpu_llc_id);
+ 
+ #define SMP_TRAMPOLINE_BASE 0x6000
+ 
+@@ -120,6 +118,7 @@
+ #ifdef CONFIG_SMP
+ #define cpu_physical_id(cpu)		per_cpu(x86_cpu_to_apicid, cpu)
+ #else
++extern unsigned int boot_cpu_id;
+ #define cpu_physical_id(cpu)		boot_cpu_id
+ #endif /* !CONFIG_SMP */
+ #endif
 
 -- 
 
