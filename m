@@ -1,92 +1,52 @@
-From: "Edmond Dawkins" <fhdaytime@ooltewah.com>
-Subject: Probieren Sie es - Mann Lebt nur einmal   the Firm to the --  texts. If you've read a 
-Date: Fri, 24 Aug 2007 00:07:14 -0900
-Message-ID: <01c7e5e2$b9df0980$bd12fe79@fhdaytime>
+Received: by nz-out-0506.google.com with SMTP id s1so481261nze
+        for <linux-mm@kvack.org>; Thu, 23 Aug 2007 17:07:58 -0700 (PDT)
+Message-ID: <bd9320b30708231707l67d2d9d0l436a229bd77a86f@mail.gmail.com>
+Date: Thu, 23 Aug 2007 17:07:58 -0700
+From: mike <mike503@gmail.com>
+Subject: Drop caches - is this safe behavior?
+In-Reply-To: <bd9320b30708231645x3c6524efi55dd2cf7b1a9ba51@mail.gmail.com>
 MIME-Version: 1.0
-Content-Type: multipart/alternative;
-	boundary="----=_NextPart_000_0006_01C7E62E.29C6B180"
-Return-Path: <fhdaytime@ooltewah.com>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+References: <bd9320b30708231645x3c6524efi55dd2cf7b1a9ba51@mail.gmail.com>
+Sender: owner-linux-mm@kvack.org
+Return-Path: <owner-linux-mm@kvack.org>
 To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-This is a multi-part message in MIME format.
+I have a crontab running every 5 minutes on my servers now:
 
-------=_NextPart_000_0006_01C7E62E.29C6B180
-Content-Type: text/plain;
-	charset="iso-8859-2"
-Content-Transfer-Encoding: 7bit
+    echo 2 > /proc/sys/vm/drop_caches
 
-Haben Sie endlich wieder Spass am Leben!
+Is this a safe thing to do? Am I risking any loss of data? It looks
+like "3" might allow for that but from what I can understand 0-2 won't
+lose data.
 
-Preise die keine Konkurrenz kennen 
+I was seeing some issues with my memory being taken up and thrown all
+into "cached" and eventually starts swapping (not a lot, but a little)
+- supposedly memory in "cached" is supposed to be available for new
+stuff, but I swear it is not. I've tried a variety of things, and this
+drop caches trick seems to make me feel quite comfortable seeing it be
+free as in free physical RAM, not stuck in the cache.
 
-- Kein peinlicher Arztbesuch erforderlich
-- Bequem und diskret online bestellen.
-- Visa verifizierter Onlineshop
-- Kein langes Warten - Auslieferung innerhalb von 2-3 Tagen
-- Kostenlose, arztliche Telefon-Beratung
-- Diskrete Verpackung und Zahlung
-- keine versteckte Kosten
+So far it appears to be keeping my webservers' memory usage tolerable
+and expected, as opposed to rampant and greedy. I haven't seen any
+loss in functionality either. These servers get all their files (sans
+local /var /etc stuff) from NFS, so I don't think a local memory-based
+cache needs to be that important.
 
-Originalmedikamente
-Ciiaaaaaalis 10 Pack. 27,00 Euro
-Viiaaaagra 10 Pack. 21,00 Euro
+I've been trying to find more information on the drop_caches parameter
+and its effects but it appears to be too new and not very widespread.
+Any help is appreciated. Perhaps this is a safe behavior on a
+non-primary file storage system like a webserver mounting NFS, but the
+NFS server itself should not?
 
-Jetzt bestellen - und vier Pillen umsonst erhalten
-http://ihrsaf.thosevary.cn/?801513347907
+Thanks,
+mike
 
-(bitte warten Sie einen Moment bis die Seite vollstandig geladen wird)
-
-------=_NextPart_000_0006_01C7E62E.29C6B180
-Content-Type: text/html;
-	charset="iso-8859-2"
-Content-Transfer-Encoding: quoted-printable
-
-<html xmlns:v=3D"urn:schemas-microsoft-com:vml" xmlns:o=3D"urn:schemas-micr=
-osoft-com:office:office" xmlns:w=3D"urn:schemas-microsoft-com:office:word" =
-xmlns=3D"http://www.w3.org/TR/REC-html40">
-
-<head>
-<META HTTP-EQUIV=3D"Content-Type" CONTENT=3D"text/html; charset=3Diso-8859-2">
-
-
-<meta name=3DProgId content=3DWord.Document>
-<meta name=3DGenerator content=3D"Microsoft Word 10">
-<meta name=3DOriginator content=3D"Microsoft Word 10">
-<link rel=3DFile-List href=3D"cid:filelist.xml@8217829A.67805555">
-<link rel=3DEdit-Time-Data href=3D"cid:editdata.mso@8217829A.67805555">
-</head>
-<body>
-<head><meta http-equiv=3D"Content-Type" content=3D"text/html; charset=3Diso=
--8859-1">
-</head><body><p>Meinung von unserem Kunden:<br><strong>Ich nehme jedes Mal =
-10 mg (dabei zerteile eine 20 mg Tablette in 2 Teile) und nach 15 bis 20 Mi=
-nuten werde ich irre geil. Bei einer sexueller Anregung bekomme ich sofort =
-EINEN SEHR HARTEN SCHWANZ. ER wird dabei GR&#214;SSER UND DICKER als in mei=
-ner Jugend, ich bin SEHR AUSDAUERND UND KANN DEN ZEIPUNKT MEINES ORGASMUS B=
-ESTIMMEN. DIES FINDET JEDE FRAU NAT&#220;RLICH SEHR SCH&#214;N.</strong></p=
-><p><strong>Fantastische Wirkung! F&#252;nf Jahre lang hatte ich es nicht m=
-ehr geschafft, meine Err. ..ektion w&#228;hrend des Verkehrs zu halten und =
-war richtig &#228;ngstlich geworden. Ich hatte auch ein Problem mit vorzeit=
-igem Samenerguss. Au&#223;erdem bin ich Zuckerkrank. Vor einiger Zeit habe =
-ich eine 50-mg-Dosis Viiaaaagra genommen und zwei Stunden sp&#228;ter mit e=
-iner 22-j&#228;hrigen geschlafen. Kurz vor dem Vorspiel wurde mein Penis ha=
-rt und ich konnte es kaum glauben. Ich habe in dieser Nacht dreimal Sex geh=
-abt und es gab keine Probleme dabei. Kein Schuss ging daneben. Ich bin ein =
-gl&#252;cklicher Mann. Achmet, 52<br>
-</strong><strong><br>Haben Sie endlich wieder Spass am Leben!</strong></p><=
-p>Preise die keine Konkurrenz kennen <p>
-- Bequem und diskret online bestellen.<br>- Kostenlose, arztliche Telefon-B=
-eratung<br>- Kein langes Warten - Auslieferung innerhalb von 2-3 Tagen<br>-=
- Visa verifizierter Onlineshop<br>- Kein peinlicher Arztbesuch erforderlich=
-<br>- Diskrete Verpackung und Zahlung<br>- keine versteckte Kosten</p>
-<p>Originalmedikamente<br><strong>Ciiaaaaaalis 10 Pack. 27,00 Euro</strong>=
-<br>
-  <strong>Viiaaaagra 10 Pack. 21,00 Euro</strong><br><br><strong><a href=3D=
-"http://ihrsaf.thosevary.cn/?801513347907" target=3D"_blank">Jetzt bestelle=
-n - und vier Pillen umsonst erhalten</a><br></strong>(bitte warten Sie eine=
-n Moment bis die Seite vollst&auml;ndig geladen wird) </p></body>
-</body>
-</html>
-
-------=_NextPart_000_0006_01C7E62E.29C6B180--
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
