@@ -1,73 +1,71 @@
-Date: Fri, 24 Aug 2007 15:52:34 +0100
-Subject: Re: [PATCH] Fix find_next_best_node (Re: [BUG] 2.6.23-rc3-mm1 Kernel panic - not syncing: DMA: Memory would be corrupted)
-Message-ID: <20070824145233.GA26374@skynet.ie>
-References: <617E1C2C70743745A92448908E030B2A023EB020@scsmsx411.amr.corp.intel.com> <20070823142133.9359a1ce.akpm@linux-foundation.org> <20070824153945.3C75.Y-GOTO@jp.fujitsu.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <20070824153945.3C75.Y-GOTO@jp.fujitsu.com>
-From: mel@skynet.ie (Mel Gorman)
+Received: from d23relay03.au.ibm.com (d23relay03.au.ibm.com [202.81.18.234])
+	by e23smtp03.au.ibm.com (8.13.1/8.13.1) with ESMTP id l7OFJsng002940
+	for <linux-mm@kvack.org>; Sat, 25 Aug 2007 01:19:54 +1000
+Received: from d23av01.au.ibm.com (d23av01.au.ibm.com [9.190.250.242])
+	by d23relay03.au.ibm.com (8.13.8/8.13.8/NCO v8.5) with ESMTP id l7OFJrjB4518052
+	for <linux-mm@kvack.org>; Sat, 25 Aug 2007 01:19:53 +1000
+Received: from d23av01.au.ibm.com (loopback [127.0.0.1])
+	by d23av01.au.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l7OFJrXh027320
+	for <linux-mm@kvack.org>; Sat, 25 Aug 2007 01:19:53 +1000
+From: Balbir Singh <balbir@linux.vnet.ibm.com>
+Date: Fri, 24 Aug 2007 20:49:48 +0530
+Message-Id: <20070824151948.16582.34424.sendpatchset@balbir-laptop>
+Subject: [-mm PATCH 0/10] Memory controller introduction (v7)
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Yasunori Goto <y-goto@jp.fujitsu.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Kamalesh Babulal <kamalesh@linux.vnet.ibm.com>, "Luck, Tony" <tony.luck@intel.com>, Jeremy Higdon <jeremy@sgi.com>, Andi Kleen <ak@suse.de>, linux-kernel@vger.kernel.org, Balbir Singh <balbir@linux.vnet.ibm.com>, linux-ia64@vger.kernel.org, Christoph Lameter <clameter@sgi.com>, linux-mm@kvack.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Linux Containers <containers@lists.osdl.org>, YAMAMOTO Takashi <yamamoto@valinux.co.jp>, Paul Menage <menage@google.com>, Dave Hansen <haveblue@us.ibm.com>, Linux MM Mailing List <linux-mm@kvack.org>, Nick Piggin <npiggin@suse.de>, Vaidyanathan Srinivasan <svaidy@linux.vnet.ibm.com>, Pavel Emelianov <xemul@openvz.org>, Dhaval Giani <dhaval@linux.vnet.ibm.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Eric W Biederman <ebiederm@xmission.com>
 List-ID: <linux-mm.kvack.org>
 
-On (24/08/07 15:53), Yasunori Goto didst pronounce:
-> 
-> I found find_next_best_node() was wrong.
-> I confirmed boot up by the following patch.
-> Mel-san, Kamalesh-san, could you try this?
-> 
+Hi, Andrew,
 
-This boots the IA-64 successful and gets rid of that DMA corrupts
-memory message. As a bonus, it fixes up the memoryless nodes (the bug
-where Total pages == 0 and there is a BUG in page_alloc.c) by building
-zonelists properly. The machine still fails to boot with the more familiar
-net/core/skbuff.c:95 but that is a separate problem.
+Here's version 7 of the memory controller (against 2.6.23-rc2-mm2). I was
+told "7" is a lucky number, so I am hopeful this version of the patchset will
+get merged ;)
 
-Well spotted Yasunori-san.
+The salient features of the patches are
 
-Andrew, this fixes a real problem and should be considered a fix to
-memoryless-nodes-fixup-uses-of-node_online_map-in-generic-code.patch unless
-Christoph Lameter objects.
+a. Provides *zero overhead* for non memory controller users
+b. Enable control of both RSS (mapped) and Page Cache (unmapped) pages
+c. The infrastructure allows easy addition of other types of memory to control
+d. Provides a double LRU: global memory pressure causes reclaim from the
+   global LRU; a container on hitting a limit, reclaims from the per
+   container LRU
 
-> Bye.
-> ---
-> 
-> Fix decision of memoryless node in find_next_best_node().
-> This can be cause of SW-IOMMU's allocation failure.
-> 
-> This patch is for 2.6.23-rc3-mm1.
-> 
-> Signed-off-by: Yasunori Goto <y-goto@jp.fujitsu.com>
-> 
+The documentation accompanying this patch has more details on the design
+and usage.
 
-Acked-by: Mel Gorman <mel@csn.ul.ie>
+Changelog since version 6
 
-> ---
->  mm/page_alloc.c |    2 +-
->  1 file changed, 1 insertion(+), 1 deletion(-)
-> 
-> Index: current/mm/page_alloc.c
-> ===================================================================
-> --- current.orig/mm/page_alloc.c	2007-08-24 16:03:17.000000000 +0900
-> +++ current/mm/page_alloc.c	2007-08-24 16:04:06.000000000 +0900
-> @@ -2136,7 +2136,7 @@ static int find_next_best_node(int node,
->  		 * Note:  N_HIGH_MEMORY state not guaranteed to be
->  		 *        populated yet.
->  		 */
-> -		if (pgdat->node_present_pages)
-> +		if (!pgdat->node_present_pages)
->  			continue;
->  
->  		/* Don't want a node to appear more than once */
-> 
+1. Port to 2.6.23-rc3-mm1
+2. Add new documentation
+
+Tested the patches (with config disabled) and kernbench, lmbench on an
+x86_64 box.
+
+For more detailed test results, comments on usage and detailed changelog
+please see version 6 of the patches
+
+	http://lwn.net/Articles/246140/
+
+series
+
+mem-control-res-counters-infrastructure
+mem-control-setup
+mem-control-accounting-setup
+mem-control-accounting
+mem-control-task-migration
+mem-control-lru-and-reclaim
+mem-control-out-of-memory
+mem-control-choose-rss-vs-rss-and-pagecache
+mem-control-per-container-page-referenced
+mem-control-documentation
 
 -- 
-Mel Gorman
-Part-time Phd Student                          Linux Technology Center
-University of Limerick                         IBM Dublin Software Lab
+	Warm Regards,
+	Balbir Singh
+	Linux Technology Center
+	IBM, ISTL
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
