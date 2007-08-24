@@ -1,71 +1,51 @@
-Subject: [PATCH] 2.6.23-rc3-mm1 - Move setup of N_CPU node state mask
-From: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
-In-Reply-To: <Pine.LNX.4.64.0708081638270.17335@schroedinger.engr.sgi.com>
-References: <20070727194316.18614.36380.sendpatchset@localhost>
-	 <20070727194322.18614.68855.sendpatchset@localhost>
-	 <20070731192241.380e93a0.akpm@linux-foundation.org>
-	 <Pine.LNX.4.64.0707311946530.6158@schroedinger.engr.sgi.com>
-	 <20070731200522.c19b3b95.akpm@linux-foundation.org>
-	 <Pine.LNX.4.64.0707312006550.22443@schroedinger.engr.sgi.com>
-	 <20070731203203.2691ca59.akpm@linux-foundation.org>
-	 <1185977011.5059.36.camel@localhost>
-	 <Pine.LNX.4.64.0708011037510.20795@schroedinger.engr.sgi.com>
-	 <1186085994.5040.98.camel@localhost>
-	 <Pine.LNX.4.64.0708021323390.9711@schroedinger.engr.sgi.com>
-	 <1186611582.5055.95.camel@localhost>
-	 <Pine.LNX.4.64.0708081638270.17335@schroedinger.engr.sgi.com>
+Received: from d03relay02.boulder.ibm.com (d03relay02.boulder.ibm.com [9.17.195.227])
+	by e36.co.us.ibm.com (8.13.8/8.13.8) with ESMTP id l7OGJNqt018250
+	for <linux-mm@kvack.org>; Fri, 24 Aug 2007 12:19:24 -0400
+Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
+	by d03relay02.boulder.ibm.com (8.13.8/8.13.8/NCO v8.5) with ESMTP id l7OGJNQd258042
+	for <linux-mm@kvack.org>; Fri, 24 Aug 2007 10:19:23 -0600
+Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av02.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l7OGJNfh007757
+	for <linux-mm@kvack.org>; Fri, 24 Aug 2007 10:19:23 -0600
+Subject: Re: [PATCH 9/9] pagemap: export swap ptes
+From: Dave Hansen <haveblue@us.ibm.com>
+In-Reply-To: <20070824002945.GE21720@waste.org>
+References: <20070822231804.1132556D@kernel>
+	 <20070822231814.8F5F37A0@kernel>  <20070824002945.GE21720@waste.org>
 Content-Type: text/plain
-Date: Fri, 24 Aug 2007 12:09:20 -0400
-Message-Id: <1187971760.5869.22.camel@localhost>
+Date: Fri, 24 Aug 2007 09:19:22 -0700
+Message-Id: <1187972362.16177.3614.camel@localhost>
 Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
-Cc: Christoph Lameter <clameter@sgi.com>, Andrew Morton <akpm@linux-foundation.org>, Nishanth Aravamudan <nacc@us.ibm.com>, Mel Gorman <mel@skynet.ie>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Eric Whitney <eric.whitney@hp.com>
+To: Matt Mackall <mpm@selenic.com>
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Saw this while looking at "[BUG] 2.6.23-rc3-mm1 kernel BUG at
-mm/page_alloc.c:2876!".  Not sure it matters, as apparently, failure to
-kmalloc() the zone pcp will bug out later anyway.
+On Thu, 2007-08-23 at 19:29 -0500, Matt Mackall wrote:
+> On Wed, Aug 22, 2007 at 04:18:14PM -0700, Dave Hansen wrote:
+> > 
+> > In addition to understanding which physical pages are
+> > used by a process, it would also be very nice to
+> > enumerate how much swap space a process is using.
+> > 
+> > This patch enables /proc/<pid>/pagemap to display
+> > swap ptes.  In the process, it also changes the
+> > constant that we used to indicate non-present ptes
+> > before.
+> > 
+> > Signed-off-by: Dave Hansen <haveblue@us.ibm.com>
+> 
+> I suspect you missed a quilt add here, as is_swap_pte is not in any
+> header file and is thus implicitly declared.
 
-Lee
---------------------------
+Yeah, I have another patch that was declared waaaaaaay earlier in my
+series that does this.  I'm not completely confident in the way that I
+formatted the swap pte, so let's hold off on just this patch for now.
+I'll rework it and send it your way again in a few days.
 
-[PATCH] Move setup of N_CPU node state mask
-
-Against:  2.6.23-rc3-mm1
-
-Move recording of nodes w/ cpus to before zone loop.
-Otherwise, error exit could skip setup of N_CPU mask.  
-
-Signed-off-by:  Lee Schermerhorn <lee.schermerhorn@hp.com>
-
- mm/page_alloc.c |    3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
-
-Index: linux-2.6.23-rc3-mm1/mm/page_alloc.c
-===================================================================
---- linux-2.6.23-rc3-mm1.orig/mm/page_alloc.c	2007-08-22 10:08:00.000000000 -0400
-+++ linux-2.6.23-rc3-mm1/mm/page_alloc.c	2007-08-22 10:08:44.000000000 -0400
-@@ -2793,6 +2793,8 @@ static int __cpuinit process_zones(int c
- 	struct zone *zone, *dzone;
- 	int node = cpu_to_node(cpu);
- 
-+	node_set_state(node, N_CPU);	/* this node has a cpu */
-+
- 	for_each_zone(zone) {
- 
- 		if (!populated_zone(zone))
-@@ -2810,7 +2812,6 @@ static int __cpuinit process_zones(int c
- 			 	(zone->present_pages / percpu_pagelist_fraction));
- 	}
- 
--	node_set_state(node, N_CPU);
- 	return 0;
- bad:
- 	for_each_zone(dzone) {
-
+-- Dave
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
