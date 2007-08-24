@@ -1,36 +1,45 @@
-Date: Thu, 23 Aug 2007 19:29:45 -0500
-From: Matt Mackall <mpm@selenic.com>
-Subject: Re: [PATCH 9/9] pagemap: export swap ptes
-Message-ID: <20070824002945.GE21720@waste.org>
-References: <20070822231804.1132556D@kernel> <20070822231814.8F5F37A0@kernel>
+Received: by fk-out-0910.google.com with SMTP id 18so598875fkq
+        for <linux-mm@kvack.org>; Thu, 23 Aug 2007 17:42:28 -0700 (PDT)
+Resent-To: Jesper Juhl <jesper.juhl@gmail.com>
+Resent-Message-ID: <200708240237.02043.jesper.juhl@gmail.com>
+Message-Id: <7a2e58dc05b356f27313d4a116eb92fbe2bb828e.1187912217.git.jesper.juhl@gmail.com>
+In-Reply-To: <1554af80879a7ef2f78a4d654f23c248203500d9.1187912217.git.jesper.juhl@gmail.com>
+References: <1554af80879a7ef2f78a4d654f23c248203500d9.1187912217.git.jesper.juhl@gmail.com>
+From: Jesper Juhl <jesper.juhl@gmail.com>
+Date: Fri, 24 Aug 2007 02:39:35 +0200
+Subject: [PATCH 29/30] mm: No need to cast vmalloc() return value in zone_wait_table_init()
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
 Content-Disposition: inline
-In-Reply-To: <20070822231814.8F5F37A0@kernel>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Dave Hansen <haveblue@us.ibm.com>
-Cc: linux-mm@kvack.org
+To: Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
+Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Ingo Molnar <mingo@elte.hu>, Mel Gorman <mel@csn.ul.ie>, Jesper Juhl <jesper.juhl@gmail.com>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Aug 22, 2007 at 04:18:14PM -0700, Dave Hansen wrote:
-> 
-> In addition to understanding which physical pages are
-> used by a process, it would also be very nice to
-> enumerate how much swap space a process is using.
-> 
-> This patch enables /proc/<pid>/pagemap to display
-> swap ptes.  In the process, it also changes the
-> constant that we used to indicate non-present ptes
-> before.
-> 
-> Signed-off-by: Dave Hansen <haveblue@us.ibm.com>
+vmalloc() returns a void pointer, so there's no need to cast its
+return value in mm/page_alloc.c::zone_wait_table_init().
 
-I suspect you missed a quilt add here, as is_swap_pte is not in any
-header file and is thus implicitly declared.
+Signed-off-by: Jesper Juhl <jesper.juhl@gmail.com>
+---
+ mm/page_alloc.c |    2 +-
+ 1 files changed, 1 insertions(+), 1 deletions(-)
 
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index 6427653..a8615c2 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -2442,7 +2442,7 @@ int zone_wait_table_init(struct zone *zone, unsigned long zone_size_pages)
+ 		 * To use this new node's memory, further consideration will be
+ 		 * necessary.
+ 		 */
+-		zone->wait_table = (wait_queue_head_t *)vmalloc(alloc_size);
++		zone->wait_table = vmalloc(alloc_size);
+ 	}
+ 	if (!zone->wait_table)
+ 		return -ENOMEM;
 -- 
-Mathematics is the supreme nostalgia of our time.
+1.5.2.2
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
