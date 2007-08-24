@@ -1,66 +1,53 @@
-Received: from d23relay03.au.ibm.com (d23relay03.au.ibm.com [202.81.18.234])
-	by e23smtp06.au.ibm.com (8.13.1/8.13.1) with ESMTP id l7OGkj49029484
-	for <linux-mm@kvack.org>; Sat, 25 Aug 2007 02:46:45 +1000
-Received: from d23av04.au.ibm.com (d23av04.au.ibm.com [9.190.235.139])
-	by d23relay03.au.ibm.com (8.13.8/8.13.8/NCO v8.5) with ESMTP id l7OGkkqu4706446
-	for <linux-mm@kvack.org>; Sat, 25 Aug 2007 02:46:46 +1000
-Received: from d23av04.au.ibm.com (loopback [127.0.0.1])
-	by d23av04.au.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l7OHkjFr006015
-	for <linux-mm@kvack.org>; Sat, 25 Aug 2007 03:46:45 +1000
-Message-ID: <46CF0B70.1050302@linux.vnet.ibm.com>
-Date: Fri, 24 Aug 2007 22:16:40 +0530
-From: Kamalesh Babulal <kamalesh@linux.vnet.ibm.com>
+Date: Fri, 24 Aug 2007 09:54:08 -0700 (PDT)
+From: Christoph Lameter <clameter@sgi.com>
+Subject: Re: [BUG] 2.6.23-rc3-mm1 kernel BUG at mm/page_alloc.c:2876!
+In-Reply-To: <46CE776D.2010408@linux.vnet.ibm.com>
+Message-ID: <Pine.LNX.4.64.0708240950340.20501@schroedinger.engr.sgi.com>
+References: <46CC9A7A.2030404@linux.vnet.ibm.com>
+ <20070822134800.ce5a5a69.akpm@linux-foundation.org>
+ <20070822135024.dde8ef5a.akpm@linux-foundation.org> <20070823130732.GC18456@skynet.ie>
+ <46CDC11E.2010008@linux.vnet.ibm.com> <Pine.LNX.4.64.0708231303050.14720@schroedinger.engr.sgi.com>
+ <46CE776D.2010408@linux.vnet.ibm.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH] Fix find_next_best_node (Re: [BUG] 2.6.23-rc3-mm1 Kernel
- panic - not syncing: DMA: Memory would be corrupted)
-References: <617E1C2C70743745A92448908E030B2A023EB020@scsmsx411.amr.corp.intel.com> <20070823142133.9359a1ce.akpm@linux-foundation.org> <20070824153945.3C75.Y-GOTO@jp.fujitsu.com>
-In-Reply-To: <20070824153945.3C75.Y-GOTO@jp.fujitsu.com>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Yasunori Goto <y-goto@jp.fujitsu.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@skynet.ie>, "Luck, Tony" <tony.luck@intel.com>, Jeremy Higdon <jeremy@sgi.com>, Andi Kleen <ak@suse.de>, linux-kernel@vger.kernel.org, Balbir Singh <balbir@linux.vnet.ibm.com>, linux-ia64@vger.kernel.org, Christoph Lameter <clameter@sgi.com>, linux-mm@kvack.org
+To: Kamalesh Babulal <kamalesh@linux.vnet.ibm.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@skynet.ie>, linux-kernel@vger.kernel.org, Balbir Singh <balbir@linux.vnet.ibm.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Yasunori Goto wrote:
-> I found find_next_best_node() was wrong.
-> I confirmed boot up by the following patch.
-> Mel-san, Kamalesh-san, could you try this?
->
-> Bye.
-> ---
->
-> Fix decision of memoryless node in find_next_best_node().
-> This can be cause of SW-IOMMU's allocation failure.
->
-> This patch is for 2.6.23-rc3-mm1.
->
-> Signed-off-by: Yasunori Goto <y-goto@jp.fujitsu.com>
->
-> ---
->  mm/page_alloc.c |    2 +-
->  1 file changed, 1 insertion(+), 1 deletion(-)
->
-> Index: current/mm/page_alloc.c
-> ===================================================================
-> --- current.orig/mm/page_alloc.c	2007-08-24 16:03:17.000000000 +0900
-> +++ current/mm/page_alloc.c	2007-08-24 16:04:06.000000000 +0900
-> @@ -2136,7 +2136,7 @@ static int find_next_best_node(int node,
->  		 * Note:  N_HIGH_MEMORY state not guaranteed to be
->  		 *        populated yet.
->  		 */
-> -		if (pgdat->node_present_pages)
-> +		if (!pgdat->node_present_pages)
->  			continue;
->
->  		/* Don't want a node to appear more than once */
->
->   
-This patch resolves the kernel panic problem.
+On Fri, 24 Aug 2007, Kamalesh Babulal wrote:
 
--
-Kamalesh Babulal.
+> Starting Linux PPC64 #1 SMP Thu Aug 23 11:54:44 EDT 2007
+
+Argh. PPC64. The typical thing that we break on all major NUMA
+changes.
+
+> EEH: PCI Enhanced I/O Error Handling Enabled
+> PPC64 nvram contains 7168 bytes
+> Zone PFN ranges:
+> DMA 0 -> 1048576
+> Normal 1048576 -> 1048576
+> Movable zone start PFN for each node
+> early_node_map[1] active PFN ranges
+> 2: 0 -> 1048576
+> Could not find start_pfn for node 0
+> [boot]0015 Setup Done
+> Built 2 zonelists in Node order, mobility grouping off. Total pages: 0
+> Policy zone: DMA
+
+Uhhh huh. So we have node 0 and 2 that got zonelists. What happened to 
+node 1?
+
+> Dentry cache hash table entries: 524288 (order: 10, 4194304 bytes)
+> Inode-cache hash table entries: 262144 (order: 9, 2097152 bytes)
+> freeing bootmem node 2
+
+Hmmm... The boot occurs on node 2??
+
+There could be something wrong with zonelist generation since various 
+people worked on it. Could you add some printks to show how the zonelists 
+are generated?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
