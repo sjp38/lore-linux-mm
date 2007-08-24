@@ -1,143 +1,52 @@
-Received: from d23relay03.au.ibm.com (d23relay03.au.ibm.com [202.81.18.234])
-	by e23smtp01.au.ibm.com (8.13.1/8.13.1) with ESMTP id l7O6FHSk002108
-	for <linux-mm@kvack.org>; Fri, 24 Aug 2007 16:15:17 +1000
-Received: from d23av02.au.ibm.com (d23av02.au.ibm.com [9.190.250.243])
-	by d23relay03.au.ibm.com (8.13.8/8.13.8/NCO v8.5) with ESMTP id l7O6FDub2482184
-	for <linux-mm@kvack.org>; Fri, 24 Aug 2007 16:15:13 +1000
-Received: from d23av02.au.ibm.com (loopback [127.0.0.1])
-	by d23av02.au.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l7O6FD7q011895
-	for <linux-mm@kvack.org>; Fri, 24 Aug 2007 16:15:13 +1000
-Message-ID: <46CE776D.2010408@linux.vnet.ibm.com>
-Date: Fri, 24 Aug 2007 11:45:09 +0530
-From: Kamalesh Babulal <kamalesh@linux.vnet.ibm.com>
+Date: Fri, 24 Aug 2007 15:53:25 +0900
+From: Yasunori Goto <y-goto@jp.fujitsu.com>
+Subject: [PATCH] Fix find_next_best_node (Re: [BUG] 2.6.23-rc3-mm1 Kernel panic - not syncing: DMA: Memory would be corrupted)
+In-Reply-To: <20070823142133.9359a1ce.akpm@linux-foundation.org>
+References: <617E1C2C70743745A92448908E030B2A023EB020@scsmsx411.amr.corp.intel.com> <20070823142133.9359a1ce.akpm@linux-foundation.org>
+Message-Id: <20070824153945.3C75.Y-GOTO@jp.fujitsu.com>
 MIME-Version: 1.0
-Subject: Re: [BUG] 2.6.23-rc3-mm1 kernel BUG at mm/page_alloc.c:2876!
-References: <46CC9A7A.2030404@linux.vnet.ibm.com> <20070822134800.ce5a5a69.akpm@linux-foundation.org> <20070822135024.dde8ef5a.akpm@linux-foundation.org> <20070823130732.GC18456@skynet.ie> <46CDC11E.2010008@linux.vnet.ibm.com> <Pine.LNX.4.64.0708231303050.14720@schroedinger.engr.sgi.com>
-In-Reply-To: <Pine.LNX.4.64.0708231303050.14720@schroedinger.engr.sgi.com>
-Content-Type: text/plain; charset=US-ASCII; format=flowed
+Content-Type: text/plain; charset="US-ASCII"
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@skynet.ie>, linux-kernel@vger.kernel.org, Balbir Singh <balbir@linux.vnet.ibm.com>, linux-mm@kvack.org
+To: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@skynet.ie>, Kamalesh Babulal <kamalesh@linux.vnet.ibm.com>
+Cc: "Luck, Tony" <tony.luck@intel.com>, Jeremy Higdon <jeremy@sgi.com>, Andi Kleen <ak@suse.de>, linux-kernel@vger.kernel.org, Balbir Singh <balbir@linux.vnet.ibm.com>, linux-ia64@vger.kernel.org, Christoph Lameter <clameter@sgi.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Christoph Lameter wrote:
-> On Thu, 23 Aug 2007, Kamalesh Babulal wrote:
->
->   
->> After applying the patch, the call trace is gone but the kernel bug
->> is still hit
->>     
->
-> Yes that is what we expected. We need more information to figure out why 
-> the kmalloc_node fails there. It should walk through all nodes to find 
-> memory.
->
-> I see that you have 4 cpus and 16 nodes. How are the cpus assigned to 
-> nodes? If a cpu would be assigned to a nonexisting node then this could be 
-> the result.
->
-> Could you post the full boot log?
->
->   
-boot log with the andrew patch applied
+I found find_next_best_node() was wrong.
+I confirmed boot up by the following patch.
+Mel-san, Kamalesh-san, could you try this?
 
-Welcome to yaboot version 1.3.13
-Enter "help" to get some basic usage information
-boot: autobench
-Please wait, loading kernel...
-Elf64 kernel loaded...
-Loading ramdisk...
-ramdisk loaded at 02400000, size: 1191 Kbytes
-OF stdout device is: /vdevice/vty@30000000
-Hypertas detected, assuming LPAR !
-command line: ro console=hvc0 autobench_args: root=/dev/sda6 
-ABAT:1187885681
-memory layout at init:
-alloc_bottom : 000000000252a000
-alloc_top : 0000000008000000
-alloc_top_hi : 0000000100000000
-rmo_top : 0000000008000000
-ram_top : 0000000100000000
-Looking for displays
-instantiating rtas at 0x00000000077d9000 ... done
-0000000000000000 : boot cpu 0000000000000000
-0000000000000002 : starting cpu hw idx 0000000000000002... done
-copying OF device tree ...
-Building dt strings...
-Building dt structure...
-Device tree strings 0x000000000262b000 -> 0x000000000262c1d3
-Device tree struct 0x000000000262d000 -> 0x0000000002635000
-Calling quiesce ...
-returning from prom_init
-Partition configured for 4 cpus.
+Bye.
+---
 
+Fix decision of memoryless node in find_next_best_node().
+This can be cause of SW-IOMMU's allocation failure.
 
-Starting Linux PPC64 #1 SMP Thu Aug 23 11:54:44 EDT 2007
------------------------------------------------------
-ppc64_pft_size = 0x1a
-physicalMemorySize = 0x100000000
-ppc64_caches.dcache_line_size = 0x80
-ppc64_caches.icache_line_size = 0x80
-htab_address = 0x0000000000000000
-htab_hash_mask = 0x7ffff
------------------------------------------------------
-Linux version 2.6.23-rc3-mm1-autokern1 
-(root@gekko-lp3.ltc.austin.ibm.com) (gcc version 3.4.6 20060404 (Red Hat 
-3.4.6-3)) #1 SMP Thu Aug 23 11:54:44 EDT 2007
-[boot]0012 Setup Arch
-vmemmap cf00000000000000 allocated at c000000001000000, physical 
-0000000001000000.
-vmemmap cf00000001000000 allocated at c000000004000000, physical 
-0000000004000000.
-vmemmap cf00000002000000 allocated at c000000005000000, physical 
-0000000005000000.
-vmemmap cf00000003000000 allocated at c000000006000000, physical 
-0000000006000000.
-EEH: PCI Enhanced I/O Error Handling Enabled
-PPC64 nvram contains 7168 bytes
-Zone PFN ranges:
-DMA 0 -> 1048576
-Normal 1048576 -> 1048576
-Movable zone start PFN for each node
-early_node_map[1] active PFN ranges
-2: 0 -> 1048576
-Could not find start_pfn for node 0
-[boot]0015 Setup Done
-Built 2 zonelists in Node order, mobility grouping off. Total pages: 0
-Policy zone: DMA
-Kernel command line: ro console=hvc0 autobench_args: root=/dev/sda6 
-ABAT:1187885681
-[boot]0020 XICS Init
-[boot]0021 XICS Done
-PID hash table entries: 4096 (order: 12, 32768 bytes)
-Console: colour dummy device 80x25
-console handover: boot [udbg0] -> real [hvc0]
-Dentry cache hash table entries: 524288 (order: 10, 4194304 bytes)
-Inode-cache hash table entries: 262144 (order: 9, 2097152 bytes)
-freeing bootmem node 2
-Memory: 4105840k/4194304k available (4964k kernel code, 88464k reserved, 
-948k data, 571k bss, 264k init)
-SLUB: Genslabs=12, HWalign=128, Order=0-1, MinObjects=4, CPUs=4, Nodes=16
-------------[ cut here ]------------
-kernel BUG at mm/page_alloc.c:2878!
-cpu 0x0: Vector: 700 (Program Check) at [c0000000005cbbe0]
-pc: c0000000004b5160: .setup_per_cpu_pageset+0x24/0x48
-lr: c0000000004b5160: .setup_per_cpu_pageset+0x24/0x48
-sp: c0000000005cbe60
-msr: 8000000000029032
-current = 0xc0000000004fd1b0
-paca = 0xc0000000004fdd80
-pid = 0, comm = swapper
-kernel BUG at mm/page_alloc.c:2878!
-enter ? for help
-[c0000000005cbee0] c0000000004978d8 .start_kernel+0x304/0x3f4
-[c0000000005cbf90] c0000000003bef1c .start_here_common+0x54/0x58
+This patch is for 2.6.23-rc3-mm1.
 
--
-Kamalesh Babulal.
+Signed-off-by: Yasunori Goto <y-goto@jp.fujitsu.com>
 
+---
+ mm/page_alloc.c |    2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+Index: current/mm/page_alloc.c
+===================================================================
+--- current.orig/mm/page_alloc.c	2007-08-24 16:03:17.000000000 +0900
++++ current/mm/page_alloc.c	2007-08-24 16:04:06.000000000 +0900
+@@ -2136,7 +2136,7 @@ static int find_next_best_node(int node,
+ 		 * Note:  N_HIGH_MEMORY state not guaranteed to be
+ 		 *        populated yet.
+ 		 */
+-		if (pgdat->node_present_pages)
++		if (!pgdat->node_present_pages)
+ 			continue;
+ 
+ 		/* Don't want a node to appear more than once */
+
+-- 
+Yasunori Goto 
 
 
 --
