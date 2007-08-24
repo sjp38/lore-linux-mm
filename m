@@ -1,49 +1,36 @@
-Received: by nz-out-0506.google.com with SMTP id s1so481261nze
-        for <linux-mm@kvack.org>; Thu, 23 Aug 2007 17:07:58 -0700 (PDT)
-Message-ID: <bd9320b30708231707l67d2d9d0l436a229bd77a86f@mail.gmail.com>
-Date: Thu, 23 Aug 2007 17:07:58 -0700
-From: mike <mike503@gmail.com>
-Subject: Drop caches - is this safe behavior?
-In-Reply-To: <bd9320b30708231645x3c6524efi55dd2cf7b1a9ba51@mail.gmail.com>
+Date: Thu, 23 Aug 2007 19:29:45 -0500
+From: Matt Mackall <mpm@selenic.com>
+Subject: Re: [PATCH 9/9] pagemap: export swap ptes
+Message-ID: <20070824002945.GE21720@waste.org>
+References: <20070822231804.1132556D@kernel> <20070822231814.8F5F37A0@kernel>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-References: <bd9320b30708231645x3c6524efi55dd2cf7b1a9ba51@mail.gmail.com>
+In-Reply-To: <20070822231814.8F5F37A0@kernel>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
+To: Dave Hansen <haveblue@us.ibm.com>
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-I have a crontab running every 5 minutes on my servers now:
+On Wed, Aug 22, 2007 at 04:18:14PM -0700, Dave Hansen wrote:
+> 
+> In addition to understanding which physical pages are
+> used by a process, it would also be very nice to
+> enumerate how much swap space a process is using.
+> 
+> This patch enables /proc/<pid>/pagemap to display
+> swap ptes.  In the process, it also changes the
+> constant that we used to indicate non-present ptes
+> before.
+> 
+> Signed-off-by: Dave Hansen <haveblue@us.ibm.com>
 
-    echo 2 > /proc/sys/vm/drop_caches
+I suspect you missed a quilt add here, as is_swap_pte is not in any
+header file and is thus implicitly declared.
 
-Is this a safe thing to do? Am I risking any loss of data? It looks
-like "3" might allow for that but from what I can understand 0-2 won't
-lose data.
-
-I was seeing some issues with my memory being taken up and thrown all
-into "cached" and eventually starts swapping (not a lot, but a little)
-- supposedly memory in "cached" is supposed to be available for new
-stuff, but I swear it is not. I've tried a variety of things, and this
-drop caches trick seems to make me feel quite comfortable seeing it be
-free as in free physical RAM, not stuck in the cache.
-
-So far it appears to be keeping my webservers' memory usage tolerable
-and expected, as opposed to rampant and greedy. I haven't seen any
-loss in functionality either. These servers get all their files (sans
-local /var /etc stuff) from NFS, so I don't think a local memory-based
-cache needs to be that important.
-
-I've been trying to find more information on the drop_caches parameter
-and its effects but it appears to be too new and not very widespread.
-Any help is appreciated. Perhaps this is a safe behavior on a
-non-primary file storage system like a webserver mounting NFS, but the
-NFS server itself should not?
-
-Thanks,
-mike
+-- 
+Mathematics is the supreme nostalgia of our time.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
