@@ -1,78 +1,56 @@
-Message-ID: <01c7e663$e14b7cc0$58894c5b@display>
-From: "Ollie Souza" <display@or.mxim.com>
-Subject: Probieren Sie es - Mann Lebt nur einmal  including registration of corporation,  -- , and how to exploit 
-Date: Fri, 24 Aug 2007 15:31:45 -0300
-MIME-Version: 1.0
-Content-Type: multipart/alternative;
-	boundary="----=_NextPart_000_0007_01C7E685.685D1CC0"
-Return-Path: <display@or.mxim.com>
-To: linux-mm@kvack.org
+Subject: Re: [PATCH] Fix find_next_best_node (Re: [BUG] 2.6.23-rc3-mm1
+	Kernel panic - not syncing: DMA: Memory would be corrupted)
+From: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
+In-Reply-To: <20070824145233.GA26374@skynet.ie>
+References: <617E1C2C70743745A92448908E030B2A023EB020@scsmsx411.amr.corp.intel.com>
+	 <20070823142133.9359a1ce.akpm@linux-foundation.org>
+	 <20070824153945.3C75.Y-GOTO@jp.fujitsu.com>
+	 <20070824145233.GA26374@skynet.ie>
+Content-Type: text/plain
+Date: Fri, 24 Aug 2007 11:49:31 -0400
+Message-Id: <1187970572.5869.10.camel@localhost>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
+Sender: owner-linux-mm@kvack.org
+Return-Path: <owner-linux-mm@kvack.org>
+To: Mel Gorman <mel@skynet.ie>
+Cc: Yasunori Goto <y-goto@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, Kamalesh Babulal <kamalesh@linux.vnet.ibm.com>, "Luck, Tony" <tony.luck@intel.com>, Jeremy Higdon <jeremy@sgi.com>, Andi Kleen <ak@suse.de>, linux-kernel@vger.kernel.org, Balbir Singh <balbir@linux.vnet.ibm.com>, linux-ia64@vger.kernel.org, Christoph Lameter <clameter@sgi.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-This is a multi-part message in MIME format.
+On Fri, 2007-08-24 at 15:52 +0100, Mel Gorman wrote:
+> On (24/08/07 15:53), Yasunori Goto didst pronounce:
+> > 
+> > I found find_next_best_node() was wrong.
+> > I confirmed boot up by the following patch.
+> > Mel-san, Kamalesh-san, could you try this?
+> > 
+> 
+> This boots the IA-64 successful and gets rid of that DMA corrupts
+> memory message. As a bonus, it fixes up the memoryless nodes (the bug
+> where Total pages == 0 and there is a BUG in page_alloc.c) by building
+> zonelists properly. The machine still fails to boot with the more familiar
+> net/core/skbuff.c:95 but that is a separate problem.
+> 
+> Well spotted Yasunori-san.
+> 
+> Andrew, this fixes a real problem and should be considered a fix to
+> memoryless-nodes-fixup-uses-of-node_online_map-in-generic-code.patch unless
+> Christoph Lameter objects.
 
-------=_NextPart_000_0007_01C7E685.685D1CC0
-Content-Type: text/plain;
-	charset="iso-8859-1"
-Content-Transfer-Encoding: quoted-printable
+I reworked that patch and posted the update on 16aug which does not have
+this problem:
 
-Versuchen Sie unser Produkt und Sie werden fuhlen was unsere Kunden bestati=
-gen
+http://marc.info/?l=linux-mm&m=118729871101418&w=4
 
-Preise die keine Konkurrenz kennen 
+This should replace
+memoryless-nodes-fixup-uses-of-node_online_map-in-generic-code.patch
+in -mm.
 
-- Diskrete Verpackung und Zahlung
-- Bequem und diskret online bestellen.
-- Kein peinlicher Arztbesuch erforderlich
-- Kostenlose, arztliche Telefon-Beratung
-- Kein langes Warten - Auslieferung innerhalb von 2-3 Tagen
-- Visa verifizierter Onlineshop
-- keine versteckte Kosten
+Lee
 
-Originalmedikamente
-Ciiaaaaaalis 10 Pack. 27,00 Euro
-Viiaaaagra 10 Pack. 21,00 Euro
 
-Nur fur kurze Zeit - vier Pillen umsonst erhalten
-http://rzmeed.findpath.cn/?441540614289
-
-(bitte warten Sie einen Moment bis die Seite vollstandig geladen wird)
-------=_NextPart_000_0007_01C7E685.685D1CC0
-Content-Type: text/html;
-	charset="iso-8859-1"
-Content-Transfer-Encoding: quoted-printable
-
-<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
-<HTML><HEAD>
-<META http-equiv=3DContent-Type content=3D"text/html; charset=3Diso-8859-1">
-<META content=3D"MSHTML 5.00.2919.6600" name=3DGENERATOR>
-<STYLE></STYLE>
-</HEAD>
-<BODY>
-<head><meta http-equiv=3D"Content-Type" content=3D"text/html; charset=3Diso=
--8859-1">
-</head><body><p>Meinung von unserem Kunden:<br><strong>Ich glaube, ich habe=
- bis jetzt Gl&#252;ck gehabt (Ich klopfe auf Holz.), denn ich hatte bis jet=
-zt noch nie Nebenwirkungen durch Viiaaaagra - au&#223;er einer brettharten =
-Latte, und das f&#252;r Stunden.</strong></p><p><strong>Bin restlos begeist=
-ert. Bin 50 und schlage mich seit einem guten Jahre damit herum, dass meine=
-m Freund im entscheidenden Moment die Standfestigkeit abhanden kommt. Aber =
-nun ist es wie in allerbesten Zeiten. 10 mg reichen f&#252;r ein sehr LUSTi=
-ges Weekend. Null Nebenwirkungen - abgesehen vom Muskelkater am n&#228;chte=
-n Tag. Aber der verschwindet ja durch ausreichendes Training ;-))<br>
-</strong><strong><br>Versuchen Sie unser Produkt und Sie werden fuhlen was =
-unsere Kunden bestatigen</strong></p><p>Preise die keine Konkurrenz kennen =
-<p>
-- keine versteckte Kosten<br>- Kein peinlicher Arztbesuch erforderlich<br>-=
- Kostenlose, arztliche Telefon-Beratung<br>- Kein langes Warten - Ausliefer=
-ung innerhalb von 2-3 Tagen<br>- Bequem und diskret online bestellen.<br>- =
-Diskrete Verpackung und Zahlung<br>- Visa verifizierter Onlineshop</p>
-<p>Originalmedikamente<br><strong>Ciiaaaaaalis 10 Pack. 27,00 Euro</strong>=
-<br>
-  <strong>Viiaaaagra 10 Pack. 21,00 Euro</strong><br><br><strong><a href=3D=
-"http://rzmeed.findpath.cn/?441540614289" target=3D"_blank">Nur fur kurze Z=
-eit - vier Pillen umsonst erhalten</a><br></strong>(bitte warten Sie einen =
-Moment bis die Seite vollst&auml;ndig geladen wird) </p></body>
-</BODY></HTML>
-
-------=_NextPart_000_0007_01C7E685.685D1CC0--
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
