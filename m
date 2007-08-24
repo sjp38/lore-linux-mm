@@ -1,154 +1,437 @@
-Date: Fri, 24 Aug 2007 14:38:48 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [patch 0/6] Per cpu structures for SLUB
-Message-Id: <20070824143848.a1ecb6bc.akpm@linux-foundation.org>
-In-Reply-To: <20070823064653.081843729@sgi.com>
-References: <20070823064653.081843729@sgi.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Message-Id: <20070824222948.717792000@sgi.com>
+References: <20070824222654.687510000@sgi.com>
+Date: Fri, 24 Aug 2007 15:26:56 -0700
+From: travis@sgi.com
+Subject: [PATCH 2/6] x86: Convert cpu_core_map to be a per cpu variable (v2)
+Content-Disposition: inline; filename=convert-cpu_core_map-to-per_cpu_data
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Pekka Enberg <penberg@cs.helsinki.fi>
+To: Andi Kleen <ak@suse.de>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <clameter@sgi.com>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 22 Aug 2007 23:46:53 -0700
-Christoph Lameter <clameter@sgi.com> wrote:
+This is from an earlier message from 'Christoph Lameter':
 
-> The following patchset introduces per cpu structures for SLUB. These
-> are very small (and multiples of these may fit into one cacheline)
-> and (apart from performance improvements) allow the addressing of
-> several isues in SLUB:
-> 
-> 1. The number of objects per slab is no longer limited to a 16 bit
->    number.
-> 
-> 2. Room is freed up in the page struct. We can avoid using the
->    mapping field which allows to get rid of the #ifdef CONFIG_SLUB
->    in page_mapping().
-> 
-> 3. We will have an easier time adding new things like Peter Z.s reserve
->    management.
-> 
-> The RFC for this patchset was discussed on lkml a while ago:
-> 
-> http://marc.info/?l=linux-kernel&m=118386677704534&w=2
-> 
-> (And no this patchset does not include the use of cmpxchg_local that
-> we discussed recently on lkml nor the cmpxchg implementation
-> mentioned in the RFC)
-> 
-> Performance
-> -----------
-> 
-> 
-> Norm = 2.6.23-rc3
-> PCPU = Adds page allocator pass through plus per cpu structure patches
-> 
-> 
-> IA64 8p 4n NUMA Altix
-> 
->             Single threaded               Concurrent Alloc
-> 
-> 	Kmalloc		Alloc/Free	Kmalloc         Alloc/Free
->  Size	Norm   PCPU	Norm   PCPU	Norm   PCPU	Norm   PCPU
-> -------------------------------------------------------------------
->     8	132	84	93	104	98	90	95	106
->    16    98	92	93	104	115	98	95	106
->    32   112	105	93	104	146	111	95	106
->    64	119	112	93	104	214	133	95	106
->   128   132	119	94	104	321	163	95	106
->   256+  83255	176	106	115	415	224	108	117
->   512   191	176	106	115	487	341	108	117
->  1024   252	246	106	115	937	609	108	117
->  2048   308	292	107	115	2494	1207	108	117
->  4096   341	319	107	115	2497	1217	108	117
->  8192   402	380	107	115	2367	1188	108	117
-> 16384*  560	474	106	434	4464	1904	108	478
-> 
-> X86_64 2p SMP (Dual Core Pentium 940)
-> 
->          Single threaded                   Concurrent Alloc
-> 
->         Kmalloc         Alloc/Free      Kmalloc         Alloc/Free
->  Size   Norm   PCPU     Norm   PCPU     Norm   PCPU     Norm   PCPU
-> --------------------------------------------------------------------
->     8	313	227	314	324	207	208	314	323
->    16   202	203	315	324	209	211	312	321
->    32	212	207	314	324	251	243	312	321
->    64	240	237	314	326	329	306	312	321
->   128	301	302	314	324	511	416	313	324
->   256   498	554	327	332	970	837	326	332
->   512   532	553	324	332	1025	932	326	335
->  1024   705	718	325	333	1489	1231	324	330
->  2048   764	767	324	334	2708	2175	324	332
->  4096* 1033	476	325	674	4727	782	324	678
+    cpu_core_map is currently an array defined using NR_CPUS. This means that
+    we overallocate since we will rarely really use maximum configured cpu.
 
-I'm struggling a bit to understand these numbers.  Bigger is better, I
-assume?  In what units are these numbers?
+    If we put the cpu_core_map into the per cpu area then it will be allocated
+    for each processor as it comes online.
 
-> Notes:
-> 
-> Worst case:
-> -----------
-> We generally loose in the alloc free test (x86_64 3%, IA64 5-10%)
-> since the processing overhead increases because we need to lookup
-> the per cpu structure. Alloc/Free is simply kfree(kmalloc(size, mask)).
-> So objects with the shortest lifetime possible. We would never use
-> objects in that way but the measurement is important to show the worst
-> case overhead created.
-> 
-> Single Threaded:
-> ----------------
-> The single threaded kmalloc test shows behavior of a continual stream
-> of allocation without contention. In the SMP case the losses are minimal.
-> In the NUMA case we already have a winner there because the per cpu structure
-> is placed local to the processor. So in the single threaded case we already
-> win around 5% just by placing things better.
-> 
-> Concurrent Alloc:
-> -----------------
-> We have varying gains up to a 50% on NUMA because we are now never updating
-> a cacheline used by the other processor and the data structures are local
-> to the processor.
-> 
-> The SMP case shows gains but they are smaller (especially since
-> this is the smallest SMP system possible.... 2 CPUs). So only up
-> to 25%.
-> 
-> Page allocator pass through
-> ---------------------------
-> There is a significant difference in the columns marked with a * because
-> of the way that allocations for page sized objects are handled.
+    This means that the core map cannot be accessed until the per cpu area
+    has been allocated. Xen does a weird thing here looping over all processors
+    and zeroing the masks that are not yet allocated and that will be zeroed
+    when they are allocated. I commented the code out.
 
-OK, but what happened to the third pair of columns (Concurrent Alloc,
-Kmalloc) for 1024 and 2048-byte allocations?  They seem to have become
-significantly slower?
+    Signed-off-by: Christoph Lameter <clameter@sgi.com>
 
-Thanks for running the numbers, but it's still a bit hard to work out
-whether these changes are an aggregate benefit?
+Signed-off-by: Mike Travis <travis@sgi.com>
+---
+ arch/i386/kernel/cpu/cpufreq/acpi-cpufreq.c |    2 -
+ arch/i386/kernel/cpu/cpufreq/powernow-k8.c  |   10 ++++----
+ arch/i386/kernel/cpu/proc.c                 |    3 +-
+ arch/i386/kernel/smpboot.c                  |   34 ++++++++++++++--------------
+ arch/i386/xen/smp.c                         |   14 +++++++++--
+ arch/x86_64/kernel/mce_amd.c                |    6 ++--
+ arch/x86_64/kernel/setup.c                  |    3 +-
+ arch/x86_64/kernel/smpboot.c                |   24 +++++++++----------
+ include/asm-i386/smp.h                      |    2 -
+ include/asm-i386/topology.h                 |    2 -
+ include/asm-x86_64/smp.h                    |    8 +++++-
+ include/asm-x86_64/topology.h               |    2 -
+ 12 files changed, 64 insertions(+), 46 deletions(-)
 
-> If we handle
-> the allocations in the slab allocator (Norm) then the alloc free tests
-> results are superb since we can use the per cpu slab to just pass a pointer
-> back and forth. The page allocator pass through (PCPU) shows that the page
-> allocator may have problems with giving back the same page after a free.
-> Or there something else in the page allocator that creates significant
-> overhead compared to slab. Needs to be checked out I guess.
-> 
-> However, the page allocator pass through is a win in the other cases
-> since we can cut out the page allocator overhead. That is the more typical
-> load of allocating a sequence of objects and we should optimize for that.
-> 
-> (+ = Must be some cache artifact here or code crossing a TLB boundary.
-> The result is reproducable)
-> 
+--- a/include/asm-x86_64/smp.h
++++ b/include/asm-x86_64/smp.h
+@@ -39,7 +39,13 @@
+ extern void smp_send_reschedule(int cpu);
+ 
+ extern cpumask_t cpu_sibling_map[NR_CPUS];
+-extern cpumask_t cpu_core_map[NR_CPUS];
++/*
++ * cpu_core_map lives in a per cpu area
++ *
++ * extern cpumask_t cpu_core_map[NR_CPUS];
++ */
++DECLARE_PER_CPU(cpumask_t, cpu_core_map);
++
+ extern u8 cpu_llc_id[NR_CPUS];
+ 
+ #define SMP_TRAMPOLINE_BASE 0x6000
+--- a/arch/i386/kernel/cpu/cpufreq/acpi-cpufreq.c
++++ b/arch/i386/kernel/cpu/cpufreq/acpi-cpufreq.c
+@@ -595,7 +595,7 @@
+ 	dmi_check_system(sw_any_bug_dmi_table);
+ 	if (bios_with_sw_any_bug && cpus_weight(policy->cpus) == 1) {
+ 		policy->shared_type = CPUFREQ_SHARED_TYPE_ALL;
+-		policy->cpus = cpu_core_map[cpu];
++		policy->cpus = per_cpu(cpu_core_map, cpu);
+ 	}
+ #endif
+ 
+--- a/arch/i386/kernel/cpu/cpufreq/powernow-k8.c
++++ b/arch/i386/kernel/cpu/cpufreq/powernow-k8.c
+@@ -57,7 +57,7 @@
+ static int cpu_family = CPU_OPTERON;
+ 
+ #ifndef CONFIG_SMP
+-static cpumask_t cpu_core_map[1];
++DEFINE_PER_CPU(cpumask_t, cpu_core_map);
+ #endif
+ 
+ /* Return a frequency in MHz, given an input fid */
+@@ -667,7 +667,7 @@
+ 
+ 	dprintk("cfid 0x%x, cvid 0x%x\n", data->currfid, data->currvid);
+ 	data->powernow_table = powernow_table;
+-	if (first_cpu(cpu_core_map[data->cpu]) == data->cpu)
++	if (first_cpu(per_cpu(cpu_core_map, data->cpu)) == data->cpu)
+ 		print_basics(data);
+ 
+ 	for (j = 0; j < data->numps; j++)
+@@ -821,7 +821,7 @@
+ 
+ 	/* fill in data */
+ 	data->numps = data->acpi_data.state_count;
+-	if (first_cpu(cpu_core_map[data->cpu]) == data->cpu)
++	if (first_cpu(per_cpu(cpu_core_map, data->cpu)) == data->cpu)
+ 		print_basics(data);
+ 	powernow_k8_acpi_pst_values(data, 0);
+ 
+@@ -1214,7 +1214,7 @@
+ 	if (cpu_family == CPU_HW_PSTATE)
+ 		pol->cpus = cpumask_of_cpu(pol->cpu);
+ 	else
+-		pol->cpus = cpu_core_map[pol->cpu];
++		pol->cpus = per_cpu(cpu_core_map, pol->cpu);
+ 	data->available_cores = &(pol->cpus);
+ 
+ 	/* Take a crude guess here.
+@@ -1281,7 +1281,7 @@
+ 	cpumask_t oldmask = current->cpus_allowed;
+ 	unsigned int khz = 0;
+ 
+-	data = powernow_data[first_cpu(cpu_core_map[cpu])];
++	data = powernow_data[first_cpu(per_cpu(cpu_core_map, cpu))];
+ 
+ 	if (!data)
+ 		return -EINVAL;
+--- a/arch/i386/kernel/cpu/proc.c
++++ b/arch/i386/kernel/cpu/proc.c
+@@ -122,7 +122,8 @@
+ #ifdef CONFIG_X86_HT
+ 	if (c->x86_max_cores * smp_num_siblings > 1) {
+ 		seq_printf(m, "physical id\t: %d\n", c->phys_proc_id);
+-		seq_printf(m, "siblings\t: %d\n", cpus_weight(cpu_core_map[n]));
++		seq_printf(m, "siblings\t: %d\n",
++				cpus_weight(per_cpu(cpu_core_map, n)));
+ 		seq_printf(m, "core id\t\t: %d\n", c->cpu_core_id);
+ 		seq_printf(m, "cpu cores\t: %d\n", c->booted_cores);
+ 	}
+--- a/arch/i386/kernel/smpboot.c
++++ b/arch/i386/kernel/smpboot.c
+@@ -74,8 +74,8 @@
+ EXPORT_SYMBOL(cpu_sibling_map);
+ 
+ /* representing HT and core siblings of each logical CPU */
+-cpumask_t cpu_core_map[NR_CPUS] __read_mostly;
+-EXPORT_SYMBOL(cpu_core_map);
++DEFINE_PER_CPU(cpumask_t, cpu_core_map);
++EXPORT_PER_CPU_SYMBOL(cpu_core_map);
+ 
+ /* bitmap of online cpus */
+ cpumask_t cpu_online_map __read_mostly;
+@@ -300,7 +300,7 @@
+ 	 * And for power savings, we return cpu_core_map
+ 	 */
+ 	if (sched_mc_power_savings || sched_smt_power_savings)
+-		return cpu_core_map[cpu];
++		return per_cpu(cpu_core_map, cpu);
+ 	else
+ 		return c->llc_shared_map;
+ }
+@@ -321,8 +321,8 @@
+ 			    c[cpu].cpu_core_id == c[i].cpu_core_id) {
+ 				cpu_set(i, cpu_sibling_map[cpu]);
+ 				cpu_set(cpu, cpu_sibling_map[i]);
+-				cpu_set(i, cpu_core_map[cpu]);
+-				cpu_set(cpu, cpu_core_map[i]);
++				cpu_set(i, per_cpu(cpu_core_map, cpu));
++				cpu_set(cpu, per_cpu(cpu_core_map, i));
+ 				cpu_set(i, c[cpu].llc_shared_map);
+ 				cpu_set(cpu, c[i].llc_shared_map);
+ 			}
+@@ -334,7 +334,7 @@
+ 	cpu_set(cpu, c[cpu].llc_shared_map);
+ 
+ 	if (current_cpu_data.x86_max_cores == 1) {
+-		cpu_core_map[cpu] = cpu_sibling_map[cpu];
++		per_cpu(cpu_core_map, cpu) = cpu_sibling_map[cpu];
+ 		c[cpu].booted_cores = 1;
+ 		return;
+ 	}
+@@ -346,8 +346,8 @@
+ 			cpu_set(cpu, c[i].llc_shared_map);
+ 		}
+ 		if (c[cpu].phys_proc_id == c[i].phys_proc_id) {
+-			cpu_set(i, cpu_core_map[cpu]);
+-			cpu_set(cpu, cpu_core_map[i]);
++			cpu_set(i, per_cpu(cpu_core_map, cpu));
++			cpu_set(cpu, per_cpu(cpu_core_map, i));
+ 			/*
+ 			 *  Does this new cpu bringup a new core?
+ 			 */
+@@ -984,7 +984,7 @@
+ 					   " Using dummy APIC emulation.\n");
+ 		map_cpu_to_logical_apicid();
+ 		cpu_set(0, cpu_sibling_map[0]);
+-		cpu_set(0, cpu_core_map[0]);
++		cpu_set(0, per_cpu(cpu_core_map, 0));
+ 		return;
+ 	}
+ 
+@@ -1009,7 +1009,7 @@
+ 		smpboot_clear_io_apic_irqs();
+ 		phys_cpu_present_map = physid_mask_of_physid(0);
+ 		cpu_set(0, cpu_sibling_map[0]);
+-		cpu_set(0, cpu_core_map[0]);
++		cpu_set(0, per_cpu(cpu_core_map, 0));
+ 		return;
+ 	}
+ 
+@@ -1024,7 +1024,7 @@
+ 		smpboot_clear_io_apic_irqs();
+ 		phys_cpu_present_map = physid_mask_of_physid(0);
+ 		cpu_set(0, cpu_sibling_map[0]);
+-		cpu_set(0, cpu_core_map[0]);
++		cpu_set(0, per_cpu(cpu_core_map, 0));
+ 		return;
+ 	}
+ 
+@@ -1107,11 +1107,11 @@
+ 	 */
+ 	for (cpu = 0; cpu < NR_CPUS; cpu++) {
+ 		cpus_clear(cpu_sibling_map[cpu]);
+-		cpus_clear(cpu_core_map[cpu]);
++		cpus_clear(per_cpu(cpu_core_map, cpu));
+ 	}
+ 
+ 	cpu_set(0, cpu_sibling_map[0]);
+-	cpu_set(0, cpu_core_map[0]);
++	cpu_set(0, per_cpu(cpu_core_map, 0));
+ 
+ 	smpboot_setup_io_apic();
+ 
+@@ -1148,9 +1148,9 @@
+ 	int sibling;
+ 	struct cpuinfo_x86 *c = cpu_data;
+ 
+-	for_each_cpu_mask(sibling, cpu_core_map[cpu]) {
+-		cpu_clear(cpu, cpu_core_map[sibling]);
+-		/*
++	for_each_cpu_mask(sibling, per_cpu(cpu_core_map, cpu)) {
++		cpu_clear(cpu, per_cpu(cpu_core_map, sibling));
++		/*/
+ 		 * last thread sibling in this cpu core going down
+ 		 */
+ 		if (cpus_weight(cpu_sibling_map[cpu]) == 1)
+@@ -1160,7 +1160,7 @@
+ 	for_each_cpu_mask(sibling, cpu_sibling_map[cpu])
+ 		cpu_clear(cpu, cpu_sibling_map[sibling]);
+ 	cpus_clear(cpu_sibling_map[cpu]);
+-	cpus_clear(cpu_core_map[cpu]);
++	cpus_clear(per_cpu(cpu_core_map, cpu));
+ 	c[cpu].phys_proc_id = 0;
+ 	c[cpu].cpu_core_id = 0;
+ 	cpu_clear(cpu, cpu_sibling_setup_map);
+--- a/arch/i386/xen/smp.c
++++ b/arch/i386/xen/smp.c
+@@ -148,7 +148,12 @@
+ 
+ 	for (cpu = 0; cpu < NR_CPUS; cpu++) {
+ 		cpus_clear(cpu_sibling_map[cpu]);
+-		cpus_clear(cpu_core_map[cpu]);
++		/*
++		 * cpu_core_map lives in a per cpu area that is cleared
++		 * when the per cpu array is allocated.
++		 *
++		 * cpus_clear(per_cpu(cpu_core_map, cpu));
++		 */
+ 	}
+ 
+ 	xen_setup_vcpu_info_placement();
+@@ -160,7 +165,12 @@
+ 
+ 	for (cpu = 0; cpu < NR_CPUS; cpu++) {
+ 		cpus_clear(cpu_sibling_map[cpu]);
+-		cpus_clear(cpu_core_map[cpu]);
++		/*
++		 * cpu_core_ map will be zeroed when the per
++		 * cpu area is allocated.
++		 *
++		 * cpus_clear(per_cpu(cpu_core_map, cpu));
++		 */
+ 	}
+ 
+ 	smp_store_cpu_info(0);
+--- a/arch/x86_64/kernel/mce_amd.c
++++ b/arch/x86_64/kernel/mce_amd.c
+@@ -473,7 +473,7 @@
+ 
+ #ifdef CONFIG_SMP
+ 	if (cpu_data[cpu].cpu_core_id && shared_bank[bank]) {	/* symlink */
+-		i = first_cpu(cpu_core_map[cpu]);
++		i = first_cpu(per_cpu(cpu_core_map, cpu));
+ 
+ 		/* first core not up yet */
+ 		if (cpu_data[i].cpu_core_id)
+@@ -493,7 +493,7 @@
+ 		if (err)
+ 			goto out;
+ 
+-		b->cpus = cpu_core_map[cpu];
++		b->cpus = per_cpu(cpu_core_map, cpu);
+ 		per_cpu(threshold_banks, cpu)[bank] = b;
+ 		goto out;
+ 	}
+@@ -510,7 +510,7 @@
+ #ifndef CONFIG_SMP
+ 	b->cpus = CPU_MASK_ALL;
+ #else
+-	b->cpus = cpu_core_map[cpu];
++	b->cpus = per_cpu(cpu_core_map, cpu);
+ #endif
+ 	err = kobject_register(&b->kobj);
+ 	if (err)
+--- a/arch/x86_64/kernel/setup.c
++++ b/arch/x86_64/kernel/setup.c
+@@ -1089,7 +1089,8 @@
+ 	if (smp_num_siblings * c->x86_max_cores > 1) {
+ 		int cpu = c - cpu_data;
+ 		seq_printf(m, "physical id\t: %d\n", c->phys_proc_id);
+-		seq_printf(m, "siblings\t: %d\n", cpus_weight(cpu_core_map[cpu]));
++		seq_printf(m, "siblings\t: %d\n",
++			       cpus_weight(per_cpu(cpu_core_map, cpu)));
+ 		seq_printf(m, "core id\t\t: %d\n", c->cpu_core_id);
+ 		seq_printf(m, "cpu cores\t: %d\n", c->booted_cores);
+ 	}
+--- a/arch/x86_64/kernel/smpboot.c
++++ b/arch/x86_64/kernel/smpboot.c
+@@ -95,8 +95,8 @@
+ EXPORT_SYMBOL(cpu_sibling_map);
+ 
+ /* representing HT and core siblings of each logical CPU */
+-cpumask_t cpu_core_map[NR_CPUS] __read_mostly;
+-EXPORT_SYMBOL(cpu_core_map);
++DEFINE_PER_CPU(cpumask_t, cpu_core_map);
++EXPORT_PER_CPU_SYMBOL(cpu_core_map);
+ 
+ /*
+  * Trampoline 80x86 program as an array.
+@@ -245,7 +245,7 @@
+ 	 * And for power savings, we return cpu_core_map
+ 	 */
+ 	if (sched_mc_power_savings || sched_smt_power_savings)
+-		return cpu_core_map[cpu];
++		return per_cpu(cpu_core_map, cpu);
+ 	else
+ 		return c->llc_shared_map;
+ }
+@@ -266,8 +266,8 @@
+ 			    c[cpu].cpu_core_id == c[i].cpu_core_id) {
+ 				cpu_set(i, cpu_sibling_map[cpu]);
+ 				cpu_set(cpu, cpu_sibling_map[i]);
+-				cpu_set(i, cpu_core_map[cpu]);
+-				cpu_set(cpu, cpu_core_map[i]);
++				cpu_set(i, per_cpu(cpu_core_map, cpu));
++				cpu_set(cpu, per_cpu(cpu_core_map, i));
+ 				cpu_set(i, c[cpu].llc_shared_map);
+ 				cpu_set(cpu, c[i].llc_shared_map);
+ 			}
+@@ -279,7 +279,7 @@
+ 	cpu_set(cpu, c[cpu].llc_shared_map);
+ 
+ 	if (current_cpu_data.x86_max_cores == 1) {
+-		cpu_core_map[cpu] = cpu_sibling_map[cpu];
++		per_cpu(cpu_core_map, cpu) = cpu_sibling_map[cpu];
+ 		c[cpu].booted_cores = 1;
+ 		return;
+ 	}
+@@ -291,8 +291,8 @@
+ 			cpu_set(cpu, c[i].llc_shared_map);
+ 		}
+ 		if (c[cpu].phys_proc_id == c[i].phys_proc_id) {
+-			cpu_set(i, cpu_core_map[cpu]);
+-			cpu_set(cpu, cpu_core_map[i]);
++			cpu_set(i, per_cpu(cpu_core_map, cpu));
++			cpu_set(cpu, per_cpu(cpu_core_map, i));
+ 			/*
+ 			 *  Does this new cpu bringup a new core?
+ 			 */
+@@ -742,7 +742,7 @@
+ 	else
+ 		phys_cpu_present_map = physid_mask_of_physid(0);
+ 	cpu_set(0, cpu_sibling_map[0]);
+-	cpu_set(0, cpu_core_map[0]);
++	cpu_set(0, per_cpu(cpu_core_map, 0));
+ }
+ 
+ #ifdef CONFIG_HOTPLUG_CPU
+@@ -977,8 +977,8 @@
+ 	int sibling;
+ 	struct cpuinfo_x86 *c = cpu_data;
+ 
+-	for_each_cpu_mask(sibling, cpu_core_map[cpu]) {
+-		cpu_clear(cpu, cpu_core_map[sibling]);
++	for_each_cpu_mask(sibling, per_cpu(cpu_core_map, cpu)) {
++		cpu_clear(cpu, per_cpu(cpu_core_map, sibling));
+ 		/*
+ 		 * last thread sibling in this cpu core going down
+ 		 */
+@@ -989,7 +989,7 @@
+ 	for_each_cpu_mask(sibling, cpu_sibling_map[cpu])
+ 		cpu_clear(cpu, cpu_sibling_map[sibling]);
+ 	cpus_clear(cpu_sibling_map[cpu]);
+-	cpus_clear(cpu_core_map[cpu]);
++	cpus_clear(per_cpu(cpu_core_map, cpu));
+ 	c[cpu].phys_proc_id = 0;
+ 	c[cpu].cpu_core_id = 0;
+ 	cpu_clear(cpu, cpu_sibling_setup_map);
+--- a/include/asm-i386/smp.h
++++ b/include/asm-i386/smp.h
+@@ -31,7 +31,7 @@
+ extern int pic_mode;
+ extern int smp_num_siblings;
+ extern cpumask_t cpu_sibling_map[];
+-extern cpumask_t cpu_core_map[];
++DECLARE_PER_CPU(cpumask_t, cpu_core_map);
+ 
+ extern void (*mtrr_hook) (void);
+ extern void zap_low_mappings (void);
+--- a/include/asm-i386/topology.h
++++ b/include/asm-i386/topology.h
+@@ -30,7 +30,7 @@
+ #ifdef CONFIG_X86_HT
+ #define topology_physical_package_id(cpu)	(cpu_data[cpu].phys_proc_id)
+ #define topology_core_id(cpu)			(cpu_data[cpu].cpu_core_id)
+-#define topology_core_siblings(cpu)		(cpu_core_map[cpu])
++#define topology_core_siblings(cpu)		(per_cpu(cpu_core_map, cpu))
+ #define topology_thread_siblings(cpu)		(cpu_sibling_map[cpu])
+ #endif
+ 
+--- a/include/asm-x86_64/topology.h
++++ b/include/asm-x86_64/topology.h
+@@ -71,7 +71,7 @@
+ #ifdef CONFIG_SMP
+ #define topology_physical_package_id(cpu)	(cpu_data[cpu].phys_proc_id)
+ #define topology_core_id(cpu)			(cpu_data[cpu].cpu_core_id)
+-#define topology_core_siblings(cpu)		(cpu_core_map[cpu])
++#define topology_core_siblings(cpu)		(per_cpu(cpu_core_map, cpu))
+ #define topology_thread_siblings(cpu)		(cpu_sibling_map[cpu])
+ #define mc_capable()			(boot_cpu_data.x86_max_cores > 1)
+ #define smt_capable() 			(smp_num_siblings > 1)
 
-Most Linux machines are uniprocessor.  We should keep an eye on what effect
-a change like this has on code size and performance for CONFIG_SMP=n
-builds..
-
+-- 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
