@@ -1,80 +1,76 @@
-Message-ID: <01c7e65a$2fc0fb50$380a3159@campbell011>
-From: "Carroll Villalobos" <campbell011@talkmatch.com>
-Subject: Man Lebt nur einmal - probiers aus !  history of corporation, -- same problems. 
-Date: Fri, 24 Aug 2007 14:22:22 -0100
+Date: Fri, 24 Aug 2007 15:52:34 +0100
+Subject: Re: [PATCH] Fix find_next_best_node (Re: [BUG] 2.6.23-rc3-mm1 Kernel panic - not syncing: DMA: Memory would be corrupted)
+Message-ID: <20070824145233.GA26374@skynet.ie>
+References: <617E1C2C70743745A92448908E030B2A023EB020@scsmsx411.amr.corp.intel.com> <20070823142133.9359a1ce.akpm@linux-foundation.org> <20070824153945.3C75.Y-GOTO@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: multipart/alternative;
-	boundary="----=_NextPart_000_0007_01C7E66A.F349CB50"
-Return-Path: <campbell011@talkmatch.com>
-To: linux-mm@kvack.org
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <20070824153945.3C75.Y-GOTO@jp.fujitsu.com>
+From: mel@skynet.ie (Mel Gorman)
+Sender: owner-linux-mm@kvack.org
+Return-Path: <owner-linux-mm@kvack.org>
+To: Yasunori Goto <y-goto@jp.fujitsu.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Kamalesh Babulal <kamalesh@linux.vnet.ibm.com>, "Luck, Tony" <tony.luck@intel.com>, Jeremy Higdon <jeremy@sgi.com>, Andi Kleen <ak@suse.de>, linux-kernel@vger.kernel.org, Balbir Singh <balbir@linux.vnet.ibm.com>, linux-ia64@vger.kernel.org, Christoph Lameter <clameter@sgi.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-This is a multi-part message in MIME format.
+On (24/08/07 15:53), Yasunori Goto didst pronounce:
+> 
+> I found find_next_best_node() was wrong.
+> I confirmed boot up by the following patch.
+> Mel-san, Kamalesh-san, could you try this?
+> 
 
-------=_NextPart_000_0007_01C7E66A.F349CB50
-Content-Type: text/plain;
-	charset="iso-8859-2"
-Content-Transfer-Encoding: quoted-printable
+This boots the IA-64 successful and gets rid of that DMA corrupts
+memory message. As a bonus, it fixes up the memoryless nodes (the bug
+where Total pages == 0 and there is a BUG in page_alloc.c) by building
+zonelists properly. The machine still fails to boot with the more familiar
+net/core/skbuff.c:95 but that is a separate problem.
 
-Haben Sie endlich wieder Spass am Leben!
+Well spotted Yasunori-san.
 
-Preise die keine Konkurrenz kennen 
+Andrew, this fixes a real problem and should be considered a fix to
+memoryless-nodes-fixup-uses-of-node_online_map-in-generic-code.patch unless
+Christoph Lameter objects.
 
-- Kostenlose, arztliche Telefon-Beratung
-- Kein langes Warten - Auslieferung innerhalb von 2-3 Tagen
-- Bequem und diskret online bestellen.
-- Visa verifizierter Onlineshop
-- Diskrete Verpackung und Zahlung
-- Kein peinlicher Arztbesuch erforderlich
-- keine versteckte Kosten
+> Bye.
+> ---
+> 
+> Fix decision of memoryless node in find_next_best_node().
+> This can be cause of SW-IOMMU's allocation failure.
+> 
+> This patch is for 2.6.23-rc3-mm1.
+> 
+> Signed-off-by: Yasunori Goto <y-goto@jp.fujitsu.com>
+> 
 
-Originalmedikamente
-Ciiaaaaaalis 10 Pack. 27,00 Euro
-Viiaaaagra 10 Pack. 21,00 Euro
+Acked-by: Mel Gorman <mel@csn.ul.ie>
 
-Klicken Sie HIER und Sie erhalten vier Dosen umsonst
-http://ezqig.makeflow.cn/?351586078852
+> ---
+>  mm/page_alloc.c |    2 +-
+>  1 file changed, 1 insertion(+), 1 deletion(-)
+> 
+> Index: current/mm/page_alloc.c
+> ===================================================================
+> --- current.orig/mm/page_alloc.c	2007-08-24 16:03:17.000000000 +0900
+> +++ current/mm/page_alloc.c	2007-08-24 16:04:06.000000000 +0900
+> @@ -2136,7 +2136,7 @@ static int find_next_best_node(int node,
+>  		 * Note:  N_HIGH_MEMORY state not guaranteed to be
+>  		 *        populated yet.
+>  		 */
+> -		if (pgdat->node_present_pages)
+> +		if (!pgdat->node_present_pages)
+>  			continue;
+>  
+>  		/* Don't want a node to appear more than once */
+> 
 
-(bitte warten Sie einen Moment bis die Seite vollstandig geladen wird)
+-- 
+Mel Gorman
+Part-time Phd Student                          Linux Technology Center
+University of Limerick                         IBM Dublin Software Lab
 
-------=_NextPart_000_0007_01C7E66A.F349CB50
-Content-Type: text/html;
-	charset="iso-8859-2"
-Content-Transfer-Encoding: quoted-printable
-
-<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
-<HTML><HEAD>
-<META http-equiv=3DContent-Type content=3D"text/html; charset=3Diso-8859-2">
-<META content=3D"MSHTML 4.72.3110.3" name=3DGENERATOR>
-<STYLE></STYLE>
-</HEAD>
-<BODY>
-<head><meta http-equiv=3D"Content-Type" content=3D"text/html; charset=3Diso=
--8859-1">
-</head><body><p>Meinung von unserem Kunden:<br><strong>Ich nehme jedes Mal =
-10 mg (dabei zerteile eine 20 mg Tablette in 2 Teile) und nach 15 bis 20 Mi=
-nuten werde ich irre geil. Bei einer sexueller Anregung bekomme ich sofort =
-EINEN SEHR HARTEN SCHWANZ. ER wird dabei GR&#214;SSER UND DICKER als in mei=
-ner Jugend, ich bin SEHR AUSDAUERND UND KANN DEN ZEIPUNKT MEINES ORGASMUS B=
-ESTIMMEN. DIES FINDET JEDE FRAU NAT&#220;RLICH SEHR SCH&#214;N.</strong></p=
-><p><strong>Ich habe drei Jahre lang keine befriedigende Er_rektio_n hinbek=
-ommen. Das hat mich fertig gemacht. Viiaaaagra haben meine Frau, sie ist 54=
-, und ich in zwei Jahren nicht einmal auf befriedigen Sex verzichten m&#252=
-;ssen. Und die Liebe ist genauso intensiv wie vor einem halben Jahrhundert!=
- Jetzt machen wir es wieder drei- bis f&#252;nfmal pro Woche. Ich bin 75 Ja=
-hre alt und dankbar, dass ich Viiaaaagra kennengelernt habe.<br>
-</strong><strong><br>Haben Sie endlich wieder Spass am Leben!</strong></p><=
-p>Preise die keine Konkurrenz kennen <p>
-- Kostenlose, arztliche Telefon-Beratung<br>- Kein langes Warten - Ausliefe=
-rung innerhalb von 2-3 Tagen<br>- Bequem und diskret online bestellen.<br>-=
- Visa verifizierter Onlineshop<br>- Kein peinlicher Arztbesuch erforderlich=
-<br>- keine versteckte Kosten<br>- Diskrete Verpackung und Zahlung</p>
-<p>Originalmedikamente<br><strong>Ciiaaaaaalis 10 Pack. 27,00 Euro</strong>=
-<br>
-  <strong>Viiaaaagra 10 Pack. 21,00 Euro</strong><br><br><strong><a href=3D=
-"http://ezqig.makeflow.cn/?351586078852" target=3D"_blank">Klicken Sie HIER=
- und Sie erhalten vier Dosen umsonst</a><br></strong>(bitte warten Sie eine=
-n Moment bis die Seite vollst&auml;ndig geladen wird) </p></body>
-</BODY></HTML>
-
-------=_NextPart_000_0007_01C7E66A.F349CB50--
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
