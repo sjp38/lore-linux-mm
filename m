@@ -1,51 +1,66 @@
-Received: from d03relay02.boulder.ibm.com (d03relay02.boulder.ibm.com [9.17.195.227])
-	by e36.co.us.ibm.com (8.13.8/8.13.8) with ESMTP id l7OGJNqt018250
-	for <linux-mm@kvack.org>; Fri, 24 Aug 2007 12:19:24 -0400
-Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
-	by d03relay02.boulder.ibm.com (8.13.8/8.13.8/NCO v8.5) with ESMTP id l7OGJNQd258042
-	for <linux-mm@kvack.org>; Fri, 24 Aug 2007 10:19:23 -0600
-Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av02.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l7OGJNfh007757
-	for <linux-mm@kvack.org>; Fri, 24 Aug 2007 10:19:23 -0600
-Subject: Re: [PATCH 9/9] pagemap: export swap ptes
-From: Dave Hansen <haveblue@us.ibm.com>
-In-Reply-To: <20070824002945.GE21720@waste.org>
-References: <20070822231804.1132556D@kernel>
-	 <20070822231814.8F5F37A0@kernel>  <20070824002945.GE21720@waste.org>
-Content-Type: text/plain
-Date: Fri, 24 Aug 2007 09:19:22 -0700
-Message-Id: <1187972362.16177.3614.camel@localhost>
-Mime-Version: 1.0
+Received: from d23relay03.au.ibm.com (d23relay03.au.ibm.com [202.81.18.234])
+	by e23smtp06.au.ibm.com (8.13.1/8.13.1) with ESMTP id l7OGkj49029484
+	for <linux-mm@kvack.org>; Sat, 25 Aug 2007 02:46:45 +1000
+Received: from d23av04.au.ibm.com (d23av04.au.ibm.com [9.190.235.139])
+	by d23relay03.au.ibm.com (8.13.8/8.13.8/NCO v8.5) with ESMTP id l7OGkkqu4706446
+	for <linux-mm@kvack.org>; Sat, 25 Aug 2007 02:46:46 +1000
+Received: from d23av04.au.ibm.com (loopback [127.0.0.1])
+	by d23av04.au.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l7OHkjFr006015
+	for <linux-mm@kvack.org>; Sat, 25 Aug 2007 03:46:45 +1000
+Message-ID: <46CF0B70.1050302@linux.vnet.ibm.com>
+Date: Fri, 24 Aug 2007 22:16:40 +0530
+From: Kamalesh Babulal <kamalesh@linux.vnet.ibm.com>
+MIME-Version: 1.0
+Subject: Re: [PATCH] Fix find_next_best_node (Re: [BUG] 2.6.23-rc3-mm1 Kernel
+ panic - not syncing: DMA: Memory would be corrupted)
+References: <617E1C2C70743745A92448908E030B2A023EB020@scsmsx411.amr.corp.intel.com> <20070823142133.9359a1ce.akpm@linux-foundation.org> <20070824153945.3C75.Y-GOTO@jp.fujitsu.com>
+In-Reply-To: <20070824153945.3C75.Y-GOTO@jp.fujitsu.com>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Matt Mackall <mpm@selenic.com>
-Cc: linux-mm@kvack.org
+To: Yasunori Goto <y-goto@jp.fujitsu.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@skynet.ie>, "Luck, Tony" <tony.luck@intel.com>, Jeremy Higdon <jeremy@sgi.com>, Andi Kleen <ak@suse.de>, linux-kernel@vger.kernel.org, Balbir Singh <balbir@linux.vnet.ibm.com>, linux-ia64@vger.kernel.org, Christoph Lameter <clameter@sgi.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 2007-08-23 at 19:29 -0500, Matt Mackall wrote:
-> On Wed, Aug 22, 2007 at 04:18:14PM -0700, Dave Hansen wrote:
-> > 
-> > In addition to understanding which physical pages are
-> > used by a process, it would also be very nice to
-> > enumerate how much swap space a process is using.
-> > 
-> > This patch enables /proc/<pid>/pagemap to display
-> > swap ptes.  In the process, it also changes the
-> > constant that we used to indicate non-present ptes
-> > before.
-> > 
-> > Signed-off-by: Dave Hansen <haveblue@us.ibm.com>
-> 
-> I suspect you missed a quilt add here, as is_swap_pte is not in any
-> header file and is thus implicitly declared.
+Yasunori Goto wrote:
+> I found find_next_best_node() was wrong.
+> I confirmed boot up by the following patch.
+> Mel-san, Kamalesh-san, could you try this?
+>
+> Bye.
+> ---
+>
+> Fix decision of memoryless node in find_next_best_node().
+> This can be cause of SW-IOMMU's allocation failure.
+>
+> This patch is for 2.6.23-rc3-mm1.
+>
+> Signed-off-by: Yasunori Goto <y-goto@jp.fujitsu.com>
+>
+> ---
+>  mm/page_alloc.c |    2 +-
+>  1 file changed, 1 insertion(+), 1 deletion(-)
+>
+> Index: current/mm/page_alloc.c
+> ===================================================================
+> --- current.orig/mm/page_alloc.c	2007-08-24 16:03:17.000000000 +0900
+> +++ current/mm/page_alloc.c	2007-08-24 16:04:06.000000000 +0900
+> @@ -2136,7 +2136,7 @@ static int find_next_best_node(int node,
+>  		 * Note:  N_HIGH_MEMORY state not guaranteed to be
+>  		 *        populated yet.
+>  		 */
+> -		if (pgdat->node_present_pages)
+> +		if (!pgdat->node_present_pages)
+>  			continue;
+>
+>  		/* Don't want a node to appear more than once */
+>
+>   
+This patch resolves the kernel panic problem.
 
-Yeah, I have another patch that was declared waaaaaaay earlier in my
-series that does this.  I'm not completely confident in the way that I
-formatted the swap pte, so let's hold off on just this patch for now.
-I'll rework it and send it your way again in a few days.
-
--- Dave
+-
+Kamalesh Babulal.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
