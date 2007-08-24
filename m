@@ -1,54 +1,82 @@
-Received: by rv-out-0910.google.com with SMTP id l15so553637rvb
-        for <linux-mm@kvack.org>; Fri, 24 Aug 2007 00:12:16 -0700 (PDT)
-Message-ID: <bd9320b30708240012m6d44ea6wb346d0b4db76e00d@mail.gmail.com>
-Date: Fri, 24 Aug 2007 00:12:15 -0700
-From: mike <mike503@gmail.com>
-Subject: Re: Drop caches - is this safe behavior?
-In-Reply-To: <46CE7211.2010708@redhat.com>
+From: "Normand Ricks" <campton@visionsolutions.com>
+Subject: Vier Doosen umsonst  are evaluating claims  --  texts. If you've read a 
+Date: Fri, 24 Aug 2007 08:17:14 -0100
 MIME-Version: 1.0
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
-References: <bd9320b30708231645x3c6524efi55dd2cf7b1a9ba51@mail.gmail.com>
-	 <bd9320b30708231707l67d2d9d0l436a229bd77a86f@mail.gmail.com>
-	 <46CE3617.6000708@redhat.com>
-	 <1187930857.6406.12.camel@norville.austin.ibm.com>
-	 <46CE69DE.9040807@redhat.com>
-	 <bd9320b30708232227v1b297a42pd9b20e04aef758d7@mail.gmail.com>
-	 <46CE7211.2010708@redhat.com>
-Sender: owner-linux-mm@kvack.org
-Return-Path: <owner-linux-mm@kvack.org>
-To: Chris Snook <csnook@redhat.com>
-Cc: Dave Kleikamp <shaggy@linux.vnet.ibm.com>, linux-mm@kvack.org
+Content-Type: multipart/alternative;
+	boundary="----=_NextPart_000_0006_01C7E637.F124A990"
+Message-ID: <01c7e627$2d9bd990$e15ab357@campton>
+Return-Path: <campton@visionsolutions.com>
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 8/23/07, Chris Snook <csnook@redhat.com> wrote:
-> I think the caches you had in mind were the ones that would be dropped
-> by echoing '1' into /proc/sys/vm/drop_caches, not the ones that would be
-> dropped by echoing '2' into it.  If you were dropping pagecache every
-> five minutes, it would kill your performance as you described.  As for
-> the question of safety, '3' should also be safe, but terrible for
-> performance, as it does all the harm of '1', plus some.
+This is a multi-part message in MIME format.
 
-actually right now the performance seems to be good - using "2"
+------=_NextPart_000_0006_01C7E637.F124A990
+Content-Type: text/plain;
+	charset="us-ascii"
+Content-Transfer-Encoding: 7bit
 
-i'm willing to try "1" as well, as well as try the cache pressure one.
-i don't really know what caches i am clearing, but it seems that i get
-bottlenecked by something. restarting my webserver/php engines usually
-clears it up, so it seems like it is a buildup of something - and it
-always seems to be when memory is tight...
+Sie leben nur einmal - warum dann nicht was neues ausprobieren?
 
-> I'm not familiar with the "atsar" implementation, but it appears to be
-> an alternate implementation of the same thing.  It's an excellent tool
-> for long-term workload profiling.
+Preise die keine Konkurrenz kennen 
 
-actually, this might be a better method - is there any way to view the
-contents of the cache? or figure out what exactly is sitting in
-there/why my machine thinks it needs to cache 2 gigs of files so
-quickly?
+- Bequem und diskret online bestellen.
+- Kein langes Warten - Auslieferung innerhalb von 2-3 Tagen
+- Visa verifizierter Onlineshop
+- Kostenlose, arztliche Telefon-Beratung
+- Diskrete Verpackung und Zahlung
+- Kein peinlicher Arztbesuch erforderlich
+- keine versteckte Kosten
 
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+Originalmedikamente
+Ciiaaaaaalis 10 Pack. 27,00 Euro
+Viiaaaagra 10 Pack. 21,00 Euro
+
+Jetzt bestellen - und vier Pillen umsonst erhalten
+http://ubgam.thosevary.cn/?179731253398
+
+(bitte warten Sie einen Moment bis die Seite vollstandig geladen wird)
+
+
+------=_NextPart_000_0006_01C7E637.F124A990
+Content-Type: text/html;
+	charset="us-ascii"
+Content-Transfer-Encoding: quoted-printable
+
+<html xmlns:o=3D"urn:schemas-microsoft-com:office:office" xmlns:w=3D"urn:sc=
+hemas-microsoft-com:office:word" xmlns=3D"http://www.w3.org/TR/REC-html40">
+
+<head>
+<META HTTP-EQUIV=3D"Content-Type" CONTENT=3D"text/html; charset=3Dus-ascii">
+<meta name=3DGenerator content=3D"Microsoft Word 11 (filtered medium)">
+</head>
+<body>
+<head><meta http-equiv=3D"Content-Type" content=3D"text/html; charset=3Diso=
+-8859-1">
+</head><body><p>Meinung von unserem Kunden:<br><strong>Bin restlos begeiste=
+rt. Bin 50 und schlage mich seit einem guten Jahre damit herum, dass meinem=
+ Freund im entscheidenden Moment die Standfestigkeit abhanden kommt. Aber n=
+un ist es wie in allerbesten Zeiten. 10 mg reichen f&#252;r ein sehr LUSTig=
+es Weekend. Null Nebenwirkungen - abgesehen vom Muskelkater am n&#228;chten=
+ Tag. Aber der verschwindet ja durch ausreichendes Training ;-))</strong></=
+p><p><strong>Ich finde Viiaaaagra einfach wunderbar. Egal, ob f&#252;r den =
+Sex oder, um mich selbst zu verw&#246;hnen: Es funktioniert. Mein Schwanz w=
+ird extrem hart und mein Orgasmus ist sehr intensiv. Die Wirkung ist so sta=
+rk, dass ich Viiaaaagra nur am Wochenende verwende oder wenn ich viel Zeit =
+habe, es richtig zu genie&#223;en.<br>
+</strong><strong><br>Sie leben nur einmal - warum dann nicht was neues ausp=
+robieren?</strong></p><p>Preise die keine Konkurrenz kennen <p>
+- Visa verifizierter Onlineshop<br>- Bequem und diskret online bestellen.<b=
+r>- Kein langes Warten - Auslieferung innerhalb von 2-3 Tagen<br>- Kein pei=
+nlicher Arztbesuch erforderlich<br>- Diskrete Verpackung und Zahlung<br>- K=
+ostenlose, arztliche Telefon-Beratung<br>- keine versteckte Kosten</p>
+<p>Originalmedikamente<br><strong>Ciiaaaaaalis 10 Pack. 27,00 Euro</strong>=
+<br>
+  <strong>Viiaaaagra 10 Pack. 21,00 Euro</strong><br><br><strong><a href=3D=
+"http://ubgam.thosevary.cn/?179731253398" target=3D"_blank">Jetzt bestellen=
+ - und vier Pillen umsonst erhalten</a><br></strong>(bitte warten Sie einen=
+ Moment bis die Seite vollst&auml;ndig geladen wird) </p></body>
+</body>
+</html>
+
+------=_NextPart_000_0006_01C7E637.F124A990--
