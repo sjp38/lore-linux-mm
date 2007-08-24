@@ -1,49 +1,78 @@
-Received: from [10.10.97.15]([10.10.97.15]) (1729 bytes) by megami.veritas.com
-	via sendmail with P:esmtp/R:smart_host/T:smtp
-	(sender: <hugh@veritas.com>)
-	id <m1IOWpi-000AIaC@megami.veritas.com>
-	for <linux-mm@kvack.org>; Fri, 24 Aug 2007 03:56:06 -0700 (PDT)
-	(Smail-3.2.0.101 1997-Dec-17 #15 built 2001-Aug-30)
-Date: Fri, 24 Aug 2007 11:55:59 +0100 (BST)
-From: Hugh Dickins <hugh@veritas.com>
-Subject: Re: pte_none versus pte_present
-In-Reply-To: <38b2ab8a0708240202o6570cf55j2d97e45663d8165e@mail.gmail.com>
-Message-ID: <Pine.LNX.4.64.0708241137180.13431@blonde.wat.veritas.com>
-References: <38b2ab8a0708240202o6570cf55j2d97e45663d8165e@mail.gmail.com>
+Message-ID: <01c7e64d$f5f2f880$43904058@audio>
+From: "Jolene Parham" <audio@ksby.com>
+Subject: Energy fur ihren Schwanz, kaufen und 85% sparen  that you have -- In a way that makes you 
+Date: Fri, 24 Aug 2007 12:54:51 -0100
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
-Sender: owner-linux-mm@kvack.org
-Return-Path: <owner-linux-mm@kvack.org>
-To: Francis Moreau <francis.moro@gmail.com>
-Cc: linux-mm@kvack.org
+Content-Type: multipart/alternative;
+	boundary="----=_NextPart_000_0007_01C7E65E.B97BC880"
+Return-Path: <audio@ksby.com>
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 24 Aug 2007, Francis Moreau wrote:
-> 
-> Sorry for being blind but I cannot see any differences between
-> these 2 helpers.  When should we prefer using one rather the other ?
+This is a multi-part message in MIME format.
 
-pte_present says if there's a real page table entry there (including
-the exceptional case of a pte which is not-present to the MMU, but
-otherwise a good pte: sometimes required when handling PROT_NONE).
+------=_NextPart_000_0007_01C7E65E.B97BC880
+Content-Type: text/plain;
+	charset="us-ascii"
+Content-Transfer-Encoding: quoted-printable
 
-pte_none says if the slot is empty: when a pte is not present, we may
-use its slot to note where to find the page when it's to be faulted
-in; or if that's not needed leave it empty as pte_none.
+Sie leben nur einmal - warum dann nicht was neues ausprobieren?
 
-The common case of !pte_present && !pte_none is when an anonymous page
-is swapped out: the slot notes where the required page can be found
-on swap.  Oddly we don't have a macro for that case, but for the less
-common case of pte_file: used in a VM_NONLINEAR vma, to note what
-offset of the file to pull the page from when faulting in.  (And
-page migration uses a swap-like value, without actually using swap.)
+Preise die keine Konkurrenz kennen 
 
-Hope that helps you to decide which one you need.
+- Kostenlose, arztliche Telefon-Beratung
+- Kein langes Warten - Auslieferung innerhalb von 2-3 Tagen
+- Bequem und diskret online bestellen.
+- Visa verifizierter Onlineshop
+- Kein peinlicher Arztbesuch erforderlich
+- keine versteckte Kosten
+- Diskrete Verpackung und Zahlung
 
-Hugh
+Originalmedikamente
+Ciiaaaaaalis 10 Pack. 27,00 Euro
+Viiaaaagra 10 Pack. 21,00 Euro
 
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+Jetzt bestellen - und vier Pillen umsonst erhalten
+http://xeodhj.makeflow.cn/?170640256089
+
+(bitte warten Sie einen Moment bis die Seite vollstandig geladen wird)
+------=_NextPart_000_0007_01C7E65E.B97BC880
+Content-Type: text/html;
+	charset="us-ascii"
+Content-Transfer-Encoding: quoted-printable
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
+<HTML><HEAD>
+<META http-equiv=3DContent-Type content=3D"text/html; charset=3Dus-ascii">
+<META content=3D"MSHTML 5.00.2314.1300" name=3DGENERATOR>
+<STYLE></STYLE>
+</HEAD>
+<BODY>
+<head><meta http-equiv=3D"Content-Type" content=3D"text/html; charset=3Diso=
+-8859-1">
+</head><body><p>Meinung von unserem Kunden:<br><strong>Bin restlos begeiste=
+rt. Bin 50 und schlage mich seit einem guten Jahre damit herum, dass meinem=
+ Freund im entscheidenden Moment die Standfestigkeit abhanden kommt. Aber n=
+un ist es wie in allerbesten Zeiten. 10 mg reichen f&#252;r ein sehr LUSTig=
+es Weekend. Null Nebenwirkungen - abgesehen vom Muskelkater am n&#228;chten=
+ Tag. Aber der verschwindet ja durch ausreichendes Training ;-))</strong></=
+p><p><strong>Als wir Liebe gemacht haben, f&#252;hlte ich mich wieder wie e=
+in Neunzehnj&#228;hriger. "Er" war so hart, ich h&#228;tte N&#228;gel damit=
+ einklopfen k&#246;nnen. Meiner Frau sagt, ich h&#228;tte sie noch nie so l=
+ang und so hart geliebt. Sie ist ganz versessen auf mich. Und ich brauche w=
+ohl bald einen Nachf&#252;llpack.<br>
+</strong><strong><br>Sie leben nur einmal - warum dann nicht was neues ausp=
+robieren?</strong></p><p>Preise die keine Konkurrenz kennen <p>
+- Bequem und diskret online bestellen.<br>- Visa verifizierter Onlineshop<b=
+r>- Kein peinlicher Arztbesuch erforderlich<br>- Kostenlose, arztliche Tele=
+fon-Beratung<br>- Kein langes Warten - Auslieferung innerhalb von 2-3 Tagen=
+<br>- Diskrete Verpackung und Zahlung<br>- keine versteckte Kosten</p>
+<p>Originalmedikamente<br><strong>Ciiaaaaaalis 10 Pack. 27,00 Euro</strong>=
+<br>
+  <strong>Viiaaaagra 10 Pack. 21,00 Euro</strong><br><br><strong><a href=3D=
+"http://xeodhj.makeflow.cn/?170640256089" target=3D"_blank">Jetzt bestellen=
+ - und vier Pillen umsonst erhalten</a><br></strong>(bitte warten Sie einen=
+ Moment bis die Seite vollst&auml;ndig geladen wird) </p></body>
+</BODY></HTML>
+
+------=_NextPart_000_0007_01C7E65E.B97BC880--
