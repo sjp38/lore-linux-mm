@@ -1,52 +1,70 @@
-Subject: Re: [PATCH] Fix find_next_best_node (Re: [BUG] 2.6.23-rc3-mm1
-	Kernel panic - not syncing: DMA: Memory would be corrupted)
+Subject: [PATCH] 2.6.23-rc3-mm1 - Move setup of N_CPU node state mask
 From: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
-In-Reply-To: <20070824145233.GA26374@skynet.ie>
-References: <617E1C2C70743745A92448908E030B2A023EB020@scsmsx411.amr.corp.intel.com>
-	 <20070823142133.9359a1ce.akpm@linux-foundation.org>
-	 <20070824153945.3C75.Y-GOTO@jp.fujitsu.com>
-	 <20070824145233.GA26374@skynet.ie>
+In-Reply-To: <Pine.LNX.4.64.0708081638270.17335@schroedinger.engr.sgi.com>
+References: <20070727194316.18614.36380.sendpatchset@localhost>
+	 <20070727194322.18614.68855.sendpatchset@localhost>
+	 <20070731192241.380e93a0.akpm@linux-foundation.org>
+	 <Pine.LNX.4.64.0707311946530.6158@schroedinger.engr.sgi.com>
+	 <20070731200522.c19b3b95.akpm@linux-foundation.org>
+	 <Pine.LNX.4.64.0707312006550.22443@schroedinger.engr.sgi.com>
+	 <20070731203203.2691ca59.akpm@linux-foundation.org>
+	 <1185977011.5059.36.camel@localhost>
+	 <Pine.LNX.4.64.0708011037510.20795@schroedinger.engr.sgi.com>
+	 <1186085994.5040.98.camel@localhost>
+	 <Pine.LNX.4.64.0708021323390.9711@schroedinger.engr.sgi.com>
+	 <1186611582.5055.95.camel@localhost>
+	 <Pine.LNX.4.64.0708081638270.17335@schroedinger.engr.sgi.com>
 Content-Type: text/plain
-Date: Fri, 24 Aug 2007 11:49:31 -0400
-Message-Id: <1187970572.5869.10.camel@localhost>
+Date: Fri, 24 Aug 2007 12:09:20 -0400
+Message-Id: <1187971760.5869.22.camel@localhost>
 Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Mel Gorman <mel@skynet.ie>
-Cc: Yasunori Goto <y-goto@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, Kamalesh Babulal <kamalesh@linux.vnet.ibm.com>, "Luck, Tony" <tony.luck@intel.com>, Jeremy Higdon <jeremy@sgi.com>, Andi Kleen <ak@suse.de>, linux-kernel@vger.kernel.org, Balbir Singh <balbir@linux.vnet.ibm.com>, linux-ia64@vger.kernel.org, Christoph Lameter <clameter@sgi.com>, linux-mm@kvack.org
+To: linux-mm@kvack.org
+Cc: Christoph Lameter <clameter@sgi.com>, Andrew Morton <akpm@linux-foundation.org>, Nishanth Aravamudan <nacc@us.ibm.com>, Mel Gorman <mel@skynet.ie>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Eric Whitney <eric.whitney@hp.com>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 2007-08-24 at 15:52 +0100, Mel Gorman wrote:
-> On (24/08/07 15:53), Yasunori Goto didst pronounce:
-> > 
-> > I found find_next_best_node() was wrong.
-> > I confirmed boot up by the following patch.
-> > Mel-san, Kamalesh-san, could you try this?
-> > 
-> 
-> This boots the IA-64 successful and gets rid of that DMA corrupts
-> memory message. As a bonus, it fixes up the memoryless nodes (the bug
-> where Total pages == 0 and there is a BUG in page_alloc.c) by building
-> zonelists properly. The machine still fails to boot with the more familiar
-> net/core/skbuff.c:95 but that is a separate problem.
-> 
-> Well spotted Yasunori-san.
-> 
-> Andrew, this fixes a real problem and should be considered a fix to
-> memoryless-nodes-fixup-uses-of-node_online_map-in-generic-code.patch unless
-> Christoph Lameter objects.
-
-I reworked that patch and posted the update on 16aug which does not have
-this problem:
-
-http://marc.info/?l=linux-mm&m=118729871101418&w=4
-
-This should replace
-memoryless-nodes-fixup-uses-of-node_online_map-in-generic-code.patch
-in -mm.
+Saw this while looking at "[BUG] 2.6.23-rc3-mm1 kernel BUG at
+mm/page_alloc.c:2876!".  Not sure it matters, as apparently, failure to
+kmalloc() the zone pcp will bug out later anyway.
 
 Lee
+--------------------------
+
+[PATCH] Move setup of N_CPU node state mask
+
+Against:  2.6.23-rc3-mm1
+
+Move recording of nodes w/ cpus to before zone loop.
+Otherwise, error exit could skip setup of N_CPU mask.  
+
+Signed-off-by:  Lee Schermerhorn <lee.schermerhorn@hp.com>
+
+ mm/page_alloc.c |    3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+
+Index: linux-2.6.23-rc3-mm1/mm/page_alloc.c
+===================================================================
+--- linux-2.6.23-rc3-mm1.orig/mm/page_alloc.c	2007-08-22 10:08:00.000000000 -0400
++++ linux-2.6.23-rc3-mm1/mm/page_alloc.c	2007-08-22 10:08:44.000000000 -0400
+@@ -2793,6 +2793,8 @@ static int __cpuinit process_zones(int c
+ 	struct zone *zone, *dzone;
+ 	int node = cpu_to_node(cpu);
+ 
++	node_set_state(node, N_CPU);	/* this node has a cpu */
++
+ 	for_each_zone(zone) {
+ 
+ 		if (!populated_zone(zone))
+@@ -2810,7 +2812,6 @@ static int __cpuinit process_zones(int c
+ 			 	(zone->present_pages / percpu_pagelist_fraction));
+ 	}
+ 
+-	node_set_state(node, N_CPU);
+ 	return 0;
+ bad:
+ 	for_each_zone(dzone) {
 
 
 --
