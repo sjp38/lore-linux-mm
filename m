@@ -1,54 +1,65 @@
-Received: by rv-out-0910.google.com with SMTP id l15so693701rvb
-        for <linux-mm@kvack.org>; Fri, 24 Aug 2007 12:35:02 -0700 (PDT)
-Message-ID: <38b2ab8a0708241235y7cc0bfefk65bd743c7ed03a6f@mail.gmail.com>
-Date: Fri, 24 Aug 2007 21:35:02 +0200
-From: "Francis Moreau" <francis.moro@gmail.com>
-Subject: Re: pte_none versus pte_present
-In-Reply-To: <Pine.LNX.4.64.0708241137180.13431@blonde.wat.veritas.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=ISO-8859-1
+Subject: RFC:  Noreclaim with "Keep Mlocked Pages off the LRU"
+From: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
+In-Reply-To: <20070823041137.GH18788@wotan.suse.de>
+References: <20070823041137.GH18788@wotan.suse.de>
+Content-Type: text/plain
+Date: Fri, 24 Aug 2007 16:43:38 -0400
+Message-Id: <1187988218.5869.64.camel@localhost>
+Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
-References: <38b2ab8a0708240202o6570cf55j2d97e45663d8165e@mail.gmail.com>
-	 <Pine.LNX.4.64.0708241137180.13431@blonde.wat.veritas.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Hugh Dickins <hugh@veritas.com>
-Cc: linux-mm@kvack.org
+To: Nick Piggin <npiggin@suse.de>
+Cc: linux-mm <linux-mm@kvack.org>, Rik van Riel <riel@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
-Hello Hugh,
+For your weekend reading pleasure [:-)]
 
-On 8/24/07, Hugh Dickins <hugh@veritas.com> wrote:
-> pte_present says if there's a real page table entry there (including
-> the exceptional case of a pte which is not-present to the MMU, but
-> otherwise a good pte: sometimes required when handling PROT_NONE).
->
+I have reworked your "move mlocked pages off LRU" atop my "noreclaim
+infrastructure" that keeps non-reclaimable pages [mlocked, swap-backed
+but no swap space, excessively long anon_vma list] on a separate
+noreclaim LRU list--more or less ignored by vmscan.  To do this, I had
+to <mumble>add<mumble>a new<mumble>mlock_count member<mumble>to
+the<mumble>page struct.  This brings the size of the page struct to a
+nice, round 64 bytes.  The mlock_count member and [most of] the
+noreclaim-mlocked-pages work now depends on CONFIG_NORECLAIM_MLOCK which
+depends on CONFIG_NORECLAIM.  Currently,  the entire noreclaim
+infrastructure is only supported on 64bit archs because I'm using a
+higher order bit [~30] for the PG_noreclaim flag.
 
-It could had been called pte_mmu instead...
+Using the noreclaim infrastructure does seem to simplify the "keep
+mlocked pages off the LRU" code tho'.  All of the isolate_lru_page(),
+move_to_lru(), ... functions have been taught about the noreclaim list,
+so many places don't need changes.  That being said, I really not sure
+I've covered all of the bases here...
 
-> pte_none says if the slot is empty: when a pte is not present, we may
-> use its slot to note where to find the page when it's to be faulted
-> in; or if that's not needed leave it empty as pte_none.
->
+Now, mlocked pages come back off the noreclaim list nicely when the last
+mlock reference goes away--assuming I have the counting correct.
+However, pages marked non-reclaimable for other reasons--no swap
+available, excessive anon_vma ref count--can languish there
+indefinitely.   At some point, perhaps vmscan could be taught to do a
+slow background scan of the noreclaim list [making it more like
+"slo-reclaim"--but we already have that :-)] when swap is added and we
+have unswappable pages on the list.  Currently, I don't keep track of
+the various reasons for the no-reclaim pages, but that could be added.  
 
-ok, so this one could had been named pte_inuse...
+Rik Van Riel mentions, on his VM wiki page that a background scan might
+be useful to age pages actively [clock hand, anyone?], so I might be
+able to piggyback on that, or even prototype it at some point.   In the
+meantime, I'm going to add a scan of the noreclaim list manually
+triggered by a temporary sysctl.
 
-> The common case of !pte_present && !pte_none is when an anonymous page
-> is swapped out: the slot notes where the required page can be found
-> on swap.  Oddly we don't have a macro for that case, but for the less
-> common case of pte_file: used in a VM_NONLINEAR vma, to note what
-> offset of the file to pull the page from when faulting in.  (And
-> page migration uses a swap-like value, without actually using swap.)
->
-> Hope that helps you to decide which one you need.
->
+Anyway, if anyone is interested, the patches are in a gzip'd tarball in:
 
-I think I get the idea now.
+http://free.linux.hp.com/~lts/Patches/Noreclaim/
 
-Thanks a lot for that !
--- 
-Francis
+Cursory functional testing with memtoy shows that it basically works.
+I've started a moderately stressful workload for the weekend.  We'll see
+how it goes.
+
+Cheers,
+Lee
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
