@@ -1,45 +1,77 @@
-Received: by fk-out-0910.google.com with SMTP id 18so598875fkq
-        for <linux-mm@kvack.org>; Thu, 23 Aug 2007 17:42:28 -0700 (PDT)
-Resent-To: Jesper Juhl <jesper.juhl@gmail.com>
-Resent-Message-ID: <200708240237.02043.jesper.juhl@gmail.com>
-Message-Id: <7a2e58dc05b356f27313d4a116eb92fbe2bb828e.1187912217.git.jesper.juhl@gmail.com>
-In-Reply-To: <1554af80879a7ef2f78a4d654f23c248203500d9.1187912217.git.jesper.juhl@gmail.com>
-References: <1554af80879a7ef2f78a4d654f23c248203500d9.1187912217.git.jesper.juhl@gmail.com>
-From: Jesper Juhl <jesper.juhl@gmail.com>
-Date: Fri, 24 Aug 2007 02:39:35 +0200
-Subject: [PATCH 29/30] mm: No need to cast vmalloc() return value in zone_wait_table_init()
+Message-ID: <46CE3617.6000708@redhat.com>
+Date: Thu, 23 Aug 2007 21:36:23 -0400
+From: Chris Snook <csnook@redhat.com>
 MIME-Version: 1.0
+Subject: Re: Drop caches - is this safe behavior?
+References: <bd9320b30708231645x3c6524efi55dd2cf7b1a9ba51@mail.gmail.com> <bd9320b30708231707l67d2d9d0l436a229bd77a86f@mail.gmail.com>
+In-Reply-To: <bd9320b30708231707l67d2d9d0l436a229bd77a86f@mail.gmail.com>
+Content-Type: text/plain; charset=ISO-8859-2; format=flowed
 Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
-Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Ingo Molnar <mingo@elte.hu>, Mel Gorman <mel@csn.ul.ie>, Jesper Juhl <jesper.juhl@gmail.com>
+To: mike <mike503@gmail.com>
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-vmalloc() returns a void pointer, so there's no need to cast its
-return value in mm/page_alloc.c::zone_wait_table_init().
+mike wrote:
+> I have a crontab running every 5 minutes on my servers now:
+> 
+>     echo 2 > /proc/sys/vm/drop_caches
+> 
+> Is this a safe thing to do? Am I risking any loss of data? It looks
+> like "3" might allow for that but from what I can understand 0-2 won't
+> lose data.
+> 
+> I was seeing some issues with my memory being taken up and thrown all
+> into "cached" and eventually starts swapping (not a lot, but a little)
+> - supposedly memory in "cached" is supposed to be available for new
+> stuff, but I swear it is not. I've tried a variety of things, and this
+> drop caches trick seems to make me feel quite comfortable seeing it be
+> free as in free physical RAM, not stuck in the cache.
 
-Signed-off-by: Jesper Juhl <jesper.juhl@gmail.com>
----
- mm/page_alloc.c |    2 +-
- 1 files changed, 1 insertions(+), 1 deletions(-)
+This widespread fallacy has been false for a long time.  The kernel will 
+swap instead of dropping caches if it believes that doing so will 
+improve performance.  It uses heuristics for this, and sometimes guesses 
+wrong, but it's not a bad thing.  Consider the memory used in the 
+initialization and shutdown routines for an application.  In normal 
+operation, you're never using it, so it's much better to swap this out 
+than to drop caches of a file you've actually accessed recently.  It is 
+completely normal to use have a small amount of swap utilization for 
+precisely this reason.  All you're doing by dropping caches is hurting 
+performance, probably by a lot.  The drop_caches patch was resisted for 
+a very long time because we knew people would use it to shoot themselves 
+in the foot.  It should only be used for debugging or benchmarking.
 
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 6427653..a8615c2 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -2442,7 +2442,7 @@ int zone_wait_table_init(struct zone *zone, unsigned long zone_size_pages)
- 		 * To use this new node's memory, further consideration will be
- 		 * necessary.
- 		 */
--		zone->wait_table = (wait_queue_head_t *)vmalloc(alloc_size);
-+		zone->wait_table = vmalloc(alloc_size);
- 	}
- 	if (!zone->wait_table)
- 		return -ENOMEM;
--- 
-1.5.2.2
+> So far it appears to be keeping my webservers' memory usage tolerable
+> and expected, as opposed to rampant and greedy. I haven't seen any
+> loss in functionality either. These servers get all their files (sans
+> local /var /etc stuff) from NFS, so I don't think a local memory-based
+> cache needs to be that important.
+
+"Rampant and greedy" is correct behavior, as long as it doesn't harm 
+performance.  Usually it helps performance, but if it does harm 
+performance, let us know, since that would be a bug we need to fix.  By 
+dropping caches of NFS-backed files on multiple systems, you're moving 
+the load from several underutilized systems to one heavily-utilized system.
+
+> I've been trying to find more information on the drop_caches parameter
+> and its effects but it appears to be too new and not very widespread.
+> Any help is appreciated. Perhaps this is a safe behavior on a
+> non-primary file storage system like a webserver mounting NFS, but the
+> NFS server itself should not?
+
+Safety aside, it's harmful no matter where you do it.  Forget about 
+drop_caches.  Don't use it.  It wasn't meant for your use case.
+
+If you think the system is doing the wrong thing (and it doesn't sound 
+like it is) you should be tweaking the vm.swappiness sysctl.  The 
+default is 60, but lower values will make it behave more like you think 
+it should be behaving, though you'll still probably see a tiny bit of 
+swap usage.  Of course, if your webservers are primarily serving up 
+static content, you'll want a higher value, since swapping anonymous 
+memory will leave more free for the pagecache you're primarily working with.
+
+	-- Chris
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
