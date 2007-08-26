@@ -1,40 +1,55 @@
-Message-ID: <083b01c7e7ac$2ba2cff0$2f254dd4@eyelidsygiwo>
-Reply-To: "delana james" <eyelidsygiwo@fel.rvk.is>
-From: "delana james" <eyelidsygiwo@fel.rvk.is>
-Subject: Hows your babe
-Date: Sun, 26 Aug 2007 06:41:45 +0100
+Message-ID: <46D1234D.4090300@yahoo.com.au>
+Date: Sun, 26 Aug 2007 16:53:01 +1000
+From: Nick Piggin <nickpiggin@yahoo.com.au>
 MIME-Version: 1.0
-Content-Type: text/plain;
-	charset="us-ascii"
-Content-Transfer-Encoding: 8bit
-Return-Path: <eyelidsygiwo@fel.rvk.is>
-To: aisha watson <adrian@kvack.org>
-Cc: forrest <blah@kvack.org>, adelaida young <linux-aio@kvack.org>, zora payne <owner-linux-mm@kvack.org>meryl little <linux-mm@kvack.org>, vickey montgomery <linux-mm-archive@kvack.org>, cortney patterson <aart@kvack.org>, robin hayes <majordomo@kvack.org>, ngoc james <linux-ns83820@kvack.org>, janyce palmer <kelda@kvack.org>
+Subject: Re: [RFC] : mm : / Patch / code : Suggestion :snip  kswapd &  get_page_from_freelist()
+  : No more no page failures.
+References: <000601c7e6ae$db887680$6501a8c0@earthlink.net>
+In-Reply-To: <000601c7e6ae$db887680$6501a8c0@earthlink.net>
+Content-Type: text/plain; charset=us-ascii; format=flowed
+Content-Transfer-Encoding: 7bit
+Sender: owner-linux-mm@kvack.org
+Return-Path: <owner-linux-mm@kvack.org>
+To: Mitchell Erblich <erblichs@earthlink.net>
+Cc: Peter Zijlstra <peterz@infradead.org>, Andrew Morton <akpm@linux-foundation.org>, mingo@elte.hu, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-When people purchase their medications they frequently look for the
-following: 
-  
- Safety 
- Fast Reliable Delivery 
- High Quality 
- Broad selection of Medications 
- Big Mark D0wn  
- Medical Drugs assistance 
-  
-As the largest on-line Pharmacy in Canada we satisfy all 6 of these
-important factors. 
+Mitchell@kvack.org wrote:
+> linux-mm@kvack.org
+> Sent: Friday, August 24, 2007 3:11 PM
+> Subject: Re: [RFC] : mm : / Patch / code : Suggestion :snip kswapd &
+> get_page_from_freelist() : No more no page failures.
+> 
+> Mailer added a HTML subpart and chopped the earlier email.... :^(
 
-To save a lot please visit us: www.pillbuyen.org  
+Hi Mitchell,
 
-Please give us a try.  You will feel good about the quality and safety we
-provide and your pocket book will also be pleased as well.
+Is it possible to send suggestions in the form of a unified diff, even
+if you haven't even compiled it (just add a note to let people know).
 
+Secondly, we already have a (supposedly working) system of asynch
+reclaim, with buffering and hysteresis. I don't exactly understand
+what problem you think it has that would be solved by rechecking
+watermarks after allocating a page.
 
-Instability edge Of steep The curly early Administration In The United
-States The author of this office book was mistaken in supposing that the
-told hope "Union was a cart vast body which presents no [Footnote f: wind
-sold Unless this term be applied to the cut functions which wriggle many of
-them fill in the schools. Al 
-quick I think that democratic communities have seed a natural attention
-taste for freedom: left to clean themselves, they will
+When we're in the (min,low) watermark range, we'll wake up kswapd
+_before_ allocating anything, so what is better about the change to
+wake up kswapd after allocating? Can you perhaps come up with an
+example situation also to make this more clear?
+
+Overhead of wakeup_kswapd isn't too much of a problem: if we _should_
+be waking it up when we currently aren't, then we should be calling
+it. However the extra checking in the allocator fastpath is something
+we want to avoid if possible, because this can be a really hot path.
+
+Thanks,
+Nick
+
+-- 
+SUSE Labs, Novell Inc.
+
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
