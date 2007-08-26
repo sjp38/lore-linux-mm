@@ -1,52 +1,54 @@
-Message-ID: <46D1234D.4090300@yahoo.com.au>
-Date: Sun, 26 Aug 2007 16:53:01 +1000
-From: Nick Piggin <nickpiggin@yahoo.com.au>
+Date: Sun, 26 Aug 2007 10:30:41 +0200 (CEST)
+From: Geert Uytterhoeven <geert@linux-m68k.org>
+Subject: Re: [PATCH] Prefix each line of multiline printk(KERN_<level>
+ "foo\nbar") with KERN_<level>
+In-Reply-To: <1187999098.32738.179.camel@localhost>
+Message-ID: <Pine.LNX.4.64.0708261028120.31149@anakin>
+References: <1187999098.32738.179.camel@localhost>
 MIME-Version: 1.0
-Subject: Re: [RFC] : mm : / Patch / code : Suggestion :snip  kswapd &  get_page_from_freelist()
-  : No more no page failures.
-References: <000601c7e6ae$db887680$6501a8c0@earthlink.net>
-In-Reply-To: <000601c7e6ae$db887680$6501a8c0@earthlink.net>
-Content-Type: text/plain; charset=us-ascii; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Mitchell Erblich <erblichs@earthlink.net>
-Cc: Peter Zijlstra <peterz@infradead.org>, Andrew Morton <akpm@linux-foundation.org>, mingo@elte.hu, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Joe Perches <joe@perches.com>
+Cc: linux-kernel@vger.kernel.org, blinux-list@redhat.com, cluster-devel@redhat.com, discuss@x86-64.org, jffs-dev@axis.com, linux-acpi@vger.kernel.org, linux-ide@vger.kernel.org, linux-mips@linux-mips.org, linux-mm@kvack.org, linux-mtd@lists.infradead.org, linux-scsi@vger.kernel.org, mpt_linux_developer@lsi.com, netdev@vger.kernel.org, osst-users@lists.sourceforge.net, parisc-linux@parisc-linux.org, tpmdd-devel@lists.sourceforge.net, uclinux-dist-devel@blackfin.uclinux.org
 List-ID: <linux-mm.kvack.org>
 
-Mitchell@kvack.org wrote:
-> linux-mm@kvack.org
-> Sent: Friday, August 24, 2007 3:11 PM
-> Subject: Re: [RFC] : mm : / Patch / code : Suggestion :snip kswapd &
-> get_page_from_freelist() : No more no page failures.
+On Fri, 24 Aug 2007, Joe Perches wrote:
+> Corrected printk calls with multiple output lines which
+> did not correctly preface each line with KERN_<level>
 > 
-> Mailer added a HTML subpart and chopped the earlier email.... :^(
+> Fixed uses of some single lines with too many KERN_<level>
 
-Hi Mitchell,
+> --- a/arch/arm/kernel/ecard.c
+> +++ b/arch/arm/kernel/ecard.c
+> @@ -547,7 +547,8 @@ static void ecard_check_lockup(struct irq_desc *desc)
+>  	if (last == jiffies) {
+>  		lockup += 1;
+>  		if (lockup > 1000000) {
+> -			printk(KERN_ERR "\nInterrupt lockup detected - "
+> +			printk(KERN_ERR "\n"
+> +			       KERN_ERR "Interrupt lockup detected - "
+>  			       "disabling all expansion card interrupts\n");
+>  
+>  			desc->chip->mask(IRQ_EXPANSIONCARD);
 
-Is it possible to send suggestions in the form of a unified diff, even
-if you haven't even compiled it (just add a note to let people know).
+What's the purpose of having lines printed with e.g. `KERN_ERR "\n"' only?
+Shouldn't these just be removed?
 
-Secondly, we already have a (supposedly working) system of asynch
-reclaim, with buffering and hysteresis. I don't exactly understand
-what problem you think it has that would be solved by rechecking
-watermarks after allocating a page.
+Usually lines starting with `\n' are continuations, but given some other
+module may call printk() in between, there's no guarantee continuations
+appear on the same line.
 
-When we're in the (min,low) watermark range, we'll wake up kswapd
-_before_ allocating anything, so what is better about the change to
-wake up kswapd after allocating? Can you perhaps come up with an
-example situation also to make this more clear?
+Gr{oetje,eeting}s,
 
-Overhead of wakeup_kswapd isn't too much of a problem: if we _should_
-be waking it up when we currently aren't, then we should be calling
-it. However the extra checking in the allocator fastpath is something
-we want to avoid if possible, because this can be a really hot path.
+						Geert
 
-Thanks,
-Nick
+--
+Geert Uytterhoeven -- There's lots of Linux beyond ia32 -- geert@linux-m68k.org
 
--- 
-SUSE Labs, Novell Inc.
+In personal conversations with technical people, I call myself a hacker. But
+when I'm talking to journalists I just say "programmer" or something like that.
+							    -- Linus Torvalds
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
