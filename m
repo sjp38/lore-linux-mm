@@ -1,56 +1,33 @@
-Received: from d23relay03.au.ibm.com (d23relay03.au.ibm.com [202.81.18.234])
-	by e23smtp04.au.ibm.com (8.13.1/8.13.1) with ESMTP id l7RAdMGP032117
-	for <linux-mm@kvack.org>; Mon, 27 Aug 2007 20:39:22 +1000
-Received: from d23av03.au.ibm.com (d23av03.au.ibm.com [9.190.250.244])
-	by d23relay03.au.ibm.com (8.13.8/8.13.8/NCO v8.5) with ESMTP id l7RAdLuA3604620
-	for <linux-mm@kvack.org>; Mon, 27 Aug 2007 20:39:21 +1000
-Received: from d23av03.au.ibm.com (loopback [127.0.0.1])
-	by d23av03.au.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l7RAdKOP024213
-	for <linux-mm@kvack.org>; Mon, 27 Aug 2007 20:39:21 +1000
-Message-ID: <46D2A9D3.50703@linux.vnet.ibm.com>
-Date: Mon, 27 Aug 2007 16:09:15 +0530
-From: Balbir Singh <balbir@linux.vnet.ibm.com>
-Reply-To: balbir@linux.vnet.ibm.com
+Message-ID: <46D2AB9D.6050600@gmx.net>
+Date: Mon, 27 Aug 2007 12:46:53 +0200
+From: Michael Kerrisk <mtk-manpages@gmx.net>
 MIME-Version: 1.0
-Subject: Re: [-mm PATCH 5/10] Memory controller task migration (v7)
-References: <20070824152043.16582.37727.sendpatchset@balbir-laptop> <20070827082635.195471BFA2C@siro.lan>
-In-Reply-To: <20070827082635.195471BFA2C@siro.lan>
-Content-Type: text/plain; charset=ISO-8859-1
+Subject: Re: get_mempolicy.2 man page patch
+References: <1180467234.5067.52.camel@localhost> <Pine.LNX.4.64.0705291247001.26308@schroedinger.engr.sgi.com> <200705292216.31102.ak@suse.de> <1180541849.5850.30.camel@localhost> <20070531082016.19080@gmx.net> <1180732544.5278.158.camel@localhost> <46A44B98.8060807@gmx.net> <46AB0CDB.8090600@gmx.net> <20070816200520.GB16680@bingen.suse.de>
+In-Reply-To: <20070816200520.GB16680@bingen.suse.de>
+Content-Type: text/plain; charset=us-ascii
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: YAMAMOTO Takashi <yamamoto@valinux.co.jp>
-Cc: akpm@linux-foundation.org, npiggin@suse.de, a.p.zijlstra@chello.nl, dhaval@linux.vnet.ibm.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, ebiederm@xmission.com, containers@lists.osdl.org, menage@google.com, xemul@openvz.org
+To: Andi Kleen <ak@suse.de>
+Cc: clameter@sgi.com, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, akpm@linux-foundation.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-YAMAMOTO Takashi wrote:
->> Allow tasks to migrate from one container to the other. We migrate
->> mm_struct's mem_container only when the thread group id migrates.
-> 
->> +	/*
->> +	 * Only thread group leaders are allowed to migrate, the mm_struct is
->> +	 * in effect owned by the leader
->> +	 */
->> +	if (p->tgid != p->pid)
->> +		goto out;
-> 
-> does it mean that you can't move a process between containers
-> once its thread group leader exited?
-> 
-> YAMAMOTO Takashi
+Thanks Andi!
 
-
-Hi,
-
-Good catch! Currently, we treat the mm as owned by the thread group leader.
-But this policy can be easily adapted to any other desired policy.
-Would you like to see it change to something else?
+Andi Kleen wrote:
+> Lee's changes are ok for me.
+> 
+> -Andi
+> 
 
 -- 
-	Warm Regards,
-	Balbir Singh
-	Linux Technology Center
-	IBM, ISTL
+Michael Kerrisk
+maintainer of Linux man pages Sections 2, 3, 4, 5, and 7
+
+Want to help with man page maintenance?  Grab the latest tarball at
+http://www.kernel.org/pub/linux/docs/manpages/
+read the HOWTOHELP file and grep the source files for 'FIXME'.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
