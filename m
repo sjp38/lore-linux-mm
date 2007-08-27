@@ -1,37 +1,31 @@
-Date: Mon, 27 Aug 2007 11:02:48 -0500
-From: Dean Nelson <dcn@sgi.com>
-Subject: [PATCH 3/4] add new lock ordering rule to mm/filemap.c
-Message-ID: <20070827160247.GD25589@sgi.com>
-References: <20070827155622.GA25589@sgi.com>
-MIME-Version: 1.0
+Date: Mon, 27 Aug 2007 17:13:28 +0100
+From: Al Viro <viro@ftp.linux.org.uk>
+Subject: Re: [PATCH 1/4] export __put_task_struct for XPMEM
+Message-ID: <20070827161327.GG21089@ftp.linux.org.uk>
+References: <20070827155622.GA25589@sgi.com> <20070827155933.GB25589@sgi.com>
+Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20070827155622.GA25589@sgi.com>
+In-Reply-To: <20070827155933.GB25589@sgi.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: akpm@linux-foundation.org
-Cc: linux-ia64@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, tony.luck@intel.com, jes@sgi.com
+To: Dean Nelson <dcn@sgi.com>
+Cc: akpm@linux-foundation.org, linux-ia64@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, tony.luck@intel.com, jes@sgi.com
 List-ID: <linux-mm.kvack.org>
 
-This patch adds a lock ordering rule to avoid a potential deadlock when
-multiple mmap_sems need to be locked.
+On Mon, Aug 27, 2007 at 10:59:33AM -0500, Dean Nelson wrote:
+> This patch exports __put_task_struct as it is needed by XPMEM.
+> 
+> Signed-off-by: Dean Nelson <dcn@sgi.com>
+> 
+> ---
+> 
+> One struct file_operations registered by XPMEM, xpmem_open(), calls
+> 'get_task_struct(current->group_leader)' and another, xpmem_flush(), calls
+> 'put_task_struct(tg->group_leader)'.
 
-Signed-off-by: Dean Nelson <dcn@sgi.com>
-
-Index: linux-2.6/mm/filemap.c
-===================================================================
---- linux-2.6.orig/mm/filemap.c	2007-08-09 19:18:15.000000000 -0500
-+++ linux-2.6/mm/filemap.c	2007-08-27 09:13:47.435717670 -0500
-@@ -78,6 +78,9 @@
-  *  ->i_mutex			(generic_file_buffered_write)
-  *    ->mmap_sem		(fault_in_pages_readable->do_page_fault)
-  *
-+ *    When taking multiple mmap_sems, one should lock the lowest-addressed
-+ *    one first proceeding on up to the highest-addressed one.
-+ *
-  *  ->i_mutex
-  *    ->i_alloc_sem             (various)
-  *
+Does it?  Well, then open the file in question and start doing close(dup(fd))
+in a loop.  Won't take long for an oops...
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
