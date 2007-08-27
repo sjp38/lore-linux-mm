@@ -1,67 +1,76 @@
-Date: Sun, 26 Aug 2007 13:06:31 +0200 (CEST)
-From: Geert Uytterhoeven <geert@linux-m68k.org>
-Subject: Re: [PATCH] Prefix each line of multiline printk(KERN_<level>
- "foo\nbar") with KERN_<level>
-In-Reply-To: <8bd0f97a0708260354xb4c8546od0cc19a590820f32@mail.gmail.com>
-Message-ID: <Pine.LNX.4.64.0708261305020.31149@anakin>
-References: <1187999098.32738.179.camel@localhost> <Pine.LNX.4.64.0708261028120.31149@anakin>
- <8bd0f97a0708260354xb4c8546od0cc19a590820f32@mail.gmail.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Date: Mon, 27 Aug 2007 03:35:25 +0200
+From: Nick Piggin <npiggin@suse.de>
+Subject: Re: RFC:  Noreclaim with "Keep Mlocked Pages off the LRU"
+Message-ID: <20070827013525.GA23894@wotan.suse.de>
+References: <20070823041137.GH18788@wotan.suse.de> <1187988218.5869.64.camel@localhost>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1187988218.5869.64.camel@localhost>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Mike Frysinger <vapier.adi@gmail.com>
-Cc: Joe Perches <joe@perches.com>, linux-kernel@vger.kernel.org, blinux-list@redhat.com, cluster-devel@redhat.com, discuss@x86-64.org, jffs-dev@axis.com, linux-acpi@vger.kernel.org, linux-ide@vger.kernel.org, linux-mips@linux-mips.org, linux-mm@kvack.org, linux-mtd@lists.infradead.org, linux-scsi@vger.kernel.org, mpt_linux_developer@lsi.com, netdev@vger.kernel.org, osst-users@lists.sourceforge.net, parisc-linux@parisc-linux.org, tpmdd-devel@lists.sourceforge.net, uclinux-dist-devel@blackfin.uclinux.org
+To: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
+Cc: linux-mm <linux-mm@kvack.org>, Rik van Riel <riel@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
-On Sun, 26 Aug 2007, Mike Frysinger wrote:
-> On 8/26/07, Geert Uytterhoeven <geert@linux-m68k.org> wrote:
-> > On Fri, 24 Aug 2007, Joe Perches wrote:
-> > > Corrected printk calls with multiple output lines which
-> > > did not correctly preface each line with KERN_<level>
-> > >
-> > > Fixed uses of some single lines with too many KERN_<level>
-> >
-> > > --- a/arch/arm/kernel/ecard.c
-> > > +++ b/arch/arm/kernel/ecard.c
-> > > @@ -547,7 +547,8 @@ static void ecard_check_lockup(struct irq_desc *desc)
-> > >       if (last == jiffies) {
-> > >               lockup += 1;
-> > >               if (lockup > 1000000) {
-> > > -                     printk(KERN_ERR "\nInterrupt lockup detected - "
-> > > +                     printk(KERN_ERR "\n"
-> > > +                            KERN_ERR "Interrupt lockup detected - "
-> > >                              "disabling all expansion card interrupts\n");
-> > >
-> > >                       desc->chip->mask(IRQ_EXPANSIONCARD);
-> >
-> > What's the purpose of having lines printed with e.g. `KERN_ERR "\n"' only?
-> > Shouldn't these just be removed?
-> >
-> > Usually lines starting with `\n' are continuations, but given some other
-> > module may call printk() in between, there's no guarantee continuations
-> > appear on the same line.
+On Fri, Aug 24, 2007 at 04:43:38PM -0400, Lee Schermerhorn wrote:
+> Nick:
 > 
-> erm, i thought the prink lock was grabbed per-buffer, not per-line ...
-> so yes, if the function calls were like printk(KERN_ERR "\n");
-> printk(KERN_ERR "..."); things could be broken up, but this is on
-> function call, so it shouldnt ...
+> For your weekend reading pleasure [:-)]
+> 
+> I have reworked your "move mlocked pages off LRU" atop my "noreclaim
+> infrastructure" that keeps non-reclaimable pages [mlocked, swap-backed
+> but no swap space, excessively long anon_vma list] on a separate
+> noreclaim LRU list--more or less ignored by vmscan.  To do this, I had
+> to <mumble>add<mumble>a new<mumble>mlock_count member<mumble>to
+> the<mumble>page struct.  This brings the size of the page struct to a
+> nice, round 64 bytes.  The mlock_count member and [most of] the
+> noreclaim-mlocked-pages work now depends on CONFIG_NORECLAIM_MLOCK which
+> depends on CONFIG_NORECLAIM.  Currently,  the entire noreclaim
+> infrastructure is only supported on 64bit archs because I'm using a
+> higher order bit [~30] for the PG_noreclaim flag.
 
-Yes it is.
+Can you keep the old system of removing mlocked pages completely, and
+keeping the mlock count in one of the lru pointers? That should avoid
+the need to have a new mlock_count, I think, because none of the other
+noreclaim types should need a refcount?
 
-What I mean is that probably there used to be a printk() call starting with
-`\n'. Then someone added a `KERN_ERR' in front of it.
+I do approve of bringing struct page to a nice round 64 bytes ;), but I
+think I would rather we used up those 8 bytes by making count and
+mapcount 8 bytes each.
 
-Gr{oetje,eeting}s,
 
-						Geert
+> Using the noreclaim infrastructure does seem to simplify the "keep
+> mlocked pages off the LRU" code tho'.  All of the isolate_lru_page(),
+> move_to_lru(), ... functions have been taught about the noreclaim list,
+> so many places don't need changes.  That being said, I really not sure
+> I've covered all of the bases here...
+> 
+> Now, mlocked pages come back off the noreclaim list nicely when the last
+> mlock reference goes away--assuming I have the counting correct.
+> However, pages marked non-reclaimable for other reasons--no swap
+> available, excessive anon_vma ref count--can languish there
+> indefinitely.   At some point, perhaps vmscan could be taught to do a
+> slow background scan of the noreclaim list [making it more like
+> "slo-reclaim"--but we already have that :-)] when swap is added and we
+> have unswappable pages on the list.  Currently, I don't keep track of
+> the various reasons for the no-reclaim pages, but that could be added.  
+> 
+> Rik Van Riel mentions, on his VM wiki page that a background scan might
+> be useful to age pages actively [clock hand, anyone?], so I might be
+> able to piggyback on that, or even prototype it at some point.   In the
+> meantime, I'm going to add a scan of the noreclaim list manually
+> triggered by a temporary sysctl.
 
---
-Geert Uytterhoeven -- There's lots of Linux beyond ia32 -- geert@linux-m68k.org
+Yeah, I think the basic slow simple clock would be a reasonable starting
+point. You may end up wanting to introduce some feedback from near-OOM
+condition and/or free swap accounting to speed up the scanning rate.
 
-In personal conversations with technical people, I call myself a hacker. But
-when I'm talking to journalists I just say "programmer" or something like that.
-							    -- Linus Torvalds
+I haven't had much look at the patches yet, but I'm glad to see the old
+mlocked patch come to something ;)
+
+Thanks,
+Nick
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
