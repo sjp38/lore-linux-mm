@@ -1,7 +1,7 @@
-Date: Mon, 27 Aug 2007 10:59:33 -0500
+Date: Mon, 27 Aug 2007 11:01:32 -0500
 From: Dean Nelson <dcn@sgi.com>
-Subject: [PATCH 1/4] export __put_task_struct for XPMEM
-Message-ID: <20070827155933.GB25589@sgi.com>
+Subject: [PATCH 2/4] export zap_page_range for XPMEM
+Message-ID: <20070827160132.GC25589@sgi.com>
 References: <20070827155622.GA25589@sgi.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
@@ -13,40 +13,31 @@ To: akpm@linux-foundation.org
 Cc: linux-ia64@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, tony.luck@intel.com, jes@sgi.com
 List-ID: <linux-mm.kvack.org>
 
-This patch exports __put_task_struct as it is needed by XPMEM.
+This patch exports zap_page_range as it is needed by XPMEM.
 
 Signed-off-by: Dean Nelson <dcn@sgi.com>
 
 ---
 
-One struct file_operations registered by XPMEM, xpmem_open(), calls
-'get_task_struct(current->group_leader)' and another, xpmem_flush(), calls
-'put_task_struct(tg->group_leader)'. The reason for this is given in the
-comment block that appears in xpmem_open().
+XPMEM would have used sys_madvise() except that madvise_dontneed()
+madvise_dontneed() returns an -EINVAL if VM_PFNMAP is set, which is
+always true for the pages XPMEM imports from other partitions and is
+also true for uncached pages allocated locally via the mspec allocator.
+XPMEM needs zap_page_range() functionality for these types of pages as
+well as 'normal' pages.
 
-	/*
-	 * Increment 'usage' and 'mm->mm_users' for the current task's thread
-	 * group leader. This ensures that both its task_struct and mm_struct
-	 * will still be around when our thread group exits. (The Linux kernel
-	 * normally tears down the mm_struct prior to calling a module's
-	 * 'flush' function.) Since all XPMEM thread groups must go through
-	 * this path, this extra reference to mm_users also allows us to
-	 * directly inc/dec mm_users in xpmem_ensure_valid_PFNs() and avoid
-	 * mmput() which has a scaling issue with the mmlist_lock.
-	 */
-
-Index: linux-2.6/kernel/fork.c
+Index: linux-2.6/mm/memory.c
 ===================================================================
---- linux-2.6.orig/kernel/fork.c	2007-08-09 07:07:55.426611601 -0500
-+++ linux-2.6/kernel/fork.c	2007-08-09 07:15:43.246391700 -0500
-@@ -127,6 +127,7 @@
- 	if (!profile_handoff_task(tsk))
- 		free_task(tsk);
+--- linux-2.6.orig/mm/memory.c	2007-08-09 07:07:55.762651612 -0500
++++ linux-2.6/mm/memory.c	2007-08-09 07:15:43.226389312 -0500
+@@ -894,6 +894,7 @@
+ 		tlb_finish_mmu(tlb, address, end);
+ 	return end;
  }
-+EXPORT_SYMBOL_GPL(__put_task_struct);
++EXPORT_SYMBOL_GPL(zap_page_range);
  
- void __init fork_init(unsigned long mempages)
- {
+ /*
+  * Do a quick page-table lookup for a single page.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
