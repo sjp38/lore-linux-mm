@@ -1,41 +1,46 @@
-Date: Mon, 27 Aug 2007 13:15:10 -0700 (PDT)
-From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [PATCH/RFC]  Add node 'states' sysfs class attribute
-In-Reply-To: <1188245333.5952.84.camel@localhost>
-Message-ID: <Pine.LNX.4.64.0708271313570.5692@schroedinger.engr.sgi.com>
-References: <200708242228.l7OMS5fU017948@imap1.linux-foundation.org>
- <1188236904.5952.72.camel@localhost>  <Pine.LNX.4.64.0708271203170.4667@schroedinger.engr.sgi.com>
- <1188245333.5952.84.camel@localhost>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Date: Mon, 27 Aug 2007 15:24:20 -0500
+From: Robin Holt <holt@sgi.com>
+Subject: Re: [PATCH 1/4] export __put_task_struct for XPMEM
+Message-ID: <20070827202420.GE22922@lnx-holt.americas.sgi.com>
+References: <20070827155622.GA25589@sgi.com> <20070827155933.GB25589@sgi.com> <20070827161327.GG21089@ftp.linux.org.uk> <20070827181056.GA30176@sgi.com> <20070827181544.GH21089@ftp.linux.org.uk> <20070827191906.GB30176@sgi.com> <20070827193510.GJ21089@ftp.linux.org.uk>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20070827193510.GJ21089@ftp.linux.org.uk>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
-Cc: linux-mm <linux-mm@kvack.org>, mel@skynet.ie, y-goto@jp.fujitsu.com, Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, Eric Whitney <eric.whitney@hp.com>
+To: Al Viro <viro@ftp.linux.org.uk>
+Cc: Dean Nelson <dcn@sgi.com>, akpm@linux-foundation.org, linux-ia64@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, tony.luck@intel.com, jes@sgi.com
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 27 Aug 2007, Lee Schermerhorn wrote:
-
-> > Yes that is important for software that wants to allocate per node 
-> > structures. The possible mask shows which nodes could be activated later.
+On Mon, Aug 27, 2007 at 08:35:10PM +0100, Al Viro wrote:
+> On Mon, Aug 27, 2007 at 02:19:06PM -0500, Dean Nelson wrote:
 > 
-> Good point.  Given that, I'm thinking we might want to limit the
-> displayed masks--even the internal value of the mask--to something
-> closer to what a particular platform architecture can support, even tho'
-> the kernel might be configured for a much larger number.  I'll have to
-> look into how to do this.
-
-It is the responsibility of the arch code to set this up the right 
-way AFAIK.
-
-> > Leading words of all zeroes? nodemask_scnprintf calls bitmap_scnprintf(). 
-> > Maybe it should call bitmap_scnlistprintf() instead?
+> > No operations can be done once it's closed, only while it's opened.
 > 
-> For platforms with small numbers of possible nodes, that might look
-> nicer.  
+> What the hell do you mean, can't be done?
+> 
+> 	fd = open(...);
+> 	fp = popen("/bin/date", "r");
+> 	/* read from fp */
+> 	fclose(fp);
 
-For large platforms this will avoid long node lists that warp around. So 
-lets do it.
+But this will operate on the dup'd fd.  We detect that in the flush
+(ignore) and ioctl (return errors) operations.  All other operations
+are not handled by xpmem.
+
+If you look at the fourth patch, at the beginning of the xpmem_flush
+function, we have:
+
++       tg = xpmem_tg_ref_by_tgid(xpmem_my_part, current->tgid);
++       if (IS_ERR(tg))
++               return 0;  /* probably child process who inherited fd */
+
+This will protect the xpmem structures of the parent from closes by
+the child.
+
+Thanks,
+Robin
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
