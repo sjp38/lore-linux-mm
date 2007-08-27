@@ -1,30 +1,46 @@
-Date: Mon, 27 Aug 2007 16:44:26 +0100
-From: Christoph Hellwig <hch@infradead.org>
-Subject: Re: RFC:  Noreclaim with "Keep Mlocked Pages off the LRU"
-Message-ID: <20070827154426.GA27868@infradead.org>
-References: <20070823041137.GH18788@wotan.suse.de> <1187988218.5869.64.camel@localhost> <20070827013525.GA23894@wotan.suse.de> <1188225247.5952.41.camel@localhost>
-Mime-Version: 1.0
+Date: Mon, 27 Aug 2007 10:56:22 -0500
+From: Dean Nelson <dcn@sgi.com>
+Subject: [PATCH 0/4] SGI Altix cross partition memory (XPMEM)
+Message-ID: <20070827155622.GA25589@sgi.com>
+MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1188225247.5952.41.camel@localhost>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
-Cc: Nick Piggin <npiggin@suse.de>, linux-mm <linux-mm@kvack.org>, Rik van Riel <riel@redhat.com>
+To: tony.luck@intel.com, akpm@linux-foundation.org
+Cc: linux-ia64@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, jes@sgi.com
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Aug 27, 2007 at 10:34:07AM -0400, Lee Schermerhorn wrote:
-> Well, keeping the mlock count in the lru pointer more or less defeats
-> the purpose of this exercise for me--that is, a unified mechanism for
-> tracking "non-reclaimable" pages.  I wanted to maintain the ability to
-> use the zone lru_lock and isolate_lru_page() to arbitrate access to
-> pages for migration, etc. w/o having to temporarily put the pages back
-> on the lru during migration.   
+    Terminology
 
-A few years ago I tried to implement a mlocked counter in the page
-aswell, and my approach was to create a union to reuse the space occupied
-by the lru list pointers for this.  I never really got it stable enough
-because people tripped over the lru list randomly far too often.
+The term 'partition', adopted by the SGI hardware designers and which
+perculated up into the software, is used in reference to a single SSI
+when multiple SSIs are running on a single Altix. An Altix running
+multiple SSIs is said to be 'partitioned', whereas one that is running
+only a single SSI is said to be 'unpartitioned'.
+
+The term '[a]cross partition' refers to a functionality that spans between
+two SSIs on a multi-SSI Altix. ('XP' is its abbreviation.)
+
+    Introduction
+
+This feature provides cross partition access to user memory (XPMEM) when
+running multiple partitions on a single SGI Altix. XPMEM, like XPNET,
+utilizes XPC to communicate between the partitions.
+
+XPMEM allows a user process to identify portion(s) of its address space
+that other user processes can attach (i.e. map) into their own address
+spaces. These processes can be running on the same or a different
+partition from the one whose memory they are attaching.
+
+    Known Issues
+
+XPMEM is not currently using the kthread API (which is also true for XPC)
+because it was in the process of being changed to require a kthread_stop()
+be done for every kthread_create() and the kthread_stop() couldn't be called
+for a thread that had already exited. In talking with Eric Biederman, there
+was some thought of creating a kthread_orphan() which would eliminate the
+need for a call to kthread_stop() being required.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
