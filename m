@@ -1,23 +1,33 @@
-Date: Mon, 27 Aug 2007 13:00:32 -0700 (PDT)
-From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: uncached page allocator
-In-Reply-To: <1187708165.6114.256.camel@twins>
-Message-ID: <Pine.LNX.4.64.0708271258420.5457@schroedinger.engr.sgi.com>
-References: <21d7e9970708191745h3b579f3bp72f138e089c624da@mail.gmail.com>
- <20070820094125.209e0811@the-village.bc.nu>
- <21d7e9970708202305h5128aa5cy847dafe033b00742@mail.gmail.com>
- <1187708165.6114.256.camel@twins>
+Date: Mon, 27 Aug 2007 22:00:31 +0200
+From: Adrian Bunk <bunk@kernel.org>
+Subject: Re: [PATCH 4/4] add SGI Altix cross partition memory (XPMEM) driver
+Message-ID: <20070827200031.GH4121@stusta.de>
+References: <20070827155622.GA25589@sgi.com> <20070827164112.GF25589@sgi.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=utf-8
+Content-Disposition: inline
+In-Reply-To: <20070827164112.GF25589@sgi.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Dave Airlie <airlied@gmail.com>
-Cc: Peter Zijlstra <peterz@infradead.org>, Alan Cox <alan@lxorguk.ukuu.org.uk>, dri-devel <dri-devel@lists.sourceforge.net>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux Memory Management <linux-mm@kvack.org>, jes@sgi.com
+To: Dean Nelson <dcn@sgi.com>
+Cc: tony.luck@intel.com, linux-ia64@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, akpm@linux-foundation.org, jes@sgi.com
 List-ID: <linux-mm.kvack.org>
 
-There is an uncached allocator in IA64 arch code 
-(linux/arch/ia64/kernel/uncached.c). Maybe having a look at 
-that will help? Jes wrote it.
+On Mon, Aug 27, 2007 at 11:41:12AM -0500, Dean Nelson wrote:
+> This patch has been bzip2'd and included as an attachment due to size.
+
+200 kB shouldn't be a problem
+(AFAIR the current limit on linux-kernel is 400 kB).
+
+cu
+Adrian
+
+-- 
+
+       "Is there not promise of rain?" Ling Tan asked suddenly out
+        of the darkness. There had been need of rain for many days.
+       "Only a promise," Lao Er said.
+                                       Pearl S. Buck - Dragon Seed
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
