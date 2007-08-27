@@ -1,79 +1,55 @@
-Subject: Re: [PATCH/RFC]  Add node 'states' sysfs class attribute
-From: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
-In-Reply-To: <Pine.LNX.4.64.0708271203170.4667@schroedinger.engr.sgi.com>
-References: <200708242228.l7OMS5fU017948@imap1.linux-foundation.org>
-	 <1188236904.5952.72.camel@localhost>
-	 <Pine.LNX.4.64.0708271203170.4667@schroedinger.engr.sgi.com>
-Content-Type: text/plain
-Date: Mon, 27 Aug 2007 16:08:53 -0400
-Message-Id: <1188245333.5952.84.camel@localhost>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Date: Mon, 27 Aug 2007 13:13:16 -0700 (PDT)
+From: Christoph Lameter <clameter@sgi.com>
+Subject: Re: [patch 1/1] alloc_pages(): permit get_zeroed_page(GFP_ATOMIC)
+ from interrupt context
+In-Reply-To: <200708232107.l7NL7XDt026979@imap1.linux-foundation.org>
+Message-ID: <Pine.LNX.4.64.0708271308380.5457@schroedinger.engr.sgi.com>
+References: <200708232107.l7NL7XDt026979@imap1.linux-foundation.org>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
-Cc: linux-mm <linux-mm@kvack.org>, mel@skynet.ie, y-goto@jp.fujitsu.com, Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, Eric Whitney <eric.whitney@hp.com>
+To: akpm@linux-foundation.orgAndrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, thomas.jarosch@intra2net.com
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 2007-08-27 at 12:11 -0700, Christoph Lameter wrote:
-> On Mon, 27 Aug 2007, Lee Schermerhorn wrote:
+On Thu, 23 Aug 2007, akpm@linux-foundation.org wrote:
+
+> See http://bugzilla.kernel.org/show_bug.cgi?id=8928
 > 
-> > Works on my numa platform:  4 nodes with cpus, one memory only node.
-> > 
-> > Questions:
-> > 
-> > 1)  if this is useful, do we need/want the possible mask?
-> 
-> Yes that is important for software that wants to allocate per node 
-> structures. The possible mask shows which nodes could be activated later.
+> I think it makes sense to permit a non-BUGging get_zeroed_page(GFP_ATOMIC)
+> from interrupt context.
 
-Good point.  Given that, I'm thinking we might want to limit the
-displayed masks--even the internal value of the mask--to something
-closer to what a particular platform architecture can support, even tho'
-the kernel might be configured for a much larger number.  I'll have to
-look into how to do this.
+AFAIK this works now. GFP_ATOMIC does not set __GFP_HIGHMEM and thus the 
+check
 
-> 
->  > 2)  how about teaching nodemask_scnprintf() to suppress leading
-> >     words of all zeros?
-> 
-> Leading words of all zeroes? nodemask_scnprintf calls bitmap_scnprintf(). 
-> Maybe it should call bitmap_scnlistprintf() instead?
+	VM_BUG_ON((gfp_flags & __GFP_HIGHMEM) && in_interrupt());
 
-For platforms with small numbers of possible nodes, that might look
-nicer.  
+does not trigger
 
-> 
-> 
-> > +static ssize_t
-> > +print_node_states(struct class *class, char *buf)
-> > +{
-> > +	int i;
-> > +	int n;
-> > +	size_t  size = PAGE_SIZE;
-> > +	ssize_t len = 0;
-> 
-> The size varies? Isnt the len enough. Maybe just using one variable would 
-> simplify the code?
+Any use of get_zeroed_page(  | __GFP_HIGHMEM) will cause a bug in
 
-'size' is used as the remaining amount of space in the buffer for each
-subsequent snprintf()-like call.  But, yeah, I can just decrement size
-after each call and at the end, subtract it from the original buffer
-size--i.e., PAGE_SIZE--to get the length.  Next respin.
+fastcall unsigned long get_zeroed_page(gfp_t gfp_mask)
+{
+        struct page * page;
 
-> 
-> > +
-> > +	for (i=0; i < NR_NODE_STATES; ++i) {
-> 
-> Missing blanks around assignment. 
+        /*
+         * get_zeroed_page() returns a 32-bit address, which cannot represent
+         * a highmem page
+         */
+        VM_BUG_ON((gfp_mask & __GFP_HIGHMEM) != 0);
 
-OK.
+        page = alloc_pages(gfp_mask | __GFP_ZERO, 0);
+        if (page)
+                return (unsigned long) page_address(page);
+        return 0;
+}
 
-> Please use i++.
 
-Sure.  Old habits die hard.
-
-Lee
+And the patch does not change anything. We currently BUG_ON(GFP_HIGHMEM && 
+in_interrupt) and after this patch we will still BUG(). The check was 
+reordered but checks the same things. We could clear __GFP_HIGHMEM in 
+__alloc_pages() if we are in an interrupt?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
