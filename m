@@ -1,35 +1,56 @@
-Date: Mon, 27 Aug 2007 20:35:10 +0100
-From: Al Viro <viro@ftp.linux.org.uk>
-Subject: Re: [PATCH 1/4] export __put_task_struct for XPMEM
-Message-ID: <20070827193510.GJ21089@ftp.linux.org.uk>
-References: <20070827155622.GA25589@sgi.com> <20070827155933.GB25589@sgi.com> <20070827161327.GG21089@ftp.linux.org.uk> <20070827181056.GA30176@sgi.com> <20070827181544.GH21089@ftp.linux.org.uk> <20070827191906.GB30176@sgi.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20070827191906.GB30176@sgi.com>
+Date: Mon, 27 Aug 2007 19:47:14 +0000
+From: Mike Travis <travis@cthulhu.engr.sgi.com>
+Subject: Re: [PATCH 1/6] x86: fix cpu_to_node references (v2)
+In-Reply-To: <20070825002349.GB1894@linux-os.sc.intel.com>
+Message-ID: <Pine.SGI.4.56.0708271940550.4346753@kluge.engr.sgi.com>
+References: <20070824222654.687510000@sgi.com> <20070824222948.587159000@sgi.com>
+ <20070825002349.GB1894@linux-os.sc.intel.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Dean Nelson <dcn@sgi.com>
-Cc: akpm@linux-foundation.org, linux-ia64@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, tony.luck@intel.com, jes@sgi.com
+To: "Siddha, Suresh B" <suresh.b.siddha@intel.com>
+Cc: travis@sgi.com, Andi Kleen <ak@suse.de>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <clameter@sgi.com>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Aug 27, 2007 at 02:19:06PM -0500, Dean Nelson wrote:
 
-> No operations can be done once it's closed, only while it's opened.
+On Fri, 24 Aug 2007, Siddha, Suresh B wrote:
 
-What the hell do you mean, can't be done?
+> On Fri, Aug 24, 2007 at 03:26:55PM -0700, travis@sgi.com wrote:
+> > Fix four instances where cpu_to_node is referenced
+> > by array instead of via the cpu_to_node macro.  This
+> > is preparation to moving it to the per_cpu data area.
+> >
+> ...
+>
+> >  unsigned long __init numa_free_all_bootmem(void)
+> > --- a/arch/x86_64/mm/srat.c
+> > +++ b/arch/x86_64/mm/srat.c
+> > @@ -431,9 +431,9 @@
+> >  			setup_node_bootmem(i, nodes[i].start, nodes[i].end);
+> >
+> >  	for (i = 0; i < NR_CPUS; i++) {
+> > -		if (cpu_to_node[i] == NUMA_NO_NODE)
+> > +		if (cpu_to_node(i) == NUMA_NO_NODE)
+> >  			continue;
+> > -		if (!node_isset(cpu_to_node[i], node_possible_map))
+> > +		if (!node_isset(cpu_to_node(i), node_possible_map))
+> >  			numa_set_node(i, NUMA_NO_NODE);
+> >  	}
+> >  	numa_init_array();
+>
+> During this particular routine execution, per cpu areas are not yet setup. In
+> future, when we make cpu_to_node(i) use per cpu area, then this code will break.
+>
+> And actually setup_per_cpu_areas() uses cpu_to_node(). So...
+>
 
-	fd = open(...);
-	fp = popen("/bin/date", "r");
-	/* read from fp */
-	fclose(fp);
-	do operations on fd
+I have a scheme to use an __initdata array during __init processing which
+is removed after the per cpu data area is setup.  I'm looking more closely
+at all the various node <--> cpu tables.
 
-And you've got yourself
-	open
-	fork duplicating descriptor
-	exit closing that duplicate
-	IO on original, after call of flush
+Thanks,
+Mike
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
