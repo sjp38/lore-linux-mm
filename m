@@ -1,58 +1,52 @@
-Subject: [PATCH] 2.6.23-rc3-mm1 - update N_HIGH_MEMORY node state for
-	memory hotadd
-From: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
-In-Reply-To: <200708242228.l7OMS5fU017948@imap1.linux-foundation.org>
-References: <200708242228.l7OMS5fU017948@imap1.linux-foundation.org>
-Content-Type: text/plain
-Date: Mon, 27 Aug 2007 11:58:01 -0400
-Message-Id: <1188230281.5952.63.camel@localhost>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Date: Mon, 27 Aug 2007 10:59:33 -0500
+From: Dean Nelson <dcn@sgi.com>
+Subject: [PATCH 1/4] export __put_task_struct for XPMEM
+Message-ID: <20070827155933.GB25589@sgi.com>
+References: <20070827155622.GA25589@sgi.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20070827155622.GA25589@sgi.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: akpm@linux-foundation.org
-Cc: clameter@sgi.com, jeremy@sgi.com, mel@skynet.ie, y-goto@jp.fujitsu.com, Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm <linux-mm@kvack.org>, Eric Whitney <eric.whitney@hp.com>
+Cc: linux-ia64@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, tony.luck@intel.com, jes@sgi.com
 List-ID: <linux-mm.kvack.org>
 
-I believe [something like] the following is required for memory hot add,
-after moving the setting of N_HIGH_MEMORY node state to
-free_area_init_nodes().  However, we could also move that BACK to
-__build_all_zonelists() BEFORE calling build_zonelists() and dispense
-with this patch.
+This patch exports __put_task_struct as it is needed by XPMEM.
 
-Thoughts?  [besides the obvious churn, I mean.  :-\]
+Signed-off-by: Dean Nelson <dcn@sgi.com>
 
-Lee
-=================
+---
 
-PATCH update N_HIGH_MEMORY node state for memory hotadd
+One struct file_operations registered by XPMEM, xpmem_open(), calls
+'get_task_struct(current->group_leader)' and another, xpmem_flush(), calls
+'put_task_struct(tg->group_leader)'. The reason for this is given in the
+comment block that appears in xpmem_open().
 
-Against:  2.6.23-rc3-mm1
+	/*
+	 * Increment 'usage' and 'mm->mm_users' for the current task's thread
+	 * group leader. This ensures that both its task_struct and mm_struct
+	 * will still be around when our thread group exits. (The Linux kernel
+	 * normally tears down the mm_struct prior to calling a module's
+	 * 'flush' function.) Since all XPMEM thread groups must go through
+	 * this path, this extra reference to mm_users also allows us to
+	 * directly inc/dec mm_users in xpmem_ensure_valid_PFNs() and avoid
+	 * mmput() which has a scaling issue with the mmlist_lock.
+	 */
 
-Setting N_HIGH_MEMORY node state in free_area_init_nodes()
-works for memory present at boot time, but not for hot-added
-memory.  Update the N_HIGH_MEMORY node state in online_pages(),
-if we've added pages to this node, before rebuilding zonelists.
-
-Signed-off-by:  Lee Schermerhorn <lee.schermerhorn@hp.com>
-
- mm/memory_hotplug.c |    2 ++
- 1 file changed, 2 insertions(+)
-
-Index: Linux/mm/memory_hotplug.c
+Index: linux-2.6/kernel/fork.c
 ===================================================================
---- Linux.orig/mm/memory_hotplug.c	2007-08-22 09:20:26.000000000 -0400
-+++ Linux/mm/memory_hotplug.c	2007-08-27 10:40:57.000000000 -0400
-@@ -211,6 +211,8 @@ int online_pages(unsigned long pfn, unsi
- 		online_pages_range);
- 	zone->present_pages += onlined_pages;
- 	zone->zone_pgdat->node_present_pages += onlined_pages;
-+	if (onlined_pages)
-+		node_set_state(zone->node, N_HIGH_MEMORY);
+--- linux-2.6.orig/kernel/fork.c	2007-08-09 07:07:55.426611601 -0500
++++ linux-2.6/kernel/fork.c	2007-08-09 07:15:43.246391700 -0500
+@@ -127,6 +127,7 @@
+ 	if (!profile_handoff_task(tsk))
+ 		free_task(tsk);
+ }
++EXPORT_SYMBOL_GPL(__put_task_struct);
  
- 	setup_per_zone_pages_min();
- 
-
+ void __init fork_init(unsigned long mempages)
+ {
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
