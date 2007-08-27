@@ -1,341 +1,128 @@
-Message-ID: <46D2B5C7.2090001@gmx.net>
-Date: Mon, 27 Aug 2007 13:30:15 +0200
-From: Michael Kerrisk <mtk-manpages@gmx.net>
-MIME-Version: 1.0
-Subject: Re: [PATCH] Mempolicy Man Pages 2.64 3/3 - get_mempolicy.2
-References: <1180467234.5067.52.camel@localhost>	 <Pine.LNX.4.64.0705291247001.26308@schroedinger.engr.sgi.com>	 <200705292216.31102.ak@suse.de> <1180541849.5850.30.camel@localhost>	 <20070531082016.19080@gmx.net> <1180732544.5278.158.camel@localhost>	 <46A44B98.8060807@gmx.net> <46AB0CDB.8090600@gmx.net>	 <20070816200520.GB16680@bingen.suse.de>  <20070818055026.265030@gmx.net>	 <1187711147.5066.13.camel@localhost>  <20070822041050.158210@gmx.net> <1187799145.5166.18.camel@localhost>
-In-Reply-To: <1187799145.5166.18.camel@localhost>
-Content-Type: text/plain; charset=ISO-8859-1
+Subject: Re: RFC:  Noreclaim with "Keep Mlocked Pages off the LRU"
+From: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
+In-Reply-To: <20070827013525.GA23894@wotan.suse.de>
+References: <20070823041137.GH18788@wotan.suse.de>
+	 <1187988218.5869.64.camel@localhost> <20070827013525.GA23894@wotan.suse.de>
+Content-Type: text/plain
+Date: Mon, 27 Aug 2007 10:34:07 -0400
+Message-Id: <1188225247.5952.41.camel@localhost>
+Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
-Cc: clameter@sgi.com, akpm@linux-foundation.org, linux-mm@kvack.org, ak@suse.de, Eric Whitney <eric.whitney@hp.com>
+To: Nick Piggin <npiggin@suse.de>
+Cc: linux-mm <linux-mm@kvack.org>, Rik van Riel <riel@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
-Applied for man-pages-2.65.
+On Mon, 2007-08-27 at 03:35 +0200, Nick Piggin wrote:
+> On Fri, Aug 24, 2007 at 04:43:38PM -0400, Lee Schermerhorn wrote:
+> > Nick:
+> > 
+> > For your weekend reading pleasure [:-)]
+> > 
+> > I have reworked your "move mlocked pages off LRU" atop my "noreclaim
+> > infrastructure" that keeps non-reclaimable pages [mlocked, swap-backed
+> > but no swap space, excessively long anon_vma list] on a separate
+> > noreclaim LRU list--more or less ignored by vmscan.  To do this, I had
+> > to <mumble>add<mumble>a new<mumble>mlock_count member<mumble>to
+> > the<mumble>page struct.  This brings the size of the page struct to a
+> > nice, round 64 bytes.  The mlock_count member and [most of] the
+> > noreclaim-mlocked-pages work now depends on CONFIG_NORECLAIM_MLOCK which
+> > depends on CONFIG_NORECLAIM.  Currently,  the entire noreclaim
+> > infrastructure is only supported on 64bit archs because I'm using a
+> > higher order bit [~30] for the PG_noreclaim flag.
+> 
+> Can you keep the old system of removing mlocked pages completely, and
+> keeping the mlock count in one of the lru pointers? That should avoid
+> the need to have a new mlock_count, I think, because none of the other
+> noreclaim types should need a refcount?
 
-Thanks Lee!
+Well, keeping the mlock count in the lru pointer more or less defeats
+the purpose of this exercise for me--that is, a unified mechanism for
+tracking "non-reclaimable" pages.  I wanted to maintain the ability to
+use the zone lru_lock and isolate_lru_page() to arbitrate access to
+pages for migration, etc. w/o having to temporarily put the pages back
+on the lru during migration.   
 
-Cheers,
+And, by using another LRU list for non-reclaimable pages, the
+non-reclaimable nature of locked, un-swappable, ... pages becomes
+transparent to much of the rest of VM.  vmscan and try_to_unmap*() still
+have to handle lazy culling of non-reclaimable pages.  If/when you do
+get a chance to look at the patches, you'll see that I separated the
+culling of non-reclaimable pages in the fault path into a separate
+patch.  We could eliminate this overhead in the fault path in favor of
+lazy culling in vmscan.  Vmscan would only have to deal with these pages
+once to move them to the noreclaim list.
 
-Michael
+> 
+> I do approve of bringing struct page to a nice round 64 bytes ;), but I
+> think I would rather we used up those 8 bytes by making count and
+> mapcount 8 bytes each.
 
-Lee Schermerhorn wrote:
-> [PATCH]  Mempolicy Man Pages 2.64 3/3 - get_mempolicy.2
-> 
-> Against:  man pages 2.64
-> 
-> Changes:
-> 
-> + changed the "policy" parameter to "mode" through out the
->   descriptions in an attempt to promote the concept that the memory
->   policy is a tuple consisting of a mode and optional set of nodes.
-> 
-> + added requirement to link '-lnuma' to synopsis
-> 
-> + rewrite portions of description for clarification.
-> 
-> + added all errors currently returned by sys call.
-> 
-> + removed cautionary note that use of MPOL_F_NODE|MPOL_F_ADDR
->   is not supported.  This is no longer true.
-> 
-> + added mmap(2) to See Also list.
-> 
-> 
-> Signed-off-by:  Lee Schermerhorn <lee.schermerhorn@hp.com>
-> 
-> Index: Linux/man2/get_mempolicy.2
-> ===================================================================
-> --- Linux.orig/man2/get_mempolicy.2	2007-06-22 14:25:23.000000000 -0400
-> +++ Linux/man2/get_mempolicy.2	2007-08-10 12:33:23.000000000 -0400
-> @@ -18,6 +18,7 @@
->  .\" the source, must acknowledge the copyright and authors of this work.
->  .\"
->  .\" 2006-02-03, mtk, substantial wording changes and other improvements
-> +.\" 2007-06-01, lts, more precise specification of behavior.
->  .\"
->  .TH GET_MEMPOLICY 2 2006-02-07 "Linux" "Linux Programmer's Manual"
->  .SH NAME
-> @@ -26,9 +27,11 @@ get_mempolicy \- Retrieve NUMA memory po
->  .B "#include <numaif.h>"
->  .nf
->  .sp
-> -.BI "int get_mempolicy(int *" policy ", unsigned long *" nodemask ,
-> +.BI "int get_mempolicy(int *" mode ", unsigned long *" nodemask ,
->  .BI "                  unsigned long " maxnode ", unsigned long " addr ,
->  .BI "                  unsigned long " flags );
-> +.sp
-> +.BI "cc ... \-lnuma"
->  .fi
->  .\" FIXME rewrite this DESCRIPTION. it is confusing.
->  .SH DESCRIPTION
-> @@ -39,7 +42,7 @@ depending on the setting of
->  
->  A NUMA machine has different
->  memory controllers with different distances to specific CPUs.
-> -The memory policy defines in which node memory is allocated for
-> +The memory policy defines from which node memory is allocated for
->  the process.
->  
->  If
-> @@ -58,58 +61,75 @@ then information is returned about the p
->  address given in
->  .IR addr .
->  This policy may be different from the process's default policy if
-> -.BR set_mempolicy (2)
-> -has been used to establish a policy for the page containing
-> +.BR mbind (2)
-> +or one of the helper functions described in
-> +.BR numa(3)
-> +has been used to establish a policy for the memory range containing
->  .IR addr .
->  
-> -If
-> -.I policy
-> -is not NULL, then it is used to return the policy.
-> +If the
-> +.I mode
-> +argument is not NULL, then
-> +.IR get_mempolicy ()
-> +will store the policy mode of the requested NUMA policy in the location
-> +pointed to by this argument.
->  If
->  .IR nodemask
-> -is not NULL, then it is used to return the nodemask associated
-> -with the policy.
-> +is not NULL, then the nodemask associated with the policy will be stored
-> +in the location pointed to by this argument.
->  .I maxnode
-> -is the maximum bit number plus one that can be stored into
-> -.IR nodemask .
-> -The bit number is always rounded to a multiple of
-> -.IR "unsigned long" .
-> -.\"
-> -.\" If
-> -.\" .I flags
-> -.\" specifies both
-> -.\" .B MPOL_F_NODE
-> -.\" and
-> -.\" .BR MPOL_F_ADDR ,
-> -.\" then
-> -.\" .I policy
-> -.\" instead returns the number of the node on which the address
-> -.\" .I addr
-> -.\" is allocated.
-> -.\"
-> -.\" If
-> -.\" .I flags
-> -.\" specifies
-> -.\" .B MPOL_F_NODE
-> -.\" but not
-> -.\" .BR MPOL_F_ADDR ,
-> -.\" and the process's current policy is
-> -.\" .BR MPOL_INTERLEAVE ,
-> -.\" then
-> -.\" checkme: Andi's text below says that the info is returned in
-> -.\" 'nodemask', not 'policy':
-> -.\" .I policy
-> -.\" instead returns the number of the next node that will be used for
-> -.\" interleaving allocation.
-> -.\" FIXME .
-> -.\" The other valid flag is
-> -.\" .I MPOL_F_NODE.
-> -.\" It is only valid when the policy is
-> -.\" .I MPOL_INTERLEAVE.
-> -.\" In this case not the interleave mask, but an unsigned long with the next
-> -.\" node that would be used for interleaving is returned in
-> -.\" .I nodemask.
-> -.\" Other flag values are reserved.
-> +specifies the number of node ids
-> +that can be stored into
-> +.IR nodemask \(emthat
-> +is, the maximum node id plus one.
-> +The value specified by
-> +.I maxnode
-> +is always rounded to a multiple of
-> +.IR "sizeof(unsigned long)" .
-> +
-> +If
-> +.I flags
-> +specifies both
-> +.B MPOL_F_NODE
-> +and
-> +.BR MPOL_F_ADDR ,
-> +.IR get_mempolicy ()
-> +will return the node id of the node on which the address
-> +.I addr
-> +is allocated into the location pointed to by
-> +.IR mode .
-> +If no page has yet been allocated for the specified address,
-> +.IR get_mempolicy ()
-> +will allocate a page as if the process had performed a read
-> +[load] access to that address, and return the id of the node
-> +where that page was allocated.
-> +
-> +If
-> +.I flags
-> +specifies
-> +.BR MPOL_F_NODE ,
-> +but not
-> +.BR MPOL_F_ADDR ,
-> +and the process's current policy is
-> +.BR MPOL_INTERLEAVE ,
-> +then
-> +.IR get_mempolicy ()
-> +will return in the location pointed to by a non-NULL
-> +.I mode
-> +argument,
-> +the node id of the next node that will be used for
-> +interleaving of internal kernel pages allocated on behalf of the process.
-> +.\" Note:  code returns next interleave node via 'mode' argument -lts
-> +These allocations include pages for memory mapped files in
-> +process memory ranges mapped using the
-> +.IR mmap (2)
-> +call with the
-> +.I MAP_PRIVATE
-> +flag for read accesses, and in memory ranges mapped with the
-> +.I MAP_SHARED
-> +flag for all accesses.
-> +
-> +Other flag values are reserved.
->  
->  For an overview of the possible policies see
->  .BR set_mempolicy (2).
-> @@ -120,49 +140,84 @@ returns 0;
->  on error, \-1 is returned and
->  .I errno
->  is set to indicate the error.
-> -.\" .SH ERRORS
-> -.\" FIXME -- no errors are listed on this page
-> -.\" .
-> -.\" .TP
-> -.\" .B EINVAL
-> -.\" .I nodemask
-> -.\" is non-NULL, and
-> -.\" .I maxnode
-> -.\" is too small;
-> -.\" or
-> -.\" .I flags
-> -.\" specified values other than
-> -.\" .B MPOL_F_NODE
-> -.\" or
-> -.\" .BR MPOL_F_ADDR ;
-> -.\" or
-> -.\" .I flags
-> -.\" specified
-> -.\" .B MPOL_F_ADDR
-> -.\" and
-> -.\" .I addr
-> -.\" is NULL.
-> -.\" (And there are other
-> -.\" .B EINVAL
-> -.\" cases.)
-> -.SH CONFORMING TO
-> -This system call is Linux specific.
-> +.SH ERRORS
-> +.TP
-> +.B EINVAL
-> +The value specified by
-> +.I maxnode
-> +is less than the number of node ids supported by the system.
-> +Or
-> +.I flags
-> +specified values other than
-> +.B MPOL_F_NODE
-> +or
-> +.BR MPOL_F_ADDR ;
-> +or
-> +.I flags
-> +specified
-> +.B MPOL_F_ADDR
-> +and
-> +.I addr
-> +is NULL,
-> +or
-> +.I flags
-> +did not specify
-> +.B MPOL_F_ADDR
-> +and
-> +.I addr
-> +is not NULL.
-> +Or,
-> +.I flags
-> +specified
-> +.B MPOL_F_NODE
-> +but not
-> +.B MPOL_F_ADDR
-> +and the current process policy is not
-> +.BR MPOL_INTERLEAVE .
-> +(And there are other EINVAL cases.)
-> +.TP
-> +.B EFAULT
-> +Part of all of the memory range specified by
-> +.I nodemask
-> +and
-> +.I maxnode
-> +points outside your accessible address space.
->  .SH NOTES
-> -This manual page is incomplete:
-> -it does not document the details the
-> -.BR MPOL_F_NODE
-> -flag,
-> -which modifies the operation of
-> -.BR get_mempolicy ().
-> -This is deliberate: this flag is not intended for application use,
-> -and its operation may change or it may be removed altogether in
-> -future kernel versions.
-> -.B Do not use it.
-> +If the mode of the process policy or the policy governing allocations at the
-> +specified address is
-> +.I MPOL_PREFERRED
-> +and this policy was installed with an empty
-> +.IR nodemask \(emspecifying
-> +local allocation,
-> +.IR get_mempolicy ()
-> +will return the mask of on-line node ids in the location pointed to by
-> +a non-NULL
-> +.I nodemask
-> +argument.
-> +This mask does not take into consideration any adminstratively imposed
-> +restrictions on the process' context.
-> +.\" FIXME:
-> +.\" "context" above refers to cpusets.  No man page to reference. --lts
-> +
-> +.\"  Christoph says the following is untrue.  These are "fully supported."
-> +.\"  Andi concedes that he has lost this battle and approves [?]
-> +.\"  updating the man pages to document the behavior.  --lts
-> +.\" This manual page is incomplete:
-> +.\" it does not document the details the
-> +.\" .BR MPOL_F_NODE
-> +.\" flag,
-> +.\" which modifies the operation of
-> +.\" .BR get_mempolicy ().
-> +.\" This is deliberate: this flag is not intended for application use,
-> +.\" and its operation may change or it may be removed altogether in
-> +.\" future kernel versions.
-> +.\" .B Do not use it.
->  .SS "Versions and Library Support"
->  See
->  .BR mbind (2).
->  .SH SEE ALSO
->  .BR mbind (2),
-> +.BR mmap (2),
->  .BR set_mempolicy (2),
->  .BR numactl (8),
->  .BR numa (3)
-> 
-> 
-> 
+I knew the new page struct member would be controversial, at best, but
+it allows me to prototype and test this approach.  I'd like to find
+somewhere else to put the mlock count, but the page struct it pretty
+tight as it is.  It occurred to me that while anon and other swap-backed
+pages are mlocked, I might be able to use the private field as the mlock
+count.  I don't understand the interaction of vm with file systems to
+know if we could do the same for file-backed pages.  Maybe a separate
+PG_mlock flag would allow one to move the page's private contents to an
+external structure along with the mlock count?  Or maybe just with
+PG_noreclaim, externalize the private info?
 
--- 
-Michael Kerrisk
-maintainer of Linux man pages Sections 2, 3, 4, 5, and 7
+Another approach that I've seen used elsewhere, IFF we can find a
+smaller bit field for the mlock count:  maintain a mlock count in a bit
+field that is too small to contain max possible lock count.  [Probably
+don't need all 64-bits, in any case.]  Clip the count at maximum that
+the field can contain [like SWAP_MAP_MAX] and fail mlock attempts if the
+count won't accommodate the additional lock.  I haven't investigated
+this enough to determine what additional complications it would involve.
+It would probably complicate inheriting locks across fork(), if we ever
+want to do that [I do!].
 
-Want to help with man page maintenance?  Grab the latest tarball at
-http://www.kernel.org/pub/linux/docs/manpages/
-read the HOWTOHELP file and grep the source files for 'FIXME'.
+Any thoughts on restricting this to 64-bit archs?
+
+> 
+> 
+> > Using the noreclaim infrastructure does seem to simplify the "keep
+> > mlocked pages off the LRU" code tho'.  All of the isolate_lru_page(),
+> > move_to_lru(), ... functions have been taught about the noreclaim list,
+> > so many places don't need changes.  That being said, I really not sure
+> > I've covered all of the bases here...
+> > 
+> > Now, mlocked pages come back off the noreclaim list nicely when the last
+> > mlock reference goes away--assuming I have the counting correct.
+> > However, pages marked non-reclaimable for other reasons--no swap
+> > available, excessive anon_vma ref count--can languish there
+> > indefinitely.   At some point, perhaps vmscan could be taught to do a
+> > slow background scan of the noreclaim list [making it more like
+> > "slo-reclaim"--but we already have that :-)] when swap is added and we
+> > have unswappable pages on the list.  Currently, I don't keep track of
+> > the various reasons for the no-reclaim pages, but that could be added.  
+> > 
+> > Rik Van Riel mentions, on his VM wiki page that a background scan might
+> > be useful to age pages actively [clock hand, anyone?], so I might be
+> > able to piggyback on that, or even prototype it at some point.   In the
+> > meantime, I'm going to add a scan of the noreclaim list manually
+> > triggered by a temporary sysctl.
+> 
+> Yeah, I think the basic slow simple clock would be a reasonable starting
+> point. You may end up wanting to introduce some feedback from near-OOM
+> condition and/or free swap accounting to speed up the scanning rate.
+
+Yep.   It's all those little details that have prevented me from diving
+into this yet.  Still cogitating on that, as a background task.
+
+> 
+> I haven't had much look at the patches yet, but I'm glad to see the old
+> mlocked patch come to something ;)
+
+Given the issues we've encountered in the field with a large number
+[millions] of non-reclaimable pages on the LRU lists, the idea of hiding
+nonreclaimable pages from vmscan is appealing.  I'm hoping we can find
+some acceptable way of doing this in the long run.
+
+Lee
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
