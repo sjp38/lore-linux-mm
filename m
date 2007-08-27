@@ -1,74 +1,76 @@
-Date: Mon, 27 Aug 2007 14:04:40 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
+Date: Mon, 27 Aug 2007 14:20:57 -0700 (PDT)
+From: Christoph Lameter <clameter@sgi.com>
 Subject: Re: [patch 1/1] alloc_pages(): permit get_zeroed_page(GFP_ATOMIC)
  from interrupt context
-Message-Id: <20070827140440.d2109ea5.akpm@linux-foundation.org>
-In-Reply-To: <Pine.LNX.4.64.0708271357220.6435@schroedinger.engr.sgi.com>
+In-Reply-To: <20070827140440.d2109ea5.akpm@linux-foundation.org>
+Message-ID: <Pine.LNX.4.64.0708271411200.6566@schroedinger.engr.sgi.com>
 References: <200708232107.l7NL7XDt026979@imap1.linux-foundation.org>
-	<Pine.LNX.4.64.0708271308380.5457@schroedinger.engr.sgi.com>
-	<20070827133347.424f83a6.akpm@linux-foundation.org>
-	<Pine.LNX.4.64.0708271357220.6435@schroedinger.engr.sgi.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+ <Pine.LNX.4.64.0708271308380.5457@schroedinger.engr.sgi.com>
+ <20070827133347.424f83a6.akpm@linux-foundation.org>
+ <Pine.LNX.4.64.0708271357220.6435@schroedinger.engr.sgi.com>
+ <20070827140440.d2109ea5.akpm@linux-foundation.org>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
+To: Andrew Morton <akpm@linux-foundation.org>
 Cc: linux-mm@kvack.org, thomas.jarosch@intra2net.com
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 27 Aug 2007 14:00:04 -0700 (PDT)
-Christoph Lameter <clameter@sgi.com> wrote:
+On Mon, 27 Aug 2007, Andrew Morton wrote:
 
-> On Mon, 27 Aug 2007, Andrew Morton wrote:
+> __GFP_HIGHMEM is not set.
 > 
-> > > > I think it makes sense to permit a non-BUGging get_zeroed_page(GFP_ATOMIC)
-> > > > from interrupt context.
-> > > 
-> > > AFAIK this works now. GFP_ATOMIC does not set __GFP_HIGHMEM and thus the 
-> > > check
-> > > 
-> > > 	VM_BUG_ON((gfp_flags & __GFP_HIGHMEM) && in_interrupt());
-> > > 
-> > > does not trigger
-> > 
-> > The crash happens in
-> > 
-> > 	clear_highpage
-> > 	->kmap_atomic
-> > 	  ->kmap_atomic_prot
-> > 	    ->BUG_ON(!pte_none(*(kmap_pte-idx)));
-> > 
-> > ie: this CPU held a kmap slot when the interrupt happened.
+> : 	/*
+> : 	 * clear_highpage() will use KM_USER0, so it's a bug to use __GFP_ZERO
+> : 	 * and __GFP_HIGHMEM from hard or soft interrupt context.
+> : 	 */
+> : 	VM_BUG_ON((gfp_flags & __GFP_HIGHMEM) && in_interrupt());
 > 
-> I guess I do not get what the problem is then. AFAIK: You cannot get there 
-> if you do a get_zeroed_page(GFP_ATOMIC). We should have bugged in 
-> get_zeroed_page() before we even got to clear_highpage.
+> __GFP_HIGHMEM is not set
 > 
+> : 	for (i = 0; i < (1 << order); i++)
+> : 		clear_highpage(page + i);
+> 
+> kmap_atomic() goes boom.
 
-: static inline void prep_zero_page(struct page *page, int order, gfp_t gfp_flags)
-: {
-: 	int i;
-: 
-: 	VM_BUG_ON((gfp_flags & (__GFP_WAIT | __GFP_HIGHMEM)) == __GFP_HIGHMEM);
+So the page is not a highmem page. kmap does:
 
-__GFP_HIGHMEM is not set.
+void *kmap(struct page *page)
+{
+        might_sleep();
+        if (!PageHighMem(page))
+                return page_address(page);
+        return kmap_high(page);
+}
 
-: 	/*
-: 	 * clear_highpage() will use KM_USER0, so it's a bug to use __GFP_ZERO
-: 	 * and __GFP_HIGHMEM from hard or soft interrupt context.
-: 	 */
-: 	VM_BUG_ON((gfp_flags & __GFP_HIGHMEM) && in_interrupt());
+-> kmap is fine.
 
-__GFP_HIGHMEM is not set
+kmap_atomic() does:
 
-: 	for (i = 0; i < (1 << order); i++)
-: 		clear_highpage(page + i);
+void *kmap_atomic_prot(struct page *page, enum km_type type, pgprot_t prot)
+{
+        enum fixed_addresses idx;
+        unsigned long vaddr;
 
-kmap_atomic() goes boom.
+        /* even !CONFIG_PREEMPT needs this, for in_atomic in do_page_fault */
+        pagefault_disable();
 
-: }
+        idx = type + KM_TYPE_NR*smp_processor_id();
+        BUG_ON(!pte_none(*(kmap_pte-idx)));
 
+        if (!PageHighMem(page))
+                return page_address(page);
+
+        vaddr = __fix_to_virt(FIX_KMAP_BEGIN + idx);
+        set_pte(kmap_pte-idx, mk_pte(page, prot));
+        arch_flush_lazy_mmu_mode();
+
+        return (void*) vaddr;
+}
+
+Move the check for highmem to the beginning of the function? Why 
+should kmap_atomic fail for a non highmem page?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
