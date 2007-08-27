@@ -1,68 +1,51 @@
-Date: Mon, 27 Aug 2007 11:50:10 -0700 (PDT)
+Date: Mon, 27 Aug 2007 12:11:52 -0700 (PDT)
 From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [patch 0/6] Per cpu structures for SLUB
-In-Reply-To: <20070824143848.a1ecb6bc.akpm@linux-foundation.org>
-Message-ID: <Pine.LNX.4.64.0708271144440.4667@schroedinger.engr.sgi.com>
-References: <20070823064653.081843729@sgi.com> <20070824143848.a1ecb6bc.akpm@linux-foundation.org>
+Subject: Re: [PATCH/RFC]  Add node 'states' sysfs class attribute
+In-Reply-To: <1188236904.5952.72.camel@localhost>
+Message-ID: <Pine.LNX.4.64.0708271203170.4667@schroedinger.engr.sgi.com>
+References: <200708242228.l7OMS5fU017948@imap1.linux-foundation.org>
+ <1188236904.5952.72.camel@localhost>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Pekka Enberg <penberg@cs.helsinki.fi>
+To: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
+Cc: linux-mm <linux-mm@kvack.org>, mel@skynet.ie, y-goto@jp.fujitsu.com, Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, Eric Whitney <eric.whitney@hp.com>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 24 Aug 2007, Andrew Morton wrote:
+On Mon, 27 Aug 2007, Lee Schermerhorn wrote:
 
-> I'm struggling a bit to understand these numbers.  Bigger is better, I
-> assume?  In what units are these numbers?
-
-No less is better. These are cycle counts. Hmmm... We discussed these 
-cycle counts so much in the last week that I forgot to mention that.
-
-> > Page allocator pass through
-> > ---------------------------
-> > There is a significant difference in the columns marked with a * because
-> > of the way that allocations for page sized objects are handled.
+> Works on my numa platform:  4 nodes with cpus, one memory only node.
 > 
-> OK, but what happened to the third pair of columns (Concurrent Alloc,
-> Kmalloc) for 1024 and 2048-byte allocations?  They seem to have become
-> significantly slower?
-
-There is a significant performance increase there. That is the main point 
-of the patch.
-
-> Thanks for running the numbers, but it's still a bit hard to work out
-> whether these changes are an aggregate benefit?
-
-There is a drawback because of the additional code introduced in the fast 
-path. However, the regular kmalloc case shows improvements throughout. 
-This is in particular of importance for SMP systems. We see an improvement 
-even for 2 processors.
-
-> > If we handle
-> > the allocations in the slab allocator (Norm) then the alloc free tests
-> > results are superb since we can use the per cpu slab to just pass a pointer
-> > back and forth. The page allocator pass through (PCPU) shows that the page
-> > allocator may have problems with giving back the same page after a free.
-> > Or there something else in the page allocator that creates significant
-> > overhead compared to slab. Needs to be checked out I guess.
-> > 
-> > However, the page allocator pass through is a win in the other cases
-> > since we can cut out the page allocator overhead. That is the more typical
-> > load of allocating a sequence of objects and we should optimize for that.
-> > 
-> > (+ = Must be some cache artifact here or code crossing a TLB boundary.
-> > The result is reproducable)
-> > 
+> Questions:
 > 
-> Most Linux machines are uniprocessor.  We should keep an eye on what effect
-> a change like this has on code size and performance for CONFIG_SMP=n
-> builds..
+> 1)  if this is useful, do we need/want the possible mask?
 
-There is an #ifdef around ther per cpu structure management code. All of 
-this will vanish (including the lookup of the per cpu address from the 
-fast path) if SMP is off.
+Yes that is important for software that wants to allocate per node 
+structures. The possible mask shows which nodes could be activated later.
+
+ > 2)  how about teaching nodemask_scnprintf() to suppress leading
+>     words of all zeros?
+
+Leading words of all zeroes? nodemask_scnprintf calls bitmap_scnprintf(). 
+Maybe it should call bitmap_scnlistprintf() instead?
+
+
+> +static ssize_t
+> +print_node_states(struct class *class, char *buf)
+> +{
+> +	int i;
+> +	int n;
+> +	size_t  size = PAGE_SIZE;
+> +	ssize_t len = 0;
+
+The size varies? Isnt the len enough. Maybe just using one variable would 
+simplify the code?
+
+> +
+> +	for (i=0; i < NR_NODE_STATES; ++i) {
+
+Missing blanks around assignment. Please use i++.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
