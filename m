@@ -1,46 +1,58 @@
-Date: Mon, 27 Aug 2007 10:56:22 -0500
-From: Dean Nelson <dcn@sgi.com>
-Subject: [PATCH 0/4] SGI Altix cross partition memory (XPMEM)
-Message-ID: <20070827155622.GA25589@sgi.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
+Subject: [PATCH] 2.6.23-rc3-mm1 - update N_HIGH_MEMORY node state for
+	memory hotadd
+From: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
+In-Reply-To: <200708242228.l7OMS5fU017948@imap1.linux-foundation.org>
+References: <200708242228.l7OMS5fU017948@imap1.linux-foundation.org>
+Content-Type: text/plain
+Date: Mon, 27 Aug 2007 11:58:01 -0400
+Message-Id: <1188230281.5952.63.camel@localhost>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: tony.luck@intel.com, akpm@linux-foundation.org
-Cc: linux-ia64@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, jes@sgi.com
+To: akpm@linux-foundation.org
+Cc: clameter@sgi.com, jeremy@sgi.com, mel@skynet.ie, y-goto@jp.fujitsu.com, Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm <linux-mm@kvack.org>, Eric Whitney <eric.whitney@hp.com>
 List-ID: <linux-mm.kvack.org>
 
-    Terminology
+I believe [something like] the following is required for memory hot add,
+after moving the setting of N_HIGH_MEMORY node state to
+free_area_init_nodes().  However, we could also move that BACK to
+__build_all_zonelists() BEFORE calling build_zonelists() and dispense
+with this patch.
 
-The term 'partition', adopted by the SGI hardware designers and which
-perculated up into the software, is used in reference to a single SSI
-when multiple SSIs are running on a single Altix. An Altix running
-multiple SSIs is said to be 'partitioned', whereas one that is running
-only a single SSI is said to be 'unpartitioned'.
+Thoughts?  [besides the obvious churn, I mean.  :-\]
 
-The term '[a]cross partition' refers to a functionality that spans between
-two SSIs on a multi-SSI Altix. ('XP' is its abbreviation.)
+Lee
+=================
 
-    Introduction
+PATCH update N_HIGH_MEMORY node state for memory hotadd
 
-This feature provides cross partition access to user memory (XPMEM) when
-running multiple partitions on a single SGI Altix. XPMEM, like XPNET,
-utilizes XPC to communicate between the partitions.
+Against:  2.6.23-rc3-mm1
 
-XPMEM allows a user process to identify portion(s) of its address space
-that other user processes can attach (i.e. map) into their own address
-spaces. These processes can be running on the same or a different
-partition from the one whose memory they are attaching.
+Setting N_HIGH_MEMORY node state in free_area_init_nodes()
+works for memory present at boot time, but not for hot-added
+memory.  Update the N_HIGH_MEMORY node state in online_pages(),
+if we've added pages to this node, before rebuilding zonelists.
 
-    Known Issues
+Signed-off-by:  Lee Schermerhorn <lee.schermerhorn@hp.com>
 
-XPMEM is not currently using the kthread API (which is also true for XPC)
-because it was in the process of being changed to require a kthread_stop()
-be done for every kthread_create() and the kthread_stop() couldn't be called
-for a thread that had already exited. In talking with Eric Biederman, there
-was some thought of creating a kthread_orphan() which would eliminate the
-need for a call to kthread_stop() being required.
+ mm/memory_hotplug.c |    2 ++
+ 1 file changed, 2 insertions(+)
+
+Index: Linux/mm/memory_hotplug.c
+===================================================================
+--- Linux.orig/mm/memory_hotplug.c	2007-08-22 09:20:26.000000000 -0400
++++ Linux/mm/memory_hotplug.c	2007-08-27 10:40:57.000000000 -0400
+@@ -211,6 +211,8 @@ int online_pages(unsigned long pfn, unsi
+ 		online_pages_range);
+ 	zone->present_pages += onlined_pages;
+ 	zone->zone_pgdat->node_present_pages += onlined_pages;
++	if (onlined_pages)
++		node_set_state(zone->node, N_HIGH_MEMORY);
+ 
+ 	setup_per_zone_pages_min();
+ 
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
