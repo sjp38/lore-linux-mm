@@ -1,75 +1,137 @@
-Date: Mon, 27 Aug 2007 18:14:05 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
+Date: Tue, 28 Aug 2007 10:16:34 +0900
+From: Yasunori Goto <y-goto@jp.fujitsu.com>
 Subject: Re: [PATCH/RFC]  Add node 'states' sysfs class attribute - V2
-Message-Id: <20070827181405.57a3d8fe.akpm@linux-foundation.org>
-In-Reply-To: <Pine.LNX.4.64.0708271702520.1787@schroedinger.engr.sgi.com>
-References: <200708242228.l7OMS5fU017948@imap1.linux-foundation.org>
-	<1188248528.5952.95.camel@localhost>
-	<20070827170159.0a79529d.akpm@linux-foundation.org>
-	<Pine.LNX.4.64.0708271702520.1787@schroedinger.engr.sgi.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+In-Reply-To: <1188248528.5952.95.camel@localhost>
+References: <200708242228.l7OMS5fU017948@imap1.linux-foundation.org> <1188248528.5952.95.camel@localhost>
+Message-Id: <20070828100633.8150.Y-GOTO@jp.fujitsu.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset="US-ASCII"
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
-Cc: Lee Schermerhorn <Lee.Schermerhorn@hp.com>, linux-mm <linux-mm@kvack.org>, mel@skynet.ie, y-goto@jp.fujitsu.com, Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Eric Whitney <eric.whitney@hp.com>
+To: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
+Cc: linux-mm <linux-mm@kvack.org>, clameter@sgi.com, mel@skynet.ie, Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, Eric Whitney <eric.whitney@hp.com>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 27 Aug 2007 17:08:02 -0700 (PDT) Christoph Lameter <clameter@sgi.com> wrote:
+Hi.
 
-> On Mon, 27 Aug 2007, Andrew Morton wrote:
-> 
-> > Perhaps including sample output would help to explain wtf this does. 
-> > afaict it will spit out a bitmap like:
-> > 
-> > possible: 11110000
-> > on-line: 11010000
-> > normal memory: 01110000
-> > etc
-> > 
-> > or something like that, dunno.  Please document this interface for us?
-> 
-> We also talked about having nodelist_scnprintf call bitmap_scnlistprintf. 
-> I'd expect that to be a separate patch. The output should then be more 
-> like
-> 
-> possible: 0-4
-> online: 0-1, 3
+> Add a sysfs class attribute file to /sys/devices/system/node
+> to display node state masks.
 
-really?  with commas and spaces and minus signs and colons?  ug, what next?
-animated ascii art?  This is sysfs, not procfs ;)
+IIRC, sysfs has the policy that each file shows only one value,
+and all files keep it.
 
-> normal memory: 1-3
+But, this states file shows 4 values.
+I think you should  make 4 files which show just one value like
+followings.
+  /sys/devices/system/node/possible
+                          /online
+                          /has_normal_memory
+                          /has_cpu
+
+Thanks.
+
 > 
-> > > +	"normal memory:",
-> > > +#ifdef CONFIG_HIGHMEM
-> > > +	"high memory:",
-> > 
-> > Do we really want a space in here?  It makes parsing somewhat
-> > harder.  Do the other files in /sys/devices/system/node take care to avoid
-> > doing this?
+> Signed-off-by:  Lee Schermerhorn <lee.schermerhorn@hp.com>
 > 
-> This is the first file in that directory. The files in
-> /sys/devices/system/node/nodeX  use _ there.
+>  drivers/base/node.c |   71 +++++++++++++++++++++++++++++++++++++++++++++++++++-
+>  1 file changed, 70 insertions(+), 1 deletion(-)
 > 
-> > And what happened to the one-value-per-sysfs file rule?  Did we already
-> > break it so much in /sys/devices/system/node that we've just given up?
+> Index: Linux/drivers/base/node.c
+> ===================================================================
+> --- Linux.orig/drivers/base/node.c	2007-08-27 12:31:32.000000000 -0400
+> +++ Linux/drivers/base/node.c	2007-08-27 16:30:18.000000000 -0400
+> @@ -12,6 +12,7 @@
+>  #include <linux/topology.h>
+>  #include <linux/nodemask.h>
+>  #include <linux/cpu.h>
+> +#include <linux/device.h>
+>  
+>  static struct sysdev_class node_class = {
+>  	set_kset_name("node"),
+> @@ -232,8 +233,76 @@ void unregister_one_node(int nid)
+>  	unregister_node(&node_devices[nid]);
+>  }
+>  
+> +/*
+> + * [node] states attribute
+> + */
+> +static char * node_state_names[] = {
+> +	"possible:",
+> +	"on-line:",
+> +	"normal memory:",
+> +#ifdef CONFIG_HIGHMEM
+> +	"high memory:",
+> +#endif
+> +	"cpu:",
+> +};
+> +
+> +static ssize_t
+> +print_node_states(struct class *class, char *buf)
+> +{
+> +	int i;
+> +	int n;
+> +	ssize_t  size = PAGE_SIZE;
+> +
+> +	for (i = 0; i < NR_NODE_STATES; i++) {
+> +		n = snprintf(buf, size, "%14s  ", node_state_names[i]);
+> +		if (n <= 0)
+> +			break;
+> +		buf += n;
+> +		size -= n;
+> +		if (size <= 0)
+> +			break;
+> +
+> +		n = nodelist_scnprintf(buf, size, node_states[i]);
+> +		if (n <= 0)
+> +			break;
+> +		buf += n;
+> +		size -=n;
+> +		if (size <= 0)
+> +			break;
+> +
+> +		n = snprintf(buf, size, "\n");
+> +		if (n <= 0)
+> +			break;
+> +		buf += n;
+> +		size -= n;
+> +		if (size <= 0)
+> +			break;
+> +	}
+> +
+> +	if (n > 0) {
+> +		n = PAGE_SIZE;
+> +		if (size > 0)
+> +			n -= size;
+> +	}
+> +	return n;
+> +}
+> +
+> +static CLASS_ATTR(states, 0444, print_node_states, NULL);
+> +
+> +static int node_states_init(void)
+> +{
+> +	return sysfs_create_file(&node_class.kset.kobj,
+> +				&class_attr_states.attr);
+> +}
+> +
+>  static int __init register_node_type(void)
+>  {
+> -	return sysdev_class_register(&node_class);
+> +	int ret;
+> +
+> +	ret = sysdev_class_register(&node_class);
+> +	if (!ret)
+> +		ret = node_states_init();
+> +
+> +	return ret;
+>  }
+>  postcore_initcall(register_node_type);
 > 
-> /sys/devices/system/node/nodeX/meminfo is like /proc/meminfo containing 
-> multiple settings.
 
-OK, well if the meminfo file is the only one in there which broke the
-golden rule, I don't think we have sufficient excuse to break it again.
+-- 
+Yasunori Goto 
 
-$ cat  /sys/devices/system/node/possible
-0-4
-$
-
-I think a bitmap would be better, personally.
-
-That in fact makes "possible" unneeded, doesn't it?  It would always be
-all-ones?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
