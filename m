@@ -1,43 +1,49 @@
-Date: Tue, 28 Aug 2007 20:05:10 +0100
-From: Christoph Hellwig <hch@infradead.org>
-Subject: Re: [PATCH 4/4] add SGI Altix cross partition memory (XPMEM) driver
-Message-ID: <20070828190510.GA3256@infradead.org>
-References: <20070827155622.GA25589@sgi.com> <20070827164112.GF25589@sgi.com> <20070828180235.GB32585@infradead.org> <20070828190043.GB7140@lnx-holt.americas.sgi.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=unknown-8bit
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <20070828190043.GB7140@lnx-holt.americas.sgi.com>
+Date: Tue, 28 Aug 2007 12:34:42 -0700 (PDT)
+From: Christoph Lameter <clameter@sgi.com>
+Subject: Re: [PATCH/RFC]  Add node 'states' sysfs class attribute - V2
+In-Reply-To: <20070827231214.99e3c33f.akpm@linux-foundation.org>
+Message-ID: <Pine.LNX.4.64.0708281231540.16473@schroedinger.engr.sgi.com>
+References: <200708242228.l7OMS5fU017948@imap1.linux-foundation.org>
+ <1188248528.5952.95.camel@localhost> <20070827170159.0a79529d.akpm@linux-foundation.org>
+ <Pine.LNX.4.64.0708271702520.1787@schroedinger.engr.sgi.com>
+ <20070827181405.57a3d8fe.akpm@linux-foundation.org>
+ <Pine.LNX.4.64.0708271826180.10344@schroedinger.engr.sgi.com>
+ <20070827201822.2506b888.akpm@linux-foundation.org>
+ <Pine.LNX.4.64.0708272210210.9748@schroedinger.engr.sgi.com>
+ <20070827222912.8b364352.akpm@linux-foundation.org>
+ <Pine.LNX.4.64.0708272235580.9834@schroedinger.engr.sgi.com>
+ <20070827231214.99e3c33f.akpm@linux-foundation.org>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Robin Holt <holt@sgi.com>
-Cc: Christoph Hellwig <hch@infradead.org>, Dean Nelson <dcn@sgi.com>, tony.luck@intel.com, linux-ia64@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, akpm@linux-foundation.org, jes@sgi.com
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Lee Schermerhorn <Lee.Schermerhorn@hp.com>, linux-mm <linux-mm@kvack.org>, mel@skynet.ie, y-goto@jp.fujitsu.com, Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Eric Whitney <eric.whitney@hp.com>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Aug 28, 2007 at 02:00:43PM -0500, Robin Holt wrote:
-> The ioctl is sort of historical.  IIRC, in ProPack 3 (RHEL4 based 2.4
-> kernel), we added system calls.  When the community started making noise
-> about system calls being bad, we went to a device special file with a
-> read/write (couldn't get the needed performance from the ioctl() interface
-> which used to acquire the BKL).  Now that the community fixed the ioctl
-> issues, we went to using an ioctl, but are completely open to change.
+On Mon, 27 Aug 2007, Andrew Morton wrote:
+
+> Just step back from this for a minute, and think how utterly lame that is. 
+> User interface code in the kernel because we (actually you guys) have not
+> expended the tiny amount of effort and initiative which would be required
+> to develop a little utility to do it.
+
+A little utility that would cause a lot of work to keep up to date when 
+the kernel can already give you the bare numbers you need? We have tools 
+for sysadmins that collect these numbers and present a higher level 
+overview but that does not help us. If they report a problem then you have 
+to dig down into where this information come from to figure out what is 
+wrong.
+
+> > The cpu affinity is a horror to see on 4096 cpu systems. If you 
+> > want to figure out to which cpu the process has restricted itself then you 
+> > need to do some quick hex conversions in your mind.
 > 
-> If you want to introduce system calls, we would expect to need, IIRC, 8.
-> We also pondered an xpmem filesystem today.  It really felt wrong,
-> but we could pursue that as an alternative.
+> wtf?  You meen nobody has written the teeny bit of code which is needed to
+> convert that info into your desired format?
 
-The problem is not ioctls per sae, but the kind of operation you
-export.
-
-> What is the correct direction to go with this?  get_user_pages() does
-> currently require the task_struct.  Are you proposing we develop a way
-> to fault pages without the task_struct of the owning process/thread group?
-
-Stop trying to mess with vmas and get_user_pages on processes entirely.
-The only region of virtual memory a driver can deal with is the one it
-got a mmap request for, or when using get_user_pages the one it's got
-a read/write request for.  You're doing a worse variant of the rdma page
-pinning scheme we're rejected countless times.
+Of course there is somewhere. But it summarizes various things and so it 
+is mostly useless baggage if you are debugging a kernel problem.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
