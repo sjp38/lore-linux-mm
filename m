@@ -1,338 +1,199 @@
-Received: from d23relay03.au.ibm.com (d23relay03.au.ibm.com [202.81.18.234])
-	by e23smtp02.au.ibm.com (8.13.1/8.13.1) with ESMTP id l7SBdlDA023987
-	for <linux-mm@kvack.org>; Tue, 28 Aug 2007 21:39:47 +1000
-Received: from d23av03.au.ibm.com (d23av03.au.ibm.com [9.190.250.244])
-	by d23relay03.au.ibm.com (8.13.8/8.13.8/NCO v8.5) with ESMTP id l7SBdjuZ2723978
-	for <linux-mm@kvack.org>; Tue, 28 Aug 2007 21:39:45 +1000
-Received: from d23av03.au.ibm.com (loopback [127.0.0.1])
-	by d23av03.au.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l7SBdiX6006446
-	for <linux-mm@kvack.org>; Tue, 28 Aug 2007 21:39:45 +1000
-Message-ID: <46D4097A.7070301@linux.vnet.ibm.com>
-Date: Tue, 28 Aug 2007 17:09:38 +0530
-From: Balbir Singh <balbir@linux.vnet.ibm.com>
-Reply-To: balbir@linux.vnet.ibm.com
-MIME-Version: 1.0
-Subject: Re: + memory-controller-memory-accounting-v7.patch added to -mm tree
-References: <200708272119.l7RLJoOD028582@imap1.linux-foundation.org> <46D3C244.7070709@yahoo.com.au> <46D3CE29.3030703@linux.vnet.ibm.com> <46D3EADE.3080001@yahoo.com.au>
-In-Reply-To: <46D3EADE.3080001@yahoo.com.au>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Date: Tue, 28 Aug 2007 07:09:53 -0500
+From: Robin Holt <holt@sgi.com>
+Subject: Re: [PATCH 1/4] export __put_task_struct for XPMEM
+Message-ID: <20070828120952.GC3648@lnx-holt.americas.sgi.com>
+References: <20070827155622.GA25589@sgi.com> <20070827155933.GB25589@sgi.com> <20070827161327.GG21089@ftp.linux.org.uk> <20070827181056.GA30176@sgi.com> <20070827181544.GH21089@ftp.linux.org.uk> <20070827191906.GB30176@sgi.com> <20070827193510.GJ21089@ftp.linux.org.uk> <20070827202420.GE22922@lnx-holt.americas.sgi.com> <20070827204752.GK21089@ftp.linux.org.uk>
+Mime-Version: 1.0
+Content-Type: multipart/mixed; boundary="/WwmFnJnmDyWGHa4"
+Content-Disposition: inline
+In-Reply-To: <20070827204752.GK21089@ftp.linux.org.uk>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nick Piggin <nickpiggin@yahoo.com.au>
-Cc: akpm@linux-foundation.org, a.p.zijlstra@chello.nl, dev@sw.ru, ebiederm@xmission.com, herbert@13thfloor.at, menage@google.com, rientjes@google.com, svaidy@linux.vnet.ibm.com, xemul@openvz.org, Linux Memory Management <linux-mm@kvack.org>
+To: Al Viro <viro@ftp.linux.org.uk>
+Cc: Robin Holt <holt@sgi.com>, Dean Nelson <dcn@sgi.com>, akpm@linux-foundation.org, linux-ia64@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, tony.luck@intel.com, jes@sgi.com
 List-ID: <linux-mm.kvack.org>
 
-Nick Piggin wrote:
-> Balbir Singh wrote:
->> Nick Piggin wrote:
->>
->>> akpm@linux-foundation.org wrote:
->>>
->>>> The patch titled
->>>>     Memory controller: memory accounting
->>>
->>> What's the plans to deal with other types of pages other than pagecache?
->>> Surely not adding hooks on a case-by-case basis throughout all the
->>> kernel?
->>> Or do we not actually care about giving real guarantees about memory
->>> availability? Presumably you do, otherwise you wouldn't be carefully
->>> charging things before you actually insert them and uncharing afterwards
->>> on failure, etc.
->>>
->>
->>
->> We deal with RSS and Page/Swap Cache in this controller.
-> 
-> Sure. And if all you intend is workload management, then that's probably
-> fine. If you want guarantees, then its useless on its own.
-> 
+--/WwmFnJnmDyWGHa4
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
 
-Yes. Guarantees are hard to do with just this controller (due to non-reclaimable
-pages). It should be easy to add a mlock() controller on top of this one.
-Pavel is planning to work on a kernel memory controller. With that in place,
-guarantees might be possible.
-
+On Mon, Aug 27, 2007 at 09:47:52PM +0100, Al Viro wrote:
+> On Mon, Aug 27, 2007 at 03:24:20PM -0500, Robin Holt wrote:
+> > On Mon, Aug 27, 2007 at 08:35:10PM +0100, Al Viro wrote:
+> > > On Mon, Aug 27, 2007 at 02:19:06PM -0500, Dean Nelson wrote:
+> > > 
+> > > > No operations can be done once it's closed, only while it's opened.
+> > > 
+> > > What the hell do you mean, can't be done?
+> > > 
+> > > 	fd = open(...);
+> > > 	fp = popen("/bin/date", "r");
+> > > 	/* read from fp */
+> > > 	fclose(fp);
+> > 
+> > But this will operate on the dup'd fd.  We detect that in the flush
+> > (ignore) and ioctl (return errors) operations.  All other operations
+> > are not handled by xpmem.
 > 
->>> If you do, then I would have thought the best way to go would be to
->>> start
->>> with the simplest approach, and add things like targetted reclaim after
->>> that.
->>>
->>
->>
->> I think the kernel accounting/control system will have to be an
->> independent
->> controller (since we cannot reclaim kernel pages, just limit them by
->> accounting (except for some slab pages which are free)).
-> 
-> I don't see why accounting would have to be different.
-> 
-> Control obviously will, but for the purposes of using a page, it doesn't
-> matter to anybody else in the system whether some container has used it
-> for a pagecache page, or for something else like page tables. The end
-> result obviously is only that you can either kill the container or
-> reclaim its reclaimablememory, but before you get to that point, you
-> need to do the actual  accounting, and AFAIKS it would be identical for
-> all pages (at least for this basic first-touch charging scheme).
-> 
+> How the hell do you detect dup'd fd?  It's identical to the original
+> in every respect and it doesn't have to be held by a different task.
 
+I attached that to the previous email.  We have a thread group structure
+which is reference by tgid.  This comes from current->tgid.  For a fork'd
+process, that tgid will be different.  Until that child process does
+an open of /dev/xpmem, anything the child tries to do with xpmem will
+not find the child's thread group structure and will return immediately.
+We are not storing anything into or relating anything to the fd.  We are
+dealing strictly with our own structures referenced by current->tgid.
 
-Yes.. I see your point
+> Seriously, what you are proposing makes no sense whatsoever...
 
+I guess I am too close to this because it makes perfect sense to me.
+The way I view it, we have a device special file which provides us a set
+of ioctl()s which enable multiple processes to share the same physical
+pages of memory including memory from other partitions of the same system.
+
+Those pages need to be demand faulted.  That will require us to
+call get_user_pages() which will require us to have a reference to
+the task_struct and mm_struct for the process which made that memory
+available.  The undoing of the reference will require us use put_task()
+and mm_put().
+
+We are certainly open to alternative methods of faulting in those pages.
+We have been working on and with this code since 2001 and may be too
+used to our current method of doing things.  If you have suggestions
+for doing this differently, we would love to hear about them.
+
+Thanks,
+Robin
+
+--/WwmFnJnmDyWGHa4
+Content-Type: message/rfc822
+Content-Disposition: inline
+
+Return-Path: <linux-ia64-owner@vger.kernel.org>
+X-Original-To: holt@estes.americas.sgi.com
+Delivered-To: holt@estes.americas.sgi.com
+Received: from relay.sgi.com (netops-testserver-3.corp.sgi.com [192.26.57.72])
+	by estes.americas.sgi.com (Postfix) with ESMTP id 11A2470006E2
+	for <holt@estes.americas.sgi.com>; Mon, 27 Aug 2007 15:24:30 -0500 (CDT)
+Received: from cuda.sgi.com (cuda1.sgi.com [192.48.168.28])
+	by netops-testserver-3.corp.sgi.com (Postfix) with ESMTP id C15F9908C6
+	for <holt@sgi.com>; Mon, 27 Aug 2007 13:24:29 -0700 (PDT)
+X-ASG-Debug-ID: 1188246268-291100410000-ogsPki
+X-Barracuda-URL: http://cuda.sgi.com:80/cgi-bin/mark.cgi
+Received: from vger.kernel.org (localhost [127.0.0.1])
+	by cuda.sgi.com (Spam Firewall) with ESMTP
+	id 42648D6D405; Mon, 27 Aug 2007 13:24:29 -0700 (PDT)
+Received: from vger.kernel.org (vger.kernel.org [209.132.176.167]) by cuda.sgi.com with ESMTP id TAKjLLjUyAZGwDeO; Mon, 27 Aug 2007 13:24:29 -0700 (PDT)
+X-ASG-Whitelist: Sender
+X-ASG-Whitelist: Sender
+X-ASG-Whitelist: Sender
+X-ASG-Whitelist: Sender
+X-ASG-Whitelist: Sender
+X-ASG-Whitelist: Sender
+X-ASG-Whitelist: Sender
+X-ASG-Whitelist: Sender
+X-ASG-Whitelist: Sender
+X-ASG-Whitelist: Sender
+X-ASG-Whitelist: Sender
+X-ASG-Whitelist: Sender
+X-ASG-Whitelist: Sender
+X-ASG-Whitelist: Sender
+X-ASG-Whitelist: Sender
+X-ASG-Whitelist: Sender
+X-ASG-Whitelist: Sender
+X-ASG-Whitelist: Sender
+X-ASG-Whitelist: Sender
+X-ASG-Whitelist: Sender
+X-ASG-Whitelist: Sender
+X-ASG-Whitelist: Sender
+X-ASG-Whitelist: Sender
+X-ASG-Whitelist: Sender
+X-ASG-Whitelist: Sender
+X-ASG-Whitelist: Sender
+X-ASG-Whitelist: Sender
+X-ASG-Whitelist: Sender
+X-ASG-Whitelist: Sender
+X-ASG-Whitelist: Client
+Received: (majordomo@vger.kernel.org) by vger.kernel.org via listexpand
+	id S1762562AbXH0UY1 (ORCPT <rfc822;glowell@sgi.com> + 28 others);
+	Mon, 27 Aug 2007 16:24:27 -0400
+Received: (majordomo@vger.kernel.org) by vger.kernel.org id S1762429AbXH0UY1
+	(ORCPT <rfc822;linux-ia64-outgoing>);
+	Mon, 27 Aug 2007 16:24:27 -0400
+Received: from netops-testserver-3-out.sgi.com ([192.48.171.28]:38228 "EHLO
+	relay.sgi.com" rhost-flags-OK-OK-OK-FAIL) by vger.kernel.org
+	with ESMTP id S1762567AbXH0UYY (ORCPT
+	<rfc822;linux-ia64@vger.kernel.org>); Mon, 27 Aug 2007 16:24:24 -0400
+Received: from estes.americas.sgi.com (estes.americas.sgi.com [128.162.236.10])
+	by netops-testserver-3.corp.sgi.com (Postfix) with ESMTP id 6CF93908A5;
+	Mon, 27 Aug 2007 13:24:23 -0700 (PDT)
+Received: from lnx-holt.americas.sgi.com (lnx-holt.americas.sgi.com [128.162.233.109])
+	by estes.americas.sgi.com (Postfix) with ESMTP id 19CF070006E1;
+	Mon, 27 Aug 2007 15:24:23 -0500 (CDT)
+Received: from lnx-holt.americas.sgi.com (localhost.localdomain [127.0.0.1])
+	by lnx-holt.americas.sgi.com (8.13.8/8.13.8) with ESMTP id l7RKOME9000302;
+	Mon, 27 Aug 2007 15:24:22 -0500
+Received: (from holt@localhost)
+	by lnx-holt.americas.sgi.com (8.13.8/8.13.8/Submit) id l7RKOKQp000301;
+	Mon, 27 Aug 2007 15:24:20 -0500
+Date: Mon, 27 Aug 2007 15:24:20 -0500
+From: Robin Holt <holt@sgi.com>
+To: Al Viro <viro@ftp.linux.org.uk>
+Cc: Dean Nelson <dcn@sgi.com>, akpm@linux-foundation.org,
+	linux-ia64@vger.kernel.org, linux-kernel@vger.kernel.org,
+	linux-mm@kvack.org, tony.luck@intel.com, jes@sgi.com
+X-ASG-Orig-Subj: Re: [PATCH 1/4] export __put_task_struct for XPMEM
+Subject: Re: [PATCH 1/4] export __put_task_struct for XPMEM
+Message-ID: <20070827202420.GE22922@lnx-holt.americas.sgi.com>
+References: <20070827155622.GA25589@sgi.com> <20070827155933.GB25589@sgi.com> <20070827161327.GG21089@ftp.linux.org.uk> <20070827181056.GA30176@sgi.com> <20070827181544.GH21089@ftp.linux.org.uk> <20070827191906.GB30176@sgi.com> <20070827193510.GJ21089@ftp.linux.org.uk>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20070827193510.GJ21089@ftp.linux.org.uk>
+User-Agent: Mutt/1.4.2.2i
+Sender: linux-ia64-owner@vger.kernel.org
+Precedence: bulk
+X-Mailing-List: linux-ia64@vger.kernel.org
+X-Barracuda-Connect: vger.kernel.org[209.132.176.167]
+X-Barracuda-Start-Time: 1188246269
+X-Barracuda-Virus-Scanned: by cuda.sgi.com at sgi.com
+
+On Mon, Aug 27, 2007 at 08:35:10PM +0100, Al Viro wrote:
+> On Mon, Aug 27, 2007 at 02:19:06PM -0500, Dean Nelson wrote:
 > 
->>> I just don't want to see little bits to add more and more hooks
->>> slowly go
->>> in under the radar ;) So... there is a coherent plan, right?
->>>
->>
->>
->> Nothing will go under the radar :-) Everything will be posted to linux-mm
->> and linux-kernel. We'll make sure you don't wake up one day and see
->> the mm code has changed to something you cannot recognize ;)
+> > No operations can be done once it's closed, only while it's opened.
 > 
-> I don't mean to say it would be done on purpose, but without a coherent
-> strategy then things might slowly just get added as people think they are
-> needed. I'm fairly sure several people want to really guarantee memory
-> resources in an untrusted environment, don't they? And that's obviously
-> not going to scale by putting calls all throughout the kernel.
+> What the hell do you mean, can't be done?
 > 
+> 	fd = open(...);
+> 	fp = popen("/bin/date", "r");
+> 	/* read from fp */
+> 	fclose(fp);
 
-We sent out an RFC last year and got several comments from stake holders
+But this will operate on the dup'd fd.  We detect that in the flush
+(ignore) and ioctl (return errors) operations.  All other operations
+are not handled by xpmem.
 
-1. Pavel Emelianov
-2. Paul Menage
-3. Vaidyanathan Srinivasan
-4. YAMAMOTO Takshi
-5. KAMEZAWA Hiroyuki
+If you look at the fourth patch, at the beginning of the xpmem_flush
+function, we have:
 
++       tg = xpmem_tg_ref_by_tgid(xpmem_my_part, current->tgid);
++       if (IS_ERR(tg))
++               return 0;  /* probably child process who inherited fd */
 
-At the OLS resource management BoF, we had a broader participation and
-several comments and suggestions.
+This will protect the xpmem structures of the parent from closes by
+the child.
 
-We've incorporated suggestions and comments from all stake holders
+Thanks,
+Robin
+-
+To unsubscribe from this list: send the line "unsubscribe linux-ia64" in
+the body of a message to majordomo@vger.kernel.org
+More majordomo info at  http://vger.kernel.org/majordomo-info.html
 
-> 
->>>> +    mem = rcu_dereference(mm->mem_container);
->>>> +    /*
->>>> +     * For every charge from the container, increment reference
->>>> +     * count
->>>> +     */
->>>> +    css_get(&mem->css);
->>>> +    rcu_read_unlock();
->>>
->>> Where's the corresponding rcu_assign_pointer? Oh, in the next patch.
->>> That's
->>> unconventional (can you rearrange it so they go in together, please?).
->>>
->>>
->>
->>
->> The movement is associated with task migration, it should be easy to move
->> the patch around.
-> 
-> Thanks.
-> 
-> 
->>>> +    if (mem_container_charge(page, mm)) {
->>>> +        ret = VM_FAULT_OOM;
->>>> +        goto out;
->>>> +    }
->>>
->>> The oom-from-pagefault path is quite crap (not this code, mainline).
->>> It doesn't obey any of the given oom killing policy.
->>>
->>> I had a patch to fix this, but nobody else was too concerned at that
->>> stage. I don't expect that path would have been hit very much before,
->>> but with a lot of -EFAULTs coming out of containers, I think
->>> VM_FAULT_OOMs could easily trigger in practice now.
->>>
->>> http://lkml.org/lkml/2006/10/12/158
->>>
->>> Patch may be a little outdated, but the basics should still work. You
->>> might be in a good position to test it with these container patches?
->>>
->>
->>
->>
->> I'll test the patch. Thanks for pointing me in the right direction.
-> 
-> OK, thanks. Let me know how it goes and we could try again to get it
-> merged.
-> 
-> 
-
-Sure I'll start testing out that code.
-
->>>> @@ -582,6 +589,12 @@ void page_add_file_rmap(struct page *pag
->>>> {
->>>>     if (atomic_inc_and_test(&page->_mapcount))
->>>>         __inc_zone_page_state(page, NR_FILE_MAPPED);
->>>> +    else
->>>> +        /*
->>>> +         * We unconditionally charged during prepare, we uncharge here
->>>> +         * This takes care of balancing the reference counts
->>>> +         */
->>>> +        mem_container_uncharge_page(page);
->>>> }
->>>
->>> What's "during prepare"? Better would be "before adding the page to
->>> page tables" or something.
->>>
->>
->>
->> Yeah.. I'll change that comment
->>
->>
->>> But... why do you do it? The refcounts and charging are alrady taken
->>> care of in your charge function, aren't they? Just unconditionally
->>> charge at map time and unconditionally uncharge at unmap time, and
->>> let your accounting implementation take care of what to actually do.
->>>
->>> (This is what I mean about mem container creeping into core code --
->>> it's fine to have some tasteful hooks, but introducing these more
->>> complex interactions between core VM and container accounting details
->>> is nasty).
->>>
->>> I would much prefer this whole thing to _not_ to hook into rmap like
->>> this at all. Do the call unconditionally, and your container
->>> implementation can do as much weird and wonderful refcounting as its
->>> heart desires.
->>>
->>
->>
->> The reason why we have the accounting this way is because
->>
->> After we charge, some other code path could fail and we need
->> to uncharge the page. We do most of the refcounting internally.
->> mem_container_charge() could fail if the container is over
->> its limit and we cannot reclaim enough pages to allow a new
->> charge to be added. In that case we go to OOM.
-> 
-> But at this point you have already charged the container, and have put
-> it in the page tables, if I read correctly. Nothing is going to fail
-> at this point and the page could get uncharged when it is unmapped?
-> 
-> 
-
-Here's the sequence of steps
-
-1. Charge (we might need to block on reclaim)
-2. Check to see if there is a race in updating the PTE
-3. Add to the page table, update _mapcount under a lock
-
-Several times the error occurs in step 2, due to which we need to uncharge
-the memory container.
-
->>>> @@ -80,6 +81,11 @@ static int __add_to_swap_cache(struct pa
->>>>     BUG_ON(PagePrivate(page));
->>>>     error = radix_tree_preload(gfp_mask);
->>>>     if (!error) {
->>>> +
->>>> +        error = mem_container_charge(page, current->mm);
->>>> +        if (error)
->>>> +            goto out;
->>>> +
->>>>         write_lock_irq(&swapper_space.tree_lock);
->>>>         error = radix_tree_insert(&swapper_space.page_tree,
->>>>                         entry.val, page);
->>>> @@ -89,10 +95,13 @@ static int __add_to_swap_cache(struct pa
->>>>             set_page_private(page, entry.val);
->>>>             total_swapcache_pages++;
->>>>             __inc_zone_page_state(page, NR_FILE_PAGES);
->>>> -        }
->>>> +        } else
->>>> +            mem_container_uncharge_page(page);
->>>> +
->>>>         write_unlock_irq(&swapper_space.tree_lock);
->>>>         radix_tree_preload_end();
->>>>     }
->>>> +out:
->>>>     return error;
->>>> }
->>>
->>> Uh. You have to be really careful here (and in add_to_page_cache, and
->>> possibly others I haven't really looked)... you're ignoring gfp masks
->>> because mem_container_charge allocates with GFP_KERNEL. You can have
->>> all sorts of GFP_ATOMIC, GFP_NOIO, NOFS etc. come in these places that
->>> will deadlock.
->>>
->>
->>
->> I ran into some trouble with move_to_swap_cache() and
->> move_from_swap_cache()
->> since they use GFP_ATOMIC. Given the page is already accounted for and
->> refcounted, the refcounting helped avoid blocking.
-> 
-> add_to_page_cache gets called with GFP_ATOMIC as well, and it gets called
-> with GFP_NOFS for new pages.
-> 
-> But I don't think you were suggesting that this isn't a problem, where
-> you? Relying on implementation in the VM would signal more broken layering.
-> 
-> 
-
-Good, thanks for spotting this. It should be possible to fix this case.
-I'll work on a fix and send it out.
-
->>> I think I would much prefer you make mem_container_charge run
->>> atomically,
->>> and then have just a single hook at the site of where everything else is
->>> checked, rather than having all this pre-charge post-uncharge messiness.
->>> Ditto for mm/memory.c... all call sites really... should make them much
->>> nicer looking.
->>>
->>
->>
->> The problem is that we need to charge, before we add the page to the page
->> table and that needs to be a blocking context (since we reclaim when
->> the container goes over limit). The uncharge part comes in when we
->> handle errors from other paths (like I've mentioned earlier in this
->> email).
-> 
-> So I don't understand how you'd deal with GFP_ATOMIC and such restricted
-> masks, then, if you want to block here.
-> 
-> It would be so so much easier and cleaner for the VM if you did all the
-> accounting in page alloc and freeing hooks, and just put the page
-> on per-container LRUs when it goes on the regular LRU.
-> 
-
-The advantage of the current approach is that not all page allocations have
-to worry about charges. Only user space pages (unmapped cache and mapped RSS)
-are accounted for.
-
-We tried syncing the container and the global LRU. Pavel is working on
-that approach. The problem with adding the page at the same time as the
-regular LRU is that we end up calling the addition under the zone->lru_lock.
-Holding the entire zone's lru_lock for list addition might be an overhead.
-Although, we do the list isolation under the zone's lru lock.
-
-> I'm still going to keep pushing for that approach until either someone
-> explains why it can't be done or the current patch gets a fair bit
-> cleaner. Has that already been tried and shown not to work? I would have
-> thought so seeing as it would be the simplest patch, however I can't
-> remember hearing about the actual problems with it.
-> 
-
-I am all eyes and ears to patches/suggestions/improvements to the current
-container.
-
-> But anyway I don't have any problems with it getting into -mm at this
-> stage for more exposure and review. Maybe my concerns will get
-> overridden anyway ;)
-> 
-
-Thanks, we'll do the right thing to override your concerns (whether that
-is to change code or to convince you that we are already doing it
-right)
-
-
--- 
-	Warm Regards,
-	Balbir Singh
-	Linux Technology Center
-	IBM, ISTL
+--/WwmFnJnmDyWGHa4--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
