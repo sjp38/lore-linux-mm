@@ -1,74 +1,121 @@
-Received: from zps75.corp.google.com (zps75.corp.google.com [172.25.146.75])
-	by smtp-out.google.com with ESMTP id l7SK4e7r023441
-	for <linux-mm@kvack.org>; Tue, 28 Aug 2007 13:04:40 -0700
-Received: from an-out-0708.google.com (andd14.prod.google.com [10.100.30.14])
-	by zps75.corp.google.com with ESMTP id l7SK4Fks014939
-	for <linux-mm@kvack.org>; Tue, 28 Aug 2007 13:04:35 -0700
-Received: by an-out-0708.google.com with SMTP id d14so249091and
-        for <linux-mm@kvack.org>; Tue, 28 Aug 2007 13:04:35 -0700 (PDT)
-Message-ID: <6599ad830708281304m18a34ab5m96692eafc55e3c57@mail.gmail.com>
-Date: Tue, 28 Aug 2007 13:04:34 -0700
-From: "Paul Menage" <menage@google.com>
-Subject: Re: [-mm PATCH 5/10] Memory controller task migration (v7)
-In-Reply-To: <20070828083252.C7D5C1BFA2F@siro.lan>
+Message-ID: <000501c7e9b5$7f73db00$6501a8c0@earthlink.net>
+Reply-To: "Mitchell Erblich" <erblichs@earthlink.net>
+From: "Mitchell Erblich" <erblichs@earthlink.net>
+Subject: Re: [RFC] : mm : / Patch / code : Suggestion :snip kswapd &get_page_from_freelist() : No more no page failures. (WHY????)
+Date: Tue, 28 Aug 2007 13:53:31 -0700
 MIME-Version: 1.0
-Content-Type: text/plain; charset=ISO-8859-1
+Content-Type: text/plain;
+	charset="iso-8859-1"
 Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
-References: <46D2A9D3.50703@linux.vnet.ibm.com>
-	 <20070828083252.C7D5C1BFA2F@siro.lan>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: YAMAMOTO Takashi <yamamoto@valinux.co.jp>
-Cc: balbir@linux.vnet.ibm.com, akpm@linux-foundation.org, npiggin@suse.de, a.p.zijlstra@chello.nl, dhaval@linux.vnet.ibm.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, ebiederm@xmission.com, containers@lists.osdl.org, xemul@openvz.org
+To: Nick Piggin <nickpiggin@yahoo.com.au>
+Cc: Peter Zijlstra <peterz@infradead.org>, Andrew Morton <akpm@linux-foundation.org>, mingo@elte.hu, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 8/28/07, YAMAMOTO Takashi <yamamoto@valinux.co.jp> wrote:
+Nick Piggin wrote:
 >
-> although i have no good idea right now, something which allows
-> to move a process with its thread group leader dead would be better.
+> Mitchell@kvack.org wrote:
+> > linux-mm@kvack.org
+> > Sent: Friday, August 24, 2007 3:11 PM
+> > Subject: Re: [RFC] : mm : / Patch / code : Suggestion :snip kswapd &
+> > get_page_from_freelist() : No more no page failures.
+> >
+> > Mailer added a HTML subpart and chopped the earlier email.... :^(
 >
+> Hi Mitchell,
+>
+> Is it possible to send suggestions in the form of a unified diff, even
+> if you haven't even compiled it (just add a note to let people know).
+>
+> Secondly, we already have a (supposedly working) system of asynch
+> reclaim, with buffering and hysteresis. I don't exactly understand
+> what problem you think it has that would be solved by rechecking
+> watermarks after allocating a page.
+>
+> When we're in the (min,low) watermark range, we'll wake up kswapd
+> _before_ allocating anything, so what is better about the change to
+> wake up kswapd after allocating? Can you perhaps come up with an
+> example situation also to make this more clear?
+>
+> Overhead of wakeup_kswapd isn't too much of a problem: if we _should_
+> be waking it up when we currently aren't, then we should be calling
+> it. However the extra checking in the allocator fastpath is something
+> we want to avoid if possible, because this can be a really hot path.
+>
+> Thanks,
+> Nick
+>
+> --
+> SUSE Labs, Novell Inc.
+> -
+--------
+Nick Piggin, et al,
 
-One way I was thinking of approaching this problem was slightly different:
+    First diffs would generate alot of noise, since I rip and insert
+    alot of code based on whether I think the code is REALLY
+    needed for MY TEST environment. These suggestions are
+    basicly minimal merge suggestions between my
+    development envir and the public Linux tree.
 
-- every mm always has an "owning" task. Initially that will be the
-thread that creates the mm
+    Now the why for this SUGGESTION/PATCH...
 
-- if the owning thread exits or execs and *isn't* the last user of the
-mm, then we may need to find a new owner for the mm:
+> When we're in the (min,low) watermark range, we'll wake up kswapd
+> _before_ allocating anything, so what is better about the change to
+> wake up kswapd after allocating? Can you perhaps come up with an
+> example situation also to make this more clear?
 
-1) My guess is that typically the thread that created the mm will also
-be the last user of the mm - if this is the case, then in the normal
-case we don't need to find a new owner.
+Answer
+    Will GFP_ATOMIC alloc be failing at that point? If yes, then why
+    not allow kswapd attempt to prevent this condition from occuring?
+    The existing code reads that the first call to get_page_from_freelist()
+    has returned no page. Now you are going to start up something that
+    is at best going to take millisecs to start helping out. Won't it first
+    grab some pages to do its work? So we are going to be lower
+    in free memory right when it starts up. Right?
 
-2) If we do need a new owner, first look amongst the other threads in
-the process (cheap, should find another user of the mm quickly)
+    So, before the change, with  high memory consumption/pressure,
+    various GFP_xxx allocations would fail or take an excessive
+    amount of time due to the simple fact of low memory and/or
+    Slub/slab consumption and/or first failure of
+    get_page_from_freelist() when in a  low free memory condition.
 
-3) next look in the child and parent threads (more expensive, but rarer)
+    Once the above condition occurs the perception is that the
+    current mainline Linux code then on demand increases its
+    effort to find some memory. However, while this is happening
+    the system is in a low memory bind and various performance
+    parameters are being effected and some allocations are
+    sleeping or being delayed or outright failing.
 
-4) if necessary, scan the entire thread list (expensive, but should
-never be needed in general use)
+    What I could see is that CURR suggestions allow a new class
+    of GFP_xxx allocations to succeed while in low memory,
+    try again philosophy, wake-up kswapd , etc, are all AFTER the
+    fact while something is WAITING for the memory. This
+    wait is in effect a SYNCHRONOUS wait for memory.
 
-The advantage of this is that we don't then need to have a memory
-container pointer in the mm - we can just use the memory container of
-the mm's owner.
+   Assuming that kswapd is really what is mostly needed.
+   Execute it BEFORE (JUST IN TIME) to PREVENT low
+   memory since I/O needs pages and  GFP_ATOMIC
+    allocs fails and other GFP allocs sleeeeeping and....
 
-With just a single container type needing to be tied to an mm, this
-isn't a huge advantage since we're just replacing one pointer (memory
-container) with another (owning task) and have similar levels of
-complexity for both. But if we have multiple container subsystems that
-need to be tied to a particular mm then they can both use the mm owner
-pointer.
+  The SUGGESTION is to
+   take the fraction of microsec longer in the fast path to see if
+   it is needed to be started up and to ATTEMPT to prevent
+   the SLOW-PATH and low/min memory from occuring.
 
-E.g. I want to add a swap container subsystem that restricts which
-swap devices a group of processes can swap to, and how many pages they
-can put into swap. And I want to be able to run this independently of
-the in-memory page accounting subsystem. Having a task owner pointer
-in the mm allows these to be indpendent subsystems, and (I believe)
-isn't any more complex than the work involved to support moving an mm
-whose thread group leader has exited or execd.
+    The 2x low memory is
+    to allow some scalability and to allow it ENOUGH time to do what
+    it needs to do, since I expect a minimum number of millisecs
+    before it can move us away from low free memory. As the
+    amount of memory increases in a system this probably could
+    be decreased somewhat to maybe 1.25x.
 
-Paul
+    IF the above is good then the issue is how to optimize the heck
+    out of the check.
+
+    Mitchell Erblich
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
