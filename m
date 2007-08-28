@@ -1,49 +1,61 @@
-Date: Tue, 28 Aug 2007 14:54:19 -0700 (PDT)
+Date: Tue, 28 Aug 2007 15:02:14 -0700 (PDT)
 From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: RFC:  Noreclaim with "Keep Mlocked Pages off the LRU"
-In-Reply-To: <1188312766.5079.77.camel@localhost>
-Message-ID: <Pine.LNX.4.64.0708281448440.17464@schroedinger.engr.sgi.com>
-References: <20070823041137.GH18788@wotan.suse.de>  <1187988218.5869.64.camel@localhost>
- <20070827013525.GA23894@wotan.suse.de>  <1188225247.5952.41.camel@localhost>
- <20070828000648.GB14109@wotan.suse.de> <1188312766.5079.77.camel@localhost>
+Subject: Re: [PATCH/RFC]  Add node 'states' sysfs class attribute - V2
+In-Reply-To: <1188309928.5079.37.camel@localhost>
+Message-ID: <Pine.LNX.4.64.0708281458520.17559@schroedinger.engr.sgi.com>
+References: <200708242228.l7OMS5fU017948@imap1.linux-foundation.org>
+ <1188248528.5952.95.camel@localhost>  <20070827170159.0a79529d.akpm@linux-foundation.org>
+  <Pine.LNX.4.64.0708271702520.1787@schroedinger.engr.sgi.com>
+ <20070827181405.57a3d8fe.akpm@linux-foundation.org>
+ <Pine.LNX.4.64.0708271826180.10344@schroedinger.engr.sgi.com>
+ <20070827201822.2506b888.akpm@linux-foundation.org>
+ <Pine.LNX.4.64.0708272210210.9748@schroedinger.engr.sgi.com>
+ <20070827222912.8b364352.akpm@linux-foundation.org>
+ <Pine.LNX.4.64.0708272235580.9834@schroedinger.engr.sgi.com>
+ <20070827231214.99e3c33f.akpm@linux-foundation.org> <1188309928.5079.37.camel@localhost>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
-Cc: Nick Piggin <npiggin@suse.de>, linux-mm <linux-mm@kvack.org>, Rik van Riel <riel@redhat.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, mel@skynet.ie, y-goto@jp.fujitsu.com, Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Eric Whitney <eric.whitney@hp.com>
 List-ID: <linux-mm.kvack.org>
 
 On Tue, 28 Aug 2007, Lee Schermerhorn wrote:
 
-> I didn't think I was special casing mlocked pages.  I wanted to treat
-> all !page_reclaimable() pages the same--i.e., put them on the noreclaim
-> list.
+> I thought I'd give it a try, but thinking that /proc variables were
+> discouraged, where else but sysfs to put them.  A class attribute
+> to /sys/devices/system/node seemed like the appropriate place.
 
-I think that is the right approach. Do not forget that ramfs and other 
-ram based filesystems create unmapped unreclaimable pages.
+Right. That is the right place.
 
-> Well, no.  Depending on the reason for !reclaimable, the page would go
-> on the noreclaim list or just be dropped--special handling.  More
-> importantly [for me], we still have to handle them specially in
-> migration, dumping them back onto the LRU so that we can arbitrate
-> access.  If I'm ever successful in getting automatic/lazy page migration
-> +replication accepted, I don't want that overhead in
-> auto-migration/replication.
+> I'm not wedded to this interface.  However, I realy don't think it's
+> worth doing as multiple files.
 
-Right. I posted a patch a week ago that generalized LRU handling and would 
-allow the adding of additional lists as needed by such an approach.
+I think one single file per nodemask makes sense. Otherwise files become 
+difficult to parse. I just forgot....
 
+> its executed, in the grand scheme of things.  However, I must admit that
+> I've become addicted to the ease with which one can write one-off
+> scripts to query configuration/statistics, tune/modify behavior or
+> trigger actions via just cat'ing from and/or echo'ing to a /proc or /sys
+> file.
+> 
+> So, where to go with this patch?  Drop it?  Leave it as is?  Move
+> it /proc so that it can be a single file?   Make it multiple files in
+> sysfs?  Putting it as politely as possible, the last is not my favorite
+> option, but if folks think this info is useful and that's the way to go,
+> so be it.  And what about mask vs list?  It's a 4 character change in
+> the code to go either way.
 
-> If we're willing to live with this [increased rmap scans on mlocked
-> pages], we might be able to dispense with the mlock count altogether.
-> Just a single flag [somewhere--doesn't need to be in page flags member]
-> to indicate mlocked for page_reclaimable().  munmap()/munlock() could
-> reset the bit and put the page back on the [in]active list.  If some
-> other vma has it locked, we'll catch it on next attempt to unmap.
+I would suggest to do the one file thing in sysfs and use the function 
+that already exists in the kernel to print the nice nodelists. Using the 
+nice function is just calling another function since the code is already 
+there.
 
-You need a page flag to indicate the fact that the page is on the 
-unreclaimable list.
+At some point we may even allow changing the nodemasks. One could imagine 
+that we would add nodemasks that allow use of hugepages on certain nodes 
+or the slab allocator to allocate on certain nodes.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
