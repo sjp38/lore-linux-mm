@@ -1,74 +1,41 @@
-Received: by fk-out-0910.google.com with SMTP id 18so2028827fkq
-        for <linux-mm@kvack.org>; Tue, 28 Aug 2007 15:13:42 -0700 (PDT)
-Message-ID: <29495f1d0708281513g406af15an8139df5fae20ad35@mail.gmail.com>
-Date: Tue, 28 Aug 2007 15:13:33 -0700
-From: "Nish Aravamudan" <nish.aravamudan@gmail.com>
-Subject: Re: [PATCH/RFC] Add node 'states' sysfs class attribute - V2
-In-Reply-To: <Pine.LNX.4.64.0708281458520.17559@schroedinger.engr.sgi.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=ISO-8859-1
+Received: from d03relay04.boulder.ibm.com (d03relay04.boulder.ibm.com [9.17.195.106])
+	by e34.co.us.ibm.com (8.13.8/8.13.8) with ESMTP id l7SMffbi020616
+	for <linux-mm@kvack.org>; Tue, 28 Aug 2007 18:41:41 -0400
+Received: from d03av03.boulder.ibm.com (d03av03.boulder.ibm.com [9.17.195.169])
+	by d03relay04.boulder.ibm.com (8.13.8/8.13.8/NCO v8.5) with ESMTP id l7SMffAS432674
+	for <linux-mm@kvack.org>; Tue, 28 Aug 2007 16:41:41 -0600
+Received: from d03av03.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av03.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l7SMffgl025405
+	for <linux-mm@kvack.org>; Tue, 28 Aug 2007 16:41:41 -0600
+Subject: Re: [PATCH] Fix find_next_best_node (Re: [BUG] 2.6.23-rc3-mm1
+	Kernel panic - not syncing: DMA: Memory would be corrupted)
+From: Adam Litke <agl@us.ibm.com>
+In-Reply-To: <20070824153945.3C75.Y-GOTO@jp.fujitsu.com>
+References: <617E1C2C70743745A92448908E030B2A023EB020@scsmsx411.amr.corp.intel.com>
+	 <20070823142133.9359a1ce.akpm@linux-foundation.org>
+	 <20070824153945.3C75.Y-GOTO@jp.fujitsu.com>
+Content-Type: text/plain
+Date: Tue, 28 Aug 2007 17:41:40 -0500
+Message-Id: <1188340900.15336.84.camel@localhost.localdomain>
+Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
-References: <200708242228.l7OMS5fU017948@imap1.linux-foundation.org>
-	 <20070827181405.57a3d8fe.akpm@linux-foundation.org>
-	 <Pine.LNX.4.64.0708271826180.10344@schroedinger.engr.sgi.com>
-	 <20070827201822.2506b888.akpm@linux-foundation.org>
-	 <Pine.LNX.4.64.0708272210210.9748@schroedinger.engr.sgi.com>
-	 <20070827222912.8b364352.akpm@linux-foundation.org>
-	 <Pine.LNX.4.64.0708272235580.9834@schroedinger.engr.sgi.com>
-	 <20070827231214.99e3c33f.akpm@linux-foundation.org>
-	 <1188309928.5079.37.camel@localhost>
-	 <Pine.LNX.4.64.0708281458520.17559@schroedinger.engr.sgi.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
-Cc: Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, mel@skynet.ie, y-goto@jp.fujitsu.com, Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Eric Whitney <eric.whitney@hp.com>
+To: Yasunori Goto <y-goto@jp.fujitsu.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@skynet.ie>, Kamalesh Babulal <kamalesh@linux.vnet.ibm.com>, "Luck, Tony" <tony.luck@intel.com>, Jeremy Higdon <jeremy@sgi.com>, Andi Kleen <ak@suse.de>, linux-kernel@vger.kernel.org, Balbir Singh <balbir@linux.vnet.ibm.com>, linux-ia64@vger.kernel.org, Christoph Lameter <clameter@sgi.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 8/28/07, Christoph Lameter <clameter@sgi.com> wrote:
-> On Tue, 28 Aug 2007, Lee Schermerhorn wrote:
->
-> > I thought I'd give it a try, but thinking that /proc variables were
-> > discouraged, where else but sysfs to put them.  A class attribute
-> > to /sys/devices/system/node seemed like the appropriate place.
->
-> Right. That is the right place.
->
-> > I'm not wedded to this interface.  However, I realy don't think it's
-> > worth doing as multiple files.
->
-> I think one single file per nodemask makes sense. Otherwise files become
-> difficult to parse. I just forgot....
->
-> > its executed, in the grand scheme of things.  However, I must admit that
-> > I've become addicted to the ease with which one can write one-off
-> > scripts to query configuration/statistics, tune/modify behavior or
-> > trigger actions via just cat'ing from and/or echo'ing to a /proc or /sys
-> > file.
-> >
-> > So, where to go with this patch?  Drop it?  Leave it as is?  Move
-> > it /proc so that it can be a single file?   Make it multiple files in
-> > sysfs?  Putting it as politely as possible, the last is not my favorite
-> > option, but if folks think this info is useful and that's the way to go,
-> > so be it.  And what about mask vs list?  It's a 4 character change in
-> > the code to go either way.
->
-> I would suggest to do the one file thing in sysfs and use the function
-> that already exists in the kernel to print the nice nodelists. Using the
-> nice function is just calling another function since the code is already
-> there.
->
-> At some point we may even allow changing the nodemasks. One could imagine
-> that we would add nodemasks that allow use of hugepages on certain nodes
-> or the slab allocator to allocate on certain nodes.
+On Fri, 2007-08-24 at 15:53 +0900, Yasunori Goto wrote:
+> I found find_next_best_node() was wrong.
+> I confirmed boot up by the following patch.
+> Mel-san, Kamalesh-san, could you try this?
 
-Just to chime in here -- I've been on vacation for a bit recently -- I
-fully support the one-value per file rule for sysfs. I think it makes
-things a bit clearer. I like this attribute as well, and the idea of
-expanding it down the road is easiest if we use one file per-nodemask.
+FYI: This patch also allows the alloc-instantiate-race testcase in
+libhugetlbfs to pass again :)
 
-Thanks,
-Nish
+-- 
+Adam Litke - (agl at us.ibm.com)
+IBM Linux Technology Center
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
