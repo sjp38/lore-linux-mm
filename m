@@ -1,138 +1,79 @@
-Received: from d23relay03.au.ibm.com (d23relay03.au.ibm.com [202.81.18.234])
-	by e23smtp06.au.ibm.com (8.13.1/8.13.1) with ESMTP id l7TG7kKC002953
-	for <linux-mm@kvack.org>; Thu, 30 Aug 2007 02:07:46 +1000
-Received: from d23av03.au.ibm.com (d23av03.au.ibm.com [9.190.250.244])
-	by d23relay03.au.ibm.com (8.13.8/8.13.8/NCO v8.5) with ESMTP id l7TG7lBG1417408
-	for <linux-mm@kvack.org>; Thu, 30 Aug 2007 02:07:47 +1000
-Received: from d23av03.au.ibm.com (loopback [127.0.0.1])
-	by d23av03.au.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l7TG7kM9004044
-	for <linux-mm@kvack.org>; Thu, 30 Aug 2007 02:07:47 +1000
-Message-ID: <46D599CA.1020504@linux.vnet.ibm.com>
-Date: Wed, 29 Aug 2007 21:37:38 +0530
-From: Balbir Singh <balbir@linux.vnet.ibm.com>
-Reply-To: balbir@linux.vnet.ibm.com
-MIME-Version: 1.0
-Subject: Re: [-mm PATCH] Memory controller improve user interface
-References: <20070829111030.9987.8104.sendpatchset@balbir-laptop> <6599ad830708290828t5164260eid548757d404e31a5@mail.gmail.com>
-In-Reply-To: <6599ad830708290828t5164260eid548757d404e31a5@mail.gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1
+Subject: Re: speeding up swapoff
+From: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
+In-Reply-To: <1188394172.22156.67.camel@localhost>
+References: <1188394172.22156.67.camel@localhost>
+Content-Type: text/plain
+Date: Wed, 29 Aug 2007 12:08:31 -0400
+Message-Id: <1188403712.5121.22.camel@localhost>
+Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Paul Menage <menage@google.com>
-Cc: Linux Containers <containers@lists.osdl.org>, Linux MM Mailing List <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, David Rientjes <rientjes@google.com>
+To: Daniel Drake <ddrake@brontes3d.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Juergen Beisert <juergen127@kreuzholzen.de>
 List-ID: <linux-mm.kvack.org>
 
-Paul Menage wrote:
-> On 8/29/07, Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
->> Change the interface to use kilobytes instead of pages. Page sizes can vary
->> across platforms and configurations. A new strategy routine has been added
->> to the resource counters infrastructure to format the data as desired.
->>
->> Suggested by David Rientjes, Andrew Morton and Herbert Poetzl
->>
->> Signed-off-by: Balbir Singh <balbir@linux.vnet.ibm.com>
->> ---
->>
->>  Documentation/controllers/memory.txt |    7 +++--
->>  include/linux/res_counter.h          |    6 ++--
->>  kernel/res_counter.c                 |   24 +++++++++++++----
->>  mm/memcontrol.c                      |   47 +++++++++++++++++++++++++++--------
->>  4 files changed, 64 insertions(+), 20 deletions(-)
->>
->> diff -puN mm/memcontrol.c~mem-control-make-ui-use-kilobytes mm/memcontrol.c
->> --- linux-2.6.23-rc3/mm/memcontrol.c~mem-control-make-ui-use-kilobytes  2007-08-28 13:20:44.000000000 +0530
->> +++ linux-2.6.23-rc3-balbir/mm/memcontrol.c     2007-08-29 14:36:07.000000000 +0530
->> @@ -32,6 +32,7 @@
->>
->>  struct container_subsys mem_container_subsys;
->>  static const int MEM_CONTAINER_RECLAIM_RETRIES = 5;
->> +static const int MEM_CONTAINER_CHARGE_KB = (PAGE_SIZE >> 10);
->>
->>  /*
->>   * The memory controller data structure. The memory controller controls both
->> @@ -312,7 +313,7 @@ int mem_container_charge(struct page *pa
->>          * If we created the page_container, we should free it on exceeding
->>          * the container limit.
->>          */
->> -       while (res_counter_charge(&mem->res, 1)) {
->> +       while (res_counter_charge(&mem->res, MEM_CONTAINER_CHARGE_KB)) {
->>                 if (try_to_free_mem_container_pages(mem))
->>                         continue;
->>
->> @@ -352,7 +353,7 @@ int mem_container_charge(struct page *pa
->>                 kfree(pc);
->>                 pc = race_pc;
->>                 atomic_inc(&pc->ref_cnt);
->> -               res_counter_uncharge(&mem->res, 1);
->> +               res_counter_uncharge(&mem->res, MEM_CONTAINER_CHARGE_KB);
->>                 css_put(&mem->css);
->>                 goto done;
->>         }
->> @@ -417,7 +418,7 @@ void mem_container_uncharge(struct page_
->>                 css_put(&mem->css);
->>                 page_assign_page_container(page, NULL);
->>                 unlock_page_container(page);
->> -               res_counter_uncharge(&mem->res, 1);
->> +               res_counter_uncharge(&mem->res, MEM_CONTAINER_CHARGE_KB);
->>
->>                 spin_lock_irqsave(&mem->lru_lock, flags);
->>                 list_del_init(&pc->lru);
->> @@ -426,12 +427,37 @@ void mem_container_uncharge(struct page_
->>         }
->>  }
->>
->> -static ssize_t mem_container_read(struct container *cont, struct cftype *cft,
->> -                       struct file *file, char __user *userbuf, size_t nbytes,
->> -                       loff_t *ppos)
->> +int mem_container_read_strategy(unsigned long val, char *buf)
->> +{
->> +       return sprintf(buf, "%lu (kB)\n", val);
->> +}
->> +
->> +int mem_container_write_strategy(char *buf, unsigned long *tmp)
->> +{
->> +       *tmp = memparse(buf, &buf);
->> +       if (*buf != '\0')
->> +               return -EINVAL;
->> +
->> +       *tmp = *tmp >> 10;              /* convert to kilobytes */
->> +       return 0;
->> +}
+On Wed, 2007-08-29 at 09:29 -0400, Daniel Drake wrote:
+> Hi,
 > 
-> This seems a bit inconsistent - if you write a value to a limit file,
-> then the value that you read back is reduced by a factor of 1024?
-> Having the "(kB)" suffix isn't really a big help to automated
-> middleware.
+> I've spent some time trying to understand why swapoff is such a slow
+> operation.
 > 
-
-Why is that? Is it because you could write 4M and see it show up
-as 4096 kilobytes? We'll that can be fixed with another variant
-of the memparse() utility.
-
-> I'd still be in favour of just reading/writing 64-bit values
-> representing bytes - simple, and unambiguous for programmatic use, and
-> not really any less user-friendly than kilobytes  for manual use
-> (since the numbers involved are going to be unwieldly for manual use
-> whether they're in bytes or kB).
+> My experiments show that when there is not much free physical memory,
+> swapoff moves pages out of swap at a rate of approximately 5mb/sec. When
+> there is a lot of free physical memory, it is faster but still a slow
+> CPU-intensive operation, purging swap at about 20mb/sec.
 > 
+> I've read into the swap code and I have some understanding that this is
+> an expensive operation (and has to be). This page was very helpful and
+> also agrees:
+> http://kernel.org/doc/gorman/html/understand/understand014.html
+> 
+> After reading that, I have an idea for a possible optimization. If we
+> were to create a system call to disable ALL swap partitions (or modify
+> the existing one to accept NULL for that purpose), could this process be
+> signficantly less complex?
+> 
+> I'm thinking we could do something like this:
+>  1. Prevent any more pages from being swapped out from this point
+>  2. Iterate through all process page tables, paging all swapped
+>     pages back into physical memory and updating PTEs
+>  3. Clear all swap tables and caches
+> 
+> Due to only iterating through process page tables once, does this sound
+> like it would increase performance non-trivially? Is it feasible?
+> 
+> I'm happy to spend a few more hours looking into implementing this but
+> would greatly appreciate any advice from those in-the-know on if my
+> ideas are broken to start with...
 
-64 bit might be an overkill for 32 bit machines. 32 bit machines with
-PAE cannot use 32 bit values, they need 64 bits. I think KiloBytes
-is an acceptable metric these days, everybody understands them.
+Daniel:  
 
-> Paul
-> _______________________________________________
-> Containers mailing list
-> Containers@lists.linux-foundation.org
-> https://lists.linux-foundation.org/mailman/listinfo/containers
+in a response, Juergen Beisert asked if you'd tried mlock()  [mlockall()
+would probably be a better choice] to lock your application into memory.
+That would require modifying the application.  Don't know if you want to
+do that.
 
+Back in Feb'07, I posted an RFC regarding [optionally] inheriting
+mlockall() semantics across fork and exec.  The original posting is
+here:
 
--- 
-	Warm Regards,
-	Balbir Singh
-	Linux Technology Center
-	IBM, ISTL
+	http://marc.info/?l=linux-mm&m=117217855508612&w=4
+
+The patch is quite stale now [against 20-rc<something>], but shouldn't
+be too much work to rebase to something more recent.  The patch
+description points to an ad hoc mlock "prefix command" that would allow
+you to:
+
+	mlock <some application>
+
+and run the application as if it had called "mlockall(MCL_CURRENT|
+MCL_FUTURE)", without having to modify the application--if that's
+something you can't or don't want to do.
+
+Maybe this would help?
+
+Lee
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
