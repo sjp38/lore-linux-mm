@@ -1,45 +1,54 @@
-Date: Wed, 29 Aug 2007 12:22:41 +0100 (BST)
-From: "Maciej W. Rozycki" <macro@linux-mips.org>
-Subject: Re: [PATCH] Prefix each line of multiline printk(KERN_<level>
- "foo\nbar") with KERN_<level>
-In-Reply-To: <Pine.LNX.4.64.0708261305020.31149@anakin>
-Message-ID: <Pine.LNX.4.64N.0708291205020.26167@blysk.ds.pg.gda.pl>
-References: <1187999098.32738.179.camel@localhost> <Pine.LNX.4.64.0708261028120.31149@anakin>
- <8bd0f97a0708260354xb4c8546od0cc19a590820f32@mail.gmail.com>
- <Pine.LNX.4.64.0708261305020.31149@anakin>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: speeding up swapoff
+From: Daniel Drake <ddrake@brontes3d.com>
+Content-Type: text/plain
+Date: Wed, 29 Aug 2007 09:29:32 -0400
+Message-Id: <1188394172.22156.67.camel@localhost>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Geert Uytterhoeven <geert@linux-m68k.org>
-Cc: Mike Frysinger <vapier.adi@gmail.com>, Joe Perches <joe@perches.com>, linux-kernel@vger.kernel.org, blinux-list@redhat.com, cluster-devel@redhat.com, discuss@x86-64.org, jffs-dev@axis.com, linux-acpi@vger.kernel.org, linux-ide@vger.kernel.org, linux-mips@linux-mips.org, linux-mm@kvack.org, linux-mtd@lists.infradead.org, linux-scsi@vger.kernel.org, mpt_linux_developer@lsi.com, netdev@vger.kernel.org, osst-users@lists.sourceforge.net, parisc-linux@parisc-linux.org, tpmdd-devel@lists.sourceforge.net, uclinux-dist-devel@blackfin.uclinux.org
+To: linux-mm@kvack.org
+Cc: linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Sun, 26 Aug 2007, Geert Uytterhoeven wrote:
+Hi,
 
-> What I mean is that probably there used to be a printk() call starting with
-> `\n'. Then someone added a `KERN_ERR' in front of it.
+I've spent some time trying to understand why swapoff is such a slow
+operation.
 
- I gather '\n' at the beginning is to assure the following line is output 
-on a separate line rather than as a continuation of another one which may 
-have been output without a trailing '\n'.  A situation where printk() is 
-called with a string containing no trailing '\n' may be discouraged, but 
-there are some more or less justified exceptions.  For example the SCSI 
-disk spin-up code is one.
+My experiments show that when there is not much free physical memory,
+swapoff moves pages out of swap at a rate of approximately 5mb/sec. When
+there is a lot of free physical memory, it is faster but still a slow
+CPU-intensive operation, purging swap at about 20mb/sec.
 
- Therefore it may be reasonable for more critical messages -- perhaps not 
-ones at KERN_ERR, but certainly KERN_CRIT and higher ones -- that may 
-potentially happen asynchronously to start with '\n'.  In this case a call 
-would look like this:
+I've read into the swap code and I have some understanding that this is
+an expensive operation (and has to be). This page was very helpful and
+also agrees:
+http://kernel.org/doc/gorman/html/understand/understand014.html
 
-	printk("\n" KERN_CRIT "The actual message.\n");
+After reading that, I have an idea for a possible optimization. If we
+were to create a system call to disable ALL swap partitions (or modify
+the existing one to accept NULL for that purpose), could this process be
+signficantly less complex?
 
-Of course based on "console_loglevel" and "default_message_level" the 
-leading '\n' may still get swallowed from what gets printed to the console 
-terminal, but in reality I do not think that poses a problem, as these 
-both can be set by a system administrator according to the local policy.
+I'm thinking we could do something like this:
+ 1. Prevent any more pages from being swapped out from this point
+ 2. Iterate through all process page tables, paging all swapped
+    pages back into physical memory and updating PTEs
+ 3. Clear all swap tables and caches
 
-  Maciej
+Due to only iterating through process page tables once, does this sound
+like it would increase performance non-trivially? Is it feasible?
+
+I'm happy to spend a few more hours looking into implementing this but
+would greatly appreciate any advice from those in-the-know on if my
+ideas are broken to start with...
+
+Thanks!
+-- 
+Daniel Drake
+Brontes Technologies, A 3M Company
+http://www.brontes3d.com/opensource
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
