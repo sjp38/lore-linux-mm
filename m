@@ -1,79 +1,58 @@
-Subject: Re: speeding up swapoff
-From: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
-In-Reply-To: <1188394172.22156.67.camel@localhost>
-References: <1188394172.22156.67.camel@localhost>
-Content-Type: text/plain
-Date: Wed, 29 Aug 2007 12:08:31 -0400
-Message-Id: <1188403712.5121.22.camel@localhost>
-Mime-Version: 1.0
+Received: from zps78.corp.google.com (zps78.corp.google.com [172.25.146.78])
+	by smtp-out.google.com with ESMTP id l7TGHjuv022245
+	for <linux-mm@kvack.org>; Wed, 29 Aug 2007 09:17:45 -0700
+Received: from an-out-0708.google.com (anab8.prod.google.com [10.100.53.8])
+	by zps78.corp.google.com with ESMTP id l7TGHfMb026014
+	for <linux-mm@kvack.org>; Wed, 29 Aug 2007 09:17:41 -0700
+Received: by an-out-0708.google.com with SMTP id b8so46308ana
+        for <linux-mm@kvack.org>; Wed, 29 Aug 2007 09:17:40 -0700 (PDT)
+Message-ID: <6599ad830708290917w599210fbx31b361a3529bdf3@mail.gmail.com>
+Date: Wed, 29 Aug 2007 09:17:40 -0700
+From: "Paul Menage" <menage@google.com>
+Subject: Re: [-mm PATCH] Memory controller improve user interface
+In-Reply-To: <46D599CA.1020504@linux.vnet.ibm.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+References: <20070829111030.9987.8104.sendpatchset@balbir-laptop>
+	 <6599ad830708290828t5164260eid548757d404e31a5@mail.gmail.com>
+	 <46D599CA.1020504@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Daniel Drake <ddrake@brontes3d.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Juergen Beisert <juergen127@kreuzholzen.de>
+To: balbir@linux.vnet.ibm.com
+Cc: Linux Containers <containers@lists.osdl.org>, Linux MM Mailing List <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, David Rientjes <rientjes@google.com>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 2007-08-29 at 09:29 -0400, Daniel Drake wrote:
-> Hi,
-> 
-> I've spent some time trying to understand why swapoff is such a slow
-> operation.
-> 
-> My experiments show that when there is not much free physical memory,
-> swapoff moves pages out of swap at a rate of approximately 5mb/sec. When
-> there is a lot of free physical memory, it is faster but still a slow
-> CPU-intensive operation, purging swap at about 20mb/sec.
-> 
-> I've read into the swap code and I have some understanding that this is
-> an expensive operation (and has to be). This page was very helpful and
-> also agrees:
-> http://kernel.org/doc/gorman/html/understand/understand014.html
-> 
-> After reading that, I have an idea for a possible optimization. If we
-> were to create a system call to disable ALL swap partitions (or modify
-> the existing one to accept NULL for that purpose), could this process be
-> signficantly less complex?
-> 
-> I'm thinking we could do something like this:
->  1. Prevent any more pages from being swapped out from this point
->  2. Iterate through all process page tables, paging all swapped
->     pages back into physical memory and updating PTEs
->  3. Clear all swap tables and caches
-> 
-> Due to only iterating through process page tables once, does this sound
-> like it would increase performance non-trivially? Is it feasible?
-> 
-> I'm happy to spend a few more hours looking into implementing this but
-> would greatly appreciate any advice from those in-the-know on if my
-> ideas are broken to start with...
+On 8/29/07, Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
+> >
+> > This seems a bit inconsistent - if you write a value to a limit file,
+> > then the value that you read back is reduced by a factor of 1024?
+> > Having the "(kB)" suffix isn't really a big help to automated
+> > middleware.
+> >
+>
+> Why is that? Is it because you could write 4M and see it show up
+> as 4096 kilobytes? We'll that can be fixed with another variant
+> of the memparse() utility.
 
-Daniel:  
+I was thinking the other way around - you can write 1048576 (i.e. 1MB)
+to the file and read back 1024. It just seems to me that it's clearer
+if you write X to the file to get X back.
 
-in a response, Juergen Beisert asked if you'd tried mlock()  [mlockall()
-would probably be a better choice] to lock your application into memory.
-That would require modifying the application.  Don't know if you want to
-do that.
+>
+> 64 bit might be an overkill for 32 bit machines. 32 bit machines with
+> PAE cannot use 32 bit values, they need 64 bits.
 
-Back in Feb'07, I posted an RFC regarding [optionally] inheriting
-mlockall() semantics across fork and exec.  The original posting is
-here:
+How is using a 64-bit value for consistency overkill?
 
-	http://marc.info/?l=linux-mm&m=117217855508612&w=4
+As someone pointed out, 4TB machines probably aren't that far around
+the corner (if they're not here already) so even if you use KB rather
+than bytes, userspace needs to be using an int64 for this value in
+case it ends up running as a 32-bit-compiled app on a 64-bit kernel
+with lots of memory.
 
-The patch is quite stale now [against 20-rc<something>], but shouldn't
-be too much work to rebase to something more recent.  The patch
-description points to an ad hoc mlock "prefix command" that would allow
-you to:
-
-	mlock <some application>
-
-and run the application as if it had called "mlockall(MCL_CURRENT|
-MCL_FUTURE)", without having to modify the application--if that's
-something you can't or don't want to do.
-
-Maybe this would help?
-
-Lee
+Paul
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
