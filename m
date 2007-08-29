@@ -1,81 +1,105 @@
-Message-ID: <46D4DBF7.7060102@yahoo.com.au>
-Date: Wed, 29 Aug 2007 12:37:43 +1000
-From: Nick Piggin <nickpiggin@yahoo.com.au>
-MIME-Version: 1.0
-Subject: Re: Selective swap out of processes
-References: <1188320070.11543.85.camel@bastion-laptop>
-In-Reply-To: <1188320070.11543.85.camel@bastion-laptop>
-Content-Type: text/plain; charset=UTF-8; format=flowed
-Content-Transfer-Encoding: 8bit
+Date: Wed, 29 Aug 2007 06:38:03 +0200
+From: Nick Piggin <npiggin@suse.de>
+Subject: Re: RFC:  Noreclaim with "Keep Mlocked Pages off the LRU"
+Message-ID: <20070829043803.GD25335@wotan.suse.de>
+References: <20070823041137.GH18788@wotan.suse.de> <1187988218.5869.64.camel@localhost> <20070827013525.GA23894@wotan.suse.de> <1188225247.5952.41.camel@localhost> <20070828000648.GB14109@wotan.suse.de> <1188312766.5079.77.camel@localhost>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1188312766.5079.77.camel@localhost>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: =?UTF-8?B?SmF2aWVyIENhYmV6YXMg77+9?= <jcabezas@ac.upc.edu>
-Cc: linux-mm@kvack.org
+To: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
+Cc: linux-mm <linux-mm@kvack.org>, Rik van Riel <riel@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
-Javier Cabezas RodrA-guez wrote:
-> Hi all,
+On Tue, Aug 28, 2007 at 10:52:46AM -0400, Lee Schermerhorn wrote:
+> On Tue, 2007-08-28 at 02:06 +0200, Nick Piggin wrote:
+> > 
+> > I don't have a problem with having a more unified approach, although if
+> > we did that, then I'd prefer just to do it more simply and don't special
+> > case mlocked pages _at all_. Ie. just slowly try to reclaim them and
+> > eventually when everybody unlocks them, you will notice sooner or later.
 > 
-> I am trying to reduce the main memory power consumption when the system
-> is idle. In order to achieve it, I want to freeze some processes
-> (user-defined) when the system enters a long idle period and swap them
-> out to the disk. After that, more memory is free and then, the remaining
-> used memory can be moved to a minimal set of memory ranks so the rest of
-> ranks can be switched off.
-> 
-> To the best of my knowledge, a process can own the following types of
-> memory pages:
-> - Mapped pages
->         A. Executable and Read-only mapped pages that are backed by a
->         file in the disk. These pages can be directly unmapped (if they
->         are not shared) -> UNMAP
->         A. Writable file mapped pages that must be flushed to disk
->         (synced) before they are unmapped -> SYNC + UNMAP
-> - Anonymous pages in User Mode address spaces -> SWAP
-> -  Mapped pages of tmpfs filesystem -> SWAP
-> 
-> I have implemented the process selection mechanism (using an entry for
-> each PID in proc), and the process freezing/resume (using the
-> refrigerator function, like in the hibernation code).
-> 
-> Now I am implementing the memory freeing. The biggest problem here is
-> that the regular swapping out algorithm of the kernel only frees memory
-> when it is needed, so I don't know which is the behaviour of the
-> standard routines in this situation.  I have looked at the standard
-> swapping functions (shrink_zones, shrink_zone, ...) and I think they
-> handle all the  process page types I enumerated previously. So, for each
-> VMA of the process,  I build a page list with all the pages and pass it
-> as a parameter to shrink_page_list (before that I remove them from the
-> LRU active/inactive lists with del_page_from_lru).
-> 
-> First I have tried with the executable VMA (of a lynx process) mapped to
-> the executable file. However none of the pages is freed.
-> shrink_page_list skips each page due to this check:
-> 
-> referenced = page_referenced(page, 1);
-> /* In active use or really unfreeable?  Activate it. */
-> if (referenced && page_mapping_inuse(page))
-> 	goto activate_locked;
-> 
-> It seems they are mapped somewhere else and they cannot be freed. So,
-> which operations should I perform on the pages (try_to_unmap,
-> pte_mkold, ...) before I call shrink_page_list?
+> I didn't think I was special casing mlocked pages.  I wanted to treat
+> all !page_reclaimable() pages the same--i.e., put them on the noreclaim
+> list.
+
+But you are keeping track of the mlock count? Why not simply call
+try_to_unmap and see if they are still mlocked?
 
 
-Simplest will be just to set referenced to 0 right after calling
-page_referenced, in the case you want to forcefully swap out the
-page.
+> > But once you do the code for mlock refcounting, that's most of the hard
+> > part done so you may as well remove them completely from the LRU, no?
+> > Then they become more or less transparent to the rest of the VM as well.
+> 
+> Well, no.  Depending on the reason for !reclaimable, the page would go
+> on the noreclaim list or just be dropped--special handling.  More
+> importantly [for me], we still have to handle them specially in
+> migration, dumping them back onto the LRU so that we can arbitrate
+> access.  If I'm ever successful in getting automatic/lazy page migration
+> +replication accepted, I don't want that overhead in
+> auto-migration/replication.
 
-try_to_unmap will get called later in the same function.
+Oh OK. I don't know if there should be a whole lot of overhead involved
+with that, though. I can't remember exactly what the problems were here
+with my mlock patch, but I think it could have been made more optimal.
 
 
-unmapped pagecache, and other caches are going to take up a fair
-bit of memory as well, and fragmentation might mean it is hard to
-get large enough regions of contiguous memory to switch off chips,
-though.
+> > Could be possible. Tricky though. Probably take less code to use
+> > ->lru ;)
+> 
+> Oh, certainly less code to use any separate field.  But the lru list
+> field is the only link we have in the page struct, and a lot of VM
+> depends on being able to pass around lists of pages.  I'd hate to lose
+> that for mlocked pages, or to have to dump the lock count and
+> reestablish it in those cases, like migration, where we need to put the
+> page on a list.
 
--- 
-SUSE Labs, Novell Inc.
+Hmm, yes. Migration could possibly use a single linked list.
+But I'm only saying it _could_ be possible to do mlocked accounting
+efficiently with one of the LRU pointers -- I would prefer the idea
+of just using a single bit for example, if that is sufficient. It
+should cut down on code.
+
+
+> > I don't know. I'd have thought efficient mlock handling might be useful
+> > for realtime systems, probably many of which would be 32-bit.
+> 
+> I agree.  I just wonder if those systems have a sufficient number of
+> pages that they're suffering from the long lru lists with a large
+> fraction of unreclaimable pages...  If we do want to support keeping
+> nonreclaimable pages off the [in]active lists for these systems, we'll
+> need to find a place for the flag[s].
+
+That's true, they will have a lot less pages (and probably won't
+be using highmem).
+
+
+> > Are you seeing mlock pinning heaps of memory in the field?
+> 
+> It is a common usage to mlock() large shared memory areas, as well as
+> entire tasks [MLOCK_CURRENT|MLOCK_FUTURE].  I think it would be even
+> more frequent if one could inherit MLOCK_FUTURE across fork and exec.
+> Then one could write/enhance a prefix command, like numactl and taskset,
+> to enable locking of unmodified applications.  I prototyped this once,
+> but never updated it to do the mlock accounting [e.g., down in
+> copy_page_range() during fork()] for your patch.
+> 
+> What we see more of is folks just figuring that they've got sufficient
+> memory [100s of GB] for their apps and shared memory areas, so they
+> don't add enough swap to back all of the anon and shmem regions.  Then,
+> when they get under memory pressure--e.g., the old "backup ate my
+> pagecache" scenario--the system more or less live-locks in vmscan
+> shuffling non-reclaimable [unswappable] pages.  A large number of
+> mlocked pages on the LRU produces the same symptom; as do excessively
+> long anon_vma lists and huge i_mmap trees--the latter seen with some
+> large Oracle workloads.
+
+OK, thanks for the background.
+
+Thanks,
+Nick
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
