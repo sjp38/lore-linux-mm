@@ -1,81 +1,69 @@
-Subject: Re: [PATCH/RFC] Add node 'states' sysfs class attribute - V2
-From: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
-In-Reply-To: <29495f1d0708281513g406af15an8139df5fae20ad35@mail.gmail.com>
-References: <200708242228.l7OMS5fU017948@imap1.linux-foundation.org>
-	 <20070827181405.57a3d8fe.akpm@linux-foundation.org>
-	 <Pine.LNX.4.64.0708271826180.10344@schroedinger.engr.sgi.com>
-	 <20070827201822.2506b888.akpm@linux-foundation.org>
-	 <Pine.LNX.4.64.0708272210210.9748@schroedinger.engr.sgi.com>
-	 <20070827222912.8b364352.akpm@linux-foundation.org>
-	 <Pine.LNX.4.64.0708272235580.9834@schroedinger.engr.sgi.com>
-	 <20070827231214.99e3c33f.akpm@linux-foundation.org>
-	 <1188309928.5079.37.camel@localhost>
-	 <Pine.LNX.4.64.0708281458520.17559@schroedinger.engr.sgi.com>
-	 <29495f1d0708281513g406af15an8139df5fae20ad35@mail.gmail.com>
+Subject: Re: speeding up swapoff
+From: Daniel Drake <ddrake@brontes3d.com>
+In-Reply-To: <20070829073040.1ec35176@laptopd505.fenrus.org>
+References: <1188394172.22156.67.camel@localhost>
+	 <20070829073040.1ec35176@laptopd505.fenrus.org>
 Content-Type: text/plain
-Date: Wed, 29 Aug 2007 10:43:40 -0400
-Message-Id: <1188398621.5121.13.camel@localhost>
+Date: Wed, 29 Aug 2007 10:44:43 -0400
+Message-Id: <1188398683.22156.77.camel@localhost>
 Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nish Aravamudan <nish.aravamudan@gmail.com>
-Cc: Christoph Lameter <clameter@sgi.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, mel@skynet.ie, y-goto@jp.fujitsu.com, Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Eric Whitney <eric.whitney@hp.com>
+To: Arjan van de Ven <arjan@infradead.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 2007-08-28 at 15:13 -0700, Nish Aravamudan wrote:
-> On 8/28/07, Christoph Lameter <clameter@sgi.com> wrote:
-> > On Tue, 28 Aug 2007, Lee Schermerhorn wrote:
-> >
-> > > I thought I'd give it a try, but thinking that /proc variables were
-> > > discouraged, where else but sysfs to put them.  A class attribute
-> > > to /sys/devices/system/node seemed like the appropriate place.
-> >
-> > Right. That is the right place.
-> >
-> > > I'm not wedded to this interface.  However, I realy don't think it's
-> > > worth doing as multiple files.
-> >
-> > I think one single file per nodemask makes sense. Otherwise files become
-> > difficult to parse. I just forgot....
-> >
-> > > its executed, in the grand scheme of things.  However, I must admit that
-> > > I've become addicted to the ease with which one can write one-off
-> > > scripts to query configuration/statistics, tune/modify behavior or
-> > > trigger actions via just cat'ing from and/or echo'ing to a /proc or /sys
-> > > file.
-> > >
-> > > So, where to go with this patch?  Drop it?  Leave it as is?  Move
-> > > it /proc so that it can be a single file?   Make it multiple files in
-> > > sysfs?  Putting it as politely as possible, the last is not my favorite
-> > > option, but if folks think this info is useful and that's the way to go,
-> > > so be it.  And what about mask vs list?  It's a 4 character change in
-> > > the code to go either way.
-> >
-> > I would suggest to do the one file thing in sysfs and use the function
-> > that already exists in the kernel to print the nice nodelists. Using the
-> > nice function is just calling another function since the code is already
-> > there.
-> >
-> > At some point we may even allow changing the nodemasks. One could imagine
-> > that we would add nodemasks that allow use of hugepages on certain nodes
-> > or the slab allocator to allocate on certain nodes.
+On Wed, 2007-08-29 at 07:30 -0700, Arjan van de Ven wrote:
+> > My experiments show that when there is not much free physical memory,
+> > swapoff moves pages out of swap at a rate of approximately 5mb/sec.
 > 
-> Just to chime in here -- I've been on vacation for a bit recently -- I
-> fully support the one-value per file rule for sysfs. I think it makes
-> things a bit clearer. I like this attribute as well, and the idea of
-> expanding it down the road is easiest if we use one file per-nodemask.
+> sounds like about disk speed (at random-seek IO pattern)
 
-Welcome back, Nish.
+We are only using 'standard' seagate SATA disks, but I would have
+thought much more performance (40+ mb/sec) would be reachable.
 
-OK, I relent.  I'll respin with one file per state.  I'll go with a
-slight modification to the names suggested by Yasunori-san:
+> before you go there... is this a "real life" problem? Or just a
+> mostly-artificial corner case? (the answer to that obviously is
+> relevant for the 'should we really care' question)
 
-possible, online, has_memory, has_cpu
+It's more-or-less a real life problem. We have an interactive
+application which, when triggered by the user, performs rendering tasks
+which must operate in real-time. In attempt to secure performance, we
+want to ensure everything is memory resident and that nothing might be
+swapped out during the process. So, we run swapoff at that time.
 
-Some come, mon...
+If there is a decent number of pages swapped out, the user sits for a
+while at a 'please wait' screen, which is not desirable. To throw some
+numbers out there, likely more than a minute for 400mb of swapped pages.
 
-Lee
+Sure, we could run the whole interactive application with swap disabled,
+which is pretty much what we do. However we have other non-real-time
+processing tasks which are very memory hungry and do require swap. So,
+there are 'corner cases' where the user can reach the real-time part of
+the interactive application when there is a lot of memory swapped out.
+
+> Another question, if this is during system shutdown, maybe that's a
+> valid case for flushing most of the pagecache first (from userspace)
+> since most of what's there won't be used again anyway. If that's enough
+> to make this go faster...
+
+Shutdown isn't a concern here.
+
+> A third question, have you investigated what happens if a process gets
+> killed that has pages in swap; as long as we don't page those in but
+> just forget about them, that would solve the shutdown problem nicely
+> (since we kill stuff first anyway there)
+
+According to top, those pages in swap disappear when the process is
+killed. So, I don't think there are any swap-related performance issues
+on the shutdown path.
+
+Thanks.
+-- 
+Daniel Drake
+Brontes Technologies, A 3M Company
+http://www.brontes3d.com/opensource
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
