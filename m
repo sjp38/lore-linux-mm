@@ -1,54 +1,64 @@
-Received: from sd0109e.au.ibm.com (d23rh905.au.ibm.com [202.81.18.225])
-	by e23smtp04.au.ibm.com (8.13.1/8.13.1) with ESMTP id l7TM4HCP005385
-	for <linux-mm@kvack.org>; Thu, 30 Aug 2007 08:04:17 +1000
-Received: from d23av04.au.ibm.com (d23av04.au.ibm.com [9.190.235.139])
-	by sd0109e.au.ibm.com (8.13.8/8.13.8/NCO v8.5) with ESMTP id l7TM7oiw186348
-	for <linux-mm@kvack.org>; Thu, 30 Aug 2007 08:07:50 +1000
-Received: from d23av04.au.ibm.com (loopback [127.0.0.1])
-	by d23av04.au.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l7TN4G4G028807
-	for <linux-mm@kvack.org>; Thu, 30 Aug 2007 09:04:16 +1000
-Message-ID: <46D5ED5C.9030405@linux.vnet.ibm.com>
-Date: Thu, 30 Aug 2007 03:34:12 +0530
-From: Balbir Singh <balbir@linux.vnet.ibm.com>
-Reply-To: balbir@linux.vnet.ibm.com
+Date: Wed, 29 Aug 2007 15:14:58 -0700 (PDT)
+From: Christoph Lameter <clameter@sgi.com>
+Subject: Re: [PATCH/RFC] Add node states sysfs class attributeS - V3
+In-Reply-To: <1188423105.5121.47.camel@localhost>
+Message-ID: <Pine.LNX.4.64.0708291513030.3862@schroedinger.engr.sgi.com>
+References: <200708242228.l7OMS5fU017948@imap1.linux-foundation.org>
+ <20070827181405.57a3d8fe.akpm@linux-foundation.org>
+ <Pine.LNX.4.64.0708271826180.10344@schroedinger.engr.sgi.com>
+ <20070827201822.2506b888.akpm@linux-foundation.org>
+ <Pine.LNX.4.64.0708272210210.9748@schroedinger.engr.sgi.com>
+ <20070827222912.8b364352.akpm@linux-foundation.org>
+ <Pine.LNX.4.64.0708272235580.9834@schroedinger.engr.sgi.com>
+ <20070827231214.99e3c33f.akpm@linux-foundation.org>  <1188309928.5079.37.camel@localhost>
+  <Pine.LNX.4.64.0708281458520.17559@schroedinger.engr.sgi.com>
+ <29495f1d0708281513g406af15an8139df5fae20ad35@mail.gmail.com>
+ <1188398621.5121.13.camel@localhost>  <Pine.LNX.4.64.0708291039210.21184@schroedinger.engr.sgi.com>
+ <1188423105.5121.47.camel@localhost>
 MIME-Version: 1.0
-Subject: Re: [-mm PATCH]  Memory controller improve user interface
-References: <20070829111030.9987.8104.sendpatchset@balbir-laptop> <1188413148.28903.113.camel@localhost>
-In-Reply-To: <1188413148.28903.113.camel@localhost>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Dave Hansen <haveblue@us.ibm.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux MM Mailing List <linux-mm@kvack.org>, David Rientjes <rientjes@google.com>, Linux Containers <containers@lists.osdl.org>, Paul Menage <menage@google.com>
+To: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
+Cc: linux-mm <linux-mm@kvack.org>, Nish Aravamudan <nish.aravamudan@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, mel@skynet.ie, y-goto@jp.fujitsu.com, Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Eric Whitney <eric.whitney@hp.com>
 List-ID: <linux-mm.kvack.org>
 
-Dave Hansen wrote:
-> On Wed, 2007-08-29 at 16:40 +0530, Balbir Singh wrote:
->>
->> @@ -352,7 +353,7 @@ int mem_container_charge(struct page *pa
->>                 kfree(pc);
->>                 pc = race_pc;
->>                 atomic_inc(&pc->ref_cnt);
->> -               res_counter_uncharge(&mem->res, 1);
->> +               res_counter_uncharge(&mem->res, MEM_CONTAINER_CHARGE_KB);
->>                 css_put(&mem->css);
->>                 goto done;
->>         } 
-> 
-> Do these changes really need to happen anywhere besides the
-> user<->kernel boundary?  Why can't internal tracking be in pages?
+On Wed, 29 Aug 2007, Lee Schermerhorn wrote:
 
-I've thought about this before. The problem is that a user could
-set his limit to 10000 bytes, but would then see the usage and
-limit round to the closest page boundary. This can be confusing
-to a user.
+> root@gwydyr(root):cat /sys/devices/system/node/possible
+> possible:       0-255
 
--- 
-	Warm Regards,
-	Balbir Singh
-	Linux Technology Center
-	IBM, ISTL
+The file is already called "possible". Repeating it in the output will
+make it difficult to parse.
+
+> +static ssize_t
+> +print_nodes_possible(struct sysdev_class *class, char *buf)
+> +{
+> +	return print_nodes_state(N_POSSIBLE, buf);
+> +}
+> +
+> +static ssize_t
+> +print_nodes_online(struct sysdev_class *class, char *buf)
+> +{
+> +	return print_nodes_state(N_ONLINE, buf);
+> +}
+> +
+> +static ssize_t
+> +print_nodes_has_normal_memory(struct sysdev_class *class, char *buf)
+> +{
+> +	return print_nodes_state(N_NORMAL_MEMORY, buf);
+> +}
+> +
+> +static ssize_t
+> +print_nodes_has_cpu(struct sysdev_class *class, char *buf)
+> +{
+> +	return print_nodes_state(N_CPU, buf);
+> +}
+
+Is there a way to avoid having to add another one of these if we add
+a new node state?
+
+Also there is a CR after the type.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
