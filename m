@@ -1,47 +1,62 @@
-Received: from MailerDaemon by bender.weihenstephan.org with local-bsmtp (Exim 4.63)
-	(envelope-from <juergen127@kreuzholzen.de>)
-	id 1IQPiB-0005MY-6l
-	for linux-mm@kvack.org; Wed, 29 Aug 2007 17:44:07 +0200
-From: Juergen Beisert <juergen127@kreuzholzen.de>
+Date: Wed, 29 Aug 2007 16:58:01 +0100 (BST)
+From: Hugh Dickins <hugh@veritas.com>
 Subject: Re: speeding up swapoff
-Date: Wed, 29 Aug 2007 17:12:35 +0200
-References: <1188394172.22156.67.camel@localhost> <20070829073040.1ec35176@laptopd505.fenrus.org> <1188398683.22156.77.camel@localhost>
-In-Reply-To: <1188398683.22156.77.camel@localhost>
+In-Reply-To: <20070829073040.1ec35176@laptopd505.fenrus.org>
+Message-ID: <Pine.LNX.4.64.0708291638550.30229@blonde.wat.veritas.com>
+References: <1188394172.22156.67.camel@localhost> <20070829073040.1ec35176@laptopd505.fenrus.org>
 MIME-Version: 1.0
-Content-Type: text/plain;
-  charset="iso-8859-1"
-Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
-Message-Id: <200708291712.35967.juergen127@kreuzholzen.de>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-kernel@vger.kernel.org
-Cc: Daniel Drake <ddrake@brontes3d.com>, Arjan van de Ven <arjan@infradead.org>, linux-mm@kvack.org
+To: Arjan van de Ven <arjan@infradead.org>
+Cc: Daniel Drake <ddrake@brontes3d.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Wednesday 29 August 2007 16:44, Daniel Drake wrote:
-> On Wed, 2007-08-29 at 07:30 -0700, Arjan van de Ven wrote:
-> > > My experiments show that when there is not much free physical memory,
-> > > swapoff moves pages out of swap at a rate of approximately 5mb/sec.
-> >
-> > sounds like about disk speed (at random-seek IO pattern)
->
-> We are only using 'standard' seagate SATA disks, but I would have
-> thought much more performance (40+ mb/sec) would be reachable.
->
-> > before you go there... is this a "real life" problem? Or just a
-> > mostly-artificial corner case? (the answer to that obviously is
-> > relevant for the 'should we really care' question)
->
-> It's more-or-less a real life problem. We have an interactive
-> application which, when triggered by the user, performs rendering tasks
-> which must operate in real-time. In attempt to secure performance, we
-> want to ensure everything is memory resident and that nothing might be
-> swapped out during the process. So, we run swapoff at that time.
+On Wed, 29 Aug 2007, Arjan van de Ven wrote:
+> On Wed, 29 Aug 2007 09:29:32 -0400
+> Daniel Drake <ddrake@brontes3d.com> wrote:
+> 
+> > I've spent some time trying to understand why swapoff is such a slow
+> > operation.
+> > 
+> > My experiments show that when there is not much free physical memory,
+> > swapoff moves pages out of swap at a rate of approximately 5mb/sec.
+> 
+> sounds like about disk speed (at random-seek IO pattern)
 
-Did you play with mlock()?
+The present method should be reading sequentially (with gaps),
+rather than randomly.  Perhaps we need to check what's happening
+in practice.
 
-Juergen
+(I've often dithered over whether we should be doing swap readahead
+there or not: at present it does not, preferring to assume buffering
+at the hardware level, and last time I checked that worked out a
+little better.)
+
+> Another question, if this is during system shutdown, maybe that's a
+> valid case for flushing most of the pagecache first (from userspace)
+> since most of what's there won't be used again anyway. If that's enough
+> to make this go faster...
+
+(I didn't understand your point there, but Daniel has replied that
+it's not at shutdown anyway.)
+
+> A third question, have you investigated what happens if a process gets
+> killed that has pages in swap; as long as we don't page those in but
+> just forget about them, that would solve the shutdown problem nicely
+> (since we kill stuff first anyway there)
+
+We definitely don't page those in, it would be a disaster for process
+exit if we did: they just get discarded.
+
+As you say, shutdown is rarely a big issue, because almost all the
+processes which had stuff in swap have already been killed.  tmpfs
+use of swap can be an issue there, but if the distro is wise, it'll
+do things in such an order that tmpfs'es are unmounted before swapoff
+(but may need two passes: the opposite case is a regular swapfile,
+where we need to swapoff before that partition can be unmounted).
+
+Hugh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
