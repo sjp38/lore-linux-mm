@@ -1,116 +1,92 @@
-Received: from zps75.corp.google.com (zps75.corp.google.com [172.25.146.75])
-	by smtp-out.google.com with ESMTP id l7TFT1Vh017776
-	for <linux-mm@kvack.org>; Wed, 29 Aug 2007 16:29:02 +0100
-Received: from an-out-0708.google.com (ancc18.prod.google.com [10.100.29.18])
-	by zps75.corp.google.com with ESMTP id l7TFSuYR024774
-	for <linux-mm@kvack.org>; Wed, 29 Aug 2007 08:28:56 -0700
-Received: by an-out-0708.google.com with SMTP id c18so46951anc
-        for <linux-mm@kvack.org>; Wed, 29 Aug 2007 08:28:56 -0700 (PDT)
-Message-ID: <6599ad830708290828t5164260eid548757d404e31a5@mail.gmail.com>
-Date: Wed, 29 Aug 2007 08:28:56 -0700
-From: "Paul Menage" <menage@google.com>
-Subject: Re: [-mm PATCH] Memory controller improve user interface
-In-Reply-To: <20070829111030.9987.8104.sendpatchset@balbir-laptop>
+Date: Wed, 29 Aug 2007 16:36:37 +0100 (BST)
+From: Hugh Dickins <hugh@veritas.com>
+Subject: Re: speeding up swapoff
+In-Reply-To: <1188394172.22156.67.camel@localhost>
+Message-ID: <Pine.LNX.4.64.0708291558480.27467@blonde.wat.veritas.com>
+References: <1188394172.22156.67.camel@localhost>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
-References: <20070829111030.9987.8104.sendpatchset@balbir-laptop>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Balbir Singh <balbir@linux.vnet.ibm.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux Containers <containers@lists.osdl.org>, Linux MM Mailing List <linux-mm@kvack.org>, David Rientjes <rientjes@google.com>
+To: Daniel Drake <ddrake@brontes3d.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On 8/29/07, Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
->
-> Change the interface to use kilobytes instead of pages. Page sizes can vary
-> across platforms and configurations. A new strategy routine has been added
-> to the resource counters infrastructure to format the data as desired.
->
-> Suggested by David Rientjes, Andrew Morton and Herbert Poetzl
->
-> Signed-off-by: Balbir Singh <balbir@linux.vnet.ibm.com>
-> ---
->
->  Documentation/controllers/memory.txt |    7 +++--
->  include/linux/res_counter.h          |    6 ++--
->  kernel/res_counter.c                 |   24 +++++++++++++----
->  mm/memcontrol.c                      |   47 +++++++++++++++++++++++++++--------
->  4 files changed, 64 insertions(+), 20 deletions(-)
->
-> diff -puN mm/memcontrol.c~mem-control-make-ui-use-kilobytes mm/memcontrol.c
-> --- linux-2.6.23-rc3/mm/memcontrol.c~mem-control-make-ui-use-kilobytes  2007-08-28 13:20:44.000000000 +0530
-> +++ linux-2.6.23-rc3-balbir/mm/memcontrol.c     2007-08-29 14:36:07.000000000 +0530
-> @@ -32,6 +32,7 @@
->
->  struct container_subsys mem_container_subsys;
->  static const int MEM_CONTAINER_RECLAIM_RETRIES = 5;
-> +static const int MEM_CONTAINER_CHARGE_KB = (PAGE_SIZE >> 10);
->
->  /*
->   * The memory controller data structure. The memory controller controls both
-> @@ -312,7 +313,7 @@ int mem_container_charge(struct page *pa
->          * If we created the page_container, we should free it on exceeding
->          * the container limit.
->          */
-> -       while (res_counter_charge(&mem->res, 1)) {
-> +       while (res_counter_charge(&mem->res, MEM_CONTAINER_CHARGE_KB)) {
->                 if (try_to_free_mem_container_pages(mem))
->                         continue;
->
-> @@ -352,7 +353,7 @@ int mem_container_charge(struct page *pa
->                 kfree(pc);
->                 pc = race_pc;
->                 atomic_inc(&pc->ref_cnt);
-> -               res_counter_uncharge(&mem->res, 1);
-> +               res_counter_uncharge(&mem->res, MEM_CONTAINER_CHARGE_KB);
->                 css_put(&mem->css);
->                 goto done;
->         }
-> @@ -417,7 +418,7 @@ void mem_container_uncharge(struct page_
->                 css_put(&mem->css);
->                 page_assign_page_container(page, NULL);
->                 unlock_page_container(page);
-> -               res_counter_uncharge(&mem->res, 1);
-> +               res_counter_uncharge(&mem->res, MEM_CONTAINER_CHARGE_KB);
->
->                 spin_lock_irqsave(&mem->lru_lock, flags);
->                 list_del_init(&pc->lru);
-> @@ -426,12 +427,37 @@ void mem_container_uncharge(struct page_
->         }
->  }
->
-> -static ssize_t mem_container_read(struct container *cont, struct cftype *cft,
-> -                       struct file *file, char __user *userbuf, size_t nbytes,
-> -                       loff_t *ppos)
-> +int mem_container_read_strategy(unsigned long val, char *buf)
-> +{
-> +       return sprintf(buf, "%lu (kB)\n", val);
-> +}
-> +
-> +int mem_container_write_strategy(char *buf, unsigned long *tmp)
-> +{
-> +       *tmp = memparse(buf, &buf);
-> +       if (*buf != '\0')
-> +               return -EINVAL;
-> +
-> +       *tmp = *tmp >> 10;              /* convert to kilobytes */
-> +       return 0;
-> +}
+On Wed, 29 Aug 2007, Daniel Drake wrote:
+> 
+> I've spent some time trying to understand why swapoff is such a slow
+> operation.
+> 
+> My experiments show that when there is not much free physical memory,
+> swapoff moves pages out of swap at a rate of approximately 5mb/sec. When
+> there is a lot of free physical memory, it is faster but still a slow
+> CPU-intensive operation, purging swap at about 20mb/sec.
 
-This seems a bit inconsistent - if you write a value to a limit file,
-then the value that you read back is reduced by a factor of 1024?
-Having the "(kB)" suffix isn't really a big help to automated
-middleware.
+Yes, it can be shamefully slow.  But we've done nothing about it for
+years, simply because very few actually suffer from its worst cases.
+You're the first I've heard complain about it in a long time: perhaps
+you'll be joined by a chorus, and we can have fun looking at it again.
 
-I'd still be in favour of just reading/writing 64-bit values
-representing bytes - simple, and unambiguous for programmatic use, and
-not really any less user-friendly than kilobytes  for manual use
-(since the numbers involved are going to be unwieldly for manual use
-whether they're in bytes or kB).
+> 
+> I've read into the swap code and I have some understanding that this is
+> an expensive operation (and has to be). This page was very helpful and
+> also agrees:
+> http://kernel.org/doc/gorman/html/understand/understand014.html
+> 
+> After reading that, I have an idea for a possible optimization. If we
+> were to create a system call to disable ALL swap partitions (or modify
+> the existing one to accept NULL for that purpose), could this process be
+> signficantly less complex?
 
-Paul
+I'd be quite strongly against an additional system call: if we're
+going to speed it up, let's speed up the common case, not your special
+additional call.  But I don't think you need that anyway: the slowness
+doesn't come from the limited number of swap areas, but from the much
+greater numbers of processes and their pages.  Looping over the number
+of swap areas (so often 1) isn't a problem.
+
+> 
+> I'm thinking we could do something like this:
+>  1. Prevent any more pages from being swapped out from this point
+>  2. Iterate through all process page tables, paging all swapped
+>     pages back into physical memory and updating PTEs
+>  3. Clear all swap tables and caches
+> 
+> Due to only iterating through process page tables once, does this sound
+> like it would increase performance non-trivially? Is it feasible?
+
+I'll ignore your steps 1 and 3, I don't see the advantage.  (We
+do already prevent pages from being swapped out to the area we're
+swapping off, and in general we need to allow for swapping out to
+another area while swapping off.)  Step 2 is the core of your idea.
+
+Feasible yes, and very much less CPU-intensive than the present method.
+But... it would be reading in pages from swap in pretty much a random
+order, whereas the present method is reading them in sequentially, to
+minimize disk seek time.  So I doubt your way would actually work out
+faster, except in those (exceptional, I'm afraid) cases where almost
+all the swap pages are already in core swapcache when swapoff begins.
+
+> 
+> I'm happy to spend a few more hours looking into implementing this but
+> would greatly appreciate any advice from those in-the-know on if my
+> ideas are broken to start with...
+
+Well, do give it a try if you're interested: I've never actually
+timed doing it that way, and might be surprised.  I doubt you could
+actually remove the present code, but it could become a fallback to
+clear up the loose ends after some faster first pass.
+
+Don't forget you'll also need to deal with tmpfs files (mm/shmem.c):
+Christoph Rohland long ago had a patch to work on those in the way you
+propose, but we never integrated it because of the random seek issue.
+
+The speedups I've imagined making, were a need demonstrated, have
+been more on the lines of batching (dealing with a range of pages
+in one go) and hashing (using the swapmap's ushort, so often 1 or
+2 or 3, to hold an indicator of where to look for its references).
+
+Hugh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
