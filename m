@@ -1,69 +1,116 @@
-Subject: Re: speeding up swapoff
-From: Daniel Drake <ddrake@brontes3d.com>
-In-Reply-To: <20070829073040.1ec35176@laptopd505.fenrus.org>
-References: <1188394172.22156.67.camel@localhost>
-	 <20070829073040.1ec35176@laptopd505.fenrus.org>
-Content-Type: text/plain
-Date: Wed, 29 Aug 2007 10:44:43 -0400
-Message-Id: <1188398683.22156.77.camel@localhost>
-Mime-Version: 1.0
+Received: from zps75.corp.google.com (zps75.corp.google.com [172.25.146.75])
+	by smtp-out.google.com with ESMTP id l7TFT1Vh017776
+	for <linux-mm@kvack.org>; Wed, 29 Aug 2007 16:29:02 +0100
+Received: from an-out-0708.google.com (ancc18.prod.google.com [10.100.29.18])
+	by zps75.corp.google.com with ESMTP id l7TFSuYR024774
+	for <linux-mm@kvack.org>; Wed, 29 Aug 2007 08:28:56 -0700
+Received: by an-out-0708.google.com with SMTP id c18so46951anc
+        for <linux-mm@kvack.org>; Wed, 29 Aug 2007 08:28:56 -0700 (PDT)
+Message-ID: <6599ad830708290828t5164260eid548757d404e31a5@mail.gmail.com>
+Date: Wed, 29 Aug 2007 08:28:56 -0700
+From: "Paul Menage" <menage@google.com>
+Subject: Re: [-mm PATCH] Memory controller improve user interface
+In-Reply-To: <20070829111030.9987.8104.sendpatchset@balbir-laptop>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+References: <20070829111030.9987.8104.sendpatchset@balbir-laptop>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Arjan van de Ven <arjan@infradead.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Balbir Singh <balbir@linux.vnet.ibm.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux Containers <containers@lists.osdl.org>, Linux MM Mailing List <linux-mm@kvack.org>, David Rientjes <rientjes@google.com>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 2007-08-29 at 07:30 -0700, Arjan van de Ven wrote:
-> > My experiments show that when there is not much free physical memory,
-> > swapoff moves pages out of swap at a rate of approximately 5mb/sec.
-> 
-> sounds like about disk speed (at random-seek IO pattern)
+On 8/29/07, Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
+>
+> Change the interface to use kilobytes instead of pages. Page sizes can vary
+> across platforms and configurations. A new strategy routine has been added
+> to the resource counters infrastructure to format the data as desired.
+>
+> Suggested by David Rientjes, Andrew Morton and Herbert Poetzl
+>
+> Signed-off-by: Balbir Singh <balbir@linux.vnet.ibm.com>
+> ---
+>
+>  Documentation/controllers/memory.txt |    7 +++--
+>  include/linux/res_counter.h          |    6 ++--
+>  kernel/res_counter.c                 |   24 +++++++++++++----
+>  mm/memcontrol.c                      |   47 +++++++++++++++++++++++++++--------
+>  4 files changed, 64 insertions(+), 20 deletions(-)
+>
+> diff -puN mm/memcontrol.c~mem-control-make-ui-use-kilobytes mm/memcontrol.c
+> --- linux-2.6.23-rc3/mm/memcontrol.c~mem-control-make-ui-use-kilobytes  2007-08-28 13:20:44.000000000 +0530
+> +++ linux-2.6.23-rc3-balbir/mm/memcontrol.c     2007-08-29 14:36:07.000000000 +0530
+> @@ -32,6 +32,7 @@
+>
+>  struct container_subsys mem_container_subsys;
+>  static const int MEM_CONTAINER_RECLAIM_RETRIES = 5;
+> +static const int MEM_CONTAINER_CHARGE_KB = (PAGE_SIZE >> 10);
+>
+>  /*
+>   * The memory controller data structure. The memory controller controls both
+> @@ -312,7 +313,7 @@ int mem_container_charge(struct page *pa
+>          * If we created the page_container, we should free it on exceeding
+>          * the container limit.
+>          */
+> -       while (res_counter_charge(&mem->res, 1)) {
+> +       while (res_counter_charge(&mem->res, MEM_CONTAINER_CHARGE_KB)) {
+>                 if (try_to_free_mem_container_pages(mem))
+>                         continue;
+>
+> @@ -352,7 +353,7 @@ int mem_container_charge(struct page *pa
+>                 kfree(pc);
+>                 pc = race_pc;
+>                 atomic_inc(&pc->ref_cnt);
+> -               res_counter_uncharge(&mem->res, 1);
+> +               res_counter_uncharge(&mem->res, MEM_CONTAINER_CHARGE_KB);
+>                 css_put(&mem->css);
+>                 goto done;
+>         }
+> @@ -417,7 +418,7 @@ void mem_container_uncharge(struct page_
+>                 css_put(&mem->css);
+>                 page_assign_page_container(page, NULL);
+>                 unlock_page_container(page);
+> -               res_counter_uncharge(&mem->res, 1);
+> +               res_counter_uncharge(&mem->res, MEM_CONTAINER_CHARGE_KB);
+>
+>                 spin_lock_irqsave(&mem->lru_lock, flags);
+>                 list_del_init(&pc->lru);
+> @@ -426,12 +427,37 @@ void mem_container_uncharge(struct page_
+>         }
+>  }
+>
+> -static ssize_t mem_container_read(struct container *cont, struct cftype *cft,
+> -                       struct file *file, char __user *userbuf, size_t nbytes,
+> -                       loff_t *ppos)
+> +int mem_container_read_strategy(unsigned long val, char *buf)
+> +{
+> +       return sprintf(buf, "%lu (kB)\n", val);
+> +}
+> +
+> +int mem_container_write_strategy(char *buf, unsigned long *tmp)
+> +{
+> +       *tmp = memparse(buf, &buf);
+> +       if (*buf != '\0')
+> +               return -EINVAL;
+> +
+> +       *tmp = *tmp >> 10;              /* convert to kilobytes */
+> +       return 0;
+> +}
 
-We are only using 'standard' seagate SATA disks, but I would have
-thought much more performance (40+ mb/sec) would be reachable.
+This seems a bit inconsistent - if you write a value to a limit file,
+then the value that you read back is reduced by a factor of 1024?
+Having the "(kB)" suffix isn't really a big help to automated
+middleware.
 
-> before you go there... is this a "real life" problem? Or just a
-> mostly-artificial corner case? (the answer to that obviously is
-> relevant for the 'should we really care' question)
+I'd still be in favour of just reading/writing 64-bit values
+representing bytes - simple, and unambiguous for programmatic use, and
+not really any less user-friendly than kilobytes  for manual use
+(since the numbers involved are going to be unwieldly for manual use
+whether they're in bytes or kB).
 
-It's more-or-less a real life problem. We have an interactive
-application which, when triggered by the user, performs rendering tasks
-which must operate in real-time. In attempt to secure performance, we
-want to ensure everything is memory resident and that nothing might be
-swapped out during the process. So, we run swapoff at that time.
-
-If there is a decent number of pages swapped out, the user sits for a
-while at a 'please wait' screen, which is not desirable. To throw some
-numbers out there, likely more than a minute for 400mb of swapped pages.
-
-Sure, we could run the whole interactive application with swap disabled,
-which is pretty much what we do. However we have other non-real-time
-processing tasks which are very memory hungry and do require swap. So,
-there are 'corner cases' where the user can reach the real-time part of
-the interactive application when there is a lot of memory swapped out.
-
-> Another question, if this is during system shutdown, maybe that's a
-> valid case for flushing most of the pagecache first (from userspace)
-> since most of what's there won't be used again anyway. If that's enough
-> to make this go faster...
-
-Shutdown isn't a concern here.
-
-> A third question, have you investigated what happens if a process gets
-> killed that has pages in swap; as long as we don't page those in but
-> just forget about them, that would solve the shutdown problem nicely
-> (since we kill stuff first anyway there)
-
-According to top, those pages in swap disappear when the process is
-killed. So, I don't think there are any swap-related performance issues
-on the shutdown path.
-
-Thanks.
--- 
-Daniel Drake
-Brontes Technologies, A 3M Company
-http://www.brontes3d.com/opensource
+Paul
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
