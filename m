@@ -1,58 +1,93 @@
-Received: from sd0109e.au.ibm.com (d23rh905.au.ibm.com [202.81.18.225])
-	by e23smtp02.au.ibm.com (8.13.1/8.13.1) with ESMTP id l7TMRJ0S001292
-	for <linux-mm@kvack.org>; Thu, 30 Aug 2007 08:27:19 +1000
-Received: from d23av03.au.ibm.com (d23av03.au.ibm.com [9.190.250.244])
-	by sd0109e.au.ibm.com (8.13.8/8.13.8/NCO v8.5) with ESMTP id l7TMUpcV203478
-	for <linux-mm@kvack.org>; Thu, 30 Aug 2007 08:30:51 +1000
-Received: from d23av03.au.ibm.com (loopback [127.0.0.1])
-	by d23av03.au.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l7TMRH2I018657
-	for <linux-mm@kvack.org>; Thu, 30 Aug 2007 08:27:17 +1000
-Message-ID: <46D5F2BB.8010203@linux.vnet.ibm.com>
-Date: Thu, 30 Aug 2007 03:57:07 +0530
-From: Balbir Singh <balbir@linux.vnet.ibm.com>
-Reply-To: balbir@linux.vnet.ibm.com
+Received: by fk-out-0910.google.com with SMTP id 18so200455fkq
+        for <linux-mm@kvack.org>; Wed, 29 Aug 2007 15:36:12 -0700 (PDT)
+Message-ID: <29495f1d0708291536x325af1cdtcab38b2844c1fe13@mail.gmail.com>
+Date: Wed, 29 Aug 2007 15:36:11 -0700
+From: "Nish Aravamudan" <nish.aravamudan@gmail.com>
+Subject: Re: [PATCH/RFC] Add node states sysfs class attributeS - V3
+In-Reply-To: <1188423105.5121.47.camel@localhost>
 MIME-Version: 1.0
-Subject: Re: [-mm PATCH]  Memory controller improve user interface
-References: <20070829111030.9987.8104.sendpatchset@balbir-laptop> <1188413148.28903.113.camel@localhost>  <46D5ED5C.9030405@linux.vnet.ibm.com> <1188425894.28903.140.camel@localhost>
-In-Reply-To: <1188425894.28903.140.camel@localhost>
 Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+References: <200708242228.l7OMS5fU017948@imap1.linux-foundation.org>
+	 <20070827222912.8b364352.akpm@linux-foundation.org>
+	 <Pine.LNX.4.64.0708272235580.9834@schroedinger.engr.sgi.com>
+	 <20070827231214.99e3c33f.akpm@linux-foundation.org>
+	 <1188309928.5079.37.camel@localhost>
+	 <Pine.LNX.4.64.0708281458520.17559@schroedinger.engr.sgi.com>
+	 <29495f1d0708281513g406af15an8139df5fae20ad35@mail.gmail.com>
+	 <1188398621.5121.13.camel@localhost>
+	 <Pine.LNX.4.64.0708291039210.21184@schroedinger.engr.sgi.com>
+	 <1188423105.5121.47.camel@localhost>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Dave Hansen <haveblue@us.ibm.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux MM Mailing List <linux-mm@kvack.org>, David Rientjes <rientjes@google.com>, Linux Containers <containers@lists.osdl.org>, Paul Menage <menage@google.com>
+To: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
+Cc: linux-mm <linux-mm@kvack.org>, Christoph Lameter <clameter@sgi.com>, Andrew Morton <akpm@linux-foundation.org>, mel@skynet.ie, y-goto@jp.fujitsu.com, Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Eric Whitney <eric.whitney@hp.com>
 List-ID: <linux-mm.kvack.org>
 
-Dave Hansen wrote:
-> On Thu, 2007-08-30 at 03:34 +0530, Balbir Singh wrote:
->> I've thought about this before. The problem is that a user could
->> set his limit to 10000 bytes, but would then see the usage and
->> limit round to the closest page boundary. This can be confusing
->> to a user. 
-> 
-> True, but we're lying if we allow a user to set their limit there,
-> because we can't actually enforce a limit at 8,192 bytes vs 10,000.
-> They're the same limit as far as the kernel is concerned.
-> 
-> Why not just -EINVAL if the value isn't page-aligned?  There are plenty
-> of interfaces in the kernel that require userspace to know the page
-> size, so this shouldn't be too difficult.
+On 8/29/07, Lee Schermerhorn <Lee.Schermerhorn@hp.com> wrote:
+> Here's the reworked version:
+> + multiple sysfs node class attribute files
+> + one value per file
+> + printed as 'node list' rather than mask
+> + sample output in patch description
+> - still no ascii art nor animation
+>
+> Lee
+> =====================================
+>
+> PATCH Add node states sysfs class attributeS v3
+>
+> Against:  2.6.23-rc3-mm1
+>
+> V2 -> V3:
+> + changed to per state sysfs file -- "one value per file"
+>
+> V1 -> V2:
+> + style cleanup
+> + drop 'len' variable in print_node_states();  compute from
+>   final size.
+>
+> Add a per node state sysfs class attribute file to
+> /sys/devices/system/node to display node state masks.
+>
+> E.g., on a 4-cell HP ia64 NUMA platform, we have 5 nodes:
+> 4 representing the actual hardware cells and one memory-only
+> pseudo-node representing a small amount [512MB] of "hardware
+> interleaved" memory.  With this patch, in /sys/devices/system/node
+> we see:
+>
+> root@gwydyr(root):ls -1 /sys/devices/system/node
+> cpu
+> node0/
+> node1/
+> node2/
+> node3/
+> node4/
+> normal_memory
+> online
+> possible
+> root@gwydyr(root):cat /sys/devices/system/node/possible
+> possible:       0-255
+> root@gwydyr(root):cat /sys/devices/system/node/online
+> on-line:        0-4
+> root@gwydyr(root):cat /sys/devices/system/node/normal_memory
+> memory:         0-4
+> root@gwydyr(root):cat /sys/devices/system/node/cpu
+> cpu:            0-3
 
-True, mmap() is a good example of such an interface for developers, I
-am not sure about system admins though.
+Sorry if this has been mentioned before, but now that there is one
+file per mask, why do we need to prefix the output with anything?
 
-To quote Andrew
-<quote>
-Reporting tools could run getpagesize() and do the arithmetic, but we
-generally try to avoid exposing PAGE_SIZE, HZ, etc to userspace in this
-manner.
-</quote>
+That is, I would prefer to see:
 
--- 
-	Warm Regards,
-	Balbir Singh
-	Linux Technology Center
-	IBM, ISTL
+$ cat /sys/devices/system/node/cpu
+0-3
+
+I don't think outputting "cpu:" provides any extra information.
+
+Thanks,
+Nish
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
