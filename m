@@ -1,54 +1,50 @@
-Subject: speeding up swapoff
-From: Daniel Drake <ddrake@brontes3d.com>
-Content-Type: text/plain
-Date: Wed, 29 Aug 2007 09:29:32 -0400
-Message-Id: <1188394172.22156.67.camel@localhost>
+Date: Wed, 29 Aug 2007 07:30:40 -0700
+From: Arjan van de Ven <arjan@infradead.org>
+Subject: Re: speeding up swapoff
+Message-ID: <20070829073040.1ec35176@laptopd505.fenrus.org>
+In-Reply-To: <1188394172.22156.67.camel@localhost>
+References: <1188394172.22156.67.camel@localhost>
 Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
-Cc: linux-kernel@vger.kernel.org
+To: Daniel Drake <ddrake@brontes3d.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
+
+On Wed, 29 Aug 2007 09:29:32 -0400
+Daniel Drake <ddrake@brontes3d.com> wrote:
+
 
 Hi,
 
-I've spent some time trying to understand why swapoff is such a slow
-operation.
+> I've spent some time trying to understand why swapoff is such a slow
+> operation.
+> 
+> My experiments show that when there is not much free physical memory,
+> swapoff moves pages out of swap at a rate of approximately 5mb/sec.
 
-My experiments show that when there is not much free physical memory,
-swapoff moves pages out of swap at a rate of approximately 5mb/sec. When
-there is a lot of free physical memory, it is faster but still a slow
-CPU-intensive operation, purging swap at about 20mb/sec.
+sounds like about disk speed (at random-seek IO pattern)
 
-I've read into the swap code and I have some understanding that this is
-an expensive operation (and has to be). This page was very helpful and
-also agrees:
-http://kernel.org/doc/gorman/html/understand/understand014.html
 
-After reading that, I have an idea for a possible optimization. If we
-were to create a system call to disable ALL swap partitions (or modify
-the existing one to accept NULL for that purpose), could this process be
-signficantly less complex?
+> I'm happy to spend a few more hours looking into implementing this but
+> would greatly appreciate any advice from those in-the-know on if my
+> ideas are broken to start with...
 
-I'm thinking we could do something like this:
- 1. Prevent any more pages from being swapped out from this point
- 2. Iterate through all process page tables, paging all swapped
-    pages back into physical memory and updating PTEs
- 3. Clear all swap tables and caches
+before you go there... is this a "real life" problem? Or just a
+mostly-artificial corner case? (the answer to that obviously is
+relevant for the 'should we really care' question)
 
-Due to only iterating through process page tables once, does this sound
-like it would increase performance non-trivially? Is it feasible?
+Another question, if this is during system shutdown, maybe that's a
+valid case for flushing most of the pagecache first (from userspace)
+since most of what's there won't be used again anyway. If that's enough
+to make this go faster...
 
-I'm happy to spend a few more hours looking into implementing this but
-would greatly appreciate any advice from those in-the-know on if my
-ideas are broken to start with...
-
-Thanks!
--- 
-Daniel Drake
-Brontes Technologies, A 3M Company
-http://www.brontes3d.com/opensource
+A third question, have you investigated what happens if a process gets
+killed that has pages in swap; as long as we don't page those in but
+just forget about them, that would solve the shutdown problem nicely
+(since we kill stuff first anyway there)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
