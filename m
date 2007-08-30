@@ -1,62 +1,88 @@
-Date: Thu, 30 Aug 2007 20:04:23 +0900
-From: Yasunori Goto <y-goto@jp.fujitsu.com>
-Subject: [Patch](memory hotplug) Tiny update for hot-add with sparsemem-vmemmap
-In-Reply-To: <20070822095447.05E5.Y-GOTO@jp.fujitsu.com>
-References: <20070821125922.GG11329@skynet.ie> <20070822095447.05E5.Y-GOTO@jp.fujitsu.com>
-Message-Id: <20070830195531.8D7A.Y-GOTO@jp.fujitsu.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
+Subject: Re: [PATCH/RFC] Add node states sysfs class attributeS - V3
+From: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
+In-Reply-To: <Pine.LNX.4.64.0708291513030.3862@schroedinger.engr.sgi.com>
+References: <200708242228.l7OMS5fU017948@imap1.linux-foundation.org>
+	 <20070827181405.57a3d8fe.akpm@linux-foundation.org>
+	 <Pine.LNX.4.64.0708271826180.10344@schroedinger.engr.sgi.com>
+	 <20070827201822.2506b888.akpm@linux-foundation.org>
+	 <Pine.LNX.4.64.0708272210210.9748@schroedinger.engr.sgi.com>
+	 <20070827222912.8b364352.akpm@linux-foundation.org>
+	 <Pine.LNX.4.64.0708272235580.9834@schroedinger.engr.sgi.com>
+	 <20070827231214.99e3c33f.akpm@linux-foundation.org>
+	 <1188309928.5079.37.camel@localhost>
+	 <Pine.LNX.4.64.0708281458520.17559@schroedinger.engr.sgi.com>
+	 <29495f1d0708281513g406af15an8139df5fae20ad35@mail.gmail.com>
+	 <1188398621.5121.13.camel@localhost>
+	 <Pine.LNX.4.64.0708291039210.21184@schroedinger.engr.sgi.com>
+	 <1188423105.5121.47.camel@localhost>
+	 <Pine.LNX.4.64.0708291513030.3862@schroedinger.engr.sgi.com>
+Content-Type: text/plain
+Date: Thu, 30 Aug 2007 09:34:00 -0400
+Message-Id: <1188480841.5794.16.camel@localhost>
+Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@osdl.org>
-Cc: Andy Whitcroft <apw@shadowen.org>, Christoph Lameter <clameter@sgi.com>, linux-mm <linux-mm@kvack.org>, Mel Gorman <mel@skynet.ie>
+To: Christoph Lameter <clameter@sgi.com>
+Cc: linux-mm <linux-mm@kvack.org>, Nish Aravamudan <nish.aravamudan@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, mel@skynet.ie, y-goto@jp.fujitsu.com, Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Eric Whitney <eric.whitney@hp.com>
 List-ID: <linux-mm.kvack.org>
 
-This is tiny update for Mel-san's comment about 
-memory hotplug with sparse-vmemmap.
+On Wed, 2007-08-29 at 15:14 -0700, Christoph Lameter wrote:
+> On Wed, 29 Aug 2007, Lee Schermerhorn wrote:
+> 
+> > root@gwydyr(root):cat /sys/devices/system/node/possible
+> > possible:       0-255
+> 
+> The file is already called "possible". Repeating it in the output will
+> make it difficult to parse.
 
-  - Add __meminit to sparse_mem_map_populate()
-  - Add a comment.
+Yeah.  I noticed, after I posted, how stupid that looked.  Clear a case
+of "premature patch-ulation".  I'm fixing it now.  
 
-This is for 2.6.23-rc3-mm1.
+> 
+> > +static ssize_t
+> > +print_nodes_possible(struct sysdev_class *class, char *buf)
+> > +{
+> > +	return print_nodes_state(N_POSSIBLE, buf);
+> > +}
+> > +
+> > +static ssize_t
+> > +print_nodes_online(struct sysdev_class *class, char *buf)
+> > +{
+> > +	return print_nodes_state(N_ONLINE, buf);
+> > +}
+> > +
+> > +static ssize_t
+> > +print_nodes_has_normal_memory(struct sysdev_class *class, char *buf)
+> > +{
+> > +	return print_nodes_state(N_NORMAL_MEMORY, buf);
+> > +}
+> > +
+> > +static ssize_t
+> > +print_nodes_has_cpu(struct sysdev_class *class, char *buf)
+> > +{
+> > +	return print_nodes_state(N_CPU, buf);
+> > +}
+> 
+> Is there a way to avoid having to add another one of these if we add
+> a new node state?
 
-Signed-off-by: Yasunori Goto <y-goto@jp.fujitsu.com>
+I haven't figure out a way from the info I'm given in the show/print
+routine [just the node class and the buffer address] to figure out which
+attribute file was read, or I'd have avoided the function per attribute
+nonsense.
 
----
- mm/sparse-vmemmap.c |    2 +-
- mm/sparse.c         |    1 +
- 2 files changed, 2 insertions(+), 1 deletion(-)
+> 
+> Also there is a CR after the type.
 
-Index: current/mm/sparse-vmemmap.c
-===================================================================
---- current.orig/mm/sparse-vmemmap.c	2007-08-23 16:19:10.000000000 +0900
-+++ current/mm/sparse-vmemmap.c	2007-08-30 19:25:16.000000000 +0900
-@@ -137,7 +137,7 @@ int __meminit vmemmap_populate_basepages
- 	return 0;
- }
- 
--struct page *sparse_mem_map_populate(unsigned long pnum, int nid)
-+struct page * __meminit sparse_mem_map_populate(unsigned long pnum, int nid)
- {
- 	struct page *map = pfn_to_page(pnum * PAGES_PER_SECTION);
- 	int error = vmemmap_populate(map, PAGES_PER_SECTION, nid);
-Index: current/mm/sparse.c
-===================================================================
---- current.orig/mm/sparse.c	2007-08-23 16:19:10.000000000 +0900
-+++ current/mm/sparse.c	2007-08-30 19:31:50.000000000 +0900
-@@ -326,6 +326,7 @@ void __init sparse_init(void)
- static inline struct page *kmalloc_section_memmap(unsigned long pnum, int nid,
- 						 unsigned long nr_pages)
- {
-+	/* This will make the necessary allocations eventually. */
- 	return sparse_mem_map_populate(pnum, nid);
- }
- static void __kfree_section_memmap(struct page *memmap, unsigned long nr_pages)
+Took me a minute to figure out what you meant.  Again, old habits...
+I've always put my function names against the left margin for easy
+searching.  But I have read where this is discouraged.
 
--- 
-Yasunori Goto 
+I will say that the patch passed checkpatch just fine.  I'll fix it in
+the respin.
 
+Lee
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
