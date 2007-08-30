@@ -1,44 +1,33 @@
-Message-ID: <46D67057.9030905@yahoo.com.au>
-Date: Thu, 30 Aug 2007 17:23:03 +1000
+Message-ID: <46D67182.8080408@yahoo.com.au>
+Date: Thu, 30 Aug 2007 17:28:02 +1000
 From: Nick Piggin <nickpiggin@yahoo.com.au>
 MIME-Version: 1.0
-Subject: Re: uncached page allocator
-References: <21d7e9970708191745h3b579f3bp72f138e089c624da@mail.gmail.com>	 <20070820094125.209e0811@the-village.bc.nu>	 <21d7e9970708202305h5128aa5cy847dafe033b00742@mail.gmail.com> <1187708165.6114.256.camel@twins>
-In-Reply-To: <1187708165.6114.256.camel@twins>
+Subject: Re: [RFC][PATCH 7/9] pagewalk: add handler for empty ranges
+References: <20070821204248.0F506A29@kernel> <20070821204256.140D32D2@kernel>
+In-Reply-To: <20070821204256.140D32D2@kernel>
 Content-Type: text/plain; charset=us-ascii; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Peter Zijlstra <peterz@infradead.org>
-Cc: Dave Airlie <airlied@gmail.com>, Alan Cox <alan@lxorguk.ukuu.org.uk>, dri-devel <dri-devel@lists.sourceforge.net>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux Memory Management <linux-mm@kvack.org>
+To: Dave Hansen <haveblue@us.ibm.com>
+Cc: mpm@selenic.com, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Peter Zijlstra wrote:
-> On Tue, 2007-08-21 at 16:05 +1000, Dave Airlie wrote:
-> 
-> 
->>So you can see why some sort of uncached+writecombined page cache
->>would be useful, I could just allocate a bunch of pages at startup as
->>uncached+writecombined, and allocate pixmaps from them and when I
->>bind/free the pixmap I don't need the flush at all, now I'd really
->>like this to be part of the VM so that under memory pressure it can
->>just take the pages I've got in my cache back and after flushing turn
->>them back into cached pages, the other option is for the DRM to do
->>this on its own and penalise the whole system.
-> 
-> 
-> Can't you make these pages part of the regular VM by sticking them all
-> into an address_space.
-> 
-> And for this reclaim behaviour you'd only need to set PG_private and
-> have a_ops->releasepage() dtrt.
+Dave Hansen wrote:
 
-I'd just suggest Dave just registers a shrinker to start with.
+> @@ -27,25 +23,23 @@ static int walk_pmd_range(pud_t *pud, un
+>  {
+>  	pmd_t *pmd;
+>  	unsigned long next;
+> -	int err;
+> +	int err = 0;
+>  
+>  	for (pmd = pmd_offset(pud, addr); addr != end;
+>  	     pmd++, addr = next) {
+>  		next = pmd_addr_end(addr, end);
 
-You really want to be able to batch TLB flushes as well, which
-->releasepage may not be so good at (you could add more machinery
-behind the releasepage to build batches and so on, but anyway, a
-shrinker might be the quickest way to get something working).
+While you're there, do you mind fixing the actual page table walking so
+that it follows the normal form?
 
 -- 
 SUSE Labs, Novell Inc.
