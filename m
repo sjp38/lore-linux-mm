@@ -1,35 +1,58 @@
-Date: Thu, 30 Aug 2007 14:38:59 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [-mm PATCH] Memory controller improve user interface
-Message-Id: <20070830143859.e9d3511a.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <46D5F517.1080809@linux.vnet.ibm.com>
-References: <20070829111030.9987.8104.sendpatchset@balbir-laptop>
-	<1188413148.28903.113.camel@localhost>
-	<46D5ED5C.9030405@linux.vnet.ibm.com>
-	<1188425894.28903.140.camel@localhost>
-	<6599ad830708291520t2bc9ea20m2bdcd9e042b3a423@mail.gmail.com>
-	<1188426352.28903.143.camel@localhost>
-	<46D5F517.1080809@linux.vnet.ibm.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Message-ID: <46D66D40.4040302@yahoo.com.au>
+Date: Thu, 30 Aug 2007 17:09:52 +1000
+From: Nick Piggin <nickpiggin@yahoo.com.au>
+MIME-Version: 1.0
+Subject: Re: Selective swap out of processes
+References: <1188320070.11543.85.camel@bastion-laptop>	 <46D4DBF7.7060102@yahoo.com.au> <1188383827.11270.36.camel@bastion-laptop>
+In-Reply-To: <1188383827.11270.36.camel@bastion-laptop>
+Content-Type: text/plain; charset=UTF-8; format=flowed
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: balbir@linux.vnet.ibm.com
-Cc: Dave Hansen <haveblue@us.ibm.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux MM Mailing List <linux-mm@kvack.org>, David Rientjes <rientjes@google.com>, Linux Containers <containers@lists.osdl.org>, Paul Menage <menage@google.com>, Andrew Morton <akpm@linux-foundation.org>
+To: =?UTF-8?B?SmF2aWVyIENhYmV6YXMg77+9?= <jcabezas@ac.upc.edu>
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 30 Aug 2007 04:07:11 +0530
-Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
-> 1. Several people recommended it
-> 2. Herbert mentioned that they've moved to that interface and it
->    was working fine for them.
+Javier Cabezas RodrA-guez wrote:
+> El miA(C), 29-08-2007 a las 12:37 +1000, Nick Piggin escribiA3:
 > 
+>>Simplest will be just to set referenced to 0 right after calling
+>>page_referenced, in the case you want to forcefully swap out the
+>>page.
+>>
+>>try_to_unmap will get called later in the same function.
+> 
+> 
+> I have tried this solution, but 0 pages are freed...
+> 
+> - RO/EXEC pages mapped from the executable are now skipped due to this
+> check:
+> 
+> if (!mapping || !remove_mapping(mapping, page))
+> 	goto keep_locked;
+> 
+> The offender is this check in remove_mapping:
+> 
+> if (unlikely(page_count(page) != 2))
+> 	goto cannot_free;
+> 
+> - RW pages mapped from the executable are skipped because pageout
+> returns PAGE_KEEP.
+> 
+> - Other pages are skipped because try_to_unmap returns SWAP_FAIL.
 
-I have no strong opinion. But how about Mega bytes ? (too big ?)
-There will be no rounding up/down problem.
+You still actually have to call page_referenced to clear the young
+bits in the ptes, right? That should prevent try_to_unmap returning
+SWAP_FAIL. It can be mapped by multiple processes, so just clearing
+the young bit for one pte won't help (especially for exec pages,
+which are very likely to be used by more than one process).
 
--Kame.
+If your page_count is elevated after the page has been unmapped,
+then there is something else using the page or your function isn't
+doing the correct refcounting.
+
+-- 
+SUSE Labs, Novell Inc.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
