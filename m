@@ -1,249 +1,280 @@
 From: Lee Schermerhorn <lee.schermerhorn@hp.com>
-Date: Thu, 30 Aug 2007 14:51:00 -0400
-Message-Id: <20070830185100.22619.197.sendpatchset@localhost>
+Date: Thu, 30 Aug 2007 14:51:07 -0400
+Message-Id: <20070830185107.22619.43577.sendpatchset@localhost>
 In-Reply-To: <20070830185053.22619.96398.sendpatchset@localhost>
 References: <20070830185053.22619.96398.sendpatchset@localhost>
-Subject: [PATCH/RFC 1/5] Mem Policy:  fix reference counting
+Subject: [PATCH/RFC 2/5] Mem Policy:  Use MPOL_PREFERRED for system-wide default policy
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: linux-mm@kvack.org
 Cc: akpm@linux-foundation.org, ak@suse.de, mtk-manpages@gmx.net, clameter@sgi.com, solo@google.com, Lee Schermerhorn <lee.schermerhorn@hp.com>, eric.whitney@hp.com
 List-ID: <linux-mm.kvack.org>
 
-PATCHRFC  1/5 Memory Policy: fix reference counting
+PATCH/RFC 2/5 Use MPOL_PREFERRED for system-wide default policy
 
-Against 2.6.23-rc3-mm1
+Against:  2.6.23-rc3-mm1
 
-This patch proposes fixes to the reference counting of memory policy
-in the page allocation paths and in show_numa_map().
+V1 -> V2:
++ restore BUG()s in switch(policy) default cases -- per
+  Christoph
++ eliminate unneeded re-init of struct mempolicy policy member
+  before freeing
 
-Shared policy lookup [shmem] has always added a reference to the
-policy, but this was never unrefed after page allocation or after
-formatting the numa map data.  
+Currently, when one specifies MPOL_DEFAULT via a NUMA memory
+policy API [set_mempolicy(), mbind() and internal versions],
+the kernel simply installs a NULL struct mempolicy pointer in
+the appropriate context:  task policy, vma policy, or shared
+policy.  This causes any use of that policy to "fall back" to
+the next most specific policy scope.  The only use of MPOL_DEFAULT
+to mean "local allocation" is in the system default policy.
 
-Default system policy should not require additional ref counting,
-nor should the current task's task policy.  However, show_numa_map()
-calls get_vma_policy() to examine what may be [likely is] another
-task's policy.  The latter case needs protection against freeing
-of the policy.
+There is another, "preferred" way to specify local allocation via
+the APIs.  That is using the MPOL_PREFERRED policy mode with an
+empty nodemask.  Internally, the empty nodemask gets converted to
+a preferred_node id of '-1'.  All internal usage of MPOL_PREFERRED
+will convert the '-1' to the id of the node local to the cpu 
+where the allocation occurs.
 
-This patch adds a reference count to a mempolicy returned by
-get_vma_policy() when the policy is a vma policy or another
-task's mempolicy.  Again, shared policy is already reference
-counted on lookup.  A matching "unref" [__mpol_free()] is performed
-in alloc_page_vma() for shared and vma policies, and in
-show_numa_map() for shared and another task's mempolicy.
-We can call __mpol_free() directly, saving an admittedly
-inexpensive inline NULL test, because we know we have a non-NULL
-policy.
+System default policy, except during boot, is hard-coded to
+"local allocation".  By using the MPOL_PREFERRED mode with a
+negative value of preferred node for system default policy,
+MPOL_DEFAULT will never occur in the 'policy' member of a
+struct mempolicy.  Thus, we can remove all checks for
+MPOL_DEFAULT when converting policy to a node id/zonelist in
+the allocation paths.
 
-Handling policy ref counts for hugepages is a bit tricker.
-huge_zonelist() returns a zone list that might come from a 
-shared or vma 'BIND policy.  In this case, we should hold the
-reference until after the huge page allocation in 
-dequeue_hugepage().  The patch modifies huge_zonelist() to
-return a pointer to the mempolicy if it needs to be unref'd
-after allocation.
+In slab_node() return local node id when policy pointer is NULL.
+No need to set a pol value to take the switch default.  Replace
+switch default with BUG()--i.e., shouldn't happen.
+
+With this patch MPOL_DEFAULT is only used in the APIs, including
+internal calls to do_set_mempolicy() and in the display of policy
+in /proc/<pid>/numa_maps.  It always means "fall back" to the the
+next most specific policy scope.  This simplifies the description
+of memory policies quite a bit, with no visible change in behavior.
+This patch updates Documentation to reflect this change.
+
+Tested with set_mempolicy() using numactl with memtoy, and
+tested mbind() with memtoy.  All seems to work "as expected".
 
 Signed-off-by:  Lee Schermerhorn <lee.schermerhorn@hp.com>
 
- include/linux/mempolicy.h |    4 +-
- mm/hugetlb.c              |    4 +-
- mm/mempolicy.c            |   79 ++++++++++++++++++++++++++++++++++++++++------
- 3 files changed, 75 insertions(+), 12 deletions(-)
+ Documentation/vm/numa_memory_policy.txt |   70 ++++++++++++--------------------
+ mm/mempolicy.c                          |   31 ++++++--------
+ 2 files changed, 41 insertions(+), 60 deletions(-)
 
 Index: Linux/mm/mempolicy.c
 ===================================================================
---- Linux.orig/mm/mempolicy.c	2007-08-29 10:05:19.000000000 -0400
-+++ Linux/mm/mempolicy.c	2007-08-29 13:31:42.000000000 -0400
-@@ -1083,21 +1083,37 @@ asmlinkage long compat_sys_mbind(compat_
+--- Linux.orig/mm/mempolicy.c	2007-08-29 11:43:06.000000000 -0400
++++ Linux/mm/mempolicy.c	2007-08-29 11:44:03.000000000 -0400
+@@ -105,9 +105,13 @@ static struct kmem_cache *sn_cache;
+    policied. */
+ enum zone_type policy_zone = 0;
  
- #endif
- 
--/* Return effective policy for a VMA */
 +/*
-+ * get_vma_policy(@task, @vma, @addr)
-+ * @task - task for fallback if vma policy == default
-+ * @vma   - virtual memory area whose policy is sought
-+ * @addr  - address in @vma for shared policy lookup
-+ *
-+ * Returns effective policy for a VMA at specified address.
-+ * Falls back to @task or system default policy, as necessary.
-+ * Returned policy has extra reference count if shared, vma,
-+ * or some other task's policy [show_numa_maps() can pass
-+ * @task != current].  It is the caller's responsibility to
-+ * free the reference in these cases.
++ * run-time system-wide default policy => local allocation
 + */
- static struct mempolicy * get_vma_policy(struct task_struct *task,
- 		struct vm_area_struct *vma, unsigned long addr)
- {
- 	struct mempolicy *pol = task->mempolicy;
-+	int shared_pol = 0;
+ struct mempolicy default_policy = {
+ 	.refcnt = ATOMIC_INIT(1), /* never free it */
+-	.policy = MPOL_DEFAULT,
++	.policy = MPOL_PREFERRED,
++	.v =  { .preferred_node =  -1 },
+ };
  
- 	if (vma) {
--		if (vma->vm_ops && vma->vm_ops->get_policy)
-+		if (vma->vm_ops && vma->vm_ops->get_policy) {
+ static void mpol_rebind_policy(struct mempolicy *pol,
+@@ -180,7 +184,8 @@ static struct mempolicy *mpol_new(int mo
+ 		 mode, nodes ? nodes_addr(*nodes)[0] : -1);
+ 
+ 	if (mode == MPOL_DEFAULT)
+-		return NULL;
++		return NULL;	/* simply delete any existing policy */
++
+ 	policy = kmem_cache_alloc(policy_cache, GFP_KERNEL);
+ 	if (!policy)
+ 		return ERR_PTR(-ENOMEM);
+@@ -493,8 +498,6 @@ static void get_zonemask(struct mempolic
+ 			node_set(zone_to_nid(p->v.zonelist->zones[i]),
+ 				*nodes);
+ 		break;
+-	case MPOL_DEFAULT:
+-		break;
+ 	case MPOL_INTERLEAVE:
+ 		*nodes = p->v.nodes;
+ 		break;
+@@ -1106,8 +1109,7 @@ static struct mempolicy * get_vma_policy
+ 		if (vma->vm_ops && vma->vm_ops->get_policy) {
  			pol = vma->vm_ops->get_policy(vma, addr);
--		else if (vma->vm_policy &&
-+			shared_pol = 1;	/* if pol non-NULL, that is */
-+		} else if (vma->vm_policy &&
- 				vma->vm_policy->policy != MPOL_DEFAULT)
+ 			shared_pol = 1;	/* if pol non-NULL, that is */
+-		} else if (vma->vm_policy &&
+-				vma->vm_policy->policy != MPOL_DEFAULT)
++		} else if (vma->vm_policy)
  			pol = vma->vm_policy;
  	}
  	if (!pol)
- 		pol = &default_policy;
-+	else if (!shared_pol && pol != current->mempolicy)
-+		mpol_get(pol);	/* vma or other task's policy */
- 	return pol;
- }
- 
-@@ -1213,19 +1229,45 @@ static inline unsigned interleave_nid(st
- }
- 
- #ifdef CONFIG_HUGETLBFS
--/* Return a zonelist suitable for a huge page allocation. */
-+/*
-+ * huge_zonelist(@vma, @addr, @gfp_flags, @mpol)
-+ * @vma = virtual memory area whose policy is sought
-+ * @addr = address in @vma for shared policy lookup and interleave policy
-+ * @gfp_flags = for requested zone
-+ * @mpol = pointer to mempolicy pointer for reference counted 'BIND policy
-+ *
-+ * Returns a zonelist suitable for a huge page allocation.
-+ * If the effective policy is 'BIND, returns pointer to policy's zonelist.
-+ * If it is also a policy for which get_vma_policy() returns an extra
-+ * reference, we must hold that reference until after allocation.
-+ * In that case, return policy via @mpol so hugetlb allocation can drop
-+ * the reference.  For non-'BIND referenced policies, we can/do drop the
-+ * reference here, so the caller doesn't need to know about the special case
-+ * for default and current task policy.
-+ */
- struct zonelist *huge_zonelist(struct vm_area_struct *vma, unsigned long addr,
--							gfp_t gfp_flags)
-+				gfp_t gfp_flags, struct mempolicy **mpol)
+@@ -1136,7 +1138,6 @@ static struct zonelist *zonelist_policy(
+ 				return policy->v.zonelist;
+ 		/*FALL THROUGH*/
+ 	case MPOL_INTERLEAVE: /* should not happen */
+-	case MPOL_DEFAULT:
+ 		nd = numa_node_id();
+ 		break;
+ 	default:
+@@ -1166,9 +1167,10 @@ static unsigned interleave_nodes(struct 
+  */
+ unsigned slab_node(struct mempolicy *policy)
  {
- 	struct mempolicy *pol = get_vma_policy(current, vma, addr);
-+	struct zonelist *zl;
+-	int pol = policy ? policy->policy : MPOL_DEFAULT;
++	if (!policy)
++		return numa_node_id();
  
-+	*mpol = NULL;		/* probably no unref needed */
- 	if (pol->policy == MPOL_INTERLEAVE) {
- 		unsigned nid;
+-	switch (pol) {
++	switch (policy->policy) {
+ 	case MPOL_INTERLEAVE:
+ 		return interleave_nodes(policy);
  
- 		nid = interleave_nid(pol, vma, addr, HPAGE_SHIFT);
-+		__mpol_free(pol);
- 		return NODE_DATA(nid)->node_zonelists + gfp_zone(gfp_flags);
+@@ -1182,10 +1184,10 @@ unsigned slab_node(struct mempolicy *pol
+ 	case MPOL_PREFERRED:
+ 		if (policy->v.preferred_node >= 0)
+ 			return policy->v.preferred_node;
+-		/* Fall through */
++		return numa_node_id();
+ 
+ 	default:
+-		return numa_node_id();
++		BUG();
  	}
--	return zonelist_policy(GFP_HIGHUSER, pol);
-+
-+	zl = zonelist_policy(GFP_HIGHUSER, pol);
-+	if (unlikely(pol != &default_policy && pol != current->mempolicy)) {
-+		if (pol->policy != MPOL_BIND)
-+			__mpol_free(pol);	/* finished with pol */
-+		else
-+			*mpol = pol;	/* unref needed after allocation */
-+	}
-+	return zl;
- }
- #endif
- 
-@@ -1270,6 +1312,7 @@ struct page *
- alloc_page_vma(gfp_t gfp, struct vm_area_struct *vma, unsigned long addr)
- {
- 	struct mempolicy *pol = get_vma_policy(current, vma, addr);
-+	struct zonelist *zl;
- 
- 	cpuset_update_task_memory_state();
- 
-@@ -1279,7 +1322,19 @@ alloc_page_vma(gfp_t gfp, struct vm_area
- 		nid = interleave_nid(pol, vma, addr, PAGE_SHIFT);
- 		return alloc_page_interleave(gfp, 0, nid);
- 	}
--	return __alloc_pages(gfp, 0, zonelist_policy(gfp, pol));
-+	zl = zonelist_policy(gfp, pol);
-+	if (pol != &default_policy && pol != current->mempolicy) {
-+		/*
-+		 * slow path: ref counted policy -- shared or vma
-+		 */
-+		struct page *page =  __alloc_pages(gfp, 0, zl);
-+		__mpol_free(pol);
-+		return page;
-+	}
-+	/*
-+	 * fast path:  default or task policy
-+	 */
-+	return __alloc_pages(gfp, 0, zl);
  }
  
- /**
-@@ -1878,6 +1933,7 @@ int show_numa_map(struct seq_file *m, vo
- 	struct numa_maps *md;
- 	struct file *file = vma->vm_file;
- 	struct mm_struct *mm = vma->vm_mm;
-+	struct mempolicy *pol;
- 	int n;
- 	char buffer[50];
- 
-@@ -1888,8 +1944,13 @@ int show_numa_map(struct seq_file *m, vo
- 	if (!md)
+@@ -1410,8 +1412,6 @@ int __mpol_equal(struct mempolicy *a, st
+ 	if (a->policy != b->policy)
  		return 0;
+ 	switch (a->policy) {
+-	case MPOL_DEFAULT:
+-		return 1;
+ 	case MPOL_INTERLEAVE:
+ 		return nodes_equal(a->v.nodes, b->v.nodes);
+ 	case MPOL_PREFERRED:
+@@ -1436,7 +1436,6 @@ void __mpol_free(struct mempolicy *p)
+ 		return;
+ 	if (p->policy == MPOL_BIND)
+ 		kfree(p->v.zonelist);
+-	p->policy = MPOL_DEFAULT;
+ 	kmem_cache_free(policy_cache, p);
+ }
  
--	mpol_to_str(buffer, sizeof(buffer),
--			    get_vma_policy(priv->task, vma, vma->vm_start));
-+	pol = get_vma_policy(priv->task, vma, vma->vm_start);
-+	mpol_to_str(buffer, sizeof(buffer), pol);
-+	/*
-+	 * unref shared or other task's mempolicy
-+	 */
-+	if (pol != &default_policy && pol != current->mempolicy)
-+		__mpol_free(pol);
+@@ -1603,7 +1602,7 @@ void mpol_shared_policy_init(struct shar
+ 	if (policy != MPOL_DEFAULT) {
+ 		struct mempolicy *newpol;
  
- 	seq_printf(m, "%08lx %s", vma->vm_start, buffer);
+-		/* Falls back to MPOL_DEFAULT on any error */
++		/* Falls back to NULL policy [MPOL_DEFAULT] on any error */
+ 		newpol = mpol_new(policy, policy_nodes);
+ 		if (!IS_ERR(newpol)) {
+ 			/* Create pseudo-vma that contains just the policy */
+@@ -1724,8 +1723,6 @@ static void mpol_rebind_policy(struct me
+ 		return;
  
-Index: Linux/include/linux/mempolicy.h
+ 	switch (pol->policy) {
+-	case MPOL_DEFAULT:
+-		break;
+ 	case MPOL_INTERLEAVE:
+ 		nodes_remap(tmp, pol->v.nodes, *mpolmask, *newmask);
+ 		pol->v.nodes = tmp;
+Index: Linux/Documentation/vm/numa_memory_policy.txt
 ===================================================================
---- Linux.orig/include/linux/mempolicy.h	2007-08-29 10:56:14.000000000 -0400
-+++ Linux/include/linux/mempolicy.h	2007-08-29 13:32:05.000000000 -0400
-@@ -150,7 +150,7 @@ extern void mpol_fix_fork_child_flag(str
+--- Linux.orig/Documentation/vm/numa_memory_policy.txt	2007-08-29 11:23:56.000000000 -0400
++++ Linux/Documentation/vm/numa_memory_policy.txt	2007-08-29 11:43:10.000000000 -0400
+@@ -149,63 +149,47 @@ Components of Memory Policies
  
- extern struct mempolicy default_policy;
- extern struct zonelist *huge_zonelist(struct vm_area_struct *vma,
--		unsigned long addr, gfp_t gfp_flags);
-+		unsigned long addr, gfp_t gfp_flags, struct mempolicy **mpol);
- extern unsigned slab_node(struct mempolicy *policy);
+    Linux memory policy supports the following 4 behavioral modes:
  
- extern enum zone_type policy_zone;
-@@ -238,7 +238,7 @@ static inline void mpol_fix_fork_child_f
- }
+-	Default Mode--MPOL_DEFAULT:  The behavior specified by this mode is
+-	context or scope dependent.
++	Default Mode--MPOL_DEFAULT:  This mode is only used in the memory
++	policy APIs.  Internally, MPOL_DEFAULT is converted to the NULL
++	memory policy in all policy scopes.  Any existing non-default policy
++	will simply be removed when MPOL_DEFAULT is specified.  As a result,
++	MPOL_DEFAULT means "fall back to the next most specific policy scope."
++
++	    For example, a NULL or default task policy will fall back to the
++	    system default policy.  A NULL or default vma policy will fall
++	    back to the task policy.
  
- static inline struct zonelist *huge_zonelist(struct vm_area_struct *vma,
--		unsigned long addr, gfp_t gfp_flags)
-+		unsigned long addr, gfp_t gfp_flags, struct mempolicy **mpol)
- {
- 	return NODE_DATA(0)->node_zonelists + gfp_zone(gfp_flags);
- }
-Index: Linux/mm/hugetlb.c
-===================================================================
---- Linux.orig/mm/hugetlb.c	2007-08-29 10:56:13.000000000 -0400
-+++ Linux/mm/hugetlb.c	2007-08-29 13:19:39.000000000 -0400
-@@ -71,8 +71,9 @@ static struct page *dequeue_huge_page(st
- {
- 	int nid;
- 	struct page *page = NULL;
-+	struct mempolicy *mpol;
- 	struct zonelist *zonelist = huge_zonelist(vma, address,
--						htlb_alloc_mask);
-+					htlb_alloc_mask, &mpol);
- 	struct zone **z;
+-	    As mentioned in the Policy Scope section above, during normal
+-	    system operation, the System Default Policy is hard coded to
+-	    contain the Default mode.
+-
+-	    In this context, default mode means "local" allocation--that is
+-	    attempt to allocate the page from the node associated with the cpu
+-	    where the fault occurs.  If the "local" node has no memory, or the
+-	    node's memory can be exhausted [no free pages available], local
+-	    allocation will "fallback to"--attempt to allocate pages from--
+-	    "nearby" nodes, in order of increasing "distance".
+-
+-		Implementation detail -- subject to change:  "Fallback" uses
+-		a per node list of sibling nodes--called zonelists--built at
+-		boot time, or when nodes or memory are added or removed from
+-		the system [memory hotplug].  These per node zonelist are
+-		constructed with nodes in order of increasing distance based
+-		on information provided by the platform firmware.
+-
+-	    When a task/process policy or a shared policy contains the Default
+-	    mode, this also means "local allocation", as described above.
+-
+-	    In the context of a VMA, Default mode means "fall back to task
+-	    policy"--which may or may not specify Default mode.  Thus, Default
+-	    mode can not be counted on to mean local allocation when used
+-	    on a non-shared region of the address space.  However, see
+-	    MPOL_PREFERRED below.
+-
+-	    The Default mode does not use the optional set of nodes.
++	    When specified in one of the memory policy APIs, the Default mode
++	    does not use the optional set of nodes.
  
- 	for (z = zonelist->zones; *z; z++) {
-@@ -87,6 +88,7 @@ static struct page *dequeue_huge_page(st
- 			break;
- 		}
- 	}
-+	mpol_free(mpol);	/* maybe need unref */
- 	return page;
- }
+ 	MPOL_BIND:  This mode specifies that memory must come from the
+ 	set of nodes specified by the policy.
  
+ 	    The memory policy APIs do not specify an order in which the nodes
+-	    will be searched.  However, unlike "local allocation", the Bind
+-	    policy does not consider the distance between the nodes.  Rather,
+-	    allocations will fallback to the nodes specified by the policy in
+-	    order of numeric node id.  Like everything in Linux, this is subject
+-	    to change.
++	    will be searched.  However, unlike "local allocation" discussed
++	    below, the Bind policy does not consider the distance between the
++	    nodes.  Rather, allocations will fallback to the nodes specified
++	    by the policy in order of numeric node id.  Like everything in
++	    Linux, this is subject to change.
+ 
+ 	MPOL_PREFERRED:  This mode specifies that the allocation should be
+ 	attempted from the single node specified in the policy.  If that
+-	allocation fails, the kernel will search other nodes, exactly as
+-	it would for a local allocation that started at the preferred node
+-	in increasing distance from the preferred node.  "Local" allocation
+-	policy can be viewed as a Preferred policy that starts at the node
+-	containing the cpu where the allocation takes place.
++	allocation fails, the kernel will search other nodes, in order of
++	increasing distance from the preferred node based on information
++	provided by the platform firmware.
+ 
+ 	    Internally, the Preferred policy uses a single node--the
+ 	    preferred_node member of struct mempolicy.  A "distinguished
+ 	    value of this preferred_node, currently '-1', is interpreted
+ 	    as "the node containing the cpu where the allocation takes
+-	    place"--local allocation.  This is the way to specify
+-	    local allocation for a specific range of addresses--i.e. for
+-	    VMA policies.
++	    place"--local allocation.  "Local" allocation policy can be
++	    viewed as a Preferred policy that starts at the node containing
++	    the cpu where the allocation takes place.
++
++	    As mentioned in the Policy Scope section above, during normal
++	    system operation, the System Default Policy is hard coded to
++	    specify "local allocation".  This policy uses the Preferred
++	    policy with the special negative value of preferred_node.
+ 
+ 	MPOL_INTERLEAVED:  This mode specifies that page allocations be
+ 	interleaved, on a page granularity, across the nodes specified in
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
