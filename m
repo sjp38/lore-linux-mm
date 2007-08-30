@@ -1,88 +1,44 @@
-Message-ID: <46D66E31.9030202@yahoo.com.au>
-Date: Thu, 30 Aug 2007 17:13:53 +1000
+Message-ID: <46D67057.9030905@yahoo.com.au>
+Date: Thu, 30 Aug 2007 17:23:03 +1000
 From: Nick Piggin <nickpiggin@yahoo.com.au>
 MIME-Version: 1.0
-Subject: Re: Selective swap out of processes
-References: <1188320070.11543.85.camel@bastion-laptop>	 <46D4DBF7.7060102@yahoo.com.au>  <1188383827.11270.36.camel@bastion-laptop> <1188410818.9682.2.camel@bastion-laptop>
-In-Reply-To: <1188410818.9682.2.camel@bastion-laptop>
-Content-Type: text/plain; charset=UTF-8; format=flowed
-Content-Transfer-Encoding: 8bit
+Subject: Re: uncached page allocator
+References: <21d7e9970708191745h3b579f3bp72f138e089c624da@mail.gmail.com>	 <20070820094125.209e0811@the-village.bc.nu>	 <21d7e9970708202305h5128aa5cy847dafe033b00742@mail.gmail.com> <1187708165.6114.256.camel@twins>
+In-Reply-To: <1187708165.6114.256.camel@twins>
+Content-Type: text/plain; charset=us-ascii; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: =?UTF-8?B?SmF2aWVyIENhYmV6YXMg77+9?= <jcabezas@ac.upc.edu>
-Cc: linux-mm@kvack.org
+To: Peter Zijlstra <peterz@infradead.org>
+Cc: Dave Airlie <airlied@gmail.com>, Alan Cox <alan@lxorguk.ukuu.org.uk>, dri-devel <dri-devel@lists.sourceforge.net>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux Memory Management <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-Javier Cabezas RodrA-guez wrote:
->>My code calls the following function for each VMA of the process.  Are
->>there errors in the function?:
+Peter Zijlstra wrote:
+> On Tue, 2007-08-21 at 16:05 +1000, Dave Airlie wrote:
 > 
 > 
-> Sorry. I forgot some lines:
+>>So you can see why some sort of uncached+writecombined page cache
+>>would be useful, I could just allocate a bunch of pages at startup as
+>>uncached+writecombined, and allocate pixmaps from them and when I
+>>bind/free the pixmap I don't need the flush at all, now I'd really
+>>like this to be part of the VM so that under memory pressure it can
+>>just take the pages I've got in my cache back and after flushing turn
+>>them back into cached pages, the other option is for the DRM to do
+>>this on its own and penalise the whole system.
 > 
-> int my_free_pages(struct vm_area_struct * vma, struct mm_struct * mm)
-> {
-> 	LIST_HEAD(page_list);
-> 	unsigned long nr_taken;
-> 	struct zone * zone = NULL;
-> 	int ret;
-> 	pte_t *pte_k;
-> 	pud_t *pud;
-> 	pmd_t *pmd;
-> 	unsigned long addr;
-> 	struct page * p;
-> 	struct scan_control sc;
 > 
-> 	sc.gfp_mask = __GFP_FS;
-> 	sc.may_swap = 1;
-> 	sc.may_writepage = 1;
+> Can't you make these pages part of the regular VM by sticking them all
+> into an address_space.
 > 
-> 	for (addr = vma->vm_start, nr_taken = 0; addr < vma->vm_end; addr +=
-> PAGE_SIZE, nr_taken++) {
-> 		pgd_t *pgd = pgd_offset(mm, addr);
-> 		if (pgd_none(*pgd))
-> 			return;
-> 		pud = pud_offset(pgd, addr);
-> 		if (pud_none(*pud))
-> 			return;
-> 		pmd = pmd_offset(pud, addr);
-> 		if (pmd_none(*pmd))
-> 			return;
-> 		if (pmd_large(*pmd))
-> 			pte_k = (pte_t *)pmd;
-> 		else
-> 			pte_k = pte_offset_kernel(pmd, addr);
-> 
-> 		if (pte_k && pte_present(*pte_k)) {
-> 			p = pte_page(*pte_k);
-> 			if (!zone)
-> 				zone = page_zone(p);
-> 
-> 			ptep_clear_flush_young(vma, addr, pte_k);
-> 			del_page_from_lru(zone, p);
-> 			list_add(&p->lru, &page_list);
-> 		}
-> 	}
-> 
-> 	spin_lock_irq(&zone->lru_lock);
-> 	__mod_zone_page_state(zone, NR_INACTIVE, -nr_taken);
-> 	zone->pages_scanned += nr_taken;
-> 	spin_unlock_irq(&zone->lru_lock);
-> 
-> 	printk("VMC: %lu pages set to be freed\n", nr_taken);
-> 	printk("VMC: %d pages freed\n", ret =
-> shrink_page_list_vmswap(&page_list, &sc, PAGEOUT_IO_SYNC));
-> }
+> And for this reclaim behaviour you'd only need to set PG_private and
+> have a_ops->releasepage() dtrt.
 
-I don't know if that's right or not really, without more context,
-but it doesn't look like you have the right page table walking
-locking or page refcounting (and you probably don't want to simply
-be returning when you encounter the first empty page table entry).
+I'd just suggest Dave just registers a shrinker to start with.
 
-Anyway. I'd be inclined to not do your own page table walking at
-this stage and begin by using get_user_pages() to do it for you.
-Then if you get to the stage of wanting to optimise it, you could
-copy the get_user_pages code, and use that as a starting point.
+You really want to be able to batch TLB flushes as well, which
+->releasepage may not be so good at (you could add more machinery
+behind the releasepage to build batches and so on, but anyway, a
+shrinker might be the quickest way to get something working).
 
 -- 
 SUSE Labs, Novell Inc.
