@@ -1,44 +1,62 @@
-Date: Thu, 30 Aug 2007 11:36:36 +0100 (BST)
-From: Hugh Dickins <hugh@veritas.com>
-Subject: Re: speeding up swapoff
-In-Reply-To: <m1d4x52zri.fsf@ebiederm.dsl.xmission.com>
-Message-ID: <Pine.LNX.4.64.0708301132470.26365@blonde.wat.veritas.com>
-References: <1188394172.22156.67.camel@localhost>
- <Pine.LNX.4.64.0708291558480.27467@blonde.wat.veritas.com>
- <m1d4x52zri.fsf@ebiederm.dsl.xmission.com>
+Date: Thu, 30 Aug 2007 20:04:23 +0900
+From: Yasunori Goto <y-goto@jp.fujitsu.com>
+Subject: [Patch](memory hotplug) Tiny update for hot-add with sparsemem-vmemmap
+In-Reply-To: <20070822095447.05E5.Y-GOTO@jp.fujitsu.com>
+References: <20070821125922.GG11329@skynet.ie> <20070822095447.05E5.Y-GOTO@jp.fujitsu.com>
+Message-Id: <20070830195531.8D7A.Y-GOTO@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset="US-ASCII"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "Eric W. Biederman" <ebiederm@xmission.com>
-Cc: Daniel Drake <ddrake@brontes3d.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Andrew Morton <akpm@osdl.org>
+Cc: Andy Whitcroft <apw@shadowen.org>, Christoph Lameter <clameter@sgi.com>, linux-mm <linux-mm@kvack.org>, Mel Gorman <mel@skynet.ie>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 30 Aug 2007, Eric W. Biederman wrote:
-> 
-> There is one other possibility.  Typically the swap code is using
-> compatibility disk I/O functions instead of the best the kernel
-> can offer.  I haven't looked recently but it might be worth just
-> making certain that there isn't some low-level optimization or
-> cleanup possible on that path.  Although I may just be thinking
-> of swapfiles.
+This is tiny update for Mel-san's comment about 
+memory hotplug with sparse-vmemmap.
 
-Andrew rewrote swapfile support in 2.5, making it use FIBMAP at
-swapon time: so that in 2.6 swapfiles are as deadlock-free and
-as efficient (unless the swapfile happens to be badly fragmented)
-as raw disk partitions.
+  - Add __meminit to sparse_mem_map_populate()
+  - Add a comment.
 
-There's certainly scope for a study of I/O patterns in swapping,
-it's hard to imagine that improvements couldn't be made (but also
-easy to imagine endless disputes over different kinds of workload).
-But most people would appreciate an improvement in active swapping,
-and not care very much about the swapoff.
+This is for 2.6.23-rc3-mm1.
 
-Regarding Daniel's use of swapoff: it's a very heavy sledgehammer
-for cracking that nut, I strongly agree with those who have pointed
-him to mlock and mlockall instead.
+Signed-off-by: Yasunori Goto <y-goto@jp.fujitsu.com>
 
-Hugh
+---
+ mm/sparse-vmemmap.c |    2 +-
+ mm/sparse.c         |    1 +
+ 2 files changed, 2 insertions(+), 1 deletion(-)
+
+Index: current/mm/sparse-vmemmap.c
+===================================================================
+--- current.orig/mm/sparse-vmemmap.c	2007-08-23 16:19:10.000000000 +0900
++++ current/mm/sparse-vmemmap.c	2007-08-30 19:25:16.000000000 +0900
+@@ -137,7 +137,7 @@ int __meminit vmemmap_populate_basepages
+ 	return 0;
+ }
+ 
+-struct page *sparse_mem_map_populate(unsigned long pnum, int nid)
++struct page * __meminit sparse_mem_map_populate(unsigned long pnum, int nid)
+ {
+ 	struct page *map = pfn_to_page(pnum * PAGES_PER_SECTION);
+ 	int error = vmemmap_populate(map, PAGES_PER_SECTION, nid);
+Index: current/mm/sparse.c
+===================================================================
+--- current.orig/mm/sparse.c	2007-08-23 16:19:10.000000000 +0900
++++ current/mm/sparse.c	2007-08-30 19:31:50.000000000 +0900
+@@ -326,6 +326,7 @@ void __init sparse_init(void)
+ static inline struct page *kmalloc_section_memmap(unsigned long pnum, int nid,
+ 						 unsigned long nr_pages)
+ {
++	/* This will make the necessary allocations eventually. */
+ 	return sparse_mem_map_populate(pnum, nid);
+ }
+ static void __kfree_section_memmap(struct page *memmap, unsigned long nr_pages)
+
+-- 
+Yasunori Goto 
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
