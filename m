@@ -1,226 +1,83 @@
-Subject: [PATCH/RFC] Add node states sysfs class attributeS - V4
-From: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
-In-Reply-To: <Pine.LNX.4.64.0708291039210.21184@schroedinger.engr.sgi.com>
-References: <200708242228.l7OMS5fU017948@imap1.linux-foundation.org>
-	 <20070827181405.57a3d8fe.akpm@linux-foundation.org>
-	 <Pine.LNX.4.64.0708271826180.10344@schroedinger.engr.sgi.com>
-	 <20070827201822.2506b888.akpm@linux-foundation.org>
-	 <Pine.LNX.4.64.0708272210210.9748@schroedinger.engr.sgi.com>
-	 <20070827222912.8b364352.akpm@linux-foundation.org>
-	 <Pine.LNX.4.64.0708272235580.9834@schroedinger.engr.sgi.com>
-	 <20070827231214.99e3c33f.akpm@linux-foundation.org>
-	 <1188309928.5079.37.camel@localhost>
-	 <Pine.LNX.4.64.0708281458520.17559@schroedinger.engr.sgi.com>
-	 <29495f1d0708281513g406af15an8139df5fae20ad35@mail.gmail.com>
-	 <1188398621.5121.13.camel@localhost>
-	 <Pine.LNX.4.64.0708291039210.21184@schroedinger.engr.sgi.com>
-Content-Type: text/plain
-Date: Thu, 30 Aug 2007 11:19:16 -0400
-Message-Id: <1188487157.5794.40.camel@localhost>
-Mime-Version: 1.0
+Message-ID: <46D6E8CE.6080205@tmr.com>
+Date: Thu, 30 Aug 2007 11:57:02 -0400
+From: Bill Davidsen <davidsen@tmr.com>
+MIME-Version: 1.0
+Subject: Re: speeding up swapoff
+References: <1188394172.22156.67.camel@localhost>	 <20070829073040.1ec35176@laptopd505.fenrus.org> <1188398683.22156.77.camel@localhost>
+In-Reply-To: <1188398683.22156.77.camel@localhost>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm <linux-mm@kvack.org>
-Cc: Christoph Lameter <clameter@sgi.com>, Nish Aravamudan <nish.aravamudan@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, mel@skynet.ie, y-goto@jp.fujitsu.com, Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Eric Whitney <eric.whitney@hp.com>
+To: Daniel Drake <ddrake@brontes3d.com>
+Cc: Arjan van de Ven <arjan@infradead.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-Try, try again.  Maybe closer this time.
+Daniel Drake wrote:
+> On Wed, 2007-08-29 at 07:30 -0700, Arjan van de Ven wrote:
+>>> My experiments show that when there is not much free physical memory,
+>>> swapoff moves pages out of swap at a rate of approximately 5mb/sec.
+>> sounds like about disk speed (at random-seek IO pattern)
+> 
+> We are only using 'standard' seagate SATA disks, but I would have
+> thought much more performance (40+ mb/sec) would be reachable.
+> 
+>> before you go there... is this a "real life" problem? Or just a
+>> mostly-artificial corner case? (the answer to that obviously is
+>> relevant for the 'should we really care' question)
+> 
+> It's more-or-less a real life problem. We have an interactive
+> application which, when triggered by the user, performs rendering tasks
+> which must operate in real-time. In attempt to secure performance, we
+> want to ensure everything is memory resident and that nothing might be
+> swapped out during the process. So, we run swapoff at that time.
 
-Question:  do we need/want to display the normal and high memory masks
-separately for systems with HIGHMEM?  If not, I'd suggest changing the
-print_nodes_state() function to take a nodemask_t* instead of a state
-enum and expose a single 'has_memory' attribute that we print using
-something like:
+So the real issue isn't that your process doesn't run fast enough 
+without doing swapoff, but that swapoff itself takes too long.
+> 
+> If there is a decent number of pages swapped out, the user sits for a
+> while at a 'please wait' screen, which is not desirable. To throw some
+> numbers out there, likely more than a minute for 400mb of swapped pages.
+> 
+> Sure, we could run the whole interactive application with swap disabled,
+> which is pretty much what we do. However we have other non-real-time
+> processing tasks which are very memory hungry and do require swap. So,
+> there are 'corner cases' where the user can reach the real-time part of
+> the interactive application when there is a lot of memory swapped out.
 
-static ssize_t print_nodes_has_memory(struct sysdev_class *class,
-						char *buf)
-{
-	nodemask_t has_memory = node_states[N_NORMAL_MEMORY];
+How much is "a lot?" You said 400MB, you can add a few GB of RAM and 
+eliminate the problem at that size. Run the application in a virtual 
+machine which has enough dedicated memory? I think xen will do that. Run 
+"swap" on a ramdisk? I don't think swapoff was designed as a fast 
+operation, although your performance is pretty leisurely. ;-)
 
-	if (N_HIGH_MEMORY - N_NORMAL_MEMORY)
-		nodes_or(has_memory, has_memory, node_states[N_HIGH_MEMORY]);
-
-	return print_nodes_state(&has_memory, buf);
-}
-
-The compiler should eliminate the 'or' when HIGHMEM is not configured.
-But, we'd probably be doing the node_states[] index computation in each
-print function.
-
-Thoughts?
-
-Lee
-====================
-
-PATCH Add node 'states' sysfs class attributes v4
-
-Against:  2.6.23-rc3-mm1
-
-V3 -> V4:
-+ drop the annotations -- not needed with one value per file.
-+ this simplifies print_nodes_state()
-+ fix "function return type on separate line" style glitch
-
-V2 -> V3:
-+ changed to per state sysfs file -- "one value per file"
-
-V1 -> V2:
-+ style cleanup
-+ drop 'len' variable in print_node_states();  compute from
-  final size.
-
-Add a per node state sysfs class attribute file to
-/sys/devices/system/node to display node state masks.
-
-E.g., on a 4-cell HP ia64 NUMA platform, we have 5 nodes:
-4 representing the actual hardware cells and one memory-only
-pseudo-node representing a small amount [512MB] of "hardware
-interleaved" memory.  With this patch, in /sys/devices/system/node
-we see:
-
-#ls -1F /sys/devices/system/node
-has_cpu
-has_normal_memory
-node0/
-node1/
-node2/
-node3/
-node4/
-online
-possible
-#cat /sys/devices/system/node/possible
-0-255
-#cat /sys/devices/system/node/online
-0-4
-#cat /sys/devices/system/node/has_normal_memory
-0-4
-#cat /sys/devices/system/node/has_cpu
-0-3
-
-N.B., NOT TESTED with CONFIG_HIGHMEM=y.
-
-Signed-off-by:  Lee Schermerhorn <lee.schermerhorn@hp.com>
-
- drivers/base/node.c |   94 +++++++++++++++++++++++++++++++++++++++++++++++++++-
- 1 file changed, 93 insertions(+), 1 deletion(-)
-
-Index: Linux/drivers/base/node.c
-===================================================================
---- Linux.orig/drivers/base/node.c	2007-08-29 15:18:53.000000000 -0400
-+++ Linux/drivers/base/node.c	2007-08-30 10:38:44.000000000 -0400
-@@ -12,6 +12,7 @@
- #include <linux/topology.h>
- #include <linux/nodemask.h>
- #include <linux/cpu.h>
-+#include <linux/device.h>
- 
- static struct sysdev_class node_class = {
- 	set_kset_name("node"),
-@@ -232,8 +233,99 @@ void unregister_one_node(int nid)
- 	unregister_node(&node_devices[nid]);
- }
- 
-+/*
-+ * node states attributes
-+ */
-+
-+static ssize_t print_nodes_state(enum node_states state, char *buf)
-+{
-+	int n;
-+
-+	n = nodelist_scnprintf(buf, PAGE_SIZE, node_states[state]);
-+	if (n <= 0)
-+		goto done;
-+	if (PAGE_SIZE - n > 1) {
-+		*(buf + n++) = '\n';
-+		*(buf + n++) = '\0';
-+	}
-+done:
-+	return n;
-+}
-+
-+static ssize_t print_nodes_possible(struct sysdev_class *class, char *buf)
-+{
-+	return print_nodes_state(N_POSSIBLE, buf);
-+}
-+
-+static ssize_t print_nodes_online(struct sysdev_class *class, char *buf)
-+{
-+	return print_nodes_state(N_ONLINE, buf);
-+}
-+
-+static ssize_t print_nodes_has_normal_memory(struct sysdev_class *class,
-+						char *buf)
-+{
-+	return print_nodes_state(N_NORMAL_MEMORY, buf);
-+}
-+
-+static ssize_t print_nodes_has_cpu(struct sysdev_class *class, char *buf)
-+{
-+	return print_nodes_state(N_CPU, buf);
-+}
-+
-+static SYSDEV_CLASS_ATTR(possible, 0444, print_nodes_possible, NULL);
-+static SYSDEV_CLASS_ATTR(online, 0444, print_nodes_online, NULL);
-+static SYSDEV_CLASS_ATTR(has_normal_memory, 0444, print_nodes_has_normal_memory,
-+									NULL);
-+static SYSDEV_CLASS_ATTR(has_cpu, 0444, print_nodes_has_cpu, NULL);
-+
-+#ifdef CONFIG_HIGHMEM
-+static ssize_t print_nodes_has_high_memory(struct sysdev_class *class,
-+						 char *buf)
-+{
-+	return print_nodes_state(N_HIGH_MEMORY, buf);
-+}
-+
-+static SYSDEV_CLASS_ATTR(has_high_memory, 0444, print_nodes_has_high_memory,
-+									 NULL);
-+#endif
-+
-+struct sysdev_class_attribute *node_state_attr[] = {
-+	&attr_possible,
-+	&attr_online,
-+	&attr_has_normal_memory,
-+#ifdef CONFIG_HIGHMEM
-+	&attr_has_high_memory,
-+#endif
-+	&attr_has_cpu,
-+};
-+
-+static int node_states_init(void)
-+{
-+	int i;
-+	int err = 0;
-+
-+	for (i = 0;  i < NR_NODE_STATES; i++) {
-+		int ret;
-+		ret = sysdev_class_create_file(&node_class, node_state_attr[i]);
-+		if (!err)
-+			err = ret;
-+	}
-+	return err;
-+}
-+
- static int __init register_node_type(void)
- {
--	return sysdev_class_register(&node_class);
-+	int ret;
-+
-+	ret = sysdev_class_register(&node_class);
-+	if (!ret)
-+		ret = node_states_init();
-+
-+	/*
-+	 * Note:  we're not going to unregister the node class if we fail
-+	 * to register the node state class attribute files.
-+	 */
-+	return ret;
- }
- postcore_initcall(register_node_type);
+I assume you looked at mlock() and it doesn't fit your usage, or you 
+don't control the application behavior, or its limitations make it 
+unsuitable in some other way.
+> 
+>> Another question, if this is during system shutdown, maybe that's a
+>> valid case for flushing most of the pagecache first (from userspace)
+>> since most of what's there won't be used again anyway. If that's enough
+>> to make this go faster...
+> 
+> Shutdown isn't a concern here.
+> 
+>> A third question, have you investigated what happens if a process gets
+>> killed that has pages in swap; as long as we don't page those in but
+>> just forget about them, that would solve the shutdown problem nicely
+>> (since we kill stuff first anyway there)
+> 
+> According to top, those pages in swap disappear when the process is
+> killed. So, I don't think there are any swap-related performance issues
+> on the shutdown path.
+> 
+> Thanks.
 
 
-
+-- 
+Bill Davidsen <davidsen@tmr.com>
+   "We have more to fear from the bungling of the incompetent than from
+the machinations of the wicked."  - from Slashdot
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
