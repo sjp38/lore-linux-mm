@@ -1,280 +1,286 @@
-From: Lee Schermerhorn <lee.schermerhorn@hp.com>
-Date: Thu, 30 Aug 2007 14:51:07 -0400
-Message-Id: <20070830185107.22619.43577.sendpatchset@localhost>
-In-Reply-To: <20070830185053.22619.96398.sendpatchset@localhost>
-References: <20070830185053.22619.96398.sendpatchset@localhost>
-Subject: [PATCH/RFC 2/5] Mem Policy:  Use MPOL_PREFERRED for system-wide default policy
+Received: from d23relay03.au.ibm.com (d23relay03.au.ibm.com [202.81.18.234])
+	by e23smtp02.au.ibm.com (8.13.1/8.13.1) with ESMTP id l7UIqqKV005467
+	for <linux-mm@kvack.org>; Fri, 31 Aug 2007 04:52:52 +1000
+Received: from d23av03.au.ibm.com (d23av03.au.ibm.com [9.190.250.244])
+	by d23relay03.au.ibm.com (8.13.8/8.13.8/NCO v8.5) with ESMTP id l7UIqoA74235508
+	for <linux-mm@kvack.org>; Fri, 31 Aug 2007 04:52:50 +1000
+Received: from d23av03.au.ibm.com (loopback [127.0.0.1])
+	by d23av03.au.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l7UIqoO0027947
+	for <linux-mm@kvack.org>; Fri, 31 Aug 2007 04:52:50 +1000
+From: Balbir Singh <balbir@linux.vnet.ibm.com>
+Date: Fri, 31 Aug 2007 00:22:46 +0530
+Message-Id: <20070830185246.3170.74806.sendpatchset@balbir-laptop>
+Subject: [-mm PATCH]  Memory controller improve user interface (v2)
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
-Cc: akpm@linux-foundation.org, ak@suse.de, mtk-manpages@gmx.net, clameter@sgi.com, solo@google.com, Lee Schermerhorn <lee.schermerhorn@hp.com>, eric.whitney@hp.com
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux Containers <containers@lists.osdl.org>, Paul Menage <menage@google.com>, Linux MM Mailing List <linux-mm@kvack.org>, David Rientjes <rientjes@google.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, Dave Hansen <haveblue@us.ibm.com>
 List-ID: <linux-mm.kvack.org>
 
-PATCH/RFC 2/5 Use MPOL_PREFERRED for system-wide default policy
 
-Against:  2.6.23-rc3-mm1
+Change the interface to use kilobytes instead of pages. Page sizes can vary
+across platforms and configurations. A new strategy routine has been added
+to the resource counters infrastructure to format the data as desired.
 
-V1 -> V2:
-+ restore BUG()s in switch(policy) default cases -- per
-  Christoph
-+ eliminate unneeded re-init of struct mempolicy policy member
-  before freeing
+Suggested by David Rientjes, Andrew Morton and Herbert Poetzl
 
-Currently, when one specifies MPOL_DEFAULT via a NUMA memory
-policy API [set_mempolicy(), mbind() and internal versions],
-the kernel simply installs a NULL struct mempolicy pointer in
-the appropriate context:  task policy, vma policy, or shared
-policy.  This causes any use of that policy to "fall back" to
-the next most specific policy scope.  The only use of MPOL_DEFAULT
-to mean "local allocation" is in the system default policy.
+Tested on a UML setup with the config for memory control enabled.
 
-There is another, "preferred" way to specify local allocation via
-the APIs.  That is using the MPOL_PREFERRED policy mode with an
-empty nodemask.  Internally, the empty nodemask gets converted to
-a preferred_node id of '-1'.  All internal usage of MPOL_PREFERRED
-will convert the '-1' to the id of the node local to the cpu 
-where the allocation occurs.
+Signed-off-by: Balbir Singh <balbir@linux.vnet.ibm.com>
+---
 
-System default policy, except during boot, is hard-coded to
-"local allocation".  By using the MPOL_PREFERRED mode with a
-negative value of preferred node for system default policy,
-MPOL_DEFAULT will never occur in the 'policy' member of a
-struct mempolicy.  Thus, we can remove all checks for
-MPOL_DEFAULT when converting policy to a node id/zonelist in
-the allocation paths.
+ Documentation/controllers/memory.txt |   22 +++++++++++++-
+ include/linux/res_counter.h          |   10 +++---
+ kernel/res_counter.c                 |   30 +++++++++++++------
+ mm/memcontrol.c                      |   53 ++++++++++++++++++++++++++++-------
+ 4 files changed, 90 insertions(+), 25 deletions(-)
 
-In slab_node() return local node id when policy pointer is NULL.
-No need to set a pol value to take the switch default.  Replace
-switch default with BUG()--i.e., shouldn't happen.
-
-With this patch MPOL_DEFAULT is only used in the APIs, including
-internal calls to do_set_mempolicy() and in the display of policy
-in /proc/<pid>/numa_maps.  It always means "fall back" to the the
-next most specific policy scope.  This simplifies the description
-of memory policies quite a bit, with no visible change in behavior.
-This patch updates Documentation to reflect this change.
-
-Tested with set_mempolicy() using numactl with memtoy, and
-tested mbind() with memtoy.  All seems to work "as expected".
-
-Signed-off-by:  Lee Schermerhorn <lee.schermerhorn@hp.com>
-
- Documentation/vm/numa_memory_policy.txt |   70 ++++++++++++--------------------
- mm/mempolicy.c                          |   31 ++++++--------
- 2 files changed, 41 insertions(+), 60 deletions(-)
-
-Index: Linux/mm/mempolicy.c
-===================================================================
---- Linux.orig/mm/mempolicy.c	2007-08-29 11:43:06.000000000 -0400
-+++ Linux/mm/mempolicy.c	2007-08-29 11:44:03.000000000 -0400
-@@ -105,9 +105,13 @@ static struct kmem_cache *sn_cache;
-    policied. */
- enum zone_type policy_zone = 0;
+diff -puN mm/memcontrol.c~mem-control-make-ui-more-usable mm/memcontrol.c
+--- linux-2.6.23-rc3/mm/memcontrol.c~mem-control-make-ui-more-usable	2007-08-29 16:18:39.000000000 +0530
++++ linux-2.6.23-rc3-balbir/mm/memcontrol.c	2007-08-31 00:09:51.000000000 +0530
+@@ -312,7 +312,7 @@ int mem_container_charge(struct page *pa
+ 	 * If we created the page_container, we should free it on exceeding
+ 	 * the container limit.
+ 	 */
+-	while (res_counter_charge(&mem->res, 1)) {
++	while (res_counter_charge(&mem->res, PAGE_SIZE)) {
+ 		if (try_to_free_mem_container_pages(mem))
+ 			continue;
  
+@@ -352,7 +352,7 @@ int mem_container_charge(struct page *pa
+ 		kfree(pc);
+ 		pc = race_pc;
+ 		atomic_inc(&pc->ref_cnt);
+-		res_counter_uncharge(&mem->res, 1);
++		res_counter_uncharge(&mem->res, PAGE_SIZE);
+ 		css_put(&mem->css);
+ 		goto done;
+ 	}
+@@ -417,7 +417,7 @@ void mem_container_uncharge(struct page_
+ 		css_put(&mem->css);
+ 		page_assign_page_container(page, NULL);
+ 		unlock_page_container(page);
+-		res_counter_uncharge(&mem->res, 1);
++		res_counter_uncharge(&mem->res, PAGE_SIZE);
+ 
+  		spin_lock_irqsave(&mem->lru_lock, flags);
+  		list_del_init(&pc->lru);
+@@ -426,12 +426,44 @@ void mem_container_uncharge(struct page_
+ 	}
+ }
+ 
+-static ssize_t mem_container_read(struct container *cont, struct cftype *cft,
+-			struct file *file, char __user *userbuf, size_t nbytes,
+-			loff_t *ppos)
 +/*
-+ * run-time system-wide default policy => local allocation
++ * Strategy routines for formating read/write data
 + */
- struct mempolicy default_policy = {
- 	.refcnt = ATOMIC_INIT(1), /* never free it */
--	.policy = MPOL_DEFAULT,
-+	.policy = MPOL_PREFERRED,
-+	.v =  { .preferred_node =  -1 },
- };
- 
- static void mpol_rebind_policy(struct mempolicy *pol,
-@@ -180,7 +184,8 @@ static struct mempolicy *mpol_new(int mo
- 		 mode, nodes ? nodes_addr(*nodes)[0] : -1);
- 
- 	if (mode == MPOL_DEFAULT)
--		return NULL;
-+		return NULL;	/* simply delete any existing policy */
++int mem_container_read_strategy(unsigned long long val, char *buf)
++{
++	return sprintf(buf, "%llu Bytes\n", val);
++}
 +
- 	policy = kmem_cache_alloc(policy_cache, GFP_KERNEL);
- 	if (!policy)
- 		return ERR_PTR(-ENOMEM);
-@@ -493,8 +498,6 @@ static void get_zonemask(struct mempolic
- 			node_set(zone_to_nid(p->v.zonelist->zones[i]),
- 				*nodes);
- 		break;
--	case MPOL_DEFAULT:
--		break;
- 	case MPOL_INTERLEAVE:
- 		*nodes = p->v.nodes;
- 		break;
-@@ -1106,8 +1109,7 @@ static struct mempolicy * get_vma_policy
- 		if (vma->vm_ops && vma->vm_ops->get_policy) {
- 			pol = vma->vm_ops->get_policy(vma, addr);
- 			shared_pol = 1;	/* if pol non-NULL, that is */
--		} else if (vma->vm_policy &&
--				vma->vm_policy->policy != MPOL_DEFAULT)
-+		} else if (vma->vm_policy)
- 			pol = vma->vm_policy;
- 	}
- 	if (!pol)
-@@ -1136,7 +1138,6 @@ static struct zonelist *zonelist_policy(
- 				return policy->v.zonelist;
- 		/*FALL THROUGH*/
- 	case MPOL_INTERLEAVE: /* should not happen */
--	case MPOL_DEFAULT:
- 		nd = numa_node_id();
- 		break;
- 	default:
-@@ -1166,9 +1167,10 @@ static unsigned interleave_nodes(struct 
-  */
- unsigned slab_node(struct mempolicy *policy)
++int mem_container_write_strategy(char *buf, unsigned long long *tmp)
++{
++	*tmp = memparse(buf, &buf);
++	if (*buf != '\0')
++		return -EINVAL;
++
++	printk("tmp is %llu\n", *tmp);
++	/*
++	 * Round up the value to the closest page size
++	 */
++	*tmp = ((*tmp + PAGE_SIZE - 1) >> PAGE_SHIFT) << PAGE_SHIFT;
++	return 0;
++}
++
++static ssize_t mem_container_read_usage(struct container *cont,
++			struct cftype *cft, struct file *file,
++			char __user *userbuf, size_t nbytes, loff_t *ppos)
++{
++	return res_counter_read(&mem_container_from_cont(cont)->res,
++				cft->private, userbuf, nbytes, ppos,
++				mem_container_read_strategy);
++}
++
++static ssize_t mem_container_read(struct container *cont,
++			struct cftype *cft, struct file *file,
++			char __user *userbuf, size_t nbytes, loff_t *ppos)
  {
--	int pol = policy ? policy->policy : MPOL_DEFAULT;
-+	if (!policy)
-+		return numa_node_id();
- 
--	switch (pol) {
-+	switch (policy->policy) {
- 	case MPOL_INTERLEAVE:
- 		return interleave_nodes(policy);
- 
-@@ -1182,10 +1184,10 @@ unsigned slab_node(struct mempolicy *pol
- 	case MPOL_PREFERRED:
- 		if (policy->v.preferred_node >= 0)
- 			return policy->v.preferred_node;
--		/* Fall through */
-+		return numa_node_id();
- 
- 	default:
--		return numa_node_id();
-+		BUG();
- 	}
+ 	return res_counter_read(&mem_container_from_cont(cont)->res,
+-				cft->private, userbuf, nbytes, ppos);
++				cft->private, userbuf, nbytes, ppos,
++				NULL);
  }
  
-@@ -1410,8 +1412,6 @@ int __mpol_equal(struct mempolicy *a, st
- 	if (a->policy != b->policy)
- 		return 0;
- 	switch (a->policy) {
--	case MPOL_DEFAULT:
--		return 1;
- 	case MPOL_INTERLEAVE:
- 		return nodes_equal(a->v.nodes, b->v.nodes);
- 	case MPOL_PREFERRED:
-@@ -1436,7 +1436,6 @@ void __mpol_free(struct mempolicy *p)
- 		return;
- 	if (p->policy == MPOL_BIND)
- 		kfree(p->v.zonelist);
--	p->policy = MPOL_DEFAULT;
- 	kmem_cache_free(policy_cache, p);
+ static ssize_t mem_container_write(struct container *cont, struct cftype *cft,
+@@ -439,7 +471,8 @@ static ssize_t mem_container_write(struc
+ 				size_t nbytes, loff_t *ppos)
+ {
+ 	return res_counter_write(&mem_container_from_cont(cont)->res,
+-				cft->private, userbuf, nbytes, ppos);
++				cft->private, userbuf, nbytes, ppos,
++				mem_container_write_strategy);
  }
  
-@@ -1603,7 +1602,7 @@ void mpol_shared_policy_init(struct shar
- 	if (policy != MPOL_DEFAULT) {
- 		struct mempolicy *newpol;
+ static ssize_t mem_control_type_write(struct container *cont,
+@@ -500,13 +533,13 @@ static struct cftype mem_container_files
+ 	{
+ 		.name = "usage",
+ 		.private = RES_USAGE,
+-		.read = mem_container_read,
++		.read = mem_container_read_usage,
+ 	},
+ 	{
+ 		.name = "limit",
+ 		.private = RES_LIMIT,
+ 		.write = mem_container_write,
+-		.read = mem_container_read,
++		.read = mem_container_read_usage,
+ 	},
+ 	{
+ 		.name = "failcnt",
+diff -puN include/linux/memcontrol.h~mem-control-make-ui-more-usable include/linux/memcontrol.h
+diff -puN include/linux/res_counter.h~mem-control-make-ui-more-usable include/linux/res_counter.h
+--- linux-2.6.23-rc3/include/linux/res_counter.h~mem-control-make-ui-more-usable	2007-08-29 16:18:39.000000000 +0530
++++ linux-2.6.23-rc3-balbir/include/linux/res_counter.h	2007-08-30 23:48:49.000000000 +0530
+@@ -23,11 +23,11 @@ struct res_counter {
+ 	/*
+ 	 * the current resource consumption level
+ 	 */
+-	unsigned long usage;
++	unsigned long long usage;
+ 	/*
+ 	 * the limit that usage cannot exceed
+ 	 */
+-	unsigned long limit;
++	unsigned long long limit;
+ 	/*
+ 	 * the number of unsuccessful attempts to consume the resource
+ 	 */
+@@ -52,9 +52,11 @@ struct res_counter {
+  */
  
--		/* Falls back to MPOL_DEFAULT on any error */
-+		/* Falls back to NULL policy [MPOL_DEFAULT] on any error */
- 		newpol = mpol_new(policy, policy_nodes);
- 		if (!IS_ERR(newpol)) {
- 			/* Create pseudo-vma that contains just the policy */
-@@ -1724,8 +1723,6 @@ static void mpol_rebind_policy(struct me
- 		return;
+ ssize_t res_counter_read(struct res_counter *counter, int member,
+-		const char __user *buf, size_t nbytes, loff_t *pos);
++		const char __user *buf, size_t nbytes, loff_t *pos,
++		int (*read_strategy)(unsigned long long val, char *s));
+ ssize_t res_counter_write(struct res_counter *counter, int member,
+-		const char __user *buf, size_t nbytes, loff_t *pos);
++		const char __user *buf, size_t nbytes, loff_t *pos,
++		int (*write_strategy)(char *buf, unsigned long long *val));
  
- 	switch (pol->policy) {
--	case MPOL_DEFAULT:
--		break;
- 	case MPOL_INTERLEAVE:
- 		nodes_remap(tmp, pol->v.nodes, *mpolmask, *newmask);
- 		pol->v.nodes = tmp;
-Index: Linux/Documentation/vm/numa_memory_policy.txt
-===================================================================
---- Linux.orig/Documentation/vm/numa_memory_policy.txt	2007-08-29 11:23:56.000000000 -0400
-+++ Linux/Documentation/vm/numa_memory_policy.txt	2007-08-29 11:43:10.000000000 -0400
-@@ -149,63 +149,47 @@ Components of Memory Policies
+ /*
+  * the field descriptors. one for each member of res_counter
+diff -puN kernel/res_counter.c~mem-control-make-ui-more-usable kernel/res_counter.c
+--- linux-2.6.23-rc3/kernel/res_counter.c~mem-control-make-ui-more-usable	2007-08-29 16:18:39.000000000 +0530
++++ linux-2.6.23-rc3-balbir/kernel/res_counter.c	2007-08-30 23:49:52.000000000 +0530
+@@ -16,7 +16,7 @@
+ void res_counter_init(struct res_counter *counter)
+ {
+ 	spin_lock_init(&counter->lock);
+-	counter->limit = (unsigned long)LONG_MAX;
++	counter->limit = (unsigned long long)LLONG_MAX;
+ }
  
-    Linux memory policy supports the following 4 behavioral modes:
+ int res_counter_charge_locked(struct res_counter *counter, unsigned long val)
+@@ -76,24 +76,29 @@ static inline unsigned long *res_counter
+ }
  
--	Default Mode--MPOL_DEFAULT:  The behavior specified by this mode is
--	context or scope dependent.
-+	Default Mode--MPOL_DEFAULT:  This mode is only used in the memory
-+	policy APIs.  Internally, MPOL_DEFAULT is converted to the NULL
-+	memory policy in all policy scopes.  Any existing non-default policy
-+	will simply be removed when MPOL_DEFAULT is specified.  As a result,
-+	MPOL_DEFAULT means "fall back to the next most specific policy scope."
+ ssize_t res_counter_read(struct res_counter *counter, int member,
+-		const char __user *userbuf, size_t nbytes, loff_t *pos)
++		const char __user *userbuf, size_t nbytes, loff_t *pos,
++		int (*read_strategy)(unsigned long long val, char *st_buf))
+ {
+-	unsigned long *val;
++	unsigned long long *val;
+ 	char buf[64], *s;
+ 
+ 	s = buf;
+ 	val = res_counter_member(counter, member);
+-	s += sprintf(s, "%lu\n", *val);
++	if (read_strategy)
++		s += read_strategy(*val, s);
++	else
++		s += sprintf(s, "%lu\n", *val);
+ 	return simple_read_from_buffer((void __user *)userbuf, nbytes,
+ 			pos, buf, s - buf);
+ }
+ 
+ ssize_t res_counter_write(struct res_counter *counter, int member,
+-		const char __user *userbuf, size_t nbytes, loff_t *pos)
++		const char __user *userbuf, size_t nbytes, loff_t *pos,
++		int (*write_strategy)(char *st_buf, unsigned long long *val))
+ {
+ 	int ret;
+ 	char *buf, *end;
+-	unsigned long tmp, *val;
++	unsigned long long tmp, *val;
+ 
+ 	buf = kmalloc(nbytes + 1, GFP_KERNEL);
+ 	ret = -ENOMEM;
+@@ -106,9 +111,16 @@ ssize_t res_counter_write(struct res_cou
+ 		goto out_free;
+ 
+ 	ret = -EINVAL;
+-	tmp = simple_strtoul(buf, &end, 10);
+-	if (*end != '\0')
+-		goto out_free;
 +
-+	    For example, a NULL or default task policy will fall back to the
-+	    system default policy.  A NULL or default vma policy will fall
-+	    back to the task policy.
++	if (write_strategy) {
++		if (write_strategy(buf, &tmp)) {
++			goto out_free;
++		}
++	} else {
++		tmp = simple_strtoul(buf, &end, 10);
++		if (*end != '\0')
++			goto out_free;
++	}
  
--	    As mentioned in the Policy Scope section above, during normal
--	    system operation, the System Default Policy is hard coded to
--	    contain the Default mode.
--
--	    In this context, default mode means "local" allocation--that is
--	    attempt to allocate the page from the node associated with the cpu
--	    where the fault occurs.  If the "local" node has no memory, or the
--	    node's memory can be exhausted [no free pages available], local
--	    allocation will "fallback to"--attempt to allocate pages from--
--	    "nearby" nodes, in order of increasing "distance".
--
--		Implementation detail -- subject to change:  "Fallback" uses
--		a per node list of sibling nodes--called zonelists--built at
--		boot time, or when nodes or memory are added or removed from
--		the system [memory hotplug].  These per node zonelist are
--		constructed with nodes in order of increasing distance based
--		on information provided by the platform firmware.
--
--	    When a task/process policy or a shared policy contains the Default
--	    mode, this also means "local allocation", as described above.
--
--	    In the context of a VMA, Default mode means "fall back to task
--	    policy"--which may or may not specify Default mode.  Thus, Default
--	    mode can not be counted on to mean local allocation when used
--	    on a non-shared region of the address space.  However, see
--	    MPOL_PREFERRED below.
--
--	    The Default mode does not use the optional set of nodes.
-+	    When specified in one of the memory policy APIs, the Default mode
-+	    does not use the optional set of nodes.
+ 	val = res_counter_member(counter, member);
+ 	*val = tmp;
+diff -puN Documentation/controllers/memory.txt~mem-control-make-ui-more-usable Documentation/controllers/memory.txt
+--- linux-2.6.23-rc3/Documentation/controllers/memory.txt~mem-control-make-ui-more-usable	2007-08-29 16:18:39.000000000 +0530
++++ linux-2.6.23-rc3-balbir/Documentation/controllers/memory.txt	2007-08-31 00:19:31.000000000 +0530
+@@ -165,11 +165,29 @@ c. Enable CONFIG_CONTAINER_MEM_CONT
  
- 	MPOL_BIND:  This mode specifies that memory must come from the
- 	set of nodes specified by the policy.
- 
- 	    The memory policy APIs do not specify an order in which the nodes
--	    will be searched.  However, unlike "local allocation", the Bind
--	    policy does not consider the distance between the nodes.  Rather,
--	    allocations will fallback to the nodes specified by the policy in
--	    order of numeric node id.  Like everything in Linux, this is subject
--	    to change.
-+	    will be searched.  However, unlike "local allocation" discussed
-+	    below, the Bind policy does not consider the distance between the
-+	    nodes.  Rather, allocations will fallback to the nodes specified
-+	    by the policy in order of numeric node id.  Like everything in
-+	    Linux, this is subject to change.
- 
- 	MPOL_PREFERRED:  This mode specifies that the allocation should be
- 	attempted from the single node specified in the policy.  If that
--	allocation fails, the kernel will search other nodes, exactly as
--	it would for a local allocation that started at the preferred node
--	in increasing distance from the preferred node.  "Local" allocation
--	policy can be viewed as a Preferred policy that starts at the node
--	containing the cpu where the allocation takes place.
-+	allocation fails, the kernel will search other nodes, in order of
-+	increasing distance from the preferred node based on information
-+	provided by the platform firmware.
- 
- 	    Internally, the Preferred policy uses a single node--the
- 	    preferred_node member of struct mempolicy.  A "distinguished
- 	    value of this preferred_node, currently '-1', is interpreted
- 	    as "the node containing the cpu where the allocation takes
--	    place"--local allocation.  This is the way to specify
--	    local allocation for a specific range of addresses--i.e. for
--	    VMA policies.
-+	    place"--local allocation.  "Local" allocation policy can be
-+	    viewed as a Preferred policy that starts at the node containing
-+	    the cpu where the allocation takes place.
+ Since now we're in the 0 container,
+ We can alter the memory limit:
+-# echo -n 6000 > /containers/0/memory.limit
++# echo -n 4M > /containers/0/memory.limit
 +
-+	    As mentioned in the Policy Scope section above, during normal
-+	    system operation, the System Default Policy is hard coded to
-+	    specify "local allocation".  This policy uses the Preferred
-+	    policy with the special negative value of preferred_node.
++NOTE: We can use a suffix (k, K, m, M, g or G) to indicate values in kilo,
++mega or gigabytes.
++
++# cat /containers/0/memory.limit
++4194304 Bytes
++
++NOTE: The interface has now changed to display the usage in bytes
++instead of pages
  
- 	MPOL_INTERLEAVED:  This mode specifies that page allocations be
- 	interleaved, on a page granularity, across the nodes specified in
+ We can check the usage:
+ # cat /containers/0/memory.usage
+-25
++1216512 Bytes
++
++Setting a limit to a number that is not a multiple of page size causes
++rounding up of the value. The user must check back to see (by reading
++memory.limit), to check for differences between desired values and committed
++values. Currently, all accounting is done in multiples of PAGE_SIZE
++
++# echo -n 1 > memory.limit
++# cat memory.limit
++4096 Bytes
+ 
+ The memory.failcnt field gives the number of times that the container limit was
+ exceeded.
+_
+
+-- 
+	Warm Regards,
+	Balbir Singh
+	Linux Technology Center
+	IBM, ISTL
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
