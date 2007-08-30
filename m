@@ -1,34 +1,44 @@
-Date: Thu, 30 Aug 2007 12:11:10 +0200
-From: =?utf-8?B?SsO2cm4=?= Engel <joern@logfs.org>
-Subject: Re: [RFC:PATCH 00/07] VM File Tails
-Message-ID: <20070830101108.GD29635@lazybastard.org>
-References: <20070829205325.28328.67953.sendpatchset@norville.austin.ibm.com> <20070829213154.GB29635@lazybastard.org> <1188423942.6529.74.camel@norville.austin.ibm.com> <20070829233802.GC29635@lazybastard.org> <1188440111.9221.3.camel@norville.austin.ibm.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <1188440111.9221.3.camel@norville.austin.ibm.com>
+Date: Thu, 30 Aug 2007 11:36:36 +0100 (BST)
+From: Hugh Dickins <hugh@veritas.com>
+Subject: Re: speeding up swapoff
+In-Reply-To: <m1d4x52zri.fsf@ebiederm.dsl.xmission.com>
+Message-ID: <Pine.LNX.4.64.0708301132470.26365@blonde.wat.veritas.com>
+References: <1188394172.22156.67.camel@localhost>
+ <Pine.LNX.4.64.0708291558480.27467@blonde.wat.veritas.com>
+ <m1d4x52zri.fsf@ebiederm.dsl.xmission.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Dave Kleikamp <shaggy@linux.vnet.ibm.com>
-Cc: =?utf-8?B?SsO2cm4=?= Engel <joern@logfs.org>, linux-mm <linux-mm@kvack.org>
+To: "Eric W. Biederman" <ebiederm@xmission.com>
+Cc: Daniel Drake <ddrake@brontes3d.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 29 August 2007 21:15:11 -0500, Dave Kleikamp wrote:
+On Thu, 30 Aug 2007, Eric W. Biederman wrote:
 > 
-> Once the data is packed into the tail, the page is freed.  Later if the
-> page is needed, a new page is allocated and the tail is unpacked into
-> it.  Then the tail is freed (via kfree).
-       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+> There is one other possibility.  Typically the swap code is using
+> compatibility disk I/O functions instead of the best the kernel
+> can offer.  I haven't looked recently but it might be worth just
+> making certain that there isn't some low-level optimization or
+> cleanup possible on that path.  Although I may just be thinking
+> of swapfiles.
 
-Good.  That part had evaded me.
+Andrew rewrote swapfile support in 2.5, making it use FIBMAP at
+swapon time: so that in 2.6 swapfiles are as deadlock-free and
+as efficient (unless the swapfile happens to be badly fragmented)
+as raw disk partitions.
 
-JA?rn
+There's certainly scope for a study of I/O patterns in swapping,
+it's hard to imagine that improvements couldn't be made (but also
+easy to imagine endless disputes over different kinds of workload).
+But most people would appreciate an improvement in active swapping,
+and not care very much about the swapoff.
 
--- 
-There are three principal ways to lose money: wine, women, and engineers.
-While the first two are more pleasant, the third is by far the more certain.
--- Baron Rothschild
+Regarding Daniel's use of swapoff: it's a very heavy sledgehammer
+for cracking that nut, I strongly agree with those who have pointed
+him to mlock and mlockall instead.
+
+Hugh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
