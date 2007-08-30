@@ -1,53 +1,31 @@
-Message-ID: <46D60AA9.3070309@redhat.com>
-Date: Wed, 29 Aug 2007 20:09:13 -0400
-From: Rik van Riel <riel@redhat.com>
-MIME-Version: 1.0
-Subject: Re: RFC:  Noreclaim with "Keep Mlocked Pages off the LRU"
-References: <20070823041137.GH18788@wotan.suse.de>  <1187988218.5869.64.camel@localhost> <20070827013525.GA23894@wotan.suse.de>  <1188225247.5952.41.camel@localhost> <20070828000648.GB14109@wotan.suse.de>  <1188312766.5079.77.camel@localhost>  <Pine.LNX.4.64.0708281448440.17464@schroedinger.engr.sgi.com> <1188398451.5121.9.camel@localhost> <Pine.LNX.4.64.0708291035080.21184@schroedinger.engr.sgi.com>
-In-Reply-To: <Pine.LNX.4.64.0708291035080.21184@schroedinger.engr.sgi.com>
-Content-Type: text/plain; charset=UTF-8; format=flowed
-Content-Transfer-Encoding: 7bit
+Date: Thu, 30 Aug 2007 03:22:37 +0200
+From: Nick Piggin <npiggin@suse.de>
+Subject: Re: [patch][rfc] radix-tree: be a nice citizen
+Message-ID: <20070830012237.GA19405@wotan.suse.de>
+References: <20070829085039.GA32236@wotan.suse.de> <20070829015702.7c8567c2.akpm@linux-foundation.org> <20070829090301.GB32236@wotan.suse.de> <20070829022044.9730888e.akpm@linux-foundation.org> <20070829094503.GC32236@wotan.suse.de> <20070829154531.fd6d67bc.akpm@linux-foundation.org>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20070829154531.fd6d67bc.akpm@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
-Cc: Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Nick Piggin <npiggin@suse.de>, linux-mm <linux-mm@kvack.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Linux Memory Management List <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-Christoph Lameter wrote:
-> On Wed, 29 Aug 2007, Lee Schermerhorn wrote:
+On Wed, Aug 29, 2007 at 03:45:31PM -0700, Andrew Morton wrote:
+> On Wed, 29 Aug 2007 11:45:03 +0200 Nick Piggin <npiggin@suse.de> wrote:
 > 
->>> I think that is the right approach. Do not forget that ramfs and other 
->>> ram based filesystems create unmapped unreclaimable pages.
->> They don't go on the LRU lists now, do they?  The primary function of
->> the noreclaim infrastructure is to hide non-reclaimable pages that would
->> otherwise go on the [in]active lists from vmscan.  So, if pages used by
->> the ram base file systems don't go onto the LRU, we probably don't need
->> to put them on the noreclaim list which is conceptually another LRU
->> list.
+> > Yeah I'm sure the radix_tree_insert isn't failing, but the
+> > first kmem_cache_alloc in radix_tree_node_alloc is failing (page
+> > allocator is giving the backtrace). Because it is GFP_ATOMIC and
+> > being done under the spinlock.
 > 
-> They do go into the LRU. When attempts are made to write them out they are 
-> put back onto the active lists via a strange return code 
-> AOP_WRITEPAGE_ACTIVATE. So they circle round and round and round...
-> 
->>> Right. I posted a patch a week ago that generalized LRU handling and would 
->>> allow the adding of additional lists as needed by such an approach.
->> Which one was that? 
-> 
-> This one
-> 
-> [RECLAIM] Use an indexed array for active/inactive variables
-> 
-> Currently we are defining explicit variables for the inactive and active
-> list. An indexed array can be more generic and avoid repeating similar
-> code in several places in the reclaim code.
+> OK, that's expected.  Add a __GFP_NOWARN to the caller's gfp_t?
 
-I like it.  This will make the code that has separate lists
-for anonymous (and other swap backed) pages a lot nicer.
-
--- 
-Politics is the struggle between those who want to make their country
-the best in the world, and those who believe it already is.  Each group
-calls the other unpatriotic.
+It eats GFP_ATOMIC reserves (and yes, we could ad a ~__GFP_HIGH, but
+the allocator still has a small reserve for non-sleeping GFP_KERNEL
+allocations, so it would eat that).
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
