@@ -1,56 +1,101 @@
-Received: from d23relay03.au.ibm.com (d23relay03.au.ibm.com [202.81.18.234])
-	by e23smtp01.au.ibm.com (8.13.1/8.13.1) with ESMTP id l7V4eim9030902
-	for <linux-mm@kvack.org>; Fri, 31 Aug 2007 14:40:44 +1000
-Received: from d23av04.au.ibm.com (d23av04.au.ibm.com [9.190.235.139])
-	by d23relay03.au.ibm.com (8.13.8/8.13.8/NCO v8.5) with ESMTP id l7V4efjM4714738
-	for <linux-mm@kvack.org>; Fri, 31 Aug 2007 14:40:41 +1000
-Received: from d23av04.au.ibm.com (loopback [127.0.0.1])
-	by d23av04.au.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l7V5eett007083
-	for <linux-mm@kvack.org>; Fri, 31 Aug 2007 15:40:40 +1000
-Message-ID: <46D79BC3.7050908@linux.vnet.ibm.com>
-Date: Fri, 31 Aug 2007 10:10:35 +0530
-From: Balbir Singh <balbir@linux.vnet.ibm.com>
-Reply-To: balbir@linux.vnet.ibm.com
-MIME-Version: 1.0
-Subject: Re: + memory-controller-memory-accounting-v7.patch added to -mm tree
-References: <200708272119.l7RLJoOD028582@imap1.linux-foundation.org> <46D3C244.7070709@yahoo.com.au> <46D3CE29.3030703@linux.vnet.ibm.com> <46D3EADE.3080001@yahoo.com.au> <46D4097A.7070301@linux.vnet.ibm.com> <46D52030.9080605@yahoo.com.au> <46D52B07.6050809@linux.vnet.ibm.com> <46D67426.606@yahoo.com.au> <46D68833.2030405@linux.vnet.ibm.com> <46D76255.7000008@yahoo.com.au>
-In-Reply-To: <46D76255.7000008@yahoo.com.au>
-Content-Type: text/plain; charset=ISO-8859-1
+Received: from m2.gw.fujitsu.co.jp ([10.0.50.72])
+	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id l7V7iZ7s015673
+	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
+	Fri, 31 Aug 2007 16:44:36 +0900
+Received: from smail (m2 [127.0.0.1])
+	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 984CE1B801E
+	for <linux-mm@kvack.org>; Fri, 31 Aug 2007 16:44:35 +0900 (JST)
+Received: from s8.gw.fujitsu.co.jp (s8.gw.fujitsu.co.jp [10.0.50.98])
+	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 641522DC03F
+	for <linux-mm@kvack.org>; Fri, 31 Aug 2007 16:44:35 +0900 (JST)
+Received: from s8.gw.fujitsu.co.jp (s8 [127.0.0.1])
+	by s8.gw.fujitsu.co.jp (Postfix) with ESMTP id 44D69181802B
+	for <linux-mm@kvack.org>; Fri, 31 Aug 2007 16:44:35 +0900 (JST)
+Received: from fjm503.ms.jp.fujitsu.com (fjm503.ms.jp.fujitsu.com [10.56.99.77])
+	by s8.gw.fujitsu.co.jp (Postfix) with ESMTP id C7D73181802C
+	for <linux-mm@kvack.org>; Fri, 31 Aug 2007 16:44:34 +0900 (JST)
+Received: from fjmscan503.ms.jp.fujitsu.com (fjmscan503.ms.jp.fujitsu.com [10.56.99.143])by fjm503.ms.jp.fujitsu.com with ESMTP id l7V7hp5e004479
+	for <linux-mm@kvack.org>; Fri, 31 Aug 2007 16:43:51 +0900
+Received: from GENEVIEVE ([10.124.100.187])
+	by fjmscan503.ms.jp.fujitsu.com (8.13.1/8.12.11) with SMTP id l7V7hlPX029945
+	for <linux-mm@kvack.org>; Fri, 31 Aug 2007 16:43:51 +0900
+Date: Fri, 31 Aug 2007 16:46:11 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: [RFC] patch for mulitiple lru in a zone [1/2] cleanup
+ setup_per_zone_pages_min()
+Message-Id: <20070831164611.2c29de69.kamezawa.hiroyu@jp.fujitsu.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nick Piggin <nickpiggin@yahoo.com.au>
-Cc: akpm@linux-foundation.org, a.p.zijlstra@chello.nl, dev@sw.ru, ebiederm@xmission.com, herbert@13thfloor.at, menage@google.com, rientjes@google.com, svaidy@linux.vnet.ibm.com, xemul@openvz.org, Linux Memory Management <linux-mm@kvack.org>
+To: "linux-mm@kvack.org" <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-<snip>
-Nick Piggin wrote:
->>
->> My hook really is -- there was a race, there is no rmap lock to prevent
->> several independent processes from mapping the same page into their
->> page tables. I want to increment the reference count just once (apart
->> from
->> it being accounted in the page cache), since we account the page once.
->>
->> I'll revisit this hook to see if it can be made cleaner
-> 
-> If you just have a different hook for mapping a page into the page
-> tables, your controller can take care of any races, no?
-> 
+setup_per_zone_pages_min() takes zone->lru_lock which modifing zone's 
+pages_min,low,high values.
+But refererer of these values seems not to take care of taking lock.
 
-We increment the reference count in the mem_container_charge() routine.
-Not all pages into page tables, so it makes sense to do the reference
-counting there. The charge routine, also does reclaim, so we cannot call
-it at mapping time, since the mapping happens under pte lock.
+Instead of taking lock, using ordered modification of 3 values looks better.
 
-I'll see if I can refactor the way we reference count, I agree that
-it would simplify code maintenance.
+Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
--- 
-	Warm Regards,
-	Balbir Singh
-	Linux Technology Center
-	IBM, ISTL
+ mm/page_alloc.c |   20 +++++++++++++-------
+ 1 file changed, 13 insertions(+), 7 deletions(-)
+
+Index: linux-2.6.23-rc4/mm/page_alloc.c
+===================================================================
+--- linux-2.6.23-rc4.orig/mm/page_alloc.c
++++ linux-2.6.23-rc4/mm/page_alloc.c
+@@ -3629,7 +3629,6 @@ void setup_per_zone_pages_min(void)
+ 	unsigned long pages_min = min_free_kbytes >> (PAGE_SHIFT - 10);
+ 	unsigned long lowmem_pages = 0;
+ 	struct zone *zone;
+-	unsigned long flags;
+ 
+ 	/* Calculate total number of !ZONE_HIGHMEM pages */
+ 	for_each_zone(zone) {
+@@ -3639,8 +3638,8 @@ void setup_per_zone_pages_min(void)
+ 
+ 	for_each_zone(zone) {
+ 		u64 tmp;
++		unsigned long zone_pages_min;
+ 
+-		spin_lock_irqsave(&zone->lru_lock, flags);
+ 		tmp = (u64)pages_min * zone->present_pages;
+ 		do_div(tmp, lowmem_pages);
+ 		if (is_highmem(zone)) {
+@@ -3660,18 +3659,24 @@ void setup_per_zone_pages_min(void)
+ 				min_pages = SWAP_CLUSTER_MAX;
+ 			if (min_pages > 128)
+ 				min_pages = 128;
+-			zone->pages_min = min_pages;
++			zone_pages_min = min_pages;
+ 		} else {
+ 			/*
+ 			 * If it's a lowmem zone, reserve a number of pages
+ 			 * proportionate to the zone's size.
+ 			 */
+-			zone->pages_min = tmp;
++			zone_pages_min = tmp;
++		}
++		/* keep min < low < high during this change */
++		if (zone_pages_min < zone->pages_min) {
++			xchg(&zone->pages_min, zone_pages_min);
++			xchg(&zone->pages_low, zone_pages_min + (tmp >> 2));
++			xchg(&zone->pages_high, zone_pages_min + (tmp >> 1));
++		} else {
++			xchg(&zone->pages_high, zone_pages_min + (tmp >> 1));
++			xchg(&zone->pages_low, zone_pages_min + (tmp >> 2));
++			xchg(&zone->pages_min, zone_pages_min);
+ 		}
+-
+-		zone->pages_low   = zone->pages_min + (tmp >> 2);
+-		zone->pages_high  = zone->pages_min + (tmp >> 1);
+-		spin_unlock_irqrestore(&zone->lru_lock, flags);
+ 	}
+ 
+ 	/* update totalreserve_pages */
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
