@@ -1,38 +1,53 @@
-Received: from d03relay02.boulder.ibm.com (d03relay02.boulder.ibm.com [9.17.195.227])
-	by e35.co.us.ibm.com (8.13.8/8.13.8) with ESMTP id l7VGe5DD028339
-	for <linux-mm@kvack.org>; Fri, 31 Aug 2007 12:40:05 -0400
-Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
-	by d03relay02.boulder.ibm.com (8.13.8/8.13.8/NCO v8.5) with ESMTP id l7VGe5bp497756
-	for <linux-mm@kvack.org>; Fri, 31 Aug 2007 10:40:05 -0600
-Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av02.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l7VGe5xU009206
-	for <linux-mm@kvack.org>; Fri, 31 Aug 2007 10:40:05 -0600
-Subject: Re: Selective swap out of processes
-From: Dave Hansen <haveblue@us.ibm.com>
-In-Reply-To: <49e98fc50708301650q611f9b0fi762f9c5d8d5fae01@mail.gmail.com>
-References: <1188320070.11543.85.camel@bastion-laptop>
-	 <46D4DBF7.7060102@yahoo.com.au>  <1188383827.11270.36.camel@bastion-laptop>
-	 <1188410818.9682.2.camel@bastion-laptop>  <46D66E31.9030202@yahoo.com.au>
-	 <49e98fc50708301641h16b8dc6fsce7a4b4dadf9ec60@mail.gmail.com>
-	 <49e98fc50708301650q611f9b0fi762f9c5d8d5fae01@mail.gmail.com>
-Content-Type: text/plain
-Date: Fri, 31 Aug 2007 09:40:04 -0700
-Message-Id: <1188578404.28903.258.camel@localhost>
+Date: Fri, 31 Aug 2007 13:02:16 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [-mm PATCH]  Memory controller improve user interface (v2)
+Message-Id: <20070831130216.226db806.akpm@linux-foundation.org>
+In-Reply-To: <20070830185246.3170.74806.sendpatchset@balbir-laptop>
+References: <20070830185246.3170.74806.sendpatchset@balbir-laptop>
 Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: jcabezas@ac.upc.edu
-Cc: Nick Piggin <nickpiggin@yahoo.com.au>, linux-mm@kvack.org
+To: Balbir Singh <balbir@linux.vnet.ibm.com>
+Cc: Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux Containers <containers@lists.osdl.org>, Paul Menage <menage@google.com>, Linux MM Mailing List <linux-mm@kvack.org>, David Rientjes <rientjes@google.com>, Dave Hansen <haveblue@us.ibm.com>
 List-ID: <linux-mm.kvack.org>
 
-Isn't the whole point of get_user_pages() so that the kernel doesn't
-mess with those pages, and the driver or whatever can have free reign?
+On Fri, 31 Aug 2007 00:22:46 +0530
+Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
 
-Seems to me that you're pinning the pages with get_user_pages(), then
-trying to get the kernel to swap them out.  Not a good idea. ;)
+> +/*
+> + * Strategy routines for formating read/write data
+> + */
+> +int mem_container_read_strategy(unsigned long long val, char *buf)
+> +{
+> +	return sprintf(buf, "%llu Bytes\n", val);
+> +}
 
--- Dave
+It's a bit cheesy to be printing the units like this.  It's better to just
+print the raw number.
+
+If you really want to remind the user what units that number is in (not a
+bad idea) then it can be encoded in the filename, like
+/proc/sys/vm/min_free_kbytes, /proc/sys/vm/dirty_expire_centisecs, etc.
+
+
+> +int mem_container_write_strategy(char *buf, unsigned long long *tmp)
+> +{
+> +	*tmp = memparse(buf, &buf);
+> +	if (*buf != '\0')
+> +		return -EINVAL;
+> +
+> +	printk("tmp is %llu\n", *tmp);
+
+don't think we want that.
+
+> +	/*
+> +	 * Round up the value to the closest page size
+> +	 */
+> +	*tmp = ((*tmp + PAGE_SIZE - 1) >> PAGE_SHIFT) << PAGE_SHIFT;
+> +	return 0;
+> +}
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
