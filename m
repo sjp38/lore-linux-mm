@@ -1,595 +1,372 @@
 From: Mel Gorman <mel@csn.ul.ie>
-Message-Id: <20070831205259.22283.55263.sendpatchset@skynet.skynet.ie>
+Message-Id: <20070831205319.22283.45590.sendpatchset@skynet.skynet.ie>
 In-Reply-To: <20070831205139.22283.71284.sendpatchset@skynet.skynet.ie>
 References: <20070831205139.22283.71284.sendpatchset@skynet.skynet.ie>
-Subject: [PATCH 4/6] Filter based on a nodemask as well as a gfp_mask
-Date: Fri, 31 Aug 2007 21:52:59 +0100 (IST)
+Subject: [PATCH 5/6] Use one zonelist that is filtered by nodemask
+Date: Fri, 31 Aug 2007 21:53:19 +0100 (IST)
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Lee.Schermerhorn@hp.com, ak@suse.de, clameter@sgi.com
 Cc: Mel Gorman <mel@csn.ul.ie>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-The MPOL_BIND policy creates a zonelist that is used for allocations belonging
-to that thread that can use the policy_zone. As the zonelist is already being
-filtered based on a zone id, this patch adds a version of __alloc_pages()
-that takes a nodemask for further filtering. This eliminates the need for
-MPOL_BIND to create a custom zonelist. The practical upside of this is that
-allocations using MPOL_BIND should now use nodes closer to the running CPU
-first instead of using nodes in numeric order.
+Two zonelists exist so that GFP_THISNODE allocations will be guaranteed to use
+memory only from a node local to the CPU. As we can filter the zonelist based
+on a nodemask, we can filter the node slightly different when GFP_THISNODE
+is specified.
+
+When GFP_THISNODE is used, a temporary nodemask is created with only the
+node local to the CPU set. This eliminates the need for having two zonelists.
 
 Signed-off-by: Mel Gorman <mel@csn.ul.ie>
 ---
 
- fs/buffer.c               |    2 
- include/linux/cpuset.h    |    4 -
- include/linux/gfp.h       |    4 +
- include/linux/mempolicy.h |    3 
- include/linux/mmzone.h    |   61 ++++++++++++++---
- kernel/cpuset.c           |   19 +----
- mm/mempolicy.c            |  144 +++++++++++------------------------------
- mm/page_alloc.c           |   40 +++++++----
- 8 files changed, 135 insertions(+), 142 deletions(-)
+ drivers/char/sysrq.c      |    2 -
+ fs/buffer.c               |    5 +--
+ include/linux/gfp.h       |   23 +++-------------
+ include/linux/mempolicy.h |    2 -
+ include/linux/mmzone.h    |   14 ----------
+ mm/mempolicy.c            |    8 ++---
+ mm/page_alloc.c           |   57 +++++++++++++++++++++--------------------
+ mm/slab.c                 |    2 -
+ mm/slub.c                 |    2 -
+ 9 files changed, 46 insertions(+), 69 deletions(-)
 
-diff -rup -X /usr/src/patchset-0.6/bin//dontdiff linux-2.6.23-rc3-mm1-020_zoneid_zonelist/fs/buffer.c linux-2.6.23-rc3-mm1-030_filter_nodemask/fs/buffer.c
---- linux-2.6.23-rc3-mm1-020_zoneid_zonelist/fs/buffer.c	2007-08-31 16:55:11.000000000 +0100
-+++ linux-2.6.23-rc3-mm1-030_filter_nodemask/fs/buffer.c	2007-08-31 16:55:36.000000000 +0100
-@@ -376,7 +376,7 @@ static void free_more_memory(void)
+diff -rup -X /usr/src/patchset-0.6/bin//dontdiff linux-2.6.23-rc3-mm1-030_filter_nodemask/drivers/char/sysrq.c linux-2.6.23-rc3-mm1-040_use_one_zonelist/drivers/char/sysrq.c
+--- linux-2.6.23-rc3-mm1-030_filter_nodemask/drivers/char/sysrq.c	2007-08-31 16:54:56.000000000 +0100
++++ linux-2.6.23-rc3-mm1-040_use_one_zonelist/drivers/char/sysrq.c	2007-08-31 17:22:55.000000000 +0100
+@@ -270,7 +270,7 @@ static struct sysrq_key_op sysrq_term_op
+ 
+ static void moom_callback(struct work_struct *ignored)
+ {
+-	out_of_memory(node_zonelist(0, GFP_KERNEL), GFP_KERNEL, 0);
++	out_of_memory(node_zonelist(0), GFP_KERNEL, 0);
+ }
+ 
+ static DECLARE_WORK(moom_work, moom_callback);
+diff -rup -X /usr/src/patchset-0.6/bin//dontdiff linux-2.6.23-rc3-mm1-030_filter_nodemask/fs/buffer.c linux-2.6.23-rc3-mm1-040_use_one_zonelist/fs/buffer.c
+--- linux-2.6.23-rc3-mm1-030_filter_nodemask/fs/buffer.c	2007-08-31 16:55:36.000000000 +0100
++++ linux-2.6.23-rc3-mm1-040_use_one_zonelist/fs/buffer.c	2007-08-31 17:22:55.000000000 +0100
+@@ -375,11 +375,10 @@ static void free_more_memory(void)
+ 	yield();
  
  	for_each_online_node(nid) {
- 		zones = first_zones_zonelist(node_zonelist(nid, GFP_NOFS),
--			gfp_zone(GFP_NOFS));
-+			NULL, gfp_zone(GFP_NOFS));
+-		zones = first_zones_zonelist(node_zonelist(nid, GFP_NOFS),
++		zones = first_zones_zonelist(node_zonelist(nid),
+ 			NULL, gfp_zone(GFP_NOFS));
  		if (*zones)
- 			try_to_free_pages(node_zonelist(nid, GFP_NOFS), 0,
- 								GFP_NOFS);
-diff -rup -X /usr/src/patchset-0.6/bin//dontdiff linux-2.6.23-rc3-mm1-020_zoneid_zonelist/include/linux/cpuset.h linux-2.6.23-rc3-mm1-030_filter_nodemask/include/linux/cpuset.h
---- linux-2.6.23-rc3-mm1-020_zoneid_zonelist/include/linux/cpuset.h	2007-08-22 11:32:13.000000000 +0100
-+++ linux-2.6.23-rc3-mm1-030_filter_nodemask/include/linux/cpuset.h	2007-08-31 16:55:36.000000000 +0100
-@@ -27,7 +27,7 @@ void cpuset_init_current_mems_allowed(vo
- void cpuset_update_task_memory_state(void);
- #define cpuset_nodes_subset_current_mems_allowed(nodes) \
- 		nodes_subset((nodes), current->mems_allowed)
--int cpuset_zonelist_valid_mems_allowed(struct zonelist *zl);
-+int cpuset_nodemask_valid_mems_allowed(nodemask_t *nodemask);
- 
- extern int __cpuset_zone_allowed_softwall(struct zone *z, gfp_t gfp_mask);
- extern int __cpuset_zone_allowed_hardwall(struct zone *z, gfp_t gfp_mask);
-@@ -97,7 +97,7 @@ static inline void cpuset_init_current_m
- static inline void cpuset_update_task_memory_state(void) {}
- #define cpuset_nodes_subset_current_mems_allowed(nodes) (1)
- 
--static inline int cpuset_zonelist_valid_mems_allowed(struct zonelist *zl)
-+static inline int cpuset_nodemask_valid_mems_allowed(nodemask_t *nodemask)
- {
- 	return 1;
- }
-diff -rup -X /usr/src/patchset-0.6/bin//dontdiff linux-2.6.23-rc3-mm1-020_zoneid_zonelist/include/linux/gfp.h linux-2.6.23-rc3-mm1-030_filter_nodemask/include/linux/gfp.h
---- linux-2.6.23-rc3-mm1-020_zoneid_zonelist/include/linux/gfp.h	2007-08-31 16:54:56.000000000 +0100
-+++ linux-2.6.23-rc3-mm1-030_filter_nodemask/include/linux/gfp.h	2007-08-31 16:55:36.000000000 +0100
-@@ -185,6 +185,10 @@ static inline void arch_alloc_page(struc
- extern struct page *
- FASTCALL(__alloc_pages(gfp_t, unsigned int, struct zonelist *));
- 
-+extern struct page *
-+FASTCALL(__alloc_pages_nodemask(gfp_t, unsigned int,
-+				struct zonelist *, nodemask_t *nodemask));
-+
- static inline struct page *alloc_pages_node(int nid, gfp_t gfp_mask,
- 						unsigned int order)
- {
-diff -rup -X /usr/src/patchset-0.6/bin//dontdiff linux-2.6.23-rc3-mm1-020_zoneid_zonelist/include/linux/mempolicy.h linux-2.6.23-rc3-mm1-030_filter_nodemask/include/linux/mempolicy.h
---- linux-2.6.23-rc3-mm1-020_zoneid_zonelist/include/linux/mempolicy.h	2007-08-31 16:54:56.000000000 +0100
-+++ linux-2.6.23-rc3-mm1-030_filter_nodemask/include/linux/mempolicy.h	2007-08-31 16:55:36.000000000 +0100
-@@ -63,9 +63,8 @@ struct mempolicy {
- 	atomic_t refcnt;
- 	short policy; 	/* See MPOL_* above */
- 	union {
--		struct zonelist  *zonelist;	/* bind */
- 		short 		 preferred_node; /* preferred */
--		nodemask_t	 nodes;		/* interleave */
-+		nodemask_t	 nodes;		/* interleave/bind */
- 		/* undefined for default */
- 	} v;
- 	nodemask_t cpuset_mems_allowed;	/* mempolicy relative to these nodes */
-diff -rup -X /usr/src/patchset-0.6/bin//dontdiff linux-2.6.23-rc3-mm1-020_zoneid_zonelist/include/linux/mmzone.h linux-2.6.23-rc3-mm1-030_filter_nodemask/include/linux/mmzone.h
---- linux-2.6.23-rc3-mm1-020_zoneid_zonelist/include/linux/mmzone.h	2007-08-31 17:11:14.000000000 +0100
-+++ linux-2.6.23-rc3-mm1-030_filter_nodemask/include/linux/mmzone.h	2007-08-31 18:07:32.000000000 +0100
-@@ -718,14 +718,29 @@ static inline unsigned long encode_zone_
- 	return encoded;
+-			try_to_free_pages(node_zonelist(nid, GFP_NOFS), 0,
+-								GFP_NOFS);
++			try_to_free_pages(node_zonelist(nid), 0, GFP_NOFS);
+ 	}
  }
  
-+static inline int zone_in_nodemask(unsigned long zone_addr, nodemask_t *nodes)
-+{
-+#ifdef CONFIG_NUMA
-+	return node_isset(zonelist_zone(zone_addr)->node, *nodes);
-+#else
-+	return 1;
-+#endif /* CONFIG_NUMA */
-+}
-+
- /* Returns the first zone at or below highest_zoneidx in a zonelist */
- static inline unsigned long *first_zones_zonelist(struct zonelist *zonelist,
-+					nodemask_t *nodes,
- 					enum zone_type highest_zoneidx)
- {
--	unsigned long *z;
-+	unsigned long *z = zonelist->_zones;
- 
--	for (z = zonelist->_zones;
--			zonelist_zone_idx(*z) > highest_zoneidx;
-+	if (likely(nodes == NULL))
-+		for (; zonelist_zone_idx(*z) > highest_zoneidx;
-+			z++)
-+		;
-+	else
-+		for (; zonelist_zone_idx(*z) > highest_zoneidx ||
-+				!zone_in_nodemask(*z, nodes);
- 			z++)
- 		;
- 
-@@ -734,31 +749,55 @@ static inline unsigned long *first_zones
- 
- /* Returns the next zone at or below highest_zoneidx in a zonelist */
- static inline unsigned long *next_zones_zonelist(unsigned long *z,
-+					nodemask_t *nodes,
- 					enum zone_type highest_zoneidx)
- {
--	/* Find the next suitable zone to use for the allocation */
--	for (; zonelist_zone_idx(*z) > highest_zoneidx; z++)
--		;
-+	/*
-+	 * Find the next suitable zone to use for the allocation.
-+	 * Only filter based on nodemask if it's set
-+	 */
-+	if (likely(nodes == NULL))
-+		for (; zonelist_zone_idx(*z) > highest_zoneidx; z++)
-+			;
-+	else
-+		for (; zonelist_zone_idx(*z) > highest_zoneidx ||
-+					!zone_in_nodemask(*z, nodes);
-+			z++)
-+			;
- 
- 	return z;
- }
- 
- /**
-- * for_each_zone_zonelist - helper macro to iterate over valid zones in a zonelist at or below a given zone index
-+ * for_each_zone_zonelist_nodemask - helper macro to iterate over valid zones in a zonelist at or below a given zone index and within a nodemask
-  * @zone - The current zone in the iterator
-  * @z - The current pointer within zonelist->zones being iterated
-  * @zlist - The zonelist being iterated
-  * @highidx - The zone index of the highest zone to return
-+ * @nodemask - Nodemask allowed by the allocator
-  *
-- * This iterator iterates though all zones at or below a given zone index.
-+ * This iterator iterates though all zones at or below a given zone index and
-+ * within a given nodemask
+diff -rup -X /usr/src/patchset-0.6/bin//dontdiff linux-2.6.23-rc3-mm1-030_filter_nodemask/include/linux/gfp.h linux-2.6.23-rc3-mm1-040_use_one_zonelist/include/linux/gfp.h
+--- linux-2.6.23-rc3-mm1-030_filter_nodemask/include/linux/gfp.h	2007-08-31 16:55:36.000000000 +0100
++++ linux-2.6.23-rc3-mm1-040_use_one_zonelist/include/linux/gfp.h	2007-08-31 17:22:55.000000000 +0100
+@@ -150,29 +150,16 @@ static inline gfp_t set_migrateflags(gfp
+  * virtual kernel addresses to the allocated page(s).
   */
--#define for_each_zone_zonelist(zone, z, zlist, highidx) \
--	for (z = first_zones_zonelist(zlist, highidx),			\
-+#define for_each_zone_zonelist_nodemask(zone, z, zlist, highidx, nodemask) \
-+	for (z = first_zones_zonelist(zlist, nodemask, highidx),	\
- 					zone = zonelist_zone(*z++);	\
- 		zone;							\
--		z = next_zones_zonelist(z, highidx),			\
-+		z = next_zones_zonelist(z, nodemask, highidx),		\
- 					zone = zonelist_zone(*z++))
  
-+/**
-+ * for_each_zone_zonelist - helper macro to iterate over valid zones in a zonelist at or below a given zone index
-+ * @zone - The current zone in the iterator
-+ * @z - The current pointer within zonelist->zones being iterated
-+ * @zlist - The zonelist being iterated
-+ * @highidx - The zone index of the highest zone to return
-+ *
-+ * This iterator iterates though all zones at or below a given zone index.
-+ */
-+#define for_each_zone_zonelist(zone, z, zlist, highidx) \
-+	for_each_zone_zonelist_nodemask(zone, z, zlist, highidx, NULL)
-+
- #ifdef CONFIG_SPARSEMEM
- #include <asm/sparsemem.h>
+-static inline enum zone_type gfp_zonelist(gfp_t flags)
+-{
+-	int base = 0;
+-
+-#ifdef CONFIG_NUMA
+-	if (flags & __GFP_THISNODE)
+-		base = 1;
+-#endif
+-
+-	return base;
+-}
+-
+ /*
+- * We get the zone list from the current node and the gfp_mask.
+- * This zonelist contains two zonelists, one for all zones with memory and
+- * one containing just zones from the node the zonelist belongs to
++ * We get the zone list from the current node and the list of zones
++ * is filtered based on the GFP flags
+  *
+  * For the normal case of non-DISCONTIGMEM systems the NODE_DATA() gets
+  * optimized to &contig_page_data at compile-time.
+  */
+-static inline struct zonelist *node_zonelist(int nid, gfp_t flags)
++static inline struct zonelist *node_zonelist(int nid)
+ {
+-	return NODE_DATA(nid)->node_zonelists + gfp_zonelist(flags);
++	return &NODE_DATA(nid)->node_zonelist;
+ }
+ 
+ #ifndef HAVE_ARCH_FREE_PAGE
+@@ -199,7 +186,7 @@ static inline struct page *alloc_pages_n
+ 	if (nid < 0)
+ 		nid = numa_node_id();
+ 
+-	return __alloc_pages(gfp_mask, order, node_zonelist(nid, gfp_mask));
++	return __alloc_pages(gfp_mask, order, node_zonelist(nid));
+ }
+ 
+ #ifdef CONFIG_NUMA
+diff -rup -X /usr/src/patchset-0.6/bin//dontdiff linux-2.6.23-rc3-mm1-030_filter_nodemask/include/linux/mempolicy.h linux-2.6.23-rc3-mm1-040_use_one_zonelist/include/linux/mempolicy.h
+--- linux-2.6.23-rc3-mm1-030_filter_nodemask/include/linux/mempolicy.h	2007-08-31 16:55:36.000000000 +0100
++++ linux-2.6.23-rc3-mm1-040_use_one_zonelist/include/linux/mempolicy.h	2007-08-31 17:22:55.000000000 +0100
+@@ -239,7 +239,7 @@ static inline void mpol_fix_fork_child_f
+ static inline struct zonelist *huge_zonelist(struct vm_area_struct *vma,
+ 		unsigned long addr, gfp_t gfp_flags)
+ {
+-	return node_zonelist(0, gfp_flags);
++	return node_zonelist(0);
+ }
+ 
+ static inline int do_migrate_pages(struct mm_struct *mm,
+diff -rup -X /usr/src/patchset-0.6/bin//dontdiff linux-2.6.23-rc3-mm1-030_filter_nodemask/include/linux/mmzone.h linux-2.6.23-rc3-mm1-040_use_one_zonelist/include/linux/mmzone.h
+--- linux-2.6.23-rc3-mm1-030_filter_nodemask/include/linux/mmzone.h	2007-08-31 18:07:32.000000000 +0100
++++ linux-2.6.23-rc3-mm1-040_use_one_zonelist/include/linux/mmzone.h	2007-08-31 18:06:59.000000000 +0100
+@@ -356,17 +356,6 @@ struct zone {
+ #define MAX_ZONES_PER_ZONELIST (MAX_NUMNODES * MAX_NR_ZONES)
+ 
+ #ifdef CONFIG_NUMA
+-
+-/*
+- * The NUMA zonelists are doubled becausse we need zonelists that restrict the
+- * allocations to a single node for GFP_THISNODE.
+- *
+- * [0]	: Zonelists with fallback
+- * [1]	: No fallback (GFP_THISNODE)
+- */
+-#define MAX_ZONELISTS (2)
+-
+-
+ /*
+  * We cache key information from each zonelist for smaller cache
+  * footprint when scanning for free pages in get_page_from_freelist().
+@@ -432,7 +421,6 @@ struct zonelist_cache {
+ 	unsigned long last_full_zap;		/* when last zap'd (jiffies) */
+ };
+ #else
+-#define MAX_ZONELISTS 1
+ struct zonelist_cache;
  #endif
-diff -rup -X /usr/src/patchset-0.6/bin//dontdiff linux-2.6.23-rc3-mm1-020_zoneid_zonelist/kernel/cpuset.c linux-2.6.23-rc3-mm1-030_filter_nodemask/kernel/cpuset.c
---- linux-2.6.23-rc3-mm1-020_zoneid_zonelist/kernel/cpuset.c	2007-08-31 16:55:11.000000000 +0100
-+++ linux-2.6.23-rc3-mm1-030_filter_nodemask/kernel/cpuset.c	2007-08-31 16:59:31.000000000 +0100
-@@ -1503,22 +1503,17 @@ nodemask_t cpuset_mems_allowed(struct ta
- }
  
- /**
-- * cpuset_zonelist_valid_mems_allowed - check zonelist vs. curremt mems_allowed
-- * @zl: the zonelist to be checked
-+ * cpuset_nodemask_valid_mems_allowed - check nodemask vs. curremt mems_allowed
-+ * @nodemask: the nodemask to be checked
-  *
-- * Are any of the nodes on zonelist zl allowed in current->mems_allowed?
-+ * Are any of the nodes in the nodemask allowed in current->mems_allowed?
-  */
--int cpuset_zonelist_valid_mems_allowed(struct zonelist *zl)
-+int cpuset_nodemask_valid_mems_allowed(nodemask_t *nodemask)
- {
--	int i;
-+	int nid;
-+	nodemask_t tmp;
- 
--	for (i = 0; zl->_zones[i]; i++) {
--		int nid = zone_to_nid(zonelist_zone(zl->_zones[i]));
--
--		if (node_isset(nid, current->mems_allowed))
--			return 1;
--	}
--	return 0;
-+	return nodes_intersect(nodemask, current->mems_allowed);
- }
- 
- /*
-diff -rup -X /usr/src/patchset-0.6/bin//dontdiff linux-2.6.23-rc3-mm1-020_zoneid_zonelist/mm/mempolicy.c linux-2.6.23-rc3-mm1-030_filter_nodemask/mm/mempolicy.c
---- linux-2.6.23-rc3-mm1-020_zoneid_zonelist/mm/mempolicy.c	2007-08-31 16:55:11.000000000 +0100
-+++ linux-2.6.23-rc3-mm1-030_filter_nodemask/mm/mempolicy.c	2007-08-31 16:55:36.000000000 +0100
-@@ -134,41 +134,21 @@ static int mpol_check_policy(int mode, n
-  	return nodes_subset(*nodes, node_states[N_HIGH_MEMORY]) ? 0 : -EINVAL;
- }
- 
--/* Generate a custom zonelist for the BIND policy. */
--static struct zonelist *bind_zonelist(nodemask_t *nodes)
-+/* Check that the nodemask contains at least one populated zone */
-+static int is_valid_nodemask(nodemask_t *nodemask)
- {
--	struct zonelist *zl;
--	int num, max, nd;
--	enum zone_type k;
-+	int nd, k;
- 
--	max = 1 + MAX_NR_ZONES * nodes_weight(*nodes);
--	max++;			/* space for zlcache_ptr (see mmzone.h) */
--	zl = kmalloc(sizeof(struct zone *) * max, GFP_KERNEL);
--	if (!zl)
--		return ERR_PTR(-ENOMEM);
--	zl->zlcache_ptr = NULL;
--	num = 0;
--	/* First put in the highest zones from all nodes, then all the next 
--	   lower zones etc. Avoid empty zones because the memory allocator
--	   doesn't like them. If you implement node hot removal you
--	   have to fix that. */
--	k = MAX_NR_ZONES - 1;
--	while (1) {
--		for_each_node_mask(nd, *nodes) { 
--			struct zone *z = &NODE_DATA(nd)->node_zones[k];
--			if (z->present_pages > 0) 
--				zl->_zones[num++] = encode_zone_idx(z);
--		}
--		if (k == 0)
--			break;
--		k--;
--	}
--	if (num == 0) {
--		kfree(zl);
--		return ERR_PTR(-EINVAL);
-+	/* Check that there is something useful in this mask */
-+	k = policy_zone;
-+
-+	for_each_node_mask(nd, *nodemask) {
-+		struct zone *z = &NODE_DATA(nd)->node_zones[k];
-+		if (z->present_pages > 0)
-+			return 1;
+@@ -488,7 +476,7 @@ extern struct page *mem_map;
+ struct bootmem_data;
+ typedef struct pglist_data {
+ 	struct zone node_zones[MAX_NR_ZONES];
+-	struct zonelist node_zonelists[MAX_ZONELISTS];
++	struct zonelist node_zonelist;
+ 	int nr_zones;
+ #ifdef CONFIG_FLAT_NODE_MEM_MAP
+ 	struct page *node_mem_map;
+diff -rup -X /usr/src/patchset-0.6/bin//dontdiff linux-2.6.23-rc3-mm1-030_filter_nodemask/mm/mempolicy.c linux-2.6.23-rc3-mm1-040_use_one_zonelist/mm/mempolicy.c
+--- linux-2.6.23-rc3-mm1-030_filter_nodemask/mm/mempolicy.c	2007-08-31 16:55:36.000000000 +0100
++++ linux-2.6.23-rc3-mm1-040_use_one_zonelist/mm/mempolicy.c	2007-08-31 17:22:55.000000000 +0100
+@@ -1109,7 +1109,7 @@ static struct zonelist *zonelist_policy(
+ 		nd = 0;
+ 		BUG();
  	}
--	zl->_zones[num] = 0;
--	return zl;
-+
-+	return 0;
+-	return node_zonelist(nd, gfp);
++	return node_zonelist(nd);
  }
  
- /* Create a new policy */
-@@ -201,12 +181,11 @@ static struct mempolicy *mpol_new(int mo
- 			policy->v.preferred_node = -1;
- 		break;
- 	case MPOL_BIND:
--		policy->v.zonelist = bind_zonelist(nodes);
--		if (IS_ERR(policy->v.zonelist)) {
--			void *error_code = policy->v.zonelist;
-+		if (!is_valid_nodemask(nodes)) {
- 			kmem_cache_free(policy_cache, policy);
--			return error_code;
-+			return ERR_PTR(-EINVAL);
- 		}
-+		policy->v.nodes = *nodes;
- 		break;
- 	}
- 	policy->policy = mode;
-@@ -484,19 +463,13 @@ static long do_set_mempolicy(int mode, n
- /* Fill a zone bitmap for a policy */
- static void get_zonemask(struct mempolicy *p, nodemask_t *nodes)
- {
--	int i;
- 
- 	nodes_clear(*nodes);
- 	switch (p->policy) {
--	case MPOL_BIND:
--		for (i = 0; p->v.zonelist->_zones[i]; i++) {
--			struct zone *zone;
--			zone = zonelist_zone(p->v.zonelist->_zones[i]);
--			node_set(zone_to_nid(zone), *nodes);
--		}
--		break;
- 	case MPOL_DEFAULT:
- 		break;
-+	case MPOL_BIND:
-+		/* Fall through */
- 	case MPOL_INTERLEAVE:
- 		*nodes = p->v.nodes;
- 		break;
-@@ -1103,6 +1076,18 @@ static struct mempolicy * get_vma_policy
- 	return pol;
- }
- 
-+/* Return a nodemask representing a mempolicy */
-+static inline nodemask_t *nodemask_policy(gfp_t gfp, struct mempolicy *policy)
-+{
-+	/* Lower zones don't get a nodemask applied for MPOL_BIND */
-+	if (unlikely(policy->policy == MPOL_BIND &&
-+			gfp_zone(gfp) >= policy_zone &&
-+			cpuset_nodemask_valid_mems_allowed(&policy->v.nodes)))
-+		return &policy->v.nodes;
-+
-+	return NULL;
-+}
-+
- /* Return a zonelist representing a mempolicy */
- static struct zonelist *zonelist_policy(gfp_t gfp, struct mempolicy *policy)
- {
-@@ -1115,11 +1100,6 @@ static struct zonelist *zonelist_policy(
- 			nd = numa_node_id();
- 		break;
- 	case MPOL_BIND:
--		/* Lower zones don't get a policy applied */
--		/* Careful: current->mems_allowed might have moved */
--		if (gfp_zone(gfp) >= policy_zone)
--			if (cpuset_zonelist_valid_mems_allowed(policy->v.zonelist))
--				return policy->v.zonelist;
- 		/*FALL THROUGH*/
- 	case MPOL_INTERLEAVE: /* should not happen */
- 	case MPOL_DEFAULT:
-@@ -1164,8 +1144,12 @@ unsigned slab_node(struct mempolicy *pol
- 		 * first node.
- 		 */
+ /* Do dynamic interleaving for a process */
+@@ -1146,7 +1146,7 @@ unsigned slab_node(struct mempolicy *pol
  		struct zonelist *zonelist;
--		zonelist = policy->v.zonelist;
--		return zone_to_nid(zonelist_zone(zonelist->_zones[0]));
-+		unsigned long *z;
-+		enum zone_type highest_zoneidx = gfp_zone(GFP_KERNEL);
-+		zonelist = &NODE_DATA(numa_node_id())->node_zonelists[0];
-+		z = first_zones_zonelist(zonelist, &policy->v.nodes,
-+							highest_zoneidx);
-+		return zone_to_nid(zonelist_zone(*z));
- 	}
+ 		unsigned long *z;
+ 		enum zone_type highest_zoneidx = gfp_zone(GFP_KERNEL);
+-		zonelist = &NODE_DATA(numa_node_id())->node_zonelists[0];
++		zonelist = &NODE_DATA(numa_node_id())->node_zonelist;
+ 		z = first_zones_zonelist(zonelist, &policy->v.nodes,
+ 							highest_zoneidx);
+ 		return zone_to_nid(zonelist_zone(*z));
+@@ -1212,7 +1212,7 @@ struct zonelist *huge_zonelist(struct vm
+ 		unsigned nid;
  
- 	case MPOL_PREFERRED:
-@@ -1284,7 +1268,8 @@ alloc_page_vma(gfp_t gfp, struct vm_area
- 		nid = interleave_nid(pol, vma, addr, PAGE_SHIFT);
- 		return alloc_page_interleave(gfp, 0, nid);
+ 		nid = interleave_nid(pol, vma, addr, HPAGE_SHIFT);
+-		return node_zonelist(nid, gfp_flags);
++		return node_zonelist(nid);
  	}
--	return __alloc_pages(gfp, 0, zonelist_policy(gfp, pol));
-+	return __alloc_pages_nodemask(gfp, 0,
-+			zonelist_policy(gfp, pol), nodemask_policy(gfp, pol));
+ 	return zonelist_policy(GFP_HIGHUSER, pol);
  }
+@@ -1226,7 +1226,7 @@ static struct page *alloc_page_interleav
+ 	struct zonelist *zl;
+ 	struct page *page;
  
- /**
-@@ -1341,14 +1326,6 @@ struct mempolicy *__mpol_copy(struct mem
- 	}
- 	*new = *old;
- 	atomic_set(&new->refcnt, 1);
--	if (new->policy == MPOL_BIND) {
--		int sz = ksize(old->v.zonelist);
--		new->v.zonelist = kmemdup(old->v.zonelist, sz, GFP_KERNEL);
--		if (!new->v.zonelist) {
--			kmem_cache_free(policy_cache, new);
--			return ERR_PTR(-ENOMEM);
--		}
--	}
- 	return new;
- }
- 
-@@ -1362,21 +1339,12 @@ int __mpol_equal(struct mempolicy *a, st
- 	switch (a->policy) {
- 	case MPOL_DEFAULT:
- 		return 1;
-+	case MPOL_BIND:
-+		/* Fall through */
- 	case MPOL_INTERLEAVE:
- 		return nodes_equal(a->v.nodes, b->v.nodes);
- 	case MPOL_PREFERRED:
- 		return a->v.preferred_node == b->v.preferred_node;
--	case MPOL_BIND: {
--		int i;
--		for (i = 0; a->v.zonelist->_zones[i]; i++) {
--			struct zone *za, *zb;
--			za = zonelist_zone(a->v.zonelist->_zones[i]);
--			zb = zonelist_zone(b->v.zonelist->_zones[i]);
--			if (za != zb)
--				return 0;
--		}
--		return b->v.zonelist->_zones[i] == 0;
--	}
- 	default:
- 		BUG();
- 		return 0;
-@@ -1388,8 +1356,6 @@ void __mpol_free(struct mempolicy *p)
- {
- 	if (!atomic_dec_and_test(&p->refcnt))
- 		return;
--	if (p->policy == MPOL_BIND)
--		kfree(p->v.zonelist);
- 	p->policy = MPOL_DEFAULT;
- 	kmem_cache_free(policy_cache, p);
- }
-@@ -1680,6 +1646,8 @@ static void mpol_rebind_policy(struct me
- 	switch (pol->policy) {
- 	case MPOL_DEFAULT:
- 		break;
-+	case MPOL_BIND:
-+		/* Fall through */
- 	case MPOL_INTERLEAVE:
- 		nodes_remap(tmp, pol->v.nodes, *mpolmask, *newmask);
- 		pol->v.nodes = tmp;
-@@ -1692,32 +1660,6 @@ static void mpol_rebind_policy(struct me
- 						*mpolmask, *newmask);
- 		*mpolmask = *newmask;
- 		break;
--	case MPOL_BIND: {
--		nodemask_t nodes;
--		unsigned long *z;
--		struct zonelist *zonelist;
--
--		nodes_clear(nodes);
--		for (z = pol->v.zonelist->_zones; *z; z++)
--			node_set(zone_to_nid(zonelist_zone(*z)), nodes);
--		nodes_remap(tmp, nodes, *mpolmask, *newmask);
--		nodes = tmp;
--
--		zonelist = bind_zonelist(&nodes);
--
--		/* If no mem, then zonelist is NULL and we keep old zonelist.
--		 * If that old zonelist has no remaining mems_allowed nodes,
--		 * then zonelist_policy() will "FALL THROUGH" to MPOL_DEFAULT.
--		 */
--
--		if (!IS_ERR(zonelist)) {
--			/* Good - got mem - substitute new zonelist */
--			kfree(pol->v.zonelist);
--			pol->v.zonelist = zonelist;
--		}
--		*mpolmask = *newmask;
--		break;
--	}
- 	default:
- 		BUG();
- 		break;
-@@ -1780,9 +1722,7 @@ static inline int mpol_to_str(char *buff
- 		break;
- 
- 	case MPOL_BIND:
--		get_zonemask(pol, &nodes);
--		break;
--
-+		/* Fall through */
- 	case MPOL_INTERLEAVE:
- 		nodes = pol->v.nodes;
- 		break;
-diff -rup -X /usr/src/patchset-0.6/bin//dontdiff linux-2.6.23-rc3-mm1-020_zoneid_zonelist/mm/page_alloc.c linux-2.6.23-rc3-mm1-030_filter_nodemask/mm/page_alloc.c
---- linux-2.6.23-rc3-mm1-020_zoneid_zonelist/mm/page_alloc.c	2007-08-31 16:55:11.000000000 +0100
-+++ linux-2.6.23-rc3-mm1-030_filter_nodemask/mm/page_alloc.c	2007-08-31 16:55:36.000000000 +0100
-@@ -1417,7 +1417,7 @@ static void zlc_mark_zone_full(struct zo
-  * a page.
-  */
- static struct page *
--get_page_from_freelist(gfp_t gfp_mask, unsigned int order,
-+get_page_from_freelist(gfp_t gfp_mask, nodemask_t *nodemask, unsigned int order,
- 		struct zonelist *zonelist, int high_zoneidx, int alloc_flags)
- {
- 	unsigned long *z;
-@@ -1428,7 +1428,7 @@ get_page_from_freelist(gfp_t gfp_mask, u
- 	int zlc_active = 0;		/* set if using zonelist_cache */
- 	int did_zlc_setup = 0;		/* just call zlc_setup() one time */
- 
--	z = first_zones_zonelist(zonelist, high_zoneidx);
-+	z = first_zones_zonelist(zonelist, nodemask, high_zoneidx);
- 	classzone_idx = zonelist_zone_idx(*z);
- 
- zonelist_scan:
-@@ -1436,7 +1436,8 @@ zonelist_scan:
- 	 * Scan zonelist, looking for a zone with enough free.
- 	 * See also cpuset_zone_allowed() comment in kernel/cpuset.c.
- 	 */
--	for_each_zone_zonelist(zone, z, zonelist, high_zoneidx) {
-+	for_each_zone_zonelist_nodemask(zone, z, zonelist,
-+						high_zoneidx, nodemask) {
- 		if (NUMA_BUILD && zlc_active &&
- 			!zlc_zone_worth_trying(zonelist, z, allowednodes))
- 				continue;
-@@ -1542,9 +1543,9 @@ static void set_page_owner(struct page *
- /*
-  * This is the 'heart' of the zoned buddy allocator.
-  */
--struct page * fastcall
--__alloc_pages(gfp_t gfp_mask, unsigned int order,
--		struct zonelist *zonelist)
-+static struct page *
-+__alloc_pages_internal(gfp_t gfp_mask, unsigned int order,
-+			struct zonelist *zonelist, nodemask_t *nodemask)
- {
- 	const gfp_t wait = gfp_mask & __GFP_WAIT;
- 	enum zone_type high_zoneidx = gfp_zone(gfp_mask);
-@@ -1573,7 +1574,7 @@ restart:
- 		return NULL;
- 	}
- 
--	page = get_page_from_freelist(gfp_mask|__GFP_HARDWALL, order,
-+	page = get_page_from_freelist(gfp_mask|__GFP_HARDWALL, nodemask, order,
- 			zonelist, high_zoneidx, ALLOC_WMARK_LOW|ALLOC_CPUSET);
- 	if (page)
- 		goto got_pg;
-@@ -1618,7 +1619,7 @@ restart:
- 	 * Ignore cpuset if GFP_ATOMIC (!wait) rather than fail alloc.
- 	 * See also cpuset_zone_allowed() comment in kernel/cpuset.c.
- 	 */
--	page = get_page_from_freelist(gfp_mask, order, zonelist,
-+	page = get_page_from_freelist(gfp_mask, nodemask, order, zonelist,
- 						high_zoneidx, alloc_flags);
- 	if (page)
- 		goto got_pg;
-@@ -1631,7 +1632,7 @@ rebalance:
- 		if (!(gfp_mask & __GFP_NOMEMALLOC)) {
- nofail_alloc:
- 			/* go through the zonelist yet again, ignoring mins */
--			page = get_page_from_freelist(gfp_mask, order,
-+			page = get_page_from_freelist(gfp_mask, nodemask, order,
- 				zonelist, high_zoneidx, ALLOC_NO_WATERMARKS);
- 			if (page)
- 				goto got_pg;
-@@ -1666,7 +1667,7 @@ nofail_alloc:
- 		drain_all_local_pages();
- 
- 	if (likely(did_some_progress)) {
--		page = get_page_from_freelist(gfp_mask, order,
-+		page = get_page_from_freelist(gfp_mask, nodemask, order,
- 					zonelist, high_zoneidx, alloc_flags);
- 		if (page)
- 			goto got_pg;
-@@ -1677,8 +1678,9 @@ nofail_alloc:
- 		 * a parallel oom killing, we must fail if we're still
- 		 * under heavy pressure.
- 		 */
--		page = get_page_from_freelist(gfp_mask|__GFP_HARDWALL, order,
--			zonelist, high_zoneidx, ALLOC_WMARK_HIGH|ALLOC_CPUSET);
-+		page = get_page_from_freelist(gfp_mask|__GFP_HARDWALL, nodemask,
-+			order, zonelist, high_zoneidx,
-+			ALLOC_WMARK_HIGH|ALLOC_CPUSET);
- 		if (page)
- 			goto got_pg;
- 
-@@ -1726,6 +1728,20 @@ got_pg:
+-	zl = node_zonelist(nid, gfp);
++	zl = node_zonelist(nid);
+ 	page = __alloc_pages(gfp, order, zl);
+ 	if (page && page_zone(page) == zonelist_zone(zl->_zones[0]))
+ 		inc_zone_page_state(page, NUMA_INTERLEAVE_HIT);
+diff -rup -X /usr/src/patchset-0.6/bin//dontdiff linux-2.6.23-rc3-mm1-030_filter_nodemask/mm/page_alloc.c linux-2.6.23-rc3-mm1-040_use_one_zonelist/mm/page_alloc.c
+--- linux-2.6.23-rc3-mm1-030_filter_nodemask/mm/page_alloc.c	2007-08-31 16:55:36.000000000 +0100
++++ linux-2.6.23-rc3-mm1-040_use_one_zonelist/mm/page_alloc.c	2007-08-31 17:22:55.000000000 +0100
+@@ -1728,10 +1728,29 @@ got_pg:
  	return page;
  }
  
-+struct page * fastcall
-+__alloc_pages(gfp_t gfp_mask, unsigned int order,
-+		struct zonelist *zonelist)
++static nodemask_t *nodemask_thisnode(nodemask_t *nodemask)
 +{
-+	return __alloc_pages_internal(gfp_mask, order, zonelist, NULL);
++	/* Build a nodemask for just this node */
++	int nid = numa_node_id();
++
++	nodes_clear(*nodemask);
++	node_set(nid, *nodemask);
++
++	return nodemask;
 +}
 +
-+struct page * fastcall
-+__alloc_pages_nodemask(gfp_t gfp_mask, unsigned int order,
-+		struct zonelist *zonelist, nodemask_t *nodemask)
-+{
-+	return __alloc_pages_internal(gfp_mask, order, zonelist, nodemask);
-+}
+ struct page * fastcall
+ __alloc_pages(gfp_t gfp_mask, unsigned int order,
+ 		struct zonelist *zonelist)
+ {
++	/* Use a temporary nodemask for __GFP_THISNODE allocations */
++	if (unlikely(gfp_mask & __GFP_THISNODE)) {
++		nodemask_t nodemask;
 +
- EXPORT_SYMBOL(__alloc_pages);
++		return __alloc_pages_internal(gfp_mask, order,
++				zonelist, nodemask_thisnode(&nodemask));
++	}
++
+ 	return __alloc_pages_internal(gfp_mask, order, zonelist, NULL);
+ }
+ 
+@@ -1739,6 +1758,9 @@ struct page * fastcall
+ __alloc_pages_nodemask(gfp_t gfp_mask, unsigned int order,
+ 		struct zonelist *zonelist, nodemask_t *nodemask)
+ {
++	/* Specifying both __GFP_THISNODE and nodemask is stupid. Warn user */
++	WARN_ON(gfp_mask & __GFP_THISNODE);
++
+ 	return __alloc_pages_internal(gfp_mask, order, zonelist, nodemask);
+ }
+ 
+@@ -1814,7 +1836,7 @@ static unsigned int nr_free_zone_pages(i
+ 
+ 	/* Just pick one node, since fallback list is circular */
+ 	unsigned int sum = 0;
+-	struct zonelist *zonelist = node_zonelist(numa_node_id(), GFP_KERNEL);
++	struct zonelist *zonelist = node_zonelist(numa_node_id());
+ 
+ 	for_each_zone_zonelist(zone, z, zonelist, high_zoneidx) {
+ 		unsigned long size = zone->present_pages;
+@@ -2187,7 +2209,7 @@ static void build_zonelists_in_node_orde
+ 	int j;
+ 	struct zonelist *zonelist;
+ 
+-	zonelist = &pgdat->node_zonelists[0];
++	zonelist = &pgdat->node_zonelist;
+ 	for (j = 0; zonelist->_zones[j] != 0; j++)
+ 		;
+ 	j = build_zonelists_node(NODE_DATA(node), zonelist, j,
+@@ -2196,19 +2218,6 @@ static void build_zonelists_in_node_orde
+ }
  
  /*
+- * Build gfp_thisnode zonelists
+- */
+-static void build_thisnode_zonelists(pg_data_t *pgdat)
+-{
+-	int j;
+-	struct zonelist *zonelist;
+-
+-	zonelist = &pgdat->node_zonelists[1];
+-	j = build_zonelists_node(pgdat, zonelist, 0, MAX_NR_ZONES - 1);
+-	zonelist->_zones[j] = 0;
+-}
+-
+-/*
+  * Build zonelists ordered by zone and nodes within zones.
+  * This results in conserving DMA zone[s] until all Normal memory is
+  * exhausted, but results in overflowing to remote node while memory
+@@ -2223,7 +2232,7 @@ static void build_zonelists_in_zone_orde
+ 	struct zone *z;
+ 	struct zonelist *zonelist;
+ 
+-	zonelist = &pgdat->node_zonelists[0];
++	zonelist = &pgdat->node_zonelist;
+ 	pos = 0;
+ 	for (zone_type = MAX_NR_ZONES - 1; zone_type >= 0; zone_type--) {
+ 		for (j = 0; j < nr_nodes; j++) {
+@@ -2303,17 +2312,14 @@ static void set_zonelist_order(void)
+ static void build_zonelists(pg_data_t *pgdat)
+ {
+ 	int j, node, load;
+-	enum zone_type i;
+ 	nodemask_t used_mask;
+ 	int local_node, prev_node;
+ 	struct zonelist *zonelist;
+ 	int order = current_zonelist_order;
+ 
+ 	/* initialize zonelists */
+-	for (i = 0; i < MAX_ZONELISTS; i++) {
+-		zonelist = pgdat->node_zonelists + i;
+-		zonelist->_zones[0] = 0;
+-	}
++	zonelist = &pgdat->node_zonelist;
++	zonelist->_zones[0] = 0;
+ 
+ 	/* NUMA-aware ordering of nodes */
+ 	local_node = pgdat->node_id;
+@@ -2355,8 +2361,6 @@ static void build_zonelists(pg_data_t *p
+ 		/* calculate node order -- i.e., DMA last! */
+ 		build_zonelists_in_zone_order(pgdat, j);
+ 	}
+-
+-	build_thisnode_zonelists(pgdat);
+ }
+ 
+ /* Construct the zonelist performance cache - see further mmzone.h */
+@@ -2366,7 +2370,7 @@ static void build_zonelist_cache(pg_data
+ 	struct zonelist_cache *zlc;
+ 	unsigned long *z;
+ 
+-	zonelist = &pgdat->node_zonelists[0];
++	zonelist = &pgdat->node_zonelist;
+ 	zonelist->zlcache_ptr = zlc = &zonelist->zlcache;
+ 	bitmap_zero(zlc->fullzones, MAX_ZONES_PER_ZONELIST);
+ 	for (z = zonelist->_zones; *z; z++)
+@@ -2390,7 +2394,7 @@ static void build_zonelists(pg_data_t *p
+ 
+ 	local_node = pgdat->node_id;
+ 
+-	zonelist = &pgdat->node_zonelists[0];
++	zonelist = &pgdat->node_zonelist;
+ 	j = build_zonelists_node(pgdat, zonelist, 0, MAX_NR_ZONES - 1);
+ 
+ 	/*
+@@ -2420,8 +2424,7 @@ static void build_zonelists(pg_data_t *p
+ /* non-NUMA variant of zonelist performance cache - just NULL zlcache_ptr */
+ static void build_zonelist_cache(pg_data_t *pgdat)
+ {
+-	pgdat->node_zonelists[0].zlcache_ptr = NULL;
+-	pgdat->node_zonelists[1].zlcache_ptr = NULL;
++	pgdat->node_zonelist.zlcache_ptr = NULL;
+ }
+ 
+ #endif	/* CONFIG_NUMA */
+diff -rup -X /usr/src/patchset-0.6/bin//dontdiff linux-2.6.23-rc3-mm1-030_filter_nodemask/mm/slab.c linux-2.6.23-rc3-mm1-040_use_one_zonelist/mm/slab.c
+--- linux-2.6.23-rc3-mm1-030_filter_nodemask/mm/slab.c	2007-08-31 16:55:11.000000000 +0100
++++ linux-2.6.23-rc3-mm1-040_use_one_zonelist/mm/slab.c	2007-08-31 17:22:55.000000000 +0100
+@@ -3250,7 +3250,7 @@ static void *fallback_alloc(struct kmem_
+ 	if (flags & __GFP_THISNODE)
+ 		return NULL;
+ 
+-	zonelist = node_zonelist(slab_node(current->mempolicy), flags);
++	zonelist = node_zonelist(slab_node(current->mempolicy));
+ 	local_flags = flags & (GFP_CONSTRAINT_MASK|GFP_RECLAIM_MASK);
+ 
+ retry:
+diff -rup -X /usr/src/patchset-0.6/bin//dontdiff linux-2.6.23-rc3-mm1-030_filter_nodemask/mm/slub.c linux-2.6.23-rc3-mm1-040_use_one_zonelist/mm/slub.c
+--- linux-2.6.23-rc3-mm1-030_filter_nodemask/mm/slub.c	2007-08-31 16:55:11.000000000 +0100
++++ linux-2.6.23-rc3-mm1-040_use_one_zonelist/mm/slub.c	2007-08-31 17:22:55.000000000 +0100
+@@ -1312,7 +1312,7 @@ static struct page *get_any_partial(stru
+ 	if (!s->defrag_ratio || get_cycles() % 1024 > s->defrag_ratio)
+ 		return NULL;
+ 
+-	zonelist = node_zonelist(slab_node(current->mempolicy), flags);
++	zonelist = node_zonelist(slab_node(current->mempolicy));
+ 	for_each_zone_zonelist(zone, z, zonelist, high_zoneidx) {
+ 		struct kmem_cache_node *n;
+ 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
