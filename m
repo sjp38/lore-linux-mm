@@ -1,105 +1,76 @@
-From: Mel Gorman <mel@csn.ul.ie>
-Message-Id: <20070831205339.22283.40267.sendpatchset@skynet.skynet.ie>
-In-Reply-To: <20070831205139.22283.71284.sendpatchset@skynet.skynet.ie>
-References: <20070831205139.22283.71284.sendpatchset@skynet.skynet.ie>
-Subject: [PATCH 6/6] Use macros instead of static inline functions for zonelist iterators
-Date: Fri, 31 Aug 2007 21:53:39 +0100 (IST)
+Date: Fri, 31 Aug 2007 18:00:06 -0300
+From: "Luiz Fernando N. Capitulino" <lcapitulino@mandriva.com.br>
+Subject: Re: [RFC:PATCH 00/07] VM File Tails
+Message-ID: <20070831180006.2033828d@localhost>
+In-Reply-To: <20070829205325.28328.67953.sendpatchset@norville.austin.ibm.com>
+References: <20070829205325.28328.67953.sendpatchset@norville.austin.ibm.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Lee.Schermerhorn@hp.com, ak@suse.de, clameter@sgi.com
-Cc: Mel Gorman <mel@csn.ul.ie>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Dave Kleikamp <shaggy@linux.vnet.ibm.com>
+Cc: linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-gcc-3.4 and probably older compiler versions produce worse code for static
-inline functions than they do for macros. Due to the fact the allocator
-path is a hotpath, there is approximately a 0.2% performance difference on
-kernbench's System CPU times when using static inline functions. This is
-not a problem on gcc 4.1.
+ Hi Dave,
 
-This patch should be ignored because the static inline functions come with
-type-checking and there doesn't need to be concern about macro arguements
-having funky side-effects. However, as the performance problem is noticable
-on older compilers, the compiler version and this patch should be checked
-as the potential source and solution to a performance regression.
+Em Wed, 29 Aug 2007 16:53:25 -0400
+Dave Kleikamp <shaggy@linux.vnet.ibm.com> escreveu:
 
-Signed-off-by: Mel Gorman <mel@csn.ul.ie>
----
+| This is a rewrite of my "VM File Tails" work.  The idea is to store tails
+| of files that are smaller than the base page size in kmalloc'ed memory,
+| allowing more efficient use of memory.  This is especially important when
+| the base page size is large, such as 64 KB on powerpc.
 
- include/linux/gfp.h    |    8 ++++----
- include/linux/mmzone.h |   31 +++++++++++++++++++------------
- 2 files changed, 23 insertions(+), 16 deletions(-)
+ I've got the OOPS below while trying this series.
 
-diff -rup -X /usr/src/patchset-0.6/bin//dontdiff linux-2.6.23-rc3-mm1-040_use_one_zonelist/include/linux/gfp.h linux-2.6.23-rc3-mm1-045_macro_not_inline/include/linux/gfp.h
---- linux-2.6.23-rc3-mm1-040_use_one_zonelist/include/linux/gfp.h	2007-08-31 17:22:55.000000000 +0100
-+++ linux-2.6.23-rc3-mm1-045_macro_not_inline/include/linux/gfp.h	2007-08-31 17:23:10.000000000 +0100
-@@ -156,11 +156,11 @@ static inline gfp_t set_migrateflags(gfp
-  *
-  * For the normal case of non-DISCONTIGMEM systems the NODE_DATA() gets
-  * optimized to &contig_page_data at compile-time.
-+ *
-+ * See the explanation above zonelist_zone() in include/linux/mmzone.h as
-+ * to why this is a macro and not a static inline
-  */
--static inline struct zonelist *node_zonelist(int nid)
--{
--	return &NODE_DATA(nid)->node_zonelist;
--}
-+#define node_zonelist(nid) (&NODE_DATA(nid)->node_zonelist)
- 
- #ifndef HAVE_ARCH_FREE_PAGE
- static inline void arch_free_page(struct page *page, int order) { }
-diff -rup -X /usr/src/patchset-0.6/bin//dontdiff linux-2.6.23-rc3-mm1-040_use_one_zonelist/include/linux/mmzone.h linux-2.6.23-rc3-mm1-045_macro_not_inline/include/linux/mmzone.h
---- linux-2.6.23-rc3-mm1-040_use_one_zonelist/include/linux/mmzone.h	2007-08-31 18:06:59.000000000 +0100
-+++ linux-2.6.23-rc3-mm1-045_macro_not_inline/include/linux/mmzone.h	2007-08-31 17:23:10.000000000 +0100
-@@ -687,15 +687,16 @@ extern struct zone *next_zone(struct zon
- #endif
- 
- #define ZONELIST_ZONEIDX_MASK ((1UL << ZONES_SHIFT) - 1)
--static inline struct zone *zonelist_zone(unsigned long zone_addr)
--{
--	return (struct zone *)(zone_addr & ~ZONELIST_ZONEIDX_MASK);
--}
- 
--static inline int zonelist_zone_idx(unsigned long zone_addr)
--{
--	return zone_addr & ZONELIST_ZONEIDX_MASK;
--}
-+/*
-+ * Subtle: These are macros, not static inlines because gcc 3.4 at least
-+ * produces worse code with static inline functions. The effect is about 0.4%
-+ * regression in kernbench tests. The problem doesn't appear to exist on
-+ * gcc 4.1
-+ */
-+#define zonelist_zone_idx(zone_addr) ((zone_addr) & ZONELIST_ZONEIDX_MASK)
-+#define zonelist_zone(zone_addr) \
-+	((struct zone *)((zone_addr) & ~ZONELIST_ZONEIDX_MASK))
- 
- static inline unsigned long encode_zone_idx(struct zone *zone)
- {
-@@ -706,13 +707,19 @@ static inline unsigned long encode_zone_
- 	return encoded;
- }
- 
--static inline int zone_in_nodemask(unsigned long zone_addr, nodemask_t *nodes)
--{
- #ifdef CONFIG_NUMA
--	return node_isset(zonelist_zone(zone_addr)->node, *nodes);
-+#define zone_in_nodemask(zone_addr, nodes) \
-+	(node_isset(zonelist_zone(zone_addr)->node, *nodes))
- #else
--	return 1;
-+#define zone_in_nodemask(zone_addr, nodes) (1)
- #endif /* CONFIG_NUMA */
-+
-+static inline int zone_in_nodemask(unsigned long zone_addr, nodemask_t *nodes)
-+{
-+	if (NUMA_BUILD)
-+		return node_isset(zonelist_zone(zone_addr)->node, *nodes);
-+
-+	return 1;
- }
- 
- /* Returns the first zone at or below highest_zoneidx in a zonelist */
+ It has happened while halting the machine, but before this one I've
+got two hangs and a OOPS, but was unable to get the backtrace because
+the serial console wasn't working properly. Now it did.
+
+ I've tried to reproduce it many times w/o success.
+
+[ 2618.789047] BUG: unable to handle kernel NULL pointer dereference at virtual address 00000044
+[ 2618.891267]  printing eip:
+[ 2618.923588] c0157120
+[ 2618.949679] *pde = 00000000
+[ 2618.983052] Oops: 0000 [#1]
+[ 2619.016400] SMP 
+[ 2619.038542] Modules linked in: nfs lockd nfs_acl sunrpc capability commoncap af_packet ipv6 ide_cd ide_core binfmt_misd
+[ 2619.546147] CPU:    0
+[ 2619.546148] EIP:    0060:[<c0157120>]    Not tainted VLI
+[ 2619.546149] EFLAGS: 00010286   (2.6.23-rc4-vm1 #5)
+[ 2619.694076] EIP is at find_get_page+0x10/0xa0
+[ 2619.746151] eax: c0368ee0   ebx: d96c0060   ecx: 00000000   edx: 0000000a
+[ 2619.827340] esi: d96c0000   edi: c0368ee0   ebp: d8627e28   esp: d8627e18
+[ 2619.908526] ds: 007b   es: 007b   fs: 00d8  gs: 0033  ss: 0068
+[ 2619.978280] Process udevd (pid: 18087, ti=d8627000 task=d42f3080 task.ti=d8627000)
+[ 2620.066743] Stack: 0000000a d96c0060 d96c0000 d96c0018 d8627e30 c016cbef d8627e74 c01721c5 
+[ 2620.167577]        d8627f7c c0178b5f 00008001 c03c70c0 d8627ed0 00000000 d96c0060 c01753b1 
+[ 2620.268412]        d96c0114 0000000a d8627e84 00000000 d96c0060 00000019 00000000 d8627e98 
+[ 2620.369247] Call Trace:
+[ 2620.400641]  [<c01053fa>] show_trace_log_lvl+0x1a/0x30
+[ 2620.462181]  [<c01054bb>] show_stack_log_lvl+0xab/0xd0
+[ 2620.523720]  [<c01056b1>] show_registers+0x1d1/0x2d0
+[ 2620.583183]  [<c01058c6>] die+0x116/0x250
+[ 2620.631208]  [<c011bb6b>] do_page_fault+0x28b/0x6a0
+[ 2620.689631]  [<c02e80ca>] error_code+0x72/0x78
+[ 2620.742854]  [<c016cbef>] lookup_swap_cache+0xf/0x30
+[ 2620.802316]  [<c01721c5>] shmem_getpage+0x225/0x690
+[ 2620.860736]  [<c017271a>] shmem_fault+0x7a/0xb0
+[ 2620.914999]  [<c01630d5>] __do_fault+0x55/0x3a0
+[ 2620.969265]  [<c0165677>] handle_mm_fault+0x107/0x740
+[ 2621.029765]  [<c011bcfd>] do_page_fault+0x41d/0x6a0
+[ 2621.088186]  [<c02e80ca>] error_code+0x72/0x78
+[ 2621.141411]  =======================
+[ 2621.184134] Code: c3 0f 0b eb fe 8d b6 00 00 00 00 8b 52 0c eb b8 8d 74 26 00 8d bc 27 00 00 00 00 55 89 e5 57 89 c7 5 
+[ 2621.416574] EIP: [<c0157120>] find_get_page+0x10/0xa0 SS:ESP 0068:d8627e18
+[ 2621.499188] note: udevd[18087] exited with preempt_count 1
+
+
+-- 
+Luiz Fernando N. Capitulino
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
