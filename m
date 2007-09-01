@@ -1,143 +1,163 @@
 From: Christoph Lameter <clameter@sgi.com>
-Subject: [RFC 13/26] SLUB: Add SlabReclaimable() to avoid repeated reclaim attempts
-Date: Fri, 31 Aug 2007 18:41:20 -0700
-Message-ID: <20070901014222.303468369@sgi.com>
+Subject: [RFC 10/26] SLUB: Trigger defragmentation from memory reclaim
+Date: Fri, 31 Aug 2007 18:41:17 -0700
+Message-ID: <20070901014221.611405363@sgi.com>
 References: <20070901014107.719506437@sgi.com>
 Return-path: <linux-fsdevel-owner@vger.kernel.org>
-Content-Disposition: inline; filename=0013-slab_defrag_reclaim_flag.patch
+Content-Disposition: inline; filename=0010-slab_defrag_trigger_defrag_from_reclaim.patch
 Sender: linux-fsdevel-owner@vger.kernel.org
 To: Andy Whitcroft <apw@shadowen.org>
 Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, Christoph Hellwig <hch@lst.de>, Mel Gorman <mel@skynet.ie>, David Chinner <dgc@sgi.com>
 List-Id: linux-mm.kvack.org
 
-Add a flag SlabReclaimable() that is set on slabs with a method
-that allows defrag/reclaim. Clear the flag if a reclaim action is not
-successful in reducing the number of objects in a slab. The reclaim
-flag is set again if all objects have been allocated from it.
+This patch triggers slab defragmentation from memory reclaim.
+The logical point for this is after slab shrinking was performed in
+vmscan.c. At that point the fragmentation ratio of a slab was increased
+by objects being freed. So we call kmem_cache_defrag from there.
+
+slab_shrink() from vmscan.c is called in some contexts to do
+global shrinking of slabs and in others to do shrinking for
+a particular zone. Pass the zone to slab_shrink, so that slab_shrink
+can call kmem_cache_defrag() and restrict the defragmentation to
+the node that is under memory pressure.
 
 Signed-off-by: Christoph Lameter <clameter@sgi.com>
 ---
- mm/slub.c |   42 ++++++++++++++++++++++++++++++++++++------
- 1 file changed, 36 insertions(+), 6 deletions(-)
+ fs/drop_caches.c     |    2 +-
+ include/linux/mm.h   |    2 +-
+ include/linux/slab.h |    1 +
+ mm/vmscan.c          |   27 ++++++++++++++++++++-------
+ 4 files changed, 23 insertions(+), 9 deletions(-)
 
-Index: linux-2.6/mm/slub.c
-===================================================================
---- linux-2.6.orig/mm/slub.c	2007-08-28 20:10:37.000000000 -0700
-+++ linux-2.6/mm/slub.c	2007-08-28 20:10:47.000000000 -0700
-@@ -107,6 +107,8 @@
- #define SLABDEBUG 0
- #endif
+diff --git a/fs/drop_caches.c b/fs/drop_caches.c
+index 59375ef..fb58e63 100644
+--- a/fs/drop_caches.c
++++ b/fs/drop_caches.c
+@@ -50,7 +50,7 @@ void drop_slab(void)
+ 	int nr_objects;
  
-+#define SLABRECLAIMABLE (1 << PG_dirty)
-+
- static inline int SlabFrozen(struct page *page)
- {
- 	return page->flags & FROZEN;
-@@ -137,6 +139,21 @@ static inline void ClearSlabDebug(struct
- 	page->flags &= ~SLABDEBUG;
+ 	do {
+-		nr_objects = shrink_slab(1000, GFP_KERNEL, 1000);
++		nr_objects = shrink_slab(1000, GFP_KERNEL, 1000, NULL);
+ 	} while (nr_objects > 10);
  }
  
-+static inline int SlabReclaimable(struct page *page)
-+{
-+	return page->flags & SLABRECLAIMABLE;
-+}
-+
-+static inline void SetSlabReclaimable(struct page *page)
-+{
-+	page->flags |= SLABRECLAIMABLE;
-+}
-+
-+static inline void ClearSlabReclaimable(struct page *page)
-+{
-+	page->flags &= ~SLABRECLAIMABLE;
-+}
-+
+diff --git a/include/linux/mm.h b/include/linux/mm.h
+index a396aac..9fbb6ba 100644
+--- a/include/linux/mm.h
++++ b/include/linux/mm.h
+@@ -1202,7 +1202,7 @@ int in_gate_area_no_task(unsigned long addr);
+ int drop_caches_sysctl_handler(struct ctl_table *, int, struct file *,
+ 					void __user *, size_t *, loff_t *);
+ unsigned long shrink_slab(unsigned long scanned, gfp_t gfp_mask,
+-			unsigned long lru_pages);
++			unsigned long lru_pages, struct zone *zone);
+ void drop_pagecache(void);
+ void drop_slab(void);
+ 
+diff --git a/include/linux/slab.h b/include/linux/slab.h
+index 848e9a7..7d8ec17 100644
+--- a/include/linux/slab.h
++++ b/include/linux/slab.h
+@@ -61,6 +61,7 @@ void kmem_cache_free(struct kmem_cache *, void *);
+ unsigned int kmem_cache_size(struct kmem_cache *);
+ const char *kmem_cache_name(struct kmem_cache *);
+ int kmem_ptr_validate(struct kmem_cache *cachep, const void *ptr);
++int kmem_cache_defrag(int node);
+ 
  /*
-  * Issues still to be resolved:
+  * Please use this macro to create slab caches. Simply specify the
+diff --git a/mm/vmscan.c b/mm/vmscan.c
+index d419e10..c6882d8 100644
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -150,10 +150,18 @@ EXPORT_SYMBOL(unregister_shrinker);
+  * are eligible for the caller's allocation attempt.  It is used for balancing
+  * slab reclaim versus page reclaim.
   *
-@@ -1099,6 +1116,8 @@ static struct page *new_slab(struct kmem
- 	if (s->flags & (SLAB_DEBUG_FREE | SLAB_RED_ZONE | SLAB_POISON |
- 			SLAB_STORE_USER | SLAB_TRACE))
- 		SetSlabDebug(page);
-+	if (s->kick)
-+		SetSlabReclaimable(page);
- 
-  out:
- 	if (flags & __GFP_WAIT)
-@@ -1155,6 +1174,7 @@ static void discard_slab(struct kmem_cac
- 	atomic_long_dec(&n->nr_slabs);
- 	reset_page_mapcount(page);
- 	__ClearPageSlab(page);
-+	ClearSlabReclaimable(page);
- 	free_slab(s, page);
++ * zone is the zone for which we are shrinking the slabs. If the intent
++ * is to do a global shrink then zone may be NULL. Specification of a
++ * zone is currently only used to limit slab defragmentation to a NUMA node.
++ * The performace of shrink_slab would be better (in particular under NUMA)
++ * if it could be targeted as a whole to the zone that is under memory
++ * pressure but the VFS infrastructure does not allow that at the present
++ * time.
++ *
+  * Returns the number of slab objects which we shrunk.
+  */
+ unsigned long shrink_slab(unsigned long scanned, gfp_t gfp_mask,
+-			unsigned long lru_pages)
++			unsigned long lru_pages, struct zone *zone)
+ {
+ 	struct shrinker *shrinker;
+ 	unsigned long ret = 0;
+@@ -210,6 +218,8 @@ unsigned long shrink_slab(unsigned long scanned, gfp_t gfp_mask,
+ 		shrinker->nr += total_scan;
+ 	}
+ 	up_read(&shrinker_rwsem);
++	if (gfp_mask & __GFP_FS)
++		kmem_cache_defrag(zone ? zone_to_nid(zone) : -1);
+ 	return ret;
  }
  
-@@ -1328,8 +1348,12 @@ static void unfreeze_slab(struct kmem_ca
+@@ -1151,7 +1161,8 @@ unsigned long try_to_free_pages(struct zone **zones, int order, gfp_t gfp_mask)
+ 		if (!priority)
+ 			disable_swap_token();
+ 		nr_reclaimed += shrink_zones(priority, zones, &sc);
+-		shrink_slab(sc.nr_scanned, gfp_mask, lru_pages);
++		shrink_slab(sc.nr_scanned, gfp_mask, lru_pages,
++						NULL);
+ 		if (reclaim_state) {
+ 			nr_reclaimed += reclaim_state->reclaimed_slab;
+ 			reclaim_state->reclaimed_slab = 0;
+@@ -1321,7 +1332,7 @@ loop_again:
+ 			nr_reclaimed += shrink_zone(priority, zone, &sc);
+ 			reclaim_state->reclaimed_slab = 0;
+ 			nr_slab = shrink_slab(sc.nr_scanned, GFP_KERNEL,
+-						lru_pages);
++						lru_pages, zone);
+ 			nr_reclaimed += reclaim_state->reclaimed_slab;
+ 			total_scanned += sc.nr_scanned;
+ 			if (zone->all_unreclaimable)
+@@ -1559,7 +1570,7 @@ unsigned long shrink_all_memory(unsigned long nr_pages)
+ 	/* If slab caches are huge, it's better to hit them first */
+ 	while (nr_slab >= lru_pages) {
+ 		reclaim_state.reclaimed_slab = 0;
+-		shrink_slab(nr_pages, sc.gfp_mask, lru_pages);
++		shrink_slab(nr_pages, sc.gfp_mask, lru_pages, NULL);
+ 		if (!reclaim_state.reclaimed_slab)
+ 			break;
  
- 		if (page->freelist)
- 			add_partial(n, page, tail);
--		else if (SlabDebug(page) && (s->flags & SLAB_STORE_USER))
--			add_full(n, page);
-+		else {
-+			if (SlabDebug(page) && (s->flags & SLAB_STORE_USER))
-+				add_full(n, page);
-+			if (s->kick && !SlabReclaimable(page))
-+				SetSlabReclaimable(page);
-+		}
- 		slab_unlock(page);
+@@ -1597,7 +1608,7 @@ unsigned long shrink_all_memory(unsigned long nr_pages)
  
- 	} else {
-@@ -2659,7 +2683,7 @@ int kmem_cache_isolate_slab(struct page 
- 	struct kmem_cache *s;
- 	int rc = -ENOENT;
- 
--	if (!PageSlab(page) || SlabFrozen(page))
-+	if (!PageSlab(page) || SlabFrozen(page) || !SlabReclaimable(page))
- 		return rc;
- 
- 	/*
-@@ -2729,7 +2753,7 @@ static int kmem_cache_vacate(struct page
- 	struct kmem_cache *s;
- 	unsigned long *map;
- 	int leftover;
--	int objects;
-+	int objects = -1;
- 	void *private;
- 	unsigned long flags;
- 	int tail = 1;
-@@ -2739,7 +2763,7 @@ static int kmem_cache_vacate(struct page
- 	slab_lock(page);
- 
- 	s = page->slab;
--	map = scratch + s->objects * sizeof(void **);
-+	map = scratch + max_defrag_slab_objects * sizeof(void **);
- 	if (!page->inuse || !s->kick)
- 		goto out;
- 
-@@ -2773,10 +2797,13 @@ static int kmem_cache_vacate(struct page
- 	local_irq_save(flags);
- 	slab_lock(page);
- 	tail = 0;
--out:
-+
- 	/*
- 	 * Check the result and unfreeze the slab
- 	 */
-+	if (page->inuse == objects)
-+		ClearSlabReclaimable(page);
-+out:
- 	leftover = page->inuse;
- 	unfreeze_slab(s, page, tail);
- 	local_irq_restore(flags);
-@@ -2831,6 +2858,9 @@ static unsigned long __kmem_cache_shrink
- 		if (inuse > s->objects / 4)
- 			continue;
- 
-+		if (s->kick && !SlabReclaimable(page))
-+			continue;
-+
- 		if (!slab_trylock(page))
- 			continue;
- 
+ 			reclaim_state.reclaimed_slab = 0;
+ 			shrink_slab(sc.nr_scanned, sc.gfp_mask,
+-					count_lru_pages());
++					count_lru_pages(), NULL);
+ 			ret += reclaim_state.reclaimed_slab;
+ 			if (ret >= nr_pages)
+ 				goto out;
+@@ -1614,7 +1625,8 @@ unsigned long shrink_all_memory(unsigned long nr_pages)
+ 	if (!ret) {
+ 		do {
+ 			reclaim_state.reclaimed_slab = 0;
+-			shrink_slab(nr_pages, sc.gfp_mask, count_lru_pages());
++			shrink_slab(nr_pages, sc.gfp_mask,
++					count_lru_pages(), NULL);
+ 			ret += reclaim_state.reclaimed_slab;
+ 		} while (ret < nr_pages && reclaim_state.reclaimed_slab > 0);
+ 	}
+@@ -1774,7 +1786,8 @@ static int __zone_reclaim(struct zone *zone, gfp_t gfp_mask, unsigned int order)
+ 		 * Note that shrink_slab will free memory on all zones and may
+ 		 * take a long time.
+ 		 */
+-		while (shrink_slab(sc.nr_scanned, gfp_mask, order) &&
++		while (shrink_slab(sc.nr_scanned, gfp_mask, order,
++						zone) &&
+ 			zone_page_state(zone, NR_SLAB_RECLAIMABLE) >
+ 				slab_reclaimable - nr_pages)
+ 			;
+-- 
+1.5.2.4
 
 -- 
