@@ -1,89 +1,64 @@
 From: Christoph Lameter <clameter@sgi.com>
-Subject: [RFC 00/26] Slab defragmentation V5
-Date: Fri, 31 Aug 2007 18:41:07 -0700
-Message-ID: <20070901014107.719506437@sgi.com>
+Subject: [RFC 05/26] SLUB: Replace ctor field with ops field in /sys/slab/:0000008 /sys/slab/:0000016 /sys/slab/:0000024 /sys/slab/:0000032 /sys/slab/:0000040 /sys/slab/:0000048 /sys/slab/:0000056 /sys/slab/:0000064 /sys/slab/:0000072 /sys/slab/:0000080 /sys/slab/:0000088 /sys/slab/:0000096 /sys/slab/:0000104 /sys/slab/:0000128 /sys/slab/:0000144 /sys/slab/:0000184 /sys/slab/:0000192 /sys/slab/:0000216 /sys/slab/:0000256 /sys/slab/:0000344 /sys/slab/:0000384 /sys/slab/:0000448 /sys/slab/:0000512 /sys/slab/:0000768 /sys/slab/:0000920 /sys/slab/:0001024 /sys/slab/:0001152 /sys/slab/:0001344 /sys/slab/:0001536 /sys/slab/:0002048 /sys/slab/:0003072 /sys/slab/:0004096 /sys/slab/:a-0000056 /sys/slab/:a-0000080 /sys/slab/:a-0000128 /sys/slab/Acpi-Namespace /sys/slab/Acpi-Operand /sys/slab/Acpi-Pa
+ rse /sys/slab/Acpi-ParseExt /sys/slab/Acpi-State /sys/slab/RAW /sys/slab/TCP /sys/slab/UDP /sys/sl
+Date: Fri, 31 Aug 2007 18:41:12 -0700
+Message-ID: <20070901014220.452715954@sgi.com>
+References: <20070901014107.719506437@sgi.com>
 Return-path: <linux-fsdevel-owner@vger.kernel.org>
+Content-Disposition: inline; filename=0005-slab_defrag_ops_field.patch
 Sender: linux-fsdevel-owner@vger.kernel.org
 To: Andy Whitcroft <apw@shadowen.org>
 Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, Christoph Hellwig <hch@lst.de>, Mel Gorman <mel@skynet.ie>, David Chinner <dgc@sgi.com>
 List-Id: linux-mm.kvack.org
 
-Slab defragmentation is mainly an issue if Linux is used as a fileserver
-and large amounts of dentries, inodes and buffer heads accumulate. In some
-load situations the slabs become very sparsely populated so that a lot of
-memory is wasted by slabs that only contain one or a few objects. In
-extreme cases the performance of a machine will become sluggish since
-we are continually running reclaim. Slab defragmentation adds the
-capability to recover wasted memory.
+Create an ops field in /sys/slab/*/ops to contain all the operations defined
+on a slab. This will be used to display the additional operations that we
+will define soon.
 
-For lumpy reclaim slab defragmentation can be used to enhance the
-ability to recover larger contiguous areas of memory. Lumpy reclaim currently
-cannot do anything if a slab page is encountered. With slab defragmentation
-that slab page can be removed and a large contiguous page freed. It may
-be possible to have slab pages also part of ZONE_MOVABLE (Mel's defrag
-scheme in 2.6.23) or the MOVABLE areas (antifrag patches in mm).
+Signed-off-by: Christoph Lameter <clameter@sgi.com>
+---
+ mm/slub.c |   16 +++++++++-------
+ 1 files changed, 9 insertions(+), 7 deletions(-)
 
-The trouble with this patchset is that it is difficult to validate.
-Activities are only performed when special load situations are encountered.
-Are there any tests that could give meaningful information about
-the effectiveness of these measures? I have run various tests here
-creating and deleting files and building kernels under low memory situations
-to trigger these reclaim mechanisms but how does one measure their
-effectiveness?
-
-The patchset is also available via git
-
-git pull git://git.kernel.org/pub/scm/linux/kernel/git/christoph/slab.git defrag
-
-
-We currently support the following types of reclaim:
-
-1. dentry cache
-2. inode cache (with a generic interface to allow easy setup of more
-   filesystems than the currently supported ext2/3/4 reiserfs, XFS
-   and proc)
-3. buffer_head
-
-One typical mechanism that triggers slab defragmentation on my systems
-is the daily run of
-
-	updatedb
-
-Updatedb scans all files on the system which causes a high inode and dentry
-use. After updatedb is complete we need to go back to the regular use
-patterns (typical on my machine: kernel compiles). Those need the memory now
-for different purposes. The inodes and dentries used for updatedb will
-gradually be aged by the dentry/inode reclaim algorithm which will free
-up the dentries and inode entries randomly through the slabs that were
-allocated. As a result the slabs will become sparsely populated. If they
-become empty then they can be freed but a lot of them will remain sparsely
-populated. That is where slab defrag comes in: It removes the slabs with
-just a few entries reclaiming more memory for other uses.
-
-V4->V5:
-- Support lumpy reclaim for slabs
-- Support reclaim via slab_shrink()
-- Add constructors to insure a consistent object state at all times.
-
-V3->V4:
-- Optimize scan for slabs that need defragmentation
-- Add /sys/slab/*/defrag_ratio to allow setting defrag limits
-  per slab.
-- Add support for buffer heads.
-- Describe how the cleanup after the daily updatedb can be
-  improved by slab defragmentation.
-
-V2->V3
-- Support directory reclaim
-- Add infrastructure to trigger defragmentation after slab shrinking if we
-  have slabs with a high degree of fragmentation.
-
-V1->V2
-- Clean up control flow using a state variable. Simplify API. Back to 2
-  functions that now take arrays of objects.
-- Inode defrag support for a set of filesystems
-- Fix up dentry defrag support to work on negative dentries by adding
-  a new dentry flag that indicates that a dentry is not in the process
-  of being freed or allocated.
+diff --git a/mm/slub.c b/mm/slub.c
+index f95a760..fc2f1e3 100644
+--- a/mm/slub.c
++++ b/mm/slub.c
+@@ -3501,16 +3501,18 @@ static ssize_t order_show(struct kmem_cache *s, char *buf)
+ }
+ SLAB_ATTR_RO(order);
+ 
+-static ssize_t ctor_show(struct kmem_cache *s, char *buf)
++static ssize_t ops_show(struct kmem_cache *s, char *buf)
+ {
+-	if (s->ctor) {
+-		int n = sprint_symbol(buf, (unsigned long)s->ctor);
++	int x = 0;
+ 
+-		return n + sprintf(buf + n, "\n");
++	if (s->ctor) {
++		x += sprintf(buf + x, "ctor : ");
++		x += sprint_symbol(buf + x, (unsigned long)s->ops->ctor);
++		x += sprintf(buf + x, "\n");
+ 	}
+-	return 0;
++	return x;
+ }
+-SLAB_ATTR_RO(ctor);
++SLAB_ATTR_RO(ops);
+ 
+ static ssize_t aliases_show(struct kmem_cache *s, char *buf)
+ {
+@@ -3761,7 +3763,7 @@ static struct attribute * slab_attrs[] = {
+ 	&slabs_attr.attr,
+ 	&partial_attr.attr,
+ 	&cpu_slabs_attr.attr,
+-	&ctor_attr.attr,
++	&ops_attr.attr,
+ 	&aliases_attr.attr,
+ 	&align_attr.attr,
+ 	&sanity_checks_attr.attr,
+-- 
+1.5.2.4
 
 -- 
