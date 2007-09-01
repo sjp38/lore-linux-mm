@@ -1,69 +1,89 @@
 From: Christoph Lameter <clameter@sgi.com>
-Subject: [RFC 02/26] SLUB: Move count_partial()
-Date: Fri, 31 Aug 2007 18:41:09 -0700
-Message-ID: <20070901014219.759177433@sgi.com>
-References: <20070901014107.719506437@sgi.com>
-Return-path: <linux-kernel-owner+glk-linux-kernel-3=40m.gmane.org-S1752721AbXIABmg@vger.kernel.org>
-Content-Disposition: inline; filename=0002-slab_defrag_move_count_partial.patch
-Sender: linux-kernel-owner@vger.kernel.org
+Subject: [RFC 00/26] Slab defragmentation V5
+Date: Fri, 31 Aug 2007 18:41:07 -0700
+Message-ID: <20070901014107.719506437@sgi.com>
+Return-path: <linux-fsdevel-owner@vger.kernel.org>
+Sender: linux-fsdevel-owner@vger.kernel.org
 To: Andy Whitcroft <apw@shadowen.org>
 Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, Christoph Hellwig <hch@lst.de>, Mel Gorman <mel@skynet.ie>, David Chinner <dgc@sgi.com>
 List-Id: linux-mm.kvack.org
 
-Move the counting function for objects in partial slabs so that it is placed
-before kmem_cache_shrink. We will need to use it to establish the
-fragmentation ratio of per node slab lists.
+Slab defragmentation is mainly an issue if Linux is used as a fileserver
+and large amounts of dentries, inodes and buffer heads accumulate. In some
+load situations the slabs become very sparsely populated so that a lot of
+memory is wasted by slabs that only contain one or a few objects. In
+extreme cases the performance of a machine will become sluggish since
+we are continually running reclaim. Slab defragmentation adds the
+capability to recover wasted memory.
 
-Signed-off-by: Christoph Lameter <clameter@sgi.com>
----
- mm/slub.c |   26 +++++++++++++-------------
- 1 files changed, 13 insertions(+), 13 deletions(-)
+For lumpy reclaim slab defragmentation can be used to enhance the
+ability to recover larger contiguous areas of memory. Lumpy reclaim currently
+cannot do anything if a slab page is encountered. With slab defragmentation
+that slab page can be removed and a large contiguous page freed. It may
+be possible to have slab pages also part of ZONE_MOVABLE (Mel's defrag
+scheme in 2.6.23) or the MOVABLE areas (antifrag patches in mm).
 
-diff --git a/mm/slub.c b/mm/slub.c
-index 45c76fe..aad6f83 100644
---- a/mm/slub.c
-+++ b/mm/slub.c
-@@ -2595,6 +2595,19 @@ void kfree(const void *x)
- }
- EXPORT_SYMBOL(kfree);
- 
-+static unsigned long count_partial(struct kmem_cache_node *n)
-+{
-+	unsigned long flags;
-+	unsigned long x = 0;
-+	struct page *page;
-+
-+	spin_lock_irqsave(&n->list_lock, flags);
-+	list_for_each_entry(page, &n->partial, lru)
-+		x += page->inuse;
-+	spin_unlock_irqrestore(&n->list_lock, flags);
-+	return x;
-+}
-+
- /*
-  * kmem_cache_shrink removes empty slabs from the partial lists and sorts
-  * the remaining slabs by the number of items in use. The slabs with the
-@@ -3331,19 +3344,6 @@ static int list_locations(struct kmem_cache *s, char *buf,
- 	return n;
- }
- 
--static unsigned long count_partial(struct kmem_cache_node *n)
--{
--	unsigned long flags;
--	unsigned long x = 0;
--	struct page *page;
--
--	spin_lock_irqsave(&n->list_lock, flags);
--	list_for_each_entry(page, &n->partial, lru)
--		x += page->inuse;
--	spin_unlock_irqrestore(&n->list_lock, flags);
--	return x;
--}
--
- enum slab_stat_type {
- 	SL_FULL,
- 	SL_PARTIAL,
--- 
-1.5.2.4
+The trouble with this patchset is that it is difficult to validate.
+Activities are only performed when special load situations are encountered.
+Are there any tests that could give meaningful information about
+the effectiveness of these measures? I have run various tests here
+creating and deleting files and building kernels under low memory situations
+to trigger these reclaim mechanisms but how does one measure their
+effectiveness?
+
+The patchset is also available via git
+
+git pull git://git.kernel.org/pub/scm/linux/kernel/git/christoph/slab.git defrag
+
+
+We currently support the following types of reclaim:
+
+1. dentry cache
+2. inode cache (with a generic interface to allow easy setup of more
+   filesystems than the currently supported ext2/3/4 reiserfs, XFS
+   and proc)
+3. buffer_head
+
+One typical mechanism that triggers slab defragmentation on my systems
+is the daily run of
+
+	updatedb
+
+Updatedb scans all files on the system which causes a high inode and dentry
+use. After updatedb is complete we need to go back to the regular use
+patterns (typical on my machine: kernel compiles). Those need the memory now
+for different purposes. The inodes and dentries used for updatedb will
+gradually be aged by the dentry/inode reclaim algorithm which will free
+up the dentries and inode entries randomly through the slabs that were
+allocated. As a result the slabs will become sparsely populated. If they
+become empty then they can be freed but a lot of them will remain sparsely
+populated. That is where slab defrag comes in: It removes the slabs with
+just a few entries reclaiming more memory for other uses.
+
+V4->V5:
+- Support lumpy reclaim for slabs
+- Support reclaim via slab_shrink()
+- Add constructors to insure a consistent object state at all times.
+
+V3->V4:
+- Optimize scan for slabs that need defragmentation
+- Add /sys/slab/*/defrag_ratio to allow setting defrag limits
+  per slab.
+- Add support for buffer heads.
+- Describe how the cleanup after the daily updatedb can be
+  improved by slab defragmentation.
+
+V2->V3
+- Support directory reclaim
+- Add infrastructure to trigger defragmentation after slab shrinking if we
+  have slabs with a high degree of fragmentation.
+
+V1->V2
+- Clean up control flow using a state variable. Simplify API. Back to 2
+  functions that now take arrays of objects.
+- Inode defrag support for a set of filesystems
+- Fix up dentry defrag support to work on negative dentries by adding
+  a new dentry flag that indicates that a dentry is not in the process
+  of being freed or allocated.
 
 -- 
