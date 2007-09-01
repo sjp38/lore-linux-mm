@@ -1,124 +1,91 @@
 From: Christoph Lameter <clameter@sgi.com>
-Subject: [RFC 23/26] dentries: Extract common code to remove dentry from lru
-Date: Fri, 31 Aug 2007 18:41:30 -0700
-Message-ID: <20070901014224.596352219@sgi.com>
+Subject: [RFC 04/26] SLUB: Add defrag_ratio field and sysfs support.
+Date: Fri, 31 Aug 2007 18:41:11 -0700
+Message-ID: <20070901014220.222604174@sgi.com>
 References: <20070901014107.719506437@sgi.com>
 Return-path: <linux-fsdevel-owner@vger.kernel.org>
-Content-Disposition: inline; filename=0023-slab_defrag_dentry_remove_lru.patch
+Content-Disposition: inline; filename=0004-slab_defrag_add_defrag_ratio.patch
 Sender: linux-fsdevel-owner@vger.kernel.org
 To: Andy Whitcroft <apw@shadowen.org>
 Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, Christoph Hellwig <hch@lst.de>, Mel Gorman <mel@skynet.ie>, David Chinner <dgc@sgi.com>
 List-Id: linux-mm.kvack.org
 
-Extract the common code to remove a dentry from the lru into a new function
-dentry_lru_remove().
+The defrag_ratio is used to set the threshold when a slabcache should be
+defragmented.
 
-Two call sites used list_del() instead of list_del_init(). AFAIK the
-performance of both is the same. dentry_lru_remove() does a list_del_init().
+The allocation ratio is measured in a percentage of the available slots.
+The percentage will be lower for slabs that are more fragmented.
 
-As a result dentry->d_lru is now always empty when a dentry is freed.
-A consistent state is useful to establish dentry state from slab defrag.
+Add a defrag ratio field and set it to 30% by default. A limit of 30%
+that less than 3 out of 10 available slots for objects are in use.
 
 Signed-off-by: Christoph Lameter <clameter@sgi.com>
 ---
- fs/dcache.c |   42 ++++++++++++++----------------------------
- 1 files changed, 14 insertions(+), 28 deletions(-)
+ include/linux/slub_def.h |    7 +++++++
+ mm/slub.c                |   18 ++++++++++++++++++
+ 2 files changed, 25 insertions(+), 0 deletions(-)
 
-diff --git a/fs/dcache.c b/fs/dcache.c
-index 678d39d..71e4877 100644
---- a/fs/dcache.c
-+++ b/fs/dcache.c
-@@ -95,6 +95,14 @@ static void d_free(struct dentry *dentry)
- 		call_rcu(&dentry->d_u.d_rcu, d_callback);
- }
+diff --git a/include/linux/slub_def.h b/include/linux/slub_def.h
+index 5912b58..291881d 100644
+--- a/include/linux/slub_def.h
++++ b/include/linux/slub_def.h
+@@ -52,6 +52,13 @@ struct kmem_cache {
+ 	void (*ctor)(void *, struct kmem_cache *, unsigned long);
+ 	int inuse;		/* Offset to metadata */
+ 	int align;		/* Alignment */
++	int defrag_ratio;	/*
++				 * objects/possible-objects limit. If we have
++				 * less that the specified percentage of
++				 * objects allocated then defrag passes
++				 * will start to occur during reclaim.
++				 */
++
+ 	const char *name;	/* Name (only for display!) */
+ 	struct list_head list;	/* List of slab caches */
+ #ifdef CONFIG_SLUB_DEBUG
+diff --git a/mm/slub.c b/mm/slub.c
+index e63aba5..f95a760 100644
+--- a/mm/slub.c
++++ b/mm/slub.c
+@@ -2200,6 +2200,7 @@ static int kmem_cache_open(struct kmem_cache *s, gfp_t gfpflags,
+ 		goto error;
  
-+static void dentry_lru_remove(struct dentry *dentry)
+ 	s->refcount = 1;
++	s->defrag_ratio = 30;
+ #ifdef CONFIG_NUMA
+ 	s->remote_node_defrag_ratio = 100;
+ #endif
+@@ -3717,6 +3718,22 @@ static ssize_t free_calls_show(struct kmem_cache *s, char *buf)
+ }
+ SLAB_ATTR_RO(free_calls);
+ 
++static ssize_t defrag_ratio_show(struct kmem_cache *s, char *buf)
 +{
-+	if (!list_empty(&dentry->d_lru)) {
-+		list_del_init(&dentry->d_lru);
-+		dentry_stat.nr_unused--;
-+	}
++	return sprintf(buf, "%d\n", s->defrag_ratio);
 +}
 +
- /*
-  * Release the dentry's inode, using the filesystem
-  * d_iput() operation if defined.
-@@ -211,13 +219,7 @@ repeat:
- unhash_it:
- 	__d_drop(dentry);
- kill_it:
--	/* If dentry was on d_lru list
--	 * delete it from there
--	 */
--	if (!list_empty(&dentry->d_lru)) {
--		list_del(&dentry->d_lru);
--		dentry_stat.nr_unused--;
--	}
-+	dentry_lru_remove(dentry);
- 	dentry = d_kill(dentry);
- 	if (dentry)
- 		goto repeat;
-@@ -285,10 +287,7 @@ int d_invalidate(struct dentry * dentry)
- static inline struct dentry * __dget_locked(struct dentry *dentry)
++static ssize_t defrag_ratio_store(struct kmem_cache *s,
++				const char *buf, size_t length)
++{
++	int n = simple_strtoul(buf, NULL, 10);
++
++	if (n < 100)
++		s->defrag_ratio = n;
++	return length;
++}
++SLAB_ATTR(defrag_ratio);
++
+ #ifdef CONFIG_NUMA
+ static ssize_t remote_node_defrag_ratio_show(struct kmem_cache *s, char *buf)
  {
- 	atomic_inc(&dentry->d_count);
--	if (!list_empty(&dentry->d_lru)) {
--		dentry_stat.nr_unused--;
--		list_del_init(&dentry->d_lru);
--	}
-+	dentry_lru_remove(dentry);
- 	return dentry;
- }
- 
-@@ -407,10 +406,7 @@ static void prune_one_dentry(struct dentry * dentry, int prune_parents)
- 
- 		if (dentry->d_op && dentry->d_op->d_delete)
- 			dentry->d_op->d_delete(dentry);
--		if (!list_empty(&dentry->d_lru)) {
--			list_del(&dentry->d_lru);
--			dentry_stat.nr_unused--;
--		}
-+		dentry_lru_remove(dentry);
- 		__d_drop(dentry);
- 		dentry = d_kill(dentry);
- 		spin_lock(&dcache_lock);
-@@ -600,10 +596,7 @@ static void shrink_dcache_for_umount_subtree(struct dentry *dentry)
- 
- 	/* detach this root from the system */
- 	spin_lock(&dcache_lock);
--	if (!list_empty(&dentry->d_lru)) {
--		dentry_stat.nr_unused--;
--		list_del_init(&dentry->d_lru);
--	}
-+	dentry_lru_remove(dentry);
- 	__d_drop(dentry);
- 	spin_unlock(&dcache_lock);
- 
-@@ -617,11 +610,7 @@ static void shrink_dcache_for_umount_subtree(struct dentry *dentry)
- 			spin_lock(&dcache_lock);
- 			list_for_each_entry(loop, &dentry->d_subdirs,
- 					    d_u.d_child) {
--				if (!list_empty(&loop->d_lru)) {
--					dentry_stat.nr_unused--;
--					list_del_init(&loop->d_lru);
--				}
--
-+				dentry_lru_remove(dentry);
- 				__d_drop(loop);
- 				cond_resched_lock(&dcache_lock);
- 			}
-@@ -803,10 +792,7 @@ resume:
- 		struct dentry *dentry = list_entry(tmp, struct dentry, d_u.d_child);
- 		next = tmp->next;
- 
--		if (!list_empty(&dentry->d_lru)) {
--			dentry_stat.nr_unused--;
--			list_del_init(&dentry->d_lru);
--		}
-+		dentry_lru_remove(dentry);
- 		/* 
- 		 * move only zero ref count dentries to the end 
- 		 * of the unused list for prune_dcache
+@@ -3759,6 +3776,7 @@ static struct attribute * slab_attrs[] = {
+ 	&shrink_attr.attr,
+ 	&alloc_calls_attr.attr,
+ 	&free_calls_attr.attr,
++	&defrag_ratio_attr.attr,
+ #ifdef CONFIG_ZONE_DMA
+ 	&cache_dma_attr.attr,
+ #endif
 -- 
 1.5.2.4
 
