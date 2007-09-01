@@ -1,141 +1,193 @@
 From: Christoph Lameter <clameter@sgi.com>
-Subject: [RFC 06/26] SLUB: Add get() and kick() methods
-Date: Fri, 31 Aug 2007 18:41:13 -0700
-Message-ID: <20070901014220.690110465@sgi.com>
+Subject: [RFC 01/26] SLUB: Extend slabinfo to support -D and -C options
+Date: Fri, 31 Aug 2007 18:41:08 -0700
+Message-ID: <20070901014219.531030578@sgi.com>
 References: <20070901014107.719506437@sgi.com>
 Return-path: <linux-fsdevel-owner@vger.kernel.org>
-Content-Disposition: inline; filename=0006-slab_defrag_get_and_kick_method.patch
+Content-Disposition: inline; filename=0001-slab_defrag_slabinfo_update.patch
 Sender: linux-fsdevel-owner@vger.kernel.org
 To: Andy Whitcroft <apw@shadowen.org>
 Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, Christoph Hellwig <hch@lst.de>, Mel Gorman <mel@skynet.ie>, David Chinner <dgc@sgi.com>
 List-Id: linux-mm.kvack.org
 
-Add the two methods needed for defragmentation and add the display of the
-methods via the proc interface.
+-D lists caches that support defragmentation
 
-Add documentation explaining the use of these methods.
+-C lists caches that use a ctor.
+
+Change field names for defrag_ratio and remote_node_defrag_ratio.
+
+Add determination of the allocation ratio for slab. The allocation ratio
+is the percentage of available slots for objects in use.
 
 Signed-off-by: Christoph Lameter <clameter@sgi.com>
 ---
- include/linux/slab.h     |    3 +++
- include/linux/slub_def.h |   32 ++++++++++++++++++++++++++++++++
- mm/slub.c                |   32 ++++++++++++++++++++++++++++++--
- 3 files changed, 65 insertions(+), 2 deletions(-)
+ Documentation/vm/slabinfo.c |   52 ++++++++++++++++++++++++++++++++++++------
+ 1 files changed, 44 insertions(+), 8 deletions(-)
 
-diff --git a/include/linux/slab.h b/include/linux/slab.h
-index d859354..848e9a7 100644
---- a/include/linux/slab.h
-+++ b/include/linux/slab.h
-@@ -54,6 +54,9 @@ struct kmem_cache *kmem_cache_create(const char *, size_t, size_t,
- 			void (*)(void *, struct kmem_cache *, unsigned long));
- void kmem_cache_destroy(struct kmem_cache *);
- int kmem_cache_shrink(struct kmem_cache *);
-+void kmem_cache_setup_defrag(struct kmem_cache *s,
-+	void *(*get)(struct kmem_cache *, int nr, void **),
-+	void (*kick)(struct kmem_cache *, int nr, void **, void *private));
- void kmem_cache_free(struct kmem_cache *, void *);
- unsigned int kmem_cache_size(struct kmem_cache *);
- const char *kmem_cache_name(struct kmem_cache *);
-diff --git a/include/linux/slub_def.h b/include/linux/slub_def.h
-index 291881d..69c32a7 100644
---- a/include/linux/slub_def.h
-+++ b/include/linux/slub_def.h
-@@ -50,6 +50,38 @@ struct kmem_cache {
- 	int objects;		/* Number of objects in slab */
- 	int refcount;		/* Refcount for slab cache destroy */
- 	void (*ctor)(void *, struct kmem_cache *, unsigned long);
-+
-+	/*
-+	 * Called with slab lock held and interrupts disabled.
-+	 * No slab operation may be performed in get().
-+	 *
-+	 * Parameters passed are the number of objects to process
-+	 * and an array of pointers to objects for which we
-+	 * need references.
-+	 *
-+	 * Returns a pointer that is passed to the kick function.
-+	 * If all objects cannot be moved then the pointer may
-+	 * indicate that this wont work and then kick can simply
-+	 * remove the references that were already obtained.
-+	 *
-+	 * The array passed to get() is also passed to kick(). The
-+	 * function may remove objects by setting array elements to NULL.
-+	 */
-+	void *(*get)(struct kmem_cache *, int nr, void **);
-+
-+	/*
-+	 * Called with no locks held and interrupts enabled.
-+	 * Any operation may be performed in kick().
-+	 *
-+	 * Parameters passed are the number of objects in the array,
-+	 * the array of pointers to the objects and the pointer
-+	 * returned by get().
-+	 *
-+	 * Success is checked by examining the number of remaining
-+	 * objects in the slab.
-+	 */
-+	void (*kick)(struct kmem_cache *, int nr, void **, void *private);
-+
- 	int inuse;		/* Offset to metadata */
- 	int align;		/* Alignment */
- 	int defrag_ratio;	/*
-diff --git a/mm/slub.c b/mm/slub.c
-index fc2f1e3..4a64038 100644
---- a/mm/slub.c
-+++ b/mm/slub.c
-@@ -2597,6 +2597,20 @@ void kfree(const void *x)
- }
- EXPORT_SYMBOL(kfree);
- 
-+void kmem_cache_setup_defrag(struct kmem_cache *s,
-+	void *(*get)(struct kmem_cache *, int nr, void **),
-+	void (*kick)(struct kmem_cache *, int nr, void **, void *private))
-+{
-+	/*
-+	 * Defragmentable slabs must have a ctor otherwise objects may be
-+	 * in an undetermined state after they are allocated.
-+	 */
-+	BUG_ON(!s->ctor);
-+	s->get = get;
-+	s->kick = kick;
-+}
-+EXPORT_SYMBOL(kmem_cache_setup_defrag);
-+
- static unsigned long count_partial(struct kmem_cache_node *n)
+diff --git a/Documentation/vm/slabinfo.c b/Documentation/vm/slabinfo.c
+index 1af7bd5..1319756 100644
+--- a/Documentation/vm/slabinfo.c
++++ b/Documentation/vm/slabinfo.c
+@@ -30,6 +30,8 @@ struct slabinfo {
+ 	int hwcache_align, object_size, objs_per_slab;
+ 	int sanity_checks, slab_size, store_user, trace;
+ 	int order, poison, reclaim_account, red_zone;
++	int defrag, ctor;
++	int defrag_ratio, remote_node_defrag_ratio;
+ 	unsigned long partial, objects, slabs;
+ 	int numa[MAX_NODES];
+ 	int numa_partial[MAX_NODES];
+@@ -56,6 +58,8 @@ int show_slab = 0;
+ int skip_zero = 1;
+ int show_numa = 0;
+ int show_track = 0;
++int show_defrag = 0;
++int show_ctor = 0;
+ int show_first_alias = 0;
+ int validate = 0;
+ int shrink = 0;
+@@ -90,18 +94,20 @@ void fatal(const char *x, ...)
+ void usage(void)
  {
- 	unsigned long flags;
-@@ -2777,7 +2791,7 @@ static int slab_unmergeable(struct kmem_cache *s)
- 	if (slub_nomerge || (s->flags & SLUB_NEVER_MERGE))
- 		return 1;
+ 	printf("slabinfo 5/7/2007. (c) 2007 sgi. clameter@sgi.com\n\n"
+-		"slabinfo [-ahnpvtsz] [-d debugopts] [slab-regexp]\n"
++		"slabinfo [-aCDefhilnosSrtTvz1] [-d debugopts] [slab-regexp]\n"
+ 		"-a|--aliases           Show aliases\n"
++		"-C|--ctor              Show slabs with ctors\n"
+ 		"-d<options>|--debug=<options> Set/Clear Debug options\n"
+-		"-e|--empty		Show empty slabs\n"
++		"-D|--defrag            Show defragmentable caches\n"
++		"-e|--empty             Show empty slabs\n"
+ 		"-f|--first-alias       Show first alias\n"
+ 		"-h|--help              Show usage information\n"
+ 		"-i|--inverted          Inverted list\n"
+ 		"-l|--slabs             Show slabs\n"
+ 		"-n|--numa              Show NUMA information\n"
+-		"-o|--ops		Show kmem_cache_ops\n"
++		"-o|--ops               Show kmem_cache_ops\n"
+ 		"-s|--shrink            Shrink slabs\n"
+-		"-r|--report		Detailed report on single slabs\n"
++		"-r|--report            Detailed report on single slabs\n"
+ 		"-S|--Size              Sort by size\n"
+ 		"-t|--tracking          Show alloc/free information\n"
+ 		"-T|--Totals            Show summary information\n"
+@@ -281,7 +287,7 @@ int line = 0;
+ void first_line(void)
+ {
+ 	printf("Name                   Objects Objsize    Space "
+-		"Slabs/Part/Cpu  O/S O %%Fr %%Ef Flg\n");
++		"Slabs/Part/Cpu  O/S O %%Ra %%Ef Flg\n");
+ }
  
--	if (s->ctor)
-+	if (s->ctor || s->kick || s->get)
- 		return 1;
+ /*
+@@ -324,7 +330,7 @@ void slab_numa(struct slabinfo *s, int mode)
+ 		return;
  
- 	/*
-@@ -3507,7 +3521,21 @@ static ssize_t ops_show(struct kmem_cache *s, char *buf)
- 
- 	if (s->ctor) {
- 		x += sprintf(buf + x, "ctor : ");
--		x += sprint_symbol(buf + x, (unsigned long)s->ops->ctor);
-+		x += sprint_symbol(buf + x, (unsigned long)s->ctor);
-+		x += sprintf(buf + x, "\n");
-+	}
-+
-+	if (s->get) {
-+		x += sprintf(buf + x, "get : ");
-+		x += sprint_symbol(buf + x,
-+				(unsigned long)s->get);
-+		x += sprintf(buf + x, "\n");
-+	}
-+
-+	if (s->kick) {
-+		x += sprintf(buf + x, "kick : ");
-+		x += sprint_symbol(buf + x,
-+				(unsigned long)s->kick);
- 		x += sprintf(buf + x, "\n");
+ 	if (!line) {
+-		printf("\n%-21s:", mode ? "NUMA nodes" : "Slab");
++		printf("\n%-21s: Rto ", mode ? "NUMA nodes" : "Slab");
+ 		for(node = 0; node <= highest_node; node++)
+ 			printf(" %4d", node);
+ 		printf("\n----------------------");
+@@ -333,6 +339,7 @@ void slab_numa(struct slabinfo *s, int mode)
+ 		printf("\n");
  	}
- 	return x;
+ 	printf("%-21s ", mode ? "All slabs" : s->name);
++	printf("%3d ", s->remote_node_defrag_ratio);
+ 	for(node = 0; node <= highest_node; node++) {
+ 		char b[20];
+ 
+@@ -406,6 +413,8 @@ void report(struct slabinfo *s)
+ 		printf("** Slabs are destroyed via RCU\n");
+ 	if (s->reclaim_account)
+ 		printf("** Reclaim accounting active\n");
++	if (s->defrag)
++		printf("** Defragmentation at %d%%\n", s->defrag_ratio);
+ 
+ 	printf("\nSizes (bytes)     Slabs              Debug                Memory\n");
+ 	printf("------------------------------------------------------------------------\n");
+@@ -452,6 +461,12 @@ void slabcache(struct slabinfo *s)
+ 	if (show_empty && s->slabs)
+ 		return;
+ 
++	if (show_defrag && !s->defrag)
++		return;
++
++	if (show_ctor && !s->ctor)
++		return;
++
+ 	store_size(size_str, slab_size(s));
+ 	sprintf(dist_str,"%lu/%lu/%d", s->slabs, s->partial, s->cpu_slabs);
+ 
+@@ -462,6 +477,10 @@ void slabcache(struct slabinfo *s)
+ 		*p++ = '*';
+ 	if (s->cache_dma)
+ 		*p++ = 'd';
++	if (s->defrag)
++		*p++ = 'D';
++	if (s->ctor)
++		*p++ = 'C';
+ 	if (s->hwcache_align)
+ 		*p++ = 'A';
+ 	if (s->poison)
+@@ -481,7 +500,7 @@ void slabcache(struct slabinfo *s)
+ 	printf("%-21s %8ld %7d %8s %14s %4d %1d %3ld %3ld %s\n",
+ 		s->name, s->objects, s->object_size, size_str, dist_str,
+ 		s->objs_per_slab, s->order,
+-		s->slabs ? (s->partial * 100) / s->slabs : 100,
++		s->slabs ? (s->objects * 100) / (s->slabs * s->objs_per_slab) : 100,
+ 		s->slabs ? (s->objects * s->object_size * 100) /
+ 			(s->slabs * (page_size << s->order)) : 100,
+ 		flags);
+@@ -1071,7 +1090,16 @@ void read_slab_dir(void)
+ 			decode_numa_list(slab->numa, t);
+ 			slab->store_user = get_obj("store_user");
+ 			slab->trace = get_obj("trace");
++			slab->defrag_ratio = get_obj("defrag_ratio");
++			slab->remote_node_defrag_ratio =
++					get_obj("remote_node_defrag_ratio");
+ 			chdir("..");
++			if (read_slab_obj(slab, "ops")) {
++				if (strstr(buffer, "ctor :"))
++					slab->ctor = 1;
++				if (strstr(buffer, "kick :"))
++					slab->defrag = 1;
++			}
+ 			if (slab->name[0] == ':')
+ 				alias_targets++;
+ 			slab++;
+@@ -1121,7 +1149,9 @@ void output_slabs(void)
+ 
+ struct option opts[] = {
+ 	{ "aliases", 0, NULL, 'a' },
++	{ "ctor", 0, NULL, 'C' },
+ 	{ "debug", 2, NULL, 'd' },
++	{ "defrag", 0, NULL, 'D' },
+ 	{ "empty", 0, NULL, 'e' },
+ 	{ "first-alias", 0, NULL, 'f' },
+ 	{ "help", 0, NULL, 'h' },
+@@ -1146,7 +1176,7 @@ int main(int argc, char *argv[])
+ 
+ 	page_size = getpagesize();
+ 
+-	while ((c = getopt_long(argc, argv, "ad::efhil1noprstvzTS",
++	while ((c = getopt_long(argc, argv, "ad::efhil1noprstvzCDTS",
+ 						opts, NULL)) != -1)
+ 	switch(c) {
+ 		case '1':
+@@ -1196,6 +1226,12 @@ int main(int argc, char *argv[])
+ 		case 'z':
+ 			skip_zero = 0;
+ 			break;
++		case 'C':
++			show_ctor = 1;
++			break;
++		case 'D':
++			show_defrag = 1;
++			break;
+ 		case 'T':
+ 			show_totals = 1;
+ 			break;
 -- 
 1.5.2.4
 
