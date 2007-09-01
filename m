@@ -1,40 +1,69 @@
-Date: Sun, 30 Sep 2007 17:27:03 -0700 (PDT)
-Message-Id: <20070930.172703.79041329.davem@davemloft.net>
-Subject: Re: [ANNOUNCE] ebizzy 0.2 released
-From: David Miller <davem@davemloft.net>
-In-Reply-To: <20070823010626.GC11402@rainbow>
-References: <20070823010626.GC11402@rainbow>
-Mime-Version: 1.0
-Content-Type: Text/Plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
-Sender: owner-linux-mm@kvack.org
-From: Valerie Henson <val@nmt.edu>
-Date: Wed, 22 Aug 2007 19:06:26 -0600
-Return-Path: <owner-linux-mm@kvack.org>
-To: val@nmt.edu
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, rrbranco@br.ibm.com, twichell@us.ibm.com, ycai@us.ibm.com
-List-ID: <linux-mm.kvack.org>
+From: Christoph Lameter <clameter@sgi.com>
+Subject: [RFC 02/26] SLUB: Move count_partial()
+Date: Fri, 31 Aug 2007 18:41:09 -0700
+Message-ID: <20070901014219.759177433@sgi.com>
+References: <20070901014107.719506437@sgi.com>
+Return-path: <linux-kernel-owner+glk-linux-kernel-3=40m.gmane.org-S1752721AbXIABmg@vger.kernel.org>
+Content-Disposition: inline; filename=0002-slab_defrag_move_count_partial.patch
+Sender: linux-kernel-owner@vger.kernel.org
+To: Andy Whitcroft <apw@shadowen.org>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, Christoph Hellwig <hch@lst.de>, Mel Gorman <mel@skynet.ie>, David Chinner <dgc@sgi.com>
+List-Id: linux-mm.kvack.org
 
-> ebizzy is designed to generate a workload resembling common web
-> application server workloads.
+Move the counting function for objects in partial slabs so that it is placed
+before kmem_cache_shrink. We will need to use it to establish the
+fragmentation ratio of per node slab lists.
 
-I downloaded this only to be basically disappointed.
+Signed-off-by: Christoph Lameter <clameter@sgi.com>
+---
+ mm/slub.c |   26 +++++++++++++-------------
+ 1 files changed, 13 insertions(+), 13 deletions(-)
 
-Any program which claims to generate workloads "resembling common web
-application server workloads", and yet does zero network activity and
-absolutely nothing with sockets is so far disconnected from reality
-that I truly question how useful it really is even in the context it
-was designed for.
+diff --git a/mm/slub.c b/mm/slub.c
+index 45c76fe..aad6f83 100644
+--- a/mm/slub.c
++++ b/mm/slub.c
+@@ -2595,6 +2595,19 @@ void kfree(const void *x)
+ }
+ EXPORT_SYMBOL(kfree);
+ 
++static unsigned long count_partial(struct kmem_cache_node *n)
++{
++	unsigned long flags;
++	unsigned long x = 0;
++	struct page *page;
++
++	spin_lock_irqsave(&n->list_lock, flags);
++	list_for_each_entry(page, &n->partial, lru)
++		x += page->inuse;
++	spin_unlock_irqrestore(&n->list_lock, flags);
++	return x;
++}
++
+ /*
+  * kmem_cache_shrink removes empty slabs from the partial lists and sorts
+  * the remaining slabs by the number of items in use. The slabs with the
+@@ -3331,19 +3344,6 @@ static int list_locations(struct kmem_cache *s, char *buf,
+ 	return n;
+ }
+ 
+-static unsigned long count_partial(struct kmem_cache_node *n)
+-{
+-	unsigned long flags;
+-	unsigned long x = 0;
+-	struct page *page;
+-
+-	spin_lock_irqsave(&n->list_lock, flags);
+-	list_for_each_entry(page, &n->partial, lru)
+-		x += page->inuse;
+-	spin_unlock_irqrestore(&n->list_lock, flags);
+-	return x;
+-}
+-
+ enum slab_stat_type {
+ 	SL_FULL,
+ 	SL_PARTIAL,
+-- 
+1.5.2.4
 
-Please describe this program differently, "a threaded cpu eater", "a
-threaded memory scanner", "a threaded hash lookup", or something
-suitably matching what it really does.
-
-I'm sure there are at least 10 or even more programs in LTP that one
-could run under "time" and get the same exact functionality.
-
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+-- 
