@@ -1,35 +1,31 @@
-Date: Fri, 31 Aug 2007 19:07:39 -0700 (PDT)
-From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [RFC 14/26] SLUB: __GFP_MOVABLE and SLAB_TEMPORARY support
-In-Reply-To: <20070901110410.acea7b2b.kamezawa.hiroyu@jp.fujitsu.com>
-Message-ID: <Pine.LNX.4.64.0708311906280.23843@schroedinger.engr.sgi.com>
-References: <20070901014107.719506437@sgi.com> <20070901014222.536517408@sgi.com>
- <20070901110410.acea7b2b.kamezawa.hiroyu@jp.fujitsu.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Date: Fri, 31 Aug 2007 19:49:03 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH 3/6] x86: Convert cpu_sibling_map to be a per cpu
+ variable (v2)
+Message-Id: <20070831194903.5d88a007.akpm@linux-foundation.org>
+In-Reply-To: <20070824222948.851896000@sgi.com>
+References: <20070824222654.687510000@sgi.com>
+	<20070824222948.851896000@sgi.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: apw@shadowen.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, hch@lst.de, mel@skynet.ie, dgc@sgi.com
+To: travis@sgi.com
+Cc: Andi Kleen <ak@suse.de>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Christoph Lameter <clameter@sgi.com>
 List-ID: <linux-mm.kvack.org>
 
-On Sat, 1 Sep 2007, KAMEZAWA Hiroyuki wrote:
+On Fri, 24 Aug 2007 15:26:57 -0700 travis@sgi.com wrote:
 
-> On Fri, 31 Aug 2007 18:41:21 -0700
-> Christoph Lameter <clameter@sgi.com> wrote:
-> 
-> > +#ifndef CONFIG_HIGHMEM
-> > +	if (s->kick || s->flags & SLAB_TEMPORARY)
-> > +		flags |= __GFP_MOVABLE;
-> > +#endif
-> > +
-> 
-> Should I do this as
-> 
-> #if !defined(CONFIG_HIGHMEM) && !defined(CONFIG_MEMORY_HOTREMOVE)
+> Convert cpu_sibling_map from a static array sized by NR_CPUS to a
+> per_cpu variable.  This saves sizeof(cpumask_t) * NR unused cpus.
+> Access is mostly from startup and CPU HOTPLUG functions.
 
-Hmmm.... Not sure... I think the use of __GFP_MOVABLE the way it is up 
-there will change as soon as Mel's antifrag patchset is merged.
+ia64 allmodconfig:
+
+kernel/sched.c: In function `cpu_to_phys_group':                                                                             kernel/sched.c:5937: error: `per_cpu__cpu_sibling_map' undeclared (first use in this function)                               kernel/sched.c:5937: error: (Each undeclared identifier is reported only once
+kernel/sched.c:5937: error: for each function it appears in.)                                                                kernel/sched.c:5937: warning: type defaults to `int' in declaration of `type name'
+kernel/sched.c:5937: error: invalid type argument of `unary *'                                                               kernel/sched.c: In function `build_sched_domains':                                                                           kernel/sched.c:6172: error: `per_cpu__cpu_sibling_map' undeclared (first use in this function)                               kernel/sched.c:6172: warning: type defaults to `int' in declaration of `type name'                                           kernel/sched.c:6172: error: invalid type argument of `unary *'                                                               kernel/sched.c:6183: warning: type defaults to `int' in declaration of `type name'                                           kernel/sched.c:6183: error: invalid type argument of `unary *'                                                               
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
