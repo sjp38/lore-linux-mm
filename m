@@ -1,39 +1,52 @@
-Date: Mon, 3 Sep 2007 07:32:19 -0500
-From: Matt Mackall <mpm@selenic.com>
-Subject: Re: [RFC][PATCH 7/9] pagewalk: add handler for empty ranges
-Message-ID: <20070903123219.GR21720@waste.org>
-References: <20070821204248.0F506A29@kernel> <20070821204256.140D32D2@kernel> <46D67182.8080408@yahoo.com.au>
+Received: from d23relay03.au.ibm.com (d23relay03.au.ibm.com [202.81.18.234])
+	by e23smtp05.au.ibm.com (8.13.1/8.13.1) with ESMTP id l83JjYvC030553
+	for <linux-mm@kvack.org>; Tue, 4 Sep 2007 05:45:34 +1000
+Received: from d23av03.au.ibm.com (d23av03.au.ibm.com [9.190.250.244])
+	by d23relay03.au.ibm.com (8.13.8/8.13.8/NCO v8.5) with ESMTP id l83JjVrT4460636
+	for <linux-mm@kvack.org>; Tue, 4 Sep 2007 05:45:32 +1000
+Received: from d23av03.au.ibm.com (loopback [127.0.0.1])
+	by d23av03.au.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l83JjVix028481
+	for <linux-mm@kvack.org>; Tue, 4 Sep 2007 05:45:31 +1000
+Message-ID: <46DC6446.1080707@linux.vnet.ibm.com>
+Date: Mon, 03 Sep 2007 20:45:10 +0100
+From: Balbir Singh <balbir@linux.vnet.ibm.com>
+Reply-To: balbir@linux.vnet.ibm.com
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <46D67182.8080408@yahoo.com.au>
+Subject: Re: [-mm PATCH] Memory controller improve user interface (v3)
+References: <20070902105021.3737.31251.sendpatchset@balbir-laptop> <6599ad830709022153g1720bcedsb61d7cf7a783bd3f@mail.gmail.com>
+In-Reply-To: <6599ad830709022153g1720bcedsb61d7cf7a783bd3f@mail.gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nick Piggin <nickpiggin@yahoo.com.au>
-Cc: Dave Hansen <haveblue@us.ibm.com>, linux-mm@kvack.org
+To: Paul Menage <menage@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux Containers <containers@lists.osdl.org>, Linux MM Mailing List <linux-mm@kvack.org>, David Rientjes <rientjes@google.com>, Dave Hansen <haveblue@us.ibm.com>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Aug 30, 2007 at 05:28:02PM +1000, Nick Piggin wrote:
-> Dave Hansen wrote:
+Paul Menage wrote:
+> On 9/2/07, Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
+>> -       s += sprintf(s, "%lu\n", *val);
+>> +       if (read_strategy)
+>> +               s += read_strategy(*val, s);
+>> +       else
+>> +               s += sprintf(s, "%lu\n", *val);
 > 
-> >@@ -27,25 +23,23 @@ static int walk_pmd_range(pud_t *pud, un
-> > {
-> > 	pmd_t *pmd;
-> > 	unsigned long next;
-> >-	int err;
-> >+	int err = 0;
-> > 
-> > 	for (pmd = pmd_offset(pud, addr); addr != end;
-> > 	     pmd++, addr = next) {
-> > 		next = pmd_addr_end(addr, end);
+> This would be better as %llu
 > 
-> While you're there, do you mind fixing the actual page table walking so
-> that it follows the normal form?
+>> +               tmp = simple_strtoul(buf, &end, 10);
+> 
+> and this as simple_strtoull()
+> 
+> Paul
+> 
 
-Already done in my local series.
+Thanks for catching it, I'll fix that.
 
 -- 
-Mathematics is the supreme nostalgia of our time.
+	Warm Regards,
+	Balbir Singh
+	Linux Technology Center
+	IBM, ISTL
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
