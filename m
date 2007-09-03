@@ -1,14 +1,14 @@
 Received: from d23relay03.au.ibm.com (d23relay03.au.ibm.com [202.81.18.234])
-	by e23smtp05.au.ibm.com (8.13.1/8.13.1) with ESMTP id l83JjYvC030553
-	for <linux-mm@kvack.org>; Tue, 4 Sep 2007 05:45:34 +1000
-Received: from d23av03.au.ibm.com (d23av03.au.ibm.com [9.190.250.244])
-	by d23relay03.au.ibm.com (8.13.8/8.13.8/NCO v8.5) with ESMTP id l83JjVrT4460636
-	for <linux-mm@kvack.org>; Tue, 4 Sep 2007 05:45:32 +1000
-Received: from d23av03.au.ibm.com (loopback [127.0.0.1])
-	by d23av03.au.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l83JjVix028481
-	for <linux-mm@kvack.org>; Tue, 4 Sep 2007 05:45:31 +1000
-Message-ID: <46DC6446.1080707@linux.vnet.ibm.com>
-Date: Mon, 03 Sep 2007 20:45:10 +0100
+	by e23smtp03.au.ibm.com (8.13.1/8.13.1) with ESMTP id l83Jnito021997
+	for <linux-mm@kvack.org>; Tue, 4 Sep 2007 05:49:44 +1000
+Received: from d23av02.au.ibm.com (d23av02.au.ibm.com [9.190.250.243])
+	by d23relay03.au.ibm.com (8.13.8/8.13.8/NCO v8.5) with ESMTP id l83JnhnM4448362
+	for <linux-mm@kvack.org>; Tue, 4 Sep 2007 05:49:43 +1000
+Received: from d23av02.au.ibm.com (loopback [127.0.0.1])
+	by d23av02.au.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l83JnhrY025568
+	for <linux-mm@kvack.org>; Tue, 4 Sep 2007 05:49:43 +1000
+Message-ID: <46DC6543.3000607@linux.vnet.ibm.com>
+Date: Mon, 03 Sep 2007 20:49:23 +0100
 From: Balbir Singh <balbir@linux.vnet.ibm.com>
 Reply-To: balbir@linux.vnet.ibm.com
 MIME-Version: 1.0
@@ -33,14 +33,21 @@ Paul Menage wrote:
 > 
 > This would be better as %llu
 > 
+
+Hi, Paul,
+
+This does not need fixing, since the other counters like failcnt are
+still unsigned long
+
 >> +               tmp = simple_strtoul(buf, &end, 10);
 > 
 > and this as simple_strtoull()
 > 
-> Paul
-> 
 
-Thanks for catching it, I'll fix that.
+
+Will do, thanks!
+
+
 
 -- 
 	Warm Regards,
