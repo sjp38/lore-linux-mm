@@ -1,59 +1,76 @@
-Received: from d23relay03.au.ibm.com (d23relay03.au.ibm.com [202.81.18.234])
-	by e23smtp03.au.ibm.com (8.13.1/8.13.1) with ESMTP id l83Jnito021997
-	for <linux-mm@kvack.org>; Tue, 4 Sep 2007 05:49:44 +1000
-Received: from d23av02.au.ibm.com (d23av02.au.ibm.com [9.190.250.243])
-	by d23relay03.au.ibm.com (8.13.8/8.13.8/NCO v8.5) with ESMTP id l83JnhnM4448362
-	for <linux-mm@kvack.org>; Tue, 4 Sep 2007 05:49:43 +1000
-Received: from d23av02.au.ibm.com (loopback [127.0.0.1])
-	by d23av02.au.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l83JnhrY025568
-	for <linux-mm@kvack.org>; Tue, 4 Sep 2007 05:49:43 +1000
-Message-ID: <46DC6543.3000607@linux.vnet.ibm.com>
-Date: Mon, 03 Sep 2007 20:49:23 +0100
-From: Balbir Singh <balbir@linux.vnet.ibm.com>
-Reply-To: balbir@linux.vnet.ibm.com
-MIME-Version: 1.0
-Subject: Re: [-mm PATCH] Memory controller improve user interface (v3)
-References: <20070902105021.3737.31251.sendpatchset@balbir-laptop> <6599ad830709022153g1720bcedsb61d7cf7a783bd3f@mail.gmail.com>
-In-Reply-To: <6599ad830709022153g1720bcedsb61d7cf7a783bd3f@mail.gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Date: Mon, 3 Sep 2007 21:58:47 +0200
+From: Nick Piggin <npiggin@suse.de>
+Subject: [patch][rfc] delayacct: fix swapin delay accounting (maybe)
+Message-ID: <20070903195847.GD24413@wotan.suse.de>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Paul Menage <menage@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux Containers <containers@lists.osdl.org>, Linux MM Mailing List <linux-mm@kvack.org>, David Rientjes <rientjes@google.com>, Dave Hansen <haveblue@us.ibm.com>
+To: Shailabh Nagar <nagar@watson.ibm.com>, Hugh Dickins <hugh@veritas.com>, Linux Memory Management List <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-Paul Menage wrote:
-> On 9/2/07, Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
->> -       s += sprintf(s, "%lu\n", *val);
->> +       if (read_strategy)
->> +               s += read_strategy(*val, s);
->> +       else
->> +               s += sprintf(s, "%lu\n", *val);
-> 
-> This would be better as %llu
-> 
+Hi,
 
-Hi, Paul,
+I can't convince myself that delay accounting for swapin is quite right
+at the moment (not having a test setup handy to run and check for myself).
+Maybe I'm not reading the swapin code very well...
 
-This does not need fixing, since the other counters like failcnt are
-still unsigned long
+lookup_swap_cache, and read_swap_cache_async should be non-blocking
+operations for the most part.
 
->> +               tmp = simple_strtoul(buf, &end, 10);
-> 
-> and this as simple_strtoull()
-> 
+read_swap_cache_async might, when allocating the new page, go into reclaim
+and take a long time to come back. However is that any more a "swapin" delay
+than eg. when we sleep on mmap_sem when first taking the fault, or any other
+types of fault which require allocations? None of which we account for as
+swapin delay.
 
+But the most obvious delay, where we actually lock the page waiting for
+the swap IO to finish, does not seem to be accounted at all!
 
-Will do, thanks!
+My proposed fix is to just move the swaping delay accounting to the
+point where the VM does actually wait, for the swapin.
 
+I have no idea what uses swapin delay accounting, but it would be good to
+see if this makes a positive (or at least not negative) impact on those
+users...
 
+Thanks,
+Nick
 
--- 
-	Warm Regards,
-	Balbir Singh
-	Linux Technology Center
-	IBM, ISTL
+--
+Index: linux-2.6/mm/memory.c
+===================================================================
+--- linux-2.6.orig/mm/memory.c
++++ linux-2.6/mm/memory.c
+@@ -2158,7 +2158,6 @@ static int do_swap_page(struct mm_struct
+ 		migration_entry_wait(mm, pmd, address);
+ 		goto out;
+ 	}
+-	delayacct_set_flag(DELAYACCT_PF_SWAPIN);
+ 	page = lookup_swap_cache(entry);
+ 	if (!page) {
+ 		grab_swap_token(); /* Contend for token _before_ read-in */
+@@ -2172,7 +2171,6 @@ static int do_swap_page(struct mm_struct
+ 			page_table = pte_offset_map_lock(mm, pmd, address, &ptl);
+ 			if (likely(pte_same(*page_table, orig_pte)))
+ 				ret = VM_FAULT_OOM;
+-			delayacct_clear_flag(DELAYACCT_PF_SWAPIN);
+ 			goto unlock;
+ 		}
+ 
+@@ -2181,9 +2179,10 @@ static int do_swap_page(struct mm_struct
+ 		count_vm_event(PGMAJFAULT);
+ 	}
+ 
+-	delayacct_clear_flag(DELAYACCT_PF_SWAPIN);
+ 	mark_page_accessed(page);
++	delayacct_set_flag(DELAYACCT_PF_SWAPIN);
+ 	lock_page(page);
++	delayacct_clear_flag(DELAYACCT_PF_SWAPIN);
+ 
+ 	/*
+ 	 * Back out if somebody else already faulted in this pte.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
