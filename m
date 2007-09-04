@@ -1,58 +1,43 @@
-Received: from d23relay03.au.ibm.com (d23relay03.au.ibm.com [202.81.18.234])
-	by e23smtp04.au.ibm.com (8.13.1/8.13.1) with ESMTP id l847TJ88021202
-	for <linux-mm@kvack.org>; Tue, 4 Sep 2007 17:29:19 +1000
-Received: from d23av01.au.ibm.com (d23av01.au.ibm.com [9.190.250.242])
-	by d23relay03.au.ibm.com (8.13.8/8.13.8/NCO v8.5) with ESMTP id l847TJ6I4362242
-	for <linux-mm@kvack.org>; Tue, 4 Sep 2007 17:29:19 +1000
-Received: from d23av01.au.ibm.com (loopback [127.0.0.1])
-	by d23av01.au.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l847TIKj028965
-	for <linux-mm@kvack.org>; Tue, 4 Sep 2007 17:29:18 +1000
-Message-ID: <46DD0939.7030409@linux.vnet.ibm.com>
-Date: Tue, 04 Sep 2007 08:28:57 +0100
-From: Balbir Singh <balbir@linux.vnet.ibm.com>
-Reply-To: balbir@linux.vnet.ibm.com
+Message-ID: <46DD2760.3040505@wldelft.nl>
+Date: Tue, 04 Sep 2007 11:37:36 +0200
+From: Leroy van Logchem <leroy.vanlogchem@wldelft.nl>
 MIME-Version: 1.0
-Subject: Re: [-mm PATCH] Memory controller improve user interface (v3)
-References: <20070902105021.3737.31251.sendpatchset@balbir-laptop> <6599ad830709022153g1720bcedsb61d7cf7a783bd3f@mail.gmail.com> <46DC6543.3000607@linux.vnet.ibm.com> <6599ad830709040019r17861771we2a0893c0c160723@mail.gmail.com>
-In-Reply-To: <6599ad830709040019r17861771we2a0893c0c160723@mail.gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1
+Subject: Re: huge improvement with per-device dirty throttling
+References: <1187764638.6869.17.camel@hannibal> <p733aybzv6e.fsf@bingen.suse.de> <20070822124736.GQ13915@v2.random>
+In-Reply-To: <20070822124736.GQ13915@v2.random>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Paul Menage <menage@google.com>
-Cc: Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux MM Mailing List <linux-mm@kvack.org>, David Rientjes <rientjes@google.com>, Linux Containers <containers@lists.osdl.org>, Andrew Morton <akpm@linux-foundation.org>
+To: Andrea Arcangeli <andrea@suse.de>
+Cc: Andi Kleen <andi@firstfloor.org>, "Jeffrey W. Baker" <jwbaker@acm.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Paul Menage wrote:
-> On 9/3/07, Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
->> Paul Menage wrote:
->>> On 9/2/07, Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
->>>> -       s += sprintf(s, "%lu\n", *val);
->>>> +       if (read_strategy)
->>>> +               s += read_strategy(*val, s);
->>>> +       else
->>>> +               s += sprintf(s, "%lu\n", *val);
->>> This would be better as %llu
->>>
->> Hi, Paul,
+Andrea Arcangeli wrote:
+> On Wed, Aug 22, 2007 at 01:05:13PM +0200, Andi Kleen wrote:
+>> Ok perhaps the new adaptive dirty limits helps your single disk
+>> a lot too. But your improvements seem to be more "collateral damage" @)
 >>
->> This does not need fixing, since the other counters like failcnt are
->> still unsigned long
->>
+>> But if that was true it might be enough to just change the dirty limits
+>> to get the same effect on your system. You might want to play with
+>> /proc/sys/vm/dirty_*
 > 
-> But val is an unsigned long long*. So printing *val with %lu will
-> break (at least a warning, and maybe corruption if you had other
-> parameters) on 32-bit archs.
-> 
+> The adaptive dirty limit is per task so it can't be reproduced with
+> global sysctl. It made quite some difference when I researched into it
+> in function of time. This isn't in function of time but it certainly
+> makes a lot of difference too, actually it's the most important part
+> of the patchset for most people, the rest is for the corner cases that
+> aren't handled right currently (writing to a slow device with
+> writeback cache has always been hanging the whole thing).
 
-Yeah... Hmm.. just wonder if all the counters should be unsigned long
-long? failcnt is the only remaining unsigned long counter now.
+
+Self-tuning > static sysctl's. The last years we needed to use very 
+small values for dirty_ratio and dirty_background_ratio to soften the 
+latency problems we have during sustained writes. Imo these patches 
+really help in many cases, please commit to mainline.
 
 -- 
-	Warm Regards,
-	Balbir Singh
-	Linux Technology Center
-	IBM, ISTL
+Leroy
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
