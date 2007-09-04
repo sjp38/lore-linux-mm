@@ -1,69 +1,59 @@
-Date: Tue, 4 Sep 2007 12:23:04 -0700 (PDT)
-From: Martin Knoblauch <knobi@knobisoft.de>
-Reply-To: knobi@knobisoft.de
-Subject: Re: huge improvement with per-device dirty throttling
-In-Reply-To: <46DD2760.3040505@wldelft.nl>
+Message-ID: <46DDC017.4040301@sgi.com>
+Date: Tue, 04 Sep 2007 13:29:11 -0700
+From: Mike Travis <travis@sgi.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7BIT
-Message-ID: <713371.64716.qm@web32603.mail.mud.yahoo.com>
+Subject: Re: [PATCH 3/6] x86: Convert cpu_sibling_map to be a per cpu variable
+ (v2) (fwd)
+References: <Pine.LNX.4.64.0708312028400.24049@schroedinger.engr.sgi.com>
+In-Reply-To: <Pine.LNX.4.64.0708312028400.24049@schroedinger.engr.sgi.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Leroy van Logchem <leroy.vanlogchem@wldelft.nl>, linux-kernel@vger.kernel.org
-Cc: linux-mm@kvack.org, Peter zijlstra <a.p.zijlstra@chello.nl>
+To: Christoph Lameter <clameter@sgi.com>
+Cc: Jack Steiner <steiner@sgi.com>, Andi Kleen <ak@suse.de>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Kamalesh Babulal <kamalesh@linux.vnet.ibm.com>
 List-ID: <linux-mm.kvack.org>
 
---- Leroy van Logchem <leroy.vanlogchem@wldelft.nl> wrote:
+[Sorry, I did not see this message until Christoph forwarded it to me.  I'm
+guessing we (SGI) still have a problem with our external spam filter?]
 
-> Andrea Arcangeli wrote:
-> > On Wed, Aug 22, 2007 at 01:05:13PM +0200, Andi Kleen wrote:
-> >> Ok perhaps the new adaptive dirty limits helps your single disk
-> >> a lot too. But your improvements seem to be more "collateral
-> damage" @)
-> >>
-> >> But if that was true it might be enough to just change the dirty
-> limits
-> >> to get the same effect on your system. You might want to play with
-> >> /proc/sys/vm/dirty_*
-> > 
-> > The adaptive dirty limit is per task so it can't be reproduced with
-> > global sysctl. It made quite some difference when I researched into
-> it
-> > in function of time. This isn't in function of time but it
-> certainly
-> > makes a lot of difference too, actually it's the most important
-> part
-> > of the patchset for most people, the rest is for the corner cases
-> that
-> > aren't handled right currently (writing to a slow device with
-> > writeback cache has always been hanging the whole thing).
 > 
+> ---------- Forwarded message ----------
+> Date: Fri, 31 Aug 2007 19:49:03 -0700
+> From: Andrew Morton <akpm@linux-foundation.org>
+> To: travis@sgi.com
+> Cc: Andi Kleen <ak@suse.de>, linux-mm@kvack.org, linux-kernel@vger.kernel.org,
+>     Christoph Lameter <clameter@sgi.com>
+> Subject: Re: [PATCH 3/6] x86: Convert cpu_sibling_map to be a per cpu variable
+>     (v2)
 > 
-> Self-tuning > static sysctl's. The last years we needed to use very 
-> small values for dirty_ratio and dirty_background_ratio to soften the
+> On Fri, 24 Aug 2007 15:26:57 -0700 travis@sgi.com wrote:
 > 
-> latency problems we have during sustained writes. Imo these patches 
-> really help in many cases, please commit to mainline.
+>> Convert cpu_sibling_map from a static array sized by NR_CPUS to a
+>> per_cpu variable.  This saves sizeof(cpumask_t) * NR unused cpus.
+>> Access is mostly from startup and CPU HOTPLUG functions.
 > 
-> -- 
-> Leroy
+> ia64 allmodconfig:
 > 
+> kernel/sched.c: In function `cpu_to_phys_group':                                                                             kernel/sched.c:5937: error: `per_cpu__cpu_sibling_map' undeclared (first use in this function)                               kernel/sched.c:5937: error: (Each undeclared identifier is reported only once
+> kernel/sched.c:5937: error: for each function it appears in.)                                                                kernel/sched.c:5937: warning: type defaults to `int' in declaration of `type name'
+> kernel/sched.c:5937: error: invalid type argument of `unary *'                                                               kernel/sched.c: In function `build_sched_domains':                                                                           kernel/sched.c:6172: error: `per_cpu__cpu_sibling_map' undeclared (first use in this function)                               kernel/sched.c:6172: warning: type defaults to `int' in declaration of `type name'                                           kernel/sched.c:6172: error: invalid type argument of `unary *'                                                               kernel/sched.c:6183: warning: type defaults to `int' in declaration of `type name'                                           kernel/sched.c:6183: error: invalid type argument of `unary *'                                                               
 
- while it helps in some situations, I did some tests today with
-2.6.22.6+bdi-v9 (Peter was so kind) which seem to indicate that it
-hurts NFS writes. Anyone seen similar effects?
+I'm thinking that the best approach would be to define a cpu_sibling_map() macro
+to handle the cases where cpu_sibling_map is not a per_cpu variable?  Perhaps
+something like:
 
- Otherwise I would just second your request. It definitely helps the
-problematic performance of my CCISS based RAID5 volume.
+#ifdef CONFIG_SCHED_SMT
+#ifndef cpu_sibling_map
+#define cpu_sibling_map(cpu)    cpu_sibling_map[cpu]
+#endif
+#endif
 
-Martin
+My question though, would include/linux/smp.h be the appropriate place for
+the above define?  (That is, if the above approach is the correct one... ;-)
 
-Martin
-
-------------------------------------------------------
-Martin Knoblauch
-email: k n o b i AT knobisoft DOT de
-www:   http://www.knobisoft.de
+Thanks,
+Mike
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
