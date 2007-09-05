@@ -1,5 +1,5 @@
-Message-ID: <46DF145B.70304@qumranet.com>
-Date: Wed, 05 Sep 2007 23:40:59 +0300
+Message-ID: <46DF14B2.9050402@qumranet.com>
+Date: Wed, 05 Sep 2007 23:42:26 +0300
 From: Avi Kivity <avi@qumranet.com>
 MIME-Version: 1.0
 Subject: Re: [PATCH][RFC]: pte notifiers -- support for external page tables
@@ -10,8 +10,10 @@ Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Jack Steiner <steiner@sgi.com>
-Cc: lkml@qumranet.com, linux-mm@kvack.org, shaohua.li@intel.com, kvm@qumranet.com, general@lists.openfabrics.org
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, shaohua.li@intel.com, kvm-devel <kvm-devel@lists.sourceforge.net>, general@lists.openfabrics.org
 List-ID: <linux-mm.kvack.org>
+
+[resend due to broken cc list in my original post]
 
 Jack Steiner wrote:
 > On Wed, Sep 05, 2007 at 07:38:48PM +0300, Avi Kivity wrote:
@@ -32,8 +34,8 @@ Jack Steiner wrote:
 > vma?
 >   
 
-Yes.  It's a lot simpler since this way we don't have to support vma 
-creation/splitting/merging/destruction.  There's a tiny performance hit 
+Yes.  It's a lot simpler since this way we don't have to support vma
+creation/splitting/merging/destruction.  There's a tiny performance hit
 for kvm, but it isn't worth the bother.
 
 Will implement for v2 of this patch.
