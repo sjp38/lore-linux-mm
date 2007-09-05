@@ -1,47 +1,78 @@
-Message-ID: <46DF14B2.9050402@qumranet.com>
-Date: Wed, 05 Sep 2007 23:42:26 +0300
-From: Avi Kivity <avi@qumranet.com>
+Message-ID: <46DF3545.4050604@redhat.com>
+Date: Wed, 05 Sep 2007 19:01:25 -0400
+From: Rik van Riel <riel@redhat.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH][RFC]: pte notifiers -- support for external page tables
-References: <11890103283456-git-send-email-avi@qumranet.com> <20070905204012.GA29272@sgi.com>
-In-Reply-To: <20070905204012.GA29272@sgi.com>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Subject: [PATCH] prevent kswapd from freeing excessive amounts of lowmem
+Content-Type: multipart/mixed;
+ boundary="------------000104020104000509090502"
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Jack Steiner <steiner@sgi.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, shaohua.li@intel.com, kvm-devel <kvm-devel@lists.sourceforge.net>, general@lists.openfabrics.org
+To: Linux kernel Mailing List <linux-kernel@vger.kernel.org>
+Cc: linux-mm@kvack.org, akpm@linux-foundation.org, safari-kernel@safari.iki.fi
 List-ID: <linux-mm.kvack.org>
 
-[resend due to broken cc list in my original post]
+This is a multi-part message in MIME format.
+--------------000104020104000509090502
+Content-Type: text/plain; charset=UTF-8; format=flowed
+Content-Transfer-Encoding: 7bit
 
-Jack Steiner wrote:
-> On Wed, Sep 05, 2007 at 07:38:48PM +0300, Avi Kivity wrote:
->   
->> Some hardware and software systems maintain page tables outside the normal
->> Linux page tables, which reference userspace memory.  This includes
->> Infiniband, other RDMA-capable devices, and kvm (with a pending patch).
->>
->>     
->
-> I like it. 
->
-> We have 2 special devices with external TLBs that can
-> take advantage of this.
->
-> One suggestion - at least for what we need. Can the notifier be
-> registered against the mm_struct instead of (or in addition to) the
-> vma?
->   
+The current VM can get itself into trouble fairly easily on systems
+with a small ZONE_HIGHMEM, which is common on i686 computers with
+1GB of memory.
 
-Yes.  It's a lot simpler since this way we don't have to support vma
-creation/splitting/merging/destruction.  There's a tiny performance hit
-for kvm, but it isn't worth the bother.
+On one side, page_alloc() will allocate down to zone->pages_low,
+while on the other side, kswapd() and balance_pgdat() will try
+to free memory from every zone, until every zone has more free
+pages than zone->pages_high.
 
-Will implement for v2 of this patch.
+Highmem can be filled up to zone->pages_low with page tables,
+ramfs, vmalloc allocations and other unswappable things quite
+easily and without many bad side effects, since we still have
+a huge ZONE_NORMAL to do future allocations from.
 
--- 
-Any sufficiently difficult bug is indistinguishable from a feature.
+However, as long as the number of free pages in the highmem
+zone is below zone->pages_high, kswapd will continue swapping
+things out from ZONE_NORMAL, too!
+
+Sami Farin managed to get his system into a stage where kswapd
+had freed about 700MB of low memory and was still "going strong".
+
+The attached patch will make kswapd stop paging out data from
+zones when there is more than enough memory free.  We do go above
+zone->pages_high in order to keep pressure between zones equal
+in normal circumstances, but the patch should prevent the kind
+of excesses that made Sami's computer totally unusable.
+
+Please merge this into -mm.
+
+Signed-off-by: Rik van Riel <riel@redhat.com>
+
+--------------000104020104000509090502
+Content-Type: text/x-patch;
+ name="linux-2.6-excessive-pageout.patch"
+Content-Transfer-Encoding: 7bit
+Content-Disposition: inline;
+ filename="linux-2.6-excessive-pageout.patch"
+
+--- linux-2.6.22.noarch/mm/vmscan.c.excessive	2007-09-05 12:19:49.000000000 -0400
++++ linux-2.6.22.noarch/mm/vmscan.c	2007-09-05 12:21:40.000000000 -0400
+@@ -1371,7 +1371,13 @@ loop_again:
+ 			temp_priority[i] = priority;
+ 			sc.nr_scanned = 0;
+ 			note_zone_scanning_priority(zone, priority);
+-			nr_reclaimed += shrink_zone(priority, zone, &sc);
++			/*
++			 * We put equal pressure on every zone, unless one
++			 * zone has way too many pages free already.
++			 */
++			if (!zone_watermark_ok(zone, order, 8*zone->pages_high,
++						end_zone, 0))
++				nr_reclaimed += shrink_zone(priority, zone, &sc);
+ 			reclaim_state->reclaimed_slab = 0;
+ 			nr_slab = shrink_slab(sc.nr_scanned, GFP_KERNEL,
+ 						lru_pages);
+
+--------------000104020104000509090502--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
