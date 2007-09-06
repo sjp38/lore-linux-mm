@@ -1,46 +1,40 @@
-Date: Thu, 6 Sep 2007 22:34:12 +0200
-From: =?utf-8?B?SsO2cm4=?= Engel <joern@logfs.org>
-Subject: Re: [RFC 00/26] Slab defragmentation V5
-Message-ID: <20070906203412.GB27657@lazybastard.org>
-References: <20070901014107.719506437@sgi.com>
+Date: Thu, 6 Sep 2007 15:34:26 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH] prevent kswapd from freeing excessive amounts of lowmem
+Message-Id: <20070906153426.a173f8e2.akpm@linux-foundation.org>
+In-Reply-To: <46E02CF5.3020301@redhat.com>
+References: <46DF3545.4050604@redhat.com>
+	<20070905182305.e5d08acf.akpm@linux-foundation.org>
+	<46E02CF5.3020301@redhat.com>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <20070901014107.719506437@sgi.com>
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
-Cc: Andy Whitcroft <apw@shadowen.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, Christoph Hellwig <hch@lst.de>, Mel Gorman <mel@skynet.ie>, David Chinner <dgc@sgi.com>
+To: Rik van Riel <riel@redhat.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, safari-kernel@safari.iki.fi
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 31 August 2007 18:41:07 -0700, Christoph Lameter wrote:
+> On Thu, 06 Sep 2007 12:38:13 -0400 Rik van Riel <riel@redhat.com> wrote:
+> Andrew Morton wrote:
 > 
-> The trouble with this patchset is that it is difficult to validate.
-> Activities are only performed when special load situations are encountered.
-> Are there any tests that could give meaningful information about
-> the effectiveness of these measures? I have run various tests here
-> creating and deleting files and building kernels under low memory situations
-> to trigger these reclaim mechanisms but how does one measure their
-> effectiveness?
 
-One could play with updatedb followed by a memhog.  How much time passes
-and how many slab objects have to be freed before the memhog has
-allocated N% of physical memory?  Both numbers are relevant.  The first
-indicates how quickly pages are reclaimed from slab caches, while the
-second show how many objects remain cached for future lookups.  Updatedb
-aside, caching objects is done for solid performance reasons.
+(What happened to the other stuff I said?)
 
-Creating a qemu image with little memory and a huge directory hierarchy
-filled with 0-byte files may be a nice test system.  Unless you beat me
-to it I'll try to set it up once logfs is in merge-worthy shape.
+> > I guess for a very small upper zone and a very large lower zone this could
+> > still put the scan balancing out of whack, fixable by a smarter version of
+> > "8*zone->pages_high" but it doesn't seem very likely that this will affect
+> > things much.
+> > 
+> > Why doesn't direct reclaim need similar treatment?
+> 
+> Because we only go into the direct reclaim path once
+> every zone is at or below zone->pages_low, and the
+> direct reclaim path will exit once we have freed more
+> than swap_cluster_max pages.
+> 
 
-JA?rn
-
--- 
-A quarrel is quickly settled when deserted by one party; there is
-no battle unless there be two.
--- Seneca
+hm.  Now I need to remember why direct-reclaim does that :(
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
