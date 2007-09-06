@@ -1,168 +1,68 @@
-Received: from d01relay02.pok.ibm.com (d01relay02.pok.ibm.com [9.56.227.234])
-	by e1.ny.us.ibm.com (8.13.8/8.13.8) with ESMTP id l86ILZA3004032
-	for <linux-mm@kvack.org>; Thu, 6 Sep 2007 14:21:35 -0400
-Received: from d01av03.pok.ibm.com (d01av03.pok.ibm.com [9.56.224.217])
-	by d01relay02.pok.ibm.com (8.13.8/8.13.8/NCO v8.5) with ESMTP id l86ILZ70677990
-	for <linux-mm@kvack.org>; Thu, 6 Sep 2007 14:21:35 -0400
-Received: from d01av03.pok.ibm.com (loopback [127.0.0.1])
-	by d01av03.pok.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l86ILZ7s027717
-	for <linux-mm@kvack.org>; Thu, 6 Sep 2007 14:21:35 -0400
-Date: Thu, 6 Sep 2007 11:21:34 -0700
+Received: from d01relay04.pok.ibm.com (d01relay04.pok.ibm.com [9.56.227.236])
+	by e5.ny.us.ibm.com (8.13.8/8.13.8) with ESMTP id l86IOWe2020469
+	for <linux-mm@kvack.org>; Thu, 6 Sep 2007 14:24:32 -0400
+Received: from d01av04.pok.ibm.com (d01av04.pok.ibm.com [9.56.224.64])
+	by d01relay04.pok.ibm.com (8.13.8/8.13.8/NCO v8.5) with ESMTP id l86IOW83512348
+	for <linux-mm@kvack.org>; Thu, 6 Sep 2007 14:24:32 -0400
+Received: from d01av04.pok.ibm.com (loopback [127.0.0.1])
+	by d01av04.pok.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l86IOVH9013915
+	for <linux-mm@kvack.org>; Thu, 6 Sep 2007 14:24:32 -0400
+Date: Thu, 6 Sep 2007 11:24:30 -0700
 From: Nishanth Aravamudan <nacc@us.ibm.com>
-Subject: [PATCH 1/4] hugetlb: search harder for memory in alloc_fresh_huge_page()
-Message-ID: <20070906182134.GA7779@us.ibm.com>
+Subject: [PATCH 2/4] hugetlb: fix pool allocation with empty nodes
+Message-ID: <20070906182430.GB7779@us.ibm.com>
+References: <20070906182134.GA7779@us.ibm.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
+In-Reply-To: <20070906182134.GA7779@us.ibm.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: clameter@sgi.com
-Cc: wli@holomorphy.com, agl@us.ibm.com, lee.schermerhorn@hp.com, linux-mm@kvack.org
+Cc: anton@samba.org, wli@holomorphy.com, agl@us.ibm.com, lee.schermerhorn@hp.com, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Currently, alloc_fresh_huge_page() returns NULL when it is not able to
-allocate a huge page on the current node, as specified by its custom
-interleave variable. The callers of this function, though, assume that a
-failure in alloc_fresh_huge_page() indicates no hugepages can be
-allocated on the system period. This might not be the case, for
-instance, if we have an uneven NUMA system, and we happen to try to
-allocate a hugepage on a node (with __GFP_THISNODE) with less memory and
-fail, while there is still plenty of free memory on the other nodes.
-
-To correct this, make alloc_fresh_huge_page() search through all online
-nodes before deciding no hugepages can be allocated. Add a helper
-function for actually allocating the hugepage. Also, while we expect
-particular semantics for __GFP_THISNODE, which are newly enforced --
-that is, that the allocation won't go off-node -- still use
-page_to_nid() to guarantee we don't mess up the accounting.
+Anton found a problem with the hugetlb pool allocation when some nodes
+have no memory (http://marc.info/?l=linux-mm&m=118133042025995&w=2). Lee
+worked on versions that tried to fix it, but none were accepted.
+Christoph has created a set of patches which allow for GFP_THISNODE
+allocations to fail if the node has no memory and for exporting a
+nodemask indicating which nodes have memory. Simply interleave across
+this nodemask rather than the online nodemask.
 
 Tested on 4-node ppc64, 2-node ia64 and 4-node x86_64.
 
-Before this patch on a 4-node ppc64 with the following memory
-characteristics:
-
-Node 0 MemTotal:      1310720 kB
-Node 1 MemTotal:      1048576 kB
-Node 2 MemTotal:      1048576 kB
-Node 3 MemTotal:       786432 kB
-
-Trying to clear the hugetlb pool
-Done.       0 free
-Trying to resize the pool to 100
-Node 0 HugePages_Free:     25
-Node 1 HugePages_Free:     25
-Node 2 HugePages_Free:     25
-Node 3 HugePages_Free:     25
-Done. Initially     100 free
-Trying to resize the pool to 200
-Node 0 HugePages_Free:     50
-Node 1 HugePages_Free:     57
-Node 2 HugePages_Free:     52
-Node 3 HugePages_Free:     41
-Done.     200 free
-
-After:
-
-Trying to clear the hugetlb pool
-Done.       0 free
-Trying to resize the pool to 100
-Node 0 HugePages_Free:     25
-Node 1 HugePages_Free:     25
-Node 2 HugePages_Free:     25
-Node 3 HugePages_Free:     25
-Done. Initially     100 free
-Trying to resize the pool to 200
-Node 0 HugePages_Free:     53
-Node 1 HugePages_Free:     53
-Node 2 HugePages_Free:     52
-Node 3 HugePages_Free:     42
-Done.     200 free
-
 Signed-off-by: Nishanth Aravamudan <nacc@us.ibm.com>
 
+---
+My 4-node ppc64 box with memoryless nodes is having issues with
+2.6.23-rc4-mm1, so I'm unable to test. Lee, could you give this a spin?
+
 diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-index c53bd5a..edb2100 100644
+index edb2100..cc875c6 100644
 --- a/mm/hugetlb.c
 +++ b/mm/hugetlb.c
-@@ -101,26 +101,13 @@ static void free_huge_page(struct page *page)
- 	spin_unlock(&hugetlb_lock);
- }
+@@ -129,7 +129,7 @@ static int alloc_fresh_huge_page(void)
+ 	int ret = 0;
  
--static int alloc_fresh_huge_page(void)
-+static struct page *alloc_fresh_huge_page_node(int nid)
- {
--	static int prev_nid;
- 	struct page *page;
--	int nid;
--
--	/*
--	 * Copy static prev_nid to local nid, work on that, then copy it
--	 * back to prev_nid afterwards: otherwise there's a window in which
--	 * a racer might pass invalid nid MAX_NUMNODES to alloc_pages_node.
--	 * But we don't need to use a spin_lock here: it really doesn't
--	 * matter if occasionally a racer chooses the same nid as we do.
--	 */
--	nid = next_node(prev_nid, node_online_map);
--	if (nid == MAX_NUMNODES)
+ 	if (nid < 0)
 -		nid = first_node(node_online_map);
--	prev_nid = nid;
++		nid = first_node(node_states[N_HIGH_MEMORY]);
+ 	start_nid = nid;
  
--	page = alloc_pages_node(nid, htlb_alloc_mask|__GFP_COMP|__GFP_NOWARN,
--					HUGETLB_PAGE_ORDER);
-+	page = alloc_pages_node(nid,
-+		htlb_alloc_mask|__GFP_COMP|__GFP_THISNODE|__GFP_NOWARN,
-+		HUGETLB_PAGE_ORDER);
- 	if (page) {
- 		set_compound_page_dtor(page, free_huge_page);
- 		spin_lock(&hugetlb_lock);
-@@ -128,9 +115,45 @@ static int alloc_fresh_huge_page(void)
- 		nr_huge_pages_node[page_to_nid(page)]++;
- 		spin_unlock(&hugetlb_lock);
- 		put_page(page); /* free it into the hugepage allocator */
--		return 1;
- 	}
--	return 0;
-+
-+	return page;
-+}
-+
-+static int alloc_fresh_huge_page(void)
-+{
-+	static int nid = -1;
-+	struct page *page;
-+	int start_nid;
-+	int next_nid;
-+	int ret = 0;
-+
-+	if (nid < 0)
-+		nid = first_node(node_online_map);
-+	start_nid = nid;
-+
-+	do {
-+		page = alloc_fresh_huge_page_node(nid);
-+		if (page)
-+			ret = 1;
-+		/*
-+		 * Use a helper variable to find the next node and then
-+		 * copy it back to nid nid afterwards: otherwise there's
-+		 * a window in which a racer might pass invalid nid
-+		 * MAX_NUMNODES to alloc_pages_node.  But we don't need
-+		 * to use a spin_lock here: it really doesn't matter if
-+		 * occasionally a racer chooses the same nid as we do.
-+		 * Move nid forward in the mask even if we just
-+		 * successfully allocated a hugepage so that the next
-+		 * caller gets hugepages on the next node.
-+		 */
-+		next_nid = next_node(nid, node_online_map);
-+		if (next_nid == MAX_NUMNODES)
-+			next_nid = first_node(node_online_map);
-+		nid = next_nid;
-+	} while (!page && nid != start_nid);
-+
-+	return ret;
- }
+ 	do {
+@@ -147,9 +147,9 @@ static int alloc_fresh_huge_page(void)
+ 		 * successfully allocated a hugepage so that the next
+ 		 * caller gets hugepages on the next node.
+ 		 */
+-		next_nid = next_node(nid, node_online_map);
++		next_nid = next_node(nid, node_states[N_HIGH_MEMORY]);
+ 		if (next_nid == MAX_NUMNODES)
+-			next_nid = first_node(node_online_map);
++			next_nid = first_node(node_states[N_HIGH_MEMORY]);
+ 		nid = next_nid;
+ 	} while (!page && nid != start_nid);
  
- static struct page *alloc_huge_page(struct vm_area_struct *vma,
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
