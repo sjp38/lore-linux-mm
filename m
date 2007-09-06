@@ -1,82 +1,60 @@
-Date: Thu, 6 Sep 2007 02:50:10 -0700 (PDT)
-From: Martin Knoblauch <spamtrap@knobisoft.de>
-Reply-To: spamtrap@knobisoft.de
-Subject: Re: huge improvement with per-device dirty throttling
-In-Reply-To: <713371.64716.qm@web32603.mail.mud.yahoo.com>
+Message-ID: <46DFBC7C.2020709@qumranet.com>
+Date: Thu, 06 Sep 2007 11:38:20 +0300
+From: Avi Kivity <avi@qumranet.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7BIT
-Message-ID: <351207.28447.qm@web32602.mail.mud.yahoo.com>
+Subject: Re: [PATCH][RFC] pte notifiers -- support for external page tables
+References: <11890207643068-git-send-email-avi@qumranet.com> <1189052899.6224.5.camel@sli10-conroe.sh.intel.com>
+In-Reply-To: <1189052899.6224.5.camel@sli10-conroe.sh.intel.com>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Leroy van Logchem <leroy.vanlogchem@wldelft.nl>, linux-kernel@vger.kernel.org
-Cc: linux-mm@kvack.org, Peter zijlstra <a.p.zijlstra@chello.nl>
+To: Shaohua Li <shaohua.li@intel.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, kvm-devel@lists.sourceforge.net, general@lists.openfabrics.org
 List-ID: <linux-mm.kvack.org>
 
---- Martin Knoblauch <knobi@knobisoft.de> wrote:
+Shaohua Li wrote:
+> On Wed, 2007-09-05 at 22:32 +0300, Avi Kivity wrote:
+>   
+>> [resend due to bad alias expansion resulting in some recipients
+>>  being bogus]
+>>
+>> Some hardware and software systems maintain page tables outside the normal
+>> Linux page tables, which reference userspace memory.  This includes
+>> Infiniband, other RDMA-capable devices, and kvm (with a pending patch).
+>>
+>> Because these systems maintain external page tables (and external tlbs),
+>> Linux cannot demand page this memory and it must be locked.  For kvm at
+>> least, this is a significant reduction in functionality.
+>>
+>> This sample patch adds a new mechanism, pte notifiers, that allows drivers
+>> to register an interest in a changes to ptes. Whenever Linux changes a
+>> pte, it will call a notifier to allow the driver to adjust the external
+>> page table and flush its tlb.
+>>
+>> Note that only one notifier is implemented, ->clear(), but others should be
+>> similar.
+>>
+>> pte notifiers are different from paravirt_ops: they extend the normal
+>> page tables rather than replace them; and they provide high-level
+>> information
+>> such as the vma and the virtual address for the driver to use.
+>>     
+> Looks great. So for kvm, all guest pages will be vma mapped?
+> There are lock issues in kvm between kvm lock and page lock. 
+>   
 
-> 
-> --- Leroy van Logchem <leroy.vanlogchem@wldelft.nl> wrote:
-> 
-> > Andrea Arcangeli wrote:
-> > > On Wed, Aug 22, 2007 at 01:05:13PM +0200, Andi Kleen wrote:
-> > >> Ok perhaps the new adaptive dirty limits helps your single disk
-> > >> a lot too. But your improvements seem to be more "collateral
-> > damage" @)
-> > >>
-> > >> But if that was true it might be enough to just change the dirty
-> > limits
-> > >> to get the same effect on your system. You might want to play
-> with
-> > >> /proc/sys/vm/dirty_*
-> > > 
-> > > The adaptive dirty limit is per task so it can't be reproduced
-> with
-> > > global sysctl. It made quite some difference when I researched
-> into
-> > it
-> > > in function of time. This isn't in function of time but it
-> > certainly
-> > > makes a lot of difference too, actually it's the most important
-> > part
-> > > of the patchset for most people, the rest is for the corner cases
-> > that
-> > > aren't handled right currently (writing to a slow device with
-> > > writeback cache has always been hanging the whole thing).
-> > 
-> > 
-> > Self-tuning > static sysctl's. The last years we needed to use very
-> 
-> > small values for dirty_ratio and dirty_background_ratio to soften
-> the
-> > 
-> > latency problems we have during sustained writes. Imo these patches
-> 
-> > really help in many cases, please commit to mainline.
-> > 
-> > -- 
-> > Leroy
-> > 
-> 
->  while it helps in some situations, I did some tests today with
-> 2.6.22.6+bdi-v9 (Peter was so kind) which seem to indicate that it
-> hurts NFS writes. Anyone seen similar effects?
-> 
->  Otherwise I would just second your request. It definitely helps the
-> problematic performance of my CCISS based RAID5 volume.
-> 
+Yes, locking will be a headache.
 
- please disregard my comment about NFS write performance. What I have
-seen is caused by some other stuff I am toying with.
+> Will shadow page table be still stored in page->private? If yes, the
+> page->private must be cleaned before add_to_swap.
+>   
 
- So, I second your request to push this forward.
+page->private can be in use by filesystems, so we will need to move rmap 
+somewhere else.
 
-Martin
-
-------------------------------------------------------
-Martin Knoblauch
-email: k n o b i AT knobisoft DOT de
-www:   http://www.knobisoft.de
+-- 
+Any sufficiently difficult bug is indistinguishable from a feature.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
