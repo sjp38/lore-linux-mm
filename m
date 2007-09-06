@@ -1,45 +1,82 @@
-Date: Thu, 6 Sep 2007 11:41:51 +0300
-Subject: Re: [ofa-general] [PATCH][RFC]: pte notifiers -- support for
-	external page tables
-Message-ID: <20070906084151.GK3410@minantech.com>
-References: <11890103283456-git-send-email-avi@qumranet.com> <20070906062441.GF3410@minantech.com> <46DFBBCC.8060307@qumranet.com>
+Date: Thu, 6 Sep 2007 02:50:10 -0700 (PDT)
+From: Martin Knoblauch <spamtrap@knobisoft.de>
+Reply-To: spamtrap@knobisoft.de
+Subject: Re: huge improvement with per-device dirty throttling
+In-Reply-To: <713371.64716.qm@web32603.mail.mud.yahoo.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <46DFBBCC.8060307@qumranet.com>
-From: glebn@voltaire.com (Gleb Natapov)
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7BIT
+Message-ID: <351207.28447.qm@web32602.mail.mud.yahoo.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Avi Kivity <avi@qumranet.com>
-Cc: lkml@qumranet.com, linux-mm@kvack.org, kvm@qumranet.com, shaohua.li@intel.com, general@lists.openfabrics.org, addy@quadrics.com
+To: Leroy van Logchem <leroy.vanlogchem@wldelft.nl>, linux-kernel@vger.kernel.org
+Cc: linux-mm@kvack.org, Peter zijlstra <a.p.zijlstra@chello.nl>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Sep 06, 2007 at 11:35:24AM +0300, Avi Kivity wrote:
-> Gleb Natapov wrote:
->> On Wed, Sep 05, 2007 at 07:38:48PM +0300, Avi Kivity wrote:
->>   
->>> This sample patch adds a new mechanism, pte notifiers, that allows 
->>> drivers
->>> to register an interest in a changes to ptes. Whenever Linux changes a
->>> pte, it will call a notifier to allow the driver to adjust the external
->>> page table and flush its tlb.
->>>     
->> How is this different from http://lwn.net/Articles/133627/? AFAIR the
->> patch was rejected because there was only one user for it and it was
->> decided that it would be better to maintain it out of tree for a while.
->>   
->
-> Your patch is more complete.
->
-> There are now at least three users: you, kvm, and newer Infiniband HCAs.  
-> Care to resurrect the patch?
->
-This is not my patch :) This is patch written by David Addison from
-Quadrics. I CCed him on my previous email. I just saw that you are
-trying to do something similar.
+--- Martin Knoblauch <knobi@knobisoft.de> wrote:
 
---
-			Gleb.
+> 
+> --- Leroy van Logchem <leroy.vanlogchem@wldelft.nl> wrote:
+> 
+> > Andrea Arcangeli wrote:
+> > > On Wed, Aug 22, 2007 at 01:05:13PM +0200, Andi Kleen wrote:
+> > >> Ok perhaps the new adaptive dirty limits helps your single disk
+> > >> a lot too. But your improvements seem to be more "collateral
+> > damage" @)
+> > >>
+> > >> But if that was true it might be enough to just change the dirty
+> > limits
+> > >> to get the same effect on your system. You might want to play
+> with
+> > >> /proc/sys/vm/dirty_*
+> > > 
+> > > The adaptive dirty limit is per task so it can't be reproduced
+> with
+> > > global sysctl. It made quite some difference when I researched
+> into
+> > it
+> > > in function of time. This isn't in function of time but it
+> > certainly
+> > > makes a lot of difference too, actually it's the most important
+> > part
+> > > of the patchset for most people, the rest is for the corner cases
+> > that
+> > > aren't handled right currently (writing to a slow device with
+> > > writeback cache has always been hanging the whole thing).
+> > 
+> > 
+> > Self-tuning > static sysctl's. The last years we needed to use very
+> 
+> > small values for dirty_ratio and dirty_background_ratio to soften
+> the
+> > 
+> > latency problems we have during sustained writes. Imo these patches
+> 
+> > really help in many cases, please commit to mainline.
+> > 
+> > -- 
+> > Leroy
+> > 
+> 
+>  while it helps in some situations, I did some tests today with
+> 2.6.22.6+bdi-v9 (Peter was so kind) which seem to indicate that it
+> hurts NFS writes. Anyone seen similar effects?
+> 
+>  Otherwise I would just second your request. It definitely helps the
+> problematic performance of my CCISS based RAID5 volume.
+> 
+
+ please disregard my comment about NFS write performance. What I have
+seen is caused by some other stuff I am toying with.
+
+ So, I second your request to push this forward.
+
+Martin
+
+------------------------------------------------------
+Martin Knoblauch
+email: k n o b i AT knobisoft DOT de
+www:   http://www.knobisoft.de
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
