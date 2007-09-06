@@ -1,60 +1,28 @@
-Message-ID: <46DFBC7C.2020709@qumranet.com>
-Date: Thu, 06 Sep 2007 11:38:20 +0300
-From: Avi Kivity <avi@qumranet.com>
+Message-ID: <46DFE46F.5020001@goop.org>
+Date: Thu, 06 Sep 2007 12:28:47 +0100
+From: Jeremy Fitzhardinge <jeremy@goop.org>
 MIME-Version: 1.0
-Subject: Re: [PATCH][RFC] pte notifiers -- support for external page tables
-References: <11890207643068-git-send-email-avi@qumranet.com> <1189052899.6224.5.camel@sli10-conroe.sh.intel.com>
-In-Reply-To: <1189052899.6224.5.camel@sli10-conroe.sh.intel.com>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Subject: Re: [PATCH][RFC]: pte notifiers -- support for external page tables
+References: <11890103283456-git-send-email-avi@qumranet.com> <46DEFDF4.5000900@redhat.com> <46DF0013.4060804@qumranet.com> <46DF0234.7090504@redhat.com> <46DF045F.4020806@qumranet.com>
+In-Reply-To: <46DF045F.4020806@qumranet.com>
+Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Shaohua Li <shaohua.li@intel.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, kvm-devel@lists.sourceforge.net, general@lists.openfabrics.org
+To: Avi Kivity <avi@qumranet.com>
+Cc: Rik van Riel <riel@redhat.com>, linux-mm@kvack.org, shaohua.li@intel.com, kvm-devel <kvm-devel@lists.sourceforge.net>, general@lists.openfabrics.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-Shaohua Li wrote:
-> On Wed, 2007-09-05 at 22:32 +0300, Avi Kivity wrote:
->   
->> [resend due to bad alias expansion resulting in some recipients
->>  being bogus]
->>
->> Some hardware and software systems maintain page tables outside the normal
->> Linux page tables, which reference userspace memory.  This includes
->> Infiniband, other RDMA-capable devices, and kvm (with a pending patch).
->>
->> Because these systems maintain external page tables (and external tlbs),
->> Linux cannot demand page this memory and it must be locked.  For kvm at
->> least, this is a significant reduction in functionality.
->>
->> This sample patch adds a new mechanism, pte notifiers, that allows drivers
->> to register an interest in a changes to ptes. Whenever Linux changes a
->> pte, it will call a notifier to allow the driver to adjust the external
->> page table and flush its tlb.
->>
->> Note that only one notifier is implemented, ->clear(), but others should be
->> similar.
->>
->> pte notifiers are different from paravirt_ops: they extend the normal
->> page tables rather than replace them; and they provide high-level
->> information
->> such as the vma and the virtual address for the driver to use.
->>     
-> Looks great. So for kvm, all guest pages will be vma mapped?
-> There are lock issues in kvm between kvm lock and page lock. 
->   
+Avi Kivity wrote:
+> It is, but the hooks are in much the same places.  It could be argued
+> that you'd embed pte notifiers in paravirt_ops for a host kernel, but
+> that's not doable because pte notifiers use higher-level data
+> strutures (like vmas).
 
-Yes, locking will be a headache.
+Also, I wouldn't like to preclude the possibility of having a kernel
+that's both a guest and a host (ie, nested vmms).
 
-> Will shadow page table be still stored in page->private? If yes, the
-> page->private must be cleaned before add_to_swap.
->   
-
-page->private can be in use by filesystems, so we will need to move rmap 
-somewhere else.
-
--- 
-Any sufficiently difficult bug is indistinguishable from a feature.
+    J
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
