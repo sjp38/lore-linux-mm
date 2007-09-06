@@ -1,78 +1,36 @@
-Subject: Re: [PATCH] 2.6.23-rc3-mm1 - Move setup of N_CPU node state mask
-From: Mel Gorman <mel@csn.ul.ie>
-In-Reply-To: <1187971760.5869.22.camel@localhost>
-References: <20070727194316.18614.36380.sendpatchset@localhost>
-	 <20070727194322.18614.68855.sendpatchset@localhost>
-	 <20070731192241.380e93a0.akpm@linux-foundation.org>
-	 <Pine.LNX.4.64.0707311946530.6158@schroedinger.engr.sgi.com>
-	 <20070731200522.c19b3b95.akpm@linux-foundation.org>
-	 <Pine.LNX.4.64.0707312006550.22443@schroedinger.engr.sgi.com>
-	 <20070731203203.2691ca59.akpm@linux-foundation.org>
-	 <1185977011.5059.36.camel@localhost>
-	 <Pine.LNX.4.64.0708011037510.20795@schroedinger.engr.sgi.com>
-	 <1186085994.5040.98.camel@localhost>
-	 <Pine.LNX.4.64.0708021323390.9711@schroedinger.engr.sgi.com>
-	 <1186611582.5055.95.camel@localhost>
-	 <Pine.LNX.4.64.0708081638270.17335@schroedinger.engr.sgi.com>
-	 <1187971760.5869.22.camel@localhost>
-Content-Type: text/plain
-Date: Thu, 06 Sep 2007 14:56:56 +0100
-Message-Id: <1189087016.3834.12.camel@machina.109elm.lan>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Subject: Re: [PATCH][RFC] pte notifiers -- support for external page	tables
+References: <11890207643068-git-send-email-avi@qumranet.com>
+From: Andi Kleen <andi@firstfloor.org>
+In-Reply-To: <11890207643068-git-send-email-avi@qumranet.com>
+Date: 06 Sep 2007 15:28:58 +0200
+Message-ID: <p73k5r3apnp.fsf@bingen.suse.de>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
-Cc: linux-mm@kvack.org, Christoph Lameter <clameter@sgi.com>, Andrew Morton <akpm@linux-foundation.org>, Nishanth Aravamudan <nacc@us.ibm.com>, Mel Gorman <mel@skynet.ie>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Eric Whitney <eric.whitney@hp.com>
+To: Avi Kivity <avi@qumranet.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 2007-08-24 at 12:09 -0400, Lee Schermerhorn wrote:
-> Saw this while looking at "[BUG] 2.6.23-rc3-mm1 kernel BUG at
-> mm/page_alloc.c:2876!".  Not sure it matters, as apparently, failure to
-> kmalloc() the zone pcp will bug out later anyway.
+Avi Kivity <avi-atKUWr5tajBWk0Htik3J/w@public.gmane.org> writes:
 > 
+> pte notifiers are different from paravirt_ops: they extend the normal
+> page tables rather than replace them; and they provide high-level information
+> such as the vma and the virtual address for the driver to use.
 
-If the failure path is entered, my expectation is that the CPU would not
-appear otherwise active. I'm not convinced the old code is wrong.
+Sounds like a locking horror to me.  To do anything with page tables
+you need locks. Both for the kernel page tables and for your new tables.
 
-> Lee
-> --------------------------
-> 
-> [PATCH] Move setup of N_CPU node state mask
-> 
-> Against:  2.6.23-rc3-mm1
-> 
-> Move recording of nodes w/ cpus to before zone loop.
-> Otherwise, error exit could skip setup of N_CPU mask.  
-> 
-> Signed-off-by:  Lee Schermerhorn <lee.schermerhorn@hp.com>
-> 
->  mm/page_alloc.c |    3 ++-
->  1 file changed, 2 insertions(+), 1 deletion(-)
-> 
-> Index: linux-2.6.23-rc3-mm1/mm/page_alloc.c
-> ===================================================================
-> --- linux-2.6.23-rc3-mm1.orig/mm/page_alloc.c	2007-08-22 10:08:00.000000000 -0400
-> +++ linux-2.6.23-rc3-mm1/mm/page_alloc.c	2007-08-22 10:08:44.000000000 -0400
-> @@ -2793,6 +2793,8 @@ static int __cpuinit process_zones(int c
->  	struct zone *zone, *dzone;
->  	int node = cpu_to_node(cpu);
->  
-> +	node_set_state(node, N_CPU);	/* this node has a cpu */
-> +
->  	for_each_zone(zone) {
->  
->  		if (!populated_zone(zone))
-> @@ -2810,7 +2812,6 @@ static int __cpuinit process_zones(int c
->  			 	(zone->present_pages / percpu_pagelist_fraction));
->  	}
->  
-> -	node_set_state(node, N_CPU);
->  	return 0;
->  bad:
->  	for_each_zone(dzone) {
-> 
-> 
+What happens when people add all
+things of complicated operations in these notifiers? That will likely
+happen and then everytime you change something in VM code they 
+will break. This has the potential to increase the cost of maintaining
+VM code considerably, which would be a bad thing.
+
+This is quite different from paravirt ops because low level pvops
+can typically run lockless by just doing some kind of hypercall directly.
+But that won't work for maintaining your custom page tables.
+
+-Andi
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
