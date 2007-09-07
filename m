@@ -1,67 +1,248 @@
-Message-ID: <46E17282.9030902@sgi.com>
-Date: Fri, 07 Sep 2007 08:47:14 -0700
-From: Mike Travis <travis@sgi.com>
+Date: Fri, 07 Sep 2007 16:07:04 -0500
+Subject: [PATCH 1/1] cpusets/sched_domain reconciliation
 MIME-Version: 1.0
-Subject: Re: [PATCH 0/3] core: fix build error when referencing arch specific
- structures
-References: <20070907040943.467530005@sgi.com>	<200709070828.05730.ak@suse.de> <20070907035632.13ceb928.akpm@linux-foundation.org>
-In-Reply-To: <20070907035632.13ceb928.akpm@linux-foundation.org>
-Content-Type: text/plain; charset=ISO-8859-1
+Content-Type: text/plain; charset=us-ascii
 Content-Transfer-Encoding: 7bit
+Message-Id: <20070907210704.E6BE02FC059@attica.americas.sgi.com>
+From: cpw@sgi.com (Cliff Wickman)
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Andi Kleen <ak@suse.de>, clameter@sgi.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: akpm@linux-foundation.org
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Andrew Morton wrote:
->> On Fri, 7 Sep 2007 08:28:05 +0100 Andi Kleen <ak@suse.de> wrote:
->> On Friday 07 September 2007 05:09, travis@sgi.com wrote:
->>> Since the core kernel routines need to reference cpu_sibling_map,
->>> whether it be a static array or a per_cpu data variable, an access
->>> function has been defined.
->>>
->>> In addition, changes have been made to the ia64 and ppc64 arch's to
->>> move the cpu_sibling_map from a static cpumask_t array [NR_CPUS] to
->>> be per_cpu cpumask_t arrays.
->>>
->>> Note that I do not have the ability to build or test patch 3/3, the
->>> ppc64 changes.
->>>
->>> Patches are referenced against 2.6.23-rc4-mm1 .
->> It would be better if you could redo the patches with the original patches
->> reverted, not incremental changes. In the end we'll need a full patch set
->> with full changelog anyways, not a series of incremental fixes.
-> 
-> yup
->  
->> Also I guess some powerpc testers would be needed. Perhaps cc the
->> maintainers?
->>
-> 
-> yup
-> 
-> All architectures except sparc64 are now done - please have a shot at doing
-> sparc64 as well.
 
-Ok, will do.  I didn't realize there was only one more that used the SCHED_SMT
-code.
 
-> 
-> I'd suggest that we not implement that cpu_sibling_map() macro and just
-> open-code the per_cpu() everywhere.  So henceforth any architecture which
-> implements CONFIG_SCHED_SMT must implement the per-cpu sibling map.
+Re-send of patch sent 8/23/2007, but refreshed for 2.6.23-rc5.
 
-Yes, with only one more to do it's not that daunting. ;-)
+This patch reconciles cpusets and sched_domains that get out of sync
+due to disabling and re-enabling cpu's.
 
-> That's nice and simple, and avoids the unpleasant
-> pretend-function-used-as-an-lvalue trick.  (Well OK, per_cpu() does
-> that, but let's avoid resinning).
+This is still a problem in the 2.6.23-rc5 kernel.
 
-Yes, the per_cpu macro is quite the specimen. ;-)
+Here is an example of how the problem can occur:
 
-Thanks!
-Mike
+   system of cpu's   0 1 2 3 4 5
+   create cpuset /x      2 3 4 5 
+   create cpuset /x/y    2 3
+   all cpusets are cpu_exclusive
+
+   disable cpu 3
+     x is now            2   4 5
+     x/y is now          2
+   enable cpu 3
+     cpusets x and x/y are unchanged
+
+   to restore the cpusets:
+     echo 2-5 > /dev/cpuset/x
+     echo 2-3 > /dev/cpuset/x/y
+
+   At the first echo, which restores 3 to cpuset x, update_cpu_domains() is
+   called for cpuset x/. 
+   system of cpu's   0 1 2 3 4 5
+   x is now              2 3 4 5
+   x/y is now            2
+
+   The system is partitioned between:
+	its parent, the root cpuset, minus its child (x/ is 2-5): 0-1
+        and x/ (2-5) , minus its child (x/y/ 2): 3-5
+
+   The sched_domain's for parent 0-1 are updated.
+   The sched_domain's for current 3-5 are updated.
+
+   But 2 has been untouched.
+   As a result, 3's SD points to sched_group_phys[3] which is the only
+   sched_group_phys on 3's list.  It points to itself.
+   But 2's SD points to sched_group_phys[2], which still points to
+   sched_group_phys[3].
+   When cpu 2 executes find_busiest_group() it will hang on the non-
+   circular sched_group list.
+           
+cpuset.c:
+
+This solution is to update the sched_domain's for the cpuset
+whose cpu's were changed and, in addition, all its children.
+Instead of calling update_cpu_domains(), call update_cpu_domains_tree(),
+which calls update_cpu_domains() for every node from the one specified
+down to all its children.
+
+The extra sched_domain reconstruction is overhead, but only at the
+frequency of administrative change to the cpusets.
+
+There seems to be no administrative procedural work-around.  In the
+example above one could not reverse the two echo's and set x/y before
+x/.  It is not logical, so not allowed (Permission denied).
+
+Thus the patch to cpuset.c makes the sched_domain's correct.
+
+sched.c:
+
+The patch to sched.c prevents the cpu hangs that otherwise occur
+until the sched_domain's are made correct.
+
+It puts checks into find_busiest_group() and find_idlest_group()
+that break from their loops on a sched_group that points to itself.
+This is needed because cpu's are going through load balancing before all
+sched_domains have been reconstructed (see the example above).
+
+This is admittedly a kludge. I leave it to the scheduler gurus to recommend
+a better way update the sched_domains or to keep cpus out of the
+sched_domains while they are being reconstructed.
+
+Diffed against 2.6.23-rc5
+
+Signed-off-by: Cliff Wickman <cpw@sgi.com>
+
+---
+ kernel/cpuset.c |   43 +++++++++++++++++++++++++++++++++++++++----
+ kernel/sched.c  |   18 ++++++++++++++----
+ 2 files changed, 53 insertions(+), 8 deletions(-)
+
+Index: p1/kernel/sched.c
+===================================================================
+--- p1.orig/kernel/sched.c
++++ p1/kernel/sched.c
+@@ -1219,11 +1219,14 @@ static inline unsigned long cpu_avg_load
+ static struct sched_group *
+ find_idlest_group(struct sched_domain *sd, struct task_struct *p, int this_cpu)
+ {
+-	struct sched_group *idlest = NULL, *this = NULL, *group = sd->groups;
++	struct sched_group *idlest = NULL, *this = sd->groups, *group = sd->groups;
++	struct sched_group *self, *prev;
+ 	unsigned long min_load = ULONG_MAX, this_load = 0;
+ 	int load_idx = sd->forkexec_idx;
+ 	int imbalance = 100 + (sd->imbalance_pct-100)/2;
+ 
++	prev = group;
++	self = group;
+ 	do {
+ 		unsigned long load, avg_load;
+ 		int local_group;
+@@ -1260,8 +1263,10 @@ find_idlest_group(struct sched_domain *s
+ 			idlest = group;
+ 		}
+ nextgroup:
++		prev = self;
++		self = group;
+ 		group = group->next;
+-	} while (group != sd->groups);
++	} while (group != sd->groups && group != self && group != prev);
+ 
+ 	if (!idlest || 100*this_load < imbalance*min_load)
+ 		return NULL;
+@@ -2306,7 +2311,8 @@ find_busiest_group(struct sched_domain *
+ 		   unsigned long *imbalance, enum cpu_idle_type idle,
+ 		   int *sd_idle, cpumask_t *cpus, int *balance)
+ {
+-	struct sched_group *busiest = NULL, *this = NULL, *group = sd->groups;
++	struct sched_group *busiest = NULL, *this = sd->groups, *group = sd->groups;
++	struct sched_group *self, *prev;
+ 	unsigned long max_load, avg_load, total_load, this_load, total_pwr;
+ 	unsigned long max_pull;
+ 	unsigned long busiest_load_per_task, busiest_nr_running;
+@@ -2329,6 +2335,8 @@ find_busiest_group(struct sched_domain *
+ 	else
+ 		load_idx = sd->idle_idx;
+ 
++	prev = group;
++	self = group;
+ 	do {
+ 		unsigned long load, group_capacity;
+ 		int local_group;
+@@ -2461,8 +2469,10 @@ find_busiest_group(struct sched_domain *
+ 		}
+ group_next:
+ #endif
++		prev = self;
++		self = group;
+ 		group = group->next;
+-	} while (group != sd->groups);
++	} while (group != sd->groups && group != self && group != prev);
+ 
+ 	if (!busiest || this_load >= max_load || busiest_nr_running == 0)
+ 		goto out_balanced;
+Index: p1/kernel/cpuset.c
+===================================================================
+--- p1.orig/kernel/cpuset.c
++++ p1/kernel/cpuset.c
+@@ -52,6 +52,7 @@
+ #include <asm/uaccess.h>
+ #include <asm/atomic.h>
+ #include <linux/mutex.h>
++#include <linux/kfifo.h>
+ 
+ #define CPUSET_SUPER_MAGIC		0x27e0eb
+ 
+@@ -789,8 +790,8 @@ static void update_cpu_domains(struct cp
+ 			return;
+ 		cspan = CPU_MASK_NONE;
+ 	} else {
+-		if (cpus_empty(pspan))
+-			return;
++		/* parent may be empty, but update anyway */
++
+ 		cspan = cur->cpus_allowed;
+ 		/*
+ 		 * Get all cpus from current cpuset's cpus_allowed not part
+@@ -808,6 +809,40 @@ static void update_cpu_domains(struct cp
+ }
+ 
+ /*
++ * Call update_cpu_domains for cpuset "cur", and for all of its children.
++ *
++ * This walk processes the tree from top to bottom, completing one layer
++ * before dropping down to the next.  It always processes a node before
++ * any of its children.
++ *
++ * Call with manage_mutex held.
++ * Must not be called holding callback_mutex, because we must
++ * not call lock_cpu_hotplug() while holding callback_mutex.
++ */
++static void
++update_cpu_domains_tree(struct cpuset *root)
++{
++	struct cpuset *cp;	/* scans cpusets being updated */
++	struct cpuset *child;	/* scans child cpusets of cp */
++	struct kfifo *queue;	/* fifo queue of cpusets to be updated */
++
++	queue = kfifo_alloc(number_of_cpusets * sizeof(cp), GFP_KERNEL, NULL);
++	if (queue == ERR_PTR(-ENOMEM))
++		return;
++
++	__kfifo_put(queue, (unsigned char *)&root, sizeof(root));
++
++	while (__kfifo_get(queue, (unsigned char *)&cp, sizeof(cp))) {
++		list_for_each_entry(child, &cp->children, sibling)
++		    __kfifo_put(queue,(unsigned char *)&child,sizeof(child));
++		update_cpu_domains(cp);
++	}
++
++	kfifo_free(queue);
++	return;
++}
++
++/*
+  * Call with manage_mutex held.  May take callback_mutex during call.
+  */
+ 
+@@ -846,7 +881,7 @@ static int update_cpumask(struct cpuset 
+ 	cs->cpus_allowed = trialcs.cpus_allowed;
+ 	mutex_unlock(&callback_mutex);
+ 	if (is_cpu_exclusive(cs) && !cpus_unchanged)
+-		update_cpu_domains(cs);
++		update_cpu_domains_tree(cs);
+ 	return 0;
+ }
+ 
+@@ -1087,7 +1122,7 @@ static int update_flag(cpuset_flagbits_t
+ 	mutex_unlock(&callback_mutex);
+ 
+ 	if (cpu_exclusive_changed)
+-                update_cpu_domains(cs);
++                update_cpu_domains_tree(cs);
+ 	return 0;
+ }
+ 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
