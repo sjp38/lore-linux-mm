@@ -1,163 +1,33 @@
-Message-ID: <46E17002.1080706@sgi.com>
-Date: Fri, 07 Sep 2007 08:36:34 -0700
-From: Mike Travis <travis@sgi.com>
+From: Nick Piggin <nickpiggin@yahoo.com.au>
+Subject: Re: Selective swap out of processes
+Date: Sat, 8 Sep 2007 11:45:20 +1000
+References: <1188320070.11543.85.camel@bastion-laptop> <49e98fc50708301650q611f9b0fi762f9c5d8d5fae01@mail.gmail.com> <1188578404.28903.258.camel@localhost>
+In-Reply-To: <1188578404.28903.258.camel@localhost>
 MIME-Version: 1.0
-Subject: Re: [PATCH 3/3] ppc64: Convert cpu_sibling_map to a per_cpu data
- array
-References: <20070907040943.467530005@sgi.com> <20070907040944.380253345@sgi.com> <46E1337D.3090005@linux.vnet.ibm.com> <46E14B37.4030007@linux.vnet.ibm.com>
-In-Reply-To: <46E14B37.4030007@linux.vnet.ibm.com>
-Content-Type: text/plain; charset=windows-1252
-Content-Transfer-Encoding: 8bit
+Content-Disposition: inline
+Message-Id: <200709081145.21097.nickpiggin@yahoo.com.au>
+Content-Type: text/plain;
+  charset="utf-8"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Kamalesh Babulal <kamalesh@linux.vnet.ibm.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Andi Kleen <ak@suse.de>, Christoph Lameter <clameter@sgi.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Dave Hansen <haveblue@us.ibm.com>
+Cc: jcabezas@ac.upc.edu, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Kamalesh Babulal wrote:
-> Kamalesh Babulal wrote:
->> travis@sgi.com wrote:
->>> Convert cpu_sibling_map to a per_cpu cpumask_t array for the ppc64
->>> architecture.
->>>
->>> Note: these changes have not been built nor tested.
->>>
->>> Note: I also don't know if these changes are particularly
->>> relevant for the ppc64 architecture.
->>>
->>> Signed-off-by: Mike Travis <travis@sgi.com>
->>> ---
->>>  arch/powerpc/kernel/setup-common.c        |    4 ++--
->>>  arch/powerpc/kernel/smp.c                 |    4 ++--
->>>  arch/powerpc/platforms/cell/cbe_cpufreq.c |    2 +-
->>>  include/asm-powerpc/smp.h                 |    3 ++-
->>>  include/asm-powerpc/topology.h            |    2 +-
->>>  5 files changed, 8 insertions(+), 7 deletions(-)
->>>
->>> --- a/arch/powerpc/kernel/setup-common.c
->>> +++ b/arch/powerpc/kernel/setup-common.c
->>> @@ -415,9 +415,9 @@
->>>       * Do the sibling map; assume only two threads per processor.
->>>       */
->>>      for_each_possible_cpu(cpu) {
->>> -        cpu_set(cpu, cpu_sibling_map[cpu]);
->>> +        cpu_set(cpu, cpu_sibling_map(cpu));
->>>          if (cpu_has_feature(CPU_FTR_SMT))
->>> -            cpu_set(cpu ^ 0x1, cpu_sibling_map[cpu]);
->>> +            cpu_set(cpu ^ 0x1, cpu_sibling_map(cpu));
->>>      }
->>>
->>>      vdso_data->processorCount = num_present_cpus();
->>> --- a/arch/powerpc/kernel/smp.c
->>> +++ b/arch/powerpc/kernel/smp.c
->>> @@ -61,11 +61,11 @@
->>>
->>>  cpumask_t cpu_possible_map = CPU_MASK_NONE;
->>>  cpumask_t cpu_online_map = CPU_MASK_NONE;
->>> -cpumask_t cpu_sibling_map[NR_CPUS] = { [0 ... NR_CPUS-1] =
->>> CPU_MASK_NONE };
->>> +DEFINE_PER_CPU(cpumask_t, cpu_sibling_map) = CPU_MASK_NONE;
->>>
->>>  EXPORT_SYMBOL(cpu_online_map);
->>>  EXPORT_SYMBOL(cpu_possible_map);
->>> -EXPORT_SYMBOL(cpu_sibling_map);
->>> +EXPORT_PER_CPU_SYMBOL(cpu_sibling_map);
->>>
->>>  /* SMP operations for this machine */
->>>  struct smp_ops_t *smp_ops;
->>> --- a/arch/powerpc/platforms/cell/cbe_cpufreq.c
->>> +++ b/arch/powerpc/platforms/cell/cbe_cpufreq.c
->>> @@ -117,7 +117,7 @@
->>>      policy->cur = cbe_freqs[cur_pmode].frequency;
->>>
->>>  #ifdef CONFIG_SMP
->>> -    policy->cpus = cpu_sibling_map[policy->cpu];
->>> +    policy->cpus = cpu_sibling_map(policy->cpu);
->>>  #endif
->>>
->>>      cpufreq_frequency_table_get_attr(cbe_freqs, policy->cpu);
->>> --- a/include/asm-powerpc/smp.h
->>> +++ b/include/asm-powerpc/smp.h
->>> @@ -58,7 +58,8 @@
->>>                      (smp_hw_index[(cpu)] = (phys))
->>>  #endif
->>>
->>> -extern cpumask_t cpu_sibling_map[NR_CPUS];
->>> +DECLARE_PER_CPU(cpumask_t, cpu_sibling_map);
->>> +#define cpu_sibling_map(cpu) per_cpu(cpu_sibling_map, cpu)
->>>
->>>  /* Since OpenPIC has only 4 IPIs, we use slightly different message
->>> numbers.
->>>   *
->>> --- a/include/asm-powerpc/topology.h
->>> +++ b/include/asm-powerpc/topology.h
->>> @@ -108,7 +108,7 @@
->>>  #ifdef CONFIG_PPC64
->>>  #include <asm/smp.h>
->>>
->>> -#define topology_thread_siblings(cpu)    (cpu_sibling_map[cpu])
->>> +#define topology_thread_siblings(cpu)    (cpu_sibling_map(cpu))
->>>  #endif
->>>  #endif
->>>
->>>
->>>   
->> Hi Mike,
->>
->> After applying the patch, the build fails with following error
->>
->> CHK include/linux/version.h
->> CHK include/linux/utsrelease.h
->> CC arch/powerpc/kernel/asm-offsets.s
->> In file included from include/linux/smp.h:19,
->> from include/linux/topology.h:33,
->> from include/linux/mmzone.h:660,
->> from include/linux/gfp.h:4,
->> from include/linux/slab.h:14,
->> from include/linux/percpu.h:5,
->> from include/asm/time.h:18,
->> from include/asm/cputime.h:26,
->> from include/linux/sched.h:65,
->> from arch/powerpc/kernel/asm-offsets.c:17:
->> include/asm/smp.h:61: error: expected declaration specifiers or ?...?
->> before ?cpu_sibling_map?
->> include/asm/smp.h:61: warning: data definition has no type or storage
->> class
->> include/asm/smp.h:61: warning: type defaults to ?int? in declaration
->> of ?DECLARE_PER_CPU?
->> make[1]: *** [arch/powerpc/kernel/asm-offsets.s] Error 1
->> make: *** [prepare0] Error 2
->>
->> Thanks & Regards,
->> Kamalesh Babulal.
-> Hi Make,
-> 
-> I tried to debug and probably the patch below could help the build error
-> 
-> Signed-off-by: Kamalesh Babulal <kamalesh@linux.vnet.ibm.com>
-> ----
-> 
-> --- a/include/asm-powerpc/smp.h 2007-09-07 18:15:43.000000000 +0530
-> +++ b/include/asm-powerpc/smp.h 2007-09-07 18:16:02.000000000 +0530
-> @@ -25,6 +25,7 @@
-> 
-> #ifdef CONFIG_PPC64
-> #include <asm/paca.h>
-> +#include <asm/percpu.h>
-> #endif
-> 
-> extern int boot_cpuid;
-> 
-> ---
-> Thanks & Regards,
-> Kamalesh Babulal.
-> 
-> 
-> 
+On Saturday 01 September 2007 02:40, Dave Hansen wrote:
+> Isn't the whole point of get_user_pages() so that the kernel doesn't
+> mess with those pages, and the driver or whatever can have free reign?
+>
+> Seems to me that you're pinning the pages with get_user_pages(), then
+> trying to get the kernel to swap them out.  Not a good idea. ;)
 
-Thanks!   I'll merge the above in...
+That's pretty much what it means... well, it is explicitly defined to simply
+increment the refcount of each returned page, which happens to be
+exactly what you want in this case.
 
-Mike
+Obviously your VM code that's doing the swapout has to account for
+this refcount... but you'd need to do that anyway.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
