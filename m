@@ -1,99 +1,45 @@
-Message-ID: <46E30411.3070500@redhat.com>
-Date: Sat, 08 Sep 2007 16:20:33 -0400
-From: Rik van Riel <riel@redhat.com>
+Message-ID: <e12d01c7f2ea$c3782b10$b062769f@jashuffieldypetj>
+Reply-To: "Booker Chapman" <jashuffieldypetj@arome.org>
+From: "Booker Chapman" <jashuffieldypetj@arome.org>
+Subject: Time to make a change
+Date: Sun, 09 Sep 2007 14:07:31 +0200
 MIME-Version: 1.0
-Subject: Re: [PATCH] prevent kswapd from freeing excessive amounts of lowmem
-References: <46DF3545.4050604@redhat.com> <20070907122437.GC3901@ucw.cz>
-In-Reply-To: <20070907122437.GC3901@ucw.cz>
-Content-Type: text/plain; charset=UTF-8; format=flowed
-Content-Transfer-Encoding: 7bit
-Sender: owner-linux-mm@kvack.org
-Return-Path: <owner-linux-mm@kvack.org>
-To: Pavel Machek <pavel@ucw.cz>
-Cc: Linux kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, akpm@linux-foundation.org, safari-kernel@safari.iki.fi
+Content-Type: text/plain;
+	charset="us-ascii"
+Content-Transfer-Encoding: 8bit
+Return-Path: <jashuffieldypetj@arome.org>
+To: Larhonda <adrian@kvack.org>
+Cc: Alena <blah@kvack.org>, Meda Tucker <linux-aio@kvack.org>, Iris <owner-linux-mm@kvack.org>Su <linux-mm@kvack.org>, Micah <linux-mm-archive@kvack.org>, Violeta <aart@kvack.org>, Michiko <majordomo@kvack.org>, Eleonora <linux-ns83820@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-Pavel Machek wrote:
-> Hi!
-> 
->> The current VM can get itself into trouble fairly easily 
->> on systems
->> with a small ZONE_HIGHMEM, which is common on i686 
->> computers with
->> 1GB of memory.
->>
->> On one side, page_alloc() will allocate down to 
->> zone->pages_low,
->> while on the other side, kswapd() and balance_pgdat() 
->> will try
->> to free memory from every zone, until every zone has 
->> more free
->> pages than zone->pages_high.
->>
->> Highmem can be filled up to zone->pages_low with page 
->> tables,
->> ramfs, vmalloc allocations and other unswappable things 
->> quite
->> easily and without many bad side effects, since we still 
->> have
->> a huge ZONE_NORMAL to do future allocations from.
->>
->> However, as long as the number of free pages in the 
->> highmem
->> zone is below zone->pages_high, kswapd will continue 
->> swapping
->> things out from ZONE_NORMAL, too!
->>
->> Sami Farin managed to get his system into a stage where 
->> kswapd
->> had freed about 700MB of low memory and was still "going 
->> strong".
->>
->> The attached patch will make kswapd stop paging out data 
->> from
->> zones when there is more than enough memory free.  We do 
->> go above
->> zone->pages_high in order to keep pressure between zones 
->> equal
->> in normal circumstances, but the patch should prevent 
->> the kind
->> of excesses that made Sami's computer totally unusable.
->>
->> Please merge this into -mm.
->>
->> Signed-off-by: Rik van Riel <riel@redhat.com>
-> 
->> --- linux-2.6.22.noarch/mm/vmscan.c.excessive	2007-09-05 12:19:49.000000000 -0400
->> +++ linux-2.6.22.noarch/mm/vmscan.c	2007-09-05 12:21:40.000000000 -0400
->> @@ -1371,7 +1371,13 @@ loop_again:
->>  			temp_priority[i] = priority;
->>  			sc.nr_scanned = 0;
->>  			note_zone_scanning_priority(zone, priority);
->> -			nr_reclaimed += shrink_zone(priority, zone, &sc);
->> +			/*
->> +			 * We put equal pressure on every zone, unless one
->> +			 * zone has way too many pages free already.
->> +			 */
-> 
-> That does not seem right. Having empty HIGHMEM and full LOWMEM would
-> be very bad, right? We may stop freeing when there's enough LOWMEM
-> free, but not if there's only HIGHMEM free.
+Dear Maple-Leaf-Pharmacy,
 
-Please read the code this patch applies to.
+For years now I have been umaking use of your prescription services for all
+of my
+medicines. I was procuring from the purchasing US pharmacy and paying a
+little fortune for my doctor recommendation.  Then I got clever and
+initiated
+buying from your Canadian firm. I didn't even need a doctor direction to
+order from you.  You have saved me in detail above $10,900 in the last five
+years.
+Your assistance are fast, consistent, you put forward larger than 2000
+medical drugs and
+your excellence is 2nd to none.  
 
-The check I add conditionalizes the individual
-calls to shrink_zone(), so we do not call
-shrink_zone() for a zone that has a ton of free
-pages.  We still call shrink_zone() for the
-other zones.
+Your blissful customer,
 
--- 
-Politics is the struggle between those who want to make their country
-the best in the world, and those who believe it already is.  Each group
-calls the other unpatriotic.
+Jim J
+Omaha Nebraska 
 
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+Click here to establish saving on your medical instruction: 
+www.healthplusnews.org
+
+
+It will grow on again, you think ? prison island the mechanic had asked,
+and laid the star hatchet aside. super And the thu branch Arthur pain spoke
+in a strange, decay transport indistinct voice, with a confused and rambling
+manner. James looked round
+"Then you will come pleasant to me next month? That's stitch right. And
+meeting run in to see held me, my lad, when you have time "In those days
+Montanelli was open stone psychosomatic a canon; he was Director of squeeze
+the Theological Seminary at Pisa, and used
