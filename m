@@ -1,126 +1,87 @@
 From: Mel Gorman <mel@csn.ul.ie>
-Message-Id: <20070910112252.3097.9357.sendpatchset@skynet.skynet.ie>
+Message-Id: <20070910112312.3097.83731.sendpatchset@skynet.skynet.ie>
 In-Reply-To: <20070910112011.3097.8438.sendpatchset@skynet.skynet.ie>
 References: <20070910112011.3097.8438.sendpatchset@skynet.skynet.ie>
-Subject: [PATCH 8/13] Move free pages between lists on steal
-Date: Mon, 10 Sep 2007 12:22:52 +0100 (IST)
+Subject: [PATCH 9/13] Do not group pages by mobility type on low memory systems
+Date: Mon, 10 Sep 2007 12:23:12 +0100 (IST)
 Sender: owner-linux-mm@kvack.org
-Subject: Move free pages between lists on steal
+Subject: Do not group pages by mobility type on low memory systems
 Return-Path: <owner-linux-mm@kvack.org>
 To: akpm@linux-foundation.org
 Cc: Mel Gorman <mel@csn.ul.ie>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-When a fallback is forced to steal a page from a block of a different
-type and more than half of the block is free reassign that block to the
-new type and move the free pages over to the new type's free lists.
+Where there are fewer than one pageblock in the system per mobility
+type mixing is inevitable and any attempt to prevent it will fail
+in a costly manner. This patch checks the size of vm_total_pages in
+build_all_zonelists(). If there are not enough areas,  mobility is effectivly
+disabled by considering all allocations as the same type (UNMOVABLE).
+This is achived via a __read_mostly flag.
+
+This patch removes any need to disable grouping pages by mobility at
+compile time.
 
 Signed-off-by: Mel Gorman <mel@csn.ul.ie>
-[y-goto@jp.fujitsu.com: fix BUG_ON check at move_freepages()]
-[apw@shadowen.org: Move to using pfn_valid_within()]
-Cc: Christoph Lameter <clameter@engr.sgi.com>
-Signed-off-by: Yasunori Goto <y-goto@jp.fujitsu.com>
-Cc: Bjorn Helgaas <bjorn.helgaas@hp.com>
-Signed-off-by: Andy Whitcroft <andyw@uk.ibm.com>
-Cc: Bob Picco <bob.picco@hp.com>
+Acked-by: Andy Whitcroft <apw@shadowen.org>
 Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
 ---
 
- mm/page_alloc.c |   72 +++++++++++++++++++++++++++++++++++++++++++++++++--
- 1 file changed, 70 insertions(+), 2 deletions(-)
+ mm/page_alloc.c |   25 ++++++++++++++++++++++++-
+ 1 file changed, 24 insertions(+), 1 deletion(-)
 
-diff -rup -X /usr/src/patchset-0.6/bin//dontdiff linux-2.6.23-rc5-007-drain-per-cpu-lists-when-high-order-allocations-fail/mm/page_alloc.c linux-2.6.23-rc5-008-move-free-pages-between-lists-on-steal/mm/page_alloc.c
---- linux-2.6.23-rc5-007-drain-per-cpu-lists-when-high-order-allocations-fail/mm/page_alloc.c	2007-09-02 16:20:48.000000000 +0100
-+++ linux-2.6.23-rc5-008-move-free-pages-between-lists-on-steal/mm/page_alloc.c	2007-09-02 16:21:09.000000000 +0100
-@@ -662,6 +662,72 @@ static int fallbacks[MIGRATE_TYPES][MIGR
- 	[MIGRATE_MOVABLE]     = { MIGRATE_RECLAIMABLE, MIGRATE_UNMOVABLE },
- };
+diff -rup -X /usr/src/patchset-0.6/bin//dontdiff linux-2.6.23-rc5-008-move-free-pages-between-lists-on-steal/mm/page_alloc.c linux-2.6.23-rc5-009-do-not-group-pages-by-mobility-type-on-low-memory-systems/mm/page_alloc.c
+--- linux-2.6.23-rc5-008-move-free-pages-between-lists-on-steal/mm/page_alloc.c	2007-09-02 16:21:09.000000000 +0100
++++ linux-2.6.23-rc5-009-do-not-group-pages-by-mobility-type-on-low-memory-systems/mm/page_alloc.c	2007-09-02 16:21:30.000000000 +0100
+@@ -154,8 +154,13 @@ int nr_node_ids __read_mostly = MAX_NUMN
+ EXPORT_SYMBOL(nr_node_ids);
+ #endif
  
-+/*
-+ * Move the free pages in a range to the free lists of the requested type.
-+ * Note that start_page and end_pages are not aligned on a pageblock
-+ * boundary. If alignment is required, use move_freepages_block()
-+ */
-+int move_freepages(struct zone *zone,
-+			struct page *start_page, struct page *end_page,
-+			int migratetype)
-+{
-+	struct page *page;
-+	unsigned long order;
-+	int blocks_moved = 0;
++int page_group_by_mobility_disabled __read_mostly;
 +
-+#ifndef CONFIG_HOLES_IN_ZONE
+ static inline int get_pageblock_migratetype(struct page *page)
+ {
++	if (unlikely(page_group_by_mobility_disabled))
++		return MIGRATE_UNMOVABLE;
++
+ 	return get_pageblock_flags_group(page, PB_migrate, PB_migrate_end);
+ }
+ 
+@@ -169,6 +174,10 @@ static inline int allocflags_to_migratet
+ {
+ 	WARN_ON((gfp_flags & GFP_MOVABLE_MASK) == GFP_MOVABLE_MASK);
+ 
++	if (unlikely(page_group_by_mobility_disabled))
++		return MIGRATE_UNMOVABLE;
++
++	/* Cluster based on mobility */
+ 	return (((gfp_flags & __GFP_MOVABLE) != 0) << 1) |
+ 		((gfp_flags & __GFP_RECLAIMABLE) != 0);
+ }
+@@ -2294,9 +2303,23 @@ void build_all_zonelists(void)
+ 		/* cpuset refresh routine should be here */
+ 	}
+ 	vm_total_pages = nr_free_pagecache_pages();
+-	printk("Built %i zonelists in %s order.  Total pages: %ld\n",
 +	/*
-+	 * page_zone is not safe to call in this context when
-+	 * CONFIG_HOLES_IN_ZONE is set. This bug check is probably redundant
-+	 * anyway as we check zone boundaries in move_freepages_block().
-+	 * Remove at a later date when no bug reports exist related to
-+	 * grouping pages by mobility
++	 * Disable grouping by mobility if the number of pages in the
++	 * system is too low to allow the mechanism to work. It would be
++	 * more accurate, but expensive to check per-zone. This check is
++	 * made on memory-hotadd so a system can start with mobility
++	 * disabled and enable it later
 +	 */
-+	BUG_ON(page_zone(start_page) != page_zone(end_page));
-+#endif
++	if (vm_total_pages < (pageblock_nr_pages * MIGRATE_TYPES))
++		page_group_by_mobility_disabled = 1;
++	else
++		page_group_by_mobility_disabled = 0;
 +
-+	for (page = start_page; page <= end_page;) {
-+		if (!pfn_valid_within(page_to_pfn(page))) {
-+			page++;
-+			continue;
-+		}
-+
-+		if (!PageBuddy(page)) {
-+			page++;
-+			continue;
-+		}
-+
-+		order = page_order(page);
-+		list_del(&page->lru);
-+		list_add(&page->lru,
-+			&zone->free_area[order].free_list[migratetype]);
-+		page += 1 << order;
-+		blocks_moved++;
-+	}
-+
-+	return blocks_moved;
-+}
-+
-+int move_freepages_block(struct zone *zone, struct page *page, int migratetype)
-+{
-+	unsigned long start_pfn, end_pfn;
-+	struct page *start_page, *end_page;
-+
-+	start_pfn = page_to_pfn(page);
-+	start_pfn = start_pfn & ~(pageblock_nr_pages-1);
-+	start_page = pfn_to_page(start_pfn);
-+	end_page = start_page + pageblock_nr_pages - 1;
-+	end_pfn = start_pfn + pageblock_nr_pages - 1;
-+
-+	/* Do not cross zone boundaries */
-+	if (start_pfn < zone->zone_start_pfn)
-+		start_page = page;
-+	if (end_pfn >= zone->zone_start_pfn + zone->spanned_pages)
-+		return 0;
-+
-+	return move_freepages(zone, start_page, end_page, migratetype);
-+}
-+
- /* Remove an element from the buddy allocator from the fallback list */
- static struct page *__rmqueue_fallback(struct zone *zone, int order,
- 						int start_migratetype)
-@@ -686,11 +752,13 @@ static struct page *__rmqueue_fallback(s
- 			area->nr_free--;
- 
- 			/*
--			 * If breaking a large block of pages, place the buddies
--			 * on the preferred allocation list
-+			 * If breaking a large block of pages, move all free
-+			 * pages to the preferred allocation list
- 			 */
- 			if (unlikely(current_order >= (pageblock_order >> 1)))
- 				migratetype = start_migratetype;
-+				move_freepages_block(zone, page, migratetype);
-+			}
- 
- 			/* Remove the page from the freelists */
- 			list_del(&page->lru);
++	printk("Built %i zonelists in %s order, mobility grouping %s.  "
++		"Total pages: %ld\n",
+ 			num_online_nodes(),
+ 			zonelist_order_name[current_zonelist_order],
++			page_group_by_mobility_disabled ? "off" : "on",
+ 			vm_total_pages);
+ #ifdef CONFIG_NUMA
+ 	printk("Policy zone: %s\n", zone_names[policy_zone]);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
