@@ -1,41 +1,44 @@
-Subject: [PATCH] 2.6.23-rc4-mm1:  memoryless nodes - cleanup "unused
-	variable" warning
-From: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
-Content-Type: text/plain
-Date: Mon, 10 Sep 2007 12:43:52 -0400
-Message-Id: <1189442632.5333.21.camel@localhost>
-Mime-Version: 1.0
+Message-ID: <46E58A4A.9080605@cray.com>
+Date: Mon, 10 Sep 2007 13:17:46 -0500
+From: Andrew Hastings <abh@cray.com>
+MIME-Version: 1.0
+Subject: Re: [ofa-general] [PATCH][RFC]: pte notifiers -- support for	external
+ page tables
+References: <11890103283456-git-send-email-avi@qumranet.com> <20070906062441.GF3410@minantech.com> <46DFBBCC.8060307@qumranet.com>
+In-Reply-To: <46DFBBCC.8060307@qumranet.com>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm <linux-mm@kvack.org>, Eric Whitney <eric.whitney@hp.com>
+To: Avi Kivity <avi@qumranet.com>
+Cc: Daniel Blueman <daniel.blueman@quadrics.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-PATCH 2.6.23-rc4-mm1 - remove unused pgdat variable
+Avi Kivity wrote:
+> Gleb Natapov wrote:
+>> On Wed, Sep 05, 2007 at 07:38:48PM +0300, Avi Kivity wrote:
+>>  
+>>> This sample patch adds a new mechanism, pte notifiers, that allows 
+>>> drivers
+>>> to register an interest in a changes to ptes. Whenever Linux changes a
+>>> pte, it will call a notifier to allow the driver to adjust the external
+>>> page table and flush its tlb.
+>>>     
+>> How is this different from http://lwn.net/Articles/133627/? AFAIR the
+>> patch was rejected because there was only one user for it and it was
+>> decided that it would be better to maintain it out of tree for a while.
+>>   
+> 
+> Your patch is more complete.
+> 
+> There are now at least three users: you, kvm, and newer Infiniband 
+> HCAs.  Care to resurrect the patch?
 
-When I replaced the for loop in page_alloc.c:find_next_best_node()
-to scan only nodes with memory, the variable pgdat became unused.
-I forgot to remove it and didn't notice the warning in the log.
+We (Cray) also use the ioproc patch.  AFAIK the current maintainer is 
+Dan Blueman at Quadrics.
 
-Signed-off-by:  Lee Schermerhorn <lee.schermerhorn@hp.com>
-
- mm/page_alloc.c |    1 -
- 1 file changed, 1 deletion(-)
-
-Index: Linux/mm/page_alloc.c
-===================================================================
---- Linux.orig/mm/page_alloc.c	2007-09-10 12:21:31.000000000 -0400
-+++ Linux/mm/page_alloc.c	2007-09-10 12:22:23.000000000 -0400
-@@ -2130,7 +2130,6 @@ static int find_next_best_node(int node,
- 	}
- 
- 	for_each_node_state(n, N_HIGH_MEMORY) {
--		pg_data_t *pgdat = NODE_DATA(n);
- 		cpumask_t tmp;
- 
- 		/* Don't want a node to appear more than once */
-
+-Andrew Hastings
+  Cray Inc.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
