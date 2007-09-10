@@ -1,44 +1,59 @@
-Message-ID: <46E58A4A.9080605@cray.com>
-Date: Mon, 10 Sep 2007 13:17:46 -0500
-From: Andrew Hastings <abh@cray.com>
+Date: Mon, 10 Sep 2007 12:25:13 -0700 (PDT)
+From: Christoph Lameter <clameter@sgi.com>
+Subject: Re: [RFC 0/3] Recursive reclaim (on __PF_MEMALLOC)
+In-Reply-To: <200709050916.04477.phillips@phunq.net>
+Message-ID: <Pine.LNX.4.64.0709101220001.24735@schroedinger.engr.sgi.com>
+References: <20070814142103.204771292@sgi.com> <200709050220.53801.phillips@phunq.net>
+ <Pine.LNX.4.64.0709050334020.8127@schroedinger.engr.sgi.com>
+ <200709050916.04477.phillips@phunq.net>
 MIME-Version: 1.0
-Subject: Re: [ofa-general] [PATCH][RFC]: pte notifiers -- support for	external
- page tables
-References: <11890103283456-git-send-email-avi@qumranet.com> <20070906062441.GF3410@minantech.com> <46DFBBCC.8060307@qumranet.com>
-In-Reply-To: <46DFBBCC.8060307@qumranet.com>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Avi Kivity <avi@qumranet.com>
-Cc: Daniel Blueman <daniel.blueman@quadrics.com>, linux-mm@kvack.org
+To: Daniel Phillips <phillips@phunq.net>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, dkegel@google.com, Peter Zijlstra <a.p.zijlstra@chello.nl>, David Miller <davem@davemloft.net>, Nick Piggin <npiggin@suse.de>
 List-ID: <linux-mm.kvack.org>
 
-Avi Kivity wrote:
-> Gleb Natapov wrote:
->> On Wed, Sep 05, 2007 at 07:38:48PM +0300, Avi Kivity wrote:
->>  
->>> This sample patch adds a new mechanism, pte notifiers, that allows 
->>> drivers
->>> to register an interest in a changes to ptes. Whenever Linux changes a
->>> pte, it will call a notifier to allow the driver to adjust the external
->>> page table and flush its tlb.
->>>     
->> How is this different from http://lwn.net/Articles/133627/? AFAIR the
->> patch was rejected because there was only one user for it and it was
->> decided that it would be better to maintain it out of tree for a while.
->>   
-> 
-> Your patch is more complete.
-> 
-> There are now at least three users: you, kvm, and newer Infiniband 
-> HCAs.  Care to resurrect the patch?
+On Wed, 5 Sep 2007, Daniel Phillips wrote:
 
-We (Cray) also use the ioproc patch.  AFAIK the current maintainer is 
-Dan Blueman at Quadrics.
+> > Na, that cannot be the case since it only activates when an OOM
+> > condition would otherwise result.
+> 
+> I did not express myself clearly then.  Compared to our current 
+> anti-deadlock patch set, you patch set is a regression.  Because 
+> without help from some of our other patches, it does deadlock.  
+> Obviously, we cannot have that.
 
--Andrew Hastings
-  Cray Inc.
+Of course boundless allocations from interrupt / reclaim context will 
+ultimately crash the system. To fix that you need to stop the networking 
+layer from performing these.
+
+> > Given your tests: It looks like we do not need it.
+> 
+> I do not agree with that line of thinking.  A single test load only 
+> provides evidence, not proof.  Your approach is not obviously correct, 
+> quite the contrary.  The tested patch set does not help atomic alloc at 
+> all, which is clearly a problem we can hit, we just did not hit it this 
+> time.
+
+The patch is obviously correct because it provides memory where we used to 
+fail.
+
+> > We have a global dirty page limit already. I fully support Peters
+> > work on dirty throttling.
+> 
+> Alas, I communicated exactly the opposite of what I intended.  We do not 
+> like the global dirty limit.  It makes the vm complex and fragile, 
+> unnecessarily.  We favor an approach that places less reliance on the 
+> global dirty limit so that we can remove some of the fragile and hard 
+> to support workarounds we have had to implement because of it.
+
+So far our experience has just been the opposite and Peter's other patches 
+demonstrate the same. Dirty limits make the VM stable and increase I/O 
+performance.
+
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
