@@ -1,7 +1,8 @@
-Date: Mon, 10 Sep 2007 18:43:48 +0900
+Date: Mon, 10 Sep 2007 18:44:32 +0900
 From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: [PATCH] add page->mapping handling interface [2/35] changes in /mm
-Message-Id: <20070910184348.ffc7b82f.kamezawa.hiroyu@jp.fujitsu.com>
+Subject: [PATCH] add page->mapping handling interface [3/35] changes in
+ generic parts
+Message-Id: <20070910184432.df3b0a3d.kamezawa.hiroyu@jp.fujitsu.com>
 In-Reply-To: <20070910184048.286dfc6e.kamezawa.hiroyu@jp.fujitsu.com>
 References: <20070910184048.286dfc6e.kamezawa.hiroyu@jp.fujitsu.com>
 Mime-Version: 1.0
@@ -13,404 +14,277 @@ To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 Cc: LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, "nickpiggin@yahoo.com.au" <nickpiggin@yahoo.com.au>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-Changes page->mapping handling in /mm directory.
+Changes page->mapping hanlding of generic fs routine and kexec.
+(other than mm layer..)
 
 Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
 
 ---
- mm/filemap.c        |   24 +++++++++++++-----------
- mm/memory.c         |    6 ++++--
- mm/migrate.c        |   17 ++++++-----------
- mm/page-writeback.c |    4 ++--
- mm/rmap.c           |   27 ++++++++++++---------------
- mm/shmem.c          |    4 ++--
- mm/truncate.c       |   15 ++++++++-------
- 7 files changed, 47 insertions(+), 50 deletions(-)
+ fs/buffer.c    |   43 ++++++++++++++++++++++---------------------
+ fs/libfs.c     |    2 +-
+ fs/mpage.c     |   13 +++++++------
+ kernel/kexec.c |    2 +-
+ 4 files changed, 31 insertions(+), 29 deletions(-)
 
-Index: test-2.6.23-rc4-mm1/mm/filemap.c
+Index: test-2.6.23-rc4-mm1/kernel/kexec.c
 ===================================================================
---- test-2.6.23-rc4-mm1.orig/mm/filemap.c
-+++ test-2.6.23-rc4-mm1/mm/filemap.c
-@@ -115,11 +115,11 @@ generic_file_direct_IO(int rw, struct ki
-  */
- void __remove_from_page_cache(struct page *page)
- {
--	struct address_space *mapping = page->mapping;
-+	struct address_space *mapping = page_mapping(page);
- 
- 	mem_container_uncharge_page(page);
- 	radix_tree_delete(&mapping->page_tree, page->index);
--	page->mapping = NULL;
-+	page->mapping = 0;
- 	mapping->nrpages--;
- 	__dec_zone_page_state(page, NR_FILE_PAGES);
- 	BUG_ON(page_mapped(page));
-@@ -127,7 +127,7 @@ void __remove_from_page_cache(struct pag
- 
- void remove_from_page_cache(struct page *page)
- {
--	struct address_space *mapping = page->mapping;
-+	struct address_space *mapping = page_mapping(page);
- 
- 	BUG_ON(!PageLocked(page));
- 
-@@ -454,7 +454,7 @@ int add_to_page_cache(struct page *page,
- 		if (!error) {
- 			page_cache_get(page);
- 			SetPageLocked(page);
--			page->mapping = mapping;
-+			page->mapping = (unsigned long)mapping;
- 			page->index = offset;
- 			mapping->nrpages++;
- 			__inc_zone_page_state(page, NR_FILE_PAGES);
-@@ -642,7 +642,7 @@ repeat:
- 			__lock_page(page);
- 
- 			/* Has the page been truncated while we slept? */
--			if (unlikely(page->mapping != mapping)) {
-+			if (unlikely(!pagecache_consistent(page, mapping))) {
- 				unlock_page(page);
- 				page_cache_release(page);
- 				goto repeat;
-@@ -751,7 +751,8 @@ unsigned find_get_pages_contig(struct ad
- 	ret = radix_tree_gang_lookup(&mapping->page_tree,
- 				(void **)pages, index, nr_pages);
- 	for (i = 0; i < ret; i++) {
--		if (pages[i]->mapping == NULL || pages[i]->index != index)
-+		if (!page_is_pagecache(pages[i]) ||
-+		     pages[i]->index != index)
- 			break;
- 
- 		page_cache_get(pages[i]);
-@@ -980,7 +981,7 @@ page_not_up_to_date:
- 		lock_page(page);
- 
- 		/* Did it get truncated before we got the lock? */
--		if (!page->mapping) {
-+		if (!page_is_pagecache(page)) {
- 			unlock_page(page);
- 			page_cache_release(page);
- 			continue;
-@@ -1007,7 +1008,7 @@ readpage:
- 		if (!PageUptodate(page)) {
- 			lock_page(page);
- 			if (!PageUptodate(page)) {
--				if (page->mapping == NULL) {
-+				if (!page_is_pagecache(page)) {
- 					/*
- 					 * invalidate_inode_pages got it
- 					 */
-@@ -1546,7 +1547,7 @@ retry:
- 		goto out;
- 
- 	lock_page(page);
--	if (!page->mapping) {
-+	if (page_is_pagecache(page)) {
- 		unlock_page(page);
- 		page_cache_release(page);
- 		goto retry;
-@@ -2113,7 +2114,8 @@ static ssize_t generic_perform_write_2co
- 			 * use a non-zeroing copy, but the APIs aren't too
- 			 * consistent.
- 			 */
--			if (unlikely(!page->mapping || PageUptodate(page))) {
-+			if (unlikely(!page_is_pagecache(page) ||
-+					PageUptodate(page))) {
- 				unlock_page(page);
- 				page_cache_release(page);
- 				page_cache_release(src_page);
-@@ -2556,7 +2558,7 @@ out:
-  */
- int try_to_release_page(struct page *page, gfp_t gfp_mask)
- {
--	struct address_space * const mapping = page->mapping;
-+	struct address_space * const mapping = page_mapping(page);
- 
- 	BUG_ON(!PageLocked(page));
- 	if (PageWriteback(page))
-Index: test-2.6.23-rc4-mm1/mm/memory.c
+--- test-2.6.23-rc4-mm1.orig/kernel/kexec.c
++++ test-2.6.23-rc4-mm1/kernel/kexec.c
+@@ -347,7 +347,7 @@ static struct page *kimage_alloc_pages(g
+ 	pages = alloc_pages(gfp_mask, order);
+ 	if (pages) {
+ 		unsigned int count, i;
+-		pages->mapping = NULL;
++		pages->mapping = 0;
+ 		set_page_private(pages, order);
+ 		count = 1 << order;
+ 		for (i = 0; i < count; i++)
+Index: test-2.6.23-rc4-mm1/fs/buffer.c
 ===================================================================
---- test-2.6.23-rc4-mm1.orig/mm/memory.c
-+++ test-2.6.23-rc4-mm1/mm/memory.c
-@@ -650,7 +650,8 @@ static unsigned long zap_pte_range(struc
- 				 * unmap shared but keep private pages.
- 				 */
- 				if (details->check_mapping &&
--				    details->check_mapping != page->mapping)
-+				    !pagecache_consistent(page,
-+						details->check_mapping))
- 					continue;
- 				/*
- 				 * Each page->index must be checked when
-@@ -2309,7 +2310,8 @@ static int __do_fault(struct mm_struct *
- 				 * reworking page_mkwrite locking API, which
- 				 * is better done later.
- 				 */
--				if (!page->mapping) {
-+				if (!page_is_pagecache(page) &&
-+				    !PageAnon(page)) {
- 					ret = 0;
- 					anon = 1; /* no anon but release vmf.page */
- 					goto out;
-Index: test-2.6.23-rc4-mm1/mm/migrate.c
-===================================================================
---- test-2.6.23-rc4-mm1.orig/mm/migrate.c
-+++ test-2.6.23-rc4-mm1/mm/migrate.c
-@@ -223,17 +223,12 @@ static void remove_anon_migration_ptes(s
+--- test-2.6.23-rc4-mm1.orig/fs/buffer.c
++++ test-2.6.23-rc4-mm1/fs/buffer.c
+@@ -467,7 +467,7 @@ static void end_buffer_async_write(struc
+ 					"I/O error on %s\n",
+ 			       bdevname(bh->b_bdev, b));
+ 		}
+-		set_bit(AS_EIO, &page->mapping->flags);
++		set_bit(AS_EIO, &page_mapping_cache(page)->flags);
+ 		set_buffer_write_io_error(bh);
+ 		clear_buffer_uptodate(bh);
+ 		SetPageError(page);
+@@ -678,7 +678,7 @@ void write_boundary_block(struct block_d
+ void mark_buffer_dirty_inode(struct buffer_head *bh, struct inode *inode)
  {
- 	struct anon_vma *anon_vma;
- 	struct vm_area_struct *vma;
--	unsigned long mapping;
--
--	mapping = (unsigned long)new->mapping;
--
--	if (!mapping || (mapping & PAGE_MAPPING_ANON) == 0)
--		return;
--
- 	/*
- 	 * We hold the mmap_sem lock. So no need to call page_lock_anon_vma.
- 	 */
--	anon_vma = (struct anon_vma *) (mapping - PAGE_MAPPING_ANON);
-+	anon_vma = page_mapping_anon(new);
-+	if (!anon_vma)
-+		return;
- 	spin_lock(&anon_vma->lock);
+ 	struct address_space *mapping = inode->i_mapping;
+-	struct address_space *buffer_mapping = bh->b_page->mapping;
++	struct address_space *buffer_mapping = page_mapping_cache(bh->b_page);
  
- 	list_for_each_entry(vma, &anon_vma->head, anon_vma_node)
-@@ -388,7 +383,7 @@ static void migrate_page_copy(struct pag
- 	ClearPageActive(page);
- 	ClearPagePrivate(page);
- 	set_page_private(page, 0);
--	page->mapping = NULL;
-+	page->mapping = 0;
+ 	mark_buffer_dirty(bh);
+ 	if (!mapping->assoc_mapping) {
+@@ -713,7 +713,7 @@ static int __set_page_dirty(struct page 
+ 		return 0;
  
- 	/*
- 	 * If any waiters have accumulated on the new page then
-@@ -601,7 +596,7 @@ static int move_to_new_page(struct page 
- 	if (!rc)
- 		remove_migration_ptes(page, newpage);
- 	else
--		newpage->mapping = NULL;
-+		newpage->mapping = 0;
+ 	write_lock_irq(&mapping->tree_lock);
+-	if (page->mapping) {	/* Race with truncate? */
++	if (page_is_pagecache(page)) {	/* Race with truncate? */
+ 		WARN_ON_ONCE(warn && !PageUptodate(page));
  
- 	unlock_page(newpage);
- 
-@@ -658,7 +653,7 @@ static int unmap_and_move(new_page_t get
- 	 * Calling try_to_unmap() against a page->mapping==NULL page is
- 	 * BUG. So handle it here.
- 	 */
--	if (!page->mapping)
-+	if (!page_is_pagecache(page) && !PageAnon(page))
- 		goto rcu_unlock;
- 	/* Establish migration ptes or remove ptes */
- 	try_to_unmap(page, 1);
-Index: test-2.6.23-rc4-mm1/mm/page-writeback.c
-===================================================================
---- test-2.6.23-rc4-mm1.orig/mm/page-writeback.c
-+++ test-2.6.23-rc4-mm1/mm/page-writeback.c
-@@ -650,7 +650,7 @@ retry:
- 			 */
- 			lock_page(page);
- 
--			if (unlikely(page->mapping != mapping)) {
-+			if (unlikely(!pagecache_consistent(page, mapping))) {
- 				unlock_page(page);
- 				continue;
- 			}
-@@ -758,7 +758,7 @@ int do_writepages(struct address_space *
-  */
- int write_one_page(struct page *page, int wait)
+ 		if (mapping_cap_account_dirty(mapping)) {
+@@ -1202,7 +1202,8 @@ void __bforget(struct buffer_head *bh)
  {
--	struct address_space *mapping = page->mapping;
-+	struct address_space *mapping = page_mapping(page);
- 	int ret = 0;
- 	struct writeback_control wbc = {
- 		.sync_mode = WB_SYNC_ALL,
-Index: test-2.6.23-rc4-mm1/mm/rmap.c
-===================================================================
---- test-2.6.23-rc4-mm1.orig/mm/rmap.c
-+++ test-2.6.23-rc4-mm1/mm/rmap.c
-@@ -160,16 +160,14 @@ void __init anon_vma_init(void)
- static struct anon_vma *page_lock_anon_vma(struct page *page)
- {
- 	struct anon_vma *anon_vma;
--	unsigned long anon_mapping;
+ 	clear_buffer_dirty(bh);
+ 	if (!list_empty(&bh->b_assoc_buffers)) {
+-		struct address_space *buffer_mapping = bh->b_page->mapping;
++		struct address_space *buffer_mapping =
++					page_mapping_cache(bh->b_page);
  
- 	rcu_read_lock();
--	anon_mapping = (unsigned long) page->mapping;
--	if (!(anon_mapping & PAGE_MAPPING_ANON))
--		goto out;
-+
- 	if (!page_mapped(page))
- 		goto out;
--
--	anon_vma = (struct anon_vma *) (anon_mapping - PAGE_MAPPING_ANON);
-+	anon_vma = page_mapping_anon(page);
-+	if (!anon_vma)
-+		goto out;
- 	spin_lock(&anon_vma->lock);
- 	return anon_vma;
- out:
-@@ -208,12 +206,11 @@ vma_address(struct page *page, struct vm
- unsigned long page_address_in_vma(struct page *page, struct vm_area_struct *vma)
- {
- 	if (PageAnon(page)) {
--		if ((void *)vma->anon_vma !=
--		    (void *)page->mapping - PAGE_MAPPING_ANON)
-+		if (vma->anon_vma != page_mapping_anon(page))
- 			return -EFAULT;
- 	} else if (page->mapping && !(vma->vm_flags & VM_NONLINEAR)) {
- 		if (!vma->vm_file ||
--		    vma->vm_file->f_mapping != page->mapping)
-+		    vma->vm_file->f_mapping != page_mapping_cache(page))
- 			return -EFAULT;
- 	} else
- 		return -EFAULT;
-@@ -344,7 +341,7 @@ static int page_referenced_file(struct p
- 				struct mem_container *mem_cont)
- {
- 	unsigned int mapcount;
--	struct address_space *mapping = page->mapping;
-+	struct address_space *mapping = page_mapping_cache(page);
- 	pgoff_t pgoff = page->index << (PAGE_CACHE_SHIFT - PAGE_SHIFT);
- 	struct vm_area_struct *vma;
- 	struct prio_tree_iter iter;
-@@ -422,7 +419,7 @@ int page_referenced(struct page *page, i
- 		else if (TestSetPageLocked(page))
- 			referenced++;
- 		else {
--			if (page->mapping)
-+			if (page_mapping_cache(page))
- 				referenced +=
- 					page_referenced_file(page, mem_cont);
- 			unlock_page(page);
-@@ -514,7 +511,7 @@ static void __page_set_anon_rmap(struct 
+ 		spin_lock(&buffer_mapping->private_lock);
+ 		list_del_init(&bh->b_assoc_buffers);
+@@ -1542,7 +1543,7 @@ void create_empty_buffers(struct page *p
+ 	} while (bh);
+ 	tail->b_this_page = head;
  
- 	BUG_ON(!anon_vma);
- 	anon_vma = (void *) anon_vma + PAGE_MAPPING_ANON;
--	page->mapping = (struct address_space *) anon_vma;
-+	page->mapping = (unsigned long) anon_vma;
- 
- 	page->index = linear_page_index(vma, address);
- 
-@@ -549,7 +546,7 @@ static void __page_check_anon_rmap(struc
- 	 */
- 	struct anon_vma *anon_vma = vma->anon_vma;
- 	anon_vma = (void *) anon_vma + PAGE_MAPPING_ANON;
--	BUG_ON(page->mapping != (struct address_space *)anon_vma);
-+	BUG_ON(page->mapping != (unsigned long)anon_vma);
- 	BUG_ON(page->index != linear_page_index(vma, address));
- #endif
+-	spin_lock(&page->mapping->private_lock);
++	spin_lock(&page_mapping_cache(page)->private_lock);
+ 	if (PageUptodate(page) || PageDirty(page)) {
+ 		bh = head;
+ 		do {
+@@ -1554,7 +1555,7 @@ void create_empty_buffers(struct page *p
+ 		} while (bh != head);
+ 	}
+ 	attach_page_buffers(page, head);
+-	spin_unlock(&page->mapping->private_lock);
++	spin_unlock(&page_mapping_cache(page)->private_lock);
  }
-@@ -649,7 +646,7 @@ void page_remove_rmap(struct page *page,
- 			printk (KERN_EMERG "  page pfn = %lx\n", page_to_pfn(page));
- 			printk (KERN_EMERG "  page->flags = %lx\n", page->flags);
- 			printk (KERN_EMERG "  page->count = %x\n", page_count(page));
--			printk (KERN_EMERG "  page->mapping = %p\n", page->mapping);
-+			printk (KERN_EMERG "  page->mapping = %p\n", (void*)page->mapping);
- 			print_symbol (KERN_EMERG "  vma->vm_ops = %s\n", (unsigned long)vma->vm_ops);
- 			if (vma->vm_ops) {
- 				print_symbol (KERN_EMERG "  vma->vm_ops->nopage = %s\n", (unsigned long)vma->vm_ops->nopage);
-@@ -894,7 +891,7 @@ static int try_to_unmap_anon(struct page
-  */
- static int try_to_unmap_file(struct page *page, int migration)
- {
--	struct address_space *mapping = page->mapping;
-+	struct address_space *mapping = page_mapping_cache(page);
- 	pgoff_t pgoff = page->index << (PAGE_CACHE_SHIFT - PAGE_SHIFT);
- 	struct vm_area_struct *vma;
- 	struct prio_tree_iter iter;
-Index: test-2.6.23-rc4-mm1/mm/shmem.c
-===================================================================
---- test-2.6.23-rc4-mm1.orig/mm/shmem.c
-+++ test-2.6.23-rc4-mm1/mm/shmem.c
-@@ -917,7 +917,7 @@ static int shmem_writepage(struct page *
- 	BUG_ON(!PageLocked(page));
- 	BUG_ON(page_mapped(page));
+ EXPORT_SYMBOL(create_empty_buffers);
  
--	mapping = page->mapping;
-+	mapping = page_mapping_cache(page);
- 	index = page->index;
- 	inode = mapping->host;
- 	info = SHMEM_I(inode);
-@@ -1454,7 +1454,7 @@ static const struct inode_operations shm
+@@ -1761,7 +1762,7 @@ recover:
+ 	} while ((bh = bh->b_this_page) != head);
+ 	SetPageError(page);
+ 	BUG_ON(PageWriteback(page));
+-	mapping_set_error(page->mapping, err);
++	mapping_set_error(page_mapping_cache(page), err);
+ 	set_page_writeback(page);
+ 	do {
+ 		struct buffer_head *next = bh->b_this_page;
+@@ -2075,7 +2076,7 @@ EXPORT_SYMBOL(generic_write_end);
   */
- static int shmem_readpage(struct file *file, struct page *page)
+ int block_read_full_page(struct page *page, get_block_t *get_block)
  {
 -	struct inode *inode = page->mapping->host;
 +	struct inode *inode = page_inode(page);
- 	int error = shmem_getpage(inode, page->index, &page, SGP_CACHE, NULL);
- 	unlock_page(page);
- 	return error;
-Index: test-2.6.23-rc4-mm1/mm/truncate.c
-===================================================================
---- test-2.6.23-rc4-mm1.orig/mm/truncate.c
-+++ test-2.6.23-rc4-mm1/mm/truncate.c
-@@ -37,7 +37,7 @@
- void do_invalidatepage(struct page *page, unsigned long offset)
+ 	sector_t iblock, lblock;
+ 	struct buffer_head *bh, *head, *arr[MAX_BUF_PER_PAGE];
+ 	unsigned int blocksize;
+@@ -2296,7 +2297,7 @@ out:
+ int block_prepare_write(struct page *page, unsigned from, unsigned to,
+ 			get_block_t *get_block)
  {
- 	void (*invalidatepage)(struct page *, unsigned long);
--	invalidatepage = page->mapping->a_ops->invalidatepage;
-+	invalidatepage = page_mapping_cache(page)->a_ops->invalidatepage;
- #ifdef CONFIG_BLOCK
- 	if (!invalidatepage)
- 		invalidatepage = block_invalidatepage;
-@@ -70,7 +70,7 @@ static inline void truncate_partial_page
- void cancel_dirty_page(struct page *page, unsigned int account_size)
- {
- 	if (TestClearPageDirty(page)) {
--		struct address_space *mapping = page->mapping;
-+		struct address_space *mapping = page_mapping_cache(page);
- 		if (mapping && mapping_cap_account_dirty(mapping)) {
- 			dec_zone_page_state(page, NR_FILE_DIRTY);
- 			if (account_size)
-@@ -93,7 +93,7 @@ EXPORT_SYMBOL(cancel_dirty_page);
- static void
- truncate_complete_page(struct address_space *mapping, struct page *page)
- {
--	if (page->mapping != mapping)
-+	if (!pagecache_consistent(page, mapping))
- 		return;
+-	struct inode *inode = page->mapping->host;
++	struct inode *inode = page_inode(page);
+ 	int err = __block_prepare_write(inode, page, from, to, get_block);
+ 	if (err)
+ 		ClearPageUptodate(page);
+@@ -2305,7 +2306,7 @@ int block_prepare_write(struct page *pag
  
- 	cancel_dirty_page(page, PAGE_CACHE_SIZE);
-@@ -120,7 +120,7 @@ invalidate_complete_page(struct address_
+ int block_commit_write(struct page *page, unsigned from, unsigned to)
  {
- 	int ret;
- 
--	if (page->mapping != mapping)
-+	if (!pagecache_consistent(page, mapping))
- 		return 0;
- 
- 	if (PagePrivate(page) && !try_to_release_page(page, 0))
-@@ -342,7 +342,7 @@ EXPORT_SYMBOL(invalidate_mapping_pages);
- static int
- invalidate_complete_page2(struct address_space *mapping, struct page *page)
- {
--	if (page->mapping != mapping)
-+	if (!pagecache_consistent(page, mapping))
- 		return 0;
- 
- 	if (PagePrivate(page) && !try_to_release_page(page, GFP_KERNEL))
-@@ -367,7 +367,8 @@ static int do_launder_page(struct addres
- {
- 	if (!PageDirty(page))
- 		return 0;
--	if (page->mapping != mapping || mapping->a_ops->launder_page == NULL)
-+	if (!pagecache_consistent(page, mapping) ||
-+		mapping->a_ops->launder_page == NULL)
- 		return 0;
- 	return mapping->a_ops->launder_page(page);
+-	struct inode *inode = page->mapping->host;
++	struct inode *inode = page_inode(page);
+ 	__block_commit_write(inode,page,from,to);
+ 	return 0;
  }
-@@ -403,7 +404,7 @@ int invalidate_inode_pages2_range(struct
- 			pgoff_t page_index;
+@@ -2313,7 +2314,7 @@ int block_commit_write(struct page *page
+ int generic_commit_write(struct file *file, struct page *page,
+ 		unsigned from, unsigned to)
+ {
+-	struct inode *inode = page->mapping->host;
++	struct inode *inode = page_inode(page);
+ 	loff_t pos = ((loff_t)page->index << PAGE_CACHE_SHIFT) + to;
+ 	__block_commit_write(inode,page,from,to);
+ 	/*
+@@ -2353,7 +2354,7 @@ block_page_mkwrite(struct vm_area_struct
  
- 			lock_page(page);
--			if (page->mapping != mapping) {
-+			if (!pagecache_consistent(page, mapping)) {
- 				unlock_page(page);
- 				continue;
- 			}
+ 	lock_page(page);
+ 	size = i_size_read(inode);
+-	if ((page->mapping != inode->i_mapping) ||
++	if ((!pagecache_consistent(page, inode->i_mapping)) ||
+ 	    (page_offset(page) > size)) {
+ 		/* page got truncated out from underneath us */
+ 		goto out_unlock;
+@@ -2391,7 +2392,7 @@ static void end_buffer_read_nobh(struct 
+ int nobh_prepare_write(struct page *page, unsigned from, unsigned to,
+ 			get_block_t *get_block)
+ {
+-	struct inode *inode = page->mapping->host;
++	struct inode *inode = page_inode(page);
+ 	const unsigned blkbits = inode->i_blkbits;
+ 	const unsigned blocksize = 1 << blkbits;
+ 	struct buffer_head *head, *bh;
+@@ -2505,7 +2506,7 @@ failed:
+ 	 * the handling of potential IO errors during writeout would be hard
+ 	 * (could try doing synchronous writeout, but what if that fails too?)
+ 	 */
+-	spin_lock(&page->mapping->private_lock);
++	spin_lock(&page_mapping_cache(page)->private_lock);
+ 	bh = head;
+ 	block_start = 0;
+ 	do {
+@@ -2535,7 +2536,7 @@ next:
+ 		bh = bh->b_this_page;
+ 	} while (bh != head);
+ 	attach_page_buffers(page, head);
+-	spin_unlock(&page->mapping->private_lock);
++	spin_unlock(&page_mapping_cache(page)->private_lock);
+ 
+ 	return ret;
+ }
+@@ -2548,7 +2549,7 @@ EXPORT_SYMBOL(nobh_prepare_write);
+ int nobh_commit_write(struct file *file, struct page *page,
+ 		unsigned from, unsigned to)
+ {
+-	struct inode *inode = page->mapping->host;
++	struct inode *inode = page_inode(page);
+ 	loff_t pos = ((loff_t)page->index << PAGE_CACHE_SHIFT) + to;
+ 
+ 	if (page_has_buffers(page))
+@@ -2572,7 +2573,7 @@ EXPORT_SYMBOL(nobh_commit_write);
+ int nobh_writepage(struct page *page, get_block_t *get_block,
+ 			struct writeback_control *wbc)
+ {
+-	struct inode * const inode = page->mapping->host;
++	struct inode * const inode = page_inode(page);
+ 	loff_t i_size = i_size_read(inode);
+ 	const pgoff_t end_index = i_size >> PAGE_CACHE_SHIFT;
+ 	unsigned offset;
+@@ -2737,7 +2738,7 @@ out:
+ int block_write_full_page(struct page *page, get_block_t *get_block,
+ 			struct writeback_control *wbc)
+ {
+-	struct inode * const inode = page->mapping->host;
++	struct inode * const inode = page_inode(page);
+ 	loff_t i_size = i_size_read(inode);
+ 	const pgoff_t end_index = i_size >> PAGE_CACHE_SHIFT;
+ 	unsigned offset;
+@@ -2966,8 +2967,8 @@ drop_buffers(struct page *page, struct b
+ 
+ 	bh = head;
+ 	do {
+-		if (buffer_write_io_error(bh) && page->mapping)
+-			set_bit(AS_EIO, &page->mapping->flags);
++		if (buffer_write_io_error(bh) && page_is_pagecache(page))
++			set_bit(AS_EIO, &page_mapping_cache(page)->flags);
+ 		if (buffer_busy(bh))
+ 			goto failed;
+ 		bh = bh->b_this_page;
+@@ -2989,7 +2990,7 @@ failed:
+ 
+ int try_to_free_buffers(struct page *page)
+ {
+-	struct address_space * const mapping = page->mapping;
++	struct address_space * const mapping = page_mapping_cache(page);
+ 	struct buffer_head *buffers_to_free = NULL;
+ 	int ret = 0;
+ 
+Index: test-2.6.23-rc4-mm1/fs/libfs.c
+===================================================================
+--- test-2.6.23-rc4-mm1.orig/fs/libfs.c
++++ test-2.6.23-rc4-mm1/fs/libfs.c
+@@ -374,7 +374,7 @@ int simple_write_begin(struct file *file
+ static int simple_commit_write(struct file *file, struct page *page,
+ 			       unsigned from, unsigned to)
+ {
+-	struct inode *inode = page->mapping->host;
++	struct inode *inode = page_inode(page);
+ 	loff_t pos = ((loff_t)page->index << PAGE_CACHE_SHIFT) + to;
+ 
+ 	if (!PageUptodate(page))
+Index: test-2.6.23-rc4-mm1/fs/mpage.c
+===================================================================
+--- test-2.6.23-rc4-mm1.orig/fs/mpage.c
++++ test-2.6.23-rc4-mm1/fs/mpage.c
+@@ -81,8 +81,9 @@ static int mpage_end_io_write(struct bio
+ 
+ 		if (!uptodate){
+ 			SetPageError(page);
+-			if (page->mapping)
+-				set_bit(AS_EIO, &page->mapping->flags);
++			if (page_is_pagecache(page))
++				set_bit(AS_EIO,
++					&page_mapping_cache(page)->flags);
+ 		}
+ 		end_page_writeback(page);
+ 	} while (bvec >= bio->bi_io_vec);
+@@ -133,7 +134,7 @@ mpage_alloc(struct block_device *bdev,
+ static void 
+ map_buffer_to_page(struct page *page, struct buffer_head *bh, int page_block) 
+ {
+-	struct inode *inode = page->mapping->host;
++	struct inode *inode = page_inode(page);
+ 	struct buffer_head *page_bh, *head;
+ 	int block = 0;
+ 
+@@ -177,7 +178,7 @@ do_mpage_readpage(struct bio *bio, struc
+ 		sector_t *last_block_in_bio, struct buffer_head *map_bh,
+ 		unsigned long *first_logical_block, get_block_t get_block)
+ {
+-	struct inode *inode = page->mapping->host;
++	struct inode *inode = page_inode(page);
+ 	const unsigned blkbits = inode->i_blkbits;
+ 	const unsigned blocks_per_page = PAGE_CACHE_SIZE >> blkbits;
+ 	const unsigned blocksize = 1 << blkbits;
+@@ -460,8 +461,8 @@ static int __mpage_writepage(struct page
+ {
+ 	struct mpage_data *mpd = data;
+ 	struct bio *bio = mpd->bio;
+-	struct address_space *mapping = page->mapping;
+-	struct inode *inode = page->mapping->host;
++	struct address_space *mapping = page_mapping_cache(page);
++	struct inode *inode = page_inode(page);
+ 	const unsigned blkbits = inode->i_blkbits;
+ 	unsigned long end_index;
+ 	const unsigned blocks_per_page = PAGE_CACHE_SIZE >> blkbits;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
