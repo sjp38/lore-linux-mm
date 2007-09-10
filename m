@@ -1,7 +1,7 @@
-Date: Mon, 10 Sep 2007 18:46:15 +0900
+Date: Mon, 10 Sep 2007 18:49:09 +0900
 From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: [PATCH] add page->mapping handling interface [4/35] changes in AFFS
-Message-Id: <20070910184615.56a148e0.kamezawa.hiroyu@jp.fujitsu.com>
+Subject: [PATCH] add page->mapping handling interface [5/35] changes in AFS
+Message-Id: <20070910184909.9644ee8c.kamezawa.hiroyu@jp.fujitsu.com>
 In-Reply-To: <20070910184048.286dfc6e.kamezawa.hiroyu@jp.fujitsu.com>
 References: <20070910184048.286dfc6e.kamezawa.hiroyu@jp.fujitsu.com>
 Mime-Version: 1.0
@@ -10,53 +10,49 @@ Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: zippel@linux-m68k.org, LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, "nickpiggin@yahoo.com.au" <nickpiggin@yahoo.com.au>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+Cc: dhowells@redhat.com, LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, "nickpiggin@yahoo.com.au" <nickpiggin@yahoo.com.au>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-use page_inode() in AFFS
+Use page->mapping interface in AFS
 
 Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
 ---
- fs/affs/file.c    |    4 ++--
- fs/affs/symlink.c |    2 +-
- 2 files changed, 3 insertions(+), 3 deletions(-)
+ fs/afs/file.c |    7 +++----
+ 1 file changed, 3 insertions(+), 4 deletions(-)
 
-Index: test-2.6.23-rc4-mm1/fs/affs/file.c
+Index: test-2.6.23-rc4-mm1/fs/afs/file.c
 ===================================================================
---- test-2.6.23-rc4-mm1.orig/fs/affs/file.c
-+++ test-2.6.23-rc4-mm1/fs/affs/file.c
-@@ -485,7 +485,7 @@ affs_getemptyblk_ino(struct inode *inode
- static int
- affs_do_readpage_ofs(struct file *file, struct page *page, unsigned from, unsigned to)
- {
--	struct inode *inode = page->mapping->host;
-+	struct inode *inode = page_inode(page);
- 	struct super_block *sb = inode->i_sb;
- 	struct buffer_head *bh;
- 	char *data;
-@@ -593,7 +593,7 @@ out:
- static int
- affs_readpage_ofs(struct file *file, struct page *page)
- {
--	struct inode *inode = page->mapping->host;
-+	struct inode *inode = page_inode(page);
- 	u32 to;
- 	int err;
+--- test-2.6.23-rc4-mm1.orig/fs/afs/file.c
++++ test-2.6.23-rc4-mm1/fs/afs/file.c
+@@ -145,7 +145,7 @@ static int afs_readpage(struct file *fil
+ 	off_t offset;
+ 	int ret;
  
-Index: test-2.6.23-rc4-mm1/fs/affs/symlink.c
-===================================================================
---- test-2.6.23-rc4-mm1.orig/fs/affs/symlink.c
-+++ test-2.6.23-rc4-mm1/fs/affs/symlink.c
-@@ -13,7 +13,7 @@
- static int affs_symlink_readpage(struct file *file, struct page *page)
+-	inode = page->mapping->host;
++	inode = page_inode(page);
+ 
+ 	ASSERT(file != NULL);
+ 	key = file->private_data;
+@@ -253,8 +253,7 @@ static void afs_invalidatepage(struct pa
+ 
+ 			ret = 0;
+ 			if (!PageWriteback(page))
+-				ret = page->mapping->a_ops->releasepage(page,
+-									0);
++				ret = page_mapping_cache(page)->a_ops->releasepage(page, 0);
+ 			/* possibly should BUG_ON(!ret); - neilb */
+ 		}
+ 	}
+@@ -277,7 +276,7 @@ static int afs_launder_page(struct page 
+  */
+ static int afs_releasepage(struct page *page, gfp_t gfp_flags)
  {
- 	struct buffer_head *bh;
--	struct inode *inode = page->mapping->host;
-+	struct inode *inode = page_inode(page);
- 	char *link = kmap(page);
- 	struct slink_front *lf;
- 	int err;
+-	struct afs_vnode *vnode = AFS_FS_I(page->mapping->host);
++	struct afs_vnode *vnode = AFS_FS_I(page_inode(page));
+ 	struct afs_writeback *wb;
+ 
+ 	_enter("{{%x:%u}[%lu],%lx},%x",
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
