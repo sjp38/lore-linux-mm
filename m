@@ -1,8 +1,8 @@
-Date: Mon, 10 Sep 2007 19:16:22 +0900
+Date: Mon, 10 Sep 2007 19:18:54 +0900
 From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: [PATCH] add page->mapping handling interface [22/35] changes in
- JFFS2
-Message-Id: <20070910191622.d18b1aaa.kamezawa.hiroyu@jp.fujitsu.com>
+Subject: [PATCH] add page->mapping handling interface [24/35] changes in
+ MINIX FS
+Message-Id: <20070910191854.a79319a0.kamezawa.hiroyu@jp.fujitsu.com>
 In-Reply-To: <20070910184048.286dfc6e.kamezawa.hiroyu@jp.fujitsu.com>
 References: <20070910184048.286dfc6e.kamezawa.hiroyu@jp.fujitsu.com>
 Mime-Version: 1.0
@@ -11,35 +11,58 @@ Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: dwmw2@infradead.org, LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, "nickpiggin@yahoo.com.au" <nickpiggin@yahoo.com.au>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+Cc: LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, "nickpiggin@yahoo.com.au" <nickpiggin@yahoo.com.au>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-Changes page->mapping handling in JFFS2
+Changes page->mapping handling in MINIXFS
+
 
 Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-
 ---
- fs/jffs2/file.c |    4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ fs/minix/dir.c |    9 +++++----
+ 1 file changed, 5 insertions(+), 4 deletions(-)
 
-Index: test-2.6.23-rc4-mm1/fs/jffs2/file.c
+Index: test-2.6.23-rc4-mm1/fs/minix/dir.c
 ===================================================================
---- test-2.6.23-rc4-mm1.orig/fs/jffs2/file.c
-+++ test-2.6.23-rc4-mm1/fs/jffs2/file.c
-@@ -111,11 +111,11 @@ int jffs2_do_readpage_unlock(struct inod
+--- test-2.6.23-rc4-mm1.orig/fs/minix/dir.c
++++ test-2.6.23-rc4-mm1/fs/minix/dir.c
+@@ -52,7 +52,7 @@ static inline unsigned long dir_pages(st
  
- static int jffs2_readpage (struct file *filp, struct page *pg)
+ static int dir_commit_chunk(struct page *page, loff_t pos, unsigned len)
  {
--	struct jffs2_inode_info *f = JFFS2_INODE_INFO(pg->mapping->host);
-+	struct jffs2_inode_info *f = JFFS2_INODE_INFO(page_inode(pg));
- 	int ret;
+-	struct address_space *mapping = page->mapping;
++	struct address_space *mapping = page_mapping_cache(page);
+ 	struct inode *dir = mapping->host;
+ 	int err = 0;
+ 	block_write_end(NULL, mapping, pos, len, len, page, NULL);
+@@ -281,7 +281,8 @@ int minix_add_link(struct dentry *dentry
  
- 	down(&f->sem);
--	ret = jffs2_do_readpage_unlock(pg->mapping->host, pg);
-+	ret = jffs2_do_readpage_unlock(page_inode(pg), pg);
- 	up(&f->sem);
- 	return ret;
- }
+ got_it:
+ 	pos = (page->index >> PAGE_CACHE_SHIFT) + p - (char*)page_address(page);
+-	err = __minix_write_begin(NULL, page->mapping, pos, sbi->s_dirsize,
++	err = __minix_write_begin(NULL,
++				page_mapping_cache(page), pos, sbi->s_dirsize,
+ 					AOP_FLAG_UNINTERRUPTIBLE, &page, NULL);
+ 	if (err)
+ 		goto out_unlock;
+@@ -307,7 +308,7 @@ out_unlock:
+ 
+ int minix_delete_entry(struct minix_dir_entry *de, struct page *page)
+ {
+-	struct address_space *mapping = page->mapping;
++	struct address_space *mapping = page_mapping_cache(page);
+ 	struct inode *inode = (struct inode*)mapping->host;
+ 	char *kaddr = page_address(page);
+ 	loff_t pos = page_offset(page) + (char*)de - kaddr;
+@@ -431,7 +432,7 @@ not_empty:
+ void minix_set_link(struct minix_dir_entry *de, struct page *page,
+ 	struct inode *inode)
+ {
+-	struct address_space *mapping = page->mapping;
++	struct address_space *mapping = page_mapping_cache(page);
+ 	struct inode *dir = mapping->host;
+ 	struct minix_sb_info *sbi = minix_sb(dir->i_sb);
+ 	loff_t pos = page_offset(page) +
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
