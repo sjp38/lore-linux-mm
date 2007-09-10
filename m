@@ -1,326 +1,187 @@
 From: Mel Gorman <mel@csn.ul.ie>
-Message-Id: <20070910112051.3097.67091.sendpatchset@skynet.skynet.ie>
+Message-Id: <20070910112111.3097.85750.sendpatchset@skynet.skynet.ie>
 In-Reply-To: <20070910112011.3097.8438.sendpatchset@skynet.skynet.ie>
 References: <20070910112011.3097.8438.sendpatchset@skynet.skynet.ie>
-Subject: [PATCH 2/13] Add a bitmap that is used to track flags affecting a block of pages
-Date: Mon, 10 Sep 2007 12:20:51 +0100 (IST)
+Subject: [PATCH 3/13] Fix corruption of memmap on ia64-sparsemem when mem_section is not a power of 2
+Date: Mon, 10 Sep 2007 12:21:11 +0100 (IST)
 Sender: owner-linux-mm@kvack.org
-Subject: Add a bitmap that is used to track flags affecting a block of pages
+Subject: Fix corruption of memmap on ia64-sparsemem when mem_section is not a power of 2
 Return-Path: <owner-linux-mm@kvack.org>
 To: akpm@linux-foundation.org
 Cc: Mel Gorman <mel@csn.ul.ie>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-The grouping pages by mobility patchset needs to track if pages within a block
-can be moved or reclaimed so that pages are freed to the appropriate list.
-This patch adds a bitmap for flags affecting a whole a pageblock_nr_pages
-block of pages.
+There are problems in the use of SPARSEMEM and pageblock flags that causes
+problems on ia64.
 
-In non-SPARSEMEM configurations, the bitmap is stored in the struct zone
-and allocated during initialisation.  SPARSEMEM dynamically allocates the
-bitmap in a struct mem_section as required.
+The first part of the problem is that units are incorrect in
+SECTION_BLOCKFLAGS_BITS computation.  This results in a map_section's
+section_mem_map being treated as part of a bitmap which isn't good.  This
+was evident with an invalid virtual address when mem_init attempted to free
+bootmem pages while relinquishing control from the bootmem allocator.
 
-Additional credit to Andy Whitcroft who reviewed up an earlier implementation
-of the mechanism an suggested how to make it a *lot* cleaner.
+The second part of the problem occurs because the pageblock flags bitmap is
+be located with the mem_section.  The SECTIONS_PER_ROOT computation using
+sizeof (mem_section) may not be a power of 2 depending on the size of the
+bitmap.  This renders masks and other such things not power of 2 base.
+This issue was seen with SPARSEMEM_EXTREME on ia64.  This patch moves the
+bitmap outside of mem_section and uses a pointer instead in the
+mem_section.  The bitmaps are allocated when the section is being
+initialised.
 
+Note that sparse_early_usemap_alloc() does not use alloc_remap() like
+sparse_early_mem_map_alloc().  The allocation required for the bitmap on
+x86, the only architecture that uses alloc_remap is typically smaller than
+a cache line.  alloc_remap() pads out allocations to the cache size which
+would be a needless waste.
+
+Credit to Bob Picco for identifying the original problem and effecting a
+fix for the SECTION_BLOCKFLAGS_BITS calculation.  Credit to Andy Whitcroft
+for devising the best way of allocating the bitmaps only when required for
+the section.
+
+From: Bob Picco <bob.picco@hp.com>
+[wli@holomorphy.com: warning fix]
 Signed-off-by: Mel Gorman <mel@csn.ul.ie>
-Cc: Andy Whitcroft <apw@shadowen.org>
+Signed-off-by: Andy Whitcroft <apw@shadowen.org>
+Cc: "Luck, Tony" <tony.luck@intel.com>
+Signed-off-by: William Irwin <bill.irwin@oracle.com>
 Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
 ---
 
- include/linux/mmzone.h          |   13 +++
- include/linux/pageblock-flags.h |   74 ++++++++++++++++++
- mm/page_alloc.c                 |  137 +++++++++++++++++++++++++++++++++++
- 3 files changed, 224 insertions(+)
+ include/linux/mmzone.h |    4 ++-
+ mm/sparse.c            |   54 +++++++++++++++++++++++++++++++++++++++++---
+ 2 files changed, 54 insertions(+), 4 deletions(-)
 
-diff -rup -X /usr/src/patchset-0.6/bin//dontdiff linux-2.6.23-rc5-001-ia64-parse-kernel-parameter-hugepagesz=-in-early-boot/include/linux/mmzone.h linux-2.6.23-rc5-002-add-a-bitmap-that-is-used-to-track-flags-affecting-a-block-of-pages/include/linux/mmzone.h
---- linux-2.6.23-rc5-001-ia64-parse-kernel-parameter-hugepagesz=-in-early-boot/include/linux/mmzone.h	2007-09-02 16:18:27.000000000 +0100
-+++ linux-2.6.23-rc5-002-add-a-bitmap-that-is-used-to-track-flags-affecting-a-block-of-pages/include/linux/mmzone.h	2007-09-02 16:19:05.000000000 +0100
-@@ -13,6 +13,7 @@
- #include <linux/init.h>
- #include <linux/seqlock.h>
- #include <linux/nodemask.h>
-+#include <linux/pageblock-flags.h>
- #include <asm/atomic.h>
- #include <asm/page.h>
- 
-@@ -222,6 +223,14 @@ struct zone {
- #endif
- 	struct free_area	free_area[MAX_ORDER];
- 
-+#ifndef CONFIG_SPARSEMEM
-+	/*
-+	 * Flags for a pageblock_nr_pages block. See pageblock-flags.h.
-+	 * In SPARSEMEM, this map is stored in struct mem_section
-+	 */
-+	unsigned long		*pageblock_flags;
-+#endif /* CONFIG_SPARSEMEM */
-+
- 
- 	ZONE_PADDING(_pad1_)
- 
-@@ -708,6 +717,9 @@ extern struct zone *next_zone(struct zon
- #define PAGES_PER_SECTION       (1UL << PFN_SECTION_SHIFT)
- #define PAGE_SECTION_MASK	(~(PAGES_PER_SECTION-1))
- 
-+#define SECTION_BLOCKFLAGS_BITS \
-+	((1UL << (PFN_SECTION_SHIFT - pageblock_order)) * NR_PAGEBLOCK_BITS)
-+
- #if (MAX_ORDER - 1 + PAGE_SHIFT) > SECTION_SIZE_BITS
- #error Allocator MAX_ORDER exceeds SECTION_SIZE
- #endif
-@@ -727,6 +739,7 @@ struct mem_section {
+diff -rup -X /usr/src/patchset-0.6/bin//dontdiff linux-2.6.23-rc5-002-add-a-bitmap-that-is-used-to-track-flags-affecting-a-block-of-pages/include/linux/mmzone.h linux-2.6.23-rc5-003-fix-corruption-of-memmap-on-ia64-sparsemem-when-mem_section-is-not-a-power-of-2/include/linux/mmzone.h
+--- linux-2.6.23-rc5-002-add-a-bitmap-that-is-used-to-track-flags-affecting-a-block-of-pages/include/linux/mmzone.h	2007-09-02 16:19:05.000000000 +0100
++++ linux-2.6.23-rc5-003-fix-corruption-of-memmap-on-ia64-sparsemem-when-mem_section-is-not-a-power-of-2/include/linux/mmzone.h	2007-09-02 16:19:16.000000000 +0100
+@@ -739,7 +739,9 @@ struct mem_section {
  	 * before using it wrong.
  	 */
  	unsigned long section_mem_map;
-+	DECLARE_BITMAP(pageblock_flags, SECTION_BLOCKFLAGS_BITS);
+-	DECLARE_BITMAP(pageblock_flags, SECTION_BLOCKFLAGS_BITS);
++
++	/* See declaration of similar field in struct zone */
++	unsigned long *pageblock_flags;
  };
  
  #ifdef CONFIG_SPARSEMEM_EXTREME
-diff -rup -X /usr/src/patchset-0.6/bin//dontdiff linux-2.6.23-rc5-001-ia64-parse-kernel-parameter-hugepagesz=-in-early-boot/include/linux/pageblock-flags.h linux-2.6.23-rc5-002-add-a-bitmap-that-is-used-to-track-flags-affecting-a-block-of-pages/include/linux/pageblock-flags.h
---- linux-2.6.23-rc5-001-ia64-parse-kernel-parameter-hugepagesz=-in-early-boot/include/linux/pageblock-flags.h	2007-09-02 16:18:27.000000000 +0100
-+++ linux-2.6.23-rc5-002-add-a-bitmap-that-is-used-to-track-flags-affecting-a-block-of-pages/include/linux/pageblock-flags.h	2007-09-02 16:19:05.000000000 +0100
-@@ -0,0 +1,74 @@
-+/*
-+ * Macros for manipulating and testing flags related to a
-+ * pageblock_nr_pages number of pages.
-+ *
-+ * This program is free software; you can redistribute it and/or modify
-+ * it under the terms of the GNU General Public License as published by
-+ * the Free Software Foundation version 2 of the License
-+ *
-+ * This program is distributed in the hope that it will be useful,
-+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
-+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-+ * GNU General Public License for more details.
-+ *
-+ * You should have received a copy of the GNU General Public License
-+ * along with this program; if not, write to the Free Software
-+ * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
-+ *
-+ * Copyright (C) IBM Corporation, 2006
-+ *
-+ * Original author, Mel Gorman
-+ * Major cleanups and reduction of bit operations, Andy Whitcroft
-+ */
-+#ifndef PAGEBLOCK_FLAGS_H
-+#define PAGEBLOCK_FLAGS_H
-+
-+#include <linux/types.h>
-+
-+/* Macro to aid the definition of ranges of bits */
-+#define PB_range(name, required_bits) \
-+	name, name ## _end = (name + required_bits) - 1
-+
-+/* Bit indices that affect a whole block of pages */
-+enum pageblock_bits {
-+	NR_PAGEBLOCK_BITS
-+};
-+
-+#ifdef CONFIG_HUGETLB_PAGE
-+
-+#ifdef CONFIG_HUGETLB_PAGE_SIZE_VARIABLE
-+
-+/* Huge page sizes are variable */
-+extern int pageblock_order;
-+
-+#else /* CONFIG_HUGETLB_PAGE_SIZE_VARIABLE */
-+
-+/* Huge pages are a constant size */
-+#define pageblock_order		HUGETLB_PAGE_ORDER
-+
-+#endif /* CONFIG_HUGETLB_PAGE_SIZE_VARIABLE */
-+
-+#else /* CONFIG_HUGETLB_PAGE */
-+
-+/* If huge pages are not used, group by MAX_ORDER_NR_PAGES */
-+#define pageblock_order		(MAX_ORDER-1)
-+
-+#endif /* CONFIG_HUGETLB_PAGE */
-+
-+#define pageblock_nr_pages	(1UL << pageblock_order)
-+
-+/* Forward declaration */
-+struct page;
-+
-+/* Declarations for getting and setting flags. See mm/page_alloc.c */
-+unsigned long get_pageblock_flags_group(struct page *page,
-+					int start_bitidx, int end_bitidx);
-+void set_pageblock_flags_group(struct page *page, unsigned long flags,
-+					int start_bitidx, int end_bitidx);
-+
-+#define get_pageblock_flags(page) \
-+			get_pageblock_flags_group(page, 0, NR_PAGEBLOCK_BITS-1)
-+#define set_pageblock_flags(page) \
-+			set_pageblock_flags_group(page, 0, NR_PAGEBLOCK_BITS-1)
-+
-+#endif	/* PAGEBLOCK_FLAGS_H */
-diff -rup -X /usr/src/patchset-0.6/bin//dontdiff linux-2.6.23-rc5-001-ia64-parse-kernel-parameter-hugepagesz=-in-early-boot/mm/page_alloc.c linux-2.6.23-rc5-002-add-a-bitmap-that-is-used-to-track-flags-affecting-a-block-of-pages/mm/page_alloc.c
---- linux-2.6.23-rc5-001-ia64-parse-kernel-parameter-hugepagesz=-in-early-boot/mm/page_alloc.c	2007-09-02 16:18:31.000000000 +0100
-+++ linux-2.6.23-rc5-002-add-a-bitmap-that-is-used-to-track-flags-affecting-a-block-of-pages/mm/page_alloc.c	2007-09-02 16:19:05.000000000 +0100
-@@ -59,6 +59,10 @@ unsigned long totalreserve_pages __read_
- long nr_swap_pages;
- int percpu_pagelist_fraction;
- 
-+#ifdef CONFIG_HUGETLB_PAGE_SIZE_VARIABLE
-+int pageblock_order __read_mostly;
-+#endif
-+
- static void __free_pages_ok(struct page *page, unsigned int order);
- 
- /*
-@@ -2901,6 +2905,62 @@ static void __meminit calculate_node_tot
- 							realtotalpages);
+diff -rup -X /usr/src/patchset-0.6/bin//dontdiff linux-2.6.23-rc5-002-add-a-bitmap-that-is-used-to-track-flags-affecting-a-block-of-pages/mm/sparse.c linux-2.6.23-rc5-003-fix-corruption-of-memmap-on-ia64-sparsemem-when-mem_section-is-not-a-power-of-2/mm/sparse.c
+--- linux-2.6.23-rc5-002-add-a-bitmap-that-is-used-to-track-flags-affecting-a-block-of-pages/mm/sparse.c	2007-09-02 16:18:56.000000000 +0100
++++ linux-2.6.23-rc5-003-fix-corruption-of-memmap-on-ia64-sparsemem-when-mem_section-is-not-a-power-of-2/mm/sparse.c	2007-09-02 16:19:16.000000000 +0100
+@@ -204,14 +204,16 @@ struct page *sparse_decode_mem_map(unsig
  }
  
-+#ifndef CONFIG_SPARSEMEM
-+/*
-+ * Calculate the size of the zone->blockflags rounded to an unsigned long
-+ * Start by making sure zonesize is a multiple of pageblock_order by rounding
-+ * up. Then use 1 NR_PAGEBLOCK_BITS worth of bits per pageblock, finally
-+ * round what is now in bits to nearest long in bits, then return it in
-+ * bytes.
-+ */
-+static unsigned long __init usemap_size(unsigned long zonesize)
+ static int __meminit sparse_init_one_section(struct mem_section *ms,
+-		unsigned long pnum, struct page *mem_map)
++		unsigned long pnum, struct page *mem_map,
++		unsigned long *pageblock_bitmap)
+ {
+ 	if (!present_section(ms))
+ 		return -EINVAL;
+ 
+ 	ms->section_mem_map &= ~SECTION_MAP_MASK;
+ 	ms->section_mem_map |= sparse_encode_mem_map(mem_map, pnum) |
+							SECTION_HAS_MEM_MAP;
++ 	ms->pageblock_flags = pageblock_bitmap;
+ 
+ 	return 1;
+ }
+@@ -221,6 +223,38 @@ void *alloc_bootmem_high_node(pg_data_t 
+ 	return NULL;
+ }
+ 
++static unsigned long usemap_size(void)
 +{
-+	unsigned long usemapsize;
-+
-+	usemapsize = roundup(zonesize, pageblock_nr_pages);
-+	usemapsize = usemapsize >> pageblock_order;
-+	usemapsize *= NR_PAGEBLOCK_BITS;
-+	usemapsize = roundup(usemapsize, 8 * sizeof(unsigned long));
-+
-+	return usemapsize / 8;
++	unsigned long size_bytes;
++	size_bytes = roundup(SECTION_BLOCKFLAGS_BITS, 8) / 8;
++	size_bytes = roundup(size_bytes, sizeof(unsigned long));
++	return size_bytes;
 +}
 +
-+static void __init setup_usemap(struct pglist_data *pgdat,
-+				struct zone *zone, unsigned long zonesize)
++#ifdef CONFIG_MEMORY_HOTPLUG
++static unsigned long *__kmalloc_section_usemap(void)
 +{
-+	unsigned long usemapsize = usemap_size(zonesize);
-+	zone->pageblock_flags = NULL;
-+	if (usemapsize) {
-+		zone->pageblock_flags = alloc_bootmem_node(pgdat, usemapsize);
-+		memset(zone->pageblock_flags, 0, usemapsize);
-+	}
++	return kmalloc(usemap_size(), GFP_KERNEL);
 +}
-+#else
-+static void inline setup_usemap(struct pglist_data *pgdat,
-+				struct zone *zone, unsigned long zonesize) {}
-+#endif /* CONFIG_SPARSEMEM */
++#endif /* CONFIG_MEMORY_HOTPLUG */
 +
-+#ifdef CONFIG_HUGETLB_PAGE_SIZE_VARIABLE
-+/* Initialise the number of pages represented by NR_PAGEBLOCK_BITS */
-+static inline void __init set_pageblock_order(unsigned int order)
++static unsigned long *sparse_early_usemap_alloc(unsigned long pnum)
 +{
-+	/* Check that pageblock_nr_pages has not already been setup */
-+	if (pageblock_order)
-+		return;
++	unsigned long *usemap;
++	struct mem_section *ms = __nr_to_section(pnum);
++	int nid = sparse_early_nid(ms);
 +
-+	/*
-+	 * Assume the largest contiguous order of interest is a huge page.
-+	 * This value may be variable depending on boot parameters on IA64
-+	 */
-+	pageblock_order = order;
++	usemap = alloc_bootmem_node(NODE_DATA(nid), usemap_size());
++	if (usemap)
++		return usemap;
++
++	/* Stupid: suppress gcc warning for SPARSEMEM && !NUMA */
++	nid = 0;
++
++	printk(KERN_WARNING "%s: allocation failed\n", __FUNCTION__);
++	return NULL;
 +}
-+#else /* CONFIG_HUGETLB_PAGE_SIZE_VARIABLE */
 +
-+/* Defined this way to avoid accidently referencing HUGETLB_PAGE_ORDER */
-+#define set_pageblock_order(x)	do {} while (0)
-+
-+#endif /* CONFIG_HUGETLB_PAGE_SIZE_VARIABLE */
-+
- /*
-  * Set up the zone data structures:
-  *   - mark all pages reserved
-@@ -2981,6 +3041,8 @@ static void __meminit free_area_init_cor
- 		if (!size)
+ struct page __init *sparse_early_mem_map_alloc(unsigned long pnum)
+ {
+ 	struct page *map;
+@@ -254,6 +288,7 @@ void __init sparse_init(void)
+ {
+ 	unsigned long pnum;
+ 	struct page *map;
++	unsigned long *usemap;
+ 
+ 	for (pnum = 0; pnum < NR_MEM_SECTIONS; pnum++) {
+ 		if (!valid_section_nr(pnum))
+@@ -262,7 +297,13 @@ void __init sparse_init(void)
+ 		map = sparse_early_mem_map_alloc(pnum);
+ 		if (!map)
  			continue;
+-		sparse_init_one_section(__nr_to_section(pnum), pnum, map);
++
++		usemap = sparse_early_usemap_alloc(pnum);
++		if (!usemap)
++			continue;
++
++		sparse_init_one_section(__nr_to_section(pnum), pnum, map,
++								usemap);
+ 	}
+ }
  
-+		set_pageblock_order(HUGETLB_PAGE_ORDER);
-+		setup_usemap(pgdat, zone, size);
- 		ret = init_currently_empty_zone(zone, zone_start_pfn,
- 						size, MEMMAP_EARLY);
- 		BUG_ON(ret);
-@@ -3934,4 +3996,79 @@ EXPORT_SYMBOL(pfn_to_page);
- EXPORT_SYMBOL(page_to_pfn);
- #endif /* CONFIG_OUT_OF_LINE_PFN_TO_PAGE */
+@@ -318,6 +359,7 @@ int sparse_add_one_section(struct zone *
+ 	struct pglist_data *pgdat = zone->zone_pgdat;
+ 	struct mem_section *ms;
+ 	struct page *memmap;
++	unsigned long *usemap;
+ 	unsigned long flags;
+ 	int ret;
  
-+/* Return a pointer to the bitmap storing bits affecting a block of pages */
-+static inline unsigned long *get_pageblock_bitmap(struct zone *zone,
-+							unsigned long pfn)
-+{
-+#ifdef CONFIG_SPARSEMEM
-+	return __pfn_to_section(pfn)->pageblock_flags;
-+#else
-+	return zone->pageblock_flags;
-+#endif /* CONFIG_SPARSEMEM */
-+}
+@@ -327,6 +369,7 @@ int sparse_add_one_section(struct zone *
+ 	 */
+ 	sparse_index_init(section_nr, pgdat->node_id);
+ 	memmap = __kmalloc_section_memmap(nr_pages);
++	usemap = __kmalloc_section_usemap();
  
-+static inline int pfn_to_bitidx(struct zone *zone, unsigned long pfn)
-+{
-+#ifdef CONFIG_SPARSEMEM
-+	pfn &= (PAGES_PER_SECTION-1);
-+	return (pfn >> pageblock_order) * NR_PAGEBLOCK_BITS;
-+#else
-+	pfn = pfn - zone->zone_start_pfn;
-+	return (pfn >> pageblock_order) * NR_PAGEBLOCK_BITS;
-+#endif /* CONFIG_SPARSEMEM */
-+}
+ 	pgdat_resize_lock(pgdat, &flags);
+ 
+@@ -335,9 +378,14 @@ int sparse_add_one_section(struct zone *
+ 		ret = -EEXIST;
+ 		goto out;
+ 	}
 +
-+/**
-+ * get_pageblock_flags_group - Return the requested group of flags for the pageblock_nr_pages block of pages
-+ * @page: The page within the block of interest
-+ * @start_bitidx: The first bit of interest to retrieve
-+ * @end_bitidx: The last bit of interest
-+ * returns pageblock_bits flags
-+ */
-+unsigned long get_pageblock_flags_group(struct page *page,
-+					int start_bitidx, int end_bitidx)
-+{
-+	struct zone *zone;
-+	unsigned long *bitmap;
-+	unsigned long pfn, bitidx;
-+	unsigned long flags = 0;
-+	unsigned long value = 1;
-+
-+	zone = page_zone(page);
-+	pfn = page_to_pfn(page);
-+	bitmap = get_pageblock_bitmap(zone, pfn);
-+	bitidx = pfn_to_bitidx(zone, pfn);
-+
-+	for (; start_bitidx <= end_bitidx; start_bitidx++, value <<= 1)
-+		if (test_bit(bitidx + start_bitidx, bitmap))
-+			flags |= value;
-+
-+	return flags;
-+}
-+
-+/**
-+ * set_pageblock_flags_group - Set the requested group of flags for a pageblock_nr_pages block of pages
-+ * @page: The page within the block of interest
-+ * @start_bitidx: The first bit of interest
-+ * @end_bitidx: The last bit of interest
-+ * @flags: The flags to set
-+ */
-+void set_pageblock_flags_group(struct page *page, unsigned long flags,
-+					int start_bitidx, int end_bitidx)
-+{
-+	struct zone *zone;
-+	unsigned long *bitmap;
-+	unsigned long pfn, bitidx;
-+	unsigned long value = 1;
-+
-+	zone = page_zone(page);
-+	pfn = page_to_pfn(page);
-+	bitmap = get_pageblock_bitmap(zone, pfn);
-+	bitidx = pfn_to_bitidx(zone, pfn);
-+
-+	for (; start_bitidx <= end_bitidx; start_bitidx++, value <<= 1)
-+		if (flags & value)
-+			__set_bit(bitidx + start_bitidx, bitmap);
-+		else
-+			__clear_bit(bitidx + start_bitidx, bitmap);
-+}
++	if (!usemap) {
++		ret = -ENOMEM;
++		goto out;
++	}
+ 	ms->section_mem_map |= SECTION_MARKED_PRESENT;
+ 
+-	ret = sparse_init_one_section(ms, section_nr, memmap);
++	ret = sparse_init_one_section(ms, section_nr, memmap, usemap);
+ 
+ out:
+ 	pgdat_resize_unlock(pgdat, &flags);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
