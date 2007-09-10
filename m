@@ -1,48 +1,97 @@
-Received: from d23relay03.au.ibm.com (d23relay03.au.ibm.com [202.81.18.234])
-	by e23smtp03.au.ibm.com (8.13.1/8.13.1) with ESMTP id l8B2e4HO016940
-	for <linux-mm@kvack.org>; Tue, 11 Sep 2007 12:40:04 +1000
-Received: from d23av04.au.ibm.com (d23av04.au.ibm.com [9.190.235.139])
-	by d23relay03.au.ibm.com (8.13.8/8.13.8/NCO v8.5) with ESMTP id l8B2e3ZM4477158
-	for <linux-mm@kvack.org>; Tue, 11 Sep 2007 12:40:03 +1000
-Received: from d23av04.au.ibm.com (loopback [127.0.0.1])
-	by d23av04.au.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l8B3e2mM004759
-	for <linux-mm@kvack.org>; Tue, 11 Sep 2007 13:40:02 +1000
-Message-ID: <46E5FFFB.8020805@linux.vnet.ibm.com>
-Date: Tue, 11 Sep 2007 08:09:55 +0530
-From: Balbir Singh <balbir@linux.vnet.ibm.com>
-Reply-To: balbir@linux.vnet.ibm.com
+From: Nick Piggin <nickpiggin@yahoo.com.au>
+Subject: Re: [PATCH 7/13] Drain per-cpu lists when high-order allocations fail
+Date: Tue, 11 Sep 2007 01:05:25 +1000
+References: <20070910112011.3097.8438.sendpatchset@skynet.skynet.ie> <20070910112231.3097.53548.sendpatchset@skynet.skynet.ie>
+In-Reply-To: <20070910112231.3097.53548.sendpatchset@skynet.skynet.ie>
 MIME-Version: 1.0
-Subject: Re: [RFC] [PATCH] memory controller statistics
-References: <20070907033942.4A6541BFA52@siro.lan> <46E12020.1060203@linux.vnet.ibm.com> <6599ad830709101621r2f1763cfpa0924f884d0ee2c@mail.gmail.com>
-In-Reply-To: <6599ad830709101621r2f1763cfpa0924f884d0ee2c@mail.gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1
+Content-Type: text/plain;
+  charset="utf-8"
 Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+Message-Id: <200709110105.25544.nickpiggin@yahoo.com.au>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Paul Menage <menage@google.com>
-Cc: YAMAMOTO Takashi <yamamoto@valinux.co.jp>, svaidy@linux.vnet.ibm.com, containers@lists.osdl.org, minoura@valinux.co.jp, Linux Memory Management List <linux-mm@kvack.org>
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Paul Menage wrote:
-> On 9/7/07, Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
->> Thanks for doing this. We are building containerstats for
->> per container statistics. It would be really nice to provide
->> the statistics using that interface. I am not opposed to
->> memory.stat, but Paul Menage recommends that one file has
->> just one meaningful value.
-> 
-> That's based on examples from other virtual filesystems such as sysfs.
-> 
+On Monday 10 September 2007 21:22, Mel Gorman wrote:
+> Per-cpu pages can accidentally cause fragmentation because they are free,
+> but pinned pages in an otherwise contiguous block.  When this patch is
+> applied, the per-cpu caches are drained after the direct-reclaim is entered
+> if the requested order is greater than 0.  It simply reuses the code used
+> by suspend and hotplug.
 
-Even during the CKRM days (when configfs was used), the recommendation
-from the configfs folks was the same. I sometimes worry about the
-extra pinned dentries created with this logic/rule though.
+Does this help? I have a more general version which could go in
+instead (independently of the anti fragmentation patches).
 
--- 
-	Warm Regards,
-	Balbir Singh
-	Linux Technology Center
-	IBM, ISTL
+> Signed-off-by: Mel Gorman <mel@csn.ul.ie>
+> Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
+> ---
+>
+>  mm/page_alloc.c |   24 +++++++++++++++++++++++-
+>  1 file changed, 23 insertions(+), 1 deletion(-)
+>
+> diff -rup -X /usr/src/patchset-0.6/bin//dontdiff
+> linux-2.6.23-rc5-006-group-short-lived-and-reclaimable-kernel-allocations/m
+>m/page_alloc.c
+> linux-2.6.23-rc5-007-drain-per-cpu-lists-when-high-order-allocations-fail/m
+>m/page_alloc.c ---
+> linux-2.6.23-rc5-006-group-short-lived-and-reclaimable-kernel-allocations/m
+>m/page_alloc.c	2007-09-02 16:20:31.000000000 +0100 +++
+> linux-2.6.23-rc5-007-drain-per-cpu-lists-when-high-order-allocations-fail/m
+>m/page_alloc.c	2007-09-02 16:20:48.000000000 +0100 @@ -852,6 +852,7 @@ void
+> mark_free_pages(struct zone *zone)
+>  	}
+>  	spin_unlock_irqrestore(&zone->lock, flags);
+>  }
+> +#endif /* CONFIG_PM */
+>
+>  /*
+>   * Spill all of this CPU's per-cpu pages back into the buddy allocator.
+> @@ -864,7 +865,25 @@ void drain_local_pages(void)
+>  	__drain_pages(smp_processor_id());
+>  	local_irq_restore(flags);
+>  }
+> -#endif /* CONFIG_HIBERNATION */
+> +
+> +void smp_drain_local_pages(void *arg)
+> +{
+> +	drain_local_pages();
+> +}
+> +
+> +/*
+> + * Spill all the per-cpu pages from all CPUs back into the buddy allocator
+> + */
+> +void drain_all_local_pages(void)
+> +{
+> +	unsigned long flags;
+> +
+> +	local_irq_save(flags);
+> +	__drain_pages(smp_processor_id());
+> +	local_irq_restore(flags);
+> +
+> +	smp_call_function(smp_drain_local_pages, NULL, 0, 1);
+> +}
+>
+>  /*
+>   * Free a 0-order page
+> @@ -1452,6 +1471,9 @@ nofail_alloc:
+>
+>  	cond_resched();
+>
+> +	if (order != 0)
+> +		drain_all_local_pages();
+> +
+>  	if (likely(did_some_progress)) {
+>  		page = get_page_from_freelist(gfp_mask, order,
+>  						zonelist, alloc_flags);
+>
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
