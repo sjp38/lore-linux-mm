@@ -1,49 +1,32 @@
-Date: Mon, 10 Sep 2007 12:41:45 -0700 (PDT)
-From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [RFC 0/3] Recursive reclaim (on __PF_MEMALLOC)
-In-Reply-To: <1189453031.21778.28.camel@twins>
-Message-ID: <Pine.LNX.4.64.0709101238510.24941@schroedinger.engr.sgi.com>
-References: <20070814142103.204771292@sgi.com>  <200709050220.53801.phillips@phunq.net>
-  <Pine.LNX.4.64.0709050334020.8127@schroedinger.engr.sgi.com>
- <20070905114242.GA19938@wotan.suse.de>  <Pine.LNX.4.64.0709050507050.9141@schroedinger.engr.sgi.com>
-  <20070905121937.GA9246@wotan.suse.de>  <Pine.LNX.4.64.0709101225350.24735@schroedinger.engr.sgi.com>
- <1189453031.21778.28.camel@twins>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Date: Mon, 10 Sep 2007 12:44:01 -0700
+From: Paul Jackson <pj@sgi.com>
+Subject: Re: Group short-lived and reclaimable kernel allocations
+Message-Id: <20070910124401.5814acad.pj@sgi.com>
+In-Reply-To: <20070910112211.3097.86408.sendpatchset@skynet.skynet.ie>
+References: <20070910112011.3097.8438.sendpatchset@skynet.skynet.ie>
+	<20070910112211.3097.86408.sendpatchset@skynet.skynet.ie>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Cc: Nick Piggin <npiggin@suse.de>, Daniel Phillips <phillips@phunq.net>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, dkegel@google.com, David Miller <davem@davemloft.net>
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 10 Sep 2007, Peter Zijlstra wrote:
+Minor nit, Mel.
 
-> >  Peter's approach establishes the 
-> > limit by failing PF_MEMALLOC allocations. 
-> 
-> I'm not failing PF_MEMALLOC allocations. I'm more stringent in failing !
-> PF_MEMALLOC allocations.
+It's easier to read patches if you use the diff -p option:
 
-Right you are failing other allocations.
+       -p  --show-c-function
+              Show which C function each change is in.
 
-> > If that occurs then other 
-> > subsystems (like the disk, or even fork/exec or memory management 
-> > allocation) will no longer operate since their allocations no longer 
-> > succeed which will make the system even more fragile and may lead to 
-> > subsequent failures.
-> 
-> Failing allocations should never be a stability problem, we have the
-> fault-injection framework which allows allocations to fail randomly -
-> this should never crash the kernel - if it does its a BUG.
+Thanks.
 
-Allright maybe you can get the kernel to be stable in the face of having 
-no memory and debug all the fallback paths in the kernel when an OOM 
-condition occurs.
-
-But system calls will fail? Like fork/exec? etc? There may be daemons 
-running that are essential for the system to survive and that cannot 
-easily take an OOM condition? Various reclaim paths also need memory and 
-if the allocation fails then reclaim cannot continue.
+-- 
+                  I won't rest till it's the best ...
+                  Programmer, Linux Scalability
+                  Paul Jackson <pj@sgi.com> 1.925.600.0401
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
