@@ -1,79 +1,85 @@
 Subject: Re: [RFC 0/3] Recursive reclaim (on __PF_MEMALLOC)
 From: Peter Zijlstra <a.p.zijlstra@chello.nl>
-In-Reply-To: <Pine.LNX.4.64.0709101238510.24941@schroedinger.engr.sgi.com>
+In-Reply-To: <Pine.LNX.4.64.0709101220001.24735@schroedinger.engr.sgi.com>
 References: <20070814142103.204771292@sgi.com>
 	 <200709050220.53801.phillips@phunq.net>
 	 <Pine.LNX.4.64.0709050334020.8127@schroedinger.engr.sgi.com>
-	 <20070905114242.GA19938@wotan.suse.de>
-	 <Pine.LNX.4.64.0709050507050.9141@schroedinger.engr.sgi.com>
-	 <20070905121937.GA9246@wotan.suse.de>
-	 <Pine.LNX.4.64.0709101225350.24735@schroedinger.engr.sgi.com>
-	 <1189453031.21778.28.camel@twins>
-	 <Pine.LNX.4.64.0709101238510.24941@schroedinger.engr.sgi.com>
-Content-Type: multipart/signed; micalg=pgp-sha1; protocol="application/pgp-signature"; boundary="=-+ErkCB7gZoc7iCZsR0jC"
-Date: Mon, 10 Sep 2007 21:55:22 +0200
-Message-Id: <1189454122.21778.47.camel@twins>
+	 <200709050916.04477.phillips@phunq.net>
+	 <Pine.LNX.4.64.0709101220001.24735@schroedinger.engr.sgi.com>
+Content-Type: multipart/signed; micalg=pgp-sha1; protocol="application/pgp-signature"; boundary="=-KcKGPNb8Im/xV24HK7cc"
+Date: Mon, 10 Sep 2007 21:55:45 +0200
+Message-Id: <1189454145.21778.48.camel@twins>
 Mime-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Christoph Lameter <clameter@sgi.com>
-Cc: Nick Piggin <npiggin@suse.de>, Daniel Phillips <phillips@phunq.net>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, dkegel@google.com, David Miller <davem@davemloft.net>
+Cc: Daniel Phillips <phillips@phunq.net>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, dkegel@google.com, David Miller <davem@davemloft.net>, Nick Piggin <npiggin@suse.de>
 List-ID: <linux-mm.kvack.org>
 
---=-+ErkCB7gZoc7iCZsR0jC
+--=-KcKGPNb8Im/xV24HK7cc
 Content-Type: text/plain
 Content-Transfer-Encoding: quoted-printable
 
-On Mon, 2007-09-10 at 12:41 -0700, Christoph Lameter wrote:
-> On Mon, 10 Sep 2007, Peter Zijlstra wrote:
->=20
-> > >  Peter's approach establishes the=20
-> > > limit by failing PF_MEMALLOC allocations.=20
-> >=20
-> > I'm not failing PF_MEMALLOC allocations. I'm more stringent in failing =
-!
-> > PF_MEMALLOC allocations.
->=20
-> Right you are failing other allocations.
->=20
-> > > If that occurs then other=20
-> > > subsystems (like the disk, or even fork/exec or memory management=20
-> > > allocation) will no longer operate since their allocations no longer=20
-> > > succeed which will make the system even more fragile and may lead to=20
-> > > subsequent failures.
-> >=20
-> > Failing allocations should never be a stability problem, we have the
-> > fault-injection framework which allows allocations to fail randomly -
-> > this should never crash the kernel - if it does its a BUG.
->=20
-> Allright maybe you can get the kernel to be stable in the face of having=20
-> no memory and debug all the fallback paths in the kernel when an OOM=20
-> condition occurs.
->=20
-> But system calls will fail? Like fork/exec? etc? There may be daemons=20
-> running that are essential for the system to survive and that cannot=20
-> easily take an OOM condition? Various reclaim paths also need memory and=20
-> if the allocation fails then reclaim cannot continue.
+On Mon, 2007-09-10 at 12:25 -0700, Christoph Lameter wrote:
 
-I'm not making any of these paths significantly more likely to occur
-than they already are. Lots and lots of users run swap heavy loads day
-in day out - they don't get funny systems (well sometimes they do, and
-theoretically we can easily run out of the PF_MEMALLOC reserves -
-HOWEVER in practise it seems to work quite reliably).
+> Of course boundless allocations from interrupt / reclaim context will=20
+> ultimately crash the system. To fix that you need to stop the networking=20
+> layer from performing these.
 
---=-+ErkCB7gZoc7iCZsR0jC
+Trouble is, I don't only need a network layer to not endlessly consume
+memory, I need it to 'fully' function so that we can receive the
+writeout completion.
+
+Let us define a strict meaning for a few phrases:
+
+ use memory - an alloc / free cycle where the free is unconditional
+ consume memory - an alloc / free cycle where the free is conditional
+and or might be delayed for some unspecified time.
+
+Currently networking has two states:
+
+  1) it receives packets and consumes memory
+  2) it doesn't receive any packets and doesn't use any memory.
+
+In order to use swap over network you need to operate the network stack
+in a bounded memory model (PF_MEMALLOC). So we need a state that:
+
+  - receives packets
+  - does NOT consume memory
+  - but does use memory - albeit limited.
+
+There are two ways to do this:
+
+  - reserve a specified amount of memory per socket
+    (allegedly IRIX has this)
+
+or
+
+  - have a global reserve and selectively serves sockets
+    (what I've been doing)
+
+These two models can be seen as the same. There is no fundamental
+difference between having various small reserves and one larger that is
+carved up using strict accounting.
+
+So, if you will, you can view my approach as a reserve per socket, where
+most sockets get a reserve of 0 and a few (those serving the VM) !0.
+
+What part are you disagreeing with or unclear on?
+
+--=-KcKGPNb8Im/xV24HK7cc
 Content-Type: application/pgp-signature; name=signature.asc
 Content-Description: This is a digitally signed message part
 
 -----BEGIN PGP SIGNATURE-----
 Version: GnuPG v1.4.6 (GNU/Linux)
 
-iD8DBQBG5aEqXA2jU0ANEf4RAgz2AJ9QTgnvZ6qXTF8CEGZqdkuVTos1VACeMRjc
-Trl22aYJimTFPCeTebYbwHc=
-=Y/Tk
+iD8DBQBG5aFBXA2jU0ANEf4RArm7AJ40Vp4cj7gm1cnhm0xDBD9LRFxaHwCcCGqE
+FbXnb3M3tui6xv8ucWjFzaQ=
+=2nRa
 -----END PGP SIGNATURE-----
 
---=-+ErkCB7gZoc7iCZsR0jC--
+--=-KcKGPNb8Im/xV24HK7cc--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
