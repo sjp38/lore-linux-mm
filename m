@@ -1,198 +1,85 @@
-Message-Id: <20070911200013.690534000@chello.nl>
+Message-Id: <20070911200012.442552000@chello.nl>
 References: <20070911195350.825778000@chello.nl>
-Date: Tue, 11 Sep 2007 21:53:59 +0200
+Date: Tue, 11 Sep 2007 21:53:54 +0200
 From: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Subject: [PATCH 09/23] lib: percpu_counter_init error handling
-Content-Disposition: inline; filename=percpu_counter_init.patch
+Subject: [PATCH 04/23] lib: percpu_counter variable batch
+Content-Disposition: inline; filename=percpu_counter_batch.patch
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 Cc: miklos@szeredi.hu, akpm@linux-foundation.org, neilb@suse.de, dgc@sgi.com, tomoki.sekiyama.qu@hitachi.com, a.p.zijlstra@chello.nl, nikita@clusterfs.com, trond.myklebust@fys.uio.no, yingchao.zhou@gmail.com, richard@rsk.demon.co.uk, torvalds@linux-foundation.org
 List-ID: <linux-mm.kvack.org>
 
-alloc_percpu can fail, propagate that error.
+Because the current batch setup has an quadric error bound on the counter,
+allow for an alternative setup.
 
 Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
 ---
- fs/ext2/super.c                |   15 ++++++++++++---
- fs/ext3/super.c                |   21 +++++++++++++++------
- fs/ext4/super.c                |   21 +++++++++++++++------
- include/linux/percpu_counter.h |    5 +++--
- lib/percpu_counter.c           |    8 +++++++-
- 5 files changed, 52 insertions(+), 18 deletions(-)
+ include/linux/percpu_counter.h |   10 +++++++++-
+ lib/percpu_counter.c           |    6 +++---
+ 2 files changed, 12 insertions(+), 4 deletions(-)
 
-Index: linux-2.6/fs/ext2/super.c
-===================================================================
---- linux-2.6.orig/fs/ext2/super.c
-+++ linux-2.6/fs/ext2/super.c
-@@ -725,6 +725,7 @@ static int ext2_fill_super(struct super_
- 	int db_count;
- 	int i, j;
- 	__le32 features;
-+	int err;
- 
- 	sbi = kzalloc(sizeof(*sbi), GFP_KERNEL);
- 	if (!sbi)
-@@ -996,12 +997,20 @@ static int ext2_fill_super(struct super_
- 	sbi->s_rsv_window_head.rsv_goal_size = 0;
- 	ext2_rsv_window_add(sb, &sbi->s_rsv_window_head);
- 
--	percpu_counter_init(&sbi->s_freeblocks_counter,
-+	err = percpu_counter_init(&sbi->s_freeblocks_counter,
- 				ext2_count_free_blocks(sb));
--	percpu_counter_init(&sbi->s_freeinodes_counter,
-+	if (!err) {
-+		err = percpu_counter_init(&sbi->s_freeinodes_counter,
- 				ext2_count_free_inodes(sb));
--	percpu_counter_init(&sbi->s_dirs_counter,
-+	}
-+	if (!err) {
-+		err = percpu_counter_init(&sbi->s_dirs_counter,
- 				ext2_count_dirs(sb));
-+	}
-+	if (err) {
-+		printk(KERN_ERR "EXT2-fs: insufficient memory\n");
-+		goto failed_mount3;
-+	}
- 	/*
- 	 * set up enough so that it can read an inode
- 	 */
-Index: linux-2.6/fs/ext3/super.c
-===================================================================
---- linux-2.6.orig/fs/ext3/super.c
-+++ linux-2.6/fs/ext3/super.c
-@@ -1485,6 +1485,7 @@ static int ext3_fill_super (struct super
- 	int i;
- 	int needs_recovery;
- 	__le32 features;
-+	int err;
- 
- 	sbi = kzalloc(sizeof(*sbi), GFP_KERNEL);
- 	if (!sbi)
-@@ -1745,12 +1746,20 @@ static int ext3_fill_super (struct super
- 	get_random_bytes(&sbi->s_next_generation, sizeof(u32));
- 	spin_lock_init(&sbi->s_next_gen_lock);
- 
--	percpu_counter_init(&sbi->s_freeblocks_counter,
--		ext3_count_free_blocks(sb));
--	percpu_counter_init(&sbi->s_freeinodes_counter,
--		ext3_count_free_inodes(sb));
--	percpu_counter_init(&sbi->s_dirs_counter,
--		ext3_count_dirs(sb));
-+	err = percpu_counter_init(&sbi->s_freeblocks_counter,
-+			ext3_count_free_blocks(sb));
-+	if (!err) {
-+		err = percpu_counter_init(&sbi->s_freeinodes_counter,
-+				ext3_count_free_inodes(sb));
-+	}
-+	if (!err) {
-+		err = percpu_counter_init(&sbi->s_dirs_counter,
-+				ext3_count_dirs(sb));
-+	}
-+	if (err) {
-+		printk(KERN_ERR "EXT3-fs: insufficient memory\n");
-+		goto failed_mount3;
-+	}
- 
- 	/* per fileystem reservation list head & lock */
- 	spin_lock_init(&sbi->s_rsv_window_lock);
-Index: linux-2.6/fs/ext4/super.c
-===================================================================
---- linux-2.6.orig/fs/ext4/super.c
-+++ linux-2.6/fs/ext4/super.c
-@@ -1576,6 +1576,7 @@ static int ext4_fill_super (struct super
- 	int needs_recovery;
- 	__le32 features;
- 	__u64 blocks_count;
-+	int err;
- 
- 	sbi = kzalloc(sizeof(*sbi), GFP_KERNEL);
- 	if (!sbi)
-@@ -1857,12 +1858,20 @@ static int ext4_fill_super (struct super
- 	get_random_bytes(&sbi->s_next_generation, sizeof(u32));
- 	spin_lock_init(&sbi->s_next_gen_lock);
- 
--	percpu_counter_init(&sbi->s_freeblocks_counter,
--		ext4_count_free_blocks(sb));
--	percpu_counter_init(&sbi->s_freeinodes_counter,
--		ext4_count_free_inodes(sb));
--	percpu_counter_init(&sbi->s_dirs_counter,
--		ext4_count_dirs(sb));
-+	err = percpu_counter_init(&sbi->s_freeblocks_counter,
-+			ext4_count_free_blocks(sb));
-+	if (!err) {
-+		err = percpu_counter_init(&sbi->s_freeinodes_counter,
-+				ext4_count_free_inodes(sb));
-+	}
-+	if (!err) {
-+		err = percpu_counter_init(&sbi->s_dirs_counter,
-+				ext4_count_dirs(sb));
-+	}
-+	if (err) {
-+		printk(KERN_ERR "EXT4-fs: insufficient memory\n");
-+		goto failed_mount3;
-+	}
- 
- 	/* per fileystem reservation list head & lock */
- 	spin_lock_init(&sbi->s_rsv_window_lock);
 Index: linux-2.6/include/linux/percpu_counter.h
 ===================================================================
---- linux-2.6.orig/include/linux/percpu_counter.h
-+++ linux-2.6/include/linux/percpu_counter.h
-@@ -30,7 +30,7 @@ struct percpu_counter {
- #define FBC_BATCH	(NR_CPUS*4)
- #endif
+--- linux-2.6.orig/include/linux/percpu_counter.h	2007-05-23 20:34:12.000000000 +0200
++++ linux-2.6/include/linux/percpu_counter.h	2007-05-23 20:36:06.000000000 +0200
+@@ -32,9 +32,14 @@ struct percpu_counter {
  
--void percpu_counter_init(struct percpu_counter *fbc, s64 amount);
-+int percpu_counter_init(struct percpu_counter *fbc, s64 amount);
+ void percpu_counter_init(struct percpu_counter *fbc, s64 amount);
  void percpu_counter_destroy(struct percpu_counter *fbc);
- void percpu_counter_set(struct percpu_counter *fbc, s64 amount);
- void __percpu_counter_add(struct percpu_counter *fbc, s64 amount, s32 batch);
-@@ -78,9 +78,10 @@ struct percpu_counter {
- 	s64 count;
- };
+-void percpu_counter_add(struct percpu_counter *fbc, s32 amount);
++void __percpu_counter_add(struct percpu_counter *fbc, s32 amount, s32 batch);
+ s64 percpu_counter_sum(struct percpu_counter *fbc);
  
--static inline void percpu_counter_init(struct percpu_counter *fbc, s64 amount)
-+static inline int percpu_counter_init(struct percpu_counter *fbc, s64 amount)
++static inline void percpu_counter_add(struct percpu_counter *fbc, s32 amount)
++{
++	__percpu_counter_add(fbc, amount, FBC_BATCH);
++}
++
+ static inline s64 percpu_counter_read(struct percpu_counter *fbc)
  {
- 	fbc->count = amount;
-+	return 0;
+ 	return fbc->count;
+@@ -70,6 +75,9 @@ static inline void percpu_counter_destro
+ {
  }
  
- static inline void percpu_counter_destroy(struct percpu_counter *fbc)
++#define __percpu_counter_add(fbc, amount, batch) \
++	percpu_counter_add(fbc, amount)
++
+ static inline void
+ percpu_counter_add(struct percpu_counter *fbc, s32 amount)
+ {
 Index: linux-2.6/lib/percpu_counter.c
 ===================================================================
---- linux-2.6.orig/lib/percpu_counter.c
-+++ linux-2.6/lib/percpu_counter.c
-@@ -68,21 +68,27 @@ s64 __percpu_counter_sum(struct percpu_c
- }
- EXPORT_SYMBOL(__percpu_counter_sum);
- 
--void percpu_counter_init(struct percpu_counter *fbc, s64 amount)
-+int percpu_counter_init(struct percpu_counter *fbc, s64 amount)
- {
- 	spin_lock_init(&fbc->lock);
- 	fbc->count = amount;
- 	fbc->counters = alloc_percpu(s32);
-+	if (!fbc->counters)
-+		return -ENOMEM;
- #ifdef CONFIG_HOTPLUG_CPU
- 	mutex_lock(&percpu_counters_lock);
- 	list_add(&fbc->list, &percpu_counters);
- 	mutex_unlock(&percpu_counters_lock);
+--- linux-2.6.orig/lib/percpu_counter.c	2007-05-23 20:34:12.000000000 +0200
++++ linux-2.6/lib/percpu_counter.c	2007-05-23 20:36:21.000000000 +0200
+@@ -14,7 +14,7 @@ static LIST_HEAD(percpu_counters);
+ static DEFINE_MUTEX(percpu_counters_lock);
  #endif
-+	return 0;
- }
- EXPORT_SYMBOL(percpu_counter_init);
  
- void percpu_counter_destroy(struct percpu_counter *fbc)
+-void percpu_counter_add(struct percpu_counter *fbc, s32 amount)
++void __percpu_counter_add(struct percpu_counter *fbc, s32 amount, s32 batch)
  {
-+	if (!fbc->counters)
-+		return;
-+
- 	free_percpu(fbc->counters);
- #ifdef CONFIG_HOTPLUG_CPU
- 	mutex_lock(&percpu_counters_lock);
+ 	long count;
+ 	s32 *pcount;
+@@ -22,7 +22,7 @@ void percpu_counter_add(struct percpu_co
+ 
+ 	pcount = per_cpu_ptr(fbc->counters, cpu);
+ 	count = *pcount + amount;
+-	if (count >= FBC_BATCH || count <= -FBC_BATCH) {
++	if (count >= batch || count <= -batch) {
+ 		spin_lock(&fbc->lock);
+ 		fbc->count += count;
+ 		*pcount = 0;
+@@ -32,7 +32,7 @@ void percpu_counter_add(struct percpu_co
+ 	}
+ 	put_cpu();
+ }
+-EXPORT_SYMBOL(percpu_counter_add);
++EXPORT_SYMBOL(__percpu_counter_add);
+ 
+ /*
+  * Add up all the per-cpu counts, return the result.  This is a more accurate
 
 --
 
