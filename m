@@ -1,49 +1,114 @@
-Subject: Update:  [Automatic] NUMA replicated pagecache on 2.6.23-rc4-mm1
-From: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
-In-Reply-To: <20070813074351.GA15609@wotan.suse.de>
-References: <20070727084252.GA9347@wotan.suse.de>
-	 <1186604723.5055.47.camel@localhost> <1186780099.5246.6.camel@localhost>
-	 <20070813074351.GA15609@wotan.suse.de>
-Content-Type: text/plain
-Date: Tue, 11 Sep 2007 16:52:42 -0400
-Message-Id: <1189543962.5036.97.camel@localhost>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+From: Mel Gorman <mel@csn.ul.ie>
+Message-Id: <20070911213006.23507.19569.sendpatchset@skynet.skynet.ie>
+Subject: [PATCH 0/6] Use one zonelist per node instead of multiple zonelists v5 (resend)
+Date: Tue, 11 Sep 2007 22:30:06 +0100 (IST)
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nick Piggin <npiggin@suse.de>
-Cc: Linux Memory Management List <linux-mm@kvack.org>, balbir@linux.vnet.ibm.com, Joachim Deguara <joachim.deguara@amd.com>, Christoph Lameter <clameter@sgi.com>, Mel Gorman <mel@csn.ul.ie>, Eric Whitney <eric.whitney@hp.com>
+To: Lee.Schermerhorn@hp.com, akpm@linux-foundation.org, ak@suse.de, clameter@sgi.com
+Cc: Mel Gorman <mel@csn.ul.ie>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-[Balbir:  see notes re:  replication and memory controller below]
+(Sorry for the resend, I mucked up the TO: line in the earlier sending)
 
-A quick update:  I have rebased the automatic/lazy page migration and
-replication patches to 23-rc4-mm1.  If interested, you can find the
-entire series that I push in the '070911' tarball at:
+This is the latest version of one-zonelist and it should be solid enough
+for wider testing. To briefly summarise, the patchset replaces multiple
+zonelists-per-node with one zonelist that is filtered based on nodemask and
+GFP flags. I've dropped the patch that replaces inline functions with macros
+from the end as it obscures the code for something that may or may not be a
+performance benefit on older compilers. If we see performance regressions that
+might have something to do with it, the patch is trivially to bring forward.
 
-	http://free.linux.hp.com/~lts/Patches/Replication/
+Andrew, please merge to -mm for wider testing and consideration for merging
+to mainline. Minimally, it gets rid of the hack in relation to ZONE_MOVABLE
+and MPOL_BIND.
 
-I haven't gotten around to some of the things you suggested to address
-the soft lockups. etc.  I just wanted to keep the patches up to date.  
+Changelog since V5
+  o Rebase to 2.6.23-rc4-mm1
+  o Drop patch that replaces inline functions with macros
 
-In the process of doing a quick sanity test, I encountered an issue with
-replication and the new memory controller patches.  I had built the
-kernel with the memory controller enabled.  I encountered a panic in
-reclaim, while attempting to "drop caches", because replication was not
-"charging" the replicated pages and reclaim tried to deref a null
-"page_container" pointer.  [!!! new member in page struct !!!]
+Changelog since V4
+  o Rebase to -mm kernel. Host of memoryless patches collisions dealt with
+  o Do not call wakeup_kswapd() for every zone in a zonelist
+  o Dropped the FASTCALL removal
+  o Have cursor in iterator advance earlier
+  o Use nodes_and in cpuset_nodes_valid_mems_allowed()
+  o Use defines instead of inlines, noticably better performance on gcc-3.4
+    No difference on later compilers such as gcc 4.1
+  o Dropped gfp_skip patch until it is proven to be of benefit. Tests are
+    currently inconclusive but it definitly consumes at least one cache
+    line
 
-I added code to try_to_create_replica(), __remove_replicated_page() and
-release_pcache_desc() to charge/uncharge where I thought appropriate
-[replication patch # 02].  That seemed to solve the panic during drop
-caches triggered reclaim.  However, when I tried a more stressful load,
-I hit another panic ["NaT Consumption" == ia64-ese for invalid pointer
-deref, I think] in shrink_active_list() called from direct reclaim.
-Still to be investigated.  I wanted to give you and Balbir a heads up
-about the interaction of memory controllers with page replication.
+Changelog since V3
+  o Fix compile error in the parisc change
+  o Calculate gfp_zone only once in __alloc_pages
+  o Calculate classzone_idx properly in get_page_from_freelist
+  o Alter check so that zone id embedded may still be used on UP
+  o Use Kamezawa-sans suggestion for skipping zones in zonelist
+  o Add __alloc_pages_nodemask() to filter zonelist based on a nodemask. This
+    removes the need for MPOL_BIND to have a custom zonelist
+  o Move zonelist iterators and helpers to mm.h
+  o Change _zones from struct zone * to unsigned long
+  
+Changelog since V2
+  o shrink_zones() uses zonelist instead of zonelist->zones
+  o hugetlb uses zonelist iterator
+  o zone_idx information is embedded in zonelist pointers
+  o replace NODE_DATA(nid)->node_zonelist with node_zonelist(nid)
 
-Later,
-Lee
+Changelog since V1
+  o Break up the patch into 3 patches
+  o Introduce iterators for zonelists
+  o Performance regression test
+
+The following patches replace multiple zonelists per node with one zonelist
+that is filtered based on the GFP flags. The patches as a set fix a bug
+with regard to the use of MPOL_BIND and ZONE_MOVABLE. With this patchset,
+the MPOL_BIND will apply to the two highest zones when the highest zone
+is ZONE_MOVABLE. This should be considered as an alternative fix for the
+MPOL_BIND+ZONE_MOVABLE in 2.6.23 to the previously discussed hack that
+filters only custom zonelists. As a bonus, the patchset reduces the cache
+footprint of the kernel and should improve performance in a number of cases.
+
+The first patch cleans up an inconsitency where direct reclaim uses
+zonelist->zones where other places use zonelist. The second patch introduces
+a helper function node_zonelist() for looking up the appropriate zonelist
+for a GFP mask which simplifies patches later in the set.
+
+The third patch replaces multiple zonelists with two zonelists that are
+filtered. The two zonelists are due to the fact that the memoryless patchset
+introduces a second set of zonelists for __GFP_THISNODE.
+
+The fourth patch introduces filtering of the zonelists based on a nodemask.
+
+The final patch replaces the two zonelists with one zonelist. A nodemask is
+created when __GFP_THISNODE is specified to filter the list. The nodelists
+could be pre-allocated with one-per-node but it's not clear that __GFP_THISNODE
+is used often enough to be worth the effort.
+
+Performance results varied depending on the machine configuration but were
+usually small performance gains. In real workloads the gain/loss will depend
+on how much the userspace portion of the benchmark benefits from having more
+cache available due to reduced referencing of zonelists.
+
+These are the range of performance losses/gains when running against
+2.6.23-rc3-mm1. The set and these machines are a mix of i386, x86_64 and
+ppc64 both NUMA and non-NUMA.
+
+Total CPU time on Kernbench: -0.67% to  3.05%
+Elapsed   time on Kernbench: -0.25% to  2.96%
+page_test from aim9:         -6.98% to  5.60%
+brk_test  from aim9:         -3.94% to  4.11%
+fork_test from aim9:         -5.72% to  4.14%
+exec_test from aim9:         -1.02% to  1.56%
+
+The TBench figures were too variable between runs to draw conclusions from but
+there didn't appear to be any regressions there. The hackbench results for both
+sockets and pipes were within noise.
+
+-- 
+Mel Gorman
+Part-time Phd Student                          Linux Technology Center
+University of Limerick                         IBM Dublin Software Lab
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
