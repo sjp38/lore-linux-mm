@@ -1,12 +1,13 @@
-Subject: Re: [PATCH/RFC 1/5] Mem Policy:  fix reference counting
+Subject: Re: [PATCH/RFC 2/5] Mem Policy:  Use MPOL_PREFERRED for
+	system-wide default policy
 From: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
-In-Reply-To: <1189536502.32731.83.camel@localhost>
+In-Reply-To: <1189536857.32731.90.camel@localhost>
 References: <20070830185053.22619.96398.sendpatchset@localhost>
-	 <20070830185100.22619.197.sendpatchset@localhost>
-	 <1189536502.32731.83.camel@localhost>
+	 <20070830185107.22619.43577.sendpatchset@localhost>
+	 <1189536857.32731.90.camel@localhost>
 Content-Type: text/plain
-Date: Tue, 11 Sep 2007 14:12:13 -0400
-Message-Id: <1189534333.5036.48.camel@localhost>
+Date: Tue, 11 Sep 2007 14:22:03 -0400
+Message-Id: <1189534923.5036.58.camel@localhost>
 Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
@@ -15,138 +16,85 @@ To: Mel Gorman <mel@csn.ul.ie>
 Cc: linux-mm@kvack.org, akpm@linux-foundation.org, ak@suse.de, mtk-manpages@gmx.net, clameter@sgi.com, solo@google.com, eric.whitney@hp.com
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 2007-09-11 at 19:48 +0100, Mel Gorman wrote:
-> You know this stuff better than I do. Take suggestions here with a large
-> grain of salt.
-
-Your comments are on the mark.  See responses below.
-
-> 
+On Tue, 2007-09-11 at 19:54 +0100, Mel Gorman wrote:
 > On Thu, 2007-08-30 at 14:51 -0400, Lee Schermerhorn wrote:
-<patch description snipped>
+> > PATCH/RFC 2/5 Use MPOL_PREFERRED for system-wide default policy
+> > 
+> > Against:  2.6.23-rc3-mm1
+> > 
+> > V1 -> V2:
+> > + restore BUG()s in switch(policy) default cases -- per
+> >   Christoph
+> > + eliminate unneeded re-init of struct mempolicy policy member
+> >   before freeing
+> > 
+> > Currently, when one specifies MPOL_DEFAULT via a NUMA memory
+> > policy API [set_mempolicy(), mbind() and internal versions],
+> > the kernel simply installs a NULL struct mempolicy pointer in
+> > the appropriate context:  task policy, vma policy, or shared
+> > policy.  This causes any use of that policy to "fall back" to
+> > the next most specific policy scope.  The only use of MPOL_DEFAULT
+> > to mean "local allocation" is in the system default policy.
+> > 
+> 
+> In general, this seems like a good idea. It's certainly simplier to
+> always assume a policy exists because it discourages "bah, I don't care
+> about policies" style of thinking.
+
+More importantly, IMO, it eliminates 2 meanings for MPOL_DEFAULT in
+different contexts and promotes the use 0f [MPOL_PREFERRED,
+-1/null-nodemask] for local allocation.  I think this makes the
+resulting documentation clearer.
+
+<snip>
+> > 
 > > Index: Linux/mm/mempolicy.c
 > > ===================================================================
-> > --- Linux.orig/mm/mempolicy.c	2007-08-29 10:05:19.000000000 -0400
-> > +++ Linux/mm/mempolicy.c	2007-08-29 13:31:42.000000000 -0400
-> > @@ -1083,21 +1083,37 @@ asmlinkage long compat_sys_mbind(compat_
+> > --- Linux.orig/mm/mempolicy.c	2007-08-29 11:43:06.000000000 -0400
+> > +++ Linux/mm/mempolicy.c	2007-08-29 11:44:03.000000000 -0400
+> > @@ -105,9 +105,13 @@ static struct kmem_cache *sn_cache;
+> >     policied. */
+> >  enum zone_type policy_zone = 0;
 > >  
-> >  #endif
-> >  
-> > -/* Return effective policy for a VMA */
 > > +/*
-> > + * get_vma_policy(@task, @vma, @addr)
-> > + * @task - task for fallback if vma policy == default
-> > + * @vma   - virtual memory area whose policy is sought
-> > + * @addr  - address in @vma for shared policy lookup
-> > + *
-> > + * Returns effective policy for a VMA at specified address.
-> > + * Falls back to @task or system default policy, as necessary.
-> > + * Returned policy has extra reference count if shared, vma,
-> > + * or some other task's policy [show_numa_maps() can pass
-> > + * @task != current].  It is the caller's responsibility to
-> > + * free the reference in these cases.
+> > + * run-time system-wide default policy => local allocation
 > > + */
-> >  static struct mempolicy * get_vma_policy(struct task_struct *task,
-> >  		struct vm_area_struct *vma, unsigned long addr)
-> >  {
-> >  	struct mempolicy *pol = task->mempolicy;
-> > +	int shared_pol = 0;
+> >  struct mempolicy default_policy = {
+> >  	.refcnt = ATOMIC_INIT(1), /* never free it */
+> > -	.policy = MPOL_DEFAULT,
+> > +	.policy = MPOL_PREFERRED,
+> > +	.v =  { .preferred_node =  -1 },
+> >  };
 > >  
-> >  	if (vma) {
-> > -		if (vma->vm_ops && vma->vm_ops->get_policy)
-> > +		if (vma->vm_ops && vma->vm_ops->get_policy) {
-> >  			pol = vma->vm_ops->get_policy(vma, addr);
-> > -		else if (vma->vm_policy &&
-> > +			shared_pol = 1;	/* if pol non-NULL, that is */
 > 
-> What do you mean here by "pol non-NULL, that is". Where do you check
-> that vm_ops->get_policy() returned a non-NULL value?
+> fairly clear.
 > 
-> Should the comment be 
-> 
-> /* Policy if set is shared, check later */
-> 
-> and rename the variable to check_shared_pol?
-
-You interpret my cryptic comment correctly.  However, your suggested fix
-doesn't quite capture my way of looking at it.  Would it work for you if
-I change it to:  /* if pol non-NULL, add ref below */  ???  That fits in
-80 columns ;-)!
-
-> 
-> > +		} else if (vma->vm_policy &&
-> >  				vma->vm_policy->policy != MPOL_DEFAULT)
-> >  			pol = vma->vm_policy;
-> >  	}
-> >  	if (!pol)
-> >  		pol = &default_policy;
-> > +	else if (!shared_pol && pol != current->mempolicy)
-> > +		mpol_get(pol);	/* vma or other task's policy */
-> >  	return pol;
-> >  }
+> >  static void mpol_rebind_policy(struct mempolicy *pol,
+> > @@ -180,7 +184,8 @@ static struct mempolicy *mpol_new(int mo
+> >  		 mode, nodes ? nodes_addr(*nodes)[0] : -1);
 > >  
-> > @@ -1213,19 +1229,45 @@ static inline unsigned interleave_nid(st
-> >  }
-> >  
-> >  #ifdef CONFIG_HUGETLBFS
-> > -/* Return a zonelist suitable for a huge page allocation. */
-> > +/*
-> > + * huge_zonelist(@vma, @addr, @gfp_flags, @mpol)
-> > + * @vma = virtual memory area whose policy is sought
-> > + * @addr = address in @vma for shared policy lookup and interleave policy
-> > + * @gfp_flags = for requested zone
-> > + * @mpol = pointer to mempolicy pointer for reference counted 'BIND policy
-> > + *
-> > + * Returns a zonelist suitable for a huge page allocation.
-> > + * If the effective policy is 'BIND, returns pointer to policy's zonelist.
+> >  	if (mode == MPOL_DEFAULT)
+> > -		return NULL;
+> > +		return NULL;	/* simply delete any existing policy */
+> > +
 > 
-> This comment here becomes redundant if applied on top of one-zonelist as
-> you suggest you will be doing later. The zonelist returned for MPOL_BIND
-> is the nodes zonelist but it is filtered based on a nodemask.
-
-Agreed.  When I get around to rebasing atop your patches [under the
-assumption they'll hit the mm tree before these] I'll fix this up.  For
-now, I've added myself a 'TODO' comment.
-
-Note, however, that unless we take a copy of the policy's nodemask,
-we'll still need to hold the reference over the allocation, I think.
-Haven't looked that closely, yet.
-
+> Why do we not return default_policy and insert that into the VMA or
+> whatever?
 > 
-> > + * If it is also a policy for which get_vma_policy() returns an extra
-> > + * reference, we must hold that reference until after allocation.
-> > + * In that case, return policy via @mpol so hugetlb allocation can drop
-> > + * the reference.  For non-'BIND referenced policies, we can/do drop the
-> > + * reference here, so the caller doesn't need to know about the special case
-> > + * for default and current task policy.
-> > + */
-> >  struct zonelist *huge_zonelist(struct vm_area_struct *vma, unsigned long addr,
-> > -							gfp_t gfp_flags)
-> > +				gfp_t gfp_flags, struct mempolicy **mpol)
-> >  {
-> >  	struct mempolicy *pol = get_vma_policy(current, vma, addr);
-> > +	struct zonelist *zl;
-> >  
-> > +	*mpol = NULL;		/* probably no unref needed */
-> >  	if (pol->policy == MPOL_INTERLEAVE) {
-> >  		unsigned nid;
-> >  
-> >  		nid = interleave_nid(pol, vma, addr, HPAGE_SHIFT);
-> > +		__mpol_free(pol);
-> 
-> So, __mpol_free() here acts as a put on the get_vma_policy() right?
-> Either that needs commenting or __mpol_free() needs to be renamed to
-> __mpol_put() assuming that when the count reaches 0, it really gets
-> free.
 
-Yes, the '__' version of mpol_free() takes a non-NULL policy pointer and
-decrements the reference.  [w/o the '__', a NULL policy pointer is a
-no-op.]  If the resulting count is zero, the policy structure, and any
-attached zonelist [or nodemask, if we make those remote, as discussed in
-Cambridge] is freed.   The 'free notation is Andi's original naming.
-For now, rather than change that throughout the code, I'll comment this
-instance.
+Because then, if we're installing a shared policy [shmem], we'll go
+ahead and create an rb-node and insert the [default] policy in the tree
+in the shared policy struct, instead of just deleting any policy ranges
+that the new policy covers.  Andi already implemented the code to delete
+shared policy ranges covered by a subsequent null/default policy.  I
+like this approach.
 
+I have additional patches, to come later, that dynamically allocate the
+shared policy structure when a non-null [non-default] policy is
+installed.  At some point, I plan on enhancing this to to use a single
+policy pointer, instead of the shared policy struct, when the policy
+covers the entire object range, and delete any existing shared policy
+struct when/if a default policy covers the entire range.
 
 Thanks,
 Lee
