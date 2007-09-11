@@ -1,70 +1,115 @@
-Date: Tue, 11 Sep 2007 10:14:19 -0500
-From: "Kathrine Eldridge" <felina.davie@klosteramspitz.at>
-Reply-To: felina.davie@klosteramspitz.at
-Message-ID: <449292975.66992041420948@klosteramspitz.at>
-Subject: Hard-and-fast rule
-MIME-Version: 1.0
-Content-Type: multipart/alternative;
-  boundary="----------5C9329AD305C932"
-Return-Path: <felina.davie@klosteramspitz.at>
-To: linux-mm@kvack.org
+From: Mel Gorman <mel@csn.ul.ie>
+Message-Id: <20070911151939.11117.30384.sendpatchset@skynet.skynet.ie>
+Subject: [PATCH 0/6] Use one zonelist per node instead of multiple zonelists v5
+Date: Tue, 11 Sep 2007 16:19:39 +0100 (IST)
+Sender: owner-linux-mm@kvack.org
+Return-Path: <owner-linux-mm@kvack.org>
+To: apw@shadowen.org
+Cc: Mel Gorman <mel@csn.ul.ie>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-------------5C9329AD305C932
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
+This is the latest version of one-zonelist and it should be solid enough
+for wider testing. To briefly summarise, the patchset replaces multiple
+zonelists-per-node with one zonelist that is filtered based on nodemask and
+GFP flags. I've dropped the patch that replaces inline functions with macros
+from the end as it obscures the code for something that may or may not be a
+performance benefit on older compilers. If we see performance regressions that
+might have something to do with it, the patch is trivially to bring forward.
 
-VIEW ALL PRODUCTS!release Monday Men's Health: per pillVIAGRA $1.79 per pillCIALIS $2.69 per pillLEVITRA $3.96 per pilldaughter involved Anti-Acidity:NEXIUM $1.66 per pillPRILOSEC $0.40 per pillPREVACID $1.09 per pillThe efforts oftenAnti-Allergic:ZYRTEC $0.53 per pillSINGULAIR $1.24 per pillNumerous studies Anti-Depressant:PROZAC $0.58 per pillEFFEXOR $2.15 per pillPAXIL $1.82 per pillIt says enrichment tools Antibiotics:LEVAQUIN $0.85 per pillZITHROMAX $2.34 per pillCIPRO $1.45 per pillplaytime can create Muscle relaxant:SOMA $0.67 per pillZANAFLEX $1.50 per pillfor many children,Weight loss:HERBAL PHENTERMINE $2.30 per pillHOODIA $1.50 per pillDIET MAXX $33 per bottlesays the report, Women's health:DIFLUCAN $2.00 per pillFOSAMAX $0.65 per pilladjust to school settings, the VIEW ALL PRODUCTS!Social pressures  beneficial but should not be viewed  about creating "super children" contribute to the report says.
-------------5C9329AD305C932
-Content-Type: text/html; charset=us-ascii
-Content-Transfer-Encoding: 7bit
+Andrew, please merge to -mm for wider testing and consideration for merging
+to mainline. Minimally, it gets rid of the hack in relation to ZONE_MOVABLE
+and MPOL_BIND.
 
-<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
-<HTML><HEAD><TITLE></TITLE>
-</HEAD>
-<BODY>
+Changelog since V5
+  o Rebase to 2.6.23-rc4-mm1
+  o Drop patch that replaces inline functions with macros
 
-<DIV><A href="http://hunyna.withstone.cn/?719704875143">VIEW ALL PRODUCTS!</A></DIV>
-<DIV><FONT color="FFFFFF">release Monday </FONT></DIV>
-<DIV><FONT color="#0000FF"><b>Men's Health:</b></FONT> per pill</DIV>
-<DIV><b>VIAGRA</b> <FONT color="#FF0000"><b>$1.79</b></FONT> per pill</DIV>
-<DIV><b>CIALIS</b> <FONT color="#FF0000"><b>$2.69</b></FONT> per pill</DIV>
-<DIV><b>LEVITRA</b> <FONT color="#FF0000"><b>$3.96</b></FONT> per pill</DIV>
-<DIV><FONT color="FFFFFF">daughter involved </FONT></DIV>
-<DIV><FONT color="#0000FF"><b>Anti-Acidity:</b></FONT></DIV>
-<DIV><b>NEXIUM</b> <FONT color="#FF0000"><b>$1.66</b></FONT> per pill</DIV>
-<DIV><b>PRILOSEC</b> <FONT color="#FF0000"><b>$0.40</b></FONT> per pill</DIV>
-<DIV><b>PREVACID</b> <FONT color="#FF0000"><b>$1.09</b></FONT> per pill</DIV>
-<DIV><FONT color="FFFFFF">The efforts often</FONT></DIV>
-<DIV><FONT color="#0000FF"><b>Anti-Allergic:</b></FONT></DIV>
-<DIV><b>ZYRTEC</b> <FONT color="#FF0000"><b>$0.53</b></FONT> per pill</DIV>
-<DIV><b>SINGULAIR</b> <FONT color="#FF0000"><b>$1.24</b></FONT> per pill</DIV>
-<DIV><FONT color="FFFFFF">Numerous studies </FONT></DIV>
-<DIV><FONT color="#0000FF"><b>Anti-Depressant:</b></FONT></DIV>
-<DIV><b>PROZAC</b> <FONT color="#FF0000"><b>$0.58</b></FONT> per pill</DIV>
-<DIV><b>EFFEXOR</b> <FONT color="#FF0000"><b>$2.15</b></FONT> per pill</DIV>
-<DIV><b>PAXIL</b> <FONT color="#FF0000"><b>$1.82</b></FONT> per pill</DIV>
-<DIV><FONT color="FFFFFF">It says enrichment tools </FONT></DIV>
-<DIV><FONT color="#0000FF"><b>Antibiotics:</b></FONT></DIV>
-<DIV><b>LEVAQUIN</b> <FONT color="#FF0000"><b>$0.85</b></FONT> per pill</DIV>
-<DIV><b>ZITHROMAX</b> <FONT color="#FF0000"><b>$2.34</b></FONT> per pill</DIV>
-<DIV><b>CIPRO</b> <FONT color="#FF0000"><b>$1.45</b></FONT> per pill</DIV>
-<DIV><FONT color="FFFFFF">playtime can create </FONT></DIV>
-<DIV><FONT color="#0000FF"><b>Muscle relaxant:</b></FONT></DIV>
-<DIV><b>SOMA</b> <FONT color="#FF0000"><b>$0.67</b></FONT> per pill</DIV>
-<DIV><b>ZANAFLEX</b> <FONT color="#FF0000"><b>$1.50</b></FONT> per pill</DIV>
-<DIV><FONT color="FFFFFF">for many children,</FONT></DIV>
-<DIV><FONT color="#0000FF"><b>Weight loss:</b></FONT></DIV>
-<DIV><b>HERBAL PHENTERMINE</b> <FONT color="#FF0000"><b>$2.30</b></FONT> per pill</DIV>
-<DIV><b>HOODIA</b> <FONT color="#FF0000"><b>$1.50</b></FONT> per pill</DIV>
-<DIV><b>DIET MAXX</b> <FONT color="#FF0000"><b>$33</b></FONT> per bottle</DIV>
-<DIV><FONT color="FFFFFF">says the report, </FONT></DIV>
-<DIV><FONT color="#0000FF"><b>Women's health:</b></FONT></DIV>
-<DIV><b>DIFLUCAN</b> <FONT color="#FF0000"><b>$2.00</b></FONT> per pill</DIV>
-<DIV><b>FOSAMAX</b> <FONT color="#FF0000"><b>$0.65</b></FONT> per pill</DIV>
-<DIV><FONT color="FFFFFF">adjust to school settings, the </FONT></DIV>
-<DIV><A href="http://hunyna.withstone.cn/?719704875143">VIEW ALL PRODUCTS!</A></DIV>
-<DIV><FONT color="FFFFFF">Social pressures  beneficial but should not be viewed  about creating "super children" contribute to the report says.</FONT></DIV>
+Changelog since V4
+  o Rebase to -mm kernel. Host of memoryless patches collisions dealt with
+  o Do not call wakeup_kswapd() for every zone in a zonelist
+  o Dropped the FASTCALL removal
+  o Have cursor in iterator advance earlier
+  o Use nodes_and in cpuset_nodes_valid_mems_allowed()
+  o Use defines instead of inlines, noticably better performance on gcc-3.4
+    No difference on later compilers such as gcc 4.1
+  o Dropped gfp_skip patch until it is proven to be of benefit. Tests are
+    currently inconclusive but it definitly consumes at least one cache
+    line
 
-</BODY></HTML>
-------------5C9329AD305C932--
+Changelog since V3
+  o Fix compile error in the parisc change
+  o Calculate gfp_zone only once in __alloc_pages
+  o Calculate classzone_idx properly in get_page_from_freelist
+  o Alter check so that zone id embedded may still be used on UP
+  o Use Kamezawa-sans suggestion for skipping zones in zonelist
+  o Add __alloc_pages_nodemask() to filter zonelist based on a nodemask. This
+    removes the need for MPOL_BIND to have a custom zonelist
+  o Move zonelist iterators and helpers to mm.h
+  o Change _zones from struct zone * to unsigned long
+  
+Changelog since V2
+  o shrink_zones() uses zonelist instead of zonelist->zones
+  o hugetlb uses zonelist iterator
+  o zone_idx information is embedded in zonelist pointers
+  o replace NODE_DATA(nid)->node_zonelist with node_zonelist(nid)
+
+Changelog since V1
+  o Break up the patch into 3 patches
+  o Introduce iterators for zonelists
+  o Performance regression test
+
+The following patches replace multiple zonelists per node with one zonelist
+that is filtered based on the GFP flags. The patches as a set fix a bug
+with regard to the use of MPOL_BIND and ZONE_MOVABLE. With this patchset,
+the MPOL_BIND will apply to the two highest zones when the highest zone
+is ZONE_MOVABLE. This should be considered as an alternative fix for the
+MPOL_BIND+ZONE_MOVABLE in 2.6.23 to the previously discussed hack that
+filters only custom zonelists. As a bonus, the patchset reduces the cache
+footprint of the kernel and should improve performance in a number of cases.
+
+The first patch cleans up an inconsitency where direct reclaim uses
+zonelist->zones where other places use zonelist. The second patch introduces
+a helper function node_zonelist() for looking up the appropriate zonelist
+for a GFP mask which simplifies patches later in the set.
+
+The third patch replaces multiple zonelists with two zonelists that are
+filtered. The two zonelists are due to the fact that the memoryless patchset
+introduces a second set of zonelists for __GFP_THISNODE.
+
+The fourth patch introduces filtering of the zonelists based on a nodemask.
+
+The final patch replaces the two zonelists with one zonelist. A nodemask is
+created when __GFP_THISNODE is specified to filter the list. The nodelists
+could be pre-allocated with one-per-node but it's not clear that __GFP_THISNODE
+is used often enough to be worth the effort.
+
+Performance results varied depending on the machine configuration but were
+usually small performance gains. In real workloads the gain/loss will depend
+on how much the userspace portion of the benchmark benefits from having more
+cache available due to reduced referencing of zonelists.
+
+These are the range of performance losses/gains when running against
+2.6.23-rc3-mm1. The set and these machines are a mix of i386, x86_64 and
+ppc64 both NUMA and non-NUMA.
+
+Total CPU time on Kernbench: -0.67% to  3.05%
+Elapsed   time on Kernbench: -0.25% to  2.96%
+page_test from aim9:         -6.98% to  5.60%
+brk_test  from aim9:         -3.94% to  4.11%
+fork_test from aim9:         -5.72% to  4.14%
+exec_test from aim9:         -1.02% to  1.56%
+
+The TBench figures were too variable between runs to draw conclusions from but
+there didn't appear to be any regressions there. The hackbench results for both
+sockets and pipes were within noise.
+
+-- 
+Mel Gorman
+Part-time Phd Student                          Linux Technology Center
+University of Limerick                         IBM Dublin Software Lab
+
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
