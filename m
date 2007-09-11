@@ -1,65 +1,89 @@
-Message-Id: <20070911200014.425880000@chello.nl>
+Message-Id: <20070911200012.216056000@chello.nl>
 References: <20070911195350.825778000@chello.nl>
-Date: Tue, 11 Sep 2007 21:54:02 +0200
+Date: Tue, 11 Sep 2007 21:53:53 +0200
 From: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Subject: [PATCH 12/23] containers: bdi init hooks
-Content-Disposition: inline; filename=bdi_init_container.patch
+Subject: [PATCH 03/23] lib: percpu_counter_sub
+Content-Disposition: inline; filename=percpu_counter_sub.patch
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
-Cc: miklos@szeredi.hu, akpm@linux-foundation.org, neilb@suse.de, dgc@sgi.com, tomoki.sekiyama.qu@hitachi.com, a.p.zijlstra@chello.nl, nikita@clusterfs.com, trond.myklebust@fys.uio.no, yingchao.zhou@gmail.com, richard@rsk.demon.co.uk, torvalds@linux-foundation.org
+Cc: miklos@szeredi.hu, akpm@linux-foundation.org, neilb@suse.de, dgc@sgi.com, tomoki.sekiyama.qu@hitachi.com, a.p.zijlstra@chello.nl, nikita@clusterfs.com, trond.myklebust@fys.uio.no, yingchao.zhou@gmail.com, richard@rsk.demon.co.uk, torvalds@linux-foundation.org, Hugh Dickins <hugh@veritas.com>
 List-ID: <linux-mm.kvack.org>
 
-split off from the large bdi_init patch because containers are not slated
-for mainline any time soon.
+Hugh spotted that some code does:
+  percpu_counter_add(&counter, -unsignedlong)
+
+which, when the amount argument is of type s32, sort-of works thanks to
+two's-complement. However when we'd change the type to s64 this breaks on 32bit
+machines, because the promotion rules zero extend the unsigned number.
+
+Provide percpu_counter_sub() to hide the s64 cast. That is:
+  percpu_counter_sub(&counter, foo)
+is equal to:
+  percpu_counter_add(&counter, -(s64)foo);
 
 Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
+Cc: Hugh Dickins <hugh@veritas.com>
 ---
- kernel/container.c |   14 +++++++++++---
- 1 file changed, 11 insertions(+), 3 deletions(-)
+ fs/ext2/balloc.c               |    2 +-
+ fs/ext3/balloc.c               |    2 +-
+ fs/ext4/balloc.c               |    2 +-
+ include/linux/percpu_counter.h |    5 +++++
+ 4 files changed, 8 insertions(+), 3 deletions(-)
 
-Index: linux-2.6/kernel/container.c
+Index: linux-2.6/fs/ext2/balloc.c
 ===================================================================
---- linux-2.6.orig/kernel/container.c
-+++ linux-2.6/kernel/container.c
-@@ -567,12 +567,13 @@ static int container_populate_dir(struct
- static struct inode_operations container_dir_inode_operations;
- static struct file_operations proc_containerstats_operations;
+--- linux-2.6.orig/fs/ext2/balloc.c
++++ linux-2.6/fs/ext2/balloc.c
+@@ -1367,7 +1367,7 @@ allocated:
+ 	}
  
-+static struct backing_dev_info container_backing_dev_info = {
-+	.capabilities	= BDI_CAP_NO_ACCT_DIRTY | BDI_CAP_NO_WRITEBACK,
-+};
-+
- static struct inode *container_new_inode(mode_t mode, struct super_block *sb)
- {
- 	struct inode *inode = new_inode(sb);
--	static struct backing_dev_info container_backing_dev_info = {
--		.capabilities	= BDI_CAP_NO_ACCT_DIRTY | BDI_CAP_NO_WRITEBACK,
--	};
+ 	group_adjust_blocks(sb, group_no, gdp, gdp_bh, -num);
+-	percpu_counter_add(&sbi->s_freeblocks_counter, -num);
++	percpu_counter_sub(&sbi->s_freeblocks_counter, num);
  
- 	if (inode) {
- 		inode->i_mode = mode;
-@@ -2261,6 +2262,10 @@ int __init container_init(void)
- 	int i;
- 	struct proc_dir_entry *entry;
+ 	mark_buffer_dirty(bitmap_bh);
+ 	if (sb->s_flags & MS_SYNCHRONOUS)
+Index: linux-2.6/fs/ext3/balloc.c
+===================================================================
+--- linux-2.6.orig/fs/ext3/balloc.c
++++ linux-2.6/fs/ext3/balloc.c
+@@ -1672,7 +1672,7 @@ allocated:
+ 	gdp->bg_free_blocks_count =
+ 			cpu_to_le16(le16_to_cpu(gdp->bg_free_blocks_count)-num);
+ 	spin_unlock(sb_bgl_lock(sbi, group_no));
+-	percpu_counter_add(&sbi->s_freeblocks_counter, -num);
++	percpu_counter_sub(&sbi->s_freeblocks_counter, num);
  
-+	err = bdi_init(&container_backing_dev_info);
-+	if (err)
-+		return err;
-+
- 	for (i = 0; i < CONTAINER_SUBSYS_COUNT; i++) {
- 		struct container_subsys *ss = subsys[i];
- 		if (!ss->early_init)
-@@ -2276,6 +2281,9 @@ int __init container_init(void)
- 		entry->proc_fops = &proc_containerstats_operations;
+ 	BUFFER_TRACE(gdp_bh, "journal_dirty_metadata for group descriptor");
+ 	err = ext3_journal_dirty_metadata(handle, gdp_bh);
+Index: linux-2.6/fs/ext4/balloc.c
+===================================================================
+--- linux-2.6.orig/fs/ext4/balloc.c
++++ linux-2.6/fs/ext4/balloc.c
+@@ -1697,7 +1697,7 @@ allocated:
+ 	gdp->bg_free_blocks_count =
+ 			cpu_to_le16(le16_to_cpu(gdp->bg_free_blocks_count)-num);
+ 	spin_unlock(sb_bgl_lock(sbi, group_no));
+-	percpu_counter_add(&sbi->s_freeblocks_counter, -num);
++	percpu_counter_sub(&sbi->s_freeblocks_counter, num);
  
- out:
-+	if (err)
-+		bdi_destroy(&container_backing_dev_info);
-+
- 	return err;
+ 	BUFFER_TRACE(gdp_bh, "journal_dirty_metadata for group descriptor");
+ 	err = ext4_journal_dirty_metadata(handle, gdp_bh);
+Index: linux-2.6/include/linux/percpu_counter.h
+===================================================================
+--- linux-2.6.orig/include/linux/percpu_counter.h
++++ linux-2.6/include/linux/percpu_counter.h
+@@ -105,4 +105,9 @@ static inline void percpu_counter_dec(st
+ 	percpu_counter_add(fbc, -1);
  }
  
++static inline void percpu_counter_sub(struct percpu_counter *fbc, s64 amount)
++{
++	percpu_counter_add(fbc, -amount);
++}
++
+ #endif /* _LINUX_PERCPU_COUNTER_H */
 
 --
 
