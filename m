@@ -1,81 +1,44 @@
-Message-Id: <20070911200015.351703000@chello.nl>
-References: <20070911195350.825778000@chello.nl>
-Date: Tue, 11 Sep 2007 21:54:08 +0200
+Message-Id: <20070911195350.825778000@chello.nl>
+Date: Tue, 11 Sep 2007 21:53:50 +0200
 From: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Subject: [PATCH 18/23] mm: count writeback pages per BDI
-Content-Disposition: inline; filename=bdi_stat_writeback.patch
+Subject: [PATCH 00/23] per device dirty throttling -v10
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 Cc: miklos@szeredi.hu, akpm@linux-foundation.org, neilb@suse.de, dgc@sgi.com, tomoki.sekiyama.qu@hitachi.com, a.p.zijlstra@chello.nl, nikita@clusterfs.com, trond.myklebust@fys.uio.no, yingchao.zhou@gmail.com, richard@rsk.demon.co.uk, torvalds@linux-foundation.org
 List-ID: <linux-mm.kvack.org>
 
-Count per BDI writeback pages.
+Per device dirty throttling patches
 
-Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
----
- include/linux/backing-dev.h |    1 +
- mm/page-writeback.c         |   12 ++++++++++--
- 2 files changed, 11 insertions(+), 2 deletions(-)
+These patches aim to improve balance_dirty_pages() and directly address three
+issues:
+  1) inter device starvation
+  2) stacked device deadlocks
+  3) inter process starvation
 
-Index: linux-2.6/mm/page-writeback.c
-===================================================================
---- linux-2.6.orig/mm/page-writeback.c
-+++ linux-2.6/mm/page-writeback.c
-@@ -981,14 +981,18 @@ int test_clear_page_writeback(struct pag
- 	int ret;
- 
- 	if (mapping) {
-+		struct backing_dev_info *bdi = mapping->backing_dev_info;
- 		unsigned long flags;
- 
- 		write_lock_irqsave(&mapping->tree_lock, flags);
- 		ret = TestClearPageWriteback(page);
--		if (ret)
-+		if (ret) {
- 			radix_tree_tag_clear(&mapping->page_tree,
- 						page_index(page),
- 						PAGECACHE_TAG_WRITEBACK);
-+			if (bdi_cap_writeback_dirty(bdi))
-+				__dec_bdi_stat(bdi, BDI_WRITEBACK);
-+		}
- 		write_unlock_irqrestore(&mapping->tree_lock, flags);
- 	} else {
- 		ret = TestClearPageWriteback(page);
-@@ -1004,14 +1008,18 @@ int test_set_page_writeback(struct page 
- 	int ret;
- 
- 	if (mapping) {
-+		struct backing_dev_info *bdi = mapping->backing_dev_info;
- 		unsigned long flags;
- 
- 		write_lock_irqsave(&mapping->tree_lock, flags);
- 		ret = TestSetPageWriteback(page);
--		if (!ret)
-+		if (!ret) {
- 			radix_tree_tag_set(&mapping->page_tree,
- 						page_index(page),
- 						PAGECACHE_TAG_WRITEBACK);
-+			if (bdi_cap_writeback_dirty(bdi))
-+				__inc_bdi_stat(bdi, BDI_WRITEBACK);
-+		}
- 		if (!PageDirty(page))
- 			radix_tree_tag_clear(&mapping->page_tree,
- 						page_index(page),
-Index: linux-2.6/include/linux/backing-dev.h
-===================================================================
---- linux-2.6.orig/include/linux/backing-dev.h
-+++ linux-2.6/include/linux/backing-dev.h
-@@ -28,6 +28,7 @@ typedef int (congested_fn)(void *, int);
- 
- enum bdi_stat_item {
- 	BDI_RECLAIMABLE,
-+	BDI_WRITEBACK,
- 	NR_BDI_STAT_ITEMS
- };
- 
+1 and 2 are a direct result from removing the global dirty limit and using
+per device dirty limits. By giving each device its own dirty limit is will
+no longer starve another device, and the cyclic dependancy on the dirty limit
+is broken.
 
---
+In order to efficiently distribute the dirty limit across the independant
+devices a floating proportion is used, this will allocate a share of the total
+limit proportional to the device's recent activity.
+
+3 is done by also scaling the dirty limit proportional to the current task's
+recent dirty rate.
+
+Changes since -v9:
+ - cleaned up the perpcu_counter_init code
+ - little fixups
+ - fwd port to .23-rc4-mm1
+
+Changes since -v8:
+ - cleanup of the proportion code
+ - fix percpu_counter_add(&counter, -(unsigned long))
+ - fix per task dirty rate code
+ - fwd port to .23-rc2-mm2
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
