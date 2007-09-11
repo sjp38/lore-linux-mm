@@ -1,12 +1,12 @@
-Subject: Re: [PATCH/RFC 3/5] Mem Policy:  MPOL_PREFERRED fixups for "local
-	allocation"
+Subject: Re: [PATCH/RFC 5/5] Mem Policy:  add MPOL_F_MEMS_ALLOWED
+	get_mempolicy() flag
 From: Mel Gorman <mel@csn.ul.ie>
-In-Reply-To: <20070830185114.22619.61260.sendpatchset@localhost>
+In-Reply-To: <20070830185130.22619.93436.sendpatchset@localhost>
 References: <20070830185053.22619.96398.sendpatchset@localhost>
-	 <20070830185114.22619.61260.sendpatchset@localhost>
+	 <20070830185130.22619.93436.sendpatchset@localhost>
 Content-Type: text/plain
-Date: Tue, 11 Sep 2007 19:58:19 +0100
-Message-Id: <1189537099.32731.92.camel@localhost>
+Date: Tue, 11 Sep 2007 20:07:59 +0100
+Message-Id: <1189537679.32731.97.camel@localhost>
 Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
@@ -16,162 +16,124 @@ Cc: linux-mm@kvack.org, akpm@linux-foundation.org, ak@suse.de, mtk-manpages@gmx.
 List-ID: <linux-mm.kvack.org>
 
 On Thu, 2007-08-30 at 14:51 -0400, Lee Schermerhorn wrote:
-> PATCH/RFC 03/05 - MPOL_PREFERRED cleanups for "local allocation" - V4
+> PATCH/RFC 05/05 -  add MPOL_F_MEMS_ALLOWED get_mempolicy() flag
 > 
-> Against: 2.6.23-rc3-mm1
+> Against:  2.6.23-rc3-mm1
 > 
-> V3 -> V4:
-> +  updated Documentation/vm/numa_memory_policy.txt to better explain
->    [I think] the "local allocation" feature of MPOL_PREFERRED.
-> 
-> V2 -> V3:
-> +  renamed get_nodemask() to get_policy_nodemask() to more closely
->    match what it's doing.
-> 
-> V1 -> V2:
-> +  renamed get_zonemask() to get_nodemask().  Mel Gorman suggested this
->    was a valid "cleanup".
-> 
-> Here are a couple of "cleanups" for MPOL_PREFERRED behavior
-> when v.preferred_node < 0 -- i.e., "local allocation":
-> 
-> 1)  [do_]get_mempolicy() calls the now renamed get_policy_nodemask()
->     to fetch the nodemask associated with a policy.  Currently,
->     get_policy_nodemask() returns the set of nodes with memory, when
->     the policy 'mode' is 'PREFERRED, and the preferred_node is < 0.
->     Return the set of allowed nodes instead.  This will already have
->     been masked to include only nodes with memory.
+> Allow an application to query the memories allowed by its context.
 > 
 
-Better name all right.
+I think you may be underplaying the significance of this patch here.
+>From what understand, an application that is only policy aware can run
+inside a cpuset and think it can use nodes it's not allowed. If that is
+right, then the language here implies that a policy-aware application
+can now get useful information without going through complicated hoops.
+That is pretty important.
 
-> 2)  When a task is moved into a [new] cpuset, mpol_rebind_policy() is
->     called to adjust any task and vma policy nodes to be valid in the
->     new cpuset.  However, when the policy is MPOL_PREFERRED, and the
->     preferred_node is <0, no rebind is necessary.  The "local allocation"
->     indication is valid in any cpuset.  Existing code will "do the right
->     thing" because node_remap() will just return the argument node when
->     it is outside of the valid range of node ids.  However, I think it is
->     clearer and cleaner to skip the remap explicitly in this case.
+> Updated numa_memory_policy.txt to mention that applications can use this
+> to obtain allowed memories for constructing valid policies.
+>
+> TODO:  update out-of-tree libnuma wrapper[s], or maybe add a new 
+> wrapper--e.g.,  numa_get_mems_allowed() ?
 > 
-> 3)  mpol_to_str() produces a printable, "human readable" string from a
->     struct mempolicy.  For MPOL_PREFERRED with preferred_node <0,  show
->     the entire set of valid nodes.  Although, technically, MPOL_PREFERRED
->     takes only a single node, preferred_node <0 is a local allocation policy,
->     with the preferred node determined by the context where the task
->     is executing.  All of the allowed nodes are possible, as the task
->     migrates amoung the nodes in the cpuset.  Without this change, I believe
->     that node_set() [via set_bit()] will set bit 31, resulting in a misleading
->     display.
+> Tested with memtoy V>=0.13.
 > 
 > Signed-off-by:  Lee Schermerhorn <lee.schermerhorn@hp.com>
 > 
->  mm/mempolicy.c |   41 ++++++++++++++++++++++++++++++-----------
->  1 file changed, 30 insertions(+), 11 deletions(-)
+>  Documentation/vm/numa_memory_policy.txt |   28 +++++++++++-----------------
+>  include/linux/mempolicy.h               |    1 +
+>  mm/mempolicy.c                          |   14 +++++++++++++-
+>  3 files changed, 25 insertions(+), 18 deletions(-)
 > 
+> Index: Linux/include/linux/mempolicy.h
+> ===================================================================
+> --- Linux.orig/include/linux/mempolicy.h	2007-08-29 11:44:18.000000000 -0400
+> +++ Linux/include/linux/mempolicy.h	2007-08-29 11:45:23.000000000 -0400
+> @@ -26,6 +26,7 @@
+>  /* Flags for get_mem_policy */
+>  #define MPOL_F_NODE	(1<<0)	/* return next IL mode instead of node mask */
+>  #define MPOL_F_ADDR	(1<<1)	/* look up vma using address */
+> +#define MPOL_F_MEMS_ALLOWED (1<<2) /* return allowed memories */
+>  
+>  /* Flags for mbind */
+>  #define MPOL_MF_STRICT	(1<<0)	/* Verify existing pages in the mapping */
 > Index: Linux/mm/mempolicy.c
 > ===================================================================
-> --- Linux.orig/mm/mempolicy.c	2007-08-30 13:20:13.000000000 -0400
-> +++ Linux/mm/mempolicy.c	2007-08-30 13:36:04.000000000 -0400
-> @@ -486,8 +486,10 @@ static long do_set_mempolicy(int mode, n
->  	return 0;
->  }
+> --- Linux.orig/mm/mempolicy.c	2007-08-29 11:45:09.000000000 -0400
+> +++ Linux/mm/mempolicy.c	2007-08-29 11:45:23.000000000 -0400
+> @@ -560,8 +560,20 @@ static long do_get_mempolicy(int *policy
+>  	struct mempolicy *pol = current->mempolicy;
 >  
-> -/* Fill a zone bitmap for a policy */
-> -static void get_zonemask(struct mempolicy *p, nodemask_t *nodes)
-> +/*
-> + * Return a node bitmap for a policy
-> + */
-> +static void get_policy_nodemask(struct mempolicy *p, nodemask_t *nodes)
->  {
->  	int i;
->  
-> @@ -502,9 +504,11 @@ static void get_zonemask(struct mempolic
->  		*nodes = p->v.nodes;
->  		break;
->  	case MPOL_PREFERRED:
-> -		/* or use current node instead of memory_map? */
-> +		/*
-> +		 * for "local policy", return allowed memories
-> +		 */
->  		if (p->v.preferred_node < 0)
-> -			*nodes = node_states[N_HIGH_MEMORY];
-> +			*nodes = cpuset_current_mems_allowed;
+>  	cpuset_update_task_memory_state();
+> -	if (flags & ~(unsigned long)(MPOL_F_NODE|MPOL_F_ADDR))
+> +	if (flags &
+> +		~(unsigned long)(MPOL_F_NODE|MPOL_F_ADDR|MPOL_F_MEMS_ALLOWED))
+>  		return -EINVAL;
+> +
+> +	if (flags & MPOL_F_MEMS_ALLOWED) {
+> +		if (flags & (MPOL_F_NODE|MPOL_F_ADDR))
+> +			return -EINVAL;
+> +		*policy = 0;	/* just so it's initialized */
+> +		if (!nmask)
+> +			return -EFAULT;
+> +		*nmask  = cpuset_current_mems_allowed;
+> +		return 0;
+> +	}
+> +
 
-Is this change intentional? It looks like something that belongs as part
-of the the memoryless patch set.
+Seems a fair implementation.
 
->  		else
->  			node_set(p->v.preferred_node, *nodes);
->  		break;
-> @@ -578,7 +582,7 @@ static long do_get_mempolicy(int *policy
+>  	if (flags & MPOL_F_ADDR) {
+>  		down_read(&mm->mmap_sem);
+>  		vma = find_vma_intersection(mm, addr, addr+1);
+> Index: Linux/Documentation/vm/numa_memory_policy.txt
+> ===================================================================
+> --- Linux.orig/Documentation/vm/numa_memory_policy.txt	2007-08-29 11:44:18.000000000 -0400
+> +++ Linux/Documentation/vm/numa_memory_policy.txt	2007-08-29 11:45:23.000000000 -0400
+> @@ -294,24 +294,20 @@ MEMORY POLICIES AND CPUSETS
 >  
->  	err = 0;
->  	if (nmask)
-> -		get_zonemask(pol, nmask);
-> +		get_policy_nodemask(pol, nmask);
+>  Memory policies work within cpusets as described above.  For memory policies
+>  that require a node or set of nodes, the nodes are restricted to the set of
+> -nodes whose memories are allowed by the cpuset constraints.  If the
+> -intersection of the set of nodes specified for the policy and the set of nodes
+> -allowed by the cpuset is the empty set, the policy is considered invalid and
+> -cannot be installed.
+> +nodes whose memories are allowed by the cpuset constraints.  If the nodemask
+> +specified for the policy contains nodes that are not allowed by the cpuset, or
+> +the intersection of the set of nodes specified for the policy and the set of
+> +nodes with memory is the empty set, the policy is considered invalid
+> +and cannot be installed.
 >  
->   out:
->  	if (vma)
-> @@ -1715,6 +1719,7 @@ static void mpol_rebind_policy(struct me
->  {
->  	nodemask_t *mpolmask;
->  	nodemask_t tmp;
-> +	int nid;
+>  The interaction of memory policies and cpusets can be problematic for a
+>  couple of reasons:
 >  
->  	if (!pol)
->  		return;
-> @@ -1731,9 +1736,15 @@ static void mpol_rebind_policy(struct me
->  						*mpolmask, *newmask);
->  		break;
->  	case MPOL_PREFERRED:
-> -		pol->v.preferred_node = node_remap(pol->v.preferred_node,
-> +		/*
-> +		 * no need to remap "local policy"
-> +		 */
-> +		nid = pol->v.preferred_node;
-> +		if (nid >= 0) {
-> +			pol->v.preferred_node = node_remap(nid,
->  						*mpolmask, *newmask);
-> -		*mpolmask = *newmask;
-> +			*mpolmask = *newmask;
-> +		}
->  		break;
->  	case MPOL_BIND: {
->  		nodemask_t nodes;
-> @@ -1808,7 +1819,7 @@ static const char * const policy_types[]
->  static inline int mpol_to_str(char *buffer, int maxlen, struct mempolicy *pol)
->  {
->  	char *p = buffer;
-> -	int l;
-> +	int nid, l;
->  	nodemask_t nodes;
->  	int mode = pol ? pol->policy : MPOL_DEFAULT;
+> -1) the memory policy APIs take physical node id's as arguments.  However, the
+> -   memory policy APIs do not provide a way to determine what nodes are valid
+> -   in the context where the application is running.  An application MAY consult
+> -   the cpuset file system [directly or via an out of tree, and not generally
+> -   available, libcpuset API] to obtain this information, but then the
+> -   application must be aware that it is running in a cpuset and use what are
+> -   intended primarily as administrative APIs.
+> -
+> -   However, as long as the policy specifies at least one node that is valid
+> -   in the controlling cpuset, the policy can be used.
+> +1) the memory policy APIs take physical node id's as arguments.  As mentioned
+> +   above, it is illegal to specify nodes that are not allowed in the cpuset.
+> +   The application must query the allowed nodes using the get_mempolicy()
+> +   API with the MPOL_F_MEMS_ALLOWED flag to determine the allowed nodes and
+> +   restrict itself to those nodes.
 >  
-> @@ -1818,12 +1829,20 @@ static inline int mpol_to_str(char *buff
->  		break;
+>  2) when tasks in two cpusets share access to a memory region, such as shared
+>     memory segments created by shmget() of mmap() with the MAP_ANONYMOUS and
+> @@ -321,7 +317,5 @@ couple of reasons:
+>     the memory policy APIs, as well as knowing in what cpusets other task might
+>     be attaching to the shared region, to use the cpuset information.
+>     Furthermore, if the cpusets' allowed memory sets are disjoint, "local"
+> +   allocation and "contextual interleave" are the only valid policies.
 >  
->  	case MPOL_PREFERRED:
-> -		nodes_clear(nodes);
-> -		node_set(pol->v.preferred_node, nodes);
-> +		nid = pol->v.preferred_node;
-> +		/*
-> +		 * local interleave, show all valid nodes
-> +		 */
-> +		if (nid < 0)
-> +			nodes = cpuset_current_mems_allowed;
-> +		else {
-> +			nodes_clear(nodes);
-> +			node_set(nid, nodes);
-> +		}
->  		break;
->  
->  	case MPOL_BIND:
-> -		get_zonemask(pol, &nodes);
-> +		get_policy_nodemask(pol, &nodes);
->  		break;
->  
->  	case MPOL_INTERLEAVE:
+> -Note, however, that local allocation, whether specified by MPOL_DEFAULT or
+> -MPOL_PREFERRED with an empty nodemask and "contextual interleave"--
+> -MPOL_INTERLEAVE with an empty nodemask--are valid policies in any context.
 > 
 > --
 > To unsubscribe, send a message with 'unsubscribe linux-mm' in
