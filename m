@@ -1,44 +1,92 @@
-Message-Id: <20070911195350.825778000@chello.nl>
-Date: Tue, 11 Sep 2007 21:53:50 +0200
+Message-Id: <20070911200013.438759000@chello.nl>
+References: <20070911195350.825778000@chello.nl>
+Date: Tue, 11 Sep 2007 21:53:58 +0200
 From: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Subject: [PATCH 00/23] per device dirty throttling -v10
+Subject: [PATCH 08/23] lib: percpu_count_sum()
+Content-Disposition: inline; filename=percpu_counter_sum.patch
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 Cc: miklos@szeredi.hu, akpm@linux-foundation.org, neilb@suse.de, dgc@sgi.com, tomoki.sekiyama.qu@hitachi.com, a.p.zijlstra@chello.nl, nikita@clusterfs.com, trond.myklebust@fys.uio.no, yingchao.zhou@gmail.com, richard@rsk.demon.co.uk, torvalds@linux-foundation.org
 List-ID: <linux-mm.kvack.org>
 
-Per device dirty throttling patches
+Provide an accurate version of percpu_counter_read.
 
-These patches aim to improve balance_dirty_pages() and directly address three
-issues:
-  1) inter device starvation
-  2) stacked device deadlocks
-  3) inter process starvation
+Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
+---
+ include/linux/percpu_counter.h |   18 +++++++++++++++++-
+ lib/percpu_counter.c           |    6 +++---
+ 2 files changed, 20 insertions(+), 4 deletions(-)
 
-1 and 2 are a direct result from removing the global dirty limit and using
-per device dirty limits. By giving each device its own dirty limit is will
-no longer starve another device, and the cyclic dependancy on the dirty limit
-is broken.
+Index: linux-2.6/include/linux/percpu_counter.h
+===================================================================
+--- linux-2.6.orig/include/linux/percpu_counter.h
++++ linux-2.6/include/linux/percpu_counter.h
+@@ -34,13 +34,24 @@ void percpu_counter_init(struct percpu_c
+ void percpu_counter_destroy(struct percpu_counter *fbc);
+ void percpu_counter_set(struct percpu_counter *fbc, s64 amount);
+ void __percpu_counter_add(struct percpu_counter *fbc, s64 amount, s32 batch);
+-s64 percpu_counter_sum_positive(struct percpu_counter *fbc);
++s64 __percpu_counter_sum(struct percpu_counter *fbc);
+ 
+ static inline void percpu_counter_add(struct percpu_counter *fbc, s64 amount)
+ {
+ 	__percpu_counter_add(fbc, amount, FBC_BATCH);
+ }
+ 
++static inline s64 percpu_counter_sum_positive(struct percpu_counter *fbc)
++{
++	s64 ret = __percpu_counter_sum(fbc);
++	return ret < 0 ? 0 : ret;
++}
++
++static inline s64 percpu_counter_sum(struct percpu_counter *fbc)
++{
++	return __percpu_counter_sum(fbc);
++}
++
+ static inline s64 percpu_counter_read(struct percpu_counter *fbc)
+ {
+ 	return fbc->count;
+@@ -107,6 +118,11 @@ static inline s64 percpu_counter_sum_pos
+ 	return percpu_counter_read_positive(fbc);
+ }
+ 
++static inline s64 percpu_counter_sum(struct percpu_counter *fbc)
++{
++	return percpu_counter_read(fbc);
++}
++
+ #endif	/* CONFIG_SMP */
+ 
+ static inline void percpu_counter_inc(struct percpu_counter *fbc)
+Index: linux-2.6/lib/percpu_counter.c
+===================================================================
+--- linux-2.6.orig/lib/percpu_counter.c
++++ linux-2.6/lib/percpu_counter.c
+@@ -52,7 +52,7 @@ EXPORT_SYMBOL(__percpu_counter_add);
+  * Add up all the per-cpu counts, return the result.  This is a more accurate
+  * but much slower version of percpu_counter_read_positive()
+  */
+-s64 percpu_counter_sum_positive(struct percpu_counter *fbc)
++s64 __percpu_counter_sum(struct percpu_counter *fbc)
+ {
+ 	s64 ret;
+ 	int cpu;
+@@ -64,9 +64,9 @@ s64 percpu_counter_sum_positive(struct p
+ 		ret += *pcount;
+ 	}
+ 	spin_unlock(&fbc->lock);
+-	return ret < 0 ? 0 : ret;
++	return ret;
+ }
+-EXPORT_SYMBOL(percpu_counter_sum_positive);
++EXPORT_SYMBOL(__percpu_counter_sum);
+ 
+ void percpu_counter_init(struct percpu_counter *fbc, s64 amount)
+ {
 
-In order to efficiently distribute the dirty limit across the independant
-devices a floating proportion is used, this will allocate a share of the total
-limit proportional to the device's recent activity.
-
-3 is done by also scaling the dirty limit proportional to the current task's
-recent dirty rate.
-
-Changes since -v9:
- - cleaned up the perpcu_counter_init code
- - little fixups
- - fwd port to .23-rc4-mm1
-
-Changes since -v8:
- - cleanup of the proportion code
- - fix percpu_counter_add(&counter, -(unsigned long))
- - fix per task dirty rate code
- - fwd port to .23-rc2-mm2
-
+--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
