@@ -1,125 +1,198 @@
-Message-Id: <20070911200015.225075000@chello.nl>
+Message-Id: <20070911200013.690534000@chello.nl>
 References: <20070911195350.825778000@chello.nl>
-Date: Tue, 11 Sep 2007 21:54:07 +0200
+Date: Tue, 11 Sep 2007 21:53:59 +0200
 From: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Subject: [PATCH 17/23] mm: count reclaimable pages per BDI
-Content-Disposition: inline; filename=bdi_stat_reclaimable.patch
+Subject: [PATCH 09/23] lib: percpu_counter_init error handling
+Content-Disposition: inline; filename=percpu_counter_init.patch
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 Cc: miklos@szeredi.hu, akpm@linux-foundation.org, neilb@suse.de, dgc@sgi.com, tomoki.sekiyama.qu@hitachi.com, a.p.zijlstra@chello.nl, nikita@clusterfs.com, trond.myklebust@fys.uio.no, yingchao.zhou@gmail.com, richard@rsk.demon.co.uk, torvalds@linux-foundation.org
 List-ID: <linux-mm.kvack.org>
 
-Count per BDI reclaimable pages; nr_reclaimable = nr_dirty + nr_unstable.
+alloc_percpu can fail, propagate that error.
 
 Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
 ---
- fs/buffer.c                 |    2 ++
- fs/nfs/write.c              |    7 +++++++
- include/linux/backing-dev.h |    1 +
- mm/page-writeback.c         |    4 ++++
- mm/truncate.c               |    2 ++
- 5 files changed, 16 insertions(+)
+ fs/ext2/super.c                |   15 ++++++++++++---
+ fs/ext3/super.c                |   21 +++++++++++++++------
+ fs/ext4/super.c                |   21 +++++++++++++++------
+ include/linux/percpu_counter.h |    5 +++--
+ lib/percpu_counter.c           |    8 +++++++-
+ 5 files changed, 52 insertions(+), 18 deletions(-)
 
-Index: linux-2.6/fs/buffer.c
+Index: linux-2.6/fs/ext2/super.c
 ===================================================================
---- linux-2.6.orig/fs/buffer.c
-+++ linux-2.6/fs/buffer.c
-@@ -697,6 +697,8 @@ static int __set_page_dirty(struct page 
+--- linux-2.6.orig/fs/ext2/super.c
++++ linux-2.6/fs/ext2/super.c
+@@ -725,6 +725,7 @@ static int ext2_fill_super(struct super_
+ 	int db_count;
+ 	int i, j;
+ 	__le32 features;
++	int err;
  
- 		if (mapping_cap_account_dirty(mapping)) {
- 			__inc_zone_page_state(page, NR_FILE_DIRTY);
-+			__inc_bdi_stat(mapping->backing_dev_info,
-+					BDI_RECLAIMABLE);
- 			task_io_account_write(PAGE_CACHE_SIZE);
- 		}
- 		radix_tree_tag_set(&mapping->page_tree,
-Index: linux-2.6/mm/page-writeback.c
-===================================================================
---- linux-2.6.orig/mm/page-writeback.c
-+++ linux-2.6/mm/page-writeback.c
-@@ -827,6 +827,8 @@ int __set_page_dirty_nobuffers(struct pa
- 			WARN_ON_ONCE(!PagePrivate(page) && !PageUptodate(page));
- 			if (mapping_cap_account_dirty(mapping)) {
- 				__inc_zone_page_state(page, NR_FILE_DIRTY);
-+				__inc_bdi_stat(mapping->backing_dev_info,
-+						BDI_RECLAIMABLE);
- 				task_io_account_write(PAGE_CACHE_SIZE);
- 			}
- 			radix_tree_tag_set(&mapping->page_tree,
-@@ -961,6 +963,8 @@ int clear_page_dirty_for_io(struct page 
- 		 */
- 		if (TestClearPageDirty(page)) {
- 			dec_zone_page_state(page, NR_FILE_DIRTY);
-+			dec_bdi_stat(mapping->backing_dev_info,
-+					BDI_RECLAIMABLE);
- 			return 1;
- 		}
- 		return 0;
-Index: linux-2.6/mm/truncate.c
-===================================================================
---- linux-2.6.orig/mm/truncate.c
-+++ linux-2.6/mm/truncate.c
-@@ -72,6 +72,8 @@ void cancel_dirty_page(struct page *page
- 		struct address_space *mapping = page->mapping;
- 		if (mapping && mapping_cap_account_dirty(mapping)) {
- 			dec_zone_page_state(page, NR_FILE_DIRTY);
-+			dec_bdi_stat(mapping->backing_dev_info,
-+					BDI_RECLAIMABLE);
- 			if (account_size)
- 				task_io_account_cancelled_write(account_size);
- 		}
-Index: linux-2.6/fs/nfs/write.c
-===================================================================
---- linux-2.6.orig/fs/nfs/write.c
-+++ linux-2.6/fs/nfs/write.c
-@@ -464,6 +464,7 @@ nfs_mark_request_commit(struct nfs_page 
- 			NFS_PAGE_TAG_COMMIT);
- 	spin_unlock(&inode->i_lock);
- 	inc_zone_page_state(req->wb_page, NR_UNSTABLE_NFS);
-+	inc_bdi_stat(req->wb_page->mapping->backing_dev_info, BDI_RECLAIMABLE);
- 	__mark_inode_dirty(inode, I_DIRTY_DATASYNC);
- }
+ 	sbi = kzalloc(sizeof(*sbi), GFP_KERNEL);
+ 	if (!sbi)
+@@ -996,12 +997,20 @@ static int ext2_fill_super(struct super_
+ 	sbi->s_rsv_window_head.rsv_goal_size = 0;
+ 	ext2_rsv_window_add(sb, &sbi->s_rsv_window_head);
  
-@@ -550,6 +551,8 @@ static void nfs_cancel_commit_list(struc
- 	while(!list_empty(head)) {
- 		req = nfs_list_entry(head->next);
- 		dec_zone_page_state(req->wb_page, NR_UNSTABLE_NFS);
-+		dec_bdi_stat(req->wb_page->mapping->backing_dev_info,
-+				BDI_RECLAIMABLE);
- 		nfs_list_remove_request(req);
- 		clear_bit(PG_NEED_COMMIT, &(req)->wb_flags);
- 		nfs_inode_remove_request(req);
-@@ -1210,6 +1213,8 @@ nfs_commit_list(struct inode *inode, str
- 		nfs_list_remove_request(req);
- 		nfs_mark_request_commit(req);
- 		dec_zone_page_state(req->wb_page, NR_UNSTABLE_NFS);
-+		dec_bdi_stat(req->wb_page->mapping->backing_dev_info,
-+				BDI_RECLAIMABLE);
- 		nfs_clear_page_tag_locked(req);
- 	}
- 	return -ENOMEM;
-@@ -1235,6 +1240,8 @@ static void nfs_commit_done(struct rpc_t
- 		nfs_list_remove_request(req);
- 		clear_bit(PG_NEED_COMMIT, &(req)->wb_flags);
- 		dec_zone_page_state(req->wb_page, NR_UNSTABLE_NFS);
-+		dec_bdi_stat(req->wb_page->mapping->backing_dev_info,
-+				BDI_RECLAIMABLE);
- 
- 		dprintk("NFS: commit (%s/%Ld %d@%Ld)",
- 			req->wb_context->path.dentry->d_inode->i_sb->s_id,
-Index: linux-2.6/include/linux/backing-dev.h
+-	percpu_counter_init(&sbi->s_freeblocks_counter,
++	err = percpu_counter_init(&sbi->s_freeblocks_counter,
+ 				ext2_count_free_blocks(sb));
+-	percpu_counter_init(&sbi->s_freeinodes_counter,
++	if (!err) {
++		err = percpu_counter_init(&sbi->s_freeinodes_counter,
+ 				ext2_count_free_inodes(sb));
+-	percpu_counter_init(&sbi->s_dirs_counter,
++	}
++	if (!err) {
++		err = percpu_counter_init(&sbi->s_dirs_counter,
+ 				ext2_count_dirs(sb));
++	}
++	if (err) {
++		printk(KERN_ERR "EXT2-fs: insufficient memory\n");
++		goto failed_mount3;
++	}
+ 	/*
+ 	 * set up enough so that it can read an inode
+ 	 */
+Index: linux-2.6/fs/ext3/super.c
 ===================================================================
---- linux-2.6.orig/include/linux/backing-dev.h
-+++ linux-2.6/include/linux/backing-dev.h
-@@ -27,6 +27,7 @@ enum bdi_state {
- typedef int (congested_fn)(void *, int);
+--- linux-2.6.orig/fs/ext3/super.c
++++ linux-2.6/fs/ext3/super.c
+@@ -1485,6 +1485,7 @@ static int ext3_fill_super (struct super
+ 	int i;
+ 	int needs_recovery;
+ 	__le32 features;
++	int err;
  
- enum bdi_stat_item {
-+	BDI_RECLAIMABLE,
- 	NR_BDI_STAT_ITEMS
+ 	sbi = kzalloc(sizeof(*sbi), GFP_KERNEL);
+ 	if (!sbi)
+@@ -1745,12 +1746,20 @@ static int ext3_fill_super (struct super
+ 	get_random_bytes(&sbi->s_next_generation, sizeof(u32));
+ 	spin_lock_init(&sbi->s_next_gen_lock);
+ 
+-	percpu_counter_init(&sbi->s_freeblocks_counter,
+-		ext3_count_free_blocks(sb));
+-	percpu_counter_init(&sbi->s_freeinodes_counter,
+-		ext3_count_free_inodes(sb));
+-	percpu_counter_init(&sbi->s_dirs_counter,
+-		ext3_count_dirs(sb));
++	err = percpu_counter_init(&sbi->s_freeblocks_counter,
++			ext3_count_free_blocks(sb));
++	if (!err) {
++		err = percpu_counter_init(&sbi->s_freeinodes_counter,
++				ext3_count_free_inodes(sb));
++	}
++	if (!err) {
++		err = percpu_counter_init(&sbi->s_dirs_counter,
++				ext3_count_dirs(sb));
++	}
++	if (err) {
++		printk(KERN_ERR "EXT3-fs: insufficient memory\n");
++		goto failed_mount3;
++	}
+ 
+ 	/* per fileystem reservation list head & lock */
+ 	spin_lock_init(&sbi->s_rsv_window_lock);
+Index: linux-2.6/fs/ext4/super.c
+===================================================================
+--- linux-2.6.orig/fs/ext4/super.c
++++ linux-2.6/fs/ext4/super.c
+@@ -1576,6 +1576,7 @@ static int ext4_fill_super (struct super
+ 	int needs_recovery;
+ 	__le32 features;
+ 	__u64 blocks_count;
++	int err;
+ 
+ 	sbi = kzalloc(sizeof(*sbi), GFP_KERNEL);
+ 	if (!sbi)
+@@ -1857,12 +1858,20 @@ static int ext4_fill_super (struct super
+ 	get_random_bytes(&sbi->s_next_generation, sizeof(u32));
+ 	spin_lock_init(&sbi->s_next_gen_lock);
+ 
+-	percpu_counter_init(&sbi->s_freeblocks_counter,
+-		ext4_count_free_blocks(sb));
+-	percpu_counter_init(&sbi->s_freeinodes_counter,
+-		ext4_count_free_inodes(sb));
+-	percpu_counter_init(&sbi->s_dirs_counter,
+-		ext4_count_dirs(sb));
++	err = percpu_counter_init(&sbi->s_freeblocks_counter,
++			ext4_count_free_blocks(sb));
++	if (!err) {
++		err = percpu_counter_init(&sbi->s_freeinodes_counter,
++				ext4_count_free_inodes(sb));
++	}
++	if (!err) {
++		err = percpu_counter_init(&sbi->s_dirs_counter,
++				ext4_count_dirs(sb));
++	}
++	if (err) {
++		printk(KERN_ERR "EXT4-fs: insufficient memory\n");
++		goto failed_mount3;
++	}
+ 
+ 	/* per fileystem reservation list head & lock */
+ 	spin_lock_init(&sbi->s_rsv_window_lock);
+Index: linux-2.6/include/linux/percpu_counter.h
+===================================================================
+--- linux-2.6.orig/include/linux/percpu_counter.h
++++ linux-2.6/include/linux/percpu_counter.h
+@@ -30,7 +30,7 @@ struct percpu_counter {
+ #define FBC_BATCH	(NR_CPUS*4)
+ #endif
+ 
+-void percpu_counter_init(struct percpu_counter *fbc, s64 amount);
++int percpu_counter_init(struct percpu_counter *fbc, s64 amount);
+ void percpu_counter_destroy(struct percpu_counter *fbc);
+ void percpu_counter_set(struct percpu_counter *fbc, s64 amount);
+ void __percpu_counter_add(struct percpu_counter *fbc, s64 amount, s32 batch);
+@@ -78,9 +78,10 @@ struct percpu_counter {
+ 	s64 count;
  };
  
+-static inline void percpu_counter_init(struct percpu_counter *fbc, s64 amount)
++static inline int percpu_counter_init(struct percpu_counter *fbc, s64 amount)
+ {
+ 	fbc->count = amount;
++	return 0;
+ }
+ 
+ static inline void percpu_counter_destroy(struct percpu_counter *fbc)
+Index: linux-2.6/lib/percpu_counter.c
+===================================================================
+--- linux-2.6.orig/lib/percpu_counter.c
++++ linux-2.6/lib/percpu_counter.c
+@@ -68,21 +68,27 @@ s64 __percpu_counter_sum(struct percpu_c
+ }
+ EXPORT_SYMBOL(__percpu_counter_sum);
+ 
+-void percpu_counter_init(struct percpu_counter *fbc, s64 amount)
++int percpu_counter_init(struct percpu_counter *fbc, s64 amount)
+ {
+ 	spin_lock_init(&fbc->lock);
+ 	fbc->count = amount;
+ 	fbc->counters = alloc_percpu(s32);
++	if (!fbc->counters)
++		return -ENOMEM;
+ #ifdef CONFIG_HOTPLUG_CPU
+ 	mutex_lock(&percpu_counters_lock);
+ 	list_add(&fbc->list, &percpu_counters);
+ 	mutex_unlock(&percpu_counters_lock);
+ #endif
++	return 0;
+ }
+ EXPORT_SYMBOL(percpu_counter_init);
+ 
+ void percpu_counter_destroy(struct percpu_counter *fbc)
+ {
++	if (!fbc->counters)
++		return;
++
+ 	free_percpu(fbc->counters);
+ #ifdef CONFIG_HOTPLUG_CPU
+ 	mutex_lock(&percpu_counters_lock);
 
 --
 
