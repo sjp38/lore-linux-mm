@@ -1,79 +1,27 @@
-Message-Id: <20070911200015.481511000@chello.nl>
-References: <20070911195350.825778000@chello.nl>
-Date: Tue, 11 Sep 2007 21:54:09 +0200
-From: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Subject: [PATCH 19/23] mm: expose BDI statistics in sysfs.
-Content-Disposition: inline; filename=bdi_stat_sysfs.patch
+Date: Tue, 11 Sep 2007 13:25:22 -0700 (PDT)
+From: Christoph Lameter <clameter@sgi.com>
+Subject: Re: [PATCH/RFC] Add node states sysfs class attributeS - V5
+In-Reply-To: <1189518975.5036.3.camel@localhost>
+Message-ID: <Pine.LNX.4.64.0709111324520.26441@schroedinger.engr.sgi.com>
+References: <200708242228.l7OMS5fU017948@imap1.linux-foundation.org>
+ <20070827181405.57a3d8fe.akpm@linux-foundation.org>
+ <Pine.LNX.4.64.0708271826180.10344@schroedinger.engr.sgi.com>
+ <20070827201822.2506b888.akpm@linux-foundation.org>
+ <Pine.LNX.4.64.0708272210210.9748@schroedinger.engr.sgi.com>
+ <20070827222912.8b364352.akpm@linux-foundation.org>
+ <Pine.LNX.4.64.0708272235580.9834@schroedinger.engr.sgi.com>
+ <20070827231214.99e3c33f.akpm@linux-foundation.org>  <1188309928.5079.37.camel@localhost>
+  <Pine.LNX.4.64.0708281458520.17559@schroedinger.engr.sgi.com>
+ <29495f1d0708281513g406af15an8139df5fae20ad35@mail.gmail.com>
+ <1188398621.5121.13.camel@localhost>  <Pine.LNX.4.64.0708291039210.21184@schroedinger.engr.sgi.com>
+ <1189518975.5036.3.camel@localhost>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
-Cc: miklos@szeredi.hu, akpm@linux-foundation.org, neilb@suse.de, dgc@sgi.com, tomoki.sekiyama.qu@hitachi.com, a.p.zijlstra@chello.nl, nikita@clusterfs.com, trond.myklebust@fys.uio.no, yingchao.zhou@gmail.com, richard@rsk.demon.co.uk, torvalds@linux-foundation.org
+To: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
+Cc: linux-mm <linux-mm@kvack.org>, Nish Aravamudan <nish.aravamudan@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, mel@skynet.ie, y-goto@jp.fujitsu.com, Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Eric Whitney <eric.whitney@hp.com>
 List-ID: <linux-mm.kvack.org>
-
-Expose the per BDI stats in /sys/block/<dev>/queue/*
-
-Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
----
- block/ll_rw_blk.c |   30 ++++++++++++++++++++++++++++++
- 1 file changed, 30 insertions(+)
-
-Index: linux-2.6/block/ll_rw_blk.c
-===================================================================
---- linux-2.6.orig/block/ll_rw_blk.c
-+++ linux-2.6/block/ll_rw_blk.c
-@@ -4098,6 +4098,24 @@ static ssize_t queue_max_segments_show(s
- 	return queue_var_show(q->max_phys_segments, page);
- }
- 
-+static ssize_t queue_nr_reclaimable_show(struct request_queue *q, char *page)
-+{
-+	unsigned long long nr_reclaimable =
-+		bdi_stat(&q->backing_dev_info, BDI_RECLAIMABLE);
-+
-+	return sprintf(page, "%llu\n",
-+			nr_reclaimable >> (PAGE_CACHE_SHIFT - 10));
-+}
-+
-+static ssize_t queue_nr_writeback_show(struct request_queue *q, char *page)
-+{
-+	unsigned long long nr_writeback =
-+		bdi_stat(&q->backing_dev_info, BDI_WRITEBACK);
-+
-+	return sprintf(page, "%llu\n",
-+			nr_writeback >> (PAGE_CACHE_SHIFT - 10));
-+}
-+
- static ssize_t queue_max_segments_store(struct request_queue *q,
- 					const char *page, size_t count)
- {
-@@ -4139,6 +4157,16 @@ static struct queue_sysfs_entry queue_ma
- 	.store = queue_max_segments_store,
- };
- 
-+static struct queue_sysfs_entry queue_reclaimable_entry = {
-+	.attr = {.name = "reclaimable_kb", .mode = S_IRUGO },
-+	.show = queue_nr_reclaimable_show,
-+};
-+
-+static struct queue_sysfs_entry queue_writeback_entry = {
-+	.attr = {.name = "writeback_kb", .mode = S_IRUGO },
-+	.show = queue_nr_writeback_show,
-+};
-+
- static struct queue_sysfs_entry queue_iosched_entry = {
- 	.attr = {.name = "scheduler", .mode = S_IRUGO | S_IWUSR },
- 	.show = elv_iosched_show,
-@@ -4151,6 +4179,8 @@ static struct attribute *default_attrs[]
- 	&queue_max_hw_sectors_entry.attr,
- 	&queue_max_sectors_entry.attr,
- 	&queue_max_segments_entry.attr,
-+	&queue_reclaimable_entry.attr,
-+	&queue_writeback_entry.attr,
- 	&queue_iosched_entry.attr,
- 	NULL,
- };
-
---
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
