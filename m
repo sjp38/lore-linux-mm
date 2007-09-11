@@ -1,73 +1,79 @@
-Message-Id: <20070911200011.680990000@chello.nl>
+Message-Id: <20070911200015.351703000@chello.nl>
 References: <20070911195350.825778000@chello.nl>
-Date: Tue, 11 Sep 2007 21:53:51 +0200
+Date: Tue, 11 Sep 2007 21:54:08 +0200
 From: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Subject: [PATCH 01/23] nfs: remove congestion_end()
-Content-Disposition: inline; filename=nfs_congestion_fixup.patch
+Subject: [PATCH 18/23] mm: count writeback pages per BDI
+Content-Disposition: inline; filename=bdi_stat_writeback.patch
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 Cc: miklos@szeredi.hu, akpm@linux-foundation.org, neilb@suse.de, dgc@sgi.com, tomoki.sekiyama.qu@hitachi.com, a.p.zijlstra@chello.nl, nikita@clusterfs.com, trond.myklebust@fys.uio.no, yingchao.zhou@gmail.com, richard@rsk.demon.co.uk, torvalds@linux-foundation.org
 List-ID: <linux-mm.kvack.org>
 
-Its redundant, clear_bdi_congested() already wakes the waiters.
+Count per BDI writeback pages.
 
 Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
 ---
- fs/nfs/write.c              |    5 ++---
- include/linux/backing-dev.h |    1 -
- mm/backing-dev.c            |   13 -------------
- 3 files changed, 2 insertions(+), 17 deletions(-)
+ include/linux/backing-dev.h |    1 +
+ mm/page-writeback.c         |   12 ++++++++++--
+ 2 files changed, 11 insertions(+), 2 deletions(-)
 
-Index: linux-2.6/fs/nfs/write.c
+Index: linux-2.6/mm/page-writeback.c
 ===================================================================
---- linux-2.6.orig/fs/nfs/write.c
-+++ linux-2.6/fs/nfs/write.c
-@@ -235,10 +235,8 @@ static void nfs_end_page_writeback(struc
- 	struct nfs_server *nfss = NFS_SERVER(inode);
+--- linux-2.6.orig/mm/page-writeback.c
++++ linux-2.6/mm/page-writeback.c
+@@ -981,14 +981,18 @@ int test_clear_page_writeback(struct pag
+ 	int ret;
  
- 	end_page_writeback(page);
--	if (atomic_long_dec_return(&nfss->writeback) < NFS_CONGESTION_OFF_THRESH) {
-+	if (atomic_long_dec_return(&nfss->writeback) < NFS_CONGESTION_OFF_THRESH)
- 		clear_bdi_congested(&nfss->backing_dev_info, WRITE);
--		congestion_end(WRITE);
--	}
- }
+ 	if (mapping) {
++		struct backing_dev_info *bdi = mapping->backing_dev_info;
+ 		unsigned long flags;
  
- /*
+ 		write_lock_irqsave(&mapping->tree_lock, flags);
+ 		ret = TestClearPageWriteback(page);
+-		if (ret)
++		if (ret) {
+ 			radix_tree_tag_clear(&mapping->page_tree,
+ 						page_index(page),
+ 						PAGECACHE_TAG_WRITEBACK);
++			if (bdi_cap_writeback_dirty(bdi))
++				__dec_bdi_stat(bdi, BDI_WRITEBACK);
++		}
+ 		write_unlock_irqrestore(&mapping->tree_lock, flags);
+ 	} else {
+ 		ret = TestClearPageWriteback(page);
+@@ -1004,14 +1008,18 @@ int test_set_page_writeback(struct page 
+ 	int ret;
+ 
+ 	if (mapping) {
++		struct backing_dev_info *bdi = mapping->backing_dev_info;
+ 		unsigned long flags;
+ 
+ 		write_lock_irqsave(&mapping->tree_lock, flags);
+ 		ret = TestSetPageWriteback(page);
+-		if (!ret)
++		if (!ret) {
+ 			radix_tree_tag_set(&mapping->page_tree,
+ 						page_index(page),
+ 						PAGECACHE_TAG_WRITEBACK);
++			if (bdi_cap_writeback_dirty(bdi))
++				__inc_bdi_stat(bdi, BDI_WRITEBACK);
++		}
+ 		if (!PageDirty(page))
+ 			radix_tree_tag_clear(&mapping->page_tree,
+ 						page_index(page),
 Index: linux-2.6/include/linux/backing-dev.h
 ===================================================================
 --- linux-2.6.orig/include/linux/backing-dev.h
 +++ linux-2.6/include/linux/backing-dev.h
-@@ -93,7 +93,6 @@ static inline int bdi_rw_congested(struc
- void clear_bdi_congested(struct backing_dev_info *bdi, int rw);
- void set_bdi_congested(struct backing_dev_info *bdi, int rw);
- long congestion_wait(int rw, long timeout);
--void congestion_end(int rw);
+@@ -28,6 +28,7 @@ typedef int (congested_fn)(void *, int);
  
- #define bdi_cap_writeback_dirty(bdi) \
- 	(!((bdi)->capabilities & BDI_CAP_NO_WRITEBACK))
-Index: linux-2.6/mm/backing-dev.c
-===================================================================
---- linux-2.6.orig/mm/backing-dev.c
-+++ linux-2.6/mm/backing-dev.c
-@@ -54,16 +54,3 @@ long congestion_wait(int rw, long timeou
- 	return ret;
- }
- EXPORT_SYMBOL(congestion_wait);
--
--/**
-- * congestion_end - wake up sleepers on a congested backing_dev_info
-- * @rw: READ or WRITE
-- */
--void congestion_end(int rw)
--{
--	wait_queue_head_t *wqh = &congestion_wqh[rw];
--
--	if (waitqueue_active(wqh))
--		wake_up(wqh);
--}
--EXPORT_SYMBOL(congestion_end);
+ enum bdi_stat_item {
+ 	BDI_RECLAIMABLE,
++	BDI_WRITEBACK,
+ 	NR_BDI_STAT_ITEMS
+ };
+ 
 
 --
 
