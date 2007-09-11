@@ -1,221 +1,466 @@
-Message-Id: <20070911200015.858159000@chello.nl>
+Message-Id: <20070911200015.732492000@chello.nl>
 References: <20070911195350.825778000@chello.nl>
-Date: Tue, 11 Sep 2007 21:54:12 +0200
+Date: Tue, 11 Sep 2007 21:54:11 +0200
 From: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Subject: [PATCH 22/23] mm: dirty balancing for tasks
-Content-Disposition: inline; filename=dirty_pages2.patch
+Subject: [PATCH 21/23] mm: per device dirty threshold
+Content-Disposition: inline; filename=writeback-balance-per-backing_dev.patch
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 Cc: miklos@szeredi.hu, akpm@linux-foundation.org, neilb@suse.de, dgc@sgi.com, tomoki.sekiyama.qu@hitachi.com, a.p.zijlstra@chello.nl, nikita@clusterfs.com, trond.myklebust@fys.uio.no, yingchao.zhou@gmail.com, richard@rsk.demon.co.uk, torvalds@linux-foundation.org
 List-ID: <linux-mm.kvack.org>
 
-Based on ideas of Andrew:
-  http://marc.info/?l=linux-kernel&m=102912915020543&w=2
+Scale writeback cache per backing device, proportional to its writeout speed.
 
-Scale the bdi dirty limit inversly with the tasks dirty rate.
-This makes heavy writers have a lower dirty limit than the occasional writer. 
+By decoupling the BDI dirty thresholds a number of problems we currently have
+will go away, namely:
 
-Andrea proposed something similar:
-  http://lwn.net/Articles/152277/
+ - mutual interference starvation (for any number of BDIs);
+ - deadlocks with stacked BDIs (loop, FUSE and local NFS mounts).
 
-The main disadvantage to his patch is that he uses an unrelated quantity to
-measure time, which leaves him with a workload dependant tunable. Other than
-that the two approaches appear quite similar.
+It might be that all dirty pages are for a single BDI while other BDIs are
+idling. By giving each BDI a 'fair' share of the dirty limit, each one can have
+dirty pages outstanding and make progress.
+
+A global threshold also creates a deadlock for stacked BDIs; when A writes to
+B, and A generates enough dirty pages to get throttled, B will never start
+writeback until the dirty pages go away. Again, by giving each BDI its own
+'independent' dirty limit, this problem is avoided.
+
+So the problem is to determine how to distribute the total dirty limit across
+the BDIs fairly and efficiently. A DBI that has a large dirty limit but does
+not have any dirty pages outstanding is a waste.
+
+What is done is to keep a floating proportion between the DBIs based on
+writeback completions. This way faster/more active devices get a larger share
+than slower/idle devices.
 
 Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
 ---
 
 Changes since -v8:
 
- - initialized init_task
- - moved the prop_local init after the task_struct copy
- - changed the per task ratio to 1/8 (from 1/2).
- - explicit usage of prop_local_single
+ - explicit usage of prop_local_percpu
+ - moved dirty_ratio_handler declaration into a suitable header file
 
- include/linux/init_task.h |    1 
- include/linux/sched.h     |    2 +
- kernel/fork.c             |   10 +++++++++
- mm/page-writeback.c       |   50 +++++++++++++++++++++++++++++++++++++++++++++-
- 4 files changed, 62 insertions(+), 1 deletion(-)
+ include/linux/backing-dev.h |    4 
+ include/linux/writeback.h   |    4 
+ kernel/sysctl.c             |    2 
+ mm/backing-dev.c            |   19 +++-
+ mm/page-writeback.c         |  202 +++++++++++++++++++++++++++++++++++++-------
+ 5 files changed, 196 insertions(+), 35 deletions(-)
 
-Index: linux-2.6/include/linux/sched.h
+Index: linux-2.6/include/linux/backing-dev.h
 ===================================================================
---- linux-2.6.orig/include/linux/sched.h
-+++ linux-2.6/include/linux/sched.h
-@@ -84,6 +84,7 @@ struct sched_param {
- #include <linux/timer.h>
- #include <linux/hrtimer.h>
- #include <linux/task_io_accounting.h>
+--- linux-2.6.orig/include/linux/backing-dev.h
++++ linux-2.6/include/linux/backing-dev.h
+@@ -10,6 +10,7 @@
+ 
+ #include <linux/percpu_counter.h>
+ #include <linux/log2.h>
 +#include <linux/proportions.h>
+ #include <asm/atomic.h>
  
- #include <asm/processor.h>
+ struct page;
+@@ -44,6 +45,9 @@ struct backing_dev_info {
+ 	void *unplug_io_data;
  
-@@ -1125,6 +1126,7 @@ struct task_struct {
- #ifdef CONFIG_FAULT_INJECTION
- 	int make_it_fail;
- #endif
-+	struct prop_local_single dirties;
+ 	struct percpu_counter bdi_stat[NR_BDI_STAT_ITEMS];
++
++	struct prop_local_percpu completions;
++	int dirty_exceeded;
  };
  
- /*
-Index: linux-2.6/kernel/fork.c
-===================================================================
---- linux-2.6.orig/kernel/fork.c
-+++ linux-2.6/kernel/fork.c
-@@ -107,6 +107,7 @@ static struct kmem_cache *mm_cachep;
- 
- void free_task(struct task_struct *tsk)
- {
-+	prop_local_destroy_single(&tsk->dirties);
- 	free_thread_info(tsk->stack);
- 	rt_mutex_debug_task_free(tsk);
- 	free_task_struct(tsk);
-@@ -163,6 +164,7 @@ static struct task_struct *dup_task_stru
- {
- 	struct task_struct *tsk;
- 	struct thread_info *ti;
-+	int err;
- 
- 	prepare_to_copy(orig);
- 
-@@ -178,6 +180,14 @@ static struct task_struct *dup_task_stru
- 
- 	*tsk = *orig;
- 	tsk->stack = ti;
-+
-+	err = prop_local_init_single(&tsk->dirties);
-+	if (err) {
-+		free_thread_info(ti);
-+		free_task_struct(tsk);
-+		return NULL;
-+	}
-+
- 	setup_thread_stack(tsk, orig);
- 
- #ifdef CONFIG_CC_STACKPROTECTOR
+ int bdi_init(struct backing_dev_info *bdi);
 Index: linux-2.6/mm/page-writeback.c
 ===================================================================
 --- linux-2.6.orig/mm/page-writeback.c
 +++ linux-2.6/mm/page-writeback.c
-@@ -118,6 +118,7 @@ static void background_writeout(unsigned
+@@ -2,6 +2,7 @@
+  * mm/page-writeback.c
   *
+  * Copyright (C) 2002, Linus Torvalds.
++ * Copyright (C) 2007 Red Hat, Inc., Peter Zijlstra <pzijlstr@redhat.com>
+  *
+  * Contains functions related to writing back dirty pages at the
+  * address_space level.
+@@ -49,8 +50,6 @@
   */
- static struct prop_descriptor vm_completions;
-+static struct prop_descriptor vm_dirties;
+ static long ratelimit_pages = 32;
  
- static unsigned long determine_dirtyable_memory(void);
- 
-@@ -146,6 +147,7 @@ int dirty_ratio_handler(ctl_table *table
- 	if (ret == 0 && write && vm_dirty_ratio != old_ratio) {
- 		int shift = calc_period_shift();
- 		prop_change_shift(&vm_completions, shift);
-+		prop_change_shift(&vm_dirties, shift);
- 	}
- 	return ret;
- }
-@@ -159,6 +161,11 @@ static inline void __bdi_writeout_inc(st
- 	__prop_inc_percpu(&vm_completions, &bdi->completions);
- }
- 
-+static inline void task_dirty_inc(struct task_struct *tsk)
-+{
-+	prop_inc_single(&vm_dirties, &tsk->dirties);
-+}
-+
+-static int dirty_exceeded __cacheline_aligned_in_smp;	/* Dirty mem may be over limit */
+-
  /*
-  * Obtain an accurate fraction of the BDI's portion.
-  */
-@@ -198,6 +205,37 @@ clip_bdi_dirty_limit(struct backing_dev_
- 	*pbdi_dirty = min(*pbdi_dirty, avail_dirty);
- }
+  * When balance_dirty_pages decides that the caller needs to perform some
+  * non-background writeback, this is how many pages it will attempt to write.
+@@ -103,6 +102,103 @@ EXPORT_SYMBOL(laptop_mode);
+ static void background_writeout(unsigned long _min_pages);
  
-+static inline void task_dirties_fraction(struct task_struct *tsk,
-+		long *numerator, long *denominator)
+ /*
++ * Scale the writeback cache size proportional to the relative writeout speeds.
++ *
++ * We do this by keeping a floating proportion between BDIs, based on page
++ * writeback completions [end_page_writeback()]. Those devices that write out
++ * pages fastest will get the larger share, while the slower will get a smaller
++ * share.
++ *
++ * We use page writeout completions because we are interested in getting rid of
++ * dirty pages. Having them written out is the primary goal.
++ *
++ * We introduce a concept of time, a period over which we measure these events,
++ * because demand can/will vary over time. The length of this period itself is
++ * measured in page writeback completions.
++ *
++ */
++static struct prop_descriptor vm_completions;
++
++static unsigned long determine_dirtyable_memory(void);
++
++/*
++ * couple the period to the dirty_ratio:
++ *
++ *   period/2 ~ roundup_pow_of_two(dirty limit)
++ */
++static int calc_period_shift(void)
 +{
-+	prop_fraction_single(&vm_dirties, &tsk->dirties,
-+				numerator, denominator);
++	unsigned long dirty_total;
++
++	dirty_total = (vm_dirty_ratio * determine_dirtyable_memory()) / 100;
++	return 2 + ilog2(dirty_total - 1);
 +}
 +
 +/*
-+ * scale the dirty limit
-+ *
-+ * task specific dirty limit:
-+ *
-+ *   dirty -= (dirty/8) * p_{t}
++ * update the period when the dirty ratio changes.
 + */
-+void task_dirty_limit(struct task_struct *tsk, long *pdirty)
++int dirty_ratio_handler(struct ctl_table *table, int write,
++		struct file *filp, void __user *buffer, size_t *lenp,
++		loff_t *ppos)
 +{
-+	long numerator, denominator;
-+	long dirty = *pdirty;
-+	long long inv = dirty >> 3;
-+
-+	task_dirties_fraction(tsk, &numerator, &denominator);
-+	inv *= numerator;
-+	do_div(inv, denominator);
-+
-+	dirty -= inv;
-+	if (dirty < *pdirty/2)
-+		dirty = *pdirty/2;
-+
-+	*pdirty = dirty;
++	int old_ratio = vm_dirty_ratio;
++	int ret = proc_dointvec_minmax(table, write, filp, buffer, lenp, ppos);
++	if (ret == 0 && write && vm_dirty_ratio != old_ratio) {
++		int shift = calc_period_shift();
++		prop_change_shift(&vm_completions, shift);
++	}
++	return ret;
 +}
 +
- /*
++/*
++ * Increment the BDI's writeout completion count and the global writeout
++ * completion count. Called from test_clear_page_writeback().
++ */
++static inline void __bdi_writeout_inc(struct backing_dev_info *bdi)
++{
++	__prop_inc_percpu(&vm_completions, &bdi->completions);
++}
++
++/*
++ * Obtain an accurate fraction of the BDI's portion.
++ */
++static void bdi_writeout_fraction(struct backing_dev_info *bdi,
++		long *numerator, long *denominator)
++{
++	if (bdi_cap_writeback_dirty(bdi)) {
++		prop_fraction_percpu(&vm_completions, &bdi->completions,
++				numerator, denominator);
++	} else {
++		*numerator = 0;
++		*denominator = 1;
++	}
++}
++
++/*
++ * Clip the earned share of dirty pages to that which is actually available.
++ * This avoids exceeding the total dirty_limit when the floating averages
++ * fluctuate too quickly.
++ */
++static void
++clip_bdi_dirty_limit(struct backing_dev_info *bdi, long dirty, long *pbdi_dirty)
++{
++	long avail_dirty;
++
++	avail_dirty = dirty -
++		(global_page_state(NR_FILE_DIRTY) +
++		 global_page_state(NR_WRITEBACK) +
++		 global_page_state(NR_UNSTABLE_NFS));
++
++	if (avail_dirty < 0)
++		avail_dirty = 0;
++
++	avail_dirty += bdi_stat(bdi, BDI_RECLAIMABLE) +
++		bdi_stat(bdi, BDI_WRITEBACK);
++
++	*pbdi_dirty = min(*pbdi_dirty, avail_dirty);
++}
++
++/*
   * Work out the current dirty-memory clamping and background writeout
   * thresholds.
-@@ -304,6 +342,7 @@ get_dirty_limits(long *pbackground, long
- 
- 		*pbdi_dirty = bdi_dirty;
- 		clip_bdi_dirty_limit(bdi, dirty, pbdi_dirty);
-+		task_dirty_limit(current, pbdi_dirty);
- 	}
+  *
+@@ -158,8 +254,8 @@ static unsigned long determine_dirtyable
  }
  
-@@ -725,6 +764,7 @@ void __init page_writeback_init(void)
+ static void
+-get_dirty_limits(long *pbackground, long *pdirty,
+-					struct address_space *mapping)
++get_dirty_limits(long *pbackground, long *pdirty, long *pbdi_dirty,
++		 struct backing_dev_info *bdi)
+ {
+ 	int background_ratio;		/* Percentages */
+ 	int dirty_ratio;
+@@ -193,6 +289,22 @@ get_dirty_limits(long *pbackground, long
+ 	}
+ 	*pbackground = background;
+ 	*pdirty = dirty;
++
++	if (bdi) {
++		long long bdi_dirty = dirty;
++		long numerator, denominator;
++
++		/*
++		 * Calculate this BDI's share of the dirty ratio.
++		 */
++		bdi_writeout_fraction(bdi, &numerator, &denominator);
++
++		bdi_dirty *= numerator;
++		do_div(bdi_dirty, denominator);
++
++		*pbdi_dirty = bdi_dirty;
++		clip_bdi_dirty_limit(bdi, dirty, pbdi_dirty);
++	}
+ }
  
- 	shift = calc_period_shift();
- 	prop_descriptor_init(&vm_completions, shift);
-+	prop_descriptor_init(&vm_dirties, shift);
+ /*
+@@ -204,9 +316,11 @@ get_dirty_limits(long *pbackground, long
+  */
+ static void balance_dirty_pages(struct address_space *mapping)
+ {
+-	long nr_reclaimable;
++	long bdi_nr_reclaimable;
++	long bdi_nr_writeback;
+ 	long background_thresh;
+ 	long dirty_thresh;
++	long bdi_thresh;
+ 	unsigned long pages_written = 0;
+ 	unsigned long write_chunk = sync_writeback_pages();
+ 
+@@ -221,15 +335,15 @@ static void balance_dirty_pages(struct a
+ 			.range_cyclic	= 1,
+ 		};
+ 
+-		get_dirty_limits(&background_thresh, &dirty_thresh, mapping);
+-		nr_reclaimable = global_page_state(NR_FILE_DIRTY) +
+-					global_page_state(NR_UNSTABLE_NFS);
+-		if (nr_reclaimable + global_page_state(NR_WRITEBACK) <=
+-			dirty_thresh)
++		get_dirty_limits(&background_thresh, &dirty_thresh,
++				&bdi_thresh, bdi);
++		bdi_nr_reclaimable = bdi_stat(bdi, BDI_RECLAIMABLE);
++		bdi_nr_writeback = bdi_stat(bdi, BDI_WRITEBACK);
++		if (bdi_nr_reclaimable + bdi_nr_writeback <= bdi_thresh)
+ 				break;
+ 
+-		if (!dirty_exceeded)
+-			dirty_exceeded = 1;
++		if (!bdi->dirty_exceeded)
++			bdi->dirty_exceeded = 1;
+ 
+ 		/* Note: nr_reclaimable denotes nr_dirty + nr_unstable.
+ 		 * Unstable writes are a feature of certain networked
+@@ -237,16 +351,37 @@ static void balance_dirty_pages(struct a
+ 		 * written to the server's write cache, but has not yet
+ 		 * been flushed to permanent storage.
+ 		 */
+-		if (nr_reclaimable) {
++		if (bdi_nr_reclaimable) {
+ 			writeback_inodes(&wbc);
+-			get_dirty_limits(&background_thresh,
+-					 	&dirty_thresh, mapping);
+-			nr_reclaimable = global_page_state(NR_FILE_DIRTY) +
+-					global_page_state(NR_UNSTABLE_NFS);
+-			if (nr_reclaimable +
+-				global_page_state(NR_WRITEBACK)
+-					<= dirty_thresh)
+-						break;
++
++			get_dirty_limits(&background_thresh, &dirty_thresh,
++				       &bdi_thresh, bdi);
++
++			/*
++			 * In order to avoid the stacked BDI deadlock we need
++			 * to ensure we accurately count the 'dirty' pages when
++			 * the threshold is low.
++			 *
++			 * Otherwise it would be possible to get thresh+n pages
++			 * reported dirty, even though there are thresh-m pages
++			 * actually dirty; with m+n sitting in the percpu
++			 * deltas.
++			 */
++			if (bdi_thresh < 2*bdi_stat_error(bdi)) {
++				bdi_nr_reclaimable =
++					bdi_stat_sum(bdi, BDI_RECLAIMABLE);
++				bdi_nr_writeback =
++					bdi_stat_sum(bdi, BDI_WRITEBACK);
++			} else {
++				bdi_nr_reclaimable =
++					bdi_stat(bdi, BDI_RECLAIMABLE);
++				bdi_nr_writeback =
++					bdi_stat(bdi, BDI_WRITEBACK);
++			}
++
++			if (bdi_nr_reclaimable + bdi_nr_writeback <= bdi_thresh)
++				break;
++
+ 			pages_written += write_chunk - wbc.nr_to_write;
+ 			if (pages_written >= write_chunk)
+ 				break;		/* We've done our duty */
+@@ -254,9 +389,9 @@ static void balance_dirty_pages(struct a
+ 		congestion_wait(WRITE, HZ/10);
+ 	}
+ 
+-	if (nr_reclaimable + global_page_state(NR_WRITEBACK)
+-		<= dirty_thresh && dirty_exceeded)
+-			dirty_exceeded = 0;
++	if (bdi_nr_reclaimable + bdi_nr_writeback < bdi_thresh &&
++			bdi->dirty_exceeded)
++		bdi->dirty_exceeded = 0;
+ 
+ 	if (writeback_in_progress(bdi))
+ 		return;		/* pdflush is already working this queue */
+@@ -270,7 +405,9 @@ static void balance_dirty_pages(struct a
+ 	 * background_thresh, to keep the amount of dirty memory low.
+ 	 */
+ 	if ((laptop_mode && pages_written) ||
+-	     (!laptop_mode && (nr_reclaimable > background_thresh)))
++			(!laptop_mode && (global_page_state(NR_FILE_DIRTY)
++					  + global_page_state(NR_UNSTABLE_NFS)
++					  > background_thresh)))
+ 		pdflush_operation(background_writeout, 0);
+ }
+ 
+@@ -306,7 +443,7 @@ void balance_dirty_pages_ratelimited_nr(
+ 	unsigned long *p;
+ 
+ 	ratelimit = ratelimit_pages;
+-	if (dirty_exceeded)
++	if (mapping->backing_dev_info->dirty_exceeded)
+ 		ratelimit = 8;
+ 
+ 	/*
+@@ -342,7 +479,7 @@ void throttle_vm_writeout(gfp_t gfp_mask
+ 	}
+ 
+         for ( ; ; ) {
+-		get_dirty_limits(&background_thresh, &dirty_thresh, NULL);
++		get_dirty_limits(&background_thresh, &dirty_thresh, NULL, NULL);
+ 
+                 /*
+                  * Boost the allowable dirty threshold a bit for page
+@@ -377,7 +514,7 @@ static void background_writeout(unsigned
+ 		long background_thresh;
+ 		long dirty_thresh;
+ 
+-		get_dirty_limits(&background_thresh, &dirty_thresh, NULL);
++		get_dirty_limits(&background_thresh, &dirty_thresh, NULL, NULL);
+ 		if (global_page_state(NR_FILE_DIRTY) +
+ 			global_page_state(NR_UNSTABLE_NFS) < background_thresh
+ 				&& min_pages <= 0)
+@@ -580,9 +717,14 @@ static struct notifier_block __cpuinitda
+  */
+ void __init page_writeback_init(void)
+ {
++	int shift;
++
+ 	mod_timer(&wb_timer, jiffies + dirty_writeback_interval);
+ 	writeback_set_ratelimit();
+ 	register_cpu_notifier(&ratelimit_nb);
++
++	shift = calc_period_shift();
++	prop_descriptor_init(&vm_completions, shift);
  }
  
  /**
-@@ -1003,7 +1043,7 @@ EXPORT_SYMBOL(redirty_page_for_writepage
-  * If the mapping doesn't provide a set_page_dirty a_op, then
-  * just fall through and assume that it wants buffer_heads.
-  */
--int fastcall set_page_dirty(struct page *page)
-+static int __set_page_dirty(struct page *page)
- {
- 	struct address_space *mapping = page_mapping(page);
- 
-@@ -1021,6 +1061,14 @@ int fastcall set_page_dirty(struct page 
- 	}
- 	return 0;
- }
-+
-+int fastcall set_page_dirty(struct page *page)
-+{
-+	int ret = __set_page_dirty(page);
-+	if (ret)
-+		task_dirty_inc(current);
-+	return ret;
-+}
- EXPORT_SYMBOL(set_page_dirty);
- 
- /*
-Index: linux-2.6/include/linux/init_task.h
+@@ -988,8 +1130,10 @@ int test_clear_page_writeback(struct pag
+ 			radix_tree_tag_clear(&mapping->page_tree,
+ 						page_index(page),
+ 						PAGECACHE_TAG_WRITEBACK);
+-			if (bdi_cap_writeback_dirty(bdi))
++			if (bdi_cap_writeback_dirty(bdi)) {
+ 				__dec_bdi_stat(bdi, BDI_WRITEBACK);
++				__bdi_writeout_inc(bdi);
++			}
+ 		}
+ 		write_unlock_irqrestore(&mapping->tree_lock, flags);
+ 	} else {
+Index: linux-2.6/mm/backing-dev.c
 ===================================================================
---- linux-2.6.orig/include/linux/init_task.h
-+++ linux-2.6/include/linux/init_task.h
-@@ -169,6 +169,7 @@ extern struct group_info init_groups;
- 		[PIDTYPE_PGID] = INIT_PID_LINK(PIDTYPE_PGID),		\
- 		[PIDTYPE_SID]  = INIT_PID_LINK(PIDTYPE_SID),		\
- 	},								\
-+	.dirties = INIT_PROP_LOCAL_SINGLE(dirties),			\
- 	INIT_TRACE_IRQFLAGS						\
- 	INIT_LOCKDEP							\
+--- linux-2.6.orig/mm/backing-dev.c
++++ linux-2.6/mm/backing-dev.c
+@@ -12,11 +12,17 @@ int bdi_init(struct backing_dev_info *bd
+ 
+ 	for (i = 0; i < NR_BDI_STAT_ITEMS; i++) {
+ 		err = percpu_counter_init_irq(&bdi->bdi_stat[i], 0);
+-		if (err) {
+-			for (j = 0; j < i; j++)
+-				percpu_counter_destroy(&bdi->bdi_stat[i]);
+-			break;
+-		}
++		if (err)
++			goto err;
++	}
++
++	bdi->dirty_exceeded = 0;
++	err = prop_local_init_percpu(&bdi->completions);
++
++	if (err) {
++err:
++		for (j = 0; j < i; j++)
++			percpu_counter_destroy(&bdi->bdi_stat[i]);
+ 	}
+ 
+ 	return err;
+@@ -29,6 +35,8 @@ void bdi_destroy(struct backing_dev_info
+ 
+ 	for (i = 0; i < NR_BDI_STAT_ITEMS; i++)
+ 		percpu_counter_destroy(&bdi->bdi_stat[i]);
++
++	prop_local_destroy_percpu(&bdi->completions);
  }
+ EXPORT_SYMBOL(bdi_destroy);
+ 
+@@ -81,3 +89,4 @@ long congestion_wait(int rw, long timeou
+ 	return ret;
+ }
+ EXPORT_SYMBOL(congestion_wait);
++
+Index: linux-2.6/kernel/sysctl.c
+===================================================================
+--- linux-2.6.orig/kernel/sysctl.c
++++ linux-2.6/kernel/sysctl.c
+@@ -827,7 +827,7 @@ static struct ctl_table vm_table[] = {
+ 		.data		= &vm_dirty_ratio,
+ 		.maxlen		= sizeof(vm_dirty_ratio),
+ 		.mode		= 0644,
+-		.proc_handler	= &proc_dointvec_minmax,
++		.proc_handler	= &dirty_ratio_handler,
+ 		.strategy	= &sysctl_intvec,
+ 		.extra1		= &zero,
+ 		.extra2		= &one_hundred,
+Index: linux-2.6/include/linux/writeback.h
+===================================================================
+--- linux-2.6.orig/include/linux/writeback.h
++++ linux-2.6/include/linux/writeback.h
+@@ -104,6 +104,10 @@ extern int dirty_expire_interval;
+ extern int block_dump;
+ extern int laptop_mode;
+ 
++extern int dirty_ratio_handler(struct ctl_table *table, int write,
++		struct file *filp, void __user *buffer, size_t *lenp,
++		loff_t *ppos);
++
+ struct ctl_table;
+ struct file;
+ int dirty_writeback_centisecs_handler(struct ctl_table *, int, struct file *,
 
 --
 
