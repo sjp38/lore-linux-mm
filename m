@@ -1,13 +1,13 @@
-Subject: Re: [PATCH/RFC 2/5] Mem Policy:  Use MPOL_PREFERRED for
-	system-wide default policy
+Subject: Re: [PATCH/RFC 3/5] Mem Policy:  MPOL_PREFERRED fixups for "local
+	allocation"
 From: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
-In-Reply-To: <1189536857.32731.90.camel@localhost>
+In-Reply-To: <1189537099.32731.92.camel@localhost>
 References: <20070830185053.22619.96398.sendpatchset@localhost>
-	 <20070830185107.22619.43577.sendpatchset@localhost>
-	 <1189536857.32731.90.camel@localhost>
+	 <20070830185114.22619.61260.sendpatchset@localhost>
+	 <1189537099.32731.92.camel@localhost>
 Content-Type: text/plain
-Date: Tue, 11 Sep 2007 14:22:03 -0400
-Message-Id: <1189534923.5036.58.camel@localhost>
+Date: Tue, 11 Sep 2007 14:34:31 -0400
+Message-Id: <1189535671.5036.71.camel@localhost>
 Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
@@ -16,88 +16,94 @@ To: Mel Gorman <mel@csn.ul.ie>
 Cc: linux-mm@kvack.org, akpm@linux-foundation.org, ak@suse.de, mtk-manpages@gmx.net, clameter@sgi.com, solo@google.com, eric.whitney@hp.com
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 2007-09-11 at 19:54 +0100, Mel Gorman wrote:
+On Tue, 2007-09-11 at 19:58 +0100, Mel Gorman wrote:
 > On Thu, 2007-08-30 at 14:51 -0400, Lee Schermerhorn wrote:
-> > PATCH/RFC 2/5 Use MPOL_PREFERRED for system-wide default policy
+> > PATCH/RFC 03/05 - MPOL_PREFERRED cleanups for "local allocation" - V4
 > > 
-> > Against:  2.6.23-rc3-mm1
+> > Against: 2.6.23-rc3-mm1
+> > 
+> > V3 -> V4:
+> > +  updated Documentation/vm/numa_memory_policy.txt to better explain
+> >    [I think] the "local allocation" feature of MPOL_PREFERRED.
+> > 
+> > V2 -> V3:
+> > +  renamed get_nodemask() to get_policy_nodemask() to more closely
+> >    match what it's doing.
 > > 
 > > V1 -> V2:
-> > + restore BUG()s in switch(policy) default cases -- per
-> >   Christoph
-> > + eliminate unneeded re-init of struct mempolicy policy member
-> >   before freeing
+> > +  renamed get_zonemask() to get_nodemask().  Mel Gorman suggested this
+> >    was a valid "cleanup".
 > > 
-> > Currently, when one specifies MPOL_DEFAULT via a NUMA memory
-> > policy API [set_mempolicy(), mbind() and internal versions],
-> > the kernel simply installs a NULL struct mempolicy pointer in
-> > the appropriate context:  task policy, vma policy, or shared
-> > policy.  This causes any use of that policy to "fall back" to
-> > the next most specific policy scope.  The only use of MPOL_DEFAULT
-> > to mean "local allocation" is in the system default policy.
+> > Here are a couple of "cleanups" for MPOL_PREFERRED behavior
+> > when v.preferred_node < 0 -- i.e., "local allocation":
+> > 
+> > 1)  [do_]get_mempolicy() calls the now renamed get_policy_nodemask()
+> >     to fetch the nodemask associated with a policy.  Currently,
+> >     get_policy_nodemask() returns the set of nodes with memory, when
+> >     the policy 'mode' is 'PREFERRED, and the preferred_node is < 0.
+> >     Return the set of allowed nodes instead.  This will already have
+> >     been masked to include only nodes with memory.
 > > 
 > 
-> In general, this seems like a good idea. It's certainly simplier to
-> always assume a policy exists because it discourages "bah, I don't care
-> about policies" style of thinking.
+> Better name all right.
 
-More importantly, IMO, it eliminates 2 meanings for MPOL_DEFAULT in
-different contexts and promotes the use 0f [MPOL_PREFERRED,
--1/null-nodemask] for local allocation.  I think this makes the
-resulting documentation clearer.
+:-) That's why you suggested it, right?
 
 <snip>
-> > 
+
 > > Index: Linux/mm/mempolicy.c
 > > ===================================================================
-> > --- Linux.orig/mm/mempolicy.c	2007-08-29 11:43:06.000000000 -0400
-> > +++ Linux/mm/mempolicy.c	2007-08-29 11:44:03.000000000 -0400
-> > @@ -105,9 +105,13 @@ static struct kmem_cache *sn_cache;
-> >     policied. */
-> >  enum zone_type policy_zone = 0;
+> > --- Linux.orig/mm/mempolicy.c	2007-08-30 13:20:13.000000000 -0400
+> > +++ Linux/mm/mempolicy.c	2007-08-30 13:36:04.000000000 -0400
+> > @@ -486,8 +486,10 @@ static long do_set_mempolicy(int mode, n
+> >  	return 0;
+> >  }
 > >  
+> > -/* Fill a zone bitmap for a policy */
+> > -static void get_zonemask(struct mempolicy *p, nodemask_t *nodes)
 > > +/*
-> > + * run-time system-wide default policy => local allocation
+> > + * Return a node bitmap for a policy
 > > + */
-> >  struct mempolicy default_policy = {
-> >  	.refcnt = ATOMIC_INIT(1), /* never free it */
-> > -	.policy = MPOL_DEFAULT,
-> > +	.policy = MPOL_PREFERRED,
-> > +	.v =  { .preferred_node =  -1 },
-> >  };
+> > +static void get_policy_nodemask(struct mempolicy *p, nodemask_t *nodes)
+> >  {
+> >  	int i;
 > >  
+> > @@ -502,9 +504,11 @@ static void get_zonemask(struct mempolic
+> >  		*nodes = p->v.nodes;
+> >  		break;
+> >  	case MPOL_PREFERRED:
+> > -		/* or use current node instead of memory_map? */
+> > +		/*
+> > +		 * for "local policy", return allowed memories
+> > +		 */
+> >  		if (p->v.preferred_node < 0)
+> > -			*nodes = node_states[N_HIGH_MEMORY];
+> > +			*nodes = cpuset_current_mems_allowed;
 > 
-> fairly clear.
-> 
-> >  static void mpol_rebind_policy(struct mempolicy *pol,
-> > @@ -180,7 +184,8 @@ static struct mempolicy *mpol_new(int mo
-> >  		 mode, nodes ? nodes_addr(*nodes)[0] : -1);
-> >  
-> >  	if (mode == MPOL_DEFAULT)
-> > -		return NULL;
-> > +		return NULL;	/* simply delete any existing policy */
-> > +
-> 
-> Why do we not return default_policy and insert that into the VMA or
-> whatever?
+> Is this change intentional? It looks like something that belongs as part
+> of the the memoryless patch set.
 > 
 
-Because then, if we're installing a shared policy [shmem], we'll go
-ahead and create an rb-node and insert the [default] policy in the tree
-in the shared policy struct, instead of just deleting any policy ranges
-that the new policy covers.  Andi already implemented the code to delete
-shared policy ranges covered by a subsequent null/default policy.  I
-like this approach.
+Absolutely intentional.  The use of 'node_states[N_HIGH_MEMORY]' was
+added by the memoryless nodes patches.  Formerly, this was
+'node_online_map'.  However, even this results in misleading info for
+tasks running in a cpuset.  
 
-I have additional patches, to come later, that dynamically allocate the
-shared policy structure when a non-null [non-default] policy is
-installed.  At some point, I plan on enhancing this to to use a single
-policy pointer, instead of the shared policy struct, when the policy
-covers the entire object range, and delete any existing shared policy
-struct when/if a default policy covers the entire range.
+When a task queries its memory policy via get_mempolicy(2), and the
+policy is MPOL_PREFERRED with the '-1' policy node--i.e., local
+allocation--the memory can come from any node from which the task is
+allowed to allocate.   Initially it will try to allocate only from nodes
+containing cpus on which the task is allowed to execute.  But, the
+allocation could overflow onto some other node allowed in the cpuset.
 
-Thanks,
+It's a fine, point, but I think this is "more correct" that the existing
+code.  I'm hoping that this change, with a corresponding man page update
+will head off some head scratching and support calls down the road.
+
 Lee
+
+
+<snip>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
