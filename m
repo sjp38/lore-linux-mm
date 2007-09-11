@@ -1,50 +1,179 @@
-Subject: Re: [PATCH/RFC 0/5] Memory Policy Cleanups and Enhancements
-From: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
-In-Reply-To: <1189537928.32731.102.camel@localhost>
-References: <20070830185053.22619.96398.sendpatchset@localhost>
-	 <1189527657.5036.35.camel@localhost> <1189537928.32731.102.camel@localhost>
-Content-Type: text/plain
-Date: Tue, 11 Sep 2007 14:45:58 -0400
-Message-Id: <1189536358.5036.80.camel@localhost>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Message-Id: <20070911200015.098843000@chello.nl>
+References: <20070911195350.825778000@chello.nl>
+Date: Tue, 11 Sep 2007 21:54:06 +0200
+From: Peter Zijlstra <a.p.zijlstra@chello.nl>
+Subject: [PATCH 16/23] mm: scalable bdi statistics counters.
+Content-Disposition: inline; filename=bdi_stat.patch
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: linux-mm@kvack.org, akpm@linux-foundation.org, ak@suse.de, mtk-manpages@gmx.net, clameter@sgi.com, solo@google.com, eric.whitney@hp.com
+To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: miklos@szeredi.hu, akpm@linux-foundation.org, neilb@suse.de, dgc@sgi.com, tomoki.sekiyama.qu@hitachi.com, a.p.zijlstra@chello.nl, nikita@clusterfs.com, trond.myklebust@fys.uio.no, yingchao.zhou@gmail.com, richard@rsk.demon.co.uk, torvalds@linux-foundation.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 2007-09-11 at 20:12 +0100, Mel Gorman wrote:
-> On Tue, 2007-09-11 at 12:20 -0400, Lee Schermerhorn wrote:
-> > Andi, Christoph, Mel [added to cc]:
-> > 
-> > Any comments on these patches, posted 30aug?  I've rebased to
-> > 23-rc4-mm1, but before reposting, I wanted to give you a chance to
-> > comment.
-> > 
-> 
-> I hadn't intended to comment but because you asked, I took a look
-> through. It wasn't an in-depth review but nothing jumped out as broken
-> to me and I commented on what I spotted. The last patch to me was the
-> most interesting and justifies the set unless someone can think of a
-> real reason to not extend the get_mempolicy() API to retrieve this
-> information. I made comments on what I saw but as I'm not a frequent
-> user of policies so take the suggestions with a grain of salt.
-> 
-> Unless something jumps out to someone else, I think it'll be ready for
-> wider testing after your next release.
-> 
-> > I'm going to add Mel's "one zonelist" series to my mempolicy tree with
-> > these patches and see how that goes.  I'll slide Mel's patches in below
-> > these, as it looks like they're closer to acceptance into -mm.
-> > 
+Provide scalable per backing_dev_info statistics counters.
 
-Thanks, again, Mel.  As I mentioned in today's "ping", I'm going to try
-to merge this with your patches and wanted to give you a heads up.  The
-patches will collide--in code, as well as comments, I think.
+Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
+---
+ include/linux/backing-dev.h |   85 ++++++++++++++++++++++++++++++++++++++++++--
+ mm/backing-dev.c            |   27 +++++++++++++
+ 2 files changed, 109 insertions(+), 3 deletions(-)
 
-Later,
-Lee
+Index: linux-2.6/include/linux/backing-dev.h
+===================================================================
+--- linux-2.6.orig/include/linux/backing-dev.h
++++ linux-2.6/include/linux/backing-dev.h
+@@ -8,6 +8,8 @@
+ #ifndef _LINUX_BACKING_DEV_H
+ #define _LINUX_BACKING_DEV_H
+ 
++#include <linux/percpu_counter.h>
++#include <linux/log2.h>
+ #include <asm/atomic.h>
+ 
+ struct page;
+@@ -24,6 +26,12 @@ enum bdi_state {
+ 
+ typedef int (congested_fn)(void *, int);
+ 
++enum bdi_stat_item {
++	NR_BDI_STAT_ITEMS
++};
++
++#define BDI_STAT_BATCH (8*(1+ilog2(nr_cpu_ids)))
++
+ struct backing_dev_info {
+ 	unsigned long ra_pages;	/* max readahead in PAGE_CACHE_SIZE units */
+ 	unsigned long state;	/* Always use atomic bitops on this */
+@@ -32,15 +40,86 @@ struct backing_dev_info {
+ 	void *congested_data;	/* Pointer to aux data for congested func */
+ 	void (*unplug_io_fn)(struct backing_dev_info *, struct page *);
+ 	void *unplug_io_data;
++
++	struct percpu_counter bdi_stat[NR_BDI_STAT_ITEMS];
+ };
+ 
+-static inline int bdi_init(struct backing_dev_info *bdi)
++int bdi_init(struct backing_dev_info *bdi);
++void bdi_destroy(struct backing_dev_info *bdi);
++
++static inline void __add_bdi_stat(struct backing_dev_info *bdi,
++		enum bdi_stat_item item, s64 amount)
+ {
+-	return 0;
++	__percpu_counter_add(&bdi->bdi_stat[item], amount, BDI_STAT_BATCH);
+ }
+ 
+-static inline void bdi_destroy(struct backing_dev_info *bdi)
++static inline void __inc_bdi_stat(struct backing_dev_info *bdi,
++		enum bdi_stat_item item)
+ {
++	__add_bdi_stat(bdi, item, 1);
++}
++
++static inline void inc_bdi_stat(struct backing_dev_info *bdi,
++		enum bdi_stat_item item)
++{
++	unsigned long flags;
++
++	local_irq_save(flags);
++	__inc_bdi_stat(bdi, item);
++	local_irq_restore(flags);
++}
++
++static inline void __dec_bdi_stat(struct backing_dev_info *bdi,
++		enum bdi_stat_item item)
++{
++	__add_bdi_stat(bdi, item, -1);
++}
++
++static inline void dec_bdi_stat(struct backing_dev_info *bdi,
++		enum bdi_stat_item item)
++{
++	unsigned long flags;
++
++	local_irq_save(flags);
++	__dec_bdi_stat(bdi, item);
++	local_irq_restore(flags);
++}
++
++static inline s64 bdi_stat(struct backing_dev_info *bdi,
++		enum bdi_stat_item item)
++{
++	return percpu_counter_read_positive(&bdi->bdi_stat[item]);
++}
++
++static inline s64 __bdi_stat_sum(struct backing_dev_info *bdi,
++		enum bdi_stat_item item)
++{
++	return percpu_counter_sum_positive(&bdi->bdi_stat[item]);
++}
++
++static inline s64 bdi_stat_sum(struct backing_dev_info *bdi,
++		enum bdi_stat_item item)
++{
++	s64 sum;
++	unsigned long flags;
++
++	local_irq_save(flags);
++	sum = __bdi_stat_sum(bdi, item);
++	local_irq_restore(flags);
++
++	return sum;
++}
++
++/*
++ * maximal error of a stat counter.
++ */
++static inline unsigned long bdi_stat_error(struct backing_dev_info *bdi)
++{
++#ifdef CONFIG_SMP
++	return nr_cpu_ids * BDI_STAT_BATCH;
++#else
++	return 1;
++#endif
+ }
+ 
+ /*
+Index: linux-2.6/mm/backing-dev.c
+===================================================================
+--- linux-2.6.orig/mm/backing-dev.c
++++ linux-2.6/mm/backing-dev.c
+@@ -5,6 +5,33 @@
+ #include <linux/sched.h>
+ #include <linux/module.h>
+ 
++int bdi_init(struct backing_dev_info *bdi)
++{
++	int i, j;
++	int err;
++
++	for (i = 0; i < NR_BDI_STAT_ITEMS; i++) {
++		err = percpu_counter_init_irq(&bdi->bdi_stat[i], 0);
++		if (err) {
++			for (j = 0; j < i; j++)
++				percpu_counter_destroy(&bdi->bdi_stat[i]);
++			break;
++		}
++	}
++
++	return err;
++}
++EXPORT_SYMBOL(bdi_init);
++
++void bdi_destroy(struct backing_dev_info *bdi)
++{
++	int i;
++
++	for (i = 0; i < NR_BDI_STAT_ITEMS; i++)
++		percpu_counter_destroy(&bdi->bdi_stat[i]);
++}
++EXPORT_SYMBOL(bdi_destroy);
++
+ static wait_queue_head_t congestion_wqh[2] = {
+ 		__WAIT_QUEUE_HEAD_INITIALIZER(congestion_wqh[0]),
+ 		__WAIT_QUEUE_HEAD_INITIALIZER(congestion_wqh[1])
+
+--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
