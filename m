@@ -1,199 +1,572 @@
-Message-Id: <20070911200011.944107000@chello.nl>
+Message-Id: <20070911200015.607608000@chello.nl>
 References: <20070911195350.825778000@chello.nl>
-Date: Tue, 11 Sep 2007 21:53:52 +0200
+Date: Tue, 11 Sep 2007 21:54:10 +0200
 From: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Subject: [PATCH 02/23] lib: percpu_counter_add
-Content-Disposition: inline; filename=percpu_counter_add.patch
+Subject: [PATCH 20/23] lib: floating proportions
+Content-Disposition: inline; filename=proportions.patch
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 Cc: miklos@szeredi.hu, akpm@linux-foundation.org, neilb@suse.de, dgc@sgi.com, tomoki.sekiyama.qu@hitachi.com, a.p.zijlstra@chello.nl, nikita@clusterfs.com, trond.myklebust@fys.uio.no, yingchao.zhou@gmail.com, richard@rsk.demon.co.uk, torvalds@linux-foundation.org
 List-ID: <linux-mm.kvack.org>
 
-Because its a better name, _mod implies modulo.
+Given a set of objects, floating proportions aims to efficiently give the
+proportional 'activity' of a single item as compared to the whole set. Where
+'activity' is a measure of a temporal property of the items.
+
+It is efficient in that it need not inspect any other items of the set
+in order to provide the answer. It is not even needed to know how many
+other items there are.
+
+It has one parameter, and that is the period of 'time' over which the 
+'activity' is measured.
 
 Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
 ---
- fs/ext2/balloc.c               |    4 ++--
- fs/ext2/ialloc.c               |    2 +-
- fs/ext3/balloc.c               |    4 ++--
- fs/ext3/resize.c               |    4 ++--
- fs/ext4/balloc.c               |    4 ++--
- fs/ext4/resize.c               |    4 ++--
- include/linux/percpu_counter.h |    8 ++++----
- lib/percpu_counter.c           |    4 ++--
- 8 files changed, 17 insertions(+), 17 deletions(-)
 
-Index: linux-2.6/fs/ext2/balloc.c
+Changes since -v8:
+
+ - merged _single into this patch
+ - major cleanup
+  - removed the overloading of the prop_local methods
+  - removed the prop_adjust_shift macro [akpm]
+  - simplified the _single code
+ - limited the shift argument
+ - provided prop_inc_{percpu,single}
+ - static initializer for prop_local_single
+
+ include/linux/proportions.h |  119 +++++++++++++
+ lib/Makefile                |    3 
+ lib/proportions.c           |  384 ++++++++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 505 insertions(+), 1 deletion(-)
+
+Index: linux-2.6/lib/proportions.c
 ===================================================================
---- linux-2.6.orig/fs/ext2/balloc.c
-+++ linux-2.6/fs/ext2/balloc.c
-@@ -138,7 +138,7 @@ static void release_blocks(struct super_
- 	if (count) {
- 		struct ext2_sb_info *sbi = EXT2_SB(sb);
- 
--		percpu_counter_mod(&sbi->s_freeblocks_counter, count);
-+		percpu_counter_add(&sbi->s_freeblocks_counter, count);
- 		sb->s_dirt = 1;
- 	}
- }
-@@ -1367,7 +1367,7 @@ allocated:
- 	}
- 
- 	group_adjust_blocks(sb, group_no, gdp, gdp_bh, -num);
--	percpu_counter_mod(&sbi->s_freeblocks_counter, -num);
-+	percpu_counter_add(&sbi->s_freeblocks_counter, -num);
- 
- 	mark_buffer_dirty(bitmap_bh);
- 	if (sb->s_flags & MS_SYNCHRONOUS)
-Index: linux-2.6/fs/ext2/ialloc.c
+--- /dev/null
++++ linux-2.6/lib/proportions.c
+@@ -0,0 +1,384 @@
++/*
++ * Floating proportions
++ *
++ *  Copyright (C) 2007 Red Hat, Inc., Peter Zijlstra <pzijlstr@redhat.com>
++ *
++ * Description:
++ *
++ * The floating proportion is a time derivative with an exponentially decaying
++ * history:
++ *
++ *   p_{j} = \Sum_{i=0} (dx_{j}/dt_{-i}) / 2^(1+i)
++ *
++ * Where j is an element from {prop_local}, x_{j} is j's number of events,
++ * and i the time period over which the differential is taken. So d/dt_{-i} is
++ * the differential over the i-th last period.
++ *
++ * The decaying history gives smooth transitions. The time differential carries
++ * the notion of speed.
++ *
++ * The denominator is 2^(1+i) because we want the series to be normalised, ie.
++ *
++ *   \Sum_{i=0} 1/2^(1+i) = 1
++ *
++ * Further more, if we measure time (t) in the same events as x; so that:
++ *
++ *   t = \Sum_{j} x_{j}
++ *
++ * we get that:
++ *
++ *   \Sum_{j} p_{j} = 1
++ *
++ * Writing this in an iterative fashion we get (dropping the 'd's):
++ *
++ *   if (++x_{j}, ++t > period)
++ *     t /= 2;
++ *     for_each (j)
++ *       x_{j} /= 2;
++ *
++ * so that:
++ *
++ *   p_{j} = x_{j} / t;
++ *
++ * We optimize away the '/= 2' for the global time delta by noting that:
++ *
++ *   if (++t > period) t /= 2:
++ *
++ * Can be approximated by:
++ *
++ *   period/2 + (++t % period/2)
++ *
++ * [ Furthermore, when we choose period to be 2^n it can be written in terms of
++ *   binary operations and wraparound artefacts disappear. ]
++ *
++ * Also note that this yields a natural counter of the elapsed periods:
++ *
++ *   c = t / (period/2)
++ *
++ * [ Its monotonic increasing property can be applied to mitigate the wrap-
++ *   around issue. ]
++ *
++ * This allows us to do away with the loop over all prop_locals on each period
++ * expiration. By remembering the period count under which it was last accessed
++ * as c_{j}, we can obtain the number of 'missed' cycles from:
++ *
++ *   c - c_{j}
++ *
++ * We can then lazily catch up to the global period count every time we are
++ * going to use x_{j}, by doing:
++ *
++ *   x_{j} /= 2^(c - c_{j}), c_{j} = c
++ */
++
++#include <linux/proportions.h>
++#include <linux/rcupdate.h>
++
++/*
++ * Limit the time part in order to ensure there are some bits left for the
++ * cycle counter.
++ */
++#define PROP_MAX_SHIFT (3*BITS_PER_LONG/4)
++
++int prop_descriptor_init(struct prop_descriptor *pd, int shift)
++{
++	int err;
++
++	if (shift > PROP_MAX_SHIFT)
++		shift = PROP_MAX_SHIFT;
++
++	pd->index = 0;
++	pd->pg[0].shift = shift;
++	mutex_init(&pd->mutex);
++	err = percpu_counter_init_irq(&pd->pg[0].events, 0);
++	if (err)
++		goto out;
++
++	err = percpu_counter_init_irq(&pd->pg[1].events, 0);
++	if (err)
++		percpu_counter_destroy(&pd->pg[0].events);
++
++out:
++	return err;
++}
++
++/*
++ * We have two copies, and flip between them to make it seem like an atomic
++ * update. The update is not really atomic wrt the events counter, but
++ * it is internally consistent with the bit layout depending on shift.
++ *
++ * We copy the events count, move the bits around and flip the index.
++ */
++void prop_change_shift(struct prop_descriptor *pd, int shift)
++{
++	int index;
++	int offset;
++	u64 events;
++	unsigned long flags;
++
++	if (shift > PROP_MAX_SHIFT)
++		shift = PROP_MAX_SHIFT;
++
++	mutex_lock(&pd->mutex);
++
++	index = pd->index ^ 1;
++	offset = pd->pg[pd->index].shift - shift;
++	if (!offset)
++		goto out;
++
++	pd->pg[index].shift = shift;
++
++	local_irq_save(flags);
++	events = percpu_counter_sum(&pd->pg[pd->index].events);
++	if (offset < 0)
++		events <<= -offset;
++	else
++		events >>= offset;
++	percpu_counter_set(&pd->pg[index].events, events);
++
++	/*
++	 * ensure the new pg is fully written before the switch
++	 */
++	smp_wmb();
++	pd->index = index;
++	local_irq_restore(flags);
++
++	synchronize_rcu();
++
++out:
++	mutex_unlock(&pd->mutex);
++}
++
++/*
++ * wrap the access to the data in an rcu_read_lock() section;
++ * this is used to track the active references.
++ */
++static struct prop_global *prop_get_global(struct prop_descriptor *pd)
++{
++	int index;
++
++	rcu_read_lock();
++	index = pd->index;
++	/*
++	 * match the wmb from vcd_flip()
++	 */
++	smp_rmb();
++	return &pd->pg[index];
++}
++
++static void prop_put_global(struct prop_descriptor *pd, struct prop_global *pg)
++{
++	rcu_read_unlock();
++}
++
++static void
++prop_adjust_shift(int *pl_shift, unsigned long *pl_period, int new_shift)
++{
++	int offset = *pl_shift - new_shift;
++
++	if (!offset)
++		return;
++
++	if (offset < 0)
++		*pl_period <<= -offset;
++	else
++		*pl_period >>= offset;
++
++	*pl_shift = new_shift;
++}
++
++/*
++ * PERCPU
++ */
++
++int prop_local_init_percpu(struct prop_local_percpu *pl)
++{
++	spin_lock_init(&pl->lock);
++	pl->shift = 0;
++	pl->period = 0;
++	return percpu_counter_init_irq(&pl->events, 0);
++}
++
++void prop_local_destroy_percpu(struct prop_local_percpu *pl)
++{
++	percpu_counter_destroy(&pl->events);
++}
++
++/*
++ * Catch up with missed period expirations.
++ *
++ *   until (c_{j} == c)
++ *     x_{j} -= x_{j}/2;
++ *     c_{j}++;
++ */
++static
++void prop_norm_percpu(struct prop_global *pg, struct prop_local_percpu *pl)
++{
++	unsigned long period = 1UL << (pg->shift - 1);
++	unsigned long period_mask = ~(period - 1);
++	unsigned long global_period;
++	unsigned long flags;
++
++	global_period = percpu_counter_read(&pg->events);
++	global_period &= period_mask;
++
++	/*
++	 * Fast path - check if the local and global period count still match
++	 * outside of the lock.
++	 */
++	if (pl->period == global_period)
++		return;
++
++	spin_lock_irqsave(&pl->lock, flags);
++	prop_adjust_shift(&pl->shift, &pl->period, pg->shift);
++	/*
++	 * For each missed period, we half the local counter.
++	 * basically:
++	 *   pl->events >> (global_period - pl->period);
++	 *
++	 * but since the distributed nature of percpu counters make division
++	 * rather hard, use a regular subtraction loop. This is safe, because
++	 * the events will only every be incremented, hence the subtraction
++	 * can never result in a negative number.
++	 */
++	while (pl->period != global_period) {
++		unsigned long val = percpu_counter_read(&pl->events);
++		unsigned long half = (val + 1) >> 1;
++
++		/*
++		 * Half of zero won't be much less, break out.
++		 * This limits the loop to shift iterations, even
++		 * if we missed a million.
++		 */
++		if (!val)
++			break;
++
++		percpu_counter_add(&pl->events, -half);
++		pl->period += period;
++	}
++	pl->period = global_period;
++	spin_unlock_irqrestore(&pl->lock, flags);
++}
++
++/*
++ *   ++x_{j}, ++t
++ */
++void __prop_inc_percpu(struct prop_descriptor *pd, struct prop_local_percpu *pl)
++{
++	struct prop_global *pg = prop_get_global(pd);
++
++	prop_norm_percpu(pg, pl);
++	percpu_counter_add(&pl->events, 1);
++	percpu_counter_add(&pg->events, 1);
++	prop_put_global(pd, pg);
++}
++
++/*
++ * Obtain a fraction of this proportion
++ *
++ *   p_{j} = x_{j} / (period/2 + t % period/2)
++ */
++void prop_fraction_percpu(struct prop_descriptor *pd,
++		struct prop_local_percpu *pl,
++		long *numerator, long *denominator)
++{
++	struct prop_global *pg = prop_get_global(pd);
++	unsigned long period_2 = 1UL << (pg->shift - 1);
++	unsigned long counter_mask = period_2 - 1;
++	unsigned long global_count;
++
++	prop_norm_percpu(pg, pl);
++	*numerator = percpu_counter_read_positive(&pl->events);
++
++	global_count = percpu_counter_read(&pg->events);
++	*denominator = period_2 + (global_count & counter_mask);
++
++	prop_put_global(pd, pg);
++}
++
++/*
++ * SINGLE
++ */
++
++int prop_local_init_single(struct prop_local_single *pl)
++{
++	spin_lock_init(&pl->lock);
++	pl->shift = 0;
++	pl->period = 0;
++	pl->events = 0;
++	return 0;
++}
++
++void prop_local_destroy_single(struct prop_local_single *pl)
++{
++}
++
++/*
++ * Catch up with missed period expirations.
++ */
++static
++void prop_norm_single(struct prop_global *pg, struct prop_local_single *pl)
++{
++	unsigned long period = 1UL << (pg->shift - 1);
++	unsigned long period_mask = ~(period - 1);
++	unsigned long global_period;
++	unsigned long flags;
++
++	global_period = percpu_counter_read(&pg->events);
++	global_period &= period_mask;
++
++	/*
++	 * Fast path - check if the local and global period count still match
++	 * outside of the lock.
++	 */
++	if (pl->period == global_period)
++		return;
++
++	spin_lock_irqsave(&pl->lock, flags);
++	prop_adjust_shift(&pl->shift, &pl->period, pg->shift);
++	/*
++	 * For each missed period, we half the local counter.
++	 */
++	period = (global_period - pl->period) >> (pg->shift - 1);
++	if (likely(period < BITS_PER_LONG))
++		pl->events >>= period;
++	else
++		pl->events = 0;
++	pl->period = global_period;
++	spin_unlock_irqrestore(&pl->lock, flags);
++}
++
++/*
++ *   ++x_{j}, ++t
++ */
++void __prop_inc_single(struct prop_descriptor *pd, struct prop_local_single *pl)
++{
++	struct prop_global *pg = prop_get_global(pd);
++
++	prop_norm_single(pg, pl);
++	pl->events++;
++	percpu_counter_add(&pg->events, 1);
++	prop_put_global(pd, pg);
++}
++
++/*
++ * Obtain a fraction of this proportion
++ *
++ *   p_{j} = x_{j} / (period/2 + t % period/2)
++ */
++void prop_fraction_single(struct prop_descriptor *pd,
++	       	struct prop_local_single *pl,
++		long *numerator, long *denominator)
++{
++	struct prop_global *pg = prop_get_global(pd);
++	unsigned long period_2 = 1UL << (pg->shift - 1);
++	unsigned long counter_mask = period_2 - 1;
++	unsigned long global_count;
++
++	prop_norm_single(pg, pl);
++	*numerator = pl->events;
++
++	global_count = percpu_counter_read(&pg->events);
++	*denominator = period_2 + (global_count & counter_mask);
++
++	prop_put_global(pd, pg);
++}
+Index: linux-2.6/include/linux/proportions.h
 ===================================================================
---- linux-2.6.orig/fs/ext2/ialloc.c
-+++ linux-2.6/fs/ext2/ialloc.c
-@@ -534,7 +534,7 @@ got:
- 		goto fail;
- 	}
- 
--	percpu_counter_mod(&sbi->s_freeinodes_counter, -1);
-+	percpu_counter_add(&sbi->s_freeinodes_counter, -1);
- 	if (S_ISDIR(mode))
- 		percpu_counter_inc(&sbi->s_dirs_counter);
- 
-Index: linux-2.6/fs/ext3/balloc.c
+--- /dev/null
++++ linux-2.6/include/linux/proportions.h
+@@ -0,0 +1,119 @@
++/*
++ * FLoating proportions
++ *
++ *  Copyright (C) 2007 Red Hat, Inc., Peter Zijlstra <pzijlstr@redhat.com>
++ *
++ * This file contains the public data structure and API definitions.
++ */
++
++#ifndef _LINUX_PROPORTIONS_H
++#define _LINUX_PROPORTIONS_H
++
++#include <linux/percpu_counter.h>
++#include <linux/spinlock.h>
++#include <linux/mutex.h>
++
++struct prop_global {
++	/*
++	 * The period over which we differentiate
++	 *
++	 *   period = 2^shift
++	 */
++	int shift;
++	/*
++	 * The total event counter aka 'time'.
++	 *
++	 * Treated as an unsigned long; the lower 'shift - 1' bits are the
++	 * counter bits, the remaining upper bits the period counter.
++	 */
++	struct percpu_counter events;
++};
++
++/*
++ * global proportion descriptor
++ *
++ * this is needed to consitently flip prop_global structures.
++ */
++struct prop_descriptor {
++	int index;
++	struct prop_global pg[2];
++	struct mutex mutex;		/* serialize the prop_global switch */
++};
++
++int prop_descriptor_init(struct prop_descriptor *pd, int shift);
++void prop_change_shift(struct prop_descriptor *pd, int new_shift);
++
++/*
++ * ----- PERCPU ------
++ */
++
++struct prop_local_percpu {
++	/*
++	 * the local events counter
++	 */
++	struct percpu_counter events;
++
++	/*
++	 * snapshot of the last seen global state
++	 */
++	int shift;
++	unsigned long period;
++	spinlock_t lock;		/* protect the snapshot state */
++};
++
++int prop_local_init_percpu(struct prop_local_percpu *pl);
++void prop_local_destroy_percpu(struct prop_local_percpu *pl);
++void __prop_inc_percpu(struct prop_descriptor *pd, struct prop_local_percpu *pl);
++void prop_fraction_percpu(struct prop_descriptor *pd, struct prop_local_percpu *pl,
++		long *numerator, long *denominator);
++
++static inline
++void prop_inc_percpu(struct prop_descriptor *pd, struct prop_local_percpu *pl)
++{
++	unsigned long flags;
++
++	local_irq_save(flags);
++	__prop_inc_percpu(pd, pl);
++	local_irq_restore(flags);
++}
++
++/*
++ * ----- SINGLE ------
++ */
++
++struct prop_local_single {
++	/*
++	 * the local events counter
++	 */
++	unsigned long events;
++
++	/*
++	 * snapshot of the last seen global state
++	 * and a lock protecting this state
++	 */
++	int shift;
++	unsigned long period;
++	spinlock_t lock;		/* protect the snapshot state */
++};
++
++#define INIT_PROP_LOCAL_SINGLE(name)			\
++{	.lock = __SPIN_LOCK_UNLOCKED(name.lock),	\
++}
++
++int prop_local_init_single(struct prop_local_single *pl);
++void prop_local_destroy_single(struct prop_local_single *pl);
++void __prop_inc_single(struct prop_descriptor *pd, struct prop_local_single *pl);
++void prop_fraction_single(struct prop_descriptor *pd, struct prop_local_single *pl,
++		long *numerator, long *denominator);
++
++static inline
++void prop_inc_single(struct prop_descriptor *pd, struct prop_local_single *pl)
++{
++	unsigned long flags;
++
++	local_irq_save(flags);
++	__prop_inc_single(pd, pl);
++	local_irq_restore(flags);
++}
++
++#endif /* _LINUX_PROPORTIONS_H */
+Index: linux-2.6/lib/Makefile
 ===================================================================
---- linux-2.6.orig/fs/ext3/balloc.c
-+++ linux-2.6/fs/ext3/balloc.c
-@@ -609,7 +609,7 @@ do_more:
- 		cpu_to_le16(le16_to_cpu(desc->bg_free_blocks_count) +
- 			group_freed);
- 	spin_unlock(sb_bgl_lock(sbi, block_group));
--	percpu_counter_mod(&sbi->s_freeblocks_counter, count);
-+	percpu_counter_add(&sbi->s_freeblocks_counter, count);
+--- linux-2.6.orig/lib/Makefile
++++ linux-2.6/lib/Makefile
+@@ -5,7 +5,8 @@
+ lib-y := ctype.o string.o vsprintf.o kasprintf.o cmdline.o \
+ 	 rbtree.o radix-tree.o dump_stack.o \
+ 	 idr.o int_sqrt.o bitmap.o extable.o prio_tree.o \
+-	 sha1.o irq_regs.o reciprocal_div.o argv_split.o
++	 sha1.o irq_regs.o reciprocal_div.o argv_split.o \
++	 proportions.o
  
- 	/* We dirtied the bitmap block */
- 	BUFFER_TRACE(bitmap_bh, "dirtied bitmap block");
-@@ -1672,7 +1672,7 @@ allocated:
- 	gdp->bg_free_blocks_count =
- 			cpu_to_le16(le16_to_cpu(gdp->bg_free_blocks_count)-num);
- 	spin_unlock(sb_bgl_lock(sbi, group_no));
--	percpu_counter_mod(&sbi->s_freeblocks_counter, -num);
-+	percpu_counter_add(&sbi->s_freeblocks_counter, -num);
- 
- 	BUFFER_TRACE(gdp_bh, "journal_dirty_metadata for group descriptor");
- 	err = ext3_journal_dirty_metadata(handle, gdp_bh);
-Index: linux-2.6/fs/ext3/resize.c
-===================================================================
---- linux-2.6.orig/fs/ext3/resize.c
-+++ linux-2.6/fs/ext3/resize.c
-@@ -884,9 +884,9 @@ int ext3_group_add(struct super_block *s
- 		input->reserved_blocks);
- 
- 	/* Update the free space counts */
--	percpu_counter_mod(&sbi->s_freeblocks_counter,
-+	percpu_counter_add(&sbi->s_freeblocks_counter,
- 			   input->free_blocks_count);
--	percpu_counter_mod(&sbi->s_freeinodes_counter,
-+	percpu_counter_add(&sbi->s_freeinodes_counter,
- 			   EXT3_INODES_PER_GROUP(sb));
- 
- 	ext3_journal_dirty_metadata(handle, sbi->s_sbh);
-Index: linux-2.6/fs/ext4/balloc.c
-===================================================================
---- linux-2.6.orig/fs/ext4/balloc.c
-+++ linux-2.6/fs/ext4/balloc.c
-@@ -628,7 +628,7 @@ do_more:
- 		cpu_to_le16(le16_to_cpu(desc->bg_free_blocks_count) +
- 			group_freed);
- 	spin_unlock(sb_bgl_lock(sbi, block_group));
--	percpu_counter_mod(&sbi->s_freeblocks_counter, count);
-+	percpu_counter_add(&sbi->s_freeblocks_counter, count);
- 
- 	/* We dirtied the bitmap block */
- 	BUFFER_TRACE(bitmap_bh, "dirtied bitmap block");
-@@ -1697,7 +1697,7 @@ allocated:
- 	gdp->bg_free_blocks_count =
- 			cpu_to_le16(le16_to_cpu(gdp->bg_free_blocks_count)-num);
- 	spin_unlock(sb_bgl_lock(sbi, group_no));
--	percpu_counter_mod(&sbi->s_freeblocks_counter, -num);
-+	percpu_counter_add(&sbi->s_freeblocks_counter, -num);
- 
- 	BUFFER_TRACE(gdp_bh, "journal_dirty_metadata for group descriptor");
- 	err = ext4_journal_dirty_metadata(handle, gdp_bh);
-Index: linux-2.6/fs/ext4/resize.c
-===================================================================
---- linux-2.6.orig/fs/ext4/resize.c
-+++ linux-2.6/fs/ext4/resize.c
-@@ -893,9 +893,9 @@ int ext4_group_add(struct super_block *s
- 		input->reserved_blocks);
- 
- 	/* Update the free space counts */
--	percpu_counter_mod(&sbi->s_freeblocks_counter,
-+	percpu_counter_add(&sbi->s_freeblocks_counter,
- 			   input->free_blocks_count);
--	percpu_counter_mod(&sbi->s_freeinodes_counter,
-+	percpu_counter_add(&sbi->s_freeinodes_counter,
- 			   EXT4_INODES_PER_GROUP(sb));
- 
- 	ext4_journal_dirty_metadata(handle, sbi->s_sbh);
-Index: linux-2.6/include/linux/percpu_counter.h
-===================================================================
---- linux-2.6.orig/include/linux/percpu_counter.h
-+++ linux-2.6/include/linux/percpu_counter.h
-@@ -32,7 +32,7 @@ struct percpu_counter {
- 
- void percpu_counter_init(struct percpu_counter *fbc, s64 amount);
- void percpu_counter_destroy(struct percpu_counter *fbc);
--void percpu_counter_mod(struct percpu_counter *fbc, s32 amount);
-+void percpu_counter_add(struct percpu_counter *fbc, s32 amount);
- s64 percpu_counter_sum(struct percpu_counter *fbc);
- 
- static inline s64 percpu_counter_read(struct percpu_counter *fbc)
-@@ -71,7 +71,7 @@ static inline void percpu_counter_destro
- }
- 
- static inline void
--percpu_counter_mod(struct percpu_counter *fbc, s32 amount)
-+percpu_counter_add(struct percpu_counter *fbc, s32 amount)
- {
- 	preempt_disable();
- 	fbc->count += amount;
-@@ -97,12 +97,12 @@ static inline s64 percpu_counter_sum(str
- 
- static inline void percpu_counter_inc(struct percpu_counter *fbc)
- {
--	percpu_counter_mod(fbc, 1);
-+	percpu_counter_add(fbc, 1);
- }
- 
- static inline void percpu_counter_dec(struct percpu_counter *fbc)
- {
--	percpu_counter_mod(fbc, -1);
-+	percpu_counter_add(fbc, -1);
- }
- 
- #endif /* _LINUX_PERCPU_COUNTER_H */
-Index: linux-2.6/lib/percpu_counter.c
-===================================================================
---- linux-2.6.orig/lib/percpu_counter.c
-+++ linux-2.6/lib/percpu_counter.c
-@@ -14,7 +14,7 @@ static LIST_HEAD(percpu_counters);
- static DEFINE_MUTEX(percpu_counters_lock);
- #endif
- 
--void percpu_counter_mod(struct percpu_counter *fbc, s32 amount)
-+void percpu_counter_add(struct percpu_counter *fbc, s32 amount)
- {
- 	long count;
- 	s32 *pcount;
-@@ -32,7 +32,7 @@ void percpu_counter_mod(struct percpu_co
- 	}
- 	put_cpu();
- }
--EXPORT_SYMBOL(percpu_counter_mod);
-+EXPORT_SYMBOL(percpu_counter_add);
- 
- /*
-  * Add up all the per-cpu counts, return the result.  This is a more accurate
+ lib-$(CONFIG_MMU) += ioremap.o pagewalk.o
+ lib-$(CONFIG_SMP) += cpumask.o
 
 --
 
