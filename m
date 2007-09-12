@@ -1,89 +1,140 @@
-Message-Id: <20070912015644.927677070@sgi.com>
-Date: Tue, 11 Sep 2007 18:56:44 -0700
+Message-Id: <20070912015646.663194236@sgi.com>
+References: <20070912015644.927677070@sgi.com>
+Date: Tue, 11 Sep 2007 18:56:50 -0700
 From: travis@sgi.com
-Subject: [PATCH 00/10] x86: Reduce Memory Usage and Inter-Node message traffic (v3)
+Subject: [PATCH 06/10] x86: Convert cpu_llc_id to be a per cpu variable (v3)
+Content-Disposition: inline; filename=convert-cpu_llc_id-to-per_cpu_data
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: Andi Kleen <ak@suse.de>, Christoph Lameter <clameter@sgi.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linuxppc-dev@ozlabs.org, sparclinux@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-Note:
+Convert cpu_llc_id from a static array sized by NR_CPUS to a
+per_cpu variable.  This saves sizeof(cpu_llc_id) * NR unused
+cpus.  Access is mostly from startup and CPU HOTPLUG functions.
 
-This patch consolidates all the previous patches regarding
-the conversion of static arrays sized by NR_CPUS into per_cpu
-data arrays and is referenced against 2.6.23-rc6 .
+Note there's an addtional change of the type of cpu_llc_id
+from int to u8 for ARCH i386 to correspond with the same
+type in ARCH x86_64.
 
+Signed-off-by: Mike Travis <travis@sgi.com>
+---
+ arch/i386/kernel/cpu/intel_cacheinfo.c |    4 ++--
+ arch/i386/kernel/smpboot.c             |    6 +++---
+ arch/x86_64/kernel/smpboot.c           |    6 +++---
+ include/asm-i386/processor.h           |    6 +++++-
+ include/asm-x86_64/smp.h               |    9 ++++-----
+ 5 files changed, 17 insertions(+), 14 deletions(-)
 
-v1 Intro:
-
-In x86_64 and i386 architectures most arrays that are sized
-using NR_CPUS lay in local memory on node 0.  Not only will most
-(99%?) of the systems not use all the slots in these arrays,
-particularly when NR_CPUS is increased to accommodate future
-very high cpu count systems, but a number of cache lines are
-passed unnecessarily on the system bus when these arrays are
-referenced by cpus on other nodes.
-
-Typically, the values in these arrays are referenced by the cpu
-accessing it's own values, though when passing IPI interrupts,
-the cpu does access the data relevant to the targeted cpu/node.
-Of course, if the referencing cpu is not on node 0, then the
-reference will still require cross node exchanges of cache
-lines.  A common use of this is for an interrupt service
-routine to pass the interrupt to other cpus local to that node.
-
-Ideally, all the elements in these arrays should be moved to the
-per_cpu data area.  In some cases (such as x86_cpu_to_apicid)
-the array is referenced before the per_cpu data areas are setup.
-In this case, a static array is declared in the __initdata
-area and initialized by the booting cpu (BSP).  The values are
-then moved to the per_cpu area after it is initialized and the
-original static array is freed with the rest of the __initdata.
-This patch is referenced against 2.6.23-rc6.
---
-
-Changes for version v2:
-
-> > Note the addtional change of the cpu_llc_id type from u8
-> > to int for ARCH x86_64 to correspond with ARCH i386.
-
-> At least currently it cannot be more than 8 bit. So why
-> waste memory? It would be better to change i386
-
-Done.  (x86_64 type => u8).
-
-> > Fix four instances where cpu_to_node is referenced
-> > > by array instead of via the cpu_to_node macro.  This
-> > > is preparation to moving it to the per_cpu data area.
-
-> Shouldn't this patch be logically before the per cpu 
-> conversion (which is 3). This way the result would
-> be git bisectable.
-
-Done.  (Moved to PATCH 1).
-
-> >     processor_core.c currently tries to determine the apicid by special casing
-> > >     for IA64 and x86. The desired information is readily available via
-> > > 
-> > > 	    cpu_physical_id()
-> > > 
-> > >     on IA64, i386 and x86_64.
-> 
-> Have you tried this with a !CONFIG_SMP build? The drivers/dma code was doing
-> the same and running into problems because it wasn't defined there.
-
-Fixed. (New export in PATCH 1).
---
-
-Changes for version v3:
-
-cpu_sibling_map has been converted to a per_cpu data array to fix
-build errors on ia64, ppc64 and sparc64 to accomodate references in
-block/blktrace.c and kernel/sched.c when CONFIG_SCHED_SMT is defined.
-
-Warning: ppc64 and sparc64 have not yet been built nor tested.
---
+--- a/arch/i386/kernel/cpu/intel_cacheinfo.c
++++ b/arch/i386/kernel/cpu/intel_cacheinfo.c
+@@ -417,14 +417,14 @@
+ 	if (new_l2) {
+ 		l2 = new_l2;
+ #ifdef CONFIG_X86_HT
+-		cpu_llc_id[cpu] = l2_id;
++		per_cpu(cpu_llc_id, cpu) = l2_id;
+ #endif
+ 	}
+ 
+ 	if (new_l3) {
+ 		l3 = new_l3;
+ #ifdef CONFIG_X86_HT
+-		cpu_llc_id[cpu] = l3_id;
++		per_cpu(cpu_llc_id, cpu) = l3_id;
+ #endif
+ 	}
+ 
+--- a/arch/i386/kernel/smpboot.c
++++ b/arch/i386/kernel/smpboot.c
+@@ -67,7 +67,7 @@
+ EXPORT_SYMBOL(smp_num_siblings);
+ 
+ /* Last level cache ID of each logical CPU */
+-int cpu_llc_id[NR_CPUS] __cpuinitdata = {[0 ... NR_CPUS-1] = BAD_APICID};
++DEFINE_PER_CPU(u8, cpu_llc_id) = BAD_APICID;
+ 
+ /* representing HT siblings of each logical CPU */
+ DEFINE_PER_CPU(cpumask_t, cpu_sibling_map);
+@@ -348,8 +348,8 @@
+ 	}
+ 
+ 	for_each_cpu_mask(i, cpu_sibling_setup_map) {
+-		if (cpu_llc_id[cpu] != BAD_APICID &&
+-		    cpu_llc_id[cpu] == cpu_llc_id[i]) {
++		if (per_cpu(cpu_llc_id, cpu) != BAD_APICID &&
++		    per_cpu(cpu_llc_id, cpu) == per_cpu(cpu_llc_id, i)) {
+ 			cpu_set(i, c[cpu].llc_shared_map);
+ 			cpu_set(cpu, c[i].llc_shared_map);
+ 		}
+--- a/arch/x86_64/kernel/smpboot.c
++++ b/arch/x86_64/kernel/smpboot.c
+@@ -65,7 +65,7 @@
+ EXPORT_SYMBOL(smp_num_siblings);
+ 
+ /* Last level cache ID of each logical CPU */
+-u8 cpu_llc_id[NR_CPUS] __cpuinitdata  = {[0 ... NR_CPUS-1] = BAD_APICID};
++DEFINE_PER_CPU(u8, cpu_llc_id) = BAD_APICID;
+ 
+ /* Bitmask of currently online CPUs */
+ cpumask_t cpu_online_map __read_mostly;
+@@ -285,8 +285,8 @@
+ 	}
+ 
+ 	for_each_cpu_mask(i, cpu_sibling_setup_map) {
+-		if (cpu_llc_id[cpu] != BAD_APICID &&
+-		    cpu_llc_id[cpu] == cpu_llc_id[i]) {
++		if (per_cpu(cpu_llc_id, cpu) != BAD_APICID &&
++		    per_cpu(cpu_llc_id, cpu) == per_cpu(cpu_llc_id, i)) {
+ 			cpu_set(i, c[cpu].llc_shared_map);
+ 			cpu_set(cpu, c[i].llc_shared_map);
+ 		}
+--- a/include/asm-i386/processor.h
++++ b/include/asm-i386/processor.h
+@@ -110,7 +110,11 @@
+ #define current_cpu_data boot_cpu_data
+ #endif
+ 
+-extern	int cpu_llc_id[NR_CPUS];
++/*
++ * the following now lives in the per cpu area:
++ * extern	int cpu_llc_id[NR_CPUS];
++ */
++DECLARE_PER_CPU(u8, cpu_llc_id);
+ extern char ignore_fpu_irq;
+ 
+ void __init cpu_detect(struct cpuinfo_x86 *c);
+--- a/include/asm-x86_64/smp.h
++++ b/include/asm-x86_64/smp.h
+@@ -39,16 +39,14 @@
+ extern void smp_send_reschedule(int cpu);
+ 
+ /*
+- * cpu_sibling_map and cpu_core_map now live
+- * in the per cpu area
+- *
++ * the following now live in the per cpu area:
+  * extern cpumask_t cpu_sibling_map[NR_CPUS];
+  * extern cpumask_t cpu_core_map[NR_CPUS];
++ * extern u8 cpu_llc_id[NR_CPUS];
+  */
+ DECLARE_PER_CPU(cpumask_t, cpu_sibling_map);
+ DECLARE_PER_CPU(cpumask_t, cpu_core_map);
+-
+-extern u8 cpu_llc_id[NR_CPUS];
++DECLARE_PER_CPU(u8, cpu_llc_id);
+ 
+ #define SMP_TRAMPOLINE_BASE 0x6000
+ 
+@@ -120,6 +118,7 @@
+ #ifdef CONFIG_SMP
+ #define cpu_physical_id(cpu)		per_cpu(x86_cpu_to_apicid, cpu)
+ #else
++extern unsigned int boot_cpu_id;
+ #define cpu_physical_id(cpu)		boot_cpu_id
+ #endif /* !CONFIG_SMP */
+ #endif
 
 -- 
 
