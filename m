@@ -1,81 +1,47 @@
-Subject: [PATCH] Re: Kernel Panic - 2.6.23-rc4-mm1 ia64 - was Re: Update:
-	[Automatic] NUMA replicated pagecache ...
+Subject: Re: [PATCH 0/6] Use one zonelist per node instead of multiple
+	zonelists v5 (resend)
 From: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
-In-Reply-To: <20070912154130.GS4835@shadowen.org>
-References: <20070727084252.GA9347@wotan.suse.de>
-	 <1186604723.5055.47.camel@localhost> <1186780099.5246.6.camel@localhost>
-	 <20070813074351.GA15609@wotan.suse.de> <1189543962.5036.97.camel@localhost>
-	 <46E74679.9020805@linux.vnet.ibm.com> <1189604927.5004.12.camel@localhost>
-	 <46E7F2D8.3080003@linux.vnet.ibm.com> <1189609787.5004.33.camel@localhost>
-	 <20070912154130.GS4835@shadowen.org>
+In-Reply-To: <20070911213006.23507.19569.sendpatchset@skynet.skynet.ie>
+References: <20070911213006.23507.19569.sendpatchset@skynet.skynet.ie>
 Content-Type: text/plain
-Date: Wed, 12 Sep 2007 15:46:14 -0400
-Message-Id: <1189626374.5004.61.camel@localhost>
+Date: Wed, 12 Sep 2007 16:27:33 -0400
+Message-Id: <1189628853.5004.66.camel@localhost>
 Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andy Whitcroft <apw@shadowen.org>, balbir@linux.vnet.ibm.com, Andrew Morton <akpm@linux-foundation.org>
-Cc: Nick Piggin <npiggin@suse.de>, Linux Memory Management List <linux-mm@kvack.org>, Joachim Deguara <joachim.deguara@amd.com>, Christoph Lameter <clameter@sgi.com>, Mel Gorman <mel@csn.ul.ie>, Eric Whitney <eric.whitney@hp.com>, linux-kernel <linux-kernel@vger.kernel.org>
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: akpm@linux-foundation.org, ak@suse.de, clameter@sgi.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, balbir@linux.vnet.ibm.com, Eric Whitney <eric.whitney@hp.com>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 2007-09-12 at 16:41 +0100, Andy Whitcroft wrote:
-> On Wed, Sep 12, 2007 at 11:09:47AM -0400, Lee Schermerhorn wrote:
+On Tue, 2007-09-11 at 22:30 +0100, Mel Gorman wrote:
+> (Sorry for the resend, I mucked up the TO: line in the earlier sending)
 > 
-> > > Interesting, I don't see a memory controller function in the stack
-> > > trace, but I'll double check to see if I can find some silly race
-> > > condition in there.
-> > 
-> > right.  I noticed that after I sent the mail.  
-> > 
-> > Also, config available at:
-> > http://free.linux.hp.com/~lts/Temp/config-2.6.23-rc4-mm1-gwydyr-nomemcont
+> This is the latest version of one-zonelist and it should be solid enough
+> for wider testing. To briefly summarise, the patchset replaces multiple
+> zonelists-per-node with one zonelist that is filtered based on nodemask and
+> GFP flags. I've dropped the patch that replaces inline functions with macros
+> from the end as it obscures the code for something that may or may not be a
+> performance benefit on older compilers. If we see performance regressions that
+> might have something to do with it, the patch is trivially to bring forward.
 > 
-> Be interested to know the outcome of any bisect you do.  Given its
-> tripping in reclaim.
+> Andrew, please merge to -mm for wider testing and consideration for merging
+> to mainline. Minimally, it gets rid of the hack in relation to ZONE_MOVABLE
+> and MPOL_BIND.
 
-Problem isolated to memory controller patches.  This patch seems to fix
-this particular problem.  I've only run the test for a few minutes with
-and without memory controller configured, but I did observe reclaim
-kicking in several times.  W/o this patch, system would panic as soon as
-I entered direct/zone reclaim--less than a minute.
 
+Mel:
+
+I'm just getting to this after sorting out an issue with the memory
+controller stuff in 23-rc4-mm1.  I'm building all my kernels with the
+memory controller enabled now, as it hits areas that I'm playing in.  I
+wanted to give you a heads up that vmscan.c doesn't build with
+CONTAINER_MEM_CONT configured with your patches.  I won't get to this
+until tomorrow.  Since you're a few hours ahead of me, you might want to
+take a look.  No worries, if you don't get a chance...
+
+Later,
 Lee
---------------------------------
-
-PATCH 2.6.23-rc4-mm1 Memory Controller:  initialize all scan_controls'
-	isolate_pages member.
-
-We need to initialize all scan_controls' isolate_pages member.
-Otherwise, shrink_active_list() attempts to execute at undefined
-location.
-
-Signed-off-by:  Lee Schermerhorn <lee.schermerhorn@hp.com>
-
- mm/vmscan.c |    2 ++
- 1 file changed, 2 insertions(+)
-
-Index: Linux/mm/vmscan.c
-===================================================================
---- Linux.orig/mm/vmscan.c	2007-09-10 13:22:21.000000000 -0400
-+++ Linux/mm/vmscan.c	2007-09-12 15:30:27.000000000 -0400
-@@ -1758,6 +1758,7 @@ unsigned long shrink_all_memory(unsigned
- 		.swap_cluster_max = nr_pages,
- 		.may_writepage = 1,
- 		.swappiness = vm_swappiness,
-+		.isolate_pages = isolate_pages_global,
- 	};
- 
- 	current->reclaim_state = &reclaim_state;
-@@ -1941,6 +1942,7 @@ static int __zone_reclaim(struct zone *z
- 					SWAP_CLUSTER_MAX),
- 		.gfp_mask = gfp_mask,
- 		.swappiness = vm_swappiness,
-+		.isolate_pages = isolate_pages_global,
- 	};
- 	unsigned long slab_reclaimable;
- 
-
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
