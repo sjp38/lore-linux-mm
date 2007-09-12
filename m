@@ -1,7 +1,7 @@
-Date: Wed, 12 Sep 2007 05:57:23 -0700
+Date: Wed, 12 Sep 2007 05:58:00 -0700
 From: Andrew Morton <akpm@linux-foundation.org>
 Subject: Re: [PATCH 15 of 24] limit reclaim if enough pages have been freed
-Message-Id: <20070912055723.c4f79f9a.akpm@linux-foundation.org>
+Message-Id: <20070912055800.ed2c45ce.akpm@linux-foundation.org>
 In-Reply-To: <94686cfcd27347e83a6a.1187786942@v2.random>
 References: <patchbomb.1187786927@v2.random>
 	<94686cfcd27347e83a6a.1187786942@v2.random>
@@ -39,12 +39,8 @@ On Wed, 22 Aug 2007 14:49:02 +0200 Andrea Arcangeli <andrea@suse.de> wrote:
 >  		}
 >  	}
 
-whoa, that's a huge change to the scanning logic.  Suppose we've decided to
-scan 1,000,000 active pages and 42 inactive pages.  With this change we'll
-bale out after scanning the 42 inactive pages.  The change to the
-inactive/active balancing logic is potentially large.
-
-Will need more than a one-line changelog, that one will ;)
+Also, this has nothing to do with oom-killing, which is the subject of this
+patch series?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
