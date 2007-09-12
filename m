@@ -1,65 +1,56 @@
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Date: Wed, 12 Sep 2007 11:43:22 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: [RFC][PATCH] overwride page->mapping [0/3] intro
+Message-Id: <20070912114322.e4d8a86e.kamezawa.hiroyu@jp.fujitsu.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
-Message-ID: <18151.20636.425784.226044@stoffel.org>
-Date: Tue, 11 Sep 2007 22:36:12 -0400
-From: "John Stoffel" <john@stoffel.org>
-Subject: Re: [PATCH 21/23] mm: per device dirty threshold
-In-Reply-To: <20070911200015.732492000@chello.nl>
-References: <20070911195350.825778000@chello.nl>
-	<20070911200015.732492000@chello.nl>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, miklos@szeredi.hu, akpm@linux-foundation.org, neilb@suse.de, dgc@sgi.com, tomoki.sekiyama.qu@hitachi.com, nikita@clusterfs.com, trond.myklebust@fys.uio.no, yingchao.zhou@gmail.com, richard@rsk.demon.co.uk, torvalds@linux-foundation.org
+To: "linux-mm@kvack.org" <linux-mm@kvack.org>
+Cc: "nickpiggin@yahoo.com.au" <nickpiggin@yahoo.com.au>, Christoph Lameter <clameter@sgi.com>, "Lee.Schermerhorn@hp.com" <Lee.Schermerhorn@hp.com>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, "kamezawa.hiroyu@jp.fujitsu.com" <kamezawa.hiroyu@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-Peter> Scale writeback cache per backing device, proportional to its
-Peter> writeout speed.  By decoupling the BDI dirty thresholds a
-Peter> number of problems we currently have will go away, namely:
+In general, we cannot inclease size of 'struct page'. So, overriding and
+adding prural meanings to page struct's member is done in many situation.
 
-Ah, this clarifies my questions!  Thanks!
+But to do some kind of precise VM mamangement, page struct itself seems to be
+too small. This patchset overrides page->mapping and add on-demand page
+information.
 
-Peter>  - mutual interference starvation (for any number of BDIs);
-Peter>  - deadlocks with stacked BDIs (loop, FUSE and local NFS mounts).
+like this:
 
-Peter> It might be that all dirty pages are for a single BDI while
-Peter> other BDIs are idling. By giving each BDI a 'fair' share of the
-Peter> dirty limit, each one can have dirty pages outstanding and make
-Peter> progress.
+==
+page->mapping points to address_space or anon_vma or mapping_info
 
-Question, can you change (shrink) the limit on a BDI while it has IO
-in flight?  And what will that do to the system?  I.e. if you have one
-device doing IO, so that it has a majority of the dirty limit.  Then
-another device starts IO, and it's a *faster* device, how
-quickly/slowly does the BDI dirty limits change for both the old and
-new device?  
+mapping_info is strucutured as 
 
-Peter> A global threshold also creates a deadlock for stacked BDIs;
-Peter> when A writes to B, and A generates enough dirty pages to get
-Peter> throttled, B will never start writeback until the dirty pages
-Peter> go away. Again, by giving each BDI its own 'independent' dirty
-Peter> limit, this problem is avoided.
+struct mapping_info {
+	union {
+		anon_vma;
+		address_space;
+	};
+	/* Additional Information to this page */
+};
 
-Peter> So the problem is to determine how to distribute the total
-Peter> dirty limit across the BDIs fairly and efficiently. A DBI that
+==
+This works based on "adding page->mapping interface" patch set, I posted.
 
-You mean BDI here, not DBI.  
+My main target is move page_container information to this mapping_info.
+By this, we can avoid increasing size of struct page when container is used.
 
-Peter> has a large dirty limit but does not have any dirty pages
-Peter> outstanding is a waste.
+Maybe other men may have other information they want to remember.
+This patch set implements mlock_counter on mapping_info as *exmaple*.
+(About mlock_counter, overriding page->lru may be able to be used.)
 
-Peter> What is done is to keep a floating proportion between the DBIs
-Peter> based on writeback completions. This way faster/more active
-Peter> devices get a larger share than slower/idle devices.
 
-Does a slower device get a BDI which is calculated to keep it's limit
-under a certain number of seconds of outstanding IO?  This way no
-device can build up more than say 15 seconds of outstanding IO to
-flush at any one time.  
+This approach will consume some amount of memory. But I believe this *additional
+information* can be tunred off easily if the user doesn't want this.
 
-Thanks!
-John
+I'm glad if I can get some comments.
+
+Thanks,
+-Kame
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
