@@ -1,37 +1,38 @@
-Date: Wed, 12 Sep 2007 14:17:32 -0700 (PDT)
-From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [PATCH 4/6] Have zonelist contains structs with both a zone
- pointer and zone_idx
-In-Reply-To: <20070912210605.31625.85794.sendpatchset@skynet.skynet.ie>
-Message-ID: <Pine.LNX.4.64.0709121415350.3130@schroedinger.engr.sgi.com>
-References: <20070912210444.31625.65810.sendpatchset@skynet.skynet.ie>
- <20070912210605.31625.85794.sendpatchset@skynet.skynet.ie>
+Message-ID: <46E85825.4050505@google.com>
+Date: Wed, 12 Sep 2007 14:20:37 -0700
+From: Ethan Solomita <solo@google.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: [PATCH/RFC 4/5] Mem Policy:  cpuset-independent interleave policy
+References: <20070830185053.22619.96398.sendpatchset@localhost> <20070830185122.22619.56636.sendpatchset@localhost>
+In-Reply-To: <20070830185122.22619.56636.sendpatchset@localhost>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: Lee.Schermerhorn@hp.com, kamezawa.hiroyu@jp.fujitsu.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Lee Schermerhorn <lee.schermerhorn@hp.com>
+Cc: linux-mm@kvack.org, akpm@linux-foundation.org, ak@suse.de, mtk-manpages@gmx.net, clameter@sgi.com, eric.whitney@hp.com
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 12 Sep 2007, Mel Gorman wrote:
+the feature set I was interested in. One question regarding:
 
->  /*
-> + * This struct contains information about a zone in a zonelist. It is stored
-> + * here to avoid dereferences into large structures and lookups of tables
-> + */
-> +struct zoneref {
-> +	struct zone *zone;	/* Pointer to actual zone */
-> +	int zone_idx;		/* zone_idx(zoneref->zone) */
-> +};
+Lee Schermerhorn wrote:
+> 
+> However, this will involve testing possibly several words of
+> bitmask in the allocation path.  Instead, I chose to encode the
+> "context-dependent policy" indication in the upper bits of the
+> policy member of the mempolicy structure.  This member must
+> already be tested to determine the policy mode, so no extra
+> memory references should be required.  However, for testing the
+> policy--e.g., in the several switch() and if() statements--the
+> context flag must be masked off using the policy_mode() inline
+> function.  On the upside, this allows additional flags to be so
+> encoded, should that become useful.
 
-
-Well the structure is going to be 12 bytes wide. Since pointers have to be 
-aligned to 8 bytes we will effectively have to use 16 bytes anyways. There 
-is no additional memory use if we would be adding another 4 bytes.
-
-But lets get this merged. We can sort this out later. Too many 
-oscillations already.
+	Instead of creating MPOL_CONTEXT, did you consider instead creating a 
+new MPOL for this, such as MPOL_INTERLEAVE_ALL? If the only intended 
+user of the MPOL_CONTEXT "flag" is just MPOL_INTERLEAVE_ALL, it seems 
+like you'll have simpler code this way.
+	-- Ethan
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
