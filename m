@@ -1,11 +1,10 @@
-Date: Wed, 12 Sep 2007 05:18:58 -0700
+Date: Wed, 12 Sep 2007 05:20:32 -0700
 From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH 07 of 24] balance_pgdat doesn't return the number of
- pages freed
-Message-Id: <20070912051858.76a69996.akpm@linux-foundation.org>
-In-Reply-To: <b66d8470c04ed836787f.1187786934@v2.random>
+Subject: Re: [PATCH 08 of 24] don't depend on PF_EXITING tasks to go away
+Message-Id: <20070912052032.dfbba2e4.akpm@linux-foundation.org>
+In-Reply-To: <ffdc30241856d7155cee.1187786935@v2.random>
 References: <patchbomb.1187786927@v2.random>
-	<b66d8470c04ed836787f.1187786934@v2.random>
+	<ffdc30241856d7155cee.1187786935@v2.random>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
@@ -15,51 +14,64 @@ To: Andrea Arcangeli <andrea@suse.de>
 Cc: linux-mm@kvack.org, David Rientjes <rientjes@google.com>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 22 Aug 2007 14:48:54 +0200 Andrea Arcangeli <andrea@suse.de> wrote:
+On Wed, 22 Aug 2007 14:48:55 +0200 Andrea Arcangeli <andrea@suse.de> wrote:
 
 > # HG changeset patch
 > # User Andrea Arcangeli <andrea@suse.de>
 > # Date 1187778125 -7200
-> # Node ID b66d8470c04ed836787f69c7578d5fea4f18c322
-> # Parent  49e2d90eb0d7b1021b1e1e841bef22fdc647766e
-> balance_pgdat doesn't return the number of pages freed
+> # Node ID ffdc30241856d7155ceedd4132eef684f7cc7059
+> # Parent  b66d8470c04ed836787f69c7578d5fea4f18c322
+> don't depend on PF_EXITING tasks to go away
 > 
-> nr_reclaimed would be the number of pages freed in the last pass.
+> A PF_EXITING task don't have TIF_MEMDIE set so it might get stuck in
+> memory allocations without access to the PF_MEMALLOC pool (said that
+> ideally do_exit would better not require memory allocations, especially
+> not before calling exit_mm). The same way we raise its privilege to
+> TIF_MEMDIE if it's the current task, we should do it even if it's not
+> the current task to speedup oom killing.
 > 
 > Signed-off-by: Andrea Arcangeli <andrea@suse.de>
 > 
-> diff --git a/mm/vmscan.c b/mm/vmscan.c
-> --- a/mm/vmscan.c
-> +++ b/mm/vmscan.c
-> @@ -1198,8 +1198,6 @@ out:
->   * For kswapd, balance_pgdat() will work across all this node's zones until
->   * they are all at pages_high.
->   *
-> - * Returns the number of pages which were actually freed.
-> - *
->   * There is special handling here for zones which are full of pinned pages.
->   * This can happen if the pages are all mlocked, or if they are all used by
->   * device drivers (say, ZONE_DMA).  Or if they are all in use by hugetlb.
-> @@ -1215,7 +1213,7 @@ out:
->   * the page allocator fallback scheme to ensure that aging of pages is balanced
->   * across the zones.
->   */
-> -static unsigned long balance_pgdat(pg_data_t *pgdat, int order)
-> +static void balance_pgdat(pg_data_t *pgdat, int order)
->  {
->  	int all_zones_ok;
->  	int priority;
-> @@ -1366,8 +1364,6 @@ out:
->  
->  		goto loop_again;
->  	}
+> diff --git a/mm/oom_kill.c b/mm/oom_kill.c
+> --- a/mm/oom_kill.c
+> +++ b/mm/oom_kill.c
+> @@ -234,27 +234,13 @@ static struct task_struct *select_bad_pr
+>  		 * Note: this may have a chance of deadlock if it gets
+>  		 * blocked waiting for another task which itself is waiting
+>  		 * for memory. Is there a better alternative?
+> +		 *
+> +		 * Better not to skip PF_EXITING tasks, since they
+> +		 * don't have access to the PF_MEMALLOC pool until
+> +		 * we select them here first.
+>  		 */
+>  		if (test_tsk_thread_flag(p, TIF_MEMDIE))
+>  			return ERR_PTR(-1UL);
 > -
-> -	return nr_reclaimed;
->  }
+> -		/*
+> -		 * This is in the process of releasing memory so wait for it
+> -		 * to finish before killing some other task by mistake.
+> -		 *
+> -		 * However, if p is the current task, we allow the 'kill' to
+> -		 * go ahead if it is exiting: this will simply set TIF_MEMDIE,
+> -		 * which will allow it to gain access to memory reserves in
+> -		 * the process of exiting and releasing its resources.
+> -		 * Otherwise we could get an easy OOM deadlock.
+> -		 */
+> -		if (p->flags & PF_EXITING) {
+> -			if (p != current)
+> -				return ERR_PTR(-1UL);
+> -
+> -			chosen = p;
+> -			*ppoints = ULONG_MAX;
+> -		}
 >  
+>  		if (p->oomkilladj == OOM_DISABLE)
+>  			continue;
+> 
 
-I'll skip this due to its dependency on
-[PATCH 06 of 24] reduce the probability of an OOM livelock
+hm, I'll believe you.
+
+Does this address any problem which was actually observed in real life?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
