@@ -1,55 +1,28 @@
-Date: Wed, 12 Sep 2007 12:08:43 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH 23 of 24] serialize for cpusets
-In-Reply-To: <20070912061003.39506e07.akpm@linux-foundation.org>
-Message-ID: <alpine.DEB.0.9999.0709121207170.16331@chino.kir.corp.google.com>
-References: <patchbomb.1187786927@v2.random> <a3d679df54ebb1f977b9.1187786950@v2.random> <20070912061003.39506e07.akpm@linux-foundation.org>
+Date: Wed, 12 Sep 2007 12:10:12 -0700 (PDT)
+From: Christoph Lameter <clameter@sgi.com>
+Subject: Re: [RFC][PATCH] overwride page->mapping [0/3] intro
+In-Reply-To: <46E7A666.7080409@linux.vnet.ibm.com>
+Message-ID: <Pine.LNX.4.64.0709121207400.1934@schroedinger.engr.sgi.com>
+References: <20070912114322.e4d8a86e.kamezawa.hiroyu@jp.fujitsu.com>
+ <46E7A666.7080409@linux.vnet.ibm.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Andrea Arcangeli <andrea@suse.de>, linux-mm@kvack.org, Christoph Lameter <clameter@sgi.com>, Paul Jackson <pj@sgi.com>
+To: Balbir Singh <balbir@linux.vnet.ibm.com>
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "nickpiggin@yahoo.com.au" <nickpiggin@yahoo.com.au>, "Lee.Schermerhorn@hp.com" <Lee.Schermerhorn@hp.com>, Andrew Morton <akpm@linux-foundation.org>, "Martin J. Bligh" <mbligh@google.com>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 12 Sep 2007, Andrew Morton wrote:
+On Wed, 12 Sep 2007, Balbir Singh wrote:
 
-> > # HG changeset patch
-> > # User David Rientjes <rientjes@google.com>
-> > # Date 1187778125 -7200
-> > # Node ID a3d679df54ebb1f977b97ab6b3e501134bf9e7ef
-> > # Parent  8807a4d14b241b2d1132fde7f83834603b6cf093
-> > serialize for cpusets
-> > 
-> > Adds a last_tif_memdie_jiffies field to struct cpuset to store the
-> > jiffies value at the last OOM kill.  This will detect deadlocks in the
-> > CONSTRAINT_CPUSET case and kill another task if its detected.
-> > 
-> > Adds a CS_OOM bit to struct cpuset's flags field.  This will be tested,
-> > set, and cleared atomically to denote a cpuset that currently has an
-> > attached task exiting as a result of the OOM killer.  We are required to
-> > take p->alloc_lock to dereference p->cpuset so this cannot be implemented
-> > as a simple trylock.
-> > 
-> > As a result, we cannot allow the detachment of a task from a cpuset that
-> > is currently OOM killing one of its tasks.  If we did, we would end up
-> > clearing the CS_OOM bit in the wrong cpuset upon that task's exit.
-> > 
-> > sysctl's panic_on_oom is now only effected in the non-cpuset-constrained
-> > case.
-> > 
-> > Cc: Andrea Arcangeli <andrea@suse.de>
-> > Cc: Christoph Lameter <clameter@sgi.com>
-> > Signed-off-by: David Rientjes <rientjes@google.com>
-> 
-> I understand that SGI's HPC customers care rather a lot about oom handling
-> in cpusets.  It'd be nice if people@sgi could carefully review-and-test
-> changes such as this before we go and break stuff for them, please.
-> 
+> We discussed the struct page size issue at VM summit. If I remember
+> correctly, Linus suggested that we consider using pfn's instead of
+> pointers for pointer members in struct page.
 
-During the initial review of this change, Paul Jackson suggested adding 
-oom_kill_asking_task, which the next patch in this series does, to switch 
-this on and off.
+How would that save any memory? On a system with 16TB memory and 4k page 
+size you have at least 4 billion pfns which is the max that an unsigned 
+int can handle. If the virtual address space is sparse or larger (like on 
+IA64) then you need to use an int with more than 32 bit anyways.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
