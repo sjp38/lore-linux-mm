@@ -1,39 +1,93 @@
-Message-ID: <0bb901c7f566$4d456010$ef545f66@stalmelin>
-Reply-To: "Dorian" <stalmelin@versanet.de>
-From: "Dorian" <stalmelin@versanet.de>
-Subject: Tell me whether you like it
-Date: Wed, 12 Sep 2007 17:56:53 +0100
+From: Nick Piggin <nickpiggin@yahoo.com.au>
+Subject: Re: [PATCH 03 of 24] prevent oom deadlocks during read/write operations
+Date: Wed, 12 Sep 2007 12:18:34 +1000
+References: <patchbomb.1187786927@v2.random> <5566f2af006a171cd47d.1187786930@v2.random> <20070912045659.2cd1ede6.akpm@linux-foundation.org>
+In-Reply-To: <20070912045659.2cd1ede6.akpm@linux-foundation.org>
 MIME-Version: 1.0
 Content-Type: text/plain;
-	charset="us-ascii"
-Content-Transfer-Encoding: 8bit
-Return-Path: <stalmelin@versanet.de>
-To: Kathey Hart <adrian@kvack.org>
-Cc: Nubia <blah@kvack.org>, Doreen Walker <linux-aio@kvack.org>, Hwa <owner-linux-mm@kvack.org>Dung Snyder <linux-mm@kvack.org>, Rivka Reyes <linux-mm-archive@kvack.org>, Alix Garcia <aart@kvack.org>, Jessenia <majordomo@kvack.org>, Jeannie Fisher <linux-ns83820@kvack.org>
+  charset="iso-8859-1"
+Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+Message-Id: <200709121218.34840.nickpiggin@yahoo.com.au>
+Sender: owner-linux-mm@kvack.org
+Return-Path: <owner-linux-mm@kvack.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Andrea Arcangeli <andrea@suse.de>, linux-mm@kvack.org, David Rientjes <rientjes@google.com>
 List-ID: <linux-mm.kvack.org>
 
-When persons purchase their treatment they generally seek the following: 
-  
- Securely 
- High Speed Dependable Distribution 
- High-level Quality 
- Wide choice of Medical Treatments 
- Great Cut Rate  
- Medical Drugs support 
-  
-As the biggest on-line Drug Store in Canada we please all six of these
-significant features. 
+On Wednesday 12 September 2007 21:56, Andrew Morton wrote:
 
-Check us out for big discount: www.msrx.org  
+> I had to rejig this code quite a lot on top of the stuff which is pending
+> in -mm and I might have missed a path.  Nick, can you please review this
+> closely?
 
-Please give us a try.  You will feel great regarding the quality and
-security we give and your manual will also be satisfied as well.
+I think it looks OK. Is -ENOMEM the right thing to return here? I guess
+userspace won't see it if they have a SIGKILL pending? (EINTR or
+something may be more logical, but maybe the call chain can't
+handle it?)
 
+>
+> The patch adds sixty-odd bytes of text to some of the most-used code in the
+> kernel.  Based on the above problem description I'm doubting that this is
+> justified.  Please tell us more?
+>
+> diff -puN
+> mm/filemap.c~oom-handling-prevent-oom-deadlocks-during-read-write-operation
+>s mm/filemap.c ---
+> a/mm/filemap.c~oom-handling-prevent-oom-deadlocks-during-read-write-operati
+>ons +++ a/mm/filemap.c
+> @@ -916,6 +916,15 @@ page_ok:
+>  			goto out;
+>  		}
+>
+> +		if (unlikely(sigismember(&current->pending.signal, SIGKILL))) {
+> +			/*
+> +			 * Must not hang almost forever in D state in presence
+> +			 * of sigkill and lots of ram/swap (think during OOM).
+> +			 */
+> +			page_cache_release(page);
+> +			goto out;
+> +		}
+> +
+>  		/* nr is the maximum number of bytes to copy from this page */
+>  		nr = PAGE_CACHE_SIZE;
+>  		if (index == end_index) {
+> @@ -2050,6 +2059,15 @@ static ssize_t generic_perform_write_2co
+>  			break;
+>  		}
+>
+> +		if (unlikely(sigismember(&current->pending.signal, SIGKILL))) {
+> +			/*
+> +			 * Must not hang almost forever in D state in presence
+> +			 * of sigkill and lots of ram/swap (think during OOM).
+> +			 */
+> +			status = -ENOMEM;
+> +			break;
+> +		}
+> +
+>  		page = __grab_cache_page(mapping, index);
+>  		if (!page) {
+>  			status = -ENOMEM;
+> @@ -2220,6 +2238,15 @@ again:
+>  			break;
+>  		}
+>
+> +		if (unlikely(sigismember(&current->pending.signal, SIGKILL))) {
+> +			/*
+> +			 * Must not hang almost forever in D state in presence
+> +			 * of sigkill and lots of ram/swap (think during OOM).
+> +			 */
+> +			status = -ENOMEM;
+> +			break;
+> +		}
+> +
+>  		status = a_ops->write_begin(file, mapping, pos, bytes, flags,
+>  						&page, &fsdata);
+>  		if (unlikely(status))
+> _
 
-boot race behave Winter was the family time of year. There came days won
-when my mother and father hardly left the house. unusual IT had long excited
-been dark when Arthur rang at the front door of the big spark great house in
-the Via Borra. He rem "Don't food event porter question me--answer me!"
-Montanelli's voice was match almost harsh in its eagerness. "Are you in da 
-Grassini, as speed usual, strained every nerve complain to get the newly
-owe arrived celebrity to attend his house; but Montan
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
