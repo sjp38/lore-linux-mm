@@ -1,57 +1,55 @@
-Date: Wed, 12 Sep 2007 15:06:49 -0700 (PDT)
+Date: Wed, 12 Sep 2007 15:10:16 -0700 (PDT)
 From: Christoph Lameter <clameter@sgi.com>
 Subject: Re: [PATCH/RFC 3/5] Mem Policy:  MPOL_PREFERRED fixups for "local
  allocation"
-In-Reply-To: <20070830185114.22619.61260.sendpatchset@localhost>
-Message-ID: <Pine.LNX.4.64.0709121502420.3835@schroedinger.engr.sgi.com>
+In-Reply-To: <1189535671.5036.71.camel@localhost>
+Message-ID: <Pine.LNX.4.64.0709121507170.3835@schroedinger.engr.sgi.com>
 References: <20070830185053.22619.96398.sendpatchset@localhost>
- <20070830185114.22619.61260.sendpatchset@localhost>
+ <20070830185114.22619.61260.sendpatchset@localhost>  <1189537099.32731.92.camel@localhost>
+ <1189535671.5036.71.camel@localhost>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Lee Schermerhorn <lee.schermerhorn@hp.com>
-Cc: linux-mm@kvack.org, akpm@linux-foundation.org, ak@suse.de, mtk-manpages@gmx.net, solo@google.com, eric.whitney@hp.com
+To: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
+Cc: Mel Gorman <mel@csn.ul.ie>, linux-mm@kvack.org, akpm@linux-foundation.org, ak@suse.de, mtk-manpages@gmx.net, solo@google.com, eric.whitney@hp.com
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 30 Aug 2007, Lee Schermerhorn wrote:
+On Tue, 11 Sep 2007, Lee Schermerhorn wrote:
 
-> 1)  [do_]get_mempolicy() calls the now renamed get_policy_nodemask()
->     to fetch the nodemask associated with a policy.  Currently,
->     get_policy_nodemask() returns the set of nodes with memory, when
->     the policy 'mode' is 'PREFERRED, and the preferred_node is < 0.
->     Return the set of allowed nodes instead.  This will already have
->     been masked to include only nodes with memory.
+> > >  	case MPOL_PREFERRED:
+> > > -		/* or use current node instead of memory_map? */
+> > > +		/*
+> > > +		 * for "local policy", return allowed memories
+> > > +		 */
+> > >  		if (p->v.preferred_node < 0)
+> > > -			*nodes = node_states[N_HIGH_MEMORY];
+> > > +			*nodes = cpuset_current_mems_allowed;
+> > 
+> > Is this change intentional? It looks like something that belongs as part
+> > of the the memoryless patch set.
+> > 
+> 
+> Absolutely intentional.  The use of 'node_states[N_HIGH_MEMORY]' was
+> added by the memoryless nodes patches.  Formerly, this was
+> 'node_online_map'.  However, even this results in misleading info for
+> tasks running in a cpuset.  
 
-Ok.
+Sort of. This just means that the policy does not restrict the valid 
+nodes. The cpuset does. I think this is okay but we may be confusing users 
+as to which mechanism performs the restriction.
  
-> 2)  When a task is moved into a [new] cpuset, mpol_rebind_policy() is
->     called to adjust any task and vma policy nodes to be valid in the
->     new cpuset.  However, when the policy is MPOL_PREFERRED, and the
->     preferred_node is <0, no rebind is necessary.  The "local allocation"
->     indication is valid in any cpuset.  Existing code will "do the right
->     thing" because node_remap() will just return the argument node when
->     it is outside of the valid range of node ids.  However, I think it is
->     clearer and cleaner to skip the remap explicitly in this case.
+> It's a fine, point, but I think this is "more correct" that the existing
+> code.  I'm hoping that this change, with a corresponding man page update
+> will head off some head scratching and support calls down the road.
 
-Sounds good. This is on the way to having cpuset relative node 
-numbering???
- 
-> 3)  mpol_to_str() produces a printable, "human readable" string from a
->     struct mempolicy.  For MPOL_PREFERRED with preferred_node <0,  show
->     the entire set of valid nodes.  Although, technically, MPOL_PREFERRED
->     takes only a single node, preferred_node <0 is a local allocation policy,
->     with the preferred node determined by the context where the task
->     is executing.  All of the allowed nodes are possible, as the task
->     migrates amoung the nodes in the cpuset.  Without this change, I believe
->     that node_set() [via set_bit()] will set bit 31, resulting in a misleading
->     display.
+How does this sync with the nodemasks used by other policies? So far we 
+are using a sort of cpuset agnostic nodeset and limit it when it is 
+applied. I think the integration between cpuset and memory policies could 
+use some work and this is certainly something valid to do. Is there any 
+way to describe that and have output that clarifies that distinction and 
+helps the user figure out what is going on?
 
-Hmmm. But one wants mpol_to_str to represent the memory policy not the 
-context information that may change through migration. What you 
-do there is provide information from the context. You could add the 
-nodemask but I think we need to have some indicator that this policy is 
-referring to the local policy.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
