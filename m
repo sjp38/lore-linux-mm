@@ -1,7 +1,7 @@
-Date: Wed, 12 Sep 2007 11:47:21 +0900
+Date: Wed, 12 Sep 2007 11:48:24 +0900
 From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: [RFC][PATCH] overwride page->mapping [2/3] page_mapping_info
-Message-Id: <20070912114721.10083abc.kamezawa.hiroyu@jp.fujitsu.com>
+Subject: [RFC][PATCH] override page->mapping [3/3] mlock counter per page
+Message-Id: <20070912114824.6399b0e7.kamezawa.hiroyu@jp.fujitsu.com>
 In-Reply-To: <20070912114322.e4d8a86e.kamezawa.hiroyu@jp.fujitsu.com>
 References: <20070912114322.e4d8a86e.kamezawa.hiroyu@jp.fujitsu.com>
 Mime-Version: 1.0
@@ -13,393 +13,245 @@ To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "nickpiggin@yahoo.com.au" <nickpiggin@yahoo.com.au>, Christoph Lameter <clameter@sgi.com>, "Lee.Schermerhorn@hp.com" <Lee.Schermerhorn@hp.com>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-This patch overrides page->mapping with page_mapping_info.
+An test/exmapble code for using page_mapping_info.
 
-As following.
-	page->mapping points to  anon_vma or address_space or mapping_info
+Remember # of mlock()s against a page.
+ * just an example. (there may be some other way to add mlock counter per page)
+ * remember mlock_cnt in page_mapping_info.
+ * When page fault in VM_LOCKED vma occurs, increase mlock_cnt of a page.
+ * When munmap() or munlock() is called, declease mlock_cnt of pages
+   in region.
+ * remove mlocked page from lru patch will be necessary. no real benefit
+   at this point.
 
-mapping_info is strucutured as
-	struct mapping_info {
-		union {
-			anon_vma;
-			address_space;
-		}
-		/* Additional Information to this user's page */
-	}
-(A purpose of this patch is storing additional information per page by some
- safe way. I'm now wondring that memory-controller information can be moved
- to page_mapping_info rather than adding new member to struct page.)
-
-In "add page->mapping interface patches", direct access to page->mapping
-was removed. Then, we can overrides page->mapping with some other structure
-by adding some hook in page_mapping_xxx functions.
-
-This patch uses page->mapping's lower 2 bits for
-MAPPING_PAGE_ANON and MAPPING_PAGE_INFO.
-
-If MAPPING_PAGE_INFO is not set, page->mapping points to address_space or
-anon_vma. If MAPPING_PAGE_INFO is set, page->mapping points to struct
-page_mapping_info. If page_mapping_info is not used, there is small (no?)
-overheads.
-
-Attach and Detach of page_mapping_info must be guarded by lock_page().
-(If a page is linked to objrmap.)
-
-I think this lock will guarantee no-race in page->mapping handling.
-(Typical file systems assumes page->mapping can be changed while they
- unlock page. I think there is *basically* no race.
- Of course, need more tests. please point out if you have concerns.)
-
-mapping_info is removed when page is removed from page-cache or page is
-removed from anon (swapped-out or freed).
-
-Works well, but maybe error-handling is not complete, sorry.
-
-Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Signed-off-by:	KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
 ---
- include/linux/mm_types.h   |   19 +++++++++
- include/linux/page-cache.h |   70 ++++++++++++++++++++++++++++++++----
- mm/filemap.c               |    9 ++++
- mm/page_alloc.c            |    1 
- mm/rmap.c                  |   87 ++++++++++++++++++++++++++++++++++++++++++---
- 5 files changed, 172 insertions(+), 14 deletions(-)
+ include/linux/mm.h       |    7 +++++
+ include/linux/mm_types.h |    1 
+ mm/memory.c              |   26 ++++++++++++++++---
+ mm/mlock.c               |   64 +++++++++++++++++++++++++++++++++++++++++++++--
+ mm/mmap.c                |    3 ++
+ 5 files changed, 96 insertions(+), 5 deletions(-)
 
+Index: test-2.6.23-rc4-mm1/mm/mlock.c
+===================================================================
+--- test-2.6.23-rc4-mm1.orig/mm/mlock.c
++++ test-2.6.23-rc4-mm1/mm/mlock.c
+@@ -12,6 +12,63 @@
+ #include <linux/syscalls.h>
+ #include <linux/sched.h>
+ #include <linux/module.h>
++#include <linux/hugetlb.h>
++#include <linux/pagemap.h>
++#include <linux/fs.h>
++
++
++void set_page_mlocked(struct page *page)
++{
++	struct page_mapping_info *info;
++
++	info = page_mapping_info(page);
++	if (!info) {
++		info = alloc_page_mapping_info();
++		atomic_set(&info->mlock_cnt, 1);
++		if (!page_add_mapping_info(page, info))
++			free_page_mapping_info(info);
++	} else
++		atomic_inc(&info->mlock_cnt);
++}
++
++void unset_page_mlocked(struct page *page)
++{
++	struct page_mapping_info *info = page_mapping_info(page);
++	if (!info)
++		return ;
++	atomic_dec(&info->mlock_cnt);
++}
++
++int page_is_mlocked(struct page *page)
++{
++	struct page_mapping_info *info = page_mapping_info(page);
++	if (!info)
++		return 0;
++	return atomic_read(&info->mlock_cnt);
++}
++
++void mlock_region(struct vm_area_struct *vma, int lock,
++			unsigned long start, unsigned long end)
++{
++	struct page *page;
++
++	if (is_vm_hugetlb_page(vma))
++		return;
++
++	while (start < end) {
++		/* Page is not unmapped yet...then no need tor FOLL_GET */
++		page = follow_page(vma, start, 0);
++		if (page) {
++			lock_page(page);
++			if (lock)
++				set_page_mlocked(page);
++			else
++				unset_page_mlocked(page);
++			unlock_page(page);
++		}
++		start += PAGE_SIZE;
++	}
++}
+ 
+ int can_do_mlock(void)
+ {
+@@ -72,9 +129,12 @@ success:
+ 	pages = (end - start) >> PAGE_SHIFT;
+ 	if (newflags & VM_LOCKED) {
+ 		pages = -pages;
+-		if (!(newflags & VM_IO))
++		if (!(newflags & VM_IO)) {
++			mlock_region(vma, 1, start, end);
+ 			ret = make_pages_present(start, end);
+-	}
++		}
++	} else
++		mlock_region(vma, 0, start, end);
+ 
+ 	mm->locked_vm -= pages;
+ out:
 Index: test-2.6.23-rc4-mm1/include/linux/mm_types.h
 ===================================================================
 --- test-2.6.23-rc4-mm1.orig/include/linux/mm_types.h
 +++ test-2.6.23-rc4-mm1/include/linux/mm_types.h
-@@ -14,6 +14,7 @@
- #include <asm/mmu.h>
- 
- struct address_space;
-+struct anon_vma;
- 
- #if NR_CPUS >= CONFIG_SPLIT_PTLOCK_CPUS
- typedef atomic_long_t mm_counter_t;
-@@ -94,6 +95,23 @@ struct page {
+@@ -109,6 +109,7 @@ struct page_mapping_info {
+ 		struct anon_vma		*anon_vma;
+ 		struct address_space	*mapping;
+ 	};
++	atomic_t	mlock_cnt;	/* # of mlock()s on this page */
  };
  
  /*
-+ * A structure for containing per page information which is not necessary for
-+ * *all* pages. This extra information can be used for anon and page-cache.
-+ * (User's page)
-+ * Using this will add extra overhead to VM, please consider well before
-+ * using this. If used, this is ponted by page->mapping.
-+ * See page-cache.h for details.
-+ */
-+struct anon_vma;
-+struct page_mapping_info {
-+	struct page *page;
-+	union {
-+		struct anon_vma		*anon_vma;
-+		struct address_space	*mapping;
-+	};
-+};
-+
-+/*
-  * This struct defines a memory VMM memory area. There is one of these
-  * per VM-area/task.  A VM area is any part of the process virtual memory
-  * space that has a special rule for the page-fault handlers (ie a shared
-@@ -227,4 +245,5 @@ struct mm_struct {
- #endif
- };
- 
-+
- #endif /* _LINUX_MM_TYPES_H */
-Index: test-2.6.23-rc4-mm1/include/linux/page-cache.h
+Index: test-2.6.23-rc4-mm1/mm/memory.c
 ===================================================================
---- test-2.6.23-rc4-mm1.orig/include/linux/page-cache.h
-+++ test-2.6.23-rc4-mm1/include/linux/page-cache.h
-@@ -20,16 +20,56 @@
-  * refers to user virtual address space into which the page is mapped.
-  */
- #define PAGE_MAPPING_ANON	1
-+#define PAGE_MAPPING_INFO	2   /* page->mapping points to extra info */
-+
-+#define PAGE_MAPPING_MASK	~(0x3)
-+
-+#define PAGE_MAPPING(page)	((page)->mapping & PAGE_MAPPING_MASK)
-+
-+/*
-+ * if (!page_has_mapping_info(page))
-+ *	page->mapping points to anon_vma or address_space depends on PageAnon.
-+ * if (page_has_mapping_info(page))
-+ *  	page->mapping points to page_mapping_info.
-+ */
+--- test-2.6.23-rc4-mm1.orig/mm/memory.c
++++ test-2.6.23-rc4-mm1/mm/memory.c
+@@ -1640,7 +1640,8 @@ gotten:
  
- static inline int PageAnon(struct page *page)
- {
- 	return (page->mapping & PAGE_MAPPING_ANON) != 0;
- }
- 
-+static inline int page_has_mapping_info(struct page *page)
-+{
-+	return (page->mapping & PAGE_MAPPING_INFO) != 0;
-+}
-+
-+static inline struct address_space *page_mapping_info_cache(struct page *page)
-+{
-+	struct page_mapping_info *info;
-+
-+	if (!page_has_mapping_info(page))
-+		return (struct address_space *)PAGE_MAPPING(page);
-+	info = (struct page_mapping_info *)PAGE_MAPPING(page);
-+	return info->mapping;
-+}
-+
-+static inline struct anon_vma *page_mapping_info_anon(struct page *page)
-+{
-+	struct page_mapping_info *info;
-+
-+	if (!page_has_mapping_info(page))
-+		return (struct anon_vma *)PAGE_MAPPING(page);
-+	info = (struct page_mapping_info *)PAGE_MAPPING(page);
-+	return info->anon_vma;
-+}
-+
-+
- extern struct address_space swapper_space;
- static inline struct address_space *page_mapping(struct page *page)
- {
--	struct address_space *mapping = (struct address_space *)page->mapping;
-+	struct address_space *mapping;
-+
-+	mapping = page_mapping_info_cache(page);
- 
- 	VM_BUG_ON(PageSlab(page));
- 	if (unlikely(PageSwapCache(page)))
-@@ -38,7 +78,7 @@ static inline struct address_space *page
- 	else if (unlikely(PageSlab(page)))
- 		mapping = NULL;
- #endif
--	else if (unlikely((unsigned long)mapping & PAGE_MAPPING_ANON))
-+	else if (unlikely(PageAnon(page)))
- 		mapping = NULL;
- 	return mapping;
- }
-@@ -47,21 +87,27 @@ static inline struct anon_vma *page_mapp
- {
- 	if (!page->mapping || !PageAnon(page))
- 		return NULL;
--	return (struct anon_vma *)(page->mapping - PAGE_MAPPING_ANON);
-+	return page_mapping_info_anon(page);
- }
- 
- static inline struct address_space *page_mapping_cache(struct page *page)
- {
- 	if (!page->mapping || PageAnon(page))
- 		return NULL;
--	return (struct address_space *)page->mapping;
-+	return page_mapping_info_cache(page);
- }
- 
-+static inline struct page_mapping_info *page_mapping_info(struct page *page)
-+{
-+	if (!page->mapping || !page_has_mapping_info(page))
-+		return NULL;
-+	return (struct page_mapping_info *) PAGE_MAPPING(page);
-+}
-+
-+
- static inline int page_is_pagecache(struct page *page)
- {
--	if (!page->mapping || (page->mapping & PAGE_MAPPING_ANON))
--		return 0;
--	return 1;
-+	return page_mapping_cache(page) != NULL;
- }
- 
- /*
-@@ -84,4 +130,14 @@ pagecache_consistent(struct page *page, 
- 	return (page_mapping(page) == as);
- }
- 
-+/*
-+ * Attach/Detach page_mapping_info to struct page.
-+ * These functions should be called under page_lock().
-+ * See mm/rmap.c
-+ */
-+extern int
-+page_add_mapping_info(struct page *page, struct page_mapping_info *info);
-+extern void page_remove_mapping_info(struct page *page);
-+extern struct page_mapping_info *alloc_page_mapping_info(void);
-+extern void free_page_mapping_info(struct page_mapping_info *info);
- #endif
-Index: test-2.6.23-rc4-mm1/mm/rmap.c
-===================================================================
---- test-2.6.23-rc4-mm1.orig/mm/rmap.c
-+++ test-2.6.23-rc4-mm1/mm/rmap.c
-@@ -154,6 +154,75 @@ void __init anon_vma_init(void)
- }
- 
- /*
-+ * page_mapping_info related functions.
-+ */
-+struct kmem_cache *mapping_info_cachep;
-+struct page_mapping_info *alloc_page_mapping_info(void)
-+{
-+	struct page_mapping_info *info;
-+	info = kmem_cache_alloc(mapping_info_cachep, GFP_KERNEL);
-+	memset(info, 0, sizeof(*info));
-+	return info;
-+}
-+
-+void free_page_mapping_info(struct page_mapping_info *info)
-+{
-+	kmem_cache_free(mapping_info_cachep, info);
-+}
-+
-+int
-+page_add_mapping_info(struct page *page, struct page_mapping_info *info)
-+{
-+	unsigned long flag = PAGE_MAPPING_INFO;
-+
-+	if (page_has_mapping_info(page))
-+		return 0;
-+
-+	if (!page->mapping) {
-+		/* page is not inserted into objrmap */
-+		info->mapping = NULL;
-+	} else if (PageAnon(page)) {
-+		BUG_ON(!PageLocked(page));
-+		info->anon_vma = page_mapping_anon(page);
-+		flag |= PAGE_MAPPING_ANON;
-+	} else {
-+		BUG_ON(!PageLocked(page));
-+		info->mapping = page_mapping_cache(page);
-+	}
-+	smp_wmb();
-+	page->mapping = (unsigned long)info | flag;
-+	return 1;
-+}
-+
-+
-+void page_remove_mapping_info(struct page *page)
-+{
-+	unsigned long is_anon = PageAnon(page);
-+	struct page_mapping_info *info = page_mapping_info(page);
-+
-+	if (!info)
-+		return;
-+
-+	if (is_anon)
-+		page->mapping =
-+			(unsigned long)info->anon_vma | PAGE_MAPPING_ANON;
-+	else
-+		page->mapping = (unsigned long)info->mapping;
-+	free_page_mapping_info(info);
-+}
-+
-+
-+int __init mapping_info_init(void)
-+{
-+	mapping_info_cachep =
-+		kmem_cache_create("mapping_info",
-+					sizeof(struct page_mapping_info),
-+					0, SLAB_PANIC, NULL);
-+	return 0;
-+}
-+__initcall(mapping_info_init);
-+
-+/*
-  * Getting a lock on a stable anon_vma from a page off the LRU is
-  * tricky: page_lock_anon_vma rely on RCU to guard against the races.
-  */
-@@ -208,7 +277,7 @@ unsigned long page_address_in_vma(struct
- 	if (PageAnon(page)) {
- 		if (vma->anon_vma != page_mapping_anon(page))
- 			return -EFAULT;
--	} else if (page->mapping && !(vma->vm_flags & VM_NONLINEAR)) {
-+	} else if (page_is_pagecache(page) && !(vma->vm_flags & VM_NONLINEAR)) {
- 		if (!vma->vm_file ||
- 		    vma->vm_file->f_mapping != page_mapping_cache(page))
- 			return -EFAULT;
-@@ -508,10 +577,17 @@ static void __page_set_anon_rmap(struct 
- 	struct vm_area_struct *vma, unsigned long address)
- {
- 	struct anon_vma *anon_vma = vma->anon_vma;
-+	struct page_mapping_info *info;
- 
- 	BUG_ON(!anon_vma);
--	anon_vma = (void *) anon_vma + PAGE_MAPPING_ANON;
--	page->mapping = (unsigned long) anon_vma;
-+	info = page_mapping_info(page);
-+	if (info) {
-+		info->anon_vma = anon_vma;
-+		page->mapping |= PAGE_MAPPING_ANON;
-+	} else {
-+		anon_vma = (void *) anon_vma + PAGE_MAPPING_ANON;
-+		page->mapping = (unsigned long) anon_vma;
-+	}
- 
- 	page->index = linear_page_index(vma, address);
- 
-@@ -545,8 +621,7 @@ static void __page_check_anon_rmap(struc
- 	 * over the call to page_add_new_anon_rmap.
- 	 */
- 	struct anon_vma *anon_vma = vma->anon_vma;
--	anon_vma = (void *) anon_vma + PAGE_MAPPING_ANON;
--	BUG_ON(page->mapping != (unsigned long)anon_vma);
-+	BUG_ON(page_mapping_anon(page) != anon_vma);
- 	BUG_ON(page->index != linear_page_index(vma, address));
- #endif
- }
-@@ -670,6 +745,8 @@ void page_remove_rmap(struct page *page,
- 			page_clear_dirty(page);
- 			set_page_dirty(page);
- 		}
-+		if (PageAnon(page))
-+			page_remove_mapping_info(page);
- 		mem_container_uncharge_page(page);
- 
- 		__dec_zone_page_state(page,
-Index: test-2.6.23-rc4-mm1/mm/filemap.c
-===================================================================
---- test-2.6.23-rc4-mm1.orig/mm/filemap.c
-+++ test-2.6.23-rc4-mm1/mm/filemap.c
-@@ -117,6 +117,7 @@ void __remove_from_page_cache(struct pag
- {
- 	struct address_space *mapping = page_mapping(page);
- 
-+	page_remove_mapping_info(page);
- 	mem_container_uncharge_page(page);
- 	radix_tree_delete(&mapping->page_tree, page->index);
- 	page->mapping = 0;
-@@ -442,6 +443,7 @@ int add_to_page_cache(struct page *page,
- 		pgoff_t offset, gfp_t gfp_mask)
- {
- 	int error = radix_tree_preload(gfp_mask & ~__GFP_HIGHMEM);
-+	struct page_mapping_info *info;
- 
- 	if (error == 0) {
- 
-@@ -454,7 +456,12 @@ int add_to_page_cache(struct page *page,
- 		if (!error) {
- 			page_cache_get(page);
- 			SetPageLocked(page);
--			page->mapping = (unsigned long)mapping;
-+			info = page_mapping_info(page);
-+			if (info) {
-+				info->mapping = mapping;
-+			} else {
-+				page->mapping = (unsigned long)mapping;
-+			}
- 			page->index = offset;
- 			mapping->nrpages++;
- 			__inc_zone_page_state(page, NR_FILE_PAGES);
-Index: test-2.6.23-rc4-mm1/mm/page_alloc.c
-===================================================================
---- test-2.6.23-rc4-mm1.orig/mm/page_alloc.c
-+++ test-2.6.23-rc4-mm1/mm/page_alloc.c
-@@ -2739,7 +2739,6 @@ static void setup_pagelist_highmark(stru
- 		pcp->batch = PAGE_SHIFT * 8;
- }
- 
+ 	if (mem_container_charge(new_page, mm))
+ 		goto oom_free_new;
 -
- #ifdef CONFIG_NUMA
++	if (vma->vm_flags & VM_LOCKED)
++		set_page_mlocked(new_page);
+ 	/*
+ 	 * Re-check the pte - we dropped the lock
+ 	 */
+@@ -1672,8 +1673,11 @@ gotten:
+ 		/* Free the old page.. */
+ 		new_page = old_page;
+ 		ret |= VM_FAULT_WRITE;
+-	} else
++	} else {
++		if (vma->vm_flags & VM_LOCKED)
++			unset_page_mlocked(new_page);
+ 		mem_container_uncharge_page(new_page);
++	}
+ 
+ 	if (new_page)
+ 		page_cache_release(new_page);
+@@ -1681,6 +1685,7 @@ gotten:
+ 		page_cache_release(old_page);
+ unlock:
+ 	pte_unmap_unlock(page_table, ptl);
++
+ 	if (dirty_page) {
+ 		/*
+ 		 * Yes, Virginia, this is actually required to prevent a race
+@@ -2188,6 +2193,9 @@ static int do_anonymous_page(struct mm_s
+ 		if (mem_container_charge(page, mm))
+ 			goto oom_free_page;
+ 
++	if (vma->vm_flags & VM_LOCKED)
++		set_page_mlocked(page);
++
+ 	entry = mk_pte(page, vma->vm_page_prot);
+ 	entry = maybe_mkwrite(pte_mkdirty(entry), vma);
+ 
+@@ -2197,6 +2205,10 @@ static int do_anonymous_page(struct mm_s
+ 	inc_mm_counter(mm, anon_rss);
+ 	lru_cache_add_active(page);
+ 	page_add_new_anon_rmap(page, vma, address);
++
++	if (vma->vm_flags & VM_LOCKED)
++		set_page_mlocked(page);
++
+ 	set_pte_at(mm, address, page_table, entry);
+ 
+ 	/* No need to invalidate - it was non-present before */
+@@ -2205,6 +2217,8 @@ unlock:
+ 	pte_unmap_unlock(page_table, ptl);
+ 	return 0;
+ release:
++	if (vma->vm_flags & VM_LOCKED)
++		unset_page_mlocked(page);
+ 	mem_container_uncharge_page(page);
+ 	page_cache_release(page);
+ 	goto unlock;
+@@ -2325,6 +2339,12 @@ static int __do_fault(struct mm_struct *
+ 		ret = VM_FAULT_OOM;
+ 		goto out;
+ 	}
++	/*
++	 * If new page is page-cache, lock_page9) is held.
++	 * If new page is anon, page is not linked to objrmap yet.
++	 */
++	if (vma->vm_flags & VM_LOCKED)
++		set_page_mlocked(page);
+ 
+ 	page_table = pte_offset_map_lock(mm, pmd, address, &ptl);
+ 
+@@ -2357,11 +2377,11 @@ static int __do_fault(struct mm_struct *
+ 				get_page(dirty_page);
+ 			}
+ 		}
+-
+ 		/* no need to invalidate: a not-present page won't be cached */
+ 		update_mmu_cache(vma, address, entry);
+ 	} else {
+ 		mem_container_uncharge_page(page);
++
+ 		if (anon)
+ 			page_cache_release(page);
+ 		else
+Index: test-2.6.23-rc4-mm1/mm/mmap.c
+===================================================================
+--- test-2.6.23-rc4-mm1.orig/mm/mmap.c
++++ test-2.6.23-rc4-mm1/mm/mmap.c
+@@ -1750,6 +1750,9 @@ static void unmap_region(struct mm_struc
+ 	struct mmu_gather *tlb;
+ 	unsigned long nr_accounted = 0;
+ 
++	if (vma->vm_flags & VM_LOCKED)
++		mlock_region(vma, 0, start, end);
++
+ 	lru_add_drain();
+ 	tlb = tlb_gather_mmu(mm, 0);
+ 	update_hiwater_rss(mm);
+Index: test-2.6.23-rc4-mm1/include/linux/mm.h
+===================================================================
+--- test-2.6.23-rc4-mm1.orig/include/linux/mm.h
++++ test-2.6.23-rc4-mm1/include/linux/mm.h
+@@ -643,6 +643,13 @@ extern int can_do_mlock(void);
+ extern int user_shm_lock(size_t, struct user_struct *);
+ extern void user_shm_unlock(size_t, struct user_struct *);
+ 
++
++extern void set_page_mlocked(struct page *page);
++extern void unset_page_mlocked(struct page *page);
++extern void mlock_region(struct vm_area_struct *vma, int op,
++				unsigned long start, unsigned long end);
++extern int page_is_mlocked(struct page *page);
++
  /*
-  * Boot pageset table. One per cpu which is going to be used for all
+  * Parameter block passed down to zap_pte_range in exceptional cases.
+  */
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
