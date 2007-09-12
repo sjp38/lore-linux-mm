@@ -1,100 +1,94 @@
-Subject: Re: [PATCH 21/23] mm: per device dirty threshold
-From: Peter Zijlstra <a.p.zijlstra@chello.nl>
-In-Reply-To: <18151.20636.425784.226044@stoffel.org>
-References: <20070911195350.825778000@chello.nl>
-	 <20070911200015.732492000@chello.nl>
-	 <18151.20636.425784.226044@stoffel.org>
-Content-Type: multipart/signed; micalg=pgp-sha1; protocol="application/pgp-signature"; boundary="=-wAZg1Tj2w1P+vfdzcQZI"
-Date: Wed, 12 Sep 2007 10:45:57 +0200
-Message-Id: <1189586757.21778.96.camel@twins>
-Mime-Version: 1.0
+Received: from sd0109e.au.ibm.com (d23rh905.au.ibm.com [202.81.18.225])
+	by e23smtp04.au.ibm.com (8.13.1/8.13.1) with ESMTP id l8C8kSHC018392
+	for <linux-mm@kvack.org>; Wed, 12 Sep 2007 18:46:28 +1000
+Received: from d23av03.au.ibm.com (d23av03.au.ibm.com [9.190.234.97])
+	by sd0109e.au.ibm.com (8.13.8/8.13.8/NCO v8.5) with ESMTP id l8C8kGiF069754
+	for <linux-mm@kvack.org>; Wed, 12 Sep 2007 18:46:16 +1000
+Received: from d23av03.au.ibm.com (loopback [127.0.0.1])
+	by d23av03.au.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l8C8gQZS023142
+	for <linux-mm@kvack.org>; Wed, 12 Sep 2007 18:42:26 +1000
+Message-ID: <46E7A666.7080409@linux.vnet.ibm.com>
+Date: Wed, 12 Sep 2007 14:12:14 +0530
+From: Balbir Singh <balbir@linux.vnet.ibm.com>
+Reply-To: balbir@linux.vnet.ibm.com
+MIME-Version: 1.0
+Subject: Re: [RFC][PATCH] overwride page->mapping [0/3] intro
+References: <20070912114322.e4d8a86e.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20070912114322.e4d8a86e.kamezawa.hiroyu@jp.fujitsu.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: John Stoffel <john@stoffel.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, miklos@szeredi.hu, akpm@linux-foundation.org, neilb@suse.de, dgc@sgi.com, tomoki.sekiyama.qu@hitachi.com, nikita@clusterfs.com, trond.myklebust@fys.uio.no, yingchao.zhou@gmail.com, richard@rsk.demon.co.uk, torvalds@linux-foundation.org
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "nickpiggin@yahoo.com.au" <nickpiggin@yahoo.com.au>, Christoph Lameter <clameter@sgi.com>, "Lee.Schermerhorn@hp.com" <Lee.Schermerhorn@hp.com>, Andrew Morton <akpm@linux-foundation.org>, "Martin J. Bligh" <mbligh@google.com>
 List-ID: <linux-mm.kvack.org>
 
---=-wAZg1Tj2w1P+vfdzcQZI
-Content-Type: text/plain
-Content-Transfer-Encoding: quoted-printable
+KAMEZAWA Hiroyuki wrote:
+> In general, we cannot inclease size of 'struct page'. So, overriding and
+> adding prural meanings to page struct's member is done in many situation.
+> 
 
-On Tue, 2007-09-11 at 22:36 -0400, John Stoffel wrote:
-> Peter> Scale writeback cache per backing device, proportional to its
-> Peter> writeout speed.  By decoupling the BDI dirty thresholds a
-> Peter> number of problems we currently have will go away, namely:
->=20
-> Ah, this clarifies my questions!  Thanks!
->=20
-> Peter>  - mutual interference starvation (for any number of BDIs);
-> Peter>  - deadlocks with stacked BDIs (loop, FUSE and local NFS mounts).
->=20
-> Peter> It might be that all dirty pages are for a single BDI while
-> Peter> other BDIs are idling. By giving each BDI a 'fair' share of the
-> Peter> dirty limit, each one can have dirty pages outstanding and make
-> Peter> progress.
->=20
-> Question, can you change (shrink) the limit on a BDI while it has IO
-> in flight?  And what will that do to the system?  I.e. if you have one
-> device doing IO, so that it has a majority of the dirty limit.  Then
-> another device starts IO, and it's a *faster* device, how
-> quickly/slowly does the BDI dirty limits change for both the old and
-> new device? =20
+Hi, Kamezawa,
 
-Yes, it can change while in use. A measure of how quickly it can change
-is roughly: it can half in a dirty_limit worth of writeout.
+We discussed the struct page size issue at VM summit. If I remember
+correctly, Linus suggested that we consider using pfn's instead of
+pointers for pointer members in struct page.
 
-What will happen is that those processes doing heavy IO on the slower
-device will get throttled more aggressively until its below its new
-threshold again - however all the time it will keep on writing at (full)
-speed because it will have this backlog to rid itself of, and by doing
-that it completes writeouts which ensure it will keep part of the dirty
-limit for itself, and thus can always make progress.
+> But to do some kind of precise VM mamangement, page struct itself seems to be
+> too small. This patchset overrides page->mapping and add on-demand page
+> information.
+> 
+> like this:
+> 
+> ==
+> page->mapping points to address_space or anon_vma or mapping_info
+> 
 
-You can monitor this by looking at /sys/block/sd*/queue/cache_size while
-doing such a thing. It should stabilise quite 'quickly'.
+Could you elaborate a little here, on what is the basis to decide
+what page->mapping should point to?
 
-> Peter> A global threshold also creates a deadlock for stacked BDIs;
-> Peter> when A writes to B, and A generates enough dirty pages to get
-> Peter> throttled, B will never start writeback until the dirty pages
-> Peter> go away. Again, by giving each BDI its own 'independent' dirty
-> Peter> limit, this problem is avoided.
->=20
-> Peter> So the problem is to determine how to distribute the total
-> Peter> dirty limit across the BDIs fairly and efficiently. A DBI that
->=20
-> You mean BDI here, not DBI. =20
+> mapping_info is strucutured as 
+> 
+> struct mapping_info {
+> 	union {
+> 		anon_vma;
+> 		address_space;
+> 	};
+> 	/* Additional Information to this page */
+> };
+> 
+> ==
+> This works based on "adding page->mapping interface" patch set, I posted.
+> 
+> My main target is move page_container information to this mapping_info.
+> By this, we can avoid increasing size of struct page when container is used.
+> 
 
-Uhh, yeah, obviously :-)
+I am not against this goal, but wouldn't we end up with too many
+dereferences to get to the container?
+i.e, page->mapping->page_container->mem_container.
 
-> Peter> has a large dirty limit but does not have any dirty pages
-> Peter> outstanding is a waste.
->=20
-> Peter> What is done is to keep a floating proportion between the DBIs
-> Peter> based on writeback completions. This way faster/more active
-> Peter> devices get a larger share than slower/idle devices.
->=20
-> Does a slower device get a BDI which is calculated to keep it's limit
-> under a certain number of seconds of outstanding IO?  This way no
-> device can build up more than say 15 seconds of outstanding IO to
-> flush at any one time. =20
+> Maybe other men may have other information they want to remember.
+> This patch set implements mlock_counter on mapping_info as *exmaple*.
+> (About mlock_counter, overriding page->lru may be able to be used.)
+> 
+> 
+> This approach will consume some amount of memory. But I believe this *additional
+> information* can be tunred off easily if the user doesn't want this.
+> 
+> I'm glad if I can get some comments.
+> 
 
-Perhaps already answered above, as long as there is dirty stuff to write
-out it will keep completing writes and thus gain a stable share of the
-dirty limit.
 
---=-wAZg1Tj2w1P+vfdzcQZI
-Content-Type: application/pgp-signature; name=signature.asc
-Content-Description: This is a digitally signed message part
+I'll review your patchset and respond if I have any comments or
+suggestions.
 
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v1.4.6 (GNU/Linux)
 
-iD8DBQBG56dFXA2jU0ANEf4RAgfVAKCGq9vqSIbhXDh6PoWsonONWjNF7wCfXZZQ
-dDb1fuD+/ov4tuGGDwNMShk=
-=Xys/
------END PGP SIGNATURE-----
-
---=-wAZg1Tj2w1P+vfdzcQZI--
+-- 
+	Warm Regards,
+	Balbir Singh
+	Linux Technology Center
+	IBM, ISTL
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
