@@ -1,60 +1,66 @@
-Received: from sd0109e.au.ibm.com (d23rh905.au.ibm.com [202.81.18.225])
-	by e23smtp04.au.ibm.com (8.13.1/8.13.1) with ESMTP id l8CAAiOD015749
-	for <linux-mm@kvack.org>; Wed, 12 Sep 2007 20:10:45 +1000
-Received: from d23av04.au.ibm.com (d23av04.au.ibm.com [9.190.235.139])
-	by sd0109e.au.ibm.com (8.13.8/8.13.8/NCO v8.5) with ESMTP id l8CA9HSa118824
-	for <linux-mm@kvack.org>; Wed, 12 Sep 2007 20:09:18 +1000
-Received: from d23av04.au.ibm.com (loopback [127.0.0.1])
-	by d23av04.au.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l8CB5Ql2030487
-	for <linux-mm@kvack.org>; Wed, 12 Sep 2007 21:05:27 +1000
-Message-ID: <46E7B9DA.6070404@linux.vnet.ibm.com>
-Date: Wed, 12 Sep 2007 15:35:14 +0530
-From: Balbir Singh <balbir@linux.vnet.ibm.com>
-Reply-To: balbir@linux.vnet.ibm.com
-MIME-Version: 1.0
-Subject: Re: [-mm PATCH 1/9] Memory controller resource counters (v6)
-References: <20070817084228.26003.12568.sendpatchset@balbir-laptop> <20070817084238.26003.7733.sendpatchset@balbir-laptop> <6599ad830709101742k658234b4of59f14ef27e40d14@mail.gmail.com>
-In-Reply-To: <6599ad830709101742k658234b4of59f14ef27e40d14@mail.gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Subject: Re: [RFC 0/3] Recursive reclaim (on __PF_MEMALLOC)
+From: Peter Zijlstra <a.p.zijlstra@chello.nl>
+In-Reply-To: <Pine.LNX.4.64.0709050507050.9141@schroedinger.engr.sgi.com>
+References: <20070814142103.204771292@sgi.com>
+	 <200709050220.53801.phillips@phunq.net>
+	 <Pine.LNX.4.64.0709050334020.8127@schroedinger.engr.sgi.com>
+	 <20070905114242.GA19938@wotan.suse.de>
+	 <Pine.LNX.4.64.0709050507050.9141@schroedinger.engr.sgi.com>
+Content-Type: multipart/signed; micalg=pgp-sha1; protocol="application/pgp-signature"; boundary="=-fwTWZsqKRH87p+p9kV5z"
+Date: Wed, 12 Sep 2007 12:52:53 +0200
+Message-Id: <1189594373.21778.114.camel@twins>
+Mime-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Paul Menage <menage@google.com>
-Cc: Nick Piggin <npiggin@suse.de>, Peter Zijlstra <a.p.zijlstra@chello.nl>, YAMAMOTO Takashi <yamamoto@valinux.co.jp>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux MM Mailing List <linux-mm@kvack.org>, Eric W Biederman <ebiederm@xmission.com>, Linux Containers <containers@lists.osdl.org>, Andrew Morton <akpm@linux-foundation.org>, Pavel Emelianov <xemul@openvz.org>
+To: Christoph Lameter <clameter@sgi.com>
+Cc: Nick Piggin <npiggin@suse.de>, Daniel Phillips <phillips@phunq.net>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, dkegel@google.com, David Miller <davem@davemloft.net>
 List-ID: <linux-mm.kvack.org>
 
-Paul Menage wrote:
-> Hi Balbir/Pavel,
-> 
-> As I mentioned to you directly at the kernel summit, I think it might
-> be cleaner to integrate resource counters more closely with control
-> groups. So rather than controllers such as the memory controller
-> having to create their own boilerplate cf_type structures and
-> read/write functions, it should be possible to just call a function
-> something like
-> 
-> control_group_add_rescounter(struct cgroup *cg, struct cgroup_subsys *ss,
->                                              struct res_counter *res,
-> const char *name)
-> 
-> and have it handle all the userspace API. This would simplify the task
-> of keeping a consistent userspace API between different controllers
-> using the resource counter abstraction.
-> 
-> Paul
-> 
+--=-fwTWZsqKRH87p+p9kV5z
+Content-Type: text/plain
+Content-Transfer-Encoding: quoted-printable
 
-Yes, I remember discussing it with you. I would expect res_counters
-definition to be dynamic (to be able to add the guarantee, soft limit,
-etc) for expansion in the future. In the future, I would also like
-to do hierarchical resource groups, the hierarchy would represent
-the current filesystem hierarchy.
+On Wed, 2007-09-05 at 05:14 -0700, Christoph Lameter wrote:
 
--- 
-	Warm Regards,
-	Balbir Singh
-	Linux Technology Center
-	IBM, ISTL
+> Using the VM to throttle networking is a pretty bad thing because it=20
+> assumes single critical user of memory. There are other consumers of=20
+> memory and if you have a load that depends on other things than networkin=
+g=20
+> then you should not kill the other things that want memory.
+
+The VM is a _critical_ user of memory. And I dare say it is the _most_
+important user.=20
+
+Every user of memory relies on the VM, and we only get into trouble if
+the VM in turn relies on one of these users. Traditionally that has only
+been the block layer, and we special cased that using mempools and
+PF_MEMALLOC.
+
+Why do you object to me doing a similar thing for networking?
+
+The problem of circular dependancies on and with the VM is rather
+limited to kernel IO subsystems, and we only have a limited amount of
+them.=20
+
+You talk about something generic, do you mean an approach that is
+generic across all these subsystems?
+
+If so, my approach would be it, I can replace mempools as we have them
+with the reserve system I introduce.
+
+--=-fwTWZsqKRH87p+p9kV5z
+Content-Type: application/pgp-signature; name=signature.asc
+Content-Description: This is a digitally signed message part
+
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v1.4.6 (GNU/Linux)
+
+iD8DBQBG58UFXA2jU0ANEf4RAqXpAJ44gtG8i0f0sDb01hlz1LO6naSWxwCeKVHT
+7tMfY7TCD8CZ0+7xxNzhd/w=
+=qyn1
+-----END PGP SIGNATURE-----
+
+--=-fwTWZsqKRH87p+p9kV5z--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
