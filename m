@@ -1,115 +1,180 @@
 From: Mel Gorman <mel@csn.ul.ie>
-Message-Id: <20070912210504.31625.38738.sendpatchset@skynet.skynet.ie>
+Message-Id: <20070912210525.31625.44289.sendpatchset@skynet.skynet.ie>
 In-Reply-To: <20070912210444.31625.65810.sendpatchset@skynet.skynet.ie>
 References: <20070912210444.31625.65810.sendpatchset@skynet.skynet.ie>
-Subject: [PATCH 1/6] Use zonelists instead of zones when direct reclaiming pages
-Date: Wed, 12 Sep 2007 22:05:05 +0100 (IST)
+Subject: [PATCH 2/6] Introduce node_zonelist() for accessing the zonelist for a GFP mask
+Date: Wed, 12 Sep 2007 22:05:25 +0100 (IST)
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Lee.Schermerhorn@hp.com, kamezawa.hiroyu@jp.fujitsu.com, clameter@sgi.com
 Cc: Mel Gorman <mel@csn.ul.ie>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-The allocator deals with zonelists which indicate the order in which zones
-should be targeted for an allocation. Similarly, direct reclaim of pages
-iterates over an array of zones. For consistency, this patch converts direct
-reclaim to use a zonelist. No functionality is changed by this patch. This
-simplifies zonelist iterators in the next patch.
+This patch introduces a node_zonelist() helper function. It is used to lookup
+the appropriate zonelist given a node and a GFP mask. The patch on its own is
+a cleanup but it helps clarify parts of the one-zonelist-per-node patchset. If
+necessary, it can be merged with the next patch in this set without problems.
 
 Signed-off-by: Mel Gorman <mel@csn.ul.ie>
-Acked-by: Christoph Lameter <clameter@sgi.com>
 ---
 
- include/linux/swap.h |    2 +-
- mm/page_alloc.c      |    2 +-
- mm/vmscan.c          |   13 ++++++++-----
- 3 files changed, 10 insertions(+), 7 deletions(-)
+ drivers/char/sysrq.c      |    3 +--
+ fs/buffer.c               |    6 +++---
+ include/linux/gfp.h       |   10 +++++++---
+ include/linux/mempolicy.h |    2 +-
+ mm/mempolicy.c            |    6 +++---
+ mm/page_alloc.c           |    3 +--
+ mm/slab.c                 |    3 +--
+ mm/slub.c                 |    3 +--
+ 8 files changed, 18 insertions(+), 18 deletions(-)
 
-diff -rup -X /usr/src/patchset-0.6/bin//dontdiff linux-2.6.23-rc4-mm1-fix-pcnet32/include/linux/swap.h linux-2.6.23-rc4-mm1-005_freepages_zonelist/include/linux/swap.h
---- linux-2.6.23-rc4-mm1-fix-pcnet32/include/linux/swap.h	2007-09-10 09:29:14.000000000 +0100
-+++ linux-2.6.23-rc4-mm1-005_freepages_zonelist/include/linux/swap.h	2007-09-12 16:05:11.000000000 +0100
-@@ -189,7 +189,7 @@ extern int rotate_reclaimable_page(struc
- extern void swap_setup(void);
+diff -rup -X /usr/src/patchset-0.6/bin//dontdiff linux-2.6.23-rc4-mm1-005_freepages_zonelist/drivers/char/sysrq.c linux-2.6.23-rc4-mm1-007_node_zonelist/drivers/char/sysrq.c
+--- linux-2.6.23-rc4-mm1-005_freepages_zonelist/drivers/char/sysrq.c	2007-09-10 09:29:11.000000000 +0100
++++ linux-2.6.23-rc4-mm1-007_node_zonelist/drivers/char/sysrq.c	2007-09-12 16:05:18.000000000 +0100
+@@ -270,8 +270,7 @@ static struct sysrq_key_op sysrq_term_op
  
- /* linux/mm/vmscan.c */
--extern unsigned long try_to_free_pages(struct zone **zones, int order,
-+extern unsigned long try_to_free_pages(struct zonelist *zonelist, int order,
- 					gfp_t gfp_mask);
- extern unsigned long try_to_free_mem_container_pages(struct mem_container *mem);
- extern int __isolate_lru_page(struct page *page, int mode);
-diff -rup -X /usr/src/patchset-0.6/bin//dontdiff linux-2.6.23-rc4-mm1-fix-pcnet32/mm/page_alloc.c linux-2.6.23-rc4-mm1-005_freepages_zonelist/mm/page_alloc.c
---- linux-2.6.23-rc4-mm1-fix-pcnet32/mm/page_alloc.c	2007-09-10 09:29:14.000000000 +0100
-+++ linux-2.6.23-rc4-mm1-005_freepages_zonelist/mm/page_alloc.c	2007-09-12 16:05:11.000000000 +0100
-@@ -1667,7 +1667,7 @@ nofail_alloc:
- 	reclaim_state.reclaimed_slab = 0;
- 	p->reclaim_state = &reclaim_state;
- 
--	did_some_progress = try_to_free_pages(zonelist->zones, order, gfp_mask);
-+	did_some_progress = try_to_free_pages(zonelist, order, gfp_mask);
- 
- 	p->reclaim_state = NULL;
- 	p->flags &= ~PF_MEMALLOC;
-diff -rup -X /usr/src/patchset-0.6/bin//dontdiff linux-2.6.23-rc4-mm1-fix-pcnet32/mm/vmscan.c linux-2.6.23-rc4-mm1-005_freepages_zonelist/mm/vmscan.c
---- linux-2.6.23-rc4-mm1-fix-pcnet32/mm/vmscan.c	2007-09-10 09:29:14.000000000 +0100
-+++ linux-2.6.23-rc4-mm1-005_freepages_zonelist/mm/vmscan.c	2007-09-12 16:05:11.000000000 +0100
-@@ -1207,10 +1207,11 @@ static unsigned long shrink_zone(int pri
-  * If a zone is deemed to be full of pinned pages then just give it a light
-  * scan then give up on it.
-  */
--static unsigned long shrink_zones(int priority, struct zone **zones,
-+static unsigned long shrink_zones(int priority, struct zonelist *zonelist,
- 					struct scan_control *sc)
+ static void moom_callback(struct work_struct *ignored)
  {
- 	unsigned long nr_reclaimed = 0;
-+	struct zone **zones = zonelist->zones;
- 	int i;
- 
- 	sc->all_unreclaimable = 1;
-@@ -1248,7 +1249,7 @@ static unsigned long shrink_zones(int pr
-  * holds filesystem locks which prevent writeout this might not work, and the
-  * allocation attempt will fail.
-  */
--unsigned long do_try_to_free_pages(struct zone **zones, gfp_t gfp_mask,
-+unsigned long do_try_to_free_pages(struct zonelist *zonelist, gfp_t gfp_mask,
- 					struct scan_control *sc)
- {
- 	int priority;
-@@ -1257,6 +1258,7 @@ unsigned long do_try_to_free_pages(struc
- 	unsigned long nr_reclaimed = 0;
- 	struct reclaim_state *reclaim_state = current->reclaim_state;
- 	unsigned long lru_pages = 0;
-+	struct zone **zones = zonelist->zones;
- 	int i;
- 
- 	count_vm_event(ALLOCSTALL);
-@@ -1275,7 +1277,7 @@ unsigned long do_try_to_free_pages(struc
- 		sc->nr_scanned = 0;
- 		if (!priority)
- 			disable_swap_token();
--		nr_reclaimed += shrink_zones(priority, zones, sc);
-+		nr_reclaimed += shrink_zones(priority, zonelist, sc);
- 		/*
- 		 * Don't shrink slabs when reclaiming memory from
- 		 * over limit containers
-@@ -1333,7 +1335,8 @@ out:
- 	return ret;
+-	out_of_memory(&NODE_DATA(0)->node_zonelists[ZONE_NORMAL],
+-			GFP_KERNEL, 0);
++	out_of_memory(node_zonelist(0, GFP_KERNEL), GFP_KERNEL, 0);
  }
  
--unsigned long try_to_free_pages(struct zone **zones, int order, gfp_t gfp_mask)
-+unsigned long try_to_free_pages(struct zonelist *zonelist, int order,
-+								gfp_t gfp_mask)
+ static DECLARE_WORK(moom_work, moom_callback);
+diff -rup -X /usr/src/patchset-0.6/bin//dontdiff linux-2.6.23-rc4-mm1-005_freepages_zonelist/fs/buffer.c linux-2.6.23-rc4-mm1-007_node_zonelist/fs/buffer.c
+--- linux-2.6.23-rc4-mm1-005_freepages_zonelist/fs/buffer.c	2007-09-10 09:29:13.000000000 +0100
++++ linux-2.6.23-rc4-mm1-007_node_zonelist/fs/buffer.c	2007-09-12 16:05:18.000000000 +0100
+@@ -369,13 +369,13 @@ void invalidate_bdev(struct block_device
+ static void free_more_memory(void)
  {
- 	struct scan_control sc = {
- 		.gfp_mask = gfp_mask,
-@@ -1346,7 +1349,7 @@ unsigned long try_to_free_pages(struct z
- 		.isolate_pages = isolate_pages_global,
- 	};
+ 	struct zone **zones;
+-	pg_data_t *pgdat;
++	int nid;
  
--	return do_try_to_free_pages(zones, gfp_mask, &sc);
-+	return do_try_to_free_pages(zonelist, gfp_mask, &sc);
+ 	wakeup_pdflush(1024);
+ 	yield();
+ 
+-	for_each_online_pgdat(pgdat) {
+-		zones = pgdat->node_zonelists[gfp_zone(GFP_NOFS)].zones;
++	for_each_online_node(nid) {
++		zones = node_zonelist(nid, GFP_NOFS);
+ 		if (*zones)
+ 			try_to_free_pages(zones, 0, GFP_NOFS);
+ 	}
+diff -rup -X /usr/src/patchset-0.6/bin//dontdiff linux-2.6.23-rc4-mm1-005_freepages_zonelist/include/linux/gfp.h linux-2.6.23-rc4-mm1-007_node_zonelist/include/linux/gfp.h
+--- linux-2.6.23-rc4-mm1-005_freepages_zonelist/include/linux/gfp.h	2007-09-10 09:29:13.000000000 +0100
++++ linux-2.6.23-rc4-mm1-007_node_zonelist/include/linux/gfp.h	2007-09-12 16:05:18.000000000 +0100
+@@ -159,11 +159,16 @@ static inline gfp_t set_migrateflags(gfp
+ 
+ /*
+  * We get the zone list from the current node and the gfp_mask.
+- * This zone list contains a maximum of MAXNODES*MAX_NR_ZONES zones.
++ * This zonelist contains two zonelists, one for all zones with memory and
++ * one containing just zones from the node the zonelist belongs to
+  *
+  * For the normal case of non-DISCONTIGMEM systems the NODE_DATA() gets
+  * optimized to &contig_page_data at compile-time.
+  */
++static inline struct zonelist *node_zonelist(int nid, gfp_t flags)
++{
++	return NODE_DATA(nid)->node_zonelists + gfp_zonelist(flags);
++}
+ 
+ #ifndef HAVE_ARCH_FREE_PAGE
+ static inline void arch_free_page(struct page *page, int order) { }
+@@ -185,8 +190,7 @@ static inline struct page *alloc_pages_n
+ 	if (nid < 0)
+ 		nid = numa_node_id();
+ 
+-	return __alloc_pages(gfp_mask, order,
+-		NODE_DATA(nid)->node_zonelists + gfp_zone(gfp_mask));
++	return __alloc_pages(gfp_mask, order, node_zonelist(nid, gfp_mask));
  }
  
- #ifdef CONFIG_CONTAINER_MEM_CONT
+ #ifdef CONFIG_NUMA
+diff -rup -X /usr/src/patchset-0.6/bin//dontdiff linux-2.6.23-rc4-mm1-005_freepages_zonelist/include/linux/mempolicy.h linux-2.6.23-rc4-mm1-007_node_zonelist/include/linux/mempolicy.h
+--- linux-2.6.23-rc4-mm1-005_freepages_zonelist/include/linux/mempolicy.h	2007-09-10 09:29:13.000000000 +0100
++++ linux-2.6.23-rc4-mm1-007_node_zonelist/include/linux/mempolicy.h	2007-09-12 16:05:18.000000000 +0100
+@@ -240,7 +240,7 @@ static inline void mpol_fix_fork_child_f
+ static inline struct zonelist *huge_zonelist(struct vm_area_struct *vma,
+ 		unsigned long addr, gfp_t gfp_flags)
+ {
+-	return NODE_DATA(0)->node_zonelists + gfp_zone(gfp_flags);
++	return node_zonelist(0, gfp_flags);
+ }
+ 
+ static inline int do_migrate_pages(struct mm_struct *mm,
+diff -rup -X /usr/src/patchset-0.6/bin//dontdiff linux-2.6.23-rc4-mm1-005_freepages_zonelist/mm/mempolicy.c linux-2.6.23-rc4-mm1-007_node_zonelist/mm/mempolicy.c
+--- linux-2.6.23-rc4-mm1-005_freepages_zonelist/mm/mempolicy.c	2007-09-10 09:29:14.000000000 +0100
++++ linux-2.6.23-rc4-mm1-007_node_zonelist/mm/mempolicy.c	2007-09-12 16:05:18.000000000 +0100
+@@ -1130,7 +1130,7 @@ static struct zonelist *zonelist_policy(
+ 		nd = 0;
+ 		BUG();
+ 	}
+-	return NODE_DATA(nd)->node_zonelists + gfp_zone(gfp);
++	return node_zonelist(nd, gfp);
+ }
+ 
+ /* Do dynamic interleaving for a process */
+@@ -1226,7 +1226,7 @@ struct zonelist *huge_zonelist(struct vm
+ 		unsigned nid;
+ 
+ 		nid = interleave_nid(pol, vma, addr, HPAGE_SHIFT);
+-		return NODE_DATA(nid)->node_zonelists + gfp_zone(gfp_flags);
++		return node_zonelist(nid, gfp_flags);
+ 	}
+ 	return zonelist_policy(GFP_HIGHUSER, pol);
+ }
+@@ -1240,7 +1240,7 @@ static struct page *alloc_page_interleav
+ 	struct zonelist *zl;
+ 	struct page *page;
+ 
+-	zl = NODE_DATA(nid)->node_zonelists + gfp_zone(gfp);
++	zl = node_zonelist(nid, gfp);
+ 	page = __alloc_pages(gfp, order, zl);
+ 	if (page && page_zone(page) == zl->zones[0])
+ 		inc_zone_page_state(page, NUMA_INTERLEAVE_HIT);
+diff -rup -X /usr/src/patchset-0.6/bin//dontdiff linux-2.6.23-rc4-mm1-005_freepages_zonelist/mm/page_alloc.c linux-2.6.23-rc4-mm1-007_node_zonelist/mm/page_alloc.c
+--- linux-2.6.23-rc4-mm1-005_freepages_zonelist/mm/page_alloc.c	2007-09-12 16:05:11.000000000 +0100
++++ linux-2.6.23-rc4-mm1-007_node_zonelist/mm/page_alloc.c	2007-09-12 16:05:18.000000000 +0100
+@@ -1805,10 +1805,9 @@ EXPORT_SYMBOL(free_pages);
+ static unsigned int nr_free_zone_pages(int offset)
+ {
+ 	/* Just pick one node, since fallback list is circular */
+-	pg_data_t *pgdat = NODE_DATA(numa_node_id());
+ 	unsigned int sum = 0;
+ 
+-	struct zonelist *zonelist = pgdat->node_zonelists + offset;
++	struct zonelist *zonelist = node_zonelist(numa_node_id(), GFP_KERNEL);
+ 	struct zone **zonep = zonelist->zones;
+ 	struct zone *zone;
+ 
+diff -rup -X /usr/src/patchset-0.6/bin//dontdiff linux-2.6.23-rc4-mm1-005_freepages_zonelist/mm/slab.c linux-2.6.23-rc4-mm1-007_node_zonelist/mm/slab.c
+--- linux-2.6.23-rc4-mm1-005_freepages_zonelist/mm/slab.c	2007-09-10 09:29:14.000000000 +0100
++++ linux-2.6.23-rc4-mm1-007_node_zonelist/mm/slab.c	2007-09-12 16:05:18.000000000 +0100
+@@ -3248,8 +3248,7 @@ static void *fallback_alloc(struct kmem_
+ 	if (flags & __GFP_THISNODE)
+ 		return NULL;
+ 
+-	zonelist = &NODE_DATA(slab_node(current->mempolicy))
+-			->node_zonelists[gfp_zone(flags)];
++	zonelist = node_zonelist(slab_node(current->mempolicy), flags);
+ 	local_flags = flags & (GFP_CONSTRAINT_MASK|GFP_RECLAIM_MASK);
+ 
+ retry:
+diff -rup -X /usr/src/patchset-0.6/bin//dontdiff linux-2.6.23-rc4-mm1-005_freepages_zonelist/mm/slub.c linux-2.6.23-rc4-mm1-007_node_zonelist/mm/slub.c
+--- linux-2.6.23-rc4-mm1-005_freepages_zonelist/mm/slub.c	2007-09-10 09:29:14.000000000 +0100
++++ linux-2.6.23-rc4-mm1-007_node_zonelist/mm/slub.c	2007-09-12 16:05:18.000000000 +0100
+@@ -1281,8 +1281,7 @@ static struct page *get_any_partial(stru
+ 	if (!s->defrag_ratio || get_cycles() % 1024 > s->defrag_ratio)
+ 		return NULL;
+ 
+-	zonelist = &NODE_DATA(slab_node(current->mempolicy))
+-					->node_zonelists[gfp_zone(flags)];
++	zonelist = node_zonelist(slab_node(current->mempolicy), flags);
+ 	for (z = zonelist->zones; *z; z++) {
+ 		struct kmem_cache_node *n;
+ 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
