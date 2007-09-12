@@ -1,31 +1,39 @@
-Date: Wed, 12 Sep 2007 10:06:49 -0700 (PDT)
-From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [PATCH 4/6] Embed zone_id information within the zonelist->zones
- pointer
-In-Reply-To: <20070912165138.5deb4db4.kamezawa.hiroyu@jp.fujitsu.com>
-Message-ID: <Pine.LNX.4.64.0709121005090.1144@schroedinger.engr.sgi.com>
-References: <20070911213006.23507.19569.sendpatchset@skynet.skynet.ie>
- <20070911213127.23507.34058.sendpatchset@skynet.skynet.ie>
- <20070912165138.5deb4db4.kamezawa.hiroyu@jp.fujitsu.com>
+Message-ID: <0bb901c7f566$4d456010$ef545f66@stalmelin>
+Reply-To: "Dorian" <stalmelin@versanet.de>
+From: "Dorian" <stalmelin@versanet.de>
+Subject: Tell me whether you like it
+Date: Wed, 12 Sep 2007 17:56:53 +0100
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
-Sender: owner-linux-mm@kvack.org
-Return-Path: <owner-linux-mm@kvack.org>
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Mel Gorman <mel@csn.ul.ie>, Lee.Schermerhorn@hp.com, akpm@linux-foundation.org, ak@suse.de, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Content-Type: text/plain;
+	charset="us-ascii"
+Content-Transfer-Encoding: 8bit
+Return-Path: <stalmelin@versanet.de>
+To: Kathey Hart <adrian@kvack.org>
+Cc: Nubia <blah@kvack.org>, Doreen Walker <linux-aio@kvack.org>, Hwa <owner-linux-mm@kvack.org>Dung Snyder <linux-mm@kvack.org>, Rivka Reyes <linux-mm-archive@kvack.org>, Alix Garcia <aart@kvack.org>, Jessenia <majordomo@kvack.org>, Jeannie Fisher <linux-ns83820@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 12 Sep 2007, KAMEZAWA Hiroyuki wrote:
+When persons purchase their treatment they generally seek the following: 
+  
+ Securely 
+ High Speed Dependable Distribution 
+ High-level Quality 
+ Wide choice of Medical Treatments 
+ Great Cut Rate  
+ Medical Drugs support 
+  
+As the biggest on-line Drug Store in Canada we please all six of these
+significant features. 
 
-> If we really want to avoid unnecessary access to "zone" while walking zonelist,
-> above may do something good.  Cons is this makes sizeof zonlist bigger.
+Check us out for big discount: www.msrx.org  
 
-The trouble is that the size of the zonelist would double with this 
-approach. We have long zonelists and doubling the size could double 
-the cachelines needed to be touched in order to scan the zonelists.
+Please give us a try.  You will feel great regarding the quality and
+security we give and your manual will also be satisfied as well.
 
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+
+boot race behave Winter was the family time of year. There came days won
+when my mother and father hardly left the house. unusual IT had long excited
+been dark when Arthur rang at the front door of the big spark great house in
+the Via Borra. He rem "Don't food event porter question me--answer me!"
+Montanelli's voice was match almost harsh in its eagerness. "Are you in da 
+Grassini, as speed usual, strained every nerve complain to get the newly
+owe arrived celebrity to attend his house; but Montan
