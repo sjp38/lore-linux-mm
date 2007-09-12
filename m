@@ -1,11 +1,11 @@
-Date: Wed, 12 Sep 2007 06:02:02 -0700
+Date: Wed, 12 Sep 2007 06:02:55 -0700
 From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH 17 of 24] apply the anti deadlock features only to
- global oom
-Message-Id: <20070912060202.dc0cc7ab.akpm@linux-foundation.org>
-In-Reply-To: <efd1da1efb392cc4e015.1187786944@v2.random>
+Subject: Re: [PATCH 19 of 24] cacheline align VM_is_OOM to prevent false
+ sharing
+Message-Id: <20070912060255.c5b95414.akpm@linux-foundation.org>
+In-Reply-To: <be2fc447cec06990a2a3.1187786946@v2.random>
 References: <patchbomb.1187786927@v2.random>
-	<efd1da1efb392cc4e015.1187786944@v2.random>
+	<be2fc447cec06990a2a3.1187786946@v2.random>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
@@ -15,113 +15,32 @@ To: Andrea Arcangeli <andrea@suse.de>
 Cc: linux-mm@kvack.org, David Rientjes <rientjes@google.com>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 22 Aug 2007 14:49:04 +0200 Andrea Arcangeli <andrea@suse.de> wrote:
+On Wed, 22 Aug 2007 14:49:06 +0200 Andrea Arcangeli <andrea@suse.de> wrote:
 
 > # HG changeset patch
 > # User Andrea Arcangeli <andrea@suse.de>
 > # Date 1187778125 -7200
-> # Node ID efd1da1efb392cc4e015740d088ea9c6235901e0
-> # Parent  b343d1056f356d60de868bd92422b33290e3c514
-> apply the anti deadlock features only to global oom
+> # Node ID be2fc447cec06990a2a31658b166f0c909777260
+> # Parent  040cab5c8aafe1efcb6fc21d1f268c11202dac02
+> cacheline align VM_is_OOM to prevent false sharing
 > 
-> Cc: Christoph Lameter <clameter@sgi.com>
-> The local numa oom will keep killing the current task hoping that's it's
-> not an innocent task and it won't alter the behavior of the rest of the
-> VM. The global oom will not wait for TIF_MEMDIE tasks anymore, so this
-> will be a really local event, not like before when the local-TIF_MEMDIE
-> was effectively a global flag that the global oom would depend on too.
+> This is better to be cacheline aligned in smp kernels just in case.
 > 
-
-ok, I'm starting to get lost here.  Let's apply it unreviewed and if it
-breaks, that'll teach the numa weenies about the value of code review ;)
-
+> Signed-off-by: Andrea Arcangeli <andrea@suse.de>
 > 
 > diff --git a/mm/oom_kill.c b/mm/oom_kill.c
 > --- a/mm/oom_kill.c
 > +++ b/mm/oom_kill.c
-> @@ -387,9 +387,6 @@ void out_of_memory(struct zonelist *zone
->  		/* Got some memory back in the last second. */
->  		return;
+> @@ -29,7 +29,7 @@ int sysctl_panic_on_oom;
+>  int sysctl_panic_on_oom;
+>  /* #define DEBUG */
 >  
-> -	if (down_trylock(&OOM_lock))
-> -		return;
-> -
->  	if (sysctl_panic_on_oom == 2)
->  		panic("out of memory. Compulsory panic_on_oom is selected.\n");
+> -unsigned long VM_is_OOM;
+> +unsigned long VM_is_OOM __cacheline_aligned_in_smp;
+>  static unsigned long last_tif_memdie_jiffies;
 >  
-> @@ -399,32 +396,39 @@ void out_of_memory(struct zonelist *zone
->  	 */
->  	constraint = constrained_alloc(zonelist, gfp_mask);
->  	cpuset_lock();
-> -	read_lock(&tasklist_lock);
-> -
-> -	/*
-> -	 * This holds the down(OOM_lock)+read_lock(tasklist_lock), so it's
-> -	 * equivalent to write_lock_irq(tasklist_lock) as far as VM_is_OOM
-> -	 * is concerned.
-> -	 */
-> -	if (unlikely(test_bit(0, &VM_is_OOM))) {
-> -		if (time_before(jiffies, last_tif_memdie_jiffies + 10*HZ))
-> -			goto out;
-> -		printk("detected probable OOM deadlock, so killing another task\n");
-> -		last_tif_memdie_jiffies = jiffies;
-> -	}
->  
->  	switch (constraint) {
->  	case CONSTRAINT_MEMORY_POLICY:
-> +		read_lock(&tasklist_lock);
->  		oom_kill_process(current, points,
->  				 "No available memory (MPOL_BIND)", gfp_mask, order);
-> +		read_unlock(&tasklist_lock);
->  		break;
->  
->  	case CONSTRAINT_CPUSET:
-> +		read_lock(&tasklist_lock);
->  		oom_kill_process(current, points,
->  				 "No available memory in cpuset", gfp_mask, order);
-> +		read_unlock(&tasklist_lock);
->  		break;
->  
->  	case CONSTRAINT_NONE:
-> +		if (down_trylock(&OOM_lock))
-> +			break;
-> +		read_lock(&tasklist_lock);
-> +
-> +		/*
-> +		 * This holds the down(OOM_lock)+read_lock(tasklist_lock),
-> +		 * so it's equivalent to write_lock_irq(tasklist_lock) as
-> +		 * far as VM_is_OOM is concerned.
-> +		 */
-> +		if (unlikely(test_bit(0, &VM_is_OOM))) {
 
-We have a helper macro-should-be-function for that.
-
-> +			if (time_before(jiffies, last_tif_memdie_jiffies + 10*HZ))
-> +				goto out;
-> +			printk("detected probable OOM deadlock, so killing another task\n");
-> +			last_tif_memdie_jiffies = jiffies;
-> +		}
-> +
->  		if (sysctl_panic_on_oom)
->  			panic("out of memory. panic_on_oom is selected\n");
->  retry:
-> @@ -443,12 +447,11 @@ retry:
->  		if (oom_kill_process(p, points, "Out of memory", gfp_mask, order))
->  			goto retry;
->  
-> +	out:
-> +		read_unlock(&tasklist_lock);
-> +		up(&OOM_lock);
->  		break;
->  	}
->  
-> -out:
-> -	read_unlock(&tasklist_lock);
->  	cpuset_unlock();
-> -
-> -	up(&OOM_lock);
-> -}
-> +}
+I'd suggest __read_mostly.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
