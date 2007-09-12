@@ -1,39 +1,35 @@
-Date: Wed, 12 Sep 2007 15:17:28 -0700 (PDT)
+Date: Wed, 12 Sep 2007 15:39:12 -0700 (PDT)
 From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [PATCH/RFC 0/5] Memory Policy Cleanups and Enhancements
-In-Reply-To: <1189527657.5036.35.camel@localhost>
-Message-ID: <Pine.LNX.4.64.0709121515210.3835@schroedinger.engr.sgi.com>
-References: <20070830185053.22619.96398.sendpatchset@localhost>
- <1189527657.5036.35.camel@localhost>
+Subject: Re: [RFC 0/3] Recursive reclaim (on __PF_MEMALLOC)
+In-Reply-To: <20070821002830.GB8414@wotan.suse.de>
+Message-ID: <Pine.LNX.4.64.0709121537190.4067@schroedinger.engr.sgi.com>
+References: <20070814142103.204771292@sgi.com> <20070815122253.GA15268@wotan.suse.de>
+ <1187183526.6114.45.camel@twins> <20070816032921.GA32197@wotan.suse.de>
+ <1187581894.6114.169.camel@twins> <20070821002830.GB8414@wotan.suse.de>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
-Cc: linux-mm@kvack.org, akpm@linux-foundation.org, ak@suse.de, mtk-manpages@gmx.net, solo@google.com, eric.whitney@hp.com, Mel Gorman <mel@csn.ul.ie>
+To: Nick Piggin <npiggin@suse.de>
+Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, dkegel@google.com, David Miller <davem@davemloft.net>, Daniel Phillips <phillips@google.com>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 11 Sep 2007, Lee Schermerhorn wrote:
+On Tue, 21 Aug 2007, Nick Piggin wrote:
 
-> Andi, Christoph, Mel [added to cc]:
-> 
-> Any comments on these patches, posted 30aug?  I've rebased to
-> 23-rc4-mm1, but before reposting, I wanted to give you a chance to
-> comment.
+> The thing I don't much like about your patches is the addition of more
+> of these global reserve type things in the allocators. They kind of
+> suck (not your code, just the concept of them in general -- ie. including
+> the PF_MEMALLOC reserve). I'd like to eventually reach a model where
+> reclaimable memory from a given subsystem is always backed by enough
+> resources to be able to reclaim it. What stopped you from going that
+> route with the network subsystem? (too much churn, or something
+> fundamental?)
 
-Sorry that it took some time but I only just got around to look at them. 
-The one patch that I acked may be of higher priority and should probably 
-go in immediately to be merged for 2.6.24.
-
-> I'm going to add Mel's "one zonelist" series to my mempolicy tree with
-> these patches and see how that goes.  I'll slide Mel's patches in below
-> these, as it looks like they're closer to acceptance into -mm.
-
-That patchset will have a significant impact on yours. You may be able to 
-get rid of some of the switch statements. It would be great if we had some 
-description as to where you are heading with the incremental changes to 
-the memory policy semantics? I sure wish we would have something more 
-consistent and easier to understand.
+That sounds very right aside from the global reserve. A given subsystem 
+may exist in multiple instances and serve sub partitions of the system.
+F.e. there may be a network card on node 5 and a job running on nodes 3-7
+and another netwwork card on node 15 with the corresponding nodes 13-17 
+doing I/O through it.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
