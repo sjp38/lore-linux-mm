@@ -1,89 +1,31 @@
-Date: Wed, 12 Sep 2007 22:28:09 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [RFC][PATCH] overwride page->mapping [0/3] intro
-Message-Id: <20070912222809.3c972cb3.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <46E7A666.7080409@linux.vnet.ibm.com>
-References: <20070912114322.e4d8a86e.kamezawa.hiroyu@jp.fujitsu.com>
-	<46E7A666.7080409@linux.vnet.ibm.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Date: Wed, 12 Sep 2007 15:34:03 +0200
+From: Andrea Arcangeli <andrea@suse.de>
+Subject: Re: [PATCH 23 of 24] serialize for cpusets
+Message-ID: <20070912133403.GI21600@v2.random>
+References: <patchbomb.1187786927@v2.random> <a3d679df54ebb1f977b9.1187786950@v2.random> <20070912061003.39506e07.akpm@linux-foundation.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20070912061003.39506e07.akpm@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: balbir@linux.vnet.ibm.com
-Cc: linux-mm@kvack.org, nickpiggin@yahoo.com.au, clameter@sgi.com, Lee.Schermerhorn@hp.com, akpm@linux-foundation.org, mbligh@google.com
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, David Rientjes <rientjes@google.com>, Christoph Lameter <clameter@sgi.com>, Paul Jackson <pj@sgi.com>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 12 Sep 2007 14:12:14 +0530
-Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
-
-> KAMEZAWA Hiroyuki wrote:
-> > In general, we cannot inclease size of 'struct page'. So, overriding and
-> > adding prural meanings to page struct's member is done in many situation.
-> > 
+On Wed, Sep 12, 2007 at 06:10:03AM -0700, Andrew Morton wrote:
+> > +void cpuset_clear_oom(struct task_struct *task)
+> > +{
+> > +	task_lock(task);
+> > +	clear_bit(CS_OOM, &task->cpuset->flags);
+> > +	task_unlock(task);
+> > +}
 > 
-> Hi, Kamezawa,
-> 
-> We discussed the struct page size issue at VM summit. If I remember
-> correctly, Linus suggested that we consider using pfn's instead of
-> pointers for pointer members in struct page.
-> 
-Hmm, define something like this ?
-==
-#define page_cointainer_for_pfn(pfn)      some_routine
-==
+> Seems strange to do a spinlock around a single already-atomic bitop?
 
-> > But to do some kind of precise VM mamangement, page struct itself seems to be
-> > too small. This patchset overrides page->mapping and add on-demand page
-> > information.
-> > 
-> > like this:
-> > 
-> > ==
-> > page->mapping points to address_space or anon_vma or mapping_info
-> > 
-> 
-> Could you elaborate a little here, on what is the basis to decide
-> what page->mapping should point to?
-
-- page->mapping & 0x3 == 0   -> address_space
-- page->mapping & 0x3 == 0x2 -> mapping_info (points to address_space)
-- page->mapping & 0x3 == 0x1 -> anon_vma
-- page->mapping & 0x3 == 0x3 -> mapping_info (points to anon_vma)
-
-
-
-> 
-> > mapping_info is strucutured as 
-> > 
-> > struct mapping_info {
-> > 	union {
-> > 		anon_vma;
-> > 		address_space;
-> > 	};
-> > 	/* Additional Information to this page */
-> > };
-> > 
-> > ==
-> > This works based on "adding page->mapping interface" patch set, I posted.
-> > 
-> > My main target is move page_container information to this mapping_info.
-> > By this, we can avoid increasing size of struct page when container is used.
-> > 
-> 
-> I am not against this goal, but wouldn't we end up with too many
-> dereferences to get to the container?
-> i.e, page->mapping->page_container->mem_container.
-> 
-I'm now thinling like this.
-==
->From : page->container -> mem_contnainer.
-To   : page->mapping_info.container -> mem_container
-==                     ^^^^^
-
-
-Thanks,
--Kame
+The CS_OOM information for us is serialized by the task_lock. But I
+assume flags can change also outside of the task_lock for other usages
+hence the need of clear_bit.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
