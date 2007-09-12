@@ -1,94 +1,56 @@
-Received: from sd0109e.au.ibm.com (d23rh905.au.ibm.com [202.81.18.225])
-	by e23smtp04.au.ibm.com (8.13.1/8.13.1) with ESMTP id l8C8kSHC018392
-	for <linux-mm@kvack.org>; Wed, 12 Sep 2007 18:46:28 +1000
-Received: from d23av03.au.ibm.com (d23av03.au.ibm.com [9.190.234.97])
-	by sd0109e.au.ibm.com (8.13.8/8.13.8/NCO v8.5) with ESMTP id l8C8kGiF069754
-	for <linux-mm@kvack.org>; Wed, 12 Sep 2007 18:46:16 +1000
-Received: from d23av03.au.ibm.com (loopback [127.0.0.1])
-	by d23av03.au.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l8C8gQZS023142
-	for <linux-mm@kvack.org>; Wed, 12 Sep 2007 18:42:26 +1000
-Message-ID: <46E7A666.7080409@linux.vnet.ibm.com>
-Date: Wed, 12 Sep 2007 14:12:14 +0530
-From: Balbir Singh <balbir@linux.vnet.ibm.com>
-Reply-To: balbir@linux.vnet.ibm.com
-MIME-Version: 1.0
-Subject: Re: [RFC][PATCH] overwride page->mapping [0/3] intro
-References: <20070912114322.e4d8a86e.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20070912114322.e4d8a86e.kamezawa.hiroyu@jp.fujitsu.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Subject: Re: [PATCH 00/23] per device dirty throttling -v10
+From: Peter Zijlstra <a.p.zijlstra@chello.nl>
+In-Reply-To: <18151.20356.862163.430265@stoffel.org>
+References: <20070911195350.825778000@chello.nl>
+	 <18151.20356.862163.430265@stoffel.org>
+Content-Type: multipart/signed; micalg=pgp-sha1; protocol="application/pgp-signature"; boundary="=-CJuUtTUukrRDlkmrjFkk"
+Date: Wed, 12 Sep 2007 11:00:59 +0200
+Message-Id: <1189587659.21778.104.camel@twins>
+Mime-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "nickpiggin@yahoo.com.au" <nickpiggin@yahoo.com.au>, Christoph Lameter <clameter@sgi.com>, "Lee.Schermerhorn@hp.com" <Lee.Schermerhorn@hp.com>, Andrew Morton <akpm@linux-foundation.org>, "Martin J. Bligh" <mbligh@google.com>
+To: John Stoffel <john@stoffel.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, miklos@szeredi.hu, akpm@linux-foundation.org, neilb@suse.de, dgc@sgi.com, tomoki.sekiyama.qu@hitachi.com, nikita@clusterfs.com, trond.myklebust@fys.uio.no, yingchao.zhou@gmail.com, richard@rsk.demon.co.uk, torvalds@linux-foundation.org
 List-ID: <linux-mm.kvack.org>
 
-KAMEZAWA Hiroyuki wrote:
-> In general, we cannot inclease size of 'struct page'. So, overriding and
-> adding prural meanings to page struct's member is done in many situation.
-> 
+--=-CJuUtTUukrRDlkmrjFkk
+Content-Type: text/plain
+Content-Transfer-Encoding: quoted-printable
 
-Hi, Kamezawa,
+On Tue, 2007-09-11 at 22:31 -0400, John Stoffel wrote:
 
-We discussed the struct page size issue at VM summit. If I remember
-correctly, Linus suggested that we consider using pfn's instead of
-pointers for pointer members in struct page.
+I hope the snipped questions were sufficiently answered in the other
+mail. If not, holler :-)
 
-> But to do some kind of precise VM mamangement, page struct itself seems to be
-> too small. This patchset overrides page->mapping and add on-demand page
-> information.
-> 
-> like this:
-> 
-> ==
-> page->mapping points to address_space or anon_vma or mapping_info
-> 
+> Peter> 3 is done by also scaling the dirty limit proportional to the
+> Peter> current task's recent dirty rate.
+>=20
+> Do you mean task or device here?  I'm just wondering how well this
+> works with a bunch of devices with wildly varying speeds. =20
 
-Could you elaborate a little here, on what is the basis to decide
-what page->mapping should point to?
+Task. What I do is modify the limit like this:
 
-> mapping_info is strucutured as 
-> 
-> struct mapping_info {
-> 	union {
-> 		anon_vma;
-> 		address_space;
-> 	};
-> 	/* Additional Information to this page */
-> };
-> 
-> ==
-> This works based on "adding page->mapping interface" patch set, I posted.
-> 
-> My main target is move page_container information to this mapping_info.
-> By this, we can avoid increasing size of struct page when container is used.
-> 
+  current_limit =3D dirty_limit * p(bdi_writeout) * (1 - p(task_dirty)/8)
 
-I am not against this goal, but wouldn't we end up with too many
-dereferences to get to the container?
-i.e, page->mapping->page_container->mem_container.
+Where the p() values are [0, 1].
 
-> Maybe other men may have other information they want to remember.
-> This patch set implements mlock_counter on mapping_info as *exmaple*.
-> (About mlock_counter, overriding page->lru may be able to be used.)
-> 
-> 
-> This approach will consume some amount of memory. But I believe this *additional
-> information* can be tunred off easily if the user doesn't want this.
-> 
-> I'm glad if I can get some comments.
-> 
+By including the inverse of the task dirty rate one gets that tasks that
+are more agressive dirtiers get throttled more aggressively, whereas
+tasks that occasionally dirty a page get a little more room.
 
+--=-CJuUtTUukrRDlkmrjFkk
+Content-Type: application/pgp-signature; name=signature.asc
+Content-Description: This is a digitally signed message part
 
-I'll review your patchset and respond if I have any comments or
-suggestions.
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v1.4.6 (GNU/Linux)
 
+iD8DBQBG56rLXA2jU0ANEf4RAgoNAJ9oZ6x4zIh+sgiFt+rcWGJBapCQ5gCcCKu5
+qn++C+cgC9zEBLqaND5CAGI=
+=JXs2
+-----END PGP SIGNATURE-----
 
--- 
-	Warm Regards,
-	Balbir Singh
-	Linux Technology Center
-	IBM, ISTL
+--=-CJuUtTUukrRDlkmrjFkk--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
