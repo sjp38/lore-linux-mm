@@ -1,254 +1,329 @@
-Message-ID: <46E74321.70203@google.com>
-Date: Tue, 11 Sep 2007 18:38:41 -0700
+Message-ID: <46E7434F.9040506@google.com>
+Date: Tue, 11 Sep 2007 18:39:27 -0700
 From: Ethan Solomita <solo@google.com>
 MIME-Version: 1.0
-Subject: [PATCH 2/6] cpuset write pdflush nodemask
+Subject: [PATCH 3/6] cpuset write throttle
 References: <469D3342.3080405@google.com> <46E741B1.4030100@google.com>
 In-Reply-To: <46E741B1.4030100@google.com>
 Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Ethan Solomita <solo@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Christoph Lameter <clameter@sgi.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Christoph Lameter <clameter@sgi.com>
 List-ID: <linux-mm.kvack.org>
 
-If we want to support nodeset specific writeout then we need a way
-to communicate the set of nodes that an operation should affect.
+Make page writeback obey cpuset constraints
 
-So add a nodemask_t parameter to the pdflush functions and also
-store the nodemask in the pdflush control structure.
+Currently dirty throttling does not work properly in a cpuset.
+
+If f.e a cpuset contains only 1/10th of available memory then all of the
+memory of a cpuset can be dirtied without any writes being triggered.
+If all of the cpusets memory is dirty then only 10% of total memory is dirty.
+The background writeback threshold is usually set at 10% and the synchrononous
+threshold at 40%. So we are still below the global limits while the dirty
+ratio in the cpuset is 100%! Writeback throttling and background writeout
+do not work at all in such scenarios.
+
+This patch makes dirty writeout cpuset aware. When determining the
+dirty limits in get_dirty_limits() we calculate values based on the
+nodes that are reachable from the current process (that has been
+dirtying the page). Then we can trigger writeout based on the
+dirty ratio of the memory in the cpuset.
+
+We trigger writeout in a a cpuset specific way. We go through the dirty
+inodes and search for inodes that have dirty pages on the nodes of the
+active cpuset. If an inode fulfills that requirement then we begin writeout
+of the dirty pages of that inode.
+
+Adding up all the counters for each node in a cpuset may seem to be quite
+an expensive operation (in particular for large cpusets with hundreds of
+nodes) compared to just accessing the global counters if we do not have
+a cpuset. However, please remember that the global counters were only
+introduced recently. Before 2.6.18 we did add up per processor
+counters for each processor on each invocation of get_dirty_limits().
+We now add per node information which I think is equal or less effort
+since there are less nodes than processors.
 
 Signed-off-by: Christoph Lameter <clameter@sgi.com>
-Acked-by: Ethan Solomita <solo@google.com>
+Signed-off-by: Ethan Solomita <solo@google.com>
 
 ---
 
 Patch against 2.6.23-rc4-mm1
 
-diff -uprN -X 0/Documentation/dontdiff 1/fs/buffer.c 2/fs/buffer.c
---- 1/fs/buffer.c	2007-09-11 14:36:24.000000000 -0700
-+++ 2/fs/buffer.c	2007-09-11 14:39:22.000000000 -0700
-@@ -372,7 +372,7 @@ static void free_more_memory(void)
- 	struct zone **zones;
- 	pg_data_t *pgdat;
+diff -uprN -X 0/Documentation/dontdiff 2/mm/page-writeback.c 3/mm/page-writeback.c
+--- 2/mm/page-writeback.c	2007-09-11 14:39:22.000000000 -0700
++++ 3/mm/page-writeback.c	2007-09-11 14:49:35.000000000 -0700
+@@ -103,6 +103,14 @@ EXPORT_SYMBOL(laptop_mode);
  
--	wakeup_pdflush(1024);
-+	wakeup_pdflush(1024, NULL);
- 	yield();
+ static void background_writeout(unsigned long _min_pages, nodemask_t *nodes);
  
- 	for_each_online_pgdat(pgdat) {
-diff -uprN -X 0/Documentation/dontdiff 1/fs/super.c 2/fs/super.c
---- 1/fs/super.c	2007-09-11 14:36:05.000000000 -0700
-+++ 2/fs/super.c	2007-09-11 14:39:22.000000000 -0700
-@@ -616,7 +616,7 @@ int do_remount_sb(struct super_block *sb
- 	return 0;
- }
- 
--static void do_emergency_remount(unsigned long foo)
-+static void do_emergency_remount(unsigned long foo, nodemask_t *bar)
- {
- 	struct super_block *sb;
- 
-@@ -644,7 +644,7 @@ static void do_emergency_remount(unsigne
- 
- void emergency_remount(void)
- {
--	pdflush_operation(do_emergency_remount, 0);
-+	pdflush_operation(do_emergency_remount, 0, NULL);
- }
- 
- /*
-diff -uprN -X 0/Documentation/dontdiff 1/fs/sync.c 2/fs/sync.c
---- 1/fs/sync.c	2007-09-11 14:36:05.000000000 -0700
-+++ 2/fs/sync.c	2007-09-11 14:39:22.000000000 -0700
-@@ -21,9 +21,9 @@
-  * sync everything.  Start out by waking pdflush, because that writes back
-  * all queues in parallel.
-  */
--static void do_sync(unsigned long wait)
-+static void do_sync(unsigned long wait, nodemask_t *unused)
- {
--	wakeup_pdflush(0);
-+	wakeup_pdflush(0, NULL);
- 	sync_inodes(0);		/* All mappings, inodes and their blockdevs */
- 	DQUOT_SYNC(NULL);
- 	sync_supers();		/* Write the superblocks */
-@@ -38,13 +38,13 @@ static void do_sync(unsigned long wait)
- 
- asmlinkage long sys_sync(void)
- {
--	do_sync(1);
-+	do_sync(1, NULL);
- 	return 0;
- }
- 
- void emergency_sync(void)
- {
--	pdflush_operation(do_sync, 0);
-+	pdflush_operation(do_sync, 0, NULL);
- }
- 
- /*
-diff -uprN -X 0/Documentation/dontdiff 1/include/linux/writeback.h 2/include/linux/writeback.h
---- 1/include/linux/writeback.h	2007-09-11 14:37:46.000000000 -0700
-+++ 2/include/linux/writeback.h	2007-09-11 14:39:22.000000000 -0700
-@@ -91,7 +91,7 @@ static inline void inode_sync_wait(struc
- /*
-  * mm/page-writeback.c
-  */
--int wakeup_pdflush(long nr_pages);
-+int wakeup_pdflush(long nr_pages, nodemask_t *nodes);
- void laptop_io_completion(void);
- void laptop_sync_completion(void);
- void throttle_vm_writeout(gfp_t gfp_mask);
-@@ -122,7 +122,8 @@ balance_dirty_pages_ratelimited(struct a
- typedef int (*writepage_t)(struct page *page, struct writeback_control *wbc,
- 				void *data);
- 
--int pdflush_operation(void (*fn)(unsigned long), unsigned long arg0);
-+int pdflush_operation(void (*fn)(unsigned long, nodemask_t *nodes),
-+			unsigned long arg0, nodemask_t *nodes);
- int generic_writepages(struct address_space *mapping,
- 		       struct writeback_control *wbc);
- int write_cache_pages(struct address_space *mapping,
-diff -uprN -X 0/Documentation/dontdiff 1/mm/page-writeback.c 2/mm/page-writeback.c
---- 1/mm/page-writeback.c	2007-09-11 14:36:24.000000000 -0700
-+++ 2/mm/page-writeback.c	2007-09-11 14:39:22.000000000 -0700
-@@ -101,7 +101,7 @@ EXPORT_SYMBOL(laptop_mode);
- /* End of sysctl-exported parameters */
- 
- 
--static void background_writeout(unsigned long _min_pages);
-+static void background_writeout(unsigned long _min_pages, nodemask_t *nodes);
- 
++struct dirty_limits {
++	long thresh_background;
++	long thresh_dirty;
++	unsigned long nr_dirty;
++	unsigned long nr_unstable;
++	unsigned long nr_writeback;
++};
++
  /*
   * Work out the current dirty-memory clamping and background writeout
-@@ -272,7 +272,7 @@ static void balance_dirty_pages(struct a
+  * thresholds.
+@@ -121,16 +129,20 @@ static void background_writeout(unsigned
+  * clamping level.
+  */
+ 
+-static unsigned long highmem_dirtyable_memory(unsigned long total)
++static unsigned long highmem_dirtyable_memory(nodemask_t *nodes, unsigned long total)
+ {
+ #ifdef CONFIG_HIGHMEM
+ 	int node;
+ 	unsigned long x = 0;
+ 
++	if (nodes == NULL)
++		nodes = &node_online_mask;
+ 	for_each_node_state(node, N_HIGH_MEMORY) {
+ 		struct zone *z =
+ 			&NODE_DATA(node)->node_zones[ZONE_HIGHMEM];
+ 
++		if (!node_isset(node, nodes))
++			continue;
+ 		x += zone_page_state(z, NR_FREE_PAGES)
+ 			+ zone_page_state(z, NR_INACTIVE)
+ 			+ zone_page_state(z, NR_ACTIVE);
+@@ -154,26 +166,74 @@ static unsigned long determine_dirtyable
+ 	x = global_page_state(NR_FREE_PAGES)
+ 		+ global_page_state(NR_INACTIVE)
+ 		+ global_page_state(NR_ACTIVE);
+-	x -= highmem_dirtyable_memory(x);
++	x -= highmem_dirtyable_memory(NULL, x);
+ 	return x + 1;	/* Ensure that we never return 0 */
+ }
+ 
+-static void
+-get_dirty_limits(long *pbackground, long *pdirty,
+-					struct address_space *mapping)
++static int
++get_dirty_limits(struct dirty_limits *dl, struct address_space *mapping,
++					nodemask_t *nodes)
+ {
+ 	int background_ratio;		/* Percentages */
+ 	int dirty_ratio;
+ 	int unmapped_ratio;
+ 	long background;
+ 	long dirty;
+-	unsigned long available_memory = determine_dirtyable_memory();
++	unsigned long available_memory;
++	unsigned long nr_mapped;
+ 	struct task_struct *tsk;
++	int is_subset = 0;
+ 
+-	unmapped_ratio = 100 - ((global_page_state(NR_FILE_MAPPED) +
+-				global_page_state(NR_ANON_PAGES)) * 100) /
+-					available_memory;
++#ifdef CONFIG_CPUSETS
++	if (unlikely(nodes &&
++			!nodes_subset(node_online_map, *nodes))) {
++		int node;
+ 
++		/*
++		 * Calculate the limits relative to the current cpuset.
++		 *
++		 * We do not disregard highmem because all nodes (except
++		 * maybe node 0) have either all memory in HIGHMEM (32 bit) or
++		 * all memory in non HIGHMEM (64 bit). If we would disregard
++		 * highmem then cpuset throttling would not work on 32 bit.
++		 */
++		is_subset = 1;
++		memset(dl, 0, sizeof(struct dirty_limits));
++		available_memory = 0;
++		nr_mapped = 0;
++		for_each_node_mask(node, *nodes) {
++			if (!node_online(node))
++				continue;
++			dl->nr_dirty += node_page_state(node, NR_FILE_DIRTY);
++			dl->nr_unstable +=
++				node_page_state(node, NR_UNSTABLE_NFS);
++			dl->nr_writeback +=
++				node_page_state(node, NR_WRITEBACK);
++			available_memory +=
++				node_page_state(node, NR_ACTIVE) +
++				node_page_state(node, NR_INACTIVE) +
++				node_page_state(node, NR_FREE_PAGES);
++			nr_mapped += node_page_state(node, NR_FILE_MAPPED) +
++				node_page_state(node, NR_ANON_PAGES);
++		}
++		available_memory -= highmem_dirtyable_memory(nodes,
++							     available_memory);
++		/* Ensure that we return >= 0 */
++		if (available_memory <= 0)
++			available_memory = 1;
++	} else
++#endif
++	{
++		/* Global limits */
++		dl->nr_dirty = global_page_state(NR_FILE_DIRTY);
++		dl->nr_unstable = global_page_state(NR_UNSTABLE_NFS);
++		dl->nr_writeback = global_page_state(NR_WRITEBACK);
++		available_memory = determine_dirtyable_memory();
++		nr_mapped = global_page_state(NR_FILE_MAPPED) +
++			global_page_state(NR_ANON_PAGES);
++	}
++
++	unmapped_ratio = 100 - (nr_mapped * 100 / available_memory);
+ 	dirty_ratio = vm_dirty_ratio;
+ 	if (dirty_ratio > unmapped_ratio / 2)
+ 		dirty_ratio = unmapped_ratio / 2;
+@@ -192,8 +252,9 @@ get_dirty_limits(long *pbackground, long
+ 		background += background / 4;
+ 		dirty += dirty / 4;
+ 	}
+-	*pbackground = background;
+-	*pdirty = dirty;
++	dl->thresh_background = background;
++	dl->thresh_dirty = dirty;
++	return is_subset;
+ }
+ 
+ /*
+@@ -206,8 +267,7 @@ get_dirty_limits(long *pbackground, long
+ static void balance_dirty_pages(struct address_space *mapping)
+ {
+ 	long nr_reclaimable;
+-	long background_thresh;
+-	long dirty_thresh;
++	struct dirty_limits dl;
+ 	unsigned long pages_written = 0;
+ 	unsigned long write_chunk = sync_writeback_pages();
+ 
+@@ -222,11 +282,12 @@ static void balance_dirty_pages(struct a
+ 			.range_cyclic	= 1,
+ 		};
+ 
+-		get_dirty_limits(&background_thresh, &dirty_thresh, mapping);
+-		nr_reclaimable = global_page_state(NR_FILE_DIRTY) +
+-					global_page_state(NR_UNSTABLE_NFS);
+-		if (nr_reclaimable + global_page_state(NR_WRITEBACK) <=
+-			dirty_thresh)
++		if (get_dirty_limits(&dl, mapping,
++				&cpuset_current_mems_allowed))
++			wbc.nodes = &cpuset_current_mems_allowed;
++		nr_reclaimable = dl.nr_dirty + dl.nr_unstable;
++		if (nr_reclaimable + dl.nr_writeback <=
++			dl.thresh_dirty)
+ 				break;
+ 
+ 		if (!dirty_exceeded)
+@@ -240,13 +301,10 @@ static void balance_dirty_pages(struct a
+ 		 */
+ 		if (nr_reclaimable) {
+ 			writeback_inodes(&wbc);
+-			get_dirty_limits(&background_thresh,
+-					 	&dirty_thresh, mapping);
+-			nr_reclaimable = global_page_state(NR_FILE_DIRTY) +
+-					global_page_state(NR_UNSTABLE_NFS);
+-			if (nr_reclaimable +
+-				global_page_state(NR_WRITEBACK)
+-					<= dirty_thresh)
++			get_dirty_limits(&dl, mapping,
++				&cpuset_current_mems_allowed);
++			nr_reclaimable = dl.nr_dirty + dl.nr_unstable;
++			if (nr_reclaimable + dl.nr_writeback <= dl.thresh_dirty)
+ 						break;
+ 			pages_written += write_chunk - wbc.nr_to_write;
+ 			if (pages_written >= write_chunk)
+@@ -255,8 +313,8 @@ static void balance_dirty_pages(struct a
+ 		congestion_wait(WRITE, HZ/10);
+ 	}
+ 
+-	if (nr_reclaimable + global_page_state(NR_WRITEBACK)
+-		<= dirty_thresh && dirty_exceeded)
++	if (nr_reclaimable + dl.nr_writeback
++		<= dl.thresh_dirty && dirty_exceeded)
+ 			dirty_exceeded = 0;
+ 
+ 	if (writeback_in_progress(bdi))
+@@ -271,8 +329,9 @@ static void balance_dirty_pages(struct a
+ 	 * background_thresh, to keep the amount of dirty memory low.
  	 */
  	if ((laptop_mode && pages_written) ||
- 	     (!laptop_mode && (nr_reclaimable > background_thresh)))
--		pdflush_operation(background_writeout, 0);
-+		pdflush_operation(background_writeout, 0, NULL);
+-	     (!laptop_mode && (nr_reclaimable > background_thresh)))
+-		pdflush_operation(background_writeout, 0, NULL);
++	     (!laptop_mode && (nr_reclaimable > dl.thresh_background)))
++		pdflush_operation(background_writeout, 0,
++			&cpuset_current_mems_allowed);
  }
  
  void set_page_dirty_balance(struct page *page)
-@@ -362,7 +362,7 @@ void throttle_vm_writeout(gfp_t gfp_mask
-  * writeback at least _min_pages, and keep writing until the amount of dirty
-  * memory is less than the background threshold, or until we're all clean.
-  */
--static void background_writeout(unsigned long _min_pages)
-+static void background_writeout(unsigned long _min_pages, nodemask_t *unused)
- {
- 	long min_pages = _min_pages;
- 	struct writeback_control wbc = {
-@@ -402,12 +402,12 @@ static void background_writeout(unsigned
-  * the whole world.  Returns 0 if a pdflush thread was dispatched.  Returns
-  * -1 if all pdflush threads were busy.
-  */
--int wakeup_pdflush(long nr_pages)
-+int wakeup_pdflush(long nr_pages, nodemask_t *nodes)
- {
- 	if (nr_pages == 0)
- 		nr_pages = global_page_state(NR_FILE_DIRTY) +
- 				global_page_state(NR_UNSTABLE_NFS);
--	return pdflush_operation(background_writeout, nr_pages);
-+	return pdflush_operation(background_writeout, nr_pages, nodes);
- }
+@@ -329,8 +388,7 @@ EXPORT_SYMBOL(balance_dirty_pages_rateli
  
- static void wb_timer_fn(unsigned long unused);
-@@ -431,7 +431,7 @@ static DEFINE_TIMER(laptop_mode_wb_timer
-  * older_than_this takes precedence over nr_to_write.  So we'll only write back
-  * all dirty pages if they are all attached to "old" mappings.
-  */
--static void wb_kupdate(unsigned long arg)
-+static void wb_kupdate(unsigned long arg, nodemask_t *unused)
+ void throttle_vm_writeout(gfp_t gfp_mask)
  {
- 	unsigned long oldest_jif;
- 	unsigned long start_jif;
-@@ -489,18 +489,18 @@ int dirty_writeback_centisecs_handler(ct
+-	long background_thresh;
+-	long dirty_thresh;
++	struct dirty_limits dl;
  
- static void wb_timer_fn(unsigned long unused)
- {
--	if (pdflush_operation(wb_kupdate, 0) < 0)
-+	if (pdflush_operation(wb_kupdate, 0, NULL) < 0)
- 		mod_timer(&wb_timer, jiffies + HZ); /* delay 1 second */
- }
+ 	if ((gfp_mask & (__GFP_FS|__GFP_IO)) != (__GFP_FS|__GFP_IO)) {
+ 		/*
+@@ -342,27 +400,26 @@ void throttle_vm_writeout(gfp_t gfp_mask
+ 		return;
+ 	}
  
--static void laptop_flush(unsigned long unused)
-+static void laptop_flush(unsigned long unused, nodemask_t *unused2)
- {
- 	sys_sync();
- }
+-        for ( ; ; ) {
+-		get_dirty_limits(&background_thresh, &dirty_thresh, NULL);
++	for ( ; ; ) {
++		get_dirty_limits(&dl, NULL, &node_online_map);
++
++		/*
++		 * Boost the allowable dirty threshold a bit for page
++		 * allocators so they don't get DoS'ed by heavy writers
++		 */
++		dl.thresh_dirty += dl.thresh_dirty / 10; /* wheeee... */
  
- static void laptop_timer_fn(unsigned long unused)
- {
--	pdflush_operation(laptop_flush, 0);
-+	pdflush_operation(laptop_flush, 0, NULL);
+-                /*
+-                 * Boost the allowable dirty threshold a bit for page
+-                 * allocators so they don't get DoS'ed by heavy writers
+-                 */
+-                dirty_thresh += dirty_thresh / 10;      /* wheeee... */
+-
+-                if (global_page_state(NR_UNSTABLE_NFS) +
+-			global_page_state(NR_WRITEBACK) <= dirty_thresh)
+-                        	break;
+-                congestion_wait(WRITE, HZ/10);
+-        }
++		if (dl.nr_unstable + dl.nr_writeback <= dl.thresh_dirty)
++			break;
++		congestion_wait(WRITE, HZ/10);
++	}
  }
  
  /*
-diff -uprN -X 0/Documentation/dontdiff 1/mm/pdflush.c 2/mm/pdflush.c
---- 1/mm/pdflush.c	2007-09-11 14:36:06.000000000 -0700
-+++ 2/mm/pdflush.c	2007-09-11 14:39:22.000000000 -0700
-@@ -83,10 +83,12 @@ static unsigned long last_empty_jifs;
+  * writeback at least _min_pages, and keep writing until the amount of dirty
+  * memory is less than the background threshold, or until we're all clean.
   */
- struct pdflush_work {
- 	struct task_struct *who;	/* The thread */
--	void (*fn)(unsigned long);	/* A callback function */
-+	void (*fn)(unsigned long, nodemask_t *); /* A callback function */
- 	unsigned long arg0;		/* An argument to the callback */
- 	struct list_head list;		/* On pdflush_list, when idle */
- 	unsigned long when_i_went_to_sleep;
-+	int have_nodes;			/* Nodes were specified */
-+	nodemask_t nodes;		/* Nodes of interest */
- };
- 
- static int __pdflush(struct pdflush_work *my_work)
-@@ -124,7 +126,8 @@ static int __pdflush(struct pdflush_work
- 		}
- 		spin_unlock_irq(&pdflush_lock);
- 
--		(*my_work->fn)(my_work->arg0);
-+		(*my_work->fn)(my_work->arg0,
-+			my_work->have_nodes ? &my_work->nodes : NULL);
- 
- 		/*
- 		 * Thread creation: For how long have there been zero
-@@ -198,7 +201,8 @@ static int pdflush(void *dummy)
-  * Returns zero if it indeed managed to find a worker thread, and passed your
-  * payload to it.
-  */
--int pdflush_operation(void (*fn)(unsigned long), unsigned long arg0)
-+int pdflush_operation(void (*fn)(unsigned long, nodemask_t *),
-+			unsigned long arg0, nodemask_t *nodes)
+-static void background_writeout(unsigned long _min_pages, nodemask_t *unused)
++static void background_writeout(unsigned long _min_pages, nodemask_t *nodes)
  {
- 	unsigned long flags;
- 	int ret = 0;
-@@ -218,6 +222,11 @@ int pdflush_operation(void (*fn)(unsigne
- 			last_empty_jifs = jiffies;
- 		pdf->fn = fn;
- 		pdf->arg0 = arg0;
-+		if (nodes) {
-+			pdf->nodes = *nodes;
-+			pdf->have_nodes = 1;
-+		} else
-+			pdf->have_nodes = 0;
- 		wake_up_process(pdf->who);
- 		spin_unlock_irqrestore(&pdflush_lock, flags);
- 	}
-diff -uprN -X 0/Documentation/dontdiff 1/mm/vmscan.c 2/mm/vmscan.c
---- 1/mm/vmscan.c	2007-09-11 14:36:06.000000000 -0700
-+++ 2/mm/vmscan.c	2007-09-11 14:41:41.000000000 -0700
-@@ -1301,7 +1301,7 @@ unsigned long do_try_to_free_pages(struc
- 		 */
- 		if (total_scanned > sc->swap_cluster_max +
- 					sc->swap_cluster_max / 2) {
--			wakeup_pdflush(laptop_mode ? 0 : total_scanned);
-+			wakeup_pdflush(laptop_mode ? 0 : total_scanned, NULL);
- 			sc->may_writepage = 1;
- 		}
+ 	long min_pages = _min_pages;
+ 	struct writeback_control wbc = {
+@@ -375,12 +432,11 @@ static void background_writeout(unsigned
+ 	};
  
+ 	for ( ; ; ) {
+-		long background_thresh;
+-		long dirty_thresh;
++		struct dirty_limits dl;
+ 
+-		get_dirty_limits(&background_thresh, &dirty_thresh, NULL);
+-		if (global_page_state(NR_FILE_DIRTY) +
+-			global_page_state(NR_UNSTABLE_NFS) < background_thresh
++		if (get_dirty_limits(&dl, NULL, nodes))
++			wbc.nodes = nodes;
++		if (dl.nr_dirty + dl.nr_unstable < dl.thresh_background
+ 				&& min_pages <= 0)
+ 			break;
+ 		wbc.encountered_congestion = 0;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
