@@ -1,38 +1,40 @@
-Message-ID: <46E85825.4050505@google.com>
-Date: Wed, 12 Sep 2007 14:20:37 -0700
-From: Ethan Solomita <solo@google.com>
+Date: Wed, 12 Sep 2007 14:23:19 -0700 (PDT)
+From: Christoph Lameter <clameter@sgi.com>
+Subject: Re: [PATCH 5/6] Filter based on a nodemask as well as a gfp_mask
+In-Reply-To: <20070912210625.31625.36220.sendpatchset@skynet.skynet.ie>
+Message-ID: <Pine.LNX.4.64.0709121420010.3130@schroedinger.engr.sgi.com>
+References: <20070912210444.31625.65810.sendpatchset@skynet.skynet.ie>
+ <20070912210625.31625.36220.sendpatchset@skynet.skynet.ie>
 MIME-Version: 1.0
-Subject: Re: [PATCH/RFC 4/5] Mem Policy:  cpuset-independent interleave policy
-References: <20070830185053.22619.96398.sendpatchset@localhost> <20070830185122.22619.56636.sendpatchset@localhost>
-In-Reply-To: <20070830185122.22619.56636.sendpatchset@localhost>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Lee Schermerhorn <lee.schermerhorn@hp.com>
-Cc: linux-mm@kvack.org, akpm@linux-foundation.org, ak@suse.de, mtk-manpages@gmx.net, clameter@sgi.com, eric.whitney@hp.com
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: Lee.Schermerhorn@hp.com, kamezawa.hiroyu@jp.fujitsu.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-the feature set I was interested in. One question regarding:
+On Wed, 12 Sep 2007, Mel Gorman wrote:
 
-Lee Schermerhorn wrote:
-> 
-> However, this will involve testing possibly several words of
-> bitmask in the allocation path.  Instead, I chose to encode the
-> "context-dependent policy" indication in the upper bits of the
-> policy member of the mempolicy structure.  This member must
-> already be tested to determine the policy mode, so no extra
-> memory references should be required.  However, for testing the
-> policy--e.g., in the several switch() and if() statements--the
-> context flag must be masked off using the policy_mode() inline
-> function.  On the upside, this allows additional flags to be so
-> encoded, should that become useful.
+> -			z++)
+> -		;
+> +	if (likely(nodes == NULL))
+> +		for (; zonelist_zone_idx(z) > highest_zoneidx;
+> +				z++)
+> +			;
+> +	else
+> +		for (; zonelist_zone_idx(z) > highest_zoneidx ||
+> +				(z->zone && !zref_in_nodemask(z, nodes));
+> +				z++)
+> +			;
+>  
 
-	Instead of creating MPOL_CONTEXT, did you consider instead creating a 
-new MPOL for this, such as MPOL_INTERLEAVE_ALL? If the only intended 
-user of the MPOL_CONTEXT "flag" is just MPOL_INTERLEAVE_ALL, it seems 
-like you'll have simpler code this way.
-	-- Ethan
+Minor nitpick here: "for (;" should become "for ( ;" to have correct 
+whitespace. However, it would be clearer to use a while here.
+
+while (zonelist_zone_idx(z)) > highest_zoneidx)
+		z++;
+
+etc.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
