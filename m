@@ -1,90 +1,55 @@
-From: Nick Piggin <nickpiggin@yahoo.com.au>
-Subject: Re: [PATCH 03 of 24] prevent oom deadlocks during read/write operations
-Date: Wed, 12 Sep 2007 12:18:34 +1000
-References: <patchbomb.1187786927@v2.random> <5566f2af006a171cd47d.1187786930@v2.random> <20070912045659.2cd1ede6.akpm@linux-foundation.org>
-In-Reply-To: <20070912045659.2cd1ede6.akpm@linux-foundation.org>
+Date: Wed, 12 Sep 2007 12:08:43 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [PATCH 23 of 24] serialize for cpusets
+In-Reply-To: <20070912061003.39506e07.akpm@linux-foundation.org>
+Message-ID: <alpine.DEB.0.9999.0709121207170.16331@chino.kir.corp.google.com>
+References: <patchbomb.1187786927@v2.random> <a3d679df54ebb1f977b9.1187786950@v2.random> <20070912061003.39506e07.akpm@linux-foundation.org>
 MIME-Version: 1.0
-Content-Type: text/plain;
-  charset="iso-8859-1"
-Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
-Message-Id: <200709121218.34840.nickpiggin@yahoo.com.au>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Andrea Arcangeli <andrea@suse.de>, linux-mm@kvack.org, David Rientjes <rientjes@google.com>
+Cc: Andrea Arcangeli <andrea@suse.de>, linux-mm@kvack.org, Christoph Lameter <clameter@sgi.com>, Paul Jackson <pj@sgi.com>
 List-ID: <linux-mm.kvack.org>
 
-On Wednesday 12 September 2007 21:56, Andrew Morton wrote:
+On Wed, 12 Sep 2007, Andrew Morton wrote:
 
-> I had to rejig this code quite a lot on top of the stuff which is pending
-> in -mm and I might have missed a path.  Nick, can you please review this
-> closely?
+> > # HG changeset patch
+> > # User David Rientjes <rientjes@google.com>
+> > # Date 1187778125 -7200
+> > # Node ID a3d679df54ebb1f977b97ab6b3e501134bf9e7ef
+> > # Parent  8807a4d14b241b2d1132fde7f83834603b6cf093
+> > serialize for cpusets
+> > 
+> > Adds a last_tif_memdie_jiffies field to struct cpuset to store the
+> > jiffies value at the last OOM kill.  This will detect deadlocks in the
+> > CONSTRAINT_CPUSET case and kill another task if its detected.
+> > 
+> > Adds a CS_OOM bit to struct cpuset's flags field.  This will be tested,
+> > set, and cleared atomically to denote a cpuset that currently has an
+> > attached task exiting as a result of the OOM killer.  We are required to
+> > take p->alloc_lock to dereference p->cpuset so this cannot be implemented
+> > as a simple trylock.
+> > 
+> > As a result, we cannot allow the detachment of a task from a cpuset that
+> > is currently OOM killing one of its tasks.  If we did, we would end up
+> > clearing the CS_OOM bit in the wrong cpuset upon that task's exit.
+> > 
+> > sysctl's panic_on_oom is now only effected in the non-cpuset-constrained
+> > case.
+> > 
+> > Cc: Andrea Arcangeli <andrea@suse.de>
+> > Cc: Christoph Lameter <clameter@sgi.com>
+> > Signed-off-by: David Rientjes <rientjes@google.com>
+> 
+> I understand that SGI's HPC customers care rather a lot about oom handling
+> in cpusets.  It'd be nice if people@sgi could carefully review-and-test
+> changes such as this before we go and break stuff for them, please.
+> 
 
-I think it looks OK. Is -ENOMEM the right thing to return here? I guess
-userspace won't see it if they have a SIGKILL pending? (EINTR or
-something may be more logical, but maybe the call chain can't
-handle it?)
-
->
-> The patch adds sixty-odd bytes of text to some of the most-used code in the
-> kernel.  Based on the above problem description I'm doubting that this is
-> justified.  Please tell us more?
->
-> diff -puN
-> mm/filemap.c~oom-handling-prevent-oom-deadlocks-during-read-write-operation
->s mm/filemap.c ---
-> a/mm/filemap.c~oom-handling-prevent-oom-deadlocks-during-read-write-operati
->ons +++ a/mm/filemap.c
-> @@ -916,6 +916,15 @@ page_ok:
->  			goto out;
->  		}
->
-> +		if (unlikely(sigismember(&current->pending.signal, SIGKILL))) {
-> +			/*
-> +			 * Must not hang almost forever in D state in presence
-> +			 * of sigkill and lots of ram/swap (think during OOM).
-> +			 */
-> +			page_cache_release(page);
-> +			goto out;
-> +		}
-> +
->  		/* nr is the maximum number of bytes to copy from this page */
->  		nr = PAGE_CACHE_SIZE;
->  		if (index == end_index) {
-> @@ -2050,6 +2059,15 @@ static ssize_t generic_perform_write_2co
->  			break;
->  		}
->
-> +		if (unlikely(sigismember(&current->pending.signal, SIGKILL))) {
-> +			/*
-> +			 * Must not hang almost forever in D state in presence
-> +			 * of sigkill and lots of ram/swap (think during OOM).
-> +			 */
-> +			status = -ENOMEM;
-> +			break;
-> +		}
-> +
->  		page = __grab_cache_page(mapping, index);
->  		if (!page) {
->  			status = -ENOMEM;
-> @@ -2220,6 +2238,15 @@ again:
->  			break;
->  		}
->
-> +		if (unlikely(sigismember(&current->pending.signal, SIGKILL))) {
-> +			/*
-> +			 * Must not hang almost forever in D state in presence
-> +			 * of sigkill and lots of ram/swap (think during OOM).
-> +			 */
-> +			status = -ENOMEM;
-> +			break;
-> +		}
-> +
->  		status = a_ops->write_begin(file, mapping, pos, bytes, flags,
->  						&page, &fsdata);
->  		if (unlikely(status))
-> _
+During the initial review of this change, Paul Jackson suggested adding 
+oom_kill_asking_task, which the next patch in this series does, to switch 
+this on and off.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
