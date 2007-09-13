@@ -1,13 +1,11 @@
-Date: Thu, 13 Sep 2007 11:21:08 -0700 (PDT)
+Date: Thu, 13 Sep 2007 11:22:53 -0700 (PDT)
 From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [PATCH/RFC 3/5] Mem Policy:  MPOL_PREFERRED fixups for "local
- allocation"
-In-Reply-To: <1189690525.5013.22.camel@localhost>
-Message-ID: <Pine.LNX.4.64.0709131120470.9378@schroedinger.engr.sgi.com>
+Subject: Re: [PATCH/RFC 0/5] Memory Policy Cleanups and Enhancements
+In-Reply-To: <1189698566.5013.72.camel@localhost>
+Message-ID: <Pine.LNX.4.64.0709131122140.9378@schroedinger.engr.sgi.com>
 References: <20070830185053.22619.96398.sendpatchset@localhost>
- <20070830185114.22619.61260.sendpatchset@localhost>
- <Pine.LNX.4.64.0709121502420.3835@schroedinger.engr.sgi.com>
- <1189690525.5013.22.camel@localhost>
+ <1189527657.5036.35.camel@localhost>  <Pine.LNX.4.64.0709121515210.3835@schroedinger.engr.sgi.com>
+ <1189698566.5013.72.camel@localhost>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
@@ -18,16 +16,18 @@ List-ID: <linux-mm.kvack.org>
 
 On Thu, 13 Sep 2007, Lee Schermerhorn wrote:
 
-> > Hmmm. But one wants mpol_to_str to represent the memory policy not the 
-> > context information that may change through migration. What you 
-> > do there is provide information from the context. You could add the 
-> > nodemask but I think we need to have some indicator that this policy is 
-> > referring to the local policy.
+> Andi thought this was important enough to go in to 23 as a bug fix.  I
+> think it's at least as important as the one you acked.  However, I don't
+> know that anyone has ever cited a problem with it.  Then again, they
+> might not notice if they occasionally leak a mempolicy struct, or use a
+> freed or reused one for page allocation.  I'd be happier to see it cook
+> in -mm for a while.  So, I'll go ahead and rebase atop Mel's patches.
 > 
-> True.  I could make mpol_to_str return something like "*" for the
-> nodemask and document this as "any allowed".
+> Thoughts?
 
-Or print (any) ?
+There is the concern about performance issues because of new refcounter 
+increments. I thought you said that you wanted to do performance tests 
+first?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
