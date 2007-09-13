@@ -1,31 +1,111 @@
-From: Dave McCracken <dave.mccracken@oracle.com>
-Subject: Re: [PATCH 4/5] hugetlb: Try to grow hugetlb pool for MAP_SHARED mappings
-Date: Thu, 13 Sep 2007 17:24:48 -0500
-References: <20070913175855.27074.27030.stgit@kernel> <20070913175940.27074.34082.stgit@kernel>
-In-Reply-To: <20070913175940.27074.34082.stgit@kernel>
-MIME-Version: 1.0
-Content-Type: text/plain;
-  charset="utf-8"
-Content-Transfer-Encoding: base64
-Content-Disposition: inline
-Message-Id: <200709131724.48818.dave.mccracken@oracle.com>
+Date: Thu, 13 Sep 2007 15:46:07 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH 1/1] cpusets/sched_domain reconciliation
+Message-Id: <20070913154607.9c49e1c7.akpm@linux-foundation.org>
+In-Reply-To: <20070907210704.E6BE02FC059@attica.americas.sgi.com>
+References: <20070907210704.E6BE02FC059@attica.americas.sgi.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Adam Litke <agl@us.ibm.com>
-Cc: linux-mm@kvack.org, libhugetlbfs-devel@lists.sourceforge.net, Andy Whitcroft <apw@shadowen.org>, Mel Gorman <mel@skynet.ie>, Bill Irwin <bill.irwin@oracle.com>, Ken Chen <kenchen@google.com>
+To: Cliff Wickman <cpw@sgi.com>
+Cc: linux-mm@kvack.org, Nick Piggin <nickpiggin@yahoo.com.au>, Paul Jackson <pj@sgi.com>, Ingo Molnar <mingo@elte.hu>
 List-ID: <linux-mm.kvack.org>
 
-T24gVGh1cnNkYXkgMTMgU2VwdGVtYmVyIDIwMDcsIEFkYW0gTGl0a2Ugd3JvdGU6Cj4gK3N0YXRp
-YyBpbnQgZ2F0aGVyX3N1cnBsdXNfcGFnZXMoaW50IGRlbHRhKQo+ICt7Cj4gK8KgwqDCoMKgwqDC
-oMKgc3RydWN0IGxpc3RfaGVhZCBzdXJwbHVzX2xpc3Q7Cj4gK8KgwqDCoMKgwqDCoMKgc3RydWN0
-IHBhZ2UgKnBhZ2UsICp0bXA7Cj4gK8KgwqDCoMKgwqDCoMKgaW50IHJldCwgaTsKPiArwqDCoMKg
-wqDCoMKgwqBpbnQgbmVlZGVkLCBhbGxvY2F0ZWQ7Cj4gKwo+ICvCoMKgwqDCoMKgwqDCoG5lZWRl
-ZCA9IChyZXN2X2h1Z2VfcGFnZXMgKyBkZWx0YSkgLSBmcmVlX2h1Z2VfcGFnZXM7Cj4gK8KgwqDC
-oMKgwqDCoMKgaWYgKCFuZWVkZWQpCj4gK8KgwqDCoMKgwqDCoMKgwqDCoMKgwqDCoMKgwqDCoHJl
-dHVybiAwOwoKSXQgbG9va3MgaGVyZSBsaWtlIG5lZWRlZCBjYW4gYmUgbGVzcyB0aGFuIHplcm8u
-ICBEbyB3ZSByZWFsbHkgaW50ZW5kIHRvIApjb250aW51ZSB3aXRoIHRoZSBmdW5jdGlvbiBpZiB0
-aGF0J3MgdHJ1ZT8gIE9yIHNob3VsZCB0aGF0IHRlc3QgcmVhbGx5IGJlICJpZiAKKG5lZWRlZCA8
-PSAwKSI/CgpEYXZlCg==
+On Fri, 07 Sep 2007 16:07:04 -0500
+cpw@sgi.com (Cliff Wickman) wrote:
+
+> 
+> 
+> 
+> Re-send of patch sent 8/23/2007, but refreshed for 2.6.23-rc5.
+> 
+> This patch reconciles cpusets and sched_domains that get out of sync
+> due to disabling and re-enabling cpu's.
+> 
+> This is still a problem in the 2.6.23-rc5 kernel.
+> 
+> Here is an example of how the problem can occur:
+> 
+>    system of cpu's   0 1 2 3 4 5
+>    create cpuset /x      2 3 4 5 
+>    create cpuset /x/y    2 3
+>    all cpusets are cpu_exclusive
+> 
+>    disable cpu 3
+>      x is now            2   4 5
+>      x/y is now          2
+>    enable cpu 3
+>      cpusets x and x/y are unchanged
+> 
+>    to restore the cpusets:
+>      echo 2-5 > /dev/cpuset/x
+>      echo 2-3 > /dev/cpuset/x/y
+> 
+>    At the first echo, which restores 3 to cpuset x, update_cpu_domains() is
+>    called for cpuset x/. 
+>    system of cpu's   0 1 2 3 4 5
+>    x is now              2 3 4 5
+>    x/y is now            2
+> 
+>    The system is partitioned between:
+> 	its parent, the root cpuset, minus its child (x/ is 2-5): 0-1
+>         and x/ (2-5) , minus its child (x/y/ 2): 3-5
+> 
+>    The sched_domain's for parent 0-1 are updated.
+>    The sched_domain's for current 3-5 are updated.
+> 
+>    But 2 has been untouched.
+>    As a result, 3's SD points to sched_group_phys[3] which is the only
+>    sched_group_phys on 3's list.  It points to itself.
+>    But 2's SD points to sched_group_phys[2], which still points to
+>    sched_group_phys[3].
+>    When cpu 2 executes find_busiest_group() it will hang on the non-
+>    circular sched_group list.
+>            
+> cpuset.c:
+> 
+> This solution is to update the sched_domain's for the cpuset
+> whose cpu's were changed and, in addition, all its children.
+> Instead of calling update_cpu_domains(), call update_cpu_domains_tree(),
+> which calls update_cpu_domains() for every node from the one specified
+> down to all its children.
+> 
+> The extra sched_domain reconstruction is overhead, but only at the
+> frequency of administrative change to the cpusets.
+> 
+> There seems to be no administrative procedural work-around.  In the
+> example above one could not reverse the two echo's and set x/y before
+> x/.  It is not logical, so not allowed (Permission denied).
+> 
+> Thus the patch to cpuset.c makes the sched_domain's correct.
+> 
+> sched.c:
+> 
+> The patch to sched.c prevents the cpu hangs that otherwise occur
+> until the sched_domain's are made correct.
+> 
+> It puts checks into find_busiest_group() and find_idlest_group()
+> that break from their loops on a sched_group that points to itself.
+> This is needed because cpu's are going through load balancing before all
+> sched_domains have been reconstructed (see the example above).
+> 
+> This is admittedly a kludge. I leave it to the scheduler gurus to recommend
+> a better way update the sched_domains or to keep cpus out of the
+> sched_domains while they are being reconstructed.
+> 
+
+You should cc scheduler gurus when hoping things about them ;)
+
+I suspect your change is fundamentally incompatible with, and perhaps
+obsoleted by
+ftp://ftp.kernel.org/pub/linux/kernel/people/akpm/patches/2.6/2.6.23-rc4/2.6.23-rc4-mm1/broken-out/cpuset-remove-sched-domain-hooks-from-cpusets.patch
+
+Problem is, cpuset-remove-sched-domain-hooks-from-cpusets.patch has been
+hanging around in -mm for a year while Paul makes up his mind about it.
+
+Can we please get all this sorted out??
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
