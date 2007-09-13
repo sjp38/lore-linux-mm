@@ -1,78 +1,85 @@
-Subject: Re: [PATCH 5/6] Filter based on a nodemask as well as a gfp_mask
-From: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
-In-Reply-To: <20070912210625.31625.36220.sendpatchset@skynet.skynet.ie>
-References: <20070912210444.31625.65810.sendpatchset@skynet.skynet.ie>
-	 <20070912210625.31625.36220.sendpatchset@skynet.skynet.ie>
-Content-Type: text/plain
-Date: Thu, 13 Sep 2007 11:49:40 -0400
-Message-Id: <1189698581.5013.74.camel@localhost>
-Mime-Version: 1.0
+Received: from sd0109e.au.ibm.com (d23rh905.au.ibm.com [202.81.18.225])
+	by e23smtp03.au.ibm.com (8.13.1/8.13.1) with ESMTP id l8DFuXTX031447
+	for <linux-mm@kvack.org>; Fri, 14 Sep 2007 01:56:33 +1000
+Received: from d23av01.au.ibm.com (d23av01.au.ibm.com [9.190.234.96])
+	by sd0109e.au.ibm.com (8.13.8/8.13.8/NCO v8.5) with ESMTP id l8DFvbRs058018
+	for <linux-mm@kvack.org>; Fri, 14 Sep 2007 01:57:37 +1000
+Received: from d23av01.au.ibm.com (loopback [127.0.0.1])
+	by d23av01.au.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l8DFrk9t031628
+	for <linux-mm@kvack.org>; Fri, 14 Sep 2007 01:53:46 +1000
+Message-ID: <46E95CFA.6090300@linux.vnet.ibm.com>
+Date: Thu, 13 Sep 2007 21:23:30 +0530
+From: Balbir Singh <balbir@linux.vnet.ibm.com>
+Reply-To: balbir@linux.vnet.ibm.com
+MIME-Version: 1.0
+Subject: Re: problem with ZONE_MOVABLE.
+References: <20070913190719.ab6451e7.kamezawa.hiroyu@jp.fujitsu.com> <20070913131117.GG22778@skynet.ie>
+In-Reply-To: <20070913131117.GG22778@skynet.ie>
+Content-Type: text/plain; charset=ISO-8859-15
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: kamezawa.hiroyu@jp.fujitsu.com, clameter@sgi.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Mel Gorman <mel@skynet.ie>
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, containers@lists.osdl.org, "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 2007-09-12 at 22:06 +0100, Mel Gorman wrote:
-> The MPOL_BIND policy creates a zonelist that is used for allocations belonging
-> to that thread that can use the policy_zone. As the per-node zonelist is
-> already being filtered based on a zone id, this patch adds a version of
-> __alloc_pages() that takes a nodemask for further filtering. This eliminates
-> the need for MPOL_BIND to create a custom zonelist. A positive benefit of
-> this is that allocations using MPOL_BIND now use the local-node-ordered
-> zonelist instead of a custom node-id-ordered zonelist.
+Mel Gorman wrote:
+> On (13/09/07 19:07), KAMEZAWA Hiroyuki didst pronounce:
+>> Hi, 
+>>
+>> While I'm playing with memory controller of 2.6.23-rc4-mm1, I met following.
+>>
+>> ==
+>> [root@drpq test-2.6.23-rc4-mm1]# echo $$ > /opt/mem_control/group_1/tasks
+>> [root@drpq test-2.6.23-rc4-mm1]# cat /opt/mem_control/group_1/memory.limit
+>> 32768
+>> [root@drpq test-2.6.23-rc4-mm1]# cat /opt/mem_control/group_1/memory.usage
+>> 286
+>> // Memory is limited to 512 GiB. try "dd" 1GiB (page size is 16KB)
+>>  
+>> [root@drpq test-2.6.23-rc4-mm1]# dd if=/dev/zero of=/tmp/tmpfile bs=1024 count=1048576
+>> Killed
+>> [root@drpq test-2.6.23-rc4-mm1]# ls
+>> Killed
+>> //above are caused by OOM.
+>> [root@drpq test-2.6.23-rc4-mm1]# cat /opt/mem_control/group_1/memory.usage
+>> 32763
+>> [root@drpq test-2.6.23-rc4-mm1]# cat /opt/mem_control/group_1/memory.limit
+>> 32768
+>> // fully filled by page cache. no reclaim run.
+>> ==
+>>
+>> The reason  this happens is  because I used kernelcore= boot option, i.e
+>> ZONE_MOVABLE. Seems try_to_free_mem_container_pages() ignores ZONE_MOVABLE.
+>>
+>> Quick fix is attached, but Mel's one-zonelist-pernode patch may change this.
+>> I'll continue to watch.
+>>
 > 
-> Signed-off-by: Mel Gorman <mel@csn.ul.ie>
-> ---
+> You are right on both counts. This is a valid fix but
+> one-zonelist-pernode overwrites it. Specifically the code in question
+> with one-zonelist will look like;
 > 
->  fs/buffer.c               |    2 
->  include/linux/cpuset.h    |    4 -
->  include/linux/gfp.h       |    4 +
->  include/linux/mempolicy.h |    3 
->  include/linux/mmzone.h    |   65 ++++++++++++++----
->  kernel/cpuset.c           |   18 +----
->  mm/mempolicy.c            |  145 ++++++++++++-----------------------------
->  mm/page_alloc.c           |   40 +++++++----
->  8 files changed, 136 insertions(+), 145 deletions(-)
-<snip>
-> diff -rup -X /usr/src/patchset-0.6/bin//dontdiff linux-2.6.23-rc4-mm1-020_zoneid_zonelist/kernel/cpuset.c linux-2.6.23-rc4-mm1-030_filter_nodemask/kernel/cpuset.c
-> --- linux-2.6.23-rc4-mm1-020_zoneid_zonelist/kernel/cpuset.c	2007-09-12 16:05:35.000000000 +0100
-> +++ linux-2.6.23-rc4-mm1-030_filter_nodemask/kernel/cpuset.c	2007-09-12 16:05:44.000000000 +0100
-> @@ -1516,22 +1516,14 @@ nodemask_t cpuset_mems_allowed(struct ta
->  }
->  
->  /**
-> - * cpuset_zonelist_valid_mems_allowed - check zonelist vs. curremt mems_allowed
-> - * @zl: the zonelist to be checked
-> + * cpuset_nodemask_valid_mems_allowed - check nodemask vs. curremt mems_allowed
-> + * @nodemask: the nodemask to be checked
->   *
-> - * Are any of the nodes on zonelist zl allowed in current->mems_allowed?
-> + * Are any of the nodes in the nodemask allowed in current->mems_allowed?
->   */
-> -int cpuset_zonelist_valid_mems_allowed(struct zonelist *zl)
-> +int cpuset_nodemask_valid_mems_allowed(nodemask_t *nodemask)
->  {
-> -	int i;
-> -
-> -	for (i = 0; zl->_zonerefs[i].zone; i++) {
-> -		int nid = zonelist_node_idx(zl->_zonerefs[i]);
-> -
-> -		if (node_isset(nid, current->mems_allowed))
-> -			return 1;
-> -	}
-> -	return 0;
-> +	return nodes_intersect(nodemask, current->mems_allowed);
-                 nodes_intersects(*nodemask, ... 
->  }
->  
->  /*
-<snip>
+> 	for_each_online_node(node) {
+> 		zonelist = &NODE_DATA(node)->node_zonelist;
+> 		if (do_try_to_free_pages(zonelist, sc.gfp_mask, &sc))
+> 			return 1;
+> 	}
+> 
+> We should be careful that this problem does not get forgotten about if
+> one-zonelist gets delayed for a long period of time. Have the fix at the
+> end of the container patchset where it can be easily dropped if
+> one-zonelist is merged.
+> 
+> Thanks
 
-Still preping for test.
+Yes, I second that. So, we should get KAMEZAWA's fix in.
 
-Lee
+-- 
+	Warm Regards,
+	Balbir Singh
+	Linux Technology Center
+	IBM, ISTL
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
