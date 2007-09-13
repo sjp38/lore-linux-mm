@@ -1,38 +1,61 @@
-Date: Thu, 13 Sep 2007 11:37:36 -0700 (PDT)
-From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [PATCH 04 of 24] serialize oom killer
-In-Reply-To: <alpine.DEB.0.9999.0709131126370.27997@chino.kir.corp.google.com>
-Message-ID: <Pine.LNX.4.64.0709131136560.9590@schroedinger.engr.sgi.com>
-References: <871b7a4fd566de081120.1187786931@v2.random>
- <Pine.LNX.4.64.0709121658450.4489@schroedinger.engr.sgi.com>
- <alpine.DEB.0.9999.0709131126370.27997@chino.kir.corp.google.com>
+Date: Thu, 13 Sep 2007 13:38:56 -0500
+From: "Alberto Wallace" <hwmbyt@br.nl.com>
+Reply-To: hwmbyt@br.nl.com
+Message-ID: <446038832.98306276132791@br.nl.com>
+Subject: Be confident as you should be with \/iagra Soft Tabs!           TWF6
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
-Sender: owner-linux-mm@kvack.org
-Return-Path: <owner-linux-mm@kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: pj@sgi.com, Andrea Arcangeli <andrea@suse.de>, linux-mm@kvack.org
+Content-Type: text/html;
+  charset=iso-8859-1
+Content-Transfer-Encoding: 7bit
+Return-Path: <hwmbyt@br.nl.com>
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 13 Sep 2007, David Rientjes wrote:
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE></TITLE>
+</HEAD>
+<BODY>
 
-> On Wed, 12 Sep 2007, Christoph Lameter wrote:
-> 
-> > We are already serializing the cpuset lock. cpuset_lock takes a per cpuset 
-> > mutex! So OOM killing is already serialized per cpuset as it should be.
-> > 
-> 
-> The problem is that cpuset_lock() is a mutex and doesn't exit the OOM 
-> killer immediately if it can't be locked.  This is a problem that we've 
-> encountered before where multiple tasks enter the OOM killer and sleep 
-> waiting for the lock.  Then one instance of the OOM killer kills current 
-> and the cpuset is no longer OOM, but the other threads waiting on the 
-> mutex will still kill tasks unnecessarily after taking cpuset_lock().
+<html><!x-stuff-for-pete base="" src="" id="1" charset=""><body
+bgcolor="#FFFFF3">
 
-Ok then that needs to be changed. We need to do a cpuset_try_lock there?
+Good day!<br><br>
+<center>
 
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+<b>Visit our new ph@rm@cy store and save upto 85%<br><br>
+<font color="#0072FF">Todays special offers:</FONT> <a
+href="http://eachexpect.cn/"><font color="#FF0000"
+>\/1AGR@</FONT> FOR AS LOW AS <font color="#FF0000"
+>$1.62</FONT> PER DOSE</a><BR>
+<a href="http://costmultiply.cn/"><font color="#FF0000"
+>C.I.A.L.I.S (super \/i@gra)</FONT> FOR AS LOW AS <font
+color="#FF0000">$4.38</FONT> PER DOSE</a><BR>
+
+<a href="http://www.shoreanger.cn/"><font color="#FF0000"
+>LE\/ITR@</FONT> FOR AS LOW AS <font color="#FF0000"
+>$4.44</FONT> PER DOSE</a><BR>
+.. and much much more special offers today.<br><br>
+<font color="#0072FF"><I><B>YOU NEED 15 MINUTES TO BE READY
+FOR ACTION.</B></font>
+<br>
+<table><tr><td>
+<b>
+- All popular drug$ are available (\/iagra, Cia1is,Le\/itra, Pr0pecia and
+much much more )<br>
+- Free shipping worlwide<br>
+- No D0ct0r Visits<br>
+- No Prescriptions<br>
+- 100% Customer Satisfaction <br><br></b>
+</td></tr></table>
+<a href="http://costmultiply.cn/"><font><strong>Click here to
+visit our new ph@rm@cy store.</strong></font></a><br>
+<br>
+</center>
+Have a nice day.<br><br><br><br>
+---------<br>
+HY8
+</body>
+
+</html>
+
+</BODY></HTML>
