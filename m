@@ -1,28 +1,26 @@
-Date: Wed, 12 Sep 2007 18:02:38 -0700 (PDT)
+Date: Wed, 12 Sep 2007 18:05:04 -0700 (PDT)
 From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [PATCH 23 of 24] serialize for cpusets
-In-Reply-To: <20070912061003.39506e07.akpm@linux-foundation.org>
-Message-ID: <Pine.LNX.4.64.0709121801490.4489@schroedinger.engr.sgi.com>
-References: <patchbomb.1187786927@v2.random> <a3d679df54ebb1f977b9.1187786950@v2.random>
- <20070912061003.39506e07.akpm@linux-foundation.org>
+Subject: Re: [RFC][PATCH] overwride page->mapping [0/3] intro
+In-Reply-To: <20070913093203.841b76a7.kamezawa.hiroyu@jp.fujitsu.com>
+Message-ID: <Pine.LNX.4.64.0709121804040.4912@schroedinger.engr.sgi.com>
+References: <20070912114322.e4d8a86e.kamezawa.hiroyu@jp.fujitsu.com>
+ <46E7A666.7080409@linux.vnet.ibm.com> <Pine.LNX.4.64.0709121207400.1934@schroedinger.engr.sgi.com>
+ <46E83A19.2090604@google.com> <20070913093203.841b76a7.kamezawa.hiroyu@jp.fujitsu.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Andrea Arcangeli <andrea@suse.de>, linux-mm@kvack.org, David Rientjes <rientjes@google.com>, Paul Jackson <pj@sgi.com>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: Martin Bligh <mbligh@google.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "nickpiggin@yahoo.com.au" <nickpiggin@yahoo.com.au>, "Lee.Schermerhorn@hp.com" <Lee.Schermerhorn@hp.com>, Andrew Morton <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 12 Sep 2007, Andrew Morton wrote:
+On Thu, 13 Sep 2007, KAMEZAWA Hiroyuki wrote:
 
-> I understand that SGI's HPC customers care rather a lot about oom handling
-> in cpusets.  It'd be nice if people@sgi could carefully review-and-test
-> changes such as this before we go and break stuff for them, please.
+> Some machine may have very sparse address configuration from unknown(insane) reason.
 
-Is there some way that we can consolidate the cpuset and the !cpuset case? 
-We have a cpuset_lock() for the cpuset case and now also the OOM bit. If 
-both fall back to global in case of !CPUSET then we may be able to clean 
-this up.
+The HW engineers always find uses for those "unused" address bits.... And 
+frankly we have done the same using a special address range for the VMEMMAP patchset.
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
