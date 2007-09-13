@@ -1,40 +1,33 @@
-Date: Thu, 13 Sep 2007 11:20:30 -0700 (PDT)
+Date: Thu, 13 Sep 2007 11:21:08 -0700 (PDT)
 From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [PATCH/RFC 4/5] Mem Policy:  cpuset-independent interleave policy
-In-Reply-To: <1189690357.5013.19.camel@localhost>
-Message-ID: <Pine.LNX.4.64.0709131120030.9378@schroedinger.engr.sgi.com>
+Subject: Re: [PATCH/RFC 3/5] Mem Policy:  MPOL_PREFERRED fixups for "local
+ allocation"
+In-Reply-To: <1189690525.5013.22.camel@localhost>
+Message-ID: <Pine.LNX.4.64.0709131120470.9378@schroedinger.engr.sgi.com>
 References: <20070830185053.22619.96398.sendpatchset@localhost>
- <20070830185122.22619.56636.sendpatchset@localhost>  <46E86148.9060400@google.com>
- <1189690357.5013.19.camel@localhost>
+ <20070830185114.22619.61260.sendpatchset@localhost>
+ <Pine.LNX.4.64.0709121502420.3835@schroedinger.engr.sgi.com>
+ <1189690525.5013.22.camel@localhost>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
-Cc: Ethan Solomita <solo@google.com>, linux-mm@kvack.org, akpm@linux-foundation.org, ak@suse.de, mtk-manpages@gmx.net, eric.whitney@hp.com
+Cc: linux-mm@kvack.org, akpm@linux-foundation.org, ak@suse.de, mtk-manpages@gmx.net, solo@google.com, eric.whitney@hp.com, Mel Gorman <mel@csn.ul.ie>
 List-ID: <linux-mm.kvack.org>
 
 On Thu, 13 Sep 2007, Lee Schermerhorn wrote:
 
-> On Wed, 2007-09-12 at 14:59 -0700, Ethan Solomita wrote:
-> > 	Just one code note:
-> > 
-> > Lee Schermerhorn wrote:
-> > > -		return nodes_equal(a->v.nodes, b->v.nodes);
-> > > +		return a->policy & MPOL_CONTEXT ||
-> > > +			nodes_equal(a->v.nodes, b->v.nodes);
-> > 
-> > 	For the sake of my sanity, can we add () around a->policy & 
-> > MPOL_CONTEXT? 8-) This falls into order of precedence that I don't trust 
-> > myself to memorize.
+> > Hmmm. But one wants mpol_to_str to represent the memory policy not the 
+> > context information that may change through migration. What you 
+> > do there is provide information from the context. You could add the 
+> > nodemask but I think we need to have some indicator that this policy is 
+> > referring to the local policy.
 > 
-> I agree and I would have done that, but then someone would have dinged
-> me for "unneeded parentheses"--despite the fact that I can't find
-> anything in the style guide about this [except in the bit about macro
-> definitions that says to always add parentheses around expressions
-> defining constants].  Can't win for losin' :-(.
+> True.  I could make mpol_to_str return something like "*" for the
+> nodemask and document this as "any allowed".
 
-What Mel suggests is correct.
+Or print (any) ?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
