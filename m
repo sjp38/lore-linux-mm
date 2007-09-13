@@ -1,26 +1,25 @@
-Date: Wed, 12 Sep 2007 17:53:49 -0700 (PDT)
+Date: Wed, 12 Sep 2007 17:54:45 -0700 (PDT)
 From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [PATCH 17 of 24] apply the anti deadlock features only to global
- oom
-In-Reply-To: <20070912060202.dc0cc7ab.akpm@linux-foundation.org>
-Message-ID: <Pine.LNX.4.64.0709121752500.4489@schroedinger.engr.sgi.com>
-References: <patchbomb.1187786927@v2.random> <efd1da1efb392cc4e015.1187786944@v2.random>
- <20070912060202.dc0cc7ab.akpm@linux-foundation.org>
+Subject: Re: [PATCH 18 of 24] run panic the same way in both places
+In-Reply-To: <040cab5c8aafe1efcb6f.1187786945@v2.random>
+Message-ID: <Pine.LNX.4.64.0709121754170.4489@schroedinger.engr.sgi.com>
+References: <040cab5c8aafe1efcb6f.1187786945@v2.random>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Andrea Arcangeli <andrea@suse.de>, linux-mm@kvack.org, David Rientjes <rientjes@google.com>
+To: Andrea Arcangeli <andrea@suse.de>
+Cc: linux-mm@kvack.org, David Rientjes <rientjes@google.com>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 12 Sep 2007, Andrew Morton wrote:
+On Wed, 22 Aug 2007, Andrea Arcangeli wrote:
 
-> ok, I'm starting to get lost here.  Let's apply it unreviewed and if it
-> breaks, that'll teach the numa weenies about the value of code review ;)
+> The other panic is called after releasing some core global lock, that
+> sounds safe to have for both panics (just in case panic tries to do
+> anything more than oops does).
 
-Nack. We shuld really try to consolidate the locking consistently. The 
-cpuset lock and the OOM_kill lock are duplicating things.
+Extract a common function for panicing instead? That way we have only one 
+place where we can mess things up.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
