@@ -1,10 +1,10 @@
-Date: Wed, 12 Sep 2007 17:59:31 -0700 (PDT)
+Date: Wed, 12 Sep 2007 18:02:38 -0700 (PDT)
 From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [PATCH 21 of 24] select process to kill for cpusets
-In-Reply-To: <20070912060558.5822cb56.akpm@linux-foundation.org>
-Message-ID: <Pine.LNX.4.64.0709121757390.4489@schroedinger.engr.sgi.com>
-References: <patchbomb.1187786927@v2.random> <855dc37d74ab151d7a0c.1187786948@v2.random>
- <20070912060558.5822cb56.akpm@linux-foundation.org>
+Subject: Re: [PATCH 23 of 24] serialize for cpusets
+In-Reply-To: <20070912061003.39506e07.akpm@linux-foundation.org>
+Message-ID: <Pine.LNX.4.64.0709121801490.4489@schroedinger.engr.sgi.com>
+References: <patchbomb.1187786927@v2.random> <a3d679df54ebb1f977b9.1187786950@v2.random>
+ <20070912061003.39506e07.akpm@linux-foundation.org>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
@@ -15,21 +15,14 @@ List-ID: <linux-mm.kvack.org>
 
 On Wed, 12 Sep 2007, Andrew Morton wrote:
 
-> > +			 * nothing and allow other cpusets to continue.
-> > +			 */
-> > +			if (constraint == CONSTRAINT_CPUSET)
-> > +				goto out;
-> >  			read_unlock(&tasklist_lock);
-> >  			cpuset_unlock();
-> >  			panic("Out of memory and no killable processes...\n");
-> 
-> Seems sensible, but it would be nice to get some thought cycles from pj &
-> Christoph, please.
+> I understand that SGI's HPC customers care rather a lot about oom handling
+> in cpusets.  It'd be nice if people@sgi could carefully review-and-test
+> changes such as this before we go and break stuff for them, please.
 
-The reason that we do not scan the tasklist but kill the current process 
-is also that scanning the tasklist on large systems is very expensive. 
-Concurrent OOM killer may hold up the system for a long time. So we need
-the kill without going throught the tasklist.
+Is there some way that we can consolidate the cpuset and the !cpuset case? 
+We have a cpuset_lock() for the cpuset case and now also the OOM bit. If 
+both fall back to global in case of !CPUSET then we may be able to clean 
+this up.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
