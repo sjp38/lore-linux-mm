@@ -1,31 +1,43 @@
-Date: Wed, 12 Sep 2007 17:49:23 -0700 (PDT)
+Date: Wed, 12 Sep 2007 17:52:34 -0700 (PDT)
 From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [PATCH 16 of 24] avoid some lock operation in vm fast path
-In-Reply-To: <20070912055952.bd5c99d6.akpm@linux-foundation.org>
-Message-ID: <Pine.LNX.4.64.0709121746240.4489@schroedinger.engr.sgi.com>
-References: <patchbomb.1187786927@v2.random> <b343d1056f356d60de86.1187786943@v2.random>
- <20070912055952.bd5c99d6.akpm@linux-foundation.org>
+Subject: Re: [PATCH 17 of 24] apply the anti deadlock features only to global
+ oom
+In-Reply-To: <efd1da1efb392cc4e015.1187786944@v2.random>
+Message-ID: <Pine.LNX.4.64.0709121750400.4489@schroedinger.engr.sgi.com>
+References: <efd1da1efb392cc4e015.1187786944@v2.random>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Andrea Arcangeli <andrea@suse.de>, linux-mm@kvack.org, David Rientjes <rientjes@google.com>
+To: Andrea Arcangeli <andrea@suse.de>
+Cc: linux-mm@kvack.org, David Rientjes <rientjes@google.com>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 12 Sep 2007, Andrew Morton wrote:
+On Wed, 22 Aug 2007, Andrea Arcangeli wrote:
 
-> OK, but we'd normally do this via some little wrapper functions which are
-> empty-if-not-numa.
+>  	switch (constraint) {
+>  	case CONSTRAINT_MEMORY_POLICY:
+> +		read_lock(&tasklist_lock);
+>  		oom_kill_process(current, points,
+>  				 "No available memory (MPOL_BIND)", gfp_mask, order);
+> +		read_unlock(&tasklist_lock);
+>  		break;
+>  
+>  	case CONSTRAINT_CPUSET:
+> +		read_lock(&tasklist_lock);
+>  		oom_kill_process(current, points,
+>  				 "No available memory in cpuset", gfp_mask, order);
+> +		read_unlock(&tasklist_lock);
+>  		break;
+>  
+>  	case CONSTRAINT_NONE:
+> +		if (down_trylock(&OOM_lock))
+> +			break;
+> +		read_lock(&tasklist_lock);
 
-The only leftover function on reclaim_in_progress is to insure that 
-zone_reclaim() does not run concurrently. Maybe that can be accomplished 
-in a different way?
-
-On the other hand: Maybe we would like to limit concurrent reclaim even 
-for direct reclaim. We have some livelock issues because of zone lock 
-contention on large boxes that may perhaps improve if we would simply let 
-one processor do its freeing job.
+Hmmmm... The point is to take the OOM lock later to leave the NUMA 
+stuff out. However, there is already a per cpuset lock being taken that 
+could be useful also as a global lock if cpusets is off.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
