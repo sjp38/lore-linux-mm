@@ -1,92 +1,73 @@
-Date: Thu, 13 Sep 2007 19:07:19 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: problem with ZONE_MOVABLE.
-Message-Id: <20070913190719.ab6451e7.kamezawa.hiroyu@jp.fujitsu.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Date: Thu, 13 Sep 2007 11:11:42 +0100
+Subject: Re: [PATCH 0/6] Use one zonelist per node instead of multiple zonelists v5 (resend)
+Message-ID: <20070913101142.GE22778@skynet.ie>
+References: <20070911213006.23507.19569.sendpatchset@skynet.skynet.ie> <1189628853.5004.66.camel@localhost>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <1189628853.5004.66.camel@localhost>
+From: mel@skynet.ie (Mel Gorman)
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: balbir@linux.vnet.ibm.com
-Cc: containers@lists.osdl.org, "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>
+To: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
+Cc: akpm@linux-foundation.org, ak@suse.de, clameter@sgi.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, balbir@linux.vnet.ibm.com, Eric Whitney <eric.whitney@hp.com>
 List-ID: <linux-mm.kvack.org>
 
-Hi, 
+On (12/09/07 16:27), Lee Schermerhorn didst pronounce:
+> On Tue, 2007-09-11 at 22:30 +0100, Mel Gorman wrote:
+> > (Sorry for the resend, I mucked up the TO: line in the earlier sending)
+> > 
+> > This is the latest version of one-zonelist and it should be solid enough
+> > for wider testing. To briefly summarise, the patchset replaces multiple
+> > zonelists-per-node with one zonelist that is filtered based on nodemask and
+> > GFP flags. I've dropped the patch that replaces inline functions with macros
+> > from the end as it obscures the code for something that may or may not be a
+> > performance benefit on older compilers. If we see performance regressions that
+> > might have something to do with it, the patch is trivially to bring forward.
+> > 
+> > Andrew, please merge to -mm for wider testing and consideration for merging
+> > to mainline. Minimally, it gets rid of the hack in relation to ZONE_MOVABLE
+> > and MPOL_BIND.
+> 
+> 
+> Mel:
+> 
+> I'm just getting to this after sorting out an issue with the memory
+> controller stuff in 23-rc4-mm1.  I'm building all my kernels with the
+> memory controller enabled now, as it hits areas that I'm playing in.  I
+> wanted to give you a heads up that vmscan.c doesn't build with
+> CONTAINER_MEM_CONT configured with your patches.  I won't get to this
+> until tomorrow.  Since you're a few hours ahead of me, you might want to
+> take a look.  No worries, if you don't get a chance...
+> 
 
-While I'm playing with memory controller of 2.6.23-rc4-mm1, I met following.
+Thanks a lot. I took a look and you're right. Does the following patch
+fix it for you?
 
-==
-[root@drpq test-2.6.23-rc4-mm1]# echo $$ > /opt/mem_control/group_1/tasks
-[root@drpq test-2.6.23-rc4-mm1]# cat /opt/mem_control/group_1/memory.limit
-32768
-[root@drpq test-2.6.23-rc4-mm1]# cat /opt/mem_control/group_1/memory.usage
-286
-// Memory is limited to 512 GiB. try "dd" 1GiB (page size is 16KB)
- 
-[root@drpq test-2.6.23-rc4-mm1]# dd if=/dev/zero of=/tmp/tmpfile bs=1024 count=1048576
-Killed
-[root@drpq test-2.6.23-rc4-mm1]# ls
-Killed
-//above are caused by OOM.
-[root@drpq test-2.6.23-rc4-mm1]# cat /opt/mem_control/group_1/memory.usage
-32763
-[root@drpq test-2.6.23-rc4-mm1]# cat /opt/mem_control/group_1/memory.limit
-32768
-// fully filled by page cache. no reclaim run.
-==
+====
 
-The reason  this happens is  because I used kernelcore= boot option, i.e
-ZONE_MOVABLE. Seems try_to_free_mem_container_pages() ignores ZONE_MOVABLE.
+Fix a compile bug with one-zonelist and the memory controller.
 
-Quick fix is attached, but Mel's one-zonelist-pernode patch may change this.
-I'll continue to watch.
-
-Thanks,
--Kame
-==
-Now, there is ZONE_MOVABLE...
-
-page cache and user pages are allocated from gfp_zone(GFP_HIGHUSER_MOVABLE)
-
-Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
----
- mm/vmscan.c |    9 ++-------
- 1 file changed, 2 insertions(+), 7 deletions(-)
-
-Index: linux-2.6.23-rc4-mm1.bak/mm/vmscan.c
-===================================================================
---- linux-2.6.23-rc4-mm1.bak.orig/mm/vmscan.c
-+++ linux-2.6.23-rc4-mm1.bak/mm/vmscan.c
-@@ -1351,12 +1351,6 @@ unsigned long try_to_free_pages(struct z
- 
- #ifdef CONFIG_CONTAINER_MEM_CONT
- 
--#ifdef CONFIG_HIGHMEM
--#define ZONE_USERPAGES ZONE_HIGHMEM
--#else
--#define ZONE_USERPAGES ZONE_NORMAL
--#endif
--
- unsigned long try_to_free_mem_container_pages(struct mem_container *mem_cont)
- {
- 	struct scan_control sc = {
-@@ -1371,9 +1365,10 @@ unsigned long try_to_free_mem_container_
+Signed-off-by: Mel Gorman <mel@csn.ul.ie>
+--- 
+diff -rup -X /usr/src/patchset-0.6/bin//dontdiff linux-2.6.23-rc4-mm1-onezonelist_v5r21/mm/vmscan.c linux-2.6.23-rc4-mm1-onezonelist_v5r21-fix/mm/vmscan.c
+--- linux-2.6.23-rc4-mm1-onezonelist_v5r21/mm/vmscan.c	2007-09-12 10:00:22.000000000 +0100
++++ linux-2.6.23-rc4-mm1-onezonelist_v5r21-fix/mm/vmscan.c	2007-09-13 11:09:49.000000000 +0100
+@@ -1368,11 +1368,11 @@ unsigned long try_to_free_mem_container_
+ 		.isolate_pages = mem_container_isolate_pages,
  	};
  	int node;
- 	struct zone **zones;
-+	int target_zone = gfp_zone(GFP_HIGHUSER_MOVABLE);
+-	struct zone **zones;
++	struct zonelist *zonelist;
  
  	for_each_online_node(node) {
 -		zones = NODE_DATA(node)->node_zonelists[ZONE_USERPAGES].zones;
-+		zones = NODE_DATA(node)->node_zonelists[target_zone].zones;
- 		if (do_try_to_free_pages(zones, sc.gfp_mask, &sc))
+-		if (do_try_to_free_pages(zones, sc.gfp_mask, &sc))
++		zonelist = &NODE_DATA(node)->node_zonelist;
++		if (do_try_to_free_pages(zonelist, sc.gfp_mask, &sc))
  			return 1;
  	}
-
-
-
-
-
+ 	return 0;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
