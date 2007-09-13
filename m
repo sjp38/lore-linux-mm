@@ -1,31 +1,33 @@
-Date: Thu, 13 Sep 2007 19:35:47 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: problem with ZONE_MOVABLE.
-Message-Id: <20070913193547.acc8879b.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <46E9112E.5020505@linux.vnet.ibm.com>
-References: <20070913190719.ab6451e7.kamezawa.hiroyu@jp.fujitsu.com>
-	<46E9112E.5020505@linux.vnet.ibm.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Received: by ug-out-1314.google.com with SMTP id a2so385734ugf
+        for <linux-mm@kvack.org>; Thu, 13 Sep 2007 04:43:47 -0700 (PDT)
+Message-ID: <46E9226F.9010700@gmail.com>
+Date: Thu, 13 Sep 2007 13:43:43 +0200
+From: Jiri Slaby <jirislaby@gmail.com>
+MIME-Version: 1.0
+Subject: 2.6.23-rc4-mm1: deadlock while mmaping video device
+Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: balbir@linux.vnet.ibm.com
-Cc: containers@lists.osdl.org, "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, Linux kernel mailing list <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 13 Sep 2007 16:00:06 +0530
-Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
+Hi,
 
-> 
-> Mel, has sent out a fix (for the single zonelist) that conflicts with
-> this one. Your fix looks correct to me, but it will be over ridden
-> by Mel's fix (once those patches are in -mm).
-> 
-Ah yes. just for notification.
+I have this circular lock dependency on 2.6.23-rc4-mm1 when opening
+/dev/video0 and mmaping it. the v4l driver is stk11xx:
+http://www.fi.muni.cz/~xslaby/sklad/panics/mm-deadlock.png
 
-thanks,
--Kame
+Using slub on x86_64 if that matters.
+
+For now, I'm unable to set up a netconsole, so only the picture linked above
+is the best I have.
+
+regards,
+-- 
+http://www.fi.muni.cz/~xslaby/            Jiri Slaby
+faculty of informatics, masaryk university, brno, cz
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
