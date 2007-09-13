@@ -1,100 +1,66 @@
-Received: from d01relay02.pok.ibm.com (d01relay02.pok.ibm.com [9.56.227.234])
-	by e5.ny.us.ibm.com (8.13.8/8.13.8) with ESMTP id l8DHxsPt015655
-	for <linux-mm@kvack.org>; Thu, 13 Sep 2007 13:59:54 -0400
-Received: from d01av04.pok.ibm.com (d01av04.pok.ibm.com [9.56.224.64])
-	by d01relay02.pok.ibm.com (8.13.8/8.13.8/NCO v8.5) with ESMTP id l8DHxs0a669246
-	for <linux-mm@kvack.org>; Thu, 13 Sep 2007 13:59:54 -0400
-Received: from d01av04.pok.ibm.com (loopback [127.0.0.1])
-	by d01av04.pok.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l8DHxr59030484
-	for <linux-mm@kvack.org>; Thu, 13 Sep 2007 13:59:54 -0400
-From: Adam Litke <agl@us.ibm.com>
-Subject: [PATCH 5/5] hugetlb: Add hugetlb_dynamic_pool sysctl
-Date: Thu, 13 Sep 2007 10:59:51 -0700
-Message-Id: <20070913175951.27074.72058.stgit@kernel>
-In-Reply-To: <20070913175855.27074.27030.stgit@kernel>
+Received: from d03relay02.boulder.ibm.com (d03relay02.boulder.ibm.com [9.17.195.227])
+	by e33.co.us.ibm.com (8.13.8/8.13.8) with ESMTP id l8DIGeOU031700
+	for <linux-mm@kvack.org>; Thu, 13 Sep 2007 14:16:40 -0400
+Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
+	by d03relay02.boulder.ibm.com (8.13.8/8.13.8/NCO v8.5) with ESMTP id l8DIGHr3504548
+	for <linux-mm@kvack.org>; Thu, 13 Sep 2007 12:16:40 -0600
+Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av02.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l8DI6NWj006979
+	for <linux-mm@kvack.org>; Thu, 13 Sep 2007 12:06:23 -0600
+Subject: Re: [Libhugetlbfs-devel] [PATCH 3/5] hugetlb: Try to grow hugetlb
+	pool for MAP_PRIVATE mappings
+From: Dave Hansen <haveblue@us.ibm.com>
+In-Reply-To: <20070913175928.27074.14259.stgit@kernel>
 References: <20070913175855.27074.27030.stgit@kernel>
-Content-Type: text/plain; charset=utf-8; format=fixed
-Content-Transfer-Encoding: 8bit
+	 <20070913175928.27074.14259.stgit@kernel>
+Content-Type: text/plain
+Date: Thu, 13 Sep 2007 11:06:21 -0700
+Message-Id: <1189706781.17236.1519.camel@localhost>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
-Cc: libhugetlbfs-devel@lists.sourceforge.net, Adam Litke <agl@us.ibm.com>, Andy Whitcroft <apw@shadowen.org>, Mel Gorman <mel@skynet.ie>, Bill Irwin <bill.irwin@oracle.com>, Ken Chen <kenchen@google.com>, Dave McCracken <dave.mccracken@oracle.com>
+To: Adam Litke <agl@us.ibm.com>
+Cc: linux-mm@kvack.org, libhugetlbfs-devel@lists.sourceforge.net, Dave McCracken <dave.mccracken@oracle.com>, Mel Gorman <mel@skynet.ie>, Ken Chen <kenchen@google.com>, Andy Whitcroft <apw@shadowen.org>, Bill Irwin <bill.irwin@oracle.com>
 List-ID: <linux-mm.kvack.org>
 
-Allowing the hugetlb pool to grow dynamically changes the semantics of the
-system by permitting more system memory to be used for huge pages than has
-been explicitly dedicated to the pool.
+On Thu, 2007-09-13 at 10:59 -0700, Adam Litke wrote:
+> +static int within_locked_vm_limits(long hpage_delta)
+> +{
+> +	unsigned long locked_pages, locked_pages_limit;
+> +
+> +	/* Check locked page limits */
+> +	locked_pages = current->mm->locked_vm;
+> +	locked_pages += hpage_delta * (HPAGE_SIZE >> PAGE_SHIFT);
+> +	locked_pages_limit = current->signal->rlim[RLIMIT_MEMLOCK].rlim_cur;
+> +	locked_pages_limit >>= PAGE_SHIFT;
+> +
+> +	/* Return 0 if we would exceed locked_vm limits */
+> +	if (locked_pages > locked_pages_limit)
+> +		return 0;
+> +
+> +	/* Nice, we're within limits */
+> +	return 1;
+> +}
+> +
+> +static struct page *alloc_buddy_huge_page(struct vm_area_struct *vma,
+> +						unsigned long address)
+> +{
+> +	struct page *page;
+> +
+> +	/* Check we remain within limits if 1 huge page is allocated */
+> +	if (!within_locked_vm_limits(1))
+> +		return NULL;
+> +
+> +	page = alloc_pages(htlb_alloc_mask|__GFP_COMP|__GFP_NOWARN,
+...
 
-This patch introduces a sysctl which must be enabled to turn on the dynamic
-pool resizing feature.  This will avoid an involuntary change in behavior.
+Is there locking around this operation?  Or, is there a way that a
+process could do this concurrently in two different threads, both appear
+to be within within_locked_vm_limits(), and both succeed to allocate
+when doing so actually takes them over the limit?
 
-When hugetlb pool growth is enabled via the hugetlb_dynamic_pool sysctl, an
-upper-bound on huge page allocation can be set by constraining the size of
-the hugetlb filesystem via the 'size' mount option.
-
-Signed-off-by: Adam Litke <agl@us.ibm.com>
-Acked-by: Andy Whitcroft <apw@shadowen.org>
----
-
- include/linux/hugetlb.h |    1 +
- kernel/sysctl.c         |    8 ++++++++
- mm/hugetlb.c            |    5 +++++
- 3 files changed, 14 insertions(+), 0 deletions(-)
-
-diff --git a/include/linux/hugetlb.h b/include/linux/hugetlb.h
-index e6a71c8..cec45db 100644
---- a/include/linux/hugetlb.h
-+++ b/include/linux/hugetlb.h
-@@ -33,6 +33,7 @@ void hugetlb_unreserve_pages(struct inode *inode, long offset, long freed);
- 
- extern unsigned long max_huge_pages;
- extern unsigned long hugepages_treat_as_movable;
-+extern int hugetlb_dynamic_pool;
- extern const unsigned long hugetlb_zero, hugetlb_infinity;
- extern int sysctl_hugetlb_shm_group;
- 
-diff --git a/kernel/sysctl.c b/kernel/sysctl.c
-index 8bdb8c0..fd60a5e 100644
---- a/kernel/sysctl.c
-+++ b/kernel/sysctl.c
-@@ -879,6 +879,14 @@ static ctl_table vm_table[] = {
- 		.mode		= 0644,
- 		.proc_handler	= &hugetlb_treat_movable_handler,
- 	},
-+	{
-+		.ctl_name	= CTL_UNNUMBERED,
-+		.procname	= "hugetlb_dynamic_pool",
-+		.data		= &hugetlb_dynamic_pool,
-+		.maxlen		= sizeof(hugetlb_dynamic_pool),
-+		.mode		= 0644,
-+		.proc_handler	= &proc_dointvec,
-+	},
- #endif
- 	{
- 		.ctl_name	= VM_LOWMEM_RESERVE_RATIO,
-diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-index 0cedcd0..caef721 100644
---- a/mm/hugetlb.c
-+++ b/mm/hugetlb.c
-@@ -31,6 +31,7 @@ static unsigned int surplus_huge_pages_node[MAX_NUMNODES];
- static unsigned long unused_surplus_pages;
- static gfp_t htlb_alloc_mask = GFP_HIGHUSER;
- unsigned long hugepages_treat_as_movable;
-+int hugetlb_dynamic_pool;
- 
- /*
-  * Protects updates to hugepage_freelists, nr_huge_pages, and free_huge_pages
-@@ -189,6 +190,10 @@ static struct page *alloc_buddy_huge_page(struct vm_area_struct *vma,
- {
- 	struct page *page;
- 
-+	/* Check if the dynamic pool is enabled */
-+	if (!hugetlb_dynamic_pool)
-+		return NULL;
-+
- 	/* Check we remain within limits if 1 huge page is allocated */
- 	if (!within_locked_vm_limits(1))
- 		return NULL;
+-- Dave
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
