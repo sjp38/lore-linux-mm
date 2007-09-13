@@ -1,47 +1,119 @@
-Message-ID: <46E97125.8080302@google.com>
-Date: Thu, 13 Sep 2007 10:19:33 -0700
-From: Ethan Solomita <solo@google.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH/RFC 4/5] Mem Policy:  cpuset-independent interleave	policy
-References: <20070830185053.22619.96398.sendpatchset@localhost>	 <20070830185122.22619.56636.sendpatchset@localhost>	 <46E86148.9060400@google.com> <1189690357.5013.19.camel@localhost>
-In-Reply-To: <1189690357.5013.19.camel@localhost>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+From: Mel Gorman <mel@csn.ul.ie>
+Message-Id: <20070913175202.20770.72989.sendpatchset@skynet.skynet.ie>
+Subject: [PATCH 0/6] Use one zonelist per node instead of multiple zonelists v7
+Date: Thu, 13 Sep 2007 18:52:02 +0100 (IST)
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
-Cc: linux-mm@kvack.org, akpm@linux-foundation.org, ak@suse.de, mtk-manpages@gmx.net, clameter@sgi.com, eric.whitney@hp.com
+To: Lee.Schermerhorn@hp.com
+Cc: Mel Gorman <mel@csn.ul.ie>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, kamezawa.hiroyu@jp.fujitsu.com, clameter@sgi.com
 List-ID: <linux-mm.kvack.org>
 
-Lee Schermerhorn wrote:
-> On Wed, 2007-09-12 at 14:59 -0700, Ethan Solomita wrote:
->> 	Just one code note:
->>
->> Lee Schermerhorn wrote:
->>> -		return nodes_equal(a->v.nodes, b->v.nodes);
->>> +		return a->policy & MPOL_CONTEXT ||
->>> +			nodes_equal(a->v.nodes, b->v.nodes);
->> 	For the sake of my sanity, can we add () around a->policy & 
->> MPOL_CONTEXT? 8-) This falls into order of precedence that I don't trust 
->> myself to memorize.
-> 
-> I agree and I would have done that, but then someone would have dinged
-> me for "unneeded parentheses"--despite the fact that I can't find
-> anything in the style guide about this [except in the bit about macro
-> definitions that says to always add parentheses around expressions
-> defining constants].  Can't win for losin' :-(.
+Hi Lee,
 
-	Don't despair! :-)
+This is the patchset I would like tested. It has Kamezawa-sans approach for
+using a structure instead of pointer packing. While it consumes more cache
+like Christoph pointed out, it should an easier starting point to optimise
+once workloads are identified that can show performance gains/regressions. The
+pointer packing is a potential optimisation but once in place, it's difficult
+to alter again.
 
-	You could do:
+Please let me know how it works out for you.
 
-#if CONFIG_ILIKEPARENTHESIS
-	return (a->policy & MPOL_CONTEXT) ||
-#else
-	return a->policy & MPOL_CONTEXT ||
-#endif
+Changelog since V7
+  o Fix build bug in relation to memory controller combined with one-zonelist
+  o Use while() instead of a stupid looking for()
 
-	-- Ethan
+Changelog since V6
+  o Instead of encoding zone index information in a pointer, this version
+    introduces a structure that stores a zone pointer and its index 
+
+Changelog since V5
+  o Rebase to 2.6.23-rc4-mm1
+  o Drop patch that replaces inline functions with macros
+
+Changelog since V4
+  o Rebase to -mm kernel. Host of memoryless patches collisions dealt with
+  o Do not call wakeup_kswapd() for every zone in a zonelist
+  o Dropped the FASTCALL removal
+  o Have cursor in iterator advance earlier
+  o Use nodes_and in cpuset_nodes_valid_mems_allowed()
+  o Use defines instead of inlines, noticably better performance on gcc-3.4
+    No difference on later compilers such as gcc 4.1
+  o Dropped gfp_skip patch until it is proven to be of benefit. Tests are
+    currently inconclusive but it definitly consumes at least one cache
+    line
+
+Changelog since V3
+  o Fix compile error in the parisc change
+  o Calculate gfp_zone only once in __alloc_pages
+  o Calculate classzone_idx properly in get_page_from_freelist
+  o Alter check so that zone id embedded may still be used on UP
+  o Use Kamezawa-sans suggestion for skipping zones in zonelist
+  o Add __alloc_pages_nodemask() to filter zonelist based on a nodemask. This
+    removes the need for MPOL_BIND to have a custom zonelist
+  o Move zonelist iterators and helpers to mm.h
+  o Change _zones from struct zone * to unsigned long
+  
+Changelog since V2
+  o shrink_zones() uses zonelist instead of zonelist->zones
+  o hugetlb uses zonelist iterator
+  o zone_idx information is embedded in zonelist pointers
+  o replace NODE_DATA(nid)->node_zonelist with node_zonelist(nid)
+
+Changelog since V1
+  o Break up the patch into 3 patches
+  o Introduce iterators for zonelists
+  o Performance regression test
+
+The following patches replace multiple zonelists per node with one zonelist
+that is filtered based on the GFP flags. The patches as a set fix a bug
+with regard to the use of MPOL_BIND and ZONE_MOVABLE. With this patchset,
+the MPOL_BIND will apply to the two highest zones when the highest zone
+is ZONE_MOVABLE. This should be considered as an alternative fix for the
+MPOL_BIND+ZONE_MOVABLE in 2.6.23 to the previously discussed hack that
+filters only custom zonelists. As a bonus, the patchset reduces the cache
+footprint of the kernel and should improve performance in a number of cases.
+
+The first patch cleans up an inconsitency where direct reclaim uses
+zonelist->zones where other places use zonelist. The second patch introduces
+a helper function node_zonelist() for looking up the appropriate zonelist
+for a GFP mask which simplifies patches later in the set.
+
+The third patch replaces multiple zonelists with two zonelists that are
+filtered. The two zonelists are due to the fact that the memoryless patchset
+introduces a second set of zonelists for __GFP_THISNODE.
+
+The fourth patch introduces filtering of the zonelists based on a nodemask.
+
+The final patch replaces the two zonelists with one zonelist. A nodemask is
+created when __GFP_THISNODE is specified to filter the list. The nodelists
+could be pre-allocated with one-per-node but it's not clear that __GFP_THISNODE
+is used often enough to be worth the effort.
+
+Performance results varied depending on the machine configuration but were
+usually small performance gains. In real workloads the gain/loss will depend
+on how much the userspace portion of the benchmark benefits from having more
+cache available due to reduced referencing of zonelists.
+
+These are the range of performance losses/gains when running against
+2.6.23-rc3-mm1. The set and these machines are a mix of i386, x86_64 and
+ppc64 both NUMA and non-NUMA.
+
+Total CPU time on Kernbench: -0.67% to  3.05%
+Elapsed   time on Kernbench: -0.25% to  2.96%
+page_test from aim9:         -6.98% to  5.60%
+brk_test  from aim9:         -3.94% to  4.11%
+fork_test from aim9:         -5.72% to  4.14%
+exec_test from aim9:         -1.02% to  1.56%
+
+The TBench figures were too variable between runs to draw conclusions from but
+there didn't appear to be any regressions there. The hackbench results for both
+sockets and pipes were within noise.
+
+-- 
+Mel Gorman
+Part-time Phd Student                          Linux Technology Center
+University of Limerick                         IBM Dublin Software Lab
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
