@@ -1,99 +1,102 @@
-Date: Thu, 13 Sep 2007 16:03:17 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [patch] oom: add verbose_oom sysctl to dump tasklist
-In-Reply-To: <20070913152359.85949e0e.akpm@linux-foundation.org>
-Message-ID: <alpine.DEB.0.9999.0709131556470.11367@chino.kir.corp.google.com>
-References: <alpine.DEB.0.9999.0709070115130.19525@chino.kir.corp.google.com> <20070913152359.85949e0e.akpm@linux-foundation.org>
+From: Nick Piggin <nickpiggin@yahoo.com.au>
+Subject: Re: + prevent-kswapd-from-freeing-excessive-amounts-of-lowmem.patch added to -mm tree
+Date: Thu, 13 Sep 2007 17:30:49 +1000
+References: <200709132211.l8DMBh0n008399@imap1.linux-foundation.org>
+In-Reply-To: <200709132211.l8DMBh0n008399@imap1.linux-foundation.org>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain;
+  charset="utf-8"
+Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+Message-Id: <200709131730.49945.nickpiggin@yahoo.com.au>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Christoph Lameter <clameter@sgi.com>, Andrea Arcangeli <andrea@suse.de>, linux-mm@kvack.org
+To: akpm@linux-foundation.org
+Cc: linux-mm@kvack.org, riel@redhat.com
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 13 Sep 2007, Andrew Morton wrote:
+On Friday 14 September 2007 08:11, akpm@linux-foundation.org wrote:
+> The patch titled
+>      mm: prevent kswapd from freeing excessive amounts of lowmem
+> has been added to the -mm tree.  Its filename is
+>      prevent-kswapd-from-freeing-excessive-amounts-of-lowmem.patch
+>
+> *** Remember to use Documentation/SubmitChecklist when testing your code
+> ***
+>
+> See http://www.zip.com.au/~akpm/linux/patches/stuff/added-to-mm.txt to find
+> out what to do about this
+>
+> ------------------------------------------------------
+> Subject: mm: prevent kswapd from freeing excessive amounts of lowmem
+> From: Rik van Riel <riel@redhat.com>
+>
+> The current VM can get itself into trouble fairly easily on systems with a
+> small ZONE_HIGHMEM, which is common on i686 computers with 1GB of memory.
+>
+> On one side, page_alloc() will allocate down to zone->pages_low, while on
+> the other side, kswapd() and balance_pgdat() will try to free memory from
+> every zone, until every zone has more free pages than zone->pages_high.
+>
+> Highmem can be filled up to zone->pages_low with page tables, ramfs,
+> vmalloc allocations and other unswappable things quite easily and without
+> many bad side effects, since we still have a huge ZONE_NORMAL to do future
+> allocations from.
+>
+> However, as long as the number of free pages in the highmem zone is below
+> zone->pages_high, kswapd will continue swapping things out from
+> ZONE_NORMAL, too!
+>
+> Sami Farin managed to get his system into a stage where kswapd had freed
+> about 700MB of low memory and was still "going strong".
+>
+> The attached patch will make kswapd stop paging out data from zones when
+> there is more than enough memory free.  We do go above zone->pages_high in
+> order to keep pressure between zones equal in normal circumstances, but the
+> patch should prevent the kind of excesses that made Sami's computer totally
+> unusable.
+>
+> Signed-off-by: Rik van Riel <riel@redhat.com>
+> Cc: Nick Piggin <nickpiggin@yahoo.com.au>
+> Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
 
-> > Adds 'verbose_oom' sysctl to dump the tasklist and pertinent memory usage
-> > information on an OOM killing.  Information included is pid, uid, tgid,
-> > VM size, RSS, last cpu, oom_adj score, and name.
-> 
-> Would be useful to have some description of why this is needed, how we will
-> use it to fix stuff, etc.  IOW: what value does it bring??
-> 
+Yeah, suppose this is a fix. It is somewhat arbitrary. (what isn't, in
+vmscan.c...).
 
-I don't think we would use it to fix anything, I think the end user would 
-use it to figure out why his or her system was OOM.
+Slightly less arbitrary would be to just stop scanning if the zone is
+above the high watermark + the lower zone protection...
 
-Obviously this is also possible to do from userspace, but with more 
-trouble in collecting all the information presented here.
-
-> And if it _is_ valuable, how come it's tunable offable?  I guess the
-> tasklist dump will be pretty huge..
-> 
-
-As a courtesy to SGI and friends who already have enough trouble scanning 
-the tasklist because of their super huge machines.
-
-> We should be dumping more stuff at oom-time.  I thought we were dumping the
-> sysrq-m-style output but that patch which did that got lost years ago.
-> 
-
-I've wondered about a notifier hook to userspace so if the user had 
-specified an OOM handling script to be executed before the actual killer 
-was invoked, you could collect this information on your own or anything 
-else you found pertinent.
-
-> > diff --git a/mm/oom_kill.c b/mm/oom_kill.c
-> > --- a/mm/oom_kill.c
-> > +++ b/mm/oom_kill.c
-> > @@ -27,6 +27,7 @@
-> >  #include <linux/notifier.h>
-> >  
-> >  int sysctl_panic_on_oom;
-> > +int sysctl_verbose_oom;
-> >  /* #define DEBUG */
-> >  
-> >  unsigned long VM_is_OOM;
-> > @@ -146,6 +147,29 @@ unsigned long badness(struct task_struct *p, unsigned long uptime)
-> >  	return points;
-> >  }
-> >  
-> > +static inline void dump_tasks(void)
-> > +{
-> > +	struct task_struct *g, *p;
-> > +
-> > +	printk(KERN_INFO "[ pid ]   uid  tgid total_vm      rss cpu oom_adj name\n");
-> > +	do_each_thread(g, p) {
-> > +		/*
-> > +		 * total_vm and rss sizes do not exist for tasks with a
-> > +		 * detached mm so there's no need to report them.  They are
-> > +		 * not eligible for OOM killing anyway.
-> > +		 */
-> > +		if (!p->mm)
-> > +			continue;
-> > +
-> > +		task_lock(p);
-> > +		printk(KERN_INFO "[%5d] %5d %5d %8lu %8lu %3d     %3d %s\n",
-> > +		       p->pid, p->uid, p->tgid, p->mm->total_vm,
-> > +		       get_mm_rss(p->mm), (int)task_cpu(p), p->oomkilladj,
-> > +		       p->comm);
-> > +		task_unlock(p);
-> > +	} while_each_thread(g, p);
-> > +}
-> 
-> There's no need to inline this.
-> 
-
-Ah, gotcha.
-
-> Also, it appears to be 100% generic and useful, so perhaps it should be put
-> into kernel/something.c and made available to other code.  Probably there's
-> already code out there which should be converted to a call to this
-> function?
-> 
-
-I'll look into it, thanks for the review.
+> ---
+>
+>  mm/vmscan.c |    8 +++++++-
+>  1 files changed, 7 insertions(+), 1 deletion(-)
+>
+> diff -puN
+> mm/vmscan.c~prevent-kswapd-from-freeing-excessive-amounts-of-lowmem
+> mm/vmscan.c ---
+> a/mm/vmscan.c~prevent-kswapd-from-freeing-excessive-amounts-of-lowmem +++
+> a/mm/vmscan.c
+> @@ -1374,7 +1374,13 @@ loop_again:
+>  			temp_priority[i] = priority;
+>  			sc.nr_scanned = 0;
+>  			note_zone_scanning_priority(zone, priority);
+> -			nr_reclaimed += shrink_zone(priority, zone, &sc);
+> +			/*
+> +			 * We put equal pressure on every zone, unless one
+> +			 * zone has way too many pages free already.
+> +			 */
+> +			if (!zone_watermark_ok(zone, order, 8*zone->pages_high,
+> +						end_zone, 0))
+> +				nr_reclaimed += shrink_zone(priority, zone, &sc);
+>  			reclaim_state->reclaimed_slab = 0;
+>  			nr_slab = shrink_slab(sc.nr_scanned, GFP_KERNEL,
+>  						lru_pages);
+> _
+>
+> Patches currently in -mm which might be from riel@redhat.com are
+>
+> vmscan-give-referenced-active-and-unmapped-pages-a-second-trip-around-the-l
+>ru.patch prevent-kswapd-from-freeing-excessive-amounts-of-lowmem.patch
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
