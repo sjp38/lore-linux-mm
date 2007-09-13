@@ -1,25 +1,28 @@
-Date: Wed, 12 Sep 2007 17:54:45 -0700 (PDT)
+Date: Wed, 12 Sep 2007 17:55:45 -0700 (PDT)
 From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [PATCH 18 of 24] run panic the same way in both places
-In-Reply-To: <040cab5c8aafe1efcb6f.1187786945@v2.random>
-Message-ID: <Pine.LNX.4.64.0709121754170.4489@schroedinger.engr.sgi.com>
-References: <040cab5c8aafe1efcb6f.1187786945@v2.random>
+Subject: Re: [PATCH 19 of 24] cacheline align VM_is_OOM to prevent false
+ sharing
+In-Reply-To: <20070912133602.GJ21600@v2.random>
+Message-ID: <Pine.LNX.4.64.0709121755200.4489@schroedinger.engr.sgi.com>
+References: <patchbomb.1187786927@v2.random> <be2fc447cec06990a2a3.1187786946@v2.random>
+ <20070912060255.c5b95414.akpm@linux-foundation.org> <20070912133602.GJ21600@v2.random>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Andrea Arcangeli <andrea@suse.de>
-Cc: linux-mm@kvack.org, David Rientjes <rientjes@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, David Rientjes <rientjes@google.com>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 22 Aug 2007, Andrea Arcangeli wrote:
+On Wed, 12 Sep 2007, Andrea Arcangeli wrote:
 
-> The other panic is called after releasing some core global lock, that
-> sounds safe to have for both panics (just in case panic tries to do
-> anything more than oops does).
+> On Wed, Sep 12, 2007 at 06:02:55AM -0700, Andrew Morton wrote:
+> > I'd suggest __read_mostly.
+> 
+> Agreed.
 
-Extract a common function for panicing instead? That way we have only one 
-place where we can mess things up.
+Its a global OOM condition that will kill allocations in cpusets that are 
+not OOM. Nack.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
