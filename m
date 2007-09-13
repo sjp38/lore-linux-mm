@@ -1,16 +1,16 @@
-Received: from d01relay02.pok.ibm.com (d01relay02.pok.ibm.com [9.56.227.234])
-	by e4.ny.us.ibm.com (8.13.8/8.13.8) with ESMTP id l8DHx8Uw017487
-	for <linux-mm@kvack.org>; Thu, 13 Sep 2007 13:59:08 -0400
-Received: from d01av01.pok.ibm.com (d01av01.pok.ibm.com [9.56.224.215])
-	by d01relay02.pok.ibm.com (8.13.8/8.13.8/NCO v8.5) with ESMTP id l8DHx8cp690962
-	for <linux-mm@kvack.org>; Thu, 13 Sep 2007 13:59:08 -0400
-Received: from d01av01.pok.ibm.com (loopback [127.0.0.1])
-	by d01av01.pok.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l8DHx7EN026478
-	for <linux-mm@kvack.org>; Thu, 13 Sep 2007 13:59:08 -0400
+Received: from d03relay02.boulder.ibm.com (d03relay02.boulder.ibm.com [9.17.195.227])
+	by e35.co.us.ibm.com (8.13.8/8.13.8) with ESMTP id l8DHxKIB020601
+	for <linux-mm@kvack.org>; Thu, 13 Sep 2007 13:59:20 -0400
+Received: from d03av01.boulder.ibm.com (d03av01.boulder.ibm.com [9.17.195.167])
+	by d03relay02.boulder.ibm.com (8.13.8/8.13.8/NCO v8.5) with ESMTP id l8DHxJ64440532
+	for <linux-mm@kvack.org>; Thu, 13 Sep 2007 11:59:19 -0600
+Received: from d03av01.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av01.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l8DHxJub001000
+	for <linux-mm@kvack.org>; Thu, 13 Sep 2007 11:59:19 -0600
 From: Adam Litke <agl@us.ibm.com>
-Subject: [PATCH 1/5] hugetlb: Account for hugepages as locked_vm
-Date: Thu, 13 Sep 2007 10:59:05 -0700
-Message-Id: <20070913175905.27074.92434.stgit@kernel>
+Subject: [PATCH 2/5] hugetlb: Move update_and_free_page
+Date: Thu, 13 Sep 2007 10:59:17 -0700
+Message-Id: <20070913175917.27074.23080.stgit@kernel>
 In-Reply-To: <20070913175855.27074.27030.stgit@kernel>
 References: <20070913175855.27074.27030.stgit@kernel>
 Content-Type: text/plain; charset=utf-8; format=fixed
@@ -21,54 +21,64 @@ To: linux-mm@kvack.org
 Cc: libhugetlbfs-devel@lists.sourceforge.net, Adam Litke <agl@us.ibm.com>, Andy Whitcroft <apw@shadowen.org>, Mel Gorman <mel@skynet.ie>, Bill Irwin <bill.irwin@oracle.com>, Ken Chen <kenchen@google.com>, Dave McCracken <dave.mccracken@oracle.com>
 List-ID: <linux-mm.kvack.org>
 
-Hugepages allocated to a process are pinned into memory and are not
-reclaimable.  Currently they do not contribute towards the process' locked
-memory.  This patch includes those pages in the process' 'locked_vm' pages.
-
-NOTE: The locked_vm counter is only updated at fault and unmap time.  Huge
-pages are different from regular mlocked memory which is faulted in all at
-once.  Therefore, it does not make sense to charge at mmap time for huge
-page mappings.  This difference results in a deviation from normal mlock
-accounting which cannot be trivially reconciled given the inherent
-differences with huge pages.
+This patch simply moves update_and_free_page() so that it can be reused
+later in this patch series.  The implementation is not changed.
 
 Signed-off-by: Adam Litke <agl@us.ibm.com>
-Signed-off-by: Mel Gorman <mel@csn.ul.ie>
 Acked-by: Andy Whitcroft <apw@shadowen.org>
 ---
 
- mm/hugetlb.c |   11 +++++++++++
- 1 files changed, 11 insertions(+), 0 deletions(-)
+ mm/hugetlb.c |   30 +++++++++++++++---------------
+ 1 files changed, 15 insertions(+), 15 deletions(-)
 
 diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-index de4cf45..1dfeafa 100644
+index 1dfeafa..50195a2 100644
 --- a/mm/hugetlb.c
 +++ b/mm/hugetlb.c
-@@ -428,6 +428,7 @@ void __unmap_hugepage_range(struct vm_area_struct *vma, unsigned long start,
- 			continue;
+@@ -90,6 +90,21 @@ static struct page *dequeue_huge_page(struct vm_area_struct *vma,
+ 	return page;
+ }
  
- 		page = pte_page(pte);
-+		mm->locked_vm -= HPAGE_SIZE >> PAGE_SHIFT;
- 		if (pte_dirty(pte))
- 			set_page_dirty(page);
- 		list_add(&page->lru, &page_list);
-@@ -561,6 +562,16 @@ retry:
- 				&& (vma->vm_flags & VM_SHARED)));
- 	set_huge_pte_at(mm, address, ptep, new_pte);
- 
-+	/*
-+ 	 * Account for huge pages as locked memory.
-+ 	 * The locked limits are not enforced at mmap time because hugetlbfs
-+ 	 * behaves differently than normal locked memory:  1) The pages are
-+ 	 * not pinned immediately, and 2) The pages come from a pre-configured
-+ 	 * pool of memory to which the administrator has separately arranged
-+ 	 * access.
-+ 	 */
-+	mm->locked_vm += HPAGE_SIZE >> PAGE_SHIFT;
++static void update_and_free_page(struct page *page)
++{
++	int i;
++	nr_huge_pages--;
++	nr_huge_pages_node[page_to_nid(page)]--;
++	for (i = 0; i < (HPAGE_SIZE / PAGE_SIZE); i++) {
++		page[i].flags &= ~(1 << PG_locked | 1 << PG_error | 1 << PG_referenced |
++				1 << PG_dirty | 1 << PG_active | 1 << PG_reserved |
++				1 << PG_private | 1<< PG_writeback);
++	}
++	set_compound_page_dtor(page, NULL);
++	set_page_refcounted(page);
++	__free_pages(page, HUGETLB_PAGE_ORDER);
++}
 +
- 	if (write_access && !(vma->vm_flags & VM_SHARED)) {
- 		/* Optimization, do the COW without a second fault */
- 		ret = hugetlb_cow(mm, vma, address, ptep, new_pte);
+ static void free_huge_page(struct page *page)
+ {
+ 	BUG_ON(page_count(page));
+@@ -199,21 +214,6 @@ static unsigned int cpuset_mems_nr(unsigned int *array)
+ }
+ 
+ #ifdef CONFIG_SYSCTL
+-static void update_and_free_page(struct page *page)
+-{
+-	int i;
+-	nr_huge_pages--;
+-	nr_huge_pages_node[page_to_nid(page)]--;
+-	for (i = 0; i < (HPAGE_SIZE / PAGE_SIZE); i++) {
+-		page[i].flags &= ~(1 << PG_locked | 1 << PG_error | 1 << PG_referenced |
+-				1 << PG_dirty | 1 << PG_active | 1 << PG_reserved |
+-				1 << PG_private | 1<< PG_writeback);
+-	}
+-	set_compound_page_dtor(page, NULL);
+-	set_page_refcounted(page);
+-	__free_pages(page, HUGETLB_PAGE_ORDER);
+-}
+-
+ #ifdef CONFIG_HIGHMEM
+ static void try_to_free_low(unsigned long count)
+ {
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
