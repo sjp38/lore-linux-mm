@@ -1,42 +1,40 @@
-Date: Thu, 13 Sep 2007 11:19:47 -0700 (PDT)
+Date: Thu, 13 Sep 2007 11:20:30 -0700 (PDT)
 From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [PATCH/RFC 0/5] Memory Policy Cleanups and Enhancements
-In-Reply-To: <1189691837.5013.43.camel@localhost>
-Message-ID: <Pine.LNX.4.64.0709131118190.9378@schroedinger.engr.sgi.com>
+Subject: Re: [PATCH/RFC 4/5] Mem Policy:  cpuset-independent interleave policy
+In-Reply-To: <1189690357.5013.19.camel@localhost>
+Message-ID: <Pine.LNX.4.64.0709131120030.9378@schroedinger.engr.sgi.com>
 References: <20070830185053.22619.96398.sendpatchset@localhost>
- <1189527657.5036.35.camel@localhost>  <Pine.LNX.4.64.0709121515210.3835@schroedinger.engr.sgi.com>
- <1189691837.5013.43.camel@localhost>
+ <20070830185122.22619.56636.sendpatchset@localhost>  <46E86148.9060400@google.com>
+ <1189690357.5013.19.camel@localhost>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
-Cc: linux-mm@kvack.org, akpm@linux-foundation.org, ak@suse.de, mtk-manpages@gmx.net, solo@google.com, eric.whitney@hp.com, Mel Gorman <mel@csn.ul.ie>
+Cc: Ethan Solomita <solo@google.com>, linux-mm@kvack.org, akpm@linux-foundation.org, ak@suse.de, mtk-manpages@gmx.net, eric.whitney@hp.com
 List-ID: <linux-mm.kvack.org>
 
 On Thu, 13 Sep 2007, Lee Schermerhorn wrote:
 
-> Do we think Mel's patches will make .24?
-
-No,
-
-> > That patchset will have a significant impact on yours. You may be able to 
-> > get rid of some of the switch statements. It would be great if we had some 
-> > description as to where you are heading with the incremental changes to 
-> > the memory policy semantics? I sure wish we would have something more 
-> > consistent and easier to understand.
+> On Wed, 2007-09-12 at 14:59 -0700, Ethan Solomita wrote:
+> > 	Just one code note:
+> > 
+> > Lee Schermerhorn wrote:
+> > > -		return nodes_equal(a->v.nodes, b->v.nodes);
+> > > +		return a->policy & MPOL_CONTEXT ||
+> > > +			nodes_equal(a->v.nodes, b->v.nodes);
+> > 
+> > 	For the sake of my sanity, can we add () around a->policy & 
+> > MPOL_CONTEXT? 8-) This falls into order of precedence that I don't trust 
+> > myself to memorize.
 > 
-> The general reaction to such descriptions is "show me the code."  So, if
-> we agree that Mel's patches should go first, I'll rebase and update the
-> numa_memory_policy doc accordingly to explain the resulting semantics.
-> Perhaps Mel should considering updating that document where his patches
-> change/invalidate the current descriptions.
-> 
-> Does this sound like a resonable way to proceed?
+> I agree and I would have done that, but then someone would have dinged
+> me for "unneeded parentheses"--despite the fact that I can't find
+> anything in the style guide about this [except in the bit about macro
+> definitions that says to always add parentheses around expressions
+> defining constants].  Can't win for losin' :-(.
 
-Well I am not the show me the code type. I'd like to have some 
-documentation first on how this would all work together with page 
-migration, cpusets and the use of various memory policies. 
+What Mel suggests is correct.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
