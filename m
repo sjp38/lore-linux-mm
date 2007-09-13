@@ -1,45 +1,119 @@
-Received: from d03relay02.boulder.ibm.com (d03relay02.boulder.ibm.com [9.17.195.227])
-	by e31.co.us.ibm.com (8.13.8/8.13.8) with ESMTP id l8DJphnA001142
-	for <linux-mm@kvack.org>; Thu, 13 Sep 2007 15:51:43 -0400
-Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
-	by d03relay02.boulder.ibm.com (8.13.8/8.13.8/NCO v8.5) with ESMTP id l8DJphw3417454
-	for <linux-mm@kvack.org>; Thu, 13 Sep 2007 13:51:43 -0600
-Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av02.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l8DJphGV008226
-	for <linux-mm@kvack.org>; Thu, 13 Sep 2007 13:51:43 -0600
-Subject: Re: 2.6.23-rc4-mm1 memory controller BUG_ON()
-From: Dave Hansen <haveblue@us.ibm.com>
-In-Reply-To: <1189712083.17236.1626.camel@localhost>
-References: <1189712083.17236.1626.camel@localhost>
-Content-Type: text/plain
-Date: Thu, 13 Sep 2007 12:51:41 -0700
-Message-Id: <1189713102.17236.1647.camel@localhost>
-Mime-Version: 1.0
+Message-ID: <46E99B48.6050106@student.ltu.se>
+Date: Thu, 13 Sep 2007 22:19:20 +0200
+From: Richard Knutsson <ricknu-0@student.ltu.se>
+MIME-Version: 1.0
+Subject: Re: [PATCH] add page->mapping handling interface [1/35] interface
+ definitions
+References: <20070910184048.286dfc6e.kamezawa.hiroyu@jp.fujitsu.com> <20070910184239.e1f705c9.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20070910184239.e1f705c9.kamezawa.hiroyu@jp.fujitsu.com>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Balbir Singh <balbir@in.ibm.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, "nickpiggin@yahoo.com.au" <nickpiggin@yahoo.com.au>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 2007-09-13 at 12:34 -0700, Dave Hansen wrote:
-> Looks like somebody is holding a lock while trying to do a
-> mem_container_charge(), and the mem_container_charge() call is doing an
-> allocation.  Naughty.
-> 
-> I'm digging into it a bit more, but thought I'd report it, first.
-> 
-> .config: http://sr71.net/~dave/linux/memory-controller-bug.config
+KAMEZAWA Hiroyuki wrote:
+>  - changes page->mapping from address_space* to unsigned long
+>  - add page_mapping_anon() function.
+>  - add linux/page-cache.h
+>  - add page_inode() function
+>  - add page_is_pagecache() function
+>  - add pagecaceh_consisten() function for pagecache consistency test.
+>  - expoterd swapper_space. inline function page_mapping() refers this.
+>
+> Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+>
+> ---
+>  include/linux/fs.h         |    1 +
+>  include/linux/mm.h         |   20 +++++++++++++++++---
+>  include/linux/mm_types.h   |    2 +-
+>  include/linux/page-cache.h |   39 +++++++++++++++++++++++++++++++++++++++
+>  mm/swap_state.c            |    2 ++
+>  5 files changed, 60 insertions(+), 4 deletions(-)
+>
+> Index: test-2.6.23-rc4-mm1/include/linux/page-cache.h
+> ===================================================================
+> --- /dev/null
+> +++ test-2.6.23-rc4-mm1/include/linux/page-cache.h
+> @@ -0,0 +1,39 @@
+> +/*
+> + * For interface definitions between memory management and file systems.
+> + * - This file defines small interface functions for handling page cache.
+> + */
+> +
+> +#ifndef _LINUX_PAGECACHE_H
+> +#define _LINUX_PAGECACHE_H
+> +
+> +#include <linux/mm.h>
+> +/* page_mapping_xxx() function is defined in mm.h */
+> +
+> +static inline int page_is_pagecache(struct page *page)
+>   
+Why return it as an 'int' instead of 'bool'?
+> +{
+> +	if (!page->mapping || (page->mapping & PAGE_MAPPING_ANON))
+> +		return 0;
+> +	return 1;
+> +}
+>   
+Not easier with 'return page->mapping && (page->mapping & 
+PAGE_MAPPING_ANON) == 0;'?
+> +
+> +/*
+> + * Return an inode this page belongs to
+> + */
+> +
+> +static inline struct inode *page_inode(struct page *page)
+> +{
+> +	if (!page_is_pagecache(page))
+> +		return NULL;
+> +	return page_mapping_cache(page)->host;
+> +}
+> +
+> +/*
+> + * Test a page is a page-cache of an address_space.
+> + */
+> +static inline int
+> +pagecache_consistent(struct page *page, struct address_space *as)
+> +{
+> +	return (page_mapping(page) == as);
+> +}
+> +
+> +#endif
+<snip>
+> Index: test-2.6.23-rc4-mm1/include/linux/mm.h
+> ===================================================================
+> --- test-2.6.23-rc4-mm1.orig/include/linux/mm.h
+> +++ test-2.6.23-rc4-mm1/include/linux/mm.h
+> @@ -563,7 +563,7 @@ void page_address_init(void);
+>  extern struct address_space swapper_space;
+>  static inline struct address_space *page_mapping(struct page *page)
+>  {
+> -	struct address_space *mapping = page->mapping;
+> +	struct address_space *mapping = (struct address_space *)page->mapping;
+>  
+>  	VM_BUG_ON(PageSlab(page));
+>  	if (unlikely(PageSwapCache(page)))
+> @@ -579,7 +579,21 @@ static inline struct address_space *page
+>  
+>  static inline int PageAnon(struct page *page)
+>   
+Change to bool? Then "you" can also remove the '!!' from:
+mm/memory.c:483:                rss[!!PageAnon(page)]++;
+>  {
+> -	return ((unsigned long)page->mapping & PAGE_MAPPING_ANON) != 0;
+> +	return (page->mapping & PAGE_MAPPING_ANON) != 0;
+> +}
+> +
+>   
+<snip>
 
-I'm now thinking this is because the add_to_page_cache() functions have
-a gfp_mask passed in, and the mem_container_charge() functions don't
-take that mask.  So, even if the add_to_page_cache() user specified !
-__GFP_WAIT, the mem_container_charge() function can sleep on its
-kmalloc.
+If you don't mind bool(eans) (for some reason), I can/will check out the 
+rest.
 
-I'll try passing gfp_flags through to it and see what happens.
-
--- Dave
+Richard Knutsson
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
