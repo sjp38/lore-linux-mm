@@ -1,38 +1,45 @@
-Date: Wed, 12 Sep 2007 17:26:59 -0700 (PDT)
-From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [PATCH 07 of 24] balance_pgdat doesn't return the number of
- pages freed
-In-Reply-To: <20070912051858.76a69996.akpm@linux-foundation.org>
-Message-ID: <Pine.LNX.4.64.0709121724280.4489@schroedinger.engr.sgi.com>
-References: <patchbomb.1187786927@v2.random> <b66d8470c04ed836787f.1187786934@v2.random>
- <20070912051858.76a69996.akpm@linux-foundation.org>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Date: Thu, 13 Sep 2007 09:32:03 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [RFC][PATCH] overwride page->mapping [0/3] intro
+Message-Id: <20070913093203.841b76a7.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <46E83A19.2090604@google.com>
+References: <20070912114322.e4d8a86e.kamezawa.hiroyu@jp.fujitsu.com>
+	<46E7A666.7080409@linux.vnet.ibm.com>
+	<Pine.LNX.4.64.0709121207400.1934@schroedinger.engr.sgi.com>
+	<46E83A19.2090604@google.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Andrea Arcangeli <andrea@suse.de>, linux-mm@kvack.org, David Rientjes <rientjes@google.com>
+To: Martin Bligh <mbligh@google.com>
+Cc: Christoph Lameter <clameter@sgi.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "nickpiggin@yahoo.com.au" <nickpiggin@yahoo.com.au>, "Lee.Schermerhorn@hp.com" <Lee.Schermerhorn@hp.com>, Andrew Morton <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 12 Sep 2007, Andrew Morton wrote:
+On Wed, 12 Sep 2007 12:12:25 -0700
+Martin Bligh <mbligh@google.com> wrote:
 
-> I'll skip this due to its dependency on
-> [PATCH 06 of 24] reduce the probability of an OOM livelock
+> Christoph Lameter wrote:
+> > On Wed, 12 Sep 2007, Balbir Singh wrote:
+> > 
+> >> We discussed the struct page size issue at VM summit. If I remember
+> >> correctly, Linus suggested that we consider using pfn's instead of
+> >> pointers for pointer members in struct page.
+> > 
+> > How would that save any memory? On a system with 16TB memory and 4k page 
+> > size you have at least 4 billion pfns which is the max that an unsigned 
+> > int can handle. If the virtual address space is sparse or larger (like on 
+> > IA64) then you need to use an int with more than 32 bit anyways.
+> 
+> Because nobody (sane) has 16TB of memory? ;-)
+> 
+I think it's not problem of size of memory. 
+It's problem of size of address space, 64 bit.
 
-The return value of balance_pgdat() is never used independently of the 
-prior patch.
+Some machine may have very sparse address configuration from unknown(insane) reason.
 
-The only user of balance_pgdat() is kswapd():
-
-
-	finish_wait(&pgdat->kswapd_wait, &wait);
-           if (!try_to_freeze()) {
-                        /* We can speed up thawing tasks if we don't call
-                         * balance_pgdat after returning from the refrigerator
-                         */
-                        balance_pgdat(pgdat, order);
-          }
-}
+Thanks,
+-Kame
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
