@@ -1,54 +1,46 @@
 Subject: Re: [PATCH/RFC 0/5] Memory Policy Cleanups and Enhancements
 From: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
-In-Reply-To: <1189697488.17924.2.camel@localhost>
+In-Reply-To: <Pine.LNX.4.64.0709121515210.3835@schroedinger.engr.sgi.com>
 References: <20070830185053.22619.96398.sendpatchset@localhost>
 	 <1189527657.5036.35.camel@localhost>
 	 <Pine.LNX.4.64.0709121515210.3835@schroedinger.engr.sgi.com>
-	 <1189691837.5013.43.camel@localhost>  <1189697488.17924.2.camel@localhost>
 Content-Type: text/plain
-Date: Thu, 13 Sep 2007 11:01:55 -0400
-Message-Id: <1189695715.5013.58.camel@localhost>
+Date: Thu, 13 Sep 2007 11:49:26 -0400
+Message-Id: <1189698566.5013.72.camel@localhost>
 Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: Christoph Lameter <clameter@sgi.com>, linux-mm@kvack.org, akpm@linux-foundation.org, ak@suse.de, mtk-manpages@gmx.net, solo@google.com, eric.whitney@hp.com
+To: Christoph Lameter <clameter@sgi.com>
+Cc: linux-mm@kvack.org, akpm@linux-foundation.org, ak@suse.de, mtk-manpages@gmx.net, solo@google.com, eric.whitney@hp.com, Mel Gorman <mel@csn.ul.ie>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 2007-09-13 at 16:31 +0100, Mel Gorman wrote:
-> On Thu, 2007-09-13 at 09:57 -0400, Lee Schermerhorn wrote:
-> > On Wed, 2007-09-12 at 15:17 -0700, Christoph Lameter wrote:
-> > > On Tue, 11 Sep 2007, Lee Schermerhorn wrote:
-> > > 
-> > > > Andi, Christoph, Mel [added to cc]:
-> > > > 
-> > > > Any comments on these patches, posted 30aug?  I've rebased to
-> > > > 23-rc4-mm1, but before reposting, I wanted to give you a chance to
-> > > > comment.
-> > > 
-> > > Sorry that it took some time but I only just got around to look at them. 
-> > > The one patch that I acked may be of higher priority and should probably 
-> > > go in immediately to be merged for 2.6.24.
-> > 
-> > OK.  I'll pull that from the set and post it separately.  I'll see if it
-> > conflicts with Mel's set.  If so, we'll need to decide on the ordering.
-> > Do we think Mel's patches will make .24?
-> > 
+On Wed, 2007-09-12 at 15:17 -0700, Christoph Lameter wrote:
+> On Tue, 11 Sep 2007, Lee Schermerhorn wrote:
 > 
-> I am hoping they will. They remove the nasty hack in relation to
-> MPOL_BIND applying to the top two highest zones when ZONE_MOVABLE is
-> configured and let MPOL_BIND use a node-local policy which I feel is
-> important. There hasn't been a consensus on this yet and I would expect
-> that to be hashed out at the start of the merge window as usual.
+> > Andi, Christoph, Mel [added to cc]:
+> > 
+> > Any comments on these patches, posted 30aug?  I've rebased to
+> > 23-rc4-mm1, but before reposting, I wanted to give you a chance to
+> > comment.
+> 
+> Sorry that it took some time but I only just got around to look at them. 
+> The one patch that I acked may be of higher priority and should probably 
+> go in immediately to be merged for 2.6.24.
+> 
 
-OK.  I haven't had a chance to check your patch for the mem controller
-issue yet.  Should I test with your latest series that uses the struct
-containing the zone id?  I know that Christoph had concerns about
-increasing the number of cache lines.  Which way do you think we'll go
-on this?
+One thing I forgot to ask in previous response:
 
-<snip>
+What about patch #1 in the series:  fix reference counting?
+
+Andi thought this was important enough to go in to 23 as a bug fix.  I
+think it's at least as important as the one you acked.  However, I don't
+know that anyone has ever cited a problem with it.  Then again, they
+might not notice if they occasionally leak a mempolicy struct, or use a
+freed or reused one for page allocation.  I'd be happier to see it cook
+in -mm for a while.  So, I'll go ahead and rebase atop Mel's patches.
+
+Thoughts?
 
 Lee
 
