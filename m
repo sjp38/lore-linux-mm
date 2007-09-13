@@ -1,119 +1,130 @@
 From: Mel Gorman <mel@csn.ul.ie>
-Message-Id: <20070913175202.20770.72989.sendpatchset@skynet.skynet.ie>
-Subject: [PATCH 0/6] Use one zonelist per node instead of multiple zonelists v7
-Date: Thu, 13 Sep 2007 18:52:02 +0100 (IST)
+Message-Id: <20070913175222.20770.57584.sendpatchset@skynet.skynet.ie>
+In-Reply-To: <20070913175202.20770.72989.sendpatchset@skynet.skynet.ie>
+References: <20070913175202.20770.72989.sendpatchset@skynet.skynet.ie>
+Subject: [PATCH 1/6] Use zonelists instead of zones when direct reclaiming pages
+Date: Thu, 13 Sep 2007 18:52:22 +0100 (IST)
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Lee.Schermerhorn@hp.com
 Cc: Mel Gorman <mel@csn.ul.ie>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, kamezawa.hiroyu@jp.fujitsu.com, clameter@sgi.com
 List-ID: <linux-mm.kvack.org>
 
-Hi Lee,
+The allocator deals with zonelists which indicate the order in which zones
+should be targeted for an allocation. Similarly, direct reclaim of pages
+iterates over an array of zones. For consistency, this patch converts direct
+reclaim to use a zonelist. No functionality is changed by this patch. This
+simplifies zonelist iterators in the next patch.
 
-This is the patchset I would like tested. It has Kamezawa-sans approach for
-using a structure instead of pointer packing. While it consumes more cache
-like Christoph pointed out, it should an easier starting point to optimise
-once workloads are identified that can show performance gains/regressions. The
-pointer packing is a potential optimisation but once in place, it's difficult
-to alter again.
+Signed-off-by: Mel Gorman <mel@csn.ul.ie>
+Acked-by: Christoph Lameter <clameter@sgi.com>
+---
 
-Please let me know how it works out for you.
+ include/linux/swap.h |    2 +-
+ mm/page_alloc.c      |    2 +-
+ mm/vmscan.c          |   19 +++++++++++--------
+ 3 files changed, 13 insertions(+), 10 deletions(-)
 
-Changelog since V7
-  o Fix build bug in relation to memory controller combined with one-zonelist
-  o Use while() instead of a stupid looking for()
-
-Changelog since V6
-  o Instead of encoding zone index information in a pointer, this version
-    introduces a structure that stores a zone pointer and its index 
-
-Changelog since V5
-  o Rebase to 2.6.23-rc4-mm1
-  o Drop patch that replaces inline functions with macros
-
-Changelog since V4
-  o Rebase to -mm kernel. Host of memoryless patches collisions dealt with
-  o Do not call wakeup_kswapd() for every zone in a zonelist
-  o Dropped the FASTCALL removal
-  o Have cursor in iterator advance earlier
-  o Use nodes_and in cpuset_nodes_valid_mems_allowed()
-  o Use defines instead of inlines, noticably better performance on gcc-3.4
-    No difference on later compilers such as gcc 4.1
-  o Dropped gfp_skip patch until it is proven to be of benefit. Tests are
-    currently inconclusive but it definitly consumes at least one cache
-    line
-
-Changelog since V3
-  o Fix compile error in the parisc change
-  o Calculate gfp_zone only once in __alloc_pages
-  o Calculate classzone_idx properly in get_page_from_freelist
-  o Alter check so that zone id embedded may still be used on UP
-  o Use Kamezawa-sans suggestion for skipping zones in zonelist
-  o Add __alloc_pages_nodemask() to filter zonelist based on a nodemask. This
-    removes the need for MPOL_BIND to have a custom zonelist
-  o Move zonelist iterators and helpers to mm.h
-  o Change _zones from struct zone * to unsigned long
-  
-Changelog since V2
-  o shrink_zones() uses zonelist instead of zonelist->zones
-  o hugetlb uses zonelist iterator
-  o zone_idx information is embedded in zonelist pointers
-  o replace NODE_DATA(nid)->node_zonelist with node_zonelist(nid)
-
-Changelog since V1
-  o Break up the patch into 3 patches
-  o Introduce iterators for zonelists
-  o Performance regression test
-
-The following patches replace multiple zonelists per node with one zonelist
-that is filtered based on the GFP flags. The patches as a set fix a bug
-with regard to the use of MPOL_BIND and ZONE_MOVABLE. With this patchset,
-the MPOL_BIND will apply to the two highest zones when the highest zone
-is ZONE_MOVABLE. This should be considered as an alternative fix for the
-MPOL_BIND+ZONE_MOVABLE in 2.6.23 to the previously discussed hack that
-filters only custom zonelists. As a bonus, the patchset reduces the cache
-footprint of the kernel and should improve performance in a number of cases.
-
-The first patch cleans up an inconsitency where direct reclaim uses
-zonelist->zones where other places use zonelist. The second patch introduces
-a helper function node_zonelist() for looking up the appropriate zonelist
-for a GFP mask which simplifies patches later in the set.
-
-The third patch replaces multiple zonelists with two zonelists that are
-filtered. The two zonelists are due to the fact that the memoryless patchset
-introduces a second set of zonelists for __GFP_THISNODE.
-
-The fourth patch introduces filtering of the zonelists based on a nodemask.
-
-The final patch replaces the two zonelists with one zonelist. A nodemask is
-created when __GFP_THISNODE is specified to filter the list. The nodelists
-could be pre-allocated with one-per-node but it's not clear that __GFP_THISNODE
-is used often enough to be worth the effort.
-
-Performance results varied depending on the machine configuration but were
-usually small performance gains. In real workloads the gain/loss will depend
-on how much the userspace portion of the benchmark benefits from having more
-cache available due to reduced referencing of zonelists.
-
-These are the range of performance losses/gains when running against
-2.6.23-rc3-mm1. The set and these machines are a mix of i386, x86_64 and
-ppc64 both NUMA and non-NUMA.
-
-Total CPU time on Kernbench: -0.67% to  3.05%
-Elapsed   time on Kernbench: -0.25% to  2.96%
-page_test from aim9:         -6.98% to  5.60%
-brk_test  from aim9:         -3.94% to  4.11%
-fork_test from aim9:         -5.72% to  4.14%
-exec_test from aim9:         -1.02% to  1.56%
-
-The TBench figures were too variable between runs to draw conclusions from but
-there didn't appear to be any regressions there. The hackbench results for both
-sockets and pipes were within noise.
-
--- 
-Mel Gorman
-Part-time Phd Student                          Linux Technology Center
-University of Limerick                         IBM Dublin Software Lab
+diff -rup -X /usr/src/patchset-0.6/bin//dontdiff linux-2.6.23-rc4-mm1-fix-pcnet32/include/linux/swap.h linux-2.6.23-rc4-mm1-005_freepages_zonelist/include/linux/swap.h
+--- linux-2.6.23-rc4-mm1-fix-pcnet32/include/linux/swap.h	2007-09-10 09:29:14.000000000 +0100
++++ linux-2.6.23-rc4-mm1-005_freepages_zonelist/include/linux/swap.h	2007-09-13 11:57:20.000000000 +0100
+@@ -189,7 +189,7 @@ extern int rotate_reclaimable_page(struc
+ extern void swap_setup(void);
+ 
+ /* linux/mm/vmscan.c */
+-extern unsigned long try_to_free_pages(struct zone **zones, int order,
++extern unsigned long try_to_free_pages(struct zonelist *zonelist, int order,
+ 					gfp_t gfp_mask);
+ extern unsigned long try_to_free_mem_container_pages(struct mem_container *mem);
+ extern int __isolate_lru_page(struct page *page, int mode);
+diff -rup -X /usr/src/patchset-0.6/bin//dontdiff linux-2.6.23-rc4-mm1-fix-pcnet32/mm/page_alloc.c linux-2.6.23-rc4-mm1-005_freepages_zonelist/mm/page_alloc.c
+--- linux-2.6.23-rc4-mm1-fix-pcnet32/mm/page_alloc.c	2007-09-10 09:29:14.000000000 +0100
++++ linux-2.6.23-rc4-mm1-005_freepages_zonelist/mm/page_alloc.c	2007-09-13 11:57:20.000000000 +0100
+@@ -1667,7 +1667,7 @@ nofail_alloc:
+ 	reclaim_state.reclaimed_slab = 0;
+ 	p->reclaim_state = &reclaim_state;
+ 
+-	did_some_progress = try_to_free_pages(zonelist->zones, order, gfp_mask);
++	did_some_progress = try_to_free_pages(zonelist, order, gfp_mask);
+ 
+ 	p->reclaim_state = NULL;
+ 	p->flags &= ~PF_MEMALLOC;
+diff -rup -X /usr/src/patchset-0.6/bin//dontdiff linux-2.6.23-rc4-mm1-fix-pcnet32/mm/vmscan.c linux-2.6.23-rc4-mm1-005_freepages_zonelist/mm/vmscan.c
+--- linux-2.6.23-rc4-mm1-fix-pcnet32/mm/vmscan.c	2007-09-10 09:29:14.000000000 +0100
++++ linux-2.6.23-rc4-mm1-005_freepages_zonelist/mm/vmscan.c	2007-09-13 11:57:20.000000000 +0100
+@@ -1207,10 +1207,11 @@ static unsigned long shrink_zone(int pri
+  * If a zone is deemed to be full of pinned pages then just give it a light
+  * scan then give up on it.
+  */
+-static unsigned long shrink_zones(int priority, struct zone **zones,
++static unsigned long shrink_zones(int priority, struct zonelist *zonelist,
+ 					struct scan_control *sc)
+ {
+ 	unsigned long nr_reclaimed = 0;
++	struct zone **zones = zonelist->zones;
+ 	int i;
+ 
+ 	sc->all_unreclaimable = 1;
+@@ -1248,7 +1249,7 @@ static unsigned long shrink_zones(int pr
+  * holds filesystem locks which prevent writeout this might not work, and the
+  * allocation attempt will fail.
+  */
+-unsigned long do_try_to_free_pages(struct zone **zones, gfp_t gfp_mask,
++unsigned long do_try_to_free_pages(struct zonelist *zonelist, gfp_t gfp_mask,
+ 					struct scan_control *sc)
+ {
+ 	int priority;
+@@ -1257,6 +1258,7 @@ unsigned long do_try_to_free_pages(struc
+ 	unsigned long nr_reclaimed = 0;
+ 	struct reclaim_state *reclaim_state = current->reclaim_state;
+ 	unsigned long lru_pages = 0;
++	struct zone **zones = zonelist->zones;
+ 	int i;
+ 
+ 	count_vm_event(ALLOCSTALL);
+@@ -1275,7 +1277,7 @@ unsigned long do_try_to_free_pages(struc
+ 		sc->nr_scanned = 0;
+ 		if (!priority)
+ 			disable_swap_token();
+-		nr_reclaimed += shrink_zones(priority, zones, sc);
++		nr_reclaimed += shrink_zones(priority, zonelist, sc);
+ 		/*
+ 		 * Don't shrink slabs when reclaiming memory from
+ 		 * over limit containers
+@@ -1333,7 +1335,8 @@ out:
+ 	return ret;
+ }
+ 
+-unsigned long try_to_free_pages(struct zone **zones, int order, gfp_t gfp_mask)
++unsigned long try_to_free_pages(struct zonelist *zonelist, int order,
++								gfp_t gfp_mask)
+ {
+ 	struct scan_control sc = {
+ 		.gfp_mask = gfp_mask,
+@@ -1346,7 +1349,7 @@ unsigned long try_to_free_pages(struct z
+ 		.isolate_pages = isolate_pages_global,
+ 	};
+ 
+-	return do_try_to_free_pages(zones, gfp_mask, &sc);
++	return do_try_to_free_pages(zonelist, gfp_mask, &sc);
+ }
+ 
+ #ifdef CONFIG_CONTAINER_MEM_CONT
+@@ -1370,11 +1373,11 @@ unsigned long try_to_free_mem_container_
+ 		.isolate_pages = mem_container_isolate_pages,
+ 	};
+ 	int node;
+-	struct zone **zones;
++	struct zonelist *zonelist;
+ 
+ 	for_each_online_node(node) {
+-		zones = NODE_DATA(node)->node_zonelists[ZONE_USERPAGES].zones;
+-		if (do_try_to_free_pages(zones, sc.gfp_mask, &sc))
++		zonelist = &NODE_DATA(node)->node_zonelists[ZONE_USERPAGES];
++		if (do_try_to_free_pages(zonelist, sc.gfp_mask, &sc))
+ 			return 1;
+ 	}
+ 	return 0;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
