@@ -1,37 +1,99 @@
-Date: Fri, 14 Sep 2007 07:59:43 +0900
-From: Paul Mundt <lethal@linux-sh.org>
-Subject: Re: [PATCH 1/1] cpusets/sched_domain reconciliation
-Message-ID: <20070913225942.GA2384@linux-sh.org>
-References: <20070907210704.E6BE02FC059@attica.americas.sgi.com> <20070913154607.9c49e1c7.akpm@linux-foundation.org>
+Date: Thu, 13 Sep 2007 16:03:17 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [patch] oom: add verbose_oom sysctl to dump tasklist
+In-Reply-To: <20070913152359.85949e0e.akpm@linux-foundation.org>
+Message-ID: <alpine.DEB.0.9999.0709131556470.11367@chino.kir.corp.google.com>
+References: <alpine.DEB.0.9999.0709070115130.19525@chino.kir.corp.google.com> <20070913152359.85949e0e.akpm@linux-foundation.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20070913154607.9c49e1c7.akpm@linux-foundation.org>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Cliff Wickman <cpw@sgi.com>, linux-mm@kvack.org, Nick Piggin <nickpiggin@yahoo.com.au>, Paul Jackson <pj@sgi.com>, Ingo Molnar <mingo@elte.hu>
+Cc: Christoph Lameter <clameter@sgi.com>, Andrea Arcangeli <andrea@suse.de>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Sep 13, 2007 at 03:46:07PM -0700, Andrew Morton wrote:
-> On Fri, 07 Sep 2007 16:07:04 -0500
-> cpw@sgi.com (Cliff Wickman) wrote:
-> > Thus the patch to cpuset.c makes the sched_domain's correct.
+On Thu, 13 Sep 2007, Andrew Morton wrote:
+
+> > Adds 'verbose_oom' sysctl to dump the tasklist and pertinent memory usage
+> > information on an OOM killing.  Information included is pid, uid, tgid,
+> > VM size, RSS, last cpu, oom_adj score, and name.
 > 
-> You should cc scheduler gurus when hoping things about them ;)
+> Would be useful to have some description of why this is needed, how we will
+> use it to fix stuff, etc.  IOW: what value does it bring??
 > 
-> I suspect your change is fundamentally incompatible with, and perhaps
-> obsoleted by
-> ftp://ftp.kernel.org/pub/linux/kernel/people/akpm/patches/2.6/2.6.23-rc4/2.6.23-rc4-mm1/broken-out/cpuset-remove-sched-domain-hooks-from-cpusets.patch
+
+I don't think we would use it to fix anything, I think the end user would 
+use it to figure out why his or her system was OOM.
+
+Obviously this is also possible to do from userspace, but with more 
+trouble in collecting all the information presented here.
+
+> And if it _is_ valuable, how come it's tunable offable?  I guess the
+> tasklist dump will be pretty huge..
 > 
-> Problem is, cpuset-remove-sched-domain-hooks-from-cpusets.patch has been
-> hanging around in -mm for a year while Paul makes up his mind about it.
+
+As a courtesy to SGI and friends who already have enough trouble scanning 
+the tasklist because of their super huge machines.
+
+> We should be dumping more stuff at oom-time.  I thought we were dumping the
+> sysrq-m-style output but that patch which did that got lost years ago.
 > 
-> Can we please get all this sorted out??
+
+I've wondered about a notifier hook to userspace so if the user had 
+specified an OOM handling script to be executed before the actual killer 
+was invoked, you could collect this information on your own or anything 
+else you found pertinent.
+
+> > diff --git a/mm/oom_kill.c b/mm/oom_kill.c
+> > --- a/mm/oom_kill.c
+> > +++ b/mm/oom_kill.c
+> > @@ -27,6 +27,7 @@
+> >  #include <linux/notifier.h>
+> >  
+> >  int sysctl_panic_on_oom;
+> > +int sysctl_verbose_oom;
+> >  /* #define DEBUG */
+> >  
+> >  unsigned long VM_is_OOM;
+> > @@ -146,6 +147,29 @@ unsigned long badness(struct task_struct *p, unsigned long uptime)
+> >  	return points;
+> >  }
+> >  
+> > +static inline void dump_tasks(void)
+> > +{
+> > +	struct task_struct *g, *p;
+> > +
+> > +	printk(KERN_INFO "[ pid ]   uid  tgid total_vm      rss cpu oom_adj name\n");
+> > +	do_each_thread(g, p) {
+> > +		/*
+> > +		 * total_vm and rss sizes do not exist for tasks with a
+> > +		 * detached mm so there's no need to report them.  They are
+> > +		 * not eligible for OOM killing anyway.
+> > +		 */
+> > +		if (!p->mm)
+> > +			continue;
+> > +
+> > +		task_lock(p);
+> > +		printk(KERN_INFO "[%5d] %5d %5d %8lu %8lu %3d     %3d %s\n",
+> > +		       p->pid, p->uid, p->tgid, p->mm->total_vm,
+> > +		       get_mm_rss(p->mm), (int)task_cpu(p), p->oomkilladj,
+> > +		       p->comm);
+> > +		task_unlock(p);
+> > +	} while_each_thread(g, p);
+> > +}
 > 
-Note that removing the scheduler domain hooks also fixes up the build for
-cpusets on UP NUMA. If this patch isn't going to go in, the other
-alternative is simply to stub out scheduler domains there.
+> There's no need to inline this.
+> 
+
+Ah, gotcha.
+
+> Also, it appears to be 100% generic and useful, so perhaps it should be put
+> into kernel/something.c and made available to other code.  Probably there's
+> already code out there which should be converted to a call to this
+> function?
+> 
+
+I'll look into it, thanks for the review.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
