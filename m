@@ -1,53 +1,27 @@
-Date: Wed, 12 Sep 2007 18:44:15 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH 16 of 24] avoid some lock operation in vm fast path
-Message-Id: <20070912184415.a781f4fc.akpm@linux-foundation.org>
-In-Reply-To: <Pine.LNX.4.64.0709121832130.4981@schroedinger.engr.sgi.com>
-References: <patchbomb.1187786927@v2.random>
-	<b343d1056f356d60de86.1187786943@v2.random>
-	<20070912055952.bd5c99d6.akpm@linux-foundation.org>
-	<Pine.LNX.4.64.0709121746240.4489@schroedinger.engr.sgi.com>
-	<20070912181636.8e807295.akpm@linux-foundation.org>
-	<Pine.LNX.4.64.0709121832130.4981@schroedinger.engr.sgi.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Date: Wed, 12 Sep 2007 22:13:38 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [PATCH 21 of 24] select process to kill for cpusets
+In-Reply-To: <Pine.LNX.4.64.0709121757390.4489@schroedinger.engr.sgi.com>
+Message-ID: <alpine.DEB.0.9999.0709122213130.14292@chino.kir.corp.google.com>
+References: <patchbomb.1187786927@v2.random> <855dc37d74ab151d7a0c.1187786948@v2.random> <20070912060558.5822cb56.akpm@linux-foundation.org> <Pine.LNX.4.64.0709121757390.4489@schroedinger.engr.sgi.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Christoph Lameter <clameter@sgi.com>
-Cc: Andrea Arcangeli <andrea@suse.de>, linux-mm@kvack.org, David Rientjes <rientjes@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <andrea@suse.de>, linux-mm@kvack.org, Paul Jackson <pj@sgi.com>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 12 Sep 2007 18:33:48 -0700 (PDT) Christoph Lameter <clameter@sgi.com> wrote:
+On Wed, 12 Sep 2007, Christoph Lameter wrote:
 
-> > We should be able to directly decrease lock contention in there by chewing
-> > on larger hunks: make scan_control.swap_cluster_max larger.  Did anyone try
-> > that?
-> > 
-> > I guess we should stop calling that thing swap_cluster_max, really. 
-> > swap_cluster_max is amount-of-stuff-to-write-to-swap for IO clustering. 
-> > That's unrelated to amount-of-stuff-to-batch-in-page-reclaim for lock
-> > contention reduction.  My fault.
+> The reason that we do not scan the tasklist but kill the current process 
+> is also that scanning the tasklist on large systems is very expensive. 
+> Concurrent OOM killer may hold up the system for a long time. So we need
+> the kill without going throught the tasklist.
 > 
-> So we need it configurable? Something like this?
-> 
-> 
-> 
-> 
-> Add /proc/sys/vm/reclaim_batch to configure the reclaim_batch size
-> 
-> Add a new proc variable to configure the reclaim batch size.
 
-That's a suitable start for someone to do a bit of performance testing.  If
-it turns out to be worthwhile then perhaps we might decide to make it a
-per-zone ratio based on present_pages or something, and to make the initial
-defaults something more appropriate than SWAP_CLUSTER_MAX.
-
-Also there might be tradeoffs between the size of this thing and the number
-of cpus (per node?).
-
-Dunno.  It all depends whether there's significant benefit to be had here. 
-If there is, some additional testing and tuning would be needed.
+And that's why oom_kill_asking_task is added in the final patch of the 
+series.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
