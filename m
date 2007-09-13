@@ -1,100 +1,71 @@
-Subject: Re: [RFC 0/3] Recursive reclaim (on __PF_MEMALLOC)
-From: Peter Zijlstra <a.p.zijlstra@chello.nl>
-In-Reply-To: <Pine.LNX.4.64.0709131128050.9546@schroedinger.engr.sgi.com>
-References: <20070814142103.204771292@sgi.com>
-	 <200709050220.53801.phillips@phunq.net>
-	 <Pine.LNX.4.64.0709050334020.8127@schroedinger.engr.sgi.com>
-	 <20070905114242.GA19938@wotan.suse.de>
-	 <Pine.LNX.4.64.0709050507050.9141@schroedinger.engr.sgi.com>
-	 <1189594373.21778.114.camel@twins>
-	 <Pine.LNX.4.64.0709121540370.4067@schroedinger.engr.sgi.com>
-	 <1189671552.21778.158.camel@twins>
-	 <Pine.LNX.4.64.0709131128050.9546@schroedinger.engr.sgi.com>
+Received: from d01relay04.pok.ibm.com (d01relay04.pok.ibm.com [9.56.227.236])
+	by e1.ny.us.ibm.com (8.13.8/8.13.8) with ESMTP id l8DJYjYg030832
+	for <linux-mm@kvack.org>; Thu, 13 Sep 2007 15:34:45 -0400
+Received: from d01av02.pok.ibm.com (d01av02.pok.ibm.com [9.56.224.216])
+	by d01relay04.pok.ibm.com (8.13.8/8.13.8/NCO v8.5) with ESMTP id l8DJYjqi563994
+	for <linux-mm@kvack.org>; Thu, 13 Sep 2007 15:34:45 -0400
+Received: from d01av02.pok.ibm.com (loopback [127.0.0.1])
+	by d01av02.pok.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l8DJYi36001047
+	for <linux-mm@kvack.org>; Thu, 13 Sep 2007 15:34:45 -0400
+Subject: 2.6.23-rc4-mm1 memory controller BUG_ON()
+From: Dave Hansen <haveblue@us.ibm.com>
 Content-Type: text/plain
-Date: Thu, 13 Sep 2007 21:24:33 +0200
-Message-Id: <1189711473.5643.18.camel@lappy>
+Date: Thu, 13 Sep 2007 12:34:43 -0700
+Message-Id: <1189712083.17236.1626.camel@localhost>
 Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
-Cc: Nick Piggin <npiggin@suse.de>, Daniel Phillips <phillips@phunq.net>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, dkegel@google.com, David Miller <davem@davemloft.net>
+To: Balbir Singh <balbir@in.ibm.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 2007-09-13 at 11:32 -0700, Christoph Lameter wrote:
-> On Thu, 13 Sep 2007, Peter Zijlstra wrote:
-> 
-> > 
-> > > > Every user of memory relies on the VM, and we only get into trouble if
-> > > > the VM in turn relies on one of these users. Traditionally that has only
-> > > > been the block layer, and we special cased that using mempools and
-> > > > PF_MEMALLOC.
-> > > > 
-> > > > Why do you object to me doing a similar thing for networking?
-> > > 
-> > > I have not seen you using mempools for the networking layer. I would not 
-> > > object to such a solution. It already exists for other subsystems.
-> > 
-> > Dude, listen, how often do I have to say this: I cannot use mempools for
-> > the network subsystem because its build on kmalloc! What I've done is
-> > build a replacement for mempools - a reserve system - that does work
-> > similar to mempools but also provides the flexibility of kmalloc.
-> > 
-> > That is all, no more, no less.
-> 
-> Its different since it becomes a privileged player that can suck all 
-> the available memory out of the page allocator.
+Looks like somebody is holding a lock while trying to do a
+mem_container_charge(), and the mem_container_charge() call is doing an
+allocation.  Naughty.
 
-No, each reserve user comes with a bean-counter that will limit the
-usage.
+I'm digging into it a bit more, but thought I'd report it, first.
 
-> > I'm confused by this, I've never claimed part of, or such a thing. All
-> > I'm saying is that because of the circular dependency between the VM and
-> > the IO subsystem used for swap (not file backed paging [*], just swap)
-> > you have to do something special to avoid deadlocks.
-> 
-> How are dirty file backed pages different? They may also be written out 
-> by the VM during reclaim.
+.config: http://sr71.net/~dave/linux/memory-controller-bug.config
 
-when you have dirty file backed pages, the rest of the memory can only
-consists of clean file pages and or anonymous pages - due to the dirty
-limit. If you can guarantee that swap doesn't use memory (well, it does,
-but its PF_MEMALLOC memory that cannot be used by others) then you can
-always free memory by dropping clean pages or swapping out. And thus
-make progress for file based writeback.
+BUG: sleeping function called from invalid context at /home/dave/work/linux/2.6/23/rc4/mm1/lxc/mm/slab.c:3052
+in_atomic():1, irqs_disabled():0
+ [<c01029c1>] show_trace_log_lvl+0x19/0x2e
+ [<c01029e8>] show_trace+0x12/0x14
+ [<c0102ad3>] dump_stack+0x13/0x15
+ [<c010f223>] __might_sleep+0xe4/0xea
+ [<c014cdc0>] kmem_cache_alloc+0x25/0xae
+ [<c014e1dd>] mem_container_charge+0xc9/0x2cd
+ [<c014e403>] mem_container_cache_charge+0x22/0x28
+ [<c0131839>] add_to_page_cache+0x35/0xd7
+ [<c01318f0>] add_to_page_cache_lru+0x15/0x29
+ [<c0131c43>] find_or_create_page+0x75/0x93
+ [<c016cc71>] grow_dev_page+0x32/0x125
+ [<c016ce15>] grow_buffers+0xb1/0xd4
+ [<c016ceef>] __getblk_slow+0xb7/0xcf
+ [<c016d2b9>] __getblk+0x44/0x4f
+ [<c018c721>] ext3_getblk+0xca/0x19c
+ [<c018fc48>] ext3_find_entry+0x127/0x325
+ [<c0190063>] ext3_lookup+0x2c/0xe1
+ [<c015635a>] real_lookup+0x54/0xc5
+ [<c01565bd>] do_lookup+0x59/0xa0
+ [<c0156824>] __link_path_walk+0x220/0xa4f
+ [<c0157094>] link_path_walk+0x41/0xa5
+ [<c0157110>] path_walk+0x18/0x1a
+ [<c01573de>] do_path_lookup+0x165/0x182
+ [<c01574a0>] __path_lookup_intent_open+0x44/0x75
+ [<c01574f2>] path_lookup_open+0x21/0x27
+ [<c0157c5a>] open_namei+0x7f/0x4c4
+ [<c014f6c0>] do_filp_open+0x26/0x3b
+ [<c014f975>] do_sys_open+0x43/0xc7
+ [<c014fa13>] sys_open+0x1a/0x1c
+ [<c010010e>] init_post+0x45/0xe7
+ [<c03f6ab6>] kernel_init+0x8a/0x8e
+ [<c010287b>] kernel_thread_helper+0x7/0x10
+ =======================
 
-This is why the dirty page tracking made mmap over NFS useable.
 
-> > > Replacing the mempools for the block layer sounds pretty good. But how do 
-> > > these various subsystems that may live in different portions of the system 
-> > > for various devices avoid global serialization and livelock through your 
-> > > system? 
-> > 
-> > The reserves are spread over all kernel mapped zones, the slab allocator
-> > is still per cpu, the page allocator tries to get pages from the nearest
-> > node.
-> 
-> But it seems that you have unbounded allocations with PF_MEMALLOC now for 
-> the networking case? So networking can exhaust all reserves?
-
-No, networking will beancount all PF_MEMALLOC memory it receives, and
-stop allocating once it hits it limit. It knows that when it has than
-much memory outstanding its guaranteed memory will be freed soon.
-
-> > > And how is fairness addresses? I may want to run a fileserver on 
-> > > some nodes and a HPC application that relies on a fiberchannel connection 
-> > > on other nodes. How do we guarantee that the HPC application is not 
-> > > impacted if the network services of the fileserver flood the system with 
-> > > messages and exhaust memory?
-> > 
-> > The network system reserves A pages, the block layer reserves B pages,
-> > once they start getting pages from the reserves they go bean counting,
-> > once they reach their respective limit they stop.
-> 
-> That sounds good.
-
-Ok, so next time I'll post the whole series again - I know some people
-found it too much - but that way you can see the bean counter.
+-- Dave
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
