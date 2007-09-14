@@ -1,95 +1,60 @@
-Subject: Re: [PATCH/RFC 0/5] Memory Policy Cleanups and Enhancements
-From: Mel Gorman <mel@csn.ul.ie>
-In-Reply-To: <1189782414.5315.36.camel@localhost>
-References: <20070830185053.22619.96398.sendpatchset@localhost>
-	 <1189527657.5036.35.camel@localhost>
-	 <Pine.LNX.4.64.0709121515210.3835@schroedinger.engr.sgi.com>
-	 <1189691837.5013.43.camel@localhost>
-	 <Pine.LNX.4.64.0709131118190.9378@schroedinger.engr.sgi.com>
-	 <20070913182344.GB23752@skynet.ie>
-	 <Pine.LNX.4.64.0709131124100.9378@schroedinger.engr.sgi.com>
-	 <20070913141704.4623ac57.akpm@linux-foundation.org>
-	 <20070914085335.GA30407@skynet.ie>  <1189782414.5315.36.camel@localhost>
-Content-Type: text/plain
-Date: Fri, 14 Sep 2007 18:46:07 +0100
-Message-Id: <1189791967.13629.24.camel@localhost>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Received: from d01relay02.pok.ibm.com (d01relay02.pok.ibm.com [9.56.227.234])
+	by e1.ny.us.ibm.com (8.13.8/8.13.8) with ESMTP id l8EHQd0K029401
+	for <linux-mm@kvack.org>; Fri, 14 Sep 2007 13:26:39 -0400
+Received: from d01av03.pok.ibm.com (d01av03.pok.ibm.com [9.56.224.217])
+	by d01relay02.pok.ibm.com (8.13.8/8.13.8/NCO v8.5) with ESMTP id l8EHQdma677388
+	for <linux-mm@kvack.org>; Fri, 14 Sep 2007 13:26:39 -0400
+Received: from d01av03.pok.ibm.com (loopback [127.0.0.1])
+	by d01av03.pok.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l8EHQd06007444
+	for <linux-mm@kvack.org>; Fri, 14 Sep 2007 13:26:39 -0400
+Date: Fri, 14 Sep 2007 10:26:38 -0700
+From: Nishanth Aravamudan <nacc@us.ibm.com>
+Subject: Re: [PATCH 1/4] hugetlb: search harder for memory in alloc_fresh_huge_page()
+Message-ID: <20070914172638.GT24941@us.ibm.com>
+References: <20070906182134.GA7779@us.ibm.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20070906182134.GA7779@us.ibm.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
-Cc: Mel Gorman <mel@skynet.ie>, Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <clameter@sgi.com>, linux-mm@kvack.org, ak@suse.de, mtk-manpages@gmx.net, solo@google.com, eric.whitney@hp.com
+To: clameter@sgi.com
+Cc: wli@holomorphy.com, agl@us.ibm.com, lee.schermerhorn@hp.com, akpm@linux-foundation.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 2007-09-14 at 11:06 -0400, Lee Schermerhorn wrote:
-> On Fri, 2007-09-14 at 09:53 +0100, Mel Gorman wrote:
-> > On (13/09/07 14:17), Andrew Morton didst pronounce:
-> > > On Thu, 13 Sep 2007 11:26:19 -0700 (PDT)
-> > > Christoph Lameter <clameter@sgi.com> wrote:
-> > > 
-> > > > On Thu, 13 Sep 2007, Mel Gorman wrote:
-> > > > 
-> > > > > What do you see holding it up? Is it the fact we are no longer doing the
-> > > > > pointer packing and you don't want that structure to exist, or is it simply
-> > > > > a case that 2.6.23 is too close the door and it won't get adequate
-> > > > > coverage in -mm?
-> > > > 
-> > > > No its not the pointer packing. The problem is that the patches have not 
-> > > > been merged yet and 2.6.23 is close. We would need to merge it very soon 
-> > > > and get some exposure in mm. Andrew?
-> > > 
-> > > You rang?
-> > > 
-> > > To which patches do you refer?  "Memory Policy Cleanups and Enhancements"? 
-> > > That's still in my queue somewhere, but a) it has "RFC" in it which usually
-> > > makes me run away and b) we already have no fewer than 221 memory
-> > > management patches queued.
-> > > 
-> > 
-> > Christoph's question is in relation to the patchset "Use one zonelist per
-> > node instead of multiple zonelists v7" and whether one zonelist will be
-> > merged in 2.6.24 in your opinion. I am hoping "yes" because it removes that
-> > hack with ZONE_MOVABLE and policies. I had sent you a version (v5) but there
-> > were further suggestions on ways to improve it so we're up to v7 now. Lee
-> > will hopefully be able to determine if v7 regresses policy behaviour or not.
-> > 
+On 06.09.2007 [11:21:34 -0700], Nishanth Aravamudan wrote:
+> hugetlb: search harder for memory in alloc_fresh_huge_page()
 > 
-> Hi, Mel:
+> Currently, alloc_fresh_huge_page() returns NULL when it is not able to
+> allocate a huge page on the current node, as specified by its custom
+> interleave variable. The callers of this function, though, assume that a
+> failure in alloc_fresh_huge_page() indicates no hugepages can be
+> allocated on the system period. This might not be the case, for
+> instance, if we have an uneven NUMA system, and we happen to try to
+> allocate a hugepage on a node (with __GFP_THISNODE) with less memory and
+> fail, while there is still plenty of free memory on the other nodes.
 > 
-> I'm running with your patches now.  An earlier version--just received v7
-> end of day yesterday.  Will rebuild today.  I've been using the kernel
-> with your patches for general patch development and kernel building on
-> my ia64 numa platform.  Before I rebooted to test another kernel
-> [reclaim scalability/noreclaim patch set], your mail prompted me to try
-> a couple of memtoy migration scripts.  I managed to hang/panic the
-> system with a null pointer deref and a very interesting stack trace,
-> which I didn't capture [want to test w/ v7]. 
+> To correct this, make alloc_fresh_huge_page() search through all online
+> nodes before deciding no hugepages can be allocated. Add a helper
+> function for actually allocating the hugepage. Also, while we expect
+> particular semantics for __GFP_THISNODE, which are newly enforced --
+> that is, that the allocation won't go off-node -- still use
+> page_to_nid() to guarantee we don't mess up the accounting.
 
-Very uncool. If I am null dereferencing anywhere, it's going to be in
-the iterator so check for get_page_from_freelist() in the stack.
+Christoph, Lee, ping? I haven't heard any response on these patches this
+time around. Would it be acceptable to ask Andrew to pick them up for
+the next -mm?
 
->  The trace included some
-> kprobes functions--which I'm not using--and a lot of tcp/network stack
-> routines.  I have no clue whether these are related to your patches.
-> The hang that I experienced before the panic could have been a local
-> site network glitch [happens, sometimes] that triggered a fault in the
-> network stack.
-> 
+Andrew, there probably will be conflicts with Lee's nodes_state patches
+and perhaps other patches queued for -mm, if you'd like me to
+rebase/retest before picking them up.
 
-How bizarre.
+Thanks,
+Nish
 
-> Again, I'll retest with the v7 patches today.  In the meantime, you
-> might want to grab memtoy from:
-> http://free.linux.hp.com/~lts/Tools/memtoy-latest.tar.gz
-> and try out the test scripts in the Xpm-tests/Mbind directory.  Note
-> that these scripts assume a 4-node numa system, but from the comments
-> you should be able to mod them for whatever numa system you have
-> available.  Building memtoy can also be a bit of a challenge, depending
-> on your environment--no autoconfig or such.  Check out the README for
-> instructions/caveats/...
-> 
-
-Ok, I'll give it a shot and see how I get on. Thanks Lee
+-- 
+Nishanth Aravamudan <nacc@us.ibm.com>
+IBM Linux Technology Center
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
