@@ -1,84 +1,56 @@
-Subject: Re: [PATCH -mm] mm: Fix memory hotplug + sparsemem build.
-From: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
-In-Reply-To: <20070913194130.1611fd78.akpm@linux-foundation.org>
-References: <20070911182546.F139.Y-GOTO@jp.fujitsu.com>
-	 <20070913184456.16ff248e.akpm@linux-foundation.org>
-	 <20070914105420.F2E9.Y-GOTO@jp.fujitsu.com>
-	 <20070913194130.1611fd78.akpm@linux-foundation.org>
-Content-Type: text/plain
-Date: Fri, 14 Sep 2007 10:09:27 -0400
-Message-Id: <1189778967.5315.11.camel@localhost>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Date: Fri, 14 Sep 2007 15:33:55 +0100
+Subject: Re: [PATCH 0/13] Reduce external fragmentation by grouping pages by mobility v30
+Message-ID: <20070914143355.GD30407@skynet.ie>
+References: <20070910112011.3097.8438.sendpatchset@skynet.skynet.ie> <20070913180156.ee0cdec4.akpm@linux-foundation.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <20070913180156.ee0cdec4.akpm@linux-foundation.org>
+From: mel@skynet.ie (Mel Gorman)
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Yasunori Goto <y-goto@jp.fujitsu.com>, Andy Whitcroft <apw@shadowen.org>, Paul Mundt <lethal@linux-sh.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 2007-09-13 at 19:41 -0700, Andrew Morton wrote:
-> On Fri, 14 Sep 2007 11:02:43 +0900 Yasunori Goto <y-goto@jp.fujitsu.com> wrote:
+On (13/09/07 18:01), Andrew Morton didst pronounce:
+> On Mon, 10 Sep 2007 12:20:11 +0100 (IST) Mel Gorman <mel@csn.ul.ie> wrote:
 > 
-> > > >  	/* call arch's memory hotadd */
-> > > > 
-> > > 
-> > > OK, we're getting into a mess here.  This patch fixes
-> > > update-n_high_memory-node-state-for-memory-hotadd.patch, but which patch
-> > > does update-n_high_memory-node-state-for-memory-hotadd.patch fix?
-> > > 
-> > > At present I just whacked
-> > > update-n_high_memory-node-state-for-memory-hotadd.patch at the end of
-> > > everything, but that was lazy of me and it ends up making a mess.
-> > 
-> > It is enough. No more patch is necessary for these issues.
-> > I already fixed about Andy-san's comment. :-)
+> > Here is a restacked version of the grouping pages by mobility patches
+> > based on the patches currently in your tree. It should be  a drop-in
+> > replacement for what is in 2.6.23-rc4-mm1 and is what I propose for merging
+> > to mainline.
 > 
-> Now I'm more confused.  I have two separeate questions:
+> It really gives me the creeps to throw away a large set of large patches
+> and to then introduce a new set.
 > 
-> a) Is the justr-added update-n_high_memory-node-state-for-memory-hotadd-fix.patch
->    still needed?
+
+I can understand that logic.
+
+> What would go wrong if we just merged the patches I already have?
 > 
-> b) Which patch in 2.6.22-rc4-mm1 does
->    update-n_high_memory-node-state-for-memory-hotadd.patch fix?  In other
->    words, into which patch should I fold
->    update-n_high_memory-node-state-for-memory-hotadd.patch prior to sending
->    to Linus?
 
-Andrew:  
+Nothing, the end result is more or less the same. There are three style
+cleanups in the restack and for some reason, one of the functions moved
+but otherwise they are identical.
 
-I originally sent in the "update-n_high_memory..." patch against
-23-rc3-mm1 on 27aug to fix a problem that I introduced when I moved the
-populating of N_HIGH_MEMORY state to free_area_init_nodes().  This would
-miss setting the "has memory" node state for hot added memory.  I never
-saw any response, but then it ended up in 23-rc4-mm1.
+The restacked version was provided to illustrate what the final stack really
+looks like and because I thought you would prefer it over a stack that had
+one patch introducing a change and a later patch removing it (like making
+it configurable for example). It also allowed us to test against mainline
+to make sure everything was ok prior to the merge.
 
-This Tuesday, Paul Mundt sent in a patch to fix a build problem with
-MEMORY_HOTPLUG_SPARSE introduced by my patch.  He replaced zone->node
-with zone_to_nid(zone) in the node_set_state() arguments.
+Go ahead with the patches you already
+have if you prefer. Just make sure not to include
+breakout-page_order-to-internalh-to-avoid-special-knowledge-of-the-buddy-allocator.patch
+as it's only required for page-owner-tracking.
 
-The latest patch, from Yasunori-san, I believe, starts kswapd for nodes
-to which memory has been hot-added.  As I understand it, his is needed
-because the memoryless nodes patch results in no kswapd for memoryless
-nodes.
+Thanks Andrew.
 
-Does that help?
-
-Lee
-
-
-> 
->    (I (usually) get to work this out for myself.  Sometimes it is painful).
-> 
-> Generally, if people tell me which patch-in-mm their patch is fixing,
-> it really helps.  Adrian does this all the time.
-> 
-> Thanks.
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+-- 
+Mel Gorman
+Part-time Phd Student                          Linux Technology Center
+University of Limerick                         IBM Dublin Software Lab
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
