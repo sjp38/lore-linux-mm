@@ -1,307 +1,225 @@
-Date: Fri, 14 Sep 2007 15:18:50 -0700 (PDT)
+Date: Fri, 14 Sep 2007 15:23:10 -0700 (PDT)
 From: Christoph Lameter <clameter@sgi.com>
-Subject: [RFC] SLUB: Make NUMA support optional on NUMA machines
-Message-ID: <Pine.LNX.4.64.0709141518070.14856@schroedinger.engr.sgi.com>
+Subject: [PATCH] Configurable reclaim batch size 
+Message-ID: <Pine.LNX.4.64.0709141519230.14894@schroedinger.engr.sgi.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-kernel@vger.kernel.org
-Cc: linux-mm@kvack.org
+To: linux-mm@kvack.org
+Cc: linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-NUMA support in the slab allocators may create unnecessary overhead for
-small NUMA configurations (especially those that realize multiple nodes
-on a motherboard like Opterons).
-
-If NUMA support is disabled on a NUMA machines then the NUMA locality
-controls will not work for slab allocations anymore. However, the resulting
-memory imbalances and non optimal placements may not matter much if the
-system is small.
-
-Is this worth doing?
+This patch allows a configuration of the basic reclaim unit for reclaim in 
+vmscan.c. As memory sizes increase so will the frequency of running 
+reclaim. Configuring the reclaim unit higher will reduce the number of 
+times reclaim has to be entered and reduce the number of times that the 
+zone locks have to be taken.
 
 Signed-off-by: Christoph Lameter <clameter@sgi.com>
 
-Index: linux-2.6/include/linux/slab.h
+---
+ include/linux/mmzone.h |    1 +
+ kernel/sysctl.c        |    8 ++++++++
+ mm/vmscan.c            |   41 +++++++++++++++++++++--------------------
+ 3 files changed, 30 insertions(+), 20 deletions(-)
+
+Index: linux-2.6/mm/vmscan.c
 ===================================================================
---- linux-2.6.orig/include/linux/slab.h	2007-09-14 13:54:51.000000000 -0700
-+++ linux-2.6/include/linux/slab.h	2007-09-14 13:54:56.000000000 -0700
-@@ -178,7 +178,7 @@ static inline void *kcalloc(size_t n, si
- 	return __kmalloc(n * size, flags | __GFP_ZERO);
- }
+--- linux-2.6.orig/mm/vmscan.c	2007-09-12 18:21:28.000000000 -0700
++++ linux-2.6/mm/vmscan.c	2007-09-12 18:31:13.000000000 -0700
+@@ -57,11 +57,11 @@ struct scan_control {
+ 	/* Can pages be swapped as part of reclaim? */
+ 	int may_swap;
  
--#if !defined(CONFIG_NUMA) && !defined(CONFIG_SLOB)
-+#if !defined(CONFIG_SLAB_NUMA) && !defined(CONFIG_SLOB)
- /**
-  * kmalloc_node - allocate memory from a specific node
-  * @size: how many bytes of memory are required.
-@@ -206,7 +206,7 @@ static inline void *kmem_cache_alloc_nod
- {
- 	return kmem_cache_alloc(cachep, flags);
- }
--#endif /* !CONFIG_NUMA && !CONFIG_SLOB */
-+#endif /* !CONFIG_SLAB_NUMA && !CONFIG_SLOB */
+-	/* This context's SWAP_CLUSTER_MAX. If freeing memory for
+-	 * suspend, we effectively ignore SWAP_CLUSTER_MAX.
++	/* This context's  reclaim batch size. If freeing memory for
++	 * suspend, we effectively ignore reclaim_batch.
+ 	 * In this context, it doesn't matter that we scan the
+ 	 * whole list at once. */
+-	int swap_cluster_max;
++	int reclaim_batch;
  
- /*
-  * kmalloc_track_caller is a special version of kmalloc that records the
-@@ -225,7 +225,7 @@ extern void *__kmalloc_track_caller(size
- 	__kmalloc(size, flags)
- #endif /* DEBUG_SLAB */
+ 	int swappiness;
  
--#ifdef CONFIG_NUMA
-+#ifdef CONFIG_SLAB_NUMA
- /*
-  * kmalloc_node_track_caller is a special version of kmalloc_node that
-  * records the calling function of the routine calling it for slab leak
-@@ -244,7 +244,7 @@ extern void *__kmalloc_node_track_caller
- 	__kmalloc_node(size, flags, node)
- #endif
- 
--#else /* CONFIG_NUMA */
-+#else /* CONFIG_SLAB_NUMA */
- 
- #define kmalloc_node_track_caller(size, flags, node) \
- 	kmalloc_track_caller(size, flags)
-Index: linux-2.6/include/linux/slub_def.h
-===================================================================
---- linux-2.6.orig/include/linux/slub_def.h	2007-09-14 13:54:51.000000000 -0700
-+++ linux-2.6/include/linux/slub_def.h	2007-09-14 13:54:56.000000000 -0700
-@@ -58,7 +58,7 @@ struct kmem_cache {
- 	struct kobject kobj;	/* For sysfs */
- #endif
- 
--#ifdef CONFIG_NUMA
-+#ifdef CONFIG_SLAB_NUMA
- 	int defrag_ratio;
- 	struct kmem_cache_node *node[MAX_NUMNODES];
- #endif
-@@ -181,7 +181,7 @@ static __always_inline void *kmalloc(siz
- 	return __kmalloc(size, flags);
- }
- 
--#ifdef CONFIG_NUMA
-+#ifdef CONFIG_SLAB_NUMA
- void *__kmalloc_node(size_t size, gfp_t flags, int node);
- void *kmem_cache_alloc_node(struct kmem_cache *, gfp_t flags, int node);
- 
-Index: linux-2.6/mm/slub.c
-===================================================================
---- linux-2.6.orig/mm/slub.c	2007-09-14 13:54:51.000000000 -0700
-+++ linux-2.6/mm/slub.c	2007-09-14 13:58:50.000000000 -0700
-@@ -137,6 +137,12 @@ static inline void ClearSlabDebug(struct
- 	page->flags &= ~SLABDEBUG;
- }
- 
-+#ifdef CONFIG_SLAB_NUMA
-+#define node(x) page_to_nid(x)
-+#else
-+#define node(x) 0
-+#endif
-+
- /*
-  * Issues still to be resolved:
-  *
-@@ -260,7 +266,7 @@ int slab_is_available(void)
- 
- static inline struct kmem_cache_node *get_node(struct kmem_cache *s, int node)
- {
--#ifdef CONFIG_NUMA
-+#ifdef CONFIG_SLAB_NUMA
- 	return s->node[node];
- #else
- 	return &s->local_node;
-@@ -813,7 +819,7 @@ static void remove_full(struct kmem_cach
- 	if (!(s->flags & SLAB_STORE_USER))
- 		return;
- 
--	n = get_node(s, page_to_nid(page));
-+	n = get_node(s, node(page));
- 
- 	spin_lock(&n->list_lock);
- 	list_del(&page->lru);
-@@ -1067,7 +1073,7 @@ static struct page *new_slab(struct kmem
- 	if (!page)
- 		goto out;
- 
--	n = get_node(s, page_to_nid(page));
-+	n = get_node(s, node(page));
- 	if (n)
- 		atomic_long_inc(&n->nr_slabs);
- 	page->slab = s;
-@@ -1141,7 +1147,7 @@ static void free_slab(struct kmem_cache 
- 
- static void discard_slab(struct kmem_cache *s, struct page *page)
- {
--	struct kmem_cache_node *n = get_node(s, page_to_nid(page));
-+	struct kmem_cache_node *n = get_node(s, node(page));
- 
- 	atomic_long_dec(&n->nr_slabs);
- 	reset_page_mapcount(page);
-@@ -1192,7 +1198,7 @@ static void add_partial(struct kmem_cach
- static void remove_partial(struct kmem_cache *s,
- 						struct page *page)
- {
--	struct kmem_cache_node *n = get_node(s, page_to_nid(page));
-+	struct kmem_cache_node *n = get_node(s, node(page));
- 
- 	spin_lock(&n->list_lock);
- 	list_del(&page->lru);
-@@ -1247,7 +1253,7 @@ out:
+@@ -105,6 +105,7 @@ struct scan_control {
   */
- static struct page *get_any_partial(struct kmem_cache *s, gfp_t flags)
- {
--#ifdef CONFIG_NUMA
-+#ifdef CONFIG_SLAB_NUMA
- 	struct zonelist *zonelist;
- 	struct zone **z;
- 	struct page *page;
-@@ -1315,7 +1321,7 @@ static struct page *get_partial(struct k
-  */
- static void unfreeze_slab(struct kmem_cache *s, struct page *page)
- {
--	struct kmem_cache_node *n = get_node(s, page_to_nid(page));
-+	struct kmem_cache_node *n = get_node(s, node(page));
+ int vm_swappiness = 60;
+ long vm_total_pages;	/* The total number of pages which the VM controls */
++int sysctl_reclaim_batch = SWAP_CLUSTER_MAX;
  
- 	ClearSlabFrozen(page);
- 	if (page->inuse) {
-@@ -1463,7 +1469,7 @@ load_freelist:
- 	c->freelist = object[c->offset];
- 	c->page->inuse = s->objects;
- 	c->page->freelist = NULL;
--	c->node = page_to_nid(c->page);
-+	c->node = node(c->page);
- 	slab_unlock(c->page);
- 	return object;
+ static LIST_HEAD(shrinker_list);
+ static DECLARE_RWSEM(shrinker_rwsem);
+@@ -159,7 +160,7 @@ unsigned long shrink_slab(unsigned long 
+ 	unsigned long ret = 0;
  
-@@ -1566,7 +1572,7 @@ void *kmem_cache_alloc(struct kmem_cache
- }
- EXPORT_SYMBOL(kmem_cache_alloc);
+ 	if (scanned == 0)
+-		scanned = SWAP_CLUSTER_MAX;
++		scanned = sysctl_reclaim_batch;
  
--#ifdef CONFIG_NUMA
-+#ifdef CONFIG_SLAB_NUMA
- void *kmem_cache_alloc_node(struct kmem_cache *s, gfp_t gfpflags, int node)
- {
- 	return slab_alloc(s, gfpflags, node, __builtin_return_address(0));
-@@ -1609,7 +1615,7 @@ checks_ok:
- 	 * then add it.
- 	 */
- 	if (unlikely(!prior))
--		add_partial(get_node(s, page_to_nid(page)), page);
-+		add_partial(get_node(s, node(page)), page);
+ 	if (!down_read_trylock(&shrinker_rwsem))
+ 		return 1;	/* Assume we'll be able to shrink next time */
+@@ -338,7 +339,7 @@ static pageout_t pageout(struct page *pa
+ 		int res;
+ 		struct writeback_control wbc = {
+ 			.sync_mode = WB_SYNC_NONE,
+-			.nr_to_write = SWAP_CLUSTER_MAX,
++			.nr_to_write = sysctl_reclaim_batch,
+ 			.range_start = 0,
+ 			.range_end = LLONG_MAX,
+ 			.nonblocking = 1,
+@@ -801,7 +802,7 @@ static unsigned long shrink_inactive_lis
+ 		unsigned long nr_freed;
+ 		unsigned long nr_active;
  
- out_unlock:
- 	slab_unlock(page);
-@@ -1979,7 +1985,7 @@ static inline int alloc_kmem_cache_cpus(
- }
- #endif
+-		nr_taken = isolate_lru_pages(sc->swap_cluster_max,
++		nr_taken = isolate_lru_pages(sc->reclaim_batch,
+ 			     &zone->inactive_list,
+ 			     &page_list, &nr_scan, sc->order,
+ 			     (sc->order > PAGE_ALLOC_COSTLY_ORDER)?
+@@ -1076,7 +1077,7 @@ static unsigned long shrink_zone(int pri
+ 	zone->nr_scan_active +=
+ 		(zone_page_state(zone, NR_ACTIVE) >> priority) + 1;
+ 	nr_active = zone->nr_scan_active;
+-	if (nr_active >= sc->swap_cluster_max)
++	if (nr_active >= sc->reclaim_batch)
+ 		zone->nr_scan_active = 0;
+ 	else
+ 		nr_active = 0;
+@@ -1084,7 +1085,7 @@ static unsigned long shrink_zone(int pri
+ 	zone->nr_scan_inactive +=
+ 		(zone_page_state(zone, NR_INACTIVE) >> priority) + 1;
+ 	nr_inactive = zone->nr_scan_inactive;
+-	if (nr_inactive >= sc->swap_cluster_max)
++	if (nr_inactive >= sc->reclaim_batch)
+ 		zone->nr_scan_inactive = 0;
+ 	else
+ 		nr_inactive = 0;
+@@ -1092,14 +1093,14 @@ static unsigned long shrink_zone(int pri
+ 	while (nr_active || nr_inactive) {
+ 		if (nr_active) {
+ 			nr_to_scan = min(nr_active,
+-					(unsigned long)sc->swap_cluster_max);
++					(unsigned long)sc->reclaim_batch);
+ 			nr_active -= nr_to_scan;
+ 			shrink_active_list(nr_to_scan, zone, sc, priority);
+ 		}
  
--#ifdef CONFIG_NUMA
-+#ifdef CONFIG_SLAB_NUMA
- /*
-  * No kmalloc_node yet so do it by hand. We know that this is the first
-  * slab on the node for this slabcache. There are no concurrent accesses
-@@ -2202,7 +2208,7 @@ static int kmem_cache_open(struct kmem_c
- 		goto error;
- 
- 	s->refcount = 1;
--#ifdef CONFIG_NUMA
-+#ifdef CONFIG_SLAB_NUMA
- 	s->defrag_ratio = 100;
- #endif
- 
-@@ -2529,7 +2535,7 @@ void *__kmalloc(size_t size, gfp_t flags
- }
- EXPORT_SYMBOL(__kmalloc);
- 
--#ifdef CONFIG_NUMA
-+#ifdef CONFIG_SLAB_NUMA
- void *__kmalloc_node(size_t size, gfp_t flags, int node)
- {
- 	struct kmem_cache *s;
-@@ -2683,7 +2689,7 @@ void __init kmem_cache_init(void)
- 
- 	init_alloc_cpu();
- 
--#ifdef CONFIG_NUMA
-+#ifdef CONFIG_SLAB_NUMA
- 	/*
- 	 * Must first have the slab cache available for the allocations of the
- 	 * struct kmem_cache_node's. There is special bootstrap code in
-@@ -2754,7 +2760,13 @@ void __init kmem_cache_init(void)
- 		" CPUs=%d, Nodes=%d\n",
- 		caches, cache_line_size(),
- 		slub_min_order, slub_max_order, slub_min_objects,
--		nr_cpu_ids, nr_node_ids);
-+		nr_cpu_ids,
-+#ifdef CONFIG_SLUB_NUMA
-+		nr_node_ids
-+#else
-+		1
-+#endif
-+		);
- }
- 
- /*
-@@ -3422,7 +3434,7 @@ static unsigned long slab_objects(struct
+ 		if (nr_inactive) {
+ 			nr_to_scan = min(nr_inactive,
+-					(unsigned long)sc->swap_cluster_max);
++					(unsigned long)sc->reclaim_batch);
+ 			nr_inactive -= nr_to_scan;
+ 			nr_reclaimed += shrink_inactive_list(nr_to_scan, zone,
+ 								sc);
+@@ -1181,7 +1182,7 @@ unsigned long try_to_free_pages(struct z
+ 	struct scan_control sc = {
+ 		.gfp_mask = gfp_mask,
+ 		.may_writepage = !laptop_mode,
+-		.swap_cluster_max = SWAP_CLUSTER_MAX,
++		.reclaim_batch = sysctl_reclaim_batch,
+ 		.may_swap = 1,
+ 		.swappiness = vm_swappiness,
+ 		.order = order,
+@@ -1210,7 +1211,7 @@ unsigned long try_to_free_pages(struct z
+ 			reclaim_state->reclaimed_slab = 0;
+ 		}
+ 		total_scanned += sc.nr_scanned;
+-		if (nr_reclaimed >= sc.swap_cluster_max) {
++		if (nr_reclaimed >= sc.reclaim_batch) {
+ 			ret = 1;
+ 			goto out;
+ 		}
+@@ -1222,8 +1223,8 @@ unsigned long try_to_free_pages(struct z
+ 		 * that's undesirable in laptop mode, where we *want* lumpy
+ 		 * writeout.  So in laptop mode, write out the whole world.
+ 		 */
+-		if (total_scanned > sc.swap_cluster_max +
+-					sc.swap_cluster_max / 2) {
++		if (total_scanned > sc.reclaim_batch +
++					sc.reclaim_batch / 2) {
+ 			wakeup_pdflush(laptop_mode ? 0 : total_scanned);
+ 			sc.may_writepage = 1;
+ 		}
+@@ -1288,7 +1289,7 @@ static unsigned long balance_pgdat(pg_da
+ 	struct scan_control sc = {
+ 		.gfp_mask = GFP_KERNEL,
+ 		.may_swap = 1,
+-		.swap_cluster_max = SWAP_CLUSTER_MAX,
++		.reclaim_batch = sysctl_reclaim_batch,
+ 		.swappiness = vm_swappiness,
+ 		.order = order,
+ 	};
+@@ -1388,7 +1389,7 @@ loop_again:
+ 			 * the reclaim ratio is low, start doing writepage
+ 			 * even in laptop mode
+ 			 */
+-			if (total_scanned > SWAP_CLUSTER_MAX * 2 &&
++			if (total_scanned > sysctl_reclaim_batch * 2 &&
+ 			    total_scanned > nr_reclaimed + nr_reclaimed / 2)
+ 				sc.may_writepage = 1;
+ 		}
+@@ -1407,7 +1408,7 @@ loop_again:
+ 		 * matches the direct reclaim path behaviour in terms of impact
+ 		 * on zone->*_priority.
+ 		 */
+-		if (nr_reclaimed >= SWAP_CLUSTER_MAX)
++		if (nr_reclaimed >= sysctl_reclaim_batch)
+ 			break;
  	}
- 
- 	x = sprintf(buf, "%lu", total);
--#ifdef CONFIG_NUMA
-+#ifdef CONFIG_SLAB_NUMA
- 	for_each_online_node(node)
- 		if (nodes[node])
- 			x += sprintf(buf + x, " N%d=%lu",
-@@ -3719,7 +3731,7 @@ static ssize_t free_calls_show(struct km
- }
- SLAB_ATTR_RO(free_calls);
- 
--#ifdef CONFIG_NUMA
-+#ifdef CONFIG_SLAB_NUMA
- static ssize_t defrag_ratio_show(struct kmem_cache *s, char *buf)
- {
- 	return sprintf(buf, "%d\n", s->defrag_ratio / 10);
-@@ -3764,7 +3776,7 @@ static struct attribute * slab_attrs[] =
- #ifdef CONFIG_ZONE_DMA
- 	&cache_dma_attr.attr,
- #endif
--#ifdef CONFIG_NUMA
-+#ifdef CONFIG_SLAB_NUMA
- 	&defrag_ratio_attr.attr,
- #endif
- 	NULL
-Index: linux-2.6/init/Kconfig
+ out:
+@@ -1600,7 +1601,7 @@ unsigned long shrink_all_memory(unsigned
+ 	struct scan_control sc = {
+ 		.gfp_mask = GFP_KERNEL,
+ 		.may_swap = 0,
+-		.swap_cluster_max = nr_pages,
++		.reclaim_batch = nr_pages,
+ 		.may_writepage = 1,
+ 		.swappiness = vm_swappiness,
+ 	};
+@@ -1782,8 +1783,8 @@ static int __zone_reclaim(struct zone *z
+ 	struct scan_control sc = {
+ 		.may_writepage = !!(zone_reclaim_mode & RECLAIM_WRITE),
+ 		.may_swap = !!(zone_reclaim_mode & RECLAIM_SWAP),
+-		.swap_cluster_max = max_t(unsigned long, nr_pages,
+-					SWAP_CLUSTER_MAX),
++		.reclaim_batch = max_t(unsigned long, nr_pages,
++					sysctl_reclaim_batch),
+ 		.gfp_mask = gfp_mask,
+ 		.swappiness = vm_swappiness,
+ 	};
+Index: linux-2.6/include/linux/mmzone.h
 ===================================================================
---- linux-2.6.orig/init/Kconfig	2007-09-14 13:54:45.000000000 -0700
-+++ linux-2.6/init/Kconfig	2007-09-14 13:54:56.000000000 -0700
-@@ -543,6 +543,7 @@ choice
+--- linux-2.6.orig/include/linux/mmzone.h	2007-09-12 18:28:58.000000000 -0700
++++ linux-2.6/include/linux/mmzone.h	2007-09-12 18:29:42.000000000 -0700
+@@ -607,6 +607,7 @@ int sysctl_min_unmapped_ratio_sysctl_han
+ int sysctl_min_slab_ratio_sysctl_handler(struct ctl_table *, int,
+ 			struct file *, void __user *, size_t *, loff_t *);
  
- config SLAB
- 	bool "SLAB"
-+	select SLAB_NUMA
- 	help
- 	  The regular slab allocator that is established and known to work
- 	  well in all environments. It organizes cache hot objects in
-@@ -570,6 +571,19 @@ config SLOB
- 
- endchoice
- 
-+config SLAB_NUMA
-+	depends on NUMA
-+	bool "Slab NUMA Support"
-+	default y
-+	help
-+	  Slab NUMA support allows NUMA aware slab operations. The
-+	  NUMA logic creates overhead that may result in regressions on
-+	  systems with a small number of nodes (such as multiple nodes
-+	  on the same motherboard) but it may be essential for distributed
-+	  NUMA systems with a high NUMA factor.
-+	  WARNING: Disabling Slab NUMA support will disable all NUMA locality
-+	  controls for slab objects.
-+
- endmenu		# General setup
- 
- config RT_MUTEXES
++extern int sysctl_reclaim_batch;
+ extern int numa_zonelist_order_handler(struct ctl_table *, int,
+ 			struct file *, void __user *, size_t *, loff_t *);
+ extern char numa_zonelist_order[];
+Index: linux-2.6/kernel/sysctl.c
+===================================================================
+--- linux-2.6.orig/kernel/sysctl.c	2007-09-12 18:27:12.000000000 -0700
++++ linux-2.6/kernel/sysctl.c	2007-09-12 18:28:48.000000000 -0700
+@@ -900,6 +900,14 @@ static ctl_table vm_table[] = {
+ 		.strategy	= &sysctl_intvec,
+ 	},
+ 	{
++		.ctl_name	= CTL_UNNUMBERED,
++		.procname	= "reclaim_batch",
++		.data		= &sysctl_reclaim_batch,
++		.maxlen		= sizeof(sysctl_reclaim_batch),
++		.mode		= 0644,
++		.proc_handler	= &proc_dointvec,
++	},
++	{
+ 		.ctl_name	= VM_DROP_PAGECACHE,
+ 		.procname	= "drop_caches",
+ 		.data		= &sysctl_drop_caches,
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
