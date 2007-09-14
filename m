@@ -1,30 +1,67 @@
-Date: Thu, 13 Sep 2007 18:01:56 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH 0/13] Reduce external fragmentation by grouping pages by
- mobility v30
-Message-Id: <20070913180156.ee0cdec4.akpm@linux-foundation.org>
-In-Reply-To: <20070910112011.3097.8438.sendpatchset@skynet.skynet.ie>
-References: <20070910112011.3097.8438.sendpatchset@skynet.skynet.ie>
+Date: Fri, 14 Sep 2007 10:06:34 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [PATCH] add page->mapping handling interface [1/35] interface
+ definitions
+Message-Id: <20070914100634.bee81fe6.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <46E99B48.6050106@student.ltu.se>
+References: <20070910184048.286dfc6e.kamezawa.hiroyu@jp.fujitsu.com>
+	<20070910184239.e1f705c9.kamezawa.hiroyu@jp.fujitsu.com>
+	<46E99B48.6050106@student.ltu.se>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Richard Knutsson <ricknu-0@student.ltu.se>
+Cc: LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, "nickpiggin@yahoo.com.au" <nickpiggin@yahoo.com.au>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 10 Sep 2007 12:20:11 +0100 (IST) Mel Gorman <mel@csn.ul.ie> wrote:
+On Thu, 13 Sep 2007 22:19:20 +0200
+Richard Knutsson <ricknu-0@student.ltu.se> wrote:
+> > +static inline int page_is_pagecache(struct page *page)
+> >   
+> Why return it as an 'int' instead of 'bool'?
+> > +{
+> > +	if (!page->mapping || (page->mapping & PAGE_MAPPING_ANON))
+> > +		return 0;
+> > +	return 1;
+> > +}
 
-> Here is a restacked version of the grouping pages by mobility patches
-> based on the patches currently in your tree. It should be  a drop-in
-> replacement for what is in 2.6.23-rc4-mm1 and is what I propose for merging
-> to mainline.
+Ah, I missed bool type just because I have no experience to use 'bool' in
+Linux kernel. ok, will try in the next version. thank you.
 
-It really gives me the creeps to throw away a large set of large patches
-and to then introduce a new set.
+> >   
+> Not easier with 'return page->mapping && (page->mapping & 
+> PAGE_MAPPING_ANON) == 0;'?
+> > +
 
-What would go wrong if we just merged the patches I already have?
+yours seems better.
+
+
+> 
+> >  static inline int PageAnon(struct page *page)
+> >   
+> Change to bool? Then "you" can also remove the '!!' from:
+> mm/memory.c:483:                rss[!!PageAnon(page)]++;
+
+Hmm, will try unless it makes diff big.
+
+> >  {
+> > -	return ((unsigned long)page->mapping & PAGE_MAPPING_ANON) != 0;
+> > +	return (page->mapping & PAGE_MAPPING_ANON) != 0;
+> > +}
+> > +
+> >   
+> <snip>
+> 
+> If you don't mind bool(eans) (for some reason), I can/will check out the 
+> rest.
+> 
+
+Thank you. I'll try 'bool' type. 
+
+Regards,
+-Kame
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
