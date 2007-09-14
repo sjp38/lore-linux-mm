@@ -1,124 +1,350 @@
-From: Nick Piggin <nickpiggin@yahoo.com.au>
-Subject: Re: [PATCH 1/1] cpusets/sched_domain reconciliation
-Date: Thu, 13 Sep 2007 17:39:22 +1000
-References: <20070907210704.E6BE02FC059@attica.americas.sgi.com> <20070913154607.9c49e1c7.akpm@linux-foundation.org>
-In-Reply-To: <20070913154607.9c49e1c7.akpm@linux-foundation.org>
+Date: Thu, 13 Sep 2007 17:36:06 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [PATCH 04 of 24] serialize oom killer
+In-Reply-To: <Pine.LNX.4.64.0709131152400.9999@schroedinger.engr.sgi.com>
+Message-ID: <alpine.DEB.0.9999.0709131732330.21805@chino.kir.corp.google.com>
+References: <871b7a4fd566de081120.1187786931@v2.random> <Pine.LNX.4.64.0709121658450.4489@schroedinger.engr.sgi.com> <alpine.DEB.0.9999.0709131126370.27997@chino.kir.corp.google.com> <Pine.LNX.4.64.0709131136560.9590@schroedinger.engr.sgi.com>
+ <alpine.DEB.0.9999.0709131139340.30279@chino.kir.corp.google.com> <Pine.LNX.4.64.0709131152400.9999@schroedinger.engr.sgi.com>
 MIME-Version: 1.0
-Content-Type: text/plain;
-  charset="iso-8859-1"
-Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
-Message-Id: <200709131739.22588.nickpiggin@yahoo.com.au>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Cliff Wickman <cpw@sgi.com>, linux-mm@kvack.org, Paul Jackson <pj@sgi.com>, Ingo Molnar <mingo@elte.hu>
+To: Christoph Lameter <clameter@sgi.com>
+Cc: Paul Jackson <pj@sgi.com>, Andrea Arcangeli <andrea@suse.de>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Friday 14 September 2007 08:46, Andrew Morton wrote:
-> On Fri, 07 Sep 2007 16:07:04 -0500
->
-> cpw@sgi.com (Cliff Wickman) wrote:
-> > Re-send of patch sent 8/23/2007, but refreshed for 2.6.23-rc5.
-> >
-> > This patch reconciles cpusets and sched_domains that get out of sync
-> > due to disabling and re-enabling cpu's.
-> >
-> > This is still a problem in the 2.6.23-rc5 kernel.
-> >
-> > Here is an example of how the problem can occur:
-> >
-> >    system of cpu's   0 1 2 3 4 5
-> >    create cpuset /x      2 3 4 5
-> >    create cpuset /x/y    2 3
-> >    all cpusets are cpu_exclusive
-> >
-> >    disable cpu 3
-> >      x is now            2   4 5
-> >      x/y is now          2
-> >    enable cpu 3
-> >      cpusets x and x/y are unchanged
-> >
-> >    to restore the cpusets:
-> >      echo 2-5 > /dev/cpuset/x
-> >      echo 2-3 > /dev/cpuset/x/y
-> >
-> >    At the first echo, which restores 3 to cpuset x, update_cpu_domains()
-> > is called for cpuset x/.
-> >    system of cpu's   0 1 2 3 4 5
-> >    x is now              2 3 4 5
-> >    x/y is now            2
-> >
-> >    The system is partitioned between:
-> > 	its parent, the root cpuset, minus its child (x/ is 2-5): 0-1
-> >         and x/ (2-5) , minus its child (x/y/ 2): 3-5
-> >
-> >    The sched_domain's for parent 0-1 are updated.
-> >    The sched_domain's for current 3-5 are updated.
-> >
-> >    But 2 has been untouched.
-> >    As a result, 3's SD points to sched_group_phys[3] which is the only
-> >    sched_group_phys on 3's list.  It points to itself.
-> >    But 2's SD points to sched_group_phys[2], which still points to
-> >    sched_group_phys[3].
-> >    When cpu 2 executes find_busiest_group() it will hang on the non-
-> >    circular sched_group list.
-> >
-> > cpuset.c:
-> >
-> > This solution is to update the sched_domain's for the cpuset
-> > whose cpu's were changed and, in addition, all its children.
-> > Instead of calling update_cpu_domains(), call update_cpu_domains_tree(),
-> > which calls update_cpu_domains() for every node from the one specified
-> > down to all its children.
-> >
-> > The extra sched_domain reconstruction is overhead, but only at the
-> > frequency of administrative change to the cpusets.
-> >
-> > There seems to be no administrative procedural work-around.  In the
-> > example above one could not reverse the two echo's and set x/y before
-> > x/.  It is not logical, so not allowed (Permission denied).
-> >
-> > Thus the patch to cpuset.c makes the sched_domain's correct.
-> >
-> > sched.c:
-> >
-> > The patch to sched.c prevents the cpu hangs that otherwise occur
-> > until the sched_domain's are made correct.
-> >
-> > It puts checks into find_busiest_group() and find_idlest_group()
-> > that break from their loops on a sched_group that points to itself.
-> > This is needed because cpu's are going through load balancing before all
-> > sched_domains have been reconstructed (see the example above).
-> >
-> > This is admittedly a kludge. I leave it to the scheduler gurus to
-> > recommend a better way update the sched_domains or to keep cpus out of
-> > the sched_domains while they are being reconstructed.
->
-> You should cc scheduler gurus when hoping things about them ;)
->
-> I suspect your change is fundamentally incompatible with, and perhaps
-> obsoleted by
-> ftp://ftp.kernel.org/pub/linux/kernel/people/akpm/patches/2.6/2.6.23-rc4/2.
->6.23-rc4-mm1/broken-out/cpuset-remove-sched-domain-hooks-from-cpusets.patch
->
-> Problem is, cpuset-remove-sched-domain-hooks-from-cpusets.patch has been
-> hanging around in -mm for a year while Paul makes up his mind about it.
->
-> Can we please get all this sorted out??
+On Thu, 13 Sep 2007, Christoph Lameter wrote:
 
-cpus_exclusive is supposed to partition the system (like a dynamically
-configurable isolcpus=). However the exact semantics of it IIRC are
-defined such that it is pretty well unusable.
+> > It's easier to serialize it outside of out_of_memory() instead, since it 
+> > only has a single caller and we don't need to serialize for sysrq.
+> > 
+> > This seems like it would collapse down nicely to a global or per-cpuset 
+> > serialization with an added helper function implemented partially in 
+> > kernel/cpuset.c for the CONFIG_CPUSETS case.
+> > 
+> > Then, in __alloc_pages(), we test for either a global or per-cpuset 
+> > spin_trylock() and, if we acquire it, call out_of_memory() and goto 
+> > restart as we currently do.  If it's contended, we reschedule ourself and 
+> > goto restart when we awaken.
+> 
+> Could you rephrase that in patch form? ;-)
+> 
 
-IIRC I have a patch that converts it to sane semantics and does
-opportunistic sched domains partitioning and of course fixes the hotplug
-issue as well... but Paul didn't like it for some reason.
+Yeah, it turned out to be a little more invasive then I thought but it 
+appears to be the cleanest solution for both the general CONSTRAINT_NONE 
+and the per-cpuset CONSTRAINT_CPUSET cases.
 
-Anyway, until there is some very clear semantic for what cpus_exclusive
-does, then it is silly to retain the broken sched-domains code. I don't know
-why that patch isn't merged, but it should be... (I thought it was when this
-last came up ages ago).
+I've been trying to keep score at home, but I've lost track of what 
+patches from the series we're keeping so this is against HEAD.
+
+
+
+
+serialize oom killer
+
+Serializes the OOM killer both globally and per-cpuset, depending on the
+system configuration.
+
+A new spinlock, oom_lock, is introduced for the global case.  It
+serializes the OOM killer for systems that are not using cpusets.  Only
+one system task may enter the OOM killer at a time to prevent
+unnecessarily killing others.
+
+A per-cpuset flag, CS_OOM, is introduced in the flags field of struct
+cpuset.  It serializes the OOM killer for only for hardwall allocations
+targeted for that cpuset.  Only one task for each cpuset may enter the
+OOM killer at a time to prevent unnecessarily killing others.  When a
+per-cpuset OOM killing is taking place, the global spinlock is also
+locked since we'll be alleviating that condition at the same time.
+
+Regardless of the synchronization primitive used, if a task cannot
+acquire the OOM lock, it is put to sleep before retrying the triggering
+allocation so that the OOM killer may finish and free some memory.
+
+We acquire either lock before attempting one last try at 
+get_pages_from_freelist() with a very high watermark, otherwise we could 
+invoke the OOM killer needlessly if another thread reschedules between 
+this allocation attempt and trying to take the OOM lock.
+
+Also converts the CONSTAINT_{NONE,CPUSET,MEMORY_POLICY} defines to an
+enum and moves them to include/linux/swap.h.  We're going to need an
+include/linux/oom_kill.h soon, probably.
+
+Cc: Andrea Arcangeli <andrea@suse.de>
+Cc: Christoph Lameter <clameter@sgi.com>
+Signed-off-by: David Rientjes <rientjes@google.com>
+---
+ drivers/char/sysrq.c   |    3 +-
+ include/linux/cpuset.h |   13 ++++++++++-
+ include/linux/swap.h   |   14 ++++++++++-
+ kernel/cpuset.c        |   16 +++++++++++++
+ mm/oom_kill.c          |   58 ++++++++++++++++++++++++++++++++++++-----------
+ mm/page_alloc.c        |   42 +++++++++++++++++++++++-----------
+ 6 files changed, 114 insertions(+), 32 deletions(-)
+
+diff --git a/drivers/char/sysrq.c b/drivers/char/sysrq.c
+--- a/drivers/char/sysrq.c
++++ b/drivers/char/sysrq.c
+@@ -270,8 +270,7 @@ static struct sysrq_key_op sysrq_term_op = {
+ 
+ static void moom_callback(struct work_struct *ignored)
+ {
+-	out_of_memory(&NODE_DATA(0)->node_zonelists[ZONE_NORMAL],
+-			GFP_KERNEL, 0);
++	out_of_memory(GFP_KERNEL, 0, CONSTRAINT_NONE);
+ }
+ 
+ static DECLARE_WORK(moom_work, moom_callback);
+diff --git a/include/linux/cpuset.h b/include/linux/cpuset.h
+--- a/include/linux/cpuset.h
++++ b/include/linux/cpuset.h
+@@ -60,7 +60,8 @@ extern char *cpuset_task_status_allowed(struct task_struct *task, char *buffer);
+ 
+ extern void cpuset_lock(void);
+ extern void cpuset_unlock(void);
+-
++extern int cpuset_oom_test_and_set_lock(void);
++extern int cpuset_oom_unlock(void);
+ extern int cpuset_mem_spread_node(void);
+ 
+ static inline int cpuset_do_page_mem_spread(void)
+@@ -129,6 +130,16 @@ static inline char *cpuset_task_status_allowed(struct task_struct *task,
+ static inline void cpuset_lock(void) {}
+ static inline void cpuset_unlock(void) {}
+ 
++static inline int cpuset_oom_test_and_set_lock(void)
++{
++	return -1;
++}
++
++static inline int cpuset_oom_unlock(void)
++{
++	return 0;
++}
++
+ static inline int cpuset_mem_spread_node(void)
+ {
+ 	return 0;
+diff --git a/include/linux/swap.h b/include/linux/swap.h
+--- a/include/linux/swap.h
++++ b/include/linux/swap.h
+@@ -159,9 +159,21 @@ struct swap_list_t {
+ #define vm_swap_full() (nr_swap_pages*2 < total_swap_pages)
+ 
+ /* linux/mm/oom_kill.c */
+-extern void out_of_memory(struct zonelist *zonelist, gfp_t gfp_mask, int order);
++/*
++ * Types of limitations to the nodes from which allocations may occur
++ */
++enum oom_constraint {
++	CONSTRAINT_NONE,
++	CONSTRAINT_CPUSET,
++	CONSTRAINT_MEMORY_POLICY,
++};
++extern void out_of_memory(gfp_t gfp_mask, int order,
++			  enum oom_constraint constraint);
+ extern int register_oom_notifier(struct notifier_block *nb);
+ extern int unregister_oom_notifier(struct notifier_block *nb);
++extern int oom_test_and_set_lock(struct zonelist *zonelist, gfp_t gfp_mask,
++				 enum oom_constraint *constraint);
++extern void oom_unlock(enum oom_constraint constraint);
+ 
+ /* linux/mm/memory.c */
+ extern void swapin_readahead(swp_entry_t, unsigned long, struct vm_area_struct *);
+diff --git a/kernel/cpuset.c b/kernel/cpuset.c
+--- a/kernel/cpuset.c
++++ b/kernel/cpuset.c
+@@ -109,6 +109,7 @@ typedef enum {
+ 	CS_NOTIFY_ON_RELEASE,
+ 	CS_SPREAD_PAGE,
+ 	CS_SPREAD_SLAB,
++	CS_IS_OOM,
+ } cpuset_flagbits_t;
+ 
+ /* convenient tests for these bits */
+@@ -147,6 +148,11 @@ static inline int is_spread_slab(const struct cpuset *cs)
+ 	return test_bit(CS_SPREAD_SLAB, &cs->flags);
+ }
+ 
++static inline int is_oom(const struct cpuset *cs)
++{
++	return test_bit(CS_IS_OOM, &cs->flags);
++}
++
+ /*
+  * Increment this integer everytime any cpuset changes its
+  * mems_allowed value.  Users of cpusets can track this generation
+@@ -2527,6 +2533,16 @@ void cpuset_unlock(void)
+ 	mutex_unlock(&callback_mutex);
+ }
+ 
++int cpuset_oom_test_and_set_lock(void)
++{
++	return test_and_set_bit(CS_IS_OOM, &current->cpuset->flags);
++}
++
++int cpuset_oom_unlock(void)
++{
++	return test_and_clear_bit(CS_IS_OOM, &current->cpuset->flags);
++}
++
+ /**
+  * cpuset_mem_spread_node() - On which node to begin search for a page
+  *
+diff --git a/mm/oom_kill.c b/mm/oom_kill.c
+--- a/mm/oom_kill.c
++++ b/mm/oom_kill.c
+@@ -27,6 +27,7 @@
+ #include <linux/notifier.h>
+ 
+ int sysctl_panic_on_oom;
++static DEFINE_SPINLOCK(oom_lock);
+ /* #define DEBUG */
+ 
+ /**
+@@ -164,13 +165,6 @@ unsigned long badness(struct task_struct *p, unsigned long uptime)
+ }
+ 
+ /*
+- * Types of limitations to the nodes from which allocations may occur
+- */
+-#define CONSTRAINT_NONE 1
+-#define CONSTRAINT_MEMORY_POLICY 2
+-#define CONSTRAINT_CPUSET 3
+-
+-/*
+  * Determine the type of allocation constraint.
+  */
+ static inline int constrained_alloc(struct zonelist *zonelist, gfp_t gfp_mask)
+@@ -387,6 +381,48 @@ int unregister_oom_notifier(struct notifier_block *nb)
+ }
+ EXPORT_SYMBOL_GPL(unregister_oom_notifier);
+ 
++/*
++ * If using cpusets, try to lock task's per-cpuset OOM lock; otherwise, try to
++ * lock the global OOM spinlock.  Returns non-zero if the lock is contended or
++ * zero if acquired.
++ */
++int oom_test_and_set_lock(struct zonelist *zonelist, gfp_t gfp_mask,
++			  enum oom_constraint *constraint)
++{
++	int ret;
++
++	*constraint = constrained_alloc(zonelist, gfp_mask);
++	switch (*constraint) {
++	case CONSTRAINT_CPUSET:
++		ret = cpuset_oom_test_and_set_lock();
++		if (!ret)
++			spin_trylock(&oom_lock);
++		break;
++	default:
++		ret = spin_trylock(&oom_lock);
++		break;
++	}
++	return ret;
++}
++
++/*
++ * If using cpusets, unlock task's per-cpuset OOM lock; otherwise, unlock the
++ * global OOM spinlock.
++ */
++void oom_unlock(enum oom_constraint constraint)
++{
++	switch (constraint) {
++	case CONSTRAINT_CPUSET:
++		if (likely(spin_is_locked(&oom_lock)))
++			spin_unlock(&oom_lock);
++		cpuset_oom_unlock();
++		break;
++	default:
++		spin_unlock(&oom_lock);
++		break;
++	}
++}
++
+ /**
+  * out_of_memory - kill the "best" process when we run out of memory
+  *
+@@ -395,12 +431,11 @@ EXPORT_SYMBOL_GPL(unregister_oom_notifier);
+  * OR try to be smart about which process to kill. Note that we
+  * don't have to be perfect here, we just have to be good.
+  */
+-void out_of_memory(struct zonelist *zonelist, gfp_t gfp_mask, int order)
++void out_of_memory(gfp_t gfp_mask, int order, enum oom_constraint constraint)
+ {
+ 	struct task_struct *p;
+ 	unsigned long points = 0;
+ 	unsigned long freed = 0;
+-	int constraint;
+ 
+ 	blocking_notifier_call_chain(&oom_notify_list, 0, &freed);
+ 	if (freed > 0)
+@@ -418,11 +453,6 @@ void out_of_memory(struct zonelist *zonelist, gfp_t gfp_mask, int order)
+ 	if (sysctl_panic_on_oom == 2)
+ 		panic("out of memory. Compulsory panic_on_oom is selected.\n");
+ 
+-	/*
+-	 * Check if there were limitations on the allocation (only relevant for
+-	 * NUMA) that may require different handling.
+-	 */
+-	constraint = constrained_alloc(zonelist, gfp_mask);
+ 	cpuset_lock();
+ 	read_lock(&tasklist_lock);
+ 
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -1352,22 +1352,36 @@ nofail_alloc:
+ 		if (page)
+ 			goto got_pg;
+ 	} else if ((gfp_mask & __GFP_FS) && !(gfp_mask & __GFP_NORETRY)) {
+-		/*
+-		 * Go through the zonelist yet one more time, keep
+-		 * very high watermark here, this is only to catch
+-		 * a parallel oom killing, we must fail if we're still
+-		 * under heavy pressure.
+-		 */
+-		page = get_page_from_freelist(gfp_mask|__GFP_HARDWALL, order,
+-				zonelist, ALLOC_WMARK_HIGH|ALLOC_CPUSET);
+-		if (page)
+-			goto got_pg;
++		enum oom_constraint constraint = CONSTRAINT_NONE;
+ 
+-		/* The OOM killer will not help higher order allocs so fail */
+-		if (order > PAGE_ALLOC_COSTLY_ORDER)
+-			goto nopage;
++		if (!oom_test_and_set_lock(zonelist, gfp_mask, &constraint)) {
++			/*
++			 * Go through the zonelist yet one more time, keep
++			 * very high watermark here, this is only to catch
++			 * a previous oom killing, we must fail if we're still
++			 * under heavy pressure.
++			 */
++			page = get_page_from_freelist(gfp_mask|__GFP_HARDWALL,
++					order, zonelist,
++					ALLOC_WMARK_HIGH|ALLOC_CPUSET);
++			if (page) {
++				oom_unlock(constraint);
++				goto got_pg;
++			}
++
++			/*
++			 * The OOM killer will not help higher order allocs so
++			 * fail
++			 */
++			if (order > PAGE_ALLOC_COSTLY_ORDER) {
++				oom_unlock(constraint);
++				goto nopage;
++			}
+ 
+-		out_of_memory(zonelist, gfp_mask, order);
++			out_of_memory(gfp_mask, order, constraint);
++			oom_unlock(constraint);
++		} else
++			schedule_timeout_uninterruptible(1);
+ 		goto restart;
+ 	}
+ 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
