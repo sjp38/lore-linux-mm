@@ -1,78 +1,39 @@
-Received: from sd0109e.au.ibm.com (d23rh905.au.ibm.com [202.81.18.225])
-	by e23smtp02.au.ibm.com (8.13.1/8.13.1) with ESMTP id l8E5ko4B027940
-	for <linux-mm@kvack.org>; Fri, 14 Sep 2007 15:46:50 +1000
-Received: from d23av03.au.ibm.com (d23av03.au.ibm.com [9.190.234.97])
-	by sd0109e.au.ibm.com (8.13.8/8.13.8/NCO v8.5) with ESMTP id l8E5oMna285950
-	for <linux-mm@kvack.org>; Fri, 14 Sep 2007 15:50:22 +1000
-Received: from d23av03.au.ibm.com (loopback [127.0.0.1])
-	by d23av03.au.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l8E5kWAQ018871
-	for <linux-mm@kvack.org>; Fri, 14 Sep 2007 15:46:32 +1000
-Date: Fri, 14 Sep 2007 15:46:15 +1000
-From: David Gibson <dwg@au1.ibm.com>
-Subject: Re: [Libhugetlbfs-devel] [PATCH 3/5] hugetlb: Try to grow hugetlb	pool for MAP_PRIVATE mappings
-Message-ID: <20070914054615.GL481@localhost.localdomain>
-References: <20070913175855.27074.27030.stgit@kernel> <20070913175928.27074.14259.stgit@kernel> <1189706781.17236.1519.camel@localhost> <1189714890.15024.39.camel@localhost.localdomain>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1189714890.15024.39.camel@localhost.localdomain>
+Message-Id: <6.0.0.20.2.20070914162337.037e82e0@172.19.0.2>
+Date: Fri, 14 Sep 2007 16:42:01 +0900
+From: Hisashi Hifumi <hifumi.hisashi@oss.ntt.co.jp>
+Subject: Re: [PATCH] mm: use pagevec to rotate reclaimable page
+In-Reply-To: <20070913193711.ecc825f7.akpm@linux-foundation.org>
+References: <6.0.0.20.2.20070907113025.024dfbb8@172.19.0.2>
+ <20070913193711.ecc825f7.akpm@linux-foundation.org>
+Mime-Version: 1.0
+Content-Type: text/plain; charset="us-ascii"; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Adam Litke <agl@us.ibm.com>
-Cc: Dave Hansen <haveblue@us.ibm.com>, libhugetlbfs-devel@lists.sourceforge.net, Dave McCracken <dave.mccracken@oracle.com>, linux-mm@kvack.org, Mel Gorman <mel@skynet.ie>, Ken Chen <kenchen@google.com>, Andy Whitcroft <apw@shadowen.org>, Bill Irwin <bill.irwin@oracle.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Sep 13, 2007 at 03:21:30PM -0500, Adam Litke wrote:
-> On Thu, 2007-09-13 at 11:06 -0700, Dave Hansen wrote:
-> > On Thu, 2007-09-13 at 10:59 -0700, Adam Litke wrote:
-> > > +static int within_locked_vm_limits(long hpage_delta)
-> > > +{
-> > > +	unsigned long locked_pages, locked_pages_limit;
-> > > +
-> > > +	/* Check locked page limits */
-> > > +	locked_pages = current->mm->locked_vm;
-> > > +	locked_pages += hpage_delta * (HPAGE_SIZE >> PAGE_SHIFT);
-> > > +	locked_pages_limit = current->signal->rlim[RLIMIT_MEMLOCK].rlim_cur;
-> > > +	locked_pages_limit >>= PAGE_SHIFT;
-> > > +
-> > > +	/* Return 0 if we would exceed locked_vm limits */
-> > > +	if (locked_pages > locked_pages_limit)
-> > > +		return 0;
-> > > +
-> > > +	/* Nice, we're within limits */
-> > > +	return 1;
-> > > +}
-> > > +
-> > > +static struct page *alloc_buddy_huge_page(struct vm_area_struct *vma,
-> > > +						unsigned long address)
-> > > +{
-> > > +	struct page *page;
-> > > +
-> > > +	/* Check we remain within limits if 1 huge page is allocated */
-> > > +	if (!within_locked_vm_limits(1))
-> > > +		return NULL;
-> > > +
-> > > +	page = alloc_pages(htlb_alloc_mask|__GFP_COMP|__GFP_NOWARN,
-> > ...
-> > 
-> > Is there locking around this operation?  Or, is there a way that a
-> > process could do this concurrently in two different threads, both appear
-> > to be within within_locked_vm_limits(), and both succeed to allocate
-> > when doing so actually takes them over the limit?
-> 
-> This case is prevented by hugetlb_instantiation_mutex.  I'll include a
-> comment to make that clearer.
+Thank you for your comment.
 
-Hrm... a number of people are trying to get rid of, or at least reduce
-the scope of the instatiation mutex, since it can be significant
-bottlenect when clearing large numbers of hugepages on big SMP
-systems.
+At 11:37 07/09/14, Andrew Morton wrote:
 
--- 
-David Gibson			| I'll have my music baroque, and my code
-david AT gibson.dropbear.id.au	| minimalist, thank you.  NOT _the_ _other_
-				| _way_ _around_!
-http://www.ozlabs.org/~dgibson
+ >The page_count() test here is a bit of a worry, too.  Why do we need it?
+ >The caller must have pinned the page in some fashion else we couldn't use
+ >it safely in this function at all.
+ >
+ >I assume that you discovered that once we've cleared PageWriteback(), the
+ >page can get reclaimed elsewhere?  If so, that could still happen
+ >immediately after the page_count() test.  It's all a bit of a worry.
+ >Deferring the ClearPageWriteback() will fix any race concerns, but I do
+ >think that we need to take a ref on the page for the pagevec ownership.
+ >
+
+Actually, I considered taking a ref to pin pages. But this could prevent 
+the page
+reclaiming activity so I did not use it.
+
+I reflect your comment and send you modified patch.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
