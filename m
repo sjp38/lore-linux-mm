@@ -1,31 +1,43 @@
-Date: Fri, 14 Sep 2007 11:41:26 -0700 (PDT)
+Date: Fri, 14 Sep 2007 11:51:37 -0700 (PDT)
 From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [PATCH/RFC 0/5] Memory Policy Cleanups and Enhancements
-In-Reply-To: <1189791967.13629.24.camel@localhost>
-Message-ID: <Pine.LNX.4.64.0709141137090.16964@schroedinger.engr.sgi.com>
-References: <20070830185053.22619.96398.sendpatchset@localhost>
- <1189527657.5036.35.camel@localhost>  <Pine.LNX.4.64.0709121515210.3835@schroedinger.engr.sgi.com>
-  <1189691837.5013.43.camel@localhost>  <Pine.LNX.4.64.0709131118190.9378@schroedinger.engr.sgi.com>
-  <20070913182344.GB23752@skynet.ie>  <Pine.LNX.4.64.0709131124100.9378@schroedinger.engr.sgi.com>
-  <20070913141704.4623ac57.akpm@linux-foundation.org>  <20070914085335.GA30407@skynet.ie>
-  <1189782414.5315.36.camel@localhost> <1189791967.13629.24.camel@localhost>
+Subject: Re: [PATCH 1/4] hugetlb: search harder for memory in alloc_fresh_huge_page()
+In-Reply-To: <20070906182134.GA7779@us.ibm.com>
+Message-ID: <Pine.LNX.4.64.0709141149360.17038@schroedinger.engr.sgi.com>
+References: <20070906182134.GA7779@us.ibm.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, ak@suse.de, mtk-manpages@gmx.net, solo@google.com, eric.whitney@hp.com, Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+To: Nishanth Aravamudan <nacc@us.ibm.com>
+Cc: wli@holomorphy.com, agl@us.ibm.com, lee.schermerhorn@hp.com, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Since you are going to rework the one zonelist patch again anyway I would 
-suggest to either use Kame-san full approach and include the node in the 
-zonelist item structure (it does not add any memory since the struct is 
-word aligned and this is an int) or go back to the earlier approach of 
-packing the zone id into the low bits which would reduce the cache 
-footprint.
+On Thu, 6 Sep 2007, Nishanth Aravamudan wrote:
 
-Kame-san's approach is likely very useful if we have a lot of nodes and 
-need to match a nodemask to a zonelist.
+> particular semantics for __GFP_THISNODE, which are newly enforced --
+> that is, that the allocation won't go off-node -- still use
+> page_to_nid() to guarantee we don't mess up the accounting.
+
+Hmmm..... Suspicious?
+
+> +static int alloc_fresh_huge_page(void)
+> +{
+> +	static int nid = -1;
+> +	struct page *page;
+> +	int start_nid;
+> +	int next_nid;
+> +	int ret = 0;
+> +
+> +	if (nid < 0)
+
+nid was set to -1 so why the if statement?
+
+> +		nid = first_node(node_online_map);
+> +	start_nid = nid;
+
+Replace the above with
+
+start_nid = first_node(node_online_map)
 
 
 --
