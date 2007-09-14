@@ -1,102 +1,46 @@
-Date: Fri, 14 Sep 2007 11:02:43 +0900
-From: Yasunori Goto <y-goto@jp.fujitsu.com>
-Subject: Re: [PATCH -mm] mm: Fix memory hotplug + sparsemem build.
-In-Reply-To: <20070913184456.16ff248e.akpm@linux-foundation.org>
-References: <20070911182546.F139.Y-GOTO@jp.fujitsu.com> <20070913184456.16ff248e.akpm@linux-foundation.org>
-Message-Id: <20070914105420.F2E9.Y-GOTO@jp.fujitsu.com>
+Date: Thu, 13 Sep 2007 19:20:43 -0700 (PDT)
+From: Christoph Lameter <clameter@sgi.com>
+Subject: Re: [PATCH/RFC 0/5] Memory Policy Cleanups and Enhancements
+In-Reply-To: <20070913141704.4623ac57.akpm@linux-foundation.org>
+Message-ID: <Pine.LNX.4.64.0709131919560.12159@schroedinger.engr.sgi.com>
+References: <20070830185053.22619.96398.sendpatchset@localhost>
+ <1189527657.5036.35.camel@localhost> <Pine.LNX.4.64.0709121515210.3835@schroedinger.engr.sgi.com>
+ <1189691837.5013.43.camel@localhost> <Pine.LNX.4.64.0709131118190.9378@schroedinger.engr.sgi.com>
+ <20070913182344.GB23752@skynet.ie> <Pine.LNX.4.64.0709131124100.9378@schroedinger.engr.sgi.com>
+ <20070913141704.4623ac57.akpm@linux-foundation.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Andy Whitcroft <apw@shadowen.org>, Paul Mundt <lethal@linux-sh.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Cc: Mel Gorman <mel@skynet.ie>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, linux-mm@kvack.org, ak@suse.de, mtk-manpages@gmx.net, solo@google.com, eric.whitney@hp.com
 List-ID: <linux-mm.kvack.org>
 
-> On Tue, 11 Sep 2007 18:37:12 +0900 Yasunori Goto <y-goto@jp.fujitsu.com> wrote:
+On Thu, 13 Sep 2007, Andrew Morton wrote:
+
+> On Thu, 13 Sep 2007 11:26:19 -0700 (PDT)
+> Christoph Lameter <clameter@sgi.com> wrote:
 > 
+> > On Thu, 13 Sep 2007, Mel Gorman wrote:
 > > 
-> > > > +	if (onlined_pages){
-> > > 
-> > > Nit, needs a space there before the '{'.
+> > > What do you see holding it up? Is it the fact we are no longer doing the
+> > > pointer packing and you don't want that structure to exist, or is it simply
+> > > a case that 2.6.23 is too close the door and it won't get adequate
+> > > coverage in -mm?
 > > 
-> > Ah, Ok. I attached fixed patch in this mail.
-> > 
-> > > The problem as I see it is that when we boot the system we start a
-> > > kswapd on all nodes with memory.  If the hot-add adds memory to a
-> > > pre-existing node with no memory we will not start one and we end up
-> > > with a node with memory and no kswapd.  Bad.
-> > > 
-> > > As kswapd_run is a no-op when a kswapd already exists this seems a safe
-> > > way to fix that.  Paul's ->zone conversion is obviously correct also.
-> > > 
-> > > Acked-by: Andy Whitcroft <apw@shadowen.org>
-> > 
-> > Thanks for your explanation.
-> > You mentioned all of my intention correctly. :-)
-> > 
-> > 
-> > ----
-> > 
-> > Fix kswapd doesn't run when memory is added on memory-less-node.
-> > Fix compile error of zone->node when CONFIG_NUMA is off.
-> > 
-> > Signed-off-by: Yasunori Goto <y-goto@jp.fujitsu.com>
-> > Signed-off-by: Paul Mundt <lethal@linux-sh.org>
-> > Acked-by: Andy Whitcroft <apw@shadowen.org>
-> > 
-> > 
-> > ---
-> >  mm/memory_hotplug.c |    9 ++++-----
-> >  1 file changed, 4 insertions(+), 5 deletions(-)
-> > 
-> > Index: current/mm/memory_hotplug.c
-> > ===================================================================
-> > --- current.orig/mm/memory_hotplug.c	2007-09-07 18:08:07.000000000 +0900
-> > +++ current/mm/memory_hotplug.c	2007-09-11 17:29:19.000000000 +0900
-> > @@ -211,10 +211,12 @@ int online_pages(unsigned long pfn, unsi
-> >  		online_pages_range);
-> >  	zone->present_pages += onlined_pages;
-> >  	zone->zone_pgdat->node_present_pages += onlined_pages;
-> > -	if (onlined_pages)
-> > -		node_set_state(zone->node, N_HIGH_MEMORY);
-> >  
-> >  	setup_per_zone_pages_min();
-> > +	if (onlined_pages) {
-> > +		kswapd_run(zone_to_nid(zone));
-> > +		node_set_state(zone_to_nid(zone), N_HIGH_MEMORY);
-> > +	}
-> >  
-> >  	if (need_zonelists_rebuild)
-> >  		build_all_zonelists();
-> > @@ -269,9 +271,6 @@ int add_memory(int nid, u64 start, u64 s
-> >  		if (!pgdat)
-> >  			return -ENOMEM;
-> >  		new_pgdat = 1;
-> > -		ret = kswapd_run(nid);
-> > -		if (ret)
-> > -			goto error;
-> >  	}
-> >  
-> >  	/* call arch's memory hotadd */
-> > 
+> > No its not the pointer packing. The problem is that the patches have not 
+> > been merged yet and 2.6.23 is close. We would need to merge it very soon 
+> > and get some exposure in mm. Andrew?
 > 
-> OK, we're getting into a mess here.  This patch fixes
-> update-n_high_memory-node-state-for-memory-hotadd.patch, but which patch
-> does update-n_high_memory-node-state-for-memory-hotadd.patch fix?
+> You rang?
 > 
-> At present I just whacked
-> update-n_high_memory-node-state-for-memory-hotadd.patch at the end of
-> everything, but that was lazy of me and it ends up making a mess.
+> To which patches do you refer?  "Memory Policy Cleanups and Enhancements"? 
+> That's still in my queue somewhere, but a) it has "RFC" in it which usually
+> makes me run away and b) we already have no fewer than 221 memory
+> management patches queued.
 
-It is enough. No more patch is necessary for these issues.
-I already fixed about Andy-san's comment. :-)
-
-
-Thanks.
--- 
-Yasunori Goto 
-
+To Mel's one zonelist patchset that is supposed to supplant the numa 
+policy "hack" merged in .23.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
