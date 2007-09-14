@@ -1,66 +1,94 @@
-Date: Fri, 14 Sep 2007 10:15:23 +0100
-Subject: Re: [PATCH 1/5] hugetlb: Account for hugepages as locked_vm
-Message-ID: <20070914091522.GB30407@skynet.ie>
-References: <20070913175855.27074.27030.stgit@kernel> <20070913175905.27074.92434.stgit@kernel> <b040c32a0709132241t7d464a2x68d1194887cd8e93@mail.gmail.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <b040c32a0709132241t7d464a2x68d1194887cd8e93@mail.gmail.com>
-From: mel@skynet.ie (Mel Gorman)
+Date: Fri, 14 Sep 2007 03:50:58 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH/RFC] Add node states sysfs class attributeS - V5
+Message-Id: <20070914035058.89b13fa4.akpm@linux-foundation.org>
+In-Reply-To: <1189518975.5036.3.camel@localhost>
+References: <200708242228.l7OMS5fU017948@imap1.linux-foundation.org>
+	<20070827181405.57a3d8fe.akpm@linux-foundation.org>
+	<Pine.LNX.4.64.0708271826180.10344@schroedinger.engr.sgi.com>
+	<20070827201822.2506b888.akpm@linux-foundation.org>
+	<Pine.LNX.4.64.0708272210210.9748@schroedinger.engr.sgi.com>
+	<20070827222912.8b364352.akpm@linux-foundation.org>
+	<Pine.LNX.4.64.0708272235580.9834@schroedinger.engr.sgi.com>
+	<20070827231214.99e3c33f.akpm@linux-foundation.org>
+	<1188309928.5079.37.camel@localhost>
+	<Pine.LNX.4.64.0708281458520.17559@schroedinger.engr.sgi.com>
+	<29495f1d0708281513g406af15an8139df5fae20ad35@mail.gmail.com>
+	<1188398621.5121.13.camel@localhost>
+	<Pine.LNX.4.64.0708291039210.21184@schroedinger.engr.sgi.com>
+	<1189518975.5036.3.camel@localhost>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Ken Chen <kenchen@google.com>
-Cc: Adam Litke <agl@us.ibm.com>, linux-mm@kvack.org, libhugetlbfs-devel@lists.sourceforge.net, Andy Whitcroft <apw@shadowen.org>, Bill Irwin <bill.irwin@oracle.com>, Dave McCracken <dave.mccracken@oracle.com>
+To: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
+Cc: linux-mm <linux-mm@kvack.org>, Christoph Lameter <clameter@sgi.com>, Nish Aravamudan <nish.aravamudan@gmail.com>, mel@skynet.ie, y-goto@jp.fujitsu.com, Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Eric Whitney <eric.whitney@hp.com>, Andy Whitcroft <apw@shadowen.org>, Martin Bligh <mbligh@mbligh.org>
 List-ID: <linux-mm.kvack.org>
 
-On (13/09/07 22:41), Ken Chen didst pronounce:
-> On 9/13/07, Adam Litke <agl@us.ibm.com> wrote:
-> > Hugepages allocated to a process are pinned into memory and are not
-> > reclaimable.  Currently they do not contribute towards the process' locked
-> > memory.  This patch includes those pages in the process' 'locked_vm' pages.
+On Tue, 11 Sep 2007 09:56:15 -0400 Lee Schermerhorn <Lee.Schermerhorn@hp.com> wrote:
+
+> Should be about ready to go...
 > 
-> On x86_64, hugetlb can share page table entry if multiple processes
-> have their virtual addresses all lined up perfectly.  Because of that,
-> mm->locked_vm can go negative with this patch depending on the order
-> of which process fault in hugetlb pages and which one unmaps it last.
+> Lee
+> 
+> 
+> PATCH Add node 'states' sysfs class attributes v5
+> 
+> Against:  2.6.23-rc4-mm1
+> 
+> V4 -> V5:
+> + further cleanup of print_nodes_state() suggested by Chirstoph.
+> 
+> V3 -> V4:
+> + drop the annotations -- not needed with one value per file.
+> + this simplifies print_nodes_state()
+> + fix "function return type on separate line" style glitch
+> 
+> V2 -> V3:
+> + changed to per state sysfs file -- "one value per file"
+> 
+> V1 -> V2:
+> + style cleanup
+> + drop 'len' variable in print_node_states();  compute from
+>   final size.
+> 
+> Add a per node state sysfs class attribute file to
+> /sys/devices/system/node to display node state masks.
+> 
+> E.g., on a 4-cell HP ia64 NUMA platform, we have 5 nodes:
+> 4 representing the actual hardware cells and one memory-only
+> pseudo-node representing a small amount [512MB] of "hardware
+> interleaved" memory.  With this patch, in /sys/devices/system/node
+> we see:
+> 
+> #ls -1F /sys/devices/system/node
+> has_cpu
+> has_normal_memory
+> node0/
+> node1/
+> node2/
+> node3/
+> node4/
+> online
+> possible
+> #cat /sys/devices/system/node/possible
+> 0-255
+> #cat /sys/devices/system/node/online
+> 0-4
+> #cat /sys/devices/system/node/has_normal_memory
+> 0-4
+> #cat /sys/devices/system/node/has_cpu
+> 0-3
+> 
+> N.B., NOT TESTED with CONFIG_HIGHMEM=y.
 > 
 
-hmmm, on close inspection you are right. The worst case is where two processes
-share a PMD and fault half of the hugepages in that region each. Whichever
-of them unmaps last will get bad values.
+So how do we get it tested with CONFIG_HIGHMEM=y?  Needs an i386
+numa machine, yes?  Perhaps Andy or Martin can remember to do this
+sometime, but they'll need a test plan ;)
 
-> Have you checked all user of mm->locked_vm that a negative number
-> won't trigger unpleasant result?
-> 
-
-This, if it can occur is bad. It's looks stupid if absolutly nothing
-else. Besides, locked_vm is an unsigned long. Wrapping negative would
-actually be a huge positive so it's possible that a hostile process A
-could cause a situation where innocent process B gets a large locked_vm
-value and cannot dynamically resize the hugepage pool any more.
-
-The choices for a fix I can think of are;
-
-a) Do not use locked_vm at all. Instead use filesystem quotas to prevent the
-pool growing in an unbounded fashion (this is Adam and Andy Whitcrofts idea,
-not mine but it makes sense in light of this problem with locked_vm). I
-liked the idea of being able to limit additional hugepage usage with
-RLIMIT_LOCKED but maybe that is not such a great plan.
-
-b) Double-count locked_vm. i.e. when pagetables are shared, the process
-about to share increments it's locked_vm based on the pages already
-faulted. On fault, all mm's sharing get their locked_vm increased and
-unmap acts as it does. This would require the taking of many
-page_table_locks to update locked_vm which would be very expensive.
-
-Anyone got better suggestions than this? Mr. McCracken, how did you
-handle the mlocked case in your pagetable sharing patches back when you
-were working on them? I am assuming the problem is somewhat similar.
-
--- 
-Mel Gorman
-Part-time Phd Student                          Linux Technology Center
-University of Limerick                         IBM Dublin Software Lab
+Thanks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
