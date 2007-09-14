@@ -1,44 +1,27 @@
-Date: Fri, 14 Sep 2007 11:51:37 -0700 (PDT)
+Date: Fri, 14 Sep 2007 11:53:25 -0700 (PDT)
 From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [PATCH 1/4] hugetlb: search harder for memory in alloc_fresh_huge_page()
-In-Reply-To: <20070906182134.GA7779@us.ibm.com>
-Message-ID: <Pine.LNX.4.64.0709141149360.17038@schroedinger.engr.sgi.com>
-References: <20070906182134.GA7779@us.ibm.com>
+Subject: Re: [PATCH 2/4] hugetlb: fix pool allocation with empty nodes
+In-Reply-To: <20070906182430.GB7779@us.ibm.com>
+Message-ID: <Pine.LNX.4.64.0709141152250.17038@schroedinger.engr.sgi.com>
+References: <20070906182134.GA7779@us.ibm.com> <20070906182430.GB7779@us.ibm.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Nishanth Aravamudan <nacc@us.ibm.com>
-Cc: wli@holomorphy.com, agl@us.ibm.com, lee.schermerhorn@hp.com, linux-mm@kvack.org
+Cc: anton@samba.org, wli@holomorphy.com, agl@us.ibm.com, lee.schermerhorn@hp.com, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
 On Thu, 6 Sep 2007, Nishanth Aravamudan wrote:
 
-> particular semantics for __GFP_THISNODE, which are newly enforced --
-> that is, that the allocation won't go off-node -- still use
-> page_to_nid() to guarantee we don't mess up the accounting.
+>  	if (nid < 0)
+> -		nid = first_node(node_online_map);
+> +		nid = first_node(node_states[N_HIGH_MEMORY]);
+>  	start_nid = nid;
 
-Hmmm..... Suspicious?
-
-> +static int alloc_fresh_huge_page(void)
-> +{
-> +	static int nid = -1;
-> +	struct page *page;
-> +	int start_nid;
-> +	int next_nid;
-> +	int ret = 0;
-> +
-> +	if (nid < 0)
-
-nid was set to -1 so why the if statement?
-
-> +		nid = first_node(node_online_map);
-> +	start_nid = nid;
-
-Replace the above with
-
-start_nid = first_node(node_online_map)
-
+Can huge pages live in high memory? Otherwise I think we could use
+N_REGULAR_MEMORY here. There may be issues on 32 bit NUMA if we attempt to 
+allocate memory from the highmem nodes.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
