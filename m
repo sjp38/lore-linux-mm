@@ -1,50 +1,32 @@
-Subject: Re: [PATCH 1/4] hugetlb: search harder for memory in
-	alloc_fresh_huge_page()
-From: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
-In-Reply-To: <Pine.LNX.4.64.0709141041390.15683@schroedinger.engr.sgi.com>
-References: <20070906182134.GA7779@us.ibm.com>
-	 <20070914172638.GT24941@us.ibm.com>
-	 <Pine.LNX.4.64.0709141041390.15683@schroedinger.engr.sgi.com>
-Content-Type: text/plain
-Date: Fri, 14 Sep 2007 14:20:52 -0400
-Message-Id: <1189794052.5315.48.camel@localhost>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Date: Fri, 14 Sep 2007 11:41:26 -0700 (PDT)
+From: Christoph Lameter <clameter@sgi.com>
+Subject: Re: [PATCH/RFC 0/5] Memory Policy Cleanups and Enhancements
+In-Reply-To: <1189791967.13629.24.camel@localhost>
+Message-ID: <Pine.LNX.4.64.0709141137090.16964@schroedinger.engr.sgi.com>
+References: <20070830185053.22619.96398.sendpatchset@localhost>
+ <1189527657.5036.35.camel@localhost>  <Pine.LNX.4.64.0709121515210.3835@schroedinger.engr.sgi.com>
+  <1189691837.5013.43.camel@localhost>  <Pine.LNX.4.64.0709131118190.9378@schroedinger.engr.sgi.com>
+  <20070913182344.GB23752@skynet.ie>  <Pine.LNX.4.64.0709131124100.9378@schroedinger.engr.sgi.com>
+  <20070913141704.4623ac57.akpm@linux-foundation.org>  <20070914085335.GA30407@skynet.ie>
+  <1189782414.5315.36.camel@localhost> <1189791967.13629.24.camel@localhost>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
-Cc: Nishanth Aravamudan <nacc@us.ibm.com>, wli@holomorphy.com, agl@us.ibm.com, akpm@linux-foundation.org, linux-mm@kvack.org
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, ak@suse.de, mtk-manpages@gmx.net, solo@google.com, eric.whitney@hp.com, Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 2007-09-14 at 10:43 -0700, Christoph Lameter wrote:
-> On Fri, 14 Sep 2007, Nishanth Aravamudan wrote:
-> 
-> > Christoph, Lee, ping? I haven't heard any response on these patches this
-> > time around. Would it be acceptable to ask Andrew to pick them up for
-> > the next -mm?
-> 
-> I am sorry but there is some churn already going on with other core memory 
-> management patches. Could we hold this off until the dust settles on those 
-> and then rebase?
+Since you are going to rework the one zonelist patch again anyway I would 
+suggest to either use Kame-san full approach and include the node in the 
+zonelist item structure (it does not add any memory since the struct is 
+word aligned and this is an int) or go back to the earlier approach of 
+packing the zone id into the low bits which would reduce the cache 
+footprint.
 
-Hi, Nish:
+Kame-san's approach is likely very useful if we have a lot of nodes and 
+need to match a nodemask to a zonelist.
 
-Sorry not to have responded sooner.  I have been building your patches
-atop my memory policy changes, and I did test them on my platform.  The
-seem to work.  There was one conflict with my memory policy reference
-counting fix, but that was easy to resolve.  I'd have no problem with
-these going in.  They probably will conflict with Mel's patches, but
-again this should be easy to resolve.
-
-Earlier Christoph said he didn't think Mel's 'one zonelist' series would
-make .24.  I think that's still under discussion, but if Mel's patches
-don't make .24, then I think these should go in.  So, I'll go ahead and
-ACK them as they are, against 23-rc4-mm1.  Still, I think it would a
-good idea for you to grab Mel's patches check out the conflicts.
-Whether to rebase Mel's atop yours or vice versa is a more difficult
-question.  
-
-Lee
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
