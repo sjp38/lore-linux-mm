@@ -1,83 +1,42 @@
-Date: Fri, 14 Sep 2007 14:14:47 +0900
-From: Yasunori Goto <y-goto@jp.fujitsu.com>
-Subject: Re: [PATCH -mm] mm: Fix memory hotplug + sparsemem build.
-In-Reply-To: <20070913194130.1611fd78.akpm@linux-foundation.org>
-References: <20070914105420.F2E9.Y-GOTO@jp.fujitsu.com> <20070913194130.1611fd78.akpm@linux-foundation.org>
-Message-Id: <20070914115045.F2EB.Y-GOTO@jp.fujitsu.com>
+Received: from zps37.corp.google.com (zps37.corp.google.com [172.25.146.37])
+	by smtp-out.google.com with ESMTP id l8E5fwJH013805
+	for <linux-mm@kvack.org>; Fri, 14 Sep 2007 06:41:58 +0100
+Received: from nf-out-0910.google.com (nfcd3.prod.google.com [10.48.105.3])
+	by zps37.corp.google.com with ESMTP id l8E5fuR5008308
+	for <linux-mm@kvack.org>; Thu, 13 Sep 2007 22:41:57 -0700
+Received: by nf-out-0910.google.com with SMTP id d3so554337nfc
+        for <linux-mm@kvack.org>; Thu, 13 Sep 2007 22:41:56 -0700 (PDT)
+Message-ID: <b040c32a0709132241t7d464a2x68d1194887cd8e93@mail.gmail.com>
+Date: Thu, 13 Sep 2007 22:41:54 -0700
+From: "Ken Chen" <kenchen@google.com>
+Subject: Re: [PATCH 1/5] hugetlb: Account for hugepages as locked_vm
+In-Reply-To: <20070913175905.27074.92434.stgit@kernel>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+References: <20070913175855.27074.27030.stgit@kernel>
+	 <20070913175905.27074.92434.stgit@kernel>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Andy Whitcroft <apw@shadowen.org>, Paul Mundt <lethal@linux-sh.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Adam Litke <agl@us.ibm.com>
+Cc: linux-mm@kvack.org, libhugetlbfs-devel@lists.sourceforge.net, Andy Whitcroft <apw@shadowen.org>, Mel Gorman <mel@skynet.ie>, Bill Irwin <bill.irwin@oracle.com>, Dave McCracken <dave.mccracken@oracle.com>
 List-ID: <linux-mm.kvack.org>
 
-> On Fri, 14 Sep 2007 11:02:43 +0900 Yasunori Goto <y-goto@jp.fujitsu.com> wrote:
-> 
-> > > >  	/* call arch's memory hotadd */
-> > > > 
-> > > 
-> > > OK, we're getting into a mess here.  This patch fixes
-> > > update-n_high_memory-node-state-for-memory-hotadd.patch, but which patch
-> > > does update-n_high_memory-node-state-for-memory-hotadd.patch fix?
-> > > 
-> > > At present I just whacked
-> > > update-n_high_memory-node-state-for-memory-hotadd.patch at the end of
-> > > everything, but that was lazy of me and it ends up making a mess.
-> > 
-> > It is enough. No more patch is necessary for these issues.
-> > I already fixed about Andy-san's comment. :-)
-> 
-> Now I'm more confused.  I have two separeate questions:
-> 
-> a) Is the justr-added update-n_high_memory-node-state-for-memory-hotadd-fix.patch
->    still needed?
+On 9/13/07, Adam Litke <agl@us.ibm.com> wrote:
+> Hugepages allocated to a process are pinned into memory and are not
+> reclaimable.  Currently they do not contribute towards the process' locked
+> memory.  This patch includes those pages in the process' 'locked_vm' pages.
 
-I'm not sure exact meaning of "just-added". 
-But, update-n_high_memory-node-state-for-memory-hotadd-fix.patch is
-necessary for 2.6.23-rc4-mm1.
+On x86_64, hugetlb can share page table entry if multiple processes
+have their virtual addresses all lined up perfectly.  Because of that,
+mm->locked_vm can go negative with this patch depending on the order
+of which process fault in hugetlb pages and which one unmaps it last.
 
-> b) Which patch in 2.6.22-rc4-mm1 does
+Have you checked all user of mm->locked_vm that a negative number
+won't trigger unpleasant result?
 
-                    2.6.23-rc4-mm1?
-
->    update-n_high_memory-node-state-for-memory-hotadd.patch fix?  In other
->    words, into which patch should I fold
->    update-n_high_memory-node-state-for-memory-hotadd.patch prior to sending
->    to Linus?
-
-In my understanding, 
-update-n_high_memory-node-state-for-memory-hotadd.patch should be folded
-with all of memoryless-nodes-xxxxxxxxxxxx.patch.
-It sets N_HIGH_MEMORY for a new node-with-memory.
-
-But if you need specifing of more detail patch, becase N_HIGH_MEMORY is
-set in memoryless-nodes-introduce-ask-of-nodes-with-memory.patch, 
-I suppose update-n_high_memory-node-state-for-memory-hotadd.patch
-should be fold with it.
-
-
-update-n_high_memory-node-state-for-memory-hotadd-fix.patch
-                                                  ^^^
-is fixes of update-n_high_memory-node-state-for-memory-hotadd.patch
-and memoryless-nodes-no-need-for-kswapd.patch
-
-
-Is it enough for your question? Or more confuse?
-
-
->    (I (usually) get to work this out for myself.  Sometimes it is painful).
-> 
-> Generally, if people tell me which patch-in-mm their patch is fixing,
-> it really helps.  Adrian does this all the time.
-
-Sorry for your confusing...
-
-
--- 
-Yasunori Goto 
-
+- Ken
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
