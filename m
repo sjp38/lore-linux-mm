@@ -1,340 +1,172 @@
 From: Lee Schermerhorn <lee.schermerhorn@hp.com>
-Date: Fri, 14 Sep 2007 16:55:06 -0400
-Message-Id: <20070914205506.6536.5170.sendpatchset@localhost>
-In-Reply-To: <20070914205359.6536.98017.sendpatchset@localhost>
-References: <20070914205359.6536.98017.sendpatchset@localhost>
-Subject: [PATCH/RFC 10/14] Reclaim Scalability:  track anon_vma "related vmas"
+Date: Fri, 14 Sep 2007 16:53:59 -0400
+Message-Id: <20070914205359.6536.98017.sendpatchset@localhost>
+Subject: [PATCH/RFC 0/14] Page Reclaim Scalability
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: linux-mm@kvack.org
 Cc: akpm@linux-foundation.org, mel@csn.ul.ie, clameter@sgi.com, riel@redhat.com, balbir@linux.vnet.ibm.com, andrea@suse.de, a.p.zijlstra@chello.nl, eric.whitney@hp.com, npiggin@suse.de
 List-ID: <linux-mm.kvack.org>
 
-PATCH/RFC 10/14 Reclaim Scalability:  track anon_vma "related vmas"
+As I discussed with some of you in Cambridge:
 
-Against:  2.6.23-rc4-mm1
 
-When a single parent forks a large number [thousands, 10s of thousands]
-of children, the anon_vma list of related vmas becomes very long.  In
-reclaim, this list must be traversed twice--once in page_referenced_anon()
-and once in try_to_unmap_anon()--under a spin lock to reclaim the page.
-Multiple cpus can end up spinning behind the same anon_vma spinlock and
-traversing the lists.  This patch, part of the "noreclaim" series, treats
-anon pages with list lengths longer than a tunable threshold as non-
-reclaimable.
+[PATCH/RFC] 0/14 Page Reclaim Scalability Patches:
 
-1) add mm Kconfig option NORECLAIM_ANON_VMA, dependent on NORECLAIM.
+The objective of this series of patches is not to make page reclaim
+"smarter"--e.g., by improving the heuristics or using a new replacement
+algorithm.  Rather, the objective is to make the existing algorithm
+more effective by removing from consideration those pages that are 
+difficult or impossible to reclaim so that the page reclaim algorithm 
+can concentrate on those pages which have a good chance of being 
+reclaimed.  This is especially important for servers with large
+amounts of memory--in the millions of pages.  Doing this should benefit
+any future improvements to the reclaim algorithm itself.
 
-2) add a counter of related vmas to the anon_vma structure.  This won't
-   increase the size of the structure on 64-bit systems, as it will fit
-   in a padding slot.  
-   TODO:  do we need a ref count > 4 billion?
+Some of the conditions that make pages difficult or impossible to reclaim:
+  1) page is ramdisk page.
+  2) page is anon or shmem, but no swap space available
+  3) page is mlocked into memory, including SHM_LOCKed shmem pages.
+  4) page is anon with an excessive number of related vmas [on the
+     anon_vma list]; or is a file-backed page, with an excessive
+     number of vmas mapping the page.
 
-3) In [__]anon_vma_[un]link(), track number of related vmas.  The
-   count is only incremented/decremented while the anon_vma lock
-   is held, so regular, non-atomic, increment/decrement is used.
+Pages that fall in categories 1-3 above remain on the LRU lists,
+despite being non-reclaimable.  vmscan can spend a great deal of time
+shuffling these pages around the lists.  Pages in category 4 are
+theoretically reclaimable, but the system can enter livelock, with
+all cpus spinning on the respective anon_vma lock or i_mmap_lock.
 
-4) in page_reclaimable(), check anon_vma count in vma's anon_vma, if
-   vma supplied, or in page's anon_vma.  In fault path, new anon pages are
-   placed on the LRU before adding the anon rmap, so we need to check
-   the vma's anon_vma.  Fortunately, the vma is available at that point.
-   In vmscan, we can just check the page's anon_vma for any anon pages
-   that made it onto the [in]active list before the anon_vma list length
-   became "excessive".
+The basic mechanism employed to achieve the stated objective is to
+manage "non-reclaimable" pages off the LRU active and inactive lists
+on a separate "noreclaim" list.  The "noreclaim" list is based on a
+patch by Larry Woodman of Red Hat.  I have enhanced this concept to
+make the noreclaim list a peer of the LRU active and inactive list--
+i.e., yet another LRU list.  This approach simplifies the management
+of noreclaim pages, as we have well established protocols for managing
+pages on the LRU.  From my discussions with developers who attended
+the VM Summit in Cambridge ~2-3Sept, I understand that there is some
+agreement with this approach.
 
-5) make the threshold tunable via /proc/sys/vm/anon_vma_reclaim_limit.
-   Default value of 64 is totally arbitrary, but should be high enough
-   that most applications won't hit it.
+This series, although very much still a work in progress, has been
+running in various forms for several months on test machines at HP--
+fairly large ia64 NUMA servers--under reasonable high stress loads.  
+I have posted a previous version of a subset of these patches on
+linux-mm.   The current version has ungone a fair amount of rework
+based on discussions with vm developers, but there is still much to
+be done.  I'm reposting the new series in hopes of kick-starting
+the discussion to either progress this series to acceptance, or
+to kill it off so that we can direct our attentions to some other
+approach.
 
-Notes:
+Here is a brief [promise I'll try] summary of the patches to
+follow.  More details and discussion in the patch descriptions.
+The patch names are taken from the file names in my series.
 
-1) a separate patch makes the anon_vma lock a reader/writer lock.
-   This allows some parallelism--different cpus can work on different 
-   pages that reference the same anon_vma--but this does not address the
-   problem of long lists and potentially many pte's to unmap.
+Currently atop 2.6.23-rc4-mm1:
 
-2) TODO:  do same for file rmap in address_space with excessive number
-   of mapping vmas?
+1) make-anon_vma-lock-rw
+2) make-i_mmap_lock-rw
 
-3) Treating what are theortically reclaimable pages as nonreclaimable
-   [in practice they ARE nonreclaimable] will result in oom-kill of some
-   tasks rather than system hang/livelock.  We can debate which is
-   preferrable.  However, with these patches, Andrea Arcangeli's oom-kill
-   cleanups may become more important.
+The first two patches are not part of the noreclaim infrastructure.
+Rather, these patches improve parallelism in shrink_page_list()--
+specifically in page_referenced() and try_to_unmap()--by making the
+anon_vma lock and the i_mmap_lock reader/writer spinlocks.  
 
-4) an alternate approach:  rather than treat these pages as nonreclaimable,
-   we could track the anon_vma references and in fork() [dup_mmap()], when
-   the count reaches some limit, give the anon_vma to the child and its
-   siblings and their descendants, and allocate a new one for the parent.
-   This requires breaking COW sharing of all anon pages [only the parent
-   has complete enough state to do this at this point], as tasks can't
-   share pages using different anon_vmas.  This will increase memory
-   pressure and hasten the onset of reclaim.  I was working on this 
-   alternate approach, but shelved it to try the noreclaim list approach.
+3) move-and-rework-isolate_lru_page
 
-Signed-off-by:  Lee Schermerhorn <lee.schermerhorn@hp.com>
+>From Nick Piggin's "keep mlocked pages off LRU" patch, this patch
+moves the "isolate_lru_page()" function from mm/migrate.c
+to mm/vmscan.c from where it is used by both the page migration
+code and this noreclaim series [mlock patches below].
 
- include/linux/rmap.h |   61 ++++++++++++++++++++++++++++++++++++++++++++++++++-
- include/linux/swap.h |    3 ++
- kernel/sysctl.c      |   12 ++++++++++
- mm/Kconfig           |   11 +++++++++
- mm/rmap.c            |   12 ++++++++--
- mm/vmscan.c          |   23 +++++++++++++++++--
- 6 files changed, 117 insertions(+), 5 deletions(-)
+4) introduce-page_anon-function
 
-Index: Linux/mm/Kconfig
-===================================================================
---- Linux.orig/mm/Kconfig	2007-09-14 10:22:02.000000000 -0400
-+++ Linux/mm/Kconfig	2007-09-14 10:23:52.000000000 -0400
-@@ -204,3 +204,14 @@ config NORECLAIM
- 	  may be non-reclaimable because:  they are locked into memory, they
- 	  are anonymous pages for which no swap space exists, or they are anon
- 	  pages that are expensive to unmap [long anon_vma "related vma" list.]
-+
-+config NORECLAIM_ANON_VMA
-+	bool "Exclude pages with excessively long anon_vma lists"
-+	depends on NORECLAIM
-+	help
-+	  Treats anonymous pages with excessively long anon_vma lists as
-+	  non-reclaimable.  Long anon_vma lists results from fork()ing
-+	  many [hundreds, thousands] of children from a single parent.  The
-+	  anonymous pages in such tasks are very expensive [sometimes almost
-+	  impossible] to reclaim.  Treating them as non-reclaimable avoids
-+	  the overhead of attempting to reclaim them.
-Index: Linux/include/linux/rmap.h
-===================================================================
---- Linux.orig/include/linux/rmap.h	2007-09-14 10:22:02.000000000 -0400
-+++ Linux/include/linux/rmap.h	2007-09-14 10:23:52.000000000 -0400
-@@ -11,6 +11,20 @@
- #include <linux/memcontrol.h>
- 
- /*
-+ * Optionally, limit the growth of the anon_vma list of "related" vmas
-+ * to ANON_VMA_LIST_LIMIT.  Add a count member
-+ * to the anon_vma structure where we'd have padding on a 64-bit
-+ * system w/o lock debugging.
-+ */
-+#ifdef CONFIG_NORECLAIM_ANON_VMA
-+#define DEFAULT_ANON_VMA_RECLAIM_LIMIT 64
-+#define TRACK_ANON_VMA_COUNT 1
-+#else
-+#define DEFAULT_ANON_VMA_RECLAIM_LIMIT 0
-+#define TRACK_ANON_VMA_COUNT 0
-+#endif
-+
-+/*
-  * The anon_vma heads a list of private "related" vmas, to scan if
-  * an anonymous page pointing to this anon_vma needs to be unmapped:
-  * the vmas on the list will be related by forking, or by splitting.
-@@ -26,6 +40,9 @@
-  */
- struct anon_vma {
- 	rwlock_t rwlock;	/* Serialize access to vma list */
-+#ifdef CONFIG_NORECLAIM_ANON_VMA
-+	int count;	/* number of "related" vmas */
-+#endif
- 	struct list_head head;	/* List of private "related" vmas */
- };
- 
-@@ -35,11 +52,20 @@ extern struct kmem_cache *anon_vma_cache
- 
- static inline struct anon_vma *anon_vma_alloc(void)
- {
--	return kmem_cache_alloc(anon_vma_cachep, GFP_KERNEL);
-+	struct anon_vma *anon_vma;
-+
-+	anon_vma = kmem_cache_alloc(anon_vma_cachep, GFP_KERNEL);
-+#ifdef CONFIG_NORECLAIM_ANON_VMA
-+	if (anon_vma)
-+		anon_vma->count = 0;
-+#endif
-+	return anon_vma;
- }
- 
- static inline void anon_vma_free(struct anon_vma *anon_vma)
- {
-+	if (TRACK_ANON_VMA_COUNT)
-+		VM_BUG_ON(anon_vma->count);
- 	kmem_cache_free(anon_vma_cachep, anon_vma);
- }
- 
-@@ -60,6 +86,39 @@ static inline void anon_vma_unlock(struc
- 		write_unlock(&anon_vma->rwlock);
- }
- 
-+#ifdef CONFIG_NORECLAIM_ANON_VMA
-+
-+/*
-+ * Track number of "related" vmas on anon_vma list.
-+ * Only called with anon_vma lock held.
-+ * Note:  we track related vmas on fork() and splits, but
-+ * only enforce the limit on fork().
-+ */
-+static inline void add_related_vma(struct anon_vma *anon_vma)
-+{
-+	++anon_vma->count;
-+}
-+
-+static inline void remove_related_vma(struct anon_vma *anon_vma)
-+{
-+	--anon_vma->count;
-+	VM_BUG_ON(anon_vma->count < 0);
-+}
-+
-+static inline struct anon_vma *page_anon_vma(struct page *page)
-+{
-+	VM_BUG_ON(!PageAnon(page));
-+	return (struct anon_vma *)((unsigned long)page->mapping &
-+						~PAGE_MAPPING_ANON);
-+}
-+
-+#else
-+
-+#define add_related_vma(A)
-+#define remove_related_vma(A)
-+
-+#endif
-+
- /*
-  * anon_vma helper functions.
-  */
-Index: Linux/mm/rmap.c
-===================================================================
---- Linux.orig/mm/rmap.c	2007-09-14 10:22:02.000000000 -0400
-+++ Linux/mm/rmap.c	2007-09-14 10:23:52.000000000 -0400
-@@ -82,6 +82,7 @@ int anon_vma_prepare(struct vm_area_stru
- 		if (likely(!vma->anon_vma)) {
- 			vma->anon_vma = anon_vma;
- 			list_add_tail(&vma->anon_vma_node, &anon_vma->head);
-+			add_related_vma(anon_vma);
- 			allocated = NULL;
- 		}
- 		spin_unlock(&mm->page_table_lock);
-@@ -96,16 +97,21 @@ int anon_vma_prepare(struct vm_area_stru
- 
- void __anon_vma_merge(struct vm_area_struct *vma, struct vm_area_struct *next)
- {
--	BUG_ON(vma->anon_vma != next->anon_vma);
-+	struct anon_vma *anon_vma = vma->anon_vma;
-+
-+	BUG_ON(anon_vma != next->anon_vma);
- 	list_del(&next->anon_vma_node);
-+	remove_related_vma(anon_vma);
- }
- 
- void __anon_vma_link(struct vm_area_struct *vma)
- {
- 	struct anon_vma *anon_vma = vma->anon_vma;
- 
--	if (anon_vma)
-+	if (anon_vma) {
- 		list_add_tail(&vma->anon_vma_node, &anon_vma->head);
-+		add_related_vma(anon_vma);
-+	}
- }
- 
- void anon_vma_link(struct vm_area_struct *vma)
-@@ -115,6 +121,7 @@ void anon_vma_link(struct vm_area_struct
- 	if (anon_vma) {
- 		write_lock(&anon_vma->rwlock);
- 		list_add_tail(&vma->anon_vma_node, &anon_vma->head);
-+		add_related_vma(anon_vma);
- 		write_unlock(&anon_vma->rwlock);
- 	}
- }
-@@ -129,6 +136,7 @@ void anon_vma_unlink(struct vm_area_stru
- 
- 	write_lock(&anon_vma->rwlock);
- 	list_del(&vma->anon_vma_node);
-+	remove_related_vma(anon_vma);
- 
- 	/* We must garbage collect the anon_vma if it's empty */
- 	empty = list_empty(&anon_vma->head);
-Index: Linux/include/linux/swap.h
-===================================================================
---- Linux.orig/include/linux/swap.h	2007-09-14 10:22:02.000000000 -0400
-+++ Linux/include/linux/swap.h	2007-09-14 10:23:52.000000000 -0400
-@@ -227,6 +227,9 @@ static inline int zone_reclaim(struct zo
- #ifdef CONFIG_NORECLAIM
- extern int page_reclaimable(struct page *page, struct vm_area_struct *vma);
- extern void putback_all_noreclaim_pages(void);
-+#ifdef CONFIG_NORECLAIM_ANON_VMA
-+extern int anon_vma_reclaim_limit;
-+#endif
- #else
- static inline int page_reclaimable(struct page *page,
- 						struct vm_area_struct *vma)
-Index: Linux/mm/vmscan.c
-===================================================================
---- Linux.orig/mm/vmscan.c	2007-09-14 10:23:50.000000000 -0400
-+++ Linux/mm/vmscan.c	2007-09-14 10:23:52.000000000 -0400
-@@ -2154,6 +2154,10 @@ int zone_reclaim(struct zone *zone, gfp_
- #endif
- 
- #ifdef CONFIG_NORECLAIM
-+
-+#ifdef CONFIG_NORECLAIM_ANON_VMA
-+int anon_vma_reclaim_limit = DEFAULT_ANON_VMA_RECLAIM_LIMIT;
-+#endif
- /*
-  * page_reclaimable(struct page *page, struct vm_area_struct *vma)
-  * Test whether page is reclaimable--i.e., should be placed on active/inactive
-@@ -2164,8 +2168,9 @@ int zone_reclaim(struct zone *zone, gfp_
-  *               If !NULL, called from fault path.
-  *
-  * Reasons page might not be reclaimable:
-- * + page's mapping marked non-reclaimable
-- * TODO - later patches
-+ * 1) page's mapping marked non-reclaimable
-+ * 2) anon_vma [if any] has too many related vmas
-+ * [more TBD.  e.g., anon page and no swap available, page mlocked, ...]
-  *
-  * TODO:  specify locking assumptions
-  */
-@@ -2177,6 +2182,20 @@ int page_reclaimable(struct page *page, 
- 	if (mapping_non_reclaimable(page_mapping(page)))
- 		return 0;
- 
-+#ifdef CONFIG_NORECLAIM_ANON_VMA
-+	if (PageAnon(page)) {
-+		struct anon_vma *anon_vma;
-+
-+		/*
-+		 * anon page with too many related vmas?
-+		 */
-+		anon_vma = page_anon_vma(page);
-+		VM_BUG_ON(!anon_vma);
-+		if (anon_vma_reclaim_limit &&
-+			anon_vma->count > anon_vma_reclaim_limit)
-+			return 0;
-+	}
-+#endif
- 	/* TODO:  test page [!]reclaimable conditions */
- 
- 	return 1;
-Index: Linux/kernel/sysctl.c
-===================================================================
---- Linux.orig/kernel/sysctl.c	2007-09-14 10:22:02.000000000 -0400
-+++ Linux/kernel/sysctl.c	2007-09-14 10:23:52.000000000 -0400
-@@ -1060,6 +1060,18 @@ static struct ctl_table vm_table[] = {
- 		.extra1		= &zero,
- 	},
- #endif
-+#ifdef CONFIG_NORECLAIM_ANON_VMA
-+	{
-+		.ctl_name	= CTL_UNNUMBERED,
-+		.procname	= "anon_vma_reclaim_limit",
-+		.data		= &anon_vma_reclaim_limit,
-+		.maxlen		= sizeof(anon_vma_reclaim_limit),
-+		.mode		= 0644,
-+		.proc_handler	= &proc_dointvec,
-+		.strategy	= &sysctl_intvec,
-+		.extra1		= &zero,
-+	},
-+#endif
- /*
-  * NOTE: do not add new entries to this table unless you have read
-  * Documentation/sysctl/ctl_unnumbered.txt
+Extracted from Rik van Riel's "split LRU" patch.  Used by
+noreclaim series to detect swap-backed pages.
+
+Aside:  at one point, I had this series working with Rik's
+split LRU patch in the same tree.  I have separated them
+for now, but plan to remerge at some point for further testing.
+Rik's patch in more of a "make reclaim smarter" patch.
+
+5) use-indexed-array-of-lru-lists
+
+Christoph Lameter's cleanup of per zone LRU list handling.
+Useful here as noreclaim adds an additional "LRU" list.  Will
+also be useful with Rik's "split LRU" mechanism.
+
+Aside:  I note that in 23-rc4-mm1, the memory controller has 
+its own active and inactive list.  It may also benefit from
+use of Christoph's patch.  Further, we'll need to consider 
+whether memory controllers should maintain separate noreclaim
+lists.
+
+6) noreclaim-01-no-reclaim-infrastructure
+
+This patch provides the basic noreclaim list mechanism and a
+skeletal "page_reclaimable()" predicate function to test whether
+a page should be diverted to the noreclaim list.  Subsequent
+patches add tests to page_reclaimable().
+
+7) noreclaim-02-report-nonreclaimable-memory
+
+Provides basic accounting/statistics for non-reclaimable
+pages.
+
+8) noreclaim-03-ramdisk-pages-are-nonreclaimable
+
+Enhances page_reclaimable() to detect ram_disk pages and
+"just say no".  See the patch description for details.
+
+9) noreclaim-04-SHM_LOCKed-pages-are-nonreclaimable
+
+Similarly, declare pages in SHM_LOCKED shmem segments as
+non-reclaimable.
+
+10) noreclaim-05-track-anon_vma-related-vmas
+
+Reference count anon_vma--number of vmas in the list.
+Declare anon pages non-reclaimable if the count exceeds a 
+tunable threshold.
+
+TODO:  similar for file-backed pages.  No such patch yet.
+
+11) noreclaim-06-unswappable-anon-and-shmem
+
+Using Rik's page_anon() function, declare swap-backed
+pages as non-reclaimable when no swap space exists.
+
+TODO:  bring the pages back when [sufficient] swap space
+freed or added.  See patch description.
+
+12) noreclaim-07.1-prepare-for-mlocked-pages
+13) noreclaim-07.2-move-mlocked-pages-off-the-LRU
+
+These two patches are a rework of Nick Piggin's series to
+do the same thing--move mlocked pages off the LRU.  The rework
+eliminates the use of one of the lru list links as the mlock
+count, so that these pages can be maintained on the noreclaim
+list.  The count is replaced by a single page flag that is
+maintained by mlock/munlock/munmap code.
+
+14) noreclaim-08-cull-nonreclaimable-anon-pages-in-fault-path
+
+This is an optional patch, inspired by Nick's mlock patch.  It 
+checks for nonreclaimable anon pages created by copy-on-write
+and diverts them to the noreclaim list so that vmscan never
+sees them.  Without this patch, shrink_active_list() will see
+these pages once and move them to the noreclaim list.  
+
+-----------
+A note to reviewers:  these patches contain intentional, glaring
+style violations:  use of '//TODO' comments.  I KNOW that these are
+style violations and will remove them as the questions they raise
+are resolved.  I want them to stand out in hopes that you'll read
+the contents.
+
+Thanks,
+Lee
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
