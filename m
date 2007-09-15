@@ -1,72 +1,104 @@
-Received: by rv-out-0910.google.com with SMTP id l15so680146rvb
-        for <linux-mm@kvack.org>; Fri, 14 Sep 2007 17:16:07 -0700 (PDT)
-Message-ID: <a781481a0709141716n569d54eeqbe51746d3a5110ca@mail.gmail.com>
-Date: Sat, 15 Sep 2007 05:46:07 +0530
-From: "Satyam Sharma" <satyam.sharma@gmail.com>
-Subject: Re: [PATCH 1/6] cpuset write dirty map
-In-Reply-To: <20070914170733.dbe89493.akpm@linux-foundation.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=ISO-8859-1
+Date: Fri, 14 Sep 2007 17:38:35 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: problem with ZONE_MOVABLE.
+Message-Id: <20070914173835.89b046a8.akpm@linux-foundation.org>
+In-Reply-To: <46E9112E.5020505@linux.vnet.ibm.com>
+References: <20070913190719.ab6451e7.kamezawa.hiroyu@jp.fujitsu.com>
+	<46E9112E.5020505@linux.vnet.ibm.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
-References: <469D3342.3080405@google.com> <46E741B1.4030100@google.com>
-	 <46E742A2.9040006@google.com>
-	 <20070914161536.3ec5c533.akpm@linux-foundation.org>
-	 <a781481a0709141647q3d019423s388c64bf6bed871a@mail.gmail.com>
-	 <20070914170733.dbe89493.akpm@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Ethan Solomita <solo@google.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Christoph Lameter <clameter@sgi.com>
+To: balbir@linux.vnet.ibm.com
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, containers@lists.osdl.org, "linux-mm@kvack.org" <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On 9/15/07, Andrew Morton <akpm@linux-foundation.org> wrote:
-> On Sat, 15 Sep 2007 05:17:48 +0530
-> "Satyam Sharma" <satyam.sharma@gmail.com> wrote:
->
-> > > It's unobvious why the break point is at MAX_NUMNODES = BITS_PER_LONG and
-> > > we might want to tweak that in the future.  Yet another argument for
-> > > centralising this comparison.
-> >
-> > Looks like just an optimization to me ... Ethan wants to economize and not bloat
-> > struct address_space too much.
-> >
-> > So, if sizeof(nodemask_t) == sizeof(long), i.e. when:
-> > MAX_NUMNODES <= BITS_PER_LONG, then we'll be adding only sizeof(long)
-> > extra bytes to the struct (by plonking the object itself into it).
-> >
-> > But even when MAX_NUMNODES > BITS_PER_LONG, because we're storing
-> > a pointer, and because sizeof(void *) == sizeof(long), so again the maximum
-> > bloat addition to struct address_space would only be sizeof(long) bytes.
->
-> yup.
->
-> Note that "It's unobvious" != "It's unobvious to me".  I review code for
-> understandability-by-others, not for understandability-by-me.
->
-> > I didn't see the original mail, but if the #ifdeffery for this
-> > conditional is too much
-> > as a result of this optimization, Ethan should probably just do away
-> > with all of it
-> > entirely, and simply put a full nodemask_t object (irrespective of MAX_NUMNODES)
-> > into the struct. After all, struct task_struct does the same unconditionally ...
-> > but admittedly, there are several times more address_space struct's resident in
-> > memory at any given time than there are task_struct's, so this optimization does
-> > make sense too ...
->
-> I think the optimisation is (probably) desirable, but it would be best to
-> describe the tradeoff in the changelog and to add some suitable
-> code-commentary for those who read the code in a year's time and to avoid
-> sprinkling the logic all over the tree.
+On Thu, 13 Sep 2007 16:00:06 +0530
+Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
 
-True, the other option could be to put the /pointer/ in there unconditionally,
-but that would slow down the MAX_NUMNODES <= BITS_PER_LONG case,
-which (after grepping through defconfigs) appears to be the common case on
-all archs other than ia64. So I think your idea of making that conditional
-centralized in the code with an accompanying comment is the way to go here ...
+> KAMEZAWA Hiroyuki wrote:
+> > Hi, 
+> > 
+> > While I'm playing with memory controller of 2.6.23-rc4-mm1, I met following.
+> > 
+> > ==
+> > [root@drpq test-2.6.23-rc4-mm1]# echo $$ > /opt/mem_control/group_1/tasks
+> > [root@drpq test-2.6.23-rc4-mm1]# cat /opt/mem_control/group_1/memory.limit
+> > 32768
+> > [root@drpq test-2.6.23-rc4-mm1]# cat /opt/mem_control/group_1/memory.usage
+> > 286
+> > // Memory is limited to 512 GiB. try "dd" 1GiB (page size is 16KB)
+> > 
+> > [root@drpq test-2.6.23-rc4-mm1]# dd if=/dev/zero of=/tmp/tmpfile bs=1024 count=1048576
+> > Killed
+> > [root@drpq test-2.6.23-rc4-mm1]# ls
+> > Killed
+> > //above are caused by OOM.
+> > [root@drpq test-2.6.23-rc4-mm1]# cat /opt/mem_control/group_1/memory.usage
+> > 32763
+> > [root@drpq test-2.6.23-rc4-mm1]# cat /opt/mem_control/group_1/memory.limit
+> > 32768
+> > // fully filled by page cache. no reclaim run.
+> > ==
+> > 
+> > The reason  this happens is  because I used kernelcore= boot option, i.e
+> > ZONE_MOVABLE. Seems try_to_free_mem_container_pages() ignores ZONE_MOVABLE.
+> > 
+> > Quick fix is attached, but Mel's one-zonelist-pernode patch may change this.
+> > I'll continue to watch.
+> > 
+> > Thanks,
+> > -Kame
+> > ==
+> > Now, there is ZONE_MOVABLE...
+> > 
+> > page cache and user pages are allocated from gfp_zone(GFP_HIGHUSER_MOVABLE)
+> > 
+> > Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> > ---
+> >  mm/vmscan.c |    9 ++-------
+> >  1 file changed, 2 insertions(+), 7 deletions(-)
+> > 
+> > Index: linux-2.6.23-rc4-mm1.bak/mm/vmscan.c
+> > ===================================================================
+> > --- linux-2.6.23-rc4-mm1.bak.orig/mm/vmscan.c
+> > +++ linux-2.6.23-rc4-mm1.bak/mm/vmscan.c
+> > @@ -1351,12 +1351,6 @@ unsigned long try_to_free_pages(struct z
+> > 
+> >  #ifdef CONFIG_CONTAINER_MEM_CONT
+> > 
+> > -#ifdef CONFIG_HIGHMEM
+> > -#define ZONE_USERPAGES ZONE_HIGHMEM
+> > -#else
+> > -#define ZONE_USERPAGES ZONE_NORMAL
+> > -#endif
+> > -
+> >  unsigned long try_to_free_mem_container_pages(struct mem_container *mem_cont)
+> >  {
+> >  	struct scan_control sc = {
+> > @@ -1371,9 +1365,10 @@ unsigned long try_to_free_mem_container_
+> >  	};
+> >  	int node;
+> >  	struct zone **zones;
+> > +	int target_zone = gfp_zone(GFP_HIGHUSER_MOVABLE);
+> > 
+> >  	for_each_online_node(node) {
+> > -		zones = NODE_DATA(node)->node_zonelists[ZONE_USERPAGES].zones;
+> > +		zones = NODE_DATA(node)->node_zonelists[target_zone].zones;
+> >  		if (do_try_to_free_pages(zones, sc.gfp_mask, &sc))
+> >  			return 1;
+> >  	}
+> 
+> Mel, has sent out a fix (for the single zonelist) that conflicts with
+> this one. Your fix looks correct to me, but it will be over ridden
+> by Mel's fix (once those patches are in -mm).
+> 
 
+"mel's fix" is rather too imprecise a term for me to make head or tail of this.
 
-Satyam
+Oh well, the patch basically applied, so I whacked it in there, designated
+as to be folded into memory-controller-make-charging-gfp-mask-aware.patch
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
