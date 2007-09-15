@@ -1,55 +1,59 @@
-Date: Fri, 14 Sep 2007 17:07:00 -0700 (PDT)
-From: Linus Torvalds <torvalds@linux-foundation.org>
-Subject: Re: [PATCH/RFC 0/14] Page Reclaim Scalability
-In-Reply-To: <1189807345.5826.27.camel@lappy>
-Message-ID: <alpine.LFD.0.999.0709141653430.16478@woody.linux-foundation.org>
-References: <20070914205359.6536.98017.sendpatchset@localhost>
- <1189804264.5826.5.camel@lappy>  <alpine.LFD.0.999.0709141422110.16478@woody.linux-foundation.org>
- <1189807345.5826.27.camel@lappy>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=us-ascii
+Date: Fri, 14 Sep 2007 17:07:33 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH 1/6] cpuset write dirty map
+Message-Id: <20070914170733.dbe89493.akpm@linux-foundation.org>
+In-Reply-To: <a781481a0709141647q3d019423s388c64bf6bed871a@mail.gmail.com>
+References: <469D3342.3080405@google.com>
+	<46E741B1.4030100@google.com>
+	<46E742A2.9040006@google.com>
+	<20070914161536.3ec5c533.akpm@linux-foundation.org>
+	<a781481a0709141647q3d019423s388c64bf6bed871a@mail.gmail.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Cc: Lee Schermerhorn <lee.schermerhorn@hp.com>, linux-mm@kvack.org, akpm@linux-foundation.org, mel@csn.ul.ie, clameter@sgi.com, riel@redhat.com, balbir@linux.vnet.ibm.com, andrea@suse.de, eric.whitney@hp.com, npiggin@suse.de
+To: Satyam Sharma <satyam.sharma@gmail.com>
+Cc: Ethan Solomita <solo@google.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Christoph Lameter <clameter@sgi.com>
 List-ID: <linux-mm.kvack.org>
 
+On Sat, 15 Sep 2007 05:17:48 +0530
+"Satyam Sharma" <satyam.sharma@gmail.com> wrote:
 
-On Sat, 15 Sep 2007, Peter Zijlstra wrote:
+> > It's unobvious why the break point is at MAX_NUMNODES = BITS_PER_LONG and
+> > we might want to tweak that in the future.  Yet another argument for
+> > centralising this comparison.
 > 
-> When looking at the locking hierarchy as presented in rmap.c these two
-> locks are the first non sleeper locks (and from a quick look at the code
-> there are no IRQ troubles either), so changing them to a sleeping lock
-> is quite doable - if that turns out to have advantages over rwlock_t in
-> this case.
-
-Well, I don't really think that read-write sleeper locks are any better 
-than read-write spinlocks. They are even *more* expensive, and the only 
-advantage of the sleeper lock is if it allows you to do other things. 
-Which I don't think is the case here (nor do we necessarily *want* to make 
-the VM have more sleeping situations)
-
-So when it comes to anon_vma lock and i_mmap_lock, maybe rwlocks are fine. 
-They do have some latency advantages if writers are really comparatively 
-rare and the critical region is bigger. And I could imagine that under 
-load it does get big, and the locking overhead is not a big deal.
-
-That said - we *do* actually have things like 
-
-	cond_resched_lock(&mapping->i_mmap_lock);
-
-which at least to me tends to imply that maybe a sleeping lock really 
-might be the right thing, since latency has been a problem for these 
-things. It's certainly a sign of *something*.
-
-> > So if you actually look for scalability to lots of CPU's, I think you'd 
-> > want RCU.
+> Looks like just an optimization to me ... Ethan wants to economize and not bloat
+> struct address_space too much.
 > 
-> Certainly, although that might take a little more than a trivial change.
+> So, if sizeof(nodemask_t) == sizeof(long), i.e. when:
+> MAX_NUMNODES <= BITS_PER_LONG, then we'll be adding only sizeof(long)
+> extra bytes to the struct (by plonking the object itself into it).
+> 
+> But even when MAX_NUMNODES > BITS_PER_LONG, because we're storing
+> a pointer, and because sizeof(void *) == sizeof(long), so again the maximum
+> bloat addition to struct address_space would only be sizeof(long) bytes.
 
-Yeah, I can imagine..
+yup.
 
-		Linus
+Note that "It's unobvious" != "It's unobvious to me".  I review code for
+understandability-by-others, not for understandability-by-me.
+
+> I didn't see the original mail, but if the #ifdeffery for this
+> conditional is too much
+> as a result of this optimization, Ethan should probably just do away
+> with all of it
+> entirely, and simply put a full nodemask_t object (irrespective of MAX_NUMNODES)
+> into the struct. After all, struct task_struct does the same unconditionally ...
+> but admittedly, there are several times more address_space struct's resident in
+> memory at any given time than there are task_struct's, so this optimization does
+> make sense too ...
+
+I think the optimisation is (probably) desirable, but it would be best to
+describe the tradeoff in the changelog and to add some suitable
+code-commentary for those who read the code in a year's time and to avoid
+sprinkling the logic all over the tree.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
