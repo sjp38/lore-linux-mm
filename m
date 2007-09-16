@@ -1,55 +1,38 @@
-Subject: Re: VM/VFS bug with large amount of memory and file systems?
-From: Peter Zijlstra <peterz@infradead.org>
-In-Reply-To: <C9A68AAE-0B37-4BB5-A9E6-66C186566940@cam.ac.uk>
-References: <C2A8AED2-363F-4131-863C-918465C1F4E1@cam.ac.uk>
-	 <1189850897.21778.301.camel@twins>
-	 <C9A68AAE-0B37-4BB5-A9E6-66C186566940@cam.ac.uk>
-Content-Type: text/plain
-Date: Sat, 15 Sep 2007 13:19:01 +0200
-Message-Id: <1189855141.21778.307.camel@twins>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
-Sender: owner-linux-mm@kvack.org
-Return-Path: <owner-linux-mm@kvack.org>
-To: Anton Altaparmakov <aia21@cam.ac.uk>
-Cc: marc.smith@esmail.mcc.edu, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>
+Message-ID: <0f7801c7f874$143c9d40$a1ba2fd7@aquikacuraadvja>
+From: "Oleta Crawford" <aquikacuraadvja@engineersindia.com>
+Subject: Talk to me now
+Date: Sun, 16 Sep 2007 15:13:04 +1000
+MIME-Version: 1.0
+Content-Type: text/plain;
+	charset="us-ascii"
+Content-Transfer-Encoding: 8bit
+Return-Path: <aquikacuraadvja@engineersindia.com>
+To: Lorrie Hill <adrian@kvack.org>
+Cc: Inocencia Andrews <blah@kvack.org>, Ray <linux-aio@kvack.org>, Donnie Knight <owner-linux-mm@kvack.org>Easter <linux-mm@kvack.org>, Joya James <linux-mm-archive@kvack.org>, Ryan Simmons <aart@kvack.org>, Shantel Evans <majordomo@kvack.org>, Alfredia <linux-ns83820@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Sat, 2007-09-15 at 11:50 +0100, Anton Altaparmakov wrote:
-> Hi,
-> 
-> Thanks for looking into this.
-> 
-> On 15 Sep 2007, at 11:08, Peter Zijlstra wrote:
-> > On Sat, 2007-09-15 at 08:27 +0100, Anton Altaparmakov wrote:
-> >
-> > Please, don't word wrap log-files, they're hard enough to read without
-> > it :-(
-> >
-> > ( I see people do this more and more often, *WHY*? is that because we
-> > like 80 char lines, in code and email? )
-> 
-> I haven't word wrapped it at all.  The lines appear as whole lines in  
-> Apple Mail (my email client).  It must be your email client that is  
-> wrapping them...
-> 
-> > Anyway, looks like all of zone_normal is pinned in kernel allocations:
-> >
-> >> Sep 13 15:31:25 escabot Normal free:3648kB min:3744kB low:4680kB  
-> >> high: 5616kB active:0kB inactive:3160kB present:894080kB  
-> >> pages_scanned:5336 all_unreclaimable? yes
-> >
+When individuals buy their medicines they usually search for the following: 
+  
+ Trusty 
+ Express Consistent Delivery 
+ Great Quality 
+ Big variety of Medicines 
+ Huge Price Cut  
+ Treatment service 
+  
+As the leading on-line Medical Supplies in Canada we suit all 6 of these
+principal aspects. 
 
-Oddly, this line is still long in Andrew's reply but wrapped in yours.
-Must be some odd mailer interaction.
+To start saving now go here: www.myrxstory.org  
 
-/me apologises.
+Do yourself a favor and give us a try.  You will feel nice with reference
+to the quality and protection we bestow and your pocket manual will also be
+delighted as well.
 
-I guess I really have to start looking for a hackable GUI email client
-that has semi proper IMAP support.
 
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+obey "Tell me," he flash distribution said very softly; "have you ever in
+your life done a rubbery really cruel thing?" Montanelli did not notice
+sister field what had leaf find happened; he had moved away from the steps,
+and was trying to cal rid card Montanelli trust bulb turned abruptly away. 
+distribution friend "Is there none rubbery flood on them as yet, Your
+Eminence?"
