@@ -1,52 +1,51 @@
-Date: Sun, 16 Sep 2007 18:16:19 +0200
-From: Peter Zijlstra <peterz@infradead.org>
-Subject: Re: VM/VFS bug with large amount of memory and file systems?
-Message-ID: <20070916181619.2787f4a6@twins>
-In-Reply-To: <EF4D78B7-DCE2-49E7-B31E-AB9A9B7F7609@mac.com>
-References: <C2A8AED2-363F-4131-863C-918465C1F4E1@cam.ac.uk>
-	<1189850897.21778.301.camel@twins>
-	<C9A68AAE-0B37-4BB5-A9E6-66C186566940@cam.ac.uk>
-	<1189855141.21778.307.camel@twins>
-	<EF4D78B7-DCE2-49E7-B31E-AB9A9B7F7609@mac.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Date: Sun, 16 Sep 2007 19:02:10 +0100
+Subject: Re: [PATCH/RFC 0/5] Memory Policy Cleanups and Enhancements
+Message-ID: <20070916180210.GA15184@skynet.ie>
+References: <Pine.LNX.4.64.0709121515210.3835@schroedinger.engr.sgi.com> <1189691837.5013.43.camel@localhost> <Pine.LNX.4.64.0709131118190.9378@schroedinger.engr.sgi.com> <20070913182344.GB23752@skynet.ie> <Pine.LNX.4.64.0709131124100.9378@schroedinger.engr.sgi.com> <20070913141704.4623ac57.akpm@linux-foundation.org> <20070914085335.GA30407@skynet.ie> <1189782414.5315.36.camel@localhost> <1189791967.13629.24.camel@localhost> <Pine.LNX.4.64.0709141137090.16964@schroedinger.engr.sgi.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <Pine.LNX.4.64.0709141137090.16964@schroedinger.engr.sgi.com>
+From: mel@skynet.ie (Mel Gorman)
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Kyle Moffett <mrmacman_g4@mac.com>
-Cc: Anton Altaparmakov <aia21@cam.ac.uk>, marc.smith@esmail.mcc.edu, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>
+To: Christoph Lameter <clameter@sgi.com>
+Cc: Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, ak@suse.de, mtk-manpages@gmx.net, solo@google.com, eric.whitney@hp.com, Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-On Sun, 16 Sep 2007 03:22:11 -0400 Kyle Moffett <mrmacman_g4@mac.com>
-wrote:
+On (14/09/07 11:41), Christoph Lameter didst pronounce:
+> Since you are going to rework the one zonelist patch again anyway
 
-> On Sep 15, 2007, at 07:19:01, Peter Zijlstra wrote:
-> > On Sat, 2007-09-15 at 11:50 +0100, Anton Altaparmakov wrote:
-> >> I haven't word wrapped it at all.  The lines appear as whole lines  
-> >> in Apple Mail (my email client).  It must be your email client  
-> >> that is wrapping them...
-> >
-> > Oddly, this line is still long in Andrew's reply but wrapped in  
-> > yours.  Must be some odd mailer interaction.
-> 
-> Actually Apple Mail.app sends format=flowed wrapped to 73  
-> characters.  So a wrapped line has a single space character right  
-> before each 'wrapping' newline.  If your mail client supports  
-> format=flowed viewing and sends without format=flowed (like AKPM's  
-> mailer appears to), then it will properly unwrap the lines and resend  
-> without the wrapping.  Mailers which *DONT* support format=flowed  
-> will see the wrapped version.  Normally this is what you want but  
-> it's a PITA for patches and logfiles.
-> 
-> I believe with Mail.app if you attach a .txt file it will be  
-> unmangled and sent as "Content-Type: text/plain" and "Content- 
-> Disposition: inline", so most email-clients will display it as part  
-> of the message.
+I only intend to rework the patches again if there is a known problem
+with them. In this case, that means that Lee finds a functional problem
+or a performance problem is found.
 
-Ah, thanks for the hint. I've switched mailer to claws-mail-3.0.0 and
-hacked the thing a bit so its useful. One of the things I added was a
-menu entry for respect_flowed_format. So I can now flip between flowed
-and non-flowed with a key.
+> I would 
+> suggest to either use Kame-san full approach and include the node in the 
+> zonelist item structure (it does not add any memory since the struct is 
+> word aligned and this is an int)
+
+It increases the size on 32 bit NUMA which we've established is not
+confined to the NUMAQ. I think it's best to evaluate adding the node
+separetly at a later time.
+
+> or go back to the earlier approach of 
+> packing the zone id into the low bits which would reduce the cache 
+> footprint.
+> 
+
+If adding the node does not work out, I will re-evaluate this approach.
+
+> Kame-san's approach is likely very useful if we have a lot of nodes and 
+> need to match a nodemask to a zonelist.
+> 
+
+I agree but I don't have the tools to prove it yet.
+
+-- 
+Mel Gorman
+Part-time Phd Student                          Linux Technology Center
+University of Limerick                         IBM Dublin Software Lab
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
