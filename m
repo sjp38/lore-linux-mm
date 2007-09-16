@@ -1,50 +1,52 @@
-Date: Sun, 16 Sep 2007 13:10:50 +0100
-Subject: Re: [PATCH/RFC] Add node states sysfs class attributeS - V5
-Message-ID: <20070916121050.GD1140@skynet.ie>
-References: <20070827231214.99e3c33f.akpm@linux-foundation.org> <1188309928.5079.37.camel@localhost> <Pine.LNX.4.64.0708281458520.17559@schroedinger.engr.sgi.com> <29495f1d0708281513g406af15an8139df5fae20ad35@mail.gmail.com> <1188398621.5121.13.camel@localhost> <Pine.LNX.4.64.0708291039210.21184@schroedinger.engr.sgi.com> <1189518975.5036.3.camel@localhost> <20070914035058.89b13fa4.akpm@linux-foundation.org> <20070914144300.GE30407@skynet.ie> <20070914150044.GA8123@linux-sh.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <20070914150044.GA8123@linux-sh.org>
-From: mel@skynet.ie (Mel Gorman)
+Date: Sun, 16 Sep 2007 18:16:19 +0200
+From: Peter Zijlstra <peterz@infradead.org>
+Subject: Re: VM/VFS bug with large amount of memory and file systems?
+Message-ID: <20070916181619.2787f4a6@twins>
+In-Reply-To: <EF4D78B7-DCE2-49E7-B31E-AB9A9B7F7609@mac.com>
+References: <C2A8AED2-363F-4131-863C-918465C1F4E1@cam.ac.uk>
+	<1189850897.21778.301.camel@twins>
+	<C9A68AAE-0B37-4BB5-A9E6-66C186566940@cam.ac.uk>
+	<1189855141.21778.307.camel@twins>
+	<EF4D78B7-DCE2-49E7-B31E-AB9A9B7F7609@mac.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Paul Mundt <lethal@linux-sh.org>, Andrew Morton <akpm@linux-foundation.org>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, linux-mm <linux-mm@kvack.org>, Christoph Lameter <clameter@sgi.com>, Nish Aravamudan <nish.aravamudan@gmail.com>, y-goto@jp.fujitsu.com, Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Eric Whitney <eric.whitney@hp.com>, Andy Whitcroft <apw@shadowen.org>, Martin Bligh <mbligh@mbligh.org>
+To: Kyle Moffett <mrmacman_g4@mac.com>
+Cc: Anton Altaparmakov <aia21@cam.ac.uk>, marc.smith@esmail.mcc.edu, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On (15/09/07 00:00), Paul Mundt didst pronounce:
-> On Fri, Sep 14, 2007 at 03:43:00PM +0100, Mel Gorman wrote:
-> > On (14/09/07 03:50), Andrew Morton didst pronounce:
-> > > So how do we get it tested with CONFIG_HIGHMEM=y?  Needs an i386
-> > > numa machine, yes?  Perhaps Andy or Martin can remember to do this
-> > > sometime, but they'll need a test plan ;)
-> > 
-> > As an aside, 32 Bit NUMA usually means we turn the NUMAQ into a whipping boy
-> > and give the problem lip service. However, I'd be interested in hearing if
-> > superh has dependencies on 32 bit NUMA working properly, including HIGHMEM
-> > issues.
-> > 
-> > I've cc'd Paul Mundt. Paul, does superh use 32 bit NUMA? Is it used with
-> > with HIGHMEM?
-> > 
-> We do use 32-bit NUMA, yes. Not with highmem at the moment, though.
-> highmem support is something that will be coming soon, so the 32-bit NUMA
-> + highmem assertion will be true on SH in the not-so-distant future.
-> 
-> This is something that quite a few CPUs and boards are depending on, and
-> these are all using static sparsemem exclusively at present. It's also
-> something that's tested with current git on a close to daily basis,
-> albeit with page migration generally disabled, due to the small size of
-> the non-system memory nodes.
-> 
+On Sun, 16 Sep 2007 03:22:11 -0400 Kyle Moffett <mrmacman_g4@mac.com>
+wrote:
 
-Ok, thanks Paul. It confirms that 32 bit NUMA is not something that will
-disappear when the NUMAQs finally kick the bucket.
+> On Sep 15, 2007, at 07:19:01, Peter Zijlstra wrote:
+> > On Sat, 2007-09-15 at 11:50 +0100, Anton Altaparmakov wrote:
+> >> I haven't word wrapped it at all.  The lines appear as whole lines  
+> >> in Apple Mail (my email client).  It must be your email client  
+> >> that is wrapping them...
+> >
+> > Oddly, this line is still long in Andrew's reply but wrapped in  
+> > yours.  Must be some odd mailer interaction.
+> 
+> Actually Apple Mail.app sends format=flowed wrapped to 73  
+> characters.  So a wrapped line has a single space character right  
+> before each 'wrapping' newline.  If your mail client supports  
+> format=flowed viewing and sends without format=flowed (like AKPM's  
+> mailer appears to), then it will properly unwrap the lines and resend  
+> without the wrapping.  Mailers which *DONT* support format=flowed  
+> will see the wrapped version.  Normally this is what you want but  
+> it's a PITA for patches and logfiles.
+> 
+> I believe with Mail.app if you attach a .txt file it will be  
+> unmangled and sent as "Content-Type: text/plain" and "Content- 
+> Disposition: inline", so most email-clients will display it as part  
+> of the message.
 
--- 
-Mel Gorman
-Part-time Phd Student                          Linux Technology Center
-University of Limerick                         IBM Dublin Software Lab
+Ah, thanks for the hint. I've switched mailer to claws-mail-3.0.0 and
+hacked the thing a bit so its useful. One of the things I added was a
+menu entry for respect_flowed_format. So I can now flip between flowed
+and non-flowed with a key.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
