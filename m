@@ -1,31 +1,31 @@
-Date: Mon, 17 Sep 2007 10:54:59 -0700 (PDT)
-From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [PATCH] Configurable reclaim batch size
-In-Reply-To: <1189812002.5826.31.camel@lappy>
-Message-ID: <Pine.LNX.4.64.0709171053040.26860@schroedinger.engr.sgi.com>
-References: <Pine.LNX.4.64.0709141519230.14894@schroedinger.engr.sgi.com>
- <1189812002.5826.31.camel@lappy>
+Message-ID: <46EEC24C.7000703@cray.com>
+Date: Mon, 17 Sep 2007 13:07:08 -0500
+From: Andrew Hastings <abh@cray.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: [PATCH 0/4] [hugetlb] Dynamic huge page pool resizing
+References: <20070917163935.32557.50840.stgit@kernel>
+In-Reply-To: <20070917163935.32557.50840.stgit@kernel>
+Content-Type: text/plain; charset=UTF-8; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Adam Litke <agl@us.ibm.com>
+Cc: linux-mm@kvack.org, libhugetlbfs-devel@lists.sourceforge.net
 List-ID: <linux-mm.kvack.org>
 
-On Sat, 15 Sep 2007, Peter Zijlstra wrote:
+Adam Litke wrote:
+> The obvious answer is to let the hugetlb pool grow and shrink in response to
+> the runtime demand for huge pages.  The work Mel Gorman has been doing to
+> establish a memory zone for movable memory allocations makes dynamically
+> resizing the hugetlb pool reliable within the limits of that zone.  This patch
+> series implements dynamic pool resizing for private and shared mappings while
+> being careful to maintain existing semantics.  Please reply with your comments
+> and feedback; even just to say whether it would be a useful feature to you.
 
-> It increases the lock hold times though. Otoh it might work out with the
-> lock placement.
+Thanks, this will be extremely useful for our customers' workloads.
 
-Yeah may be good for NUMA.
- 
-> Do you have any numbers that show this is worthwhile?
-
-Tried to run AIM7 but the improvements are in the noise. I need a tests 
-that really does large memory allocation and stresses the LRU. I could 
-code something up but then Lee's patch addresses some of the same issues.
-Is there any standard test that shows LRU handling regressions?
+-Andrew Hastings
+  Cray Inc.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
