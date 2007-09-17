@@ -1,128 +1,37 @@
-Received: from d01relay02.pok.ibm.com (d01relay02.pok.ibm.com [9.56.227.234])
-	by e5.ny.us.ibm.com (8.13.8/8.13.8) with ESMTP id l8HGe0U7026963
-	for <linux-mm@kvack.org>; Mon, 17 Sep 2007 12:40:00 -0400
-Received: from d01av03.pok.ibm.com (d01av03.pok.ibm.com [9.56.224.217])
-	by d01relay02.pok.ibm.com (8.13.8/8.13.8/NCO v8.5) with ESMTP id l8HGe0CQ693350
-	for <linux-mm@kvack.org>; Mon, 17 Sep 2007 12:40:00 -0400
-Received: from d01av03.pok.ibm.com (loopback [127.0.0.1])
-	by d01av03.pok.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l8HGdxqx026227
-	for <linux-mm@kvack.org>; Mon, 17 Sep 2007 12:40:00 -0400
-From: Adam Litke <agl@us.ibm.com>
-Subject: [PATCH 2/4] hugetlb: Try to grow hugetlb pool for MAP_PRIVATE mappings
-Date: Mon, 17 Sep 2007 09:39:57 -0700
-Message-Id: <20070917163957.32557.70096.stgit@kernel>
-In-Reply-To: <20070917163935.32557.50840.stgit@kernel>
-References: <20070917163935.32557.50840.stgit@kernel>
-Content-Type: text/plain; charset=utf-8; format=fixed
-Content-Transfer-Encoding: 8bit
+Message-ID: <46EEB3AC.20205@redhat.com>
+Date: Mon, 17 Sep 2007 13:04:44 -0400
+From: Rik van Riel <riel@redhat.com>
+MIME-Version: 1.0
+Subject: Re: VM/VFS bug with large amount of memory and file systems?
+References: <C2A8AED2-363F-4131-863C-918465C1F4E1@cam.ac.uk> <13126578-A4F8-43EA-9B0D-A3BCBFB41FEC@cam.ac.uk> <DC408F26-E53F-4F27-9DEF-E996401D95FB@cam.ac.uk> <200709170828.01098.nickpiggin@yahoo.com.au>
+In-Reply-To: <200709170828.01098.nickpiggin@yahoo.com.au>
+Content-Type: text/plain; charset=UTF-8; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
-Cc: libhugetlbfs-devel@lists.sourceforge.net, Adam Litke <agl@us.ibm.com>, Andy Whitcroft <apw@shadowen.org>, Mel Gorman <mel@skynet.ie>, Bill Irwin <bill.irwin@oracle.com>, Ken Chen <kenchen@google.com>, Dave McCracken <dave.mccracken@oracle.com>
+To: Nick Piggin <nickpiggin@yahoo.com.au>
+Cc: Anton Altaparmakov <aia21@cam.ac.uk>, Andrew Morton <akpm@linux-foundation.org>, Peter Zijlstra <peterz@infradead.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>, marc.smith@esmail.mcc.edu
 List-ID: <linux-mm.kvack.org>
 
-Because we overcommit hugepages for MAP_PRIVATE mappings, it is possible
-that the hugetlb pool will be exhausted or completely reserved when a
-hugepage is needed to satisfy a page fault.  Before killing the process in
-this situation, try to allocate a hugepage directly from the buddy
-allocator.
+Nick Piggin wrote:
 
-The explicitly configured pool size becomes a low watermark.  When
-dynamically grown, the allocated huge pages are accounted as a surplus over
-the watermark.  As huge pages are freed on a node, surplus pages are
-released to the buddy allocator so that the pool will shrink back to the
-watermark.
+> (Rik has a patch sitting in -mm I believe which would make this problem
+> even worse, by doing even less highmem scanning in response to lowmem
+> allocations). 
 
-Signed-off-by: Adam Litke <agl@us.ibm.com>
-Signed-off-by: Mel Gorman <mel@csn.ul.ie>
-Acked-by: Andy Whitcroft <apw@shadowen.org>
----
+My patch should not make any difference here, since
+balance_pgdat() already scans the zones from high to
+low and sets an end_zone variable that determines the
+highest zone to scan.
 
- mm/hugetlb.c |   43 +++++++++++++++++++++++++++++++++++++++----
- 1 files changed, 39 insertions(+), 4 deletions(-)
+All my patch does is make sure that we do not try to
+reclaim excessive amounts of dma or low memory when
+a higher zone is full.
 
-diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-index eb5b9f4..63abd31 100644
---- a/mm/hugetlb.c
-+++ b/mm/hugetlb.c
-@@ -27,6 +27,7 @@ unsigned long max_huge_pages;
- static struct list_head hugepage_freelists[MAX_NUMNODES];
- static unsigned int nr_huge_pages_node[MAX_NUMNODES];
- static unsigned int free_huge_pages_node[MAX_NUMNODES];
-+static unsigned int surplus_huge_pages_node[MAX_NUMNODES];
- static gfp_t htlb_alloc_mask = GFP_HIGHUSER;
- unsigned long hugepages_treat_as_movable;
- 
-@@ -107,12 +108,18 @@ static void update_and_free_page(struct page *page)
- 
- static void free_huge_page(struct page *page)
- {
--	BUG_ON(page_count(page));
-+	int nid = page_to_nid(page);
- 
-+	BUG_ON(page_count(page));
- 	INIT_LIST_HEAD(&page->lru);
- 
- 	spin_lock(&hugetlb_lock);
--	enqueue_huge_page(page);
-+	if (surplus_huge_pages_node[nid]) {
-+		update_and_free_page(page);
-+		surplus_huge_pages_node[nid]--;
-+	} else {
-+		enqueue_huge_page(page);
-+	}
- 	spin_unlock(&hugetlb_lock);
- }
- 
-@@ -148,10 +155,29 @@ static int alloc_fresh_huge_page(void)
- 	return 0;
- }
- 
-+static struct page *alloc_buddy_huge_page(struct vm_area_struct *vma,
-+						unsigned long address)
-+{
-+	struct page *page;
-+
-+	page = alloc_pages(htlb_alloc_mask|__GFP_COMP|__GFP_NOWARN,
-+					HUGETLB_PAGE_ORDER);
-+	if (page) {
-+		set_compound_page_dtor(page, free_huge_page);
-+		spin_lock(&hugetlb_lock);
-+		nr_huge_pages++;
-+		nr_huge_pages_node[page_to_nid(page)]++;
-+		surplus_huge_pages_node[page_to_nid(page)]++;
-+		spin_unlock(&hugetlb_lock);
-+	}
-+
-+	return page;
-+}
-+
- static struct page *alloc_huge_page(struct vm_area_struct *vma,
- 				    unsigned long addr)
- {
--	struct page *page;
-+	struct page *page = NULL;
- 
- 	spin_lock(&hugetlb_lock);
- 	if (vma->vm_flags & VM_MAYSHARE)
-@@ -171,7 +197,16 @@ fail:
- 	if (vma->vm_flags & VM_MAYSHARE)
- 		resv_huge_pages++;
- 	spin_unlock(&hugetlb_lock);
--	return NULL;
-+
-+	/*
-+	 * Private mappings do not use reserved huge pages so the allocation
-+	 * may have failed due to an undersized hugetlb pool.  Try to grab a
-+	 * surplus huge page from the buddy allocator.
-+	 */
-+	if (!(vma->vm_flags & VM_MAYSHARE))
-+		page = alloc_buddy_huge_page(vma, addr);
-+
-+	return page;
- }
- 
- static int __init hugetlb_init(void)
+-- 
+Politics is the struggle between those who want to make their country
+the best in the world, and those who believe it already is.  Each group
+calls the other unpatriotic.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
