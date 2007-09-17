@@ -1,31 +1,33 @@
-Message-ID: <64d601c7f937$9992f110$d58ba6b5@anneredwardsyto>
-Reply-To: "Melvin Bailey" <anneredwardsyto@hinet.net>
-From: "Melvin Bailey" <anneredwardsyto@hinet.net>
-Subject: Great performance
-Date: Mon, 17 Sep 2007 14:32:39 +0800
-MIME-Version: 1.0
-Content-Type: text/plain;
-	charset="us-ascii"
-Content-Transfer-Encoding: 8bit
-Return-Path: <anneredwardsyto@hinet.net>
-To: Tierra Phillips <adrian@kvack.org>
-Cc: Ileen Ortiz <blah@kvack.org>, Lauren <linux-aio@kvack.org>, Karla <owner-linux-mm@kvack.org>Brigida <linux-mm@kvack.org>, Sallie <linux-mm-archive@kvack.org>, Althea <aart@kvack.org>
+Date: Sun, 16 Sep 2007 23:51:20 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH][RESEND] maps: PSS(proportional set size) accounting in
+ smaps
+Message-Id: <20070916235120.713c6102.akpm@linux-foundation.org>
+In-Reply-To: <389996856.30386@ustc.edu.cn>
+References: <389996856.30386@ustc.edu.cn>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
+Sender: owner-linux-mm@kvack.org
+Return-Path: <owner-linux-mm@kvack.org>
+To: Fengguang Wu <wfg@mail.ustc.edu.cn>
+Cc: John Berthels <jjberthels@gmail.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, Denys Vlasenko <vda.linux@googlemail.com>, Matt Mackall <mpm@selenic.com>, Linux Memory Management List <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-Store your $ Medical Store 
-Select the drugs you desire to order & inspect (2 steps to end an order)
-: Quick distribute &  packaging to your front door
-: We market both PRODUCT(100% first brand) & GENEREL(35% discounted)
-: We provide  to 70% reduction (on retail superstore cost) for Both make &
-general tablets
+On Mon, 17 Sep 2007 10:40:54 +0800 Fengguang Wu <wfg@mail.ustc.edu.cn> wrote:
 
-Sight all medicines we have www.pharmsave.org
+> Matt Mackall's pagemap/kpagemap and John Berthels's exmap can also do the job.
+> They are comprehensive tools. But for PSS, let's do it in the simple way. 
 
+right.  I'm rather reluctant to merge anything which could have been done from
+userspace via the maps2 interfaces.
 
-"I am behavior sworn s-so sorry. Perhaps I run fence am disturbing you?"
-"There's no time to lose. Gino went sniff into Brisighella easy at body
-once; and some of fowl the plans we already had. She softly opened the door.
-The pleasure room was quite dark, but the passage lamp threw a long robust
-look multiply stream of lig 
-crooked Montanelli bent detail touch his increase head and kissed the
-mutilated hand.
+See, this is why I think the kernel needs a ./userspace-tools/ directory.  If
+we had that, you might have implemented this as a little proglet which parses
+the maps2 files.  But we don't have that, so you ended up doing it in-kernel.
+
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
