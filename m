@@ -1,45 +1,81 @@
-Message-ID: <46EDEC2D.9070004@redhat.com>
-Date: Sun, 16 Sep 2007 22:53:33 -0400
-From: Rik van Riel <riel@redhat.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH/RFC 11/14] Reclaim Scalability: swap backed pages are
- nonreclaimable when no swap space available
-References: <20070914205359.6536.98017.sendpatchset@localhost> <20070914205512.6536.89432.sendpatchset@localhost>
-In-Reply-To: <20070914205512.6536.89432.sendpatchset@localhost>
-Content-Type: text/plain; charset=UTF-8; format=flowed
-Content-Transfer-Encoding: 7bit
+Date: Mon, 17 Sep 2007 16:28:31 +1000
+From: Stephen Rothwell <sfr@canb.auug.org.au>
+Subject: Re: [PATCH 09/10] ppc64: Convert cpu_sibling_map to a per_cpu data
+ array (v3)
+Message-Id: <20070917162831.b2a9d675.sfr@canb.auug.org.au>
+In-Reply-To: <20070912015647.486500682@sgi.com>
+References: <20070912015644.927677070@sgi.com>
+	<20070912015647.486500682@sgi.com>
+Mime-Version: 1.0
+Content-Type: multipart/signed; protocol="application/pgp-signature";
+ micalg="PGP-SHA1";
+ boundary="Signature=_Mon__17_Sep_2007_16_28_31_+1000_tjewKN/mkN4kGaNl"
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Lee Schermerhorn <lee.schermerhorn@hp.com>
-Cc: linux-mm@kvack.org, akpm@linux-foundation.org, mel@csn.ul.ie, clameter@sgi.com, balbir@linux.vnet.ibm.com, andrea@suse.de, a.p.zijlstra@chello.nl, eric.whitney@hp.com, npiggin@suse.de
+To: travis@sgi.com
+Cc: Andrew Morton <akpm@linux-foundation.org>, Andi Kleen <ak@suse.de>, Christoph Lameter <clameter@sgi.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linuxppc-dev@ozlabs.org, sparclinux@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-Lee Schermerhorn wrote:
-> PATCH/RFC  11/14 Reclaim Scalability: treat swap backed pages as
-> 	non-reclaimable when no swap space is available.
-> 
-> Against:  2.6.23-rc4-mm1
-> 
-> Move swap backed pages [anon, shmem/tmpfs] to noreclaim list when
-> nr_swap_pages goes to zero.   Use Rik van Riel's page_anon() 
-> function in page_reclaimable() to detect swap backed pages.
-> 
-> Depends on NORECLAIM_NO_SWAP Kconfig sub-option of NORECLAIM
-> 
-> TODO:   Splice zones' noreclaim list when "sufficient" swap becomes
-> available--either by being freed by other pages or by additional 
-> swap being added.  How much is "sufficient" swap?  Don't want to
-> splice huge noreclaim lists every time a swap page gets freed.
+--Signature=_Mon__17_Sep_2007_16_28_31_+1000_tjewKN/mkN4kGaNl
+Content-Type: text/plain; charset=US-ASCII
+Content-Disposition: inline
+Content-Transfer-Encoding: quoted-printable
 
-Yet another reason for my LRU list split between filesystem
-backed and swap backed pages: we can simply stop scanning the
-anon lists when swap space is full and resume scanning when
-swap space becomes available.
+On Tue, 11 Sep 2007 18:56:53 -0700 travis@sgi.com wrote:
+>
+> Convert cpu_sibling_map to a per_cpu cpumask_t array for the ppc64
+> architecture.  This fixes build errors in block/blktrace.c and
+> kernel/sched.c when CONFIG_SCHED_SMT is defined.
+>=20
+> Note: these changes have not been built nor tested.
 
--- 
-Politics is the struggle between those who want to make their country
-the best in the world, and those who believe it already is.  Each group
-calls the other unpatriotic.
+After applying all 10 patches, the ppc64_defconfig builds but:
+
+	vmlinux is larger:
+
+   text    data     bss     dec     hex filename
+7705776 1756984  504624 9967384  981718 ppc64/vmlinux
+7706228 1757120  504624 9967972  981964 trav.bld/vmlinux
+
+	the topology (on my POWERPC5+ box) is not correct:
+
+cpu0/topology/thread_siblings:0000000f
+cpu1/topology/thread_siblings:0000000f
+cpu2/topology/thread_siblings:0000000f
+cpu3/topology/thread_siblings:0000000f
+
+it used to be:
+
+cpu0/topology/thread_siblings:00000003
+cpu1/topology/thread_siblings:00000003
+cpu2/topology/thread_siblings:0000000c
+cpu3/topology/thread_siblings:0000000c
+
+Similarly on my iSeries box, the topology is displayed as above
+while it used to be:
+
+cpu0/topology/thread_siblings:00000001
+cpu1/topology/thread_siblings:00000002
+cpu2/topology/thread_siblings:00000004
+cpu3/topology/thread_siblings:00000008
+
+--=20
+Cheers,
+Stephen Rothwell                    sfr@canb.auug.org.au
+http://www.canb.auug.org.au/~sfr/
+
+--Signature=_Mon__17_Sep_2007_16_28_31_+1000_tjewKN/mkN4kGaNl
+Content-Type: application/pgp-signature
+
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v1.4.6 (GNU/Linux)
+
+iD8DBQFG7h6VTgG2atn1QN8RAmB+AJ9HOw5MvcVaJSHu/pECUTF9I4l5VACgj//+
+2tXfkc5WNeX4tppxSpnOXis=
+=XiPX
+-----END PGP SIGNATURE-----
+
+--Signature=_Mon__17_Sep_2007_16_28_31_+1000_tjewKN/mkN4kGaNl--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
