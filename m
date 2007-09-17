@@ -1,39 +1,37 @@
-Message-ID: <46EED747.8090907@redhat.com>
-Date: Mon, 17 Sep 2007 15:36:39 -0400
-From: Rik van Riel <riel@redhat.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH/RFC 5/14] Reclaim Scalability:  Use an indexed array for
- LRU variables
-References: <20070914205359.6536.98017.sendpatchset@localhost> <20070914205431.6536.43754.sendpatchset@localhost> <46EECE5C.3070801@linux.vnet.ibm.com>
-In-Reply-To: <46EECE5C.3070801@linux.vnet.ibm.com>
-Content-Type: text/plain; charset=UTF-8; format=flowed
+Subject: Re: [PATCH] Fix NUMA Memory Policy Reference Counting
+From: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
+In-Reply-To: <Pine.LNX.4.64.0709171212360.27769@schroedinger.engr.sgi.com>
+References: <20070830185053.22619.96398.sendpatchset@localhost>
+	 <1190055637.5460.105.camel@localhost>
+	 <Pine.LNX.4.64.0709171212360.27769@schroedinger.engr.sgi.com>
+Content-Type: text/plain
+Date: Mon, 17 Sep 2007 15:38:05 -0400
+Message-Id: <1190057885.5460.134.camel@localhost>
+Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: balbir@linux.vnet.ibm.com
-Cc: Lee Schermerhorn <lee.schermerhorn@hp.com>, linux-mm@kvack.org, akpm@linux-foundation.org, mel@csn.ul.ie, clameter@sgi.com, andrea@suse.de, a.p.zijlstra@chello.nl, eric.whitney@hp.com, npiggin@suse.de
+To: Christoph Lameter <clameter@sgi.com>
+Cc: linux-mm@kvack.org, akpm@linux-foundation.org, ak@suse.de, eric.whitney@hp.com, Mel Gorman <mel@csn.ul.ie>
 List-ID: <linux-mm.kvack.org>
 
-Balbir Singh wrote:
-
-> I wonder if it makes sense to have an array of the form
+On Mon, 2007-09-17 at 12:14 -0700, Christoph Lameter wrote:
+> On Mon, 17 Sep 2007, Lee Schermerhorn wrote:
 > 
-> struct reclaim_lists {
-> 	struct list_head list[NR_LRU_LISTS];
-> 	unsigned long nr_scan[NR_LRU_LISTS];
-> 	reclaim_function_t list_reclaim_function[NR_LRU_LISTS];
-> }
+> > Page allocation micro-benchmark:
+> > 
+> > Time to fault in 256K 16k pages [ia64] into a 4G anon segment.
 > 
-> where reclaim_function is an array of reclaim functions for each list
-> (in our case shrink_active_list/shrink_inactive_list).
+> You need to run this as a test that concurrently allocates these pages 
+> from as many processors as possible in a common address space. A single 
+> thread will not cause cache line bouncing. I suspect this will cause an 
+> additional issue than what we already have with mmap_sem locking.
+> 
+Yeah, I'll have to write a custom, multithreaded test for this, or
+enhance memtoy to attach shm segments by id and run lots of them
+together.  I'll try to get to it asap.  
 
-I am not convinced, since that does not give us any way
-to balance between the calls made to each function...
-
--- 
-Politics is the struggle between those who want to make their country
-the best in the world, and those who believe it already is.  Each group
-calls the other unpatriotic.
+Lee
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
