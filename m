@@ -1,46 +1,41 @@
-Message-ID: <46EECAA0.9080300@kolumbus.fi>
-Date: Mon, 17 Sep 2007 21:42:40 +0300
-From: =?ISO-8859-15?Q?Mika_Penttil=E4?= <mika.penttila@kolumbus.fi>
+Date: Mon, 17 Sep 2007 19:57:00 +0100 (BST)
+From: Hugh Dickins <hugh@veritas.com>
+Subject: [PATCH mm] fix swapoff breakage; however...
+Message-ID: <Pine.LNX.4.64.0709171947130.15413@blonde.wat.veritas.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 3/4] hugetlb: Try to grow hugetlb pool for MAP_SHARED
- mappings
-References: <20070917163935.32557.50840.stgit@kernel>	 <20070917164009.32557.4348.stgit@kernel>  <46EEB7C1.70806@kolumbus.fi> <1190050936.15024.89.camel@localhost.localdomain>
-In-Reply-To: <1190050936.15024.89.camel@localhost.localdomain>
-Content-Type: text/plain; charset=ISO-8859-15; format=flowed
-Content-Transfer-Encoding: 8bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Adam Litke <agl@us.ibm.com>
-Cc: linux-mm@kvack.org, libhugetlbfs-devel@lists.sourceforge.net, Andy Whitcroft <apw@shadowen.org>, Mel Gorman <mel@skynet.ie>, Bill Irwin <bill.irwin@oracle.com>, Ken Chen <kenchen@google.com>, Dave McCracken <dave.mccracken@oracle.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Balbir Singh <balbir@linux.vnet.ibm.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Adam Litke wrote:
-> On Mon, 2007-09-17 at 20:22 +0300, Mika Penttila wrote:
->   
->>> +void return_unused_surplus_pages(void)
->>> +{
->>> +	static int nid = -1;
->>> +	int delta;
->>> +	struct page *page;
->>> +
->>> +	delta = unused_surplus_pages - resv_huge_pages;
->>> +
->>> +	while (delta) {
->>>   
->>>       
->> Shouldn't this be while (delta >= 0) ?
->>     
->
-> unused_surplus_pages is always >= resv_huge_pages so delta cannot go
-> negative.  But for clarity it makes sense to apply the change you
-> suggest.  Thanks for responding.
->
->   
-I think unused_surplus_pages accounting isn't quite right. It gets 
-always decremented in dequeue_huge_page() but incremented only if we 
-haven't enough free pages at reserve time.
+rc4-mm1's memory-controller-memory-accounting-v7.patch broke swapoff:
+it extended unuse_pte_range's boolean "found" return code to allow an
+error return too; but ended up returning found (1) as an error.
+Replace that by success (0) before it gets to the upper level.
 
---Mika
+Signed-off-by: Hugh Dickins <hugh@veritas.com>
+---
+More fundamentally, it looks like any container brought over its limit in
+unuse_pte will abort swapoff: that doesn't doesn't seem "contained" to me.
+Maybe unuse_pte should just let containers go over their limits without
+error?  Or swap should be counted along with RSS?  Needs reconsideration.
+
+ mm/swapfile.c |    2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+--- 2.6.23-rc4-mm1/mm/swapfile.c	2007-09-07 13:09:42.000000000 +0100
++++ linux/mm/swapfile.c	2007-09-17 15:14:47.000000000 +0100
+@@ -642,7 +642,7 @@ static int unuse_mm(struct mm_struct *mm
+ 			break;
+ 	}
+ 	up_read(&mm->mmap_sem);
+-	return ret;
++	return (ret < 0)? ret: 0;
+ }
+ 
+ /*
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
