@@ -1,248 +1,44 @@
-Date: Mon, 17 Sep 2007 12:02:35 +0100
-Subject: Re: [PATCH/RFC 1/14] Reclaim Scalability:  Convert anon_vma lock to read/write lock
-Message-ID: <20070917110234.GF25706@skynet.ie>
-References: <20070914205359.6536.98017.sendpatchset@localhost> <20070914205405.6536.37532.sendpatchset@localhost>
+Date: Mon, 17 Sep 2007 14:29:27 +0200
+From: Karel Zak <kzak@redhat.com>
+Subject: Re: Userspace tools
+Message-ID: <20070917122927.GA13856@petra.dvoda.cz>
+References: <389996856.30386@ustc.edu.cn> <20070916235120.713c6102.akpm@linux-foundation.org> <46EE2802.1000007@linux.vnet.ibm.com> <20070917090057.GA2083@infradead.org> <46EE44C3.80508@linux.vnet.ibm.com> <20070917091527.GA4409@infradead.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20070914205405.6536.37532.sendpatchset@localhost>
-From: mel@skynet.ie (Mel Gorman)
+In-Reply-To: <20070917091527.GA4409@infradead.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Lee Schermerhorn <lee.schermerhorn@hp.com>
-Cc: linux-mm@kvack.org, akpm@linux-foundation.org, clameter@sgi.com, riel@redhat.com, balbir@linux.vnet.ibm.com, andrea@suse.de, a.p.zijlstra@chello.nl, eric.whitney@hp.com, npiggin@suse.de
+To: Christoph Hellwig <hch@infradead.org>
+Cc: Balbir Singh <balbir@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, Fengguang Wu <wfg@mail.ustc.edu.cn>, John Berthels <jjberthels@gmail.com>, Denys Vlasenko <vda.linux@googlemail.com>, Matt Mackall <mpm@selenic.com>, Linux Memory Management List <linux-mm@kvack.org>, List util-linux-ng <util-linux-ng@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-On (14/09/07 16:54), Lee Schermerhorn didst pronounce:
-> [PATCH/RFC] 01/14 Reclaim Scalability:  Convert anon_vma list lock a read/write lock
+On Mon, Sep 17, 2007 at 10:15:27AM +0100, Christoph Hellwig wrote:
+> On Mon, Sep 17, 2007 at 02:41:31PM +0530, Balbir Singh wrote:
+> > > It's called the util-linux package.
+> > 
+> > I am looking at http://www.kernel.org/pub/linux/utils/util-linux/ and
+> > the last release happened in September 2005. May be I am looking in
+> > the wrong place.
 > 
-> Against 2.6.23-rc4-mm1
+> http://userweb.kernel.org/~kzak/util-linux-ng/
 > 
-> Make the anon_vma list lock a read/write lock.  Heaviest use of this
-> lock is in the page_referenced()/try_to_unmap() calls from vmscan
-> [shrink_page_list()].  These functions can use a read lock to allow
-> some parallelism for different cpus trying to reclaim pages mapped
-> via the same set of vmas.
-> 
-> This change should not change the footprint of the anon_vma in the
-> non-debug case.
-> 
-> Note:  I have seen systems livelock with all cpus in reclaim, down
-> in page_referenced_anon() or try_to_unmap_anon() spinning on the
-> anon_vma lock.  I have only seen this with the AIM7 benchmark with
-> workloads of 10s of thousands of tasks.  All of these tasks are
-> children of a single ancestor, so they all share the same anon_vma
-> for each vm area in their respective mm's.  I'm told that Apache
-> can fork thousands of children to handle incoming connections, and
-> I've seen similar livelocks--albeit on the i_mmap_lock [next patch]
-> running 1000s of Oracle users on a large ia64 platform.
-> 
-> With this patch [along with Rik van Riel's split LRU patch] we were
-> able to see the AIM7 workload start swapping, instead of hanging,
-> for the first time.  Same workload DID hang with just Rik's patch,
-> so this patch is apparently useful.
-> 
+> Karel,
+> 	any chance to put the new util-linux release into the place above
+> 	aswell.  (And maybe strip the silly -ng postfix)
 
-In light of what Peter and Linus said about rw-locks being more expensive
-than spinlocks, we'll need to measure this with some benchmark. The plus
-side is that this patch can be handled in isolation because it's either a
-scalability fix or it isn't. It's worth investigating because you say it
-fixed a real problem where under load the job was able to complete with
-this patch and live-locked without it.
+ Ask Adrian Bunk who ignores all mails about util-linux in last two
+ years. For more details see thread:
 
-kernbench is unlikely to show up anything useful here although it might be
-worth running anyway just in case. brk_test from aim9 might be useful as it's
-a micro-benchmark that uses brk() which is a path affected by this patch. As
-aim7 is exercising this path, it would be interesting to see does it show
-performance differences in the normal non-stressed case. Other suggestions?
+    http://lkml.org/lkml/2006/12/20/130
 
-For this one, it'll be important to test on single CPU systems with an
-SMP kernel as well as this feels like one of those fixes that helps large
-machines but punishes small ones.
+ ... it's old and stupid story. Maybe we can try to restart this
+ discussion. I have not a clue, how deep is Adrian's hibernation...
 
-When you decide on a test-case, I can test just this patch and see what
-results I find.
-
-Otherwise the patch looks ok.
-
-> Signed-off-by:  Lee Schermerhorn <lee.schermerhorn@hp.com>
-> 
->  include/linux/rmap.h |    9 ++++++---
->  mm/migrate.c         |    4 ++--
->  mm/mmap.c            |    4 ++--
->  mm/rmap.c            |   20 ++++++++++----------
->  4 files changed, 20 insertions(+), 17 deletions(-)
-> 
-> Index: Linux/include/linux/rmap.h
-> ===================================================================
-> --- Linux.orig/include/linux/rmap.h	2007-09-10 10:09:47.000000000 -0400
-> +++ Linux/include/linux/rmap.h	2007-09-10 11:43:11.000000000 -0400
-> @@ -25,7 +25,7 @@
->   * pointing to this anon_vma once its vma list is empty.
->   */
->  struct anon_vma {
-> -	spinlock_t lock;	/* Serialize access to vma list */
-> +	rwlock_t rwlock;	/* Serialize access to vma list */
->  	struct list_head head;	/* List of private "related" vmas */
->  };
->  
-> @@ -43,18 +43,21 @@ static inline void anon_vma_free(struct 
->  	kmem_cache_free(anon_vma_cachep, anon_vma);
->  }
->  
-> +/*
-> + * This needs to be a write lock for __vma_link()
-> + */
->  static inline void anon_vma_lock(struct vm_area_struct *vma)
->  {
->  	struct anon_vma *anon_vma = vma->anon_vma;
->  	if (anon_vma)
-> -		spin_lock(&anon_vma->lock);
-> +		write_lock(&anon_vma->rwlock);
->  }
->  
->  static inline void anon_vma_unlock(struct vm_area_struct *vma)
->  {
->  	struct anon_vma *anon_vma = vma->anon_vma;
->  	if (anon_vma)
-> -		spin_unlock(&anon_vma->lock);
-> +		write_unlock(&anon_vma->rwlock);
->  }
->  
->  /*
-> Index: Linux/mm/rmap.c
-> ===================================================================
-> --- Linux.orig/mm/rmap.c	2007-09-10 10:09:47.000000000 -0400
-> +++ Linux/mm/rmap.c	2007-09-10 11:43:11.000000000 -0400
-> @@ -25,7 +25,7 @@
->   *   mm->mmap_sem
->   *     page->flags PG_locked (lock_page)
->   *       mapping->i_mmap_lock
-> - *         anon_vma->lock
-> + *         anon_vma->rwlock
->   *           mm->page_table_lock or pte_lock
->   *             zone->lru_lock (in mark_page_accessed, isolate_lru_page)
->   *             swap_lock (in swap_duplicate, swap_info_get)
-> @@ -68,7 +68,7 @@ int anon_vma_prepare(struct vm_area_stru
->  		if (anon_vma) {
->  			allocated = NULL;
->  			locked = anon_vma;
-> -			spin_lock(&locked->lock);
-> +			write_lock(&locked->rwlock);
->  		} else {
->  			anon_vma = anon_vma_alloc();
->  			if (unlikely(!anon_vma))
-> @@ -87,7 +87,7 @@ int anon_vma_prepare(struct vm_area_stru
->  		spin_unlock(&mm->page_table_lock);
->  
->  		if (locked)
-> -			spin_unlock(&locked->lock);
-> +			write_unlock(&locked->rwlock);
->  		if (unlikely(allocated))
->  			anon_vma_free(allocated);
->  	}
-> @@ -113,9 +113,9 @@ void anon_vma_link(struct vm_area_struct
->  	struct anon_vma *anon_vma = vma->anon_vma;
->  
->  	if (anon_vma) {
-> -		spin_lock(&anon_vma->lock);
-> +		write_lock(&anon_vma->rwlock);
->  		list_add_tail(&vma->anon_vma_node, &anon_vma->head);
-> -		spin_unlock(&anon_vma->lock);
-> +		write_unlock(&anon_vma->rwlock);
->  	}
->  }
->  
-> @@ -127,12 +127,12 @@ void anon_vma_unlink(struct vm_area_stru
->  	if (!anon_vma)
->  		return;
->  
-> -	spin_lock(&anon_vma->lock);
-> +	write_lock(&anon_vma->rwlock);
->  	list_del(&vma->anon_vma_node);
->  
->  	/* We must garbage collect the anon_vma if it's empty */
->  	empty = list_empty(&anon_vma->head);
-> -	spin_unlock(&anon_vma->lock);
-> +	write_unlock(&anon_vma->rwlock);
->  
->  	if (empty)
->  		anon_vma_free(anon_vma);
-> @@ -143,7 +143,7 @@ static void anon_vma_ctor(void *data, st
->  {
->  	struct anon_vma *anon_vma = data;
->  
-> -	spin_lock_init(&anon_vma->lock);
-> + 	rwlock_init(&anon_vma->rwlock);
->  	INIT_LIST_HEAD(&anon_vma->head);
->  }
->  
-> @@ -170,7 +170,7 @@ static struct anon_vma *page_lock_anon_v
->  		goto out;
->  
->  	anon_vma = (struct anon_vma *) (anon_mapping - PAGE_MAPPING_ANON);
-> -	spin_lock(&anon_vma->lock);
-> +	read_lock(&anon_vma->rwlock);
->  	return anon_vma;
->  out:
->  	rcu_read_unlock();
-> @@ -179,7 +179,7 @@ out:
->  
->  static void page_unlock_anon_vma(struct anon_vma *anon_vma)
->  {
-> -	spin_unlock(&anon_vma->lock);
-> +	read_unlock(&anon_vma->rwlock);
->  	rcu_read_unlock();
->  }
->  
-> Index: Linux/mm/mmap.c
-> ===================================================================
-> --- Linux.orig/mm/mmap.c	2007-09-10 10:09:47.000000000 -0400
-> +++ Linux/mm/mmap.c	2007-09-10 11:43:11.000000000 -0400
-> @@ -570,7 +570,7 @@ again:			remove_next = 1 + (end > next->
->  	if (vma->anon_vma)
->  		anon_vma = vma->anon_vma;
->  	if (anon_vma) {
-> -		spin_lock(&anon_vma->lock);
-> +		write_lock(&anon_vma->rwlock);
->  		/*
->  		 * Easily overlooked: when mprotect shifts the boundary,
->  		 * make sure the expanding vma has anon_vma set if the
-> @@ -624,7 +624,7 @@ again:			remove_next = 1 + (end > next->
->  	}
->  
->  	if (anon_vma)
-> -		spin_unlock(&anon_vma->lock);
-> +		write_unlock(&anon_vma->rwlock);
->  	if (mapping)
->  		spin_unlock(&mapping->i_mmap_lock);
->  
-> Index: Linux/mm/migrate.c
-> ===================================================================
-> --- Linux.orig/mm/migrate.c	2007-09-10 10:09:47.000000000 -0400
-> +++ Linux/mm/migrate.c	2007-09-10 11:43:11.000000000 -0400
-> @@ -234,12 +234,12 @@ static void remove_anon_migration_ptes(s
->  	 * We hold the mmap_sem lock. So no need to call page_lock_anon_vma.
->  	 */
->  	anon_vma = (struct anon_vma *) (mapping - PAGE_MAPPING_ANON);
-> -	spin_lock(&anon_vma->lock);
-> +	read_lock(&anon_vma->rwlock);
->  
->  	list_for_each_entry(vma, &anon_vma->head, anon_vma_node)
->  		remove_migration_pte(vma, old, new);
->  
-> -	spin_unlock(&anon_vma->lock);
-> +	read_unlock(&anon_vma->rwlock);
->  }
->  
->  /*
-> 
+    Karel
 
 -- 
--- 
-Mel Gorman
-Part-time Phd Student                          Linux Technology Center
-University of Limerick                         IBM Dublin Software Lab
+ Karel Zak  <kzak@redhat.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
