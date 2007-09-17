@@ -1,52 +1,56 @@
-Date: Mon, 17 Sep 2007 13:15:26 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: VM/VFS bug with large amount of memory and file systems?
-Message-Id: <20070917131526.e8db80fe.akpm@linux-foundation.org>
-In-Reply-To: <46EEB532.3060804@redhat.com>
-References: <C2A8AED2-363F-4131-863C-918465C1F4E1@cam.ac.uk>
-	<1189850897.21778.301.camel@twins>
-	<20070915035228.8b8a7d6d.akpm@linux-foundation.org>
-	<13126578-A4F8-43EA-9B0D-A3BCBFB41FEC@cam.ac.uk>
-	<20070917163257.331c7605@twins>
-	<46EEB532.3060804@redhat.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Received: from d23relay03.au.ibm.com (d23relay03.au.ibm.com [202.81.18.234])
+	by e23smtp03.au.ibm.com (8.13.1/8.13.1) with ESMTP id l8HKLqco018113
+	for <linux-mm@kvack.org>; Tue, 18 Sep 2007 06:21:52 +1000
+Received: from d23av01.au.ibm.com (d23av01.au.ibm.com [9.190.234.96])
+	by d23relay03.au.ibm.com (8.13.8/8.13.8/NCO v8.5) with ESMTP id l8HKLqGM4694052
+	for <linux-mm@kvack.org>; Tue, 18 Sep 2007 06:21:52 +1000
+Received: from d23av01.au.ibm.com (loopback [127.0.0.1])
+	by d23av01.au.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l8HKKM8C002666
+	for <linux-mm@kvack.org>; Tue, 18 Sep 2007 06:20:22 +1000
+Message-ID: <46EEE1C3.1010203@linux.vnet.ibm.com>
+Date: Tue, 18 Sep 2007 01:51:23 +0530
+From: Balbir Singh <balbir@linux.vnet.ibm.com>
+Reply-To: balbir@linux.vnet.ibm.com
+MIME-Version: 1.0
+Subject: Re: [PATCH/RFC 5/14] Reclaim Scalability:  Use an indexed array for
+ LRU variables
+References: <20070914205359.6536.98017.sendpatchset@localhost> <20070914205431.6536.43754.sendpatchset@localhost> <46EECE5C.3070801@linux.vnet.ibm.com> <46EED747.8090907@redhat.com>
+In-Reply-To: <46EED747.8090907@redhat.com>
+Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Rik van Riel <riel@redhat.com>
-Cc: Peter Zijlstra <peterz@infradead.org>, Anton Altaparmakov <aia21@cam.ac.uk>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>, marc.smith@esmail.mcc.edu
+Cc: Lee Schermerhorn <lee.schermerhorn@hp.com>, linux-mm@kvack.org, akpm@linux-foundation.org, mel@csn.ul.ie, clameter@sgi.com, andrea@suse.de, a.p.zijlstra@chello.nl, eric.whitney@hp.com, npiggin@suse.de
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 17 Sep 2007 13:11:14 -0400
-Rik van Riel <riel@redhat.com> wrote:
-
-> > I'm guessing there is no pressure at all on zone_highmem so the
-> > kernel will not try to reclaim pagecache. And because the pagecache
-> > pages are happily sitting there, the buggerheads are pinned and do not
-> > get reclaimed.
-
-yeah, this got pretty unavoidably broken when we killed the global LRU
-in 2.5.early. It's odd that it took this long for someone to hit it.
-
-> I've got code for this in RHEL 3, but never bothered to
-> merge it upstream since I thought people with large memory
-> systems would be running 64 bit kernels by now.
+Rik van Riel wrote:
+> Balbir Singh wrote:
 > 
-> Obviously I was wrong.  Andrew, are you interested in a
-> fix for this problem?
+>> I wonder if it makes sense to have an array of the form
+>>
+>> struct reclaim_lists {
+>>     struct list_head list[NR_LRU_LISTS];
+>>     unsigned long nr_scan[NR_LRU_LISTS];
+>>     reclaim_function_t list_reclaim_function[NR_LRU_LISTS];
+>> }
+>>
+>> where reclaim_function is an array of reclaim functions for each list
+>> (in our case shrink_active_list/shrink_inactive_list).
 > 
-> IIRC I simply kept a list of all buffer heads and walked
-> that to reclaim pages when the number of buffer heads is
-> too high (and we need memory).  This list can be maintained
-> in places where we already hold the lock for the buffer head
-> freelist, so there should be no additional locking overhead
-> (again, IIRC).
+> I am not convinced, since that does not give us any way
+> to balance between the calls made to each function...
+> 
 
-Christoph's slab defragmentation code should permit us to fix this:
-grab a page of buffer_heads off the slab lists, trylock the page,
-strip the buffer_heads.  I think that would be a better approach
-if we can get it going because it's more general.
+Currently the balancing done is based on the number of pages
+on each list, the priority and the pass. We could still do
+that with the functions encapsulated. Am I missing something?
+
+-- 
+	Warm Regards,
+	Balbir Singh
+	Linux Technology Center
+	IBM, ISTL
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
