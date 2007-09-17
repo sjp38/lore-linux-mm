@@ -1,50 +1,31 @@
-Received: by wx-out-0506.google.com with SMTP id h31so2506931wxd
-        for <linux-mm@kvack.org>; Mon, 17 Sep 2007 10:49:56 -0700 (PDT)
-From: Denys Vlasenko <vda.linux@googlemail.com>
-Subject: Re: [PATCH][RESEND] maps: PSS(proportional set size) accounting in smaps
-Date: Mon, 17 Sep 2007 18:49:20 +0100
-References: <389996856.30386@ustc.edu.cn> <20070916235120.713c6102.akpm@linux-foundation.org> <20070917161027.GY4219@waste.org>
-In-Reply-To: <20070917161027.GY4219@waste.org>
+Date: Mon, 17 Sep 2007 10:54:59 -0700 (PDT)
+From: Christoph Lameter <clameter@sgi.com>
+Subject: Re: [PATCH] Configurable reclaim batch size
+In-Reply-To: <1189812002.5826.31.camel@lappy>
+Message-ID: <Pine.LNX.4.64.0709171053040.26860@schroedinger.engr.sgi.com>
+References: <Pine.LNX.4.64.0709141519230.14894@schroedinger.engr.sgi.com>
+ <1189812002.5826.31.camel@lappy>
 MIME-Version: 1.0
-Content-Type: text/plain;
-  charset="iso-8859-1"
-Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
-Message-Id: <200709171849.20306.vda.linux@googlemail.com>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Matt Mackall <mpm@selenic.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Fengguang Wu <wfg@mail.ustc.edu.cn>, John Berthels <jjberthels@gmail.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, Linux Memory Management List <linux-mm@kvack.org>
+To: Peter Zijlstra <a.p.zijlstra@chello.nl>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-Hi Matt,
+On Sat, 15 Sep 2007, Peter Zijlstra wrote:
 
-On Monday 17 September 2007 17:10, Matt Mackall wrote:
-> Also, there's a second number we should be reporting at the same
-> time, which I've been calling USS (unique or unshared set size), which
-> is the size of the unshared pages. This is, for example, the amount of
-> memory that will get freed when you kill one of 20 Apache threads, or,
-> alternately, the amount of memory that adding another one will consume.
+> It increases the lock hold times though. Otoh it might work out with the
+> lock placement.
 
-USS is already there, smaps already gives you that.
+Yeah may be good for NUMA.
+ 
+> Do you have any numbers that show this is worthwhile?
 
-If you read entire smaps "file" and sum up all numbers there:
-
-Shared_Clean: N
-Shared_Dirty: N
-Private_Clean: N
-Private_Dirty: N
-
-Then you can calculate the following (among other useful things):
-
-rss_sh   - sum of (shared_clean + shared_dirty)
-uss      - sum of (private_clean + private_dirty) <=== HERE
-rss      - uss + rss_sh
-
-PSS, on the other hand, cannot be inferred from this data,
-so please push it into mainline.
---
-vda
+Tried to run AIM7 but the improvements are in the noise. I need a tests 
+that really does large memory allocation and stresses the LRU. I could 
+code something up but then Lee's patch addresses some of the same issues.
+Is there any standard test that shows LRU handling regressions?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
