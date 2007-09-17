@@ -1,50 +1,65 @@
-Message-ID: <46EEEB14.3030107@redhat.com>
-Date: Mon, 17 Sep 2007 17:01:08 -0400
-From: Rik van Riel <riel@redhat.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH/RFC 5/14] Reclaim Scalability:  Use an indexed array for
- LRU variables
-References: <20070914205359.6536.98017.sendpatchset@localhost> <20070914205431.6536.43754.sendpatchset@localhost> <46EECE5C.3070801@linux.vnet.ibm.com> <46EED747.8090907@redhat.com> <46EEE1C3.1010203@linux.vnet.ibm.com>
-In-Reply-To: <46EEE1C3.1010203@linux.vnet.ibm.com>
-Content-Type: text/plain; charset=UTF-8; format=flowed
+Date: Mon, 17 Sep 2007 14:11:27 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: VM/VFS bug with large amount of memory and file systems?
+Message-Id: <20070917141127.ab2ae148.akpm@linux-foundation.org>
+In-Reply-To: <46EEE7B7.1070206@redhat.com>
+References: <C2A8AED2-363F-4131-863C-918465C1F4E1@cam.ac.uk>
+	<1189850897.21778.301.camel@twins>
+	<20070915035228.8b8a7d6d.akpm@linux-foundation.org>
+	<13126578-A4F8-43EA-9B0D-A3BCBFB41FEC@cam.ac.uk>
+	<20070917163257.331c7605@twins>
+	<46EEB532.3060804@redhat.com>
+	<20070917131526.e8db80fe.akpm@linux-foundation.org>
+	<46EEE7B7.1070206@redhat.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: balbir@linux.vnet.ibm.com
-Cc: Lee Schermerhorn <lee.schermerhorn@hp.com>, linux-mm@kvack.org, akpm@linux-foundation.org, mel@csn.ul.ie, clameter@sgi.com, andrea@suse.de, a.p.zijlstra@chello.nl, eric.whitney@hp.com, npiggin@suse.de
+To: Rik van Riel <riel@redhat.com>
+Cc: Peter Zijlstra <peterz@infradead.org>, Anton Altaparmakov <aia21@cam.ac.uk>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>, marc.smith@esmail.mcc.edu
 List-ID: <linux-mm.kvack.org>
 
-Balbir Singh wrote:
-> Rik van Riel wrote:
->> Balbir Singh wrote:
->>
->>> I wonder if it makes sense to have an array of the form
->>>
->>> struct reclaim_lists {
->>>     struct list_head list[NR_LRU_LISTS];
->>>     unsigned long nr_scan[NR_LRU_LISTS];
->>>     reclaim_function_t list_reclaim_function[NR_LRU_LISTS];
->>> }
->>>
->>> where reclaim_function is an array of reclaim functions for each list
->>> (in our case shrink_active_list/shrink_inactive_list).
->> I am not convinced, since that does not give us any way
->> to balance between the calls made to each function...
+On Mon, 17 Sep 2007 16:46:47 -0400
+Rik van Riel <riel@redhat.com> wrote:
+
+> Andrew Morton wrote:
+> > On Mon, 17 Sep 2007 13:11:14 -0400
+> > Rik van Riel <riel@redhat.com> wrote:
 > 
-> Currently the balancing done is based on the number of pages
-> on each list, the priority and the pass. We could still do
-> that with the functions encapsulated. Am I missing something?
+> >> IIRC I simply kept a list of all buffer heads and walked
+> >> that to reclaim pages when the number of buffer heads is
+> >> too high (and we need memory).  This list can be maintained
+> >> in places where we already hold the lock for the buffer head
+> >> freelist, so there should be no additional locking overhead
+> >> (again, IIRC).
+> > 
+> > Christoph's slab defragmentation code should permit us to fix this:
+> > grab a page of buffer_heads off the slab lists, trylock the page,
+> > strip the buffer_heads.  I think that would be a better approach
+> > if we can get it going because it's more general.
+> 
+> Is the slab defragmentation code in -mm or upstream already
+> or can I find it on the mailing list?
 
-Yes, that balancing does not work very well in all
-workloads and will need to be changed some time.
+Is on lkml and linux-mm: http://lkml.org/lkml/2007/8/31/329
 
-Your scheme would remove the flexibility needed
-to make such fixes.
+> I've implemented code like you describe already, just give me
+> a few days to become familiar with the slab defragmentation
+> code and I'll get you a patch.
 
--- 
-Politics is the struggle between those who want to make their country
-the best in the world, and those who believe it already is.  Each group
-calls the other unpatriotic.
+The patchset does buffer_heads: http://lkml.org/lkml/2007/8/31/348
+
+I think the whole approach is reasonable.  It's mainly a matter of going
+through it all with a toothcomb and getting it all merged up, tested and
+integrated.  There's considerable potential for nasty and rarely-occurring
+surprises in this stuff because it tends to approach locking in the
+reversed order.
+
+<checks the archives>
+
+There were a few desultory comments, but I see no sign that the bulk of
+the patches have had any serious review and testing from anyone yet.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
