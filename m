@@ -1,47 +1,100 @@
-Message-ID: <390013699.27169@ustc.edu.cn>
-Date: Mon, 17 Sep 2007 15:21:36 +0800
-From: Fengguang Wu <wfg@mail.ustc.edu.cn>
-Subject: Re: [PATCH][RESEND] maps: PSS(proportional set size) accounting in
-	smaps
-Message-ID: <20070917072136.GA5706@mail.ustc.edu.cn>
-References: <389996856.30386@ustc.edu.cn> <20070916235120.713c6102.akpm@linux-foundation.org>
+Date: Mon, 17 Sep 2007 11:53:17 +0300
+From: " Royal Kasino " <stochastic@mail2world.com>
+Subject: Zahlen Sie 100 Euro ein und spielen Sie mit 400 Euro
+Message-ID: <44821053.90328923@trifle.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20070916235120.713c6102.akpm@linux-foundation.org>
-Sender: owner-linux-mm@kvack.org
-Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: John Berthels <jjberthels@gmail.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, Denys Vlasenko <vda.linux@googlemail.com>, Matt Mackall <mpm@selenic.com>, Linux Memory Management List <linux-mm@kvack.org>
+Content-Type: text/html; charset=iso-8859-1
+Content-Transfer-Encoding: 7bit
+Return-Path: <stochastic@mail2world.com>
+To: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Sun, Sep 16, 2007 at 11:51:20PM -0700, Andrew Morton wrote:
-> On Mon, 17 Sep 2007 10:40:54 +0800 Fengguang Wu <wfg@mail.ustc.edu.cn> wrote:
-> 
-> > Matt Mackall's pagemap/kpagemap and John Berthels's exmap can also do the job.
-> > They are comprehensive tools. But for PSS, let's do it in the simple way. 
-> 
-> right.  I'm rather reluctant to merge anything which could have been done from
-> userspace via the maps2 interfaces.
+<html>
 
-Agreed.  My thought was that PSS will be used far more widely than
-other maps2 memory analysis tools. Providing PSS in smaps could
-possibly help simplify many ps/top like tools.
+<head>
+<meta http-equiv=Content-Type content="text/html; charset=iso-8859-1">
 
-> See, this is why I think the kernel needs a ./userspace-tools/ directory.  If
-> we had that, you might have implemented this as a little proglet which parses
-> the maps2 files.  But we don't have that, so you ended up doing it in-kernel.
+<title>Willkommen</title>
 
-Because Matt didn't put it there ;-)
+<style>
+<!--
+ /* Style Definitions */
+ p.MsoNormal, li.MsoNormal, div.MsoNormal
+	{mso-style-parent:"";
+	margin:0cm;
+	margin-bottom:.0001pt;
+	mso-pagination:widow-orphan;
+	font-size:12.0pt;
+	font-family:"Times New Roman";
+	mso-fareast-font-family:"Times New Roman";
+	mso-ansi-language:EN-US;
+	mso-fareast-language:EN-US;}
+a:link, span.MsoHyperlink
+	{color:blue;
+	text-decoration:underline;
+	text-underline:single;}
+a:visited, span.MsoHyperlinkFollowed
+	{color:purple;
+	text-decoration:underline;
+	text-underline:single;}
+@page Section1
+	{size:595.3pt 841.9pt;
+	margin:2.0cm 42.5pt 2.0cm 3.0cm;
+	mso-header-margin:35.4pt;
+	mso-footer-margin:35.4pt;
+	mso-paper-source:0;}
+div.Section1
+	{page:Section1;}
+-->
+</style>
 
-I wholly agree that it is a good practice to carry some user space
-tools with the kernel as the reference implementations. We already
-have some in the Document/ and usr/ directories.
+</head>
 
-Fengguang
+<body lang=DE link=blue vlink=purple style='tab-interval:35.4pt'>
 
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+<div class=Section1>
+
+<p class=MsoNormal><span lang=EN-US>Willkommen im Royal VIP Kasino, wo der
+Kunde K&ouml;nig ist (oder K&ouml;nigin)<o:p></o:p></span></p>
+
+<p class=MsoNormal><span lang=EN-US><o:p>&nbsp;</o:p></span></p>
+
+<p class=MsoNormal><span lang=EN-US>Er&ouml;ffnen Sie heute ein Konto, und Sie
+erfahren vom ersten Tag an, was es hei&#223;t, ein VIP zu sein: mit unserem
+300-%-Willkommensbonus von bis zu 300 &#8364;! <o:p></o:p></span></p>
+
+<p class=MsoNormal><span lang=EN-US><o:p>&nbsp;</o:p></span></p>
+
+<p class=MsoNormal><span lang=EN-US>Sie sind noch nicht &uuml;berzeugt? 
+<o:p></o:p></span></p>
+
+<p class=MsoNormal><span lang=EN-US>- Sichere Server- und Spiele-Software
+<o:p></o:p></span></p>
+
+<p class=MsoNormal><span lang=EN-US>- Ansprechende Grafiken und mehr als 100
+realistische Spiele<o:p></o:p></span></p>
+
+<p class=MsoNormal><span lang=EN-US>- Die gr&ouml;&#223;ten fortlaufenden 
+Jackpots online, gef&uuml;llt mit mehreren Millionen Euro 
+<o:p></o:p></span></p>
+
+<p class=MsoNormal><span lang=EN-US>- Professionelle Spielerbetreuung rund um
+die Uhr<o:p></o:p></span></p>
+
+<p class=MsoNormal><span lang=EN-US><o:p>&nbsp;</o:p></span></p>
+
+<p class=MsoNormal><span lang=EN-US>Um sich Ihren Bonus jetzt zu sichern,
+setzen Sie Ihre Krone auf, und werfen Sie sich in Ihre Robe: eine v&ouml;llig 
+neue, aufregende Erfahrung erwartet Sie!<o:p></o:p></span></p>
+
+<p class=MsoNormal><span lang=EN-US><o:p>&nbsp;</o:p></span></p>
+
+<p class=MsoNormal><span lang=EN-US>
+<a href="http://royalgamez.com/lang-de/">
+http://royalgamez.com/lang-de/</a><o:p></o:p></span></p>
+
+</div>
+
+</body>
+
+</html>
