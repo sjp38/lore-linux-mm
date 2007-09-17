@@ -1,28 +1,53 @@
-Date: Mon, 17 Sep 2007 12:43:24 -0700 (PDT)
-From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [PATCH] Fix NUMA Memory Policy Reference Counting
-In-Reply-To: <1190057885.5460.134.camel@localhost>
-Message-ID: <Pine.LNX.4.64.0709171241290.28361@schroedinger.engr.sgi.com>
-References: <20070830185053.22619.96398.sendpatchset@localhost>
- <1190055637.5460.105.camel@localhost>  <Pine.LNX.4.64.0709171212360.27769@schroedinger.engr.sgi.com>
- <1190057885.5460.134.camel@localhost>
+Date: Mon, 17 Sep 2007 20:51:05 +0100 (BST)
+From: Hugh Dickins <hugh@veritas.com>
+Subject: Re: [PATCH mm] fix swapoff breakage; however...
+In-Reply-To: <46EED1A7.5080606@linux.vnet.ibm.com>
+Message-ID: <Pine.LNX.4.64.0709172038090.25512@blonde.wat.veritas.com>
+References: <Pine.LNX.4.64.0709171947130.15413@blonde.wat.veritas.com>
+ <46EED1A7.5080606@linux.vnet.ibm.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
-Cc: linux-mm@kvack.org, akpm@linux-foundation.org, ak@suse.de, eric.whitney@hp.com, Mel Gorman <mel@csn.ul.ie>
+To: Balbir Singh <balbir@linux.vnet.ibm.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 17 Sep 2007, Lee Schermerhorn wrote:
+On Tue, 18 Sep 2007, Balbir Singh wrote:
+> Hugh Dickins wrote:
+> > More fundamentally, it looks like any container brought over its limit in
+> > unuse_pte will abort swapoff: that doesn't doesn't seem "contained" to me.
+> > Maybe unuse_pte should just let containers go over their limits without
+> > error?  Or swap should be counted along with RSS?  Needs reconsideration.
+> 
+> Thanks, for the catching this. There are three possible solutions
+> 
+> 1. Account each RSS page with a probable swap cache page, double
+>    the RSS accounting to ensure that swapoff will not fail.
+> 2. Account for the RSS page just once, do not account swap cache
+>    pages
 
-> Yeah, I'll have to write a custom, multithreaded test for this, or
-> enhance memtoy to attach shm segments by id and run lots of them
-> together.  I'll try to get to it asap.  
+Neither of those makes sense to me, but I may be misunderstanding.
 
-Maybe my old pft.c tool would help:
+What would make sense is (what I meant when I said swap counted
+along with RSS) not to count pages out and back in as they are
+go out to swap and back in, just keep count of instantiated pages
 
-http://lkml.org/lkml/2006/8/29/294
+I say "make sense" meaning that the numbers could be properly
+accounted; but it may well be unpalatable to treat fast RAM as
+equal to slow swap.
+
+> 3. Follow your suggestion and let containers go over their limits
+>    without error
+> 
+> With the current approach, a container over it's limit will not
+> be able to call swapoff successfully, is that bad?
+
+That's not so bad.  What's bad is that anyone else with the
+CAP_SYS_ADMIN to swapoff is liable to be prevented by containers
+going over their limits.
+
+Hugh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
