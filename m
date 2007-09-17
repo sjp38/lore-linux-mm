@@ -1,64 +1,51 @@
-Date: Mon, 17 Sep 2007 16:39:54 +1000
-From: Stephen Rothwell <sfr@canb.auug.org.au>
-Subject: Re: [PATCH 09/10] ppc64: Convert cpu_sibling_map to a per_cpu data
- array (v3)
-Message-Id: <20070917163954.1c3b91fd.sfr@canb.auug.org.au>
-In-Reply-To: <20070917162831.b2a9d675.sfr@canb.auug.org.au>
-References: <20070912015644.927677070@sgi.com>
-	<20070912015647.486500682@sgi.com>
-	<20070917162831.b2a9d675.sfr@canb.auug.org.au>
-Mime-Version: 1.0
-Content-Type: multipart/signed; protocol="application/pgp-signature";
- micalg="PGP-SHA1";
- boundary="Signature=_Mon__17_Sep_2007_16_39_54_+1000_8XGFp5gdvQyJPmgh"
+Received: from sd0109e.au.ibm.com (d23rh905.au.ibm.com [202.81.18.225])
+	by e23smtp06.au.ibm.com (8.13.1/8.13.1) with ESMTP id l8H6kQuM007191
+	for <linux-mm@kvack.org>; Mon, 17 Sep 2007 16:46:26 +1000
+Received: from d23av01.au.ibm.com (d23av01.au.ibm.com [9.190.234.96])
+	by sd0109e.au.ibm.com (8.13.8/8.13.8/NCO v8.5) with ESMTP id l8H6miqT062156
+	for <linux-mm@kvack.org>; Mon, 17 Sep 2007 16:48:45 +1000
+Received: from d23av01.au.ibm.com (loopback [127.0.0.1])
+	by d23av01.au.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l8H6irDg009963
+	for <linux-mm@kvack.org>; Mon, 17 Sep 2007 16:44:54 +1000
+Message-ID: <46EE2247.2020407@linux.vnet.ibm.com>
+Date: Mon, 17 Sep 2007 12:14:23 +0530
+From: Balbir Singh <balbir@linux.vnet.ibm.com>
+Reply-To: balbir@linux.vnet.ibm.com
+MIME-Version: 1.0
+Subject: Re: [PATCH/RFC 0/14] Page Reclaim Scalability
+References: <20070914205359.6536.98017.sendpatchset@localhost>
+In-Reply-To: <20070914205359.6536.98017.sendpatchset@localhost>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: travis@sgi.com
-Cc: Andrew Morton <akpm@linux-foundation.org>, Andi Kleen <ak@suse.de>, Christoph Lameter <clameter@sgi.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linuxppc-dev@ozlabs.org, sparclinux@vger.kernel.org
+To: Lee Schermerhorn <lee.schermerhorn@hp.com>
+Cc: linux-mm@kvack.org, akpm@linux-foundation.org, mel@csn.ul.ie, clameter@sgi.com, riel@redhat.com, andrea@suse.de, a.p.zijlstra@chello.nl, eric.whitney@hp.com, npiggin@suse.de
 List-ID: <linux-mm.kvack.org>
 
---Signature=_Mon__17_Sep_2007_16_39_54_+1000_8XGFp5gdvQyJPmgh
-Content-Type: text/plain; charset=US-ASCII
-Content-Disposition: inline
-Content-Transfer-Encoding: quoted-printable
+[snip]
 
-On Mon, 17 Sep 2007 16:28:31 +1000 Stephen Rothwell <sfr@canb.auug.org.au> =
-wrote:
->
-> 	the topology (on my POWERPC5+ box) is not correct:
->=20
-> cpu0/topology/thread_siblings:0000000f
-> cpu1/topology/thread_siblings:0000000f
-> cpu2/topology/thread_siblings:0000000f
-> cpu3/topology/thread_siblings:0000000f
->=20
-> it used to be:
->=20
-> cpu0/topology/thread_siblings:00000003
-> cpu1/topology/thread_siblings:00000003
-> cpu2/topology/thread_siblings:0000000c
-> cpu3/topology/thread_siblings:0000000c
+> 
+> Aside:  I note that in 23-rc4-mm1, the memory controller has 
+> its own active and inactive list.  It may also benefit from
+> use of Christoph's patch.  Further, we'll need to consider 
+> whether memory controllers should maintain separate noreclaim
+> lists.
+> 
 
-This would be because we are setting up the cpu_sibling map before we
-call setup_per_cpu_areas().
+I need to look at the patches, but if the per zone LRU is going
+to benefit, it is likely that the memory controller will benefit
+from the split. We plan to do an mlock() controller, so we will
+definitely gain from the noreclaim lists. The mlock() controller
+will put a limit on the amount of mlocked memory and reclaim in
+general will benefit from noreclaim lists, especially if the locked
+memory proportion is significant.
 
---=20
-Cheers,
-Stephen Rothwell                    sfr@canb.auug.org.au
-http://www.canb.auug.org.au/~sfr/
-
---Signature=_Mon__17_Sep_2007_16_39_54_+1000_8XGFp5gdvQyJPmgh
-Content-Type: application/pgp-signature
-
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v1.4.6 (GNU/Linux)
-
-iD8DBQFG7iFATgG2atn1QN8RAnoiAJ4p0Hk26M2K13DgUt0wVOd2o5fJAACfQD5+
-XWiCERDNRgIjs6BvH/3Ffcs=
-=wQi8
------END PGP SIGNATURE-----
-
---Signature=_Mon__17_Sep_2007_16_39_54_+1000_8XGFp5gdvQyJPmgh--
+-- 
+	Warm Regards,
+	Balbir Singh
+	Linux Technology Center
+	IBM, ISTL
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
