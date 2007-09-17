@@ -1,39 +1,40 @@
-Date: Mon, 17 Sep 2007 11:19:26 -0700 (PDT)
-From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [PATCH/RFC 0/5] Memory Policy Cleanups and Enhancements
-In-Reply-To: <Pine.LNX.4.64.0709171112010.26860@schroedinger.engr.sgi.com>
-Message-ID: <Pine.LNX.4.64.0709171118160.27048@schroedinger.engr.sgi.com>
-References: <Pine.LNX.4.64.0709121515210.3835@schroedinger.engr.sgi.com>
- <1189691837.5013.43.camel@localhost> <Pine.LNX.4.64.0709131118190.9378@schroedinger.engr.sgi.com>
- <20070913182344.GB23752@skynet.ie> <Pine.LNX.4.64.0709131124100.9378@schroedinger.engr.sgi.com>
- <20070913141704.4623ac57.akpm@linux-foundation.org> <20070914085335.GA30407@skynet.ie>
- <1189782414.5315.36.camel@localhost> <1189791967.13629.24.camel@localhost>
- <Pine.LNX.4.64.0709141137090.16964@schroedinger.engr.sgi.com>
- <20070916180210.GA15184@skynet.ie> <Pine.LNX.4.64.0709171112010.26860@schroedinger.engr.sgi.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Message-Id: <20070917183507.332345000@sgi.com>
+Date: Mon, 17 Sep 2007 11:35:07 -0700
+From: travis@sgi.com
+Subject: [PATCH 0/1] ppc64: Convert cpu_sibling_map to a per_cpu data array ppc64 v2
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Mel Gorman <mel@skynet.ie>
-Cc: Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, ak@suse.de, mtk-manpages@gmx.net, solo@google.com, eric.whitney@hp.com, Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+To: sfr@canb.auug.org.au, Andrew Morton <akpm@linux-foundation.org>
+Cc: Andi Kleen <ak@suse.de>, Christoph Lameter <clameter@sgi.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linuxppc-dev@ozlabs.org, sparclinux@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 17 Sep 2007, Christoph Lameter wrote:
-
-> On Sun, 16 Sep 2007, Mel Gorman wrote:
+Stephen Rothwell wrote:
+> On Mon, 17 Sep 2007 16:28:31 +1000 Stephen Rothwell <sfr@canb.auug.org.au> wrote:
+>> 	the topology (on my POWERPC5+ box) is not correct:
+>>
+>> cpu0/topology/thread_siblings:0000000f
+>> cpu1/topology/thread_siblings:0000000f
+>> cpu2/topology/thread_siblings:0000000f
+>> cpu3/topology/thread_siblings:0000000f
+>>
+>> it used to be:
+>>
+>> cpu0/topology/thread_siblings:00000003
+>> cpu1/topology/thread_siblings:00000003
+>> cpu2/topology/thread_siblings:0000000c
+>> cpu3/topology/thread_siblings:0000000c
 > 
-> > It increases the size on 32 bit NUMA which we've established is not
-> > confined to the NUMAQ. I think it's best to evaluate adding the node
-> > separetly at a later time.
-> 
-> Na... 32 bit NUMA is not that important.
-> 
+> This would be because we are setting up the cpu_sibling map before we
+> call setup_per_cpu_areas().
 
-Oh and another thing: If you make both the node and the zoneid unsigned 
-short then there is no loss. zoneid is always < 4 and node is always < 
-1024. We even could make the zoneid u8 and stuff some more stuff into the 
-list.
+The following patch hopefully should fix this problem.  I'm
+not able to build or test it but the few references to 
+cpu_sibling_map seem to all occur well after setup_per_cpu_areas
+is called.
 
+Thanks Stephen for checking this out!
+
+-- 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
