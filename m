@@ -1,65 +1,29 @@
-Date: Mon, 17 Sep 2007 14:11:27 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: VM/VFS bug with large amount of memory and file systems?
-Message-Id: <20070917141127.ab2ae148.akpm@linux-foundation.org>
-In-Reply-To: <46EEE7B7.1070206@redhat.com>
-References: <C2A8AED2-363F-4131-863C-918465C1F4E1@cam.ac.uk>
-	<1189850897.21778.301.camel@twins>
-	<20070915035228.8b8a7d6d.akpm@linux-foundation.org>
-	<13126578-A4F8-43EA-9B0D-A3BCBFB41FEC@cam.ac.uk>
-	<20070917163257.331c7605@twins>
-	<46EEB532.3060804@redhat.com>
-	<20070917131526.e8db80fe.akpm@linux-foundation.org>
-	<46EEE7B7.1070206@redhat.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Date: Mon, 17 Sep 2007 14:24:18 -0700 (PDT)
+From: Christoph Lameter <clameter@sgi.com>
+Subject: Re: [PATCH] Configurable reclaim batch size
+In-Reply-To: <46EEE80D.6060808@linux.vnet.ibm.com>
+Message-ID: <Pine.LNX.4.64.0709171423230.29704@schroedinger.engr.sgi.com>
+References: <Pine.LNX.4.64.0709141519230.14894@schroedinger.engr.sgi.com>
+ <1189812002.5826.31.camel@lappy> <Pine.LNX.4.64.0709171053040.26860@schroedinger.engr.sgi.com>
+ <20070917215615.685a5378@lappy> <46EEE80D.6060808@linux.vnet.ibm.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Rik van Riel <riel@redhat.com>
-Cc: Peter Zijlstra <peterz@infradead.org>, Anton Altaparmakov <aia21@cam.ac.uk>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>, marc.smith@esmail.mcc.edu
+To: Balbir Singh <balbir@linux.vnet.ibm.com>
+Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Mel Gorman <mel@skynet.ie>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 17 Sep 2007 16:46:47 -0400
-Rik van Riel <riel@redhat.com> wrote:
+On Tue, 18 Sep 2007, Balbir Singh wrote:
 
-> Andrew Morton wrote:
-> > On Mon, 17 Sep 2007 13:11:14 -0400
-> > Rik van Riel <riel@redhat.com> wrote:
-> 
-> >> IIRC I simply kept a list of all buffer heads and walked
-> >> that to reclaim pages when the number of buffer heads is
-> >> too high (and we need memory).  This list can be maintained
-> >> in places where we already hold the lock for the buffer head
-> >> freelist, so there should be no additional locking overhead
-> >> (again, IIRC).
-> > 
-> > Christoph's slab defragmentation code should permit us to fix this:
-> > grab a page of buffer_heads off the slab lists, trylock the page,
-> > strip the buffer_heads.  I think that would be a better approach
-> > if we can get it going because it's more general.
-> 
-> Is the slab defragmentation code in -mm or upstream already
-> or can I find it on the mailing list?
+> Please do let me know if someone finds a good standard test for it or a
+> way to stress reclaim. I've heard AIM7 come up often, but never been
+> able to push it much. I should retry.
 
-Is on lkml and linux-mm: http://lkml.org/lkml/2007/8/31/329
-
-> I've implemented code like you describe already, just give me
-> a few days to become familiar with the slab defragmentation
-> code and I'll get you a patch.
-
-The patchset does buffer_heads: http://lkml.org/lkml/2007/8/31/348
-
-I think the whole approach is reasonable.  It's mainly a matter of going
-through it all with a toothcomb and getting it all merged up, tested and
-integrated.  There's considerable potential for nasty and rarely-occurring
-surprises in this stuff because it tends to approach locking in the
-reversed order.
-
-<checks the archives>
-
-There were a few desultory comments, but I see no sign that the bulk of
-the patches have had any serious review and testing from anyone yet.
+AIM7 does small computing loads reflecting an earlier time. I wish there 
+was something better reflecting large computing loads of today. The tests 
+that I know of require MPI and other libraries and are not that suitable 
+for kernel hackers.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
