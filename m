@@ -1,54 +1,31 @@
-Date: Sun, 16 Sep 2007 22:22:58 +0100
-Subject: Re: [PATCH/RFC 0/5] Memory Policy Cleanups and Enhancements
-Message-ID: <20070916212258.GF16406@skynet.ie>
-References: <Pine.LNX.4.64.0709121515210.3835@schroedinger.engr.sgi.com> <1189691837.5013.43.camel@localhost> <Pine.LNX.4.64.0709131118190.9378@schroedinger.engr.sgi.com> <20070913182344.GB23752@skynet.ie> <Pine.LNX.4.64.0709131124100.9378@schroedinger.engr.sgi.com> <20070913141704.4623ac57.akpm@linux-foundation.org> <20070914085335.GA30407@skynet.ie> <1189800926.5315.76.camel@localhost> <20070916180527.GB15184@skynet.ie> <20070916123459.79e0848a.akpm@linux-foundation.org>
+Message-ID: <46EDDEB9.8050904@redhat.com>
+Date: Sun, 16 Sep 2007 21:56:09 -0400
+From: Rik van Riel <riel@redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <20070916123459.79e0848a.akpm@linux-foundation.org>
-From: mel@skynet.ie (Mel Gorman)
+Subject: Re: [PATCH/RFC 7/14] Reclaim Scalability: Non-reclaimable page statistics
+References: <20070914205359.6536.98017.sendpatchset@localhost> <20070914205444.6536.78981.sendpatchset@localhost>
+In-Reply-To: <20070914205444.6536.78981.sendpatchset@localhost>
+Content-Type: text/plain; charset=UTF-8; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Christoph Lameter <clameter@sgi.com>, linux-mm@kvack.org, ak@suse.de, mtk-manpages@gmx.net, solo@google.com, eric.whitney@hp.com
+To: Lee Schermerhorn <lee.schermerhorn@hp.com>
+Cc: linux-mm@kvack.org, akpm@linux-foundation.org, mel@csn.ul.ie, clameter@sgi.com, balbir@linux.vnet.ibm.com, andrea@suse.de, a.p.zijlstra@chello.nl, eric.whitney@hp.com, npiggin@suse.de
 List-ID: <linux-mm.kvack.org>
 
-On (16/09/07 12:34), Andrew Morton didst pronounce:
-> On Sun, 16 Sep 2007 19:05:27 +0100 mel@skynet.ie (Mel Gorman) wrote:
-> 
-> > > I'm still trying to absorb the patches, but so far they look good.
-> > > Perhaps Andrew can tack them onto the bottom of the next -mm so that if
-> > > someone else finds issues, they won't complicate merging earlier patches
-> > > upstream?
-> > > 
-> > 
-> > I hope so. Andrew, how do you feel about pulling V7 into -mm?
-> 
-> umm, sure, once the churn rate falls to less than one new revision per day?
-> 
+Lee Schermerhorn wrote:
 
-I don't intend to revise it any more except in response to bugs. Lee's tests
-have gone well and no one has reported performance problems.
+> Note:  my tests indicate that NR_NORECLAIM and probably the
+> other LRU stats aren't being maintained properly
 
-The suggestion for future revision was putting node-id in the struct zoneref
-that makes up the zonelist but that needs to be justified because it's not
-a zero-cost to add with 32 bit NUMA. I don't intend to go back to packing
-the zone_id into a pointer because the code is a little opaque and it's not
-clear it gains in performance.  We might justify it later because "clearly
-it uses less cache" but it's not a decision that is going to be made in a day.
-
-> I need to get rc6-mm1 out, and it'll be crap, and it'll need another -mm shortly
-> after that to get things vaguely stable.
-> 
-
-If you want to wait until the -mm after rc6-mm1, that's fine. I don't intend
-to revise the patches for the moment so hopefully I can put the time
-into helping debug -mm instead.
+Interesting, I have had the same suspicion when testing
+my split LRU patch.  Somewhere something seems to be
+going wrong...
 
 -- 
-Mel Gorman
-Part-time Phd Student                          Linux Technology Center
-University of Limerick                         IBM Dublin Software Lab
+Politics is the struggle between those who want to make their country
+the best in the world, and those who believe it already is.  Each group
+calls the other unpatriotic.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
