@@ -1,81 +1,176 @@
-In-Reply-To: <13126578-A4F8-43EA-9B0D-A3BCBFB41FEC@cam.ac.uk>
-References: <C2A8AED2-363F-4131-863C-918465C1F4E1@cam.ac.uk> <1189850897.21778.301.camel@twins> <20070915035228.8b8a7d6d.akpm@linux-foundation.org> <13126578-A4F8-43EA-9B0D-A3BCBFB41FEC@cam.ac.uk>
-Mime-Version: 1.0 (Apple Message framework v752.3)
-Content-Type: text/plain; charset=US-ASCII; delsp=yes; format=flowed
-Message-Id: <DC408F26-E53F-4F27-9DEF-E996401D95FB@cam.ac.uk>
+Subject: Re: [PATCH/RFC 3/14] Reclaim Scalability:  move isolate_lru_page()
+	to vmscan.c
+From: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
+In-Reply-To: <1189805699.5826.19.camel@lappy>
+References: <20070914205359.6536.98017.sendpatchset@localhost>
+	 <20070914205418.6536.5921.sendpatchset@localhost>
+	 <1189805699.5826.19.camel@lappy>
+Content-Type: text/plain
+Date: Mon, 17 Sep 2007 10:11:27 -0400
+Message-Id: <1190038287.5460.30.camel@localhost>
+Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
-From: Anton Altaparmakov <aia21@cam.ac.uk>
-Subject: Re: VM/VFS bug with large amount of memory and file systems?
-Date: Mon, 17 Sep 2007 15:09:24 +0100
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>, Peter Zijlstra <peterz@infradead.org>
-Cc: Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>, marc.smith@esmail.mcc.edu
+To: Peter Zijlstra <a.p.zijlstra@chello.nl>
+Cc: linux-mm@kvack.org, akpm@linux-foundation.org, mel@csn.ul.ie, clameter@sgi.com, riel@redhat.com, balbir@linux.vnet.ibm.com, andrea@suse.de, eric.whitney@hp.com, npiggin@suse.de
 List-ID: <linux-mm.kvack.org>
 
-On 17 Sep 2007, at 15:04, Anton Altaparmakov wrote:
-> On 15 Sep 2007, at 11:52, Andrew Morton wrote:
->> On Sat, 15 Sep 2007 12:08:17 +0200 Peter Zijlstra  
->> <peterz@infradead.org> wrote:
->>> Anyway, looks like all of zone_normal is pinned in kernel  
->>> allocations:
->>>
->>>> Sep 13 15:31:25 escabot Normal free:3648kB min:3744kB low:4680kB  
->>>> high: 5616kB active:0kB inactive:3160kB present:894080kB  
->>>> pages_scanned:5336 all_unreclaimable? yes
->>>
->>> Out of the 870 odd mb only 3 is on the lru.
->>>
->>> Would be grand it you could have a look at slabinfo and the like.
->>
->> Definitely.
->>
->>>> Sep 13 15:31:25 escabot free:1090395 slab:198893 mapped:988
->>>> pagetables:129 bounce:0
->>
->> 814,665,728 bytes of slab.
->
-> Marc emailed me the contents of /proc/ 
-> {slabinfo,meminfo,vmstat,zoneinfo} taken just a few seconds before  
-> the machine panic()ed due to running OOM completely...  They files  
-> are attached this time rather than inlined so people don't complain  
-> about line wrapping!  (No doubt people will not complain about them  
-> being attached!  )-:)
->
-> If I read it correctly it appears all of low memory is eaten up by  
-> buffer_heads.
->
-> <quote>
-> # name            <active_objs> <num_objs> <objsize> <objperslab>  
-> <pagesperslab>
-> : tunables <limit> <batchcount> <sharedfactor> : slabdata  
-> <active_slabs> <num_s
-> labs> <sharedavail>
-> buffer_head       12569528 12569535     56   67    1 : tunables   
-> 120   60    8 :
-> slabdata 187605 187605      0
-> </quote>
->
-> That is 671MiB of low memory in buffer_heads.
+On Fri, 2007-09-14 at 23:34 +0200, Peter Zijlstra wrote:
+> On Fri, 2007-09-14 at 16:54 -0400, Lee Schermerhorn wrote:
+> 
+> > 	Note that we now have '__isolate_lru_page()', that does
+> > 	something quite different, visible outside of vmscan.c
+> > 	for use with memory controller.  Methinks we need to
+> > 	rationalize these names/purposes.	--lts
+> > 
+> 
+> Actually it comes from lumpy reclaim, and does something very similar to
+> what this one does. 
 
-I meant that is 732MiB of low memory in buffer_heads.  (12569535  
-num_objs / 67 objperslab * 1 pagesperslab * 4096 PAGE_SIZE)
+Sorry.  My statement was a bit ambiguous.  I meant that the visibility
+of __isolate_lru_pages() outside of vmscan.c comes about from the mem
+controller patches.  Lumpy reclaim did add the "isolation mode" [active,
+inactive, both].
 
-> But why is the kernel not reclaiming them by getting rid of the  
-> page cache pages they are attached to or even leaving the pages  
-> around but killing their buffers?
->
-> I don't think I am doing anything in NTFS to cause this problem to  
-> happen...  Other than using buffer heads for my page cache pages  
-> that is but that is hardly a crime!  /-;
+> When one looks at the mainline version one could
+> write:
+> 
+> int isolate_lru_page(struct page *page, struct list_head *pagelist)
+> {
+> 	int ret = -EBUSY;
+> 
+> 	if (PageLRU(page)) {
+> 		struct zone *zone = page_zone(page);
+> 
+> 		spin_lock_irq(&zone->lru_lock);
+> 		ret = __isolate_lru_page(page, ISOLATE_BOTH);
+> 		if (!ret) {
+> 			__dec_zone_state(zone, PageActive(page) 
+> 				? NR_ACTIVE : NR_INACTIVE);
+> 			list_move_tail(&page->lru, pagelist);
+> 		}
+> 		spin_unlock_irq(&zone->lru_lock);
+> 	}
+> 
+> 	return ret;
+> }
+> 
 
-Best regards,
+In it's initial form, yes.  Later [in the first noreclaim patch] you'll
+see that I hacked both isolate_lru_page and __isolate_lru_page() to
+handle non-reclaimable pages.  The former to add recognize
+non-reclaimable pages and isolate them from the noreclaim list; the
+latter to allow isolation of non-reclaimable pages only when scanning
+the active list, but not during lumpy reclaim.  
 
-	Anton
--- 
-Anton Altaparmakov <aia21 at cam.ac.uk> (replace at with @)
-Unix Support, Computing Service, University of Cambridge, CB2 3QH, UK
-Linux NTFS maintainer, http://www.linux-ntfs.org/
+I had to allow __isolate_lru_page() to accept non-reclaimable pages from
+the active list in order to splice the noreclaim list back there when we
+want to scan it--as you mentioned to me was discussed at the vm summit.
+I'm not very happy with the result, and think we need to revisit how we
+scan the noreclaim list for various conditions.  I plan to fork off a
+separate discussion on this point, real soon now.
+
+> Obviously the container stuff somewhat complicates mattters in -mm.
+> 
+> >  /*
+> > - * Isolate one page from the LRU lists. If successful put it onto
+> > - * the indicated list with elevated page count.
+> > - *
+> > - * Result:
+> > - *  -EBUSY: page not on LRU list
+> > - *  0: page removed from LRU list and added to the specified list.
+> > - */
+> > -int isolate_lru_page(struct page *page, struct list_head *pagelist)
+> > -{
+> > -	int ret = -EBUSY;
+> > -
+> > -	if (PageLRU(page)) {
+> > -		struct zone *zone = page_zone(page);
+> > -
+> > -		spin_lock_irq(&zone->lru_lock);
+> > -		if (PageLRU(page) && get_page_unless_zero(page)) {
+> > -			ret = 0;
+> > -			ClearPageLRU(page);
+> > -			if (PageActive(page))
+> > -				del_page_from_active_list(zone, page);
+> > -			else
+> > -				del_page_from_inactive_list(zone, page);
+> > -			list_add_tail(&page->lru, pagelist);
+> > -		}
+> > -		spin_unlock_irq(&zone->lru_lock);
+> > -	}
+> > -	return ret;
+> > -}
+> 
+> remarcable change is the dissapearance of get_page_unless_zero() in the
+> new version.
+
+Good catch!  What happened here is this"
+
+The original version of isolate_lru_page() that Nick's patch moved had a
+get_page() in the "if (PageLRU(page)" block--no get_page_unless_zero().
+This was fine for Christoph's migration usage, because it was always
+called in task context, holding the mm semaphore.  Mel and Kame-san want
+to use migration for defragmentation and hotplug from outside task
+context, so one or the other of them [not sure] removed the get_page()
+and added the get_page_unless_zero() into the if condition--around
+mid-June.  Apparently, during resolution of a forced patch conflict, I
+managed to drop the get_page(), but not pick up the
+get_page_unless_zero().  So much for following "established protocol for
+handling pages on the LRU lists", huh?
+
+<snip new, botched version>
+
+Below is a patch to add back the get_page_unless_zero().  I'll roll this
+into the move_and_rework... patch for the next posting, but in the
+meantime, if anyone wants to try these, here's a quick fix.
+
+I just tested with this and my tests ran much better.  I still managed
+to push my system into OOM during mbind() migration, but I am repeatedly
+locking and unlocking 16G, sometimes in 8G chunks, of an 18G anon
+segment to force swapping and such.  Another test is creating 256MB anon
+and private file-backed segments, binding them down and migrating them
+around the platform.  Eventually, this second test dies with OOM because
+of CONSTRAINT_MEMORY_POLICY--insufficient memory on the target node.
+
+The noreclaim statistics seemed to be behaving better as well, but once
+the memtoy/mlock test went OOM with locked pages, quite a few pages
+remained non-reclaimable after I killed off the other tests.  Still a
+lot of work to do on reviving non-reclaimable pages.
+
+Thanks,
+Lee
+
+======================
+
+PATCH	move and rework isolate_lru_page fix
+
+I accidently dropped the recently added "get_page_unless_zero(page)" 
+from isolate_lru_page() during resolution of a forced patch
+conflict.  
+
+Put it back!!!
+
+Signed-off-by:  Lee Schermerhorn <lee.schermerhorn@hp.com>
+
+ mm/vmscan.c |    2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+Index: Linux/mm/vmscan.c
+===================================================================
+--- Linux.orig/mm/vmscan.c	2007-09-17 09:06:01.000000000 -0400
++++ Linux/mm/vmscan.c	2007-09-17 09:07:37.000000000 -0400
+@@ -838,7 +838,7 @@ int isolate_lru_page(struct page *page)
+ 		struct zone *zone = page_zone(page);
+ 
+ 		spin_lock_irq(&zone->lru_lock);
+-		if (PageLRU(page)) {
++		if (PageLRU(page) && get_page_unless_zero(page)) {
+ 			ret = 0;
+ 			ClearPageLRU(page);
+ 			if (PageActive(page))
+
 
 
 --
