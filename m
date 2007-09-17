@@ -1,31 +1,30 @@
-Message-ID: <46EEC24C.7000703@cray.com>
-Date: Mon, 17 Sep 2007 13:07:08 -0500
-From: Andrew Hastings <abh@cray.com>
+Date: Mon, 17 Sep 2007 11:12:35 -0700 (PDT)
+From: Christoph Lameter <clameter@sgi.com>
+Subject: Re: [PATCH/RFC 0/5] Memory Policy Cleanups and Enhancements
+In-Reply-To: <20070916180210.GA15184@skynet.ie>
+Message-ID: <Pine.LNX.4.64.0709171112010.26860@schroedinger.engr.sgi.com>
+References: <Pine.LNX.4.64.0709121515210.3835@schroedinger.engr.sgi.com>
+ <1189691837.5013.43.camel@localhost> <Pine.LNX.4.64.0709131118190.9378@schroedinger.engr.sgi.com>
+ <20070913182344.GB23752@skynet.ie> <Pine.LNX.4.64.0709131124100.9378@schroedinger.engr.sgi.com>
+ <20070913141704.4623ac57.akpm@linux-foundation.org> <20070914085335.GA30407@skynet.ie>
+ <1189782414.5315.36.camel@localhost> <1189791967.13629.24.camel@localhost>
+ <Pine.LNX.4.64.0709141137090.16964@schroedinger.engr.sgi.com>
+ <20070916180210.GA15184@skynet.ie>
 MIME-Version: 1.0
-Subject: Re: [PATCH 0/4] [hugetlb] Dynamic huge page pool resizing
-References: <20070917163935.32557.50840.stgit@kernel>
-In-Reply-To: <20070917163935.32557.50840.stgit@kernel>
-Content-Type: text/plain; charset=UTF-8; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Adam Litke <agl@us.ibm.com>
-Cc: linux-mm@kvack.org, libhugetlbfs-devel@lists.sourceforge.net
+To: Mel Gorman <mel@skynet.ie>
+Cc: Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, ak@suse.de, mtk-manpages@gmx.net, solo@google.com, eric.whitney@hp.com, Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-Adam Litke wrote:
-> The obvious answer is to let the hugetlb pool grow and shrink in response to
-> the runtime demand for huge pages.  The work Mel Gorman has been doing to
-> establish a memory zone for movable memory allocations makes dynamically
-> resizing the hugetlb pool reliable within the limits of that zone.  This patch
-> series implements dynamic pool resizing for private and shared mappings while
-> being careful to maintain existing semantics.  Please reply with your comments
-> and feedback; even just to say whether it would be a useful feature to you.
+On Sun, 16 Sep 2007, Mel Gorman wrote:
 
-Thanks, this will be extremely useful for our customers' workloads.
+> It increases the size on 32 bit NUMA which we've established is not
+> confined to the NUMAQ. I think it's best to evaluate adding the node
+> separetly at a later time.
 
--Andrew Hastings
-  Cray Inc.
+Na... 32 bit NUMA is not that important.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
