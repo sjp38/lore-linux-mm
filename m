@@ -1,11 +1,11 @@
-Message-ID: <46EDEBDA.4030906@redhat.com>
-Date: Sun, 16 Sep 2007 22:52:10 -0400
+Message-ID: <46EDEC2D.9070004@redhat.com>
+Date: Sun, 16 Sep 2007 22:53:33 -0400
 From: Rik van Riel <riel@redhat.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH/RFC 10/14] Reclaim Scalability:  track anon_vma "related
- vmas"
-References: <20070914205359.6536.98017.sendpatchset@localhost> <20070914205506.6536.5170.sendpatchset@localhost>
-In-Reply-To: <20070914205506.6536.5170.sendpatchset@localhost>
+Subject: Re: [PATCH/RFC 11/14] Reclaim Scalability: swap backed pages are
+ nonreclaimable when no swap space available
+References: <20070914205359.6536.98017.sendpatchset@localhost> <20070914205512.6536.89432.sendpatchset@localhost>
+In-Reply-To: <20070914205512.6536.89432.sendpatchset@localhost>
 Content-Type: text/plain; charset=UTF-8; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
@@ -15,37 +15,26 @@ Cc: linux-mm@kvack.org, akpm@linux-foundation.org, mel@csn.ul.ie, clameter@sgi.c
 List-ID: <linux-mm.kvack.org>
 
 Lee Schermerhorn wrote:
-> PATCH/RFC 10/14 Reclaim Scalability:  track anon_vma "related vmas"
+> PATCH/RFC  11/14 Reclaim Scalability: treat swap backed pages as
+> 	non-reclaimable when no swap space is available.
 > 
 > Against:  2.6.23-rc4-mm1
 > 
-> When a single parent forks a large number [thousands, 10s of thousands]
-> of children, the anon_vma list of related vmas becomes very long.  In
-> reclaim, this list must be traversed twice--once in page_referenced_anon()
-> and once in try_to_unmap_anon()--under a spin lock to reclaim the page.
-> Multiple cpus can end up spinning behind the same anon_vma spinlock and
-> traversing the lists.  This patch, part of the "noreclaim" series, treats
-> anon pages with list lengths longer than a tunable threshold as non-
-> reclaimable.
+> Move swap backed pages [anon, shmem/tmpfs] to noreclaim list when
+> nr_swap_pages goes to zero.   Use Rik van Riel's page_anon() 
+> function in page_reclaimable() to detect swap backed pages.
+> 
+> Depends on NORECLAIM_NO_SWAP Kconfig sub-option of NORECLAIM
+> 
+> TODO:   Splice zones' noreclaim list when "sufficient" swap becomes
+> available--either by being freed by other pages or by additional 
+> swap being added.  How much is "sufficient" swap?  Don't want to
+> splice huge noreclaim lists every time a swap page gets freed.
 
-I do not agree with this approach and think it is somewhat
-dangerous.
-
-If the threshold is set too high, this code has no effect.
-
-If the threshold is too low, or an unexpectedly high number
-of processes get forked (hey, now we *need* to swap something
-out), the system goes out of memory.
-
-I would rather we reduce the amount of work we need to do in
-selecting what to page out in a different way, eg. by doing
-SEQ replacement for anonymous pages.
-
-I will cook up a patch implementing that other approach in a
-way that it will fit into your patch series, since the rest
-of the series (so far) looks good to me.
-
-*takes out the chainsaw to cut up his patch*
+Yet another reason for my LRU list split between filesystem
+backed and swap backed pages: we can simply stop scanning the
+anon lists when swap space is full and resume scanning when
+swap space becomes available.
 
 -- 
 Politics is the struggle between those who want to make their country
