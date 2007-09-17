@@ -1,36 +1,70 @@
-Date: Mon, 17 Sep 2007 12:16:20 -0700 (PDT)
-From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [PATCH/RFC 0/5] Memory Policy Cleanups and Enhancements
-In-Reply-To: <1190060096.29967.4.camel@localhost>
-Message-ID: <Pine.LNX.4.64.0709171215460.27769@schroedinger.engr.sgi.com>
-References: <Pine.LNX.4.64.0709121515210.3835@schroedinger.engr.sgi.com>
- <1189691837.5013.43.camel@localhost>  <Pine.LNX.4.64.0709131118190.9378@schroedinger.engr.sgi.com>
-  <20070913182344.GB23752@skynet.ie>  <Pine.LNX.4.64.0709131124100.9378@schroedinger.engr.sgi.com>
-  <20070913141704.4623ac57.akpm@linux-foundation.org>  <20070914085335.GA30407@skynet.ie>
- <1189782414.5315.36.camel@localhost>  <1189791967.13629.24.camel@localhost>
-  <Pine.LNX.4.64.0709141137090.16964@schroedinger.engr.sgi.com>
- <20070916180210.GA15184@skynet.ie>  <Pine.LNX.4.64.0709171112010.26860@schroedinger.engr.sgi.com>
-  <Pine.LNX.4.64.0709171118160.27048@schroedinger.engr.sgi.com>
- <1190060096.29967.4.camel@localhost>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: [PATCH/RFC 3/14] Reclaim Scalability:  move isolate_lru_page()
+	to vmscan.c
+From: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
+In-Reply-To: <46EE46C6.1050607@linux.vnet.ibm.com>
+References: <20070914205359.6536.98017.sendpatchset@localhost>
+	 <20070914205418.6536.5921.sendpatchset@localhost>
+	 <46EE46C6.1050607@linux.vnet.ibm.com>
+Content-Type: text/plain
+Date: Mon, 17 Sep 2007 15:19:35 -0400
+Message-Id: <1190056776.5460.120.camel@localhost>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: Mel Gorman <mel@skynet.ie>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, ak@suse.de, mtk-manpages@gmx.net, solo@google.com, eric.whitney@hp.com, Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+To: balbir@linux.vnet.ibm.com
+Cc: linux-mm@kvack.org, akpm@linux-foundation.org, mel@csn.ul.ie, clameter@sgi.com, riel@redhat.com, andrea@suse.de, a.p.zijlstra@chello.nl, eric.whitney@hp.com, npiggin@suse.de
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 17 Sep 2007, Mel Gorman wrote:
+On Mon, 2007-09-17 at 14:50 +0530, Balbir Singh wrote:
+> Lee Schermerhorn wrote:
+> > +int isolate_lru_page(struct page *page)
+> > +{
+> > +	int ret = -EBUSY;
+> > +
+> > +	if (PageLRU(page)) {
+> > +		struct zone *zone = page_zone(page);
+> > +
+> > +		spin_lock_irq(&zone->lru_lock);
+> > +		if (PageLRU(page)) {
+> > +			ret = 0;
+> > +			ClearPageLRU(page);
+> > +			if (PageActive(page))
+> > +				del_page_from_active_list(zone, page);
+> > +			else
+> > +				del_page_from_inactive_list(zone, page);
+> > +		}
+> 
+> Wouldn't using a pagelist as an argument and moving to that be easier?
+> Are there any cases where we just remove from the list and not move it
+> elsewhere?
 
-> ok, that is a very good point. When -mm is settled and one-zonelist in
-> it's v7 incarnation has been merged, I'll roll a patch that does this
-> and go through another test cycle. Lee's testing has passed one-zonelist
-> in it's current incarnation and this close, I don't want to do more
-> revisions. The patch to do this will be very small so should be easy to
-> review in isolation. Sound like a plan?
+Actually, isolate_lru_page() used to do that, and Nick removed that
+aspect for use with the mlock patches--so as not to have to use a dummy
+list for single pages in the mlock code.  Nick's way is probably OK
+performance-wise for the current usage in migration and mlock code.
+Might need to rethink this if this function gets wider usage, now that
+it's globally visible.
 
-Yeah. Adding patches on top of your patches sounds great and will give 
-Andrew the stability he needs.
+> 
+> > +		spin_unlock_irq(&zone->lru_lock);
+> > +	}
+> > +	return ret;
+> > +}
+> > +
+> 
+> Any chance we could merge __isolate_lru_page() and isolate_lru_page()?
+
+I wondered about this in one of the patch descriptions.  Peter Z
+proposed a wrapper around __isolate_lru_pages() to do this.  The other
+changes that I made to __isolate_lru_pages complicate this a bit, but I
+think it could be managable.  Note that isolate_lru_page() is called
+with the zone lru_lock unlocked and it updates the list stats.
+__isolate_lru_page is called from a batch *isolate_lru_pages*() function
+and does not update the stats.  The wrapper can handle these extra
+tasks, I think--efficiently, I hope.
+
+Lee
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
