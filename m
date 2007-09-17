@@ -1,45 +1,78 @@
-Message-ID: <46EEE7B7.1070206@redhat.com>
-Date: Mon, 17 Sep 2007 16:46:47 -0400
-From: Rik van Riel <riel@redhat.com>
+Received: from d23relay03.au.ibm.com (d23relay03.au.ibm.com [202.81.18.234])
+	by e23smtp05.au.ibm.com (8.13.1/8.13.1) with ESMTP id l8HKmTC5018504
+	for <linux-mm@kvack.org>; Tue, 18 Sep 2007 06:48:29 +1000
+Received: from d23av02.au.ibm.com (d23av02.au.ibm.com [9.190.235.138])
+	by d23relay03.au.ibm.com (8.13.8/8.13.8/NCO v8.5) with ESMTP id l8HKmSU84653058
+	for <linux-mm@kvack.org>; Tue, 18 Sep 2007 06:48:28 +1000
+Received: from d23av02.au.ibm.com (loopback [127.0.0.1])
+	by d23av02.au.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l8HKmSLN008155
+	for <linux-mm@kvack.org>; Tue, 18 Sep 2007 06:48:28 +1000
+Message-ID: <46EEE81A.1010404@linux.vnet.ibm.com>
+Date: Tue, 18 Sep 2007 02:18:26 +0530
+From: Balbir Singh <balbir@linux.vnet.ibm.com>
+Reply-To: balbir@linux.vnet.ibm.com
 MIME-Version: 1.0
-Subject: Re: VM/VFS bug with large amount of memory and file systems?
-References: <C2A8AED2-363F-4131-863C-918465C1F4E1@cam.ac.uk>	<1189850897.21778.301.camel@twins>	<20070915035228.8b8a7d6d.akpm@linux-foundation.org>	<13126578-A4F8-43EA-9B0D-A3BCBFB41FEC@cam.ac.uk>	<20070917163257.331c7605@twins>	<46EEB532.3060804@redhat.com> <20070917131526.e8db80fe.akpm@linux-foundation.org>
-In-Reply-To: <20070917131526.e8db80fe.akpm@linux-foundation.org>
-Content-Type: text/plain; charset=UTF-8; format=flowed
+Subject: Re: [PATCH mm] fix swapoff breakage; however...
+References: <Pine.LNX.4.64.0709171947130.15413@blonde.wat.veritas.com> <46EED1A7.5080606@linux.vnet.ibm.com> <Pine.LNX.4.64.0709172038090.25512@blonde.wat.veritas.com>
+In-Reply-To: <Pine.LNX.4.64.0709172038090.25512@blonde.wat.veritas.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Peter Zijlstra <peterz@infradead.org>, Anton Altaparmakov <aia21@cam.ac.uk>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>, marc.smith@esmail.mcc.edu
+To: Hugh Dickins <hugh@veritas.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Andrew Morton wrote:
-> On Mon, 17 Sep 2007 13:11:14 -0400
-> Rik van Riel <riel@redhat.com> wrote:
-
->> IIRC I simply kept a list of all buffer heads and walked
->> that to reclaim pages when the number of buffer heads is
->> too high (and we need memory).  This list can be maintained
->> in places where we already hold the lock for the buffer head
->> freelist, so there should be no additional locking overhead
->> (again, IIRC).
+Hugh Dickins wrote:
+> On Tue, 18 Sep 2007, Balbir Singh wrote:
+>> Hugh Dickins wrote:
+>>> More fundamentally, it looks like any container brought over its limit in
+>>> unuse_pte will abort swapoff: that doesn't doesn't seem "contained" to me.
+>>> Maybe unuse_pte should just let containers go over their limits without
+>>> error?  Or swap should be counted along with RSS?  Needs reconsideration.
+>> Thanks, for the catching this. There are three possible solutions
+>>
+>> 1. Account each RSS page with a probable swap cache page, double
+>>    the RSS accounting to ensure that swapoff will not fail.
+>> 2. Account for the RSS page just once, do not account swap cache
+>>    pages
 > 
-> Christoph's slab defragmentation code should permit us to fix this:
-> grab a page of buffer_heads off the slab lists, trylock the page,
-> strip the buffer_heads.  I think that would be a better approach
-> if we can get it going because it's more general.
+> Neither of those makes sense to me, but I may be misunderstanding.
+> 
+> What would make sense is (what I meant when I said swap counted
+> along with RSS) not to count pages out and back in as they are
+> go out to swap and back in, just keep count of instantiated pages
+> 
 
-Is the slab defragmentation code in -mm or upstream already
-or can I find it on the mailing list?
+I am not sure how you define instantiated pages. I suspect that
+you mean RSS + pages swapped out (swap_pte)?
 
-I've implemented code like you describe already, just give me
-a few days to become familiar with the slab defragmentation
-code and I'll get you a patch.
+> I say "make sense" meaning that the numbers could be properly
+> accounted; but it may well be unpalatable to treat fast RAM as
+> equal to slow swap.
+> 
+>> 3. Follow your suggestion and let containers go over their limits
+>>    without error
+>>
+>> With the current approach, a container over it's limit will not
+>> be able to call swapoff successfully, is that bad?
+> 
+> That's not so bad.  What's bad is that anyone else with the
+> CAP_SYS_ADMIN to swapoff is liable to be prevented by containers
+> going over their limits.
+> 
+
+If a swapoff is going to push a container over it's limit, then
+we break the container and the isolation it provides. Upon swapoff
+failure, may be we could get the container to print a nice
+little warning so that anyone else with CAP_SYS_ADMIN can fix the
+container limit and retry swapoff.
 
 -- 
-Politics is the struggle between those who want to make their country
-the best in the world, and those who believe it already is.  Each group
-calls the other unpatriotic.
+	Warm Regards,
+	Balbir Singh
+	Linux Technology Center
+	IBM, ISTL
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
