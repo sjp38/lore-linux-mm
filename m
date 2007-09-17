@@ -1,26 +1,31 @@
-Date: Mon, 17 Sep 2007 11:42:47 -0700 (PDT)
-From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [PATCH/RFC 8/14] Reclaim Scalability:  Ram Disk Pages are
- non-reclaimable
-In-Reply-To: <1190040039.5460.45.camel@localhost>
-Message-ID: <Pine.LNX.4.64.0709171142360.27057@schroedinger.engr.sgi.com>
-References: <20070914205359.6536.98017.sendpatchset@localhost>
- <20070914205451.6536.39585.sendpatchset@localhost>  <46EDDF0F.2080800@redhat.com>
- <1190040039.5460.45.camel@localhost>
+Message-ID: <46EEC978.9080303@sgi.com>
+Date: Mon, 17 Sep 2007 11:37:44 -0700
+From: Mike Travis <travis@sgi.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: [PATCH 1/6] cpuset write dirty map
+References: <469D3342.3080405@google.com> <46E741B1.4030100@google.com>	 <46E742A2.9040006@google.com>	 <20070914161536.3ec5c533.akpm@linux-foundation.org>	 <a781481a0709141647q3d019423s388c64bf6bed871a@mail.gmail.com>	 <20070914170733.dbe89493.akpm@linux-foundation.org> <a781481a0709141716n569d54eeqbe51746d3a5110ca@mail.gmail.com>
+In-Reply-To: <a781481a0709141716n569d54eeqbe51746d3a5110ca@mail.gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
-Cc: Rik van Riel <riel@redhat.com>, linux-mm@kvack.org, akpm@linux-foundation.org, mel@csn.ul.ie, balbir@linux.vnet.ibm.com, andrea@suse.de, a.p.zijlstra@chello.nl, eric.whitney@hp.com, npiggin@suse.de
+To: Satyam Sharma <satyam.sharma@gmail.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Ethan Solomita <solo@google.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Christoph Lameter <clameter@sgi.com>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 17 Sep 2007, Lee Schermerhorn wrote:
+Satyam Sharma wrote:
+ > True, the other option could be to put the /pointer/ in there unconditionally,
+> but that would slow down the MAX_NUMNODES <= BITS_PER_LONG case,
+> which (after grepping through defconfigs) appears to be the common case on
+> all archs other than ia64. So I think your idea of making that conditional
+> centralized in the code with an accompanying comment is the way to go here ...
 
-> So, I think I should just mark ramfs address space as nonreclaimable,
-> similar to ram disk.  Do you agree?
+It won't be long before arch's other than ia64 will have
+MAX_NUMNODES > BITS_PER_LONG. While it won't be the norm,
+we should account for it now.
 
-Ack.
+Thanks,
+Mike
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
