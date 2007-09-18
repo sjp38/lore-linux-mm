@@ -1,50 +1,48 @@
-From: Nick Piggin <nickpiggin@yahoo.com.au>
-Subject: Re: VM/VFS bug with large amount of memory and file systems?
-Date: Tue, 18 Sep 2007 03:12:31 +1000
-References: <C2A8AED2-363F-4131-863C-918465C1F4E1@cam.ac.uk> <200709170828.01098.nickpiggin@yahoo.com.au> <46EEB3AC.20205@redhat.com>
-In-Reply-To: <46EEB3AC.20205@redhat.com>
-MIME-Version: 1.0
-Content-Type: text/plain;
-  charset="utf-8"
+Date: Tue, 18 Sep 2007 11:30:57 +0200
+From: Peter Zijlstra <a.p.zijlstra@chello.nl>
+Subject: Re: [RFC 0/3] Recursive reclaim (on __PF_MEMALLOC)
+Message-ID: <20070918113057.6838f54f@twins>
+In-Reply-To: <170fa0d20709172027g3b83d606k6a8e641f71848c3@mail.gmail.com>
+References: <20070814142103.204771292@sgi.com>
+	<200709050916.04477.phillips@phunq.net>
+	<170fa0d20709072212m4563ce76sa83092640491e4f3@mail.gmail.com>
+	<200709171728.26180.phillips@phunq.net>
+	<170fa0d20709172027g3b83d606k6a8e641f71848c3@mail.gmail.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
-Message-Id: <200709180312.31937.nickpiggin@yahoo.com.au>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Rik van Riel <riel@redhat.com>
-Cc: Anton Altaparmakov <aia21@cam.ac.uk>, Andrew Morton <akpm@linux-foundation.org>, Peter Zijlstra <peterz@infradead.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>, marc.smith@esmail.mcc.edu
+To: Mike Snitzer <snitzer@gmail.com>
+Cc: Daniel Phillips <phillips@phunq.net>, Christoph Lameter <clameter@sgi.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, dkegel@google.com, David Miller <davem@davemloft.net>, Nick Piggin <npiggin@suse.de>, Wouter Verhelst <w@uter.be>, Evgeniy Polyakov <johnpol@2ka.mipt.ru>
 List-ID: <linux-mm.kvack.org>
 
-On Tuesday 18 September 2007 03:04, Rik van Riel wrote:
-> Nick Piggin wrote:
-> > (Rik has a patch sitting in -mm I believe which would make this problem
-> > even worse, by doing even less highmem scanning in response to lowmem
-> > allocations).
->
-> My patch should not make any difference here, since
-> balance_pgdat() already scans the zones from high to
-> low and sets an end_zone variable that determines the
-> highest zone to scan.
->
-> All my patch does is make sure that we do not try to
-> reclaim excessive amounts of dma or low memory when
-> a higher zone is full.
+On Mon, 17 Sep 2007 23:27:25 -0400 "Mike Snitzer" <snitzer@gmail.com>
+wrote:
 
-Sorry, yeah I had it the wrong way around. Your patch would not
-increase the probability of this problem.
+> I'm going to try adding all the things I've learned into the mix all
+> at once; including both of peterz's patchsets.  Peter, do you have a
+> git repo or website/ftp site for you r latest per-bdi and network
+> deadlock patchsets?  Pulling them out of LKML archives isn't "fun".
 
-We could have some logic in there to scan highmem when buffer
-heads are over limit. But that really kind of sucks in that it introduces
-some arbitrary point where reclaim behaviour completely changes...
-Adding a shrinker for buffer heads is the "logical" approach that we
-take for other non-page caches. That also kind of sucks because we
-normally don't want to do this out of band buffer reclaiming and just
-have it work from page reclaim (it will introduce extra locking and list
-scanning).
+BDI should be back in -mm, for the other its in shambles atm, I'll tell
+you where to find it when I've put it back together.
 
-Maybe when the machine is near OOM, we can just change the scanning
-to do all zones -- a change in scanning behaviour at that point is better
-than oom kill.
+I should get myself some time to read on how to push relative git
+trees, as I did get myself a kernel.org account.
+ 
+> Also, I've noticed that the more recent network deadlock avoidance
+> patchsets haven't included NBD changes; any reason why these have been
+> dropped?  Should I just look to shoe-horn in previous NBD-oriented
+> patches from an earlier version of that patchset?
+
+NBD has some serious block layer issues, I once talked with Jens about
+it and he explained what needed to be done to get NBD back in
+shape again, but I could not be bothered to spend time on it.
+[ and have since forgotten most of the details :-/ ]
+
+For me NBD is dead and broken beyond repair, it needs a wholesale
+rewrite.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
