@@ -1,60 +1,43 @@
-Date: Tue, 18 Sep 2007 11:41:42 +0900
+Date: Tue, 18 Sep 2007 11:59:33 +0900
 From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCH/RFC 1/14] Reclaim Scalability:  Convert anon_vma lock to
- read/write lock
-Message-Id: <20070918114142.abbd5421.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20070917110234.GF25706@skynet.ie>
+Subject: Re: [PATCH/RFC 11/14] Reclaim Scalability: swap backed pages are
+ nonreclaimable when no swap space available
+Message-Id: <20070918115933.886238b3.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20070914205512.6536.89432.sendpatchset@localhost>
 References: <20070914205359.6536.98017.sendpatchset@localhost>
-	<20070914205405.6536.37532.sendpatchset@localhost>
-	<20070917110234.GF25706@skynet.ie>
+	<20070914205512.6536.89432.sendpatchset@localhost>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Mel Gorman <mel@skynet.ie>
-Cc: Lee Schermerhorn <lee.schermerhorn@hp.com>, linux-mm@kvack.org, akpm@linux-foundation.org, clameter@sgi.com, riel@redhat.com, balbir@linux.vnet.ibm.com, andrea@suse.de, a.p.zijlstra@chello.nl, eric.whitney@hp.com, npiggin@suse.de
+To: Lee Schermerhorn <lee.schermerhorn@hp.com>
+Cc: linux-mm@kvack.org, akpm@linux-foundation.org, mel@csn.ul.ie, clameter@sgi.com, riel@redhat.com, balbir@linux.vnet.ibm.com, andrea@suse.de, a.p.zijlstra@chello.nl, eric.whitney@hp.com, npiggin@suse.de
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 17 Sep 2007 12:02:35 +0100
-mel@skynet.ie (Mel Gorman) wrote:
+On Fri, 14 Sep 2007 16:55:12 -0400
+Lee Schermerhorn <lee.schermerhorn@hp.com> wrote:
 
-> On (14/09/07 16:54), Lee Schermerhorn didst pronounce:
-> > [PATCH/RFC] 01/14 Reclaim Scalability:  Convert anon_vma list lock a read/write lock
-> > 
-> > Against 2.6.23-rc4-mm1
-> > 
-> > Make the anon_vma list lock a read/write lock.  Heaviest use of this
-> > lock is in the page_referenced()/try_to_unmap() calls from vmscan
-> > [shrink_page_list()].  These functions can use a read lock to allow
-> > some parallelism for different cpus trying to reclaim pages mapped
-> > via the same set of vmas.
-<snip>
-> In light of what Peter and Linus said about rw-locks being more expensive
-> than spinlocks, we'll need to measure this with some benchmark. The plus
-> side is that this patch can be handled in isolation because it's either a
-> scalability fix or it isn't. It's worth investigating because you say it
-> fixed a real problem where under load the job was able to complete with
-> this patch and live-locked without it.
->
-> When you decide on a test-case, I can test just this patch and see what
-> results I find.
-> 
+> +#ifdef CONFIG_NORECLAIM_NO_SWAP
+> +	if (page_anon(page) && !PageSwapCache(page) && !nr_swap_pages)
+> +		return 0;
+> +#endif
 
-One of the case I can imagine is..
+nr_swap_pages depends on CONFIG_SWAP. 
+
+So I recommend you to use total_swap_pages. (if CONFIG_SWAP=n, total_swap_pages is
+compield to be 0.)
+
 ==
-1. Use NUMA.
-2. create *large* anon_vma and use it with MPOL_INTERLEAVE
-3. When memory is exhausted (on several nodes), all kswapd on nodes will
-   see one anon_vma->lock.
+if (!total_swap_pages && page_anon(page)) 
+	return 0;
 ==
-Maybe the worst case.
+By the way, nr_swap_pages is "# of currently available swap pages".
+Should this page will be put into NORECLAIM list ? This number can be
+changed to be > 0 easily.
 
-Thanks,
+Cheers,
 -Kame
-
-
-
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
