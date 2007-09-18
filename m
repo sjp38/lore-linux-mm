@@ -1,54 +1,37 @@
-Date: Tue, 18 Sep 2007 12:45:02 -0700 (PDT)
+Date: Tue, 18 Sep 2007 12:54:42 -0700 (PDT)
 From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [PATCH/RFC 6/14] Reclaim Scalability: "No Reclaim LRU Infrastructure"
-In-Reply-To: <20070918095443.GA2035@skynet.ie>
-Message-ID: <Pine.LNX.4.64.0709181242240.3714@schroedinger.engr.sgi.com>
-References: <20070914205359.6536.98017.sendpatchset@localhost>
- <20070914205438.6536.49500.sendpatchset@localhost>
- <Pine.LNX.4.64.0709141537180.14937@schroedinger.engr.sgi.com>
- <1190042245.5460.81.camel@localhost> <Pine.LNX.4.64.0709171137360.27057@schroedinger.engr.sgi.com>
- <20070918095443.GA2035@skynet.ie>
+Subject: Re: [patch 4/4] oom: serialize out of memory calls
+In-Reply-To: <alpine.DEB.0.9999.0709180247250.21326@chino.kir.corp.google.com>
+Message-ID: <Pine.LNX.4.64.0709181253280.3953@schroedinger.engr.sgi.com>
+References: <871b7a4fd566de081120.1187786931@v2.random>
+ <Pine.LNX.4.64.0709121658450.4489@schroedinger.engr.sgi.com>
+ <alpine.DEB.0.9999.0709131126370.27997@chino.kir.corp.google.com>
+ <Pine.LNX.4.64.0709131136560.9590@schroedinger.engr.sgi.com>
+ <alpine.DEB.0.9999.0709131139340.30279@chino.kir.corp.google.com>
+ <Pine.LNX.4.64.0709131152400.9999@schroedinger.engr.sgi.com>
+ <alpine.DEB.0.9999.0709131732330.21805@chino.kir.corp.google.com>
+ <Pine.LNX.4.64.0709131923410.12159@schroedinger.engr.sgi.com>
+ <alpine.DEB.0.9999.0709132010050.30494@chino.kir.corp.google.com>
+ <alpine.DEB.0.9999.0709180007420.4624@chino.kir.corp.google.com>
+ <alpine.DEB.0.9999.0709180245170.21326@chino.kir.corp.google.com>
+ <alpine.DEB.0.9999.0709180246350.21326@chino.kir.corp.google.com>
+ <alpine.DEB.0.9999.0709180246580.21326@chino.kir.corp.google.com>
+ <alpine.DEB.0.9999.0709180247250.21326@chino.kir.corp.google.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Mel Gorman <mel@skynet.ie>
-Cc: Lee Schermerhorn <Lee.Schermerhorn@hp.com>, linux-mm@kvack.org, akpm@linux-foundation.org, riel@redhat.com, balbir@linux.vnet.ibm.com, andrea@suse.de, a.p.zijlstra@chello.nl, eric.whitney@hp.com, npiggin@suse.de
+To: David Rientjes <rientjes@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <andrea@suse.de>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 18 Sep 2007, Mel Gorman wrote:
+On Tue, 18 Sep 2007, David Rientjes wrote:
 
-> > Also the ramfs/shmem pages. There 
-> > may be uses though that require a page to stay put because it is used for 
-> > some nefarious I/O purpose by a driver. RDMA comes to mind.
-> 
-> Yeah :/
-> 
-> > Maybe we need 
-> > some additional option that works like MLOCK but forbids migration.
-> 
-> The problem with RDMA that I recall is that we don't know at allocation
-> time that they may be unmovable sometimes in the future. I didn't think
-> of a way around that problem.
+>  			goto got_pg;
+>  	} else if ((gfp_mask & __GFP_FS) && !(gfp_mask & __GFP_NORETRY)) {
+> +		if (oom_killer_trylock(zonelist)) {
 
-The current way that we have around the problem is to increase the page 
-count. With that all attempts to unmap the page by migration or otherwise 
-fail and the page stays put.
-
-RDMA is probably only temporarily pinning these while I/O is in progress?. 
-Our applications (XPMEM) 
-may pins them for good.
- 
-> > Those 
-> > would then be unreclaimable and not __GFP_MOVABLE. I know some of our 
-> > applications create huge amount of these.
-> > 
-> 
-> Can you think of a way that pages that will be later pinned by something
-> like RDMA can be identified in advance?
-
-No. Nor in our XPMEM situation. We could move them at the point when they 
-are pinned to another section?
+Condition reversed? We want to restart if the lock is taken right?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
