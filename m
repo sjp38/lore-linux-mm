@@ -1,64 +1,104 @@
-Date: Mon, 17 Sep 2007 23:36:38 +0100 (BST)
-From: Hugh Dickins <hugh@veritas.com>
-Subject: Re: [PATCH mm] fix swapoff breakage; however...
-In-Reply-To: <46EEE81A.1010404@linux.vnet.ibm.com>
-Message-ID: <Pine.LNX.4.64.0709172312390.19506@blonde.wat.veritas.com>
-References: <Pine.LNX.4.64.0709171947130.15413@blonde.wat.veritas.com>
- <46EED1A7.5080606@linux.vnet.ibm.com> <Pine.LNX.4.64.0709172038090.25512@blonde.wat.veritas.com>
- <46EEE81A.1010404@linux.vnet.ibm.com>
+From: Daniel Phillips <phillips@phunq.net>
+Subject: Re: [RFC 0/3] Recursive reclaim (on __PF_MEMALLOC)
+Date: Mon, 17 Sep 2007 17:28:24 -0700
+References: <20070814142103.204771292@sgi.com> <200709050916.04477.phillips@phunq.net> <170fa0d20709072212m4563ce76sa83092640491e4f3@mail.gmail.com>
+In-Reply-To: <170fa0d20709072212m4563ce76sa83092640491e4f3@mail.gmail.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain;
+  charset="iso-8859-1"
+Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+Message-Id: <200709171728.26180.phillips@phunq.net>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Balbir Singh <balbir@linux.vnet.ibm.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Mike Snitzer <snitzer@gmail.com>
+Cc: Christoph Lameter <clameter@sgi.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, dkegel@google.com, Peter Zijlstra <a.p.zijlstra@chello.nl>, David Miller <davem@davemloft.net>, Nick Piggin <npiggin@suse.de>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 18 Sep 2007, Balbir Singh wrote:
-> Hugh Dickins wrote:
-> > 
-> > What would make sense is (what I meant when I said swap counted
-> > along with RSS) not to count pages out and back in as they are
-> > go out to swap and back in, just keep count of instantiated pages
-> > 
-> 
-> I am not sure how you define instantiated pages. I suspect that
-> you mean RSS + pages swapped out (swap_pte)?
+On Friday 07 September 2007 22:12, Mike Snitzer wrote:
+> Can you be specific about which changes to existing mainline code
+> were needed to make recursive reclaim "work" in your tests (albeit
+> less ideally than peterz's patchset in your view)?
 
-That's it.  (Whereas file pages counted out when paged out,
-then counted back in when paged back in.)
+Sorry, I was incommunicado out on the high seas all last week.  OK, the
+measures that actually prevent our ddsnap driver from deadlocking are:
 
-> If a swapoff is going to push a container over it's limit, then
-> we break the container and the isolation it provides.
+  - Statically prove bounded memory use of all code in the writeout
+    path.
 
-Is it just my traditional bias, that makes me prefer you break
-your container than my swapoff?  I'm not sure.
+  - Implement any special measures required to be able to make such a
+    proof.
 
-> Upon swapoff
-> failure, may be we could get the container to print a nice
-> little warning so that anyone else with CAP_SYS_ADMIN can fix the
-> container limit and retry swapoff.
+  - All allocations performed by the block driver must have access
+    to dedicated memory resources.
 
-And then they hit the next one... rather like trying to work out
-the dependencies of packages for oneself: a very tedious process.
+  - Disable the congestion_wait mechanism for our code as much as
+    possible, at least enough to obtain the maximum memory resources
+    that can be used on the writeout path.
 
-If the swapoff succeeds, that does mean there was actually room
-in memory (+ other swap) for everyone, even if some have gone over
-their nominal limits.  (But if the swapoff runs out of memory in
-the middle, yes, it might well have assigned the memory unfairly.)
+The specific measure we implement in order to prove a bound is:
 
-The appropriate answer may depend on what you do when a container
-tries to fault in one more page than its limit.  Apparently just
-fail it (no attempt to page out another page from that container).
+  - Throttle IO on our block device to a known amount of traffic for
+    which we are sure that the MEMALLOC reserve will always be
+    adequate.
 
-So, if the whole system is under memory pressure, kswapd will
-be keeping the RSS of all tasks low, and they won't reach their
-limits; whereas if the system is not under memory pressure,
-tasks will easily approach their limits and so fail.
+Note that the boundedness proof we use is somewhat loose at the moment. 
+It goes something like "we only need at most X kilobytes of reserve and 
+there are X megabytes available".  Much of Peter's patch set is aimed 
+at getting more precise about this, but to be sure, handwaving just 
+like this has been part of core kernel since day one without too many 
+ill effects.
 
-Please tell me my understanding is wrong!
+The way we provide guaranteed access to memory resources is:
 
-Hugh
+  - Run critical daemons in PF_MEMALLOC mode, including
+    any userspace daemons that must execute in the block IO path
+   (cluster coders take note!)
+
+Right now, all writeout submitted to ddsnap gets handed off to a daemon
+running in PF_MEMALLOC mode.  This is a needless inefficiency that we 
+want to remove in future, and handle as many of those submissions as 
+possible entirely in the context of the submitter.  To do this, further 
+measures are needed:
+
+  - Network writes performed by the block driver must have access to
+    dedicated memory resources.
+
+We have not yet managed to trigger network read memory deadlock, but it 
+is just a matter of time, additional fancy virtual block devices, and 
+enough stress.  So:
+
+  - Network reads need some fancy extra support because dedicated
+    memory resources must be consumed before knowing whether the
+    network traffic belongs to a block device or not.
+
+Now, the interesting thing about this whole discussion is, none of the 
+measures that we are actually using at the moment are implemented in 
+either Peter's or Christoph's patch set.  In other words, at present we 
+do not require either patch set in order to run under heavy load 
+without deadlocking.  But in order to generalize our solution to a 
+wider range of virtual block devices and other problematic systems such 
+as userspace filesystems, we need to incorporate a number of elements 
+of Peter's patch set.
+
+As far as Christoph's proposal goes, it is not required to prevent 
+deadlocks.   Whether or not it is a good optimization is an open 
+question.
+
+Of all the patches posted so far related to this work, the only 
+indispensable one is the bio throttling patch developed by Evgeniy and 
+I in a parallel thread.  The other essential pieces are all implemented 
+in our block driver for now.  Some of those can be generalized and 
+moved at least partially into core, and some cannot.
+
+I do need to write some sort of primer on this, because there is no 
+fire-and-forget magic core kernel solution.  There are helpful things 
+we can do in core, but some of it can only be implemented in the 
+drivers themselves.
+
+Regards,
+
+Daniel
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
