@@ -1,90 +1,74 @@
-Subject: Re: [PATCH/RFC 1/14] Reclaim Scalability:  Convert anon_vma lock
-	to read/write lock
+Subject: Re: [PATCH/RFC 11/14] Reclaim Scalability: swap backed pages are
+	nonreclaimable when no swap space available
 From: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
-In-Reply-To: <20070918114142.abbd5421.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20070918115933.886238b3.kamezawa.hiroyu@jp.fujitsu.com>
 References: <20070914205359.6536.98017.sendpatchset@localhost>
-	 <20070914205405.6536.37532.sendpatchset@localhost>
-	 <20070917110234.GF25706@skynet.ie>
-	 <20070918114142.abbd5421.kamezawa.hiroyu@jp.fujitsu.com>
+	 <20070914205512.6536.89432.sendpatchset@localhost>
+	 <20070918115933.886238b3.kamezawa.hiroyu@jp.fujitsu.com>
 Content-Type: text/plain
-Date: Tue, 18 Sep 2007 11:37:23 -0400
-Message-Id: <1190129844.5035.26.camel@localhost>
+Date: Tue, 18 Sep 2007 11:47:21 -0400
+Message-Id: <1190130442.5035.36.camel@localhost>
 Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Mel Gorman <mel@skynet.ie>, linux-mm@kvack.org, akpm@linux-foundation.org, clameter@sgi.com, riel@redhat.com, balbir@linux.vnet.ibm.com, andrea@suse.de, a.p.zijlstra@chello.nl, eric.whitney@hp.com, npiggin@suse.de
+Cc: linux-mm@kvack.org, akpm@linux-foundation.org, mel@csn.ul.ie, clameter@sgi.com, riel@redhat.com, balbir@linux.vnet.ibm.com, andrea@suse.de, a.p.zijlstra@chello.nl, eric.whitney@hp.com, npiggin@suse.de
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 2007-09-18 at 11:41 +0900, KAMEZAWA Hiroyuki wrote:
-> On Mon, 17 Sep 2007 12:02:35 +0100
-> mel@skynet.ie (Mel Gorman) wrote:
+On Tue, 2007-09-18 at 11:59 +0900, KAMEZAWA Hiroyuki wrote:
+> On Fri, 14 Sep 2007 16:55:12 -0400
+> Lee Schermerhorn <lee.schermerhorn@hp.com> wrote:
 > 
-> > On (14/09/07 16:54), Lee Schermerhorn didst pronounce:
-> > > [PATCH/RFC] 01/14 Reclaim Scalability:  Convert anon_vma list lock a read/write lock
-> > > 
-> > > Against 2.6.23-rc4-mm1
-> > > 
-> > > Make the anon_vma list lock a read/write lock.  Heaviest use of this
-> > > lock is in the page_referenced()/try_to_unmap() calls from vmscan
-> > > [shrink_page_list()].  These functions can use a read lock to allow
-> > > some parallelism for different cpus trying to reclaim pages mapped
-> > > via the same set of vmas.
-> <snip>
-> > In light of what Peter and Linus said about rw-locks being more expensive
-> > than spinlocks, we'll need to measure this with some benchmark. The plus
-> > side is that this patch can be handled in isolation because it's either a
-> > scalability fix or it isn't. It's worth investigating because you say it
-> > fixed a real problem where under load the job was able to complete with
-> > this patch and live-locked without it.
-> >
-> > When you decide on a test-case, I can test just this patch and see what
-> > results I find.
-> > 
+> > +#ifdef CONFIG_NORECLAIM_NO_SWAP
+> > +	if (page_anon(page) && !PageSwapCache(page) && !nr_swap_pages)
+> > +		return 0;
+> > +#endif
 > 
-> One of the case I can imagine is..
+> nr_swap_pages depends on CONFIG_SWAP. 
+
+I didn't think that was the case [see definition in page_alloc.c and
+extern declaration in swap.h].  If this is the case, I'll have to change
+that.  
+
+> 
+> So I recommend you to use total_swap_pages. (if CONFIG_SWAP=n, total_swap_pages is
+> compield to be 0.)
+
+total_swap_pages is not appropriate in this context.  total_swap_pages
+can be non-zero, but we can have MANY more swap-backed pages than we
+have room for.  So, we want to declare any such pages as non-reclaimable
+once the existing swap space has been exhausted.  That's the theory,
+anyway.
+
+> 
 > ==
-> 1. Use NUMA.
-> 2. create *large* anon_vma and use it with MPOL_INTERLEAVE
-> 3. When memory is exhausted (on several nodes), all kswapd on nodes will
->    see one anon_vma->lock.
+> if (!total_swap_pages && page_anon(page)) 
+> 	return 0;
 > ==
-> Maybe the worst case.
+> By the way, nr_swap_pages is "# of currently available swap pages".
+> Should this page will be put into NORECLAIM list ? This number can be
+> changed to be > 0 easily.
 
-Actually, if you only have one mm/vma mapping the area, it won't be that
-bad.  You'll still have contention on the spinlock, but with only one
-vma mapping it, page_referenced_anon() and try_to_unmap_anon() will be
-relatively fast.  The problem we've seen is when you have lots [10s of
-thousands] of vmas referencing the same anon_vma.  This occurs when the
-tasks are all descendants of a single original parent w/o exec()ing. 
+Right.  This means we need to come up with a way to bring pages back
+from the noreclaim list when swap becomes available.  This is currently
+and unsolved problem--the noreclaim series IS a work in progress :-).  
 
-I've only seen this with the AIM7 benchmark.  This is the workload that
-was able to make progress with this patch, but the system hung
-indefinitely without it.  But, AIM7 is not necessarily something we want
-to optimize for.  However, I've been told that Apache can exhibit
-similar behavior with thousands of in-coming connections.  Anyone know
-if this is true?
+Now, Rik vR has a patch that I've kept around in another tree, that
+frees swap space when pages are swapped in, if we're under "swap
+pressure"  [swap space > 1/2 full].  We might want to add this patch
+into the mix and, perhaps, keep the various types of non-reclaimable
+pages on different lists--e.g., in this case, the unswappable list.
+Then, if the list is non-empty when we free a page of swap space, we can
+bring back one page from the "unswappable" list.  Thus, we'd rotate
+pages through the unswappable noreclaim state so as to not penalize
+late-comers after swap space has all been allocated.
 
-I HAVE seen similar behavior in a high-user count Oracle OLTP workload,
-but on the file rmap--the i_mmap_lock--in page_referenced_file(), etc.
-That's probably worth fixing.
+Again, I have got there yet, and am open to suggestions, patches, ...
 
-I'm in the process of running a series of parallel kernel builds on
-kernels without the rmap rw_lock patches, and then with each one
-individually.  This load doesn't exhibit the problem these patches are
-intended to address, but kernel builds do fork a lot of children that
-should result in a lot of vma linking/unlinking [but maybe not if using
-vfork()].  Similar for the i_mmap_lock.  This lock is also used to
-protect the truncate_count, so it must be taken for write in this
-context--mostly in unmap_mapping_range*().  
 
-I'll post the results as soon as I have them for both ia64 and x86_64.
-Later today.
-
+Thanks,
 Lee
-
-
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
