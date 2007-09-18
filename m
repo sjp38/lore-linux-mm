@@ -1,74 +1,43 @@
-Subject: Re: [PATCH/RFC 11/14] Reclaim Scalability: swap backed pages are
-	nonreclaimable when no swap space available
-From: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
-In-Reply-To: <20070918115933.886238b3.kamezawa.hiroyu@jp.fujitsu.com>
-References: <20070914205359.6536.98017.sendpatchset@localhost>
-	 <20070914205512.6536.89432.sendpatchset@localhost>
-	 <20070918115933.886238b3.kamezawa.hiroyu@jp.fujitsu.com>
-Content-Type: text/plain
-Date: Tue, 18 Sep 2007 11:47:21 -0400
-Message-Id: <1190130442.5035.36.camel@localhost>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Date: Tue, 18 Sep 2007 09:44:34 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [PATCH 04 of 24] serialize oom killer
+In-Reply-To: <alpine.DEB.0.9999.0709132010050.30494@chino.kir.corp.google.com>
+Message-ID: <alpine.DEB.0.9999.0709180007420.4624@chino.kir.corp.google.com>
+References: <871b7a4fd566de081120.1187786931@v2.random> <Pine.LNX.4.64.0709121658450.4489@schroedinger.engr.sgi.com> <alpine.DEB.0.9999.0709131126370.27997@chino.kir.corp.google.com> <Pine.LNX.4.64.0709131136560.9590@schroedinger.engr.sgi.com>
+ <alpine.DEB.0.9999.0709131139340.30279@chino.kir.corp.google.com> <Pine.LNX.4.64.0709131152400.9999@schroedinger.engr.sgi.com> <alpine.DEB.0.9999.0709131732330.21805@chino.kir.corp.google.com> <Pine.LNX.4.64.0709131923410.12159@schroedinger.engr.sgi.com>
+ <alpine.DEB.0.9999.0709132010050.30494@chino.kir.corp.google.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: linux-mm@kvack.org, akpm@linux-foundation.org, mel@csn.ul.ie, clameter@sgi.com, riel@redhat.com, balbir@linux.vnet.ibm.com, andrea@suse.de, a.p.zijlstra@chello.nl, eric.whitney@hp.com, npiggin@suse.de
+To: Christoph Lameter <clameter@sgi.com>
+Cc: Andrea Arcangeli <andrea@suse.de>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 2007-09-18 at 11:59 +0900, KAMEZAWA Hiroyuki wrote:
-> On Fri, 14 Sep 2007 16:55:12 -0400
-> Lee Schermerhorn <lee.schermerhorn@hp.com> wrote:
+On Thu, 13 Sep 2007, David Rientjes wrote:
+
+> We have no way of locking only the nodes in the MPOL_BIND memory policy 
+> like we do on a cpuset granularity.  That would require an spinlock in 
+> each node which would work fine if we alter the CONSTRAINT_CPUSET case to 
+> lock each node in current->cpuset->mems_allowed.  We could do that if add 
+> a task_lock(current) before trying oom_test_and_set_lock() in 
+> __alloc_pages().
 > 
-> > +#ifdef CONFIG_NORECLAIM_NO_SWAP
-> > +	if (page_anon(page) && !PageSwapCache(page) && !nr_swap_pages)
-> > +		return 0;
-> > +#endif
+> There's also no OOM locking at the zone level for GFP_DMA constrained 
+> allocations, so perhaps locking should be on the zone level.
 > 
-> nr_swap_pages depends on CONFIG_SWAP. 
 
-I didn't think that was the case [see definition in page_alloc.c and
-extern declaration in swap.h].  If this is the case, I'll have to change
-that.  
+There's a way to get around adding a spinlock to struct zone by just 
+saving the pointers of the zonelists passed to __alloc_pages() when the 
+OOM killer is invoked.  Then, on subsequent calls to out_of_memory(), it 
+is possible to scan through the list of zones that already have a 
+corresponding allocation attempt that has failed and is already in the OOM 
+killer.  Hopefully the OOM killer will kill a memory-hogging task, which 
+the heuristics are pretty good for, and it will free up some space in 
+those zones.  Thus, we should indeed be serializing on the zone level 
+instead of node or cpuset level.
 
-> 
-> So I recommend you to use total_swap_pages. (if CONFIG_SWAP=n, total_swap_pages is
-> compield to be 0.)
-
-total_swap_pages is not appropriate in this context.  total_swap_pages
-can be non-zero, but we can have MANY more swap-backed pages than we
-have room for.  So, we want to declare any such pages as non-reclaimable
-once the existing swap space has been exhausted.  That's the theory,
-anyway.
-
-> 
-> ==
-> if (!total_swap_pages && page_anon(page)) 
-> 	return 0;
-> ==
-> By the way, nr_swap_pages is "# of currently available swap pages".
-> Should this page will be put into NORECLAIM list ? This number can be
-> changed to be > 0 easily.
-
-Right.  This means we need to come up with a way to bring pages back
-from the noreclaim list when swap becomes available.  This is currently
-and unsolved problem--the noreclaim series IS a work in progress :-).  
-
-Now, Rik vR has a patch that I've kept around in another tree, that
-frees swap space when pages are swapped in, if we're under "swap
-pressure"  [swap space > 1/2 full].  We might want to add this patch
-into the mix and, perhaps, keep the various types of non-reclaimable
-pages on different lists--e.g., in this case, the unswappable list.
-Then, if the list is non-empty when we free a page of swap space, we can
-bring back one page from the "unswappable" list.  Thus, we'd rotate
-pages through the unswappable noreclaim state so as to not penalize
-late-comers after swap space has all been allocated.
-
-Again, I have got there yet, and am open to suggestions, patches, ...
-
-
-Thanks,
-Lee
+		David
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
