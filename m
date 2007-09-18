@@ -1,93 +1,57 @@
-Date: Tue, 18 Sep 2007 09:44:36 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: [patch 1/4] oom: move prototypes to appropriate header file
-In-Reply-To: <alpine.DEB.0.9999.0709180007420.4624@chino.kir.corp.google.com>
-Message-ID: <alpine.DEB.0.9999.0709180245170.21326@chino.kir.corp.google.com>
-References: <871b7a4fd566de081120.1187786931@v2.random> <Pine.LNX.4.64.0709121658450.4489@schroedinger.engr.sgi.com> <alpine.DEB.0.9999.0709131126370.27997@chino.kir.corp.google.com> <Pine.LNX.4.64.0709131136560.9590@schroedinger.engr.sgi.com>
- <alpine.DEB.0.9999.0709131139340.30279@chino.kir.corp.google.com> <Pine.LNX.4.64.0709131152400.9999@schroedinger.engr.sgi.com> <alpine.DEB.0.9999.0709131732330.21805@chino.kir.corp.google.com> <Pine.LNX.4.64.0709131923410.12159@schroedinger.engr.sgi.com>
- <alpine.DEB.0.9999.0709132010050.30494@chino.kir.corp.google.com> <alpine.DEB.0.9999.0709180007420.4624@chino.kir.corp.google.com>
+From: Daniel Phillips <phillips@phunq.net>
+Subject: Re: [RFC 0/3] Recursive reclaim (on __PF_MEMALLOC)
+Date: Tue, 18 Sep 2007 09:56:06 -0700
+References: <20070814142103.204771292@sgi.com> <200709172211.26493.phillips@phunq.net> <20070918115836.1394a051@twins>
+In-Reply-To: <20070918115836.1394a051@twins>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain;
+  charset="iso-8859-1"
+Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+Message-Id: <200709180956.07772.phillips@phunq.net>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Andrea Arcangeli <andrea@suse.de>, Christoph Lameter <clameter@sgi.com>, linux-mm@kvack.org
+To: Peter Zijlstra <a.p.zijlstra@chello.nl>
+Cc: Mike Snitzer <snitzer@gmail.com>, Christoph Lameter <clameter@sgi.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, dkegel@google.com, David Miller <davem@davemloft.net>, Nick Piggin <npiggin@suse.de>, Wouter Verhelst <w@uter.be>, Evgeniy Polyakov <johnpol@2ka.mipt.ru>
 List-ID: <linux-mm.kvack.org>
 
-Move the OOM killer's extern function prototypes to include/linux/oom.h
-and include it where necessary.
+On Tuesday 18 September 2007 02:58, Peter Zijlstra wrote:
+> On Mon, 17 Sep 2007 22:11:25 -0700 Daniel Phillips wrote:
+> > > I've been using Avi Kivity's patch from some time ago:
+> > > http://lkml.org/lkml/2004/7/26/68
+> >
+> > Yes.  Ddsnap includes a bit of code almost identical to that, which
+> > we wrote independently.  Seems wild and crazy at first blush,
+> > doesn't it? But this approach has proved robust in practice, and is
+> > to my mind, obviously correct.
+>
+> I'm so not liking this :-(
 
-Cc: Andrea Arcangeli <andrea@suse.de>
-Cc: Christoph Lameter <clameter@sgi.com>
-Signed-off-by: David Rientjes <rientjes@google.com>
----
- drivers/char/sysrq.c |    1 +
- include/linux/oom.h  |   11 ++++++++++-
- include/linux/swap.h |    5 -----
- mm/page_alloc.c      |    1 +
- 4 files changed, 12 insertions(+), 6 deletions(-)
+Why don't you share your specific concerns?
 
-diff --git a/drivers/char/sysrq.c b/drivers/char/sysrq.c
---- a/drivers/char/sysrq.c
-+++ b/drivers/char/sysrq.c
-@@ -36,6 +36,7 @@
- #include <linux/kexec.h>
- #include <linux/irq.h>
- #include <linux/hrtimer.h>
-+#include <linux/oom.h>
- 
- #include <asm/ptrace.h>
- #include <asm/irq_regs.h>
-diff --git a/include/linux/oom.h b/include/linux/oom.h
---- a/include/linux/oom.h
-+++ b/include/linux/oom.h
-@@ -1,10 +1,19 @@
- #ifndef __INCLUDE_LINUX_OOM_H
- #define __INCLUDE_LINUX_OOM_H
- 
-+#include <linux/sched.h>
-+
- /* /proc/<pid>/oom_adj set to -17 protects from the oom-killer */
- #define OOM_DISABLE (-17)
- /* inclusive */
- #define OOM_ADJUST_MIN (-16)
- #define OOM_ADJUST_MAX 15
- 
--#endif
-+#ifdef __KERNEL__
-+
-+extern void out_of_memory(struct zonelist *zonelist, gfp_t gfp_mask, int order);
-+extern int register_oom_notifier(struct notifier_block *nb);
-+extern int unregister_oom_notifier(struct notifier_block *nb);
-+
-+#endif /* __KERNEL__*/
-+#endif /* _INCLUDE_LINUX_OOM_H */
-diff --git a/include/linux/swap.h b/include/linux/swap.h
---- a/include/linux/swap.h
-+++ b/include/linux/swap.h
-@@ -158,11 +158,6 @@ struct swap_list_t {
- /* Swap 50% full? Release swapcache more aggressively.. */
- #define vm_swap_full() (nr_swap_pages*2 < total_swap_pages)
- 
--/* linux/mm/oom_kill.c */
--extern void out_of_memory(struct zonelist *zonelist, gfp_t gfp_mask, int order);
--extern int register_oom_notifier(struct notifier_block *nb);
--extern int unregister_oom_notifier(struct notifier_block *nb);
--
- /* linux/mm/memory.c */
- extern void swapin_readahead(swp_entry_t, unsigned long, struct vm_area_struct *);
- 
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -41,6 +41,7 @@
- #include <linux/pfn.h>
- #include <linux/backing-dev.h>
- #include <linux/fault-inject.h>
-+#include <linux/oom.h>
- 
- #include <asm/tlbflush.h>
- #include <asm/div64.h>
+> Can't we just run the user-space part as mlockall and extend netlink
+> to work with PF_MEMALLOC where needed?
+>
+> I did something like that for iSCSI.
+
+Not sure what you mean by extend netlink.  We do run the user daemons 
+under mlockall of course, this is one of the rules I stated earlier for 
+daemons running in the block IO path.  The problem is, if this 
+userspace daemon allocates even one page, for example in sys_open, it 
+can deadlock.  Running the daemon in PF_MEMALLOC mode fixes this 
+problem robustly, provided that the necessary audit of memory 
+allocation patterns and library dependencies has been done.
+
+I suppose you are worried that the userspace code could unexpectedly 
+allocate a large amount of memory and exhaust the entire PF_MEMALLOC 
+reserve?  Kernel code could do that too.  This userspace code just 
+needs to be checked carefully.  Perhaps we could come up with a kernel 
+debugging option to verify that a task does in fact stay within some 
+bounded number of page allocs while in PF_MEMALLOC mode.
+
+Regards,
+
+Daniel
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
