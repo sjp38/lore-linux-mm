@@ -1,75 +1,109 @@
-Date: Tue, 18 Sep 2007 13:16:24 -0700 (PDT)
-From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [patch 3/4] oom: save zonelist pointer for oom killer calls
-In-Reply-To: <alpine.DEB.0.9999.0709181306140.22984@chino.kir.corp.google.com>
-Message-ID: <Pine.LNX.4.64.0709181314160.3953@schroedinger.engr.sgi.com>
-References: <871b7a4fd566de081120.1187786931@v2.random>
- <Pine.LNX.4.64.0709121658450.4489@schroedinger.engr.sgi.com>
- <alpine.DEB.0.9999.0709131126370.27997@chino.kir.corp.google.com>
- <Pine.LNX.4.64.0709131136560.9590@schroedinger.engr.sgi.com>
- <alpine.DEB.0.9999.0709131139340.30279@chino.kir.corp.google.com>
- <Pine.LNX.4.64.0709131152400.9999@schroedinger.engr.sgi.com>
- <alpine.DEB.0.9999.0709131732330.21805@chino.kir.corp.google.com>
- <Pine.LNX.4.64.0709131923410.12159@schroedinger.engr.sgi.com>
- <alpine.DEB.0.9999.0709132010050.30494@chino.kir.corp.google.com>
- <alpine.DEB.0.9999.0709180007420.4624@chino.kir.corp.google.com>
- <alpine.DEB.0.9999.0709180245170.21326@chino.kir.corp.google.com>
- <alpine.DEB.0.9999.0709180246350.21326@chino.kir.corp.google.com>
- <alpine.DEB.0.9999.0709180246580.21326@chino.kir.corp.google.com>
- <Pine.LNX.4.64.0709181256260.3953@schroedinger.engr.sgi.com>
- <alpine.DEB.0.9999.0709181306140.22984@chino.kir.corp.google.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: [PATCH/RFC 1/14] Reclaim Scalability:  Convert anon_vma lock
+	to read/write lock
+From: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
+In-Reply-To: <20070917110234.GF25706@skynet.ie>
+References: <20070914205359.6536.98017.sendpatchset@localhost>
+	 <20070914205405.6536.37532.sendpatchset@localhost>
+	 <20070917110234.GF25706@skynet.ie>
+Content-Type: text/plain
+Date: Tue, 18 Sep 2007 16:17:21 -0400
+Message-Id: <1190146641.5035.80.camel@localhost>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <andrea@suse.de>, linux-mm@kvack.org
+To: Mel Gorman <mel@skynet.ie>
+Cc: linux-mm@kvack.org, akpm@linux-foundation.org, clameter@sgi.com, riel@redhat.com, balbir@linux.vnet.ibm.com, andrea@suse.de, a.p.zijlstra@chello.nl, eric.whitney@hp.com, npiggin@suse.de
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 18 Sep 2007, David Rientjes wrote:
-
-> On Tue, 18 Sep 2007, Christoph Lameter wrote:
-> 
-> > On Tue, 18 Sep 2007, David Rientjes wrote:
+On Mon, 2007-09-17 at 12:02 +0100, Mel Gorman wrote:
+> On (14/09/07 16:54), Lee Schermerhorn didst pronounce:
+> > [PATCH/RFC] 01/14 Reclaim Scalability:  Convert anon_vma list lock a read/write lock
 > > 
-> > > +
-> > > +	oom_zl = kzalloc(sizeof(*oom_zl), GFP_KERNEL);
-> > > +	if (!oom_zl)
-> > > +		goto out;
+> > Against 2.6.23-rc4-mm1
 > > 
-> > An allocation in the oom killer? This could in turn trigger more 
-> > problems. Maybe its best to put a list head into the zone?
+> > Make the anon_vma list lock a read/write lock.  Heaviest use of this
+> > lock is in the page_referenced()/try_to_unmap() calls from vmscan
+> > [shrink_page_list()].  These functions can use a read lock to allow
+> > some parallelism for different cpus trying to reclaim pages mapped
+> > via the same set of vmas.
+> > 
+> > This change should not change the footprint of the anon_vma in the
+> > non-debug case.
+> > 
+> > Note:  I have seen systems livelock with all cpus in reclaim, down
+> > in page_referenced_anon() or try_to_unmap_anon() spinning on the
+> > anon_vma lock.  I have only seen this with the AIM7 benchmark with
+> > workloads of 10s of thousands of tasks.  All of these tasks are
+> > children of a single ancestor, so they all share the same anon_vma
+> > for each vm area in their respective mm's.  I'm told that Apache
+> > can fork thousands of children to handle incoming connections, and
+> > I've seen similar livelocks--albeit on the i_mmap_lock [next patch]
+> > running 1000s of Oracle users on a large ia64 platform.
+> > 
+> > With this patch [along with Rik van Riel's split LRU patch] we were
+> > able to see the AIM7 workload start swapping, instead of hanging,
+> > for the first time.  Same workload DID hang with just Rik's patch,
+> > so this patch is apparently useful.
 > > 
 > 
-> I thought about doing that as well as statically allocating
+> In light of what Peter and Linus said about rw-locks being more expensive
+> than spinlocks, we'll need to measure this with some benchmark. The plus
+> side is that this patch can be handled in isolation because it's either a
+> scalability fix or it isn't. It's worth investigating because you say it
+> fixed a real problem where under load the job was able to complete with
+> this patch and live-locked without it.
 > 
-> 	#define MAX_OOM_THREADS		4
-> 	static struct zonelist *zonelists[MAX_OOM_THREADS];
-> 
-> and using semaphores.  But in my testing of this patchset and experience 
-> in working with the watermarks used in __alloc_pages(), we should never 
-> actually encounter a condition where we can't find
-> sizeof(struct oom_zonelist) of memory.  That's on the order of how many 
-> invocations of the OOM killer you have, but I don't actually think you'll 
-> have many that have a completely exclusive set of zones in the zonelist.  
-> Watermarks usually do the trick (and is the only reason TIF_MEMDIE works, 
-> by the way).
+> kernbench is unlikely to show up anything useful here although it might be
+> worth running anyway just in case. brk_test from aim9 might be useful as it's
+> a micro-benchmark that uses brk() which is a path affected by this patch. As
+> aim7 is exercising this path, it would be interesting to see does it show
+> performance differences in the normal non-stressed case. Other suggestions?
 
-You are playing with fire here. The slab queues *may* have enough memory 
-to satisfy that requests but if not then we may recursively call into the 
-page allocator to get a page/pages. Sounds dangerous to me.
- 
-> I'm not sure how embedding a list_head in struct zone would work even 
-> though we're adding the premise that a single zone can only be in the OOM 
-> killer once.  You'd have to recreate the zonelist by stringing together 
-> these heads in the zone but the whole concept relies upon finding a 
-> pointer to an already existing struct zonelist.  It works nicely as is 
-> because the struct zonelist is persistent in __alloc_pages() so it is easy 
-> to pass it to both zone_in_oom() and zonelist_clear_oom().
+As Mel predicted, kernel builds don't seem to be affected by this patch,
+nor the i_mmap_lock rw_lock patch.  Below I've included results for an
+old ia64 system that I have pretty much exclusive access to.  I can't
+get 23-rc4-mm1 nor rc6-mm1 to boot on an x86_64 [AMD-based] right
+now--still trying to capture stack trace [not easy from a remote
+console :-(].  
 
-Then add a flag? Andrew and I talked about switching the all_reclaimable 
-field to a bitmask? Do the conversion there and then we can add a OOM kill 
-active state to each zone.
+I don't have access to the large server with storage for testing Oracle
+and AIM right now.  When I get it back, I will try both of these patches
+both for any added overhead and to verify that they alleviate the
+problem they're trying to solve.  [I do have evidence that the anon_vma
+rw lock improves the situation with AIM7 on a ~21-rcx kernel earlier
+this year].
+
+These times are the average [+ std dev'n] of 10 consecutive runs after
+reboot of a '-j32' build of ia64 defconfig.
+
+23-rc4-mm1 - no rmap rw_lock -- i.e., spinlocks
+	 Real	  User	 System
+	101.94	1205.10	  92.85 
+	  0.56	   1.04	  0.73
+
+23-rc4-mm1 w/ anon_vma rw_lock
+	 Real	  User	 System
+	101.64	1205.36	  91.83
+	  0.65	   0.59	   0.67
+
+23-rc4-mm1 w/ i_mmap_lock rw_lock
+	 Real	  User	 System
+	101.70	1204.57	  92.20
+	  0.51	   0.73	  0.39
+
+This is a NUMA system, so the differences are more like the result of
+differences in locality--roll of the dice--than the lock types.
+
+More data later, when I get it...
+
+Lee
+
+	
+
+
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
