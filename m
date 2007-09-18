@@ -1,349 +1,294 @@
-Date: Tue, 18 Sep 2007 11:36:46 +0100
-Subject: Re: [PATCH] Fix NUMA Memory Policy Reference Counting
-Message-ID: <20070918103645.GC2035@skynet.ie>
-References: <20070830185053.22619.96398.sendpatchset@localhost> <1190055637.5460.105.camel@localhost>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <1190055637.5460.105.camel@localhost>
-From: mel@skynet.ie (Mel Gorman)
+Message-Id: <6.0.0.20.2.20070918193944.038e2ea0@172.19.0.2>
+Date: Tue, 18 Sep 2007 19:41:14 +0900
+From: Hisashi Hifumi <hifumi.hisashi@oss.ntt.co.jp>
+Subject: Re: [PATCH] mm: use pagevec to rotate reclaimable page
+In-Reply-To: <20070913193711.ecc825f7.akpm@linux-foundation.org>
+References: <6.0.0.20.2.20070907113025.024dfbb8@172.19.0.2>
+ <20070913193711.ecc825f7.akpm@linux-foundation.org>
+Mime-Version: 1.0
+Content-Type: multipart/mixed;	boundary="=====================_36019476==_"
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
-Cc: linux-mm@kvack.org, akpm@linux-foundation.org, ak@suse.de, clameter@sgi.com, eric.whitney@hp.com
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On (17/09/07 15:00), Lee Schermerhorn didst pronounce:
-> Andi pinged me to submit this patch as stand alone.  He would like to
-> see this go into 2.6.23, as he considers it a high priority bug.  This
-> verion of the patch is against 23-rc4-mm1.  I have another version
-> rebased against 23-rc6.  I would understand if folks were not
-> comfortable with this going in at this late date.  However, I will post
-> that version so that it can be added to .23 or one of the subsequent
-> stable release, if folks so choose.
-> 
-> Christoph L was concerned about performance regression in the page
-> allocation path, so I've included the results of some page allocation
-> micro-benchmarks, plus kernel build results on the version of the patch
-> against 23-rc6.
-> 
-> Note that this patch will collide with Mel Gorman's one zonelist series.
-> I can rebase atop that, if Mel's series makes it into -mm before this
-> one.
-> 
-> Mel suggested renaming mpol_free() to mpol_put() because it removes a
-> reference and frees only if ref count goes to zero.  I haven't gotten
-> around to that in this patch.  I would welcome other opinions on this.
-> 
+--=====================_36019476==_
+Content-Type: text/plain; charset="us-ascii"; format=flowed
+Content-Transfer-Encoding: 7bit
 
-If this is being pushed as a fix to 2.6.23, then do the clean-up separetly
-in the next cycle to avoid obscuring the fix this close to release. I still
-think that mpol_put() is a much better name for a drop-ref-and-free-if-0
-function than mpol_free.
+I modified my patch based on your comment.
 
-> Lee
-> 
-> --------------------------------
-> PATCH  Memory Policy: fix reference counting
-> 
-> Against 2.6.23-rc4-mm1
-> 
-> This patch proposes fixes to the reference counting of memory policy
-> in the page allocation paths and in show_numa_map().  Extracted from
-> my "Memory Policy Cleanups and Enhancements" series as stand-alone.
-> 
-> Shared policy lookup [shmem] has always added a reference to the
-> policy, but this was never unrefed after page allocation or after
-> formatting the numa map data.  
-> 
-> Default system policy should not require additional ref counting,
-> nor should the current task's task policy.  However, show_numa_map()
-> calls get_vma_policy() to examine what may be [likely is] another
-> task's policy.  The latter case needs protection against freeing
-> of the policy.
-> 
-> This patch adds a reference count to a mempolicy returned by
-> get_vma_policy() when the policy is a vma policy or another
-> task's mempolicy.  Again, shared policy is already reference
-> counted on lookup.  A matching "unref" [__mpol_free()] is performed
-> in alloc_page_vma() for shared and vma policies, and in
-> show_numa_map() for shared and another task's mempolicy.
-> We can call __mpol_free() directly, saving an admittedly
-> inexpensive inline NULL test, because we know we have a non-NULL
-> policy.
-> 
-> Handling policy ref counts for hugepages is a bit trickier.
-> huge_zonelist() returns a zone list that might come from a 
-> shared or vma 'BIND policy.  In this case, we should hold the
-> reference until after the huge page allocation in 
-> dequeue_hugepage().  The patch modifies huge_zonelist() to
-> return a pointer to the mempolicy if it needs to be unref'd
-> after allocation.
-> 
-> Page allocation micro-benchmark:
-> 
-> Time to fault in 256K 16k pages [ia64] into a 4G anon segment.
-> 
-> Test                    23-rc4-mm1      +mempol ref count
-> sys default policy        2.769s        >       2.763s [-0.006ms = 0.22%]
-> task pol bind local(1)    2.789s        ~=      2.790s
-> task pol bind remote(2)   3.774s        <       3.777s
-> vma pol bind local(3)     2.793s        >       2.790s
-> vma pol bind remote(4)    3.768s        >       3.764s
-> vma pol pref local(5)     2.774s        <       2.780s [+0.006ms = 0.22%]
-> vma interleave 0-3        3.445s        ~=      3.444s
-> 
-> Notes:
-> 1) numactl -c3 -m3 
-> 2) numactl -c1 -m3
-> 3) memtoy bound to node 3, mbind MPOL_BIND to node 3
-> 4) memtoy bound to node 1, mbind MPOL_BIND to node 3
-> 5) mbind MPOL_PREFERRED, null nodemask [preferred_node == -1 internally]
-> 
-> I think the difference in performance, for these tests, is in the noise:  0.22% max.
-> In one case in favor of the patch [system default policy] and in the other case,
-> in favor of unpatched kernel [explicit local policy].
-> 
-> Kernel Build [16cpu, 32GB, ia64] - same patch, but atop 2.6.23-rc6;
-> average of 10 runs:
-> 		w/o patch	w/ refcount patch
-> 	    Avg	  Std Devn	   Avg	  Std Devn
-> Real:	 100.59	    0.38	 100.63	    0.43
-> User:	1209.60	    0.37	1209.91	    0.31
-> System:   81.52	    0.42	  81.64	    0.34
-> 
-> 
-> Signed-off-by:  Lee Schermerhorn <lee.schermerhorn@hp.com>
-> 
->  include/linux/mempolicy.h |    4 +-
->  mm/hugetlb.c              |    4 +-
->  mm/mempolicy.c            |   79 ++++++++++++++++++++++++++++++++++++++++------
->  3 files changed, 75 insertions(+), 12 deletions(-)
-> 
-> Index: Linux/mm/mempolicy.c
-> ===================================================================
-> --- Linux.orig/mm/mempolicy.c	2007-09-17 12:18:47.000000000 -0400
-> +++ Linux/mm/mempolicy.c	2007-09-17 14:48:08.000000000 -0400
-> @@ -1086,21 +1086,37 @@ asmlinkage long compat_sys_mbind(compat_
->  
->  #endif
->  
-> -/* Return effective policy for a VMA */
-> +/*
-> + * get_vma_policy(@task, @vma, @addr)
-> + * @task - task for fallback if vma policy == default
-> + * @vma   - virtual memory area whose policy is sought
-> + * @addr  - address in @vma for shared policy lookup
-> + *
-> + * Returns effective policy for a VMA at specified address.
-> + * Falls back to @task or system default policy, as necessary.
-> + * Returned policy has extra reference count if shared, vma,
-> + * or some other task's policy [show_numa_maps() can pass
-> + * @task != current].  It is the caller's responsibility to
-> + * free the reference in these cases.
-> + */
->  static struct mempolicy * get_vma_policy(struct task_struct *task,
->  		struct vm_area_struct *vma, unsigned long addr)
->  {
->  	struct mempolicy *pol = task->mempolicy;
-> +	int shared_pol = 0;
->  
->  	if (vma) {
-> -		if (vma->vm_ops && vma->vm_ops->get_policy)
-> +		if (vma->vm_ops && vma->vm_ops->get_policy) {
->  			pol = vma->vm_ops->get_policy(vma, addr);
-> -		else if (vma->vm_policy &&
-> +			shared_pol = 1;	/* if pol non-NULL, add ref below */
-> +		} else if (vma->vm_policy &&
->  				vma->vm_policy->policy != MPOL_DEFAULT)
->  			pol = vma->vm_policy;
->  	}
->  	if (!pol)
->  		pol = &default_policy;
-> +	else if (!shared_pol && pol != current->mempolicy)
-> +		mpol_get(pol);	/* vma or other task's policy */
->  	return pol;
->  }
->  
-> @@ -1216,19 +1232,45 @@ static inline unsigned interleave_nid(st
->  }
->  
->  #ifdef CONFIG_HUGETLBFS
-> -/* Return a zonelist suitable for a huge page allocation. */
-> +/*
-> + * huge_zonelist(@vma, @addr, @gfp_flags, @mpol)
-> + * @vma = virtual memory area whose policy is sought
-> + * @addr = address in @vma for shared policy lookup and interleave policy
-> + * @gfp_flags = for requested zone
-> + * @mpol = pointer to mempolicy pointer for reference counted 'BIND policy
-> + *
-> + * Returns a zonelist suitable for a huge page allocation.
-> + * If the effective policy is 'BIND, returns pointer to policy's zonelist.
-> + * If it is also a policy for which get_vma_policy() returns an extra
-> + * reference, we must hold that reference until after allocation.
-> + * In that case, return policy via @mpol so hugetlb allocation can drop
-> + * the reference.  For non-'BIND referenced policies, we can/do drop the
-> + * reference here, so the caller doesn't need to know about the special case
-> + * for default and current task policy.
-> + */
->  struct zonelist *huge_zonelist(struct vm_area_struct *vma, unsigned long addr,
-> -							gfp_t gfp_flags)
-> +				gfp_t gfp_flags, struct mempolicy **mpol)
->  {
->  	struct mempolicy *pol = get_vma_policy(current, vma, addr);
-> +	struct zonelist *zl;
->  
-> +	*mpol = NULL;		/* probably no unref needed */
->  	if (pol->policy == MPOL_INTERLEAVE) {
->  		unsigned nid;
->  
->  		nid = interleave_nid(pol, vma, addr, HPAGE_SHIFT);
-> +		__mpol_free(pol);		/* finished with pol */
->  		return NODE_DATA(nid)->node_zonelists + gfp_zone(gfp_flags);
->  	}
+At 11:37 07/09/14, Andrew Morton wrote:
+ >
+ >So I do think that for safety and sanity's sake, we should be taking a ref
+ >on the pages when they are in a pagevec.  That's going to hurt your nice
+ >performance numbers :(
+ >
 
-This different handling of pol vs mpol is a bit confusing. It took me a
-few minutes to pick apart what is going on despite the comment before
-the function. What would the consequence be of always passing back mpol
-and having the caller drop the reference?
+I did ping test again to observe performance deterioration caused by taking 
+a ref.
 
-Again, not big enough to actually halt the fix.
+	-2.6.23-rc6-with-modifiedpatch
+	--- testmachine ping statistics ---
+	3000 packets transmitted, 3000 received, 0% packet loss, time 53386ms
+	rtt min/avg/max/mdev = 0.074/0.110/4.716/0.147 ms, pipe 2, ipg/ewma 
+17.801/0.129 ms
 
-> -	return zonelist_policy(GFP_HIGHUSER, pol);
-> +
-> +	zl = zonelist_policy(GFP_HIGHUSER, pol);
-> +	if (unlikely(pol != &default_policy && pol != current->mempolicy)) {
-> +		if (pol->policy != MPOL_BIND)
-> +			__mpol_free(pol);	/* finished with pol */
-> +		else
-> +			*mpol = pol;	/* unref needed after allocation */
-> +	}
-> +	return zl;
->  }
->  #endif
->  
-> @@ -1273,6 +1315,7 @@ struct page *
->  alloc_page_vma(gfp_t gfp, struct vm_area_struct *vma, unsigned long addr)
->  {
->  	struct mempolicy *pol = get_vma_policy(current, vma, addr);
-> +	struct zonelist *zl;
->  
->  	cpuset_update_task_memory_state();
->  
-> @@ -1282,7 +1325,19 @@ alloc_page_vma(gfp_t gfp, struct vm_area
->  		nid = interleave_nid(pol, vma, addr, PAGE_SHIFT);
->  		return alloc_page_interleave(gfp, 0, nid);
->  	}
-> -	return __alloc_pages(gfp, 0, zonelist_policy(gfp, pol));
-> +	zl = zonelist_policy(gfp, pol);
-> +	if (pol != &default_policy && pol != current->mempolicy) {
+The result for my original patch is as follows.
 
-Bit of a nit-pick. This
+	-2.6.23-rc5-with-originalpatch
+	--- testmachine ping statistics ---
+	3000 packets transmitted, 3000 received, 0% packet loss, time 51924ms
+	rtt min/avg/max/mdev = 0.072/0.108/3.884/0.114 ms, pipe 2, ipg/ewma 
+17.314/0.091 ms
 
-if (pol != &default_policy && pol != current->mempolicy)
 
-check happens quite frequently. Consider making it a helper function like
-is_foreign_policy() or something as a future clean-up. That's not a great
-name but you get the idea. It's not vital to address as part of a fix.
+The influence to response was small.
 
-> +		/*
-> +		 * slow path: ref counted policy -- shared or vma
-> +		 */
-> +		struct page *page =  __alloc_pages(gfp, 0, zl);
-> +		__mpol_free(pol);
-> +		return page;
-> +	}
-> +	/*
-> +	 * fast path:  default or task policy
-> +	 */
-> +	return __alloc_pages(gfp, 0, zl);
->  }
->  
->  /**
-> @@ -1881,6 +1936,7 @@ int show_numa_map(struct seq_file *m, vo
->  	struct numa_maps *md;
->  	struct file *file = vma->vm_file;
->  	struct mm_struct *mm = vma->vm_mm;
-> +	struct mempolicy *pol;
->  	int n;
->  	char buffer[50];
->  
-> @@ -1891,8 +1947,13 @@ int show_numa_map(struct seq_file *m, vo
->  	if (!md)
->  		return 0;
->  
-> -	mpol_to_str(buffer, sizeof(buffer),
-> -			    get_vma_policy(priv->task, vma, vma->vm_start));
-> +	pol = get_vma_policy(priv->task, vma, vma->vm_start);
-> +	mpol_to_str(buffer, sizeof(buffer), pol);
-> +	/*
-> +	 * unref shared or other task's mempolicy
-> +	 */
-> +	if (pol != &default_policy && pol != current->mempolicy)
-> +		__mpol_free(pol);
->  
->  	seq_printf(m, "%08lx %s", vma->vm_start, buffer);
->  
-> Index: Linux/include/linux/mempolicy.h
-> ===================================================================
-> --- Linux.orig/include/linux/mempolicy.h	2007-09-17 12:18:47.000000000 -0400
-> +++ Linux/include/linux/mempolicy.h	2007-09-17 14:47:58.000000000 -0400
-> @@ -150,7 +150,7 @@ extern void mpol_fix_fork_child_flag(str
->  
->  extern struct mempolicy default_policy;
->  extern struct zonelist *huge_zonelist(struct vm_area_struct *vma,
-> -		unsigned long addr, gfp_t gfp_flags);
-> +		unsigned long addr, gfp_t gfp_flags, struct mempolicy **mpol);
->  extern unsigned slab_node(struct mempolicy *policy);
->  
->  extern enum zone_type policy_zone;
-> @@ -238,7 +238,7 @@ static inline void mpol_fix_fork_child_f
->  }
->  
->  static inline struct zonelist *huge_zonelist(struct vm_area_struct *vma,
-> -		unsigned long addr, gfp_t gfp_flags)
-> +		unsigned long addr, gfp_t gfp_flags, struct mempolicy **mpol)
->  {
->  	return NODE_DATA(0)->node_zonelists + gfp_zone(gfp_flags);
->  }
-> Index: Linux/mm/hugetlb.c
-> ===================================================================
-> --- Linux.orig/mm/hugetlb.c	2007-09-17 14:47:54.000000000 -0400
-> +++ Linux/mm/hugetlb.c	2007-09-17 14:47:58.000000000 -0400
-> @@ -71,8 +71,9 @@ static struct page *dequeue_huge_page(st
->  {
->  	int nid;
->  	struct page *page = NULL;
-> +	struct mempolicy *mpol;
->  	struct zonelist *zonelist = huge_zonelist(vma, address,
-> -						htlb_alloc_mask);
-> +					htlb_alloc_mask, &mpol);
->  	struct zone **z;
->  
->  	for (z = zonelist->zones; *z; z++) {
-> @@ -87,6 +88,7 @@ static struct page *dequeue_huge_page(st
->  			break;
->  		}
->  	}
-> +	mpol_free(mpol);	/* maybe need unref */
+Thanks.
 
-If you always passed back mpol and did the free here, it ref/unref
-should be clearer.
+Signed-off-by :Hisashi Hifumi <hifumi.hisashi@oss.ntt.co.jp>
 
->  	return page;
->  }
->  
 
-I haven't tested it but it looks good. Any problems I have are of the
-cleanup or nit-pick nature and not sufficent to warrent another
-revision. I would like to see the cleanups after 2.6.23 though.
+diff -Nrup linux-2.6.23-rc6.org/include/linux/swap.h 
+linux-2.6.23-rc6/include/linux/swap.h
+--- linux-2.6.23-rc6.org/include/linux/swap.h	2007-09-14 16:49:57.000000000 +0900
++++ linux-2.6.23-rc6/include/linux/swap.h	2007-09-14 16:58:48.000000000 +0900
+@@ -185,6 +185,7 @@ extern void FASTCALL(mark_page_accessed(
+  extern void lru_add_drain(void);
+  extern int lru_add_drain_all(void);
+  extern int rotate_reclaimable_page(struct page *page);
++extern void move_tail_pages(void);
+  extern void swap_setup(void);
 
-Acked-by: Mel Gorman <mel@csn.ul.ie>
+  /* linux/mm/vmscan.c */
+diff -Nrup linux-2.6.23-rc6.org/mm/swap.c linux-2.6.23-rc6/mm/swap.c
+--- linux-2.6.23-rc6.org/mm/swap.c	2007-07-09 08:32:17.000000000 +0900
++++ linux-2.6.23-rc6/mm/swap.c	2007-09-18 18:49:07.000000000 +0900
+@@ -94,24 +94,62 @@ void put_pages_list(struct list_head *pa
+  EXPORT_SYMBOL(put_pages_list);
 
--- 
-Mel Gorman
-Part-time Phd Student                          Linux Technology Center
-University of Limerick                         IBM Dublin Software Lab
+  /*
++ * pagevec_move_tail() must be called with IRQ disabled.
++ * Otherwise this may cause nasty races.
++ */
++static void pagevec_move_tail(struct pagevec *pvec)
++{
++	int i;
++	int pgmoved = 0;
++	struct zone *zone = NULL;
++	unsigned long flags = 0;
++
++	for (i = 0; i < pagevec_count(pvec); i++) {
++		struct page *page = pvec->pages[i];
++		struct zone *pagezone = page_zone(page);
++
++		if (pagezone != zone) {
++			if (zone)
++				spin_unlock_irqrestore(&zone->lru_lock, flags);
++			zone = pagezone;
++			spin_lock_irqsave(&zone->lru_lock, flags);
++		}
++		if (PageLRU(page) && !PageActive(page)) {
++			list_move_tail(&page->lru, &zone->inactive_list);
++			pgmoved++;
++		}
++	}
++	if (zone)
++		spin_unlock_irqrestore(&zone->lru_lock, flags);
++	__count_vm_events(PGROTATED, pgmoved);
++	release_pages(pvec->pages, pvec->nr, pvec->cold);
++	pagevec_reinit(pvec);
++}
++
++static DEFINE_PER_CPU(struct pagevec, rotate_pvecs) = { 0, };
++
++void move_tail_pages()
++{
++	unsigned long flags;
++	struct pagevec *pvec;
++
++	local_irq_save(flags);
++	pvec = &__get_cpu_var(rotate_pvecs);
++	if (pagevec_count(pvec))
++		pagevec_move_tail(pvec);
++	local_irq_restore(flags);
++}
++
++/*
+   * Writeback is about to end against a page which has been marked for immediate
+   * reclaim.  If it still appears to be reclaimable, move it to the tail of the
+- * inactive list.  The page still has PageWriteback set, which will pin it.
+- *
+- * We don't expect many pages to come through here, so don't bother batching
+- * things up.
+- *
+- * To avoid placing the page at the tail of the LRU while PG_writeback is still
+- * set, this function will clear PG_writeback before performing the page
+- * motion.  Do that inside the lru lock because once PG_writeback is cleared
+- * we may not touch the page.
++ * inactive list.
+   *
+   * Returns zero if it cleared PG_writeback.
+   */
+  int rotate_reclaimable_page(struct page *page)
+  {
+-	struct zone *zone;
+-	unsigned long flags;
++	struct pagevec *pvec;
+
+  	if (PageLocked(page))
+  		return 1;
+@@ -122,15 +160,15 @@ int rotate_reclaimable_page(struct page
+  	if (!PageLRU(page))
+  		return 1;
+
+-	zone = page_zone(page);
+-	spin_lock_irqsave(&zone->lru_lock, flags);
+  	if (PageLRU(page) && !PageActive(page)) {
+-		list_move_tail(&page->lru, &zone->inactive_list);
+-		__count_vm_event(PGROTATED);
++		page_cache_get(page);
++		pvec = &__get_cpu_var(rotate_pvecs);
++		if (!pagevec_add(pvec, page))
++			pagevec_move_tail(pvec);
+  	}
+  	if (!test_clear_page_writeback(page))
+  		BUG();
+-	spin_unlock_irqrestore(&zone->lru_lock, flags);
++
+  	return 0;
+  }
+
+@@ -495,6 +533,23 @@ static int cpu_swap_callback(struct noti
+  	}
+  	return NOTIFY_OK;
+  }
++
++static int cpu_movetail_callback(struct notifier_block *nfb,
++				 unsigned long action, void *hcpu)
++{
++	unsigned long flags;
++	struct pagevec *pvec;
++
++	if (action == CPU_DEAD || action == CPU_DEAD_FROZEN) {
++		local_irq_save(flags);
++		pvec = &per_cpu(rotate_pvecs, (long)hcpu);
++		if (pagevec_count(pvec))
++			pagevec_move_tail(pvec);
++		local_irq_restore(flags);
++	}
++
++	return NOTIFY_OK;
++}
+  #endif /* CONFIG_HOTPLUG_CPU */
+  #endif /* CONFIG_SMP */
+
+@@ -516,5 +571,6 @@ void __init swap_setup(void)
+  	 */
+  #ifdef CONFIG_HOTPLUG_CPU
+  	hotcpu_notifier(cpu_swap_callback, 0);
++	hotcpu_notifier(cpu_movetail_callback, 0);
+  #endif
+  }
+diff -Nrup linux-2.6.23-rc6.org/mm/vmscan.c linux-2.6.23-rc6/mm/vmscan.c
+--- linux-2.6.23-rc6.org/mm/vmscan.c	2007-09-14 16:49:57.000000000 +0900
++++ linux-2.6.23-rc6/mm/vmscan.c	2007-09-14 16:58:48.000000000 +0900
+@@ -792,6 +792,7 @@ static unsigned long shrink_inactive_lis
+
+  	pagevec_init(&pvec, 1);
+
++	move_tail_pages();
+  	lru_add_drain();
+  	spin_lock_irq(&zone->lru_lock);
+  	do { 
+
+--=====================_36019476==_
+Content-Type: application/octet-stream; name="patch2623rc6_pvecrotate.txt"
+Content-Transfer-Encoding: base64
+Content-Disposition: attachment; filename="patch2623rc6_pvecrotate.txt"
+
+ZGlmZiAtTnJ1cCBsaW51eC0yLjYuMjMtcmM2Lm9yZy9pbmNsdWRlL2xpbnV4L3N3YXAuaCBsaW51
+eC0yLjYuMjMtcmM2L2luY2x1ZGUvbGludXgvc3dhcC5oCi0tLSBsaW51eC0yLjYuMjMtcmM2Lm9y
+Zy9pbmNsdWRlL2xpbnV4L3N3YXAuaAkyMDA3LTA5LTE0IDE2OjQ5OjU3LjAwMDAwMDAwMCArMDkw
+MAorKysgbGludXgtMi42LjIzLXJjNi9pbmNsdWRlL2xpbnV4L3N3YXAuaAkyMDA3LTA5LTE0IDE2
+OjU4OjQ4LjAwMDAwMDAwMCArMDkwMApAQCAtMTg1LDYgKzE4NSw3IEBAIGV4dGVybiB2b2lkIEZB
+U1RDQUxMKG1hcmtfcGFnZV9hY2Nlc3NlZCgKIGV4dGVybiB2b2lkIGxydV9hZGRfZHJhaW4odm9p
+ZCk7CiBleHRlcm4gaW50IGxydV9hZGRfZHJhaW5fYWxsKHZvaWQpOwogZXh0ZXJuIGludCByb3Rh
+dGVfcmVjbGFpbWFibGVfcGFnZShzdHJ1Y3QgcGFnZSAqcGFnZSk7CitleHRlcm4gdm9pZCBtb3Zl
+X3RhaWxfcGFnZXModm9pZCk7CiBleHRlcm4gdm9pZCBzd2FwX3NldHVwKHZvaWQpOwogCiAvKiBs
+aW51eC9tbS92bXNjYW4uYyAqLwpkaWZmIC1OcnVwIGxpbnV4LTIuNi4yMy1yYzYub3JnL21tL3N3
+YXAuYyBsaW51eC0yLjYuMjMtcmM2L21tL3N3YXAuYwotLS0gbGludXgtMi42LjIzLXJjNi5vcmcv
+bW0vc3dhcC5jCTIwMDctMDctMDkgMDg6MzI6MTcuMDAwMDAwMDAwICswOTAwCisrKyBsaW51eC0y
+LjYuMjMtcmM2L21tL3N3YXAuYwkyMDA3LTA5LTE4IDE4OjQ5OjA3LjAwMDAwMDAwMCArMDkwMApA
+QCAtOTQsMjQgKzk0LDYyIEBAIHZvaWQgcHV0X3BhZ2VzX2xpc3Qoc3RydWN0IGxpc3RfaGVhZCAq
+cGEKIEVYUE9SVF9TWU1CT0wocHV0X3BhZ2VzX2xpc3QpOwogCiAvKgorICogcGFnZXZlY19tb3Zl
+X3RhaWwoKSBtdXN0IGJlIGNhbGxlZCB3aXRoIElSUSBkaXNhYmxlZC4gCisgKiBPdGhlcndpc2Ug
+dGhpcyBtYXkgY2F1c2UgbmFzdHkgcmFjZXMuCisgKi8KK3N0YXRpYyB2b2lkIHBhZ2V2ZWNfbW92
+ZV90YWlsKHN0cnVjdCBwYWdldmVjICpwdmVjKQoreworCWludCBpOworCWludCBwZ21vdmVkID0g
+MDsKKwlzdHJ1Y3Qgem9uZSAqem9uZSA9IE5VTEw7CisJdW5zaWduZWQgbG9uZyBmbGFncyA9IDA7
+CisKKwlmb3IgKGkgPSAwOyBpIDwgcGFnZXZlY19jb3VudChwdmVjKTsgaSsrKSB7CisJCXN0cnVj
+dCBwYWdlICpwYWdlID0gcHZlYy0+cGFnZXNbaV07CisJCXN0cnVjdCB6b25lICpwYWdlem9uZSA9
+IHBhZ2Vfem9uZShwYWdlKTsKKworCQlpZiAocGFnZXpvbmUgIT0gem9uZSkgeworCQkJaWYgKHpv
+bmUpCisJCQkJc3Bpbl91bmxvY2tfaXJxcmVzdG9yZSgmem9uZS0+bHJ1X2xvY2ssIGZsYWdzKTsK
+KwkJCXpvbmUgPSBwYWdlem9uZTsKKwkJCXNwaW5fbG9ja19pcnFzYXZlKCZ6b25lLT5scnVfbG9j
+aywgZmxhZ3MpOworCQl9CisJCWlmIChQYWdlTFJVKHBhZ2UpICYmICFQYWdlQWN0aXZlKHBhZ2Up
+KSB7CisJCQlsaXN0X21vdmVfdGFpbCgmcGFnZS0+bHJ1LCAmem9uZS0+aW5hY3RpdmVfbGlzdCk7
+CisJCQlwZ21vdmVkKys7CisJCX0KKwl9CisJaWYgKHpvbmUpCisJCXNwaW5fdW5sb2NrX2lycXJl
+c3RvcmUoJnpvbmUtPmxydV9sb2NrLCBmbGFncyk7CisJX19jb3VudF92bV9ldmVudHMoUEdST1RB
+VEVELCBwZ21vdmVkKTsKKwlyZWxlYXNlX3BhZ2VzKHB2ZWMtPnBhZ2VzLCBwdmVjLT5uciwgcHZl
+Yy0+Y29sZCk7CisJcGFnZXZlY19yZWluaXQocHZlYyk7Cit9CisKK3N0YXRpYyBERUZJTkVfUEVS
+X0NQVShzdHJ1Y3QgcGFnZXZlYywgcm90YXRlX3B2ZWNzKSA9IHsgMCwgfTsKKwordm9pZCBtb3Zl
+X3RhaWxfcGFnZXMoKQoreworCXVuc2lnbmVkIGxvbmcgZmxhZ3M7CisJc3RydWN0IHBhZ2V2ZWMg
+KnB2ZWM7CisKKwlsb2NhbF9pcnFfc2F2ZShmbGFncyk7CisJcHZlYyA9ICZfX2dldF9jcHVfdmFy
+KHJvdGF0ZV9wdmVjcyk7CisJaWYgKHBhZ2V2ZWNfY291bnQocHZlYykpCisJCXBhZ2V2ZWNfbW92
+ZV90YWlsKHB2ZWMpOworCWxvY2FsX2lycV9yZXN0b3JlKGZsYWdzKTsKK30KKworLyoKICAqIFdy
+aXRlYmFjayBpcyBhYm91dCB0byBlbmQgYWdhaW5zdCBhIHBhZ2Ugd2hpY2ggaGFzIGJlZW4gbWFy
+a2VkIGZvciBpbW1lZGlhdGUKICAqIHJlY2xhaW0uICBJZiBpdCBzdGlsbCBhcHBlYXJzIHRvIGJl
+IHJlY2xhaW1hYmxlLCBtb3ZlIGl0IHRvIHRoZSB0YWlsIG9mIHRoZQotICogaW5hY3RpdmUgbGlz
+dC4gIFRoZSBwYWdlIHN0aWxsIGhhcyBQYWdlV3JpdGViYWNrIHNldCwgd2hpY2ggd2lsbCBwaW4g
+aXQuCi0gKgotICogV2UgZG9uJ3QgZXhwZWN0IG1hbnkgcGFnZXMgdG8gY29tZSB0aHJvdWdoIGhl
+cmUsIHNvIGRvbid0IGJvdGhlciBiYXRjaGluZwotICogdGhpbmdzIHVwLgotICoKLSAqIFRvIGF2
+b2lkIHBsYWNpbmcgdGhlIHBhZ2UgYXQgdGhlIHRhaWwgb2YgdGhlIExSVSB3aGlsZSBQR193cml0
+ZWJhY2sgaXMgc3RpbGwKLSAqIHNldCwgdGhpcyBmdW5jdGlvbiB3aWxsIGNsZWFyIFBHX3dyaXRl
+YmFjayBiZWZvcmUgcGVyZm9ybWluZyB0aGUgcGFnZQotICogbW90aW9uLiAgRG8gdGhhdCBpbnNp
+ZGUgdGhlIGxydSBsb2NrIGJlY2F1c2Ugb25jZSBQR193cml0ZWJhY2sgaXMgY2xlYXJlZAotICog
+d2UgbWF5IG5vdCB0b3VjaCB0aGUgcGFnZS4KKyAqIGluYWN0aXZlIGxpc3QuCiAgKgogICogUmV0
+dXJucyB6ZXJvIGlmIGl0IGNsZWFyZWQgUEdfd3JpdGViYWNrLgogICovCiBpbnQgcm90YXRlX3Jl
+Y2xhaW1hYmxlX3BhZ2Uoc3RydWN0IHBhZ2UgKnBhZ2UpCiB7Ci0Jc3RydWN0IHpvbmUgKnpvbmU7
+Ci0JdW5zaWduZWQgbG9uZyBmbGFnczsKKwlzdHJ1Y3QgcGFnZXZlYyAqcHZlYzsKIAogCWlmIChQ
+YWdlTG9ja2VkKHBhZ2UpKQogCQlyZXR1cm4gMTsKQEAgLTEyMiwxNSArMTYwLDE1IEBAIGludCBy
+b3RhdGVfcmVjbGFpbWFibGVfcGFnZShzdHJ1Y3QgcGFnZSAKIAlpZiAoIVBhZ2VMUlUocGFnZSkp
+CiAJCXJldHVybiAxOwogCi0Jem9uZSA9IHBhZ2Vfem9uZShwYWdlKTsKLQlzcGluX2xvY2tfaXJx
+c2F2ZSgmem9uZS0+bHJ1X2xvY2ssIGZsYWdzKTsKIAlpZiAoUGFnZUxSVShwYWdlKSAmJiAhUGFn
+ZUFjdGl2ZShwYWdlKSkgewotCQlsaXN0X21vdmVfdGFpbCgmcGFnZS0+bHJ1LCAmem9uZS0+aW5h
+Y3RpdmVfbGlzdCk7Ci0JCV9fY291bnRfdm1fZXZlbnQoUEdST1RBVEVEKTsKKwkJcGFnZV9jYWNo
+ZV9nZXQocGFnZSk7CisJCXB2ZWMgPSAmX19nZXRfY3B1X3Zhcihyb3RhdGVfcHZlY3MpOworCQlp
+ZiAoIXBhZ2V2ZWNfYWRkKHB2ZWMsIHBhZ2UpKQorCQkJcGFnZXZlY19tb3ZlX3RhaWwocHZlYyk7
+CiAJfQogCWlmICghdGVzdF9jbGVhcl9wYWdlX3dyaXRlYmFjayhwYWdlKSkKIAkJQlVHKCk7Ci0J
+c3Bpbl91bmxvY2tfaXJxcmVzdG9yZSgmem9uZS0+bHJ1X2xvY2ssIGZsYWdzKTsKKwogCXJldHVy
+biAwOwogfQogCkBAIC00OTUsNiArNTMzLDIzIEBAIHN0YXRpYyBpbnQgY3B1X3N3YXBfY2FsbGJh
+Y2soc3RydWN0IG5vdGkKIAl9CiAJcmV0dXJuIE5PVElGWV9PSzsKIH0KKworc3RhdGljIGludCBj
+cHVfbW92ZXRhaWxfY2FsbGJhY2soc3RydWN0IG5vdGlmaWVyX2Jsb2NrICpuZmIsCisJCQkJIHVu
+c2lnbmVkIGxvbmcgYWN0aW9uLCB2b2lkICpoY3B1KQoreworCXVuc2lnbmVkIGxvbmcgZmxhZ3M7
+CisJc3RydWN0IHBhZ2V2ZWMgKnB2ZWM7CisKKwlpZiAoYWN0aW9uID09IENQVV9ERUFEIHx8IGFj
+dGlvbiA9PSBDUFVfREVBRF9GUk9aRU4pIHsKKwkJbG9jYWxfaXJxX3NhdmUoZmxhZ3MpOworCQlw
+dmVjID0gJnBlcl9jcHUocm90YXRlX3B2ZWNzLCAobG9uZyloY3B1KTsKKwkJaWYgKHBhZ2V2ZWNf
+Y291bnQocHZlYykpCisJCQlwYWdldmVjX21vdmVfdGFpbChwdmVjKTsKKwkJbG9jYWxfaXJxX3Jl
+c3RvcmUoZmxhZ3MpOworCX0KKworCXJldHVybiBOT1RJRllfT0s7Cit9CiAjZW5kaWYgLyogQ09O
+RklHX0hPVFBMVUdfQ1BVICovCiAjZW5kaWYgLyogQ09ORklHX1NNUCAqLwogCkBAIC01MTYsNSAr
+NTcxLDYgQEAgdm9pZCBfX2luaXQgc3dhcF9zZXR1cCh2b2lkKQogCSAqLwogI2lmZGVmIENPTkZJ
+R19IT1RQTFVHX0NQVQogCWhvdGNwdV9ub3RpZmllcihjcHVfc3dhcF9jYWxsYmFjaywgMCk7CisJ
+aG90Y3B1X25vdGlmaWVyKGNwdV9tb3ZldGFpbF9jYWxsYmFjaywgMCk7CiAjZW5kaWYKIH0KZGlm
+ZiAtTnJ1cCBsaW51eC0yLjYuMjMtcmM2Lm9yZy9tbS92bXNjYW4uYyBsaW51eC0yLjYuMjMtcmM2
+L21tL3Ztc2Nhbi5jCi0tLSBsaW51eC0yLjYuMjMtcmM2Lm9yZy9tbS92bXNjYW4uYwkyMDA3LTA5
+LTE0IDE2OjQ5OjU3LjAwMDAwMDAwMCArMDkwMAorKysgbGludXgtMi42LjIzLXJjNi9tbS92bXNj
+YW4uYwkyMDA3LTA5LTE0IDE2OjU4OjQ4LjAwMDAwMDAwMCArMDkwMApAQCAtNzkyLDYgKzc5Miw3
+IEBAIHN0YXRpYyB1bnNpZ25lZCBsb25nIHNocmlua19pbmFjdGl2ZV9saXMKIAogCXBhZ2V2ZWNf
+aW5pdCgmcHZlYywgMSk7CiAKKwltb3ZlX3RhaWxfcGFnZXMoKTsKIAlscnVfYWRkX2RyYWluKCk7
+CiAJc3Bpbl9sb2NrX2lycSgmem9uZS0+bHJ1X2xvY2spOwogCWRvIHsK
+--=====================_36019476==_--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
