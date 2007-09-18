@@ -1,122 +1,82 @@
-Received: from d23relay03.au.ibm.com (d23relay03.au.ibm.com [202.81.18.234])
-	by e23smtp03.au.ibm.com (8.13.1/8.13.1) with ESMTP id l8I4NcTS030906
-	for <linux-mm@kvack.org>; Tue, 18 Sep 2007 14:23:38 +1000
-Received: from d23av01.au.ibm.com (d23av01.au.ibm.com [9.190.234.96])
-	by d23relay03.au.ibm.com (8.13.8/8.13.8/NCO v8.5) with ESMTP id l8I4NcgT4800756
-	for <linux-mm@kvack.org>; Tue, 18 Sep 2007 14:23:38 +1000
-Received: from d23av01.au.ibm.com (loopback [127.0.0.1])
-	by d23av01.au.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l8I4M8pM013030
-	for <linux-mm@kvack.org>; Tue, 18 Sep 2007 14:22:08 +1000
-Message-ID: <46EF52A8.4000209@linux.vnet.ibm.com>
-Date: Tue, 18 Sep 2007 09:53:04 +0530
-From: Balbir Singh <balbir@linux.vnet.ibm.com>
-Reply-To: balbir@linux.vnet.ibm.com
+Date: Tue, 18 Sep 2007 10:11:11 +0200
+From: Wouter Verhelst <w@uter.be>
+Subject: Re: [RFC 0/3] Recursive reclaim (on __PF_MEMALLOC)
+Message-ID: <20070918081111.GA4847@country.grep.be>
+References: <20070814142103.204771292@sgi.com> <200709171728.26180.phillips@phunq.net> <170fa0d20709172027g3b83d606k6a8e641f71848c3@mail.gmail.com> <200709172211.26493.phillips@phunq.net>
 MIME-Version: 1.0
-Subject: Re: [PATCH mm] fix swapoff breakage; however...
-References: <Pine.LNX.4.64.0709171947130.15413@blonde.wat.veritas.com> <46EED1A7.5080606@linux.vnet.ibm.com> <Pine.LNX.4.64.0709172038090.25512@blonde.wat.veritas.com> <46EEE81A.1010404@linux.vnet.ibm.com> <Pine.LNX.4.64.0709172312390.19506@blonde.wat.veritas.com>
-In-Reply-To: <Pine.LNX.4.64.0709172312390.19506@blonde.wat.veritas.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <200709172211.26493.phillips@phunq.net>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Hugh Dickins <hugh@veritas.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Daniel Phillips <phillips@phunq.net>
+Cc: Mike Snitzer <snitzer@gmail.com>, Christoph Lameter <clameter@sgi.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, dkegel@google.com, Peter Zijlstra <a.p.zijlstra@chello.nl>, David Miller <davem@davemloft.net>, Nick Piggin <npiggin@suse.de>, Evgeniy Polyakov <johnpol@2ka.mipt.ru>
 List-ID: <linux-mm.kvack.org>
 
-Hugh Dickins wrote:
-> On Tue, 18 Sep 2007, Balbir Singh wrote:
->> Hugh Dickins wrote:
->>> What would make sense is (what I meant when I said swap counted
->>> along with RSS) not to count pages out and back in as they are
->>> go out to swap and back in, just keep count of instantiated pages
->>>
->> I am not sure how you define instantiated pages. I suspect that
->> you mean RSS + pages swapped out (swap_pte)?
+On Mon, Sep 17, 2007 at 10:11:25PM -0700, Daniel Phillips wrote:
+> On Monday 17 September 2007 20:27, Mike Snitzer wrote:
+> > >   - Statically prove bounded memory use of all code in the writeout
+> > >     path.
+> > >
+> > >   - Implement any special measures required to be able to make such
+> > > a proof.
+> >
+> > Once the memory requirements of a userspace daemon (e.g. nbd-server)
+> > are known; should one mlockall() the memory similar to how is done in
+> > heartbeat daemon's realtime library?
 > 
-> That's it.  (Whereas file pages counted out when paged out,
-> then counted back in when paged back in.)
+> Yes, and also inspect the code to ensure it doesn't violate mlock_all by execing programs (no shell scripts!), dynamically loading libraries, etc.
+
+In nbd-server, there's no dlopen(), and I do not currently plan to add
+that. Are there problems with using libraries that are sharedly linked
+at compile time that I'm not aware of?
+
+There are plans to add the possibility for shell script callouts, but
+those would always be optional. I see no reason why we couldn't make any
+mlockall() call an option, too; preferably one that would be
+incompatible with the shell script callout stuff.
+
+> > Bigger question for me is what kind of hell am I (or others) in for
+> > to try to cap nbd-server's memory usage?  All those glib-gone-wild
+> > changes over the recent past feel problematic but I'll look to work
+> > with Wouter to see if we can get things bounded.
 > 
->> If a swapoff is going to push a container over it's limit, then
->> we break the container and the isolation it provides.
+> Avoiding glib is a good start.  Look at your library dependencies and
+> prune them merclilessly.  Just don't use any libraries that you can
+> code up yourself in a few hundred bytes of program text for the
+> functionalituy you need.
+
+I'm currently using glib because I wanted some utility functions that it
+provides, and since I already knew glib; to me, it feels stupid to
+reimplement the same things over and over again if there are libraries
+that provide them.
+
+If using glib is problematic for whatever reason, I'll certainly be
+willing to switch to "something else"; I just didn't feel like
+reinventing the wheel for no particular reason.
+
+[...]
+> > to get nbd-server to to run in PF_MEMALLOC mode (could've just used
+> > the _POSIX_PRIORITY_SCHEDULING hack instead right?)... it didn't help
+> > on its own; I likely didn't have enough of the stars aligned to see
+> > my MD+NBD mke2fs test not deadlock.
 > 
-> Is it just my traditional bias, that makes me prefer you break
-> your container than my swapoff?  I'm not sure.
->
-
-
-:-) Please see my response below
-
->> Upon swapoff
->> failure, may be we could get the container to print a nice
->> little warning so that anyone else with CAP_SYS_ADMIN can fix the
->> container limit and retry swapoff.
+> You do need the block IO throttling, and you need to bypass the dirty
+> page limiting.
 > 
-> And then they hit the next one... rather like trying to work out
-> the dependencies of packages for oneself: a very tedious process.
-> 
+> Without throttling, your block driver will quickly consume any amount
+> of reserve memory you have, and you are dead.  Without an exemption
+> from dirty page limiting, the number of pages your user space daemon
+> can allocate without deadlocking is zero, which makes life very
+> difficult.
 
-Yes, but here's the overall picture of what is happening
-
-1. The system administrator setup a memory container to contain
-   a group of applications.
-2. The administrator tried to swapoff one/a group of swap files/
-   devices
-3. Operation 2, failed due to a container being above it's limit.
-   Which implies that at some point a container went over it's
-   limit and some of it's pages were swapped out
-
-During swapoff, we try to account for pages coming back into the
-container, our charging routine does try to reclaim pages,
-which in turn implies -- it will use another swap device or
-reclaim page cache, if both fails, we return -ENOMEM.
-
-Given that the system administrator has setup the container and
-the swap devices, I feel that he is in better control of what
-to do with the system when swapoff fails.
-
-In the future we plan to implement per container swap (a feature
-desired by several people), assuming that administrators use
-per container swap in the future, failing on limit sounds
-like the right way to go forward.
-
-> If the swapoff succeeds, that does mean there was actually room
-> in memory (+ other swap) for everyone, even if some have gone over
-> their nominal limits.  (But if the swapoff runs out of memory in
-> the middle, yes, it might well have assigned the memory unfairly.)
-> 
-
-Yes, precisely my point, the administrator is the best person
-to decide how to assign memory to containers. Would it help
-to add a container tunable that says, it's ok to go overlimit
-with this container during a swapoff.
-
-> The appropriate answer may depend on what you do when a container
-> tries to fault in one more page than its limit.  Apparently just
-> fail it (no attempt to page out another page from that container).
-> 
-
-The problem with that approach is that applications will fail
-in the middle of their task. They will never get a chance
-to run at all, they will always get killed in the middle.
-We want to be able to reclaim pages from the container and
-let the application continue.
-
-> So, if the whole system is under memory pressure, kswapd will
-> be keeping the RSS of all tasks low, and they won't reach their
-> limits; whereas if the system is not under memory pressure,
-> tasks will easily approach their limits and so fail.
-> 
-
-Tasks failing on limit does not sound good unless we are out
-of all backup memory (slow storage). We still let the application
-run, although slowly.
-
+Would having the server use O_DIRECT help here? I would think that it
+would avoid it marking pages as dirty, but I'm not very familiar with
+the in-kernel bits.
 
 -- 
-	Warm Regards,
-	Balbir Singh
-	Linux Technology Center
-	IBM, ISTL
+<Lo-lan-do> Home is where you have to wash the dishes.
+  -- #debian-devel, Freenode, 2004-09-22
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
