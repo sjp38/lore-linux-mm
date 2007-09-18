@@ -1,92 +1,53 @@
-Date: Tue, 18 Sep 2007 21:33:31 +0900
-From: Yasunori Goto <y-goto@jp.fujitsu.com>
-Subject: [RFC/Patch](memory hotplug) fix null pointer access of kmem_cache_node after memory hotplug
-Message-Id: <20070918211932.0FFD.Y-GOTO@jp.fujitsu.com>
+Message-ID: <46EFE3AE.9040909@redhat.com>
+Date: Tue, 18 Sep 2007 10:41:50 -0400
+From: Rik van Riel <riel@redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
+Subject: Re: VM/VFS bug with large amount of memory and file systems?
+References: <C2A8AED2-363F-4131-863C-918465C1F4E1@cam.ac.uk> <200709170828.01098.nickpiggin@yahoo.com.au> <46EEB3AC.20205@redhat.com> <200709180312.31937.nickpiggin@yahoo.com.au>
+In-Reply-To: <200709180312.31937.nickpiggin@yahoo.com.au>
+Content-Type: text/plain; charset=UTF-8; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
-Cc: linux-mm <linux-mm@kvack.org>
+To: Nick Piggin <nickpiggin@yahoo.com.au>
+Cc: Anton Altaparmakov <aia21@cam.ac.uk>, Andrew Morton <akpm@linux-foundation.org>, Peter Zijlstra <peterz@infradead.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>, marc.smith@esmail.mcc.edu
 List-ID: <linux-mm.kvack.org>
 
-Hi Cristoph-san.
+Nick Piggin wrote:
+> On Tuesday 18 September 2007 03:04, Rik van Riel wrote:
+>> Nick Piggin wrote:
+>>> (Rik has a patch sitting in -mm I believe which would make this problem
+>>> even worse, by doing even less highmem scanning in response to lowmem
+>>> allocations).
+>> My patch should not make any difference here, since
+>> balance_pgdat() already scans the zones from high to
+>> low and sets an end_zone variable that determines the
+>> highest zone to scan.
+>>
+>> All my patch does is make sure that we do not try to
+>> reclaim excessive amounts of dma or low memory when
+>> a higher zone is full.
+> 
+> Sorry, yeah I had it the wrong way around. Your patch would not
+> increase the probability of this problem.
+> 
+> We could have some logic in there to scan highmem when buffer
+> heads are over limit. But that really kind of sucks in that it introduces
+> some arbitrary point where reclaim behaviour completely changes...
+> Adding a shrinker for buffer heads is the "logical" approach 
 
-I found panic occuring after memory hot-add on 2.6.23-rc6-mm1 yet.
+Christoph Lameter's slab defragmenting patch set does
+this.  One reason Andrew has not merged that code yet
+is a lack of reviewers, so I am going through it with
+a fine comb and hope to have the patches reviewed by
+the end of today.
 
-Its cause was null pointer access to kmem_cache_node of SLUB at
-discard_slab().
-In my understanding, it should be created for all slubs after
-memory-less-node(or new node) gets new memory. But, current -mm doen't it.
-This patch fix for it.
-
-In this patch, it is created after that new_slab is allocated from
-new onlined memory.
-If kmem_cache_node is created at online_pages() of memory hot-add,
-it should be done before build_zonelist to avoid race condition.
-But, it means kmem_cache_node must be allocated on other old nodes
-due not to complete initialization.
-I think this "delay creation" fix is better way than it.
-
-I know that failure case of kmem_cache_alloc_node() must be written
-and the prototype of init_kmem_cache_node() here is not good.
-Just I would like to confirm that I don't overlook something about SLUB.
-
-Bye.
-
-Signed-off-by: Yasunori Goto <y-goto@jp.fujitsu.com>
-
----
- mm/slub.c |   15 ++++++++++++++-
- 1 file changed, 14 insertions(+), 1 deletion(-)
-
-Index: current/mm/slub.c
-===================================================================
---- current.orig/mm/slub.c	2007-09-18 19:46:33.000000000 +0900
-+++ current/mm/slub.c	2007-09-18 19:46:59.000000000 +0900
-@@ -1081,6 +1081,7 @@ static void setup_object(struct kmem_cac
- 		s->ctor(s, object);
- }
- 
-+static void init_kmem_cache_node(struct kmem_cache_node *n);
- static struct page *new_slab(struct kmem_cache *s, gfp_t flags, int node)
- {
- 	struct page *page;
-@@ -1089,6 +1090,7 @@ static struct page *new_slab(struct kmem
- 	void *end;
- 	void *last;
- 	void *p;
-+	int page_nid;
- 
- 	BUG_ON(flags & GFP_SLAB_BUG_MASK);
- 
-@@ -1097,9 +1099,20 @@ static struct page *new_slab(struct kmem
- 	if (!page)
- 		goto out;
- 
--	n = get_node(s, page_to_nid(page));
-+	page_nid = page_to_nid(page);
-+	n = get_node(s, page_nid);
- 	if (n)
- 		atomic_long_inc(&n->nr_slabs);
-+	else if (node_state(page_nid, N_HIGH_MEMORY) && s != kmalloc_caches) {
-+		/*
-+		 * If new memory is onlined on new(or memory less) node,
-+		 * this will happen. (Second comparison is to avoid eternal
-+		 * recursion.)
-+		 */
-+		n = kmem_cache_alloc_node(kmalloc_caches, GFP_KERNEL, page_nid);
-+		init_kmem_cache_node(n);
-+		s->node[page_nid] = n;
-+	}
- 	page->slab = s;
- 	page->flags |= 1 << PG_slab;
- 	if (s->flags & (SLAB_DEBUG_FREE | SLAB_RED_ZONE | SLAB_POISON |
+Lets get this bug fixed the right way.
 
 -- 
-Yasunori Goto 
-
+Politics is the struggle between those who want to make their country
+the best in the world, and those who believe it already is.  Each group
+calls the other unpatriotic.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
