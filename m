@@ -1,49 +1,68 @@
-Date: Tue, 18 Sep 2007 15:16:06 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [patch 6/4] oom: pass null to kfree if zonelist is not cleared
-In-Reply-To: <Pine.LNX.4.64.0709181423250.4494@schroedinger.engr.sgi.com>
-Message-ID: <alpine.DEB.0.9999.0709181509420.2461@chino.kir.corp.google.com>
-References: <871b7a4fd566de081120.1187786931@v2.random> <alpine.DEB.0.9999.0709131732330.21805@chino.kir.corp.google.com> <Pine.LNX.4.64.0709131923410.12159@schroedinger.engr.sgi.com> <alpine.DEB.0.9999.0709132010050.30494@chino.kir.corp.google.com>
- <alpine.DEB.0.9999.0709180007420.4624@chino.kir.corp.google.com> <alpine.DEB.0.9999.0709180245170.21326@chino.kir.corp.google.com> <alpine.DEB.0.9999.0709180246350.21326@chino.kir.corp.google.com> <alpine.DEB.0.9999.0709180246580.21326@chino.kir.corp.google.com>
- <Pine.LNX.4.64.0709181256260.3953@schroedinger.engr.sgi.com> <alpine.DEB.0.9999.0709181306140.22984@chino.kir.corp.google.com> <Pine.LNX.4.64.0709181314160.3953@schroedinger.engr.sgi.com> <alpine.DEB.0.9999.0709181340060.27785@chino.kir.corp.google.com>
- <Pine.LNX.4.64.0709181400440.4494@schroedinger.engr.sgi.com> <alpine.DEB.0.9999.0709181406490.31545@chino.kir.corp.google.com> <Pine.LNX.4.64.0709181423250.4494@schroedinger.engr.sgi.com>
+Message-ID: <46F02E9E.1050009@redhat.com>
+Date: Tue, 18 Sep 2007 16:01:34 -0400
+From: Rik van Riel <riel@redhat.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: [PATCH/RFC 11/14] Reclaim Scalability: swap backed pages are
+ nonreclaimable when no swap space available
+References: <20070914205359.6536.98017.sendpatchset@localhost>	 <20070914205512.6536.89432.sendpatchset@localhost>	 <46EDEC2D.9070004@redhat.com> <1190137573.5035.52.camel@localhost>
+In-Reply-To: <1190137573.5035.52.camel@localhost>
+Content-Type: text/plain; charset=UTF-8; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <andrea@suse.de>, linux-mm@kvack.org
+To: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
+Cc: linux-mm@kvack.org, akpm@linux-foundation.org, mel@csn.ul.ie, clameter@sgi.com, balbir@linux.vnet.ibm.com, andrea@suse.de, a.p.zijlstra@chello.nl, eric.whitney@hp.com, npiggin@suse.de
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 18 Sep 2007, Christoph Lameter wrote:
-
-> > If the kzalloc fails, we're in a system-wide OOM state that isn't 
-> > constrained by anything so we allow the OOM killer to be invoked just 
-> > like this patchset was never applied.  We make no inference that it has 
-> > already been invoked, there is nothing to suggest that it has.  All we 
-> > know is that none of the zones in the zonelist from __alloc_pages() are 
-> > currently in the OOM killer.
+Lee Schermerhorn wrote:
+> On Sun, 2007-09-16 at 22:53 -0400, Rik van Riel wrote:
+>> Lee Schermerhorn wrote:
+>>> PATCH/RFC  11/14 Reclaim Scalability: treat swap backed pages as
+>>> 	non-reclaimable when no swap space is available.
+>>>
+>>> Against:  2.6.23-rc4-mm1
+>>>
+>>> Move swap backed pages [anon, shmem/tmpfs] to noreclaim list when
+>>> nr_swap_pages goes to zero.   Use Rik van Riel's page_anon() 
+>>> function in page_reclaimable() to detect swap backed pages.
+>>>
+>>> Depends on NORECLAIM_NO_SWAP Kconfig sub-option of NORECLAIM
+>>>
+>>> TODO:   Splice zones' noreclaim list when "sufficient" swap becomes
+>>> available--either by being freed by other pages or by additional 
+>>> swap being added.  How much is "sufficient" swap?  Don't want to
+>>> splice huge noreclaim lists every time a swap page gets freed.
+>> Yet another reason for my LRU list split between filesystem
+>> backed and swap backed pages: we can simply stop scanning the
+>> anon lists when swap space is full and resume scanning when
+>> swap space becomes available.
 > 
-> kzalloc can be restricted by the cpuset / mempolicy context and the 
-> GFP_THISNODE flags. It may fail for other reasons. Maybe passing some 
-> flags like (PF_MEMALLOC) to kzalloc will make it ignore those limits?
 > 
+> Hi, Rik:
+> 
+> It occurs to me that we probably don't want to stop scanning the anon
+> lists [active/inactive] when swap space is full.  We might have LOTS of
+> anon pages that already have swap space allocated to them that can be
+> reclaimed.  It's just those that don't already have swap space that
+> aren't reclaimable until more swap space becomes available.
 
-Why would it be constrained by the cpuset policy if there is no 
-__GFP_HARDWALL?
+Well, "lots" is a relative thing.
 
-We could do
+If we run into those pages in our normal course of scanning,
+we should free the swap space.
 
-	current->flags |= PF_MEMALLOC;
-	kzalloc(oom_zl, GFP_KERNEL);
-	current->flags &= ~PF_MEMALLOC;
-	if (!oom_zl)
-		...
+If swap space finally ran out, I suspect we should just give
+up.
 
-since we already know that the zonelist zones don't match any of those 
-currently in the OOM killer and PF_MEMALLOC will allow for future memory 
-freeing.  That would try the allocation with no watermarks and seems like 
-it would help.
+If you have a system with 128GB RAM and 2GB swap, it really
+does not make a lot of sense to scan all the way through 90GB
+of anonymous pages to free maybe 1GB of swap...
+
+If swap is large, we can free swap space during the normal
+LRU scanning, before we completely run out.
+
+-- 
+All Rights Reversed
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
