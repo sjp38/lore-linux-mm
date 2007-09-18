@@ -1,60 +1,92 @@
-Date: Tue, 18 Sep 2007 12:01:20 +0100
-Subject: Re: [PATCH/RFC 1/14] Reclaim Scalability:  Convert anon_vma lock to read/write lock
-Message-ID: <20070918110119.GD2035@skynet.ie>
-References: <20070914205359.6536.98017.sendpatchset@localhost> <20070914205405.6536.37532.sendpatchset@localhost> <20070917110234.GF25706@skynet.ie> <20070918114142.abbd5421.kamezawa.hiroyu@jp.fujitsu.com>
+Date: Tue, 18 Sep 2007 21:33:31 +0900
+From: Yasunori Goto <y-goto@jp.fujitsu.com>
+Subject: [RFC/Patch](memory hotplug) fix null pointer access of kmem_cache_node after memory hotplug
+Message-Id: <20070918211932.0FFD.Y-GOTO@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <20070918114142.abbd5421.kamezawa.hiroyu@jp.fujitsu.com>
-From: mel@skynet.ie (Mel Gorman)
+Content-Type: text/plain; charset="US-ASCII"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Lee Schermerhorn <lee.schermerhorn@hp.com>, linux-mm@kvack.org, akpm@linux-foundation.org, clameter@sgi.com, riel@redhat.com, balbir@linux.vnet.ibm.com, andrea@suse.de, a.p.zijlstra@chello.nl, eric.whitney@hp.com, npiggin@suse.de
+To: Christoph Lameter <clameter@sgi.com>
+Cc: linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On (18/09/07 11:41), KAMEZAWA Hiroyuki didst pronounce:
-> On Mon, 17 Sep 2007 12:02:35 +0100
-> mel@skynet.ie (Mel Gorman) wrote:
-> 
-> > On (14/09/07 16:54), Lee Schermerhorn didst pronounce:
-> > > [PATCH/RFC] 01/14 Reclaim Scalability:  Convert anon_vma list lock a read/write lock
-> > > 
-> > > Against 2.6.23-rc4-mm1
-> > > 
-> > > Make the anon_vma list lock a read/write lock.  Heaviest use of this
-> > > lock is in the page_referenced()/try_to_unmap() calls from vmscan
-> > > [shrink_page_list()].  These functions can use a read lock to allow
-> > > some parallelism for different cpus trying to reclaim pages mapped
-> > > via the same set of vmas.
-> <snip>
-> > In light of what Peter and Linus said about rw-locks being more expensive
-> > than spinlocks, we'll need to measure this with some benchmark. The plus
-> > side is that this patch can be handled in isolation because it's either a
-> > scalability fix or it isn't. It's worth investigating because you say it
-> > fixed a real problem where under load the job was able to complete with
-> > this patch and live-locked without it.
-> >
-> > When you decide on a test-case, I can test just this patch and see what
-> > results I find.
-> > 
-> 
-> One of the case I can imagine is..
-> ==
-> 1. Use NUMA.
-> 2. create *large* anon_vma and use it with MPOL_INTERLEAVE
-> 3. When memory is exhausted (on several nodes), all kswapd on nodes will
->    see one anon_vma->lock.
-> ==
-> Maybe the worst case.
+Hi Cristoph-san.
 
-It certainly sounds like a bad case. Would be very difficult to measure
-as part of a test though as latencies in kswapd are not very obvious.
+I found panic occuring after memory hot-add on 2.6.23-rc6-mm1 yet.
+
+Its cause was null pointer access to kmem_cache_node of SLUB at
+discard_slab().
+In my understanding, it should be created for all slubs after
+memory-less-node(or new node) gets new memory. But, current -mm doen't it.
+This patch fix for it.
+
+In this patch, it is created after that new_slab is allocated from
+new onlined memory.
+If kmem_cache_node is created at online_pages() of memory hot-add,
+it should be done before build_zonelist to avoid race condition.
+But, it means kmem_cache_node must be allocated on other old nodes
+due not to complete initialization.
+I think this "delay creation" fix is better way than it.
+
+I know that failure case of kmem_cache_alloc_node() must be written
+and the prototype of init_kmem_cache_node() here is not good.
+Just I would like to confirm that I don't overlook something about SLUB.
+
+Bye.
+
+Signed-off-by: Yasunori Goto <y-goto@jp.fujitsu.com>
+
+---
+ mm/slub.c |   15 ++++++++++++++-
+ 1 file changed, 14 insertions(+), 1 deletion(-)
+
+Index: current/mm/slub.c
+===================================================================
+--- current.orig/mm/slub.c	2007-09-18 19:46:33.000000000 +0900
++++ current/mm/slub.c	2007-09-18 19:46:59.000000000 +0900
+@@ -1081,6 +1081,7 @@ static void setup_object(struct kmem_cac
+ 		s->ctor(s, object);
+ }
+ 
++static void init_kmem_cache_node(struct kmem_cache_node *n);
+ static struct page *new_slab(struct kmem_cache *s, gfp_t flags, int node)
+ {
+ 	struct page *page;
+@@ -1089,6 +1090,7 @@ static struct page *new_slab(struct kmem
+ 	void *end;
+ 	void *last;
+ 	void *p;
++	int page_nid;
+ 
+ 	BUG_ON(flags & GFP_SLAB_BUG_MASK);
+ 
+@@ -1097,9 +1099,20 @@ static struct page *new_slab(struct kmem
+ 	if (!page)
+ 		goto out;
+ 
+-	n = get_node(s, page_to_nid(page));
++	page_nid = page_to_nid(page);
++	n = get_node(s, page_nid);
+ 	if (n)
+ 		atomic_long_inc(&n->nr_slabs);
++	else if (node_state(page_nid, N_HIGH_MEMORY) && s != kmalloc_caches) {
++		/*
++		 * If new memory is onlined on new(or memory less) node,
++		 * this will happen. (Second comparison is to avoid eternal
++		 * recursion.)
++		 */
++		n = kmem_cache_alloc_node(kmalloc_caches, GFP_KERNEL, page_nid);
++		init_kmem_cache_node(n);
++		s->node[page_nid] = n;
++	}
+ 	page->slab = s;
+ 	page->flags |= 1 << PG_slab;
+ 	if (s->flags & (SLAB_DEBUG_FREE | SLAB_RED_ZONE | SLAB_POISON |
 
 -- 
-Mel Gorman
-Part-time Phd Student                          Linux Technology Center
-University of Limerick                         IBM Dublin Software Lab
+Yasunori Goto 
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
