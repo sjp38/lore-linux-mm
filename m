@@ -1,43 +1,66 @@
-Date: Tue, 18 Sep 2007 14:25:01 -0700 (PDT)
-From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [patch 6/4] oom: pass null to kfree if zonelist is not cleared
-In-Reply-To: <alpine.DEB.0.9999.0709181406490.31545@chino.kir.corp.google.com>
-Message-ID: <Pine.LNX.4.64.0709181423250.4494@schroedinger.engr.sgi.com>
-References: <871b7a4fd566de081120.1187786931@v2.random>
- <Pine.LNX.4.64.0709131152400.9999@schroedinger.engr.sgi.com>
- <alpine.DEB.0.9999.0709131732330.21805@chino.kir.corp.google.com>
- <Pine.LNX.4.64.0709131923410.12159@schroedinger.engr.sgi.com>
- <alpine.DEB.0.9999.0709132010050.30494@chino.kir.corp.google.com>
- <alpine.DEB.0.9999.0709180007420.4624@chino.kir.corp.google.com>
- <alpine.DEB.0.9999.0709180245170.21326@chino.kir.corp.google.com>
- <alpine.DEB.0.9999.0709180246350.21326@chino.kir.corp.google.com>
- <alpine.DEB.0.9999.0709180246580.21326@chino.kir.corp.google.com>
- <Pine.LNX.4.64.0709181256260.3953@schroedinger.engr.sgi.com>
- <alpine.DEB.0.9999.0709181306140.22984@chino.kir.corp.google.com>
- <Pine.LNX.4.64.0709181314160.3953@schroedinger.engr.sgi.com>
- <alpine.DEB.0.9999.0709181340060.27785@chino.kir.corp.google.com>
- <Pine.LNX.4.64.0709181400440.4494@schroedinger.engr.sgi.com>
- <alpine.DEB.0.9999.0709181406490.31545@chino.kir.corp.google.com>
+Message-ID: <46EFE762.9040305@redhat.com>
+Date: Tue, 18 Sep 2007 10:57:38 -0400
+From: Rik van Riel <riel@redhat.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: [PATCH/RFC 1/14] Reclaim Scalability:  Convert anon_vma lock
+ to read/write lock
+References: <20070914205359.6536.98017.sendpatchset@localhost> <20070914205405.6536.37532.sendpatchset@localhost> <20070917110234.GF25706@skynet.ie> <20070918114142.abbd5421.kamezawa.hiroyu@jp.fujitsu.com> <20070918110119.GD2035@skynet.ie>
+In-Reply-To: <20070918110119.GD2035@skynet.ie>
+Content-Type: text/plain; charset=UTF-8; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <andrea@suse.de>, linux-mm@kvack.org
+To: Mel Gorman <mel@skynet.ie>
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Lee Schermerhorn <lee.schermerhorn@hp.com>, linux-mm@kvack.org, akpm@linux-foundation.org, clameter@sgi.com, balbir@linux.vnet.ibm.com, andrea@suse.de, a.p.zijlstra@chello.nl, eric.whitney@hp.com, npiggin@suse.de
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 18 Sep 2007, David Rientjes wrote:
+Mel Gorman wrote:
+> On (18/09/07 11:41), KAMEZAWA Hiroyuki didst pronounce:
+>> On Mon, 17 Sep 2007 12:02:35 +0100
+>> mel@skynet.ie (Mel Gorman) wrote:
+>>
+>>> On (14/09/07 16:54), Lee Schermerhorn didst pronounce:
+>>>> [PATCH/RFC] 01/14 Reclaim Scalability:  Convert anon_vma list lock a read/write lock
+>>>>
+>>>> Against 2.6.23-rc4-mm1
+>>>>
+>>>> Make the anon_vma list lock a read/write lock.  Heaviest use of this
+>>>> lock is in the page_referenced()/try_to_unmap() calls from vmscan
+>>>> [shrink_page_list()].  These functions can use a read lock to allow
+>>>> some parallelism for different cpus trying to reclaim pages mapped
+>>>> via the same set of vmas.
+>> <snip>
+>>> In light of what Peter and Linus said about rw-locks being more expensive
+>>> than spinlocks, we'll need to measure this with some benchmark. The plus
+>>> side is that this patch can be handled in isolation because it's either a
+>>> scalability fix or it isn't. It's worth investigating because you say it
+>>> fixed a real problem where under load the job was able to complete with
+>>> this patch and live-locked without it.
+>>>
+>>> When you decide on a test-case, I can test just this patch and see what
+>>> results I find.
+>>>
+>> One of the case I can imagine is..
+>> ==
+>> 1. Use NUMA.
+>> 2. create *large* anon_vma and use it with MPOL_INTERLEAVE
+>> 3. When memory is exhausted (on several nodes), all kswapd on nodes will
+>>    see one anon_vma->lock.
+>> ==
+>> Maybe the worst case.
+> 
+> It certainly sounds like a bad case. Would be very difficult to measure
+> as part of a test though as latencies in kswapd are not very obvious.
 
-> If the kzalloc fails, we're in a system-wide OOM state that isn't 
-> constrained by anything so we allow the OOM killer to be invoked just 
-> like this patchset was never applied.  We make no inference that it has 
-> already been invoked, there is nothing to suggest that it has.  All we 
-> know is that none of the zones in the zonelist from __alloc_pages() are 
-> currently in the OOM killer.
+We have observed this problem in customer workloads.
 
-kzalloc can be restricted by the cpuset / mempolicy context and the 
-GFP_THISNODE flags. It may fail for other reasons. Maybe passing some 
-flags like (PF_MEMALLOC) to kzalloc will make it ignore those limits?
+I believe Larry Woodman has a test program that may be
+able to trigger the problem.
+
+-- 
+Politics is the struggle between those who want to make their country
+the best in the world, and those who believe it already is.  Each group
+calls the other unpatriotic.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
