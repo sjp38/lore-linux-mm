@@ -1,58 +1,36 @@
-Date: Tue, 18 Sep 2007 10:54:43 +0100
-Subject: Re: [PATCH/RFC 6/14] Reclaim Scalability: "No Reclaim LRU Infrastructure"
-Message-ID: <20070918095443.GA2035@skynet.ie>
-References: <20070914205359.6536.98017.sendpatchset@localhost> <20070914205438.6536.49500.sendpatchset@localhost> <Pine.LNX.4.64.0709141537180.14937@schroedinger.engr.sgi.com> <1190042245.5460.81.camel@localhost> <Pine.LNX.4.64.0709171137360.27057@schroedinger.engr.sgi.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <Pine.LNX.4.64.0709171137360.27057@schroedinger.engr.sgi.com>
-From: mel@skynet.ie (Mel Gorman)
+Date: Tue, 18 Sep 2007 11:58:36 +0200
+From: Peter Zijlstra <a.p.zijlstra@chello.nl>
+Subject: Re: [RFC 0/3] Recursive reclaim (on __PF_MEMALLOC)
+Message-ID: <20070918115836.1394a051@twins>
+In-Reply-To: <200709172211.26493.phillips@phunq.net>
+References: <20070814142103.204771292@sgi.com>
+	<200709171728.26180.phillips@phunq.net>
+	<170fa0d20709172027g3b83d606k6a8e641f71848c3@mail.gmail.com>
+	<200709172211.26493.phillips@phunq.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
-Cc: Lee Schermerhorn <Lee.Schermerhorn@hp.com>, linux-mm@kvack.org, akpm@linux-foundation.org, riel@redhat.com, balbir@linux.vnet.ibm.com, andrea@suse.de, a.p.zijlstra@chello.nl, eric.whitney@hp.com, npiggin@suse.de
+To: Daniel Phillips <phillips@phunq.net>
+Cc: Mike Snitzer <snitzer@gmail.com>, Christoph Lameter <clameter@sgi.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, dkegel@google.com, David Miller <davem@davemloft.net>, Nick Piggin <npiggin@suse.de>, Wouter Verhelst <w@uter.be>, Evgeniy Polyakov <johnpol@2ka.mipt.ru>
 List-ID: <linux-mm.kvack.org>
 
-On (17/09/07 11:41), Christoph Lameter didst pronounce:
-> On Mon, 17 Sep 2007, Lee Schermerhorn wrote:
+On Mon, 17 Sep 2007 22:11:25 -0700 Daniel Phillips <phillips@phunq.net>
+wrote:
+
+
+> > I've been using Avi Kivity's patch from some time ago:
+> > http://lkml.org/lkml/2004/7/26/68
 > 
-> > > One fleeting thought here: It may be useful to *not* allocate known 
-> > > unreclaimable pages with __GFP_MOVABLE.
-> > 
-> > Sorry, I don't understand where you're coming from here.
-> > Non-reclaimable pages should be migratable, but maybe __GFP_MOVABLE
-> > means something else?
-> 
-> True. __GFP_MOVABLE + MLOCK is movable.
+> Yes.  Ddsnap includes a bit of code almost identical to that, which we wrote independently.  Seems wild and crazy at first blush, doesn't it? But this approach has proved robust in practice, and is to my mind, obviously correct.
 
-Yes. Right now, it's rare we actually move them but the patches exist to
-make it possible when we find it to be a real problem.
+I'm so not liking this :-(
 
-> Also the ramfs/shmem pages. There 
-> may be uses though that require a page to stay put because it is used for 
-> some nefarious I/O purpose by a driver. RDMA comes to mind.
+Can't we just run the user-space part as mlockall and extend netlink
+to work with PF_MEMALLOC where needed?
 
-Yeah :/
-
-> Maybe we need 
-> some additional option that works like MLOCK but forbids migration.
-
-The problem with RDMA that I recall is that we don't know at allocation
-time that they may be unmovable sometimes in the future. I didn't think
-of a way around that problem.
-
-> Those 
-> would then be unreclaimable and not __GFP_MOVABLE. I know some of our 
-> applications create huge amount of these.
-> 
-
-Can you think of a way that pages that will be later pinned by something
-like RDMA can be identified in advance?
-
--- 
-Mel Gorman
-Part-time Phd Student                          Linux Technology Center
-University of Limerick                         IBM Dublin Software Lab
+I did something like that for iSCSI.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
