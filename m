@@ -1,44 +1,74 @@
-Date: Wed, 19 Sep 2007 16:37:13 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: VM/VFS bug with large amount of memory and file systems?
-Message-Id: <20070919163713.6d0f752c.akpm@linux-foundation.org>
-In-Reply-To: <Pine.LNX.4.64.0709191628170.3971@schroedinger.engr.sgi.com>
-References: <C2A8AED2-363F-4131-863C-918465C1F4E1@cam.ac.uk>
-	<1189850897.21778.301.camel@twins>
-	<20070915035228.8b8a7d6d.akpm@linux-foundation.org>
-	<13126578-A4F8-43EA-9B0D-A3BCBFB41FEC@cam.ac.uk>
-	<20070917163257.331c7605@twins>
-	<46EEB532.3060804@redhat.com>
-	<20070917131526.e8db80fe.akpm@linux-foundation.org>
-	<46EEE7B7.1070206@redhat.com>
-	<20070917141127.ab2ae148.akpm@linux-foundation.org>
-	<46F19ED6.20501@redhat.com>
-	<20070919154542.4ed8ea1e.akpm@linux-foundation.org>
-	<Pine.LNX.4.64.0709191628170.3971@schroedinger.engr.sgi.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Received: by wa-out-1112.google.com with SMTP id m33so428403wag
+        for <linux-mm@kvack.org>; Wed, 19 Sep 2007 16:51:47 -0700 (PDT)
+Message-ID: <eada2a070709191651i24185d1ep9e0d1829e115ee79@mail.gmail.com>
+Date: Wed, 19 Sep 2007 16:51:46 -0700
+From: "Tim Pepper" <lnxninja@us.ibm.com>
+Subject: Re: [patch 3/8] oom: save zonelist pointer for oom killer calls
+In-Reply-To: <alpine.DEB.0.9999.0709191416380.30290@chino.kir.corp.google.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+References: <alpine.DEB.0.9999.0709181950170.25510@chino.kir.corp.google.com>
+	 <alpine.DEB.0.9999.0709190350001.23538@chino.kir.corp.google.com>
+	 <alpine.DEB.0.9999.0709190350240.23538@chino.kir.corp.google.com>
+	 <alpine.DEB.0.9999.0709190350410.23538@chino.kir.corp.google.com>
+	 <Pine.LNX.4.64.0709191204590.2241@schroedinger.engr.sgi.com>
+	 <alpine.DEB.0.9999.0709191330520.26978@chino.kir.corp.google.com>
+	 <Pine.LNX.4.64.0709191353440.3136@schroedinger.engr.sgi.com>
+	 <alpine.DEB.0.9999.0709191416380.30290@chino.kir.corp.google.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
-Cc: Rik van Riel <riel@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Anton Altaparmakov <aia21@cam.ac.uk>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>, marc.smith@esmail.mcc.edu
+To: David Rientjes <rientjes@google.com>
+Cc: Christoph Lameter <clameter@sgi.com>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <andrea@suse.de>, Rik van Riel <riel@redhat.com>, linux-mm@kvack.org, pj@sgi.com
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 19 Sep 2007 16:29:02 -0700 (PDT)
-Christoph Lameter <clameter@sgi.com> wrote:
+On 9/19/07, David Rientjes <rientjes@google.com> wrote:
+> On Wed, 19 Sep 2007, Christoph Lameter wrote:
+> > Are there any reasons not to serialize the OOM killer per zone?
+>
+> That's what this current patchset does, yes.  I agree that it is probably
+> better done with a bit in struct zone, however.
+>
 
-> On Wed, 19 Sep 2007, Andrew Morton wrote:
-> 
-> > Cool.
-> 
-> Should I rediff on top of rc6-mm1 for submission? When will you be able to 
-> take it?
->  
+Removing the kzalloc() would be helpful also for the code's
+readability in terms of showing (and remembering in the future) its
+correctness.  If I've read this right, as it stands try_set_zone_oom()
+works out to behaving in the following ways for the listed return
+values:
 
-erm, I spose we should be concentrating on stabilising the current pile of
-crud for 2.6.24 - it sure needs it.
+ ret : behaviour
+    0: when is_zone_locked() ret's a 1 (ie: because a zone being OOM'd is
+       already marked OOM locked),
+       NONE of the current zone(s) are added to the list of OOM zones.
+    1: when is_zone_locked() ret's all 0's (ie: b/c no zone(s) being OOM'd are
+       already marked OOM locked), and the kzalloc() failed,
+       NONE of the current zone(s) are added to the list of OOM zones.
+    1: when is_zone_locked() ret's all 0's (ie: b/c no zone(s) being OOM'd are
+       already marked OOM locked),
+       ALL of the current zone(s) are added to the list of OOM zones.
 
-Sometime around 2.6.24-rc1 would suit.
+When no zones in the current zonelist are on the list of OOM zones,
+then all the current zones are added to the list of OOM zones...or
+none of them depending on how badly OOM'd we are.  Tricky.
+
+If any single zone in the current zonelist matches in the list of OOM
+zones, none of the current zones are added to the list of OOM zones.
+Given the patch header comments, this was done on purpose.  But
+doesn't that leave your list of OOM zones incomplete and open you to
+OOM killing in parallel on a given zone?
+
+Or is that all ok in that you're trying to minimise needlessly OOM
+killing something when possible but are willing to throw in the towel
+when things are tending towards royally hosed?
+
+At any rate this seems complex with subtly varying behaviour that left
+me wondering if it really works as advertised.  I imagine without the
+kzmalloc and instead checking/setting bits in bitmasks the code would
+be cleaner.
+
+
+Tim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
