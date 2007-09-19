@@ -1,43 +1,48 @@
-Date: Wed, 19 Sep 2007 11:03:43 -0700 (PDT)
-From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [PATCH/RFC 6/14] Reclaim Scalability: "No Reclaim LRU Infrastructure"
-In-Reply-To: <20070919111125.GD14817@skynet.ie>
-Message-ID: <Pine.LNX.4.64.0709191102060.11882@schroedinger.engr.sgi.com>
-References: <20070914205359.6536.98017.sendpatchset@localhost>
- <20070914205438.6536.49500.sendpatchset@localhost>
- <Pine.LNX.4.64.0709141537180.14937@schroedinger.engr.sgi.com>
- <1190042245.5460.81.camel@localhost> <Pine.LNX.4.64.0709171137360.27057@schroedinger.engr.sgi.com>
- <20070918095443.GA2035@skynet.ie> <Pine.LNX.4.64.0709181242240.3714@schroedinger.engr.sgi.com>
- <20070919111125.GD14817@skynet.ie>
+Date: Wed, 19 Sep 2007 11:21:58 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [patch 6/4] oom: pass null to kfree if zonelist is not cleared
+In-Reply-To: <20070919100922.16be90c0.pj@sgi.com>
+Message-ID: <alpine.DEB.0.9999.0709191110480.19414@chino.kir.corp.google.com>
+References: <871b7a4fd566de081120.1187786931@v2.random> <alpine.DEB.0.9999.0709132010050.30494@chino.kir.corp.google.com> <alpine.DEB.0.9999.0709180007420.4624@chino.kir.corp.google.com> <alpine.DEB.0.9999.0709180245170.21326@chino.kir.corp.google.com>
+ <alpine.DEB.0.9999.0709180246350.21326@chino.kir.corp.google.com> <alpine.DEB.0.9999.0709180246580.21326@chino.kir.corp.google.com> <Pine.LNX.4.64.0709181256260.3953@schroedinger.engr.sgi.com> <alpine.DEB.0.9999.0709181306140.22984@chino.kir.corp.google.com>
+ <Pine.LNX.4.64.0709181314160.3953@schroedinger.engr.sgi.com> <alpine.DEB.0.9999.0709181340060.27785@chino.kir.corp.google.com> <Pine.LNX.4.64.0709181400440.4494@schroedinger.engr.sgi.com> <alpine.DEB.0.9999.0709181406490.31545@chino.kir.corp.google.com>
+ <Pine.LNX.4.64.0709181423250.4494@schroedinger.engr.sgi.com> <alpine.DEB.0.9999.0709181509420.2461@chino.kir.corp.google.com> <20070919100922.16be90c0.pj@sgi.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Mel Gorman <mel@skynet.ie>
-Cc: Lee Schermerhorn <Lee.Schermerhorn@hp.com>, linux-mm@kvack.org, akpm@linux-foundation.org, riel@redhat.com, balbir@linux.vnet.ibm.com, andrea@suse.de, a.p.zijlstra@chello.nl, eric.whitney@hp.com, npiggin@suse.de
+To: Paul Jackson <pj@sgi.com>
+Cc: clameter@sgi.com, akpm@linux-foundation.org, andrea@suse.de, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 19 Sep 2007, Mel Gorman wrote:
+On Wed, 19 Sep 2007, Paul Jackson wrote:
 
-> > RDMA is probably only temporarily pinning these while I/O is in progress?. 
-> > Our applications (XPMEM) 
-> > may pins them for good.
-> >  
+> David wrote:
+> > Why would it be constrained by the cpuset policy if there is no 
+> > __GFP_HARDWALL?
 > 
-> I'm not that familiar with XPMEM. What is it doing that can pin memory
-> permanently?
-
-It exports an process address space to another Linux instance over a 
-network or coherent memory.
-
-> > No. Nor in our XPMEM situation. We could move them at the point when they 
-> > are pinned to another section?
-> > 
+> Er eh ... because it is ;)
 > 
-> XPMEM could do that all right. Allocate a non-movable page, copy and
-> pin.
+> With or without GFP_HARDWALL, allocations are constrained by cpuset
+> policy.
+> 
+> It's just a different policy (the nearest ancestor cpuset marked
+> mem_exclusive) without GFP_HARDWALL, rather than the current cpuset.
+> 
 
-I think we need a general mechanism that also covers RDMA and other uses.
+The question is: why do we care?  I don't understand why it makes so much 
+of a difference if the kzalloc fails and we fall back to non-serialized 
+behavior, even though the updated patchset sets PF_MEMALLOC in current to 
+avoid watermarks in its allocation.
+
+We could set TIF_MEMDIE in current momentarily only for the kzalloc, but I 
+think it's unnecessary and possibly troublesome because that task can be 
+detected in parallel OOM killings and it suddenly becomes a no-op.  Even 
+if we aren't serialized, the parallel OOM-killed task will be marked 
+TIF_MEMDIE and we'll detect that and not kill anything because we've 
+serialized on callback_mutex.
+
+		David
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
