@@ -1,33 +1,37 @@
-Date: Wed, 19 Sep 2007 12:06:44 -0700 (PDT)
-From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [patch 8/8] oom: do not check cpuset in badness scoring
-In-Reply-To: <alpine.DEB.0.9999.0709190352030.23538@chino.kir.corp.google.com>
-Message-ID: <Pine.LNX.4.64.0709191206120.2241@schroedinger.engr.sgi.com>
-References: <alpine.DEB.0.9999.0709181950170.25510@chino.kir.corp.google.com>
- <alpine.DEB.0.9999.0709190350001.23538@chino.kir.corp.google.com>
- <alpine.DEB.0.9999.0709190350240.23538@chino.kir.corp.google.com>
- <alpine.DEB.0.9999.0709190350410.23538@chino.kir.corp.google.com>
- <alpine.DEB.0.9999.0709190350560.23538@chino.kir.corp.google.com>
- <alpine.DEB.0.9999.0709190351140.23538@chino.kir.corp.google.com>
- <alpine.DEB.0.9999.0709190351290.23538@chino.kir.corp.google.com>
- <alpine.DEB.0.9999.0709190351460.23538@chino.kir.corp.google.com>
- <alpine.DEB.0.9999.0709190352030.23538@chino.kir.corp.google.com>
+Received: by ug-out-1314.google.com with SMTP id a2so313909ugf
+        for <linux-mm@kvack.org>; Wed, 19 Sep 2007 12:25:55 -0700 (PDT)
+Date: Wed, 19 Sep 2007 22:25:46 +0300
+Subject: Re: PROBLEM: System Freeze on Particular workload with kernel 2.6.22.6
+Message-ID: <20070919192546.GA3153@Ahmed>
+References: <46F0E19D.8000400@andrew.cmu.edu> <E1IY1mO-00067S-7v@flower> <46F14B67.5010807@andrew.cmu.edu>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <46F14B67.5010807@andrew.cmu.edu>
+From: "Ahmed S. Darwish" <darwish.07@gmail.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <andrea@suse.de>, Rik van Riel <riel@redhat.com>, linux-mm@kvack.org
+To: Low Yucheng <ylow@andrew.cmu.edu>
+Cc: Oleg Verych <olecom@flower.upol.cz>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 19 Sep 2007, David Rientjes wrote:
+Hi Low,
 
-> It is no longer necessary to check whether a task's cpuset nodes overlap
-> with current because the tasklist has already been filtered with respect
-> to zones shared in the zonelist.
+On Wed, Sep 19, 2007 at 12:16:39PM -0400, Low Yucheng wrote:
+> There are no additional console messages.
+> Not sure what this is: * no relevant Cc (memory management added)
 
-I doubt it. You would have to scan over all pages mapped by a process and 
-build zonelists to check that.
+Relevant CCs means CCing maintainers or subsystem mailing lists related to your
+bug report. i.e, if it's a networking bug, you need to CC the linux kernel
+networking mailing list. If it's a kobject bug, you need to CC its maintainer
+(Greg) and so on.
+
+Regards,  
+
+-- 
+Ahmed S. Darwish
+HomePage: http://darwish.07.googlepages.com
+Blog: http://darwish-07.blogspot.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
