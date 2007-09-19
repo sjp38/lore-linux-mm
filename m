@@ -1,68 +1,59 @@
-Message-ID: <46F02E9E.1050009@redhat.com>
-Date: Tue, 18 Sep 2007 16:01:34 -0400
-From: Rik van Riel <riel@redhat.com>
+Message-ID: <46F06C17.5050203@google.com>
+Date: Tue, 18 Sep 2007 17:23:51 -0700
+From: Ethan Solomita <solo@google.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH/RFC 11/14] Reclaim Scalability: swap backed pages are
- nonreclaimable when no swap space available
-References: <20070914205359.6536.98017.sendpatchset@localhost>	 <20070914205512.6536.89432.sendpatchset@localhost>	 <46EDEC2D.9070004@redhat.com> <1190137573.5035.52.camel@localhost>
-In-Reply-To: <1190137573.5035.52.camel@localhost>
-Content-Type: text/plain; charset=UTF-8; format=flowed
+Subject: Re: [PATCH 6/6] cpuset dirty limits
+References: <469D3342.3080405@google.com> <46E741B1.4030100@google.com> <46E743F8.9050206@google.com> <20070914161540.5b192348.akpm@linux-foundation.org> <Pine.LNX.4.64.0709171153010.27542@schroedinger.engr.sgi.com>
+In-Reply-To: <Pine.LNX.4.64.0709171153010.27542@schroedinger.engr.sgi.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
-Cc: linux-mm@kvack.org, akpm@linux-foundation.org, mel@csn.ul.ie, clameter@sgi.com, balbir@linux.vnet.ibm.com, andrea@suse.de, a.p.zijlstra@chello.nl, eric.whitney@hp.com, npiggin@suse.de
+To: Christoph Lameter <clameter@sgi.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, pj@sgi.com, LKML <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-Lee Schermerhorn wrote:
-> On Sun, 2007-09-16 at 22:53 -0400, Rik van Riel wrote:
->> Lee Schermerhorn wrote:
->>> PATCH/RFC  11/14 Reclaim Scalability: treat swap backed pages as
->>> 	non-reclaimable when no swap space is available.
->>>
->>> Against:  2.6.23-rc4-mm1
->>>
->>> Move swap backed pages [anon, shmem/tmpfs] to noreclaim list when
->>> nr_swap_pages goes to zero.   Use Rik van Riel's page_anon() 
->>> function in page_reclaimable() to detect swap backed pages.
->>>
->>> Depends on NORECLAIM_NO_SWAP Kconfig sub-option of NORECLAIM
->>>
->>> TODO:   Splice zones' noreclaim list when "sufficient" swap becomes
->>> available--either by being freed by other pages or by additional 
->>> swap being added.  How much is "sufficient" swap?  Don't want to
->>> splice huge noreclaim lists every time a swap page gets freed.
->> Yet another reason for my LRU list split between filesystem
->> backed and swap backed pages: we can simply stop scanning the
->> anon lists when swap space is full and resume scanning when
->> swap space becomes available.
+Christoph Lameter wrote:
+> On Fri, 14 Sep 2007, Andrew Morton wrote:
 > 
+>>> +	mutex_lock(&callback_mutex);
+>>> +	*cs_int = val;
+>>> +	mutex_unlock(&callback_mutex);
+>> I don't think this locking does anything?
 > 
-> Hi, Rik:
+> Locking is wrong here. The lock needs to be taken before the cs pointer 
+> is dereferenced from the caller.
+
+	I think we can just remove the callback_mutex lock. Since the change is
+coming from an update to a cpuset filesystem file, the cpuset is not
+going anywhere since the inode is open. And I don't see that any code
+really cares whether the dirty ratios change out from under them.
+
 > 
-> It occurs to me that we probably don't want to stop scanning the anon
-> lists [active/inactive] when swap space is full.  We might have LOTS of
-> anon pages that already have swap space allocated to them that can be
-> reclaimed.  It's just those that don't already have swap space that
-> aren't reclaimable until more swap space becomes available.
+>>> +	return 0;
+>>> +}
+>>> +
+>>>  /*
+>>>   * Frequency meter - How fast is some event occurring?
+>>>   *
+>>> ...
+>>> +void cpuset_get_current_ratios(int *background_ratio, int *throttle_ratio)
+>>> +{
+>>> +	int background = -1;
+>>> +	int throttle = -1;
+>>> +	struct task_struct *tsk = current;
+>>> +
+>>> +	task_lock(tsk);
+>>> +	background = task_cs(tsk)->background_dirty_ratio;
+>>> +	throttle = task_cs(tsk)->throttle_dirty_ratio;
+>>> +	task_unlock(tsk);
+>> ditto?
+> 
+> It is required to take the task lock while dereferencing the tasks cpuset 
+> pointer.
 
-Well, "lots" is a relative thing.
-
-If we run into those pages in our normal course of scanning,
-we should free the swap space.
-
-If swap space finally ran out, I suspect we should just give
-up.
-
-If you have a system with 128GB RAM and 2GB swap, it really
-does not make a lot of sense to scan all the way through 90GB
-of anonymous pages to free maybe 1GB of swap...
-
-If swap is large, we can free swap space during the normal
-LRU scanning, before we completely run out.
-
--- 
-All Rights Reversed
+	Agreed.
+	-- Ethan
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
