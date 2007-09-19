@@ -1,59 +1,51 @@
-Message-ID: <46F06C17.5050203@google.com>
-Date: Tue, 18 Sep 2007 17:23:51 -0700
-From: Ethan Solomita <solo@google.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH 6/6] cpuset dirty limits
-References: <469D3342.3080405@google.com> <46E741B1.4030100@google.com> <46E743F8.9050206@google.com> <20070914161540.5b192348.akpm@linux-foundation.org> <Pine.LNX.4.64.0709171153010.27542@schroedinger.engr.sgi.com>
-In-Reply-To: <Pine.LNX.4.64.0709171153010.27542@schroedinger.engr.sgi.com>
-Content-Type: text/plain; charset=ISO-8859-1
+Date: Wed, 19 Sep 2007 09:30:44 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [PATCH/RFC 4/14] Reclaim Scalability: Define page_anon()
+ function
+Message-Id: <20070919093044.e4b378d0.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <1190127886.5035.10.camel@localhost>
+References: <20070914205359.6536.98017.sendpatchset@localhost>
+	<20070914205425.6536.69946.sendpatchset@localhost>
+	<20070918105842.5218db50.kamezawa.hiroyu@jp.fujitsu.com>
+	<1190127886.5035.10.camel@localhost>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, pj@sgi.com, LKML <linux-kernel@vger.kernel.org>
+To: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
+Cc: linux-mm@kvack.org, akpm@linux-foundation.org, mel@csn.ul.ie, clameter@sgi.com, riel@redhat.com, balbir@linux.vnet.ibm.com, andrea@suse.de, a.p.zijlstra@chello.nl, eric.whitney@hp.com, npiggin@suse.de
 List-ID: <linux-mm.kvack.org>
 
-Christoph Lameter wrote:
-> On Fri, 14 Sep 2007, Andrew Morton wrote:
-> 
->>> +	mutex_lock(&callback_mutex);
->>> +	*cs_int = val;
->>> +	mutex_unlock(&callback_mutex);
->> I don't think this locking does anything?
-> 
-> Locking is wrong here. The lock needs to be taken before the cs pointer 
-> is dereferenced from the caller.
+On Tue, 18 Sep 2007 11:04:46 -0400
+Lee Schermerhorn <Lee.Schermerhorn@hp.com> wrote:
 
-	I think we can just remove the callback_mutex lock. Since the change is
-coming from an update to a cpuset filesystem file, the cpuset is not
-going anywhere since the inode is open. And I don't see that any code
-really cares whether the dirty ratios change out from under them.
-
+> > Hi, it seems the name 'page_anon()' is not clear..
+> > In my understanding, an anonymous page is a MAP_ANONYMOUS page.
+> > Can't we have better name ?
 > 
->>> +	return 0;
->>> +}
->>> +
->>>  /*
->>>   * Frequency meter - How fast is some event occurring?
->>>   *
->>> ...
->>> +void cpuset_get_current_ratios(int *background_ratio, int *throttle_ratio)
->>> +{
->>> +	int background = -1;
->>> +	int throttle = -1;
->>> +	struct task_struct *tsk = current;
->>> +
->>> +	task_lock(tsk);
->>> +	background = task_cs(tsk)->background_dirty_ratio;
->>> +	throttle = task_cs(tsk)->throttle_dirty_ratio;
->>> +	task_unlock(tsk);
->> ditto?
+> Hi, Kame-san:
 > 
-> It is required to take the task lock while dereferencing the tasks cpuset 
-> pointer.
+> I'm open to a "better name".  Probably Rik, too -- it's his original
+> name.
+> 
+> How about one of these?
+> 
+> - page_is_swap_backed() or page_is_backed_by_swap_space()
+> - page_needs_swap_space() or page_uses_swap_space()
+> - pageNeedSwapSpaceToBeReclaimable() [X11-style :-)]
+> 
+My point is that the word "anonymous" is traditionally used for user's
+work memory. and page_anon() page seems not to be swap-backed always.
+(you includes ramfs etc..)
 
-	Agreed.
-	-- Ethan
+Hmm...how about page_anon_cache() ? 
+
+But finally, please name it as you like. sorry for nitpicks.
+
+Thanks,
+-Kame
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
