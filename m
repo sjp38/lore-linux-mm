@@ -1,39 +1,59 @@
-Date: Tue, 18 Sep 2007 23:00:59 -0700
-From: Paul Jackson <pj@sgi.com>
-Subject: Re: [PATCH 1/1] cpusets/sched_domain reconciliation
-Message-Id: <20070918230059.f3b39250.pj@sgi.com>
-In-Reply-To: <20070913154607.9c49e1c7.akpm@linux-foundation.org>
-References: <20070907210704.E6BE02FC059@attica.americas.sgi.com>
-	<20070913154607.9c49e1c7.akpm@linux-foundation.org>
+Date: Wed, 19 Sep 2007 16:56:23 +1000
+From: Stephen Rothwell <sfr@canb.auug.org.au>
+Subject: Re: [PATCH 1/1] ppc64: Convert cpu_sibling_map to a per_cpu data
+ array ppc64 v2
+Message-Id: <20070919165623.8a59f4dd.sfr@canb.auug.org.au>
+In-Reply-To: <20070917183507.506104000@sgi.com>
+References: <20070917183507.332345000@sgi.com>
+	<20070917183507.506104000@sgi.com>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Content-Type: multipart/signed; protocol="application/pgp-signature";
+ micalg="PGP-SHA1";
+ boundary="Signature=_Wed__19_Sep_2007_16_56_23_+1000_I.2xQApTY_b1iczd"
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: cpw@sgi.com, linux-mm@kvack.org, nickpiggin@yahoo.com.au, mingo@elte.hu
+To: travis@sgi.com
+Cc: Andrew Morton <akpm@linux-foundation.org>, Andi Kleen <ak@suse.de>, Christoph Lameter <clameter@sgi.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linuxppc-dev@ozlabs.org, sparclinux@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-Andrew replied to Cliff a few days ago:
-> I suspect your change is fundamentally incompatible with, and perhaps
-> obsoleted by ... cpuset-remove-sched-domain-hooks-from-cpusets.patch
+--Signature=_Wed__19_Sep_2007_16_56_23_+1000_I.2xQApTY_b1iczd
+Content-Type: text/plain; charset=US-ASCII
+Content-Disposition: inline
+Content-Transfer-Encoding: quoted-printable
 
-I suspect the same thing.
+Hi Mike,
 
-> Problem is, cpuset-remove-sched-domain-hooks-from-cpusets.patch has been
-> hanging around in -mm for a year while Paul makes up his mind about it.
-> 
-> Can we please get all this sorted out??
+On Mon, 17 Sep 2007 11:35:08 -0700 travis@sgi.com wrote:
+>
+> v2:=20
+>=20
+> This patch applies after:
+>=20
+> 	convert-cpu_sibling_map-to-a-per_cpu-data-array-ppc64.patch
+>=20
+> and should fix the "reference cpu_sibling_map before setup_per_cpu_areas()
+> has been called" problem.  In addtion, the cpu_sibiling_map macro has been
+> removed [this was missed in my original submission.]
 
-I'll see what I can do.  Cpuset support seems to have finally gotten
-back to the front of my queue.
+This one make it work, thanks.
 
-Sorry for the absurdly long hiatus.
+--=20
+Cheers,
+Stephen Rothwell                    sfr@canb.auug.org.au
+http://www.canb.auug.org.au/~sfr/
 
--- 
-                  I won't rest till it's the best ...
-                  Programmer, Linux Scalability
-                  Paul Jackson <pj@sgi.com> 1.925.600.0401
+--Signature=_Wed__19_Sep_2007_16_56_23_+1000_I.2xQApTY_b1iczd
+Content-Type: application/pgp-signature
+
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v1.4.6 (GNU/Linux)
+
+iD8DBQFG8MggTgG2atn1QN8RAg/qAJ4+XjXxXxwprLwXZuKNOD0jdLARgACdG056
+Ai/YzTQTgEZk3/c/IlVva5w=
+=vBAz
+-----END PGP SIGNATURE-----
+
+--Signature=_Wed__19_Sep_2007_16_56_23_+1000_I.2xQApTY_b1iczd--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
