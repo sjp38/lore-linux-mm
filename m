@@ -1,90 +1,98 @@
-Date: Wed, 19 Sep 2007 11:12:10 +0900
-From: Yasunori Goto <y-goto@jp.fujitsu.com>
-Subject: Re: [RFC/Patch](memory hotplug) fix null pointer access of kmem_cache_node after memory hotplug
-In-Reply-To: <Pine.LNX.4.64.0709181200400.3351@schroedinger.engr.sgi.com>
-References: <20070918211932.0FFD.Y-GOTO@jp.fujitsu.com> <Pine.LNX.4.64.0709181200400.3351@schroedinger.engr.sgi.com>
-Message-Id: <20070919095823.3770.Y-GOTO@jp.fujitsu.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
+Date: Tue, 18 Sep 2007 19:14:05 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH 1/6] cpuset write dirty map
+Message-Id: <20070918191405.d9b43470.akpm@linux-foundation.org>
+In-Reply-To: <46F072A5.8060008@google.com>
+References: <469D3342.3080405@google.com>
+	<46E741B1.4030100@google.com>
+	<46E742A2.9040006@google.com>
+	<20070914161536.3ec5c533.akpm@linux-foundation.org>
+	<46F072A5.8060008@google.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
-Cc: linux-mm <linux-mm@kvack.org>
+To: Ethan Solomita <solo@google.com>
+Cc: linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Christoph Lameter <clameter@sgi.com>
 List-ID: <linux-mm.kvack.org>
 
-> On Tue, 18 Sep 2007, Yasunori Goto wrote:
+On Tue, 18 Sep 2007 17:51:49 -0700 Ethan Solomita <solo@google.com> wrote:
+
+> > 
+> >> +void cpuset_update_dirty_nodes(struct address_space *mapping,
+> >> +			struct page *page)
+> >> +{
+> >> +	nodemask_t *nodes = mapping->dirty_nodes;
+> >> +	int node = page_to_nid(page);
+> >> +
+> >> +	if (!nodes) {
+> >> +		nodes = kmalloc(sizeof(nodemask_t), GFP_ATOMIC);
+> > 
+> > Does it have to be atomic?  atomic is weak and can fail.
+> > 
+> > If some callers can do GFP_KERNEL and some can only do GFP_ATOMIC then we
+> > should at least pass the gfp_t into this function so it can do the stronger
+> > allocation when possible.
 > 
-> > Its cause was null pointer access to kmem_cache_node of SLUB at
-> > discard_slab().
-> > In my understanding, it should be created for all slubs after
-> > memory-less-node(or new node) gets new memory. But, current -mm doen't it.
-> > This patch fix for it.
+> 	I was going to say that sanity would be improved by just allocing the
+> nodemask at inode alloc time. A failure here could be a problem because
+> below cpuset_intersects_dirty_nodes() assumes that a NULL nodemask
+> pointer means that there are no dirty nodes, thus preventing dirty pages
+> from getting written to disk. i.e. This must never fail.
 > 
-> Right. Isnt there a notifier chain that can be used to create the missing 
-> node structure?
-
-Yes, there is. Though nothing uses it so far....
-
-
-> > If kmem_cache_node is created at online_pages() of memory hot-add,
-> > it should be done before build_zonelist to avoid race condition.
-> > But, it means kmem_cache_node must be allocated on other old nodes
-> > due not to complete initialization.
+> 	Given that we allocate it always at the beginning, I'm leaning towards
+> just allocating it within mapping no matter its size. It will make the
+> code much much simpler, and save me writing all the comments we've been
+> discussing. 8-)
 > 
-> Why before build_zonelist? The regular slab bootstrap occurs after
-> zonelist creation.
+> 	How disastrous would this be? Is the need to support a 1024 node system
+> with 1,000,000 open mostly-read-only files thus needing to spend 120MB
+> of extra memory on my nodemasks a real scenario and a showstopper?
 
-build_zonelist() is called very early stage of bootstrap, But it is
-called final stage of hot-add.
-When build_zonelist() is called at hot-add, all kernel module can
-use new memory of the node. So, I'm afraid like following worst case.
+None of this is very nice.  Yes, it would be good to save all that memory
+and yes, I_DIRTY_PAGES inodes are very much the uncommon case.
 
-   build_zonelist()              
-        :                     new_nodes_page = new_slab();
-        :                         :
-        :                         :
-        :                     discard_slab(new_nodes_page)
-        :                         (access kmem_cache_node)
-        :
-   kmem_cache_node setting,
+But if a failed GFP_ATOMIC allocation results in data loss then that's a
+showstopper.
 
+How hard would it be to handle the allocation failure in a more friendly
+manner?  Say, if the allocation failed then point mapping->dirty_nodes at
+some global all-ones nodemask, and then special-case that nodemask in the
+freeing code?
 
-> > I think this "delay creation" fix is better way than it.
+> > 
+> > 
+> >> +		if (!nodes)
+> >> +			return;
+> >> +
+> >> +		*nodes = NODE_MASK_NONE;
+> >> +		mapping->dirty_nodes = nodes;
+> >> +	}
+> >> +
+> >> +	if (!node_isset(node, *nodes))
+> >> +		node_set(node, *nodes);
+> >> +}
+> >> +
+> >> +void cpuset_clear_dirty_nodes(struct address_space *mapping)
+> >> +{
+> >> +	nodemask_t *nodes = mapping->dirty_nodes;
+> >> +
+> >> +	if (nodes) {
+> >> +		mapping->dirty_nodes = NULL;
+> >> +		kfree(nodes);
+> >> +	}
+> >> +}
+> > 
+> > Can this race with cpuset_update_dirty_nodes()?  And with itself?  If not,
+> > a comment which describes the locking requirements would be good.
 > 
-> Looks like this is a way to on demand node structure creation?
+> 	I'll add a comment. Such a race should not be possible. It is called
+> only from clear_inode() which is used when the inode is being freed
+> "with extreme prejudice" (from its comments). I can add a check that
+> i_state I_FREEING is set. Would that do?
 
-Yes.
-
-> > I know that failure case of kmem_cache_alloc_node() must be written
-> > and the prototype of init_kmem_cache_node() here is not good.
-> > Just I would like to confirm that I don't overlook something about SLUB.
-> 
-> Could be okay. I would feel better if we always had a per node structure 
-> for each available node on the node that it covers.
-> 
-> > +	else if (node_state(page_nid, N_HIGH_MEMORY) && s != kmalloc_caches) {
-> > +		/*
-> > +		 * If new memory is onlined on new(or memory less) node,
-> > +		 * this will happen. (Second comparison is to avoid eternal
-> > +		 * recursion.)
-> > +		 */
-> 
-> For memoryless nodes this function will return NULL which will cause 
-> fallback. It looks like we are not going into this branch because in that 
-> case N_HIGH_MEMORY will not be set for the node.
-
-Probably, the comment was wrong. 
-When a memory less node gets new memory by hot-add, 
-N_HIGH_MEMORY is set at online_pages(). (It is included in
-2.6.23-rc6-mm1). The first comparison is to find it.
-
-
-
-Thanks.
-
--- 
-Yasunori Goto 
+Sounds sane.
 
 
 --
