@@ -1,13 +1,10 @@
-Date: Wed, 19 Sep 2007 12:00:01 -0700 (PDT)
+Date: Wed, 19 Sep 2007 12:01:32 -0700 (PDT)
 From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [patch 4/8] oom: serialize out of memory calls
-In-Reply-To: <alpine.DEB.0.9999.0709190350560.23538@chino.kir.corp.google.com>
-Message-ID: <Pine.LNX.4.64.0709191159100.2241@schroedinger.engr.sgi.com>
+Subject: Re: [patch 1/8] oom: move prototypes to appropriate header file
+In-Reply-To: <alpine.DEB.0.9999.0709190350001.23538@chino.kir.corp.google.com>
+Message-ID: <Pine.LNX.4.64.0709191201210.2241@schroedinger.engr.sgi.com>
 References: <alpine.DEB.0.9999.0709181950170.25510@chino.kir.corp.google.com>
  <alpine.DEB.0.9999.0709190350001.23538@chino.kir.corp.google.com>
- <alpine.DEB.0.9999.0709190350240.23538@chino.kir.corp.google.com>
- <alpine.DEB.0.9999.0709190350410.23538@chino.kir.corp.google.com>
- <alpine.DEB.0.9999.0709190350560.23538@chino.kir.corp.google.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
@@ -18,14 +15,10 @@ List-ID: <linux-mm.kvack.org>
 
 On Wed, 19 Sep 2007, David Rientjes wrote:
 
-> Before invoking the OOM killer, a final allocation attempt with a very
-> high watermark is attempted.  Serialization needs to occur at this point
-> or it may be possible that the allocation could succeed after acquiring
-> the lock.  If the lock is contended, the task is put to sleep and the
-> allocation attempt is retried when rescheduled.
+> Move the OOM killer's extern function prototypes to include/linux/oom.h
+> and include it where necessary.
 
-The problem with a succeeding allocation is that it takes memory 
-away from the OOM killer?
+Acked-by: Christoph Lameter <clameter@sgi.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
