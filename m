@@ -1,104 +1,40 @@
-Date: Wed, 19 Sep 2007 08:10:06 -0300
-From: " Royal Kasino " <albright@caller.com>
-Subject: Zahlen Sie 100 Euro ein und spielen Sie mit 400 Euro
-Message-ID: <27702853.55465986@beginning.com>
+Message-ID: <5c7101c7facf$e0bc4e80$50730ffd@chimpsuiaw>
+From: "Cecila" <chimpsuiaw@eaccess.ne.jp>
+Subject: Ready, right now
+Date: Wed, 19 Sep 2007 15:15:13 +0500
 MIME-Version: 1.0
-Content-Type: text/html; charset=iso-8859-1
-Content-Transfer-Encoding: 7bit
-Return-Path: <albright@caller.com>
-To: owner-linux-mm@kvack.org
+Content-Type: text/plain;
+	charset="us-ascii"
+Content-Transfer-Encoding: 8bit
+Return-Path: <chimpsuiaw@eaccess.ne.jp>
+To: Andera Myers <adrian@kvack.org>
+Cc: Dagny Gutierrez <blah@kvack.org>, Malcolm Porter <linux-aio@kvack.org>, Chau Chavez <owner-linux-mm@kvack.org>Kimbra Garza <linux-mm@kvack.org>, Winford <linux-mm-archive@kvack.org>, Rochelle <aart@kvack.org>, Penny Pierce <majordomo@kvack.org>, Lamar Andrews <linux-ns83820@kvack.org>, Danilo <kelda@kvack.org>Tinisha <mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-<html>
+There is definitely one Canadian certified on-line drug store and that is
+Maple_Leaf 
 
-<head>
-<meta http-equiv=Content-Type content="text/html; charset=iso-8859-1">
+If you would like the following so therefore we are the company to purchase
+from:
 
-<title>Nur vom nobelsten aller</title>
+Highest available value Trademark and General remedy
+Quick Shipping
+N0 pmedical instruction needed
+Cheapest possible values cause of our large number buying power from the
+firms 
+Sociable reliable customers service
 
-<style>
-<!--
- /* Style Definitions */
- p.MsoNormal, li.MsoNormal, div.MsoNormal
-	{mso-style-parent:"";
-	margin:0cm;
-	margin-bottom:.0001pt;
-	mso-pagination:widow-orphan;
-	font-size:12.0pt;
-	font-family:"Times New Roman";
-	mso-fareast-font-family:"Times New Roman";
-	mso-ansi-language:EN-US;
-	mso-fareast-language:EN-US;}
-a:link, span.MsoHyperlink
-	{color:blue;
-	text-decoration:underline;
-	text-underline:single;}
-a:visited, span.MsoHyperlinkFollowed
-	{color:purple;
-	text-decoration:underline;
-	text-underline:single;}
-@page Section1
-	{size:595.3pt 841.9pt;
-	margin:2.0cm 42.5pt 2.0cm 3.0cm;
-	mso-header-margin:35.4pt;
-	mso-footer-margin:35.4pt;
-	mso-paper-source:0;}
-div.Section1
-	{page:Section1;}
--->
-</style>
+Please join hundreds of thousands of other client who order from us
+monthly.  Your manual will be happy you did.  
 
-</head>
+Please check us out to view our averall line of more than 2000 medical
+Drugs.  www.pharmnew.org
 
-<body lang=DE link=blue vlink=purple style='tab-interval:35.4pt'>
 
-<div class=Section1>
-
-<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
-Nur vom nobelsten aller Casinos k&ouml;nnen 
-Sie ein so vornehmes Geschenk erwarten:
-<o:p></o:p></span></p>
-
-<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
-<o:p>&nbsp;</o:p></span></p>
-
-<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
-300% Bonus f&uuml;r Ihre erste Einzahlung!
-<o:p></o:p></span></p>
-
-<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
-<o:p>&nbsp;</o:p></span></p>
-
-<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
-Zahlen Sie 100&#8364;/$ ein und spielen 
-Sie mit 400 &#8364;/$!
-<o:p></o:p></span></p>
-
-<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
-<o:p>&nbsp;</o:p></span></p>
-
-<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
-Oben drauf bekommen Sie bei uns einen 
-k&ouml;niglichen Service!
-<o:p></o:p></span></p>
-
-<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
-<o:p>&nbsp;</o:p></span></p>
-
-<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
-Kommen und spielen Sie im Royal VIP Casino!
-<o:p></o:p></span></p>
-
-<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
-<o:p>&nbsp;</o:p></span></p>
-
-<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
-<a href="http://royal55.com/lang-de/">
-http://royal55.com/lang-de/</a>
-<o:p></o:p></span></p>
-
-</div>
-
-</body>
-
-</html>
+calculate "Perhaps he may give me a buy few hints, though, or introduce me
+stealthily expansion to a friendly sailor or two," the Gadfl "Oh, burst
+brake eaten blunt yes! Plenty of time. There are two or three little things
+I want to ask you about, Rivarez; but "The ink accident? Oh, the curly
+smashing! Yes; only it scary wasn't an accident, it grown was a poker." 
+"Heaven knows, Your fit Eminence, I plastic should be thankful to page do
+it! But how collar am I to prevent the people resc
