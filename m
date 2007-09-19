@@ -1,48 +1,33 @@
-Date: Wed, 19 Sep 2007 13:30:08 -0700 (PDT)
+Date: Wed, 19 Sep 2007 13:37:13 -0700 (PDT)
 From: David Rientjes <rientjes@google.com>
-Subject: Re: [patch 4/8] oom: serialize out of memory calls
-In-Reply-To: <Pine.LNX.4.64.0709191159100.2241@schroedinger.engr.sgi.com>
-Message-ID: <alpine.DEB.0.9999.0709191325160.26978@chino.kir.corp.google.com>
+Subject: Re: [patch 3/8] oom: save zonelist pointer for oom killer calls
+In-Reply-To: <Pine.LNX.4.64.0709191204590.2241@schroedinger.engr.sgi.com>
+Message-ID: <alpine.DEB.0.9999.0709191330520.26978@chino.kir.corp.google.com>
 References: <alpine.DEB.0.9999.0709181950170.25510@chino.kir.corp.google.com> <alpine.DEB.0.9999.0709190350001.23538@chino.kir.corp.google.com> <alpine.DEB.0.9999.0709190350240.23538@chino.kir.corp.google.com> <alpine.DEB.0.9999.0709190350410.23538@chino.kir.corp.google.com>
- <alpine.DEB.0.9999.0709190350560.23538@chino.kir.corp.google.com> <Pine.LNX.4.64.0709191159100.2241@schroedinger.engr.sgi.com>
+ <Pine.LNX.4.64.0709191204590.2241@schroedinger.engr.sgi.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Christoph Lameter <clameter@sgi.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <andrea@suse.de>, Rik van Riel <riel@redhat.com>, linux-mm@kvack.org
+Cc: Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <andrea@suse.de>, Rik van Riel <riel@redhat.com>, linux-mm@kvack.org, pj@sgi.com
 List-ID: <linux-mm.kvack.org>
 
 On Wed, 19 Sep 2007, Christoph Lameter wrote:
 
-> > Before invoking the OOM killer, a final allocation attempt with a very
-> > high watermark is attempted.  Serialization needs to occur at this point
-> > or it may be possible that the allocation could succeed after acquiring
-> > the lock.  If the lock is contended, the task is put to sleep and the
-> > allocation attempt is retried when rescheduled.
-> 
-> The problem with a succeeding allocation is that it takes memory 
-> away from the OOM killer?
+> Still think that a simple flag in the zone would be much easier to realize 
+> and would avoid the kzalloc.
 > 
 
-If the succeeding allocation works with ALLOC_WMARK_HIGH, and 
-get_page_from_freelist() returns non-NULL, then clear_zonelist_oom() is 
-called and the OOM killer is never invoked.  The same happens if the 
-allocation order exceeds PAGE_ALLOC_COSTLY_ORDER.
+That would require another member to be added to struct zone, probably a 
+spinlock_t that we would use as a spin_trylock() when in 
+try_set_zone_oom().
 
-So, as the comment still says in __alloc_pages(), the succeeding 
-allocation attempt is only to catch parallel OOM killings.  Not 
-necessarily that we can serialize based on that alone, but it catches 
-tasks that were already OOM killed, marked TIF_MEMDIE so they can quickly 
-exit, and gone through exit_mm().  This only happens when the earlier 
-allocation attempts couldn't catch it because they were ~ALLOC_WMARK_HIGH.
+Or we could, as you mentioned before, turn all_unreclaimable into an 
+unsigned long and use it to set various bits.  That works pretty nicely.
 
-We can't serialize after this final allocation attempt with the new 
-try_set_zone_oom() because it is entirely possible that we could enter the 
-OOM killer, wait for the read-lock on tasklist_lock, the OOM condition 
-could be alleviated, and then we still kill a task unnecessarily.
-
-		David
+I'm wondering if this OOM killer serialization is going to end up as a 
+config option, though.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
