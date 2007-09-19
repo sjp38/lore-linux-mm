@@ -1,25 +1,43 @@
-Date: Wed, 19 Sep 2007 11:00:53 -0700 (PDT)
+Date: Wed, 19 Sep 2007 11:03:43 -0700 (PDT)
 From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [RFC 13/26] SLUB: Add SlabReclaimable() to avoid repeated reclaim
- attempts
-In-Reply-To: <46F13B6C.7020501@redhat.com>
-Message-ID: <Pine.LNX.4.64.0709191100260.11882@schroedinger.engr.sgi.com>
-References: <20070901014107.719506437@sgi.com> <20070901014222.303468369@sgi.com>
- <46F13B6C.7020501@redhat.com>
+Subject: Re: [PATCH/RFC 6/14] Reclaim Scalability: "No Reclaim LRU Infrastructure"
+In-Reply-To: <20070919111125.GD14817@skynet.ie>
+Message-ID: <Pine.LNX.4.64.0709191102060.11882@schroedinger.engr.sgi.com>
+References: <20070914205359.6536.98017.sendpatchset@localhost>
+ <20070914205438.6536.49500.sendpatchset@localhost>
+ <Pine.LNX.4.64.0709141537180.14937@schroedinger.engr.sgi.com>
+ <1190042245.5460.81.camel@localhost> <Pine.LNX.4.64.0709171137360.27057@schroedinger.engr.sgi.com>
+ <20070918095443.GA2035@skynet.ie> <Pine.LNX.4.64.0709181242240.3714@schroedinger.engr.sgi.com>
+ <20070919111125.GD14817@skynet.ie>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Rik van Riel <riel@redhat.com>
-Cc: Andy Whitcroft <apw@shadowen.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, Christoph Hellwig <hch@lst.de>, Mel Gorman <mel@skynet.ie>, David Chinner <dgc@sgi.com>
+To: Mel Gorman <mel@skynet.ie>
+Cc: Lee Schermerhorn <Lee.Schermerhorn@hp.com>, linux-mm@kvack.org, akpm@linux-foundation.org, riel@redhat.com, balbir@linux.vnet.ibm.com, andrea@suse.de, a.p.zijlstra@chello.nl, eric.whitney@hp.com, npiggin@suse.de
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 19 Sep 2007, Rik van Riel wrote:
+On Wed, 19 Sep 2007, Mel Gorman wrote:
 
-> Why is it safe to not use the normal page flag bit operators
-> for these page flags operations?
+> > RDMA is probably only temporarily pinning these while I/O is in progress?. 
+> > Our applications (XPMEM) 
+> > may pins them for good.
+> >  
+> 
+> I'm not that familiar with XPMEM. What is it doing that can pin memory
+> permanently?
 
-Because SLUB always modifies page flags under PageLock.
+It exports an process address space to another Linux instance over a 
+network or coherent memory.
+
+> > No. Nor in our XPMEM situation. We could move them at the point when they 
+> > are pinned to another section?
+> > 
+> 
+> XPMEM could do that all right. Allocate a non-movable page, copy and
+> pin.
+
+I think we need a general mechanism that also covers RDMA and other uses.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
