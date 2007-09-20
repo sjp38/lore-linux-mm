@@ -1,56 +1,41 @@
-Date: Wed, 19 Sep 2007 22:50:11 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [patch 7/8] oom: only kill tasks that share zones with
- zonelist
-In-Reply-To: <Pine.LNX.4.64.0709191156480.2241@schroedinger.engr.sgi.com>
-Message-ID: <alpine.DEB.0.9999.0709192245070.22371@chino.kir.corp.google.com>
-References: <alpine.DEB.0.9999.0709181950170.25510@chino.kir.corp.google.com> <alpine.DEB.0.9999.0709190350001.23538@chino.kir.corp.google.com> <alpine.DEB.0.9999.0709190350240.23538@chino.kir.corp.google.com> <alpine.DEB.0.9999.0709190350410.23538@chino.kir.corp.google.com>
- <alpine.DEB.0.9999.0709190350560.23538@chino.kir.corp.google.com> <alpine.DEB.0.9999.0709190351140.23538@chino.kir.corp.google.com> <alpine.DEB.0.9999.0709190351290.23538@chino.kir.corp.google.com> <alpine.DEB.0.9999.0709190351460.23538@chino.kir.corp.google.com>
- <Pine.LNX.4.64.0709191156480.2241@schroedinger.engr.sgi.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Date: Thu, 20 Sep 2007 12:00:31 +0200
+From: Jarek Poplawski <jarkao2@o2.pl>
+Subject: Re: PROBLEM: System Freeze on Particular workload with kernel 2.6.22.6
+Message-ID: <20070920100031.GA2796@ff.dom.local>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20070919192546.GA3153@Ahmed>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <andrea@suse.de>, Rik van Riel <riel@redhat.com>, linux-mm@kvack.org, Paul Jackson <pj@sgi.com>
+To: "Ahmed S. Darwish" <darwish.07@gmail.com>
+Cc: Low Yucheng <ylow@andrew.cmu.edu>, Oleg Verych <olecom@flower.upol.cz>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 19 Sep 2007, Christoph Lameter wrote:
-
-> > +		for (vma = mm->mmap; vma; vma = vma->vm_next) {
-> > +			unsigned long pfn;
-> > +			struct zone *zone;
-> > +
-> > +			pfn = PFN_DOWN(vma->vm_start);
-> > +			zone = page_zone(pfn_to_page(pfn));
+On 19-09-2007 21:25, Ahmed S. Darwish wrote:
+> Hi Low,
 > 
-> This seems to assume that all pages in a vma are in the same zone? That is 
-> not the case. On a NUMA system pages may be allocated round robin. Meaning 
-> lots of zones are used that this approach does not catch.
+> On Wed, Sep 19, 2007 at 12:16:39PM -0400, Low Yucheng wrote:
+>> There are no additional console messages.
+>> Not sure what this is: * no relevant Cc (memory management added)
 > 
+> Relevant CCs means CCing maintainers or subsystem mailing lists related to your
+> bug report. i.e, if it's a networking bug, you need to CC the linux kernel
+> networking mailing list. If it's a kobject bug, you need to CC its maintainer
+> (Greg) and so on.
 
-Setting the CONSTRAINT_MEMORY_POLICY case aside for a moment, what stops 
-us from getting rid of taking callback_mutex and simply relying on the 
-following to filter for candidate tasks:
+So, which one do you recommend here?
 
-	do_each_thread(g, p) {
-		...
-		/*
-		 * Check if it will do any good to kill this task based
-		 * on where it is allowed to allocate.
-		 */
-		if (!nodes_intersects(current->mems_allowed,
-				      p->mems_allowed))
-			continue;
-		...
-	} while_each_thread(g, p);
+Regards,
+Jarek P.
 
-We shouldn't really be concerned with the changing cpuset states during 
-out_of_memory() since we're only using it as a hint and we're not 
-dereferencing current->cpuset or p->cpuset.  This eliminates the need for 
-cpuset_{lock,unlock}() and cpuset_excl_nodes_overlap().
+PS#1: I don't think we should require from users so much expertise
+in bug reporting: after a few questions cc-ing should be no problem
+here.
 
-		David
+PS#2: Low Yucheng: maybe it's something else, but it seems your swap
+could be bigger for this amount of memory. (You could try to monitor
+this e.g. with "top" running in another console window.)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
