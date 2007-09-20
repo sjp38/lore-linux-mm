@@ -1,44 +1,42 @@
-Received: by hu-out-0506.google.com with SMTP id 32so215236huf
-        for <linux-mm@kvack.org>; Thu, 20 Sep 2007 08:24:14 -0700 (PDT)
-Date: Thu, 20 Sep 2007 18:24:06 +0300
-Subject: Re: PROBLEM: System Freeze on Particular workload with kernel 2.6.22.6
-Message-ID: <20070920152406.GA2562@Ahmed>
-References: <20070919192546.GA3153@Ahmed> <20070920100031.GA2796@ff.dom.local>
+Date: Thu, 20 Sep 2007 10:56:07 -0700 (PDT)
+From: Christoph Lameter <clameter@sgi.com>
+Subject: Re: [patch 3/8] oom: save zonelist pointer for oom killer calls
+In-Reply-To: <alpine.DEB.0.9999.0709192235170.22371@chino.kir.corp.google.com>
+Message-ID: <Pine.LNX.4.64.0709201054470.8626@schroedinger.engr.sgi.com>
+References: <alpine.DEB.0.9999.0709181950170.25510@chino.kir.corp.google.com>
+  <alpine.DEB.0.9999.0709190350001.23538@chino.kir.corp.google.com>
+ <alpine.DEB.0.9999.0709190350240.23538@chino.kir.corp.google.com>
+ <alpine.DEB.0.9999.0709190350410.23538@chino.kir.corp.google.com>
+ <Pine.LNX.4.64.0709191204590.2241@schroedinger.engr.sgi.com>
+ <alpine.DEB.0.9999.0709191330520.26978@chino.kir.corp.google.com>
+ <Pine.LNX.4.64.0709191353440.3136@schroedinger.engr.sgi.com>
+ <alpine.DEB.0.9999.0709191416380.30290@chino.kir.corp.google.com>
+ <eada2a070709191651i24185d1ep9e0d1829e115ee79@mail.gmail.com>
+ <alpine.DEB.0.9999.0709192235170.22371@chino.kir.corp.google.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20070920100031.GA2796@ff.dom.local>
-From: "Ahmed S. Darwish" <darwish.07@gmail.com>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Jarek Poplawski <jarkao2@o2.pl>
-Cc: Low Yucheng <ylow@andrew.cmu.edu>, Oleg Verych <olecom@flower.upol.cz>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>
+To: David Rientjes <rientjes@google.com>
+Cc: Tim Pepper <lnxninja@us.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <andrea@suse.de>, Rik van Riel <riel@redhat.com>, linux-mm@kvack.org, pj@sgi.com
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Sep 20, 2007 at 12:00:31PM +0200, Jarek Poplawski wrote:
-> On 19-09-2007 21:25, Ahmed S. Darwish wrote:
-> > Hi Low,
-> > 
-> > On Wed, Sep 19, 2007 at 12:16:39PM -0400, Low Yucheng wrote:
-> >> There are no additional console messages.
-> >> Not sure what this is: * no relevant Cc (memory management added)
-> > 
-> > Relevant CCs means CCing maintainers or subsystem mailing lists related to your
-> > bug report. i.e, if it's a networking bug, you need to CC the linux kernel
-> > networking mailing list. If it's a kobject bug, you need to CC its maintainer
-> > (Greg) and so on.
-> 
-> So, which one do you recommend here?
-> 
+On Wed, 19 Sep 2007, David Rientjes wrote:
 
-I'm not really sure, just wanted to solve Jarek's confusion :).
+> But yeah, it's cleaner if we change all_unreclaimable to an
+> unsigned int flags and convert all current testers of the 
+> all_unreclaimable value to use it.  Then we can simply set a bit, 
+> ZONE_OOM, to identify such zones.
 
-Regards,
+If we do that then we can also get rid of the atomic_t 
+reclaim_in_progress. It is only used by zone reclaim these days.
 
--- 
-Ahmed S. Darwish
-HomePage: http://darwish.07.googlepages.com
-Blog: http://darwish-07.blogspot.com
+> But I do agree that checking bits in an unsigned int flags member of 
+> struct zone will be better, but I intend to still mimic the behavior of a 
+> trylock for serialization.  try_set_zone_oom() will simply be implemented 
+> differently.
+
+Good.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
