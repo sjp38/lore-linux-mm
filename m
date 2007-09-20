@@ -1,58 +1,28 @@
-Message-Id: <20070920213004.527735000@sgi.com>
-Date: Thu, 20 Sep 2007 14:30:04 -0700
-From: travis@sgi.com
-Subject: [PATCH 0/1] x86: Reduce Memory Usage for large CPU count systems v2
+Date: Thu, 20 Sep 2007 14:56:31 -0700 (PDT)
+From: Christoph Lameter <clameter@sgi.com>
+Subject: Re: [patch 3/9] oom: change all_unreclaimable zone member to flags
+In-Reply-To: <alpine.DEB.0.9999.0709201320521.25753@chino.kir.corp.google.com>
+Message-ID: <Pine.LNX.4.64.0709201454560.11226@schroedinger.engr.sgi.com>
+References: <alpine.DEB.0.9999.0709201318090.25753@chino.kir.corp.google.com>
+ <alpine.DEB.0.9999.0709201319300.25753@chino.kir.corp.google.com>
+ <alpine.DEB.0.9999.0709201319520.25753@chino.kir.corp.google.com>
+ <alpine.DEB.0.9999.0709201320521.25753@chino.kir.corp.google.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andi Kleen <ak@suse.de>, Andrew Morton <akpm@linux-foundation.org>
-Cc: Christoph Lameter <clameter@sgi.com>, Jack Steiner <steiner@sgi.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: David Rientjes <rientjes@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <andrea@suse.de>, Rik van Riel <riel@redhat.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-v2: rebasing on 2.6.23-rc6-mm1
+> All flag operators are of the atomic variety because there are currently
+> readers that are implemented that do not take zone->lock.
 
-Analyzing various data structures when NR_CPU count is raised
-to 4096 shows the following arrays over 128k.  If the maximum
-number of cpus are not installed (about 99.99% of the time),
-then a large percentage of this memory is wasted.
---
-	151289856  CALNDATA  irq_desc
-	135530496  RMDATATA  irq_cfg
-	  3145728  CALNDATA  cpu_data
-	  2101248  BSS       irq_lists
-	  2097152  RMDATATA  cpu_sibling_map
-	  2097152  RMDATATA  cpu_core_map
-	  1575936  BSS       irq_2_pin
-	  1050624  BSS       irq_timer_state
-	   614400  INITDATA  early_node_map
-	   525376  PERCPU    per_cpu__kstat
-	   524608  DATA      unix_proto
-	   524608  DATA      udpv6_prot
-	   524608  DATA      udplitev6_prot
-	   524608  DATA      udplite_prot
-	   524608  DATA      udp_prot
-	   524608  DATA      tcpv6_prot
-	   524608  DATA      tcp_prot
-	   524608  DATA      rawv6_prot
-	   524608  DATA      raw_prot
-	   524608  DATA      packet_proto
-	   524608  DATA      netlink_proto
-	   524288  BSS       cpu_devices
-	   524288  BSS       boot_pageset
-	   524288  CALNDATA  boot_cpu_pda
-	   262144  RMDATATA  node_to_cpumask
-	   262144  BSS       __log_buf
-	   131072  BSS       entries
+Acked-by: Christoph Lameter <clameter@sgi.com>
 
-cpu_sibling_map and cpu_core_map have been taken care of in
-a prior patch.  This patch deals with the cpu_data array of
-cpuinfo_x86 structs.  The model that was used in sparc64
-architecture was adopted for x86.
-
-Obviously, the IRQ arrays are of greater importance for
-size reduction.  Any suggestions, or threads I should read
-are gratefully accecpted... ;-)
-
--- 
+Additional work needed though: The setting of the reclaim flag can be 
+removed from outside of zone reclaim. A testset when zone reclaim starts 
+and a clear when it ends is enough.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
