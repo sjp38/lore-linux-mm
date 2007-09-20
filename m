@@ -1,74 +1,59 @@
-Received: by wa-out-1112.google.com with SMTP id m33so428403wag
-        for <linux-mm@kvack.org>; Wed, 19 Sep 2007 16:51:47 -0700 (PDT)
-Message-ID: <eada2a070709191651i24185d1ep9e0d1829e115ee79@mail.gmail.com>
-Date: Wed, 19 Sep 2007 16:51:46 -0700
-From: "Tim Pepper" <lnxninja@us.ibm.com>
-Subject: Re: [patch 3/8] oom: save zonelist pointer for oom killer calls
-In-Reply-To: <alpine.DEB.0.9999.0709191416380.30290@chino.kir.corp.google.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=ISO-8859-1
+Date: Thu, 20 Sep 2007 09:56:04 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [PATCH/RFC 4/14] Reclaim Scalability: Define page_anon()
+ function
+Message-Id: <20070920095604.400acc62.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <1190221119.5301.42.camel@localhost>
+References: <20070914205359.6536.98017.sendpatchset@localhost>
+	<20070914205425.6536.69946.sendpatchset@localhost>
+	<20070918105842.5218db50.kamezawa.hiroyu@jp.fujitsu.com>
+	<1190127886.5035.10.camel@localhost>
+	<20070919093044.e4b378d0.kamezawa.hiroyu@jp.fujitsu.com>
+	<1190221119.5301.42.camel@localhost>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
-References: <alpine.DEB.0.9999.0709181950170.25510@chino.kir.corp.google.com>
-	 <alpine.DEB.0.9999.0709190350001.23538@chino.kir.corp.google.com>
-	 <alpine.DEB.0.9999.0709190350240.23538@chino.kir.corp.google.com>
-	 <alpine.DEB.0.9999.0709190350410.23538@chino.kir.corp.google.com>
-	 <Pine.LNX.4.64.0709191204590.2241@schroedinger.engr.sgi.com>
-	 <alpine.DEB.0.9999.0709191330520.26978@chino.kir.corp.google.com>
-	 <Pine.LNX.4.64.0709191353440.3136@schroedinger.engr.sgi.com>
-	 <alpine.DEB.0.9999.0709191416380.30290@chino.kir.corp.google.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Christoph Lameter <clameter@sgi.com>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <andrea@suse.de>, Rik van Riel <riel@redhat.com>, linux-mm@kvack.org, pj@sgi.com
+To: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
+Cc: linux-mm@kvack.org, akpm@linux-foundation.org, mel@csn.ul.ie, clameter@sgi.com, riel@redhat.com, balbir@linux.vnet.ibm.com, andrea@suse.de, a.p.zijlstra@chello.nl, eric.whitney@hp.com, npiggin@suse.de
 List-ID: <linux-mm.kvack.org>
 
-On 9/19/07, David Rientjes <rientjes@google.com> wrote:
-> On Wed, 19 Sep 2007, Christoph Lameter wrote:
-> > Are there any reasons not to serialize the OOM killer per zone?
->
-> That's what this current patchset does, yes.  I agree that it is probably
-> better done with a bit in struct zone, however.
->
+On Wed, 19 Sep 2007 12:58:39 -0400
+Lee Schermerhorn <Lee.Schermerhorn@hp.com> wrote:
 
-Removing the kzalloc() would be helpful also for the code's
-readability in terms of showing (and remembering in the future) its
-correctness.  If I've read this right, as it stands try_set_zone_oom()
-works out to behaving in the following ways for the listed return
-values:
+> On Wed, 2007-09-19 at 09:30 +0900, KAMEZAWA Hiroyuki wrote:
+> > On Tue, 18 Sep 2007 11:04:46 -0400
+> > Lee Schermerhorn <Lee.Schermerhorn@hp.com> wrote:
+> > 
+> > > > Hi, it seems the name 'page_anon()' is not clear..
+> > > > In my understanding, an anonymous page is a MAP_ANONYMOUS page.
+> > > > Can't we have better name ?
+> > > 
+> > > Hi, Kame-san:
+> > > 
+> > > I'm open to a "better name".  Probably Rik, too -- it's his original
+> > > name.
+> > > 
+> > > How about one of these?
+> > > 
+> > > - page_is_swap_backed() or page_is_backed_by_swap_space()
+> > > - page_needs_swap_space() or page_uses_swap_space()
+> > > - pageNeedSwapSpaceToBeReclaimable() [X11-style :-)]
+> > > 
+> > My point is that the word "anonymous" is traditionally used for user's
+> > work memory. and page_anon() page seems not to be swap-backed always.
+> > (you includes ramfs etc..)
+> 
+> I did understand your point.  Sorry if my response was confusing.
+> 
+> Next respin will remove ramfs.  That will be treated as a
+> non-reclaimable address space.
+> 
+Ok, seems reasonable.
 
- ret : behaviour
-    0: when is_zone_locked() ret's a 1 (ie: because a zone being OOM'd is
-       already marked OOM locked),
-       NONE of the current zone(s) are added to the list of OOM zones.
-    1: when is_zone_locked() ret's all 0's (ie: b/c no zone(s) being OOM'd are
-       already marked OOM locked), and the kzalloc() failed,
-       NONE of the current zone(s) are added to the list of OOM zones.
-    1: when is_zone_locked() ret's all 0's (ie: b/c no zone(s) being OOM'd are
-       already marked OOM locked),
-       ALL of the current zone(s) are added to the list of OOM zones.
-
-When no zones in the current zonelist are on the list of OOM zones,
-then all the current zones are added to the list of OOM zones...or
-none of them depending on how badly OOM'd we are.  Tricky.
-
-If any single zone in the current zonelist matches in the list of OOM
-zones, none of the current zones are added to the list of OOM zones.
-Given the patch header comments, this was done on purpose.  But
-doesn't that leave your list of OOM zones incomplete and open you to
-OOM killing in parallel on a given zone?
-
-Or is that all ok in that you're trying to minimise needlessly OOM
-killing something when possible but are willing to throw in the towel
-when things are tending towards royally hosed?
-
-At any rate this seems complex with subtly varying behaviour that left
-me wondering if it really works as advertised.  I imagine without the
-kzmalloc and instead checking/setting bits in bitmasks the code would
-be cleaner.
-
-
-Tim
+Thanks,
+-Kame
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
