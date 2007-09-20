@@ -1,10 +1,7 @@
-Date: Thu, 20 Sep 2007 13:23:20 -0700 (PDT)
+Date: Thu, 20 Sep 2007 13:23:13 -0700 (PDT)
 From: David Rientjes <rientjes@google.com>
-Subject: [patch 5/9] oom: serialize out of memory calls
-In-Reply-To: <alpine.DEB.0.9999.0709201321070.25753@chino.kir.corp.google.com>
-Message-ID: <alpine.DEB.0.9999.0709201321220.25753@chino.kir.corp.google.com>
-References: <alpine.DEB.0.9999.0709201318090.25753@chino.kir.corp.google.com> <alpine.DEB.0.9999.0709201319300.25753@chino.kir.corp.google.com> <alpine.DEB.0.9999.0709201319520.25753@chino.kir.corp.google.com> <alpine.DEB.0.9999.0709201320521.25753@chino.kir.corp.google.com>
- <alpine.DEB.0.9999.0709201321070.25753@chino.kir.corp.google.com>
+Subject: [patch 0/9] oom killer serialization
+Message-ID: <alpine.DEB.0.9999.0709201318090.25753@chino.kir.corp.google.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
@@ -13,56 +10,29 @@ To: Andrew Morton <akpm@linux-foundation.org>
 Cc: Andrea Arcangeli <andrea@suse.de>, Christoph Lameter <clameter@sgi.com>, Rik van Riel <riel@redhat.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Before invoking the OOM killer, a final allocation attempt with a very
-high watermark is attempted.  Serialization needs to occur at this point
-or it may be possible that the allocation could succeed after acquiring
-the lock.  If the lock is contended, the task is put to sleep and the
-allocation attempt is retried when rescheduled.
+Third version of the OOM serialization patchset.  Zone locking is now
+done with a newly-introduced flag in struct zone and the per-cpuset
+oom_kill_asking_task has been extracted out to become a full-fledged
+sysctl.
 
-Cc: Andrea Arcangeli <andrea@suse.de>
-Cc: Christoph Lameter <clameter@sgi.com>
-Signed-off-by: David Rientjes <rientjes@google.com>
+Thanks to Christoph Lameter and Paul Jackson for their help and review of
+this patchset.
+
+Applied on 2.6.23-rc7.
 ---
- mm/page_alloc.c |   14 ++++++++++++--
- 1 files changed, 12 insertions(+), 2 deletions(-)
-
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -1353,6 +1353,11 @@ nofail_alloc:
- 		if (page)
- 			goto got_pg;
- 	} else if ((gfp_mask & __GFP_FS) && !(gfp_mask & __GFP_NORETRY)) {
-+		if (!try_set_zone_oom(zonelist)) {
-+			schedule_timeout_uninterruptible(1);
-+			goto restart;
-+		}
-+
- 		/*
- 		 * Go through the zonelist yet one more time, keep
- 		 * very high watermark here, this is only to catch
-@@ -1361,14 +1366,19 @@ nofail_alloc:
- 		 */
- 		page = get_page_from_freelist(gfp_mask|__GFP_HARDWALL, order,
- 				zonelist, ALLOC_WMARK_HIGH|ALLOC_CPUSET);
--		if (page)
-+		if (page) {
-+			clear_zonelist_oom(zonelist);
- 			goto got_pg;
-+		}
- 
- 		/* The OOM killer will not help higher order allocs so fail */
--		if (order > PAGE_ALLOC_COSTLY_ORDER)
-+		if (order > PAGE_ALLOC_COSTLY_ORDER) {
-+			clear_zonelist_oom(zonelist);
- 			goto nopage;
-+		}
- 
- 		out_of_memory(zonelist, gfp_mask, order);
-+		clear_zonelist_oom(zonelist);
- 		goto restart;
- 	}
- 
+ Documentation/sysctl/vm.txt |   22 +++++++++
+ drivers/char/sysrq.c        |    1 +
+ include/linux/cpuset.h      |   12 ++---
+ include/linux/mmzone.h      |   33 ++++++++++++--
+ include/linux/oom.h         |   23 +++++++++-
+ include/linux/swap.h        |    5 --
+ kernel/cpuset.c             |   70 ++++-----------------------
+ kernel/sysctl.c             |    9 ++++
+ mm/oom_kill.c               |  107 +++++++++++++++++++++++++++++++------------
+ mm/page_alloc.c             |   23 +++++++--
+ mm/vmscan.c                 |   25 +++++-----
+ mm/vmstat.c                 |    2 +-
+ 12 files changed, 206 insertions(+), 126 deletions(-)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
