@@ -1,9 +1,8 @@
-Date: Thu, 20 Sep 2007 15:01:40 -0700 (PDT)
+Date: Thu, 20 Sep 2007 15:03:48 -0700 (PDT)
 From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [patch 8/9] oom: compare cpuset mems_allowed instead of exclusive
- ancestors
-In-Reply-To: <alpine.DEB.0.9999.0709201322080.25753@chino.kir.corp.google.com>
-Message-ID: <Pine.LNX.4.64.0709201501320.11226@schroedinger.engr.sgi.com>
+Subject: Re: [patch 6/9] oom: add oom_kill_asking_task sysctl
+In-Reply-To: <alpine.DEB.0.9999.0709201321380.25753@chino.kir.corp.google.com>
+Message-ID: <Pine.LNX.4.64.0709201502430.11226@schroedinger.engr.sgi.com>
 References: <alpine.DEB.0.9999.0709201318090.25753@chino.kir.corp.google.com>
  <alpine.DEB.0.9999.0709201319300.25753@chino.kir.corp.google.com>
  <alpine.DEB.0.9999.0709201319520.25753@chino.kir.corp.google.com>
@@ -11,16 +10,15 @@ References: <alpine.DEB.0.9999.0709201318090.25753@chino.kir.corp.google.com>
  <alpine.DEB.0.9999.0709201321070.25753@chino.kir.corp.google.com>
  <alpine.DEB.0.9999.0709201321220.25753@chino.kir.corp.google.com>
  <alpine.DEB.0.9999.0709201321380.25753@chino.kir.corp.google.com>
- <alpine.DEB.0.9999.0709201321530.25753@chino.kir.corp.google.com>
- <alpine.DEB.0.9999.0709201322080.25753@chino.kir.corp.google.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: David Rientjes <rientjes@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <andrea@suse.de>, Rik van Riel <riel@redhat.com>, linux-mm@kvack.org
+Cc: Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <andrea@suse.de>, Rik van Riel <riel@redhat.com>, linux-mm@kvack.org, pj@sgi.com
 List-ID: <linux-mm.kvack.org>
 
+Maybe we need this also for unconstrained allocations?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
