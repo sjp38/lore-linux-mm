@@ -1,28 +1,26 @@
-Date: Thu, 20 Sep 2007 14:56:31 -0700 (PDT)
-From: Christoph Lameter <clameter@sgi.com>
+Date: Thu, 20 Sep 2007 14:58:39 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
 Subject: Re: [patch 3/9] oom: change all_unreclaimable zone member to flags
-In-Reply-To: <alpine.DEB.0.9999.0709201320521.25753@chino.kir.corp.google.com>
-Message-ID: <Pine.LNX.4.64.0709201454560.11226@schroedinger.engr.sgi.com>
-References: <alpine.DEB.0.9999.0709201318090.25753@chino.kir.corp.google.com>
- <alpine.DEB.0.9999.0709201319300.25753@chino.kir.corp.google.com>
- <alpine.DEB.0.9999.0709201319520.25753@chino.kir.corp.google.com>
- <alpine.DEB.0.9999.0709201320521.25753@chino.kir.corp.google.com>
+In-Reply-To: <Pine.LNX.4.64.0709201454560.11226@schroedinger.engr.sgi.com>
+Message-ID: <alpine.DEB.0.9999.0709201457330.31824@chino.kir.corp.google.com>
+References: <alpine.DEB.0.9999.0709201318090.25753@chino.kir.corp.google.com> <alpine.DEB.0.9999.0709201319300.25753@chino.kir.corp.google.com> <alpine.DEB.0.9999.0709201319520.25753@chino.kir.corp.google.com> <alpine.DEB.0.9999.0709201320521.25753@chino.kir.corp.google.com>
+ <Pine.LNX.4.64.0709201454560.11226@schroedinger.engr.sgi.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: David Rientjes <rientjes@google.com>
+To: Christoph Lameter <clameter@sgi.com>
 Cc: Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <andrea@suse.de>, Rik van Riel <riel@redhat.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-> All flag operators are of the atomic variety because there are currently
-> readers that are implemented that do not take zone->lock.
+On Thu, 20 Sep 2007, Christoph Lameter wrote:
 
-Acked-by: Christoph Lameter <clameter@sgi.com>
+> Additional work needed though: The setting of the reclaim flag can be 
+> removed from outside of zone reclaim. A testset when zone reclaim starts 
+> and a clear when it ends is enough.
+> 
 
-Additional work needed though: The setting of the reclaim flag can be 
-removed from outside of zone reclaim. A testset when zone reclaim starts 
-and a clear when it ends is enough.
+Ok, I'll queue this for after we get this patchset merged into -mm.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
