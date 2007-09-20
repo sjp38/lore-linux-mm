@@ -1,8 +1,9 @@
-Date: Thu, 20 Sep 2007 15:00:19 -0700 (PDT)
+Date: Thu, 20 Sep 2007 15:01:40 -0700 (PDT)
 From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [patch 7/9] oom: suppress extraneous stack and memory dump
-In-Reply-To: <alpine.DEB.0.9999.0709201321530.25753@chino.kir.corp.google.com>
-Message-ID: <Pine.LNX.4.64.0709201500100.11226@schroedinger.engr.sgi.com>
+Subject: Re: [patch 8/9] oom: compare cpuset mems_allowed instead of exclusive
+ ancestors
+In-Reply-To: <alpine.DEB.0.9999.0709201322080.25753@chino.kir.corp.google.com>
+Message-ID: <Pine.LNX.4.64.0709201501320.11226@schroedinger.engr.sgi.com>
 References: <alpine.DEB.0.9999.0709201318090.25753@chino.kir.corp.google.com>
  <alpine.DEB.0.9999.0709201319300.25753@chino.kir.corp.google.com>
  <alpine.DEB.0.9999.0709201319520.25753@chino.kir.corp.google.com>
@@ -11,6 +12,7 @@ References: <alpine.DEB.0.9999.0709201318090.25753@chino.kir.corp.google.com>
  <alpine.DEB.0.9999.0709201321220.25753@chino.kir.corp.google.com>
  <alpine.DEB.0.9999.0709201321380.25753@chino.kir.corp.google.com>
  <alpine.DEB.0.9999.0709201321530.25753@chino.kir.corp.google.com>
+ <alpine.DEB.0.9999.0709201322080.25753@chino.kir.corp.google.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
