@@ -1,58 +1,84 @@
-Date: Thu, 20 Sep 2007 10:58:01 -0700 (PDT)
+Date: Thu, 20 Sep 2007 11:26:47 -0700 (PDT)
 From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [patch 7/8] oom: only kill tasks that share zones with zonelist
-In-Reply-To: <alpine.DEB.0.9999.0709192245070.22371@chino.kir.corp.google.com>
-Message-ID: <Pine.LNX.4.64.0709201056280.8626@schroedinger.engr.sgi.com>
-References: <alpine.DEB.0.9999.0709181950170.25510@chino.kir.corp.google.com>
- <alpine.DEB.0.9999.0709190350001.23538@chino.kir.corp.google.com>
- <alpine.DEB.0.9999.0709190350240.23538@chino.kir.corp.google.com>
- <alpine.DEB.0.9999.0709190350410.23538@chino.kir.corp.google.com>
- <alpine.DEB.0.9999.0709190350560.23538@chino.kir.corp.google.com>
- <alpine.DEB.0.9999.0709190351140.23538@chino.kir.corp.google.com>
- <alpine.DEB.0.9999.0709190351290.23538@chino.kir.corp.google.com>
- <alpine.DEB.0.9999.0709190351460.23538@chino.kir.corp.google.com>
- <Pine.LNX.4.64.0709191156480.2241@schroedinger.engr.sgi.com>
- <alpine.DEB.0.9999.0709192245070.22371@chino.kir.corp.google.com>
+Subject: Re: [RFC][PATCH] page->mapping clarification [1/3] base functions
+In-Reply-To: <20070919164308.281f9960.kamezawa.hiroyu@jp.fujitsu.com>
+Message-ID: <Pine.LNX.4.64.0709201120510.8801@schroedinger.engr.sgi.com>
+References: <20070919164308.281f9960.kamezawa.hiroyu@jp.fujitsu.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <andrea@suse.de>, Rik van Riel <riel@redhat.com>, linux-mm@kvack.org, Paul Jackson <pj@sgi.com>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: LKML <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, "nickpiggin@yahoo.com.au" <nickpiggin@yahoo.com.au>, ricknu-0@student.ltu.se
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 19 Sep 2007, David Rientjes wrote:
+On Wed, 19 Sep 2007, KAMEZAWA Hiroyuki wrote:
 
-> > This seems to assume that all pages in a vma are in the same zone? That is 
-> > not the case. On a NUMA system pages may be allocated round robin. Meaning 
-> > lots of zones are used that this approach does not catch.
-> > 
+> Any comments are welcome.
+
+I am still a bit confused as to what the benefit of this is.
+
+> Following functions are added
 > 
-> Setting the CONSTRAINT_MEMORY_POLICY case aside for a moment, what stops 
-> us from getting rid of taking callback_mutex and simply relying on the 
-> following to filter for candidate tasks:
-> 
-> 	do_each_thread(g, p) {
-> 		...
-> 		/*
-> 		 * Check if it will do any good to kill this task based
-> 		 * on where it is allowed to allocate.
-> 		 */
-> 		if (!nodes_intersects(current->mems_allowed,
-> 				      p->mems_allowed))
-> 			continue;
-> 		...
-> 	} while_each_thread(g, p);
+>  * page_mapping_cache() ... returns address space if a page is page cache
+>  * page_mapping_anon()  ... returns anon_vma if a page is anonymous page.
+>  * page_is_pagecache()  ... returns true if a page is page-cache.
+>  * page_inode()         ... returns inode which a page-cache belongs to.
+>  * is_page_consistent() ... returns true if a page is still valid page cache 
 
-A global scan over all processes is expensive and may take a long time if 
-you have a 100000 or so of them.
+Ok this could make the code more readable.
 
-> We shouldn't really be concerned with the changing cpuset states during 
-> out_of_memory() since we're only using it as a hint and we're not 
-> dereferencing current->cpuset or p->cpuset.  This eliminates the need for 
-> cpuset_{lock,unlock}() and cpuset_excl_nodes_overlap().
+> +/*
+> + * On an anonymous page mapped into a user virtual memory area,
+> + * page->mapping points to its anon_vma, not to a struct address_space;
+> + * with the PAGE_MAPPING_ANON bit set to distinguish it.
+> + *
+> + * Please note that, confusingly, "page_mapping" refers to the inode
+> + * address_space which maps the page from disk; whereas "page_mapped"
+> + * refers to user virtual address space into which the page is mapped.
+> + */
+> +#define PAGE_MAPPING_ANON       1
+> +
+> +static inline bool PageAnon(struct page *page)
 
-Yup.
+bool??? That is unusual?
+
+> +static inline struct address_space *page_mapping_cache(struct page *page)
+> +{
+> +	if (!page->mapping || PageAnon(page))
+> +		return NULL;
+> +	return page->mapping;
+> +}
+
+That is confusing.
+
+if (PageAnon(page))
+	return NULL;
+return page->mapping;
+
+
+> +static inline struct address_space *page_mapping(struct page *page)
+> +{
+> +	struct address_space *mapping = page->mapping;
+> +
+> +	VM_BUG_ON(PageSlab(page));
+> +	if (unlikely(PageSwapCache(page)))
+> +		mapping = &swapper_space;
+> +#ifdef CONFIG_SLUB
+> +	else if (unlikely(PageSlab(page)))
+> +		mapping = NULL;
+> +#endif
+
+The #ifdef does not exist in rc6-mm1. No need to reintroduce it.
+
+> +static inline bool
+> +is_page_consistent(struct page *page, struct address_space *mapping)
+> +{
+> +	struct address_space *check = page_mapping_cache(page);
+> +	return (check == mapping);
+> +}
+
+Why do we need a special function? Why is it safer?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
