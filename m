@@ -1,42 +1,58 @@
-Date: Thu, 20 Sep 2007 10:56:07 -0700 (PDT)
+Date: Thu, 20 Sep 2007 10:58:01 -0700 (PDT)
 From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [patch 3/8] oom: save zonelist pointer for oom killer calls
-In-Reply-To: <alpine.DEB.0.9999.0709192235170.22371@chino.kir.corp.google.com>
-Message-ID: <Pine.LNX.4.64.0709201054470.8626@schroedinger.engr.sgi.com>
+Subject: Re: [patch 7/8] oom: only kill tasks that share zones with zonelist
+In-Reply-To: <alpine.DEB.0.9999.0709192245070.22371@chino.kir.corp.google.com>
+Message-ID: <Pine.LNX.4.64.0709201056280.8626@schroedinger.engr.sgi.com>
 References: <alpine.DEB.0.9999.0709181950170.25510@chino.kir.corp.google.com>
-  <alpine.DEB.0.9999.0709190350001.23538@chino.kir.corp.google.com>
+ <alpine.DEB.0.9999.0709190350001.23538@chino.kir.corp.google.com>
  <alpine.DEB.0.9999.0709190350240.23538@chino.kir.corp.google.com>
  <alpine.DEB.0.9999.0709190350410.23538@chino.kir.corp.google.com>
- <Pine.LNX.4.64.0709191204590.2241@schroedinger.engr.sgi.com>
- <alpine.DEB.0.9999.0709191330520.26978@chino.kir.corp.google.com>
- <Pine.LNX.4.64.0709191353440.3136@schroedinger.engr.sgi.com>
- <alpine.DEB.0.9999.0709191416380.30290@chino.kir.corp.google.com>
- <eada2a070709191651i24185d1ep9e0d1829e115ee79@mail.gmail.com>
- <alpine.DEB.0.9999.0709192235170.22371@chino.kir.corp.google.com>
+ <alpine.DEB.0.9999.0709190350560.23538@chino.kir.corp.google.com>
+ <alpine.DEB.0.9999.0709190351140.23538@chino.kir.corp.google.com>
+ <alpine.DEB.0.9999.0709190351290.23538@chino.kir.corp.google.com>
+ <alpine.DEB.0.9999.0709190351460.23538@chino.kir.corp.google.com>
+ <Pine.LNX.4.64.0709191156480.2241@schroedinger.engr.sgi.com>
+ <alpine.DEB.0.9999.0709192245070.22371@chino.kir.corp.google.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: David Rientjes <rientjes@google.com>
-Cc: Tim Pepper <lnxninja@us.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <andrea@suse.de>, Rik van Riel <riel@redhat.com>, linux-mm@kvack.org, pj@sgi.com
+Cc: Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <andrea@suse.de>, Rik van Riel <riel@redhat.com>, linux-mm@kvack.org, Paul Jackson <pj@sgi.com>
 List-ID: <linux-mm.kvack.org>
 
 On Wed, 19 Sep 2007, David Rientjes wrote:
 
-> But yeah, it's cleaner if we change all_unreclaimable to an
-> unsigned int flags and convert all current testers of the 
-> all_unreclaimable value to use it.  Then we can simply set a bit, 
-> ZONE_OOM, to identify such zones.
+> > This seems to assume that all pages in a vma are in the same zone? That is 
+> > not the case. On a NUMA system pages may be allocated round robin. Meaning 
+> > lots of zones are used that this approach does not catch.
+> > 
+> 
+> Setting the CONSTRAINT_MEMORY_POLICY case aside for a moment, what stops 
+> us from getting rid of taking callback_mutex and simply relying on the 
+> following to filter for candidate tasks:
+> 
+> 	do_each_thread(g, p) {
+> 		...
+> 		/*
+> 		 * Check if it will do any good to kill this task based
+> 		 * on where it is allowed to allocate.
+> 		 */
+> 		if (!nodes_intersects(current->mems_allowed,
+> 				      p->mems_allowed))
+> 			continue;
+> 		...
+> 	} while_each_thread(g, p);
 
-If we do that then we can also get rid of the atomic_t 
-reclaim_in_progress. It is only used by zone reclaim these days.
+A global scan over all processes is expensive and may take a long time if 
+you have a 100000 or so of them.
 
-> But I do agree that checking bits in an unsigned int flags member of 
-> struct zone will be better, but I intend to still mimic the behavior of a 
-> trylock for serialization.  try_set_zone_oom() will simply be implemented 
-> differently.
+> We shouldn't really be concerned with the changing cpuset states during 
+> out_of_memory() since we're only using it as a hint and we're not 
+> dereferencing current->cpuset or p->cpuset.  This eliminates the need for 
+> cpuset_{lock,unlock}() and cpuset_excl_nodes_overlap().
 
-Good.
+Yup.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
