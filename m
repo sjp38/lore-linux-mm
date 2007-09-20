@@ -1,62 +1,68 @@
-Date: Thu, 20 Sep 2007 11:44:10 -0700 (PDT)
-From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [patch 7/8] oom: only kill tasks that share zones with zonelist
-In-Reply-To: <alpine.DEB.0.9999.0709201135180.14644@chino.kir.corp.google.com>
-Message-ID: <Pine.LNX.4.64.0709201142560.9132@schroedinger.engr.sgi.com>
-References: <alpine.DEB.0.9999.0709181950170.25510@chino.kir.corp.google.com>
- <alpine.DEB.0.9999.0709190350001.23538@chino.kir.corp.google.com>
- <alpine.DEB.0.9999.0709190350240.23538@chino.kir.corp.google.com>
- <alpine.DEB.0.9999.0709190350410.23538@chino.kir.corp.google.com>
- <alpine.DEB.0.9999.0709190350560.23538@chino.kir.corp.google.com>
- <alpine.DEB.0.9999.0709190351140.23538@chino.kir.corp.google.com>
- <alpine.DEB.0.9999.0709190351290.23538@chino.kir.corp.google.com>
- <alpine.DEB.0.9999.0709190351460.23538@chino.kir.corp.google.com>
- <Pine.LNX.4.64.0709191156480.2241@schroedinger.engr.sgi.com>
- <alpine.DEB.0.9999.0709192245070.22371@chino.kir.corp.google.com>
- <Pine.LNX.4.64.0709201056280.8626@schroedinger.engr.sgi.com>
- <alpine.DEB.0.9999.0709201135180.14644@chino.kir.corp.google.com>
+Date: Thu, 20 Sep 2007 13:23:20 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: [patch 5/9] oom: serialize out of memory calls
+In-Reply-To: <alpine.DEB.0.9999.0709201321070.25753@chino.kir.corp.google.com>
+Message-ID: <alpine.DEB.0.9999.0709201321220.25753@chino.kir.corp.google.com>
+References: <alpine.DEB.0.9999.0709201318090.25753@chino.kir.corp.google.com> <alpine.DEB.0.9999.0709201319300.25753@chino.kir.corp.google.com> <alpine.DEB.0.9999.0709201319520.25753@chino.kir.corp.google.com> <alpine.DEB.0.9999.0709201320521.25753@chino.kir.corp.google.com>
+ <alpine.DEB.0.9999.0709201321070.25753@chino.kir.corp.google.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <andrea@suse.de>, Rik van Riel <riel@redhat.com>, linux-mm@kvack.org, Paul Jackson <pj@sgi.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Andrea Arcangeli <andrea@suse.de>, Christoph Lameter <clameter@sgi.com>, Rik van Riel <riel@redhat.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 20 Sep 2007, David Rientjes wrote:
+Before invoking the OOM killer, a final allocation attempt with a very
+high watermark is attempted.  Serialization needs to occur at this point
+or it may be possible that the allocation could succeed after acquiring
+the lock.  If the lock is contended, the task is put to sleep and the
+allocation attempt is retried when rescheduled.
 
-> On Thu, 20 Sep 2007, Christoph Lameter wrote:
-> 
-> > > Setting the CONSTRAINT_MEMORY_POLICY case aside for a moment, what stops 
-> > > us from getting rid of taking callback_mutex and simply relying on the 
-> > > following to filter for candidate tasks:
-> > > 
-> > > 	do_each_thread(g, p) {
-> > > 		...
-> > > 		/*
-> > > 		 * Check if it will do any good to kill this task based
-> > > 		 * on where it is allowed to allocate.
-> > > 		 */
-> > > 		if (!nodes_intersects(current->mems_allowed,
-> > > 				      p->mems_allowed))
-> > > 			continue;
-> > > 		...
-> > > 	} while_each_thread(g, p);
-> > 
-> > A global scan over all processes is expensive and may take a long time if 
-> > you have a 100000 or so of them.
-> > 
-> 
-> Yeah, I understand that.  Paul and I talked about it a while ago and 
-> decided that a per-cpuset file 'oom_kill_asking_task' could be implemented 
-> to determine whether the OOM killer would simply kill current or go 
-> through select_bad_process() in the CONSTRAINT_CPUSET case to address that 
-> problem.  Let me know if that doesn't seem good enough.
+Cc: Andrea Arcangeli <andrea@suse.de>
+Cc: Christoph Lameter <clameter@sgi.com>
+Signed-off-by: David Rientjes <rientjes@google.com>
+---
+ mm/page_alloc.c |   14 ++++++++++++--
+ 1 files changed, 12 insertions(+), 2 deletions(-)
 
-There are still allocations that are not constrained to a cpuset. If the 
-has an OOM condition on an allocation that is not constrained then the 
-above may still cause more troubles.
-
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -1353,6 +1353,11 @@ nofail_alloc:
+ 		if (page)
+ 			goto got_pg;
+ 	} else if ((gfp_mask & __GFP_FS) && !(gfp_mask & __GFP_NORETRY)) {
++		if (!try_set_zone_oom(zonelist)) {
++			schedule_timeout_uninterruptible(1);
++			goto restart;
++		}
++
+ 		/*
+ 		 * Go through the zonelist yet one more time, keep
+ 		 * very high watermark here, this is only to catch
+@@ -1361,14 +1366,19 @@ nofail_alloc:
+ 		 */
+ 		page = get_page_from_freelist(gfp_mask|__GFP_HARDWALL, order,
+ 				zonelist, ALLOC_WMARK_HIGH|ALLOC_CPUSET);
+-		if (page)
++		if (page) {
++			clear_zonelist_oom(zonelist);
+ 			goto got_pg;
++		}
+ 
+ 		/* The OOM killer will not help higher order allocs so fail */
+-		if (order > PAGE_ALLOC_COSTLY_ORDER)
++		if (order > PAGE_ALLOC_COSTLY_ORDER) {
++			clear_zonelist_oom(zonelist);
+ 			goto nopage;
++		}
+ 
+ 		out_of_memory(zonelist, gfp_mask, order);
++		clear_zonelist_oom(zonelist);
+ 		goto restart;
+ 	}
+ 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
