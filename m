@@ -1,26 +1,34 @@
-Date: Thu, 20 Sep 2007 14:58:39 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [patch 3/9] oom: change all_unreclaimable zone member to flags
-In-Reply-To: <Pine.LNX.4.64.0709201454560.11226@schroedinger.engr.sgi.com>
-Message-ID: <alpine.DEB.0.9999.0709201457330.31824@chino.kir.corp.google.com>
-References: <alpine.DEB.0.9999.0709201318090.25753@chino.kir.corp.google.com> <alpine.DEB.0.9999.0709201319300.25753@chino.kir.corp.google.com> <alpine.DEB.0.9999.0709201319520.25753@chino.kir.corp.google.com> <alpine.DEB.0.9999.0709201320521.25753@chino.kir.corp.google.com>
- <Pine.LNX.4.64.0709201454560.11226@schroedinger.engr.sgi.com>
+Date: Thu, 20 Sep 2007 14:59:18 -0700 (PDT)
+From: Christoph Lameter <clameter@sgi.com>
+Subject: Re: [patch 4/9] oom: add per-zone locking
+In-Reply-To: <alpine.DEB.0.9999.0709201321070.25753@chino.kir.corp.google.com>
+Message-ID: <Pine.LNX.4.64.0709201458310.11226@schroedinger.engr.sgi.com>
+References: <alpine.DEB.0.9999.0709201318090.25753@chino.kir.corp.google.com>
+ <alpine.DEB.0.9999.0709201319300.25753@chino.kir.corp.google.com>
+ <alpine.DEB.0.9999.0709201319520.25753@chino.kir.corp.google.com>
+ <alpine.DEB.0.9999.0709201320521.25753@chino.kir.corp.google.com>
+ <alpine.DEB.0.9999.0709201321070.25753@chino.kir.corp.google.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
+To: David Rientjes <rientjes@google.com>
 Cc: Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <andrea@suse.de>, Rik van Riel <riel@redhat.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 20 Sep 2007, Christoph Lameter wrote:
+On Thu, 20 Sep 2007, David Rientjes wrote:
 
-> Additional work needed though: The setting of the reclaim flag can be 
-> removed from outside of zone reclaim. A testset when zone reclaim starts 
-> and a clear when it ends is enough.
-> 
+> diff --git a/mm/oom_kill.c b/mm/oom_kill.c
+> --- a/mm/oom_kill.c
+> +++ b/mm/oom_kill.c
+> @@ -27,6 +27,7 @@
+>  #include <linux/notifier.h>
+>  
+>  int sysctl_panic_on_oom;
+> +static DEFINE_MUTEX(zone_scan_mutex);
+>  /* #define DEBUG */
 
-Ok, I'll queue this for after we get this patchset merged into -mm.
+Use testset/testclear bitops instead of adding a lock?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
