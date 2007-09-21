@@ -1,44 +1,35 @@
-Date: Fri, 21 Sep 2007 01:59:24 -0700
+Date: Fri, 21 Sep 2007 02:01:47 -0700
 From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [patch 4/9] oom: add per-zone locking
-Message-Id: <20070921015924.62959c24.akpm@linux-foundation.org>
-In-Reply-To: <alpine.DEB.0.9999.0709201538310.2658@chino.kir.corp.google.com>
+Subject: Re: [patch 5/9] oom: serialize out of memory calls
+Message-Id: <20070921020147.334857f4.akpm@linux-foundation.org>
+In-Reply-To: <alpine.DEB.0.9999.0709201321220.25753@chino.kir.corp.google.com>
 References: <alpine.DEB.0.9999.0709201318090.25753@chino.kir.corp.google.com>
 	<alpine.DEB.0.9999.0709201319300.25753@chino.kir.corp.google.com>
 	<alpine.DEB.0.9999.0709201319520.25753@chino.kir.corp.google.com>
 	<alpine.DEB.0.9999.0709201320521.25753@chino.kir.corp.google.com>
 	<alpine.DEB.0.9999.0709201321070.25753@chino.kir.corp.google.com>
-	<Pine.LNX.4.64.0709201458310.11226@schroedinger.engr.sgi.com>
-	<alpine.DEB.0.9999.0709201500250.32266@chino.kir.corp.google.com>
-	<Pine.LNX.4.64.0709201504320.11226@schroedinger.engr.sgi.com>
-	<alpine.DEB.0.9999.0709201508270.732@chino.kir.corp.google.com>
-	<Pine.LNX.4.64.0709201522110.11627@schroedinger.engr.sgi.com>
-	<alpine.DEB.0.9999.0709201538310.2658@chino.kir.corp.google.com>
+	<alpine.DEB.0.9999.0709201321220.25753@chino.kir.corp.google.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: David Rientjes <rientjes@google.com>
-Cc: Christoph Lameter <clameter@sgi.com>, Andrea Arcangeli <andrea@suse.de>, Rik van Riel <riel@redhat.com>, linux-mm@kvack.org
+Cc: Andrea Arcangeli <andrea@suse.de>, Christoph Lameter <clameter@sgi.com>, Rik van Riel <riel@redhat.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 20 Sep 2007 15:48:36 -0700 (PDT) David Rientjes <rientjes@google.com> wrote:
+On Thu, 20 Sep 2007 13:23:20 -0700 (PDT) David Rientjes <rientjes@google.com> wrote:
 
-> > The global lock there just spooks me. If a large number of processors get 
-> > in there (say 1000 or so in the case of a global oom) then there is 
-> > already an issue of getting the lock from node 0. The bits in the zone 
-> > are distributed over all of the nodes in the system.
-> > 
-> 
-> It's no more harder to acquire than callback_mutex was.  It's far better 
-> to include this global lock so the state of the zones are always correct 
-> after releasing it than to have 1000 processors clearing and setting 
-> ZONE_OOM_LOCKED bits for lengthy zonelists and all racing with each other 
-> so no zonelist is ever fully locked.
+> Before invoking the OOM killer, a final allocation attempt with a very
+> high watermark is attempted.  Serialization needs to occur at this point
+> or it may be possible that the allocation could succeed after acquiring
+> the lock.  If the lock is contended, the task is put to sleep and the
+> allocation attempt is retried when rescheduled.
 
-It'd be better to use a spinlock than a sleeping lock: same speed in the
-uncontended case, heaps faster in the contended case.
+Am having trouble understanding this description.  How can it ever be a
+problem if an allocation succeeds??
+
+Want to have another go, please?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
