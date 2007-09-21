@@ -1,52 +1,82 @@
-Message-ID: <46F353C1.6030700@argo.co.il>
-Date: Fri, 21 Sep 2007 07:16:49 +0200
-From: Avi Kivity <avi@argo.co.il>
+From: "Lane Mellie" <qik3nkgwx@businesstalkradio.net>
+Subject: Codeine,PhenterminK from $72, XanaK,AmbienK,Valiun,CialiK,ViagraK interest
+Message-ID: <5862w28324.43g43237391@businesstalkradio.net>
+Date: Fri, 21 Sep 2007 00:46:19 -0600
 MIME-Version: 1.0
-Subject: Re: [PATCH 0/4] [hugetlb] Dynamic huge page pool resizing
-References: <20070917163935.32557.50840.stgit@kernel>
-In-Reply-To: <20070917163935.32557.50840.stgit@kernel>
-Content-Type: text/plain; charset=UTF-8; format=flowed
-Content-Transfer-Encoding: 7bit
-Sender: owner-linux-mm@kvack.org
-Return-Path: <owner-linux-mm@kvack.org>
-To: Adam Litke <agl@us.ibm.com>
-Cc: linux-mm@kvack.org, libhugetlbfs-devel@lists.sourceforge.net, Andy Whitcroft <apw@shadowen.org>, Mel Gorman <mel@skynet.ie>, Bill Irwin <bill.irwin@oracle.com>, Ken Chen <kenchen@google.com>, Dave McCracken <dave.mccracken@oracle.com>
+Content-Type: multipart/alternative;
+	boundary="--5goc6lwsah427126i19bvqw9rjp9"
+Return-Path: <auiv5crloj@ups.com>
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Adam Litke wrote:
-> *** Series updated to remove locked_vm accounting
-> The upper bound on pool growth is governed by per-filesystem quotas which
-> maintains the global nature of huge page usage limits.  Per process accounting
-> of hugepages as locked memory has been pulled out of this patch series as it is
-> logically separate, and will be pushed separately.
-> ***
->
-> In most real-world scenarios, configuring the size of the hugetlb pool
-> correctly is a difficult task.  If too few pages are allocated to the pool,
-> applications using MAP_SHARED may fail to mmap() a hugepage region and
-> applications using MAP_PRIVATE may receive SIGBUS.  Isolating too much memory
-> in the hugetlb pool means it is not available for other uses, especially those
-> programs not using huge pages.
->
-> The obvious answer is to let the hugetlb pool grow and shrink in response to
-> the runtime demand for huge pages.  The work Mel Gorman has been doing to
-> establish a memory zone for movable memory allocations makes dynamically
-> resizing the hugetlb pool reliable within the limits of that zone.  This patch
-> series implements dynamic pool resizing for private and shared mappings while
-> being careful to maintain existing semantics.  Please reply with your comments
-> and feedback; even just to say whether it would be a useful feature to you.
-> Thanks.
->
->   
+----5goc6lwsah427126i19bvqw9rjp9
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
 
-kvm with newer hardware (that supports nested paging) stands to benefit 
-greatly from this. backing guest memory with huge pages significantly 
-decreases tlb miss costs, and allows using huge tlb entries for guest 
-kernel mappings.
+      PharmaShop 80% Discount  
+- Discreet Packaging  
+- Cheapest Medication 
+- Worldwide shipping  
+- Buy in Bulk and Save
 
+CodeineK
+XanaxK   
+ValiumK   
+PhenterminK  
+ViagraK  
+ViagraGelK
+CialiK 
+CialiKSoftTabs
+ViagraSoftTabsK
+SomaK
+AdalatK
+AllegraK
+AmbienK 
+AtaraxK 
+AtivanK
+CiproK
+EffexorK
+GlucophageK
+LevitraK
+LipitorK
+MeridiaK
+NorvascK
+PaxilK 
+PropeciaK
+ProzacK
+UltramK
+ZocorK    
+Zoloftk   
+ZybanK   
+plus 30 meds more   
 
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+http://kvfygt.kwwascon.com (Link 1)
+http://kshzb.kwwascon.com (Link 2)
+
+----5goc6lwsah427126i19bvqw9rjp9
+Content-Type: text/html; charset=us-ascii
+Content-Transfer-Encoding: 7bit
+
+<html><head><meta http-equiv="Content-Type" content="text; charset=iso-8859-1"></head><body><center><table border=0 cellspacing=0 cellpadding=3>
+<tr>
+<td bgcolor=931F68 align=center><font size=6 color=ffffff face="Century Gothic">
+<b>PharmaShop <font color=FFFF00>
+80% Discount</font>
+<br><font color=B5EDFD size=2>
+Discreet Packaging<br>Cheapest 
+Medication<br>Worldwide shipping<br>Buy in Bulk and Save<br></font></b></font></font><table border=0 cellspacing=0 cellpadding=3 width=500>
+<tr>
+<td width=33% valign=top bgcolor=CDEF73><font face="Century Gothic" size=2 color=000000>CodeineK<br>XanaxK<br>ValiumK<br>
+PhenterminK<br>ViagraK<br>ViagraGelK<br>CialiK<br>CialiKSoftTabs
+<br>ViagraSoftTabsK<br>SomaK<br></font></td><td width=33% valign=top bgcolor=CDEF73><font face="Century Gothic" size=2 color=000000>AdalatK<br>AllegraK<br>AmbienK<br>AtaraxK<br>
+AtivanK<br>CiproK<br>EffexorK<br>GlucophageK<br>LevitraK<br>
+LipitorK<br></font></td><td width=33% valign=top bgcolor=CDEF73>
+<font face="Century Gothic" size=2 color=000000>MeridiaK<br>NorvascK
+<br>PaxilK<br>PropeciaK<br>ProzacK
+<br>UltramK<br>ZocorK<br>ZoloftK<br>ZybanK<br>
+plus <b>30 meds more</b></font></td></tr></table><font size=6 face="Century Gothic"><b>
+<a href=http://kmdm.kwwascon.com target=_blank><u><font color=FFD5EA>Buy Here - start from $72 (link A)</font></u></a><br><a href=http://klef.kwwascon.com target=_blank><u><font size=6 color=FFD5EA>(link B)</u>
+</font></font></a></b>
+<br><font color=931F68 size=1>towards teach remember repeated quickly? clear ran foot better as address?</font><br></center></td></tr></table><br><br><br></center></body></html>
+
+----5goc6lwsah427126i19bvqw9rjp9--
