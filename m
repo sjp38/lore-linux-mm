@@ -1,37 +1,44 @@
-Date: Fri, 21 Sep 2007 01:55:48 -0700
+Date: Fri, 21 Sep 2007 01:59:24 -0700
 From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [patch 3/9] oom: change all_unreclaimable zone member to flags
-Message-Id: <20070921015548.ba20de5b.akpm@linux-foundation.org>
-In-Reply-To: <alpine.DEB.0.9999.0709201320521.25753@chino.kir.corp.google.com>
+Subject: Re: [patch 4/9] oom: add per-zone locking
+Message-Id: <20070921015924.62959c24.akpm@linux-foundation.org>
+In-Reply-To: <alpine.DEB.0.9999.0709201538310.2658@chino.kir.corp.google.com>
 References: <alpine.DEB.0.9999.0709201318090.25753@chino.kir.corp.google.com>
 	<alpine.DEB.0.9999.0709201319300.25753@chino.kir.corp.google.com>
 	<alpine.DEB.0.9999.0709201319520.25753@chino.kir.corp.google.com>
 	<alpine.DEB.0.9999.0709201320521.25753@chino.kir.corp.google.com>
+	<alpine.DEB.0.9999.0709201321070.25753@chino.kir.corp.google.com>
+	<Pine.LNX.4.64.0709201458310.11226@schroedinger.engr.sgi.com>
+	<alpine.DEB.0.9999.0709201500250.32266@chino.kir.corp.google.com>
+	<Pine.LNX.4.64.0709201504320.11226@schroedinger.engr.sgi.com>
+	<alpine.DEB.0.9999.0709201508270.732@chino.kir.corp.google.com>
+	<Pine.LNX.4.64.0709201522110.11627@schroedinger.engr.sgi.com>
+	<alpine.DEB.0.9999.0709201538310.2658@chino.kir.corp.google.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: David Rientjes <rientjes@google.com>
-Cc: Andrea Arcangeli <andrea@suse.de>, Christoph Lameter <clameter@sgi.com>, Rik van Riel <riel@redhat.com>, linux-mm@kvack.org
+Cc: Christoph Lameter <clameter@sgi.com>, Andrea Arcangeli <andrea@suse.de>, Rik van Riel <riel@redhat.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 20 Sep 2007 13:23:17 -0700 (PDT) David Rientjes <rientjes@google.com> wrote:
+On Thu, 20 Sep 2007 15:48:36 -0700 (PDT) David Rientjes <rientjes@google.com> wrote:
 
-> @@ -1871,10 +1874,8 @@ int zone_reclaim(struct zone *zone, gfp_t gfp_mask, unsigned int order)
->  	 * not have reclaimable pages and if we should not delay the allocation
->  	 * then do not scan.
->  	 */
-> -	if (!(gfp_mask & __GFP_WAIT) ||
-> -		zone->all_unreclaimable ||
-> -		atomic_read(&zone->reclaim_in_progress) > 0 ||
-> -		(current->flags & PF_MEMALLOC))
-> +	if (!(gfp_mask & __GFP_WAIT) || zone_is_all_unreclaimable(zone) ||
-> +		zone_is_reclaim_locked(zone) || (current->flags & PF_MEMALLOC))
->  			return 0;
+> > The global lock there just spooks me. If a large number of processors get 
+> > in there (say 1000 or so in the case of a global oom) then there is 
+> > already an issue of getting the lock from node 0. The bits in the zone 
+> > are distributed over all of the nodes in the system.
+> > 
+> 
+> It's no more harder to acquire than callback_mutex was.  It's far better 
+> to include this global lock so the state of the zones are always correct 
+> after releasing it than to have 1000 processors clearing and setting 
+> ZONE_OOM_LOCKED bits for lengthy zonelists and all racing with each other 
+> so no zonelist is ever fully locked.
 
-It would be nice to convert this somewhat crappy code to use
-test_and_set_bit(ZONE_RECLAIM_LOCKED) sometime.
+It'd be better to use a spinlock than a sleeping lock: same speed in the
+uncontended case, heaps faster in the contended case.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
