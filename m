@@ -1,59 +1,39 @@
-Date: Fri, 21 Sep 2007 12:10:23 -0700 (PDT)
+Date: Fri, 21 Sep 2007 12:13:10 -0700 (PDT)
 From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH 10 of 24] stop useless vm trashing while we wait the
- TIF_MEMDIE task to exit
-In-Reply-To: <edb3af3e0d4f2c083c8d.1187786937@v2.random>
-Message-ID: <alpine.DEB.0.9999.0709211208140.11391@chino.kir.corp.google.com>
-References: <edb3af3e0d4f2c083c8d.1187786937@v2.random>
+Subject: Re: [patch 0/9] oom killer serialization
+In-Reply-To: <alpine.DEB.0.9999.0709210216230.6056@chino.kir.corp.google.com>
+Message-ID: <alpine.DEB.0.9999.0709211210550.11391@chino.kir.corp.google.com>
+References: <alpine.DEB.0.9999.0709201318090.25753@chino.kir.corp.google.com> <20070921021208.e6fec547.akpm@linux-foundation.org> <alpine.DEB.0.9999.0709210216230.6056@chino.kir.corp.google.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrea Arcangeli <andrea@suse.de>
-Cc: linux-mm@kvack.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Andrea Arcangeli <andrea@suse.de>, Christoph Lameter <clameter@sgi.com>, Rik van Riel <riel@redhat.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 22 Aug 2007, Andrea Arcangeli wrote:
+On Fri, 21 Sep 2007, David Rientjes wrote:
 
-> diff --git a/mm/vmscan.c b/mm/vmscan.c
-> --- a/mm/vmscan.c
-> +++ b/mm/vmscan.c
-> @@ -1028,6 +1028,8 @@ static unsigned long shrink_zone(int pri
->  		nr_inactive = 0;
->  
->  	while (nr_active || nr_inactive) {
-> +		if (is_VM_OOM())
-> +			break;
->  		if (nr_active) {
->  			nr_to_scan = min(nr_active,
->  					(unsigned long)sc->swap_cluster_max);
-
-This will need to use the new OOM zone-locking interface.  shrink_zones() 
-accepts struct zone** as one of its formals so while traversing each zone 
-this would simply become a test of zone_is_oom_locked(*z).
-
-> @@ -1138,6 +1140,17 @@ unsigned long try_to_free_pages(struct z
->  	}
->  
->  	for (priority = DEF_PRIORITY; priority >= 0; priority--) {
-> +		if (is_VM_OOM()) {
-> +			if (!test_thread_flag(TIF_MEMDIE)) {
-> +				/* get out of the way */
-> +				schedule_timeout_interruptible(1);
-> +				/* don't waste cpu if we're still oom */
-> +				if (is_VM_OOM())
-> +					goto out;
-> +			} else
-> +				goto out;
-> +		}
-> +
->  		sc.nr_scanned = 0;
->  		if (!priority)
->  			disable_swap_token();
+> This provides serialization for system-wide, mempolicy-constrained, and 
+> cpuset-constrained OOM kills which was a small subset of Andrea's 24-patch 
+> series posted August 22.
+> 
+> It replaces the following patches from Andrea:
+> 	[PATCH 04 of 24] serialize oom killer
+> 	[PATCH 12 of 24] show mem information only when a task is actually being killed
 > 
 
-Same as above, and it becomes trivial since try_to_free_pages() also 
-accepts a struct zone** formal.
+It also replaces
+	[PATCH 19 of 24] cacheline align VM_is_OOM to prevent false sharing
+
+since locking isn't globally done with VM_is_OOM anymore.
+
+Also, the patch
+	[PATCH 17 of 24] apply the anti deadlock features only to global oom
+
+will no longer need to move the global locking mechanism since its now 
+non-existant, but the deadlock feature is still apporpriate in the 
+CONSTRAINT_NONE (i.e. global) case.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
