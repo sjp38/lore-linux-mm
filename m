@@ -1,40 +1,118 @@
-Date: Thu, 20 Sep 2007 16:08:16 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH] hotplug cpu: move tasks in empty cpusets to parent
-Message-Id: <20070920160816.d0a30a69.akpm@linux-foundation.org>
-In-Reply-To: <46F037B7.mailxR21ILE48@eag09.americas.sgi.com>
-References: <46F037B7.mailxR21ILE48@eag09.americas.sgi.com>
+Date: Fri, 21 Sep 2007 09:50:54 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [RFC][PATCH] page->mapping clarification [1/3] base functions
+Message-Id: <20070921095054.6386bae1.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <Pine.LNX.4.64.0709201120510.8801@schroedinger.engr.sgi.com>
+References: <20070919164308.281f9960.kamezawa.hiroyu@jp.fujitsu.com>
+	<Pine.LNX.4.64.0709201120510.8801@schroedinger.engr.sgi.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Cliff Wickman <cpw@sgi.com>
-Cc: linux-mm@kvack.org
+To: Christoph Lameter <clameter@sgi.com>
+Cc: LKML <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, "nickpiggin@yahoo.com.au" <nickpiggin@yahoo.com.au>, ricknu-0@student.ltu.se
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 18 Sep 2007 15:40:23 -0500
-cpw@sgi.com (Cliff Wickman) wrote:
+On Thu, 20 Sep 2007 11:26:47 -0700 (PDT)
+Christoph Lameter <clameter@sgi.com> wrote:
 
-> This patch corrects a situation that occurs when one disables all the cpus
-> in a cpuset.
+> On Wed, 19 Sep 2007, KAMEZAWA Hiroyuki wrote:
+> 
+> > Any comments are welcome.
+> 
+> I am still a bit confused as to what the benefit of this is.
+> 
+Honestly, I have 3 purposes, 2 for readability/clarificaton and 1 for my trial.
 
-patching file kernel/cpuset.c
-Hunk #1 FAILED at 53.
-Hunk #2 succeeded at 116 with fuzz 1 (offset 5 lines).
-Hunk #3 succeeded at 145 (offset -5 lines).
-Hunk #4 FAILED at 544.
-Hunk #5 FAILED at 836.
-Hunk #6 FAILED at 1125.
-Hunk #7 FAILED at 1303.
-Hunk #8 FAILED at 2034.
-Hunk #9 FAILED at 2102.
-Hunk #10 FAILED at 2277.
-Hunk #11 FAILED at 2445.
-9 out of 11 hunks FAILED -- saving rejects to file kernel/cpuset.c.rej
-Failed to apply hotplug-cpu-move-tasks-in-empty-cpusets-to-parent
+1. Clarify page cache <-> inode relationship before *new concept of page cache*,
+   yours or someone else's is introduced.
 
-life sucks a bit at present.
+2. There are some places using PAGE_MAPPING_ANON directly. I don't want to see
+   following line in .c file. 
+   ==
+   anon_vma = (struct anon_vma *)(mapping - PAGE_MAPPING_ANON);
+   ==
+
+3. I want to *try* page->mapping overriding... store  memory resource controller's   
+   information in page->mapping. By this, memory controller doesn't enlarge sizeof
+   struct page. (works well in my small test.)
+   Before doing that, I have to hide page->mapping from direct access.
+
+
+> > +/*
+> > + * On an anonymous page mapped into a user virtual memory area,
+> > + * page->mapping points to its anon_vma, not to a struct address_space;
+> > + * with the PAGE_MAPPING_ANON bit set to distinguish it.
+> > + *
+> > + * Please note that, confusingly, "page_mapping" refers to the inode
+> > + * address_space which maps the page from disk; whereas "page_mapped"
+> > + * refers to user virtual address space into which the page is mapped.
+> > + */
+> > +#define PAGE_MAPPING_ANON       1
+> > +
+> > +static inline bool PageAnon(struct page *page)
+> 
+> bool??? That is unusual?
+
+This is my first experience of using bool in Linux kernel.. :)
+
+I know bool is not very widely used in Linux now but I tried it because 
+this function obviously returns yes or no, and C language supports bool as
+_Bool now. If messy, I'll avoid using this in this time..
+
+
+> 
+> > +static inline struct address_space *page_mapping_cache(struct page *page)
+> > +{
+> > +	if (!page->mapping || PageAnon(page))
+> > +		return NULL;
+> > +	return page->mapping;
+> > +}
+> 
+> That is confusing.
+> 
+> if (PageAnon(page))
+> 	return NULL;
+> return page->mapping;
+ok,
+
+> > +static inline struct address_space *page_mapping(struct page *page)
+> > +{
+> > +	struct address_space *mapping = page->mapping;
+> > +
+> > +	VM_BUG_ON(PageSlab(page));
+> > +	if (unlikely(PageSwapCache(page)))
+> > +		mapping = &swapper_space;
+> > +#ifdef CONFIG_SLUB
+> > +	else if (unlikely(PageSlab(page)))
+> > +		mapping = NULL;
+> > +#endif
+> 
+> The #ifdef does not exist in rc6-mm1. No need to reintroduce it.
+> 
+ok, thanks.
+
+> > +static inline bool
+> > +is_page_consistent(struct page *page, struct address_space *mapping)
+> > +{
+> > +	struct address_space *check = page_mapping_cache(page);
+> > +	return (check == mapping);
+> > +}
+> 
+> Why do we need a special function? Why is it safer?
+> 
+For clarify meaning of compareing page_mapping_cache() with mapping.
+Does this reduce readability ?
+
+Thank you for comments.
+
+Regards,
+-Kame
+
+
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
