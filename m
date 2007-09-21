@@ -1,82 +1,40 @@
-From: "Lane Mellie" <qik3nkgwx@businesstalkradio.net>
-Subject: Codeine,PhenterminK from $72, XanaK,AmbienK,Valiun,CialiK,ViagraK interest
-Message-ID: <5862w28324.43g43237391@businesstalkradio.net>
-Date: Fri, 21 Sep 2007 00:46:19 -0600
-MIME-Version: 1.0
-Content-Type: multipart/alternative;
-	boundary="--5goc6lwsah427126i19bvqw9rjp9"
-Return-Path: <auiv5crloj@ups.com>
-To: linux-mm@kvack.org
+Date: Fri, 21 Sep 2007 01:55:48 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [patch 3/9] oom: change all_unreclaimable zone member to flags
+Message-Id: <20070921015548.ba20de5b.akpm@linux-foundation.org>
+In-Reply-To: <alpine.DEB.0.9999.0709201320521.25753@chino.kir.corp.google.com>
+References: <alpine.DEB.0.9999.0709201318090.25753@chino.kir.corp.google.com>
+	<alpine.DEB.0.9999.0709201319300.25753@chino.kir.corp.google.com>
+	<alpine.DEB.0.9999.0709201319520.25753@chino.kir.corp.google.com>
+	<alpine.DEB.0.9999.0709201320521.25753@chino.kir.corp.google.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
+Sender: owner-linux-mm@kvack.org
+Return-Path: <owner-linux-mm@kvack.org>
+To: David Rientjes <rientjes@google.com>
+Cc: Andrea Arcangeli <andrea@suse.de>, Christoph Lameter <clameter@sgi.com>, Rik van Riel <riel@redhat.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-----5goc6lwsah427126i19bvqw9rjp9
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
+On Thu, 20 Sep 2007 13:23:17 -0700 (PDT) David Rientjes <rientjes@google.com> wrote:
 
-      PharmaShop 80% Discount  
-- Discreet Packaging  
-- Cheapest Medication 
-- Worldwide shipping  
-- Buy in Bulk and Save
+> @@ -1871,10 +1874,8 @@ int zone_reclaim(struct zone *zone, gfp_t gfp_mask, unsigned int order)
+>  	 * not have reclaimable pages and if we should not delay the allocation
+>  	 * then do not scan.
+>  	 */
+> -	if (!(gfp_mask & __GFP_WAIT) ||
+> -		zone->all_unreclaimable ||
+> -		atomic_read(&zone->reclaim_in_progress) > 0 ||
+> -		(current->flags & PF_MEMALLOC))
+> +	if (!(gfp_mask & __GFP_WAIT) || zone_is_all_unreclaimable(zone) ||
+> +		zone_is_reclaim_locked(zone) || (current->flags & PF_MEMALLOC))
+>  			return 0;
 
-CodeineK
-XanaxK   
-ValiumK   
-PhenterminK  
-ViagraK  
-ViagraGelK
-CialiK 
-CialiKSoftTabs
-ViagraSoftTabsK
-SomaK
-AdalatK
-AllegraK
-AmbienK 
-AtaraxK 
-AtivanK
-CiproK
-EffexorK
-GlucophageK
-LevitraK
-LipitorK
-MeridiaK
-NorvascK
-PaxilK 
-PropeciaK
-ProzacK
-UltramK
-ZocorK    
-Zoloftk   
-ZybanK   
-plus 30 meds more   
+It would be nice to convert this somewhat crappy code to use
+test_and_set_bit(ZONE_RECLAIM_LOCKED) sometime.
 
-http://kvfygt.kwwascon.com (Link 1)
-http://kshzb.kwwascon.com (Link 2)
-
-----5goc6lwsah427126i19bvqw9rjp9
-Content-Type: text/html; charset=us-ascii
-Content-Transfer-Encoding: 7bit
-
-<html><head><meta http-equiv="Content-Type" content="text; charset=iso-8859-1"></head><body><center><table border=0 cellspacing=0 cellpadding=3>
-<tr>
-<td bgcolor=931F68 align=center><font size=6 color=ffffff face="Century Gothic">
-<b>PharmaShop <font color=FFFF00>
-80% Discount</font>
-<br><font color=B5EDFD size=2>
-Discreet Packaging<br>Cheapest 
-Medication<br>Worldwide shipping<br>Buy in Bulk and Save<br></font></b></font></font><table border=0 cellspacing=0 cellpadding=3 width=500>
-<tr>
-<td width=33% valign=top bgcolor=CDEF73><font face="Century Gothic" size=2 color=000000>CodeineK<br>XanaxK<br>ValiumK<br>
-PhenterminK<br>ViagraK<br>ViagraGelK<br>CialiK<br>CialiKSoftTabs
-<br>ViagraSoftTabsK<br>SomaK<br></font></td><td width=33% valign=top bgcolor=CDEF73><font face="Century Gothic" size=2 color=000000>AdalatK<br>AllegraK<br>AmbienK<br>AtaraxK<br>
-AtivanK<br>CiproK<br>EffexorK<br>GlucophageK<br>LevitraK<br>
-LipitorK<br></font></td><td width=33% valign=top bgcolor=CDEF73>
-<font face="Century Gothic" size=2 color=000000>MeridiaK<br>NorvascK
-<br>PaxilK<br>PropeciaK<br>ProzacK
-<br>UltramK<br>ZocorK<br>ZoloftK<br>ZybanK<br>
-plus <b>30 meds more</b></font></td></tr></table><font size=6 face="Century Gothic"><b>
-<a href=http://kmdm.kwwascon.com target=_blank><u><font color=FFD5EA>Buy Here - start from $72 (link A)</font></u></a><br><a href=http://klef.kwwascon.com target=_blank><u><font size=6 color=FFD5EA>(link B)</u>
-</font></font></a></b>
-<br><font color=931F68 size=1>towards teach remember repeated quickly? clear ran foot better as address?</font><br></center></td></tr></table><br><br><br></center></body></html>
-
-----5goc6lwsah427126i19bvqw9rjp9--
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
