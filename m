@@ -1,341 +1,83 @@
-Date: Fri, 21 Sep 2007 11:42:55 -0500
-Subject: [PATCH] hotplug cpu: move tasks in empty cpusets to parent
+Date: Fri, 21 Sep 2007 18:02:47 +0100 (BST)
+From: Hugh Dickins <hugh@veritas.com>
+Subject: Re: [RFC][PATCH] page->mapping clarification [1/3] base functions
+In-Reply-To: <20070921095054.6386bae1.kamezawa.hiroyu@jp.fujitsu.com>
+Message-ID: <Pine.LNX.4.64.0709211716220.20783@blonde.wat.veritas.com>
+References: <20070919164308.281f9960.kamezawa.hiroyu@jp.fujitsu.com>
+ <Pine.LNX.4.64.0709201120510.8801@schroedinger.engr.sgi.com>
+ <20070921095054.6386bae1.kamezawa.hiroyu@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
-Message-Id: <20070921164255.44676149779@attica.americas.sgi.com>
-From: cpw@sgi.com (Cliff Wickman)
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: akpm@linux-foundation.org
-Cc: linux-mm@kvack.org
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: Christoph Lameter <clameter@sgi.com>, LKML <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, "nickpiggin@yahoo.com.au" <nickpiggin@yahoo.com.au>, ricknu-0@student.ltu.se, Magnus Damm <magnus.damm@gmail.com>
 List-ID: <linux-mm.kvack.org>
 
-This patch corrects a situation that occurs when one disables all the cpus
-in a cpuset.
+On Fri, 21 Sep 2007, KAMEZAWA Hiroyuki wrote:
+> On Thu, 20 Sep 2007 11:26:47 -0700 (PDT)
+> Christoph Lameter <clameter@sgi.com> wrote:
+> > 
+> > I am still a bit confused as to what the benefit of this is.
+> > 
+> Honestly, I have 3 purposes, 2 for readability/clarificaton and 1 for my trial.
+> 
+> 1. Clarify page cache <-> inode relationship before *new concept of page cache*,
+>    yours or someone else's is introduced.
+> 
+> 2. There are some places using PAGE_MAPPING_ANON directly. I don't want to see
+>    following line in .c file. 
+>    ==
+>    anon_vma = (struct anon_vma *)(mapping - PAGE_MAPPING_ANON);
+>    ==
+> 
+> 3. I want to *try* page->mapping overriding... store  memory resource controller's   
+>    information in page->mapping. By this, memory controller doesn't enlarge sizeof
+>    struct page. (works well in my small test.)
+>    Before doing that, I have to hide page->mapping from direct access.
 
-Currently, the disabled (cpu-less) cpuset inherits the cpus of its parent,
-which may overlap its exclusive sibling.
-(You will get non-removable cpusets -- "Invalid argument")
+My own vote (nothing more) would be for you to set this aside until
+some future time when there aren't a dozen developers all trampling
+over each other in this area.
 
-Tasks of an empty cpuset should be moved to the cpuset which is the parent
-of their current cpuset. Or if the parent cpuset has no cpus, to its
-parent, etc.
+They're invasive little changes affecting all filesystems, whereas what
+we've done so far with page->mapping hasn't affected filesystems at all.
 
-And the empty cpuset should be removed (if it is flagged notify_on_release).
+Purposes 1 and 2 don't score very high in my book (though I too regret
+how mm/migrate.c copied that PAGE_MAPPING_ANON stuff from it's rightful
+home in mm/rmap.c: maybe we should wrap that).  There's no end to the
+wrappers we can add, but they're not always helpful.
 
-This patch uses a workqueue thread to call the function that deletes the
-cpuset.  That way we avoid the complexity of the cpuset locks.
+3: well, saving memory is good, but I think it could wait until some
+other time, particularly since the memory controller isn't in yet.
 
-Diffed against 2.6.23-rc7
+Wouldn't it be easier to do something with page->lru than page->mapping?
+Everybody is interested in page->mapping, not so many in page->lru.
+(Though perhaps it wouldn't work out so well, since you don't need to
+get uniquely from mapping to page, whereas you do from lru to page.)
 
-Signed-off-by: Cliff Wickman <cpw@sgi.com>
+If we were to attack page->mapping to save memory from struct page,
+then we should consider Magnus Damm's idea too: he suggested it could
+be replaced by a pointer to the radixtree slot (something else needed
+in the anon case), from which "index" could be deduced via alignment
+instead of keeping it in struct page (details to be filled in ...)
 
----
+Of course, my particular prejudice is that I promised months ago to
+free up the PG_swapcache bit by using a PAGE_MAPPING_SWAP bit instead.
+That patch got buried while I tried to think up a suitable name for
+a further page_mapping() variant that turned out to be needed - guess
+I should look through your collection to see if I can steal one ;)
+Beyond the unsatisfactory naming, that work has been long done
+(and like PAGE_MAPPING_ANON, doesn't touch filesystems at all).
 
-This is about version 4, of this patch.  It avoids a recursive method that
-was first used, and incorporates fixes for locking and notify_on_release
-conceptual issues raised by Paul Jackson.
+Or should I now leave PG_swapcache as is,
+given your designs on page->mapping?
 
- kernel/cpuset.c |  206 ++++++++++++++++++++++++++++++++++++++++++++++++--------
- 1 file changed, 178 insertions(+), 28 deletions(-)
+Hugh
 
-Index: linus.070921/kernel/cpuset.c
-===================================================================
---- linus.070921.orig/kernel/cpuset.c
-+++ linus.070921/kernel/cpuset.c
-@@ -52,6 +52,8 @@
- #include <asm/uaccess.h>
- #include <asm/atomic.h>
- #include <linux/mutex.h>
-+#include <linux/kfifo.h>
-+#include <linux/workqueue.h>
- 
- #define CPUSET_SUPER_MAGIC		0x27e0eb
- 
-@@ -109,6 +111,7 @@ typedef enum {
- 	CS_NOTIFY_ON_RELEASE,
- 	CS_SPREAD_PAGE,
- 	CS_SPREAD_SLAB,
-+	CS_RELEASED_RESOURCE,
- } cpuset_flagbits_t;
- 
- /* convenient tests for these bits */
-@@ -147,6 +150,11 @@ static inline int is_spread_slab(const s
- 	return test_bit(CS_SPREAD_SLAB, &cs->flags);
- }
- 
-+static inline int has_released_a_resource(const struct cpuset *cs)
-+{
-+	return test_bit(CS_RELEASED_RESOURCE, &cs->flags);
-+}
-+
- /*
-  * Increment this integer everytime any cpuset changes its
-  * mems_allowed value.  Users of cpusets can track this generation
-@@ -541,7 +549,7 @@ static void cpuset_release_agent(const c
- static void check_for_release(struct cpuset *cs, char **ppathbuf)
- {
- 	if (notify_on_release(cs) && atomic_read(&cs->count) == 0 &&
--	    list_empty(&cs->children)) {
-+					list_empty(&cs->children)) {
- 		char *buf;
- 
- 		buf = kmalloc(PAGE_SIZE, GFP_KERNEL);
-@@ -1265,6 +1273,7 @@ static int attach_task(struct cpuset *cs
- 
- 	from = oldcs->mems_allowed;
- 	to = cs->mems_allowed;
-+	set_bit(CS_RELEASED_RESOURCE, &oldcs->flags);
- 
- 	mutex_unlock(&callback_mutex);
- 
-@@ -1995,6 +2004,7 @@ static int cpuset_rmdir(struct inode *un
- 	cpuset_d_remove_dir(d);
- 	dput(d);
- 	number_of_cpusets--;
-+	set_bit(CS_RELEASED_RESOURCE, &parent->flags);
- 	mutex_unlock(&callback_mutex);
- 	if (list_empty(&parent->children))
- 		check_for_release(parent, &pathbuf);
-@@ -2062,50 +2072,173 @@ out:
- }
- 
- /*
-+ * Move every task that is a member of cpuset "from" to cpuset "to".
-+ *
-+ * Called with both manage_sem and callback_sem held
-+ */
-+static void move_member_tasks_to_cpuset(struct cpuset *from, struct cpuset *to)
-+{
-+	int moved=0;
-+	struct task_struct *g, *tsk;
-+
-+	read_lock(&tasklist_lock);
-+	do_each_thread(g, tsk) {
-+		if (tsk->cpuset == from) {
-+			moved++;
-+			task_lock(tsk);
-+			tsk->cpuset = to;
-+			task_unlock(tsk);
-+		}
-+	} while_each_thread(g, tsk);
-+	read_unlock(&tasklist_lock);
-+	atomic_add(moved, &to->count);
-+	atomic_set(&from->count, 0);
-+}
-+
-+/*
-  * If common_cpu_mem_hotplug_unplug(), below, unplugs any CPUs
-  * or memory nodes, we need to walk over the cpuset hierarchy,
-  * removing that CPU or node from all cpusets.  If this removes the
-- * last CPU or node from a cpuset, then the guarantee_online_cpus()
-- * or guarantee_online_mems() code will use that emptied cpusets
-- * parent online CPUs or nodes.  Cpusets that were already empty of
-- * CPUs or nodes are left empty.
-+ * last CPU or node from a cpuset, then move the tasks in the empty
-+ * cpuset to its next-highest non-empty parent.
-  *
-- * This routine is intentionally inefficient in a couple of regards.
-- * It will check all cpusets in a subtree even if the top cpuset of
-- * the subtree has no offline CPUs or nodes.  It checks both CPUs and
-- * nodes, even though the caller could have been coded to know that
-- * only one of CPUs or nodes needed to be checked on a given call.
-- * This was done to minimize text size rather than cpu cycles.
-+ * Called with both manage_sem and callback_sem held
-+ */
-+static void remove_tasks_in_empty_cpuset(struct cpuset *cs)
-+{
-+	struct cpuset *parent;
-+
-+	/* cs->count is the number of tasks using the cpuset */
-+	if (atomic_read(&cs->count) == 0)
-+		return;
-+
-+	/* this cpuset has had member tasks */
-+	set_bit(CS_RELEASED_RESOURCE, &cs->flags);
-+
-+	/*
-+	 * Find its next-highest non-empty parent, (top cpuset
-+	 * has online cpus, so can't be empty).
-+	 */
-+	parent = cs->parent;
-+	while (cpus_empty(parent->cpus_allowed)) {
-+		/*
-+		 * this empty cpuset should now be considered to
-+		 * have been used, and therefore eligible for
-+		 * release when empty (if it is notify_on_release)
-+		 */
-+		set_bit(CS_RELEASED_RESOURCE, &parent->flags);
-+		parent = parent->parent;
-+	}
-+
-+	move_member_tasks_to_cpuset(cs, parent);
-+}
-+
-+/*
-+ * Walk the specified cpuset subtree and count the number of empty
-+ * notify_on_release cpusets.
-+ *
-+ * Note that such a notify_on_release cpuset must have had, at some time,
-+ * member tasks or cpuset descendants and cpus and memory, before it can
-+ * be a candidate for release.
-  *
-- * Call with both manage_mutex and callback_mutex held.
-+ * Call with both manage_sem and callback_sem held so
-+ * that this function can modify cpus_allowed and mems_allowed.
-  *
-- * Recursive, on depth of cpuset subtree.
-+ * This walk processes the tree from top to bottom, completing one layer
-+ * before dropping down to the next.  It always processes a node before
-+ * any of its children.
-+ *
-+ * Argument "queue" is the fifo queue of cpusets to be walked.
-  */
-+static int count_releasable_cpusets(const struct cpuset *root,
-+							struct kfifo *queue)
-+{
-+	int count = 0;
-+	struct cpuset *cp;	/* scans cpusets being updated */
-+	struct cpuset *child;	/* scans child cpusets of cp */
- 
--static void guarantee_online_cpus_mems_in_subtree(const struct cpuset *cur)
-+	__kfifo_put(queue, (unsigned char *)&root, sizeof(root));
-+
-+	while (__kfifo_get(queue, (unsigned char *)&cp, sizeof(cp))) {
-+		list_for_each_entry(child, &cp->children, sibling)
-+			__kfifo_put(queue, (unsigned char *)&child,
-+							sizeof(child));
-+		/* Remove offline cpus and mems from this cpuset. */
-+		cpus_and(cp->cpus_allowed, cp->cpus_allowed, cpu_online_map);
-+		nodes_and(cp->mems_allowed, cp->mems_allowed, node_online_map);
-+		if ((cpus_empty(cp->cpus_allowed) ||
-+		     nodes_empty(cp->mems_allowed))) {
-+		        /* Move tasks from the empty cpuset to a parent */
-+			remove_tasks_in_empty_cpuset(cp);
-+			if (notify_on_release(cp) &&
-+			    has_released_a_resource(cp))
-+				/* count the cpuset to be released */
-+				count++;
-+		}
-+	}
-+
-+	kfifo_free(queue);
-+	return count;
-+}
-+
-+/*
-+ * Walk the specified cpuset subtree and release the empty
-+ * notify_on_release cpusets.
-+ *
-+ * This walk processes the tree from top to bottom, completing one layer
-+ * before dropping down to the next.  It always processes a node before
-+ * any of its children.
-+ */
-+static void release_empty_cpusets(const struct cpuset *root)
- {
--	struct cpuset *c;
-+	struct cpuset *cp;	/* scans cpusets being updated */
-+	struct cpuset *child;	/* scans child cpusets of cp */
-+	struct kfifo *queue;	/* fifo queue of cpusets to be updated */
-+	char *pathbuf = NULL;
- 
--	/* Each of our child cpusets mems must be online */
--	list_for_each_entry(c, &cur->children, sibling) {
--		guarantee_online_cpus_mems_in_subtree(c);
--		if (!cpus_empty(c->cpus_allowed))
--			guarantee_online_cpus(c, &c->cpus_allowed);
--		if (!nodes_empty(c->mems_allowed))
--			guarantee_online_mems(c, &c->mems_allowed);
-+	queue = kfifo_alloc(number_of_cpusets * sizeof(cp), GFP_KERNEL, NULL);
-+	if (queue == ERR_PTR(-ENOMEM))
-+		return;
-+
-+	__kfifo_put(queue, (unsigned char *)&root, sizeof(root));
-+
-+	while (__kfifo_get(queue, (unsigned char *)&cp, sizeof(cp))) {
-+		list_for_each_entry(child, &cp->children, sibling)
-+			__kfifo_put(queue, (unsigned char *)&child,
-+							sizeof(child));
-+		if ((notify_on_release(cp)) && has_released_a_resource(cp) &&
-+			(cpus_empty(cp->cpus_allowed) ||
-+			 nodes_empty(cp->mems_allowed))) {
-+			check_for_release(cp, &pathbuf);
-+			cpuset_release_agent(pathbuf);
-+		}
- 	}
-+
-+	kfifo_free(queue);
-+	return;
- }
- 
- /*
-+ * This runs from a workqueue.
-+ *
-+ * It's job is to remove any notify_on_release cpusets that have no
-+ * online cpus.
-+ *
-+ * The argument is not used.
-+ */
-+static void remove_empty_cpusets(struct work_struct *p)
-+{
-+	release_empty_cpusets(&top_cpuset);
-+	return;
-+}
-+
-+static DECLARE_WORK(remove_empties_block, remove_empty_cpusets);
-+
-+/*
-  * The cpus_allowed and mems_allowed nodemasks in the top_cpuset track
-  * cpu_online_map and node_online_map.  Force the top cpuset to track
-  * whats online after any CPU or memory node hotplug or unplug event.
-  *
-- * To ensure that we don't remove a CPU or node from the top cpuset
-- * that is currently in use by a child cpuset (which would violate
-- * the rule that cpusets must be subsets of their parent), we first
-- * call the recursive routine guarantee_online_cpus_mems_in_subtree().
-- *
-  * Since there are two callers of this routine, one for CPU hotplug
-  * events and one for memory node hotplug events, we could have coded
-  * two separate routines here.  We code it as a single common routine
-@@ -2114,12 +2247,26 @@ static void guarantee_online_cpus_mems_i
- 
- static void common_cpu_mem_hotplug_unplug(void)
- {
-+	int cnt=0;
-+	struct kfifo *queue;
-+
-+	/*
-+	 * Pre-allocate the fifo queue of cpusets to be walked. You can't
-+	 * call memory allocation functions while holding callback_mutex.
-+	 */
-+	queue = kfifo_alloc(number_of_cpusets * sizeof(struct cpuset *),
-+							GFP_KERNEL, NULL);
-+	if (queue == ERR_PTR(-ENOMEM))
-+		return;
-+
- 	mutex_lock(&manage_mutex);
- 	mutex_lock(&callback_mutex);
- 
--	guarantee_online_cpus_mems_in_subtree(&top_cpuset);
- 	top_cpuset.cpus_allowed = cpu_online_map;
- 	top_cpuset.mems_allowed = node_online_map;
-+	cnt = count_releasable_cpusets(&top_cpuset, queue);
-+	if (cnt)
-+		schedule_work(&remove_empties_block);
- 
- 	mutex_unlock(&callback_mutex);
- 	mutex_unlock(&manage_mutex);
-@@ -2268,6 +2415,9 @@ void cpuset_exit(struct task_struct *tsk
- 		mutex_lock(&manage_mutex);
- 		if (atomic_dec_and_test(&cs->count))
- 			check_for_release(cs, &pathbuf);
-+		mutex_lock(&callback_mutex);
-+		set_bit(CS_RELEASED_RESOURCE, &cs->flags);
-+		mutex_unlock(&callback_mutex);
- 		mutex_unlock(&manage_mutex);
- 		cpuset_release_agent(pathbuf);
- 	} else {
+p.s. Sorry to niggle, but next time, please say [PATCH 1/3] etc.
+rather than [PATCH] Long Description [1/3], so it's easier to
+sort the mail subjects by eye in limited columns - thanks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
