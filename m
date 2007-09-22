@@ -1,10 +1,10 @@
-Date: Sat, 22 Sep 2007 10:47:13 -0700 (PDT)
+Date: Sat, 22 Sep 2007 10:47:12 -0700 (PDT)
 From: David Rientjes <rientjes@google.com>
-Subject: [patch -mm 5/5] oom: add sysctl to dump tasks memory state
-In-Reply-To: <alpine.DEB.0.9999.0709212312560.13727@chino.kir.corp.google.com>
-Message-ID: <alpine.DEB.0.9999.0709212313140.13727@chino.kir.corp.google.com>
+Subject: [patch -mm 4/5] mm: test and set zone reclaim lock before starting
+ reclaim
+In-Reply-To: <alpine.DEB.0.9999.0709212312400.13727@chino.kir.corp.google.com>
+Message-ID: <alpine.DEB.0.9999.0709212312560.13727@chino.kir.corp.google.com>
 References: <alpine.DEB.0.9999.0709212311130.13727@chino.kir.corp.google.com> <alpine.DEB.0.9999.0709212312160.13727@chino.kir.corp.google.com> <alpine.DEB.0.9999.0709212312400.13727@chino.kir.corp.google.com>
- <alpine.DEB.0.9999.0709212312560.13727@chino.kir.corp.google.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
@@ -13,152 +13,111 @@ To: Andrew Morton <akpm@linux-foundation.org>
 Cc: Andrea Arcangeli <andrea@suse.de>, Christoph Lameter <clameter@sgi.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Adds a new sysctl, 'oom_dump_tasks', that dumps a list of all system tasks
-(excluding kernel threads) and their pid, uid, tgid, vm size, rss cpu,
-oom_adj score, and name.
+Introduces new zone flag interface for testing and setting flags:
 
-Helpful for determining why an OOM condition occurred and what rogue task
-caused it.
+	int zone_test_and_set_flag(struct zone *zone, zone_flags_t flag)
 
-It is configurable so that large systems, such as those with several
-thousand tasks, do not incur a performance penalty associated with data
-they may not desire.
+Instead of setting and clearing ZONE_RECLAIM_LOCKED each time
+shrink_zone() is called, this flag is test and set before starting zone
+reclaim.  Zone reclaim starts in __alloc_pages() when a zone's watermark
+fails and the system is in zone_reclaim_mode.  If it's already in
+reclaim, there's no need to start again so it is simply considered full
+for that allocation attempt.
 
-There currently do not appear to be any other generic kernel callers that
-dump all this information.  Perhaps in the future it will be worthwhile
-to construct a generic task dump interface based on passing a set of
-flags that specify what per-task information shall be shown.
+There is a change of behavior with regard to concurrent zone shrinking.
+It is now possible for try_to_free_pages() or kswapd to already be
+shrinking a particular zone when __alloc_pages() starts zone reclaim.  In
+this case, it is possible for two concurrent threads to invoke
+shrink_zone() for a single zone.
+
+This change forbids a zone to be in zone reclaim twice, which was always
+the behavior, but allows for concurrent try_to_free_pages() or kswapd
+shrinking when starting zone reclaim.
 
 Cc: Andrea Arcangeli <andrea@suse.de>
 Cc: Christoph Lameter <clameter@sgi.com>
 Signed-off-by: David Rientjes <rientjes@google.com>
 ---
- Documentation/sysctl/vm.txt |   21 +++++++++++++++++++++
- kernel/sysctl.c             |    9 +++++++++
- mm/oom_kill.c               |   33 +++++++++++++++++++++++++++++++++
- 3 files changed, 63 insertions(+), 0 deletions(-)
+ include/linux/mmzone.h |    4 ++++
+ mm/vmscan.c            |   23 +++++++++++++----------
+ 2 files changed, 17 insertions(+), 10 deletions(-)
 
-diff --git a/Documentation/sysctl/vm.txt b/Documentation/sysctl/vm.txt
---- a/Documentation/sysctl/vm.txt
-+++ b/Documentation/sysctl/vm.txt
-@@ -31,6 +31,7 @@ Currently, these files are in /proc/sys/vm:
- - min_unmapped_ratio
- - min_slab_ratio
- - panic_on_oom
-+- oom_dump_tasks
- - oom_kill_allocating_task
- - mmap_min_address
- - numa_zonelist_order
-@@ -223,6 +224,26 @@ according to your policy of failover.
- 
- =============================================================
- 
-+oom_dump_tasks
-+
-+This enables a system-wide task dump (excluding kernel threads) that
-+includes such information as pid, uid, tgid, vm size, rss, cpu,
-+oom_adj score, and name.  This is helpful to determine why the OOM
-+killer was invoked and to identify the rogue task that caused it.
-+
-+If this is set to zero, this information is suppressed.  On very
-+large systems with thousands of tasks it may not be feasible to dump
-+the memory state information for each one.  Such systems should not
-+be forced to incur a performance penalty in OOM conditions when the
-+information may not be desired.
-+
-+If this is set to non-zero, this information is shown whenever the
-+OOM killer actually kills a memory-hogging task.
-+
-+The default value is 0.
-+
-+=============================================================
-+
- oom_kill_allocating_task
- 
- This enables or disables killing the OOM-triggering task in
-diff --git a/kernel/sysctl.c b/kernel/sysctl.c
---- a/kernel/sysctl.c
-+++ b/kernel/sysctl.c
-@@ -64,6 +64,7 @@ extern int sysctl_overcommit_memory;
- extern int sysctl_overcommit_ratio;
- extern int sysctl_panic_on_oom;
- extern int sysctl_oom_kill_allocating_task;
-+extern int sysctl_oom_dump_tasks;
- extern int max_threads;
- extern int core_uses_pid;
- extern int suid_dumpable;
-@@ -807,6 +808,14 @@ static ctl_table vm_table[] = {
- 		.proc_handler	= &proc_dointvec,
- 	},
- 	{
-+		.ctl_name	= CTL_UNNUMBERED,
-+		.procname	= "oom_dump_tasks",
-+		.data		= &sysctl_oom_dump_tasks,
-+		.maxlen		= sizeof(sysctl_oom_dump_tasks),
-+		.mode		= 0644,
-+		.proc_handler	= &proc_dointvec,
-+	},
-+	{
- 		.ctl_name	= VM_OVERCOMMIT_RATIO,
- 		.procname	= "overcommit_ratio",
- 		.data		= &sysctl_overcommit_ratio,
-diff --git a/mm/oom_kill.c b/mm/oom_kill.c
---- a/mm/oom_kill.c
-+++ b/mm/oom_kill.c
-@@ -28,6 +28,7 @@
- 
- int sysctl_panic_on_oom;
- int sysctl_oom_kill_allocating_task;
-+int sysctl_oom_dump_tasks;
- static DEFINE_SPINLOCK(zone_scan_mutex);
- /* #define DEBUG */
- 
-@@ -266,6 +267,36 @@ static struct task_struct *select_bad_process(unsigned long *ppoints)
+diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
+--- a/include/linux/mmzone.h
++++ b/include/linux/mmzone.h
+@@ -320,6 +320,10 @@ static inline void zone_set_flag(struct zone *zone, zone_flags_t flag)
+ {
+ 	set_bit(flag, &zone->flags);
  }
- 
- /**
-+ * Dumps the current memory state of all system tasks, excluding kernel threads.
-+ * State information includes task's pid, uid, tgid, vm size, rss, cpu, oom_adj
-+ * score, and name.
-+ *
-+ * Call with tasklist_lock read-locked.
-+ */
-+static void dump_tasks(void)
++static inline int zone_test_and_set_flag(struct zone *zone, zone_flags_t flag)
 +{
-+	struct task_struct *g, *p;
-+
-+	printk(KERN_INFO "[ pid ]   uid  tgid total_vm      rss cpu oom_adj "
-+	       "name\n");
-+	do_each_thread(g, p) {
-+		/*
-+		 * total_vm and rss sizes do not exist for tasks with a
-+		 * detached mm so there's no need to report them.
-+		 */
-+		if (!p->mm)
-+			continue;
-+
-+		task_lock(p);
-+		printk(KERN_INFO "[%5d] %5d %5d %8lu %8lu %3d     %3d %s\n",
-+		       p->pid, p->uid, p->tgid, p->mm->total_vm,
-+		       get_mm_rss(p->mm), (int)task_cpu(p), p->oomkilladj,
-+		       p->comm);
-+		task_unlock(p);
-+	} while_each_thread(g, p);
++	return test_and_set_bit(flag, &zone->flags);
 +}
-+
-+/**
-  * Send SIGKILL to the selected  process irrespective of  CAP_SYS_RAW_IO
-  * flag though it's unlikely that  we select a process with CAP_SYS_RAW_IO
-  * set.
-@@ -352,6 +383,8 @@ static int oom_kill_process(struct task_struct *p, gfp_t gfp_mask, int order,
- 			current->comm, gfp_mask, order, current->oomkilladj);
- 		dump_stack();
- 		show_mem();
-+		if (sysctl_oom_dump_tasks)
-+			dump_tasks();
+ static inline void zone_clear_flag(struct zone *zone, zone_flags_t flag)
+ {
+ 	clear_bit(flag, &zone->flags);
+diff --git a/mm/vmscan.c b/mm/vmscan.c
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -1067,8 +1067,6 @@ static unsigned long shrink_zone(int priority, struct zone *zone,
+ 	unsigned long nr_to_scan;
+ 	unsigned long nr_reclaimed = 0;
+ 
+-	zone_set_flag(zone, ZONE_RECLAIM_LOCKED);
+-
+ 	/*
+ 	 * Add one to `nr_to_scan' just to make sure that the kernel will
+ 	 * slowly sift through the active list.
+@@ -1107,8 +1105,6 @@ static unsigned long shrink_zone(int priority, struct zone *zone,
  	}
  
+ 	throttle_vm_writeout(sc->gfp_mask);
+-
+-	zone_clear_flag(zone, ZONE_RECLAIM_LOCKED);
+ 	return nr_reclaimed;
+ }
+ 
+@@ -1852,6 +1848,7 @@ int zone_reclaim(struct zone *zone, gfp_t gfp_mask, unsigned int order)
+ {
+ 	cpumask_t mask;
+ 	int node_id;
++	int ret;
+ 
  	/*
+ 	 * Zone reclaim reclaims unmapped file backed pages and
+@@ -1869,13 +1866,13 @@ int zone_reclaim(struct zone *zone, gfp_t gfp_mask, unsigned int order)
+ 			<= zone->min_slab_pages)
+ 		return 0;
+ 
++	if (zone_is_all_unreclaimable(zone))
++		return 0;
++
+ 	/*
+-	 * Avoid concurrent zone reclaims, do not reclaim in a zone that does
+-	 * not have reclaimable pages and if we should not delay the allocation
+-	 * then do not scan.
++	 * Do not scan if the allocation should not be delayed.
+ 	 */
+-	if (!(gfp_mask & __GFP_WAIT) || zone_is_all_unreclaimable(zone) ||
+-		zone_is_reclaim_locked(zone) || (current->flags & PF_MEMALLOC))
++	if (!(gfp_mask & __GFP_WAIT) || (current->flags & PF_MEMALLOC))
+ 			return 0;
+ 
+ 	/*
+@@ -1888,6 +1885,12 @@ int zone_reclaim(struct zone *zone, gfp_t gfp_mask, unsigned int order)
+ 	mask = node_to_cpumask(node_id);
+ 	if (!cpus_empty(mask) && node_id != numa_node_id())
+ 		return 0;
+-	return __zone_reclaim(zone, gfp_mask, order);
++
++	if (zone_test_and_set_flag(zone, ZONE_RECLAIM_LOCKED))
++		return 0;
++	ret = __zone_reclaim(zone, gfp_mask, order);
++	zone_clear_flag(zone, ZONE_RECLAIM_LOCKED);
++
++	return ret;
+ }
+ #endif
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
