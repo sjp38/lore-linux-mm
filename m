@@ -1,136 +1,105 @@
-Date: Fri, 21 Sep 2007 16:15:53 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH] hotplug cpu: move tasks in empty cpusets to parent
-In-Reply-To: <20070921225327.692FE149779@attica.americas.sgi.com>
-Message-ID: <alpine.DEB.0.9999.0709211607180.19770@chino.kir.corp.google.com>
-References: <20070921225327.692FE149779@attica.americas.sgi.com>
+Date: Sat, 22 Sep 2007 08:09:02 -0300
+From: "Vegas Kasino" <aldrin@gobiernofederal.com>
+Message-ID: <88779444.87480098@sponge.com>
+Subject: 555 Euro Willkommensbonus 
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
-Sender: owner-linux-mm@kvack.org
-Return-Path: <owner-linux-mm@kvack.org>
-To: Cliff Wickman <cpw@sgi.com>
-Cc: akpm@linux-foundation.org, pj@sgi.com, linux-mm@kvack.org
+Content-Type: text/html; charset=iso-8859-1
+Content-Transfer-Encoding: 7bit
+Return-Path: <aldrin@gobiernofederal.com>
+To: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 21 Sep 2007, Cliff Wickman wrote:
+<html>
 
-> This patch corrects a situation that occurs when one disables all the cpus
-> in a cpuset.
-> 
-> Currently, the disabled (cpu-less) cpuset inherits the cpus of its parent,
-> which may overlap its exclusive sibling.
-> (You will get non-removable cpusets -- "Invalid argument")
-> 
-> Tasks of an empty cpuset should be moved to the cpuset which is the parent
-> of their current cpuset. Or if the parent cpuset has no cpus, to its
-> parent, etc.
-> 
-> And the empty cpuset should be removed (if it is flagged notify_on_release).
-> 
+<head>
+<meta http-equiv=Content-Type content="text/html; charset=iso-8859-1">
 
-Again, being flagged notify_on_release does not remove the empty cpuset, 
-it simply calls a userspace agent to do cleanup, if such a userspace agent 
-exists and notify_on_release is enabled.
+<title>Die besten Spieler </title>
 
-Inline comments below.
+<style>
+<!--
+ /* Style Definitions */
+ p.MsoNormal, li.MsoNormal, div.MsoNormal
+	{mso-style-parent:"";
+	margin:0cm;
+	margin-bottom:.0001pt;
+	mso-pagination:widow-orphan;
+	font-size:12.0pt;
+	font-family:"Times New Roman";
+	mso-fareast-font-family:"Times New Roman";
+	color:windowtext;
+	mso-ansi-language:EN-US;
+	mso-fareast-language:EN-US;}
+a:link, span.MsoHyperlink
+	{color:blue;}
+a:visited, span.MsoHyperlinkFollowed
+	{color:purple;
+	text-decoration:underline;
+	text-underline:single;}
+p
+	{mso-margin-top-alt:auto;
+	margin-right:0cm;
+	mso-margin-bottom-alt:auto;
+	margin-left:0cm;
+	mso-pagination:widow-orphan;
+	font-size:12.0pt;
+	font-family:"Times New Roman";
+	mso-fareast-font-family:"Times New Roman";
+	color:black;}
+@page Section1
+	{size:595.3pt 841.9pt;
+	margin:2.0cm 42.5pt 2.0cm 3.0cm;
+	mso-header-margin:35.4pt;
+	mso-footer-margin:35.4pt;
+	mso-paper-source:0;}
+div.Section1
+	{page:Section1;}
+-->
+</style>
 
-> Index: linus.070921/kernel/cpuset.c
-> ===================================================================
-> --- linus.070921.orig/kernel/cpuset.c
-> +++ linus.070921/kernel/cpuset.c
-> @@ -52,6 +52,8 @@
->  #include <asm/uaccess.h>
->  #include <asm/atomic.h>
->  #include <linux/mutex.h>
-> +#include <linux/kfifo.h>
-> +#include <linux/workqueue.h>
->  
->  #define CPUSET_SUPER_MAGIC		0x27e0eb
->  
-> @@ -109,6 +111,7 @@ typedef enum {
->  	CS_NOTIFY_ON_RELEASE,
->  	CS_SPREAD_PAGE,
->  	CS_SPREAD_SLAB,
-> +	CS_RELEASED_RESOURCE,
->  } cpuset_flagbits_t;
->  
->  /* convenient tests for these bits */
-> @@ -147,6 +150,11 @@ static inline int is_spread_slab(const s
->  	return test_bit(CS_SPREAD_SLAB, &cs->flags);
->  }
->  
-> +static inline int has_released_a_resource(const struct cpuset *cs)
-> +{
-> +	return test_bit(CS_RELEASED_RESOURCE, &cs->flags);
-> +}
-> +
->  /*
->   * Increment this integer everytime any cpuset changes its
->   * mems_allowed value.  Users of cpusets can track this generation
-> @@ -541,7 +549,7 @@ static void cpuset_release_agent(const c
->  static void check_for_release(struct cpuset *cs, char **ppathbuf)
->  {
->  	if (notify_on_release(cs) && atomic_read(&cs->count) == 0 &&
-> -	    list_empty(&cs->children)) {
-> +					list_empty(&cs->children)) {
->  		char *buf;
->  
->  		buf = kmalloc(PAGE_SIZE, GFP_KERNEL);
+</head>
 
-Unnecessary change.
+<body lang=DE link=blue vlink=purple style='tab-interval:35.4pt'>
 
-> @@ -1265,6 +1273,7 @@ static int attach_task(struct cpuset *cs
->  
->  	from = oldcs->mems_allowed;
->  	to = cs->mems_allowed;
-> +	set_bit(CS_RELEASED_RESOURCE, &oldcs->flags);
->  
->  	mutex_unlock(&callback_mutex);
->  
-> @@ -1995,6 +2004,7 @@ static int cpuset_rmdir(struct inode *un
->  	cpuset_d_remove_dir(d);
->  	dput(d);
->  	number_of_cpusets--;
-> +	set_bit(CS_RELEASED_RESOURCE, &parent->flags);
->  	mutex_unlock(&callback_mutex);
->  	if (list_empty(&parent->children))
->  		check_for_release(parent, &pathbuf);
-> @@ -2062,50 +2072,180 @@ out:
->  }
->  
->  /*
-> + * Move every task that is a member of cpuset "from" to cpuset "to".
-> + *
-> + * Called with both manage_sem and callback_sem held
-> + */
-> +static void move_member_tasks_to_cpuset(struct cpuset *from, struct cpuset *to)
-> +{
-> +	int moved=0;
-> +	struct task_struct *g, *tsk;
-> +
-> +	read_lock(&tasklist_lock);
-> +	do_each_thread(g, tsk) {
-> +		if (tsk->cpuset == from) {
-> +			moved++;
-> +			task_lock(tsk);
-> +			tsk->cpuset = to;
-> +			task_unlock(tsk);
-> +		}
-> +	} while_each_thread(g, tsk);
-> +	read_unlock(&tasklist_lock);
-> +	atomic_add(moved, &to->count);
-> +	atomic_set(&from->count, 0);
-> +}
-> +
+<div class=Section1>
 
-This isn't that simple.  You're missing mpol_rebind_mm() checks, updating 
-tsk->mems_allowed, etc.  It's much easier to make 
-remove_tasks_in_empty_cpuset() a client of attach_task() by supplying 
-pids; this would make it the only function where cpuset assignment 
-changes.
+<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
+Die besten Spieler sind in Vegas und die besten Bonusse 
+finden Sie nur bei Vegas 
+VIP Casino!
+<o:p></o:p></span></p>
 
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
+<o:p>&nbsp;</o:p></span></p>
+
+<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
+200% f&uuml;r Ihre erste Einzahlung, 100% f&uuml;r Ihre zweite 
+und dritte Einzahlung und als Kr&ouml;nung einen 155% Bonus 
+f&uuml;r Ihre vierte Einzahlung!
+<o:p></o:p></span></p>
+
+
+<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
+<o:p>&nbsp;</o:p></span></p>
+
+<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
+Das ergibt insgesamt einen Willkommensbonus von 555 &#8364;/$!
+<o:p></o:p></span></p>
+
+<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
+<o:p>&nbsp;</o:p></span></p>
+
+<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
+Dieses und vieles mehr erwartet Sie im fabelhaften Vegas 
+VIP Casino, der beste Platz zum spielen!
+<o:p></o:p></span></p>
+
+<p><a href="http://luckyvegasvip.com/lang-de/">
+http://luckyvegasvip.com/lang-de/</a>
+</p>
+
+</div>
+
+</body>
+
+</html>
