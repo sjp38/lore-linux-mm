@@ -1,78 +1,72 @@
-Date: Sat, 22 Sep 2007 10:47:11 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: [patch -mm 3/5] oom: convert zone_scan_lock from mutex to spinlock
-In-Reply-To: <alpine.DEB.0.9999.0709212312160.13727@chino.kir.corp.google.com>
-Message-ID: <alpine.DEB.0.9999.0709212312400.13727@chino.kir.corp.google.com>
-References: <alpine.DEB.0.9999.0709212311130.13727@chino.kir.corp.google.com> <alpine.DEB.0.9999.0709212312160.13727@chino.kir.corp.google.com>
+From: "Andrew Desire" <hsq9etf@laposte.net>
+Subject: Rolex Replica, Fake Rolex Watches, Cartier, Omega, IWC, Swiss Replica Watches six
+Message-ID: <2960m49222.08029q16910715@laposte.net>
+Date: Sat, 22 Sep 2007 23:38:58 -0600
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
-Sender: owner-linux-mm@kvack.org
-Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Andrea Arcangeli <andrea@suse.de>, Christoph Lameter <clameter@sgi.com>, linux-mm@kvack.org
+Content-Type: multipart/alternative;
+	boundary="--nhaurqxtxgd910a2frb7g4yu38nvo4e1"
+Return-Path: <nzo4usox@mail.wplus.net>
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-There's no reason to sleep in try_set_zone_oom() or clear_zonelist_oom()
-if the lock can't be acquired; it will be available soon enough once
-the zonelist scanning is done.  All other threads waiting for the OOM
-killer are also contingent on the exiting task being able to acquire
-the lock in clear_zonelist_oom() so it doesn't make sense to put it
-to sleep.
+----nhaurqxtxgd910a2frb7g4yu38nvo4e1
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
 
-Cc: Andrea Arcangeli <andrea@suse.de>
-Cc: Christoph Lameter <clameter@sgi.com>
-Signed-off-by: David Rientjes <rientjes@google.com>
----
- mm/oom_kill.c |   10 +++++-----
- 1 files changed, 5 insertions(+), 5 deletions(-)
+Super Branded Watches (85% Price Off)  
 
-diff --git a/mm/oom_kill.c b/mm/oom_kill.c
---- a/mm/oom_kill.c
-+++ b/mm/oom_kill.c
-@@ -28,7 +28,7 @@
- 
- int sysctl_panic_on_oom;
- int sysctl_oom_kill_allocating_task;
--static DEFINE_MUTEX(zone_scan_mutex);
-+static DEFINE_SPINLOCK(zone_scan_mutex);
- /* #define DEBUG */
- 
- /**
-@@ -403,7 +403,7 @@ int try_set_zone_oom(struct zonelist *zonelist)
- 
- 	z = zonelist->zones;
- 
--	mutex_lock(&zone_scan_mutex);
-+	spin_lock(&zone_scan_mutex);
- 	do {
- 		if (zone_is_oom_locked(*z)) {
- 			ret = 0;
-@@ -420,7 +420,7 @@ int try_set_zone_oom(struct zonelist *zonelist)
- 		zone_set_flag(*z, ZONE_OOM_LOCKED);
- 	} while (*(++z) != NULL);
- out:
--	mutex_unlock(&zone_scan_mutex);
-+	spin_unlock(&zone_scan_mutex);
- 	return ret;
- }
- 
-@@ -435,11 +435,11 @@ void clear_zonelist_oom(struct zonelist *zonelist)
- 
- 	z = zonelist->zones;
- 
--	mutex_lock(&zone_scan_mutex);
-+	spin_lock(&zone_scan_mutex);
- 	do {
- 		zone_clear_flag(*z, ZONE_OOM_LOCKED);
- 	} while (*(++z) != NULL);
--	mutex_unlock(&zone_scan_mutex);
-+	spin_unlock(&zone_scan_mutex);
- }
- 
- /**
+: RolexMen
+: RolexLady  
+: Alain Silberstein   
+: Audemars Piguet
+: Breitling   
+: Bvlgari 
+: Cartier    
+: Chanel
+: Chopard
+: Franck Muller 
+: IWC   
+: Jaeger-Lecoultre   
+: Omega 
+: Panerai Luminor 
+: Patek Philippe  
+: Tag Heuer     
 
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+Only from $189 Each :- Click below link
+ 
+http://rmwijw.kypatriot.com
+http://rjaqvy.kypatriot.com
+
+----nhaurqxtxgd910a2frb7g4yu38nvo4e1
+Content-Type: text/html; charset=us-ascii
+Content-Transfer-Encoding: 7bit
+
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text; charset=iso-8859-1">
+</head><body><center>
+<table border=0 cellspacing=0 cellpadding=2><td bgcolor=000000 align=left><font size=3 face=arial color=FF00FF>
+<font size=5 color=00FF00><b><center>Super Branded Watches (85% Price Off)</center></font></td>
+</tr><tr><td align=center bgcolor=FFFFC6>
+<table border=0 cellspacing=0 cellpadding=3 width=520><tr><td width=25% valign=top bgcolor=ECFD8C>
+<font face=arial size=3 color=FF0000>RolexMen<br>RolexLady<br>Alain 
+Silberstein<br>Audemars Piguet
+<br></font></td><td width=25% valign=top bgcolor=D5FCFF><font face=arial size=3 color=0000FF>Breitling
+<br>Bvlgari<br>Cartier<br>Chanel<br></font>
+</td>
+<td width=25% valign=top bgcolor=ECFD8C><font face=arial size=3 color=FF0000>Chopard
+<br>Franck Muller<br>IWC<br>Jaeger-Lecoultre<br></font>
+</td>
+<td width=25% valign=top bgcolor=D5FCFF>
+<font face=arial size=3 color=0000FF>Omega<br>
+Panerai Luminor<br>Patek Philippe
+<br>
+Tag Heuer<br></font></td></tr></table>
+<center><b><font size=5 face=arial color=970097>
+Only from $189 Each :- Click below link
+<br><a href=http://rrgbdh.kypatriot.com target=_blank><font color=FF1515 size=6><u>[Link 1]</u>
+</a></font> &emsp; &emsp; <a href=http://rznfy.kypatriot.com target=_blank><font color=FF1515 size=6><u>[Link 2]</font></u>
+</font></a><br></b></center></td></tr></table><font color=7F7F7F size=1>central need music his fill son.</font>
+</center></body></html>
+
+----nhaurqxtxgd910a2frb7g4yu38nvo4e1--
