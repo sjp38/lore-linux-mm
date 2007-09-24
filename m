@@ -1,67 +1,49 @@
-Received: from d01relay02.pok.ibm.com (d01relay02.pok.ibm.com [9.56.227.234])
-	by e4.ny.us.ibm.com (8.13.8/8.13.8) with ESMTP id l8ONTOZq028094
-	for <linux-mm@kvack.org>; Mon, 24 Sep 2007 19:29:24 -0400
-Received: from d01av03.pok.ibm.com (d01av03.pok.ibm.com [9.56.224.217])
-	by d01relay02.pok.ibm.com (8.13.8/8.13.8/NCO v8.5) with ESMTP id l8ONTOuS684442
-	for <linux-mm@kvack.org>; Mon, 24 Sep 2007 19:29:24 -0400
-Received: from d01av03.pok.ibm.com (loopback [127.0.0.1])
-	by d01av03.pok.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l8ONTN6h021694
-	for <linux-mm@kvack.org>; Mon, 24 Sep 2007 19:29:24 -0400
-Date: Mon, 24 Sep 2007 16:29:22 -0700
-From: Nishanth Aravamudan <nacc@us.ibm.com>
-Subject: Re: [PATCH 3/4] hugetlb: interleave dequeueing of huge pages
-Message-ID: <20070924232922.GF26104@us.ibm.com>
-References: <20070906182134.GA7779@us.ibm.com> <20070906182430.GB7779@us.ibm.com> <20070906182704.GC7779@us.ibm.com> <Pine.LNX.4.64.0709141153360.17038@schroedinger.engr.sgi.com> <1189796638.5315.50.camel@localhost> <Pine.LNX.4.64.0709141241050.17369@schroedinger.engr.sgi.com> <1189800591.5315.69.camel@localhost> <Pine.LNX.4.64.0709141315510.22157@schroedinger.engr.sgi.com> <1189801980.5315.87.camel@localhost> <20070924232346.GE26104@us.ibm.com>
+Date: Mon, 24 Sep 2007 19:24:23 -0400
+From: Dave Jones <davej@redhat.com>
+Subject: Re: [PATCH 1/1] x86: Convert cpuinfo_x86 array to a per_cpu array
+	v3
+Message-ID: <20070924232423.GJ8127@redhat.com>
+References: <20070924210853.256462000@sgi.com> <20070924210853.516791000@sgi.com> <46F833D4.8050507@tiscali.nl>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20070924232346.GE26104@us.ibm.com>
+In-Reply-To: <46F833D4.8050507@tiscali.nl>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
-Cc: Christoph Lameter <clameter@sgi.com>, wli@holomorphy.com, agl@us.ibm.com, linux-mm@kvack.org
+To: roel <12o3l@tiscali.nl>
+Cc: travis@sgi.com, Andrew Morton <akpm@linux-foundation.org>, Andi Kleen <ak@suse.de>, Christoph Lameter <clameter@sgi.com>, Jack Steiner <steiner@sgi.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On 24.09.2007 [16:23:46 -0700], Nishanth Aravamudan wrote:
-> On 14.09.2007 [16:33:00 -0400], Lee Schermerhorn wrote:
-> > On Fri, 2007-09-14 at 13:16 -0700, Christoph Lameter wrote:
-> > > On Fri, 14 Sep 2007, Lee Schermerhorn wrote:
-> > > 
-> > > > Yeah, I mistyped...  But, nid IS private to that function.  This is a
-> > > > valid use of static.  But, perhaps it could use a comment to call
-> > > > attention to it.
-> > > 
-> > > I think its best to move nis outside of the function and give it a longer 
-> > > name that is distinctive from names we use for local variables. F.e.
-> > > 
-> > > last_allocated_node
-> > > 
-> > > ?
-> > 
-> > I do like to see variables' [and functions'] visibility kept within
-> > the minimum necessary scope, and moving it outside of the function
-> > violates this.  Nothing else in the source file needs it.  But, If
-> > Nish agrees, I guess I don't feel that strongly about it.  I like the
-> > suggested name, tho'
-> 
-> I've changed the name, but I don't see how moving the scope helps. I
-> guess I could it make it globally static -- as opposed to local to the
-> function -- and then it would be easier to dequeue based upon the
-> global's value (something Lee asked for earlier). However, that would
-> require locking to avoid races between two processes both echo'ing
-> values into the sysctl? I guess it's not a serious race with the sanity
-> check that Andrew has in there, it just means sometimes a node might get
-> skipped in the interleaving...
+<excessive quoting trimmed, please don't quote 40K of text
+ to add a single line reply>
 
-err, not skipped, but allocated to twice. Then again, we already have a
-comment to that effect now. So I'll go ahead and test this out.
+On Tue, Sep 25, 2007 at 12:01:56AM +0200, roel wrote:
 
-Thanks,
-Nish
+ > > --- a/arch/i386/kernel/cpu/cpufreq/powernow-k6.c
+ > > +++ b/arch/i386/kernel/cpu/cpufreq/powernow-k6.c
+ > > @@ -215,7 +215,7 @@ static struct cpufreq_driver powernow_k6
+ > >   */
+ > >  static int __init powernow_k6_init(void)
+ > >  {
+ > > -	struct cpuinfo_x86      *c = cpu_data;
+ > > +	struct cpuinfo_x86 *c = &cpu_data(0);
+ > >  
+ > >  	if ((c->x86_vendor != X86_VENDOR_AMD) || (c->x86 != 5) ||
+ > >  		((c->x86_model != 12) && (c->x86_model != 13)))
+ > 
+ > while we're at it, we could change this to
+ > 
+ >   	if (!(c->x86_vendor == X86_VENDOR_AMD && c->x86 == 5 &&
+ >   		(c->x86_model == 12 || c->x86_model == 13)))
+
+For what purpose?  There's nothing wrong with the code as it stands,
+and inverting the tests means we'd have to move a bunch of
+code inside the if arm instead of just returning -ENODEV.
+
+	Dave
 
 -- 
-Nishanth Aravamudan <nacc@us.ibm.com>
-IBM Linux Technology Center
+http://www.codemonkey.org.uk
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
