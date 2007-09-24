@@ -1,41 +1,28 @@
-Date: Mon, 24 Sep 2007 12:05:56 -0700 (PDT)
+Date: Mon, 24 Sep 2007 12:07:44 -0700 (PDT)
 From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [patch -mm 4/5] mm: test and set zone reclaim lock before starting
- reclaim
-In-Reply-To: <alpine.DEB.0.9999.0709212312560.13727@chino.kir.corp.google.com>
-Message-ID: <Pine.LNX.4.64.0709241202280.29673@schroedinger.engr.sgi.com>
-References: <alpine.DEB.0.9999.0709212311130.13727@chino.kir.corp.google.com>
- <alpine.DEB.0.9999.0709212312160.13727@chino.kir.corp.google.com>
- <alpine.DEB.0.9999.0709212312400.13727@chino.kir.corp.google.com>
- <alpine.DEB.0.9999.0709212312560.13727@chino.kir.corp.google.com>
+Subject: Re: [PATCH 1/4] hugetlb: search harder for memory in alloc_fresh_huge_page()
+In-Reply-To: <20070924162220.GA26104@us.ibm.com>
+Message-ID: <Pine.LNX.4.64.0709241207220.29673@schroedinger.engr.sgi.com>
+References: <20070906182134.GA7779@us.ibm.com> <20070914172638.GT24941@us.ibm.com>
+ <Pine.LNX.4.64.0709141041390.15683@schroedinger.engr.sgi.com>
+ <20070924162220.GA26104@us.ibm.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <andrea@suse.de>, linux-mm@kvack.org
+To: Nishanth Aravamudan <nacc@us.ibm.com>
+Cc: wli@holomorphy.com, agl@us.ibm.com, lee.schermerhorn@hp.com, akpm@linux-foundation.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Sat, 22 Sep 2007, David Rientjes wrote:
+On Mon, 24 Sep 2007, Nishanth Aravamudan wrote:
 
-> +++ b/include/linux/mmzone.h
-> @@ -320,6 +320,10 @@ static inline void zone_set_flag(struct zone *zone, zone_flags_t flag)
->  {
->  	set_bit(flag, &zone->flags);
->  }
-> +static inline int zone_test_and_set_flag(struct zone *zone, zone_flags_t flag)
-> +{
-> +	return test_and_set_bit(flag, &zone->flags);
-> +}
+> Yes, I'll keep tracking -mm with my series. I wonder, though, if it
+> would be possible to at least get the bugfixes for memoryless nodes in
+> hugetlb code (patches 1 and 2) in to -mm sooner rather than later (I can
+> fix your issues with the static variable, I hope). The other two patches
+> are more feature-like, so can be postponed for now.
 
-Missing blank line.
-
->  static inline void zone_clear_flag(struct zone *zone, zone_flags_t flag)
->  {
->  	clear_bit(flag, &zone->flags);
-> diff --git a/mm/vmscan.c b/mm/vmscan.c
-
-The rest looks fine.
+Sure. Please post them and CC me.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
