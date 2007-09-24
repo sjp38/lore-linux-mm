@@ -1,28 +1,43 @@
-Date: Mon, 24 Sep 2007 12:07:44 -0700 (PDT)
-From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [PATCH 1/4] hugetlb: search harder for memory in alloc_fresh_huge_page()
-In-Reply-To: <20070924162220.GA26104@us.ibm.com>
-Message-ID: <Pine.LNX.4.64.0709241207220.29673@schroedinger.engr.sgi.com>
-References: <20070906182134.GA7779@us.ibm.com> <20070914172638.GT24941@us.ibm.com>
- <Pine.LNX.4.64.0709141041390.15683@schroedinger.engr.sgi.com>
- <20070924162220.GA26104@us.ibm.com>
+Date: Mon, 24 Sep 2007 12:14:13 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [patch -mm 4/5] mm: test and set zone reclaim lock before starting
+ reclaim
+In-Reply-To: <Pine.LNX.4.64.0709241202280.29673@schroedinger.engr.sgi.com>
+Message-ID: <alpine.DEB.0.9999.0709241211240.16397@chino.kir.corp.google.com>
+References: <alpine.DEB.0.9999.0709212311130.13727@chino.kir.corp.google.com> <alpine.DEB.0.9999.0709212312160.13727@chino.kir.corp.google.com> <alpine.DEB.0.9999.0709212312400.13727@chino.kir.corp.google.com> <alpine.DEB.0.9999.0709212312560.13727@chino.kir.corp.google.com>
+ <Pine.LNX.4.64.0709241202280.29673@schroedinger.engr.sgi.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nishanth Aravamudan <nacc@us.ibm.com>
-Cc: wli@holomorphy.com, agl@us.ibm.com, lee.schermerhorn@hp.com, akpm@linux-foundation.org, linux-mm@kvack.org
+To: Christoph Lameter <clameter@sgi.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <andrea@suse.de>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 24 Sep 2007, Nishanth Aravamudan wrote:
+On Mon, 24 Sep 2007, Christoph Lameter wrote:
 
-> Yes, I'll keep tracking -mm with my series. I wonder, though, if it
-> would be possible to at least get the bugfixes for memoryless nodes in
-> hugetlb code (patches 1 and 2) in to -mm sooner rather than later (I can
-> fix your issues with the static variable, I hope). The other two patches
-> are more feature-like, so can be postponed for now.
+> > +++ b/include/linux/mmzone.h
+> > @@ -320,6 +320,10 @@ static inline void zone_set_flag(struct zone *zone, zone_flags_t flag)
+> >  {
+> >  	set_bit(flag, &zone->flags);
+> >  }
+> > +static inline int zone_test_and_set_flag(struct zone *zone, zone_flags_t flag)
+> > +{
+> > +	return test_and_set_bit(flag, &zone->flags);
+> > +}
+> 
+> Missing blank line.
+> 
 
-Sure. Please post them and CC me.
+The only blank line for inlined functions added to mmzone.h for zone 
+flag support is between the generic flavors that set, test and set, or 
+clear the flags and the explicit flavors that test specific bits; so this 
+newline behavior is correct as written.
+
+I was hoping to avoid doing things like
+
+	#define ZoneSetReclaimLocked(zone)	zone_set_flag((zone),	\
+							ZONE_RECLAIM_LOCKED)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
