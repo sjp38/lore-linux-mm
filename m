@@ -1,85 +1,56 @@
-Date: Mon, 24 Sep 2007 13:11:40 -0700 (PDT)
-From: Christoph Lameter <clameter@sgi.com>
+Date: Mon, 24 Sep 2007 14:02:58 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
 Subject: Re: [patch -mm 4/5] mm: test and set zone reclaim lock before starting
  reclaim
 In-Reply-To: <alpine.DEB.0.9999.0709241211240.16397@chino.kir.corp.google.com>
-Message-ID: <Pine.LNX.4.64.0709241309120.30222@schroedinger.engr.sgi.com>
-References: <alpine.DEB.0.9999.0709212311130.13727@chino.kir.corp.google.com>
- <alpine.DEB.0.9999.0709212312160.13727@chino.kir.corp.google.com>
- <alpine.DEB.0.9999.0709212312400.13727@chino.kir.corp.google.com>
- <alpine.DEB.0.9999.0709212312560.13727@chino.kir.corp.google.com>
- <Pine.LNX.4.64.0709241202280.29673@schroedinger.engr.sgi.com>
- <alpine.DEB.0.9999.0709241211240.16397@chino.kir.corp.google.com>
+Message-ID: <alpine.DEB.0.9999.0709241402480.22430@chino.kir.corp.google.com>
+References: <alpine.DEB.0.9999.0709212311130.13727@chino.kir.corp.google.com> <alpine.DEB.0.9999.0709212312160.13727@chino.kir.corp.google.com> <alpine.DEB.0.9999.0709212312400.13727@chino.kir.corp.google.com> <alpine.DEB.0.9999.0709212312560.13727@chino.kir.corp.google.com>
+ <Pine.LNX.4.64.0709241202280.29673@schroedinger.engr.sgi.com> <alpine.DEB.0.9999.0709241211240.16397@chino.kir.corp.google.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: David Rientjes <rientjes@google.com>
+To: Christoph Lameter <clameter@sgi.com>
 Cc: Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <andrea@suse.de>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 24 Sep 2007, David Rientjes wrote:
+Add newlines between new zone flag tester/modifier functions.
 
-> > > +static inline int zone_test_and_set_flag(struct zone *zone, zone_flags_t flag)
-> > > +{
-> > > +	return test_and_set_bit(flag, &zone->flags);
-> > > +}
-> > 
-> > Missing blank line.
-> > 
-> 
-> The only blank line for inlined functions added to mmzone.h for zone 
-> flag support is between the generic flavors that set, test and set, or 
-> clear the flags and the explicit flavors that test specific bits; so this 
-> newline behavior is correct as written.
-> 
-> I was hoping to avoid doing things like
-> 
-> 	#define ZoneSetReclaimLocked(zone)	zone_set_flag((zone),	\
-> 							ZONE_RECLAIM_LOCKED)
+Cc: Christoph Lameter <clameter@sgi.com>
+Signed-off-by: David Rientjes <rientjes@google.com>
+---
+ include/linux/mmzone.h |    4 ++++
+ 1 files changed, 4 insertions(+), 0 deletions(-)
 
-Not sure what the #define is supposed to tell me.
-
-Please add the corresponding blank lines at the end of functions. One 
-function seems to be running into the next.
-
-It should look like the rest of mmzone.h:
-
-static inline struct page *__section_mem_map_addr(struct mem_section *section)
-{
-        unsigned long map = section->section_mem_map;
-        map &= SECTION_MAP_MASK;
-        return (struct page *)map;
-}
-
-static inline int valid_section(struct mem_section *section)
-{
-        return (section && (section->section_mem_map & SECTION_MARKED_PRESENT));
-}
-
-static inline int section_has_mem_map(struct mem_section *section)
-{
-        return (section && (section->section_mem_map & SECTION_HAS_MEM_MAP));
-}
-
-static inline int valid_section_nr(unsigned long nr)
-{
-        return valid_section(__nr_to_section(nr));
-}
-
-static inline struct mem_section *__pfn_to_section(unsigned long pfn)
-{
-        return __nr_to_section(pfn_to_section_nr(pfn));
-}
-
-static inline int pfn_valid(unsigned long pfn)
-{
-        if (pfn_to_section_nr(pfn) >= NR_MEM_SECTIONS)
-                return 0;
-        return valid_section(__nr_to_section(pfn_to_section_nr(pfn)));
-}
-
-Note that there is a empty line at the end of each function.
+diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
+--- a/include/linux/mmzone.h
++++ b/include/linux/mmzone.h
+@@ -320,10 +320,12 @@ static inline void zone_set_flag(struct zone *zone, zone_flags_t flag)
+ {
+ 	set_bit(flag, &zone->flags);
+ }
++
+ static inline int zone_test_and_set_flag(struct zone *zone, zone_flags_t flag)
+ {
+ 	return test_and_set_bit(flag, &zone->flags);
+ }
++
+ static inline void zone_clear_flag(struct zone *zone, zone_flags_t flag)
+ {
+ 	clear_bit(flag, &zone->flags);
+@@ -333,10 +335,12 @@ static inline int zone_is_all_unreclaimable(const struct zone *zone)
+ {
+ 	return test_bit(ZONE_ALL_UNRECLAIMABLE, &zone->flags);
+ }
++
+ static inline int zone_is_reclaim_locked(const struct zone *zone)
+ {
+ 	return test_bit(ZONE_RECLAIM_LOCKED, &zone->flags);
+ }
++
+ static inline int zone_is_oom_locked(const struct zone *zone)
+ {
+ 	return test_bit(ZONE_OOM_LOCKED, &zone->flags);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
