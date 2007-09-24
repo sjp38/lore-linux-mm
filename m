@@ -1,56 +1,29 @@
-Message-Id: <20070924210853.256462000@sgi.com>
-Date: Mon, 24 Sep 2007 14:08:53 -0700
-From: travis@sgi.com
-Subject: [PATCH 0/1] x86: Convert cpuinfo_x86 array to a per_cpu array v3
+Date: Mon, 24 Sep 2007 14:09:19 -0700 (PDT)
+From: Christoph Lameter <clameter@sgi.com>
+Subject: Re: [patch -mm 4/5] mm: test and set zone reclaim lock before starting
+ reclaim
+In-Reply-To: <alpine.DEB.0.9999.0709241402480.22430@chino.kir.corp.google.com>
+Message-ID: <Pine.LNX.4.64.0709241409060.30982@schroedinger.engr.sgi.com>
+References: <alpine.DEB.0.9999.0709212311130.13727@chino.kir.corp.google.com>
+ <alpine.DEB.0.9999.0709212312160.13727@chino.kir.corp.google.com>
+ <alpine.DEB.0.9999.0709212312400.13727@chino.kir.corp.google.com>
+ <alpine.DEB.0.9999.0709212312560.13727@chino.kir.corp.google.com>
+ <Pine.LNX.4.64.0709241202280.29673@schroedinger.engr.sgi.com>
+ <alpine.DEB.0.9999.0709241211240.16397@chino.kir.corp.google.com>
+ <alpine.DEB.0.9999.0709241402480.22430@chino.kir.corp.google.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>, Andi Kleen <ak@suse.de>
-Cc: Christoph Lameter <clameter@sgi.com>, Jack Steiner <steiner@sgi.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: David Rientjes <rientjes@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <andrea@suse.de>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-v3: fix compile errors in arch-i386-allmodconfig build
+On Mon, 24 Sep 2007, David Rientjes wrote:
 
-v2: rebasing on 2.6.23-rc6-mm1
+> Add newlines between new zone flag tester/modifier functions.
 
-Analyzing various data structures when NR_CPU count is raised
-to 4096 shows the following arrays over 128k.  If the maximum
-number of cpus are not installed (about 99.99% of the time),
-then a large percentage of this memory is wasted.
---
-	151289856  CALNDATA  irq_desc
-	135530496  RMDATATA  irq_cfg
-	  3145728  CALNDATA  cpu_data
-	  2101248  BSS       irq_lists
-	  2097152  RMDATATA  cpu_sibling_map
-	  2097152  RMDATATA  cpu_core_map
-	  1575936  BSS       irq_2_pin
-	  1050624  BSS       irq_timer_state
-	   614400  INITDATA  early_node_map
-	   525376  PERCPU    per_cpu__kstat
-	   524608  DATA      unix_proto
-	   524608  DATA      udpv6_prot
-	   524608  DATA      udplitev6_prot
-	   524608  DATA      udplite_prot
-	   524608  DATA      udp_prot
-	   524608  DATA      tcpv6_prot
-	   524608  DATA      tcp_prot
-	   524608  DATA      rawv6_prot
-	   524608  DATA      raw_prot
-	   524608  DATA      packet_proto
-	   524608  DATA      netlink_proto
-	   524288  BSS       cpu_devices
-	   524288  BSS       boot_pageset
-	   524288  CALNDATA  boot_cpu_pda
-	   262144  RMDATATA  node_to_cpumask
-	   262144  BSS       __log_buf
-	   131072  BSS       entries
-
-cpu_sibling_map and cpu_core_map have been taken care of in
-a prior patch.  This patch deals with the cpu_data array of
-cpuinfo_x86 structs.  The model that was used in sparc64
-architecture was adopted for x86.
-
--- 
+Acked-by: Christoph Lameter <clameter@sgi.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
