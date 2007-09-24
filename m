@@ -1,50 +1,65 @@
-Received: from d03relay04.boulder.ibm.com (d03relay04.boulder.ibm.com [9.17.195.106])
-	by e35.co.us.ibm.com (8.13.8/8.13.8) with ESMTP id l8OGMMw7013281
-	for <linux-mm@kvack.org>; Mon, 24 Sep 2007 12:22:22 -0400
-Received: from d03av04.boulder.ibm.com (d03av04.boulder.ibm.com [9.17.195.170])
-	by d03relay04.boulder.ibm.com (8.13.8/8.13.8/NCO v8.5) with ESMTP id l8OGMMYA416104
-	for <linux-mm@kvack.org>; Mon, 24 Sep 2007 10:22:22 -0600
-Received: from d03av04.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av04.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l8OGMLqw018391
-	for <linux-mm@kvack.org>; Mon, 24 Sep 2007 10:22:21 -0600
-Date: Mon, 24 Sep 2007 09:22:20 -0700
-From: Nishanth Aravamudan <nacc@us.ibm.com>
-Subject: Re: [PATCH 1/4] hugetlb: search harder for memory in alloc_fresh_huge_page()
-Message-ID: <20070924162220.GA26104@us.ibm.com>
-References: <20070906182134.GA7779@us.ibm.com> <20070914172638.GT24941@us.ibm.com> <Pine.LNX.4.64.0709141041390.15683@schroedinger.engr.sgi.com>
+Message-ID: <46F7F25B.6010706@sgi.com>
+Date: Mon, 24 Sep 2007 10:22:35 -0700
+From: Mike Travis <travis@sgi.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <Pine.LNX.4.64.0709141041390.15683@schroedinger.engr.sgi.com>
+Subject: Re: [PATCH 1/1] x86: Convert cpuinfo_x86 array to a per_cpu array
+ v2
+References: <20070920213004.527735000@sgi.com>	<20070920213004.781159000@sgi.com> <20070921154622.c6920dcf.akpm@linux-foundation.org>
+In-Reply-To: <20070921154622.c6920dcf.akpm@linux-foundation.org>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
-Cc: wli@holomorphy.com, agl@us.ibm.com, lee.schermerhorn@hp.com, akpm@linux-foundation.org, linux-mm@kvack.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Andi Kleen <ak@suse.de>, Christoph Lameter <clameter@sgi.com>, Jack Steiner <steiner@sgi.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On 14.09.2007 [10:43:20 -0700], Christoph Lameter wrote:
-> On Fri, 14 Sep 2007, Nishanth Aravamudan wrote:
+Andrew Morton wrote:
+> On Thu, 20 Sep 2007 14:30:05 -0700
+> travis@sgi.com wrote:
 > 
-> > Christoph, Lee, ping? I haven't heard any response on these patches this
-> > time around. Would it be acceptable to ask Andrew to pick them up for
-> > the next -mm?
+>> cpu_data is currently an array defined using NR_CPUS. This means that
+>> we overallocate since we will rarely really use maximum configured cpus.
+>> When NR_CPU count is raised to 4096 the size of cpu_data becomes
+>> 3,145,728 bytes.
 > 
-> I am sorry but there is some churn already going on with other core
-> memory management patches. Could we hold this off until the dust
-> settles on those and then rebase?
+> This has at least three quite obvious and careless compilation errors.
+> 
+> Please at least compile the code after you've altered it.
+> 
 
-Yes, I'll keep tracking -mm with my series. I wonder, though, if it
-would be possible to at least get the bugfixes for memoryless nodes in
-hugetlb code (patches 1 and 2) in to -mm sooner rather than later (I can
-fix your issues with the static variable, I hope). The other two patches
-are more feature-like, so can be postponed for now.
+Sorry for the build errors, my test build scripts obviously were missing
+a critical kernel variant to test build.  I've fixed that omission and
+increased the test build matrix significantly:
+
+arch-i386-allmodconfig
+arch-i386-allnoconfig
+arch-i386-allyesconfig
+arch-i386-defconfig
+arch-i386-nomodconfig
+arch-i386-nosmp
+arch-i386-randconfig-1
+arch-i386-randconfig-2
+arch-i386-randconfig-3
+arch-i386-randconfig-4
+arch-i386-randconfig-5
+arch-i386-smp
+arch-x86_64-allmodconfig
+arch-x86_64-allnoconfig
+arch-x86_64-allyesconfig
+arch-x86_64-nomodconfig
+arch-x86_64-nosmp
+arch-x86_64-randconfig-1
+arch-x86_64-randconfig-2
+arch-x86_64-randconfig-3
+arch-x86_64-randconfig-4
+arch-x86_64-randconfig-5
+arch-x86_64-smp
+
+A corrected patch follows.
 
 Thanks,
-Nish
-
--- 
-Nishanth Aravamudan <nacc@us.ibm.com>
-IBM Linux Technology Center
+Mike
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
