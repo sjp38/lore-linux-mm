@@ -1,72 +1,104 @@
-From: "Andrew Desire" <hsq9etf@laposte.net>
-Subject: Rolex Replica, Fake Rolex Watches, Cartier, Omega, IWC, Swiss Replica Watches six
-Message-ID: <2960m49222.08029q16910715@laposte.net>
-Date: Sat, 22 Sep 2007 23:38:58 -0600
+Date: Mon, 24 Sep 2007 10:08:01 +0100
+From: " Royal Kasino " <stimulatory@ultrapostman.com>
+Subject: Zahlen Sie 100 Euro ein und spielen Sie mit 400 Euro
+Message-ID: <19453353.20901196@leigh.com>
 MIME-Version: 1.0
-Content-Type: multipart/alternative;
-	boundary="--nhaurqxtxgd910a2frb7g4yu38nvo4e1"
-Return-Path: <nzo4usox@mail.wplus.net>
-To: linux-mm@kvack.org
+Content-Type: text/html; charset=iso-8859-1
+Content-Transfer-Encoding: 7bit
+Return-Path: <stimulatory@ultrapostman.com>
+To: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-----nhaurqxtxgd910a2frb7g4yu38nvo4e1
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
-
-Super Branded Watches (85% Price Off)  
-
-: RolexMen
-: RolexLady  
-: Alain Silberstein   
-: Audemars Piguet
-: Breitling   
-: Bvlgari 
-: Cartier    
-: Chanel
-: Chopard
-: Franck Muller 
-: IWC   
-: Jaeger-Lecoultre   
-: Omega 
-: Panerai Luminor 
-: Patek Philippe  
-: Tag Heuer     
-
-Only from $189 Each :- Click below link
- 
-http://rmwijw.kypatriot.com
-http://rjaqvy.kypatriot.com
-
-----nhaurqxtxgd910a2frb7g4yu38nvo4e1
-Content-Type: text/html; charset=us-ascii
-Content-Transfer-Encoding: 7bit
-
 <html>
-<head>
-<meta http-equiv="Content-Type" content="text; charset=iso-8859-1">
-</head><body><center>
-<table border=0 cellspacing=0 cellpadding=2><td bgcolor=000000 align=left><font size=3 face=arial color=FF00FF>
-<font size=5 color=00FF00><b><center>Super Branded Watches (85% Price Off)</center></font></td>
-</tr><tr><td align=center bgcolor=FFFFC6>
-<table border=0 cellspacing=0 cellpadding=3 width=520><tr><td width=25% valign=top bgcolor=ECFD8C>
-<font face=arial size=3 color=FF0000>RolexMen<br>RolexLady<br>Alain 
-Silberstein<br>Audemars Piguet
-<br></font></td><td width=25% valign=top bgcolor=D5FCFF><font face=arial size=3 color=0000FF>Breitling
-<br>Bvlgari<br>Cartier<br>Chanel<br></font>
-</td>
-<td width=25% valign=top bgcolor=ECFD8C><font face=arial size=3 color=FF0000>Chopard
-<br>Franck Muller<br>IWC<br>Jaeger-Lecoultre<br></font>
-</td>
-<td width=25% valign=top bgcolor=D5FCFF>
-<font face=arial size=3 color=0000FF>Omega<br>
-Panerai Luminor<br>Patek Philippe
-<br>
-Tag Heuer<br></font></td></tr></table>
-<center><b><font size=5 face=arial color=970097>
-Only from $189 Each :- Click below link
-<br><a href=http://rrgbdh.kypatriot.com target=_blank><font color=FF1515 size=6><u>[Link 1]</u>
-</a></font> &emsp; &emsp; <a href=http://rznfy.kypatriot.com target=_blank><font color=FF1515 size=6><u>[Link 2]</font></u>
-</font></a><br></b></center></td></tr></table><font color=7F7F7F size=1>central need music his fill son.</font>
-</center></body></html>
 
-----nhaurqxtxgd910a2frb7g4yu38nvo4e1--
+<head>
+<meta http-equiv=Content-Type content="text/html; charset=iso-8859-1">
+
+<title>Online </title>
+
+<style>
+<!--
+ /* Style Definitions */
+ p.MsoNormal, li.MsoNormal, div.MsoNormal
+	{mso-style-parent:"";
+	margin:0cm;
+	margin-bottom:.0001pt;
+	mso-pagination:widow-orphan;
+	font-size:12.0pt;
+	font-family:"Times New Roman";
+	mso-fareast-font-family:"Times New Roman";}
+a:link, span.MsoHyperlink
+	{color:blue;
+	text-decoration:underline;
+	text-underline:single;}
+a:visited, span.MsoHyperlinkFollowed
+	{color:purple;
+	text-decoration:underline;
+	text-underline:single;}
+@page Section1
+	{size:595.3pt 841.9pt;
+	margin:2.0cm 42.5pt 2.0cm 3.0cm;
+	mso-header-margin:35.4pt;
+	mso-footer-margin:35.4pt;
+	mso-paper-source:0;}
+div.Section1
+	{page:Section1;}
+-->
+</style>
+
+</head>
+
+<body lang=DE link=blue vlink=purple style='tab-interval:35.4pt'>
+
+<div class=Section1>
+
+<p class=MsoNormal>Online 
+Casinos sind dafuer bekannt, ihren Spielern, 
+gro&#223;z&uuml;gige Ersteinzahlungsbonusse zu geben.
+<o:p></o:p></p>
+
+<p class=MsoNormal><o:p>&nbsp;</o:p></p>
+
+<p class=MsoNormal><span lang=EN-US style='mso-ansi-language:EN-US'>
+Aber einen so grossen Bonus 
+haben Sie noch nie erhalten!<o:p></o:p></span></p>
+
+<p class=MsoNormal><span lang=EN-US style='mso-ansi-language:EN-US'>
+<o:p>&nbsp;</o:p></span></p>
+
+<p class=MsoNormal><span lang=EN-US style='mso-ansi-language:EN-US'>
+300% Bonus auf Ihre erste Einzahlung auf bis zu 
+300&euro; Bonus!<o:p></o:p></span></p>
+
+<p class=MsoNormal><span lang=EN-US style='mso-ansi-language:EN-US'>
+<o:p>&nbsp;</o:p></span></p>
+
+<p class=MsoNormal><span lang=EN-US style='mso-ansi-language:EN-US'>
+Ein echt k&ouml;niglicher Bonus!
+<o:p></o:p></span></p>
+
+<p class=MsoNormal><span lang=EN-US style='mso-ansi-language:EN-US'>
+<o:p>&nbsp;</o:p></span></p>
+
+<p class=MsoNormal><span lang=EN-US style='mso-ansi-language:EN-US'>
+Royal Euro 
+Casino bietet Ihnen die neueste Generatin an 
+Software und eine elegante gaming Atmosph&auml;re. Mit einer Auswahl 
+an &uuml;ber 100 Casino Spielen und einer immer 
+verf&uuml;gbaren Kundenbetreuung kann man 
+nicht mehr verlangen.
+<o:p></o:p></span></p>
+
+<p class=MsoNormal><span lang=EN-US style='mso-ansi-language:EN-US'>
+<o:p>&nbsp;</o:p></span></p>
+
+<p class=MsoNormal><a href="http://royal2007casino.com/lang-de/">
+http://royal2007casino.com/lang-de/</a>
+<span lang=EN-US style='mso-ansi-language:EN-US'>
+<o:p></o:p></span></p>
+
+</div>
+
+</body>
+
+</html>
