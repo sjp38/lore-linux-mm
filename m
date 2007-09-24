@@ -1,104 +1,113 @@
-Date: Mon, 24 Sep 2007 10:08:01 +0100
-From: " Royal Kasino " <stimulatory@ultrapostman.com>
-Subject: Zahlen Sie 100 Euro ein und spielen Sie mit 400 Euro
-Message-ID: <19453353.20901196@leigh.com>
-MIME-Version: 1.0
-Content-Type: text/html; charset=iso-8859-1
-Content-Transfer-Encoding: 7bit
-Return-Path: <stimulatory@ultrapostman.com>
-To: owner-linux-mm@kvack.org
+Received: from d03relay02.boulder.ibm.com (d03relay02.boulder.ibm.com [9.17.195.227])
+	by e35.co.us.ibm.com (8.13.8/8.13.8) with ESMTP id l8OFkgc1000975
+	for <linux-mm@kvack.org>; Mon, 24 Sep 2007 11:46:42 -0400
+Received: from d03av04.boulder.ibm.com (d03av04.boulder.ibm.com [9.17.195.170])
+	by d03relay02.boulder.ibm.com (8.13.8/8.13.8/NCO v8.5) with ESMTP id l8OFkdaS487720
+	for <linux-mm@kvack.org>; Mon, 24 Sep 2007 09:46:40 -0600
+Received: from d03av04.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av04.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l8OFkdNT002200
+	for <linux-mm@kvack.org>; Mon, 24 Sep 2007 09:46:39 -0600
+From: Adam Litke <agl@us.ibm.com>
+Subject: [PATCH 0/4] [hugetlb] Dynamic huge page pool resizing
+Date: Mon, 24 Sep 2007 08:46:38 -0700
+Message-Id: <20070924154638.7565.86666.stgit@kernel>
+Content-Type: text/plain; charset=utf-8; format=fixed
+Content-Transfer-Encoding: 8bit
+Sender: owner-linux-mm@kvack.org
+Return-Path: <owner-linux-mm@kvack.org>
+To: linux-mm@kvack.org
+Cc: libhugetlbfs-devel@lists.sourceforge.net, Adam Litke <agl@us.ibm.com>, Andy Whitcroft <apw@shadowen.org>, Mel Gorman <mel@skynet.ie>, Bill Irwin <bill.irwin@oracle.com>, Ken Chen <kenchen@google.com>, Dave McCracken <dave.mccracken@oracle.com>
 List-ID: <linux-mm.kvack.org>
 
-<html>
 
-<head>
-<meta http-equiv=Content-Type content="text/html; charset=iso-8859-1">
+Fourth Release:
+***
+This version includes fixes to a few bugs found through review.  Also, the
+explicit pool resizing code has been updated to make use of the surplus
+counters.  When shrinking the pool below the committed size, the surplus will
+be elevated so that committed pages will be released when they are freed.  When
+expanding the pool, surplus pages will be consumed before any fresh huge pages
+are allocated.
+***
 
-<title>Online </title>
+In most real-world scenarios, configuring the size of the hugetlb pool
+correctly is a difficult task.  If too few pages are allocated to the pool,
+applications using MAP_SHARED may fail to mmap() a hugepage region and
+applications using MAP_PRIVATE may receive SIGBUS.  Isolating too much memory
+in the hugetlb pool means it is not available for other uses, especially those
+programs not using huge pages.
 
-<style>
-<!--
- /* Style Definitions */
- p.MsoNormal, li.MsoNormal, div.MsoNormal
-	{mso-style-parent:"";
-	margin:0cm;
-	margin-bottom:.0001pt;
-	mso-pagination:widow-orphan;
-	font-size:12.0pt;
-	font-family:"Times New Roman";
-	mso-fareast-font-family:"Times New Roman";}
-a:link, span.MsoHyperlink
-	{color:blue;
-	text-decoration:underline;
-	text-underline:single;}
-a:visited, span.MsoHyperlinkFollowed
-	{color:purple;
-	text-decoration:underline;
-	text-underline:single;}
-@page Section1
-	{size:595.3pt 841.9pt;
-	margin:2.0cm 42.5pt 2.0cm 3.0cm;
-	mso-header-margin:35.4pt;
-	mso-footer-margin:35.4pt;
-	mso-paper-source:0;}
-div.Section1
-	{page:Section1;}
--->
-</style>
+The obvious answer is to let the hugetlb pool grow and shrink in response to
+the runtime demand for huge pages.  The work Mel Gorman has been doing to
+establish a memory zone for movable memory allocations makes dynamically
+resizing the hugetlb pool reliable within the limits of that zone.  This patch
+series implements dynamic pool resizing for private and shared mappings while
+being careful to maintain existing semantics.  Please reply with your comments
+and feedback; even just to say whether it would be a useful feature to you.
+Thanks.
 
-</head>
+How it works
+============
 
-<body lang=DE link=blue vlink=purple style='tab-interval:35.4pt'>
+Upon depletion of the hugetlb pool, rather than reporting an error immediately,
+first try and allocate the needed huge pages directly from the buddy allocator.
+Care must be taken to avoid unbounded growth of the hugetlb pool, so the
+hugetlb filesystem quota is used to limit overall pool size.
 
-<div class=Section1>
+The real work begins when we decide there is a shortage of huge pages.  What
+happens next depends on whether the pages are for a private or shared mapping.
+Private mappings are straightforward.  At fault time, if alloc_huge_page()
+fails, we allocate a page from the buddy allocator and increment the source
+node's surplus_huge_pages counter.  When free_huge_page() is called for a page
+on a node with a surplus, the page is freed directly to the buddy allocator
+instead of the hugetlb pool.
 
-<p class=MsoNormal>Online 
-Casinos sind dafuer bekannt, ihren Spielern, 
-gro&#223;z&uuml;gige Ersteinzahlungsbonusse zu geben.
-<o:p></o:p></p>
+Because shared mappings require all of the pages to be reserved up front, some
+additional work must be done at mmap() to support them.  We determine the
+reservation shortage and allocate the required number of pages all at once.
+These pages are then added to the hugetlb pool and marked reserved.  Where that
+is not possible the mmap() will fail.  As with private mappings, the
+appropriate surplus counters are updated.  Since reserved huge pages won't
+necessarily be used by the process, we can't be sure that free_huge_page() will
+always be called to return surplus pages to the buddy allocator.  To prevent
+the huge page pool from bloating, we must free unused surplus pages when their
+reservation has ended.
 
-<p class=MsoNormal><o:p>&nbsp;</o:p></p>
+Controlling it
+==============
 
-<p class=MsoNormal><span lang=EN-US style='mso-ansi-language:EN-US'>
-Aber einen so grossen Bonus 
-haben Sie noch nie erhalten!<o:p></o:p></span></p>
+With the entire patch series applied, pool resizing is off by default so unless
+specific action is taken, the semantics are unchanged.
 
-<p class=MsoNormal><span lang=EN-US style='mso-ansi-language:EN-US'>
-<o:p>&nbsp;</o:p></span></p>
+To take advantage of the flexibility afforded by this patch series one must
+tolerate a change in semantics.  To control hugetlb pool growth, the following
+techniques can be employed:
 
-<p class=MsoNormal><span lang=EN-US style='mso-ansi-language:EN-US'>
-300% Bonus auf Ihre erste Einzahlung auf bis zu 
-300&euro; Bonus!<o:p></o:p></span></p>
+ * A sysctl tunable to enable/disable the feature entirely
+ * The size= mount option for hugetlbfs filesystems to limit pool size
 
-<p class=MsoNormal><span lang=EN-US style='mso-ansi-language:EN-US'>
-<o:p>&nbsp;</o:p></span></p>
+Changelog
+=========
 
-<p class=MsoNormal><span lang=EN-US style='mso-ansi-language:EN-US'>
-Ein echt k&ouml;niglicher Bonus!
-<o:p></o:p></span></p>
+9/24/2007 - Version 4
+ - Smart handling of surplus pages when explictly resizing the pool
+ - Fixed some counting bugs found in patch review
 
-<p class=MsoNormal><span lang=EN-US style='mso-ansi-language:EN-US'>
-<o:p>&nbsp;</o:p></span></p>
+9/17/2007 - Version 3
+ - fixed gather_surplus_pages 'needed' check
+ - Removed 'locked_vm' changes from this series since that is really a
+   separate logical change
 
-<p class=MsoNormal><span lang=EN-US style='mso-ansi-language:EN-US'>
-Royal Euro 
-Casino bietet Ihnen die neueste Generatin an 
-Software und eine elegante gaming Atmosph&auml;re. Mit einer Auswahl 
-an &uuml;ber 100 Casino Spielen und einer immer 
-verf&uuml;gbaren Kundenbetreuung kann man 
-nicht mehr verlangen.
-<o:p></o:p></span></p>
+9/12/2007 - Version 2
+ - Integrated the cpuset_mems_nr() best-effort reservation check
+ - Surplus pool allocations respect cpuset and numa policy restrictions
+ - Unused surplus pages that are part of a reservation are freed when the
+   reservation is released
 
-<p class=MsoNormal><span lang=EN-US style='mso-ansi-language:EN-US'>
-<o:p>&nbsp;</o:p></span></p>
+7/13/2007 - Initial Post
 
-<p class=MsoNormal><a href="http://royal2007casino.com/lang-de/">
-http://royal2007casino.com/lang-de/</a>
-<span lang=EN-US style='mso-ansi-language:EN-US'>
-<o:p></o:p></span></p>
-
-</div>
-
-</body>
-
-</html>
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
