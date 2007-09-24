@@ -1,49 +1,63 @@
-Date: Mon, 24 Sep 2007 17:02:02 -0500
-From: Matt Mackall <mpm@selenic.com>
-Subject: Re: + maps2-export-page-index-in-kpagemap.patch added to -mm tree
-Message-ID: <20070924220202.GK19691@waste.org>
-References: <200709242044.l8OKi01e016834@imap1.linux-foundation.org> <20070924205901.GI19691@waste.org> <1190668988.26982.254.camel@localhost> <20070924213549.GJ19691@waste.org> <1190670636.26982.258.camel@localhost>
+Received: from d03relay04.boulder.ibm.com (d03relay04.boulder.ibm.com [9.17.195.106])
+	by e31.co.us.ibm.com (8.13.8/8.13.8) with ESMTP id l8ONNmBP008610
+	for <linux-mm@kvack.org>; Mon, 24 Sep 2007 19:23:48 -0400
+Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
+	by d03relay04.boulder.ibm.com (8.13.8/8.13.8/NCO v8.5) with ESMTP id l8ONNmbE421004
+	for <linux-mm@kvack.org>; Mon, 24 Sep 2007 17:23:48 -0600
+Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av02.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l8ONNlOt029203
+	for <linux-mm@kvack.org>; Mon, 24 Sep 2007 17:23:48 -0600
+Date: Mon, 24 Sep 2007 16:23:46 -0700
+From: Nishanth Aravamudan <nacc@us.ibm.com>
+Subject: Re: [PATCH 3/4] hugetlb: interleave dequeueing of huge pages
+Message-ID: <20070924232346.GE26104@us.ibm.com>
+References: <20070906182134.GA7779@us.ibm.com> <20070906182430.GB7779@us.ibm.com> <20070906182704.GC7779@us.ibm.com> <Pine.LNX.4.64.0709141153360.17038@schroedinger.engr.sgi.com> <1189796638.5315.50.camel@localhost> <Pine.LNX.4.64.0709141241050.17369@schroedinger.engr.sgi.com> <1189800591.5315.69.camel@localhost> <Pine.LNX.4.64.0709141315510.22157@schroedinger.engr.sgi.com> <1189801980.5315.87.camel@localhost>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1190670636.26982.258.camel@localhost>
+In-Reply-To: <1189801980.5315.87.camel@localhost>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Dave Hansen <haveblue@us.ibm.com>
-Cc: akpm@linux-foundation.org, wfg@mail.ustc.edu.cn, balbir@linux.vnet.ibm.com, jjberthels@gmail.com, linux-mm <linux-mm@kvack.org>
+To: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
+Cc: Christoph Lameter <clameter@sgi.com>, wli@holomorphy.com, agl@us.ibm.com, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Sep 24, 2007 at 02:50:36PM -0700, Dave Hansen wrote:
-> On Mon, 2007-09-24 at 16:35 -0500, Matt Mackall wrote:
-> > On Mon, Sep 24, 2007 at 02:23:08PM -0700, Dave Hansen wrote:
-> > > Could someone elaborate a little bit more on exactly why you'd want to
-> > > know which parts of the file are mapped? 
+On 14.09.2007 [16:33:00 -0400], Lee Schermerhorn wrote:
+> On Fri, 2007-09-14 at 13:16 -0700, Christoph Lameter wrote:
+> > On Fri, 14 Sep 2007, Lee Schermerhorn wrote:
 > > 
-> > Google codesearch finds one actual user of remap_file_pages (and
-> > -lots- of false positives) in an obscure webserver, so I think the
-> > answer somehow involves Oracle.
+> > > Yeah, I mistyped...  But, nid IS private to that function.  This is a
+> > > valid use of static.  But, perhaps it could use a comment to call
+> > > attention to it.
+> > 
+> > I think its best to move nis outside of the function and give it a longer 
+> > name that is distinctive from names we use for local variables. F.e.
+> > 
+> > last_allocated_node
+> > 
+> > ?
 > 
-> If you're asking yourself wtf Oracle is doing, I can see how this is
-> helpful.  But, since Oracle has to maintain its own internal mappings of
-> what it remapped, this shouldn't help Oracle itself.
-> 
-> In any case, even if you realize that Oracle is misusing
-> (under-utilizing?) its remapped areas, what do you do?  You have to go
-> dig into Oracle to find out what it was doing.  That is precisely what
-> you would have had to do in the first place without this patch.  I don't
-> quite get what this buys us. 
+> I do like to see variables' [and functions'] visibility kept within
+> the minimum necessary scope, and moving it outside of the function
+> violates this.  Nothing else in the source file needs it.  But, If
+> Nish agrees, I guess I don't feel that strongly about it.  I like the
+> suggested name, tho'
 
-Indeed. In theory, you can do lots of interesting things with
-remap_file_pages, but most of them translate into "kludge to get
-around limited address space".
+I've changed the name, but I don't see how moving the scope helps. I
+guess I could it make it globally static -- as opposed to local to the
+function -- and then it would be easier to dequeue based upon the
+global's value (something Lee asked for earlier). However, that would
+require locking to avoid races between two processes both echo'ing
+values into the sysctl? I guess it's not a serious race with the sanity
+check that Andrew has in there, it just means sometimes a node might get
+skipped in the interleaving...
 
-I think Fengguang is just thinking forward to the next logical step
-here which is "expose what's in the page cache". Which means being
-able to go from page back to device:inode:offset or (better, but
-trickier) path:offset.
+Thanks,
+Nish
 
 -- 
-Mathematics is the supreme nostalgia of our time.
+Nishanth Aravamudan <nacc@us.ibm.com>
+IBM Linux Technology Center
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
