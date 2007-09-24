@@ -1,29 +1,44 @@
-Date: Mon, 24 Sep 2007 14:09:19 -0700 (PDT)
-From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [patch -mm 4/5] mm: test and set zone reclaim lock before starting
- reclaim
-In-Reply-To: <alpine.DEB.0.9999.0709241402480.22430@chino.kir.corp.google.com>
-Message-ID: <Pine.LNX.4.64.0709241409060.30982@schroedinger.engr.sgi.com>
-References: <alpine.DEB.0.9999.0709212311130.13727@chino.kir.corp.google.com>
- <alpine.DEB.0.9999.0709212312160.13727@chino.kir.corp.google.com>
- <alpine.DEB.0.9999.0709212312400.13727@chino.kir.corp.google.com>
- <alpine.DEB.0.9999.0709212312560.13727@chino.kir.corp.google.com>
- <Pine.LNX.4.64.0709241202280.29673@schroedinger.engr.sgi.com>
- <alpine.DEB.0.9999.0709241211240.16397@chino.kir.corp.google.com>
- <alpine.DEB.0.9999.0709241402480.22430@chino.kir.corp.google.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from d03relay02.boulder.ibm.com (d03relay02.boulder.ibm.com [9.17.195.227])
+	by e31.co.us.ibm.com (8.13.8/8.13.8) with ESMTP id l8OLJkUj010825
+	for <linux-mm@kvack.org>; Mon, 24 Sep 2007 17:19:46 -0400
+Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
+	by d03relay02.boulder.ibm.com (8.13.8/8.13.8/NCO v8.5) with ESMTP id l8OLJk8j488328
+	for <linux-mm@kvack.org>; Mon, 24 Sep 2007 15:19:46 -0600
+Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av02.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l8OLJkX1013628
+	for <linux-mm@kvack.org>; Mon, 24 Sep 2007 15:19:46 -0600
+Subject: Re: + maps2-export-page-index-in-kpagemap.patch added to -mm tree
+From: Dave Hansen <haveblue@us.ibm.com>
+In-Reply-To: <200709242044.l8OKi01e016834@imap1.linux-foundation.org>
+References: <200709242044.l8OKi01e016834@imap1.linux-foundation.org>
+Content-Type: text/plain
+Date: Mon, 24 Sep 2007 14:19:44 -0700
+Message-Id: <1190668784.26982.250.camel@localhost>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <andrea@suse.de>, linux-mm@kvack.org
+To: akpm@linux-foundation.org
+Cc: wfg@mail.ustc.edu.cn, balbir@linux.vnet.ibm.com, jjberthels@gmail.com, mpm@selenic.com, linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 24 Sep 2007, David Rientjes wrote:
+On Mon, 2007-09-24 at 13:44 -0700, akpm@linux-foundation.org wrote:
+> 
+> 
+> To analyze/optimize the memory footprint, the number one question
+> people
+> may ask about pagemap/kpagemap could be:
+> 
+>         Which part of the files are being actively mapped?
+> 
+> In the (rare) case of nonlinear mapping, that question could only be
+> answered by explicitly exporting the page index in kpagemap.  Simply
+> judging by the PFNs from pagemap could be wrong! 
 
-> Add newlines between new zone flag tester/modifier functions.
+I'll look over this in some more detail, but I have the feeling KPMSIZE
+reintroduces the overrunning of users' buffers bug.  
 
-Acked-by: Christoph Lameter <clameter@sgi.com>
+-- Dave
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
