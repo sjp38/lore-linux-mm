@@ -1,42 +1,42 @@
 Received: from d03relay02.boulder.ibm.com (d03relay02.boulder.ibm.com [9.17.195.227])
-	by e31.co.us.ibm.com (8.13.8/8.13.8) with ESMTP id l8OLJkUj010825
-	for <linux-mm@kvack.org>; Mon, 24 Sep 2007 17:19:46 -0400
+	by e32.co.us.ibm.com (8.12.11.20060308/8.13.8) with ESMTP id l8OKF4xe022154
+	for <linux-mm@kvack.org>; Mon, 24 Sep 2007 16:15:04 -0400
 Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
-	by d03relay02.boulder.ibm.com (8.13.8/8.13.8/NCO v8.5) with ESMTP id l8OLJk8j488328
-	for <linux-mm@kvack.org>; Mon, 24 Sep 2007 15:19:46 -0600
+	by d03relay02.boulder.ibm.com (8.13.8/8.13.8/NCO v8.5) with ESMTP id l8OLNAYP502812
+	for <linux-mm@kvack.org>; Mon, 24 Sep 2007 15:23:10 -0600
 Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av02.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l8OLJkX1013628
-	for <linux-mm@kvack.org>; Mon, 24 Sep 2007 15:19:46 -0600
+	by d03av02.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l8OLNA6D027549
+	for <linux-mm@kvack.org>; Mon, 24 Sep 2007 15:23:10 -0600
 Subject: Re: + maps2-export-page-index-in-kpagemap.patch added to -mm tree
 From: Dave Hansen <haveblue@us.ibm.com>
-In-Reply-To: <200709242044.l8OKi01e016834@imap1.linux-foundation.org>
+In-Reply-To: <20070924205901.GI19691@waste.org>
 References: <200709242044.l8OKi01e016834@imap1.linux-foundation.org>
+	 <20070924205901.GI19691@waste.org>
 Content-Type: text/plain
-Date: Mon, 24 Sep 2007 14:19:44 -0700
-Message-Id: <1190668784.26982.250.camel@localhost>
+Date: Mon, 24 Sep 2007 14:23:08 -0700
+Message-Id: <1190668988.26982.254.camel@localhost>
 Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: akpm@linux-foundation.org
-Cc: wfg@mail.ustc.edu.cn, balbir@linux.vnet.ibm.com, jjberthels@gmail.com, mpm@selenic.com, linux-mm <linux-mm@kvack.org>
+To: Matt Mackall <mpm@selenic.com>
+Cc: akpm@linux-foundation.org, wfg@mail.ustc.edu.cn, balbir@linux.vnet.ibm.com, jjberthels@gmail.com, linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 2007-09-24 at 13:44 -0700, akpm@linux-foundation.org wrote:
+On Mon, 2007-09-24 at 15:59 -0500, Matt Mackall wrote:
 > 
-> 
-> To analyze/optimize the memory footprint, the number one question
-> people
-> may ask about pagemap/kpagemap could be:
-> 
->         Which part of the files are being actively mapped?
-> 
-> In the (rare) case of nonlinear mapping, that question could only be
-> answered by explicitly exporting the page index in kpagemap.  Simply
-> judging by the PFNs from pagemap could be wrong! 
+> If we really must do this, it'd be better to have a parallel file with
+> the offsets.
 
-I'll look over this in some more detail, but I have the feeling KPMSIZE
-reintroduces the overrunning of users' buffers bug.  
+Yeah, I'd much rather have a couple of files with really, really simple
+and _stable_ formats than one with a more complex and variable one.  
+
+Although you can't answer the "which parts are mapped" question without
+the page_index() information, you can answer the "what percentage of
+this file is actively mapped" question.
+
+Could someone elaborate a little bit more on exactly why you'd want to
+know which parts of the file are mapped? 
 
 -- Dave
 
