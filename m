@@ -1,36 +1,29 @@
-Message-Id: <20070925233008.256376051@sgi.com>
-References: <20070925232543.036615409@sgi.com>
-Date: Tue, 25 Sep 2007 16:25:55 -0700
+Message-Id: <20070925232543.036615409@sgi.com>
+Date: Tue, 25 Sep 2007 16:25:43 -0700
 From: Christoph Lameter <clameter@sgi.com>
-Subject: [patch 12/14] VM: Allow get_page_unless_zero on compound pages
-Content-Disposition: inline; filename=0011-slab_defrag_get_page_unless.patch
+Subject: [patch 00/14] Misc cleanups / fixes
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: akpm@linux-foundation.org
 Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Both slab defrag and the large blocksize patches need to ability to take
-refcounts on compound pages. May be useful in other places as well.
+This is a collection of fixes and cleanups from the slab defrag,
+virtual compound and the large block patchset that are useful
+independent of these patchsets and that were rediffed against
+2.6.23-rc8-mm1.
 
-Signed-off-by: Christoph Lameter <clameter@sgi.com>
----
- include/linux/mm.h |    2 +-
- 1 files changed, 1 insertions(+), 1 deletions(-)
+1+2	Page cache zeroing simplifications
 
-Index: linux-2.6.23-rc8-mm1/include/linux/mm.h
-===================================================================
---- linux-2.6.23-rc8-mm1.orig/include/linux/mm.h	2007-09-25 14:53:58.000000000 -0700
-+++ linux-2.6.23-rc8-mm1/include/linux/mm.h	2007-09-25 14:56:30.000000000 -0700
-@@ -227,7 +227,7 @@ static inline int put_page_testzero(stru
-  */
- static inline int get_page_unless_zero(struct page *page)
- {
--	VM_BUG_ON(PageCompound(page));
-+	VM_BUG_ON(PageTail(page));
- 	return atomic_inc_not_zero(&page->_count);
- }
- 
+3-8	vmalloc fixes
+
+9-11	slub cleanups / fixes
+
+12	General capability to take a refcount on a compound page
+
+13	Dentry code consolidation
+
+14	Revert buffer_head patch to get the constructor back.
 
 -- 
 
