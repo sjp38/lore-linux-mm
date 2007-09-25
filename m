@@ -1,73 +1,164 @@
-Received: from sd0109e.au.ibm.com (d23rh905.au.ibm.com [202.81.18.225])
-	by e23smtp01.au.ibm.com (8.13.1/8.13.1) with ESMTP id l8PFlgFu005097
-	for <linux-mm@kvack.org>; Wed, 26 Sep 2007 01:47:42 +1000
-Received: from d23av03.au.ibm.com (d23av03.au.ibm.com [9.190.234.97])
-	by sd0109e.au.ibm.com (8.13.8/8.13.8/NCO v8.5) with ESMTP id l8PFpEL2257650
-	for <linux-mm@kvack.org>; Wed, 26 Sep 2007 01:51:14 +1000
-Received: from d23av03.au.ibm.com (loopback [127.0.0.1])
-	by d23av03.au.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l8PFlOsh006322
-	for <linux-mm@kvack.org>; Wed, 26 Sep 2007 01:47:24 +1000
-Message-ID: <46F92D7E.4030903@linux.vnet.ibm.com>
-Date: Tue, 25 Sep 2007 21:17:10 +0530
-From: Balbir Singh <balbir@linux.vnet.ibm.com>
-Reply-To: balbir@linux.vnet.ibm.com
+Date: Tue, 25 Sep 2007 10:13:16 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: [patch -mm 7/5] oom: filter tasklist dump by mem_cgroup
+In-Reply-To: <alpine.DEB.0.9999.0709250035570.11015@chino.kir.corp.google.com>
+Message-ID: <alpine.DEB.0.9999.0709250037030.11015@chino.kir.corp.google.com>
+References: <alpine.DEB.0.9999.0709250035570.11015@chino.kir.corp.google.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 0/4] [hugetlb] Dynamic huge page pool resizing
-References: <20070924154638.7565.86666.stgit@kernel> <46F8EF7F.80804@linux.vnet.ibm.com> <1190734249.14295.34.camel@localhost.localdomain>
-In-Reply-To: <1190734249.14295.34.camel@localhost.localdomain>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Adam Litke <agl@us.ibm.com>
-Cc: linux-mm@kvack.org, libhugetlbfs-devel@lists.sourceforge.net, Andy Whitcroft <apw@shadowen.org>, Mel Gorman <mel@skynet.ie>, Bill Irwin <bill.irwin@oracle.com>, Ken Chen <kenchen@google.com>, Dave McCracken <dave.mccracken@oracle.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Christoph Lameter <clameter@sgi.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Adam Litke wrote:
-> On Tue, 2007-09-25 at 16:52 +0530, Balbir Singh wrote:
->> Adam Litke wrote:
->>> How it works
->>> ============
->>>
->>> Upon depletion of the hugetlb pool, rather than reporting an error immediately,
->>> first try and allocate the needed huge pages directly from the buddy allocator.
->>> Care must be taken to avoid unbounded growth of the hugetlb pool, so the
->>> hugetlb filesystem quota is used to limit overall pool size.
->>>
->> If I understand hugetlb correctly, there is no accounting of hugepages
->> to the RSS of any process. Since the pool will no longer be static,
->> should we also consider changes to the accounting of hugepages?
-> 
-> You're right: there is no accounting of huge pages against a process.
-> This is also the case for the statically allocated pool so this
-> particular issue exists unconditionally.  There are several things
-> missing: RSS accounting, counting huge pages towards locked_vm limits,
-> etc...  The plan is to address these separately and to fix them all at
-> once.
-> 
+If an OOM was triggered as a result a cgroup's memory controller, the
+tasklist shall be filtered to exclude tasks that are not a member of the
+same group.
 
-I am interested in the accounting and control of hugepages as an
-extension to the current memory controller, we can of-course do this
-incrementally.
+Creates a helper function to return non-zero if a task is a member of a
+mem_cgroup:
 
-> In the absence of traditional per-process huge page accounting, the
-> kernel has provided an alternate means for restricting a process' access
-> to the global hugetlb pool: filesystem permissions and quotas.  It's not
-> ideal, but with this patch series, the filesystem permissions and quotas
-> remain the effective mechanism for restricting pool growth and
-> consumption by processes.
-> 
+	int task_in_mem_cgroup(const struct task_struct *task,
+			       const struct mem_cgroup *mem);
 
-OK, thats what I thought.
+Cc: Christoph Lameter <clameter@sgi.com>
+Cc: Balbir Singh <balbir@linux.vnet.ibm.com>
+Signed-off-by: David Rientjes <rientjes@google.com>
+---
+ include/linux/memcontrol.h |   16 ++++++++++++++++
+ mm/oom_kill.c              |   25 ++++++++++++++-----------
+ 2 files changed, 30 insertions(+), 11 deletions(-)
 
-Thanks for sharing your plans
-
-
--- 
-	Warm Regards,
-	Balbir Singh
-	Linux Technology Center
-	IBM, ISTL
+diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
+--- a/include/linux/memcontrol.h
++++ b/include/linux/memcontrol.h
+@@ -52,6 +52,16 @@ static inline void mem_cgroup_uncharge_page(struct page *page)
+ 	mem_cgroup_uncharge(page_get_page_cgroup(page));
+ }
+ 
++/*
++ * Returns non-zero if the task is in the cgroup; otherwise returns zero.
++ * Call with task_lock(task) held.
++ */
++static inline int task_in_mem_cgroup(const struct task_struct *task,
++				     const struct mem_cgroup *mem)
++{
++	return mem && task->mm && mm_cgroup(task->mm) == mem;
++}
++
+ #else /* CONFIG_CGROUP_MEM_CONT */
+ static inline void mm_init_cgroup(struct mm_struct *mm,
+ 					struct task_struct *p)
+@@ -103,6 +113,12 @@ static inline struct mem_cgroup *mm_cgroup(struct mm_struct *mm)
+ 	return NULL;
+ }
+ 
++static inline int task_in_mem_cgroup(const struct task_struct *task,
++				     const struct mem_cgroup *mem)
++{
++	return 1;
++}
++
+ #endif /* CONFIG_CGROUP_MEM_CONT */
+ 
+ #endif /* _LINUX_MEMCONTROL_H */
+diff --git a/mm/oom_kill.c b/mm/oom_kill.c
+--- a/mm/oom_kill.c
++++ b/mm/oom_kill.c
+@@ -65,13 +65,10 @@ unsigned long badness(struct task_struct *p, unsigned long uptime,
+ 		task_unlock(p);
+ 		return 0;
+ 	}
+-
+-#ifdef CONFIG_CGROUP_MEM_CONT
+-	if (mem != NULL && mm->mem_cgroup != mem) {
++	if (!task_in_mem_cgroup(p, mem)) {
+ 		task_unlock(p);
+ 		return 0;
+ 	}
+-#endif
+ 
+ 	/*
+ 	 * The memory size of the process is the basis for the badness.
+@@ -274,9 +271,12 @@ static struct task_struct *select_bad_process(unsigned long *ppoints,
+  * State information includes task's pid, uid, tgid, vm size, rss, cpu, oom_adj
+  * score, and name.
+  *
++ * If the actual is non-NULL, only tasks that are a member of the mem_cgroup are
++ * shown.
++ *
+  * Call with tasklist_lock read-locked.
+  */
+-static void dump_tasks(void)
++static void dump_tasks(const struct mem_cgroup *mem)
+ {
+ 	struct task_struct *g, *p;
+ 
+@@ -291,6 +291,8 @@ static void dump_tasks(void)
+ 			continue;
+ 
+ 		task_lock(p);
++		if (!task_in_mem_cgroup(p, mem))
++			continue;
+ 		printk(KERN_INFO "[%5d] %5d %5d %8lu %8lu %3d     %3d %s\n",
+ 		       p->pid, p->uid, p->tgid, p->mm->total_vm,
+ 		       get_mm_rss(p->mm), (int)task_cpu(p), p->oomkilladj,
+@@ -376,7 +378,8 @@ static int oom_kill_task(struct task_struct *p)
+ }
+ 
+ static int oom_kill_process(struct task_struct *p, gfp_t gfp_mask, int order,
+-			    unsigned long points, const char *message)
++			    unsigned long points, struct mem_cgroup *mem,
++			    const char *message)
+ {
+ 	struct task_struct *c;
+ 
+@@ -387,7 +390,7 @@ static int oom_kill_process(struct task_struct *p, gfp_t gfp_mask, int order,
+ 		dump_stack();
+ 		show_mem();
+ 		if (sysctl_oom_dump_tasks)
+-			dump_tasks();
++			dump_tasks(mem);
+ 	}
+ 
+ 	/*
+@@ -428,7 +431,7 @@ retry:
+ 	if (!p)
+ 		p = current;
+ 
+-	if (oom_kill_process(p, gfp_mask, 0, points,
++	if (oom_kill_process(p, gfp_mask, 0, points, mem,
+ 				"Memory cgroup out of memory"))
+ 		goto retry;
+ out:
+@@ -534,7 +537,7 @@ void out_of_memory(struct zonelist *zonelist, gfp_t gfp_mask, int order)
+ 
+ 	switch (constraint) {
+ 	case CONSTRAINT_MEMORY_POLICY:
+-		oom_kill_process(current, gfp_mask, order, points,
++		oom_kill_process(current, gfp_mask, order, points, NULL,
+ 				"No available memory (MPOL_BIND)");
+ 		break;
+ 
+@@ -544,7 +547,7 @@ void out_of_memory(struct zonelist *zonelist, gfp_t gfp_mask, int order)
+ 		/* Fall-through */
+ 	case CONSTRAINT_CPUSET:
+ 		if (sysctl_oom_kill_allocating_task) {
+-			oom_kill_process(current, gfp_mask, order, points,
++			oom_kill_process(current, gfp_mask, order, points, NULL,
+ 					"Out of memory (oom_kill_allocating_task)");
+ 			break;
+ 		}
+@@ -564,7 +567,7 @@ retry:
+ 			panic("Out of memory and no killable processes...\n");
+ 		}
+ 
+-		if (oom_kill_process(p, points, gfp_mask, order,
++		if (oom_kill_process(p, points, gfp_mask, order, NULL,
+ 				     "Out of memory"))
+ 			goto retry;
+ 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
