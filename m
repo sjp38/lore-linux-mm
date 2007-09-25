@@ -1,47 +1,52 @@
-Date: Mon, 24 Sep 2007 20:31:27 -0400
-From: Dave Jones <davej@redhat.com>
-Subject: Re: [PATCH 1/1] x86: Convert cpuinfo_x86 array to a per_cpu array
-	v3
-Message-ID: <20070925003127.GQ11455@redhat.com>
-References: <20070924210853.256462000@sgi.com> <20070924210853.516791000@sgi.com> <46F833D4.8050507@tiscali.nl> <20070924232423.GJ8127@redhat.com> <46F85431.1020306@tiscali.nl>
+Received: from sd0109e.au.ibm.com (d23rh905.au.ibm.com [202.81.18.225])
+	by e23smtp06.au.ibm.com (8.13.1/8.13.1) with ESMTP id l8P4QhYb031088
+	for <linux-mm@kvack.org>; Tue, 25 Sep 2007 14:26:43 +1000
+Received: from d23av02.au.ibm.com (d23av02.au.ibm.com [9.190.235.138])
+	by sd0109e.au.ibm.com (8.13.8/8.13.8/NCO v8.5) with ESMTP id l8P4UFN4203362
+	for <linux-mm@kvack.org>; Tue, 25 Sep 2007 14:30:17 +1000
+Received: from d23av02.au.ibm.com (loopback [127.0.0.1])
+	by d23av02.au.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l8P4QfkY025134
+	for <linux-mm@kvack.org>; Tue, 25 Sep 2007 14:26:41 +1000
+Message-ID: <46F88DFB.3020307@linux.vnet.ibm.com>
+Date: Tue, 25 Sep 2007 09:56:35 +0530
+From: Balbir Singh <balbir@linux.vnet.ibm.com>
+Reply-To: balbir@linux.vnet.ibm.com
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <46F85431.1020306@tiscali.nl>
+Subject: Re: [patch -mm 4/5] mm: test and set zone reclaim lock before starting
+ reclaim
+References: <alpine.DEB.0.9999.0709212311130.13727@chino.kir.corp.google.com> <alpine.DEB.0.9999.0709212312160.13727@chino.kir.corp.google.com> <alpine.DEB.0.9999.0709212312400.13727@chino.kir.corp.google.com> <alpine.DEB.0.9999.0709212312560.13727@chino.kir.corp.google.com>
+In-Reply-To: <alpine.DEB.0.9999.0709212312560.13727@chino.kir.corp.google.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: roel <12o3l@tiscali.nl>
-Cc: travis@sgi.com, Andrew Morton <akpm@linux-foundation.org>, Andi Kleen <ak@suse.de>, Christoph Lameter <clameter@sgi.com>, Jack Steiner <steiner@sgi.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: David Rientjes <rientjes@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <andrea@suse.de>, Christoph Lameter <clameter@sgi.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Sep 25, 2007 at 02:20:01AM +0200, roel wrote:
- 
- > >  > >  	if ((c->x86_vendor != X86_VENDOR_AMD) || (c->x86 != 5) ||
- > >  > >  		((c->x86_model != 12) && (c->x86_model != 13)))
- > >  > 
- > >  > while we're at it, we could change this to
- > >  > 
- > >  >   	if (!(c->x86_vendor == X86_VENDOR_AMD && c->x86 == 5 &&
- > >  >   		(c->x86_model == 12 || c->x86_model == 13)))
- > > 
- > > For what purpose?  There's nothing wrong with the code as it stands,
- > > and inverting the tests means we'd have to move a bunch of
- > > code inside the if arm instead of just returning -ENODEV.
- > 
- > It's not inverting the test, so you don't need to move code. It evaluates 
- > the same, only the combined negation is moved to the front. I suggested it
- > to increase clarity, it results in the same assembly language.
+David Rientjes wrote:
+> +
+> +	if (zone_test_and_set_flag(zone, ZONE_RECLAIM_LOCKED))
+> +		return 0;
 
-I don't see it as being particularly more readable after this change.
-In fact, the reverse, as my previous comment implied, I missed the
-initial !
-Given this code works fine, and there's no discernable gain from
-changing it, I'm not particularly enthusiastic about this modification.
+What's the consequence of this on the caller of zone_reclaim()?
+I see that the zone is marked as full and will not be re-examined
+again.
 
-	Dave
+Am I missing something?
+
+> +	ret = __zone_reclaim(zone, gfp_mask, order);
+> +	zone_clear_flag(zone, ZONE_RECLAIM_LOCKED);
+> +
+> +	return ret;
+>  }
+>  #endif
 
 -- 
-http://www.codemonkey.org.uk
+	Warm Regards,
+	Balbir Singh
+	Linux Technology Center
+	IBM, ISTL
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
