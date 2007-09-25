@@ -1,45 +1,58 @@
-Date: Tue, 25 Sep 2007 11:49:14 -0700 (PDT)
+Date: Tue, 25 Sep 2007 12:18:44 -0700 (PDT)
 From: David Rientjes <rientjes@google.com>
-Subject: Re: [patch -mm 6/5] memcontrol: move mm_cgroup to header file
-In-Reply-To: <46F942D6.3020103@linux.vnet.ibm.com>
-Message-ID: <alpine.DEB.0.9999.0709251145270.19001@chino.kir.corp.google.com>
-References: <alpine.DEB.0.9999.0709250035570.11015@chino.kir.corp.google.com> <46F942D6.3020103@linux.vnet.ibm.com>
+Subject: Re: [patch -mm 7/5] oom: filter tasklist dump by mem_cgroup
+In-Reply-To: <46F949DC.1070806@linux.vnet.ibm.com>
+Message-ID: <alpine.DEB.0.9999.0709251208580.20644@chino.kir.corp.google.com>
+References: <alpine.DEB.0.9999.0709250035570.11015@chino.kir.corp.google.com> <alpine.DEB.0.9999.0709250037030.11015@chino.kir.corp.google.com> <46F949DC.1070806@linux.vnet.ibm.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Balbir Singh <balbir@linux.vnet.ibm.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org
+Cc: Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <clameter@sgi.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
 On Tue, 25 Sep 2007, Balbir Singh wrote:
 
-> > Inline functions must preceed their use, so mm_cgroup() should be defined
-> > in linux/memcontrol.h.
+> > If an OOM was triggered as a result a cgroup's memory controller, the
+> > tasklist shall be filtered to exclude tasks that are not a member of the
+> > same group.
 > > 
-> > include/linux/memcontrol.h:48: warning: 'mm_cgroup' declared inline after
-> > 	being called
-> > include/linux/memcontrol.h:48: warning: previous declaration of
-> > 	'mm_cgroup' was here
+> > Creates a helper function to return non-zero if a task is a member of a
+> > mem_cgroup:
 > > 
+> > 	int task_in_mem_cgroup(const struct task_struct *task,
+> > 			       const struct mem_cgroup *mem);
+> > 
+> > Cc: Christoph Lameter <clameter@sgi.com>
 > > Cc: Balbir Singh <balbir@linux.vnet.ibm.com>
 > > Signed-off-by: David Rientjes <rientjes@google.com>
 > 
-> Is this a new warning or have you seen this earlier. I don't see the
-> warning in any of the versions upto 2.6.23-rc7-mm1. I'll check
-> the compilation output again and of-course 2.6.23-rc8-mm1
+> Thanks for doing this. The number of parameters to OOM kill
+> have grown, may at the time of the next addition of parameter,
+> we should consider using a structure similar to scan_control
+> and pass the structure instead of all the parameters.
 > 
 
-It was produced when I implemented the filtering for the task dump with 
-respect to cgroups, that's why this fix is included in a series that 
-applies to the OOM killer.
+I mentioned in the description of patch #5 in this set that the kernel 
+will probably eventually want a generic tasklist dumping interface that 
+allows users to specify what they want displayed for each task, even 
+though that's going to introduce a large number of new flags like 
+DUMP_PID, DUMP_TOTAL_VM_SIZE, etc.
 
-Inline functions always need to preceed their use, otherwise the compiler 
-can't inline them and they become normal functions.  So the quick rule is 
-that inline functions are always "static inline," which this one was not.  
-Those functions are always available in only one source file or declared 
-in a header (and usually included before source file code) so that you 
-don't need to worry about the declaration and use ordering.
+It would be trivial to include a callback function to do the filtering for 
+such a tasklist dumping interface that returns non-zero to display a task 
+and zero otherwise.
+
+So now our interface prototype looks like this:
+
+	void dump_tasks(int (*filter)(const struct task_struct *),
+		        unsigned long flags)
+
+That's simple enough, but the work in converting other tasklist dumps over 
+to using this interface and the number of flags this mechanism would 
+require may not be so popular.  But, I agree, it's something that the 
+kernel should have.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
