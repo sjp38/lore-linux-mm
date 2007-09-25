@@ -1,27 +1,34 @@
-Date: Tue, 25 Sep 2007 14:17:08 -0700 (PDT)
-From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [patch -mm 7/5] oom: filter tasklist dump by mem_cgroup
-In-Reply-To: <6599ad830709251100n352028beraddaf2ac33ea8f6c@mail.gmail.com>
-Message-ID: <Pine.LNX.4.64.0709251416410.4831@schroedinger.engr.sgi.com>
-References: <alpine.DEB.0.9999.0709250035570.11015@chino.kir.corp.google.com>
-  <alpine.DEB.0.9999.0709250037030.11015@chino.kir.corp.google.com>
- <6599ad830709251100n352028beraddaf2ac33ea8f6c@mail.gmail.com>
+Date: Tue, 25 Sep 2007 14:17:14 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [patch -mm 4/5] mm: test and set zone reclaim lock before starting
+ reclaim
+In-Reply-To: <Pine.LNX.4.64.0709251413520.4831@schroedinger.engr.sgi.com>
+Message-ID: <alpine.DEB.0.9999.0709251415490.32415@chino.kir.corp.google.com>
+References: <alpine.DEB.0.9999.0709212311130.13727@chino.kir.corp.google.com> <alpine.DEB.0.9999.0709212312160.13727@chino.kir.corp.google.com> <alpine.DEB.0.9999.0709212312400.13727@chino.kir.corp.google.com> <alpine.DEB.0.9999.0709212312560.13727@chino.kir.corp.google.com>
+ <46F88DFB.3020307@linux.vnet.ibm.com> <alpine.DEB.0.9999.0709242129420.31515@chino.kir.corp.google.com> <Pine.LNX.4.64.0709251413520.4831@schroedinger.engr.sgi.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Paul Menage <menage@google.com>
-Cc: David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, Balbir Singh <balbir@linux.vnet.ibm.com>, linux-mm@kvack.org
+To: Christoph Lameter <clameter@sgi.com>
+Cc: Balbir Singh <balbir@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <andrea@suse.de>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 25 Sep 2007, Paul Menage wrote:
+On Tue, 25 Sep 2007, Christoph Lameter wrote:
 
-> It would be nice to be able to do the same thing for cpuset
-> membership, in the event that cpusets are active and the memory
-> controller is not.
+> On Mon, 24 Sep 2007, David Rientjes wrote:
+> 
+> > ZONE_RECLAIM_LOCKED will be cleared upon return from __zone_reclaim().
+> 
+> ZONE_RECLAIM_LOCKED means that one zone reclaim is already running and 
+> other processes should not perform zone reclaim on the same zone. They 
+> will instead fall back to allocate memory from zones that are not local.
+> 
 
-Maybe come up with some generic scheme that works for all types of memory 
-controllers? cpusets is now a type of memory controller right?
+Yes, and that's still true.  But the point is that shrink_zone() can be 
+called from different points (__zone_reclaim(), kswapd, 
+try_to_free_pages(), balance_pgdat()) for a zone and it will not stop zone 
+reclaim from being invoked on the same zone.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
