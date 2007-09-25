@@ -1,46 +1,63 @@
-Date: Tue, 25 Sep 2007 14:43:15 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [patch -mm 4/5] mm: test and set zone reclaim lock before starting
- reclaim
-In-Reply-To: <Pine.LNX.4.64.0709251437380.5072@schroedinger.engr.sgi.com>
-Message-ID: <alpine.DEB.0.9999.0709251441090.3660@chino.kir.corp.google.com>
-References: <alpine.DEB.0.9999.0709212311130.13727@chino.kir.corp.google.com> <alpine.DEB.0.9999.0709212312160.13727@chino.kir.corp.google.com> <alpine.DEB.0.9999.0709212312400.13727@chino.kir.corp.google.com> <alpine.DEB.0.9999.0709212312560.13727@chino.kir.corp.google.com>
- <46F88DFB.3020307@linux.vnet.ibm.com> <alpine.DEB.0.9999.0709242129420.31515@chino.kir.corp.google.com> <46F8A7FE.7000907@linux.vnet.ibm.com> <Pine.LNX.4.64.0709251414480.4831@schroedinger.engr.sgi.com> <alpine.DEB.0.9999.0709251418010.32744@chino.kir.corp.google.com>
- <Pine.LNX.4.64.0709251437380.5072@schroedinger.engr.sgi.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from d03relay02.boulder.ibm.com (d03relay02.boulder.ibm.com [9.17.195.227])
+	by e31.co.us.ibm.com (8.13.8/8.13.8) with ESMTP id l8PLwuZm005680
+	for <linux-mm@kvack.org>; Tue, 25 Sep 2007 17:58:56 -0400
+Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
+	by d03relay02.boulder.ibm.com (8.13.8/8.13.8/NCO v8.5) with ESMTP id l8PLwu56477622
+	for <linux-mm@kvack.org>; Tue, 25 Sep 2007 15:58:56 -0600
+Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av02.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l8PLwt5C011226
+	for <linux-mm@kvack.org>; Tue, 25 Sep 2007 15:58:56 -0600
+Subject: Re: 2.6.23-rc8-mm1 - powerpc memory hotplug link failure
+From: Badari Pulavarty <pbadari@gmail.com>
+In-Reply-To: <46F968C2.7080900@linux.vnet.ibm.com>
+References: <20070925014625.3cd5f896.akpm@linux-foundation.org>
+	 <46F968C2.7080900@linux.vnet.ibm.com>
+Content-Type: text/plain
+Date: Tue, 25 Sep 2007 15:01:54 -0700
+Message-Id: <1190757715.13955.40.camel@dyn9047017100.beaverton.ibm.com>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
-Cc: Balbir Singh <balbir@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <andrea@suse.de>, linux-mm@kvack.org
+To: Kamalesh Babulal <kamalesh@linux.vnet.ibm.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, lkml <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, kamezawa.hiroyu@jp.fujitsu.com, Andy Whitcroft <apw@shadowen.org>, Balbir Singh <balbir@linux.vnet.ibm.com>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 25 Sep 2007, Christoph Lameter wrote:
-
-> > > > > One thing that has been changed in -mm with regard to my last patchset is 
-> > > > > that kswapd and try_to_free_pages() are allowed to call shrink_zone() 
-> > > > > concurrently.
-> > > > > 
-> > > > 
-> > > > Aah.. interesting. Could you define concurrently more precisely,
-> > > > concurrently as in the same zone or for different zones concurrently?
-> > > 
-> > > There was no change. They were allowed to call shrink_zone concurrently 
-> > > before.
-> > > 
-> > 
-> > Yes, there was.  Before the patchset, zone reclaim would not be able to 
-> > call shrink_zone() on a zone that it is already being invoked for, 
-> > regardless of where it was previous invoked from.  Now it is.
+On Wed, 2007-09-26 at 01:30 +0530, Kamalesh Babulal wrote:
+> Hi Andrew,
 > 
-> Right. I just wanted to make sure of this. The statement above 
-> seems to indicate that there was a change to the concurrency of kswapd 
-> and try_to_free_pages with one another.
+> The 2.6.23-rc8-mm1 kernel linking fails on the powerpc (P5+) box
+> 
+>   CC      init/version.o
+>   LD      init/built-in.o
+>   LD      .tmp_vmlinux1
+> drivers/built-in.o: In function `memory_block_action':
+> /root/scrap/linux-2.6.23-rc8/drivers/base/memory.c:188: undefined reference to `.remove_memory'
+> make: *** [.tmp_vmlinux1] Error 1
 > 
 
-Ah, I see, I was trying to say that zone reclaim can now be called 
-concurrently with kswapd and try_to_free_pages() in shrink_zone().  Thanks 
-for pointing that out, it was poorly worded.
+I ran into the same thing earlier. Here is the fix I made.
+
+Thanks,
+Badari
+
+Memory hotplug remove is currently supported only on IA64
+
+Signed-off-by: Badari Pulavarty <pbadari@us.ibm.com>
+
+Index: linux-2.6.23-rc8/mm/Kconfig
+===================================================================
+--- linux-2.6.23-rc8.orig/mm/Kconfig	2007-09-25 14:44:03.000000000 -0700
++++ linux-2.6.23-rc8/mm/Kconfig	2007-09-25 14:44:48.000000000 -0700
+@@ -143,6 +143,7 @@ config MEMORY_HOTREMOVE
+ 	bool "Allow for memory hot remove"
+ 	depends on MEMORY_HOTPLUG
+ 	depends on MIGRATION
++	depends on (IA64)
+ 
+ # Heavily threaded applications may benefit from splitting the mm-wide
+ # page_table_lock, so that faults on different parts of the user address
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
