@@ -1,49 +1,125 @@
-Received: from zps35.corp.google.com (zps35.corp.google.com [172.25.146.35])
-	by smtp-out.google.com with ESMTP id l8PMsle2015789
-	for <linux-mm@kvack.org>; Tue, 25 Sep 2007 23:54:48 +0100
-Received: from nz-out-0506.google.com (nzii28.prod.google.com [10.36.35.28])
-	by zps35.corp.google.com with ESMTP id l8PMskG3000912
-	for <linux-mm@kvack.org>; Tue, 25 Sep 2007 15:54:46 -0700
-Received: by nz-out-0506.google.com with SMTP id i28so1227335nzi
-        for <linux-mm@kvack.org>; Tue, 25 Sep 2007 15:54:46 -0700 (PDT)
-Message-ID: <6599ad830709251554t3c68861ax86c30dece98403e1@mail.gmail.com>
-Date: Tue, 25 Sep 2007 15:54:45 -0700
-From: "Paul Menage" <menage@google.com>
-Subject: Re: [patch -mm 7/5] oom: filter tasklist dump by mem_cgroup
-In-Reply-To: <Pine.LNX.4.64.0709251416410.4831@schroedinger.engr.sgi.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
-References: <alpine.DEB.0.9999.0709250035570.11015@chino.kir.corp.google.com>
-	 <alpine.DEB.0.9999.0709250037030.11015@chino.kir.corp.google.com>
-	 <6599ad830709251100n352028beraddaf2ac33ea8f6c@mail.gmail.com>
-	 <Pine.LNX.4.64.0709251416410.4831@schroedinger.engr.sgi.com>
+Message-Id: <20070925233008.523093726@sgi.com>
+References: <20070925232543.036615409@sgi.com>
+Date: Tue, 25 Sep 2007 16:25:56 -0700
+From: Christoph Lameter <clameter@sgi.com>
+Subject: [patch 13/14] dentries: Extract common code to remove dentry from lru
+Content-Disposition: inline; filename=0023-slab_defrag_dentry_remove_lru.patch
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
-Cc: David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, Balbir Singh <balbir@linux.vnet.ibm.com>, linux-mm@kvack.org
+To: akpm@linux-foundation.org
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 9/25/07, Christoph Lameter <clameter@sgi.com> wrote:
-> On Tue, 25 Sep 2007, Paul Menage wrote:
->
-> > It would be nice to be able to do the same thing for cpuset
-> > membership, in the event that cpusets are active and the memory
-> > controller is not.
->
-> Maybe come up with some generic scheme that works for all types of memory
-> controllers? cpusets is now a type of memory controller right?
+Extract the common code to remove a dentry from the lru into a new function
+dentry_lru_remove().
 
-Kind of, just the way it's always been. It's just a very different
-model to Balbir's memory controller.
+Two call sites used list_del() instead of list_del_init(). AFAIK the
+performance of both is the same. dentry_lru_remove() does a list_del_init().
 
-Incidentally, I'm considering splitting cpusets into two cgroup
-subsystems, cpuset and memset, so that they can be more independent.
-Mounting the old "cpuset" filesystem type would still get both of them
-as before, so it would be backwards compatible.
+As a result dentry->d_lru is now always empty when a dentry is freed.
 
-Paul
+Signed-off-by: Christoph Lameter <clameter@sgi.com>
+---
+ fs/dcache.c |   42 ++++++++++++++----------------------------
+ 1 files changed, 14 insertions(+), 28 deletions(-)
+
+Index: linux-2.6.23-rc8-mm1/fs/dcache.c
+===================================================================
+--- linux-2.6.23-rc8-mm1.orig/fs/dcache.c	2007-09-25 14:53:57.000000000 -0700
++++ linux-2.6.23-rc8-mm1/fs/dcache.c	2007-09-25 14:57:09.000000000 -0700
+@@ -95,6 +95,14 @@ static void d_free(struct dentry *dentry
+ 		call_rcu(&dentry->d_u.d_rcu, d_callback);
+ }
+ 
++static void dentry_lru_remove(struct dentry *dentry)
++{
++	if (!list_empty(&dentry->d_lru)) {
++		list_del_init(&dentry->d_lru);
++		dentry_stat.nr_unused--;
++	}
++}
++
+ /*
+  * Release the dentry's inode, using the filesystem
+  * d_iput() operation if defined.
+@@ -212,13 +220,7 @@ repeat:
+ unhash_it:
+ 	__d_drop(dentry);
+ kill_it:
+-	/* If dentry was on d_lru list
+-	 * delete it from there
+-	 */
+-	if (!list_empty(&dentry->d_lru)) {
+-		list_del(&dentry->d_lru);
+-		dentry_stat.nr_unused--;
+-	}
++	dentry_lru_remove(dentry);
+ 	dentry = d_kill(dentry);
+ 	if (dentry)
+ 		goto repeat;
+@@ -286,10 +288,7 @@ int d_invalidate(struct dentry * dentry)
+ static inline struct dentry * __dget_locked(struct dentry *dentry)
+ {
+ 	atomic_inc(&dentry->d_count);
+-	if (!list_empty(&dentry->d_lru)) {
+-		dentry_stat.nr_unused--;
+-		list_del_init(&dentry->d_lru);
+-	}
++	dentry_lru_remove(dentry);
+ 	return dentry;
+ }
+ 
+@@ -405,10 +404,7 @@ static void prune_one_dentry(struct dent
+ 
+ 		if (dentry->d_op && dentry->d_op->d_delete)
+ 			dentry->d_op->d_delete(dentry);
+-		if (!list_empty(&dentry->d_lru)) {
+-			list_del(&dentry->d_lru);
+-			dentry_stat.nr_unused--;
+-		}
++		dentry_lru_remove(dentry);
+ 		__d_drop(dentry);
+ 		dentry = d_kill(dentry);
+ 		spin_lock(&dcache_lock);
+@@ -597,10 +593,7 @@ static void shrink_dcache_for_umount_sub
+ 
+ 	/* detach this root from the system */
+ 	spin_lock(&dcache_lock);
+-	if (!list_empty(&dentry->d_lru)) {
+-		dentry_stat.nr_unused--;
+-		list_del_init(&dentry->d_lru);
+-	}
++	dentry_lru_remove(dentry);
+ 	__d_drop(dentry);
+ 	spin_unlock(&dcache_lock);
+ 
+@@ -614,11 +607,7 @@ static void shrink_dcache_for_umount_sub
+ 			spin_lock(&dcache_lock);
+ 			list_for_each_entry(loop, &dentry->d_subdirs,
+ 					    d_u.d_child) {
+-				if (!list_empty(&loop->d_lru)) {
+-					dentry_stat.nr_unused--;
+-					list_del_init(&loop->d_lru);
+-				}
+-
++				dentry_lru_remove(dentry);
+ 				__d_drop(loop);
+ 				cond_resched_lock(&dcache_lock);
+ 			}
+@@ -800,10 +789,7 @@ resume:
+ 		struct dentry *dentry = list_entry(tmp, struct dentry, d_u.d_child);
+ 		next = tmp->next;
+ 
+-		if (!list_empty(&dentry->d_lru)) {
+-			dentry_stat.nr_unused--;
+-			list_del_init(&dentry->d_lru);
+-		}
++		dentry_lru_remove(dentry);
+ 		/* 
+ 		 * move only zero ref count dentries to the end 
+ 		 * of the unused list for prune_dcache
+
+-- 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
