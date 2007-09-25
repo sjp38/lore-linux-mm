@@ -1,155 +1,159 @@
-Message-Id: <20070925233006.103775720@sgi.com>
+Message-Id: <20070925233005.845179930@sgi.com>
 References: <20070925232543.036615409@sgi.com>
-Date: Tue, 25 Sep 2007 16:25:46 -0700
+Date: Tue, 25 Sep 2007 16:25:45 -0700
 From: Christoph Lameter <clameter@sgi.com>
-Subject: [patch 03/14] Move vmalloc_to_page() to mm/vmalloc.
-Content-Disposition: inline; filename=vcompound_move_vmalloc_to_page
+Subject: [patch 02/14] Reiser4 portion of zero_user cleanup patch
+Content-Disposition: inline; filename=zero_user_reiserfs
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: akpm@linux-foundation.org
 Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-We already have page table manipulation for vmalloc in vmalloc.c. Move the
-vmalloc_to_page() function there as well.
-
-Move the definitions for vmalloc related functions in mm.h to a newly created
-section. A better place would be vmalloc.h but mm.h is basic and may depend
-on these functions. An alternative would be to include vmalloc.h in mm.h (like done
-for vmstat.h).
+Reiser4 only exists in mm. So split this off.
 
 Signed-off-by: Christoph Lameter <clameter@sgi.com>
 
 ---
- include/linux/mm.h |    5 +++--
- mm/memory.c        |   40 ----------------------------------------
- mm/vmalloc.c       |   38 ++++++++++++++++++++++++++++++++++++++
- 3 files changed, 41 insertions(+), 42 deletions(-)
+ fs/buffer.c                              |    2 +-
+ fs/reiser4/plugin/file/cryptcompress.c   |    8 +++-----
+ fs/reiser4/plugin/file/file.c            |    4 ++--
+ fs/reiser4/plugin/item/ctail.c           |    8 ++++----
+ fs/reiser4/plugin/item/extent_file_ops.c |    4 ++--
+ fs/reiser4/plugin/item/tail.c            |    3 +--
+ 6 files changed, 13 insertions(+), 16 deletions(-)
 
-Index: linux-2.6.23-rc8-mm1/mm/memory.c
+Index: linux-2.6.23-rc8-mm1/fs/reiser4/plugin/file/cryptcompress.c
 ===================================================================
---- linux-2.6.23-rc8-mm1.orig/mm/memory.c	2007-09-25 15:08:13.000000000 -0700
-+++ linux-2.6.23-rc8-mm1/mm/memory.c	2007-09-25 15:14:56.000000000 -0700
-@@ -2651,46 +2651,6 @@ int make_pages_present(unsigned long add
- 	return ret == len ? 0 : -1;
- }
+--- linux-2.6.23-rc8-mm1.orig/fs/reiser4/plugin/file/cryptcompress.c	2007-09-25 15:12:22.000000000 -0700
++++ linux-2.6.23-rc8-mm1/fs/reiser4/plugin/file/cryptcompress.c	2007-09-25 15:12:51.000000000 -0700
+@@ -2056,7 +2056,7 @@ static int write_hole(struct inode *inod
  
--/* 
-- * Map a vmalloc()-space virtual address to the physical page.
-- */
--struct page * vmalloc_to_page(void * vmalloc_addr)
--{
--	unsigned long addr = (unsigned long) vmalloc_addr;
--	struct page *page = NULL;
--	pgd_t *pgd = pgd_offset_k(addr);
--	pud_t *pud;
--	pmd_t *pmd;
--	pte_t *ptep, pte;
--  
--	if (!pgd_none(*pgd)) {
--		pud = pud_offset(pgd, addr);
--		if (!pud_none(*pud)) {
--			pmd = pmd_offset(pud, addr);
--			if (!pmd_none(*pmd)) {
--				ptep = pte_offset_map(pmd, addr);
--				pte = *ptep;
--				if (pte_present(pte))
--					page = pte_page(pte);
--				pte_unmap(ptep);
--			}
--		}
--	}
--	return page;
--}
--
--EXPORT_SYMBOL(vmalloc_to_page);
--
--/*
-- * Map a vmalloc()-space virtual address to the physical page frame number.
-- */
--unsigned long vmalloc_to_pfn(void * vmalloc_addr)
--{
--	return page_to_pfn(vmalloc_to_page(vmalloc_addr));
--}
--
--EXPORT_SYMBOL(vmalloc_to_pfn);
--
- #if !defined(__HAVE_ARCH_GATE_AREA)
+ 		to_pg = min((typeof(pg_off))PAGE_CACHE_SIZE - pg_off, cl_count);
+ 		lock_page(page);
+-		zero_user_page(page, pg_off, to_pg, KM_USER0);
++		zero_user(page, pg_off, to_pg);
+ 		SetPageUptodate(page);
+ 		reiser4_set_page_dirty_internal(page);
+ 		mark_page_accessed(page);
+@@ -2294,8 +2294,7 @@ static int read_some_cluster_pages(struc
+ 			off = off_to_pgoff(win->off+win->count+win->delta);
+ 			if (off) {
+ 				lock_page(pg);
+-				zero_user_page(pg, off, PAGE_CACHE_SIZE - off,
+-						KM_USER0);
++				zero_user_segment(pg, off, PAGE_CACHE_SIZE);
+ 				unlock_page(pg);
+ 			}
+ 		}
+@@ -2342,8 +2341,7 @@ static int read_some_cluster_pages(struc
  
- #if defined(AT_SYSINFO_EHDR)
-Index: linux-2.6.23-rc8-mm1/mm/vmalloc.c
+ 			offset =
+ 			    off_to_pgoff(win->off + win->count + win->delta);
+-			zero_user_page(pg, offset, PAGE_CACHE_SIZE - offset,
+-					KM_USER0);
++			zero_user_segment(pg, offset, PAGE_CACHE_SIZE);
+ 			unlock_page(pg);
+ 			/* still not uptodate */
+ 			break;
+Index: linux-2.6.23-rc8-mm1/fs/reiser4/plugin/file/file.c
 ===================================================================
---- linux-2.6.23-rc8-mm1.orig/mm/vmalloc.c	2007-09-25 15:08:13.000000000 -0700
-+++ linux-2.6.23-rc8-mm1/mm/vmalloc.c	2007-09-25 15:14:56.000000000 -0700
-@@ -166,6 +166,44 @@ int map_vm_area(struct vm_struct *area, 
- }
- EXPORT_SYMBOL_GPL(map_vm_area);
+--- linux-2.6.23-rc8-mm1.orig/fs/reiser4/plugin/file/file.c	2007-09-25 15:12:22.000000000 -0700
++++ linux-2.6.23-rc8-mm1/fs/reiser4/plugin/file/file.c	2007-09-25 15:12:51.000000000 -0700
+@@ -532,7 +532,7 @@ static int shorten_file(struct inode *in
  
-+/*
-+ * Map a vmalloc()-space virtual address to the physical page.
-+ */
-+struct page *vmalloc_to_page(void *vmalloc_addr)
-+{
-+	unsigned long addr = (unsigned long) vmalloc_addr;
-+	struct page *page = NULL;
-+	pgd_t *pgd = pgd_offset_k(addr);
-+	pud_t *pud;
-+	pmd_t *pmd;
-+	pte_t *ptep, pte;
-+
-+	if (!pgd_none(*pgd)) {
-+		pud = pud_offset(pgd, addr);
-+		if (!pud_none(*pud)) {
-+			pmd = pmd_offset(pud, addr);
-+			if (!pmd_none(*pmd)) {
-+				ptep = pte_offset_map(pmd, addr);
-+				pte = *ptep;
-+				if (pte_present(pte))
-+					page = pte_page(pte);
-+				pte_unmap(ptep);
-+			}
-+		}
-+	}
-+	return page;
-+}
-+EXPORT_SYMBOL(vmalloc_to_page);
-+
-+/*
-+ * Map a vmalloc()-space virtual address to the physical page frame number.
-+ */
-+unsigned long vmalloc_to_pfn(void *vmalloc_addr)
-+{
-+	return page_to_pfn(vmalloc_to_page(vmalloc_addr));
-+}
-+EXPORT_SYMBOL(vmalloc_to_pfn);
-+
- static struct vm_struct *__get_vm_area_node(unsigned long size, unsigned long flags,
- 					    unsigned long start, unsigned long end,
- 					    int node, gfp_t gfp_mask)
-Index: linux-2.6.23-rc8-mm1/include/linux/mm.h
+ 	lock_page(page);
+ 	assert("vs-1066", PageLocked(page));
+-	zero_user_page(page, padd_from, PAGE_CACHE_SIZE - padd_from, KM_USER0);
++	zero_user_segment(page, padd_from, PAGE_CACHE_SIZE);
+ 	unlock_page(page);
+ 	page_cache_release(page);
+ 	/* the below does up(sbinfo->delete_mutex). Do not get confused */
+@@ -1437,7 +1437,7 @@ int readpage_unix_file(struct file *file
+ 
+ 	if (page->mapping->host->i_size <= page_offset(page)) {
+ 		/* page is out of file */
+-		zero_user_page(page, 0, PAGE_CACHE_SIZE, KM_USER0);
++		zero_user(page, 0, PAGE_CACHE_SIZE);
+ 		SetPageUptodate(page);
+ 		unlock_page(page);
+ 		return 0;
+Index: linux-2.6.23-rc8-mm1/fs/reiser4/plugin/item/ctail.c
 ===================================================================
---- linux-2.6.23-rc8-mm1.orig/include/linux/mm.h	2007-09-25 15:08:14.000000000 -0700
-+++ linux-2.6.23-rc8-mm1/include/linux/mm.h	2007-09-25 15:16:32.000000000 -0700
-@@ -231,6 +231,10 @@ static inline int get_page_unless_zero(s
- 	return atomic_inc_not_zero(&page->_count);
- }
+--- linux-2.6.23-rc8-mm1.orig/fs/reiser4/plugin/item/ctail.c	2007-09-25 15:12:22.000000000 -0700
++++ linux-2.6.23-rc8-mm1/fs/reiser4/plugin/item/ctail.c	2007-09-25 15:12:51.000000000 -0700
+@@ -638,7 +638,7 @@ int do_readpage_ctail(struct inode * ino
+ 		goto exit;
+ 	to_page = pbytes(page_index(page), inode);
+ 	if (to_page == 0) {
+-		zero_user_page(page, 0, PAGE_CACHE_SIZE, KM_USER0);
++		zero_user(page, 0, PAGE_CACHE_SIZE);
+ 		SetPageUptodate(page);
+ 		goto exit;
+ 	}
+@@ -655,7 +655,7 @@ int do_readpage_ctail(struct inode * ino
+ 		/* refresh bytes */
+ 		to_page = pbytes(page_index(page), inode);
+ 		if (to_page == 0) {
+-			zero_user_page(page, 0, PAGE_CACHE_SIZE, KM_USER0);
++			zero_user(page, 0, PAGE_CACHE_SIZE);
+ 			SetPageUptodate(page);
+ 			goto exit;
+ 		}
+@@ -678,7 +678,7 @@ int do_readpage_ctail(struct inode * ino
+ 		 */
+ 	case FAKE_DISK_CLUSTER:
+ 		/* fill the page by zeroes */
+-		zero_user_page(page, 0, PAGE_CACHE_SIZE, KM_USER0);
++		zero_user(page, 0, PAGE_CACHE_SIZE);
+ 		SetPageUptodate(page);
+ 		break;
+ 	case PREP_DISK_CLUSTER:
+@@ -788,7 +788,7 @@ static int ctail_readpages_filler(void *
+ 		return 0;
+ 	}
+ 	if (pbytes(page_index(page), inode) == 0) {
+-		zero_user_page(page, 0, PAGE_CACHE_SIZE, KM_USER0);
++		zero_user(page, 0, PAGE_CACHE_SIZE);
+ 		SetPageUptodate(page);
+ 		unlock_page(page);
+ 		return 0;
+Index: linux-2.6.23-rc8-mm1/fs/reiser4/plugin/item/extent_file_ops.c
+===================================================================
+--- linux-2.6.23-rc8-mm1.orig/fs/reiser4/plugin/item/extent_file_ops.c	2007-09-25 15:12:22.000000000 -0700
++++ linux-2.6.23-rc8-mm1/fs/reiser4/plugin/item/extent_file_ops.c	2007-09-25 15:12:51.000000000 -0700
+@@ -1136,7 +1136,7 @@ int reiser4_do_readpage_extent(reiser4_e
+ 		 */
+ 		j = jfind(mapping, index);
+ 		if (j == NULL) {
+-			zero_user_page(page, 0, PAGE_CACHE_SIZE, KM_USER0);
++			zero_user(page, 0, PAGE_CACHE_SIZE);
+ 			SetPageUptodate(page);
+ 			unlock_page(page);
+ 			return 0;
+@@ -1151,7 +1151,7 @@ int reiser4_do_readpage_extent(reiser4_e
+ 		block = *jnode_get_io_block(j);
+ 		spin_unlock_jnode(j);
+ 		if (block == 0) {
+-			zero_user_page(page, 0, PAGE_CACHE_SIZE, KM_USER0);
++			zero_user(page, 0, PAGE_CACHE_SIZE);
+ 			SetPageUptodate(page);
+ 			unlock_page(page);
+ 			jput(j);
+Index: linux-2.6.23-rc8-mm1/fs/reiser4/plugin/item/tail.c
+===================================================================
+--- linux-2.6.23-rc8-mm1.orig/fs/reiser4/plugin/item/tail.c	2007-09-25 15:12:22.000000000 -0700
++++ linux-2.6.23-rc8-mm1/fs/reiser4/plugin/item/tail.c	2007-09-25 15:12:51.000000000 -0700
+@@ -392,8 +392,7 @@ static int do_readpage_tail(uf_coord_t *
  
-+/* Support for virtually mapped pages */
-+struct page *vmalloc_to_page(void *addr);
-+unsigned long vmalloc_to_pfn(void *addr);
-+
- static inline struct page *compound_head(struct page *page)
- {
- 	if (unlikely(PageTail(page)))
-@@ -1086,8 +1090,6 @@ static inline unsigned long vma_pages(st
- 
- pgprot_t vm_get_page_prot(unsigned long vm_flags);
- struct vm_area_struct *find_extend_vma(struct mm_struct *, unsigned long addr);
--struct page *vmalloc_to_page(void *addr);
--unsigned long vmalloc_to_pfn(void *addr);
- int remap_pfn_range(struct vm_area_struct *, unsigned long addr,
- 			unsigned long pfn, unsigned long size, pgprot_t);
- int vm_insert_page(struct vm_area_struct *, unsigned long addr, struct page *);
+  done:
+ 	if (mapped != PAGE_CACHE_SIZE)
+-		zero_user_page(page, mapped, PAGE_CACHE_SIZE - mapped,
+-				KM_USER0);
++		zero_user_segment(page, mapped, PAGE_CACHE_SIZE);
+ 	SetPageUptodate(page);
+  out_unlock_page:
+ 	unlock_page(page);
 
 -- 
 
