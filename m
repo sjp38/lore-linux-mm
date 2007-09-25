@@ -1,63 +1,49 @@
-Received: from d03relay02.boulder.ibm.com (d03relay02.boulder.ibm.com [9.17.195.227])
-	by e31.co.us.ibm.com (8.13.8/8.13.8) with ESMTP id l8PLwuZm005680
-	for <linux-mm@kvack.org>; Tue, 25 Sep 2007 17:58:56 -0400
-Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
-	by d03relay02.boulder.ibm.com (8.13.8/8.13.8/NCO v8.5) with ESMTP id l8PLwu56477622
-	for <linux-mm@kvack.org>; Tue, 25 Sep 2007 15:58:56 -0600
-Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av02.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l8PLwt5C011226
-	for <linux-mm@kvack.org>; Tue, 25 Sep 2007 15:58:56 -0600
-Subject: Re: 2.6.23-rc8-mm1 - powerpc memory hotplug link failure
-From: Badari Pulavarty <pbadari@gmail.com>
-In-Reply-To: <46F968C2.7080900@linux.vnet.ibm.com>
-References: <20070925014625.3cd5f896.akpm@linux-foundation.org>
-	 <46F968C2.7080900@linux.vnet.ibm.com>
-Content-Type: text/plain
-Date: Tue, 25 Sep 2007 15:01:54 -0700
-Message-Id: <1190757715.13955.40.camel@dyn9047017100.beaverton.ibm.com>
-Mime-Version: 1.0
+Received: from zps35.corp.google.com (zps35.corp.google.com [172.25.146.35])
+	by smtp-out.google.com with ESMTP id l8PMsle2015789
+	for <linux-mm@kvack.org>; Tue, 25 Sep 2007 23:54:48 +0100
+Received: from nz-out-0506.google.com (nzii28.prod.google.com [10.36.35.28])
+	by zps35.corp.google.com with ESMTP id l8PMskG3000912
+	for <linux-mm@kvack.org>; Tue, 25 Sep 2007 15:54:46 -0700
+Received: by nz-out-0506.google.com with SMTP id i28so1227335nzi
+        for <linux-mm@kvack.org>; Tue, 25 Sep 2007 15:54:46 -0700 (PDT)
+Message-ID: <6599ad830709251554t3c68861ax86c30dece98403e1@mail.gmail.com>
+Date: Tue, 25 Sep 2007 15:54:45 -0700
+From: "Paul Menage" <menage@google.com>
+Subject: Re: [patch -mm 7/5] oom: filter tasklist dump by mem_cgroup
+In-Reply-To: <Pine.LNX.4.64.0709251416410.4831@schroedinger.engr.sgi.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+References: <alpine.DEB.0.9999.0709250035570.11015@chino.kir.corp.google.com>
+	 <alpine.DEB.0.9999.0709250037030.11015@chino.kir.corp.google.com>
+	 <6599ad830709251100n352028beraddaf2ac33ea8f6c@mail.gmail.com>
+	 <Pine.LNX.4.64.0709251416410.4831@schroedinger.engr.sgi.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Kamalesh Babulal <kamalesh@linux.vnet.ibm.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, lkml <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, kamezawa.hiroyu@jp.fujitsu.com, Andy Whitcroft <apw@shadowen.org>, Balbir Singh <balbir@linux.vnet.ibm.com>
+To: Christoph Lameter <clameter@sgi.com>
+Cc: David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, Balbir Singh <balbir@linux.vnet.ibm.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 2007-09-26 at 01:30 +0530, Kamalesh Babulal wrote:
-> Hi Andrew,
-> 
-> The 2.6.23-rc8-mm1 kernel linking fails on the powerpc (P5+) box
-> 
->   CC      init/version.o
->   LD      init/built-in.o
->   LD      .tmp_vmlinux1
-> drivers/built-in.o: In function `memory_block_action':
-> /root/scrap/linux-2.6.23-rc8/drivers/base/memory.c:188: undefined reference to `.remove_memory'
-> make: *** [.tmp_vmlinux1] Error 1
-> 
+On 9/25/07, Christoph Lameter <clameter@sgi.com> wrote:
+> On Tue, 25 Sep 2007, Paul Menage wrote:
+>
+> > It would be nice to be able to do the same thing for cpuset
+> > membership, in the event that cpusets are active and the memory
+> > controller is not.
+>
+> Maybe come up with some generic scheme that works for all types of memory
+> controllers? cpusets is now a type of memory controller right?
 
-I ran into the same thing earlier. Here is the fix I made.
+Kind of, just the way it's always been. It's just a very different
+model to Balbir's memory controller.
 
-Thanks,
-Badari
+Incidentally, I'm considering splitting cpusets into two cgroup
+subsystems, cpuset and memset, so that they can be more independent.
+Mounting the old "cpuset" filesystem type would still get both of them
+as before, so it would be backwards compatible.
 
-Memory hotplug remove is currently supported only on IA64
-
-Signed-off-by: Badari Pulavarty <pbadari@us.ibm.com>
-
-Index: linux-2.6.23-rc8/mm/Kconfig
-===================================================================
---- linux-2.6.23-rc8.orig/mm/Kconfig	2007-09-25 14:44:03.000000000 -0700
-+++ linux-2.6.23-rc8/mm/Kconfig	2007-09-25 14:44:48.000000000 -0700
-@@ -143,6 +143,7 @@ config MEMORY_HOTREMOVE
- 	bool "Allow for memory hot remove"
- 	depends on MEMORY_HOTPLUG
- 	depends on MIGRATION
-+	depends on (IA64)
- 
- # Heavily threaded applications may benefit from splitting the mm-wide
- # page_table_lock, so that faults on different parts of the user address
-
+Paul
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
