@@ -1,58 +1,63 @@
-Date: Tue, 25 Sep 2007 12:18:44 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [patch -mm 7/5] oom: filter tasklist dump by mem_cgroup
-In-Reply-To: <46F949DC.1070806@linux.vnet.ibm.com>
-Message-ID: <alpine.DEB.0.9999.0709251208580.20644@chino.kir.corp.google.com>
-References: <alpine.DEB.0.9999.0709250035570.11015@chino.kir.corp.google.com> <alpine.DEB.0.9999.0709250037030.11015@chino.kir.corp.google.com> <46F949DC.1070806@linux.vnet.ibm.com>
+Received: from sd0109e.au.ibm.com (d23rh905.au.ibm.com [202.81.18.225])
+	by e23smtp04.au.ibm.com (8.13.1/8.13.1) with ESMTP id l8PK0UDq004883
+	for <linux-mm@kvack.org>; Wed, 26 Sep 2007 06:00:30 +1000
+Received: from d23av01.au.ibm.com (d23av01.au.ibm.com [9.190.234.96])
+	by sd0109e.au.ibm.com (8.13.8/8.13.8/NCO v8.5) with ESMTP id l8PK44Wm278668
+	for <linux-mm@kvack.org>; Wed, 26 Sep 2007 06:04:05 +1000
+Received: from d23av01.au.ibm.com (loopback [127.0.0.1])
+	by d23av01.au.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l8PJx0t3026978
+	for <linux-mm@kvack.org>; Wed, 26 Sep 2007 05:59:00 +1000
+Message-ID: <46F968C2.7080900@linux.vnet.ibm.com>
+Date: Wed, 26 Sep 2007 01:30:02 +0530
+From: Kamalesh Babulal <kamalesh@linux.vnet.ibm.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: 2.6.23-rc8-mm1 - powerpc memory hotplug link failure
+References: <20070925014625.3cd5f896.akpm@linux-foundation.org>
+In-Reply-To: <20070925014625.3cd5f896.akpm@linux-foundation.org>
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Balbir Singh <balbir@linux.vnet.ibm.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <clameter@sgi.com>, linux-mm@kvack.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, kamezawa.hiroyu@jp.fujitsu.com, Andy Whitcroft <apw@shadowen.org>, Balbir Singh <balbir@linux.vnet.ibm.com>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 25 Sep 2007, Balbir Singh wrote:
+Hi Andrew,
 
-> > If an OOM was triggered as a result a cgroup's memory controller, the
-> > tasklist shall be filtered to exclude tasks that are not a member of the
-> > same group.
-> > 
-> > Creates a helper function to return non-zero if a task is a member of a
-> > mem_cgroup:
-> > 
-> > 	int task_in_mem_cgroup(const struct task_struct *task,
-> > 			       const struct mem_cgroup *mem);
-> > 
-> > Cc: Christoph Lameter <clameter@sgi.com>
-> > Cc: Balbir Singh <balbir@linux.vnet.ibm.com>
-> > Signed-off-by: David Rientjes <rientjes@google.com>
-> 
-> Thanks for doing this. The number of parameters to OOM kill
-> have grown, may at the time of the next addition of parameter,
-> we should consider using a structure similar to scan_control
-> and pass the structure instead of all the parameters.
-> 
+The 2.6.23-rc8-mm1 kernel linking fails on the powerpc (P5+) box
 
-I mentioned in the description of patch #5 in this set that the kernel 
-will probably eventually want a generic tasklist dumping interface that 
-allows users to specify what they want displayed for each task, even 
-though that's going to introduce a large number of new flags like 
-DUMP_PID, DUMP_TOTAL_VM_SIZE, etc.
+  CC      init/version.o
+  LD      init/built-in.o
+  LD      .tmp_vmlinux1
+drivers/built-in.o: In function `memory_block_action':
+/root/scrap/linux-2.6.23-rc8/drivers/base/memory.c:188: undefined reference to `.remove_memory'
+make: *** [.tmp_vmlinux1] Error 1
 
-It would be trivial to include a callback function to do the filtering for 
-such a tasklist dumping interface that returns non-zero to display a task 
-and zero otherwise.
+# gcc -v
+Using built-in specs.
+Target: powerpc64-suse-linux
+Configured with: ../configure --enable-threads=posix --prefix=/usr 
+--with-local-prefix=/usr/local --infodir=/usr/share/info 
+--mandir=/usr/share/man --libdir=/usr/lib --libexecdir=/usr/lib 
+--enable-languages=c,c++,objc,fortran,obj-c++,java,ada 
+--enable-checking=release --with-gxx-include-dir=/usr/include/c++/4.1.2 
+--enable-ssp --disable-libssp --disable-libgcj --with-slibdir=/lib 
+--with-system-zlib --enable-shared --enable-__cxa_atexit 
+--enable-libstdcxx-allocator=new --program-suffix=-4.1 
+--enable-version-specific-runtime-libs --without-system-libunwind 
+--with-cpu=default32 --enable-secureplt --with-long-double-128 --host=powerpc64-suse-linux
+Thread model: posix
+gcc version 4.1.2 20061115 (prerelease) (SUSE Linux)
 
-So now our interface prototype looks like this:
+ # ld -v
+GNU ld version 2.17.50.0.5 20060927 (SUSE Linux)
 
-	void dump_tasks(int (*filter)(const struct task_struct *),
-		        unsigned long flags)
 
-That's simple enough, but the work in converting other tasklist dumps over 
-to using this interface and the number of flags this mechanism would 
-require may not be so popular.  But, I agree, it's something that the 
-kernel should have.
+-- 
+Thanks & Regards,
+Kamalesh Babulal,
+Linux Technology Center,
+IBM, ISTL.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
