@@ -1,103 +1,71 @@
-Message-Id: <20070925233007.778904086@sgi.com>
+Message-Id: <20070925233006.586143945@sgi.com>
 References: <20070925232543.036615409@sgi.com>
-Date: Tue, 25 Sep 2007 16:25:53 -0700
+Date: Tue, 25 Sep 2007 16:25:48 -0700
 From: Christoph Lameter <clameter@sgi.com>
-Subject: [patch 10/14] SLUB: Rename NUMA defrag_ratio to remote_node_defrag_ratio
-Content-Disposition: inline; filename=0003-slab_defrag_remote_node_defrag_ratio.patch
+Subject: [patch 05/14] i386: Resolve dependency of asm-i386/pgtable.h on highmem.h
+Content-Disposition: inline; filename=vcompound_fix_i386_pgtable_mess
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: akpm@linux-foundation.org
 Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-The NUMA defrag works by allocating objects from partial slabs on remote
-nodes. Rename it to
+pgtable.h does not include highmem.h but uses various constants from
+highmem.h. We cannot include highmem.h because highmem.h will in turn
+include many other include files that also depend on pgtable.h
 
-	remote_node_defrag_ratio
-
-to be clear about this.
+So move the definitions from highmem.h into pgtable.h.
 
 Signed-off-by: Christoph Lameter <clameter@sgi.com>
----
- include/linux/slub_def.h |    5 ++++-
- mm/slub.c                |   17 +++++++++--------
- 2 files changed, 13 insertions(+), 9 deletions(-)
 
-Index: linux-2.6.23-rc8-mm1/include/linux/slub_def.h
+---
+ include/asm-i386/highmem.h |    6 ------
+ include/asm-i386/pgtable.h |    8 ++++++++
+ 2 files changed, 8 insertions(+), 6 deletions(-)
+
+Index: linux-2.6.23-rc8-mm1/include/asm-i386/highmem.h
 ===================================================================
---- linux-2.6.23-rc8-mm1.orig/include/linux/slub_def.h	2007-09-25 14:53:58.000000000 -0700
-+++ linux-2.6.23-rc8-mm1/include/linux/slub_def.h	2007-09-25 14:54:43.000000000 -0700
-@@ -59,7 +59,10 @@ struct kmem_cache {
- #endif
- 
- #ifdef CONFIG_NUMA
--	int defrag_ratio;
-+	/*
-+	 * Defragmentation by allocating from a remote node.
-+	 */
-+	int remote_node_defrag_ratio;
- 	struct kmem_cache_node *node[MAX_NUMNODES];
- #endif
- #ifdef CONFIG_SMP
-Index: linux-2.6.23-rc8-mm1/mm/slub.c
+--- linux-2.6.23-rc8-mm1.orig/include/asm-i386/highmem.h	2007-09-25 15:08:13.000000000 -0700
++++ linux-2.6.23-rc8-mm1/include/asm-i386/highmem.h	2007-09-25 15:17:31.000000000 -0700
+@@ -38,11 +38,6 @@ extern pte_t *pkmap_page_table;
+  * easily, subsequent pte tables have to be allocated in one physical
+  * chunk of RAM.
+  */
+-#ifdef CONFIG_X86_PAE
+-#define LAST_PKMAP 512
+-#else
+-#define LAST_PKMAP 1024
+-#endif
+ /*
+  * Ordering is:
+  *
+@@ -58,7 +53,6 @@ extern pte_t *pkmap_page_table;
+  * VMALLOC_START
+  * high_memory
+  */
+-#define PKMAP_BASE ( (FIXADDR_BOOT_START - PAGE_SIZE*(LAST_PKMAP + 1)) & PMD_MASK )
+ #define LAST_PKMAP_MASK (LAST_PKMAP-1)
+ #define PKMAP_NR(virt)  ((virt-PKMAP_BASE) >> PAGE_SHIFT)
+ #define PKMAP_ADDR(nr)  (PKMAP_BASE + ((nr) << PAGE_SHIFT))
+Index: linux-2.6.23-rc8-mm1/include/asm-i386/pgtable.h
 ===================================================================
---- linux-2.6.23-rc8-mm1.orig/mm/slub.c	2007-09-25 14:54:25.000000000 -0700
-+++ linux-2.6.23-rc8-mm1/mm/slub.c	2007-09-25 14:54:43.000000000 -0700
-@@ -1300,7 +1300,8 @@ static struct page *get_any_partial(stru
- 	 * expensive if we do it every time we are trying to find a slab
- 	 * with available objects.
- 	 */
--	if (!s->defrag_ratio || get_cycles() % 1024 > s->defrag_ratio)
-+	if (!s->remote_node_defrag_ratio ||
-+			get_cycles() % 1024 > s->remote_node_defrag_ratio)
- 		return NULL;
- 
- 	zonelist = &NODE_DATA(slab_node(current->mempolicy))
-@@ -2231,7 +2232,7 @@ static int kmem_cache_open(struct kmem_c
- 
- 	s->refcount = 1;
- #ifdef CONFIG_NUMA
--	s->defrag_ratio = 100;
-+	s->remote_node_defrag_ratio = 100;
- #endif
- 	if (!init_kmem_cache_nodes(s, gfpflags & ~SLUB_DMA))
- 		goto error;
-@@ -3762,21 +3763,21 @@ static ssize_t free_calls_show(struct km
- SLAB_ATTR_RO(free_calls);
- 
- #ifdef CONFIG_NUMA
--static ssize_t defrag_ratio_show(struct kmem_cache *s, char *buf)
-+static ssize_t remote_node_defrag_ratio_show(struct kmem_cache *s, char *buf)
- {
--	return sprintf(buf, "%d\n", s->defrag_ratio / 10);
-+	return sprintf(buf, "%d\n", s->remote_node_defrag_ratio / 10);
- }
- 
--static ssize_t defrag_ratio_store(struct kmem_cache *s,
-+static ssize_t remote_node_defrag_ratio_store(struct kmem_cache *s,
- 				const char *buf, size_t length)
- {
- 	int n = simple_strtoul(buf, NULL, 10);
- 
- 	if (n < 100)
--		s->defrag_ratio = n * 10;
-+		s->remote_node_defrag_ratio = n * 10;
- 	return length;
- }
--SLAB_ATTR(defrag_ratio);
-+SLAB_ATTR(remote_node_defrag_ratio);
- #endif
- 
- static struct attribute * slab_attrs[] = {
-@@ -3807,7 +3808,7 @@ static struct attribute * slab_attrs[] =
- 	&cache_dma_attr.attr,
- #endif
- #ifdef CONFIG_NUMA
--	&defrag_ratio_attr.attr,
-+	&remote_node_defrag_ratio_attr.attr,
- #endif
- 	NULL
- };
+--- linux-2.6.23-rc8-mm1.orig/include/asm-i386/pgtable.h	2007-09-25 15:08:13.000000000 -0700
++++ linux-2.6.23-rc8-mm1/include/asm-i386/pgtable.h	2007-09-25 15:17:31.000000000 -0700
+@@ -78,6 +78,14 @@ void paging_init(void);
+ #define VMALLOC_OFFSET	(8*1024*1024)
+ #define VMALLOC_START	(((unsigned long) high_memory + \
+ 			2*VMALLOC_OFFSET-1) & ~(VMALLOC_OFFSET-1))
++#ifdef CONFIG_X86_PAE
++#define LAST_PKMAP 512
++#else
++#define LAST_PKMAP 1024
++#endif
++
++#define PKMAP_BASE ( (FIXADDR_BOOT_START - PAGE_SIZE*(LAST_PKMAP + 1)) & PMD_MASK )
++
+ #ifdef CONFIG_HIGHMEM
+ # define VMALLOC_END	(PKMAP_BASE-2*PAGE_SIZE)
+ #else
 
 -- 
 
