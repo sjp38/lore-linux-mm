@@ -1,52 +1,41 @@
-Received: from sd0109e.au.ibm.com (d23rh905.au.ibm.com [202.81.18.225])
-	by e23smtp06.au.ibm.com (8.13.1/8.13.1) with ESMTP id l8P4QhYb031088
-	for <linux-mm@kvack.org>; Tue, 25 Sep 2007 14:26:43 +1000
-Received: from d23av02.au.ibm.com (d23av02.au.ibm.com [9.190.235.138])
-	by sd0109e.au.ibm.com (8.13.8/8.13.8/NCO v8.5) with ESMTP id l8P4UFN4203362
-	for <linux-mm@kvack.org>; Tue, 25 Sep 2007 14:30:17 +1000
-Received: from d23av02.au.ibm.com (loopback [127.0.0.1])
-	by d23av02.au.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l8P4QfkY025134
-	for <linux-mm@kvack.org>; Tue, 25 Sep 2007 14:26:41 +1000
-Message-ID: <46F88DFB.3020307@linux.vnet.ibm.com>
-Date: Tue, 25 Sep 2007 09:56:35 +0530
-From: Balbir Singh <balbir@linux.vnet.ibm.com>
-Reply-To: balbir@linux.vnet.ibm.com
-MIME-Version: 1.0
+Date: Mon, 24 Sep 2007 21:34:29 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
 Subject: Re: [patch -mm 4/5] mm: test and set zone reclaim lock before starting
  reclaim
+In-Reply-To: <46F88DFB.3020307@linux.vnet.ibm.com>
+Message-ID: <alpine.DEB.0.9999.0709242129420.31515@chino.kir.corp.google.com>
 References: <alpine.DEB.0.9999.0709212311130.13727@chino.kir.corp.google.com> <alpine.DEB.0.9999.0709212312160.13727@chino.kir.corp.google.com> <alpine.DEB.0.9999.0709212312400.13727@chino.kir.corp.google.com> <alpine.DEB.0.9999.0709212312560.13727@chino.kir.corp.google.com>
-In-Reply-To: <alpine.DEB.0.9999.0709212312560.13727@chino.kir.corp.google.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+ <46F88DFB.3020307@linux.vnet.ibm.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: David Rientjes <rientjes@google.com>
+To: Balbir Singh <balbir@linux.vnet.ibm.com>
 Cc: Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <andrea@suse.de>, Christoph Lameter <clameter@sgi.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-David Rientjes wrote:
-> +
-> +	if (zone_test_and_set_flag(zone, ZONE_RECLAIM_LOCKED))
-> +		return 0;
+On Tue, 25 Sep 2007, Balbir Singh wrote:
 
-What's the consequence of this on the caller of zone_reclaim()?
-I see that the zone is marked as full and will not be re-examined
-again.
+> > +
+> > +	if (zone_test_and_set_flag(zone, ZONE_RECLAIM_LOCKED))
+> > +		return 0;
+> 
+> What's the consequence of this on the caller of zone_reclaim()?
+> I see that the zone is marked as full and will not be re-examined
+> again.
+> 
 
-Am I missing something?
+It's only marked as full in the zonelist cache for the zonelist that 
+__alloc_pages() was called with, which is an optimization.  The zone is 
+already flagged as being in __zone_reclaim() so there's no need to 
+reinvoke it for this allocation attempt; that behavior is unchanged from 
+current behavior.
 
-> +	ret = __zone_reclaim(zone, gfp_mask, order);
-> +	zone_clear_flag(zone, ZONE_RECLAIM_LOCKED);
-> +
-> +	return ret;
->  }
->  #endif
+One thing that has been changed in -mm with regard to my last patchset is 
+that kswapd and try_to_free_pages() are allowed to call shrink_zone() 
+concurrently.
 
--- 
-	Warm Regards,
-	Balbir Singh
-	Linux Technology Center
-	IBM, ISTL
+ZONE_RECLAIM_LOCKED will be cleared upon return from __zone_reclaim().
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
