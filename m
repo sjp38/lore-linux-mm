@@ -1,48 +1,38 @@
-Date: Mon, 24 Sep 2007 23:29:13 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [patch -mm 4/5] mm: test and set zone reclaim lock before starting
- reclaim
-In-Reply-To: <46F8A7FE.7000907@linux.vnet.ibm.com>
-Message-ID: <alpine.DEB.0.9999.0709242322100.5727@chino.kir.corp.google.com>
-References: <alpine.DEB.0.9999.0709212311130.13727@chino.kir.corp.google.com> <alpine.DEB.0.9999.0709212312160.13727@chino.kir.corp.google.com> <alpine.DEB.0.9999.0709212312400.13727@chino.kir.corp.google.com> <alpine.DEB.0.9999.0709212312560.13727@chino.kir.corp.google.com>
- <46F88DFB.3020307@linux.vnet.ibm.com> <alpine.DEB.0.9999.0709242129420.31515@chino.kir.corp.google.com> <46F8A7FE.7000907@linux.vnet.ibm.com>
+Message-ID: <390704784.02057@ustc.edu.cn>
+Date: Tue, 25 Sep 2007 15:19:41 +0800
+From: Fengguang Wu <wfg@mail.ustc.edu.cn>
+Subject: Re: + maps2-export-page-index-in-kpagemap.patch added to -mm tree
+Message-ID: <20070925071941.GC7862@mail.ustc.edu.cn>
+References: <200709242044.l8OKi01e016834@imap1.linux-foundation.org> <20070924205901.GI19691@waste.org> <1190668988.26982.254.camel@localhost> <20070924213549.GJ19691@waste.org> <1190670636.26982.258.camel@localhost> <20070924220202.GK19691@waste.org>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20070924220202.GK19691@waste.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Balbir Singh <balbir@linux.vnet.ibm.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <andrea@suse.de>, Christoph Lameter <clameter@sgi.com>, linux-mm@kvack.org
+To: Matt Mackall <mpm@selenic.com>
+Cc: Dave Hansen <haveblue@us.ibm.com>, akpm@linux-foundation.org, balbir@linux.vnet.ibm.com, jjberthels@gmail.com, linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 25 Sep 2007, Balbir Singh wrote:
+On Mon, Sep 24, 2007 at 05:02:02PM -0500, Matt Mackall wrote:
+> I think Fengguang is just thinking forward to the next logical step
+> here which is "expose what's in the page cache". Which means being
 
-> > One thing that has been changed in -mm with regard to my last patchset is 
-> > that kswapd and try_to_free_pages() are allowed to call shrink_zone() 
-> > concurrently.
-> > 
-> 
-> Aah.. interesting. Could you define concurrently more precisely,
-> concurrently as in the same zone or for different zones concurrently?
-> 
+I have been doing it for a long time - that's the filecache patch I
+sent you. However it's not quite ready for a public review.
 
-Same zone, thankfully.
+> able to go from page back to device:inode:offset or (better, but
+> trickier) path:offset.
 
-Previous to my 9-patch series that serialized the OOM killer, there was an 
-atomic_t reclaim_in_progress member of each struct zone that was 
-incremented each time shrink_zone() was called and decremented each time 
-it exited.  The only place where this was tested was in zone_reclaim() and 
-it returned 0 to __alloc_pages() if it was non-zero prior to calling 
-__zone_reclaim().
+It's doing the other way around - a top-down way.
 
-So other callers to shrink_zone(), such as kswapd and try_to_free_pages(), 
-were still able to invoke it several times for the same zone but 
-zone_reclaim() could not if the zone was being shrunk, regardless of where 
-shrink_zone() was called from. 
+First, you get a table of all cached inodes with the following fields:
+  device-number  inode-number  file-path  cached-page-count  status
 
-That's partially still true: kswapd and try_to_free_pages() (and actually 
-balance_pgdat()) can still call it several times, but the first call to 
-zone_reclaim() will also succeed since we're now indicating zone reclaims 
-with a flag instead of an accumulator.
+Then, one can query any file he's interested in, and list all its
+cached pages in the following format:
+  index  length  page-flags  reference-count
+(Sorry, it's the same format I have proposed in the pmaps interface.)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
