@@ -1,86 +1,92 @@
-Received: from d23relay03.au.ibm.com (d23relay03.au.ibm.com [202.81.18.234])
-	by e23smtp06.au.ibm.com (8.13.1/8.13.1) with ESMTP id l8Q8JoIk008965
-	for <linux-mm@kvack.org>; Wed, 26 Sep 2007 18:19:50 +1000
-Received: from d23av01.au.ibm.com (d23av01.au.ibm.com [9.190.234.96])
-	by d23relay03.au.ibm.com (8.13.8/8.13.8/NCO v8.5) with ESMTP id l8Q8JoDS3211406
-	for <linux-mm@kvack.org>; Wed, 26 Sep 2007 18:19:50 +1000
-Received: from d23av01.au.ibm.com (loopback [127.0.0.1])
-	by d23av01.au.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l8Q8IKrc029773
-	for <linux-mm@kvack.org>; Wed, 26 Sep 2007 18:18:21 +1000
-Message-ID: <46FA1604.3040808@linux.vnet.ibm.com>
-Date: Wed, 26 Sep 2007 13:49:16 +0530
-From: Kamalesh Babulal <kamalesh@linux.vnet.ibm.com>
+Date: Wed, 26 Sep 2007 06:27:43 -0600
+From: " Royal Kasino " <blue@go.com>
+Subject: Zahlen Sie 100 Euro ein und spielen Sie mit 400 Euro
+Message-ID: <03611451.15086484@collocation.com>
 MIME-Version: 1.0
-Subject: Re: 2.6.23-rc8-mm1 - powerpc memory hotplug link failure
-References: <20070925014625.3cd5f896.akpm@linux-foundation.org> <46F968C2.7080900@linux.vnet.ibm.com> <20070926103205.c72a8e8a.kamezawa.hiroyu@jp.fujitsu.com> <20070926104854.7cc09d13.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20070926104854.7cc09d13.kamezawa.hiroyu@jp.fujitsu.com>
-Content-Type: text/plain; charset=US-ASCII
+Content-Type: text/html; charset=iso-8859-1
 Content-Transfer-Encoding: 7bit
-Sender: owner-linux-mm@kvack.org
-Return-Path: <owner-linux-mm@kvack.org>
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andy Whitcroft <apw@shadowen.org>, Balbir Singh <balbir@linux.vnet.ibm.com>, Badari Pulavarty <pbadari@gmail.com>
+Return-Path: <blue@go.com>
+To: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-KAMEZAWA Hiroyuki wrote:
-> On Wed, 26 Sep 2007 10:32:05 +0900
-> KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
->> Maybe my patch is the problem. could you give me your .config ?
->>
-> Ah, memory hot remove is selectable even if the arch doesn't support it....sorry.
-> 
-> ok, this is fix.
-> 
-> Thanks,
-> -Kame
-> ==
-> MEMORY_HOTREMOVE config option is selectable even it arch doesn't support it.
-> This fix it.
-> 
-> Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-> 
-> 
-> Index: linux-2.6.23-rc8-mm1/arch/ia64/Kconfig
-> ===================================================================
-> --- linux-2.6.23-rc8-mm1.orig/arch/ia64/Kconfig
-> +++ linux-2.6.23-rc8-mm1/arch/ia64/Kconfig
-> @@ -305,6 +305,9 @@ config HOTPLUG_CPU
->  config ARCH_ENABLE_MEMORY_HOTPLUG
->  	def_bool y
-> 
-> +config ARCH_ENABLE_MEMORY_HOTREMOVE
-> +	def_bool y
-> +
->  config SCHED_SMT
->  	bool "SMT scheduler support"
->  	depends on SMP
-> Index: linux-2.6.23-rc8-mm1/mm/Kconfig
-> ===================================================================
-> --- linux-2.6.23-rc8-mm1.orig/mm/Kconfig
-> +++ linux-2.6.23-rc8-mm1/mm/Kconfig
-> @@ -141,7 +141,7 @@ config MEMORY_HOTPLUG_SPARSE
-> 
->  config MEMORY_HOTREMOVE
->  	bool "Allow for memory hot remove"
-> -	depends on MEMORY_HOTPLUG
-> +	depends on MEMORY_HOTPLUG && ARCH_ENABLE_MEMORY_HOTREMOVE
->  	depends on MIGRATION
-> 
->  # Heavily threaded applications may benefit from splitting the mm-wide
-> 
-> -
-Hi Kame,
+<html>
 
-Thanks, your patch fixes the problem.
+<head>
+<meta http-equiv=Content-Type content="text/html; charset=iso-8859-1">
 
--- 
-Thanks & Regards,
-Kamalesh Babulal,
-Linux Technology Center,
-IBM, ISTL.
+<title>Ein unglaublicher 300% Bonus f&uuml;r </title>
 
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+<style>
+<!--
+ /* Style Definitions */
+ p.MsoNormal, li.MsoNormal, div.MsoNormal
+	{mso-style-parent:"";
+	margin:0cm;
+	margin-bottom:.0001pt;
+	mso-pagination:widow-orphan;
+	font-size:12.0pt;
+	font-family:"Times New Roman";
+	mso-fareast-font-family:"Times New Roman";}
+a:link, span.MsoHyperlink
+	{color:blue;
+	text-decoration:underline;
+	text-underline:single;}
+a:visited, span.MsoHyperlinkFollowed
+	{color:purple;
+	text-decoration:underline;
+	text-underline:single;}
+@page Section1
+	{size:595.3pt 841.9pt;
+	margin:2.0cm 42.5pt 2.0cm 3.0cm;
+	mso-header-margin:35.4pt;
+	mso-footer-margin:35.4pt;
+	mso-paper-source:0;}
+div.Section1
+	{page:Section1;}
+-->
+</style>
+
+</head>
+
+<body lang=DE link=blue vlink=purple style='tab-interval:35.4pt'>
+
+<div class=Section1>
+
+<p class=MsoNormal><span lang=EN-US style='mso-ansi-language:EN-US'>Ein
+unglaublicher 300% Bonus f&uuml;r Ihre erste Einzahlung bei Royal 
+VIP Casino<o:p></o:p></span></p>
+
+<p class=MsoNormal><span lang=EN-US style='mso-ansi-language:EN-US'>
+<o:p>&nbsp;</o:p></span></p>
+
+<p class=MsoNormal><span lang=EN-US style='mso-ansi-language:EN-US'>
+Stellen Sie
+sich wahrheitsgetreue Grafiken, so wie in den alten Casinos, vor; aber mit
+neuen wunderbaren Spielen in einer einladenden Atmosph&auml;re und 
+einer bunten Umgebung.<o:p></o:p></span></p>
+
+<p class=MsoNormal><span lang=EN-US style='mso-ansi-language:EN-US'>
+<o:p>&nbsp;</o:p></span></p>
+
+<p class=MsoNormal>Melden Sie sich bei Royal VIP Casino an und Sie werden den
+gr&ouml;ssten Ersteinzahlungsbonus online in null komma nix erhalten.<span
+lang=EN-US style='mso-ansi-language:EN-US'><o:p></o:p></span></p>
+
+<p class=MsoNormal><span lang=EN-US style='mso-ansi-language:EN-US'>
+<o:p>&nbsp;</o:p></span></p>
+
+<p class=MsoNormal><span lang=EN-US style='mso-ansi-language:EN-US'>Das
+Leitmotiv dieses Casinos ist es sie zufrieden zu stellen und Ihnen zu
+erm&ouml;glichen einen grossen Gewinn zu machen!<o:p></o:p></span></p>
+
+<p class=MsoNormal><span lang=EN-US style='mso-ansi-language:EN-US'>
+<o:p>&nbsp;</o:p></span></p>
+
+<p class=MsoNormal><a href="http://www.royalgame4you.com/lang-de/">
+http://www.royalgame4you.com/lang-de/</a><o:p></o:p></p>
+
+</div>
+
+</body>
+
+</html>
