@@ -1,49 +1,49 @@
-Date: Wed, 26 Sep 2007 20:31:02 +0100 (BST)
-From: Hugh Dickins <hugh@veritas.com>
-Subject: Re: [RFC][PATCH] page->mapping clarification [1/3] base functions
-In-Reply-To: <20070922034234.bdb947e4.kamezawa.hiroyu@jp.fujitsu.com>
-Message-ID: <Pine.LNX.4.64.0709262015030.7064@blonde.wat.veritas.com>
-References: <20070919164308.281f9960.kamezawa.hiroyu@jp.fujitsu.com>
- <Pine.LNX.4.64.0709201120510.8801@schroedinger.engr.sgi.com>
- <20070921095054.6386bae1.kamezawa.hiroyu@jp.fujitsu.com>
- <Pine.LNX.4.64.0709211716220.20783@blonde.wat.veritas.com>
- <20070922034234.bdb947e4.kamezawa.hiroyu@jp.fujitsu.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Date: Wed, 26 Sep 2007 13:06:16 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [patch -mm 5/5] oom: add sysctl to dump tasks memory state
+Message-Id: <20070926130616.f16446fd.akpm@linux-foundation.org>
+In-Reply-To: <alpine.DEB.0.9999.0709212313140.13727@chino.kir.corp.google.com>
+References: <alpine.DEB.0.9999.0709212311130.13727@chino.kir.corp.google.com>
+	<alpine.DEB.0.9999.0709212312160.13727@chino.kir.corp.google.com>
+	<alpine.DEB.0.9999.0709212312400.13727@chino.kir.corp.google.com>
+	<alpine.DEB.0.9999.0709212312560.13727@chino.kir.corp.google.com>
+	<alpine.DEB.0.9999.0709212313140.13727@chino.kir.corp.google.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: clameter@sgi.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, akpm@linux-foundation.org, nickpiggin@yahoo.com.au, ricknu-0@student.ltu.se, magnus.damm@gmail.com
+To: David Rientjes <rientjes@google.com>
+Cc: andrea@suse.de, clameter@sgi.com, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Sat, 22 Sep 2007, KAMEZAWA Hiroyuki wrote:
-> On Fri, 21 Sep 2007 18:02:47 +0100 (BST)
-> Hugh Dickins <hugh@veritas.com> wrote:
+On Sat, 22 Sep 2007 10:47:13 -0700 (PDT)
+David Rientjes <rientjes@google.com> wrote:
+
+> Adds a new sysctl, 'oom_dump_tasks', that dumps a list of all system tasks
+> (excluding kernel threads) and their pid, uid, tgid, vm size, rss cpu,
+> oom_adj score, and name.
 > 
-> > Or should I now leave PG_swapcache as is,
-> > given your designs on page->mapping?
-> > 
->  will conflict with my idea ?
-> ==
-> http://marc.info/?l=linux-mm&m=118956492926821&w=2
-> ==
+> Helpful for determining why an OOM condition occurred and what rogue task
+> caused it.
+> 
+> It is configurable so that large systems, such as those with several
+> thousand tasks, do not incur a performance penalty associated with data
+> they may not desire.
+> 
+> There currently do not appear to be any other generic kernel callers that
+> dump all this information.  Perhaps in the future it will be worthwhile
+> to construct a generic task dump interface based on passing a set of
+> flags that specify what per-task information shall be shown.
 
-I asked because I had thought it would be a serious conflict: obviously
-the patches as such would conflict quite a bit, but that's not serious,
-one or the other just gets fixed up.
+It isn't obvious to me why this has "oom" in its name.  It is just a
+general display-stuff-about-task-memory handler, isn't it?
 
-But now I don't see it - we both want to grab a further bit from the
-low bits of the page->mapping pointer, you PAGE_MAPPING_INFO and me
-PAGE_MAPPING_SWAP; but that's okay, so long as whoever is left using
-bit (1<<2) is careful about the 32-bit case and remembers to put
-__attribute__((aligned(sizeof(long long))))
-on the declarations of struct address_space and struct anon_vma
-and your struct page_mapping_info.
-
-Would that waste a little memory?  I think not with SLUB,
-but perhaps with SLOB, which packs a little tighter.
-
-Hugh
+Nor is it obvious why we need it at all.  This sort of information can
+already be gathered from /proc/pid/whatever.  If the system is all wedged
+and you can't get console control then this info dump doesn't provide you
+with info which you're interested in anyway - you want to see the global
+(or per-cgroup) info, not the per-task info.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
