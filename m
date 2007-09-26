@@ -1,68 +1,55 @@
-Received: from sd0109e.au.ibm.com (d23rh905.au.ibm.com [202.81.18.225])
-	by e23smtp03.au.ibm.com (8.13.1/8.13.1) with ESMTP id l8Q3HScC027204
-	for <linux-mm@kvack.org>; Wed, 26 Sep 2007 13:17:28 +1000
-Received: from d23av01.au.ibm.com (d23av01.au.ibm.com [9.190.234.96])
-	by sd0109e.au.ibm.com (8.13.8/8.13.8/NCO v8.5) with ESMTP id l8Q3L1jO211318
-	for <linux-mm@kvack.org>; Wed, 26 Sep 2007 13:21:02 +1000
-Received: from d23av01.au.ibm.com (loopback [127.0.0.1])
-	by d23av01.au.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l8Q3Fv0Q000628
-	for <linux-mm@kvack.org>; Wed, 26 Sep 2007 13:15:57 +1000
-Message-ID: <46F9CF29.9000604@linux.vnet.ibm.com>
-Date: Wed, 26 Sep 2007 08:46:57 +0530
-From: Balbir Singh <balbir@linux.vnet.ibm.com>
-Reply-To: balbir@linux.vnet.ibm.com
-MIME-Version: 1.0
-Subject: Re: [RFC] [PATCH] memory controller statistics
-References: <46E12020.1060203@linux.vnet.ibm.com> <20070926014843.161E61BFA33@siro.lan>
-In-Reply-To: <20070926014843.161E61BFA33@siro.lan>
-Content-Type: text/plain; charset=ISO-8859-1
+Date: Tue, 25 Sep 2007 20:56:32 -0700
+From: Paul Jackson <pj@sgi.com>
+Subject: Re: [patch -mm 7/5] oom: filter tasklist dump by mem_cgroup
+Message-Id: <20070925205632.47795637.pj@sgi.com>
+In-Reply-To: <alpine.DEB.0.9999.0709251819400.19627@chino.kir.corp.google.com>
+References: <alpine.DEB.0.9999.0709250035570.11015@chino.kir.corp.google.com>
+	<alpine.DEB.0.9999.0709250037030.11015@chino.kir.corp.google.com>
+	<6599ad830709251100n352028beraddaf2ac33ea8f6c@mail.gmail.com>
+	<20070925181442.aeb7b205.pj@sgi.com>
+	<alpine.DEB.0.9999.0709251819400.19627@chino.kir.corp.google.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: YAMAMOTO Takashi <yamamoto@valinux.co.jp>
-Cc: containers@lists.osdl.org, minoura@valinux.co.jp, menage@google.com, linux-mm@kvack.org
+To: David Rientjes <rientjes@google.com>
+Cc: menage@google.com, akpm@linux-foundation.org, clameter@sgi.com, balbir@linux.vnet.ibm.com, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-YAMAMOTO Takashi wrote:
->> YAMAMOTO Takashi wrote:
->>> hi,
->>>
->>> i implemented some statistics for your memory controller.
->>>
->>> it's tested with 2.6.23-rc2-mm2 + memory controller v7.
->>> i think it can be applied to 2.6.23-rc4-mm1 as well.
->>>
->> Thanks for doing this. We are building containerstats for
->> per container statistics. It would be really nice to provide
->> the statistics using that interface. I am not opposed to
->> memory.stat, but Paul Menage recommends that one file has
->> just one meaningful value.
->>
->> The other thing is that could you please report all the
->> statistics in bytes, we are moving to that interface,
->> I've posted patches to do that. If we are going to push
->> a bunch of statistics in one file, please use a format
->> separator like
->>
->> name: value
+pj wrote:
+> current task.  But what about configurations using overlapping cpusets
+> but not CONSTRAINT_CPUSET?
+
+David replied:
+> CONSTRAINT_CPUSET isn't as simple as just killing current anymore in -mm.  
+> For that behavior, you need
 > 
-> i followed /proc/vmstat.
-> are you going to convert /proc/vmstat to the format as well?
-> 
+> 	echo 1 > /proc/sys/vm/oom_kill_allocating_task
 
-I see, no I don't plan to convert /proc/vmstat. I wanted
-to make it easier for tools to parse the format. Like
-you point out /proc/vmstat uses that format, so I guess
-this format is just fine.
+True.
 
-Thanks for following up.
+... but what about configs with overlappnig cpusets that don't set
+oom_kill_allocating_tasks ?
 
+To connect back this back to the original point:
+
+On 9/25/07, David Rientjes <rientjes@google.com> wrote:
+> If an OOM was triggered as a result a cgroup's memory controller, the
+> tasklist shall be filtered to exclude tasks that are not a member of the
+> same group.
+
+I would think that excluding tasks not in the same cpuset (if that's what
+"not a member of the same group" would mean here) wouldn't be the right
+thing to do, if the cpusets had overlapping mems_allowed and if we had
+not set oom_kill_allocating_task.
+
+... or am I still exposing my ignorance ??
 
 -- 
-	Warm Regards,
-	Balbir Singh
-	Linux Technology Center
-	IBM, ISTL
+                  I won't rest till it's the best ...
+                  Programmer, Linux Scalability
+                  Paul Jackson <pj@sgi.com> 1.925.600.0401
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
