@@ -1,85 +1,74 @@
-Subject: Re: [PATCH 09/12] mm: remove throttle_vm_writeback
-From: Peter Zijlstra <a.p.zijlstra@chello.nl>
-In-Reply-To: <20070405154440.0f42fa9f.akpm@linux-foundation.org>
-References: <20070405174209.498059336@programming.kicks-ass.net>
-	 <20070405174319.860268120@programming.kicks-ass.net>
-	 <20070405154440.0f42fa9f.akpm@linux-foundation.org>
-Content-Type: text/plain
-Date: Wed, 26 Sep 2007 22:42:30 +0200
-Message-Id: <1190839350.18147.28.camel@lappy>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Date: Wed, 26 Sep 2007 13:46:49 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [patch -mm 5/5] oom: add sysctl to dump tasks memory state
+In-Reply-To: <20070926130616.f16446fd.akpm@linux-foundation.org>
+Message-ID: <alpine.DEB.0.9999.0709261337080.23401@chino.kir.corp.google.com>
+References: <alpine.DEB.0.9999.0709212311130.13727@chino.kir.corp.google.com> <alpine.DEB.0.9999.0709212312160.13727@chino.kir.corp.google.com> <alpine.DEB.0.9999.0709212312400.13727@chino.kir.corp.google.com> <alpine.DEB.0.9999.0709212312560.13727@chino.kir.corp.google.com>
+ <alpine.DEB.0.9999.0709212313140.13727@chino.kir.corp.google.com> <20070926130616.f16446fd.akpm@linux-foundation.org>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, miklos@szeredi.hu, neilb@suse.de, dgc@sgi.com, tomoki.sekiyama.qu@hitachi.com, nikita@clusterfs.com
+Cc: andrea@suse.de, clameter@sgi.com, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 2007-04-05 at 15:44 -0700, Andrew Morton wrote:
-> On Thu, 05 Apr 2007 19:42:18 +0200
-> root@programming.kicks-ass.net wrote:
+On Wed, 26 Sep 2007, Andrew Morton wrote:
+
+> > Adds a new sysctl, 'oom_dump_tasks', that dumps a list of all system tasks
+> > (excluding kernel threads) and their pid, uid, tgid, vm size, rss cpu,
+> > oom_adj score, and name.
+> > 
+> > Helpful for determining why an OOM condition occurred and what rogue task
+> > caused it.
+> > 
+> > It is configurable so that large systems, such as those with several
+> > thousand tasks, do not incur a performance penalty associated with data
+> > they may not desire.
+> > 
+> > There currently do not appear to be any other generic kernel callers that
+> > dump all this information.  Perhaps in the future it will be worthwhile
+> > to construct a generic task dump interface based on passing a set of
+> > flags that specify what per-task information shall be shown.
 > 
-> > rely on accurate dirty page accounting to provide enough push back
+> It isn't obvious to me why this has "oom" in its name.  It is just a
+> general display-stuff-about-task-memory handler, isn't it?
 > 
-> I think we'd like to see a bit more justification than that, please.
 
-it should read like this:
+Yes.  When other subsystems have been converted to using it, probably with 
+a callback filter function and flags to specify what traits to show for 
+each task, it will be feasible to move it out of the OOM killer.  Until 
+that happens, however, it can remain static and in oom_kill.c.
 
-        for ( ; ; ) {
-		get_dirty_limits(&background_thresh, &dirty_thresh, NULL, NULL);
+There's several places in the kernel where a tasklist is dumped but the 
+information they dump are very different.  Any generic tasklist dumping 
+interface will become complex just based on the number of possible traits 
+to display.
 
-                /*
-                 * Boost the allowable dirty threshold a bit for page
-                 * allocators so they don't get DoS'ed by heavy writers
-                 */
-                dirty_thresh += dirty_thresh / 10;      /* wheeee... */
+> Nor is it obvious why we need it at all.  This sort of information can
+> already be gathered from /proc/pid/whatever.  If the system is all wedged
+> and you can't get console control then this info dump doesn't provide you
+> with info which you're interested in anyway - you want to see the global
+> (or per-cgroup) info, not the per-task info.
+> 
 
-                if (global_page_state(NR_FILE_DIRTY) + 
-		    global_page_state(NR_UNSTABLE_NFS) +
-		    global_page_state(NR_WRITEBACK) <= dirty_thresh)
-                        	break;
+It can be gathered by other means, yes, but not at the time of OOM nor 
+immediately before a task is killed.  This tasklist dump is done very 
+close to the OOM kill and it represents the per-task memory state, whether 
+system or cgroup, that triggered that event.  This could be done other 
+ways, for instance with an OOM userspace notifier, but that would delay 
+the SIGKILL being sent.  So in the interest of a fast OOM killer, it's 
+best to dump the information ourselves, if the user chose to enable that 
+functionality.
 
-                congestion_wait(WRITE, HZ/10);
-        }
-
-[ note the extra NR_FILE_DIRTY ]
-
-now, balance_dirty_pages() is there to ensure:
-
-  nr_dirty + nr_unstable + nr_writeback < dirty_thresh      (1)
-
-reclaim will (with the introduction of dirty page tracking) never
-generate dirty pages, so the only disturbance of that equation is an
-increase in nr_writeback.
-
-[ pageout() sets wbc.for_reclaim=1, so NFS traffic will not generate
-  unstable pages ]
-
-So, what throttle_vm_writeout() does is limit the number of added
-writeback pages to 10% of the total limit.
-
-pageout() seems to avoid stuffing pages down a congested bdi 
-(TODO: has details), along with the much smaller io-queues, the initial
-purpose of this function - which was to avoid all memory getting stuck
-in io-queues - seems to be handled.
-
-Now the problems...
-
-Trouble is that it currently does not take nr_dirty into account which
-in the worst case limits it to 110% of the limit.
-
-Also, I'm seeing (2.6.23-rc8-mm1) live-locks in throttle_vm_writeback()
-where nr_dirty + nr_unstable > thresh - which according to (1) should
-not happen, and will not change without explicit action.
-
-Hmm maybe the 10% is < nr_cpus * ratelimit_pages.
-
-2 cpus, mem=128M -> ratelimit_pages ~ 512
-threshold ~ 1500
-
-so indeed: 150 < 1024.
-
-Still not conclusive but at least getting somewhere.
+The information should be displayed in a per-task manner because the 
+global memory state doesn't really matter: we know we're OOM, because 
+we're in the OOM killer.  Showing how little free memory we have isn't 
+immediately helpful on a system-wide basis.  But oom_dump_tasks, the way 
+I've written it, allows you to identify the "rogue" task that is using way 
+more memory than expected and allows you to alter oom_adj scores in the 
+case when the task you've identified, and the one you want dead, isn't the 
+one that ends up being killed.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
