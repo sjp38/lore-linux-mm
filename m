@@ -1,73 +1,77 @@
 Received: from d23relay03.au.ibm.com (d23relay03.au.ibm.com [202.81.18.234])
-	by e23smtp02.au.ibm.com (8.13.1/8.13.1) with ESMTP id l8Q8IuJh023132
-	for <linux-mm@kvack.org>; Wed, 26 Sep 2007 18:18:56 +1000
+	by e23smtp06.au.ibm.com (8.13.1/8.13.1) with ESMTP id l8Q8JoIk008965
+	for <linux-mm@kvack.org>; Wed, 26 Sep 2007 18:19:50 +1000
 Received: from d23av01.au.ibm.com (d23av01.au.ibm.com [9.190.234.96])
-	by d23relay03.au.ibm.com (8.13.8/8.13.8/NCO v8.5) with ESMTP id l8Q8IpJR4235490
-	for <linux-mm@kvack.org>; Wed, 26 Sep 2007 18:18:54 +1000
+	by d23relay03.au.ibm.com (8.13.8/8.13.8/NCO v8.5) with ESMTP id l8Q8JoDS3211406
+	for <linux-mm@kvack.org>; Wed, 26 Sep 2007 18:19:50 +1000
 Received: from d23av01.au.ibm.com (loopback [127.0.0.1])
-	by d23av01.au.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l8Q8HLTn028118
-	for <linux-mm@kvack.org>; Wed, 26 Sep 2007 18:17:21 +1000
-Message-ID: <46FA15C7.9020603@linux.vnet.ibm.com>
-Date: Wed, 26 Sep 2007 13:48:15 +0530
+	by d23av01.au.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l8Q8IKrc029773
+	for <linux-mm@kvack.org>; Wed, 26 Sep 2007 18:18:21 +1000
+Message-ID: <46FA1604.3040808@linux.vnet.ibm.com>
+Date: Wed, 26 Sep 2007 13:49:16 +0530
 From: Kamalesh Babulal <kamalesh@linux.vnet.ibm.com>
 MIME-Version: 1.0
 Subject: Re: 2.6.23-rc8-mm1 - powerpc memory hotplug link failure
-References: <20070925014625.3cd5f896.akpm@linux-foundation.org> <46F968C2.7080900@linux.vnet.ibm.com> <1190757715.13955.40.camel@dyn9047017100.beaverton.ibm.com>
-In-Reply-To: <1190757715.13955.40.camel@dyn9047017100.beaverton.ibm.com>
-Content-Type: text/plain; charset=ISO-8859-1
+References: <20070925014625.3cd5f896.akpm@linux-foundation.org> <46F968C2.7080900@linux.vnet.ibm.com> <20070926103205.c72a8e8a.kamezawa.hiroyu@jp.fujitsu.com> <20070926104854.7cc09d13.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20070926104854.7cc09d13.kamezawa.hiroyu@jp.fujitsu.com>
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Badari Pulavarty <pbadari@gmail.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, lkml <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, kamezawa.hiroyu@jp.fujitsu.com, Andy Whitcroft <apw@shadowen.org>, Balbir Singh <balbir@linux.vnet.ibm.com>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andy Whitcroft <apw@shadowen.org>, Balbir Singh <balbir@linux.vnet.ibm.com>, Badari Pulavarty <pbadari@gmail.com>
 List-ID: <linux-mm.kvack.org>
 
-Badari Pulavarty wrote:
-> On Wed, 2007-09-26 at 01:30 +0530, Kamalesh Babulal wrote:
->> Hi Andrew,
+KAMEZAWA Hiroyuki wrote:
+> On Wed, 26 Sep 2007 10:32:05 +0900
+> KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
+>> Maybe my patch is the problem. could you give me your .config ?
 >>
->> The 2.6.23-rc8-mm1 kernel linking fails on the powerpc (P5+) box
->>
->>   CC      init/version.o
->>   LD      init/built-in.o
->>   LD      .tmp_vmlinux1
->> drivers/built-in.o: In function `memory_block_action':
->> /root/scrap/linux-2.6.23-rc8/drivers/base/memory.c:188: undefined reference to `.remove_memory'
->> make: *** [.tmp_vmlinux1] Error 1
->>
+> Ah, memory hot remove is selectable even if the arch doesn't support it....sorry.
 > 
-> I ran into the same thing earlier. Here is the fix I made.
+> ok, this is fix.
 > 
 > Thanks,
-> Badari
+> -Kame
+> ==
+> MEMORY_HOTREMOVE config option is selectable even it arch doesn't support it.
+> This fix it.
 > 
-> Memory hotplug remove is currently supported only on IA64
+> Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 > 
-> Signed-off-by: Badari Pulavarty <pbadari@us.ibm.com>
 > 
-> Index: linux-2.6.23-rc8/mm/Kconfig
+> Index: linux-2.6.23-rc8-mm1/arch/ia64/Kconfig
 > ===================================================================
-> --- linux-2.6.23-rc8.orig/mm/Kconfig	2007-09-25 14:44:03.000000000 -0700
-> +++ linux-2.6.23-rc8/mm/Kconfig	2007-09-25 14:44:48.000000000 -0700
-> @@ -143,6 +143,7 @@ config MEMORY_HOTREMOVE
+> --- linux-2.6.23-rc8-mm1.orig/arch/ia64/Kconfig
+> +++ linux-2.6.23-rc8-mm1/arch/ia64/Kconfig
+> @@ -305,6 +305,9 @@ config HOTPLUG_CPU
+>  config ARCH_ENABLE_MEMORY_HOTPLUG
+>  	def_bool y
+> 
+> +config ARCH_ENABLE_MEMORY_HOTREMOVE
+> +	def_bool y
+> +
+>  config SCHED_SMT
+>  	bool "SMT scheduler support"
+>  	depends on SMP
+> Index: linux-2.6.23-rc8-mm1/mm/Kconfig
+> ===================================================================
+> --- linux-2.6.23-rc8-mm1.orig/mm/Kconfig
+> +++ linux-2.6.23-rc8-mm1/mm/Kconfig
+> @@ -141,7 +141,7 @@ config MEMORY_HOTPLUG_SPARSE
+> 
+>  config MEMORY_HOTREMOVE
 >  	bool "Allow for memory hot remove"
->  	depends on MEMORY_HOTPLUG
+> -	depends on MEMORY_HOTPLUG
+> +	depends on MEMORY_HOTPLUG && ARCH_ENABLE_MEMORY_HOTREMOVE
 >  	depends on MIGRATION
-> +	depends on (IA64)
 > 
 >  # Heavily threaded applications may benefit from splitting the mm-wide
->  # page_table_lock, so that faults on different parts of the user address
-> 
 > 
 > -
-> To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
-> the body of a message to majordomo@vger.kernel.org
-> More majordomo info at  http://vger.kernel.org/majordomo-info.html
-> Please read the FAQ at  http://www.tux.org/lkml/
+Hi Kame,
 
-Hi Badari,
-
-Thanks, your patch fixed the problem.
+Thanks, your patch fixes the problem.
 
 -- 
 Thanks & Regards,
