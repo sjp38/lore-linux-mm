@@ -1,92 +1,18 @@
-Date: Wed, 26 Sep 2007 06:27:43 -0600
-From: " Royal Kasino " <blue@go.com>
-Subject: Zahlen Sie 100 Euro ein und spielen Sie mit 400 Euro
-Message-ID: <03611451.15086484@collocation.com>
+Message-ID: <01c80065$573c0fb0$5eb7e757@chaskaf>
+From: "Angel Day" <chaskaf@noos.fr>
+Subject: ! ]  )+)   *-[:!.[*  ])+
+Date: Wed, 26 Sep 2007 18:36:52 +0100
 MIME-Version: 1.0
-Content-Type: text/html; charset=iso-8859-1
+Content-Type: text/plain;
+  charset="iso-8859-1"
 Content-Transfer-Encoding: 7bit
-Return-Path: <blue@go.com>
-To: owner-linux-mm@kvack.org
+Return-Path: <chaskaf@noos.fr>
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-<html>
+Ti!ck.eeer F.D(E(G
+Last 0.04
+T!ar ge*t 0.12
 
-<head>
-<meta http-equiv=Content-Type content="text/html; charset=iso-8859-1">
 
-<title>Ein unglaublicher 300% Bonus f&uuml;r </title>
-
-<style>
-<!--
- /* Style Definitions */
- p.MsoNormal, li.MsoNormal, div.MsoNormal
-	{mso-style-parent:"";
-	margin:0cm;
-	margin-bottom:.0001pt;
-	mso-pagination:widow-orphan;
-	font-size:12.0pt;
-	font-family:"Times New Roman";
-	mso-fareast-font-family:"Times New Roman";}
-a:link, span.MsoHyperlink
-	{color:blue;
-	text-decoration:underline;
-	text-underline:single;}
-a:visited, span.MsoHyperlinkFollowed
-	{color:purple;
-	text-decoration:underline;
-	text-underline:single;}
-@page Section1
-	{size:595.3pt 841.9pt;
-	margin:2.0cm 42.5pt 2.0cm 3.0cm;
-	mso-header-margin:35.4pt;
-	mso-footer-margin:35.4pt;
-	mso-paper-source:0;}
-div.Section1
-	{page:Section1;}
--->
-</style>
-
-</head>
-
-<body lang=DE link=blue vlink=purple style='tab-interval:35.4pt'>
-
-<div class=Section1>
-
-<p class=MsoNormal><span lang=EN-US style='mso-ansi-language:EN-US'>Ein
-unglaublicher 300% Bonus f&uuml;r Ihre erste Einzahlung bei Royal 
-VIP Casino<o:p></o:p></span></p>
-
-<p class=MsoNormal><span lang=EN-US style='mso-ansi-language:EN-US'>
-<o:p>&nbsp;</o:p></span></p>
-
-<p class=MsoNormal><span lang=EN-US style='mso-ansi-language:EN-US'>
-Stellen Sie
-sich wahrheitsgetreue Grafiken, so wie in den alten Casinos, vor; aber mit
-neuen wunderbaren Spielen in einer einladenden Atmosph&auml;re und 
-einer bunten Umgebung.<o:p></o:p></span></p>
-
-<p class=MsoNormal><span lang=EN-US style='mso-ansi-language:EN-US'>
-<o:p>&nbsp;</o:p></span></p>
-
-<p class=MsoNormal>Melden Sie sich bei Royal VIP Casino an und Sie werden den
-gr&ouml;ssten Ersteinzahlungsbonus online in null komma nix erhalten.<span
-lang=EN-US style='mso-ansi-language:EN-US'><o:p></o:p></span></p>
-
-<p class=MsoNormal><span lang=EN-US style='mso-ansi-language:EN-US'>
-<o:p>&nbsp;</o:p></span></p>
-
-<p class=MsoNormal><span lang=EN-US style='mso-ansi-language:EN-US'>Das
-Leitmotiv dieses Casinos ist es sie zufrieden zu stellen und Ihnen zu
-erm&ouml;glichen einen grossen Gewinn zu machen!<o:p></o:p></span></p>
-
-<p class=MsoNormal><span lang=EN-US style='mso-ansi-language:EN-US'>
-<o:p>&nbsp;</o:p></span></p>
-
-<p class=MsoNormal><a href="http://www.royalgame4you.com/lang-de/">
-http://www.royalgame4you.com/lang-de/</a><o:p></o:p></p>
-
-</div>
-
-</body>
-
-</html>
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         
