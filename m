@@ -1,94 +1,150 @@
-Date: Thu, 27 Sep 2007 11:01:40 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: [patch -mm 1/2] memcontrol: move oom task exclusion to tasklist
- scan
-Message-ID: <alpine.DEB.0.9999.0709270008500.24731@chino.kir.corp.google.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from d01relay04.pok.ibm.com (d01relay04.pok.ibm.com [9.56.227.236])
+	by e4.ny.us.ibm.com (8.13.8/8.13.8) with ESMTP id l8RK8o2n011382
+	for <linux-mm@kvack.org>; Thu, 27 Sep 2007 16:08:50 -0400
+Received: from d01av02.pok.ibm.com (d01av02.pok.ibm.com [9.56.224.216])
+	by d01relay04.pok.ibm.com (8.13.8/8.13.8/NCO v8.5) with ESMTP id l8RK8otB525724
+	for <linux-mm@kvack.org>; Thu, 27 Sep 2007 16:08:50 -0400
+Received: from d01av02.pok.ibm.com (loopback [127.0.0.1])
+	by d01av02.pok.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l8RK8nWO012018
+	for <linux-mm@kvack.org>; Thu, 27 Sep 2007 16:08:50 -0400
+From: Adam Litke <agl@us.ibm.com>
+Subject: [PATCH 0/4] [hugetlb] Dynamic huge page pool resizing V5
+Date: Thu, 27 Sep 2007 13:08:48 -0700
+Message-Id: <20070927200848.14951.26553.stgit@kernel>
+Content-Type: text/plain; charset=utf-8; format=fixed
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Christoph Lameter <clameter@sgi.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, linux-mm@kvack.org
+To: linux-mm@kvack.org
+Cc: libhugetlbfs-devel@lists.sourceforge.net, Adam Litke <agl@us.ibm.com>, Andy Whitcroft <apw@shadowen.org>, Mel Gorman <mel@skynet.ie>, Bill Irwin <bill.irwin@oracle.com>, Ken Chen <kenchen@google.com>, Dave McCracken <dave.mccracken@oracle.com>
 List-ID: <linux-mm.kvack.org>
 
-Creates a helper function to return non-zero if a task is a member of a
-memory controller:
 
-	int task_in_mem_cgroup(const struct task_struct *task,
-			       const struct mem_cgroup *mem);
+This release contains no significant changes to any of the patches.  I have
+been running regression and performance tests on a variety of machines and
+configurations.  You can find the performance figures at the end of this
+message.  Since I feel they are ready for the -mm tree I will be rebasing the
+patches to 2.6.23-rc8-mm2 and sending them on to Andrew for inclusion.
+Comments?
 
-When the OOM killer is constrained by the memory controller, the exclusion
-of tasks that are not a member of that controller was previously misplaced
-and appeared in the badness scoring function.  It should be excluded
-during the tasklist scan in select_bad_process() instead.
+Changelog
+=========
 
-Cc: Christoph Lameter <clameter@sgi.com>
-Cc: Balbir Singh <balbir@linux.vnet.ibm.com>
-Signed-off-by: David Rientjes <rientjes@google.com>
----
- include/linux/memcontrol.h |   16 ++++++++++++++++
- mm/oom_kill.c              |    9 ++-------
- 2 files changed, 18 insertions(+), 7 deletions(-)
+9/27/2007 - Version 5
+ - Stream performance results added
 
-diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
---- a/include/linux/memcontrol.h
-+++ b/include/linux/memcontrol.h
-@@ -56,6 +56,16 @@ static inline void mem_cgroup_uncharge_page(struct page *page)
- 	mem_cgroup_uncharge(page_get_page_cgroup(page));
- }
- 
-+static inline int task_in_mem_cgroup(struct task_struct *task,
-+				     const struct mem_cgroup *mem)
-+{
-+	int ret;
-+	task_lock(task);
-+	ret = task->mm && mm_cgroup(task->mm) == mem;
-+	task_unlock(task);
-+	return ret;
-+}
-+
- #else /* CONFIG_CGROUP_MEM_CONT */
- static inline void mm_init_cgroup(struct mm_struct *mm,
- 					struct task_struct *p)
-@@ -107,6 +117,12 @@ static inline struct mem_cgroup *mm_cgroup(const struct mm_struct *mm)
- 	return NULL;
- }
- 
-+static inline int task_in_mem_cgroup(struct task_struct *task,
-+				     const struct mem_cgroup *mem)
-+{
-+	return 1;
-+}
-+
- #endif /* CONFIG_CGROUP_MEM_CONT */
- 
- #endif /* _LINUX_MEMCONTROL_H */
-diff --git a/mm/oom_kill.c b/mm/oom_kill.c
---- a/mm/oom_kill.c
-+++ b/mm/oom_kill.c
-@@ -65,13 +65,6 @@ unsigned long badness(struct task_struct *p, unsigned long uptime,
- 		return 0;
- 	}
- 
--#ifdef CONFIG_CGROUP_MEM_CONT
--	if (mem != NULL && mm->mem_cgroup != mem) {
--		task_unlock(p);
--		return 0;
--	}
--#endif
--
- 	/*
- 	 * The memory size of the process is the basis for the badness.
- 	 */
-@@ -224,6 +217,8 @@ static struct task_struct *select_bad_process(unsigned long *ppoints,
- 		/* skip the init task */
- 		if (is_global_init(p))
- 			continue;
-+		if (mem && !task_in_mem_cgroup(p, mem))
-+			continue;
- 
- 		/*
- 		 * This task already has access to memory reserves and is
+9/24/2007 - Version 4
+ - Smart handling of surplus pages when explictly resizing the pool
+ - Fixed some counting bugs found in patch review
+
+9/17/2007 - Version 3
+ - fixed gather_surplus_pages 'needed' check
+ - Removed 'locked_vm' changes from this series since that is really a
+   separate logical change
+
+9/12/2007 - Version 2
+ - Integrated the cpuset_mems_nr() best-effort reservation check
+ - Surplus pool allocations respect cpuset and numa policy restrictions
+ - Unused surplus pages that are part of a reservation are freed when the
+   reservation is released
+
+7/13/2007 - Initial Post
+
+
+In most real-world scenarios, configuring the size of the hugetlb pool
+correctly is a difficult task.  If too few pages are allocated to the pool,
+applications using MAP_SHARED may fail to mmap() a hugepage region and
+applications using MAP_PRIVATE may receive SIGBUS.  Isolating too much memory
+in the hugetlb pool means it is not available for other uses, especially those
+programs not using huge pages.
+
+The obvious answer is to let the hugetlb pool grow and shrink in response to
+the runtime demand for huge pages.  The work Mel Gorman has been doing to
+establish a memory zone for movable memory allocations makes dynamically
+resizing the hugetlb pool reliable within the limits of that zone.  This patch
+series implements dynamic pool resizing for private and shared mappings while
+being careful to maintain existing semantics.  Please reply with your comments
+and feedback; even just to say whether it would be a useful feature to you.
+Thanks.
+
+How it works
+============
+
+Upon depletion of the hugetlb pool, rather than reporting an error immediately,
+first try and allocate the needed huge pages directly from the buddy allocator.
+Care must be taken to avoid unbounded growth of the hugetlb pool, so the
+hugetlb filesystem quota is used to limit overall pool size.
+
+The real work begins when we decide there is a shortage of huge pages.  What
+happens next depends on whether the pages are for a private or shared mapping.
+Private mappings are straightforward.  At fault time, if alloc_huge_page()
+fails, we allocate a page from the buddy allocator and increment the source
+node's surplus_huge_pages counter.  When free_huge_page() is called for a page
+on a node with a surplus, the page is freed directly to the buddy allocator
+instead of the hugetlb pool.
+
+Because shared mappings require all of the pages to be reserved up front, some
+additional work must be done at mmap() to support them.  We determine the
+reservation shortage and allocate the required number of pages all at once.
+These pages are then added to the hugetlb pool and marked reserved.  Where that
+is not possible the mmap() will fail.  As with private mappings, the
+appropriate surplus counters are updated.  Since reserved huge pages won't
+necessarily be used by the process, we can't be sure that free_huge_page() will
+always be called to return surplus pages to the buddy allocator.  To prevent
+the huge page pool from bloating, we must free unused surplus pages when their
+reservation has ended.
+
+Controlling it
+==============
+
+With the entire patch series applied, pool resizing is off by default so unless
+specific action is taken, the semantics are unchanged.
+
+To take advantage of the flexibility afforded by this patch series one must
+tolerate a change in semantics.  To control hugetlb pool growth, the following
+techniques can be employed:
+
+ * A sysctl tunable to enable/disable the feature entirely
+ * The size= mount option for hugetlbfs filesystems to limit pool size
+
+Performance
+===========
+
+When contiguous memory is readily available, it is expected that the cost of
+dynamicly resizing the pool will be small.  This series has been performance
+tested with 'stream' to measure this cost.
+
+Stream (http://www.cs.virginia.edu/stream/) was linked with libhugetlbfs to
+enable remapping of the text and data/bss segments into huge pages.
+
+Stream with small array
+-----------------------
+Baseline: 	nr_hugepages = 0, No libhugetlbfs segment remapping
+Preallocated:	nr_hugepages = 5, Text and data/bss remapping
+Dynamic:	nr_hugepages = 0, Text and data/bss remapping
+
+				Rate (MB/s)
+Function	Baseline	Preallocated	Dynamic
+Copy:		4695.6266	5942.8371	5982.2287
+Scale:		4451.5776	5017.1419	5658.7843
+Add:		5815.8849	7927.7827	8119.3552
+Triad:		5949.4144	8527.6492	8110.6903
+
+Stream with large array
+-----------------------
+Baseline: 	nr_hugepages =  0, No libhugetlbfs segment remapping
+Preallocated:	nr_hugepages = 67, Text and data/bss remapping
+Dynamic:	nr_hugepages =  0, Text and data/bss remapping
+
+				Rate (MB/s)
+Function	Baseline	Preallocated	Dynamic
+Copy:		2227.8281	2544.2732	2546.4947
+Scale:		2136.3208	2430.7294	2421.2074
+Add:		2773.1449	4004.0021	3999.4331
+Triad:		2748.4502	3777.0109	3773.4970
+
+* All numbers are averages taken from 10 consecutive runs with a maximim
+  standard deviation of 1.3 percent noted.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
