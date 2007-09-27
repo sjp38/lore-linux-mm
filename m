@@ -1,16 +1,16 @@
 Received: from d03relay04.boulder.ibm.com (d03relay04.boulder.ibm.com [9.17.195.106])
-	by e36.co.us.ibm.com (8.13.8/8.13.8) with ESMTP id l8RK91sj032695
-	for <linux-mm@kvack.org>; Thu, 27 Sep 2007 16:09:01 -0400
-Received: from d03av04.boulder.ibm.com (d03av04.boulder.ibm.com [9.17.195.170])
-	by d03relay04.boulder.ibm.com (8.13.8/8.13.8/NCO v8.5) with ESMTP id l8RK914D427360
-	for <linux-mm@kvack.org>; Thu, 27 Sep 2007 14:09:01 -0600
-Received: from d03av04.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av04.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l8RK91fd015869
-	for <linux-mm@kvack.org>; Thu, 27 Sep 2007 14:09:01 -0600
+	by e36.co.us.ibm.com (8.13.8/8.13.8) with ESMTP id l8RK9pbZ001872
+	for <linux-mm@kvack.org>; Thu, 27 Sep 2007 16:09:51 -0400
+Received: from d03av03.boulder.ibm.com (d03av03.boulder.ibm.com [9.17.195.169])
+	by d03relay04.boulder.ibm.com (8.13.8/8.13.8/NCO v8.5) with ESMTP id l8RK9aCX143816
+	for <linux-mm@kvack.org>; Thu, 27 Sep 2007 14:09:36 -0600
+Received: from d03av03.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av03.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l8RK9ZqC018867
+	for <linux-mm@kvack.org>; Thu, 27 Sep 2007 14:09:35 -0600
 From: Adam Litke <agl@us.ibm.com>
-Subject: [PATCH 1/4] hugetlb: Move update_and_free_page
-Date: Thu, 27 Sep 2007 13:08:59 -0700
-Message-Id: <20070927200858.14951.39075.stgit@kernel>
+Subject: [PATCH 4/4] hugetlb: Add hugetlb_dynamic_pool sysctl
+Date: Thu, 27 Sep 2007 13:09:33 -0700
+Message-Id: <20070927200933.14951.49541.stgit@kernel>
 In-Reply-To: <20070927200848.14951.26553.stgit@kernel>
 References: <20070927200848.14951.26553.stgit@kernel>
 Content-Type: text/plain; charset=utf-8; format=fixed
@@ -21,65 +21,80 @@ To: linux-mm@kvack.org
 Cc: libhugetlbfs-devel@lists.sourceforge.net, Adam Litke <agl@us.ibm.com>, Andy Whitcroft <apw@shadowen.org>, Mel Gorman <mel@skynet.ie>, Bill Irwin <bill.irwin@oracle.com>, Ken Chen <kenchen@google.com>, Dave McCracken <dave.mccracken@oracle.com>
 List-ID: <linux-mm.kvack.org>
 
-This patch simply moves update_and_free_page() so that it can be reused
-later in this patch series.  The implementation is not changed.
+The maximum size of the huge page pool can be controlled using the overall
+size of the hugetlb filesystem (via its 'size' mount option).  However in
+the common case the this will not be set as the pool is traditionally fixed
+in size at boot time.  In order to maintain the expected semantics, we need
+to prevent the pool expanding by default.
+
+This patch introduces a new sysctl controlling dynamic pool resizing.  When
+this is enabled the pool will expand beyond its base size up to the size of
+the hugetlb filesystem.  It is disabled by default.
 
 Signed-off-by: Adam Litke <agl@us.ibm.com>
 Acked-by: Andy Whitcroft <apw@shadowen.org>
 Acked-by: Dave McCracken <dave.mccracken@oracle.com>
 ---
 
- mm/hugetlb.c |   30 +++++++++++++++---------------
- 1 files changed, 15 insertions(+), 15 deletions(-)
+ include/linux/hugetlb.h |    1 +
+ kernel/sysctl.c         |    8 ++++++++
+ mm/hugetlb.c            |    5 +++++
+ 3 files changed, 14 insertions(+), 0 deletions(-)
 
+diff --git a/include/linux/hugetlb.h b/include/linux/hugetlb.h
+index 3a19b03..ea0f50b 100644
+--- a/include/linux/hugetlb.h
++++ b/include/linux/hugetlb.h
+@@ -33,6 +33,7 @@ void hugetlb_unreserve_pages(struct inode *inode, long offset, long freed);
+ 
+ extern unsigned long max_huge_pages;
+ extern unsigned long hugepages_treat_as_movable;
++extern int hugetlb_dynamic_pool;
+ extern const unsigned long hugetlb_zero, hugetlb_infinity;
+ extern int sysctl_hugetlb_shm_group;
+ 
+diff --git a/kernel/sysctl.c b/kernel/sysctl.c
+index 6ace893..45e8045 100644
+--- a/kernel/sysctl.c
++++ b/kernel/sysctl.c
+@@ -889,6 +889,14 @@ static ctl_table vm_table[] = {
+ 		.mode		= 0644,
+ 		.proc_handler	= &hugetlb_treat_movable_handler,
+ 	},
++	{
++		.ctl_name	= CTL_UNNUMBERED,
++		.procname	= "hugetlb_dynamic_pool",
++		.data		= &hugetlb_dynamic_pool,
++		.maxlen		= sizeof(hugetlb_dynamic_pool),
++		.mode		= 0644,
++		.proc_handler	= &proc_dointvec,
++	},
+ #endif
+ 	{
+ 		.ctl_name	= VM_LOWMEM_RESERVE_RATIO,
 diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-index de4cf45..eb5b9f4 100644
+index cc83ccc..7a9a176 100644
 --- a/mm/hugetlb.c
 +++ b/mm/hugetlb.c
-@@ -90,6 +90,21 @@ static struct page *dequeue_huge_page(struct vm_area_struct *vma,
- 	return page;
- }
+@@ -31,6 +31,7 @@ static unsigned int free_huge_pages_node[MAX_NUMNODES];
+ static unsigned int surplus_huge_pages_node[MAX_NUMNODES];
+ static gfp_t htlb_alloc_mask = GFP_HIGHUSER;
+ unsigned long hugepages_treat_as_movable;
++int hugetlb_dynamic_pool;
  
-+static void update_and_free_page(struct page *page)
-+{
-+	int i;
-+	nr_huge_pages--;
-+	nr_huge_pages_node[page_to_nid(page)]--;
-+	for (i = 0; i < (HPAGE_SIZE / PAGE_SIZE); i++) {
-+		page[i].flags &= ~(1 << PG_locked | 1 << PG_error | 1 << PG_referenced |
-+				1 << PG_dirty | 1 << PG_active | 1 << PG_reserved |
-+				1 << PG_private | 1<< PG_writeback);
-+	}
-+	set_compound_page_dtor(page, NULL);
-+	set_page_refcounted(page);
-+	__free_pages(page, HUGETLB_PAGE_ORDER);
-+}
+ /*
+  * Protects updates to hugepage_freelists, nr_huge_pages, and free_huge_pages
+@@ -199,6 +200,10 @@ static struct page *alloc_buddy_huge_page(struct vm_area_struct *vma,
+ {
+ 	struct page *page;
+ 
++	/* Check if the dynamic pool is enabled */
++	if (!hugetlb_dynamic_pool)
++		return NULL;
 +
- static void free_huge_page(struct page *page)
- {
- 	BUG_ON(page_count(page));
-@@ -199,21 +214,6 @@ static unsigned int cpuset_mems_nr(unsigned int *array)
- }
- 
- #ifdef CONFIG_SYSCTL
--static void update_and_free_page(struct page *page)
--{
--	int i;
--	nr_huge_pages--;
--	nr_huge_pages_node[page_to_nid(page)]--;
--	for (i = 0; i < (HPAGE_SIZE / PAGE_SIZE); i++) {
--		page[i].flags &= ~(1 << PG_locked | 1 << PG_error | 1 << PG_referenced |
--				1 << PG_dirty | 1 << PG_active | 1 << PG_reserved |
--				1 << PG_private | 1<< PG_writeback);
--	}
--	set_compound_page_dtor(page, NULL);
--	set_page_refcounted(page);
--	__free_pages(page, HUGETLB_PAGE_ORDER);
--}
--
- #ifdef CONFIG_HIGHMEM
- static void try_to_free_low(unsigned long count)
- {
+ 	page = alloc_pages(htlb_alloc_mask|__GFP_COMP|__GFP_NOWARN,
+ 					HUGETLB_PAGE_ORDER);
+ 	if (page) {
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
