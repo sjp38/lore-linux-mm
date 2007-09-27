@@ -1,42 +1,107 @@
-Date: Thu, 27 Sep 2007 06:50:46 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [RFC][PATCH] page->mapping clarification [1/3] base functions
-Message-Id: <20070927065046.508d33c0.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <Pine.LNX.4.64.0709262015030.7064@blonde.wat.veritas.com>
-References: <20070919164308.281f9960.kamezawa.hiroyu@jp.fujitsu.com>
-	<Pine.LNX.4.64.0709201120510.8801@schroedinger.engr.sgi.com>
-	<20070921095054.6386bae1.kamezawa.hiroyu@jp.fujitsu.com>
-	<Pine.LNX.4.64.0709211716220.20783@blonde.wat.veritas.com>
-	<20070922034234.bdb947e4.kamezawa.hiroyu@jp.fujitsu.com>
-	<Pine.LNX.4.64.0709262015030.7064@blonde.wat.veritas.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Date: Thu, 27 Sep 2007 03:10:03 -0400
+Message-ID: <99708267.89202423@demerit.com>
+From: "Euro Prime Casino" <apart@classifiedtoday.com>
+Subject: =?iso-8859-1?Q?Herzlichen_Gl=FCckwunsch=2C_Sie_haben_300_Euro_gewonnen!?=
+MIME-Version: 1.0
+Content-Type: text/html; charset=iso-8859-1
 Content-Transfer-Encoding: 7bit
-Sender: owner-linux-mm@kvack.org
-Return-Path: <owner-linux-mm@kvack.org>
-To: Hugh Dickins <hugh@veritas.com>
-Cc: clameter@sgi.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, akpm@linux-foundation.org, nickpiggin@yahoo.com.au, ricknu-0@student.ltu.se, magnus.damm@gmail.com
+Return-Path: <apart@classifiedtoday.com>
+To: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 26 Sep 2007 20:31:02 +0100 (BST)
-Hugh Dickins <hugh@veritas.com> wrote:
-> Would that waste a little memory?  I think not with SLUB,
-> but perhaps with SLOB, which packs a little tighter.
-> 
+<html>
 
-maybe just depends on the amount of used anon_vma and page_mapping_info etc...
-I don't think a system which uses SLOB consumes such structs so much
-as that memory-for-alignment is considered as "waste" of memory.
+<head>
+<meta http-equiv=Content-Type content="text/html; charset=big5">
 
-Anyway, I decided to go ahead with current container-info-per-page
-implementation. If the size of page struct is problem at mainline inclusion
-discussion, I'll be back.
+<title>Spielen auch Sie EuroPrimeCasino f&uuml;r Windows(TM) und holen Sie 
+sich 300 Euro gratis</title>
 
-Thanks,
--Kame
+<style>
+<!--
+ /* Style Definitions */
+ p.MsoNormal, li.MsoNormal, div.MsoNormal
+	{mso-style-parent:"";
+	margin:0cm;
+	margin-bottom:.0001pt;
+	mso-pagination:widow-orphan;
+	font-size:12.0pt;
+	font-family:"Times New Roman";
+	mso-fareast-font-family:"Times New Roman";
+	mso-ansi-language:EN-US;
+	mso-fareast-language:EN-US;
+	mso-bidi-language:HE;
+	layout-grid-mode:line;}
+a:link, span.MsoHyperlink
+	{font-family:"Times New Roman";
+	mso-bidi-font-family:"Times New Roman";
+	color:blue;
+	text-decoration:underline;
+	text-underline:single;}
+a:visited, span.MsoHyperlinkFollowed
+	{color:purple;
+	text-decoration:underline;
+	text-underline:single;}
+@page Section1
+	{size:595.3pt 841.9pt;
+	margin:2.0cm 42.5pt 2.0cm 3.0cm;
+	mso-header-margin:35.4pt;
+	mso-footer-margin:35.4pt;
+	mso-paper-source:0;}
+div.Section1
+	{page:Section1;}
+-->
+</style>
 
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+</head>
+
+<body lang=DE link=blue vlink=purple style='tab-interval:35.4pt'>
+
+<div class=Section1>
+
+<p class=MsoNormal>
+<span lang=DE style='mso-ansi-language:DE'>Spielen auch Sie EuroPrimeCasino 
+f&uuml;r Windows(TM) und holen Sie sich 300 Euro gratis.<o:p></o:p></span></p>
+
+<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>&nbsp;
+<o:p></o:p></span></p>
+
+<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>Klicken Sie 
+hier f&uuml;r den Download und spielen Sie im EuroPrimeCasino mit
+weiteren 2 Millionen Spielern im besten Online-Casino der Welt!
+<o:p></o:p></span></p>
+
+<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>&nbsp;
+<o:p></o:p></span></p>
+
+<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>- 40 
+Blackjack-Tische, 8 Roulette-Tische und 180 Spielautomaten warten
+hier auf Sie.<o:p></o:p></span></p>
+
+<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>- Es gibt 
+progressive Jackpots im Wert von &uuml;ber 4 Millionen Dollar zu
+gewinnen<o:p></o:p></span></p>
+
+<p class=MsoNormal><span lang=EN-US style='mso-bidi-language:AR-SA'>- VIP
+<o:p></o:p></span></p>
+
+<p class=MsoNormal><span lang=EN-US style='mso-bidi-language:AR-SA'>- Visa,
+Mastercard, Diners, NETeller, Click2Pay und UKash<o:p></o:p></span></p>
+
+<p class=MsoNormal><span lang=EN-US style='mso-bidi-language:AR-SA'>&nbsp;
+<o:p></o:p></span></p>
+
+<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>Spielen Sie 
+gleich jetzt und holen Sie sich Ihre 300 Euro - klicken Sie
+hier: <a href="http://www.theprimecasino.com/de/">
+www.theprimecasino.com/de/</a>
+<o:p></o:p></span></p>
+
+<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
+<o:p>&nbsp;</o:p></span></p>
+
+</div>
+
+</body>
+
+</html>
