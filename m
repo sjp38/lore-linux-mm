@@ -1,37 +1,109 @@
-Date: Wed, 26 Sep 2007 23:15:50 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [patch -mm 5/5] oom: add sysctl to dump tasks memory state
-In-Reply-To: <20070926144748.768efcbe.akpm@linux-foundation.org>
-Message-ID: <alpine.DEB.0.9999.0709262313440.20560@chino.kir.corp.google.com>
-References: <alpine.DEB.0.9999.0709212311130.13727@chino.kir.corp.google.com> <alpine.DEB.0.9999.0709212312160.13727@chino.kir.corp.google.com> <alpine.DEB.0.9999.0709212312400.13727@chino.kir.corp.google.com> <alpine.DEB.0.9999.0709212312560.13727@chino.kir.corp.google.com>
- <alpine.DEB.0.9999.0709212313140.13727@chino.kir.corp.google.com> <20070926130616.f16446fd.akpm@linux-foundation.org> <alpine.DEB.0.9999.0709261337080.23401@chino.kir.corp.google.com> <20070926144748.768efcbe.akpm@linux-foundation.org>
+Date: Thu, 27 Sep 2007 09:22:46 -0100
+From: "Vegas VIP Kasino" <yule@cnnsi.com>
+Message-ID: <61224805.48947013@batik.com>
+Subject: Willkommensbonus - 555 Euro
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
-Sender: owner-linux-mm@kvack.org
-Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: andrea@suse.de, clameter@sgi.com, linux-mm@kvack.org
+Content-Type: text/html; charset=iso-8859-1
+Content-Transfer-Encoding: 7bit
+Return-Path: <yule@cnnsi.com>
+To: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 26 Sep 2007, Andrew Morton wrote:
+<html>
 
-> > It can be gathered by other means, yes, but not at the time of OOM nor 
-> > immediately before a task is killed.  This tasklist dump is done very 
-> > close to the OOM kill and it represents the per-task memory state, whether 
-> > system or cgroup, that triggered that event.
-> 
-> OK, that's useful.  But your changelog was completely wrong - it implies
-> that this sysctl _causes_ the dump, rather than stating that the sysctl
-> _enables_ an oom-kill-time dump:
-> 
+<head>
+<meta http-equiv=Content-Type content="text/html; charset=iso-8859-1">
 
-Oops, that does sound confusing.  I'll reword the changelog and the 
-addition to Documentation/sysctl/vm.txt so it's not ambiguous.
+<title>Spielen ist Unterhaltung und Unterhaltung is das Beste im Leben</title>
 
-Sorry for the confusion.
+<style>
+<!--
+ /* Style Definitions */
+ p.MsoNormal, li.MsoNormal, div.MsoNormal
+	{mso-style-parent:"";
+	margin:0cm;
+	margin-bottom:.0001pt;
+	mso-pagination:widow-orphan;
+	font-size:12.0pt;
+	font-family:"Times New Roman";
+	mso-fareast-font-family:"Times New Roman";}
+a:link, span.MsoHyperlink
+	{color:blue;
+	text-decoration:underline;
+	text-underline:single;}
+a:visited, span.MsoHyperlinkFollowed
+	{color:purple;
+	text-decoration:underline;
+	text-underline:single;}
+@page Section1
+	{size:595.3pt 841.9pt;
+	margin:2.0cm 42.5pt 2.0cm 3.0cm;
+	mso-header-margin:35.4pt;
+	mso-footer-margin:35.4pt;
+	mso-paper-source:0;}
+div.Section1
+	{page:Section1;}
+-->
+</style>
 
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+</head>
+
+<body lang=DE link=blue vlink=purple style='tab-interval:35.4pt'>
+
+<div class=Section1>
+
+<p class=MsoNormal><span lang=EN-US style='mso-ansi-language:EN-US'>
+Spielen ist Unterhaltung und Unterhaltung is das Beste im Leben.
+<o:p></o:p></span></p>
+
+<p class=MsoNormal><span lang=EN-US style='mso-ansi-language:EN-US'>
+<o:p>&nbsp;</o:p></span></p>
+
+<p class=MsoNormal><span lang=EN-US style='mso-ansi-language:EN-US'>
+Das echte Spielen findet nur an einem Ort statt... VEGAS
+<o:p></o:p></span></p>
+
+<p class=MsoNormal><span lang=EN-US style='mso-ansi-language:EN-US'>
+<o:p>&nbsp;</o:p></span></p>
+
+<p class=MsoNormal><span lang=EN-US style='mso-ansi-language:EN-US'>
+Kommen und geniessen Sie Vegas VIP Casino.<o:p></o:p></span></p>
+
+<p class=MsoNormal><span lang=EN-US style='mso-ansi-language:EN-US'>
+<o:p>&nbsp;</o:p></span></p>
+
+<p class=MsoNormal><span lang=EN-US style='mso-ansi-language:EN-US'>
+Zus&auml;tzlich dazu ein exklusives Angebot nur f&uuml;r 
+Empf&auml;nger dieser E-Mail.<o:p></o:p></span></p>
+
+<p class=MsoNormal><span lang=EN-US style='mso-ansi-language:EN-US'>
+<o:p>&nbsp;</o:p></span></p>
+
+<p class=MsoNormal><span lang=EN-US style='mso-ansi-language:EN-US'>
+Ein UNGLAUBLICHER Bonus<o:p></o:p></span></p>
+
+<p class=MsoNormal><span lang=EN-US style='mso-ansi-language:EN-US'>
+200% Bonus auf Ihre erste Einzahlung! 100% auf je die zweite und 
+dritte Einzahlung! </span>Und als i-T&uuml;pfelchen 155% auf die 
+vierte Einzahlung<o:p></o:p></p>
+
+<p class=MsoNormal><span lang=EN-US style='mso-ansi-language:EN-US'>
+<o:p>&nbsp;</o:p></span></p>
+
+<p class=MsoNormal><span lang=EN-US style='mso-ansi-language:EN-US'>
+Verschwenden Sie keine Zeit und nutzen Sie diesen Bonus! &Uuml;ber 
+100 Casino Spiele, spektakul&auml;re Grafiken und eine erstklassige 
+Online Unterst&uuml;tzung<o:p></o:p></span></p>
+
+<p class=MsoNormal><span lang=EN-US style='mso-ansi-language:EN-US'>
+<o:p>&nbsp;</o:p></span></p>
+
+<p class=MsoNormal><span lang=EN-US style='mso-ansi-language:EN-US'>
+<a href="http://www.vipvegas4u.com/lang-de/">
+http://www.vipvegas4u.com/lang-de/</a><o:p></o:p></span></p>
+
+</div>
+
+</body>
+
+</html>
