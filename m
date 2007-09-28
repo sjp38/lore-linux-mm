@@ -1,42 +1,48 @@
-Date: Fri, 28 Sep 2007 11:38:10 -0700
-From: Paul Jackson <pj@sgi.com>
-Subject: Re: [PATCH 5/6] Filter based on a nodemask as well as a gfp_mask
-Message-Id: <20070928113810.9a5cbaf2.pj@sgi.com>
-In-Reply-To: <20070928182825.GA9779@skynet.ie>
-References: <20070928142326.16783.98817.sendpatchset@skynet.skynet.ie>
-	<20070928142506.16783.99266.sendpatchset@skynet.skynet.ie>
-	<1190993823.5513.10.camel@localhost>
-	<20070928182825.GA9779@skynet.ie>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Date: Fri, 28 Sep 2007 21:30:18 +0200
+From: Jens Axboe <jens.axboe@oracle.com>
+Subject: Re: [patch] splice mmap_sem deadlock
+Message-ID: <20070928193017.GC11717@kernel.dk>
+References: <20070928160035.GD12538@wotan.suse.de> <20070928173144.GA11717@kernel.dk> <alpine.LFD.0.999.0709281109290.3579@woody.linux-foundation.org> <20070928181513.GB11717@kernel.dk> <alpine.LFD.0.999.0709281120220.3579@woody.linux-foundation.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <alpine.LFD.0.999.0709281120220.3579@woody.linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Mel Gorman <mel@skynet.ie>
-Cc: Lee.Schermerhorn@hp.com, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, rientjes@google.com, kamezawa.hiroyu@jp.fujitsu.com, clameter@sgi.com
+To: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Nick Piggin <npiggin@suse.de>, Andrew Morton <akpm@linux-foundation.org>, Linux Memory Management List <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-Mel replied to Lee:
-> > > +	return nodes_intersect(nodemask, current->mems_allowed);
-> >                  ^^^^^^^^^^^^^^^ -- should be nodes_intersects, I think.
+On Fri, Sep 28 2007, Linus Torvalds wrote:
 > 
-> Crap, you're right, I missed the warning about implicit declarations. I
-> apologise. This is the corrected version
+> 
+> On Fri, 28 Sep 2007, Jens Axboe wrote:
+> > 
+> > It actually looks like it was buggy from day 1 there, unfortunately. The
+> > code is from april 2006 and used down_read() even then.
+> 
+> I was thinking of my *original* patch from way back when. But that one 
+> didn't actually do any of that stuff so no, it wasn't from there.
 
-I found myself making that same error, saying 'nodes_intersect' instead
-of 'nodes_intersects' the other day.  And I might be the one who invented
-that name ;).
+Right, vmsplice() wasn't part of the original stuff.
 
-This would probably be too noisey and too little gain to do on the
-Linux kernel, but if this was just a little private project of my own,
-I'd be running a script over the whole thing, modifying all 30 or so
-instances of bitmap_intersects, cpus_intersects and nodes_intersects so
-as to remove the final 's' character.
+> > So can you apply Nicks patch
+> 
+> I don't even have it, I only have a quoted-corrupted version of it. I 
+> wasn't originally cc'd.
+
+Hmm, part of me doesn't like this patch, since we now end up beating on
+mmap_sem for each part of the vec. It's fine for a stable patch, but how
+about
+
+- prefaulting the iovec
+- using __get_user()
+- only dropping/regrabbing the lock if we have to fault
+
+?
 
 -- 
-                  I won't rest till it's the best ...
-                  Programmer, Linux Scalability
-                  Paul Jackson <pj@sgi.com> 1.925.600.0401
+Jens Axboe
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
