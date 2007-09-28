@@ -1,57 +1,58 @@
-Subject: [PATCH] Inconsistent mmap()/mremap() flags
-From: Thayne Harbaugh <thayne@c2.net>
-Reply-To: thayne@c2.net
-Content-Type: text/plain
-Date: Thu, 27 Sep 2007 23:46:33 -0600
-Message-Id: <1190958393.5128.85.camel@phantasm.home.enterpriseandprosperity.com>
+Date: Fri, 28 Sep 2007 02:49:01 -0700
+From: Paul Jackson <pj@sgi.com>
+Subject: Re: [PATCH 08/10] ia64: Convert cpu_sibling_map to a per_cpu data
+ array (v3)
+Message-Id: <20070928024901.24ab6c99.pj@sgi.com>
+In-Reply-To: <20070912015647.214306428@sgi.com>
+References: <20070912015644.927677070@sgi.com>
+	<20070912015647.214306428@sgi.com>
 Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-kernel@vger.kernel.org
-Cc: ak@suse.de, linux-mm@kvack.org, discuss@x86-64.org
+To: travis@sgi.com
+Cc: akpm@linux-foundation.org, ak@suse.de, clameter@sgi.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linuxppc-dev@ozlabs.org, sparclinux@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-The x86_64 mmap() accepts the MAP_32BIT flag to request 32-bit clean
-addresses.  It seems to me that for consistency x86_64 mremap() should
-also accept this (or an equivalent) flag.
+Mike,
 
-Here is a trivial and untested patch for basis of discussion:
+I think there is a bug either in this ia64 patch, or in the related
+generic arch patch: Convert cpu_sibling_map to be a per cpu variable
+(v3).
 
---- linux-source-2.6.22/mm/mremap.c.orig	2007-09-27 23:02:13.000000000 -0600
-+++ linux-source-2.6.22/mm/mremap.c	2007-09-27 23:07:29.000000000 -0600
-@@ -23,6 +23,11 @@
- #include <asm/cacheflush.h>
- #include <asm/tlbflush.h>
+It dies early in boot on me, on the SGI internal 8 processor IA64
+system that you and I know as 'margin'.  The death is a hard hang, due
+to a corrupt stack, due to a bogus cpu index.
 
-+/* MAP_32BIT possibly defined in asm/mman.h */
-+#ifndef MAP_32BIT
-+#define MAP_32BIT 0
-+#endif
-+
- static pmd_t *get_old_pmd(struct mm_struct *mm, unsigned long addr)
- {
- 	pgd_t *pgd;
-@@ -255,7 +259,7 @@
- 	unsigned long ret = -EINVAL;
- 	unsigned long charged = 0;
- 
--	if (flags & ~(MREMAP_FIXED | MREMAP_MAYMOVE))
-+	if (flags & ~(MREMAP_FIXED | MREMAP_MAYMOVE | MAP_32BIT))
- 		goto out;
- 
- 	if (addr & ~PAGE_MASK)
-@@ -388,6 +392,9 @@
- 			if (vma->vm_flags & VM_MAYSHARE)
- 				map_flags |= MAP_SHARED;
- 
-+			if (flags & MAP_32BIT)
-+				map_flags |= MAP_32BIT;
-+
- 			new_addr = get_unmapped_area(vma->vm_file, 0, new_len,
- 						vma->vm_pgoff, map_flags);
- 			ret = new_addr;
+I haven't tracked it down all the way, but have gotten this far.  If I add
+the following patch, I get a panic on the BUG_ON if I have these two patches
+in 2.6.23-rc8-mm1, but it boots just fine if I don't have these two patches.
 
+It seems that the "cpu_sibling_map[cpu]" cpumask_t is empty (all zero
+bits) with your two patches applied, but has some non-zero bits
+otherwise, which leads to 'group' being NR_CPUS instead of a useful CPU
+number.  Unfortunately, I have no idea why the "cpu_sibling_map[cpu]"
+cpumask_t is empty -- good luck on that part.
+
+The patch that catches this bug earlier is this:
+
+--- 2.6.23-rc8-mm1.orig/kernel/sched.c	2007-09-28 01:42:20.144561024 -0700
++++ 2.6.23-rc8-mm1/kernel/sched.c	2007-09-28 02:27:14.239075497 -0700
+@@ -5905,6 +5905,7 @@ static int cpu_to_phys_group(int cpu, co
+ #else
+ 	group = cpu;
+ #endif
++	BUG_ON(group == NR_CPUS);
+ 	if (sg)
+ 		*sg = &per_cpu(sched_group_phys, group);
+ 	return group;
+
+
+-- 
+                  I won't rest till it's the best ...
+                  Programmer, Linux Scalability
+                  Paul Jackson <pj@sgi.com> 1.925.600.0401
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
