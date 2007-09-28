@@ -1,131 +1,57 @@
-Date: Thu, 27 Sep 2007 19:08:57 -0400
-From: Rik van Riel <riel@redhat.com>
-Subject: Re: [PATCH] kswapd should only wait on IO if there is IO
-Message-ID: <20070927190857.74a04166@bree.surriel.com>
-In-Reply-To: <20070927155907.a4dce0d8.akpm@linux-foundation.org>
-References: <20070927170816.055548fd@bree.surriel.com>
-	<20070927144702.a9124c7a.akpm@linux-foundation.org>
-	<20070927181325.21aae460@bree.surriel.com>
-	<20070927152121.3f5b6830.akpm@linux-foundation.org>
-	<20070927185027.1a1b4c13@bree.surriel.com>
-	<20070927155907.a4dce0d8.akpm@linux-foundation.org>
+Subject: [PATCH] Inconsistent mmap()/mremap() flags
+From: Thayne Harbaugh <thayne@c2.net>
+Reply-To: thayne@c2.net
+Content-Type: text/plain
+Date: Thu, 27 Sep 2007 23:46:33 -0600
+Message-Id: <1190958393.5128.85.camel@phantasm.home.enterpriseandprosperity.com>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: linux-kernel@vger.kernel.org
+Cc: ak@suse.de, linux-mm@kvack.org, discuss@x86-64.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 27 Sep 2007 15:59:07 -0700
-Andrew Morton <akpm@linux-foundation.org> wrote:
+The x86_64 mmap() accepts the MAP_32BIT flag to request 32-bit clean
+addresses.  It seems to me that for consistency x86_64 mremap() should
+also accept this (or an equivalent) flag.
 
-> And lost the changelog ;)
+Here is a trivial and untested patch for basis of discussion:
 
-Good point.
+--- linux-source-2.6.22/mm/mremap.c.orig	2007-09-27 23:02:13.000000000 -0600
++++ linux-source-2.6.22/mm/mremap.c	2007-09-27 23:07:29.000000000 -0600
+@@ -23,6 +23,11 @@
+ #include <asm/cacheflush.h>
+ #include <asm/tlbflush.h>
 
-The current kswapd (and try_to_free_pages) code has an oddity where the
-code will wait on IO, even if there is no IO in flight.  This problem is
-notable especially when the system scans through many unfreeable pages,
-causing unnecessary stalls in the VM.
-
-Additionally, tasks without __GFP_FS or __GFP_IO in the direct reclaim
-path will sleep if a significant number of pages are encountered that
-should be written out.  This gives kswapd a chance to write out those
-pages, while the direct reclaim task sleeps.
-
-Signed-off-by: Rik van Riel <riel@redhat.com>
-
-diff -up linux-2.6.22/mm/vmscan.c.wait linux-2.6.22/mm/vmscan.c
---- linux-2.6.22/mm/vmscan.c.wait	2007-09-27 18:45:57.000000000 -0400
-+++ linux-2.6.22/mm/vmscan.c	2007-09-27 18:48:43.000000000 -0400
-@@ -68,6 +68,13 @@ struct scan_control {
- 	int all_unreclaimable;
- 
- 	int order;
++/* MAP_32BIT possibly defined in asm/mman.h */
++#ifndef MAP_32BIT
++#define MAP_32BIT 0
++#endif
 +
-+	/*
-+	 * Pages that have (or should have) IO pending.  If we run into
-+	 * a lot of these, we're better off waiting a little for IO to
-+	 * finish rather than scanning more pages in the VM.
-+	 */
-+	int nr_io_pages;
- };
+ static pmd_t *get_old_pmd(struct mm_struct *mm, unsigned long addr)
+ {
+ 	pgd_t *pgd;
+@@ -255,7 +259,7 @@
+ 	unsigned long ret = -EINVAL;
+ 	unsigned long charged = 0;
  
- #define lru_to_page(_head) (list_entry((_head)->prev, struct page, lru))
-@@ -489,8 +496,10 @@ static unsigned long shrink_page_list(st
- 			 */
- 			if (sync_writeback == PAGEOUT_IO_SYNC && may_enter_fs)
- 				wait_on_page_writeback(page);
--			else
-+			else {
-+				sc->nr_io_pages++;
- 				goto keep_locked;
-+			}
- 		}
+-	if (flags & ~(MREMAP_FIXED | MREMAP_MAYMOVE))
++	if (flags & ~(MREMAP_FIXED | MREMAP_MAYMOVE | MAP_32BIT))
+ 		goto out;
  
- 		referenced = page_referenced(page, 1);
-@@ -529,8 +538,10 @@ static unsigned long shrink_page_list(st
- 		if (PageDirty(page)) {
- 			if (sc->order <= PAGE_ALLOC_COSTLY_ORDER && referenced)
- 				goto keep_locked;
--			if (!may_enter_fs)
-+			if (!may_enter_fs) {
-+				sc->nr_io_pages++;
- 				goto keep_locked;
-+			}
- 			if (!sc->may_writepage)
- 				goto keep_locked;
+ 	if (addr & ~PAGE_MASK)
+@@ -388,6 +392,9 @@
+ 			if (vma->vm_flags & VM_MAYSHARE)
+ 				map_flags |= MAP_SHARED;
  
-@@ -541,8 +552,10 @@ static unsigned long shrink_page_list(st
- 			case PAGE_ACTIVATE:
- 				goto activate_locked;
- 			case PAGE_SUCCESS:
--				if (PageWriteback(page) || PageDirty(page))
-+				if (PageWriteback(page) || PageDirty(page)) {
-+					sc->nr_io_pages++;
- 					goto keep;
-+				}
- 				/*
- 				 * A synchronous write - probably a ramdisk.  Go
- 				 * ahead and try to reclaim the page.
-@@ -1201,6 +1214,7 @@ unsigned long try_to_free_pages(struct z
- 
- 	for (priority = DEF_PRIORITY; priority >= 0; priority--) {
- 		sc.nr_scanned = 0;
-+		sc.nr_io_pages = 0;
- 		if (!priority)
- 			disable_swap_token();
- 		nr_reclaimed += shrink_zones(priority, zones, &sc);
-@@ -1229,7 +1243,8 @@ unsigned long try_to_free_pages(struct z
- 		}
- 
- 		/* Take a nap, wait for some writeback to complete */
--		if (sc.nr_scanned && priority < DEF_PRIORITY - 2)
-+		if (sc.nr_scanned && priority < DEF_PRIORITY - 2 &&
-+				sc.nr_io_pages > sc.swap_cluster_max)
- 			congestion_wait(WRITE, HZ/10);
- 	}
- 	/* top priority shrink_caches still had more to do? don't OOM, then */
-@@ -1315,6 +1330,7 @@ loop_again:
- 		if (!priority)
- 			disable_swap_token();
- 
-+		sc.nr_io_pages = 0;
- 		all_zones_ok = 1;
- 
- 		/*
-@@ -1398,7 +1414,8 @@ loop_again:
- 		 * OK, kswapd is getting into trouble.  Take a nap, then take
- 		 * another pass across the zones.
- 		 */
--		if (total_scanned && priority < DEF_PRIORITY - 2)
-+		if (total_scanned && priority < DEF_PRIORITY - 2 &&
-+					sc.nr_io_pages > sc.swap_cluster_max)
- 			congestion_wait(WRITE, HZ/10);
- 
- 		/*
++			if (flags & MAP_32BIT)
++				map_flags |= MAP_32BIT;
++
+ 			new_addr = get_unmapped_area(vma->vm_file, 0, new_len,
+ 						vma->vm_pgoff, map_flags);
+ 			ret = new_addr;
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
