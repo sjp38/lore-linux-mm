@@ -1,98 +1,80 @@
-Date: Sat, 29 Sep 2007 11:22:04 -0500
-Message-ID: <09740622.95194865@digit.com>
-From: "Euro VIP Kasino" <angry@fescomail.net>
-Subject: Spielen Sie in Europas bestem Online-Kasino
+Message-ID: <01c802d5$289a9c90$142bc54d@hardy>
+From: "Willie Shepard" <hardy@lists.crosswalk.com>
+Subject: Haben Sie wieder Spass am Leben!   render you any further services. --  patterns look in
+Date: Sat, 29 Sep 2007 21:13:11 +0100
 MIME-Version: 1.0
-Content-Type: text/html; charset=iso-8859-1
-Content-Transfer-Encoding: 7bit
-Return-Path: <angry@fescomail.net>
-To: owner-linux-mm@kvack.org
+Content-Type: multipart/alternative;
+	boundary="----=_NextPart_000_0007_01C802D5.289A9C90"
+Return-Path: <hardy@lists.crosswalk.com>
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-<html>
+This is a multi-part message in MIME format.
 
-<head>
-<meta http-equiv=Content-Type content="text/html; charset=iso-8859-1">
+------=_NextPart_000_0007_01C802D5.289A9C90
+Content-Type: text/plain;
+	charset="us-ascii"
+Content-Transfer-Encoding: quoted-printable
 
-<title>Spielen Sie in Europas</title>
+Versuchen Sie unser Produkt und Sie werden fuhlen was unsere Kunden bestati=
+gen
 
-<style>
-<!--
- /* Style Definitions */
- p.MsoNormal, li.MsoNormal, div.MsoNormal
-	{mso-style-parent:"";
-	margin:0cm;
-	margin-bottom:.0001pt;
-	mso-pagination:widow-orphan;
-	font-size:12.0pt;
-	font-family:"Times New Roman";
-	mso-fareast-font-family:"Times New Roman";
-	mso-ansi-language:EN-US;
-	mso-fareast-language:EN-US;}
-a:link, span.MsoHyperlink
-	{color:blue;
-	text-decoration:underline;
-	text-underline:single;}
-a:visited, span.MsoHyperlinkFollowed
-	{color:purple;
-	text-decoration:underline;
-	text-underline:single;}
-@page Section1
-	{size:595.3pt 841.9pt;
-	margin:2.0cm 42.5pt 2.0cm 3.0cm;
-	mso-header-margin:35.4pt;
-	mso-footer-margin:35.4pt;
-	mso-paper-source:0;}
-div.Section1
-	{page:Section1;}
--->
-</style>
+Preise die keine Konkurrenz kennen 
 
-</head>
+- Visa verifizierter Onlineshop
+- Bequem und diskret online bestellen.
+- Kostenlose, arztliche Telefon-Beratung
+- Kein langes Warten - Auslieferung innerhalb von 2-3 Tagen
+- Kein peinlicher Arztbesuch erforderlich
+- Diskrete Verpackung und Zahlung
+- keine versteckte Kosten
 
-<body lang=DE link=blue vlink=purple style='tab-interval:35.4pt'>
+Originalmedikamente
+Ciiaaaaaalis 10 Pack. 27,00 Euro
+Viiaaaagra 10 Pack. 21,00 Euro
 
-<div class=Section1>
+Nur fur kurze Zeit - vier Pillen umsonst erhalten
+http://armhold.cn
 
-<p class=MsoNormal><span lang=EN-US>Spielen Sie in Europas bestem
-Online-Kasino, sie erhalten 400 &#8364; extra, wenn Sie sich anmelden!
-<o:p></o:p></span></p>
+(bitte warten Sie einen Moment bis die Seite vollstandig geladen wird)
 
-<p class=MsoNormal><span lang=EN-US><o:p>&nbsp;</o:p></span></p>
+------=_NextPart_000_0007_01C802D5.289A9C90
+Content-Type: text/html;
+	charset="us-ascii"
+Content-Transfer-Encoding: quoted-printable
 
-<p class=MsoNormal><span lang=EN-US>F&uuml;r die ersten vier Einzahlungen 
-erhalten Sie jeweils bis zu 100 &#8364; VIP-Matchbonus. Das ist ein 
-fantastisches Angebot von Europas f&uuml;hrendem Anbieter!
-<o:p></o:p></span></p>
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
+<HTML><HEAD>
+<META http-equiv=3DContent-Type content=3D"text/html; charset=3Dus-ascii">
+<META content=3D"MSHTML 4.72.3155.0" name=3DGENERATOR>
+<STYLE></STYLE>
+</HEAD>
+<BODY>
+<head><meta http-equiv=3D"Content-Type" content=3D"text/html; charset=3Diso=
+-8859-1">
+</head><body><p>Meinung von unserem Kunden:<br><strong>Bin restlos begeiste=
+rt. Bin 50 und schlage mich seit einem guten Jahre damit herum, dass meinem=
+ Freund im entscheidenden Moment die Standfestigkeit abhanden kommt. Aber n=
+un ist es wie in allerbesten Zeiten. 10 mg reichen f&#252;r ein sehr LUSTig=
+es Weekend. Null Nebenwirkungen - abgesehen vom Muskelkater am n&#228;chten=
+ Tag. Aber der verschwindet ja durch ausreichendes Training ;-))</strong></=
+p><p><strong>Ich muss sagen, Ciaaaalis ist wirklich nochmals viel besser al=
+s Viiaaaagra. Es ist alles viel nat&#252;rlicher als mit Viiaaaagra. Aufgru=
+nd der langen Wirkungszeit von 24 Stunden kann man sich richtig Zeit lassen=
+ und mehrer Runden einlegen.<br>
+</strong><strong><br>Versuchen Sie unser Produkt und Sie werden fuhlen was =
+unsere Kunden bestatigen</strong></p><p>Preise die keine Konkurrenz kennen =
+<p>
+- Kein langes Warten - Auslieferung innerhalb von 2-3 Tagen<br>- Kostenlose=
+, arztliche Telefon-Beratung<br>- Kein peinlicher Arztbesuch erforderlich<b=
+r>- Bequem und diskret online bestellen.<br>- Diskrete Verpackung und Zahlu=
+ng<br>- Visa verifizierter Onlineshop<br>- keine versteckte Kosten</p>
+<p>Originalmedikamente<br><strong>Ciiaaaaaalis 10 Pack. 27,00 Euro</strong>=
+<br>
+  <strong>Viiaaaagra 10 Pack. 21,00 Euro</strong><br><br><strong><a href=3D=
+"http://armhold.cn" target=3D"_blank">Nur fur kurze Zeit - vier Pillen umso=
+nst erhalten</a><br></strong>(bitte warten Sie einen Moment bis die Seite v=
+ollst&auml;ndig geladen wird) </p></body>
+</BODY></HTML>
 
-<p class=MsoNormal><span lang=EN-US><o:p>&nbsp;</o:p></span></p>
-
-<p class=MsoNormal><span lang=EN-US>Das Angebot ist wirklich toll,
-insbesondere, wenn Sie bedenken, was Euro VIP Kasino sonst noch zu bieten 
-hat: <o:p></o:p></span></p>
-
-<p class=MsoNormal><span lang=EN-US>- &Uuml;ber 100 Spiele, realistische 
-Grafiken<o:p></o:p></span></p>
-
-<p class=MsoNormal><span lang=EN-US>- Die neueste und sicherste Software 
-<o:p></o:p></span></p>
-
-<p class=MsoNormal><span lang=EN-US>- Professionelle Betreuer, die Ihnen zu
-jeder Tages- und Nachtzeit beratend zur Seite stehen. <o:p></o:p></span></p>
-
-<p class=MsoNormal><span lang=EN-US><o:p>&nbsp;</o:p></span></p>
-
-<p class=MsoNormal><span lang=EN-US>Besuchen Sie Euro VIP Kasino, und erleben
-Sie den Unterschied.<o:p></o:p></span></p>
-
-<p class=MsoNormal><span lang=EN-US><o:p>&nbsp;</o:p></span></p>
-
-<p class=MsoNormal><span lang=EN-US>
-<a href="http://www.euro-vip-games.com/lang-de/">
-http://www.euro-vip-games.com/lang-de/</a><o:p></o:p></span></p>
-
-</div>
-
-</body>
-
-</html>
+------=_NextPart_000_0007_01C802D5.289A9C90--
