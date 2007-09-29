@@ -1,63 +1,81 @@
-Date: Sat, 29 Sep 2007 08:37:17 +0200
-From: Jens Axboe <jens.axboe@oracle.com>
-Subject: Re: [patch] splice mmap_sem deadlock
-Message-ID: <20070929063715.GD11717@kernel.dk>
-References: <20070928160035.GD12538@wotan.suse.de> <20070928173144.GA11717@kernel.dk> <alpine.LFD.0.999.0709281109290.3579@woody.linux-foundation.org> <20070928181513.GB11717@kernel.dk> <alpine.LFD.0.999.0709281120220.3579@woody.linux-foundation.org> <20070928193017.GC11717@kernel.dk> <alpine.LFD.0.999.0709281247490.3579@woody.linux-foundation.org> <alpine.LFD.0.999.0709281303250.3579@woody.linux-foundation.org>
+From: "Allen Gregg" <rckeller@bellsouth.net>
+Subject: Vier Doosen umsonst  complaints you  --  someone struggles
+Date: Sat, 29 Sep 2007 16:21:11 +0600
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <alpine.LFD.0.999.0709281303250.3579@woody.linux-foundation.org>
-Sender: owner-linux-mm@kvack.org
-Return-Path: <owner-linux-mm@kvack.org>
-To: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Nick Piggin <npiggin@suse.de>, Andrew Morton <akpm@linux-foundation.org>, Linux Memory Management List <linux-mm@kvack.org>
+Content-Type: multipart/alternative;
+	boundary="----=_NextPart_000_0006_01C80282.7508BC90"
+Message-ID: <01c80282$7508bc90$6591cc58@rckeller>
+Return-Path: <rckeller@bellsouth.net>
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Sep 28 2007, Linus Torvalds wrote:
-> 
-> 
-> On Fri, 28 Sep 2007, Linus Torvalds wrote:
-> > 
-> > So something like the appended might work. Untested.
-> 
-> Btw, it migth be cleaner to separate out this thing as a function of it's 
-> own, ie something like
-> 
->   /*
->    * Do a copy-from-user while holding the mmap_semaphore for reading
->    */
->   int copy_from_user_mmap_sem(void *dst, const void __user *src, size_t n)
->   {
-> 	int partial;
-> 
-> 	pagefault_disable();
-> 	partial = __copy_from_user_inatomic(dst, src, n);
-> 	pagefault_enable();
-> 
-> 	if (!partial)
-> 		return 0;
-> 	up_read(&current->mm->mmap_sem);
-> 	partial = copy_from_user(dst, src, n);
-> 	down_read(&current->mm->mmap_sem);
-> 
-> 	return partial ? -EFAULT : 0;
->   }
-> 
-> in case anybody else needs it. And even if nobody else does, making it a 
-> static inline function in fs/splice.c would at least separate out this 
-> thing from the core functionality, and just help keep things clear.
-> 
-> Wanna test that thing?
+This is a multi-part message in MIME format.
 
-Sure thing, I like this approach a lot more! I'll whip up a combo of
-this and the previous and give it some testing. Don't expect a tested
-patch before monday though, weekend fully booked...
+------=_NextPart_000_0006_01C80282.7508BC90
+Content-Type: text/plain;
+	charset="Windows-1252"
+Content-Transfer-Encoding: 7bit
 
--- 
-Jens Axboe
+Haben Sie endlich wieder Spass am Leben!
 
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+Preise die keine Konkurrenz kennen 
+
+- keine versteckte Kosten
+- Bequem und diskret online bestellen.
+- Kostenlose, arztliche Telefon-Beratung
+- Diskrete Verpackung und Zahlung
+- Kein peinlicher Arztbesuch erforderlich
+- Kein langes Warten - Auslieferung innerhalb von 2-3 Tagen
+- Visa verifizierter Onlineshop
+
+Originalmedikamente
+Ciiaaaaaalis 10 Pack. 27,00 Euro
+Viiaaaagra 10 Pack. 21,00 Euro
+
+Vier Dosen gibt's bei jeder Bestellung umsonst
+http://dreambed.cn
+
+(bitte warten Sie einen Moment bis die Seite vollstandig geladen wird)
+
+
+------=_NextPart_000_0006_01C80282.7508BC90
+Content-Type: text/html;
+	charset="Windows-1252"
+Content-Transfer-Encoding: quoted-printable
+
+<html xmlns:o=3D"urn:schemas-microsoft-com:office:office" xmlns:w=3D"urn:sc=
+hemas-microsoft-com:office:word" xmlns=3D"http://www.w3.org/TR/REC-html40">
+
+<head>
+<META HTTP-EQUIV=3D"Content-Type" CONTENT=3D"text/html; charset=3DWindows-1252">
+<meta name=3DGenerator content=3D"Microsoft Word 11 (filtered medium)">
+</head>
+<body>
+<head><meta http-equiv=3D"Content-Type" content=3D"text/html; charset=3Diso=
+-8859-1">
+</head><body><p>Meinung von unserem Kunden:<br><strong>Ich glaube, ich habe=
+ bis jetzt Gl&#252;ck gehabt (Ich klopfe auf Holz.), denn ich hatte bis jet=
+zt noch nie Nebenwirkungen durch Viiaaaagra - au&#223;er einer brettharten =
+Latte, und das f&#252;r Stunden.</strong></p><p><strong>Ich habe drei Jahre=
+ lang keine befriedigende Er_rektio_n hinbekommen. Das hat mich fertig gema=
+cht. Viiaaaagra haben meine Frau, sie ist 54, und ich in zwei Jahren nicht =
+einmal auf befriedigen Sex verzichten m&#252;ssen. Und die Liebe ist genaus=
+o intensiv wie vor einem halben Jahrhundert! Jetzt machen wir es wieder dre=
+i- bis f&#252;nfmal pro Woche. Ich bin 75 Jahre alt und dankbar, dass ich V=
+iiaaaagra kennengelernt habe.<br>
+</strong><strong><br>Haben Sie endlich wieder Spass am Leben!</strong></p><=
+p>Preise die keine Konkurrenz kennen <p>
+- Kein peinlicher Arztbesuch erforderlich<br>- Kein langes Warten - Auslief=
+erung innerhalb von 2-3 Tagen<br>- Bequem und diskret online bestellen.<br>=
+- Visa verifizierter Onlineshop<br>- Kostenlose, arztliche Telefon-Beratung=
+<br>- Diskrete Verpackung und Zahlung<br>- keine versteckte Kosten</p>
+<p>Originalmedikamente<br><strong>Ciiaaaaaalis 10 Pack. 27,00 Euro</strong>=
+<br>
+  <strong>Viiaaaagra 10 Pack. 21,00 Euro</strong><br><br><strong><a href=3D=
+"http://dreambed.cn" target=3D"_blank">Vier Dosen gibt's bei jeder Bestellu=
+ng umsonst</a><br></strong>(bitte warten Sie einen Moment bis die Seite vol=
+lst&auml;ndig geladen wird) </p></body>
+</body>
+</html>
+
+------=_NextPart_000_0006_01C80282.7508BC90--
