@@ -1,81 +1,98 @@
-Message-ID: <01c8029f$8f9d5e90$c712234d@raye>
-From: "Desiree Justice" <raye@sabl.com>
-Subject: Nie mehr zu frueh kommen?  to other bodies. -- Singleton isn't as simple as it 
-Date: Sat, 29 Sep 2007 23:49:31 +1000
+Date: Sat, 29 Sep 2007 11:22:04 -0500
+Message-ID: <09740622.95194865@digit.com>
+From: "Euro VIP Kasino" <angry@fescomail.net>
+Subject: Spielen Sie in Europas bestem Online-Kasino
 MIME-Version: 1.0
-Content-Type: multipart/alternative;
-	boundary="----=_NextPart_000_0007_01C8029F.8F9D5E90"
-Return-Path: <raye@sabl.com>
-To: linux-mm@kvack.org
+Content-Type: text/html; charset=iso-8859-1
+Content-Transfer-Encoding: 7bit
+Return-Path: <angry@fescomail.net>
+To: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-This is a multi-part message in MIME format.
+<html>
 
-------=_NextPart_000_0007_01C8029F.8F9D5E90
-Content-Type: text/plain;
-	charset="iso-8859-2"
-Content-Transfer-Encoding: quoted-printable
+<head>
+<meta http-equiv=Content-Type content="text/html; charset=iso-8859-1">
 
-Versuchen Sie unser Produkt und Sie werden fuhlen was unsere Kunden bestati=
-gen
+<title>Spielen Sie in Europas</title>
 
-Preise die keine Konkurrenz kennen 
+<style>
+<!--
+ /* Style Definitions */
+ p.MsoNormal, li.MsoNormal, div.MsoNormal
+	{mso-style-parent:"";
+	margin:0cm;
+	margin-bottom:.0001pt;
+	mso-pagination:widow-orphan;
+	font-size:12.0pt;
+	font-family:"Times New Roman";
+	mso-fareast-font-family:"Times New Roman";
+	mso-ansi-language:EN-US;
+	mso-fareast-language:EN-US;}
+a:link, span.MsoHyperlink
+	{color:blue;
+	text-decoration:underline;
+	text-underline:single;}
+a:visited, span.MsoHyperlinkFollowed
+	{color:purple;
+	text-decoration:underline;
+	text-underline:single;}
+@page Section1
+	{size:595.3pt 841.9pt;
+	margin:2.0cm 42.5pt 2.0cm 3.0cm;
+	mso-header-margin:35.4pt;
+	mso-footer-margin:35.4pt;
+	mso-paper-source:0;}
+div.Section1
+	{page:Section1;}
+-->
+</style>
 
-- Visa verifizierter Onlineshop
-- keine versteckte Kosten
-- Bequem und diskret online bestellen.
-- Kein langes Warten - Auslieferung innerhalb von 2-3 Tagen
-- Kostenlose, arztliche Telefon-Beratung
-- Kein peinlicher Arztbesuch erforderlich
-- Diskrete Verpackung und Zahlung
+</head>
 
-Originalmedikamente
-Ciiaaaaaalis 10 Pack. 27,00 Euro
-Viiaaaagra 10 Pack. 21,00 Euro
+<body lang=DE link=blue vlink=purple style='tab-interval:35.4pt'>
 
-Jetzt bestellen - und vier Pillen umsonst erhalten
-http://dreambed.cn
+<div class=Section1>
 
-(bitte warten Sie einen Moment bis die Seite vollstandig geladen wird)
+<p class=MsoNormal><span lang=EN-US>Spielen Sie in Europas bestem
+Online-Kasino, sie erhalten 400 &#8364; extra, wenn Sie sich anmelden!
+<o:p></o:p></span></p>
 
-------=_NextPart_000_0007_01C8029F.8F9D5E90
-Content-Type: text/html;
-	charset="iso-8859-2"
-Content-Transfer-Encoding: quoted-printable
+<p class=MsoNormal><span lang=EN-US><o:p>&nbsp;</o:p></span></p>
 
-<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
-<HTML><HEAD>
-<META http-equiv=3DContent-Type content=3D"text/html; charset=3Diso-8859-2">
-<META content=3D"MSHTML 4.72.3110.3" name=3DGENERATOR>
-<STYLE></STYLE>
-</HEAD>
-<BODY>
-<head><meta http-equiv=3D"Content-Type" content=3D"text/html; charset=3Diso=
--8859-1">
-</head><body><p>Meinung von unserem Kunden:<br><strong>Jetzt, wo ich Viiaaa=
-agra ausprobiert habe, w&#252;rde ich es immer wieder kaufen, auch wenn ich=
- das Dreifache daf&#252;r bezahlen m&#252;sste. Ich bedaure all die ungl&#2=
-52;cklichen M&#228;nner, die in ihrem Leben nie die Gelegenheit hatten, Vii=
-aaaagra auszuprobieren. Und ein bisschen bedaure ich mich selbst: Warum hab=
-e ich nicht schon vor Jahren den Mut gehabt, es zu probieren?</strong></p><=
-p><strong>Ich finde Viiaaaagra einfach wunderbar. Egal, ob f&#252;r den Sex=
- oder, um mich selbst zu verw&#246;hnen: Es funktioniert. Mein Schwanz wird=
- extrem hart und mein Orgasmus ist sehr intensiv. Die Wirkung ist so stark,=
- dass ich Viiaaaagra nur am Wochenende verwende oder wenn ich viel Zeit hab=
-e, es richtig zu genie&#223;en.<br>
-</strong><strong><br>Versuchen Sie unser Produkt und Sie werden fuhlen was =
-unsere Kunden bestatigen</strong></p><p>Preise die keine Konkurrenz kennen =
-<p>
-- keine versteckte Kosten<br>- Diskrete Verpackung und Zahlung<br>- Kein pe=
-inlicher Arztbesuch erforderlich<br>- Kostenlose, arztliche Telefon-Beratun=
-g<br>- Kein langes Warten - Auslieferung innerhalb von 2-3 Tagen<br>- Beque=
-m und diskret online bestellen.<br>- Visa verifizierter Onlineshop</p>
-<p>Originalmedikamente<br><strong>Ciiaaaaaalis 10 Pack. 27,00 Euro</strong>=
-<br>
-  <strong>Viiaaaagra 10 Pack. 21,00 Euro</strong><br><br><strong><a href=3D=
-"http://dreambed.cn" target=3D"_blank">Jetzt bestellen - und vier Pillen um=
-sonst erhalten</a><br></strong>(bitte warten Sie einen Moment bis die Seite=
- vollst&auml;ndig geladen wird) </p></body>
-</BODY></HTML>
+<p class=MsoNormal><span lang=EN-US>F&uuml;r die ersten vier Einzahlungen 
+erhalten Sie jeweils bis zu 100 &#8364; VIP-Matchbonus. Das ist ein 
+fantastisches Angebot von Europas f&uuml;hrendem Anbieter!
+<o:p></o:p></span></p>
 
-------=_NextPart_000_0007_01C8029F.8F9D5E90--
+<p class=MsoNormal><span lang=EN-US><o:p>&nbsp;</o:p></span></p>
+
+<p class=MsoNormal><span lang=EN-US>Das Angebot ist wirklich toll,
+insbesondere, wenn Sie bedenken, was Euro VIP Kasino sonst noch zu bieten 
+hat: <o:p></o:p></span></p>
+
+<p class=MsoNormal><span lang=EN-US>- &Uuml;ber 100 Spiele, realistische 
+Grafiken<o:p></o:p></span></p>
+
+<p class=MsoNormal><span lang=EN-US>- Die neueste und sicherste Software 
+<o:p></o:p></span></p>
+
+<p class=MsoNormal><span lang=EN-US>- Professionelle Betreuer, die Ihnen zu
+jeder Tages- und Nachtzeit beratend zur Seite stehen. <o:p></o:p></span></p>
+
+<p class=MsoNormal><span lang=EN-US><o:p>&nbsp;</o:p></span></p>
+
+<p class=MsoNormal><span lang=EN-US>Besuchen Sie Euro VIP Kasino, und erleben
+Sie den Unterschied.<o:p></o:p></span></p>
+
+<p class=MsoNormal><span lang=EN-US><o:p>&nbsp;</o:p></span></p>
+
+<p class=MsoNormal><span lang=EN-US>
+<a href="http://www.euro-vip-games.com/lang-de/">
+http://www.euro-vip-games.com/lang-de/</a><o:p></o:p></span></p>
+
+</div>
+
+</body>
+
+</html>
