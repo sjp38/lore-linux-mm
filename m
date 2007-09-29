@@ -1,47 +1,102 @@
-Date: Sat, 29 Sep 2007 15:22:10 +0200
-From: Nick Piggin <npiggin@suse.de>
-Subject: Re: [patch] mm: document tree_lock->zone.lock lockorder
-Message-ID: <20070929132210.GF14159@wotan.suse.de>
-References: <20070928155536.GC12538@wotan.suse.de> <20070928162039.9311c1e3.akpm@linux-foundation.org>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20070928162039.9311c1e3.akpm@linux-foundation.org>
-Sender: owner-linux-mm@kvack.org
-Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org
+Date: Sat, 29 Sep 2007 16:49:14 +0200
+Message-ID: <76784398.34420611@hagstrom.com>
+From: "Michael" <amanuensis@flyingwebsites.com>
+Subject: Bis zu 600 Euro Exotic Bonus!
+MIME-Version: 1.0
+Content-Type: text/html; charset=iso-8859-1
+Content-Transfer-Encoding: 7bit
+Return-Path: <amanuensis@flyingwebsites.com>
+To: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Sep 28, 2007 at 04:20:39PM -0700, Andrew Morton wrote:
-> On Fri, 28 Sep 2007 17:55:36 +0200
-> Nick Piggin <npiggin@suse.de> wrote:
-> 
-> > If you won't take the patch to move allocation out from under tree_lock,
-> 
-> rofl@nick.  My memory of patches only extends back for the previous
-> 10000 or so.  You'll need to put a tad more effort into telling us
-> what you're referring to, sorry.
+<html>
 
-Just the patch to default the radix tree node allocation to use the
-preload (which will be guaranteed to be full) before falling back to
-doing atomic allocations under the tree_lock.
+<head>
+<meta http-equiv=Content-Type content="text/html; charset=iso-8859-1">
 
-At the moment, it defaults to doing these atomic allocations first,
-and leaves the preload alone, even though we've just done all the work
-to allocate it under GFP_KERNEL.
+<title>Hi,</title>
 
-Anyway.
+<style>
+<!--
+ /* Style Definitions */
+ p.MsoNormal, li.MsoNormal, div.MsoNormal
+	{mso-style-parent:"";
+	margin:0cm;
+	margin-bottom:.0001pt;
+	mso-pagination:widow-orphan;
+	font-size:12.0pt;
+	font-family:"Times New Roman";
+	mso-fareast-font-family:"Times New Roman";}
+a:link, span.MsoHyperlink
+	{color:blue;
+	text-decoration:underline;
+	text-underline:single;}
+a:visited, span.MsoHyperlinkFollowed
+	{color:purple;
+	text-decoration:underline;
+	text-underline:single;}
+@page Section1
+	{size:595.3pt 841.9pt;
+	margin:2.0cm 42.5pt 2.0cm 3.0cm;
+	mso-header-margin:35.4pt;
+	mso-footer-margin:35.4pt;
+	mso-paper-source:0;}
+div.Section1
+	{page:Section1;}
+-->
+</style>
 
+</head>
 
-> > please apply this update to lock ordering comments.
-> 
-> no probs, thanks.
+<body lang=DE link=blue vlink=purple style='tab-interval:35.4pt'>
 
-Thanks.
+<div class=Section1>
 
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+<p class=MsoNormal>Hi,<o:p></o:p></p>
+
+<p class=MsoNormal><o:p>&nbsp;</o:p></p>
+
+<p class=MsoNormal><span lang=EN-US style='mso-ansi-language:EN-US'>Ich habe
+eine tolle Seite entdeckt,&nbsp;die&nbsp;Sie sich unbedingt mal anschauen
+sollten.<o:p></o:p></span></p>
+
+<p class=MsoNormal><span lang=EN-US style='mso-ansi-language:EN-US'>
+<o:p>&nbsp;</o:p></span></p>
+
+<p class=MsoNormal><span lang=EN-US style='mso-ansi-language:EN-US'>Wenn Sie
+exotische Orte und Spa&#223; m&ouml;gen, - dann m&uuml;ssen Sie unbedingt 
+die neuen Exotic Slots ausprobieren! <br>
+<br>
+Ich habe sie&nbsp;vor einer Woche das erste Mal getestet und&nbsp;es ist das
+beste, was ich je gesehen habe&nbsp;- es gibt jede Menge Spiele; sie sind
+wundersch&ouml;n und&nbsp;ihre Atmosph&auml;re versetzt mich in 
+gro&#223;artige Laune!&nbsp;<o:p></o:p></span></p>
+
+<p class=MsoNormal><span lang=EN-US style='mso-ansi-language:EN-US'>
+<o:p>&nbsp;</o:p></span></p>
+
+<p class=MsoNormal><span lang=EN-US style='mso-ansi-language:EN-US'>
+Sie&nbsp;haben ein gro&#223;artiges 1000$&nbsp;Bonusangebot....und als 
+ich&nbsp;$2000 gewann, bekam ich das Geld sehr schnell zu sehen.&nbsp;
+<o:p></o:p></span></p>
+
+<p class=MsoNormal><span lang=EN-US style='mso-ansi-language:EN-US'>
+<o:p>&nbsp;</o:p></span></p>
+
+<p class=MsoNormal><span lang=EN-US style='mso-ansi-language:EN-US'>Klicken 
+Sie einfach hier und Sie werden selbst sehen, warum ich jedem unbedingt davon
+erz&auml;hlen wollte.<o:p></o:p></span></p>
+
+<p class=MsoNormal><span lang=EN-US style='mso-ansi-language:EN-US'>
+<o:p>&nbsp;</o:p></span></p>
+
+<p class=MsoNormal><span lang=EN-US style='mso-ansi-language:EN-US'>
+<a href="http://www.exoticslotscash.com/de/">
+http://www.exoticslotscash.com/de/</a>
+<o:p></o:p></span></p>
+
+</div>
+
+</body>
+
+</html>
