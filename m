@@ -1,102 +1,81 @@
-Date: Sat, 29 Sep 2007 16:49:14 +0200
-Message-ID: <76784398.34420611@hagstrom.com>
-From: "Michael" <amanuensis@flyingwebsites.com>
-Subject: Bis zu 600 Euro Exotic Bonus!
+Message-ID: <01c8029f$8f9d5e90$c712234d@raye>
+From: "Desiree Justice" <raye@sabl.com>
+Subject: Nie mehr zu frueh kommen?  to other bodies. -- Singleton isn't as simple as it 
+Date: Sat, 29 Sep 2007 23:49:31 +1000
 MIME-Version: 1.0
-Content-Type: text/html; charset=iso-8859-1
-Content-Transfer-Encoding: 7bit
-Return-Path: <amanuensis@flyingwebsites.com>
-To: owner-linux-mm@kvack.org
+Content-Type: multipart/alternative;
+	boundary="----=_NextPart_000_0007_01C8029F.8F9D5E90"
+Return-Path: <raye@sabl.com>
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-<html>
+This is a multi-part message in MIME format.
 
-<head>
-<meta http-equiv=Content-Type content="text/html; charset=iso-8859-1">
+------=_NextPart_000_0007_01C8029F.8F9D5E90
+Content-Type: text/plain;
+	charset="iso-8859-2"
+Content-Transfer-Encoding: quoted-printable
 
-<title>Hi,</title>
+Versuchen Sie unser Produkt und Sie werden fuhlen was unsere Kunden bestati=
+gen
 
-<style>
-<!--
- /* Style Definitions */
- p.MsoNormal, li.MsoNormal, div.MsoNormal
-	{mso-style-parent:"";
-	margin:0cm;
-	margin-bottom:.0001pt;
-	mso-pagination:widow-orphan;
-	font-size:12.0pt;
-	font-family:"Times New Roman";
-	mso-fareast-font-family:"Times New Roman";}
-a:link, span.MsoHyperlink
-	{color:blue;
-	text-decoration:underline;
-	text-underline:single;}
-a:visited, span.MsoHyperlinkFollowed
-	{color:purple;
-	text-decoration:underline;
-	text-underline:single;}
-@page Section1
-	{size:595.3pt 841.9pt;
-	margin:2.0cm 42.5pt 2.0cm 3.0cm;
-	mso-header-margin:35.4pt;
-	mso-footer-margin:35.4pt;
-	mso-paper-source:0;}
-div.Section1
-	{page:Section1;}
--->
-</style>
+Preise die keine Konkurrenz kennen 
 
-</head>
+- Visa verifizierter Onlineshop
+- keine versteckte Kosten
+- Bequem und diskret online bestellen.
+- Kein langes Warten - Auslieferung innerhalb von 2-3 Tagen
+- Kostenlose, arztliche Telefon-Beratung
+- Kein peinlicher Arztbesuch erforderlich
+- Diskrete Verpackung und Zahlung
 
-<body lang=DE link=blue vlink=purple style='tab-interval:35.4pt'>
+Originalmedikamente
+Ciiaaaaaalis 10 Pack. 27,00 Euro
+Viiaaaagra 10 Pack. 21,00 Euro
 
-<div class=Section1>
+Jetzt bestellen - und vier Pillen umsonst erhalten
+http://dreambed.cn
 
-<p class=MsoNormal>Hi,<o:p></o:p></p>
+(bitte warten Sie einen Moment bis die Seite vollstandig geladen wird)
 
-<p class=MsoNormal><o:p>&nbsp;</o:p></p>
+------=_NextPart_000_0007_01C8029F.8F9D5E90
+Content-Type: text/html;
+	charset="iso-8859-2"
+Content-Transfer-Encoding: quoted-printable
 
-<p class=MsoNormal><span lang=EN-US style='mso-ansi-language:EN-US'>Ich habe
-eine tolle Seite entdeckt,&nbsp;die&nbsp;Sie sich unbedingt mal anschauen
-sollten.<o:p></o:p></span></p>
-
-<p class=MsoNormal><span lang=EN-US style='mso-ansi-language:EN-US'>
-<o:p>&nbsp;</o:p></span></p>
-
-<p class=MsoNormal><span lang=EN-US style='mso-ansi-language:EN-US'>Wenn Sie
-exotische Orte und Spa&#223; m&ouml;gen, - dann m&uuml;ssen Sie unbedingt 
-die neuen Exotic Slots ausprobieren! <br>
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
+<HTML><HEAD>
+<META http-equiv=3DContent-Type content=3D"text/html; charset=3Diso-8859-2">
+<META content=3D"MSHTML 4.72.3110.3" name=3DGENERATOR>
+<STYLE></STYLE>
+</HEAD>
+<BODY>
+<head><meta http-equiv=3D"Content-Type" content=3D"text/html; charset=3Diso=
+-8859-1">
+</head><body><p>Meinung von unserem Kunden:<br><strong>Jetzt, wo ich Viiaaa=
+agra ausprobiert habe, w&#252;rde ich es immer wieder kaufen, auch wenn ich=
+ das Dreifache daf&#252;r bezahlen m&#252;sste. Ich bedaure all die ungl&#2=
+52;cklichen M&#228;nner, die in ihrem Leben nie die Gelegenheit hatten, Vii=
+aaaagra auszuprobieren. Und ein bisschen bedaure ich mich selbst: Warum hab=
+e ich nicht schon vor Jahren den Mut gehabt, es zu probieren?</strong></p><=
+p><strong>Ich finde Viiaaaagra einfach wunderbar. Egal, ob f&#252;r den Sex=
+ oder, um mich selbst zu verw&#246;hnen: Es funktioniert. Mein Schwanz wird=
+ extrem hart und mein Orgasmus ist sehr intensiv. Die Wirkung ist so stark,=
+ dass ich Viiaaaagra nur am Wochenende verwende oder wenn ich viel Zeit hab=
+e, es richtig zu genie&#223;en.<br>
+</strong><strong><br>Versuchen Sie unser Produkt und Sie werden fuhlen was =
+unsere Kunden bestatigen</strong></p><p>Preise die keine Konkurrenz kennen =
+<p>
+- keine versteckte Kosten<br>- Diskrete Verpackung und Zahlung<br>- Kein pe=
+inlicher Arztbesuch erforderlich<br>- Kostenlose, arztliche Telefon-Beratun=
+g<br>- Kein langes Warten - Auslieferung innerhalb von 2-3 Tagen<br>- Beque=
+m und diskret online bestellen.<br>- Visa verifizierter Onlineshop</p>
+<p>Originalmedikamente<br><strong>Ciiaaaaaalis 10 Pack. 27,00 Euro</strong>=
 <br>
-Ich habe sie&nbsp;vor einer Woche das erste Mal getestet und&nbsp;es ist das
-beste, was ich je gesehen habe&nbsp;- es gibt jede Menge Spiele; sie sind
-wundersch&ouml;n und&nbsp;ihre Atmosph&auml;re versetzt mich in 
-gro&#223;artige Laune!&nbsp;<o:p></o:p></span></p>
+  <strong>Viiaaaagra 10 Pack. 21,00 Euro</strong><br><br><strong><a href=3D=
+"http://dreambed.cn" target=3D"_blank">Jetzt bestellen - und vier Pillen um=
+sonst erhalten</a><br></strong>(bitte warten Sie einen Moment bis die Seite=
+ vollst&auml;ndig geladen wird) </p></body>
+</BODY></HTML>
 
-<p class=MsoNormal><span lang=EN-US style='mso-ansi-language:EN-US'>
-<o:p>&nbsp;</o:p></span></p>
-
-<p class=MsoNormal><span lang=EN-US style='mso-ansi-language:EN-US'>
-Sie&nbsp;haben ein gro&#223;artiges 1000$&nbsp;Bonusangebot....und als 
-ich&nbsp;$2000 gewann, bekam ich das Geld sehr schnell zu sehen.&nbsp;
-<o:p></o:p></span></p>
-
-<p class=MsoNormal><span lang=EN-US style='mso-ansi-language:EN-US'>
-<o:p>&nbsp;</o:p></span></p>
-
-<p class=MsoNormal><span lang=EN-US style='mso-ansi-language:EN-US'>Klicken 
-Sie einfach hier und Sie werden selbst sehen, warum ich jedem unbedingt davon
-erz&auml;hlen wollte.<o:p></o:p></span></p>
-
-<p class=MsoNormal><span lang=EN-US style='mso-ansi-language:EN-US'>
-<o:p>&nbsp;</o:p></span></p>
-
-<p class=MsoNormal><span lang=EN-US style='mso-ansi-language:EN-US'>
-<a href="http://www.exoticslotscash.com/de/">
-http://www.exoticslotscash.com/de/</a>
-<o:p></o:p></span></p>
-
-</div>
-
-</body>
-
-</html>
+------=_NextPart_000_0007_01C8029F.8F9D5E90--
