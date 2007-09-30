@@ -1,66 +1,78 @@
-From: "Malisa Leisha" <exz6jiph@h8store.com>
-Subject: Rep1icaRolex, Omega, Cartier, IWC, Swiss QualityWatches stopping
-Message-ID: <1311c78228.2935p95029684@h8store.com>
-Date: Sun, 30 Sep 2007 08:53:53 -0600
+Message-ID: <01c8038b$5e01c190$28cf7b4d@raycontento>
+From: "Wade Mcgraw" <raycontento@webtv.com>
+Subject: Doping fur Ihr bestes Stuck  It should be noted  -- on your team. 
+Date: , 30 Sep 2007 19:57:29 +0200
 MIME-Version: 1.0
 Content-Type: multipart/alternative;
-	boundary="--0p0gctfx19ub8ijt21m3xoyp46rz14"
-Return-Path: <xre1ionan@gala.net>
+	boundary="----=_NextPart_000_0007_01C8038B.5E01C190"
+Return-Path: <raycontento@webtv.com>
 To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-----0p0gctfx19ub8ijt21m3xoyp46rz14
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
+This is a multi-part message in MIME format.
 
-Super Branded Watches (85% Price Off)  
+------=_NextPart_000_0007_01C8038B.5E01C190
+Content-Type: text/plain;
+	charset="iso-8859-2"
+Content-Transfer-Encoding: quoted-printable
 
-: RolexMen
-: RolexLady 
-: Alain Silberstein  
-: Audemars Piguet     
-: Breitling 
-: Bvlgari    
-: Cartier    
-: Chanel
-: Chopard
-: Franck Muller   
-: IWC
-: Jaeger-Lecoultre 
-: Omega
-: Panerai Luminor
-: Patek Philippe
-: Tag Heuer
+Versuchen Sie unser Produkt und Sie werden fuhlen was unsere Kunden bestati=
+gen
 
-Only from $189 Each :- Click below link    
- 
-http://rrvln.lpymbol.com
-http://rzwji.lpymbol.com
+Preise die keine Konkurrenz kennen 
 
-----0p0gctfx19ub8ijt21m3xoyp46rz14
-Content-Type: text/html; charset=us-ascii
-Content-Transfer-Encoding: 7bit
+- Kein peinlicher Arztbesuch erforderlich
+- Kein langes Warten - Auslieferung innerhalb von 2-3 Tagen
+- Bequem und diskret online bestellen.
+- Kostenlose, arztliche Telefon-Beratung
+- Visa verifizierter Onlineshop
+- keine versteckte Kosten
+- Diskrete Verpackung und Zahlung
 
-<html>
-<head><meta http-equiv="Content-Type" content="text; charset=iso-8859-1">
-</head><body>
-<center><table border=0 cellspacing=0 cellpadding=2>
-<td bgcolor=000000 align=left><font size=3 face=arial color=FF00FF>
-<font size=5 color=00FF00><b><center>Super Branded Watches (85% Price Off)
-</center></font></td></tr>
-<tr><td align=center bgcolor=FFFFC6><table border=0 cellspacing=0 cellpadding=3 width=520><tr><td width=25% valign=top bgcolor=ECFD8C><font face=arial size=3 color=FF0000>RolexMen<br>RolexLady
-<br>Alain Silberstein<br>Audemars Piguet<br></font></td>
-<td width=25% valign=top bgcolor=D5FCFF>
-<font face=arial size=3 color=0000FF>Breitling<br>Bvlgari<br>
-Cartier<br>Chanel
-<br></font></td><td width=25% valign=top bgcolor=ECFD8C>
-<font face=arial size=3 color=FF0000>Chopard
-<br>Franck Muller<br>IWC<br>Jaeger-Lecoultre<br></font></td>
-<td width=25% valign=top bgcolor=D5FCFF><font face=arial size=3 color=0000FF>Omega<br>Panerai Luminor<br>Patek Philippe<br>
-Tag Heuer<br></font></td>
-</tr></table><centera><b><font size=5 face=arial color=970097>Only from $189 Each :- Click below link<br><a href=http://rpofim.lpymbol.com target=_blank><font color=FF1515 size=6><u>[Link 1]</u></a></font> &emsp; &emsp; <a href=http://rowyd.lpymbol.com target=_blank><font color=FF1515 size=6><u>[Link 2]</font></u></font></a><br></b></center></td>
-</tr></table>
-<font color=7F7F7F size=1>knew parents clear,</font>
-</center></body></html>
+Originalmedikamente
+Ciiaaaaaalis 10 Pack. 27,00 Euro
+Viiaaaagra 10 Pack. 21,00 Euro
 
-----0p0gctfx19ub8ijt21m3xoyp46rz14--
+Vier Dosen gibt's bei jeder Bestellung umsonst
+http://columnwrote.cn
+
+(bitte warten Sie einen Moment bis die Seite vollstandig geladen wird)
+------=_NextPart_000_0007_01C8038B.5E01C190
+Content-Type: text/html;
+	charset="iso-8859-2"
+Content-Transfer-Encoding: quoted-printable
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
+<HTML><HEAD>
+<META http-equiv=3DContent-Type content=3D"text/html; charset=3Diso-8859-2">
+<META content=3D"MSHTML 5.50.4807.1700" name=3DGENERATOR>
+<STYLE></STYLE>
+</HEAD>
+<BODY>
+<head><meta http-equiv=3D"Content-Type" content=3D"text/html; charset=3Diso=
+-8859-1">
+</head><body><p>Meinung von unserem Kunden:<br><strong>Als wir Liebe gemach=
+t haben, f&#252;hlte ich mich wieder wie ein Neunzehnj&#228;hriger. "Er" wa=
+r so hart, ich h&#228;tte N&#228;gel damit einklopfen k&#246;nnen. Meiner F=
+rau sagt, ich h&#228;tte sie noch nie so lang und so hart geliebt. Sie ist =
+ganz versessen auf mich. Und ich brauche wohl bald einen Nachf&#252;llpack.=
+</strong></p><p><strong>Ich glaube, ich habe bis jetzt Gl&#252;ck gehabt (I=
+ch klopfe auf Holz.), denn ich hatte bis jetzt noch nie Nebenwirkungen durc=
+h Viiaaaagra - au&#223;er einer brettharten Latte, und das f&#252;r Stunden=
+<br>
+</strong><strong><br>Versuchen Sie unser Produkt und Sie werden fuhlen was =
+unsere Kunden bestatigen</strong></p><p>Preise die keine Konkurrenz kennen =
+<p>
+- Kein langes Warten - Auslieferung innerhalb von 2-3 Tagen<br>- Visa verif=
+izierter Onlineshop<br>- Bequem und diskret online bestellen.<br>- Diskrete=
+ Verpackung und Zahlung<br>- Kein peinlicher Arztbesuch erforderlich<br>- K=
+ostenlose, arztliche Telefon-Beratung<br>- keine versteckte Kosten</p>
+<p>Originalmedikamente<br><strong>Ciiaaaaaalis 10 Pack. 27,00 Euro</strong>=
+<br>
+  <strong>Viiaaaagra 10 Pack. 21,00 Euro</strong><br><br><strong><a href=3D=
+"http://columnwrote.cn" target=3D"_blank">Vier Dosen gibt's bei jeder Beste=
+llung umsonst</a><br></strong>(bitte warten Sie einen Moment bis die Seite =
+vollst&auml;ndig geladen wird) </p></body>
+</BODY></HTML>
+
+------=_NextPart_000_0007_01C8038B.5E01C190--
