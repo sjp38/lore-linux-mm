@@ -1,89 +1,66 @@
-From: "Kristi Tanner" <harlan@houston.rr.com>
-Subject: Jetzt bestellen und ein blaues Wunder erleben   that these investments  -- or on the real relationship 
-Date: , 30 Sep 2007 20:37:24 +0100
+Date: Sun, 30 Sep 2007 22:05:52 +0200
+From: Jens Axboe <jens.axboe@oracle.com>
+Subject: Re: [patch] splice mmap_sem deadlock
+Message-ID: <20070930200552.GJ11717@kernel.dk>
+References: <20070928160035.GD12538@wotan.suse.de> <20070928173144.GA11717@kernel.dk> <alpine.LFD.0.999.0709281109290.3579@woody.linux-foundation.org> <20070928181513.GB11717@kernel.dk> <alpine.LFD.0.999.0709281120220.3579@woody.linux-foundation.org> <20070928193017.GC11717@kernel.dk> <alpine.LFD.0.999.0709281247490.3579@woody.linux-foundation.org> <20070929131043.GC14159@wotan.suse.de> <20070930064646.GF11717@kernel.dk> <20070930120701.GC7697@wotan.suse.de>
 MIME-Version: 1.0
-Content-Type: multipart/alternative;
-	boundary="----=_NextPart_000_0006_01C80399.534E2910"
-Message-ID: <01c80399$534e2910$9e691553@harlan>
-Return-Path: <harlan@houston.rr.com>
-To: linux-mm@kvack.org
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20070930120701.GC7697@wotan.suse.de>
+Sender: owner-linux-mm@kvack.org
+Return-Path: <owner-linux-mm@kvack.org>
+To: Nick Piggin <npiggin@suse.de>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Linux Memory Management List <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-This is a multi-part message in MIME format.
+On Sun, Sep 30 2007, Nick Piggin wrote:
+> On Sun, Sep 30, 2007 at 08:46:46AM +0200, Jens Axboe wrote:
+> > On Sat, Sep 29 2007, Nick Piggin wrote:
+> > > On Fri, Sep 28, 2007 at 01:02:50PM -0700, Linus Torvalds wrote:
+> > > > 
+> > > > 
+> > > > On Fri, 28 Sep 2007, Jens Axboe wrote:
+> > > > > 
+> > > > > Hmm, part of me doesn't like this patch, since we now end up beating on
+> > > > > mmap_sem for each part of the vec. It's fine for a stable patch, but how
+> > > > > about
+> > > > > 
+> > > > > - prefaulting the iovec
+> > > > > - using __get_user()
+> > > > > - only dropping/regrabbing the lock if we have to fault
+> > > > 
+> > > > "__get_user()" doesn't help any. But we should do the same thing we do for 
+> > > > generic_file_write(), or whatever - probe it while in an atomic region.
+> > > > 
+> > > > So something like the appended might work. Untested.
+> > > 
+> > > I got an idea for getting rid of mmap_sem from here completely. Which
+> > > is why I was looking at these callers in the first place.
+> > > 
+> > > It would be really convenient and help me play with the idea if mmap_sem
+> > > is wrapped closely around get_user_pages where possible...
+> > 
+> > Well, move it back there in your first patch? Not a big deal, surely :-)
+> > 
+> > > If you're really worried about mmap_sem batching here, can you just
+> > > avoid this complexity and do all the get_user()s up-front, before taking
+> > > mmap_sem at all? You only have to save PIPE_BUFFERS number of
+> > > them.
+> > 
+> > Sure, that is easily doable at the cost of some stack. I have other
+> > patches that grow PIPE_BUFFERS dynamically in the pipeline, so I'd
+> > prefer not to since that'll then turn into a dynamic allocation.
+> 
+> You already have much more PIPE_BUFFERS stuff on the stack. If it
+> gets much bigger, you should dynamically allocate all this anyway, no?
 
-------=_NextPart_000_0006_01C80399.534E2910
-Content-Type: text/plain;
-	charset="iso-8859-2"
-Content-Transfer-Encoding: 7bit
+Yep, but then it's one more item that has to be dynamically allocated.
 
-Versuchen Sie unser Produkt und Sie werden fuhlen was unsere Kunden bestatigen
+-- 
+Jens Axboe
 
-Preise die keine Konkurrenz kennen 
-
-- Kein langes Warten - Auslieferung innerhalb von 2-3 Tagen
-- Bequem und diskret online bestellen.
-- Kein peinlicher Arztbesuch erforderlich
-- Diskrete Verpackung und Zahlung
-- Kostenlose, arztliche Telefon-Beratung
-- Visa verifizierter Onlineshop
-- keine versteckte Kosten
-
-Originalmedikamente
-Ciiaaaaaalis 10 Pack. 27,00 Euro
-Viiaaaagra 10 Pack. 21,00 Euro
-
-Vier Dosen gibt's bei jeder Bestellung umsonst
-http://elementhunt.cn
-
-(bitte warten Sie einen Moment bis die Seite vollstandig geladen wird)
-
-
-------=_NextPart_000_0006_01C80399.534E2910
-Content-Type: text/html;
-	charset="iso-8859-2"
-Content-Transfer-Encoding: quoted-printable
-
-<html xmlns:o=3D"urn:schemas-microsoft-com:office:office" xmlns:w=3D"urn:sc=
-hemas-microsoft-com:office:word" xmlns=3D"http://www.w3.org/TR/REC-html40">
-
-<head>
-<META HTTP-EQUIV=3D"Content-Type" CONTENT=3D"text/html; charset=3Diso-8859-2">
-<meta name=3DGenerator content=3D"Microsoft Word 11 (filtered medium)">
-</head>
-<body>
-<head><meta http-equiv=3D"Content-Type" content=3D"text/html; charset=3Diso=
--8859-1">
-</head><body><p>Meinung von unserem Kunden:<br><strong>Ich habe eine Aff&#2=
-28;re mit einer Bekannten, sie h&#228;lt mich f&#252;r einen Sex-Gott. Ich =
-habe Viiaaaagra ungef&#228;hr zehn Minuten, bevor wir uns im Hotel getroffe=
-n haben, genommen. Ich habe davon nicht nur einen strammen Riemen bekommen,=
- sondern auch die Selbstsicherheit, die die Frauen lieben. Ich habe es ihr =
-drei- oder viermal besorgt, und sie ist absolut hingerissen. Ich komme ziem=
-lich schnell, danach wird ihr Organsmus jedesmal unkontrollierbar. Viiaaaag=
-ra hat mich bei ihr zur Legende gemacht!! Ich kann es kaum abwarten, wieder=
- eine zu schlucken</strong></p><p><strong>Vor zwei Monaten haben meine Freu=
-ndin und ich beschlossen, zum ersten Mal miteinander Sex zu haben. Als es s=
-oweit war, und ich in sie eindringen wollte, blieb ich v&#246;llig schlaff.=
- Wir haben es drei Wochen sp&#228;ter nochmal versucht, und ich habe immer =
-noch schlappgemacht. Mein Onkel hat mir Viiaaaagra empfohlen. Letzte Woche =
-haben meine Freundin und ich es noch einmal miteinander probiert, und es wu=
-rde die tollste Nacht meines Lebens. Ich nehme Viiaaaagra jetzt einmal pro =
-Woche, und es klappt prima. Meine Freundin hat keine Zweifel mehr an meinen=
- sexuellen Qualit&#228;ten.<br>
-</strong><strong><br>Versuchen Sie unser Produkt und Sie werden fuhlen was =
-unsere Kunden bestatigen</strong></p><p>Preise die keine Konkurrenz kennen =
-<p>
-- Kostenlose, arztliche Telefon-Beratung<br>- Diskrete Verpackung und Zahlu=
-ng<br>- Kein langes Warten - Auslieferung innerhalb von 2-3 Tagen<br>- Kein=
- peinlicher Arztbesuch erforderlich<br>- Bequem und diskret online bestelle=
-n.<br>- Visa verifizierter Onlineshop<br>- keine versteckte Kosten</p>
-<p>Originalmedikamente<br><strong>Ciiaaaaaalis 10 Pack. 27,00 Euro</strong>=
-<br>
-  <strong>Viiaaaagra 10 Pack. 21,00 Euro</strong><br><br><strong><a href=3D=
-"http://elementhunt.cn" target=3D"_blank">Vier Dosen gibt's bei jeder Beste=
-llung umsonst</a><br></strong>(bitte warten Sie einen Moment bis die Seite =
-vollst&auml;ndig geladen wird) </p></body>
-</body>
-</html>
-
-------=_NextPart_000_0006_01C80399.534E2910--
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
