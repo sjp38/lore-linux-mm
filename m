@@ -1,60 +1,104 @@
-Date: Sun, 30 Sep 2007 14:07:01 +0200
-From: Nick Piggin <npiggin@suse.de>
-Subject: Re: [patch] splice mmap_sem deadlock
-Message-ID: <20070930120701.GC7697@wotan.suse.de>
-References: <20070928160035.GD12538@wotan.suse.de> <20070928173144.GA11717@kernel.dk> <alpine.LFD.0.999.0709281109290.3579@woody.linux-foundation.org> <20070928181513.GB11717@kernel.dk> <alpine.LFD.0.999.0709281120220.3579@woody.linux-foundation.org> <20070928193017.GC11717@kernel.dk> <alpine.LFD.0.999.0709281247490.3579@woody.linux-foundation.org> <20070929131043.GC14159@wotan.suse.de> <20070930064646.GF11717@kernel.dk>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20070930064646.GF11717@kernel.dk>
-Sender: owner-linux-mm@kvack.org
-Return-Path: <owner-linux-mm@kvack.org>
-To: Jens Axboe <jens.axboe@oracle.com>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Linux Memory Management List <linux-mm@kvack.org>
+Date: Sun, 30 Sep 2007 19:04:56 +0500
+From: " Royal Euro Kasino " <milestone@yebox.com>
+Subject: 300% Bonus fur Ihre erste Einzahlung! 
+Message-ID: <37400197.34299152@firewood.com>
+MIME-Version: 1.0
+Content-Type: text/html; charset=iso-8859-1
+Content-Transfer-Encoding: 7bit
+Return-Path: <milestone@yebox.com>
+To: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Sun, Sep 30, 2007 at 08:46:46AM +0200, Jens Axboe wrote:
-> On Sat, Sep 29 2007, Nick Piggin wrote:
-> > On Fri, Sep 28, 2007 at 01:02:50PM -0700, Linus Torvalds wrote:
-> > > 
-> > > 
-> > > On Fri, 28 Sep 2007, Jens Axboe wrote:
-> > > > 
-> > > > Hmm, part of me doesn't like this patch, since we now end up beating on
-> > > > mmap_sem for each part of the vec. It's fine for a stable patch, but how
-> > > > about
-> > > > 
-> > > > - prefaulting the iovec
-> > > > - using __get_user()
-> > > > - only dropping/regrabbing the lock if we have to fault
-> > > 
-> > > "__get_user()" doesn't help any. But we should do the same thing we do for 
-> > > generic_file_write(), or whatever - probe it while in an atomic region.
-> > > 
-> > > So something like the appended might work. Untested.
-> > 
-> > I got an idea for getting rid of mmap_sem from here completely. Which
-> > is why I was looking at these callers in the first place.
-> > 
-> > It would be really convenient and help me play with the idea if mmap_sem
-> > is wrapped closely around get_user_pages where possible...
-> 
-> Well, move it back there in your first patch? Not a big deal, surely :-)
-> 
-> > If you're really worried about mmap_sem batching here, can you just
-> > avoid this complexity and do all the get_user()s up-front, before taking
-> > mmap_sem at all? You only have to save PIPE_BUFFERS number of
-> > them.
-> 
-> Sure, that is easily doable at the cost of some stack. I have other
-> patches that grow PIPE_BUFFERS dynamically in the pipeline, so I'd
-> prefer not to since that'll then turn into a dynamic allocation.
+<html>
 
-You already have much more PIPE_BUFFERS stuff on the stack. If it
-gets much bigger, you should dynamically allocate all this anyway, no?
+<head>
+<meta http-equiv=Content-Type content="text/html; charset=iso-8859-1">
 
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+<title>Online </title>
+
+<style>
+<!--
+ /* Style Definitions */
+ p.MsoNormal, li.MsoNormal, div.MsoNormal
+	{mso-style-parent:"";
+	margin:0cm;
+	margin-bottom:.0001pt;
+	mso-pagination:widow-orphan;
+	font-size:12.0pt;
+	font-family:"Times New Roman";
+	mso-fareast-font-family:"Times New Roman";}
+a:link, span.MsoHyperlink
+	{color:blue;
+	text-decoration:underline;
+	text-underline:single;}
+a:visited, span.MsoHyperlinkFollowed
+	{color:purple;
+	text-decoration:underline;
+	text-underline:single;}
+@page Section1
+	{size:595.3pt 841.9pt;
+	margin:2.0cm 42.5pt 2.0cm 3.0cm;
+	mso-header-margin:35.4pt;
+	mso-footer-margin:35.4pt;
+	mso-paper-source:0;}
+div.Section1
+	{page:Section1;}
+-->
+</style>
+
+</head>
+
+<body lang=DE link=blue vlink=purple style='tab-interval:35.4pt'>
+
+<div class=Section1>
+
+<p class=MsoNormal>Online 
+Casinos sind dafuer bekannt, ihren Spielern, 
+gro&#223;z&uuml;gige Ersteinzahlungsbonusse zu geben.
+<o:p></o:p></p>
+
+<p class=MsoNormal><o:p>&nbsp;</o:p></p>
+
+<p class=MsoNormal><span lang=EN-US style='mso-ansi-language:EN-US'>
+Aber einen so grossen Bonus 
+haben Sie noch nie erhalten!<o:p></o:p></span></p>
+
+<p class=MsoNormal><span lang=EN-US style='mso-ansi-language:EN-US'>
+<o:p>&nbsp;</o:p></span></p>
+
+<p class=MsoNormal><span lang=EN-US style='mso-ansi-language:EN-US'>
+300% Bonus auf Ihre erste Einzahlung auf bis zu 
+300&euro; Bonus!<o:p></o:p></span></p>
+
+<p class=MsoNormal><span lang=EN-US style='mso-ansi-language:EN-US'>
+<o:p>&nbsp;</o:p></span></p>
+
+<p class=MsoNormal><span lang=EN-US style='mso-ansi-language:EN-US'>
+Ein echt k&ouml;niglicher Bonus!
+<o:p></o:p></span></p>
+
+<p class=MsoNormal><span lang=EN-US style='mso-ansi-language:EN-US'>
+<o:p>&nbsp;</o:p></span></p>
+
+<p class=MsoNormal><span lang=EN-US style='mso-ansi-language:EN-US'>
+Royal Euro 
+Casino bietet Ihnen die neueste Generatin an 
+Software und eine elegante gaming Atmosph&auml;re. Mit einer Auswahl 
+an &uuml;ber 100 Casino Spielen und einer immer 
+verf&uuml;gbaren Kundenbetreuung kann man 
+nicht mehr verlangen.
+<o:p></o:p></span></p>
+
+<p class=MsoNormal><span lang=EN-US style='mso-ansi-language:EN-US'>
+<o:p>&nbsp;</o:p></span></p>
+
+<p class=MsoNormal><a href="http://www.royalgamblingcash.com/lang-de/">
+http://www.royalgamblingcash.com/lang-de/</a>
+<span lang=EN-US style='mso-ansi-language:EN-US'>
+<o:p></o:p></span></p>
+
+</div>
+
+</body>
+
+</html>
