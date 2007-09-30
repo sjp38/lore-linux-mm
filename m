@@ -1,74 +1,59 @@
-From: "Georgina Hobson" <ray@secontur.com>
-Subject: Ficken wie ein Weltmeister ?   reference report forever!  -- Head First Design Patterns 
-Date: Sat, 29 Sep 2007 13:58:52 -0800
-Message-ID: <01c802e3$ec226d10$c18aa0c9@ray>
+Date: Sun, 30 Sep 2007 08:46:46 +0200
+From: Jens Axboe <jens.axboe@oracle.com>
+Subject: Re: [patch] splice mmap_sem deadlock
+Message-ID: <20070930064646.GF11717@kernel.dk>
+References: <20070928160035.GD12538@wotan.suse.de> <20070928173144.GA11717@kernel.dk> <alpine.LFD.0.999.0709281109290.3579@woody.linux-foundation.org> <20070928181513.GB11717@kernel.dk> <alpine.LFD.0.999.0709281120220.3579@woody.linux-foundation.org> <20070928193017.GC11717@kernel.dk> <alpine.LFD.0.999.0709281247490.3579@woody.linux-foundation.org> <20070929131043.GC14159@wotan.suse.de>
 MIME-Version: 1.0
-Content-Type: multipart/alternative;
-	boundary="----=_NextPart_000_000E_01C802E3.EC226D10"
-Return-Path: <ray@secontur.com>
-To: linux-mm@kvack.org
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20070929131043.GC14159@wotan.suse.de>
+Sender: owner-linux-mm@kvack.org
+Return-Path: <owner-linux-mm@kvack.org>
+To: Nick Piggin <npiggin@suse.de>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Linux Memory Management List <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-This is a multi-part message in MIME format.
+On Sat, Sep 29 2007, Nick Piggin wrote:
+> On Fri, Sep 28, 2007 at 01:02:50PM -0700, Linus Torvalds wrote:
+> > 
+> > 
+> > On Fri, 28 Sep 2007, Jens Axboe wrote:
+> > > 
+> > > Hmm, part of me doesn't like this patch, since we now end up beating on
+> > > mmap_sem for each part of the vec. It's fine for a stable patch, but how
+> > > about
+> > > 
+> > > - prefaulting the iovec
+> > > - using __get_user()
+> > > - only dropping/regrabbing the lock if we have to fault
+> > 
+> > "__get_user()" doesn't help any. But we should do the same thing we do for 
+> > generic_file_write(), or whatever - probe it while in an atomic region.
+> > 
+> > So something like the appended might work. Untested.
+> 
+> I got an idea for getting rid of mmap_sem from here completely. Which
+> is why I was looking at these callers in the first place.
+> 
+> It would be really convenient and help me play with the idea if mmap_sem
+> is wrapped closely around get_user_pages where possible...
 
-------=_NextPart_000_000E_01C802E3.EC226D10
-Content-Type: text/plain;
-	charset="iso-8859-2"
-Content-Transfer-Encoding: 7bit
+Well, move it back there in your first patch? Not a big deal, surely :-)
 
-Sie leben nur einmal - warum dann nicht was neues ausprobieren?
+> If you're really worried about mmap_sem batching here, can you just
+> avoid this complexity and do all the get_user()s up-front, before taking
+> mmap_sem at all? You only have to save PIPE_BUFFERS number of
+> them.
 
-Preise die keine Konkurrenz kennen 
+Sure, that is easily doable at the cost of some stack. I have other
+patches that grow PIPE_BUFFERS dynamically in the pipeline, so I'd
+prefer not to since that'll then turn into a dynamic allocation.
 
-- Kein peinlicher Arztbesuch erforderlich
-- Visa verifizierter Onlineshop
-- Kein langes Warten - Auslieferung innerhalb von 2-3 Tagen
-- Kostenlose, arztliche Telefon-Beratung
-- Bequem und diskret online bestellen.
-- Diskrete Verpackung und Zahlung
-- keine versteckte Kosten
+-- 
+Jens Axboe
 
-Originalmedikamente
-Ciiaaaaaalis 10 Pack. 27,00 Euro
-Viiaaaagra 10 Pack. 21,00 Euro
-
-Vier Dosen gibt's bei jeder Bestellung umsonst
-http://treelive.cn
-
-(bitte warten Sie einen Moment bis die Seite vollstandig geladen wird)
-
-
-------=_NextPart_000_000E_01C802E3.EC226D10
-Content-Type: text/html;
-	charset="iso-8859-2"
-Content-Transfer-Encoding: quoted-printable
-
-<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
-<HTML><HEAD><TITLE></TITLE>
-<META content=3D"text/html; charset=3Diso-8859-2" http-equiv=3DContent-Type>
-<META content=3D"MSHTML 6.00.3790.1830" name=3DGENERATOR></HEAD>
-<BODY>
-<head><meta http-equiv=3D"Content-Type" content=3D"text/html; charset=3Diso=
--8859-1">
-</head><body><p>Meinung von unserem Kunden:<br><strong>Ich muss sagen, Ciaa=
-aalis ist wirklich nochmals viel besser als Viiaaaagra. Es ist alles viel n=
-at&#252;rlicher als mit Viiaaaagra. Aufgrund der langen Wirkungszeit von 24=
- Stunden kann man sich richtig Zeit lassen und mehrer Runden einlegen.</str=
-ong></p><p><strong>Ich glaube, ich habe bis jetzt Gl&#252;ck gehabt (Ich kl=
-opfe auf Holz.), denn ich hatte bis jetzt noch nie Nebenwirkungen durch Vii=
-aaaagra - au&#223;er einer brettharten Latte, und das f&#252;r Stunden.<br>
-</strong><strong><br>Sie leben nur einmal - warum dann nicht was neues ausp=
-robieren?</strong></p><p>Preise die keine Konkurrenz kennen <p>
-- Kostenlose, arztliche Telefon-Beratung<br>- Bequem und diskret online bes=
-tellen.<br>- Kein langes Warten - Auslieferung innerhalb von 2-3 Tagen<br>-=
- Kein peinlicher Arztbesuch erforderlich<br>- Diskrete Verpackung und Zahlu=
-ng<br>- Visa verifizierter Onlineshop<br>- keine versteckte Kosten</p>
-<p>Originalmedikamente<br><strong>Ciiaaaaaalis 10 Pack. 27,00 Euro</strong>=
-<br>
-  <strong>Viiaaaagra 10 Pack. 21,00 Euro</strong><br><br><strong><a href=3D=
-"http://treelive.cn" target=3D"_blank">Vier Dosen gibt's bei jeder Bestellu=
-ng umsonst</a><br></strong>(bitte warten Sie einen Moment bis die Seite vol=
-lst&auml;ndig geladen wird) </p></body>
-</BODY></HTML>
-
-------=_NextPart_000_000E_01C802E3.EC226D10--
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
