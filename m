@@ -1,9 +1,9 @@
-Date: Mon, 01 Oct 2007 18:33:03 +0900
+Date: Mon, 01 Oct 2007 18:34:39 +0900
 From: Yasunori Goto <y-goto@jp.fujitsu.com>
-Subject: [Patch / 001](memory hotplug) fix some defects of memory notifer callback interface.
+Subject: [Patch / 002](memory hotplug) Callback function to create kmem_cache_node.
 In-Reply-To: <20071001182329.7A97.Y-GOTO@jp.fujitsu.com>
 References: <20071001182329.7A97.Y-GOTO@jp.fujitsu.com>
-Message-Id: <20071001183110.7A99.Y-GOTO@jp.fujitsu.com>
+Message-Id: <20071001183316.7A9B.Y-GOTO@jp.fujitsu.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset="US-ASCII"
 Content-Transfer-Encoding: 7bit
@@ -13,117 +13,125 @@ To: Andrew Morton <akpm@osdl.org>
 Cc: Christoph Lameter <clameter@sgi.com>, Linux Kernel ML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-Current memory notifier has some defects yet. (Nothing uses it.)
-This patch is to fix for them.
+This is to make kmem_cache_nodes of all SLUBs for new node when 
+memory-hotadd is called. This fixes panic due to access NULL pointer at
+discard_slab() after memory hot-add.
 
-  - Add information of start_pfn and nr_pages for callback functions.
-    They can't do anything without those information.
-  - Add notification going-online status.
-    It is necessary for creating per node structure before the node's
-    pages are available.
-  - Fix compile error of (un)register_memory_notifier().
+If pages on the new node available, slub can use it before making
+new kmem_cache_nodes. So, this callback should be called
+BEFORE pages on the node are available.
 
 
 Signed-off-by: Yasunori Goto <y-goto@jp.fujitsu.com>
 
 ---
- drivers/base/memory.c  |   10 +++++++---
- include/linux/memory.h |   16 ++++++++++++----
- 2 files changed, 19 insertions(+), 7 deletions(-)
+ mm/slub.c |   79 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 79 insertions(+)
 
-Index: current/drivers/base/memory.c
+Index: current/mm/slub.c
 ===================================================================
---- current.orig/drivers/base/memory.c	2007-09-28 11:21:00.000000000 +0900
-+++ current/drivers/base/memory.c	2007-09-28 11:23:46.000000000 +0900
-@@ -155,10 +155,13 @@ memory_block_action(struct memory_block 
- 	struct page *first_page;
- 	int ret;
- 	int old_state = mem->state;
-+	struct memory_notify arg;
- 
- 	psection = mem->phys_index;
- 	first_page = pfn_to_page(psection << PFN_SECTION_SHIFT);
- 
-+	arg.start_pfn = page_to_pfn(first_page);
-+	arg.nr_pages = PAGES_PER_SECTION;
- 	/*
- 	 * The probe routines leave the pages reserved, just
- 	 * as the bootmem code does.  Make sure they're still
-@@ -178,12 +181,13 @@ memory_block_action(struct memory_block 
- 
- 	switch (action) {
- 		case MEM_ONLINE:
-+			memory_notify(MEM_GOING_ONLINE, &arg);
- 			start_pfn = page_to_pfn(first_page);
- 			ret = online_pages(start_pfn, PAGES_PER_SECTION);
- 			break;
- 		case MEM_OFFLINE:
- 			mem->state = MEM_GOING_OFFLINE;
--			memory_notify(MEM_GOING_OFFLINE, NULL);
-+			memory_notify(MEM_GOING_OFFLINE, &arg);
- 			start_paddr = page_to_pfn(first_page) << PAGE_SHIFT;
- 			ret = remove_memory(start_paddr,
- 					    PAGES_PER_SECTION << PAGE_SHIFT);
-@@ -191,7 +195,7 @@ memory_block_action(struct memory_block 
- 				mem->state = old_state;
- 				break;
- 			}
--			memory_notify(MEM_MAPPING_INVALID, NULL);
-+			memory_notify(MEM_MAPPING_INVALID, &arg);
- 			break;
- 		default:
- 			printk(KERN_WARNING "%s(%p, %ld) unknown action: %ld\n",
-@@ -203,7 +207,7 @@ memory_block_action(struct memory_block 
- 	 * For now, only notify on successful memory operations
- 	 */
- 	if (!ret)
--		memory_notify(action, NULL);
-+		memory_notify(action, &arg);
- 
- 	return ret;
- }
-Index: current/include/linux/memory.h
-===================================================================
---- current.orig/include/linux/memory.h	2007-09-28 11:18:25.000000000 +0900
-+++ current/include/linux/memory.h	2007-09-28 11:23:46.000000000 +0900
-@@ -37,10 +37,16 @@ struct memory_block {
- 	struct sys_device sysdev;
- };
- 
-+struct memory_notify {
-+	unsigned long start_pfn;
-+	unsigned long nr_pages;
-+};
-+
- /* These states are exposed to userspace as text strings in sysfs */
--#define	MEM_ONLINE		(1<<0) /* exposed to userspace */
--#define	MEM_GOING_OFFLINE	(1<<1) /* exposed to userspace */
--#define	MEM_OFFLINE		(1<<2) /* exposed to userspace */
-+#define MEM_GOING_ONLINE	(1<<0) /* exposed to userspace */
-+#define	MEM_ONLINE		(1<<1) /* exposed to userspace */
-+#define	MEM_GOING_OFFLINE	(1<<2) /* exposed to userspace */
-+#define	MEM_OFFLINE		(1<<3) /* exposed to userspace */
+--- current.orig/mm/slub.c	2007-09-28 11:23:50.000000000 +0900
++++ current/mm/slub.c	2007-09-28 11:23:59.000000000 +0900
+@@ -20,6 +20,7 @@
+ #include <linux/mempolicy.h>
+ #include <linux/ctype.h>
+ #include <linux/kallsyms.h>
++#include <linux/memory.h>
  
  /*
-  * All of these states are currently kernel-internal for notifying
-@@ -52,7 +58,7 @@ struct memory_block {
-  * pfn_to_page() stop working.  Any notifiers that want to be called
-  * after that should have priority <0.
-  */
--#define	MEM_MAPPING_INVALID	(1<<3)
-+#define	MEM_MAPPING_INVALID	(1<<4)
- 
- struct notifier_block;
- struct mem_section;
-@@ -70,6 +76,8 @@ static inline void unregister_memory_not
- {
+  * Lock order:
+@@ -2097,6 +2098,82 @@ static int init_kmem_cache_nodes(struct 
+ 	}
+ 	return 1;
  }
++
++#ifdef CONFIG_MEMORY_HOTPLUG
++static void __slab_callback_offline(int nid)
++{
++	struct kmem_cache_node *n;
++	struct kmem_cache *s;
++
++	list_for_each_entry(s, &slab_caches, list) {
++		if (s->node[nid]) {
++			n = get_node(s, nid);
++			s->node[nid] = NULL;
++			kmem_cache_free(kmalloc_caches, n);
++		}
++	}
++}
++
++static int slab_callback_going_online(void *arg)
++{
++	struct kmem_cache_node *n;
++	struct kmem_cache *s;
++	struct memory_notify *marg = arg;
++	int nid;
++
++	nid = page_to_nid(pfn_to_page(marg->start_pfn));
++
++	/* If the node already has memory, then nothing is necessary. */
++	if (node_state(nid, N_HIGH_MEMORY))
++		return 0;
++
++	/*
++	 * New memory will be onlined on the node which has no memory so far.
++	 * New kmem_cache_node is necssary for it.
++	 */
++	down_read(&slub_lock);
++	list_for_each_entry(s, &slab_caches, list) {
++		/*
++		 * XXX: The new node's memory can't be allocated yet,
++		 *      kmem_cache_node will be allocated other node.
++		 */
++		n = kmem_cache_alloc(kmalloc_caches, GFP_KERNEL);
++		if (!n)
++			goto error;
++		init_kmem_cache_node(n);
++		s->node[nid] = n;
++	}
++	up_read(&slub_lock);
++
++	return 0;
++
++error:
++	__slab_callback_offline(nid);
++	up_read(&slub_lock);
++
++	return -ENOMEM;
++}
++
++static int slab_callback(struct notifier_block *self, unsigned long action,
++			 void *arg)
++{
++	int ret = 0;
++
++	switch (action) {
++	case MEM_GOING_ONLINE:
++		ret = slab_callback_going_online(arg);
++		break;
++	case MEM_ONLINE:
++	case MEM_GOING_OFFLINE:
++	case MEM_MAPPING_INVALID:
++		break;
++	}
++
++	ret = notifier_from_errno(ret);
++	return ret;
++}
++
++#endif /* CONFIG_MEMORY_HOTPLUG */
  #else
-+extern int register_memory_notifier(struct notifier_block *nb);
-+extern void unregister_memory_notifier(struct notifier_block *nb);
- extern int register_new_memory(struct mem_section *);
- extern int unregister_memory_section(struct mem_section *);
- extern int memory_dev_init(void);
+ static void free_kmem_cache_nodes(struct kmem_cache *s)
+ {
+@@ -2730,6 +2807,8 @@ void __init kmem_cache_init(void)
+ 		sizeof(struct kmem_cache_node), GFP_KERNEL);
+ 	kmalloc_caches[0].refcount = -1;
+ 	caches++;
++
++	hotplug_memory_notifier(slab_callback, 1);
+ #endif
+ 
+ 	/* Able to allocate the per node structures */
 
 -- 
 Yasunori Goto 
