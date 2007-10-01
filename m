@@ -1,57 +1,60 @@
-Date: Mon, 1 Oct 2007 09:11:24 -0700 (PDT)
-From: Linus Torvalds <torvalds@linux-foundation.org>
-Subject: Re: [patch] splice mmap_sem deadlock
-In-Reply-To: <4701161E.3030204@linux.vnet.ibm.com>
-Message-ID: <alpine.LFD.0.999.0710010905070.3579@woody.linux-foundation.org>
-References: <20070928160035.GD12538@wotan.suse.de> <20070928173144.GA11717@kernel.dk>
- <alpine.LFD.0.999.0709281109290.3579@woody.linux-foundation.org>
- <20070928181513.GB11717@kernel.dk> <alpine.LFD.0.999.0709281120220.3579@woody.linux-foundation.org>
- <20070928193017.GC11717@kernel.dk> <alpine.LFD.0.999.0709281247490.3579@woody.linux-foundation.org>
- <alpine.LFD.0.999.0709281303250.3579@woody.linux-foundation.org>
- <20071001120330.GE5303@kernel.dk> <alpine.LFD.0.999.0710010807360.3579@woody.linux-foundation.org>
- <4701161E.3030204@linux.vnet.ibm.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=us-ascii
+Date: Tue, 2 Oct 2007 01:14:47 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: Hotplug memory remove
+Message-Id: <20071002011447.7ec1f513.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <1191253063.29581.7.camel@dyn9047017100.beaverton.ibm.com>
+References: <1191253063.29581.7.camel@dyn9047017100.beaverton.ibm.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Balbir Singh <balbir@linux.vnet.ibm.com>
-Cc: Jens Axboe <jens.axboe@oracle.com>, Nick Piggin <npiggin@suse.de>, Andrew Morton <akpm@linux-foundation.org>, Linux Memory Management List <linux-mm@kvack.org>
+To: Badari Pulavarty <pbadari@gmail.com>
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-
-On Mon, 1 Oct 2007, Balbir Singh wrote:
+On Mon, 01 Oct 2007 08:37:43 -0700
+Badari Pulavarty <pbadari@gmail.com> wrote:
+> 1) Other than remove_memory(), I don't see any other arch-specific
+> code that needs to be provided. Even remove_memory() looks pretty
+> arch independent. Isn't it ?
 > 
-> Sounds very similar to the problems we had with CPU hotplug earlier.
-> It's a rwlock locking anti-pattern. I know that recursive locks
-> have been frowned upon earlier, but I wonder if there is a case here.
-> Of-course recursive locks would not be *fair*.
+Yes, maybe arch independent. Current codes is based on assumption
+that some arch may needs some code before/after hotremove.
+If no arch needs, we can merge all. 
 
-The problem with recursive locks is that they are inevitably done wrong.
+> 2) I copied remove_memory() from IA64 to PPC64. When I am testing
+> hotplug-remove (echo offline > state), I am not able to remove
+> any memory at all. I get different type of failures like ..
+> 
+> memory offlining 6e000 to 6f000 failed
+> 
+I'm not sure about this...does this memory is in ZONE_MOVABLE ?
+If not ZONE_MOVABLE, offlining can be fail because of not-removable
+kernel memory. 
 
-For example, the "natural" way  to do them is to just save the process ID 
-or something like that. Which is utter crap. Yet, people do it *every* 
-single time (yes, I've done it too, I admit).
+> - OR -
+> 
+> Offlined Pages 0
+> 
+Hmm, About "Offlined Pages 0" case, maybe memory resource is not
+registered. At memory hotremove works based on registered memory resource.
+(For handling memory hole.)
 
-The thing is, "recursive" doesn't mean "same CPU" or "same process" or 
-"same thread" or anything like that. It means "same *dependency-chain*". 
-With the very real implication that you literally have to pass the "lock 
-instance" (whether that is a cookie or anything else) around, and thus 
-really generate the proper chain.
+Does PPC64 resister conventinal memory to memory resource ?
+This information can be shown in /proc/iomem.
+In current code, removable memory must be registerred in /proc/iomem.
+Could you confirm ?
 
-For example, in CPU hotplug, the dependency chain really did end up moving 
-between different execution contexts, iirc (eg from process context into 
-kernel workqueues).
+> I am wondering, how did you test it on IA64 ? Am I missing something ?
+> How can I find which "sections" of the memory are free to remove ?
+> I am using /proc/page_owner to figure it out for now.
+> 
+create ZONE_MOVBALE with kernelcore= boot option and offlined memory in it.
+ia64 registers all available memory information to /proc/iomem.
 
-So we could add some kind of recursive interface that maintained a list of 
-ownership or whatever, but the fact remains that after 16 years, we still 
-haven't really needed it, except for code that is so ugly and broken that 
-pretty much everybody really feels it should be rewritten (and generally 
-for *other* reasons) anyway.
-
-So I'm not categorically against nesting, but I'm certainly down on it, 
-and I think it's almost always done wrong.
-
-			Linus
+Thanks,
+-Kame
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
