@@ -1,84 +1,62 @@
-Message-ID: <0102ffa4$0102fe78$8f1eac55@rbeaten>
-From: "Delbert Maurer" <rbeaten@refractron.com>
-Subject: Man Lebt nur einmal - probiers aus !  may be somewhat  -- You're not 
-Date: Mon, 31 Sep 2007 17:57:21 +0300
+Date: Mon, 1 Oct 2007 08:11:40 -0700 (PDT)
+From: Linus Torvalds <torvalds@linux-foundation.org>
+Subject: Re: [patch] splice mmap_sem deadlock
+In-Reply-To: <20071001120330.GE5303@kernel.dk>
+Message-ID: <alpine.LFD.0.999.0710010807360.3579@woody.linux-foundation.org>
+References: <20070928160035.GD12538@wotan.suse.de> <20070928173144.GA11717@kernel.dk>
+ <alpine.LFD.0.999.0709281109290.3579@woody.linux-foundation.org>
+ <20070928181513.GB11717@kernel.dk> <alpine.LFD.0.999.0709281120220.3579@woody.linux-foundation.org>
+ <20070928193017.GC11717@kernel.dk> <alpine.LFD.0.999.0709281247490.3579@woody.linux-foundation.org>
+ <alpine.LFD.0.999.0709281303250.3579@woody.linux-foundation.org>
+ <20071001120330.GE5303@kernel.dk>
 MIME-Version: 1.0
-Content-Type: multipart/alternative;
-	boundary="----=_NextPart_000_0007_0102FFA4.0102FE0C"
-Return-Path: <rbeaten@refractron.com>
-To: linux-mm@kvack.org
+Content-Type: TEXT/PLAIN; charset=us-ascii
+Sender: owner-linux-mm@kvack.org
+Return-Path: <owner-linux-mm@kvack.org>
+To: Jens Axboe <jens.axboe@oracle.com>
+Cc: Nick Piggin <npiggin@suse.de>, Andrew Morton <akpm@linux-foundation.org>, Linux Memory Management List <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-This is a multi-part message in MIME format.
+The comment is wrong.
 
-------=_NextPart_000_0007_0102FFA4.0102FE0C
-Content-Type: text/plain;
-	charset="iso-8859-2"
-Content-Transfer-Encoding: quoted-printable
+On Mon, 1 Oct 2007, Jens Axboe wrote:
+>  
+>  /*
+> + * Do a copy-from-user while holding the mmap_semaphore for reading. If we
+> + * have to fault the user page in, we must drop the mmap_sem to avoid a
+> + * deadlock in the page fault handling (it wants to grab mmap_sem too, but for
+> + * writing). This assumes that we will very rarely hit the partial != 0 path,
+> + * or this will not be a win.
+> + */
 
-Verpassen Sie nichts am Lebem - Sie werden fuhlen was unsere Kunden bestati=
-gen!
+Page faulting only grabs it for reading, and having a page fault happen is 
+not problematic in itself. Readers *do* nest.
 
-Preise die keine Konkurrenz kennen 
+What is problematic is:
 
-- keine versteckte Kosten
-- Kein langes Warten - Auslieferung innerhalb von 2-3 Tagen
-- Bequem und diskret online bestellen.
-- Kein peinlicher Arztbesuch erforderlich
-- Kostenlose, arztliche Telefon-Beratung
-- Visa verifizierter Onlineshop
-- Diskrete Verpackung und Zahlung
+	thread#1			thread#2
 
-Originalmedikamente
-Ciiaaaaaalis 10 Pack. 27,00 Euro
-Viiaaaagra 10 Pack. 21,00 Euro
+	get_iovec_page_array
+	down_read()
+	.. everything ok so far ..
+					mmap()
+					down_write()
+					.. correctly blocks on the reader ..
+					.. everything ok so far ..
 
-Vier Dosen gibt's bei jeder Bestellung umsonst
-http://probablelive.cn
+	.. pagefault ..
+	down_read()
+	.. fairness code now blocks on the waiting writer! ..
+	.. oops. We're deadlocked ..
 
-(bitte warten Sie einen Moment bis die Seite vollstandig geladen wird)
+So the problem is that while readers do nest nicely, they only do so if no 
+potential writers can possibly exist (which of course never happens: an 
+rwlock with no writers is a no-op ;).
 
-------=_NextPart_000_0007_0102FFA4.0102FE0C
-Content-Type: text/html;
-	charset="iso-8859-2"
-Content-Transfer-Encoding: quoted-printable
+			Linus
 
-<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
-<HTML><HEAD>
-<META http-equiv=3DContent-Type content=3D"text/html; charset=3Diso-8859-2">
-<META content=3D"MSHTML 4.72.3155.0" name=3DGENERATOR>
-<STYLE></STYLE>
-</HEAD>
-<BODY>
-<head><meta http-equiv=3D"Content-Type" content=3D"text/html; charset=3Diso=
--8859-1">
-</head><body><p>Meinung von unserem Kunden:<br><strong>Meine Frau und ich h=
-aben Viiaaaagra am letzten Wochenende ausprobiert. Sie fand, mein bestes St=
-&#252;ck w&#228;re in letzter Zeit nicht ganz auf der H&#246;he gewesen. Al=
-so dachten wir, wir probieren es einfach einmal.Es gibt nur ein Wort, dass =
-das Gef&#252;hl beschreibt: Wahnsinn. Seit ich zwanzig war, konnte ich nich=
-t mehr so lang und so oft. Was soll ich sagen? Gute Arbeit, Viiaaaagra!</st=
-rong></p><p><strong>Warum nehme ich Ciiaaaaaalis? Es ist einfach ein angene=
-hmens Gef&#252;hl. Man brauch sich nicht auf die Err. ..ektion zu konzentri=
-eren. Beim Sex ist man viel entspannter, mann kann auch mal die Muskeln im =
-Genitalbereich lockern, ohne das die Err. ..ektion im Glied nachlasst. Dadu=
-rch ist eine lange Verz&#246;gerung der Ejakulation m&#246;glich. Man ist b=
-eim Sex generell lockerer und entspannter, und kommt auch nicht mehr so sch=
-nell ausser Athem, weil man eben locker und entspannt ist, ausser nat&#252;=
-rlich der kleine Freund :-)<br>
-</strong><strong><br>Verpassen Sie nichts am Lebem - Sie werden fuhlen was =
-unsere Kunden bestatigen!</strong></p><p>Preise die keine Konkurrenz kennen=
- <p>
-- keine versteckte Kosten<br>- Diskrete Verpackung und Zahlung<br>- Kostenl=
-ose, arztliche Telefon-Beratung<br>- Kein langes Warten - Auslieferung inne=
-rhalb von 2-3 Tagen<br>- Bequem und diskret online bestellen.<br>- Kein pei=
-nlicher Arztbesuch erforderlich<br>- Visa verifizierter Onlineshop</p>
-<p>Originalmedikamente<br><strong>Ciiaaaaaalis 10 Pack. 27,00 Euro</strong>=
-<br>
-  <strong>Viiaaaagra 10 Pack. 21,00 Euro</strong><br><br><strong><a href=3D=
-"http://probablelive.cn" target=3D"_blank">Vier Dosen gibt's bei jeder Best=
-ellung umsonst</a><br></strong>(bitte warten Sie einen Moment bis die Seite=
- vollst&auml;ndig geladen wird) </p></body>
-</BODY></HTML>
-
-------=_NextPart_000_0007_0102FFA4.0102FE0C--
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
