@@ -1,79 +1,93 @@
-Message-ID: <3302ffa4$3302ffa4$cab09850@rcihard>
-From: "Burt Richey" <rcihard@bellsouth.net>
-Subject: RedBull fur Ihr bestes Stuck   into voluntary -- a design paddle pattern. 
-Date: Mon, 31 Sep 2007 19:04:51 +0100
+Received: from sd0109e.au.ibm.com (d23rh905.au.ibm.com [202.81.18.225])
+	by e23smtp04.au.ibm.com (8.13.1/8.13.1) with ESMTP id l91IK77P010273
+	for <linux-mm@kvack.org>; Tue, 2 Oct 2007 04:20:07 +1000
+Received: from d23av01.au.ibm.com (d23av01.au.ibm.com [9.190.234.96])
+	by sd0109e.au.ibm.com (8.13.8/8.13.8/NCO v8.5) with ESMTP id l91INhfE241214
+	for <linux-mm@kvack.org>; Tue, 2 Oct 2007 04:23:43 +1000
+Received: from d23av01.au.ibm.com (loopback [127.0.0.1])
+	by d23av01.au.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l91IHGKE019145
+	for <linux-mm@kvack.org>; Tue, 2 Oct 2007 04:17:16 +1000
+Message-ID: <47013A38.2090700@linux.vnet.ibm.com>
+Date: Mon, 01 Oct 2007 23:49:36 +0530
+From: Balbir Singh <balbir@linux.vnet.ibm.com>
+Reply-To: balbir@linux.vnet.ibm.com
 MIME-Version: 1.0
-Content-Type: multipart/alternative;
-	boundary="----=_NextPart_000_0007_3302FFA4.3302FFA4"
-Return-Path: <rcihard@bellsouth.net>
-To: linux-mm@kvack.org
+Subject: Re: [patch] splice mmap_sem deadlock
+References: <20070928160035.GD12538@wotan.suse.de> <20070928173144.GA11717@kernel.dk> <alpine.LFD.0.999.0709281109290.3579@woody.linux-foundation.org> <20070928181513.GB11717@kernel.dk> <alpine.LFD.0.999.0709281120220.3579@woody.linux-foundation.org> <20070928193017.GC11717@kernel.dk> <alpine.LFD.0.999.0709281247490.3579@woody.linux-foundation.org> <alpine.LFD.0.999.0709281303250.3579@woody.linux-foundation.org> <20071001120330.GE5303@kernel.dk> <alpine.LFD.0.999.0710010807360.3579@woody.linux-foundation.org> <4701161E.3030204@linux.vnet.ibm.com> <alpine.LFD.0.999.0710010905070.3579@woody.linux-foundation.org>
+In-Reply-To: <alpine.LFD.0.999.0710010905070.3579@woody.linux-foundation.org>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
+Sender: owner-linux-mm@kvack.org
+Return-Path: <owner-linux-mm@kvack.org>
+To: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Jens Axboe <jens.axboe@oracle.com>, Nick Piggin <npiggin@suse.de>, Andrew Morton <akpm@linux-foundation.org>, Linux Memory Management List <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-This is a multi-part message in MIME format.
+Linus Torvalds wrote:
+> 
+> On Mon, 1 Oct 2007, Balbir Singh wrote:
+>> Sounds very similar to the problems we had with CPU hotplug earlier.
+>> It's a rwlock locking anti-pattern. I know that recursive locks
+>> have been frowned upon earlier, but I wonder if there is a case here.
+>> Of-course recursive locks would not be *fair*.
+> 
+> The problem with recursive locks is that they are inevitably done wrong.
+> 
+> For example, the "natural" way  to do them is to just save the process ID 
+> or something like that. Which is utter crap. Yet, people do it *every* 
+> single time (yes, I've done it too, I admit).
+> 
 
-------=_NextPart_000_0007_3302FFA4.3302FFA4
-Content-Type: text/plain;
-	charset="Windows-1252"
-Content-Transfer-Encoding: quoted-printable
+Yes, I've done that too, I guess we learn what's bad by doing it.
 
-Sie leben nur einmal - warum dann nicht was neues ausprobieren?
+> The thing is, "recursive" doesn't mean "same CPU" or "same process" or 
+> "same thread" or anything like that. It means "same *dependency-chain*". 
+> With the very real implication that you literally have to pass the "lock 
+> instance" (whether that is a cookie or anything else) around, and thus 
+> really generate the proper chain.
+> 
+> For example, in CPU hotplug, the dependency chain really did end up moving 
+> between different execution contexts, iirc (eg from process context into 
+> kernel workqueues).
+> 
 
-Preise die keine Konkurrenz kennen 
+I agree with whatever you've said so far. The original intention of
+every lock is to protect data not code. In the example mentioned before
+and in the case of CPU hotplug, what we intend to do, is to prevent
+the writer from causing a deadlock. We create a deadlock, as a
+side-effect of the locking is fair.
 
-- keine versteckte Kosten
-- Bequem und diskret online bestellen.
-- Kostenlose, arztliche Telefon-Beratung
-- Kein peinlicher Arztbesuch erforderlich
-- Diskrete Verpackung und Zahlung
-- Kein langes Warten - Auslieferung innerhalb von 2-3 Tagen
-- Visa verifizierter Onlineshop
+I guess what we might need is a variant of unfair locks. Tracking owners
+is one way of eliminating deadlocks that occur, specially since the
+reader-writer lock does not allow readers to provide fair locking.
+I think this is where RCU excels, it allows readers/writers to proceed
+almost independently.
 
-Originalmedikamente
-Ciiaaaaaalis 10 Pack. 27,00 Euro
-Viiaaaagra 10 Pack. 21,00 Euro
+> So we could add some kind of recursive interface that maintained a list of 
+> ownership or whatever, but the fact remains that after 16 years, we still 
+> haven't really needed it, except for code that is so ugly and broken that 
+> pretty much everybody really feels it should be rewritten (and generally 
+> for *other* reasons) anyway.
+> 
 
-Jetzt bestellen - und vier Pillen umsonst erhalten
-http://coverpopulate.cn
+Recursive mutexes are meant for a special purpose. Uncontrolled use of
+recursive locks would be really bad.
 
-(bitte warten Sie einen Moment bis die Seite vollstandig geladen wird)
+> So I'm not categorically against nesting, but I'm certainly down on it, 
+> and I think it's almost always done wrong.
+> 
 
-------=_NextPart_000_0007_3302FFA4.3302FFA4
-Content-Type: text/html;
-	charset="Windows-1252"
-Content-Transfer-Encoding: quoted-printable
+Yes, recursive locking needs to be designed with care and usage reviewed
+with a lot of attention.
 
-<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
-<HTML><HEAD>
-<META http-equiv=3DContent-Type content=3D"text/html; charset=3DWindows-1252">
-<META content=3D"MSHTML 4.71.2244.8" name=3DGENERATOR>
-<STYLE></STYLE>
-</HEAD>
-<BODY>
-<head><meta http-equiv=3D"Content-Type" content=3D"text/html; charset=3Diso=
--8859-1">
-</head><body><p>Meinung von unserem Kunden:<br><strong>Ich finde Viiaaaagra=
- einfach wunderbar. Egal, ob f&#252;r den Sex oder, um mich selbst zu verw&=
-#246;hnen: Es funktioniert. Mein Schwanz wird extrem hart und mein Orgasmus=
- ist sehr intensiv. Die Wirkung ist so stark, dass ich Viiaaaagra nur am Wo=
-chenende verwende oder wenn ich viel Zeit habe, es richtig zu genie&#223;en=
-</strong></p><p><strong>Meine Frau und ich haben Viiaaaagra am letzten Woc=
-henende ausprobiert. Sie fand, mein bestes St&#252;ck w&#228;re in letzter =
-Zeit nicht ganz auf der H&#246;he gewesen. Also dachten wir, wir probieren =
-es einfach einmal.Es gibt nur ein Wort, dass das Gef&#252;hl beschreibt: Wa=
-hnsinn. Seit ich zwanzig war, konnte ich nicht mehr so lang und so oft. Was=
- soll ich sagen? Gute Arbeit, Viiaaaagra!<br>
-</strong><strong><br>Sie leben nur einmal - warum dann nicht was neues ausp=
-robieren?</strong></p><p>Preise die keine Konkurrenz kennen <p>
-- keine versteckte Kosten<br>- Kein peinlicher Arztbesuch erforderlich<br>-=
- Bequem und diskret online bestellen.<br>- Diskrete Verpackung und Zahlung<=
-br>- Kostenlose, arztliche Telefon-Beratung<br>- Kein langes Warten - Ausli=
-eferung innerhalb von 2-3 Tagen<br>- Visa verifizierter Onlineshop</p>
-<p>Originalmedikamente<br><strong>Ciiaaaaaalis 10 Pack. 27,00 Euro</strong>=
-<br>
-  <strong>Viiaaaagra 10 Pack. 21,00 Euro</strong><br><br><strong><a href=3D=
-"http://coverpopulate.cn" target=3D"_blank">Jetzt bestellen - und vier Pill=
-en umsonst erhalten</a><br></strong>(bitte warten Sie einen Moment bis die =
-Seite vollst&auml;ndig geladen wird) </p></body>
-</BODY></HTML>
+-- 
+	Warm Regards,
+	Balbir Singh
+	Linux Technology Center
+	IBM, ISTL
 
-------=_NextPart_000_0007_3302FFA4.3302FFA4--
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
