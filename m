@@ -1,76 +1,141 @@
-Message-ID: <00efffa4$00effe78$ec5dca44@ray>
-From: "Terra Slater" <ray@satmac.com>
-Subject: Man Lebt nur einmal - probiers aus !  you were informed  -- to know how they 
-Date: Mon, 31 Sep 2007 12:03:46 -0500
+Date: Mon, 1 Oct 2007 19:33:51 +0200
+From: Jens Axboe <jens.axboe@oracle.com>
+Subject: Re: [patch] splice mmap_sem deadlock
+Message-ID: <20071001173351.GK5303@kernel.dk>
+References: <20070928160035.GD12538@wotan.suse.de> <20070928173144.GA11717@kernel.dk> <alpine.LFD.0.999.0709281109290.3579@woody.linux-foundation.org> <20070928181513.GB11717@kernel.dk> <alpine.LFD.0.999.0709281120220.3579@woody.linux-foundation.org> <20070928193017.GC11717@kernel.dk> <alpine.LFD.0.999.0709281247490.3579@woody.linux-foundation.org> <alpine.LFD.0.999.0709281303250.3579@woody.linux-foundation.org> <20071001120330.GE5303@kernel.dk> <alpine.LFD.0.999.0710010807360.3579@woody.linux-foundation.org>
 MIME-Version: 1.0
-Content-Type: multipart/alternative;
-	boundary="----=_NextPart_000_0007_00EFFFA4.00EFFE0C"
-Return-Path: <ray@satmac.com>
-To: linux-mm@kvack.org
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <alpine.LFD.0.999.0710010807360.3579@woody.linux-foundation.org>
+Sender: owner-linux-mm@kvack.org
+Return-Path: <owner-linux-mm@kvack.org>
+To: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Nick Piggin <npiggin@suse.de>, Andrew Morton <akpm@linux-foundation.org>, Linux Memory Management List <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-This is a multi-part message in MIME format.
+On Mon, Oct 01 2007, Linus Torvalds wrote:
+> 
+> The comment is wrong.
+> 
+> On Mon, 1 Oct 2007, Jens Axboe wrote:
+> >  
+> >  /*
+> > + * Do a copy-from-user while holding the mmap_semaphore for reading. If we
+> > + * have to fault the user page in, we must drop the mmap_sem to avoid a
+> > + * deadlock in the page fault handling (it wants to grab mmap_sem too, but for
+> > + * writing). This assumes that we will very rarely hit the partial != 0 path,
+> > + * or this will not be a win.
+> > + */
+> 
+> Page faulting only grabs it for reading, and having a page fault happen is 
+> not problematic in itself. Readers *do* nest.
+> 
+> What is problematic is:
+> 
+> 	thread#1			thread#2
+> 
+> 	get_iovec_page_array
+> 	down_read()
+> 	.. everything ok so far ..
+> 					mmap()
+> 					down_write()
+> 					.. correctly blocks on the reader ..
+> 					.. everything ok so far ..
+> 
+> 	.. pagefault ..
+> 	down_read()
+> 	.. fairness code now blocks on the waiting writer! ..
+> 	.. oops. We're deadlocked ..
+> 
+> So the problem is that while readers do nest nicely, they only do so if no 
+> potential writers can possibly exist (which of course never happens: an 
+> rwlock with no writers is a no-op ;).
 
-------=_NextPart_000_0007_00EFFFA4.00EFFE0C
-Content-Type: text/plain;
-	charset="iso-8859-1"
-Content-Transfer-Encoding: quoted-printable
+Ah, I didn't read the explanation well enough it seems. Better?
 
-Haben Sie endlich wieder Spass am Leben!
+diff --git a/fs/splice.c b/fs/splice.c
+index c010a72..e95a362 100644
+--- a/fs/splice.c
++++ b/fs/splice.c
+@@ -1224,6 +1224,33 @@ static long do_splice(struct file *in, loff_t __user *off_in,
+ }
+ 
+ /*
++ * Do a copy-from-user while holding the mmap_semaphore for reading, in a
++ * manner safe from deadlocking with simultaneous mmap() (grabbing mmap_sem
++ * for writing) and page faulting on the user memory pointed to by src.
++ * This assumes that we will very rarely hit the partial != 0 path, or this
++ * will not be a win.
++ */
++static int copy_from_user_mmap_sem(void *dst, const void __user *src, size_t n)
++{
++	int partial;
++
++	pagefault_disable();
++	partial = __copy_from_user_inatomic(dst, src, n);
++	pagefault_enable();
++
++	/*
++	 * Didn't copy everything, drop the mmap_sem and do a faulting copy
++	 */
++	if (unlikely(partial)) {
++		up_read(&current->mm->mmap_sem);
++		partial = copy_from_user(dst, src, n);
++		down_read(&current->mm->mmap_sem);
++	}
++
++	return partial;
++}
++
++/*
+  * Map an iov into an array of pages and offset/length tupples. With the
+  * partial_page structure, we can map several non-contiguous ranges into
+  * our ones pages[] map instead of splitting that operation into pieces.
+@@ -1236,31 +1263,26 @@ static int get_iovec_page_array(const struct iovec __user *iov,
+ {
+ 	int buffers = 0, error = 0;
+ 
+-	/*
+-	 * It's ok to take the mmap_sem for reading, even
+-	 * across a "get_user()".
+-	 */
+ 	down_read(&current->mm->mmap_sem);
+ 
+ 	while (nr_vecs) {
+ 		unsigned long off, npages;
++		struct iovec entry;
+ 		void __user *base;
+ 		size_t len;
+ 		int i;
+ 
+-		/*
+-		 * Get user address base and length for this iovec.
+-		 */
+-		error = get_user(base, &iov->iov_base);
+-		if (unlikely(error))
+-			break;
+-		error = get_user(len, &iov->iov_len);
+-		if (unlikely(error))
++		error = -EFAULT;
++		if (copy_from_user_mmap_sem(&entry, iov, sizeof(entry)))
+ 			break;
+ 
++		base = entry.iov_base;
++		len = entry.iov_len;
++
+ 		/*
+ 		 * Sanity check this iovec. 0 read succeeds.
+ 		 */
++		error = 0;
+ 		if (unlikely(!len))
+ 			break;
+ 		error = -EFAULT;
 
-Preise die keine Konkurrenz kennen 
+-- 
+Jens Axboe
 
-- keine versteckte Kosten
-- Kein peinlicher Arztbesuch erforderlich
-- Kein langes Warten - Auslieferung innerhalb von 2-3 Tagen
-- Diskrete Verpackung und Zahlung
-- Kostenlose, arztliche Telefon-Beratung
-- Bequem und diskret online bestellen.
-- Visa verifizierter Onlineshop
-
-Originalmedikamente
-Ciiaaaaaalis 10 Pack. 27,00 Euro
-Viiaaaagra 10 Pack. 21,00 Euro
-
-Jetzt bestellen - und vier Pillen umsonst erhalten
-http://teethspeak.cn
-
-(bitte warten Sie einen Moment bis die Seite vollstandig geladen wird)
-------=_NextPart_000_0007_00EFFFA4.00EFFE0C
-Content-Type: text/html;
-	charset="iso-8859-1"
-Content-Transfer-Encoding: quoted-printable
-
-<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
-<HTML><HEAD>
-<META http-equiv=3DContent-Type content=3D"text/html; charset=3Diso-8859-1">
-<META content=3D"MSHTML 5.50.4927.1200" name=3DGENERATOR>
-<STYLE></STYLE>
-</HEAD>
-<BODY>
-<head><meta http-equiv=3D"Content-Type" content=3D"text/html; charset=3Diso=
--8859-1">
-</head><body><p>Meinung von unserem Kunden:<br><strong>Ich glaube, ich habe=
- bis jetzt Gl&#252;ck gehabt (Ich klopfe auf Holz.), denn ich hatte bis jet=
-zt noch nie Nebenwirkungen durch Viiaaaagra - au&#223;er einer brettharten =
-Latte, und das f&#252;r Stunden.</strong></p><p><strong>Ich finde Viiaaaagr=
-a einfach wunderbar. Egal, ob f&#252;r den Sex oder, um mich selbst zu verw=
-&#246;hnen: Es funktioniert. Mein Schwanz wird extrem hart und mein Orgasmu=
-s ist sehr intensiv. Die Wirkung ist so stark, dass ich Viiaaaagra nur am W=
-ochenende verwende oder wenn ich viel Zeit habe, es richtig zu genie&#223;e=
-n.<br>
-</strong><strong><br>Haben Sie endlich wieder Spass am Leben!</strong></p><=
-p>Preise die keine Konkurrenz kennen <p>
-- Kostenlose, arztliche Telefon-Beratung<br>- Visa verifizierter Onlineshop=
-<br>- Kein peinlicher Arztbesuch erforderlich<br>- Kein langes Warten - Aus=
-lieferung innerhalb von 2-3 Tagen<br>- Diskrete Verpackung und Zahlung<br>-=
- Bequem und diskret online bestellen.<br>- keine versteckte Kosten</p>
-<p>Originalmedikamente<br><strong>Ciiaaaaaalis 10 Pack. 27,00 Euro</strong>=
-<br>
-  <strong>Viiaaaagra 10 Pack. 21,00 Euro</strong><br><br><strong><a href=3D=
-"http://teethspeak.cn" target=3D"_blank">Jetzt bestellen - und vier Pillen =
-umsonst erhalten</a><br></strong>(bitte warten Sie einen Moment bis die Sei=
-te vollst&auml;ndig geladen wird) </p></body>
-</BODY></HTML>
-
-------=_NextPart_000_0007_00EFFFA4.00EFFE0C--
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
