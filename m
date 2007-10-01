@@ -1,78 +1,60 @@
-From: "Felicia Nix" <ray.quattlebaum@usu.edu>
-Subject: Probieren Sie es - Mann Lebt nur einmal  by either the FSA or -- applications. You 
-Date: Mon, 31 Sep 2007 17:03:06 +0100
-Message-ID: <0102ffa4$0102fe78$b68a56d9@ray.quattlebaum>
+Date: Mon, 1 Oct 2007 09:11:24 -0700 (PDT)
+From: Linus Torvalds <torvalds@linux-foundation.org>
+Subject: Re: [patch] splice mmap_sem deadlock
+In-Reply-To: <4701161E.3030204@linux.vnet.ibm.com>
+Message-ID: <alpine.LFD.0.999.0710010905070.3579@woody.linux-foundation.org>
+References: <20070928160035.GD12538@wotan.suse.de> <20070928173144.GA11717@kernel.dk>
+ <alpine.LFD.0.999.0709281109290.3579@woody.linux-foundation.org>
+ <20070928181513.GB11717@kernel.dk> <alpine.LFD.0.999.0709281120220.3579@woody.linux-foundation.org>
+ <20070928193017.GC11717@kernel.dk> <alpine.LFD.0.999.0709281247490.3579@woody.linux-foundation.org>
+ <alpine.LFD.0.999.0709281303250.3579@woody.linux-foundation.org>
+ <20071001120330.GE5303@kernel.dk> <alpine.LFD.0.999.0710010807360.3579@woody.linux-foundation.org>
+ <4701161E.3030204@linux.vnet.ibm.com>
 MIME-Version: 1.0
-Content-Type: multipart/alternative;
-	boundary="----=_NextPart_000_000E_0102FFA4.0102FE0C"
-Return-Path: <ray.quattlebaum@usu.edu>
-To: linux-mm@kvack.org
+Content-Type: TEXT/PLAIN; charset=us-ascii
+Sender: owner-linux-mm@kvack.org
+Return-Path: <owner-linux-mm@kvack.org>
+To: Balbir Singh <balbir@linux.vnet.ibm.com>
+Cc: Jens Axboe <jens.axboe@oracle.com>, Nick Piggin <npiggin@suse.de>, Andrew Morton <akpm@linux-foundation.org>, Linux Memory Management List <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-This is a multi-part message in MIME format.
 
-------=_NextPart_000_000E_0102FFA4.0102FE0C
-Content-Type: text/plain;
-	charset="iso-8859-2"
-Content-Transfer-Encoding: 7bit
+On Mon, 1 Oct 2007, Balbir Singh wrote:
+> 
+> Sounds very similar to the problems we had with CPU hotplug earlier.
+> It's a rwlock locking anti-pattern. I know that recursive locks
+> have been frowned upon earlier, but I wonder if there is a case here.
+> Of-course recursive locks would not be *fair*.
 
-Haben Sie endlich wieder Spass am Leben!
+The problem with recursive locks is that they are inevitably done wrong.
 
-Preise die keine Konkurrenz kennen 
+For example, the "natural" way  to do them is to just save the process ID 
+or something like that. Which is utter crap. Yet, people do it *every* 
+single time (yes, I've done it too, I admit).
 
-- Kein peinlicher Arztbesuch erforderlich
-- Bequem und diskret online bestellen.
-- Visa verifizierter Onlineshop
-- Kostenlose, arztliche Telefon-Beratung
-- Kein langes Warten - Auslieferung innerhalb von 2-3 Tagen
-- Diskrete Verpackung und Zahlung
-- keine versteckte Kosten
+The thing is, "recursive" doesn't mean "same CPU" or "same process" or 
+"same thread" or anything like that. It means "same *dependency-chain*". 
+With the very real implication that you literally have to pass the "lock 
+instance" (whether that is a cookie or anything else) around, and thus 
+really generate the proper chain.
 
-Originalmedikamente
-Ciiaaaaaalis 10 Pack. 27,00 Euro
-Viiaaaagra 10 Pack. 21,00 Euro
+For example, in CPU hotplug, the dependency chain really did end up moving 
+between different execution contexts, iirc (eg from process context into 
+kernel workqueues).
 
-Nur fur kurze Zeit - vier Pillen umsonst erhalten
-http://coverpopulate.cn
+So we could add some kind of recursive interface that maintained a list of 
+ownership or whatever, but the fact remains that after 16 years, we still 
+haven't really needed it, except for code that is so ugly and broken that 
+pretty much everybody really feels it should be rewritten (and generally 
+for *other* reasons) anyway.
 
-(bitte warten Sie einen Moment bis die Seite vollstandig geladen wird)
+So I'm not categorically against nesting, but I'm certainly down on it, 
+and I think it's almost always done wrong.
 
+			Linus
 
-------=_NextPart_000_000E_0102FFA4.0102FE0C
-Content-Type: text/html;
-	charset="iso-8859-2"
-Content-Transfer-Encoding: quoted-printable
-
-<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
-<HTML><HEAD><TITLE></TITLE>
-<META content=3D"text/html; charset=3Diso-8859-2" http-equiv=3DContent-Type>
-<META content=3D"MSHTML 6.00.2900.2180" name=3DGENERATOR></HEAD>
-<BODY>
-<head><meta http-equiv=3D"Content-Type" content=3D"text/html; charset=3Diso=
--8859-1">
-</head><body><p>Meinung von unserem Kunden:<br><strong>Ich finde Viiaaaagra=
- einfach wunderbar. Egal, ob f&#252;r den Sex oder, um mich selbst zu verw&=
-#246;hnen: Es funktioniert. Mein Schwanz wird extrem hart und mein Orgasmus=
- ist sehr intensiv. Die Wirkung ist so stark, dass ich Viiaaaagra nur am Wo=
-chenende verwende oder wenn ich viel Zeit habe, es richtig zu genie&#223;en=
-</strong></p><p><strong>Bin restlos begeistert. Bin 50 und schlage mich se=
-it einem guten Jahre damit herum, dass meinem Freund im entscheidenden Mome=
-nt die Standfestigkeit abhanden kommt. Aber nun ist es wie in allerbesten Z=
-eiten. 10 mg reichen f&#252;r ein sehr LUSTiges Weekend. Null Nebenwirkunge=
-n - abgesehen vom Muskelkater am n&#228;chten Tag. Aber der verschwindet ja=
- durch ausreichendes Training ;-))<br>
-</strong><strong><br>Haben Sie endlich wieder Spass am Leben!</strong></p><=
-p>Preise die keine Konkurrenz kennen <p>
-- Visa verifizierter Onlineshop<br>- Bequem und diskret online bestellen.<b=
-r>- Kein langes Warten - Auslieferung innerhalb von 2-3 Tagen<br>- Diskrete=
- Verpackung und Zahlung<br>- Kein peinlicher Arztbesuch erforderlich<br>- K=
-ostenlose, arztliche Telefon-Beratung<br>- keine versteckte Kosten</p>
-<p>Originalmedikamente<br><strong>Ciiaaaaaalis 10 Pack. 27,00 Euro</strong>=
-<br>
-  <strong>Viiaaaagra 10 Pack. 21,00 Euro</strong><br><br><strong><a href=3D=
-"http://coverpopulate.cn" target=3D"_blank">Nur fur kurze Zeit - vier Pille=
-n umsonst erhalten</a><br></strong>(bitte warten Sie einen Moment bis die S=
-eite vollst&auml;ndig geladen wird) </p></body>
-</BODY></HTML>
-
-------=_NextPart_000_000E_0102FFA4.0102FE0C--
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
