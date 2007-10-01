@@ -1,59 +1,266 @@
-Date: Mon, 1 Oct 2007 08:11:40 -0700 (PDT)
-From: Linus Torvalds <torvalds@linux-foundation.org>
-Subject: Re: [patch] splice mmap_sem deadlock
-In-Reply-To: <20071001120330.GE5303@kernel.dk>
-Message-ID: <alpine.LFD.0.999.0710010807360.3579@woody.linux-foundation.org>
-References: <20070928160035.GD12538@wotan.suse.de> <20070928173144.GA11717@kernel.dk>
- <alpine.LFD.0.999.0709281109290.3579@woody.linux-foundation.org>
- <20070928181513.GB11717@kernel.dk> <alpine.LFD.0.999.0709281120220.3579@woody.linux-foundation.org>
- <20070928193017.GC11717@kernel.dk> <alpine.LFD.0.999.0709281247490.3579@woody.linux-foundation.org>
- <alpine.LFD.0.999.0709281303250.3579@woody.linux-foundation.org>
- <20071001120330.GE5303@kernel.dk>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=us-ascii
+Received: from d03relay02.boulder.ibm.com (d03relay02.boulder.ibm.com [9.17.195.227])
+	by e32.co.us.ibm.com (8.12.11.20060308/8.13.8) with ESMTP id l91E9gEx018100
+	for <linux-mm@kvack.org>; Mon, 1 Oct 2007 10:09:42 -0400
+Received: from d03av03.boulder.ibm.com (d03av03.boulder.ibm.com [9.17.195.169])
+	by d03relay02.boulder.ibm.com (8.13.8/8.13.8/NCO v8.5) with ESMTP id l91FI2r1499390
+	for <linux-mm@kvack.org>; Mon, 1 Oct 2007 09:18:02 -0600
+Received: from d03av03.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av03.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l91FI1jf014427
+	for <linux-mm@kvack.org>; Mon, 1 Oct 2007 09:18:02 -0600
+From: Adam Litke <agl@us.ibm.com>
+Subject: [PATCH 2/4] hugetlb: Try to grow hugetlb pool for MAP_PRIVATE mappings
+Date: Mon, 01 Oct 2007 08:17:58 -0700
+Message-Id: <20071001151758.12825.26569.stgit@kernel>
+In-Reply-To: <20071001151736.12825.75984.stgit@kernel>
+References: <20071001151736.12825.75984.stgit@kernel>
+Content-Type: text/plain; charset=utf-8; format=fixed
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Jens Axboe <jens.axboe@oracle.com>
-Cc: Nick Piggin <npiggin@suse.de>, Andrew Morton <akpm@linux-foundation.org>, Linux Memory Management List <linux-mm@kvack.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, libhugetlbfs-devel@lists.sourceforge.net, Adam Litke <agl@us.ibm.com>, Andy Whitcroft <apw@shadowen.org>, Mel Gorman <mel@skynet.ie>, Bill Irwin <bill.irwin@oracle.com>, Ken Chen <kenchen@google.com>, Dave McCracken <dave.mccracken@oracle.com>
 List-ID: <linux-mm.kvack.org>
 
-The comment is wrong.
+Because we overcommit hugepages for MAP_PRIVATE mappings, it is possible
+that the hugetlb pool will be exhausted or completely reserved when a
+hugepage is needed to satisfy a page fault.  Before killing the process in
+this situation, try to allocate a hugepage directly from the buddy
+allocator.
 
-On Mon, 1 Oct 2007, Jens Axboe wrote:
->  
->  /*
-> + * Do a copy-from-user while holding the mmap_semaphore for reading. If we
-> + * have to fault the user page in, we must drop the mmap_sem to avoid a
-> + * deadlock in the page fault handling (it wants to grab mmap_sem too, but for
-> + * writing). This assumes that we will very rarely hit the partial != 0 path,
-> + * or this will not be a win.
-> + */
+The explicitly configured pool size becomes a low watermark.  When
+dynamically grown, the allocated huge pages are accounted as a surplus over
+the watermark.  As huge pages are freed on a node, surplus pages are
+released to the buddy allocator so that the pool will shrink back to the
+watermark.
 
-Page faulting only grabs it for reading, and having a page fault happen is 
-not problematic in itself. Readers *do* nest.
+Surplus accounting also allows for friendlier explicit pool resizing.  When
+shrinking a pool that is fully in-use, increase the surplus so pages will
+be returned to the buddy allocator as soon as they are freed.  When growing
+a pool that has a surplus, consume the surplus first and then allocate new
+pages.
 
-What is problematic is:
+Signed-off-by: Adam Litke <agl@us.ibm.com>
+Signed-off-by: Mel Gorman <mel@csn.ul.ie>
+Acked-by: Andy Whitcroft <apw@shadowen.org>
+Acked-by: Dave McCracken <dave.mccracken@oracle.com>
+---
 
-	thread#1			thread#2
+ mm/hugetlb.c |  139 ++++++++++++++++++++++++++++++++++++++++++++++++++++------
+ 1 files changed, 125 insertions(+), 14 deletions(-)
 
-	get_iovec_page_array
-	down_read()
-	.. everything ok so far ..
-					mmap()
-					down_write()
-					.. correctly blocks on the reader ..
-					.. everything ok so far ..
-
-	.. pagefault ..
-	down_read()
-	.. fairness code now blocks on the waiting writer! ..
-	.. oops. We're deadlocked ..
-
-So the problem is that while readers do nest nicely, they only do so if no 
-potential writers can possibly exist (which of course never happens: an 
-rwlock with no writers is a no-op ;).
-
-			Linus
+diff --git a/mm/hugetlb.c b/mm/hugetlb.c
+index 8d3919d..dabe3d6 100644
+--- a/mm/hugetlb.c
++++ b/mm/hugetlb.c
+@@ -23,10 +23,12 @@
+ 
+ const unsigned long hugetlb_zero = 0, hugetlb_infinity = ~0UL;
+ static unsigned long nr_huge_pages, free_huge_pages, resv_huge_pages;
++static unsigned long surplus_huge_pages;
+ unsigned long max_huge_pages;
+ static struct list_head hugepage_freelists[MAX_NUMNODES];
+ static unsigned int nr_huge_pages_node[MAX_NUMNODES];
+ static unsigned int free_huge_pages_node[MAX_NUMNODES];
++static unsigned int surplus_huge_pages_node[MAX_NUMNODES];
+ static gfp_t htlb_alloc_mask = GFP_HIGHUSER;
+ unsigned long hugepages_treat_as_movable;
+ 
+@@ -109,15 +111,57 @@ static void update_and_free_page(struct page *page)
+ 
+ static void free_huge_page(struct page *page)
+ {
+-	BUG_ON(page_count(page));
++	int nid = page_to_nid(page);
+ 
++	BUG_ON(page_count(page));
+ 	INIT_LIST_HEAD(&page->lru);
+ 
+ 	spin_lock(&hugetlb_lock);
+-	enqueue_huge_page(page);
++	if (surplus_huge_pages_node[nid]) {
++		update_and_free_page(page);
++		surplus_huge_pages--;
++		surplus_huge_pages_node[nid]--;
++	} else {
++		enqueue_huge_page(page);
++	}
+ 	spin_unlock(&hugetlb_lock);
+ }
+ 
++/*
++ * Increment or decrement surplus_huge_pages.  Keep node-specific counters
++ * balanced by operating on them in a round-robin fashion.
++ * Returns 1 if an adjustment was made.
++ */
++static int adjust_pool_surplus(int delta)
++{
++	static int prev_nid;
++	int nid = prev_nid;
++	int ret = 0;
++
++	VM_BUG_ON(delta != -1 && delta != 1);
++	do {
++		nid = next_node(nid, node_online_map);
++		if (nid == MAX_NUMNODES)
++			nid = first_node(node_online_map);
++
++		/* To shrink on this node, there must be a surplus page */
++		if (delta < 0 && !surplus_huge_pages_node[nid])
++			continue;
++		/* Surplus cannot exceed the total number of pages */
++		if (delta > 0 && surplus_huge_pages_node[nid] >=
++						nr_huge_pages_node[nid])
++			continue;
++
++		surplus_huge_pages += delta;
++		surplus_huge_pages_node[nid] += delta;
++		ret = 1;
++		break;
++	} while (nid != prev_nid);
++
++	prev_nid = nid;
++	return ret;
++}
++
+ static int alloc_fresh_huge_page(void)
+ {
+ 	static int prev_nid;
+@@ -150,10 +194,30 @@ static int alloc_fresh_huge_page(void)
+ 	return 0;
+ }
+ 
++static struct page *alloc_buddy_huge_page(struct vm_area_struct *vma,
++						unsigned long address)
++{
++	struct page *page;
++
++	page = alloc_pages(htlb_alloc_mask|__GFP_COMP|__GFP_NOWARN,
++					HUGETLB_PAGE_ORDER);
++	if (page) {
++		set_compound_page_dtor(page, free_huge_page);
++		spin_lock(&hugetlb_lock);
++		nr_huge_pages++;
++		nr_huge_pages_node[page_to_nid(page)]++;
++		surplus_huge_pages++;
++		surplus_huge_pages_node[page_to_nid(page)]++;
++		spin_unlock(&hugetlb_lock);
++	}
++
++	return page;
++}
++
+ static struct page *alloc_huge_page(struct vm_area_struct *vma,
+ 				    unsigned long addr)
+ {
+-	struct page *page;
++	struct page *page = NULL;
+ 
+ 	spin_lock(&hugetlb_lock);
+ 	if (vma->vm_flags & VM_MAYSHARE)
+@@ -173,7 +237,16 @@ fail:
+ 	if (vma->vm_flags & VM_MAYSHARE)
+ 		resv_huge_pages++;
+ 	spin_unlock(&hugetlb_lock);
+-	return NULL;
++
++	/*
++	 * Private mappings do not use reserved huge pages so the allocation
++	 * may have failed due to an undersized hugetlb pool.  Try to grab a
++	 * surplus huge page from the buddy allocator.
++	 */
++	if (!(vma->vm_flags & VM_MAYSHARE))
++		page = alloc_buddy_huge_page(vma, addr);
++
++	return page;
+ }
+ 
+ static int __init hugetlb_init(void)
+@@ -241,26 +314,62 @@ static inline void try_to_free_low(unsigned long count)
+ }
+ #endif
+ 
++#define persistent_huge_pages (nr_huge_pages - surplus_huge_pages)
+ static unsigned long set_max_huge_pages(unsigned long count)
+ {
+-	while (count > nr_huge_pages) {
+-		if (!alloc_fresh_huge_page())
+-			return nr_huge_pages;
+-	}
+-	if (count >= nr_huge_pages)
+-		return nr_huge_pages;
++	unsigned long min_count, ret;
+ 
++	/*
++	 * Increase the pool size
++	 * First take pages out of surplus state.  Then make up the
++	 * remaining difference by allocating fresh huge pages.
++	 */
+ 	spin_lock(&hugetlb_lock);
+-	count = max(count, resv_huge_pages);
+-	try_to_free_low(count);
+-	while (count < nr_huge_pages) {
++	while (surplus_huge_pages && count > persistent_huge_pages) {
++		if (!adjust_pool_surplus(-1))
++			break;
++	}
++
++	while (count > persistent_huge_pages) {
++		int ret;
++		/*
++		 * If this allocation races such that we no longer need the
++		 * page, free_huge_page will handle it by freeing the page
++		 * and reducing the surplus.
++		 */
++		spin_unlock(&hugetlb_lock);
++		ret = alloc_fresh_huge_page();
++		spin_lock(&hugetlb_lock);
++		if (!ret)
++			goto out;
++
++	}
++	if (count >= persistent_huge_pages)
++		goto out;
++
++	/*
++	 * Decrease the pool size
++	 * First return free pages to the buddy allocator (being careful
++	 * to keep enough around to satisfy reservations).  Then place
++	 * pages into surplus state as needed so the pool will shrink
++	 * to the desired size as pages become free.
++	 */
++	min_count = max(count, resv_huge_pages);
++	try_to_free_low(min_count);
++	while (min_count < persistent_huge_pages) {
+ 		struct page *page = dequeue_huge_page(NULL, 0);
+ 		if (!page)
+ 			break;
+ 		update_and_free_page(page);
+ 	}
++	while (count < persistent_huge_pages) {
++		if (!adjust_pool_surplus(1))
++			break;
++	}
++out:
++	ret = persistent_huge_pages;
+ 	spin_unlock(&hugetlb_lock);
+-	return nr_huge_pages;
++	return ret;
+ }
+ 
+ int hugetlb_sysctl_handler(struct ctl_table *table, int write,
+@@ -292,10 +401,12 @@ int hugetlb_report_meminfo(char *buf)
+ 			"HugePages_Total: %5lu\n"
+ 			"HugePages_Free:  %5lu\n"
+ 			"HugePages_Rsvd:  %5lu\n"
++			"HugePages_Surp:  %5lu\n"
+ 			"Hugepagesize:    %5lu kB\n",
+ 			nr_huge_pages,
+ 			free_huge_pages,
+ 			resv_huge_pages,
++			surplus_huge_pages,
+ 			HPAGE_SIZE/1024);
+ }
+ 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
