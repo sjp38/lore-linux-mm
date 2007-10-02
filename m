@@ -1,47 +1,78 @@
-Received: from d03relay02.boulder.ibm.com (d03relay02.boulder.ibm.com [9.17.195.227])
-	by e31.co.us.ibm.com (8.13.8/8.13.8) with ESMTP id l92MYP9M015897
-	for <linux-mm@kvack.org>; Tue, 2 Oct 2007 18:34:25 -0400
+Received: from d03relay04.boulder.ibm.com (d03relay04.boulder.ibm.com [9.17.195.106])
+	by e35.co.us.ibm.com (8.13.8/8.13.8) with ESMTP id l92MlLfU031017
+	for <linux-mm@kvack.org>; Tue, 2 Oct 2007 18:47:21 -0400
 Received: from d03av03.boulder.ibm.com (d03av03.boulder.ibm.com [9.17.195.169])
-	by d03relay02.boulder.ibm.com (8.13.8/8.13.8/NCO v8.5) with ESMTP id l92MYPMP483072
-	for <linux-mm@kvack.org>; Tue, 2 Oct 2007 16:34:25 -0600
+	by d03relay04.boulder.ibm.com (8.13.8/8.13.8/NCO v8.5) with ESMTP id l92MlLAK418094
+	for <linux-mm@kvack.org>; Tue, 2 Oct 2007 16:47:21 -0600
 Received: from d03av03.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av03.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l92MYOlc017907
-	for <linux-mm@kvack.org>; Tue, 2 Oct 2007 16:34:25 -0600
-Subject: Re: [patch] fix file position for hugetlbfs-read-support
-From: Badari Pulavarty <pbadari@us.ibm.com>
-In-Reply-To: <b040c32a0710021530o7a8ae28aybd65f8f4d677029@mail.gmail.com>
-References: <b040c32a0710021530o7a8ae28aybd65f8f4d677029@mail.gmail.com>
-Content-Type: text/plain
-Date: Tue, 02 Oct 2007 15:37:31 -0700
-Message-Id: <1191364651.6106.52.camel@dyn9047017100.beaverton.ibm.com>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+	by d03av03.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l92MlLfn017118
+	for <linux-mm@kvack.org>; Tue, 2 Oct 2007 16:47:21 -0600
+Date: Tue, 2 Oct 2007 15:47:19 -0700
+From: Nishanth Aravamudan <nacc@us.ibm.com>
+Subject: Re: [PATCH 2/4] hugetlb: fix pool allocation with empty nodes
+Message-ID: <20071002224719.GB13137@us.ibm.com>
+References: <20070906182134.GA7779@us.ibm.com> <20070906182430.GB7779@us.ibm.com> <Pine.LNX.4.64.0709141152250.17038@schroedinger.engr.sgi.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <Pine.LNX.4.64.0709141152250.17038@schroedinger.engr.sgi.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Ken Chen <kenchen@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>
+To: Christoph Lameter <clameter@sgi.com>
+Cc: anton@samba.org, wli@holomorphy.com, agl@us.ibm.com, lee.schermerhorn@hp.com, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 2007-10-02 at 15:30 -0700, Ken Chen wrote:
-> While working on a related area, I ran into a bug in hugetlbfs file
-> read support that is currently in -mm tree
-> (hugetlbfs-read-support.patch).
+On 14.09.2007 [11:53:25 -0700], Christoph Lameter wrote:
+> On Thu, 6 Sep 2007, Nishanth Aravamudan wrote:
 > 
-> The problem is that hugetlb file position wasn't updated in
-> hugetlbfs_read(), so sys_read() will always read from same file
-> location.  A simple "cp" command that reads file until EOF will never
-> terminate.  Fix it by updating the ppos at the end of
-> hugetlbfs_read().
+> >  	if (nid < 0)
+> > -		nid = first_node(node_online_map);
+> > +		nid = first_node(node_states[N_HIGH_MEMORY]);
+> >  	start_nid = nid;
 > 
-> Signed-off-by: Ken Chen <kenchen@google.com>
-> 
+> Can huge pages live in high memory? Otherwise I think we could use
+> N_REGULAR_MEMORY here. There may be issues on 32 bit NUMA if we
+> attempt to allocate memory from the highmem nodes.
 
-Acked-by: Badari Pulavarty <pbadari@us.ibm.com>
+hugepages are allocated with:
 
-Thank you.
+	htlb_alloc_mask|__GFP_COMP|__GFP_THISNODE|__GFP_NOWARN
+
+where
+
+	static gfp_t htlb_alloc_mask = GFP_HIGHUSER;
+
+which, in turn, is:
+
+	#define GFP_HIGHUSER \
+	(__GFP_WAIT | __GFP_IO | __GFP_FS | __GFP_HARDWALL | __GFP_HIGHMEM)
+
+So, yes, they can come from HIGHMEM, AFAICT. And I've tested this
+patchset (at some point in the past admittedly) on NUMA-Q.
+
+But I'm confused by your question altogether now. Looking at
+2.6.23-rc8-mm2:
+
+memoryless-nodes-introduce-mask-of-nodes-with-memory
+(74a0f5ea5609629a07fd73d59bde255a56a57fa5):
+
+A node has its bit in N_HIGH_MEMORY set if it has any memory regardless
+of t type of memory.  If a node has memory then it has at least one zone
+defined in its pgdat structure that is located in the pgdat itself.
+
+And, indeed, if CONFIG_HIGHMEM is off, N_HIGH_MEMORY == N_NORMAL_MEMORY.
+
+So I think I'm ok?
+
+I'll make sure to test on 32-bit NUMA (well, if 2.6.23-rc8-mm2 works on
+it, of course. Looks like -mm1 did and -mm2 is still pending.)
 
 Thanks,
-Badari
+Nish
+
+-- 
+Nishanth Aravamudan <nacc@us.ibm.com>
+IBM Linux Technology Center
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
