@@ -1,54 +1,48 @@
-Date: Tue, 32 Sep 2007 16:52:02 +0300
-From: "Isabelle Rubio" <rawford@poetravel.com>
-Reply-To: rawford@poetravel.com
-Message-ID: <295820765.43500627078560@poetravel.com>
-Subject: Potenzschwache - wir haben die Losung  agency for China or  -- somewhere in the world
+Date: Tue, 2 Oct 2007 15:16:28 +0100 (BST)
+From: Hugh Dickins <hugh@veritas.com>
+Subject: Re: [discuss] [PATCH] Inconsistent mmap()/mremap() flags
+In-Reply-To: <200710021545.32556.ak@suse.de>
+Message-ID: <Pine.LNX.4.64.0710021505400.2156@blonde.wat.veritas.com>
+References: <1190958393.5128.85.camel@phantasm.home.enterpriseandprosperity.com>
+ <1191308772.5200.66.camel@phantasm.home.enterpriseandprosperity.com>
+ <Pine.LNX.4.64.0710021304230.26719@blonde.wat.veritas.com>
+ <200710021545.32556.ak@suse.de>
 MIME-Version: 1.0
-Content-Type: multipart/alternative;
-  boundary="----------CEDAF0CE670534"
-Return-Path: <rawford@poetravel.com>
-To: owner-linux-mm@kvack.org
+Content-Type: TEXT/PLAIN; charset=US-ASCII
+Sender: owner-linux-mm@kvack.org
+Return-Path: <owner-linux-mm@kvack.org>
+To: Andi Kleen <ak@suse.de>
+Cc: discuss@x86-64.org, Thayne Harbaugh <thayne@c2.net>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-------------CEDAF0CE670534
-Content-Type: text/plain; charset=Windows-1252
-Content-Transfer-Encoding: 7bit
+On Tue, 2 Oct 2007, Andi Kleen wrote:
+> 
+> > First call mmap with a low hint address, the new size you'll be wanting
+> > from the mremap, PROT_NONE, MAP_ANONYMOUS, -1, 0.  Then call mremap with
+> > old address, old size, new size, MREMAP_MAYMOVE|MREMAP_FIXED, and new
+> > address as returned by the preparatory mmap.
+> 
+> That's racy unfortunately in a multithreaded process. They would need to loop.
 
-Haben Sie endlich wieder Spass am Leben!
+Perhaps.  Though I don't see what your loop would be doing;
+and the mapping established by the first thread would only
+be vulnerable to another thread if that were really set on
+interfering (an un-FIXED mmap by another thread will keep
+away from the area assigned to the first).
 
-Preise die keine Konkurrenz kennen 
+Certainly a two-stage procedure has to be weaker than one stage,
+but it is just how MAP_FIXED is normally used (isn't it?): first
+stake out an arena for all that's needed without MAP_FIXED, then
+fit into it the actual mappings required using MAP_FIXED.  Blind
+use of MAP_FIXED is always in danger of unmapping something vital.
 
-- Diskrete Verpackung und Zahlung
-- Bequem und diskret online bestellen.
-- Visa verifizierter Onlineshop
-- Kein peinlicher Arztbesuch erforderlich
-- Kostenlose, arztliche Telefon-Beratung
-- Kein langes Warten - Auslieferung innerhalb von 2-3 Tagen
-- keine versteckte Kosten
+But whether the two-stage procedure is good enough for Thayne's
+purpose, he'll have to judge for himself.
 
-Originalmedikamente
-Ciiaaaaaalis 10 Pack. 27,00 Euro
-Viiaaaagra 10 Pack. 21,00 Euro
+Hugh
 
-Klicken Sie HIER und Sie erhalten vier Dosen umsonst
-http://equatehappen.cn
-
-(bitte warten Sie einen Moment bis die Seite vollstandig geladen wird)
-------------CEDAF0CE670534
-Content-Type: text/html; charset=Windows-1252
-Content-Transfer-Encoding: 7bit
-
-<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
-<HTML><HEAD><TITLE></TITLE>
-</HEAD>
-<BODY>
-
-<head><meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
-</head><body><p>Meinung von unserem Kunden:<br><strong>Ich glaube, ich habe bis jetzt Gl&#252;ck gehabt (Ich klopfe auf Holz.), denn ich hatte bis jetzt noch nie Nebenwirkungen durch Viiaaaagra - au&#223;er einer brettharten Latte, und das f&#252;r Stunden.</strong></p><p><strong>Ich muss sagen, Ciaaaalis ist wirklich nochmals viel besser als Viiaaaagra. Es ist alles viel nat&#252;rlicher als mit Viiaaaagra. Aufgrund der langen Wirkungszeit von 24 Stunden kann man sich richtig Zeit lassen und mehrer Runden einlegen.<br>
-</strong><strong><br>Haben Sie endlich wieder Spass am Leben!</strong></p><p>Preise die keine Konkurrenz kennen <p>
-- Bequem und diskret online bestellen.<br>- Kostenlose, arztliche Telefon-Beratung<br>- Kein langes Warten - Auslieferung innerhalb von 2-3 Tagen<br>- Visa verifizierter Onlineshop<br>- Kein peinlicher Arztbesuch erforderlich<br>- Diskrete Verpackung und Zahlung<br>- keine versteckte Kosten</p>
-<p>Originalmedikamente<br><strong>Ciiaaaaaalis 10 Pack. 27,00 Euro</strong><br>
-  <strong>Viiaaaagra 10 Pack. 21,00 Euro</strong><br><br><strong><a href="http://equatehappen.cn" target="_blank">Klicken Sie HIER und Sie erhalten vier Dosen umsonst</a><br></strong>(bitte warten Sie einen Moment bis die Seite vollst&auml;ndig geladen wird) </p></body>
-
-</BODY></HTML>
-------------CEDAF0CE670534--
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
