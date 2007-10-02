@@ -1,53 +1,40 @@
-Date: Tue, 2 Oct 2007 11:28:23 -0700 (PDT)
+Date: Tue, 2 Oct 2007 11:29:51 -0700 (PDT)
 From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: kswapd min order, slub max order [was Re: -mm merge plans for
- 2.6.24]
-In-Reply-To: <1191350333.2708.6.camel@localhost>
-Message-ID: <Pine.LNX.4.64.0710021120220.30615@schroedinger.engr.sgi.com>
-References: <20071001142222.fcaa8d57.akpm@linux-foundation.org>
- <Pine.LNX.4.64.0710021646420.4916@blonde.wat.veritas.com>
- <1191350333.2708.6.camel@localhost>
+Subject: Re: [Patch / 002](memory hotplug) Callback function to create
+ kmem_cache_node.
+In-Reply-To: <20071002105422.2790.Y-GOTO@jp.fujitsu.com>
+Message-ID: <Pine.LNX.4.64.0710021128510.30615@schroedinger.engr.sgi.com>
+References: <20071001183316.7A9B.Y-GOTO@jp.fujitsu.com>
+ <Pine.LNX.4.64.0710011334090.19779@schroedinger.engr.sgi.com>
+ <20071002105422.2790.Y-GOTO@jp.fujitsu.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: Hugh Dickins <hugh@veritas.com>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Yasunori Goto <y-goto@jp.fujitsu.com>
+Cc: Andrew Morton <akpm@osdl.org>, Linux Kernel ML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 2 Oct 2007, Mel Gorman wrote:
+On Tue, 2 Oct 2007, Yasunori Goto wrote:
 
-> > I agree.  I spent a while last week bisecting down to see why my heavily
-> > swapping loads take 30%-60% longer with -mm than mainline, and it was
-> > here that they went bad.  Trying to keep higher orders free is costly.
-
-The larger order allocations may cause excessive reclaim under certain 
-circumstances. Reclaim will continue to evict pages until a larger order 
-page can be coalesced. And it seems that this eviction is not that well 
-targeted at this point. So lots of pages may be needlessly evicted.
-
-> > On the other hand, hasn't SLUB efficiency been built on the expectation
-> > that higher orders can be used?  And it would be a twisted shame for
-> > high performance to be held back by some idiot's swapping load.
-> > 
+> Do you mean that just nr_slabs should be checked like followings?
+> I'm not sure this is enough.
 > 
-> My belief is that SLUB can still use the higher orders if configured to
-> do so at boot-time. The loss of these patches means it won't try and do
-> it automatically. Christoph will chime in I'm sure.
+>     :
+> if (s->node[nid]) {
+> 	n = get_node(s, nid);
+> 	if (!atomic_read(&n->nr_slabs)) {
+> 		s->node[nid] = NULL;
+> 		kmem_cache_free(kmalloc_caches, n);
+> 	}
+> }
+>     :
+>     :
 
-You can still manually configure those at boot time via slub_max_order 
-etc.
-
-I think Mel and I have to rethink how to do these efficiently. Mel has 
-some ideas and there is some talk about using the vmalloc fallback to 
-insure that things always work. Probably we may have to tune things so 
-that fallback is chosen if reclaim cannot get us the larger order page 
-with reasonable effort.
-
-The maximum order of allocation used by SLUB may have to depend on the 
-number of page structs in the system since small systems (128M was the 
-case that Peter found) can easier get into trouble. SLAB has similar 
-measures to avoid order 1 allocations for small systems below 32M.
+That would work. But it would be better to shrink the cache first. The 
+first 2 slabs on a node may be empty and the shrinking will remove those. 
+If you do not shrink then the code may falsely assume that there are 
+objects on the node.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
