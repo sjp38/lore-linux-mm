@@ -1,100 +1,70 @@
-Date: Wed, 03 Oct 2007 16:44:40 +0600
-Message-ID: <78495049.82584938@plaintiff.com>
-From: "Euro VIP Kasino" <embryology@otakumail.com>
-Subject: Spielen Sie in Europas bestem Online-Kasino
+From: Nick Piggin <nickpiggin@yahoo.com.au>
+Subject: remove zero_page (was Re: -mm merge plans for 2.6.24)
+Date: Wed, 3 Oct 2007 03:45:09 +1000
+References: <20071001142222.fcaa8d57.akpm@linux-foundation.org>
+In-Reply-To: <20071001142222.fcaa8d57.akpm@linux-foundation.org>
 MIME-Version: 1.0
-Content-Type: text/html; charset=iso-8859-1
+Content-Type: text/plain;
+  charset="iso-8859-1"
 Content-Transfer-Encoding: 7bit
-Return-Path: <embryology@otakumail.com>
-To: owner-linux-mm@kvack.org
+Content-Disposition: inline
+Message-Id: <200710030345.10026.nickpiggin@yahoo.com.au>
+Sender: owner-linux-mm@kvack.org
+Return-Path: <owner-linux-mm@kvack.org>
+To: Andrew Morton <akpm@linux-foundation.org>, "Torvalds, Linus" <torvalds@linux-foundation.org>, linux-mm@kvack.org
+Cc: linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-<html>
+On Tuesday 02 October 2007 07:22, Andrew Morton wrote:
 
-<head>
-<meta http-equiv=Content-Type content="text/html; charset=iso-8859-1">
+> remove-zero_page.patch
+>
+>   Linus dislikes it.  Probably drop it.
 
-<title>Nur im alten </title>
+I don't know if Linus actually disliked the patch itself, or disliked
+my (maybe confusingly worded) rationale?
 
-<style>
-<!--
- /* Style Definitions */
- p.MsoNormal, li.MsoNormal, div.MsoNormal
-	{mso-style-parent:"";
-	margin:0cm;
-	margin-bottom:.0001pt;
-	mso-pagination:widow-orphan;
-	font-size:12.0pt;
-	font-family:"Times New Roman";
-	mso-fareast-font-family:"Times New Roman";
-	mso-ansi-language:EN-US;
-	mso-fareast-language:EN-US;}
-a:link, span.MsoHyperlink
-	{color:blue;
-	text-decoration:underline;
-	text-underline:single;}
-a:visited, span.MsoHyperlinkFollowed
-	{color:purple;
-	text-decoration:underline;
-	text-underline:single;}
-@page Section1
-	{size:595.3pt 841.9pt;
-	margin:2.0cm 42.5pt 2.0cm 3.0cm;
-	mso-header-margin:35.4pt;
-	mso-footer-margin:35.4pt;
-	mso-paper-source:0;}
-div.Section1
-	{page:Section1;}
--->
-</style>
+To clarify: it is not zero_page that fundamentally causes a problem,
+but it is a problem that was exposed when I rationalised the page
+refcounting in the kernel (and mapcounting in the mm).
 
-</head>
+I see about 4 things we can do:
+1. Nothing
+2. Remove zero_page
+3. Reintroduce some refcount special-casing for the zero page
+4. zero_page per-node or per-cpu or whatever
 
-<body lang=DE link=blue vlink=purple style='tab-interval:35.4pt'>
+1 and 2 kind of imply that nothing much sane should use the zero_page
+much (the former also implies that we don't care much about those who
+do, but in that case, why not go for code removal?).
 
-<div class=Section1>
+3 and 4 are if we think there are valid heavy users of zero page, or we
+are worried about hurting badly written apps by removing it. If the former,
+I'd love to hear about them; if the latter, then it definitely is a valid
+concern and I have a patch to avoid refcounting (but if this is the case
+then I do hope that one day we can eventually remove it).
 
-<p class=MsoNormal>
-<span lang=EN-US>Nur im alten aristokratischen Europa k&ouml;nnen
-Sie so ein elitistisches Casino zum Spielen finden:<o:p></o:p></span></p>
 
-<p class=MsoNormal><span lang=EN-US>Euro VIP Casino!<o:p></o:p></span></p>
+> mm-use-pagevec-to-rotate-reclaimable-page.patch
+> mm-use-pagevec-to-rotate-reclaimable-page-fix.patch
+> mm-use-pagevec-to-rotate-reclaimable-page-fix-2.patch
+> mm-use-pagevec-to-rotate-reclaimable-page-fix-function-declaration.patch
+> mm-use-pagevec-to-rotate-reclaimable-page-fix-bug-at-include-linux-mmh220.p
+>atch
+> mm-use-pagevec-to-rotate-reclaimable-page-kill-redundancy-in-rotate_reclaim
+>able_page.patch
+> mm-use-pagevec-to-rotate-reclaimable-page-move_tail_pages-into-lru_add_drai
+>n.patch
+>
+>   I guess I'll merge this.  Would be nice to have wider perfromance testing
+>   but I guess it'll be easy enough to undo.
 
-<p class=MsoNormal><span lang=EN-US><o:p>&nbsp;</o:p></span></p>
+Care to give it one more round through -mm? Is it easy enough to
+keep? I haven't had a chance to review it, which I'd like to do at some
+point (and I don't think it would hurt to have a bit more testing).
 
-<p class=MsoNormal><span lang=EN-US>Hoher Standard ist einzigartig:
-<o:p></o:p></span></p>
-
-<p class=MsoNormal><span lang=EN-US>Ein grossz&uuml;giger Willkommensbonus von
-mindestens 100% bis zu 100 &#8364;/$ auf<span style='mso-spacerun:yes'> 
-</span>Ihre ersten vier Einzahlungen, mit maximalem 400 &#8364;/$ hohem 
-Bonus!<o:p></o:p></span></p>
-
-<p class=MsoNormal><span lang=EN-US>Unglaubliche Jackpots welche die
-Millionengrenze weit &uuml;berschreiten!<o:p></o:p></span></p>
-
-<p class=MsoNormal><span lang=EN-US>Sagenhafte last generation Software!
-<o:p></o:p></span></p>
-
-<p class=MsoNormal><span lang=EN-US><o:p>&nbsp;</o:p></span></p>
-
-<p class=MsoNormal><span lang=EN-US>All das macht es zum besten Platz online 
-zu spielen.<o:p></o:p></span></p>
-
-<p class=MsoNormal><span lang=EN-US><o:p>&nbsp;</o:p></span></p>
-
-<p class=MsoNormal><span lang=EN-US>Also kommen und spielen Sie bei Euro VIP
-Casino und treten Sie der noblen Gesellschaft der europ&auml;ischen 
-Spielelite bei!<o:p></o:p></span></p>
-
-<p class=MsoNormal><span lang=EN-US><o:p>&nbsp;</o:p></span></p>
-
-<p class=MsoNormal><span lang=EN-US>
-<a href="http://www.eurovip-777.com/lang-de/">
-http://www.eurovip-777.com/lang-de/</a><o:p></o:p></span></p>
-
-</div>
-
-</body>
-
-</html>
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
