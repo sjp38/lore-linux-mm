@@ -1,40 +1,73 @@
-Date: Tue, 2 Oct 2007 11:29:51 -0700 (PDT)
-From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [Patch / 002](memory hotplug) Callback function to create
- kmem_cache_node.
-In-Reply-To: <20071002105422.2790.Y-GOTO@jp.fujitsu.com>
-Message-ID: <Pine.LNX.4.64.0710021128510.30615@schroedinger.engr.sgi.com>
-References: <20071001183316.7A9B.Y-GOTO@jp.fujitsu.com>
- <Pine.LNX.4.64.0710011334090.19779@schroedinger.engr.sgi.com>
- <20071002105422.2790.Y-GOTO@jp.fujitsu.com>
+Message-ID: <4702A5FE.5000308@am.sony.com>
+Date: Tue, 02 Oct 2007 13:11:42 -0700
+From: Geoff Levand <geoffrey.levand@am.sony.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: [RFC] PPC64 Exporting memory information through /proc/iomem
+References: <1191346196.6106.20.camel@dyn9047017100.beaverton.ibm.com>
+In-Reply-To: <1191346196.6106.20.camel@dyn9047017100.beaverton.ibm.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Yasunori Goto <y-goto@jp.fujitsu.com>
-Cc: Andrew Morton <akpm@osdl.org>, Linux Kernel ML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
+To: Badari Pulavarty <pbadari@us.ibm.com>
+Cc: linuxppc-dev@ozlabs.org, linux-mm <linux-mm@kvack.org>, anton@au1.ibm.com, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 2 Oct 2007, Yasunori Goto wrote:
+Hi Badari,
 
-> Do you mean that just nr_slabs should be checked like followings?
-> I'm not sure this is enough.
+Badari Pulavarty wrote:
+> Hi Paul & Ben,
 > 
->     :
-> if (s->node[nid]) {
-> 	n = get_node(s, nid);
-> 	if (!atomic_read(&n->nr_slabs)) {
-> 		s->node[nid] = NULL;
-> 		kmem_cache_free(kmalloc_caches, n);
-> 	}
-> }
->     :
->     :
+> I am trying to get hotplug memory remove working on ppc64.
+> In order to verify a given memory region, if its valid or not -
+> current hotplug-memory patches used /proc/iomem. On IA64 and
+> x86-64 /proc/iomem shows all memory regions. 
+> 
+> I am wondering, if its acceptable to do the same on ppc64 also ?
+> Otherwise, we need to add arch-specific hooks in hotplug-remove
+> code to be able to do this.
 
-That would work. But it would be better to shrink the cache first. The 
-first 2 slabs on a node may be empty and the shrinking will remove those. 
-If you do not shrink then the code may falsely assume that there are 
-objects on the node.
+
+It seems the only reasonable place is in /proc/iomem, as the the 
+generic memory hotplug routines put it in there, and if you have
+a ppc64 system that uses add_memory() you will have mem info in
+several places, none of which are complete.  
+
+
+> Index: linux-2.6.23-rc8/arch/powerpc/mm/numa.c
+> ===================================================================
+> --- linux-2.6.23-rc8.orig/arch/powerpc/mm/numa.c	2007-10-02 10:16:42.000000000 -0700
+> +++ linux-2.6.23-rc8/arch/powerpc/mm/numa.c	2007-10-02 10:17:05.000000000 -0700
+> @@ -587,6 +587,22 @@ static void __init *careful_allocation(i
+>  	return (void *)ret;
+>  }
+>  
+> +static void add_regions_iomem()
+> +{
+> +	int i;
+> +	struct resource *res;
+> +
+> +	for (i = 0; i < lmb.memory.cnt; i++) {
+> +		res = alloc_bootmem_low(sizeof(struct resource));
+> +
+> +		res->name = "System RAM";
+> +		res->start = lmb.memory.region[i].base;
+> +		res->end = res->start + lmb.memory.region[i].size - 1;
+> +		res->flags = IORESOURCE_MEM;
+> +		request_resource(&iomem_resource, res);
+> +	}
+> +}
+> +
+
+I think this duplication of the code in register_memory_resource()
+is a maintenance concern though.  I wonder if it would be better
+to somehow hook your stuff into into the existing memory hotplug
+routines.
+
+
+-Geoff
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
