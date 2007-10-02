@@ -1,81 +1,48 @@
-Message-ID: <00ebffa4$00ebfe78$1467bbc2@ivorville>
-From: "Ignacio Poe" <ivorville@bet.com>
-Subject: Man Lebt nur einmal - probiers aus !  you were informed  --  Patterns--the lessons
-Date: Tue, 32 Sep 2007 12:30:36 +0200
+Date: Tue, 2 Oct 2007 13:19:15 +0100 (BST)
+From: Hugh Dickins <hugh@veritas.com>
+Subject: Re: [PATCH] Inconsistent mmap()/mremap() flags
+In-Reply-To: <1191308772.5200.66.camel@phantasm.home.enterpriseandprosperity.com>
+Message-ID: <Pine.LNX.4.64.0710021304230.26719@blonde.wat.veritas.com>
+References: <1190958393.5128.85.camel@phantasm.home.enterpriseandprosperity.com>
+  <200710011313.30171.andi@firstfloor.org>
+ <1191293830.5200.22.camel@phantasm.home.enterpriseandprosperity.com>
+ <20071002051526.GA29615@one.firstfloor.org>
+ <1191308772.5200.66.camel@phantasm.home.enterpriseandprosperity.com>
 MIME-Version: 1.0
-Content-Type: multipart/alternative;
-	boundary="----=_NextPart_000_0007_00EBFFA4.00EBFE0C"
-Return-Path: <ivorville@bet.com>
-To: linux-mm@kvack.org
+Content-Type: TEXT/PLAIN; charset=US-ASCII
+Sender: owner-linux-mm@kvack.org
+Return-Path: <owner-linux-mm@kvack.org>
+To: Thayne Harbaugh <thayne@c2.net>
+Cc: Andi Kleen <andi@firstfloor.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, discuss@x86-64.org
 List-ID: <linux-mm.kvack.org>
 
-This is a multi-part message in MIME format.
+On Tue, 2 Oct 2007, Thayne Harbaugh wrote:
+> On Tue, 2007-10-02 at 07:15 +0200, Andi Kleen wrote:
+> 
+> > For mmap you can emulate it by passing a low hint != 0 (e.g. getpagesize()) 
+> > in address but without MAP_FIXED and checking if the result is not beyond
+> > your range.
+> 
+> Cool.  That's a much better solution for multiple reasons - like you
+> mention, MAP_32BIT is only 2GB as well as it's only available on x86_64.
+> 
+> > > > Given for mremap() it is not that easy because there is no "hint" argument
+> > > > without MREMAP_FIXED; but unless someone really needs it i would prefer
+> > > > to not propagate the hack. If it's really needed it's probably better
+> > > > to implement a start search hint for mremap()
 
-------=_NextPart_000_0007_00EBFFA4.00EBFE0C
-Content-Type: text/plain;
-	charset="us-ascii"
-Content-Transfer-Encoding: quoted-printable
+I think you can do it already, without us complicating mremap further
+with such a start search hint.
 
-Verpassen Sie nichts am Lebem - Sie werden fuhlen was unsere Kunden bestati=
-gen!
+First call mmap with a low hint address, the new size you'll be wanting
+from the mremap, PROT_NONE, MAP_ANONYMOUS, -1, 0.  Then call mremap with
+old address, old size, new size, MREMAP_MAYMOVE|MREMAP_FIXED, and new
+address as returned by the preparatory mmap.
 
-Preise die keine Konkurrenz kennen 
+Hugh
 
-- Kein langes Warten - Auslieferung innerhalb von 2-3 Tagen
-- Kein peinlicher Arztbesuch erforderlich
-- Diskrete Verpackung und Zahlung
-- Kostenlose, arztliche Telefon-Beratung
-- Bequem und diskret online bestellen.
-- Visa verifizierter Onlineshop
-- keine versteckte Kosten
-
-Originalmedikamente
-Ciiaaaaaalis 10 Pack. 27,00 Euro
-Viiaaaagra 10 Pack. 21,00 Euro
-
-Jetzt bestellen - und vier Pillen umsonst erhalten
-http://receivesure.cn
-
-(bitte warten Sie einen Moment bis die Seite vollstandig geladen wird)
-------=_NextPart_000_0007_00EBFFA4.00EBFE0C
-Content-Type: text/html;
-	charset="us-ascii"
-Content-Transfer-Encoding: quoted-printable
-
-<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
-<HTML><HEAD>
-<META http-equiv=3DContent-Type content=3D"text/html; charset=3Dus-ascii">
-<META content=3D"MSHTML 5.00.2919.6700" name=3DGENERATOR>
-<STYLE></STYLE>
-</HEAD>
-<BODY>
-<head><meta http-equiv=3D"Content-Type" content=3D"text/html; charset=3Diso=
--8859-1">
-</head><body><p>Meinung von unserem Kunden:<br><strong>Ich bin 28 Jahre alt=
- und habe keine Err. ..ektionsprobleme. Ich wollte Viiaaaagra einfach nur s=
-o probieren. Es funktioniert, aber die Durchblutung ist st&#228;rker als so=
-nst und es f&#252;hlt sich an, als w&#252;rde ich mit einem Dildo v&#246;ge=
-ln und nicht mit meinem Schwanz. Ich hatte ziemliche Probleme, wieder runte=
-rzukommen. Aber ich w&#252;rde es wohl wieder tun ...</strong></p><p><stron=
-g>Jetzt, wo ich Viiaaaagra ausprobiert habe, w&#252;rde ich es immer wieder=
- kaufen, auch wenn ich das Dreifache daf&#252;r bezahlen m&#252;sste. Ich b=
-edaure all die ungl&#252;cklichen M&#228;nner, die in ihrem Leben nie die G=
-elegenheit hatten, Viiaaaagra auszuprobieren. Und ein bisschen bedaure ich =
-mich selbst: Warum habe ich nicht schon vor Jahren den Mut gehabt, es zu pr=
-obieren?<br>
-</strong><strong><br>Verpassen Sie nichts am Lebem - Sie werden fuhlen was =
-unsere Kunden bestatigen!</strong></p><p>Preise die keine Konkurrenz kennen=
- <p>
-- Diskrete Verpackung und Zahlung<br>- Bequem und diskret online bestellen.=
-<br>- Kein peinlicher Arztbesuch erforderlich<br>- Kostenlose, arztliche Te=
-lefon-Beratung<br>- Kein langes Warten - Auslieferung innerhalb von 2-3 Tag=
-en<br>- Visa verifizierter Onlineshop<br>- keine versteckte Kosten</p>
-<p>Originalmedikamente<br><strong>Ciiaaaaaalis 10 Pack. 27,00 Euro</strong>=
-<br>
-  <strong>Viiaaaagra 10 Pack. 21,00 Euro</strong><br><br><strong><a href=3D=
-"http://receivesure.cn" target=3D"_blank">Jetzt bestellen - und vier Pillen=
- umsonst erhalten</a><br></strong>(bitte warten Sie einen Moment bis die Se=
-ite vollst&auml;ndig geladen wird) </p></body>
-</BODY></HTML>
-
-------=_NextPart_000_0007_00EBFFA4.00EBFE0C--
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
