@@ -1,44 +1,74 @@
-Received: from d23relay03.au.ibm.com (d23relay03.au.ibm.com [202.81.18.234])
-	by e23smtp06.au.ibm.com (8.13.1/8.13.1) with ESMTP id l92FaXMe016171
-	for <linux-mm@kvack.org>; Wed, 3 Oct 2007 01:36:33 +1000
-Received: from d23av02.au.ibm.com (d23av02.au.ibm.com [9.190.235.138])
-	by d23relay03.au.ibm.com (8.13.8/8.13.8/NCO v8.5) with ESMTP id l92FaY5f4149326
-	for <linux-mm@kvack.org>; Wed, 3 Oct 2007 01:36:34 +1000
-Received: from d23av02.au.ibm.com (loopback [127.0.0.1])
-	by d23av02.au.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l92FaY3s017498
-	for <linux-mm@kvack.org>; Wed, 3 Oct 2007 01:36:34 +1000
-Message-ID: <4702657B.9060501@linux.vnet.ibm.com>
-Date: Tue, 02 Oct 2007 21:06:27 +0530
-From: Balbir Singh <balbir@linux.vnet.ibm.com>
-Reply-To: balbir@linux.vnet.ibm.com
+Date: Tue, 2 Oct 2007 16:46:04 +0100 (BST)
+From: Hugh Dickins <hugh@veritas.com>
+Subject: Re: Memory controller merge (was Re: -mm merge plans for 2.6.24)
+In-Reply-To: <4701C737.8070906@linux.vnet.ibm.com>
+Message-ID: <Pine.LNX.4.64.0710021604260.4916@blonde.wat.veritas.com>
+References: <20071001142222.fcaa8d57.akpm@linux-foundation.org>
+ <4701C737.8070906@linux.vnet.ibm.com>
 MIME-Version: 1.0
-Subject: Re: [BUGFIX][RFC][PATCH][only -mm] FIX memory leak in memory cgroup
- vs. page migration [2/1] additional patch for migrate page/memory cgroup
-References: <20071002183031.3352be6a.kamezawa.hiroyu@jp.fujitsu.com> <20071002183306.0c132ff4.kamezawa.hiroyu@jp.fujitsu.com> <20071002191217.61b4cf77.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20071002191217.61b4cf77.kamezawa.hiroyu@jp.fujitsu.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "containers@lists.osdl.org" <containers@lists.osdl.org>, Christoph Lameter <clameter@sgi.com>
+To: Balbir Singh <balbir@linux.vnet.ibm.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Pavel Emelianov <xemul@openvz.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-KAMEZAWA Hiroyuki wrote:
-> The patch I sent needs following fix, sorry.
-> Anyway, I'll repost good-version with reflected comments again.
+On Tue, 2 Oct 2007, Balbir Singh wrote:
+> Andrew Morton wrote:
+> > memory-controller-add-documentation.patch
+> > ...
+> > kswapd-should-only-wait-on-io-if-there-is-io.patch
+> > 
+> >   Hold.  This needs a serious going-over by page reclaim people.
 > 
-> Thanks,
->  -Kame
+> I mostly agree with your decision. I am a little concerned however
+> that as we develop and add more features (a.k.a better statistics/
+> forced reclaim), which are very important; the code base gets larger,
+> the review takes longer :)
 
-Just saw this now, I'll apply both the fixes, but it would be helpful
-if you could post, one combined patch.
+I agree with putting the memory controller stuff on hold from 2.6.24.
 
--- 
-	Warm Regards,
-	Balbir Singh
-	Linux Technology Center
-	IBM, ISTL
+Sorry, Balbir, I've failed to get back to you, still attending to
+priorities.  Let me briefly summarize my issue with the mem controller:
+you've not yet given enough attention to swap.
+
+I accept that full swap control is something you're intending to add
+incrementally later; but the current state doesn't make sense to me.
+
+The problems are swapoff and swapin readahead.  These pull pages into
+the swap cache, which are assigned to the cgroup (or the whatever-we-
+call-the-remainder-outside-all-the-cgroups) which is running swapoff
+or faulting in its own page; yet they very clearly don't (in general)
+belong to that cgroup, but to other cgroups which will be discovered
+later.
+
+I did try removing the cgroup mods to mm/swap_state.c, so swap pages
+get assigned to a cgroup only once it's really known; but that's not
+enough by itself, because cgroup RSS reclaim doesn't touch those
+pages, so the cgroup can easily OOM much too soon.  I was thinking
+that you need a "limbo" cgroup for these pages, which can be attacked
+for reclaim along with any cgroup being reclaimed, but from which
+pages are readily migrated to their real cgroup once that's known.
+
+But I had to switch over to other work before trying that out:
+perhaps the idea doesn't really fly at all.  And it might well
+be no longer needed once full mem+swap control is there.
+
+So in the current memory controller, that unuse_pte mem charge I was
+originally worried about failing (I hadn't at that point delved in
+to see how it tries to reclaim) actually never fails (and never
+does anything): the page is already assigned to some cgroup-or-
+whatever and is never charged to vma->vm_mm at that point.
+
+And small point: once that is sorted out and the page is properly
+assigned in unuse_pte, you'll be needing to pte_unmap_unlock and
+pte_offset_map_lock around the mem_cgroup_charge call there -
+you're right to call it with GFP_KERNEL, but cannot do so while
+holding the page table locked and mapped.  (But because the page
+lock is held, there shouldn't be any raciness to dropping and
+retaking the ptl.)
+
+Hugh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
