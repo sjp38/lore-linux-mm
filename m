@@ -1,52 +1,68 @@
-Message-ID: <4702AF03.6080206@am.sony.com>
-Date: Tue, 02 Oct 2007 13:50:11 -0700
-From: Geoff Levand <geoffrey.levand@am.sony.com>
+Received: from zps36.corp.google.com (zps36.corp.google.com [172.25.146.36])
+	by smtp-out.google.com with ESMTP id l92MUGpn015374
+	for <linux-mm@kvack.org>; Tue, 2 Oct 2007 23:30:16 +0100
+Received: from nz-out-0506.google.com (nzes1.prod.google.com [10.36.170.1])
+	by zps36.corp.google.com with ESMTP id l92MTwkT010022
+	for <linux-mm@kvack.org>; Tue, 2 Oct 2007 15:30:15 -0700
+Received: by nz-out-0506.google.com with SMTP id s1so2923268nze
+        for <linux-mm@kvack.org>; Tue, 02 Oct 2007 15:30:15 -0700 (PDT)
+Message-ID: <b040c32a0710021530o7a8ae28aybd65f8f4d677029@mail.gmail.com>
+Date: Tue, 2 Oct 2007 15:30:15 -0700
+From: "Ken Chen" <kenchen@google.com>
+Subject: [patch] fix file position for hugetlbfs-read-support
 MIME-Version: 1.0
-Subject: Re: [RFC] PPC64 Exporting memory information through /proc/iomem
-References: <1191346196.6106.20.camel@dyn9047017100.beaverton.ibm.com>	 <4702A5FE.5000308@am.sony.com> <1191357435.6106.31.camel@dyn9047017100.beaverton.ibm.com>
-In-Reply-To: <1191357435.6106.31.camel@dyn9047017100.beaverton.ibm.com>
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Badari Pulavarty <pbadari@us.ibm.com>
-Cc: linuxppc-dev@ozlabs.org, linux-mm <linux-mm@kvack.org>, anton@au1.ibm.com, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+To: Andrew Morton <akpm@linux-foundation.org>, Badari Pulavarty <pbadari@us.ibm.com>
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Badari Pulavarty wrote:
-> On Tue, 2007-10-02 at 13:11 -0700, Geoff Levand wrote:
->> Hi Badari,
->> 
->> Badari Pulavarty wrote:
->> > Hi Paul & Ben,
->> > 
->> > I am trying to get hotplug memory remove working on ppc64.
->> > In order to verify a given memory region, if its valid or not -
->> > current hotplug-memory patches used /proc/iomem. On IA64 and
->> > x86-64 /proc/iomem shows all memory regions. 
->> > 
->> > I am wondering, if its acceptable to do the same on ppc64 also ?
->> > Otherwise, we need to add arch-specific hooks in hotplug-remove
->> > code to be able to do this.
->> 
->> 
->> It seems the only reasonable place is in /proc/iomem, as the the 
->> generic memory hotplug routines put it in there, and if you have
->> a ppc64 system that uses add_memory() you will have mem info in
->> several places, none of which are complete.  
-> 
-> Well, this information exists in various places (lmb structures
-> in the kernel), /proc/device-tree for various users. I want to
-> find out what ppc experts think about making this available through
-> /proc/iomem also since generic memory hotplug routines expect 
-> it there.
+While working on a related area, I ran into a bug in hugetlbfs file
+read support that is currently in -mm tree
+(hugetlbfs-read-support.patch).
+
+The problem is that hugetlb file position wasn't updated in
+hugetlbfs_read(), so sys_read() will always read from same file
+location.  A simple "cp" command that reads file until EOF will never
+terminate.  Fix it by updating the ppos at the end of
+hugetlbfs_read().
+
+Signed-off-by: Ken Chen <kenchen@google.com>
 
 
-Well, I can't say I am one of those experts you seek, but for PS3 we
-already have the hotplug mem in /proc/iomem (I set it up to use
-add_memory()), so it seems reasonable to have the bootmem there too.
+diff --git a/fs/hugetlbfs/inode.c b/fs/hugetlbfs/inode.c
+index 6dde2c3..8d9a631 100644
+--- a/fs/hugetlbfs/inode.c
++++ b/fs/hugetlbfs/inode.c
+@@ -228,9 +228,9 @@ hugetlbfs_read(struct file *filp
+ 	struct address_space *mapping = filp->f_mapping;
+ 	struct inode *inode = mapping->host;
+ 	unsigned long index = *ppos >> HPAGE_SHIFT;
++	unsigned long offset = *ppos & ~HPAGE_MASK;
+ 	unsigned long end_index;
+ 	loff_t isize;
+-	unsigned long offset;
+ 	ssize_t retval = 0;
 
--Geoff
+ 	/* validate length */
+@@ -241,7 +241,6 @@ hugetlbfs_read(struct file *filp
+ 	if (!isize)
+ 		goto out;
+
+-	offset = *ppos & ~HPAGE_MASK;
+ 	end_index = (isize - 1) >> HPAGE_SHIFT;
+ 	for (;;) {
+ 		struct page *page;
+@@ -290,6 +289,7 @@ hugetlbfs_read(struct file *filp
+ 		goto out;
+ 	}
+ out:
++	*ppos = ((loff_t) index << HPAGE_SHIFT) + offset;
+ 	return retval;
+ }
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
