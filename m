@@ -1,87 +1,55 @@
-Received: from d03relay04.boulder.ibm.com (d03relay04.boulder.ibm.com [9.17.195.106])
-	by e33.co.us.ibm.com (8.13.8/8.13.8) with ESMTP id l92HQsKT005761
-	for <linux-mm@kvack.org>; Tue, 2 Oct 2007 13:26:54 -0400
-Received: from d03av03.boulder.ibm.com (d03av03.boulder.ibm.com [9.17.195.169])
-	by d03relay04.boulder.ibm.com (8.13.8/8.13.8/NCO v8.5) with ESMTP id l92HQokW369550
-	for <linux-mm@kvack.org>; Tue, 2 Oct 2007 11:26:51 -0600
-Received: from d03av03.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av03.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l92HQo2L028731
-	for <linux-mm@kvack.org>; Tue, 2 Oct 2007 11:26:50 -0600
-Subject: [RFC] PPC64 Exporting memory information through /proc/iomem
-From: Badari Pulavarty <pbadari@us.ibm.com>
+Subject: Re: kswapd min order, slub max order [was Re: -mm merge plans for
+	2.6.24]
+From: Mel Gorman <mel@csn.ul.ie>
+In-Reply-To: <Pine.LNX.4.64.0710021646420.4916@blonde.wat.veritas.com>
+References: <20071001142222.fcaa8d57.akpm@linux-foundation.org>
+	 <Pine.LNX.4.64.0710021646420.4916@blonde.wat.veritas.com>
 Content-Type: text/plain
-Date: Tue, 02 Oct 2007 10:29:56 -0700
-Message-Id: <1191346196.6106.20.camel@dyn9047017100.beaverton.ibm.com>
+Date: Tue, 02 Oct 2007 19:38:53 +0100
+Message-Id: <1191350333.2708.6.camel@localhost>
 Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linuxppc-dev@ozlabs.org
-Cc: linux-mm <linux-mm@kvack.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, anton@au1.ibm.com, hbabu@us.ibm.com
+To: Hugh Dickins <hugh@veritas.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Chritoph Lameter <clameter@sgi.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi Paul & Ben,
+On Tue, 2007-10-02 at 17:06 +0100, Hugh Dickins wrote:
+> On Mon, 1 Oct 2007, Andrew Morton wrote:
+> > #
+> > # slub && antifrag
+> > #
+> > have-kswapd-keep-a-minimum-order-free-other-than-order-0.patch
+> > only-check-absolute-watermarks-for-alloc_high-and-alloc_harder-allocations.patch
+> > slub-exploit-page-mobility-to-increase-allocation-order.patch
+> > slub-reduce-antifrag-max-order.patch
+> > 
+> >   I think this stuff is in the "mm stuff we don't want to merge" category. 
+> >   If so, I really should have dropped it ages ago.
+> 
+> I agree.  I spent a while last week bisecting down to see why my heavily
+> swapping loads take 30%-60% longer with -mm than mainline, and it was
+> here that they went bad.  Trying to keep higher orders free is costly.
+> 
 
-I am trying to get hotplug memory remove working on ppc64.
-In order to verify a given memory region, if its valid or not -
-current hotplug-memory patches used /proc/iomem. On IA64 and
-x86-64 /proc/iomem shows all memory regions. 
+Very interesting. I had agreed with these patches being pulled but it
+was simply on the grounds that there was no agreement it was the right
+thing to do. It was best to have mainline and -mm behave the same from a
+fragmentation perspective and revisit this idea from scratch. That it
+affects swapping loads is news so thanks for that.
 
-I am wondering, if its acceptable to do the same on ppc64 also ?
-Otherwise, we need to add arch-specific hooks in hotplug-remove
-code to be able to do this.
+> On the other hand, hasn't SLUB efficiency been built on the expectation
+> that higher orders can be used?  And it would be a twisted shame for
+> high performance to be held back by some idiot's swapping load.
+> 
 
-Please comment. Here is the half-cooked patch I used to verify
-the hotplug-memory-remove on ppc64.
+My belief is that SLUB can still use the higher orders if configured to
+do so at boot-time. The loss of these patches means it won't try and do
+it automatically. Christoph will chime in I'm sure.
 
-Thanks,
-Badari
-
----
- arch/powerpc/mm/numa.c |   18 ++++++++++++++++++
- 1 file changed, 18 insertions(+)
-
-Index: linux-2.6.23-rc8/arch/powerpc/mm/numa.c
-===================================================================
---- linux-2.6.23-rc8.orig/arch/powerpc/mm/numa.c	2007-10-02 10:16:42.000000000 -0700
-+++ linux-2.6.23-rc8/arch/powerpc/mm/numa.c	2007-10-02 10:17:05.000000000 -0700
-@@ -587,6 +587,22 @@ static void __init *careful_allocation(i
- 	return (void *)ret;
- }
- 
-+static void add_regions_iomem()
-+{
-+	int i;
-+	struct resource *res;
-+
-+	for (i = 0; i < lmb.memory.cnt; i++) {
-+		res = alloc_bootmem_low(sizeof(struct resource));
-+
-+		res->name = "System RAM";
-+		res->start = lmb.memory.region[i].base;
-+		res->end = res->start + lmb.memory.region[i].size - 1;
-+		res->flags = IORESOURCE_MEM;
-+		request_resource(&iomem_resource, res);
-+	}
-+}
-+
- static struct notifier_block __cpuinitdata ppc64_numa_nb = {
- 	.notifier_call = cpu_numa_callback,
- 	.priority = 1 /* Must run before sched domains notifier. */
-@@ -650,6 +666,8 @@ void __init do_init_bootmem(void)
- 
- 		free_bootmem_with_active_regions(nid, end_pfn);
- 
-+		add_regions_iomem();
-+
- 		/* Mark reserved regions on this node */
- 		for (i = 0; i < lmb.reserved.cnt; i++) {
- 			unsigned long physbase = lmb.reserved.region[i].base;
-
-
-
-
-
+-- 
+Mel Gorman
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
