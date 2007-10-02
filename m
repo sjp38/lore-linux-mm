@@ -1,104 +1,56 @@
-Date: Tue, 02 Oct 2007 14:08:50 -0200
-From: " Royal Euro Kasino " <referent@cinemexicano.com>
-Subject: 300% Bonus fur Ihre erste Einzahlung! 
-Message-ID: <52306826.12819780@klux.com>
-MIME-Version: 1.0
-Content-Type: text/html; charset=iso-8859-1
+Subject: Re: [discuss] [PATCH] Inconsistent mmap()/mremap() flags
+From: Thayne Harbaugh <thayne@c2.net>
+Reply-To: thayne@c2.net
+In-Reply-To: <Pine.LNX.4.64.0710021505400.2156@blonde.wat.veritas.com>
+References: <1190958393.5128.85.camel@phantasm.home.enterpriseandprosperity.com>
+	 <1191308772.5200.66.camel@phantasm.home.enterpriseandprosperity.com>
+	 <Pine.LNX.4.64.0710021304230.26719@blonde.wat.veritas.com>
+	 <200710021545.32556.ak@suse.de>
+	 <Pine.LNX.4.64.0710021505400.2156@blonde.wat.veritas.com>
+Content-Type: text/plain
+Date: Tue, 02 Oct 2007 09:21:26 -0600
+Message-Id: <1191338486.5200.71.camel@phantasm.home.enterpriseandprosperity.com>
+Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
-Return-Path: <referent@cinemexicano.com>
-To: owner-linux-mm@kvack.org
+Sender: owner-linux-mm@kvack.org
+Return-Path: <owner-linux-mm@kvack.org>
+To: Hugh Dickins <hugh@veritas.com>
+Cc: Andi Kleen <ak@suse.de>, discuss@x86-64.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-<html>
+On Tue, 2007-10-02 at 15:16 +0100, Hugh Dickins wrote:
+> On Tue, 2 Oct 2007, Andi Kleen wrote:
+> > 
+> > > First call mmap with a low hint address, the new size you'll be wanting
+> > > from the mremap, PROT_NONE, MAP_ANONYMOUS, -1, 0.  Then call mremap with
+> > > old address, old size, new size, MREMAP_MAYMOVE|MREMAP_FIXED, and new
+> > > address as returned by the preparatory mmap.
+> > 
+> > That's racy unfortunately in a multithreaded process. They would need to loop.
+> 
+> Perhaps.  Though I don't see what your loop would be doing;
+> and the mapping established by the first thread would only
+> be vulnerable to another thread if that were really set on
+> interfering (an un-FIXED mmap by another thread will keep
+> away from the area assigned to the first).
+> 
+> Certainly a two-stage procedure has to be weaker than one stage,
+> but it is just how MAP_FIXED is normally used (isn't it?): first
+> stake out an arena for all that's needed without MAP_FIXED, then
+> fit into it the actual mappings required using MAP_FIXED.  Blind
+> use of MAP_FIXED is always in danger of unmapping something vital.
+> 
+> But whether the two-stage procedure is good enough for Thayne's
+> purpose, he'll have to judge for himself.
 
-<head>
-<meta http-equiv=Content-Type content="text/html; charset=iso-8859-1">
+I think my eyes have been opened enough so that I can get things to work
+- it's certainly better in many respects than using MAP_32BIT with its
+many limitations.
 
-<title>Nur vom nobelsten aller</title>
+Thank you.
 
-<style>
-<!--
- /* Style Definitions */
- p.MsoNormal, li.MsoNormal, div.MsoNormal
-	{mso-style-parent:"";
-	margin:0cm;
-	margin-bottom:.0001pt;
-	mso-pagination:widow-orphan;
-	font-size:12.0pt;
-	font-family:"Times New Roman";
-	mso-fareast-font-family:"Times New Roman";
-	mso-ansi-language:EN-US;
-	mso-fareast-language:EN-US;}
-a:link, span.MsoHyperlink
-	{color:blue;
-	text-decoration:underline;
-	text-underline:single;}
-a:visited, span.MsoHyperlinkFollowed
-	{color:purple;
-	text-decoration:underline;
-	text-underline:single;}
-@page Section1
-	{size:595.3pt 841.9pt;
-	margin:2.0cm 42.5pt 2.0cm 3.0cm;
-	mso-header-margin:35.4pt;
-	mso-footer-margin:35.4pt;
-	mso-paper-source:0;}
-div.Section1
-	{page:Section1;}
--->
-</style>
-
-</head>
-
-<body lang=DE link=blue vlink=purple style='tab-interval:35.4pt'>
-
-<div class=Section1>
-
-<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
-Nur vom nobelsten aller Casinos k&ouml;nnen 
-Sie ein so vornehmes Geschenk erwarten:
-<o:p></o:p></span></p>
-
-<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
-<o:p>&nbsp;</o:p></span></p>
-
-<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
-300% Bonus f&uuml;r Ihre erste Einzahlung!
-<o:p></o:p></span></p>
-
-<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
-<o:p>&nbsp;</o:p></span></p>
-
-<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
-Zahlen Sie 100&#8364;/$ ein und spielen 
-Sie mit 400 &#8364;/$!
-<o:p></o:p></span></p>
-
-<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
-<o:p>&nbsp;</o:p></span></p>
-
-<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
-Oben drauf bekommen Sie bei uns einen 
-k&ouml;niglichen Service!
-<o:p></o:p></span></p>
-
-<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
-<o:p>&nbsp;</o:p></span></p>
-
-<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
-Kommen und spielen Sie im Royal VIP Casino!
-<o:p></o:p></span></p>
-
-<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
-<o:p>&nbsp;</o:p></span></p>
-
-<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
-<a href="http://www.royal-suite-casino.com/lang-de/">
-http://www.royal-suite-casino.com/lang-de/</a>
-<o:p></o:p></span></p>
-
-</div>
-
-</body>
-
-</html>
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
