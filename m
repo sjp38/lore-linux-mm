@@ -1,94 +1,79 @@
-Received: from sd0109e.au.ibm.com (d23rh905.au.ibm.com [202.81.18.225])
-	by e23smtp05.au.ibm.com (8.13.1/8.13.1) with ESMTP id l924Lhpe018293
-	for <linux-mm@kvack.org>; Tue, 2 Oct 2007 14:21:43 +1000
-Received: from d23av01.au.ibm.com (d23av01.au.ibm.com [9.190.234.96])
-	by sd0109e.au.ibm.com (8.13.8/8.13.8/NCO v8.5) with ESMTP id l924PGeP252282
-	for <linux-mm@kvack.org>; Tue, 2 Oct 2007 14:25:16 +1000
-Received: from d23av01.au.ibm.com (loopback [127.0.0.1])
-	by d23av01.au.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l924InKI008553
-	for <linux-mm@kvack.org>; Tue, 2 Oct 2007 14:18:50 +1000
-Message-ID: <4701C737.8070906@linux.vnet.ibm.com>
-Date: Tue, 02 Oct 2007 09:51:11 +0530
-From: Balbir Singh <balbir@linux.vnet.ibm.com>
-Reply-To: balbir@linux.vnet.ibm.com
-MIME-Version: 1.0
-Subject: Memory controller merge (was Re: -mm merge plans for 2.6.24)
-References: <20071001142222.fcaa8d57.akpm@linux-foundation.org>
-In-Reply-To: <20071001142222.fcaa8d57.akpm@linux-foundation.org>
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Date: Tue, 2 Oct 2007 07:15:26 +0200
+From: Andi Kleen <andi@firstfloor.org>
+Subject: Re: [PATCH] Inconsistent mmap()/mremap() flags
+Message-ID: <20071002051526.GA29615@one.firstfloor.org>
+References: <1190958393.5128.85.camel@phantasm.home.enterpriseandprosperity.com> <200710011313.30171.andi@firstfloor.org> <1191293830.5200.22.camel@phantasm.home.enterpriseandprosperity.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1191293830.5200.22.camel@phantasm.home.enterpriseandprosperity.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-kernel@vger.kernel.org, Linux Memory Management List <linux-mm@kvack.org>
+To: Thayne Harbaugh <thayne@c2.net>
+Cc: Andi Kleen <andi@firstfloor.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, discuss@x86-64.org
 List-ID: <linux-mm.kvack.org>
 
-Andrew Morton wrote:
-> memory-controller-add-documentation.patch
-> memory-controller-resource-counters-v7.patch
-> memory-controller-resource-counters-v7-fix.patch
-> memory-controller-containers-setup-v7.patch
-> memory-controller-accounting-setup-v7.patch
-> memory-controller-memory-accounting-v7.patch
-> memory-controller-memory-accounting-v7-fix.patch
-> memory-controller-memory-accounting-v7-fix-swapoff-breakage-however.patch
-> memory-controller-task-migration-v7.patch
-> memory-controller-add-per-container-lru-and-reclaim-v7.patch
-> memory-controller-add-per-container-lru-and-reclaim-v7-fix.patch
-> memory-controller-add-per-container-lru-and-reclaim-v7-fix-2.patch
-> memory-controller-add-per-container-lru-and-reclaim-v7-cleanup.patch
-> memory-controller-improve-user-interface.patch
-> memory-controller-oom-handling-v7.patch
-> memory-controller-oom-handling-v7-vs-oom-killer-stuff.patch
-> memory-controller-add-switch-to-control-what-type-of-pages-to-limit-v7.patch
-> memory-controller-add-switch-to-control-what-type-of-pages-to-limit-v7-cleanup.patch
-> memory-controller-add-switch-to-control-what-type-of-pages-to-limit-v7-fix-2.patch
-> memory-controller-make-page_referenced-container-aware-v7.patch
-> memory-controller-make-charging-gfp-mask-aware.patch
-> memory-controller-make-charging-gfp-mask-aware-fix.patch
-> memory-controller-bug_on.patch
-> mem-controller-gfp-mask-fix.patch
-> memcontrol-move-mm_cgroup-to-header-file.patch
-> memcontrol-move-oom-task-exclusion-to-tasklist.patch
-> memcontrol-move-oom-task-exclusion-to-tasklist-fix.patch
-> oom-add-sysctl-to-enable-task-memory-dump.patch
-> kswapd-should-only-wait-on-io-if-there-is-io.patch
+On Mon, Oct 01, 2007 at 08:57:10PM -0600, Thayne Harbaugh wrote:
+> Yeah, after I sent the email I realized that it was a bit more involved.
+> As far as the 32/31 bit, it just depends on the perspective.  I can see
+> that 32 bits are needed to represent all possible return values from
+> mmap() - possible address and error value of -1.  From that perspective
+> I think that MAP_32BIT is appropriate.
+
+Your perspective seems quite narrow. Only using 2GB instead of 4GB 
+is a major functional difference.
+
+Negative error values are used in all system calls, so it would
+hardly seem necessary to encode the use of the 32th bit for that
+in the option name.
+
+> > But that would be ugly to implement without a new architecture wrapper
+> > or better changing arch_get_unmapped_area()
+> > 
+> > It might be better to just not bother. MAP_32BIT is a kind of hack anyways
+> > that at least for mmap can be easily emulated in user space anyways.
 > 
->   Hold.  This needs a serious going-over by page reclaim people.
+> Care to give me some hints as to how that would be easily emulated in
+> user space?  That might be a better solution for the case I want to
+> solve.
+
+For mmap you can emulate it by passing a low hint != 0 (e.g. getpagesize()) 
+in address but without MAP_FIXED and checking if the result is not beyond
+your range.
+
 > 
+> > Given for mremap() it is not that easy because there is no "hint" argument
+> > without MREMAP_FIXED; but unless someone really needs it i would prefer
+> > to not propagate the hack. If it's really needed it's probably better
+> > to implement a start search hint for mremap()
+> 
+> It came up for user-mode Qemu for the case of emulating 32bit archs on
+> x86_64 using mmap.  At the moment it calls mmap with MAP_32BIT and then
 
-Hi, Andrew,
+That would limit the 32bit architectures to 2GB; but their real limit
+is 4GB. Losing half of the address space definitely would make users unhappy
+(e.g. at least normal Linux kernels wouldn't run at all) 
 
-I mostly agree with your decision. I am a little concerned however
-that as we develop and add more features (a.k.a better statistics/
-forced reclaim), which are very important; the code base gets larger,
-the review takes longer :)
+The reason it's only 2GB is that the flag was added to support the small
+code model of x86-64, which is limited to 2GB (31bit). Yes it's misnamed. 
+But it's not used for the 32bit compat code.
 
-I was hopeful of getting the bare minimal infrastructure for memory
-control in mainline, so that review is easy and additional changes
-can be well reviewed as well.
+> uses the returned address directly in the emulator.  Without MAP_32BIT
+> there's the possibility of having an address that would be too large to
+> pass to what a 32bit arch would expect.  Since the MAP_32BIT flag solves
+> the problem for mmap()
 
-Here are the pros and cons of merging the memory controller
+It doesn't really for that case
 
-Pros
-1. Smaller size, easy to review and merge
-2. Incremental development, makes it easier to maintain the
-   code
+> I was expecting something similar for mremap() -
+> unfortunately the MAP_32BIT feature is consistent throughout.
 
-Cons
-1. Needs more review like you said
-2. Although the UI is stable, it's a good chance to review
-   it once more before merging the code into mainline
+I guess you mean inconsistent. 
 
-Having said that, I'll continue testing the patches and make the
-solution more complete and usable.
+Does qemu actually need mremap() ?  It would surprise me because
+a lot of other OS don't implement it.
 
-
--- 
-	Warm Regards,
-	Balbir Singh
-	Linux Technology Center
-	IBM, ISTL
+-Andi
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
