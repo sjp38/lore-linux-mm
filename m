@@ -1,66 +1,94 @@
-Subject: Re: [PATCH] Inconsistent mmap()/mremap() flags
-From: Thayne Harbaugh <thayne@c2.net>
-Reply-To: thayne@c2.net
-In-Reply-To: <200710011313.30171.andi@firstfloor.org>
-References: <1190958393.5128.85.camel@phantasm.home.enterpriseandprosperity.com>
-	 <200710011313.30171.andi@firstfloor.org>
-Content-Type: text/plain
-Date: Mon, 01 Oct 2007 20:57:10 -0600
-Message-Id: <1191293830.5200.22.camel@phantasm.home.enterpriseandprosperity.com>
-Mime-Version: 1.0
+Received: from sd0109e.au.ibm.com (d23rh905.au.ibm.com [202.81.18.225])
+	by e23smtp05.au.ibm.com (8.13.1/8.13.1) with ESMTP id l924Lhpe018293
+	for <linux-mm@kvack.org>; Tue, 2 Oct 2007 14:21:43 +1000
+Received: from d23av01.au.ibm.com (d23av01.au.ibm.com [9.190.234.96])
+	by sd0109e.au.ibm.com (8.13.8/8.13.8/NCO v8.5) with ESMTP id l924PGeP252282
+	for <linux-mm@kvack.org>; Tue, 2 Oct 2007 14:25:16 +1000
+Received: from d23av01.au.ibm.com (loopback [127.0.0.1])
+	by d23av01.au.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l924InKI008553
+	for <linux-mm@kvack.org>; Tue, 2 Oct 2007 14:18:50 +1000
+Message-ID: <4701C737.8070906@linux.vnet.ibm.com>
+Date: Tue, 02 Oct 2007 09:51:11 +0530
+From: Balbir Singh <balbir@linux.vnet.ibm.com>
+Reply-To: balbir@linux.vnet.ibm.com
+MIME-Version: 1.0
+Subject: Memory controller merge (was Re: -mm merge plans for 2.6.24)
+References: <20071001142222.fcaa8d57.akpm@linux-foundation.org>
+In-Reply-To: <20071001142222.fcaa8d57.akpm@linux-foundation.org>
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andi Kleen <andi@firstfloor.org>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, discuss@x86-64.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-kernel@vger.kernel.org, Linux Memory Management List <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 2007-10-01 at 13:13 +0200, Andi Kleen wrote:
-> > @@ -388,6 +392,9 @@
-> >  			if (vma->vm_flags & VM_MAYSHARE)
-> >  				map_flags |= MAP_SHARED;
-> >  
-> > +			if (flags & MAP_32BIT)
-> > +				map_flags |= MAP_32BIT;
-> > +
-> >  			new_addr = get_unmapped_area(vma->vm_file, 0, new_len,
-> >  						vma->vm_pgoff, map_flags);
-> >  			ret = new_addr;
+Andrew Morton wrote:
+> memory-controller-add-documentation.patch
+> memory-controller-resource-counters-v7.patch
+> memory-controller-resource-counters-v7-fix.patch
+> memory-controller-containers-setup-v7.patch
+> memory-controller-accounting-setup-v7.patch
+> memory-controller-memory-accounting-v7.patch
+> memory-controller-memory-accounting-v7-fix.patch
+> memory-controller-memory-accounting-v7-fix-swapoff-breakage-however.patch
+> memory-controller-task-migration-v7.patch
+> memory-controller-add-per-container-lru-and-reclaim-v7.patch
+> memory-controller-add-per-container-lru-and-reclaim-v7-fix.patch
+> memory-controller-add-per-container-lru-and-reclaim-v7-fix-2.patch
+> memory-controller-add-per-container-lru-and-reclaim-v7-cleanup.patch
+> memory-controller-improve-user-interface.patch
+> memory-controller-oom-handling-v7.patch
+> memory-controller-oom-handling-v7-vs-oom-killer-stuff.patch
+> memory-controller-add-switch-to-control-what-type-of-pages-to-limit-v7.patch
+> memory-controller-add-switch-to-control-what-type-of-pages-to-limit-v7-cleanup.patch
+> memory-controller-add-switch-to-control-what-type-of-pages-to-limit-v7-fix-2.patch
+> memory-controller-make-page_referenced-container-aware-v7.patch
+> memory-controller-make-charging-gfp-mask-aware.patch
+> memory-controller-make-charging-gfp-mask-aware-fix.patch
+> memory-controller-bug_on.patch
+> mem-controller-gfp-mask-fix.patch
+> memcontrol-move-mm_cgroup-to-header-file.patch
+> memcontrol-move-oom-task-exclusion-to-tasklist.patch
+> memcontrol-move-oom-task-exclusion-to-tasklist-fix.patch
+> oom-add-sysctl-to-enable-task-memory-dump.patch
+> kswapd-should-only-wait-on-io-if-there-is-io.patch
 > 
-> That's not enough -- you would also need to fail the mremap when the result
-> is > 2GB (MAP_32BIT is actually a MAP_31BIT) 
-
-Yeah, after I sent the email I realized that it was a bit more involved.
-As far as the 32/31 bit, it just depends on the perspective.  I can see
-that 32 bits are needed to represent all possible return values from
-mmap() - possible address and error value of -1.  From that perspective
-I think that MAP_32BIT is appropriate.
-
-> But that would be ugly to implement without a new architecture wrapper
-> or better changing arch_get_unmapped_area()
+>   Hold.  This needs a serious going-over by page reclaim people.
 > 
-> It might be better to just not bother. MAP_32BIT is a kind of hack anyways
-> that at least for mmap can be easily emulated in user space anyways.
 
-Care to give me some hints as to how that would be easily emulated in
-user space?  That might be a better solution for the case I want to
-solve.
+Hi, Andrew,
 
-> Given for mremap() it is not that easy because there is no "hint" argument
-> without MREMAP_FIXED; but unless someone really needs it i would prefer
-> to not propagate the hack. If it's really needed it's probably better
-> to implement a start search hint for mremap()
+I mostly agree with your decision. I am a little concerned however
+that as we develop and add more features (a.k.a better statistics/
+forced reclaim), which are very important; the code base gets larger,
+the review takes longer :)
 
-It came up for user-mode Qemu for the case of emulating 32bit archs on
-x86_64 using mmap.  At the moment it calls mmap with MAP_32BIT and then
-uses the returned address directly in the emulator.  Without MAP_32BIT
-there's the possibility of having an address that would be too large to
-pass to what a 32bit arch would expect.  Since the MAP_32BIT flag solves
-the problem for mmap() I was expecting something similar for mremap() -
-unfortunately the MAP_32BIT feature is consistent throughout.
+I was hopeful of getting the bare minimal infrastructure for memory
+control in mainline, so that review is easy and additional changes
+can be well reviewed as well.
 
-Thoughts?
+Here are the pros and cons of merging the memory controller
 
+Pros
+1. Smaller size, easy to review and merge
+2. Incremental development, makes it easier to maintain the
+   code
+
+Cons
+1. Needs more review like you said
+2. Although the UI is stable, it's a good chance to review
+   it once more before merging the code into mainline
+
+Having said that, I'll continue testing the patches and make the
+solution more complete and usable.
+
+
+-- 
+	Warm Regards,
+	Balbir Singh
+	Linux Technology Center
+	IBM, ISTL
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
