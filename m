@@ -1,36 +1,37 @@
-Date: Tue, 2 Oct 2007 17:06:07 +0100 (BST)
+Date: Tue, 2 Oct 2007 17:21:53 +0100 (BST)
 From: Hugh Dickins <hugh@veritas.com>
-Subject: kswapd min order, slub max order [was Re: -mm merge plans for 2.6.24]
+Subject: new aops merge [was Re: -mm merge plans for 2.6.24]
 In-Reply-To: <20071001142222.fcaa8d57.akpm@linux-foundation.org>
-Message-ID: <Pine.LNX.4.64.0710021646420.4916@blonde.wat.veritas.com>
+Message-ID: <Pine.LNX.4.64.0710021706280.4916@blonde.wat.veritas.com>
 References: <20071001142222.fcaa8d57.akpm@linux-foundation.org>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Chritoph Lameter <clameter@sgi.com>, Mel Gorman <mel@csn.ul.ie>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Cc: Nick Piggin <npiggin@suse.de>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
 On Mon, 1 Oct 2007, Andrew Morton wrote:
-> #
-> # slub && antifrag
-> #
-> have-kswapd-keep-a-minimum-order-free-other-than-order-0.patch
-> only-check-absolute-watermarks-for-alloc_high-and-alloc_harder-allocations.patch
-> slub-exploit-page-mobility-to-increase-allocation-order.patch
-> slub-reduce-antifrag-max-order.patch
+> fs-introduce-write_begin-write_end-and-perform_write-aops.patch
+> introduce-write_begin-write_end-aops-important-fix.patch
+> introduce-write_begin-write_end-aops-fix2.patch
+> deny-partial-write-for-loop-dev-fd.patch
+> mm-restore-kernel_ds-optimisations.patch
+> implement-simple-fs-aops.patch
+> implement-simple-fs-aops-fix.patch
+> ...
+> fs-remove-some-aop_truncated_page.patch
 > 
->   I think this stuff is in the "mm stuff we don't want to merge" category. 
->   If so, I really should have dropped it ages ago.
+>   Merge
 
-I agree.  I spent a while last week bisecting down to see why my heavily
-swapping loads take 30%-60% longer with -mm than mainline, and it was
-here that they went bad.  Trying to keep higher orders free is costly.
-
-On the other hand, hasn't SLUB efficiency been built on the expectation
-that higher orders can be used?  And it would be a twisted shame for
-high performance to be held back by some idiot's swapping load.
+Good, fine by me; but forces me to confess, with abject shame,
+that I still haven't sent you some shmem/tmpfs fixes/cleanups
+(currently intermingled with some other stuff in my tree, I'm
+still disentangling).  Nothing so bad as to mess up a bisection,
+but my loop-over-tmpfs tests hang without passing gfp_mask down
+and down to add_to_swap_cache; and a few other bits.  I'll get
+back on to it.
 
 Hugh
 
