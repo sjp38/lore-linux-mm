@@ -1,57 +1,111 @@
-Subject: Re: [PATCH] Inconsistent mmap()/mremap() flags
-From: Thayne Harbaugh <thayne@c2.net>
-Reply-To: thayne@c2.net
-In-Reply-To: <20071002051526.GA29615@one.firstfloor.org>
-References: <1190958393.5128.85.camel@phantasm.home.enterpriseandprosperity.com>
-	 <200710011313.30171.andi@firstfloor.org>
-	 <1191293830.5200.22.camel@phantasm.home.enterpriseandprosperity.com>
-	 <20071002051526.GA29615@one.firstfloor.org>
-Content-Type: text/plain
-Date: Tue, 02 Oct 2007 01:06:12 -0600
-Message-Id: <1191308772.5200.66.camel@phantasm.home.enterpriseandprosperity.com>
+Date: Tue, 2 Oct 2007 18:30:31 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: [BUGFIX][RFC][PATCH][only -mm] FIX memory leak in memory cgroup vs.
+ page migration [0/1]
+Message-Id: <20071002183031.3352be6a.kamezawa.hiroyu@jp.fujitsu.com>
 Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andi Kleen <andi@firstfloor.org>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, discuss@x86-64.org
+To: "linux-mm@kvack.org" <linux-mm@kvack.org>
+Cc: balbir@linux.vnet.ibm.com, "containers@lists.osdl.org" <containers@lists.osdl.org>, Christoph Lameter <clameter@sgi.com>, "kamezawa.hiroyu@jp.fujitsu.com" <kamezawa.hiroyu@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 2007-10-02 at 07:15 +0200, Andi Kleen wrote:
-> On Mon, Oct 01, 2007 at 08:57:10PM -0600, Thayne Harbaugh wrote:
+Current implementation of memory cgroup controller does following in migration.
 
-> For mmap you can emulate it by passing a low hint != 0 (e.g. getpagesize()) 
-> in address but without MAP_FIXED and checking if the result is not beyond
-> your range.
+1. uncharge when unmapped.
+2. charge again when remapped.
 
-Cool.  That's a much better solution for multiple reasons - like you
-mention, MAP_32BIT is only 2GB as well as it's only available on x86_64.
+Consider migrate a page from OLD to NEW.
 
-> > > Given for mremap() it is not that easy because there is no "hint" argument
-> > > without MREMAP_FIXED; but unless someone really needs it i would prefer
-> > > to not propagate the hack. If it's really needed it's probably better
-> > > to implement a start search hint for mremap()
-> > 
-> > It came up for user-mode Qemu for the case of emulating 32bit archs on
-> > x86_64 using mmap.  At the moment it calls mmap with MAP_32BIT and then
-> 
-> That would limit the 32bit architectures to 2GB; but their real limit
-> is 4GB. Losing half of the address space definitely would make users unhappy
-> (e.g. at least normal Linux kernels wouldn't run at all) 
+In following case, memory (for page_cgroup) will leak.
 
-Keeping a kernel happy isn't necessary since it's user-space emulation
-rather than full emulation.  It is, however, useful to have 4GB rather
-than 2GB.
+1. charge OLD page as page-cache. (charge = 1
+2. A process mmap OLD page. (chage + 1 = 2)
+3. A process migrates it.
+   try_to_unmap(OLD) (charge - 1 = 1)
+   replace OLD with NEW
+   remove_migration_pte(NEW) (New is newly charged.)
+   discard OLD page. (page_cgroup for OLD page is not reclaimed.)
 
-> Does qemu actually need mremap() ?  It would surprise me because
-> a lot of other OS don't implement it.
+patch is in the next mail.
 
-Qemu has two modes: full hardware emulation and user-mode emulation.
-User-mode emulation translates the user-mode code and then remaps the
-system calls directly into the native kernel (that way all the kernel
-and all the I/O runs natively and faster).  As far as mremap(), I'm
-trying to get a 32bit arm mremap() emulated syscall mapped onto a 64bit
-x86_64 mremap().
+Test Log on 2.6.18-rc8-mm2.
+==
+# mount cgroup and create group_A group_B
+[root@drpq kamezawa]# mount -t cgroup none /opt/mem_control/ -o memory
+[root@drpq kamezawa]# mkdir /opt/mem_control/group_A/
+[root@drpq kamezawa]# mkdir /opt/mem_control/group_B/
+[root@drpq kamezawa]# bash
+[root@drpq kamezawa]# echo $$ > /opt/mem_control/group_A/tasks
+[root@drpq kamezawa]# cat /opt/mem_control/group_A/memory.usage_in_bytes
+475136
+[root@drpq kamezawa]# grep size-64 /proc/slabinfo
+size-64(DMA)           0      0     64  240    1 : tunables  120   60    8 : slabdata      0      0      0
+size-64            30425  30960     64  240    1 : tunables  120   60    8 : slabdata    129    129     12
+
+# charge file cache 512Mfile to groupA
+[root@drpq kamezawa]# cat 512Mfile > /dev/null
+[root@drpq kamezawa]# cat /opt/mem_control/group_A/memory.usage_in_bytes
+539525120
+
+# for test, try drop_caches. drop_cache works well and chage decreased.
+[root@drpq kamezawa]# echo 3 > /proc/sys/vm/drop_caches
+[root@drpq kamezawa]# cat /opt/mem_control/group_A/memory.usage_in_bytes
+983040
+
+# chage file cache 512Mfile again.
+[root@drpq kamezawa]# taskset 01 cat 512Mfile > /dev/null
+[root@drpq kamezawa]# exit
+exit
+[root@drpq kamezawa]# cat /opt/mem_control/group_?/memory.usage_in_bytes
+539738112
+0
+[root@drpq kamezawa]# bash
+#enter group B
+[root@drpq kamezawa]# echo $$ > /opt/mem_control/group_B/tasks
+[root@drpq kamezawa]# cat /opt/mem_control/group_?/memory.usage_in_bytes
+539738112
+557056
+[root@drpq kamezawa]#  grep size-64 /proc/slabinfo
+size-64(DMA)           0      0     64  240    1 : tunables  120   60    8 : slabdata      0      0      0
+size-64            48263  59760     64  240    1 : tunables  120   60    8 : slabdata    249    249     12
+# migrate_test mmaps 512Mfile and call system call move_pages(). and sleep.
+[root@drpq kamezawa]# ./migrate_test 512Mfile 1 &
+[1] 4108
+#At the end of migration,
+[root@drpq kamezawa]# cat /opt/mem_control/group_?/memory.usage_in_bytes
+539738112
+537706496
+
+#Wow, charge is twice ;)
+[root@drpq kamezawa]#  grep size-64 /proc/slabinfo
+size-64(DMA)           0      0     64  240    1 : tunables  120   60    8 : slabdata      0      0      0
+size-64            81180  92400     64  240    1 : tunables  120   60    8 : slabdata    385    385     12
+
+#Kill migrate_test, because 512Mfile is unmapped, charge in group_B is dropped.
+[root@drpq kamezawa]# kill %1
+[root@drpq kamezawa]# cat /opt/mem_control/group_?/memory.usage_in_bytes
+536936448
+1458176
+[1]+  Terminated              ./migrate_test 512Mfile 1
+
+#Try drop caches again
+[root@drpq kamezawa]# echo 3 > /proc/sys/vm/drop_caches
+[root@drpq kamezawa]# cat /opt/mem_control/group_?/memory.usage_in_bytes
+536920064
+1097728
+#no change because charge in group_A is leaked.....
+
+[root@drpq kamezawa]#  grep size-64 /proc/slabinfo
+size-64(DMA)           0      0     64  240    1 : tunables  120   60    8 : slabdata      0      0      0
+size-64            48137  60720     64  240    1 : tunables  120   60    8 : slabdata    253    253    210
+[root@drpq kamezawa]#
+
+==
+
+-Kame
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
