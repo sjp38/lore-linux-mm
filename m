@@ -1,49 +1,33 @@
-From: Nick Piggin <nickpiggin@yahoo.com.au>
-Subject: Re: kswapd min order, slub max order [was Re: -mm merge plans for 2.6.24]
-Date: Tue, 2 Oct 2007 19:10:58 +1000
-References: <20071001142222.fcaa8d57.akpm@linux-foundation.org> <Pine.LNX.4.64.0710021646420.4916@blonde.wat.veritas.com>
-In-Reply-To: <Pine.LNX.4.64.0710021646420.4916@blonde.wat.veritas.com>
+Date: Tue, 2 Oct 2007 19:52:42 -0600
+From: Matthew Wilcox <matthew@wil.cx>
+Subject: Re: [Question] How to represent SYSTEM_RAM in kerenel/resouce.c
+Message-ID: <20071003015242.GC12049@parisc-linux.org>
+References: <20071003103136.addbe839.kamezawa.hiroyu@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain;
-  charset="iso-8859-1"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-Message-Id: <200710021910.58983.nickpiggin@yahoo.com.au>
+In-Reply-To: <20071003103136.addbe839.kamezawa.hiroyu@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Hugh Dickins <hugh@veritas.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Chritoph Lameter <clameter@sgi.com>, Mel Gorman <mel@csn.ul.ie>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: LKML <linux-kernel@vger.kernel.org>, andi@firstfloor.org, "linux-mm@kvack.org" <linux-mm@kvack.org>, "tony.luck@intel.com" <tony.luck@intel.com>, Andrew Morton <akpm@linux-foundation.org>, pbadari@us.ibm.com, "linux-ia64@vger.kernel.org" <linux-ia64@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-On Wednesday 03 October 2007 02:06, Hugh Dickins wrote:
-> On Mon, 1 Oct 2007, Andrew Morton wrote:
-> > #
-> > # slub && antifrag
-> > #
-> > have-kswapd-keep-a-minimum-order-free-other-than-order-0.patch
-> > only-check-absolute-watermarks-for-alloc_high-and-alloc_harder-allocation
-> >s.patch slub-exploit-page-mobility-to-increase-allocation-order.patch
-> > slub-reduce-antifrag-max-order.patch
-> >
-> >   I think this stuff is in the "mm stuff we don't want to merge"
-> > category. If so, I really should have dropped it ages ago.
->
-> I agree.  I spent a while last week bisecting down to see why my heavily
-> swapping loads take 30%-60% longer with -mm than mainline, and it was
-> here that they went bad.  Trying to keep higher orders free is costly.
+On Wed, Oct 03, 2007 at 10:31:36AM +0900, KAMEZAWA Hiroyuki wrote:
+> i386 and x86_64 registers System RAM as IORESOUCE_MEM | IORESOUCE_BUSY.
+> ia64 registers System RAM as IORESOURCE_MEM.
+> 
+> Which is better ?
 
-Yeah, no there's no way we'd merge that.
+Should probably be BUSY.  Non-BUSY regions can have io resources
+requested underneath them, but you wouldn't want a PCI device to be
+assigned an address which overlaps with physical memory.
 
-
-> On the other hand, hasn't SLUB efficiency been built on the expectation
-> that higher orders can be used?  And it would be a twisted shame for
-> high performance to be held back by some idiot's swapping load.
-
-IMO it's a bad idea to create all these dependencies like this.
-
-If SLUB can get _more_ performance out of using higher order allocations,
-then fine. If it is starting off at a disadvantage at the same order, then it
-that should be fixed first, right?
+-- 
+Intel are signing my paycheques ... these opinions are still mine
+"Bill, look, we understand that you're interested in selling us this
+operating system, but compare it to ours.  We can't possibly take such
+a retrograde step."
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
