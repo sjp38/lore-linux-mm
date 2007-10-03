@@ -1,103 +1,56 @@
-Date: Wed, 3 Oct 2007 09:53:16 +0900
+Date: Wed, 3 Oct 2007 10:07:03 +0900
 From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [BUGFIX][RFC][PATCH][only -mm] FIX memory leak in memory cgroup
- vs. page migration [1/1] fix page migration under memory contoller
-Message-Id: <20071003095316.4fff115e.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <47026510.2000708@linux.vnet.ibm.com>
-References: <20071002183031.3352be6a.kamezawa.hiroyu@jp.fujitsu.com>
-	<20071002183306.0c132ff4.kamezawa.hiroyu@jp.fujitsu.com>
-	<47026510.2000708@linux.vnet.ibm.com>
+Subject: Re: Hotplug memory remove
+Message-Id: <20071003100703.102033c3.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <1191345455.6106.10.camel@dyn9047017100.beaverton.ibm.com>
+References: <1191253063.29581.7.camel@dyn9047017100.beaverton.ibm.com>
+	<20071002011447.7ec1f513.kamezawa.hiroyu@jp.fujitsu.com>
+	<1191260987.29581.14.camel@dyn9047017100.beaverton.ibm.com>
+	<20071002095257.5b6e2e4c.kamezawa.hiroyu@jp.fujitsu.com>
+	<1191345455.6106.10.camel@dyn9047017100.beaverton.ibm.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: balbir@linux.vnet.ibm.com
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "containers@lists.osdl.org" <containers@lists.osdl.org>, Christoph Lameter <clameter@sgi.com>
+To: Badari Pulavarty <pbadari@gmail.com>
+Cc: linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 02 Oct 2007 21:04:40 +0530
-Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
+On Tue, 02 Oct 2007 10:17:34 -0700
+Badari Pulavarty <pbadari@gmail.com> wrote:
 
-> KAMEZAWA Hiroyuki wrote:
-> > While using memory control cgroup, page-migration under it works as following.
-> > ==
-> >  1. uncharge all refs at try to unmap.
-> >  2. charge regs again remove_migration_ptes()
-> > ==
-> > This is simple but has following problems.
-> > ==
-> >  The page is uncharged and chaged back again if *mapped*.
-> >     - This means that cgroup before migraion can be different from one after
-> >       migraion
+> Kame,
 > 
-> >From the test case mentioned earlier, this happens because the task has
-> moved from one cgroup to another, right?
-Ah, yes.
+> With little bit of hacking /proc/iomem on ppc64, I got hotplug memory
+> remove working. I didn't have to spend lot of time debugging the
+> infrastructure you added. Good work !!
+> 
+I'm very glad to hear that. Thanks!
 
+> Only complaint I have is, the use of /proc/iomem for verification.
+> I see few issues.
+> 
+> 1) On X86-64, /proc/iomem contains all the memory regions, but they
+> are all marked IORESOURCE_BUSY. So looking for IORESOURCE_MEM wouldn't
+> work and always fails. Is any one working on x86-64 ? 
+> 
+no one works on x86-64. But I should ask to x86-64 peaple "Why IORESOURCE_BUSY?"
+Thank you for pointing out.
 
-> > And migration can migrate *not mapped* pages in future by migration-by-kernel
-> > driven by memory-unplug and defragment-by-migration at el.
-> > 
-> > This patch tries to keep memory cgroup at page migration by increasing
-> > one refcnt during it. 3 functions are added.
-> >  mem_cgroup_prepare_migration() --- increase refcnt of page->page_cgroup
-> >  mem_cgroup_end_migration()     --- decrease refcnt of page->page_cgroup
-> >  mem_cgroup_page_migration() --- copy page->page_cgroup from old page to
-> >                                  new page.
-> > 
-> > Obviously, mem_cgroup_isolate_pages() and this page migration, which
-> > copies page_cgroup from old page to new page, has race.
-> > 
-> > There seem to be  3 ways for avoiding this race.
-> >  A. take mem_group->lock while mem_cgroup_page_migration().
-> >  B. isolate pc from mem_cgroup's LRU when we isolate page from zone's LRU.
-> >  C. ignore non-LRU page at mem_cgroup_isolate_pages(). 
-> > 
-> > This patch uses method (C.) and modifes mem_cgroup_isolate_pages() igonres
-> > !PageLRU pages.
-> > 
+> 2) On ppc64, /proc/iomem shows only io-mapped-memory regions. So I
+> had to hack it to add all the memory information. I am going to ask
+> on ppc64 mailing list on how to do it sanely, but I am afraid that
+> they are going to say "all the information is available in the kernel
+> data (lmb) structures, parse them - rather than exporting it
+> to /proc/iomem". 
 > 
-> The page(s) is(are) !PageLRU only during page migration right?
+> We may have to have arch-specific hooks to verify a memory region :(
+> What do you think ?
 > 
-Hmm...!PageLRU() means that page is not on LRU.
-Then, kswapd can remove a page from LRU.
-
-> > -		if (page_zone(page) != z)
-> > +		if (page_zone(page) != z || !PageLRU(page)) {
-> 
-> I would prefer to do unlikely(!PageLRU(page)), since most of the
-> times the page is not under migration
-> 
-I see.
-
-> > +			/* Skip this */
-> > +			/* Don't decrease scan here for avoiding dead lock */
-> 
-> Could we merge the two comments to one block comment?
-> 
-will do
-
-> >  			continue;
-> > +		}
-> > 
-> >  		/*
-> >  		 * Check if the meta page went away from under us
-> > @@ -417,8 +424,14 @@ void mem_cgroup_uncharge(struct page_cgr
-> >  		return;
-> > 
-> >  	if (atomic_dec_and_test(&pc->ref_cnt)) {
-> > +retry:
-> >  		page = pc->page;
-> >  		lock_page_cgroup(page);
-> > +		/* migration occur ? */
-> > +		if (page_get_page_cgroup(page) != pc) {
-> > +			unlock_page_cgroup(page);
-> > +			goto retry;
-> 
-> Shouldn't we check if page_get_page_cgroup(page) returns
-> NULL, if so, unlock and return?
-Hmm, I think page_get_page_cgroup(page) != pc covers it. pc is not NULL.
+I think using IORESOURCE_MEM is better.
+It is implemtend regardless of memory hotplug. I just reused it.
+(I think x86's resouce struct is extened to 64bit for supporting memory info.)
 
 Thanks,
 -Kame
