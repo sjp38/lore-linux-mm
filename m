@@ -1,81 +1,47 @@
-Received: from d01relay04.pok.ibm.com (d01relay04.pok.ibm.com [9.56.227.236])
-	by e6.ny.us.ibm.com (8.13.8/8.13.8) with ESMTP id l93FnhLK032092
-	for <linux-mm@kvack.org>; Wed, 3 Oct 2007 11:49:43 -0400
-Received: from d01av03.pok.ibm.com (d01av03.pok.ibm.com [9.56.224.217])
-	by d01relay04.pok.ibm.com (8.13.8/8.13.8/NCO v8.5) with ESMTP id l93FmDid567020
-	for <linux-mm@kvack.org>; Wed, 3 Oct 2007 11:48:13 -0400
-Received: from d01av03.pok.ibm.com (loopback [127.0.0.1])
-	by d01av03.pok.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l93Fm3iU025742
-	for <linux-mm@kvack.org>; Wed, 3 Oct 2007 11:48:03 -0400
-From: Adam Litke <agl@us.ibm.com>
-Subject: [PATCH] hugetlb: Fix pool resizing corner case
-Date: Wed, 03 Oct 2007 08:47:48 -0700
-Message-Id: <20071003154748.19516.90317.stgit@kernel>
-Content-Type: text/plain; charset=utf-8; format=fixed
-Content-Transfer-Encoding: 8bit
+Date: Thu, 4 Oct 2007 01:25:47 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [RFC] PPC64 Exporting memory information through /proc/iomem
+Message-Id: <20071004012547.42c457b7.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <1191425735.6106.76.camel@dyn9047017100.beaverton.ibm.com>
+References: <1191346196.6106.20.camel@dyn9047017100.beaverton.ibm.com>
+	<18178.52359.953289.638736@cargo.ozlabs.ibm.com>
+	<1191366653.6106.68.camel@dyn9047017100.beaverton.ibm.com>
+	<20071003101954.52308f22.kamezawa.hiroyu@jp.fujitsu.com>
+	<1191425735.6106.76.camel@dyn9047017100.beaverton.ibm.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Adam Litke <agl@us.ibm.com>
+To: Badari Pulavarty <pbadari@us.ibm.com>
+Cc: paulus@samba.org, linuxppc-dev@ozlabs.org, linux-mm@kvack.org, anton@au1.ibm.com
 List-ID: <linux-mm.kvack.org>
 
-When shrinking the size of the hugetlb pool via the nr_hugepages sysctl, we
-are careful to keep enough pages around to satisfy reservations.  But the
-calculation is flawed for the following scenario:
+On Wed, 03 Oct 2007 08:35:35 -0700
+Badari Pulavarty <pbadari@us.ibm.com> wrote:
 
-Action                          Pool Counters (Total, Free, Resv)
-======                          =============
-Set pool to 1 page              1 1 0
-Map 1 page MAP_PRIVATE          1 1 0
-Touch the page to fault it in   1 0 0
-Set pool to 3 pages             3 2 0
-Map 2 pages MAP_SHARED          3 2 2
-Set pool to 2 pages             2 1 2 <-- Mistake, should be 3 2 2
-Touch the 2 shared pages        2 0 1 <-- Program crashes here
+> On Wed, 2007-10-03 at 10:19 +0900, KAMEZAWA Hiroyuki wrote:
+> CONFIG_ARCH_HAS_VALID_MEMORY_RANGE. Then define own
+> find_next_system_ram() (rename to is_valid_memory_range()) - which
+> checks the given range is a valid memory range for memory-remove
+> or not. What do you think ?
+> 
+My concern is...
+Now, memory hot *add* makes use of resource(/proc/iomem) information for onlining
+memory.(See add_memory()->register_memory_resource() in mm/memoryhotplug.c)
+So, we'll have to consider changing it if we need.
 
-The last touch above will terminate the process due to lack of huge pages.
+Does PPC64 memory hot add registers new memory information to arch dependent
+information list ? It seems ppc64 registers hot-added memory information from
+*probe* file and registers it by add_memory()->register_memory_resource().
 
-This patch corrects the calculation so that it factors in pages being used
-for private mappings.  Andrew, this is a standalone fix suitable for
-mainline.  It is also now corrected in my latest dynamic pool resizing
-patchset which I will send out soon.
+If you add all add/remove/walk system ram information in sane way, I have no
+objection.
 
-Signed-off-by: Adam Litke <agl@us.ibm.com>
----
+I like find_next_system_ram() because I used some amount of time to debug it ;)
 
- mm/hugetlb.c |    6 +++---
- 1 files changed, 3 insertions(+), 3 deletions(-)
-
-diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-index 84c795e..7af3908 100644
---- a/mm/hugetlb.c
-+++ b/mm/hugetlb.c
-@@ -224,14 +224,14 @@ static void try_to_free_low(unsigned long count)
- 	for (i = 0; i < MAX_NUMNODES; ++i) {
- 		struct page *page, *next;
- 		list_for_each_entry_safe(page, next, &hugepage_freelists[i], lru) {
-+			if (count >= nr_huge_pages)
-+				return;
- 			if (PageHighMem(page))
- 				continue;
- 			list_del(&page->lru);
- 			update_and_free_page(page);
- 			free_huge_pages--;
- 			free_huge_pages_node[page_to_nid(page)]--;
--			if (count >= nr_huge_pages)
--				return;
- 		}
- 	}
- }
-@@ -251,7 +251,7 @@ static unsigned long set_max_huge_pages(unsigned long count)
- 		return nr_huge_pages;
- 
- 	spin_lock(&hugetlb_lock);
--	count = max(count, resv_huge_pages);
-+	count = max(count, resv_huge_pages + nr_huge_pages - free_huge_pages);
- 	try_to_free_low(count);
- 	while (count < nr_huge_pages) {
- 		struct page *page = dequeue_huge_page(NULL, 0);
+Thanks,
+-Kame
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
