@@ -1,159 +1,79 @@
-Date: Tue, 2 Oct 2007 17:37:34 -0700 (PDT)
-From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: kswapd min order, slub max order [was Re: -mm merge plans for
- 2.6.24]
-In-Reply-To: <Pine.LNX.4.64.0710021120220.30615@schroedinger.engr.sgi.com>
-Message-ID: <Pine.LNX.4.64.0710021732520.32678@schroedinger.engr.sgi.com>
-References: <20071001142222.fcaa8d57.akpm@linux-foundation.org>
- <Pine.LNX.4.64.0710021646420.4916@blonde.wat.veritas.com>
- <1191350333.2708.6.camel@localhost> <Pine.LNX.4.64.0710021120220.30615@schroedinger.engr.sgi.com>
+Message-ID: <4702E49D.2030206@google.com>
+Date: Tue, 02 Oct 2007 17:38:53 -0700
+From: Ethan Solomita <solo@google.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: [PATCH 3/6] cpuset write throttle
+References: <469D3342.3080405@google.com>	<46E741B1.4030100@google.com>	<46E7434F.9040506@google.com> <20070914161517.5ea3847f.akpm@linux-foundation.org>
+In-Reply-To: <20070914161517.5ea3847f.akpm@linux-foundation.org>
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: Hugh Dickins <hugh@veritas.com>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Christoph Lameter <clameter@sgi.com>, a.p.zijlstra@chello.nl, linux-mm@kvack.org
+Cc: Andrew Morton <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 2 Oct 2007, Christoph Lameter wrote:
+Andrew Morton wrote:
+> On Tue, 11 Sep 2007 18:39:27 -0700
+> Ethan Solomita <solo@google.com> wrote:
+> 
+>> Make page writeback obey cpuset constraints
+> 
+> akpm:/usr/src/25> pushpatch 
+> patching file mm/page-writeback.c
+> Hunk #1 FAILED at 103.
+> Hunk #2 FAILED at 129.
+> Hunk #3 FAILED at 166.
+> Hunk #4 FAILED at 252.
+> Hunk #5 FAILED at 267.
+> Hunk #6 FAILED at 282.
+> Hunk #7 FAILED at 301.
+> Hunk #8 FAILED at 313.
+> Hunk #9 FAILED at 329.
+> Hunk #10 succeeded at 563 (offset 175 lines).
+> Hunk #11 FAILED at 575.
+> Hunk #12 FAILED at 607.
+> 11 out of 12 hunks FAILED -- saving rejects to file mm/page-writeback.c.rej
+> Failed to apply cpuset-write-throttle
+> 
+> :(
+> 
+> 
+> Huge number of rejects against Peter's stuff.  Please redo for next -mm.
 
-> The maximum order of allocation used by SLUB may have to depend on the 
-> number of page structs in the system since small systems (128M was the 
-> case that Peter found) can easier get into trouble. SLAB has similar 
-> measures to avoid order 1 allocations for small systems below 32M.
+	I've been looking at how to merge my cpuset write throttling changes
+with Peter's per-BDI write throttling changes that have just been taken
+by akpm. (Quick simplifying summary: my proposed patchset will only
+throttle a process based upon dirty pages in the nodes to which the
+process has access, as limited by cpuset's mems_allowed, thus protecting
+one cpuset from the dirtying tendencies of other cpusets)
 
-A patch like this? This is based on the number of page structs on the 
-system. Maybe it needs to be based on the number of MAX_ORDER blocks
-for antifrag?
+	This is essential if cpusets are to isolate tasks from each other, so
+we need to find a way to make it work with per-BDI. Theoretically we
+could track of the per-BDI information within per-node structures
+instead of globally, but that could lead to a scary increase in code
+complexity and CPU time spent in get_dirty_limits. We don't want the
+disk to finish flushing all its pages to disk before we calculate the
+dirty limit. 8)
 
+	We could keep my changes and Peter's changes completely independent
+calculations, and make it an "or", i.e. the caller of get_dirty_limits
+will decide to throttle if either the per-BDI stats signal a throttling
+or if the per-cpuset stats signal a throttling.
 
-SLUB: Determine slub_max_order depending on the number of pages available
+	Unfortunately this eliminates one of the main reasons for the
+per-cpuset throttling. If one cpuset is responsible for pushing one
+disk/BDI to its dirty limit, someone in another cpuset can get throttled.
 
-Determine the maximum order to be used for slabs and the mininum
-desired number of objects in a slab from the amount of pages that
-a system has available (like SLAB does for the order 1/0 distinction).
+	If we used "and" instead of "or", i.e. the caller is only throttled if
+get_dirty_limits would throttle because of both per-BDI stats and
+per-cpuset stats we make my cpusets case happy, but in the above
+scenario the other cpuset can continue to dirty an overly-dirtied BDI
+until they hit their own cpuset limits.
 
-For systems with less than 128M only use order 0 allocations (SLAB does 
-that for <32M only). The order 0 config is useful for small systems to 
-minimize the memory used. Memory easily fragments since we have less than 
-32k pages to play with. Order 0 insures that higher order allocations are 
-minimized (Larger orders must still be used for objects that do not fit 
-into order 0 pages).
-
-Then step up to order 1 for systems < 256000 pages (1G)
-
-Order 2 limit to systems < 1000000 page structs (4G)
-
-Order 3 for systems larger than that.
-
-Signed-off-by: Christoph Lameter <clameter@sgi.com>
-
----
- mm/slub.c |   49 +++++++++++++++++++++++++------------------------
- 1 file changed, 25 insertions(+), 24 deletions(-)
-
-Index: linux-2.6/mm/slub.c
-===================================================================
---- linux-2.6.orig/mm/slub.c	2007-10-02 09:26:16.000000000 -0700
-+++ linux-2.6/mm/slub.c	2007-10-02 16:40:22.000000000 -0700
-@@ -153,25 +153,6 @@ static inline void ClearSlabDebug(struct
- /* Enable to test recovery from slab corruption on boot */
- #undef SLUB_RESILIENCY_TEST
- 
--#if PAGE_SHIFT <= 12
--
--/*
-- * Small page size. Make sure that we do not fragment memory
-- */
--#define DEFAULT_MAX_ORDER 1
--#define DEFAULT_MIN_OBJECTS 4
--
--#else
--
--/*
-- * Large page machines are customarily able to handle larger
-- * page orders.
-- */
--#define DEFAULT_MAX_ORDER 2
--#define DEFAULT_MIN_OBJECTS 8
--
--#endif
--
- /*
-  * Mininum number of partial slabs. These will be left on the partial
-  * lists even if they are empty. kmem_cache_shrink may reclaim them.
-@@ -1718,8 +1699,9 @@ static struct page *get_object_page(cons
-  * take the list_lock.
-  */
- static int slub_min_order;
--static int slub_max_order = DEFAULT_MAX_ORDER;
--static int slub_min_objects = DEFAULT_MIN_OBJECTS;
-+static int slub_max_order;
-+static int slub_min_objects = 4;
-+static int manual;
- 
- /*
-  * Merge control. If this is set then no merging of slab caches will occur.
-@@ -2237,7 +2219,7 @@ static struct kmem_cache *kmalloc_caches
- static int __init setup_slub_min_order(char *str)
- {
- 	get_option (&str, &slub_min_order);
--
-+	manual = 1;
- 	return 1;
- }
- 
-@@ -2246,7 +2228,7 @@ __setup("slub_min_order=", setup_slub_mi
- static int __init setup_slub_max_order(char *str)
- {
- 	get_option (&str, &slub_max_order);
--
-+	manual = 1;
- 	return 1;
- }
- 
-@@ -2255,7 +2237,7 @@ __setup("slub_max_order=", setup_slub_ma
- static int __init setup_slub_min_objects(char *str)
- {
- 	get_option (&str, &slub_min_objects);
--
-+	manual = 1;
- 	return 1;
- }
- 
-@@ -2566,6 +2548,16 @@ int kmem_cache_shrink(struct kmem_cache 
- }
- EXPORT_SYMBOL(kmem_cache_shrink);
- 
-+/*
-+ * Table to autotune the maximum slab order based on the number of pages
-+ * that the system has available.
-+ */
-+static unsigned long __initdata phys_pages_for_order[PAGE_ALLOC_COSTLY_ORDER] = {
-+	32768,		/* >128M if using 4K pages, >512M (16k), >2G (64k) */
-+	256000,		/* >1G if using 4k pages, >4G (16k), >16G (64k) */
-+	1000000		/* >4G if using 4k pages, >16G (16k), >64G (64k) */
-+};
-+
- /********************************************************************
-  *			Basic setup of slabs
-  *******************************************************************/
-@@ -2575,6 +2567,15 @@ void __init kmem_cache_init(void)
- 	int i;
- 	int caches = 0;
- 
-+	if (!manual) {
-+		/* No manual parameters. Autotune for system */
-+		for (i = 0; i < PAGE_ALLOC_COSTLY_ORDER; i++)
-+			if (num_physpages > phys_pages_for_order[i]) {
-+				slub_max_order++;
-+				slub_min_objects <<= 1;
-+			}
-+	}
-+
- #ifdef CONFIG_NUMA
- 	/*
- 	 * Must first have the slab cache available for the allocations of the
+	I'm hoping to get some input from Christoph, Peter, and anyone else who
+can think of a good way to bring this all together.
+	-- Ethan
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
