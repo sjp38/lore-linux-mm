@@ -1,30 +1,40 @@
-Date: Tue, 2 Oct 2007 16:39:48 -0700 (PDT)
-From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [PATCH 2/4] hugetlb: fix pool allocation with empty nodes
-In-Reply-To: <20071002224719.GB13137@us.ibm.com>
-Message-ID: <Pine.LNX.4.64.0710021639120.32409@schroedinger.engr.sgi.com>
-References: <20070906182134.GA7779@us.ibm.com> <20070906182430.GB7779@us.ibm.com>
- <Pine.LNX.4.64.0709141152250.17038@schroedinger.engr.sgi.com>
- <20071002224719.GB13137@us.ibm.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Date: Wed, 3 Oct 2007 09:29:09 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [BUGFIX][RFC][PATCH][only -mm] FIX memory leak in memory cgroup
+ vs. page migration [2/1] additional patch for migrate page/memory cgroup
+Message-Id: <20071003092909.4ec588fe.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <4702657B.9060501@linux.vnet.ibm.com>
+References: <20071002183031.3352be6a.kamezawa.hiroyu@jp.fujitsu.com>
+	<20071002183306.0c132ff4.kamezawa.hiroyu@jp.fujitsu.com>
+	<20071002191217.61b4cf77.kamezawa.hiroyu@jp.fujitsu.com>
+	<4702657B.9060501@linux.vnet.ibm.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nishanth Aravamudan <nacc@us.ibm.com>
-Cc: anton@samba.org, wli@holomorphy.com, agl@us.ibm.com, lee.schermerhorn@hp.com, linux-mm@kvack.org
+To: balbir@linux.vnet.ibm.com
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "containers@lists.osdl.org" <containers@lists.osdl.org>, Christoph Lameter <clameter@sgi.com>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 2 Oct 2007, Nishanth Aravamudan wrote:
+On Tue, 02 Oct 2007 21:06:27 +0530
+Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
 
-> A node has its bit in N_HIGH_MEMORY set if it has any memory regardless
-> of t type of memory.  If a node has memory then it has at least one zone
-> defined in its pgdat structure that is located in the pgdat itself.
+> KAMEZAWA Hiroyuki wrote:
+> > The patch I sent needs following fix, sorry.
+> > Anyway, I'll repost good-version with reflected comments again.
+> > 
+> > Thanks,
+> >  -Kame
 > 
-> And, indeed, if CONFIG_HIGHMEM is off, N_HIGH_MEMORY == N_NORMAL_MEMORY.
+> Just saw this now, I'll apply both the fixes, but it would be helpful
+> if you could post, one combined patch.
 > 
-> So I think I'm ok?
+Yes, I'll post refleshed easy-to-review version again. 
+I'm now planing to post a patch against next -mm.
 
-Yes that reasoning sounds sane.
+Thanks,
+-Kame 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
