@@ -1,52 +1,68 @@
-Date: Wed, 3 Oct 2007 08:21:51 -0700 (PDT)
-From: Linus Torvalds <torvalds@linux-foundation.org>
-Subject: Re: remove zero_page (was Re: -mm merge plans for 2.6.24)
-In-Reply-To: <200710030345.10026.nickpiggin@yahoo.com.au>
-Message-ID: <alpine.LFD.0.999.0710030813090.3579@woody.linux-foundation.org>
-References: <20071001142222.fcaa8d57.akpm@linux-foundation.org>
- <200710030345.10026.nickpiggin@yahoo.com.au>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=us-ascii
+Received: from d03relay02.boulder.ibm.com (d03relay02.boulder.ibm.com [9.17.195.227])
+	by e32.co.us.ibm.com (8.12.11.20060308/8.13.8) with ESMTP id l93EOYfS010425
+	for <linux-mm@kvack.org>; Wed, 3 Oct 2007 10:24:34 -0400
+Received: from d03av03.boulder.ibm.com (d03av03.boulder.ibm.com [9.17.195.169])
+	by d03relay02.boulder.ibm.com (8.13.8/8.13.8/NCO v8.5) with ESMTP id l93FWupT474542
+	for <linux-mm@kvack.org>; Wed, 3 Oct 2007 09:32:57 -0600
+Received: from d03av03.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av03.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l93FWt79010739
+	for <linux-mm@kvack.org>; Wed, 3 Oct 2007 09:32:56 -0600
+Subject: Re: [RFC] PPC64 Exporting memory information through /proc/iomem
+From: Badari Pulavarty <pbadari@us.ibm.com>
+In-Reply-To: <20071003101954.52308f22.kamezawa.hiroyu@jp.fujitsu.com>
+References: <1191346196.6106.20.camel@dyn9047017100.beaverton.ibm.com>
+	 <18178.52359.953289.638736@cargo.ozlabs.ibm.com>
+	 <1191366653.6106.68.camel@dyn9047017100.beaverton.ibm.com>
+	 <20071003101954.52308f22.kamezawa.hiroyu@jp.fujitsu.com>
+Content-Type: text/plain
+Date: Wed, 03 Oct 2007 08:35:35 -0700
+Message-Id: <1191425735.6106.76.camel@dyn9047017100.beaverton.ibm.com>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nick Piggin <nickpiggin@yahoo.com.au>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: Paul Mackerras <paulus@samba.org>, linuxppc-dev@ozlabs.org, linux-mm <linux-mm@kvack.org>, anton@au1.ibm.com
 List-ID: <linux-mm.kvack.org>
 
+On Wed, 2007-10-03 at 10:19 +0900, KAMEZAWA Hiroyuki wrote:
+> On Tue, 02 Oct 2007 16:10:53 -0700
+> Badari Pulavarty <pbadari@us.ibm.com> wrote:
+> > > > Otherwise, we need to add arch-specific hooks in hotplug-remove
+> > > > code to be able to do this.
+> > > 
+> > > Isn't it just a matter of abstracting the test for a valid range of
+> > > memory?  If it's really hard to abstract that, then I guess we can put
+> > > RAM in iomem_resource, but I'd rather not.
+> > > 
+> > 
+> > Sure. I will work on it and see how ugly it looks.
+> > 
+> > KAME, are you okay with abstracting the find_next_system_ram() and
+> > let arch provide whatever implementation they want ? (since current
+> > code doesn't work for x86-64 also ?).
+> > 
+> Hmm, registering /proc/iomem is complicated ?
 
-On Wed, 3 Oct 2007, Nick Piggin wrote:
-> 
-> I don't know if Linus actually disliked the patch itself, or disliked
-> my (maybe confusingly worded) rationale?
+Its not complicated. Like Paul mentioned, its part of user/kernel API
+which he is not prefering to break (if possible) + /proc/iomem seems
+like a weird place to export conventional memory.
 
-Yes. I'd happily accept the patch, but I'd want it clarified and made 
-obvious what the problem was - and it wasn't the zero page itself, it was 
-a regression in the VM that made it less palatable.
+>  If too complicated, adding config
+> like
+> CONFIG_ARCH_SUPPORT_IORESOURCE_RAM or something can do good work.
+> you can define your own "check_pages_isolated" (you can rename this to
+> arch_check_apges_isolated().)
 
-I also thought that there were potentially better solutions, namely to 
-simply avoid the VM regression, but I also acknowledge that they may not 
-be worth it - I just want them to be on the table.
+I was thinking more in the lines of 
 
-In short: the real cost of the zero page was the reference counting on the 
-page that we do these days. For example, I really do believe that the 
-problem could fairly easily be fixed by simply not considering zero_page
-to be a "vm_normal_page()". We already *do* have support for pages not 
-getting ref-counted (since we need it for other things), and I think that 
-zero_page very naturally falls into exactly that situation.
+CONFIG_ARCH_HAS_VALID_MEMORY_RANGE. Then define own
+find_next_system_ram() (rename to is_valid_memory_range()) - which
+checks the given range is a valid memory range for memory-remove
+or not. What do you think ?
 
-So in many ways, I would think that turning zero-page into a nonrefcounted 
-page (the same way we really do have to do for other things anyway) would 
-be the much more *direct* solution, and in many ways the obvious one.
-
-HOWEVER - if people think that it's easier to remove zero_page, and want 
-to do it for other reasons, *AND* can hopefully even back up the claim 
-that it never matters with numbers (ie that the extra pagefaults just make 
-the whole zero-page thing pointless), then I'd certainly accept the patch. 
-
-I'd just want the patch *description* to then also be correct, and blame 
-the right situation, instead of blaming zero-page itself.
-
-		Linus
+Thanks,
+Badari
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
