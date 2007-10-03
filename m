@@ -1,124 +1,108 @@
-Received: from d03relay04.boulder.ibm.com (d03relay04.boulder.ibm.com [9.17.195.106])
-	by e36.co.us.ibm.com (8.13.8/8.13.8) with ESMTP id l93IXDBI023075
-	for <linux-mm@kvack.org>; Wed, 3 Oct 2007 14:33:13 -0400
-Received: from d03av04.boulder.ibm.com (d03av04.boulder.ibm.com [9.17.195.170])
-	by d03relay04.boulder.ibm.com (8.13.8/8.13.8/NCO v8.5) with ESMTP id l93IXDFe389464
-	for <linux-mm@kvack.org>; Wed, 3 Oct 2007 12:33:13 -0600
-Received: from d03av04.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av04.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l93IXD7s008449
-	for <linux-mm@kvack.org>; Wed, 3 Oct 2007 12:33:13 -0600
-Subject: Re: [PATCH] hugetlb: Fix pool resizing corner case
-From: Adam Litke <agl@us.ibm.com>
-In-Reply-To: <1191433248.4939.79.camel@localhost>
-References: <20071003154748.19516.90317.stgit@kernel>
-	 <1191433248.4939.79.camel@localhost>
-Content-Type: text/plain
-Date: Wed, 03 Oct 2007 13:33:12 -0500
-Message-Id: <1191436392.19775.43.camel@localhost.localdomain>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Date: Wed, 3 Oct 2007 19:47:26 +0100 (BST)
+From: Hugh Dickins <hugh@veritas.com>
+Subject: Re: Memory controller merge (was Re: -mm merge plans for 2.6.24)
+In-Reply-To: <47034F12.8020505@linux.vnet.ibm.com>
+Message-ID: <Pine.LNX.4.64.0710031918470.9414@blonde.wat.veritas.com>
+References: <20071001142222.fcaa8d57.akpm@linux-foundation.org>
+ <4701C737.8070906@linux.vnet.ibm.com> <Pine.LNX.4.64.0710021604260.4916@blonde.wat.veritas.com>
+ <47034F12.8020505@linux.vnet.ibm.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Dave Hansen <haveblue@us.ibm.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Balbir Singh <balbir@linux.vnet.ibm.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Pavel Emelianov <xemul@openvz.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 2007-10-03 at 10:40 -0700, Dave Hansen wrote:
-> > diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-> > index 84c795e..7af3908 100644
-> > --- a/mm/hugetlb.c
-> > +++ b/mm/hugetlb.c
-> > @@ -224,14 +224,14 @@ static void try_to_free_low(unsigned long count)
-> >  	for (i = 0; i < MAX_NUMNODES; ++i) {
-> >  		struct page *page, *next;
-> >  		list_for_each_entry_safe(page, next, &hugepage_freelists[i], lru) {
-> > +			if (count >= nr_huge_pages)
-> > +				return;
-> >  			if (PageHighMem(page))
-> >  				continue;
-> >  			list_del(&page->lru);
-> >  			update_and_free_page(page);
-> >  			free_huge_pages--;
-> >  			free_huge_pages_node[page_to_nid(page)]--;
-> > -			if (count >= nr_huge_pages)
-> > -				return;
-> >  		}
-> >  	}
-> >  }
-> 
-> That's an excellent problem description.  I'm just a bit hazy on how the
-> patch fixes it. :)
-> 
-> What is the actual error in this loop?  The fact that we can go trying
-> to free pages when the count is actually OK?
-
-The above hunk serves only to change the behavior of try_to_free_low()
-so that rather than always freeing _at_least_ one huge page, it can
-return without having freed any pages. 
-
-> BTW, try_to_free_low(count) kinda sucks for a function name.  Is that
-> count the number of pages we're trying to end up with, or the total
-> number of low pages that we're trying to free?
-
-I agree the name sucks, but this is a bugfix patch.
-
-> Also, as I look at try_to_free_low(), why do we need to #ifdef it out in
-> the case of !HIGHMEM?  If we have CONFIG_HIGHMEM=yes, we still might not
-> have any _actual_ high memory.  So, they loop obviously doesn't *hurt*
-> when there is no high memory.
-
-Maybe, but not really in-scope of what this patch is trying to
-accomplish.
-
-> > @@ -251,7 +251,7 @@ static unsigned long set_max_huge_pages(unsigned long count)
-> >  		return nr_huge_pages;
+On Wed, 3 Oct 2007, Balbir Singh wrote:
+> Hugh Dickins wrote:
 > > 
-> >  	spin_lock(&hugetlb_lock);
-> > -	count = max(count, resv_huge_pages);
-> > +	count = max(count, resv_huge_pages + nr_huge_pages - free_huge_pages);
-> >  	try_to_free_low(count);
-> >  	while (count < nr_huge_pages) {
-> >  		struct page *page = dequeue_huge_page(NULL, 0);
+> > Sorry, Balbir, I've failed to get back to you, still attending to
+> > priorities.  Let me briefly summarize my issue with the mem controller:
+> > you've not yet given enough attention to swap.
 > 
-> The real problem with this line is that "count" is too ambiguous. :)
+> I am open to suggestions and ways and means of making swap control
+> complete and more usable.
 
-I agree, count is almost always a bad variable name :)
+Well, swap control is another subject.  I guess for that you'll need
+to track which cgroup each swap page belongs to (rather more expensive
+than the current swap_map of unsigned shorts).  And I doubt it'll be
+swap control as such that's required, but control of rss+swap.
 
-> We could rewrite the original max() line this way:
+But here I'm just worrying about how the existence of swap makes
+something of a nonsense of your rss control.
+
+> > I accept that full swap control is something you're intending to add
+> > incrementally later; but the current state doesn't make sense to me.
+> > 
+> > The problems are swapoff and swapin readahead.  These pull pages into
+> > the swap cache, which are assigned to the cgroup (or the whatever-we-
+> > call-the-remainder-outside-all-the-cgroups) which is running swapoff
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+I'd appreciate it if you'd teach me the right name for that!
+
+> > or faulting in its own page; yet they very clearly don't (in general)
+> > belong to that cgroup, but to other cgroups which will be discovered
+> > later.
 > 
-> 	if (resv_huge_pages > nr_of_pages_to_end_up_with)
-> 		nr_of_pages_to_end_up_with = resv_huge_pages;
-> 	try_to_make_the_total_nr_of_hpages(nr_of_pages_to_end_up_with);
-> 
-> Which makes it more clear that you're setting the number of total pages
-> to the number of reserved pages, which is obviously screwy.
-> 
-> OK, so this is actually saying: "count can never go below
-> resv_huge_pages+nr_huge_pages"?
+> I understand what your trying to say, but with several approaches that
+> we tried in the past, we found caches the hardest to most accurately
+> account. IIRC, with readahead, we don't even know if all the pages
+> readahead will be used, that's why we charge everything to the cgroup
+> that added the page to the cache.
 
-Not quite.  Count can never go below the number of reserved pages plus
-pages allocated to MAP_PRIVATE mappings.  That number is computed by:
-(resv + (total - free)).
+Yes, readahead is anyway problematic.  My guess is that in the file
+cache case, you'll tend not to go too far wrong by charging to the
+one that added - though we're all aware that's fairly unsatisfactory.
 
-> Could we change try_to_free_low() to free a distinct number of pages?
+My point is that in the swap cache case, it's badly wrong: there's
+no page more obviously owned by a cgroup than its anonymous pages
+(forgetting for a moment that minority shared between cgroups
+until copy-on-write), so it's very wrong for swapin readahead
+or swapoff to go charging those to another or to no cgroup.
+
+Imagine a cgroup at its rss limit, with more out on swap.  Then
+another cgroup does some swap readahead, bringing pages private
+to the first into cache.  Or runs swapoff which actually plugs
+them into the rss of the first cgroup, so it goes over limit.
+
+Those are pages we'd want to swap out when the first cgroup
+faults to go further over its limit; but they're now not even
+identified as belonging to the right cgroup, so won't be found.
+
+> > I did try removing the cgroup mods to mm/swap_state.c, so swap pages
+> > get assigned to a cgroup only once it's really known; but that's not
+> > enough by itself, because cgroup RSS reclaim doesn't touch those
+> > pages, so the cgroup can easily OOM much too soon.  I was thinking
+> > that you need a "limbo" cgroup for these pages, which can be attacked
+> > for reclaim along with any cgroup being reclaimed, but from which
+> > pages are readily migrated to their real cgroup once that's known.
+> > 
 > 
-> 	if (count > free_huge_pages)
-> 		count = free_huge_pages;
-> 	try_to_free_nr_huge_pages(count);
+> Is migrating the charge to the real cgroup really required?
+
+My answer is definitely yes.  I'm not suggesting that you need
+general migration between cgroups at this stage (something for
+later quite likely); but I am suggesting you need one pseudo-cgroup
+to hold these cases temporarily, and that you cannot properly track
+rss without it (if there is any swap).
+
+> > But I had to switch over to other work before trying that out:
+> > perhaps the idea doesn't really fly at all.  And it might well
+> > be no longer needed once full mem+swap control is there.
+> > 
+> > So in the current memory controller, that unuse_pte mem charge I was
+> > originally worried about failing (I hadn't at that point delved in
+> > to see how it tries to reclaim) actually never fails (and never
+> > does anything): the page is already assigned to some cgroup-or-
+> > whatever and is never charged to vma->vm_mm at that point.
+> > 
 > 
-> I feel a bit sketchy about the "resv_huge_pages + nr_huge_pages -
-> free_huge_pages" logic.  Could you elaborate a bit there on what the
-> rules are?
+> Excellent!
 
-The key is that we don't want to shrink the pool below the number of
-pages we are committed to keeping around.  Before this patch, we only
-accounted for the pages we plan to hand out (reserved huge pages) but
-not the ones we've already handed out (total - free).  Does that make
-sense?
+Umm, please explain what's excellent about that.
 
--- 
-Adam Litke - (agl at us.ibm.com)
-IBM Linux Technology Center
+Hugh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
