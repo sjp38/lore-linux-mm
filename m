@@ -1,115 +1,100 @@
-Received: from sd0109e.au.ibm.com (d23rh905.au.ibm.com [202.81.18.225])
-	by e23smtp06.au.ibm.com (8.13.1/8.13.1) with ESMTP id l938DiTt006826
-	for <linux-mm@kvack.org>; Wed, 3 Oct 2007 18:13:44 +1000
-Received: from d23av03.au.ibm.com (d23av03.au.ibm.com [9.190.234.97])
-	by sd0109e.au.ibm.com (8.13.8/8.13.8/NCO v8.5) with ESMTP id l938HIPp242970
-	for <linux-mm@kvack.org>; Wed, 3 Oct 2007 18:17:18 +1000
-Received: from d23av03.au.ibm.com (loopback [127.0.0.1])
-	by d23av03.au.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l938DS8G029214
-	for <linux-mm@kvack.org>; Wed, 3 Oct 2007 18:13:28 +1000
-Message-ID: <47034F12.8020505@linux.vnet.ibm.com>
-Date: Wed, 03 Oct 2007 13:43:06 +0530
-From: Balbir Singh <balbir@linux.vnet.ibm.com>
-Reply-To: balbir@linux.vnet.ibm.com
+Date: Wed, 03 Oct 2007 16:44:40 +0600
+Message-ID: <78495049.82584938@plaintiff.com>
+From: "Euro VIP Kasino" <embryology@otakumail.com>
+Subject: Spielen Sie in Europas bestem Online-Kasino
 MIME-Version: 1.0
-Subject: Re: Memory controller merge (was Re: -mm merge plans for 2.6.24)
-References: <20071001142222.fcaa8d57.akpm@linux-foundation.org> <4701C737.8070906@linux.vnet.ibm.com> <Pine.LNX.4.64.0710021604260.4916@blonde.wat.veritas.com>
-In-Reply-To: <Pine.LNX.4.64.0710021604260.4916@blonde.wat.veritas.com>
-Content-Type: text/plain; charset=US-ASCII
+Content-Type: text/html; charset=iso-8859-1
 Content-Transfer-Encoding: 7bit
-Sender: owner-linux-mm@kvack.org
-Return-Path: <owner-linux-mm@kvack.org>
-To: Hugh Dickins <hugh@veritas.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Pavel Emelianov <xemul@openvz.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Return-Path: <embryology@otakumail.com>
+To: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hugh Dickins wrote:
-> On Tue, 2 Oct 2007, Balbir Singh wrote:
->> Andrew Morton wrote:
->>> memory-controller-add-documentation.patch
->>> ...
->>> kswapd-should-only-wait-on-io-if-there-is-io.patch
->>>
->>>   Hold.  This needs a serious going-over by page reclaim people.
->> I mostly agree with your decision. I am a little concerned however
->> that as we develop and add more features (a.k.a better statistics/
->> forced reclaim), which are very important; the code base gets larger,
->> the review takes longer :)
-> 
-> I agree with putting the memory controller stuff on hold from 2.6.24.
-> 
-> Sorry, Balbir, I've failed to get back to you, still attending to
-> priorities.  Let me briefly summarize my issue with the mem controller:
-> you've not yet given enough attention to swap.
->
+<html>
 
-I am open to suggestions and ways and means of making swap control
-complete and more usable.
+<head>
+<meta http-equiv=Content-Type content="text/html; charset=iso-8859-1">
 
-> I accept that full swap control is something you're intending to add
-> incrementally later; but the current state doesn't make sense to me.
-> 
-> The problems are swapoff and swapin readahead.  These pull pages into
-> the swap cache, which are assigned to the cgroup (or the whatever-we-
-> call-the-remainder-outside-all-the-cgroups) which is running swapoff
-> or faulting in its own page; yet they very clearly don't (in general)
-> belong to that cgroup, but to other cgroups which will be discovered
-> later.
-> 
+<title>Nur im alten </title>
 
-I understand what your trying to say, but with several approaches that
-we tried in the past, we found caches the hardest to most accurately
-account. IIRC, with readahead, we don't even know if all the pages
-readahead will be used, that's why we charge everything to the cgroup
-that added the page to the cache.
+<style>
+<!--
+ /* Style Definitions */
+ p.MsoNormal, li.MsoNormal, div.MsoNormal
+	{mso-style-parent:"";
+	margin:0cm;
+	margin-bottom:.0001pt;
+	mso-pagination:widow-orphan;
+	font-size:12.0pt;
+	font-family:"Times New Roman";
+	mso-fareast-font-family:"Times New Roman";
+	mso-ansi-language:EN-US;
+	mso-fareast-language:EN-US;}
+a:link, span.MsoHyperlink
+	{color:blue;
+	text-decoration:underline;
+	text-underline:single;}
+a:visited, span.MsoHyperlinkFollowed
+	{color:purple;
+	text-decoration:underline;
+	text-underline:single;}
+@page Section1
+	{size:595.3pt 841.9pt;
+	margin:2.0cm 42.5pt 2.0cm 3.0cm;
+	mso-header-margin:35.4pt;
+	mso-footer-margin:35.4pt;
+	mso-paper-source:0;}
+div.Section1
+	{page:Section1;}
+-->
+</style>
 
-> I did try removing the cgroup mods to mm/swap_state.c, so swap pages
-> get assigned to a cgroup only once it's really known; but that's not
-> enough by itself, because cgroup RSS reclaim doesn't touch those
-> pages, so the cgroup can easily OOM much too soon.  I was thinking
-> that you need a "limbo" cgroup for these pages, which can be attacked
-> for reclaim along with any cgroup being reclaimed, but from which
-> pages are readily migrated to their real cgroup once that's known.
-> 
+</head>
 
-Is migrating the charge to the real cgroup really required?
+<body lang=DE link=blue vlink=purple style='tab-interval:35.4pt'>
 
-> But I had to switch over to other work before trying that out:
-> perhaps the idea doesn't really fly at all.  And it might well
-> be no longer needed once full mem+swap control is there.
-> 
-> So in the current memory controller, that unuse_pte mem charge I was
-> originally worried about failing (I hadn't at that point delved in
-> to see how it tries to reclaim) actually never fails (and never
-> does anything): the page is already assigned to some cgroup-or-
-> whatever and is never charged to vma->vm_mm at that point.
-> 
+<div class=Section1>
 
-Excellent!
+<p class=MsoNormal>
+<span lang=EN-US>Nur im alten aristokratischen Europa k&ouml;nnen
+Sie so ein elitistisches Casino zum Spielen finden:<o:p></o:p></span></p>
 
-> And small point: once that is sorted out and the page is properly
-> assigned in unuse_pte, you'll be needing to pte_unmap_unlock and
-> pte_offset_map_lock around the mem_cgroup_charge call there -
-> you're right to call it with GFP_KERNEL, but cannot do so while
-> holding the page table locked and mapped.  (But because the page
-> lock is held, there shouldn't be any raciness to dropping and
-> retaking the ptl.)
-> 
+<p class=MsoNormal><span lang=EN-US>Euro VIP Casino!<o:p></o:p></span></p>
 
-Good catch! I'll fix that.
+<p class=MsoNormal><span lang=EN-US><o:p>&nbsp;</o:p></span></p>
 
+<p class=MsoNormal><span lang=EN-US>Hoher Standard ist einzigartig:
+<o:p></o:p></span></p>
 
-> Hugh
+<p class=MsoNormal><span lang=EN-US>Ein grossz&uuml;giger Willkommensbonus von
+mindestens 100% bis zu 100 &#8364;/$ auf<span style='mso-spacerun:yes'> 
+</span>Ihre ersten vier Einzahlungen, mit maximalem 400 &#8364;/$ hohem 
+Bonus!<o:p></o:p></span></p>
 
+<p class=MsoNormal><span lang=EN-US>Unglaubliche Jackpots welche die
+Millionengrenze weit &uuml;berschreiten!<o:p></o:p></span></p>
 
--- 
-	Warm Regards,
-	Balbir Singh
-	Linux Technology Center
-	IBM, ISTL
+<p class=MsoNormal><span lang=EN-US>Sagenhafte last generation Software!
+<o:p></o:p></span></p>
 
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+<p class=MsoNormal><span lang=EN-US><o:p>&nbsp;</o:p></span></p>
+
+<p class=MsoNormal><span lang=EN-US>All das macht es zum besten Platz online 
+zu spielen.<o:p></o:p></span></p>
+
+<p class=MsoNormal><span lang=EN-US><o:p>&nbsp;</o:p></span></p>
+
+<p class=MsoNormal><span lang=EN-US>Also kommen und spielen Sie bei Euro VIP
+Casino und treten Sie der noblen Gesellschaft der europ&auml;ischen 
+Spielelite bei!<o:p></o:p></span></p>
+
+<p class=MsoNormal><span lang=EN-US><o:p>&nbsp;</o:p></span></p>
+
+<p class=MsoNormal><span lang=EN-US>
+<a href="http://www.eurovip-777.com/lang-de/">
+http://www.eurovip-777.com/lang-de/</a><o:p></o:p></span></p>
+
+</div>
+
+</body>
+
+</html>
