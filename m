@@ -1,79 +1,106 @@
-Message-ID: <4702E49D.2030206@google.com>
-Date: Tue, 02 Oct 2007 17:38:53 -0700
-From: Ethan Solomita <solo@google.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH 3/6] cpuset write throttle
-References: <469D3342.3080405@google.com>	<46E741B1.4030100@google.com>	<46E7434F.9040506@google.com> <20070914161517.5ea3847f.akpm@linux-foundation.org>
-In-Reply-To: <20070914161517.5ea3847f.akpm@linux-foundation.org>
+Date: Wed, 3 Oct 2007 09:53:16 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [BUGFIX][RFC][PATCH][only -mm] FIX memory leak in memory cgroup
+ vs. page migration [1/1] fix page migration under memory contoller
+Message-Id: <20071003095316.4fff115e.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <47026510.2000708@linux.vnet.ibm.com>
+References: <20071002183031.3352be6a.kamezawa.hiroyu@jp.fujitsu.com>
+	<20071002183306.0c132ff4.kamezawa.hiroyu@jp.fujitsu.com>
+	<47026510.2000708@linux.vnet.ibm.com>
+Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>, a.p.zijlstra@chello.nl, linux-mm@kvack.org
-Cc: Andrew Morton <akpm@linux-foundation.org>
+To: balbir@linux.vnet.ibm.com
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "containers@lists.osdl.org" <containers@lists.osdl.org>, Christoph Lameter <clameter@sgi.com>
 List-ID: <linux-mm.kvack.org>
 
-Andrew Morton wrote:
-> On Tue, 11 Sep 2007 18:39:27 -0700
-> Ethan Solomita <solo@google.com> wrote:
+On Tue, 02 Oct 2007 21:04:40 +0530
+Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
+
+> KAMEZAWA Hiroyuki wrote:
+> > While using memory control cgroup, page-migration under it works as following.
+> > ==
+> >  1. uncharge all refs at try to unmap.
+> >  2. charge regs again remove_migration_ptes()
+> > ==
+> > This is simple but has following problems.
+> > ==
+> >  The page is uncharged and chaged back again if *mapped*.
+> >     - This means that cgroup before migraion can be different from one after
+> >       migraion
 > 
->> Make page writeback obey cpuset constraints
+> >From the test case mentioned earlier, this happens because the task has
+> moved from one cgroup to another, right?
+Ah, yes.
+
+
+> > And migration can migrate *not mapped* pages in future by migration-by-kernel
+> > driven by memory-unplug and defragment-by-migration at el.
+> > 
+> > This patch tries to keep memory cgroup at page migration by increasing
+> > one refcnt during it. 3 functions are added.
+> >  mem_cgroup_prepare_migration() --- increase refcnt of page->page_cgroup
+> >  mem_cgroup_end_migration()     --- decrease refcnt of page->page_cgroup
+> >  mem_cgroup_page_migration() --- copy page->page_cgroup from old page to
+> >                                  new page.
+> > 
+> > Obviously, mem_cgroup_isolate_pages() and this page migration, which
+> > copies page_cgroup from old page to new page, has race.
+> > 
+> > There seem to be  3 ways for avoiding this race.
+> >  A. take mem_group->lock while mem_cgroup_page_migration().
+> >  B. isolate pc from mem_cgroup's LRU when we isolate page from zone's LRU.
+> >  C. ignore non-LRU page at mem_cgroup_isolate_pages(). 
+> > 
+> > This patch uses method (C.) and modifes mem_cgroup_isolate_pages() igonres
+> > !PageLRU pages.
+> > 
 > 
-> akpm:/usr/src/25> pushpatch 
-> patching file mm/page-writeback.c
-> Hunk #1 FAILED at 103.
-> Hunk #2 FAILED at 129.
-> Hunk #3 FAILED at 166.
-> Hunk #4 FAILED at 252.
-> Hunk #5 FAILED at 267.
-> Hunk #6 FAILED at 282.
-> Hunk #7 FAILED at 301.
-> Hunk #8 FAILED at 313.
-> Hunk #9 FAILED at 329.
-> Hunk #10 succeeded at 563 (offset 175 lines).
-> Hunk #11 FAILED at 575.
-> Hunk #12 FAILED at 607.
-> 11 out of 12 hunks FAILED -- saving rejects to file mm/page-writeback.c.rej
-> Failed to apply cpuset-write-throttle
+> The page(s) is(are) !PageLRU only during page migration right?
 > 
-> :(
+Hmm...!PageLRU() means that page is not on LRU.
+Then, kswapd can remove a page from LRU.
+
+> > -		if (page_zone(page) != z)
+> > +		if (page_zone(page) != z || !PageLRU(page)) {
 > 
+> I would prefer to do unlikely(!PageLRU(page)), since most of the
+> times the page is not under migration
 > 
-> Huge number of rejects against Peter's stuff.  Please redo for next -mm.
+I see.
 
-	I've been looking at how to merge my cpuset write throttling changes
-with Peter's per-BDI write throttling changes that have just been taken
-by akpm. (Quick simplifying summary: my proposed patchset will only
-throttle a process based upon dirty pages in the nodes to which the
-process has access, as limited by cpuset's mems_allowed, thus protecting
-one cpuset from the dirtying tendencies of other cpusets)
+> > +			/* Skip this */
+> > +			/* Don't decrease scan here for avoiding dead lock */
+> 
+> Could we merge the two comments to one block comment?
+> 
+will do
 
-	This is essential if cpusets are to isolate tasks from each other, so
-we need to find a way to make it work with per-BDI. Theoretically we
-could track of the per-BDI information within per-node structures
-instead of globally, but that could lead to a scary increase in code
-complexity and CPU time spent in get_dirty_limits. We don't want the
-disk to finish flushing all its pages to disk before we calculate the
-dirty limit. 8)
+> >  			continue;
+> > +		}
+> > 
+> >  		/*
+> >  		 * Check if the meta page went away from under us
+> > @@ -417,8 +424,14 @@ void mem_cgroup_uncharge(struct page_cgr
+> >  		return;
+> > 
+> >  	if (atomic_dec_and_test(&pc->ref_cnt)) {
+> > +retry:
+> >  		page = pc->page;
+> >  		lock_page_cgroup(page);
+> > +		/* migration occur ? */
+> > +		if (page_get_page_cgroup(page) != pc) {
+> > +			unlock_page_cgroup(page);
+> > +			goto retry;
+> 
+> Shouldn't we check if page_get_page_cgroup(page) returns
+> NULL, if so, unlock and return?
+Hmm, I think page_get_page_cgroup(page) != pc covers it. pc is not NULL.
 
-	We could keep my changes and Peter's changes completely independent
-calculations, and make it an "or", i.e. the caller of get_dirty_limits
-will decide to throttle if either the per-BDI stats signal a throttling
-or if the per-cpuset stats signal a throttling.
-
-	Unfortunately this eliminates one of the main reasons for the
-per-cpuset throttling. If one cpuset is responsible for pushing one
-disk/BDI to its dirty limit, someone in another cpuset can get throttled.
-
-	If we used "and" instead of "or", i.e. the caller is only throttled if
-get_dirty_limits would throttle because of both per-BDI stats and
-per-cpuset stats we make my cpusets case happy, but in the above
-scenario the other cpuset can continue to dirty an overly-dirtied BDI
-until they hit their own cpuset limits.
-
-	I'm hoping to get some input from Christoph, Peter, and anyone else who
-can think of a good way to bring this all together.
-	-- Ethan
+Thanks,
+-Kame
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
