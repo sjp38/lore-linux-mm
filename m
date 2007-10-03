@@ -1,28 +1,50 @@
-Date: Wed, 3 Oct 2007 10:46:41 -0700 (PDT)
+Date: Wed, 3 Oct 2007 11:00:25 -0700 (PDT)
 From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [PATCH 3/6] cpuset write throttle
-In-Reply-To: <4702E49D.2030206@google.com>
-Message-ID: <Pine.LNX.4.64.0710031045290.3525@schroedinger.engr.sgi.com>
-References: <469D3342.3080405@google.com> <46E741B1.4030100@google.com>
- <46E7434F.9040506@google.com> <20070914161517.5ea3847f.akpm@linux-foundation.org>
- <4702E49D.2030206@google.com>
+Subject: Re: [Patch / 002](memory hotplug) Callback function to create
+ kmem_cache_node.
+In-Reply-To: <20071003234201.B5F9.Y-GOTO@jp.fujitsu.com>
+Message-ID: <Pine.LNX.4.64.0710031057150.3570@schroedinger.engr.sgi.com>
+References: <20071002105422.2790.Y-GOTO@jp.fujitsu.com>
+ <Pine.LNX.4.64.0710021128510.30615@schroedinger.engr.sgi.com>
+ <20071003234201.B5F9.Y-GOTO@jp.fujitsu.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Ethan Solomita <solo@google.com>
-Cc: a.p.zijlstra@chello.nl, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>
+To: Yasunori Goto <y-goto@jp.fujitsu.com>
+Cc: Andrew Morton <akpm@osdl.org>, Linux Kernel ML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 2 Oct 2007, Ethan Solomita wrote:
+On Wed, 3 Oct 2007, Yasunori Goto wrote:
 
-> 	Unfortunately this eliminates one of the main reasons for the
-> per-cpuset throttling. If one cpuset is responsible for pushing one
-> disk/BDI to its dirty limit, someone in another cpuset can get throttled.
+> > 
+> > That would work. But it would be better to shrink the cache first. The 
+> > first 2 slabs on a node may be empty and the shrinking will remove those. 
+> > If you do not shrink then the code may falsely assume that there are 
+> > objects on the node.
+> 
+> I'm sorry, but I don't think I understand what you mean... :-(
+> Could you explain more? 
+> 
+> Which slabs should be shrinked? kmem_cache_node and kmem_cache_cpu?
 
-I think that is acceptable. All processes that write to one disk/BDI must 
-be affected by congestion on that device. We may have to deal with 
-fairness issues later if it indeed becomes a problem.
+The slab for which you are trying to set the kmem_cache_node pointer to 
+NULL needs to be shrunk.
+ 
+> I think kmem_cache_cpu should be disabled by cpu hotplug,
+> not memory/node hotplug. Basically, cpu should be offlined before
+> memory offline on the node.
+
+Hmmm.. Ok for cpu hotplug you could simply disregard the per cpu 
+structure if the per cpu slab was flushed first.
+
+However, the per node structure may hold slabs with no objects even after 
+all objects were removed on a node. These need to be flushed by calling
+kmem_cache_shrink() on the slab cache.
+
+On the other hand: If you can guarantee that they will not be used and 
+that no objects are in them and that you can recover the pages used in 
+different ways then zapping the per node pointer like that is okay.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
