@@ -1,35 +1,44 @@
-Date: Wed, 3 Oct 2007 10:51:15 +0000
-From: Pavel Machek <pavel@ucw.cz>
-Subject: Re: VM/VFS bug with large amount of memory and file systems?
-Message-ID: <20071003105115.GA6300@ucw.cz>
-References: <C2A8AED2-363F-4131-863C-918465C1F4E1@cam.ac.uk>
+Date: Wed, 3 Oct 2007 03:58:53 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: remove zero_page (was Re: -mm merge plans for 2.6.24)
+Message-Id: <20071003035853.c5a777e2.akpm@linux-foundation.org>
+In-Reply-To: <200710030345.10026.nickpiggin@yahoo.com.au>
+References: <20071001142222.fcaa8d57.akpm@linux-foundation.org>
+	<200710030345.10026.nickpiggin@yahoo.com.au>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <C2A8AED2-363F-4131-863C-918465C1F4E1@cam.ac.uk>
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Anton Altaparmakov <aia21@cam.ac.uk>
-Cc: Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>, marc.smith@esmail.mcc.edu
+To: Nick Piggin <nickpiggin@yahoo.com.au>
+Cc: "Torvalds, Linus" <torvalds@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Sat 2007-09-15 08:27:23, Anton Altaparmakov wrote:
-> Hi,
-> 
-> Mark Smith reported a OOM condition when he copies a 
-> large (46GiB)  file from an NTFS partition (using the 
-> stock kernel driver) to /dev/ null (or to a file on 
-> ext3, same result).
-> 
-> The machine this runs on has an i386 kernel with 12GiB 
-> RAM (yes this  is not a typo it is 12GiB!).
+On Wed, 3 Oct 2007 03:45:09 +1000 Nick Piggin <nickpiggin@yahoo.com.au> wrote:
 
-Yes, that's known broken. 32bit machines with to much memory just do
-not work properly.
+> > mm-use-pagevec-to-rotate-reclaimable-page.patch
+> > mm-use-pagevec-to-rotate-reclaimable-page-fix.patch
+> > mm-use-pagevec-to-rotate-reclaimable-page-fix-2.patch
+> > mm-use-pagevec-to-rotate-reclaimable-page-fix-function-declaration.patch
+> > mm-use-pagevec-to-rotate-reclaimable-page-fix-bug-at-include-linux-mmh220.p
+> >atch
+> > mm-use-pagevec-to-rotate-reclaimable-page-kill-redundancy-in-rotate_reclaim
+> >able_page.patch
+> > mm-use-pagevec-to-rotate-reclaimable-page-move_tail_pages-into-lru_add_drai
+> >n.patch
+> >
+> >   I guess I'll merge this.  Would be nice to have wider perfromance testing
+> >   but I guess it'll be easy enough to undo.
+> 
+> Care to give it one more round through -mm? Is it easy enough to
+> keep?
 
--- 
-(english) http://www.livejournal.com/~pavelmachek
-(cesky, pictures) http://atrey.karlin.mff.cuni.cz/~pavel/picture/horses/blog.html
+Yup.  Nobody has done much with that code in ages.
+
+> I haven't had a chance to review it, which I'd like to do at some
+> point (and I don't think it would hurt to have a bit more testing).
+
+Sure.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
