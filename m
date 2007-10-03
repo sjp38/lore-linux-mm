@@ -1,155 +1,159 @@
-Date: Wed, 3 Oct 2007 09:39:44 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [BUGFIX][RFC][PATCH][only -mm] FIX memory leak in memory cgroup
- vs. page migration [0/1]
-Message-Id: <20071003093944.0bec6a15.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <470248D7.5090403@linux.vnet.ibm.com>
-References: <20071002183031.3352be6a.kamezawa.hiroyu@jp.fujitsu.com>
-	<470248D7.5090403@linux.vnet.ibm.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Date: Tue, 2 Oct 2007 17:37:34 -0700 (PDT)
+From: Christoph Lameter <clameter@sgi.com>
+Subject: Re: kswapd min order, slub max order [was Re: -mm merge plans for
+ 2.6.24]
+In-Reply-To: <Pine.LNX.4.64.0710021120220.30615@schroedinger.engr.sgi.com>
+Message-ID: <Pine.LNX.4.64.0710021732520.32678@schroedinger.engr.sgi.com>
+References: <20071001142222.fcaa8d57.akpm@linux-foundation.org>
+ <Pine.LNX.4.64.0710021646420.4916@blonde.wat.veritas.com>
+ <1191350333.2708.6.camel@localhost> <Pine.LNX.4.64.0710021120220.30615@schroedinger.engr.sgi.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: balbir@linux.vnet.ibm.com
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "containers@lists.osdl.org" <containers@lists.osdl.org>, Christoph Lameter <clameter@sgi.com>
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: Hugh Dickins <hugh@veritas.com>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 02 Oct 2007 19:04:15 +0530
-Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
+On Tue, 2 Oct 2007, Christoph Lameter wrote:
 
-> KAMEZAWA Hiroyuki wrote:
-> > Current implementation of memory cgroup controller does following in migration.
-> > 
-> > 1. uncharge when unmapped.
-> > 2. charge again when remapped.
-> > 
-> > Consider migrate a page from OLD to NEW.
-> > 
-> > In following case, memory (for page_cgroup) will leak.
-> > 
-> > 1. charge OLD page as page-cache. (charge = 1
-> > 2. A process mmap OLD page. (chage + 1 = 2)
-> > 3. A process migrates it.
-> >    try_to_unmap(OLD) (charge - 1 = 1)
-> >    replace OLD with NEW
-> >    remove_migration_pte(NEW) (New is newly charged.)
-> >    discard OLD page. (page_cgroup for OLD page is not reclaimed.)
-> > 
-> 
-> Interesting test scenario, I'll try and reproduce the problem here.
-> Why does discard OLD page not reclaim page_cgroup?
-Just because OLD page is not page-cache at discarding. (it is replaced with NEW page)
+> The maximum order of allocation used by SLUB may have to depend on the 
+> number of page structs in the system since small systems (128M was the 
+> case that Peter found) can easier get into trouble. SLAB has similar 
+> measures to avoid order 1 allocations for small systems below 32M.
+
+A patch like this? This is based on the number of page structs on the 
+system. Maybe it needs to be based on the number of MAX_ORDER blocks
+for antifrag?
 
 
->
-> > [root@drpq kamezawa]# ./migrate_test 512Mfile 1 &
-> > [1] 4108
-> > #At the end of migration,
-> 
-> Where can I find migrate_test?
-> 
-here, (just I wrote for this test. works on my RHEL5/2.6.18-rc8-mm2/ia64 NUMA box)
-This program doesn't check 'where is file cache ?' before migration. So please
-check it by yourself before run.
-==
+SLUB: Determine slub_max_order depending on the number of pages available
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <syscall.h>
-#include <sys/mman.h>
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <fcntl.h>
-#include <errno.h>
-#include <numaif.h>
-#include <unistd.h>
+Determine the maximum order to be used for slabs and the mininum
+desired number of objects in a slab from the amount of pages that
+a system has available (like SLAB does for the order 1/0 distinction).
 
-#define PAGESIZE	(16384)
+For systems with less than 128M only use order 0 allocations (SLAB does 
+that for <32M only). The order 0 config is useful for small systems to 
+minimize the memory used. Memory easily fragments since we have less than 
+32k pages to play with. Order 0 insures that higher order allocations are 
+minimized (Larger orders must still be used for objects that do not fit 
+into order 0 pages).
 
-static inline int move_pages(pid_t pid, unsigned long nr_pages,
-		const void **address,
-		const int *nodes, int *status, int flags)
-{
-	return syscall(SYS_move_pages, pid, nr_pages, address,
-			nodes, status, flags);
-}
-/*
- * migrate_test.c -- mmap file and migrate it to specified node.
- * %migrate_task file nodeid
- *
- */
+Then step up to order 1 for systems < 256000 pages (1G)
 
-int main(int argc, char *argv[])
-{
-	int ret, fd, val, node[1], status[1];
-	char *addr, *c;
-	unsigned long size, nr_pages, pos;
-	struct stat statbuf;
-	void *address[1];
-	int target;
+Order 2 limit to systems < 1000000 page structs (4G)
 
-	if (argc != 3) {
-		fprintf(stderr,"usage: migrate_test file node\n");
-		exit(0);
-	}
-	target = atoi(argv[2]);
+Order 3 for systems larger than that.
 
-	fd = open(argv[1], O_RDONLY);
-	if (fd < 0) {
-		perror("open");
-		exit(1);
-	}
+Signed-off-by: Christoph Lameter <clameter@sgi.com>
 
-	ret = fstat(fd, &statbuf);
-	if (ret < 0) {
-		perror("fstat");
-		exit(1);
-	}
+---
+ mm/slub.c |   49 +++++++++++++++++++++++++------------------------
+ 1 file changed, 25 insertions(+), 24 deletions(-)
 
-	size = statbuf.st_size;
-	nr_pages = size/PAGESIZE;
-	size = nr_pages * PAGESIZE;
-
-	addr = mmap(NULL, size, PROT_READ, MAP_SHARED, fd, 0);
-
-	if (addr == MAP_FAILED) {
-		perror("mmap");
-		exit(1);
-	}
-	/* Touch all */
-	for (pos = 0; pos < nr_pages; pos++) {
-		c = addr + pos * PAGESIZE;
-		val += *c;
-	}
-	/* Move Pages */
-	for (pos = 0; pos < nr_pages; pos++) {
-		node[0] = target;
-		status[0] = 0;
-		address[0] = addr + pos * PAGESIZE;
-		ret = move_pages(0, 1, address, node, status,
-				MPOL_MF_MOVE_ALL);
-		if (ret) {
-			perror("move_pages");
-		}
-#if 1
-		printf("pos %d %p %d %d\n",pos, address[0], node[0], status[0]);
-#endif
-	}
-	/* Touch all again....maybe unnecessary.*/
-	for (pos = 0; pos < nr_pages; pos++) {
-		c = addr + pos * PAGESIZE;
-		val += *c;
-	}
-	while (1) {
-		/* mmap until killed */
-		pause();
-	}
-	printf("val %d\n",val);
-	return 0;
-}
-
-
+Index: linux-2.6/mm/slub.c
+===================================================================
+--- linux-2.6.orig/mm/slub.c	2007-10-02 09:26:16.000000000 -0700
++++ linux-2.6/mm/slub.c	2007-10-02 16:40:22.000000000 -0700
+@@ -153,25 +153,6 @@ static inline void ClearSlabDebug(struct
+ /* Enable to test recovery from slab corruption on boot */
+ #undef SLUB_RESILIENCY_TEST
+ 
+-#if PAGE_SHIFT <= 12
+-
+-/*
+- * Small page size. Make sure that we do not fragment memory
+- */
+-#define DEFAULT_MAX_ORDER 1
+-#define DEFAULT_MIN_OBJECTS 4
+-
+-#else
+-
+-/*
+- * Large page machines are customarily able to handle larger
+- * page orders.
+- */
+-#define DEFAULT_MAX_ORDER 2
+-#define DEFAULT_MIN_OBJECTS 8
+-
+-#endif
+-
+ /*
+  * Mininum number of partial slabs. These will be left on the partial
+  * lists even if they are empty. kmem_cache_shrink may reclaim them.
+@@ -1718,8 +1699,9 @@ static struct page *get_object_page(cons
+  * take the list_lock.
+  */
+ static int slub_min_order;
+-static int slub_max_order = DEFAULT_MAX_ORDER;
+-static int slub_min_objects = DEFAULT_MIN_OBJECTS;
++static int slub_max_order;
++static int slub_min_objects = 4;
++static int manual;
+ 
+ /*
+  * Merge control. If this is set then no merging of slab caches will occur.
+@@ -2237,7 +2219,7 @@ static struct kmem_cache *kmalloc_caches
+ static int __init setup_slub_min_order(char *str)
+ {
+ 	get_option (&str, &slub_min_order);
+-
++	manual = 1;
+ 	return 1;
+ }
+ 
+@@ -2246,7 +2228,7 @@ __setup("slub_min_order=", setup_slub_mi
+ static int __init setup_slub_max_order(char *str)
+ {
+ 	get_option (&str, &slub_max_order);
+-
++	manual = 1;
+ 	return 1;
+ }
+ 
+@@ -2255,7 +2237,7 @@ __setup("slub_max_order=", setup_slub_ma
+ static int __init setup_slub_min_objects(char *str)
+ {
+ 	get_option (&str, &slub_min_objects);
+-
++	manual = 1;
+ 	return 1;
+ }
+ 
+@@ -2566,6 +2548,16 @@ int kmem_cache_shrink(struct kmem_cache 
+ }
+ EXPORT_SYMBOL(kmem_cache_shrink);
+ 
++/*
++ * Table to autotune the maximum slab order based on the number of pages
++ * that the system has available.
++ */
++static unsigned long __initdata phys_pages_for_order[PAGE_ALLOC_COSTLY_ORDER] = {
++	32768,		/* >128M if using 4K pages, >512M (16k), >2G (64k) */
++	256000,		/* >1G if using 4k pages, >4G (16k), >16G (64k) */
++	1000000		/* >4G if using 4k pages, >16G (16k), >64G (64k) */
++};
++
+ /********************************************************************
+  *			Basic setup of slabs
+  *******************************************************************/
+@@ -2575,6 +2567,15 @@ void __init kmem_cache_init(void)
+ 	int i;
+ 	int caches = 0;
+ 
++	if (!manual) {
++		/* No manual parameters. Autotune for system */
++		for (i = 0; i < PAGE_ALLOC_COSTLY_ORDER; i++)
++			if (num_physpages > phys_pages_for_order[i]) {
++				slub_max_order++;
++				slub_min_objects <<= 1;
++			}
++	}
++
+ #ifdef CONFIG_NUMA
+ 	/*
+ 	 * Must first have the slab cache available for the allocations of the
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
