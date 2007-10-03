@@ -1,53 +1,52 @@
-Date: Wed, 03 Oct 2007 23:59:23 +0900
-From: Yasunori Goto <y-goto@jp.fujitsu.com>
-Subject: Re: [Patch / 002](memory hotplug) Callback function to create kmem_cache_node.
-In-Reply-To: <Pine.LNX.4.64.0710021128510.30615@schroedinger.engr.sgi.com>
-References: <20071002105422.2790.Y-GOTO@jp.fujitsu.com> <Pine.LNX.4.64.0710021128510.30615@schroedinger.engr.sgi.com>
-Message-Id: <20071003234201.B5F9.Y-GOTO@jp.fujitsu.com>
+Date: Wed, 3 Oct 2007 08:21:51 -0700 (PDT)
+From: Linus Torvalds <torvalds@linux-foundation.org>
+Subject: Re: remove zero_page (was Re: -mm merge plans for 2.6.24)
+In-Reply-To: <200710030345.10026.nickpiggin@yahoo.com.au>
+Message-ID: <alpine.LFD.0.999.0710030813090.3579@woody.linux-foundation.org>
+References: <20071001142222.fcaa8d57.akpm@linux-foundation.org>
+ <200710030345.10026.nickpiggin@yahoo.com.au>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
-Cc: Andrew Morton <akpm@osdl.org>, Linux Kernel ML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
+To: Nick Piggin <nickpiggin@yahoo.com.au>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-> On Tue, 2 Oct 2007, Yasunori Goto wrote:
+
+On Wed, 3 Oct 2007, Nick Piggin wrote:
 > 
-> > Do you mean that just nr_slabs should be checked like followings?
-> > I'm not sure this is enough.
-> > 
-> >     :
-> > if (s->node[nid]) {
-> > 	n = get_node(s, nid);
-> > 	if (!atomic_read(&n->nr_slabs)) {
-> > 		s->node[nid] = NULL;
-> > 		kmem_cache_free(kmalloc_caches, n);
-> > 	}
-> > }
-> >     :
-> >     :
-> 
-> That would work. But it would be better to shrink the cache first. The 
-> first 2 slabs on a node may be empty and the shrinking will remove those. 
-> If you do not shrink then the code may falsely assume that there are 
-> objects on the node.
+> I don't know if Linus actually disliked the patch itself, or disliked
+> my (maybe confusingly worded) rationale?
 
-I'm sorry, but I don't think I understand what you mean... :-(
-Could you explain more? 
+Yes. I'd happily accept the patch, but I'd want it clarified and made 
+obvious what the problem was - and it wasn't the zero page itself, it was 
+a regression in the VM that made it less palatable.
 
-Which slabs should be shrinked? kmem_cache_node and kmem_cache_cpu?
+I also thought that there were potentially better solutions, namely to 
+simply avoid the VM regression, but I also acknowledge that they may not 
+be worth it - I just want them to be on the table.
 
-I think kmem_cache_cpu should be disabled by cpu hotplug,
-not memory/node hotplug. Basically, cpu should be offlined before
-memory offline on the node.
+In short: the real cost of the zero page was the reference counting on the 
+page that we do these days. For example, I really do believe that the 
+problem could fairly easily be fixed by simply not considering zero_page
+to be a "vm_normal_page()". We already *do* have support for pages not 
+getting ref-counted (since we need it for other things), and I think that 
+zero_page very naturally falls into exactly that situation.
 
-Sorry, I'm confusing now...
+So in many ways, I would think that turning zero-page into a nonrefcounted 
+page (the same way we really do have to do for other things anyway) would 
+be the much more *direct* solution, and in many ways the obvious one.
 
--- 
-Yasunori Goto 
+HOWEVER - if people think that it's easier to remove zero_page, and want 
+to do it for other reasons, *AND* can hopefully even back up the claim 
+that it never matters with numbers (ie that the extra pagefaults just make 
+the whole zero-page thing pointless), then I'd certainly accept the patch. 
 
+I'd just want the patch *description* to then also be correct, and blame 
+the right situation, instead of blaming zero-page itself.
+
+		Linus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
