@@ -1,109 +1,97 @@
-Date: Thu, 4 Oct 2007 14:16:02 +0100 (BST)
-From: Hugh Dickins <hugh@veritas.com>
-Subject: Re: Memory controller merge (was Re: -mm merge plans for 2.6.24)
-In-Reply-To: <47046922.4030709@linux.vnet.ibm.com>
-Message-ID: <Pine.LNX.4.64.0710041258530.3485@blonde.wat.veritas.com>
-References: <20071001142222.fcaa8d57.akpm@linux-foundation.org>
- <4701C737.8070906@linux.vnet.ibm.com> <Pine.LNX.4.64.0710021604260.4916@blonde.wat.veritas.com>
- <47034F12.8020505@linux.vnet.ibm.com> <Pine.LNX.4.64.0710031918470.9414@blonde.wat.veritas.com>
- <47046922.4030709@linux.vnet.ibm.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: [PATCH] remove throttle_vm_writeout()
+From: Peter Zijlstra <a.p.zijlstra@chello.nl>
+In-Reply-To: <E1IdQJn-0002Cv-00@dorka.pomaz.szeredi.hu>
+References: <E1IdPla-0002Bd-00@dorka.pomaz.szeredi.hu>
+	 <1191501626.22357.14.camel@twins>
+	 <E1IdQJn-0002Cv-00@dorka.pomaz.szeredi.hu>
+Content-Type: multipart/signed; micalg=pgp-sha1; protocol="application/pgp-signature"; boundary="=-HppdqYQtzHlB5vgAYEzA"
+Date: Thu, 04 Oct 2007 15:23:06 +0200
+Message-Id: <1191504186.22357.20.camel@twins>
+Mime-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Balbir Singh <balbir@linux.vnet.ibm.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Pavel Emelianov <xemul@openvz.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Miklos Szeredi <miklos@szeredi.hu>
+Cc: akpm@linux-foundation.org, wfg@mail.ustc.edu.cn, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 4 Oct 2007, Balbir Singh wrote:
-> Hugh Dickins wrote:
-> > Well, swap control is another subject.  I guess for that you'll need
-> > to track which cgroup each swap page belongs to (rather more expensive
-> > than the current swap_map of unsigned shorts).  And I doubt it'll be
-> > swap control as such that's required, but control of rss+swap.
-> 
-> I see what you mean now, other people have recommending a per cgroup
-> swap file/device.
+--=-HppdqYQtzHlB5vgAYEzA
+Content-Type: text/plain
+Content-Transfer-Encoding: quoted-printable
 
-Sounds too inflexible, and too many swap areas to me.  Perhaps the
-right answer will fall in between: assign clusters of swap pages to
-different cgroups as needed.  But worry about that some other time.
+On Thu, 2007-10-04 at 15:00 +0200, Miklos Szeredi wrote:
+> > > 1) File backed pages -> file
+> > >=20
+> > >   dirty + writeback count remains constant
+> > >=20
+> > > 2) Anonymous pages -> swap
+> > >=20
+> > >   writeback count increases, dirty balancing will hold back file
+> > >   writeback in favor of swap
+> > >=20
+> > > So the real question is: does case 2 need rate limiting, or is it OK
+> > > to let the device queue fill with swap pages as fast as possible?
+> >=20
+> > > Because balance_dirty_pages() maintains:
+> >=20
+> >  nr_dirty + nr_unstable + nr_writeback <=20
+> > 	total_dirty + nr_cpus * ratelimit_pages
+> >=20
+> > throttle_vm_writeout() _should_ not deadlock on that, unless you're
+> > caught in the error term: nr_cpus * ratelimit_pages.=20
+>=20
+> And it does get caught on that in small memory machines.  This
+> deadlock is easily reproducable on a 32MB UML instance. =20
 
-> 
-> > But here I'm just worrying about how the existence of swap makes
-> > something of a nonsense of your rss control.
-> > 
-> 
-> Ideally, pages would not reside for too long in swap cache (unless
+Ah, yes, for those that is indeed easily doable.
 
-Thinking particularly of those brought in by swapoff or swap readahead:
-some will get attached to mms once accessed, others will simply get
-freed when tasks exit or munmap, others will hang around until they
-reach the bottom of the LRU and are reclaimed again by memory pressure.
+> I haven't yet
+> tested with the per-bdi patches, but I don't think they make a
+> difference in this case.
 
-But as your code stands, that'll be total memory pressure: in-cgroup
-memory pressure will tend to miss them, since typically they're
-assigned to the wrong cgroup; until then their presence is liable
-to cause other pages to be reclaimed which ideally should not be.
+Correct, they would not.
 
-> I've misunderstood swap cache or there are special cases for tmpfs/
-> ramfs).
+> > Which can only happen when it is larger than 10% of dirty_thresh.
+> >=20
+> > Which is even more unlikely since it doesn't account nr_dirty (as I
+> > think it should).
+>=20
+> I think nr_dirty is totally irrelevant.  Since we don't care about
+> case 1), and in case 2) nr_dirty doesn't play any role.
 
-ramfs pages are always in RAM, never go out to swap, no need to
-worry about them in this regard.  But tmpfs pages can indeed go
-out to swap, so whatever we come up with needs to make sense
-with them too, yes.  I don't think its swapoff/readahead issues
-are any harder to handle than the anonymous mapped page case,
-but it will need its own code to handle them.
+Ah, but its correct to have since we compare against dirty_thresh, which
+is defined to be a unit of nr_dirty + nr_unstable + nr_writeback. if we
+take one of these out, then we get an undefined amount of space extra.
 
-> Once pages have been swapped back in, they get assigned
-> back to their respective cgroup's in do_swap_page() (where we charge
-> them back to the cgroup).
-> 
+> > As for 2), yes I think having a limit on the total number of pages in
+> > flight is a good thing.
+>=20
+> Why?
 
-That's where it should happen, yes; but my point is that it very
-often does not.  Because the swap cache page (read in as part of
-the readaround cluster of some other cgroup, or in swapoff by some
-other cgroup) is already assigned to that other cgroup (by the
-mem_cgroup_cache_charge in __add_to_swap_cache), and so goes "The
-page_cgroup exists and the page has already been accounted" route
-when mem_cgroup_charge is called from do_swap_page.  Doesn't it?
+for my swapping over network thingies I need to put a bound on the
+amount of outgoing traffic in flight because that bounds the amount of
+memory consumed by the sending side.
 
-Are we misunderstanding each other, because I'm assuming
-MEM_CGROUP_TYPE_ALL and you're assuming MEM_CGROUP_TYPE_MAPPED?
-though I can't see that _MAPPED and _CACHED are actually supported,
-there being no reference to them outside the enum that defines them.
+> > But that said, there might be better ways to do that.
+>=20
+> Sure, if we do need to globally limit the number of under-writeback
+> pages, then I think we need to do it independently of the dirty
+> accounting.
 
-Or are you deceived by that ifdef NUMA code in swapin_readahead,
-which propagates the fantasy that swap allocation follows vma layout?
-That nonsense has been around too long, I'll soon be sending a patch
-to remove it.
+It need not be global, it could be per BDI as well, but yes.
 
-> The swap cache pages will be the first ones to go, once the cgroup
-> exceeds its limit.
+--=-HppdqYQtzHlB5vgAYEzA
+Content-Type: application/pgp-signature; name=signature.asc
+Content-Description: This is a digitally signed message part
 
-No, because they're (in general) booked to the wrong cgroup.
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v1.4.6 (GNU/Linux)
 
-> 
-> There might be gaps in my understanding or I might be missing a use
-> case scenario, where things work differently.
-> 
-> >>> I accept that full swap control is something you're intending to add
-> >>> incrementally later; but the current state doesn't make sense to me.
-> >>>
-> >>> The problems are swapoff and swapin readahead.  These pull pages into
-> >>> the swap cache, which are assigned to the cgroup (or the whatever-we-
-> >>> call-the-remainder-outside-all-the-cgroups) which is running swapoff
-> >          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-> > I'd appreciate it if you'd teach me the right name for that!
-> > 
-> 
-> In the past people have used names like default cgroup, we could use
-> the root cgroup as the default cgroup.
+iD8DBQBHBOk6XA2jU0ANEf4RApl8AJ9C/eWB3ayb6TaGbL+LI9t0+xAAEACfbmQN
+xUJIq15tOszTzMMLtLRUQuY=
+=qogb
+-----END PGP SIGNATURE-----
 
-Okay, thanks.
-
-Hugh
+--=-HppdqYQtzHlB5vgAYEzA--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
