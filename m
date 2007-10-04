@@ -1,107 +1,127 @@
-Received: from d03relay04.boulder.ibm.com (d03relay04.boulder.ibm.com [9.17.195.106])
-	by e36.co.us.ibm.com (8.13.8/8.13.8) with ESMTP id l94Ec6I3000547
-	for <linux-mm@kvack.org>; Thu, 4 Oct 2007 10:38:06 -0400
-Received: from d03av01.boulder.ibm.com (d03av01.boulder.ibm.com [9.17.195.167])
-	by d03relay04.boulder.ibm.com (8.13.8/8.13.8/NCO v8.5) with ESMTP id l94Ec5WA432020
-	for <linux-mm@kvack.org>; Thu, 4 Oct 2007 08:38:05 -0600
-Received: from d03av01.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av01.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l94Ec5Xf022738
-	for <linux-mm@kvack.org>; Thu, 4 Oct 2007 08:38:05 -0600
-Subject: [PATCH] hugetlb: Update -mm patches to fix pool resizing
-From: Adam Litke <agl@us.ibm.com>
-Content-Type: text/plain
-Date: Thu, 04 Oct 2007 09:38:04 -0500
-Message-Id: <1191508684.19775.51.camel@localhost.localdomain>
-Mime-Version: 1.0
+Received: from sd0109e.au.ibm.com (d23rh905.au.ibm.com [202.81.18.225])
+	by e23smtp02.au.ibm.com (8.13.1/8.13.1) with ESMTP id l94FiVAd021218
+	for <linux-mm@kvack.org>; Fri, 5 Oct 2007 01:44:31 +1000
+Received: from d23av04.au.ibm.com (d23av04.au.ibm.com [9.190.235.139])
+	by sd0109e.au.ibm.com (8.13.8/8.13.8/NCO v8.5) with ESMTP id l94FkmpA101830
+	for <linux-mm@kvack.org>; Fri, 5 Oct 2007 01:46:48 +1000
+Received: from d23av04.au.ibm.com (loopback [127.0.0.1])
+	by d23av04.au.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l94Fgvg6008576
+	for <linux-mm@kvack.org>; Fri, 5 Oct 2007 01:42:57 +1000
+Message-ID: <470509F5.4010902@linux.vnet.ibm.com>
+Date: Thu, 04 Oct 2007 21:12:45 +0530
+From: Vaidyanathan Srinivasan <svaidy@linux.vnet.ibm.com>
+MIME-Version: 1.0
+Subject: Re: VMA lookup with RCU
+References: <46F01289.7040106@linux.vnet.ibm.com> <20070918205419.60d24da7@lappy>  <1191436672.7103.38.camel@alexis> <1191440429.5599.72.camel@lappy>
+In-Reply-To: <1191440429.5599.72.camel@lappy>
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm <linux-mm@kvack.org>
+To: Peter Zijlstra <peterz@infradead.org>
+Cc: Alexis Bruemmer <alexisb@us.ibm.com>, Balbir Singh <balbir@in.ibm.com>, Badari Pulavarty <pbadari@us.ibm.com>, Max Asbock <amax@us.ibm.com>, linux-mm <linux-mm@kvack.org>, Bharata B Rao <bharata@in.ibm.com>
 List-ID: <linux-mm.kvack.org>
 
-Hi Andrew.  Here is a port of my explicit resizing corner-case fix that will
-apply on top of the dynamic pool resizing patches now in -mm.  Thanks.
+Peter Zijlstra wrote:
+>>>     lookup in node local tree
+>>>     if found, take read lock on local reference
+>>>     if not-found, do global lookup, lock vma, take reference, 
+>>>                   insert reference into local tree,
+>>>                   take read lock on it, drop vma lock
+>>>
+>>> write lock on the vma would:
+>>>     find the vma in the global tree, lock it
+>>>     enqueue work items in a waitqueue that,
+>>>       find the local ref, lock it (might sleep)
+>>>       release the reference, unlock and clear from local tree
+>>>       signal completion
+>>>     once all nodes have completed we have no outstanding refs
+>>>     and since we have the lock, we're exclusive.
+> 
+> void invalidate_vma_refs(void *addr)
+> {
+> 	BTREE_LOCK_CONTEXT(ctx, node_local_tree());
+> 
+> 	rcu_read_lock();
+> 	ref = btree_find(node_local_tree, (unsigned long)addr);
+> 	if (!ref)
+> 		goto out_unlock;
+> 
+> 	down_write(&ref->lock); /* no more local refs */
+> 	ref->dead = 1;
+> 	atomic_dec(&ref->vma->refs); /* release */
+> 	btree_delete(ctx, (unsigned long)addr); /* unhook */
+> 	rcu_call(free_vma_ref, ref); /* destroy */
+> 	up_write(&ref->lock);
+> 
+> out_unlock:
+> 	rcu_read_unlock();
+> }
+> 
+> struct vm_area_struct *
+> write_lock_vma(struct mm *mm, unsigned long addr)
+> {
+> 	rcu_read_lock();
+> 	vma = btree_find(&mm->btree, addr);
+> 	if (!vma)
+> 		goto out_unlock;
+> 
+> 	down_write(&vma->lock); /* no new refs */
+> 	rcu_read_unlock();
+> 
+> 	schedule_on_each_cpu(invalidate_vma_refs, vma, 0, 1);
+> 
+> 	return vma;
+> 
+> out_unlock:
+> 	rcu_read_unlock();
+> 	return NULL;
+> }
+> 
+> 
 
-Signed-off-by: Adam Litke <agl@us.ibm.com>
+Hi Peter,
 
->From the original mainline patch notes...
-> Changes in V2:
->  - Removed now unnecessary check as suggested by Ken Chen
->
-> When shrinking the size of the hugetlb pool via the nr_hugepages sysctl, we
-> are careful to keep enough pages around to satisfy reservations.  But the
-> calculation is flawed for the following scenario:
->
-> Action                          Pool Counters (Total, Free, Resv)
-> ======                          =============
-> Set pool to 1 page              1 1 0
-> Map 1 page MAP_PRIVATE          1 1 0
-> Touch the page to fault it in   1 0 0
-> Set pool to 3 pages             3 2 0
-> Map 2 pages MAP_SHARED          3 2 2
-> Set pool to 2 pages             2 1 2 <-- Mistake, should be 3 2 2
-> Touch the 2 shared pages        2 0 1 <-- Program crashes here
->
-> The last touch above will terminate the process due to lack of huge pages.
->
-> This patch corrects the calculation so that it factors in pages being used
-> for private mappings.  Andrew, this is a standalone fix suitable for
-> mainline.  It is also now corrected in my latest dynamic pool resizing
-> patchset which I will send out soon.
->
-> Signed-off-by: Adam Litke <agl@us.ibm.com>
-> Acked-by: Ken Chen <kenchen@google.com>
+Making node local copies of VMA is a good idea to reduce inter-node
+traffic, but the cost of search and delete is very high.  Also, as you have
+pointed out, if the atomic operations happen on remote node due to
+scheduler migrating our thread, then all the cycles saved may be lost.
 
----
+In find_get_vma() cross node traffic is due to btree traversal or the
+actual VMA object reference?  Can we look at duplicating the btree
+structure per node and have VMA structures just one copy and make all
+btrees in each node point to the same vma object.  This will make write
+operation and deletion of btree entries on all nodes little simple.  All
+VMA lists will be unique and not duplicated.
 
- hugetlb.c |    9 ++++-----
- 1 file changed, 4 insertions(+), 5 deletions(-)
+Another related idea is to move the VMA object to node local memory.  Can
+we migrate the VMA object to the node where it is referenced the most?  We
+still maintain only _one_ copy of VMA object.  No data duplication, but we
+can move the memory around to make it node local.
 
-diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-index dabe3d6..9bec60d 100644
---- a/mm/hugetlb.c
-+++ b/mm/hugetlb.c
-@@ -297,14 +297,14 @@ static void try_to_free_low(unsigned long count)
- 	for (i = 0; i < MAX_NUMNODES; ++i) {
- 		struct page *page, *next;
- 		list_for_each_entry_safe(page, next, &hugepage_freelists[i], lru) {
-+			if (count >= nr_huge_pages)
-+				return;
- 			if (PageHighMem(page))
- 				continue;
- 			list_del(&page->lru);
- 			update_and_free_page(page);
- 			free_huge_pages--;
- 			free_huge_pages_node[page_to_nid(page)]--;
--			if (count >= nr_huge_pages)
--				return;
- 		}
- 	}
- }
-@@ -344,8 +344,6 @@ static unsigned long set_max_huge_pages(unsigned long count)
- 			goto out;
- 
- 	}
--	if (count >= persistent_huge_pages)
--		goto out;
- 
- 	/*
- 	 * Decrease the pool size
-@@ -354,7 +352,8 @@ static unsigned long set_max_huge_pages(unsigned long count)
- 	 * pages into surplus state as needed so the pool will shrink
- 	 * to the desired size as pages become free.
- 	 */
--	min_count = max(count, resv_huge_pages);
-+	min_count = resv_huge_pages + nr_huge_pages - free_huge_pages;
-+	min_count = max(count, min_count);
- 	try_to_free_low(min_count);
- 	while (min_count < persistent_huge_pages) {
- 		struct page *page = dequeue_huge_page(NULL, 0);
+Some more thoughts:
 
--- 
-Adam Litke - (agl at us.ibm.com)
-IBM Linux Technology Center
+Pagefault handler does most of the find_get_vma() to validate user address
+and then create page table entries (allocate page frames)... can we make
+the page fault handler run on the node where the VMAs have been allocated?
+ The CPU that has page-faulted need not necessarily do all the find_vma()
+calls and update the page table.  The process can sleep while another CPU
+_near_ to the memory containing VMAs and pagetable can do the job with
+local memory references.
+
+I don't know if the page tables for the faulting process is allocated in
+node local memory.
+
+Per CPU last vma cache:  Currently we have the last vma referenced in a one
+entry cache in mm_struct.  Can we have this cache per CPU or per node so
+that a multi threaded application can have node/cpu local cache of last vma
+referenced.  This may reduce btree/rbtree traversal.  Let the hardware
+cache maintain the corresponding VMA object and its coherency.
+
+Please let me know your comment and thoughts.
+
+Thanks,
+Vaidy
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
