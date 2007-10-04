@@ -1,41 +1,42 @@
-In-reply-to: <1191516427.5574.7.camel@lappy> (message from Peter Zijlstra on
-	Thu, 04 Oct 2007 18:47:07 +0200)
-Subject: Re: [PATCH] remove throttle_vm_writeout()
-References: <E1IdPla-0002Bd-00@dorka.pomaz.szeredi.hu>
-	 <1191501626.22357.14.camel@twins>
-	 <E1IdQJn-0002Cv-00@dorka.pomaz.szeredi.hu>
-	 <1191504186.22357.20.camel@twins>
-	 <E1IdR58-0002Fq-00@dorka.pomaz.szeredi.hu> <1191516427.5574.7.camel@lappy>
-Message-Id: <E1IdXuZ-0002Sk-00@dorka.pomaz.szeredi.hu>
-From: Miklos Szeredi <miklos@szeredi.hu>
-Date: Thu, 04 Oct 2007 23:07:11 +0200
+Date: Thu, 4 Oct 2007 14:20:19 -0700 (PDT)
+From: Christoph Lameter <clameter@sgi.com>
+Subject: Re: [13/18] x86_64: Allow fallback for the stack
+In-Reply-To: <20071004153940.49bd5afc@bree.surriel.com>
+Message-ID: <Pine.LNX.4.64.0710041418100.12779@schroedinger.engr.sgi.com>
+References: <20071004035935.042951211@sgi.com> <20071004040004.708466159@sgi.com>
+ <200710041356.51750.ak@suse.de> <Pine.LNX.4.64.0710041220010.12075@schroedinger.engr.sgi.com>
+ <20071004153940.49bd5afc@bree.surriel.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: a.p.zijlstra@chello.nl
-Cc: miklos@szeredi.hu, akpm@linux-foundation.org, wfg@mail.ustc.edu.cn, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Rik van Riel <riel@redhat.com>
+Cc: Andi Kleen <ak@suse.de>, akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, travis@sgi.com
 List-ID: <linux-mm.kvack.org>
 
-> Yeah, I'm guestimating O on a per device basis, but I agree that the
-> current ratio limiting is quite crude. I'm not at all sorry to see
-> throttle_vm_writeback() go, I just wanted to make a point that what it
-> does is not quite without merrit - we agree that it can be done better
-> differently.
+On Thu, 4 Oct 2007, Rik van Riel wrote:
 
-Yes.  So what is it to be?
+> > Well we can now address the rarity. That is the whole point of the 
+> > patchset.
+> 
+> Introducing complexity to fight a very rare problem with a good
+> fallback (refusing to fork more tasks, as well as lumpy reclaim)
+> somehow does not seem like a good tradeoff.
 
-Is limiting by device queues enough?
+The problem can become non-rare on special low memory machines doing wild 
+swapping things though.
 
-Or do we need some global limit?
+> > It will be more common if the stack size is increased beyond 8k.
+> 
+> Why would we want to do such a thing?
 
-If so, the cleanest way I see is to separately account and limit
-swap-writeback pages, so the global counters don't interfere with the
-limiting.
+Because NUMA requires more stack space. In particular support for very 
+large cpu configurations of 16k may require 2k cpumasks on the stack.
+ 
+> 8kB stacks are large enough...
 
-This shouldn't be hard to do, as we have the per-bdi writeback
-counting infrastructure already, and also a pseudo bdi for swap in
-swapper_space.backing_dev_info.
-
-Miklos
+For many things yes. I just want to have the compile time option to 
+increase it.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
