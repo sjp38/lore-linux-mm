@@ -1,91 +1,61 @@
-Message-Id: <20071004040003.082188692@sgi.com>
+Message-Id: <20071004040004.708466159@sgi.com>
 References: <20071004035935.042951211@sgi.com>
-Date: Wed, 03 Oct 2007 20:59:41 -0700
+Date: Wed, 03 Oct 2007 20:59:48 -0700
 From: Christoph Lameter <clameter@sgi.com>
-Subject: [06/18] Vcompound: Update page address determination
-Content-Disposition: inline; filename=vcompound_page_address
+Subject: [13/18] x86_64: Allow fallback for the stack
+Content-Disposition: inline; filename=vcompound_x86_64_stack_fallback
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: akpm@linux-foundation.org
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, apw@shadowen.org
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, ak@suse.de, travis@sgi.com
 List-ID: <linux-mm.kvack.org>
 
-Make page_address() correctly determine the address of a potentially
-virtually mapped compound page.
+Peter Zijlstra has recently demonstrated that we can have order 1 allocation
+failures under memory pressure with small memory configurations. The
+x86_64 stack has a size of 8k and thus requires a order 1 allocation.
 
-There are 3 cases to consider:
+This patch adds a virtual fallback capability for the stack. The system may
+continue even in extreme situations and we may be able to increase the stack
+size if necessary (see next patch).
 
-1. !HASHED_PAGE_VIRTUAL && !WANT_PAGE_VIRTUAL
-
-Call vmalloc_address() directly from the page_address function
-defined in mm.h.
-
-2. HASHED_PAGE_VIRTUAL
-
-Modify page_address() in highmem.c to call vmalloc_address().
-
-3. WANT_PAGE_VIRTUAL
-
-set_page_address() is used to set up the virtual addresses of
-all pages that are part of the virtual compound.
-
-Cc: apw@shadowen.org
+Cc: ak@suse.de
+Cc: travis@sgi.com
 Signed-off-by: Christoph Lameter <clameter@sgi.com>
 
 ---
- include/linux/mm.h |    9 ++++++++-
- mm/highmem.c       |   10 ++++++++--
- 2 files changed, 16 insertions(+), 3 deletions(-)
+ include/asm-x86_64/thread_info.h |   16 +++++-----------
+ 1 file changed, 5 insertions(+), 11 deletions(-)
 
-Index: linux-2.6/include/linux/mm.h
+Index: linux-2.6/include/asm-x86_64/thread_info.h
 ===================================================================
---- linux-2.6.orig/include/linux/mm.h	2007-10-03 19:39:52.000000000 -0700
-+++ linux-2.6/include/linux/mm.h	2007-10-03 19:40:29.000000000 -0700
-@@ -605,7 +605,14 @@ void page_address_init(void);
+--- linux-2.6.orig/include/asm-x86_64/thread_info.h	2007-10-03 14:49:48.000000000 -0700
++++ linux-2.6/include/asm-x86_64/thread_info.h	2007-10-03 14:51:00.000000000 -0700
+@@ -74,20 +74,14 @@ static inline struct thread_info *stack_
+ 
+ /* thread information allocation */
+ #ifdef CONFIG_DEBUG_STACK_USAGE
+-#define alloc_thread_info(tsk)					\
+-    ({								\
+-	struct thread_info *ret;				\
+-								\
+-	ret = ((struct thread_info *) __get_free_pages(GFP_KERNEL,THREAD_ORDER)); \
+-	if (ret)						\
+-		memset(ret, 0, THREAD_SIZE);			\
+-	ret;							\
+-    })
++#define THREAD_FLAGS (GFP_VFALLBACK | __GFP_ZERO)
+ #else
+-#define alloc_thread_info(tsk) \
+-	((struct thread_info *) __get_free_pages(GFP_KERNEL,THREAD_ORDER))
++#define THREAD_FLAGS GFP_VFALLBACK
  #endif
  
- #if !defined(HASHED_PAGE_VIRTUAL) && !defined(WANT_PAGE_VIRTUAL)
--#define page_address(page) lowmem_page_address(page)
++#define alloc_thread_info(tsk) \
++	((struct thread_info *) __get_free_pages(THREAD_FLAGS, THREAD_ORDER))
 +
-+static inline void *page_address(struct page *page)
-+{
-+	if (unlikely(PageVcompound(page)))
-+		return vmalloc_address(page);
-+	return lowmem_page_address(page);
-+}
-+
- #define set_page_address(page, address)  do { } while(0)
- #define page_address_init()  do { } while(0)
- #endif
-Index: linux-2.6/mm/highmem.c
-===================================================================
---- linux-2.6.orig/mm/highmem.c	2007-10-03 19:39:25.000000000 -0700
-+++ linux-2.6/mm/highmem.c	2007-10-03 19:40:29.000000000 -0700
-@@ -265,8 +265,11 @@ void *page_address(struct page *page)
- 	void *ret;
- 	struct page_address_slot *pas;
+ #define free_thread_info(ti) free_pages((unsigned long) (ti), THREAD_ORDER)
  
--	if (!PageHighMem(page))
-+	if (!PageHighMem(page)) {
-+		if (PageVcompound(page))
-+			return vmalloc_address(page);
- 		return lowmem_page_address(page);
-+	}
- 
- 	pas = page_slot(page);
- 	ret = NULL;
-@@ -294,7 +297,10 @@ void set_page_address(struct page *page,
- 	struct page_address_slot *pas;
- 	struct page_address_map *pam;
- 
--	BUG_ON(!PageHighMem(page));
-+	if (!PageHighMem(page)) {
-+		BUG_ON(!PageVcompound(page));
-+		return;
-+	}
- 
- 	pas = page_slot(page);
- 	if (virtual) {		/* Add */
+ #else /* !__ASSEMBLY__ */
 
 -- 
 
