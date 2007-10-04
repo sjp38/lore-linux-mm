@@ -1,61 +1,65 @@
-Message-Id: <20071004040004.708466159@sgi.com>
+Message-Id: <20071004040001.944050958@sgi.com>
 References: <20071004035935.042951211@sgi.com>
-Date: Wed, 03 Oct 2007 20:59:48 -0700
+Date: Wed, 03 Oct 2007 20:59:36 -0700
 From: Christoph Lameter <clameter@sgi.com>
-Subject: [13/18] x86_64: Allow fallback for the stack
-Content-Disposition: inline; filename=vcompound_x86_64_stack_fallback
+Subject: [01/18] vmalloc: clean up page array indexing
+Content-Disposition: inline; filename=vcompound_array_indexes
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: akpm@linux-foundation.org
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, ak@suse.de, travis@sgi.com
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-Peter Zijlstra has recently demonstrated that we can have order 1 allocation
-failures under memory pressure with small memory configurations. The
-x86_64 stack has a size of 8k and thus requires a order 1 allocation.
+The page array is repeatedly indexed both in vunmap and vmalloc_area_node().
+Add a temporary variable to make it easier to read (and easier to patch
+later).
 
-This patch adds a virtual fallback capability for the stack. The system may
-continue even in extreme situations and we may be able to increase the stack
-size if necessary (see next patch).
-
-Cc: ak@suse.de
-Cc: travis@sgi.com
 Signed-off-by: Christoph Lameter <clameter@sgi.com>
 
 ---
- include/asm-x86_64/thread_info.h |   16 +++++-----------
- 1 file changed, 5 insertions(+), 11 deletions(-)
+ mm/vmalloc.c |   16 +++++++++++-----
+ 1 file changed, 11 insertions(+), 5 deletions(-)
 
-Index: linux-2.6/include/asm-x86_64/thread_info.h
+Index: linux-2.6/mm/vmalloc.c
 ===================================================================
---- linux-2.6.orig/include/asm-x86_64/thread_info.h	2007-10-03 14:49:48.000000000 -0700
-+++ linux-2.6/include/asm-x86_64/thread_info.h	2007-10-03 14:51:00.000000000 -0700
-@@ -74,20 +74,14 @@ static inline struct thread_info *stack_
+--- linux-2.6.orig/mm/vmalloc.c	2007-10-02 09:26:16.000000000 -0700
++++ linux-2.6/mm/vmalloc.c	2007-10-02 21:35:34.000000000 -0700
+@@ -345,8 +345,10 @@ static void __vunmap(void *addr, int dea
+ 		int i;
  
- /* thread information allocation */
- #ifdef CONFIG_DEBUG_STACK_USAGE
--#define alloc_thread_info(tsk)					\
--    ({								\
--	struct thread_info *ret;				\
--								\
--	ret = ((struct thread_info *) __get_free_pages(GFP_KERNEL,THREAD_ORDER)); \
--	if (ret)						\
--		memset(ret, 0, THREAD_SIZE);			\
--	ret;							\
--    })
-+#define THREAD_FLAGS (GFP_VFALLBACK | __GFP_ZERO)
- #else
--#define alloc_thread_info(tsk) \
--	((struct thread_info *) __get_free_pages(GFP_KERNEL,THREAD_ORDER))
-+#define THREAD_FLAGS GFP_VFALLBACK
- #endif
- 
-+#define alloc_thread_info(tsk) \
-+	((struct thread_info *) __get_free_pages(THREAD_FLAGS, THREAD_ORDER))
+ 		for (i = 0; i < area->nr_pages; i++) {
+-			BUG_ON(!area->pages[i]);
+-			__free_page(area->pages[i]);
++			struct page *page = area->pages[i];
 +
- #define free_thread_info(ti) free_pages((unsigned long) (ti), THREAD_ORDER)
++			BUG_ON(!page);
++			__free_page(page);
+ 		}
  
- #else /* !__ASSEMBLY__ */
+ 		if (area->flags & VM_VPAGES)
+@@ -450,15 +452,19 @@ void *__vmalloc_area_node(struct vm_stru
+ 	}
+ 
+ 	for (i = 0; i < area->nr_pages; i++) {
++		struct page *page;
++
+ 		if (node < 0)
+-			area->pages[i] = alloc_page(gfp_mask);
++			page = alloc_page(gfp_mask);
+ 		else
+-			area->pages[i] = alloc_pages_node(node, gfp_mask, 0);
+-		if (unlikely(!area->pages[i])) {
++			page = alloc_pages_node(node, gfp_mask, 0);
++
++		if (unlikely(!page)) {
+ 			/* Successfully allocated i pages, free them in __vunmap() */
+ 			area->nr_pages = i;
+ 			goto fail;
+ 		}
++		area->pages[i] = page;
+ 	}
+ 
+ 	if (map_vm_area(area, prot, &pages))
 
 -- 
 
