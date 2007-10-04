@@ -1,118 +1,63 @@
+Date: Thu, 4 Oct 2007 11:54:58 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
 Subject: Re: [PATCH] remove throttle_vm_writeout()
-From: Peter Zijlstra <a.p.zijlstra@chello.nl>
-In-Reply-To: <20071004104650.d158121f.akpm@linux-foundation.org>
+Message-Id: <20071004115458.10897e51.akpm@linux-foundation.org>
+In-Reply-To: <1191521410.5574.36.camel@lappy>
 References: <E1IdPla-0002Bd-00@dorka.pomaz.szeredi.hu>
-	 <1191501626.22357.14.camel@twins>
-	 <E1IdQJn-0002Cv-00@dorka.pomaz.szeredi.hu>
-	 <1191504186.22357.20.camel@twins>
-	 <E1IdR58-0002Fq-00@dorka.pomaz.szeredi.hu> <1191516427.5574.7.camel@lappy>
-	 <20071004104650.d158121f.akpm@linux-foundation.org>
-Content-Type: text/plain
-Date: Thu, 04 Oct 2007 20:10:10 +0200
-Message-Id: <1191521410.5574.36.camel@lappy>
+	<1191501626.22357.14.camel@twins>
+	<E1IdQJn-0002Cv-00@dorka.pomaz.szeredi.hu>
+	<1191504186.22357.20.camel@twins>
+	<E1IdR58-0002Fq-00@dorka.pomaz.szeredi.hu>
+	<1191516427.5574.7.camel@lappy>
+	<20071004104650.d158121f.akpm@linux-foundation.org>
+	<1191521410.5574.36.camel@lappy>
 Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Miklos Szeredi <miklos@szeredi.hu>, wfg@mail.ustc.edu.cn, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Peter Zijlstra <a.p.zijlstra@chello.nl>
+Cc: miklos@szeredi.hu, wfg@mail.ustc.edu.cn, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 2007-10-04 at 10:46 -0700, Andrew Morton wrote:
-> On Thu, 04 Oct 2007 18:47:07 +0200 Peter Zijlstra <a.p.zijlstra@chello.nl> wrote:
+On Thu, 04 Oct 2007 20:10:10 +0200
+Peter Zijlstra <a.p.zijlstra@chello.nl> wrote:
 
-> > static int may_write_to_queue(struct backing_dev_info *bdi)
-> > {
-> > 	if (current->flags & PF_SWAPWRITE)
-> > 		return 1;
-> > 	if (!bdi_write_congested(bdi))
-> > 		return 1;
-> > 	if (bdi == current->backing_dev_info)
-> > 		return 1;
-> > 	return 0;
-> > }
-> > 
-> > Which will write to congested queues. Anybody know why?
-
-OK, I guess I could have found that :-/
-
-> commit c4e2d7ddde9693a4c05da7afd485db02c27a7a09
-> Author: akpm <akpm>
-> Date:   Sun Dec 22 01:07:33 2002 +0000
 > 
->     [PATCH] Give kswapd writeback higher priority than pdflush
->     
->     The `low latency page reclaim' design works by preventing page
->     allocators from blocking on request queues (and by preventing them from
->     blocking against writeback of individual pages, but that is immaterial
->     here).
->     
->     This has a problem under some situations.  pdflush (or a write(2)
->     caller) could be saturating the queue with highmem pages.  This
->     prevents anyone from writing back ZONE_NORMAL pages.  We end up doing
->     enormous amounts of scenning.
->     
->     A test case is to mmap(MAP_SHARED) almost all of a 4G machine's memory,
->     then kill the mmapping applications.  The machine instantly goes from
->     0% of memory dirty to 95% or more. 
+> On Thu, 2007-10-04 at 10:46 -0700, Andrew Morton wrote:
+> > On Thu, 04 Oct 2007 18:47:07 +0200 Peter Zijlstra <a.p.zijlstra@chello.nl> wrote:
+> 
+> > > static int may_write_to_queue(struct backing_dev_info *bdi)
+> > > {
+> > > 	if (current->flags & PF_SWAPWRITE)
+> > > 		return 1;
+> > > 	if (!bdi_write_congested(bdi))
+> > > 		return 1;
+> > > 	if (bdi == current->backing_dev_info)
+> > > 		return 1;
+> > > 	return 0;
+> > > }
+> > > 
+> > > Which will write to congested queues. Anybody know why?
+> 
+> OK, I guess I could have found that :-/
 
-With dirty page tracking this is not supposed to happen anymore.
+Nice changelog, if I do say so myself ;)
 
->  pdflush kicks in and starts writing
->     the least-recently-dirtied pages, which are all highmem. 
+> >     One fix for this would be to add an additional "really congested"
+> >     threshold in the request queues, so kswapd can still perform
+> >     nonblocking writeout.  This gives kswapd priority over pdflush while
+> >     allowing kswapd to feed many disk queues.  I doubt if this will be
+> >     called for.
+> 
+> I could do that.
 
-with highmem >> normal, and user pages preferring highmem, this will
-likely still be true.
+I guess first you'd need to be able to reproduce the problem which that
+patch fixed, then check that it remains fixed.
 
->  The queue is
->     congested so nobody will write back ZONE_NORMAL pages.  kswapd chews
->     50% of the CPU scanning past dirty ZONE_NORMAL pages and page reclaim
->     efficiency (pages_reclaimed/pages_scanned) falls to 2%.
-
-So, the problem is a heavy writer vs swap. Which is still possible.
-   
->     So this patch changes the policy for kswapd.  kswapd may use all of a
->     request queue, and is prepared to block on request queues.
-
-So request queue's have a limit above the congestion level on which they
-will block?
-
-NFS doesn't have that AFAIK
-
->     What will now happen in the above scenario is:
->     
->     1: The page alloctor scans some pages, fails to reclaim enough
->        memory and takes a nap in blk_congetion_wait().
->     
->     2: kswapd() will scan the ZONE_NORMAL LRU and will start writing
->        back pages.  (These pages will be rotated to the tail of the
->        inactive list at IO-completion interrupt time).
->     
->        This writeback will saturate the queue with ZONE_NORMAL pages.
->        Conveniently, pdflush will avoid the congested queues.  So we end up
->        writing the correct pages.
->     
->     In this test, kswapd CPU utilisation falls from 50% to 2%, page reclaim
->     efficiency rises from 2% to 40% and things are generally a lot happier.
->     
->     
->     The downside is that kswapd may now do a lot less page reclaim,
->     increasing page allocation latency, causing more direct reclaim,
->     increasing lock contention in the VM, etc.  But I have not been able to
->     demonstrate that in testing.
->     
->     
->     The other problem is that there is only one kswapd, and there are lots
->     of disks.  That is a generic problem - without being able to co-opt
->     user processes we don't have enough threads to keep lots of disks saturated.
->     
->     One fix for this would be to add an additional "really congested"
->     threshold in the request queues, so kswapd can still perform
->     nonblocking writeout.  This gives kswapd priority over pdflush while
->     allowing kswapd to feed many disk queues.  I doubt if this will be
->     called for.
-
-I could do that.
+Sigh.  That problem was fairly subtle.  We could re-break reclaim in
+this way and not find out about it for six months.  There's a lesson here. 
+Several.  
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
