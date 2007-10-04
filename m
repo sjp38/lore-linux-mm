@@ -1,35 +1,48 @@
-Date: Thu, 4 Oct 2007 12:34:07 -0700 (PDT)
-From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [14/18] Configure stack size
-In-Reply-To: <20071003.214306.41634525.davem@davemloft.net>
-Message-ID: <Pine.LNX.4.64.0710041231590.12221@schroedinger.engr.sgi.com>
-References: <20071004035935.042951211@sgi.com> <20071004040004.936534357@sgi.com>
- <20071003213631.7a047dde@laptopd505.fenrus.org> <20071003.214306.41634525.davem@davemloft.net>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Date: Thu, 4 Oct 2007 15:39:40 -0400
+From: Rik van Riel <riel@redhat.com>
+Subject: Re: [13/18] x86_64: Allow fallback for the stack
+Message-ID: <20071004153940.49bd5afc@bree.surriel.com>
+In-Reply-To: <Pine.LNX.4.64.0710041220010.12075@schroedinger.engr.sgi.com>
+References: <20071004035935.042951211@sgi.com>
+	<20071004040004.708466159@sgi.com>
+	<200710041356.51750.ak@suse.de>
+	<Pine.LNX.4.64.0710041220010.12075@schroedinger.engr.sgi.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: David Miller <davem@davemloft.net>
-Cc: arjan@infradead.org, akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, ak@suse.de, travis@sgi.com
+To: Christoph Lameter <clameter@sgi.com>
+Cc: Andi Kleen <ak@suse.de>, akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, travis@sgi.com
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 3 Oct 2007, David Miller wrote:
+On Thu, 4 Oct 2007 12:20:50 -0700 (PDT)
+Christoph Lameter <clameter@sgi.com> wrote:
 
-> > there is still code that does DMA from and to the stack....
-> > how would this work with virtual allocated stack?
+> On Thu, 4 Oct 2007, Andi Kleen wrote:
 > 
-> That's a bug and must be fixed.
+> > We've known for ages that it is possible. But it has been always so
+> > rare that it was ignored.
 > 
-> There honestly shouldn't be that many examples around.
+> Well we can now address the rarity. That is the whole point of the 
+> patchset.
+
+Introducing complexity to fight a very rare problem with a good
+fallback (refusing to fork more tasks, as well as lumpy reclaim)
+somehow does not seem like a good tradeoff.
+ 
+> > Is there any evidence this is more common now than it used to be?
 > 
-> FWIW, there are platforms using a virtually allocated kernel stack
-> already.
+> It will be more common if the stack size is increased beyond 8k.
 
-There would be a way to address this by checking in the DMA layer for a 
-virtually mapped page and then segmenting I/O at the page boundaries to 
-the individual pages. We may need that anyways for large block sizes.
+Why would we want to do such a thing?
 
+8kB stacks are large enough...
 
+-- 
+"Debugging is twice as hard as writing the code in the first place.
+Therefore, if you write the code as cleverly as possible, you are,
+by definition, not smart enough to debug it." - Brian W. Kernighan
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
