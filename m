@@ -1,42 +1,35 @@
-Date: Thu, 4 Oct 2007 12:26:25 -0700 (PDT)
+Date: Thu, 4 Oct 2007 12:34:07 -0700 (PDT)
 From: Christoph Lameter <clameter@sgi.com>
 Subject: Re: [14/18] Configure stack size
-In-Reply-To: <200710041111.05141.ak@suse.de>
-Message-ID: <Pine.LNX.4.64.0710041221080.12075@schroedinger.engr.sgi.com>
+In-Reply-To: <20071003.214306.41634525.davem@davemloft.net>
+Message-ID: <Pine.LNX.4.64.0710041231590.12221@schroedinger.engr.sgi.com>
 References: <20071004035935.042951211@sgi.com> <20071004040004.936534357@sgi.com>
- <200710041111.05141.ak@suse.de>
+ <20071003213631.7a047dde@laptopd505.fenrus.org> <20071003.214306.41634525.davem@davemloft.net>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andi Kleen <ak@suse.de>
-Cc: akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, travis@sgi.com
+To: David Miller <davem@davemloft.net>
+Cc: arjan@infradead.org, akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, ak@suse.de, travis@sgi.com
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 4 Oct 2007, Andi Kleen wrote:
+On Wed, 3 Oct 2007, David Miller wrote:
 
-> On Thursday 04 October 2007 05:59, Christoph Lameter wrote:
-> > Make the stack size configurable now that we can fallback to vmalloc if
-> > necessary. SGI NUMA configurations may need more stack because cpumasks
-> > and nodemasks are at times kept on the stack.  With the coming 16k cpu 
-> > support 
+> > there is still code that does DMA from and to the stack....
+> > how would this work with virtual allocated stack?
 > 
-> Hmm, I was told 512 byte cpumasks for x86 earlier. Why is this suddenly 2K? 
+> That's a bug and must be fixed.
+> 
+> There honestly shouldn't be that many examples around.
+> 
+> FWIW, there are platforms using a virtually allocated kernel stack
+> already.
 
-512 is for the default 4k cpu configuration that should be enough for most 
-purposes. The hardware maximum is 16k and we need at least a kernel config 
-option that covers the potential stack size issues.
+There would be a way to address this by checking in the DMA layer for a 
+virtually mapped page and then segmenting I/O at the page boundaries to 
+the individual pages. We may need that anyways for large block sizes.
 
-> 2K is too much imho. If you really want to go that big you have
-> to look in allocating them all separately imho. But messing
-> with the stack TLB entries and risking more TLB misses 
-> is not a good idea.
 
-These machines have very large amounts of memory (up to the maximum 
-addressable memory of an x86_64 cpu). The fallback is as good as 
-impossible. If you get into fallback then we are likely already swapping 
-and doing other bad placement things. We typically tune the loads to avoid 
-this.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
