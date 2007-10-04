@@ -1,38 +1,65 @@
-Message-Id: <20071004040005.171632278@sgi.com>
+Message-Id: <20071004040003.797970826@sgi.com>
 References: <20071004035935.042951211@sgi.com>
-Date: Wed, 03 Oct 2007 20:59:50 -0700
+Date: Wed, 03 Oct 2007 20:59:44 -0700
 From: Christoph Lameter <clameter@sgi.com>
-Subject: [15/18] Fallback for temporary order 2 allocation
-Content-Disposition: inline; filename=vcompound_crypto
+Subject: [09/18] Vcompound: GFP_VFALLBACK debugging aid
+Content-Disposition: inline; filename=vcompound_debugging_aid
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: akpm@linux-foundation.org
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Dan Williams <dan.j.williams@intel.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-The cryto subsystem needs an order 2 allocation. This is a temporary buffer
-for xoring data so we can safely allow fallback.
+Virtual fallbacks are rare and thus subtle bugs may creep in if we do not
+test the fallbacks. CONFIG_VFALLBACK_ALWAYS makes all GFP_VFALLBACK
+allocations fall back to virtual mapping.
 
-Cc: Dan Williams <dan.j.williams@intel.com>
 Signed-off-by: Christoph Lameter <clameter@sgi.com>
 
 ---
- crypto/xor.c |    2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ lib/Kconfig.debug |   11 +++++++++++
+ mm/page_alloc.c   |    6 ++++++
+ 2 files changed, 17 insertions(+)
 
-Index: linux-2.6/crypto/xor.c
+Index: linux-2.6/mm/page_alloc.c
 ===================================================================
---- linux-2.6.orig/crypto/xor.c	2007-10-03 18:11:20.000000000 -0700
-+++ linux-2.6/crypto/xor.c	2007-10-03 18:12:14.000000000 -0700
-@@ -101,7 +101,7 @@ calibrate_xor_blocks(void)
- 	void *b1, *b2;
- 	struct xor_block_template *f, *fastest;
+--- linux-2.6.orig/mm/page_alloc.c	2007-10-03 18:04:33.000000000 -0700
++++ linux-2.6/mm/page_alloc.c	2007-10-03 18:07:16.000000000 -0700
+@@ -1257,6 +1257,12 @@ zonelist_scan:
+ 			}
+ 		}
  
--	b1 = (void *) __get_free_pages(GFP_KERNEL, 2);
-+	b1 = (void *) __get_free_pages(GFP_VFALLBACK, 2);
- 	if (!b1) {
- 		printk(KERN_WARNING "xor: Yikes!  No memory available.\n");
- 		return -ENOMEM;
++#ifdef CONFIG_VFALLBACK_ALWAYS
++		if ((gfp_mask & __GFP_VFALLBACK) &&
++				system_state == SYSTEM_RUNNING)
++			return alloc_vcompound(gfp_mask, order,
++					zonelist, alloc_flags);
++#endif
+ 		page = buffered_rmqueue(zonelist, zone, order, gfp_mask);
+ 		if (page)
+ 			break;
+Index: linux-2.6/lib/Kconfig.debug
+===================================================================
+--- linux-2.6.orig/lib/Kconfig.debug	2007-10-03 18:04:29.000000000 -0700
++++ linux-2.6/lib/Kconfig.debug	2007-10-03 18:07:16.000000000 -0700
+@@ -105,6 +105,17 @@ config DETECT_SOFTLOCKUP
+ 	   can be detected via the NMI-watchdog, on platforms that
+ 	   support it.)
+ 
++config VFALLBACK_ALWAYS
++	bool "Always fall back to Virtual Compound pages"
++	default y
++	help
++	  Virtual compound pages are only allocated if there is no linear
++	  memory available. They are a fallback and errors created by the
++	  use of virtual mappings instead of linear ones may not surface
++	  because of their infrequent use. This option makes every
++	  allocation that allows a fallback to a virtual mapping use
++	  the virtual mapping. May have a significant performance impact.
++
+ config SCHED_DEBUG
+ 	bool "Collect scheduler debugging info"
+ 	depends on DEBUG_KERNEL && PROC_FS
 
 -- 
 
