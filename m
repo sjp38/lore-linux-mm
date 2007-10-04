@@ -1,80 +1,127 @@
-Message-Id: <20071004040002.622421554@sgi.com>
+Message-Id: <20071004040002.395028045@sgi.com>
 References: <20071004035935.042951211@sgi.com>
-Date: Wed, 03 Oct 2007 20:59:39 -0700
+Date: Wed, 03 Oct 2007 20:59:38 -0700
 From: Christoph Lameter <clameter@sgi.com>
-Subject: [04/18] Vcompound: Smart up virt_to_head_page()
-Content-Disposition: inline; filename=vcompound_virt_to_head_page
+Subject: [03/18] vmalloc_address(): Determine vmalloc address from page struct
+Content-Disposition: inline; filename=vcompound_vmalloc_address
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: akpm@linux-foundation.org
 Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-The determination of a page struct for an address in a compound page
-will need some more smarts in order to deal with virtual addresses.
-
-We need to use the evil constants VMALLOC_START and VMALLOC_END for this
-and they are notoriously for referencing various arch header files or may
-even be variables. Uninline the function to avoid trouble.
+Sometimes we need to figure out which vmalloc address is in use
+for a certain page struct. There is no easy way to figure out
+the vmalloc address from the page struct. Simply search through
+the kernel page tables to find the address. Use sparingly.
 
 Signed-off-by: Christoph Lameter <clameter@sgi.com>
 
 ---
- include/linux/mm.h |    6 +-----
- mm/page_alloc.c    |   23 +++++++++++++++++++++++
- 2 files changed, 24 insertions(+), 5 deletions(-)
+ include/linux/mm.h |    2 +
+ mm/vmalloc.c       |   79 +++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 81 insertions(+)
 
-Index: linux-2.6/include/linux/mm.h
+Index: linux-2.6/mm/vmalloc.c
 ===================================================================
---- linux-2.6.orig/include/linux/mm.h	2007-10-03 19:21:50.000000000 -0700
-+++ linux-2.6/include/linux/mm.h	2007-10-03 19:23:08.000000000 -0700
-@@ -315,11 +315,7 @@ static inline void get_page(struct page 
- 	atomic_inc(&page->_count);
+--- linux-2.6.orig/mm/vmalloc.c	2007-10-03 16:20:15.000000000 -0700
++++ linux-2.6/mm/vmalloc.c	2007-10-03 16:20:48.000000000 -0700
+@@ -840,3 +840,82 @@ void free_vm_area(struct vm_struct *area
+ 	kfree(area);
  }
- 
--static inline struct page *virt_to_head_page(const void *x)
--{
--	struct page *page = virt_to_page(x);
--	return compound_head(page);
--}
-+struct page *virt_to_head_page(const void *x);
- 
- /*
-  * Setup the page count before being freed into the page allocator for
-Index: linux-2.6/mm/page_alloc.c
-===================================================================
---- linux-2.6.orig/mm/page_alloc.c	2007-10-03 19:21:50.000000000 -0700
-+++ linux-2.6/mm/page_alloc.c	2007-10-03 19:23:08.000000000 -0700
-@@ -150,6 +150,29 @@ int nr_node_ids __read_mostly = MAX_NUMN
- EXPORT_SYMBOL(nr_node_ids);
- #endif
- 
+ EXPORT_SYMBOL_GPL(free_vm_area);
++
++
 +/*
-+ * Determine the appropriate page struct given a virtual address
-+ * (including vmalloced areas).
++ * Determine vmalloc address from a page struct.
 + *
-+ * Return the head page if this is a compound page.
-+ *
-+ * Cannot be inlined since VMALLOC_START and VMALLOC_END may contain
-+ * complex calculations that depend on multiple arch includes or
-+ * even variables.
++ * Linear search through all ptes of the vmalloc area.
 + */
-+struct page *virt_to_head_page(const void *x)
++static unsigned long vaddr_pte_range(pmd_t *pmd, unsigned long addr,
++		unsigned long end, unsigned long pfn)
 +{
-+	unsigned long addr = (unsigned long)x;
-+	struct page *page;
++	pte_t *pte;
 +
-+	if (unlikely(addr >= VMALLOC_START && addr < VMALLOC_END))
-+		page = vmalloc_to_page((void *)addr);
-+	else
-+		page = virt_to_page(addr);
-+
-+	return compound_head(page);
++	pte = pte_offset_kernel(pmd, addr);
++	do {
++		pte_t ptent = *pte;
++		if (pte_present(ptent) && pte_pfn(ptent) == pfn)
++			return addr;
++	} while (pte++, addr += PAGE_SIZE, addr != end);
++	return 0;
 +}
 +
- #ifdef CONFIG_DEBUG_VM
- static int page_outside_zone_boundaries(struct zone *zone, struct page *page)
++static inline unsigned long vaddr_pmd_range(pud_t *pud, unsigned long addr,
++		unsigned long end, unsigned long pfn)
++{
++	pmd_t *pmd;
++	unsigned long next;
++	unsigned long n;
++
++	pmd = pmd_offset(pud, addr);
++	do {
++		next = pmd_addr_end(addr, end);
++		if (pmd_none_or_clear_bad(pmd))
++			continue;
++		n = vaddr_pte_range(pmd, addr, next, pfn);
++		if (n)
++			return n;
++	} while (pmd++, addr = next, addr != end);
++	return 0;
++}
++
++static inline unsigned long vaddr_pud_range(pgd_t *pgd, unsigned long addr,
++		unsigned long end, unsigned long pfn)
++{
++	pud_t *pud;
++	unsigned long next;
++	unsigned long n;
++
++	pud = pud_offset(pgd, addr);
++	do {
++		next = pud_addr_end(addr, end);
++		if (pud_none_or_clear_bad(pud))
++			continue;
++		n = vaddr_pmd_range(pud, addr, next, pfn);
++		if (n)
++			return n;
++	} while (pud++, addr = next, addr != end);
++	return 0;
++}
++
++void *vmalloc_address(struct page *page)
++{
++	pgd_t *pgd;
++	unsigned long next, n;
++	unsigned long addr = VMALLOC_START;
++	unsigned long pfn = page_to_pfn(page);
++
++	pgd = pgd_offset_k(VMALLOC_START);
++	do {
++		next = pgd_addr_end(addr, VMALLOC_END);
++		if (pgd_none_or_clear_bad(pgd))
++			continue;
++		n = vaddr_pud_range(pgd, addr, next, pfn);
++		if (n)
++			return (void *)n;
++	} while (pgd++, addr = next, addr < VMALLOC_END);
++	return NULL;
++}
++EXPORT_SYMBOL(vmalloc_address);
++
+Index: linux-2.6/include/linux/mm.h
+===================================================================
+--- linux-2.6.orig/include/linux/mm.h	2007-10-03 16:19:27.000000000 -0700
++++ linux-2.6/include/linux/mm.h	2007-10-03 16:20:48.000000000 -0700
+@@ -294,6 +294,8 @@ static inline int get_page_unless_zero(s
+ 	return atomic_inc_not_zero(&page->_count);
+ }
+ 
++void *vmalloc_address(struct page *);
++
+ static inline struct page *compound_head(struct page *page)
  {
+ 	if (unlikely(PageTail(page)))
 
 -- 
 
