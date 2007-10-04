@@ -1,40 +1,44 @@
-Message-Id: <20071004040005.850376534@sgi.com>
+Message-Id: <20071004040004.253793692@sgi.com>
 References: <20071004035935.042951211@sgi.com>
-Date: Wed, 03 Oct 2007 20:59:53 -0700
+Date: Wed, 03 Oct 2007 20:59:46 -0700
 From: Christoph Lameter <clameter@sgi.com>
-Subject: [18/18] SLUB: Use fallback for table of callers/freers of a slab cache
-Content-Disposition: inline; filename=vcompound_slub_safe
+Subject: [11/18] Page allocator: Use a higher order allocation for the zone wait table.
+Content-Disposition: inline; filename=vcompound_wait_table_no_vmalloc
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: akpm@linux-foundation.org
 Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-The caller table can get quite large if there are many call sites for a
-particular slab. Add GFP_FALLBACK allows falling back to vmalloc in case
-the caller table gets too big and memory is fragmented. Currently we
-would fail the operation.
+Currently vmalloc is used for the zone wait table. Therefore the vmalloc
+page tables have to be consulted by the MMU to access the wait table.
+We can now use GFP_VFALLBACK to attempt the use of a physically contiguous
+page that can then use the large kernel TLBs.
+
+Drawback: The zone wait table is rounded up to the next power of two which
+may cost some memory.
 
 Signed-off-by: Christoph Lameter <clameter@sgi.com>
 
 ---
- mm/slub.c |    3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
+ mm/page_alloc.c |    4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)
 
-Index: linux-2.6/mm/slub.c
+Index: linux-2.6/mm/page_alloc.c
 ===================================================================
---- linux-2.6.orig/mm/slub.c	2007-10-03 20:00:23.000000000 -0700
-+++ linux-2.6/mm/slub.c	2007-10-03 20:01:12.000000000 -0700
-@@ -3003,7 +3003,8 @@ static int alloc_loc_track(struct loc_tr
- 
- 	order = get_order(sizeof(struct location) * max);
- 
--	l = (void *)__get_free_pages(flags, order);
-+	l = (void *)__get_free_pages(flags | __GFP_COMP | __GFP_VFALLBACK,
-+								order);
- 	if (!l)
- 		return 0;
- 
+--- linux-2.6.orig/mm/page_alloc.c	2007-10-03 18:07:16.000000000 -0700
++++ linux-2.6/mm/page_alloc.c	2007-10-03 18:07:20.000000000 -0700
+@@ -2585,7 +2585,9 @@ int zone_wait_table_init(struct zone *zo
+ 		 * To use this new node's memory, further consideration will be
+ 		 * necessary.
+ 		 */
+-		zone->wait_table = (wait_queue_head_t *)vmalloc(alloc_size);
++		zone->wait_table = (wait_queue_head_t *)
++			__get_free_pages(GFP_VFALLBACK,
++					get_order(alloc_size));
+ 	}
+ 	if (!zone->wait_table)
+ 		return -ENOMEM;
 
 -- 
 
