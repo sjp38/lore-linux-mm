@@ -1,6 +1,6 @@
 Subject: Re: [PATCH] remove throttle_vm_writeout()
 From: Trond Myklebust <trond.myklebust@fys.uio.no>
-In-Reply-To: <1191609139.6210.4.camel@lappy>
+In-Reply-To: <1191612043.6715.139.camel@heimdal.trondhjem.org>
 References: <E1IdPla-0002Bd-00@dorka.pomaz.szeredi.hu>
 	 <20071004145640.18ced770.akpm@linux-foundation.org>
 	 <E1IdZLg-0002Wr-00@dorka.pomaz.szeredi.hu>
@@ -16,9 +16,10 @@ References: <E1IdPla-0002Bd-00@dorka.pomaz.szeredi.hu>
 	 <1191581854.22357.85.camel@twins>
 	 <1191606600.6715.94.camel@heimdal.trondhjem.org>
 	 <1191609139.6210.4.camel@lappy>
+	 <1191612043.6715.139.camel@heimdal.trondhjem.org>
 Content-Type: text/plain
-Date: Fri, 05 Oct 2007 15:20:43 -0400
-Message-Id: <1191612043.6715.139.camel@heimdal.trondhjem.org>
+Date: Fri, 05 Oct 2007 15:23:16 -0400
+Message-Id: <1191612196.6715.142.camel@heimdal.trondhjem.org>
 Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
@@ -27,23 +28,31 @@ To: Peter Zijlstra <a.p.zijlstra@chello.nl>
 Cc: Miklos Szeredi <miklos@szeredi.hu>, akpm@linux-foundation.org, wfg@mail.ustc.edu.cn, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 2007-10-05 at 20:32 +0200, Peter Zijlstra wrote:
-> Well, the thing is, we throttle pageout in throttle_vm_writeout(). As it
-> stand we can deadlock there because it just waits for the numbers to
-> drop, and unstable pages don't automagically dissapear. Only
-> write_inodes() - normally called from balance_dirty_pages() will call
-> COMMIT.
+On Fri, 2007-10-05 at 15:20 -0400, Trond Myklebust wrote:
+> On Fri, 2007-10-05 at 20:32 +0200, Peter Zijlstra wrote:
+> > Well, the thing is, we throttle pageout in throttle_vm_writeout(). As it
+> > stand we can deadlock there because it just waits for the numbers to
+> > drop, and unstable pages don't automagically dissapear. Only
+> > write_inodes() - normally called from balance_dirty_pages() will call
+> > COMMIT.
+> > 
+> > So my thought was that calling pageout() on an unstable page would do
+> > the COMMIT - we're low on memory, otherwise we would not be paging, so
+> > getting rid of unstable pages seems to make sense to me.
 > 
-> So my thought was that calling pageout() on an unstable page would do
-> the COMMIT - we're low on memory, otherwise we would not be paging, so
-> getting rid of unstable pages seems to make sense to me.
+> Why not rather track which mappings have large numbers of outstanding
+> unstable writes at the VM level, and then add some form of callback to
+> allow it to notify the filesystem when it needs to flush them out?
+> 
+> Cheers
+>   Trond
 
-Why not rather track which mappings have large numbers of outstanding
-unstable writes at the VM level, and then add some form of callback to
-allow it to notify the filesystem when it needs to flush them out?
+BTW: Please note that at least in the case of NFS, you will have to
+allow for the fact that the filesystem may not be _able_ to cause the
+numbers to drop. If the server is unavailable, then we're may be stuck
+in unstable page limbo for quite some time.
 
-Cheers
-  Trond
+Trond
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
