@@ -1,33 +1,49 @@
-Date: Fri, 5 Oct 2007 12:17:41 -0700 (PDT)
-From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [Patch]Documentation/vm/slabinfo.c: clean up this code
-In-Reply-To: <20071005124614.GD12498@hacking>
-Message-ID: <Pine.LNX.4.64.0710051216250.17345@schroedinger.engr.sgi.com>
-References: <20071005124614.GD12498@hacking>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: [PATCH] remove throttle_vm_writeout()
+From: Trond Myklebust <trond.myklebust@fys.uio.no>
+In-Reply-To: <1191609139.6210.4.camel@lappy>
+References: <E1IdPla-0002Bd-00@dorka.pomaz.szeredi.hu>
+	 <20071004145640.18ced770.akpm@linux-foundation.org>
+	 <E1IdZLg-0002Wr-00@dorka.pomaz.szeredi.hu>
+	 <20071004160941.e0c0c7e5.akpm@linux-foundation.org>
+	 <E1Ida56-0002Zz-00@dorka.pomaz.szeredi.hu>
+	 <20071004164801.d8478727.akpm@linux-foundation.org>
+	 <E1Idanu-0002c1-00@dorka.pomaz.szeredi.hu>
+	 <20071004174851.b34a3220.akpm@linux-foundation.org>
+	 <1191572520.22357.42.camel@twins>
+	 <E1IdjOa-0002qg-00@dorka.pomaz.szeredi.hu>
+	 <1191577623.22357.69.camel@twins>
+	 <E1IdkOf-0002tK-00@dorka.pomaz.szeredi.hu>
+	 <1191581854.22357.85.camel@twins>
+	 <1191606600.6715.94.camel@heimdal.trondhjem.org>
+	 <1191609139.6210.4.camel@lappy>
+Content-Type: text/plain
+Date: Fri, 05 Oct 2007 15:20:43 -0400
+Message-Id: <1191612043.6715.139.camel@heimdal.trondhjem.org>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: WANG Cong <xiyou.wangcong@gmail.com>
-Cc: LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@osdl.org>, linux-mm@kvack.org
+To: Peter Zijlstra <a.p.zijlstra@chello.nl>
+Cc: Miklos Szeredi <miklos@szeredi.hu>, akpm@linux-foundation.org, wfg@mail.ustc.edu.cn, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 5 Oct 2007, WANG Cong wrote:
-
+On Fri, 2007-10-05 at 20:32 +0200, Peter Zijlstra wrote:
+> Well, the thing is, we throttle pageout in throttle_vm_writeout(). As it
+> stand we can deadlock there because it just waits for the numbers to
+> drop, and unstable pages don't automagically dissapear. Only
+> write_inodes() - normally called from balance_dirty_pages() will call
+> COMMIT.
 > 
-> This patch does the following cleanups for Documentation/vm/slabinfo.c:
-> 
-> 	- Fix two memory leaks;
+> So my thought was that calling pageout() on an unstable page would do
+> the COMMIT - we're low on memory, otherwise we would not be paging, so
+> getting rid of unstable pages seems to make sense to me.
 
-For user space code? Memory will be released as soon as the program 
-terminates.
+Why not rather track which mappings have large numbers of outstanding
+unstable writes at the VM level, and then add some form of callback to
+allow it to notify the filesystem when it needs to flush them out?
 
-> 	- Constify some char pointers;
-> 	- Use snprintf instead of sprintf in case of buffer overflow;
-> 	- Fix some indentations;
-> 	- Other little improvements.
-
-Acked-by: Christoph Lameter <clameter@sgi.com>
+Cheers
+  Trond
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
