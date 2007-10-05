@@ -1,91 +1,45 @@
-Date: Thu, 4 Oct 2007 17:48:51 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH] remove throttle_vm_writeout()
-Message-Id: <20071004174851.b34a3220.akpm@linux-foundation.org>
-In-Reply-To: <E1Idanu-0002c1-00@dorka.pomaz.szeredi.hu>
-References: <E1IdPla-0002Bd-00@dorka.pomaz.szeredi.hu>
-	<20071004145640.18ced770.akpm@linux-foundation.org>
-	<E1IdZLg-0002Wr-00@dorka.pomaz.szeredi.hu>
-	<20071004160941.e0c0c7e5.akpm@linux-foundation.org>
-	<E1Ida56-0002Zz-00@dorka.pomaz.szeredi.hu>
-	<20071004164801.d8478727.akpm@linux-foundation.org>
-	<E1Idanu-0002c1-00@dorka.pomaz.szeredi.hu>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Received: from zps37.corp.google.com (zps37.corp.google.com [172.25.146.37])
+	by smtp-out.google.com with ESMTP id l952RF1K020518
+	for <linux-mm@kvack.org>; Thu, 4 Oct 2007 19:27:15 -0700
+Received: from nz-out-0506.google.com (nzii28.prod.google.com [10.36.35.28])
+	by zps37.corp.google.com with ESMTP id l952QLFJ002996
+	for <linux-mm@kvack.org>; Thu, 4 Oct 2007 19:27:15 -0700
+Received: by nz-out-0506.google.com with SMTP id i28so364048nzi
+        for <linux-mm@kvack.org>; Thu, 04 Oct 2007 19:27:14 -0700 (PDT)
+Message-ID: <b040c32a0710041927o3c58f55eica57ce33e979105b@mail.gmail.com>
+Date: Thu, 4 Oct 2007 19:27:14 -0700
+From: "Ken Chen" <kenchen@google.com>
+Subject: Re: [PATCH][2.6.23-rc8-mm2] Fixes to hugetlbfs_read() support
+In-Reply-To: <1191535001.6106.104.camel@dyn9047017100.beaverton.ibm.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+References: <20071001133524.0566b556.akpm@linux-foundation.org>
+	 <1191346335.6106.23.camel@dyn9047017100.beaverton.ibm.com>
+	 <20071002111949.c8184a3a.akpm@linux-foundation.org>
+	 <1191364926.6106.57.camel@dyn9047017100.beaverton.ibm.com>
+	 <b040c32a0710021914i5ced503aoebe6e749cd2201af@mail.gmail.com>
+	 <b040c32a0710021941q583e2169t40e196675318f19d@mail.gmail.com>
+	 <20071003025853.GA14698@localhost.localdomain>
+	 <1191425944.6106.79.camel@dyn9047017100.beaverton.ibm.com>
+	 <b040c32a0710031441v3139bd28lce757b2c63796686@mail.gmail.com>
+	 <1191535001.6106.104.camel@dyn9047017100.beaverton.ibm.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Miklos Szeredi <miklos@szeredi.hu>
-Cc: wfg@mail.ustc.edu.cn, a.p.zijlstra@chello.nl, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Badari Pulavarty <pbadari@us.ibm.com>
+Cc: David Gibson <david@gibson.dropbear.id.au>, Andrew Morton <akpm@linux-foundation.org>, William Lee Irwin III <wli@holomorphy.com>, Adam Litke <agl@us.ibm.com>, Nishanth Aravamudan <nacc@us.ibm.com>, linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 05 Oct 2007 02:12:30 +0200 Miklos Szeredi <miklos@szeredi.hu> wrote:
+On 10/4/07, Badari Pulavarty <pbadari@us.ibm.com> wrote:
+> Hi Ken,
+>
+> Here is the latest against 2.6.23-rc8-mm2. If you are happy with this,
+> I will ask Andrew to pick it up. I did test this version :)
 
-> > 
-> > I don't think I understand that.  Sure, it _shouldn't_ be a problem.  But it
-> > _is_.  That's what we're trying to fix, isn't it?
-> 
-> The problem, I believe is in the memory allocation code, not in fuse.
+Looks good.  I also tested and verified that it works.
 
-fuse is trying to do something which page reclaim was not designed for. 
-Stuff broke.
-
-> In the example, memory allocation may be blocking indefinitely,
-> because we have 4MB under writeback, even though 28MB can still be
-> made available.  And that _should_ be fixable.
-
-Well yes.  But we need to work out how, without re-breaking the thing which
-throttle_vm_writeout() fixed.
-
-> > > So the only thing the kernel should be careful about, is not to block
-> > > on an allocation if not strictly necessary.
-> > > 
-> > > Actually a trivial fix for this problem could be to just tweak the
-> > > thresholds, so to make the above scenario impossible.  Although I'm
-> > > still not convinced, this patch is perfect, because the dirty
-> > > threshold can actually change in time...
-> > > 
-> > > Index: linux/mm/page-writeback.c
-> > > ===================================================================
-> > > --- linux.orig/mm/page-writeback.c      2007-10-05 00:31:01.000000000 +0200
-> > > +++ linux/mm/page-writeback.c   2007-10-05 00:50:11.000000000 +0200
-> > > @@ -515,6 +515,12 @@ void throttle_vm_writeout(gfp_t gfp_mask
-> > >          for ( ; ; ) {
-> > >                 get_dirty_limits(&background_thresh, &dirty_thresh, NULL, NULL);
-> > > 
-> > > +               /*
-> > > +                * Make sure the theshold is over the hard limit of
-> > > +                * dirty_thresh + ratelimit_pages * nr_cpus
-> > > +                */
-> > > +               dirty_thresh += ratelimit_pages * num_online_cpus();
-> > > +
-> > >                  /*
-> > >                   * Boost the allowable dirty threshold a bit for page
-> > >                   * allocators so they don't get DoS'ed by heavy writers
-> > 
-> > I can probably kind of guess what you're trying to do here.  But if
-> > ratelimit_pages * num_online_cpus() exceeds the size of the offending zone
-> > then things might go bad.
-> 
-> I think the admin can do quite a bit of other damage, by setting
-> dirty_ratio too high.
-> 
-> Maybe this writeback throttling should just have a fixed limit of 80%
-> ZONE_NORMAL, and limit dirty_ratio to something like 50%.
-
-Bear in mind that the same problem will occur for the 16MB ZONE_DMA, and
-we cannot limit the system-wide dirty-memory threshold to 12MB.
-
-iow, throttle_vm_writeout() needs to become zone-aware.  Then it only
-throttles when, say, 80% of ZONE_FOO is under writeback.
-
-Except I don't think that'll fix the problem 100%: if your fuse kernel
-component somehow manages to put 80% of ZONE_FOO under writeback (and
-remmeber this might be only 12MB on a 16GB machine) then we get stuck again
-- the fuse server process (is that the correct terminology, btw?) ends up
-waiting upon itself.
-
-I'll think about it a bit.
+Acked-by: Ken Chen <kenchen@google.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
