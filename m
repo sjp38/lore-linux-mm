@@ -1,51 +1,59 @@
-Date: Fri, 5 Oct 2007 10:21:28 -0700
-From: Mark Gross <mgross@linux.intel.com>
-Subject: Re: Hotplug memory remove
-Message-ID: <20071005172128.GA19681@linux.intel.com>
-Reply-To: mgross@linux.intel.com
-References: <1191253063.29581.7.camel@dyn9047017100.beaverton.ibm.com> <20071002011447.7ec1f513.kamezawa.hiroyu@jp.fujitsu.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20071002011447.7ec1f513.kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [PATCH] remove throttle_vm_writeout()
+From: Trond Myklebust <trond.myklebust@fys.uio.no>
+In-Reply-To: <1191581854.22357.85.camel@twins>
+References: <E1IdPla-0002Bd-00@dorka.pomaz.szeredi.hu>
+	 <20071004145640.18ced770.akpm@linux-foundation.org>
+	 <E1IdZLg-0002Wr-00@dorka.pomaz.szeredi.hu>
+	 <20071004160941.e0c0c7e5.akpm@linux-foundation.org>
+	 <E1Ida56-0002Zz-00@dorka.pomaz.szeredi.hu>
+	 <20071004164801.d8478727.akpm@linux-foundation.org>
+	 <E1Idanu-0002c1-00@dorka.pomaz.szeredi.hu>
+	 <20071004174851.b34a3220.akpm@linux-foundation.org>
+	 <1191572520.22357.42.camel@twins>
+	 <E1IdjOa-0002qg-00@dorka.pomaz.szeredi.hu>
+	 <1191577623.22357.69.camel@twins>
+	 <E1IdkOf-0002tK-00@dorka.pomaz.szeredi.hu>
+	 <1191581854.22357.85.camel@twins>
+Content-Type: text/plain
+Date: Fri, 05 Oct 2007 13:50:00 -0400
+Message-Id: <1191606600.6715.94.camel@heimdal.trondhjem.org>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Badari Pulavarty <pbadari@gmail.com>, linux-mm@kvack.org
+To: Peter Zijlstra <a.p.zijlstra@chello.nl>
+Cc: Miklos Szeredi <miklos@szeredi.hu>, akpm@linux-foundation.org, wfg@mail.ustc.edu.cn, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Oct 02, 2007 at 01:14:47AM +0900, KAMEZAWA Hiroyuki wrote:
-> On Mon, 01 Oct 2007 08:37:43 -0700
-> Badari Pulavarty <pbadari@gmail.com> wrote:
-> > 1) Other than remove_memory(), I don't see any other arch-specific
-> > code that needs to be provided. Even remove_memory() looks pretty
-> > arch independent. Isn't it ?
-> > 
-> Yes, maybe arch independent. Current codes is based on assumption
-> that some arch may needs some code before/after hotremove.
-> If no arch needs, we can merge all. 
+On Fri, 2007-10-05 at 12:57 +0200, Peter Zijlstra wrote:
+> In this patch I totally ignored unstable, but I'm not sure that's the
+> proper thing to do, I'd need to figure out what happens to an unstable
+> page when passed into pageout() - or if its passed to pageout at all.
 > 
-> > 2) I copied remove_memory() from IA64 to PPC64. When I am testing
-> > hotplug-remove (echo offline > state), I am not able to remove
-> > any memory at all. I get different type of failures like ..
-> > 
-> > memory offlining 6e000 to 6f000 failed
-> > 
-> I'm not sure about this...does this memory is in ZONE_MOVABLE ?
-> If not ZONE_MOVABLE, offlining can be fail because of not-removable
-> kernel memory. 
+> If unstable pages would be passed to pageout(), and it would properly
+> convert them to writeback and clean them, then there is nothing wrong.
 
-How could I mark a nid's worth of memory as ZONE_MOVABLE?  I've been
-reading through this code and it appears to somewhat arbitrarily choose
-some portion of the memory to be ZONE_MOVABLE per pxm and some kernel
-parameters.  But I'm having a hard time finding the proper place to set
-up the nodes.
+Why would we want to do that? That would be a hell of a lot of work
+(locking pages, setting flags, unlocking pages, ...) for absolutely no
+reason.
 
-btw: I'm trying to finish up that power managed memory experiment where we
-set up numa PXM's marking fbdims we want to fiddle with power state on.
+Unstable writes are writes which have been sent to the server, but which
+haven't been written to disk on the server. A single RPC command is then
+sent (COMMIT) which basically tells the server to call fsync(). After
+that is successful, we can free up the pages, but we do that with no
+extra manipulation of the pages themselves: no page locks, just removal
+from the NFS private radix tree, and freeing up of the NFS private
+structures.
 
+We only need to touch the pages again in the unlikely case that the
+COMMIT fails because the server has rebooted. In this case we have to
+resend the writes, and so the pages are marked as dirty, so we can go
+through the whole writepages() rigmarole again...
 
---mgross
+So, no. I don't see sending pages through pageout() as being at all
+helpful.
+
+Trond
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
