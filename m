@@ -1,83 +1,96 @@
-Received: from sd0109e.au.ibm.com (d23rh905.au.ibm.com [202.81.18.225])
-	by e23smtp03.au.ibm.com (8.13.1/8.13.1) with ESMTP id l954EXwS013586
-	for <linux-mm@kvack.org>; Fri, 5 Oct 2007 14:14:33 +1000
-Received: from d23av04.au.ibm.com (d23av04.au.ibm.com [9.190.235.139])
-	by sd0109e.au.ibm.com (8.13.8/8.13.8/NCO v8.5) with ESMTP id l954I7ee264700
-	for <linux-mm@kvack.org>; Fri, 5 Oct 2007 14:18:08 +1000
-Received: from d23av04.au.ibm.com (loopback [127.0.0.1])
-	by d23av04.au.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l954EGw3004667
-	for <linux-mm@kvack.org>; Fri, 5 Oct 2007 14:14:16 +1000
-From: Balbir Singh <balbir@linux.vnet.ibm.com>
-Date: Fri, 05 Oct 2007 09:44:06 +0530
-Message-Id: <20071005041406.21236.88707.sendpatchset@balbir-laptop>
-Subject: [RFC] [-mm PATCH] Memory controller fix swap charging context in unuse_pte()
+Subject: Re: [PATCH] remove throttle_vm_writeout()
+From: Peter Zijlstra <a.p.zijlstra@chello.nl>
+In-Reply-To: <20071004160941.e0c0c7e5.akpm@linux-foundation.org>
+References: <E1IdPla-0002Bd-00@dorka.pomaz.szeredi.hu>
+	 <20071004145640.18ced770.akpm@linux-foundation.org>
+	 <E1IdZLg-0002Wr-00@dorka.pomaz.szeredi.hu>
+	 <20071004160941.e0c0c7e5.akpm@linux-foundation.org>
+Content-Type: multipart/signed; micalg=pgp-sha1; protocol="application/pgp-signature"; boundary="=-Cu2uxn8Sr4XKkNK4aPLz"
+Date: Fri, 05 Oct 2007 09:32:57 +0200
+Message-Id: <1191569577.22357.22.camel@twins>
+Mime-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Hugh Dickins <hugh@veritas.com>
-Cc: Linux MM Mailing List <linux-mm@kvack.org>, Balbir Singh <balbir@linux.vnet.ibm.com>, Linux Containers <containers@lists.osdl.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Miklos Szeredi <miklos@szeredi.hu>, wfg@mail.ustc.edu.cn, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
+--=-Cu2uxn8Sr4XKkNK4aPLz
+Content-Type: text/plain
+Content-Transfer-Encoding: quoted-printable
 
-Found-by: Hugh Dickins <hugh@veritas.com>
+On Thu, 2007-10-04 at 16:09 -0700, Andrew Morton wrote:
+> On Fri, 05 Oct 2007 00:39:16 +0200
+> Miklos Szeredi <miklos@szeredi.hu> wrote:
+>=20
+> > > throttle_vm_writeout() should be a per-zone thing, I guess.  Perhaps =
+fixing
+> > > that would fix your deadlock.  That's doubtful, but I don't know anyt=
+hing
+> > > about your deadlock so I cannot say.
+> >=20
+> > No, doing the throttling per-zone won't in itself fix the deadlock.
+> >=20
+> > Here's a deadlock example:
+> >=20
+> > Total memory =3D 32M
+> > /proc/sys/vm/dirty_ratio =3D 10
+> > dirty_threshold =3D 3M
+> > ratelimit_pages =3D 1M
+> >=20
+> > Some program dirties 4M (dirty_threshold + ratelimit_pages) of mmap on
+> > a fuse fs.  Page balancing is called which turns all these into
+> > writeback pages.
+> >=20
+> > Then userspace filesystem gets a write request, and tries to allocate
+> > memory needed to complete the writeout.
+> >=20
+> > That will possibly trigger direct reclaim, and throttle_vm_writeout()
+> > will be called.  That will block until nr_writeback goes below 3.3M
+> > (dirty_threshold + 10%).  But since all 4M of writeback is from the
+> > fuse fs, that will never happen.
+> >=20
+> > Does that explain it better?
+> >=20
+>=20
+> yup, thanks.
+>=20
+> This is a somewhat general problem: a userspace process is in the IO path=
+.=20
+> Userspace block drivers, for example - pretty much anything which involve=
+s
+> kernel->userspace upcalls for storage applications.
+>=20
+> I solved it once in the past by marking the userspace process as
+> PF_MEMALLOC and I beleive that others have implemented the same hack.
+>=20
+> I suspect that what we need is a general solution, and that the solution
+> will involve explicitly telling the kernel that this process is one which
+> actually cleans memory and needs special treatment.
+>=20
+> Because I bet there will be other corner-cases where such a process needs
+> kernel help, and there might be optimisation opportunities as well.
+>=20
+> Problem is, any such mark-me-as-special syscall would need to be
+> privileged, and FUSE servers presently don't require special perms (do
+> they?)
 
-mem_cgroup_charge() in unuse_pte() is called under a lock, the pte_lock. That's
-clearly incorrect, since we pass GFP_KERNEL to mem_cgroup_charge() for
-allocation of page_cgroup.
+I think just adding nr_cpus * ratelimit_pages to the dirth_thresh in
+throttle_vm_writeout() will also solve the problem
 
-This patch release the lock and reacquires the lock after the call to
-mem_cgroup_charge().
+--=-Cu2uxn8Sr4XKkNK4aPLz
+Content-Type: application/pgp-signature; name=signature.asc
+Content-Description: This is a digitally signed message part
 
-Tested on a powerpc box by calling swapoff in the middle of a cgroup
-running a workload that pushes pages to swap.
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v1.4.6 (GNU/Linux)
 
-Signed-off-by: Balbir Singh <balbir@linux.vnet.ibm.com>
----
+iD8DBQBHBeipXA2jU0ANEf4RApgvAJ92EWsfzvf/eQErQHbIn/qWFEvCqQCbB1Q7
+fLPQqJlxYwETFscV2+9DFwg=
+=7VY/
+-----END PGP SIGNATURE-----
 
- mm/swapfile.c |   16 ++++++++++++----
- 1 file changed, 12 insertions(+), 4 deletions(-)
-
-diff -puN mm/swapfile.c~memory-controller-fix-unuse-pte-charging mm/swapfile.c
---- linux-2.6.23-rc8/mm/swapfile.c~memory-controller-fix-unuse-pte-charging	2007-10-03 13:45:56.000000000 +0530
-+++ linux-2.6.23-rc8-balbir/mm/swapfile.c	2007-10-05 08:49:54.000000000 +0530
-@@ -507,11 +507,18 @@ unsigned int count_swap_pages(int type, 
-  * just let do_wp_page work it out if a write is requested later - to
-  * force COW, vm_page_prot omits write permission from any private vma.
-  */
--static int unuse_pte(struct vm_area_struct *vma, pte_t *pte,
--		unsigned long addr, swp_entry_t entry, struct page *page)
-+static int unuse_pte(struct vm_area_struct *vma, pte_t *pte, pmd_t *pmd,
-+		unsigned long addr, swp_entry_t entry, struct page *page,
-+		spinlock_t **ptl)
- {
--	if (mem_cgroup_charge(page, vma->vm_mm, GFP_KERNEL))
-+	pte_unmap_unlock(pte - 1, *ptl);
-+
-+	if (mem_cgroup_charge(page, vma->vm_mm, GFP_KERNEL)) {
-+		pte_offset_map_lock(vma->vm_mm, pmd, addr, ptl);
- 		return -ENOMEM;
-+	}
-+
-+	pte_offset_map_lock(vma->vm_mm, pmd, addr, ptl);
- 
- 	inc_mm_counter(vma->vm_mm, anon_rss);
- 	get_page(page);
-@@ -543,7 +550,8 @@ static int unuse_pte_range(struct vm_are
- 		 * Test inline before going to call unuse_pte.
- 		 */
- 		if (unlikely(pte_same(*pte, swp_pte))) {
--			ret = unuse_pte(vma, pte++, addr, entry, page);
-+			ret = unuse_pte(vma, pte++, pmd, addr, entry, page,
-+					&ptl);
- 			break;
- 		}
- 	} while (pte++, addr += PAGE_SIZE, addr != end);
-_
-
--- 
-	Warm Regards,
-	Balbir Singh
-	Linux Technology Center
-	IBM, ISTL
+--=-Cu2uxn8Sr4XKkNK4aPLz--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
