@@ -1,51 +1,42 @@
-Message-ID: <4707D9B4.8020904@tmr.com>
-Date: Sat, 06 Oct 2007 14:53:40 -0400
-From: Bill Davidsen <davidsen@tmr.com>
+Date: Sat, 6 Oct 2007 21:35:58 +0100 (BST)
+From: Hugh Dickins <hugh@veritas.com>
+Subject: [PATCH 0/7] swapin/shmem patches
+Message-ID: <Pine.LNX.4.64.0710062130400.16223@blonde.wat.veritas.com>
 MIME-Version: 1.0
-Subject: Re: [13/18] x86_64: Allow fallback for the stack
-References: <20071004035935.042951211@sgi.com>	<20071004040004.708466159@sgi.com>	<200710041356.51750.ak@suse.de>	<Pine.LNX.4.64.0710041220010.12075@schroedinger.engr.sgi.com> <20071004153940.49bd5afc@bree.surriel.com>
-In-Reply-To: <20071004153940.49bd5afc@bree.surriel.com>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Rik van Riel <riel@redhat.com>
-Cc: Christoph Lameter <clameter@sgi.com>, Andi Kleen <ak@suse.de>, akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, travis@sgi.com
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Rik van Riel wrote:
-> On Thu, 4 Oct 2007 12:20:50 -0700 (PDT)
-> Christoph Lameter <clameter@sgi.com> wrote:
-> 
->> On Thu, 4 Oct 2007, Andi Kleen wrote:
->>
->>> We've known for ages that it is possible. But it has been always so
->>> rare that it was ignored.
->> Well we can now address the rarity. That is the whole point of the 
->> patchset.
-> 
-> Introducing complexity to fight a very rare problem with a good
-> fallback (refusing to fork more tasks, as well as lumpy reclaim)
-> somehow does not seem like a good tradeoff.
->  
->>> Is there any evidence this is more common now than it used to be?
->> It will be more common if the stack size is increased beyond 8k.
-> 
-> Why would we want to do such a thing?
-> 
-> 8kB stacks are large enough...
-> 
-Why would anyone need more than 640k... In addition to NUMA, who can 
-tell what some future hardware might do, given that the size of memory 
-is expanding as if it were covered in Moore's Law. As memory sizes 
-increase someone will bump the page size again. Better to Let people 
-make it as large as they feel they need and warn at build time 
-performance may suck.
+Here's my belated set of swapin/shmem patches, which I hope might still
+be allowed into 2.6.24 after a trial in -mm.
 
--- 
-Bill Davidsen <davidsen@tmr.com>
-   "We have more to fear from the bungling of the incompetent than from
-the machinations of the wicked."  - from Slashdot
+[PATCH 1/7] swapin_readahead: excise NUMA bogosity 
+[PATCH 2/7] swapin_readahead: move and rearrange args
+[PATCH 3/7] swapin needs gfp_mask for loop on tmpfs
+[PATCH 4/7] shmem: SGP_QUICK and SGP_FAULT redundant
+[PATCH 5/7] shmem_getpage return page locked
+[PATCH 6/7] shmem_file_write is redundant
+[PATCH 7/7] swapin: fix valid_swaphandles defect
+
+They're based on 2.6.23-rc8-mm2, but most apply to 2.6.23-rc9 plus
+mm-clarify-__add_to_swap_cache-locking.patch
+mm-clarify-__add_to_swap_cache-locking-fix.patch
+mm-shmemc-make-3-functions-static.patch
+
+The exceptions are 5/7 and 6/7, which assume Nick's aops mods to shmem.c:
+implement-simple-fs-aops.patch
+implement-simple-fs-aops-fix.patch
+3/7 fixes a hang made visible by those mods, but does not depend on them.
+
+ include/linux/swap.h |   19 +--
+ mm/memory.c          |   65 -------------
+ mm/shmem.c           |  200 +++++++----------------------------------
+ mm/swap_state.c      |   59 ++++++++++--
+ mm/swapfile.c        |   52 +++++++---
+ 5 files changed, 135 insertions(+), 260 deletions(-)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
