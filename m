@@ -1,8 +1,8 @@
-Date: Sat, 6 Oct 2007 21:46:33 +0100 (BST)
+Date: Sat, 6 Oct 2007 21:47:48 +0100 (BST)
 From: Hugh Dickins <hugh@veritas.com>
-Subject: [PATCH 5/7] shmem_getpage return page locked
+Subject: [PATCH 6/7] shmem_file_write is redundant
 In-Reply-To: <Pine.LNX.4.64.0710062130400.16223@blonde.wat.veritas.com>
-Message-ID: <Pine.LNX.4.64.0710062145160.16223@blonde.wat.veritas.com>
+Message-ID: <Pine.LNX.4.64.0710062146370.16223@blonde.wat.veritas.com>
 References: <Pine.LNX.4.64.0710062130400.16223@blonde.wat.veritas.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
@@ -12,99 +12,155 @@ To: Andrew Morton <akpm@linux-foundation.org>
 Cc: Nick Piggin <nickpiggin@yahoo.com.au>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-In the new aops, write_begin is supposed to return the page locked:
-though I've seen no ill effects, that's been overlooked in the case
-of shmem_write_begin, and should be fixed.  Then shmem_write_end must
-unlock the page: do so _after_ updating i_size, as we found to be
-important in other filesystems (though since shmem pages don't go
-the usual writeback route, they never suffered from that corruption).
+With the old aops, writing to a tmpfs file had to use its own special
+method: the generic method would pass in a fresh page to prepare_write
+when the right page was there in swapcache - which was inefficient to
+handle, even once we'd concocted the code to handle it.
 
-For shmem_write_begin to return the page locked, we need shmem_getpage
-to return the page locked in SGP_WRITE case as well as SGP_CACHE case:
-let's simplify the interface and return it locked even when SGP_READ.
+With the new aops, the generic method uses shmem_write_end, which lets
+shmem_getpage find the right page: so now abandon shmem_file_write in
+favour of the generic method.  Yes, that does do several things that
+tmpfs hasn't really needed (notably balance_dirty_pages_ratelimited,
+which ramfs also calls); but more use of common code is preferable.
 
 Signed-off-by: Hugh Dickins <hugh@veritas.com>
 ---
 
- mm/shmem.c |   22 +++++++++++++---------
- 1 file changed, 13 insertions(+), 9 deletions(-)
+ mm/shmem.c |  109 +--------------------------------------------------
+ 1 file changed, 3 insertions(+), 106 deletions(-)
 
---- patch4/mm/shmem.c	2007-10-04 19:24:39.000000000 +0100
-+++ patch5/mm/shmem.c	2007-10-04 19:24:41.000000000 +0100
-@@ -729,6 +729,8 @@ static int shmem_notify_change(struct de
- 				(void) shmem_getpage(inode,
- 					attr->ia_size>>PAGE_CACHE_SHIFT,
- 						&page, SGP_READ, NULL);
-+				if (page)
-+					unlock_page(page);
- 			}
- 			/*
- 			 * Reset SHMEM_PAGEIN flag so that shmem_truncate can
-@@ -1270,12 +1272,7 @@ repeat:
- 		SetPageUptodate(filepage);
- 	}
- done:
--	if (*pagep != filepage) {
--		*pagep = filepage;
--		if (sgp != SGP_CACHE)
--			unlock_page(filepage);
--
--	}
-+	*pagep = filepage;
- 	return 0;
- 
- failed:
-@@ -1453,12 +1450,13 @@ shmem_write_end(struct file *file, struc
- {
- 	struct inode *inode = mapping->host;
- 
-+	if (pos + copied > inode->i_size)
-+		i_size_write(inode, pos + copied);
-+
-+	unlock_page(page);
- 	set_page_dirty(page);
- 	page_cache_release(page);
- 
--	if (pos+copied > inode->i_size)
--		i_size_write(inode, pos+copied);
--
+--- patch5/mm/shmem.c	2007-10-04 19:24:41.000000000 +0100
++++ patch6/mm/shmem.c	2007-10-04 19:24:44.000000000 +0100
+@@ -1091,7 +1091,7 @@ static int shmem_getpage(struct inode *i
+ 	 * Normally, filepage is NULL on entry, and either found
+ 	 * uptodate immediately, or allocated and zeroed, or read
+ 	 * in under swappage, which is then assigned to filepage.
+-	 * But shmem_readpage and shmem_write_begin pass in a locked
++	 * But shmem_readpage (required for splice) passes in a locked
+ 	 * filepage, which may be found not uptodate by other callers
+ 	 * too, and may need to be copied from the swappage read in.
+ 	 */
+@@ -1460,110 +1460,6 @@ shmem_write_end(struct file *file, struc
  	return copied;
  }
  
-@@ -1513,6 +1511,7 @@ shmem_file_write(struct file *file, cons
- 		if (err)
- 			break;
- 
-+		unlock_page(page);
- 		left = bytes;
- 		if (PageHighMem(page)) {
- 			volatile unsigned char dummy;
-@@ -1594,6 +1593,8 @@ static void do_shmem_file_read(struct fi
- 				desc->error = 0;
- 			break;
- 		}
-+		if (page)
-+			unlock_page(page);
- 
- 		/*
- 		 * We must evaluate after, since reads (unlike writes)
-@@ -1883,6 +1884,7 @@ static int shmem_symlink(struct inode *d
- 			iput(inode);
- 			return error;
- 		}
-+		unlock_page(page);
- 		inode->i_op = &shmem_symlink_inode_operations;
- 		kaddr = kmap_atomic(page, KM_USER0);
- 		memcpy(kaddr, symname, len);
-@@ -1910,6 +1912,8 @@ static void *shmem_follow_link(struct de
- 	struct page *page = NULL;
- 	int res = shmem_getpage(dentry->d_inode, 0, &page, SGP_READ, NULL);
- 	nd_set_link(nd, res ? ERR_PTR(res) : kmap(page));
-+	if (page)
-+		unlock_page(page);
- 	return page;
- }
- 
+-static ssize_t
+-shmem_file_write(struct file *file, const char __user *buf, size_t count, loff_t *ppos)
+-{
+-	struct inode	*inode = file->f_path.dentry->d_inode;
+-	loff_t		pos;
+-	unsigned long	written;
+-	ssize_t		err;
+-
+-	if ((ssize_t) count < 0)
+-		return -EINVAL;
+-
+-	if (!access_ok(VERIFY_READ, buf, count))
+-		return -EFAULT;
+-
+-	mutex_lock(&inode->i_mutex);
+-
+-	pos = *ppos;
+-	written = 0;
+-
+-	err = generic_write_checks(file, &pos, &count, 0);
+-	if (err || !count)
+-		goto out;
+-
+-	err = remove_suid(file->f_path.dentry);
+-	if (err)
+-		goto out;
+-
+-	inode->i_ctime = inode->i_mtime = CURRENT_TIME;
+-
+-	do {
+-		struct page *page = NULL;
+-		unsigned long bytes, index, offset;
+-		char *kaddr;
+-		int left;
+-
+-		offset = (pos & (PAGE_CACHE_SIZE -1)); /* Within page */
+-		index = pos >> PAGE_CACHE_SHIFT;
+-		bytes = PAGE_CACHE_SIZE - offset;
+-		if (bytes > count)
+-			bytes = count;
+-
+-		/*
+-		 * We don't hold page lock across copy from user -
+-		 * what would it guard against? - so no deadlock here.
+-		 * But it still may be a good idea to prefault below.
+-		 */
+-
+-		err = shmem_getpage(inode, index, &page, SGP_WRITE, NULL);
+-		if (err)
+-			break;
+-
+-		unlock_page(page);
+-		left = bytes;
+-		if (PageHighMem(page)) {
+-			volatile unsigned char dummy;
+-			__get_user(dummy, buf);
+-			__get_user(dummy, buf + bytes - 1);
+-
+-			kaddr = kmap_atomic(page, KM_USER0);
+-			left = __copy_from_user_inatomic(kaddr + offset,
+-							buf, bytes);
+-			kunmap_atomic(kaddr, KM_USER0);
+-		}
+-		if (left) {
+-			kaddr = kmap(page);
+-			left = __copy_from_user(kaddr + offset, buf, bytes);
+-			kunmap(page);
+-		}
+-
+-		written += bytes;
+-		count -= bytes;
+-		pos += bytes;
+-		buf += bytes;
+-		if (pos > inode->i_size)
+-			i_size_write(inode, pos);
+-
+-		flush_dcache_page(page);
+-		set_page_dirty(page);
+-		mark_page_accessed(page);
+-		page_cache_release(page);
+-
+-		if (left) {
+-			pos -= left;
+-			written -= left;
+-			err = -EFAULT;
+-			break;
+-		}
+-
+-		/*
+-		 * Our dirty pages are not counted in nr_dirty,
+-		 * and we do not attempt to balance dirty pages.
+-		 */
+-
+-		cond_resched();
+-	} while (count);
+-
+-	*ppos = pos;
+-	if (written)
+-		err = written;
+-out:
+-	mutex_unlock(&inode->i_mutex);
+-	return err;
+-}
+-
+ static void do_shmem_file_read(struct file *filp, loff_t *ppos, read_descriptor_t *desc, read_actor_t actor)
+ {
+ 	struct inode *inode = filp->f_path.dentry->d_inode;
+@@ -2338,7 +2234,8 @@ static const struct file_operations shme
+ #ifdef CONFIG_TMPFS
+ 	.llseek		= generic_file_llseek,
+ 	.read		= shmem_file_read,
+-	.write		= shmem_file_write,
++	.write		= do_sync_write,
++	.aio_write	= generic_file_aio_write,
+ 	.fsync		= simple_sync_file,
+ 	.splice_read	= generic_file_splice_read,
+ 	.splice_write	= generic_file_splice_write,
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
