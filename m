@@ -1,166 +1,103 @@
-Date: Sat, 6 Oct 2007 21:47:48 +0100 (BST)
+Date: Sat, 6 Oct 2007 21:48:41 +0100 (BST)
 From: Hugh Dickins <hugh@veritas.com>
-Subject: [PATCH 6/7] shmem_file_write is redundant
+Subject: [PATCH 7/7] swapin: fix valid_swaphandles defect
 In-Reply-To: <Pine.LNX.4.64.0710062130400.16223@blonde.wat.veritas.com>
-Message-ID: <Pine.LNX.4.64.0710062146370.16223@blonde.wat.veritas.com>
+Message-ID: <Pine.LNX.4.64.0710062147540.16223@blonde.wat.veritas.com>
 References: <Pine.LNX.4.64.0710062130400.16223@blonde.wat.veritas.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Nick Piggin <nickpiggin@yahoo.com.au>, linux-mm@kvack.org
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-With the old aops, writing to a tmpfs file had to use its own special
-method: the generic method would pass in a fresh page to prepare_write
-when the right page was there in swapcache - which was inefficient to
-handle, even once we'd concocted the code to handle it.
+valid_swaphandles is supposed to do a quick pass over the swap map
+entries neigbouring the entry which swapin_readahead is targetting,
+to determine for it a range worth reading all together.  But since
+it always starts its search from the beginning of the swap "cluster",
+a reject (free entry) there immediately curtails the readaround, and
+every swapin_readahead from that cluster is for just a single page.
+Instead scan forwards and backwards around the target entry.
 
-With the new aops, the generic method uses shmem_write_end, which lets
-shmem_getpage find the right page: so now abandon shmem_file_write in
-favour of the generic method.  Yes, that does do several things that
-tmpfs hasn't really needed (notably balance_dirty_pages_ratelimited,
-which ramfs also calls); but more use of common code is preferable.
+Use better names for some variables: a swap_info pointer is usually
+called "si" not "swapdev".  And at the end, if only the target page
+should be read, return count of 0 to disable readaround, to avoid
+the unnecessarily repeated call to read_swap_cache_async.
 
 Signed-off-by: Hugh Dickins <hugh@veritas.com>
 ---
 
- mm/shmem.c |  109 +--------------------------------------------------
- 1 file changed, 3 insertions(+), 106 deletions(-)
+ mm/swapfile.c |   49 ++++++++++++++++++++++++++++++++----------------
+ 1 file changed, 33 insertions(+), 16 deletions(-)
 
---- patch5/mm/shmem.c	2007-10-04 19:24:41.000000000 +0100
-+++ patch6/mm/shmem.c	2007-10-04 19:24:44.000000000 +0100
-@@ -1091,7 +1091,7 @@ static int shmem_getpage(struct inode *i
- 	 * Normally, filepage is NULL on entry, and either found
- 	 * uptodate immediately, or allocated and zeroed, or read
- 	 * in under swappage, which is then assigned to filepage.
--	 * But shmem_readpage and shmem_write_begin pass in a locked
-+	 * But shmem_readpage (required for splice) passes in a locked
- 	 * filepage, which may be found not uptodate by other callers
- 	 * too, and may need to be copied from the swappage read in.
- 	 */
-@@ -1460,110 +1460,6 @@ shmem_write_end(struct file *file, struc
- 	return copied;
- }
- 
--static ssize_t
--shmem_file_write(struct file *file, const char __user *buf, size_t count, loff_t *ppos)
--{
--	struct inode	*inode = file->f_path.dentry->d_inode;
--	loff_t		pos;
--	unsigned long	written;
--	ssize_t		err;
--
--	if ((ssize_t) count < 0)
--		return -EINVAL;
--
--	if (!access_ok(VERIFY_READ, buf, count))
--		return -EFAULT;
--
--	mutex_lock(&inode->i_mutex);
--
--	pos = *ppos;
--	written = 0;
--
--	err = generic_write_checks(file, &pos, &count, 0);
--	if (err || !count)
--		goto out;
--
--	err = remove_suid(file->f_path.dentry);
--	if (err)
--		goto out;
--
--	inode->i_ctime = inode->i_mtime = CURRENT_TIME;
--
--	do {
--		struct page *page = NULL;
--		unsigned long bytes, index, offset;
--		char *kaddr;
--		int left;
--
--		offset = (pos & (PAGE_CACHE_SIZE -1)); /* Within page */
--		index = pos >> PAGE_CACHE_SHIFT;
--		bytes = PAGE_CACHE_SIZE - offset;
--		if (bytes > count)
--			bytes = count;
--
--		/*
--		 * We don't hold page lock across copy from user -
--		 * what would it guard against? - so no deadlock here.
--		 * But it still may be a good idea to prefault below.
--		 */
--
--		err = shmem_getpage(inode, index, &page, SGP_WRITE, NULL);
--		if (err)
--			break;
--
--		unlock_page(page);
--		left = bytes;
--		if (PageHighMem(page)) {
--			volatile unsigned char dummy;
--			__get_user(dummy, buf);
--			__get_user(dummy, buf + bytes - 1);
--
--			kaddr = kmap_atomic(page, KM_USER0);
--			left = __copy_from_user_inatomic(kaddr + offset,
--							buf, bytes);
--			kunmap_atomic(kaddr, KM_USER0);
--		}
--		if (left) {
--			kaddr = kmap(page);
--			left = __copy_from_user(kaddr + offset, buf, bytes);
--			kunmap(page);
--		}
--
--		written += bytes;
--		count -= bytes;
--		pos += bytes;
--		buf += bytes;
--		if (pos > inode->i_size)
--			i_size_write(inode, pos);
--
--		flush_dcache_page(page);
--		set_page_dirty(page);
--		mark_page_accessed(page);
--		page_cache_release(page);
--
--		if (left) {
--			pos -= left;
--			written -= left;
--			err = -EFAULT;
--			break;
--		}
--
--		/*
--		 * Our dirty pages are not counted in nr_dirty,
--		 * and we do not attempt to balance dirty pages.
--		 */
--
--		cond_resched();
--	} while (count);
--
--	*ppos = pos;
--	if (written)
--		err = written;
--out:
--	mutex_unlock(&inode->i_mutex);
--	return err;
--}
--
- static void do_shmem_file_read(struct file *filp, loff_t *ppos, read_descriptor_t *desc, read_actor_t actor)
+--- patch6/mm/swapfile.c	2007-10-04 19:24:36.000000000 +0100
++++ patch7/mm/swapfile.c	2007-10-04 19:24:46.000000000 +0100
+@@ -1776,31 +1776,48 @@ get_swap_info_struct(unsigned type)
+  */
+ int valid_swaphandles(swp_entry_t entry, unsigned long *offset)
  {
- 	struct inode *inode = filp->f_path.dentry->d_inode;
-@@ -2338,7 +2234,8 @@ static const struct file_operations shme
- #ifdef CONFIG_TMPFS
- 	.llseek		= generic_file_llseek,
- 	.read		= shmem_file_read,
--	.write		= shmem_file_write,
-+	.write		= do_sync_write,
-+	.aio_write	= generic_file_aio_write,
- 	.fsync		= simple_sync_file,
- 	.splice_read	= generic_file_splice_read,
- 	.splice_write	= generic_file_splice_write,
++	struct swap_info_struct *si;
+ 	int our_page_cluster = page_cluster;
+-	int ret = 0, i = 1 << our_page_cluster;
+-	unsigned long toff;
+-	struct swap_info_struct *swapdev = swp_type(entry) + swap_info;
++	pgoff_t target, toff;
++	pgoff_t base, end;
++	int nr_pages = 0;
+ 
+ 	if (!our_page_cluster)	/* no readahead */
+ 		return 0;
+-	toff = (swp_offset(entry) >> our_page_cluster) << our_page_cluster;
+-	if (!toff)		/* first page is swap header */
+-		toff++, i--;
+-	*offset = toff;
++
++	si = &swap_info[swp_type(entry)];
++	target = swp_offset(entry);
++	base = (target >> our_page_cluster) << our_page_cluster;
++	end = base + (1 << our_page_cluster);
++	if (!base)		/* first page is swap header */
++		base++;
+ 
+ 	spin_lock(&swap_lock);
+-	do {
+-		/* Don't read-ahead past the end of the swap area */
+-		if (toff >= swapdev->max)
++	if (end > si->max)	/* don't go beyond end of map */
++		end = si->max;
++
++	/* Count contiguous allocated slots above our target */
++	for (toff = target; ++toff < end; nr_pages++) {
++		/* Don't read in free or bad pages */
++		if (!si->swap_map[toff])
+ 			break;
++		if (si->swap_map[toff] == SWAP_MAP_BAD)
++			break;
++	}
++	/* Count contiguous allocated slots below our target */
++	for (toff = target; --toff >= base; nr_pages++) {
+ 		/* Don't read in free or bad pages */
+-		if (!swapdev->swap_map[toff])
++		if (!si->swap_map[toff])
+ 			break;
+-		if (swapdev->swap_map[toff] == SWAP_MAP_BAD)
++		if (si->swap_map[toff] == SWAP_MAP_BAD)
+ 			break;
+-		toff++;
+-		ret++;
+-	} while (--i);
++	}
+ 	spin_unlock(&swap_lock);
+-	return ret;
++
++	/*
++	 * Indicate starting offset, and return number of pages to get:
++	 * if only 1, say 0, since there's then no readahead to be done.
++	 */
++	*offset = ++toff;
++	return nr_pages? ++nr_pages: 0;
+ }
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
