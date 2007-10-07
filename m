@@ -1,33 +1,46 @@
 From: Nick Piggin <nickpiggin@yahoo.com.au>
-Subject: Re: [13/18] x86_64: Allow fallback for the stack
-Date: Sun, 7 Oct 2007 17:35:41 +1000
-References: <20071004035935.042951211@sgi.com> <20071004153940.49bd5afc@bree.surriel.com> <Pine.LNX.4.64.0710041418100.12779@schroedinger.engr.sgi.com>
-In-Reply-To: <Pine.LNX.4.64.0710041418100.12779@schroedinger.engr.sgi.com>
+Subject: Re: VMA lookup with RCU
+Date: Sun, 7 Oct 2007 17:47:22 +1000
+References: <46F01289.7040106@linux.vnet.ibm.com> <470509F5.4010902@linux.vnet.ibm.com> <1191518486.5574.24.camel@lappy>
+In-Reply-To: <1191518486.5574.24.camel@lappy>
 MIME-Version: 1.0
 Content-Type: text/plain;
-  charset="iso-8859-1"
+  charset="utf-8"
 Content-Transfer-Encoding: 7bit
 Content-Disposition: inline
-Message-Id: <200710071735.41386.nickpiggin@yahoo.com.au>
+Message-Id: <200710071747.23252.nickpiggin@yahoo.com.au>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
-Cc: Rik van Riel <riel@redhat.com>, Andi Kleen <ak@suse.de>, akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, travis@sgi.com
+To: Peter Zijlstra <peterz@infradead.org>
+Cc: Vaidyanathan Srinivasan <svaidy@linux.vnet.ibm.com>, Alexis Bruemmer <alexisb@us.ibm.com>, Balbir Singh <balbir@in.ibm.com>, Badari Pulavarty <pbadari@us.ibm.com>, Max Asbock <amax@us.ibm.com>, linux-mm <linux-mm@kvack.org>, Bharata B Rao <bharata@in.ibm.com>
 List-ID: <linux-mm.kvack.org>
 
-On Friday 05 October 2007 07:20, Christoph Lameter wrote:
-> On Thu, 4 Oct 2007, Rik van Riel wrote:
-> > > Well we can now address the rarity. That is the whole point of the
-> > > patchset.
-> >
-> > Introducing complexity to fight a very rare problem with a good
-> > fallback (refusing to fork more tasks, as well as lumpy reclaim)
-> > somehow does not seem like a good tradeoff.
->
-> The problem can become non-rare on special low memory machines doing wild
-> swapping things though.
+On Friday 05 October 2007 03:21, Peter Zijlstra wrote:
+> On Thu, 2007-10-04 at 21:12 +0530, Vaidyanathan Srinivasan wrote:
 
-But only your huge systems will be using huge stacks?
+> > Per CPU last vma cache:  Currently we have the last vma referenced in a
+> > one entry cache in mm_struct.  Can we have this cache per CPU or per node
+> > so that a multi threaded application can have node/cpu local cache of
+> > last vma referenced.  This may reduce btree/rbtree traversal.  Let the
+> > hardware cache maintain the corresponding VMA object and its coherency.
+> >
+> > Please let me know your comment and thoughts.
+>
+> Nick Piggin (and I think Eric Dumazet) had nice patches for this. I
+> think they were posted in the private futex thread.
+
+All they need is testing and some results to show they help. I actually
+don't really have a realistic workload where vma lookup contention is
+a problem, since the malloc fixes and private futexes went in.
+
+Actually -- there is one thing, apparently oprofile does lots of find_vmas,
+which trashes the vma cache. Either it should have its own cache, or at
+least use a "nontemporal" lookup.
+
+What I implemented was a per-thread cache. Per-CPU I guess would be
+equally possible and might be preferable in some cases (although worse
+in others). Still, the per-thread cache should be fine for basic performance
+testing.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
