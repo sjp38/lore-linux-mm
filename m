@@ -1,177 +1,108 @@
-Date: Sun, 7 Oct 2007 17:57:32 +0100 (BST)
+Date: Sun, 7 Oct 2007 18:41:48 +0100 (BST)
 From: Hugh Dickins <hugh@veritas.com>
-Subject: Re: [RFC] [-mm PATCH] Memory controller fix swap charging context
- in unuse_pte()
-In-Reply-To: <20071005041406.21236.88707.sendpatchset@balbir-laptop>
-Message-ID: <Pine.LNX.4.64.0710071735530.13138@blonde.wat.veritas.com>
-References: <20071005041406.21236.88707.sendpatchset@balbir-laptop>
+Subject: Re: Memory controller merge (was Re: -mm merge plans for 2.6.24)
+In-Reply-To: <4705AA79.9080008@linux.vnet.ibm.com>
+Message-ID: <Pine.LNX.4.64.0710071758210.13172@blonde.wat.veritas.com>
+References: <20071001142222.fcaa8d57.akpm@linux-foundation.org>
+ <4701C737.8070906@linux.vnet.ibm.com> <Pine.LNX.4.64.0710021604260.4916@blonde.wat.veritas.com>
+ <47034F12.8020505@linux.vnet.ibm.com> <Pine.LNX.4.64.0710031918470.9414@blonde.wat.veritas.com>
+ <47046922.4030709@linux.vnet.ibm.com> <Pine.LNX.4.64.0710041258530.3485@blonde.wat.veritas.com>
+ <4705AA79.9080008@linux.vnet.ibm.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Balbir Singh <balbir@linux.vnet.ibm.com>
-Cc: Linux MM Mailing List <linux-mm@kvack.org>, Linux Containers <containers@lists.osdl.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Pavel Emelianov <xemul@openvz.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
 On Fri, 5 Oct 2007, Balbir Singh wrote:
+> Hugh Dickins wrote:
+> > 
+> > That's where it should happen, yes; but my point is that it very
+> > often does not.  Because the swap cache page (read in as part of
+> > the readaround cluster of some other cgroup, or in swapoff by some
+> > other cgroup) is already assigned to that other cgroup (by the
+> > mem_cgroup_cache_charge in __add_to_swap_cache), and so goes "The
+> > page_cgroup exists and the page has already been accounted" route
+> > when mem_cgroup_charge is called from do_swap_page.  Doesn't it?
+> > 
 > 
-> Found-by: Hugh Dickins <hugh@veritas.com>
+> You are right, at this point I am beginning to wonder if I should
+> account for the swap cache at all? We account for the pages in RSS
+> and when the page comes back into the page table(s) via do_swap_page.
+> If we believe that the swap cache is transitional and the current
+> expected working behaviour does not seem right or hard to fix,
+> it might be easy to ignore unuse_pte() and add/remove_from_swap_cache()
+> for accounting and control.
+
+It would be wrong to ignore the unuse_pte() case: what it's intending
+to do is correct, it's just being prevented by the swapcache issue
+from doing what it intends at present.
+
+(Though I'm not thrilled with the idea of it causing an admin's
+swapoff to fail because of a cgroup reaching mem limit there, I do
+agree with your earlier argument that that's the right thing to happen,
+and it's up to the admin to fix things up - my original objection came
+from not realizing that normally the cgroup will reclaim from itself
+to free its mem.  Hmm, would the charge fail or the mm get OOM'ed?)
+
+Ignoring add_to/remove_from swap cache is what I've tried before,
+and again today.  It's not enough: if you trying run a memhog
+(something that allocates and touches more memory than the cgroup
+is allowed, relying on pushing out to swap to complete), then that
+works well with the present accounting in add_to/remove_from swap
+cache, but it OOMs once I remove the memcontrol mods from
+mm/swap_state.c.  I keep going back to investigate why, keep on
+thinking I understand it, then later realize I don't.  Please
+give it a try, I hope you've got better mental models than I have.
+
+And I don't think it will be enough to handle shmem/tmpfs either;
+but won't worry about that until we've properly understood why
+exempting swapcache leads to those OOMs, and fixed that up.
+
+> > Are we misunderstanding each other, because I'm assuming
+> > MEM_CGROUP_TYPE_ALL and you're assuming MEM_CGROUP_TYPE_MAPPED?
+> > though I can't see that _MAPPED and _CACHED are actually supported,
+> > there being no reference to them outside the enum that defines them.
 > 
-> mem_cgroup_charge() in unuse_pte() is called under a lock, the pte_lock. That's
-> clearly incorrect, since we pass GFP_KERNEL to mem_cgroup_charge() for
-> allocation of page_cgroup.
+> I am also assuming MEM_CGROUP_TYPE_ALL for the purpose of our
+> discussion. The accounting is split into mem_cgroup_charge() and
+> mem_cgroup_cache_charge(). While charging the caches is when we
+> check for the control_type.
+
+It checks MEM_CGROUP_TYPE_ALL there, yes; but I can't find anything
+checking for either MEM_CGROUP_TYPE_MAPPED or MEM_CGROUP_TYPE_CACHED.
+(Or is it hidden in one of those preprocesor ## things which frustrate
+both my greps and me!?)
+
+> > Or are you deceived by that ifdef NUMA code in swapin_readahead,
+> > which propagates the fantasy that swap allocation follows vma layout?
+> > That nonsense has been around too long, I'll soon be sending a patch
+> > to remove it.
 > 
-> This patch release the lock and reacquires the lock after the call to
-> mem_cgroup_charge().
-> 
-> Tested on a powerpc box by calling swapoff in the middle of a cgroup
-> running a workload that pushes pages to swap.
+> The swapin readahead code under #ifdef NUMA is very confusing.
 
-Hard to test it adequately at present, while that call
-to mem_cgroup_charge is never allocating anything new.
+I sent a patch to linux-mm last night, to remove that confusion.
 
-Sorry, it's a bit ugly (the intertwining of unuse_pte and its caller),
-it's got a bug, and fixing that bug makes it uglier.
+> I also
+> noticed another confusing thing during my test, swap cache does not
+> drop to 0, even though I've disabled all swap using swapoff. May be
+> those are tmpfs pages. The other interesting thing I tried was running
+> swapoff after a cgroup went over it's limit, the swapoff succeeded,
+> but I see strange numbers for free swap. I'll start another thread
+> after investigating a bit more.
 
-The bug is that you ignore the pte ptr returned by pte_offset_map_lock:
-we could be preempted on to a different cpu just there, so a different
-cpu's kmap_atomic area used, with a different pte pointer; which would
-need to be passed back to the caller for when it unmaps.
+Those indeed are strange behaviours (if the swapoff really has
+succeeded, rather than lying), I not seen such and don't have an
+explanation.  tmpfs doesn't add any weirdness there: when there's
+no swap, there can be no swap cache.  Or is the swapoff still in
+progress?  While it's busy, we keep /proc/meminfo looking sensible,
+but <Alt><SysRq>m can show negative free swap (IIRC).
 
-I much prefer my patch appended further down: considering how it's safe
-for you to drop the ptl there because of holding page lock, pushed me
-into seeing that we can actually do our scanning without ptl, which in
-many configurations has the advantage of staying preemptible (though
-preemptible swapoff is not terribly high on anyone's ticklist ;).
-
-But you may well prefer that we split it into two: with me taking
-responsibility and blame for the preliminary patch which relaxes
-the locking, and you then adding the mem_cgroup_charge (and the
-exceptional mem_cgroup_uncharge_page) on top of that.
+I'll be interested to hear what your investigation shows.
 
 Hugh
-
-> 
-> Signed-off-by: Balbir Singh <balbir@linux.vnet.ibm.com>
-> ---
-> 
->  mm/swapfile.c |   16 ++++++++++++----
->  1 file changed, 12 insertions(+), 4 deletions(-)
-> 
-> diff -puN mm/swapfile.c~memory-controller-fix-unuse-pte-charging mm/swapfile.c
-> --- linux-2.6.23-rc8/mm/swapfile.c~memory-controller-fix-unuse-pte-charging	2007-10-03 13:45:56.000000000 +0530
-> +++ linux-2.6.23-rc8-balbir/mm/swapfile.c	2007-10-05 08:49:54.000000000 +0530
-> @@ -507,11 +507,18 @@ unsigned int count_swap_pages(int type, 
->   * just let do_wp_page work it out if a write is requested later - to
->   * force COW, vm_page_prot omits write permission from any private vma.
->   */
-> -static int unuse_pte(struct vm_area_struct *vma, pte_t *pte,
-> -		unsigned long addr, swp_entry_t entry, struct page *page)
-> +static int unuse_pte(struct vm_area_struct *vma, pte_t *pte, pmd_t *pmd,
-> +		unsigned long addr, swp_entry_t entry, struct page *page,
-> +		spinlock_t **ptl)
->  {
-> -	if (mem_cgroup_charge(page, vma->vm_mm, GFP_KERNEL))
-> +	pte_unmap_unlock(pte - 1, *ptl);
-> +
-> +	if (mem_cgroup_charge(page, vma->vm_mm, GFP_KERNEL)) {
-> +		pte_offset_map_lock(vma->vm_mm, pmd, addr, ptl);
->  		return -ENOMEM;
-> +	}
-> +
-> +	pte_offset_map_lock(vma->vm_mm, pmd, addr, ptl);
->  
->  	inc_mm_counter(vma->vm_mm, anon_rss);
->  	get_page(page);
-> @@ -543,7 +550,8 @@ static int unuse_pte_range(struct vm_are
->  		 * Test inline before going to call unuse_pte.
->  		 */
->  		if (unlikely(pte_same(*pte, swp_pte))) {
-> -			ret = unuse_pte(vma, pte++, addr, entry, page);
-> +			ret = unuse_pte(vma, pte++, pmd, addr, entry, page,
-> +					&ptl);
->  			break;
->  		}
->  	} while (pte++, addr += PAGE_SIZE, addr != end);
-
---- 2.6.23-rc8-mm2/mm/swapfile.c	2007-09-27 12:03:36.000000000 +0100
-+++ linux/mm/swapfile.c	2007-10-07 14:33:05.000000000 +0100
-@@ -507,11 +507,23 @@ unsigned int count_swap_pages(int type, 
-  * just let do_wp_page work it out if a write is requested later - to
-  * force COW, vm_page_prot omits write permission from any private vma.
-  */
--static int unuse_pte(struct vm_area_struct *vma, pte_t *pte,
-+static int unuse_pte(struct vm_area_struct *vma, pmd_t *pmd,
- 		unsigned long addr, swp_entry_t entry, struct page *page)
- {
-+	spinlock_t *ptl;
-+	pte_t *pte;
-+	int ret = 1;
-+
- 	if (mem_cgroup_charge(page, vma->vm_mm, GFP_KERNEL))
--		return -ENOMEM;
-+		ret = -ENOMEM;
-+
-+	pte = pte_offset_map_lock(vma->vm_mm, pmd, addr, &ptl);
-+	if (unlikely(!pte_same(*pte, swp_entry_to_pte(entry)))) {
-+		if (ret > 0)
-+			mem_cgroup_uncharge_page(page);
-+		ret = 0;
-+		goto out;
-+	}
- 
- 	inc_mm_counter(vma->vm_mm, anon_rss);
- 	get_page(page);
-@@ -524,7 +536,9 @@ static int unuse_pte(struct vm_area_stru
- 	 * immediately swapped out again after swapon.
- 	 */
- 	activate_page(page);
--	return 1;
-+out:
-+	pte_unmap_unlock(pte, ptl);
-+	return ret;
- }
- 
- static int unuse_pte_range(struct vm_area_struct *vma, pmd_t *pmd,
-@@ -533,21 +547,33 @@ static int unuse_pte_range(struct vm_are
- {
- 	pte_t swp_pte = swp_entry_to_pte(entry);
- 	pte_t *pte;
--	spinlock_t *ptl;
- 	int ret = 0;
- 
--	pte = pte_offset_map_lock(vma->vm_mm, pmd, addr, &ptl);
-+	/*
-+	 * We don't actually need pte lock while scanning for swp_pte:
-+	 * since we hold page lock, swp_pte cannot be inserted into or
-+	 * removed from a page table while we're scanning; but on some
-+	 * architectures (e.g. i386 with PAE) we might catch a glimpse
-+	 * of unmatched parts which look like swp_pte, so unuse_pte
-+	 * must recheck under pte lock.  Scanning without the lock
-+	 * is preemptible if CONFIG_PREEMPT without CONFIG_HIGHPTE.
-+	 */
-+	pte = pte_offset_map(pmd, addr);
- 	do {
- 		/*
- 		 * swapoff spends a _lot_ of time in this loop!
- 		 * Test inline before going to call unuse_pte.
- 		 */
- 		if (unlikely(pte_same(*pte, swp_pte))) {
--			ret = unuse_pte(vma, pte++, addr, entry, page);
--			break;
-+			pte_unmap(pte);
-+			ret = unuse_pte(vma, pmd, addr, entry, page);
-+			if (ret)
-+				goto out;
-+			pte = pte_offset_map(pmd, addr);
- 		}
- 	} while (pte++, addr += PAGE_SIZE, addr != end);
--	pte_unmap_unlock(pte - 1, ptl);
-+	pte_unmap(pte - 1);
-+out:
- 	return ret;
- }
- 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
