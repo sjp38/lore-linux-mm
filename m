@@ -1,45 +1,33 @@
-Date: Mon, 8 Oct 2007 09:54:33 +1000
-From: David Chinner <dgc@sgi.com>
-Subject: Re: [PATCH] remove throttle_vm_writeout()
-Message-ID: <20071007235433.GW995458@sgi.com>
-References: <E1IdPla-0002Bd-00@dorka.pomaz.szeredi.hu> <1191501626.22357.14.camel@twins> <E1IdQJn-0002Cv-00@dorka.pomaz.szeredi.hu> <1191504186.22357.20.camel@twins> <E1IdR58-0002Fq-00@dorka.pomaz.szeredi.hu> <1191516427.5574.7.camel@lappy> <20071004104650.d158121f.akpm@linux-foundation.org> <20071005123028.GA10372@mail.ustc.edu.cn>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+From: Nick Piggin <nickpiggin@yahoo.com.au>
+Subject: Re: [13/18] x86_64: Allow fallback for the stack
+Date: Sun, 7 Oct 2007 17:35:41 +1000
+References: <20071004035935.042951211@sgi.com> <20071004153940.49bd5afc@bree.surriel.com> <Pine.LNX.4.64.0710041418100.12779@schroedinger.engr.sgi.com>
+In-Reply-To: <Pine.LNX.4.64.0710041418100.12779@schroedinger.engr.sgi.com>
+MIME-Version: 1.0
+Content-Type: text/plain;
+  charset="iso-8859-1"
+Content-Transfer-Encoding: 7bit
 Content-Disposition: inline
-In-Reply-To: <20071005123028.GA10372@mail.ustc.edu.cn>
+Message-Id: <200710071735.41386.nickpiggin@yahoo.com.au>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Fengguang Wu <wfg@mail.ustc.edu.cn>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Miklos Szeredi <miklos@szeredi.hu>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Christoph Lameter <clameter@sgi.com>
+Cc: Rik van Riel <riel@redhat.com>, Andi Kleen <ak@suse.de>, akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, travis@sgi.com
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Oct 05, 2007 at 08:30:28PM +0800, Fengguang Wu wrote:
-> The improvement could be:
-> - kswapd is now explicitly preferred to do the writeout;
+On Friday 05 October 2007 07:20, Christoph Lameter wrote:
+> On Thu, 4 Oct 2007, Rik van Riel wrote:
+> > > Well we can now address the rarity. That is the whole point of the
+> > > patchset.
+> >
+> > Introducing complexity to fight a very rare problem with a good
+> > fallback (refusing to fork more tasks, as well as lumpy reclaim)
+> > somehow does not seem like a good tradeoff.
+>
+> The problem can become non-rare on special low memory machines doing wild
+> swapping things though.
 
-Careful. kswapd is much less efficient at writeout than pdflush
-because it does not do low->high offset writeback per address space.
-It just flushes the pages in LRU order and that turns writeback into
-a non-sequential mess. I/O sizes decrease substantially and
-throughput falls through the floor.
-
-So if you want kswapd to take over all the writeback, it needs to do
-writeback in the same manner as the background flushes. i.e.  by
-grabbing page->mapping and flushing that in sequential order rather
-than just the page on the end of the LRU....
-
-I documented the effect of kswapd taking over writeback in this
-paper (section 5.3):
-
-http://oss.sgi.com/projects/xfs/papers/ols2006/ols-2006-paper.pdf
-
-Cheers,
-
-Dave.
--- 
-Dave Chinner
-Principal Engineer
-SGI Australian Software Group
+But only your huge systems will be using huge stacks?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
