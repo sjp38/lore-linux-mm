@@ -1,24 +1,26 @@
-Date: Sun, 7 Oct 2007 19:23:03 -0400
+Date: Sun, 7 Oct 2007 19:23:42 -0400
 From: Rik van Riel <riel@redhat.com>
-Subject: Re: [PATCH 3/7] swapin needs gfp_mask for loop on tmpfs
-Message-ID: <20071007192303.0b9a1432@bree.surriel.com>
-In-Reply-To: <Pine.LNX.4.64.0710062139490.16223@blonde.wat.veritas.com>
+Subject: Re: [PATCH 4/7] shmem: SGP_QUICK and SGP_FAULT redundant
+Message-ID: <20071007192342.51133d66@bree.surriel.com>
+In-Reply-To: <Pine.LNX.4.64.0710062143420.16223@blonde.wat.veritas.com>
 References: <Pine.LNX.4.64.0710062130400.16223@blonde.wat.veritas.com>
-	<Pine.LNX.4.64.0710062139490.16223@blonde.wat.veritas.com>
+	<Pine.LNX.4.64.0710062143420.16223@blonde.wat.veritas.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Hugh Dickins <hugh@veritas.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Nick Piggin <nickpiggin@yahoo.com.au>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Miklos Szeredi <miklos@szeredi.hu>, Fengguang Wu <wfg@mail.ustc.edu.cn>, linux-mm@kvack.org
+Cc: Andrew Morton <akpm@linux-foundation.org>, Nick Piggin <nickpiggin@yahoo.com.au>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Sat, 6 Oct 2007 21:43:36 +0100 (BST)
+On Sat, 6 Oct 2007 21:45:12 +0100 (BST)
 Hugh Dickins <hugh@veritas.com> wrote:
 
-> So, pass gfp_mask down the line from shmem_getpage to shmem_swapin
-> to swapin_readahead to read_swap_cache_async to add_to_swap_cache.
+> Remove SGP_QUICK from the sgp_type enum: it was for shmem_populate and
+> has no users now.  Remove SGP_FAULT from the enum: SGP_CACHE does just
+> as well (and shmem_getpage is about to return with page always
+> locked).
 > 
 > Signed-off-by: Hugh Dickins <hugh@veritas.com>
 
