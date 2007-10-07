@@ -1,54 +1,28 @@
-Date: Sun, 7 Oct 2007 18:37:21 -0400
+Date: Sun, 7 Oct 2007 19:23:03 -0400
 From: Rik van Riel <riel@redhat.com>
-Subject: Re: [PATCH 1/7] swapin_readahead: excise NUMA bogosity
-Message-ID: <20071007183721.00b3a8ac@bree.surriel.com>
-In-Reply-To: <20071007220529.GA11816@bingen.suse.de>
+Subject: Re: [PATCH 3/7] swapin needs gfp_mask for loop on tmpfs
+Message-ID: <20071007192303.0b9a1432@bree.surriel.com>
+In-Reply-To: <Pine.LNX.4.64.0710062139490.16223@blonde.wat.veritas.com>
 References: <Pine.LNX.4.64.0710062130400.16223@blonde.wat.veritas.com>
-	<Pine.LNX.4.64.0710062136070.16223@blonde.wat.veritas.com>
-	<20071007220529.GA11816@bingen.suse.de>
+	<Pine.LNX.4.64.0710062139490.16223@blonde.wat.veritas.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andi Kleen <ak@suse.de>
-Cc: Hugh Dickins <hugh@veritas.com>, Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <clameter@sgi.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, linux-mm@kvack.org
+To: Hugh Dickins <hugh@veritas.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Nick Piggin <nickpiggin@yahoo.com.au>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Miklos Szeredi <miklos@szeredi.hu>, Fengguang Wu <wfg@mail.ustc.edu.cn>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 8 Oct 2007 00:05:29 +0200
-Andi Kleen <ak@suse.de> wrote:
+On Sat, 6 Oct 2007 21:43:36 +0100 (BST)
+Hugh Dickins <hugh@veritas.com> wrote:
 
-> I suspect the real fix for this mess would be probably to never
-> swap in smaller than 1-2MB blocks of continuous memory and then don't 
-> do any readahead. That would likely fix the swap problems that were
-> discussed at KS too.
+> So, pass gfp_mask down the line from shmem_getpage to shmem_swapin
+> to swapin_readahead to read_swap_cache_async to add_to_swap_cache.
+> 
+> Signed-off-by: Hugh Dickins <hugh@veritas.com>
 
-I suspect internal fragmentation may make that idea worse.
-
-Malloc and free really don't try to keep related data near
-each other in virtual memory.  On the contrary, the anti
-fragmentation code in malloc libraries tends to do something
-like slab and have quite the opposite result.
-
-Swapping in somewhat large chunks (128kB? 256kB?) is probably
-a good idea, but we should probably not expect really large 
-blocks to contain related userspace data.
-
-Large readahead works for files because the data is related
-and sequential access is common.  Doing something like readahead
-(dynamic chunk sizes?) on anonymous memory should be possible
-though - we just need to keep track of some things on a per
-VMA basis.
-
-After all, we can measure how many of the read-around pages
-actually get used by the VMA and how many don't.  From that
-data we can adjust the swapin chunk size on the fly.
-
-For swapout we can simply look at which of the linearly nearby
-pages from the VMA are also on the inactive list.  If we find
-a bunch of pages on the inactive list while some others are on
-the active list, we can probably assume that the pages still on
-the active list are probably part of another access pattern.
+Acked-by: Rik van Riel <riel@redhat.com>
 
 -- 
 "Debugging is twice as hard as writing the code in the first place.
