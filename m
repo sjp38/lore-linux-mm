@@ -1,55 +1,80 @@
 From: Nick Piggin <nickpiggin@yahoo.com.au>
-Subject: Re: [PATCH]fix VM_CAN_NONLINEAR check in sys_remap_file_pages
-Date: Mon, 8 Oct 2007 17:02:28 +1000
-References: <3d0408630710080445j4dea115emdfe29aac26814536@mail.gmail.com> <20071008100456.dbe826d0.akpm@linux-foundation.org>
-In-Reply-To: <20071008100456.dbe826d0.akpm@linux-foundation.org>
+Subject: Re: [PATCH 5/7] shmem_getpage return page locked
+Date: Mon, 8 Oct 2007 17:08:51 +1000
+References: <Pine.LNX.4.64.0710062130400.16223@blonde.wat.veritas.com> <200710071801.59947.nickpiggin@yahoo.com.au> <Pine.LNX.4.64.0710081237250.5786@blonde.wat.veritas.com>
+In-Reply-To: <Pine.LNX.4.64.0710081237250.5786@blonde.wat.veritas.com>
 MIME-Version: 1.0
 Content-Type: text/plain;
   charset="iso-8859-1"
 Content-Transfer-Encoding: 7bit
 Content-Disposition: inline
-Message-Id: <200710081702.28516.nickpiggin@yahoo.com.au>
+Message-Id: <200710081708.51787.nickpiggin@yahoo.com.au>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Yan Zheng <yanzheng@21cn.com>, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Hugh Dickins <hugh@veritas.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tuesday 09 October 2007 03:04, Andrew Morton wrote:
-> On Mon, 8 Oct 2007 19:45:08 +0800 "Yan Zheng" <yanzheng@21cn.com> wrote:
-> > Hi all
+On Monday 08 October 2007 22:05, Hugh Dickins wrote:
+> On Sun, 7 Oct 2007, Nick Piggin wrote:
+> > On Sunday 07 October 2007 06:46, Hugh Dickins wrote:
+> > > In the new aops, write_begin is supposed to return the page locked:
+> > > though I've seen no ill effects, that's been overlooked in the case
+> > > of shmem_write_begin, and should be fixed.  Then shmem_write_end must
+> > > unlock the page: do so _after_ updating i_size, as we found to be
+> > > important in other filesystems (though since shmem pages don't go
+> > > the usual writeback route, they never suffered from that corruption).
 > >
-> > The test for VM_CAN_NONLINEAR always fails
-> >
-> > Signed-off-by: Yan Zheng<yanzheng@21cn.com>
-> > ----
-> > diff -ur linux-2.6.23-rc9/mm/fremap.c linux/mm/fremap.c
-> > --- linux-2.6.23-rc9/mm/fremap.c	2007-10-07 15:03:33.000000000 +0800
-> > +++ linux/mm/fremap.c	2007-10-08 19:33:44.000000000 +0800
-> > @@ -160,7 +160,7 @@
-> >  	if (vma->vm_private_data && !(vma->vm_flags & VM_NONLINEAR))
-> >  		goto out;
-> >
-> > -	if (!vma->vm_flags & VM_CAN_NONLINEAR)
-> > +	if (!(vma->vm_flags & VM_CAN_NONLINEAR))
-> >  		goto out;
-> >
-> >  	if (end <= start || start < vma->vm_start || end > vma->vm_end)
+> > I guess my thinking on this is that write_begin doesn't actually _have_
+> > to return the page locked, it just has to return the page in a state
+> > where it may be written into.
 >
-> Lovely.  From this we can deduce that nobody has run remap_file_pages()
-> since 2.6.23-rc1 and that nobody (including the developer who made that
-> change) ran it while that change was in -mm.
+> Ah, I hadn't appreciated that you were being intentionally permissive
+> on that: I'm not sure whether that's a good idea or not.  Were there
+> any other filesystems than tmpfs in which the write_begin did not
+> return with the page locked?
 
-But you'd be wrong. remap_file_pages was tested both with my own tester
-and Ingo's test program.
+I don't believe so... I wasn't trying to be particularly tricky when doing
+the conversion, just noticed the comment that you had no need for the
+page lock over the copy.
 
-vm_flags != 0, !vm_flags = 0, 0 & x = 0, so the test always falls
-through. Of course, what I _should_ have done is also test a driver which
-does not have VM_CAN_NONLINEAR... but even I wouldn't rewrite half
-the nonlinear mapping code without once testing it ;)
 
-FWIW, Oracle (maybe the sole real user of this) has been testing it, which
-I'm very happy about (rather than testing after 2.6.23 is released).
+> > Generic callers obviously cannot assume that the page *isn't* locked,
+> > but I can't think it would be too helpful for them to be able to assume
+> > the page is locked (they already have a ref, which prevents reclaim;
+> > and i_mutex, which prevents truncate).
+>
+> Well, we found before that __mpage_writepage is liable to erase data
+> just written at end of file, unless i_size was raised while still
+> holding the page lock held across the writing.  tmpfs doesn't go
+> that way, but most(?) filesystems do.
+
+True. When you get into real filesystem territory, there are other things
+the page lock is needed for. But as far as the VM goes, there isn't so
+much.
+
+
+> > However, this does make tmpfs apis a little simpler and in general is
+> > more like other filesystems, so I have absolutely no problems with it.
+>
+> I do feel more comfortable with tmpfs doing that like the
+> majority.  It's true that it was happy to write without holding
+> the page lock when it went its own way, but now that it's using
+> write_begin and write_end with generic code above and between
+> them, I feel safer doing the common thing.
+>
+> > I think the other patches are pretty fine too, and really like that you
+> > were able to remove shmem_file_write!
+>
+> Thanks, I was pleased with the diffstat.  I'm hoping that in due
+> course you'll find good reason to come up with a replacement for the
+> readpage aop, one that doesn't demand the struct page be passed in:
+> then I can remove shmem_file_read too, and the nastiest part of
+> shmem_getpage, where it sometimes has to memcpy from swapcache
+> page to the page passed in; maybe more.
+
+Yeah, readpage can get replaced in a similar way. I think several other
+filesystems would be pretty happy with that too...
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
