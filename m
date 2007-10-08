@@ -1,41 +1,66 @@
-Date: Mon, 8 Oct 2007 13:23:04 -0400
-From: Rik van Riel <riel@redhat.com>
-Subject: Re: [PATCH]fix page release issue in filemap_fault
-Message-ID: <20071008132304.7382961d@bree.surriel.com>
-In-Reply-To: <1191863723.20745.26.camel@twins>
-References: <3d0408630710080828h7ad160dbxf6cbd8513c1ad3e8@mail.gmail.com>
-	<1191863723.20745.26.camel@twins>
+Date: Mon, 8 Oct 2007 10:28:43 -0700
+From: Randy Dunlap <randy.dunlap@oracle.com>
+Subject: Re: [PATCH]fix VM_CAN_NONLINEAR check in sys_remap_file_pages
+Message-Id: <20071008102843.d20b56d7.randy.dunlap@oracle.com>
+In-Reply-To: <20071008100456.dbe826d0.akpm@linux-foundation.org>
+References: <3d0408630710080445j4dea115emdfe29aac26814536@mail.gmail.com>
+	<20071008100456.dbe826d0.akpm@linux-foundation.org>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Peter Zijlstra <peterz@infradead.org>
-Cc: Yan Zheng <yanzheng@21cn.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, akpm@linux-foundation.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Yan Zheng <yanzheng@21cn.com>, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 08 Oct 2007 19:15:23 +0200
-Peter Zijlstra <peterz@infradead.org> wrote:
-> On Mon, 2007-10-08 at 23:28 +0800, Yan Zheng wrote:
+On Mon, 8 Oct 2007 10:04:56 -0700 Andrew Morton wrote:
+
+> On Mon, 8 Oct 2007 19:45:08 +0800 "Yan Zheng" <yanzheng@21cn.com> wrote:
+> 
 > > Hi all
 > > 
-> > find_lock_page increases page's usage count, we should decrease it
-> > before return VM_FAULT_SIGBUS
+> > The test for VM_CAN_NONLINEAR always fails
 > > 
 > > Signed-off-by: Yan Zheng<yanzheng@21cn.com>
+> > ----
+> > diff -ur linux-2.6.23-rc9/mm/fremap.c linux/mm/fremap.c
+> > --- linux-2.6.23-rc9/mm/fremap.c	2007-10-07 15:03:33.000000000 +0800
+> > +++ linux/mm/fremap.c	2007-10-08 19:33:44.000000000 +0800
+> > @@ -160,7 +160,7 @@
+> >  	if (vma->vm_private_data && !(vma->vm_flags & VM_NONLINEAR))
+> >  		goto out;
+> > 
+> > -	if (!vma->vm_flags & VM_CAN_NONLINEAR)
+> > +	if (!(vma->vm_flags & VM_CAN_NONLINEAR))
+> >  		goto out;
+> > 
+> >  	if (end <= start || start < vma->vm_start || end > vma->vm_end)
 > 
-> Nice catch, .23 material?
+> Lovely.  From this we can deduce that nobody has run remap_file_pages() since
+> 2.6.23-rc1 and that nobody (including the developer who made that change) ran it
+> while that change was in -mm.
 
-An obvious fix for a memory leak.  I think it should go in.
+I've run rmap-test with -M (use remap_file_pages) and
+remap-test from ext3-tools, but not remap_file_pages for some reason.
 
-> Acked-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
+I'll now add remap_file_pages soon.
+Maybe those other 2 tests aren't strong enough (?).
+Or maybe they don't return a non-0 exit status even when they fail...
+(I'll check.)
 
-Acked-by: Rik van Riel <riel@redhat.com>
 
--- 
-"Debugging is twice as hard as writing the code in the first place.
-Therefore, if you write the code as cleverly as possible, you are,
-by definition, not smart enough to debug it." - Brian W. Kernighan
+> I'm surprise that LTP doesn't have any remap_file_pages() tests.
+
+quick grep didn't find any for me.
+
+> Have you runtime tested this change?
+> 
+> Thanks.
+
+
+---
+~Randy
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
