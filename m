@@ -1,39 +1,43 @@
-Date: Mon, 8 Oct 2007 10:41:26 -0700 (PDT)
-From: Christoph Lameter <clameter@sgi.com>
+Date: Mon, 8 Oct 2007 13:47:44 -0400
+From: Rik van Riel <riel@redhat.com>
 Subject: Re: [PATCH 1/7] swapin_readahead: excise NUMA bogosity
-In-Reply-To: <20071008133538.6ee6ad05@bree.surriel.com>
-Message-ID: <Pine.LNX.4.64.0710081038050.26382@schroedinger.engr.sgi.com>
+Message-ID: <20071008134744.4b03f7e1@bree.surriel.com>
+In-Reply-To: <Pine.LNX.4.64.0710081038050.26382@schroedinger.engr.sgi.com>
 References: <Pine.LNX.4.64.0710062130400.16223@blonde.wat.veritas.com>
- <Pine.LNX.4.64.0710062136070.16223@blonde.wat.veritas.com>
- <Pine.LNX.4.64.0710081017000.26382@schroedinger.engr.sgi.com>
- <20071008133538.6ee6ad05@bree.surriel.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+	<Pine.LNX.4.64.0710062136070.16223@blonde.wat.veritas.com>
+	<Pine.LNX.4.64.0710081017000.26382@schroedinger.engr.sgi.com>
+	<20071008133538.6ee6ad05@bree.surriel.com>
+	<Pine.LNX.4.64.0710081038050.26382@schroedinger.engr.sgi.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Rik van Riel <riel@redhat.com>
+To: Christoph Lameter <clameter@sgi.com>
 Cc: Hugh Dickins <hugh@veritas.com>, Andrew Morton <akpm@linux-foundation.org>, Andi Kleen <ak@suse.de>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 8 Oct 2007, Rik van Riel wrote:
+On Mon, 8 Oct 2007 10:41:26 -0700 (PDT)
+Christoph Lameter <clameter@sgi.com> wrote:
 
-> Due to the way swapin_readahead works (and how swapout works),
-> it can easily end up pulling in another task's memory with the
-> current task's NUMA allocation policy.
+> On Mon, 8 Oct 2007, Rik van Riel wrote:
+> 
+> > Due to the way swapin_readahead works (and how swapout works),
+> > it can easily end up pulling in another task's memory with the
+> > current task's NUMA allocation policy.
+> 
+> I am not sure what you mean by "another task's memory"? How does
+> memory become owned by a task? 
 
-I am not sure what you mean by "another task's memory"? How does memory 
-become owned by a task? 
+Swapin_readahead simply reads in all swap pages that are physically
+close to the desired one from the swap area, without taking into
+account whether or not the swap entry belongs to the current task
+or others.
 
-Having a variety of NUMA allocation strategies applied to the pages of one 
-file in memory is common for shared mmapped files like executables 
-already.
- 
-> If that is an issue, we may want to change swapin_readahead to
-> access nearby ptes and divine swap entries from those, only
-> pulling in memory that really belongs to the current process.
-
-Well lets keep it simple. The association of pages to a process is not 
-that easy to establish if a page is shared.
+-- 
+"Debugging is twice as hard as writing the code in the first place.
+Therefore, if you write the code as cleverly as possible, you are,
+by definition, not smart enough to debug it." - Brian W. Kernighan
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
