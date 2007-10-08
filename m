@@ -1,66 +1,48 @@
-Date: Mon, 8 Oct 2007 10:28:43 -0700
-From: Randy Dunlap <randy.dunlap@oracle.com>
-Subject: Re: [PATCH]fix VM_CAN_NONLINEAR check in sys_remap_file_pages
-Message-Id: <20071008102843.d20b56d7.randy.dunlap@oracle.com>
-In-Reply-To: <20071008100456.dbe826d0.akpm@linux-foundation.org>
-References: <3d0408630710080445j4dea115emdfe29aac26814536@mail.gmail.com>
-	<20071008100456.dbe826d0.akpm@linux-foundation.org>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Date: Mon, 8 Oct 2007 10:31:06 -0700 (PDT)
+From: Christoph Lameter <clameter@sgi.com>
+Subject: Re: [PATCH 1/7] swapin_readahead: excise NUMA bogosity
+In-Reply-To: <Pine.LNX.4.64.0710062136070.16223@blonde.wat.veritas.com>
+Message-ID: <Pine.LNX.4.64.0710081017000.26382@schroedinger.engr.sgi.com>
+References: <Pine.LNX.4.64.0710062130400.16223@blonde.wat.veritas.com>
+ <Pine.LNX.4.64.0710062136070.16223@blonde.wat.veritas.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Yan Zheng <yanzheng@21cn.com>, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Hugh Dickins <hugh@veritas.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Andi Kleen <ak@suse.de>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 8 Oct 2007 10:04:56 -0700 Andrew Morton wrote:
+On Sat, 6 Oct 2007, Hugh Dickins wrote:
 
-> On Mon, 8 Oct 2007 19:45:08 +0800 "Yan Zheng" <yanzheng@21cn.com> wrote:
-> 
-> > Hi all
-> > 
-> > The test for VM_CAN_NONLINEAR always fails
-> > 
-> > Signed-off-by: Yan Zheng<yanzheng@21cn.com>
-> > ----
-> > diff -ur linux-2.6.23-rc9/mm/fremap.c linux/mm/fremap.c
-> > --- linux-2.6.23-rc9/mm/fremap.c	2007-10-07 15:03:33.000000000 +0800
-> > +++ linux/mm/fremap.c	2007-10-08 19:33:44.000000000 +0800
-> > @@ -160,7 +160,7 @@
-> >  	if (vma->vm_private_data && !(vma->vm_flags & VM_NONLINEAR))
-> >  		goto out;
-> > 
-> > -	if (!vma->vm_flags & VM_CAN_NONLINEAR)
-> > +	if (!(vma->vm_flags & VM_CAN_NONLINEAR))
-> >  		goto out;
-> > 
-> >  	if (end <= start || start < vma->vm_start || end > vma->vm_end)
-> 
-> Lovely.  From this we can deduce that nobody has run remap_file_pages() since
-> 2.6.23-rc1 and that nobody (including the developer who made that change) ran it
-> while that change was in -mm.
+> For three years swapin_readahead has been cluttered with fanciful
+> CONFIG_NUMA code, advancing addr, and stepping on to the next vma
+> at the boundary, to line up the mempolicy for each page allocation.
 
-I've run rmap-test with -M (use remap_file_pages) and
-remap-test from ext3-tools, but not remap_file_pages for some reason.
+Hmmm.. I thought that was restricted to shmem which has lots of other 
+issues due to shared memory policies that may then into issues with 
+cpusets restriction. I never looked at it. Likely due to us not caring too
+much about swap.
 
-I'll now add remap_file_pages soon.
-Maybe those other 2 tests aren't strong enough (?).
-Or maybe they don't return a non-0 exit status even when they fail...
-(I'll check.)
+Readahead for the page cache should work as an allocation in the context 
+of the currently running task following the tasks memory policy not the 
+vma memory policy. Thus there is no need to put a policy in there. So we 
+currently do not obey vma memory policy for page cache reads. VMA policies 
+are applied to anonymous pages. But if they go via swap then we have a 
+strange type of page here that is both. So the method of following task 
+policy could be a problem.
 
+Maybe Lee can sort semantics out a bit better? I still think that this 
+whole area needs a fundamental overhaul so that policies work in a way 
+that does not have all these exceptions and strange side effects.
 
-> I'm surprise that LTP doesn't have any remap_file_pages() tests.
+> But look at the equivalent shmem_swapin code: either by oversight
+> or by design, though it has all the apparatus for choosing a new
+> mempolicy per page, it uses the same idx throughout, choosing the
+> same mempolicy and interleave node for each page of the cluster.
 
-quick grep didn't find any for me.
-
-> Have you runtime tested this change?
-> 
-> Thanks.
-
-
----
-~Randy
+More confirmation that the shmem shared memory policy stuff is not that
+up to snuff...
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
