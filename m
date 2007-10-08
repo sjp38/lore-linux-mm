@@ -1,61 +1,173 @@
-Date: Mon, 8 Oct 2007 17:03:20 -0700
-From: Randy Dunlap <randy.dunlap@oracle.com>
-Subject: [PATCH] remap_file_pages: kernel-doc corrections
-Message-Id: <20071008170320.eb123276.randy.dunlap@oracle.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+From: Nick Piggin <nickpiggin@yahoo.com.au>
+Subject: Re: [PATCH]fix VM_CAN_NONLINEAR check in sys_remap_file_pages
+Date: Mon, 8 Oct 2007 17:45:38 +1000
+References: <3d0408630710080445j4dea115emdfe29aac26814536@mail.gmail.com> <20071008102843.d20b56d7.randy.dunlap@oracle.com> <20071008105120.4e0e4a85.akpm@linux-foundation.org>
+In-Reply-To: <20071008105120.4e0e4a85.akpm@linux-foundation.org>
+MIME-Version: 1.0
+Content-Type: Multipart/Mixed;
+  boundary="Boundary-00=_jAeCHpGYRU+cpXT"
+Message-Id: <200710081745.39254.nickpiggin@yahoo.com.au>
 Sender: owner-linux-mm@kvack.org
-From: Randy Dunlap <randy.dunlap@oracle.com>
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
-Cc: akpm <akpm@linux-foundation.org>, nickpiggin@yahoo.com.au
+To: Andrew Morton <akpm@linux-foundation.org>, Ingo Molnar <mingo@elte.hu>
+Cc: Randy Dunlap <randy.dunlap@oracle.com>, yanzheng@21cn.com, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, ltp-list@lists.sourceforge.net
 List-ID: <linux-mm.kvack.org>
 
-Fix kernel-doc for sys_remap_file_pages() and add info to the __prot NOTE.
+--Boundary-00=_jAeCHpGYRU+cpXT
+Content-Type: text/plain;
+  charset="iso-8859-1"
+Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
 
-Signed-off-by: Randy Dunlap <randy.dunlap@oracle.com>
----
- mm/fremap.c |   20 +++++++++++---------
- 1 file changed, 11 insertions(+), 9 deletions(-)
+On Tuesday 09 October 2007 03:51, Andrew Morton wrote:
+> On Mon, 8 Oct 2007 10:28:43 -0700
 
---- linux-2.6.23-rc9-git3.orig/mm/fremap.c
-+++ linux-2.6.23-rc9-git3/mm/fremap.c
-@@ -97,23 +97,25 @@ static int populate_range(struct mm_stru
- 
- }
- 
--/***
-- * sys_remap_file_pages - remap arbitrary pages of a shared backing store
-- *                        file within an existing vma.
-+/**
-+ * sys_remap_file_pages - remap arbitrary pages of a shared backing store file
-  * @start: start of the remapped virtual memory range
-  * @size: size of the remapped virtual memory range
-- * @prot: new protection bits of the range
-- * @pgoff: to be mapped page of the backing store file
-+ * @__prot: new protection bits of the range (see NOTE)
-+ * @pgoff: to-be-mapped page of the backing store file
-  * @flags: 0 or MAP_NONBLOCKED - the later will cause no IO.
-  *
-- * this syscall works purely via pagetables, so it's the most efficient
-+ * sys_remap_file_pages remaps arbitrary pages of a shared backing store file
-+ * within an existing vma.
-+ *
-+ * This syscall works purely via pagetables, so it's the most efficient
-  * way to map the same (large) file into a given virtual window. Unlike
-  * mmap()/mremap() it does not create any new vmas. The new mappings are
-  * also safe across swapout.
-  *
-- * NOTE: the 'prot' parameter right now is ignored, and the vma's default
-- * protection is used. Arbitrary protections might be implemented in the
-- * future.
-+ * NOTE: the '__prot' parameter right now is ignored (but must be zero),
-+ * and the vma's default protection is used. Arbitrary protections
-+ * might be implemented in the future.
-  */
- asmlinkage long sys_remap_file_pages(unsigned long start, unsigned long size,
- 	unsigned long __prot, unsigned long pgoff, unsigned long flags)
+> > I'll now add remap_file_pages soon.
+> > Maybe those other 2 tests aren't strong enough (?).
+> > Or maybe they don't return a non-0 exit status even when they fail...
+> > (I'll check.)
+>
+> Perhaps Yan Zheng can tell us what test was used to demonstrate this?
+
+Was probably found by review. Otherwise, you could probably reproduce
+it by mmaping, say, drm device node, running remap_file_pages() on it
+to create a nonlinear mapping, and then finding that you get the wrong
+data.
+
+> > > I'm surprise that LTP doesn't have any remap_file_pages() tests.
+> >
+> > quick grep didn't find any for me.
+>
+> Me either.  There are a few lying around the place which could be
+> integrated.
+>
+> It would be good if LTP were to have some remap_file_pages() tests
+> (please).  As we see here, it is something which we can easily break, and
+> leave broken for some time.
+
+Here is Ingo's old test, since cleaned up and fixed a bit by me....
+I'm sure he would distribute it GPL, but I've cc'ed him because I didn't
+find an explicit statement about that.
+
+
+--Boundary-00=_jAeCHpGYRU+cpXT
+Content-Type: text/x-csrc;
+  charset="iso-8859-1";
+  name="remap-file-pages.c"
+Content-Transfer-Encoding: 7bit
+Content-Disposition: attachment;
+	filename="remap-file-pages.c"
+
+/*
+ * Copyright (C) Ingo Molnar, 2002
+ */
+#define _GNU_SOURCE
+#include <stdio.h>
+#include <unistd.h>
+#include <sys/mman.h>
+#include <sys/stat.h>
+#include <sys/types.h>
+#include <fcntl.h>
+#include <errno.h>
+#include <stdlib.h>
+#include <sys/times.h>
+#include <sys/wait.h>
+#include <sys/ioctl.h>
+#include <sys/syscall.h>
+#include <linux/unistd.h>
+
+#define PAGE_SIZE 4096
+#define PAGE_WORDS (PAGE_SIZE/sizeof(int))
+
+#define CACHE_PAGES 1024
+#define CACHE_SIZE (CACHE_PAGES*PAGE_SIZE)
+
+#define WINDOW_PAGES 16
+#define WINDOW_SIZE (WINDOW_PAGES*PAGE_SIZE)
+
+#define WINDOW_START 0x48000000
+
+static char cache_contents [CACHE_SIZE];
+
+static void test_nonlinear(int fd)
+{
+	char *data = NULL;
+	int i, j, repeat = 2;
+
+	for (i = 0; i < CACHE_PAGES; i++) {
+		int *page = (int *) (cache_contents + i*PAGE_SIZE);
+
+		for (j = 0; j < PAGE_WORDS; j++)
+			page[j] = i;
+	}
+
+	if (write(fd, cache_contents, CACHE_SIZE) != CACHE_SIZE)
+		perror("write"), exit(1);
+
+	data = mmap((void *)WINDOW_START,
+			WINDOW_SIZE,
+			PROT_READ|PROT_WRITE, 
+			MAP_FIXED | MAP_SHARED 
+			, fd, 0);
+
+	if (data == MAP_FAILED)
+		perror("mmap"), exit(1);
+
+again:
+	for (i = 0; i < WINDOW_PAGES; i += 2) {
+		char *page = data + i*PAGE_SIZE;
+
+		if (remap_file_pages(page, PAGE_SIZE * 2, 0,
+				(WINDOW_PAGES-i-2), 0) == -1)
+			perror("remap_file_pages"), exit(1);
+	}
+
+	for (i = 0; i < WINDOW_PAGES; i++) {
+		/*
+		 * Double-check the correctness of the mapping:
+		 */
+		if (i & 1) {
+			if (data[i*PAGE_SIZE] != WINDOW_PAGES-i) {
+				printf("hm, mapped incorrect data!\n");
+				exit(1);
+			}
+		} else {
+			if (data[i*PAGE_SIZE] != WINDOW_PAGES-i-2) {
+				printf("hm, mapped incorrect data!\n");
+				exit(1);
+			}
+		}
+	}
+
+	if (--repeat)
+		goto again;
+}
+
+int main(int argc, char **argv)
+{
+	int fd;
+
+	fd = open("/dev/shm/cache", O_RDWR|O_CREAT|O_TRUNC,S_IRWXU);
+	if (fd < 0)
+		perror("open"), exit(1);
+	test_nonlinear(fd);
+	if (close(fd) == -1)
+		perror("close"), exit(1);
+	printf("nonlinear shm file OK\n");
+
+	fd = open("/tmp/cache", O_RDWR|O_CREAT|O_TRUNC,S_IRWXU);
+	if (fd < 0)
+		perror("open"), exit(1);
+	test_nonlinear(fd);
+	if (close(fd) == -1)
+		perror("close"), exit(1);
+	printf("nonlinear /tmp/ file OK\n");
+
+	exit(0);
+}
+
+
+--Boundary-00=_jAeCHpGYRU+cpXT--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
