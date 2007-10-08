@@ -1,48 +1,51 @@
-Date: Mon, 8 Oct 2007 10:31:06 -0700 (PDT)
-From: Christoph Lameter <clameter@sgi.com>
+Date: Mon, 8 Oct 2007 13:35:38 -0400
+From: Rik van Riel <riel@redhat.com>
 Subject: Re: [PATCH 1/7] swapin_readahead: excise NUMA bogosity
-In-Reply-To: <Pine.LNX.4.64.0710062136070.16223@blonde.wat.veritas.com>
-Message-ID: <Pine.LNX.4.64.0710081017000.26382@schroedinger.engr.sgi.com>
+Message-ID: <20071008133538.6ee6ad05@bree.surriel.com>
+In-Reply-To: <Pine.LNX.4.64.0710081017000.26382@schroedinger.engr.sgi.com>
 References: <Pine.LNX.4.64.0710062130400.16223@blonde.wat.veritas.com>
- <Pine.LNX.4.64.0710062136070.16223@blonde.wat.veritas.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+	<Pine.LNX.4.64.0710062136070.16223@blonde.wat.veritas.com>
+	<Pine.LNX.4.64.0710081017000.26382@schroedinger.engr.sgi.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Hugh Dickins <hugh@veritas.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Andi Kleen <ak@suse.de>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, linux-mm@kvack.org
+To: Christoph Lameter <clameter@sgi.com>
+Cc: Hugh Dickins <hugh@veritas.com>, Andrew Morton <akpm@linux-foundation.org>, Andi Kleen <ak@suse.de>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Sat, 6 Oct 2007, Hugh Dickins wrote:
+On Mon, 8 Oct 2007 10:31:06 -0700 (PDT)
+Christoph Lameter <clameter@sgi.com> wrote:
 
-> For three years swapin_readahead has been cluttered with fanciful
-> CONFIG_NUMA code, advancing addr, and stepping on to the next vma
-> at the boundary, to line up the mempolicy for each page allocation.
+> On Sat, 6 Oct 2007, Hugh Dickins wrote:
+> 
+> > For three years swapin_readahead has been cluttered with fanciful
+> > CONFIG_NUMA code, advancing addr, and stepping on to the next vma
+> > at the boundary, to line up the mempolicy for each page allocation.
+> 
+> Hmmm.. I thought that was restricted to shmem which has lots of other 
+> issues due to shared memory policies that may then into issues with 
+> cpusets restriction. I never looked at it. Likely due to us not
+> caring too much about swap.
+> 
+> Readahead for the page cache should work as an allocation in the
+> context of the currently running task following the tasks memory
+> policy not the vma memory policy. Thus there is no need to put a
+> policy in there. 
 
-Hmmm.. I thought that was restricted to shmem which has lots of other 
-issues due to shared memory policies that may then into issues with 
-cpusets restriction. I never looked at it. Likely due to us not caring too
-much about swap.
+Due to the way swapin_readahead works (and how swapout works),
+it can easily end up pulling in another task's memory with the
+current task's NUMA allocation policy.
 
-Readahead for the page cache should work as an allocation in the context 
-of the currently running task following the tasks memory policy not the 
-vma memory policy. Thus there is no need to put a policy in there. So we 
-currently do not obey vma memory policy for page cache reads. VMA policies 
-are applied to anonymous pages. But if they go via swap then we have a 
-strange type of page here that is both. So the method of following task 
-policy could be a problem.
+If that is an issue, we may want to change swapin_readahead to
+access nearby ptes and divine swap entries from those, only
+pulling in memory that really belongs to the current process.
 
-Maybe Lee can sort semantics out a bit better? I still think that this 
-whole area needs a fundamental overhaul so that policies work in a way 
-that does not have all these exceptions and strange side effects.
-
-> But look at the equivalent shmem_swapin code: either by oversight
-> or by design, though it has all the apparatus for choosing a new
-> mempolicy per page, it uses the same idx throughout, choosing the
-> same mempolicy and interleave node for each page of the cluster.
-
-More confirmation that the shmem shared memory policy stuff is not that
-up to snuff...
+-- 
+"Debugging is twice as hard as writing the code in the first place.
+Therefore, if you write the code as cleverly as possible, you are,
+by definition, not smart enough to debug it." - Brian W. Kernighan
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
