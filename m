@@ -1,67 +1,62 @@
-Date: Mon, 8 Oct 2007 13:05:27 +0100 (BST)
-From: Hugh Dickins <hugh@veritas.com>
-Subject: Re: [PATCH 5/7] shmem_getpage return page locked
-In-Reply-To: <200710071801.59947.nickpiggin@yahoo.com.au>
-Message-ID: <Pine.LNX.4.64.0710081237250.5786@blonde.wat.veritas.com>
+Subject: Re: [PATCH 3/7] swapin needs gfp_mask for loop on tmpfs
+From: Peter Zijlstra <a.p.zijlstra@chello.nl>
+In-Reply-To: <Pine.LNX.4.64.0710062139490.16223@blonde.wat.veritas.com>
 References: <Pine.LNX.4.64.0710062130400.16223@blonde.wat.veritas.com>
- <Pine.LNX.4.64.0710062145160.16223@blonde.wat.veritas.com>
- <200710071801.59947.nickpiggin@yahoo.com.au>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+	 <Pine.LNX.4.64.0710062139490.16223@blonde.wat.veritas.com>
+Content-Type: multipart/signed; micalg=pgp-sha1; protocol="application/pgp-signature"; boundary="=-We0y5pvgm73xs0opjDOu"
+Date: Mon, 08 Oct 2007 15:52:59 +0200
+Message-Id: <1191851579.20745.14.camel@twins>
+Mime-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nick Piggin <nickpiggin@yahoo.com.au>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org
+To: Hugh Dickins <hugh@veritas.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Nick Piggin <nickpiggin@yahoo.com.au>, Miklos Szeredi <miklos@szeredi.hu>, Fengguang Wu <wfg@mail.ustc.edu.cn>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Sun, 7 Oct 2007, Nick Piggin wrote:
-> On Sunday 07 October 2007 06:46, Hugh Dickins wrote:
-> > In the new aops, write_begin is supposed to return the page locked:
-> > though I've seen no ill effects, that's been overlooked in the case
-> > of shmem_write_begin, and should be fixed.  Then shmem_write_end must
-> > unlock the page: do so _after_ updating i_size, as we found to be
-> > important in other filesystems (though since shmem pages don't go
-> > the usual writeback route, they never suffered from that corruption).
-> 
-> I guess my thinking on this is that write_begin doesn't actually _have_
-> to return the page locked, it just has to return the page in a state where
-> it may be written into.
+--=-We0y5pvgm73xs0opjDOu
+Content-Type: text/plain
+Content-Transfer-Encoding: quoted-printable
 
-Ah, I hadn't appreciated that you were being intentionally permissive
-on that: I'm not sure whether that's a good idea or not.  Were there
-any other filesystems than tmpfs in which the write_begin did not
-return with the page locked?
+On Sat, 2007-10-06 at 21:43 +0100, Hugh Dickins wrote:
+> Building in a filesystem on a loop device on a tmpfs file can hang when
+> swapping, the loop thread caught in that infamous throttle_vm_writeout.
+>=20
+> In theory this is a long standing problem, which I've either never seen
+> in practice, or long ago suppressed the recollection, after discounting
+> my load and my tmpfs size as unrealistically high.  But now, with the
+> new aops, it has become easy to hang on one machine.
+>=20
+> Loop used to grab_cache_page before the old prepare_write to tmpfs,
+> which seems to have been enough to free up some memory for any swapin
+> needed; but the new write_begin lets tmpfs find or allocate the page
+> (much nicer, since grab_cache_page missed tmpfs pages in swapcache).
+>=20
+> When allocating a fresh page, tmpfs respects loop's mapping_gfp_mask,
+> which has __GFP_IO|__GFP_FS stripped off, and throttle_vm_writeout is
+> designed to break out when __GFP_IO or GFP_FS is unset; but when tmfps
+> swaps in, read_swap_cache_async allocates with GFP_HIGHUSER_MOVABLE
+> regardless of the mapping_gfp_mask - hence the hang.
+>=20
+> So, pass gfp_mask down the line from shmem_getpage to shmem_swapin
+> to swapin_readahead to read_swap_cache_async to add_to_swap_cache.
+>=20
+> Signed-off-by: Hugh Dickins <hugh@veritas.com>
 
-> Generic callers obviously cannot assume that the page *isn't* locked,
-> but I can't think it would be too helpful for them to be able to assume
-> the page is locked (they already have a ref, which prevents reclaim;
-> and i_mutex, which prevents truncate).
+Acked-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
 
-Well, we found before that __mpage_writepage is liable to erase data
-just written at end of file, unless i_size was raised while still
-holding the page lock held across the writing.  tmpfs doesn't go
-that way, but most(?) filesystems do.
+--=-We0y5pvgm73xs0opjDOu
+Content-Type: application/pgp-signature; name=signature.asc
+Content-Description: This is a digitally signed message part
 
-> However, this does make tmpfs apis a little simpler and in general is more
-> like other filesystems, so I have absolutely no problems with it.
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v1.4.6 (GNU/Linux)
 
-I do feel more comfortable with tmpfs doing that like the
-majority.  It's true that it was happy to write without holding
-the page lock when it went its own way, but now that it's using
-write_begin and write_end with generic code above and between
-them, I feel safer doing the common thing.
+iD8DBQBHCjY7XA2jU0ANEf4RApVlAJ4yyPkTkxSF+tiOVyOdQgjE1iZ7hgCcCsgZ
+GHbL4J2m8+j41h3yruWa94I=
+=bE4L
+-----END PGP SIGNATURE-----
 
-> I think the other patches are pretty fine too, and really like that you were
-> able to remove shmem_file_write!
-
-Thanks, I was pleased with the diffstat.  I'm hoping that in due
-course you'll find good reason to come up with a replacement for the
-readpage aop, one that doesn't demand the struct page be passed in:
-then I can remove shmem_file_read too, and the nastiest part of
-shmem_getpage, where it sometimes has to memcpy from swapcache
-page to the page passed in; maybe more.
-
-Hugh
+--=-We0y5pvgm73xs0opjDOu--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
