@@ -1,37 +1,47 @@
-Date: Mon, 8 Oct 2007 10:36:42 -0700 (PDT)
-From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [13/18] x86_64: Allow fallback for the stack
-In-Reply-To: <200710071735.41386.nickpiggin@yahoo.com.au>
-Message-ID: <Pine.LNX.4.64.0710081032030.26382@schroedinger.engr.sgi.com>
-References: <20071004035935.042951211@sgi.com> <20071004153940.49bd5afc@bree.surriel.com>
- <Pine.LNX.4.64.0710041418100.12779@schroedinger.engr.sgi.com>
- <200710071735.41386.nickpiggin@yahoo.com.au>
+Received: from d03relay04.boulder.ibm.com (d03relay04.boulder.ibm.com [9.17.195.106])
+	by e32.co.us.ibm.com (8.12.11.20060308/8.13.8) with ESMTP id l98GVPoZ028504
+	for <linux-mm@kvack.org>; Mon, 8 Oct 2007 12:31:25 -0400
+Received: from d03av01.boulder.ibm.com (d03av01.boulder.ibm.com [9.17.195.167])
+	by d03relay04.boulder.ibm.com (8.13.8/8.13.8/NCO v8.5) with ESMTP id l98Hdxoq376480
+	for <linux-mm@kvack.org>; Mon, 8 Oct 2007 11:39:59 -0600
+Received: from d03av01.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av01.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l98HdxTH008316
+	for <linux-mm@kvack.org>; Mon, 8 Oct 2007 11:39:59 -0600
+Date: Mon, 8 Oct 2007 10:39:58 -0700
+From: Nishanth Aravamudan <nacc@us.ibm.com>
+Subject: Re: [PATCH 2/2] hugetlb: fix pool allocation with empty nodes
+Message-ID: <20071008173958.GB14670@us.ibm.com>
+References: <20071003224538.GB29663@us.ibm.com> <20071003224904.GC29663@us.ibm.com> <Pine.LNX.4.64.0710032054390.4560@schroedinger.engr.sgi.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <Pine.LNX.4.64.0710032054390.4560@schroedinger.engr.sgi.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nick Piggin <nickpiggin@yahoo.com.au>
-Cc: Rik van Riel <riel@redhat.com>, Andi Kleen <ak@suse.de>, akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, travis@sgi.com
+To: Christoph Lameter <clameter@sgi.com>
+Cc: wli@holomorphy.com, anton@samba.org, agl@us.ibm.com, lee.schermerhorn@hp.com, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Sun, 7 Oct 2007, Nick Piggin wrote:
-
-> > The problem can become non-rare on special low memory machines doing wild
-> > swapping things though.
+On 03.10.2007 [20:55:00 -0700], Christoph Lameter wrote:
+> Acked-by: Christoph Lameter <clameter@sgi.com>
 > 
-> But only your huge systems will be using huge stacks?
+> I guess this should be included in 2.6.24?
 
-I have no idea who else would be using such a feature. Relaxing the tight 
-memory restrictions on stack use may allow placing larger structures on 
-the stack in general.
+Realistically, I think 1/2 would be sufficient for now. Since Adam's
+patches have gone in, 2/2 needs to be reworked to account for the new
+users of node_online_map.
 
-I have some concerns about the medium NUMA systems (a few dozen of nodes) 
-also running out of stack since more data is placed on the stack through 
-the policy layer and since we may end up with a couple of stacked 
-filesystems. Most of the current NUMA systems on x86_64 are basically 
-two nodes on one motherboard. The use of NUMA controls is likely 
-limited there and the complexity of the filesystems is also not high.
+*But*, Lee found issues with my patches and Mel's one-zonelist patches,
+potentially. I'm going to investigate that in the next week and repost
+the rebased (on top of Adam's patches which will be in the next -mm)
+patches soon.
 
+Thanks,
+Nish
+
+-- 
+Nishanth Aravamudan <nacc@us.ibm.com>
+IBM Linux Technology Center
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
