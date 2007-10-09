@@ -1,56 +1,31 @@
-Subject: Re: [PATCH -mm -v4 1/3] i386/x86_64 boot: setup data
-In-Reply-To: <1191920123.9719.71.camel@caritas-dev.intel.com>
-References: <1191912010.9719.18.camel@caritas-dev.intel.com> <200710090125.27263.nickpiggin@yahoo.com.au> <1191918139.9719.47.camel@caritas-dev.intel.com> <200710090206.22383.nickpiggin@yahoo.com.au> <1191920123.9719.71.camel@caritas-dev.intel.com>
-Date: Tue, 9 Oct 2007 13:44:47 +0200
-Message-Id: <E1IfDW3-0001qA-9c@flower>
-From: Oleg Verych <olecom@flower.upol.cz>
+Subject: Re: [PATCH/RFC 4/5] Mem Policy:  cpuset-independent
+	interleave	policy
+From: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
+In-Reply-To: <470B1C77.1080001@google.com>
+References: <20070830185053.22619.96398.sendpatchset@localhost>
+	 <20070830185122.22619.56636.sendpatchset@localhost>
+	 <46E86148.9060400@google.com> <1189690357.5013.19.camel@localhost>
+	 <470B1C77.1080001@google.com>
+Content-Type: text/plain
+Date: Tue, 09 Oct 2007 09:39:52 -0400
+Message-Id: <1191937192.5252.2.camel@localhost>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "Huang, Ying" <ying.huang@intel.com>
-Cc: Nick Piggin <nickpiggin@yahoo.com.au>, linux-mm@kvack.org, "H. Peter Anvin" <hpa@zytor.com>, Andi Kleen <ak@suse.de>, "Eric W. Biederman" <ebiederm@xmission.com>, akpm@linux-foundation.org, Yinghai Lu <yhlu.kernel@gmail.com>, Chandramouli Narayanan <mouli@linux.intel.com>, linux-kernel@vger.kernel.org
+To: Ethan Solomita <solo@google.com>
+Cc: linux-mm@kvack.org, akpm@linux-foundation.org, ak@suse.de, mtk-manpages@gmx.net, clameter@sgi.com, eric.whitney@hp.com
 List-ID: <linux-mm.kvack.org>
 
-* Tue, 09 Oct 2007 16:55:23 +0800
->
-> On Tue, 2007-10-09 at 02:06 +1000, Nick Piggin wrote:
->> On Tuesday 09 October 2007 18:22, Huang, Ying wrote:
-[]
->> I'm just wondering whether you really need to access highmem in
->> boot code...
->
-> Because the zero page (boot_parameters) of i386 boot protocol has 4k
-> limitation, a linked list style boot parameter passing mechanism (struct
-> setup_data) is proposed by Peter Anvin. The linked list is provided by
-> bootloader, so it is possible to be in highmem region.
+On Mon, 2007-10-08 at 23:15 -0700, Ethan Solomita wrote:
+> 	Do we want do_get_mempolicy() to return a policy number with 
+> MPOL_CONTEXT set? That's what's happening with this patch, and I expect 
+> it'll confuse userland apps, e.g. numactl.
 
-Can it be explained, why boot protocol and boot line must be expanded?
-This amount of code for what?
+No, that's a bug!  I'll make sure I stomp it before next repost.  
 
- arch/i386/Kconfig            |    3 -
- arch/i386/boot/header.S      |    8 +++
- arch/i386/kernel/setup.c     |   92 +++++++++++++++++++++++++++++++++++++++++++
- arch/x86_64/kernel/setup.c   |   37 +++++++++++++++++
- include/asm-i386/bootparam.h |   15 +++++++
- include/asm-i386/io.h        |    7 +++
- include/linux/mm.h           |    2
- mm/memory.c                  |   24 +++++++++++
- 
-
-If it is proposed for passing ACPI makeup language bugfixes by boot
-line for ACPI parser in the kernel, or "telling to kernel what to do
-via EFI" then it's kind of very nasty red flag.
-
-I'd suggest to have initramfs image ready with all possible
-data/options/actions based on very small amount of possible boot line
-information.
-
-Any _right_ use-cases explained for dummies are appreciated.
-
-Thanks.
---
--o--=O`C
- #oo'L O
-<___=E M
+Thanks,
+Lee
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
