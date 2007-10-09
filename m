@@ -1,29 +1,67 @@
-Received: by fk-out-0910.google.com with SMTP id 18so1481084fkq
-        for <linux-mm@kvack.org>; Mon, 08 Oct 2007 18:43:46 -0700 (PDT)
-Message-ID: <3d0408630710081843u72807765v47d4b36712b4c9b1@mail.gmail.com>
-Date: Tue, 9 Oct 2007 09:43:46 +0800
-From: "Yan Zheng" <yanzheng@21cn.com>
-Subject: Re: [PATCH]fix VM_CAN_NONLINEAR check in sys_remap_file_pages
-In-Reply-To: <20071008105120.4e0e4a85.akpm@linux-foundation.org>
+Date: Mon, 8 Oct 2007 18:56:05 -0700 (PDT)
+From: Christoph Lameter <clameter@sgi.com>
+Subject: Re: [PATCH 6/6] Use one zonelist that is filtered by nodemask
+In-Reply-To: <20071009011143.GC14670@us.ibm.com>
+Message-ID: <Pine.LNX.4.64.0710081854370.28455@schroedinger.engr.sgi.com>
+References: <20070928142326.16783.98817.sendpatchset@skynet.skynet.ie>
+ <20070928142526.16783.97067.sendpatchset@skynet.skynet.ie>
+ <20071009011143.GC14670@us.ibm.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
-References: <3d0408630710080445j4dea115emdfe29aac26814536@mail.gmail.com>
-	 <20071008100456.dbe826d0.akpm@linux-foundation.org>
-	 <20071008102843.d20b56d7.randy.dunlap@oracle.com>
-	 <20071008105120.4e0e4a85.akpm@linux-foundation.org>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Randy Dunlap <randy.dunlap@oracle.com>, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, ltp-list@lists.sourceforge.net
+To: Nishanth Aravamudan <nacc@us.ibm.com>
+Cc: Mel Gorman <mel@csn.ul.ie>, akpm@linux-foundation.org, Lee.Schermerhorn@hp.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, rientjes@google.com, kamezawa.hiroyu@jp.fujitsu.com
 List-ID: <linux-mm.kvack.org>
 
-2007/10/9, Andrew Morton <akpm@linux-foundation.org>:
-> Perhaps Yan Zheng can tell us what test was used to demonstrate this?
+On Mon, 8 Oct 2007, Nishanth Aravamudan wrote:
 
-I found it by review, only do test to check remap_file_pages works
-when VM_CAN_NONLINEAR flags is set.
+> >  struct page * fastcall
+> >  __alloc_pages(gfp_t gfp_mask, unsigned int order,
+> >  		struct zonelist *zonelist)
+> >  {
+> > +	/*
+> > +	 * Use a temporary nodemask for __GFP_THISNODE allocations. If the
+> > +	 * cost of allocating on the stack or the stack usage becomes
+> > +	 * noticable, allocate the nodemasks per node at boot or compile time
+> > +	 */
+> > +	if (unlikely(gfp_mask & __GFP_THISNODE)) {
+> > +		nodemask_t nodemask;
+> > +
+> > +		return __alloc_pages_internal(gfp_mask, order,
+> > +				zonelist, nodemask_thisnode(&nodemask));
+> > +	}
+> > +
+> >  	return __alloc_pages_internal(gfp_mask, order, zonelist, NULL);
+> >  }
+> 
+> <snip>
+> 
+> So alloc_pages_node() calls here and for THISNODE allocations, we go ask
+> nodemask_thisnode() for a nodemask...
+
+Hmmmm... nodemask_thisnode needs to be passed the zonelist.
+
+> And nodemask_thisnode() always gives us a nodemask with only the node
+> the current process is running on set, I think?
+
+Right.
+
+ 
+> That seems really wrong -- and would explain what Lee was seeing while
+> using my patches for the hugetlb pool allocator to use THISNODE
+> allocations. All the allocations would end up coming from whatever node
+> the process happened to be running on. This obviously messes up hugetlb
+> accounting, as I rely on THISNODE requests returning NULL if they go
+> off-node.
+> 
+> I'm not sure how this would be fixed, as __alloc_pages() no longer has
+> the nid to set in the mask.
+> 
+> Am I wrong in my analysis?
+
+No you are right on target. The thisnode function must determine the node 
+from the first zone of the zonelist.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
