@@ -1,38 +1,53 @@
-Date: Tue, 9 Oct 2007 18:26:55 -0700 (PDT)
-From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [13/18] x86_64: Allow fallback for the stack
-In-Reply-To: <200710091846.22796.nickpiggin@yahoo.com.au>
-Message-ID: <Pine.LNX.4.64.0710091825470.4500@schroedinger.engr.sgi.com>
-References: <20071004035935.042951211@sgi.com> <200710082255.05598.nickpiggin@yahoo.com.au>
- <Pine.LNX.4.64.0710091138250.32162@schroedinger.engr.sgi.com>
- <200710091846.22796.nickpiggin@yahoo.com.au>
+From: Nick Piggin <nickpiggin@yahoo.com.au>
+Subject: Re: remove zero_page (was Re: -mm merge plans for 2.6.24)
+Date: Tue, 9 Oct 2007 19:31:51 +1000
+References: <20071001142222.fcaa8d57.akpm@linux-foundation.org> <200710090117.47610.nickpiggin@yahoo.com.au> <alpine.LFD.0.999.0710090750020.5039@woody.linux-foundation.org>
+In-Reply-To: <alpine.LFD.0.999.0710090750020.5039@woody.linux-foundation.org>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain;
+  charset="iso-8859-1"
+Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+Message-Id: <200710091931.51564.nickpiggin@yahoo.com.au>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nick Piggin <nickpiggin@yahoo.com.au>
-Cc: Rik van Riel <riel@redhat.com>, Andi Kleen <ak@suse.de>, akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, travis@sgi.com
+To: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Hugh Dickins <hugh@veritas.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 9 Oct 2007, Nick Piggin wrote:
+On Wednesday 10 October 2007 00:52, Linus Torvalds wrote:
+> On Tue, 9 Oct 2007, Nick Piggin wrote:
+> > I have done some tests which indicate a couple of very basic common tools
+> > don't do much zero-page activity (ie. kbuild). And also combined with
+> > some logical arguments to say that a "sane" app wouldn't be using
+> > zero_page much. (basically -- if the app cares about memory or cache
+> > footprint and is using many pages of zeroes, then it should have a more
+> > compressed representation of zeroes anyway).
+>
+> One of the things that zero-page has been used for is absolutely *huge*
+> (but sparse) arrays in Fortan programs.
+>
+> At least in traditional fortran, it was very hard to do dynamic
+> allocations, so people would allocate the *maximum* array statically, and
+> then not necessarily use everything. I don't know if the pages ever even
+> got paged in,
 
-> > We already use 32k stacks on IA64. So the memory argument fail there.
-> 
-> I'm talking about generic code.
+In which case, they would not be using the ZERO_PAGE?
+If they were paging in (ie. reading) huge reams of zeroes,
+then maybe their algorithms aren't so good anyway? (I don't
+know).
 
-The stack size is set in arch code not in generic code.
 
-> > > The solution has until now always been to fix the problems so they don't
-> > > use so much stack. Maybe a bigger stack is OK for you for 1024+ CPU
-> > > systems, but I don't think you'd be able to make that assumption for most
-> > > normal systems.
-> >
-> > Yes that is why I made the stack size configurable.
-> 
-> Fine. I just don't see why you need this fallback.
+> but this is the kind of usage which is *not* insane. 
 
-So you would be ok with submitting the configurable stacksize patches 
-separately without the fallback? 
+Yeah, that's why I use the double quotes... I wonder how to
+find out, though. I guess I could ask SGI if they could ask
+around -- but that still comes back to the problem of not being
+able to ever conclusively show that there are no real users of
+the ZERO_PAGE.
+
+Where do you suggest I go from here? Is there any way I can
+convince you to try it? Make it a config option? (just kidding)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
