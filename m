@@ -1,160 +1,56 @@
-Date: Tue, 9 Oct 2007 20:26:42 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCH][for -mm] Fix and Enhancements for memory cgroup [3/6]
- add helper function for page_cgroup
-Message-Id: <20071009202642.9f174445.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <470B617C.1060504@linux.vnet.ibm.com>
-References: <20071009184620.8b14cbc6.kamezawa.hiroyu@jp.fujitsu.com>
-	<20071009185132.a870b0f0.kamezawa.hiroyu@jp.fujitsu.com>
-	<470B617C.1060504@linux.vnet.ibm.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Subject: Re: [PATCH -mm -v4 1/3] i386/x86_64 boot: setup data
+In-Reply-To: <1191920123.9719.71.camel@caritas-dev.intel.com>
+References: <1191912010.9719.18.camel@caritas-dev.intel.com> <200710090125.27263.nickpiggin@yahoo.com.au> <1191918139.9719.47.camel@caritas-dev.intel.com> <200710090206.22383.nickpiggin@yahoo.com.au> <1191920123.9719.71.camel@caritas-dev.intel.com>
+Date: Tue, 9 Oct 2007 13:44:47 +0200
+Message-Id: <E1IfDW3-0001qA-9c@flower>
+From: Oleg Verych <olecom@flower.upol.cz>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: balbir@linux.vnet.ibm.com
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "containers@lists.osdl.org" <containers@lists.osdl.org>, Andrew Morton <akpm@linux-foundation.org>
+To: "Huang, Ying" <ying.huang@intel.com>
+Cc: Nick Piggin <nickpiggin@yahoo.com.au>, linux-mm@kvack.org, "H. Peter Anvin" <hpa@zytor.com>, Andi Kleen <ak@suse.de>, "Eric W. Biederman" <ebiederm@xmission.com>, akpm@linux-foundation.org, Yinghai Lu <yhlu.kernel@gmail.com>, Chandramouli Narayanan <mouli@linux.intel.com>, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 09 Oct 2007 16:39:48 +0530
-Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
-> > +static inline int
-> > +page_cgroup_assign_new_page_cgroup(struct page *page, struct page_cgroup *pc)
-> > +{
-> > +	int ret = 0;
-> > +
-> > +	lock_page_cgroup(page);
-> > +	if (!page_get_page_cgroup(page))
-> > +		page_assign_page_cgroup(page, pc);
-> > +	else
-> > +		ret = 1;
-> > +	unlock_page_cgroup(page);
-> > +	return ret;
-> > +}
-> > +
-> 
-> Some comment on when the assignment can fail, for example if page
-> already has a page_cgroup associated with it, would be nice.
-> 
-Sure ,will add.
+* Tue, 09 Oct 2007 16:55:23 +0800
+>
+> On Tue, 2007-10-09 at 02:06 +1000, Nick Piggin wrote:
+>> On Tuesday 09 October 2007 18:22, Huang, Ying wrote:
+[]
+>> I'm just wondering whether you really need to access highmem in
+>> boot code...
+>
+> Because the zero page (boot_parameters) of i386 boot protocol has 4k
+> limitation, a linked list style boot parameter passing mechanism (struct
+> setup_data) is proposed by Peter Anvin. The linked list is provided by
+> bootloader, so it is possible to be in highmem region.
 
-> > +
-> > +static inline struct page_cgroup *
-> > +clear_page_cgroup(struct page *page, struct page_cgroup *pc)
-> > +{
-> > +	struct page_cgroup *ret;
-> > +	/* lock and clear */
-> > +	lock_page_cgroup(page);
-> > +	ret = page_get_page_cgroup(page);
-> > +	if (likely(ret == pc))
-> > +		page_assign_page_cgroup(page, NULL);
-> > +	unlock_page_cgroup(page);
-> > +	return ret;
-> > +}
-> > +
-> 
-> We could add a comment stating that clearing would fail if the page's
-> cgroup is not pc
-> 
-will add, too.
+Can it be explained, why boot protocol and boot line must be expanded?
+This amount of code for what?
 
-> > +
-> >  static void __mem_cgroup_move_lists(struct page_cgroup *pc, bool active)
-> >  {
-> >  	if (active)
-> > @@ -260,7 +289,7 @@ int mem_cgroup_charge(struct page *page,
-> >  				gfp_t gfp_mask)
-> >  {
-> >  	struct mem_cgroup *mem;
-> > -	struct page_cgroup *pc, *race_pc;
-> > +	struct page_cgroup *pc;
-> >  	unsigned long flags;
-> >  	unsigned long nr_retries = MEM_CGROUP_RECLAIM_RETRIES;
-> > 
-> > @@ -353,24 +382,16 @@ noreclaim:
-> >  		goto free_pc;
-> >  	}
-> > 
-> > -	lock_page_cgroup(page);
-> > -	/*
-> > -	 * Check if somebody else beat us to allocating the page_cgroup
-> > -	 */
-> > -	race_pc = page_get_page_cgroup(page);
-> > -	if (race_pc) {
-> > -		kfree(pc);
-> > -		pc = race_pc;
-> > -		atomic_inc(&pc->ref_cnt);
-> > -		res_counter_uncharge(&mem->res, PAGE_SIZE);
-> > -		css_put(&mem->css);
-> > -		goto done;
-> > -	}
-> > -
-> >  	atomic_set(&pc->ref_cnt, 1);
-> >  	pc->mem_cgroup = mem;
-> >  	pc->page = page;
-> > -	page_assign_page_cgroup(page, pc);
-> > +	if (page_cgroup_assign_new_page_cgroup(page, pc)) {
-> > +		/* race ... undo and retry */
-> > +		res_counter_uncharge(&mem->res, PAGE_SIZE);
-> > +		css_put(&mem->css);
-> > +		kfree(pc);
-> > +		goto retry;
-> 
-> This part is a bit confusing, why do we want to retry. If someone
-> else charged the page already, we just continue, we let the other
-> task take the charge and add this page to it's cgroup
-> 
-Okay. will add precise text.
+ arch/i386/Kconfig            |    3 -
+ arch/i386/boot/header.S      |    8 +++
+ arch/i386/kernel/setup.c     |   92 +++++++++++++++++++++++++++++++++++++++++++
+ arch/x86_64/kernel/setup.c   |   37 +++++++++++++++++
+ include/asm-i386/bootparam.h |   15 +++++++
+ include/asm-i386/io.h        |    7 +++
+ include/linux/mm.h           |    2
+ mm/memory.c                  |   24 +++++++++++
+ 
 
+If it is proposed for passing ACPI makeup language bugfixes by boot
+line for ACPI parser in the kernel, or "telling to kernel what to do
+via EFI" then it's kind of very nasty red flag.
 
+I'd suggest to have initramfs image ready with all possible
+data/options/actions based on very small amount of possible boot line
+information.
 
-> > +	}
-> > 
-> >  	spin_lock_irqsave(&mem->lru_lock, flags);
-> >  	list_add(&pc->lru, &mem->active_list);
-> > @@ -421,17 +442,18 @@ void mem_cgroup_uncharge(struct page_cgr
-> > 
-> >  	if (atomic_dec_and_test(&pc->ref_cnt)) {
-> >  		page = pc->page;
-> > -		lock_page_cgroup(page);
-> > -		mem = pc->mem_cgroup;
-> > -		css_put(&mem->css);
-> > -		page_assign_page_cgroup(page, NULL);
-> > -		unlock_page_cgroup(page);
-> > -		res_counter_uncharge(&mem->res, PAGE_SIZE);
-> > -
-> > - 		spin_lock_irqsave(&mem->lru_lock, flags);
-> > - 		list_del_init(&pc->lru);
-> > - 		spin_unlock_irqrestore(&mem->lru_lock, flags);
-> > -		kfree(pc);
-> > +		/*
-> > +		 * Obetaion page->cgroup and clear it under lock.
->                    ^^^^^^^^
->                    Not sure if I've come across this word before
-Sorry (>_<; 
-Get page->cgroup and clear it under lock.
+Any _right_ use-cases explained for dummies are appreciated.
 
-> 
-> > +		 */
-> > +		if (clear_page_cgroup(page, pc) == pc) {
-> 
-> OK.. so we've come so far and seen that pc has changed underneath us,
-> what do we do with this pc?
-> 
-Hmm... How about this ?
-==
- if (clear_page_cgroup(page, pc) == pc) {
-	/* do usual work */
- } else {
-	BUG();
- }
-== or BUG_ON(clear_page_cgroup(page, pc) != pc)
-
-I have no clear idea when this race will occur.
-But this "lock and clear" behavior is sane, I think.
-
-Thanks,
--kame
+Thanks.
+--
+-o--=O`C
+ #oo'L O
+<___=E M
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
