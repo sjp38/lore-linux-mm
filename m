@@ -1,31 +1,42 @@
-Subject: Re: [PATCH/RFC 4/5] Mem Policy:  cpuset-independent
-	interleave	policy
-From: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
-In-Reply-To: <470B1C77.1080001@google.com>
-References: <20070830185053.22619.96398.sendpatchset@localhost>
-	 <20070830185122.22619.56636.sendpatchset@localhost>
-	 <46E86148.9060400@google.com> <1189690357.5013.19.camel@localhost>
-	 <470B1C77.1080001@google.com>
-Content-Type: text/plain
-Date: Tue, 09 Oct 2007 09:39:52 -0400
-Message-Id: <1191937192.5252.2.camel@localhost>
-Mime-Version: 1.0
+Received: by ug-out-1314.google.com with SMTP id a2so123254ugf
+        for <linux-mm@kvack.org>; Tue, 09 Oct 2007 07:00:58 -0700 (PDT)
+Message-ID: <851fc09e0710090700u21b2db91yca2d5e88cb7a502a@mail.gmail.com>
+Date: Tue, 9 Oct 2007 22:00:57 +0800
+From: "huang ying" <huang.ying.caritas@gmail.com>
+Subject: Re: [PATCH -mm -v4 1/3] i386/x86_64 boot: setup data
+In-Reply-To: <200710091313.45003.ak@suse.de>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+References: <1191912010.9719.18.camel@caritas-dev.intel.com>
+	 <200710090125.27263.nickpiggin@yahoo.com.au>
+	 <200710091313.45003.ak@suse.de>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Ethan Solomita <solo@google.com>
-Cc: linux-mm@kvack.org, akpm@linux-foundation.org, ak@suse.de, mtk-manpages@gmx.net, clameter@sgi.com, eric.whitney@hp.com
+To: Andi Kleen <ak@suse.de>
+Cc: Nick Piggin <nickpiggin@yahoo.com.au>, "Huang, Ying" <ying.huang@intel.com>, linux-mm@kvack.org, "H. Peter Anvin" <hpa@zytor.com>, "Eric W. Biederman" <ebiederm@xmission.com>, akpm@linux-foundation.org, Yinghai Lu <yhlu.kernel@gmail.com>, Chandramouli Narayanan <mouli@linux.intel.com>, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 2007-10-08 at 23:15 -0700, Ethan Solomita wrote:
-> 	Do we want do_get_mempolicy() to return a policy number with 
-> MPOL_CONTEXT set? That's what's happening with this patch, and I expect 
-> it'll confuse userland apps, e.g. numactl.
+On 10/9/07, Andi Kleen <ak@suse.de> wrote:
+>
+> > Care to add a line of documentation if you keep it in mm/memory.c?
+>
+> It would be better to just use early_ioremap() (or ioremap())
+>
+> That is how ACPI who has similar issues accessing its tables solves this.
 
-No, that's a bug!  I'll make sure I stomp it before next repost.  
+Yes. That is another solution. But there is some problem about
+early_ioremap (boot_ioremap, bt_ioremap for i386) or ioremap.
 
-Thanks,
-Lee
+- ioremap can not be used before mem_init.
+- For i386, boot_ioremap can map at most 4 pages, bt_ioremap can map
+at most 16 pages. This will be an unnecessary constrains for size of
+setup_data.
+- For i386, the virtual memory space of ioremap is limited too.
+
+Best Regards,
+Huang Ying
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
