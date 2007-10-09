@@ -1,92 +1,138 @@
-Received: from d23relay03.au.ibm.com (d23relay03.au.ibm.com [202.81.18.234])
-	by e23smtp01.au.ibm.com (8.13.1/8.13.1) with ESMTP id l99Fa1bH011216
-	for <linux-mm@kvack.org>; Wed, 10 Oct 2007 01:36:01 +1000
-Received: from d23av01.au.ibm.com (d23av01.au.ibm.com [9.190.234.96])
-	by d23relay03.au.ibm.com (8.13.8/8.13.8/NCO v8.5) with ESMTP id l99FZoXp2502712
-	for <linux-mm@kvack.org>; Wed, 10 Oct 2007 01:35:50 +1000
-Received: from d23av01.au.ibm.com (loopback [127.0.0.1])
-	by d23av01.au.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l99FWwV5020200
-	for <linux-mm@kvack.org>; Wed, 10 Oct 2007 01:32:58 +1000
-Message-ID: <470B9FB3.3050804@linux.vnet.ibm.com>
-Date: Tue, 09 Oct 2007 21:05:15 +0530
-From: Balbir Singh <balbir@linux.vnet.ibm.com>
-Reply-To: balbir@linux.vnet.ibm.com
-MIME-Version: 1.0
-Subject: Re: [PATCH][for -mm] Fix and Enhancements for memory cgroup [4/6]
- avoid handling !LRU  page in mem_cgroup_isolate_pages
-References: <20071009184620.8b14cbc6.kamezawa.hiroyu@jp.fujitsu.com> <20071009185341.d395bece.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20071009185341.d395bece.kamezawa.hiroyu@jp.fujitsu.com>
-Content-Type: text/plain; charset=ISO-8859-1
+Date: Tue, 9 Oct 2007 08:39:13 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [Bug 9138] New: kernel overwrites MAP_PRIVATE mmap
+Message-Id: <20071009083913.212fb3e3.akpm@linux-foundation.org>
+In-Reply-To: <bug-9138-27@http.bugzilla.kernel.org/>
+References: <bug-9138-27@http.bugzilla.kernel.org/>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "containers@lists.osdl.org" <containers@lists.osdl.org>, Andrew Morton <akpm@linux-foundation.org>
+To: bonzini@gnu.org
+Cc: bugme-daemon@bugzilla.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-KAMEZAWA Hiroyuki wrote:
-> This patch makes mem_cgroup_isolate_pages() to be
-> 
->   - ignore !PageLRU pages.
->   - fixes the bug that it makes no progress if page_zone(page) != zone
->     page once find. (just increment scan in this case.)
-> 
-> kswapd and memory migraion removes a page from list when it handles
-> a page for reclaiming/migration. 
-> 
-> __isolate_lru_page() doesn't moves page !PageLRU pages, then, it will
-> be safe to avoid touching the page and its page_cgroup.
-> 
-> Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-> 
->  mm/memcontrol.c |   13 ++++++++++---
->  1 file changed, 10 insertions(+), 3 deletions(-)
-> 
-> Index: devel-2.6.23-rc8-mm2/mm/memcontrol.c
-> ===================================================================
-> --- devel-2.6.23-rc8-mm2.orig/mm/memcontrol.c
-> +++ devel-2.6.23-rc8-mm2/mm/memcontrol.c
-> @@ -227,7 +227,7 @@ unsigned long mem_cgroup_isolate_pages(u
->  	unsigned long scan;
->  	LIST_HEAD(pc_list);
->  	struct list_head *src;
-> -	struct page_cgroup *pc;
-> +	struct page_cgroup *pc, *tmp;
-> 
->  	if (active)
->  		src = &mem_cont->active_list;
-> @@ -235,11 +235,18 @@ unsigned long mem_cgroup_isolate_pages(u
->  		src = &mem_cont->inactive_list;
-> 
->  	spin_lock(&mem_cont->lru_lock);
-> -	for (scan = 0; scan < nr_to_scan && !list_empty(src); scan++) {
-> -		pc = list_entry(src->prev, struct page_cgroup, lru);
-> +	scan = 0;
-> +	list_for_each_entry_safe_reverse(pc, tmp, src, lru) {
-> +		if (scan++ > nr_taken)
-> +			break;
->  		page = pc->page;
->  		VM_BUG_ON(!pc);
-> 
-> +		if (unlikely(!PageLRU(page))) {
-> +			scan--;
-> +			continue;
-> +		}
-> +
->  		if (PageActive(page) && !active) {
->  			__mem_cgroup_move_lists(pc, true);
->  			scan--;
-> 
+(switching to email - please reply via emailed reply-to-all, not via the
+bugzilla web interface)
 
-Looks good to me
+On Tue,  9 Oct 2007 06:28:28 -0700 (PDT) bugme-daemon@bugzilla.kernel.org wrote:
 
-Acked-by: Balbir Singh <balbir@linux.vnet.ibm.com>
+> http://bugzilla.kernel.org/show_bug.cgi?id=9138
+> 
+>            Summary: kernel overwrites MAP_PRIVATE mmap
+>            Product: Memory Management
+>            Version: 2.5
+>      KernelVersion: 2.6.20, 2.6.22
+>           Platform: All
+>         OS/Version: Linux
+>               Tree: Mainline
+>             Status: NEW
+>           Severity: high
+>           Priority: P1
+>          Component: Other
+>         AssignedTo: akpm@osdl.org
+>         ReportedBy: bonzini@gnu.org
+> 
+> 
+> Most recent kernel where this bug did not occur:
+> Distribution: Debian 2.6.8
+> Hardware Environment:
+> Software Environment:
+> Problem Description:
+> 
+> Steps to reproduce:
+> 
+> 1) Download http://www.inf.unisi.ch/phd/bonzini/smalltalk-2.95d.tar.gz
+> 2) Compile it with "./configure && make CFLAGS=-g" (the cflags is only for
+> easier debuggability, the bug also reproduces without).
+> 3) Run "./gst"
+> 4) Type "ObjectMemory snapshot"
+> 
+> It crashes. To reproduce again:
+> 
+> 5) Run "rm gst.im; make gst.im"
+> 6) Go to step 4.
+> 
+> The code that crashes is in save.c; it dereferences a NULL pointer:
+> 
+> Program received signal SIGBUS, Bus error.
+> 0x08083bf3 in make_oop_table_to_be_saved (header=0xbff29934) at save.c:345
+> 345 int numPointers = NUM_OOPS (oop->object);
+> (gdb) p oop->object->objClass
+> $1 = (OOP) 0x0
+> 
+> However, going on in the debugging session, you can see that the memory is
+> zeroed *by the kernel*:
+> 
+> (gdb) p &oop->object->objClass
+> $2 = (OOP *) 0xb7cb8784
+> 
+> We set up a breakpoint a little earlier:
+> 
+> (gdb) b 279
+> Breakpoint 1 at 0x8083a5d: file save.c, line 279.
+> (gdb) shell rm gst.im; make gst.im
+> (gdb) run
+> Starting program: /home/bonzinip/smalltalk-2.95d/gst
+> GNU Smalltalk ready
+> st> ObjectMemory snapshot
+> "Global garbage collection... done"
+> 
+> Breakpoint 1, _gst_save_to_file (
+>     fileName=0x812a118 "/home/bonzinip/smalltalk-2.95d/gst.im") at save.c:279
+> 279 ftruncate (imageFd, 0);
+> 
+> Now we set a watchpoint on the location that triggered the NULL access:
+> 
+> (gdb) set can-use-hw-watchpoints 0
+> (gdb) watch *$2
+> Watchpoint 2: *$2
+> (gdb) n
+> Watchpoint 2: *$2
+> 
+> Old value = (OOP) 0x126
+> New value = (OOP) 0x0
+> 0xb7ee9438 in ftruncate64 () from /lib/libc.so.6
+> 
+> >From a disassembly, you can see that it was zeroed by the kernel:
+> 
+> (gdb) disass 0xb7ee9431 0xb7ee94ec
+> 0xb7ee9431 <ftruncate64+49>: mov $0xc2,%eax
+> 0xb7ee9436 <ftruncate64+54>: int $0x80 <---
+> 0xb7ee9438 <ftruncate64+56>: xchg %edi,%ebx
+> 0xb7ee943a <ftruncate64+58>: mov %eax,%esi
+> 
+> I believe the reason is a bad interaction between the private mmap established
+> in save.c:
+> 
+>   buf = mmap (NULL, file_size, PROT_READ, MAP_PRIVATE, imageFd, 0);
+> 
+> and truncating the inode on which the mmap was done. Indeed, if the gst.im file
+> is unlinked before opening it, the bug disappears. You can try this from the
+> Smalltalk interpreter, without patching the source code:
+> 
+> $ ./gst
+> GNU Smalltalk ready
+> 
+> st> (File name: 'gst.im') remove
+> a RealFileHandler
+> st> ObjectMemory snapshot
+> "Global garbage collection... done"
+> ObjectMemory
+> st>
+> 
+> (no bus error anymore).
+> 
+> I hope this long explanation is understandable!
 
--- 
-	Warm Regards,
-	Balbir Singh
-	Linux Technology Center
-	IBM, ISTL
+So can you confirm that this behaviour was not present in 2.6.8 but is
+present in 2.6.20?
+
+Would it be possible to prevail upon you to cook up a little standalone
+testcase?  
+
+Thanks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
