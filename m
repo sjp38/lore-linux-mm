@@ -1,177 +1,224 @@
-Received: from d01relay02.pok.ibm.com (d01relay02.pok.ibm.com [9.56.227.234])
-	by e4.ny.us.ibm.com (8.13.8/8.13.8) with ESMTP id l99GPm93004722
-	for <linux-mm@kvack.org>; Tue, 9 Oct 2007 12:25:48 -0400
-Received: from d01av03.pok.ibm.com (d01av03.pok.ibm.com [9.56.224.217])
-	by d01relay02.pok.ibm.com (8.13.8/8.13.8/NCO v8.5) with ESMTP id l99GPmeV126882
-	for <linux-mm@kvack.org>; Tue, 9 Oct 2007 12:25:48 -0400
-Received: from d01av03.pok.ibm.com (loopback [127.0.0.1])
-	by d01av03.pok.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l99GPcNS010277
-	for <linux-mm@kvack.org>; Tue, 9 Oct 2007 12:25:38 -0400
-Date: Tue, 9 Oct 2007 09:25:26 -0700
-From: Nishanth Aravamudan <nacc@us.ibm.com>
-Subject: Re: [PATCH 6/6] Use one zonelist that is filtered by nodemask
-Message-ID: <20071009162526.GC26472@us.ibm.com>
-References: <20070928142326.16783.98817.sendpatchset@skynet.skynet.ie> <20070928142526.16783.97067.sendpatchset@skynet.skynet.ie> <20071009011143.GC14670@us.ibm.com> <20071009154052.GC12632@skynet.ie>
+Received: from d23relay03.au.ibm.com (d23relay03.au.ibm.com [202.81.18.234])
+	by e23smtp06.au.ibm.com (8.13.1/8.13.1) with ESMTP id l99GQa68006837
+	for <linux-mm@kvack.org>; Wed, 10 Oct 2007 02:26:36 +1000
+Received: from d23av03.au.ibm.com (d23av03.au.ibm.com [9.190.234.97])
+	by d23relay03.au.ibm.com (8.13.8/8.13.8/NCO v8.5) with ESMTP id l99GQbB74870276
+	for <linux-mm@kvack.org>; Wed, 10 Oct 2007 02:26:37 +1000
+Received: from d23av03.au.ibm.com (loopback [127.0.0.1])
+	by d23av03.au.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l99GQLeM016802
+	for <linux-mm@kvack.org>; Wed, 10 Oct 2007 02:26:21 +1000
+Message-ID: <470BAB9A.30203@linux.vnet.ibm.com>
+Date: Tue, 09 Oct 2007 21:56:02 +0530
+From: Balbir Singh <balbir@linux.vnet.ibm.com>
+Reply-To: balbir@linux.vnet.ibm.com
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20071009154052.GC12632@skynet.ie>
+Subject: Re: [PATCH][for -mm] Fix and Enhancements for memory cgroup [5/6]
+ memory cgroup and migration fix
+References: <20071009184620.8b14cbc6.kamezawa.hiroyu@jp.fujitsu.com> <20071009185459.49663a71.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20071009185459.49663a71.kamezawa.hiroyu@jp.fujitsu.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Mel Gorman <mel@skynet.ie>
-Cc: akpm@linux-foundation.org, Lee.Schermerhorn@hp.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, rientjes@google.com, kamezawa.hiroyu@jp.fujitsu.com, clameter@sgi.com
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "containers@lists.osdl.org" <containers@lists.osdl.org>, Andrew Morton <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-On 09.10.2007 [16:40:53 +0100], Mel Gorman wrote:
-> First, sorry for being so slow to respond. I was getting ill towards the end
-> of last week and am worse now. Brain is in total mush as a result. Thanks
-> Lee for finding this problem and thanks to Nish for investigating it properly.
+KAMEZAWA Hiroyuki wrote:
+> While using memory control cgroup, page-migration under it works as following.
+> ==
+>  1. uncharge all refs at try to unmap.
+>  2. charge regs again remove_migration_ptes()
+> ==
+> This is simple but has following problems.
+> ==
+>  The page is uncharged and chaged back again if *mapped*.
+>     - This means that cgroup before migraion can be different from one after
+>       migraion
+>     - If page is not mapped but charged as page cache, charge is just ignored
+>       (because not mapped, it will not be uncharged before migration)
+>       This is memory leak.
+> ==
+> This patch tries to keep memory cgroup at page migration by increasing
+> one refcnt during it. 3 functions are added.
 > 
-> Comments and candidate fix to one zonelist are below.
+>  mem_cgroup_prepare_migration() --- increase refcnt of page->page_cgroup
+>  mem_cgroup_end_migration()     --- decrease refcnt of page->page_cgroup
+>  mem_cgroup_page_migration() --- copy page->page_cgroup from old page to
+>                                  new page.
 > 
-> On (08/10/07 18:11), Nishanth Aravamudan didst pronounce:
-> > On 28.09.2007 [15:25:27 +0100], Mel Gorman wrote:
-> > > 
-> > > Two zonelists exist so that GFP_THISNODE allocations will be guaranteed
-> > > to use memory only from a node local to the CPU. As we can now filter the
-> > > zonelist based on a nodemask, we filter the standard node zonelist for zones
-> > > on the local node when GFP_THISNODE is specified.
-> > > 
-> > > When GFP_THISNODE is used, a temporary nodemask is created with only the
-> > > node local to the CPU set. This allows us to eliminate the second zonelist.
-> > > 
-> > > Signed-off-by: Mel Gorman <mel@csn.ul.ie>
-> > > Acked-by: Christoph Lameter <clameter@sgi.com>
-> > 
-> > <snip>
-> > 
-> > > diff -rup -X /usr/src/patchset-0.6/bin//dontdiff linux-2.6.23-rc8-mm2-030_filter_nodemask/include/linux/gfp.h linux-2.6.23-rc8-mm2-040_use_one_zonelist/include/linux/gfp.h
-> > > --- linux-2.6.23-rc8-mm2-030_filter_nodemask/include/linux/gfp.h	2007-09-28 15:49:57.000000000 +0100
-> > > +++ linux-2.6.23-rc8-mm2-040_use_one_zonelist/include/linux/gfp.h	2007-09-28 15:55:03.000000000 +0100
-> > 
-> > [Reordering the chunks to make my comments a little more logical]
-> > 
-> > <snip>
-> > 
-> > > -static inline struct zonelist *node_zonelist(int nid, gfp_t flags)
-> > > +static inline struct zonelist *node_zonelist(int nid)
-> > >  {
-> > > -	return NODE_DATA(nid)->node_zonelists + gfp_zonelist(flags);
-> > > +	return &NODE_DATA(nid)->node_zonelist;
-> > >  }
-> > > 
-> > >  #ifndef HAVE_ARCH_FREE_PAGE
-> > > @@ -198,7 +186,7 @@ static inline struct page *alloc_pages_n
-> > >  	if (nid < 0)
-> > >  		nid = numa_node_id();
-> > > 
-> > > -	return __alloc_pages(gfp_mask, order, node_zonelist(nid, gfp_mask));
-> > > +	return __alloc_pages(gfp_mask, order, node_zonelist(nid));
-> > >  }
-> > 
-> > This is alloc_pages_node(), and converting the nid to a zonelist means
-> > that lower levels (specifically __alloc_pages() here) are not aware of
-> > nids, as far as I can tell.
+> During migration
+>   - old page is under PG_locked.
+>   - new page is under PG_locked, too.
+>   - both old page and new page are not on LRU.
 > 
-> Yep, this is correct.
+> These 3 facts guarantees page_cgroup() migration has no race, I think.
 > 
-> > This isn't a change, I just want to make
-> > sure I understand...
-> > 
-> > <snip>
-> > 
-> > >  struct page * fastcall
-> > >  __alloc_pages(gfp_t gfp_mask, unsigned int order,
-> > >  		struct zonelist *zonelist)
-> > >  {
-> > > +	/*
-> > > +	 * Use a temporary nodemask for __GFP_THISNODE allocations. If the
-> > > +	 * cost of allocating on the stack or the stack usage becomes
-> > > +	 * noticable, allocate the nodemasks per node at boot or compile time
-> > > +	 */
-> > > +	if (unlikely(gfp_mask & __GFP_THISNODE)) {
-> > > +		nodemask_t nodemask;
-> > > +
-> > > +		return __alloc_pages_internal(gfp_mask, order,
-> > > +				zonelist, nodemask_thisnode(&nodemask));
-> > > +	}
-> > > +
-> > >  	return __alloc_pages_internal(gfp_mask, order, zonelist, NULL);
-> > >  }
-> > 
-> > <snip>
-> > 
-> > So alloc_pages_node() calls here and for THISNODE allocations, we go ask
-> > nodemask_thisnode() for a nodemask...
-> > 
+> Tested and worked well in x86_64/fake-NUMA box.
 > 
-> Also correct.
+> Changelog v1 -> v2:
+>   - reflected comments.
+>   - divided a patche to !PageLRU patch and migration patch.
 > 
-> > > +static nodemask_t *nodemask_thisnode(nodemask_t *nodemask)
-> > > +{
-> > > +	/* Build a nodemask for just this node */
-> > > +	int nid = numa_node_id();
-> > > +
-> > > +	nodes_clear(*nodemask);
-> > > +	node_set(nid, *nodemask);
-> > > +
-> > > +	return nodemask;
-> > > +}
-> > 
-> > <snip>
-> > 
-> > And nodemask_thisnode() always gives us a nodemask with only the node
-> > the current process is running on set, I think?
-> > 
 > 
-> Yes, I interpreted THISNODE to mean "this node I am running on".
-> Callers seemed to expect this but the memoryless needs it to be "this
-> node I am running on unless I specify a node in which case I mean that
-> node.".
+> 
+> Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> 
+>  include/linux/memcontrol.h |   19 +++++++++++++++++++
+>  mm/memcontrol.c            |   43 +++++++++++++++++++++++++++++++++++++++++++
+>  mm/migrate.c               |   14 +++++++++++---
+>  3 files changed, 73 insertions(+), 3 deletions(-)
+> 
+> Index: devel-2.6.23-rc8-mm2/mm/migrate.c
+> ===================================================================
+> --- devel-2.6.23-rc8-mm2.orig/mm/migrate.c
+> +++ devel-2.6.23-rc8-mm2/mm/migrate.c
+> @@ -598,9 +598,10 @@ static int move_to_new_page(struct page 
+>  	else
+>  		rc = fallback_migrate_page(mapping, newpage, page);
+> 
+> -	if (!rc)
+> +	if (!rc) {
+> +		mem_cgroup_page_migration(page, newpage);
+>  		remove_migration_ptes(page, newpage);
+> -	else
+> +	} else
+>  		newpage->mapping = NULL;
+> 
+>  	unlock_page(newpage);
+> @@ -619,6 +620,7 @@ static int unmap_and_move(new_page_t get
+>  	int *result = NULL;
+>  	struct page *newpage = get_new_page(page, private, &result);
+>  	int rcu_locked = 0;
+> +	int charge = 0;
+> 
+>  	if (!newpage)
+>  		return -ENOMEM;
+> @@ -660,14 +662,20 @@ static int unmap_and_move(new_page_t get
+>  	 */
+>  	if (!page->mapping)
+>  		goto rcu_unlock;
+> +
+> +	charge = mem_cgroup_prepare_migration(page);
+>  	/* Establish migration ptes or remove ptes */
+>  	try_to_unmap(page, 1);
+> 
+>  	if (!page_mapped(page))
+>  		rc = move_to_new_page(newpage, page);
+> 
+> -	if (rc)
+> +	if (rc) {
+>  		remove_migration_ptes(page, page);
+> +		if (charge)
+> +			mem_cgroup_end_migration(page);
+> +	} else if (charge)
+> +		mem_cgroup_end_migration(newpage);
+>  rcu_unlock:
+>  	if (rcu_locked)
+>  		rcu_read_unlock();
+> Index: devel-2.6.23-rc8-mm2/include/linux/memcontrol.h
+> ===================================================================
+> --- devel-2.6.23-rc8-mm2.orig/include/linux/memcontrol.h
+> +++ devel-2.6.23-rc8-mm2/include/linux/memcontrol.h
+> @@ -56,6 +56,10 @@ static inline void mem_cgroup_uncharge_p
+>  	mem_cgroup_uncharge(page_get_page_cgroup(page));
+>  }
+> 
+> +extern int mem_cgroup_prepare_migration(struct page *page);
+> +extern void mem_cgroup_end_migration(struct page *page);
+> +extern void mem_cgroup_page_migration(struct page *page, struct page *newpage);
+> +
+>  #else /* CONFIG_CGROUP_MEM_CONT */
+>  static inline void mm_init_cgroup(struct mm_struct *mm,
+>  					struct task_struct *p)
+> @@ -107,6 +111,21 @@ static inline struct mem_cgroup *mm_cgro
+>  	return NULL;
+>  }
+> 
+> +static inline int mem_cgroup_prepare_migration(struct page *page)
+> +{
+> +	return 0;
+> +}
+> +
+> +static inline void mem_cgroup_end_migration(struct page *page)
+> +{
+> +}
+> +
+> +static inline void
+> +mem_cgroup_page_migration(struct page *page, struct page *newpage);
+> +{
+> +}
+> +
+> +
+>  #endif /* CONFIG_CGROUP_MEM_CONT */
+> 
+>  #endif /* _LINUX_MEMCONTROL_H */
+> Index: devel-2.6.23-rc8-mm2/mm/memcontrol.c
+> ===================================================================
+> --- devel-2.6.23-rc8-mm2.orig/mm/memcontrol.c
+> +++ devel-2.6.23-rc8-mm2/mm/memcontrol.c
+> @@ -463,6 +463,49 @@ void mem_cgroup_uncharge(struct page_cgr
+>  		}
+>  	}
+>  }
+> +/*
+> + * Returns non-zero if a page (under migration) has valid page_cgroup member.
+> + * Refcnt of page_cgroup is incremented.
+> + */
+> +
+> +int mem_cgroup_prepare_migration(struct page *page)
+> +{
+> +	struct page_cgroup *pc;
+> +	int ret = 0;
+> +	lock_page_cgroup(page);
+> +	pc = page_get_page_cgroup(page);
+> +	if (pc && atomic_inc_not_zero(&pc->ref_cnt))
+> +		ret = 1;
+> +	unlock_page_cgroup(page);
+> +	return ret;
+> +}
+> +
+> +void mem_cgroup_end_migration(struct page *page)
+> +{
+> +	struct page_cgroup *pc = page_get_page_cgroup(page);
+> +	mem_cgroup_uncharge(pc);
+> +}
+> +/*
+> + * We know both *page* and *newpage* are now not-on-LRU and Pg_locked.
+> + * And no rece with uncharge() routines becasue page_cgroup for *page*
+> + * has extra one reference by mem_cgroup_prepare_migration.
+> + */
+> +
+> +void mem_cgroup_page_migration(struct page *page, struct page *newpage)
+> +{
+> +	struct page_cgroup *pc;
+> +retry:
+> +	pc = page_get_page_cgroup(page);
+> +	if (!pc)
+> +		return;
+> +	if (clear_page_cgroup(page, pc) != pc)
+> +		goto retry;
+> +	pc->page = newpage;
+> +	lock_page_cgroup(newpage);
+> +	page_assign_page_cgroup(newpage, pc);
+> +	unlock_page_cgroup(newpage);
+> +	return;
+> +}
+> 
+>  int mem_cgroup_write_strategy(char *buf, unsigned long long *tmp)
+>  {
+> 
 
-I think that is only true (THISNODE = local node) if the callpath is not
-via alloc_pages_node(). If the callpath is via alloc_pages_node(), then
-it depends on whether the nid parameter is -1 (in which case it is also
-local node) or anything (in which case it is the nid specified). Ah,
-reading further along, that's exactly what your changelog indicates too
-:)
 
-> > That seems really wrong -- and would explain what Lee was seeing while
-> > using my patches for the hugetlb pool allocator to use THISNODE
-> > allocations. All the allocations would end up coming from whatever node
-> > the process happened to be running on. This obviously messes up hugetlb
-> > accounting, as I rely on THISNODE requests returning NULL if they go
-> > off-node.
-> > 
-> > I'm not sure how this would be fixed, as __alloc_pages() no longer has
-> > the nid to set in the mask.
-> > 
-> > Am I wrong in my analysis?
-> > 
-> 
-> No, you seem to be right on the ball. Can you review the following patch
-> please and determine if it fixes the problem in a satisfactory manner? I
-> think it does and your tests seemed to give proper values with this patch
-> applied but brain no worky work and a second opinion is needed.
-> 
-> ====
-> Subject: Use specified node ID with GFP_THISNODE if available
-> 
-> It had been assumed that __GFP_THISNODE meant allocating from the local
-> node and only the local node. However, users of alloc_pages_node() may also
-> specify GFP_THISNODE. In this case, only the specified node should be used.
-> This patch will allocate pages only from the requested node when GFP_THISNODE
-> is used with alloc_pages_node().
+Looks good to me
 
-I will throw this into my tests and see if it fixes things. It looks
-like it should.
-
-Thanks,
-Nish
+Acked-by: Balbir Singh <balbir@linux.vnet.ibm.com>
 
 -- 
-Nishanth Aravamudan <nacc@us.ibm.com>
-IBM Linux Technology Center
+	Warm Regards,
+	Balbir Singh
+	Linux Technology Center
+	IBM, ISTL
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
