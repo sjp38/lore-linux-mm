@@ -1,171 +1,47 @@
-Received: from d03relay04.boulder.ibm.com (d03relay04.boulder.ibm.com [9.17.195.106])
-	by e31.co.us.ibm.com (8.13.8/8.13.8) with ESMTP id l99ICgNf028189
-	for <linux-mm@kvack.org>; Tue, 9 Oct 2007 14:12:42 -0400
-Received: from d03av04.boulder.ibm.com (d03av04.boulder.ibm.com [9.17.195.170])
-	by d03relay04.boulder.ibm.com (8.13.8/8.13.8/NCO v8.5) with ESMTP id l99ICg0K360768
-	for <linux-mm@kvack.org>; Tue, 9 Oct 2007 12:12:42 -0600
-Received: from d03av04.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av04.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l99ICfuA005321
-	for <linux-mm@kvack.org>; Tue, 9 Oct 2007 12:12:42 -0600
-Date: Tue, 9 Oct 2007 11:12:25 -0700
-From: Nishanth Aravamudan <nacc@us.ibm.com>
-Subject: Re: [PATCH 6/6] Use one zonelist that is filtered by nodemask
-Message-ID: <20071009181225.GA15033@us.ibm.com>
-References: <20070928142326.16783.98817.sendpatchset@skynet.skynet.ie> <20070928142526.16783.97067.sendpatchset@skynet.skynet.ie> <20071009011143.GC14670@us.ibm.com> <20071009154052.GC12632@skynet.ie>
+Date: Tue, 9 Oct 2007 11:39:21 -0700 (PDT)
+From: Christoph Lameter <clameter@sgi.com>
+Subject: Re: [13/18] x86_64: Allow fallback for the stack
+In-Reply-To: <200710082255.05598.nickpiggin@yahoo.com.au>
+Message-ID: <Pine.LNX.4.64.0710091138250.32162@schroedinger.engr.sgi.com>
+References: <20071004035935.042951211@sgi.com> <200710071735.41386.nickpiggin@yahoo.com.au>
+ <Pine.LNX.4.64.0710081032030.26382@schroedinger.engr.sgi.com>
+ <200710082255.05598.nickpiggin@yahoo.com.au>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20071009154052.GC12632@skynet.ie>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Mel Gorman <mel@skynet.ie>
-Cc: akpm@linux-foundation.org, Lee.Schermerhorn@hp.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, rientjes@google.com, kamezawa.hiroyu@jp.fujitsu.com, clameter@sgi.com
+To: Nick Piggin <nickpiggin@yahoo.com.au>
+Cc: Rik van Riel <riel@redhat.com>, Andi Kleen <ak@suse.de>, akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, travis@sgi.com
 List-ID: <linux-mm.kvack.org>
 
-On 09.10.2007 [16:40:53 +0100], Mel Gorman wrote:
-> First, sorry for being so slow to respond. I was getting ill towards the end
-> of last week and am worse now. Brain is in total mush as a result. Thanks
-> Lee for finding this problem and thanks to Nish for investigating it properly.
-> 
-> Comments and candidate fix to one zonelist are below.
-> 
-> On (08/10/07 18:11), Nishanth Aravamudan didst pronounce:
-> > On 28.09.2007 [15:25:27 +0100], Mel Gorman wrote:
-> > > 
-> > > Two zonelists exist so that GFP_THISNODE allocations will be guaranteed
-> > > to use memory only from a node local to the CPU. As we can now filter the
-> > > zonelist based on a nodemask, we filter the standard node zonelist for zones
-> > > on the local node when GFP_THISNODE is specified.
-> > > 
-> > > When GFP_THISNODE is used, a temporary nodemask is created with only the
-> > > node local to the CPU set. This allows us to eliminate the second zonelist.
-> > > 
-> > > Signed-off-by: Mel Gorman <mel@csn.ul.ie>
-> > > Acked-by: Christoph Lameter <clameter@sgi.com>
-> > 
-> > <snip>
-> > 
-> > > diff -rup -X /usr/src/patchset-0.6/bin//dontdiff linux-2.6.23-rc8-mm2-030_filter_nodemask/include/linux/gfp.h linux-2.6.23-rc8-mm2-040_use_one_zonelist/include/linux/gfp.h
-> > > --- linux-2.6.23-rc8-mm2-030_filter_nodemask/include/linux/gfp.h	2007-09-28 15:49:57.000000000 +0100
-> > > +++ linux-2.6.23-rc8-mm2-040_use_one_zonelist/include/linux/gfp.h	2007-09-28 15:55:03.000000000 +0100
-> > 
-> > [Reordering the chunks to make my comments a little more logical]
-> > 
-> > <snip>
-> > 
-> > > -static inline struct zonelist *node_zonelist(int nid, gfp_t flags)
-> > > +static inline struct zonelist *node_zonelist(int nid)
-> > >  {
-> > > -	return NODE_DATA(nid)->node_zonelists + gfp_zonelist(flags);
-> > > +	return &NODE_DATA(nid)->node_zonelist;
-> > >  }
-> > > 
-> > >  #ifndef HAVE_ARCH_FREE_PAGE
-> > > @@ -198,7 +186,7 @@ static inline struct page *alloc_pages_n
-> > >  	if (nid < 0)
-> > >  		nid = numa_node_id();
-> > > 
-> > > -	return __alloc_pages(gfp_mask, order, node_zonelist(nid, gfp_mask));
-> > > +	return __alloc_pages(gfp_mask, order, node_zonelist(nid));
-> > >  }
-> > 
-> > This is alloc_pages_node(), and converting the nid to a zonelist means
-> > that lower levels (specifically __alloc_pages() here) are not aware of
-> > nids, as far as I can tell.
-> 
-> Yep, this is correct.
-> 
-> > This isn't a change, I just want to make
-> > sure I understand...
-> > 
-> > <snip>
-> > 
-> > >  struct page * fastcall
-> > >  __alloc_pages(gfp_t gfp_mask, unsigned int order,
-> > >  		struct zonelist *zonelist)
-> > >  {
-> > > +	/*
-> > > +	 * Use a temporary nodemask for __GFP_THISNODE allocations. If the
-> > > +	 * cost of allocating on the stack or the stack usage becomes
-> > > +	 * noticable, allocate the nodemasks per node at boot or compile time
-> > > +	 */
-> > > +	if (unlikely(gfp_mask & __GFP_THISNODE)) {
-> > > +		nodemask_t nodemask;
-> > > +
-> > > +		return __alloc_pages_internal(gfp_mask, order,
-> > > +				zonelist, nodemask_thisnode(&nodemask));
-> > > +	}
-> > > +
-> > >  	return __alloc_pages_internal(gfp_mask, order, zonelist, NULL);
-> > >  }
-> > 
-> > <snip>
-> > 
-> > So alloc_pages_node() calls here and for THISNODE allocations, we go ask
-> > nodemask_thisnode() for a nodemask...
-> > 
-> 
-> Also correct.
-> 
-> > > +static nodemask_t *nodemask_thisnode(nodemask_t *nodemask)
-> > > +{
-> > > +	/* Build a nodemask for just this node */
-> > > +	int nid = numa_node_id();
-> > > +
-> > > +	nodes_clear(*nodemask);
-> > > +	node_set(nid, *nodemask);
-> > > +
-> > > +	return nodemask;
-> > > +}
-> > 
-> > <snip>
-> > 
-> > And nodemask_thisnode() always gives us a nodemask with only the node
-> > the current process is running on set, I think?
-> > 
-> 
-> Yes, I interpreted THISNODE to mean "this node I am running on". Callers
-> seemed to expect this but the memoryless needs it to be "this node I am
-> running on unless I specify a node in which case I mean that node.".
-> 
-> > That seems really wrong -- and would explain what Lee was seeing while
-> > using my patches for the hugetlb pool allocator to use THISNODE
-> > allocations. All the allocations would end up coming from whatever node
-> > the process happened to be running on. This obviously messes up hugetlb
-> > accounting, as I rely on THISNODE requests returning NULL if they go
-> > off-node.
-> > 
-> > I'm not sure how this would be fixed, as __alloc_pages() no longer has
-> > the nid to set in the mask.
-> > 
-> > Am I wrong in my analysis?
-> > 
-> 
-> No, you seem to be right on the ball. Can you review the following patch
-> please and determine if it fixes the problem in a satisfactory manner? I
-> think it does and your tests seemed to give proper values with this patch
-> applied but brain no worky work and a second opinion is needed.
-> 
-> ====
-> Subject: Use specified node ID with GFP_THISNODE if available
-> 
-> It had been assumed that __GFP_THISNODE meant allocating from the local
-> node and only the local node. However, users of alloc_pages_node() may also
-> specify GFP_THISNODE. In this case, only the specified node should be used.
-> This patch will allocate pages only from the requested node when GFP_THISNODE
-> is used with alloc_pages_node().
-> 
-> [nacc@us.ibm.com: Detailed analysis of problem]
-> Found-by: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
-> Signed-off-by: Mel Gorman <mel@csn.ul.ie>
+On Mon, 8 Oct 2007, Nick Piggin wrote:
 
-Mel, seems to fix the problem here. Nice job. Feel free to add:
+> The tight memory restrictions on stack usage do not come about because
+> of the difficulty in increasing the stack size :) It is because we want to
+> keep stack sizes small!
+> 
+> Increasing the stack size 4K uses another 4MB of memory for every 1000
+> threads you have, right?
+> 
+> It would take a lot of good reason to move away from the general direction
+> we've been taking over the past years that 4/8K stacks are a good idea for
+> regular 32 and 64 bit builds in general.
 
-Tested-by: Nishanth Aravamudan <nacc@us.ibm.com>
-Acked-by: Nishanth Aravamudan <nacc@us.ibm.com>
+We already use 32k stacks on IA64. So the memory argument fail there.
 
-Thanks,
-Nish
+> > I have some concerns about the medium NUMA systems (a few dozen of nodes)
+> > also running out of stack since more data is placed on the stack through
+> > the policy layer and since we may end up with a couple of stacked
+> > filesystems. Most of the current NUMA systems on x86_64 are basically
+> > two nodes on one motherboard. The use of NUMA controls is likely
+> > limited there and the complexity of the filesystems is also not high.
+> 
+> The solution has until now always been to fix the problems so they don't
+> use so much stack. Maybe a bigger stack is OK for you for 1024+ CPU
+> systems, but I don't think you'd be able to make that assumption for most
+> normal systems.
+
+Yes that is why I made the stack size configurable.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
