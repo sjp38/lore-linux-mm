@@ -1,56 +1,35 @@
-Received: from d03relay04.boulder.ibm.com (d03relay04.boulder.ibm.com [9.17.195.106])
-	by e35.co.us.ibm.com (8.13.8/8.13.8) with ESMTP id l99FwmV6017417
-	for <linux-mm@kvack.org>; Tue, 9 Oct 2007 11:58:48 -0400
-Received: from d03av03.boulder.ibm.com (d03av03.boulder.ibm.com [9.17.195.169])
-	by d03relay04.boulder.ibm.com (8.13.8/8.13.8/NCO v8.5) with ESMTP id l99Fwl8h412648
-	for <linux-mm@kvack.org>; Tue, 9 Oct 2007 09:58:47 -0600
-Received: from d03av03.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av03.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l99FwkMb027493
-	for <linux-mm@kvack.org>; Tue, 9 Oct 2007 09:58:46 -0600
-From: Adam Litke <agl@us.ibm.com>
-Subject: [PATCH] hugetlb: Fix dynamic pool resize failure case
-Date: Tue, 09 Oct 2007 08:58:45 -0700
-Message-Id: <20071009155845.20191.85647.stgit@kernel>
-Content-Type: text/plain; charset=utf-8; format=fixed
-Content-Transfer-Encoding: 8bit
+Received: from mail.lu.unisi.ch ([195.176.178.40] verified)
+  by ti-edu.ch (CommuniGate Pro SMTP 5.1.12)
+  with ESMTP id 22466553 for linux-mm@kvack.org; Tue, 09 Oct 2007 18:00:18 +0200
+Message-ID: <470BA58F.8050907@lu.unisi.ch>
+Date: Tue, 09 Oct 2007 18:00:15 +0200
+From: Paolo Bonzini <paolo.bonzini@lu.unisi.ch>
+Reply-To: bonzini@gnu.org
+MIME-Version: 1.0
+Subject: Re: [Bug 9138] New: kernel overwrites MAP_PRIVATE mmap
+References: <bug-9138-27@http.bugzilla.kernel.org/> <20071009083913.212fb3e3.akpm@linux-foundation.org>
+In-Reply-To: <20071009083913.212fb3e3.akpm@linux-foundation.org>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Adam Litke <agl@us.ibm.com>, linux-mm@kvack.org
+Cc: bonzini@gnu.org, bugme-daemon@bugzilla.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-When gather_surplus_pages() fails to allocate enough huge pages to satisfy
-the requested reservation, it frees what it did allocate back to the buddy
-allocator.  put_page() should be called instead of update_and_free_page()
-to ensure that pool counters are updated as appropriate and the page's
-refcount is decremented.
+> So can you confirm that this behaviour was not present in 2.6.8 but is
+> present in 2.6.20?
 
-Andrew: This should apply cleanly to my patches in the -mm tree.
+Yes.  I also have access to a Debian i686 2.6.22.9 and it shows the bug. 
+  Though I am not the one who compiled the kernel on either machine 
+(neither the i686 nor the x86-64).
 
-Signed-off-by: Adam Litke <agl@us.ibm.com>
----
+> Would it be possible to prevail upon you to cook up a little standalone
+> testcase?  
 
- mm/hugetlb.c |    7 +++++--
- 1 files changed, 5 insertions(+), 2 deletions(-)
+I already tried to no avail.  I may have more time in november.
 
-diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-index 9b3dfac..f349c16 100644
---- a/mm/hugetlb.c
-+++ b/mm/hugetlb.c
-@@ -281,8 +281,11 @@ free:
- 		list_del(&page->lru);
- 		if ((--needed) >= 0)
- 			enqueue_huge_page(page);
--		else
--			update_and_free_page(page);
-+		else {
-+			spin_unlock(&hugetlb_lock);
-+			put_page(page);
-+			spin_lock(&hugetlb_lock);
-+		}
- 	}
- 
- 	return ret;
+Paolo
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
