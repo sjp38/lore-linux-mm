@@ -1,40 +1,27 @@
-Date: Tue, 9 Oct 2007 11:47:10 -0700 (PDT)
+Date: Tue, 9 Oct 2007 11:49:01 -0700 (PDT)
 From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [PATCH 6/6] Use one zonelist that is filtered by nodemask
-In-Reply-To: <20071009162526.GC26472@us.ibm.com>
-Message-ID: <Pine.LNX.4.64.0710091146360.32162@schroedinger.engr.sgi.com>
-References: <20070928142326.16783.98817.sendpatchset@skynet.skynet.ie>
- <20070928142526.16783.97067.sendpatchset@skynet.skynet.ie>
- <20071009011143.GC14670@us.ibm.com> <20071009154052.GC12632@skynet.ie>
- <20071009162526.GC26472@us.ibm.com>
+Subject: Re: [PATCH/RFC 4/5] Mem Policy:  cpuset-independent interleave policy
+In-Reply-To: <470B1C77.1080001@google.com>
+Message-ID: <Pine.LNX.4.64.0710091148220.32730@schroedinger.engr.sgi.com>
+References: <20070830185053.22619.96398.sendpatchset@localhost>
+ <20070830185122.22619.56636.sendpatchset@localhost>  <46E86148.9060400@google.com>
+ <1189690357.5013.19.camel@localhost> <470B1C77.1080001@google.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nishanth Aravamudan <nacc@us.ibm.com>
-Cc: Mel Gorman <mel@skynet.ie>, akpm@linux-foundation.org, Lee.Schermerhorn@hp.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, rientjes@google.com, kamezawa.hiroyu@jp.fujitsu.com
+To: Ethan Solomita <solo@google.com>
+Cc: Lee Schermerhorn <Lee.Schermerhorn@hp.com>, linux-mm@kvack.org, akpm@linux-foundation.org, ak@suse.de, mtk-manpages@gmx.net, eric.whitney@hp.com
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 9 Oct 2007, Nishanth Aravamudan wrote:
+On Mon, 8 Oct 2007, Ethan Solomita wrote:
 
-> > > And nodemask_thisnode() always gives us a nodemask with only the node
-> > > the current process is running on set, I think?
-> > > 
-> > 
-> > Yes, I interpreted THISNODE to mean "this node I am running on".
-> > Callers seemed to expect this but the memoryless needs it to be "this
-> > node I am running on unless I specify a node in which case I mean that
-> > node.".
-> 
-> I think that is only true (THISNODE = local node) if the callpath is not
-> via alloc_pages_node(). If the callpath is via alloc_pages_node(), then
-> it depends on whether the nid parameter is -1 (in which case it is also
-> local node) or anything (in which case it is the nid specified). Ah,
-> reading further along, that's exactly what your changelog indicates too
-> :)
+> 	Do we want do_get_mempolicy() to return a policy number with
+> MPOL_CONTEXT set? That's what's happening with this patch, and I expect it'll
+> confuse userland apps, e.g. numactl.
 
-Right. THISNODE means the node we are on or the node that we indicated we 
-want to allocate from. 
+Do we have a consistent way to deal with MPOL_CONTEXT now? I thought this 
+was just to test some ideas.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
