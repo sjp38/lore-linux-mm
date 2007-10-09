@@ -1,48 +1,67 @@
-Date: Tue, 9 Oct 2007 17:25:39 +0100 (BST)
-From: Hugh Dickins <hugh@veritas.com>
-Subject: Re: [Bug 9138] New: kernel overwrites MAP_PRIVATE mmap
-In-Reply-To: <470BA58F.8050907@lu.unisi.ch>
-Message-ID: <Pine.LNX.4.64.0710091711450.30785@blonde.wat.veritas.com>
-References: <bug-9138-27@http.bugzilla.kernel.org/>
- <20071009083913.212fb3e3.akpm@linux-foundation.org> <470BA58F.8050907@lu.unisi.ch>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: [PATCH][for -mm] Fix and Enhancements for memory cgroup [1/6] fix
+ refcnt race in charge/uncharge
+In-Reply-To: Your message of "Tue, 9 Oct 2007 18:49:25 +0900"
+	<20071009184925.ad8248d4.kamezawa.hiroyu@jp.fujitsu.com>
+References: <20071009184925.ad8248d4.kamezawa.hiroyu@jp.fujitsu.com>
+Mime-Version: 1.0
+Content-Type: Text/Plain; charset=us-ascii
+Message-Id: <20071009223139.061C21BF47A@siro.lan>
+Date: Wed, 10 Oct 2007 07:31:38 +0900 (JST)
+From: yamamoto@valinux.co.jp (YAMAMOTO Takashi)
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: bonzini@gnu.org
-Cc: Andrew Morton <akpm@linux-foundation.org>, bugme-daemon@bugzilla.kernel.org, linux-mm@kvack.org
+To: kamezawa.hiroyu@jp.fujitsu.com
+Cc: containers@lists.osdl.org, linux-mm@kvack.org, akpm@linux-foundation.org, balbir@linux.vnet.ibm.com
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 9 Oct 2007, Paolo Bonzini wrote:
-> > So can you confirm that this behaviour was not present in 2.6.8 but is
-> > present in 2.6.20?
+> The logic of uncharging is 
+>  - decrement refcnt -> lock page cgroup -> remove page cgroup.
+> But the logic of charging is
+>  - lock page cgroup -> increment refcnt -> return.
 > 
-> Yes.  I also have access to a Debian i686 2.6.22.9 and it shows the bug.
-
-That's surprising, and sounds like a bug in 2.6.8 not in 2.6.20 or 2.6.22.
-
-I may have misunderstood the steps, but you summarize:
-
-> I believe the reason is a bad interaction between the private mmap
-> established in save.c:
+> Then, one charge will be added to a page_cgroup under being removed.
+> This makes no big trouble (like panic) but one charge is lost.
 > 
->   buf = mmap (NULL, file_size, PROT_READ, MAP_PRIVATE, imageFd, 0);
+> This patch add a test at charging to verify page_cgroup's refcnt is
+> greater than 0. If not, unlock and retry.
 > 
-> and truncating the inode on which the mmap was done.
+> Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> 
+> 
+>  mm/memcontrol.c |    9 +++++++--
+>  1 file changed, 7 insertions(+), 2 deletions(-)
+> 
+> Index: linux-2.6.23-rc8-mm2/mm/memcontrol.c
+> ===================================================================
+> --- linux-2.6.23-rc8-mm2.orig/mm/memcontrol.c
+> +++ linux-2.6.23-rc8-mm2/mm/memcontrol.c
+> @@ -271,14 +271,19 @@ int mem_cgroup_charge(struct page *page,
+>  	 * to see if the cgroup page already has a page_cgroup associated
+>  	 * with it
+>  	 */
+> +retry:
+>  	lock_page_cgroup(page);
+>  	pc = page_get_page_cgroup(page);
+>  	/*
+>  	 * The page_cgroup exists and the page has already been accounted
+>  	 */
+>  	if (pc) {
+> -		atomic_inc(&pc->ref_cnt);
+> -		goto done;
+> +		if (unlikely(!atomic_inc_not_zero(&pc->ref_cnt))) {
+> +			/* this page is under being uncharge ? */
+> +			unlock_page_cgroup(page);
 
-It is standard behaviour that truncating the inode on which an mmap
-was done will generate SIGBUS on access to pages of the mmap beyond
-the new end of file.  Easier to understand when MAP_SHARED, but even
-when MAP_PRIVATE, and even when private pages have already been
-C-O-Wed from the file.
+cpu_relax() here?
 
-Checking with SUSv3, I find it using the word "may" a lot, without
-explicitly demanding this behaviour; but my recollection of the early
-implementations of mmap in UNIX, which set the standard, is that they
-behaved in this way - though I've often (like you) wished they did not.
+YAMAMOTO Takashi
 
-Might it have been a different version of Smalltalk which was tested
-with the 2.6.8 kernel, a version which didn't cause this to happen?
+> +			goto retry;
+> +		} else
+> +			goto done;
+>  	}
+>  
+>  	unlock_page_cgroup(page);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
