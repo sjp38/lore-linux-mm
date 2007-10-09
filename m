@@ -1,135 +1,90 @@
-From: Nick Piggin <nickpiggin@yahoo.com.au>
-Subject: Re: VMA lookup with RCU
-Date: Mon, 8 Oct 2007 18:17:46 +1000
-References: <46F01289.7040106@linux.vnet.ibm.com> <4709F92C.80207@linux.vnet.ibm.com> <470A6010.6000108@linux.vnet.ibm.com>
-In-Reply-To: <470A6010.6000108@linux.vnet.ibm.com>
-MIME-Version: 1.0
-Content-Type: text/plain;
-  charset="utf-8"
+Date: Tue, 9 Oct 2007 10:10:03 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: Hotplug memory remove
+Message-Id: <20071009101003.cb9fdc9f.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20071008190123.GC31906@linux.intel.com>
+References: <1191253063.29581.7.camel@dyn9047017100.beaverton.ibm.com>
+	<20071002011447.7ec1f513.kamezawa.hiroyu@jp.fujitsu.com>
+	<20071005172128.GA19681@linux.intel.com>
+	<20071006094115.8b488e55.kamezawa.hiroyu@jp.fujitsu.com>
+	<20071008190123.GC31906@linux.intel.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
-Message-Id: <200710081817.46478.nickpiggin@yahoo.com.au>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Vaidyanathan Srinivasan <svaidy@linux.vnet.ibm.com>, Eric Dumazet <dada1@cosmosbay.com>
-Cc: balbir@linux.vnet.ibm.com, Peter Zijlstra <peterz@infradead.org>, Alexis Bruemmer <alexisb@us.ibm.com>, Balbir Singh <balbir@in.ibm.com>, Badari Pulavarty <pbadari@us.ibm.com>, Max Asbock <amax@us.ibm.com>, linux-mm <linux-mm@kvack.org>, Bharata B Rao <bharata@in.ibm.com>
+To: mgross@linux.intel.com
+Cc: pbadari@gmail.com, linux-mm@kvack.org, y-goto@jp.fujitsu.com
 List-ID: <linux-mm.kvack.org>
 
-On Tuesday 09 October 2007 02:51, Vaidyanathan Srinivasan wrote:
-> >> Apparently our IBM friends on this thread have a workload where mmap_sem
-> >> does hurt, and I suspect its a massively threaded Java app on a somewhat
-> >> larger box (8-16 cpus), which does a bit of faulting around.
-> >>
-> >> But I'll let them tell about it :-)
-> >
-> > Nick,
-> >
-> > We used the latest glibc (with the private futexes fix) and the latest
-> > kernel. We see improvements in scalability, but at 12-16 CPU's, we see
-> > a slowdown. Vaidy has been using ebizzy for testing mmap_sem
-> > scalability.
+On Mon, 8 Oct 2007 12:01:23 -0700
+Mark Gross <mgross@linux.intel.com> wrote:
+> > > How could I mark a nid's worth of memory as ZONE_MOVABLE?  I've been
+> > > reading through this code and it appears to somewhat arbitrarily choose
+> > > some portion of the memory to be ZONE_MOVABLE per pxm and some kernel
+> > > parameters.  But I'm having a hard time finding the proper place to set
+> > > up the nodes.
+> > > 
+> > It's not available now.
+> 
+> Thats a usability challenge.  What use scenarios do you have for memory
+> unplug then?  I'd like to mimic your stuff if I can.
+> 
+For us (fujitsu), we'll have to implement node-unplug, but not yet.
+If we can, we can use node-hotplug/node-unplug (of hotplugged node).
+This can be used from our hardware console's GUI.
+(For us, specifing hot-removable memory by node-id (at boot) is enough.)
+
+I know there is requirements for removing memory which is available at boot
+time. But I'm not sure that what information the firmware shows about
+hot-removable memory now. 
+
+Specifying MOVABLE zone in precie address range at boot time is ideal but
+I'm afraid that it makes memory init code too complicated. Hmm...
+
+
+
+> > 
+> > One idea is to ignore memory of some PXMs specified by kerenel boot param.
+> > Later, you can hot-add specified PXM memory as MOVABLE.
+> > Then, boot sequence will be
+> > --
+> >    bootstrap , ignore some memory here.
+> >    init memory, driver, etc
+> >    hot-add ignored memory
+> >    online hot-added memory by user scripts. (from rc script ?)
+> > --y
+> > For doing this, we need
+> >  - a switch to hot-add memory as MOVABLE (will be easy patch)
+> >  - a code for ignoring memory at boot but remember them for later hotadd
+> >    (maybe needs arch specific codes)
+> >  - a code for hot add memory before rc script (initcall is suitable ?) 
+> > 
+> > Needs some amount of arch-specific codes, but maybe simple.
+> > Why I recommend above is it will be complex to avoid some PXM's memory
+> > to be used as bootmem or for some other purpose(slab, hash, etc...).
+> 
+> I have the boot memory allocations or off-lineable-memory taken care of.
+> I can see how the above would work, but I worry that it feels a bit
+> hackish.   
+> 
+> BTW Is this how memory hot remove is expected to be used?
+> 
+I think above is a simple way to go. How about you ? > Goto-san.
+I don't want to make memory-initialization too complicated.
+ 
+> > If your firmware (efi?) doesn't show memory for hot removal at boot time,
+> > this idea will be simpler..
+> 
+> how so?  
 >
-> Hi Peter and Nick,
->
-> We have been doing some tests with ebizzy 0.2 workload.
-> Here are some of the test results...
+just hot-add hot-removable memory after boot by some scripts which affects 
+the firmware.
 
-Cool graphs!
+I'm glad to hear question about making use of memory-hot-removal in these days :)
 
-Looks like private futexes blew your mmap_sem contention away. Not too
-surprising: I wouldn't have expected a high performance app like this to be
-doing a huge number of mmap()ing and page faults...
-
-They almost tripled your peak performance! Of course that's with ebizzy...
-what sort of correlation does this have to your real server app? (ie. does
-it also see a 3x speedup?)
-
-I don't see any synchronisation in ebizzy 2 -- I guess the gain is all due to
-improved libc heap management scalability?
-
-
-> ebizzy-futex.png plots the performance impact of private futex while
-> ebizzy-rcu-vma.png plots the performance of Peter's RCU VMA look patch
-> against base kernel with and without private futex.
->
-> We can observe in both the plots that private futex improved scaling
-> significantly from 4 CPUs to 8 CPUs but we still have scaling issues beyond
-> 12 CPUs.
->
-> Peter's RCU based b+tree vma lookup approach gives marginal performance
-> improvement till 4 to 8 CPUs but does not help beyond that.
->
-> Perhaps the scaling problem area shifts beyond 8-12 cpus and it is not just
-> the mmap_sem and vma lookup.
->
-> The significant oprofile output for various configurations are listed
-> below:
->
-> 12 CPUs 2.6.23-rc6 No private futex:
->
-> samples  %        symbol name
-> 6908330  23.7520  __down_read
-> 4990895  17.1595  __up_read
-> 2165162   7.4442  find_vma
-> 2069868   7.1166  futex_wait
-> 2063447   7.0945  futex_wake
-> 1557829   5.3561  drop_futex_key_refs
-> 741268    2.5486  task_rq_lock
-> 638947    2.1968  schedule
-> 600493    2.0646  system_call
-> 515924    1.7738  copy_user_generic_unrolled
-> 399672    1.3741  mwait_idle
->
-> 12 CPUs 2.6.23-rc6 with private futex:
->
-> samples  %        symbol name
-> 2095531  15.5092  task_rq_lock
-> 1094271   8.0988  schedule
-> 1068093   7.9050  futex_wake
-> 516250    3.8208  futex_wait
-> 469220    3.4727  mwait_idle
-> 468979    3.4710  system_call
-> 443208    3.2802  idle_cpu
-> 438301    3.2439  update_curr
-> 397231    2.9399  try_to_wake_up
-> 364424    2.6971  apic_timer_interrupt
-> 362633    2.6839  scheduler_tick
-
-There is basically no more mmap_sem contention or any vma lookups to
-be seen. So I think it would be a waste of time to test my vma cache patches
-really :P
-
-It looks like most of the contention is on the runqueue locks and on futex
-locks now. Both those paths are now pretty optimised... probably some
-improvements could be made, but fundamentally if you are doing a lot of
-sleeping on a single futex, and are doing a lot of cross-CPU wakeups, then
-you are going to have scalability limits.
-
-So improving glibc allocator to be more scalable, or changing the application
-is likely to be the best course of action from here...
-
-*If* you have a huge number of futexes, or a lot of processes (each with
-their own threads and private futexes), then there are some possible things
-we could try to improve in the private futex lookup code... but that doesn't
-seem to be the case for you?
-
-
-> All the above test results has the impact of oprofile included.  Running
-> oprofile also may significantly increase mmap_sem contention.
->
-> I Will run the tests again without oprofile to understand the impact of
-> oprofile itself.
->
-> Please let me know your comments and suggestions.
-
-Getting confirmation of what is so costly in futex_wait and futex_wake
-might be useful if you have time. I'll bet it is the hash lock, but could be
-wrong.
-
-Playing with the sched-domains parameters and possibly trying to reduce
-the number of cross-CPU wakeups might help. However you have to be pretty
-careful with this that you don't just tune the system to work well with ebizzy
-and not your real workload.
+Thanks,
+-Kame
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
