@@ -1,91 +1,160 @@
-Received: from d12nrmr1607.megacenter.de.ibm.com (d12nrmr1607.megacenter.de.ibm.com [9.149.167.49])
-	by mtagate3.de.ibm.com (8.13.8/8.13.8) with ESMTP id l99BLv26209012
-	for <linux-mm@kvack.org>; Tue, 9 Oct 2007 11:21:57 GMT
-Received: from d12av01.megacenter.de.ibm.com (d12av01.megacenter.de.ibm.com [9.149.165.212])
-	by d12nrmr1607.megacenter.de.ibm.com (8.13.8/8.13.8/NCO v8.5) with ESMTP id l99BLuJm2220272
-	for <linux-mm@kvack.org>; Tue, 9 Oct 2007 13:21:56 +0200
-Received: from d12av01.megacenter.de.ibm.com (loopback [127.0.0.1])
-	by d12av01.megacenter.de.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l99BLuZm002628
-	for <linux-mm@kvack.org>; Tue, 9 Oct 2007 13:21:56 +0200
-From: Christian Borntraeger <borntraeger@de.ibm.com>
-Subject: [PATCH] ramdisk: fix zeroed ramdisk pages on memory pressure
-Date: Tue, 9 Oct 2007 13:21:46 +0200
-MIME-Version: 1.0
-Content-Type: text/plain;
-  charset="us-ascii"
+Date: Tue, 9 Oct 2007 20:26:42 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [PATCH][for -mm] Fix and Enhancements for memory cgroup [3/6]
+ add helper function for page_cgroup
+Message-Id: <20071009202642.9f174445.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <470B617C.1060504@linux.vnet.ibm.com>
+References: <20071009184620.8b14cbc6.kamezawa.hiroyu@jp.fujitsu.com>
+	<20071009185132.a870b0f0.kamezawa.hiroyu@jp.fujitsu.com>
+	<470B617C.1060504@linux.vnet.ibm.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
-Message-Id: <200710091321.46891.borntraeger@de.ibm.com>
 Sender: owner-linux-mm@kvack.org
-From: Christian Borntraeger <borntraeger@de.ibm.com>
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Martin Schwidefsky <schwidefsky@de.ibm.com>
+To: balbir@linux.vnet.ibm.com
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "containers@lists.osdl.org" <containers@lists.osdl.org>, Andrew Morton <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-We have seen ramdisk based install systems, where some pages of mapped 
-libraries and programs were suddendly zeroed under memory pressure. This 
-should not happen, as the ramdisk avoids freeing its pages by keeping them 
-dirty all the time.
+On Tue, 09 Oct 2007 16:39:48 +0530
+Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
+> > +static inline int
+> > +page_cgroup_assign_new_page_cgroup(struct page *page, struct page_cgroup *pc)
+> > +{
+> > +	int ret = 0;
+> > +
+> > +	lock_page_cgroup(page);
+> > +	if (!page_get_page_cgroup(page))
+> > +		page_assign_page_cgroup(page, pc);
+> > +	else
+> > +		ret = 1;
+> > +	unlock_page_cgroup(page);
+> > +	return ret;
+> > +}
+> > +
+> 
+> Some comment on when the assignment can fail, for example if page
+> already has a page_cgroup associated with it, would be nice.
+> 
+Sure ,will add.
 
-It turns out that there is a case, where the VM makes a ramdisk page clean, 
-without telling the ramdisk driver.
-On memory pressure shrink_zone runs and it starts to run shrink_active_list. 
-There is a check for buffer_heads_over_limit, and if true, pagevec_strip is 
-called. pagevec_strip calls try_to_release_page. If the mapping has no 
-releasepage callback, try_to_free_buffers is called. try_to_free_buffers has 
-now a special logic for some file systems to make a dirty page clean, if all 
-buffers are clean. Thats what happened in our test case.
+> > +
+> > +static inline struct page_cgroup *
+> > +clear_page_cgroup(struct page *page, struct page_cgroup *pc)
+> > +{
+> > +	struct page_cgroup *ret;
+> > +	/* lock and clear */
+> > +	lock_page_cgroup(page);
+> > +	ret = page_get_page_cgroup(page);
+> > +	if (likely(ret == pc))
+> > +		page_assign_page_cgroup(page, NULL);
+> > +	unlock_page_cgroup(page);
+> > +	return ret;
+> > +}
+> > +
+> 
+> We could add a comment stating that clearing would fail if the page's
+> cgroup is not pc
+> 
+will add, too.
 
-The solution is to provide a noop-releasepage callback for the ramdisk driver.
-This avoids try_to_free_buffers for ramdisk pages. 
+> > +
+> >  static void __mem_cgroup_move_lists(struct page_cgroup *pc, bool active)
+> >  {
+> >  	if (active)
+> > @@ -260,7 +289,7 @@ int mem_cgroup_charge(struct page *page,
+> >  				gfp_t gfp_mask)
+> >  {
+> >  	struct mem_cgroup *mem;
+> > -	struct page_cgroup *pc, *race_pc;
+> > +	struct page_cgroup *pc;
+> >  	unsigned long flags;
+> >  	unsigned long nr_retries = MEM_CGROUP_RECLAIM_RETRIES;
+> > 
+> > @@ -353,24 +382,16 @@ noreclaim:
+> >  		goto free_pc;
+> >  	}
+> > 
+> > -	lock_page_cgroup(page);
+> > -	/*
+> > -	 * Check if somebody else beat us to allocating the page_cgroup
+> > -	 */
+> > -	race_pc = page_get_page_cgroup(page);
+> > -	if (race_pc) {
+> > -		kfree(pc);
+> > -		pc = race_pc;
+> > -		atomic_inc(&pc->ref_cnt);
+> > -		res_counter_uncharge(&mem->res, PAGE_SIZE);
+> > -		css_put(&mem->css);
+> > -		goto done;
+> > -	}
+> > -
+> >  	atomic_set(&pc->ref_cnt, 1);
+> >  	pc->mem_cgroup = mem;
+> >  	pc->page = page;
+> > -	page_assign_page_cgroup(page, pc);
+> > +	if (page_cgroup_assign_new_page_cgroup(page, pc)) {
+> > +		/* race ... undo and retry */
+> > +		res_counter_uncharge(&mem->res, PAGE_SIZE);
+> > +		css_put(&mem->css);
+> > +		kfree(pc);
+> > +		goto retry;
+> 
+> This part is a bit confusing, why do we want to retry. If someone
+> else charged the page already, we just continue, we let the other
+> task take the charge and add this page to it's cgroup
+> 
+Okay. will add precise text.
 
-To trigger the problem, you have to make buffer_heads_over_limit true, which
-means:
-- lower max_buffer_heads 
-or
-- have a system with lots of high memory
 
-Andrew, if there are no objections - please apply. The patch applies against
-2.6.23-rc9.
 
-Signed-off-by: Christian Borntraeger <borntraeger@de.ibm.com>
+> > +	}
+> > 
+> >  	spin_lock_irqsave(&mem->lru_lock, flags);
+> >  	list_add(&pc->lru, &mem->active_list);
+> > @@ -421,17 +442,18 @@ void mem_cgroup_uncharge(struct page_cgr
+> > 
+> >  	if (atomic_dec_and_test(&pc->ref_cnt)) {
+> >  		page = pc->page;
+> > -		lock_page_cgroup(page);
+> > -		mem = pc->mem_cgroup;
+> > -		css_put(&mem->css);
+> > -		page_assign_page_cgroup(page, NULL);
+> > -		unlock_page_cgroup(page);
+> > -		res_counter_uncharge(&mem->res, PAGE_SIZE);
+> > -
+> > - 		spin_lock_irqsave(&mem->lru_lock, flags);
+> > - 		list_del_init(&pc->lru);
+> > - 		spin_unlock_irqrestore(&mem->lru_lock, flags);
+> > -		kfree(pc);
+> > +		/*
+> > +		 * Obetaion page->cgroup and clear it under lock.
+>                    ^^^^^^^^
+>                    Not sure if I've come across this word before
+Sorry (>_<; 
+Get page->cgroup and clear it under lock.
 
----
- drivers/block/rd.c |   13 +++++++++++++
- 1 files changed, 13 insertions(+)
-
-Index: linux-2.6/drivers/block/rd.c
-===================================================================
---- linux-2.6.orig/drivers/block/rd.c
-+++ linux-2.6/drivers/block/rd.c
-@@ -189,6 +189,18 @@ static int ramdisk_set_page_dirty(struct
- 	return 0;
+> 
+> > +		 */
+> > +		if (clear_page_cgroup(page, pc) == pc) {
+> 
+> OK.. so we've come so far and seen that pc has changed underneath us,
+> what do we do with this pc?
+> 
+Hmm... How about this ?
+==
+ if (clear_page_cgroup(page, pc) == pc) {
+	/* do usual work */
+ } else {
+	BUG();
  }
- 
-+/*
-+ * releasepage is called by pagevec_strip/try_to_release_page if
-+ * buffers_heads_over_limit is true. Without a releasepage function
-+ * try_to_free_buffers is called instead. That can unset the dirty
-+ * bit of our ram disk pages, which will be eventually freed, even
-+ * if the page is still in use.
-+ */
-+static int ramdisk_releasepage(struct page *page, gfp_t dummy)
-+{
-+	return 0;
-+}
-+
- static const struct address_space_operations ramdisk_aops = {
- 	.readpage	= ramdisk_readpage,
- 	.prepare_write	= ramdisk_prepare_write,
-@@ -196,6 +208,7 @@ static const struct address_space_operat
- 	.writepage	= ramdisk_writepage,
- 	.set_page_dirty	= ramdisk_set_page_dirty,
- 	.writepages	= ramdisk_writepages,
-+	.releasepage	= ramdisk_releasepage,
- };
- 
- static int rd_blkdev_pagecache_IO(int rw, struct bio_vec *vec, sector_t sector,
+== or BUG_ON(clear_page_cgroup(page, pc) != pc)
+
+I have no clear idea when this race will occur.
+But this "lock and clear" behavior is sane, I think.
+
+Thanks,
+-kame
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
