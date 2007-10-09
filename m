@@ -1,43 +1,63 @@
-Date: Tue, 9 Oct 2007 18:46:20 +0900
+Date: Tue, 9 Oct 2007 18:49:25 +0900
 From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: [PATCH][for -mm] Fix and Enhancements for memory cgroup [0/6] intro
-Message-Id: <20071009184620.8b14cbc6.kamezawa.hiroyu@jp.fujitsu.com>
+Subject: [PATCH][for -mm] Fix and Enhancements for memory cgroup [1/6] fix
+ refcnt race in charge/uncharge
+Message-Id: <20071009184925.ad8248d4.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20071009184620.8b14cbc6.kamezawa.hiroyu@jp.fujitsu.com>
+References: <20071009184620.8b14cbc6.kamezawa.hiroyu@jp.fujitsu.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "containers@lists.osdl.org" <containers@lists.osdl.org>, Andrew Morton <akpm@linux-foundation.org>, "kamezawa.hiroyu@jp.fujitsu.com" <kamezawa.hiroyu@jp.fujitsu.com>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "containers@lists.osdl.org" <containers@lists.osdl.org>, Andrew Morton <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-Hi, Balbir-san
-This is a patch set against memory cgroup I have now.
-Reflected comments I got.
+The logic of uncharging is 
+ - decrement refcnt -> lock page cgroup -> remove page cgroup.
+But the logic of charging is
+ - lock page cgroup -> increment refcnt -> return.
 
-= 
-[1] charge refcnt fix patch     - avoid charging against a page which is being 
-                                  uncharged.
-[2] fix-err-handling patch      - remove unnecesary unlock_page_cgroup()
-[3] lock and page->cgroup patch - add helper function for charge/uncharge
-[4] avoid handling no LRU patch - makes mem_cgroup_isolate_pages() avoid
-                                  handling !Page_LRU pages.
-[5] migration fix patch         - a fix for page migration.
-[6] force reclaim patch         - add an interface for uncharging all pages in
-                                  empty cgroup.
-=
+Then, one charge will be added to a page_cgroup under being removed.
+This makes no big trouble (like panic) but one charge is lost.
 
-BTW, which way would you like to go ?
+This patch add a test at charging to verify page_cgroup's refcnt is
+greater than 0. If not, unlock and retry.
 
-  1. You'll merge this set (and my future patch) to your set as
-     Memory Cgroup Maintainer and pass to Andrew Morton, later.
-     And we'll work against your tree.
-  2. I post this set to the (next) -mm. And we'll work agaisnt -mm.
+Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
-not as my usual patch, tested on x86-64 fake-NUMA.
 
-Thanks,
--Kame
+ mm/memcontrol.c |    9 +++++++--
+ 1 file changed, 7 insertions(+), 2 deletions(-)
+
+Index: linux-2.6.23-rc8-mm2/mm/memcontrol.c
+===================================================================
+--- linux-2.6.23-rc8-mm2.orig/mm/memcontrol.c
++++ linux-2.6.23-rc8-mm2/mm/memcontrol.c
+@@ -271,14 +271,19 @@ int mem_cgroup_charge(struct page *page,
+ 	 * to see if the cgroup page already has a page_cgroup associated
+ 	 * with it
+ 	 */
++retry:
+ 	lock_page_cgroup(page);
+ 	pc = page_get_page_cgroup(page);
+ 	/*
+ 	 * The page_cgroup exists and the page has already been accounted
+ 	 */
+ 	if (pc) {
+-		atomic_inc(&pc->ref_cnt);
+-		goto done;
++		if (unlikely(!atomic_inc_not_zero(&pc->ref_cnt))) {
++			/* this page is under being uncharge ? */
++			unlock_page_cgroup(page);
++			goto retry;
++		} else
++			goto done;
+ 	}
+ 
+ 	unlock_page_cgroup(page);
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
