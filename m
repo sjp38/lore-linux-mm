@@ -1,138 +1,217 @@
-Date: Tue, 9 Oct 2007 08:39:13 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [Bug 9138] New: kernel overwrites MAP_PRIVATE mmap
-Message-Id: <20071009083913.212fb3e3.akpm@linux-foundation.org>
-In-Reply-To: <bug-9138-27@http.bugzilla.kernel.org/>
-References: <bug-9138-27@http.bugzilla.kernel.org/>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Date: Tue, 9 Oct 2007 16:40:53 +0100
+Subject: Re: [PATCH 6/6] Use one zonelist that is filtered by nodemask
+Message-ID: <20071009154052.GC12632@skynet.ie>
+References: <20070928142326.16783.98817.sendpatchset@skynet.skynet.ie> <20070928142526.16783.97067.sendpatchset@skynet.skynet.ie> <20071009011143.GC14670@us.ibm.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <20071009011143.GC14670@us.ibm.com>
+From: mel@skynet.ie (Mel Gorman)
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: bonzini@gnu.org
-Cc: bugme-daemon@bugzilla.kernel.org, linux-mm@kvack.org
+To: Nishanth Aravamudan <nacc@us.ibm.com>
+Cc: akpm@linux-foundation.org, Lee.Schermerhorn@hp.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, rientjes@google.com, kamezawa.hiroyu@jp.fujitsu.com, clameter@sgi.com
 List-ID: <linux-mm.kvack.org>
 
-(switching to email - please reply via emailed reply-to-all, not via the
-bugzilla web interface)
+First, sorry for being so slow to respond. I was getting ill towards the end
+of last week and am worse now. Brain is in total mush as a result. Thanks
+Lee for finding this problem and thanks to Nish for investigating it properly.
 
-On Tue,  9 Oct 2007 06:28:28 -0700 (PDT) bugme-daemon@bugzilla.kernel.org wrote:
+Comments and candidate fix to one zonelist are below.
 
-> http://bugzilla.kernel.org/show_bug.cgi?id=9138
+On (08/10/07 18:11), Nishanth Aravamudan didst pronounce:
+> On 28.09.2007 [15:25:27 +0100], Mel Gorman wrote:
+> > 
+> > Two zonelists exist so that GFP_THISNODE allocations will be guaranteed
+> > to use memory only from a node local to the CPU. As we can now filter the
+> > zonelist based on a nodemask, we filter the standard node zonelist for zones
+> > on the local node when GFP_THISNODE is specified.
+> > 
+> > When GFP_THISNODE is used, a temporary nodemask is created with only the
+> > node local to the CPU set. This allows us to eliminate the second zonelist.
+> > 
+> > Signed-off-by: Mel Gorman <mel@csn.ul.ie>
+> > Acked-by: Christoph Lameter <clameter@sgi.com>
 > 
->            Summary: kernel overwrites MAP_PRIVATE mmap
->            Product: Memory Management
->            Version: 2.5
->      KernelVersion: 2.6.20, 2.6.22
->           Platform: All
->         OS/Version: Linux
->               Tree: Mainline
->             Status: NEW
->           Severity: high
->           Priority: P1
->          Component: Other
->         AssignedTo: akpm@osdl.org
->         ReportedBy: bonzini@gnu.org
+> <snip>
 > 
+> > diff -rup -X /usr/src/patchset-0.6/bin//dontdiff linux-2.6.23-rc8-mm2-030_filter_nodemask/include/linux/gfp.h linux-2.6.23-rc8-mm2-040_use_one_zonelist/include/linux/gfp.h
+> > --- linux-2.6.23-rc8-mm2-030_filter_nodemask/include/linux/gfp.h	2007-09-28 15:49:57.000000000 +0100
+> > +++ linux-2.6.23-rc8-mm2-040_use_one_zonelist/include/linux/gfp.h	2007-09-28 15:55:03.000000000 +0100
 > 
-> Most recent kernel where this bug did not occur:
-> Distribution: Debian 2.6.8
-> Hardware Environment:
-> Software Environment:
-> Problem Description:
+> [Reordering the chunks to make my comments a little more logical]
 > 
-> Steps to reproduce:
+> <snip>
 > 
-> 1) Download http://www.inf.unisi.ch/phd/bonzini/smalltalk-2.95d.tar.gz
-> 2) Compile it with "./configure && make CFLAGS=-g" (the cflags is only for
-> easier debuggability, the bug also reproduces without).
-> 3) Run "./gst"
-> 4) Type "ObjectMemory snapshot"
+> > -static inline struct zonelist *node_zonelist(int nid, gfp_t flags)
+> > +static inline struct zonelist *node_zonelist(int nid)
+> >  {
+> > -	return NODE_DATA(nid)->node_zonelists + gfp_zonelist(flags);
+> > +	return &NODE_DATA(nid)->node_zonelist;
+> >  }
+> > 
+> >  #ifndef HAVE_ARCH_FREE_PAGE
+> > @@ -198,7 +186,7 @@ static inline struct page *alloc_pages_n
+> >  	if (nid < 0)
+> >  		nid = numa_node_id();
+> > 
+> > -	return __alloc_pages(gfp_mask, order, node_zonelist(nid, gfp_mask));
+> > +	return __alloc_pages(gfp_mask, order, node_zonelist(nid));
+> >  }
 > 
-> It crashes. To reproduce again:
-> 
-> 5) Run "rm gst.im; make gst.im"
-> 6) Go to step 4.
-> 
-> The code that crashes is in save.c; it dereferences a NULL pointer:
-> 
-> Program received signal SIGBUS, Bus error.
-> 0x08083bf3 in make_oop_table_to_be_saved (header=0xbff29934) at save.c:345
-> 345 int numPointers = NUM_OOPS (oop->object);
-> (gdb) p oop->object->objClass
-> $1 = (OOP) 0x0
-> 
-> However, going on in the debugging session, you can see that the memory is
-> zeroed *by the kernel*:
-> 
-> (gdb) p &oop->object->objClass
-> $2 = (OOP *) 0xb7cb8784
-> 
-> We set up a breakpoint a little earlier:
-> 
-> (gdb) b 279
-> Breakpoint 1 at 0x8083a5d: file save.c, line 279.
-> (gdb) shell rm gst.im; make gst.im
-> (gdb) run
-> Starting program: /home/bonzinip/smalltalk-2.95d/gst
-> GNU Smalltalk ready
-> st> ObjectMemory snapshot
-> "Global garbage collection... done"
-> 
-> Breakpoint 1, _gst_save_to_file (
->     fileName=0x812a118 "/home/bonzinip/smalltalk-2.95d/gst.im") at save.c:279
-> 279 ftruncate (imageFd, 0);
-> 
-> Now we set a watchpoint on the location that triggered the NULL access:
-> 
-> (gdb) set can-use-hw-watchpoints 0
-> (gdb) watch *$2
-> Watchpoint 2: *$2
-> (gdb) n
-> Watchpoint 2: *$2
-> 
-> Old value = (OOP) 0x126
-> New value = (OOP) 0x0
-> 0xb7ee9438 in ftruncate64 () from /lib/libc.so.6
-> 
-> >From a disassembly, you can see that it was zeroed by the kernel:
-> 
-> (gdb) disass 0xb7ee9431 0xb7ee94ec
-> 0xb7ee9431 <ftruncate64+49>: mov $0xc2,%eax
-> 0xb7ee9436 <ftruncate64+54>: int $0x80 <---
-> 0xb7ee9438 <ftruncate64+56>: xchg %edi,%ebx
-> 0xb7ee943a <ftruncate64+58>: mov %eax,%esi
-> 
-> I believe the reason is a bad interaction between the private mmap established
-> in save.c:
-> 
->   buf = mmap (NULL, file_size, PROT_READ, MAP_PRIVATE, imageFd, 0);
-> 
-> and truncating the inode on which the mmap was done. Indeed, if the gst.im file
-> is unlinked before opening it, the bug disappears. You can try this from the
-> Smalltalk interpreter, without patching the source code:
-> 
-> $ ./gst
-> GNU Smalltalk ready
-> 
-> st> (File name: 'gst.im') remove
-> a RealFileHandler
-> st> ObjectMemory snapshot
-> "Global garbage collection... done"
-> ObjectMemory
-> st>
-> 
-> (no bus error anymore).
-> 
-> I hope this long explanation is understandable!
+> This is alloc_pages_node(), and converting the nid to a zonelist means
+> that lower levels (specifically __alloc_pages() here) are not aware of
+> nids, as far as I can tell.
 
-So can you confirm that this behaviour was not present in 2.6.8 but is
-present in 2.6.20?
+Yep, this is correct.
 
-Would it be possible to prevail upon you to cook up a little standalone
-testcase?  
+> This isn't a change, I just want to make
+> sure I understand...
+> 
+> <snip>
+> 
+> >  struct page * fastcall
+> >  __alloc_pages(gfp_t gfp_mask, unsigned int order,
+> >  		struct zonelist *zonelist)
+> >  {
+> > +	/*
+> > +	 * Use a temporary nodemask for __GFP_THISNODE allocations. If the
+> > +	 * cost of allocating on the stack or the stack usage becomes
+> > +	 * noticable, allocate the nodemasks per node at boot or compile time
+> > +	 */
+> > +	if (unlikely(gfp_mask & __GFP_THISNODE)) {
+> > +		nodemask_t nodemask;
+> > +
+> > +		return __alloc_pages_internal(gfp_mask, order,
+> > +				zonelist, nodemask_thisnode(&nodemask));
+> > +	}
+> > +
+> >  	return __alloc_pages_internal(gfp_mask, order, zonelist, NULL);
+> >  }
+> 
+> <snip>
+> 
+> So alloc_pages_node() calls here and for THISNODE allocations, we go ask
+> nodemask_thisnode() for a nodemask...
+> 
 
-Thanks.
+Also correct.
+
+> > +static nodemask_t *nodemask_thisnode(nodemask_t *nodemask)
+> > +{
+> > +	/* Build a nodemask for just this node */
+> > +	int nid = numa_node_id();
+> > +
+> > +	nodes_clear(*nodemask);
+> > +	node_set(nid, *nodemask);
+> > +
+> > +	return nodemask;
+> > +}
+> 
+> <snip>
+> 
+> And nodemask_thisnode() always gives us a nodemask with only the node
+> the current process is running on set, I think?
+> 
+
+Yes, I interpreted THISNODE to mean "this node I am running on". Callers
+seemed to expect this but the memoryless needs it to be "this node I am
+running on unless I specify a node in which case I mean that node.".
+
+> That seems really wrong -- and would explain what Lee was seeing while
+> using my patches for the hugetlb pool allocator to use THISNODE
+> allocations. All the allocations would end up coming from whatever node
+> the process happened to be running on. This obviously messes up hugetlb
+> accounting, as I rely on THISNODE requests returning NULL if they go
+> off-node.
+> 
+> I'm not sure how this would be fixed, as __alloc_pages() no longer has
+> the nid to set in the mask.
+> 
+> Am I wrong in my analysis?
+> 
+
+No, you seem to be right on the ball. Can you review the following patch
+please and determine if it fixes the problem in a satisfactory manner? I
+think it does and your tests seemed to give proper values with this patch
+applied but brain no worky work and a second opinion is needed.
+
+====
+Subject: Use specified node ID with GFP_THISNODE if available
+
+It had been assumed that __GFP_THISNODE meant allocating from the local
+node and only the local node. However, users of alloc_pages_node() may also
+specify GFP_THISNODE. In this case, only the specified node should be used.
+This patch will allocate pages only from the requested node when GFP_THISNODE
+is used with alloc_pages_node().
+
+[nacc@us.ibm.com: Detailed analysis of problem]
+Found-by: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
+Signed-off-by: Mel Gorman <mel@csn.ul.ie>
+
+--- 
+ include/linux/gfp.h |   10 ++++++++++
+ mm/page_alloc.c     |    8 +++-----
+ 2 files changed, 13 insertions(+), 5 deletions(-)
+
+diff -rup -X /usr/src/patchset-0.6/bin//dontdiff linux-2.6.23-rc8-mm2-040_use_one_zonelist/include/linux/gfp.h linux-2.6.23-rc8-mm2-050_memoryless_fix/include/linux/gfp.h
+--- linux-2.6.23-rc8-mm2-040_use_one_zonelist/include/linux/gfp.h	2007-10-09 13:52:39.000000000 +0100
++++ linux-2.6.23-rc8-mm2-050_memoryless_fix/include/linux/gfp.h	2007-10-09 14:17:06.000000000 +0100
+@@ -175,6 +175,7 @@ FASTCALL(__alloc_pages(gfp_t, unsigned i
+ extern struct page *
+ FASTCALL(__alloc_pages_nodemask(gfp_t, unsigned int,
+ 				struct zonelist *, nodemask_t *nodemask));
++extern nodemask_t *nodemask_thisnode(int nid, nodemask_t *nodemask);
+ 
+ static inline struct page *alloc_pages_node(int nid, gfp_t gfp_mask,
+ 						unsigned int order)
+@@ -186,6 +187,15 @@ static inline struct page *alloc_pages_n
+ 	if (nid < 0)
+ 		nid = numa_node_id();
+ 
++	/* Use a temporary nodemask for __GFP_THISNODE allocations */
++	if (unlikely(gfp_mask & __GFP_THISNODE)) {
++		nodemask_t nodemask;
++
++		return __alloc_pages_nodemask(gfp_mask, order,
++				node_zonelist(nid),
++				nodemask_thisnode(nid, &nodemask));
++	}
++
+ 	return __alloc_pages(gfp_mask, order, node_zonelist(nid));
+ }
+ 
+diff -rup -X /usr/src/patchset-0.6/bin//dontdiff linux-2.6.23-rc8-mm2-040_use_one_zonelist/mm/page_alloc.c linux-2.6.23-rc8-mm2-050_memoryless_fix/mm/page_alloc.c
+--- linux-2.6.23-rc8-mm2-040_use_one_zonelist/mm/page_alloc.c	2007-10-09 13:52:39.000000000 +0100
++++ linux-2.6.23-rc8-mm2-050_memoryless_fix/mm/page_alloc.c	2007-10-09 14:15:18.000000000 +0100
+@@ -1741,11 +1741,9 @@ got_pg:
+ 	return page;
+ }
+ 
+-static nodemask_t *nodemask_thisnode(nodemask_t *nodemask)
++/* Creates a nodemask suitable for GFP_THISNODE allocations */
++nodemask_t *nodemask_thisnode(int nid, nodemask_t *nodemask)
+ {
+-	/* Build a nodemask for just this node */
+-	int nid = numa_node_id();
+-
+ 	nodes_clear(*nodemask);
+ 	node_set(nid, *nodemask);
+ 
+@@ -1765,7 +1763,7 @@ __alloc_pages(gfp_t gfp_mask, unsigned i
+ 		nodemask_t nodemask;
+ 
+ 		return __alloc_pages_internal(gfp_mask, order,
+-				zonelist, nodemask_thisnode(&nodemask));
++			zonelist, nodemask_thisnode(numa_node_id(), &nodemask));
+ 	}
+ 
+ 	return __alloc_pages_internal(gfp_mask, order, zonelist, NULL);
+
+-- 
+Mel Gorman
+Part-time Phd Student                          Linux Technology Center
+University of Limerick                         IBM Dublin Software Lab
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
