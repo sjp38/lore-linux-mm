@@ -1,51 +1,51 @@
-Date: Wed, 10 Oct 2007 08:04:29 -0700 (PDT)
-From: Linus Torvalds <torvalds@linux-foundation.org>
-Subject: Re: remove zero_page (was Re: -mm merge plans for 2.6.24)
-In-Reply-To: <200710100030.28806.nickpiggin@yahoo.com.au>
-Message-ID: <alpine.LFD.0.999.0710100758460.3838@woody.linux-foundation.org>
-References: <20071001142222.fcaa8d57.akpm@linux-foundation.org>
- <Pine.LNX.4.64.0710100424050.24074@blonde.wat.veritas.com>
- <alpine.LFD.0.999.0710092202000.3838@woody.linux-foundation.org>
- <200710100030.28806.nickpiggin@yahoo.com.au>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=us-ascii
+Subject: Re: [PATCH 6/6] Use one zonelist that is filtered by nodemask
+From: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
+In-Reply-To: <20071009154052.GC12632@skynet.ie>
+References: <20070928142326.16783.98817.sendpatchset@skynet.skynet.ie>
+	 <20070928142526.16783.97067.sendpatchset@skynet.skynet.ie>
+	 <20071009011143.GC14670@us.ibm.com>  <20071009154052.GC12632@skynet.ie>
+Content-Type: text/plain
+Date: Wed, 10 Oct 2007 11:53:40 -0400
+Message-Id: <1192031620.5617.39.camel@localhost>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nick Piggin <nickpiggin@yahoo.com.au>
-Cc: Hugh Dickins <hugh@veritas.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Mel Gorman <mel@skynet.ie>
+Cc: Nishanth Aravamudan <nacc@us.ibm.com>, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, rientjes@google.com, kamezawa.hiroyu@jp.fujitsu.com, clameter@sgi.com
 List-ID: <linux-mm.kvack.org>
 
-
-On Wed, 10 Oct 2007, Nick Piggin wrote:
+On Tue, 2007-10-09 at 16:40 +0100, Mel Gorman wrote:
+<snip>
+> ====
+> Subject: Use specified node ID with GFP_THISNODE if available
 > 
-> It just seems like now might be a good time to just _try_ removing
-> the zero page
+> It had been assumed that __GFP_THISNODE meant allocating from the local
+> node and only the local node. However, users of alloc_pages_node() may also
+> specify GFP_THISNODE. In this case, only the specified node should be used.
+> This patch will allocate pages only from the requested node when GFP_THISNODE
+> is used with alloc_pages_node().
+> 
+> [nacc@us.ibm.com: Detailed analysis of problem]
+> Found-by: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
+> Signed-off-by: Mel Gorman <mel@csn.ul.ie>
+> 
+<snip>
 
-Yes. Let's do your patch immediately after the x86 merge, and just see if 
-anybody screams. 
+Mel:  I applied this patch [to your v8 series--the most recent, I
+think?] and it does fix the problem.  However, now I'm tripping over
+this warning in __alloc_pages_nodemask:
 
-It might take a while, because I certainly agree that whoever would be 
-affected by it is likely to be unusual.
+	/* Specifying both __GFP_THISNODE and nodemask is stupid. Warn user */
+	WARN_ON(gfp_mask & __GFP_THISNODE);
 
-> OK, maybe this is where we are not on the same page.
-> There are 2 issues really. Firstly, performance problem of
-> refcounting the zero-page -- we've established that it causes
-> this livelock and that we should stop refcounting it, right?
+for each huge page allocated.  Rather slow as my console is a virtual
+serial line and the warning includes the stack traceback.
 
-Yes, I do agree that refcounting is problematic. 
+I think we want to just drop this warning, but maybe you have a tighter
+condition that you want to warn about?
 
-> Second issue is the performance difference between removing the
-> zero page completely, and de-refcounting it (it's obviously
-> incorrect to argue for zero page removal for performance reasons
-> if the performance improvement is simply coming from avoiding
-> the refcounting).
-
-Well, even if it's a "when you don't get into the bad behaviour, 
-performance difference is not measurable", and give a before-and-after 
-number for some random but interesting load. Even if it's just a kernel 
-compile..
-
-		Linus
+Lee
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
