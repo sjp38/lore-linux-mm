@@ -1,43 +1,48 @@
-Date: Wed, 10 Oct 2007 05:06:18 +0100 (BST)
-From: Hugh Dickins <hugh@veritas.com>
-Subject: Re: remove zero_page (was Re: -mm merge plans for 2.6.24)
-In-Reply-To: <200710092015.07741.nickpiggin@yahoo.com.au>
-Message-ID: <Pine.LNX.4.64.0710100424050.24074@blonde.wat.veritas.com>
-References: <20071001142222.fcaa8d57.akpm@linux-foundation.org>
- <200710091931.51564.nickpiggin@yahoo.com.au>
- <alpine.LFD.0.999.0710091917410.3838@woody.linux-foundation.org>
- <200710092015.07741.nickpiggin@yahoo.com.au>
+Received: from mail.lu.unisi.ch ([195.176.178.40] verified)
+  by ti-edu.ch (CommuniGate Pro SMTP 5.1.12)
+  with ESMTP id 22472162 for linux-mm@kvack.org; Wed, 10 Oct 2007 06:42:19 +0200
+Message-ID: <470C5824.7030100@lu.unisi.ch>
+Date: Wed, 10 Oct 2007 06:42:12 +0200
+From: Paolo Bonzini <paolo.bonzini@lu.unisi.ch>
+Reply-To: bonzini@gnu.org
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: [Bug 9138] New: kernel overwrites MAP_PRIVATE mmap
+References: <bug-9138-27@http.bugzilla.kernel.org/> <20071009083913.212fb3e3.akpm@linux-foundation.org> <470BA58F.8050907@lu.unisi.ch> <Pine.LNX.4.64.0710091711450.30785@blonde.wat.veritas.com>
+In-Reply-To: <Pine.LNX.4.64.0710091711450.30785@blonde.wat.veritas.com>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nick Piggin <nickpiggin@yahoo.com.au>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Hugh Dickins <hugh@veritas.com>
+Cc: bonzini@gnu.org, Andrew Morton <akpm@linux-foundation.org>, bugme-daemon@bugzilla.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 9 Oct 2007, Nick Piggin wrote:
-> by it ;) To prove my point: the *first* approach I posted to fix this
-> problem was exactly a patch to special-case the zero_page refcounting
-> which was removed with my PageReserved patch. Neither Hugh nor yourself
-> liked it one bit!
+> It is standard behaviour that truncating the inode on which an mmap
+> was done will generate SIGBUS on access to pages of the mmap beyond
+> the new end of file.  Easier to understand when MAP_SHARED, but even
+> when MAP_PRIVATE, and even when private pages have already been
+> C-O-Wed from the file.
 
-True (speaking for me; I forget whether Linus ever got to see it).
+I would have expected MAP_PRIVATE to establish a snapshot of the file, 
+as it appears to do on BSDs.  I find it hard to believe that code in the 
+wild wants this behavior for MAP_PRIVATE (on the other hand, it is 
+clearly the right thing for MAP_SHARED).
 
-I apologize to you, Nick, for getting you into this position of
-fighting for something which wasn't your choice in the first place.
+> Might it have been a different version of Smalltalk which was tested
+> with the 2.6.8 kernel, a version which didn't cause this to happen?
 
-If I thought we'd have a better kernel by dropping this patch and
-going back to one that just avoids the refcounting, I'd say do it.
-No, I still think it's worth trying this one first.
+Two weeks ago it started failing on x86-64 after a kernel update but 
+still worked on i686; then, yesterday it also started failing on i686 
+(guess what, after another kernel update).  It might well be that the 
+bug was latent in 2.6.8 and was uncovered by another mmap-related change 
+in the kernel, or something like that.
 
-But best have your avoid-the-refcounting patch ready and reviewed
-for emergency use if regression does show up somewhere.
+I can work around it by unlink+open; though it will break hard links, 
+that's not a big deal.
 
-Thanks,
-Hugh
+Thanks for the explanation.
 
-[My mails out are at present getting randomly delayed by six hours or
-so, which makes it extra hard for me to engage usefully in any thread.]
+Paolo
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
