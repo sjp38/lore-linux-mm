@@ -1,53 +1,46 @@
-From: Nick Piggin <nickpiggin@yahoo.com.au>
+Date: Tue, 9 Oct 2007 19:22:27 -0700 (PDT)
+From: Linus Torvalds <torvalds@linux-foundation.org>
 Subject: Re: remove zero_page (was Re: -mm merge plans for 2.6.24)
-Date: Tue, 9 Oct 2007 19:31:51 +1000
-References: <20071001142222.fcaa8d57.akpm@linux-foundation.org> <200710090117.47610.nickpiggin@yahoo.com.au> <alpine.LFD.0.999.0710090750020.5039@woody.linux-foundation.org>
-In-Reply-To: <alpine.LFD.0.999.0710090750020.5039@woody.linux-foundation.org>
+In-Reply-To: <200710091931.51564.nickpiggin@yahoo.com.au>
+Message-ID: <alpine.LFD.0.999.0710091917410.3838@woody.linux-foundation.org>
+References: <20071001142222.fcaa8d57.akpm@linux-foundation.org>
+ <200710090117.47610.nickpiggin@yahoo.com.au>
+ <alpine.LFD.0.999.0710090750020.5039@woody.linux-foundation.org>
+ <200710091931.51564.nickpiggin@yahoo.com.au>
 MIME-Version: 1.0
-Content-Type: text/plain;
-  charset="iso-8859-1"
-Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
-Message-Id: <200710091931.51564.nickpiggin@yahoo.com.au>
+Content-Type: TEXT/PLAIN; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Linus Torvalds <torvalds@linux-foundation.org>
+To: Nick Piggin <nickpiggin@yahoo.com.au>
 Cc: Hugh Dickins <hugh@veritas.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Wednesday 10 October 2007 00:52, Linus Torvalds wrote:
-> On Tue, 9 Oct 2007, Nick Piggin wrote:
-> > I have done some tests which indicate a couple of very basic common tools
-> > don't do much zero-page activity (ie. kbuild). And also combined with
-> > some logical arguments to say that a "sane" app wouldn't be using
-> > zero_page much. (basically -- if the app cares about memory or cache
-> > footprint and is using many pages of zeroes, then it should have a more
-> > compressed representation of zeroes anyway).
->
-> One of the things that zero-page has been used for is absolutely *huge*
-> (but sparse) arrays in Fortan programs.
->
-> At least in traditional fortran, it was very hard to do dynamic
-> allocations, so people would allocate the *maximum* array statically, and
-> then not necessarily use everything. I don't know if the pages ever even
-> got paged in,
 
-In which case, they would not be using the ZERO_PAGE?
-If they were paging in (ie. reading) huge reams of zeroes,
-then maybe their algorithms aren't so good anyway? (I don't
-know).
+On Tue, 9 Oct 2007, Nick Piggin wrote:
+> 
+> Where do you suggest I go from here? Is there any way I can
+> convince you to try it? Make it a config option? (just kidding)
 
+No, I'll take the damn patch, but quite frankly, I think your arguments 
+suck.
 
-> but this is the kind of usage which is *not* insane. 
+I've told you so before, and asked for numbers, and all you do is 
+handwave. And this is like the *third*time*, and you don't even seem to 
+admit that you're handwaving.
 
-Yeah, that's why I use the double quotes... I wonder how to
-find out, though. I guess I could ask SGI if they could ask
-around -- but that still comes back to the problem of not being
-able to ever conclusively show that there are no real users of
-the ZERO_PAGE.
+So let's do it, but dammit:
+ - make sure there aren't any invalid statements like this in the final 
+   commit message.
+ - if somebody shows that you were wrong, and points to a real load, 
+   please never *ever* make excuses for this again, ok? 
 
-Where do you suggest I go from here? Is there any way I can
-convince you to try it? Make it a config option? (just kidding)
+Is that a deal? I hope we'll never need to hear about this again, but I 
+really object to the way you've tried to "sell" this thing, by basically 
+starting out dishonest about what the problem was, and even now I've yet 
+to see a *single* performance number even though I've asked for them 
+(except for the problem case, which was introduced by *you*)
+
+		Linus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
