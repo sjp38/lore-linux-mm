@@ -1,67 +1,41 @@
-Subject: Re: [PATCH][for -mm] Fix and Enhancements for memory cgroup [1/6] fix
- refcnt race in charge/uncharge
-In-Reply-To: Your message of "Tue, 9 Oct 2007 18:49:25 +0900"
-	<20071009184925.ad8248d4.kamezawa.hiroyu@jp.fujitsu.com>
-References: <20071009184925.ad8248d4.kamezawa.hiroyu@jp.fujitsu.com>
+Date: Tue, 9 Oct 2007 17:15:23 -0700
+From: "Siddha, Suresh B" <suresh.b.siddha@intel.com>
+Subject: Re: [rfc] more granular page table lock for hugepages
+Message-ID: <20071010001523.GA30676@linux-os.sc.intel.com>
+References: <20071008225234.GC27824@linux-os.sc.intel.com> <b040c32a0710091323v7fab02b0vaab61f0ea12278d@mail.gmail.com> <1191963958.12131.43.camel@dyn9047017100.beaverton.ibm.com>
 Mime-Version: 1.0
-Content-Type: Text/Plain; charset=us-ascii
-Message-Id: <20071009223139.061C21BF47A@siro.lan>
-Date: Wed, 10 Oct 2007 07:31:38 +0900 (JST)
-From: yamamoto@valinux.co.jp (YAMAMOTO Takashi)
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1191963958.12131.43.camel@dyn9047017100.beaverton.ibm.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: kamezawa.hiroyu@jp.fujitsu.com
-Cc: containers@lists.osdl.org, linux-mm@kvack.org, akpm@linux-foundation.org, balbir@linux.vnet.ibm.com
+To: Badari Pulavarty <pbadari@gmail.com>
+Cc: Ken Chen <kenchen@google.com>, "Siddha, Suresh B" <suresh.b.siddha@intel.com>, linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-> The logic of uncharging is 
->  - decrement refcnt -> lock page cgroup -> remove page cgroup.
-> But the logic of charging is
->  - lock page cgroup -> increment refcnt -> return.
+On Tue, Oct 09, 2007 at 02:05:57PM -0700, Badari Pulavarty wrote:
+> On Tue, 2007-10-09 at 13:23 -0700, Ken Chen wrote:
+> > On 10/8/07, Siddha, Suresh B <suresh.b.siddha@intel.com> wrote:
+> > > Appended patch is a quick prototype which extends the concept of separate
+> > > spinlock per page table page to hugepages. More granular spinlock will
+> > > be used to guard the page table entries in the pmd page, instead of using the
+> > > mm's single page_table_lock.
+> > 
+> > What path do you content on mm->page_table_lock?
+> > 
+> > The major fault for hugetlb page is blanket by
+> > hugetlb_instantiation_mutex.  So likelihood of contention on
+> > page_table spin lock is low.  For minor fault, I would think
+> > mapping->i_mmap_lock will kick in before page table lock.  That left
+> > follow_hugetlb_page path.  Is it the case?
 > 
-> Then, one charge will be added to a page_cgroup under being removed.
-> This makes no big trouble (like panic) but one charge is lost.
-> 
-> This patch add a test at charging to verify page_cgroup's refcnt is
-> greater than 0. If not, unlock and retry.
-> 
-> Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-> 
-> 
->  mm/memcontrol.c |    9 +++++++--
->  1 file changed, 7 insertions(+), 2 deletions(-)
-> 
-> Index: linux-2.6.23-rc8-mm2/mm/memcontrol.c
-> ===================================================================
-> --- linux-2.6.23-rc8-mm2.orig/mm/memcontrol.c
-> +++ linux-2.6.23-rc8-mm2/mm/memcontrol.c
-> @@ -271,14 +271,19 @@ int mem_cgroup_charge(struct page *page,
->  	 * to see if the cgroup page already has a page_cgroup associated
->  	 * with it
->  	 */
-> +retry:
->  	lock_page_cgroup(page);
->  	pc = page_get_page_cgroup(page);
->  	/*
->  	 * The page_cgroup exists and the page has already been accounted
->  	 */
->  	if (pc) {
-> -		atomic_inc(&pc->ref_cnt);
-> -		goto done;
-> +		if (unlikely(!atomic_inc_not_zero(&pc->ref_cnt))) {
-> +			/* this page is under being uncharge ? */
-> +			unlock_page_cgroup(page);
+> Yes. follow_hugetlb_page() is where our benchmark team has seen
+> contention with threaded workload.
 
-cpu_relax() here?
+That's correct. And the direct IO leading to those calls.
 
-YAMAMOTO Takashi
-
-> +			goto retry;
-> +		} else
-> +			goto done;
->  	}
->  
->  	unlock_page_cgroup(page);
+thanks,
+suresh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
