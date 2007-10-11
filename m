@@ -1,64 +1,46 @@
-Date: Thu, 11 Oct 2007 14:47:40 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: msync(2) bug(?), returns AOP_WRITEPAGE_ACTIVATE to userland
-Message-Id: <20071011144740.136b31a8.akpm@linux-foundation.org>
-In-Reply-To: <200710071920.l97JKJX5018871@agora.fsl.cs.sunysb.edu>
-References: <200710071920.l97JKJX5018871@agora.fsl.cs.sunysb.edu>
+Received: from d01relay02.pok.ibm.com (d01relay02.pok.ibm.com [9.56.227.234])
+	by e5.ny.us.ibm.com (8.13.8/8.13.8) with ESMTP id l9BMA6wf000926
+	for <linux-mm@kvack.org>; Thu, 11 Oct 2007 18:10:06 -0400
+Received: from d01av03.pok.ibm.com (d01av03.pok.ibm.com [9.56.224.217])
+	by d01relay02.pok.ibm.com (8.13.8/8.13.8/NCO v8.5) with ESMTP id l9BMA6G7075490
+	for <linux-mm@kvack.org>; Thu, 11 Oct 2007 18:10:06 -0400
+Received: from d01av03.pok.ibm.com (loopback [127.0.0.1])
+	by d01av03.pok.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l9BM9u7F008952
+	for <linux-mm@kvack.org>; Thu, 11 Oct 2007 18:09:56 -0400
+Subject: Re: [Libhugetlbfs-devel] [PATCH 2/4] hugetlb: Try to grow hugetlb
+	pool for MAP_PRIVATE mappings
+From: Dave Hansen <haveblue@us.ibm.com>
+In-Reply-To: <20071001151758.12825.26569.stgit@kernel>
+References: <20071001151736.12825.75984.stgit@kernel>
+	 <20071001151758.12825.26569.stgit@kernel>
+Content-Type: text/plain
+Date: Thu, 11 Oct 2007 15:09:43 -0700
+Message-Id: <1192140583.20859.40.camel@localhost>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Erez Zadok <ezk@cs.sunysb.edu>
-Cc: linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, ryan@finnie.org, cjwatson@ubuntu.com, linux-mm@kvack.org
+To: Adam Litke <agl@us.ibm.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, libhugetlbfs-devel@lists.sourceforge.net, Dave McCracken <dave.mccracken@oracle.com>, linux-mm@kvack.org, Mel Gorman <mel@skynet.ie>, Ken Chen <kenchen@google.com>, Andy Whitcroft <apw@shadowen.org>, Bill Irwin <bill.irwin@oracle.com>
 List-ID: <linux-mm.kvack.org>
 
-On Sun, 7 Oct 2007 15:20:19 -0400
-Erez Zadok <ezk@cs.sunysb.edu> wrote:
+On Mon, 2007-10-01 at 08:17 -0700, Adam Litke wrote:
+> 
+>         spin_lock(&hugetlb_lock);
+> -       enqueue_huge_page(page);
+> +       if (surplus_huge_pages_node[nid]) {
+> +               update_and_free_page(page);
+> +               surplus_huge_pages--;
+> +               surplus_huge_pages_node[nid]--;
+> +       } else {
+> +               enqueue_huge_page(page);
+> +       }
+>         spin_unlock(&hugetlb_lock);
+>  } 
 
-> According to vfs.txt, ->writepage() may return AOP_WRITEPAGE_ACTIVATE back
-> to the VFS/VM.  Indeed some filesystems such as tmpfs can return
-> AOP_WRITEPAGE_ACTIVATE; and stackable file systems (e.g., Unionfs) also
-> return AOP_WRITEPAGE_ACTIVATE if the lower f/s returned it.
-> 
-> Anyway, some Ubuntu users of Unionfs reported that msync(2) sometimes
-> returns AOP_WRITEPAGE_ACTIVATE (decimal 524288) back to userland.
-> Therefore, some user programs fail, esp. if they're written such as this:
-> 
->      err = msync(...);
->      if (err != 0)
-> 	// fail
-> 
-> They temporarily fixed the specific program in question (apt-get) to check
-> 
->      if (err < 0)
-> 	// fail
-> 
-> Is this a bug indeed, or are user programs supposed to handle
-> AOP_WRITEPAGE_ACTIVATE (I hope not the latter).  If it's a kernel bug, what
-> should the kernel return: a zero, or an -errno (and which one)?
-> 
+Why does it matter that these surplus pages are tracked per-node?
 
-shit.  That's a nasty bug.  Really userspace should be testing for -1, but
-the msync() library function should only ever return 0 or -1.
-
-Does this fix it?
-
---- a/mm/page-writeback.c~a
-+++ a/mm/page-writeback.c
-@@ -850,8 +850,10 @@ retry:
- 
- 			ret = (*writepage)(page, wbc, data);
- 
--			if (unlikely(ret == AOP_WRITEPAGE_ACTIVATE))
-+			if (unlikely(ret == AOP_WRITEPAGE_ACTIVATE)) {
- 				unlock_page(page);
-+				ret = 0;
-+			}
- 			if (ret || (--(wbc->nr_to_write) <= 0))
- 				done = 1;
- 			if (wbc->nonblocking && bdi_write_congested(bdi)) {
-_
+-- Dave
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
