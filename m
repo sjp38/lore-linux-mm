@@ -1,75 +1,64 @@
-Received: from d23relay03.au.ibm.com (d23relay03.au.ibm.com [202.81.18.234])
-	by e23smtp06.au.ibm.com (8.13.1/8.13.1) with ESMTP id l9BJvCIP022605
-	for <linux-mm@kvack.org>; Fri, 12 Oct 2007 05:57:12 +1000
-Received: from d23av04.au.ibm.com (d23av04.au.ibm.com [9.190.235.139])
-	by d23relay03.au.ibm.com (8.13.8/8.13.8/NCO v8.5) with ESMTP id l9BJvDOo4890644
-	for <linux-mm@kvack.org>; Fri, 12 Oct 2007 05:57:13 +1000
-Received: from d23av04.au.ibm.com (loopback [127.0.0.1])
-	by d23av04.au.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l9BJuuC7031482
-	for <linux-mm@kvack.org>; Fri, 12 Oct 2007 05:56:57 +1000
-Message-ID: <470E7FFE.6020309@linux.vnet.ibm.com>
-Date: Fri, 12 Oct 2007 01:26:46 +0530
-From: Balbir Singh <balbir@linux.vnet.ibm.com>
-Reply-To: balbir@linux.vnet.ibm.com
-MIME-Version: 1.0
-Subject: Re: [PATCH][BUGFIX][for -mm] Misc fix for memory cgroup [0/5]
-References: <20071011135345.5d9a4c06.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20071011135345.5d9a4c06.kamezawa.hiroyu@jp.fujitsu.com>
-Content-Type: text/plain; charset=ISO-8859-1
+Date: Thu, 11 Oct 2007 14:47:40 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: msync(2) bug(?), returns AOP_WRITEPAGE_ACTIVATE to userland
+Message-Id: <20071011144740.136b31a8.akpm@linux-foundation.org>
+In-Reply-To: <200710071920.l97JKJX5018871@agora.fsl.cs.sunysb.edu>
+References: <200710071920.l97JKJX5018871@agora.fsl.cs.sunysb.edu>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "containers@lists.osdl.org" <containers@lists.osdl.org>
+To: Erez Zadok <ezk@cs.sunysb.edu>
+Cc: linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, ryan@finnie.org, cjwatson@ubuntu.com, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-KAMEZAWA Hiroyuki wrote:
-> This set is a fix for memory cgroup against 2.6.23-rc8-mm2.
-> Not including any new feature.
+On Sun, 7 Oct 2007 15:20:19 -0400
+Erez Zadok <ezk@cs.sunysb.edu> wrote:
+
+> According to vfs.txt, ->writepage() may return AOP_WRITEPAGE_ACTIVATE back
+> to the VFS/VM.  Indeed some filesystems such as tmpfs can return
+> AOP_WRITEPAGE_ACTIVATE; and stackable file systems (e.g., Unionfs) also
+> return AOP_WRITEPAGE_ACTIVATE if the lower f/s returned it.
 > 
-> If this is merged to the next -mm, I'm happy.
+> Anyway, some Ubuntu users of Unionfs reported that msync(2) sometimes
+> returns AOP_WRITEPAGE_ACTIVATE (decimal 524288) back to userland.
+> Therefore, some user programs fail, esp. if they're written such as this:
 > 
-> Patches:
-> [1/5] ... fix refcnt handling in charge mem_cgroup_charge()
-> [2/5] ... fix error handling path in mem_cgroup_charge()
-> [3/5] ... check page->cgroup under lock again.
-> [4/5] ... fix mem_cgroup_isolate_pages() to skip !PageLRU() pages.
-> [5/5] ... fix page migration under memory controller, fixes leak.
+>      err = msync(...);
+>      if (err != 0)
+> 	// fail
 > 
-> Changes from previous ones.
->  -- dropped new feature.... force_empty patch. It will be posted later.
->  -- fix typos
->  -- added comments
+> They temporarily fixed the specific program in question (apt-get) to check
 > 
-> Tested on x86-64/fake-NUMA system.
+>      if (err < 0)
+> 	// fail
+> 
+> Is this a bug indeed, or are user programs supposed to handle
+> AOP_WRITEPAGE_ACTIVATE (I hope not the latter).  If it's a kernel bug, what
+> should the kernel return: a zero, or an -errno (and which one)?
 > 
 
-I tested the patches, ran kernbench, lmbench and some tests with
-parallel containers. Except for the one typo in the page migration
-patch, the patches worked quite well. KAMEZAWA-San, could you please
-send the updated patch with the compilation fix.
+shit.  That's a nasty bug.  Really userspace should be testing for -1, but
+the msync() library function should only ever return 0 or -1.
 
-I am yet to test the migration fix (I am yet to get access to a NUMA/
-box capable of fake NUMA). I have not measured the performance impact
-of these patches.
+Does this fix it?
 
-Andrew, could you please consider these patches for -mm inclusion once
-KAMEZAWA-San sends out the fixed migration patch.
-
-> Thanks,
-> -Kame
-> 
-> 
-> 
-> 
-> 
-
-
--- 
-	Warm Regards,
-	Balbir Singh
-	Linux Technology Center
-	IBM, ISTL
+--- a/mm/page-writeback.c~a
++++ a/mm/page-writeback.c
+@@ -850,8 +850,10 @@ retry:
+ 
+ 			ret = (*writepage)(page, wbc, data);
+ 
+-			if (unlikely(ret == AOP_WRITEPAGE_ACTIVATE))
++			if (unlikely(ret == AOP_WRITEPAGE_ACTIVATE)) {
+ 				unlock_page(page);
++				ret = 0;
++			}
+ 			if (ret || (--(wbc->nr_to_write) <= 0))
+ 				done = 1;
+ 			if (wbc->nonblocking && bdi_write_congested(bdi)) {
+_
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
