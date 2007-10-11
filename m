@@ -1,80 +1,107 @@
-Subject: Re: [PATCH/RFC 2/2] Mem Policy: Fixup Shm and Interleave Policy
-	Reference Counting
-From: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
-In-Reply-To: <Pine.LNX.4.64.0710101415470.32488@schroedinger.engr.sgi.com>
-References: <20071010205837.7230.42818.sendpatchset@localhost>
-	 <20071010205849.7230.81877.sendpatchset@localhost>
-	 <Pine.LNX.4.64.0710101415470.32488@schroedinger.engr.sgi.com>
-Content-Type: text/plain
-Date: Thu, 11 Oct 2007 09:41:00 -0400
-Message-Id: <1192110060.5036.4.camel@localhost>
-Mime-Version: 1.0
+Date: Thu, 11 Oct 2007 13:12:15 -0400
+Message-ID: <65253275.79862353@virtual.com>
+From: "Euro Prime Casino" <goliath@agh.com>
+Subject: =?iso-8859-1?Q?Herzlichen_Gl=FCckwunsch=2C_Sie_haben_300_Euro_gewonnen!?=
+MIME-Version: 1.0
+Content-Type: text/html; charset=iso-8859-1
 Content-Transfer-Encoding: 7bit
-Sender: owner-linux-mm@kvack.org
-Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
-Cc: akpm@linux-foundation.org, ak@suse.de, gregkh@suse.de, linux-mm@kvack.org, mel@skynet.ie, eric.whitney@hp.com
+Return-Path: <goliath@agh.com>
+To: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 2007-10-10 at 14:22 -0700, Christoph Lameter wrote:
-> On Wed, 10 Oct 2007, Lee Schermerhorn wrote:
-> 
-> > * get_vma_policy() assumes that shared policies are referenced by
-> >   the get_policy() vm_op, if any.  This is true for shmem_get_policy()
-> >   but not for shm_get_policy() when the "backing file" does not
-> >   support a get_policy() vm_op.  The latter is the case for SHM_HUGETLB
-> >   segments.  Because get_vma_policy() expects the get_policy() op to
-> >   have added a ref, it doesn't do so itself.  This results in 
-> >   premature freeing of the policy.  Add the mpol_get() to the 
-> >   shm_get_policy() op when the backing file doesn't support shared
-> >   policies.
-> 
-> Could you add support for SHM_HUGETLB segments instead to make this 
-> consistent so that shared policies always use a get_policy function?
+<html>
 
-I have patches that do this as part of my shared policy series that is
-currently "on hold" while we sort these other things out.  SHM_HUGETLB
-segments do use the shm_get_policy() vm_op.  However, it detects that
-the hugetlb shm segment does not support get_policy(), so it just uses
-the vma policy at that address.  You should like this behavior! :-).  My
-patches implement shared policy for SHM_HUGETLB, which you don't like.
-So, I think we should leave this as is...  for now.
+<head>
+<meta http-equiv=Content-Type content="text/html; charset=big5">
 
-> 
-> > * Further, shm_get_policy() was falling back to current task's task
-> >   policy if the backing file did not support get_policy() vm_op and
-> >   the vma policy was null.  This is not valid when get_vma_policy() is
-> >   called from show_numa_map() as task != current.  Also, this did
-> >   not match the behavior of the shmem_get_policy() vm_op which did
-> >   NOT fall back to task policy.  So, modify shm_get_policy() NOT to
-> >   fall back to current->mempolicy.
-> 
-> Hmmm..... The show_numa_map issue is special. Maybe fix that one instead?
-> 
-> > Index: Linux/include/linux/mempolicy.h
-> > ===================================================================
-> > --- Linux.orig/include/linux/mempolicy.h	2007-10-10 13:36:44.000000000 -0400
-> > +++ Linux/include/linux/mempolicy.h	2007-10-10 14:20:28.000000000 -0400
-> > @@ -2,6 +2,7 @@
-> >  #define _LINUX_MEMPOLICY_H 1
-> >  
-> >  #include <linux/errno.h>
-> > +#include <linux/mm.h>
-> 
-> I think we tried to avoid a heavy include here. mm.h is huge and draws in 
-> lots of other include files. The additional include is only needed for the 
-> VM_BUG_ON it seems? BUG_ON would also work.
+<title>Spielen auch Sie EuroPrimeCasino f&uuml;r Windows(TM) und holen Sie 
+sich 300 Euro gratis</title>
 
-Yeah, I know.  However, I like the idea of having a separately
-configurable VM debug check.  I will remove the include and the
-VM_BUG_ON for now.   But, what would [any one else?] think about moving
-VM_BUG_ON() to asm-generic/bug.h in a separate patch?
+<style>
+<!--
+ /* Style Definitions */
+ p.MsoNormal, li.MsoNormal, div.MsoNormal
+	{mso-style-parent:"";
+	margin:0cm;
+	margin-bottom:.0001pt;
+	mso-pagination:widow-orphan;
+	font-size:12.0pt;
+	font-family:"Times New Roman";
+	mso-fareast-font-family:"Times New Roman";
+	mso-ansi-language:EN-US;
+	mso-fareast-language:EN-US;
+	mso-bidi-language:HE;
+	layout-grid-mode:line;}
+a:link, span.MsoHyperlink
+	{font-family:"Times New Roman";
+	mso-bidi-font-family:"Times New Roman";
+	color:blue;
+	text-decoration:underline;
+	text-underline:single;}
+a:visited, span.MsoHyperlinkFollowed
+	{color:purple;
+	text-decoration:underline;
+	text-underline:single;}
+@page Section1
+	{size:595.3pt 841.9pt;
+	margin:2.0cm 42.5pt 2.0cm 3.0cm;
+	mso-header-margin:35.4pt;
+	mso-footer-margin:35.4pt;
+	mso-paper-source:0;}
+div.Section1
+	{page:Section1;}
+-->
+</style>
 
-Lee
+</head>
 
+<body lang=DE link=blue vlink=purple style='tab-interval:35.4pt'>
 
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+<div class=Section1>
+
+<p class=MsoNormal>
+<span lang=DE style='mso-ansi-language:DE'>Spielen auch Sie EuroPrimeCasino 
+f&uuml;r Windows(TM) und holen Sie sich 300 Euro gratis.<o:p></o:p></span></p>
+
+<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>&nbsp;
+<o:p></o:p></span></p>
+
+<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>Klicken Sie 
+hier f&uuml;r den Download und spielen Sie im EuroPrimeCasino mit
+weiteren 2 Millionen Spielern im besten Online-Casino der Welt!
+<o:p></o:p></span></p>
+
+<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>&nbsp;
+<o:p></o:p></span></p>
+
+<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>- 40 
+Blackjack-Tische, 8 Roulette-Tische und 180 Spielautomaten warten
+hier auf Sie.<o:p></o:p></span></p>
+
+<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>- Es gibt 
+progressive Jackpots im Wert von &uuml;ber 4 Millionen Dollar zu
+gewinnen<o:p></o:p></span></p>
+
+<p class=MsoNormal><span lang=EN-US style='mso-bidi-language:AR-SA'>- VIP
+<o:p></o:p></span></p>
+
+<p class=MsoNormal><span lang=EN-US style='mso-bidi-language:AR-SA'>- Visa,
+Mastercard, Diners, NETeller, Click2Pay und UKash<o:p></o:p></span></p>
+
+<p class=MsoNormal><span lang=EN-US style='mso-bidi-language:AR-SA'>&nbsp;
+<o:p></o:p></span></p>
+
+<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>Spielen Sie 
+gleich jetzt und holen Sie sich Ihre 300 Euro - klicken Sie
+hier: <a href="http://www.euro-prime-slots.com/de/">
+www.euro-prime-slots.com/de/</a>
+<o:p></o:p></span></p>
+
+<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
+<o:p>&nbsp;</o:p></span></p>
+
+</div>
+
+</body>
+
+</html>
