@@ -1,107 +1,103 @@
-Date: Thu, 11 Oct 2007 13:12:15 -0400
-Message-ID: <65253275.79862353@virtual.com>
-From: "Euro Prime Casino" <goliath@agh.com>
-Subject: =?iso-8859-1?Q?Herzlichen_Gl=FCckwunsch=2C_Sie_haben_300_Euro_gewonnen!?=
-MIME-Version: 1.0
-Content-Type: text/html; charset=iso-8859-1
+Subject: [RFC] mm - background_writeout exits when pages_skipped ?
+From: richard kennedy <richard@rsk.demon.co.uk>
+Content-Type: text/plain
+Date: Thu, 11 Oct 2007 18:19:34 +0100
+Message-Id: <1192123174.3082.41.camel@castor.rsk.org>
+Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
-Return-Path: <goliath@agh.com>
-To: owner-linux-mm@kvack.org
+Sender: owner-linux-mm@kvack.org
+Return-Path: <owner-linux-mm@kvack.org>
+To: lkml <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-<html>
+When background_writeout() (mm/page-writeback.c) finds any pages_skipped
+in writeback_inodes() and it didn't meet any congestion, it exits even
+when it hasn't written enough pages yet.
 
-<head>
-<meta http-equiv=Content-Type content="text/html; charset=big5">
+Performing 2 ( or more) concurrent copies of a large file, often creates
+lots of skipped pages (1000+) making background_writeout exit and so
+pages don't get written out until we reach dirty_ratio.
 
-<title>Spielen auch Sie EuroPrimeCasino f&uuml;r Windows(TM) und holen Sie 
-sich 300 Euro gratis</title>
+I added some instrumentation to fs/buffer.c in
+__block_write_full_page(..) and all the skipped pages come from here :-
 
-<style>
-<!--
- /* Style Definitions */
- p.MsoNormal, li.MsoNormal, div.MsoNormal
-	{mso-style-parent:"";
-	margin:0cm;
-	margin-bottom:.0001pt;
-	mso-pagination:widow-orphan;
-	font-size:12.0pt;
-	font-family:"Times New Roman";
-	mso-fareast-font-family:"Times New Roman";
-	mso-ansi-language:EN-US;
-	mso-fareast-language:EN-US;
-	mso-bidi-language:HE;
-	layout-grid-mode:line;}
-a:link, span.MsoHyperlink
-	{font-family:"Times New Roman";
-	mso-bidi-font-family:"Times New Roman";
-	color:blue;
-	text-decoration:underline;
-	text-underline:single;}
-a:visited, span.MsoHyperlinkFollowed
-	{color:purple;
-	text-decoration:underline;
-	text-underline:single;}
-@page Section1
-	{size:595.3pt 841.9pt;
-	margin:2.0cm 42.5pt 2.0cm 3.0cm;
-	mso-header-margin:35.4pt;
-	mso-footer-margin:35.4pt;
-	mso-paper-source:0;}
-div.Section1
-	{page:Section1;}
--->
-</style>
+done:
+	if (nr_underway == 0) {
+		/*
+		 * The page was marked dirty, but the buffers were
+		 * clean.  Someone wrote them back by hand with
+		 * ll_rw_block/submit_bh.  A rare case.
+		 */
+		end_page_writeback(page);
 
-</head>
+		/*
+		 * The page and buffer_heads can be released at any time from
+		 * here on.
+		 */
+		wbc->pages_skipped++;	/* We didn't write this page */
 
-<body lang=DE link=blue vlink=purple style='tab-interval:35.4pt'>
+maybe not such a rare case! :)
 
-<div class=Section1>
+I've been testing 2.6.23 on an AMD64x2.
 
-<p class=MsoNormal>
-<span lang=DE style='mso-ansi-language:DE'>Spielen auch Sie EuroPrimeCasino 
-f&uuml;r Windows(TM) und holen Sie sich 300 Euro gratis.<o:p></o:p></span></p>
+Here's a quick patch for background_writeout to ignore pages_skipped. It
+helps keep nr_dirty between dirty_background_ratio & dirty_ratio, and
+once the copies have finish nr_dirty quickly drops back to
+dirty_background_ratio.
 
-<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>&nbsp;
-<o:p></o:p></span></p>
+Without the patch during the copy nr_dirty stays around dirty_ratio and
+takes a long time to drop after it finishes.   
 
-<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>Klicken Sie 
-hier f&uuml;r den Download und spielen Sie im EuroPrimeCasino mit
-weiteren 2 Millionen Spielern im besten Online-Casino der Welt!
-<o:p></o:p></span></p>
+It seems that this patch tackles the problem, but is there a better way
+to fix it? 
+And is there a good reason to abandon this writeout loop if a page gets
+skipped for any other reason? 
 
-<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>&nbsp;
-<o:p></o:p></span></p>
+thanks
+richard
 
-<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>- 40 
-Blackjack-Tische, 8 Roulette-Tische und 180 Spielautomaten warten
-hier auf Sie.<o:p></o:p></span></p>
 
-<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>- Es gibt 
-progressive Jackpots im Wert von &uuml;ber 4 Millionen Dollar zu
-gewinnen<o:p></o:p></span></p>
 
-<p class=MsoNormal><span lang=EN-US style='mso-bidi-language:AR-SA'>- VIP
-<o:p></o:p></span></p>
+diff --git a/mm/page-writeback.c b/mm/page-writeback.c
+index 4472036..5a6747b 100644
+--- a/mm/page-writeback.c
++++ b/mm/page-writeback.c
+@@ -371,6 +371,7 @@ static void background_writeout(unsigned long _min_pages)
+ 		.nr_to_write	= 0,
+ 		.nonblocking	= 1,
+ 		.range_cyclic	= 1,
++		.encountered_congestion = 0,
+ 	};
+ 
+ 	for ( ; ; ) {
+@@ -382,17 +383,16 @@ static void background_writeout(unsigned long _min_pages)
+ 			global_page_state(NR_UNSTABLE_NFS) < background_thresh
+ 				&& min_pages <= 0)
+ 			break;
+-		wbc.encountered_congestion = 0;
++		if (wbc.encountered_congestion) {
++			congestion_wait(WRITE, HZ/10);
++			wbc.encountered_congestion = 0;
++		}
+ 		wbc.nr_to_write = MAX_WRITEBACK_PAGES;
+ 		wbc.pages_skipped = 0;
+ 		writeback_inodes(&wbc);
+ 		min_pages -= MAX_WRITEBACK_PAGES - wbc.nr_to_write;
+-		if (wbc.nr_to_write > 0 || wbc.pages_skipped > 0) {
+-			/* Wrote less than expected */
+-			congestion_wait(WRITE, HZ/10);
+-			if (!wbc.encountered_congestion)
+-				break;
+-		}
++		if (wbc.nr_to_write > 0 && !wbc.encountered_congestion)
++			break;
+ 	}
+ }
+ 
 
-<p class=MsoNormal><span lang=EN-US style='mso-bidi-language:AR-SA'>- Visa,
-Mastercard, Diners, NETeller, Click2Pay und UKash<o:p></o:p></span></p>
 
-<p class=MsoNormal><span lang=EN-US style='mso-bidi-language:AR-SA'>&nbsp;
-<o:p></o:p></span></p>
-
-<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>Spielen Sie 
-gleich jetzt und holen Sie sich Ihre 300 Euro - klicken Sie
-hier: <a href="http://www.euro-prime-slots.com/de/">
-www.euro-prime-slots.com/de/</a>
-<o:p></o:p></span></p>
-
-<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
-<o:p>&nbsp;</o:p></span></p>
-
-</div>
-
-</body>
-
-</html>
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
