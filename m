@@ -1,201 +1,226 @@
-Date: Thu, 11 Oct 2007 14:02:20 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: [PATCH][BUGFIX][for -mm] Misc fix for memory cgroup [5/5] --- fix
- page migration under memory controller
-Message-Id: <20071011140220.a62daf1a.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20071011135345.5d9a4c06.kamezawa.hiroyu@jp.fujitsu.com>
-References: <20071011135345.5d9a4c06.kamezawa.hiroyu@jp.fujitsu.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from d01relay02.pok.ibm.com (d01relay02.pok.ibm.com [9.56.227.234])
+	by e5.ny.us.ibm.com (8.13.8/8.13.8) with ESMTP id l9B5J4n5003000
+	for <linux-mm@kvack.org>; Thu, 11 Oct 2007 01:19:04 -0400
+Received: from d01av02.pok.ibm.com (d01av02.pok.ibm.com [9.56.224.216])
+	by d01relay02.pok.ibm.com (8.13.8/8.13.8/NCO v8.5) with ESMTP id l9B5J25C136100
+	for <linux-mm@kvack.org>; Thu, 11 Oct 2007 01:19:04 -0400
+Received: from d01av02.pok.ibm.com (loopback [127.0.0.1])
+	by d01av02.pok.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l9B5J1hN005478
+	for <linux-mm@kvack.org>; Thu, 11 Oct 2007 01:19:02 -0400
+Date: Wed, 10 Oct 2007 22:18:59 -0700
+From: Nishanth Aravamudan <nacc@us.ibm.com>
+Subject: [PATCH][UPDATED] hugetlb: fix hugepage allocation with memoryless nodes
+Message-ID: <20071011051859.GA18496@us.ibm.com>
+References: <20071009012724.GA26472@us.ibm.com> <20071011041119.GB32657@us.ibm.com> <Pine.LNX.4.64.0710102112470.28507@schroedinger.engr.sgi.com> <20071011042948.GC32657@us.ibm.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20071011042948.GC32657@us.ibm.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "containers@lists.osdl.org" <containers@lists.osdl.org>
+To: Christoph Lameter <clameter@sgi.com>
+Cc: anton@samba.org, akpm@linux-foundation.org, lee.schermerhorn@hp.com, mel@csn.ul.ie, agl@us.ibm.com, wli@holomorphy.com, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-While using memory control cgroup, page-migration under it works as following.
-==
- 1. uncharge all refs at try to unmap.
- 2. charge regs again remove_migration_ptes()
-==
-This is simple but has following problems.
-==
- The page is uncharged and charged back again if *mapped*.
-    - This means that cgroup before migration can be different from one after
-      migration
-    - If page is not mapped but charged as page cache, charge is just ignored
-      (because not mapped, it will not be uncharged before migration)
-      This is memory leak.
-==
-This patch tries to keep memory cgroup at page migration by increasing
-one refcnt during it. 3 functions are added.
+On 10.10.2007 [21:29:48 -0700], Nishanth Aravamudan wrote:
+> On 10.10.2007 [21:14:48 -0700], Christoph Lameter wrote:
+> > On Wed, 10 Oct 2007, Nishanth Aravamudan wrote:
+> > 
+> > > > +++ b/mm/hugetlb.c
+> > > > @@ -32,6 +32,7 @@ static unsigned int surplus_huge_pages_node[MAX_NUMNODES];
+> > > >  static gfp_t htlb_alloc_mask = GFP_HIGHUSER;
+> > > >  unsigned long hugepages_treat_as_movable;
+> > > >  int hugetlb_dynamic_pool;
+> > > > +static int last_allocated_nid;
+> > > 
+> > > While reworking patch 2/2 to incorporate the current state of hugetlb.c
+> > > after Adam's stack is applied, I realized that this is not a very good
+> > > name. It actually is the *current* nid to try to allocate hugepages on.
+> > > 
+> > > Christoph, since you proposed the name, do you think
+> > > 
+> > > hugetlb_current_nid
+> > > 
+> > > is ok, too? If so I'll change the name throughout the patch (no
+> > > functional change).
+> > 
+> > Sure. However, current is bit ambiguous. Is it the node we used last
+> > or the one to use next? Call it next_hugetlb_nid? Either way is fine
+> > with me though.
+> 
+> Good point. Given the way the code is laid out now, it always represents
+> the nid to allocate on next (so is the first one to try).
+> 
+> next_hugetlb_nid or hugetlb_next_nid it is.
 
- mem_cgroup_prepare_migration() --- increase refcnt of page->page_cgroup
- mem_cgroup_end_migration()     --- decrease refcnt of page->page_cgroup
- mem_cgroup_page_migration() --- copy page->page_cgroup from old page to
-                                 new page.
+hugetlb: fix hugepage allocation with memoryless nodes
 
-During migration
-  - old page is under PG_locked.
-  - new page is under PG_locked, too.
-  - both old page and new page is not on LRU.
+Anton found a problem with the hugetlb pool allocation when some nodes
+have no memory (http://marc.info/?l=linux-mm&m=118133042025995&w=2). Lee
+worked on versions that tried to fix it, but none were accepted.
+Christoph has created a set of patches which allow for GFP_THISNODE
+allocations to fail if the node has no memory.
 
-This 3 facts guarantees page_cgroup() migration has no race.
+Currently, alloc_fresh_huge_page() returns NULL when it is not able to
+allocate a huge page on the current node, as specified by its custom
+interleave variable. The callers of this function, though, assume that a
+failure in alloc_fresh_huge_page() indicates no hugepages can be
+allocated on the system period. This might not be the case, for
+instance, if we have an uneven NUMA system, and we happen to try to
+allocate a hugepage on a node with less memory and fail, while there is
+still plenty of free memory on the other nodes.
 
-Tested and worked well in x86_64/fake-NUMA box.
+To correct this, make alloc_fresh_huge_page() search through all online
+nodes before deciding no hugepages can be allocated. Add a helper
+function for actually allocating the hugepage. Use a new global nid
+iterator to control which nid to allocate on.
 
-Changelog v1 -> v2:
-  - reflected comments.
-  - divided a patch to !PageLRU patch and migration patch.
+Note: we expect particular semantics for __GFP_THISNODE, which are now
+enforced even for memoryless nodes. That is, there is should be no
+fallback to other nodes. Therefore, we rely on the nid passed into
+alloc_pages_node() to be the nid the page comes from. If this is
+incorrect, accounting will break.
 
+Tested on x86 !NUMA, x86 NUMA, x86_64 NUMA and ppc64 NUMA (with 2
+memoryless nodes).
 
+Before on the ppc64 box:
+Trying to clear the hugetlb pool
+Done.       0 free
+Trying to resize the pool to 100
+Node 0 HugePages_Free:     25
+Node 1 HugePages_Free:     75
+Node 2 HugePages_Free:      0
+Node 3 HugePages_Free:      0
+Done. Initially     100 free
+Trying to resize the pool to 200
+Node 0 HugePages_Free:     50
+Node 1 HugePages_Free:    150
+Node 2 HugePages_Free:      0
+Node 3 HugePages_Free:      0
+Done.     200 free
 
-Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+After:
+Trying to clear the hugetlb pool
+Done.       0 free
+Trying to resize the pool to 100
+Node 0 HugePages_Free:     50
+Node 1 HugePages_Free:     50
+Node 2 HugePages_Free:      0
+Node 3 HugePages_Free:      0
+Done. Initially     100 free
+Trying to resize the pool to 200
+Node 0 HugePages_Free:    100
+Node 1 HugePages_Free:    100
+Node 2 HugePages_Free:      0
+Node 3 HugePages_Free:      0
+Done.     200 free
 
- include/linux/memcontrol.h |   19 +++++++++++++++++++
- mm/memcontrol.c            |   43 +++++++++++++++++++++++++++++++++++++++++++
- mm/migrate.c               |   14 +++++++++++---
- 3 files changed, 73 insertions(+), 3 deletions(-)
+Signed-off-by: Nishanth Aravamudan <nacc@us.ibm.com>
+Acked-by: Christoph Lameter <clameter@sgi.com>
 
-Index: devel-2.6.23-rc8-mm2/mm/migrate.c
-===================================================================
---- devel-2.6.23-rc8-mm2.orig/mm/migrate.c
-+++ devel-2.6.23-rc8-mm2/mm/migrate.c
-@@ -598,9 +598,10 @@ static int move_to_new_page(struct page 
- 	else
- 		rc = fallback_migrate_page(mapping, newpage, page);
+diff --git a/mm/hugetlb.c b/mm/hugetlb.c
+index 68e8391..f246aee 100644
+--- a/mm/hugetlb.c
++++ b/mm/hugetlb.c
+@@ -32,6 +32,7 @@ static unsigned int surplus_huge_pages_node[MAX_NUMNODES];
+ static gfp_t htlb_alloc_mask = GFP_HIGHUSER;
+ unsigned long hugepages_treat_as_movable;
+ int hugetlb_dynamic_pool;
++static int hugetlb_next_nid;
  
--	if (!rc)
-+	if (!rc) {
-+		mem_cgroup_page_migration(page, newpage);
- 		remove_migration_ptes(page, newpage);
--	else
-+	} else
- 		newpage->mapping = NULL;
- 
- 	unlock_page(newpage);
-@@ -619,6 +620,7 @@ static int unmap_and_move(new_page_t get
- 	int *result = NULL;
- 	struct page *newpage = get_new_page(page, private, &result);
- 	int rcu_locked = 0;
-+	int charge = 0;
- 
- 	if (!newpage)
- 		return -ENOMEM;
-@@ -660,14 +662,20 @@ static int unmap_and_move(new_page_t get
- 	 */
- 	if (!page->mapping)
- 		goto rcu_unlock;
-+
-+	charge = mem_cgroup_prepare_migration(page);
- 	/* Establish migration ptes or remove ptes */
- 	try_to_unmap(page, 1);
- 
- 	if (!page_mapped(page))
- 		rc = move_to_new_page(newpage, page);
- 
--	if (rc)
-+	if (rc) {
- 		remove_migration_ptes(page, page);
-+		if (charge)
-+			mem_cgroup_end_migration(page);
-+	} else if (charge)
-+		mem_cgroup_end_migration(newpage);
- rcu_unlock:
- 	if (rcu_locked)
- 		rcu_read_unlock();
-Index: devel-2.6.23-rc8-mm2/include/linux/memcontrol.h
-===================================================================
---- devel-2.6.23-rc8-mm2.orig/include/linux/memcontrol.h
-+++ devel-2.6.23-rc8-mm2/include/linux/memcontrol.h
-@@ -56,6 +56,10 @@ static inline void mem_cgroup_uncharge_p
- 	mem_cgroup_uncharge(page_get_page_cgroup(page));
+ /*
+  * Protects updates to hugepage_freelists, nr_huge_pages, and free_huge_pages
+@@ -166,36 +167,56 @@ static int adjust_pool_surplus(int delta)
+ 	return ret;
  }
  
-+extern int mem_cgroup_prepare_migration(struct page *page);
-+extern void mem_cgroup_end_migration(struct page *page);
-+extern void mem_cgroup_page_migration(struct page *page, struct page *newpage);
-+
- #else /* CONFIG_CGROUP_MEM_CONT */
- static inline void mm_init_cgroup(struct mm_struct *mm,
- 					struct task_struct *p)
-@@ -107,6 +111,21 @@ static inline struct mem_cgroup *mm_cgro
- 	return NULL;
- }
- 
-+static inline int mem_cgroup_prepare_migration(struct page *page)
-+{
-+	return 0;
-+}
-+
-+static inline void mem_cgroup_end_migration(struct page *page)
-+{
-+}
-+
-+static inline void
-+mem_cgroup_page_migration(struct page *page, struct page *newpage);
-+{
-+}
-+
-+
- #endif /* CONFIG_CGROUP_MEM_CONT */
- 
- #endif /* _LINUX_MEMCONTROL_H */
-Index: devel-2.6.23-rc8-mm2/mm/memcontrol.c
-===================================================================
---- devel-2.6.23-rc8-mm2.orig/mm/memcontrol.c
-+++ devel-2.6.23-rc8-mm2/mm/memcontrol.c
-@@ -488,6 +488,49 @@ void mem_cgroup_uncharge(struct page_cgr
- 		}
- 	}
- }
-+/*
-+ * Returns non-zero if a page (under migration) has valid page_cgroup member.
-+ * Refcnt of page_cgroup is incremented.
-+ */
-+
-+int mem_cgroup_prepare_migration(struct page *page)
-+{
-+	struct page_cgroup *pc;
-+	int ret = 0;
-+	lock_page_cgroup(page);
-+	pc = page_get_page_cgroup(page);
-+	if (pc && atomic_inc_not_zero(&pc->ref_cnt))
-+		ret = 1;
-+	unlock_page_cgroup(page);
-+	return ret;
-+}
-+
-+void mem_cgroup_end_migration(struct page *page)
-+{
-+	struct page_cgroup *pc = page_get_page_cgroup(page);
-+	mem_cgroup_uncharge(pc);
-+}
-+/*
-+ * We know both *page* and *newpage* are now not-on-LRU and Pg_locked.
-+ * And no race with uncharge() routines because page_cgroup for *page*
-+ * has extra one reference by mem_cgroup_prepare_migration.
-+ */
-+
-+void mem_cgroup_page_migration(struct page *page, struct page *newpage)
-+{
-+	struct page_cgroup *pc;
-+retry:
-+	pc = page_get_page_cgroup(page);
-+	if (!pc)
-+		return;
-+	if (clear_page_cgroup(page, pc) != pc)
-+		goto retry;
-+	pc->page = newpage;
-+	lock_page_cgroup(newpage);
-+	page_assign_page_cgroup(newpage, pc);
-+	unlock_page_cgroup(newpage);
-+	return;
-+}
- 
- int mem_cgroup_write_strategy(char *buf, unsigned long long *tmp)
+-static int alloc_fresh_huge_page(void)
++static struct page *alloc_fresh_huge_page_node(int nid)
  {
+-	static int prev_nid;
+ 	struct page *page;
+-	int nid;
+-
+-	/*
+-	 * Copy static prev_nid to local nid, work on that, then copy it
+-	 * back to prev_nid afterwards: otherwise there's a window in which
+-	 * a racer might pass invalid nid MAX_NUMNODES to alloc_pages_node.
+-	 * But we don't need to use a spin_lock here: it really doesn't
+-	 * matter if occasionally a racer chooses the same nid as we do.
+-	 */
+-	nid = next_node(prev_nid, node_online_map);
+-	if (nid == MAX_NUMNODES)
+-		nid = first_node(node_online_map);
+-	prev_nid = nid;
+ 
+-	page = alloc_pages_node(nid, htlb_alloc_mask|__GFP_COMP|__GFP_NOWARN,
+-					HUGETLB_PAGE_ORDER);
++	page = alloc_pages_node(nid,
++		htlb_alloc_mask|__GFP_COMP|__GFP_THISNODE|__GFP_NOWARN,
++		HUGETLB_PAGE_ORDER);
+ 	if (page) {
+ 		set_compound_page_dtor(page, free_huge_page);
+ 		spin_lock(&hugetlb_lock);
+ 		nr_huge_pages++;
+-		nr_huge_pages_node[page_to_nid(page)]++;
++		nr_huge_pages_node[nid]++;
+ 		spin_unlock(&hugetlb_lock);
+ 		put_page(page); /* free it into the hugepage allocator */
+-		return 1;
+ 	}
+-	return 0;
++
++	return page;
++}
++
++static int alloc_fresh_huge_page(void)
++{
++	struct page *page;
++	int start_nid;
++	int next_nid;
++	int ret = 0;
++
++	start_nid = hugetlb_next_nid;
++
++	do {
++		page = alloc_fresh_huge_page_node(hugetlb_next_nid);
++		if (page)
++			ret = 1;
++		/*
++		 * Use a helper variable to find the next node and then
++		 * copy it back to hugetlb_next_nid afterwards:
++		 * otherwise there's a window in which a racer might
++		 * pass invalid nid MAX_NUMNODES to alloc_pages_node.
++		 * But we don't need to use a spin_lock here: it really
++		 * doesn't matter if occasionally a racer chooses the
++		 * same nid as we do.  Move nid forward in the mask even
++		 * if we just successfully allocated a hugepage so that
++		 * the next caller gets hugepages on the next node.
++		 */
++		next_nid = next_node(hugetlb_next_nid, node_online_map);
++		if (next_nid == MAX_NUMNODES)
++			next_nid = first_node(node_online_map);
++		hugetlb_next_nid = next_nid;
++	} while (!page && hugetlb_next_nid != start_nid);
++
++	return ret;
+ }
+ 
+ static struct page *alloc_buddy_huge_page(struct vm_area_struct *vma,
+@@ -366,6 +387,8 @@ static int __init hugetlb_init(void)
+ 	for (i = 0; i < MAX_NUMNODES; ++i)
+ 		INIT_LIST_HEAD(&hugepage_freelists[i]);
+ 
++	hugetlb_next_nid = first_node(node_online_map);
++
+ 	for (i = 0; i < max_huge_pages; ++i) {
+ 		if (!alloc_fresh_huge_page())
+ 			break;
+
+-- 
+Nishanth Aravamudan <nacc@us.ibm.com>
+IBM Linux Technology Center
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
