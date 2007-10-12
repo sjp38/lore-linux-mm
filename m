@@ -1,34 +1,53 @@
-Date: Fri, 12 Oct 2007 10:33:16 -0700 (PDT)
-From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [PATCH/RFC 3/4] Mem Policy: Fixup Interleave Policy Reference
- Counting
-In-Reply-To: <20071012154912.8157.16517.sendpatchset@localhost>
-Message-ID: <Pine.LNX.4.64.0710121031220.8605@schroedinger.engr.sgi.com>
-References: <20071012154854.8157.51441.sendpatchset@localhost>
- <20071012154912.8157.16517.sendpatchset@localhost>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+In-Reply-To: <1192201105.27435.41.camel@twins>
+References: <11854939641916-git-send-email-ssouhlal@FreeBSD.org> <200710120257.05960.nickpiggin@yahoo.com.au> <1192185439.27435.19.camel@twins> <200710120414.11026.nickpiggin@yahoo.com.au> <1192186222.27435.22.camel@twins> <20071012075317.591212ef@laptopd505.fenrus.org> <1192201105.27435.41.camel@twins>
+Mime-Version: 1.0 (Apple Message framework v752.3)
+Content-Type: text/plain; charset=US-ASCII; delsp=yes; format=flowed
+Message-Id: <DC1BA0F9-59D4-41AE-BB90-55E325F602F2@freebsd.org>
+Content-Transfer-Encoding: 7bit
+From: Suleiman Souhlal <ssouhlal@freebsd.org>
+Subject: Re: [PATCH] mm: avoid dirtying shared mappings on mlock
+Date: Fri, 12 Oct 2007 10:45:17 -0700
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Lee Schermerhorn <lee.schermerhorn@hp.com>
-Cc: akpm@linux-foundation.org, linux-mm@kvack.org, ak@suse.de, mel@skynet.ie, eric.whitney@hp.com
+To: Peter Zijlstra <a.p.zijlstra@chello.nl>
+Cc: Arjan van de Ven <arjan@infradead.org>, Nick Piggin <nickpiggin@yahoo.com.au>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, Suleiman Souhlal <suleiman@google.com>, linux-mm <linux-mm@kvack.org>, hugh <hugh@veritas.com>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 12 Oct 2007, Lee Schermerhorn wrote:
+On Oct 12, 2007, at 7:58 AM, Peter Zijlstra wrote:
 
-> Note:  I investigated moving the check for "policy_needs_unref"
-> to the mpol_free() wrapper, but this led to nasty circular header
-> dependencies.  If we wanted to make mpol_free() an external 
-> function, rather than a static inline, I could do this and 
-> remove several checks.  I'd still need to keep an explicit
-> check in alloc_page_vma() if we want to use a tail-call for
-> the fast path.
+> On Fri, 2007-10-12 at 07:53 -0700, Arjan van de Ven wrote:
+>> On Fri, 12 Oct 2007 12:50:22 +0200
+>>>>> The pages will still be read-only due to dirty tracking, so the
+>>>>> first write will still do page_mkwrite().
+>>>>
+>>>> Which can SIGBUS, no?
+>>>
+>>> Sure, but that is no different than any other mmap'ed write. I'm not
+>>> seeing how an mlocked region is special here.
+>>>
+>>> I agree it would be nice if mmap'ed writes would have better error
+>>> reporting than SIGBUS, but such is life.
+>>
+>> well... there's another consideration
+>> people use mlock() in cases where they don't want to go to the
+>> filesystem for paging and stuff as well (think the various iscsi
+>> daemons and other things that get in trouble).. those kind of uses
+>> really use mlock to avoid
+>> 1) IO to the filesystem
+>> 2) Needing memory allocations for pagefault like things
+>> at least for the more "hidden" cases...
+>>
+>> prefaulting everything ready pretty much gives them that... letting
+>> things fault on demand... nicely breaks that.
+>
+> Non of that is changed. So I'm a little puzzled as to which side you
+> argue.
 
-At a mininum we need to somehow encapsulate these checks that may now have 
-to be done in multiple place. This is going to be ugly because it adds
-a lot of special casing to policy handling.
+I think this might change the behavior in case you mlock sparse files.
+I guess currently the holes disappear when you mlock them, but with  
+the patch the blocks wouldn't get allocated until they get written to.
 
-Is there some way to put smarts into mpol_get to deal with this?
+-- Suleiman
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
