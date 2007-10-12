@@ -1,9 +1,9 @@
-Date: Fri, 12 Oct 2007 11:27:42 +0900
+Date: Fri, 12 Oct 2007 11:29:39 +0900
 From: Yasunori Goto <y-goto@jp.fujitsu.com>
-Subject: [Patch 001/002] extract kmem_cache_shrink
+Subject: [Patch 002/002] Create/delete kmem_cache_node for SLUB on memory online callback
 In-Reply-To: <20071012112236.B99B.Y-GOTO@jp.fujitsu.com>
 References: <20071012111008.B995.Y-GOTO@jp.fujitsu.com> <20071012112236.B99B.Y-GOTO@jp.fujitsu.com>
-Message-Id: <20071012112648.B99F.Y-GOTO@jp.fujitsu.com>
+Message-Id: <20071012112801.B9A1.Y-GOTO@jp.fujitsu.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset="US-ASCII"
 Content-Transfer-Encoding: 7bit
@@ -13,156 +13,170 @@ To: Andrew Morton <akpm@osdl.org>
 Cc: Christoph Lameter <clameter@sgi.com>, Hiroyuki KAMEZAWA <kamezawa.hiroyu@jp.fujitsu.com>, Linux Kernel ML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-Make kmem_cache_shrink_node() for callback routine of memory hotplug
-notifier. This is just extract a part of kmem_cache_shrink().
+This is to make kmem_cache_nodes of all SLUBs for new node when 
+memory-hotadd is called. This fixes panic due to access NULL pointer at
+discard_slab() after memory hot-add.
+
+If pages on the new node available, slub can use it before making
+new kmem_cache_nodes. So, this callback should be called
+BEFORE pages on the node are available.
+
+When memory online is called, slab_mem_going_online_callback() is
+called to make kmem_cache_node(). if it (or other callbacks) fails,
+then slab_mem_offline_callback() is called for rollback.
+
+In memory offline, slab_mem_going_offline_callback() is called to
+shrink cache, then slab_mem_offline_callback() is called later.
+
 
 Signed-off-by: Yasunori Goto <y-goto@jp.fujitsu.com>
 
 ---
- mm/slub.c |  111 ++++++++++++++++++++++++++++++++++----------------------------
- 1 file changed, 61 insertions(+), 50 deletions(-)
+ mm/slub.c |  117 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 117 insertions(+)
 
 Index: current/mm/slub.c
 ===================================================================
---- current.orig/mm/slub.c	2007-10-11 20:30:45.000000000 +0900
-+++ current/mm/slub.c	2007-10-11 21:58:47.000000000 +0900
-@@ -2626,6 +2626,56 @@ void kfree(const void *x)
- }
- EXPORT_SYMBOL(kfree);
+--- current.orig/mm/slub.c	2007-10-11 20:31:37.000000000 +0900
++++ current/mm/slub.c	2007-10-11 21:58:10.000000000 +0900
+@@ -20,6 +20,7 @@
+ #include <linux/mempolicy.h>
+ #include <linux/ctype.h>
+ #include <linux/kallsyms.h>
++#include <linux/memory.h>
  
-+static inline void __kmem_cache_shrink_node(struct kmem_cache *s, int node,
-+					    struct list_head *slabs_by_inuse)
-+{
-+	struct kmem_cache_node *n;
-+	int i;
-+	struct page *page;
-+	struct page *t;
-+	unsigned long flags;
-+
-+	n = get_node(s, node);
-+
-+	if (!n->nr_partial)
-+		return;
-+
-+	for (i = 0; i < s->objects; i++)
-+		INIT_LIST_HEAD(slabs_by_inuse + i);
-+
-+	spin_lock_irqsave(&n->list_lock, flags);
-+
-+	/*
-+	 * Build lists indexed by the items in use in each slab.
-+	 *
-+	 * Note that concurrent frees may occur while we hold the
-+	 * list_lock. page->inuse here is the upper limit.
-+	 */
-+	list_for_each_entry_safe(page, t, &n->partial, lru) {
-+		if (!page->inuse && slab_trylock(page)) {
-+			/*
-+			 * Must hold slab lock here because slab_free
-+			 * may have freed the last object and be
-+			 * waiting to release the slab.
-+			 */
-+			list_del(&page->lru);
-+			n->nr_partial--;
-+			slab_unlock(page);
-+			discard_slab(s, page);
-+		} else
-+			list_move(&page->lru, slabs_by_inuse + page->inuse);
-+	}
-+
-+	/*
-+	 * Rebuild the partial list with the slabs filled up most
-+	 * first and the least used slabs at the end.
-+	 */
-+	for (i = s->objects - 1; i >= 0; i--)
-+		list_splice(slabs_by_inuse + i, n->partial.prev);
-+
-+	spin_unlock_irqrestore(&n->list_lock, flags);
-+}
-+
  /*
-  * kmem_cache_shrink removes empty slabs from the partial lists and sorts
-  * the remaining slabs by the number of items in use. The slabs with the
-@@ -2636,68 +2686,29 @@ EXPORT_SYMBOL(kfree);
-  * being allocated from last increasing the chance that the last objects
-  * are freed in them.
-  */
--int kmem_cache_shrink(struct kmem_cache *s)
-+int kmem_cache_shrink_node(struct kmem_cache *s, int node)
- {
--	int node;
--	int i;
--	struct kmem_cache_node *n;
--	struct page *page;
--	struct page *t;
- 	struct list_head *slabs_by_inuse =
- 		kmalloc(sizeof(struct list_head) * s->objects, GFP_KERNEL);
--	unsigned long flags;
- 
- 	if (!slabs_by_inuse)
- 		return -ENOMEM;
- 
- 	flush_all(s);
--	for_each_node_state(node, N_NORMAL_MEMORY) {
--		n = get_node(s, node);
--
--		if (!n->nr_partial)
--			continue;
--
--		for (i = 0; i < s->objects; i++)
--			INIT_LIST_HEAD(slabs_by_inuse + i);
--
--		spin_lock_irqsave(&n->list_lock, flags);
--
--		/*
--		 * Build lists indexed by the items in use in each slab.
--		 *
--		 * Note that concurrent frees may occur while we hold the
--		 * list_lock. page->inuse here is the upper limit.
--		 */
--		list_for_each_entry_safe(page, t, &n->partial, lru) {
--			if (!page->inuse && slab_trylock(page)) {
--				/*
--				 * Must hold slab lock here because slab_free
--				 * may have freed the last object and be
--				 * waiting to release the slab.
--				 */
--				list_del(&page->lru);
--				n->nr_partial--;
--				slab_unlock(page);
--				discard_slab(s, page);
--			} else {
--				list_move(&page->lru,
--				slabs_by_inuse + page->inuse);
--			}
--		}
--
--		/*
--		 * Rebuild the partial list with the slabs filled up most
--		 * first and the least used slabs at the end.
--		 */
--		for (i = s->objects - 1; i >= 0; i--)
--			list_splice(slabs_by_inuse + i, n->partial.prev);
--
--		spin_unlock_irqrestore(&n->list_lock, flags);
--	}
-+	if (node >= 0)
-+		__kmem_cache_shrink_node(s, node, slabs_by_inuse);
-+	else
-+		for_each_node_state(node, N_NORMAL_MEMORY)
-+			__kmem_cache_shrink_node(s, node, slabs_by_inuse);
- 
- 	kfree(slabs_by_inuse);
- 	return 0;
+  * Lock order:
+@@ -2711,6 +2712,120 @@ int kmem_cache_shrink(struct kmem_cache 
  }
-+
-+int kmem_cache_shrink(struct kmem_cache *s)
-+{
-+	return kmem_cache_shrink_node(s, -1);
-+}
  EXPORT_SYMBOL(kmem_cache_shrink);
  
++#if defined(CONFIG_NUMA) && defined(CONFIG_MEMORY_HOTPLUG)
++static int slab_mem_going_offline_callback(void *arg)
++{
++	struct kmem_cache *s;
++	struct memory_notify *marg = arg;
++	int local_node, offline_node = marg->status_change_nid;
++
++	if (offline_node < 0)
++		/* node has memory yet. nothing to do. */
++		return 0;
++
++	down_read(&slub_lock);
++	list_for_each_entry(s, &slab_caches, list) {
++		local_node = page_to_nid(virt_to_page(s));
++		if (local_node == offline_node)
++			/* This slub is on the offline node. */
++			return -EBUSY;
++	}
++	up_read(&slub_lock);
++
++	kmem_cache_shrink_node(s, offline_node);
++
++	return 0;
++}
++
++static void slab_mem_offline_callback(void *arg)
++{
++	struct kmem_cache_node *n;
++	struct kmem_cache *s;
++	struct memory_notify *marg = arg;
++	int offline_node;
++
++	offline_node = marg->status_change_nid;
++
++	if (offline_node < 0)
++		/* node has memory yet. nothing to do. */
++		return;
++
++	down_read(&slub_lock);
++	list_for_each_entry(s, &slab_caches, list) {
++		n = get_node(s, offline_node);
++		if (n) {
++			/*
++			 * if n->nr_slabs > 0, offline_pages() must be fail,
++			 * because the node is used by slub yet.
++			 */
++			BUG_ON(atomic_read(&n->nr_slabs));
++
++			s->node[offline_node] = NULL;
++			kmem_cache_free(kmalloc_caches, n);
++		}
++	}
++	up_read(&slub_lock);
++}
++
++static int slab_mem_going_online_callback(void *arg)
++{
++	struct kmem_cache_node *n;
++	struct kmem_cache *s;
++	struct memory_notify *marg = arg;
++	int nid = marg->status_change_nid;
++
++	/* If the node already has memory, then nothing is necessary. */
++	if (nid < 0)
++		return 0;
++
++	/*
++	 * New memory will be onlined on the node which has no memory so far.
++	 * New kmem_cache_node is necssary for it.
++	 */
++	down_read(&slub_lock);
++	list_for_each_entry(s, &slab_caches, list) {
++  		/*
++		 * XXX: The new node's memory can't be allocated yet,
++		 *      kmem_cache_node will be allocated other node.
++  		 */
++		n = kmem_cache_alloc(kmalloc_caches, GFP_KERNEL);
++		if (!n)
++			return -ENOMEM;
++		init_kmem_cache_node(n);
++		s->node[nid] = n;
++  	}
++	up_read(&slub_lock);
++
++  	return 0;
++}
++
++static int slab_memory_callback(struct notifier_block *self,
++				unsigned long action, void *arg)
++{
++	int ret = 0;
++
++	switch (action) {
++	case MEM_GOING_ONLINE:
++		ret = slab_mem_going_online_callback(arg);
++		break;
++	case MEM_GOING_OFFLINE:
++		ret = slab_mem_going_offline_callback(arg);
++		break;
++	case MEM_OFFLINE:
++	case MEM_CANCEL_ONLINE:
++		slab_mem_offline_callback(arg);
++		break;
++	case MEM_ONLINE:
++	case MEM_CANCEL_OFFLINE:
++		break;
++	}
++
++	ret = notifier_from_errno(ret);
++	return ret;
++}
++
++#endif /* CONFIG_MEMORY_HOTPLUG */
++
  /********************************************************************
+  *			Basic setup of slabs
+  *******************************************************************/
+@@ -2741,6 +2856,8 @@ void __init kmem_cache_init(void)
+ 		sizeof(struct kmem_cache_node), GFP_KERNEL);
+ 	kmalloc_caches[0].refcount = -1;
+ 	caches++;
++
++	hotplug_memory_notifier(slab_memory_callback, 1);
+ #endif
+ 
+ 	/* Able to allocate the per node structures */
 
 -- 
 Yasunori Goto 
