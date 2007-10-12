@@ -1,19 +1,43 @@
-Date: Thu, 11 Oct 2007 18:43:33 -0700 (PDT)
-From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [PATCH 1/2] Mem Policy:  fix mempolicy usage in pci driver
-In-Reply-To: <1192129868.5036.27.camel@localhost>
-Message-ID: <Pine.LNX.4.64.0710111843160.1181@schroedinger.engr.sgi.com>
-References: <20071010205837.7230.42818.sendpatchset@localhost>
- <20071010205843.7230.31507.sendpatchset@localhost>
- <Pine.LNX.4.64.0710101412410.32488@schroedinger.engr.sgi.com>
- <1192129868.5036.27.camel@localhost>
+Date: Fri, 12 Oct 2007 11:18:14 +0900
+From: Yasunori Goto <y-goto@jp.fujitsu.com>
+Subject: [Patch 000/002] Rearrange notifier of memory hotplug
+Message-Id: <20071012111008.B995.Y-GOTO@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset="US-ASCII"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, ak@suse.de, gregkh@suse.de, linux-mm@kvack.org, mel@skynet.ie, eric.whitney@hp.com
+To: Andrew Morton <akpm@osdl.org>
+Cc: Christoph Lameter <clameter@sgi.com>, Yasunori Goto <y-goto@jp.fujitsu.com>, Hiroyuki KAMEZAWA <kamezawa.hiroyu@jp.fujitsu.com>, Linux Kernel ML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
+
+Hello.
+
+This patch set is to rearrange event notifier for memory hotplug,
+because the old notifier has some defects. For example, there is no
+information like new memory's pfn and # of pages for callback functions.
+
+Fortunately, nothing uses this notifier so far, there is no impact by
+this change. (SLUB will use this after this patch set to make
+kmem_cache_node structure).
+
+In addition, descriptions of notifer is added to memory hotplug
+document.
+
+This patch was a part of patch set to make kmem_cache_node of SLUB 
+to avoid panic of memory online. But, I think this change becomes
+not only for SLUB but also for others. So, I extracted this from it.
+
+This patch set is for 2.6.23-rc8-mm2.
+I tested this patch on my ia64 box.
+
+Please apply.
+
+Bye.
+
+-- 
+Yasunori Goto 
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
