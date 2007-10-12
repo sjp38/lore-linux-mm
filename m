@@ -1,48 +1,35 @@
-Received: from d03relay02.boulder.ibm.com (d03relay02.boulder.ibm.com [9.17.195.227])
-	by e31.co.us.ibm.com (8.13.8/8.13.8) with ESMTP id l9CJVltu015428
-	for <linux-mm@kvack.org>; Fri, 12 Oct 2007 15:31:47 -0400
-Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
-	by d03relay02.boulder.ibm.com (8.13.8/8.13.8/NCO v8.5) with ESMTP id l9CJVlkp455610
-	for <linux-mm@kvack.org>; Fri, 12 Oct 2007 13:31:47 -0600
-Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av02.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l9CJVkbu010486
-	for <linux-mm@kvack.org>; Fri, 12 Oct 2007 13:31:46 -0600
-Subject: Re: [PATCH] hugetlb: Fix dynamic pool resize failure case
-From: Dave Hansen <haveblue@us.ibm.com>
-In-Reply-To: <20071012191519.14433.13461.stgit@kernel>
-References: <20071012191519.14433.13461.stgit@kernel>
-Content-Type: text/plain
-Date: Fri, 12 Oct 2007 12:31:45 -0700
-Message-Id: <1192217505.20859.106.camel@localhost>
+Date: Fri, 12 Oct 2007 13:34:21 -0700
+From: "Siddha, Suresh B" <suresh.b.siddha@intel.com>
+Subject: Re: [rfc] more granular page table lock for hugepages
+Message-ID: <20071012203421.GC19625@linux-os.sc.intel.com>
+References: <20071008225234.GC27824@linux-os.sc.intel.com> <b040c32a0710092310t22693865ue0b53acec85fae44@mail.gmail.com> <b040c32a0710100050x51498022m247acf34da7bc3de@mail.gmail.com> <200710112139.51354.nickpiggin@yahoo.com.au>
 Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <200710112139.51354.nickpiggin@yahoo.com.au>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Adam Litke <agl@us.ibm.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org
+To: Nick Piggin <nickpiggin@yahoo.com.au>
+Cc: Ken Chen <kenchen@google.com>, "Siddha, Suresh B" <suresh.b.siddha@intel.com>, Badari Pulavarty <pbadari@gmail.com>, linux-mm <linux-mm@kvack.org>, tony.luck@intel.com
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 2007-10-12 at 12:15 -0700, Adam Litke wrote:
-> 
-> Changes since V1
->         Added a comment explaining the free logic in gather_surplus_pages.
-> 
-> When gather_surplus_pages() fails to allocate enough huge pages to satisfy
-> the requested reservation, it frees what it did allocate back to the buddy
-> allocator.  put_page() should be called instead of update_and_free_page()
-> to ensure that pool counters are updated as appropriate and the page's
-> refcount is decremented.
+On Thu, Oct 11, 2007 at 04:39:51AM -0700, Nick Piggin wrote:
+> Attached is the really basic sketch of how it will work. Any
+> party poopers care tell me why I'm an idiot? :)
 
-The comment looks good.  It's much more obvious what it's doing now and
-certainly answers all the questions I asked before.
+I tried to be a party pooper but no. This sounds like a good idea as you
+are banking on the 'mm' being the 'active mm'.
 
-I do think we need to consider some of the wider implications before the
-series that this applies on top of goes to mainline, but this patch by
-itself is just fine with me.
+sounds like two birds in one shot, I think.
 
-Acked-by: Dave Hansen <haveblue@us.ibm.com>
+On ia64, we have "tpa" instruction which does the virtual to physical
+address conversion for us. But talking to Tony, that will fault during not
+present or vhpt misses.
 
--- Dave
+Well, for now, manual walk is probably the best we have.
+
+thanks,
+suresh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
