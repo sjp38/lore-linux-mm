@@ -1,96 +1,92 @@
 From: Lee Schermerhorn <lee.schermerhorn@hp.com>
-Date: Fri, 12 Oct 2007 11:49:12 -0400
-Message-Id: <20071012154912.8157.16517.sendpatchset@localhost>
+Date: Fri, 12 Oct 2007 11:49:06 -0400
+Message-Id: <20071012154906.8157.94215.sendpatchset@localhost>
 In-Reply-To: <20071012154854.8157.51441.sendpatchset@localhost>
 References: <20071012154854.8157.51441.sendpatchset@localhost>
-Subject: [PATCH/RFC 3/4] Mem Policy: Fixup Interleave Policy Reference Counting
+Subject: [PATCH/RFC 2/4] Mem Policy: Fixup Shm and Interleave Policy Reference Counting
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: akpm@linux-foundation.org
-Cc: linux-mm@kvack.org, ak@suse.de, mel@skynet.ie, clameter@sgi.com, eric.whitney@hp.com
+Cc: linux-mm@kvack.org, clameter@sgi.com, ak@suse.de, eric.whitney@hp.com, mel@skynet.ie
 List-ID: <linux-mm.kvack.org>
 
-PATCH 3/4 Mempolicy:  Fixup Interleave Policy Reference Counting
+PATCH 2/4 Mem Policy:  fix reference counting for SHM_HUGETLB segments
 
 Against: 2.6.23-rc8-mm2
 
-Separated from multi-issue patch 2/2
+Separated from previous multi-issue patch 2/2
 
-In the memory policy reference counting cleanup patch,  I missed
-one path that needs to unreference the memory policy.  After
-computing the target node for interleave policy, we need to
-drop the reference if the policy is not the system default nor
-the current task's policy.
+NOTE:  w/o this fix, one will BUG-out on 2nd page fault to a
+SHM_HUGETLB segment with memory policy applied via mbind().
 
-In huge_zonelist(), I was unconditionally unref'ing the policy
-in the interleave path, even when it was a policy that didn't 
-need it.  Fix this!
+get_vma_policy() assumes that shared policies are referenced by
+the get_policy() vm_op, if any.  This is true for shmem_get_policy()
+but not for shm_get_policy() when the "backing file" does not
+support a get_policy() vm_op.  The latter is the case for SHM_HUGETLB
+segments.  Because get_vma_policy() expects the get_policy() op to
+have added a ref, it doesn't do so itself.  This results in 
+premature freeing of the policy.  Add the mpol_get() to the 
+shm_get_policy() op when the backing file doesn't support shared
+policies.
 
-Note:  I investigated moving the check for "policy_needs_unref"
-to the mpol_free() wrapper, but this led to nasty circular header
-dependencies.  If we wanted to make mpol_free() an external 
-function, rather than a static inline, I could do this and 
-remove several checks.  I'd still need to keep an explicit
-check in alloc_page_vma() if we want to use a tail-call for
-the fast path.
+Further, shm_get_policy() was falling back to current task's task
+policy if the backing file did not support get_policy() vm_op and
+the vma policy was null.  This is not valid when get_vma_policy() is
+called from show_numa_map() as task != current.  Also, this did
+not match the behavior of the shmem_get_policy() vm_op which did
+NOT fall back to task policy.  So, modify shm_get_policy() NOT to
+fall back to current->mempolicy.
+
+Document mempolicy return value reference semantics assumed by
+the changes discussed above for the set_ and get_policy vm_ops
+in <linux/mm.h>--where the prototypes are defined.
 
 Signed-off-by:  Lee Schermerhorn <lee.schermerhorn@hp.com>
 
- mm/mempolicy.c |   16 +++++++++++++---
- 1 file changed, 13 insertions(+), 3 deletions(-)
-
-Index: Linux/mm/mempolicy.c
+Index: Linux/ipc/shm.c
 ===================================================================
---- Linux.orig/mm/mempolicy.c	2007-10-12 10:48:03.000000000 -0400
-+++ Linux/mm/mempolicy.c	2007-10-12 10:50:05.000000000 -0400
-@@ -1262,18 +1262,21 @@ struct zonelist *huge_zonelist(struct vm
- {
- 	struct mempolicy *pol = get_vma_policy(current, vma, addr);
- 	struct zonelist *zl;
-+	int policy_needs_unref = (pol != &default_policy && \
-+					pol != current->mempolicy);
+--- Linux.orig/ipc/shm.c	2007-10-10 14:58:12.000000000 -0400
++++ Linux/ipc/shm.c	2007-10-10 14:59:13.000000000 -0400
+@@ -263,10 +263,10 @@ static struct mempolicy *shm_get_policy(
  
- 	*mpol = NULL;		/* probably no unref needed */
- 	if (pol->policy == MPOL_INTERLEAVE) {
- 		unsigned nid;
- 
- 		nid = interleave_nid(pol, vma, addr, HPAGE_SHIFT);
--		__mpol_free(pol);		/* finished with pol */
-+		if (unlikely(policy_needs_unref))
-+			__mpol_free(pol);	/* finished with pol */
- 		return NODE_DATA(nid)->node_zonelists + gfp_zone(gfp_flags);
- 	}
- 
- 	zl = zonelist_policy(GFP_HIGHUSER, pol);
--	if (unlikely(pol != &default_policy && pol != current->mempolicy)) {
-+	if (unlikely(policy_needs_unref)) {
- 		if (pol->policy != MPOL_BIND)
- 			__mpol_free(pol);	/* finished with pol */
- 		else
-@@ -1325,6 +1328,9 @@ alloc_page_vma(gfp_t gfp, struct vm_area
- {
- 	struct mempolicy *pol = get_vma_policy(current, vma, addr);
- 	struct zonelist *zl;
-+	int policy_needs_unref = (pol != &default_policy && \
-+				pol != current->mempolicy);
+ 	if (sfd->vm_ops->get_policy)
+ 		pol = sfd->vm_ops->get_policy(vma, addr);
+-	else if (vma->vm_policy)
++	else if (vma->vm_policy) {
+ 		pol = vma->vm_policy;
+-	else
+-		pol = current->mempolicy;
++		mpol_get(pol);		/* get_vma_policy() assumes this */
++	}
+ 	return pol;
+ }
+ #endif
+Index: Linux/include/linux/mm.h
+===================================================================
+--- Linux.orig/include/linux/mm.h	2007-10-10 14:58:12.000000000 -0400
++++ Linux/include/linux/mm.h	2007-10-11 14:07:43.000000000 -0400
+@@ -173,7 +173,21 @@ struct vm_operations_struct {
+ 	 * writable, if an error is returned it will cause a SIGBUS */
+ 	int (*page_mkwrite)(struct vm_area_struct *vma, struct page *page);
+ #ifdef CONFIG_NUMA
++	/*
++	 * set_policy() op must add a reference to any non-NULL @new mempolicy
++	 * to hold the policy upon return.  Caller should pass NULL @new to
++	 * remove a policy and fall back to surrounding context--i.e. do not
++	 * install a MPOL_DEFAULT policy, nor the task or system default
++	 * mempolicy.
++	 */
+ 	int (*set_policy)(struct vm_area_struct *vma, struct mempolicy *new);
 +
- 
- 	cpuset_update_task_memory_state();
- 
-@@ -1332,10 +1338,12 @@ alloc_page_vma(gfp_t gfp, struct vm_area
- 		unsigned nid;
- 
- 		nid = interleave_nid(pol, vma, addr, PAGE_SHIFT);
-+		if (unlikely(policy_needs_unref))
-+			__mpol_free(pol);
- 		return alloc_page_interleave(gfp, 0, nid);
- 	}
- 	zl = zonelist_policy(gfp, pol);
--	if (pol != &default_policy && pol != current->mempolicy) {
-+	if (unlikely(policy_needs_unref)) {
- 		/*
- 		 * slow path: ref counted policy -- shared or vma
- 		 */
++	/*
++	 * get_policy() op must add reference [mpol_get()] to any mempolicy
++	 * at (vma,addr).  If no [shared/vma] mempolicy exists at that addr,
++	 * get_policy() op must return NULL--i.e., do not "fallback" to task
++	 * or system default policy.
++	 */
+ 	struct mempolicy *(*get_policy)(struct vm_area_struct *vma,
+ 					unsigned long addr);
+ 	int (*migrate)(struct vm_area_struct *vma, const nodemask_t *from,
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
