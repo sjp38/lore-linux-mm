@@ -1,67 +1,96 @@
-Subject: Re: [PATCH] mm: avoid dirtying shared mappings on mlock
-From: Peter Zijlstra <a.p.zijlstra@chello.nl>
-In-Reply-To: <20071012075317.591212ef@laptopd505.fenrus.org>
-References: <11854939641916-git-send-email-ssouhlal@FreeBSD.org>
-	 <200710120257.05960.nickpiggin@yahoo.com.au>
-	 <1192185439.27435.19.camel@twins>
-	 <200710120414.11026.nickpiggin@yahoo.com.au>
-	 <1192186222.27435.22.camel@twins>
-	 <20071012075317.591212ef@laptopd505.fenrus.org>
-Content-Type: multipart/signed; micalg=pgp-sha1; protocol="application/pgp-signature"; boundary="=-qOF/8GImROPovAgsxKc6"
-Date: Fri, 12 Oct 2007 16:58:25 +0200
-Message-Id: <1192201105.27435.41.camel@twins>
-Mime-Version: 1.0
+From: Lee Schermerhorn <lee.schermerhorn@hp.com>
+Date: Fri, 12 Oct 2007 11:49:12 -0400
+Message-Id: <20071012154912.8157.16517.sendpatchset@localhost>
+In-Reply-To: <20071012154854.8157.51441.sendpatchset@localhost>
+References: <20071012154854.8157.51441.sendpatchset@localhost>
+Subject: [PATCH/RFC 3/4] Mem Policy: Fixup Interleave Policy Reference Counting
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Arjan van de Ven <arjan@infradead.org>
-Cc: Nick Piggin <nickpiggin@yahoo.com.au>, Suleiman Souhlal <ssouhlal@freebsd.org>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, Suleiman Souhlal <suleiman@google.com>, linux-mm <linux-mm@kvack.org>, hugh <hugh@veritas.com>
+To: akpm@linux-foundation.org
+Cc: linux-mm@kvack.org, ak@suse.de, mel@skynet.ie, clameter@sgi.com, eric.whitney@hp.com
 List-ID: <linux-mm.kvack.org>
 
---=-qOF/8GImROPovAgsxKc6
-Content-Type: text/plain
-Content-Transfer-Encoding: quoted-printable
+PATCH 3/4 Mempolicy:  Fixup Interleave Policy Reference Counting
 
-On Fri, 2007-10-12 at 07:53 -0700, Arjan van de Ven wrote:
-> On Fri, 12 Oct 2007 12:50:22 +0200
-> > > > The pages will still be read-only due to dirty tracking, so the
-> > > > first write will still do page_mkwrite().
-> > >=20
-> > > Which can SIGBUS, no?
-> >=20
-> > Sure, but that is no different than any other mmap'ed write. I'm not
-> > seeing how an mlocked region is special here.
-> >=20
-> > I agree it would be nice if mmap'ed writes would have better error
-> > reporting than SIGBUS, but such is life.
->=20
-> well... there's another consideration
-> people use mlock() in cases where they don't want to go to the
-> filesystem for paging and stuff as well (think the various iscsi
-> daemons and other things that get in trouble).. those kind of uses
-> really use mlock to avoid
-> 1) IO to the filesystem
-> 2) Needing memory allocations for pagefault like things
-> at least for the more "hidden" cases...
->=20
-> prefaulting everything ready pretty much gives them that... letting
-> things fault on demand... nicely breaks that.
+Against: 2.6.23-rc8-mm2
 
-Non of that is changed. So I'm a little puzzled as to which side you
-argue.
+Separated from multi-issue patch 2/2
 
---=-qOF/8GImROPovAgsxKc6
-Content-Type: application/pgp-signature; name=signature.asc
-Content-Description: This is a digitally signed message part
+In the memory policy reference counting cleanup patch,  I missed
+one path that needs to unreference the memory policy.  After
+computing the target node for interleave policy, we need to
+drop the reference if the policy is not the system default nor
+the current task's policy.
 
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v1.4.6 (GNU/Linux)
+In huge_zonelist(), I was unconditionally unref'ing the policy
+in the interleave path, even when it was a policy that didn't 
+need it.  Fix this!
 
-iD8DBQBHD4uRXA2jU0ANEf4RAukZAJ0aHili0JdvapCCVbqj4PmH93mDkQCghmuN
-/4HJojo1ZxKPS3NGPpNzy7M=
-=ppQA
------END PGP SIGNATURE-----
+Note:  I investigated moving the check for "policy_needs_unref"
+to the mpol_free() wrapper, but this led to nasty circular header
+dependencies.  If we wanted to make mpol_free() an external 
+function, rather than a static inline, I could do this and 
+remove several checks.  I'd still need to keep an explicit
+check in alloc_page_vma() if we want to use a tail-call for
+the fast path.
 
---=-qOF/8GImROPovAgsxKc6--
+Signed-off-by:  Lee Schermerhorn <lee.schermerhorn@hp.com>
+
+ mm/mempolicy.c |   16 +++++++++++++---
+ 1 file changed, 13 insertions(+), 3 deletions(-)
+
+Index: Linux/mm/mempolicy.c
+===================================================================
+--- Linux.orig/mm/mempolicy.c	2007-10-12 10:48:03.000000000 -0400
++++ Linux/mm/mempolicy.c	2007-10-12 10:50:05.000000000 -0400
+@@ -1262,18 +1262,21 @@ struct zonelist *huge_zonelist(struct vm
+ {
+ 	struct mempolicy *pol = get_vma_policy(current, vma, addr);
+ 	struct zonelist *zl;
++	int policy_needs_unref = (pol != &default_policy && \
++					pol != current->mempolicy);
+ 
+ 	*mpol = NULL;		/* probably no unref needed */
+ 	if (pol->policy == MPOL_INTERLEAVE) {
+ 		unsigned nid;
+ 
+ 		nid = interleave_nid(pol, vma, addr, HPAGE_SHIFT);
+-		__mpol_free(pol);		/* finished with pol */
++		if (unlikely(policy_needs_unref))
++			__mpol_free(pol);	/* finished with pol */
+ 		return NODE_DATA(nid)->node_zonelists + gfp_zone(gfp_flags);
+ 	}
+ 
+ 	zl = zonelist_policy(GFP_HIGHUSER, pol);
+-	if (unlikely(pol != &default_policy && pol != current->mempolicy)) {
++	if (unlikely(policy_needs_unref)) {
+ 		if (pol->policy != MPOL_BIND)
+ 			__mpol_free(pol);	/* finished with pol */
+ 		else
+@@ -1325,6 +1328,9 @@ alloc_page_vma(gfp_t gfp, struct vm_area
+ {
+ 	struct mempolicy *pol = get_vma_policy(current, vma, addr);
+ 	struct zonelist *zl;
++	int policy_needs_unref = (pol != &default_policy && \
++				pol != current->mempolicy);
++
+ 
+ 	cpuset_update_task_memory_state();
+ 
+@@ -1332,10 +1338,12 @@ alloc_page_vma(gfp_t gfp, struct vm_area
+ 		unsigned nid;
+ 
+ 		nid = interleave_nid(pol, vma, addr, PAGE_SHIFT);
++		if (unlikely(policy_needs_unref))
++			__mpol_free(pol);
+ 		return alloc_page_interleave(gfp, 0, nid);
+ 	}
+ 	zl = zonelist_policy(gfp, pol);
+-	if (pol != &default_policy && pol != current->mempolicy) {
++	if (unlikely(policy_needs_unref)) {
+ 		/*
+ 		 * slow path: ref counted policy -- shared or vma
+ 		 */
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
