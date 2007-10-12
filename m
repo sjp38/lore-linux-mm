@@ -1,93 +1,64 @@
-Date: Fri, 12 Oct 2007 10:57:36 -0700 (PDT)
-From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [PATCH/RFC 4/4] Mem Policy: Fixup Fallback for Default Shmem
- Policy
-In-Reply-To: <20071012154918.8157.26655.sendpatchset@localhost>
-Message-ID: <Pine.LNX.4.64.0710121045380.8891@schroedinger.engr.sgi.com>
-References: <20071012154854.8157.51441.sendpatchset@localhost>
- <20071012154918.8157.26655.sendpatchset@localhost>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: [PATCH] mm: avoid dirtying shared mappings on mlock
+From: Peter Zijlstra <a.p.zijlstra@chello.nl>
+In-Reply-To: <DC1BA0F9-59D4-41AE-BB90-55E325F602F2@freebsd.org>
+References: <11854939641916-git-send-email-ssouhlal@FreeBSD.org>
+	 <200710120257.05960.nickpiggin@yahoo.com.au>
+	 <1192185439.27435.19.camel@twins>
+	 <200710120414.11026.nickpiggin@yahoo.com.au>
+	 <1192186222.27435.22.camel@twins>
+	 <20071012075317.591212ef@laptopd505.fenrus.org>
+	 <1192201105.27435.41.camel@twins>
+	 <DC1BA0F9-59D4-41AE-BB90-55E325F602F2@freebsd.org>
+Content-Type: text/plain
+Date: Fri, 12 Oct 2007 20:02:18 +0200
+Message-Id: <1192212138.5797.30.camel@lappy>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Lee Schermerhorn <lee.schermerhorn@hp.com>
-Cc: akpm@linux-foundation.org, linux-mm@kvack.org, ak@suse.de, eric.whitney@hp.com, mel@skynet.ie
+To: Suleiman Souhlal <ssouhlal@freebsd.org>
+Cc: Arjan van de Ven <arjan@infradead.org>, Nick Piggin <nickpiggin@yahoo.com.au>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, Suleiman Souhlal <suleiman@google.com>, linux-mm <linux-mm@kvack.org>, hugh <hugh@veritas.com>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 12 Oct 2007, Lee Schermerhorn wrote:
-
-> get_vma_policy() was not handling fallback to task policy correctly
-> when the get_policy() vm_op returns NULL.  The NULL overwrites
-> the 'pol' variable that was holding the fallback task mempolicy.
-> So, it was falling back directly to system default policy.
+On Fri, 2007-10-12 at 10:45 -0700, Suleiman Souhlal wrote:
+> On Oct 12, 2007, at 7:58 AM, Peter Zijlstra wrote:
 > 
-> Fix get_vma_policy() to use only non-NULL policy returned from
-> the vma get_policy op and indicate that this policy does not need
-> another ref count.  
+> > On Fri, 2007-10-12 at 07:53 -0700, Arjan van de Ven wrote:
+> >> On Fri, 12 Oct 2007 12:50:22 +0200
+> >>>>> The pages will still be read-only due to dirty tracking, so the
+> >>>>> first write will still do page_mkwrite().
+> >>>>
+> >>>> Which can SIGBUS, no?
+> >>>
+> >>> Sure, but that is no different than any other mmap'ed write. I'm not
+> >>> seeing how an mlocked region is special here.
+> >>>
+> >>> I agree it would be nice if mmap'ed writes would have better error
+> >>> reporting than SIGBUS, but such is life.
+> >>
+> >> well... there's another consideration
+> >> people use mlock() in cases where they don't want to go to the
+> >> filesystem for paging and stuff as well (think the various iscsi
+> >> daemons and other things that get in trouble).. those kind of uses
+> >> really use mlock to avoid
+> >> 1) IO to the filesystem
+> >> 2) Needing memory allocations for pagefault like things
+> >> at least for the more "hidden" cases...
+> >>
+> >> prefaulting everything ready pretty much gives them that... letting
+> >> things fault on demand... nicely breaks that.
+> >
+> > Non of that is changed. So I'm a little puzzled as to which side you
+> > argue.
+> 
+> I think this might change the behavior in case you mlock sparse files.
+> I guess currently the holes disappear when you mlock them, but with  
+> the patch the blocks wouldn't get allocated until they get written to.
 
-I still think there must be a thinko here. The function seems to be
-currently coded with the assumption that get_policy always returns a 
-policy. That policy may be the default policy?? 
+Sure, but by point 1 - avoiding IO - that doesn't matter. Once you write
+to a shared mapping you'll generate IO and you'll hit kernel allocations
+and other delays no matter what you do.
 
-If it returns NULL then the tasks policy is applied to shmem segment. I 
-though we wanted a consistent application of policies to shmem segments? 
-Now one task or another may determine placement.
-
-I still have no idea what your warrant is for being sure that the object 
-continues to exist before increasing the policy refcount in 
-get_vma_policy()? What pins the shared policy before we get the refcount?
-
-Some more concerns below:
-
-> Index: Linux/mm/mempolicy.c
-> ===================================================================
-> --- Linux.orig/mm/mempolicy.c	2007-10-12 10:50:05.000000000 -0400
-> +++ Linux/mm/mempolicy.c	2007-10-12 10:52:46.000000000 -0400
-> @@ -1112,19 +1112,25 @@ static struct mempolicy * get_vma_policy
->  		struct vm_area_struct *vma, unsigned long addr)
->  {
->  	struct mempolicy *pol = task->mempolicy;
-> -	int shared_pol = 0;
-> +	int pol_needs_ref = (task != current);
-
-If get_vma_policy is called from the numa_maps handler then we have taken 
-a refcount on the task struct. 
-
-So this should be
-	int pol_needs_ref = 0;
-
->  
->  	if (vma) {
->  		if (vma->vm_ops && vma->vm_ops->get_policy) {
-> -			pol = vma->vm_ops->get_policy(vma, addr);
-> -			shared_pol = 1;	/* if pol non-NULL, add ref below */
-> +			struct mempolicy *vpol = vma->vm_ops->get_policy(vma,
-> +									addr);
-> +			if (vpol) {
-> +				pol = vpol;
-> +				pol_needs_ref = 0; /* get_policy() added ref */
-> +			}
->  		} else if (vma->vm_policy &&
-> -				vma->vm_policy->policy != MPOL_DEFAULT)
-> +				vma->vm_policy->policy != MPOL_DEFAULT) {
->  			pol = vma->vm_policy;
-> +			pol_needs_ref++;
-
-Why do we need a ref here for a vma policy? The policy is pinned through 
-the ref to the task structure.
-
-> +		}
->  	}
->  	if (!pol)
->  		pol = &default_policy;
-> -	else if (!shared_pol && pol != current->mempolicy)
-> +	else if (pol_needs_ref)
->  		mpol_get(pol);	/* vma or other task's policy */
->  	return pol;
-
-The mpol_get() here looks wrong. get_vma_policy determines the 
-current policy. The policy must already be pinned by increasing the 
-refcount or use in a certain task before get_vma_policy is ever called.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
