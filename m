@@ -1,55 +1,80 @@
-From: Nick Piggin <nickpiggin@yahoo.com.au>
 Subject: Re: [PATCH] mm: avoid dirtying shared mappings on mlock
-Date: Fri, 12 Oct 2007 04:14:10 +1000
-References: <11854939641916-git-send-email-ssouhlal@FreeBSD.org> <200710120257.05960.nickpiggin@yahoo.com.au> <1192185439.27435.19.camel@twins>
-In-Reply-To: <1192185439.27435.19.camel@twins>
-MIME-Version: 1.0
-Content-Type: text/plain;
-  charset="utf-8"
-Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
-Message-Id: <200710120414.11026.nickpiggin@yahoo.com.au>
+From: Peter Zijlstra <a.p.zijlstra@chello.nl>
+In-Reply-To: <200710120414.11026.nickpiggin@yahoo.com.au>
+References: <11854939641916-git-send-email-ssouhlal@FreeBSD.org>
+	 <200710120257.05960.nickpiggin@yahoo.com.au>
+	 <1192185439.27435.19.camel@twins>
+	 <200710120414.11026.nickpiggin@yahoo.com.au>
+Content-Type: multipart/signed; micalg=pgp-sha1; protocol="application/pgp-signature"; boundary="=-8dNDXh0wA7zdk8Oik2ev"
+Date: Fri, 12 Oct 2007 12:50:22 +0200
+Message-Id: <1192186222.27435.22.camel@twins>
+Mime-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Peter Zijlstra <a.p.zijlstra@chello.nl>
+To: Nick Piggin <nickpiggin@yahoo.com.au>
 Cc: Suleiman Souhlal <ssouhlal@freebsd.org>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, Suleiman Souhlal <suleiman@google.com>, linux-mm <linux-mm@kvack.org>, hugh <hugh@veritas.com>
 List-ID: <linux-mm.kvack.org>
 
-On Friday 12 October 2007 20:37, Peter Zijlstra wrote:
-> On Fri, 2007-10-12 at 02:57 +1000, Nick Piggin wrote:
-> > On Friday 12 October 2007 19:03, Peter Zijlstra wrote:
-> > > Subject: mm: avoid dirtying shared mappings on mlock
+--=-8dNDXh0wA7zdk8Oik2ev
+Content-Type: text/plain
+Content-Transfer-Encoding: quoted-printable
+
+On Fri, 2007-10-12 at 04:14 +1000, Nick Piggin wrote:
+> On Friday 12 October 2007 20:37, Peter Zijlstra wrote:
+> > On Fri, 2007-10-12 at 02:57 +1000, Nick Piggin wrote:
+> > > On Friday 12 October 2007 19:03, Peter Zijlstra wrote:
+> > > > Subject: mm: avoid dirtying shared mappings on mlock
+> > > >
+> > > > Suleiman noticed that shared mappings get dirtied when mlocked.
+> > > > Avoid this by teaching make_pages_present about this case.
+> > > >
+> > > > Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
+> > > > Acked-by: Suleiman Souhlal <suleiman@google.com>
 > > >
-> > > Suleiman noticed that shared mappings get dirtied when mlocked.
-> > > Avoid this by teaching make_pages_present about this case.
+> > > Umm, I don't see the other piece of this thread, so I don't
+> > > know what the actual problem was.
 > > >
-> > > Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
-> > > Acked-by: Suleiman Souhlal <suleiman@google.com>
+> > > But I would really rather not do this. If you do this, then you
+> > > now can get random SIGBUSes when you write into the memory if it
+> > > can't allocate blocks or ... (some other filesystem specific
+> > > condition).
 > >
-> > Umm, I don't see the other piece of this thread, so I don't
-> > know what the actual problem was.
-> >
-> > But I would really rather not do this. If you do this, then you
-> > now can get random SIGBUSes when you write into the memory if it
-> > can't allocate blocks or ... (some other filesystem specific
-> > condition).
->
-> I'm not getting this, make_pages_present() only has to ensure all the
-> pages are read from disk and in memory. How is this different from a
-> read-scan?
+> > I'm not getting this, make_pages_present() only has to ensure all the
+> > pages are read from disk and in memory. How is this different from a
+> > read-scan?
+>=20
+> I guess because we've mlocked a region that has PROT_WRITE access...
+> but actually, I suppose mlock doesn't technically require that we
+> can write to the memory, only that the page isn't swapped out.
+>=20
+> Still, it is nice to be able to have a reasonable guarantee of
+> writability.
+>=20
+>=20
+> > The pages will still be read-only due to dirty tracking, so the first
+> > write will still do page_mkwrite().
+>=20
+> Which can SIGBUS, no?
 
-I guess because we've mlocked a region that has PROT_WRITE access...
-but actually, I suppose mlock doesn't technically require that we
-can write to the memory, only that the page isn't swapped out.
+Sure, but that is no different than any other mmap'ed write. I'm not
+seeing how an mlocked region is special here.
 
-Still, it is nice to be able to have a reasonable guarantee of
-writability.
+I agree it would be nice if mmap'ed writes would have better error
+reporting than SIGBUS, but such is life.
 
+--=-8dNDXh0wA7zdk8Oik2ev
+Content-Type: application/pgp-signature; name=signature.asc
+Content-Description: This is a digitally signed message part
 
-> The pages will still be read-only due to dirty tracking, so the first
-> write will still do page_mkwrite().
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v1.4.6 (GNU/Linux)
 
-Which can SIGBUS, no?
+iD8DBQBHD1FuXA2jU0ANEf4RApuYAJ0U8uIBktwwwXZZbMeBHLJcvUDjfwCfdFZb
+NUnS2XJhJU69R0nFc12+Jls=
+=fg02
+-----END PGP SIGNATURE-----
+
+--=-8dNDXh0wA7zdk8Oik2ev--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
