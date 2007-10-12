@@ -1,38 +1,47 @@
-From: Nick Piggin <nickpiggin@yahoo.com.au>
-Subject: Re: [PATCH] mm: avoid dirtying shared mappings on mlock
-Date: Fri, 12 Oct 2007 22:23:01 +1000
-References: <11854939641916-git-send-email-ssouhlal@FreeBSD.org> <200710120414.11026.nickpiggin@yahoo.com.au> <1192186222.27435.22.camel@twins>
-In-Reply-To: <1192186222.27435.22.camel@twins>
+Date: Fri, 12 Oct 2007 13:50:40 +0100
+Subject: Re: [Libhugetlbfs-devel] [PATCH 2/4] hugetlb: Try to grow hugetlb pool for MAP_PRIVATE mappings
+Message-ID: <20071012125039.GB27254@skynet.ie>
+References: <20071001151736.12825.75984.stgit@kernel> <20071001151758.12825.26569.stgit@kernel> <1192140583.20859.40.camel@localhost>
 MIME-Version: 1.0
-Content-Type: text/plain;
-  charset="utf-8"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-Message-Id: <200710122223.02061.nickpiggin@yahoo.com.au>
+In-Reply-To: <1192140583.20859.40.camel@localhost>
+From: mel@skynet.ie (Mel Gorman)
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Cc: Suleiman Souhlal <ssouhlal@freebsd.org>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, Suleiman Souhlal <suleiman@google.com>, linux-mm <linux-mm@kvack.org>, hugh <hugh@veritas.com>
+To: Dave Hansen <haveblue@us.ibm.com>
+Cc: Adam Litke <agl@us.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, libhugetlbfs-devel@lists.sourceforge.net, Dave McCracken <dave.mccracken@oracle.com>, linux-mm@kvack.org, Ken Chen <kenchen@google.com>, Andy Whitcroft <apw@shadowen.org>, Bill Irwin <bill.irwin@oracle.com>
 List-ID: <linux-mm.kvack.org>
 
-On Friday 12 October 2007 20:50, Peter Zijlstra wrote:
-> On Fri, 2007-10-12 at 04:14 +1000, Nick Piggin wrote:
-> > On Friday 12 October 2007 20:37, Peter Zijlstra wrote:
+On (11/10/07 15:09), Dave Hansen didst pronounce:
+> On Mon, 2007-10-01 at 08:17 -0700, Adam Litke wrote:
+> > 
+> >         spin_lock(&hugetlb_lock);
+> > -       enqueue_huge_page(page);
+> > +       if (surplus_huge_pages_node[nid]) {
+> > +               update_and_free_page(page);
+> > +               surplus_huge_pages--;
+> > +               surplus_huge_pages_node[nid]--;
+> > +       } else {
+> > +               enqueue_huge_page(page);
+> > +       }
+> >         spin_unlock(&hugetlb_lock);
+> >  } 
+> 
+> Why does it matter that these surplus pages are tracked per-node?
+> 
 
-> > > The pages will still be read-only due to dirty tracking, so the first
-> > > write will still do page_mkwrite().
-> >
-> > Which can SIGBUS, no?
->
-> Sure, but that is no different than any other mmap'ed write. I'm not
-> seeing how an mlocked region is special here.
+Because presumably one does not want to end up in a situation whereby
+the pools were initially filled with balanced nodes for MPOL_INTERLEAVE
+and get screwed up by dynamic page resizing. The per-node surplus
+counting should be ensuring the node balancing remains the same.
 
-Well it is a change in behaviour (admittedly, so was the change
-to SIGBUS mmaped writes in the first place). It's a matter of
-semantics I guess. Is the current behaviour actually a _problem_
-for anyone? If not, then do we need to change it?
+(have not verified this is the case, it just makes sense)
 
-I'm not saying it does matter, just that it might matter ;)
+-- 
+Mel Gorman
+Part-time Phd Student                          Linux Technology Center
+University of Limerick                         IBM Dublin Software Lab
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
