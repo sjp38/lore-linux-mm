@@ -1,210 +1,96 @@
-Date: Fri, 12 Oct 2007 10:12:59 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCH][BUGFIX][for -mm] Misc fix for memory cgroup [5/5] ---
- fix page migration under memory controller
-Message-Id: <20071012101259.278c09e3.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20071011215413.c3a27633.kamezawa.hiroyu@jp.fujitsu.com>
-References: <20071011135345.5d9a4c06.kamezawa.hiroyu@jp.fujitsu.com>
-	<20071011140220.a62daf1a.kamezawa.hiroyu@jp.fujitsu.com>
-	<470E1194.6060001@linux.vnet.ibm.com>
-	<20071011215413.c3a27633.kamezawa.hiroyu@jp.fujitsu.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Date: Thu, 11 Oct 2007 18:42:27 -0700 (PDT)
+From: Christoph Lameter <clameter@sgi.com>
+Subject: Re: [PATCH 2/2] Mem Policy: Fixup Shm and Interleave Policy Reference
+ Counting - V2
+In-Reply-To: <1192129628.5036.23.camel@localhost>
+Message-ID: <Pine.LNX.4.64.0710111824290.1181@schroedinger.engr.sgi.com>
+References: <20071010205837.7230.42818.sendpatchset@localhost>
+ <20071010205849.7230.81877.sendpatchset@localhost>
+ <Pine.LNX.4.64.0710101415470.32488@schroedinger.engr.sgi.com>
+ <1192129628.5036.23.camel@localhost>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: balbir@linux.vnet.ibm.com, akpm@linux-foundation.org, linux-mm@kvack.org, containers@lists.osdl.org
+To: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, ak@suse.de, gregkh@suse.de, linux-mm@kvack.org, mel@skynet.ie, eric.whitney@hp.com
 List-ID: <linux-mm.kvack.org>
 
-Hi, here is fixed one.
-thanks,
--Kame
-==
-While using memory control cgroup, page-migration under it works as following.
-==
- 1. uncharge all refs at try to unmap.
- 2. charge regs again remove_migration_ptes()
-==
-This is simple but has following problems.
-==
- The page is uncharged and charged back again if *mapped*.
-    - This means that cgroup before migration can be different from one after
-      migration
-    - If page is not mapped but charged as page cache, charge is just ignored
-      (because not mapped, it will not be uncharged before migration)
-      This is memory leak.
-==
-This patch tries to keep memory cgroup at page migration by increasing
-one refcnt during it. 3 functions are added.
+On Thu, 11 Oct 2007, Lee Schermerhorn wrote:
 
- mem_cgroup_prepare_migration() --- increase refcnt of page->page_cgroup
- mem_cgroup_end_migration()     --- decrease refcnt of page->page_cgroup
- mem_cgroup_page_migration() --- copy page->page_cgroup from old page to
-                                 new page.
+> I have removed the 'RFC'.  Please review for possible merge.
 
-During migration
-  - old page is under PG_locked.
-  - new page is under PG_locked, too.
-  - both old page and new page is not on LRU.
+I am still concerned with all this special casing which gets very 
+difficult to follow. Isnt there some way to simplify the refcount handling 
+here? It seems that the refcount fix introduced more bugs. One solution 
+would be to revert that patch instead.
 
-This 3 facts guarantees page_cgroup() migration has no race.
+> V1 -> V2:
+> + remove include of <linux/mm.h> from mempolicy.h and use
+>   BUG_ON(), conditional on CONFIG_DEBUG_VM, in mpol_get()
 
-Tested and worked well in x86_64/fake-NUMA box.
-Changelog v2 -> v3
-  - fixed typo in !CONFIG_CGROUP_MEM_CONT case.
+Drop the BUG_ON completely? If this is a bug fix release then lets keep 
+this as minimal as possible.
 
-Changelog v1 -> v2:
-  - reflected comments.
-  - divided a patch to !PageLRU patch and migration patch.
+Could you make this a series of separate patches. Each for one 
+issue?
 
+> get_vma_policy() assumes that shared policies are referenced by
+> the get_policy() vm_op, if any.  This is true for shmem_get_policy()
+> but not for shm_get_policy() when the "backing file" does not
+> support a get_policy() vm_op.  The latter is the case for SHM_HUGETLB
+> segments.  Because get_vma_policy() expects the get_policy() op to
+> have added a ref, it doesn't do so itself.  This results in 
+> premature freeing of the policy.  Add the mpol_get() to the 
+> shm_get_policy() op when the backing file doesn't support shared
+> policies.
 
+Maybe get_vma_policy() should make no such assumption? Why is 
+get_vma_policy taking a refcount at all? The vma policies are guaranteed
+based on the process that is running. But what keeps the shared 
+policies from being freed? Isnt there an inherent race here that cannot be 
+remedied by taking a refcount?
 
-Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> Further, shm_get_policy() was falling back to current task's task
+> policy if the backing file did not support get_policy() vm_op and
+> the vma policy was null.  This is not valid when get_vma_policy() is
+> called from show_numa_map() as task != current.  Also, this did
+> not match the behavior of the shmem_get_policy() vm_op which did
+> NOT fall back to task policy.  So, modify shm_get_policy() NOT to
+> fall back to current->mempolicy.
 
- include/linux/memcontrol.h |   19 +++++++++++++++++++
- mm/memcontrol.c            |   43 +++++++++++++++++++++++++++++++++++++++++++
- mm/migrate.c               |   14 +++++++++++---
- 3 files changed, 73 insertions(+), 3 deletions(-)
+get_vma_policy() is passed a pointer to the task struct. It does *not* 
+fall back to the current tasks policy.
 
-Index: devel-2.6.23-rc8-mm2/mm/migrate.c
-===================================================================
---- devel-2.6.23-rc8-mm2.orig/mm/migrate.c
-+++ devel-2.6.23-rc8-mm2/mm/migrate.c
-@@ -598,9 +598,10 @@ static int move_to_new_page(struct page 
- 	else
- 		rc = fallback_migrate_page(mapping, newpage, page);
- 
--	if (!rc)
-+	if (!rc) {
-+		mem_cgroup_page_migration(page, newpage);
- 		remove_migration_ptes(page, newpage);
--	else
-+	} else
- 		newpage->mapping = NULL;
- 
- 	unlock_page(newpage);
-@@ -619,6 +620,7 @@ static int unmap_and_move(new_page_t get
- 	int *result = NULL;
- 	struct page *newpage = get_new_page(page, private, &result);
- 	int rcu_locked = 0;
-+	int charge = 0;
- 
- 	if (!newpage)
- 		return -ENOMEM;
-@@ -660,14 +662,20 @@ static int unmap_and_move(new_page_t get
- 	 */
- 	if (!page->mapping)
- 		goto rcu_unlock;
-+
-+	charge = mem_cgroup_prepare_migration(page);
- 	/* Establish migration ptes or remove ptes */
- 	try_to_unmap(page, 1);
- 
- 	if (!page_mapped(page))
- 		rc = move_to_new_page(newpage, page);
- 
--	if (rc)
-+	if (rc) {
- 		remove_migration_ptes(page, page);
-+		if (charge)
-+			mem_cgroup_end_migration(page);
-+	} else if (charge)
-+		mem_cgroup_end_migration(newpage);
- rcu_unlock:
- 	if (rcu_locked)
- 		rcu_read_unlock();
-Index: devel-2.6.23-rc8-mm2/include/linux/memcontrol.h
-===================================================================
---- devel-2.6.23-rc8-mm2.orig/include/linux/memcontrol.h
-+++ devel-2.6.23-rc8-mm2/include/linux/memcontrol.h
-@@ -56,6 +56,10 @@ static inline void mem_cgroup_uncharge_p
- 	mem_cgroup_uncharge(page_get_page_cgroup(page));
- }
- 
-+extern int mem_cgroup_prepare_migration(struct page *page);
-+extern void mem_cgroup_end_migration(struct page *page);
-+extern void mem_cgroup_page_migration(struct page *page, struct page *newpage);
-+
- #else /* CONFIG_CGROUP_MEM_CONT */
- static inline void mm_init_cgroup(struct mm_struct *mm,
- 					struct task_struct *p)
-@@ -107,6 +111,21 @@ static inline struct mem_cgroup *mm_cgro
- 	return NULL;
- }
- 
-+static inline int mem_cgroup_prepare_migration(struct page *page)
-+{
-+	return 0;
-+}
-+
-+static inline void mem_cgroup_end_migration(struct page *page)
-+{
-+}
-+
-+static inline void
-+mem_cgroup_page_migration(struct page *page, struct page *newpage)
-+{
-+}
-+
-+
- #endif /* CONFIG_CGROUP_MEM_CONT */
- 
- #endif /* _LINUX_MEMCONTROL_H */
-Index: devel-2.6.23-rc8-mm2/mm/memcontrol.c
-===================================================================
---- devel-2.6.23-rc8-mm2.orig/mm/memcontrol.c
-+++ devel-2.6.23-rc8-mm2/mm/memcontrol.c
-@@ -488,6 +488,49 @@ void mem_cgroup_uncharge(struct page_cgr
- 		}
- 	}
- }
-+/*
-+ * Returns non-zero if a page (under migration) has valid page_cgroup member.
-+ * Refcnt of page_cgroup is incremented.
-+ */
-+
-+int mem_cgroup_prepare_migration(struct page *page)
-+{
-+	struct page_cgroup *pc;
-+	int ret = 0;
-+	lock_page_cgroup(page);
-+	pc = page_get_page_cgroup(page);
-+	if (pc && atomic_inc_not_zero(&pc->ref_cnt))
-+		ret = 1;
-+	unlock_page_cgroup(page);
-+	return ret;
-+}
-+
-+void mem_cgroup_end_migration(struct page *page)
-+{
-+	struct page_cgroup *pc = page_get_page_cgroup(page);
-+	mem_cgroup_uncharge(pc);
-+}
-+/*
-+ * We know both *page* and *newpage* are now not-on-LRU and Pg_locked.
-+ * And no race with uncharge() routines because page_cgroup for *page*
-+ * has extra one reference by mem_cgroup_prepare_migration.
-+ */
-+
-+void mem_cgroup_page_migration(struct page *page, struct page *newpage)
-+{
-+	struct page_cgroup *pc;
-+retry:
-+	pc = page_get_page_cgroup(page);
-+	if (!pc)
-+		return;
-+	if (clear_page_cgroup(page, pc) != pc)
-+		goto retry;
-+	pc->page = newpage;
-+	lock_page_cgroup(newpage);
-+	page_assign_page_cgroup(newpage, pc);
-+	unlock_page_cgroup(newpage);
-+	return;
-+}
- 
- int mem_cgroup_write_strategy(char *buf, unsigned long long *tmp)
- {
+> Now, turns out that get_vma_policy() was not handling fallback to
+> task policy correctly when the get_policy() vm_op returns NULL.
+> Rather, it was falling back directly to system default policy.
+> So, fix get_vma_policy() to use only non-NULL policy returned from
+> the vma get_policy op and indicate that this policy does not need
+> another ref count.  
+
+Nope. Its falling back to the task policy.
+
+static struct mempolicy * get_vma_policy(struct task_struct *task,
+                struct vm_area_struct *vma, unsigned long addr)
+{
+-->     struct mempolicy *pol = task->mempolicy;
+        int shared_pol = 0;
+
+        if (vma) {
+                if (vma->vm_ops && vma->vm_ops->get_policy) {
+                        pol = vma->vm_ops->get_policy(vma, addr);
+                        shared_pol = 1; /* if pol non-NULL, add ref below */
+                } else if (vma->vm_policy &&
+                                vma->vm_policy->policy != MPOL_DEFAULT)
+                        pol = vma->vm_policy;
+        }
+        if (!pol)
+                pol = &default_policy;
+        else if (!shared_pol && pol != current->mempolicy)
+                mpol_get(pol);  /* vma or other task's policy */
+        return pol;
+}
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
