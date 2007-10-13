@@ -1,131 +1,51 @@
-Date: Sat, 13 Oct 2007 14:00:25 +0900
-From: Yasunori Goto <y-goto@jp.fujitsu.com>
-Subject: Re: [Patch 002/002] Create/delete kmem_cache_node for SLUB on memory online callback
-In-Reply-To: <Pine.LNX.4.64.0710121014430.8605@schroedinger.engr.sgi.com>
-References: <20071012133336.B9A5.Y-GOTO@jp.fujitsu.com> <Pine.LNX.4.64.0710121014430.8605@schroedinger.engr.sgi.com>
-Message-Id: <20071013133630.BDFE.Y-GOTO@jp.fujitsu.com>
+From: Nick Piggin <nickpiggin@yahoo.com.au>
+Subject: Re: [rfc] more granular page table lock for hugepages
+Date: Sun, 14 Oct 2007 09:27:46 +1000
+References: <20071008225234.GC27824@linux-os.sc.intel.com> <200710112139.51354.nickpiggin@yahoo.com.au> <20071012203421.GC19625@linux-os.sc.intel.com>
+In-Reply-To: <20071012203421.GC19625@linux-os.sc.intel.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
+Content-Type: text/plain;
+  charset="iso-8859-1"
 Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+Message-Id: <200710140927.46478.nickpiggin@yahoo.com.au>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
-Cc: Andrew Morton <akpm@osdl.org>, Hiroyuki KAMEZAWA <kamezawa.hiroyu@jp.fujitsu.com>, Linux Kernel ML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
+To: "Siddha, Suresh B" <suresh.b.siddha@intel.com>
+Cc: Ken Chen <kenchen@google.com>, Badari Pulavarty <pbadari@gmail.com>, linux-mm <linux-mm@kvack.org>, tony.luck@intel.com
 List-ID: <linux-mm.kvack.org>
 
-> On Fri, 12 Oct 2007, Yasunori Goto wrote:
-> 
-> > > > +	down_read(&slub_lock);
-> > > > +	list_for_each_entry(s, &slab_caches, list) {
-> > > > +		local_node = page_to_nid(virt_to_page(s));
-> > > > +		if (local_node == offline_node)
-> > > > +			/* This slub is on the offline node. */
-> > > > +			return -EBUSY;
-> > > > +	}
-> > > > +	up_read(&slub_lock);
-> > > 
-> > > So this checks if the any kmem_cache structure is on the offlined node? If
-> > > so then we cannot offline the node?
-> > 
-> > Right. If slabs' migration is possible, here would be good place for
-> > doing it. But, it is not possible (at least now).
-> 
-> I think you can avoid this check. The kmem_cache structures are allocated 
-> from the kmalloc array. The check if the kmalloc slabs are empty will fail 
-> if kmem_cache structures still exist on the node.
+On Saturday 13 October 2007 06:34, Siddha, Suresh B wrote:
+> On Thu, Oct 11, 2007 at 04:39:51AM -0700, Nick Piggin wrote:
+> > Attached is the really basic sketch of how it will work. Any
+> > party poopers care tell me why I'm an idiot? :)
+>
+> I tried to be a party pooper but no. This sounds like a good idea as you
+> are banking on the 'mm' being the 'active mm'.
 
-Ah, Ok.
+Yeah, I think that's the common case, and definitely required for
+this lockless path to work.
 
 
-> 
-> > > > +			 * because the node is used by slub yet.
-> > > > +			 */
-> > > 
-> > > It may be clearer to say:
-> > > 
-> > > "If nr_slabs > 0 then slabs still exist on the node that is going down.
-> > > We were unable to free them so we must fail."
-> > 
-> > Again. If nr_slabs > 0, offline_pages must be fail due to slabs
-> > remaining on the node before. So, this callback isn't called.
-> 
-> Ok then we can remove these checks?
+> sounds like two birds in one shot, I think.
 
-Hmm. Yes. I'll remove it.
-
-> 
-> > > > +static int slab_mem_going_online_callback(void *arg)
-> > > > +{
-> > > > +	struct kmem_cache_node *n;
-> > > > +	struct kmem_cache *s;
-> > > > +	struct memory_notify *marg = arg;
-> > > > +	int nid = marg->status_change_nid;
-> > > > +
-> > > > +	/* If the node already has memory, then nothing is necessary. */
-> > > > +	if (nid < 0)
-> > > > +		return 0;
-> > > 
-> > > The node must have memory????  Or we have already brought up the code?
-> > 
-> > kmem_cache_node is created at boot time if the node has memory.
-> > (Or, it is created by this callback on first added memory on the node).
-> > 
-> > When nid = - 1, kmem_cache_node is created before this node due to
-> > node has memory. 
-> 
-> So the function can be called for a node that is already online?
-
-already "node memory available", accurately ;-)
+OK, I'll flesh it out a bit more and see if I can actually get
+something working (and working with hugepages too).
 
 
-> 
-> > > > +	 * New memory will be onlined on the node which has no memory so far.
-> > > > +	 * New kmem_cache_node is necssary for it.
-> > > 
-> > > "We are bringing a node online. No memory is available yet. We must 
-> > > allocate a kmem_cache_node structure in order to bring the node online." ?
-> > 
-> > Your mention might be ok.
-> > But. I would like to prefer to define status of node hotplug for
-> > exactitude like followings
-> > 
-> > 
-> > A)Node online -- pgdat is created and can be accessed for this node.
-> >                  but there are no gurantee that cpu or memory is onlined.
-> >                  This status is very close from memory-less node.
-> >                  But this might be halfway status for node hotplug.
-> >                  Node online bit is set. But N_HIGH_MEMORY
-> >                  (or N_NORMAL_MEMORY) might be not set.
-> 
-> Ahh.. Okay.
-> 
-> > B)Node has memory--
-> >                  one or more sections memory is onlined on the node.
-> >                  N_HIGH_MEMORY (or N_NORMAL_MEMORY) is set.
-> > 
-> > If first memory is onlined on the node, the node status changes
-> > from A) to B).
-> > 
-> > I feel this is very useful to manage "halfway status" of node
-> > hotplug. (So, memory-less node patch is very helpful for me.)
-> > 
-> > So, I would like to avoid using the word "node online" at here.
-> > But, if above definition is messy for others, I'll change it.
-> 
-> Ok can we talk about this as
-> 
-> 	node online
-> 
-> and
-> 
-> 	node memory available?
+> On ia64, we have "tpa" instruction which does the virtual to physical
+> address conversion for us. But talking to Tony, that will fault during not
+> present or vhpt misses.
+>
+> Well, for now, manual walk is probably the best we have.
 
-Yes. Thanks.
-
-
--- 
-Yasunori Goto 
-
+Hmm, we'd actually want it to fault, and go through the full
+handle_mm_fault path if possible, and somehow just give an
+-EFAULT if it can't be satisfied. The common case will be that
+a mapping does actually exist, but sometimes there won't be a
+pte entry... depending on the application, it may even be the
+common case to have a hot TLB entry too... I don't know,
+obviously the manual walk is needed to get a simple baseline.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
