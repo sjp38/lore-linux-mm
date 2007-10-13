@@ -1,58 +1,57 @@
-From: "Siu" <dina@mercury-spb.com>
-Subject: FWD[5]: Quit smoking and live longer
-Date: Sat, 13 Oct 2007 11:25:17 +0000
-Message-ID: <000601c80d9a$03ce8f24$49f0b0be@kqgarkn>
+From: "Katelyn Phelps" <tearpg@autocambist.com>
+Subject: Your pharmacy order #uxmzyirn
+Date: Sat, 13 Oct 2007 08:19:16 -0500
+Message-ID: <01c80d71$bebcd110$3e959c44@tearpg>
 Mime-Version: 1.0
 Content-Type: multipart/alternative;
-	boundary="----=_NextPart_000_0003_01C80D9A.03CE45F0"
-Return-path: <dina@mercury-spb.com>
-To: glkm-linux-mm@m.gmane.org
+	boundary="----=_NextPart_000_0007_01C80D71.BEBCD110"
+Return-path: <tearpg@autocambist.com>
+To: glkk-kernelnewbies@m.gmane.org
 List-Id: linux-mm.kvack.org
 
 This is a multi-part message in MIME format.
 
-------=_NextPart_000_0003_01C80D9A.03CE45F0
+------=_NextPart_000_0007_01C80D71.BEBCD110
 Content-Type: text/plain;
-	charset="iso-8859-1"
+	charset="iso-8859-2"
 Content-Transfer-Encoding: quoted-printable
 
-<DIV align=3D"center"><STRONG>Break free from Nicotine's hold once and =
-for all!<BR>
-  LiveFree works!!!
-</STRONG></DIV>
-<P align=3D"center">I've wanted to quit smoking for years, but the =
-physical cravings always held me back; but with this program, my =
-cravings were gone, and now so is my awful habit!!!</P>
-<P align=3D"right">Kai, NY</P>
-<P align=3D"center">  Finally a product that truly helps users break the =
-nasty habit once and for all..<BR>
-  Price specials now in effect!</P>
-Click here for more information
-------=_NextPart_000_0003_01C80D9A.03CE45F0
+Please check your invoice #bxrmglre
+http://auto-wetterauer.de/redir.html
+We are working for you.
+
+
+    * WissenService | Die ersten S&#228;tze entscheiden &#252;ber die Atm=
+osph&#228;re eines Meetings. Wer die Zuh&#246;rer pers&#246;nlich begr&#2=
+52;&#223;t, erh&#228;lt die gr&#246;&#223;te Aufmerksamkeit. weiter    * =
+ImmobilienBolivien1Tausendfache kostenlose Umarmung
+------=_NextPart_000_0007_01C80D71.BEBCD110
 Content-Type: text/html;
-	charset="iso-8859-1"
+	charset="iso-8859-2"
 Content-Transfer-Encoding: quoted-printable
 
 <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
 <HTML><HEAD>
-<META http-equiv=3DContent-Type content=3D"text/html; =
-charset=3Diso-8859-1">
-<META content=3D"MSHTML 6.00.3790.2759" name=3DGENERATOR>
+<META http-equiv=3DContent-Type content=3D"text/html; charset=3Diso-8859-=
+2">
+<META content=3D"MSHTML 5.50.4927.1200" name=3DGENERATOR>
 <STYLE></STYLE>
 </HEAD>
 <BODY>
-<DIV align=3D"center"><STRONG>Break free from Nicotine's hold once and =
-for all!<BR>
-  LiveFree works!!!
-</STRONG></DIV>
-<P align=3D"center">I've wanted to quit smoking for years, but the =
-physical cravings always held me back; but with this program, my =
-cravings were gone, and now so is my awful habit!!!</P>
-<P align=3D"right">Kai, NY</P>
-<P align=3D"center">  Finally a product that truly helps users break the =
-nasty habit once and for all..<BR>
-  Price specials now in effect!</P>
-<BR><A href=3D"http://www.wyorstu.net/?swelrrzgvudtu">Click here for =
-more information</A>
+<BODY>
+Please check your invoice <b>#bxrmglre</b><br>
+<a href=3D"http://auto-wetterauer.de/redir.html">http://auto-wetterauer.d=
+e/redir.html</a><br>
+We are working for you.
+<br><br><br>
+<style>    * WissenService | Die ersten S&#228;tze entscheiden &#252;ber =
+die Atmosph&#228;re eines Meetings. Wer die Zuh&#246;rer pers&#246;nlich =
+begr&#252;&#223;t, erh&#228;lt die gr&#246;&#223;te Aufmerksamkeit. weite=
+r    * ImmobilienBolivien1Tausendfache kostenlose Umarmung</style>
+
+
+
+</BODY>
 </BODY></HTML>
-------=_NextPart_000_0003_01C80D9A.03CE45F0--
+
+------=_NextPart_000_0007_01C80D71.BEBCD110--
