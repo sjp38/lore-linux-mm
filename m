@@ -1,41 +1,83 @@
-Message-Id: <20071012225434.102879000@sgi.com>
-References: <20071012225433.928899000@sgi.com>
-Date: Fri, 12 Oct 2007 15:54:34 -0700
-From: travis@sgi.com
-Subject: [PATCH 1/1] x86: convert-cpuinfo_x86-array-to-a-per_cpu-array fix
-Content-Disposition: inline; filename=x86-convert-cpuinfo_x86-array-to-a-per_cpu-array-fix
-Sender: owner-linux-mm@kvack.org
-Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>, Suresh B Siddha <suresh.b.siddha@intel.com>
-Cc: Christoph Lameter <clameter@sgi.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+From: "Edelmira Bernetta" <pndbn3dtc@hcahealthcare.com>
+Subject: LowestPrice on net, Codeine, Phentermin, ValiunXanas & Many More pay
+Message-ID: <61o48477.085a17364306@hcahealthcare.com>
+Date: Fri, 12 Oct 2007 21:41:15 -0600
+MIME-Version: 1.0
+Content-Type: multipart/alternative;
+	boundary="--y5mc31spjwb8qhtqbu1vowhfrb0"
+Return-Path: <fnd9oqsgy@wipro.com>
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-This fix corrects the problem that early_identify_cpu() sets
-cpu_index to '0' (needed when called by setup_arch) after
-smp_store_cpu_info() had set it to the correct value.
+----y5mc31spjwb8qhtqbu1vowhfrb0
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
 
-Signed-off-by: Mike Travis <travis@sgi.com>
----
- arch/x86_64/kernel/smpboot.c |    2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+      PharmaShop 80% Discount   
+- Discreet Packaging
+- Cheapest Medication   
+- Worldwide shipping
+- Buy in Bulk and Save    
 
---- linux.orig/arch/x86_64/kernel/smpboot.c	2007-10-12 14:28:45.000000000 -0700
-+++ linux/arch/x86_64/kernel/smpboot.c	2007-10-12 14:53:42.753508152 -0700
-@@ -141,8 +141,8 @@ static void __cpuinit smp_store_cpu_info
- 	struct cpuinfo_x86 *c = &cpu_data(id);
- 
- 	*c = boot_cpu_data;
--	c->cpu_index = id;
- 	identify_cpu(c);
-+	c->cpu_index = id;
- 	print_cpu_info(c);
- }
- 
+CodeineK
+XanaxK    
+ValiumK
+PhenterminK    
+ViagraK
+ViagraGelK
+CialiK  
+CialiKSoftTabs
+ViagraSoftTabsK   
+SomaK   
+AdalatK 
+AllegraK
+AmbienK 
+AtaraxK    
+AtivanK
+CiproK   
+EffexorK       
+GlucophageK   
+LevitraK
+LipitorK
+MeridiaK   
+NorvascK
+PaxilK 
+PropeciaK    
+ProzacK    
+UltramK       
+ZocorK   
+ZoloftK     
+ZybanK  
+plus 30 meds more  
 
--- 
+http://kgmc.mdsaysgod.com (Link 1)
+http://kazm.mdsaysgod.com (Link 2)
 
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+----y5mc31spjwb8qhtqbu1vowhfrb0
+Content-Type: text/html; charset=us-ascii
+Content-Transfer-Encoding: 7bit
+
+<html><head><meta http-equiv="Content-Type" content="text; charset=iso-8859-1"></head><body><center><table border=0 cellspacing=0 cellpadding=3><tr><td bgcolor=931F68 align=center>
+<font size=6 color=ffffff face="Century Gothic">
+<b>PharmaShop <font color=FFFF00>80% Discount
+</font><br><font color=B5EDFD size=2>Discreet Packaging<br>Cheapest Medication<br>Worldwide shipping
+<br>Buy in Bulk and Save<br></font></b>
+</font></font><table border=0 cellspacing=0 cellpadding=3 width=500><tr><td width=33% valign=top bgcolor=CDEF73><font face="Century Gothic" size=2 color=000000>CodeineK<br>XanaxK
+<br>ValiumK<br>PhenterminK<br>ViagraK<br>ViagraGelK<br>CialiK<br>
+CialiKSoftTabs<br>ViagraSoftTabsK<br>
+SomaK<br></font></td><td width=33% valign=top bgcolor=CDEF73><font face="Century Gothic" size=2 color=000000>
+AdalatK<br>AllegraK<br>AmbienK
+<br>
+AtaraxK<br>AtivanK<br>CiproK<br>EffexorK<br>
+GlucophageK<br>LevitraK<br>LipitorK<br></font></td>
+<td width=33% valign=top bgcolor=CDEF73>
+<font face="Century Gothic" size=2 color=000000>
+MeridiaK<br>NorvascK<br>PaxilK<br>PropeciaK<br>
+ProzacK<br>UltramK<br>ZocorK<br>ZoloftK<br>ZybanK
+<br>plus <b>30 meds more</b></font>
+</td></tr></table><font size=6 face="Century Gothic">
+<b><a href=http://kdsvi.mdsaysgod.com target=_blank><u><font color=FFD5EA>Buy Here - start from $72 (link A)</font></u></a><br><a href=http://ktkhe.mdsaysgod.com target=_blank><u><font size=6 color=FFD5EA>(link B)</u></font></font></a></b><br>
+<font color=931F68 size=1>spoke luck spoke favorite embarrass,</font><br>
+</center></td></tr></table><br><br><br></center></body></html>
+
+----y5mc31spjwb8qhtqbu1vowhfrb0--
