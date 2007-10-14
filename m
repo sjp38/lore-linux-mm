@@ -1,82 +1,32 @@
-Date: Sun, 14 Oct 2007 20:50:59 +0300 (EEST)
-From: Pekka J Enberg <penberg@cs.helsinki.fi>
-Subject: Re: msync(2) bug(?), returns AOP_WRITEPAGE_ACTIVATE to userland
-In-Reply-To: <200710141723.l9EHNowh015023@agora.fsl.cs.sunysb.edu>
-Message-ID: <Pine.LNX.4.64.0710142049000.13119@sbz-30.cs.Helsinki.FI>
-References: <200710141723.l9EHNowh015023@agora.fsl.cs.sunysb.edu>
+Date: Sun, 14 Oct 2007 11:19:29 -0700
+From: "Siddha, Suresh B" <suresh.b.siddha@intel.com>
+Subject: Re: [rfc] lockless get_user_pages for dio (and more)
+Message-ID: <20071014181929.GA19902@linux-os.sc.intel.com>
+References: <20071008225234.GC27824@linux-os.sc.intel.com> <20071012203421.GC19625@linux-os.sc.intel.com> <200710140927.46478.nickpiggin@yahoo.com.au> <200710141101.02649.nickpiggin@yahoo.com.au>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+In-Reply-To: <200710141101.02649.nickpiggin@yahoo.com.au>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Erez Zadok <ezk@cs.sunysb.edu>
-Cc: Hugh Dickins <hugh@veritas.com>, Ryan Finnie <ryan@finnie.org>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, cjwatson@ubuntu.com, linux-mm@kvack.org
+To: Nick Piggin <nickpiggin@yahoo.com.au>
+Cc: "Siddha, Suresh B" <suresh.b.siddha@intel.com>, Ken Chen <kenchen@google.com>, Badari Pulavarty <pbadari@gmail.com>, linux-mm <linux-mm@kvack.org>, tony.luck@intel.com
 List-ID: <linux-mm.kvack.org>
 
-Hi Erez,
-
-On Sun, 14 Oct 2007, Erez Zadok wrote:
-> In unionfs_writepage() I tried to emulate as best possible what the lower
-> f/s will have returned to the VFS.  Since tmpfs's ->writepage can return
-> AOP_WRITEPAGE_ACTIVATE and re-mark its page as dirty, I did the same in
-> unionfs: mark again my page as dirty, and return AOP_WRITEPAGE_ACTIVATE.
+On Sun, Oct 14, 2007 at 11:01:02AM +1000, Nick Piggin wrote:
+> On Sunday 14 October 2007 09:27, Nick Piggin wrote:
+> > On Saturday 13 October 2007 06:34, Siddha, Suresh B wrote:
 > 
-> Should I be doing something different when unionfs stacks on top of tmpfs?
-> (BTW, this is probably also relevant to ecryptfs.)
+> > > sounds like two birds in one shot, I think.
+> >
+> > OK, I'll flesh it out a bit more and see if I can actually get
+> > something working (and working with hugepages too).
+> 
+> This is just a really quick hack, untested ATM, but one that
+> has at least a chance of working (on x86).
 
-Look at mm/filemap.c:__filemap_fdatawrite_range(). You shouldn't be 
-calling unionfs_writepage() _at all_ if the lower mapping has 
-BDI_CAP_NO_WRITEBACK capability set. Perhaps something like the totally 
-untested patch below?
-
-				Pekka
-
----
- fs/unionfs/mmap.c |   17 +++++++++++++++++
- 1 file changed, 17 insertions(+)
-
-Index: linux-2.6.23-rc8/fs/unionfs/mmap.c
-===================================================================
---- linux-2.6.23-rc8.orig/fs/unionfs/mmap.c
-+++ linux-2.6.23-rc8/fs/unionfs/mmap.c
-@@ -17,6 +17,7 @@
-  * published by the Free Software Foundation.
-  */
- 
-+#include <linux/backing-dev.h>
- #include "union.h"
- 
- /*
-@@ -144,6 +145,21 @@ out:
- 	return err;
- }
- 
-+static int unionfs_writepages(struct address_space *mapping,
-+			      struct writeback_control *wbc)
-+{
-+	struct inode *lower_inode;
-+	struct inode *inode;
-+
-+	inode = mapping->host;
-+	lower_inode = unionfs_lower_inode(inode);
-+
-+	if (!mapping_cap_writeback_dirty(lower_inode->i_mapping))
-+		return 0;
-+
-+	return generic_writepages(mapping, wbc);
-+}
-+
- /*
-  * readpage is called from generic_page_read and the fault handler.
-  * If your file system uses generic_page_read for the read op, it
-@@ -371,6 +387,7 @@ out:
- 
- struct address_space_operations unionfs_aops = {
- 	.writepage	= unionfs_writepage,
-+	.writepages	= unionfs_writepages,
- 	.readpage	= unionfs_readpage,
- 	.prepare_write	= unionfs_prepare_write,
- 	.commit_write	= unionfs_commit_write,
+When we fall back to slow mode, we should decrement the ref counts
+on the pages we got so far in the fast mode.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
