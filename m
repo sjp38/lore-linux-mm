@@ -1,70 +1,65 @@
-Date: Mon, 15 Oct 2007 12:34:09 -0700 (PDT)
-From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [PATCH/RFC 4/4] Mem Policy: Fixup Fallback for Default Shmem
- Policy
-In-Reply-To: <Pine.LNX.4.64.0710121045380.8891@schroedinger.engr.sgi.com>
-Message-ID: <Pine.LNX.4.64.0710151226330.26753@schroedinger.engr.sgi.com>
-References: <20071012154854.8157.51441.sendpatchset@localhost>
- <20071012154918.8157.26655.sendpatchset@localhost>
- <Pine.LNX.4.64.0710121045380.8891@schroedinger.engr.sgi.com>
+Received: from zps18.corp.google.com (zps18.corp.google.com [172.25.146.18])
+	by smtp-out.google.com with ESMTP id l9FKL3R0030971
+	for <linux-mm@kvack.org>; Mon, 15 Oct 2007 13:21:03 -0700
+Received: from nz-out-0506.google.com (nzfn1.prod.google.com [10.36.190.1])
+	by zps18.corp.google.com with ESMTP id l9FKL2Ix021321
+	for <linux-mm@kvack.org>; Mon, 15 Oct 2007 13:21:02 -0700
+Received: by nz-out-0506.google.com with SMTP id n1so935052nzf
+        for <linux-mm@kvack.org>; Mon, 15 Oct 2007 13:21:01 -0700 (PDT)
+Message-ID: <b040c32a0710151321s74799f0ax6e3e0c4042429c5b@mail.gmail.com>
+Date: Mon, 15 Oct 2007 13:21:01 -0700
+From: "Ken Chen" <kenchen@google.com>
+Subject: Re: [rfc] lockless get_user_pages for dio (and more)
+In-Reply-To: <200710152225.11433.nickpiggin@yahoo.com.au>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+References: <20071008225234.GC27824@linux-os.sc.intel.com>
+	 <200710141101.02649.nickpiggin@yahoo.com.au>
+	 <20071014181929.GA19902@linux-os.sc.intel.com>
+	 <200710152225.11433.nickpiggin@yahoo.com.au>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Lee Schermerhorn <lee.schermerhorn@hp.com>
-Cc: akpm@linux-foundation.org, linux-mm@kvack.org, ak@suse.de, eric.whitney@hp.com, mel@skynet.ie
+To: Nick Piggin <nickpiggin@yahoo.com.au>
+Cc: "Siddha, Suresh B" <suresh.b.siddha@intel.com>, Badari Pulavarty <pbadari@gmail.com>, linux-mm <linux-mm@kvack.org>, tony.luck@intel.com
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 12 Oct 2007, Christoph Lameter wrote:
+On 10/15/07, Nick Piggin <nickpiggin@yahoo.com.au> wrote:
+> +static int gup_huge_pmd(pmd_t pmd, unsigned long addr,
+> +{
+> +	pte_t pte = *(pte_t *)&pmd;
+> +
+> +	if (write && !pte_write(pte))
+> +		return 0;
+> +
+> +	do {
+> +		unsigned long pfn_offset;
+> +		struct page *page;
+> +
+> +		pfn_offset = (addr & ~HPAGE_MASK) >> PAGE_SHIFT;
+> +		page = pte_page(pte) + pfn_offset;
+> +		get_page(page);
+> +		pages[*nr] = page;
+> +		(*nr)++;
+> +
+> +	} while (addr += PAGE_SIZE, addr != end);
+> +
+> +	return 1;
+> +}
 
-> > Index: Linux/mm/mempolicy.c
-> > ===================================================================
-> > --- Linux.orig/mm/mempolicy.c	2007-10-12 10:50:05.000000000 -0400
-> > +++ Linux/mm/mempolicy.c	2007-10-12 10:52:46.000000000 -0400
-> > @@ -1112,19 +1112,25 @@ static struct mempolicy * get_vma_policy
-> >  		struct vm_area_struct *vma, unsigned long addr)
-> >  {
-> >  	struct mempolicy *pol = task->mempolicy;
-> > -	int shared_pol = 0;
-> > +	int pol_needs_ref = (task != current);
-> 
-> If get_vma_policy is called from the numa_maps handler then we have taken 
-> a refcount on the task struct. 
-> 
-> So this should be
-> 	int pol_needs_ref = 0;
+Since get_page() on compound page will reference back to the head
+page, you can take a ref directly against the head page instead of
+traversing to tail page and loops around back to the head page.  It is
+especially beneficial for large hugetlb page size, i.e., 1 GB page
+size so one does not have to pollute cache with tail page's struct
+page. I prefer doing the following:
 
-Argh. Refcount is not it. We have taken the mmap_sem lock 
-because we are scanning though the pages. This avoids issues for the vma 
-policies that can only be set when a writelock was taken on mmap_sem.
-
-However, mmap_sem is not taken when setting task->mempolicy. Taking 
-mmap_sem there would solve the issue (we have discussed this before).
-
-You cannot reliably take a refcount on a foreign task structs mempolicy 
-since the task may just be in the process of switching policies. You could 
-increment the refcount and then the other task frees the structure.
-
-I think we need something like this:
-
-Index: linux-2.6/mm/mempolicy.c
-===================================================================
---- linux-2.6.orig/mm/mempolicy.c	2007-10-15 12:32:45.000000000 -0700
-+++ linux-2.6/mm/mempolicy.c	2007-10-15 12:33:56.000000000 -0700
-@@ -468,11 +468,13 @@ long do_set_mempolicy(int mode, nodemask
- 	new = mpol_new(mode, nodes);
- 	if (IS_ERR(new))
- 		return PTR_ERR(new);
-+	down_read(&current->mm->mmap_sem);
- 	mpol_free(current->mempolicy);
- 	current->mempolicy = new;
- 	mpol_set_task_struct_flag();
- 	if (new && new->policy == MPOL_INTERLEAVE)
- 		current->il_next = first_node(new->v.nodes);
-+	up_read(&current->mm->mmap_sem);
- 	return 0;
- }
- 
++		page = pte_page(pte);
++		get_page(page);
++		pfn_offset = (addr & ~HPAGE_MASK) >> PAGE_SHIFT;
++		pages[*nr] = page + pfn_offset;
++		(*nr)++;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
