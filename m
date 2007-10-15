@@ -1,104 +1,50 @@
-Date: Mon, 15 Oct 2007 04:29:08 -0500
-From: " Royal Euro Kasino " <directorate@ffff.com>
-Subject: 300% Bonus fur Ihre erste Einzahlung! 
-Message-ID: <87222602.74737774@liaison.com>
+From: Nick Piggin <nickpiggin@yahoo.com.au>
+Subject: Re: [PATCH resend] ramdisk: fix zeroed ramdisk pages on memory pressure
+Date: Tue, 16 Oct 2007 00:06:19 +1000
+References: <200710151028.34407.borntraeger@de.ibm.com>
+In-Reply-To: <200710151028.34407.borntraeger@de.ibm.com>
 MIME-Version: 1.0
-Content-Type: text/html; charset=iso-8859-1
+Content-Type: text/plain;
+  charset="iso-8859-1"
 Content-Transfer-Encoding: 7bit
-Return-Path: <directorate@ffff.com>
-To: owner-linux-mm@kvack.org
+Content-Disposition: inline
+Message-Id: <200710160006.19735.nickpiggin@yahoo.com.au>
+Sender: owner-linux-mm@kvack.org
+Return-Path: <owner-linux-mm@kvack.org>
+To: Christian Borntraeger <borntraeger@de.ibm.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Martin Schwidefsky <schwidefsky@de.ibm.com>, Theodore Ts'o <tytso@mit.edu>
 List-ID: <linux-mm.kvack.org>
 
-<html>
+On Monday 15 October 2007 18:28, Christian Borntraeger wrote:
+> Andrew, this is a resend of a bugfix patch. Ramdisk seems a bit
+> unmaintained, so decided to sent the patch to you :-).
+> I have CCed Ted, who did work on the code in the 90s. I found no current
+> email address of Chad Page.
 
-<head>
-<meta http-equiv=Content-Type content="text/html; charset=iso-8859-1">
+This really needs to be fixed...
 
-<title>Online </title>
+I can't make up my mind between the approaches to fixing it.
 
-<style>
-<!--
- /* Style Definitions */
- p.MsoNormal, li.MsoNormal, div.MsoNormal
-	{mso-style-parent:"";
-	margin:0cm;
-	margin-bottom:.0001pt;
-	mso-pagination:widow-orphan;
-	font-size:12.0pt;
-	font-family:"Times New Roman";
-	mso-fareast-font-family:"Times New Roman";}
-a:link, span.MsoHyperlink
-	{color:blue;
-	text-decoration:underline;
-	text-underline:single;}
-a:visited, span.MsoHyperlinkFollowed
-	{color:purple;
-	text-decoration:underline;
-	text-underline:single;}
-@page Section1
-	{size:595.3pt 841.9pt;
-	margin:2.0cm 42.5pt 2.0cm 3.0cm;
-	mso-header-margin:35.4pt;
-	mso-footer-margin:35.4pt;
-	mso-paper-source:0;}
-div.Section1
-	{page:Section1;}
--->
-</style>
+On one hand, I would actually prefer to really mark the buffers
+dirty (as in: Eric's fix for this problem[*]) than this patch,
+and this seems a bit like a bandaid...
 
-</head>
+On the other hand, the wound being covered by the bandaid is
+actually the code in the buffer layer that does this latent
+"cleaning" of the page because it sadly doesn't really keep
+track of the pagecache state. But it *still* feels like we
+should be marking the rd page's buffers dirty which should
+avoid this problem anyway.
 
-<body lang=DE link=blue vlink=purple style='tab-interval:35.4pt'>
+[*] However, hmm, with Eric's patch I guess we'd still have a hole
+where filesystems that write their buffers by hand think they are
+"cleaning" these things and we're back to square one. That could
+be fixed by marking the buffers dirty again?
 
-<div class=Section1>
+Why were Eric's patches dropped, BTW? I don't remember.
 
-<p class=MsoNormal>Online 
-Casinos sind dafuer bekannt, ihren Spielern, 
-gro&#223;z&uuml;gige Ersteinzahlungsbonusse zu geben.
-<o:p></o:p></p>
-
-<p class=MsoNormal><o:p>&nbsp;</o:p></p>
-
-<p class=MsoNormal><span lang=EN-US style='mso-ansi-language:EN-US'>
-Aber einen so grossen Bonus 
-haben Sie noch nie erhalten!<o:p></o:p></span></p>
-
-<p class=MsoNormal><span lang=EN-US style='mso-ansi-language:EN-US'>
-<o:p>&nbsp;</o:p></span></p>
-
-<p class=MsoNormal><span lang=EN-US style='mso-ansi-language:EN-US'>
-300% Bonus auf Ihre erste Einzahlung auf bis zu 
-300&euro; Bonus!<o:p></o:p></span></p>
-
-<p class=MsoNormal><span lang=EN-US style='mso-ansi-language:EN-US'>
-<o:p>&nbsp;</o:p></span></p>
-
-<p class=MsoNormal><span lang=EN-US style='mso-ansi-language:EN-US'>
-Ein echt k&ouml;niglicher Bonus!
-<o:p></o:p></span></p>
-
-<p class=MsoNormal><span lang=EN-US style='mso-ansi-language:EN-US'>
-<o:p>&nbsp;</o:p></span></p>
-
-<p class=MsoNormal><span lang=EN-US style='mso-ansi-language:EN-US'>
-Royal Euro 
-Casino bietet Ihnen die neueste Generatin an 
-Software und eine elegante gaming Atmosph&auml;re. Mit einer Auswahl 
-an &uuml;ber 100 Casino Spielen und einer immer 
-verf&uuml;gbaren Kundenbetreuung kann man 
-nicht mehr verlangen.
-<o:p></o:p></span></p>
-
-<p class=MsoNormal><span lang=EN-US style='mso-ansi-language:EN-US'>
-<o:p>&nbsp;</o:p></span></p>
-
-<p class=MsoNormal><a href="http://www.royalmaincasino.com/lang-de/">
-http://www.royalmaincasino.com/lang-de/</a>
-<span lang=EN-US style='mso-ansi-language:EN-US'>
-<o:p></o:p></span></p>
-
-</div>
-
-</body>
-
-</html>
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
