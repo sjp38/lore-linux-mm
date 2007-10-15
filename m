@@ -1,118 +1,70 @@
-From: ebiederm@xmission.com (Eric W. Biederman)
-Subject: Re: [PATCH resend] ramdisk: fix zeroed ramdisk pages on memory pressure
-References: <200710151028.34407.borntraeger@de.ibm.com>
-	<200710160006.19735.nickpiggin@yahoo.com.au>
-	<200710151105.57442.borntraeger@de.ibm.com>
-	<200710160038.03524.nickpiggin@yahoo.com.au>
-Date: Mon, 15 Oct 2007 12:38:33 -0600
-In-Reply-To: <200710160038.03524.nickpiggin@yahoo.com.au> (Nick Piggin's
-	message of "Tue, 16 Oct 2007 00:38:03 +1000")
-Message-ID: <m1ejfwkyty.fsf@ebiederm.dsl.xmission.com>
+Date: Mon, 15 Oct 2007 12:34:09 -0700 (PDT)
+From: Christoph Lameter <clameter@sgi.com>
+Subject: Re: [PATCH/RFC 4/4] Mem Policy: Fixup Fallback for Default Shmem
+ Policy
+In-Reply-To: <Pine.LNX.4.64.0710121045380.8891@schroedinger.engr.sgi.com>
+Message-ID: <Pine.LNX.4.64.0710151226330.26753@schroedinger.engr.sgi.com>
+References: <20071012154854.8157.51441.sendpatchset@localhost>
+ <20071012154918.8157.26655.sendpatchset@localhost>
+ <Pine.LNX.4.64.0710121045380.8891@schroedinger.engr.sgi.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nick Piggin <nickpiggin@yahoo.com.au>
-Cc: Christian Borntraeger <borntraeger@de.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Martin Schwidefsky <schwidefsky@de.ibm.com>, Theodore Ts'o <tytso@mit.edu>
+To: Lee Schermerhorn <lee.schermerhorn@hp.com>
+Cc: akpm@linux-foundation.org, linux-mm@kvack.org, ak@suse.de, eric.whitney@hp.com, mel@skynet.ie
 List-ID: <linux-mm.kvack.org>
 
-Nick Piggin <nickpiggin@yahoo.com.au> writes:
+On Fri, 12 Oct 2007, Christoph Lameter wrote:
 
-> On Monday 15 October 2007 19:05, Christian Borntraeger wrote:
->> Am Montag, 15. Oktober 2007 schrieb Nick Piggin:
->> > On Monday 15 October 2007 18:28, Christian Borntraeger wrote:
->> > > Andrew, this is a resend of a bugfix patch. Ramdisk seems a bit
->> > > unmaintained, so decided to sent the patch to you :-).
->> > > I have CCed Ted, who did work on the code in the 90s. I found no
->> > > current email address of Chad Page.
->> >
->> > This really needs to be fixed...
->>
->> I obviously agree ;-)
->> We have seen this problem happen several times.
->>
->> > I can't make up my mind between the approaches to fixing it.
->> >
->> > On one hand, I would actually prefer to really mark the buffers
->> > dirty (as in: Eric's fix for this problem[*]) than this patch,
->> > and this seems a bit like a bandaid...
->>
->> I have never seen these patches, so I cannot comment on them.
->
->> > On the other hand, the wound being covered by the bandaid is
->> > actually the code in the buffer layer that does this latent
->> > "cleaning" of the page because it sadly doesn't really keep
->> > track of the pagecache state. But it *still* feels like we
->> > should be marking the rd page's buffers dirty which should
->> > avoid this problem anyway.
->>
->> Yes, that would solve the problem as well. As long as we fix
->> the problem, I am happy. On the other hand, do you see any
->> obvious problem with this "bandaid"?
->
-> I don't think so -- in fact, it could be the best candidate for
-> a minimal fix for stable kernels (anyone disagree? if not, maybe
-> you could also send this to the stable maintainers?).
+> > Index: Linux/mm/mempolicy.c
+> > ===================================================================
+> > --- Linux.orig/mm/mempolicy.c	2007-10-12 10:50:05.000000000 -0400
+> > +++ Linux/mm/mempolicy.c	2007-10-12 10:52:46.000000000 -0400
+> > @@ -1112,19 +1112,25 @@ static struct mempolicy * get_vma_policy
+> >  		struct vm_area_struct *vma, unsigned long addr)
+> >  {
+> >  	struct mempolicy *pol = task->mempolicy;
+> > -	int shared_pol = 0;
+> > +	int pol_needs_ref = (task != current);
+> 
+> If get_vma_policy is called from the numa_maps handler then we have taken 
+> a refcount on the task struct. 
+> 
+> So this should be
+> 	int pol_needs_ref = 0;
 
-A minor one.  It still leaves us with buffer heads out of sync with
-struct page.
+Argh. Refcount is not it. We have taken the mmap_sem lock 
+because we are scanning though the pages. This avoids issues for the vma 
+policies that can only be set when a writelock was taken on mmap_sem.
 
-> But I do want to have this fixed in a "nice" way. eg. I'd like
-> it to mark the buffers dirty because that actually results in
-> more reuse of generic kernel code, and also should make rd
-> behave more naturally (I like using it to test filesystems
-> because it can expose a lot more concurrency than something like
-> loop on tmpfs). It should also be possible to actually have
-> rd's buffer heads get reclaimed as well, preferably while
-> exercising the common buffer paths and without writing much new
-> code.
+However, mmap_sem is not taken when setting task->mempolicy. Taking 
+mmap_sem there would solve the issue (we have discussed this before).
 
-We actually allow that currently for clean pages which is part
-of what makes this tricky.
+You cannot reliably take a refcount on a foreign task structs mempolicy 
+since the task may just be in the process of switching policies. You could 
+increment the refcount and then the other task frees the structure.
 
-> All of that is secondary to fixing the data corruption problem
-> of course! But the fact that those alternate patches do exist now
-> means I want to just bring them into the discussion again before
-> merging one or the other.
+I think we need something like this:
 
-The core of my original fix was to modify init_page_buffers so that
-when we added buffers to a dirty page the buffers became dirty.
-
-Modifying the generic code is a bit spooky because it requires us
-to audit the kernel to make certain nothing else depends on the
-current behavior in odd ways.  Although since init_page_buffers
-is only called when we are adding buffer heads to an existing
-page I still think that was the proper change.
-
-The historical reason for my patches not getting merged the first
-time is there was some weird issue with reiserfs ramdisks and so
-Andrew disabled the code, and then dropped it when he had discovered
-he had the patch disabled for several releases.  I don't think
-any causal relationship was ever established.  But I didn't
-hear enough about the reiserfs ramdisk issue, to make a guess
-what was going on.
-
-So it looks to me like the important invariant we need to maintain
-is that when a ramdisk page is dirty it always has buffers and those
-buffers are dirty as well.  With a little care we can ensure this
-happens with just modifications to rd.c
-
-Eric
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+Index: linux-2.6/mm/mempolicy.c
+===================================================================
+--- linux-2.6.orig/mm/mempolicy.c	2007-10-15 12:32:45.000000000 -0700
++++ linux-2.6/mm/mempolicy.c	2007-10-15 12:33:56.000000000 -0700
+@@ -468,11 +468,13 @@ long do_set_mempolicy(int mode, nodemask
+ 	new = mpol_new(mode, nodes);
+ 	if (IS_ERR(new))
+ 		return PTR_ERR(new);
++	down_read(&current->mm->mmap_sem);
+ 	mpol_free(current->mempolicy);
+ 	current->mempolicy = new;
+ 	mpol_set_task_struct_flag();
+ 	if (new && new->policy == MPOL_INTERLEAVE)
+ 		current->il_next = first_node(new->v.nodes);
++	up_read(&current->mm->mmap_sem);
+ 	return 0;
+ }
+ 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
