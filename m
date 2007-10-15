@@ -1,44 +1,36 @@
-Date: Sun, 14 Oct 2007 18:32:08 -0400
-Message-Id: <200710142232.l9EMW8kK029572@agora.fsl.cs.sunysb.edu>
-From: Erez Zadok <ezk@cs.sunysb.edu>
-Subject: Re: msync(2) bug(?), returns AOP_WRITEPAGE_ACTIVATE to userland 
-In-reply-to: Your message of "Sun, 14 Oct 2007 20:50:59 +0300."
-             <Pine.LNX.4.64.0710142049000.13119@sbz-30.cs.Helsinki.FI>
+From: Nick Piggin <nickpiggin@yahoo.com.au>
+Subject: Re: [rfc] lockless get_user_pages for dio (and more)
+Date: Mon, 15 Oct 2007 14:15:55 +1000
+References: <20071008225234.GC27824@linux-os.sc.intel.com> <200710141101.02649.nickpiggin@yahoo.com.au> <20071014181929.GA19902@linux-os.sc.intel.com>
+In-Reply-To: <20071014181929.GA19902@linux-os.sc.intel.com>
+MIME-Version: 1.0
+Content-Type: text/plain;
+  charset="iso-8859-1"
+Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+Message-Id: <200710151415.55332.nickpiggin@yahoo.com.au>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Pekka J Enberg <penberg@cs.helsinki.fi>
-Cc: Erez Zadok <ezk@cs.sunysb.edu>, Hugh Dickins <hugh@veritas.com>, Ryan Finnie <ryan@finnie.org>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, cjwatson@ubuntu.com, linux-mm@kvack.org
+To: "Siddha, Suresh B" <suresh.b.siddha@intel.com>
+Cc: Ken Chen <kenchen@google.com>, Badari Pulavarty <pbadari@gmail.com>, linux-mm <linux-mm@kvack.org>, tony.luck@intel.com
 List-ID: <linux-mm.kvack.org>
 
-In message <Pine.LNX.4.64.0710142049000.13119@sbz-30.cs.Helsinki.FI>, Pekka J Enberg writes:
-> Hi Erez,
-> 
-> On Sun, 14 Oct 2007, Erez Zadok wrote:
-> > In unionfs_writepage() I tried to emulate as best possible what the lower
-> > f/s will have returned to the VFS.  Since tmpfs's ->writepage can return
-> > AOP_WRITEPAGE_ACTIVATE and re-mark its page as dirty, I did the same in
-> > unionfs: mark again my page as dirty, and return AOP_WRITEPAGE_ACTIVATE.
-> > 
-> > Should I be doing something different when unionfs stacks on top of tmpfs?
-> > (BTW, this is probably also relevant to ecryptfs.)
-> 
-> Look at mm/filemap.c:__filemap_fdatawrite_range(). You shouldn't be 
-> calling unionfs_writepage() _at all_ if the lower mapping has 
-> BDI_CAP_NO_WRITEBACK capability set. Perhaps something like the totally 
-> untested patch below?
-> 
-> 				Pekka
-[...]
+On Monday 15 October 2007 04:19, Siddha, Suresh B wrote:
+> On Sun, Oct 14, 2007 at 11:01:02AM +1000, Nick Piggin wrote:
+> > On Sunday 14 October 2007 09:27, Nick Piggin wrote:
+> > > On Saturday 13 October 2007 06:34, Siddha, Suresh B wrote:
+> > > > sounds like two birds in one shot, I think.
+> > >
+> > > OK, I'll flesh it out a bit more and see if I can actually get
+> > > something working (and working with hugepages too).
+> >
+> > This is just a really quick hack, untested ATM, but one that
+> > has at least a chance of working (on x86).
+>
+> When we fall back to slow mode, we should decrement the ref counts
+> on the pages we got so far in the fast mode.
 
-Pekka, with a small change to your patch (to handle time-based cache
-coherency), your patch worked well and passed all my tests.  Thanks.
-
-So now I wonder if we still need the patch to prevent AOP_WRITEPAGE_ACTIVATE
-from being returned to userland.  I guess we still need it, b/c even with
-your patch, generic_writepages() can return AOP_WRITEPAGE_ACTIVATE back to
-the VFS and we need to ensure that doesn't "leak" outside the kernel.
-
-Erez.
+Oops, you're right of course!
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
