@@ -1,57 +1,118 @@
-Date: Mon, 15 Oct 2007 10:54:14 -0700
-From: "Siddha, Suresh B" <suresh.b.siddha@intel.com>
-Subject: Re: [rfc] lockless get_user_pages for dio (and more)
-Message-ID: <20071015175414.GB10840@linux-os.sc.intel.com>
-References: <20071008225234.GC27824@linux-os.sc.intel.com> <200710141101.02649.nickpiggin@yahoo.com.au> <20071014181929.GA19902@linux-os.sc.intel.com> <200710152225.11433.nickpiggin@yahoo.com.au>
-Mime-Version: 1.0
+From: ebiederm@xmission.com (Eric W. Biederman)
+Subject: Re: [PATCH resend] ramdisk: fix zeroed ramdisk pages on memory pressure
+References: <200710151028.34407.borntraeger@de.ibm.com>
+	<200710160006.19735.nickpiggin@yahoo.com.au>
+	<200710151105.57442.borntraeger@de.ibm.com>
+	<200710160038.03524.nickpiggin@yahoo.com.au>
+Date: Mon, 15 Oct 2007 12:38:33 -0600
+In-Reply-To: <200710160038.03524.nickpiggin@yahoo.com.au> (Nick Piggin's
+	message of "Tue, 16 Oct 2007 00:38:03 +1000")
+Message-ID: <m1ejfwkyty.fsf@ebiederm.dsl.xmission.com>
+MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <200710152225.11433.nickpiggin@yahoo.com.au>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Nick Piggin <nickpiggin@yahoo.com.au>
-Cc: "Siddha, Suresh B" <suresh.b.siddha@intel.com>, Ken Chen <kenchen@google.com>, Badari Pulavarty <pbadari@gmail.com>, linux-mm <linux-mm@kvack.org>, tony.luck@intel.com, twichell@us.ibm.com, shaggy@linux.vnet.ibm.com
+Cc: Christian Borntraeger <borntraeger@de.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Martin Schwidefsky <schwidefsky@de.ibm.com>, Theodore Ts'o <tytso@mit.edu>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Oct 15, 2007 at 10:25:11PM +1000, Nick Piggin wrote:
-> On Monday 15 October 2007 04:19, Siddha, Suresh B wrote:
-> > On Sun, Oct 14, 2007 at 11:01:02AM +1000, Nick Piggin wrote:
-> > > On Sunday 14 October 2007 09:27, Nick Piggin wrote:
-> > > > On Saturday 13 October 2007 06:34, Siddha, Suresh B wrote:
-> > > > > sounds like two birds in one shot, I think.
-> > > >
-> > > > OK, I'll flesh it out a bit more and see if I can actually get
-> > > > something working (and working with hugepages too).
-> > >
-> > > This is just a really quick hack, untested ATM, but one that
-> > > has at least a chance of working (on x86).
-> >
-> > When we fall back to slow mode, we should decrement the ref counts
-> > on the pages we got so far in the fast mode.
-> 
-> Here is something that is actually tested and works (not
-> tested with hugepages yet, though).
-> 
-> However it's not 100% secure at the moment. It's actually
-> not completely trivial; I think we need to use an extra bit
-> in the present pte in order to exclude "not normal" pages,
-> if we want fast_gup to work on small page mappings too. I
-> think this would be possible to do on most architectures, but
-> I haven't done it here obviously.
-> 
-> Still, it should be enough to test the design. I've added
-> fast_gup and fast_gup_slow to /proc/vmstat, which count the
-> number of times fast_gup was called, and the number of times
-> it dropped into the slowpath. It would be interesting to know
-> how it performs compared to your granular hugepage ptl...
+Nick Piggin <nickpiggin@yahoo.com.au> writes:
 
-I am reasonably sure, it will perform better than mine, as it addresses
-the mmap_sem cacheline bouncing also.
+> On Monday 15 October 2007 19:05, Christian Borntraeger wrote:
+>> Am Montag, 15. Oktober 2007 schrieb Nick Piggin:
+>> > On Monday 15 October 2007 18:28, Christian Borntraeger wrote:
+>> > > Andrew, this is a resend of a bugfix patch. Ramdisk seems a bit
+>> > > unmaintained, so decided to sent the patch to you :-).
+>> > > I have CCed Ted, who did work on the code in the 90s. I found no
+>> > > current email address of Chad Page.
+>> >
+>> > This really needs to be fixed...
+>>
+>> I obviously agree ;-)
+>> We have seen this problem happen several times.
+>>
+>> > I can't make up my mind between the approaches to fixing it.
+>> >
+>> > On one hand, I would actually prefer to really mark the buffers
+>> > dirty (as in: Eric's fix for this problem[*]) than this patch,
+>> > and this seems a bit like a bandaid...
+>>
+>> I have never seen these patches, so I cannot comment on them.
+>
+>> > On the other hand, the wound being covered by the bandaid is
+>> > actually the code in the buffer layer that does this latent
+>> > "cleaning" of the page because it sadly doesn't really keep
+>> > track of the pagecache state. But it *still* feels like we
+>> > should be marking the rd page's buffers dirty which should
+>> > avoid this problem anyway.
+>>
+>> Yes, that would solve the problem as well. As long as we fix
+>> the problem, I am happy. On the other hand, do you see any
+>> obvious problem with this "bandaid"?
+>
+> I don't think so -- in fact, it could be the best candidate for
+> a minimal fix for stable kernels (anyone disagree? if not, maybe
+> you could also send this to the stable maintainers?).
 
-I think Brian/Badari can help us out in getting the numbers.
+A minor one.  It still leaves us with buffer heads out of sync with
+struct page.
 
-thanks,
-suresh
+> But I do want to have this fixed in a "nice" way. eg. I'd like
+> it to mark the buffers dirty because that actually results in
+> more reuse of generic kernel code, and also should make rd
+> behave more naturally (I like using it to test filesystems
+> because it can expose a lot more concurrency than something like
+> loop on tmpfs). It should also be possible to actually have
+> rd's buffer heads get reclaimed as well, preferably while
+> exercising the common buffer paths and without writing much new
+> code.
+
+We actually allow that currently for clean pages which is part
+of what makes this tricky.
+
+> All of that is secondary to fixing the data corruption problem
+> of course! But the fact that those alternate patches do exist now
+> means I want to just bring them into the discussion again before
+> merging one or the other.
+
+The core of my original fix was to modify init_page_buffers so that
+when we added buffers to a dirty page the buffers became dirty.
+
+Modifying the generic code is a bit spooky because it requires us
+to audit the kernel to make certain nothing else depends on the
+current behavior in odd ways.  Although since init_page_buffers
+is only called when we are adding buffer heads to an existing
+page I still think that was the proper change.
+
+The historical reason for my patches not getting merged the first
+time is there was some weird issue with reiserfs ramdisks and so
+Andrew disabled the code, and then dropped it when he had discovered
+he had the patch disabled for several releases.  I don't think
+any causal relationship was ever established.  But I didn't
+hear enough about the reiserfs ramdisk issue, to make a guess
+what was going on.
+
+So it looks to me like the important invariant we need to maintain
+is that when a ramdisk page is dirty it always has buffers and those
+buffers are dirty as well.  With a little care we can ensure this
+happens with just modifications to rd.c
+
+Eric
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
