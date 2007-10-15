@@ -1,38 +1,95 @@
-From: Nick Piggin <nickpiggin@yahoo.com.au>
-Subject: Re: [PATCH resend] ramdisk: fix zeroed ramdisk pages on memory pressure
-Date: Tue, 16 Oct 2007 01:23:32 +1000
-References: <200710151028.34407.borntraeger@de.ibm.com> <200710160006.19735.nickpiggin@yahoo.com.au> <20071015021624.7d5233bd.akpm@linux-foundation.org>
-In-Reply-To: <20071015021624.7d5233bd.akpm@linux-foundation.org>
+Date: Mon, 15 Oct 2007 12:19:43 +0100
+Subject: Re: [PATCH 1/2] Mem Policy:  fix mempolicy usage in pci driver
+Message-ID: <20071015111943.GC31490@skynet.ie>
+References: <20071010205837.7230.42818.sendpatchset@localhost> <20071010205843.7230.31507.sendpatchset@localhost> <Pine.LNX.4.64.0710101412410.32488@schroedinger.engr.sgi.com> <1192129868.5036.27.camel@localhost>
 MIME-Version: 1.0
-Content-Type: text/plain;
-  charset="iso-8859-1"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-Message-Id: <200710160123.32434.nickpiggin@yahoo.com.au>
+In-Reply-To: <1192129868.5036.27.camel@localhost>
+From: mel@skynet.ie (Mel Gorman)
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Christian Borntraeger <borntraeger@de.ibm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Martin Schwidefsky <schwidefsky@de.ibm.com>, Theodore Ts'o <tytso@mit.edu>
+To: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, ak@suse.de, gregkh@suse.de, linux-mm@kvack.org, eric.whitney@hp.com, Christoph Lameter <clameter@sgi.com>
 List-ID: <linux-mm.kvack.org>
 
-On Monday 15 October 2007 19:16, Andrew Morton wrote:
-> On Tue, 16 Oct 2007 00:06:19 +1000 Nick Piggin <nickpiggin@yahoo.com.au> 
-wrote:
-> > On Monday 15 October 2007 18:28, Christian Borntraeger wrote:
-> > > Andrew, this is a resend of a bugfix patch. Ramdisk seems a bit
-> > > unmaintained, so decided to sent the patch to you :-).
-> > > I have CCed Ted, who did work on the code in the 90s. I found no
-> > > current email address of Chad Page.
-> >
-> > This really needs to be fixed...
->
-> rd.c is fairly mind-boggling vfs abuse.
+On (11/10/07 15:11), Lee Schermerhorn didst pronounce:
+> On Wed, 2007-10-10 at 14:12 -0700, Christoph Lameter wrote:
+> > Acked-by: Christoph Lameter <clameter@sgi.com>
+> > 
+> 
+> Resend with 'RFC' removed.  Please review/consider for merge.
+> 
+> Note:  this is required BEFORE patch 2 of this series to avoid hitting
+> the [VM_]BUG_ON()s added by the second patch.
+> 
+> Lee
+> 
+> ====
+> PATCH 1/2 Fix memory policy usage in pci driver
+> 
+> Against:  2.6.23-rc8-mm2
+> 
+> In an attempt to ensure memory allocation from the local node,
+> the pci driver temporarily replaces the current task's memory
+> policy with the system default policy.  Trying to be a good
+> citizen, the driver then call's mpol_get() on the new policy.
+> When it's finished probing, it undoes the '_get by calling
+> mpol_free() [on the system default policy] and then restores
+> the current task's saved mempolicy.
+> 
+> A couple of issues here:
+> 
+> 1) it's never necessary to set a task's mempolicy to the
+>    system default policy in order to get system default
+>    allocation behavior.  Simply set the current task's
+>    mempolicy to NULL and allocations will fall back to
+>    system default policy.
+> 
+> 2) we should never [need to] call mpol_free() on the system
+>    default policy.  [I plan on trapping this with a VM_BUG_ON()
+>    in a subsequent patch.]
+> 
+> This patch removes the calls to mpol_get() and mpol_free()
+> and uses NULL for the temporary task mempolicy to effect
+> default allocation behavior.
+> 
+> Signed-off-by:  Lee Schermerhorn <lee.schermerhorn@hp.com>
 
-Why do you say that? I guess it is _different_, by necessity(?)
-Is there anything that is really bad? I guess it's not nice
-for operating on the pagecache from its request_fn, but the
-alternative is to duplicate pages for backing store and buffer
-cache (actually that might not be a bad alternative really).
+Acked-by: Mel Gorman <mel@csn.ul.ie>
+
+> 
+>  drivers/pci/pci-driver.c |    4 +---
+>  1 file changed, 1 insertion(+), 3 deletions(-)
+> 
+> Index: Linux/drivers/pci/pci-driver.c
+> ===================================================================
+> --- Linux.orig/drivers/pci/pci-driver.c	2007-10-09 14:31:57.000000000
+> -0400
+> +++ Linux/drivers/pci/pci-driver.c	2007-10-09 14:43:57.000000000 -0400
+> @@ -177,13 +177,11 @@ static int pci_call_probe(struct pci_dri
+>  	    set_cpus_allowed(current, node_to_cpumask(node));
+>  	/* And set default memory allocation policy */
+>  	oldpol = current->mempolicy;
+> -	current->mempolicy = &default_policy;
+> -	mpol_get(current->mempolicy);
+> +	current->mempolicy = NULL;	/* fall back to system default policy */
+>  #endif
+>  	error = drv->probe(dev, id);
+>  #ifdef CONFIG_NUMA
+>  	set_cpus_allowed(current, oldmask);
+> -	mpol_free(current->mempolicy);
+>  	current->mempolicy = oldpol;
+>  #endif
+>  	return error;
+> 
+> 
+
+-- 
+-- 
+Mel Gorman
+Part-time Phd Student                          Linux Technology Center
+University of Limerick                         IBM Dublin Software Lab
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
