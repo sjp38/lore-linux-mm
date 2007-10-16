@@ -1,32 +1,60 @@
-Date: Wed, 17 Oct 2007 00:41:47 +0200
-From: Nick Piggin <npiggin@suse.de>
-Subject: Re: During VM oom condition, kill all threads in process group
-Message-ID: <20071016224147.GB29378@wotan.suse.de>
-Mime-Version: 1.0
+From: ebiederm@xmission.com (Eric W. Biederman)
+Subject: Re: [patch][rfc] rewrite ramdisk
+References: <200710151028.34407.borntraeger@de.ibm.com>
+	<200710161747.12968.nickpiggin@yahoo.com.au>
+	<20071016212853.GB1314@closure.lan>
+	<200710170808.30944.nickpiggin@yahoo.com.au>
+Date: Tue, 16 Oct 2007 17:48:01 -0600
+In-Reply-To: <200710170808.30944.nickpiggin@yahoo.com.au> (Nick Piggin's
+	message of "Wed, 17 Oct 2007 08:08:30 +1000")
+Message-ID: <m1ve96fwpa.fsf@ebiederm.dsl.xmission.com>
+MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Will Schmidt <will_schmidt@vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, Linux Memory Management List <linux-mm@kvack.org>
+To: Nick Piggin <nickpiggin@yahoo.com.au>
+Cc: Theodore Tso <tytso@mit.edu>, Andrew Morton <akpm@linux-foundation.org>, Christian Borntraeger <borntraeger@de.ibm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Martin Schwidefsky <schwidefsky@de.ibm.com>
 List-ID: <linux-mm.kvack.org>
 
-Hi,
+Nick Piggin <nickpiggin@yahoo.com.au> writes:
 
-I'm interested about this patch dcca2bde4f86a14d3291660bede8f1844fe2b3df
+> On Wednesday 17 October 2007 07:28, Theodore Tso wrote:
+>> On Tue, Oct 16, 2007 at 05:47:12PM +1000, Nick Piggin wrote:
+>> > +	/*
+>> > +	 * ram device BLKFLSBUF has special semantics, we want to actually
+>> > +	 * release and destroy the ramdisk data.
+>> > +	 */
+>>
+>> We won't be able to fix completely this for a while time, but the fact
+>> that BLKFLSBUF has special semantics has always been a major wart.
+>> Could we perhaps create a new ioctl, say RAMDISKDESTORY, and add a
+>> deperecation printk for BLKFLSBUF when passed to the ramdisk?  I doubt
+>> there are many tools that actually take advantage of this wierd aspect
+>> of ramdisks, so hopefully it's something we could remove in a 18
+>> months or so...
+>
+> It would be nice to be able to do that, I agree. The new ramdisk
+> code will be able to flush the buffer cache and destroy its data
+> separately, so it can actually be implemented.
 
-I don't actually have a problem with what was merged, but I still think
-that we should be calling the oom killer from this point. The oom killer
-knows about what tasks to oom and what not to, whether to panic on oom,
-etc.
+So the practical problem are peoples legacy boot setups but those
+are quickly going away.
 
-I have a patch for this, but wasn't really pushing it hard because it's
-pretty unlikely for x86 and standard filesystems to oom from here...
+The sane thing is probably something that can be taken as a low
+level format command for the block device.
 
-What architecture, filesystems, and workload did you observe problems with?
-Did you discover which allocation was failing?
+Say: dd if=/dev/zero of=/dev/ramX
 
-Thanks,
-Nick
+I know rewriting the drive with all zeroes can cause a modern
+disk to redo it's low level format.  And that is something
+we can definitely implement without any backwards compatibility
+problems.
+
+Hmm. Do we have anything special for punching holes in files?
+That would be another sane route to take to remove the special
+case for clearing the memory.
+
+Eric
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
