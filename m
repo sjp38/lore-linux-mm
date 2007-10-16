@@ -1,61 +1,62 @@
-From: Nick Piggin <nickpiggin@yahoo.com.au>
+Received: from d03relay04.boulder.ibm.com (d03relay04.boulder.ibm.com [9.17.195.106])
+	by e34.co.us.ibm.com (8.13.8/8.13.8) with ESMTP id l9G0EmJV020886
+	for <linux-mm@kvack.org>; Mon, 15 Oct 2007 20:14:48 -0400
+Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
+	by d03relay04.boulder.ibm.com (8.13.8/8.13.8/NCO v8.5) with ESMTP id l9G0EmmT430116
+	for <linux-mm@kvack.org>; Mon, 15 Oct 2007 18:14:48 -0600
+Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av02.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l9G0ElOZ029088
+	for <linux-mm@kvack.org>; Mon, 15 Oct 2007 18:14:48 -0600
 Subject: Re: [rfc] lockless get_user_pages for dio (and more)
-Date: Tue, 16 Oct 2007 12:15:32 +1000
-References: <20071008225234.GC27824@linux-os.sc.intel.com> <200710152225.11433.nickpiggin@yahoo.com.au> <b040c32a0710151321s74799f0ax6e3e0c4042429c5b@mail.gmail.com>
-In-Reply-To: <b040c32a0710151321s74799f0ax6e3e0c4042429c5b@mail.gmail.com>
-MIME-Version: 1.0
-Content-Type: text/plain;
-  charset="iso-8859-1"
+From: Dave Hansen <haveblue@us.ibm.com>
+In-Reply-To: <200710161215.33284.nickpiggin@yahoo.com.au>
+References: <20071008225234.GC27824@linux-os.sc.intel.com>
+	 <200710152225.11433.nickpiggin@yahoo.com.au>
+	 <b040c32a0710151321s74799f0ax6e3e0c4042429c5b@mail.gmail.com>
+	 <200710161215.33284.nickpiggin@yahoo.com.au>
+Content-Type: text/plain
+Date: Mon, 15 Oct 2007 17:14:47 -0700
+Message-Id: <1192493687.6118.138.camel@localhost>
+Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
-Message-Id: <200710161215.33284.nickpiggin@yahoo.com.au>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Ken Chen <kenchen@google.com>
-Cc: "Siddha, Suresh B" <suresh.b.siddha@intel.com>, Badari Pulavarty <pbadari@gmail.com>, linux-mm <linux-mm@kvack.org>, tony.luck@intel.com
+To: Nick Piggin <nickpiggin@yahoo.com.au>
+Cc: Ken Chen <kenchen@google.com>, "Siddha, Suresh B" <suresh.b.siddha@intel.com>, Badari Pulavarty <pbadari@gmail.com>, linux-mm <linux-mm@kvack.org>, tony.luck@intel.com
 List-ID: <linux-mm.kvack.org>
 
-On Tuesday 16 October 2007 06:21, Ken Chen wrote:
-> On 10/15/07, Nick Piggin <nickpiggin@yahoo.com.au> wrote:
-> > +static int gup_huge_pmd(pmd_t pmd, unsigned long addr,
-> > +{
-> > +	pte_t pte = *(pte_t *)&pmd;
-> > +
-> > +	if (write && !pte_write(pte))
-> > +		return 0;
-> > +
-> > +	do {
-> > +		unsigned long pfn_offset;
-> > +		struct page *page;
-> > +
-> > +		pfn_offset = (addr & ~HPAGE_MASK) >> PAGE_SHIFT;
-> > +		page = pte_page(pte) + pfn_offset;
-> > +		get_page(page);
-> > +		pages[*nr] = page;
-> > +		(*nr)++;
-> > +
-> > +	} while (addr += PAGE_SIZE, addr != end);
-> > +
-> > +	return 1;
-> > +}
->
-> Since get_page() on compound page will reference back to the head
-> page, you can take a ref directly against the head page instead of
-> traversing to tail page and loops around back to the head page.  It is
-> especially beneficial for large hugetlb page size, i.e., 1 GB page
-> size so one does not have to pollute cache with tail page's struct
-> page. I prefer doing the following:
->
-> +		page = pte_page(pte);
-> +		get_page(page);
-> +		pfn_offset = (addr & ~HPAGE_MASK) >> PAGE_SHIFT;
-> +		pages[*nr] = page + pfn_offset;
-> +		(*nr)++;
+> +static int gup_pte_range(pmd_t pmd, unsigned long addr, unsigned long end, int write, struct page **pages, int *nr)
+> +{
+> +       pte_t *ptep;
+> +
+> +       /* XXX: this won't work for 32-bit (must map pte) */
+> +       ptep = (pte_t *)pmd_page_vaddr(pmd) + pte_index(addr);
+> +       do {
+> +               pte_t pte = *ptep;
+> +               unsigned long pfn;
+> +               struct page *page;
+> +
+> +               if ((pte_val(pte) & (_PAGE_PRESENT|_PAGE_USER)) != (_PAGE_PRESENT|_PAGE_USER))
+> +                       return 0;
+> +
+> +               if (write && !pte_write(pte))
+> +                       return 0;
+> +
+> +               /* XXX: really need new bit in pte to denote normal page */
+> +               pfn = pte_pfn(pte);
+> +               if (unlikely(!pfn_valid(pfn)))
+> +                       return 0;
 
-Very good point. Actually we could also possibly optimise this
-loop so that all it does is to fill the pages[] array, and then
-have a function to increment the head page refcount by "N", thus
-reducing atomic operations by a factor of N...
+Is that little pfn_valid() nugget to help detect VM_IO and VM_PFNMAP
+areas?  Does that work 100% of the time?  Is it for anything else?
+
+If that is all that you want a bit in the pte for, I guess we could get
+a bitfield or a simple flag in the mm to say whether there are any
+VM_IO/PFNMAP areas around.  If we used the same IPI/RCU rules as
+pagetables to manage such a flag, I think it would be sufficient to dump
+us into the slow path when we hit those areas.  
+
+-- Dave
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
