@@ -1,43 +1,68 @@
-Date: Tue, 16 Oct 2007 14:02:38 -0400
-Message-Id: <200710161802.l9GI2ca6012758@agora.fsl.cs.sunysb.edu>
-From: Erez Zadok <ezk@cs.sunysb.edu>
-Subject: Re: msync(2) bug(?), returns AOP_WRITEPAGE_ACTIVATE to userland 
-In-reply-to: Your message of "Mon, 15 Oct 2007 14:47:52 +0300."
-             <84144f020710150447o94b1babo8b6e6a647828465f@mail.gmail.com>
+Received: from d23relay03.au.ibm.com (d23relay03.au.ibm.com [202.81.18.234])
+	by e23smtp01.au.ibm.com (8.13.1/8.13.1) with ESMTP id l9GILAnV029144
+	for <linux-mm@kvack.org>; Wed, 17 Oct 2007 04:21:10 +1000
+Received: from d23av01.au.ibm.com (d23av01.au.ibm.com [9.190.234.96])
+	by d23relay03.au.ibm.com (8.13.8/8.13.8/NCO v8.5) with ESMTP id l9GIL0ig979014
+	for <linux-mm@kvack.org>; Wed, 17 Oct 2007 04:21:00 +1000
+Received: from d23av01.au.ibm.com (loopback [127.0.0.1])
+	by d23av01.au.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l9GII8po028209
+	for <linux-mm@kvack.org>; Wed, 17 Oct 2007 04:18:08 +1000
+Message-ID: <471500EC.1080502@linux.vnet.ibm.com>
+Date: Tue, 16 Oct 2007 23:50:28 +0530
+From: Balbir Singh <balbir@linux.vnet.ibm.com>
+Reply-To: balbir@linux.vnet.ibm.com
+MIME-Version: 1.0
+Subject: Re: [PATCH] memory cgroup enhancements [0/5] intro
+References: <20071016191949.cd50f12f.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20071016191949.cd50f12f.kamezawa.hiroyu@jp.fujitsu.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Pekka Enberg <penberg@cs.helsinki.fi>
-Cc: Erez Zadok <ezk@cs.sunysb.edu>, Hugh Dickins <hugh@veritas.com>, Ryan Finnie <ryan@finnie.org>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, cjwatson@ubuntu.com, linux-mm@kvack.org
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "containers@lists.osdl.org" <containers@lists.osdl.org>, "yamamoto@valinux.co.jp" <yamamoto@valinux.co.jp>
 List-ID: <linux-mm.kvack.org>
 
-In message <84144f020710150447o94b1babo8b6e6a647828465f@mail.gmail.com>, "Pekka Enberg" writes:
-> Hi,
+KAMEZAWA Hiroyuki wrote:
+> This patch set adds
+>  - force_empty interface, which drops all charges in memory cgroup.
+>    This enables rmdir() against unused memory cgroup.
+>  - the memory cgroup statistics accounting.
 > 
-> On 10/15/07, Erez Zadok <ezk@cs.sunysb.edu> wrote:
-> > Pekka, with a small change to your patch (to handle time-based cache
-> > coherency), your patch worked well and passed all my tests.  Thanks.
-> >
-> > So now I wonder if we still need the patch to prevent AOP_WRITEPAGE_ACTIVATE
-> > from being returned to userland.  I guess we still need it, b/c even with
-> > your patch, generic_writepages() can return AOP_WRITEPAGE_ACTIVATE back to
-> > the VFS and we need to ensure that doesn't "leak" outside the kernel.
+> Based on 2.6.23-mm1 + http://lkml.org/lkml/2007/10/12/53
 > 
-> I wonder whether _not setting_ BDI_CAP_NO_WRITEBACK implies that
-> ->writepage() will never return AOP_WRITEPAGE_ACTIVATE for
-> !wbc->for_reclaim case which would explain why we haven't hit this bug
-> before. Hugh, Andrew?
+> Changes from previous version is
+>  - merged comments.
+>  - based on 2.6.23-mm1
+>  - removed Charge/Uncharge counter.
 > 
-> And btw, I think we need to fix ecryptfs too.
+> [1/5] ... force_empty patch
+> [2/5] ... remember page is charged as page-cache patch
+> [3/5] ... remember page is on which list patch
+> [4/5] ... memory cgroup statistics patch
+> [5/5] ... show statistics patch
+> 
+> tested on x86-64/fake-NUMA + CONFIG_PREEMPT=y/n (for testing preempt_disable())
+> 
+> Any comments are welcome.
+> 
 
-Yes, ecryptfs needs this fix too (and probably a couple of other mmap fixes
-I've made to unionfs recently -- Mike Halcrow already knows :-)
+Hi, KAMEZAWA-San,
 
-Of course, running ecryptfs on top of tmpfs is somewhat odd and uncommon;
-but with unionfs, users use tmpfs as the copyup branch very often.
+I would prefer these patches to go in once the fixes that you've posted
+earlier have gone in (the migration fix series). I am yet to test the
+migration fix per-se, but the series seemed quite fine to me. Andrew
+could you please pick it up.
 
->                                            Pekka
+> -Kame
+> 
 
-Erez.
+
+-- 
+	Warm Regards,
+	Balbir Singh
+	Linux Technology Center
+	IBM, ISTL
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
