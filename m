@@ -1,96 +1,47 @@
-Date: Tue, 16 Oct 2007 09:52:52 +0200 (CEST)
-From: Jan Engelhardt <jengelh@computergmbh.de>
-Subject: Re: [patch][rfc] rewrite ramdisk
-In-Reply-To: <200710161747.12968.nickpiggin@yahoo.com.au>
-Message-ID: <Pine.LNX.4.64.0710160945110.10197@fbirervta.pbzchgretzou.qr>
-References: <200710151028.34407.borntraeger@de.ibm.com>
- <m1abqjirmd.fsf@ebiederm.dsl.xmission.com> <200710161808.06405.nickpiggin@yahoo.com.au>
- <200710161747.12968.nickpiggin@yahoo.com.au>
+Received: from d12nrmr1607.megacenter.de.ibm.com (d12nrmr1607.megacenter.de.ibm.com [9.149.167.49])
+	by mtagate3.de.ibm.com (8.13.8/8.13.8) with ESMTP id l9G7v0cB054434
+	for <linux-mm@kvack.org>; Tue, 16 Oct 2007 07:57:00 GMT
+Received: from d12av04.megacenter.de.ibm.com (d12av04.megacenter.de.ibm.com [9.149.165.229])
+	by d12nrmr1607.megacenter.de.ibm.com (8.13.8/8.13.8/NCO v8.5) with ESMTP id l9G7uxkL2167004
+	for <linux-mm@kvack.org>; Tue, 16 Oct 2007 09:56:59 +0200
+Received: from d12av04.megacenter.de.ibm.com (loopback [127.0.0.1])
+	by d12av04.megacenter.de.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l9G7uxuq018928
+	for <linux-mm@kvack.org>; Tue, 16 Oct 2007 09:56:59 +0200
+From: Christian Borntraeger <borntraeger@de.ibm.com>
+Subject: Re: [PATCH] rd: Mark ramdisk buffers heads dirty
+Date: Tue, 16 Oct 2007 09:56:57 +0200
+References: <200710151028.34407.borntraeger@de.ibm.com> <m14pgsknmd.fsf_-_@ebiederm.dsl.xmission.com> <m1zlykj8zl.fsf_-_@ebiederm.dsl.xmission.com>
+In-Reply-To: <m1zlykj8zl.fsf_-_@ebiederm.dsl.xmission.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain;
+  charset="iso-8859-1"
+Content-Transfer-Encoding: 8BIT
+Content-Disposition: inline
+Message-Id: <200710160956.58061.borntraeger@de.ibm.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nick Piggin <nickpiggin@yahoo.com.au>
-Cc: "Eric W. Biederman" <ebiederm@xmission.com>, Andrew Morton <akpm@linux-foundation.org>, Christian Borntraeger <borntraeger@de.ibm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Martin Schwidefsky <schwidefsky@de.ibm.com>, Theodore Ts'o <tytso@mit.edu>
+To: "Eric W. Biederman" <ebiederm@xmission.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Nick Piggin <nickpiggin@yahoo.com.au>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Martin Schwidefsky <schwidefsky@de.ibm.com>, Theodore Ts'o <tytso@mit.edu>, stable@kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Oct 16 2007 17:47, Nick Piggin wrote:
->
->Here's a quick first hack...
+Am Dienstag, 16. Oktober 2007 schrieb Eric W. Biederman:
 
-Inline patches preferred ;-)
+> fs/buffer.c |    3 +++
+> 1 files changed, 3 insertions(+), 0 deletions(-)
+>  drivers/block/rd.c |   13 +------------
+>  1 files changed, 1 insertions(+), 12 deletions(-)
 
->+config BLK_DEV_BRD
->+	tristate "RAM block device support"
->+	---help---
->+	  This is a new  based block driver that replaces BLK_DEV_RAM.
+Your patches look sane so far. I have applied both patches, and the problem 
+seems gone. I will try to get these patches to our testers.
 
-based on what?         -^
+As long as they dont find new problems:
 
->+	  To compile this driver as a module, choose M here: the
->+	  module will be called rd.
+Acked-by: Christian Borntraeger <borntraeger@de.ibm.com>
 
-called brd.ko.
+Nick, Eric. What is the best patch for the stable series? Both patches from
+Eric or mine? I CCed stable, so they know that something is coming.
 
->+/*
->+ * And now the modules code and kernel interface.
->+ */
->+static int rd_nr;
->+static int rd_size = CONFIG_BLK_DEV_RAM_SIZE;
-
-Perhaps unsigned?
-Perhaps even long for rd_size?
-
->+module_param(rd_nr, int, 0);
->+MODULE_PARM_DESC(rd_nr, "Maximum number of brd devices");
->+module_param(rd_size, int, 0);
->+MODULE_PARM_DESC(rd_size, "Size of each RAM disk in kbytes.");
->+MODULE_LICENSE("GPL");
->+MODULE_ALIAS_BLOCKDEV_MAJOR(RAMDISK_MAJOR);
->+
->+/* options - nonmodular */
->+#ifndef MODULE
->+static int __init ramdisk_size(char *str)
->+{
->+	rd_size = simple_strtol(str,NULL,0);
->+	return 1;
->+}
-
-Is this, besides for compatibility, really needed?
-
->+static int __init ramdisk_size2(char *str)
->+{
->+	return ramdisk_size(str);
->+}
->+static int __init rd_nr(char *str)
-
-Err! Overlapping symbols! The rd_nr() function collides with the rd_nr
-variable. It also does not seem needed, since it did not exist before.
-It should go, you can set the variable with brd.rd_nr=XXX (same
-goes for ramdisk_size). What's the point of ramdisk_size2()?
-
->+{
->+	rd_nr = simple_strtol(str, NULL, 0);
->+	return 1;
->+}
->+__setup("ramdisk=", ramdisk_size);
->+__setup("ramdisk_size=", ramdisk_size2);
-
-__setup("ramdisk_size=", ramdisk_size); maybe, or does not that work?
-
->+__setup("rd_nr=", rd_nr);
->+#endif
->+
->+
->+static struct brd_device *brd_alloc(int i)
->+{
->+	struct brd_device *brd;
->+	struct gendisk *disk;
->+
->+	brd = kzalloc(sizeof(*brd), GFP_KERNEL);
->+	if (!brd)
->+		goto out;
->+	brd->brd_number		= i;
+Christian
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
