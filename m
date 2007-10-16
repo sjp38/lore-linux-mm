@@ -1,88 +1,43 @@
-Date: Tue, 16 Oct 2007 08:02:21 -0700 (PDT)
-From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [PATCH 0/1] x86: Convert cpuinfo_x86 array to a per_cpu array
- v3
-In-Reply-To: <20071016011827.91350174.akpm@linux-foundation.org>
-Message-ID: <Pine.LNX.4.64.0710160755200.25014@schroedinger.engr.sgi.com>
-References: <20070924210853.256462000@sgi.com> <20071016011827.91350174.akpm@linux-foundation.org>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Date: Tue, 16 Oct 2007 14:02:38 -0400
+Message-Id: <200710161802.l9GI2ca6012758@agora.fsl.cs.sunysb.edu>
+From: Erez Zadok <ezk@cs.sunysb.edu>
+Subject: Re: msync(2) bug(?), returns AOP_WRITEPAGE_ACTIVATE to userland 
+In-reply-to: Your message of "Mon, 15 Oct 2007 14:47:52 +0300."
+             <84144f020710150447o94b1babo8b6e6a647828465f@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: pj@sgi.com
-Cc: travis@sgi.com, Andrew Morton <akpm@linux-foundation.org>, Andi Kleen <ak@suse.de>, Jack Steiner <steiner@sgi.com>, linux-mm@kvack.org, "Siddha, Suresh B" <suresh.b.siddha@intel.com>, linux-kernel@vger.kernel.org
+To: Pekka Enberg <penberg@cs.helsinki.fi>
+Cc: Erez Zadok <ezk@cs.sunysb.edu>, Hugh Dickins <hugh@veritas.com>, Ryan Finnie <ryan@finnie.org>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, cjwatson@ubuntu.com, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 16 Oct 2007, Andrew Morton wrote:
-
-> On Mon, 24 Sep 2007 14:08:53 -0700 travis@sgi.com wrote:
-
-> > cpu_sibling_map and cpu_core_map have been taken care of in
-> > a prior patch.  This patch deals with the cpu_data array of
-> > cpuinfo_x86 structs.  The model that was used in sparc64
-> > architecture was adopted for x86.
+In message <84144f020710150447o94b1babo8b6e6a647828465f@mail.gmail.com>, "Pekka Enberg" writes:
+> Hi,
 > 
-> This has mysteriously started to oops on me, only on x86_64.
+> On 10/15/07, Erez Zadok <ezk@cs.sunysb.edu> wrote:
+> > Pekka, with a small change to your patch (to handle time-based cache
+> > coherency), your patch worked well and passed all my tests.  Thanks.
+> >
+> > So now I wonder if we still need the patch to prevent AOP_WRITEPAGE_ACTIVATE
+> > from being returned to userland.  I guess we still need it, b/c even with
+> > your patch, generic_writepages() can return AOP_WRITEPAGE_ACTIVATE back to
+> > the VFS and we need to ensure that doesn't "leak" outside the kernel.
 > 
-> http://userweb.kernel.org/~akpm/config-x.txt
-> http://userweb.kernel.org/~akpm/dsc00001.jpg
+> I wonder whether _not setting_ BDI_CAP_NO_WRITEBACK implies that
+> ->writepage() will never return AOP_WRITEPAGE_ACTIVATE for
+> !wbc->for_reclaim case which would explain why we haven't hit this bug
+> before. Hugh, Andrew?
 > 
-> which is a bit strange since this patch doesn't touch sched.c.  Maybe
-> there's something somewhere else in the -mm lineup which when combined with
-> this prevents it from oopsing, dunno.  I'll hold it back for now and will
-> see what happens.
+> And btw, I think we need to fix ecryptfs too.
 
-The config that you are using has
+Yes, ecryptfs needs this fix too (and probably a couple of other mmap fixes
+I've made to unionfs recently -- Mike Halcrow already knows :-)
 
-	CONFIG_SCHED_MC
+Of course, running ecryptfs on top of tmpfs is somewhat odd and uncommon;
+but with unionfs, users use tmpfs as the copyup branch very often.
 
-and 
+>                                            Pekka
 
-	CONFIG_SCHED_MT
-
-set.
-
-So we use cpu_corecroup_map() from arch/x86_64/kernel/smpboot.c in
-cpu_to_phys_group that has these nice convoluted ifdefs:
-
-static int cpu_to_phys_group(int cpu, const cpumask_t *cpu_map,
-                             struct sched_group **sg)
-{
-        int group;
-#ifdef CONFIG_SCHED_MC
-        cpumask_t mask = cpu_coregroup_map(cpu);
-        cpus_and(mask, mask, *cpu_map);
-        group = first_cpu(mask);
-#elif defined(CONFIG_SCHED_SMT)
-        cpumask_t mask = per_cpu(cpu_sibling_map, cpu);
-        cpus_and(mask, mask, *cpu_map);
-        group = first_cpu(mask);
-#else
-        group = cpu;
-#endif
-        if (sg)
-                *sg = &per_cpu(sched_group_phys, group);
-        return group;
-}
-
-and I guess that some sched domain patches resulted in an empty
-nodemask so that we end up with an invalid group number for the sched 
-group?
-
-
-/* maps the cpu to the sched domain representing multi-core */
-cpumask_t cpu_coregroup_map(int cpu)
-{
-        struct cpuinfo_x86 *c = &cpu_data(cpu);
-        /*
-         * For perf, we return last level cache shared map.
-         * And for power savings, we return cpu_core_map
-         */
-        if (sched_mc_power_savings || sched_smt_power_savings)
-                return per_cpu(cpu_core_map, cpu);
-        else
-                return c->llc_shared_map;
-}
+Erez.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
