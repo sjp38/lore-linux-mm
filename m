@@ -1,53 +1,53 @@
 From: ebiederm@xmission.com (Eric W. Biederman)
-Subject: Re: [PATCH] rd: Mark ramdisk buffers heads dirty
+Subject: Re: [PATCH] rd: Preserve the dirty bit in init_page_buffers()
 References: <200710151028.34407.borntraeger@de.ibm.com>
+	<m18x64knqx.fsf@ebiederm.dsl.xmission.com>
 	<m14pgsknmd.fsf_-_@ebiederm.dsl.xmission.com>
-	<m1zlykj8zl.fsf_-_@ebiederm.dsl.xmission.com>
-	<200710160956.58061.borntraeger@de.ibm.com>
-Date: Tue, 16 Oct 2007 03:22:30 -0600
-In-Reply-To: <200710160956.58061.borntraeger@de.ibm.com> (Christian
-	Borntraeger's message of "Tue, 16 Oct 2007 09:56:57 +0200")
-Message-ID: <m1y7e3h0rt.fsf@ebiederm.dsl.xmission.com>
+	<200710161812.01970.nickpiggin@yahoo.com.au>
+Date: Tue, 16 Oct 2007 03:35:08 -0600
+In-Reply-To: <200710161812.01970.nickpiggin@yahoo.com.au> (Nick Piggin's
+	message of "Tue, 16 Oct 2007 18:12:01 +1000")
+Message-ID: <m1przfh06r.fsf@ebiederm.dsl.xmission.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Transfer-Encoding: 8BIT
+Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christian Borntraeger <borntraeger@de.ibm.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Nick Piggin <nickpiggin@yahoo.com.au>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Martin Schwidefsky <schwidefsky@de.ibm.com>, Theodore Ts'o <tytso@mit.edu>, stable@kernel.org
+To: Nick Piggin <nickpiggin@yahoo.com.au>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Christian Borntraeger <borntraeger@de.ibm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Martin Schwidefsky <schwidefsky@de.ibm.com>, Theodore Ts'o <tytso@mit.edu>
 List-ID: <linux-mm.kvack.org>
 
-Christian Borntraeger <borntraeger@de.ibm.com> writes:
+Nick Piggin <nickpiggin@yahoo.com.au> writes:
 
-> Am Dienstag, 16. Oktober 2007 schrieb Eric W. Biederman:
+> On Tuesday 16 October 2007 08:40, Eric W. Biederman wrote:
+>> The problem:  When we are trying to free buffers try_to_free_buffers()
+>> will look at ramdisk pages with clean buffer heads and remove the
+>> dirty bit from the page.  Resulting in ramdisk pages with data that get
+>> removed from the page cache.  Ouch!
+>>
+>> Buffer heads appear on ramdisk pages when a filesystem calls
+>> __getblk() which through a series of function calls eventually calls
+>> init_page_buffers().
+>>
+>> So to fix the mismatch between buffer head and page state this patch
+>> modifies init_page_buffers() to transfer the dirty bit from the page to
+>> the buffer heads like we currently do for the uptodate bit.
+>>
+>> This patch is safe as only __getblk calls init_page_buffers, and
+>> there are only two implementations of block devices cached in the
+>> page cache.  The generic implementation in block_dev.c and the
+>> implementation in rd.c.
+>>
+>> The generic implementation of block devices always does everything
+>> in terms of buffer heads so it always has buffer heads allocated
+>> before a page is marked dirty so this change does not affect it.
 >
->> fs/buffer.c |    3 +++
->> 1 files changed, 3 insertions(+), 0 deletions(-)
->>  drivers/block/rd.c |   13 +------------
->>  1 files changed, 1 insertions(+), 12 deletions(-)
->
-> Your patches look sane so far. I have applied both patches, and the problem 
-> seems gone. I will try to get these patches to our testers.
->
-> As long as they dont find new problems:
+> This is probably a good idea. Was this causing the reiserfs problems?
+> If so, I think we should be concentrating on what the real problem
+> is with reiserfs... (or at least why this so obviously correct
+> looking patch is wrong).
 
-Sounds good.  Please make certain to test reiserfs as well as ext2+ as
-it seems to strain the ramdisk code more aggressively.
-
-> Acked-by: Christian Borntraeger <borntraeger@de.ibm.com>
->
-> Nick, Eric. What is the best patch for the stable series? Both patches from
-> Eric or mine? I CCed stable, so they know that something is coming.
-
-My gut feel says my patches assuming everything tests out ok, as
-they actually fix the problem instead of papering over it, and there
-isn't really a size difference.
-
-In addition the change to init_page_buffers is interesting all by
-itself.  With that patch we now have the option of running block
-devices in mode where we don't bother to cache the buffer heads
-which should reduce memory pressure a bit.  Not that an enhancement
-like that will show up in stable, but...
+I think it was my cleanup patch that was sitting on top of this,
+That caused the problems.
 
 Eric
 
