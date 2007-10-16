@@ -1,107 +1,91 @@
-Date: Tue, 16 Oct 2007 18:52:17 +0400
-Message-ID: <45852146.42331472@duplicity.com>
-From: "Euro Prime Casino" <coke@leehom.net>
-Subject: =?iso-8859-1?Q?Herzlichen_Gl=FCckwunsch=2C_Sie_haben_300_Euro_gewonnen!?=
+Date: Tue, 16 Oct 2007 08:02:21 -0700 (PDT)
+From: Christoph Lameter <clameter@sgi.com>
+Subject: Re: [PATCH 0/1] x86: Convert cpuinfo_x86 array to a per_cpu array
+ v3
+In-Reply-To: <20071016011827.91350174.akpm@linux-foundation.org>
+Message-ID: <Pine.LNX.4.64.0710160755200.25014@schroedinger.engr.sgi.com>
+References: <20070924210853.256462000@sgi.com> <20071016011827.91350174.akpm@linux-foundation.org>
 MIME-Version: 1.0
-Content-Type: text/html; charset=iso-8859-1
-Content-Transfer-Encoding: 7bit
-Return-Path: <coke@leehom.net>
-To: owner-linux-mm@kvack.org
+Content-Type: TEXT/PLAIN; charset=US-ASCII
+Sender: owner-linux-mm@kvack.org
+Return-Path: <owner-linux-mm@kvack.org>
+To: pj@sgi.com
+Cc: travis@sgi.com, Andrew Morton <akpm@linux-foundation.org>, Andi Kleen <ak@suse.de>, Jack Steiner <steiner@sgi.com>, linux-mm@kvack.org, "Siddha, Suresh B" <suresh.b.siddha@intel.com>, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-<html>
+On Tue, 16 Oct 2007, Andrew Morton wrote:
 
-<head>
-<meta http-equiv=Content-Type content="text/html; charset=big5">
+> On Mon, 24 Sep 2007 14:08:53 -0700 travis@sgi.com wrote:
 
-<title>Spielen auch Sie EuroPrimeCasino f&uuml;r Windows(TM) und holen Sie 
-sich 300 Euro gratis</title>
+> > cpu_sibling_map and cpu_core_map have been taken care of in
+> > a prior patch.  This patch deals with the cpu_data array of
+> > cpuinfo_x86 structs.  The model that was used in sparc64
+> > architecture was adopted for x86.
+> 
+> This has mysteriously started to oops on me, only on x86_64.
+> 
+> http://userweb.kernel.org/~akpm/config-x.txt
+> http://userweb.kernel.org/~akpm/dsc00001.jpg
+> 
+> which is a bit strange since this patch doesn't touch sched.c.  Maybe
+> there's something somewhere else in the -mm lineup which when combined with
+> this prevents it from oopsing, dunno.  I'll hold it back for now and will
+> see what happens.
 
-<style>
-<!--
- /* Style Definitions */
- p.MsoNormal, li.MsoNormal, div.MsoNormal
-	{mso-style-parent:"";
-	margin:0cm;
-	margin-bottom:.0001pt;
-	mso-pagination:widow-orphan;
-	font-size:12.0pt;
-	font-family:"Times New Roman";
-	mso-fareast-font-family:"Times New Roman";
-	mso-ansi-language:EN-US;
-	mso-fareast-language:EN-US;
-	mso-bidi-language:HE;
-	layout-grid-mode:line;}
-a:link, span.MsoHyperlink
-	{font-family:"Times New Roman";
-	mso-bidi-font-family:"Times New Roman";
-	color:blue;
-	text-decoration:underline;
-	text-underline:single;}
-a:visited, span.MsoHyperlinkFollowed
-	{color:purple;
-	text-decoration:underline;
-	text-underline:single;}
-@page Section1
-	{size:595.3pt 841.9pt;
-	margin:2.0cm 42.5pt 2.0cm 3.0cm;
-	mso-header-margin:35.4pt;
-	mso-footer-margin:35.4pt;
-	mso-paper-source:0;}
-div.Section1
-	{page:Section1;}
--->
-</style>
+The config that you are using has
 
-</head>
+	CONFIG_SCHED_MC
 
-<body lang=DE link=blue vlink=purple style='tab-interval:35.4pt'>
+and 
 
-<div class=Section1>
+	CONFIG_SCHED_MT
 
-<p class=MsoNormal>
-<span lang=DE style='mso-ansi-language:DE'>Spielen auch Sie EuroPrimeCasino 
-f&uuml;r Windows(TM) und holen Sie sich 300 Euro gratis.<o:p></o:p></span></p>
+set.
 
-<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>&nbsp;
-<o:p></o:p></span></p>
+So we use cpu_corecroup_map() from arch/x86_64/kernel/smpboot.c in
+cpu_to_phys_group that has these nice convoluted ifdefs:
 
-<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>Klicken Sie 
-hier f&uuml;r den Download und spielen Sie im EuroPrimeCasino mit
-weiteren 2 Millionen Spielern im besten Online-Casino der Welt!
-<o:p></o:p></span></p>
+static int cpu_to_phys_group(int cpu, const cpumask_t *cpu_map,
+                             struct sched_group **sg)
+{
+        int group;
+#ifdef CONFIG_SCHED_MC
+        cpumask_t mask = cpu_coregroup_map(cpu);
+        cpus_and(mask, mask, *cpu_map);
+        group = first_cpu(mask);
+#elif defined(CONFIG_SCHED_SMT)
+        cpumask_t mask = per_cpu(cpu_sibling_map, cpu);
+        cpus_and(mask, mask, *cpu_map);
+        group = first_cpu(mask);
+#else
+        group = cpu;
+#endif
+        if (sg)
+                *sg = &per_cpu(sched_group_phys, group);
+        return group;
+}
 
-<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>&nbsp;
-<o:p></o:p></span></p>
+and I guess that some sched domain patches resulted in an empty
+nodemask so that we end up with an invalid group number for the sched 
+group?
 
-<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>- 40 
-Blackjack-Tische, 8 Roulette-Tische und 180 Spielautomaten warten
-hier auf Sie.<o:p></o:p></span></p>
 
-<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>- Es gibt 
-progressive Jackpots im Wert von &uuml;ber 4 Millionen Dollar zu
-gewinnen<o:p></o:p></span></p>
+/* maps the cpu to the sched domain representing multi-core */
+cpumask_t cpu_coregroup_map(int cpu)
+{
+        struct cpuinfo_x86 *c = &cpu_data(cpu);
+        /*
+         * For perf, we return last level cache shared map.
+         * And for power savings, we return cpu_core_map
+         */
+        if (sched_mc_power_savings || sched_smt_power_savings)
+                return per_cpu(cpu_core_map, cpu);
+        else
+                return c->llc_shared_map;
+}
 
-<p class=MsoNormal><span lang=EN-US style='mso-bidi-language:AR-SA'>- VIP
-<o:p></o:p></span></p>
-
-<p class=MsoNormal><span lang=EN-US style='mso-bidi-language:AR-SA'>- Visa,
-Mastercard, Diners, NETeller, Click2Pay und UKash<o:p></o:p></span></p>
-
-<p class=MsoNormal><span lang=EN-US style='mso-bidi-language:AR-SA'>&nbsp;
-<o:p></o:p></span></p>
-
-<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>Spielen Sie 
-gleich jetzt und holen Sie sich Ihre 300 Euro - klicken Sie
-hier: <a href="http://www.europrimeheat.com/de/">
-www.europrimeheat.com/de/</a>
-<o:p></o:p></span></p>
-
-<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
-<o:p>&nbsp;</o:p></span></p>
-
-</div>
-
-</body>
-
-</html>
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
