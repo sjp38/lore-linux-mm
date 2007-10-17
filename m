@@ -1,105 +1,158 @@
 From: ebiederm@xmission.com (Eric W. Biederman)
-Subject: Re: [PATCH] rd: Mark ramdisk buffers heads dirty
+Subject: Re: [patch][rfc] rewrite ramdisk
 References: <200710151028.34407.borntraeger@de.ibm.com>
-	<m1zlykj8zl.fsf_-_@ebiederm.dsl.xmission.com>
-	<200710160956.58061.borntraeger@de.ibm.com>
-	<200710171814.01717.borntraeger@de.ibm.com>
-Date: Wed, 17 Oct 2007 11:57:50 -0600
-In-Reply-To: <200710171814.01717.borntraeger@de.ibm.com> (Christian
-	Borntraeger's message of "Wed, 17 Oct 2007 18:14:01 +0200")
-Message-ID: <m1sl49ei8x.fsf@ebiederm.dsl.xmission.com>
+	<200710161747.12968.nickpiggin@yahoo.com.au>
+	<m16416f2y8.fsf@ebiederm.dsl.xmission.com>
+	<200710172249.13877.nickpiggin@yahoo.com.au>
+Date: Wed, 17 Oct 2007 12:45:51 -0600
+In-Reply-To: <200710172249.13877.nickpiggin@yahoo.com.au> (Nick Piggin's
+	message of "Wed, 17 Oct 2007 22:49:13 +1000")
+Message-ID: <m1k5pleg0w.fsf@ebiederm.dsl.xmission.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Transfer-Encoding: 8BIT
+Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christian Borntraeger <borntraeger@de.ibm.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Nick Piggin <nickpiggin@yahoo.com.au>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Martin Schwidefsky <schwidefsky@de.ibm.com>, Theodore Ts'o <tytso@mit.edu>, stable@kernel.org
+To: Nick Piggin <nickpiggin@yahoo.com.au>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Christian Borntraeger <borntraeger@de.ibm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Martin Schwidefsky <schwidefsky@de.ibm.com>, Theodore Ts'o <tytso@mit.edu>
 List-ID: <linux-mm.kvack.org>
 
-Christian Borntraeger <borntraeger@de.ibm.com> writes:
+Nick Piggin <nickpiggin@yahoo.com.au> writes:
 
-> Eric,
+> On Wednesday 17 October 2007 20:30, Eric W. Biederman wrote:
+>> Nick Piggin <nickpiggin@yahoo.com.au> writes:
+>> > On Tuesday 16 October 2007 18:08, Nick Piggin wrote:
+>> >> On Tuesday 16 October 2007 14:57, Eric W. Biederman wrote:
+>> >> > > What magic restrictions on page allocations? Actually we have
+>> >> > > fewer restrictions on page allocations because we can use
+>> >> > > highmem!
+>> >> >
+>> >> > With the proposed rewrite yes.
+>> >
+>> > Here's a quick first hack...
+>> >
+>> > Comments?
+>>
+>> I have beaten my version of this into working shape, and things
+>> seem ok.
+>>
+>> However I'm beginning to think that the real solution is to remove
+>> the dependence on buffer heads for caching the disk mapping for
+>> data pages, and move the metadata buffer heads off of the block
+>> device page cache pages.  Although I am just a touch concerned
+>> there may be an issue with using filesystem tools while the
+>> filesystem is mounted if I move the metadata buffer heads.
+>>
+>> If we were to move the metadata buffer heads (assuming I haven't
+>> missed some weird dependency) then I think there a bunch of
+>> weird corner cases that would be simplified.
 >
-> Am Dienstag, 16. Oktober 2007 schrieb Christian Borntraeger:
->> Am Dienstag, 16. Oktober 2007 schrieb Eric W. Biederman:
->> 
->> > fs/buffer.c |    3 +++
->> > 1 files changed, 3 insertions(+), 0 deletions(-)
->> >  drivers/block/rd.c |   13 +------------
->> >  1 files changed, 1 insertions(+), 12 deletions(-)
->> 
->> Your patches look sane so far. I have applied both patches, and the problem 
->> seems gone. I will try to get these patches to our testers.
->> 
->> As long as they dont find new problems:
+> I'd prefer just to go along the lines of what I posted. It's
+> a pure block device driver which knows absolutely nothing about
+> vm or vfs.
 >
-> Our testers did only a short test, and then they were stopped by problems with
-> reiserfs. At the moment I cannot say for sure if your patch caused this, but 
-> we got the following BUG
+> What are you guys using rd for, and is it really important to
+> have this supposed buffercache optimisation?
 
-Thanks.
+Well what brought this up for me was old user space code using
+an initial ramdisk.  The actual failure that I saw occurred on
+the read path.  And fixing init_page_buffers was the real world
+fix. 
 
-> ReiserFS: ram0: warning: Created .reiserfs_priv on ram0 - reserved for xattr
-> storage.
-> ------------[ cut here ]------------
-> kernel BUG at
-> /home/autobuild/BUILD/linux-2.6.23-20071017/fs/reiserfs/journal.c:1117!
-> illegal operation: 0001 [#1]
-> Modules linked in: reiserfs dm_multipath sunrpc dm_mod qeth ccwgroup vmur
-> CPU:    3    Not tainted
-> Process reiserfs/3 (pid: 2592, task: 77dac418, ksp: 7513ee88)
-> Krnl PSW : 070c3000 fb344380 (flush_commit_list+0x808/0x95c [reiserfs])
->            R:0 T:1 IO:1 EX:1 Key:0 M:1 W:0 P:0 AS:0 CC:3 PM:0
-> Krnl GPRS: 00000002 7411b5c8 0000002b 00000000
->            7b04d000 00000001 00000000 76d1de00
->            7513eec0 00000003 00000012 77f77680
->            7411b608 fb343b7e fb34404a 7513ee50
-> Krnl Code: fb344374: a7210002           tmll    %r2,2
->            fb344378: a7840004           brc     8,fb344380
->            fb34437c: a7f40001           brc     15,fb34437e
->           >fb344380: 5810d8c2           l       %r1,2242(%r13)
->            fb344384: 5820b03c           l       %r2,60(%r11)
->            fb344388: 0de1               basr    %r14,%r1
->            fb34438a: 5810d90e           l       %r1,2318(%r13)
->            fb34438e: 5820b03c           l       %r2,60(%r11)
+At the moment I'm messing with it because it has become the
+itch I've decided to scratch.  So at the moment I'm having fun,
+learning the block layer, refreshing my VM knowledge and getting my
+head around this wreck that we call buffer_heads.  The high level
+concept of buffer_heads may be sane but the implementation seems to
+export a lot of nasty state.
+
+At this point my concern is what makes a clean code change in the
+kernel.  Because user space can currently play with buffer_heads
+by way of the block device and cause lots of havoc (see the recent
+resierfs bug in this thread) that is why I increasingly think
+metadata buffer_heads should not share storage with the block
+device page cache.
+
+If that change is made then it happens that the current ramdisk
+would not need to worry about buffer heads and all of that
+nastiness and could just lock pages in the page cache.  It would not
+be quite as good for testing filesystems but retaining the existing
+characteristics would be simple.
+
+After having looked a bit deeper the buffer_heads and the block
+devices don't look as intricately tied up as I had first thought.
+We still have the nasty case of:
+	if (buffer_new(bh))
+		unmap_underlying_metadata(bh->b_bdev, bh->b_blocknr);
+That I don't know how it got merged.  But otherwise the caches
+are fully separate.
+
+So currently it looks to me like there are two big things that will
+clean up that part of the code a lot:
+- moving the metadata buffer_heads to a magic filesystem inode.
+- Using a simpler non-buffer_head returning version of get_block
+  so we can make simple generic code for generating BIOs.
+
+
+>> I guess that is where I look next.
+>>
+>> Oh for what it is worth I took a quick look at fsblock and I don't think
+>> struct fsblock makes much sense as a block mapping translation layer for
+>> the data path where the current page caches works well.
 >
+> Except the page cache doesn't store any such translation. fsblock
+> works very nicely as a buffer_head and nobh-mode replacement there,
+> but we could probably go one better (for many filesystems) by using
+> a tree.
 >
-> Looking at the code, this really seems related to dirty buffers, so your patch
-> is the main suspect at the moment. 
+>> For less 
+>> then the cost of 1 fsblock I can cache all of the translations for a
+>> 1K filesystem on a 4K page.
+>
+> I'm not exactly sure what you mean, unless you're talking about an
+> extent based data structure. fsblock is fairly slim as far as a
+> generic solution goes. You could probably save 4 or 8 bytes in it,
+> but I don't know if it's worth the trouble.
 
-Sounds reasonable.
+As a meta_data cache manager perhaps, for a translation cache we need
+8 bytes per page max.
 
->         if (!barrier) {
->                 /* If there was a write error in the journal - we can't commit
->                  * this transaction - it will be invalid and, if successful,
->                  * will just end up propagating the write error out to
->                  * the file system. */
->                 if (likely(!retval && !reiserfs_is_journal_aborted (journal))) {
->                         if (buffer_dirty(jl->j_commit_bh))
-> 1117---->                                BUG();
->                         mark_buffer_dirty(jl->j_commit_bh) ;
->                         sync_dirty_buffer(jl->j_commit_bh) ;
->                 }
->         }
+However all we need for a generic translation cache (assuming we still
+want one) is an array of sector_t per page.
 
-Grr.  I'm not certain how to call that.
+So what we would want is:
+int blkbits_per_page = PAGE_CACHE_SHIFT - inode->i_blkbits;
+if (blkbits_per_page <= 0)
+	blkbits_per_page = 0;
+sector_t *blocks = kmalloc(sizeof(sector_t) << blkbits_per_page);
 
-Given that I should also be able to trigger this case by writing to
-the block device through the buffer cache (to the write spot at the
-write moment) this feels like a reiserfs bug.  Although I feel
-screaming about filesystems that go BUG instead of remount read-only....
+And to remember if we have stored the translation:
+#define UNMAPPED_SECTOR (-1(sector_t))
 
-At the same time I increasingly don't think we should allow user space
-to dirty or update our filesystem metadata buffer heads.  That seems
-like asking for trouble.
+... 
 
-Did you have both of my changes applied?
-To init_page_buffer() and to the ramdisk_set_dirty_page?
+The core of all of this being something like:
+#define MAX_BLOCKS_PER_PAGE (1 << (PAGE_CACHE_SHIFT - 9))
+typedef int (page_blocks_t)(struct page *page,
+			    sector_t blocks[MAX_BLOCKS_PER_PAGE],
+			    int create);
 
-I'm guessing it was the change to ramdisk_set_dirty_page....
+
+>> I haven't looked to see if fsblock makes sense to use as a buffer head
+>> replacement yet.
+>
+> Well I don't want to get too far off topic on the subject of fsblock,
+> and block mappings (because I think the ramdisk driver simply should
+> have nothing to do with any of that)... 
+Which I can agree with.
+
+> but fsblock is exactly a buffer head replacement (so if it doesn't
+> make sense, then I've screwed something up badly! ;))
+
+By definition!
 
 Eric
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
