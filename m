@@ -1,60 +1,64 @@
-Subject: Re: where to get ZONE_MOVABLE pathces?
-From: Mel Gorman <mel@csn.ul.ie>
-In-Reply-To: <02e801c8108c$4d7ca7a0$3708a8c0@arcapub.arca.com>
-References: <20071011075743.GA4654@skynet.ie>
-	 <01f601c80be8$39537c70$3708a8c0@arcapub.arca.com>
-	 <20071011095622.GB4654@skynet.ie>
-	 <040c01c80cab$02e6a4f0$3708a8c0@arcapub.arca.com>
-	 <20071012101955.GA27254@skynet.ie>
-	 <003601c80ee8$c6487ce0$3708a8c0@arcapub.arca.com>
-	 <20071015092426.GA31490@skynet.ie>
-	 <016401c80f21$bf0e6c30$3708a8c0@arcapub.arca.com>
-	 <20071015130744.GA26741@skynet.ie>
-	 <024a01c80fcd$ff785e50$3708a8c0@arcapub.arca.com>
-	 <20071016125035.GA4294@skynet.ie>
-	 <02e801c8108c$4d7ca7a0$3708a8c0@arcapub.arca.com>
-Content-Type: text/plain
-Date: Wed, 17 Oct 2007 11:04:21 +0100
-Message-Id: <1192615461.5901.29.camel@localhost>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+From: ebiederm@xmission.com (Eric W. Biederman)
+Subject: Re: [patch][rfc] rewrite ramdisk
+References: <200710151028.34407.borntraeger@de.ibm.com>
+	<m1abqjirmd.fsf@ebiederm.dsl.xmission.com>
+	<200710161808.06405.nickpiggin@yahoo.com.au>
+	<200710161747.12968.nickpiggin@yahoo.com.au>
+Date: Wed, 17 Oct 2007 04:30:39 -0600
+In-Reply-To: <200710161747.12968.nickpiggin@yahoo.com.au> (Nick Piggin's
+	message of "Tue, 16 Oct 2007 17:47:12 +1000")
+Message-ID: <m16416f2y8.fsf@ebiederm.dsl.xmission.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "Jacky(GuangXiang  Lee)" <gxli@arca.com.cn>
-Cc: linux-mm@kvack.org
+To: Nick Piggin <nickpiggin@yahoo.com.au>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Christian Borntraeger <borntraeger@de.ibm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Martin Schwidefsky <schwidefsky@de.ibm.com>, Theodore Ts'o <tytso@mit.edu>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 2007-10-17 at 15:06 +0800, Jacky(GuangXiang Lee) wrote:
+Nick Piggin <nickpiggin@yahoo.com.au> writes:
 
-> Can I precisely make the RAM range of a specific DIMM to be a independent
-> zone?
+> On Tuesday 16 October 2007 18:08, Nick Piggin wrote:
+>> On Tuesday 16 October 2007 14:57, Eric W. Biederman wrote:
+>
+>> > > What magic restrictions on page allocations? Actually we have
+>> > > fewer restrictions on page allocations because we can use
+>> > > highmem!
+>> >
+>> > With the proposed rewrite yes.
+>
+> Here's a quick first hack...
+>
+> Comments?
 
-Technically, yes as nothing stops you. Again, look at what
-mm/page_alloc.c#free_area_init_nodes() does to setup each of the zones
-as they currently exist.
+I have beaten my version of this into working shape, and things
+seem ok.
 
-Also, to reiterate, using a zone is easiest for a prototype but it's
-unlikely to be the final solution. You probably want to use page
-migration and a page-allocation callback from your driver to move pages
-you detect are read-only to flash.
+However I'm beginning to think that the real solution is to remove
+the dependence on buffer heads for caching the disk mapping for
+data pages, and move the metadata buffer heads off of the block
+device page cache pages.  Although I am just a touch concerned
+there may be an issue with using filesystem tools while the
+filesystem is mounted if I move the metadata buffer heads.
 
-> e.x., I have a machine with 2G RAM(in place of 2 DIMM socket , each socket
-> is plugged with 1G RAM)
-> then I divided in kernel startup:
->  ZONE_DMA: 0~16M
-> ZONE_DMA32: 16M~1G
-> ZONE_READONLY:1G~2G (supposing this is my new created zone)
-> hence the third zone corresponds to a DIMM hardware.
-> right?
-> 
+If we were to move the metadata buffer heads (assuming I haven't
+missed some weird dependency) then I think there a bunch of
+weird corner cases that would be simplified.
 
-You cannot assume that PFN ranges correspond to DIMMs in the normal
-case. However, in your specific case where you have a piece of flash
-that you want to use as a DIMM, you know exactly what the PFN ranges
-are.
+I guess that is where I look next.
 
--- 
-Mel Gorman
+Oh for what it is worth I took a quick look at fsblock and I don't think
+struct fsblock makes much sense as a block mapping translation layer for
+the data path where the current page caches works well.  For less
+then the cost of 1 fsblock I can cache all of the translations for a
+1K filesystem on a 4K page.
+
+I haven't looked to see if fsblock makes sense to use as a buffer head
+replacement yet.
+
+Anyway off to bed with me.
+
+Eric
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
