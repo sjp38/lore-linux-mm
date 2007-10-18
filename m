@@ -1,65 +1,69 @@
-Subject: Re: [PATCH] rd: Mark ramdisk buffers heads dirty
-From: Chris Mason <chris.mason@oracle.com>
-In-Reply-To: <m16415cocs.fsf@ebiederm.dsl.xmission.com>
-References: <200710151028.34407.borntraeger@de.ibm.com>
-	 <m1zlykj8zl.fsf_-_@ebiederm.dsl.xmission.com>
-	 <200710160956.58061.borntraeger@de.ibm.com>
-	 <200710171814.01717.borntraeger@de.ibm.com>
-	 <m1sl49ei8x.fsf@ebiederm.dsl.xmission.com>
-	 <1192648456.15717.7.camel@think.oraclecorp.com>
-	 <m17illeb8f.fsf@ebiederm.dsl.xmission.com>
-	 <1192654481.15717.16.camel@think.oraclecorp.com>
-	 <m1ve95ctuc.fsf@ebiederm.dsl.xmission.com>
-	 <1192661889.15717.27.camel@think.oraclecorp.com>
-	 <m16415cocs.fsf@ebiederm.dsl.xmission.com>
-Content-Type: text/plain
-Date: Wed, 17 Oct 2007 20:03:05 -0400
-Message-Id: <1192665785.15717.34.camel@think.oraclecorp.com>
-Mime-Version: 1.0
+From: Nick Piggin <nickpiggin@yahoo.com.au>
+Subject: Re: [patch][rfc] rewrite ramdisk
+Date: Thu, 18 Oct 2007 11:06:56 +1000
+References: <200710151028.34407.borntraeger@de.ibm.com> <200710172249.13877.nickpiggin@yahoo.com.au> <m1k5pleg0w.fsf@ebiederm.dsl.xmission.com>
+In-Reply-To: <m1k5pleg0w.fsf@ebiederm.dsl.xmission.com>
+MIME-Version: 1.0
+Content-Type: text/plain;
+  charset="iso-8859-1"
 Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+Message-Id: <200710181106.57317.nickpiggin@yahoo.com.au>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: "Eric W. Biederman" <ebiederm@xmission.com>
-Cc: Christian Borntraeger <borntraeger@de.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, Nick Piggin <nickpiggin@yahoo.com.au>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Martin Schwidefsky <schwidefsky@de.ibm.com>, Theodore Ts'o <tytso@mit.edu>, stable@kernel.org
+Cc: Andrew Morton <akpm@linux-foundation.org>, Christian Borntraeger <borntraeger@de.ibm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Martin Schwidefsky <schwidefsky@de.ibm.com>, Theodore Ts'o <tytso@mit.edu>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 2007-10-17 at 17:28 -0600, Eric W. Biederman wrote:
-> Chris Mason <chris.mason@oracle.com> writes:
-> 
-> > So, the problem is using the Dirty bit to indicate pinned.  You're
-> > completely right that our current setup of buffer heads and pages and
-> > filesystpem metadata is complex and difficult.
-> >
-> > But, moving the buffer heads off of the page cache pages isn't going to
-> > make it any easier to use dirty as pinned, especially in the face of
-> > buffer_head users for file data pages.
-> 
-> Let me specific.  Not moving buffer_heads off of page cache pages,
-> moving buffer_heads off of the block devices page cache pages.
-> 
-> My problem is the coupling of how block devices are cached and the
-> implementation of buffer heads, and by removing that coupling
-> we can generally make things better.  Currently that coupling
-> means silly things like all block devices are cached in low memory.
-> Which probably isn't what you want if you actually have a use
-> for block devices.
-> 
-> For the ramdisk case in particular what this means is that there
-> are no more users that create buffer_head mappings on the block
-> device cache so using the dirty bit will be safe.
+On Thursday 18 October 2007 04:45, Eric W. Biederman wrote:
+> At this point my concern is what makes a clean code change in the
+> kernel.  Because user space can currently play with buffer_heads
+> by way of the block device and cause lots of havoc (see the recent
 
-Ok, we move the buffer heads off to a different inode, and that indoe
-has pages.  The pages on the inode still need to get pinned, how does
-that pinning happen?
+Well if userspace is writing to the filesystem metadata via the
+blockdevice while it is running... that's the definition of havoc,
+isn't it? ;) Whether or not the writes are going via a unified
+metadata/blockdev cache or separate ones.
 
-The problem you described where someone cleans a page because the buffer
-heads are clean happens already without help from userland.  So, keeping
-the pages away from userland won't save them from cleaning.
+You really just have to not do that.
 
-Sorry if I'm reading your suggestion wrong...
+The actual reiserfs problem being seen is not because of userspace
+going silly, but because ramdisk is hijacking the dirty bits.
 
--chris
 
+> If that change is made then it happens that the current ramdisk
+> would not need to worry about buffer heads and all of that
+> nastiness and could just lock pages in the page cache.  It would not
+> be quite as good for testing filesystems but retaining the existing
+> characteristics would be simple.
+
+No, it wouldn't. Because if you're proposing to split up the buffer
+cache and the metadata cache, then you're back to a 2 cache
+solution which is basically has the memory characteristics of my
+proposal while still being horribly incestuous with the pagecache.
+
+
+> After having looked a bit deeper the buffer_heads and the block
+> devices don't look as intricately tied up as I had first thought.
+> We still have the nasty case of:
+> 	if (buffer_new(bh))
+> 		unmap_underlying_metadata(bh->b_bdev, bh->b_blocknr);
+> That I don't know how it got merged.  But otherwise the caches
+> are fully separate.
+
+Well its needed because some filesystems forget about their old
+metadata. It's not really there to solve aliasing with the blockdev
+pagecache.
+
+
+> So currently it looks to me like there are two big things that will
+> clean up that part of the code a lot:
+> - moving the metadata buffer_heads to a magic filesystem inode.
+> - Using a simpler non-buffer_head returning version of get_block
+>   so we can make simple generic code for generating BIOs.
+
+Although this is going off the track of the ramdisk problem. For
+that we should just do the rewrite.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
