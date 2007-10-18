@@ -1,42 +1,45 @@
-Date: Thu, 18 Oct 2007 16:20:06 +0200
-From: Jens Axboe <jens.axboe@oracle.com>
-Subject: Re: [PATCH] Fix a build error when BLOCK=n
-Message-ID: <20071018142006.GR5063@kernel.dk>
-References: <1192716363-31661-1-git-send-email-Emilian.Medve@Freescale.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1192716363-31661-1-git-send-email-Emilian.Medve@Freescale.com>
+From: Emil Medve <Emilian.Medve@Freescale.com>
+Subject: [PATCH v2] Fix a build error when BLOCK=n
+Date: Thu, 18 Oct 2007 09:55:29 -0500
+Message-Id: <1192719329-32066-1-git-send-email-Emilian.Medve@Freescale.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Emil Medve <Emilian.Medve@Freescale.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, torvalds@linux-foundation.org
+To: linux-kernel@vger.kernel.org, linux-mm@kvack.org, torvalds@linux-foundation.org, jens.axboe@oracle.com
+Cc: Emil Medve <Emilian.Medve@Freescale.com>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Oct 18 2007, Emil Medve wrote:
-> mm/filemap.c: In function '__filemap_fdatawrite_range':
-> mm/filemap.c:200: error: implicit declaration of function 'mapping_cap_writeback_dirty'
-> 
-> This happens when we don't use/have any block devices and a NFS root filesystem
-> is used
-> 
-> mapping_cap_writeback_dirty() is defined in linux/backing-dev.h which used to be
-> provided in mm/filemap.c by linux/blkdev.h until commit
-> f5ff8422bbdd59f8c1f699df248e1b7a11073027
-> 
-> Signed-off-by: Emil Medve <Emilian.Medve@Freescale.com>
-> ---
-> 
-> Also removed some trailing whitespaces
+This happens when we don't use/have any block devices and a NFS root filesystem
+is used
 
-Don't include the whitespace cleanup with this change, send it
-seperately. For the include fix:
+mapping_cap_writeback_dirty() is defined in linux/backing-dev.h which used to be
+provided in mm/filemap.c by linux/blkdev.h until commit
+f5ff8422bbdd59f8c1f699df248e1b7a11073027
 
-Acked-by: Jens Axboe <jens.axboe@oracle.com>
+Signed-off-by: Emil Medve <Emilian.Medve@Freescale.com>
+---
 
+This is against Linus' tree: d85714d81cc0408daddb68c10f7fd69eafe7c213
 
+linux-2.6> scripts/checkpatch.pl 0001-Fix-a-build-error-when-BLOCK-n.patch 
+Your patch has no obvious style problems and is ready for submission.
+
+ mm/filemap.c |    1 +
+ 1 files changed, 1 insertions(+), 0 deletions(-)
+
+diff --git a/mm/filemap.c b/mm/filemap.c
+index 79f24a9..61efe94 100644
+--- a/mm/filemap.c
++++ b/mm/filemap.c
+@@ -27,6 +27,7 @@
+ #include <linux/writeback.h>
+ #include <linux/pagevec.h>
+ #include <linux/blkdev.h>
++#include <linux/backing-dev.h>
+ #include <linux/security.h>
+ #include <linux/syscalls.h>
+ #include <linux/cpuset.h>
 -- 
-Jens Axboe
+1.5.3.GIT
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
