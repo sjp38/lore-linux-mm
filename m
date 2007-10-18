@@ -1,41 +1,63 @@
-From: Nick Piggin <nickpiggin@yahoo.com.au>
-Subject: Re: [RFC][PATCH] block: Isolate the buffer cache in it's own mappings.
-Date: Thu, 18 Oct 2007 15:10:48 +1000
-References: <200710151028.34407.borntraeger@de.ibm.com> <1192665785.15717.34.camel@think.oraclecorp.com> <m1tzopaxa1.fsf_-_@ebiederm.dsl.xmission.com>
-In-Reply-To: <m1tzopaxa1.fsf_-_@ebiederm.dsl.xmission.com>
+Date: Wed, 17 Oct 2007 23:25:58 -0700 (PDT)
+From: Christoph Lameter <clameter@sgi.com>
+Subject: Re: [Patch](memory hotplug) Make kmem_cache_node for SLUB on memory
+ online to avoid panic(take 3)
+In-Reply-To: <20071017204651.aefcece7.akpm@linux-foundation.org>
+Message-ID: <Pine.LNX.4.64.0710172321550.11401@schroedinger.engr.sgi.com>
+References: <20071018122345.514F.Y-GOTO@jp.fujitsu.com>
+ <20071017204651.aefcece7.akpm@linux-foundation.org>
 MIME-Version: 1.0
-Content-Type: text/plain;
-  charset="iso-8859-1"
-Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
-Message-Id: <200710181510.48382.nickpiggin@yahoo.com.au>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "Eric W. Biederman" <ebiederm@xmission.com>
-Cc: Chris Mason <chris.mason@oracle.com>, Christian Borntraeger <borntraeger@de.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Martin Schwidefsky <schwidefsky@de.ibm.com>, Theodore Ts'o <tytso@mit.edu>, stable@kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Yasunori Goto <y-goto@jp.fujitsu.com>, Linux Kernel ML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Thursday 18 October 2007 13:59, Eric W. Biederman wrote:
-> If filesystems care at all they want absolute control over the buffer
-> cache.  Controlling which buffers are dirty and when.  Because we
-> keep the buffer cache in the page cache for the block device we have
-> not quite been giving filesystems that control leading to really weird
-> bugs.
+On Wed, 17 Oct 2007, Andrew Morton wrote:
 
-Mmm. Like I said, when a live filesystem is mounted on a bdev,
-it isn't like you want userspace to go dancing around on it without
-knowing exactly what it is doing.
+> > +#if defined(CONFIG_NUMA) && defined(CONFIG_MEMORY_HOTPLUG)
+> 
+> hm.  There should be no linkage between memory hotpluggability and
+> NUMA, surely?
 
-The kernel more or less does the right thing here with respect to
-the *state* of the data[*] (that is, buffer heads and pagecache).
-It's when you actually start changing the data itself around is when
-you'll blow up the filesystem.
+NUMA support in the slab allocators requires allocation of per node 
+structures. The per node structures are folded into the global structure 
+for non NUMA.
 
-[*] The ramdisk code is simply buggy, right? (and not the buffer
-    cache)
+> > +			/*
+> > +			 * if n->nr_slabs > 0, slabs still exist on the node
+> > +			 * that is going down. We were unable to free them,
+> > +			 * and offline_pages() function shoudn't call this
+> > +			 * callback. So, we must fail.
+> > +			 */
+> > +			BUG_ON(atomic_read(&n->nr_slabs));
+> 
+> Expereince tells us that WARN_ON is preferred for newly added code ;)
 
-The idea of your patch in theory is OK, but Andrew raises valid
-points about potential coherency problems, I think.
+It would be bad to just zap a per node array while there is still data in 
+there. This will cause later failures when an attempt is made to free the 
+objects that now have no per node structure anymore.
+
+> > +  		/*
+> > +		 * XXX: kmem_cache_alloc_node will fallback to other nodes
+> > +		 *      since memory is not yet available from the node that
+> > +		 *      is brought up.
+> > +  		 */
+> > +		n = kmem_cache_alloc(kmalloc_caches, GFP_KERNEL);
+> > +		if (!n)
+> > +			return -ENOMEM;
+> 
+> err, we forgot slub_lock.  I'll fix that.
+
+Right.
+
+> So that's slub.  Does slab already have this functionality or are you
+> not bothering to maintain slab in this area?
+
+Slab brings up a per node structure when the corresponding cpu is brought 
+up. That was sufficient as long as we did not have any memoryless nodes. 
+Now we may have to fix some things over there as well.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
