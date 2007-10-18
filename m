@@ -1,72 +1,29 @@
-From: ebiederm@xmission.com (Eric W. Biederman)
-Subject: Re: [PATCH] rd: Mark ramdisk buffers heads dirty
-References: <200710151028.34407.borntraeger@de.ibm.com>
-	<m1zlykj8zl.fsf_-_@ebiederm.dsl.xmission.com>
-	<200710160956.58061.borntraeger@de.ibm.com>
-	<200710171814.01717.borntraeger@de.ibm.com>
-	<m1sl49ei8x.fsf@ebiederm.dsl.xmission.com>
-	<1192648456.15717.7.camel@think.oraclecorp.com>
-	<m17illeb8f.fsf@ebiederm.dsl.xmission.com>
-	<1192654481.15717.16.camel@think.oraclecorp.com>
-	<m1ve95ctuc.fsf@ebiederm.dsl.xmission.com>
-	<1192661889.15717.27.camel@think.oraclecorp.com>
-	<m16415cocs.fsf@ebiederm.dsl.xmission.com>
-	<1192665785.15717.34.camel@think.oraclecorp.com>
-Date: Wed, 17 Oct 2007 21:27:49 -0600
-In-Reply-To: <1192665785.15717.34.camel@think.oraclecorp.com> (Chris Mason's
-	message of "Wed, 17 Oct 2007 20:03:05 -0400")
-Message-ID: <m1zlyhayq2.fsf@ebiederm.dsl.xmission.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Date: Wed, 17 Oct 2007 20:41:28 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [Patch 002/002](memory hotplug) rearrange patch for notifier of
+ memory hotplug
+Message-Id: <20071017204128.99cad4b6.akpm@linux-foundation.org>
+In-Reply-To: <20071018122210.514D.Y-GOTO@jp.fujitsu.com>
+References: <20071018120343.5146.Y-GOTO@jp.fujitsu.com>
+	<20071018122210.514D.Y-GOTO@jp.fujitsu.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Chris Mason <chris.mason@oracle.com>
-Cc: Christian Borntraeger <borntraeger@de.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, Nick Piggin <nickpiggin@yahoo.com.au>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Martin Schwidefsky <schwidefsky@de.ibm.com>, Theodore Ts'o <tytso@mit.edu>, stable@kernel.org
+To: Yasunori Goto <y-goto@jp.fujitsu.com>
+Cc: Christoph Lameter <clameter@sgi.com>, Linux Kernel ML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-Chris Mason <chris.mason@oracle.com> writes:
+On Thu, 18 Oct 2007 12:23:34 +0900 Yasunori Goto <y-goto@jp.fujitsu.com> wrote:
 
-> On Wed, 2007-10-17 at 17:28 -0600, Eric W. Biederman wrote:
->> Chris Mason <chris.mason@oracle.com> writes:
->> 
->> > So, the problem is using the Dirty bit to indicate pinned.  You're
->> > completely right that our current setup of buffer heads and pages and
->> > filesystpem metadata is complex and difficult.
->> >
->> > But, moving the buffer heads off of the page cache pages isn't going to
->> > make it any easier to use dirty as pinned, especially in the face of
->> > buffer_head users for file data pages.
->> 
->> Let me specific.  Not moving buffer_heads off of page cache pages,
->> moving buffer_heads off of the block devices page cache pages.
->> 
->> My problem is the coupling of how block devices are cached and the
->> implementation of buffer heads, and by removing that coupling
->> we can generally make things better.  Currently that coupling
->> means silly things like all block devices are cached in low memory.
->> Which probably isn't what you want if you actually have a use
->> for block devices.
->> 
->> For the ramdisk case in particular what this means is that there
->> are no more users that create buffer_head mappings on the block
->> device cache so using the dirty bit will be safe.
->
-> Ok, we move the buffer heads off to a different inode, and that indoe
-> has pages.  The pages on the inode still need to get pinned, how does
-> that pinning happen?
+>  	writeback_set_ratelimit();
+> +
+> +	if (onlined_pages)
+> +		memory_notify(MEM_ONLINE, &arg);
 
-> The problem you described where someone cleans a page because the buffer
-> heads are clean happens already without help from userland.  So, keeping
-> the pages away from userland won't save them from cleaning.
->
-> Sorry if I'm reading your suggestion wrong...
-
-Yes.  I was suggesting to continue to pin the pages for the page
-cache pages block device inode, and having the buffer cache live
-on some other inode.  Thus not causing me problems by adding clean
-buffer_heads to my dirty pages.
-
-Eric
+perhaps that open-coded writeback_set_ratelimit() should become a
+notifier callback.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
