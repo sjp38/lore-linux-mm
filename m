@@ -1,35 +1,55 @@
-Date: Thu, 18 Oct 2007 17:26:45 +0200
-From: Jens Axboe <jens.axboe@oracle.com>
-Subject: Re: [PATCH v2] Fix a build error when BLOCK=n
-Message-ID: <20071018152645.GC10674@kernel.dk>
-References: <1192719329-32066-1-git-send-email-Emilian.Medve@Freescale.com>
+Date: Thu, 18 Oct 2007 15:15:33 -0700 (PDT)
+From: Christoph Lameter <clameter@sgi.com>
+Subject: SLUB: Avoid atomic operation for slab_unlock
+Message-ID: <Pine.LNX.4.64.0710181514310.3584@schroedinger.engr.sgi.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1192719329-32066-1-git-send-email-Emilian.Medve@Freescale.com>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Emil Medve <Emilian.Medve@Freescale.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, torvalds@linux-foundation.org
+To: akpm@linux-foundation.org
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Oct 18 2007, Emil Medve wrote:
-> mm/filemap.c: In function '__filemap_fdatawrite_range':
-> mm/filemap.c:200: error: implicit declaration of function 'mapping_cap_writeback_dirty'
-> 
-> This happens when we don't use/have any block devices and a NFS root filesystem
-> is used
-> 
-> mapping_cap_writeback_dirty() is defined in linux/backing-dev.h which used to be
-> provided in mm/filemap.c by linux/blkdev.h until commit
-> f5ff8422bbdd59f8c1f699df248e1b7a11073027
-> 
-> Signed-off-by: Emil Medve <Emilian.Medve@Freescale.com>
+Currently page flags are only modified in SLUB under page lock. This means
+that we do not need an atomic operation to release the lock since there
+is nothing we can race against that is modifying page flags. We can simply
+clear the bit without the use of an atomic operation and make sure that this
+change becomes visible after the other changes to slab metadata through
+a memory barrier.
 
-Acked-by: Jens Axboe <jens.axboe@oracle.com>
+The performance of slab_free() increases 10-15% (SMP configuration doing
+a long series of remote frees).
 
--- 
-Jens Axboe
+Signed-off-by: Christoph Lameter <clameter@sgi.com>
+
+Index: linux-2.6/mm/slub.c
+===================================================================
+--- linux-2.6.orig/mm/slub.c	2007-10-18 14:12:59.000000000 -0700
++++ linux-2.6/mm/slub.c	2007-10-18 14:24:43.000000000 -0700
+@@ -1180,9 +1180,22 @@ static __always_inline void slab_lock(st
+ 	bit_spin_lock(PG_locked, &page->flags);
+ }
+ 
++/*
++ * Slab unlock version that avoids having to use atomic operations
++ * (echos some of the code of bit_spin_unlock!)
++ */
+ static __always_inline void slab_unlock(struct page *page)
+ {
+-	bit_spin_unlock(PG_locked, &page->flags);
++#ifdef CONFIG_SMP
++	unsigned long flags;
++
++	flags = page->flags & ~(1 << PG_locked);
++
++	smp_wmb();
++	page->flags = flags;
++#endif
++	preempt_enable();
++	__release(bitlock);
+ }
+ 
+ static __always_inline int slab_trylock(struct page *page)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
