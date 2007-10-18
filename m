@@ -1,229 +1,49 @@
-Message-ID: <47172303.2010601@openvz.org>
-Date: Thu, 18 Oct 2007 13:10:27 +0400
-From: Pavel Emelyanov <xemul@openvz.org>
+Date: Thu, 18 Oct 2007 02:13:34 -0700 (PDT)
+From: Christoph Lameter <clameter@sgi.com>
+Subject: Re: [Patch](memory hotplug) Make kmem_cache_node for SLUB on memory
+ online to avoid panic(take 3)
+In-Reply-To: <20071018000004.cf4727e7.akpm@linux-foundation.org>
+Message-ID: <Pine.LNX.4.64.0710180203500.13576@schroedinger.engr.sgi.com>
+References: <20071018122345.514F.Y-GOTO@jp.fujitsu.com>
+ <20071017204651.aefcece7.akpm@linux-foundation.org>
+ <Pine.LNX.4.64.0710172321550.11401@schroedinger.engr.sgi.com>
+ <20071018000004.cf4727e7.akpm@linux-foundation.org>
 MIME-Version: 1.0
-Subject: [PATCH] Create the caches with "calculated" names
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
-Cc: Linux MM <linux-mm@kvack.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Yasunori Goto <y-goto@jp.fujitsu.com>, Linux Kernel ML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-Many code in the kernel needs to create the caches with
-some "formatted" names. E.g. the net/core/sock.c creates 
-the caches with names
-   ("request_sock_%s", proto->name)
-dccp need caches like
-   ("%s_hc_rx_sock", ccid_ops->ccid_name)
-and so on.
+On Thu, 18 Oct 2007, Andrew Morton wrote:
 
-The proposal is to create the generic method for creating
-such a caches. The code is spread across sl[auo]b, so
-maybe its better to move it to mm/util.c
+> > Slab brings up a per node structure when the corresponding cpu is brought 
+> > up. That was sufficient as long as we did not have any memoryless nodes. 
+> > Now we may have to fix some things over there as well.
+> 
+> Is there amy point?  Our time would be better spent in making
+> slab.c go away.  How close are we to being able to do that anwyay?
 
-The question is: does it worth sending to mainline?
+Well the problem right now is the regression in slab_free() on SMP. 
+AFAICT UP and NUMA is fine and also most loads under SMP. Concurrent 
+allocation / frees on multiple processors are several times faster (I see 
+up to 10 fold improvements on an 8p).
 
-Signed-off-by: Pavel Emelyanov <xemul@openvz.org>
+However, long sequences of free operations from a single processor under 
+SMP require too many atomic operations compared with SLAB. If I only do 
+frees on a single processor on SMP then I can produce a 30% regression for 
+slabs between 128 and 1024 byte in size. I have a patchset in the works 
+that reduces the atomic operations for those.
 
----
+SLAB currently has an advantage since it uses coarser grained locking. 
+SLAB can take a global lock and then perform queue operations on 
+multiple objects. SLUB has fine grained locking which increases 
+concurrency but also the overhead of atomic operations.
 
-diff --git a/include/linux/slab.h b/include/linux/slab.h
-index f3a8eec..6b57826 100644
---- a/include/linux/slab.h
-+++ b/include/linux/slab.h
-@@ -54,7 +54,14 @@ int slab_is_available(void);
- struct kmem_cache *kmem_cache_create(const char *, size_t, size_t,
- 			unsigned long,
- 			void (*)(struct kmem_cache *, void *));
-+
-+#define KMEM_CACHE_NAME_MAX	128
-+struct kmem_cache *kmem_cache_create_name(size_t, size_t,
-+		unsigned long, void (*)(struct kmem_cache *, void *),
-+		const char *fmt, ...) __attribute__ ((format (printf, 5, 6)));
-+
- void kmem_cache_destroy(struct kmem_cache *);
-+void kmem_cache_destroy_name(struct kmem_cache *);
- int kmem_cache_shrink(struct kmem_cache *);
- void kmem_cache_free(struct kmem_cache *, void *);
- unsigned int kmem_cache_size(struct kmem_cache *);
-diff --git a/mm/slab.c b/mm/slab.c
-index 3ce9bc0..0245807 100644
---- a/mm/slab.c
-+++ b/mm/slab.c
-@@ -2377,6 +2377,37 @@ oops:
- }
- EXPORT_SYMBOL(kmem_cache_create);
- 
-+struct kmem_cache *kmem_cache_create_name(size_t size, size_t align,
-+		unsigned long flags, void (* ctor)(struct kmem_cache *, void *),
-+		const char *fmt, ...)
-+{
-+	char *name, tmp[KMEM_CACHE_NAME_MAX];
-+	va_list args;
-+	struct kmem_cache *c;
-+
-+	va_start(args, fmt);
-+	vsnprintf(tmp, sizeof(tmp), fmt, args);
-+	va_end(args);
-+
-+	name = kstrdup(tmp, GFP_KERNEL);
-+	if (name == NULL)
-+		goto err_name;
-+
-+	c = kmem_cache_create(name, size, align, flags, ctor);
-+	if (c == NULL)
-+		goto err_cache;
-+
-+	return c;
-+
-+err_cache:
-+	kfree(name);
-+err_name:
-+	if (flags & SLAB_PANIC)
-+		panic("Canot create slabcache %s\n", name);
-+	return NULL;
-+}
-+EXPORT_SYMBOL(kmem_cache_create_name);
-+
- #if DEBUG
- static void check_irq_off(void)
- {
-@@ -2572,6 +2603,16 @@ void kmem_cache_destroy(struct kmem_cache *cachep)
- }
- EXPORT_SYMBOL(kmem_cache_destroy);
- 
-+void kmem_cache_destroy_name(struct kmem_cache *s)
-+{
-+	const char *name;
-+
-+	name = s->name;
-+	kmem_cache_destroy(s);
-+	kfree(name);
-+}
-+EXPORT_SYMBOL(kmem_cache_destroy_name);
-+
- /*
-  * Get the memory for a slab management obj.
-  * For a slab cache when the slab descriptor is off-slab, slab descriptors
-diff --git a/mm/slob.c b/mm/slob.c
-index 5bc2ceb..015647b 100644
---- a/mm/slob.c
-+++ b/mm/slob.c
-@@ -532,12 +532,53 @@ struct kmem_cache *kmem_cache_create(const char *name, size_t size,
- }
- EXPORT_SYMBOL(kmem_cache_create);
- 
-+struct kmem_cache *kmem_cache_create_name(size_t size, size_t align,
-+		unsigned long flags, void (* ctor)(struct kmem_cache *, void *),
-+		const char *fmt, ...)
-+{
-+	char *name, tmp[KMEM_CACHE_NAME_MAX];
-+	va_list args;
-+	struct kmem_cache *c;
-+
-+	va_start(args, fmt);
-+	vsnprintf(tmp, sizeof(tmp), fmt, args);
-+	va_end(args);
-+
-+	name = kstrdup(tmp, GFP_KERNEL);
-+	if (name == NULL)
-+		goto err_name;
-+
-+	c = kmem_cache_create(name, size, align, flags, ctor);
-+	if (c == NULL)
-+		goto err_cache;
-+
-+	return c;
-+
-+err_cache:
-+	kfree(name);
-+err_name:
-+	if (flags & SLAB_PANIC)
-+		panic("Canot create slabcache %s\n", name);
-+	return NULL;
-+}
-+EXPORT_SYMBOL(kmem_cache_create_name);
-+
- void kmem_cache_destroy(struct kmem_cache *c)
- {
- 	slob_free(c, sizeof(struct kmem_cache));
- }
- EXPORT_SYMBOL(kmem_cache_destroy);
- 
-+void kmem_cache_destroy_name(struct kmem_cache *s)
-+{
-+	const char *name;
-+
-+	name = s->name;
-+	kmem_cache_destroy(s);
-+	kfree(name);
-+}
-+EXPORT_SYMBOL(kmem_cache_destroy_name);
-+
- void *kmem_cache_alloc_node(struct kmem_cache *c, gfp_t flags, int node)
- {
- 	void *b;
-diff --git a/mm/slub.c b/mm/slub.c
-index e29a429..c91f8e5 100644
---- a/mm/slub.c
-+++ b/mm/slub.c
-@@ -2347,6 +2347,16 @@ void kmem_cache_destroy(struct kmem_cache *s)
- }
- EXPORT_SYMBOL(kmem_cache_destroy);
- 
-+void kmem_cache_destroy_name(struct kmem_cache *s)
-+{
-+	const char *name;
-+
-+	name = s->name;
-+	kmem_cache_destroy(s);
-+	kfree(name);
-+}
-+EXPORT_SYMBOL(kmem_cache_destroy_name);
-+
- /********************************************************************
-  *		Kmalloc subsystem
-  *******************************************************************/
-@@ -2893,6 +2903,37 @@ err:
- }
- EXPORT_SYMBOL(kmem_cache_create);
- 
-+struct kmem_cache *kmem_cache_create_name(size_t size, size_t align,
-+		unsigned long flags, void (* ctor)(struct kmem_cache *, void *),
-+		const char *fmt, ...)
-+{
-+	char *name, tmp[KMEM_CACHE_NAME_MAX];
-+	va_list args;
-+	struct kmem_cache *c;
-+
-+	va_start(args, fmt);
-+	vsnprintf(tmp, sizeof(tmp), fmt, args);
-+	va_end(args);
-+
-+	name = kstrdup(tmp, GFP_KERNEL);
-+	if (name == NULL)
-+		goto err_name;
-+
-+	c = kmem_cache_create(name, size, align, flags, ctor);
-+	if (c == NULL)
-+		goto err_cache;
-+
-+	return c;
-+
-+err_cache:
-+	kfree(name);
-+err_name:
-+	if (flags & SLAB_PANIC)
-+		panic("Canot create slabcache %s\n", name);
-+	return NULL;
-+}
-+EXPORT_SYMBOL(kmem_cache_create_name);
-+
- #ifdef CONFIG_SMP
- /*
-  * Use the cpu notifier to insure that the cpu slabs are flushed when
+The regression does not surface under UP since we do not need to do 
+locking. And it does not surface under NUMA since the alien cache stuff in 
+SLAB is reducing slab_free performance compared to SMP.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
