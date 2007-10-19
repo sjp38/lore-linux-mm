@@ -1,104 +1,119 @@
-Date: Fri, 19 Oct 2007 21:22:05 +0500
-From: " Royal Euro Kasino " <coroner@fastermail.com>
-Subject: 300% Bonus fur Ihre erste Einzahlung! 
-Message-ID: <61517814.95043781@goshawk.com>
+From: ebiederm@xmission.com (Eric W. Biederman)
+Subject: Re: [RFC][PATCH] block: Isolate the buffer cache in it's own mappings.
+References: <200710151028.34407.borntraeger@de.ibm.com>
+	<m1zlykj8zl.fsf_-_@ebiederm.dsl.xmission.com>
+	<200710160956.58061.borntraeger@de.ibm.com>
+	<200710171814.01717.borntraeger@de.ibm.com>
+	<m1sl49ei8x.fsf@ebiederm.dsl.xmission.com>
+	<1192648456.15717.7.camel@think.oraclecorp.com>
+	<m17illeb8f.fsf@ebiederm.dsl.xmission.com>
+	<1192654481.15717.16.camel@think.oraclecorp.com>
+	<m1ve95ctuc.fsf@ebiederm.dsl.xmission.com>
+	<1192661889.15717.27.camel@think.oraclecorp.com>
+	<m16415cocs.fsf@ebiederm.dsl.xmission.com>
+	<1192665785.15717.34.camel@think.oraclecorp.com>
+	<m1tzopaxa1.fsf_-_@ebiederm.dsl.xmission.com>
+	<20071017213216.b2d0c4bd.akpm@linux-foundation.org>
+Date: Fri, 19 Oct 2007 15:27:25 -0600
+In-Reply-To: <20071017213216.b2d0c4bd.akpm@linux-foundation.org> (Andrew
+	Morton's message of "Wed, 17 Oct 2007 21:32:16 -0700")
+Message-ID: <m11wbqg5he.fsf@ebiederm.dsl.xmission.com>
 MIME-Version: 1.0
-Content-Type: text/html; charset=iso-8859-1
-Content-Transfer-Encoding: 7bit
-Return-Path: <coroner@fastermail.com>
-To: owner-linux-mm@kvack.org
+Content-Type: text/plain; charset=us-ascii
+Sender: owner-linux-mm@kvack.org
+Return-Path: <owner-linux-mm@kvack.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Chris Mason <chris.mason@oracle.com>, Christian Borntraeger <borntraeger@de.ibm.com>, Nick Piggin <nickpiggin@yahoo.com.au>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Martin Schwidefsky <schwidefsky@de.ibm.com>, Theodore Ts'o <tytso@mit.edu>, stable@kernel.org
 List-ID: <linux-mm.kvack.org>
 
-<html>
+Andrew Morton <akpm@linux-foundation.org> writes:
 
-<head>
-<meta http-equiv=Content-Type content="text/html; charset=iso-8859-1">
+>
+> I don't think we little angels want to tread here.  There are so many
+> weirdo things out there which will break if we bust the coherence between
+> the fs and /dev/hda1.
 
-<title>Nur vom nobelsten aller</title>
+We broke coherence between the fs and /dev/hda1 when we introduced
+the page cache years ago, and weird hacky cases like
+unmap_underlying_metadata don't change that.  Currently only
+metadata is more or less in sync with the contents of /dev/hda1.
 
-<style>
-<!--
- /* Style Definitions */
- p.MsoNormal, li.MsoNormal, div.MsoNormal
-	{mso-style-parent:"";
-	margin:0cm;
-	margin-bottom:.0001pt;
-	mso-pagination:widow-orphan;
-	font-size:12.0pt;
-	font-family:"Times New Roman";
-	mso-fareast-font-family:"Times New Roman";
-	mso-ansi-language:EN-US;
-	mso-fareast-language:EN-US;}
-a:link, span.MsoHyperlink
-	{color:blue;
-	text-decoration:underline;
-	text-underline:single;}
-a:visited, span.MsoHyperlinkFollowed
-	{color:purple;
-	text-decoration:underline;
-	text-underline:single;}
-@page Section1
-	{size:595.3pt 841.9pt;
-	margin:2.0cm 42.5pt 2.0cm 3.0cm;
-	mso-header-margin:35.4pt;
-	mso-footer-margin:35.4pt;
-	mso-paper-source:0;}
-div.Section1
-	{page:Section1;}
--->
-</style>
+> Online resize, online fs checkers, various local
+> tools which people have hacked up to look at metadata in a live fs,
+> direct-io access to the underlying fs, heaven knows how many boot loader
+> installers, etc.  Cerainly I couldn't enumerate  tham all.
 
-</head>
+Well I took a look at ext3.  For online resize all of the writes are
+done by the fs not by the user space tool.  For e2fsck of a read-only
+filesystem currently we do cache the buffers for the super block and
+reexamine those blocks when we mount read-only.
 
-<body lang=DE link=blue vlink=purple style='tab-interval:35.4pt'>
+Which makes my patch by itself unsafe.  If however ext3 and anyone
+else who does things like that were to reread the data and not
+to merely reexamine the data we should be fine.
 
-<div class=Section1>
+Fundamentally doing anything like this requires some form of
+synchronization, and if that synchronization does not exist
+today there will be bugs.  Further decoupling things only makes that
+requirement clearer.
 
-<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
-Nur vom nobelsten aller Casinos k&ouml;nnen 
-Sie ein so vornehmes Geschenk erwarten:
-<o:p></o:p></span></p>
+Unfortunately because of things like the ext3 handling of remounting
+from ro to rw this doesn't fall into the quick trivial fix category :(
 
-<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
-<o:p>&nbsp;</o:p></span></p>
+> I don't actually see what the conceptual problem is with the existing
+> implementation.  The buffer_head is a finer-grained view onto the
+> blockdev's pagecache: it provides additional states and additional locking
+> against a finer-grained section of the page.   It works well.
 
-<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
-300% Bonus f&uuml;r Ihre erste Einzahlung!
-<o:p></o:p></span></p>
+The buffer_head itself seems to be a reasonable entity.
 
-<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
-<o:p>&nbsp;</o:p></span></p>
+The buffer cache is a monster.  It does not follow the ordinary rules
+of the page cache, making it extremely hard to reason about.
 
-<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
-Zahlen Sie 100&#8364;/$ ein und spielen 
-Sie mit 400 &#8364;/$!
-<o:p></o:p></span></p>
+Currently in the buffer cache there are buffer_heads we are not
+allowed to make dirty which hold dirty data.  Some filesystems
+panic the kernel when they notice this.  Others like ext3 use a
+different bit to remember that the buffer is dirty.
 
-<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
-<o:p>&nbsp;</o:p></span></p>
+Because of ordering considerations the buffer cache does not hold a
+consistent view of what has been scheduled for being written to disk.
+It instead holds partially complete pages.
 
-<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
-Oben drauf bekommen Sie bei uns einen 
-k&ouml;niglichen Service!
-<o:p></o:p></span></p>
+The only place we should ever clear the dirty bit is just before
+calling write_page but try_to_free_buffers clears the dirty bit!
 
-<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
-<o:p>&nbsp;</o:p></span></p>
+We have buffers on pages without a mapping!
 
-<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
-Kommen und spielen Sie im Royal VIP Casino!
-<o:p></o:p></span></p>
+In general the buffer cache violates a primary rule for comprehensible
+programming having.  The buffer cache does not have a clear enough
+definition that it is clear what things are bugs and what things
+are features.
 
-<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
-<o:p>&nbsp;</o:p></span></p>
+99% of the weird strange behavior in rd.c is because of the buffer
+cache not following the normal rules.
 
-<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
-<a href="http://www.royalviproulette.com/lang-de/">
-http://www.royalviproulette.com/lang-de/</a>
-<o:p></o:p></span></p>
+> Yeah, the highmem thing is a bit of a problem (but waning in importance). 
+> But we can fix that by teaching individual filesystems about kmap and then
+> tweak the blockdev's caching policy with mapping_set_gfp_mask() at mount
+> time.  If anyone cares, which they don't.
 
-</div>
+This presumes I want to use a filesystem on my block device.  Where I
+would care most is when I am doing things like fsck or mkfs on an
+unmounted filesystem.  Where having buffer_heads is just extra memory
+pressure slowing things down, and similarly for highmem.  We have
+to sync the filesystem before mounting but we have to do that anyway
+for all of the non metadata so that isn't new.
 
-</body>
+Anyway my main objective was to get a good grasp on the buffer cache
+and the mm layer again.  Which I now more or less have.  While I think
+the buffer cache needs a bunch of tender loving care before it becomes
+sane I have other projects that I intend to complete before I try
+anything in this area.
 
-</html>
+Eric
+
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
