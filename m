@@ -1,44 +1,104 @@
-Date: Fri, 19 Oct 2007 04:20:44 -0700 (PDT)
-From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: SLUB: Avoid atomic operation for slab_unlock
-In-Reply-To: <200710190949.01019.nickpiggin@yahoo.com.au>
-Message-ID: <Pine.LNX.4.64.0710190420180.29352@schroedinger.engr.sgi.com>
-References: <Pine.LNX.4.64.0710181514310.3584@schroedinger.engr.sgi.com>
- <200710190949.01019.nickpiggin@yahoo.com.au>
+Date: Fri, 19 Oct 2007 21:22:05 +0500
+From: " Royal Euro Kasino " <coroner@fastermail.com>
+Subject: 300% Bonus fur Ihre erste Einzahlung! 
+Message-ID: <61517814.95043781@goshawk.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
-Sender: owner-linux-mm@kvack.org
-Return-Path: <owner-linux-mm@kvack.org>
-To: Nick Piggin <nickpiggin@yahoo.com.au>
-Cc: Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, akpm@linux-foundation.org, linux-mm@kvack.org
+Content-Type: text/html; charset=iso-8859-1
+Content-Transfer-Encoding: 7bit
+Return-Path: <coroner@fastermail.com>
+To: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
+<html>
 
-Slub can use the non-atomic version to unlock because other flags will not
-get modified with the lock held.
+<head>
+<meta http-equiv=Content-Type content="text/html; charset=iso-8859-1">
 
-Signed-off-by: Nick Piggin <npiggin@suse.de>
+<title>Nur vom nobelsten aller</title>
 
----
- mm/slub.c |    2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+<style>
+<!--
+ /* Style Definitions */
+ p.MsoNormal, li.MsoNormal, div.MsoNormal
+	{mso-style-parent:"";
+	margin:0cm;
+	margin-bottom:.0001pt;
+	mso-pagination:widow-orphan;
+	font-size:12.0pt;
+	font-family:"Times New Roman";
+	mso-fareast-font-family:"Times New Roman";
+	mso-ansi-language:EN-US;
+	mso-fareast-language:EN-US;}
+a:link, span.MsoHyperlink
+	{color:blue;
+	text-decoration:underline;
+	text-underline:single;}
+a:visited, span.MsoHyperlinkFollowed
+	{color:purple;
+	text-decoration:underline;
+	text-underline:single;}
+@page Section1
+	{size:595.3pt 841.9pt;
+	margin:2.0cm 42.5pt 2.0cm 3.0cm;
+	mso-header-margin:35.4pt;
+	mso-footer-margin:35.4pt;
+	mso-paper-source:0;}
+div.Section1
+	{page:Section1;}
+-->
+</style>
 
-Index: linux-2.6/mm/slub.c
-===================================================================
---- linux-2.6.orig/mm/slub.c
-+++ linux-2.6/mm/slub.c
-@@ -1185,7 +1185,7 @@ static __always_inline void slab_lock(st
- 
- static __always_inline void slab_unlock(struct page *page)
- {
--	bit_spin_unlock(PG_locked, &page->flags);
-+	__bit_spin_unlock(PG_locked, &page->flags);
- }
- 
- static __always_inline int slab_trylock(struct page *page)
+</head>
 
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+<body lang=DE link=blue vlink=purple style='tab-interval:35.4pt'>
+
+<div class=Section1>
+
+<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
+Nur vom nobelsten aller Casinos k&ouml;nnen 
+Sie ein so vornehmes Geschenk erwarten:
+<o:p></o:p></span></p>
+
+<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
+<o:p>&nbsp;</o:p></span></p>
+
+<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
+300% Bonus f&uuml;r Ihre erste Einzahlung!
+<o:p></o:p></span></p>
+
+<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
+<o:p>&nbsp;</o:p></span></p>
+
+<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
+Zahlen Sie 100&#8364;/$ ein und spielen 
+Sie mit 400 &#8364;/$!
+<o:p></o:p></span></p>
+
+<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
+<o:p>&nbsp;</o:p></span></p>
+
+<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
+Oben drauf bekommen Sie bei uns einen 
+k&ouml;niglichen Service!
+<o:p></o:p></span></p>
+
+<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
+<o:p>&nbsp;</o:p></span></p>
+
+<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
+Kommen und spielen Sie im Royal VIP Casino!
+<o:p></o:p></span></p>
+
+<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
+<o:p>&nbsp;</o:p></span></p>
+
+<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
+<a href="http://www.royalviproulette.com/lang-de/">
+http://www.royalviproulette.com/lang-de/</a>
+<o:p></o:p></span></p>
+
+</div>
+
+</body>
+
+</html>
