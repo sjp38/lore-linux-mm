@@ -1,39 +1,28 @@
-Date: Thu, 18 Oct 2007 18:21:00 -0700 (PDT)
+Date: Thu, 18 Oct 2007 18:26:20 -0700 (PDT)
 From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: SLUB: Avoid atomic operation for slab_unlock
-In-Reply-To: <200710190949.01019.nickpiggin@yahoo.com.au>
-Message-ID: <Pine.LNX.4.64.0710181817380.4194@schroedinger.engr.sgi.com>
-References: <Pine.LNX.4.64.0710181514310.3584@schroedinger.engr.sgi.com>
- <200710190949.01019.nickpiggin@yahoo.com.au>
+Subject: Re: about page migration on UMA
+In-Reply-To: <02f001c8108c$a3818760$3708a8c0@arcapub.arca.com>
+Message-ID: <Pine.LNX.4.64.0710181825520.4272@schroedinger.engr.sgi.com>
+References: <20071016191949.cd50f12f.kamezawa.hiroyu@jp.fujitsu.com><20071016192341.1c3746df.kamezawa.hiroyu@jp.fujitsu.com><alpine.DEB.0.9999.0710162113300.13648@chino.kir.corp.google.com><20071017141609.0eb60539.kamezawa.hiroyu@jp.fujitsu.com><alpine.DEB.0.9999.0710162232540.27242@chino.kir.corp.google.com>
+ <20071017145009.e4a56c0d.kamezawa.hiroyu@jp.fujitsu.com>
+ <02f001c8108c$a3818760$3708a8c0@arcapub.arca.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nick Piggin <nickpiggin@yahoo.com.au>
-Cc: Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, akpm@linux-foundation.org, linux-mm@kvack.org
+To: "Jacky(GuangXiang  Lee)" <gxli@arca.com.cn>
+Cc: climeter@sgi.com, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 19 Oct 2007, Nick Piggin wrote:
+On Wed, 17 Oct 2007, Jacky(GuangXiang  Lee) wrote:
 
-> Ah, thanks, but can we just use my earlier patch that does the
-> proper __bit_spin_unlock which is provided by
-> bit_spin_lock-use-lock-bitops.patch
+> seems page migration is used mostly for NUMA platform to improve
+> performance.
+> But in a UMA architecture, Is it possible to use page migration to move
+> pages ?
 
-Ok.
-
-> This primitive should have a better chance at being correct, and
-> also potentially be more optimised for each architecture (it
-> only has to provide release consistency).
-
-Yes that is what I attempted to do with the write barrier. To my knowledge 
-there are no reads that could bleed out and I wanted to avoid a full fence 
-instruction there.
-
-> I have attached the patch here just for reference, but actually
-> I am submitting it properly as part of a patch series today, now
-> that the base bit lock patches have been sent upstream.
-
-Good. Andrew: Drop my patch when this goes in.
+Yes. Just one up with a usage for it. The page migration mechanism itself 
+is not NUMA dependent.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
