@@ -1,43 +1,37 @@
 From: ebiederm@xmission.com (Eric W. Biederman)
-Subject: Re: [RFC][PATCH] block: Isolate the buffer cache in it's own mappings.
+Subject: Re: [PATCH] rd: Mark ramdisk buffers heads dirty
 References: <200710151028.34407.borntraeger@de.ibm.com>
-	<1192665785.15717.34.camel@think.oraclecorp.com>
-	<m1tzopaxa1.fsf_-_@ebiederm.dsl.xmission.com>
-	<200710181510.48382.nickpiggin@yahoo.com.au>
-Date: Fri, 19 Oct 2007 15:35:40 -0600
-In-Reply-To: <200710181510.48382.nickpiggin@yahoo.com.au> (Nick Piggin's
-	message of "Thu, 18 Oct 2007 15:10:48 +1000")
-Message-ID: <m1wstieqj7.fsf@ebiederm.dsl.xmission.com>
+	<200710172348.23113.borntraeger@de.ibm.com>
+	<m1myuhcrfu.fsf@ebiederm.dsl.xmission.com>
+	<200710181126.10559.borntraeger@de.ibm.com>
+Date: Fri, 19 Oct 2007 16:46:04 -0600
+In-Reply-To: <200710181126.10559.borntraeger@de.ibm.com> (Christian
+	Borntraeger's message of "Thu, 18 Oct 2007 11:26:10 +0200")
+Message-ID: <m1sl46en9v.fsf@ebiederm.dsl.xmission.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nick Piggin <nickpiggin@yahoo.com.au>
-Cc: Chris Mason <chris.mason@oracle.com>, Christian Borntraeger <borntraeger@de.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Martin Schwidefsky <schwidefsky@de.ibm.com>, Theodore Ts'o <tytso@mit.edu>, stable@kernel.org
+To: Christian Borntraeger <borntraeger@de.ibm.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Nick Piggin <nickpiggin@yahoo.com.au>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Martin Schwidefsky <schwidefsky@de.ibm.com>, Theodore Ts'o <tytso@mit.edu>, stable@kernel.org
 List-ID: <linux-mm.kvack.org>
 
-Nick Piggin <nickpiggin@yahoo.com.au> writes:
+Christian Borntraeger <borntraeger@de.ibm.com> writes:
 
+> Am Donnerstag, 18. Oktober 2007 schrieb Eric W. Biederman:
+>> Grr. Inconsistent rules on a core piece of infrastructure.
+>> It looks like that if there is any trivial/minimal fix it
+>> is based on your patch suppressing try_to_free_buffers.  Ugh.
+>> 
+>> Eric
 >
-> [*] The ramdisk code is simply buggy, right? (and not the buffer
->     cache)
+> Ok. What do you think about having my patch for 2.6.23 stable, for 2.6.24
+> and doing a nicer fix (rd rewrite for example for post 2.6.24)?
 
->From the perspective of the ramdisk it expects the buffer cache to
-simply be a user of the page cache, and thus the buffer cache
-is horribly buggy.
-
->From the perspective of the buffer cache it still the block device
-cache in the kernel and it the way it works are the rules for how
-caching should be done in the kernel, and it doesn't give any
-mind to this new fangled page cache thingy.
-
-> The idea of your patch in theory is OK, but Andrew raises valid
-> points about potential coherency problems, I think.
-
-There are certainly implementation issues in various filesystems
-to overcome before remounting read-write after doing a fsck
-on a read-only filesystem will work as it does today.  So my patch
-is incomplete.
+Looking at it.  If we don't get carried away using our own private
+inode is barely more difficult then stomping on release_page and
+in a number of ways a whole lot more subtle.  At least for 2.6.24 I
+think it makes a sane fix, and quite possibly as a back port as well.
 
 Eric
 
