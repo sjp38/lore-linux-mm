@@ -1,80 +1,46 @@
-Received: from zps18.corp.google.com (zps18.corp.google.com [172.25.146.18])
-	by smtp-out.google.com with ESMTP id l9KIIRI8015415
-	for <linux-mm@kvack.org>; Sat, 20 Oct 2007 11:18:27 -0700
-Received: from rv-out-0910.google.com (rvbk20.prod.google.com [10.140.87.20])
-	by zps18.corp.google.com with ESMTP id l9KIIQaB013830
-	for <linux-mm@kvack.org>; Sat, 20 Oct 2007 11:18:27 -0700
-Received: by rv-out-0910.google.com with SMTP id k20so854507rvb
-        for <linux-mm@kvack.org>; Sat, 20 Oct 2007 11:18:26 -0700 (PDT)
-Message-ID: <b040c32a0710201118g5abb6608me57d7b9057f86919@mail.gmail.com>
-Date: Sat, 20 Oct 2007 11:18:26 -0700
-From: "Ken Chen" <kenchen@google.com>
-Subject: [patch] hugetlb: fix i_blocks accounting
+From: Nick Piggin <nickpiggin@yahoo.com.au>
+Subject: Re: [RFC][PATCH] block: Isolate the buffer cache in it's own mappings.
+Date: Sun, 21 Oct 2007 14:24:46 +1000
+References: <200710151028.34407.borntraeger@de.ibm.com> <20071017213216.b2d0c4bd.akpm@linux-foundation.org> <m11wbqg5he.fsf@ebiederm.dsl.xmission.com>
+In-Reply-To: <m11wbqg5he.fsf@ebiederm.dsl.xmission.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=ISO-8859-1
+Content-Type: text/plain;
+  charset="iso-8859-1"
 Content-Transfer-Encoding: 7bit
 Content-Disposition: inline
+Message-Id: <200710211424.46650.nickpiggin@yahoo.com.au>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm <linux-mm@kvack.org>
+To: "Eric W. Biederman" <ebiederm@xmission.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Chris Mason <chris.mason@oracle.com>, Christian Borntraeger <borntraeger@de.ibm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Martin Schwidefsky <schwidefsky@de.ibm.com>, Theodore Ts'o <tytso@mit.edu>, stable@kernel.org
 List-ID: <linux-mm.kvack.org>
 
-For administrative purpose, we want to query actual block usage for
-hugetlbfs file via fstat.  Currently, hugetlbfs always return 0.  Fix
-that up since kernel already has all the information to track it
-properly.
+On Saturday 20 October 2007 07:27, Eric W. Biederman wrote:
+> Andrew Morton <akpm@linux-foundation.org> writes:
+> > I don't think we little angels want to tread here.  There are so many
+> > weirdo things out there which will break if we bust the coherence between
+> > the fs and /dev/hda1.
+>
+> We broke coherence between the fs and /dev/hda1 when we introduced
+> the page cache years ago,
+
+Not for metadata. And I wouldn't expect many filesystem analysis
+tools to care about data.
 
 
-Signed-off-by: Ken Chen <kenchen@google.com>
+> and weird hacky cases like 
+> unmap_underlying_metadata don't change that.
+
+unmap_underlying_metadata isn't about raw block device access at
+all, though (if you write to the filesystem via the blockdevice
+when it isn't expecting it, it's going to blow up regardless).
 
 
-diff --git a/fs/hugetlbfs/inode.c b/fs/hugetlbfs/inode.c
-index 12aca8e..ed6def0 100644
---- a/fs/hugetlbfs/inode.c
-+++ b/fs/hugetlbfs/inode.c
-@@ -862,7 +862,8 @@ out_free:
- int hugetlb_get_quota(struct address_space *mapping)
- {
- 	int ret = 0;
--	struct hugetlbfs_sb_info *sbinfo = HUGETLBFS_SB(mapping->host->i_sb);
-+	struct inode *inode = mapping->host;
-+	struct hugetlbfs_sb_info *sbinfo = HUGETLBFS_SB(inode->i_sb);
+> Currently only 
+> metadata is more or less in sync with the contents of /dev/hda1.
 
- 	if (sbinfo->free_blocks > -1) {
- 		spin_lock(&sbinfo->stat_lock);
-@@ -873,13 +874,17 @@ int hugetlb_get_quota(struct address_space *mapping)
- 		spin_unlock(&sbinfo->stat_lock);
- 	}
-
-+	if (!ret)
-+		inode->i_blocks += BLOCKS_PER_HUGEPAGE;
- 	return ret;
- }
-
- void hugetlb_put_quota(struct address_space *mapping)
- {
--	struct hugetlbfs_sb_info *sbinfo = HUGETLBFS_SB(mapping->host->i_sb);
-+	struct inode *inode = mapping->host;
-+	struct hugetlbfs_sb_info *sbinfo = HUGETLBFS_SB(inode->i_sb);
-
-+	inode->i_blocks -= BLOCKS_PER_HUGEPAGE;
- 	if (sbinfo->free_blocks > -1) {
- 		spin_lock(&sbinfo->stat_lock);
- 		sbinfo->free_blocks++;
-diff --git a/include/linux/hugetlb.h b/include/linux/hugetlb.h
-index ea0f50b..694cf8b 100644
---- a/include/linux/hugetlb.h
-+++ b/include/linux/hugetlb.h
-@@ -168,6 +168,8 @@ struct file *hugetlb_file_setup(const char *name, size_t);
- int hugetlb_get_quota(struct address_space *mapping);
- void hugetlb_put_quota(struct address_space *mapping);
-
-+#define BLOCKS_PER_HUGEPAGE	(HPAGE_SIZE / 512)
-+
- static inline int is_file_hugepages(struct file *file)
- {
- 	if (file->f_op == &hugetlbfs_file_operations)
+It either is or it isn't, right? And it is, isn't it? (at least
+for the common filesystems).
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
