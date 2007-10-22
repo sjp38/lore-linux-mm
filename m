@@ -1,49 +1,55 @@
-Subject: Re: vm_ops.page_mkwrite() fails with vmalloc on 2.6.23
-From: Peter Zijlstra <peterz@infradead.org>
-In-Reply-To: <1193073477.27435.186.camel@twins>
-References: <1193064305.16541.3.camel@matrix>
-	 <1193073477.27435.186.camel@twins>
-Content-Type: text/plain
-Date: Mon, 22 Oct 2007 19:20:56 +0200
-Message-Id: <1193073656.27435.188.camel@twins>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Date: Mon, 22 Oct 2007 19:51:33 +0100 (BST)
+From: Hugh Dickins <hugh@veritas.com>
+Subject: Re: [RFC] [-mm PATCH] Memory controller fix swap charging context
+ in unuse_pte()
+In-Reply-To: <4713A2F2.1010408@linux.vnet.ibm.com>
+Message-ID: <Pine.LNX.4.64.0710221933570.21262@blonde.wat.veritas.com>
+References: <20071005041406.21236.88707.sendpatchset@balbir-laptop>
+ <Pine.LNX.4.64.0710071735530.13138@blonde.wat.veritas.com>
+ <4713A2F2.1010408@linux.vnet.ibm.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: stefani@seibold.net
-Cc: linux-mm@kvack.org, Hugh Dickins <hugh@veritas.com>, Jaya Kumar <jayakumar.lkml@gmail.com>
+To: Balbir Singh <balbir@linux.vnet.ibm.com>
+Cc: Linux MM Mailing List <linux-mm@kvack.org>, Linux Containers <containers@lists.osdl.org>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 2007-10-22 at 19:17 +0200, Peter Zijlstra wrote:
-> On Mon, 2007-10-22 at 16:45 +0200, Stefani Seibold wrote:
-> > Hi,
+On Mon, 15 Oct 2007, Balbir Singh wrote:
+> Hugh Dickins wrote:
 > > 
-> > i have a problem with vmalloc() and vm_ops.page_mkwrite().
-> > 
-> > ReadOnly access works, but on a write access the VM will
-> > endless invoke the vm_ops.page_mkwrite() handler.
-> > 
-> > I tracked down the problem to the
-> > 	struct page.mapping pointer,
-> > which is NULL.
+> > --- 2.6.23-rc8-mm2/mm/swapfile.c	2007-09-27 12:03:36.000000000 +0100
+> > +++ linux/mm/swapfile.c	2007-10-07 14:33:05.000000000 +0100
+> > @@ -507,11 +507,23 @@ unsigned int count_swap_pages(int type, 
+> >   * just let do_wp_page work it out if a write is requested later - to
+> >   * force COW, vm_page_prot omits write permission from any private vma.
+> >   */
+> > -static int unuse_pte(struct vm_area_struct *vma, pte_t *pte,
+> > +static int unuse_pte(struct vm_area_struct *vma, pmd_t *pmd,
+> >  		unsigned long addr, swp_entry_t entry, struct page *page)
+...
 > 
-> Where?
+> I tested this patch and it seems to be working fine. I tried swapoff -a
+> in the middle of tests consuming swap. Not 100% rigorous, but a good
+> test nevertheless.
 > 
-> would this happen to be in set_page_dirty_balance(, .page_mkwrite=1) ?
-> 
-> I indeed over-looked the fb_defio driver when I grepped the tree for
-> ->page_mkwrite() usage :-/
-> 
-> The proper fix is to revert this set_page_dirty_balance() hack and make
-> the filesystem ->page_mkwrite() implementations call
-> balance_dirty_pages_ratelimited()
+> Tested-by: Balbir Singh <balbir@linux.vnet.ibm.com>
 
-Hmm, that should all work out when page->mapping is NULL.
+Thanks, Balbir.  Sorry for the delay.  I've not forgotten our
+agreement that I should be splitting it into before-and-after
+mem cgroup patches.  But it's low priority for me until we're
+genuinely assigning to a cgroup there.  Hope to get back to
+looking into that tomorrow, but no promises.
 
-/me goes look again..
+I think you still see no problem, where I claim that simply
+omitting the mem charge mods from mm/swap_state.c leads to OOMs?
+Maybe our difference is because my memhog in the cgroup is using
+more memory than RAM, not just more memory than allowed to the
+cgroup.  I suspect that arrives at a state (when the swapcache
+pages are not charged) where it cannot locate the pages it needs
+to reclaim to stay within its limit.
 
-Aaah, the truncate fixlet, yes that will mess one up..
-/me goes ponder what to do about that..
+Hugh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
