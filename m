@@ -1,87 +1,241 @@
-From: Nick Piggin <nickpiggin@yahoo.com.au>
-Subject: Re: [PATCH] rd: Use a private inode for backing storage
-Date: Mon, 22 Oct 2007 11:56:07 +1000
-References: <200710151028.34407.borntraeger@de.ibm.com> <200710211956.50624.nickpiggin@yahoo.com.au> <m1d4v8b9ct.fsf@ebiederm.dsl.xmission.com>
-In-Reply-To: <m1d4v8b9ct.fsf@ebiederm.dsl.xmission.com>
+Received: from d23relay03.au.ibm.com (d23relay03.au.ibm.com [202.81.18.234])
+	by e23smtp03.au.ibm.com (8.13.1/8.13.1) with ESMTP id l9M9lvju024305
+	for <linux-mm@kvack.org>; Mon, 22 Oct 2007 19:47:57 +1000
+Received: from d23av04.au.ibm.com (d23av04.au.ibm.com [9.190.235.139])
+	by d23relay03.au.ibm.com (8.13.8/8.13.8/NCO v8.5) with ESMTP id l9M9lwXJ303122
+	for <linux-mm@kvack.org>; Mon, 22 Oct 2007 19:47:58 +1000
+Received: from d23av04.au.ibm.com (loopback [127.0.0.1])
+	by d23av04.au.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l9M9lf4u026850
+	for <linux-mm@kvack.org>; Mon, 22 Oct 2007 19:47:42 +1000
+Message-ID: <471C7342.3010004@linux.vnet.ibm.com>
+Date: Mon, 22 Oct 2007 15:24:10 +0530
+From: Vaidyanathan Srinivasan <svaidy@linux.vnet.ibm.com>
 MIME-Version: 1.0
-Content-Disposition: inline
-Message-Id: <200710221156.07790.nickpiggin@yahoo.com.au>
-Content-Type: text/plain;
-  charset="iso-8859-1"
-Content-Transfer-Encoding: 7bit
+Subject: Re: VMA lookup with RCU
+References: <46F01289.7040106@linux.vnet.ibm.com> <470509F5.4010902@linux.vnet.ibm.com> <1191518486.5574.24.camel@lappy> <200710071747.23252.nickpiggin@yahoo.com.au> <1191829915.22357.95.camel@twins> <4709F92C.80207@linux.vnet.ibm.com> <470A6010.6000108@linux.vnet.ibm.com>
+In-Reply-To: <470A6010.6000108@linux.vnet.ibm.com>
+Content-Type: multipart/mixed;
+ boundary="------------080207090402070409020207"
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "Eric W. Biederman" <ebiederm@xmission.com>
-Cc: Christian Borntraeger <borntraeger@de.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Martin Schwidefsky <schwidefsky@de.ibm.com>, Theodore Ts'o <tytso@mit.edu>, stable@kernel.org
+To: Vaidyanathan Srinivasan <svaidy@linux.vnet.ibm.com>
+Cc: balbir@linux.vnet.ibm.com, Peter Zijlstra <peterz@infradead.org>, Nick Piggin <nickpiggin@yahoo.com.au>, Alexis Bruemmer <alexisb@us.ibm.com>, Balbir Singh <balbir@in.ibm.com>, Badari Pulavarty <pbadari@us.ibm.com>, Max Asbock <amax@us.ibm.com>, linux-mm <linux-mm@kvack.org>, Bharata B Rao <bharata@in.ibm.com>
 List-ID: <linux-mm.kvack.org>
 
-On Monday 22 October 2007 04:39, Eric W. Biederman wrote:
-> Nick Piggin <nickpiggin@yahoo.com.au> writes:
-> > On Sunday 21 October 2007 18:23, Eric W. Biederman wrote:
-> >> Christian Borntraeger <borntraeger@de.ibm.com> writes:
-> >>
-> >> Let me put it another way.  Looking at /proc/slabinfo I can get
-> >> 37 buffer_heads per page.  I can allocate 10% of memory in
-> >> buffer_heads before we start to reclaim them.  So it requires just
-> >> over 3.7 buffer_heads on very page of low memory to even trigger
-> >> this case.  That is a large 1k filesystem or a weird sized partition,
-> >> that we have written to directly.
-> >
-> > On a highmem machine it it could be relatively common.
->
-> Possibly.  But the same proportions still hold.  1k filesystems
-> are not the default these days and ramdisks are relatively uncommon.
-> The memory quantities involved are all low mem.
+This is a multi-part message in MIME format.
+--------------080207090402070409020207
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 
-You don't need 1K filesystems to have buffers attached though,
-of course. You can hit the limit with a 4K filesystem with less
-than 8GB in pagecache I'd say.
+[snip]
 
+> 
+> All the above test results has the impact of oprofile included.  Running
+> oprofile also may significantly increase mmap_sem contention.
+> 
+> I Will run the tests again without oprofile to understand the impact of
+> oprofile itself.
+> 
 
+Hi,
 
-> > You don't want to change that for a stable patch, however.
-> > It fixes the bug.
->
-> No it avoids the bug which is something slightly different.
-> Further I contend that it is not obviously correct that there
-> are no other side effects (because it doesn't actually fix the
-> bug), and that makes it of dubious value for a backport.
+I have run the same tests without oprofile and also tried to plot the
+impact of oprofile.
 
-The bug in question isn't exactly that it uses buffercache for its
-backing store (although that's obviously rather hairy as well). It's
-this specific problem sequence. And it does fix the problem.
+There are two attached graphs.
+
+rcu-vma-scaling.png contains the plot of Peter's RCU-VMA lookup without
+running oprofile.
+
+There are some variations beyond 10 CPUs.  I am trying to wonder if those
+were due to errors in test/measurement!
+
+oprofile-scaling.png plots similar tests with and without oprofile enabled.
+ We can see more impact beyond 12 CPUs.
+
+--Vaidy
 
 
-> If I had to slap a patch on there at this point just implementing
-> an empty try_to_release_page (which disables try_to_free_buffers)
-> would be my choice.
+--------------080207090402070409020207
+Content-Type: image/png;
+ name="oprofile-scaling.png"
+Content-Transfer-Encoding: base64
+Content-Disposition: inline;
+ filename="oprofile-scaling.png"
 
-How is that better? Now you're making the exact same change for
-all filesystems that you didn't think was obviously correct for
-rd.c.
+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
+--------------080207090402070409020207
+Content-Type: image/png;
+ name="rcu-vma-scaling.png"
+Content-Transfer-Encoding: base64
+Content-Disposition: inline;
+ filename="rcu-vma-scaling.png"
 
-
-> > I just don't think what you have is the proper fix. Calling
-> > into the core vfs and vm because right now it does something
-> > that works for you but is completely unrelated to what you
-> > are conceptually doing is not the right fix.
->
-> I think there is a strong conceptual relation and other code
-> doing largely the same thing is already in the kernel (ramfs).  Plus
-> my gut feel says shared code will make maintenance easier.
-
-ramfs is rather a different case. Filesystems intimately know
-about the pagecache.
-
-
-> You do have a point that the reuse may not be perfect and if that
-> is the case we need to watch out for the potential to mess things
-> up.
->
-> So far I don't see any problems with the reuse.
-
-It's just wrong. I guess if you don't see that by now, then we
-have to just disagree.
+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
+YII=
+--------------080207090402070409020207--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
