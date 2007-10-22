@@ -1,44 +1,143 @@
-Date: Mon, 22 Oct 2007 17:04:21 -0400
-Message-Id: <200710222104.l9ML4L1D002031@agora.fsl.cs.sunysb.edu>
-From: Erez Zadok <ezk@cs.sunysb.edu>
-Subject: Re: msync(2) bug(?), returns AOP_WRITEPAGE_ACTIVATE to userland 
-In-reply-to: Your message of "Mon, 22 Oct 2007 21:16:17 BST."
-             <Pine.LNX.4.64.0710222101420.23513@blonde.wat.veritas.com>
+Date: Mon, 22 Oct 2007 14:29:39 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [patch 13/14] dentries: Extract common code to remove dentry
+ from lru
+Message-Id: <20071022142939.1b815680.akpm@linux-foundation.org>
+In-Reply-To: <20070925233008.523093726@sgi.com>
+References: <20070925232543.036615409@sgi.com>
+	<20070925233008.523093726@sgi.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Hugh Dickins <hugh@veritas.com>
-Cc: Pekka Enberg <penberg@cs.helsinki.fi>, Erez Zadok <ezk@cs.sunysb.edu>, Ryan Finnie <ryan@finnie.org>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, cjwatson@ubuntu.com, linux-mm@kvack.org
+To: Christoph Lameter <clameter@sgi.com>
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-In message <Pine.LNX.4.64.0710222101420.23513@blonde.wat.veritas.com>, Hugh Dickins writes:
-> On Mon, 15 Oct 2007, Pekka Enberg wrote:
-> > 
-> > I wonder whether _not setting_ BDI_CAP_NO_WRITEBACK implies that
-> > ->writepage() will never return AOP_WRITEPAGE_ACTIVATE for
-> > !wbc->for_reclaim case which would explain why we haven't hit this bug
-> > before. Hugh, Andrew?
+On Tue, 25 Sep 2007 16:25:56 -0700
+Christoph Lameter <clameter@sgi.com> wrote:
+
+> Extract the common code to remove a dentry from the lru into a new function
+> dentry_lru_remove().
 > 
-> Only ramdisk and shmem have been returning AOP_WRITEPAGE_ACTIVATE.
-> Both of those set BDI_CAP_NO_WRITEBACK.  ramdisk never returned it
-> if !wbc->for_reclaim.  I contend that shmem shouldn't either: it's
-> a special code to get the LRU rotation right, not useful elsewhere.
-> Though Documentation/filesystems/vfs.txt does imply wider use.
+> Two call sites used list_del() instead of list_del_init(). AFAIK the
+> performance of both is the same. dentry_lru_remove() does a list_del_init().
 
-Yes, based on vfs.txt I figured unionfs should return
-AOP_WRITEPAGE_ACTIVATE.  But, now that unionfs has ->writepages which won't
-even call the lower writepage if BDI_CAP_NO_WRITEBACK is on, then perhaps I
-no longer need unionfs_writepage to bother checking for
-AOP_WRITEPAGE_ACTIVATE, or even return it up?
+list_del() will dirty two cachelines, but list_del_init() needs to dirty a
+third, by writing to the to-be-removed list_head().
 
-But, a future file system _could_ return AOP_WRITEPAGE_ACTIVATE w/o setting
-BDI_CAP_NO_WRITEBACK, right?  In that case, unionfs will still need to
-handle AOP_WRITEPAGE_ACTIVATE in ->writepage, right?
-
-> I think this is where people use the phrase "go figure" ;)
+> As a result dentry->d_lru is now always empty when a dentry is freed.
 > 
-> Hugh
+> Signed-off-by: Christoph Lameter <clameter@sgi.com>
+> ---
+>  fs/dcache.c |   42 ++++++++++++++----------------------------
+>  1 files changed, 14 insertions(+), 28 deletions(-)
+> 
+> Index: linux-2.6.23-rc8-mm1/fs/dcache.c
+> ===================================================================
+> --- linux-2.6.23-rc8-mm1.orig/fs/dcache.c	2007-09-25 14:53:57.000000000 -0700
+> +++ linux-2.6.23-rc8-mm1/fs/dcache.c	2007-09-25 14:57:09.000000000 -0700
+> @@ -95,6 +95,14 @@ static void d_free(struct dentry *dentry
+>  		call_rcu(&dentry->d_u.d_rcu, d_callback);
+>  }
+>  
+> +static void dentry_lru_remove(struct dentry *dentry)
+> +{
+> +	if (!list_empty(&dentry->d_lru)) {
+> +		list_del_init(&dentry->d_lru);
+> +		dentry_stat.nr_unused--;
+> +	}
+> +}
 
-Erez.
+So can we switch this to list_del()?
+
+>  /*
+>   * Release the dentry's inode, using the filesystem
+>   * d_iput() operation if defined.
+> @@ -212,13 +220,7 @@ repeat:
+>  unhash_it:
+>  	__d_drop(dentry);
+>  kill_it:
+> -	/* If dentry was on d_lru list
+> -	 * delete it from there
+> -	 */
+> -	if (!list_empty(&dentry->d_lru)) {
+> -		list_del(&dentry->d_lru);
+> -		dentry_stat.nr_unused--;
+> -	}
+> +	dentry_lru_remove(dentry);
+>  	dentry = d_kill(dentry);
+>  	if (dentry)
+>  		goto repeat;
+> @@ -286,10 +288,7 @@ int d_invalidate(struct dentry * dentry)
+>  static inline struct dentry * __dget_locked(struct dentry *dentry)
+>  {
+>  	atomic_inc(&dentry->d_count);
+> -	if (!list_empty(&dentry->d_lru)) {
+> -		dentry_stat.nr_unused--;
+> -		list_del_init(&dentry->d_lru);
+> -	}
+
+No, we can't.
+
+> +	dentry_lru_remove(dentry);
+>  	return dentry;
+>  }
+>  
+> @@ -405,10 +404,7 @@ static void prune_one_dentry(struct dent
+>  
+>  		if (dentry->d_op && dentry->d_op->d_delete)
+>  			dentry->d_op->d_delete(dentry);
+> -		if (!list_empty(&dentry->d_lru)) {
+> -			list_del(&dentry->d_lru);
+> -			dentry_stat.nr_unused--;
+> -		}
+> +		dentry_lru_remove(dentry);
+>  		__d_drop(dentry);
+>  		dentry = d_kill(dentry);
+>  		spin_lock(&dcache_lock);
+> @@ -597,10 +593,7 @@ static void shrink_dcache_for_umount_sub
+>  
+>  	/* detach this root from the system */
+>  	spin_lock(&dcache_lock);
+> -	if (!list_empty(&dentry->d_lru)) {
+> -		dentry_stat.nr_unused--;
+> -		list_del_init(&dentry->d_lru);
+> -	}
+> +	dentry_lru_remove(dentry);
+>  	__d_drop(dentry);
+>  	spin_unlock(&dcache_lock);
+>  
+> @@ -614,11 +607,7 @@ static void shrink_dcache_for_umount_sub
+>  			spin_lock(&dcache_lock);
+>  			list_for_each_entry(loop, &dentry->d_subdirs,
+>  					    d_u.d_child) {
+> -				if (!list_empty(&loop->d_lru)) {
+> -					dentry_stat.nr_unused--;
+> -					list_del_init(&loop->d_lru);
+> -				}
+> -
+> +				dentry_lru_remove(dentry);
+>  				__d_drop(loop);
+>  				cond_resched_lock(&dcache_lock);
+>  			}
+> @@ -800,10 +789,7 @@ resume:
+>  		struct dentry *dentry = list_entry(tmp, struct dentry, d_u.d_child);
+>  		next = tmp->next;
+>  
+> -		if (!list_empty(&dentry->d_lru)) {
+> -			dentry_stat.nr_unused--;
+> -			list_del_init(&dentry->d_lru);
+> -		}
+> +		dentry_lru_remove(dentry);
+
+Doesn't seem like a terribly good change to me - it's one of those
+cant-measure-a-difference changes which add up to a slower kernel after
+we've merged three years worth of them.
+
+Perhaps not all of those list_del_init() callers actually need to be using
+the _init version?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
