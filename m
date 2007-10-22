@@ -1,44 +1,46 @@
-Received: by rv-out-0910.google.com with SMTP id l15so1036513rvb
-        for <linux-mm@kvack.org>; Mon, 22 Oct 2007 13:40:14 -0700 (PDT)
-Message-ID: <84144f020710221340n6586b6d6web28cea481809b93@mail.gmail.com>
-Date: Mon, 22 Oct 2007 23:40:14 +0300
+Received: by rv-out-0910.google.com with SMTP id l15so1038637rvb
+        for <linux-mm@kvack.org>; Mon, 22 Oct 2007 13:48:37 -0700 (PDT)
+Message-ID: <84144f020710221348x297795c0qda61046ec69a7178@mail.gmail.com>
+Date: Mon, 22 Oct 2007 23:48:37 +0300
 From: "Pekka Enberg" <penberg@cs.helsinki.fi>
 Subject: Re: msync(2) bug(?), returns AOP_WRITEPAGE_ACTIVATE to userland
-In-Reply-To: <Pine.LNX.4.64.0710222042500.23513@blonde.wat.veritas.com>
+In-Reply-To: <Pine.LNX.4.64.0710222101420.23513@blonde.wat.veritas.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Content-Disposition: inline
-References: <200710142232.l9EMW8kK029572@agora.fsl.cs.sunysb.edu>
-	 <Pine.LNX.4.64.0710222042500.23513@blonde.wat.veritas.com>
+References: <Pine.LNX.4.64.0710142049000.13119@sbz-30.cs.Helsinki.FI>
+	 <200710142232.l9EMW8kK029572@agora.fsl.cs.sunysb.edu>
+	 <84144f020710150447o94b1babo8b6e6a647828465f@mail.gmail.com>
+	 <Pine.LNX.4.64.0710222101420.23513@blonde.wat.veritas.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Hugh Dickins <hugh@veritas.com>
-Cc: Erez Zadok <ezk@cs.sunysb.edu>, Ryan Finnie <ryan@finnie.org>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, cjwatson@ubuntu.com, linux-mm@kvack.org
+Cc: Erez Zadok <ezk@cs.sunysb.edu>, Ryan Finnie <ryan@finnie.org>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, cjwatson@ubuntu.com, linux-mm@kvack.org, neilb@suse.de
 List-ID: <linux-mm.kvack.org>
 
 Hi Hugh,
 
-On 10/22/07, Hugh Dickins <hugh@veritas.com> wrote:
-> I don't disagree with your unionfs_writepages patch, Pekka, but I think
-> it should be viewed as an optimization (don't waste time trying to write
-> a group of pages when we know that nothing will be done) rather than as
-> essential.
-
-Ok, so tmpfs needs your fix still.
+On Mon, 15 Oct 2007, Pekka Enberg wrote:
+> > I wonder whether _not setting_ BDI_CAP_NO_WRITEBACK implies that
+> > ->writepage() will never return AOP_WRITEPAGE_ACTIVATE for
+> > !wbc->for_reclaim case which would explain why we haven't hit this bug
+> > before. Hugh, Andrew?
 
 On 10/22/07, Hugh Dickins <hugh@veritas.com> wrote:
-> > So now I wonder if we still need the patch to prevent AOP_WRITEPAGE_ACTIVATE
-> > from being returned to userland.  I guess we still need it, b/c even with
-> > your patch, generic_writepages() can return AOP_WRITEPAGE_ACTIVATE back to
-> > the VFS and we need to ensure that doesn't "leak" outside the kernel.
+> Only ramdisk and shmem have been returning AOP_WRITEPAGE_ACTIVATE.
+> Both of those set BDI_CAP_NO_WRITEBACK.  ramdisk never returned it
+> if !wbc->for_reclaim.  I contend that shmem shouldn't either: it's
+> a special code to get the LRU rotation right, not useful elsewhere.
+> Though Documentation/filesystems/vfs.txt does imply wider use.
 >
-> Can it now?  Current git has a patch from Andrew which bears a striking
-> resemblance to that from Pekka, stopping the leak from write_cache_pages.
+> I think this is where people use the phrase "go figure" ;)
 
-I don't think it can, it looks ok now.
+Heh. As far as I can tell, the implication of "wider use" was added by
+Neil in commit "341546f5ad6fce584531f744853a5807a140f2a9 Update some
+VFS documentation", so perhaps he might know? Neil?
 
-                             Pekka
+                               Pekka
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
