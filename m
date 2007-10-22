@@ -1,53 +1,64 @@
-Date: Mon, 22 Oct 2007 19:51:33 +0100 (BST)
+Date: Mon, 22 Oct 2007 20:42:20 +0100 (BST)
 From: Hugh Dickins <hugh@veritas.com>
-Subject: Re: [RFC] [-mm PATCH] Memory controller fix swap charging context
- in unuse_pte()
-In-Reply-To: <4713A2F2.1010408@linux.vnet.ibm.com>
-Message-ID: <Pine.LNX.4.64.0710221933570.21262@blonde.wat.veritas.com>
-References: <20071005041406.21236.88707.sendpatchset@balbir-laptop>
- <Pine.LNX.4.64.0710071735530.13138@blonde.wat.veritas.com>
- <4713A2F2.1010408@linux.vnet.ibm.com>
+Subject: Re: msync(2) bug(?), returns AOP_WRITEPAGE_ACTIVATE to userland 
+In-Reply-To: <200710141723.l9EHNowh015023@agora.fsl.cs.sunysb.edu>
+Message-ID: <Pine.LNX.4.64.0710222019020.23513@blonde.wat.veritas.com>
+References: <200710141723.l9EHNowh015023@agora.fsl.cs.sunysb.edu>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Balbir Singh <balbir@linux.vnet.ibm.com>
-Cc: Linux MM Mailing List <linux-mm@kvack.org>, Linux Containers <containers@lists.osdl.org>
+To: Erez Zadok <ezk@cs.sunysb.edu>
+Cc: Pekka Enberg <penberg@cs.helsinki.fi>, Ryan Finnie <ryan@finnie.org>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, cjwatson@ubuntu.com, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 15 Oct 2007, Balbir Singh wrote:
-> Hugh Dickins wrote:
+Sorry for my delay, here are a few replies.
+
+On Sun, 14 Oct 2007, Erez Zadok wrote:
+> In message <84144f020710141009xbc5bb71w64e8288f364ab491@mail.gmail.com>, "Pekka Enberg" writes:
 > > 
-> > --- 2.6.23-rc8-mm2/mm/swapfile.c	2007-09-27 12:03:36.000000000 +0100
-> > +++ linux/mm/swapfile.c	2007-10-07 14:33:05.000000000 +0100
-> > @@ -507,11 +507,23 @@ unsigned int count_swap_pages(int type, 
-> >   * just let do_wp_page work it out if a write is requested later - to
-> >   * force COW, vm_page_prot omits write permission from any private vma.
-> >   */
-> > -static int unuse_pte(struct vm_area_struct *vma, pte_t *pte,
-> > +static int unuse_pte(struct vm_area_struct *vma, pmd_t *pmd,
-> >  		unsigned long addr, swp_entry_t entry, struct page *page)
-...
-> 
-> I tested this patch and it seems to be working fine. I tried swapoff -a
-> in the middle of tests consuming swap. Not 100% rigorous, but a good
-> test nevertheless.
-> 
-> Tested-by: Balbir Singh <balbir@linux.vnet.ibm.com>
+> > However, I don't think the mapping_cap_writeback_dirty() check in
+> > __filemap_fdatawrite_range() works as expected when tmpfs is a lower
+> > mount for an unionfs mount. There's no BDI_CAP_NO_WRITEBACK capability
+> > for unionfs mappings so do_fsync() will call write_cache_pages() that
+> > unconditionally invokes shmem_writepage() via unionfs_writepage().
+> > Unless, of course, there's some other unionfs magic I am missing.
 
-Thanks, Balbir.  Sorry for the delay.  I've not forgotten our
-agreement that I should be splitting it into before-and-after
-mem cgroup patches.  But it's low priority for me until we're
-genuinely assigning to a cgroup there.  Hope to get back to
-looking into that tomorrow, but no promises.
+Thanks, Pekka, yes that made a lot of sense.
 
-I think you still see no problem, where I claim that simply
-omitting the mem charge mods from mm/swap_state.c leads to OOMs?
-Maybe our difference is because my memhog in the cgroup is using
-more memory than RAM, not just more memory than allowed to the
-cgroup.  I suspect that arrives at a state (when the swapcache
-pages are not charged) where it cannot locate the pages it needs
-to reclaim to stay within its limit.
+> 
+> In unionfs_writepage() I tried to emulate as best possible what the lower
+> f/s will have returned to the VFS.  Since tmpfs's ->writepage can return
+> AOP_WRITEPAGE_ACTIVATE and re-mark its page as dirty, I did the same in
+> unionfs: mark again my page as dirty, and return AOP_WRITEPAGE_ACTIVATE.
+
+I think that's inappropriate.  Why should unionfs_writepage re-mark its
+page as dirty when the lower level does so?  Unionfs has successfully
+done its write to the lower level, what the lower level then gets up to
+(writing then or not) is its own business: needn't be propagated upwards.
+
+The fewer places that supply AOP_WRITEPAGE_ACTIVATE the better.
+What I'd like most of all is to eliminate it, in favour of vmscan.c
+working out the condition for itself: but I've given that no thought,
+it may not be reasonable.
+
+unionfs_writepage also sets AOP_WRITEPAGE_ACTIVATE when it cannot
+find_lock_page: that case may be appropriate.  Though I don't really
+understand it: seems dangerous to be relying upon the lower level page
+just happening to be there already.  Isn't memory pressure then likely
+to clog up with lots of upper level dirty pages which cannot get
+written out to the lower level?
+
+> 
+> Should I be doing something different when unionfs stacks on top of tmpfs?
+
+I think not.
+
+> (BTW, this is probably also relevant to ecryptfs.)
+
+You're both agreed on that, but I don't see how: ecryptfs writes the
+lower level via vfs_write, it's not using the lower level's writepage,
+is it?
 
 Hugh
 
