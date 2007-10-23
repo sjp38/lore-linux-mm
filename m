@@ -1,48 +1,56 @@
-Received: by wa-out-1112.google.com with SMTP id m33so1736533wag
-        for <linux-mm@kvack.org>; Mon, 22 Oct 2007 22:36:22 -0700 (PDT)
-Message-ID: <86802c440710222236j481d09a7odfa3ce279644f5bd@mail.gmail.com>
-Date: Mon, 22 Oct 2007 22:36:22 -0700
-From: "Yinghai Lu" <yhlu.kernel@gmail.com>
-Subject: Re: [PATCH 1/1] x86: convert-cpuinfo_x86-array-to-a-per_cpu-array fix
-In-Reply-To: <20071012225434.102879000@sgi.com>
+Received: by rv-out-0910.google.com with SMTP id l15so1136073rvb
+        for <linux-mm@kvack.org>; Tue, 23 Oct 2007 00:52:29 -0700 (PDT)
+Message-ID: <84144f020710230052t3dc7e402ka2d8ede6db81618a@mail.gmail.com>
+Date: Tue, 23 Oct 2007 10:52:28 +0300
+From: "Pekka Enberg" <penberg@cs.helsinki.fi>
+Subject: Re: [PATCH] Fix warning in mm/slub.c
+In-Reply-To: <20071023143212.8D2E.Y-GOTO@jp.fujitsu.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Content-Disposition: inline
-References: <20071012225433.928899000@sgi.com>
-	 <20071012225434.102879000@sgi.com>
+References: <20071018122345.514F.Y-GOTO@jp.fujitsu.com>
+	 <20071023042153.GA20693@lixom.net>
+	 <20071023143212.8D2E.Y-GOTO@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "travis@sgi.com" <travis@sgi.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Suresh B Siddha <suresh.b.siddha@intel.com>, Christoph Lameter <clameter@sgi.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Yasunori Goto <y-goto@jp.fujitsu.com>
+Cc: Olof Johansson <olof@lixom.net>, Andrew Morton <akpm@osdl.org>, Christoph Lameter <clameter@sgi.com>, Linux Kernel ML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On 10/12/07, travis@sgi.com <travis@sgi.com> wrote:
-> This fix corrects the problem that early_identify_cpu() sets
-> cpu_index to '0' (needed when called by setup_arch) after
-> smp_store_cpu_info() had set it to the correct value.
->
-> Signed-off-by: Mike Travis <travis@sgi.com>
-> ---
->  arch/x86_64/kernel/smpboot.c |    2 +-
->  1 file changed, 1 insertion(+), 1 deletion(-)
->
-> --- linux.orig/arch/x86_64/kernel/smpboot.c     2007-10-12 14:28:45.000000000 -0700
-> +++ linux/arch/x86_64/kernel/smpboot.c  2007-10-12 14:53:42.753508152 -0700
-> @@ -141,8 +141,8 @@ static void __cpuinit smp_store_cpu_info
->         struct cpuinfo_x86 *c = &cpu_data(id);
->
->         *c = boot_cpu_data;
-> -       c->cpu_index = id;
->         identify_cpu(c);
-> +       c->cpu_index = id;
->         print_cpu_info(c);
->  }
->
+Hi,
 
-why not removing assignment in early_identify_cpu?
+On 10/23/07, Yasunori Goto <y-goto@jp.fujitsu.com> wrote:
+> > "Make kmem_cache_node for SLUB on memory online to avoid panic" introduced
+> > the following:
+> >
+> > mm/slub.c:2737: warning: passing argument 1 of 'atomic_read' from
+> > incompatible pointer type
+> >
+> >
+> > Signed-off-by: Olof Johansson <olof@lixom.net>
+> >
+> >
+> > diff --git a/mm/slub.c b/mm/slub.c
+> > index aac1dd3..bcdb2c8 100644
+> > --- a/mm/slub.c
+> > +++ b/mm/slub.c
+> > @@ -2734,7 +2734,7 @@ static void slab_mem_offline_callback(void *arg)
+> >                        * and offline_pages() function shoudn't call this
+> >                        * callback. So, we must fail.
+> >                        */
+> > -                     BUG_ON(atomic_read(&n->nr_slabs));
+> > +                     BUG_ON(atomic_long_read(&n->nr_slabs));
+> >
+> >                       s->node[offline_node] = NULL;
+> >                       kmem_cache_free(kmalloc_caches, n);
+>
+>
+> Oops, yes. Thanks.
+>
+> Acked-by: Yasunori Goto <y-goto@jp.fujitsu.com>
 
-YH
+Reviewed-by: Pekka Enberg <penberg@cs.helsinki.fi>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
