@@ -1,44 +1,85 @@
-Received: from d03relay02.boulder.ibm.com (d03relay02.boulder.ibm.com [9.17.195.227])
-	by e35.co.us.ibm.com (8.13.8/8.13.8) with ESMTP id l9NEqp45019334
-	for <linux-mm@kvack.org>; Tue, 23 Oct 2007 10:52:51 -0400
-Received: from d03av01.boulder.ibm.com (d03av01.boulder.ibm.com [9.17.195.167])
-	by d03relay02.boulder.ibm.com (8.13.8/8.13.8/NCO v8.5) with ESMTP id l9NEqemH113318
-	for <linux-mm@kvack.org>; Tue, 23 Oct 2007 08:52:42 -0600
-Received: from d03av01.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av01.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l9NEqcJa016537
-	for <linux-mm@kvack.org>; Tue, 23 Oct 2007 08:52:39 -0600
-Subject: Re: [patch] hugetlb: fix i_blocks accounting
-From: Adam Litke <agl@us.ibm.com>
-In-Reply-To: <b040c32a0710201118g5abb6608me57d7b9057f86919@mail.gmail.com>
-References: <b040c32a0710201118g5abb6608me57d7b9057f86919@mail.gmail.com>
+Subject: Re: [PATCH/RFC 4/4] Mem Policy: Fixup Fallback for Default Shmem
+	Policy
+From: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
+In-Reply-To: <Pine.LNX.4.64.0710151226330.26753@schroedinger.engr.sgi.com>
+References: <20071012154854.8157.51441.sendpatchset@localhost>
+	 <20071012154918.8157.26655.sendpatchset@localhost>
+	 <Pine.LNX.4.64.0710121045380.8891@schroedinger.engr.sgi.com>
+	 <Pine.LNX.4.64.0710151226330.26753@schroedinger.engr.sgi.com>
 Content-Type: text/plain
-Date: Tue, 23 Oct 2007 09:52:34 -0500
-Message-Id: <1193151154.18417.39.camel@localhost.localdomain>
+Date: Tue, 23 Oct 2007 12:15:05 -0400
+Message-Id: <1193156105.5859.28.camel@localhost>
 Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Ken Chen <kenchen@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>
+To: Christoph Lameter <clameter@sgi.com>
+Cc: akpm@linux-foundation.org, linux-mm@kvack.org, ak@suse.de, eric.whitney@hp.com, mel@skynet.ie
 List-ID: <linux-mm.kvack.org>
 
-On Sat, 2007-10-20 at 11:18 -0700, Ken Chen wrote:
-> For administrative purpose, we want to query actual block usage for
-> hugetlbfs file via fstat.  Currently, hugetlbfs always return 0.  Fix
-> that up since kernel already has all the information to track it
-> properly.
+On Mon, 2007-10-15 at 12:34 -0700, Christoph Lameter wrote:
+> On Fri, 12 Oct 2007, Christoph Lameter wrote:
+> 
+> > > Index: Linux/mm/mempolicy.c
+> > > ===================================================================
+> > > --- Linux.orig/mm/mempolicy.c	2007-10-12 10:50:05.000000000 -0400
+> > > +++ Linux/mm/mempolicy.c	2007-10-12 10:52:46.000000000 -0400
+> > > @@ -1112,19 +1112,25 @@ static struct mempolicy * get_vma_policy
+> > >  		struct vm_area_struct *vma, unsigned long addr)
+> > >  {
+> > >  	struct mempolicy *pol = task->mempolicy;
+> > > -	int shared_pol = 0;
+> > > +	int pol_needs_ref = (task != current);
+> > 
+> > If get_vma_policy is called from the numa_maps handler then we have taken 
+> > a refcount on the task struct. 
+> > 
+> > So this should be
+> > 	int pol_needs_ref = 0;
+> 
+> Argh. Refcount is not it. We have taken the mmap_sem lock 
+> because we are scanning though the pages. This avoids issues for the vma 
+> policies that can only be set when a writelock was taken on mmap_sem.
+> 
+> However, mmap_sem is not taken when setting task->mempolicy. Taking 
+> mmap_sem there would solve the issue (we have discussed this before).
+> 
+> You cannot reliably take a refcount on a foreign task structs mempolicy 
+> since the task may just be in the process of switching policies. You could 
+> increment the refcount and then the other task frees the structure.
+> 
+> I think we need something like this:
+> 
+> Index: linux-2.6/mm/mempolicy.c
+> ===================================================================
+> --- linux-2.6.orig/mm/mempolicy.c	2007-10-15 12:32:45.000000000 -0700
+> +++ linux-2.6/mm/mempolicy.c	2007-10-15 12:33:56.000000000 -0700
+> @@ -468,11 +468,13 @@ long do_set_mempolicy(int mode, nodemask
+>  	new = mpol_new(mode, nodes);
+>  	if (IS_ERR(new))
+>  		return PTR_ERR(new);
+> +	down_read(&current->mm->mmap_sem);
+>  	mpol_free(current->mempolicy);
+>  	current->mempolicy = new;
+>  	mpol_set_task_struct_flag();
+>  	if (new && new->policy == MPOL_INTERLEAVE)
+>  		current->il_next = first_node(new->v.nodes);
+> +	up_read(&current->mm->mmap_sem);
+>  	return 0;
+>  }
+>  
 
-Hey Ken.  You might want to wait on this for another minute or two.  I
-will be sending out patches later today to fix up hugetlbfs quotas.
-Right now the code does not handle private mappings correctly (ie.  it
-does not call get_quota() for COW pages and it never calls put_quota()
-for any private page).  Because of this, your i_blocks number will be
-wrong most of the time.
+Christoph:  just getting back to this.  You sent two messages commented
+about this patch.  I'm not sure whether this one supercedes the previous
+one or adds to it.   So, I'll address the points in your other comment
+separately.
 
+Re:  this patch:  I can see how we need to grab the mmap_sem during
+do_set_mempolicy() to coordinate with the numa_maps display.  However,
+shouldn't we use {down|up}_write() here to obtain exclusive access with
+respect to numa_maps ?
 
--- 
-Adam Litke - (agl at us.ibm.com)
-IBM Linux Technology Center
+Lee
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
