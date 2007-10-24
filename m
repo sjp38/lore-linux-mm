@@ -1,16 +1,18 @@
-Received: from d03relay02.boulder.ibm.com (d03relay02.boulder.ibm.com [9.17.195.227])
-	by e32.co.us.ibm.com (8.12.11.20060308/8.13.8) with ESMTP id l9OCEYJD007484
-	for <linux-mm@kvack.org>; Wed, 24 Oct 2007 08:14:34 -0400
-Received: from d03av01.boulder.ibm.com (d03av01.boulder.ibm.com [9.17.195.167])
-	by d03relay02.boulder.ibm.com (8.13.8/8.13.8/NCO v8.5) with ESMTP id l9ODNagr071942
-	for <linux-mm@kvack.org>; Wed, 24 Oct 2007 07:23:41 -0600
-Received: from d03av01.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av01.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l9ODNaqM029902
-	for <linux-mm@kvack.org>; Wed, 24 Oct 2007 07:23:36 -0600
+Received: from d01relay04.pok.ibm.com (d01relay04.pok.ibm.com [9.56.227.236])
+	by e2.ny.us.ibm.com (8.13.8/8.13.8) with ESMTP id l9ODNmgR007667
+	for <linux-mm@kvack.org>; Wed, 24 Oct 2007 09:23:48 -0400
+Received: from d01av01.pok.ibm.com (d01av01.pok.ibm.com [9.56.224.215])
+	by d01relay04.pok.ibm.com (8.13.8/8.13.8/NCO v8.5) with ESMTP id l9ODNmTB138710
+	for <linux-mm@kvack.org>; Wed, 24 Oct 2007 09:23:48 -0400
+Received: from d01av01.pok.ibm.com (loopback [127.0.0.1])
+	by d01av01.pok.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l9ODNlUo023476
+	for <linux-mm@kvack.org>; Wed, 24 Oct 2007 09:23:48 -0400
 From: Adam Litke <agl@us.ibm.com>
-Subject: [PATCH 0/3] hugetlb: Fix up filesystem quota accounting
-Date: Wed, 24 Oct 2007 06:23:35 -0700
-Message-Id: <20071024132335.13013.76227.stgit@kernel>
+Subject: [PATCH 1/3] [FIX] hugetlb: Fix broken fs quota management
+Date: Wed, 24 Oct 2007 06:23:45 -0700
+Message-Id: <20071024132345.13013.36192.stgit@kernel>
+In-Reply-To: <20071024132335.13013.76227.stgit@kernel>
+References: <20071024132335.13013.76227.stgit@kernel>
 Content-Type: text/plain; charset=utf-8; format=fixed
 Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
@@ -19,45 +21,66 @@ To: Andrew Morton <akpm@linux-foundation.org>
 Cc: linux-mm@kvack.org, Ken Chen <kenchen@google.com>, Andy Whitcroft <apw@shadowen.org>
 List-ID: <linux-mm.kvack.org>
 
+The hugetlbfs quota management system was never taught to handle
+MAP_PRIVATE mappings when that support was added.  Currently, quota is
+debited at page instantiation and credited at file truncation.  This
+approach works correctly for shared pages but is incomplete for private
+pages.  In addition to hugetlb_no_page(), private pages can be instantiated
+by hugetlb_cow(); but this function does not respect quotas.
 
-Hugetlbfs implements a quota system which can limit the amount of memory that
-can be used by the filesystem.  Before allocating a new huge page for a file,
-the quota is checked and debited.  The quota is then credited when truncating
-the file.  I found a few bugs in the code for both MAP_PRIVATE and MAP_SHARED
-mappings.  Before detailing the problems and my proposed solutions, we should
-agree on a definition of quotas that properly addresses both private and shared
-pages.  Since the purpose of quotas is to limit total memory consumption on a
-per-filesystem basis, I argue that all pages allocated by the fs (private and
-shared) should be charged against quota.
+Private huge pages are treated very much like normal, anonymous pages.
+They are not "backed" by the hugetlbfs file and are not stored in the
+mapping's radix tree.  This means that private pages are invisible to
+truncate_hugepages() so that function will not credit the quota.
 
-Private Mappings
-================
-The current code will debit quota for private pages sometimes, but will never
-credit it.  At a minimum, this causes a leak in the quota accounting which
-renders the accounting essentially useless as it is.  Shared pages have a one
-to one mapping with a hugetlbfs file and are easy to account by debiting on
-allocation and crediting on truncate.  Private pages are anonymous in nature
-and have a many to one relationship with their hugetlbfs files (due to copy on
-write).  Because private pages are not indexed by the mapping's radix tree,
-thier quota cannot be credited at file truncation time.  Crediting must be done
-when the page is unmapped and freed.
+This patch teaches the unmap path how to release fs quota analogous to
+truncate_hugepages().  If __unmap_hugepage_range() clears the last page
+reference it will credit the corresponding fs quota before calling the page
+dtor.  This will catch pages that were mapped MAP_PRIVATE only as the file
+will always hold the last reference on a MAP_SHARED page.
 
-Shared Pages
-============
-I discovered an issue concerning the interaction between the MAP_SHARED
-reservation system and quotas.  Since quota is not checked until page
-instantiation, an over-quota mmap/reservation will initially succeed.  When
-instantiating the first over-quota page, the program will receive SIGBUS.  This
-is inconsistent since the reservation is supposed to be a guarantee.  The
-solution is to debit the full amount of quota at reservation time and credit
-the unused portion when the reservation is released.
+hugetlb_cow() is also updated to charge against quota before allocating the
+new page.
 
-This patch series brings quotas back in line by making the following
-modifications:
- - Debit quota when allocating a COW page
- - Credit MAP_PRIVATE pages at unmap time
-     (shared pages continue to be credited during truncation)
- - Debit entire amount of quota at shared mmap reservation time
+Signed-off-by: Adam Litke <agl@us.ibm.com>
+Signed-off-by: Andy Whitcroft <apw@shadowen.org>
+---
+
+ mm/hugetlb.c |   14 +++++++++++++-
+ 1 files changed, 13 insertions(+), 1 deletions(-)
+
+diff --git a/mm/hugetlb.c b/mm/hugetlb.c
+index ae2959b..0d645ca 100644
+--- a/mm/hugetlb.c
++++ b/mm/hugetlb.c
+@@ -685,7 +685,17 @@ void __unmap_hugepage_range(struct vm_area_struct *vma, unsigned long start,
+ 	flush_tlb_range(vma, start, end);
+ 	list_for_each_entry_safe(page, tmp, &page_list, lru) {
+ 		list_del(&page->lru);
+-		put_page(page);
++		if (put_page_testzero(page)) {
++			/*
++			 * When releasing the last reference to a page we must
++			 * credit the quota.  For MAP_PRIVATE pages this occurs
++			 * when the last PTE is cleared, for MAP_SHARED pages
++			 * this occurs when the file is truncated.
++			 */
++			VM_BUG_ON(PageMapping(page));
++			hugetlb_put_quota(vma->vm_file->f_mapping);
++			free_huge_page(page);
++		}
+ 	}
+ }
+ 
+@@ -722,6 +732,8 @@ static int hugetlb_cow(struct mm_struct *mm, struct vm_area_struct *vma,
+ 		set_huge_ptep_writable(vma, address, ptep);
+ 		return 0;
+ 	}
++	if (hugetlb_get_quota(vma->vm_file->f_mapping))
++		return VM_FAULT_SIGBUS;
+ 
+ 	page_cache_get(old_page);
+ 	new_page = alloc_huge_page(vma, address);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
