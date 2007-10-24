@@ -1,54 +1,71 @@
-Received: from d03relay04.boulder.ibm.com (d03relay04.boulder.ibm.com [9.17.195.106])
-	by e35.co.us.ibm.com (8.13.8/8.13.8) with ESMTP id l9OK26qP000717
-	for <linux-mm@kvack.org>; Wed, 24 Oct 2007 16:02:06 -0400
-Received: from d03av03.boulder.ibm.com (d03av03.boulder.ibm.com [9.17.195.169])
-	by d03relay04.boulder.ibm.com (8.13.8/8.13.8/NCO v8.5) with ESMTP id l9OK25Tk064482
-	for <linux-mm@kvack.org>; Wed, 24 Oct 2007 14:02:05 -0600
-Received: from d03av03.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av03.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l9OK25qE006758
-	for <linux-mm@kvack.org>; Wed, 24 Oct 2007 14:02:05 -0600
-Subject: Re: [PATCH 1/3] [FIX] hugetlb: Fix broken fs quota management
-From: Adam Litke <agl@us.ibm.com>
-In-Reply-To: <b040c32a0710241221m9151f6xd0fe09e00608a597@mail.gmail.com>
-References: <20071024132335.13013.76227.stgit@kernel>
-	 <20071024132345.13013.36192.stgit@kernel>
-	 <1193251414.4039.14.camel@localhost>
-	 <1193252583.18417.52.camel@localhost.localdomain>
-	 <b040c32a0710241221m9151f6xd0fe09e00608a597@mail.gmail.com>
-Content-Type: text/plain
-Date: Wed, 24 Oct 2007 15:02:04 -0500
-Message-Id: <1193256124.18417.70.camel@localhost.localdomain>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Date: Wed, 24 Oct 2007 22:02:15 +0100 (BST)
+From: Hugh Dickins <hugh@veritas.com>
+Subject: [PATCH] fix tmpfs BUG and AOP_WRITEPAGE_ACTIVATE
+In-Reply-To: <Pine.LNX.4.64.0710222101420.23513@blonde.wat.veritas.com>
+Message-ID: <Pine.LNX.4.64.0710242152020.13001@blonde.wat.veritas.com>
+References: <Pine.LNX.4.64.0710142049000.13119@sbz-30.cs.Helsinki.FI>
+ <200710142232.l9EMW8kK029572@agora.fsl.cs.sunysb.edu>
+ <84144f020710150447o94b1babo8b6e6a647828465f@mail.gmail.com>
+ <Pine.LNX.4.64.0710222101420.23513@blonde.wat.veritas.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Ken Chen <kenchen@google.com>
-Cc: Dave Hansen <haveblue@us.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Andy Whitcroft <apw@shadowen.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Pekka Enberg <penberg@cs.helsinki.fi>, Erez Zadok <ezk@cs.sunysb.edu>, Ryan Finnie <ryan@finnie.org>, Michael Halcrow <mhalcrow@us.ibm.com>, cjwatson@ubuntu.com, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, stable@kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 2007-10-24 at 12:21 -0700, Ken Chen wrote:
-> On 10/24/07, Adam Litke <agl@us.ibm.com> wrote:
-> > On Wed, 2007-10-24 at 11:43 -0700, Dave Hansen wrote:
-> > > This particular nugget is for MAP_PRIVATE pages only, right?  The shared
-> > > ones should have another ref out on them for the 'mapping' too, so won't
-> > > get released at unmap, right?
-> >
-> > Yep that's right.  Shared pages are released by truncate_hugepages()
-> > when the ref for the mapping is dropped.
-> 
-> I think as a follow up patch, we should debit the quota in
-> free_huge_page(), so you don't have to open code it like this and also
-> consolidate calls to hugetlb_put_quota() in one place.  It's cleaner
-> that way.
+It's possible to provoke unionfs (not yet in mainline, though in mm
+and some distros) to hit shmem_writepage's BUG_ON(page_mapped(page)).
+I expect it's possible to provoke the 2.6.23 ecryptfs in the same way
+(but the 2.6.24 ecryptfs no longer calls lower level's ->writepage).
 
-At free_huge_page() time, you can't associate the page with a struct
-address_space so it becomes hard to credit the proper filesystem.  When
-freeing the page, page->mapping is no longer valid (even for shared
-pages). 
+This came to light with the recent find that AOP_WRITEPAGE_ACTIVATE
+could leak from tmpfs via write_cache_pages and unionfs to userspace.
+There's already a fix (e423003028183df54f039dfda8b58c49e78c89d7 -
+writeback: don't propagate AOP_WRITEPAGE_ACTIVATE) in the tree for
+that, and it's okay so far as it goes; but insufficient because it
+doesn't address the underlying issue, that shmem_writepage expects
+to be called only by vmscan (relying on backing_dev_info capabilities
+to prevent the normal writeback path from ever approaching it).
 
--- 
-Adam Litke - (agl at us.ibm.com)
-IBM Linux Technology Center
+That's an increasingly fragile expectation, and ramdisk_writepage
+(the other source of AOP_WRITEPAGE_ACTIVATEs) is already careful
+to check wbc->for_reclaim before returning it.  Make the same check
+in shmem_writepage, thereby sidestepping the page_mapped BUG also.
+
+Signed-off-by: Hugh Dickins <hugh@veritas.com>
+---
+Unionfs intends its own, third fix to these issues, checking
+backing_dev_info capabilities as the normal writeback path does.
+And I intend a fourth fix, getting rid of AOP_WRITEPAGE_ACTIVATE
+entirely (mainly to put a stop to everybody asking what it means
+and when it happens and how to handle it) - but that's a slightly
+bigger patch, needing a little more testing, probably for 2.6.25.
+
+I've CC'ed this to stable as you did for the write_cache_pages
+fix: it's probably required for ecryptfs (but unionfs was much
+easier to set up and test), and helpful to distros using unionfs
+and checking stable for fixes.  Does this make the write_cache_pages
+fix redundant?  Probably, but let's have both in for safety.
+
+ mm/shmem.c |    5 +++++
+ 1 file changed, 5 insertions(+)
+
+--- 2.6.24-rc1/mm/shmem.c	2007-10-24 07:16:04.000000000 +0100
++++ linux/mm/shmem.c	2007-10-24 20:24:31.000000000 +0100
+@@ -915,6 +915,11 @@ static int shmem_writepage(struct page *
+ 	struct inode *inode;
+ 
+ 	BUG_ON(!PageLocked(page));
++	if (!wbc->for_reclaim) {
++		set_page_dirty(page);
++		unlock_page(page);
++		return 0;
++	}
+ 	BUG_ON(page_mapped(page));
+ 
+ 	mapping = page->mapping;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
