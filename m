@@ -1,107 +1,63 @@
-Date: Wed, 24 Oct 2007 09:31:10 -0500
-Message-ID: <76903714.48588673@allegheny.com>
-From: "Euro Prime Casino" <shrinkage@uymail.com>
-Subject: =?iso-8859-1?Q?Herzlichen_Gl=FCckwunsch=2C_Sie_haben_300_Euro_gewonnen!?=
-MIME-Version: 1.0
-Content-Type: text/html; charset=iso-8859-1
+Received: from d03relay02.boulder.ibm.com (d03relay02.boulder.ibm.com [9.17.195.227])
+	by e31.co.us.ibm.com (8.13.8/8.13.8) with ESMTP id l9OGYHUQ014597
+	for <linux-mm@kvack.org>; Wed, 24 Oct 2007 12:34:17 -0400
+Received: from d03av01.boulder.ibm.com (d03av01.boulder.ibm.com [9.17.195.167])
+	by d03relay02.boulder.ibm.com (8.13.8/8.13.8/NCO v8.5) with ESMTP id l9OGYHY7093652
+	for <linux-mm@kvack.org>; Wed, 24 Oct 2007 10:34:17 -0600
+Received: from d03av01.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av01.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l9OGYGmR018622
+	for <linux-mm@kvack.org>; Wed, 24 Oct 2007 10:34:17 -0600
+Subject: [PATCH 1/2] Fix migratetype_names[] and make it available
+From: Badari Pulavarty <pbadari@us.ibm.com>
+Content-Type: text/plain
+Date: Wed, 24 Oct 2007 09:37:44 -0700
+Message-Id: <1193243864.30836.24.camel@dyn9047017100.beaverton.ibm.com>
+Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
-Return-Path: <shrinkage@uymail.com>
-To: owner-linux-mm@kvack.org
+Sender: owner-linux-mm@kvack.org
+Return-Path: <owner-linux-mm@kvack.org>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, melgor@ie.ibm.com, haveblue@us.ibm.com
+Cc: linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-<html>
+Signed-off-by: Badari Pulavarty <pbadari@us.ibm.com>
+---
+ include/linux/pageblock-flags.h |    1 +
+ mm/vmstat.c                     |    3 ++-
+ 2 files changed, 3 insertions(+), 1 deletion(-)
 
-<head>
-<meta http-equiv=Content-Type content="text/html; charset=big5">
+Index: linux-2.6.23/include/linux/pageblock-flags.h
+===================================================================
+--- linux-2.6.23.orig/include/linux/pageblock-flags.h	2007-10-23 13:04:46.000000000 -0700
++++ linux-2.6.23/include/linux/pageblock-flags.h	2007-10-23 13:10:16.000000000 -0700
+@@ -72,4 +72,5 @@ void set_pageblock_flags_group(struct pa
+ #define set_pageblock_flags(page) \
+ 			set_pageblock_flags_group(page, 0, NR_PAGEBLOCK_BITS-1)
+ 
++extern char * const migratetype_names[];
+ #endif	/* PAGEBLOCK_FLAGS_H */
+Index: linux-2.6.23/mm/vmstat.c
+===================================================================
+--- linux-2.6.23.orig/mm/vmstat.c	2007-10-23 13:05:03.000000000 -0700
++++ linux-2.6.23/mm/vmstat.c	2007-10-23 13:06:36.000000000 -0700
+@@ -382,11 +382,12 @@ void zone_statistics(struct zonelist *zo
+ 
+ #include <linux/seq_file.h>
+ 
+-static char * const migratetype_names[MIGRATE_TYPES] = {
++char * const migratetype_names[MIGRATE_TYPES] = {
+ 	"Unmovable",
+ 	"Reclaimable",
+ 	"Movable",
+ 	"Reserve",
++	"Isolate",
+ };
+ 
+ static void *frag_start(struct seq_file *m, loff_t *pos)
 
-<title>Spielen auch Sie EuroPrimeCasino f&uuml;r Windows(TM) und holen Sie 
-sich 300 Euro gratis</title>
 
-<style>
-<!--
- /* Style Definitions */
- p.MsoNormal, li.MsoNormal, div.MsoNormal
-	{mso-style-parent:"";
-	margin:0cm;
-	margin-bottom:.0001pt;
-	mso-pagination:widow-orphan;
-	font-size:12.0pt;
-	font-family:"Times New Roman";
-	mso-fareast-font-family:"Times New Roman";
-	mso-ansi-language:EN-US;
-	mso-fareast-language:EN-US;
-	mso-bidi-language:HE;
-	layout-grid-mode:line;}
-a:link, span.MsoHyperlink
-	{font-family:"Times New Roman";
-	mso-bidi-font-family:"Times New Roman";
-	color:blue;
-	text-decoration:underline;
-	text-underline:single;}
-a:visited, span.MsoHyperlinkFollowed
-	{color:purple;
-	text-decoration:underline;
-	text-underline:single;}
-@page Section1
-	{size:595.3pt 841.9pt;
-	margin:2.0cm 42.5pt 2.0cm 3.0cm;
-	mso-header-margin:35.4pt;
-	mso-footer-margin:35.4pt;
-	mso-paper-source:0;}
-div.Section1
-	{page:Section1;}
--->
-</style>
-
-</head>
-
-<body lang=DE link=blue vlink=purple style='tab-interval:35.4pt'>
-
-<div class=Section1>
-
-<p class=MsoNormal>
-<span lang=DE style='mso-ansi-language:DE'>Spielen auch Sie EuroPrimeCasino 
-f&uuml;r Windows(TM) und holen Sie sich 300 Euro gratis.<o:p></o:p></span></p>
-
-<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>&nbsp;
-<o:p></o:p></span></p>
-
-<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>Klicken Sie 
-hier f&uuml;r den Download und spielen Sie im EuroPrimeCasino mit
-weiteren 2 Millionen Spielern im besten Online-Casino der Welt!
-<o:p></o:p></span></p>
-
-<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>&nbsp;
-<o:p></o:p></span></p>
-
-<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>- 40 
-Blackjack-Tische, 8 Roulette-Tische und 180 Spielautomaten warten
-hier auf Sie.<o:p></o:p></span></p>
-
-<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>- Es gibt 
-progressive Jackpots im Wert von &uuml;ber 4 Millionen Dollar zu
-gewinnen<o:p></o:p></span></p>
-
-<p class=MsoNormal><span lang=EN-US style='mso-bidi-language:AR-SA'>- VIP
-<o:p></o:p></span></p>
-
-<p class=MsoNormal><span lang=EN-US style='mso-bidi-language:AR-SA'>- Visa,
-Mastercard, Diners, NETeller, Click2Pay und UKash<o:p></o:p></span></p>
-
-<p class=MsoNormal><span lang=EN-US style='mso-bidi-language:AR-SA'>&nbsp;
-<o:p></o:p></span></p>
-
-<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>Spielen Sie 
-gleich jetzt und holen Sie sich Ihre 300 Euro - klicken Sie
-hier: <a href="http://www.thefirsteuroprime.com/de/">
-www.thefirsteuroprime.com/de/</a>
-<o:p></o:p></span></p>
-
-<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
-<o:p>&nbsp;</o:p></span></p>
-
-</div>
-
-</body>
-
-</html>
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
