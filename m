@@ -1,52 +1,54 @@
-Received: from d01relay04.pok.ibm.com (d01relay04.pok.ibm.com [9.56.227.236])
-	by e4.ny.us.ibm.com (8.13.8/8.13.8) with ESMTP id l9OK0PSm026208
-	for <linux-mm@kvack.org>; Wed, 24 Oct 2007 16:00:25 -0400
-Received: from d01av02.pok.ibm.com (d01av02.pok.ibm.com [9.56.224.216])
-	by d01relay04.pok.ibm.com (8.13.8/8.13.8/NCO v8.5) with ESMTP id l9OK0PwN133344
-	for <linux-mm@kvack.org>; Wed, 24 Oct 2007 16:00:25 -0400
-Received: from d01av02.pok.ibm.com (loopback [127.0.0.1])
-	by d01av02.pok.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l9OK0O2v023582
-	for <linux-mm@kvack.org>; Wed, 24 Oct 2007 16:00:25 -0400
-Subject: Re: [PATCH 3/3] [PATCH] hugetlb: Enforce quotas during reservation
-	for shared mappings
-From: Dave Hansen <haveblue@us.ibm.com>
-In-Reply-To: <1193255578.18417.63.camel@localhost.localdomain>
+Received: from d03relay04.boulder.ibm.com (d03relay04.boulder.ibm.com [9.17.195.106])
+	by e35.co.us.ibm.com (8.13.8/8.13.8) with ESMTP id l9OK26qP000717
+	for <linux-mm@kvack.org>; Wed, 24 Oct 2007 16:02:06 -0400
+Received: from d03av03.boulder.ibm.com (d03av03.boulder.ibm.com [9.17.195.169])
+	by d03relay04.boulder.ibm.com (8.13.8/8.13.8/NCO v8.5) with ESMTP id l9OK25Tk064482
+	for <linux-mm@kvack.org>; Wed, 24 Oct 2007 14:02:05 -0600
+Received: from d03av03.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av03.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l9OK25qE006758
+	for <linux-mm@kvack.org>; Wed, 24 Oct 2007 14:02:05 -0600
+Subject: Re: [PATCH 1/3] [FIX] hugetlb: Fix broken fs quota management
+From: Adam Litke <agl@us.ibm.com>
+In-Reply-To: <b040c32a0710241221m9151f6xd0fe09e00608a597@mail.gmail.com>
 References: <20071024132335.13013.76227.stgit@kernel>
-	 <20071024132408.13013.81566.stgit@kernel>
-	 <1193252821.4039.33.camel@localhost>
-	 <1193255578.18417.63.camel@localhost.localdomain>
+	 <20071024132345.13013.36192.stgit@kernel>
+	 <1193251414.4039.14.camel@localhost>
+	 <1193252583.18417.52.camel@localhost.localdomain>
+	 <b040c32a0710241221m9151f6xd0fe09e00608a597@mail.gmail.com>
 Content-Type: text/plain
-Date: Wed, 24 Oct 2007 13:00:22 -0700
-Message-Id: <1193256022.4039.58.camel@localhost>
+Date: Wed, 24 Oct 2007 15:02:04 -0500
+Message-Id: <1193256124.18417.70.camel@localhost.localdomain>
 Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Adam Litke <agl@us.ibm.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Ken Chen <kenchen@google.com>, Andy Whitcroft <apw@shadowen.org>
+To: Ken Chen <kenchen@google.com>
+Cc: Dave Hansen <haveblue@us.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Andy Whitcroft <apw@shadowen.org>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 2007-10-24 at 14:52 -0500, Adam Litke wrote:
+On Wed, 2007-10-24 at 12:21 -0700, Ken Chen wrote:
+> On 10/24/07, Adam Litke <agl@us.ibm.com> wrote:
+> > On Wed, 2007-10-24 at 11:43 -0700, Dave Hansen wrote:
+> > > This particular nugget is for MAP_PRIVATE pages only, right?  The shared
+> > > ones should have another ref out on them for the 'mapping' too, so won't
+> > > get released at unmap, right?
+> >
+> > Yep that's right.  Shared pages are released by truncate_hugepages()
+> > when the ref for the mapping is dropped.
 > 
-> > Since alloc_huge_page() gets the VMA it could, in theory, be doing the
-> > accounting.  The other user, hugetlb_cow(), seems to have a similar code
-> > path.  But, it doesn't have to worry about shared_page, right?  We can
-> > only have COWs on MAP_PRIVATE.
-> > 
-> > I'm just trying to find ways to future-proof the quotas since they
-> > already got screwed up once.  The fewer call sites we have for them, the
-> > fewer places they can get screwed up. :)
-> 
-> Yep.  Originally I wanted to put the hugetlb_get_quota() call inside
-> alloc_huge_page() but the devil is in the details.  Failure to get quota
-> needs to result in a SIGBUS whereas a standard allocation failure is
-> OOM.  Because of this, we'd still need special handling of the
-> alloc_huge_page() return value.  While that can be done easily enough, I
-> didn't think it was worth it.  
+> I think as a follow up patch, we should debit the quota in
+> free_huge_page(), so you don't have to open code it like this and also
+> consolidate calls to hugetlb_put_quota() in one place.  It's cleaner
+> that way.
 
-Does it need special handling if we just use ERR_PTR()s?
+At free_huge_page() time, you can't associate the page with a struct
+address_space so it becomes hard to credit the proper filesystem.  When
+freeing the page, page->mapping is no longer valid (even for shared
+pages). 
 
--- Dave
+-- 
+Adam Litke - (agl at us.ibm.com)
+IBM Linux Technology Center
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
