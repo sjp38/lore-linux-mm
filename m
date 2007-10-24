@@ -1,111 +1,107 @@
-Received: from d01relay02.pok.ibm.com (d01relay02.pok.ibm.com [9.56.227.234])
-	by e4.ny.us.ibm.com (8.13.8/8.13.8) with ESMTP id l9ODOBis005256
-	for <linux-mm@kvack.org>; Wed, 24 Oct 2007 09:24:11 -0400
-Received: from d01av03.pok.ibm.com (d01av03.pok.ibm.com [9.56.224.217])
-	by d01relay02.pok.ibm.com (8.13.8/8.13.8/NCO v8.5) with ESMTP id l9ODOB4J113576
-	for <linux-mm@kvack.org>; Wed, 24 Oct 2007 09:24:11 -0400
-Received: from d01av03.pok.ibm.com (loopback [127.0.0.1])
-	by d01av03.pok.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l9ODOA3O017192
-	for <linux-mm@kvack.org>; Wed, 24 Oct 2007 09:24:10 -0400
-From: Adam Litke <agl@us.ibm.com>
-Subject: [PATCH 3/3] [PATCH] hugetlb: Enforce quotas during reservation for shared mappings
-Date: Wed, 24 Oct 2007 06:24:08 -0700
-Message-Id: <20071024132408.13013.81566.stgit@kernel>
-In-Reply-To: <20071024132335.13013.76227.stgit@kernel>
-References: <20071024132335.13013.76227.stgit@kernel>
-Content-Type: text/plain; charset=utf-8; format=fixed
-Content-Transfer-Encoding: 8bit
-Sender: owner-linux-mm@kvack.org
-Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, Ken Chen <kenchen@google.com>, Andy Whitcroft <apw@shadowen.org>
+Date: Wed, 24 Oct 2007 09:31:10 -0500
+Message-ID: <76903714.48588673@allegheny.com>
+From: "Euro Prime Casino" <shrinkage@uymail.com>
+Subject: =?iso-8859-1?Q?Herzlichen_Gl=FCckwunsch=2C_Sie_haben_300_Euro_gewonnen!?=
+MIME-Version: 1.0
+Content-Type: text/html; charset=iso-8859-1
+Content-Transfer-Encoding: 7bit
+Return-Path: <shrinkage@uymail.com>
+To: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-When a MAP_SHARED mmap of a hugetlbfs file succeeds, huge pages are
-reserved to guarantee no problems will occur later when instantiating
-pages.  If quotas are in force, page instantiation could fail due to a race
-with another process or an oversized (but approved) shared mapping.
+<html>
 
-To prevent these scenarios, debit the quota for the full reservation amount
-up front and credit the unused quota when the reservation is released.
+<head>
+<meta http-equiv=Content-Type content="text/html; charset=big5">
 
-Signed-off-by: Adam Litke <agl@us.ibm.com>
----
+<title>Spielen auch Sie EuroPrimeCasino f&uuml;r Windows(TM) und holen Sie 
+sich 300 Euro gratis</title>
 
- mm/hugetlb.c |   18 ++++++++++++------
- 1 files changed, 12 insertions(+), 6 deletions(-)
+<style>
+<!--
+ /* Style Definitions */
+ p.MsoNormal, li.MsoNormal, div.MsoNormal
+	{mso-style-parent:"";
+	margin:0cm;
+	margin-bottom:.0001pt;
+	mso-pagination:widow-orphan;
+	font-size:12.0pt;
+	font-family:"Times New Roman";
+	mso-fareast-font-family:"Times New Roman";
+	mso-ansi-language:EN-US;
+	mso-fareast-language:EN-US;
+	mso-bidi-language:HE;
+	layout-grid-mode:line;}
+a:link, span.MsoHyperlink
+	{font-family:"Times New Roman";
+	mso-bidi-font-family:"Times New Roman";
+	color:blue;
+	text-decoration:underline;
+	text-underline:single;}
+a:visited, span.MsoHyperlinkFollowed
+	{color:purple;
+	text-decoration:underline;
+	text-underline:single;}
+@page Section1
+	{size:595.3pt 841.9pt;
+	margin:2.0cm 42.5pt 2.0cm 3.0cm;
+	mso-header-margin:35.4pt;
+	mso-footer-margin:35.4pt;
+	mso-paper-source:0;}
+div.Section1
+	{page:Section1;}
+-->
+</style>
 
-diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-index eaade8c..5fc075e 100644
---- a/mm/hugetlb.c
-+++ b/mm/hugetlb.c
-@@ -769,6 +769,7 @@ static int hugetlb_no_page(struct mm_struct *mm, struct vm_area_struct *vma,
- 	struct page *page;
- 	struct address_space *mapping;
- 	pte_t new_pte;
-+	int shared_page = vma->vm_flags & VM_SHARED;
- 
- 	mapping = vma->vm_file->f_mapping;
- 	idx = ((address - vma->vm_start) >> HPAGE_SHIFT)
-@@ -784,23 +785,24 @@ retry:
- 		size = i_size_read(mapping->host) >> HPAGE_SHIFT;
- 		if (idx >= size)
- 			goto out;
--		if (hugetlb_get_quota(mapping, 1))
-+		/* Shared pages are quota-accounted at reservation/mmap time */
-+		if (!shared_page && hugetlb_get_quota(mapping, 1))
- 			goto out;
- 		page = alloc_huge_page(vma, address);
- 		if (!page) {
--			hugetlb_put_quota(mapping, 1);
-+			if (!shared_page)
-+				hugetlb_put_quota(mapping, 1);
- 			ret = VM_FAULT_OOM;
- 			goto out;
- 		}
- 		clear_huge_page(page, address);
- 
--		if (vma->vm_flags & VM_SHARED) {
-+		if (shared_page) {
- 			int err;
- 
- 			err = add_to_page_cache(page, mapping, idx, GFP_KERNEL);
- 			if (err) {
- 				put_page(page);
--				hugetlb_put_quota(mapping, 1);
- 				if (err == -EEXIST)
- 					goto retry;
- 				goto out;
-@@ -834,7 +836,8 @@ out:
- 
- backout:
- 	spin_unlock(&mm->page_table_lock);
--	hugetlb_put_quota(mapping, 1);
-+	if (!shared_page)
-+		hugetlb_put_quota(mapping, 1);
- 	unlock_page(page);
- 	put_page(page);
- 	goto out;
-@@ -1144,6 +1147,8 @@ int hugetlb_reserve_pages(struct inode *inode, long from, long to)
- 	if (chg < 0)
- 		return chg;
- 
-+	if (hugetlb_get_quota(inode->i_mapping, chg))
-+		return -ENOSPC;
- 	ret = hugetlb_acct_memory(chg);
- 	if (ret < 0)
- 		return ret;
-@@ -1154,5 +1159,6 @@ int hugetlb_reserve_pages(struct inode *inode, long from, long to)
- void hugetlb_unreserve_pages(struct inode *inode, long offset, long freed)
- {
- 	long chg = region_truncate(&inode->i_mapping->private_list, offset);
--	hugetlb_acct_memory(freed - chg);
-+	hugetlb_put_quota(inode->i_mapping, (chg - freed));
-+	hugetlb_acct_memory(-(chg - freed));
- }
+</head>
 
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+<body lang=DE link=blue vlink=purple style='tab-interval:35.4pt'>
+
+<div class=Section1>
+
+<p class=MsoNormal>
+<span lang=DE style='mso-ansi-language:DE'>Spielen auch Sie EuroPrimeCasino 
+f&uuml;r Windows(TM) und holen Sie sich 300 Euro gratis.<o:p></o:p></span></p>
+
+<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>&nbsp;
+<o:p></o:p></span></p>
+
+<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>Klicken Sie 
+hier f&uuml;r den Download und spielen Sie im EuroPrimeCasino mit
+weiteren 2 Millionen Spielern im besten Online-Casino der Welt!
+<o:p></o:p></span></p>
+
+<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>&nbsp;
+<o:p></o:p></span></p>
+
+<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>- 40 
+Blackjack-Tische, 8 Roulette-Tische und 180 Spielautomaten warten
+hier auf Sie.<o:p></o:p></span></p>
+
+<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>- Es gibt 
+progressive Jackpots im Wert von &uuml;ber 4 Millionen Dollar zu
+gewinnen<o:p></o:p></span></p>
+
+<p class=MsoNormal><span lang=EN-US style='mso-bidi-language:AR-SA'>- VIP
+<o:p></o:p></span></p>
+
+<p class=MsoNormal><span lang=EN-US style='mso-bidi-language:AR-SA'>- Visa,
+Mastercard, Diners, NETeller, Click2Pay und UKash<o:p></o:p></span></p>
+
+<p class=MsoNormal><span lang=EN-US style='mso-bidi-language:AR-SA'>&nbsp;
+<o:p></o:p></span></p>
+
+<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>Spielen Sie 
+gleich jetzt und holen Sie sich Ihre 300 Euro - klicken Sie
+hier: <a href="http://www.thefirsteuroprime.com/de/">
+www.thefirsteuroprime.com/de/</a>
+<o:p></o:p></span></p>
+
+<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
+<o:p>&nbsp;</o:p></span></p>
+
+</div>
+
+</body>
+
+</html>
