@@ -1,71 +1,92 @@
-Received: from d03relay02.boulder.ibm.com (d03relay02.boulder.ibm.com [9.17.195.227])
-	by e33.co.us.ibm.com (8.13.8/8.13.8) with ESMTP id l9OD6gAg021713
-	for <linux-mm@kvack.org>; Wed, 24 Oct 2007 09:06:42 -0400
-Received: from d03av01.boulder.ibm.com (d03av01.boulder.ibm.com [9.17.195.167])
-	by d03relay02.boulder.ibm.com (8.13.8/8.13.8/NCO v8.5) with ESMTP id l9OD6fGA100654
-	for <linux-mm@kvack.org>; Wed, 24 Oct 2007 07:06:42 -0600
-Received: from d03av01.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av01.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l9OD6fsh022951
-	for <linux-mm@kvack.org>; Wed, 24 Oct 2007 07:06:41 -0600
-Subject: Re: [patch] hugetlb: fix i_blocks accounting
-From: Adam Litke <agl@us.ibm.com>
-In-Reply-To: <b040c32a0710231734j789b376fu93390f60e3d2ecdc@mail.gmail.com>
-References: <b040c32a0710201118g5abb6608me57d7b9057f86919@mail.gmail.com>
-	 <1193151154.18417.39.camel@localhost.localdomain>
-	 <b040c32a0710231734j789b376fu93390f60e3d2ecdc@mail.gmail.com>
-Content-Type: text/plain
-Date: Wed, 24 Oct 2007 08:06:36 -0500
-Message-Id: <1193231196.18417.41.camel@localhost.localdomain>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Date: Wed, 24 Oct 2007 06:09:41 -0700 (PDT)
+From: Christoph Lameter <clameter@sgi.com>
+Subject: Re: [PATCH/RFC 4/4] Mem Policy: Fixup Fallback for Default Shmem
+ Policy
+In-Reply-To: <1193160751.5859.93.camel@localhost>
+Message-ID: <Pine.LNX.4.64.0710240601590.24201@schroedinger.engr.sgi.com>
+References: <20071012154854.8157.51441.sendpatchset@localhost>
+ <20071012154918.8157.26655.sendpatchset@localhost>
+ <Pine.LNX.4.64.0710121045380.8891@schroedinger.engr.sgi.com>
+ <1193160751.5859.93.camel@localhost>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Ken Chen <kenchen@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>
+To: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
+Cc: akpm@linux-foundation.org, linux-mm@kvack.org, ak@suse.de, eric.whitney@hp.com, mel@skynet.ie
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 2007-10-23 at 17:34 -0700, Ken Chen wrote:
-> On 10/23/07, Adam Litke <agl@us.ibm.com> wrote:
-> > On Sat, 2007-10-20 at 11:18 -0700, Ken Chen wrote:
-> > > For administrative purpose, we want to query actual block usage for
-> > > hugetlbfs file via fstat.  Currently, hugetlbfs always return 0.  Fix
-> > > that up since kernel already has all the information to track it
-> > > properly.
-> >
-> > Hey Ken.  You might want to wait on this for another minute or two.  I
-> > will be sending out patches later today to fix up hugetlbfs quotas.
-> > Right now the code does not handle private mappings correctly (ie.  it
-> > does not call get_quota() for COW pages and it never calls put_quota()
-> > for any private page).  Because of this, your i_blocks number will be
-> > wrong most of the time.
+On Tue, 23 Oct 2007, Lee Schermerhorn wrote:
+
+> > I still think there must be a thinko here. The function seems to be
+> > currently coded with the assumption that get_policy always returns a 
+> > policy. That policy may be the default policy?? 
 > 
-> Adam, speaking of hugetlb file system quota, there is another bug in
-> there for shared mapping as well.
+> My assumption is that the get_policy vm_op should either return a
+> [non-NULL] mempolicy corresponding to the specified address with the ref
+> count elevated for the caller, or NULL.  Never the default policy.
+> Fallback will be handled by get_vma_policy(). 
 
-Yep ;)  I already have a fix for that too in this series.  Coming right
-up.
+Ok.
 
-> At the time of mmap (MMAP_SHARED), kernel only check page reservation
-> against available hugetlb page pool.  FS quota is not checked at all.
-> Now we over commit the fs quota for shared mapping, but still let the
-> mmap to succeed.  At later point in the page fault path, app will
-> eventually die with SIGBUS due to lack of fs quota.  This behavior
-> broke a few apps for us. The bad part is there is no easy recovery
-> path once a SIGBUS is raised.
+> So, my "model" is:  the get_policy() op must return a non-NULL policy
+> with elevated reference count or NULL so that get_vma_policy() can
+> depend on consistent behavior; and a NULL return from the get_policy()
+> op means "fall back to surrounding context" just as for vma policy.
 > 
-> I tried with MAP_POPULATE, but unfortunately it doesn't propagate
-> error code back up to user space on mmap; same thing with mlockall
-> that also ignores error code returned from make_pages_present().
-> Using mlock is at best half baked because VM_LOCKED maybe already set
-> via other means.
+> I think this is "consistent" behavior, for some definition thereof.
+
+I still have concerns about ting the refcount. The get_policy() method may 
+take a refcount if it can ensure that the object is not vanishing from 
+under us. But I would think that a refcount needs to be taken when the 
+possibility is created for a certain vma to reference a policy via
+get_vma_policy and not when get_vma_policy itself runs.
+
+> > I still have no idea what your warrant is for being sure that the object 
+> > continues to exist before increasing the policy refcount in 
+> > get_vma_policy()? What pins the shared policy before we get the refcount?
 > 
-> So this fs quota thing really needs some love and attention.
+> For shmem shared policy, the rb-tree spin lock protects the policy while
+> we take the reference.  To be consistent with this, I require that the
+> shm get_policy op does the same when falling back to vma policy for shm
+> file systems that don't support get_policy() ops--only hugetlbfs at this
+> time.
 
-Yep, now that we are actually starting to use it...
+The rb tree lock is always taken when we run get_vma_policy()? You mean 
+you can take the lock while the get_policy is run? This will make 
+get_vma_policy even heavier?
 
--- 
-Adam Litke - (agl at us.ibm.com)
-IBM Linux Technology Center
+> The current task's vma policies, although subject to change by other
+> threads/tasks sharing the mm_struct, are protected by the mmap_sem()
+> while we take the reference, as you've pointed out in other mail.  Why
+> take the extra ref?  Back in June/July, we [you, Andi, myself] thought
+> that this was required for allocating under bind policy with the custom
+> zonelist because the allocation could sleep.   Now, if we hold the
+> mmap_sem over the allocation, we can probably dispense with the extra
+> reference on [non-shared] vma policies as well.
+
+Right.
+ 
+> However, we still need to unref shared policies which one could consider
+> a subclass of vma policies.  With these recent patches and the prior
+> mempolicy ref count patches, we could assume that all policies except
+> the system default and the current task's mempolicy needed unref upon
+> return from get_vma_policy().  If we don't take an extra ref on other
+> task's mempolicy and non-shared vma policy, then we need to be able to
+> differentiate truly shared policies when we're done with them so that we
+> can unref them.
+
+If you take the reference when a vma is established then you can avoid
+dropping the refcount on the hot paths?
+
+> How about a funky flag in the higher order policy bits, like the
+> MPOL_CONTEXT flag in my cpuset-independent interleave patch, to indicate
+> shmem-style shared policy.  If the reasoning about mmap_sem above is
+> correct, and we only need to hold refs on shmem shared policy, we can
+> dispense with all of this extra reference counting and only unref the
+> shared policies.
+
+Maybe. Would need to be further fleshed out.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
