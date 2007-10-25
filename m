@@ -1,131 +1,90 @@
-Date: Thu, 25 Oct 2007 17:07:04 +0100
-Subject: Re: [PATCH 2/2] Add mem_type in /syfs to show memblock migrate type
-Message-ID: <20071025160704.GA20345@skynet.ie>
-References: <1193327756.9894.5.camel@dyn9047017100.beaverton.ibm.com>
+Date: Thu, 25 Oct 2007 17:40:35 +0100 (BST)
+From: Hugh Dickins <hugh@veritas.com>
+Subject: Re: msync(2) bug(?), returns AOP_WRITEPAGE_ACTIVATE to userland 
+In-Reply-To: <200710222104.l9ML4L1D002031@agora.fsl.cs.sunysb.edu>
+Message-ID: <Pine.LNX.4.64.0710251649430.6433@blonde.wat.veritas.com>
+References: <200710222104.l9ML4L1D002031@agora.fsl.cs.sunysb.edu>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <1193327756.9894.5.camel@dyn9047017100.beaverton.ibm.com>
-From: mel@skynet.ie (Mel Gorman)
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Badari Pulavarty <pbadari@us.ibm.com>
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, melgor@ie.ibm.com, haveblue@us.ibm.com, linux-mm <linux-mm@kvack.org>
+To: Erez Zadok <ezk@cs.sunysb.edu>
+Cc: Pekka Enberg <penberg@cs.helsinki.fi>, Ryan Finnie <ryan@finnie.org>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, cjwatson@ubuntu.com, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On (25/10/07 08:55), Badari Pulavarty didst pronounce:
-> Kame & Mel,
+On Mon, 22 Oct 2007, Erez Zadok wrote:
+> In message <Pine.LNX.4.64.0710222101420.23513@blonde.wat.veritas.com>, Hugh Dickins writes:
+> > 
+> > Only ramdisk and shmem have been returning AOP_WRITEPAGE_ACTIVATE.
+> > Both of those set BDI_CAP_NO_WRITEBACK.  ramdisk never returned it
+> > if !wbc->for_reclaim.  I contend that shmem shouldn't either: it's
+> > a special code to get the LRU rotation right, not useful elsewhere.
+> > Though Documentation/filesystems/vfs.txt does imply wider use.
 > 
-> Here is the updated patch, which checks all the pages in the section
-> to cover all archs. Are you okay with this ? 
-> 
-> Thanks,
-> Badari
-> 
-> Here is the output:
-> 
-> ./memory0/mem_type: Multiple
-> ./memory1/mem_type: Multiple
-> ./memory2/mem_type: Movable
-> ./memory3/mem_type: Movable
-> ./memory4/mem_type: Movable
-> ./memory5/mem_type: Movable
-> ./memory6/mem_type: Movable
-> ./memory7/mem_type: Movable
-> ..
-> 
-> Each section of the memory has attributes in /sysfs. This patch adds 
-> file "mem_type" to show that memory section's migrate type. This is useful
-> to identify section of the memory for hotplug memory remove.
-> 
-> Signed-off-by: Badari Pulavarty <pbadari@us.ibm.com> 
->  drivers/base/memory.c |   33 +++++++++++++++++++++++++++++++++
->  1 file changed, 33 insertions(+)
-> 
-> Index: linux-2.6.23/drivers/base/memory.c
-> ===================================================================
-> --- linux-2.6.23.orig/drivers/base/memory.c	2007-10-23 15:19:14.000000000 -0700
-> +++ linux-2.6.23/drivers/base/memory.c	2007-10-25 10:34:41.000000000 -0700
-> @@ -105,6 +105,35 @@ static ssize_t show_mem_phys_index(struc
->  }
->  
->  /*
-> + * show memory migrate type
-> + */
-> +static ssize_t show_mem_type(struct sys_device *dev, char *buf)
-> +{
-> +	struct page *page;
-> +	int type;
-> +	int i = pageblock_nr_pages;
-> +	struct memory_block *mem =
-> +		container_of(dev, struct memory_block, sysdev);
-> +
-> +	/*
-> +	 * Get the type of first page in the block
-> +	 */
-> +	page = pfn_to_page(section_nr_to_pfn(mem->phys_index));
-> +	type = get_pageblock_migratetype(page);
-> +
-> +	/*
-> +	 * Check the migrate type of other pages in this section.
-> +	 * If the type doesn't match, report it.
+> Yes, based on vfs.txt I figured unionfs should return
+> AOP_WRITEPAGE_ACTIVATE.
 
-The comment is a little misleading. We are not checking the type of pages,
-but the pageblocks
+unionfs_writepage returns it in two different cases: when it can't
+find the underlying page; and when the underlying writepage returns
+it.  I'd say it's wrong to return it in both cases.
 
-/*
- * Check all pageblocks in this section to ensure they are all of
- * the same migrate type. If they are multiple types, report it.
- */
+In the first case, you don't really want your page put back to the head
+of the active list, you want to come back to try it again quite soon
+(I think): so you should just redirty and unlock and pretend success.
 
-> +	 */
-> +	while (i < PAGES_PER_SECTION) {
-> +		if (type != get_pageblock_migratetype(page + i))
-> +			return sprintf(buf, "Multiple\n");
-> +		i += pageblock_nr_pages;
-> +	}
-> +	return sprintf(buf, "%s\n", migratetype_names[type]);
-> +}
-> +
-> +/*
->   * online, offline, going offline, etc.
->   */
->  static ssize_t show_mem_state(struct sys_device *dev, char *buf)
-> @@ -263,6 +292,7 @@ static ssize_t show_phys_device(struct s
->  static SYSDEV_ATTR(phys_index, 0444, show_mem_phys_index, NULL);
->  static SYSDEV_ATTR(state, 0644, show_mem_state, store_mem_state);
->  static SYSDEV_ATTR(phys_device, 0444, show_phys_device, NULL);
-> +static SYSDEV_ATTR(mem_type, 0444, show_mem_type, NULL);
->  
->  #define mem_create_simple_file(mem, attr_name)	\
->  	sysdev_create_file(&mem->sysdev, &attr_##attr_name)
-> @@ -351,6 +381,8 @@ static int add_memory_block(unsigned lon
->  		ret = mem_create_simple_file(mem, state);
->  	if (!ret)
->  		ret = mem_create_simple_file(mem, phys_device);
-> +	if (!ret)
-> +		ret = mem_create_simple_file(mem, mem_type);
->  
->  	return ret;
->  }
-> @@ -395,6 +427,7 @@ int remove_memory_block(unsigned long no
->  	mem_remove_simple_file(mem, phys_index);
->  	mem_remove_simple_file(mem, state);
->  	mem_remove_simple_file(mem, phys_device);
-> +	mem_remove_simple_file(mem, mem_type);
->  	unregister_memory(mem, section, NULL);
->  
->  	return 0;
-> 
+ramdisk uses A_W_A because none of its pages will ever become freeable
+(and comment points out it'd be better if they weren't even on the
+LRUs - I think several people have recently been putting forward
+patches to keep such timewasters off the LRUs).
 
-Other than the misleading comment;
+shmem uses A_W_A when there's no swap (left), or when the underlying
+shm is marked as locked in memory: in each case, best to move on to
+look for other pages to swap out.  (But I'm not quite convincing myself
+that the temporarily out-of-swap case is different from yours above.)
+It's about fixing some horrid busy loops where vmscan kept going
+over the same hopeless pages repeatedly, instead of moving on to
+better candidates.  Oh, there's a third case, when move_to_swap_cache
+fails: that's rare, and I think I was just too lazy to separate them.
 
-Acked-by: Mel Gorman <mel@csn.ul.ie>
+In your second case, I fail to see why the unionfs level should
+mimic the lower level: you've successfully copied data and marked
+the lower level pages as dirty, vmscan will come back to those in
+due course, but it's just a waste of time for it to come back to
+the unionfs pages again - isn't it?
 
--- 
-Mel Gorman
-Part-time Phd Student                          Linux Technology Center
-University of Limerick                         IBM Dublin Software Lab
+> But, now that unionfs has ->writepages which won't
+> even call the lower writepage if BDI_CAP_NO_WRITEBACK is on, then perhaps I
+> no longer need unionfs_writepage to bother checking for
+> AOP_WRITEPAGE_ACTIVATE, or even return it up?
+
+unionfs_writepages handles the sync/msync/fsync leaking of A_W_A to
+userspace issue, as does Pekka & Andrew's patch to write_cache_pages,
+as does my patch to shmem_writepage.  And I'm contending that
+unionfs_writepage should in no case return A_W_A up.
+
+But so long as A_W_A is still defined, unionfs_writepage does
+still need to check for it after calling the lower level ->writepage
+(because it needs to do the missing unlock_page): unionfs_writepages
+prevents unionfs_writepage being called on the normal writeout path,
+but it's still getting called by vmscan under memory pressure.
+
+(I'm in the habit of saying "vmscan" rather than naming the functions
+in question, because every few months someone restructures that file
+and changes their names.  I exaggerate, but it's happened often enough.)
+
+> But, a future file system _could_ return AOP_WRITEPAGE_ACTIVATE w/o setting
+> BDI_CAP_NO_WRITEBACK, right?  In that case, unionfs will still need to
+> handle AOP_WRITEPAGE_ACTIVATE in ->writepage, right?
+
+For so long as AOP_WRITEPAGE_ACTIVATE exists, unionfs_writepage needs to
+check for it coming from the lower level ->writepage, as I said above.
+
+But your/Pekka's unionfs_writepages doesn't need to worry about it
+at all, because Andrew/Pekka's write_cache_pages fix prevents it
+leaking up in the !reclaim case (as does my shmem_writepage fix):
+please remove that AOP_WRITEPAGE_ACTIVATE comment from unionfs_writepages.
+
+Hugh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
