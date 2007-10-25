@@ -1,116 +1,145 @@
-Received: from zps35.corp.google.com (zps35.corp.google.com [172.25.146.35])
-	by smtp-out.google.com with ESMTP id l9PHe9t0031141
-	for <linux-mm@kvack.org>; Thu, 25 Oct 2007 10:40:09 -0700
-Received: from nf-out-0910.google.com (nfbd21.prod.google.com [10.48.80.21])
-	by zps35.corp.google.com with ESMTP id l9PHe8rh015366
-	for <linux-mm@kvack.org>; Thu, 25 Oct 2007 10:40:09 -0700
-Received: by nf-out-0910.google.com with SMTP id d21so502145nfb
-        for <linux-mm@kvack.org>; Thu, 25 Oct 2007 10:40:07 -0700 (PDT)
-Message-ID: <d43160c70710251040u23feeaf9l16fafc2685b2ce52@mail.gmail.com>
-Date: Thu, 25 Oct 2007 13:40:07 -0400
-From: "Ross Biro" <rossb@google.com>
-Subject: Re: RFC/POC Make Page Tables Relocatable
-In-Reply-To: <1193330774.4039.136.camel@localhost>
+Date: Thu, 25 Oct 2007 19:03:14 +0100 (BST)
+From: Hugh Dickins <hugh@veritas.com>
+Subject: Re: msync(2) bug(?), returns AOP_WRITEPAGE_ACTIVATE to userland 
+In-Reply-To: <200710222138.l9MLcChn003084@agora.fsl.cs.sunysb.edu>
+Message-ID: <Pine.LNX.4.64.0710251743190.9834@blonde.wat.veritas.com>
+References: <200710222138.l9MLcChn003084@agora.fsl.cs.sunysb.edu>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
-References: <d43160c70710250816l44044f31y6dd20766d1f2840b@mail.gmail.com>
-	 <1193330774.4039.136.camel@localhost>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Dave Hansen <haveblue@us.ibm.com>
-Cc: linux-mm@kvack.org
+To: Erez Zadok <ezk@cs.sunysb.edu>
+Cc: Pekka Enberg <penberg@cs.helsinki.fi>, Ryan Finnie <ryan@finnie.org>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, cjwatson@ubuntu.com, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 10/25/07, Dave Hansen <haveblue@us.ibm.com> wrote:
-> On Thu, 2007-10-25 at 11:16 -0400, Ross Biro wrote:
-> > 1) Add a separate meta-data allocation to the slab and slub allocator
-> > and allocate full pages through kmem_cache_alloc instead of get_page.
-> > The primary motivation of this is that we could shrink struct page by
-> > using kmem_cache_alloc to allocate whole pages and put the supported
-> > data in the meta_data area instead of struct page.
->
-> The idea seems cool, but I think I'm missing a lot of your motivation
-> here.
->
-> First of all, which meta-data, exactly, is causing 'struct page' to be
-> larger than it could be?  Which meta-data can be moved?
+On Mon, 22 Oct 2007, Erez Zadok wrote:
+> 
+> What's the precise semantics of AOP_WRITEPAGE_ACTIVATE?
 
-Almost all of it.  Most of struct page isn't about the kernel manging
-pages in general, but about managing particular types of pages.
-Although it's been cleaned up over the years, there are still
-some things:
+Sigh - not at you, at it!  It's a secret that couldn't be kept secret,
+a hack for tmpfs reclaim, let's just look forward to it going away.
 
-        union {
-                atomic_t _mapcount;     /* Count of ptes mapped in mms,
-                                         * to show when page is mapped
-                                         * & limit reverse map searches.
-                                         */
-                struct {        /* SLUB uses */
-                        short unsigned int inuse;
-                        short unsigned int offset;
-                };
-        };
+> Is it considered an error or not?
 
-mapcount is only used when the page is mapped via a pte, while the
-other part is only used when the page is part of a SLUB cache.
-Neither of which is always true and not 100% needed as part of struct
-page.  There is just currently no better place to put them.  The rest
-of the unions don't really belong in struct page.  Similarly the lru
-list only applies to pages which could go on the lru list.  So why not
-make a better place to put them.
+No, it's definitely not an error.  It'a a private note from tmpfs
+(or ramdisk) to vmscan, saying "don't waste your time coming back
+to me with this page until you have to, please move on to another
+more likely to be freeable".
 
->
-> > 2) Add support for relocating memory allocated via kmem_cache_alloc.
-> > When a cache is created, optional relocation information can be
-> > provided.  If a relocation function is provided, caches can be
-> > defragmented and overall memory consumption can be reduced.
->
-> We may truly need this some day, but I'm not sure we need it for
-> pagetables.  If I were a stupid, naive kernel developer and I wanted to
+> If it's an error, then I usually feel that it's important for
+> a stacked f/s to return that error indication upwards.
 
-I chose to start with page tables because I figured they would be the
-hardest to properly relocate.
+Indeed, but this is not an error.  Remember, neither ramdisk nor
+tmpfs is stable storage: okay, tmpfs can go out to disk by using
+swap, but that's not stable storage - it's not reconstituted after
+reboot.  (If there's an error in writing to swap, well, that's a
+different issue; and there's few filesystems where such an I/O
+error would be reported from ->writepage.)
 
-> get a pte page back, I might simply hold the page table lock, walk the
-> pagetables to the pmd, lock and invalidate the pmd, copy the pagetable
-> contents into a new page, update the pmd, and be on my merry way.  Why
-> doesn't this work?  I'm just fishing for a good explanation why we need
-> all the slab silliness.
+> 
+> The unionfs page and the lower page are somewhat tied together, at least
+> logically.  For unionfs's page to be considered to have been written
+> successfully, the lower page has to be written successfully.  So again, if
+> the lower f/s returns AOP_WRITEPAGE_ACTIVATE, should I consider my unionfs
+> page to have been written successfully or not?
 
-This would almost work, but to do it properly, you find you'll need
-some more locks and a couple of extra pointers and such.  With out all
-the slab silliness you would need to add them to struct page. It would
-have needlessly bloated struct page hence the previous change.  I've
-also managed to convince myself that using the slab/slub allocator
-will tend to clump the page tables together which should reduce
-fragmentation and make more memory available for huge pages.  In fact,
-I've got this idea that by using slab/slub, we can stop allocating
-individual pages and only allocate huge pages on systems that have
-them.
+Consider it written successfully.  (What does written mean with tmpfs?
+it means a page can be freed, it doesn't mean the data is forever safe.)
 
->
-> I applaud you for posting early and posting often, but there is an
-> absolute ton of code in your patch.  For your subsequent postings, I'd
-> highly recommend trying to break it up in some logical ways.  Your 4
-> steps would be an excellent start.
+> If I don't return
+> AOP_WRITEPAGE_ACTIVATE up, can there be any chance that some vital data may
+> never get flushed out?
 
-I don't think any of the four changes stand on their own, but only
-when you see them together.  If there is enough agreement in principle
-to go forward, then for real patches you are correct.   Remember, that
-patch was only meant as a proof of concept.
+Things should work better if you don't return AOP_WRITEPAGE_ACTIVATE.
+If you mark your page as clean and successfully written, vmscan will
+be able to free it.  If needed, we can get the data back from the
+lower page on demand, but meanwhile a page has been freed, which
+is what vmscan reclaim is all about.  (But of course, in the case
+where you couldn't get hold of a page for the lower, you must redirty
+yours before returning.)
 
-> You might also want to run checkpatch.pl on your patch.  It has some
-> style issues that also need to get worked out.
+> > unionfs_writepage also sets AOP_WRITEPAGE_ACTIVATE when it cannot
+> > find_lock_page: that case may be appropriate.  Though I don't really
+> > understand it: seems dangerous to be relying upon the lower level page
+> > just happening to be there already.  Isn't memory pressure then likely
+> > to clog up with lots of upper level dirty pages which cannot get
+> > written out to the lower level?
+> 
+> Based on vfs.txt (which perhaps should be revised :-), I was trying to do
+> the best I can to ensure that no data is lost if the current page cannot be
+> written out to the lower f/s.
+> 
+> I used to do grab_cache_page() before, but that caused problems: writepage
+> is not the right place to _increase_ memory pressure by allocating a new
+> page...
 
-That patch isn't meant to be applied, but is there because it's easier
-to point to code to try to explain what I'm mean than to explain in
-words.  I didn't think a few style issues would be an issue.  And just
-to reiterate, if you actually use the code I posted, you get what you
-deserve.  It was only meant to illustrate what I'm trying to say.
+Yes, but just hoping the lower page will be there, and doing nothing
+to encourage it to become there, sounds an even poorer strategy to me.
 
-    Ross
+It's not easy, I know.  Your position reminds me of the loop driver
+(drivers/block/loop.c), which has long handled this situation (with
+great success, though I doubt an absolute guarantee) by taking
+__GFP_IO|__GFP_FS off the mapping_gfp_mask of the underlying file:
+look for gfp_mask in loop_set_fd() (and I think ignore do_loop_switch(),
+that's new to me and seems to be for a very special case).
+
+I grepped for gfp in unionfs, and there seems to be nothing: I doubt
+you can be robust under memory pressure without doing something about
+that.  If you can take __GFP_IO|__GFP_FS off the lower mapping (just
+while in unionfs_writepage, or longer term? what locking needed?),
+then you should be able to go back to using grab_cache_page().
+
+> 
+> One solution I thought of is do what ecryptfs does: keep an open struct file
+> in my inode and call vfs_write(), but I don't see that as a significantly
+> cleaner/better solution.
+
+I agree with you.
+
+> (BTW, ecrypfts kinda had to go for vfs_write b/c
+> it changes the data size and content of what it writes below; unionfs is
+> simpler in that manner b/c it needs to write the same data to the lower file
+> at the same offset.)
+
+Ah, yes.
+
+> 
+> Another idea we've experimented with before is "page pointer flipping."  In
+> writepage, we temporarily set the page->mapping->host to the lower_inode;
+> then we call the lower writepage with OUR page; then fix back the
+> page->mapping->host to the upper inode.  This had two benefits: first we can
+> guarantee that we always have a page to write below, and second we don't
+> need to keep both upper and lower pages (reduces memory pressure).  Before
+> we did this page pointer flipping, we verified that the page is locked so no
+> other user could be written the page->mapping->host in this transient state,
+> and we ensured that no lower f/s was somehow caching the temporarily changed
+> value of page->mapping->host for later use.  But, mucking with the pointers
+> in this manner is kinda ugly, to say the least.  Still, I'd love to find a
+> clean and simple way that two layers can share the same struct page and
+> cleanly pass the upper page to a lower f/s.
+
+I wouldn't call it ugly, but it is exceptional and dangerous and cannot
+be sanctioned without a great deal of thought; would very probably need
+subtle or wide changes in core vfs/mm.  shmem/tmpfs has given enough
+trouble in the past with the way it switches page between filecache
+and swapcache, and that imposes interesting limitations.  We'd need
+strong reasons (not for unionfs alone) to go down your page pointer
+flipping route, but I wouldn't say it's forever out of the question.
+
+My guess is it shouldn't flip, but page->mapping indicate a list of
+of different struct address_spaces.
+
+The coherency benefit seems very appealing.
+
+But more thought might prove it a nonsense.
+
+> 
+> If you've got suggestions how I can handle unionfs_write more cleanly, or
+> comments on the above possibilities, I'd love to hear them.
+
+For now I think you should pursue the ~(__GFP_FS|__GFP_IO) idea somehow.
+
+Hugh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
