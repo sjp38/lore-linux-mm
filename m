@@ -1,92 +1,134 @@
-Received: from d03relay04.boulder.ibm.com (d03relay04.boulder.ibm.com [9.17.195.106])
-	by e31.co.us.ibm.com (8.13.8/8.13.8) with ESMTP id l9PJN8N4031953
-	for <linux-mm@kvack.org>; Thu, 25 Oct 2007 15:23:08 -0400
-Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
-	by d03relay04.boulder.ibm.com (8.13.8/8.13.8/NCO v8.5) with ESMTP id l9PJN7bl042054
-	for <linux-mm@kvack.org>; Thu, 25 Oct 2007 13:23:07 -0600
-Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av02.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l9PJN68a006776
-	for <linux-mm@kvack.org>; Thu, 25 Oct 2007 13:23:07 -0600
-Subject: Re: RFC/POC Make Page Tables Relocatable
-From: Dave Hansen <haveblue@us.ibm.com>
-In-Reply-To: <d43160c70710251144t172cfd1exef99e0d53fb9be73@mail.gmail.com>
-References: <d43160c70710250816l44044f31y6dd20766d1f2840b@mail.gmail.com>
-	 <1193330774.4039.136.camel@localhost>
-	 <d43160c70710251040u23feeaf9l16fafc2685b2ce52@mail.gmail.com>
-	 <1193335725.24087.19.camel@localhost>
-	 <d43160c70710251144t172cfd1exef99e0d53fb9be73@mail.gmail.com>
-Content-Type: text/plain
-Date: Thu, 25 Oct 2007 12:23:02 -0700
-Message-Id: <1193340182.24087.54.camel@localhost>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Date: Thu, 25 Oct 2007 20:33:36 +0100 (BST)
+From: Hugh Dickins <hugh@veritas.com>
+Subject: Re: [RFC] [-mm PATCH] Memory controller fix swap charging context
+ in unuse_pte()
+In-Reply-To: <471F3732.5050407@linux.vnet.ibm.com>
+Message-ID: <Pine.LNX.4.64.0710252002540.25735@blonde.wat.veritas.com>
+References: <20071005041406.21236.88707.sendpatchset@balbir-laptop>
+ <Pine.LNX.4.64.0710071735530.13138@blonde.wat.veritas.com>
+ <4713A2F2.1010408@linux.vnet.ibm.com> <Pine.LNX.4.64.0710221933570.21262@blonde.wat.veritas.com>
+ <471F3732.5050407@linux.vnet.ibm.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Ross Biro <rossb@google.com>
-Cc: linux-mm@kvack.org, Mel Gorman <MELGOR@ie.ibm.com>
+To: Balbir Singh <balbir@linux.vnet.ibm.com>
+Cc: Linux MM Mailing List <linux-mm@kvack.org>, Linux Containers <containers@lists.osdl.org>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 2007-10-25 at 14:44 -0400, Ross Biro wrote:
-> On 10/25/07, Dave Hansen <haveblue@us.ibm.com> wrote:
-> > > This would almost work, but to do it properly, you find you'll need
-> > > some more locks and a couple of extra pointers and such.
-> >
-> > Could you be specific?
+On Wed, 24 Oct 2007, Balbir Singh wrote:
+> Hugh Dickins wrote:
+> > 
+> > Thanks, Balbir.  Sorry for the delay.  I've not forgotten our
+> > agreement that I should be splitting it into before-and-after
+> > mem cgroup patches.  But it's low priority for me until we're
+> > genuinely assigning to a cgroup there.  Hope to get back to
+> > looking into that tomorrow, but no promises.
 > 
-> Well to go quickly from an arbitrary page that happens to be part of a
-> page table to the appropriate mm to get a lock, I had to store a
-> pointer to the mm.
+> No Problem. We have some time with this one.
 
-Hold on a sec there.  You don't *have* to. :)
+Phew - I still haven't got there.
 
-With the pagetable page you can go examine ptes.  From the ptes, you can
-get the 'struct page' for the mapped page.  From there, you can get the
-anon_vma and at least the list of mms that _could_ map the page.  You
-get virtual addresses from the linear_page_index() or offset in the
-mapping from page->index and vma->vm_pgoff and vm_start.  That should
-make the search a bit more reasonable.
-
-Slow, yes.  But, we're already talking about reclaim paths here.  
-
-> Then I also needed to know where the particular
-> page fit into the page table tree.  Once I had those, it turned out I
-> needed a spinlock to protect them to deallocate the page with out
-> racing against the relocation.  I think I could have used the ptl lock
-> struct page, but I wasn't really clear on it when I started.
+> > I think you still see no problem, where I claim that simply
+> > omitting the mem charge mods from mm/swap_state.c leads to OOMs?
+> > Maybe our difference is because my memhog in the cgroup is using
+> > more memory than RAM, not just more memory than allowed to the
+> > cgroup.  I suspect that arrives at a state (when the swapcache
+> > pages are not charged) where it cannot locate the pages it needs
+> > to reclaim to stay within its limit.
 > 
-> So I needed 2 pointers which I could have squeezed into struct page
-> somewhere, but then what about when I needed a third or forth pointer
-> to make something else work well?
+> Yes, in my case there I use memory less than RAM and more than that
+> is allowed by the cgroup. It's quite possible that in your case the
+> swapcache has grown significantly without any limit/control on it.
+> The memhog program is using memory at a rate much higher than the
+> rate of reclaim. Could you share your memhog program, please?
 
-I think you started out with the assumption that we needed out of page
-metadata and then started adding more reasons that we needed it.  I
-seriously doubt that you really and truly *NEED* four new fields in
-'struct page'. :)
+Gosh, it's nothing special.  Appended below, but please don't shame
+me by taking it too seriously.  Defaults to working on a 600M mmap
+because I'm in the habit of booting mem=512M.  You probably have
+something better yourself that you'd rather use.
 
-My guys says that this is way too complicated to be pursued in this
-form.  But, don't listen to me.  You don't have to convince _me_.
+> In the use case you've mentioned/tested, having these mods to
+> control swapcache is actually useful, right?
 
-If you want to pursue this, I'd concentrate on breaking your patch up in
-to manageable pieces.  Don't forget diffstats at the top of your patch,
-too.  If I were to start breaking this patch up, I'd probably start with
-these things, but probably not in this order.  If you do it right,
-you'll end up with even more pieces than this.
+No idea what you mean by "these mods to control swapcache"?
 
-1. add support to slab for object relocation
-2. add support to slab for object metadata
-3. allocate pte pages from the slab (yet again)
-4. add metadata for pagetable pages (this can be distinct from the other
-   patches, and a simple implementation might just stick it in 'struct
-   page' to make it easy to review at first)
-5. add and use walk_page_table_*() functions
-6. add need_flush tracking to the mm
-7. add minimum base page size requirements to the slab
-8. add relocation handles
-9. your test module
-10. rcu for freeing pagetables and tlb flushing
-11. actual pagetable relocation code
+With your mem_cgroup mods in mm/swap_state.c, swapoff assigns
+the pages read in from swap to whoever's running swapoff and your
+unuse_pte mem_cgroup_charge never does anything useful: swap pages
+should get assigned to the appropriate cgroups at that point.
 
--- Dave
+Without your mem_cgroup mods in mm/swap_state.c, unuse_pte makes
+the right assignments (I believe).  But I find that swapout (using
+600M in a 512M machine) from a 200M cgroup quickly OOMs, whereas
+it behaves correctly with your mm/swap_state.c.
+
+Thought little yet about what happens to shmem swapped pages,
+and swap readahead pages; but still suspect that they and the
+above issue will need a "limbo" cgroup, for pages which are
+expected to belong to a not-yet-identified mem cgroup.
+
+> 
+> Could you share your major objections at this point with the memory
+> controller at this point. I hope to be able to look into/resolve them
+> as my first priority in my list of items to work on.
+
+The things I've noticed so far, as mentioned before and above.
+
+But it does worry me that I only came here through finding swapoff
+broken by that unuse_mm return value, and then found one issue
+after another.  It feels like the mem cgroup people haven't really
+thought through or tested swap at all, and that if I looked further
+I'd uncover more.
+
+That's simply FUD, and I apologize if I'm being unfair: but that
+is how it feels, and I expect we all know that phase in a project
+when solving one problem uncovers three - suggests it's not ready.
+
+Hugh
+
+/* swapout.c */
+#include <unistd.h>
+#include <stdlib.h>
+#include <stdio.h>
+#include <errno.h>
+#include <sys/mman.h>
+
+int main(int argc, char *argv[])
+{
+	unsigned long *base = (unsigned long *)0x08400000;
+	unsigned long size;
+	unsigned long limit;
+	unsigned long i;
+	char *ptr = NULL;
+
+	size = argv[1]? strtoul(argv[1], &ptr, 0): 600;
+	if (size >= 3*1024)
+		size = 0;
+	size *= 1024*1024;
+	limit = size / sizeof(unsigned long);
+	if (size == 0 || base + limit + 1024 > &size) {
+		errno = EINVAL;
+		perror("swapout");
+		exit(1);
+	}
+	base = mmap(base, size, PROT_READ|PROT_WRITE,
+		    MAP_ANONYMOUS|MAP_PRIVATE, -1, 0);
+	if (base == (unsigned long *)(-1)) {
+		perror("mmap");
+		exit(1);
+	}
+	for (i = 0; i < limit; i++)
+		base[i] = i;
+	if (ptr && *ptr == '.') {
+		printf("Type <Return> to continue ");
+		fflush(stdout);
+		getchar();
+	}
+	for (i = 0; i < limit; i++)
+		base[i] = limit - i;
+	return 0;
+}
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
