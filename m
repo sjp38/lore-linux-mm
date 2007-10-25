@@ -1,59 +1,32 @@
-Date: Thu, 25 Oct 2007 09:35:31 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [RFC][PATCH 0/2] Export memblock migrate type to /sysfs
-Message-Id: <20071025093531.d2357422.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <1193243860.30836.22.camel@dyn9047017100.beaverton.ibm.com>
-References: <1193243860.30836.22.camel@dyn9047017100.beaverton.ibm.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Date: Wed, 24 Oct 2007 19:23:36 -0700 (PDT)
+From: Christoph Lameter <clameter@sgi.com>
+Subject: Re: [patch 13/14] dentries: Extract common code to remove dentry
+ from lru
+In-Reply-To: <20071022142939.1b815680.akpm@linux-foundation.org>
+Message-ID: <Pine.LNX.4.64.0710241921570.29434@schroedinger.engr.sgi.com>
+References: <20070925232543.036615409@sgi.com> <20070925233008.523093726@sgi.com>
+ <20071022142939.1b815680.akpm@linux-foundation.org>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Badari Pulavarty <pbadari@us.ibm.com>
-Cc: melgor@ie.ibm.com, haveblue@us.ibm.com, linux-mm <linux-mm@kvack.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 24 Oct 2007 09:37:40 -0700
-Badari Pulavarty <pbadari@us.ibm.com> wrote:
+On Mon, 22 Oct 2007, Andrew Morton wrote:
 
-> Hi,
+> Doesn't seem like a terribly good change to me - it's one of those
+> cant-measure-a-difference changes which add up to a slower kernel after
+> we've merged three years worth of them.
 > 
-> Now that grouping of pages by mobility is in mainline, I would like 
-> to make use of it for selection memory blocks for hotplug memory remove.
-> Following set of patches exports memblock's migrate type to /sysfs. 
-> This would be useful for user-level agent for selecting memory blocks
-> to try to remove.
-> 
-> 	[PATCH 1/2] Fix migratetype_names[] and make it available
-> 	[PATCH 2/2] Add mem_type in /syfs to show memblock migrate type
-> 
-At first, I welcome this patch. Thanks :)
-> Todo:
-> 
-> 	Currently, we decide the memblock's migrate type looking at
-> first page of memblock. But on some architectures (x86_64), each
-> memblock can contain multiple groupings of pages by mobility. Is it
-> important to address ?
+> Perhaps not all of those list_del_init() callers actually need to be using
+> the _init version?
 
-Hmm, that is a problem annoying me. There is 2 points.
-
-1. In such arch, we'll have to use ZONE_MOVABLE for hot-removable.
-2. But from view of showing information to users, more precice is better
-   of course.
-
-How about showing information as following ?
-==
-%cat ./memory/memory0/mem_type
- 1 0 0 0 0
-%
-as 
- Reserved Unmovable Movable Reserve Isolate
-
-==
-This is not difficult and can show all information.
-
-Thanks,
--Kame
+Sometimes we check the list head using list_empty() so we cannot avoid 
+list_del_init. Always using list_del_init results in a consistent state of 
+affairs before the object is freed (which the slab defrag patchset depends 
+on)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
