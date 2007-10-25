@@ -1,79 +1,75 @@
-Date: Wed, 24 Oct 2007 20:03:11 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [patch 13/14] dentries: Extract common code to remove dentry
- from lru
-Message-Id: <20071024200311.6bb6bbd8.akpm@linux-foundation.org>
-In-Reply-To: <Pine.LNX.4.64.0710241944340.30425@schroedinger.engr.sgi.com>
-References: <20070925232543.036615409@sgi.com>
-	<20070925233008.523093726@sgi.com>
-	<20071022142939.1b815680.akpm@linux-foundation.org>
-	<Pine.LNX.4.64.0710241921570.29434@schroedinger.engr.sgi.com>
-	<20071024193458.ca4300be.akpm@linux-foundation.org>
-	<Pine.LNX.4.64.0710241944340.30425@schroedinger.engr.sgi.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Received: from d03relay04.boulder.ibm.com (d03relay04.boulder.ibm.com [9.17.195.106])
+	by e35.co.us.ibm.com (8.13.8/8.13.8) with ESMTP id l9P4p9pv017892
+	for <linux-mm@kvack.org>; Thu, 25 Oct 2007 00:51:09 -0400
+Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
+	by d03relay04.boulder.ibm.com (8.13.8/8.13.8/NCO v8.5) with ESMTP id l9P4p9Yu083996
+	for <linux-mm@kvack.org>; Wed, 24 Oct 2007 22:51:09 -0600
+Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av02.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l9P4p89D012327
+	for <linux-mm@kvack.org>; Wed, 24 Oct 2007 22:51:08 -0600
+Message-ID: <472020C8.4090007@us.ibm.com>
+Date: Wed, 24 Oct 2007 21:51:20 -0700
+From: Badari <pbadari@us.ibm.com>
+MIME-Version: 1.0
+Subject: Re: [RFC][PATCH 0/2] Export memblock migrate type to /sysfs
+References: <1193243860.30836.22.camel@dyn9047017100.beaverton.ibm.com> <20071025093531.d2357422.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20071025093531.d2357422.kamezawa.hiroyu@jp.fujitsu.com>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
-Cc: linux-mm@kvack.org, David Howells <dhowells@redhat.com>, Oleg Nesterov x <oleg@tv-sign.ru>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: melgor@ie.ibm.com, haveblue@us.ibm.com, linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 24 Oct 2007 19:50:19 -0700 (PDT) Christoph Lameter <clameter@sgi.com> wrote:
+KAMEZAWA Hiroyuki wrote:
+> On Wed, 24 Oct 2007 09:37:40 -0700
+> Badari Pulavarty <pbadari@us.ibm.com> wrote:
+>
+>   
+>> Hi,
+>>
+>> Now that grouping of pages by mobility is in mainline, I would like 
+>> to make use of it for selection memory blocks for hotplug memory remove.
+>> Following set of patches exports memblock's migrate type to /sysfs. 
+>> This would be useful for user-level agent for selecting memory blocks
+>> to try to remove.
+>>
+>> 	[PATCH 1/2] Fix migratetype_names[] and make it available
+>> 	[PATCH 2/2] Add mem_type in /syfs to show memblock migrate type
+>>
+>>     
+> At first, I welcome this patch. Thanks :)
+>   
+>> Todo:
+>>
+>> 	Currently, we decide the memblock's migrate type looking at
+>> first page of memblock. But on some architectures (x86_64), each
+>> memblock can contain multiple groupings of pages by mobility. Is it
+>> important to address ?
+>>     
+>
+> Hmm, that is a problem annoying me. There is 2 points.
+>
+> 1. In such arch, we'll have to use ZONE_MOVABLE for hot-removable.
+> 2. But from view of showing information to users, more precice is better
+>    of course.
+>
+> How about showing information as following ?
+> ==
+> %cat ./memory/memory0/mem_type
+>  1 0 0 0 0
+> %
+> as 
+>  Reserved Unmovable Movable Reserve Isolate
+>
+>   
+Personally, I have no problem. But its against the rules of /sysfs - 
+"one value per file" rule :(
+I would say, lets keep it simple for now and extend it if needed.
 
-> On Wed, 24 Oct 2007, Andrew Morton wrote:
-> 
-> > > Sometimes we check the list head using list_empty() so we cannot avoid 
-> > > list_del_init. Always using list_del_init results in a consistent state of 
-> > > affairs before the object is freed (which the slab defrag patchset depends 
-> > > on)
-> > 
-> > OK, but it's slower.
-> > 
-> > So I think it should be changlogged as such, with an explanation that there
-> > will (hopefully) be a net benefit because it enables slab defrag, and it
-> > should be moved into the slab-defrag patchset.
-> 
-> really?
-> 
-> list_del_init does:
-> 
-> static inline void list_del_init(struct list_head *entry)
-> {
->         __list_del(entry->prev, entry->next);
->         INIT_LIST_HEAD(entry);
-> }
-> 
-> So it touches the cachelines of the entry and prev/next to fix up the 
-> links.
-> 
-> list_del does:
-> 
-> #ifndef CONFIG_DEBUG_LIST
-> static inline void list_del(struct list_head *entry)
-> {
->         __list_del(entry->prev, entry->next);
->         entry->next = LIST_POISON1;
->         entry->prev = LIST_POISON2;
-> }
-> #else
-> extern void list_del(struct list_head *entry);
-> #endif
-> 
-> In the !DEBUG case it touches the same cachelines. The only change is that 
-> we poison entry. 
-
-bugger, I'd forgotten that we do the poisoning even if !CONFIG_DEBUG_LIST.
-
-We really shouldn't do that, especially now that we have the list debugging
-config option.
-
-Fixing this might break net/rxrpc/af_rxrpc.c and detach_timer(), but they
-deserve to be broken.
-
-> So its not slower.
-
-It should be.
+Thanks,
+Badari
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
