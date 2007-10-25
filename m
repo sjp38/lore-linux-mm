@@ -1,64 +1,32 @@
-Received: from d03relay02.boulder.ibm.com (d03relay02.boulder.ibm.com [9.17.195.227])
-	by e31.co.us.ibm.com (8.13.8/8.13.8) with ESMTP id l9PFqZTb003472
-	for <linux-mm@kvack.org>; Thu, 25 Oct 2007 11:52:35 -0400
-Received: from d03av01.boulder.ibm.com (d03av01.boulder.ibm.com [9.17.195.167])
-	by d03relay02.boulder.ibm.com (8.13.8/8.13.8/NCO v8.5) with ESMTP id l9PFqVDU109058
-	for <linux-mm@kvack.org>; Thu, 25 Oct 2007 09:52:33 -0600
-Received: from d03av01.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av01.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l9PFqUQ8028976
-	for <linux-mm@kvack.org>; Thu, 25 Oct 2007 09:52:31 -0600
-Subject: [PATCH 1/2] Fix migratetype_names[] and make it available
-From: Badari Pulavarty <pbadari@us.ibm.com>
-Content-Type: text/plain
-Date: Thu, 25 Oct 2007 08:55:59 -0700
-Message-Id: <1193327759.9894.6.camel@dyn9047017100.beaverton.ibm.com>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Date: Thu, 25 Oct 2007 12:01:22 -0400
+Message-Id: <200710251601.l9PG1Mue019939@agora.fsl.cs.sunysb.edu>
+From: Erez Zadok <ezk@cs.sunysb.edu>
+Subject: Re: [PATCH+comment] fix tmpfs BUG and AOP_WRITEPAGE_ACTIVATE 
+In-reply-to: Your message of "Thu, 25 Oct 2007 07:30:08 BST."
+             <Pine.LNX.4.64.0710250705510.9811@blonde.wat.veritas.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, melgor@ie.ibm.com, haveblue@us.ibm.com
-Cc: linux-mm <linux-mm@kvack.org>
+To: Hugh Dickins <hugh@veritas.com>
+Cc: Pekka Enberg <penberg@cs.helsinki.fi>, Andrew Morton <akpm@linux-foundation.org>, ezk@cs.sunysb.edu, ryan@finnie.org, mhalcrow@us.ibm.com, cjwatson@ubuntu.com, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, stable@kernel.org
 List-ID: <linux-mm.kvack.org>
 
-Add "Isolate" to migratetype_names for completeness and make it
-available for use outside vmstat.c
+In message <Pine.LNX.4.64.0710250705510.9811@blonde.wat.veritas.com>, Hugh Dickins writes:
+> On Thu, 25 Oct 2007, Pekka Enberg wrote:
 
-Signed-off-by: Badari Pulavarty <pbadari@us.ibm.com> 
-Acked-by: Mel Gorman <mel@csn.ul.ie>
----
- include/linux/pageblock-flags.h |    1 +
- mm/vmstat.c                     |    3 ++-
- 2 files changed, 3 insertions(+), 1 deletion(-)
+> With unionfs also fixed, we don't know of an absolute need for this
+> patch (and so, on that basis, the !wbc->for_reclaim case could indeed
+> be removed very soon); but as I see it, the unionfs case has shown
+> that it's time to future-proof this code against whatever stacking
+> filesystems come along.  Hence I didn't mention the names of such
+> filesystems in the source comment.
 
-Index: linux-2.6.23/include/linux/pageblock-flags.h
-===================================================================
---- linux-2.6.23.orig/include/linux/pageblock-flags.h	2007-10-23 13:04:46.000000000 -0700
-+++ linux-2.6.23/include/linux/pageblock-flags.h	2007-10-23 13:06:08.000000000 -0700
-@@ -72,4 +72,5 @@ void set_pageblock_flags_group(struct pa
- #define set_pageblock_flags(page) \
- 			set_pageblock_flags_group(page, 0, NR_PAGEBLOCK_BITS-1)
- 
-+extern char *migratetype_names[];
- #endif	/* PAGEBLOCK_FLAGS_H */
-Index: linux-2.6.23/mm/vmstat.c
-===================================================================
---- linux-2.6.23.orig/mm/vmstat.c	2007-10-23 13:05:03.000000000 -0700
-+++ linux-2.6.23/mm/vmstat.c	2007-10-23 13:06:36.000000000 -0700
-@@ -382,11 +382,12 @@ void zone_statistics(struct zonelist *zo
- 
- #include <linux/seq_file.h>
- 
--static char * const migratetype_names[MIGRATE_TYPES] = {
-+char * const migratetype_names[MIGRATE_TYPES] = {
- 	"Unmovable",
- 	"Reclaimable",
- 	"Movable",
- 	"Reserve",
-+	"Isolate",
- };
- 
- static void *frag_start(struct seq_file *m, loff_t *pos)
+I think "future proof" for other stackable f/s is a good idea, esp. since
+many of the stackable f/s we've developed and distributed over the past 10
+years are in some use in various places: gzipfs, avfs, tracefs, replayfs,
+ncryptfs, versionfs, wrapfs, i3fs, and more (see www.filesystems.org).
 
+Cheers,
+Erez.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
