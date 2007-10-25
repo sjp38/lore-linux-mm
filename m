@@ -1,11 +1,11 @@
-Date: Thu, 25 Oct 2007 11:14:20 +0100
-Subject: Re: [PATCH 1/2] Fix migratetype_names[] and make it available
-Message-ID: <20071025101419.GB30732@skynet.ie>
-References: <1193243864.30836.24.camel@dyn9047017100.beaverton.ibm.com>
+Date: Thu, 25 Oct 2007 11:17:32 +0100
+Subject: Re: [PATCH 2/2] Add mem_type in /syfs to show memblock migrate type
+Message-ID: <20071025101731.GC30732@skynet.ie>
+References: <1193243866.30836.25.camel@dyn9047017100.beaverton.ibm.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <1193243864.30836.24.camel@dyn9047017100.beaverton.ibm.com>
+In-Reply-To: <1193243866.30836.25.camel@dyn9047017100.beaverton.ibm.com>
 From: mel@skynet.ie (Mel Gorman)
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
@@ -14,46 +14,86 @@ Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, melgor@ie.ibm.com, haveb
 List-ID: <linux-mm.kvack.org>
 
 On (24/10/07 09:37), Badari Pulavarty didst pronounce:
-> Signed-off-by: Badari Pulavarty <pbadari@us.ibm.com>
+> Each memory block of the memory has attributes exported to /sysfs. 
+> This patch adds file "mem_type" to show that memory block's migrate type. 
+> This is useful to identify memory blocks for hotplug memory remove.
+> 
+> Signed-off-by: Badari Pulavarty <pbadari@us.ibm.com> 
 > ---
->  include/linux/pageblock-flags.h |    1 +
->  mm/vmstat.c                     |    3 ++-
->  2 files changed, 3 insertions(+), 1 deletion(-)
+>  drivers/base/memory.c |   24 ++++++++++++++++++++++++
+>  1 file changed, 24 insertions(+)
 > 
-> Index: linux-2.6.23/include/linux/pageblock-flags.h
+> Index: linux-2.6.23/drivers/base/memory.c
 > ===================================================================
-> --- linux-2.6.23.orig/include/linux/pageblock-flags.h	2007-10-23 13:04:46.000000000 -0700
-> +++ linux-2.6.23/include/linux/pageblock-flags.h	2007-10-23 13:10:16.000000000 -0700
-> @@ -72,4 +72,5 @@ void set_pageblock_flags_group(struct pa
->  #define set_pageblock_flags(page) \
->  			set_pageblock_flags_group(page, 0, NR_PAGEBLOCK_BITS-1)
+> --- linux-2.6.23.orig/drivers/base/memory.c	2007-10-24 09:09:05.000000000 -0700
+> +++ linux-2.6.23/drivers/base/memory.c	2007-10-24 09:10:05.000000000 -0700
+> @@ -105,6 +105,26 @@ static ssize_t show_mem_phys_index(struc
+>  }
 >  
-> +extern char * const migratetype_names[];
->  #endif	/* PAGEBLOCK_FLAGS_H */
-> Index: linux-2.6.23/mm/vmstat.c
-> ===================================================================
-> --- linux-2.6.23.orig/mm/vmstat.c	2007-10-23 13:05:03.000000000 -0700
-> +++ linux-2.6.23/mm/vmstat.c	2007-10-23 13:06:36.000000000 -0700
-> @@ -382,11 +382,12 @@ void zone_statistics(struct zonelist *zo
->  
->  #include <linux/seq_file.h>
->  
-> -static char * const migratetype_names[MIGRATE_TYPES] = {
-> +char * const migratetype_names[MIGRATE_TYPES] = {
->  	"Unmovable",
->  	"Reclaimable",
->  	"Movable",
->  	"Reserve",
-> +	"Isolate",
->  };
+>  /*
+> + * show memory migrate type
+> + */
+> +static ssize_t show_mem_type(struct sys_device *dev, char *buf)
+> +{
+> +	struct page *first_page;
+> +	int type;
+> +	struct memory_block *mem =
+> +		container_of(dev, struct memory_block, sysdev);
+> +
+> +	/*
+> +	 * Get the type of the firstpage in the memory block.
+> +	 * For now, assume that entire memory block is of same
+> +	 * type.
+> +	 */
+> +	first_page = pfn_to_page(section_nr_to_pfn(mem->phys_index));
+> +	type =  get_pageblock_migratetype(first_page);
 
-This also fixes up the output of /proc/pagetypeinfo which currently
-prints out "null" for the Isolate string.
+Silly pick-issue but there is a "  " there.
 
+> +	return sprintf(buf, "%s\n", migratetype_names[type]);
+> +}
+
+Ok, it is safe to assume get_pageblock_migratetype() will never return a
+stupid value outside the bounds of that array.
+
+> +
+> +/*
+>   * online, offline, going offline, etc.
+>   */
+>  static ssize_t show_mem_state(struct sys_device *dev, char *buf)
+> @@ -270,6 +290,7 @@ static ssize_t show_phys_device(struct s
+>  static SYSDEV_ATTR(phys_index, 0444, show_mem_phys_index, NULL);
+>  static SYSDEV_ATTR(state, 0644, show_mem_state, store_mem_state);
+>  static SYSDEV_ATTR(phys_device, 0444, show_phys_device, NULL);
+> +static SYSDEV_ATTR(mem_type, 0444, show_mem_type, NULL);
 >  
->  static void *frag_start(struct seq_file *m, loff_t *pos)
+
+Sensible permissions.
+
+>  #define mem_create_simple_file(mem, attr_name)	\
+>  	sysdev_create_file(&mem->sysdev, &attr_##attr_name)
+> @@ -358,6 +379,8 @@ static int add_memory_block(unsigned lon
+>  		ret = mem_create_simple_file(mem, state);
+>  	if (!ret)
+>  		ret = mem_create_simple_file(mem, phys_device);
+> +	if (!ret)
+> +		ret = mem_create_simple_file(mem, mem_type);
+>  
+>  	return ret;
+>  }
+> @@ -402,6 +425,7 @@ int remove_memory_block(unsigned long no
+>  	mem_remove_simple_file(mem, phys_index);
+>  	mem_remove_simple_file(mem, state);
+>  	mem_remove_simple_file(mem, phys_device);
+> +	mem_remove_simple_file(mem, mem_type);
+>  	unregister_memory(mem, section, NULL);
+>  
+>  	return 0;
 > 
-> 
+
+Other than the possibility of sections having more than one block on x86_64,
+this all looks fine. On x86_64 the multiple blocks might be annoying but I
+also feel the mem_type information is not much use to that arch so;
 
 Acked-by: Mel Gorman <mel@csn.ul.ie>
 
