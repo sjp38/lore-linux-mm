@@ -1,60 +1,66 @@
-Received: from d01relay02.pok.ibm.com (d01relay02.pok.ibm.com [9.56.227.234])
-	by e1.ny.us.ibm.com (8.13.8/8.13.8) with ESMTP id l9PGkGVb028737
-	for <linux-mm@kvack.org>; Thu, 25 Oct 2007 12:46:16 -0400
-Received: from d01av01.pok.ibm.com (d01av01.pok.ibm.com [9.56.224.215])
-	by d01relay02.pok.ibm.com (8.13.8/8.13.8/NCO v8.5) with ESMTP id l9PGkGTE085824
-	for <linux-mm@kvack.org>; Thu, 25 Oct 2007 12:46:16 -0400
-Received: from d01av01.pok.ibm.com (loopback [127.0.0.1])
-	by d01av01.pok.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l9PGkFke025778
-	for <linux-mm@kvack.org>; Thu, 25 Oct 2007 12:46:16 -0400
-Subject: Re: RFC/POC Make Page Tables Relocatable
+Received: from d01relay04.pok.ibm.com (d01relay04.pok.ibm.com [9.56.227.236])
+	by e5.ny.us.ibm.com (8.13.8/8.13.8) with ESMTP id l9PGqjBH008195
+	for <linux-mm@kvack.org>; Thu, 25 Oct 2007 12:52:45 -0400
+Received: from d01av04.pok.ibm.com (d01av04.pok.ibm.com [9.56.224.64])
+	by d01relay04.pok.ibm.com (8.13.8/8.13.8/NCO v8.5) with ESMTP id l9PGqjeL136532
+	for <linux-mm@kvack.org>; Thu, 25 Oct 2007 12:52:45 -0400
+Received: from d01av04.pok.ibm.com (loopback [127.0.0.1])
+	by d01av04.pok.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l9PGqi2X020274
+	for <linux-mm@kvack.org>; Thu, 25 Oct 2007 12:52:44 -0400
+Subject: Re: [PATCH 2/2] Add mem_type in /syfs to show memblock migrate type
 From: Dave Hansen <haveblue@us.ibm.com>
-In-Reply-To: <d43160c70710250816l44044f31y6dd20766d1f2840b@mail.gmail.com>
-References: <d43160c70710250816l44044f31y6dd20766d1f2840b@mail.gmail.com>
+In-Reply-To: <1193327756.9894.5.camel@dyn9047017100.beaverton.ibm.com>
+References: <1193327756.9894.5.camel@dyn9047017100.beaverton.ibm.com>
 Content-Type: text/plain
-Date: Thu, 25 Oct 2007 09:46:14 -0700
-Message-Id: <1193330774.4039.136.camel@localhost>
+Date: Thu, 25 Oct 2007 09:52:42 -0700
+Message-Id: <1193331162.4039.141.camel@localhost>
 Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Ross Biro <rossb@google.com>
-Cc: linux-mm@kvack.org
+To: Badari Pulavarty <pbadari@us.ibm.com>
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, melgor@ie.ibm.com, linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 2007-10-25 at 11:16 -0400, Ross Biro wrote:
-> 1) Add a separate meta-data allocation to the slab and slub allocator
-> and allocate full pages through kmem_cache_alloc instead of get_page.
-> The primary motivation of this is that we could shrink struct page by
-> using kmem_cache_alloc to allocate whole pages and put the supported
-> data in the meta_data area instead of struct page. 
+On Thu, 2007-10-25 at 08:55 -0700, Badari Pulavarty wrote:
+> 
+> +static ssize_t show_mem_type(struct sys_device *dev, char *buf)
+> +{
+> +       struct page *page;
+> +       int type;
+> +       int i = pageblock_nr_pages;
+> +       struct memory_block *mem =
+> +               container_of(dev, struct memory_block, sysdev);
+> +
+> +       /*
+> +        * Get the type of first page in the block
+> +        */
+> +       page = pfn_to_page(section_nr_to_pfn(mem->phys_index));
+> +       type = get_pageblock_migratetype(page);
+> +
+> +       /*
+> +        * Check the migrate type of other pages in this section.
+> +        * If the type doesn't match, report it.
+> +        */
+> +       while (i < PAGES_PER_SECTION) {
+> +               if (type != get_pageblock_migratetype(page + i))
+> +                       return sprintf(buf, "Multiple\n");
+> +               i += pageblock_nr_pages;
+> +       } 
 
-The idea seems cool, but I think I'm missing a lot of your motivation
-here.
+I might change this to be a bit more generic.  The odds are that the
+existence of a "pageblock" or the types of "pageblocks" will either
+change or go away over time.
 
-First of all, which meta-data, exactly, is causing 'struct page' to be
-larger than it could be?  Which meta-data can be moved?
+But, a simple boolean "yes you have a good shot of removing this memory"
+or "you have a snowball's chance in hell" on removability is likely
+generic enough to stand the test of time.
 
-> 2) Add support for relocating memory allocated via kmem_cache_alloc.
-> When a cache is created, optional relocation information can be
-> provided.  If a relocation function is provided, caches can be
-> defragmented and overall memory consumption can be reduced.
+That is, after all, what you're after here, right?
 
-We may truly need this some day, but I'm not sure we need it for
-pagetables.  If I were a stupid, naive kernel developer and I wanted to
-get a pte page back, I might simply hold the page table lock, walk the
-pagetables to the pmd, lock and invalidate the pmd, copy the pagetable
-contents into a new page, update the pmd, and be on my merry way.  Why
-doesn't this work?  I'm just fishing for a good explanation why we need
-all the slab silliness.
-
-I applaud you for posting early and posting often, but there is an
-absolute ton of code in your patch.  For your subsequent postings, I'd
-highly recommend trying to break it up in some logical ways.  Your 4
-steps would be an excellent start.
-
-You might also want to run checkpatch.pl on your patch.  It has some
-style issues that also need to get worked out.
+So, I'd rewrite that loop to look for the removable pageblock types and
+see if the entire section is make up of removable pageblocks, or if it
+has some party crashing non-removable pageblocks in ther.
 
 -- Dave
 
