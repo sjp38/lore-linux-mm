@@ -1,51 +1,66 @@
-Received: from d01relay02.pok.ibm.com (d01relay02.pok.ibm.com [9.56.227.234])
-	by e1.ny.us.ibm.com (8.13.8/8.13.8) with ESMTP id l9PICIjq008188
-	for <linux-mm@kvack.org>; Thu, 25 Oct 2007 14:12:18 -0400
-Received: from d01av03.pok.ibm.com (d01av03.pok.ibm.com [9.56.224.217])
-	by d01relay02.pok.ibm.com (8.13.8/8.13.8/NCO v8.5) with ESMTP id l9PICItH136636
-	for <linux-mm@kvack.org>; Thu, 25 Oct 2007 14:12:18 -0400
-Received: from d01av03.pok.ibm.com (loopback [127.0.0.1])
-	by d01av03.pok.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l9PICHlH005459
-	for <linux-mm@kvack.org>; Thu, 25 Oct 2007 14:12:18 -0400
-Subject: Re: [PATCH 2/2] Add mem_type in /syfs to show memblock migrate type
-From: Dave Hansen <haveblue@us.ibm.com>
-In-Reply-To: <20071025180514.GB20345@skynet.ie>
-References: <1193327756.9894.5.camel@dyn9047017100.beaverton.ibm.com>
-	 <1193331162.4039.141.camel@localhost>
-	 <1193332042.9894.10.camel@dyn9047017100.beaverton.ibm.com>
-	 <1193332528.4039.156.camel@localhost>
-	 <1193333766.9894.16.camel@dyn9047017100.beaverton.ibm.com>
-	 <20071025180514.GB20345@skynet.ie>
-Content-Type: text/plain
-Date: Thu, 25 Oct 2007 11:12:15 -0700
-Message-Id: <1193335935.24087.22.camel@localhost>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Received: from d12nrmr1607.megacenter.de.ibm.com (d12nrmr1607.megacenter.de.ibm.com [9.149.167.49])
+	by mtagate6.de.ibm.com (8.13.8/8.13.8) with ESMTP id l9PIJ2NA357364
+	for <linux-mm@kvack.org>; Thu, 25 Oct 2007 18:19:02 GMT
+Received: from d12av02.megacenter.de.ibm.com (d12av02.megacenter.de.ibm.com [9.149.165.228])
+	by d12nrmr1607.megacenter.de.ibm.com (8.13.8/8.13.8/NCO v8.5) with ESMTP id l9PIJ2iQ2101438
+	for <linux-mm@kvack.org>; Thu, 25 Oct 2007 20:19:02 +0200
+Received: from d12av02.megacenter.de.ibm.com (loopback [127.0.0.1])
+	by d12av02.megacenter.de.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l9PIJ1BM016610
+	for <linux-mm@kvack.org>; Thu, 25 Oct 2007 20:19:02 +0200
+Message-Id: <20071025181901.591007141@de.ibm.com>
+References: <20071025181520.880272069@de.ibm.com>
+Date: Thu, 25 Oct 2007 20:15:23 +0200
+From: Martin Schwidefsky <schwidefsky@de.ibm.com>
+Subject: [patch 3/6] arch_update_pgd call
+Content-Disposition: inline; filename=003-mm-update-pgd.diff
 Sender: owner-linux-mm@kvack.org
+From: Martin Schwidefsky <schwidefsky@de.ibm.com>
 Return-Path: <owner-linux-mm@kvack.org>
-To: Mel Gorman <mel@skynet.ie>
-Cc: Badari Pulavarty <pbadari@us.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, melgor@ie.ibm.com, linux-mm <linux-mm@kvack.org>
+To: linux-mm@kvack.org, linux-arch@vger.kernel.org, linux-s390@vger.kernel.org
+Cc: borntraeger@de.ibm.com, benh@kernel.crashing.org, Martin Schwidefsky <schwidefsky@de.ibm.com>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 2007-10-25 at 19:05 +0100, Mel Gorman wrote:
-> I think Dave has a point so I would be happy with a boolean. We don't really
-> care what the type is, we care about if it can be removed or not.
-> 
-> It also occurs to me from the "can we remove it perspective" that you may
-> also want to check if the pageblock is entirely free or not. You can encounter
-> a pageblock that is "Unmovable" but entirely free so it could be removed. 
+In order to change the layout of the page tables after an mmap has
+crossed the adress space limit of the current page table layout a
+architecture hook in get_unmapped_area is needed. The arguments
+are the address of the new mapping and the length of it.
 
-The other option is to make it somewhat of a "removability score".  If
-it has non-relocatable pages, then it gets a crappy score.  If it is
-relocatable, give it more points.  If it has more free pages, give it
-even more.  If the pages contain images of puppies, take points away.
+Signed-off-by: Martin Schwidefsky <schwidefsky@de.ibm.com>
+---
 
-That way, if something in userspace says, "we need to give memory back",
-it can go find the _best_ section from which to give it.
+ mm/mmap.c |    6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)
 
-But, maybe I'm just over-enginnering now. ;)
+Index: quilt-2.6/mm/mmap.c
+===================================================================
+--- quilt-2.6.orig/mm/mmap.c
++++ quilt-2.6/mm/mmap.c
+@@ -36,6 +36,10 @@
+ #define arch_mmap_check(addr, len, flags)	(0)
+ #endif
+ 
++#ifndef arch_update_pgd
++#define arch_update_pgd(addr, len)		(addr)
++#endif
++
+ static void unmap_region(struct mm_struct *mm,
+ 		struct vm_area_struct *vma, struct vm_area_struct *prev,
+ 		unsigned long start, unsigned long end);
+@@ -1420,7 +1424,7 @@ get_unmapped_area(struct file *file, uns
+ 	if (addr & ~PAGE_MASK)
+ 		return -EINVAL;
+ 
+-	return addr;
++	return arch_update_pgd(addr, len);
+ }
+ 
+ EXPORT_SYMBOL(get_unmapped_area);
 
--- Dave
+-- 
+blue skies,
+   Martin.
+
+"Reality continues to ruin my life." - Calvin.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
