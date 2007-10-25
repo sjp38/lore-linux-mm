@@ -1,118 +1,49 @@
-Received: from zps38.corp.google.com (zps38.corp.google.com [172.25.146.38])
-	by smtp-out.google.com with ESMTP id l9P5KUYl011679
-	for <linux-mm@kvack.org>; Wed, 24 Oct 2007 22:20:30 -0700
-Received: from rv-out-0910.google.com (rvbl15.prod.google.com [10.140.88.15])
-	by zps38.corp.google.com with ESMTP id l9P5KIcm013289
-	for <linux-mm@kvack.org>; Wed, 24 Oct 2007 22:20:30 -0700
-Received: by rv-out-0910.google.com with SMTP id l15so339907rvb
-        for <linux-mm@kvack.org>; Wed, 24 Oct 2007 22:20:30 -0700 (PDT)
-Message-ID: <b040c32a0710242220w615be4f0kd34f86a9d9b048c5@mail.gmail.com>
-Date: Wed, 24 Oct 2007 22:20:30 -0700
-From: "Ken Chen" <kenchen@google.com>
-Subject: Re: [PATCH 1/3] [FIX] hugetlb: Fix broken fs quota management
-In-Reply-To: <1193263944.4039.87.camel@localhost>
+Received: by rv-out-0910.google.com with SMTP id l15so310344rvb
+        for <linux-mm@kvack.org>; Wed, 24 Oct 2007 22:37:26 -0700 (PDT)
+Message-ID: <84144f020710242237q3aa8e96dtc8cf3f02f2af2cc9@mail.gmail.com>
+Date: Thu, 25 Oct 2007 08:37:26 +0300
+From: "Pekka Enberg" <penberg@cs.helsinki.fi>
+Subject: Re: [PATCH+comment] fix tmpfs BUG and AOP_WRITEPAGE_ACTIVATE
+In-Reply-To: <Pine.LNX.4.64.0710242233470.17796@blonde.wat.veritas.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Content-Disposition: inline
-References: <20071024132335.13013.76227.stgit@kernel>
-	 <20071024132345.13013.36192.stgit@kernel>
-	 <1193251414.4039.14.camel@localhost>
-	 <1193252583.18417.52.camel@localhost.localdomain>
-	 <b040c32a0710241221m9151f6xd0fe09e00608a597@mail.gmail.com>
-	 <1193256124.18417.70.camel@localhost.localdomain>
-	 <1193263944.4039.87.camel@localhost>
+References: <Pine.LNX.4.64.0710142049000.13119@sbz-30.cs.Helsinki.FI>
+	 <200710142232.l9EMW8kK029572@agora.fsl.cs.sunysb.edu>
+	 <84144f020710150447o94b1babo8b6e6a647828465f@mail.gmail.com>
+	 <Pine.LNX.4.64.0710222101420.23513@blonde.wat.veritas.com>
+	 <Pine.LNX.4.64.0710242152020.13001@blonde.wat.veritas.com>
+	 <20071024140836.a0098180.akpm@linux-foundation.org>
+	 <Pine.LNX.4.64.0710242233470.17796@blonde.wat.veritas.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Dave Hansen <haveblue@us.ibm.com>
-Cc: Adam Litke <agl@us.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Andy Whitcroft <apw@shadowen.org>
+To: Hugh Dickins <hugh@veritas.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, ezk@cs.sunysb.edu, ryan@finnie.org, mhalcrow@us.ibm.com, cjwatson@ubuntu.com, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, stable@kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On 10/24/07, Dave Hansen <haveblue@us.ibm.com> wrote:
-> But, I think what I'm realizing is that the free paths for shared vs.
-> private are actually quite distinct.  Even more now after your patches
-> abolish using and actual put_page() (and the destructors) on private
-> pages losing their last mapping.
+Hi Hugh,
+
+On 10/25/07, Hugh Dickins <hugh@veritas.com> wrote:
+> --- 2.6.24-rc1/mm/shmem.c       2007-10-24 07:16:04.000000000 +0100
+> +++ linux/mm/shmem.c    2007-10-24 22:31:09.000000000 +0100
+> @@ -915,6 +915,21 @@ static int shmem_writepage(struct page *
+>         struct inode *inode;
 >
-> I think it may make a lot of sense to have
-> {alloc,free}_{private,shared}_huge_page().  It'll really help
-> readability, and I _think_ it gives you a handy dandy place to add the
-> different quota operations needed.
+>         BUG_ON(!PageLocked(page));
+> +       /*
+> +        * shmem_backing_dev_info's capabilities prevent regular writeback or
+> +        * sync from ever calling shmem_writepage; but a stacking filesystem
+> +        * may use the ->writepage of its underlying filesystem, in which case
 
-Here is my version of re-factoring hugetlb_put_quota() into
-free_huge_page.  Not exactly what Dave suggested, but at least
-consolidate quota credit in one place.
+I find the above bit somewhat misleading as it implies that the
+!wbc->for_reclaim case can be removed after ecryptfs has similar fix
+as unionfs. Can we just say that while BDI_CAP_NO_WRITEBACK does
+prevent some callers from entering ->writepage(), it's just an
+optimization and ->writepage() must deal with !wbc->for_reclaim case
+properly?
 
-
-diff --git a/fs/hugetlbfs/inode.c b/fs/hugetlbfs/inode.c
-index 12aca8e..6513f56 100644
---- a/fs/hugetlbfs/inode.c
-+++ b/fs/hugetlbfs/inode.c
-@@ -364,7 +364,6 @@ static void truncate_hugepages(
- 			++next;
- 			truncate_huge_page(page);
- 			unlock_page(page);
--			hugetlb_put_quota(mapping);
- 			freed++;
- 		}
- 		huge_pagevec_release(&pvec);
-diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-index 8b809ec..70c58cd 100644
---- a/mm/hugetlb.c
-+++ b/mm/hugetlb.c
-@@ -116,6 +116,9 @@
-  static void free_huge_page(struct page *page)
- {
-  	int nid = page_to_nid(page);
-+	struct address_space *mapping;
-+
-+	mapping = (struct address_space *) page_private(page);
-
- 	BUG_ON(page_count(page));
-  	INIT_LIST_HEAD(&page->lru);
-@@ -129,6 +132,9 @@ static void free_huge_page(struct page *page)
- 		enqueue_huge_page(page);
- 	}
- 	spin_unlock(&hugetlb_lock);
-+	if (mapping)
-+		hugetlb_put_quota(mapping);
-+	set_page_private(page, 0);
- }
-
- /*
-@@ -369,6 +375,7 @@ static struct page *alloc_huge_page(
-
- 	spin_unlock(&hugetlb_lock);
- 	set_page_refcounted(page);
-+	set_page_private(page, (unsigned long) vma->vm_file->f_mapping);
- 	return page;
-
- fail:
-@@ -382,6 +389,8 @@ fail:
- 	if (!use_reserved_page)
-  		page = alloc_buddy_huge_page(vma, addr);
-
-+	if (page)
-+		set_page_private(page, (unsigned long) vma->vm_file->f_mapping);
- 	return page;
- }
-
-@@ -788,7 +797,6 @@ retry:
-  			err = add_to_page_cache(page, mapping, idx, GFP_KERNEL);
- 			if (err) {
- 				put_page(page);
--				hugetlb_put_quota(mapping);
-  				if (err == -EEXIST)
-  					goto retry;
-  				goto out;
-@@ -822,7 +830,6 @@ out:
-
-  backout:
- 	spin_unlock(&mm->page_table_lock);
--	hugetlb_put_quota(mapping);
- 	unlock_page(page);
- 	put_page(page);
-  	goto out;
+                                          Pekka
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
