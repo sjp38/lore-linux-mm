@@ -1,17 +1,17 @@
-Received: from d03relay04.boulder.ibm.com (d03relay04.boulder.ibm.com [9.17.195.106])
-	by e34.co.us.ibm.com (8.13.8/8.13.8) with ESMTP id l9PFqZcb009335
+Received: from d03relay02.boulder.ibm.com (d03relay02.boulder.ibm.com [9.17.195.227])
+	by e31.co.us.ibm.com (8.13.8/8.13.8) with ESMTP id l9PFqZTb003472
 	for <linux-mm@kvack.org>; Thu, 25 Oct 2007 11:52:35 -0400
-Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
-	by d03relay04.boulder.ibm.com (8.13.8/8.13.8/NCO v8.5) with ESMTP id l9PFqV8E083470
+Received: from d03av01.boulder.ibm.com (d03av01.boulder.ibm.com [9.17.195.167])
+	by d03relay02.boulder.ibm.com (8.13.8/8.13.8/NCO v8.5) with ESMTP id l9PFqVDU109058
+	for <linux-mm@kvack.org>; Thu, 25 Oct 2007 09:52:33 -0600
+Received: from d03av01.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av01.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l9PFqUQ8028976
 	for <linux-mm@kvack.org>; Thu, 25 Oct 2007 09:52:31 -0600
-Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av02.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l9PFqUhk022038
-	for <linux-mm@kvack.org>; Thu, 25 Oct 2007 09:52:31 -0600
-Subject: [PATCH 2/2] Add mem_type in /syfs to show memblock migrate type
+Subject: [PATCH 1/2] Fix migratetype_names[] and make it available
 From: Badari Pulavarty <pbadari@us.ibm.com>
 Content-Type: text/plain
-Date: Thu, 25 Oct 2007 08:55:56 -0700
-Message-Id: <1193327756.9894.5.camel@dyn9047017100.beaverton.ibm.com>
+Date: Thu, 25 Oct 2007 08:55:59 -0700
+Message-Id: <1193327759.9894.6.camel@dyn9047017100.beaverton.ibm.com>
 Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
@@ -20,99 +20,44 @@ To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, melgor@ie.ibm.com, haveb
 Cc: linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-Kame & Mel,
-
-Here is the updated patch, which checks all the pages in the section
-to cover all archs. Are you okay with this ? 
-
-Thanks,
-Badari
-
-Here is the output:
-
-./memory0/mem_type: Multiple
-./memory1/mem_type: Multiple
-./memory2/mem_type: Movable
-./memory3/mem_type: Movable
-./memory4/mem_type: Movable
-./memory5/mem_type: Movable
-./memory6/mem_type: Movable
-./memory7/mem_type: Movable
-..
-
-Each section of the memory has attributes in /sysfs. This patch adds 
-file "mem_type" to show that memory section's migrate type. This is useful
-to identify section of the memory for hotplug memory remove.
+Add "Isolate" to migratetype_names for completeness and make it
+available for use outside vmstat.c
 
 Signed-off-by: Badari Pulavarty <pbadari@us.ibm.com> 
- drivers/base/memory.c |   33 +++++++++++++++++++++++++++++++++
- 1 file changed, 33 insertions(+)
+Acked-by: Mel Gorman <mel@csn.ul.ie>
+---
+ include/linux/pageblock-flags.h |    1 +
+ mm/vmstat.c                     |    3 ++-
+ 2 files changed, 3 insertions(+), 1 deletion(-)
 
-Index: linux-2.6.23/drivers/base/memory.c
+Index: linux-2.6.23/include/linux/pageblock-flags.h
 ===================================================================
---- linux-2.6.23.orig/drivers/base/memory.c	2007-10-23 15:19:14.000000000 -0700
-+++ linux-2.6.23/drivers/base/memory.c	2007-10-25 10:34:41.000000000 -0700
-@@ -105,6 +105,35 @@ static ssize_t show_mem_phys_index(struc
- }
+--- linux-2.6.23.orig/include/linux/pageblock-flags.h	2007-10-23 13:04:46.000000000 -0700
++++ linux-2.6.23/include/linux/pageblock-flags.h	2007-10-23 13:06:08.000000000 -0700
+@@ -72,4 +72,5 @@ void set_pageblock_flags_group(struct pa
+ #define set_pageblock_flags(page) \
+ 			set_pageblock_flags_group(page, 0, NR_PAGEBLOCK_BITS-1)
  
- /*
-+ * show memory migrate type
-+ */
-+static ssize_t show_mem_type(struct sys_device *dev, char *buf)
-+{
-+	struct page *page;
-+	int type;
-+	int i = pageblock_nr_pages;
-+	struct memory_block *mem =
-+		container_of(dev, struct memory_block, sysdev);
-+
-+	/*
-+	 * Get the type of first page in the block
-+	 */
-+	page = pfn_to_page(section_nr_to_pfn(mem->phys_index));
-+	type = get_pageblock_migratetype(page);
-+
-+	/*
-+	 * Check the migrate type of other pages in this section.
-+	 * If the type doesn't match, report it.
-+	 */
-+	while (i < PAGES_PER_SECTION) {
-+		if (type != get_pageblock_migratetype(page + i))
-+			return sprintf(buf, "Multiple\n");
-+		i += pageblock_nr_pages;
-+	}
-+	return sprintf(buf, "%s\n", migratetype_names[type]);
-+}
-+
-+/*
-  * online, offline, going offline, etc.
-  */
- static ssize_t show_mem_state(struct sys_device *dev, char *buf)
-@@ -263,6 +292,7 @@ static ssize_t show_phys_device(struct s
- static SYSDEV_ATTR(phys_index, 0444, show_mem_phys_index, NULL);
- static SYSDEV_ATTR(state, 0644, show_mem_state, store_mem_state);
- static SYSDEV_ATTR(phys_device, 0444, show_phys_device, NULL);
-+static SYSDEV_ATTR(mem_type, 0444, show_mem_type, NULL);
++extern char *migratetype_names[];
+ #endif	/* PAGEBLOCK_FLAGS_H */
+Index: linux-2.6.23/mm/vmstat.c
+===================================================================
+--- linux-2.6.23.orig/mm/vmstat.c	2007-10-23 13:05:03.000000000 -0700
++++ linux-2.6.23/mm/vmstat.c	2007-10-23 13:06:36.000000000 -0700
+@@ -382,11 +382,12 @@ void zone_statistics(struct zonelist *zo
  
- #define mem_create_simple_file(mem, attr_name)	\
- 	sysdev_create_file(&mem->sysdev, &attr_##attr_name)
-@@ -351,6 +381,8 @@ static int add_memory_block(unsigned lon
- 		ret = mem_create_simple_file(mem, state);
- 	if (!ret)
- 		ret = mem_create_simple_file(mem, phys_device);
-+	if (!ret)
-+		ret = mem_create_simple_file(mem, mem_type);
+ #include <linux/seq_file.h>
  
- 	return ret;
- }
-@@ -395,6 +427,7 @@ int remove_memory_block(unsigned long no
- 	mem_remove_simple_file(mem, phys_index);
- 	mem_remove_simple_file(mem, state);
- 	mem_remove_simple_file(mem, phys_device);
-+	mem_remove_simple_file(mem, mem_type);
- 	unregister_memory(mem, section, NULL);
+-static char * const migratetype_names[MIGRATE_TYPES] = {
++char * const migratetype_names[MIGRATE_TYPES] = {
+ 	"Unmovable",
+ 	"Reclaimable",
+ 	"Movable",
+ 	"Reserve",
++	"Isolate",
+ };
  
- 	return 0;
+ static void *frag_start(struct seq_file *m, loff_t *pos)
 
 
 --
