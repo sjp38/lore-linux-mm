@@ -1,109 +1,102 @@
-Date: Thu, 25 Oct 2007 11:17:32 +0100
-Subject: Re: [PATCH 2/2] Add mem_type in /syfs to show memblock migrate type
-Message-ID: <20071025101731.GC30732@skynet.ie>
-References: <1193243866.30836.25.camel@dyn9047017100.beaverton.ibm.com>
+Date: Thu, 25 Oct 2007 15:15:12 +0100
+Message-ID: <50770129.93653103@handmaiden.com>
+From: "Michael" <singleton@louiskoo.com>
+Subject: Bis zu 600 Euro Exotic Bonus!
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <1193243866.30836.25.camel@dyn9047017100.beaverton.ibm.com>
-From: mel@skynet.ie (Mel Gorman)
-Sender: owner-linux-mm@kvack.org
-Return-Path: <owner-linux-mm@kvack.org>
-To: Badari Pulavarty <pbadari@us.ibm.com>
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, melgor@ie.ibm.com, haveblue@us.ibm.com, linux-mm <linux-mm@kvack.org>
+Content-Type: text/html; charset=iso-8859-1
+Content-Transfer-Encoding: 7bit
+Return-Path: <singleton@louiskoo.com>
+To: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On (24/10/07 09:37), Badari Pulavarty didst pronounce:
-> Each memory block of the memory has attributes exported to /sysfs. 
-> This patch adds file "mem_type" to show that memory block's migrate type. 
-> This is useful to identify memory blocks for hotplug memory remove.
-> 
-> Signed-off-by: Badari Pulavarty <pbadari@us.ibm.com> 
-> ---
->  drivers/base/memory.c |   24 ++++++++++++++++++++++++
->  1 file changed, 24 insertions(+)
-> 
-> Index: linux-2.6.23/drivers/base/memory.c
-> ===================================================================
-> --- linux-2.6.23.orig/drivers/base/memory.c	2007-10-24 09:09:05.000000000 -0700
-> +++ linux-2.6.23/drivers/base/memory.c	2007-10-24 09:10:05.000000000 -0700
-> @@ -105,6 +105,26 @@ static ssize_t show_mem_phys_index(struc
->  }
->  
->  /*
-> + * show memory migrate type
-> + */
-> +static ssize_t show_mem_type(struct sys_device *dev, char *buf)
-> +{
-> +	struct page *first_page;
-> +	int type;
-> +	struct memory_block *mem =
-> +		container_of(dev, struct memory_block, sysdev);
-> +
-> +	/*
-> +	 * Get the type of the firstpage in the memory block.
-> +	 * For now, assume that entire memory block is of same
-> +	 * type.
-> +	 */
-> +	first_page = pfn_to_page(section_nr_to_pfn(mem->phys_index));
-> +	type =  get_pageblock_migratetype(first_page);
+<html>
 
-Silly pick-issue but there is a "  " there.
+<head>
+<meta http-equiv=Content-Type content="text/html; charset=iso-8859-1">
 
-> +	return sprintf(buf, "%s\n", migratetype_names[type]);
-> +}
+<title>Hi,</title>
 
-Ok, it is safe to assume get_pageblock_migratetype() will never return a
-stupid value outside the bounds of that array.
+<style>
+<!--
+ /* Style Definitions */
+ p.MsoNormal, li.MsoNormal, div.MsoNormal
+	{mso-style-parent:"";
+	margin:0cm;
+	margin-bottom:.0001pt;
+	mso-pagination:widow-orphan;
+	font-size:12.0pt;
+	font-family:"Times New Roman";
+	mso-fareast-font-family:"Times New Roman";}
+a:link, span.MsoHyperlink
+	{color:blue;
+	text-decoration:underline;
+	text-underline:single;}
+a:visited, span.MsoHyperlinkFollowed
+	{color:purple;
+	text-decoration:underline;
+	text-underline:single;}
+@page Section1
+	{size:595.3pt 841.9pt;
+	margin:2.0cm 42.5pt 2.0cm 3.0cm;
+	mso-header-margin:35.4pt;
+	mso-footer-margin:35.4pt;
+	mso-paper-source:0;}
+div.Section1
+	{page:Section1;}
+-->
+</style>
 
-> +
-> +/*
->   * online, offline, going offline, etc.
->   */
->  static ssize_t show_mem_state(struct sys_device *dev, char *buf)
-> @@ -270,6 +290,7 @@ static ssize_t show_phys_device(struct s
->  static SYSDEV_ATTR(phys_index, 0444, show_mem_phys_index, NULL);
->  static SYSDEV_ATTR(state, 0644, show_mem_state, store_mem_state);
->  static SYSDEV_ATTR(phys_device, 0444, show_phys_device, NULL);
-> +static SYSDEV_ATTR(mem_type, 0444, show_mem_type, NULL);
->  
+</head>
 
-Sensible permissions.
+<body lang=DE link=blue vlink=purple style='tab-interval:35.4pt'>
 
->  #define mem_create_simple_file(mem, attr_name)	\
->  	sysdev_create_file(&mem->sysdev, &attr_##attr_name)
-> @@ -358,6 +379,8 @@ static int add_memory_block(unsigned lon
->  		ret = mem_create_simple_file(mem, state);
->  	if (!ret)
->  		ret = mem_create_simple_file(mem, phys_device);
-> +	if (!ret)
-> +		ret = mem_create_simple_file(mem, mem_type);
->  
->  	return ret;
->  }
-> @@ -402,6 +425,7 @@ int remove_memory_block(unsigned long no
->  	mem_remove_simple_file(mem, phys_index);
->  	mem_remove_simple_file(mem, state);
->  	mem_remove_simple_file(mem, phys_device);
-> +	mem_remove_simple_file(mem, mem_type);
->  	unregister_memory(mem, section, NULL);
->  
->  	return 0;
-> 
+<div class=Section1>
 
-Other than the possibility of sections having more than one block on x86_64,
-this all looks fine. On x86_64 the multiple blocks might be annoying but I
-also feel the mem_type information is not much use to that arch so;
+<p class=MsoNormal>Hi,<o:p></o:p></p>
 
-Acked-by: Mel Gorman <mel@csn.ul.ie>
+<p class=MsoNormal><o:p>&nbsp;</o:p></p>
 
--- 
-Mel Gorman
-Part-time Phd Student                          Linux Technology Center
-University of Limerick                         IBM Dublin Software Lab
+<p class=MsoNormal><span lang=EN-US style='mso-ansi-language:EN-US'>Ich habe
+eine tolle Seite entdeckt,&nbsp;die&nbsp;Sie sich unbedingt mal anschauen
+sollten.<o:p></o:p></span></p>
 
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+<p class=MsoNormal><span lang=EN-US style='mso-ansi-language:EN-US'>
+<o:p>&nbsp;</o:p></span></p>
+
+<p class=MsoNormal><span lang=EN-US style='mso-ansi-language:EN-US'>Wenn Sie
+exotische Orte und Spa&#223; m&ouml;gen, - dann m&uuml;ssen Sie unbedingt 
+die neuen Exotic Slots ausprobieren! <br>
+<br>
+Ich habe sie&nbsp;vor einer Woche das erste Mal getestet und&nbsp;es ist das
+beste, was ich je gesehen habe&nbsp;- es gibt jede Menge Spiele; sie sind
+wundersch&ouml;n und&nbsp;ihre Atmosph&auml;re versetzt mich in 
+gro&#223;artige Laune!&nbsp;<o:p></o:p></span></p>
+
+<p class=MsoNormal><span lang=EN-US style='mso-ansi-language:EN-US'>
+<o:p>&nbsp;</o:p></span></p>
+
+<p class=MsoNormal><span lang=EN-US style='mso-ansi-language:EN-US'>
+Sie&nbsp;haben ein gro&#223;artiges 1000$&nbsp;Bonusangebot....und als 
+ich&nbsp;$2000 gewann, bekam ich das Geld sehr schnell zu sehen.&nbsp;
+<o:p></o:p></span></p>
+
+<p class=MsoNormal><span lang=EN-US style='mso-ansi-language:EN-US'>
+<o:p>&nbsp;</o:p></span></p>
+
+<p class=MsoNormal><span lang=EN-US style='mso-ansi-language:EN-US'>Klicken 
+Sie einfach hier und Sie werden selbst sehen, warum ich jedem unbedingt davon
+erz&auml;hlen wollte.<o:p></o:p></span></p>
+
+<p class=MsoNormal><span lang=EN-US style='mso-ansi-language:EN-US'>
+<o:p>&nbsp;</o:p></span></p>
+
+<p class=MsoNormal><span lang=EN-US style='mso-ansi-language:EN-US'>
+<a href="http://www.exoticgoldgame.com/de/">
+http://www.exoticgoldgame.com/de/</a>
+<o:p></o:p></span></p>
+
+</div>
+
+</body>
+
+</html>
