@@ -1,168 +1,133 @@
-Received: from d03relay02.boulder.ibm.com (d03relay02.boulder.ibm.com [9.17.195.227])
-	by e36.co.us.ibm.com (8.13.8/8.13.8) with ESMTP id l9PNSwmg010402
-	for <linux-mm@kvack.org>; Thu, 25 Oct 2007 19:28:58 -0400
-Received: from d03av04.boulder.ibm.com (d03av04.boulder.ibm.com [9.17.195.170])
-	by d03relay02.boulder.ibm.com (8.13.8/8.13.8/NCO v8.5) with ESMTP id l9PNSwZS116364
-	for <linux-mm@kvack.org>; Thu, 25 Oct 2007 17:28:58 -0600
-Received: from d03av04.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av04.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l9PNSwMr006064
-	for <linux-mm@kvack.org>; Thu, 25 Oct 2007 17:28:58 -0600
-Subject: Re: [PATCH] Add "removable" to /sysfs to show memblock removability
-From: Badari Pulavarty <pbadari@us.ibm.com>
-In-Reply-To: <1193352354.24087.85.camel@localhost>
-References: <1193351756.9894.30.camel@dyn9047017100.beaverton.ibm.com>
-	 <1193352354.24087.85.camel@localhost>
-Content-Type: text/plain
-Date: Thu, 25 Oct 2007 16:32:26 -0700
-Message-Id: <1193355147.9894.33.camel@dyn9047017100.beaverton.ibm.com>
-Mime-Version: 1.0
+Received: from int-mx1.corp.redhat.com (int-mx1.corp.redhat.com [172.16.52.254])
+	by mx1.redhat.com (8.13.8/8.13.1) with ESMTP id l9PNfNKp004624
+	for <linux-mm@kvack.org>; Thu, 25 Oct 2007 19:41:23 -0400
+Received: from lacrosse.corp.redhat.com (lacrosse.corp.redhat.com [172.16.52.154])
+	by int-mx1.corp.redhat.com (8.13.1/8.13.1) with ESMTP id l9PNfMr8025136
+	for <linux-mm@kvack.org>; Thu, 25 Oct 2007 19:41:22 -0400
+Received: from bernoulli.boston.redhat.com (bernoulli.boston.redhat.com [172.16.81.92])
+	by lacrosse.corp.redhat.com (8.12.11.20060308/8.11.6) with ESMTP id l9PNfABv018654
+	for <linux-mm@kvack.org>; Thu, 25 Oct 2007 19:41:20 -0400
+Message-ID: <4721298C.60504@redhat.com>
+Date: Thu, 25 Oct 2007 19:41:00 -0400
+From: Chris Snook <csnook@redhat.com>
+MIME-Version: 1.0
+Subject: Toward a generic pooled buddy allocator
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Dave Hansen <haveblue@us.ibm.com>
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, melgor@ie.ibm.com, linux-mm <linux-mm@kvack.org>
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 2007-10-25 at 15:45 -0700, Dave Hansen wrote:
-> On Thu, 2007-10-25 at 15:35 -0700, Badari Pulavarty wrote:
-> > 
-> > +static ssize_t show_mem_removable(struct sys_device *dev, char *buf)
-> > +{
-> > +       unsigned long start_pfn;
-> > +       struct memory_block *mem =
-> > +               container_of(dev, struct memory_block, sysdev);
-> > +
-> > +       start_pfn = section_nr_to_pfn(mem->phys_index);
-> > +       if (is_mem_section_removable(start_pfn, PAGES_PER_SECTION))
-> > +               return sprintf(buf, "True\n");
-> > +       else
-> > +               return sprintf(buf, "False\n");
-> > + 
-> 
-> Yeah, that's what I had in mind.  The only other thing I might suggest
-> would be to do a number instead of true/false here.  Just so that we
-> _can_ have scores in the future.  Otherwise fine with me.
+Hey folks --
 
-Good point. Here is the updated version. Thanks for your suggestions.
+	In a brief moment of either clarity or insanity, I came up with a possible 
+solution, or rather a framework for a solution, to several different memory 
+management problems.  The current buddy allocator divides the system into nodes 
+(if NUMA) and divides those nodes into zones, which may overlap, which can cause 
+headaches, and isn't as flexible as we'd sometimes like it to be, particularly 
+when dealing with strange hardware or attempting to optimize for unusual memory 
+topologies.
 
-Thanks,
-Badari
+	I would like to treat nodes and zones as special cases of more generic physical 
+memory pools.  By giving physical memory pools various properties (node mask, 
+cpu mask, permissions, priority, owner, etc.) we get more flexibility and also 
+shrink the problem size of many specific memory management tasks on large 
+systems.  By keeping them exclusive of each other, and allowing pages or groups 
+of pages to be moved between them when necessary, we reduce the amount of 
+locking necessary for common-case operations.  Several problems come to mind as 
+things that this could help:
 
-Each section of the memory has attributes in /sysfs. This patch adds 
-file "removable" to show if this memory block is removable. This
-helps user-level agents to identify section of the memory for hotplug 
-memory remove.
+1)	special DMA rules
 
-Signed-off-by: Badari Pulavarty <pbadari@us.ibm.com> 
+There are many devices which can DMA to 64-bit addresses, but only if 32 bits 
+(or 34, or 26, etc.) are the same at any given time.  If, at module load time, a 
+driver can look for an existing dma pool that follows its rules, or create a new 
+one if necessary, driver writers will have a lot more flexibility.
 
- drivers/base/memory.c           |   19 +++++++++++++++++++
- include/linux/pageblock-flags.h |    2 ++
- mm/page_alloc.c                 |   27 +++++++++++++++++++++++++++
- 3 files changed, 48 insertions(+)
+2)	DMA NUMA locality
 
-Index: linux-2.6.24-rc1/drivers/base/memory.c
-===================================================================
---- linux-2.6.24-rc1.orig/drivers/base/memory.c	2007-10-23 20:50:57.000000000 -0700
-+++ linux-2.6.24-rc1/drivers/base/memory.c	2007-10-25 18:25:07.000000000 -0700
-@@ -105,6 +105,21 @@ static ssize_t show_mem_phys_index(struc
- }
- 
- /*
-+ * show memory migrate type
-+ */
-+static ssize_t show_mem_removable(struct sys_device *dev, char *buf)
-+{
-+	unsigned long start_pfn;
-+	int ret;
-+	struct memory_block *mem =
-+		container_of(dev, struct memory_block, sysdev);
-+
-+	start_pfn = section_nr_to_pfn(mem->phys_index);
-+	ret = is_mem_section_removable(start_pfn, PAGES_PER_SECTION);
-+	return sprintf(buf, "%d\n", ret);
-+}
-+
-+/*
-  * online, offline, going offline, etc.
-  */
- static ssize_t show_mem_state(struct sys_device *dev, char *buf)
-@@ -263,6 +278,7 @@ static ssize_t show_phys_device(struct s
- static SYSDEV_ATTR(phys_index, 0444, show_mem_phys_index, NULL);
- static SYSDEV_ATTR(state, 0644, show_mem_state, store_mem_state);
- static SYSDEV_ATTR(phys_device, 0444, show_phys_device, NULL);
-+static SYSDEV_ATTR(removable, 0444, show_mem_removable, NULL);
- 
- #define mem_create_simple_file(mem, attr_name)	\
- 	sysdev_create_file(&mem->sysdev, &attr_##attr_name)
-@@ -351,6 +367,8 @@ static int add_memory_block(unsigned lon
- 		ret = mem_create_simple_file(mem, state);
- 	if (!ret)
- 		ret = mem_create_simple_file(mem, phys_device);
-+	if (!ret)
-+		ret = mem_create_simple_file(mem, removable);
- 
- 	return ret;
- }
-@@ -395,6 +413,7 @@ int remove_memory_block(unsigned long no
- 	mem_remove_simple_file(mem, phys_index);
- 	mem_remove_simple_file(mem, state);
- 	mem_remove_simple_file(mem, phys_device);
-+	mem_remove_simple_file(mem, removable);
- 	unregister_memory(mem, section, NULL);
- 
- 	return 0;
-Index: linux-2.6.24-rc1/include/linux/pageblock-flags.h
-===================================================================
---- linux-2.6.24-rc1.orig/include/linux/pageblock-flags.h	2007-10-23 20:50:57.000000000 -0700
-+++ linux-2.6.24-rc1/include/linux/pageblock-flags.h	2007-10-25 17:14:54.000000000 -0700
-@@ -67,6 +67,8 @@ unsigned long get_pageblock_flags_group(
- void set_pageblock_flags_group(struct page *page, unsigned long flags,
- 					int start_bitidx, int end_bitidx);
- 
-+int is_mem_section_removable(unsigned long pfn, unsigned long nr_pages);
-+
- #define get_pageblock_flags(page) \
- 			get_pageblock_flags_group(page, 0, NR_PAGEBLOCK_BITS-1)
- #define set_pageblock_flags(page) \
-Index: linux-2.6.24-rc1/mm/page_alloc.c
-===================================================================
---- linux-2.6.24-rc1.orig/mm/page_alloc.c	2007-10-23 20:50:57.000000000 -0700
-+++ linux-2.6.24-rc1/mm/page_alloc.c	2007-10-25 17:29:30.000000000 -0700
-@@ -4489,6 +4489,33 @@ out:
- 	spin_unlock_irqrestore(&zone->lock, flags);
- }
- 
-+/*
-+ * Find out if this section of the memory is removable.
-+ */
-+int
-+is_mem_section_removable(unsigned long start_pfn, unsigned long nr_pages)
-+{
-+	int type, i = 0;
-+	struct page *page;
-+
-+	/*
-+	 * Check all pageblocks in the section to ensure they are all
-+	 * removable.
-+	 */
-+	page = pfn_to_page(start_pfn);
-+	while (i < nr_pages) {
-+		type = get_pageblock_migratetype(page + i);
-+
-+		/*
-+		 * For now, we can remove sections with only MOVABLE pages.
-+		 */
-+		if (type != MIGRATE_MOVABLE)
-+			return 0;
-+		i += pageblock_nr_pages;
-+	}
-+	return 1;
-+}
-+
- #ifdef CONFIG_MEMORY_HOTREMOVE
- /*
-  * All pages in the range must be isolated before calling this.
+If I have a 4-node NUMA box with legacy I/O attached to node 0, RAID controller 
+attached node 1, network controller attached to node 2, and FC HBA attached to 
+node 3, I want them each to be DMAing to the closest memory.  There is currently 
+no framework to ensure this.
 
+3)	preallocation
+
+There are plenty of circumstances in which users want to set aside a pool of 
+memory for one particular purpose, and to do this at boot time.  At present we 
+have vm.nr_hugepages, which is userspace-only and suitable only for limited 
+applications.
+
+4)	containers
+
+This should be obvious.
+
+5)	NUMA page replication
+
+Replicating pages across multiple nodes requires coordinated allocation on 
+multiple nodes, something that is not at all straightforward with the current 
+NUMA allocator.  A similar strategy would make NUMA migration relatively 
+straightforward, even without using swap.
+
+6)	NUMA allocation policies
+
+If a system is running a workload with multiple different numactl memory 
+policies, the task of optimally allocating pages starts to look like a knapsack 
+problem, which we do not want the kernel in the business of trying to solve. 
+These sorts of configurations, typical in HPC, are generally hand-tuned, so we 
+should let the application/administrator tweak allocations between these pools 
+explicitly with the knowledge they have of how the application behaves.
+
+7)	realtime
+
+Currently, many realtime applications try to use hugetlbfs whenever possible to 
+minimize VM overhead and variability.  Unfortunately, hugetlbfs is not very 
+convenient, and using the regular VM sucks for some realtime work. 
+Configurable, resizable, prioritized realtime memory pools would solve this problem.
+
+8)	embedded
+
+So far, most of what I've been talking about has been about scaling up, not 
+down.  If we do it right (and I think we can) we can eliminate the overhead of 
+the scale-up code at compile time or dynamically at boot time.  Embedded 
+developers like to carefully manage their resources, since they are so precious. 
+  If we put memory pool management in the kernel with some userspace hooks, 
+embedded developers won't need to rely so much on heavily-customized kernel 
+patches, libc re-implementations, etc.  There are a lot of excellent performance 
+engineers in the embedded world, and I'd really like them doing more work on the 
+same piece of code that powers my desktop.
+
+9)	{anti,de}-fragmentation
+
+By tracking the utilization of large memory chunks (say, MAX_ORDER) we can tell 
+which ones would be cheapest to reclaim to satisfy large physically contiguous 
+allocations.  Moreover, by segregating this tracking into multiple pools with 
+different properties, we can avoid wasting cycles on unreclaimable memory, and 
+delay wasting cycles on expensively-reclaimable memory until we absolutely need to.
+
+10)	paravirtualization
+
+At present, paravirt implementations either use locked, dedicated RAM for guest 
+memory, which is fast but not space-efficient, or make normal virtual 
+allocations and let the host VM sort it out, which is space-efficient but can be 
+very slow.  A hybrid approach would allow the host to provide a guest with a 
+chunk of guaranteed-fast memory for critical stuff, while still allowing it to 
+use as much capacity as is available when other guests are idle.  This would be 
+particularly good if the guest was also equipped with generic physical memory 
+pool support.
+
+	I recognize that what I'm suggesting may sound like a radical change, but it 
+need not be.  My intention is to add the framework and move the existing 
+architecture inside it, and then gradually start using it to do new things that 
+can't be done with the current allocator.  I would very much like feedback now 
+before I start experimenting with this, because my knowledge in this area of OS 
+design is more academic than practical, and I will invariably do stupid things 
+and reinvent many wheels if I work on this in a vacuum until I submit a 
+thousand-line patch.  In particular, comments on things I should *not* do would 
+be most welcome.
+
+	-- Chris
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
