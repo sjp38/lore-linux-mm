@@ -1,53 +1,47 @@
-Date: Fri, 26 Oct 2007 17:14:06 +0100
-Subject: Re: [PATCH 2/2] Add mem_type in /syfs to show memblock migrate type
-Message-ID: <20071026161406.GB19443@skynet.ie>
-References: <1193327756.9894.5.camel@dyn9047017100.beaverton.ibm.com> <1193331162.4039.141.camel@localhost> <1193332042.9894.10.camel@dyn9047017100.beaverton.ibm.com> <1193332528.4039.156.camel@localhost> <1193333766.9894.16.camel@dyn9047017100.beaverton.ibm.com> <20071025180514.GB20345@skynet.ie> <1193335935.24087.22.camel@localhost> <20071026095043.GA14347@skynet.ie> <1193413936.24087.91.camel@localhost>
+Received: from zps18.corp.google.com (zps18.corp.google.com [172.25.146.18])
+	by smtp-out.google.com with ESMTP id l9QGpeO9010823
+	for <linux-mm@kvack.org>; Fri, 26 Oct 2007 17:51:40 +0100
+Received: from nf-out-0910.google.com (nfhf5.prod.google.com [10.48.233.5])
+	by zps18.corp.google.com with ESMTP id l9QGocpF016580
+	for <linux-mm@kvack.org>; Fri, 26 Oct 2007 09:51:39 -0700
+Received: by nf-out-0910.google.com with SMTP id f5so666214nfh
+        for <linux-mm@kvack.org>; Fri, 26 Oct 2007 09:51:38 -0700 (PDT)
+Message-ID: <d43160c70710260951q351a6864ye5bb49e1b8a96aa3@mail.gmail.com>
+Date: Fri, 26 Oct 2007 12:51:38 -0400
+From: "Ross Biro" <rossb@google.com>
+Subject: Re: RFC/POC Make Page Tables Relocatable
+In-Reply-To: <20071026161007.GA19443@skynet.ie>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Content-Disposition: inline
-In-Reply-To: <1193413936.24087.91.camel@localhost>
-From: mel@skynet.ie (Mel Gorman)
+References: <d43160c70710250816l44044f31y6dd20766d1f2840b@mail.gmail.com>
+	 <1193330774.4039.136.camel@localhost>
+	 <d43160c70710251040u23feeaf9l16fafc2685b2ce52@mail.gmail.com>
+	 <1193335725.24087.19.camel@localhost>
+	 <20071026161007.GA19443@skynet.ie>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Dave Hansen <haveblue@us.ibm.com>
-Cc: Badari Pulavarty <pbadari@us.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, melgor@ie.ibm.com, linux-mm <linux-mm@kvack.org>
+To: Mel Gorman <mel@skynet.ie>
+Cc: Dave Hansen <haveblue@us.ibm.com>, linux-mm@kvack.org, Mel Gorman <MELGOR@ie.ibm.com>
 List-ID: <linux-mm.kvack.org>
 
-On (26/10/07 08:52), Dave Hansen didst pronounce:
-> On Fri, 2007-10-26 at 10:50 +0100, Mel Gorman wrote:
-> > I think that's overkill, especially as any awkward page would give the
-> > section a score of 0. 
-> 
-> But, if we have a choice, shouldn't we go for a section that is
-> completely free instead of one that has pages that need some kind of
-> reclaim first?
-> 
+On 10/26/07, Mel Gorman <mel@skynet.ie> wrote:
+> I suspect this might be overkill from a memory fragmentation
+> perspective. When grouping pages by mobility, page table pages are
+> currently considered MIGRATE_UNMOVABLE. From what I have seen, they are
 
-I would think that if memory is being shrunk in the system, the monitoring
-software would not particularly care. If you think that might be the case,
-then rename mem_removable to mem_removable_score and have it print out 0 or
-1 for the moment based on the current criteria. Tell userspace developers
-that the higher the score, the more suitable it is for removing.  That will
-allow the introduction of a proper scoring mechanism later if there is a
-good reason for it without breaking backwards compatability.
+I may be being dense, but the page migration code looks to me like it
+just moves pages in a process from one node to another node with no
+effort to touch the page tables.  It would be easy to hook the code I
+wrote into the page migration code, what I don't understand is when
+the page tables should be migrated?  Only when the whole process is
+being migrated?  When all the pages pointed to a page table are being
+migrated?  When any page pointed to by the page table is being
+migrated?
 
-> We also don't have to have awkward pages keep giving a 0 score, as long
-> as we have _some_ way of reclaiming them.  If we can't reclaim them,
-> then I think it *needs* to be 0.
-> 
-> -- Dave
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
--- 
--- 
-Mel Gorman
-Part-time Phd Student                          Linux Technology Center
-University of Limerick                         IBM Dublin Software Lab
+    Ross
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
