@@ -1,47 +1,43 @@
-Subject: Re: [patch 2/6] CONFIG_HIGHPTE vs. sub-page page tables.
-From: Benjamin Herrenschmidt <benh@kernel.crashing.org>
-Reply-To: benh@kernel.crashing.org
-In-Reply-To: <1193384578.31831.6.camel@localhost>
-References: <20071025181520.880272069@de.ibm.com>
-	 <20071025181901.212545095@de.ibm.com>  <1193345221.7018.18.camel@pasglop>
-	 <1193384578.31831.6.camel@localhost>
-Content-Type: text/plain
-Date: Fri, 26 Oct 2007 18:00:17 +1000
-Message-Id: <1193385617.13638.3.camel@pasglop>
-Mime-Version: 1.0
+Received: by rv-out-0910.google.com with SMTP id l15so592110rvb
+        for <linux-mm@kvack.org>; Fri, 26 Oct 2007 01:05:14 -0700 (PDT)
+Message-ID: <84144f020710260105w358bf6f0m6c373108b9aab9a8@mail.gmail.com>
+Date: Fri, 26 Oct 2007 11:05:14 +0300
+From: "Pekka Enberg" <penberg@cs.helsinki.fi>
+Subject: Re: msync(2) bug(?), returns AOP_WRITEPAGE_ACTIVATE to userland
+In-Reply-To: <Pine.LNX.4.64.0710251556300.1521@blonde.wat.veritas.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+References: <Pine.LNX.4.64.0710142049000.13119@sbz-30.cs.Helsinki.FI>
+	 <200710142232.l9EMW8kK029572@agora.fsl.cs.sunysb.edu>
+	 <84144f020710150447o94b1babo8b6e6a647828465f@mail.gmail.com>
+	 <Pine.LNX.4.64.0710222101420.23513@blonde.wat.veritas.com>
+	 <84144f020710221348x297795c0qda61046ec69a7178@mail.gmail.com>
+	 <Pine.LNX.4.64.0710251556300.1521@blonde.wat.veritas.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: schwidefsky@de.ibm.com
-Cc: linux-mm@kvack.org, linux-arch@vger.kernel.org, linux-s390@vger.kernel.org, borntraeger@de.ibm.com
+To: Hugh Dickins <hugh@veritas.com>
+Cc: Erez Zadok <ezk@cs.sunysb.edu>, Ryan Finnie <ryan@finnie.org>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, cjwatson@ubuntu.com, linux-mm@kvack.org, neilb@suse.de
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 2007-10-26 at 09:42 +0200, Martin Schwidefsky wrote:
-> On Fri, 2007-10-26 at 06:47 +1000, Benjamin Herrenschmidt wrote:
-> > > Solution: The only solution I found to this dilemma is a new typedef:
-> > > a pgtable_t. For s390 pgtable_t will be a (pte *) - to be introduced
-> > > with a later patch. For everybody else it will be a (struct page *).
-> > > The additional problem with the initialization of the ptl lock and the
-> > > NR_PAGETABLE accounting is solved with a constructor pgtable_page_ctor
-> > > and a destructor pgtable_page_dtor. The page table allocation and free
-> > > functions need to call these two whenever a page table page is allocated
-> > > or freed. pmd_populate will get a pgtable_t instead of a struct page
-> > > pointer. To get the pgtable_t back from a pmd entry that has been
-> > > installed with pmd_populate a new function pmd_pgtable is added. It
-> > > replaces the pmd_page call in free_pte_range and apply_to_pte_range.
-> >
-> > Interesting. That means I don't need to have a PTE page to be a struct
-> > page anymore ? I can have good use for that on powerpc as well... 
-> 
-> That would be good news. I'm curious, can you elaborate on what the use
-> case is?
+Hi Hugh,
 
-When using 64K pages, we use 32K of PTEs and 32K of "extension". The
-extension thing is used when using HW 4K pages, to keep track of the
-subpages. On setups where that isn't needed, we can save memory by
-allocating half pages...
+On 10/25/07, Hugh Dickins <hugh@veritas.com> wrote:
+> @@ -349,10 +349,6 @@ static pageout_t pageout(struct page *pa
+>                 res = mapping->a_ops->writepage(page, &wbc);
+>                 if (res < 0)
+>                         handle_write_error(mapping, page, res);
+> -               if (res == AOP_WRITEPAGE_ACTIVATE) {
+> -                       ClearPageReclaim(page);
+> -                       return PAGE_ACTIVATE;
+> -               }
 
-Ben.
+I don't see ClearPageReclaim added anywhere. Is that done on purpose?
+Other than that, the patch looks good to me and I think we should
+stick it into -mm to punish Andrew for his secret hack ;-).
+
+                                          Pekka
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
