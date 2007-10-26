@@ -1,109 +1,48 @@
-Date: Fri, 26 Oct 2007 04:47:24 -0500
-From: "Vegas VIP Kasino" <legend@epochworks.net>
-Message-ID: <87665857.03235534@wordy.com>
-Subject: Willkommensbonus - 555 Euro
+Date: Fri, 26 Oct 2007 10:50:43 +0100
+Subject: Re: [PATCH 2/2] Add mem_type in /syfs to show memblock migrate type
+Message-ID: <20071026095043.GA14347@skynet.ie>
+References: <1193327756.9894.5.camel@dyn9047017100.beaverton.ibm.com> <1193331162.4039.141.camel@localhost> <1193332042.9894.10.camel@dyn9047017100.beaverton.ibm.com> <1193332528.4039.156.camel@localhost> <1193333766.9894.16.camel@dyn9047017100.beaverton.ibm.com> <20071025180514.GB20345@skynet.ie> <1193335935.24087.22.camel@localhost>
 MIME-Version: 1.0
-Content-Type: text/html; charset=iso-8859-1
-Content-Transfer-Encoding: 7bit
-Return-Path: <legend@epochworks.net>
-To: owner-linux-mm@kvack.org
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <1193335935.24087.22.camel@localhost>
+From: mel@skynet.ie (Mel Gorman)
+Sender: owner-linux-mm@kvack.org
+Return-Path: <owner-linux-mm@kvack.org>
+To: Dave Hansen <haveblue@us.ibm.com>
+Cc: Badari Pulavarty <pbadari@us.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, melgor@ie.ibm.com, linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-<html>
+On (25/10/07 11:12), Dave Hansen didst pronounce:
+> On Thu, 2007-10-25 at 19:05 +0100, Mel Gorman wrote:
+> > I think Dave has a point so I would be happy with a boolean. We don't really
+> > care what the type is, we care about if it can be removed or not.
+> > 
+> > It also occurs to me from the "can we remove it perspective" that you may
+> > also want to check if the pageblock is entirely free or not. You can encounter
+> > a pageblock that is "Unmovable" but entirely free so it could be removed. 
+> 
+> The other option is to make it somewhat of a "removability score".  If
+> it has non-relocatable pages, then it gets a crappy score.  If it is
+> relocatable, give it more points.  If it has more free pages, give it
+> even more.  If the pages contain images of puppies, take points away.
+> 
+> That way, if something in userspace says, "we need to give memory back",
+> it can go find the _best_ section from which to give it.
+> 
+> But, maybe I'm just over-enginnering now. ;)
+> 
 
-<head>
-<meta http-equiv=Content-Type content="text/html; charset=iso-8859-1">
+I think that's overkill, especially as any awkward page would give the
+section a score of 0.
 
-<title>Spielen ist Unterhaltung und Unterhaltung is das Beste im Leben</title>
+-- 
+Mel Gorman
+Part-time Phd Student                          Linux Technology Center
+University of Limerick                         IBM Dublin Software Lab
 
-<style>
-<!--
- /* Style Definitions */
- p.MsoNormal, li.MsoNormal, div.MsoNormal
-	{mso-style-parent:"";
-	margin:0cm;
-	margin-bottom:.0001pt;
-	mso-pagination:widow-orphan;
-	font-size:12.0pt;
-	font-family:"Times New Roman";
-	mso-fareast-font-family:"Times New Roman";}
-a:link, span.MsoHyperlink
-	{color:blue;
-	text-decoration:underline;
-	text-underline:single;}
-a:visited, span.MsoHyperlinkFollowed
-	{color:purple;
-	text-decoration:underline;
-	text-underline:single;}
-@page Section1
-	{size:595.3pt 841.9pt;
-	margin:2.0cm 42.5pt 2.0cm 3.0cm;
-	mso-header-margin:35.4pt;
-	mso-footer-margin:35.4pt;
-	mso-paper-source:0;}
-div.Section1
-	{page:Section1;}
--->
-</style>
-
-</head>
-
-<body lang=DE link=blue vlink=purple style='tab-interval:35.4pt'>
-
-<div class=Section1>
-
-<p class=MsoNormal><span lang=EN-US style='mso-ansi-language:EN-US'>
-Spielen ist Unterhaltung und Unterhaltung is das Beste im Leben.
-<o:p></o:p></span></p>
-
-<p class=MsoNormal><span lang=EN-US style='mso-ansi-language:EN-US'>
-<o:p>&nbsp;</o:p></span></p>
-
-<p class=MsoNormal><span lang=EN-US style='mso-ansi-language:EN-US'>
-Das echte Spielen findet nur an einem Ort statt... VEGAS
-<o:p></o:p></span></p>
-
-<p class=MsoNormal><span lang=EN-US style='mso-ansi-language:EN-US'>
-<o:p>&nbsp;</o:p></span></p>
-
-<p class=MsoNormal><span lang=EN-US style='mso-ansi-language:EN-US'>
-Kommen und geniessen Sie Vegas VIP Casino.<o:p></o:p></span></p>
-
-<p class=MsoNormal><span lang=EN-US style='mso-ansi-language:EN-US'>
-<o:p>&nbsp;</o:p></span></p>
-
-<p class=MsoNormal><span lang=EN-US style='mso-ansi-language:EN-US'>
-Zus&auml;tzlich dazu ein exklusives Angebot nur f&uuml;r 
-Empf&auml;nger dieser E-Mail.<o:p></o:p></span></p>
-
-<p class=MsoNormal><span lang=EN-US style='mso-ansi-language:EN-US'>
-<o:p>&nbsp;</o:p></span></p>
-
-<p class=MsoNormal><span lang=EN-US style='mso-ansi-language:EN-US'>
-Ein UNGLAUBLICHER Bonus<o:p></o:p></span></p>
-
-<p class=MsoNormal><span lang=EN-US style='mso-ansi-language:EN-US'>
-200% Bonus auf Ihre erste Einzahlung! 100% auf je die zweite und 
-dritte Einzahlung! </span>Und als i-T&uuml;pfelchen 155% auf die 
-vierte Einzahlung<o:p></o:p></p>
-
-<p class=MsoNormal><span lang=EN-US style='mso-ansi-language:EN-US'>
-<o:p>&nbsp;</o:p></span></p>
-
-<p class=MsoNormal><span lang=EN-US style='mso-ansi-language:EN-US'>
-Verschwenden Sie keine Zeit und nutzen Sie diesen Bonus! &Uuml;ber 
-100 Casino Spiele, spektakul&auml;re Grafiken und eine erstklassige 
-Online Unterst&uuml;tzung<o:p></o:p></span></p>
-
-<p class=MsoNormal><span lang=EN-US style='mso-ansi-language:EN-US'>
-<o:p>&nbsp;</o:p></span></p>
-
-<p class=MsoNormal><span lang=EN-US style='mso-ansi-language:EN-US'>
-<a href="http://www.vegassuperslot.com/lang-de/">
-http://www.vegassuperslot.com/lang-de/</a><o:p></o:p></span></p>
-
-</div>
-
-</body>
-
-</html>
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
