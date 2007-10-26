@@ -1,86 +1,114 @@
-From: Neil Brown <neilb@suse.de>
-Date: Fri, 26 Oct 2007 12:00:45 +1000
-Message-ID: <18209.19021.383347.160126@notabene.brown>
+Received: from d01relay04.pok.ibm.com (d01relay04.pok.ibm.com [9.56.227.236])
+	by e4.ny.us.ibm.com (8.13.8/8.13.8) with ESMTP id l9Q6Erm1000725
+	for <linux-mm@kvack.org>; Fri, 26 Oct 2007 02:14:53 -0400
+Received: from d01av04.pok.ibm.com (d01av04.pok.ibm.com [9.56.224.64])
+	by d01relay04.pok.ibm.com (8.13.8/8.13.8/NCO v8.5) with ESMTP id l9Q6Er7j140240
+	for <linux-mm@kvack.org>; Fri, 26 Oct 2007 02:14:53 -0400
+Received: from d01av04.pok.ibm.com (loopback [127.0.0.1])
+	by d01av04.pok.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l9Q6Er6e020028
+	for <linux-mm@kvack.org>; Fri, 26 Oct 2007 02:14:53 -0400
+Message-ID: <472185D4.6090801@linux.vnet.ibm.com>
+Date: Fri, 26 Oct 2007 11:44:44 +0530
+From: Balbir Singh <balbir@linux.vnet.ibm.com>
+Reply-To: balbir@linux.vnet.ibm.com
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Subject: Re: [RFC] [-mm PATCH] Memory controller fix swap charging context
+ in unuse_pte()
+References: <20071005041406.21236.88707.sendpatchset@balbir-laptop> <Pine.LNX.4.64.0710071735530.13138@blonde.wat.veritas.com> <4713A2F2.1010408@linux.vnet.ibm.com> <Pine.LNX.4.64.0710221933570.21262@blonde.wat.veritas.com> <471F3732.5050407@linux.vnet.ibm.com> <Pine.LNX.4.64.0710252002540.25735@blonde.wat.veritas.com>
+In-Reply-To: <Pine.LNX.4.64.0710252002540.25735@blonde.wat.veritas.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
-Subject: Re: msync(2) bug(?), returns AOP_WRITEPAGE_ACTIVATE to userland
-In-Reply-To: message from Hugh Dickins on Thursday October 25
-References: <Pine.LNX.4.64.0710142049000.13119@sbz-30.cs.Helsinki.FI>
-	<200710142232.l9EMW8kK029572@agora.fsl.cs.sunysb.edu>
-	<84144f020710150447o94b1babo8b6e6a647828465f@mail.gmail.com>
-	<Pine.LNX.4.64.0710222101420.23513@blonde.wat.veritas.com>
-	<84144f020710221348x297795c0qda61046ec69a7178@mail.gmail.com>
-	<Pine.LNX.4.64.0710251556300.1521@blonde.wat.veritas.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Hugh Dickins <hugh@veritas.com>
-Cc: Pekka Enberg <penberg@cs.helsinki.fi>, Erez Zadok <ezk@cs.sunysb.edu>, Ryan Finnie <ryan@finnie.org>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, cjwatson@ubuntu.com, linux-mm@kvack.org
+Cc: Linux Containers <containers@lists.osdl.org>, Linux MM Mailing List <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Thursday October 25, hugh@veritas.com wrote:
-> On Mon, 22 Oct 2007, Pekka Enberg wrote:
-> > On 10/22/07, Hugh Dickins <hugh@veritas.com> wrote:
-> > > Only ramdisk and shmem have been returning AOP_WRITEPAGE_ACTIVATE.
-> > > Both of those set BDI_CAP_NO_WRITEBACK.  ramdisk never returned it
-> > > if !wbc->for_reclaim.  I contend that shmem shouldn't either: it's
-> > > a special code to get the LRU rotation right, not useful elsewhere.
-> > > Though Documentation/filesystems/vfs.txt does imply wider use.
-> > >
-> > > I think this is where people use the phrase "go figure" ;)
-> > 
-> > Heh. As far as I can tell, the implication of "wider use" was added by
-> > Neil in commit "341546f5ad6fce584531f744853a5807a140f2a9 Update some
-> > VFS documentation", so perhaps he might know? Neil?
-
-I just read the code, tried to understand it, translated that
-understanding into English, and put that in vfs.txt.
-It is very possible that what I wrote didn't match the intention of
-the author, but it seemed to match the behaviour of the code.
-
-The patch looks like it makes perfect sense to me.
-Before the change, ->writepage could return AOP_WRITEPAGE_ACTIVATE
-without unlocking the page, and this has precisely the effect of:
-   ClearPageReclaim();  (if the call path was through pageout)
-   SetPageActive();  (if the call was through shrink_page_list)
-   unlock_page();
-
-With the patch, the ->writepage method does the SetPageActive and the
-unlock_page, which on the whole seems cleaner.
-
-We seem to have lost a call to ClearPageReclaim - I don't know if that
-is significant.
-
+Hugh Dickins wrote:
+> Gosh, it's nothing special.  Appended below, but please don't shame
+> me by taking it too seriously.  Defaults to working on a 600M mmap
+> because I'm in the habit of booting mem=512M.  You probably have
+> something better yourself that you'd rather use.
 > 
-> Special, hidden, undocumented, secret hack!  Then in 2.6.7 Andrew
-> stole his own secret and used it when concocting ramdisk_writepage.
-> Oh, and NFS made some kind of use of it in 2.6.6 only.  Then Neil
-> revealed the secret to the uninitiated in 2.6.17: now, what's the
-> appropriate punishment for that?
 
-Surely the punishment should be for writing hidden undocumented hacks
-in the first place!  I vote we just make him maintainer for the whole
-kernel - that will keep him so busy that he will never have a chance
-to do it again :-)
+Thanks for sending it. I do have something more generic that I got
+from my colleague.
 
-> --- 2.6.24-rc1/Documentation/filesystems/vfs.txt	2007-10-24 07:15:11.000000000 +0100
-> +++ linux/Documentation/filesystems/vfs.txt	2007-10-24 08:42:07.000000000 +0100
-> @@ -567,9 +567,7 @@ struct address_space_operations {
->        If wbc->sync_mode is WB_SYNC_NONE, ->writepage doesn't have to
->        try too hard if there are problems, and may choose to write out
->        other pages from the mapping if that is easier (e.g. due to
-> -      internal dependencies).  If it chooses not to start writeout, it
-> -      should return AOP_WRITEPAGE_ACTIVATE so that the VM will not keep
-> -      calling ->writepage on that page.
-> +      internal dependencies).
->  
+>> In the use case you've mentioned/tested, having these mods to
+>> control swapcache is actually useful, right?
+> 
+> No idea what you mean by "these mods to control swapcache"?
+> 
 
-It seems that the new requirement is that if the address_space
-chooses not to write out the page, it should now call SetPageActive().
-If that is the case, I think it should be explicit in the
-documentation - please?
+Yes
 
-NeilBrown
+> With your mem_cgroup mods in mm/swap_state.c, swapoff assigns
+> the pages read in from swap to whoever's running swapoff and your
+> unuse_pte mem_cgroup_charge never does anything useful: swap pages
+> should get assigned to the appropriate cgroups at that point.
+> 
+> Without your mem_cgroup mods in mm/swap_state.c, unuse_pte makes
+> the right assignments (I believe).  But I find that swapout (using
+> 600M in a 512M machine) from a 200M cgroup quickly OOMs, whereas
+> it behaves correctly with your mm/swap_state.c.
+> 
+
+I'll try this test and play with your test
+
+> Thought little yet about what happens to shmem swapped pages,
+> and swap readahead pages; but still suspect that they and the
+> above issue will need a "limbo" cgroup, for pages which are
+> expected to belong to a not-yet-identified mem cgroup.
+> 
+
+This is something I am yet to experiment with. I suspect this
+should be easy to do if we decide to go this route.
+
+
+>> Could you share your major objections at this point with the memory
+>> controller at this point. I hope to be able to look into/resolve them
+>> as my first priority in my list of items to work on.
+> 
+> The things I've noticed so far, as mentioned before and above.
+> 
+> But it does worry me that I only came here through finding swapoff
+> broken by that unuse_mm return value, and then found one issue
+> after another.  It feels like the mem cgroup people haven't really
+> thought through or tested swap at all, and that if I looked further
+> I'd uncover more.
+> 
+
+I thought so far that you've found a couple of bugs and one issue
+with the way we account for swapcache. Other users, KAMEZAWA,
+YAMAMOTO have been using and enhancing the memory controller.
+I can point you to a set of links where I posted all the test
+results. Swap was tested mostly through swapout/swapin when the
+cgroup goes over limit. Please do help uncover as many bugs
+as possible, please look more closely as you find more time.
+
+
+> That's simply FUD, and I apologize if I'm being unfair: but that
+> is how it feels, and I expect we all know that phase in a project
+> when solving one problem uncovers three - suggests it's not ready.
+> 
+
+I disagree, all projects/code do have bugs, which we are trying to
+resolve, but I don't think there are any major design drawbacks
+that *cannot* be fixed. We discussed the design at VM-Summit and
+everyone agreed it was the way to go forward (even though Double
+LRU has its complexity).
+
+> Hugh
+
+[snip]
+
+Thanks for the review and your valuable feedback!
+
+-- 
+	Warm Regards,
+	Balbir Singh
+	Linux Technology Center
+	IBM, ISTL
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
