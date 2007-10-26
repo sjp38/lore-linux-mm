@@ -1,52 +1,107 @@
-Subject: Re: [patch 3/6] arch_update_pgd call
-From: Benjamin Herrenschmidt <benh@kernel.crashing.org>
-Reply-To: benh@kernel.crashing.org
-In-Reply-To: <1193386970.31831.20.camel@localhost>
-References: <20071025181520.880272069@de.ibm.com>
-	 <20071025181901.591007141@de.ibm.com>  <1193345285.7018.21.camel@pasglop>
-	 <1193384437.31831.3.camel@localhost>  <1193385543.13638.0.camel@pasglop>
-	 <1193386970.31831.20.camel@localhost>
-Content-Type: text/plain
-Date: Fri, 26 Oct 2007 21:28:15 +1000
-Message-Id: <1193398095.13638.9.camel@pasglop>
-Mime-Version: 1.0
+Date: Fri, 26 Oct 2007 08:35:04 -0600
+Message-ID: <46526011.39220327@feminism.com>
+From: "Euro Prime Casino" <enumerate@artesmarciales.com>
+Subject: =?iso-8859-1?Q?Herzlichen_Gl=FCckwunsch=2C_Sie_haben_300_Euro_gewonnen!?=
+MIME-Version: 1.0
+Content-Type: text/html; charset=iso-8859-1
 Content-Transfer-Encoding: 7bit
-Sender: owner-linux-mm@kvack.org
-Return-Path: <owner-linux-mm@kvack.org>
-To: schwidefsky@de.ibm.com
-Cc: linux-mm@kvack.org, linux-arch@vger.kernel.org, linux-s390@vger.kernel.org, borntraeger@de.ibm.com
+Return-Path: <enumerate@artesmarciales.com>
+To: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 2007-10-26 at 10:22 +0200, Martin Schwidefsky wrote:
-> On Fri, 2007-10-26 at 17:59 +1000, Benjamin Herrenschmidt wrote:
-> > > > I'm not at all fan of the hook there and it's name...
-> > > > 
-> > > > Any reason why you can't do that in your arch gua ?
-> > > > 
-> > > > If not, then why can't you call it something nicer, like
-> > > > arch_rebalance_pgtables() ?
-> > > 
-> > > The name can be changed in no time. I've tried to use one of the
-> > > existing arch calls like arch_mmap_check or arch_get_unmapped_area but
-> > > it didn't work out. I really need the final address to make the call to
-> > > extend the page tables. 
-> > 
-> > You arch get_unmapped_area() has it...
-> 
-> Hmm, I got worried about the file->f_op->get_unmapped_area indirection.
-> At least the get_unmapped_area_mem function in drivers/char/mem.c does
-> not call the standard get_unmapped_area function again like ipc/shm.c
-> does. As I see it is not guaranteed that the architecture version of
-> arch_get_unmapped_area gets control. Want to play safe there.
+<html>
 
-Hrm... last I looked, the only "other" gua was hugetlb which is arch
-too, but I may have missed something.
+<head>
+<meta http-equiv=Content-Type content="text/html; charset=big5">
 
-Ben.
+<title>Spielen auch Sie EuroPrimeCasino f&uuml;r Windows(TM) und holen Sie 
+sich 300 Euro gratis</title>
 
+<style>
+<!--
+ /* Style Definitions */
+ p.MsoNormal, li.MsoNormal, div.MsoNormal
+	{mso-style-parent:"";
+	margin:0cm;
+	margin-bottom:.0001pt;
+	mso-pagination:widow-orphan;
+	font-size:12.0pt;
+	font-family:"Times New Roman";
+	mso-fareast-font-family:"Times New Roman";
+	mso-ansi-language:EN-US;
+	mso-fareast-language:EN-US;
+	mso-bidi-language:HE;
+	layout-grid-mode:line;}
+a:link, span.MsoHyperlink
+	{font-family:"Times New Roman";
+	mso-bidi-font-family:"Times New Roman";
+	color:blue;
+	text-decoration:underline;
+	text-underline:single;}
+a:visited, span.MsoHyperlinkFollowed
+	{color:purple;
+	text-decoration:underline;
+	text-underline:single;}
+@page Section1
+	{size:595.3pt 841.9pt;
+	margin:2.0cm 42.5pt 2.0cm 3.0cm;
+	mso-header-margin:35.4pt;
+	mso-footer-margin:35.4pt;
+	mso-paper-source:0;}
+div.Section1
+	{page:Section1;}
+-->
+</style>
 
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+</head>
+
+<body lang=DE link=blue vlink=purple style='tab-interval:35.4pt'>
+
+<div class=Section1>
+
+<p class=MsoNormal>
+<span lang=DE style='mso-ansi-language:DE'>Spielen auch Sie EuroPrimeCasino 
+f&uuml;r Windows(TM) und holen Sie sich 300 Euro gratis.<o:p></o:p></span></p>
+
+<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>&nbsp;
+<o:p></o:p></span></p>
+
+<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>Klicken Sie 
+hier f&uuml;r den Download und spielen Sie im EuroPrimeCasino mit
+weiteren 2 Millionen Spielern im besten Online-Casino der Welt!
+<o:p></o:p></span></p>
+
+<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>&nbsp;
+<o:p></o:p></span></p>
+
+<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>- 40 
+Blackjack-Tische, 8 Roulette-Tische und 180 Spielautomaten warten
+hier auf Sie.<o:p></o:p></span></p>
+
+<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>- Es gibt 
+progressive Jackpots im Wert von &uuml;ber 4 Millionen Dollar zu
+gewinnen<o:p></o:p></span></p>
+
+<p class=MsoNormal><span lang=EN-US style='mso-bidi-language:AR-SA'>- VIP
+<o:p></o:p></span></p>
+
+<p class=MsoNormal><span lang=EN-US style='mso-bidi-language:AR-SA'>- Visa,
+Mastercard, Diners, NETeller, Click2Pay und UKash<o:p></o:p></span></p>
+
+<p class=MsoNormal><span lang=EN-US style='mso-bidi-language:AR-SA'>&nbsp;
+<o:p></o:p></span></p>
+
+<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>Spielen Sie 
+gleich jetzt und holen Sie sich Ihre 300 Euro - klicken Sie
+hier: <a href="http://www.europrime2007.com/de/">
+www.europrime2007.com/de/</a>
+<o:p></o:p></span></p>
+
+<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
+<o:p>&nbsp;</o:p></span></p>
+
+</div>
+
+</body>
+
+</html>
