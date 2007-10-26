@@ -1,51 +1,36 @@
-Received: from d12nrmr1607.megacenter.de.ibm.com (d12nrmr1607.megacenter.de.ibm.com [9.149.167.49])
-	by mtagate4.de.ibm.com (8.13.8/8.13.8) with ESMTP id l9Q88L83057904
-	for <linux-mm@kvack.org>; Fri, 26 Oct 2007 08:08:21 GMT
-Received: from d12av02.megacenter.de.ibm.com (d12av02.megacenter.de.ibm.com [9.149.165.228])
-	by d12nrmr1607.megacenter.de.ibm.com (8.13.8/8.13.8/NCO v8.5) with ESMTP id l9Q88LO01822970
-	for <linux-mm@kvack.org>; Fri, 26 Oct 2007 10:08:21 +0200
-Received: from d12av02.megacenter.de.ibm.com (loopback [127.0.0.1])
-	by d12av02.megacenter.de.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l9Q88K27023536
-	for <linux-mm@kvack.org>; Fri, 26 Oct 2007 10:08:21 +0200
-Subject: Re: [patch 2/6] CONFIG_HIGHPTE vs. sub-page page tables.
-From: Martin Schwidefsky <schwidefsky@de.ibm.com>
-Reply-To: schwidefsky@de.ibm.com
-In-Reply-To: <1193385617.13638.3.camel@pasglop>
-References: <20071025181520.880272069@de.ibm.com>
-	 <20071025181901.212545095@de.ibm.com>  <1193345221.7018.18.camel@pasglop>
-	 <1193384578.31831.6.camel@localhost>  <1193385617.13638.3.camel@pasglop>
-Content-Type: text/plain
-Date: Fri, 26 Oct 2007 10:08:20 +0200
-Message-Id: <1193386100.31831.13.camel@localhost>
-Mime-Version: 1.0
+Received: by rv-out-0910.google.com with SMTP id l15so592796rvb
+        for <linux-mm@kvack.org>; Fri, 26 Oct 2007 01:09:16 -0700 (PDT)
+Message-ID: <84144f020710260109s56f9cdf2tcd7b7258fcb2bd8@mail.gmail.com>
+Date: Fri, 26 Oct 2007 11:09:16 +0300
+From: "Pekka Enberg" <penberg@cs.helsinki.fi>
+Subject: Re: msync(2) bug(?), returns AOP_WRITEPAGE_ACTIVATE to userland
+In-Reply-To: <18209.19021.383347.160126@notabene.brown>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+References: <Pine.LNX.4.64.0710142049000.13119@sbz-30.cs.Helsinki.FI>
+	 <200710142232.l9EMW8kK029572@agora.fsl.cs.sunysb.edu>
+	 <84144f020710150447o94b1babo8b6e6a647828465f@mail.gmail.com>
+	 <Pine.LNX.4.64.0710222101420.23513@blonde.wat.veritas.com>
+	 <84144f020710221348x297795c0qda61046ec69a7178@mail.gmail.com>
+	 <Pine.LNX.4.64.0710251556300.1521@blonde.wat.veritas.com>
+	 <18209.19021.383347.160126@notabene.brown>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: benh@kernel.crashing.org
-Cc: linux-mm@kvack.org, linux-arch@vger.kernel.org, linux-s390@vger.kernel.org, borntraeger@de.ibm.com
+To: Neil Brown <neilb@suse.de>
+Cc: Hugh Dickins <hugh@veritas.com>, Erez Zadok <ezk@cs.sunysb.edu>, Ryan Finnie <ryan@finnie.org>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, cjwatson@ubuntu.com, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 2007-10-26 at 18:00 +1000, Benjamin Herrenschmidt wrote:
-> > > Interesting. That means I don't need to have a PTE page to be a struct
-> > > page anymore ? I can have good use for that on powerpc as well... 
-> > 
-> > That would be good news. I'm curious, can you elaborate on what the use
-> > case is?
-> 
-> When using 64K pages, we use 32K of PTEs and 32K of "extension". The
-> extension thing is used when using HW 4K pages, to keep track of the
-> subpages. On setups where that isn't needed, we can save memory by
-> allocating half pages...
+Hi,
 
-Ahh, that is exactly the same reason as for s390. Page tables with a
-size that is sub-page.
+On 10/26/07, Neil Brown <neilb@suse.de> wrote:
+> It seems that the new requirement is that if the address_space
+> chooses not to write out the page, it should now call SetPageActive().
+> If that is the case, I think it should be explicit in the
+> documentation - please?
 
--- 
-blue skies,
-  Martin.
-
-"Reality continues to ruin my life." - Calvin.
-
+Agreed.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
