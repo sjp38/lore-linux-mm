@@ -1,145 +1,39 @@
-Date: Fri, 26 Oct 2007 17:10:07 +0100
-Subject: Re: RFC/POC Make Page Tables Relocatable
-Message-ID: <20071026161007.GA19443@skynet.ie>
-References: <d43160c70710250816l44044f31y6dd20766d1f2840b@mail.gmail.com> <1193330774.4039.136.camel@localhost> <d43160c70710251040u23feeaf9l16fafc2685b2ce52@mail.gmail.com> <1193335725.24087.19.camel@localhost>
+Date: Fri, 26 Oct 2007 17:14:06 +0100
+Subject: Re: [PATCH 2/2] Add mem_type in /syfs to show memblock migrate type
+Message-ID: <20071026161406.GB19443@skynet.ie>
+References: <1193327756.9894.5.camel@dyn9047017100.beaverton.ibm.com> <1193331162.4039.141.camel@localhost> <1193332042.9894.10.camel@dyn9047017100.beaverton.ibm.com> <1193332528.4039.156.camel@localhost> <1193333766.9894.16.camel@dyn9047017100.beaverton.ibm.com> <20071025180514.GB20345@skynet.ie> <1193335935.24087.22.camel@localhost> <20071026095043.GA14347@skynet.ie> <1193413936.24087.91.camel@localhost>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <1193335725.24087.19.camel@localhost>
+In-Reply-To: <1193413936.24087.91.camel@localhost>
 From: mel@skynet.ie (Mel Gorman)
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Dave Hansen <haveblue@us.ibm.com>
-Cc: Ross Biro <rossb@google.com>, linux-mm@kvack.org, Mel Gorman <MELGOR@ie.ibm.com>
+Cc: Badari Pulavarty <pbadari@us.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, melgor@ie.ibm.com, linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On (25/10/07 11:08), Dave Hansen didst pronounce:
-> On Thu, 2007-10-25 at 13:40 -0400, Ross Biro wrote: 
-> > On 10/25/07, Dave Hansen <haveblue@us.ibm.com> wrote:
-> > > On Thu, 2007-10-25 at 11:16 -0400, Ross Biro wrote:
-> > > > 1) Add a separate meta-data allocation to the slab and slub allocator
-> > > > and allocate full pages through kmem_cache_alloc instead of get_page.
-> > > > The primary motivation of this is that we could shrink struct page by
-> > > > using kmem_cache_alloc to allocate whole pages and put the supported
-> > > > data in the meta_data area instead of struct page.
-> > >
-> > > The idea seems cool, but I think I'm missing a lot of your motivation
-> > > here.
-> > >
-> > > First of all, which meta-data, exactly, is causing 'struct page' to be
-> > > larger than it could be?  Which meta-data can be moved?
-> > 
-> > Almost all of it.  Most of struct page isn't about the kernel manging
-> > pages in general, but about managing particular types of pages.
-> > Although it's been cleaned up over the years, there are still
-> > some things:
-> > 
-> >         union {
-> >                 atomic_t _mapcount;     /* Count of ptes mapped in mms,
-> >                                          * to show when page is mapped
-> >                                          * & limit reverse map searches.
-> >                                          */
-> >                 struct {        /* SLUB uses */
-> >                         short unsigned int inuse;
-> >                         short unsigned int offset;
-> >                 };
-> >         };
-> > 
-> > mapcount is only used when the page is mapped via a pte, while the
-> > other part is only used when the page is part of a SLUB cache.
-> > Neither of which is always true and not 100% needed as part of struct
-> > page.  There is just currently no better place to put them.  The rest
-> > of the unions don't really belong in struct page.  Similarly the lru
-> > list only applies to pages which could go on the lru list.  So why not
-> > make a better place to put them.
+On (26/10/07 08:52), Dave Hansen didst pronounce:
+> On Fri, 2007-10-26 at 10:50 +0100, Mel Gorman wrote:
+> > I think that's overkill, especially as any awkward page would give the
+> > section a score of 0. 
 > 
-> Right, but we're talking about pagetable pages here, right?  What fields
-> in 'struct page' are used by pagetable pages, but will allow 'struct
-> page' to shrink in size if pagetables pages stop using them?
-> 
-> On a more general note: so it's all about saving memory in the end?
-> Making 'struct page' smaller?  If I were you, I'd be very conerned about
-> the pathological cases.  We may get the lru pointers out of 'struct
-> page', so we'll need some parallel lookup to get from physical page to
-> LRU, right?   Although the bootup footprint of mem_map[] (and friends)
-> smaller, what happens on a machine with virtually all its memory used by
-> pages on the LRU (which I would guess is actually quite common).  Will
-> the memory footprint even be close to the two pointers per physical page
-> that it cost us for the current implementation?
-> 
-> That doesn't even consider the runtime overhead of such a scheme.  Right
-> now, if you touch any part of 'struct page' on a 32-bit machine, you
-> generally bring the entire thing into a single cacheline.  Every other
-> subsequent access is essentially free.  Any ideas what the ballpark
-> number of cachelines are that would have to be brought in with another
-> lookup method for 'struct page' to lru?
-> 
-> I dunno.  I'm highly skeptical this can work.
-> 
-> I've heard rumors in the past that the Windows' 'struct page' is much
-> smaller than the Linux one.  But, I've also heard that this weighs
-> heavily in other areas such as page reclamation.  Could be _completely_
-> bogus, but it might be worth a search or two to see if there have been
-> any papers on the subject.  
-> 
-> > > get a pte page back, I might simply hold the page table lock, walk the
-> > > pagetables to the pmd, lock and invalidate the pmd, copy the pagetable
-> > > contents into a new page, update the pmd, and be on my merry way.  Why
-> > > doesn't this work?  I'm just fishing for a good explanation why we need
-> > > all the slab silliness.
-> > 
-> > This would almost work, but to do it properly, you find you'll need
-> > some more locks and a couple of extra pointers and such.
-> 
-> Could you be specific?
-> 
-> > With out all
-> > the slab silliness you would need to add them to struct page. It would
-> > have needlessly bloated struct page hence the previous change.  I've
-> > also managed to convince myself that using the slab/slub allocator
-> > will tend to clump the page tables together which should reduce
-> > fragmentation and make more memory available for huge pages.  In fact,
-> > I've got this idea that by using slab/slub, we can stop allocating
-> > individual pages and only allocate huge pages on systems that have
-> > them.
-> 
-> You may want to have a talk with Mel about memory fragmentation, and
-> whether there is any lower hanging fruit (cc'd). :)
+> But, if we have a choice, shouldn't we go for a section that is
+> completely free instead of one that has pages that need some kind of
+> reclaim first?
 > 
 
-I suspect this might be overkill from a memory fragmentation
-perspective. When grouping pages by mobility, page table pages are
-currently considered MIGRATE_UNMOVABLE. From what I have seen, they are
-by far the most common unmovable allocation. If they were relocatable
-with the standard page migration mechanism, they could be considered
-MIGRATE_MOVABLE and external fragmentation would be easier to content
-with.
+I would think that if memory is being shrunk in the system, the monitoring
+software would not particularly care. If you think that might be the case,
+then rename mem_removable to mem_removable_score and have it print out 0 or
+1 for the moment based on the current criteria. Tell userspace developers
+that the higher the score, the more suitable it is for removing.  That will
+allow the introduction of a proper scoring mechanism later if there is a
+good reason for it without breaking backwards compatability.
 
-I haven't looked closely enough at this patch to know if moving page
-table pages with page migration is the aim or not.
-
-However, using huge pages just all slabs does not feel like a great
-idea. There will be a lot memory wasted due to internal fragmentation
-and systems with less memory are not going to want to commit a hugepage
-for a small slab allocation.
-
-> > > You might also want to run checkpatch.pl on your patch.  It has some
-> > > style issues that also need to get worked out.
-> > 
-> > That patch isn't meant to be applied, but is there because it's easier
-> > to point to code to try to explain what I'm mean than to explain in
-> > words.  I didn't think a few style issues would be an issue.  And just
-> > to reiterate, if you actually use the code I posted, you get what you
-> > deserve.  It was only meant to illustrate what I'm trying to say.
-> 
-> In general, the reason to run such a script (and to have coding
-> standards in the first place) is so that others can more easily read
-> your code.  The posted patch is hard to understand in some areas because
-> of indenting bracketing.  If you'd like people to read, review, and give
-> suggestions on what they see, I'd suggest trying to make it as easy as
-> possible to understand.
-> 
-> Check out Documentation/CodingStyle.  
+> We also don't have to have awkward pages keep giving a 0 score, as long
+> as we have _some_ way of reclaiming them.  If we can't reclaim them,
+> then I think it *needs* to be 0.
 > 
 > -- Dave
 > 
