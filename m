@@ -1,34 +1,29 @@
-Date: Sat, 27 Oct 2007 08:51:37 +0900
+Date: Sat, 27 Oct 2007 08:57:32 +0900
 From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: migrate_pages() failure
-Message-Id: <20071027085137.ed2ea1e0.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <1193440067.19950.7.camel@dyn9047017100.beaverton.ibm.com>
-References: <1193432242.19950.1.camel@dyn9047017100.beaverton.ibm.com>
-	<1193440067.19950.7.camel@dyn9047017100.beaverton.ibm.com>
+Subject: Re: [PATCH] Add "removable" to /sysfs to show memblock removability
+Message-Id: <20071027085732.7de18eb4.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <1193417811.9894.42.camel@dyn9047017100.beaverton.ibm.com>
+References: <1193417811.9894.42.camel@dyn9047017100.beaverton.ibm.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Badari Pulavarty <pbadari@gmail.com>
-Cc: melgor@ie.ibm.com, linux-mm@kvack.org
+To: Badari Pulavarty <pbadari@us.ibm.com>
+Cc: haveblue@us.ibm.com, melgor@ie.ibm.com, akpm@linux-foundation.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 26 Oct 2007 16:07:47 -0700
-Badari Pulavarty <pbadari@gmail.com> wrote:
-> Digged up little more ..
-> 
-> All these pages are "reiserfs" backed file and reiserfs doesn't
-> have migratepage() handler. reiserfs_releasepage() gives up
-> since one of the buffer_head attached to the page is dirty or locked :(
-> 
-> Nothing much migrate pages could do :(
-> 
-Hmm, thank you for reporting.
+On Fri, 26 Oct 2007 09:56:51 -0700
+Badari Pulavarty <pbadari@us.ibm.com> wrote:
 
-I've never used reiserfs....:(
-
--Kame
+> Here is the latest version with all the concerns/suggestions
+> addressed. Tested on x86-64 and ppc64 with and without 
+> CONFIG_HOTPLUG_MEMORY option.
+> 
+> Andrew, Can you include it in -mm ?
+> 
+please :)
+Acked-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
