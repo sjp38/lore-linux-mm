@@ -1,62 +1,47 @@
-Date: Fri, 26 Oct 2007 18:11:19 +0100
-Subject: Re: RFC/POC Make Page Tables Relocatable
-Message-ID: <20071026171119.GC19443@skynet.ie>
-References: <d43160c70710250816l44044f31y6dd20766d1f2840b@mail.gmail.com> <1193330774.4039.136.camel@localhost> <d43160c70710251040u23feeaf9l16fafc2685b2ce52@mail.gmail.com> <1193335725.24087.19.camel@localhost> <20071026161007.GA19443@skynet.ie> <d43160c70710260951q351a6864ye5bb49e1b8a96aa3@mail.gmail.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <d43160c70710260951q351a6864ye5bb49e1b8a96aa3@mail.gmail.com>
-From: mel@skynet.ie (Mel Gorman)
+Received: from d01relay02.pok.ibm.com (d01relay02.pok.ibm.com [9.56.227.234])
+	by e3.ny.us.ibm.com (8.13.8/8.13.8) with ESMTP id l9QHIni4001562
+	for <linux-mm@kvack.org>; Fri, 26 Oct 2007 13:18:49 -0400
+Received: from d01av02.pok.ibm.com (d01av02.pok.ibm.com [9.56.224.216])
+	by d01relay02.pok.ibm.com (8.13.8/8.13.8/NCO v8.5) with ESMTP id l9QHInaV125376
+	for <linux-mm@kvack.org>; Fri, 26 Oct 2007 13:18:49 -0400
+Received: from d01av02.pok.ibm.com (loopback [127.0.0.1])
+	by d01av02.pok.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l9QHImSo004920
+	for <linux-mm@kvack.org>; Fri, 26 Oct 2007 13:18:49 -0400
+Subject: Re: [PATCH 2/2] Add mem_type in /syfs to show memblock migrate type
+From: Dave Hansen <haveblue@us.ibm.com>
+In-Reply-To: <20071026161406.GB19443@skynet.ie>
+References: <1193327756.9894.5.camel@dyn9047017100.beaverton.ibm.com>
+	 <1193331162.4039.141.camel@localhost>
+	 <1193332042.9894.10.camel@dyn9047017100.beaverton.ibm.com>
+	 <1193332528.4039.156.camel@localhost>
+	 <1193333766.9894.16.camel@dyn9047017100.beaverton.ibm.com>
+	 <20071025180514.GB20345@skynet.ie> <1193335935.24087.22.camel@localhost>
+	 <20071026095043.GA14347@skynet.ie> <1193413936.24087.91.camel@localhost>
+	 <20071026161406.GB19443@skynet.ie>
+Content-Type: text/plain
+Date: Fri, 26 Oct 2007 10:18:46 -0700
+Message-Id: <1193419126.24087.130.camel@localhost>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Ross Biro <rossb@google.com>
-Cc: Dave Hansen <haveblue@us.ibm.com>, linux-mm@kvack.org, Mel Gorman <MELGOR@ie.ibm.com>
+To: Mel Gorman <mel@skynet.ie>
+Cc: Badari Pulavarty <pbadari@us.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, melgor@ie.ibm.com, linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On (26/10/07 12:51), Ross Biro didst pronounce:
-> On 10/26/07, Mel Gorman <mel@skynet.ie> wrote:
-> > I suspect this might be overkill from a memory fragmentation
-> > perspective. When grouping pages by mobility, page table pages are
-> > currently considered MIGRATE_UNMOVABLE. From what I have seen, they are
+On Fri, 2007-10-26 at 17:14 +0100, Mel Gorman wrote:
 > 
-> I may be being dense, but the page migration code looks to me like it
-> just moves pages in a process from one node to another node with no
-> effort to touch the page tables. 
+> I would think that if memory is being shrunk in the system, the monitoring
+> software would not particularly care. If you think that might be the case,
+> then rename mem_removable to mem_removable_score and have it print out 0 or
+> 1 for the moment based on the current criteria. Tell userspace developers
+> that the higher the score, the more suitable it is for removing.  That will
+> allow the introduction of a proper scoring mechanism later if there is a
+> good reason for it without breaking backwards compatability. 
 
-Exactly, if it was able to move arbitrary pagetable pages too, it would
-be useful. Page migrations traditional case is to move pages between
-nodes but memory hot-remove also uses it to move pages around a zone and
-there has been at least one other case which I'm coming to.
+I completely agree.
 
-> It would be easy to hook the code I
-> wrote into the page migration code, what I don't understand is when
-> the page tables should be migrated? 
-
->From an external fragmentation point of view, they would be moved when a
-high-order allocation failued. Patches exist that do this sort of thing
-under the title "Memory Compaction" but they are not merged because they
-don't have a demonstratable use-case yet[1].
-
-> Only when the whole process is
-> being migrated?  When all the pages pointed to a page table are being
-> migrated?  When any page pointed to by the page table is being
-> migrated?
-> 
-
-If it was external fragmentation you were dealing with, a pagetable apge
-would be moved once it was found to be preventing a high-order (e.gh.
-hugepage) allocation from succeeding.
-
-[1] Intuitively, the use case would be that a hugepage allocation
-    happened faster when moving pages around than reclaiming them.
-    This situation does not happen often enough to justify the 
-    complexity of the code though.
-
--- 
--- 
-Mel Gorman
-Part-time Phd Student                          Linux Technology Center
-University of Limerick                         IBM Dublin Software Lab
+-- Dave
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
