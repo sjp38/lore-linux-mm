@@ -1,10 +1,10 @@
-Date: Sun, 28 Oct 2007 15:08:06 +0200 (EET)
+Date: Sun, 28 Oct 2007 15:09:37 +0200 (EET)
 From: Pekka J Enberg <penberg@cs.helsinki.fi>
-Subject: Re: [patch 02/10] SLUB: Noinline some functions to avoid them being
- folded into alloc/free
-In-Reply-To: <20071028033258.779134394@sgi.com>
-Message-ID: <Pine.LNX.4.64.0710281507500.6766@sbz-30.cs.Helsinki.FI>
-References: <20071028033156.022983073@sgi.com> <20071028033258.779134394@sgi.com>
+Subject: Re: [patch 03/10] SLUB: Move kmem_cache_node determination into
+ add_full and add_partial
+In-Reply-To: <20071028033259.021882647@sgi.com>
+Message-ID: <Pine.LNX.4.64.0710281509110.6766@sbz-30.cs.Helsinki.FI>
+References: <20071028033156.022983073@sgi.com> <20071028033259.021882647@sgi.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Transfer-Encoding: 7bit
@@ -15,9 +15,10 @@ Cc: Matthew Wilcox <matthew@wil.cx>, akpm@linux-foundation.org, linux-kernel@vge
 List-ID: <linux-mm.kvack.org>
 
 On Sat, 27 Oct 2007, Christoph Lameter wrote:
-> Some function tend to get folded into __slab_free and __slab_alloc
-> although they are rarely called. They cause register pressure that
-> leads to bad code generation.
+> The kmem_cache_node determination can be moved into add_full()
+> and add_partial(). This removes some code from the slab_free()
+> slow path and reduces the register overhead that has to be managed
+> in the slow path.
 
 Reviewed-by: Pekka Enberg <penberg@cs.helsinki.fi>
 
