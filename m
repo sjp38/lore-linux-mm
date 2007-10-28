@@ -1,30 +1,107 @@
-Date: Sun, 28 Oct 2007 17:14:12 +0200 (EET)
-From: Pekka J Enberg <penberg@cs.helsinki.fi>
-Subject: Re: [patch 09/10] SLUB: Do our own locking via slab_lock and
- slab_unlock.
-In-Reply-To: <Pine.LNX.4.64.0710281702140.6766@sbz-30.cs.Helsinki.FI>
-Message-ID: <Pine.LNX.4.64.0710281713020.6766@sbz-30.cs.Helsinki.FI>
-References: <20071028033156.022983073@sgi.com> <20071028033300.479692380@sgi.com>
- <Pine.LNX.4.64.0710281702140.6766@sbz-30.cs.Helsinki.FI>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Date: Sun, 28 Oct 2007 22:06:55 +0200
+Message-ID: <39581046.94121750@micronesia.com>
+From: "Euro Prime Casino" <tobago@hush.com>
+Subject: =?iso-8859-1?Q?Herzlichen_Gl=FCckwunsch=2C_Sie_haben_300_Euro_gewonnen!?=
+MIME-Version: 1.0
+Content-Type: text/html; charset=iso-8859-1
 Content-Transfer-Encoding: 7bit
-Sender: owner-linux-mm@kvack.org
-Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
-Cc: Matthew Wilcox <matthew@wil.cx>, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Return-Path: <tobago@hush.com>
+To: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Sun, 28 Oct 2007, Pekka J Enberg wrote:
-> > +	 __release(bitlock);
-> 
-> This needs a less generic name and maybe a comment explaining that it's 
-> not annotating a proper lock? Or maybe we can drop it completely?
+<html>
 
-Ah, I see that <linux/bit_spinlock.h> does the same thing, so strike that.
+<head>
+<meta http-equiv=Content-Type content="text/html; charset=big5">
 
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+<title>Spielen auch Sie EuroPrimeCasino f&uuml;r Windows(TM) und holen Sie 
+sich 300 Euro gratis</title>
+
+<style>
+<!--
+ /* Style Definitions */
+ p.MsoNormal, li.MsoNormal, div.MsoNormal
+	{mso-style-parent:"";
+	margin:0cm;
+	margin-bottom:.0001pt;
+	mso-pagination:widow-orphan;
+	font-size:12.0pt;
+	font-family:"Times New Roman";
+	mso-fareast-font-family:"Times New Roman";
+	mso-ansi-language:EN-US;
+	mso-fareast-language:EN-US;
+	mso-bidi-language:HE;
+	layout-grid-mode:line;}
+a:link, span.MsoHyperlink
+	{font-family:"Times New Roman";
+	mso-bidi-font-family:"Times New Roman";
+	color:blue;
+	text-decoration:underline;
+	text-underline:single;}
+a:visited, span.MsoHyperlinkFollowed
+	{color:purple;
+	text-decoration:underline;
+	text-underline:single;}
+@page Section1
+	{size:595.3pt 841.9pt;
+	margin:2.0cm 42.5pt 2.0cm 3.0cm;
+	mso-header-margin:35.4pt;
+	mso-footer-margin:35.4pt;
+	mso-paper-source:0;}
+div.Section1
+	{page:Section1;}
+-->
+</style>
+
+</head>
+
+<body lang=DE link=blue vlink=purple style='tab-interval:35.4pt'>
+
+<div class=Section1>
+
+<p class=MsoNormal>
+<span lang=DE style='mso-ansi-language:DE'>Spielen auch Sie EuroPrimeCasino 
+f&uuml;r Windows(TM) und holen Sie sich 300 Euro gratis.<o:p></o:p></span></p>
+
+<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>&nbsp;
+<o:p></o:p></span></p>
+
+<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>Klicken Sie 
+hier f&uuml;r den Download und spielen Sie im EuroPrimeCasino mit
+weiteren 2 Millionen Spielern im besten Online-Casino der Welt!
+<o:p></o:p></span></p>
+
+<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>&nbsp;
+<o:p></o:p></span></p>
+
+<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>- 40 
+Blackjack-Tische, 8 Roulette-Tische und 180 Spielautomaten warten
+hier auf Sie.<o:p></o:p></span></p>
+
+<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>- Es gibt 
+progressive Jackpots im Wert von &uuml;ber 4 Millionen Dollar zu
+gewinnen<o:p></o:p></span></p>
+
+<p class=MsoNormal><span lang=EN-US style='mso-bidi-language:AR-SA'>- VIP
+<o:p></o:p></span></p>
+
+<p class=MsoNormal><span lang=EN-US style='mso-bidi-language:AR-SA'>- Visa,
+Mastercard, Diners, NETeller, Click2Pay und UKash<o:p></o:p></span></p>
+
+<p class=MsoNormal><span lang=EN-US style='mso-bidi-language:AR-SA'>&nbsp;
+<o:p></o:p></span></p>
+
+<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>Spielen Sie 
+gleich jetzt und holen Sie sich Ihre 300 Euro - klicken Sie
+hier: <a href="http://www.europrimegamble.com/de/">
+www.europrimegamble.com/de/</a>
+<o:p></o:p></span></p>
+
+<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
+<o:p>&nbsp;</o:p></span></p>
+
+</div>
+
+</body>
+
+</html>
