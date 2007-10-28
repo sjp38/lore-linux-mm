@@ -1,30 +1,100 @@
-Date: Sun, 28 Oct 2007 15:12:29 +0200 (EET)
-From: Pekka J Enberg <penberg@cs.helsinki.fi>
-Subject: Re: [patch 07/10] SLUB: Avoid referencing kmem_cache structure in
- __slab_alloc
-In-Reply-To: <20071028033259.992768446@sgi.com>
-Message-ID: <Pine.LNX.4.64.0710281512160.6766@sbz-30.cs.Helsinki.FI>
-References: <20071028033156.022983073@sgi.com> <20071028033259.992768446@sgi.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Date: Sun, 28 Oct 2007 13:36:01 -0100
+Message-ID: <72575563.63310841@dutch.com>
+From: "Euro VIP Kasino" <padre@mail2world.com>
+Subject: Spielen Sie in Europas bestem Online-Kasino
+MIME-Version: 1.0
+Content-Type: text/html; charset=iso-8859-1
 Content-Transfer-Encoding: 7bit
-Sender: owner-linux-mm@kvack.org
-Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
-Cc: Matthew Wilcox <matthew@wil.cx>, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Return-Path: <padre@mail2world.com>
+To: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Sat, 27 Oct 2007, Christoph Lameter wrote:
-> There is the need to use the objects per slab in the first part of
-> __slab_alloc() which is still pretty hot. Copy the number of objects
-> per slab into the kmem_cache_cpu structure. That way we can get the
-> value from a cache line that we already need to touch. This brings
-> the kmem_cache_cpu structure up to 4 even words.
+<html>
 
-Reviewed-by: Pekka Enberg <penberg@cs.helsinki.fi>
+<head>
+<meta http-equiv=Content-Type content="text/html; charset=iso-8859-1">
 
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+<title>Nur im alten </title>
+
+<style>
+<!--
+ /* Style Definitions */
+ p.MsoNormal, li.MsoNormal, div.MsoNormal
+	{mso-style-parent:"";
+	margin:0cm;
+	margin-bottom:.0001pt;
+	mso-pagination:widow-orphan;
+	font-size:12.0pt;
+	font-family:"Times New Roman";
+	mso-fareast-font-family:"Times New Roman";
+	mso-ansi-language:EN-US;
+	mso-fareast-language:EN-US;}
+a:link, span.MsoHyperlink
+	{color:blue;
+	text-decoration:underline;
+	text-underline:single;}
+a:visited, span.MsoHyperlinkFollowed
+	{color:purple;
+	text-decoration:underline;
+	text-underline:single;}
+@page Section1
+	{size:595.3pt 841.9pt;
+	margin:2.0cm 42.5pt 2.0cm 3.0cm;
+	mso-header-margin:35.4pt;
+	mso-footer-margin:35.4pt;
+	mso-paper-source:0;}
+div.Section1
+	{page:Section1;}
+-->
+</style>
+
+</head>
+
+<body lang=DE link=blue vlink=purple style='tab-interval:35.4pt'>
+
+<div class=Section1>
+
+<p class=MsoNormal>
+<span lang=EN-US>Nur im alten aristokratischen Europa k&ouml;nnen
+Sie so ein elitistisches Casino zum Spielen finden:<o:p></o:p></span></p>
+
+<p class=MsoNormal><span lang=EN-US>Euro VIP Casino!<o:p></o:p></span></p>
+
+<p class=MsoNormal><span lang=EN-US><o:p>&nbsp;</o:p></span></p>
+
+<p class=MsoNormal><span lang=EN-US>Hoher Standard ist einzigartig:
+<o:p></o:p></span></p>
+
+<p class=MsoNormal><span lang=EN-US>Ein grossz&uuml;giger Willkommensbonus von
+mindestens 100% bis zu 100 &#8364;/$ auf<span style='mso-spacerun:yes'> 
+</span>Ihre ersten vier Einzahlungen, mit maximalem 400 &#8364;/$ hohem 
+Bonus!<o:p></o:p></span></p>
+
+<p class=MsoNormal><span lang=EN-US>Unglaubliche Jackpots welche die
+Millionengrenze weit &uuml;berschreiten!<o:p></o:p></span></p>
+
+<p class=MsoNormal><span lang=EN-US>Sagenhafte last generation Software!
+<o:p></o:p></span></p>
+
+<p class=MsoNormal><span lang=EN-US><o:p>&nbsp;</o:p></span></p>
+
+<p class=MsoNormal><span lang=EN-US>All das macht es zum besten Platz online 
+zu spielen.<o:p></o:p></span></p>
+
+<p class=MsoNormal><span lang=EN-US><o:p>&nbsp;</o:p></span></p>
+
+<p class=MsoNormal><span lang=EN-US>Also kommen und spielen Sie bei Euro VIP
+Casino und treten Sie der noblen Gesellschaft der europ&auml;ischen 
+Spielelite bei!<o:p></o:p></span></p>
+
+<p class=MsoNormal><span lang=EN-US><o:p>&nbsp;</o:p></span></p>
+
+<p class=MsoNormal><span lang=EN-US>
+<a href="http://www.euro-vip-palace.com/lang-de/">
+http://www.euro-vip-palace.com/lang-de/</a><o:p></o:p></span></p>
+
+</div>
+
+</body>
+
+</html>
