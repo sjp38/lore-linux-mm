@@ -1,10 +1,10 @@
-Date: Sun, 28 Oct 2007 15:07:43 +0200 (EET)
+Date: Sun, 28 Oct 2007 15:08:06 +0200 (EET)
 From: Pekka J Enberg <penberg@cs.helsinki.fi>
-Subject: Re: [patch 01/10] SLUB: Consolidate add_partial and add_partial_tail
- to one function
-In-Reply-To: <20071028033258.546533164@sgi.com>
-Message-ID: <Pine.LNX.4.64.0710281506400.6766@sbz-30.cs.Helsinki.FI>
-References: <20071028033156.022983073@sgi.com> <20071028033258.546533164@sgi.com>
+Subject: Re: [patch 02/10] SLUB: Noinline some functions to avoid them being
+ folded into alloc/free
+In-Reply-To: <20071028033258.779134394@sgi.com>
+Message-ID: <Pine.LNX.4.64.0710281507500.6766@sbz-30.cs.Helsinki.FI>
+References: <20071028033156.022983073@sgi.com> <20071028033258.779134394@sgi.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Transfer-Encoding: 7bit
@@ -15,12 +15,9 @@ Cc: Matthew Wilcox <matthew@wil.cx>, akpm@linux-foundation.org, linux-kernel@vge
 List-ID: <linux-mm.kvack.org>
 
 On Sat, 27 Oct 2007, Christoph Lameter wrote:
-> Add a parameter to add_partial instead of having separate functions.
-> That allows the detailed control from multiple places when putting
-> slabs back to the partial list. If we put slabs back to the front
-> then they are likely immediately used for allocations. If they are
-> put at the end then we can maximize the time that the partial slabs
-> spent without allocations.
+> Some function tend to get folded into __slab_free and __slab_alloc
+> although they are rarely called. They cause register pressure that
+> leads to bad code generation.
 
 Reviewed-by: Pekka Enberg <penberg@cs.helsinki.fi>
 
