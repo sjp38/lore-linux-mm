@@ -1,76 +1,99 @@
-Subject: Re: vm_ops.page_mkwrite() fails with vmalloc on 2.6.23
-From: Peter Zijlstra <peterz@infradead.org>
-In-Reply-To: <1193652717.27652.45.camel@twins>
-References: <1193064057.16541.1.camel@matrix>
-	 <20071029004002.60c7182a.akpm@linux-foundation.org>
-	 <45a44e480710290117u492dbe82ra6344baf8bb1e370@mail.gmail.com>
-	 <1193652717.27652.45.camel@twins>
-Content-Type: text/plain
-Date: Mon, 29 Oct 2007 13:35:08 +0100
-Message-Id: <1193661308.27652.47.camel@twins>
-Mime-Version: 1.0
+Received: from d12nrmr1607.megacenter.de.ibm.com (d12nrmr1607.megacenter.de.ibm.com [9.149.167.49])
+	by mtagate4.de.ibm.com (8.13.8/8.13.8) with ESMTP id l9TEHlT5184370
+	for <linux-mm@kvack.org>; Mon, 29 Oct 2007 14:17:47 GMT
+Received: from d12av02.megacenter.de.ibm.com (d12av02.megacenter.de.ibm.com [9.149.165.228])
+	by d12nrmr1607.megacenter.de.ibm.com (8.13.8/8.13.8/NCO v8.5) with ESMTP id l9TEHlRo2244856
+	for <linux-mm@kvack.org>; Mon, 29 Oct 2007 15:17:47 +0100
+Received: from d12av02.megacenter.de.ibm.com (loopback [127.0.0.1])
+	by d12av02.megacenter.de.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l9TEHkOc000667
+	for <linux-mm@kvack.org>; Mon, 29 Oct 2007 15:17:46 +0100
+From: Christian Borntraeger <borntraeger@de.ibm.com>
+Subject: [PATCH resend2] rd: fix data corruption on memory pressure
+Date: Mon, 29 Oct 2007 15:17:44 +0100
+MIME-Version: 1.0
+Content-Type: text/plain;
+  charset="iso-8859-1"
 Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+Message-Id: <200710291517.44332.borntraeger@de.ibm.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Jaya Kumar <jayakumar.lkml@gmail.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, stefani@seibold.net, linux-kernel@vger.kernel.org, David Howells <dhowells@redhat.com>, linux-mm@kvack.org, Nick Piggin <nickpiggin@yahoo.com.au>
+To: Andrew Morton <akpm@linux-foundation.org>, Nick Piggin <nickpiggin@yahoo.com.au>, "Eric W. Biederman" <ebiederm@xmission.com>
+Cc: linux-mm@kvack.org, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Heiko Carstens <heiko.carstens@de.ibm.com>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 2007-10-29 at 11:11 +0100, Peter Zijlstra wrote:
-> On Mon, 2007-10-29 at 01:17 -0700, Jaya Kumar wrote:
-> > On 10/29/07, Andrew Morton <akpm@linux-foundation.org> wrote:
-> > > On Mon, 22 Oct 2007 16:40:57 +0200 Stefani Seibold <stefani@seibold.net> wrote:
-> > > >
-> > > > The problem original occurs with the fb_defio driver (driver/video/fb_defio.c).
-> > > > This driver use the vm_ops.page_mkwrite() handler for tracking the modified pages,
-> > > > which will be in an extra thread handled, to perform the IO and clean and
-> > > > write protect all pages with page_clean().
-> > > >
-> > 
-> > Hi,
-> > 
-> > An aside, I just tested that deferred IO works fine on 2.6.22.10/pxa255.
-> > 
-> > I understood from the thread that PeterZ is looking into page_mkclean
-> > changes which I guess went into 2.6.23. I'm also happy to help in any
-> > way if the way we're doing fb_defio needs to change.
-> 
-> Yeah, its the truncate race stuff introduced by Nick in
->   d0217ac04ca6591841e5665f518e38064f4e65bd
-> 
-> I'm a bit at a loss on how to go around fixing this. One ugly idea I had
-> was to check page->mapping before going into page_mkwrite() and when
-> that is null, don't bother with the truncate check.
+Nick, Eric, Andrew,
 
-Something like this
+we now have passed rc1. That means that Erics or Nicks rd rewrite is no longer
+an option for 2.6.24. If I followed the last thread correctly all alternative
+patches have one of the following issue
+- too big for post rc1
+- break reiserfs and maybe others
+- call into vfs while being unrelated
+
+So this is a resend of my patch, which is in my opinion the simplest fix for
+the data corruption problem.
+The patch was tested by our test department, thanks to Oliver Paukstadt and
+Thorsten Diehl.
 
 ---
- mm/memory.c |    4 +++-
- 1 file changed, 3 insertions(+), 1 deletion(-)
 
-Index: linux-2.6/mm/memory.c
+Subject: [PATCH] rd: fix data corruption on memory pressure
+From: Christian Borntraeger <borntraeger@de.ibm.com>
+
+We have seen ramdisk based install systems, where some pages of mapped 
+libraries and programs were suddendly zeroed under memory pressure. This 
+should not happen, as the ramdisk avoids freeing its pages by keeping them 
+dirty all the time.
+
+It turns out that there is a case, where the VM makes a ramdisk page clean, 
+without telling the ramdisk driver.
+On memory pressure shrink_zone runs and it starts to run shrink_active_list. 
+There is a check for buffer_heads_over_limit, and if true, pagevec_strip is 
+called. pagevec_strip calls try_to_release_page. If the mapping has no 
+releasepage callback, try_to_free_buffers is called. try_to_free_buffers has 
+now a special logic for some file systems to make a dirty page clean, if all 
+buffers are clean. Thats what happened in our test case.
+
+The simplest solution is to provide a noop-releasepage callback for the
+ramdisk driver. This avoids try_to_free_buffers for ramdisk pages. 
+
+Signed-off-by: Christian Borntraeger <borntraeger@de.ibm.com>
+---
+ drivers/block/rd.c |   13 +++++++++++++
+ 1 file changed, 13 insertions(+)
+
+Index: linux-2.6/drivers/block/rd.c
 ===================================================================
---- linux-2.6.orig/mm/memory.c
-+++ linux-2.6/mm/memory.c
-@@ -2300,6 +2300,8 @@ static int __do_fault(struct mm_struct *
- 			 * to become writable
- 			 */
- 			if (vma->vm_ops->page_mkwrite) {
-+				struct address_space *mapping = page->mapping;
+--- linux-2.6.orig/drivers/block/rd.c
++++ linux-2.6/drivers/block/rd.c
+@@ -189,6 +189,18 @@ static int ramdisk_set_page_dirty(struct
+ 	return 0;
+ }
+ 
++/*
++ * releasepage is called by pagevec_strip/try_to_release_page if
++ * buffers_heads_over_limit is true. Without a releasepage function
++ * try_to_free_buffers is called instead. That can unset the dirty
++ * bit of our ram disk pages, which will be eventually freed, even
++ * if the page is still in use.
++ */
++static int ramdisk_releasepage(struct page *page, gfp_t dummy)
++{
++	return 0;
++}
 +
- 				unlock_page(page);
- 				if (vma->vm_ops->page_mkwrite(vma, page) < 0) {
- 					ret = VM_FAULT_SIGBUS;
-@@ -2314,7 +2316,7 @@ static int __do_fault(struct mm_struct *
- 				 * reworking page_mkwrite locking API, which
- 				 * is better done later.
- 				 */
--				if (!page->mapping) {
-+				if (mapping != page->mapping) {
- 					ret = 0;
- 					anon = 1; /* no anon but release vmf.page */
- 					goto out;
-
+ static const struct address_space_operations ramdisk_aops = {
+ 	.readpage	= ramdisk_readpage,
+ 	.prepare_write	= ramdisk_prepare_write,
+@@ -196,6 +208,7 @@ static const struct address_space_operat
+ 	.writepage	= ramdisk_writepage,
+ 	.set_page_dirty	= ramdisk_set_page_dirty,
+ 	.writepages	= ramdisk_writepages,
++	.releasepage	= ramdisk_releasepage,
+ };
+ 
+ static int rd_blkdev_pagecache_IO(int rw, struct bio_vec *vec, sector_t sector,
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
