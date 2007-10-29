@@ -1,29 +1,33 @@
-Date: Sun, 28 Oct 2007 23:56:10 -0500
-From: Olof Johansson <olof@lixom.net>
-Subject: Re: [PATCH] slub: nr_slabs is an atomic_long_t
-Message-ID: <20071029045610.GA16100@lixom.net>
-References: <20071029131540.13932677.sfr@canb.auug.org.au> <Pine.LNX.4.64.0710281953460.28636@schroedinger.engr.sgi.com> <20071029142430.fd711666.sfr@canb.auug.org.au>
+Received: by rv-out-0910.google.com with SMTP id l15so1179161rvb
+        for <linux-mm@kvack.org>; Sun, 28 Oct 2007 23:30:35 -0700 (PDT)
+Message-ID: <84144f020710282330v5df5df32v1a766e653081a751@mail.gmail.com>
+Date: Mon, 29 Oct 2007 08:30:35 +0200
+From: "Pekka Enberg" <penberg@cs.helsinki.fi>
+Subject: Re: [patch 09/10] SLUB: Do our own locking via slab_lock and slab_unlock.
+In-Reply-To: <Pine.LNX.4.64.0710282001000.28636@schroedinger.engr.sgi.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Content-Disposition: inline
-In-Reply-To: <20071029142430.fd711666.sfr@canb.auug.org.au>
+References: <20071028033156.022983073@sgi.com>
+	 <20071028033300.479692380@sgi.com>
+	 <Pine.LNX.4.64.0710281702140.6766@sbz-30.cs.Helsinki.FI>
+	 <Pine.LNX.4.64.0710282001000.28636@schroedinger.engr.sgi.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Stephen Rothwell <sfr@canb.auug.org.au>
-Cc: Christoph Lameter <clameter@sgi.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
+To: Christoph Lameter <clameter@sgi.com>
+Cc: Matthew Wilcox <matthew@wil.cx>, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Oct 29, 2007 at 02:24:30PM +1100, Stephen Rothwell wrote:
-> On Sun, 28 Oct 2007 19:53:55 -0700 (PDT) Christoph Lameter <clameter@sgi.com> wrote:
-> >
-> > That was already fixed AFAICT.
-> 
-> Not in Linus' tree, yet.
+Hi,
 
-Nope, it's still sitting in -mm. Al Viro just posted the same fix too.
+On 10/29/07, Christoph Lameter <clameter@sgi.com> wrote:
+> > We don't need preempt_enable for CONFIG_SMP, right?
+>
+> preempt_enable is needed if preemption is enabled.
 
-
--Olof
+Disabled? But yeah, I see that slab_trylock() can leave preemption
+disabled if cmpxchg fails. Was confused by the #ifdefs... :-)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
