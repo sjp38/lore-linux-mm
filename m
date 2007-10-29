@@ -1,37 +1,48 @@
-Message-ID: <4724FC38.30909@linux.vnet.ibm.com>
-Date: Mon, 29 Oct 2007 02:46:40 +0530
-From: Balbir Singh <balbir@linux.vnet.ibm.com>
-Reply-To: balbir@linux.vnet.ibm.com
-MIME-Version: 1.0
-Subject: Re: OOM notifications
-References: <20071018201531.GA5938@dmt> <20071026140201.ae52757c.akpm@linux-foundation.org>
-In-Reply-To: <20071026140201.ae52757c.akpm@linux-foundation.org>
-Content-Type: text/plain; charset=ISO-8859-1
+Date: Mon, 29 Oct 2007 13:15:40 +1100
+From: Stephen Rothwell <sfr@canb.auug.org.au>
+Subject: [PATCH] slub: nr_slabs is an atomic_long_t
+Message-Id: <20071029131540.13932677.sfr@canb.auug.org.au>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Marcelo Tosatti <marcelo@kvack.org>, linux-kernel@vger.kernel.org, drepper@redhat.com, riel@redhat.com, Martin Bligh <mbligh@mbligh.org>, linux-mm@kvack.org
+To: Christoph Lameter <clameter@sgi.com>
+Cc: linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-Andrew Morton wrote:
-> It get more complicated with NUMA memory nodes and cgroup memory
-> controllers.
-> 
+so shouldn't be passed to atomic_read.
 
-At OLS this year, users wanted user space notification of OOM
-for cgroup memory controller. When a group is about to OOM,
-a notification can help an external application re-adjust
-memory limits across the system.
+mm/slub.c: In function 'slab_mem_offline_callback':
+mm/slub.c:2737: warning: passing argument 1 of 'atomic_read' from incompatible pointer type
+mm/slub.c:2737: warning: passing argument 1 of 'atomic_read' from incompatible pointer type
+mm/slub.c:2737: warning: passing argument 1 of 'atomic_read' from incompatible pointer type
 
-Keeping some memory reserved for handling OOM, this scheme could
-be extended to handle global OOM conditions as well.
+Signed-off-by: Stephen Rothwell <sfr@canb.auug.org.au>
+---
+ mm/slub.c |    2 +-
+ 1 files changed, 1 insertions(+), 1 deletions(-)
 
+Seen on PowerPC allyesconfig build.
 -- 
-	Warm Regards,
-	Balbir Singh
-	Linux Technology Center
-	IBM, ISTL
+Cheers,
+Stephen Rothwell                    sfr@canb.auug.org.au
+
+diff --git a/mm/slub.c b/mm/slub.c
+index aac1dd3..bcdb2c8 100644
+--- a/mm/slub.c
++++ b/mm/slub.c
+@@ -2734,7 +2734,7 @@ static void slab_mem_offline_callback(void *arg)
+ 			 * and offline_pages() function shoudn't call this
+ 			 * callback. So, we must fail.
+ 			 */
+-			BUG_ON(atomic_read(&n->nr_slabs));
++			BUG_ON(atomic_long_read(&n->nr_slabs));
+ 
+ 			s->node[offline_node] = NULL;
+ 			kmem_cache_free(kmalloc_caches, n);
+-- 
+1.5.3.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
