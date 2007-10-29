@@ -1,55 +1,85 @@
-Sender: <m_oneillj@cableradionetwork.com>
-Reply-To: "Merrill Oneil" <m_oneillj@cableradionetwork.com>
+Received: from d01relay04.pok.ibm.com (d01relay04.pok.ibm.com [9.56.227.236])
+	by e5.ny.us.ibm.com (8.13.8/8.13.8) with ESMTP id l9TM1ljL029346
+	for <linux-mm@kvack.org>; Mon, 29 Oct 2007 18:01:47 -0400
+Received: from d01av04.pok.ibm.com (d01av04.pok.ibm.com [9.56.224.64])
+	by d01relay04.pok.ibm.com (8.13.8/8.13.8/NCO v8.5) with ESMTP id l9TM1l1W090424
+	for <linux-mm@kvack.org>; Mon, 29 Oct 2007 18:01:47 -0400
+Received: from d01av04.pok.ibm.com (loopback [127.0.0.1])
+	by d01av04.pok.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l9TM1l9p003960
+	for <linux-mm@kvack.org>; Mon, 29 Oct 2007 18:01:47 -0400
+Message-ID: <47265842.5040506@linux.vnet.ibm.com>
+Date: Tue, 30 Oct 2007 03:31:38 +0530
+From: Balbir Singh <balbir@linux.vnet.ibm.com>
+Reply-To: balbir@linux.vnet.ibm.com
 MIME-Version: 1.0
-Message-ID: <1193679792.2516@cableradionetwork.com>
-Subject: NoPrescription? No problem...Order from online overseas pharmacy if33i5t8w2i
-From: "Merrill Oneil" <m_oneillj@cableradionetwork.com>
-Date: Mon, 29 Oct 2007 10:43:12 -0700
-Content-Type: multipart/alternative;
-	boundary="----=_NextPart_000_0D3B_BE721613.DC1C858B"
-Return-Path: <m_oneillj@cableradionetwork.com>
-To: linux-mm@kvack.org
+Subject: Re: [RFC] [-mm PATCH] Memory controller fix swap charging context
+ in unuse_pte()
+References: <20071005041406.21236.88707.sendpatchset@balbir-laptop> <Pine.LNX.4.64.0710071735530.13138@blonde.wat.veritas.com> <4713A2F2.1010408@linux.vnet.ibm.com> <Pine.LNX.4.64.0710221933570.21262@blonde.wat.veritas.com> <471F3732.5050407@linux.vnet.ibm.com> <Pine.LNX.4.64.0710252002540.25735@blonde.wat.veritas.com> <4724F0BC.1020209@linux.vnet.ibm.com> <20071028203219.GA7145@linux.vnet.ibm.com> <Pine.LNX.4.64.0710292101510.23980@blonde.wat.veritas.com>
+In-Reply-To: <Pine.LNX.4.64.0710292101510.23980@blonde.wat.veritas.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
+Sender: owner-linux-mm@kvack.org
+Return-Path: <owner-linux-mm@kvack.org>
+To: Hugh Dickins <hugh@veritas.com>
+Cc: Linux Containers <containers@lists.osdl.org>, Linux MM Mailing List <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-This is a multi-part message in MIME format.
+Hugh Dickins wrote:
+> On Mon, 29 Oct 2007, Balbir Singh wrote:
+>> On Mon, Oct 29, 2007 at 01:57:40AM +0530, Balbir Singh wrote:
+>> Hugh Dickins wrote:
+>>
+>> [snip]
+>>  
+>>> Without your mem_cgroup mods in mm/swap_state.c, unuse_pte makes
+>>> the right assignments (I believe).  But I find that swapout (using
+>>> 600M in a 512M machine) from a 200M cgroup quickly OOMs, whereas
+>>> it behaves correctly with your mm/swap_state.c.
+>>>
+>> On my UML setup, I booted the UML instance with 512M of memory and
+>> used the swapout program that you shared. I tried two things
+>>
+>>
+>> 1. Ran swapout without any changes. The program ran well without
+>>    any OOM condition occuring, lot of reclaim occured.
+>> 2. Ran swapout with the changes to mm/swap_state.c removed (diff below)
+>>    and I still did not see any OOM. The reclaim count was much lesser
+>>    since swap cache did not get accounted back to the cgroup from
+>>    which pages were being evicted.
+>>
+>> I am not sure why I don't see the OOM that you see, still trying. May be
+>> I missing something obvious at this late hour in the night :-)
+> 
+> I reconfirm that I do see those OOMs.  I'll have to try harder to
+> analyze how they come about: I sure don't expect you to debug a
+> problem you cannot reproduce.  But what happens if you try it
+> native rather than using UML?
+> 
+> Hugh
 
-------=_NextPart_000_0D3B_BE721613.DC1C858B
-Content-Type: text/plain;
-	charset="iso-8859-2"
-Content-Transfer-Encoding: 8bit
+On a real box - a powerpc machine that I have access to
 
-80%+ Discount on Popular Pills   
+1. I don't see the OOM with the mods removed (I have swap
+   space at-least twice of RAM - with mem=512M, I have at-least
+   1G of swap).
+2. Running under the container is much much faster than running
+   swapout in the root container. The machine is almost unusable
+   if swapout is run under the root container
 
-- The best RX offers on internet  
-- Fast worldwide shipping    
-Order Now! Discount waiting for you 
+At this momemnt, I suspect one of two things
 
-http://bip.ogaward.com
-http://brg.ogaward.com
-------=_NextPart_000_0D3B_BE721613.DC1C858B
-Content-Type: text/html;
-	charset="iso-8859-2"
-Content-Transfer-Encoding: 8bit
+1. Our mods to swap_state.c are different
+2. Our configuration is different, main-memory to swap-size ratio
 
-<html><head>
-<meta http-equiv="Content-Type" content="text; charset=iso-8859-1">
-</head><body>
-<center>
-<table border=6 cellspacing=0 cellpadding=8 width=555 bordercolor=ACE247><tr><td align=center bgcolor=ACE247><font size=6 color=FFFFFF face=arial>
-<b>80%+ Discount on Popular Pills</b></font></td></tr>
-<tr><td bgcolor=D9E8FF align=left>
-<font size=3 face=arial color=000000>
-<font color=F00000 size=2>
--- The 
-best RX offers on 
-internet
-<br>-- Fast worldwide shipping<br>
-</font></font><br><center><a href=http://bskbqsx2np98.ogaward.com target=_blank>
-<font face=arial size=6 color=0000CA><b>
-<u>Order Now! (1st link)</a>
-</font><br><a href=http://b6esbd634sw7r.ogaward.com target=_blank>
-<font face=arial size=5 color=0000CA>Discount waiting for you (2nd link)</a></b>
-</font><br></center></td></tr></table><br><font color=BFBFBF size=1>
-captain teacher likely between? god better towards quickly remember second understand? l29slj1zyoge82 hplwt7yxkjn4</font></body></html>
 
-------=_NextPart_000_0D3B_BE721613.DC1C858B--
+-- 
+	Warm Regards,
+	Balbir Singh
+	Linux Technology Center
+	IBM, ISTL
+
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
