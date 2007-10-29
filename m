@@ -1,124 +1,245 @@
-Date: Mon, 29 Oct 2007 13:24:15 -0700 (PDT)
-From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [NUMA] Fix memory policy refcounting
-In-Reply-To: <1193672929.5035.69.camel@localhost>
-Message-ID: <Pine.LNX.4.64.0710291317060.1379@schroedinger.engr.sgi.com>
-References: <Pine.LNX.4.64.0710261638020.29369@schroedinger.engr.sgi.com>
- <1193672929.5035.69.camel@localhost>
+Date: Mon, 29 Oct 2007 20:33:45 +0000 (GMT)
+From: Hugh Dickins <hugh@veritas.com>
+Subject: Re: msync(2) bug(?), returns AOP_WRITEPAGE_ACTIVATE to userland 
+In-Reply-To: <200710282023.l9SKNKK0031790@agora.fsl.cs.sunysb.edu>
+Message-ID: <Pine.LNX.4.64.0710292027310.21528@blonde.wat.veritas.com>
+References: <200710282023.l9SKNKK0031790@agora.fsl.cs.sunysb.edu>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
-Cc: David Rientjes <rientjes@google.com>, Paul Jackson <pj@sgi.com>, linux-mm@kvack.org, Andi Kleen <ak@suse.de>, Eric Whitney <eric.whitney@hp.com>
+To: Erez Zadok <ezk@cs.sunysb.edu>
+Cc: Pekka Enberg <penberg@cs.helsinki.fi>, Ryan Finnie <ryan@finnie.org>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, cjwatson@ubuntu.com, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 29 Oct 2007, Lee Schermerhorn wrote:
-
-> > 1. Reference counts were taken in get_vma_policy without necessarily
-> >    holding another lock that guaranteed the existence of the object
-> >    on which the reference count was taken.
+On Sun, 28 Oct 2007, Erez Zadok wrote:
 > 
-> Yes, this was true for the show_numa_maps() case, as we've discussed.  I
-> agree we need to take the mmap_sem for write in do_set_mempolicy() as we
-> do in do_mbind().
-
-Yeah it seems that we were safe for shared policies since we took the 
-refcount twice?
-
-> > 2. Adding a flag to all functions that can potentially take a refcount
-> >    on a memory. That flag is set if the refcount was taken. The code
-> >    using the memory policy can then just free the refcount if it was
-> >    actually taken.
+> I took your advise regarding ~(__GFP_FS|__GFP_IO), AOP_WRITEPAGE_ACTIVATE,
+> and such.  I revised my unionfs_writepage and unionfs_sync_page, and tested
+> it under memory pressure: I have a couple of live CDs that use tmpfs and can
+> deterministically reproduce the conditions resulting in A_W_A.  I also went
+> back to using grab_cache_page but with the gfp_mask suggestions you made.
 > 
-> This does add some additional code in the alloc path and adds an
-> additional arg to a lot of functions that I think we can remove by
-> marking shared policies as such and only derefing those.  
+> I'm happy to report that it all works great now!
 
-The get_policy function and friends may not only return shared policies 
-but also task etc policies.
+That's very encouraging...
 
-> Yeah, yeah, yeah.  But I consider that to be cpusets' fault and not
-> shared memory policy.  I still have use for the latter.  We need to find
-> a way to accomodate all of our requirements, even if it means
-> documenting that shared memory policy must be used very carefully with
-> cpusets--or not at all with dynamically changing cpusets.  I can
-> certainly live with that.
+> Below is the entirety of
+> the new unionfs_mmap and unionfs_sync_page code.  I'd appreciate if you and
+> others can look it over and see if you find any problems.
 
-There is no reason that this issue should exist. We can have your shared 
-policies with proper enforcement that no bad things happen if we get rid 
-of get_policy etc and instead use the vma policy pointer to point to the 
-shared policy. Take a refcount for each vma as it is setup to point to a 
-shared policy and you will not have to take the refcount in the hot paths.
+... but still a few problems, I'm afraid.
 
-> > The removal of shared policy support would result in the refcount issues
-> > going away and code would be much simpler. Semantics would be consistent in
-> > that memory policies only apply to a single process. Sharing of memory policies
-> > would only occur in a controlled way that does not require extra refcounting
-> > for the use of a policy.
+The greatest problem is a tmpfs one, that would be for me to solve.
+But first...
+
+> static int unionfs_writepage(struct page *page, struct writeback_control *wbc)
+> {
+> 	int err = -EIO;
+> 	struct inode *inode;
+> 	struct inode *lower_inode;
+> 	struct page *lower_page;
+> 	char *kaddr, *lower_kaddr;
+> 	struct address_space *mapping; /* lower inode mapping */
+> 	gfp_t old_gfp_mask;
 > 
-> Yes, and we'd loose control over placement of shared pages except by
-> hacking our task policy and prefaulting, or requiring every program that
-> attaches to be aware of the numa policy of the overall application.  I
-> find this as objectionable as you find shared policies.  
-
-That is not true.
-
-> > We have already vma policy pointers that are currently unused for shmem areas
-> > and could replicate shared policies by setting these pointers in each vma that
-> > is pointing to a shmem area. 
+> 	inode = page->mapping->host;
+> 	lower_inode = unionfs_lower_inode(inode);
+> 	mapping = lower_inode->i_mapping;
 > 
-> Doesn't work for me. :(
+> 	/*
+> 	 * find lower page (returns a locked page)
+> 	 *
+> 	 * We turn off __GFP_IO|__GFP_FS so as to prevent a deadlock under
 
-Why not? Point them to the shared policy and add a refcount and things 
-would be much easier.
+On reflection, I think I went too far in asking you to mask off __GFP_IO.
+Loop has to do so because it's a block device, down towards the IO layer;
+but unionfs is a filesystem, so masking off __GFP_FS is enough to prevent
+recursion into the FS layer with danger of deadlock, and leaving __GFP_IO
+on gives a better chance of success.
 
-> > Changing a shared policy would then require
-> > iterating over all processes using the policy using the reverse maps. At that
-> > point cpuset constraints etc could be considered and eventually a policy change
-> > could even be rejected on the ground that a consistent change is not possible
-> > given the other constraints of the shmem area.
+> 	 * memory pressure conditions.  This is similar to how the loop
+> 	 * driver behaves (see loop_set_fd in drivers/block/loop.c).
+> 	 * If we can't find the lower page, we redirty our page and return
+> 	 * "success" so that the VM will call us again in the (hopefully
+> 	 * near) future.
+> 	 */
+> 	old_gfp_mask = mapping_gfp_mask(mapping);
+> 	mapping_set_gfp_mask(mapping, old_gfp_mask & ~(__GFP_IO|__GFP_FS));
 > 
-> Policy remapping isn't already complex enough for you, huh? :-)
+> 	lower_page = grab_cache_page(mapping, page->index);
+> 	mapping_set_gfp_mask(mapping, old_gfp_mask);
 
-Policy remapping is one thing since we can correct the policy. Shared 
-policies cannot be correct if applied to multiple cpuset context. The 
-looping over reverse maps is a pretty standard way of doing things which 
-would allow us to detect bad policies at the time they are created and not 
-later.
+Hmm, several points on that.
 
-> >  		}
-> >  	}
-> > -	mpol_free(mpol);	/* unref if mpol !NULL */
-> > +	if (ref)
-> > +		mpol_free(mpol);
-> This shouldn't be necessary if huge_zonelist only returns a non-NULL
-> mpol if the unref is required, as I had done.  mpol_free() on a NULL
-> mpol is a no-op, as the comment was intended to convey.  You could drop
-> the extra ref argument to huge_zonelist--not that this should be much of
-> a fast path.
+When suggesting something like this, I did remark "what locking needed?".
+You've got none: which is problematic if two stacked mounts are playing
+with the same underlying file concurrently (yes, userspace would have
+a data coherency problem in such a case, but the kernel still needs to
+worry about its own internal integrity) - you'd be in danger of masking
+(__GFP_IO|__GFP_FS) permanently off the underlying file; and furthermore,
+losing error flags (AS_EIO, AS_ENOSPC) which share the same unsigned long.
+Neither likely but both wrong.
 
-True.
+See the comment on mapping_set_gfp_mask() in include/pagemap.h:
+ * This is non-atomic.  Only to be used before the mapping is activated.
+Strictly speaking, I guess loop was a little bit guilty even when just
+loop_set_fd() did it: the underlying mapping might already be active.
+It appears to be just as guilty as you in its do_loop_switch() case
+(done at BIO completion time), but that's for a LOOP_CHANGE_FD ioctl
+which would only be expected to be called once, during installation;
+whereas you're using mapping_set_gfp_mask here with great frequency.
 
-> > -	mpol_to_str(buffer, sizeof(buffer), pol);
-> > -	/*
-> > -	 * unref shared or other task's mempolicy
-> > -	 */
-> > -	if (pol != &default_policy && pol != current->mempolicy)
-> > -		__mpol_free(pol);
-> > +	mpol = get_vma_policy(priv->task, vma, vma->vm_start, &ref);
-> > +	mpol_to_str(buffer, sizeof(buffer), mpol);
-> > +	if (ref)
-> > +		mpol_free(mpol);
-> If we really want to add the ref argument to get_vma_policy(), we could
-> avoid bringing it down this deeply by requiring that all get_policy()
-> vm_ops add the extra ref [these are only used for shared memory policy
-> now] and set ref !0 when get_policy() returns a non-null policy.  This
-> would be an alternative to marking shared policies as such.
+Another point on this is: loop masks __GFP_IO|__GFP_FS off the file
+for the whole duration while it is looped, whereas you're flipping it
+just in this preliminary section of unionfs_writepage.  I think you're
+probably okay to be doing it only here within ->writepage: I think
+loop covered every operation because it's at the block device level,
+perhaps both reads and writes needed to serve reclaim at the higher
+FS level; and also easier to do it once for all.
 
-Please be aware that refcounting in the hot paths is a bad thing to do. 
-We are potentially bouncing a cacheline. I'd rather get rid of that 
-completely.
+Are you wrong to be doing it only around the grab_cache_page,
+leaving the lower level ->writepage further down unprotected?
+Certainly doing it around the grab_cache_page is likely to be way
+more important than around the ->writepage (but rather depends on
+filesystem).  And on reflection, I think that the lower filesystem's
+writepage should already be using GFP_NOFS to avoid deadlocks in
+any of its allocations when wbc->for_reclaim, so you should be
+okay just masking off around the grab_cache_page.
+
+(Actually, in the wbc->for_reclaim case, I think you don't really
+need to call the lower level writepage at all.  Just set_page_dirty
+on the lower page, unlock it and return.  In due course that memory
+pressure which has called unionfs_writepage, will come around to the
+lower level page and do writepage upon it.  Whether that's a better
+strategy or not, I'm do not know.)
+
+There's an attractively simple answer to the mapping_set_gfp_mask
+locking problem, if we're confident that it's only needed around
+the grab_cache_page.  Look at the declaration of grab_cache_page
+in linux/pagemap.h: it immediately extracts the gfp_mask from the
+mapping and passes that down to find_or_create_page, which doesn't
+use the mapping's gfp_mask at all.
+
+So, stop flipping and use find_or_create_page directly yourself.
+
+> 
+> 	if (!lower_page) {
+> 		err = 0;
+> 		set_page_dirty(page);
+
+You need to unlock_page, don't you?  Or move the "out" label up
+before the unlock_page.  There seems to have been confusion about
+this even in the current 2.6.23-mm1 unionfs_writepage: the only
+case in which a writepage returns with its page still locked is
+that AOP_WRITEPAGE_ACTIVATE case we're going to get rid of.
+
+> 		goto out;
+> 	}
+> 
+> 	/* get page address, and encode it */
+> 	kaddr = kmap(page);
+> 	lower_kaddr = kmap(lower_page);
+> 
+> 	memcpy(lower_kaddr, kaddr, PAGE_CACHE_SIZE);
+> 
+> 	kunmap(page);
+> 	kunmap(lower_page);
+
+Better to use kmap_atomic.  unionfs_writepage cannot get called
+at interrupt time, I see no reason to avoid KM_USER0 and KM_USER1:
+therefore simply use copy_highpage(lower_page, page) and let it do
+all the kmapping and copying.
+
+If PAGE_CACHE_SIZE ever diverges from PAGE_SIZE (e.g. Christoph
+Lameter's variable page_cache_size patches), then yes, this
+would need updating to a loop over several pages (or better,
+linux/highmem.h should then provide a function to do it).
+
+> 
+> 	BUG_ON(!mapping->a_ops->writepage);
+> 
+> 	/* call lower writepage (expects locked page) */
+> 	clear_page_dirty_for_io(lower_page); /* emulate VFS behavior */
+> 	err = mapping->a_ops->writepage(lower_page, wbc);
+> 
+> 	/* b/c grab_cache_page locked it and ->writepage unlocks on success */
+> 	if (err)
+> 		unlock_page(lower_page);
+
+Another instance of that confusion: lower_page is already unlocked,
+on success or failure; it's only the anomalous AOP_WRITEPAGE_ACTIVATE
+case that leaves it locked.
+
+> 	/* b/c grab_cache_page increased refcnt */
+> 	page_cache_release(lower_page);
+> 
+> 	if (err < 0) {
+> 		ClearPageUptodate(page);
+
+Page needs to be unlocked, whether here or at out.
+
+> 		goto out;
+> 	}
+> 	/*
+> 	 * Lower file systems such as ramfs and tmpfs, may return
+> 	 * AOP_WRITEPAGE_ACTIVATE so that the VM won't try to (pointlessly)
+> 	 * write the page again for a while.  But those lower file systems
+> 	 * also set the page dirty bit back again.  Since we successfully
+> 	 * copied our page data to the lower page, then the VM will come
+> 	 * back to the lower page (directly) and try to flush it.  So we can
+> 	 * save the VM the hassle of coming back to our page and trying to
+> 	 * flush too.  Therefore, we don't re-dirty our own page, and we
+> 	 * don't return AOP_WRITEPAGE_ACTIVATE back to the VM (we consider
+> 	 * this a success).
+> 	 */
+> 	if (err == AOP_WRITEPAGE_ACTIVATE)
+> 		err = 0;
+
+Right (once you've got the locking right).
+
+> 
+> 	/* all is well */
+> 	SetPageUptodate(page);
+> 	/* lower mtimes has changed: update ours */
+> 	unionfs_copy_attr_times(inode);
+> 
+> 	unlock_page(page);
+> 
+> out:
+> 	return err;
+> }
+> 
+> 
+> static void unionfs_sync_page(struct page *page)
+> {
+
+I'm not going to comment much on your unionfs_sync_page: it looks
+like a total misunderstanding of what sync_page does, assuming from
+the name that it syncs the page in a fsync/msync/sync manner.
+
+No, it would much better be named "unplug_page_io": please take a
+look at sync_page() in mm/filemap.c, observe how it gets called
+(via wait_on_page_bit) and what it ends up doing.  (Don't pay much
+attention to what Documentation/filesystems says about it, either!)
+
+It's an odd business; I think Nick did have a patch to get rid of
+it completely, which would be nice; but changes to unplugging I/O
+(kicking off the I/O after saving up several requests to do all
+together) can be a hang-prone business.
+
+Do you need a unionfs_sync_page at all?  I think not, since the
+I/O, plugged or unplugged, is below your lower level filesystem.
+
+But I started by mentioning a serious tmpfs problem.  Now I've
+persuaded you to go back to grab_cache_page/find_or_create_page,
+I realize a nasty problem for tmpfs.  Under memory pressure, you're
+liable to be putting tmpfs file pages into the page cache at the
+same time as they're already present but in disguise as swap cache
+pages.  Perhaps the solution will be quite simple (since you're
+overwriting the whole page), but I do need to think about it.
+
+Hugh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
