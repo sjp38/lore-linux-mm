@@ -1,75 +1,49 @@
-Date: Sun, 28 Oct 2007 20:03:12 -0700 (PDT)
-From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [patch 09/10] SLUB: Do our own locking via slab_lock and
- slab_unlock.
-In-Reply-To: <Pine.LNX.4.64.0710281702140.6766@sbz-30.cs.Helsinki.FI>
-Message-ID: <Pine.LNX.4.64.0710282001000.28636@schroedinger.engr.sgi.com>
-References: <20071028033156.022983073@sgi.com> <20071028033300.479692380@sgi.com>
- <Pine.LNX.4.64.0710281702140.6766@sbz-30.cs.Helsinki.FI>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Date: Mon, 29 Oct 2007 14:24:30 +1100
+From: Stephen Rothwell <sfr@canb.auug.org.au>
+Subject: Re: [PATCH] slub: nr_slabs is an atomic_long_t
+Message-Id: <20071029142430.fd711666.sfr@canb.auug.org.au>
+In-Reply-To: <Pine.LNX.4.64.0710281953460.28636@schroedinger.engr.sgi.com>
+References: <20071029131540.13932677.sfr@canb.auug.org.au>
+	<Pine.LNX.4.64.0710281953460.28636@schroedinger.engr.sgi.com>
+Mime-Version: 1.0
+Content-Type: multipart/signed; protocol="application/pgp-signature";
+ micalg="PGP-SHA1";
+ boundary="Signature=_Mon__29_Oct_2007_14_24_30_+1100_ZcV1Ey37w+5FIBwc"
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Pekka J Enberg <penberg@cs.helsinki.fi>
-Cc: Matthew Wilcox <matthew@wil.cx>, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Christoph Lameter <clameter@sgi.com>
+Cc: linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-On Sun, 28 Oct 2007, Pekka J Enberg wrote:
+--Signature=_Mon__29_Oct_2007_14_24_30_+1100_ZcV1Ey37w+5FIBwc
+Content-Type: text/plain; charset=US-ASCII
+Content-Disposition: inline
+Content-Transfer-Encoding: quoted-printable
 
-> It would be easier to review the actual locking changes if you did the 
-> SlabXXX removal in a separate patch.
+On Sun, 28 Oct 2007 19:53:55 -0700 (PDT) Christoph Lameter <clameter@sgi.co=
+m> wrote:
+>
+> That was already fixed AFAICT.
 
-There are no locking changes.
+Not in Linus' tree, yet.
 
-> > -static __always_inline void slab_lock(struct page *page)
-> > +static __always_inline void slab_unlock(struct page *page,
-> > +					unsigned long state)
-> >  {
-> > -	bit_spin_lock(PG_locked, &page->flags);
-> > +	smp_wmb();
-> 
-> Memory barriers deserve a comment. I suppose this is protecting 
-> page->flags but against what?
+--=20
+Cheers,
+Stephen Rothwell                    sfr@canb.auug.org.au
+http://www.canb.auug.org.au/~sfr/
 
-Its making sure that the changes to page flags are made visible after all 
-other changes.
+--Signature=_Mon__29_Oct_2007_14_24_30_+1100_ZcV1Ey37w+5FIBwc
+Content-Type: application/pgp-signature
 
-> 
-> > +	page->flags = state;
-> > +	preempt_enable();
-> 
-> We don't need preempt_enable for CONFIG_SMP, right?
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v1.4.6 (GNU/Linux)
 
-preempt_enable is needed if preemption is enabled.
+iD8DBQFHJVJzTgG2atn1QN8RAgG1AKCLcBxSZe+qtqIi1e996D1d8HZpWgCcC4Ys
+zzrzCsI0HPAr8SGccsn/yic=
+=axac
+-----END PGP SIGNATURE-----
 
-> 
-> > +	 __release(bitlock);
-> 
-> This needs a less generic name and maybe a comment explaining that it's 
-> not annotating a proper lock? Or maybe we can drop it completely?
-
-Probably.
-
-> > +static __always_inline unsigned long slab_trylock(struct page *page)
-> > +{
-> > +	unsigned long state;
-> > +
-> > +	preempt_disable();
-> > +	state = page->flags & ~LOCKED;
-> > +#ifdef CONFIG_SMP
-> > +	if (cmpxchg(&page->flags, state, state | LOCKED) != state) {
-> > +		 preempt_enable();
-> > +		 return 0;
-> > +	}
-> > +#endif
-> 
-> This is hairy. Perhaps it would be cleaner to have totally separate 
-> functions for SMP and UP instead?
-
-I think that is reasonably clear. Having code duplicated is not good 
-either. Well we may have to clean this up a bit.
-
-
+--Signature=_Mon__29_Oct_2007_14_24_30_+1100_ZcV1Ey37w+5FIBwc--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
