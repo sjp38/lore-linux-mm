@@ -1,513 +1,319 @@
-Message-Id: <20071030160914.201741000@chello.nl>
+Message-Id: <20071030160915.763378000@chello.nl>
 References: <20071030160401.296770000@chello.nl>
-Date: Tue, 30 Oct 2007 17:04:20 +0100
+Date: Tue, 30 Oct 2007 17:04:32 +0100
 From: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Subject: [PATCH 19/33] netvm: hook skb allocation to reserves
-Content-Disposition: inline; filename=netvm-skbuff-reserve.patch
+Subject: [PATCH 31/33] nfs: enable swap on NFS
+Content-Disposition: inline; filename=nfs-swapfile.patch
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, netdev@vger.kernel.org, trond.myklebust@fys.uio.no
 Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>
 List-ID: <linux-mm.kvack.org>
 
-Change the skb allocation api to indicate RX usage and use this to fall back to
-the reserve when needed. SKBs allocated from the reserve are tagged in
-skb->emergency.
+Provide an a_ops->swapfile() implementation for NFS. This will set the
+NFS socket to SOCK_MEMALLOC and run socket reconnect under PF_MEMALLOC as well
+as reset SOCK_MEMALLOC before engaging the protocol ->connect() method.
 
-Teach all other skb ops about emergency skbs and the reserve accounting.
+PF_MEMALLOC should allow the allocation of struct socket and related objects
+and the early (re)setting of SOCK_MEMALLOC should allow us to receive the packets
+required for the TCP connection buildup.
 
-Use the (new) packet split API to allocate and track fragment pages from the
-emergency reserve. Do this using an atomic counter in page->index. This is
-needed because the fragments have a different sharing semantic than that
-indicated by skb_shinfo()->dataref. 
-
-Note that the decision to distinguish between regular and emergency SKBs allows
-the accounting overhead to be limited to the later kind.
+(swapping continues over a server reset during heavy network traffic)
 
 Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
 ---
- include/linux/mm_types.h |    1 
- include/linux/skbuff.h   |   25 +++++-
- net/core/skbuff.c        |  173 +++++++++++++++++++++++++++++++++++++++++------
- 3 files changed, 173 insertions(+), 26 deletions(-)
+ fs/Kconfig                  |   18 ++++++++++++
+ fs/nfs/file.c               |   10 ++++++
+ include/linux/sunrpc/xprt.h |    5 ++-
+ net/sunrpc/sched.c          |    9 ++++--
+ net/sunrpc/xprtsock.c       |   63 ++++++++++++++++++++++++++++++++++++++++++++
+ 5 files changed, 102 insertions(+), 3 deletions(-)
 
-Index: linux-2.6/include/linux/skbuff.h
+Index: linux-2.6/fs/nfs/file.c
 ===================================================================
---- linux-2.6.orig/include/linux/skbuff.h
-+++ linux-2.6/include/linux/skbuff.h
-@@ -289,7 +289,8 @@ struct sk_buff {
- 	__u8			pkt_type:3,
- 				fclone:2,
- 				ipvs_property:1,
--				nf_trace:1;
-+				nf_trace:1,
-+				emergency:1;
- 	__be16			protocol;
+--- linux-2.6.orig/fs/nfs/file.c
++++ linux-2.6/fs/nfs/file.c
+@@ -371,6 +371,13 @@ static int nfs_launder_page(struct page 
+ 	return nfs_wb_page(page_file_mapping(page)->host, page);
+ }
  
- 	void			(*destructor)(struct sk_buff *skb);
-@@ -341,10 +342,22 @@ struct sk_buff {
- 
- #include <asm/system.h>
- 
-+#define SKB_ALLOC_FCLONE	0x01
-+#define SKB_ALLOC_RX		0x02
-+
-+static inline bool skb_emergency(const struct sk_buff *skb)
++#ifdef CONFIG_NFS_SWAP
++static int nfs_swapfile(struct address_space *mapping, int enable)
 +{
-+#ifdef CONFIG_NETVM
-+	return unlikely(skb->emergency);
-+#else
-+	return false;
-+#endif
++	return xs_swapper(NFS_CLIENT(mapping->host)->cl_xprt, enable);
 +}
++#endif
 +
- extern void kfree_skb(struct sk_buff *skb);
- extern void	       __kfree_skb(struct sk_buff *skb);
- extern struct sk_buff *__alloc_skb(unsigned int size,
--				   gfp_t priority, int fclone, int node);
-+				   gfp_t priority, int flags, int node);
- static inline struct sk_buff *alloc_skb(unsigned int size,
- 					gfp_t priority)
- {
-@@ -354,7 +367,7 @@ static inline struct sk_buff *alloc_skb(
- static inline struct sk_buff *alloc_skb_fclone(unsigned int size,
- 					       gfp_t priority)
- {
--	return __alloc_skb(size, priority, 1, -1);
-+	return __alloc_skb(size, priority, SKB_ALLOC_FCLONE, -1);
- }
+ const struct address_space_operations nfs_file_aops = {
+ 	.readpage = nfs_readpage,
+ 	.readpages = nfs_readpages,
+@@ -385,6 +392,9 @@ const struct address_space_operations nf
+ 	.direct_IO = nfs_direct_IO,
+ #endif
+ 	.launder_page = nfs_launder_page,
++#ifdef CONFIG_NFS_SWAP
++	.swapfile = nfs_swapfile,
++#endif
+ };
  
- extern void	       kfree_skbmem(struct sk_buff *skb);
-@@ -1297,7 +1310,8 @@ static inline void __skb_queue_purge(str
- static inline struct sk_buff *__dev_alloc_skb(unsigned int length,
- 					      gfp_t gfp_mask)
- {
--	struct sk_buff *skb = alloc_skb(length + NET_SKB_PAD, gfp_mask);
-+	struct sk_buff *skb =
-+		__alloc_skb(length + NET_SKB_PAD, gfp_mask, SKB_ALLOC_RX, -1);
- 	if (likely(skb))
- 		skb_reserve(skb, NET_SKB_PAD);
- 	return skb;
-@@ -1343,6 +1357,7 @@ static inline struct sk_buff *netdev_all
- }
- 
- extern struct page *__netdev_alloc_page(struct net_device *dev, gfp_t gfp_mask);
-+extern void __netdev_free_page(struct net_device *dev, struct page *page);
- 
- /**
-  *	netdev_alloc_page - allocate a page for ps-rx on a specific device
-@@ -1359,7 +1374,7 @@ static inline struct page *netdev_alloc_
- 
- static inline void netdev_free_page(struct net_device *dev, struct page *page)
- {
--	__free_page(page);
-+	__netdev_free_page(dev, page);
- }
- 
- /**
-Index: linux-2.6/net/core/skbuff.c
+ static int nfs_vm_page_mkwrite(struct vm_area_struct *vma, struct page *page)
+Index: linux-2.6/include/linux/sunrpc/xprt.h
 ===================================================================
---- linux-2.6.orig/net/core/skbuff.c
-+++ linux-2.6/net/core/skbuff.c
-@@ -179,21 +179,28 @@ EXPORT_SYMBOL(skb_truesize_bug);
-  *	%GFP_ATOMIC.
-  */
- struct sk_buff *__alloc_skb(unsigned int size, gfp_t gfp_mask,
--			    int fclone, int node)
-+			    int flags, int node)
- {
- 	struct kmem_cache *cache;
- 	struct skb_shared_info *shinfo;
- 	struct sk_buff *skb;
- 	u8 *data;
-+	int emergency = 0, memalloc = sk_memalloc_socks();
+--- linux-2.6.orig/include/linux/sunrpc/xprt.h
++++ linux-2.6/include/linux/sunrpc/xprt.h
+@@ -143,7 +143,9 @@ struct rpc_xprt {
+ 	unsigned int		max_reqs;	/* total slots */
+ 	unsigned long		state;		/* transport state */
+ 	unsigned char		shutdown   : 1,	/* being shut down */
+-				resvport   : 1; /* use a reserved port */
++				resvport   : 1, /* use a reserved port */
++				swapper    : 1; /* we're swapping over this
++						   transport */
+ 	unsigned int		bind_index;	/* bind function index */
  
--	cache = fclone ? skbuff_fclone_cache : skbuff_head_cache;
-+	size = SKB_DATA_ALIGN(size);
-+	cache = (flags & SKB_ALLOC_FCLONE)
-+		? skbuff_fclone_cache : skbuff_head_cache;
-+#ifdef CONFIG_NETVM
-+	if (memalloc && (flags & SKB_ALLOC_RX))
-+		gfp_mask |= __GFP_NOMEMALLOC|__GFP_NOWARN;
- 
-+retry_alloc:
-+#endif
- 	/* Get the HEAD */
- 	skb = kmem_cache_alloc_node(cache, gfp_mask & ~__GFP_DMA, node);
- 	if (!skb)
--		goto out;
-+		goto noskb;
- 
--	size = SKB_DATA_ALIGN(size);
- 	data = kmalloc_node_track_caller(size + sizeof(struct skb_shared_info),
- 			gfp_mask, node);
- 	if (!data)
-@@ -203,6 +210,7 @@ struct sk_buff *__alloc_skb(unsigned int
- 	 * See comment in sk_buff definition, just before the 'tail' member
- 	 */
- 	memset(skb, 0, offsetof(struct sk_buff, tail));
-+	skb->emergency = emergency;
- 	skb->truesize = size + sizeof(struct sk_buff);
- 	atomic_set(&skb->users, 1);
- 	skb->head = data;
-@@ -219,7 +227,7 @@ struct sk_buff *__alloc_skb(unsigned int
- 	shinfo->ip6_frag_id = 0;
- 	shinfo->frag_list = NULL;
- 
--	if (fclone) {
-+	if (flags & SKB_ALLOC_FCLONE) {
- 		struct sk_buff *child = skb + 1;
- 		atomic_t *fclone_ref = (atomic_t *) (child + 1);
- 
-@@ -227,12 +235,31 @@ struct sk_buff *__alloc_skb(unsigned int
- 		atomic_set(fclone_ref, 1);
- 
- 		child->fclone = SKB_FCLONE_UNAVAILABLE;
-+		child->emergency = skb->emergency;
- 	}
- out:
- 	return skb;
-+
- nodata:
- 	kmem_cache_free(cache, skb);
- 	skb = NULL;
-+noskb:
-+#ifdef CONFIG_NETVM
-+	/* Attempt emergency allocation when RX skb. */
-+	if (likely(!(flags & SKB_ALLOC_RX) || !memalloc))
-+		goto out;
-+
-+	if (!emergency) {
-+		if (rx_emergency_get(size)) {
-+			gfp_mask &= ~(__GFP_NOMEMALLOC|__GFP_NOWARN);
-+			gfp_mask |= __GFP_MEMALLOC;
-+			emergency = 1;
-+			goto retry_alloc;
-+		}
-+	} else
-+		rx_emergency_put(size);
-+#endif
-+
- 	goto out;
- }
- 
-@@ -255,7 +282,7 @@ struct sk_buff *__netdev_alloc_skb(struc
- 	int node = dev->dev.parent ? dev_to_node(dev->dev.parent) : -1;
- 	struct sk_buff *skb;
- 
--	skb = __alloc_skb(length + NET_SKB_PAD, gfp_mask, 0, node);
-+	skb = __alloc_skb(length + NET_SKB_PAD, gfp_mask, SKB_ALLOC_RX, node);
- 	if (likely(skb)) {
- 		skb_reserve(skb, NET_SKB_PAD);
- 		skb->dev = dev;
-@@ -268,10 +295,34 @@ struct page *__netdev_alloc_page(struct 
- 	int node = dev->dev.parent ? dev_to_node(dev->dev.parent) : -1;
- 	struct page *page;
- 
-+#ifdef CONFIG_NETVM
-+	gfp_mask |= __GFP_NOMEMALLOC | __GFP_NOWARN;
-+#endif
-+
- 	page = alloc_pages_node(node, gfp_mask, 0);
-+
-+#ifdef CONFIG_NETVM
-+	if (!page && rx_emergency_get(PAGE_SIZE)) {
-+		gfp_mask &= ~(__GFP_NOMEMALLOC | __GFP_NOWARN);
-+		gfp_mask |= __GFP_MEMALLOC;
-+		page = alloc_pages_node(node, gfp_mask, 0);
-+		if (!page)
-+			rx_emergency_put(PAGE_SIZE);
-+	}
-+#endif
-+
- 	return page;
- }
- 
-+void __netdev_free_page(struct net_device *dev, struct page *page)
-+{
-+#ifdef CONFIG_NETVM
-+	if (unlikely(page->reserve))
-+		rx_emergency_put(PAGE_SIZE);
-+#endif
-+	__free_page(page);
-+}
-+
- void skb_add_rx_frag(struct sk_buff *skb, int i, struct page *page, int off,
- 		int size)
- {
-@@ -279,6 +330,34 @@ void skb_add_rx_frag(struct sk_buff *skb
- 	skb->len += size;
- 	skb->data_len += size;
- 	skb->truesize += size;
-+
-+#ifdef CONFIG_NETVM
-+	/*
-+	 * Fix-up the emergency accounting; make sure all pages match
-+	 * skb->emergency.
-+	 *
-+	 * This relies on page->reserve to be preserved between
-+	 * the call to __netdev_alloc_page() and this call.
-+	 */
-+	if (skb_emergency(skb)) {
-+		/*
-+		 * If the page was not an emergency alloc (ALLOC_NO_WATERMARK)
-+		 * we can use overcommit accounting, since we already have the
-+		 * memory.
-+		 */
-+		if (!page->reserve)
-+			rx_emergency_get_overcommit(PAGE_SIZE);
-+		atomic_set(&page->frag_count, 1);
-+	} else if (unlikely(page->reserve)) {
-+		/*
-+		 * Rare case; the skb wasn't allocated under pressure but
-+		 * the page was. We need to return the page. This can offset
-+		 * the accounting a little, but its a constant shift, it does
-+		 * not accumulate.
-+		 */
-+		rx_emergency_put(PAGE_SIZE);
-+	}
-+#endif
- }
- 
- static void skb_drop_list(struct sk_buff **listp)
-@@ -307,21 +386,45 @@ static void skb_clone_fraglist(struct sk
- 		skb_get(list);
- }
- 
-+static inline void skb_get_page(struct sk_buff *skb, struct page *page)
-+{
-+	get_page(page);
-+	if (skb_emergency(skb))
-+		atomic_inc(&page->frag_count);
-+}
-+
-+static inline void skb_put_page(struct sk_buff *skb, struct page *page)
-+{
-+	if (skb_emergency(skb) && atomic_dec_and_test(&page->frag_count))
-+		rx_emergency_put(PAGE_SIZE);
-+	put_page(page);
-+}
-+
- static void skb_release_data(struct sk_buff *skb)
- {
- 	if (!skb->cloned ||
- 	    !atomic_sub_return(skb->nohdr ? (1 << SKB_DATAREF_SHIFT) + 1 : 1,
- 			       &skb_shinfo(skb)->dataref)) {
-+		int size;
-+
-+#ifdef NET_SKBUFF_DATA_USES_OFFSET
-+		size = skb->end;
-+#else
-+		size = skb->end - skb->head;
-+#endif
-+
- 		if (skb_shinfo(skb)->nr_frags) {
- 			int i;
- 			for (i = 0; i < skb_shinfo(skb)->nr_frags; i++)
--				put_page(skb_shinfo(skb)->frags[i].page);
-+				skb_put_page(skb, skb_shinfo(skb)->frags[i].page);
- 		}
- 
- 		if (skb_shinfo(skb)->frag_list)
- 			skb_drop_fraglist(skb);
- 
- 		kfree(skb->head);
-+		if (skb_emergency(skb))
-+			rx_emergency_put(size);
- 	}
- }
- 
-@@ -440,6 +543,9 @@ struct sk_buff *skb_clone(struct sk_buff
- 		n->fclone = SKB_FCLONE_CLONE;
- 		atomic_inc(fclone_ref);
- 	} else {
-+		if (skb_emergency(skb))
-+			gfp_mask |= __GFP_MEMALLOC;
-+
- 		n = kmem_cache_alloc(skbuff_head_cache, gfp_mask);
- 		if (!n)
- 			return NULL;
-@@ -477,6 +583,7 @@ struct sk_buff *skb_clone(struct sk_buff
- #if defined(CONFIG_IP_VS) || defined(CONFIG_IP_VS_MODULE)
- 	C(ipvs_property);
- #endif
-+	C(emergency);
- 	C(protocol);
- 	n->destructor = NULL;
- 	C(mark);
-@@ -565,6 +672,14 @@ static void copy_skb_header(struct sk_bu
- 	skb_shinfo(new)->gso_type = skb_shinfo(old)->gso_type;
- }
- 
-+static inline int skb_alloc_rx_flag(const struct sk_buff *skb)
-+{
-+	if (skb_emergency(skb))
-+		return SKB_ALLOC_RX;
-+
-+	return 0;
-+}
-+
- /**
-  *	skb_copy	-	create private copy of an sk_buff
-  *	@skb: buffer to copy
-@@ -585,15 +700,17 @@ static void copy_skb_header(struct sk_bu
- struct sk_buff *skb_copy(const struct sk_buff *skb, gfp_t gfp_mask)
- {
- 	int headerlen = skb->data - skb->head;
-+	int size;
  	/*
- 	 *	Allocate the copy buffer
- 	 */
- 	struct sk_buff *n;
- #ifdef NET_SKBUFF_DATA_USES_OFFSET
--	n = alloc_skb(skb->end + skb->data_len, gfp_mask);
-+	size = skb->end + skb->data_len;
- #else
--	n = alloc_skb(skb->end - skb->head + skb->data_len, gfp_mask);
-+	size = skb->end - skb->head + skb->data_len;
- #endif
-+	n = __alloc_skb(size, gfp_mask, skb_alloc_rx_flag(skb), -1);
- 	if (!n)
- 		return NULL;
+@@ -246,6 +248,7 @@ struct rpc_rqst *	xprt_lookup_rqst(struc
+ void			xprt_complete_rqst(struct rpc_task *task, int copied);
+ void			xprt_release_rqst_cong(struct rpc_task *task);
+ void			xprt_disconnect(struct rpc_xprt *xprt);
++int			xs_swapper(struct rpc_xprt *xprt, int enable);
  
-@@ -628,12 +745,14 @@ struct sk_buff *pskb_copy(struct sk_buff
- 	/*
- 	 *	Allocate the copy buffer
- 	 */
-+	int size;
- 	struct sk_buff *n;
- #ifdef NET_SKBUFF_DATA_USES_OFFSET
--	n = alloc_skb(skb->end, gfp_mask);
-+	size = skb->end;
- #else
--	n = alloc_skb(skb->end - skb->head, gfp_mask);
-+	size = skb->end - skb->head;
- #endif
-+	n = __alloc_skb(size, gfp_mask, skb_alloc_rx_flag(skb), -1);
- 	if (!n)
+ /*
+  * Reserved bit positions in xprt->state
+Index: linux-2.6/net/sunrpc/sched.c
+===================================================================
+--- linux-2.6.orig/net/sunrpc/sched.c
++++ linux-2.6/net/sunrpc/sched.c
+@@ -761,7 +761,10 @@ struct rpc_buffer {
+ void *rpc_malloc(struct rpc_task *task, size_t size)
+ {
+ 	struct rpc_buffer *buf;
+-	gfp_t gfp = RPC_IS_SWAPPER(task) ? GFP_ATOMIC : GFP_NOWAIT;
++	gfp_t gfp = GFP_NOWAIT;
++
++	if (RPC_IS_SWAPPER(task))
++		gfp |= __GFP_MEMALLOC;
+ 
+ 	size += sizeof(struct rpc_buffer);
+ 	if (size <= RPC_BUFFER_MAXSIZE)
+@@ -817,6 +820,8 @@ void rpc_init_task(struct rpc_task *task
+ 	atomic_set(&task->tk_count, 1);
+ 	task->tk_client = clnt;
+ 	task->tk_flags  = flags;
++	if (clnt->cl_xprt->swapper)
++		task->tk_flags |= RPC_TASK_SWAPPER;
+ 	task->tk_ops = tk_ops;
+ 	if (tk_ops->rpc_call_prepare != NULL)
+ 		task->tk_action = rpc_prepare_task;
+@@ -853,7 +858,7 @@ void rpc_init_task(struct rpc_task *task
+ static struct rpc_task *
+ rpc_alloc_task(void)
+ {
+-	return (struct rpc_task *)mempool_alloc(rpc_task_mempool, GFP_NOFS);
++	return (struct rpc_task *)mempool_alloc(rpc_task_mempool, GFP_NOIO);
+ }
+ 
+ static void rpc_free_task(struct rcu_head *rcu)
+Index: linux-2.6/net/sunrpc/xprtsock.c
+===================================================================
+--- linux-2.6.orig/net/sunrpc/xprtsock.c
++++ linux-2.6/net/sunrpc/xprtsock.c
+@@ -1397,6 +1397,9 @@ static void xs_udp_finish_connecting(str
+ 		transport->sock = sock;
+ 		transport->inet = sk;
+ 
++		if (xprt->swapper)
++			sk_set_memalloc(sk);
++
+ 		write_unlock_bh(&sk->sk_callback_lock);
+ 	}
+ 	xs_udp_do_set_buffer_size(xprt);
+@@ -1414,11 +1417,15 @@ static void xs_udp_connect_worker4(struc
+   		container_of(work, struct sock_xprt, connect_worker.work);
+ 	struct rpc_xprt *xprt = &transport->xprt;
+ 	struct socket *sock = transport->sock;
++	unsigned long pflags = current->flags;
+ 	int err, status = -EIO;
+ 
+ 	if (xprt->shutdown || !xprt_bound(xprt))
  		goto out;
  
-@@ -652,8 +771,9 @@ struct sk_buff *pskb_copy(struct sk_buff
- 		int i;
- 
- 		for (i = 0; i < skb_shinfo(skb)->nr_frags; i++) {
--			skb_shinfo(n)->frags[i] = skb_shinfo(skb)->frags[i];
--			get_page(skb_shinfo(n)->frags[i].page);
-+			skb_frag_t *frag = &skb_shinfo(skb)->frags[i];
-+			skb_shinfo(n)->frags[i] = *frag;
-+			skb_get_page(n, frag->page);
- 		}
- 		skb_shinfo(n)->nr_frags = i;
- 	}
-@@ -701,6 +821,14 @@ int pskb_expand_head(struct sk_buff *skb
- 
- 	size = SKB_DATA_ALIGN(size);
- 
-+	if (skb_emergency(skb)) {
-+		if (rx_emergency_get(size))
-+			gfp_mask |= __GFP_MEMALLOC;
-+		else
-+			goto nodata;
-+	} else
-+		gfp_mask |= __GFP_NOMEMALLOC;
++	if (xprt->swapper)
++		current->flags |= PF_MEMALLOC;
 +
- 	data = kmalloc(size + sizeof(struct skb_shared_info), gfp_mask);
- 	if (!data)
- 		goto nodata;
-@@ -716,7 +844,7 @@ int pskb_expand_head(struct sk_buff *skb
- 	       sizeof(struct skb_shared_info));
+ 	/* Start by resetting any existing state */
+ 	xs_close(xprt);
  
- 	for (i = 0; i < skb_shinfo(skb)->nr_frags; i++)
--		get_page(skb_shinfo(skb)->frags[i].page);
-+		skb_get_page(skb, skb_shinfo(skb)->frags[i].page);
+@@ -1441,6 +1448,7 @@ static void xs_udp_connect_worker4(struc
+ out:
+ 	xprt_wake_pending_tasks(xprt, status);
+ 	xprt_clear_connecting(xprt);
++	tsk_restore_flags(current, pflags, PF_MEMALLOC);
+ }
  
- 	if (skb_shinfo(skb)->frag_list)
- 		skb_clone_fraglist(skb);
-@@ -795,8 +923,8 @@ struct sk_buff *skb_copy_expand(const st
- 	/*
- 	 *	Allocate the copy buffer
- 	 */
--	struct sk_buff *n = alloc_skb(newheadroom + skb->len + newtailroom,
--				      gfp_mask);
-+	struct sk_buff *n = __alloc_skb(newheadroom + skb->len + newtailroom,
-+				        gfp_mask, skb_alloc_rx_flag(skb), -1);
- 	int oldheadroom = skb_headroom(skb);
- 	int head_copy_len, head_copy_off;
- 	int off;
-@@ -913,7 +1041,7 @@ drop_pages:
- 		skb_shinfo(skb)->nr_frags = i;
+ /**
+@@ -1455,11 +1463,15 @@ static void xs_udp_connect_worker6(struc
+ 		container_of(work, struct sock_xprt, connect_worker.work);
+ 	struct rpc_xprt *xprt = &transport->xprt;
+ 	struct socket *sock = transport->sock;
++	unsigned long pflags = current->flags;
+ 	int err, status = -EIO;
  
- 		for (; i < nfrags; i++)
--			put_page(skb_shinfo(skb)->frags[i].page);
-+			skb_put_page(skb, skb_shinfo(skb)->frags[i].page);
+ 	if (xprt->shutdown || !xprt_bound(xprt))
+ 		goto out;
  
- 		if (skb_shinfo(skb)->frag_list)
- 			skb_drop_fraglist(skb);
-@@ -1082,7 +1210,7 @@ pull_pages:
- 	k = 0;
- 	for (i = 0; i < skb_shinfo(skb)->nr_frags; i++) {
- 		if (skb_shinfo(skb)->frags[i].size <= eat) {
--			put_page(skb_shinfo(skb)->frags[i].page);
-+			skb_put_page(skb, skb_shinfo(skb)->frags[i].page);
- 			eat -= skb_shinfo(skb)->frags[i].size;
- 		} else {
- 			skb_shinfo(skb)->frags[k] = skb_shinfo(skb)->frags[i];
-@@ -1854,6 +1982,7 @@ static inline void skb_split_no_header(s
- 			skb_shinfo(skb1)->frags[k] = skb_shinfo(skb)->frags[i];
++	if (xprt->swapper)
++		current->flags |= PF_MEMALLOC;
++
+ 	/* Start by resetting any existing state */
+ 	xs_close(xprt);
  
- 			if (pos < len) {
-+				struct page *page = skb_shinfo(skb)->frags[i].page;
- 				/* Split frag.
- 				 * We have two variants in this case:
- 				 * 1. Move all the frag to the second
-@@ -1862,7 +1991,7 @@ static inline void skb_split_no_header(s
- 				 *    where splitting is expensive.
- 				 * 2. Split is accurately. We make this.
- 				 */
--				get_page(skb_shinfo(skb)->frags[i].page);
-+				skb_get_page(skb1, page);
- 				skb_shinfo(skb1)->frags[0].page_offset += len - pos;
- 				skb_shinfo(skb1)->frags[0].size -= len - pos;
- 				skb_shinfo(skb)->frags[i].size	= len - pos;
-@@ -2193,7 +2322,8 @@ struct sk_buff *skb_segment(struct sk_bu
- 		if (hsize > len || !sg)
- 			hsize = len;
+@@ -1482,6 +1494,7 @@ static void xs_udp_connect_worker6(struc
+ out:
+ 	xprt_wake_pending_tasks(xprt, status);
+ 	xprt_clear_connecting(xprt);
++	tsk_restore_flags(current, pflags, PF_MEMALLOC);
+ }
  
--		nskb = alloc_skb(hsize + doffset + headroom, GFP_ATOMIC);
-+		nskb = __alloc_skb(hsize + doffset + headroom, GFP_ATOMIC,
-+				   skb_alloc_rx_flag(skb), -1);
- 		if (unlikely(!nskb))
- 			goto err;
+ /*
+@@ -1541,6 +1554,9 @@ static int xs_tcp_finish_connecting(stru
+ 		write_unlock_bh(&sk->sk_callback_lock);
+ 	}
  
-@@ -2238,7 +2368,7 @@ struct sk_buff *skb_segment(struct sk_bu
- 			BUG_ON(i >= nfrags);
++	if (xprt->swapper)
++		sk_set_memalloc(transport->inet);
++
+ 	/* Tell the socket layer to start connecting... */
+ 	xprt->stat.connect_count++;
+ 	xprt->stat.connect_start = jiffies;
+@@ -1559,11 +1575,15 @@ static void xs_tcp_connect_worker4(struc
+ 		container_of(work, struct sock_xprt, connect_worker.work);
+ 	struct rpc_xprt *xprt = &transport->xprt;
+ 	struct socket *sock = transport->sock;
++	unsigned long pflags = current->flags;
+ 	int err, status = -EIO;
  
- 			*frag = skb_shinfo(skb)->frags[i];
--			get_page(frag->page);
-+			skb_get_page(nskb, frag->page);
- 			size = frag->size;
+ 	if (xprt->shutdown || !xprt_bound(xprt))
+ 		goto out;
  
- 			if (pos < offset) {
-@@ -2483,6 +2613,7 @@ EXPORT_SYMBOL(__pskb_pull_tail);
- EXPORT_SYMBOL(__alloc_skb);
- EXPORT_SYMBOL(__netdev_alloc_skb);
- EXPORT_SYMBOL(__netdev_alloc_page);
-+EXPORT_SYMBOL(__netdev_free_page);
- EXPORT_SYMBOL(skb_add_rx_frag);
- EXPORT_SYMBOL(pskb_copy);
- EXPORT_SYMBOL(pskb_expand_head);
-Index: linux-2.6/include/linux/mm_types.h
++	if (xprt->swapper)
++		current->flags |= PF_MEMALLOC;
++
+ 	if (!sock) {
+ 		/* start from scratch */
+ 		if ((err = sock_create_kern(PF_INET, SOCK_STREAM, IPPROTO_TCP, &sock)) < 0) {
+@@ -1606,6 +1626,7 @@ out:
+ 	xprt_wake_pending_tasks(xprt, status);
+ out_clear:
+ 	xprt_clear_connecting(xprt);
++	tsk_restore_flags(current, pflags, PF_MEMALLOC);
+ }
+ 
+ /**
+@@ -1620,11 +1641,15 @@ static void xs_tcp_connect_worker6(struc
+ 		container_of(work, struct sock_xprt, connect_worker.work);
+ 	struct rpc_xprt *xprt = &transport->xprt;
+ 	struct socket *sock = transport->sock;
++	unsigned long pflags = current->flags;
+ 	int err, status = -EIO;
+ 
+ 	if (xprt->shutdown || !xprt_bound(xprt))
+ 		goto out;
+ 
++	if (xprt->swapper)
++		current->flags |= PF_MEMALLOC;
++
+ 	if (!sock) {
+ 		/* start from scratch */
+ 		if ((err = sock_create_kern(PF_INET6, SOCK_STREAM, IPPROTO_TCP, &sock)) < 0) {
+@@ -1666,6 +1691,7 @@ out:
+ 	xprt_wake_pending_tasks(xprt, status);
+ out_clear:
+ 	xprt_clear_connecting(xprt);
++	tsk_restore_flags(current, pflags, PF_MEMALLOC);
+ }
+ 
+ /**
+@@ -1985,6 +2011,43 @@ int init_socket_xprt(void)
+ 	return 0;
+ }
+ 
++#ifdef CONFIG_SUNRPC_SWAP
++#define RPC_BUF_RESERVE_PAGES \
++	kestimate_single(sizeof(struct rpc_rqst), GFP_KERNEL, RPC_MAX_SLOT_TABLE)
++#define RPC_RESERVE_PAGES	(RPC_BUF_RESERVE_PAGES + TX_RESERVE_PAGES)
++
++/**
++ * xs_swapper - Tag this transport as being used for swap.
++ * @xprt: transport to tag
++ * @enable: enable/disable
++ *
++ */
++int xs_swapper(struct rpc_xprt *xprt, int enable)
++{
++	struct sock_xprt *transport = container_of(xprt, struct sock_xprt, xprt);
++	int err = 0;
++
++	if (enable) {
++		/*
++		 * keep one extra sock reference so the reserve won't dip
++		 * when the socket gets reconnected.
++		 */
++		err = sk_adjust_memalloc(1, RPC_RESERVE_PAGES);
++		if (!err) {
++			sk_set_memalloc(transport->inet);
++			xprt->swapper = 1;
++		}
++	} else if (xprt->swapper) {
++		xprt->swapper = 0;
++		sk_clear_memalloc(transport->inet);
++		sk_adjust_memalloc(-1, -RPC_RESERVE_PAGES);
++	}
++
++	return err;
++}
++EXPORT_SYMBOL_GPL(xs_swapper);
++#endif
++
+ /**
+  * cleanup_socket_xprt - remove xprtsock's sysctls, unregister
+  *
+Index: linux-2.6/fs/Kconfig
 ===================================================================
---- linux-2.6.orig/include/linux/mm_types.h
-+++ linux-2.6/include/linux/mm_types.h
-@@ -71,6 +71,7 @@ struct page {
- 		pgoff_t index;		/* Our offset within mapping. */
- 		void *freelist;		/* SLUB: freelist req. slab lock */
- 		int reserve;		/* page_alloc: page is a reserve page */
-+		atomic_t frag_count;	/* skb fragment use count */
- 	};
- 	struct list_head lru;		/* Pageout list, eg. active_list
- 					 * protected by zone->lru_lock !
+--- linux-2.6.orig/fs/Kconfig
++++ linux-2.6/fs/Kconfig
+@@ -1690,6 +1690,18 @@ config NFS_DIRECTIO
+ 	  causes open() to return EINVAL if a file residing in NFS is
+ 	  opened with the O_DIRECT flag.
+ 
++config NFS_SWAP
++	bool "Provide swap over NFS support"
++	default n
++	depends on NFS_FS
++	select SUNRPC_SWAP
++	help
++	  This option enables swapon to work on files located on NFS mounts.
++
++	  For more details, see Documentation/vm_deadlock.txt
++
++	  If unsure, say N.
++
+ config NFSD
+ 	tristate "NFS server support"
+ 	depends on INET
+@@ -1824,6 +1836,12 @@ config SUNRPC_BIND34
+ 	  If unsure, say N to get traditional behavior (version 2 rpcbind
+ 	  requests only).
+ 
++config SUNRPC_SWAP
++	def_bool n
++	depends on SUNRPC
++	select NETVM
++	select SWAP_FILE
++
+ config RPCSEC_GSS_KRB5
+ 	tristate "Secure RPC: Kerberos V mechanism (EXPERIMENTAL)"
+ 	depends on SUNRPC && EXPERIMENTAL
 
 --
 
