@@ -1,7 +1,7 @@
 From: Adam Litke <agl@us.ibm.com>
-Subject: [PATCH 3/5] hugetlb: Debit quota in alloc_huge_page
-Date: Tue, 30 Oct 2007 13:46:27 -0700
-Message-Id: <20071030204627.16585.26983.stgit@kernel>
+Subject: [PATCH 4/5] hugetlb: Allow bulk updating in hugetlb_*_quota()
+Date: Tue, 30 Oct 2007 13:46:38 -0700
+Message-Id: <20071030204638.16585.3618.stgit@kernel>
 In-Reply-To: <20071030204554.16585.80588.stgit@kernel>
 References: <20071030204554.16585.80588.stgit@kernel>
 Content-Type: text/plain; charset=utf-8; format=fixed
@@ -12,97 +12,94 @@ To: Andrew Morton <akpm@linux-foundation.org>
 Cc: linux-mm@kvack.org, linux-kernel@kvack.org, Ken Chen <kenchen@google.com>, Andy Whitcroft <apw@shadowen.org>, Dave Hansen <haveblue@us.ibm.com>, Adam Litke <agl@us.ibm.com>
 List-ID: <linux-mm.kvack.org>
 
-Now that quota is credited by free_huge_page(), calls to
-hugetlb_get_quota() seem out of place.  The alloc/free API is unbalanced
-because we handle the hugetlb_put_quota() but expect the caller to
-open-code hugetlb_get_quota().  Move the get inside alloc_huge_page to
-clean up this disparity.
-
-This patch has been kept apart from the previous patch because of the
-somewhat dodgy ERR_PTR() use herein.  Moving the quota logic means that
-alloc_huge_page() has two failure modes.  Quota failure must result in a
-SIGBUS while a standard allocation failure is OOM.  Unfortunately,
-ERR_PTR() doesn't like the small positive errnos we have in VM_FAULT_* so
-they must be negated before they are used.
-
-Does anyone take issue with the way I am using PTR_ERR.  If so, what are
-your thoughts on how to clean this up (without needing an if,else if,else
-block at each alloc_huge_page() callsite)?
+Add a second parameter 'delta' to hugetlb_get_quota and hugetlb_put_quota
+to allow bulk updating of the sbinfo->free_blocks counter.  This will be
+used by the next patch in the series.
 
 Signed-off-by: Adam Litke <agl@us.ibm.com>
-
- STG: Please edit the
-description for patch "get-quota-on-alloc-V2" above.  STG: Lines prefixed
-with "STG:" will be automatically removed.  STG: Trailing empty lines will
-be automatically removed.  STG: vi: set textwidth=75 filetype=diff
-nobackup:
 ---
 
- mm/hugetlb.c |   24 ++++++++++++------------
- 1 files changed, 12 insertions(+), 12 deletions(-)
+ fs/hugetlbfs/inode.c    |   10 +++++-----
+ include/linux/hugetlb.h |    4 ++--
+ mm/hugetlb.c            |    4 ++--
+ 3 files changed, 9 insertions(+), 9 deletions(-)
 
-diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-index 0b09ef2..5eacee8 100644
---- a/mm/hugetlb.c
-+++ b/mm/hugetlb.c
-@@ -388,6 +388,10 @@ static struct page *alloc_huge_page(struct vm_area_struct *vma,
- 				    unsigned long addr)
- {
- 	struct page *page;
-+	struct address_space *mapping = vma->vm_file->f_mapping;
-+
-+	if (hugetlb_get_quota(mapping))
-+		return ERR_PTR(-VM_FAULT_SIGBUS);
- 
- 	if (vma->vm_flags & VM_MAYSHARE)
- 		page = alloc_huge_page_shared(vma, addr);
-@@ -395,9 +399,10 @@ static struct page *alloc_huge_page(struct vm_area_struct *vma,
- 		page = alloc_huge_page_private(vma, addr);
- 	if (page) {
- 		set_page_refcounted(page);
--		set_page_private(page, (unsigned long) vma->vm_file->f_mapping);
--	}
--	return page;
-+		set_page_private(page, (unsigned long) mapping);
-+		return page;
-+	} else
-+		return ERR_PTR(-VM_FAULT_OOM);
+diff --git a/fs/hugetlbfs/inode.c b/fs/hugetlbfs/inode.c
+index 5f4e888..449ba8b 100644
+--- a/fs/hugetlbfs/inode.c
++++ b/fs/hugetlbfs/inode.c
+@@ -858,15 +858,15 @@ out_free:
+ 	return -ENOMEM;
  }
  
- static int __init hugetlb_init(void)
-@@ -737,15 +742,13 @@ static int hugetlb_cow(struct mm_struct *mm, struct vm_area_struct *vma,
- 		set_huge_ptep_writable(vma, address, ptep);
- 		return 0;
+-int hugetlb_get_quota(struct address_space *mapping)
++int hugetlb_get_quota(struct address_space *mapping, long delta)
+ {
+ 	int ret = 0;
+ 	struct hugetlbfs_sb_info *sbinfo = HUGETLBFS_SB(mapping->host->i_sb);
+ 
+ 	if (sbinfo->free_blocks > -1) {
+ 		spin_lock(&sbinfo->stat_lock);
+-		if (sbinfo->free_blocks > 0)
+-			sbinfo->free_blocks--;
++		if (sbinfo->free_blocks - delta >= 0)
++			sbinfo->free_blocks -= delta;
+ 		else
+ 			ret = -ENOMEM;
+ 		spin_unlock(&sbinfo->stat_lock);
+@@ -875,13 +875,13 @@ int hugetlb_get_quota(struct address_space *mapping)
+ 	return ret;
+ }
+ 
+-void hugetlb_put_quota(struct address_space *mapping)
++void hugetlb_put_quota(struct address_space *mapping, long delta)
+ {
+ 	struct hugetlbfs_sb_info *sbinfo = HUGETLBFS_SB(mapping->host->i_sb);
+ 
+ 	if (sbinfo->free_blocks > -1) {
+ 		spin_lock(&sbinfo->stat_lock);
+-		sbinfo->free_blocks++;
++		sbinfo->free_blocks += delta;
+ 		spin_unlock(&sbinfo->stat_lock);
  	}
--	if (hugetlb_get_quota(vma->vm_file->f_mapping))
--		return VM_FAULT_SIGBUS;
+ }
+diff --git a/include/linux/hugetlb.h b/include/linux/hugetlb.h
+index ea0f50b..770dbed 100644
+--- a/include/linux/hugetlb.h
++++ b/include/linux/hugetlb.h
+@@ -165,8 +165,8 @@ static inline struct hugetlbfs_sb_info *HUGETLBFS_SB(struct super_block *sb)
+ extern const struct file_operations hugetlbfs_file_operations;
+ extern struct vm_operations_struct hugetlb_vm_ops;
+ struct file *hugetlb_file_setup(const char *name, size_t);
+-int hugetlb_get_quota(struct address_space *mapping);
+-void hugetlb_put_quota(struct address_space *mapping);
++int hugetlb_get_quota(struct address_space *mapping, long delta);
++void hugetlb_put_quota(struct address_space *mapping, long delta);
  
- 	page_cache_get(old_page);
- 	new_page = alloc_huge_page(vma, address);
- 
--	if (!new_page) {
-+	if (IS_ERR(new_page)) {
- 		page_cache_release(old_page);
--		return VM_FAULT_OOM;
-+		return -PTR_ERR(new_page);
+ static inline int is_file_hugepages(struct file *file)
+ {
+diff --git a/mm/hugetlb.c b/mm/hugetlb.c
+index 5eacee8..deba411 100644
+--- a/mm/hugetlb.c
++++ b/mm/hugetlb.c
+@@ -132,7 +132,7 @@ static void free_huge_page(struct page *page)
  	}
+ 	spin_unlock(&hugetlb_lock);
+ 	if (mapping)
+-		hugetlb_put_quota(mapping);
++		hugetlb_put_quota(mapping, 1);
+ 	set_page_private(page, 0);
+ }
  
- 	spin_unlock(&mm->page_table_lock);
-@@ -789,12 +792,9 @@ retry:
- 		size = i_size_read(mapping->host) >> HPAGE_SHIFT;
- 		if (idx >= size)
- 			goto out;
--		if (hugetlb_get_quota(mapping))
--			goto out;
- 		page = alloc_huge_page(vma, address);
--		if (!page) {
--			hugetlb_put_quota(mapping);
--			ret = VM_FAULT_OOM;
-+		if (IS_ERR(page)) {
-+			ret = -PTR_ERR(page);
- 			goto out;
- 		}
- 		clear_huge_page(page, address);
+@@ -390,7 +390,7 @@ static struct page *alloc_huge_page(struct vm_area_struct *vma,
+ 	struct page *page;
+ 	struct address_space *mapping = vma->vm_file->f_mapping;
+ 
+-	if (hugetlb_get_quota(mapping))
++	if (hugetlb_get_quota(mapping, 1))
+ 		return ERR_PTR(-VM_FAULT_SIGBUS);
+ 
+ 	if (vma->vm_flags & VM_MAYSHARE)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
