@@ -1,41 +1,76 @@
-Message-Id: <20071030160912.283002000@chello.nl>
+Message-Id: <20071030160911.788985000@chello.nl>
 References: <20071030160401.296770000@chello.nl>
-Date: Tue, 30 Oct 2007 17:04:10 +0100
+Date: Tue, 30 Oct 2007 17:04:08 +0100
 From: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Subject: [PATCH 09/33] mm: system wide ALLOC_NO_WATERMARK
-Content-Disposition: inline; filename=global-ALLOC_NO_WATERMARKS.patch
+Subject: [PATCH 07/33] mm: serialize access to min_free_kbytes
+Content-Disposition: inline; filename=mm-setup_per_zone_pages_min.patch
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, netdev@vger.kernel.org, trond.myklebust@fys.uio.no
 Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>
 List-ID: <linux-mm.kvack.org>
 
-Change ALLOC_NO_WATERMARK page allocation such that the reserves are system
-wide - which they are per setup_per_zone_pages_min(), when we scrape the
-barrel, do it properly.
+There is a small race between the procfs caller and the memory hotplug caller
+of setup_per_zone_pages_min(). Not a big deal, but the next patch will add yet
+another caller. Time to close the gap.
 
 Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
 ---
- mm/page_alloc.c |    6 ++++++
- 1 file changed, 6 insertions(+)
+ mm/page_alloc.c |   16 +++++++++++++---
+ 1 file changed, 13 insertions(+), 3 deletions(-)
 
 Index: linux-2.6/mm/page_alloc.c
 ===================================================================
 --- linux-2.6.orig/mm/page_alloc.c
 +++ linux-2.6/mm/page_alloc.c
-@@ -1638,6 +1638,12 @@ restart:
- rebalance:
- 	if (alloc_flags & ALLOC_NO_WATERMARKS) {
- nofail_alloc:
-+		/*
-+		 * break out of mempolicy boundaries
-+		 */
-+		zonelist = NODE_DATA(numa_node_id())->node_zonelists +
-+			gfp_zone(gfp_mask);
+@@ -116,6 +116,7 @@ static char * const zone_names[MAX_NR_ZO
+ 	 "Movable",
+ };
+ 
++static DEFINE_SPINLOCK(min_free_lock);
+ int min_free_kbytes = 1024;
+ 
+ unsigned long __meminitdata nr_kernel_pages;
+@@ -4162,12 +4163,12 @@ static void setup_per_zone_lowmem_reserv
+ }
+ 
+ /**
+- * setup_per_zone_pages_min - called when min_free_kbytes changes.
++ * __setup_per_zone_pages_min - called when min_free_kbytes changes.
+  *
+  * Ensures that the pages_{min,low,high} values for each zone are set correctly
+  * with respect to min_free_kbytes.
+  */
+-void setup_per_zone_pages_min(void)
++static void __setup_per_zone_pages_min(void)
+ {
+ 	unsigned long pages_min = min_free_kbytes >> (PAGE_SHIFT - 10);
+ 	unsigned long lowmem_pages = 0;
+@@ -4222,6 +4223,15 @@ void setup_per_zone_pages_min(void)
+ 	calculate_totalreserve_pages();
+ }
+ 
++void setup_per_zone_pages_min(void)
++{
++	unsigned long flags;
 +
- 		/* go through the zonelist yet again, ignoring mins */
- 		page = get_page_from_freelist(gfp_mask, order, zonelist,
- 				ALLOC_NO_WATERMARKS);
++	spin_lock_irqsave(&min_free_lock, flags);
++	__setup_per_zone_pages_min();
++	spin_unlock_irqrestore(&min_free_lock, flags);
++}
++
+ /*
+  * Initialise min_free_kbytes.
+  *
+@@ -4257,7 +4267,7 @@ static int __init init_per_zone_pages_mi
+ 		min_free_kbytes = 128;
+ 	if (min_free_kbytes > 65536)
+ 		min_free_kbytes = 65536;
+-	setup_per_zone_pages_min();
++	__setup_per_zone_pages_min();
+ 	setup_per_zone_lowmem_reserve();
+ 	return 0;
+ }
 
 --
 
