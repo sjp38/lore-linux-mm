@@ -1,42 +1,55 @@
-Date: Tue, 30 Oct 2007 11:32:39 -0700 (PDT)
-From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [patch 09/10] SLUB: Do our own locking via slab_lock and
- slab_unlock.
-In-Reply-To: <200710301550.55199.nickpiggin@yahoo.com.au>
-Message-ID: <Pine.LNX.4.64.0710301124520.11531@schroedinger.engr.sgi.com>
-References: <20071028033156.022983073@sgi.com> <20071028033300.479692380@sgi.com>
- <200710301550.55199.nickpiggin@yahoo.com.au>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Date: Tue, 30 Oct 2007 11:38:48 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [patch 07/10] SLUB: Avoid referencing kmem_cache structure in
+ __slab_alloc
+Message-Id: <20071030113848.930471e6.akpm@linux-foundation.org>
+In-Reply-To: <20071028033259.992768446@sgi.com>
+References: <20071028033156.022983073@sgi.com>
+	<20071028033259.992768446@sgi.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nick Piggin <nickpiggin@yahoo.com.au>
-Cc: Matthew Wilcox <matthew@wil.cx>, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Pekka Enberg <penberg@cs.helsinki.fi>
+To: Christoph Lameter <clameter@sgi.com>
+Cc: matthew@wil.cx, linux-kernel@vger.kernel.org, linux-mm@kvack.org, penberg@cs.helsinki.fi
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 30 Oct 2007, Nick Piggin wrote:
+On Sat, 27 Oct 2007 20:32:03 -0700
+Christoph Lameter <clameter@sgi.com> wrote:
 
-> Is this actually a speedup on any architecture to roll your own locking
-> rather than using bit spinlock?
+> There is the need to use the objects per slab in the first part of
+> __slab_alloc() which is still pretty hot. Copy the number of objects
+> per slab into the kmem_cache_cpu structure. That way we can get the
+> value from a cache line that we already need to touch. This brings
+> the kmem_cache_cpu structure up to 4 even words.
+> 
+> There is no increase in the size of kmem_cache_cpu since the size of object
+> is rounded to the next word.
+> 
+> Signed-off-by: Christoph Lameter <clameter@sgi.com>
+> 
+> ---
+>  include/linux/slub_def.h |    1 +
+>  mm/slub.c                |    3 ++-
+>  2 files changed, 3 insertions(+), 1 deletion(-)
+> 
+> Index: linux-2.6/include/linux/slub_def.h
+> ===================================================================
+> --- linux-2.6.orig/include/linux/slub_def.h	2007-10-26 19:09:16.000000000 -0700
+> +++ linux-2.6/include/linux/slub_def.h	2007-10-27 07:55:12.000000000 -0700
+> @@ -17,6 +17,7 @@ struct kmem_cache_cpu {
+>  	int node;
+>  	unsigned int offset;
+>  	unsigned int objsize;
+> +	unsigned int objects;
+>  };
 
-It avoids one load from memory when allocating and the release is simply 
-writing the page->flags back. Less instructions.
+mutter.  nr_objects would be a better name, but then one should rename
+kmem_cache.objects too.
 
-> I am not exactly convinced that smp_wmb() is a good idea to have in your
-> unlock, rather than the normally required smp_mb() that every other open
-> coded lock in the kernel is using today. If you comment every code path
-> where a load leaking out of the critical section would not be a problem,
-> then OK it may be correct, but I still don't think it is worth the
-> maintenance overhead.
-
-I thought you agreed that release semantics only require a write barrier? 
-The issue here is that other processors see the updates before the 
-updates to page-flags.
-
-A load leaking out of a critical section would require that the result of 
-the load is not used to update other information before the slab_unlock 
-and that the source of the load is not overwritten in the critical 
-section. That does not happen in sluib.
+Better would be to comment the field.  Please devote extra care to commenting
+data structures.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
