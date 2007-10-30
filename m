@@ -1,30 +1,47 @@
-Message-ID: 9d01f01c81aac$37968e90$7a01a8c0@kellycd4fac1dd
-From: "Nolan Eaton" <WilliamsraytheonCalhoun@omegadrivers.net>
-Subject: market investor alert
-Date: Tue, 30 Oct 2007 00:20:22 +0500
-MIME-Version: 1.0
-Content-Type: text/plain;
-	format=flowed;
-	charset="iso-8859-1";
-	reply-type=original
+Date: Tue, 30 Oct 2007 14:47:45 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [PATCH][BUGFIX][for -mm] Misc fix for memory cgroup [4/5] skip
+ !PageLRU page in mem_cgroup_isolate_pages
+Message-Id: <20071030144745.1af1cbde.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20071011140115.173d1a9d.kamezawa.hiroyu@jp.fujitsu.com>
+References: <20071011135345.5d9a4c06.kamezawa.hiroyu@jp.fujitsu.com>
+	<20071011140115.173d1a9d.kamezawa.hiroyu@jp.fujitsu.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
-Return-Path: <WilliamsraytheonCalhoun@omegadrivers.net>
-To: mm@kvack.org
-Cc: linux-mm@kvack.org, kelda@kvack.org, linux-mm-archive@kvack.org, majordomo@kvack.org
+Sender: owner-linux-mm@kvack.org
+Return-Path: <owner-linux-mm@kvack.org>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "containers@lists.osdl.org" <containers@lists.osdl.org>
 List-ID: <linux-mm.kvack.org>
 
-In the markets, A unique product is always rewarded, and the company will always soar as long as there is demand and have growing markets to explore.
+I'm sorry that this patch needs following fix..
+Andrew, could you apply this ?
+(All version I sent has this bug....Sigh)
 
-Now we would like to present a new concept thats been hitting globally and a real company with real and unique product.
+Thanks,
+-Kame
+==
+Bugfix for memory cgroup skip !PageLRU page in mem_cgroup_isolate_pages
 
-Introducing ShotPak (SHTP)
+Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
-Whats the unique product??
+Index: devel-2.6.23-mm1/mm/memcontrol.c
+===================================================================
+--- devel-2.6.23-mm1.orig/mm/memcontrol.c
++++ devel-2.6.23-mm1/mm/memcontrol.c
+@@ -260,7 +260,7 @@ unsigned long mem_cgroup_isolate_pages(u
+ 	spin_lock(&mem_cont->lru_lock);
+ 	scan = 0;
+ 	list_for_each_entry_safe_reverse(pc, tmp, src, lru) {
+-		if (scan++ > nr_taken)
++		if (scan++ > nr_to_scan)
+ 			break;
+ 		page = pc->page;
+ 		VM_BUG_ON(!pc);
 
-The ShotPak is a new and innovative concept in alcohol packaging. The shot is a single serving shot of alcohol or a Ready-To-Drink (RTD) mixed cocktail in a soft portable pouch. It eliminates the need for you to carry glass bottles, mixers and bar tools when you go out.
-
-When full, the ShotPak is lighter than a 50 ml airplane botle and more convenient to carry. The ShotPak was developed to target people who are enagaged in an active lifestyle and are on the go.
-
-If you don't believe this works, read their latest press releases and see the craze grow.
-
-Don't be left out, look into SHTP ShotPak Inc
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
