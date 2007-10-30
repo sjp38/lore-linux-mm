@@ -1,541 +1,352 @@
-Message-Id: <20071030160912.873260000@chello.nl>
+Message-Id: <20071030160915.377778000@chello.nl>
 References: <20071030160401.296770000@chello.nl>
-Date: Tue, 30 Oct 2007 17:04:12 +0100
+Date: Tue, 30 Oct 2007 17:04:29 +0100
 From: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Subject: [PATCH 11/33] mm: memory reserve management
-Content-Disposition: inline; filename=mm-reserve.patch
+Subject: [PATCH 28/33] nfs: teach the NFS client how to treat PG_swapcache pages
+Content-Disposition: inline; filename=nfs-swapcache.patch
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, netdev@vger.kernel.org, trond.myklebust@fys.uio.no
 Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>
 List-ID: <linux-mm.kvack.org>
 
-Generic reserve management code. 
-
-It provides methods to reserve and charge. Upon this, generic alloc/free style
-reserve pools could be build, which could fully replace mempool_t
-functionality.
+Replace all relevant occurences of page->index and page->mapping in the NFS
+client with the new page_file_index() and page_file_mapping() functions.
 
 Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
 ---
- include/linux/reserve.h |   54 +++++
- mm/Makefile             |    2 
- mm/reserve.c            |  436 ++++++++++++++++++++++++++++++++++++++++++++++++
- 3 files changed, 491 insertions(+), 1 deletion(-)
+ fs/nfs/file.c     |    8 ++++----
+ fs/nfs/internal.h |    7 ++++---
+ fs/nfs/pagelist.c |    6 +++---
+ fs/nfs/read.c     |    6 +++---
+ fs/nfs/write.c    |   49 +++++++++++++++++++++++++------------------------
+ 5 files changed, 39 insertions(+), 37 deletions(-)
 
-Index: linux-2.6/include/linux/reserve.h
+Index: linux-2.6/fs/nfs/file.c
 ===================================================================
---- /dev/null
-+++ linux-2.6/include/linux/reserve.h
-@@ -0,0 +1,54 @@
-+/*
-+ * Memory reserve management.
-+ *
-+ *  Copyright (C) 2007 Red Hat, Inc., Peter Zijlstra <pzijlstr@redhat.com>
-+ *
-+ * This file contains the public data structure and API definitions.
-+ */
-+
-+#ifndef _LINUX_RESERVE_H
-+#define _LINUX_RESERVE_H
-+
-+#include <linux/list.h>
-+#include <linux/spinlock.h>
-+
-+struct mem_reserve {
-+	struct mem_reserve *parent;
-+	struct list_head children;
-+	struct list_head siblings;
-+
-+	const char *name;
-+
-+	long pages;
-+	long limit;
-+	long usage;
-+	spinlock_t lock;	/* protects limit and usage */
-+};
-+
-+extern struct mem_reserve mem_reserve_root;
-+
-+void mem_reserve_init(struct mem_reserve *res, const char *name,
-+		      struct mem_reserve *parent);
-+int mem_reserve_connect(struct mem_reserve *new_child,
-+	       		struct mem_reserve *node);
-+int mem_reserve_disconnect(struct mem_reserve *node);
-+
-+int mem_reserve_pages_set(struct mem_reserve *res, long pages);
-+int mem_reserve_pages_add(struct mem_reserve *res, long pages);
-+int mem_reserve_pages_charge(struct mem_reserve *res, long pages,
-+			     int overcommit);
-+
-+int mem_reserve_kmalloc_set(struct mem_reserve *res, long bytes);
-+int mem_reserve_kmalloc_charge(struct mem_reserve *res, long bytes,
-+			       int overcommit);
-+
-+struct kmem_cache;
-+
-+int mem_reserve_kmem_cache_set(struct mem_reserve *res,
-+	       		       struct kmem_cache *s,
-+			       int objects);
-+int mem_reserve_kmem_cache_charge(struct mem_reserve *res,
-+				  long objs,
-+				  int overcommit);
-+
-+#endif /* _LINUX_RESERVE_H */
-Index: linux-2.6/mm/Makefile
-===================================================================
---- linux-2.6.orig/mm/Makefile
-+++ linux-2.6/mm/Makefile
-@@ -11,7 +11,7 @@ obj-y			:= bootmem.o filemap.o mempool.o
- 			   page_alloc.o page-writeback.o pdflush.o \
- 			   readahead.o swap.o truncate.o vmscan.o \
- 			   prio_tree.o util.o mmzone.o vmstat.o backing-dev.o \
--			   page_isolation.o $(mmu-y)
-+			   page_isolation.o reserve.o $(mmu-y)
+--- linux-2.6.orig/fs/nfs/file.c
++++ linux-2.6/fs/nfs/file.c
+@@ -357,7 +357,7 @@ static void nfs_invalidate_page(struct p
+ 	if (offset != 0)
+ 		return;
+ 	/* Cancel any unstarted writes on this page */
+-	nfs_wb_page_cancel(page->mapping->host, page);
++	nfs_wb_page_cancel(page_file_mapping(page)->host, page);
+ }
  
- obj-$(CONFIG_BOUNCE)	+= bounce.o
- obj-$(CONFIG_SWAP)	+= page_io.o swap_state.o swapfile.o thrash.o
-Index: linux-2.6/mm/reserve.c
+ static int nfs_release_page(struct page *page, gfp_t gfp)
+@@ -368,7 +368,7 @@ static int nfs_release_page(struct page 
+ 
+ static int nfs_launder_page(struct page *page)
+ {
+-	return nfs_wb_page(page->mapping->host, page);
++	return nfs_wb_page(page_file_mapping(page)->host, page);
+ }
+ 
+ const struct address_space_operations nfs_file_aops = {
+@@ -397,13 +397,13 @@ static int nfs_vm_page_mkwrite(struct vm
+ 	loff_t offset;
+ 
+ 	lock_page(page);
+-	mapping = page->mapping;
++	mapping = page_file_mapping(page);
+ 	if (mapping != vma->vm_file->f_path.dentry->d_inode->i_mapping) {
+ 		unlock_page(page);
+ 		return -EINVAL;
+ 	}
+ 	pagelen = nfs_page_length(page);
+-	offset = (loff_t)page->index << PAGE_CACHE_SHIFT;
++	offset = (loff_t)page_file_index(page) << PAGE_CACHE_SHIFT;
+ 	unlock_page(page);
+ 
+ 	/*
+Index: linux-2.6/fs/nfs/pagelist.c
 ===================================================================
---- /dev/null
-+++ linux-2.6/mm/reserve.c
-@@ -0,0 +1,436 @@
-+/*
-+ * Memory reserve management.
-+ *
-+ *  Copyright (C) 2007, Red Hat, Inc., Peter Zijlstra <pzijlstr@redhat.com>
-+ *
-+ * Description:
-+ *
-+ * Manage a set of memory reserves.
-+ *
-+ * A memory reserve is a reserve for a specified number of object of specified
-+ * size. Since memory is managed in pages, this reserve demand is then
-+ * translated into a page unit.
-+ *
-+ * So each reserve has a specified object limit, an object usage count and a
-+ * number of pages required to back these objects.
-+ *
-+ * Usage is charged against a reserve, if the charge fails, the resource must
-+ * not be allocated/used.
-+ *
-+ * The reserves are managed in a tree, and the resource demands (pages and
-+ * limit) are propagated up the tree. Obviously the object limit will be
-+ * meaningless as soon as the unit starts mixing, but the required page reserve
-+ * (being of one unit) is still valid at the root.
-+ *
-+ * It is the page demand of the root node that is used to set the global
-+ * reserve (adjust_memalloc_reserve() which sets zone->pages_emerg).
-+ *
-+ * As long as a subtree has the same usage unit, an aggregate node can be used
-+ * to charge against, instead of the leaf nodes. However, do be consistent with
-+ * who is charged, resource usage is not propagated up the tree (for
-+ * performance reasons).
-+ */
-+
-+#include <linux/reserve.h>
-+#include <linux/mutex.h>
-+#include <linux/mmzone.h>
-+#include <linux/log2.h>
-+#include <linux/proc_fs.h>
-+#include <linux/seq_file.h>
-+#include <linux/module.h>
-+#include <linux/slab.h>
-+
-+static DEFINE_MUTEX(mem_reserve_mutex);
-+
-+/**
-+ * @mem_reserve_root - the global reserve root
-+ *
-+ * The global reserve is empty, and has no limit unit, it merely
-+ * acts as an aggregation point for reserves and an interface to
-+ * adjust_memalloc_reserve().
-+ */
-+struct mem_reserve mem_reserve_root = {
-+	.children = LIST_HEAD_INIT(mem_reserve_root.children),
-+	.siblings = LIST_HEAD_INIT(mem_reserve_root.siblings),
-+	.name = "total reserve",
-+};
-+
-+EXPORT_SYMBOL_GPL(mem_reserve_root);
-+
-+/**
-+ * mem_reserve_init - initialize a memory reserve object
-+ * @res - the new reserve object
-+ * @name - a name for this reserve
-+ */
-+void mem_reserve_init(struct mem_reserve *res, const char *name,
-+		      struct mem_reserve *parent)
-+{
-+	memset(res, 0, sizeof(*res));
-+	INIT_LIST_HEAD(&res->children);
-+	INIT_LIST_HEAD(&res->siblings);
-+	res->name = name;
-+
-+	if (parent)
-+		mem_reserve_connect(res, parent);
-+}
-+
-+EXPORT_SYMBOL_GPL(mem_reserve_init);
-+
-+/*
-+ * propagate the pages and limit changes up the tree.
-+ */
-+static void __calc_reserve(struct mem_reserve *res, long pages, long limit)
-+{
-+	unsigned long flags;
-+
-+	for ( ; res; res = res->parent) {
-+		res->pages += pages;
-+
-+		if (limit) {
-+			spin_lock_irqsave(&res->lock, flags);
-+			res->limit += limit;
-+			spin_unlock_irqrestore(&res->lock, flags);
-+		}
-+	}
-+}
-+
-+/**
-+ * __mem_reserve_add - primitive to change the size of a reserve
-+ * @res - reserve to change
-+ * @pages - page delta
-+ * @limit - usage limit delta
-+ *
-+ * Returns -ENOMEM when a size increase is not possible atm.
-+ */
-+static int __mem_reserve_add(struct mem_reserve *res, long pages, long limit)
-+{
-+	int ret = 0;
-+	long reserve;
-+
-+	reserve = mem_reserve_root.pages;
-+	__calc_reserve(res, pages, 0);
-+	reserve = mem_reserve_root.pages - reserve;
-+
-+	if (reserve) {
-+		ret = adjust_memalloc_reserve(reserve);
-+		if (ret)
-+			__calc_reserve(res, -pages, 0);
-+	}
-+
-+	if (!ret)
-+		__calc_reserve(res, 0, limit);
-+
-+	return ret;
-+}
-+
-+/**
-+ * __mem_reserve_charge - primitive to charge object usage to a reserve
-+ * @res - reserve to charge
-+ * @charge - size of the charge
-+ * @overcommit - allow despite of limit (use with caution!)
-+ *
-+ * Returns non-zero on success, zero on failure.
-+ */
-+static
-+int __mem_reserve_charge(struct mem_reserve *res, long charge, int overcommit)
-+{
-+	unsigned long flags;
-+	int ret = 0;
-+
-+	spin_lock_irqsave(&res->lock, flags);
-+	if (charge < 0 || res->usage + charge < res->limit || overcommit) {
-+		res->usage += charge;
-+		if (unlikely(res->usage < 0))
-+			res->usage = 0;
-+		ret = 1;
-+	}
-+	spin_unlock_irqrestore(&res->lock, flags);
-+
-+	return ret;
-+}
-+
-+/**
-+ * mem_reserve_connect - connect a reserve to another in a child-parent relation
-+ * @new_child - the reserve node to connect (child)
-+ * @node - the reserve node to connect to (parent)
-+ *
-+ * Returns -ENOMEM when the new connection would increase the reserve (parent
-+ * is connected to mem_reserve_root) and there is no memory to do so.
-+ *
-+ * The child is _NOT_ connected on error.
-+ */
-+int mem_reserve_connect(struct mem_reserve *new_child, struct mem_reserve *node)
-+{
-+	int ret;
-+
-+	WARN_ON(!new_child->name);
-+
-+	mutex_lock(&mem_reserve_mutex);
-+	new_child->parent = node;
-+	list_add(&new_child->siblings, &node->children);
-+	ret = __mem_reserve_add(node, new_child->pages, new_child->limit);
-+	if (ret) {
-+		new_child->parent = NULL;
-+		list_del_init(&new_child->siblings);
-+	}
-+	mutex_unlock(&mem_reserve_mutex);
-+
-+	return ret;
-+}
-+
-+EXPORT_SYMBOL_GPL(mem_reserve_connect);
-+
-+/**
-+ * mem_reserve_disconnect - sever a nodes connection to the reserve tree
-+ * @node - the node to disconnect
-+ *
-+ * Could, in theory, return -ENOMEM, but since disconnecting a node _should_
-+ * only decrease the reserves that _should_ not happen.
-+ */
-+int mem_reserve_disconnect(struct mem_reserve *node)
-+{
-+	int ret;
-+
-+	BUG_ON(!node->parent);
-+
-+	mutex_lock(&mem_reserve_mutex);
-+	ret = __mem_reserve_add(node->parent, -node->pages, -node->limit);
-+	if (!ret) {
-+		node->parent = NULL;
-+		list_del_init(&node->siblings);
-+	}
-+	mutex_unlock(&mem_reserve_mutex);
-+
-+	return ret;
-+}
-+
-+EXPORT_SYMBOL_GPL(mem_reserve_disconnect);
-+
-+#ifdef CONFIG_PROC_FS
-+
-+/*
-+ * Simple output of the reserve tree in: /proc/reserve_info
-+ * Example:
-+ *
-+ * localhost ~ # cat /proc/reserve_info
-+ * total reserve                  8156K (0/544817)
-+ *   total network reserve          8156K (0/544817)
-+ *     network TX reserve             196K (0/49)
-+ *       protocol TX pages              196K (0/49)
-+ *     network RX reserve             7960K (0/544768)
-+ *       IPv6 route cache               1372K (0/4096)
-+ *       IPv4 route cache               5468K (0/16384)
-+ *       SKB data reserve               1120K (0/524288)
-+ *         IPv6 fragment cache            560K (0/262144)
-+ *         IPv4 fragment cache            560K (0/262144)
-+ */
-+
-+static void mem_reserve_show_item(struct seq_file *m, struct mem_reserve *res,
-+				  int nesting)
-+{
-+	int i;
-+	struct mem_reserve *child;
-+
-+	for (i = 0; i < nesting; i++)
-+		seq_puts(m, "  ");
-+
-+	seq_printf(m, "%-30s %ldK (%ld/%ld)\n",
-+		   res->name, res->pages << (PAGE_SHIFT - 10),
-+		   res->usage, res->limit);
-+
-+	list_for_each_entry(child, &res->children, siblings)
-+		mem_reserve_show_item(m, child, nesting+1);
-+}
-+
-+static int mem_reserve_show(struct seq_file *m, void *v)
-+{
-+	mutex_lock(&mem_reserve_mutex);
-+	mem_reserve_show_item(m, &mem_reserve_root, 0);
-+	mutex_unlock(&mem_reserve_mutex);
-+
-+	return 0;
-+}
-+
-+static int mem_reserve_open(struct inode *inode, struct file *file)
-+{
-+	return single_open(file, mem_reserve_show, NULL);
-+}
-+
-+static const struct file_operations mem_reserve_opterations = {
-+	.open = mem_reserve_open,
-+	.read = seq_read,
-+	.llseek = seq_lseek,
-+	.release = single_release,
-+};
-+
-+static __init int mem_reserve_proc_init(void)
-+{
-+	struct proc_dir_entry *entry;
-+
-+	entry = create_proc_entry("reserve_info", S_IRUSR, NULL);
-+	if (entry)
-+		entry->proc_fops = &mem_reserve_opterations;
-+
-+	return 0;
-+}
-+
-+__initcall(mem_reserve_proc_init);
-+
-+#endif
-+
-+/*
-+ * alloc_page helpers
-+ */
-+
-+/**
-+ * mem_reserve_pages_set - set reserves size in pages
-+ * @res - reserve to set
-+ * @pages - size in pages to set it to
-+ *
-+ * Returns -ENOMEM when it fails to set the reserve. On failure the old size
-+ * is preserved.
-+ */
-+int mem_reserve_pages_set(struct mem_reserve *res, long pages)
-+{
-+	int ret;
-+
-+	mutex_lock(&mem_reserve_mutex);
-+	pages -= res->pages;
-+	ret = __mem_reserve_add(res, pages, pages);
-+	mutex_unlock(&mem_reserve_mutex);
-+
-+	return ret;
-+}
-+
-+EXPORT_SYMBOL_GPL(mem_reserve_pages_set);
-+
-+/**
-+ * mem_reserve_pages_add - change the size in a relative way
-+ * @res - reserve to change
-+ * @pages - number of pages to add (or subtract when negative)
-+ *
-+ * Similar to mem_reserve_pages_set, except that the argument is relative instead
-+ * of absolute.
-+ *
-+ * Returns -ENOMEM when it fails to increase.
-+ */
-+int mem_reserve_pages_add(struct mem_reserve *res, long pages)
-+{
-+	int ret;
-+
-+	mutex_lock(&mem_reserve_mutex);
-+	ret = __mem_reserve_add(res, pages, pages);
-+	mutex_unlock(&mem_reserve_mutex);
-+
-+	return ret;
-+}
-+
-+/**
-+ * mem_reserve_pages_charge - charge page usage to a reserve
-+ * @res - reserve to charge
-+ * @pages - size to charge
-+ * @overcommit - disregard the usage limit (use with caution!)
-+ *
-+ * Returns non-zero on success.
-+ */
-+int mem_reserve_pages_charge(struct mem_reserve *res, long pages, int overcommit)
-+{
-+	return __mem_reserve_charge(res, pages, overcommit);
-+}
-+
-+EXPORT_SYMBOL_GPL(mem_reserve_pages_charge);
-+
-+/*
-+ * kmalloc helpers
-+ */
-+
-+/**
-+ * mem_reserve_kmalloc_set - set this reserve to bytes worth of kmalloc
-+ * @res - reserve to change
-+ * @bytes - size in bytes to reserve
-+ *
-+ * Returns -ENOMEM on failure.
-+ */
-+int mem_reserve_kmalloc_set(struct mem_reserve *res, long bytes)
-+{
-+	int ret;
-+	long pages;
-+
-+	mutex_lock(&mem_reserve_mutex);
-+	pages = kestimate(GFP_ATOMIC, bytes);
-+	pages -= res->pages;
-+	bytes -= res->limit;
-+	ret = __mem_reserve_add(res, pages, bytes);
-+	mutex_unlock(&mem_reserve_mutex);
-+
-+	return ret;
-+}
-+
-+EXPORT_SYMBOL_GPL(mem_reserve_kmalloc_set);
-+
-+/**
-+ * mem_reserve_kmalloc_charge - charge bytes to a reserve
-+ * @res - reserve to charge
-+ * @bytes - bytes to charge
-+ * @overcommit - disregard the usage limit (use with caution!)
-+ *
-+ * Returns non-zero on success.
-+ */
-+int mem_reserve_kmalloc_charge(struct mem_reserve *res, long bytes,
-+			       int overcommit)
-+{
-+	if (bytes < 0)
-+		bytes = -roundup_pow_of_two(-bytes);
-+	else
-+		bytes = roundup_pow_of_two(bytes);
-+
-+	return __mem_reserve_charge(res, bytes, overcommit);
-+}
-+
-+EXPORT_SYMBOL_GPL(mem_reserve_kmalloc_charge);
-+
-+/*
-+ * kmem_cache helpers
-+ */
-+
-+/**
-+ * mem_reserve_kmem_cache_set - set reserve to @objects worth of kmem_cache_alloc of @s
-+ * @res - reserve to set
-+ * @s - kmem_cache to reserve from
-+ * @objects - number of objects to reserve
-+ *
-+ * Returns -ENOMEM on failure.
-+ */
-+int mem_reserve_kmem_cache_set(struct mem_reserve *res, struct kmem_cache *s,
-+			       int objects)
-+{
-+	int ret;
-+	long pages;
-+
-+	mutex_lock(&mem_reserve_mutex);
-+	pages = kmem_estimate_pages(s, GFP_ATOMIC, objects);
-+	pages -= res->pages;
-+	objects -= res->limit;
-+	ret = __mem_reserve_add(res, pages, objects);
-+	mutex_unlock(&mem_reserve_mutex);
-+
-+	return ret;
-+}
-+
-+EXPORT_SYMBOL_GPL(mem_reserve_kmem_cache_set);
-+
-+/**
-+ * mem_reserve_kmem_cache_charge - charge (or uncharge) usage of objs
-+ * @res - reserve to charge
-+ * @objs - objects to charge for
-+ * @overcommit - disregard the usage limit (use with caution!)
-+ *
-+ * Returns non-zero on success.
-+ */
-+int mem_reserve_kmem_cache_charge(struct mem_reserve *res, long objs,
-+				  int overcommit)
-+{
-+	return __mem_reserve_charge(res, objs, overcommit);
-+}
-+
-+EXPORT_SYMBOL_GPL(mem_reserve_kmem_cache_charge);
+--- linux-2.6.orig/fs/nfs/pagelist.c
++++ linux-2.6/fs/nfs/pagelist.c
+@@ -77,11 +77,11 @@ nfs_create_request(struct nfs_open_conte
+ 	 * update_nfs_request below if the region is not locked. */
+ 	req->wb_page    = page;
+ 	atomic_set(&req->wb_complete, 0);
+-	req->wb_index	= page->index;
++	req->wb_index	= page_file_index(page);
+ 	page_cache_get(page);
+ 	BUG_ON(PagePrivate(page));
+ 	BUG_ON(!PageLocked(page));
+-	BUG_ON(page->mapping->host != inode);
++	BUG_ON(page_file_mapping(page)->host != inode);
+ 	req->wb_offset  = offset;
+ 	req->wb_pgbase	= offset;
+ 	req->wb_bytes   = count;
+@@ -383,7 +383,7 @@ void nfs_pageio_cond_complete(struct nfs
+  * nfs_scan_list - Scan a list for matching requests
+  * @nfsi: NFS inode
+  * @dst: Destination list
+- * @idx_start: lower bound of page->index to scan
++ * @idx_start: lower bound of page_file_index(page) to scan
+  * @npages: idx_start + npages sets the upper bound to scan.
+  * @tag: tag to scan for
+  *
+Index: linux-2.6/fs/nfs/read.c
+===================================================================
+--- linux-2.6.orig/fs/nfs/read.c
++++ linux-2.6/fs/nfs/read.c
+@@ -460,11 +460,11 @@ static const struct rpc_call_ops nfs_rea
+ int nfs_readpage(struct file *file, struct page *page)
+ {
+ 	struct nfs_open_context *ctx;
+-	struct inode *inode = page->mapping->host;
++	struct inode *inode = page_file_mapping(page)->host;
+ 	int		error;
+ 
+ 	dprintk("NFS: nfs_readpage (%p %ld@%lu)\n",
+-		page, PAGE_CACHE_SIZE, page->index);
++		page, PAGE_CACHE_SIZE, page_file_index(page));
+ 	nfs_inc_stats(inode, NFSIOS_VFSREADPAGE);
+ 	nfs_add_stats(inode, NFSIOS_READPAGES, 1);
+ 
+@@ -511,7 +511,7 @@ static int
+ readpage_async_filler(void *data, struct page *page)
+ {
+ 	struct nfs_readdesc *desc = (struct nfs_readdesc *)data;
+-	struct inode *inode = page->mapping->host;
++	struct inode *inode = page_file_mapping(page)->host;
+ 	struct nfs_page *new;
+ 	unsigned int len;
+ 	int error;
+Index: linux-2.6/fs/nfs/write.c
+===================================================================
+--- linux-2.6.orig/fs/nfs/write.c
++++ linux-2.6/fs/nfs/write.c
+@@ -126,7 +126,7 @@ static struct nfs_page *nfs_page_find_re
+ 
+ static struct nfs_page *nfs_page_find_request(struct page *page)
+ {
+-	struct inode *inode = page->mapping->host;
++	struct inode *inode = page_file_mapping(page)->host;
+ 	struct nfs_page *req = NULL;
+ 
+ 	spin_lock(&inode->i_lock);
+@@ -138,13 +138,13 @@ static struct nfs_page *nfs_page_find_re
+ /* Adjust the file length if we're writing beyond the end */
+ static void nfs_grow_file(struct page *page, unsigned int offset, unsigned int count)
+ {
+-	struct inode *inode = page->mapping->host;
++	struct inode *inode = page_file_mapping(page)->host;
+ 	loff_t end, i_size = i_size_read(inode);
+ 	pgoff_t end_index = (i_size - 1) >> PAGE_CACHE_SHIFT;
+ 
+-	if (i_size > 0 && page->index < end_index)
++	if (i_size > 0 && page_file_index(page) < end_index)
+ 		return;
+-	end = ((loff_t)page->index << PAGE_CACHE_SHIFT) + ((loff_t)offset+count);
++	end = page_offset(page) + ((loff_t)offset+count);
+ 	if (i_size >= end)
+ 		return;
+ 	nfs_inc_stats(inode, NFSIOS_EXTENDWRITE);
+@@ -155,7 +155,7 @@ static void nfs_grow_file(struct page *p
+ static void nfs_set_pageerror(struct page *page)
+ {
+ 	SetPageError(page);
+-	nfs_zap_mapping(page->mapping->host, page->mapping);
++	nfs_zap_mapping(page_file_mapping(page)->host, page_file_mapping(page));
+ }
+ 
+ /* We can set the PG_uptodate flag if we see that a write request
+@@ -187,7 +187,7 @@ static int nfs_writepage_setup(struct nf
+ 		ret = PTR_ERR(req);
+ 		if (ret != -EBUSY)
+ 			return ret;
+-		ret = nfs_wb_page(page->mapping->host, page);
++		ret = nfs_wb_page(page_file_mapping(page)->host, page);
+ 		if (ret != 0)
+ 			return ret;
+ 	}
+@@ -221,7 +221,7 @@ static int nfs_set_page_writeback(struct
+ 	int ret = test_set_page_writeback(page);
+ 
+ 	if (!ret) {
+-		struct inode *inode = page->mapping->host;
++		struct inode *inode = page_file_mapping(page)->host;
+ 		struct nfs_server *nfss = NFS_SERVER(inode);
+ 
+ 		if (atomic_long_inc_return(&nfss->writeback) >
+@@ -233,7 +233,7 @@ static int nfs_set_page_writeback(struct
+ 
+ static void nfs_end_page_writeback(struct page *page)
+ {
+-	struct inode *inode = page->mapping->host;
++	struct inode *inode = page_file_mapping(page)->host;
+ 	struct nfs_server *nfss = NFS_SERVER(inode);
+ 
+ 	end_page_writeback(page);
+@@ -248,7 +248,7 @@ static void nfs_end_page_writeback(struc
+ static int nfs_page_async_flush(struct nfs_pageio_descriptor *pgio,
+ 				struct page *page)
+ {
+-	struct inode *inode = page->mapping->host;
++	struct inode *inode = page_file_mapping(page)->host;
+ 	struct nfs_inode *nfsi = NFS_I(inode);
+ 	struct nfs_page *req;
+ 	int ret;
+@@ -294,7 +294,7 @@ static int nfs_page_async_flush(struct n
+ 
+ static int nfs_do_writepage(struct page *page, struct writeback_control *wbc, struct nfs_pageio_descriptor *pgio)
+ {
+-	struct inode *inode = page->mapping->host;
++	struct inode *inode = page_file_mapping(page)->host;
+ 
+ 	nfs_inc_stats(inode, NFSIOS_VFSWRITEPAGE);
+ 	nfs_add_stats(inode, NFSIOS_WRITEPAGES, 1);
+@@ -311,7 +311,7 @@ static int nfs_writepage_locked(struct p
+ 	struct nfs_pageio_descriptor pgio;
+ 	int err;
+ 
+-	nfs_pageio_init_write(&pgio, page->mapping->host, wb_priority(wbc));
++	nfs_pageio_init_write(&pgio, page_file_mapping(page)->host, wb_priority(wbc));
+ 	err = nfs_do_writepage(page, wbc, &pgio);
+ 	nfs_pageio_complete(&pgio);
+ 	if (err < 0)
+@@ -442,7 +442,8 @@ nfs_mark_request_commit(struct nfs_page 
+ 			NFS_PAGE_TAG_COMMIT);
+ 	spin_unlock(&inode->i_lock);
+ 	inc_zone_page_state(req->wb_page, NR_UNSTABLE_NFS);
+-	inc_bdi_stat(req->wb_page->mapping->backing_dev_info, BDI_RECLAIMABLE);
++	inc_bdi_stat(page_file_mapping(req->wb_page)->backing_dev_info,
++			BDI_RECLAIMABLE);
+ 	__mark_inode_dirty(inode, I_DIRTY_DATASYNC);
+ }
+ 
+@@ -529,7 +530,7 @@ static void nfs_cancel_commit_list(struc
+ 	while(!list_empty(head)) {
+ 		req = nfs_list_entry(head->next);
+ 		dec_zone_page_state(req->wb_page, NR_UNSTABLE_NFS);
+-		dec_bdi_stat(req->wb_page->mapping->backing_dev_info,
++		dec_bdi_stat(page_file_mapping(req->wb_page)->backing_dev_info,
+ 				BDI_RECLAIMABLE);
+ 		nfs_list_remove_request(req);
+ 		clear_bit(PG_NEED_COMMIT, &(req)->wb_flags);
+@@ -543,7 +544,7 @@ static void nfs_cancel_commit_list(struc
+  * nfs_scan_commit - Scan an inode for commit requests
+  * @inode: NFS inode to scan
+  * @dst: destination list
+- * @idx_start: lower bound of page->index to scan.
++ * @idx_start: lower bound of page_file_index(page) to scan.
+  * @npages: idx_start + npages sets the upper bound to scan.
+  *
+  * Moves requests from the inode's 'commit' request list.
+@@ -579,7 +580,7 @@ static inline int nfs_scan_commit(struct
+ static struct nfs_page * nfs_update_request(struct nfs_open_context* ctx,
+ 		struct page *page, unsigned int offset, unsigned int bytes)
+ {
+-	struct address_space *mapping = page->mapping;
++	struct address_space *mapping = page_file_mapping(page);
+ 	struct inode *inode = mapping->host;
+ 	struct nfs_page		*req, *new = NULL;
+ 	pgoff_t		rqend, end;
+@@ -681,7 +682,7 @@ int nfs_flush_incompatible(struct file *
+ 		nfs_release_request(req);
+ 		if (!do_flush)
+ 			return 0;
+-		status = nfs_wb_page(page->mapping->host, page);
++		status = nfs_wb_page(page_file_mapping(page)->host, page);
+ 	} while (status == 0);
+ 	return status;
+ }
+@@ -696,7 +697,7 @@ int nfs_updatepage(struct file *file, st
+ 		unsigned int offset, unsigned int count)
+ {
+ 	struct nfs_open_context *ctx = nfs_file_open_context(file);
+-	struct inode	*inode = page->mapping->host;
++	struct inode	*inode = page_file_mapping(page)->host;
+ 	int		status = 0;
+ 
+ 	nfs_inc_stats(inode, NFSIOS_VFSUPDATEPAGE);
+@@ -952,7 +953,7 @@ static void nfs_writeback_done_partial(s
+ 	}
+ 
+ 	if (nfs_write_need_commit(data)) {
+-		struct inode *inode = page->mapping->host;
++		struct inode *inode = page_file_mapping(page)->host;
+ 
+ 		spin_lock(&inode->i_lock);
+ 		if (test_bit(PG_NEED_RESCHED, &req->wb_flags)) {
+@@ -1191,7 +1192,7 @@ nfs_commit_list(struct inode *inode, str
+ 		nfs_list_remove_request(req);
+ 		nfs_mark_request_commit(req);
+ 		dec_zone_page_state(req->wb_page, NR_UNSTABLE_NFS);
+-		dec_bdi_stat(req->wb_page->mapping->backing_dev_info,
++		dec_bdi_stat(page_file_mapping(req->wb_page)->backing_dev_info,
+ 				BDI_RECLAIMABLE);
+ 		nfs_clear_page_tag_locked(req);
+ 	}
+@@ -1218,7 +1219,7 @@ static void nfs_commit_done(struct rpc_t
+ 		nfs_list_remove_request(req);
+ 		clear_bit(PG_NEED_COMMIT, &(req)->wb_flags);
+ 		dec_zone_page_state(req->wb_page, NR_UNSTABLE_NFS);
+-		dec_bdi_stat(req->wb_page->mapping->backing_dev_info,
++		dec_bdi_stat(page_file_mapping(req->wb_page)->backing_dev_info,
+ 				BDI_RECLAIMABLE);
+ 
+ 		dprintk("NFS: commit (%s/%Ld %d@%Ld)",
+@@ -1384,7 +1385,7 @@ int nfs_wb_page_cancel(struct inode *ino
+ 	loff_t range_start = page_offset(page);
+ 	loff_t range_end = range_start + (loff_t)(PAGE_CACHE_SIZE - 1);
+ 	struct writeback_control wbc = {
+-		.bdi = page->mapping->backing_dev_info,
++		.bdi = page_file_mapping(page)->backing_dev_info,
+ 		.sync_mode = WB_SYNC_ALL,
+ 		.nr_to_write = LONG_MAX,
+ 		.range_start = range_start,
+@@ -1417,7 +1418,7 @@ int nfs_wb_page_cancel(struct inode *ino
+ 	}
+ 	if (!PagePrivate(page))
+ 		return 0;
+-	ret = nfs_sync_mapping_wait(page->mapping, &wbc, FLUSH_INVALIDATE);
++	ret = nfs_sync_mapping_wait(page_file_mapping(page), &wbc, FLUSH_INVALIDATE);
+ out:
+ 	return ret;
+ }
+@@ -1428,7 +1429,7 @@ static int nfs_wb_page_priority(struct i
+ 	loff_t range_start = page_offset(page);
+ 	loff_t range_end = range_start + (loff_t)(PAGE_CACHE_SIZE - 1);
+ 	struct writeback_control wbc = {
+-		.bdi = page->mapping->backing_dev_info,
++		.bdi = page_file_mapping(page)->backing_dev_info,
+ 		.sync_mode = WB_SYNC_ALL,
+ 		.nr_to_write = LONG_MAX,
+ 		.range_start = range_start,
+@@ -1444,7 +1445,7 @@ static int nfs_wb_page_priority(struct i
+ 	}
+ 	if (!PagePrivate(page))
+ 		return 0;
+-	ret = nfs_sync_mapping_wait(page->mapping, &wbc, how);
++	ret = nfs_sync_mapping_wait(page_file_mapping(page), &wbc, how);
+ 	if (ret >= 0)
+ 		return 0;
+ out:
+Index: linux-2.6/fs/nfs/internal.h
+===================================================================
+--- linux-2.6.orig/fs/nfs/internal.h
++++ linux-2.6/fs/nfs/internal.h
+@@ -248,13 +248,14 @@ void nfs_super_set_maxbytes(struct super
+ static inline
+ unsigned int nfs_page_length(struct page *page)
+ {
+-	loff_t i_size = i_size_read(page->mapping->host);
++	loff_t i_size = i_size_read(page_file_mapping(page)->host);
+ 
+ 	if (i_size > 0) {
++		pgoff_t page_index = page_file_index(page);
+ 		pgoff_t end_index = (i_size - 1) >> PAGE_CACHE_SHIFT;
+-		if (page->index < end_index)
++		if (page_index < end_index)
+ 			return PAGE_CACHE_SIZE;
+-		if (page->index == end_index)
++		if (page_index == end_index)
+ 			return ((i_size - 1) & ~PAGE_CACHE_MASK) + 1;
+ 	}
+ 	return 0;
 
 --
 
