@@ -1,43 +1,59 @@
-Message-Id: <20071030192102.677087409@polymtl.ca>
-References: <20071030191557.947156623@polymtl.ca>
-Date: Tue, 30 Oct 2007 15:16:01 -0400
+Message-Id: <20071030191557.947156623@polymtl.ca>
+Date: Tue, 30 Oct 2007 15:15:57 -0400
 From: Mathieu Desnoyers <mathieu.desnoyers@polymtl.ca>
-Subject: [patch 04/28] Add cmpxchg64 and cmpxchg64_local to mips
-Content-Disposition: inline; filename=add-cmpxchg64-to-mips.patch
+Subject: [patch 00/28] cmpxchg_local standardization across architectures
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: akpm@linux-foundation.org, linux-kernel@vger.kernel.org, matthew@wil.cx, linux-arch@vger.kernel.org, penberg@cs.helsinki.fi, linux-mm@kvack.org, Christoph Lameter <clameter@sgi.com>
-Cc: Mathieu Desnoyers <mathieu.desnoyers@polymtl.ca>, ralf@linux-mips.org
 List-ID: <linux-mm.kvack.org>
 
-Make sure that at least cmpxchg64_local is available on all architectures to use
-for unsigned long long values.
+Hi,
 
-Signed-off-by: Mathieu Desnoyers <mathieu.desnoyers@polymtl.ca>
-CC: ralf@linux-mips.org
-CC linux-mips@linux-mips.org
----
- include/asm-mips/cmpxchg.h |    9 +++++++++
- 1 file changed, 9 insertions(+)
+Here is the patchset that performs cmpxchg_local and cmpxchg64_local
+standardization across architectures. It uses interrupt save/restore to emulate
+the atomic operation on architectures lacking such atomic op.
 
-Index: linux-2.6-lttng/include/asm-mips/cmpxchg.h
-===================================================================
---- linux-2.6-lttng.orig/include/asm-mips/cmpxchg.h	2007-10-12 12:05:06.000000000 -0400
-+++ linux-2.6-lttng/include/asm-mips/cmpxchg.h	2007-10-12 12:08:56.000000000 -0400
-@@ -104,4 +104,13 @@ extern void __cmpxchg_called_with_bad_po
- #define cmpxchg(ptr, old, new)		__cmpxchg(ptr, old, new, smp_llsc_mb())
- #define cmpxchg_local(ptr, old, new)	__cmpxchg(ptr, old, new, )
- 
-+#define cmpxchg64	cmpxchg
-+
-+#ifdef CONFIG_64BIT
-+#define cmpxchg64_local	cmpxchg_local
-+#else
-+#include <asm-generic/cmpxchg-local.h>
-+#define cmpxchg64_local(ptr,o,n)	__cmpxchg64_local_generic((ptr),(o),(n))
-+#endif
-+
- #endif /* __ASM_CMPXCHG_H */
+We have seen interesing performance gain in slub on architectures where the
+local cmpxchg is faster than interrupt disable, namely x86 and amd64. It becomes
+less interesting on architectures lacking atomic ops and where the only cmpxchg
+primitive available is almost as fast as irq disable/enable (ia64); a small
+performance hit can be expected, mostly due to the additionnal memory barriers
+it adds to the code (and the fact that it is faster to disable interrupts once
+for a longer time rather than multiple times).
+
+It applies in this order on 2.6.23-mm1 :
+
+add-cmpxchg-local-to-generic-for-up.patch
+i386-cmpxchg64-80386-80486-fallback.patch
+add-cmpxchg64-to-alpha.patch
+add-cmpxchg64-to-mips.patch
+add-cmpxchg64-to-powerpc.patch
+add-cmpxchg64-to-x86_64.patch
+#
+add-cmpxchg-local-to-arm.patch
+add-cmpxchg-local-to-avr32.patch
+add-cmpxchg-local-to-blackfin.patch
+add-cmpxchg-local-to-cris.patch
+add-cmpxchg-local-to-frv.patch
+add-cmpxchg-local-to-h8300.patch
+add-cmpxchg-local-to-ia64.patch
+add-cmpxchg-local-to-m32r.patch
+fix-m32r-__xchg.patch
+fix-m32r-include-sched-h-in-smpboot.patch
+local_t_m32r_optimized.patch
+add-cmpxchg-local-to-m68k.patch
+add-cmpxchg-local-to-m68knommu.patch
+add-cmpxchg-local-to-parisc.patch
+add-cmpxchg-local-to-ppc.patch
+add-cmpxchg-local-to-s390.patch
+add-cmpxchg-local-to-sh.patch
+add-cmpxchg-local-to-sh64.patch
+add-cmpxchg-local-to-sparc.patch
+add-cmpxchg-local-to-sparc64.patch
+add-cmpxchg-local-to-v850.patch
+add-cmpxchg-local-to-xtensa.patch
+
+Mathieu
 
 -- 
 Mathieu Desnoyers
