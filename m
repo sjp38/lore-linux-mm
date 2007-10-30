@@ -1,30 +1,105 @@
-Message-ID: ec0701c81abb$30f861d0$1401a8c0@abel88474dff79
-From: "Chadwick Suarez" <MortonberateCervantes@canon-europe.com>
-Subject: breaking news 
-Date: Tue, 30 Oct 2007 07:07:32 -0100
+Date: Tue, 30 Oct 2007 03:24:39 -0700
+From: "Vegas VIP Kasino" <tirade@futbolamericano.com>
+Message-ID: <92308869.86849697@ligament.com>
+Subject: Willkommensbonus - 555 Euro
 MIME-Version: 1.0
-Content-Type: text/plain;
-	format=flowed;
-	charset="iso-8859-1";
-	reply-type=original
+Content-Type: text/html; charset=iso-8859-1
 Content-Transfer-Encoding: 7bit
-Return-Path: <MortonberateCervantes@canon-europe.com>
-To: mm@kvack.org
-Cc: linux-mm@kvack.org, kelda@kvack.org, linux-mm-archive@kvack.org, majordomo@kvack.org
+Return-Path: <tirade@futbolamericano.com>
+To: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-In the markets, A unique product is always rewarded, and the company will always soar as long as there is demand and have growing markets to explore.
+<html>
 
-Now we would like to present a new concept thats been hitting globally and a real company with real and unique product.
+<head>
+<meta http-equiv=Content-Type content="text/html; charset=iso-8859-1">
 
-Introducing ShotPak (SHTP)
+<title>Die besten Spieler </title>
 
-Whats the unique product??
+<style>
+<!--
+ /* Style Definitions */
+ p.MsoNormal, li.MsoNormal, div.MsoNormal
+	{mso-style-parent:"";
+	margin:0cm;
+	margin-bottom:.0001pt;
+	mso-pagination:widow-orphan;
+	font-size:12.0pt;
+	font-family:"Times New Roman";
+	mso-fareast-font-family:"Times New Roman";
+	color:windowtext;
+	mso-ansi-language:EN-US;
+	mso-fareast-language:EN-US;}
+a:link, span.MsoHyperlink
+	{color:blue;}
+a:visited, span.MsoHyperlinkFollowed
+	{color:purple;
+	text-decoration:underline;
+	text-underline:single;}
+p
+	{mso-margin-top-alt:auto;
+	margin-right:0cm;
+	mso-margin-bottom-alt:auto;
+	margin-left:0cm;
+	mso-pagination:widow-orphan;
+	font-size:12.0pt;
+	font-family:"Times New Roman";
+	mso-fareast-font-family:"Times New Roman";
+	color:black;}
+@page Section1
+	{size:595.3pt 841.9pt;
+	margin:2.0cm 42.5pt 2.0cm 3.0cm;
+	mso-header-margin:35.4pt;
+	mso-footer-margin:35.4pt;
+	mso-paper-source:0;}
+div.Section1
+	{page:Section1;}
+-->
+</style>
 
-The ShotPak is a new and innovative concept in alcohol packaging. The shot is a single serving shot of alcohol or a Ready-To-Drink (RTD) mixed cocktail in a soft portable pouch. It eliminates the need for you to carry glass bottles, mixers and bar tools when you go out.
+</head>
 
-When full, the ShotPak is lighter than a 50 ml airplane botle and more convenient to carry. The ShotPak was developed to target people who are enagaged in an active lifestyle and are on the go.
+<body lang=DE link=blue vlink=purple style='tab-interval:35.4pt'>
 
-If you don't believe this works, read their latest press releases and see the craze grow.
+<div class=Section1>
 
-Don't be left out, look into SHTP ShotPak Inc
+<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
+Die besten Spieler sind in Vegas und die besten Bonusse 
+finden Sie nur bei Vegas 
+VIP Casino!
+<o:p></o:p></span></p>
+
+<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
+<o:p>&nbsp;</o:p></span></p>
+
+<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
+200% f&uuml;r Ihre erste Einzahlung, 100% f&uuml;r Ihre zweite 
+und dritte Einzahlung und als Kr&ouml;nung einen 155% Bonus 
+f&uuml;r Ihre vierte Einzahlung!
+<o:p></o:p></span></p>
+
+
+<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
+<o:p>&nbsp;</o:p></span></p>
+
+<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
+Das ergibt insgesamt einen Willkommensbonus von 555 &#8364;/$!
+<o:p></o:p></span></p>
+
+<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
+<o:p>&nbsp;</o:p></span></p>
+
+<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
+Dieses und vieles mehr erwartet Sie im fabelhaften Vegas 
+VIP Casino, der beste Platz zum spielen!
+<o:p></o:p></span></p>
+
+<p><a href="http://www.hotvegasvip.com/lang-de/">
+http://www.hotvegasvip.com/lang-de/</a>
+</p>
+
+</div>
+
+</body>
+
+</html>
