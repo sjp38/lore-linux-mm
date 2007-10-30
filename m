@@ -1,40 +1,41 @@
-Message-Id: <20071030160914.329519000@chello.nl>
+Message-Id: <20071030160912.283002000@chello.nl>
 References: <20071030160401.296770000@chello.nl>
-Date: Tue, 30 Oct 2007 17:04:21 +0100
+Date: Tue, 30 Oct 2007 17:04:10 +0100
 From: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Subject: [PATCH 20/33] netvm: filter emergency skbs.
-Content-Disposition: inline; filename=netvm-sk_filter.patch
+Subject: [PATCH 09/33] mm: system wide ALLOC_NO_WATERMARK
+Content-Disposition: inline; filename=global-ALLOC_NO_WATERMARKS.patch
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, netdev@vger.kernel.org, trond.myklebust@fys.uio.no
 Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>
 List-ID: <linux-mm.kvack.org>
 
-Toss all emergency packets not for a SOCK_MEMALLOC socket. This ensures our
-precious memory reserve doesn't get stuck waiting for user-space.
-
-The correctness of this approach relies on the fact that networks must be
-assumed lossy.
+Change ALLOC_NO_WATERMARK page allocation such that the reserves are system
+wide - which they are per setup_per_zone_pages_min(), when we scrape the
+barrel, do it properly.
 
 Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
 ---
- include/net/sock.h |    3 +++
- 1 file changed, 3 insertions(+)
+ mm/page_alloc.c |    6 ++++++
+ 1 file changed, 6 insertions(+)
 
-Index: linux-2.6/include/net/sock.h
+Index: linux-2.6/mm/page_alloc.c
 ===================================================================
---- linux-2.6.orig/include/net/sock.h
-+++ linux-2.6/include/net/sock.h
-@@ -930,6 +930,9 @@ static inline int sk_filter(struct sock 
- {
- 	int err;
- 	struct sk_filter *filter;
+--- linux-2.6.orig/mm/page_alloc.c
++++ linux-2.6/mm/page_alloc.c
+@@ -1638,6 +1638,12 @@ restart:
+ rebalance:
+ 	if (alloc_flags & ALLOC_NO_WATERMARKS) {
+ nofail_alloc:
++		/*
++		 * break out of mempolicy boundaries
++		 */
++		zonelist = NODE_DATA(numa_node_id())->node_zonelists +
++			gfp_zone(gfp_mask);
 +
-+	if (skb_emergency(skb) && !sk_has_memalloc(sk))
-+		return -ENOMEM;
- 	
- 	err = security_sock_rcv_skb(sk, skb);
- 	if (err)
+ 		/* go through the zonelist yet again, ignoring mins */
+ 		page = get_page_from_freelist(gfp_mask, order, zonelist,
+ 				ALLOC_NO_WATERMARKS);
 
 --
 
