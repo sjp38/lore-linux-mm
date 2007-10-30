@@ -1,59 +1,50 @@
-Message-Id: <20071030191557.947156623@polymtl.ca>
-Date: Tue, 30 Oct 2007 15:15:57 -0400
+Message-Id: <20071030192105.244901260@polymtl.ca>
+References: <20071030191557.947156623@polymtl.ca>
+Date: Tue, 30 Oct 2007 15:16:09 -0400
 From: Mathieu Desnoyers <mathieu.desnoyers@polymtl.ca>
-Subject: [patch 00/28] cmpxchg_local standardization across architectures
+Subject: [patch 12/28] Add cmpxchg_local to h8300
+Content-Disposition: inline; filename=add-cmpxchg-local-to-h8300.patch
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: akpm@linux-foundation.org, linux-kernel@vger.kernel.org, matthew@wil.cx, linux-arch@vger.kernel.org, penberg@cs.helsinki.fi, linux-mm@kvack.org, Christoph Lameter <clameter@sgi.com>
+Cc: Mathieu Desnoyers <mathieu.desnoyers@polymtl.ca>
 List-ID: <linux-mm.kvack.org>
 
-Hi,
+Use the new generic cmpxchg_local (disables interrupt). Also use the generic
+cmpxchg as fallback if SMP is not set.
 
-Here is the patchset that performs cmpxchg_local and cmpxchg64_local
-standardization across architectures. It uses interrupt save/restore to emulate
-the atomic operation on architectures lacking such atomic op.
+Signed-off-by: Mathieu Desnoyers <mathieu.desnoyers@polymtl.ca>
+CC: clameter@sgi.com
+---
+ include/asm-h8300/system.h |   15 +++++++++++++++
+ 1 file changed, 15 insertions(+)
 
-We have seen interesing performance gain in slub on architectures where the
-local cmpxchg is faster than interrupt disable, namely x86 and amd64. It becomes
-less interesting on architectures lacking atomic ops and where the only cmpxchg
-primitive available is almost as fast as irq disable/enable (ia64); a small
-performance hit can be expected, mostly due to the additionnal memory barriers
-it adds to the code (and the fact that it is faster to disable interrupts once
-for a longer time rather than multiple times).
-
-It applies in this order on 2.6.23-mm1 :
-
-add-cmpxchg-local-to-generic-for-up.patch
-i386-cmpxchg64-80386-80486-fallback.patch
-add-cmpxchg64-to-alpha.patch
-add-cmpxchg64-to-mips.patch
-add-cmpxchg64-to-powerpc.patch
-add-cmpxchg64-to-x86_64.patch
-#
-add-cmpxchg-local-to-arm.patch
-add-cmpxchg-local-to-avr32.patch
-add-cmpxchg-local-to-blackfin.patch
-add-cmpxchg-local-to-cris.patch
-add-cmpxchg-local-to-frv.patch
-add-cmpxchg-local-to-h8300.patch
-add-cmpxchg-local-to-ia64.patch
-add-cmpxchg-local-to-m32r.patch
-fix-m32r-__xchg.patch
-fix-m32r-include-sched-h-in-smpboot.patch
-local_t_m32r_optimized.patch
-add-cmpxchg-local-to-m68k.patch
-add-cmpxchg-local-to-m68knommu.patch
-add-cmpxchg-local-to-parisc.patch
-add-cmpxchg-local-to-ppc.patch
-add-cmpxchg-local-to-s390.patch
-add-cmpxchg-local-to-sh.patch
-add-cmpxchg-local-to-sh64.patch
-add-cmpxchg-local-to-sparc.patch
-add-cmpxchg-local-to-sparc64.patch
-add-cmpxchg-local-to-v850.patch
-add-cmpxchg-local-to-xtensa.patch
-
-Mathieu
+Index: linux-2.6-lttng/include/asm-h8300/system.h
+===================================================================
+--- linux-2.6-lttng.orig/include/asm-h8300/system.h	2007-07-20 18:36:09.000000000 -0400
++++ linux-2.6-lttng/include/asm-h8300/system.h	2007-07-20 19:27:23.000000000 -0400
+@@ -139,6 +139,21 @@ static inline unsigned long __xchg(unsig
+         asm("jmp @@0");			\
+ })
+ 
++#include <asm-generic/cmpxchg-local.h>
++
++/*
++ * cmpxchg_local and cmpxchg64_local are atomic wrt current CPU. Always make
++ * them available.
++ */
++#define cmpxchg_local(ptr,o,n)					  	    \
++     (__typeof__(*(ptr)))__cmpxchg_local_generic((ptr), (unsigned long)(o), \
++			   	 (unsigned long)(n), sizeof(*(ptr)))
++#define cmpxchg64_local(ptr,o,n) __cmpxchg64_local_generic((ptr), (o), (n))
++
++#ifndef CONFIG_SMP
++#include <asm-generic/cmpxchg.h>
++#endif
++
+ #define arch_align_stack(x) (x)
+ 
+ #endif /* _H8300_SYSTEM_H */
 
 -- 
 Mathieu Desnoyers
