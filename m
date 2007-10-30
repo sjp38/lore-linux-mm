@@ -1,55 +1,65 @@
-Date: Tue, 30 Oct 2007 11:38:48 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [patch 07/10] SLUB: Avoid referencing kmem_cache structure in
- __slab_alloc
-Message-Id: <20071030113848.930471e6.akpm@linux-foundation.org>
-In-Reply-To: <20071028033259.992768446@sgi.com>
-References: <20071028033156.022983073@sgi.com>
-	<20071028033259.992768446@sgi.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Date: Tue, 30 Oct 2007 11:42:10 -0700 (PDT)
+From: Christoph Lameter <clameter@sgi.com>
+Subject: Re: [NUMA] Fix memory policy refcounting
+In-Reply-To: <1193762382.5039.41.camel@localhost>
+Message-ID: <Pine.LNX.4.64.0710301136410.11531@schroedinger.engr.sgi.com>
+References: <Pine.LNX.4.64.0710261638020.29369@schroedinger.engr.sgi.com>
+ <1193672929.5035.69.camel@localhost>  <Pine.LNX.4.64.0710291317060.1379@schroedinger.engr.sgi.com>
+  <1193693646.6244.51.camel@localhost>  <Pine.LNX.4.64.0710291438470.3475@schroedinger.engr.sgi.com>
+ <1193762382.5039.41.camel@localhost>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
-Cc: matthew@wil.cx, linux-kernel@vger.kernel.org, linux-mm@kvack.org, penberg@cs.helsinki.fi
+To: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
+Cc: David Rientjes <rientjes@google.com>, Paul Jackson <pj@sgi.com>, linux-mm@kvack.org, Andi Kleen <ak@suse.de>, Eric Whitney <eric.whitney@hp.com>
 List-ID: <linux-mm.kvack.org>
 
-On Sat, 27 Oct 2007 20:32:03 -0700
-Christoph Lameter <clameter@sgi.com> wrote:
+On Tue, 30 Oct 2007, Lee Schermerhorn wrote:
 
-> There is the need to use the objects per slab in the first part of
-> __slab_alloc() which is still pretty hot. Copy the number of objects
-> per slab into the kmem_cache_cpu structure. That way we can get the
-> value from a cache line that we already need to touch. This brings
-> the kmem_cache_cpu structure up to 4 even words.
-> 
-> There is no increase in the size of kmem_cache_cpu since the size of object
-> is rounded to the next word.
-> 
-> Signed-off-by: Christoph Lameter <clameter@sgi.com>
-> 
-> ---
->  include/linux/slub_def.h |    1 +
->  mm/slub.c                |    3 ++-
->  2 files changed, 3 insertions(+), 1 deletion(-)
-> 
-> Index: linux-2.6/include/linux/slub_def.h
-> ===================================================================
-> --- linux-2.6.orig/include/linux/slub_def.h	2007-10-26 19:09:16.000000000 -0700
-> +++ linux-2.6/include/linux/slub_def.h	2007-10-27 07:55:12.000000000 -0700
-> @@ -17,6 +17,7 @@ struct kmem_cache_cpu {
->  	int node;
->  	unsigned int offset;
->  	unsigned int objsize;
-> +	unsigned int objects;
->  };
+> As part of my shared policy cleanup and enhancement series, I "fixed"
+> numa_maps to display the sub-ranges of policies in a shm segment mapped
+> by a single vma. As part of this fix, I also modified mempolicy.c so
+> that it does not split vmas that support set_policy vm_ops, because
+> handling both split vmas and non-split vmas for a single shm segment
+> would have complicated the code more than I thought necessary.  This is
+> still at prototype stage--altho' it works against 23-rc8-mm2.
 
-mutter.  nr_objects would be a better name, but then one should rename
-kmem_cache.objects too.
+I have not looked at that yet. Maybe you could post another patch?
 
-Better would be to comment the field.  Please devote extra care to commenting
-data structures.
+> Re:  'ref = 3' -- One reference for the rbtree--the shm segment and it's
+> policies continue to exist independent of any vma mappings--and one for
+> each attached vma.  Because the vma references are protected by the
+> respective task/mm_struct's  mmap_sem, we won't need to add an
+> additional reference during lookup, nor release it when finished with
+> the policy.  And, we won't need to mess with any other task's mm data
+> structures when installing/removing shmem policies.  Of course, munmap()
+> of a vma will need to decrement the ref count of all policies in a
+> shared policy tree, but this is not a "fast path".  Unfortunately, we
+> don't have a unmap file operation, so I'd have to add one, or otherwise
+> arrange to remove the unmapping vma's ref--perhaps via a vm_op so that
+> we only need to call it on vmas that support it--i.e., that support
+> shared policy.
+
+Yup that sounds like it is going to be a good solution.
+
+> if overkill.  This involves:  1) fixing do_set_mempolicy() to hold
+> mmap_sem for write over change, 2) fixing up reference counting for
+> interleaving for both normal [forgot unref] and huge [unconditional
+> unref should be conditional] and 3) adding ref to policy in
+> shm_get_policy() to match shmem_get_policy.  All 3 of these are required
+> to be correct w/o changing any of the rest of the current ref counting.
+
+I know about 1. I'd have to look through 2 + 3. I would suggest to fix the 
+refcounting by doing the refcounting using vmas as you explained above and 
+simply remove the problems that exist there right now.
+
+> Then, once the vma-protected shared policy mechanism discussed above is
+> in mergable, we can back out all of the extra ref's on other task and
+> vma policies and the lookup-time ref on shared policies, along with all
+> of the matching unrefs.
+
+Too complicated. Lets go there directly.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
