@@ -1,42 +1,38 @@
-Date: Tue, 30 Oct 2007 11:54:55 -0700 (PDT)
+Date: Tue, 30 Oct 2007 11:58:08 -0700 (PDT)
 From: Christoph Lameter <clameter@sgi.com>
-Subject: SLUB: Comment kmem_cache_cpu structure
-Message-ID: <Pine.LNX.4.64.0710301153580.12730@schroedinger.engr.sgi.com>
+Subject: Re: [patch 08/10] SLUB: Optional fast path using cmpxchg_local
+In-Reply-To: <20071030114933.904a4cf8.akpm@linux-foundation.org>
+Message-ID: <Pine.LNX.4.64.0710301155240.12746@schroedinger.engr.sgi.com>
+References: <20071028033156.022983073@sgi.com> <20071028033300.240703208@sgi.com>
+ <20071030114933.904a4cf8.akpm@linux-foundation.org>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: akpm@linux-foundation.org
-Cc: linux-mm@kvack.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: matthew@wil.cx, linux-kernel@vger.kernel.org, linux-mm@kvack.org, penberg@cs.helsinki.fi, Mathieu Desnoyers <mathieu.desnoyers@polymtl.ca>, linux-arch@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-Add some comments explaining the fields of the kmem_cache_cpu structure.
+On Tue, 30 Oct 2007, Andrew Morton wrote:
 
-Signed-off-by: Chrsitoph Lameter <clameter@sgi.com>
+> Let's cc linux-arch: presumably other architectures can implement cpu-local
+> cmpxchg and would see some benefit from doing so.
 
-Index: linux-2.6/include/linux/slub_def.h
-===================================================================
---- linux-2.6.orig/include/linux/slub_def.h	2007-10-30 11:51:20.000000000 -0700
-+++ linux-2.6/include/linux/slub_def.h	2007-10-30 11:53:48.000000000 -0700
-@@ -12,12 +12,12 @@
- #include <linux/kobject.h>
+Matheiu had a whole series of cmpxchg_local patches. Ccing him too. I 
+think he has some numbers for other architectures.
  
- struct kmem_cache_cpu {
--	void **freelist;
--	struct page *page;
--	int node;
--	unsigned int offset;
--	unsigned int objsize;
--	unsigned int objects;
-+	void **freelist;	/* Pointer to first free per cpu object */
-+	struct page *page;	/* The slab from which we are allocating */
-+	int node;		/* The node of the page (or -1 for debug) */
-+	unsigned int offset;	/* Freepointer offset (in word units) */
-+	unsigned int objsize;	/* Size of an object (from kmem_cache) */
-+	unsigned int objects;	/* Objects per slab (from kmem_cache) */
- };
- 
- struct kmem_cache_node {
+> The semantics are "atomic wrt interrutps on this cpu, not atomic wrt other
+> cpus", yes?
+
+Right.
+
+> Do you have a feel for how useful it would be for arch maintainers to implement
+> this?  IOW, is it worth their time?
+
+That depends on the efficiency of a cmpxchg_local vs. the interrupt 
+enable/ disable sequence on a particular arch. On x86 this yields about 
+50% so it doubles the speed of the fastpath. On other architectures the 
+cmpxchg is so slow that it is not worth it (ia64 f.e.)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
