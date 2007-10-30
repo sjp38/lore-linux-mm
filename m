@@ -1,64 +1,54 @@
-Received: from d03relay02.boulder.ibm.com (d03relay02.boulder.ibm.com [9.17.195.227])
-	by e31.co.us.ibm.com (8.13.8/8.13.8) with ESMTP id l9UKobN5001210
-	for <linux-mm@kvack.org>; Tue, 30 Oct 2007 16:50:37 -0400
-Received: from d03av04.boulder.ibm.com (d03av04.boulder.ibm.com [9.17.195.170])
-	by d03relay02.boulder.ibm.com (8.13.8/8.13.8/NCO v8.5) with ESMTP id l9UKoa6o112546
-	for <linux-mm@kvack.org>; Tue, 30 Oct 2007 14:50:36 -0600
-Received: from d03av04.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av04.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l9UKoapS021937
-	for <linux-mm@kvack.org>; Tue, 30 Oct 2007 14:50:36 -0600
-Subject: Re: migratepage failures on reiserfs
+Subject: Re: [RFC] oom notifications via /dev/oom_notify
 From: Badari Pulavarty <pbadari@us.ibm.com>
-In-Reply-To: <20071030135442.5d33c61c@think.oraclecorp.com>
-References: <1193768824.8904.11.camel@dyn9047017100.beaverton.ibm.com>
-	 <20071030135442.5d33c61c@think.oraclecorp.com>
+In-Reply-To: <20071030191827.GB31038@dmt>
+References: <20071030191827.GB31038@dmt>
 Content-Type: text/plain
-Date: Tue, 30 Oct 2007 13:54:05 -0800
-Message-Id: <1193781245.8904.28.camel@dyn9047017100.beaverton.ibm.com>
+Date: Tue, 30 Oct 2007 13:59:28 -0800
+Message-Id: <1193781568.8904.33.camel@dyn9047017100.beaverton.ibm.com>
 Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Chris Mason <chris.mason@oracle.com>
-Cc: reiserfs-devel@vger.kernel.org, linux-mm <linux-mm@kvack.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>
+To: Marcelo Tosatti <marcelo@kvack.org>
+Cc: linux-mm <linux-mm@kvack.org>, drepper@redhat.com, riel@redhat.com, Andrew Morton <akpm@linux-foundation.org>, mbligh@mbligh.org, balbir@linux.vnet.ibm.com
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 2007-10-30 at 13:54 -0400, Chris Mason wrote:
-> On Tue, 30 Oct 2007 10:27:04 -0800
-> Badari Pulavarty <pbadari@us.ibm.com> wrote:
+On Tue, 2007-10-30 at 15:18 -0400, Marcelo Tosatti wrote:
+> Hi,
 > 
-> > Hi,
-> > 
-> > While testing hotplug memory remove, I ran into this issue. Given a
-> > range of pages hotplug memory remove tries to migrate those pages.
-> > 
-> > migrate_pages() keeps failing to migrate pages containing pagecache
-> > pages for reiserfs files. I noticed that reiserfs doesn't have 
-> > ->migratepage() ops. So, fallback_migrate_page() code tries to
-> > do try_to_release_page(). try_to_release_page() fails to
-> > drop_buffers() since b_count == 1. Here is what my debug shows:
-> > 
-> > 	migrate pages failed pfn 258111/flags 3f00000000801
-> > 	bh c00000000b53f6e0 flags 110029 count 1
-> > 	
-> > Any one know why the b_count == 1 and not getting dropped to zero ? 
+> Following patch creates a /dev/oom_notify device which applications can
+> select()/poll() to get informed of memory pressure.
 > 
-> If these are file data pages, the count is probably elevated as part of
-> the data=ordered tracking.  You can verify this via b_private, or just
-> mount data=writeback to double check.
+> The basic idea here is that applications can be part of the memory
+> reclaim process. The notification is loosely defined as "please free
+> some small percentage of your memory".
+> 
+> There is no easy way of finding whether the system is approaching a
+> state where swapping is required in the reclaim paths, so a defensive
+> approach is taken by using a timer with 1Hz frequency which verifies
+> whether swapping has occurred.
+> 
+> For scenarios which require a "severe pressure notification" (please
+> read Nokia's implementation at http://www.linuxjournal.com/article/8502 for
+> more details), I believe the best solution is to create a separate
+> /dev/oom_notify_critical device to avoid complication of the main device
+> code paths. Take into account that such notification needs careful
+> synchronization with the OOM killer.
+> 
+> Comments please...
 
-
-Chris,
-
-That was my first assumption. But after looking at reiserfs_releasepage
-(), realized that it would do reiserfs_free_jh() and clears the
-b_private. I couldn't easily find out who has the ref. against this
-bh.
-
-bh c00000000bdaaf00 flags 110029 count 1 private 0
+Interesting.. Our database folks wanted some kind of notification when
+there is memory pressure and we are about to kill the biggest consumer
+(in most cases, the most useful application :(). What actually they
+want is a way to get notified, so that they can shrink their memory
+footprint in response. Just notifying before OOM may not help, since
+they don't have time to react. How does this notification help ? Are
+they supposed to monitor swapping activity and decide ?
 
 Thanks,
 Badari
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
