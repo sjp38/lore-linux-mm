@@ -1,65 +1,58 @@
-Message-Id: <20071030192108.112283198@polymtl.ca>
+Message-Id: <20071030192105.557027608@polymtl.ca>
 References: <20071030191557.947156623@polymtl.ca>
-Date: Tue, 30 Oct 2007 15:16:17 -0400
+Date: Tue, 30 Oct 2007 15:16:10 -0400
 From: Mathieu Desnoyers <mathieu.desnoyers@polymtl.ca>
-Subject: [patch 20/28] Add cmpxchg_local to parisc
-Content-Disposition: inline; filename=add-cmpxchg-local-to-parisc.patch
+Subject: [patch 13/28] Add cmpxchg_local, cmpxchg64 and cmpxchg64_local to ia64
+Content-Disposition: inline; filename=add-cmpxchg-local-to-ia64.patch
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: akpm@linux-foundation.org, linux-kernel@vger.kernel.org, matthew@wil.cx, linux-arch@vger.kernel.org, penberg@cs.helsinki.fi, linux-mm@kvack.org, Christoph Lameter <clameter@sgi.com>
-Cc: Mathieu Desnoyers <mathieu.desnoyers@polymtl.ca>, parisc-linux@parisc-linux.org
+Cc: Mathieu Desnoyers <mathieu.desnoyers@polymtl.ca>, tony.luck@intel.com, Keith Owens <kaos@ocs.com.au>
 List-ID: <linux-mm.kvack.org>
 
-Use the new generic cmpxchg_local (disables interrupt). Also use the generic
-cmpxchg as fallback if SMP is not set.
+Add the primitives cmpxchg_local, cmpxchg64 and cmpxchg64_local to ia64. They
+use cmpxchg_acq as underlying macro, just like the already existing ia64
+cmpxchg().
+
+Changelog:
+
+ia64 cmpxchg_local coding style fix
+Quoting Keith Owens:
+
+As a matter of coding style, I prefer
+
+#define cmpxchg_local   cmpxchg
+#define cmpxchg64_local cmpxchg64
+
+Which makes it absolutely clear that they are the same code.  With your
+patch, humans have to do a string compare of two defines to see if they
+are the same.
+
+Note cmpxchg is *not* a performance win vs interrupt disable / enable on IA64.
 
 Signed-off-by: Mathieu Desnoyers <mathieu.desnoyers@polymtl.ca>
-CC: clameter@sgi.com
-CC: parisc-linux@parisc-linux.org
+Acked-by: Christoph Lameter <clameter@sgi.com>
+CC: tony.luck@intel.com
+CC: Keith Owens <kaos@ocs.com.au>
 ---
- include/asm-parisc/atomic.h |   29 +++++++++++++++++++++++++++++
- 1 file changed, 29 insertions(+)
+ include/asm-ia64/intrinsics.h |    4 ++++
+ 1 file changed, 4 insertions(+)
 
-Index: linux-2.6-lttng/include/asm-parisc/atomic.h
+Index: linux-2.6-lttng/include/asm-ia64/intrinsics.h
 ===================================================================
---- linux-2.6-lttng.orig/include/asm-parisc/atomic.h	2007-07-20 19:44:40.000000000 -0400
-+++ linux-2.6-lttng/include/asm-parisc/atomic.h	2007-07-20 19:44:47.000000000 -0400
-@@ -122,6 +122,35 @@ __cmpxchg(volatile void *ptr, unsigned l
- 				    (unsigned long)_n_, sizeof(*(ptr))); \
-   })
+--- linux-2.6-lttng.orig/include/asm-ia64/intrinsics.h	2007-08-12 09:33:57.000000000 -0400
++++ linux-2.6-lttng/include/asm-ia64/intrinsics.h	2007-08-12 15:09:49.000000000 -0400
+@@ -158,6 +158,10 @@ extern long ia64_cmpxchg_called_with_bad
  
-+#include <asm-generic/cmpxchg-local.h>
+ /* for compatibility with other platforms: */
+ #define cmpxchg(ptr,o,n)	cmpxchg_acq(ptr,o,n)
++#define cmpxchg64(ptr,o,n)	cmpxchg_acq(ptr,o,n)
 +
-+static inline unsigned long __cmpxchg_local(volatile void *ptr,
-+				      unsigned long old,
-+				      unsigned long new_, int size)
-+{
-+	switch (size) {
-+#ifdef CONFIG_64BIT
-+	case 8:	return __cmpxchg_u64((unsigned long *)ptr, old, new_);
-+#endif
-+	case 4:	return __cmpxchg_u32(ptr, old, new_);
-+	default:
-+		return __cmpxchg_local_generic(ptr, old, new_, size);
-+	}
-+}
-+
-+/*
-+ * cmpxchg_local and cmpxchg64_local are atomic wrt current CPU. Always make
-+ * them available.
-+ */
-+#define cmpxchg_local(ptr,o,n)					  	\
-+     (__typeof__(*(ptr)))__cmpxchg_local((ptr), (unsigned long)(o),	\
-+			   	 (unsigned long)(n), sizeof(*(ptr)))
-+#ifdef CONFIG_64BIT
-+#define cmpxchg64_local(ptr,o,n) cmpxchg_local((ptr), (o), (n))
-+#else
-+#define cmpxchg64_local(ptr,o,n) __cmpxchg64_local_generic((ptr), (o), (n))
-+#endif
-+
- /* Note that we need not lock read accesses - aligned word writes/reads
-  * are atomic, so a reader never sees unconsistent values.
-  *
++#define cmpxchg_local		cmpxchg
++#define cmpxchg64_local		cmpxchg64
+ 
+ #ifdef CONFIG_IA64_DEBUG_CMPXCHG
+ # define CMPXCHG_BUGCHECK_DECL	int _cmpxchg_bugcheck_count = 128;
 
 -- 
 Mathieu Desnoyers
