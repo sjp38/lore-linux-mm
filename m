@@ -1,37 +1,30 @@
-Date: Tue, 30 Oct 2007 17:12:09 -0400
+Date: Tue, 30 Oct 2007 17:19:09 -0400
 From: Rik van Riel <riel@redhat.com>
 Subject: Re: [RFC] oom notifications via /dev/oom_notify
-Message-ID: <20071030171209.0caae1d5@cuia.boston.redhat.com>
-In-Reply-To: <1193781568.8904.33.camel@dyn9047017100.beaverton.ibm.com>
+Message-ID: <20071030171909.3670f76f@cuia.boston.redhat.com>
+In-Reply-To: <20071030210743.GA304@dmt>
 References: <20071030191827.GB31038@dmt>
-	<1193781568.8904.33.camel@dyn9047017100.beaverton.ibm.com>
+	<20071030210743.GA304@dmt>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Badari Pulavarty <pbadari@us.ibm.com>
-Cc: Marcelo Tosatti <marcelo@kvack.org>, linux-mm <linux-mm@kvack.org>, drepper@redhat.com, Andrew Morton <akpm@linux-foundation.org>, mbligh@mbligh.org, balbir@linux.vnet.ibm.com
+To: Marcelo Tosatti <marcelo@kvack.org>
+Cc: linux-mm@kvack.org, drepper@redhat.com, akpm@linux-foundation.org, mbligh@mbligh.org, balbir@linux.vnet.ibm.com
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 30 Oct 2007 13:59:28 -0800
-Badari Pulavarty <pbadari@us.ibm.com> wrote:
+On Tue, 30 Oct 2007 17:07:43 -0400
+Marcelo Tosatti <marcelo@kvack.org> wrote:
 
-> Interesting.. Our database folks wanted some kind of notification when
-> there is memory pressure and we are about to kill the biggest consumer
-> (in most cases, the most useful application :(). What actually they
-> want is a way to get notified, so that they can shrink their memory
-> footprint in response. Just notifying before OOM may not help, since
-> they don't have time to react. How does this notification help ? Are
-> they supposed to monitor swapping activity and decide ?
+> > Comments please...
+> 
+> changes:
+> - rearm timer (!)
+> - wake up one thread instead of all in swapout detection
+> - msecs_to_jiffies(1000) -> HZ
 
-Marcelo's code monitors swapping activity and will let userspace
-programs (that poll/select the device node) know when they should
-shrink their memory footprint.
-
-This is not "OOM" in the sense of "no more memory or swap", but
-in the sense of "we're low on memory - if you don't free something
-we'll slow you down by swapping stuff".
+Would it be an idea to use round_jiffies() ?
 
 -- 
 All Rights Reversed
