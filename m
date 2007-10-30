@@ -1,103 +1,90 @@
-Subject: Re: vm_ops.page_mkwrite() fails with vmalloc on 2.6.23
-From: Peter Zijlstra <a.p.zijlstra@chello.nl>
-In-Reply-To: <45a44e480710300616p34b0a159m87de78d0a4d43028@mail.gmail.com>
-References: <1193064057.16541.1.camel@matrix>
-	 <20071029004002.60c7182a.akpm@linux-foundation.org>
-	 <45a44e480710290117u492dbe82ra6344baf8bb1e370@mail.gmail.com>
-	 <1193677302.27652.56.camel@twins>
-	 <45a44e480710291051s7ffbb582x64ea9524c197b48a@mail.gmail.com>
-	 <1193681839.27652.60.camel@twins> <1193696211.5644.100.camel@lappy>
-	 <45a44e480710291822w5864b3beofcf432930d3e68d3@mail.gmail.com>
-	 <1193738177.27652.69.camel@twins>
-	 <45a44e480710300616p34b0a159m87de78d0a4d43028@mail.gmail.com>
-Content-Type: multipart/signed; micalg=pgp-sha1; protocol="application/pgp-signature"; boundary="=-pHqx6XxmjBvEmf05Optt"
-Date: Tue, 30 Oct 2007 14:25:51 +0100
-Message-Id: <1193750751.27652.86.camel@twins>
-Mime-Version: 1.0
-Sender: owner-linux-mm@kvack.org
-Return-Path: <owner-linux-mm@kvack.org>
-To: Jaya Kumar <jayakumar.lkml@gmail.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, stefani@seibold.net, linux-kernel@vger.kernel.org, David Howells <dhowells@redhat.com>, linux-mm@kvack.org, Hugh Dickins <hugh@veritas.com>
+Message-ID: <ffbbe01c81b01$45bb9e20$c2d06ac8@Enseando>
+From: "Ken Hopkins" <EverettalbaByrd@ambrowser.com>
+Subject: market investor alert
+Date: Tue, 30 Oct 2007 09:29:06 +0500
+MIME-Version: 1.0
+Content-Type: multipart/alternative;
+	boundary="----=_NextPart_000_FFBBA_01C81B01.45BB9E20"
+Return-Path: <EverettalbaByrd@ambrowser.com>
+To: mm@kvack.org
+Cc: linux-mm@kvack.org, kelda@kvack.org, linux-mm-archive@kvack.org, majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
---=-pHqx6XxmjBvEmf05Optt
-Content-Type: text/plain
+This is a multi-part message in MIME format.
+
+------=_NextPart_000_FFBBA_01C81B01.45BB9E20
+Content-Type: text/plain;
+	charset="iso-8859-1"
 Content-Transfer-Encoding: quoted-printable
 
-On Tue, 2007-10-30 at 09:16 -0400, Jaya Kumar wrote:
-> On 10/30/07, Peter Zijlstra <a.p.zijlstra@chello.nl> wrote:
-> > So page->index does what you want it to, identify which part of the
-> > framebuffer this particular page belongs to.
->=20
-> Ok. I'm attempting to walk the code sequence. Here's what I think:
->=20
-> - driver loads
-> - driver vmalloc()s its fb
-> - this creates the necessary pte entries
+No smokescreens here
+What you see is what you'll get.
 
-well, one set thereof, the kernel mappings, which for this purpose are
-the least interesting.
+SHOTPAK Inc (SHTP) has a unique product thats causing ripples across the =
+globe.
 
-> then...
-> - app mmap(/dev/fb0)
-> - vma is created
-> - defio mmap adds this vma to private list (equivalent of
-> address_space or anon_vma)
+The company's shares are going through the roof, up 42 % today alone.
 
-> - app touches base + pixel(128,128) =3D base + 16k
-> - page fault
-> - defio nopage gets called
-> - defio nopage does vmalloc_to_page(base+16k)
+see the recent headlines
+- ShotPak Signs Major Import Agreement For South Korea
+- ShotPak Signs Letter of Intent with India Importer
+- ShotPak Signs Letter of Intent with India Importer to Be Available in =
+120 Hotel Mini Bars Throughout Country
+- ShotPak Ships Throughout Texas
 
-this installs a user space page table entry for your page; this is the
-interesting one as it carries the user-dirty state.
+And so on and so on.
 
-> - that finds the correct struct page corresponding to that vaddr.
-> page->index has not been set by anyone so far, right?
-> * ah... i see, you are suggesting that this is where I could set the
-> index since i know the offset i want it to represent. right?
+This is a real company with real products NO SMOKESCREEN
 
-Not quite, you would set that right after vmallocing, just set an
-increasing page->index starting with 0 for the first page.
+Look into it and get in on the action.
+------=_NextPart_000_FFBBA_01C81B01.45BB9E20
+Content-Type: text/html;
+	charset="iso-8859-1"
+Content-Transfer-Encoding: quoted-printable
 
-Then ensure your vma->vm_pgoff is 0 (which should be the case since
-userspace will most likely mmap the whole thing, and if not it still
-gets what it expects).
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
+<HTML><HEAD>
+<META http-equiv=3DContent-Type content=3D"text/html; =
+charset=3Diso-8859-1">
+<META content=3D"MSHTML 6.00.2900.2963" name=3DGENERATOR>
+<STYLE></STYLE>
+</HEAD>=20
+<BODY bgColor=3D#ffffff>
+<DIV align=3Dleft><FONT face=3DArial size=3D2>No smokescreens =
+here</FONT></DIV>
+<DIV align=3Dleft><FONT face=3DArial size=3D2>What you see is what =
+you'll=20
+get.</FONT></DIV><BR>
+<DIV align=3Dleft><FONT face=3DArial size=3D2>SHOTPAK Inc (SHTP) has a =
+unique product=20
+thats causing ripples across the globe.</FONT></DIV><BR>
+<DIV align=3Dleft><FONT face=3DArial size=3D2>The company's shares are =
+going through=20
+the roof, up 42 % today alone.</FONT></DIV><BR>
+<DIV align=3Dleft><FONT face=3DArial size=3D2>see the recent =
+headlines</FONT></DIV>
+<DIV align=3Dleft><FONT face=3DArial size=3D2>- ShotPak Signs Major =
+Import Agreement=20
+For South Korea</FONT></DIV>
+<DIV align=3Dleft><FONT face=3DArial size=3D2>- ShotPak Signs Letter of =
+Intent with=20
+India Importer</FONT></DIV>
+<DIV align=3Dleft><FONT face=3DArial size=3D2>- ShotPak Signs Letter of =
+Intent with=20
+India Importer to Be Available in 120 Hotel Mini Bars Throughout=20
+Country</FONT></DIV>
+<DIV align=3Dleft><FONT face=3DArial size=3D2>- ShotPak Ships =
+Throughout=20
+Texas</FONT></DIV><BR>
+<DIV align=3Dleft><FONT face=3DArial size=3D2>And so on and so =
+on.</FONT></DIV><BR>
+<DIV align=3Dleft><FONT face=3DArial size=3D2>This is a real company =
+with real 
+products NO SMOKESCREEN</FONT></DIV><BR>
+<DIV align=3Dleft><FONT face=3DArial size=3D2>Look into it and get in on =
+the=20
+action.</FONT></DIV><BR>
+</BODY></HTML>
 
-> - defio mkwrite get called. defio adds page to its list. schedules delaye=
-d work
-> - app keeps writing the page
-> - delayed work occurs
-> - foreach vma { foreach page { page_mkclean_one(page, vma) }
 
-Yeah, page_mkclean_one(page, vma) will use vma_address() to obtain an
-user-space address for the page in this vma using page->index and the
-formula from the last email, this address is then used to walk the page
-tables and obtain a pte.
-
-This will be the user-space pte installed by your nopfn handler. Not the
-kernel vmap pte resulting from the vmalloc() call.
-
-> - cycle repeats...
-
-
-
---=-pHqx6XxmjBvEmf05Optt
-Content-Type: application/pgp-signature; name=signature.asc
-Content-Description: This is a digitally signed message part
-
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v1.4.6 (GNU/Linux)
-
-iD8DBQBHJzDfXA2jU0ANEf4RAh18AJwOekOCk1QihR4h6+12dUbIVA+t/gCcCNUE
-z8ot0/SsHvSCn+2e6nBGgFs=
-=LaJp
------END PGP SIGNATURE-----
-
---=-pHqx6XxmjBvEmf05Optt--
-
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+------=_NextPart_000_FFBBA_01C81B01.45BB9E20--
