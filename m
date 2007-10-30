@@ -1,181 +1,270 @@
-Message-Id: <20071030160910.248346000@chello.nl>
+Message-Id: <20071030160913.811204000@chello.nl>
 References: <20071030160401.296770000@chello.nl>
-Date: Tue, 30 Oct 2007 17:04:02 +0100
+Date: Tue, 30 Oct 2007 17:04:17 +0100
 From: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Subject: [PATCH 01/33] mm: gfp_to_alloc_flags()
-Content-Disposition: inline; filename=mm-gfp-to-alloc_flags.patch
+Subject: [PATCH 16/33] netvm: network reserve infrastructure
+Content-Disposition: inline; filename=netvm-reserve.patch
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, netdev@vger.kernel.org, trond.myklebust@fys.uio.no
 Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>
 List-ID: <linux-mm.kvack.org>
 
-Factor out the gfp to alloc_flags mapping so it can be used in other places.
+Provide the basic infrastructure to reserve and charge/account network memory.
+
+We provide the following reserve tree:
+
+1)  total network reserve
+2)    network TX reserve
+3)      protocol TX pages
+4)    network RX reserve
+5)      SKB data reserve
+
+[1] is used to make all the network reserves a single subtree, for easy
+manipulation.
+
+[2] and [4] are merely for eastetic reasons.
+
+The TX pages reserve [3] is assumed bounded by it being the upper bound of
+memory that can be used for sending pages (not quite true, but good enough)
+
+The SKB reserve [5] is an aggregate reserve, which is used to charge SKB data
+against in the fallback path.
+
+The consumers for these reserves are sockets marked with:
+  SOCK_MEMALLOC
+
+Such sockets are to be used to service the VM (iow. to swap over). They
+must be handled kernel side, exposing such a socket to user-space is a BUG.
 
 Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
 ---
- mm/internal.h   |   11 ++++++
- mm/page_alloc.c |   98 ++++++++++++++++++++++++++++++++------------------------
- 2 files changed, 67 insertions(+), 42 deletions(-)
+ include/net/sock.h |   35 +++++++++++++++-
+ net/Kconfig        |    3 +
+ net/core/sock.c    |  113 +++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 150 insertions(+), 1 deletion(-)
 
-Index: linux-2.6/mm/internal.h
+Index: linux-2.6/include/net/sock.h
 ===================================================================
---- linux-2.6.orig/mm/internal.h
-+++ linux-2.6/mm/internal.h
-@@ -47,4 +47,15 @@ static inline unsigned long page_order(s
- 	VM_BUG_ON(!PageBuddy(page));
- 	return page_private(page);
- }
-+
-+#define ALLOC_HARDER		0x01 /* try to alloc harder */
-+#define ALLOC_HIGH		0x02 /* __GFP_HIGH set */
-+#define ALLOC_WMARK_MIN		0x04 /* use pages_min watermark */
-+#define ALLOC_WMARK_LOW		0x08 /* use pages_low watermark */
-+#define ALLOC_WMARK_HIGH	0x10 /* use pages_high watermark */
-+#define ALLOC_NO_WATERMARKS	0x20 /* don't check watermarks at all */
-+#define ALLOC_CPUSET		0x40 /* check for correct cpuset */
-+
-+int gfp_to_alloc_flags(gfp_t gfp_mask);
-+
- #endif
-Index: linux-2.6/mm/page_alloc.c
-===================================================================
---- linux-2.6.orig/mm/page_alloc.c
-+++ linux-2.6/mm/page_alloc.c
-@@ -1139,14 +1139,6 @@ failed:
- 	return NULL;
+--- linux-2.6.orig/include/net/sock.h
++++ linux-2.6/include/net/sock.h
+@@ -50,6 +50,7 @@
+ #include <linux/skbuff.h>	/* struct sk_buff */
+ #include <linux/mm.h>
+ #include <linux/security.h>
++#include <linux/reserve.h>
+ 
+ #include <linux/filter.h>
+ 
+@@ -397,6 +398,7 @@ enum sock_flags {
+ 	SOCK_RCVTSTAMPNS, /* %SO_TIMESTAMPNS setting */
+ 	SOCK_LOCALROUTE, /* route locally only, %SO_DONTROUTE setting */
+ 	SOCK_QUEUE_SHRUNK, /* write queue has been shrunk recently */
++	SOCK_MEMALLOC, /* the VM depends on us - make sure we're serviced */
+ };
+ 
+ static inline void sock_copy_flags(struct sock *nsk, struct sock *osk)
+@@ -419,9 +421,40 @@ static inline int sock_flag(struct sock 
+ 	return test_bit(flag, &sk->sk_flags);
  }
  
--#define ALLOC_NO_WATERMARKS	0x01 /* don't check watermarks at all */
--#define ALLOC_WMARK_MIN		0x02 /* use pages_min watermark */
--#define ALLOC_WMARK_LOW		0x04 /* use pages_low watermark */
--#define ALLOC_WMARK_HIGH	0x08 /* use pages_high watermark */
--#define ALLOC_HARDER		0x10 /* try to alloc harder */
--#define ALLOC_HIGH		0x20 /* __GFP_HIGH set */
--#define ALLOC_CPUSET		0x40 /* check for correct cpuset */
--
- #ifdef CONFIG_FAIL_PAGE_ALLOC
- 
- static struct fail_page_alloc_attr {
-@@ -1535,6 +1527,44 @@ static void set_page_owner(struct page *
- #endif /* CONFIG_PAGE_OWNER */
- 
- /*
-+ * get the deepest reaching allocation flags for the given gfp_mask
-+ */
-+int gfp_to_alloc_flags(gfp_t gfp_mask)
++static inline int sk_has_memalloc(struct sock *sk)
 +{
-+	struct task_struct *p = current;
-+	int alloc_flags = ALLOC_WMARK_MIN | ALLOC_CPUSET;
-+	const gfp_t wait = gfp_mask & __GFP_WAIT;
-+
-+	/*
-+	 * The caller may dip into page reserves a bit more if the caller
-+	 * cannot run direct reclaim, or if the caller has realtime scheduling
-+	 * policy or is asking for __GFP_HIGH memory.  GFP_ATOMIC requests will
-+	 * set both ALLOC_HARDER (!wait) and ALLOC_HIGH (__GFP_HIGH).
-+	 */
-+	if (gfp_mask & __GFP_HIGH)
-+		alloc_flags |= ALLOC_HIGH;
-+
-+	if (!wait) {
-+		alloc_flags |= ALLOC_HARDER;
-+		/*
-+		 * Ignore cpuset if GFP_ATOMIC (!wait) rather than fail alloc.
-+		 * See also cpuset_zone_allowed() comment in kernel/cpuset.c.
-+		 */
-+		alloc_flags &= ~ALLOC_CPUSET;
-+	} else if (unlikely(rt_task(p)) && !in_interrupt())
-+		alloc_flags |= ALLOC_HARDER;
-+
-+	if (likely(!(gfp_mask & __GFP_NOMEMALLOC))) {
-+		if (!in_interrupt() &&
-+		    ((p->flags & PF_MEMALLOC) ||
-+		     unlikely(test_thread_flag(TIF_MEMDIE))))
-+			alloc_flags |= ALLOC_NO_WATERMARKS;
-+	}
-+
-+	return alloc_flags;
++	return sock_flag(sk, SOCK_MEMALLOC);
 +}
 +
 +/*
-  * This is the 'heart' of the zoned buddy allocator.
-  */
- struct page * fastcall
-@@ -1589,48 +1619,28 @@ restart:
- 	 * OK, we're below the kswapd watermark and have kicked background
- 	 * reclaim. Now things get more complex, so set up alloc_flags according
- 	 * to how we want to proceed.
--	 *
--	 * The caller may dip into page reserves a bit more if the caller
--	 * cannot run direct reclaim, or if the caller has realtime scheduling
--	 * policy or is asking for __GFP_HIGH memory.  GFP_ATOMIC requests will
--	 * set both ALLOC_HARDER (!wait) and ALLOC_HIGH (__GFP_HIGH).
- 	 */
--	alloc_flags = ALLOC_WMARK_MIN;
--	if ((unlikely(rt_task(p)) && !in_interrupt()) || !wait)
--		alloc_flags |= ALLOC_HARDER;
--	if (gfp_mask & __GFP_HIGH)
--		alloc_flags |= ALLOC_HIGH;
--	if (wait)
--		alloc_flags |= ALLOC_CPUSET;
-+	alloc_flags = gfp_to_alloc_flags(gfp_mask);
- 
--	/*
--	 * Go through the zonelist again. Let __GFP_HIGH and allocations
--	 * coming from realtime tasks go deeper into reserves.
--	 *
--	 * This is the last chance, in general, before the goto nopage.
--	 * Ignore cpuset if GFP_ATOMIC (!wait) rather than fail alloc.
--	 * See also cpuset_zone_allowed() comment in kernel/cpuset.c.
--	 */
--	page = get_page_from_freelist(gfp_mask, order, zonelist, alloc_flags);
-+	/* This is the last chance, in general, before the goto nopage. */
-+	page = get_page_from_freelist(gfp_mask, order, zonelist,
-+			alloc_flags & ~ALLOC_NO_WATERMARKS);
- 	if (page)
- 		goto got_pg;
- 
- 	/* This allocation should allow future memory freeing. */
--
- rebalance:
--	if (((p->flags & PF_MEMALLOC) || unlikely(test_thread_flag(TIF_MEMDIE)))
--			&& !in_interrupt()) {
--		if (!(gfp_mask & __GFP_NOMEMALLOC)) {
-+	if (alloc_flags & ALLOC_NO_WATERMARKS) {
- nofail_alloc:
--			/* go through the zonelist yet again, ignoring mins */
--			page = get_page_from_freelist(gfp_mask, order,
--				zonelist, ALLOC_NO_WATERMARKS);
--			if (page)
--				goto got_pg;
--			if (gfp_mask & __GFP_NOFAIL) {
--				congestion_wait(WRITE, HZ/50);
--				goto nofail_alloc;
--			}
-+		/* go through the zonelist yet again, ignoring mins */
-+		page = get_page_from_freelist(gfp_mask, order, zonelist,
-+				ALLOC_NO_WATERMARKS);
-+		if (page)
-+			goto got_pg;
++ * Guestimate the per request queue TX upper bound.
++ *
++ * Max packet size is 64k, and we need to reserve that much since the data
++ * might need to bounce it. Double it to be on the safe side.
++ */
++#define TX_RESERVE_PAGES DIV_ROUND_UP(2*65536, PAGE_SIZE)
 +
-+		if (wait && (gfp_mask & __GFP_NOFAIL)) {
-+			congestion_wait(WRITE, HZ/50);
-+			goto nofail_alloc;
- 		}
- 		goto nopage;
++extern atomic_t memalloc_socks;
++
++extern struct mem_reserve net_rx_reserve;
++extern struct mem_reserve net_skb_reserve;
++
++static inline int sk_memalloc_socks(void)
++{
++	return atomic_read(&memalloc_socks);
++}
++
++extern int rx_emergency_get(int bytes);
++extern int rx_emergency_get_overcommit(int bytes);
++extern void rx_emergency_put(int bytes);
++
++extern int sk_adjust_memalloc(int socks, long tx_reserve_pages);
++extern int sk_set_memalloc(struct sock *sk);
++extern int sk_clear_memalloc(struct sock *sk);
++
+ static inline gfp_t sk_allocation(struct sock *sk, gfp_t gfp_mask)
+ {
+-	return gfp_mask;
++	return gfp_mask | (sk->sk_allocation & __GFP_MEMALLOC);
+ }
+ 
+ static inline void sk_acceptq_removed(struct sock *sk)
+Index: linux-2.6/net/core/sock.c
+===================================================================
+--- linux-2.6.orig/net/core/sock.c
++++ linux-2.6/net/core/sock.c
+@@ -112,6 +112,7 @@
+ #include <linux/tcp.h>
+ #include <linux/init.h>
+ #include <linux/highmem.h>
++#include <linux/reserve.h>
+ 
+ #include <asm/uaccess.h>
+ #include <asm/system.h>
+@@ -213,6 +214,111 @@ __u32 sysctl_rmem_default __read_mostly 
+ /* Maximal space eaten by iovec or ancilliary data plus some space */
+ int sysctl_optmem_max __read_mostly = sizeof(unsigned long)*(2*UIO_MAXIOV+512);
+ 
++atomic_t memalloc_socks;
++
++static struct mem_reserve net_reserve;
++struct mem_reserve net_rx_reserve;
++struct mem_reserve net_skb_reserve;
++static struct mem_reserve net_tx_reserve;
++static struct mem_reserve net_tx_pages;
++
++EXPORT_SYMBOL_GPL(net_rx_reserve); /* modular ipv6 only */
++EXPORT_SYMBOL_GPL(net_skb_reserve); /* modular ipv6 only */
++
++/*
++ * is there room for another emergency packet?
++ */
++static int __rx_emergency_get(int bytes, bool overcommit)
++{
++	return mem_reserve_kmalloc_charge(&net_skb_reserve, bytes, overcommit);
++}
++
++int rx_emergency_get(int bytes)
++{
++	return __rx_emergency_get(bytes, false);
++}
++
++int rx_emergency_get_overcommit(int bytes)
++{
++	return __rx_emergency_get(bytes, true);
++}
++
++void rx_emergency_put(int bytes)
++{
++	mem_reserve_kmalloc_charge(&net_skb_reserve, -bytes, 0);
++}
++
++/**
++ *	sk_adjust_memalloc - adjust the global memalloc reserve for critical RX
++ *	@socks: number of new %SOCK_MEMALLOC sockets
++ *	@tx_resserve_pages: number of pages to (un)reserve for TX
++ *
++ *	This function adjusts the memalloc reserve based on system demand.
++ *	The RX reserve is a limit, and only added once, not for each socket.
++ *
++ *	NOTE:
++ *	   @tx_reserve_pages is an upper-bound of memory used for TX hence
++ *	   we need not account the pages like we do for RX pages.
++ */
++int sk_adjust_memalloc(int socks, long tx_reserve_pages)
++{
++	int nr_socks;
++	int err;
++
++	err = mem_reserve_pages_add(&net_tx_pages, tx_reserve_pages);
++	if (err)
++		return err;
++
++	nr_socks = atomic_read(&memalloc_socks);
++	if (!nr_socks && socks > 0)
++		err = mem_reserve_connect(&net_reserve, &mem_reserve_root);
++	nr_socks = atomic_add_return(socks, &memalloc_socks);
++	if (!nr_socks && socks)
++		err = mem_reserve_disconnect(&net_reserve);
++
++	if (err)
++		mem_reserve_pages_add(&net_tx_pages, -tx_reserve_pages);
++
++	return err;
++}
++
++/**
++ *	sk_set_memalloc - sets %SOCK_MEMALLOC
++ *	@sk: socket to set it on
++ *
++ *	Set %SOCK_MEMALLOC on a socket and increase the memalloc reserve
++ *	accordingly.
++ */
++int sk_set_memalloc(struct sock *sk)
++{
++	int set = sock_flag(sk, SOCK_MEMALLOC);
++#ifndef CONFIG_NETVM
++	BUG();
++#endif
++	if (!set) {
++		int err = sk_adjust_memalloc(1, 0);
++		if (err)
++			return err;
++
++		sock_set_flag(sk, SOCK_MEMALLOC);
++		sk->sk_allocation |= __GFP_MEMALLOC;
++	}
++	return !set;
++}
++EXPORT_SYMBOL_GPL(sk_set_memalloc);
++
++int sk_clear_memalloc(struct sock *sk)
++{
++	int set = sock_flag(sk, SOCK_MEMALLOC);
++	if (set) {
++		sk_adjust_memalloc(-1, 0);
++		sock_reset_flag(sk, SOCK_MEMALLOC);
++		sk->sk_allocation &= ~__GFP_MEMALLOC;
++	}
++	return set;
++}
++EXPORT_SYMBOL_GPL(sk_clear_memalloc);
++
+ static int sock_set_timeout(long *timeo_p, char __user *optval, int optlen)
+ {
+ 	struct timeval tv;
+@@ -919,6 +1025,7 @@ void sk_free(struct sock *sk)
+ 	struct sk_filter *filter;
+ 	struct module *owner = sk->sk_prot_creator->owner;
+ 
++	sk_clear_memalloc(sk);
+ 	if (sk->sk_destruct)
+ 		sk->sk_destruct(sk);
+ 
+@@ -1049,6 +1156,12 @@ void __init sk_init(void)
+ 		sysctl_wmem_max = 131071;
+ 		sysctl_rmem_max = 131071;
  	}
-@@ -1639,6 +1649,10 @@ nofail_alloc:
- 	if (!wait)
- 		goto nopage;
- 
-+	/* Avoid recursion of direct reclaim */
-+	if (p->flags & PF_MEMALLOC)
-+		goto nopage;
 +
- 	cond_resched();
++	mem_reserve_init(&net_reserve, "total network reserve", NULL);
++	mem_reserve_init(&net_rx_reserve, "network RX reserve", &net_reserve);
++	mem_reserve_init(&net_skb_reserve, "SKB data reserve", &net_rx_reserve);
++	mem_reserve_init(&net_tx_reserve, "network TX reserve", &net_reserve);
++	mem_reserve_init(&net_tx_pages, "protocol TX pages", &net_tx_reserve);
+ }
  
- 	/* We now go into synchronous reclaim */
+ /*
+Index: linux-2.6/net/Kconfig
+===================================================================
+--- linux-2.6.orig/net/Kconfig
++++ linux-2.6/net/Kconfig
+@@ -237,6 +237,9 @@ endmenu
+ source "net/rfkill/Kconfig"
+ source "net/9p/Kconfig"
+ 
++config NETVM
++	def_bool n
++
+ endif   # if NET
+ endmenu # Networking
+ 
 
 --
 
