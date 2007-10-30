@@ -1,51 +1,65 @@
-Message-Id: <20071030192106.745173888@polymtl.ca>
+Message-Id: <20071030192108.112283198@polymtl.ca>
 References: <20071030191557.947156623@polymtl.ca>
-Date: Tue, 30 Oct 2007 15:16:13 -0400
+Date: Tue, 30 Oct 2007 15:16:17 -0400
 From: Mathieu Desnoyers <mathieu.desnoyers@polymtl.ca>
-Subject: [patch 16/28] m32r: build fix of arch/m32r/kernel/smpboot.c
-Content-Disposition: inline; filename=fix-m32r-include-sched-h-in-smpboot.patch
+Subject: [patch 20/28] Add cmpxchg_local to parisc
+Content-Disposition: inline; filename=add-cmpxchg-local-to-parisc.patch
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: akpm@linux-foundation.org, linux-kernel@vger.kernel.org, matthew@wil.cx, linux-arch@vger.kernel.org, penberg@cs.helsinki.fi, linux-mm@kvack.org, Christoph Lameter <clameter@sgi.com>
-Cc: Hirokazu Takata <takata@linux-m32r.org>
+Cc: Mathieu Desnoyers <mathieu.desnoyers@polymtl.ca>, parisc-linux@parisc-linux.org
 List-ID: <linux-mm.kvack.org>
 
-This patch is for Mathieu Desnoyers's include/asm-m32r/local.h.
-Applying the new include/asm-m32r/local.h, inclusion of linux/sched.h
-is needed to fix a build error of arch/m32r/kernel/smpboot.c.
+Use the new generic cmpxchg_local (disables interrupt). Also use the generic
+cmpxchg as fallback if SMP is not set.
 
-<--  snip  -->
-  ...
-  CC      arch/m32r/kernel/smpboot.o
-/project/m32r-linux/kernel/work/linux-2.6_dev.git/arch/m32r/kernel/smpboot.c: In function 'do_boot_cpu':
-/project/m32r-linux/kernel/work/linux-2.6_dev.git/arch/m32r/kernel/smpboot.c:279: error: implicit declaration of function 'fork_idle'
-/project/m32r-linux/kernel/work/linux-2.6_dev.git/arch/m32r/kernel/smpboot.c:279: warning: assignment makes pointer from integer without a cast
-/project/m32r-linux/kernel/work/linux-2.6_dev.git/arch/m32r/kernel/smpboot.c:283: error: dereferencing pointer to incomplete type
-/project/m32r-linux/kernel/work/linux-2.6_dev.git/arch/m32r/kernel/smpboot.c:289: error: dereferencing pointer to incomplete type
-/project/m32r-linux/kernel/work/linux-2.6_dev.git/arch/m32r/kernel/smpboot.c:290: error: implicit declaration of function 'task_thread_info'
-/project/m32r-linux/kernel/work/linux-2.6_dev.git/arch/m32r/kernel/smpboot.c:290: error: invalid type argument of '->'
-/project/m32r-linux/kernel/work/linux-2.6_dev.git/arch/m32r/kernel/smpboot.c: In function 'start_secondary':
-/project/m32r-linux/kernel/work/linux-2.6_dev.git/arch/m32r/kernel/smpboot.c:429: error: implicit declaration of function 'cpu_init'
-make[2]: *** [arch/m32r/kernel/smpboot.o] Error 1
-<--  snip  -->
-
-Signed-off-by: Hirokazu Takata <takata@linux-m32r.org>
+Signed-off-by: Mathieu Desnoyers <mathieu.desnoyers@polymtl.ca>
+CC: clameter@sgi.com
+CC: parisc-linux@parisc-linux.org
 ---
- arch/m32r/kernel/smpboot.c |    1 +
- 1 file changed, 1 insertion(+)
+ include/asm-parisc/atomic.h |   29 +++++++++++++++++++++++++++++
+ 1 file changed, 29 insertions(+)
 
-Index: linux-2.6-lttng/arch/m32r/kernel/smpboot.c
+Index: linux-2.6-lttng/include/asm-parisc/atomic.h
 ===================================================================
---- linux-2.6-lttng.orig/arch/m32r/kernel/smpboot.c	2007-08-21 09:57:48.000000000 -0400
-+++ linux-2.6-lttng/arch/m32r/kernel/smpboot.c	2007-08-21 09:58:12.000000000 -0400
-@@ -43,6 +43,7 @@
- #include <linux/init.h>
- #include <linux/kernel.h>
- #include <linux/mm.h>
-+#include <linux/sched.h>
- #include <linux/err.h>
- #include <linux/irq.h>
- #include <linux/bootmem.h>
+--- linux-2.6-lttng.orig/include/asm-parisc/atomic.h	2007-07-20 19:44:40.000000000 -0400
++++ linux-2.6-lttng/include/asm-parisc/atomic.h	2007-07-20 19:44:47.000000000 -0400
+@@ -122,6 +122,35 @@ __cmpxchg(volatile void *ptr, unsigned l
+ 				    (unsigned long)_n_, sizeof(*(ptr))); \
+   })
+ 
++#include <asm-generic/cmpxchg-local.h>
++
++static inline unsigned long __cmpxchg_local(volatile void *ptr,
++				      unsigned long old,
++				      unsigned long new_, int size)
++{
++	switch (size) {
++#ifdef CONFIG_64BIT
++	case 8:	return __cmpxchg_u64((unsigned long *)ptr, old, new_);
++#endif
++	case 4:	return __cmpxchg_u32(ptr, old, new_);
++	default:
++		return __cmpxchg_local_generic(ptr, old, new_, size);
++	}
++}
++
++/*
++ * cmpxchg_local and cmpxchg64_local are atomic wrt current CPU. Always make
++ * them available.
++ */
++#define cmpxchg_local(ptr,o,n)					  	\
++     (__typeof__(*(ptr)))__cmpxchg_local((ptr), (unsigned long)(o),	\
++			   	 (unsigned long)(n), sizeof(*(ptr)))
++#ifdef CONFIG_64BIT
++#define cmpxchg64_local(ptr,o,n) cmpxchg_local((ptr), (o), (n))
++#else
++#define cmpxchg64_local(ptr,o,n) __cmpxchg64_local_generic((ptr), (o), (n))
++#endif
++
+ /* Note that we need not lock read accesses - aligned word writes/reads
+  * are atomic, so a reader never sees unconsistent values.
+  *
 
 -- 
 Mathieu Desnoyers
