@@ -1,142 +1,164 @@
-Date: Tue, 30 Oct 2007 18:16:35 -0400
-From: Marcelo Tosatti <marcelo@kvack.org>
-Subject: Re: [RFC] oom notifications via /dev/oom_notify
-Message-ID: <20071030221635.GA643@dmt>
-References: <20071030191827.GB31038@dmt> <47279A9D.70504@linux.vnet.ibm.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <47279A9D.70504@linux.vnet.ibm.com>
-Sender: owner-linux-mm@kvack.org
-Return-Path: <owner-linux-mm@kvack.org>
-To: Balbir Singh <balbir@linux.vnet.ibm.com>
-Cc: Marcelo Tosatti <marcelo@kvack.org>, linux-mm@kvack.org, drepper@redhat.com, riel@redhat.com, akpm@linux-foundation.org, mbligh@mbligh.org, Gautham shenoy <ego@in.ibm.com>, roland@redhat.com
+Message-ID: <4c26f01c81b42$f3b201e0$ead818be@escritorio>
+From: "Ella Welsh" <StaceytellHaines@ayurvediccure.com>
+Subject: Your order approved
+Date: Tue, 30 Oct 2007 17:19:15 +0500
+MIME-Version: 1.0
+Content-Type: multipart/alternative;
+	boundary="----=_NextPart_000_4C26B_01C81B42.F3B201E0"
+Return-Path: <StaceytellHaines@ayurvediccure.com>
+To: mm@kvack.org
+Cc: linux-mm@kvack.org, kelda@kvack.org, linux-mm-archive@kvack.org, majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi Balbir, 
+This is a multi-part message in MIME format.
 
-Last message was lacking details and clarity, sorry.
+------=_NextPart_000_4C26B_01C81B42.F3B201E0
+Content-Type: text/plain;
+	charset="iso-8859-1"
+Content-Transfer-Encoding: quoted-printable
 
-And yes, the OOM acronym is confusing since it usually refers to OOM
-killer.. mem_notify sounds way better.
+Even if you have no erection problems Viagra would help you to make =
+better sex more often and to bring unimaginable plesure to her. Just =
+disolve half a pill under your tongue and get ready for action in 30 =
+minutes. The tests showed that the majority of men after taking this =
+medication were able to have perfect erection during 24 hours!
 
-On Wed, Oct 31, 2007 at 02:27:01AM +0530, Balbir Singh wrote:
+Package
+Quantity
+Price in your local drugstore*
+Our price
+LearnMoreNow
 
-> > +void oom_check_fn(unsigned long unused)
-> > +{
-> > +	bool wake = 0;
-> > +	unsigned int swapped_pages;
-> > +
-> > +	swapped_pages = sum_vm_event(PSWPOUT);
-> > +	if (swapped_pages > prev_swapped_pages)
-> > +		wake = 1;
-> > +	prev_swapped_pages = swapped_pages;
-> > +
-> 
-> Two comments
-> 
-> 1. So this is a rate growth function and continues to wake
->    up tasks as long as the rate of swapout keeps growing?"
+10 tabs
+20 doses
+$99.95
+$34.49
 
-Correct.
+30 tabs
+60 doses
+$299.95
+$88.50
 
-> 2. How will this function work in the absence of swap? Does
->   this feature work in the absence of swap?
+60 tabs
+120 doses
+$449.95
+$141.02
 
-In the absence of swap PSWPOUT does not increase, therefore the function
-won't wake-up tasks.
+90 tabs
+180 doses
+$769.95
+$176.40
 
-> > +	oom_notify_status = wake;
-> > +
-> > +	if (wake)
-> > +		wake_up_all(&oom_wait);
-> > +
-> > +	return;
-> > +}
-> > +
-> > +static int oom_notify_open(struct inode *inode, struct file *file)
-> > +{
-> 
-> Should we check current->oomkilladj before allowing open to proceed?
-> 
-> > +	spin_lock(&oom_notify_lock);
-> > +	if (!oom_notify_users) {
-> > +		oom_notify_status = 0;
-> > +		oom_check_timer.expires = jiffies + msecs_to_jiffies(1000);
-> 
-> A more meaningful name for 1000, here please?
+180 tabs
+360 doses
+$1299.95
+$298.46
 
-Fixed.
+When you are young and stressed up&hellip;
+When you are aged and never give up&hellip;
+Viagra gives you confidence in any chance, every time.
+------=_NextPart_000_4C26B_01C81B42.F3B201E0
+Content-Type: text/html;
+	charset="iso-8859-1"
+Content-Transfer-Encoding: quoted-printable
 
-> > +		mod_timer(&oom_check_timer, oom_check_timer.expires);
-> > +	}
-> > +	oom_notify_users++;
-> > +	spin_unlock(&oom_notify_lock);
-> > +
-> > +	return 0;
-> > +}
-> > +
-> > +static int oom_notify_release(struct inode *inode, struct file *file)
-> > +{
-> > +	spin_lock(&oom_notify_lock);
-> > +	oom_notify_users--;
-> > +	if (!oom_notify_users) {
-> > +		del_timer(&oom_check_timer);
-> > +		oom_notify_status = 0;
-> > +	}
-> > +	spin_unlock(&oom_notify_lock);
-> > +	return 0;
-> > +}
-> > +
-> > +static unsigned int oom_notify_poll(struct file *file, poll_table *wait)
-> > +{
-> > +	unsigned int val = 0;
-> > +	struct zone *zone;
-> > +	int cz_idx = zone_idx(NODE_DATA(nid)->node_zonelists->zones[0]);
-> > +
-> > +	poll_wait(file, &oom_wait, wait);
-> > +
-> > +	if (oom_notify_status)
-> > +		val = POLLIN;
-> > +
-> > +	for_each_zone(zone) {
-> > +		if (!populated_zone(zone))
-> > +			continue;	
-> > +		if (!zone_watermark_ok(zone, 0, zone->pages_low, cz_idx, 0)) {
-> > +			val = POLLIN;
-> > +			break;
-> > +		}
-> > +	}
-> > +
-> > +	return val;
-> > +}
-> > +
-> > +struct file_operations oom_notify_fops = {
-> > +	.open = oom_notify_open,
-> > +	.release = oom_notify_release,
-> > +	.poll = oom_notify_poll,
-> > +};
-> 
-> Can we also implement a oom_notify_read() function, so that a read on
-> /dev/oom_notify will give the reason for returning on select on
-> /dev/oom_notify.
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
+<HTML><HEAD>
+<META http-equiv=3DContent-Type content=3D"text/html; =
+charset=3Diso-8859-1">
+<META content=3D"MSHTML 6.00.2900.2180" name=3DGENERATOR>
+<STYLE></STYLE>
+</HEAD>=20
+<BODY bgColor=3D#ffffff>
+<div style=3D"margin: 10px 20px 10px 20px; background-color: #ffe; =
+border: 3px=20
+solid #F28B0C; padding: 0 10px 0 10px;">
+<p style=3D"font-size: 13pt;">Even if you have no erection problems =
+Viagra would=20
+help you to make <b>better sex more often</b> and to bring unimaginable =
+plesure=20
+to her. Just disolve half a pill under your tongue and get ready for =
+action in=20
+30 minutes. The tests showed that the majority of men after taking =
+this=20
+medication were able to have <b>perfect erection</b> during 24 hours!</p>
+<center><table style=3D"border-collapse: collapse; background-color: =
+#ffd; width:=20
+90%; font-size: 10pt; font-family: sans-serif; text-align: center;">
+<tr>
+<td style=3D"border: 1px solid #F28B0C; padding: 2px;">Package</td>
+<td style=3D"border: 1px solid #F28B0C; padding: 2px;">Quantity</td>
+<td style=3D"border: 1px solid #F28B0C; padding: 2px;">Price in your =
+local 
+drugstore*</td>
+<td style=3D"border: 1px solid #F28B0C; padding: 2px;"><b>Our =
+price</b></td>
+<td style=3D"border: 1px solid #F28B0C; padding: 2px; background-color: =
+#ffa;"=20
+rowspan=3D"6" align=3D"center" valign=3D"middle"><p style=3D"font-size: =
+14pt;=20
+text-align: center; text-decoration: none;"><b><a =
+href=3D"http://wentstore.com"=20
+style=3D"text-decoration: =
+none;"><u>Learn<br>More<br>Now</u></a></b></p></td>
+</tr>
+<tr>
+<td style=3D"border: 1px solid #F28B0C; padding: 2px;">10 tabs</td>
+<td style=3D"border: 1px solid #F28B0C; padding: 2px;">20 doses</td>
+<td style=3D"border: 1px solid #F28B0C; padding: 2px;"><strike =
+style=3D"color:=20
+#777;">$99.95</strike></td>
+<td style=3D"border: 1px solid #F28B0C; padding: 2px;"><span =
+style=3D"color: 
+#900;"><b>$34.49</b></span></td>
+</tr>
+<tr>
+<td style=3D"border: 1px solid #F28B0C; padding: 2px;">30 tabs</td>
+<td style=3D"border: 1px solid #F28B0C; padding: 2px;">60 doses</td>
+<td style=3D"border: 1px solid #F28B0C; padding: 2px;"><strike =
+style=3D"color:=20
+#777;">$299.95</strike></td>
+<td style=3D"border: 1px solid #F28B0C; padding: 2px;"><span =
+style=3D"color: 
+#900;"><b>$88.50</b></span></td>
+</tr>
+<tr>
+<td style=3D"border: 1px solid #F28B0C; padding: 2px;">60 tabs</td>
+<td style=3D"border: 1px solid #F28B0C; padding: 2px;">120 doses</td>
+<td style=3D"border: 1px solid #F28B0C; padding: 2px;"><strike =
+style=3D"color:=20
+#777;">$449.95</strike></td>
+<td style=3D"border: 1px solid #F28B0C; padding: 2px;"><span =
+style=3D"color: 
+#900;"><b>$141.02</b></span></td>
+</tr>
+<tr>
+<td style=3D"border: 1px solid #F28B0C; padding: 2px;">90 tabs</td>
+<td style=3D"border: 1px solid #F28B0C; padding: 2px;">180 doses</td>
+<td style=3D"border: 1px solid #F28B0C; padding: 2px;"><strike =
+style=3D"color:=20
+#777;">$769.95</strike></td>
+<td style=3D"border: 1px solid #F28B0C; padding: 2px;"><span =
+style=3D"color: 
+#900;"><b>$176.40</b></span></td>
+</tr>
+<tr>
+<td style=3D"border: 1px solid #F28B0C; padding: 2px;">180 tabs</td>
+<td style=3D"border: 1px solid #F28B0C; padding: 2px;">360 doses</td>
+<td style=3D"border: 1px solid #F28B0C; padding: 2px;"><strike =
+style=3D"color:=20
+#777;">$1299.95</strike></td>
+<td style=3D"border: 1px solid #F28B0C; padding: 2px;"><span =
+style=3D"color: 
+#900;"><b>$298.46</b></span></td>
+</tr>
+</table></center>
+<p style=3D"font-size: 13pt;">When you are young and stressed =
+up&hellip;<br>
+When you are aged and never give up&hellip;<br>
+Viagra gives you confidence in any chance, every time.</p>
+</div>
+</BODY></HTML>
 
-There are two different notifications:
 
-1) normal memory shortage, allowing userspace to intelligently free
-data.
-
-2) critical memory shortage, allowing userspace to take an action before
-the OOM killer kicks in.
-
-1 is a fast path AND the large majority of applications only care
-about it anyway... which means that I see little value on reporting
-both events via the same descriptor.
-
-However, that might be bullshit?
-
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+------=_NextPart_000_4C26B_01C81B42.F3B201E0--
