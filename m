@@ -1,111 +1,112 @@
-Received: from d03relay02.boulder.ibm.com (d03relay02.boulder.ibm.com [9.17.195.227])
-	by e36.co.us.ibm.com (8.13.8/8.13.8) with ESMTP id l9UIFlZj017164
-	for <linux-mm@kvack.org>; Tue, 30 Oct 2007 14:15:47 -0400
-Received: from d03av04.boulder.ibm.com (d03av04.boulder.ibm.com [9.17.195.170])
-	by d03relay02.boulder.ibm.com (8.13.8/8.13.8/NCO v8.5) with ESMTP id l9UIFhMu100210
-	for <linux-mm@kvack.org>; Tue, 30 Oct 2007 12:15:44 -0600
-Received: from d03av04.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av04.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l9UIFhGt018118
-	for <linux-mm@kvack.org>; Tue, 30 Oct 2007 12:15:43 -0600
-Subject: [RFC] hotplug memory remove - walk_memory_resource for ppc64
-From: Badari Pulavarty <pbadari@us.ibm.com>
-In-Reply-To: <18178.52359.953289.638736@cargo.ozlabs.ibm.com>
-References: <1191346196.6106.20.camel@dyn9047017100.beaverton.ibm.com>
-	 <18178.52359.953289.638736@cargo.ozlabs.ibm.com>
-Content-Type: text/plain
-Date: Tue, 30 Oct 2007 11:19:11 -0800
-Message-Id: <1193771951.8904.22.camel@dyn9047017100.beaverton.ibm.com>
-Mime-Version: 1.0
+Received: from d01relay04.pok.ibm.com (d01relay04.pok.ibm.com [9.56.227.236])
+	by e3.ny.us.ibm.com (8.13.8/8.13.8) with ESMTP id l9UISRIa028244
+	for <linux-mm@kvack.org>; Tue, 30 Oct 2007 14:28:27 -0400
+Received: from d01av02.pok.ibm.com (d01av02.pok.ibm.com [9.56.224.216])
+	by d01relay04.pok.ibm.com (8.13.8/8.13.8/NCO v8.5) with ESMTP id l9UISRNj132452
+	for <linux-mm@kvack.org>; Tue, 30 Oct 2007 14:28:27 -0400
+Received: from d01av02.pok.ibm.com (loopback [127.0.0.1])
+	by d01av02.pok.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l9UISQO1012294
+	for <linux-mm@kvack.org>; Tue, 30 Oct 2007 14:28:26 -0400
+Message-ID: <472777C4.2010307@linux.vnet.ibm.com>
+Date: Tue, 30 Oct 2007 23:58:20 +0530
+From: Balbir Singh <balbir@linux.vnet.ibm.com>
+Reply-To: balbir@linux.vnet.ibm.com
+MIME-Version: 1.0
+Subject: Re: [RFC] [-mm PATCH] Memory controller fix swap charging context
+ in unuse_pte()
+References: <20071005041406.21236.88707.sendpatchset@balbir-laptop> <Pine.LNX.4.64.0710071735530.13138@blonde.wat.veritas.com> <4713A2F2.1010408@linux.vnet.ibm.com> <Pine.LNX.4.64.0710221933570.21262@blonde.wat.veritas.com> <471F3732.5050407@linux.vnet.ibm.com> <Pine.LNX.4.64.0710252002540.25735@blonde.wat.veritas.com> <4724F0BC.1020209@linux.vnet.ibm.com> <20071028203219.GA7145@linux.vnet.ibm.com> <Pine.LNX.4.64.0710292101510.23980@blonde.wat.veritas.com> <47265842.5040506@linux.vnet.ibm.com> <Pine.LNX.4.64.0710301635290.11007@blonde.wat.veritas.com>
+In-Reply-To: <Pine.LNX.4.64.0710301635290.11007@blonde.wat.veritas.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Paul Mackerras <paulus@samba.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: linuxppc-dev@ozlabs.org, linux-mm <linux-mm@kvack.org>, anton@au1.ibm.com
+To: Hugh Dickins <hugh@veritas.com>
+Cc: Linux Containers <containers@lists.osdl.org>, Linux MM Mailing List <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-Hi KAME,
+Hugh Dickins wrote:
+> On Tue, 30 Oct 2007, Balbir Singh wrote:
+>> At this momemnt, I suspect one of two things
+>>
+>> 1. Our mods to swap_state.c are different
+> 
+> I believe they're the same (just take swap_state.c back to how it
+> was without mem_cgroup mods) - or would be, if after finding this
+> effect I hadn't added a "swap_in_cg" switch to move between the
+> two behaviours to study it better (though I do need to remember
+> to swapoff and swapon between the two: sometimes I do forget).
+> 
+>> 2. Our configuration is different, main-memory to swap-size ratio
+> 
+> I doubt the swapsize is relevant: just so long as there's some (a
+> little more than 200M I guess); I've got 1GB-2GB on different boxes.
+> 
 
-As I mentioned while ago, ppc64 does not export information about
-"system RAM" in /proc/iomem. Looking at the code and usage
-scenerios I am not sure what its really serving. Could you 
-explain what its purpose & how the range can be invalid ?
+I agree, just wanted to make sure that there is enough swap
 
-At least on ppc64, all the memory ranges we get passed comes from
-/sysfs memblock information and they are guaranteed to match 
-device-tree entries. On ppc64, each 16MB chunk has a /sysfs entry
-and it will be part of the /proc/device-tree entry. Since we do
-"online" or "offline" to /sysfs entries to add/remove pages - 
-these ranges are guaranteed to be valid.
+> There may well be something about our configs that's significantly
+> different.  I'd failed to mention SMP (4 cpu), and that I happen
+> to have /proc/sys/vm/swappiness 100; but find it happens on UP
+> also, and when I go back to default swappiness 60.
+> 
 
-Since this check is redundant for ppc64, I propose following patch.
-Is this acceptable ? If some one really really wants, I can code
-up this to walk lmb or /proc/device-tree and verify the range &
-adjust the entries for overlap (I don't see how that can happen).
+OK.. so those are out of the equation
 
-Paul & Kame, please comment.
+> I've reordered your mail for more dramatic effect...
+>> On a real box - a powerpc machine that I have access to
+> 
+> I've tried on 3 Intel and 1 PowerPC now: the Intels show the OOMs
+> and the PowerPC does not.  I rather doubt it's an Intel versus
+> PowerPC issue as such, but interesting that we see the same.
+> 
 
-Thanks,
-Badari
+Very surprising, I am surprised that it's architecture dependent.
+Let me try and grab an Intel box and try.
 
----
- arch/powerpc/Kconfig  |    3 +++
- arch/powerpc/mm/mem.c |   13 +++++++++++++
- kernel/resource.c     |    2 +-
- 3 files changed, 17 insertions(+), 1 deletion(-)
+>> 1. I don't see the OOM with the mods removed (I have swap
+>>    space at-least twice of RAM - with mem=512M, I have at-least
+>>    1G of swap).
+> 
+> mem=512M with 1G of swap, yes, I'm the same.
+> 
+>> 2. Running under the container is much much faster than running
+>>    swapout in the root container. The machine is almost unusable
+>>    if swapout is run under the root container
+> 
+> That's rather interesting, isn't it?  Probably irrelevant to the
+> OOM issue we're investigating, but worthy of investigation in itself.
+> 
 
-Index: linux-2.6.24-rc1/arch/powerpc/mm/mem.c
-===================================================================
---- linux-2.6.24-rc1.orig/arch/powerpc/mm/mem.c	2007-10-30 07:39:16.000000000 -0800
-+++ linux-2.6.24-rc1/arch/powerpc/mm/mem.c	2007-10-30 10:05:09.000000000 -0800
-@@ -129,6 +129,19 @@ int __devinit arch_add_memory(int nid, u
- 	return __add_pages(zone, start_pfn, nr_pages);
- }
- 
-+/*
-+ * I don't think we really need to do anything here to validate the memory
-+ * range or walk the memory resource in lmb or device-tree. Only way we get
-+ * the memory range here is through /sysfs in 16MB chunks and we are guaranteed
-+ * to have a corresponding device-tree entry.
-+ */
-+int
-+walk_memory_resource(unsigned long start_pfn, unsigned long nr_pages, void *arg,
-+			int (*func)(unsigned long, unsigned long, void *))
-+{
-+	return  (*func)(start_pfn, nr_pages, arg);
-+}
-+
- #endif /* CONFIG_MEMORY_HOTPLUG */
- 
- #ifdef CONFIG_MEMORY_HOTREMOVE
-Index: linux-2.6.24-rc1/kernel/resource.c
-===================================================================
---- linux-2.6.24-rc1.orig/kernel/resource.c	2007-10-23 20:50:57.000000000 -0700
-+++ linux-2.6.24-rc1/kernel/resource.c	2007-10-30 08:58:41.000000000 -0800
-@@ -228,7 +228,7 @@ int release_resource(struct resource *ol
- 
- EXPORT_SYMBOL(release_resource);
- 
--#ifdef CONFIG_MEMORY_HOTPLUG
-+#if defined(CONFIG_MEMORY_HOTPLUG) && !defined(CONFIG_ARCH_HAS_WALK_MEMORY)
- /*
-  * Finds the lowest memory reosurce exists within [res->start.res->end)
-  * the caller must specify res->start, res->end, res->flags.
-Index: linux-2.6.24-rc1/arch/powerpc/Kconfig
-===================================================================
---- linux-2.6.24-rc1.orig/arch/powerpc/Kconfig	2007-10-30 07:39:17.000000000 -0800
-+++ linux-2.6.24-rc1/arch/powerpc/Kconfig	2007-10-30 08:54:57.000000000 -0800
-@@ -234,6 +234,9 @@ config HOTPLUG_CPU
- config ARCH_ENABLE_MEMORY_HOTPLUG
- 	def_bool y
- 
-+config ARCH_HAS_WALK_MEMORY
-+	def_bool y
-+
- config ARCH_ENABLE_MEMORY_HOTREMOVE
- 	def_bool y
- 
+Yes, it irrelevant, but I find it to be a good use case for using the
+memory controller :-) I found that kswapd running at prio -5, seemed
+to hog quite a bit of the CPU. But it needs more independent
+investigation, like you've suggested.
+
+> Maybe I saw the same on the PowerPC: I simply forgot to set up the
+> cgroup one time, and my sequence of three swapouts (sometimes only
+> two out of three OOM, on those boxes that do OOM) seemed to take a
+> very long time (but I wasn't trying to do anything else on it at
+> the same time, so didn't notice if it was "unusable").
+> 
+> I'll probe on.
+> 
+
+Me too.. I'll try and acquire a good x86_64 box and test on it.
+
+> Hugh
+> 
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
 
+-- 
+	Warm Regards,
+	Balbir Singh
+	Linux Technology Center
+	IBM, ISTL
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
