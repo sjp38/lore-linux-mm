@@ -1,249 +1,104 @@
-Date: Tue, 30 Oct 2007 15:18:27 -0400
-From: Marcelo Tosatti <marcelo@kvack.org>
-Subject: [RFC] oom notifications via /dev/oom_notify
-Message-ID: <20071030191827.GB31038@dmt>
+Received: from toip5.srvr.bell.ca ([209.226.175.88])
+          by tomts13-srv.bellnexxia.net
+          (InterMail vM.5.01.06.13 201-253-122-130-113-20050324) with ESMTP
+          id <20071030191728.PYAW13659.tomts13-srv.bellnexxia.net@toip5.srvr.bell.ca>
+          for <linux-mm@kvack.org>; Tue, 30 Oct 2007 15:17:28 -0400
+Date: Tue, 30 Oct 2007 15:12:26 -0400
+From: Mathieu Desnoyers <mathieu.desnoyers@polymtl.ca>
+Subject: Re: [patch 08/10] SLUB: Optional fast path using cmpxchg_local
+Message-ID: <20071030191226.GA10977@Krystal>
+References: <20071028033156.022983073@sgi.com> <20071028033300.240703208@sgi.com> <20071030114933.904a4cf8.akpm@linux-foundation.org> <Pine.LNX.4.64.0710301155240.12746@schroedinger.engr.sgi.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
 Content-Disposition: inline
+In-Reply-To: <Pine.LNX.4.64.0710301155240.12746@schroedinger.engr.sgi.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
-Cc: drepper@redhat.com, riel@redhat.com, akpm@linux-foundation.org, mbligh@mbligh.org, balbir@linux.vnet.ibm.com
+To: Christoph Lameter <clameter@sgi.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, matthew@wil.cx, linux-kernel@vger.kernel.org, linux-mm@kvack.org, penberg@cs.helsinki.fi, linux-arch@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-Hi,
+* Christoph Lameter (clameter@sgi.com) wrote:
+> On Tue, 30 Oct 2007, Andrew Morton wrote:
+> 
+> > Let's cc linux-arch: presumably other architectures can implement cpu-local
+> > cmpxchg and would see some benefit from doing so.
+> 
+> Matheiu had a whole series of cmpxchg_local patches. Ccing him too. I 
+> think he has some numbers for other architectures.
+>  
 
-Following patch creates a /dev/oom_notify device which applications can
-select()/poll() to get informed of memory pressure.
+Well, I tested it on x86 and AMD64 only. For slub:
 
-The basic idea here is that applications can be part of the memory
-reclaim process. The notification is loosely defined as "please free
-some small percentage of your memory".
+Using cmpxchg_local shows a performance improvements of the fast path
+goes from a 66% speedup on a Pentium 4 to a 14% speedup on AMD64.
 
-There is no easy way of finding whether the system is approaching a
-state where swapping is required in the reclaim paths, so a defensive
-approach is taken by using a timer with 1Hz frequency which verifies
-whether swapping has occurred.
+It really depends on how fast cmpxchg_local is vs disabling interrupts.
 
-For scenarios which require a "severe pressure notification" (please
-read Nokia's implementation at http://www.linuxjournal.com/article/8502 for
-more details), I believe the best solution is to create a separate
-/dev/oom_notify_critical device to avoid complication of the main device
-code paths. Take into account that such notification needs careful
-synchronization with the OOM killer.
 
-Comments please...
+> > The semantics are "atomic wrt interrutps on this cpu, not atomic wrt other
+> > cpus", yes?
+> 
+> Right.
+> 
+> > Do you have a feel for how useful it would be for arch maintainers to implement
+> > this?  IOW, is it worth their time?
+> 
+> That depends on the efficiency of a cmpxchg_local vs. the interrupt 
+> enable/ disable sequence on a particular arch. On x86 this yields about 
+> 50% so it doubles the speed of the fastpath. On other architectures the 
+> cmpxchg is so slow that it is not worth it (ia64 f.e.)
 
-diff -Nur --exclude-from=linux-2.6/Documentation/dontdiff linux-2.6.orig/drivers/char/mem.c linux-2.6/drivers/char/mem.c
---- linux-2.6.orig/drivers/char/mem.c	2007-10-24 15:52:54.000000000 -0300
-+++ linux-2.6/drivers/char/mem.c	2007-10-29 00:22:31.000000000 -0300
-@@ -34,6 +34,8 @@
- # include <linux/efi.h>
- #endif
- 
-+extern struct file_operations oom_notify_fops;
-+
- /*
-  * Architectures vary in how they handle caching for addresses
-  * outside of main memory.
-@@ -854,6 +856,9 @@
- 			filp->f_op = &oldmem_fops;
- 			break;
- #endif
-+		case 13:
-+			filp->f_op = &oom_notify_fops;
-+			break;
- 		default:
- 			return -ENXIO;
- 	}
-@@ -886,6 +891,7 @@
- #ifdef CONFIG_CRASH_DUMP
- 	{12,"oldmem",    S_IRUSR | S_IWUSR | S_IRGRP, &oldmem_fops},
- #endif
-+	{13,"oom_notify", S_IRUGO, &oom_notify_fops},
- };
- 
- static struct class *mem_class;
-diff -Nur --exclude-from=linux-2.6/Documentation/dontdiff linux-2.6.orig/include/linux/vmstat.h linux-2.6/include/linux/vmstat.h
---- linux-2.6.orig/include/linux/vmstat.h	2007-10-24 15:55:30.000000000 -0300
-+++ linux-2.6/include/linux/vmstat.h	2007-10-27 23:28:48.000000000 -0300
-@@ -80,6 +80,7 @@
- }
- 
- extern void all_vm_events(unsigned long *);
-+extern unsigned int sum_vm_event(int);
- #ifdef CONFIG_HOTPLUG
- extern void vm_events_fold_cpu(int cpu);
- #else
-diff -Nur --exclude-from=linux-2.6/Documentation/dontdiff linux-2.6.orig/mm/Kconfig linux-2.6/mm/Kconfig
---- linux-2.6.orig/mm/Kconfig	2007-10-24 15:53:02.000000000 -0300
-+++ linux-2.6/mm/Kconfig	2007-10-25 13:58:38.000000000 -0300
-@@ -170,6 +170,13 @@
- 	  example on NUMA systems to put pages nearer to the processors accessing
- 	  the page.
- 
-+config OOM_NOTIFY
-+	bool "Memory notification"
-+	def_bool n
-+	help
-+	  This option allows the kernel to notify applications of memory 
-+	  shortage.
-+
- config RESOURCES_64BIT
- 	bool "64 bit Memory and IO resources (EXPERIMENTAL)" if (!64BIT && EXPERIMENTAL)
- 	default 64BIT
-diff -Nur --exclude-from=linux-2.6/Documentation/dontdiff linux-2.6.orig/mm/Makefile linux-2.6/mm/Makefile
---- linux-2.6.orig/mm/Makefile	2007-10-24 15:53:02.000000000 -0300
-+++ linux-2.6/mm/Makefile	2007-10-25 13:54:34.000000000 -0300
-@@ -30,4 +30,5 @@
- obj-$(CONFIG_MIGRATION) += migrate.o
- obj-$(CONFIG_SMP) += allocpercpu.o
- obj-$(CONFIG_QUICKLIST) += quicklist.o
-+obj-$(CONFIG_OOM_NOTIFY) += oom_notify.o
- 
-diff -Nur --exclude-from=linux-2.6/Documentation/dontdiff linux-2.6.orig/mm/oom_notify.c linux-2.6/mm/oom_notify.c
---- linux-2.6.orig/mm/oom_notify.c	1969-12-31 21:00:00.000000000 -0300
-+++ linux-2.6/mm/oom_notify.c	2007-10-30 12:35:24.000000000 -0300
-@@ -0,0 +1,96 @@
-+/*
-+ * Notify applications of memory pressure via /dev/oom_notify
-+ */
-+
-+#include <linux/module.h>
-+#include <linux/fs.h>
-+#include <linux/wait.h>
-+#include <linux/poll.h>
-+#include <linux/timer.h>
-+#include <linux/spinlock.h>
-+#include <linux/vmstat.h>
-+
-+static int oom_notify_users = 0;
-+static bool oom_notify_status = 0;
-+static unsigned int prev_swapped_pages = 0;
-+
-+static void oom_check_fn(unsigned long);
-+
-+DECLARE_WAIT_QUEUE_HEAD(oom_wait);
-+DEFINE_SPINLOCK(oom_notify_lock);
-+static struct timer_list oom_check_timer =
-+		TIMER_INITIALIZER(oom_check_fn, 0, 0);
-+
-+void oom_check_fn(unsigned long unused)
-+{
-+	bool wake = 0;
-+	unsigned int swapped_pages;
-+
-+	swapped_pages = sum_vm_event(PSWPOUT);
-+	if (swapped_pages > prev_swapped_pages)
-+		wake = 1;
-+	prev_swapped_pages = swapped_pages;
-+
-+	oom_notify_status = wake;
-+
-+	if (wake)
-+		wake_up_all(&oom_wait);
-+
-+	return;
-+}
-+
-+static int oom_notify_open(struct inode *inode, struct file *file)
-+{
-+	spin_lock(&oom_notify_lock);
-+	if (!oom_notify_users) {
-+		oom_notify_status = 0;
-+		oom_check_timer.expires = jiffies + msecs_to_jiffies(1000);
-+		mod_timer(&oom_check_timer, oom_check_timer.expires);
-+	}
-+	oom_notify_users++;
-+	spin_unlock(&oom_notify_lock);
-+
-+	return 0;
-+}
-+
-+static int oom_notify_release(struct inode *inode, struct file *file)
-+{
-+	spin_lock(&oom_notify_lock);
-+	oom_notify_users--;
-+	if (!oom_notify_users) {
-+		del_timer(&oom_check_timer);
-+		oom_notify_status = 0;
-+	}
-+	spin_unlock(&oom_notify_lock);
-+	return 0;
-+}
-+
-+static unsigned int oom_notify_poll(struct file *file, poll_table *wait)
-+{
-+	unsigned int val = 0;
-+	struct zone *zone;
-+	int cz_idx = zone_idx(NODE_DATA(nid)->node_zonelists->zones[0]);
-+
-+	poll_wait(file, &oom_wait, wait);
-+
-+	if (oom_notify_status)
-+		val = POLLIN;
-+
-+	for_each_zone(zone) {
-+		if (!populated_zone(zone))
-+			continue;	
-+		if (!zone_watermark_ok(zone, 0, zone->pages_low, cz_idx, 0)) {
-+			val = POLLIN;
-+			break;
-+		}
-+	}
-+
-+	return val;
-+}
-+
-+struct file_operations oom_notify_fops = {
-+	.open = oom_notify_open,
-+	.release = oom_notify_release,
-+	.poll = oom_notify_poll,
-+};
-+EXPORT_SYMBOL(oom_notify_fops);
-diff -Nur --exclude-from=linux-2.6/Documentation/dontdiff linux-2.6.orig/mm/vmstat.c linux-2.6/mm/vmstat.c
---- linux-2.6.orig/mm/vmstat.c	2007-10-24 15:53:02.000000000 -0300
-+++ linux-2.6/mm/vmstat.c	2007-10-27 22:45:35.000000000 -0300
-@@ -52,6 +52,28 @@
- }
- EXPORT_SYMBOL_GPL(all_vm_events);
- 
-+unsigned int sum_vm_event(int vm_event)
-+{
-+	int cpu = 0;
-+	int i;
-+	unsigned int ret = 0;
-+	cpumask_t *cpumask = &cpu_online_map;
-+
-+	cpu = first_cpu(*cpumask);
-+	while (cpu < NR_CPUS) {
-+		struct vm_event_state *this = &per_cpu(vm_event_states, cpu);
-+
-+		cpu = next_cpu(cpu, *cpumask);
-+
-+		if (cpu < NR_CPUS)
-+			prefetch(&per_cpu(vm_event_states, cpu));
-+
-+		ret += this->event[vm_event];
-+	}
-+	return ret;
-+}
-+EXPORT_SYMBOL(sum_vm_event);
-+
- #ifdef CONFIG_HOTPLUG
- /*
-  * Fold the foreign cpu events into our own.
-diff -Nur --exclude-from=linux-2.6/Documentation/dontdiff linux-2.6.orig/include/linux/vmstat.h linux-2.6/include/linux/vmstat.h
---- linux-2.6.orig/include/linux/vmstat.h	2007-10-24 15:55:30.000000000 -0300
-+++ linux-2.6/include/linux/vmstat.h	2007-10-27 23:28:48.000000000 -0300
-@@ -80,6 +80,7 @@
- }
- 
- extern void all_vm_events(unsigned long *);
-+extern unsigned int sum_vm_event(int);
- #ifdef CONFIG_HOTPLUG
- extern void vm_events_fold_cpu(int cpu);
- #else
+As Christoph pointed out, we even saw a small slowdown on ia64 because
+there is no concept of atomicity wrt only one CPU. Emulating this with
+irq disable has been tried, but just the supplementary memory barriers
+hurts performance a bit. We tried to come up with clever macros that
+switch between irq disable and cmpxchg_local depending on the
+architecture, but all the results were awkward.
+
+I guess it's time for me to repost my patchset. I use interrupt disable
+to emulate the cmpxchg_local on architectures that lacks atomic ops.
+
+# cmpxchg_local and cmpxchg64_local standardization
+add-cmpxchg-local-to-generic-for-up.patch
+i386-cmpxchg64-80386-80486-fallback.patch
+add-cmpxchg64-to-alpha.patch
+add-cmpxchg64-to-mips.patch
+add-cmpxchg64-to-powerpc.patch
+add-cmpxchg64-to-x86_64.patch
+#
+add-cmpxchg-local-to-arm.patch
+add-cmpxchg-local-to-avr32.patch
+add-cmpxchg-local-to-blackfin.patch
+add-cmpxchg-local-to-cris.patch
+add-cmpxchg-local-to-frv.patch
+add-cmpxchg-local-to-h8300.patch
+add-cmpxchg-local-to-ia64.patch
+add-cmpxchg-local-to-m32r.patch
+fix-m32r-__xchg.patch
+fix-m32r-include-sched-h-in-smpboot.patch
+local_t_m32r_optimized.patch
+add-cmpxchg-local-to-m68k.patch
+add-cmpxchg-local-to-m68knommu.patch
+add-cmpxchg-local-to-parisc.patch
+add-cmpxchg-local-to-ppc.patch
+add-cmpxchg-local-to-s390.patch
+add-cmpxchg-local-to-sh.patch
+add-cmpxchg-local-to-sh64.patch
+add-cmpxchg-local-to-sparc.patch
+add-cmpxchg-local-to-sparc64.patch
+add-cmpxchg-local-to-v850.patch
+add-cmpxchg-local-to-xtensa.patch
+#
+slub-use-cmpxchg-local.patch
+
+Mathieu
+
+-- 
+Mathieu Desnoyers
+Computer Engineering Ph.D. Student, Ecole Polytechnique de Montreal
+OpenPGP key fingerprint: 8CD5 52C3 8E3C 4140 715F  BA06 3F25 A8FE 3BAE 9A68
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
