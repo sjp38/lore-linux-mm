@@ -1,89 +1,207 @@
-From: Christoph Lameter <clameter@sgi.com>
-Subject: [patch 10/10] SLUB: Restructure slab alloc
-Date: Sat, 27 Oct 2007 20:32:06 -0700
-Message-ID: <20071028033300.733431806@sgi.com>
-References: <20071028033156.022983073@sgi.com>
-Return-path: <linux-kernel-owner+glk-linux-kernel-3=40m.gmane.org-S1757466AbXJ1Dgw@vger.kernel.org>
-Content-Disposition: inline; filename=slub_restruct_alloc
+From: Stephen Hemminger <shemminger@linux-foundation.org>
+Subject: Re: [PATCH 23/33] netvm: skb processing
+Date: Tue, 30 Oct 2007 14:26:34 -0700
+Message-ID: <20071030142634.0f00b492__49355.0905412578$1193779692$gmane$org@freepuppy.rosehill>
+References: <20071030160401.296770000@chello.nl>
+	<20071030160914.749995000@chello.nl>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
+Return-path: <linux-kernel-owner+glk-linux-kernel-3=40m.gmane.org-S1755320AbXJ3V1k@vger.kernel.org>
+In-Reply-To: <20071030160914.749995000@chello.nl>
 Sender: linux-kernel-owner@vger.kernel.org
-To: Matthew Wilcox <matthew@wil.cx>
-Cc: akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Pekka Enberg <penberg@cs.helsinki.fi>
+To: linux-kernel@vger.kernel.org
+Cc: linux-mm@kvack.org
 List-Id: linux-mm.kvack.org
 
-Restructure slab_alloc so that the code flows in the sequence
-it is usually executed.
+On Tue, 30 Oct 2007 17:04:24 +0100
+Peter Zijlstra <a.p.zijlstra@chello.nl> wrote:
 
-Signed-off-by: Christoph Lameter <clameter@sgi.com>
+> In order to make sure emergency packets receive all memory needed to proceed
+> ensure processing of emergency SKBs happens under PF_MEMALLOC.
+> 
+> Use the (new) sk_backlog_rcv() wrapper to ensure this for backlog processing.
+> 
+> Skip taps, since those are user-space again.
+> 
+> Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
+> ---
+>  include/net/sock.h |    5 +++++
+>  net/core/dev.c     |   44 ++++++++++++++++++++++++++++++++++++++------
+>  net/core/sock.c    |   18 ++++++++++++++++++
+>  3 files changed, 61 insertions(+), 6 deletions(-)
+> 
+> Index: linux-2.6/net/core/dev.c
+> ===================================================================
+> --- linux-2.6.orig/net/core/dev.c
+> +++ linux-2.6/net/core/dev.c
+> @@ -1976,10 +1976,23 @@ int netif_receive_skb(struct sk_buff *sk
+>  	struct net_device *orig_dev;
+>  	int ret = NET_RX_DROP;
+>  	__be16 type;
+> +	unsigned long pflags = current->flags;
+> +
+> +	/* Emergency skb are special, they should
+> +	 *  - be delivered to SOCK_MEMALLOC sockets only
+> +	 *  - stay away from userspace
+> +	 *  - have bounded memory usage
+> +	 *
+> +	 * Use PF_MEMALLOC as a poor mans memory pool - the grouping kind.
+> +	 * This saves us from propagating the allocation context down to all
+> +	 * allocation sites.
+> +	 */
+> +	if (skb_emergency(skb))
+> +		current->flags |= PF_MEMALLOC;
+>  
+>  	/* if we've gotten here through NAPI, check netpoll */
+>  	if (netpoll_receive_skb(skb))
+> -		return NET_RX_DROP;
+> +		goto out;
 
----
- mm/slub.c |   40 ++++++++++++++++++++++++----------------
- 1 file changed, 24 insertions(+), 16 deletions(-)
+Why the change? doesn't gcc optimize the common exit case anyway?
 
-Index: linux-2.6/mm/slub.c
-===================================================================
---- linux-2.6.orig/mm/slub.c	2007-10-27 07:58:07.000000000 -0700
-+++ linux-2.6/mm/slub.c	2007-10-27 07:58:36.000000000 -0700
-@@ -1580,16 +1580,28 @@ static void *__slab_alloc(struct kmem_ca
- 	local_irq_save(flags);
- 	preempt_enable_no_resched();
- #endif
--	if (!c->page)
--		goto new_slab;
-+	if (likely(c->page)) {
-+		state = slab_lock(c->page);
-+
-+		if (unlikely(node_match(c, node) &&
-+			c->page->freelist != c->page->end))
-+				goto load_freelist;
-+
-+		deactivate_slab(s, c, state);
-+	}
-+
-+another_slab:
-+	state = get_partial(s, c, gfpflags, node);
-+	if (!state)
-+		goto grow_slab;
- 
--	state = slab_lock(c->page);
--	if (unlikely(!node_match(c, node)))
--		goto another_slab;
- load_freelist:
--	object = c->page->freelist;
--	if (unlikely(object == c->page->end))
--		goto another_slab;
-+	/*
-+	 * slabs from the partial list must have at least
-+	 * one free object.
-+	 */
-+	VM_BUG_ON(c->page->freelist == c->page->end);
-+
- 	if (unlikely(state & SLABDEBUG))
- 		goto debug;
- 
-@@ -1607,20 +1619,16 @@ out:
- #endif
- 	return object;
- 
--another_slab:
--	deactivate_slab(s, c, state);
--
--new_slab:
--	state = get_partial(s, c, gfpflags, node);
--	if (state)
--		goto load_freelist;
--
-+/* Extend the slabcache with a new slab */
-+grow_slab:
- 	state = get_new_slab(s, &c, gfpflags, node);
- 	if (state)
- 		goto load_freelist;
- 
- 	object = NULL;
- 	goto out;
-+
-+/* Perform debugging */
- debug:
- 	object = c->page->freelist;
- 	if (!alloc_debug_processing(s, c->page, object, addr))
+>  
+>  	if (!skb->tstamp.tv64)
+>  		net_timestamp(skb);
+> @@ -1990,7 +2003,7 @@ int netif_receive_skb(struct sk_buff *sk
+>  	orig_dev = skb_bond(skb);
+>  
+>  	if (!orig_dev)
+> -		return NET_RX_DROP;
+> +		goto out;
+>  
+>  	__get_cpu_var(netdev_rx_stat).total++;
+>  
+> @@ -2009,6 +2022,9 @@ int netif_receive_skb(struct sk_buff *sk
+>  	}
+>  #endif
+>  
+> +	if (skb_emergency(skb))
+> +		goto skip_taps;
+> +
+>  	list_for_each_entry_rcu(ptype, &ptype_all, list) {
+>  		if (!ptype->dev || ptype->dev == skb->dev) {
+>  			if (pt_prev)
+> @@ -2017,6 +2033,7 @@ int netif_receive_skb(struct sk_buff *sk
+>  		}
+>  	}
+>  
+> +skip_taps:
+>  #ifdef CONFIG_NET_CLS_ACT
+>  	if (pt_prev) {
+>  		ret = deliver_skb(skb, pt_prev, orig_dev);
+> @@ -2029,19 +2046,31 @@ int netif_receive_skb(struct sk_buff *sk
+>  
+>  	if (ret == TC_ACT_SHOT || (ret == TC_ACT_STOLEN)) {
+>  		kfree_skb(skb);
+> -		goto out;
+> +		goto unlock;
+>  	}
+>  
+>  	skb->tc_verd = 0;
+>  ncls:
+>  #endif
+>  
+> +	if (skb_emergency(skb))
+> +		switch(skb->protocol) {
+> +			case __constant_htons(ETH_P_ARP):
+> +			case __constant_htons(ETH_P_IP):
+> +			case __constant_htons(ETH_P_IPV6):
+> +			case __constant_htons(ETH_P_8021Q):
+> +				break;
+
+Indentation is wrong, and hard coding protocol values as spcial case
+seems bad here. What about vlan's, etc?
+
+> +			default:
+> +				goto drop;
+> +		}
+> +
+>  	skb = handle_bridge(skb, &pt_prev, &ret, orig_dev);
+>  	if (!skb)
+> -		goto out;
+> +		goto unlock;
+>  	skb = handle_macvlan(skb, &pt_prev, &ret, orig_dev);
+>  	if (!skb)
+> -		goto out;
+> +		goto unlock;
+>  
+>  	type = skb->protocol;
+>  	list_for_each_entry_rcu(ptype, &ptype_base[ntohs(type)&15], list) {
+> @@ -2056,6 +2085,7 @@ ncls:
+>  	if (pt_prev) {
+>  		ret = pt_prev->func(skb, skb->dev, pt_prev, orig_dev);
+>  	} else {
+> +drop:
+>  		kfree_skb(skb);
+>  		/* Jamal, now you will not able to escape explaining
+>  		 * me how you were going to use this. :-)
+> @@ -2063,8 +2093,10 @@ ncls:
+>  		ret = NET_RX_DROP;
+>  	}
+>  
+> -out:
+> +unlock:
+>  	rcu_read_unlock();
+> +out:
+> +	tsk_restore_flags(current, pflags, PF_MEMALLOC);
+>  	return ret;
+>  }
+>  
+> Index: linux-2.6/include/net/sock.h
+> ===================================================================
+> --- linux-2.6.orig/include/net/sock.h
+> +++ linux-2.6/include/net/sock.h
+> @@ -523,8 +523,13 @@ static inline void sk_add_backlog(struct
+>  	skb->next = NULL;
+>  }
+>  
+> +extern int __sk_backlog_rcv(struct sock *sk, struct sk_buff *skb);
+> +
+>  static inline int sk_backlog_rcv(struct sock *sk, struct sk_buff *skb)
+>  {
+> +	if (skb_emergency(skb))
+> +		return __sk_backlog_rcv(sk, skb);
+> +
+>  	return sk->sk_backlog_rcv(sk, skb);
+>  }
+>  
+> Index: linux-2.6/net/core/sock.c
+> ===================================================================
+> --- linux-2.6.orig/net/core/sock.c
+> +++ linux-2.6/net/core/sock.c
+> @@ -319,6 +319,24 @@ int sk_clear_memalloc(struct sock *sk)
+>  }
+>  EXPORT_SYMBOL_GPL(sk_clear_memalloc);
+>  
+> +#ifdef CONFIG_NETVM
+> +int __sk_backlog_rcv(struct sock *sk, struct sk_buff *skb)
+> +{
+> +	int ret;
+> +	unsigned long pflags = current->flags;
+> +
+> +	/* these should have been dropped before queueing */
+> +	BUG_ON(!sk_has_memalloc(sk));
+> +
+> +	current->flags |= PF_MEMALLOC;
+> +	ret = sk->sk_backlog_rcv(sk, skb);
+> +	tsk_restore_flags(current, pflags, PF_MEMALLOC);
+> +
+> +	return ret;
+> +}
+> +EXPORT_SYMBOL(__sk_backlog_rcv);
+> +#endif
+> +
+>  static int sock_set_timeout(long *timeo_p, char __user *optval, int optlen)
+>  {
+>  	struct timeval tv;
+
+
+I am still not convinced that this solves the problem well enough
+to be useful.  Can you really survive a heavy memory overcommit?
+In other words, can you prove that the added complexity causes the system
+to survive a real test where otherwise it would not?
+
 
 -- 
+Stephen Hemminger <shemminger@linux-foundation.org>
