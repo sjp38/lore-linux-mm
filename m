@@ -1,60 +1,81 @@
-Message-Id: <20071030160911.031845000@chello.nl>
+Message-Id: <20071030160914.457853000@chello.nl>
 References: <20071030160401.296770000@chello.nl>
-Date: Tue, 30 Oct 2007 17:04:05 +0100
+Date: Tue, 30 Oct 2007 17:04:22 +0100
 From: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Subject: [PATCH 04/33] mm: allow mempool to fall back to memalloc reserves
-Content-Disposition: inline; filename=mm-mempool_fixup.patch
+Subject: [PATCH 21/33] netvm: prevent a TCP specific deadlock
+Content-Disposition: inline; filename=netvm-tcp-deadlock.patch
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, netdev@vger.kernel.org, trond.myklebust@fys.uio.no
 Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>
 List-ID: <linux-mm.kvack.org>
 
-Allow the mempool to use the memalloc reserves when all else fails and
-the allocation context would otherwise allow it.
+It could happen that all !SOCK_MEMALLOC sockets have buffered so much data
+that we're over the global rmem limit. This will prevent SOCK_MEMALLOC buffers
+from receiving data, which will prevent userspace from running, which is needed
+to reduce the buffered data.
+
+Fix this by exempting the SOCK_MEMALLOC sockets from the rmem limit.
 
 Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
 ---
- mm/mempool.c |   12 +++++++++++-
- 1 file changed, 11 insertions(+), 1 deletion(-)
+ include/net/sock.h |    7 ++++---
+ net/core/stream.c  |    5 +++--
+ 2 files changed, 7 insertions(+), 5 deletions(-)
 
-Index: linux-2.6/mm/mempool.c
+Index: linux-2.6/include/net/sock.h
 ===================================================================
---- linux-2.6.orig/mm/mempool.c
-+++ linux-2.6/mm/mempool.c
-@@ -14,6 +14,7 @@
- #include <linux/mempool.h>
- #include <linux/blkdev.h>
- #include <linux/writeback.h>
-+#include "internal.h"
+--- linux-2.6.orig/include/net/sock.h
++++ linux-2.6/include/net/sock.h
+@@ -743,7 +743,8 @@ static inline struct inode *SOCK_INODE(s
+ }
  
- static void add_element(mempool_t *pool, void *element)
+ extern void __sk_stream_mem_reclaim(struct sock *sk);
+-extern int sk_stream_mem_schedule(struct sock *sk, int size, int kind);
++extern int sk_stream_mem_schedule(struct sock *sk, struct sk_buff *skb,
++		int size, int kind);
+ 
+ #define SK_STREAM_MEM_QUANTUM ((int)PAGE_SIZE)
+ 
+@@ -761,13 +762,13 @@ static inline void sk_stream_mem_reclaim
+ static inline int sk_stream_rmem_schedule(struct sock *sk, struct sk_buff *skb)
  {
-@@ -204,7 +205,7 @@ void * mempool_alloc(mempool_t *pool, gf
- 	void *element;
- 	unsigned long flags;
- 	wait_queue_t wait;
--	gfp_t gfp_temp;
-+	gfp_t gfp_temp, gfp_orig = gfp_mask;
+ 	return (int)skb->truesize <= sk->sk_forward_alloc ||
+-		sk_stream_mem_schedule(sk, skb->truesize, 1);
++		sk_stream_mem_schedule(sk, skb, skb->truesize, 1);
+ }
  
- 	might_sleep_if(gfp_mask & __GFP_WAIT);
+ static inline int sk_stream_wmem_schedule(struct sock *sk, int size)
+ {
+ 	return size <= sk->sk_forward_alloc ||
+-	       sk_stream_mem_schedule(sk, size, 0);
++	       sk_stream_mem_schedule(sk, NULL, size, 0);
+ }
  
-@@ -228,6 +229,15 @@ repeat_alloc:
+ /* Used by processes to "lock" a socket state, so that
+Index: linux-2.6/net/core/stream.c
+===================================================================
+--- linux-2.6.orig/net/core/stream.c
++++ linux-2.6/net/core/stream.c
+@@ -207,7 +207,7 @@ void __sk_stream_mem_reclaim(struct sock
+ 
+ EXPORT_SYMBOL(__sk_stream_mem_reclaim);
+ 
+-int sk_stream_mem_schedule(struct sock *sk, int size, int kind)
++int sk_stream_mem_schedule(struct sock *sk, struct sk_buff *skb, int size, int kind)
+ {
+ 	int amt = sk_stream_pages(size);
+ 
+@@ -224,7 +224,8 @@ int sk_stream_mem_schedule(struct sock *
+ 	/* Over hard limit. */
+ 	if (atomic_read(sk->sk_prot->memory_allocated) > sk->sk_prot->sysctl_mem[2]) {
+ 		sk->sk_prot->enter_memory_pressure();
+-		goto suppress_allocation;
++		if (!skb || (skb && !skb_emergency(skb)))
++			goto suppress_allocation;
  	}
- 	spin_unlock_irqrestore(&pool->lock, flags);
  
-+	/* if we really had right to the emergency reserves try those */
-+	if (gfp_to_alloc_flags(gfp_orig) & ALLOC_NO_WATERMARKS) {
-+		if (gfp_temp & __GFP_NOMEMALLOC) {
-+			gfp_temp &= ~(__GFP_NOMEMALLOC|__GFP_NOWARN);
-+			goto repeat_alloc;
-+		} else
-+			gfp_temp |= __GFP_NOMEMALLOC|__GFP_NOWARN;
-+	}
-+
- 	/* We must not sleep in the GFP_ATOMIC case */
- 	if (!(gfp_mask & __GFP_WAIT))
- 		return NULL;
+ 	/* Under pressure. */
 
 --
 
