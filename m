@@ -1,63 +1,77 @@
-Message-Id: <20071030192107.465641328@polymtl.ca>
+Message-Id: <20071030192110.098891816@polymtl.ca>
 References: <20071030191557.947156623@polymtl.ca>
-Date: Tue, 30 Oct 2007 15:16:15 -0400
+Date: Tue, 30 Oct 2007 15:16:23 -0400
 From: Mathieu Desnoyers <mathieu.desnoyers@polymtl.ca>
-Subject: [patch 18/28] Add cmpxchg_local to m86k
-Content-Disposition: inline; filename=add-cmpxchg-local-to-m68k.patch
+Subject: [patch 26/28] Add cmpxchg_local to sparc64
+Content-Disposition: inline; filename=add-cmpxchg-local-to-sparc64.patch
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: akpm@linux-foundation.org, linux-kernel@vger.kernel.org, matthew@wil.cx, linux-arch@vger.kernel.org, penberg@cs.helsinki.fi, linux-mm@kvack.org, Christoph Lameter <clameter@sgi.com>
-Cc: Mathieu Desnoyers <mathieu.desnoyers@polymtl.ca>, zippel@linux-m68k.org, linux-m68k@vger.kernel.org
+Cc: Mathieu Desnoyers <mathieu.desnoyers@polymtl.ca>, sparclinux@vger.kernel.org, wli@holomorphy.com
 List-ID: <linux-mm.kvack.org>
 
-Use the new generic cmpxchg_local (disables interrupt). Also use the generic
-cmpxchg as fallback if SMP is not set.
+Use cmpxchg_u32 and cmpxchg_u64 for cmpxchg_local and cmpxchg64_local. For other
+type sizes, use the new generic cmpxchg_local (disables interrupt).
+
+Change:
+Since the header depends on local_irqsave/local_irqrestore, it must be
+included after their declaration.
+
+Actually, being below the
+#include <linux/irqflags.h> should be enough, and on sparc64 it is
+included at the beginning of system.h.
+
+So it makes sense to move it up for sparc64.
 
 Signed-off-by: Mathieu Desnoyers <mathieu.desnoyers@polymtl.ca>
 CC: clameter@sgi.com
-CC: zippel@linux-m68k.org
-CC: linux-m68k@lists.linux-m68k.org
+CC: sparclinux@vger.kernel.org
+CC: wli@holomorphy.com
 ---
- include/asm-m68k/system.h |   21 +++++++++++++++++++++
- 1 file changed, 21 insertions(+)
+ include/asm-sparc64/system.h |   25 +++++++++++++++++++++++++
+ 1 file changed, 25 insertions(+)
 
-Index: linux-2.6-lttng/include/asm-m68k/system.h
+Index: linux-2.6-lttng/include/asm-sparc64/system.h
 ===================================================================
---- linux-2.6-lttng.orig/include/asm-m68k/system.h	2007-08-07 14:31:51.000000000 -0400
-+++ linux-2.6-lttng/include/asm-m68k/system.h	2007-08-07 15:01:41.000000000 -0400
-@@ -154,6 +154,10 @@ static inline unsigned long __xchg(unsig
- }
- #endif
+--- linux-2.6-lttng.orig/include/asm-sparc64/system.h	2007-08-20 17:40:57.000000000 -0400
++++ linux-2.6-lttng/include/asm-sparc64/system.h	2007-08-20 19:42:32.000000000 -0400
+@@ -9,6 +9,7 @@
+ #ifndef __ASSEMBLY__
  
+ #include <linux/irqflags.h>
 +#include <asm-generic/cmpxchg-local.h>
-+
-+#define cmpxchg64_local(ptr,o,n) __cmpxchg64_local_generic((ptr), (o), (n))
-+
+ 
  /*
-  * Atomic compare and exchange.  Compare OLD with MEM, if identical,
-  * store NEW in MEM.  Return the initial value in MEM.  Success is
-@@ -188,6 +192,23 @@ static inline unsigned long __cmpxchg(vo
- #define cmpxchg(ptr,o,n)\
- 	((__typeof__(*(ptr)))__cmpxchg((ptr),(unsigned long)(o),\
- 					(unsigned long)(n),sizeof(*(ptr))))
-+#define cmpxchg_local(ptr,o,n)\
-+	((__typeof__(*(ptr)))__cmpxchg((ptr),(unsigned long)(o),\
-+					(unsigned long)(n),sizeof(*(ptr))))
-+#else
-+
+  * Sparc (general) CPU types
+@@ -314,6 +315,30 @@ __cmpxchg(volatile void *ptr, unsigned l
+ 				    (unsigned long)_n_, sizeof(*(ptr))); \
+   })
+ 
 +/*
 + * cmpxchg_local and cmpxchg64_local are atomic wrt current CPU. Always make
 + * them available.
 + */
-+#define cmpxchg_local(ptr,o,n)					  	    \
-+     (__typeof__(*(ptr)))__cmpxchg_local_generic((ptr), (unsigned long)(o), \
++
++static inline unsigned long __cmpxchg_local(volatile void *ptr,
++				      unsigned long old,
++				      unsigned long new, int size)
++{
++	switch (size) {
++	case 4:
++	case 8:	return __cmpxchg(ptr, old, new, size);
++	default:
++		return __cmpxchg_local_generic(ptr, old, new, size);
++	}
++
++	return old;
++}
++
++#define cmpxchg_local(ptr,o,n)					  	\
++	(__typeof__(*(ptr)))__cmpxchg_local((ptr), (unsigned long)(o),	\
 +			   	 (unsigned long)(n), sizeof(*(ptr)))
++#define cmpxchg64_local(ptr,o,n) cmpxchg_local((ptr), (o), (n))
 +
-+#ifndef CONFIG_SMP
-+#include <asm-generic/cmpxchg.h>
-+#endif
-+
- #endif
+ #endif /* !(__ASSEMBLY__) */
  
  #define arch_align_stack(x) (x)
 
