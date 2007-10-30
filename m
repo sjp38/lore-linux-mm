@@ -1,129 +1,192 @@
-Message-Id: <20071030160401.296770000@chello.nl>
-Date: Tue, 30 Oct 2007 17:04:01 +0100
+Message-Id: <20071030160915.511012000@chello.nl>
+References: <20071030160401.296770000@chello.nl>
+Date: Tue, 30 Oct 2007 17:04:30 +0100
 From: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Subject: [PATCH 00/33] Swap over NFS -v14
+Subject: [PATCH 29/33] nfs: disable data cache revalidation for swapfiles
+Content-Disposition: inline; filename=nfs-swapper.patch
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, netdev@vger.kernel.org, trond.myklebust@fys.uio.no
 Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>
 List-ID: <linux-mm.kvack.org>
 
-Hi,
+Do as Trond suggested:
+  http://lkml.org/lkml/2006/8/25/348
 
-Another posting of the full swap over NFS series. 
+Disable NFS data cache revalidation on swap files since it doesn't really 
+make sense to have other clients change the file while you are using it.
 
-[ I tried just posting the first part last time around, but
-  that just gets more confusion by lack of a general picture ]
+Thereby we can stop setting PG_private on swap pages, since there ought to
+be no further races with invalidate_inode_pages2() to deal with.
 
-[ patches against 2.6.23-mm1, also to be found online at:
-  http://programming.kicks-ass.net/kernel-patches/vm_deadlock/v2.6.23-mm1/ ]
+And since we cannot set PG_private we cannot use page->private (which is
+already used by PG_swapcache pages anyway) to store the nfs_page. Thus
+augment the new nfs_page_find_request logic.
 
-The patch-set can be split in roughtly 5 parts, for each of which I shall give
-a description.
+Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
+---
+ fs/nfs/inode.c |    6 ++++
+ fs/nfs/write.c |   73 ++++++++++++++++++++++++++++++++++++++++++++++-----------
+ 2 files changed, 65 insertions(+), 14 deletions(-)
 
+Index: linux-2.6/fs/nfs/inode.c
+===================================================================
+--- linux-2.6.orig/fs/nfs/inode.c
++++ linux-2.6/fs/nfs/inode.c
+@@ -744,6 +744,12 @@ int nfs_revalidate_mapping_nolock(struct
+ 	struct nfs_inode *nfsi = NFS_I(inode);
+ 	int ret = 0;
+ 
++	/*
++	 * swapfiles are not supposed to be shared.
++	 */
++	if (IS_SWAPFILE(inode))
++		goto out;
++
+ 	if ((nfsi->cache_validity & NFS_INO_REVAL_PAGECACHE)
+ 			|| nfs_attribute_timeout(inode) || NFS_STALE(inode)) {
+ 		ret = __nfs_revalidate_inode(NFS_SERVER(inode), inode);
+Index: linux-2.6/fs/nfs/write.c
+===================================================================
+--- linux-2.6.orig/fs/nfs/write.c
++++ linux-2.6/fs/nfs/write.c
+@@ -112,25 +112,62 @@ static void nfs_context_set_write_error(
+ 	set_bit(NFS_CONTEXT_ERROR_WRITE, &ctx->flags);
+ }
+ 
+-static struct nfs_page *nfs_page_find_request_locked(struct page *page)
++static struct nfs_page *
++__nfs_page_find_request_locked(struct nfs_inode *nfsi, struct page *page, int get)
+ {
+ 	struct nfs_page *req = NULL;
+ 
+-	if (PagePrivate(page)) {
++	if (PagePrivate(page))
+ 		req = (struct nfs_page *)page_private(page);
+-		if (req != NULL)
+-			kref_get(&req->wb_kref);
+-	}
++	else if (unlikely(PageSwapCache(page)))
++		req = radix_tree_lookup(&nfsi->nfs_page_tree, page_file_index(page));
++
++	if (get && req)
++		kref_get(&req->wb_kref);
++
+ 	return req;
+ }
+ 
++static inline struct nfs_page *
++nfs_page_find_request_locked(struct nfs_inode *nfsi, struct page *page)
++{
++	return __nfs_page_find_request_locked(nfsi, page, 1);
++}
++
++static int __nfs_page_has_request(struct page *page)
++{
++	struct inode *inode = page_file_mapping(page)->host;
++	struct nfs_page *req = NULL;
++
++	spin_lock(&inode->i_lock);
++	req = __nfs_page_find_request_locked(NFS_I(inode), page, 0);
++	spin_unlock(&inode->i_lock);
++
++	/*
++	 * hole here plugged by the caller holding onto PG_locked
++	 */
++
++	return req != NULL;
++}
++
++static inline int nfs_page_has_request(struct page *page)
++{
++	if (PagePrivate(page))
++		return 1;
++
++	if (unlikely(PageSwapCache(page)))
++		return __nfs_page_has_request(page);
++
++	return 0;
++}
++
+ static struct nfs_page *nfs_page_find_request(struct page *page)
+ {
+ 	struct inode *inode = page_file_mapping(page)->host;
+ 	struct nfs_page *req = NULL;
+ 
+ 	spin_lock(&inode->i_lock);
+-	req = nfs_page_find_request_locked(page);
++	req = nfs_page_find_request_locked(NFS_I(inode), page);
+ 	spin_unlock(&inode->i_lock);
+ 	return req;
+ }
+@@ -255,7 +292,7 @@ static int nfs_page_async_flush(struct n
+ 
+ 	spin_lock(&inode->i_lock);
+ 	for(;;) {
+-		req = nfs_page_find_request_locked(page);
++		req = nfs_page_find_request_locked(nfsi, page);
+ 		if (req == NULL) {
+ 			spin_unlock(&inode->i_lock);
+ 			return 0;
+@@ -374,8 +411,14 @@ static int nfs_inode_add_request(struct 
+ 		if (nfs_have_delegation(inode, FMODE_WRITE))
+ 			nfsi->change_attr++;
+ 	}
+-	SetPagePrivate(req->wb_page);
+-	set_page_private(req->wb_page, (unsigned long)req);
++	/*
++	 * Swap-space should not get truncated. Hence no need to plug the race
++	 * with invalidate/truncate.
++	 */
++	if (likely(!PageSwapCache(req->wb_page))) {
++		SetPagePrivate(req->wb_page);
++		set_page_private(req->wb_page, (unsigned long)req);
++	}
+ 	nfsi->npages++;
+ 	kref_get(&req->wb_kref);
+ 	return 0;
+@@ -392,8 +435,10 @@ static void nfs_inode_remove_request(str
+ 	BUG_ON (!NFS_WBACK_BUSY(req));
+ 
+ 	spin_lock(&inode->i_lock);
+-	set_page_private(req->wb_page, 0);
+-	ClearPagePrivate(req->wb_page);
++	if (likely(!PageSwapCache(req->wb_page))) {
++		set_page_private(req->wb_page, 0);
++		ClearPagePrivate(req->wb_page);
++	}
+ 	radix_tree_delete(&nfsi->nfs_page_tree, req->wb_index);
+ 	nfsi->npages--;
+ 	if (!nfsi->npages) {
+@@ -592,7 +637,7 @@ static struct nfs_page * nfs_update_requ
+ 		 * A request for the page we wish to update
+ 		 */
+ 		spin_lock(&inode->i_lock);
+-		req = nfs_page_find_request_locked(page);
++		req = nfs_page_find_request_locked(NFS_I(inode), page);
+ 		if (req) {
+ 			if (!nfs_lock_request_dontget(req)) {
+ 				int error;
+@@ -1416,7 +1461,7 @@ int nfs_wb_page_cancel(struct inode *ino
+ 		if (ret < 0)
+ 			goto out;
+ 	}
+-	if (!PagePrivate(page))
++	if (!nfs_page_has_request(page))
+ 		return 0;
+ 	ret = nfs_sync_mapping_wait(page_file_mapping(page), &wbc, FLUSH_INVALIDATE);
+ out:
+@@ -1443,7 +1488,7 @@ static int nfs_wb_page_priority(struct i
+ 		if (ret < 0)
+ 			goto out;
+ 	}
+-	if (!PagePrivate(page))
++	if (!nfs_page_has_request(page))
+ 		return 0;
+ 	ret = nfs_sync_mapping_wait(page_file_mapping(page), &wbc, how);
+ 	if (ret >= 0)
 
-  Part 1, patches 1-12
-
-The problem with swap over network is the generic swap problem: needing memory
-to free memory. Normally this is solved using mempools, as can be seen in the
-BIO layer.
-
-Swap over network has the problem that the network subsystem does not use fixed
-sized allocations, but heavily relies on kmalloc(). This makes mempools
-unusable.
-
-This first part provides a generic reserve framework.
-
-Care is taken to only affect the slow paths - when we're low on memory.
-
-Caveats: it is currently SLUB only.
-
- 1 - mm: gfp_to_alloc_flags()
- 2 - mm: tag reseve pages
- 3 - mm: slub: add knowledge of reserve pages
- 4 - mm: allow mempool to fall back to memalloc reserves
- 5 - mm: kmem_estimate_pages()
- 6 - mm: allow PF_MEMALLOC from softirq context
- 7 - mm: serialize access to min_free_kbytes
- 8 - mm: emergency pool
- 9 - mm: system wide ALLOC_NO_WATERMARK
-10 - mm: __GFP_MEMALLOC
-11 - mm: memory reserve management
-12 - selinux: tag avc cache alloc as non-critical
-
-
-  Part 2, patches 13-15
-
-Provide some generic network infrastructure needed later on.
-
-13 - net: wrap sk->sk_backlog_rcv()
-14 - net: packet split receive api
-15 - net: sk_allocation() - concentrate socket related allocations
-
-
-  Part 3, patches 16-23
-
-Now that we have a generic memory reserve system, use it on the network stack.
-The thing that makes this interesting is that, contrary to BIO, both the
-transmit and receive path require memory allocations. 
-
-That is, in the BIO layer write back completion is usually just an ISR flipping
-a bit and waking stuff up. A network write back completion involved receiving
-packets, which when there is no memory, is rather hard. And even when there is
-memory there is no guarantee that the required packet comes in in the window
-that that memory buys us.
-
-The solution to this problem is found in the fact that network is to be assumed
-lossy. Even now, when there is no memory to receive packets the network card
-will have to discard packets. What we do is move this into the network stack.
-
-So we reserve a little pool to act as a receive buffer, this allows us to
-inspect packets before tossing them. This way, we can filter out those packets
-that ensure progress (writeback completion) and disregard the others (as would
-have happened anyway). [ NOTE: this is a stable mode of operation with limited
-memory usage, exactly the kind of thing we need ]
-
-Again, care is taken to keep much of the overhead of this to only affect the
-slow path. Only packets allocated from the reserves will suffer the extra
-atomic overhead needed for accounting.
-
-16 - netvm: network reserve infrastructure
-17 - sysctl: propagate conv errors
-18 - netvm: INET reserves.
-19 - netvm: hook skb allocation to reserves
-20 - netvm: filter emergency skbs.
-21 - netvm: prevent a TCP specific deadlock
-22 - netfilter: NF_QUEUE vs emergency skbs
-23 - netvm: skb processing
-
-
-  Part 4, patches 24-26
-
-Generic vm infrastructure to handle swapping to a filesystem instead of a block
-device. The approach here has been questioned, people would like to see a less
-invasive approach.
-
-One suggestion is to create and use a_ops->swap_{in,out}().
-
-24 - mm: prepare swap entry methods for use in page methods
-25 - mm: add support for non block device backed swap files
-26 - mm: methods for teaching filesystems about PG_swapcache pages
-
-
-  Part 5, patches 27-33
-
-Finally, convert NFS to make use of the new network and vm infrastructure to
-provide swap over NFS.
-
-27 - nfs: remove mempools
-28 - nfs: teach the NFS client how to treat PG_swapcache pages
-29 - nfs: disable data cache revalidation for swapfiles
-30 - nfs: swap vs nfs_writepage
-31 - nfs: enable swap on NFS
-32 - nfs: fix various memory recursions possible with swap over NFS.
-33 - nfs: do not warn on radix tree node allocation failures
-
-
+--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
