@@ -1,103 +1,64 @@
-From: Adam Litke <agl@us.ibm.com>
-Subject: [PATCH 5/5] hugetlb: Enforce quotas during reservation for shared mappings
-Date: Tue, 30 Oct 2007 13:46:50 -0700
-Message-Id: <20071030204650.16585.6498.stgit@kernel>
-In-Reply-To: <20071030204554.16585.80588.stgit@kernel>
-References: <20071030204554.16585.80588.stgit@kernel>
-Content-Type: text/plain; charset=utf-8; format=fixed
-Content-Transfer-Encoding: 8bit
+Received: from d03relay02.boulder.ibm.com (d03relay02.boulder.ibm.com [9.17.195.227])
+	by e31.co.us.ibm.com (8.13.8/8.13.8) with ESMTP id l9UKobN5001210
+	for <linux-mm@kvack.org>; Tue, 30 Oct 2007 16:50:37 -0400
+Received: from d03av04.boulder.ibm.com (d03av04.boulder.ibm.com [9.17.195.170])
+	by d03relay02.boulder.ibm.com (8.13.8/8.13.8/NCO v8.5) with ESMTP id l9UKoa6o112546
+	for <linux-mm@kvack.org>; Tue, 30 Oct 2007 14:50:36 -0600
+Received: from d03av04.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av04.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l9UKoapS021937
+	for <linux-mm@kvack.org>; Tue, 30 Oct 2007 14:50:36 -0600
+Subject: Re: migratepage failures on reiserfs
+From: Badari Pulavarty <pbadari@us.ibm.com>
+In-Reply-To: <20071030135442.5d33c61c@think.oraclecorp.com>
+References: <1193768824.8904.11.camel@dyn9047017100.beaverton.ibm.com>
+	 <20071030135442.5d33c61c@think.oraclecorp.com>
+Content-Type: text/plain
+Date: Tue, 30 Oct 2007 13:54:05 -0800
+Message-Id: <1193781245.8904.28.camel@dyn9047017100.beaverton.ibm.com>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, linux-kernel@kvack.org, Ken Chen <kenchen@google.com>, Andy Whitcroft <apw@shadowen.org>, Dave Hansen <haveblue@us.ibm.com>, Adam Litke <agl@us.ibm.com>
+To: Chris Mason <chris.mason@oracle.com>
+Cc: reiserfs-devel@vger.kernel.org, linux-mm <linux-mm@kvack.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-When a MAP_SHARED mmap of a hugetlbfs file succeeds, huge pages are
-reserved to guarantee no problems will occur later when instantiating
-pages.  If quotas are in force, page instantiation could fail due to a race
-with another process or an oversized (but approved) shared mapping.
+On Tue, 2007-10-30 at 13:54 -0400, Chris Mason wrote:
+> On Tue, 30 Oct 2007 10:27:04 -0800
+> Badari Pulavarty <pbadari@us.ibm.com> wrote:
+> 
+> > Hi,
+> > 
+> > While testing hotplug memory remove, I ran into this issue. Given a
+> > range of pages hotplug memory remove tries to migrate those pages.
+> > 
+> > migrate_pages() keeps failing to migrate pages containing pagecache
+> > pages for reiserfs files. I noticed that reiserfs doesn't have 
+> > ->migratepage() ops. So, fallback_migrate_page() code tries to
+> > do try_to_release_page(). try_to_release_page() fails to
+> > drop_buffers() since b_count == 1. Here is what my debug shows:
+> > 
+> > 	migrate pages failed pfn 258111/flags 3f00000000801
+> > 	bh c00000000b53f6e0 flags 110029 count 1
+> > 	
+> > Any one know why the b_count == 1 and not getting dropped to zero ? 
+> 
+> If these are file data pages, the count is probably elevated as part of
+> the data=ordered tracking.  You can verify this via b_private, or just
+> mount data=writeback to double check.
 
-To prevent these scenarios, debit the quota for the full reservation amount
-up front and credit the unused quota when the reservation is released.
 
-Signed-off-by: Adam Litke <agl@us.ibm.com>
----
+Chris,
 
- mm/hugetlb.c |   23 +++++++++++++----------
- 1 files changed, 13 insertions(+), 10 deletions(-)
+That was my first assumption. But after looking at reiserfs_releasepage
+(), realized that it would do reiserfs_free_jh() and clears the
+b_private. I couldn't easily find out who has the ref. against this
+bh.
 
-diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-index deba411..2fc3cd6 100644
---- a/mm/hugetlb.c
-+++ b/mm/hugetlb.c
-@@ -367,7 +367,7 @@ static struct page *alloc_huge_page_shared(struct vm_area_struct *vma,
- 	spin_lock(&hugetlb_lock);
- 	page = dequeue_huge_page(vma, addr);
- 	spin_unlock(&hugetlb_lock);
--	return page;
-+	return page ? page : ERR_PTR(-VM_FAULT_OOM);
- }
- 
- static struct page *alloc_huge_page_private(struct vm_area_struct *vma,
-@@ -375,13 +375,16 @@ static struct page *alloc_huge_page_private(struct vm_area_struct *vma,
- {
- 	struct page *page = NULL;
- 
-+	if (hugetlb_get_quota(vma->vm_file->f_mapping, 1))
-+		return ERR_PTR(-VM_FAULT_SIGBUS);
-+
- 	spin_lock(&hugetlb_lock);
- 	if (free_huge_pages > resv_huge_pages)
- 		page = dequeue_huge_page(vma, addr);
- 	spin_unlock(&hugetlb_lock);
- 	if (!page)
- 		page = alloc_buddy_huge_page(vma, addr);
--	return page;
-+	return page ? page : ERR_PTR(-VM_FAULT_OOM);
- }
- 
- static struct page *alloc_huge_page(struct vm_area_struct *vma,
-@@ -390,19 +393,16 @@ static struct page *alloc_huge_page(struct vm_area_struct *vma,
- 	struct page *page;
- 	struct address_space *mapping = vma->vm_file->f_mapping;
- 
--	if (hugetlb_get_quota(mapping, 1))
--		return ERR_PTR(-VM_FAULT_SIGBUS);
--
- 	if (vma->vm_flags & VM_MAYSHARE)
- 		page = alloc_huge_page_shared(vma, addr);
- 	else
- 		page = alloc_huge_page_private(vma, addr);
--	if (page) {
-+
-+	if (!IS_ERR(page)) {
- 		set_page_refcounted(page);
- 		set_page_private(page, (unsigned long) mapping);
--		return page;
--	} else
--		return ERR_PTR(-VM_FAULT_OOM);
-+	}
-+	return page;
- }
- 
- static int __init hugetlb_init(void)
-@@ -1147,6 +1147,8 @@ int hugetlb_reserve_pages(struct inode *inode, long from, long to)
- 	if (chg < 0)
- 		return chg;
- 
-+	if (hugetlb_get_quota(inode->i_mapping, chg))
-+		return -ENOSPC;
- 	ret = hugetlb_acct_memory(chg);
- 	if (ret < 0)
- 		return ret;
-@@ -1157,5 +1159,6 @@ int hugetlb_reserve_pages(struct inode *inode, long from, long to)
- void hugetlb_unreserve_pages(struct inode *inode, long offset, long freed)
- {
- 	long chg = region_truncate(&inode->i_mapping->private_list, offset);
--	hugetlb_acct_memory(freed - chg);
-+	hugetlb_put_quota(inode->i_mapping, (chg - freed));
-+	hugetlb_acct_memory(-(chg - freed));
- }
+bh c00000000bdaaf00 flags 110029 count 1 private 0
+
+Thanks,
+Badari
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
