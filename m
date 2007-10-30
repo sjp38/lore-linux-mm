@@ -1,13 +1,13 @@
-Message-Id: <20071030192110.510500865@polymtl.ca>
+Message-Id: <20071030192109.356783587@polymtl.ca>
 References: <20071030191557.947156623@polymtl.ca>
-Date: Tue, 30 Oct 2007 15:16:24 -0400
+Date: Tue, 30 Oct 2007 15:16:21 -0400
 From: Mathieu Desnoyers <mathieu.desnoyers@polymtl.ca>
-Subject: [patch 27/28] Add cmpxchg_local to v850
-Content-Disposition: inline; filename=add-cmpxchg-local-to-v850.patch
+Subject: [patch 24/28] Add cmpxchg_local to sh64
+Content-Disposition: inline; filename=add-cmpxchg-local-to-sh64.patch
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: akpm@linux-foundation.org, linux-kernel@vger.kernel.org, matthew@wil.cx, linux-arch@vger.kernel.org, penberg@cs.helsinki.fi, linux-mm@kvack.org, Christoph Lameter <clameter@sgi.com>
-Cc: Mathieu Desnoyers <mathieu.desnoyers@polymtl.ca>
+Cc: Mathieu Desnoyers <mathieu.desnoyers@polymtl.ca>, lethal@linux-sh.org
 List-ID: <linux-mm.kvack.org>
 
 Use the new generic cmpxchg_local (disables interrupt). Also use the generic
@@ -15,16 +15,17 @@ cmpxchg as fallback if SMP is not set.
 
 Signed-off-by: Mathieu Desnoyers <mathieu.desnoyers@polymtl.ca>
 CC: clameter@sgi.com
+CC: lethal@linux-sh.org
 ---
- include/asm-v850/system.h |   15 +++++++++++++++
+ include/asm-sh64/system.h |   15 +++++++++++++++
  1 file changed, 15 insertions(+)
 
-Index: linux-2.6-lttng/include/asm-v850/system.h
+Index: linux-2.6-lttng/include/asm-sh64/system.h
 ===================================================================
---- linux-2.6-lttng.orig/include/asm-v850/system.h	2007-07-23 11:28:45.000000000 -0400
-+++ linux-2.6-lttng/include/asm-v850/system.h	2007-07-23 11:28:57.000000000 -0400
-@@ -104,6 +104,21 @@ static inline unsigned long __xchg (unsi
- 	return tmp;
+--- linux-2.6-lttng.orig/include/asm-sh64/system.h	2007-07-23 11:01:16.000000000 -0400
++++ linux-2.6-lttng/include/asm-sh64/system.h	2007-07-23 11:01:20.000000000 -0400
+@@ -164,6 +164,21 @@ static __inline__ unsigned long __xchg(u
+ 	return x;
  }
  
 +#include <asm-generic/cmpxchg-local.h>
@@ -42,9 +43,9 @@ Index: linux-2.6-lttng/include/asm-v850/system.h
 +#include <asm-generic/cmpxchg.h>
 +#endif
 +
- #define arch_align_stack(x) (x)
- 
- #endif /* __V850_SYSTEM_H__ */
+ /* XXX
+  * disable hlt during certain critical i/o operations
+  */
 
 -- 
 Mathieu Desnoyers
