@@ -1,75 +1,69 @@
-Subject: Re: vm_ops.page_mkwrite() fails with vmalloc on 2.6.23
+Message-Id: <20071030160915.886143000@chello.nl>
+References: <20071030160401.296770000@chello.nl>
+Date: Tue, 30 Oct 2007 17:04:33 +0100
 From: Peter Zijlstra <a.p.zijlstra@chello.nl>
-In-Reply-To: <Pine.LNX.4.64.0710301535270.9322@blonde.wat.veritas.com>
-References: <1193064057.16541.1.camel@matrix>
-	 <20071029004002.60c7182a.akpm@linux-foundation.org>
-	 <45a44e480710290117u492dbe82ra6344baf8bb1e370@mail.gmail.com>
-	 <1193677302.27652.56.camel@twins>
-	 <45a44e480710291051s7ffbb582x64ea9524c197b48a@mail.gmail.com>
-	 <1193681839.27652.60.camel@twins> <1193696211.5644.100.camel@lappy>
-	 <45a44e480710291822w5864b3beofcf432930d3e68d3@mail.gmail.com>
-	 <1193738177.27652.69.camel@twins>
-	 <45a44e480710300616p34b0a159m87de78d0a4d43028@mail.gmail.com>
-	 <1193750751.27652.86.camel@twins>
-	 <Pine.LNX.4.64.0710301535270.9322@blonde.wat.veritas.com>
-Content-Type: multipart/signed; micalg=pgp-sha1; protocol="application/pgp-signature"; boundary="=-19tc5Np9Tlb3uJm+SUPC"
-Date: Tue, 30 Oct 2007 16:51:02 +0100
-Message-Id: <1193759462.27652.88.camel@twins>
-Mime-Version: 1.0
+Subject: [PATCH 32/33] nfs: fix various memory recursions possible with swap over NFS.
+Content-Disposition: inline; filename=nfs-alloc-recursions.patch
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Hugh Dickins <hugh@veritas.com>
-Cc: Jaya Kumar <jayakumar.lkml@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, stefani@seibold.net, linux-kernel@vger.kernel.org, David Howells <dhowells@redhat.com>, linux-mm@kvack.org
+To: Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, netdev@vger.kernel.org, trond.myklebust@fys.uio.no
+Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>
 List-ID: <linux-mm.kvack.org>
 
---=-19tc5Np9Tlb3uJm+SUPC
-Content-Type: text/plain
-Content-Transfer-Encoding: quoted-printable
+GFP_NOFS is not enough, since swap traffic is IO, hence fall back to GFP_NOIO.
 
-On Tue, 2007-10-30 at 15:47 +0000, Hugh Dickins wrote:
-> On Tue, 30 Oct 2007, Peter Zijlstra wrote:
-> > On Tue, 2007-10-30 at 09:16 -0400, Jaya Kumar wrote:
-> ....
-> > > - defio mmap adds this vma to private list (equivalent of
-> > > address_space or anon_vma)
-> ....
-> > > - foreach vma { foreach page { page_mkclean_one(page, vma) }
-> >=20
-> > Yeah, page_mkclean_one(page, vma) will use vma_address() to obtain an
-> > user-space address for the page in this vma using page->index and the
-> > formula from the last email, this address is then used to walk the page
-> > tables and obtain a pte.
->=20
-> I don't understand why you suggested an anon_vma, nor why Jaya is
-> suggesting a private list.  All vmas mapping /dev/fb0 will be kept
-> in the prio_tree rooted in its struct address_space (__vma_link_file
-> in mm/mmap.c).  And page_mkclean gets page_mkclean_file to walk that
-> very tree.  The missing part is just the setting of page->mapping to
-> point to that struct address_space (and clearing it before finally
-> freeing the pages), and the setting of page->index as you described.
-> Isn't it?
+Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
+---
+ fs/nfs/pagelist.c |    2 +-
+ fs/nfs/write.c    |    6 +++---
+ 2 files changed, 4 insertions(+), 4 deletions(-)
 
-Hmm, there is a thought. I had not considered that mapping a chardev
-would have that effect.
+Index: linux-2.6/fs/nfs/write.c
+===================================================================
+--- linux-2.6.orig/fs/nfs/write.c
++++ linux-2.6/fs/nfs/write.c
+@@ -44,7 +44,7 @@ static struct kmem_cache *nfs_wdata_cach
+ 
+ struct nfs_write_data *nfs_commit_alloc(void)
+ {
+-	struct nfs_write_data *p = kmem_cache_alloc(nfs_wdata_cachep, GFP_NOFS);
++	struct nfs_write_data *p = kmem_cache_alloc(nfs_wdata_cachep, GFP_NOIO);
+ 
+ 	if (p) {
+ 		memset(p, 0, sizeof(*p));
+@@ -68,7 +68,7 @@ void nfs_commit_free(struct nfs_write_da
+ 
+ struct nfs_write_data *nfs_writedata_alloc(unsigned int pagecount)
+ {
+-	struct nfs_write_data *p = kmem_cache_alloc(nfs_wdata_cachep, GFP_NOFS);
++	struct nfs_write_data *p = kmem_cache_alloc(nfs_wdata_cachep, GFP_NOIO);
+ 
+ 	if (p) {
+ 		memset(p, 0, sizeof(*p));
+@@ -77,7 +77,7 @@ struct nfs_write_data *nfs_writedata_all
+ 		if (pagecount <= ARRAY_SIZE(p->page_array))
+ 			p->pagevec = p->page_array;
+ 		else {
+-			p->pagevec = kcalloc(pagecount, sizeof(struct page *), GFP_NOFS);
++			p->pagevec = kcalloc(pagecount, sizeof(struct page *), GFP_NOIO);
+ 			if (!p->pagevec) {
+ 				kmem_cache_free(nfs_wdata_cachep, p);
+ 				p = NULL;
+Index: linux-2.6/fs/nfs/pagelist.c
+===================================================================
+--- linux-2.6.orig/fs/nfs/pagelist.c
++++ linux-2.6/fs/nfs/pagelist.c
+@@ -27,7 +27,7 @@ static inline struct nfs_page *
+ nfs_page_alloc(void)
+ {
+ 	struct nfs_page	*p;
+-	p = kmem_cache_alloc(nfs_page_cachep, GFP_KERNEL);
++	p = kmem_cache_alloc(nfs_page_cachep, GFP_NOIO);
+ 	if (p) {
+ 		memset(p, 0, sizeof(*p));
+ 		INIT_LIST_HEAD(&p->wb_list);
 
-I'd have to have a look at the actual code, but yeah, that might very
-well work out. How silly of me.
-
-Thanks!
-
---=-19tc5Np9Tlb3uJm+SUPC
-Content-Type: application/pgp-signature; name=signature.asc
-Content-Description: This is a digitally signed message part
-
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v1.4.6 (GNU/Linux)
-
-iD8DBQBHJ1LmXA2jU0ANEf4RAtAVAJ9i89150XfjGYw/CGSzx4C+V7sdWQCePo+z
-Xn/BLOvy8weUS2EUoyG7AKk=
-=KNkc
------END PGP SIGNATURE-----
-
---=-19tc5Np9Tlb3uJm+SUPC--
+--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
