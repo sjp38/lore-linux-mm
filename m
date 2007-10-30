@@ -1,90 +1,29 @@
-Message-ID: <ffbbe01c81b01$45bb9e20$c2d06ac8@Enseando>
-From: "Ken Hopkins" <EverettalbaByrd@ambrowser.com>
-Subject: market investor alert
-Date: Tue, 30 Oct 2007 09:29:06 +0500
+Message-ID: 679a01c81b06$639e94b0$d74d904f@AndresNoguera
+From: "Marci Koenig" <MarcialumnaeBegay@slashdot.org>
+Subject: next big market winner
+Date: Tue, 30 Oct 2007 16:05:45 -0100
 MIME-Version: 1.0
-Content-Type: multipart/alternative;
-	boundary="----=_NextPart_000_FFBBA_01C81B01.45BB9E20"
-Return-Path: <EverettalbaByrd@ambrowser.com>
-To: mm@kvack.org
-Cc: linux-mm@kvack.org, kelda@kvack.org, linux-mm-archive@kvack.org, majordomo@kvack.org
+Content-Type: text/plain;
+	format=flowed;
+	charset="iso-8859-1";
+	reply-type=original
+Content-Transfer-Encoding: 7bit
+Return-Path: <MarcialumnaeBegay@slashdot.org>
+To: mm@kvack.org, linux-mm@kvack.org, kelda@kvack.org, linux-mm-archive@kvack.org, majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-This is a multi-part message in MIME format.
+In the markets, A unique product is always rewarded, and the company will always soar as long as there is demand and have growing markets to explore.
 
-------=_NextPart_000_FFBBA_01C81B01.45BB9E20
-Content-Type: text/plain;
-	charset="iso-8859-1"
-Content-Transfer-Encoding: quoted-printable
+Now we would like to present a new concept thats been hitting globally and a real company with real and unique product.
 
-No smokescreens here
-What you see is what you'll get.
+Introducing ShotPak (SHTP)
 
-SHOTPAK Inc (SHTP) has a unique product thats causing ripples across the =
-globe.
+Whats the unique product??
 
-The company's shares are going through the roof, up 42 % today alone.
+The ShotPak is a new and innovative concept in alcohol packaging. The shot is a single serving shot of alcohol or a Ready-To-Drink (RTD) mixed cocktail in a soft portable pouch. It eliminates the need for you to carry glass bottles, mixers and bar tools when you go out.
 
-see the recent headlines
-- ShotPak Signs Major Import Agreement For South Korea
-- ShotPak Signs Letter of Intent with India Importer
-- ShotPak Signs Letter of Intent with India Importer to Be Available in =
-120 Hotel Mini Bars Throughout Country
-- ShotPak Ships Throughout Texas
+When full, the ShotPak is lighter than a 50 ml airplane botle and more convenient to carry. The ShotPak was developed to target people who are enagaged in an active lifestyle and are on the go.
 
-And so on and so on.
+If you don't believe this works, read their latest press releases and see the craze grow.
 
-This is a real company with real products NO SMOKESCREEN
-
-Look into it and get in on the action.
-------=_NextPart_000_FFBBA_01C81B01.45BB9E20
-Content-Type: text/html;
-	charset="iso-8859-1"
-Content-Transfer-Encoding: quoted-printable
-
-<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
-<HTML><HEAD>
-<META http-equiv=3DContent-Type content=3D"text/html; =
-charset=3Diso-8859-1">
-<META content=3D"MSHTML 6.00.2900.2963" name=3DGENERATOR>
-<STYLE></STYLE>
-</HEAD>=20
-<BODY bgColor=3D#ffffff>
-<DIV align=3Dleft><FONT face=3DArial size=3D2>No smokescreens =
-here</FONT></DIV>
-<DIV align=3Dleft><FONT face=3DArial size=3D2>What you see is what =
-you'll=20
-get.</FONT></DIV><BR>
-<DIV align=3Dleft><FONT face=3DArial size=3D2>SHOTPAK Inc (SHTP) has a =
-unique product=20
-thats causing ripples across the globe.</FONT></DIV><BR>
-<DIV align=3Dleft><FONT face=3DArial size=3D2>The company's shares are =
-going through=20
-the roof, up 42 % today alone.</FONT></DIV><BR>
-<DIV align=3Dleft><FONT face=3DArial size=3D2>see the recent =
-headlines</FONT></DIV>
-<DIV align=3Dleft><FONT face=3DArial size=3D2>- ShotPak Signs Major =
-Import Agreement=20
-For South Korea</FONT></DIV>
-<DIV align=3Dleft><FONT face=3DArial size=3D2>- ShotPak Signs Letter of =
-Intent with=20
-India Importer</FONT></DIV>
-<DIV align=3Dleft><FONT face=3DArial size=3D2>- ShotPak Signs Letter of =
-Intent with=20
-India Importer to Be Available in 120 Hotel Mini Bars Throughout=20
-Country</FONT></DIV>
-<DIV align=3Dleft><FONT face=3DArial size=3D2>- ShotPak Ships =
-Throughout=20
-Texas</FONT></DIV><BR>
-<DIV align=3Dleft><FONT face=3DArial size=3D2>And so on and so =
-on.</FONT></DIV><BR>
-<DIV align=3Dleft><FONT face=3DArial size=3D2>This is a real company =
-with real 
-products NO SMOKESCREEN</FONT></DIV><BR>
-<DIV align=3Dleft><FONT face=3DArial size=3D2>Look into it and get in on =
-the=20
-action.</FONT></DIV><BR>
-</BODY></HTML>
-
-
-------=_NextPart_000_FFBBA_01C81B01.45BB9E20--
+Don't be left out, look into SHTP ShotPak Inc
