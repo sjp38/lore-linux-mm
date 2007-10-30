@@ -1,92 +1,101 @@
-Message-Id: <20071030160916.021029000@chello.nl>
+Message-Id: <20071030160915.114257000@chello.nl>
 References: <20071030160401.296770000@chello.nl>
-Date: Tue, 30 Oct 2007 17:04:34 +0100
+Date: Tue, 30 Oct 2007 17:04:27 +0100
 From: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Subject: [PATCH 33/33] nfs: do not warn on radix tree node allocation failures
-Content-Disposition: inline; filename=nfs_radix_nowarn.patch
+Subject: [PATCH 26/33] mm: methods for teaching filesystems about PG_swapcache pages
+Content-Disposition: inline; filename=mm-page_file_methods.patch
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, netdev@vger.kernel.org, trond.myklebust@fys.uio.no
 Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>
 List-ID: <linux-mm.kvack.org>
 
-GFP_ATOMIC failures are rather common, no not warn about them.
+In order to teach filesystems to handle swap cache pages, two new page
+functions are introduced:
+
+  pgoff_t page_file_index(struct page *);
+  struct address_space *page_file_mapping(struct page *);
+
+page_file_index - gives the offset of this page in the file in PAGE_CACHE_SIZE
+blocks. Like page->index is for mapped pages, this function also gives the
+correct index for PG_swapcache pages.
+
+page_file_mapping - gives the mapping backing the actual page; that is for
+swap cache pages it will give swap_file->f_mapping.
+
+page_offset() is modified to use page_file_index(), so that it will give the
+expected result, even for PG_swapcache pages.
 
 Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
 ---
- fs/nfs/inode.c |    2 +-
- fs/nfs/write.c |   10 ++++++++++
- 2 files changed, 11 insertions(+), 1 deletion(-)
+ include/linux/mm.h      |   26 ++++++++++++++++++++++++++
+ include/linux/pagemap.h |    2 +-
+ 2 files changed, 27 insertions(+), 1 deletion(-)
 
-Index: linux-2.6/fs/nfs/inode.c
+Index: linux-2.6/include/linux/mm.h
 ===================================================================
---- linux-2.6.orig/fs/nfs/inode.c
-+++ linux-2.6/fs/nfs/inode.c
-@@ -1172,7 +1172,7 @@ static void init_once(struct kmem_cache 
- 	INIT_LIST_HEAD(&nfsi->open_files);
- 	INIT_LIST_HEAD(&nfsi->access_cache_entry_lru);
- 	INIT_LIST_HEAD(&nfsi->access_cache_inode_lru);
--	INIT_RADIX_TREE(&nfsi->nfs_page_tree, GFP_ATOMIC);
-+	INIT_RADIX_TREE(&nfsi->nfs_page_tree, GFP_ATOMIC|__GFP_NOWARN);
- 	nfsi->ncommit = 0;
- 	nfsi->npages = 0;
- 	nfs4_init_once(nfsi);
-Index: linux-2.6/fs/nfs/write.c
-===================================================================
---- linux-2.6.orig/fs/nfs/write.c
-+++ linux-2.6/fs/nfs/write.c
-@@ -652,6 +652,7 @@ static struct nfs_page * nfs_update_requ
- 	struct inode *inode = mapping->host;
- 	struct nfs_page		*req, *new = NULL;
- 	pgoff_t		rqend, end;
-+	int error;
+--- linux-2.6.orig/include/linux/mm.h
++++ linux-2.6/include/linux/mm.h
+@@ -13,6 +13,7 @@
+ #include <linux/debug_locks.h>
+ #include <linux/mm_types.h>
+ #include <linux/swap.h>
++#include <linux/fs.h>
  
- 	end = offset + bytes;
+ struct mempolicy;
+ struct anon_vma;
+@@ -581,6 +582,16 @@ static inline struct swap_info_struct *p
+ 	return get_swap_info_struct(swp_type(swap));
+ }
  
-@@ -659,6 +660,10 @@ static struct nfs_page * nfs_update_requ
- 		/* Loop over all inode entries and see if we find
- 		 * A request for the page we wish to update
- 		 */
-+		error = radix_tree_preload(GFP_NOIO);
-+		if (error)
-+			return ERR_PTR(error);
++static inline
++struct address_space *page_file_mapping(struct page *page)
++{
++#ifdef CONFIG_SWAP_FILE
++	if (unlikely(PageSwapCache(page)))
++		return page_swap_info(page)->swap_file->f_mapping;
++#endif
++	return page->mapping;
++}
 +
- 		spin_lock(&inode->i_lock);
- 		req = nfs_page_find_request_locked(NFS_I(inode), page);
- 		if (req) {
-@@ -666,6 +671,7 @@ static struct nfs_page * nfs_update_requ
- 				int error;
+ static inline int PageAnon(struct page *page)
+ {
+ 	return ((unsigned long)page->mapping & PAGE_MAPPING_ANON) != 0;
+@@ -598,6 +609,21 @@ static inline pgoff_t page_index(struct 
+ }
  
- 				spin_unlock(&inode->i_lock);
-+				radix_tree_preload_end();
- 				error = nfs_wait_on_request(req);
- 				nfs_release_request(req);
- 				if (error < 0) {
-@@ -676,6 +682,7 @@ static struct nfs_page * nfs_update_requ
- 				continue;
- 			}
- 			spin_unlock(&inode->i_lock);
-+			radix_tree_preload_end();
- 			if (new)
- 				nfs_release_request(new);
- 			break;
-@@ -687,13 +694,16 @@ static struct nfs_page * nfs_update_requ
- 			error = nfs_inode_add_request(inode, new);
- 			if (error) {
- 				spin_unlock(&inode->i_lock);
-+				radix_tree_preload_end();
- 				nfs_unlock_request(new);
- 				return ERR_PTR(error);
- 			}
- 			spin_unlock(&inode->i_lock);
-+			radix_tree_preload_end();
- 			return new;
- 		}
- 		spin_unlock(&inode->i_lock);
-+		radix_tree_preload_end();
+ /*
++ * Return the file index of the page. Regular pagecache pages use ->index
++ * whereas swapcache pages use swp_offset(->private)
++ */
++static inline pgoff_t page_file_index(struct page *page)
++{
++#ifdef CONFIG_SWAP_FILE
++	if (unlikely(PageSwapCache(page))) {
++		swp_entry_t swap = { .val = page_private(page) };
++		return swp_offset(swap);
++	}
++#endif
++	return page->index;
++}
++
++/*
+  * The atomic page->_mapcount, like _count, starts from -1:
+  * so that transitions both from it and to it can be tracked,
+  * using atomic_inc_and_test and atomic_add_negative(-1).
+Index: linux-2.6/include/linux/pagemap.h
+===================================================================
+--- linux-2.6.orig/include/linux/pagemap.h
++++ linux-2.6/include/linux/pagemap.h
+@@ -145,7 +145,7 @@ extern void __remove_from_page_cache(str
+  */
+ static inline loff_t page_offset(struct page *page)
+ {
+-	return ((loff_t)page->index) << PAGE_CACHE_SHIFT;
++	return ((loff_t)page_file_index(page)) << PAGE_CACHE_SHIFT;
+ }
  
- 		new = nfs_create_request(ctx, inode, page, offset, bytes);
- 		if (IS_ERR(new))
+ static inline pgoff_t linear_page_index(struct vm_area_struct *vma,
 
 --
 
