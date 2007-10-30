@@ -1,112 +1,94 @@
-Received: from d01relay04.pok.ibm.com (d01relay04.pok.ibm.com [9.56.227.236])
-	by e3.ny.us.ibm.com (8.13.8/8.13.8) with ESMTP id l9UISRIa028244
-	for <linux-mm@kvack.org>; Tue, 30 Oct 2007 14:28:27 -0400
-Received: from d01av02.pok.ibm.com (d01av02.pok.ibm.com [9.56.224.216])
-	by d01relay04.pok.ibm.com (8.13.8/8.13.8/NCO v8.5) with ESMTP id l9UISRNj132452
-	for <linux-mm@kvack.org>; Tue, 30 Oct 2007 14:28:27 -0400
-Received: from d01av02.pok.ibm.com (loopback [127.0.0.1])
-	by d01av02.pok.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l9UISQO1012294
-	for <linux-mm@kvack.org>; Tue, 30 Oct 2007 14:28:26 -0400
-Message-ID: <472777C4.2010307@linux.vnet.ibm.com>
-Date: Tue, 30 Oct 2007 23:58:20 +0530
-From: Balbir Singh <balbir@linux.vnet.ibm.com>
-Reply-To: balbir@linux.vnet.ibm.com
-MIME-Version: 1.0
-Subject: Re: [RFC] [-mm PATCH] Memory controller fix swap charging context
- in unuse_pte()
-References: <20071005041406.21236.88707.sendpatchset@balbir-laptop> <Pine.LNX.4.64.0710071735530.13138@blonde.wat.veritas.com> <4713A2F2.1010408@linux.vnet.ibm.com> <Pine.LNX.4.64.0710221933570.21262@blonde.wat.veritas.com> <471F3732.5050407@linux.vnet.ibm.com> <Pine.LNX.4.64.0710252002540.25735@blonde.wat.veritas.com> <4724F0BC.1020209@linux.vnet.ibm.com> <20071028203219.GA7145@linux.vnet.ibm.com> <Pine.LNX.4.64.0710292101510.23980@blonde.wat.veritas.com> <47265842.5040506@linux.vnet.ibm.com> <Pine.LNX.4.64.0710301635290.11007@blonde.wat.veritas.com>
-In-Reply-To: <Pine.LNX.4.64.0710301635290.11007@blonde.wat.veritas.com>
-Content-Type: text/plain; charset=ISO-8859-1
+Date: Tue, 30 Oct 2007 11:30:05 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [patch 08/10] SLUB: Optional fast path using cmpxchg_local
+Message-Id: <20071030113005.30d4aa4e.akpm@linux-foundation.org>
+In-Reply-To: <Pine.LNX.4.64.0710281502480.4207@sbz-30.cs.Helsinki.FI>
+References: <20071028033156.022983073@sgi.com>
+	<20071028033300.240703208@sgi.com>
+	<Pine.LNX.4.64.0710281502480.4207@sbz-30.cs.Helsinki.FI>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Hugh Dickins <hugh@veritas.com>
-Cc: Linux Containers <containers@lists.osdl.org>, Linux MM Mailing List <linux-mm@kvack.org>
+To: Pekka J Enberg <penberg@cs.helsinki.fi>
+Cc: clameter@sgi.com, matthew@wil.cx, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hugh Dickins wrote:
-> On Tue, 30 Oct 2007, Balbir Singh wrote:
->> At this momemnt, I suspect one of two things
->>
->> 1. Our mods to swap_state.c are different
-> 
-> I believe they're the same (just take swap_state.c back to how it
-> was without mem_cgroup mods) - or would be, if after finding this
-> effect I hadn't added a "swap_in_cg" switch to move between the
-> two behaviours to study it better (though I do need to remember
-> to swapoff and swapon between the two: sometimes I do forget).
-> 
->> 2. Our configuration is different, main-memory to swap-size ratio
-> 
-> I doubt the swapsize is relevant: just so long as there's some (a
-> little more than 200M I guess); I've got 1GB-2GB on different boxes.
-> 
+On Sun, 28 Oct 2007 15:05:50 +0200 (EET)
+Pekka J Enberg <penberg@cs.helsinki.fi> wrote:
 
-I agree, just wanted to make sure that there is enough swap
-
-> There may well be something about our configs that's significantly
-> different.  I'd failed to mention SMP (4 cpu), and that I happen
-> to have /proc/sys/vm/swappiness 100; but find it happens on UP
-> also, and when I go back to default swappiness 60.
+> On Sat, 27 Oct 2007, Christoph Lameter wrote:
+> > The alternate path is realized using #ifdef's. Several attempts to do the
+> > same with macros and in line functions resulted in a mess (in particular due
+> > to the strange way that local_interrupt_save() handles its argument and due
+> > to the need to define macros/functions that sometimes disable interrupts
+> > and sometimes do something else. The macro based approaches made it also
+> > difficult to preserve the optimizations for the non cmpxchg paths).
 > 
+> I think at least slub_alloc() and slub_free() can be made simpler. See the 
+> included patch below.
 
-OK.. so those are out of the equation
+Both versions look pretty crappy to me.  The code duplication in the two
+version of do_slab_alloc() could be tidied up considerably.
 
-> I've reordered your mail for more dramatic effect...
->> On a real box - a powerpc machine that I have access to
-> 
-> I've tried on 3 Intel and 1 PowerPC now: the Intels show the OOMs
-> and the PowerPC does not.  I rather doubt it's an Intel versus
-> PowerPC issue as such, but interesting that we see the same.
-> 
+> +#ifdef CONFIG_FAST_CMPXHG_LOCAL
+> +static __always_inline void *do_slab_alloc(struct kmem_cache *s,
+> +		struct kmem_cache_cpu *c, gfp_t gfpflags, int node, void *addr)
+> +{
+> +	unsigned long flags;
+> +	void **object;
+> +
+> +	do {
+> +		object = c->freelist;
+> +		if (unlikely(is_end(object) || !node_match(c, node))) {
+> +			object = __slab_alloc(s, gfpflags, node, addr, c);
+> +			break;
+> +		}
+> +	} while (cmpxchg_local(&c->freelist, object, object[c->offset])
+> +								!= object);
+> +	put_cpu();
+> +
+> +	return object;
+> +}
 
-Very surprising, I am surprised that it's architecture dependent.
-Let me try and grab an Intel box and try.
+Unmatched put_cpu() 
 
->> 1. I don't see the OOM with the mods removed (I have swap
->>    space at-least twice of RAM - with mem=512M, I have at-least
->>    1G of swap).
-> 
-> mem=512M with 1G of swap, yes, I'm the same.
-> 
->> 2. Running under the container is much much faster than running
->>    swapout in the root container. The machine is almost unusable
->>    if swapout is run under the root container
-> 
-> That's rather interesting, isn't it?  Probably irrelevant to the
-> OOM issue we're investigating, but worthy of investigation in itself.
-> 
+> +
+> +static __always_inline void *do_slab_alloc(struct kmem_cache *s,
+> +		struct kmem_cache_cpu *c, gfp_t gfpflags, int node, void *addr)
+> +{
+> +	unsigned long flags;
+> +	void **object;
+> +
+> +	local_irq_save(flags);
+> +	if (unlikely((is_end(c->freelist)) || !node_match(c, node))) {
+> +		object = __slab_alloc(s, gfpflags, node, addr, c);
+> +	} else {
+> +		object = c->freelist;
+> +		c->freelist = object[c->offset];
+> +	}
+> +	local_irq_restore(flags);
+> +	return object;
+> +}
+> +#endif
+> +
+>  /*
+>   * Inlined fastpath so that allocation functions (kmalloc, kmem_cache_alloc)
+>   * have the fastpath folded into their functions. So no function call
+> @@ -1591,24 +1639,13 @@ debug:
+>  static void __always_inline *slab_alloc(struct kmem_cache *s,
+>  		gfp_t gfpflags, int node, void *addr)
+>  {
+> -	void **object;
+> -	unsigned long flags;
+>  	struct kmem_cache_cpu *c;
+> +	void **object;
+>  
+> -	local_irq_save(flags);
+>  	c = get_cpu_slab(s, smp_processor_id());
 
-Yes, it irrelevant, but I find it to be a good use case for using the
-memory controller :-) I found that kswapd running at prio -5, seemed
-to hog quite a bit of the CPU. But it needs more independent
-investigation, like you've suggested.
-
-> Maybe I saw the same on the PowerPC: I simply forgot to set up the
-> cgroup one time, and my sequence of three swapouts (sometimes only
-> two out of three OOM, on those boxes that do OOM) seemed to take a
-> very long time (but I wasn't trying to do anything else on it at
-> the same time, so didn't notice if it was "unusable").
-> 
-> I'll probe on.
-> 
-
-Me too.. I'll try and acquire a good x86_64 box and test on it.
-
-> Hugh
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
-
-
--- 
-	Warm Regards,
-	Balbir Singh
-	Linux Technology Center
-	IBM, ISTL
+smp_processor_id() in preemptible code.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
