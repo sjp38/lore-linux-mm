@@ -1,65 +1,245 @@
-Date: Tue, 30 Oct 2007 11:42:10 -0700 (PDT)
-From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [NUMA] Fix memory policy refcounting
-In-Reply-To: <1193762382.5039.41.camel@localhost>
-Message-ID: <Pine.LNX.4.64.0710301136410.11531@schroedinger.engr.sgi.com>
-References: <Pine.LNX.4.64.0710261638020.29369@schroedinger.engr.sgi.com>
- <1193672929.5035.69.camel@localhost>  <Pine.LNX.4.64.0710291317060.1379@schroedinger.engr.sgi.com>
-  <1193693646.6244.51.camel@localhost>  <Pine.LNX.4.64.0710291438470.3475@schroedinger.engr.sgi.com>
- <1193762382.5039.41.camel@localhost>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Date: Tue, 30 Oct 2007 11:49:33 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [patch 08/10] SLUB: Optional fast path using cmpxchg_local
+Message-Id: <20071030114933.904a4cf8.akpm@linux-foundation.org>
+In-Reply-To: <20071028033300.240703208@sgi.com>
+References: <20071028033156.022983073@sgi.com>
+	<20071028033300.240703208@sgi.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
-Cc: David Rientjes <rientjes@google.com>, Paul Jackson <pj@sgi.com>, linux-mm@kvack.org, Andi Kleen <ak@suse.de>, Eric Whitney <eric.whitney@hp.com>
+To: Christoph Lameter <clameter@sgi.com>
+Cc: matthew@wil.cx, linux-kernel@vger.kernel.org, linux-mm@kvack.org, penberg@cs.helsinki.fi, linux-arch@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 30 Oct 2007, Lee Schermerhorn wrote:
+On Sat, 27 Oct 2007 20:32:04 -0700
+Christoph Lameter <clameter@sgi.com> wrote:
 
-> As part of my shared policy cleanup and enhancement series, I "fixed"
-> numa_maps to display the sub-ranges of policies in a shm segment mapped
-> by a single vma. As part of this fix, I also modified mempolicy.c so
-> that it does not split vmas that support set_policy vm_ops, because
-> handling both split vmas and non-split vmas for a single shm segment
-> would have complicated the code more than I thought necessary.  This is
-> still at prototype stage--altho' it works against 23-rc8-mm2.
+> Provide an alternate implementation of the SLUB fast paths for alloc
+> and free using cmpxchg_local. The cmpxchg_local fast path is selected
+> for arches that have CONFIG_FAST_CMPXCHG_LOCAL set. An arch should only
+> set CONFIG_FAST_CMPXCHG_LOCAL if the cmpxchg_local is faster than an
+> interrupt enable/disable sequence. This is known to be true for both
+> x86 platforms so set FAST_CMPXCHG_LOCAL for both arches.
+> 
+> Not all arches can support fast cmpxchg operations. Typically the
+> architecture must have an optimized cmpxchg instruction. The
+> cmpxchg fast path makes no sense on platforms whose cmpxchg is
+> slower than interrupt enable/disable (like f.e. IA64).
+> 
+> The advantages of a cmpxchg_local based fast path are:
+> 
+> 1. Lower cycle count (30%-60% faster)
+> 
+> 2. There is no need to disable and enable interrupts on the fast path.
+>    Currently interrupts have to be disabled and enabled on every
+>    slab operation. This is likely saving a significant percentage
+>    of interrupt off / on sequences in the kernel.
+> 
+> 3. The disposal of freed slabs can occur with interrupts enabled.
+> 
+> The alternate path is realized using #ifdef's. Several attempts to do the
+> same with macros and in line functions resulted in a mess (in particular due
+> to the strange way that local_interrupt_save() handles its argument and due
+> to the need to define macros/functions that sometimes disable interrupts
+> and sometimes do something else. The macro based approaches made it also
+> difficult to preserve the optimizations for the non cmpxchg paths).
+> 
+> #ifdef seems to be the way to go here to have a readable source.
+> 
+> 
+> ---
+>  arch/x86/Kconfig.i386   |    4 ++
+>  arch/x86/Kconfig.x86_64 |    4 ++
+>  mm/slub.c               |   71 ++++++++++++++++++++++++++++++++++++++++++++++--
 
-I have not looked at that yet. Maybe you could post another patch?
+Let's cc linux-arch: presumably other architectures can implement cpu-local
+cmpxchg and would see some benefit from doing so.
 
-> Re:  'ref = 3' -- One reference for the rbtree--the shm segment and it's
-> policies continue to exist independent of any vma mappings--and one for
-> each attached vma.  Because the vma references are protected by the
-> respective task/mm_struct's  mmap_sem, we won't need to add an
-> additional reference during lookup, nor release it when finished with
-> the policy.  And, we won't need to mess with any other task's mm data
-> structures when installing/removing shmem policies.  Of course, munmap()
-> of a vma will need to decrement the ref count of all policies in a
-> shared policy tree, but this is not a "fast path".  Unfortunately, we
-> don't have a unmap file operation, so I'd have to add one, or otherwise
-> arrange to remove the unmapping vma's ref--perhaps via a vm_op so that
-> we only need to call it on vmas that support it--i.e., that support
-> shared policy.
+The semantics are "atomic wrt interrutps on this cpu, not atomic wrt other
+cpus", yes?
 
-Yup that sounds like it is going to be a good solution.
+Do you have a feel for how useful it would be for arch maintainers to implement
+this?  IOW, is it worth their time?
 
-> if overkill.  This involves:  1) fixing do_set_mempolicy() to hold
-> mmap_sem for write over change, 2) fixing up reference counting for
-> interleaving for both normal [forgot unref] and huge [unconditional
-> unref should be conditional] and 3) adding ref to policy in
-> shm_get_policy() to match shmem_get_policy.  All 3 of these are required
-> to be correct w/o changing any of the rest of the current ref counting.
-
-I know about 1. I'd have to look through 2 + 3. I would suggest to fix the 
-refcounting by doing the refcounting using vmas as you explained above and 
-simply remove the problems that exist there right now.
-
-> Then, once the vma-protected shared policy mechanism discussed above is
-> in mergable, we can back out all of the extra ref's on other task and
-> vma policies and the lookup-time ref on shared policies, along with all
-> of the matching unrefs.
-
-Too complicated. Lets go there directly.
+> 
+> Index: linux-2.6/mm/slub.c
+> ===================================================================
+> --- linux-2.6.orig/mm/slub.c	2007-10-27 10:39:07.583665939 -0700
+> +++ linux-2.6/mm/slub.c	2007-10-27 10:40:19.710415861 -0700
+> @@ -1496,7 +1496,12 @@ static void *__slab_alloc(struct kmem_ca
+>  {
+>  	void **object;
+>  	struct page *new;
+> +#ifdef CONFIG_FAST_CMPXCHG_LOCAL
+> +	unsigned long flags;
+>  
+> +	local_irq_save(flags);
+> +	preempt_enable_no_resched();
+> +#endif
+>  	if (!c->page)
+>  		goto new_slab;
+>  
+> @@ -1518,6 +1523,10 @@ load_freelist:
+>  unlock_out:
+>  	slab_unlock(c->page);
+>  out:
+> +#ifdef CONFIG_FAST_CMPXCHG_LOCAL
+> +	preempt_disable();
+> +	local_irq_restore(flags);
+> +#endif
+>  	return object;
+>  
+>  another_slab:
+> @@ -1592,9 +1601,26 @@ static void __always_inline *slab_alloc(
+>  		gfp_t gfpflags, int node, void *addr)
+>  {
+>  	void **object;
+> -	unsigned long flags;
+>  	struct kmem_cache_cpu *c;
+>  
+> +#ifdef CONFIG_FAST_CMPXCHG_LOCAL
+> +	c = get_cpu_slab(s, get_cpu());
+> +	do {
+> +		object = c->freelist;
+> +		if (unlikely(is_end(object) || !node_match(c, node))) {
+> +			object = __slab_alloc(s, gfpflags, node, addr, c);
+> +			if (unlikely(!object)) {
+> +				put_cpu();
+> +				goto out;
+> +			}
+> +			break;
+> +		}
+> +	} while (cmpxchg_local(&c->freelist, object, object[c->offset])
+> +								!= object);
+> +	put_cpu();
+> +#else
+> +	unsigned long flags;
+> +
+>  	local_irq_save(flags);
+>  	c = get_cpu_slab(s, smp_processor_id());
+>  	if (unlikely((is_end(c->freelist)) || !node_match(c, node))) {
+> @@ -1609,6 +1635,7 @@ static void __always_inline *slab_alloc(
+>  		c->freelist = object[c->offset];
+>  	}
+>  	local_irq_restore(flags);
+> +#endif
+>  
+>  	if (unlikely((gfpflags & __GFP_ZERO)))
+>  		memset(object, 0, c->objsize);
+> @@ -1644,6 +1671,11 @@ static void __slab_free(struct kmem_cach
+>  	void *prior;
+>  	void **object = (void *)x;
+>  
+> +#ifdef CONFIG_FAST_CMPXCHG_LOCAL
+> +	unsigned long flags;
+> +
+> +	local_irq_save(flags);
+> +#endif
+>  	slab_lock(page);
+>  
+>  	if (unlikely(SlabDebug(page)))
+> @@ -1669,6 +1701,9 @@ checks_ok:
+>  
+>  out_unlock:
+>  	slab_unlock(page);
+> +#ifdef CONFIG_FAST_CMPXCHG_LOCAL
+> +	local_irq_restore(flags);
+> +#endif
+>  	return;
+>  
+>  slab_empty:
+> @@ -1679,6 +1714,9 @@ slab_empty:
+>  		remove_partial(s, page);
+>  
+>  	slab_unlock(page);
+> +#ifdef CONFIG_FAST_CMPXCHG_LOCAL
+> +	local_irq_restore(flags);
+> +#endif
+>  	discard_slab(s, page);
+>  	return;
+>  
+> @@ -1703,9 +1741,37 @@ static void __always_inline slab_free(st
+>  			struct page *page, void *x, void *addr)
+>  {
+>  	void **object = (void *)x;
+> -	unsigned long flags;
+>  	struct kmem_cache_cpu *c;
+>  
+> +#ifdef CONFIG_FAST_CMPXCHG_LOCAL
+> +	void **freelist;
+> +
+> +	c = get_cpu_slab(s, get_cpu());
+> +	debug_check_no_locks_freed(object, s->objsize);
+> +	do {
+> +		freelist = c->freelist;
+> +		barrier();
+> +		/*
+> +		 * If the compiler would reorder the retrieval of c->page to
+> +		 * come before c->freelist then an interrupt could
+> +		 * change the cpu slab before we retrieve c->freelist. We
+> +		 * could be matching on a page no longer active and put the
+> +		 * object onto the freelist of the wrong slab.
+> +		 *
+> +		 * On the other hand: If we already have the freelist pointer
+> +		 * then any change of cpu_slab will cause the cmpxchg to fail
+> +		 * since the freelist pointers are unique per slab.
+> +		 */
+> +		if (unlikely(page != c->page || c->node < 0)) {
+> +			__slab_free(s, page, x, addr, c->offset);
+> +			break;
+> +		}
+> +		object[c->offset] = freelist;
+> +	} while (cmpxchg_local(&c->freelist, freelist, object) != freelist);
+> +	put_cpu();
+> +#else
+> +	unsigned long flags;
+> +
+>  	local_irq_save(flags);
+>  	debug_check_no_locks_freed(object, s->objsize);
+>  	c = get_cpu_slab(s, smp_processor_id());
+> @@ -1716,6 +1782,7 @@ static void __always_inline slab_free(st
+>  		__slab_free(s, page, x, addr, c->offset);
+>  
+>  	local_irq_restore(flags);
+> +#endif
+>  }
+>  
+>  void kmem_cache_free(struct kmem_cache *s, void *x)
+> Index: linux-2.6/arch/x86/Kconfig.i386
+> ===================================================================
+> --- linux-2.6.orig/arch/x86/Kconfig.i386	2007-10-27 10:38:33.630415778 -0700
+> +++ linux-2.6/arch/x86/Kconfig.i386	2007-10-27 10:40:19.710415861 -0700
+> @@ -51,6 +51,10 @@ config X86
+>  	bool
+>  	default y
+>  
+> +config FAST_CMPXCHG_LOCAL
+> +	bool
+> +	default y
+> +
+>  config MMU
+>  	bool
+>  	default y
+> Index: linux-2.6/arch/x86/Kconfig.x86_64
+> ===================================================================
+> --- linux-2.6.orig/arch/x86/Kconfig.x86_64	2007-10-27 10:38:33.630415778 -0700
+> +++ linux-2.6/arch/x86/Kconfig.x86_64	2007-10-27 10:40:19.710415861 -0700
+> @@ -97,6 +97,10 @@ config X86_CMPXCHG
+>  	bool
+>  	default y
+>  
+> +config FAST_CMPXCHG_LOCAL
+> +	bool
+> +	default y
+> +
+>  config EARLY_PRINTK
+>  	bool
+>  	default y
+> 
+> -- 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
