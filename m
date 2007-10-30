@@ -1,286 +1,541 @@
-Message-Id: <20071030160914.987987000@chello.nl>
+Message-Id: <20071030160912.873260000@chello.nl>
 References: <20071030160401.296770000@chello.nl>
-Date: Tue, 30 Oct 2007 17:04:26 +0100
+Date: Tue, 30 Oct 2007 17:04:12 +0100
 From: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Subject: [PATCH 25/33] mm: add support for non block device backed swap files
-Content-Disposition: inline; filename=mm-swapfile.patch
+Subject: [PATCH 11/33] mm: memory reserve management
+Content-Disposition: inline; filename=mm-reserve.patch
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, netdev@vger.kernel.org, trond.myklebust@fys.uio.no
 Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>
 List-ID: <linux-mm.kvack.org>
 
-A new addres_space_operations method is added:
-  int swapfile(struct address_space *, int)
+Generic reserve management code. 
 
-When during sys_swapon() this method is found and returns no error the 
-swapper_space.a_ops will proxy to sis->swap_file->f_mapping->a_ops.
-
-The swapfile method will be used to communicate to the address_space that the
-VM relies on it, and the address_space should take adequate measures (like 
-reserving memory for mempools or the like).
+It provides methods to reserve and charge. Upon this, generic alloc/free style
+reserve pools could be build, which could fully replace mempool_t
+functionality.
 
 Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
 ---
- Documentation/filesystems/Locking |    9 +++++
- include/linux/buffer_head.h       |    2 -
- include/linux/fs.h                |    1 
- include/linux/swap.h              |    3 +
- mm/Kconfig                        |    3 +
- mm/page_io.c                      |   58 ++++++++++++++++++++++++++++++++++++++
- mm/swap_state.c                   |    5 +++
- mm/swapfile.c                     |   22 +++++++++++++-
- 8 files changed, 101 insertions(+), 2 deletions(-)
+ include/linux/reserve.h |   54 +++++
+ mm/Makefile             |    2 
+ mm/reserve.c            |  436 ++++++++++++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 491 insertions(+), 1 deletion(-)
 
-Index: linux-2.6/include/linux/swap.h
+Index: linux-2.6/include/linux/reserve.h
 ===================================================================
---- linux-2.6.orig/include/linux/swap.h
-+++ linux-2.6/include/linux/swap.h
-@@ -164,6 +164,7 @@ enum {
- 	SWP_USED	= (1 << 0),	/* is slot in swap_info[] used? */
- 	SWP_WRITEOK	= (1 << 1),	/* ok to write to this swap?	*/
- 	SWP_ACTIVE	= (SWP_USED | SWP_WRITEOK),
-+	SWP_FILE	= (1 << 2),	/* file swap area */
- 					/* add others here before... */
- 	SWP_SCANNING	= (1 << 8),	/* refcount in scan_swap_map */
- };
-@@ -264,6 +265,8 @@ extern void swap_unplug_io_fn(struct bac
- /* linux/mm/page_io.c */
- extern int swap_readpage(struct file *, struct page *);
- extern int swap_writepage(struct page *page, struct writeback_control *wbc);
-+extern void swap_sync_page(struct page *page);
-+extern int swap_set_page_dirty(struct page *page);
- extern void end_swap_bio_read(struct bio *bio, int err);
- 
- /* linux/mm/swap_state.c */
-Index: linux-2.6/mm/page_io.c
-===================================================================
---- linux-2.6.orig/mm/page_io.c
-+++ linux-2.6/mm/page_io.c
-@@ -17,6 +17,7 @@
- #include <linux/bio.h>
- #include <linux/swapops.h>
- #include <linux/writeback.h>
-+#include <linux/buffer_head.h>
- #include <asm/pgtable.h>
- 
- static struct bio *get_swap_bio(gfp_t gfp_flags, pgoff_t index,
-@@ -102,6 +103,18 @@ int swap_writepage(struct page *page, st
- 		unlock_page(page);
- 		goto out;
- 	}
-+#ifdef CONFIG_SWAP_FILE
-+	{
-+		struct swap_info_struct *sis = page_swap_info(page);
-+		if (sis->flags & SWP_FILE) {
-+			ret = sis->swap_file->f_mapping->
-+				a_ops->writepage(page, wbc);
-+			if (!ret)
-+				count_vm_event(PSWPOUT);
-+			return ret;
-+		}
-+	}
-+#endif
- 	bio = get_swap_bio(GFP_NOIO, page_private(page), page,
- 				end_swap_bio_write);
- 	if (bio == NULL) {
-@@ -120,6 +133,39 @@ out:
- 	return ret;
- }
- 
-+#ifdef CONFIG_SWAP_FILE
-+void swap_sync_page(struct page *page)
-+{
-+	struct swap_info_struct *sis = page_swap_info(page);
+--- /dev/null
++++ linux-2.6/include/linux/reserve.h
+@@ -0,0 +1,54 @@
++/*
++ * Memory reserve management.
++ *
++ *  Copyright (C) 2007 Red Hat, Inc., Peter Zijlstra <pzijlstr@redhat.com>
++ *
++ * This file contains the public data structure and API definitions.
++ */
 +
-+	if (sis->flags & SWP_FILE) {
-+		const struct address_space_operations * a_ops =
-+			sis->swap_file->f_mapping->a_ops;
-+		if (a_ops->sync_page)
-+			a_ops->sync_page(page);
-+	} else
-+		block_sync_page(page);
++#ifndef _LINUX_RESERVE_H
++#define _LINUX_RESERVE_H
++
++#include <linux/list.h>
++#include <linux/spinlock.h>
++
++struct mem_reserve {
++	struct mem_reserve *parent;
++	struct list_head children;
++	struct list_head siblings;
++
++	const char *name;
++
++	long pages;
++	long limit;
++	long usage;
++	spinlock_t lock;	/* protects limit and usage */
++};
++
++extern struct mem_reserve mem_reserve_root;
++
++void mem_reserve_init(struct mem_reserve *res, const char *name,
++		      struct mem_reserve *parent);
++int mem_reserve_connect(struct mem_reserve *new_child,
++	       		struct mem_reserve *node);
++int mem_reserve_disconnect(struct mem_reserve *node);
++
++int mem_reserve_pages_set(struct mem_reserve *res, long pages);
++int mem_reserve_pages_add(struct mem_reserve *res, long pages);
++int mem_reserve_pages_charge(struct mem_reserve *res, long pages,
++			     int overcommit);
++
++int mem_reserve_kmalloc_set(struct mem_reserve *res, long bytes);
++int mem_reserve_kmalloc_charge(struct mem_reserve *res, long bytes,
++			       int overcommit);
++
++struct kmem_cache;
++
++int mem_reserve_kmem_cache_set(struct mem_reserve *res,
++	       		       struct kmem_cache *s,
++			       int objects);
++int mem_reserve_kmem_cache_charge(struct mem_reserve *res,
++				  long objs,
++				  int overcommit);
++
++#endif /* _LINUX_RESERVE_H */
+Index: linux-2.6/mm/Makefile
+===================================================================
+--- linux-2.6.orig/mm/Makefile
++++ linux-2.6/mm/Makefile
+@@ -11,7 +11,7 @@ obj-y			:= bootmem.o filemap.o mempool.o
+ 			   page_alloc.o page-writeback.o pdflush.o \
+ 			   readahead.o swap.o truncate.o vmscan.o \
+ 			   prio_tree.o util.o mmzone.o vmstat.o backing-dev.o \
+-			   page_isolation.o $(mmu-y)
++			   page_isolation.o reserve.o $(mmu-y)
+ 
+ obj-$(CONFIG_BOUNCE)	+= bounce.o
+ obj-$(CONFIG_SWAP)	+= page_io.o swap_state.o swapfile.o thrash.o
+Index: linux-2.6/mm/reserve.c
+===================================================================
+--- /dev/null
++++ linux-2.6/mm/reserve.c
+@@ -0,0 +1,436 @@
++/*
++ * Memory reserve management.
++ *
++ *  Copyright (C) 2007, Red Hat, Inc., Peter Zijlstra <pzijlstr@redhat.com>
++ *
++ * Description:
++ *
++ * Manage a set of memory reserves.
++ *
++ * A memory reserve is a reserve for a specified number of object of specified
++ * size. Since memory is managed in pages, this reserve demand is then
++ * translated into a page unit.
++ *
++ * So each reserve has a specified object limit, an object usage count and a
++ * number of pages required to back these objects.
++ *
++ * Usage is charged against a reserve, if the charge fails, the resource must
++ * not be allocated/used.
++ *
++ * The reserves are managed in a tree, and the resource demands (pages and
++ * limit) are propagated up the tree. Obviously the object limit will be
++ * meaningless as soon as the unit starts mixing, but the required page reserve
++ * (being of one unit) is still valid at the root.
++ *
++ * It is the page demand of the root node that is used to set the global
++ * reserve (adjust_memalloc_reserve() which sets zone->pages_emerg).
++ *
++ * As long as a subtree has the same usage unit, an aggregate node can be used
++ * to charge against, instead of the leaf nodes. However, do be consistent with
++ * who is charged, resource usage is not propagated up the tree (for
++ * performance reasons).
++ */
++
++#include <linux/reserve.h>
++#include <linux/mutex.h>
++#include <linux/mmzone.h>
++#include <linux/log2.h>
++#include <linux/proc_fs.h>
++#include <linux/seq_file.h>
++#include <linux/module.h>
++#include <linux/slab.h>
++
++static DEFINE_MUTEX(mem_reserve_mutex);
++
++/**
++ * @mem_reserve_root - the global reserve root
++ *
++ * The global reserve is empty, and has no limit unit, it merely
++ * acts as an aggregation point for reserves and an interface to
++ * adjust_memalloc_reserve().
++ */
++struct mem_reserve mem_reserve_root = {
++	.children = LIST_HEAD_INIT(mem_reserve_root.children),
++	.siblings = LIST_HEAD_INIT(mem_reserve_root.siblings),
++	.name = "total reserve",
++};
++
++EXPORT_SYMBOL_GPL(mem_reserve_root);
++
++/**
++ * mem_reserve_init - initialize a memory reserve object
++ * @res - the new reserve object
++ * @name - a name for this reserve
++ */
++void mem_reserve_init(struct mem_reserve *res, const char *name,
++		      struct mem_reserve *parent)
++{
++	memset(res, 0, sizeof(*res));
++	INIT_LIST_HEAD(&res->children);
++	INIT_LIST_HEAD(&res->siblings);
++	res->name = name;
++
++	if (parent)
++		mem_reserve_connect(res, parent);
 +}
 +
-+int swap_set_page_dirty(struct page *page)
++EXPORT_SYMBOL_GPL(mem_reserve_init);
++
++/*
++ * propagate the pages and limit changes up the tree.
++ */
++static void __calc_reserve(struct mem_reserve *res, long pages, long limit)
 +{
-+	struct swap_info_struct *sis = page_swap_info(page);
++	unsigned long flags;
 +
-+	if (sis->flags & SWP_FILE) {
-+		const struct address_space_operations * a_ops =
-+			sis->swap_file->f_mapping->a_ops;
-+		int (*spd)(struct page *) = a_ops->set_page_dirty;
-+#ifdef CONFIG_BLOCK
-+		if (!spd)
-+			spd = __set_page_dirty_buffers;
-+#endif
-+		return (*spd)(page);
++	for ( ; res; res = res->parent) {
++		res->pages += pages;
++
++		if (limit) {
++			spin_lock_irqsave(&res->lock, flags);
++			res->limit += limit;
++			spin_unlock_irqrestore(&res->lock, flags);
++		}
 +	}
-+
-+	return __set_page_dirty_nobuffers(page);
 +}
-+#endif
 +
- int swap_readpage(struct file *file, struct page *page)
- {
- 	struct bio *bio;
-@@ -127,6 +173,18 @@ int swap_readpage(struct file *file, str
- 
- 	BUG_ON(!PageLocked(page));
- 	ClearPageUptodate(page);
-+#ifdef CONFIG_SWAP_FILE
-+	{
-+		struct swap_info_struct *sis = page_swap_info(page);
-+		if (sis->flags & SWP_FILE) {
-+			ret = sis->swap_file->f_mapping->
-+				a_ops->readpage(sis->swap_file, page);
-+			if (!ret)
-+				count_vm_event(PSWPIN);
-+			return ret;
-+		}
++/**
++ * __mem_reserve_add - primitive to change the size of a reserve
++ * @res - reserve to change
++ * @pages - page delta
++ * @limit - usage limit delta
++ *
++ * Returns -ENOMEM when a size increase is not possible atm.
++ */
++static int __mem_reserve_add(struct mem_reserve *res, long pages, long limit)
++{
++	int ret = 0;
++	long reserve;
++
++	reserve = mem_reserve_root.pages;
++	__calc_reserve(res, pages, 0);
++	reserve = mem_reserve_root.pages - reserve;
++
++	if (reserve) {
++		ret = adjust_memalloc_reserve(reserve);
++		if (ret)
++			__calc_reserve(res, -pages, 0);
 +	}
-+#endif
- 	bio = get_swap_bio(GFP_KERNEL, page_private(page), page,
- 				end_swap_bio_read);
- 	if (bio == NULL) {
-Index: linux-2.6/mm/swap_state.c
-===================================================================
---- linux-2.6.orig/mm/swap_state.c
-+++ linux-2.6/mm/swap_state.c
-@@ -27,8 +27,13 @@
-  */
- static const struct address_space_operations swap_aops = {
- 	.writepage	= swap_writepage,
-+#ifdef CONFIG_SWAP_FILE
-+	.sync_page	= swap_sync_page,
-+	.set_page_dirty	= swap_set_page_dirty,
-+#else
- 	.sync_page	= block_sync_page,
- 	.set_page_dirty	= __set_page_dirty_nobuffers,
-+#endif
- 	.migratepage	= migrate_page,
- };
- 
-Index: linux-2.6/mm/swapfile.c
-===================================================================
---- linux-2.6.orig/mm/swapfile.c
-+++ linux-2.6/mm/swapfile.c
-@@ -988,6 +988,13 @@ static void destroy_swap_extents(struct 
- 		list_del(&se->list);
- 		kfree(se);
- 	}
-+#ifdef CONFIG_SWAP_FILE
-+	if (sis->flags & SWP_FILE) {
-+		sis->flags &= ~SWP_FILE;
-+		sis->swap_file->f_mapping->a_ops->
-+			swapfile(sis->swap_file->f_mapping, 0);
++
++	if (!ret)
++		__calc_reserve(res, 0, limit);
++
++	return ret;
++}
++
++/**
++ * __mem_reserve_charge - primitive to charge object usage to a reserve
++ * @res - reserve to charge
++ * @charge - size of the charge
++ * @overcommit - allow despite of limit (use with caution!)
++ *
++ * Returns non-zero on success, zero on failure.
++ */
++static
++int __mem_reserve_charge(struct mem_reserve *res, long charge, int overcommit)
++{
++	unsigned long flags;
++	int ret = 0;
++
++	spin_lock_irqsave(&res->lock, flags);
++	if (charge < 0 || res->usage + charge < res->limit || overcommit) {
++		res->usage += charge;
++		if (unlikely(res->usage < 0))
++			res->usage = 0;
++		ret = 1;
 +	}
-+#endif
- }
- 
- /*
-@@ -1080,6 +1087,19 @@ static int setup_swap_extents(struct swa
- 		goto done;
- 	}
- 
-+#ifdef CONFIG_SWAP_FILE
-+	if (sis->swap_file->f_mapping->a_ops->swapfile) {
-+		ret = sis->swap_file->f_mapping->a_ops->
-+			swapfile(sis->swap_file->f_mapping, 1);
-+		if (!ret) {
-+			sis->flags |= SWP_FILE;
-+			ret = add_swap_extent(sis, 0, sis->max, 0);
-+			*span = sis->pages;
-+		}
-+		goto done;
++	spin_unlock_irqrestore(&res->lock, flags);
++
++	return ret;
++}
++
++/**
++ * mem_reserve_connect - connect a reserve to another in a child-parent relation
++ * @new_child - the reserve node to connect (child)
++ * @node - the reserve node to connect to (parent)
++ *
++ * Returns -ENOMEM when the new connection would increase the reserve (parent
++ * is connected to mem_reserve_root) and there is no memory to do so.
++ *
++ * The child is _NOT_ connected on error.
++ */
++int mem_reserve_connect(struct mem_reserve *new_child, struct mem_reserve *node)
++{
++	int ret;
++
++	WARN_ON(!new_child->name);
++
++	mutex_lock(&mem_reserve_mutex);
++	new_child->parent = node;
++	list_add(&new_child->siblings, &node->children);
++	ret = __mem_reserve_add(node, new_child->pages, new_child->limit);
++	if (ret) {
++		new_child->parent = NULL;
++		list_del_init(&new_child->siblings);
 +	}
++	mutex_unlock(&mem_reserve_mutex);
++
++	return ret;
++}
++
++EXPORT_SYMBOL_GPL(mem_reserve_connect);
++
++/**
++ * mem_reserve_disconnect - sever a nodes connection to the reserve tree
++ * @node - the node to disconnect
++ *
++ * Could, in theory, return -ENOMEM, but since disconnecting a node _should_
++ * only decrease the reserves that _should_ not happen.
++ */
++int mem_reserve_disconnect(struct mem_reserve *node)
++{
++	int ret;
++
++	BUG_ON(!node->parent);
++
++	mutex_lock(&mem_reserve_mutex);
++	ret = __mem_reserve_add(node->parent, -node->pages, -node->limit);
++	if (!ret) {
++		node->parent = NULL;
++		list_del_init(&node->siblings);
++	}
++	mutex_unlock(&mem_reserve_mutex);
++
++	return ret;
++}
++
++EXPORT_SYMBOL_GPL(mem_reserve_disconnect);
++
++#ifdef CONFIG_PROC_FS
++
++/*
++ * Simple output of the reserve tree in: /proc/reserve_info
++ * Example:
++ *
++ * localhost ~ # cat /proc/reserve_info
++ * total reserve                  8156K (0/544817)
++ *   total network reserve          8156K (0/544817)
++ *     network TX reserve             196K (0/49)
++ *       protocol TX pages              196K (0/49)
++ *     network RX reserve             7960K (0/544768)
++ *       IPv6 route cache               1372K (0/4096)
++ *       IPv4 route cache               5468K (0/16384)
++ *       SKB data reserve               1120K (0/524288)
++ *         IPv6 fragment cache            560K (0/262144)
++ *         IPv4 fragment cache            560K (0/262144)
++ */
++
++static void mem_reserve_show_item(struct seq_file *m, struct mem_reserve *res,
++				  int nesting)
++{
++	int i;
++	struct mem_reserve *child;
++
++	for (i = 0; i < nesting; i++)
++		seq_puts(m, "  ");
++
++	seq_printf(m, "%-30s %ldK (%ld/%ld)\n",
++		   res->name, res->pages << (PAGE_SHIFT - 10),
++		   res->usage, res->limit);
++
++	list_for_each_entry(child, &res->children, siblings)
++		mem_reserve_show_item(m, child, nesting+1);
++}
++
++static int mem_reserve_show(struct seq_file *m, void *v)
++{
++	mutex_lock(&mem_reserve_mutex);
++	mem_reserve_show_item(m, &mem_reserve_root, 0);
++	mutex_unlock(&mem_reserve_mutex);
++
++	return 0;
++}
++
++static int mem_reserve_open(struct inode *inode, struct file *file)
++{
++	return single_open(file, mem_reserve_show, NULL);
++}
++
++static const struct file_operations mem_reserve_opterations = {
++	.open = mem_reserve_open,
++	.read = seq_read,
++	.llseek = seq_lseek,
++	.release = single_release,
++};
++
++static __init int mem_reserve_proc_init(void)
++{
++	struct proc_dir_entry *entry;
++
++	entry = create_proc_entry("reserve_info", S_IRUSR, NULL);
++	if (entry)
++		entry->proc_fops = &mem_reserve_opterations;
++
++	return 0;
++}
++
++__initcall(mem_reserve_proc_init);
++
 +#endif
 +
- 	blkbits = inode->i_blkbits;
- 	blocks_per_page = PAGE_SIZE >> blkbits;
- 
-@@ -1644,7 +1664,7 @@ asmlinkage long sys_swapon(const char __
- 
- 	mutex_lock(&swapon_mutex);
- 	spin_lock(&swap_lock);
--	p->flags = SWP_ACTIVE;
-+	p->flags |= SWP_WRITEOK;
- 	nr_swap_pages += nr_good_pages;
- 	total_swap_pages += nr_good_pages;
- 
-Index: linux-2.6/include/linux/fs.h
-===================================================================
---- linux-2.6.orig/include/linux/fs.h
-+++ linux-2.6/include/linux/fs.h
-@@ -485,6 +485,7 @@ struct address_space_operations {
- 	int (*migratepage) (struct address_space *,
- 			struct page *, struct page *);
- 	int (*launder_page) (struct page *);
-+	int (*swapfile)(struct address_space *, int);
- };
- 
- /*
-Index: linux-2.6/Documentation/filesystems/Locking
-===================================================================
---- linux-2.6.orig/Documentation/filesystems/Locking
-+++ linux-2.6/Documentation/filesystems/Locking
-@@ -174,6 +174,7 @@ prototypes:
- 	int (*direct_IO)(int, struct kiocb *, const struct iovec *iov,
- 			loff_t offset, unsigned long nr_segs);
- 	int (*launder_page) (struct page *);
-+	int (*swapfile) (struct address_space *, int);
- 
- locking rules:
- 	All except set_page_dirty may block
-@@ -195,6 +196,7 @@ invalidatepage:		no	yes
- releasepage:		no	yes
- direct_IO:		no
- launder_page:		no	yes
-+swapfile		no
- 
- 	->prepare_write(), ->commit_write(), ->sync_page() and ->readpage()
- may be called from the request handler (/dev/loop).
-@@ -294,6 +296,13 @@ cleaned, or an error value if not. Note 
- getting mapped back in and redirtied, it needs to be kept locked
- across the entire operation.
- 
-+	->swapfile() will be called with a non zero argument on address spaces
-+backing non block device backed swapfiles. A return value of zero indicates
-+success. In which case this address space can be used for backing swapspace.
-+The swapspace operations will be proxied to the address space operations.
-+Swapoff will call this method with a zero argument to release the address
-+space.
++/*
++ * alloc_page helpers
++ */
 +
- 	Note: currently almost all instances of address_space methods are
- using BKL for internal serialization and that's one of the worst sources
- of contention. Normally they are calling library functions (in fs/buffer.c)
-Index: linux-2.6/mm/Kconfig
-===================================================================
---- linux-2.6.orig/mm/Kconfig
-+++ linux-2.6/mm/Kconfig
-@@ -186,6 +186,9 @@ config BOUNCE
- 	def_bool y
- 	depends on BLOCK && MMU && (ZONE_DMA || HIGHMEM)
- 
-+config SWAP_FILE
-+	def_bool n
++/**
++ * mem_reserve_pages_set - set reserves size in pages
++ * @res - reserve to set
++ * @pages - size in pages to set it to
++ *
++ * Returns -ENOMEM when it fails to set the reserve. On failure the old size
++ * is preserved.
++ */
++int mem_reserve_pages_set(struct mem_reserve *res, long pages)
++{
++	int ret;
 +
- config NR_QUICK
- 	int
- 	depends on QUICKLIST
-Index: linux-2.6/include/linux/buffer_head.h
-===================================================================
---- linux-2.6.orig/include/linux/buffer_head.h
-+++ linux-2.6/include/linux/buffer_head.h
-@@ -329,7 +329,7 @@ static inline void invalidate_inode_buff
- static inline int remove_inode_buffers(struct inode *inode) { return 1; }
- static inline int sync_mapping_buffers(struct address_space *mapping) { return 0; }
- static inline void invalidate_bdev(struct block_device *bdev) {}
--
-+static inline void block_sync_page(struct page *) { }
- 
- #endif /* CONFIG_BLOCK */
- #endif /* _LINUX_BUFFER_HEAD_H */
++	mutex_lock(&mem_reserve_mutex);
++	pages -= res->pages;
++	ret = __mem_reserve_add(res, pages, pages);
++	mutex_unlock(&mem_reserve_mutex);
++
++	return ret;
++}
++
++EXPORT_SYMBOL_GPL(mem_reserve_pages_set);
++
++/**
++ * mem_reserve_pages_add - change the size in a relative way
++ * @res - reserve to change
++ * @pages - number of pages to add (or subtract when negative)
++ *
++ * Similar to mem_reserve_pages_set, except that the argument is relative instead
++ * of absolute.
++ *
++ * Returns -ENOMEM when it fails to increase.
++ */
++int mem_reserve_pages_add(struct mem_reserve *res, long pages)
++{
++	int ret;
++
++	mutex_lock(&mem_reserve_mutex);
++	ret = __mem_reserve_add(res, pages, pages);
++	mutex_unlock(&mem_reserve_mutex);
++
++	return ret;
++}
++
++/**
++ * mem_reserve_pages_charge - charge page usage to a reserve
++ * @res - reserve to charge
++ * @pages - size to charge
++ * @overcommit - disregard the usage limit (use with caution!)
++ *
++ * Returns non-zero on success.
++ */
++int mem_reserve_pages_charge(struct mem_reserve *res, long pages, int overcommit)
++{
++	return __mem_reserve_charge(res, pages, overcommit);
++}
++
++EXPORT_SYMBOL_GPL(mem_reserve_pages_charge);
++
++/*
++ * kmalloc helpers
++ */
++
++/**
++ * mem_reserve_kmalloc_set - set this reserve to bytes worth of kmalloc
++ * @res - reserve to change
++ * @bytes - size in bytes to reserve
++ *
++ * Returns -ENOMEM on failure.
++ */
++int mem_reserve_kmalloc_set(struct mem_reserve *res, long bytes)
++{
++	int ret;
++	long pages;
++
++	mutex_lock(&mem_reserve_mutex);
++	pages = kestimate(GFP_ATOMIC, bytes);
++	pages -= res->pages;
++	bytes -= res->limit;
++	ret = __mem_reserve_add(res, pages, bytes);
++	mutex_unlock(&mem_reserve_mutex);
++
++	return ret;
++}
++
++EXPORT_SYMBOL_GPL(mem_reserve_kmalloc_set);
++
++/**
++ * mem_reserve_kmalloc_charge - charge bytes to a reserve
++ * @res - reserve to charge
++ * @bytes - bytes to charge
++ * @overcommit - disregard the usage limit (use with caution!)
++ *
++ * Returns non-zero on success.
++ */
++int mem_reserve_kmalloc_charge(struct mem_reserve *res, long bytes,
++			       int overcommit)
++{
++	if (bytes < 0)
++		bytes = -roundup_pow_of_two(-bytes);
++	else
++		bytes = roundup_pow_of_two(bytes);
++
++	return __mem_reserve_charge(res, bytes, overcommit);
++}
++
++EXPORT_SYMBOL_GPL(mem_reserve_kmalloc_charge);
++
++/*
++ * kmem_cache helpers
++ */
++
++/**
++ * mem_reserve_kmem_cache_set - set reserve to @objects worth of kmem_cache_alloc of @s
++ * @res - reserve to set
++ * @s - kmem_cache to reserve from
++ * @objects - number of objects to reserve
++ *
++ * Returns -ENOMEM on failure.
++ */
++int mem_reserve_kmem_cache_set(struct mem_reserve *res, struct kmem_cache *s,
++			       int objects)
++{
++	int ret;
++	long pages;
++
++	mutex_lock(&mem_reserve_mutex);
++	pages = kmem_estimate_pages(s, GFP_ATOMIC, objects);
++	pages -= res->pages;
++	objects -= res->limit;
++	ret = __mem_reserve_add(res, pages, objects);
++	mutex_unlock(&mem_reserve_mutex);
++
++	return ret;
++}
++
++EXPORT_SYMBOL_GPL(mem_reserve_kmem_cache_set);
++
++/**
++ * mem_reserve_kmem_cache_charge - charge (or uncharge) usage of objs
++ * @res - reserve to charge
++ * @objs - objects to charge for
++ * @overcommit - disregard the usage limit (use with caution!)
++ *
++ * Returns non-zero on success.
++ */
++int mem_reserve_kmem_cache_charge(struct mem_reserve *res, long objs,
++				  int overcommit)
++{
++	return __mem_reserve_charge(res, objs, overcommit);
++}
++
++EXPORT_SYMBOL_GPL(mem_reserve_kmem_cache_charge);
 
 --
 
