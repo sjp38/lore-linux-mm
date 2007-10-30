@@ -1,87 +1,46 @@
-Received: from d03relay02.boulder.ibm.com (d03relay02.boulder.ibm.com [9.17.195.227])
-	by e34.co.us.ibm.com (8.13.8/8.13.8) with ESMTP id l9UN8K4f006906
-	for <linux-mm@kvack.org>; Tue, 30 Oct 2007 19:08:20 -0400
-Received: from d03av04.boulder.ibm.com (d03av04.boulder.ibm.com [9.17.195.170])
-	by d03relay02.boulder.ibm.com (8.13.8/8.13.8/NCO v8.5) with ESMTP id l9UN8Knf110502
-	for <linux-mm@kvack.org>; Tue, 30 Oct 2007 17:08:20 -0600
-Received: from d03av04.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av04.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l9UN8JY0011981
-	for <linux-mm@kvack.org>; Tue, 30 Oct 2007 17:08:19 -0600
-Message-ID: <4727B979.8030207@us.ibm.com>
-Date: Tue, 30 Oct 2007 16:08:41 -0700
-From: Badari <pbadari@us.ibm.com>
-MIME-Version: 1.0
-Subject: Re: migratepage failures on reiserfs
-References: <1193768824.8904.11.camel@dyn9047017100.beaverton.ibm.com> <20071030135442.5d33c61c@think.oraclecorp.com> <1193781245.8904.28.camel@dyn9047017100.beaverton.ibm.com> <20071030185840.48f5a10b@think.oraclecorp.com>
-In-Reply-To: <20071030185840.48f5a10b@think.oraclecorp.com>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Date: Tue, 30 Oct 2007 16:22:19 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH 2/5] hugetlb: Fix quota management for private mappings
+Message-Id: <20071030162219.511394fb.akpm@linux-foundation.org>
+In-Reply-To: <20071030204615.16585.60817.stgit@kernel>
+References: <20071030204554.16585.80588.stgit@kernel>
+	<20071030204615.16585.60817.stgit@kernel>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Chris Mason <chris.mason@oracle.com>
-Cc: reiserfs-devel@vger.kernel.org, linux-mm <linux-mm@kvack.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>
+To: Adam Litke <agl@us.ibm.com>
+Cc: linux-mm@kvack.org, linux-kernel@kvack.org, kenchen@google.com, apw@shadowen.org, haveblue@us.ibm.com, Christoph Lameter <clameter@sgi.com>
 List-ID: <linux-mm.kvack.org>
 
-Chris Mason wrote:
-> On Tue, 30 Oct 2007 13:54:05 -0800
-> Badari Pulavarty <pbadari@us.ibm.com> wrote:
->
->   
->> On Tue, 2007-10-30 at 13:54 -0400, Chris Mason wrote:
->>     
->>> On Tue, 30 Oct 2007 10:27:04 -0800
->>> Badari Pulavarty <pbadari@us.ibm.com> wrote:
->>>
->>>       
->>>> Hi,
->>>>
->>>> While testing hotplug memory remove, I ran into this issue. Given
->>>> a range of pages hotplug memory remove tries to migrate those
->>>> pages.
->>>>
->>>> migrate_pages() keeps failing to migrate pages containing
->>>> pagecache pages for reiserfs files. I noticed that reiserfs
->>>> doesn't have ->migratepage() ops. So, fallback_migrate_page()
->>>> code tries to do try_to_release_page(). try_to_release_page()
->>>> fails to drop_buffers() since b_count == 1. Here is what my debug
->>>> shows:
->>>>
->>>> 	migrate pages failed pfn 258111/flags 3f00000000801
->>>> 	bh c00000000b53f6e0 flags 110029 count 1
->>>> 	
->>>> Any one know why the b_count == 1 and not getting dropped to
->>>> zero ? 
->>>>         
->>> If these are file data pages, the count is probably elevated as
->>> part of the data=ordered tracking.  You can verify this via
->>> b_private, or just mount data=writeback to double check.
->>>       
->> Chris,
->>
->> That was my first assumption. But after looking at
->> reiserfs_releasepage (), realized that it would do reiserfs_free_jh()
->> and clears the b_private. I couldn't easily find out who has the ref.
->> against this bh.
->>
->> bh c00000000bdaaf00 flags 110029 count 1 private 0
->>
->>     
->
-> If I'm reading this correctly the buffer is BH_Lock | BH_Req, perhaps
-> it is currently under IO?
->   
-Its BH_Req | BH_Uptodate. Its not under IO.
-> The page isn't locked, but data=ordered does IO directly on the buffer
-> heads, without taking the page lock.
->
-> The easy way to narrow our search is to try without data=ordered, it is
-> certainly complicating things.
->   
+On Tue, 30 Oct 2007 13:46:15 -0700
+Adam Litke <agl@us.ibm.com> wrote:
 
-I can try that, its my root filesystem :(
+> 
+> The hugetlbfs quota management system was never taught to handle
+> MAP_PRIVATE mappings when that support was added.  Currently, quota is
+> debited at page instantiation and credited at file truncation.  This
+> approach works correctly for shared pages but is incomplete for private
+> pages.  In addition to hugetlb_no_page(), private pages can be instantiated
+> by hugetlb_cow(); but this function does not respect quotas.
+> 
+> Private huge pages are treated very much like normal, anonymous pages.
+> They are not "backed" by the hugetlbfs file and are not stored in the
+> mapping's radix tree.  This means that private pages are invisible to
+> truncate_hugepages() so that function will not credit the quota.
+> 
+> This patch (based on a prototype provided by Ken Chen) moves quota
+> crediting for all pages into free_huge_page().  page->private is used to
+> store a pointer to the mapping to which this page belongs.  This is used to
+> credit quota on the appropriate hugetlbfs instance.
+> 
 
-Thanks,
-Badari
+Consuming page.private on hugetlb pages is a noteworthy change.  I'm in
+fact surprised that it's still available.
+
+I'd expect that others (eg Christoph?) have designs upon it as well.  We
+need to work out if this is the best use we can put it to.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
