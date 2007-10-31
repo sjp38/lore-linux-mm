@@ -1,64 +1,110 @@
-From: Nick Piggin <nickpiggin@yahoo.com.au>
-Subject: Re: [PATCH] Swap delay accounting, include lock_page() delays
-Date: Wed, 31 Oct 2007 20:10:33 +1100
-References: <20071031075243.22225.53636.sendpatchset@balbir-laptop> <200710311841.53671.nickpiggin@yahoo.com.au>
-In-Reply-To: <200710311841.53671.nickpiggin@yahoo.com.au>
-MIME-Version: 1.0
-Content-Type: text/plain;
-  charset="utf-8"
+Date: Wed, 31 Oct 2007 19:28:48 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: [PATCH] memory cgroup enhancements take 4 [3/8] remember
+ "a page is charged as page cache"
+Message-Id: <20071031192848.4349bdeb.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20071031192213.4f736fac.kamezawa.hiroyu@jp.fujitsu.com>
+References: <20071031192213.4f736fac.kamezawa.hiroyu@jp.fujitsu.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
-Message-Id: <200710312010.33833.nickpiggin@yahoo.com.au>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Balbir Singh <balbir@linux.vnet.ibm.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Linux MM Mailing List <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "containers@lists.osdl.org" <containers@lists.osdl.org>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "yamamoto@valinux.co.jp" <yamamoto@valinux.co.jp>, Andrew Morton <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-On Wednesday 31 October 2007 18:41, Nick Piggin wrote:
-> On Wednesday 31 October 2007 18:52, Balbir Singh wrote:
-> > Reported-by: Nick Piggin <nickpiggin@yahoo.com.au>
-> >
-> > The delay incurred in lock_page() should also be accounted in swap delay
-> > accounting
-> >
-> > Signed-off-by: Balbir Singh <balbir@linux.vnet.ibm.com>
->
-> Ah right, I forgot to resend this one, sorry. Thanks for remembering.
+Add a flag to page_cgroup to remember "this page is
+charged as cache."
+cache here includes page caches and swap cache.
+This is useful for implementing precise accounting in memory cgroup.
+TODO:
+  distinguish page-cache and swap-cache 
 
-Although, I think I had a bit more detail in the changelog which
-I think should be kept.
+Changelog v2 -> v3
+  - added enum for mem_cgroup_charge_type_common(...charge_type)
+  - renamed #define PCGF_XXX_XXX to PAGE_CGROUP_FLAG_XXX
 
-Basically, swap delay accounting seems quite broken as of now,
-because what it is counting is the time required to allocate a new
-page and submit the IO, but not actually the time to perform the IO
-at all (which I'd expect will be significant, although possibly in
-some workloads the actual page allocation will dominate).
+Changelog v1 -> v2
+  - moved #define to out-side of struct definition
 
->
-> > ---
-> >
-> >  mm/memory.c |    2 +-
-> >  1 file changed, 1 insertion(+), 1 deletion(-)
-> >
-> > diff -puN mm/swapfile.c~fix-delay-accounting-swap-accounting
-> > mm/swapfile.c diff -puN mm/memory.c~fix-delay-accounting-swap-accounting
-> > mm/memory.c ---
-> > linux-2.6-latest/mm/memory.c~fix-delay-accounting-swap-accounting	2007-10
-> >-3 1 12:58:05.000000000 +0530 +++
-> > linux-2.6-latest-balbir/mm/memory.c	2007-10-31 13:02:50.000000000 +0530
-> > @@ -2084,9 +2084,9 @@ static int do_swap_page(struct mm_struct
-> >  		count_vm_event(PGMAJFAULT);
-> >  	}
-> >
-> > -	delayacct_clear_flag(DELAYACCT_PF_SWAPIN);
-> >  	mark_page_accessed(page);
-> >  	lock_page(page);
-> > +	delayacct_clear_flag(DELAYACCT_PF_SWAPIN);
-> >
-> >  	/*
-> >  	 * Back out if somebody else already faulted in this pte.
-> > _
+Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Signed-off-by: YAMAMOTO Takashi <yamamoto@valinux.co.jp>
+
+ mm/memcontrol.c |   24 +++++++++++++++++++++---
+ 1 file changed, 21 insertions(+), 3 deletions(-)
+
+Index: devel-2.6.23-mm1/mm/memcontrol.c
+===================================================================
+--- devel-2.6.23-mm1.orig/mm/memcontrol.c
++++ devel-2.6.23-mm1/mm/memcontrol.c
+@@ -83,7 +83,9 @@ struct page_cgroup {
+ 	struct mem_cgroup *mem_cgroup;
+ 	atomic_t ref_cnt;		/* Helpful when pages move b/w  */
+ 					/* mapped and cached states     */
++	int	 flags;
+ };
++#define PAGE_CGROUP_FLAG_CACHE	(0x1)	/* charged as cache */
+ 
+ enum {
+ 	MEM_CGROUP_TYPE_UNSPEC = 0,
+@@ -93,6 +95,11 @@ enum {
+ 	MEM_CGROUP_TYPE_MAX,
+ };
+ 
++enum charge_type {
++	MEM_CGROUP_CHARGE_TYPE_CACHE = 0,
++	MEM_CGROUP_CHARGE_TYPE_MAPPED,
++};
++
+ static struct mem_cgroup init_mem_cgroup;
+ 
+ static inline
+@@ -315,8 +322,8 @@ unsigned long mem_cgroup_isolate_pages(u
+  * 0 if the charge was successful
+  * < 0 if the cgroup is over its limit
+  */
+-int mem_cgroup_charge(struct page *page, struct mm_struct *mm,
+-				gfp_t gfp_mask)
++static int mem_cgroup_charge_common(struct page *page, struct mm_struct *mm,
++				gfp_t gfp_mask, enum charge_type ctype)
+ {
+ 	struct mem_cgroup *mem;
+ 	struct page_cgroup *pc;
+@@ -418,6 +425,9 @@ noreclaim:
+ 	atomic_set(&pc->ref_cnt, 1);
+ 	pc->mem_cgroup = mem;
+ 	pc->page = page;
++	pc->flags = 0;
++	if (ctype == MEM_CGROUP_CHARGE_TYPE_CACHE)
++		pc->flags |= PAGE_CGROUP_FLAG_CACHE;
+ 	if (page_cgroup_assign_new_page_cgroup(page, pc)) {
+ 		/*
+ 		 * an another charge is added to this page already.
+@@ -442,6 +452,13 @@ err:
+ 	return -ENOMEM;
+ }
+ 
++int mem_cgroup_charge(struct page *page, struct mm_struct *mm,
++			gfp_t gfp_mask)
++{
++	return mem_cgroup_charge_common(page, mm, gfp_mask,
++			MEM_CGROUP_CHARGE_TYPE_MAPPED);
++}
++
+ /*
+  * See if the cached pages should be charged at all?
+  */
+@@ -454,7 +471,8 @@ int mem_cgroup_cache_charge(struct page 
+ 
+ 	mem = rcu_dereference(mm->mem_cgroup);
+ 	if (mem->control_type == MEM_CGROUP_TYPE_ALL)
+-		return mem_cgroup_charge(page, mm, gfp_mask);
++		return mem_cgroup_charge_common(page, mm, gfp_mask,
++				MEM_CGROUP_CHARGE_TYPE_CACHE);
+ 	else
+ 		return 0;
+ }
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
