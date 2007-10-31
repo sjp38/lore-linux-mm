@@ -1,114 +1,163 @@
-Received: from d03relay02.boulder.ibm.com (d03relay02.boulder.ibm.com [9.17.195.227])
-	by e33.co.us.ibm.com (8.13.8/8.13.8) with ESMTP id lA14fOZB026766
-	for <linux-mm@kvack.org>; Thu, 1 Nov 2007 00:41:24 -0400
-Received: from d03av04.boulder.ibm.com (d03av04.boulder.ibm.com [9.17.195.170])
-	by d03relay02.boulder.ibm.com (8.13.8/8.13.8/NCO v8.5) with ESMTP id lA14fOdH094362
-	for <linux-mm@kvack.org>; Wed, 31 Oct 2007 22:41:24 -0600
-Received: from d03av04.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av04.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id lA14fOlc010862
-	for <linux-mm@kvack.org>; Wed, 31 Oct 2007 22:41:24 -0600
-Message-Id: <20071101044124.835937000@us.ibm.com>
-References: <20071101033508.720885000@us.ibm.com>
-Date: Wed, 31 Oct 2007 20:35:11 -0700
-From: Matt Helsley <matthltc@us.ibm.com>
-Subject: [RFC][PATCH 3/3] [RFC][PATCH] Make /proc/pid/exe symlink changeable
-Content-Disposition: inline; filename=writeable_proc_pid_exe
-Sender: owner-linux-mm@kvack.org
-Return-Path: <owner-linux-mm@kvack.org>
-To: Linux-Kernel <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Al Viro <viro@ftp.linux.org.uk>, Dave Hansen <haveblue@us.ibm.com>
+Message-ID: <2c24c201c81c50$fae06330$0400a8c0@YOUR0B890C2128>
+From: "Joan Brandt" <JudithappliedDailey@gpscanada.com>
+Subject: Approval process
+Date: Wed, 31 Oct 2007 23:32:13 +0700
+MIME-Version: 1.0
+Content-Type: multipart/alternative;
+	boundary="----=_NextPart_000_2C24BE_01C81C50.FAE06330"
+Return-Path: <JudithappliedDailey@gpscanada.com>
+To: mm@kvack.org, linux-mm@kvack.org, kelda@kvack.org, linux-mm-archive@kvack.org, majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-This patch makes the /proc/<pid>|self/exe symlink writeable. This
-functionality could be useful to potential checkpoint/restart implementations
-restarting Java VMs, for example. Java uses this symlink to locate 
-JAVAHOME so any restarted Java program requires that /proc/self/exe points to
-the jvm and not the restart exectuable.
+This is a multi-part message in MIME format.
 
-Signed-off-by: Matt Helsley <matthltc@us.ibm.com>
----
- fs/proc/base.c |   37 ++++++++++++++++++++++++++++++++++++-
- 1 file changed, 36 insertions(+), 1 deletion(-)
+------=_NextPart_000_2C24BE_01C81C50.FAE06330
+Content-Type: text/plain;
+	charset="iso-8859-1"
+Content-Transfer-Encoding: quoted-printable
 
-Index: linux-2.6.23/fs/proc/base.c
-===================================================================
---- linux-2.6.23.orig/fs/proc/base.c
-+++ linux-2.6.23/fs/proc/base.c
-@@ -930,10 +930,37 @@ static const struct file_operations proc
- 	.release	= single_release,
- };
- 
- #endif
- 
-+static int proc_pid_exe_symlink(struct inode *inode, struct dentry *dentry,
-+				const char *path)
-+{
-+	struct file *new_exe_file;
-+	struct task_struct *task;
-+	struct mm_struct *mm;
-+	int error;
-+
-+	if (!proc_fd_access_allowed(dentry->d_inode))
-+		return -EACCES;
-+	task = get_proc_task(inode);
-+	if (!task)
-+		return -ENOENT;
-+	mm = get_task_mm(task);
-+	put_task_struct(task);
-+	if (!mm)
-+		return -ENOENT;
-+	new_exe_file = open_exec(path);
-+	error = PTR_ERR(new_exe_file);
-+	if (!IS_ERR(error)) {
-+		set_mm_exe_file(mm, new_exe_file);
-+		error = 0;
-+	}
-+	mmput(mm);
-+	return error;
-+}
-+
- static int proc_exe_link(struct inode *inode, struct dentry **dentry,
- 			 struct vfsmount **mnt)
- {
- 	struct task_struct *task;
- 	struct mm_struct *mm;
-@@ -1027,10 +1054,16 @@ static const struct inode_operations pro
- 	.readlink	= proc_pid_readlink,
- 	.follow_link	= proc_pid_follow_link,
- 	.setattr	= proc_setattr,
- };
- 
-+static const struct inode_operations proc_pid_exe_inode_operations = {
-+	.readlink	= proc_pid_readlink,
-+	.follow_link	= proc_pid_follow_link,
-+	.symlink	= proc_pid_exe_symlink,
-+	.setattr	= proc_setattr,
-+};
- 
- /* building an inode */
- 
- static int task_dumpable(struct task_struct *task)
- {
-@@ -2087,11 +2120,13 @@ static const struct pid_entry tgid_base_
- 	REG("numa_maps",  S_IRUGO, numa_maps),
- #endif
- 	REG("mem",        S_IRUSR|S_IWUSR, mem),
- 	LNK("cwd",        cwd),
- 	LNK("root",       root),
--	LNK("exe",        exe),
-+	NOD("exe", (S_IFLNK|S_IRWXUGO),
-+		&proc_pid_exe_inode_operations, NULL,
-+		{ .proc_get_link = &proc_exe_link }),
- 	REG("mounts",     S_IRUGO, mounts),
- 	REG("mountstats", S_IRUSR, mountstats),
- #ifdef CONFIG_MMU
- 	REG("clear_refs", S_IWUSR, clear_refs),
- 	REG("smaps",      S_IRUGO, smaps),
+Even if you have no erection problems Viagra would help you to make =
+better sex more often and to bring unimaginable plesure to her. Just =
+disolve half a pill under your tongue and get ready for action in 30 =
+minutes. The tests showed that the majority of men after taking this =
+medication were able to have perfect erection during 24 hours!
 
---
+Package
+Quantity
+Price in your local drugstore*
+Our price
+LearnMoreNow
 
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+10 tabs
+20 doses
+$99.95
+$34.49
+
+30 tabs
+60 doses
+$299.95
+$88.50
+
+60 tabs
+120 doses
+$449.95
+$141.02
+
+90 tabs
+180 doses
+$769.95
+$176.40
+
+180 tabs
+360 doses
+$1299.95
+$298.46
+
+When you are young and stressed up&hellip;
+When you are aged and never give up&hellip;
+Viagra gives you confidence in any chance, every time.
+------=_NextPart_000_2C24BE_01C81C50.FAE06330
+Content-Type: text/html;
+	charset="iso-8859-1"
+Content-Transfer-Encoding: quoted-printable
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
+<HTML><HEAD>
+<META http-equiv=3DContent-Type content=3D"text/html; =
+charset=3Diso-8859-1">
+<META content=3D"MSHTML 6.00.2800.1458" name=3DGENERATOR>
+<STYLE></STYLE>
+</HEAD>=20
+<BODY bgColor=3D#ffffff>
+<div style=3D"margin: 10px 20px 10px 20px; background-color: #ffe; =
+border: 3px=20
+solid #F28B0C; padding: 0 10px 0 10px;">
+<p style=3D"font-size: 13pt;">Even if you have no erection problems =
+Viagra would=20
+help you to make <b>better sex more often</b> and to bring unimaginable =
+plesure=20
+to her. Just disolve half a pill under your tongue and get ready for =
+action in=20
+30 minutes. The tests showed that the majority of men after taking =
+this=20
+medication were able to have <b>perfect erection</b> during 24 hours!</p>
+<center><table style=3D"border-collapse: collapse; background-color: =
+#ffd; width:=20
+90%; font-size: 10pt; font-family: sans-serif; text-align: center;">
+<tr>
+<td style=3D"border: 1px solid #F28B0C; padding: 2px;">Package</td>
+<td style=3D"border: 1px solid #F28B0C; padding: 2px;">Quantity</td>
+<td style=3D"border: 1px solid #F28B0C; padding: 2px;">Price in your =
+local 
+drugstore*</td>
+<td style=3D"border: 1px solid #F28B0C; padding: 2px;"><b>Our =
+price</b></td>
+<td style=3D"border: 1px solid #F28B0C; padding: 2px; background-color: =
+#ffa;"=20
+rowspan=3D"6" align=3D"center" valign=3D"middle"><p style=3D"font-size: =
+14pt;=20
+text-align: center; text-decoration: none;"><b><a =
+href=3D"http://mountchart.com"=20
+style=3D"text-decoration: =
+none;"><u>Learn<br>More<br>Now</u></a></b></p></td>
+</tr>
+<tr>
+<td style=3D"border: 1px solid #F28B0C; padding: 2px;">10 tabs</td>
+<td style=3D"border: 1px solid #F28B0C; padding: 2px;">20 doses</td>
+<td style=3D"border: 1px solid #F28B0C; padding: 2px;"><strike =
+style=3D"color:=20
+#777;">$99.95</strike></td>
+<td style=3D"border: 1px solid #F28B0C; padding: 2px;"><span =
+style=3D"color: 
+#900;"><b>$34.49</b></span></td>
+</tr>
+<tr>
+<td style=3D"border: 1px solid #F28B0C; padding: 2px;">30 tabs</td>
+<td style=3D"border: 1px solid #F28B0C; padding: 2px;">60 doses</td>
+<td style=3D"border: 1px solid #F28B0C; padding: 2px;"><strike =
+style=3D"color:=20
+#777;">$299.95</strike></td>
+<td style=3D"border: 1px solid #F28B0C; padding: 2px;"><span =
+style=3D"color: 
+#900;"><b>$88.50</b></span></td>
+</tr>
+<tr>
+<td style=3D"border: 1px solid #F28B0C; padding: 2px;">60 tabs</td>
+<td style=3D"border: 1px solid #F28B0C; padding: 2px;">120 doses</td>
+<td style=3D"border: 1px solid #F28B0C; padding: 2px;"><strike =
+style=3D"color:=20
+#777;">$449.95</strike></td>
+<td style=3D"border: 1px solid #F28B0C; padding: 2px;"><span =
+style=3D"color: 
+#900;"><b>$141.02</b></span></td>
+</tr>
+<tr>
+<td style=3D"border: 1px solid #F28B0C; padding: 2px;">90 tabs</td>
+<td style=3D"border: 1px solid #F28B0C; padding: 2px;">180 doses</td>
+<td style=3D"border: 1px solid #F28B0C; padding: 2px;"><strike =
+style=3D"color:=20
+#777;">$769.95</strike></td>
+<td style=3D"border: 1px solid #F28B0C; padding: 2px;"><span =
+style=3D"color: 
+#900;"><b>$176.40</b></span></td>
+</tr>
+<tr>
+<td style=3D"border: 1px solid #F28B0C; padding: 2px;">180 tabs</td>
+<td style=3D"border: 1px solid #F28B0C; padding: 2px;">360 doses</td>
+<td style=3D"border: 1px solid #F28B0C; padding: 2px;"><strike =
+style=3D"color:=20
+#777;">$1299.95</strike></td>
+<td style=3D"border: 1px solid #F28B0C; padding: 2px;"><span =
+style=3D"color: 
+#900;"><b>$298.46</b></span></td>
+</tr>
+</table></center>
+<p style=3D"font-size: 13pt;">When you are young and stressed =
+up&hellip;<br>
+When you are aged and never give up&hellip;<br>
+Viagra gives you confidence in any chance, every time.</p>
+</div>
+</BODY></HTML>
+
+
+------=_NextPart_000_2C24BE_01C81C50.FAE06330--
