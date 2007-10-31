@@ -1,61 +1,47 @@
 From: Nick Piggin <nickpiggin@yahoo.com.au>
-Subject: Re: [PATCH 09/33] mm: system wide ALLOC_NO_WATERMARK
-Date: Wed, 31 Oct 2007 14:52:35 +1100
-References: <20071030160401.296770000@chello.nl> <20071030160912.283002000@chello.nl>
-In-Reply-To: <20071030160912.283002000@chello.nl>
+Subject: Re: [PATCH 00/33] Swap over NFS -v14
+Date: Wed, 31 Oct 2007 15:04:23 +1100
+References: <20071030160401.296770000@chello.nl> <200710311426.33223.nickpiggin@yahoo.com.au> <20071030.213753.126064697.davem@davemloft.net>
+In-Reply-To: <20071030.213753.126064697.davem@davemloft.net>
 MIME-Version: 1.0
 Content-Type: text/plain;
-  charset="utf-8"
+  charset="iso-8859-1"
 Content-Transfer-Encoding: 7bit
 Content-Disposition: inline
-Message-Id: <200710311452.36239.nickpiggin@yahoo.com.au>
+Message-Id: <200710311504.24016.nickpiggin@yahoo.com.au>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, netdev@vger.kernel.org, trond.myklebust@fys.uio.no
+To: David Miller <davem@davemloft.net>
+Cc: a.p.zijlstra@chello.nl, torvalds@linux-foundation.org, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, netdev@vger.kernel.org, trond.myklebust@fys.uio.no
 List-ID: <linux-mm.kvack.org>
 
-On Wednesday 31 October 2007 03:04, Peter Zijlstra wrote:
-> Change ALLOC_NO_WATERMARK page allocation such that the reserves are system
-> wide - which they are per setup_per_zone_pages_min(), when we scrape the
-> barrel, do it properly.
+On Wednesday 31 October 2007 15:37, David Miller wrote:
+> From: Nick Piggin <nickpiggin@yahoo.com.au>
+> Date: Wed, 31 Oct 2007 14:26:32 +1100
 >
+> > Is it really worth all the added complexity of making swap
+> > over NFS files work, given that you could use a network block
+> > device instead?
+>
+> Don't be misled.  Swapping over NFS is just a scarecrow for the
+> seemingly real impetus behind these changes which is network storage
+> stuff like iSCSI.
 
-IIRC it's actually not too uncommon to have allocations coming here via
-page reclaim. It's not exactly clear that you want to break mempolicies
-at this point.
+Oh, I'm OK with the network reserves stuff (not the actual patch,
+which I'm not really qualified to review, but at least the idea
+of it...).
 
+And also I'm not as such against the idea of swap over network.
 
-> Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
-> ---
->  mm/page_alloc.c |    6 ++++++
->  1 file changed, 6 insertions(+)
->
-> Index: linux-2.6/mm/page_alloc.c
-> ===================================================================
-> --- linux-2.6.orig/mm/page_alloc.c
-> +++ linux-2.6/mm/page_alloc.c
-> @@ -1638,6 +1638,12 @@ restart:
->  rebalance:
->  	if (alloc_flags & ALLOC_NO_WATERMARKS) {
->  nofail_alloc:
-> +		/*
-> +		 * break out of mempolicy boundaries
-> +		 */
-> +		zonelist = NODE_DATA(numa_node_id())->node_zonelists +
-> +			gfp_zone(gfp_mask);
-> +
->  		/* go through the zonelist yet again, ignoring mins */
->  		page = get_page_from_freelist(gfp_mask, order, zonelist,
->  				ALLOC_NO_WATERMARKS);
->
-> --
->
-> -
-> To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
-> the body of a message to majordomo@vger.kernel.org
-> More majordomo info at  http://vger.kernel.org/majordomo-info.html
-> Please read the FAQ at  http://www.tux.org/lkml/
+However, specifically the change to make swapfiles work through
+the filesystem layer (ATM it goes straight to the block layer,
+modulo some initialisation stuff which uses block filesystem-
+specific calls).
+
+I mean, I assume that anybody trying to swap over network *today*
+has to be using a network block device anyway, so the idea of
+just being able to transparently improve that case seems better
+than adding new complexities for seemingly not much gain.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
