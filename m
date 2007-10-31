@@ -1,75 +1,48 @@
-Received: from toip3.srvr.bell.ca ([209.226.175.86])
-          by tomts25-srv.bellnexxia.net
-          (InterMail vM.5.01.06.13 201-253-122-130-113-20050324) with ESMTP
-          id <20071031131937.QVBV19497.tomts25-srv.bellnexxia.net@toip3.srvr.bell.ca>
-          for <linux-mm@kvack.org>; Wed, 31 Oct 2007 09:19:37 -0400
-Date: Wed, 31 Oct 2007 09:19:35 -0400
-From: Mathieu Desnoyers <mathieu.desnoyers@polymtl.ca>
-Subject: Re: [patch 04/28] Add cmpxchg64 and cmpxchg64_local to mips
-Message-ID: <20071031131935.GA26625@Krystal>
-References: <20071030191557.947156623@polymtl.ca> <20071030192102.677087409@polymtl.ca> <20071031124831.GA3982@linux-mips.org>
+Subject: Re: [PATCH 2/5] hugetlb: Fix quota management for private mappings
+From: Adam Litke <agl@us.ibm.com>
+In-Reply-To: <Pine.LNX.4.64.0710301626580.16022@schroedinger.engr.sgi.com>
+References: <20071030204554.16585.80588.stgit@kernel>
+	 <20071030204615.16585.60817.stgit@kernel>
+	 <20071030162219.511394fb.akpm@linux-foundation.org>
+	 <Pine.LNX.4.64.0710301626580.16022@schroedinger.engr.sgi.com>
+Content-Type: text/plain
+Date: Wed, 31 Oct 2007 08:26:25 -0500
+Message-Id: <1193837185.18417.123.camel@localhost.localdomain>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
 Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
-In-Reply-To: <20071031124831.GA3982@linux-mips.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Ralf Baechle <ralf@linux-mips.org>
-Cc: akpm@linux-foundation.org, linux-kernel@vger.kernel.org, matthew@wil.cx, linux-arch@vger.kernel.org, penberg@cs.helsinki.fi, linux-mm@kvack.org, Christoph Lameter <clameter@sgi.com>
+To: Christoph Lameter <clameter@sgi.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@kvack.org, kenchen@google.com, apw@shadowen.org, haveblue@us.ibm.com
 List-ID: <linux-mm.kvack.org>
 
-* Ralf Baechle (ralf@linux-mips.org) wrote:
-> This implementation means cmpxchg64_local will also silently take 32-bit
-> arguments without making noises at compile time.  I think it should.
+On Tue, 2007-10-30 at 16:28 -0700, Christoph Lameter wrote:
+> On Tue, 30 Oct 2007, Andrew Morton wrote:
 > 
+> > > This patch (based on a prototype provided by Ken Chen) moves quota
+> > > crediting for all pages into free_huge_page().  page->private is used to
+> > > store a pointer to the mapping to which this page belongs.  This is used to
+> > > credit quota on the appropriate hugetlbfs instance.
+> > > 
+> > 
+> > Consuming page.private on hugetlb pages is a noteworthy change.  I'm in
+> > fact surprised that it's still available.
+> > 
+> > I'd expect that others (eg Christoph?) have designs upon it as well.  We
+> > need to work out if this is the best use we can put it to.
+> 
+> The private pointer in the first page of a compound page is always 
+> available. However, why do we not use page->mapping for that purpose? 
+> Could we stay as close as possible to regular page cache field use?
 
-Something along those lines ? I've fixed the other architectures too.
-
-
-Add cmpxchg64 and cmpxchg64_local to mips
-
-Make sure that at least cmpxchg64_local is available on all architectures to use
-for unsigned long long values.
-
-Signed-off-by: Mathieu Desnoyers <mathieu.desnoyers@polymtl.ca>
-CC: ralf@linux-mips.org
-CC linux-mips@linux-mips.org
----
- include/asm-mips/cmpxchg.h |   17 +++++++++++++++++
- 1 file changed, 17 insertions(+)
-
-Index: linux-2.6-lttng/include/asm-mips/cmpxchg.h
-===================================================================
---- linux-2.6-lttng.orig/include/asm-mips/cmpxchg.h	2007-10-31 09:14:10.000000000 -0400
-+++ linux-2.6-lttng/include/asm-mips/cmpxchg.h	2007-10-31 09:15:35.000000000 -0400
-@@ -104,4 +104,21 @@ extern void __cmpxchg_called_with_bad_po
- #define cmpxchg(ptr, old, new)		__cmpxchg(ptr, old, new, smp_llsc_mb())
- #define cmpxchg_local(ptr, old, new)	__cmpxchg(ptr, old, new, )
- 
-+#define cmpxchg64(ptr,o,n)						\
-+  ({									\
-+  	BUILD_BUG_ON(sizeof(*(ptr)) != 8);				\
-+  	cmpxchg((ptr),(o),(n));						\
-+  })
-+
-+#ifdef CONFIG_64BIT
-+#define cmpxchg64_local(ptr,o,n)					\
-+  ({									\
-+  	BUILD_BUG_ON(sizeof(*(ptr)) != 8);				\
-+  	cmpxchg_local((ptr),(o),(n));					\
-+  })
-+#else
-+#include <asm-generic/cmpxchg-local.h>
-+#define cmpxchg64_local(ptr,o,n)	__cmpxchg64_local_generic((ptr),(o),(n))
-+#endif
-+
- #endif /* __ASM_CMPXCHG_H */
+We could use page->mapping, but add_to_page_cache() already fills it in
+for shared huge pages.  Even though add_to_page_cache and
+alloc_huge_page would be storing the same value there, it seems a bit
+odd to double-assign it.
 
 -- 
-Mathieu Desnoyers
-Computer Engineering Ph.D. Student, Ecole Polytechnique de Montreal
-OpenPGP key fingerprint: 8CD5 52C3 8E3C 4140 715F  BA06 3F25 A8FE 3BAE 9A68
+Adam Litke - (agl at us.ibm.com)
+IBM Linux Technology Center
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
