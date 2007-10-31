@@ -1,8 +1,8 @@
-Date: Wed, 31 Oct 2007 19:32:07 +0900
+Date: Wed, 31 Oct 2007 19:32:56 +0900
 From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: [PATCH] memory cgroup enhancements take 4 [7/8] add pre dstroy
- handler
-Message-Id: <20071031193207.8d85da6d.kamezawa.hiroyu@jp.fujitsu.com>
+Subject: [PATCH] memory cgroup enhancements take 4 [8/8] implicit force
+ empty at rmdir()
+Message-Id: <20071031193256.bb6ee883.kamezawa.hiroyu@jp.fujitsu.com>
 In-Reply-To: <20071031192213.4f736fac.kamezawa.hiroyu@jp.fujitsu.com>
 References: <20071031192213.4f736fac.kamezawa.hiroyu@jp.fujitsu.com>
 Mime-Version: 1.0
@@ -14,53 +14,40 @@ To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "containers@lists.osdl.org" <containers@lists.osdl.org>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "yamamoto@valinux.co.jp" <yamamoto@valinux.co.jp>, Andrew Morton <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-My main purpose of this patch is for memory controller..
-
-This patch adds a handler "pre_destroy" to cgroup_subsys.
-It is called before cgroup_rmdir() checks all subsys's refcnt.
-
-I think this is useful for subsys which have some extra refs
-even if there are no tasks in cgroup. By adding pre_destroy(),
-the kernel keeps the rule "destroy() against subsystem is called only
-when refcnt=0." and allows css ref to be used by other objects
-than tasks.
+This patch adds pre_destroy handler for mem_cgroup and try to make
+mem_cgroup empty at rmdir().
 
 Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
- include/linux/cgroup.h |    1 +
- kernel/cgroup.c        |    7 +++++++
- 2 files changed, 8 insertions(+)
+ mm/memcontrol.c |    8 ++++++++
+ 1 file changed, 8 insertions(+)
 
-Index: devel-2.6.23-mm1/include/linux/cgroup.h
+Index: devel-2.6.23-mm1/mm/memcontrol.c
 ===================================================================
---- devel-2.6.23-mm1.orig/include/linux/cgroup.h
-+++ devel-2.6.23-mm1/include/linux/cgroup.h
-@@ -233,6 +233,7 @@ int cgroup_is_descendant(const struct cg
- struct cgroup_subsys {
- 	struct cgroup_subsys_state *(*create)(struct cgroup_subsys *ss,
- 						  struct cgroup *cont);
-+	void (*pre_destroy)(struct cgroup_subsys *ss, struct cgroup *cont);
- 	void (*destroy)(struct cgroup_subsys *ss, struct cgroup *cont);
- 	int (*can_attach)(struct cgroup_subsys *ss,
- 			  struct cgroup *cont, struct task_struct *tsk);
-Index: devel-2.6.23-mm1/kernel/cgroup.c
-===================================================================
---- devel-2.6.23-mm1.orig/kernel/cgroup.c
-+++ devel-2.6.23-mm1/kernel/cgroup.c
-@@ -2158,6 +2158,13 @@ static int cgroup_rmdir(struct inode *un
- 	parent = cont->parent;
- 	root = cont->root;
- 	sb = root->sb;
-+	/*
-+	 * Notify subsyses that rmdir() request comes.
-+	 */
-+	for_each_subsys(root, ss) {
-+		if ((cont->subsys[ss->subsys_id]) && ss->pre_destroy)
-+			ss->pre_destroy(ss, cont);
-+	}
+--- devel-2.6.23-mm1.orig/mm/memcontrol.c
++++ devel-2.6.23-mm1/mm/memcontrol.c
+@@ -923,6 +923,13 @@ mem_cgroup_create(struct cgroup_subsys *
+ 	return &mem->css;
+ }
  
- 	if (cgroup_has_css_refs(cont)) {
- 		mutex_unlock(&cgroup_mutex);
++static void mem_cgroup_pre_destroy(struct cgroup_subsys *ss,
++					struct cgroup *cont)
++{
++	struct mem_cgroup *mem = mem_cgroup_from_cont(cont);
++	mem_cgroup_force_empty(mem);
++}
++
+ static void mem_cgroup_destroy(struct cgroup_subsys *ss,
+ 				struct cgroup *cont)
+ {
+@@ -974,6 +981,7 @@ struct cgroup_subsys mem_cgroup_subsys =
+ 	.name = "memory",
+ 	.subsys_id = mem_cgroup_subsys_id,
+ 	.create = mem_cgroup_create,
++	.pre_destroy = mem_cgroup_pre_destroy,
+ 	.destroy = mem_cgroup_destroy,
+ 	.populate = mem_cgroup_populate,
+ 	.attach = mem_cgroup_move_task,
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
