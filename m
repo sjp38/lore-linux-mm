@@ -1,33 +1,40 @@
-Subject: Re: Interesting Bug in page migration via mbind()
-From: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
-In-Reply-To: <Pine.LNX.4.64.0710311406570.22599@schroedinger.engr.sgi.com>
-References: <1193863506.5299.139.camel@localhost>
-	 <Pine.LNX.4.64.0710311406570.22599@schroedinger.engr.sgi.com>
+Received: from d03relay04.boulder.ibm.com (d03relay04.boulder.ibm.com [9.17.195.106])
+	by e32.co.us.ibm.com (8.12.11.20060308/8.13.8) with ESMTP id l9VKsqi4024635
+	for <linux-mm@kvack.org>; Wed, 31 Oct 2007 16:54:52 -0400
+Received: from d03av03.boulder.ibm.com (d03av03.boulder.ibm.com [9.17.195.169])
+	by d03relay04.boulder.ibm.com (8.13.8/8.13.8/NCO v8.5) with ESMTP id l9VLtBgq125168
+	for <linux-mm@kvack.org>; Wed, 31 Oct 2007 15:55:11 -0600
+Received: from d03av03.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av03.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l9VLtAea013281
+	for <linux-mm@kvack.org>; Wed, 31 Oct 2007 15:55:11 -0600
+Subject: Re: [PATCH 1/3] Add remove_memory() for ppc64
+From: Dave Hansen <haveblue@us.ibm.com>
+In-Reply-To: <1193868715.17412.55.camel@dyn9047017100.beaverton.ibm.com>
+References: <1193849375.17412.34.camel@dyn9047017100.beaverton.ibm.com>
+	 <1193863502.6271.38.camel@localhost>
+	 <1193868715.17412.55.camel@dyn9047017100.beaverton.ibm.com>
 Content-Type: text/plain
-Date: Wed, 31 Oct 2007 17:16:13 -0400
-Message-Id: <1193865374.5299.148.camel@localhost>
+Date: Wed, 31 Oct 2007 14:55:03 -0700
+Message-Id: <1193867703.6271.42.camel@localhost>
 Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
-Cc: Andi Kleen <ak@suse.de>, Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, Eric Whitney <eric.whitney@hp.com>
+To: Badari Pulavarty <pbadari@us.ibm.com>
+Cc: Paul Mackerras <paulus@samba.org>, Andrew Morton <akpm@linux-foundation.org>, linuxppc-dev@ozlabs.org, anton@au1.ibm.com, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 2007-10-31 at 14:07 -0700, Christoph Lameter wrote:
-> On Wed, 31 Oct 2007, Lee Schermerhorn wrote:
+On Wed, 2007-10-31 at 14:11 -0800, Badari Pulavarty wrote:
 > 
-> > How to address?
-> 
-> Looks like we are not updating the vma information correctly when 
-> splitting vmas?
+> Well, We don't need arch-specific remove_memory() for ia64 and ppc64.
+> x86_64, I don't know. We will know, only when some one does the
+> verification. I don't need arch_remove_memory() hook also at this
+> time.
 
-Possibly that or the prio_tree contents or lookup are not quite right.
-This is all common code--not mempolicy/migration specific--so you'd
-think it would be pretty solid by now.  I'm still looking with some
-instrumentation--peeling back the onion...
+I wasn't being very clear.  I say, add the arch hook only if you need
+it.  But, for now, just take the ia64 code and make it generic.  
 
-Lee
+-- Dave
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
