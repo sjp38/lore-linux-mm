@@ -1,36 +1,57 @@
-Date: Wed, 31 Oct 2007 12:18:00 +0100
-From: Pavel Machek <pavel@ucw.cz>
-Subject: NBD was Re: [PATCH 00/33] Swap over NFS -v14
-Message-ID: <20071031111800.GA2551@elf.ucw.cz>
-References: <20071030160401.296770000@chello.nl> <200710311426.33223.nickpiggin@yahoo.com.au> <20071030.213753.126064697.davem@davemloft.net> <20071031085041.GA4362@infradead.org> <1193828206.27652.145.camel@twins>
+Received: from d01relay02.pok.ibm.com (d01relay02.pok.ibm.com [9.56.227.234])
+	by e1.ny.us.ibm.com (8.13.8/8.13.8) with ESMTP id l9VBOc35012246
+	for <linux-mm@kvack.org>; Wed, 31 Oct 2007 07:24:38 -0400
+Received: from d01av04.pok.ibm.com (d01av04.pok.ibm.com [9.56.224.64])
+	by d01relay02.pok.ibm.com (8.13.8/8.13.8/NCO v8.5) with ESMTP id l9VBOcnM491920
+	for <linux-mm@kvack.org>; Wed, 31 Oct 2007 07:24:38 -0400
+Received: from d01av04.pok.ibm.com (loopback [127.0.0.1])
+	by d01av04.pok.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l9VBObSN030737
+	for <linux-mm@kvack.org>; Wed, 31 Oct 2007 07:24:37 -0400
+Message-ID: <472865E8.4070908@linux.vnet.ibm.com>
+Date: Wed, 31 Oct 2007 16:54:24 +0530
+From: Balbir Singh <balbir@linux.vnet.ibm.com>
+Reply-To: balbir@linux.vnet.ibm.com
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1193828206.27652.145.camel@twins>
+Subject: Re: [PATCH] Swap delay accounting, include lock_page() delays
+References: <20071031075243.22225.53636.sendpatchset@balbir-laptop> <200710311841.53671.nickpiggin@yahoo.com.au> <200710312010.33833.nickpiggin@yahoo.com.au>
+In-Reply-To: <200710312010.33833.nickpiggin@yahoo.com.au>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Cc: Christoph Hellwig <hch@infradead.org>, David Miller <davem@davemloft.net>, nickpiggin@yahoo.com.au, torvalds@linux-foundation.org, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, netdev@vger.kernel.org, trond.myklebust@fys.uio.no
+To: Nick Piggin <nickpiggin@yahoo.com.au>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Linux MM Mailing List <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-Hi!
-
-> > So please get the VM bits for swap over network blockdevices in first,
+Nick Piggin wrote:
+> On Wednesday 31 October 2007 18:41, Nick Piggin wrote:
+>> On Wednesday 31 October 2007 18:52, Balbir Singh wrote:
+>>> Reported-by: Nick Piggin <nickpiggin@yahoo.com.au>
+>>>
+>>> The delay incurred in lock_page() should also be accounted in swap delay
+>>> accounting
+>>>
+>>> Signed-off-by: Balbir Singh <balbir@linux.vnet.ibm.com>
+>> Ah right, I forgot to resend this one, sorry. Thanks for remembering.
 > 
-> Trouble with that part is that we don't have any sane network block
-> devices atm, NBD is utter crap, and iSCSI is too complex to be called
-> sane.
+> Although, I think I had a bit more detail in the changelog which
+> I think should be kept.
+> 
+> Basically, swap delay accounting seems quite broken as of now,
+> because what it is counting is the time required to allocate a new
+> page and submit the IO, but not actually the time to perform the IO
+> at all (which I'd expect will be significant, although possibly in
+> some workloads the actual page allocation will dominate).
+> 
 
-Hey, NBD was designed to be _simple_. And I think it works okay in
-that area.. so can you elaborate on "utter crap"? [Ok, performance is
-not great.]
+This looks quite good to me. I'm off attending a wedding, I'll resend
+the patch when I am back.
 
-Plus, I'd suggest you to look at ata-over-ethernet. It is in tree
-today, quite simple, but should have better performance than nbd.
-								Pavel
 -- 
-(english) http://www.livejournal.com/~pavelmachek
-(cesky, pictures) http://atrey.karlin.mff.cuni.cz/~pavel/picture/horses/blog.html
+	Warm Regards,
+	Balbir Singh
+	Linux Technology Center
+	IBM, ISTL
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
