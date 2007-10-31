@@ -1,81 +1,57 @@
-Received: from toip5.srvr.bell.ca ([209.226.175.88])
-          by tomts40-srv.bellnexxia.net
-          (InterMail vM.5.01.06.13 201-253-122-130-113-20050324) with ESMTP
-          id <20071031015252.KLYV1617.tomts40-srv.bellnexxia.net@toip5.srvr.bell.ca>
-          for <linux-mm@kvack.org>; Tue, 30 Oct 2007 21:52:52 -0400
-Date: Tue, 30 Oct 2007 21:52:51 -0400
-From: Mathieu Desnoyers <mathieu.desnoyers@polymtl.ca>
-Subject: [PATCH] local_t Documentation update 2
-Message-ID: <20071031015250.GA884@Krystal>
-References: <20071028033156.022983073@sgi.com> <20071028033300.240703208@sgi.com> <20071030114933.904a4cf8.akpm@linux-foundation.org> <Pine.LNX.4.64.0710301155240.12746@schroedinger.engr.sgi.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+From: Nick Piggin <nickpiggin@yahoo.com.au>
+Subject: Re: [patch 09/10] SLUB: Do our own locking via slab_lock and slab_unlock.
+Date: Wed, 31 Oct 2007 12:17:33 +1100
+References: <20071028033156.022983073@sgi.com> <200710301550.55199.nickpiggin@yahoo.com.au> <Pine.LNX.4.64.0710301124520.11531@schroedinger.engr.sgi.com>
+In-Reply-To: <Pine.LNX.4.64.0710301124520.11531@schroedinger.engr.sgi.com>
+MIME-Version: 1.0
+Content-Type: text/plain;
+  charset="iso-8859-1"
 Content-Transfer-Encoding: 7bit
 Content-Disposition: inline
-In-Reply-To: <Pine.LNX.4.64.0710301155240.12746@schroedinger.engr.sgi.com>
+Message-Id: <200710311217.34162.nickpiggin@yahoo.com.au>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: matthew@wil.cx, linux-kernel@vger.kernel.org, linux-mm@kvack.org, penberg@cs.helsinki.fi, linux-arch@vger.kernel.org, Christoph Lameter <clameter@sgi.com>
+To: Christoph Lameter <clameter@sgi.com>
+Cc: Matthew Wilcox <matthew@wil.cx>, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Pekka Enberg <penberg@cs.helsinki.fi>
 List-ID: <linux-mm.kvack.org>
 
-local_t Documentation update 2
+On Wednesday 31 October 2007 05:32, Christoph Lameter wrote:
+> On Tue, 30 Oct 2007, Nick Piggin wrote:
+> > Is this actually a speedup on any architecture to roll your own locking
+> > rather than using bit spinlock?
+>
+> It avoids one load from memory when allocating and the release is simply
+> writing the page->flags back. Less instructions.
 
-(this patch seems to have fallen off the grid, but is still providing
-useful information. It applies to 2.6.23-mm1.)
+OK, but it probably isn't a measurable speedup, even on microbenchmarks,
+right? And many architectures have to have more barriers around cmpxchg
+than they do around a test_and_set_bit_lock, so it may even be slower
+on some.
 
-Grant Grundler was asking for more detail about correct usage of local atomic
-operations and suggested adding the resulting summary to local_ops.txt.
 
-"Please add a bit more detail. If DaveM is correct (he normally is), then
-there must be limits on how the local_t can be used in the kernel process
-and interrupt contexts. I'd like those rules spelled out very clearly
-since it's easy to get wrong and tracking down such a bug is quite painful."
+> > I am not exactly convinced that smp_wmb() is a good idea to have in your
+> > unlock, rather than the normally required smp_mb() that every other open
+> > coded lock in the kernel is using today. If you comment every code path
+> > where a load leaking out of the critical section would not be a problem,
+> > then OK it may be correct, but I still don't think it is worth the
+> > maintenance overhead.
+>
+> I thought you agreed that release semantics only require a write barrier?
 
-Signed-off-by: Mathieu Desnoyers <mathieu.desnoyers@polymtl.ca>
-Signed-off-by: Grant Grundler <grundler@parisc-linux.org>
----
- Documentation/local_ops.txt |   23 +++++++++++++++++++++++
- 1 file changed, 23 insertions(+)
+Not in general.
 
-Index: linux-2.6-lttng/Documentation/local_ops.txt
-===================================================================
---- linux-2.6-lttng.orig/Documentation/local_ops.txt	2007-09-04 11:53:23.000000000 -0400
-+++ linux-2.6-lttng/Documentation/local_ops.txt	2007-09-04 12:19:31.000000000 -0400
-@@ -68,6 +68,29 @@ typedef struct { atomic_long_t a; } loca
-   variable can be read when reading some _other_ cpu's variables.
- 
- 
-+* Rules to follow when using local atomic operations
-+
-+- Variables touched by local ops must be per cpu variables.
-+- _Only_ the CPU owner of these variables must write to them.
-+- This CPU can use local ops from any context (process, irq, softirq, nmi, ...)
-+  to update its local_t variables.
-+- Preemption (or interrupts) must be disabled when using local ops in
-+  process context to   make sure the process won't be migrated to a
-+  different CPU between getting the per-cpu variable and doing the
-+  actual local op.
-+- When using local ops in interrupt context, no special care must be
-+  taken on a mainline kernel, since they will run on the local CPU with
-+  preemption already disabled. I suggest, however, to explicitly
-+  disable preemption anyway to make sure it will still work correctly on
-+  -rt kernels.
-+- Reading the local cpu variable will provide the current copy of the
-+  variable.
-+- Reads of these variables can be done from any CPU, because updates to
-+  "long", aligned, variables are always atomic. Since no memory
-+  synchronization is done by the writer CPU, an outdated copy of the
-+  variable can be read when reading some _other_ cpu's variables.
-+
-+
- * How to use local atomic operations
- 
- #include <linux/percpu.h>
--- 
-Mathieu Desnoyers
-Computer Engineering Ph.D. Student, Ecole Polytechnique de Montreal
-OpenPGP key fingerprint: 8CD5 52C3 8E3C 4140 715F  BA06 3F25 A8FE 3BAE 9A68
+
+> The issue here is that other processors see the updates before the
+> updates to page-flags.
+>
+> A load leaking out of a critical section would require that the result of
+> the load is not used to update other information before the slab_unlock
+> and that the source of the load is not overwritten in the critical
+> section. That does not happen in sluib.
+
+That may be the case, but I don't think there is enough performance
+justification to add a hack like this. ia64 for example is going to
+do an mf for smp_wmb so I doubt it is a clear win.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
