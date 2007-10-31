@@ -1,44 +1,35 @@
-Date: Wed, 31 Oct 2007 13:20:10 -0400
-From: Dave Jones <davej@redhat.com>
-Subject: Re: [RFC] oom notifications via /dev/oom_notify
-Message-ID: <20071031172010.GA6005@redhat.com>
-References: <20071030191827.GB31038@dmt> <20071030210743.GA304@dmt>
+Date: Wed, 31 Oct 2007 10:33:45 -0700 (PDT)
+From: Christoph Lameter <clameter@sgi.com>
+Subject: Re: [PATCH 2/5] hugetlb: Fix quota management for private mappings
+In-Reply-To: <1193842481.18417.133.camel@localhost.localdomain>
+Message-ID: <Pine.LNX.4.64.0710311033160.21194@schroedinger.engr.sgi.com>
+References: <20071030204554.16585.80588.stgit@kernel>
+ <20071030204615.16585.60817.stgit@kernel>  <20071030162219.511394fb.akpm@linux-foundation.org>
+  <Pine.LNX.4.64.0710301626580.16022@schroedinger.engr.sgi.com>
+ <1193842481.18417.133.camel@localhost.localdomain>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20071030210743.GA304@dmt>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Marcelo Tosatti <marcelo@kvack.org>
-Cc: linux-mm@kvack.org, drepper@redhat.com, riel@redhat.com, akpm@linux-foundation.org, mbligh@mbligh.org, balbir@linux.vnet.ibm.com
+To: Adam Litke <agl@us.ibm.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@kvack.org, kenchen@google.com, apw@shadowen.org, haveblue@us.ibm.com
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Oct 30, 2007 at 05:07:43PM -0400, Marcelo Tosatti wrote:
- > +		case 13:
- > +			filp->f_op = &oom_notify_fops;
- > +			break;
+On Wed, 31 Oct 2007, Adam Litke wrote:
 
-Don't forget to add this to Documentation/devices.txt
+> > The private pointer in the first page of a compound page is always 
+> > available. However, why do we not use page->mapping for that purpose? 
+> > Could we stay as close as possible to regular page cache field use?
+> 
+> There is an additional problem I forgot to mention in the previous mail.
+> The remove_from_page_cache() call path clears page->mapping.  This means
+> that if the free_huge_page destructor is called on a previously shared
+> page, we will not have the needed information to release quota.  Perhaps
+> this is a further indication that use of page->mapping at this level is
+> inappropriate. 
 
- > +	while (cpu < NR_CPUS) {
- > +		struct vm_event_state *this = &per_cpu(vm_event_states, cpu);
- > +
- > +		cpu = next_cpu(cpu, *cpumask);
- > +
- > +		if (cpu < NR_CPUS)
- > +			prefetch(&per_cpu(vm_event_states, cpu));
- > +
- > +		ret += this->event[vm_event];
- > +	}
- > +	return ret;
- > +}
-
-Is the prefetching worth it?
-
-	Dave 
-
--- 
-http://www.codemonkey.org.uk
+How does quota handle that for regular pages? Can you update the quotas 
+before the page is released?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
