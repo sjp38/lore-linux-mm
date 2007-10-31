@@ -1,41 +1,67 @@
-Received: from localhost.localdomain ([127.0.0.1]:2944 "EHLO
-	dl5rb.ham-radio-op.net") by ftp.linux-mips.org with ESMTP
-	id S28575916AbXJaMsz (ORCPT <rfc822;linux-mm@kvack.org>);
-	Wed, 31 Oct 2007 12:48:55 +0000
-Date: Wed, 31 Oct 2007 12:48:31 +0000
-From: Ralf Baechle <ralf@linux-mips.org>
-Subject: Re: [patch 04/28] Add cmpxchg64 and cmpxchg64_local to mips
-Message-ID: <20071031124831.GA3982@linux-mips.org>
-References: <20071030191557.947156623@polymtl.ca> <20071030192102.677087409@polymtl.ca>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20071030192102.677087409@polymtl.ca>
+Subject: Re: [PATCH 03/33] mm: slub: add knowledge of reserve pages
+From: Peter Zijlstra <a.p.zijlstra@chello.nl>
+In-Reply-To: <200710312225.07249.nickpiggin@yahoo.com.au>
+References: <20071030160401.296770000@chello.nl>
+	 <200710312146.03351.nickpiggin@yahoo.com.au>
+	 <1193833072.27652.167.camel@twins>
+	 <200710312225.07249.nickpiggin@yahoo.com.au>
+Content-Type: multipart/signed; micalg=pgp-sha1; protocol="application/pgp-signature"; boundary="=-1JONk1CHaR7M71QTq2Rs"
+Date: Wed, 31 Oct 2007 13:54:18 +0100
+Message-Id: <1193835258.27652.199.camel@twins>
+Mime-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Mathieu Desnoyers <mathieu.desnoyers@polymtl.ca>
-Cc: akpm@linux-foundation.org, linux-kernel@vger.kernel.org, matthew@wil.cx, linux-arch@vger.kernel.org, penberg@cs.helsinki.fi, linux-mm@kvack.org, Christoph Lameter <clameter@sgi.com>
+To: Nick Piggin <nickpiggin@yahoo.com.au>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, netdev@vger.kernel.org, trond.myklebust@fys.uio.no
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Oct 30, 2007 at 03:16:01PM -0400, Mathieu Desnoyers wrote:
+--=-1JONk1CHaR7M71QTq2Rs
+Content-Type: text/plain
+Content-Transfer-Encoding: quoted-printable
 
-> Index: linux-2.6-lttng/include/asm-mips/cmpxchg.h
-> ===================================================================
-> --- linux-2.6-lttng.orig/include/asm-mips/cmpxchg.h	2007-10-12 12:05:06.000000000 -0400
-> +++ linux-2.6-lttng/include/asm-mips/cmpxchg.h	2007-10-12 12:08:56.000000000 -0400
-> @@ -104,4 +104,13 @@ extern void __cmpxchg_called_with_bad_po
->  #define cmpxchg(ptr, old, new)		__cmpxchg(ptr, old, new, smp_llsc_mb())
->  #define cmpxchg_local(ptr, old, new)	__cmpxchg(ptr, old, new, )
->  
-> +#define cmpxchg64	cmpxchg
-> +
-> +#ifdef CONFIG_64BIT
-> +#define cmpxchg64_local	cmpxchg_local
+On Wed, 2007-10-31 at 22:25 +1100, Nick Piggin wrote:
+> On Wednesday 31 October 2007 23:17, Peter Zijlstra wrote:
+> > On Wed, 2007-10-31 at 21:46 +1100, Nick Piggin wrote:
+>=20
+> > > And I'd prevent these ones from doing so.
+> > >
+> > > Without keeping track of "reserve" pages, which doesn't feel
+> > > too clean.
+> >
+> > The problem with that is that once a slab was allocated with the right
+> > allocation context, anybody can get objects from these slabs.
+>=20
+> [snip]
+>=20
+> I understand that.
+>=20
+>=20
+> > So we either reserve a page per object, which for 32 byte objects is a
+> > large waste, or we stop anybody who doesn't have the right permissions
+> > from obtaining objects. I took the latter approach.
+>=20
+> What I'm saying is that the slab allocator slowpath should always
+> just check watermarks against the current task. Instead of this
+> ->reserve stuff.
 
-This implementation means cmpxchg64_local will also silently take 32-bit
-arguments without making noises at compile time.  I think it should.
+So what you say is to allocate a slab every time we take the slow path,
+even when we already have one?
 
-  Ralf
+That sounds rather sub-optimal.
+
+--=-1JONk1CHaR7M71QTq2Rs
+Content-Type: application/pgp-signature; name=signature.asc
+Content-Description: This is a digitally signed message part
+
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v1.4.6 (GNU/Linux)
+
+iD8DBQBHKHr6XA2jU0ANEf4RAm9gAJ9xM3miH4H0KzYn+MEPjt6I1zY3swCdEN3/
+FchO1Oe5ngFrcknUFRAg2jQ=
+=2VhI
+-----END PGP SIGNATURE-----
+
+--=-1JONk1CHaR7M71QTq2Rs--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
