@@ -1,8 +1,8 @@
-Date: Wed, 31 Oct 2007 19:31:36 +0900
+Date: Wed, 31 Oct 2007 19:32:07 +0900
 From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: [PATCH] memory cgroup enhancements take 4 [6/8] add memory.stat
- file
-Message-Id: <20071031193136.ac7af748.kamezawa.hiroyu@jp.fujitsu.com>
+Subject: [PATCH] memory cgroup enhancements take 4 [7/8] add pre dstroy
+ handler
+Message-Id: <20071031193207.8d85da6d.kamezawa.hiroyu@jp.fujitsu.com>
 In-Reply-To: <20071031192213.4f736fac.kamezawa.hiroyu@jp.fujitsu.com>
 References: <20071031192213.4f736fac.kamezawa.hiroyu@jp.fujitsu.com>
 Mime-Version: 1.0
@@ -14,91 +14,53 @@ To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "containers@lists.osdl.org" <containers@lists.osdl.org>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "yamamoto@valinux.co.jp" <yamamoto@valinux.co.jp>, Andrew Morton <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-Show accounted information of memory cgroup by memory.stat file
+My main purpose of this patch is for memory controller..
 
-Changelog v2->v3
- - make use of mem_cgroup_read_stat() at printing.
-Changelog v1->v2
- - dropped Charge/Uncharge entry.
+This patch adds a handler "pre_destroy" to cgroup_subsys.
+It is called before cgroup_rmdir() checks all subsys's refcnt.
 
-Signed-off-by: YAMAMOTO Takashi <yamamoto@valinux.co.jp>
+I think this is useful for subsys which have some extra refs
+even if there are no tasks in cgroup. By adding pre_destroy(),
+the kernel keeps the rule "destroy() against subsystem is called only
+when refcnt=0." and allows css ref to be used by other objects
+than tasks.
+
 Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
- mm/memcontrol.c |   48 ++++++++++++++++++++++++++++++++++++++++++++++++
- 1 file changed, 48 insertions(+)
+ include/linux/cgroup.h |    1 +
+ kernel/cgroup.c        |    7 +++++++
+ 2 files changed, 8 insertions(+)
 
-Index: devel-2.6.23-mm1/mm/memcontrol.c
+Index: devel-2.6.23-mm1/include/linux/cgroup.h
 ===================================================================
---- devel-2.6.23-mm1.orig/mm/memcontrol.c
-+++ devel-2.6.23-mm1/mm/memcontrol.c
-@@ -28,6 +28,7 @@
- #include <linux/swap.h>
- #include <linux/spinlock.h>
- #include <linux/fs.h>
-+#include <linux/seq_file.h>
- 
- #include <asm/uaccess.h>
- 
-@@ -823,6 +824,48 @@ static ssize_t mem_force_empty_read(stru
- }
- 
- 
-+static const struct mem_cgroup_stat_desc {
-+	const char *msg;
-+	u64 unit;
-+} mem_cgroup_stat_desc[] = {
-+	[MEM_CGROUP_STAT_CACHE] = { "cache", PAGE_SIZE, },
-+	[MEM_CGROUP_STAT_RSS] = { "rss", PAGE_SIZE, },
-+};
-+
-+static int mem_control_stat_show(struct seq_file *m, void *arg)
-+{
-+	struct cgroup *cont = m->private;
-+	struct mem_cgroup *mem_cont = mem_cgroup_from_cont(cont);
-+	struct mem_cgroup_stat *stat = &mem_cont->stat;
-+	int i;
-+
-+	for (i = 0; i < ARRAY_SIZE(stat->cpustat[0].count); i++) {
-+		s64 val;
-+
-+		val = mem_cgroup_read_stat(stat,i);
-+		val *= mem_cgroup_stat_desc[i].unit;
-+		seq_printf(m, "%s %lld\n", mem_cgroup_stat_desc[i].msg, val);
+--- devel-2.6.23-mm1.orig/include/linux/cgroup.h
++++ devel-2.6.23-mm1/include/linux/cgroup.h
+@@ -233,6 +233,7 @@ int cgroup_is_descendant(const struct cg
+ struct cgroup_subsys {
+ 	struct cgroup_subsys_state *(*create)(struct cgroup_subsys *ss,
+ 						  struct cgroup *cont);
++	void (*pre_destroy)(struct cgroup_subsys *ss, struct cgroup *cont);
+ 	void (*destroy)(struct cgroup_subsys *ss, struct cgroup *cont);
+ 	int (*can_attach)(struct cgroup_subsys *ss,
+ 			  struct cgroup *cont, struct task_struct *tsk);
+Index: devel-2.6.23-mm1/kernel/cgroup.c
+===================================================================
+--- devel-2.6.23-mm1.orig/kernel/cgroup.c
++++ devel-2.6.23-mm1/kernel/cgroup.c
+@@ -2158,6 +2158,13 @@ static int cgroup_rmdir(struct inode *un
+ 	parent = cont->parent;
+ 	root = cont->root;
+ 	sb = root->sb;
++	/*
++	 * Notify subsyses that rmdir() request comes.
++	 */
++	for_each_subsys(root, ss) {
++		if ((cont->subsys[ss->subsys_id]) && ss->pre_destroy)
++			ss->pre_destroy(ss, cont);
 +	}
-+	return 0;
-+}
-+
-+static const struct file_operations mem_control_stat_file_operations = {
-+	.read = seq_read,
-+	.llseek = seq_lseek,
-+	.release = single_release,
-+};
-+
-+static int mem_control_stat_open(struct inode *unused, struct file *file)
-+{
-+	/* XXX __d_cont */
-+	struct cgroup *cont = file->f_dentry->d_parent->d_fsdata;
-+
-+	file->f_op = &mem_control_stat_file_operations;
-+	return single_open(file, mem_control_stat_show, cont);
-+}
-+
-+
-+
- static struct cftype mem_cgroup_files[] = {
- 	{
- 		.name = "usage_in_bytes",
-@@ -850,6 +893,10 @@ static struct cftype mem_cgroup_files[] 
- 		.write = mem_force_empty_write,
- 		.read = mem_force_empty_read,
- 	},
-+	{
-+		.name = "stat",
-+		.open = mem_control_stat_open,
-+	},
- };
  
- static struct mem_cgroup init_mem_cgroup;
+ 	if (cgroup_has_css_refs(cont)) {
+ 		mutex_unlock(&cgroup_mutex);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
