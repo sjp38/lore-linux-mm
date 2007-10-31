@@ -1,164 +1,53 @@
-Message-ID: <7fe201c81bfe$e26656e0$1000a8c0@TESORERIA>
-From: "Marietta Allred" <MadelyndominionBabb@bigfatblog.com>
-Subject: Your family
-Date: Wed, 31 Oct 2007 15:44:35 +0500
-MIME-Version: 1.0
-Content-Type: multipart/alternative;
-	boundary="----=_NextPart_000_7FDE_01C81BFE.E26656E0"
-Return-Path: <MadelyndominionBabb@bigfatblog.com>
-To: mm@kvack.org
-Cc: linux-mm@kvack.org, kelda@kvack.org, linux-mm-archive@kvack.org, majordomo@kvack.org
+Received: from d03relay02.boulder.ibm.com (d03relay02.boulder.ibm.com [9.17.195.227])
+	by e33.co.us.ibm.com (8.13.8/8.13.8) with ESMTP id l9VKjGXR004851
+	for <linux-mm@kvack.org>; Wed, 31 Oct 2007 16:45:16 -0400
+Received: from d03av01.boulder.ibm.com (d03av01.boulder.ibm.com [9.17.195.167])
+	by d03relay02.boulder.ibm.com (8.13.8/8.13.8/NCO v8.5) with ESMTP id l9VKjAK0111302
+	for <linux-mm@kvack.org>; Wed, 31 Oct 2007 14:45:11 -0600
+Received: from d03av01.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av01.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l9VKjAf8029898
+	for <linux-mm@kvack.org>; Wed, 31 Oct 2007 14:45:10 -0600
+Subject: Re: [PATCH 1/3] Add remove_memory() for ppc64
+From: Dave Hansen <haveblue@us.ibm.com>
+In-Reply-To: <1193849375.17412.34.camel@dyn9047017100.beaverton.ibm.com>
+References: <1193849375.17412.34.camel@dyn9047017100.beaverton.ibm.com>
+Content-Type: text/plain
+Date: Wed, 31 Oct 2007 13:45:02 -0700
+Message-Id: <1193863502.6271.38.camel@localhost>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
+Sender: owner-linux-mm@kvack.org
+Return-Path: <owner-linux-mm@kvack.org>
+To: Badari Pulavarty <pbadari@us.ibm.com>
+Cc: Paul Mackerras <paulus@samba.org>, Andrew Morton <akpm@linux-foundation.org>, linuxppc-dev@ozlabs.org, anton@au1.ibm.com, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-This is a multi-part message in MIME format.
+On Wed, 2007-10-31 at 08:49 -0800, Badari Pulavarty wrote:
+> +#ifdef CONFIG_MEMORY_HOTREMOVE
+> +int remove_memory(u64 start, u64 size)
+> +{
+> +	unsigned long start_pfn, end_pfn;
+> +	unsigned long timeout = 120 * HZ;
+> +	int ret;
+> +	start_pfn = start >> PAGE_SHIFT;
+> +	end_pfn = start_pfn + (size >> PAGE_SHIFT);
+> +	ret = offline_pages(start_pfn, end_pfn, timeout);
+> +	return ret;
+> +}
+> +EXPORT_SYMBOL_GPL(remove_memory);
+> +#endif /* CONFIG_MEMORY_HOTREMOVE */
 
-------=_NextPart_000_7FDE_01C81BFE.E26656E0
-Content-Type: text/plain;
-	charset="iso-8859-1"
-Content-Transfer-Encoding: quoted-printable
+Did someone go and copy the ia64 verion?  Tsk.  Tsk.  Bad Badari.  :)
 
-Even if you have no erection problems Viagra would help you to make =
-better sex more often and to bring unimaginable plesure to her. Just =
-disolve half a pill under your tongue and get ready for action in 30 =
-minutes. The tests showed that the majority of men after taking this =
-medication were able to have perfect erection during 24 hours!
+Can we just make this a weak symbol in the generic mm/memory_hotplug.c?
+Or, make this the generic memory_remove() function int there and have an
+arch_remove_memory() hook called from there if the architectures need to
+tweak it?
 
-Package
-Quantity
-Price in your local drugstore*
-Our price
-LearnMoreNow
+-- Dave
 
-10 tabs
-20 doses
-$99.95
-$34.49
-
-30 tabs
-60 doses
-$299.95
-$88.50
-
-60 tabs
-120 doses
-$449.95
-$141.02
-
-90 tabs
-180 doses
-$769.95
-$176.40
-
-180 tabs
-360 doses
-$1299.95
-$298.46
-
-When you are young and stressed up&hellip;
-When you are aged and never give up&hellip;
-Viagra gives you confidence in any chance, every time.
-------=_NextPart_000_7FDE_01C81BFE.E26656E0
-Content-Type: text/html;
-	charset="iso-8859-1"
-Content-Transfer-Encoding: quoted-printable
-
-<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
-<HTML><HEAD>
-<META http-equiv=3DContent-Type content=3D"text/html; =
-charset=3Diso-8859-1">
-<META content=3D"MSHTML 6.00.2800.1106" name=3DGENERATOR>
-<STYLE></STYLE>
-</HEAD>=20
-<BODY bgColor=3D#ffffff>
-<div style=3D"margin: 10px 20px 10px 20px; background-color: #ffe; =
-border: 3px=20
-solid #F28B0C; padding: 0 10px 0 10px;">
-<p style=3D"font-size: 13pt;">Even if you have no erection problems =
-Viagra would=20
-help you to make <b>better sex more often</b> and to bring unimaginable =
-plesure=20
-to her. Just disolve half a pill under your tongue and get ready for =
-action in=20
-30 minutes. The tests showed that the majority of men after taking =
-this=20
-medication were able to have <b>perfect erection</b> during 24 hours!</p>
-<center><table style=3D"border-collapse: collapse; background-color: =
-#ffd; width:=20
-90%; font-size: 10pt; font-family: sans-serif; text-align: center;">
-<tr>
-<td style=3D"border: 1px solid #F28B0C; padding: 2px;">Package</td>
-<td style=3D"border: 1px solid #F28B0C; padding: 2px;">Quantity</td>
-<td style=3D"border: 1px solid #F28B0C; padding: 2px;">Price in your =
-local 
-drugstore*</td>
-<td style=3D"border: 1px solid #F28B0C; padding: 2px;"><b>Our =
-price</b></td>
-<td style=3D"border: 1px solid #F28B0C; padding: 2px; background-color: =
-#ffa;"=20
-rowspan=3D"6" align=3D"center" valign=3D"middle"><p style=3D"font-size: =
-14pt;=20
-text-align: center; text-decoration: none;"><b><a =
-href=3D"http://mountchart.com"=20
-style=3D"text-decoration: =
-none;"><u>Learn<br>More<br>Now</u></a></b></p></td>
-</tr>
-<tr>
-<td style=3D"border: 1px solid #F28B0C; padding: 2px;">10 tabs</td>
-<td style=3D"border: 1px solid #F28B0C; padding: 2px;">20 doses</td>
-<td style=3D"border: 1px solid #F28B0C; padding: 2px;"><strike =
-style=3D"color:=20
-#777;">$99.95</strike></td>
-<td style=3D"border: 1px solid #F28B0C; padding: 2px;"><span =
-style=3D"color: 
-#900;"><b>$34.49</b></span></td>
-</tr>
-<tr>
-<td style=3D"border: 1px solid #F28B0C; padding: 2px;">30 tabs</td>
-<td style=3D"border: 1px solid #F28B0C; padding: 2px;">60 doses</td>
-<td style=3D"border: 1px solid #F28B0C; padding: 2px;"><strike =
-style=3D"color:=20
-#777;">$299.95</strike></td>
-<td style=3D"border: 1px solid #F28B0C; padding: 2px;"><span =
-style=3D"color: 
-#900;"><b>$88.50</b></span></td>
-</tr>
-<tr>
-<td style=3D"border: 1px solid #F28B0C; padding: 2px;">60 tabs</td>
-<td style=3D"border: 1px solid #F28B0C; padding: 2px;">120 doses</td>
-<td style=3D"border: 1px solid #F28B0C; padding: 2px;"><strike =
-style=3D"color:=20
-#777;">$449.95</strike></td>
-<td style=3D"border: 1px solid #F28B0C; padding: 2px;"><span =
-style=3D"color: 
-#900;"><b>$141.02</b></span></td>
-</tr>
-<tr>
-<td style=3D"border: 1px solid #F28B0C; padding: 2px;">90 tabs</td>
-<td style=3D"border: 1px solid #F28B0C; padding: 2px;">180 doses</td>
-<td style=3D"border: 1px solid #F28B0C; padding: 2px;"><strike =
-style=3D"color:=20
-#777;">$769.95</strike></td>
-<td style=3D"border: 1px solid #F28B0C; padding: 2px;"><span =
-style=3D"color: 
-#900;"><b>$176.40</b></span></td>
-</tr>
-<tr>
-<td style=3D"border: 1px solid #F28B0C; padding: 2px;">180 tabs</td>
-<td style=3D"border: 1px solid #F28B0C; padding: 2px;">360 doses</td>
-<td style=3D"border: 1px solid #F28B0C; padding: 2px;"><strike =
-style=3D"color:=20
-#777;">$1299.95</strike></td>
-<td style=3D"border: 1px solid #F28B0C; padding: 2px;"><span =
-style=3D"color: 
-#900;"><b>$298.46</b></span></td>
-</tr>
-</table></center>
-<p style=3D"font-size: 13pt;">When you are young and stressed =
-up&hellip;<br>
-When you are aged and never give up&hellip;<br>
-Viagra gives you confidence in any chance, every time.</p>
-</div>
-</BODY></HTML>
-
-
-------=_NextPart_000_7FDE_01C81BFE.E26656E0--
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
