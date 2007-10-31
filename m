@@ -1,50 +1,75 @@
-From: "Arnaldo Carvalho de Melo" <acme@redhat.com>
-Date: Wed, 31 Oct 2007 11:18:55 -0200
-Subject: Re: [PATCH 00/33] Swap over NFS -v14
-Message-ID: <20071031131855.GE3962@ghostprotocols.net>
-References: <20071030160401.296770000@chello.nl> <200710311426.33223.nickpiggin@yahoo.com.au> <1193830033.27652.159.camel@twins> <47287220.8050804@garzik.org> <1193835413.27652.205.camel@twins>
-MIME-Version: 1.0
+Received: from toip3.srvr.bell.ca ([209.226.175.86])
+          by tomts25-srv.bellnexxia.net
+          (InterMail vM.5.01.06.13 201-253-122-130-113-20050324) with ESMTP
+          id <20071031131937.QVBV19497.tomts25-srv.bellnexxia.net@toip3.srvr.bell.ca>
+          for <linux-mm@kvack.org>; Wed, 31 Oct 2007 09:19:37 -0400
+Date: Wed, 31 Oct 2007 09:19:35 -0400
+From: Mathieu Desnoyers <mathieu.desnoyers@polymtl.ca>
+Subject: Re: [patch 04/28] Add cmpxchg64 and cmpxchg64_local to mips
+Message-ID: <20071031131935.GA26625@Krystal>
+References: <20071030191557.947156623@polymtl.ca> <20071030192102.677087409@polymtl.ca> <20071031124831.GA3982@linux-mips.org>
+Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
 Content-Disposition: inline
-In-Reply-To: <1193835413.27652.205.camel@twins>
+In-Reply-To: <20071031124831.GA3982@linux-mips.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Cc: Jeff Garzik <jeff@garzik.org>, Nick Piggin <nickpiggin@yahoo.com.au>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, netdev@vger.kernel.org, trond.myklebust@fys.uio.no
+To: Ralf Baechle <ralf@linux-mips.org>
+Cc: akpm@linux-foundation.org, linux-kernel@vger.kernel.org, matthew@wil.cx, linux-arch@vger.kernel.org, penberg@cs.helsinki.fi, linux-mm@kvack.org, Christoph Lameter <clameter@sgi.com>
 List-ID: <linux-mm.kvack.org>
 
-Em Wed, Oct 31, 2007 at 01:56:53PM +0100, Peter Zijlstra escreveu:
-> On Wed, 2007-10-31 at 08:16 -0400, Jeff Garzik wrote:
-> > Thoughts:
-> > 
-> > 1) I absolutely agree that NFS is far more prominent and useful than any 
-> > network block device, at the present time.
-> > 
-> > 
-> > 2) Nonetheless, swap over NFS is a pretty rare case.  I view this work 
-> > as interesting, but I really don't see a huge need, for swapping over 
-> > NBD or swapping over NFS.  I tend to think swapping to a remote resource 
-> > starts to approach "migration" rather than merely swapping.  Yes, we can 
-> > do it...  but given the lack of burning need one must examine the price.
+* Ralf Baechle (ralf@linux-mips.org) wrote:
+> This implementation means cmpxchg64_local will also silently take 32-bit
+> arguments without making noises at compile time.  I think it should.
 > 
-> There is a large corporate demand for this, which is why I'm doing this.
-> 
-> The typical usage scenarios are:
->  - cluster/blades, where having local disks is a cost issue (maintenance
->    of failures, heat, etc)
->  - virtualisation, where dumping the storage on a networked storage unit
->    makes for trivial migration and what not..
-> 
-> But please, people who want this (I'm sure some of you are reading) do
-> speak up. I'm just the motivated corporate drone implementing the
-> feature :-)
 
-Keep it up, Dave already mentioned iSCSI, there is AoE, there are RT
-sockets, you name it, the networking bits we've talked about several
-times, they look OK, so I'm sorry for not going over all of them in
-detail, but you have my support neverthless.
+Something along those lines ? I've fixed the other architectures too.
 
-- Arnaldo
+
+Add cmpxchg64 and cmpxchg64_local to mips
+
+Make sure that at least cmpxchg64_local is available on all architectures to use
+for unsigned long long values.
+
+Signed-off-by: Mathieu Desnoyers <mathieu.desnoyers@polymtl.ca>
+CC: ralf@linux-mips.org
+CC linux-mips@linux-mips.org
+---
+ include/asm-mips/cmpxchg.h |   17 +++++++++++++++++
+ 1 file changed, 17 insertions(+)
+
+Index: linux-2.6-lttng/include/asm-mips/cmpxchg.h
+===================================================================
+--- linux-2.6-lttng.orig/include/asm-mips/cmpxchg.h	2007-10-31 09:14:10.000000000 -0400
++++ linux-2.6-lttng/include/asm-mips/cmpxchg.h	2007-10-31 09:15:35.000000000 -0400
+@@ -104,4 +104,21 @@ extern void __cmpxchg_called_with_bad_po
+ #define cmpxchg(ptr, old, new)		__cmpxchg(ptr, old, new, smp_llsc_mb())
+ #define cmpxchg_local(ptr, old, new)	__cmpxchg(ptr, old, new, )
+ 
++#define cmpxchg64(ptr,o,n)						\
++  ({									\
++  	BUILD_BUG_ON(sizeof(*(ptr)) != 8);				\
++  	cmpxchg((ptr),(o),(n));						\
++  })
++
++#ifdef CONFIG_64BIT
++#define cmpxchg64_local(ptr,o,n)					\
++  ({									\
++  	BUILD_BUG_ON(sizeof(*(ptr)) != 8);				\
++  	cmpxchg_local((ptr),(o),(n));					\
++  })
++#else
++#include <asm-generic/cmpxchg-local.h>
++#define cmpxchg64_local(ptr,o,n)	__cmpxchg64_local_generic((ptr),(o),(n))
++#endif
++
+ #endif /* __ASM_CMPXCHG_H */
+
+-- 
+Mathieu Desnoyers
+Computer Engineering Ph.D. Student, Ecole Polytechnique de Montreal
+OpenPGP key fingerprint: 8CD5 52C3 8E3C 4140 715F  BA06 3F25 A8FE 3BAE 9A68
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
