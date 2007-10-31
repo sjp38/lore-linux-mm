@@ -1,40 +1,53 @@
-Date: Wed, 31 Oct 2007 18:42:20 +0000 (GMT)
-From: Hugh Dickins <hugh@veritas.com>
-Subject: Re: [PATCH 2/5] hugetlb: Fix quota management for private mappings
-In-Reply-To: <1193842481.18417.133.camel@localhost.localdomain>
-Message-ID: <Pine.LNX.4.64.0710311836040.17125@blonde.wat.veritas.com>
-References: <20071030204554.16585.80588.stgit@kernel>
- <20071030204615.16585.60817.stgit@kernel>  <20071030162219.511394fb.akpm@linux-foundation.org>
-  <Pine.LNX.4.64.0710301626580.16022@schroedinger.engr.sgi.com>
- <1193842481.18417.133.camel@localhost.localdomain>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from d03relay04.boulder.ibm.com (d03relay04.boulder.ibm.com [9.17.195.106])
+	by e33.co.us.ibm.com (8.13.8/8.13.8) with ESMTP id l9VKg5r7029517
+	for <linux-mm@kvack.org>; Wed, 31 Oct 2007 16:42:05 -0400
+Received: from d03av01.boulder.ibm.com (d03av01.boulder.ibm.com [9.17.195.167])
+	by d03relay04.boulder.ibm.com (8.13.8/8.13.8/NCO v8.5) with ESMTP id l9VKg5DI124524
+	for <linux-mm@kvack.org>; Wed, 31 Oct 2007 14:42:05 -0600
+Received: from d03av01.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av01.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l9VKg4Vo017151
+	for <linux-mm@kvack.org>; Wed, 31 Oct 2007 14:42:04 -0600
+Subject: Re: [PATCH 1/3] Add remove_memory() for ppc64
+From: Badari Pulavarty <pbadari@us.ibm.com>
+In-Reply-To: <46434BBD-7656-41B1-BED0-3A3E212032B5@kernel.crashing.org>
+References: <1193849375.17412.34.camel@dyn9047017100.beaverton.ibm.com>
+	 <46434BBD-7656-41B1-BED0-3A3E212032B5@kernel.crashing.org>
+Content-Type: text/plain
+Date: Wed, 31 Oct 2007 13:45:33 -0800
+Message-Id: <1193867133.17412.49.camel@dyn9047017100.beaverton.ibm.com>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Adam Litke <agl@us.ibm.com>
-Cc: Christoph Lameter <clameter@sgi.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@kvack.org, kenchen@google.com, apw@shadowen.org, haveblue@us.ibm.com
+To: Kumar Gala <galak@kernel.crashing.org>
+Cc: Paul Mackerras <paulus@samba.org>, Andrew Morton <akpm@linux-foundation.org>, linuxppc-dev@ozlabs.org, anton@au1.ibm.com, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 31 Oct 2007, Adam Litke wrote:
-> On Tue, 2007-10-30 at 16:28 -0700, Christoph Lameter wrote:
-> > 
-> > The private pointer in the first page of a compound page is always 
-> > available. However, why do we not use page->mapping for that purpose? 
-> > Could we stay as close as possible to regular page cache field use?
+On Thu, 2007-11-01 at 01:26 -0500, Kumar Gala wrote:
+> On Oct 31, 2007, at 11:49 AM, Badari Pulavarty wrote:
 > 
-> There is an additional problem I forgot to mention in the previous mail.
-> The remove_from_page_cache() call path clears page->mapping.  This means
-> that if the free_huge_page destructor is called on a previously shared
-> page, we will not have the needed information to release quota.  Perhaps
-> this is a further indication that use of page->mapping at this level is
-> inappropriate. 
+> > Supply arch specific remove_memory() for PPC64. There is nothing
+> > ppc specific code here and its exactly same as ia64 version.
+> > For now, lets keep it arch specific - so each arch can add
+> > its own special things if needed.
+> >
+> > Signed-off-by: Badari Pulavarty <pbadari@us.ibm.com>
+> > ---
+> 
+> What's ppc64 specific about these patches?
 
-Or is it an indication that use of a struct address_space pointer
-at this level is inappropriate?  What guarantee do you have at
-free_huge_page time, that the memory once used for that struct
-address_space is still being used for the same?
+Like I mentioned, nothing. When KAME did the hotplug memory
+remove, he kept this remove_memory() arch-specific - so
+each arch can provide its own, if it needs to something
+special. So far, there is no need for arch-specific 
+remove_memory(). If other archs (x86-64 and others)
+agree we can merge this into arch neutral code.
 
-Hugh
+I have to provide this for ppc64 to plug into general
+frame work.
+
+Thanks,
+Badari
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
