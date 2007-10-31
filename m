@@ -1,98 +1,54 @@
 Received: from d03relay02.boulder.ibm.com (d03relay02.boulder.ibm.com [9.17.195.227])
-	by e33.co.us.ibm.com (8.13.8/8.13.8) with ESMTP id l9VFAqCX022889
-	for <linux-mm@kvack.org>; Wed, 31 Oct 2007 11:10:52 -0400
+	by e32.co.us.ibm.com (8.12.11.20060308/8.13.8) with ESMTP id l9VEH3Hc000688
+	for <linux-mm@kvack.org>; Wed, 31 Oct 2007 10:17:03 -0400
 Received: from d03av01.boulder.ibm.com (d03av01.boulder.ibm.com [9.17.195.167])
-	by d03relay02.boulder.ibm.com (8.13.8/8.13.8/NCO v8.5) with ESMTP id l9VFAqod118790
-	for <linux-mm@kvack.org>; Wed, 31 Oct 2007 09:10:52 -0600
+	by d03relay02.boulder.ibm.com (8.13.8/8.13.8/NCO v8.5) with ESMTP id l9VFGDT0112324
+	for <linux-mm@kvack.org>; Wed, 31 Oct 2007 09:17:21 -0600
 Received: from d03av01.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av01.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l9VFAq9i002595
-	for <linux-mm@kvack.org>; Wed, 31 Oct 2007 09:10:52 -0600
-Subject: Re: migratepage failures on reiserfs
+	by d03av01.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l9VExBTA028910
+	for <linux-mm@kvack.org>; Wed, 31 Oct 2007 08:59:11 -0600
+Subject: Re: [RFC] hotplug memory remove - walk_memory_resource for ppc64
 From: Badari Pulavarty <pbadari@us.ibm.com>
-In-Reply-To: <20071030185840.48f5a10b@think.oraclecorp.com>
-References: <1193768824.8904.11.camel@dyn9047017100.beaverton.ibm.com>
-	 <20071030135442.5d33c61c@think.oraclecorp.com>
-	 <1193781245.8904.28.camel@dyn9047017100.beaverton.ibm.com>
-	 <20071030185840.48f5a10b@think.oraclecorp.com>
+In-Reply-To: <20071031143423.586498c3.kamezawa.hiroyu@jp.fujitsu.com>
+References: <1191346196.6106.20.camel@dyn9047017100.beaverton.ibm.com>
+	 <18178.52359.953289.638736@cargo.ozlabs.ibm.com>
+	 <1193771951.8904.22.camel@dyn9047017100.beaverton.ibm.com>
+	 <20071031142846.aef9c545.kamezawa.hiroyu@jp.fujitsu.com>
+	 <20071031143423.586498c3.kamezawa.hiroyu@jp.fujitsu.com>
 Content-Type: text/plain
-Date: Wed, 31 Oct 2007 08:14:21 -0800
-Message-Id: <1193847261.17412.13.camel@dyn9047017100.beaverton.ibm.com>
+Date: Wed, 31 Oct 2007 08:02:40 -0800
+Message-Id: <1193846560.17412.3.camel@dyn9047017100.beaverton.ibm.com>
 Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Chris Mason <chris.mason@oracle.com>
-Cc: reiserfs-devel@vger.kernel.org, linux-mm <linux-mm@kvack.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: Paul Mackerras <paulus@samba.org>, linuxppc-dev@ozlabs.org, linux-mm <linux-mm@kvack.org>, anton@au1.ibm.com
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 2007-10-30 at 18:58 -0400, Chris Mason wrote:
-> On Tue, 30 Oct 2007 13:54:05 -0800
-> Badari Pulavarty <pbadari@us.ibm.com> wrote:
+On Wed, 2007-10-31 at 14:34 +0900, KAMEZAWA Hiroyuki wrote:
+> On Wed, 31 Oct 2007 14:28:46 +0900
+> KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
 > 
-> > On Tue, 2007-10-30 at 13:54 -0400, Chris Mason wrote:
-> > > On Tue, 30 Oct 2007 10:27:04 -0800
-> > > Badari Pulavarty <pbadari@us.ibm.com> wrote:
-> > > 
-> > > > Hi,
-> > > > 
-> > > > While testing hotplug memory remove, I ran into this issue. Given
-> > > > a range of pages hotplug memory remove tries to migrate those
-> > > > pages.
-> > > > 
-> > > > migrate_pages() keeps failing to migrate pages containing
-> > > > pagecache pages for reiserfs files. I noticed that reiserfs
-> > > > doesn't have ->migratepage() ops. So, fallback_migrate_page()
-> > > > code tries to do try_to_release_page(). try_to_release_page()
-> > > > fails to drop_buffers() since b_count == 1. Here is what my debug
-> > > > shows:
-> > > > 
-> > > > 	migrate pages failed pfn 258111/flags 3f00000000801
-> > > > 	bh c00000000b53f6e0 flags 110029 count 1
-> > > > 	
-> > > > Any one know why the b_count == 1 and not getting dropped to
-> > > > zero ? 
-> > > 
-> > > If these are file data pages, the count is probably elevated as
-> > > part of the data=ordered tracking.  You can verify this via
-> > > b_private, or just mount data=writeback to double check.
+> > ioresource was good structure for remembering "which memory is conventional
+> > memory" and i386/x86_64/ia64 registered conventional memory as "System RAM",
+> > when I posted patch. (just say "System Ram" is not for memory hotplug.)
 > > 
-> > 
-> > Chris,
-> > 
-> > That was my first assumption. But after looking at
-> > reiserfs_releasepage (), realized that it would do reiserfs_free_jh()
-> > and clears the b_private. I couldn't easily find out who has the ref.
-> > against this bh.
-> > 
-> > bh c00000000bdaaf00 flags 110029 count 1 private 0
-> > 
-> 
-> If I'm reading this correctly the buffer is BH_Lock | BH_Req, perhaps
-> it is currently under IO?
-> 
-> The page isn't locked, but data=ordered does IO directly on the buffer
-> heads, without taking the page lock.
-> 
-> The easy way to narrow our search is to try without data=ordered, it is
-> certainly complicating things.
+> If I remember correctly, System RAM is for kdump (to know which memory should
+> be dumped.) Then, memory-hotadd/remove has to modify it anyway.
 
-I tried data=writeback mode and it didn't help :(
+Yes. kdump uses it for finding memory holes on x86/x86-64 (not sure
+about ia64). On PPC64, since its not represented in /proc/iomem, we
+end up reading /proc/device-tree/memory* nodes to construct the 
+memory map.
 
-unable to release the page 262070
-bh c0000000211b9408 flags 110029 count 1 private 0
-unable to release the page 262098
-bh c000000020ec9198 flags 110029 count 1 private 0
-memory offlining 3f000 to 40000 failed
-
-# cat /etc/mtab
-/dev/sda3 / reiserfs rw,data=writeback 0 0
-proc /proc proc rw 0 0
-tmpfs /dev/shm tmpfs rw 0 0
-devpts /dev/pts devpts rw,mode=0620,gid=5 0 0
+Paul's concern is, since we didn't need it so far - why we need this
+for hotplug memory remove to work ? It might break API for *unknown*
+applications. Its unfortunate that, hotplug memory add updates 
+/proc/iomem. We can deal with it later, as a separate patch.
 
 Thanks,
 Badari
-
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
