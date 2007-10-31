@@ -1,48 +1,33 @@
-Subject: Re: [PATCH 2/5] hugetlb: Fix quota management for private mappings
-From: Adam Litke <agl@us.ibm.com>
-In-Reply-To: <Pine.LNX.4.64.0710301626580.16022@schroedinger.engr.sgi.com>
-References: <20071030204554.16585.80588.stgit@kernel>
-	 <20071030204615.16585.60817.stgit@kernel>
-	 <20071030162219.511394fb.akpm@linux-foundation.org>
-	 <Pine.LNX.4.64.0710301626580.16022@schroedinger.engr.sgi.com>
-Content-Type: text/plain
-Date: Wed, 31 Oct 2007 08:26:25 -0500
-Message-Id: <1193837185.18417.123.camel@localhost.localdomain>
-Mime-Version: 1.0
+Received: by an-out-0708.google.com with SMTP id d30so14076and
+        for <linux-mm@kvack.org>; Wed, 31 Oct 2007 06:44:31 -0700 (PDT)
+Message-ID: <472886B2.1060207@gmail.com>
+Date: Wed, 31 Oct 2007 09:44:18 -0400
+MIME-Version: 1.0
+Subject: Re: [PATCH 00/33] Swap over NFS -v14
+References: <20071030160401.296770000@chello.nl>	 <200710311426.33223.nickpiggin@yahoo.com.au>	 <1193830033.27652.159.camel@twins>  <47287220.8050804@garzik.org> <1193835413.27652.205.camel@twins>
+In-Reply-To: <1193835413.27652.205.camel@twins>
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
+From: Gregory Haskins <gregory.haskins.ml@gmail.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@kvack.org, kenchen@google.com, apw@shadowen.org, haveblue@us.ibm.com
+To: Peter Zijlstra <a.p.zijlstra@chello.nl>
+Cc: Jeff Garzik <jeff@garzik.org>, Nick Piggin <nickpiggin@yahoo.com.au>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, netdev@vger.kernel.org, trond.myklebust@fys.uio.no
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 2007-10-30 at 16:28 -0700, Christoph Lameter wrote:
-> On Tue, 30 Oct 2007, Andrew Morton wrote:
-> 
-> > > This patch (based on a prototype provided by Ken Chen) moves quota
-> > > crediting for all pages into free_huge_page().  page->private is used to
-> > > store a pointer to the mapping to which this page belongs.  This is used to
-> > > credit quota on the appropriate hugetlbfs instance.
-> > > 
-> > 
-> > Consuming page.private on hugetlb pages is a noteworthy change.  I'm in
-> > fact surprised that it's still available.
-> > 
-> > I'd expect that others (eg Christoph?) have designs upon it as well.  We
-> > need to work out if this is the best use we can put it to.
-> 
-> The private pointer in the first page of a compound page is always 
-> available. However, why do we not use page->mapping for that purpose? 
-> Could we stay as close as possible to regular page cache field use?
+Peter Zijlstra wrote:
 
-We could use page->mapping, but add_to_page_cache() already fills it in
-for shared huge pages.  Even though add_to_page_cache and
-alloc_huge_page would be storing the same value there, it seems a bit
-odd to double-assign it.
+> 
+> But please, people who want this (I'm sure some of you are reading) do
+> speak up. I'm just the motivated corporate drone implementing the
+> feature :-)
 
--- 
-Adam Litke - (agl at us.ibm.com)
-IBM Linux Technology Center
+FWIW, I could have used a "swap to network technology X" like system at
+my last job.  We were building a large networking switch with blades,
+and the IO cards didn't have anywhere near the resources that the
+control modules had (no persistent storage, small ram, etc).  We were
+already doing userspace coredumps over NFS to the control cards.  It
+would have been nice to swap as well.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
