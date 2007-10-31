@@ -1,51 +1,58 @@
-Subject: Re: [PATCH 00/33] Swap over NFS -v14
-From: Peter Zijlstra <a.p.zijlstra@chello.nl>
-In-Reply-To: <20071030.213753.126064697.davem@davemloft.net>
-References: <20071030160401.296770000@chello.nl>
-	 <200710311426.33223.nickpiggin@yahoo.com.au>
-	 <20071030.213753.126064697.davem@davemloft.net>
-Content-Type: multipart/signed; micalg=pgp-sha1; protocol="application/pgp-signature"; boundary="=-yW7DcZkAyc3tw+pTPoVz"
-Date: Wed, 31 Oct 2007 10:53:16 +0100
-Message-Id: <1193824396.27652.105.camel@twins>
+Date: Wed, 31 Oct 2007 19:22:13 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: [PATCH] memory cgroup enhancements take 4 [0/8] intro
+Message-Id: <20071031192213.4f736fac.kamezawa.hiroyu@jp.fujitsu.com>
 Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: David Miller <davem@davemloft.net>
-Cc: nickpiggin@yahoo.com.au, torvalds@linux-foundation.org, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, netdev@vger.kernel.org, trond.myklebust@fys.uio.no
+To: "linux-mm@kvack.org" <linux-mm@kvack.org>
+Cc: "containers@lists.osdl.org" <containers@lists.osdl.org>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "yamamoto@valinux.co.jp" <yamamoto@valinux.co.jp>, "kamezawa.hiroyu@jp.fujitsu.com" <kamezawa.hiroyu@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
---=-yW7DcZkAyc3tw+pTPoVz
-Content-Type: text/plain
-Content-Transfer-Encoding: quoted-printable
+Hi, this set is for enhancements for memory cgroup I have now.
+Tested on x86_64 and passed some tests.
+All are against 2.6.23-mm1 + previous memory cgroup bugfix patches.
 
-On Tue, 2007-10-30 at 21:37 -0700, David Miller wrote:
-> From: Nick Piggin <nickpiggin@yahoo.com.au>
-> Date: Wed, 31 Oct 2007 14:26:32 +1100
->=20
-> > Is it really worth all the added complexity of making swap
-> > over NFS files work, given that you could use a network block
-> > device instead?
->=20
-> Don't be misled.  Swapping over NFS is just a scarecrow for the
-> seemingly real impetus behind these changes which is network storage
-> stuff like iSCSI.
+Any comments are welcome.
 
-Not quite, yes, iSCSI is also on the 'want' list of quite a few people,
-but swap over NFS on its own is also a feature of great demand.
+Patch contents:
 
---=-yW7DcZkAyc3tw+pTPoVz
-Content-Type: application/pgp-signature; name=signature.asc
-Content-Description: This is a digitally signed message part
+[1/8] .... fix zone handling in try_to_free_mem_cgroup_page
+		This is bug fix.
 
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v1.4.6 (GNU/Linux)
+[2/8] .... force_empty interface for dropping all account in empty cgroup
+		enhancements for easy deleting empty cgroup which was used
+ 		for memory control. Without this, deleting will fail
+		in many case.
 
-iD8DBQBHKFCMXA2jU0ANEf4RAnCYAJ9EShZNc2aAigDfV05aRlrTBUws0wCeLutM
-XGe5bBLDF8SxDFeM890dEoY=
-=66ee
------END PGP SIGNATURE-----
+[3/8] .... remember "a page is charged as page cache"
+		record as what a page is charged.
 
---=-yW7DcZkAyc3tw+pTPoVz--
+[4/8] .... remember "a page is on active list of cgroup or not"
+		for future use. (can be skipped.)
+		will be useful for reclaim routine enhance
+
+[5/8] .... add status accounting function for memory cgroup
+		infrastructure for accounting.
+		will be used in memory.stat file
+
+[6/8] .... add memory.stat file
+		showing # of RSS and CACHEes by memory.stat file
+		and other *memory specific* data in future.
+
+[7/8] .... pre destroy handler
+		add cgroup pre_destroy handler before calling destroy handler.
+
+[8/8] .... implicit force_empty at rmdir()
+		call force_empty in pre_destroy handler.
+		This allows rmdir() to success always if cgroup is empty.
+
+Reflected all comments against take3 and dropped zonestat.
+
+Thanks,
+-Kame
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
