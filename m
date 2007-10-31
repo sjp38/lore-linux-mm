@@ -1,40 +1,98 @@
-Received: from d03relay04.boulder.ibm.com (d03relay04.boulder.ibm.com [9.17.195.106])
-	by e32.co.us.ibm.com (8.12.11.20060308/8.13.8) with ESMTP id l9VKsqi4024635
-	for <linux-mm@kvack.org>; Wed, 31 Oct 2007 16:54:52 -0400
-Received: from d03av03.boulder.ibm.com (d03av03.boulder.ibm.com [9.17.195.169])
-	by d03relay04.boulder.ibm.com (8.13.8/8.13.8/NCO v8.5) with ESMTP id l9VLtBgq125168
-	for <linux-mm@kvack.org>; Wed, 31 Oct 2007 15:55:11 -0600
-Received: from d03av03.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av03.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l9VLtAea013281
-	for <linux-mm@kvack.org>; Wed, 31 Oct 2007 15:55:11 -0600
-Subject: Re: [PATCH 1/3] Add remove_memory() for ppc64
-From: Dave Hansen <haveblue@us.ibm.com>
-In-Reply-To: <1193868715.17412.55.camel@dyn9047017100.beaverton.ibm.com>
-References: <1193849375.17412.34.camel@dyn9047017100.beaverton.ibm.com>
-	 <1193863502.6271.38.camel@localhost>
-	 <1193868715.17412.55.camel@dyn9047017100.beaverton.ibm.com>
-Content-Type: text/plain
-Date: Wed, 31 Oct 2007 14:55:03 -0700
-Message-Id: <1193867703.6271.42.camel@localhost>
+Date: Wed, 31 Oct 2007 15:12:34 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH] memory cgroup enhancements take 4 [5/8] add status
+ accounting function for memory cgroup
+Message-Id: <20071031151234.4fcb42b2.akpm@linux-foundation.org>
+In-Reply-To: <20071031193046.a58f2ef0.kamezawa.hiroyu@jp.fujitsu.com>
+References: <20071031192213.4f736fac.kamezawa.hiroyu@jp.fujitsu.com>
+	<20071031193046.a58f2ef0.kamezawa.hiroyu@jp.fujitsu.com>
 Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Badari Pulavarty <pbadari@us.ibm.com>
-Cc: Paul Mackerras <paulus@samba.org>, Andrew Morton <akpm@linux-foundation.org>, linuxppc-dev@ozlabs.org, anton@au1.ibm.com, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm <linux-mm@kvack.org>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: linux-mm@kvack.org, containers@lists.osdl.org, balbir@linux.vnet.ibm.com, yamamoto@valinux.co.jp
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 2007-10-31 at 14:11 -0800, Badari Pulavarty wrote:
+On Wed, 31 Oct 2007 19:30:46 +0900
+KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
+
+> Add statistics account infrastructure for memory controller.
+> All account information is stored per-cpu and caller will not have
+> to take lock or use atomic ops.
+> This will be used by memory.stat file later.
 > 
-> Well, We don't need arch-specific remove_memory() for ia64 and ppc64.
-> x86_64, I don't know. We will know, only when some one does the
-> verification. I don't need arch_remove_memory() hook also at this
-> time.
+> CACHE includes swapcache now. I'd like to divide it to
+> PAGECACHE and SWAPCACHE later.
+> 
+> ...
+>
+> --- devel-2.6.23-mm1.orig/mm/memcontrol.c
+> +++ devel-2.6.23-mm1/mm/memcontrol.c
+> @@ -35,6 +35,59 @@ struct cgroup_subsys mem_cgroup_subsys;
+>  static const int MEM_CGROUP_RECLAIM_RETRIES = 5;
+>  
+>  /*
+> + * Statistics for memory cgroup.
+> + */
+> +enum mem_cgroup_stat_index {
+> +	/*
+> +	 * For MEM_CONTAINER_TYPE_ALL, usage = pagecache + rss.
+> +	 */
+> +	MEM_CGROUP_STAT_CACHE, 	   /* # of pages charged as cache */
+> +	MEM_CGROUP_STAT_RSS,	   /* # of pages charged as rss */
+> +
+> +	MEM_CGROUP_STAT_NSTATS,
+> +};
+> +
+> +struct mem_cgroup_stat_cpu {
+> +	s64 count[MEM_CGROUP_STAT_NSTATS];
+> +} ____cacheline_aligned_in_smp;
+> +
+> +struct mem_cgroup_stat {
+> +	struct mem_cgroup_stat_cpu cpustat[NR_CPUS];
+> +};
+> +
+> +/*
+> + * modifies value with disabling preempt.
+> + */
+> +static inline void __mem_cgroup_stat_add(struct mem_cgroup_stat *stat,
+> +                enum mem_cgroup_stat_index idx, int val)
+> +{
+> +	int cpu = smp_processor_id();
+> +	preempt_disable();
+> +	stat->cpustat[cpu].count[idx] += val;
+> +	preempt_enable();
+> +}
 
-I wasn't being very clear.  I say, add the arch hook only if you need
-it.  But, for now, just take the ia64 code and make it generic.  
+This is clearly doing smp_processor_id() in preemptible code.  (or the
+preempt_disable() just isn't needed).  I fixed it up.
 
--- Dave
+Please ensure that you test with all runtime debugging options enabled -
+you should have seen a warning here.
+
+> +/*
+> + * For accounting under irq disable, no need for increment preempt count.
+> + */
+> +static inline void __mem_cgroup_stat_add_safe(struct mem_cgroup_stat *stat,
+> +		enum mem_cgroup_stat_index idx, int val)
+> +{
+> +	int cpu = smp_processor_id();
+> +	stat->cpustat[cpu].count[idx] += val;
+> +}
+
+There's a wild amount of inlining in that file.  Please, just don't do it -
+inline is a highly specialised thing and is rarely needed.
+
+When I removed the obviously-wrong inline statements, the size of
+mm/memcontrol.o went from 3823 bytes down to 3495.
+
+It also caused this:
+
+mm/memcontrol.c:65: warning: '__mem_cgroup_stat_add' defined but not used
+
+so I guess I'll just remove that.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
