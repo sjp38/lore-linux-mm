@@ -1,43 +1,41 @@
-From: Nick Piggin <nickpiggin@yahoo.com.au>
-Subject: Re: [PATCH 03/33] mm: slub: add knowledge of reserve pages
-Date: Wed, 31 Oct 2007 22:25:06 +1100
-References: <20071030160401.296770000@chello.nl> <200710312146.03351.nickpiggin@yahoo.com.au> <1193833072.27652.167.camel@twins>
-In-Reply-To: <1193833072.27652.167.camel@twins>
+Received: from localhost.localdomain ([127.0.0.1]:2944 "EHLO
+	dl5rb.ham-radio-op.net") by ftp.linux-mips.org with ESMTP
+	id S28575916AbXJaMsz (ORCPT <rfc822;linux-mm@kvack.org>);
+	Wed, 31 Oct 2007 12:48:55 +0000
+Date: Wed, 31 Oct 2007 12:48:31 +0000
+From: Ralf Baechle <ralf@linux-mips.org>
+Subject: Re: [patch 04/28] Add cmpxchg64 and cmpxchg64_local to mips
+Message-ID: <20071031124831.GA3982@linux-mips.org>
+References: <20071030191557.947156623@polymtl.ca> <20071030192102.677087409@polymtl.ca>
 MIME-Version: 1.0
-Content-Type: text/plain;
-  charset="utf-8"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-Message-Id: <200710312225.07249.nickpiggin@yahoo.com.au>
+In-Reply-To: <20071030192102.677087409@polymtl.ca>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, netdev@vger.kernel.org, trond.myklebust@fys.uio.no
+To: Mathieu Desnoyers <mathieu.desnoyers@polymtl.ca>
+Cc: akpm@linux-foundation.org, linux-kernel@vger.kernel.org, matthew@wil.cx, linux-arch@vger.kernel.org, penberg@cs.helsinki.fi, linux-mm@kvack.org, Christoph Lameter <clameter@sgi.com>
 List-ID: <linux-mm.kvack.org>
 
-On Wednesday 31 October 2007 23:17, Peter Zijlstra wrote:
-> On Wed, 2007-10-31 at 21:46 +1100, Nick Piggin wrote:
+On Tue, Oct 30, 2007 at 03:16:01PM -0400, Mathieu Desnoyers wrote:
 
-> > And I'd prevent these ones from doing so.
-> >
-> > Without keeping track of "reserve" pages, which doesn't feel
-> > too clean.
->
-> The problem with that is that once a slab was allocated with the right
-> allocation context, anybody can get objects from these slabs.
+> Index: linux-2.6-lttng/include/asm-mips/cmpxchg.h
+> ===================================================================
+> --- linux-2.6-lttng.orig/include/asm-mips/cmpxchg.h	2007-10-12 12:05:06.000000000 -0400
+> +++ linux-2.6-lttng/include/asm-mips/cmpxchg.h	2007-10-12 12:08:56.000000000 -0400
+> @@ -104,4 +104,13 @@ extern void __cmpxchg_called_with_bad_po
+>  #define cmpxchg(ptr, old, new)		__cmpxchg(ptr, old, new, smp_llsc_mb())
+>  #define cmpxchg_local(ptr, old, new)	__cmpxchg(ptr, old, new, )
+>  
+> +#define cmpxchg64	cmpxchg
+> +
+> +#ifdef CONFIG_64BIT
+> +#define cmpxchg64_local	cmpxchg_local
 
-[snip]
+This implementation means cmpxchg64_local will also silently take 32-bit
+arguments without making noises at compile time.  I think it should.
 
-I understand that.
-
-
-> So we either reserve a page per object, which for 32 byte objects is a
-> large waste, or we stop anybody who doesn't have the right permissions
-> from obtaining objects. I took the latter approach.
-
-What I'm saying is that the slab allocator slowpath should always
-just check watermarks against the current task. Instead of this
-->reserve stuff.
+  Ralf
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
