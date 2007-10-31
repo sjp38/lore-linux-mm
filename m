@@ -1,62 +1,50 @@
-Message-ID: <472814EF.2090406@linux.vnet.ibm.com>
-Date: Wed, 31 Oct 2007 11:08:55 +0530
+Received: from d01relay02.pok.ibm.com (d01relay02.pok.ibm.com [9.56.227.234])
+	by e1.ny.us.ibm.com (8.13.8/8.13.8) with ESMTP id l9V7qrPU013856
+	for <linux-mm@kvack.org>; Wed, 31 Oct 2007 03:52:53 -0400
+Received: from d01av04.pok.ibm.com (d01av04.pok.ibm.com [9.56.224.64])
+	by d01relay02.pok.ibm.com (8.13.8/8.13.8/NCO v8.5) with ESMTP id l9V7qrSX482068
+	for <linux-mm@kvack.org>; Wed, 31 Oct 2007 03:52:53 -0400
+Received: from d01av04.pok.ibm.com (loopback [127.0.0.1])
+	by d01av04.pok.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l9V7qrkR021159
+	for <linux-mm@kvack.org>; Wed, 31 Oct 2007 03:52:53 -0400
 From: Balbir Singh <balbir@linux.vnet.ibm.com>
-Reply-To: balbir@linux.vnet.ibm.com
-MIME-Version: 1.0
-Subject: Re: [RFC] oom notifications via /dev/oom_notify
-References: <20071030191827.GB31038@dmt> <1193781568.8904.33.camel@dyn9047017100.beaverton.ibm.com> <20071030171209.0caae1d5@cuia.boston.redhat.com> <472801DC.6050802@us.ibm.com>
-In-Reply-To: <472801DC.6050802@us.ibm.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Date: Wed, 31 Oct 2007 13:22:43 +0530
+Message-Id: <20071031075243.22225.53636.sendpatchset@balbir-laptop>
+Subject: [PATCH] Swap delay accounting, include lock_page() delays
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Badari <pbadari@us.ibm.com>
-Cc: Rik van Riel <riel@redhat.com>, Marcelo Tosatti <marcelo@kvack.org>, linux-mm <linux-mm@kvack.org>, drepper@redhat.com, Andrew Morton <akpm@linux-foundation.org>, mbligh@mbligh.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Nick Piggin <nickpiggin@yahoo.com.au>, Linux MM Mailing List <linux-mm@kvack.org>, Balbir Singh <balbir@linux.vnet.ibm.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-Badari wrote:
-> Rik van Riel wrote:
->> On Tue, 30 Oct 2007 13:59:28 -0800
->> Badari Pulavarty <pbadari@us.ibm.com> wrote:
->>
->>  
->>> Interesting.. Our database folks wanted some kind of notification when
->>> there is memory pressure and we are about to kill the biggest consumer
->>> (in most cases, the most useful application :(). What actually they
->>> want is a way to get notified, so that they can shrink their memory
->>> footprint in response. Just notifying before OOM may not help, since
->>> they don't have time to react. How does this notification help ? Are
->>> they supposed to monitor swapping activity and decide ?
->>>     
->>
->> Marcelo's code monitors swapping activity and will let userspace
->> programs (that poll/select the device node) know when they should
->> shrink their memory footprint.
->>
->> This is not "OOM" in the sense of "no more memory or swap", but
->> in the sense of "we're low on memory - if you don't free something
->> we'll slow you down by swapping stuff".
->>
->>   
-> I think having this kind of OOM notification is a decent start. But any
-> applications that
-> wants to know notifications, would be more interested if kernel is
-> swapping out any of
-> its data, than overall system swapping events. I guess, making it
-> per-process or per-cgroup
-> may be logical extension. I am not sure if its really practical , though...
-> 
 
-Badari,
+Reported-by: Nick Piggin <nickpiggin@yahoo.com.au>
 
-We have information of swapping per process in taskstats. We have
-swap io count and delay. This can be easily extended to per cgroup.
-It does not have the finesse of this patch, but it might meet basic
-needs.
+The delay incurred in lock_page() should also be accounted in swap delay
+accounting
 
-> Thanks,
-> Badari
+Signed-off-by: Balbir Singh <balbir@linux.vnet.ibm.com>
+---
 
+ mm/memory.c |    2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff -puN mm/swapfile.c~fix-delay-accounting-swap-accounting mm/swapfile.c
+diff -puN mm/memory.c~fix-delay-accounting-swap-accounting mm/memory.c
+--- linux-2.6-latest/mm/memory.c~fix-delay-accounting-swap-accounting	2007-10-31 12:58:05.000000000 +0530
++++ linux-2.6-latest-balbir/mm/memory.c	2007-10-31 13:02:50.000000000 +0530
+@@ -2084,9 +2084,9 @@ static int do_swap_page(struct mm_struct
+ 		count_vm_event(PGMAJFAULT);
+ 	}
+ 
+-	delayacct_clear_flag(DELAYACCT_PF_SWAPIN);
+ 	mark_page_accessed(page);
+ 	lock_page(page);
++	delayacct_clear_flag(DELAYACCT_PF_SWAPIN);
+ 
+ 	/*
+ 	 * Back out if somebody else already faulted in this pte.
+_
 
 -- 
 	Warm Regards,
