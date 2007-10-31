@@ -1,62 +1,54 @@
-Subject: Re: [PATCH 00/33] Swap over NFS -v14
-From: Peter Zijlstra <a.p.zijlstra@chello.nl>
-In-Reply-To: <200710311426.33223.nickpiggin@yahoo.com.au>
-References: <20071030160401.296770000@chello.nl>
-	 <200710311426.33223.nickpiggin@yahoo.com.au>
-Content-Type: multipart/signed; micalg=pgp-sha1; protocol="application/pgp-signature"; boundary="=-H8xFTlN2az+i59IqNUDQ"
-Date: Wed, 31 Oct 2007 12:27:13 +0100
-Message-Id: <1193830033.27652.159.camel@twins>
-Mime-Version: 1.0
+From: Nick Piggin <nickpiggin@yahoo.com.au>
+Subject: Re: [PATCH 03/33] mm: slub: add knowledge of reserve pages
+Date: Wed, 31 Oct 2007 21:46:02 +1100
+References: <20071030160401.296770000@chello.nl> <200710311437.28630.nickpiggin@yahoo.com.au> <1193827358.27652.126.camel@twins>
+In-Reply-To: <1193827358.27652.126.camel@twins>
+MIME-Version: 1.0
+Content-Disposition: inline
+Message-Id: <200710312146.03351.nickpiggin@yahoo.com.au>
+Content-Type: text/plain;
+  charset="utf-8"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nick Piggin <nickpiggin@yahoo.com.au>
+To: Peter Zijlstra <a.p.zijlstra@chello.nl>
 Cc: Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, netdev@vger.kernel.org, trond.myklebust@fys.uio.no
 List-ID: <linux-mm.kvack.org>
 
---=-H8xFTlN2az+i59IqNUDQ
-Content-Type: text/plain
-Content-Transfer-Encoding: quoted-printable
-
-On Wed, 2007-10-31 at 14:26 +1100, Nick Piggin wrote:
-> On Wednesday 31 October 2007 03:04, Peter Zijlstra wrote:
-> > Hi,
+On Wednesday 31 October 2007 21:42, Peter Zijlstra wrote:
+> On Wed, 2007-10-31 at 14:37 +1100, Nick Piggin wrote:
+> > On Wednesday 31 October 2007 03:04, Peter Zijlstra wrote:
+> > > Restrict objects from reserve slabs (ALLOC_NO_WATERMARKS) to allocation
+> > > contexts that are entitled to it.
+> > >
+> > > Care is taken to only touch the SLUB slow path.
+> > >
+> > > This is done to ensure reserve pages don't leak out and get consumed.
 > >
-> > Another posting of the full swap over NFS series.
->=20
-> Hi,
->=20
-> Is it really worth all the added complexity of making swap
-> over NFS files work, given that you could use a network block
-> device instead?
+> > I think this is generally a good idea (to prevent slab allocators
+> > from stealing reserve). However I naively think the implementation
+> > is a bit overengineered and thus has a few holes.
+> >
+> > Humour me, what was the problem with failing the slab allocation
+> > (actually, not fail but just call into the page allocator to do
+> > correct waiting  / reclaim) in the slowpath if the process fails the
+> > watermark checks?
+>
+> Ah, we actually need slabs below the watermarks.
 
-As it stands, we don't have a usable network block device IMHO.
-NFS is by far the most used and usable network storage solution out
-there, anybody with half a brain knows how to set it up and use it.
-
-> Also, have you ensured that page_file_index, page_file_mapping
-> and page_offset are only ever used on anonymous pages when the
-> page is locked? (otherwise PageSwapCache could change)
-
-Good point, I hope so, both ->readpage() and ->writepage() take a locked
-page, I'd have to look if it remains locked throughout the NFS call
-chain.
-
-Then again, it might become obsolete with the extended swap a_ops.
+Right, I'd still allow those guys to allocate slabs. Provided they
+have the right allocation context, right?
 
 
---=-H8xFTlN2az+i59IqNUDQ
-Content-Type: application/pgp-signature; name=signature.asc
-Content-Description: This is a digitally signed message part
+> Its just that once I 
+> allocated those slabs using __GFP_MEMALLOC/PF_MEMALLOC I don't want
+> allocation contexts that do not have rights to those pages to walk off
+> with objects.
 
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v1.4.6 (GNU/Linux)
+And I'd prevent these ones from doing so.
 
-iD8DBQBHKGaRXA2jU0ANEf4RApFUAJ4+CBvPm0mCVlIMmXKt1KBmtVP/3wCfWg+f
-0Bv7xVApLAX9gH4Chrrlb70=
-=IEK+
------END PGP SIGNATURE-----
-
---=-H8xFTlN2az+i59IqNUDQ--
+Without keeping track of "reserve" pages, which doesn't feel
+too clean.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
