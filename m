@@ -1,28 +1,36 @@
-Date: Tue, 30 Oct 2007 21:37:53 -0700 (PDT)
-Message-Id: <20071030.213753.126064697.davem@davemloft.net>
-Subject: Re: [PATCH 00/33] Swap over NFS -v14
-From: David Miller <davem@davemloft.net>
-In-Reply-To: <200710311426.33223.nickpiggin@yahoo.com.au>
-References: <20071030160401.296770000@chello.nl>
-	<200710311426.33223.nickpiggin@yahoo.com.au>
-Mime-Version: 1.0
-Content-Type: Text/Plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
-Sender: owner-linux-mm@kvack.org
 From: Nick Piggin <nickpiggin@yahoo.com.au>
-Date: Wed, 31 Oct 2007 14:26:32 +1100
+Subject: Re: [PATCH 03/33] mm: slub: add knowledge of reserve pages
+Date: Wed, 31 Oct 2007 14:37:28 +1100
+References: <20071030160401.296770000@chello.nl> <20071030160910.813944000@chello.nl>
+In-Reply-To: <20071030160910.813944000@chello.nl>
+MIME-Version: 1.0
+Content-Type: text/plain;
+  charset="utf-8"
+Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+Message-Id: <200710311437.28630.nickpiggin@yahoo.com.au>
+Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: nickpiggin@yahoo.com.au
-Cc: a.p.zijlstra@chello.nl, torvalds@linux-foundation.org, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, netdev@vger.kernel.org, trond.myklebust@fys.uio.no
+To: Peter Zijlstra <a.p.zijlstra@chello.nl>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, netdev@vger.kernel.org, trond.myklebust@fys.uio.no
 List-ID: <linux-mm.kvack.org>
 
-> Is it really worth all the added complexity of making swap
-> over NFS files work, given that you could use a network block
-> device instead?
+On Wednesday 31 October 2007 03:04, Peter Zijlstra wrote:
+> Restrict objects from reserve slabs (ALLOC_NO_WATERMARKS) to allocation
+> contexts that are entitled to it.
+>
+> Care is taken to only touch the SLUB slow path.
+>
+> This is done to ensure reserve pages don't leak out and get consumed.
 
-Don't be misled.  Swapping over NFS is just a scarecrow for the
-seemingly real impetus behind these changes which is network storage
-stuff like iSCSI.
+I think this is generally a good idea (to prevent slab allocators
+from stealing reserve). However I naively think the implementation
+is a bit overengineered and thus has a few holes.
+
+Humour me, what was the problem with failing the slab allocation
+(actually, not fail but just call into the page allocator to do
+correct waiting  / reclaim) in the slowpath if the process fails the
+watermark checks?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
