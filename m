@@ -1,80 +1,71 @@
-Message-ID: <9a71401c81b7f$dee2c820$2101a8c0@Sp0019Spicaper>
-From: "Ralph Watson" <HowardheineKelly@consumersinternational.org>
-Subject: market investor alert
-Date: Wed, 31 Oct 2007 06:35:20 -0100
+Message-ID: <472814EF.2090406@linux.vnet.ibm.com>
+Date: Wed, 31 Oct 2007 11:08:55 +0530
+From: Balbir Singh <balbir@linux.vnet.ibm.com>
+Reply-To: balbir@linux.vnet.ibm.com
 MIME-Version: 1.0
-Content-Type: multipart/alternative;
-	boundary="----=_NextPart_000_9A710_01C81B7F.DEE2C820"
-Return-Path: <HowardheineKelly@consumersinternational.org>
-To: mm@kvack.org
-Cc: linux-mm@kvack.org, kelda@kvack.org, linux-mm-archive@kvack.org, majordomo@kvack.org
+Subject: Re: [RFC] oom notifications via /dev/oom_notify
+References: <20071030191827.GB31038@dmt> <1193781568.8904.33.camel@dyn9047017100.beaverton.ibm.com> <20071030171209.0caae1d5@cuia.boston.redhat.com> <472801DC.6050802@us.ibm.com>
+In-Reply-To: <472801DC.6050802@us.ibm.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
+Sender: owner-linux-mm@kvack.org
+Return-Path: <owner-linux-mm@kvack.org>
+To: Badari <pbadari@us.ibm.com>
+Cc: Rik van Riel <riel@redhat.com>, Marcelo Tosatti <marcelo@kvack.org>, linux-mm <linux-mm@kvack.org>, drepper@redhat.com, Andrew Morton <akpm@linux-foundation.org>, mbligh@mbligh.org
 List-ID: <linux-mm.kvack.org>
 
-This is a multi-part message in MIME format.
+Badari wrote:
+> Rik van Riel wrote:
+>> On Tue, 30 Oct 2007 13:59:28 -0800
+>> Badari Pulavarty <pbadari@us.ibm.com> wrote:
+>>
+>>  
+>>> Interesting.. Our database folks wanted some kind of notification when
+>>> there is memory pressure and we are about to kill the biggest consumer
+>>> (in most cases, the most useful application :(). What actually they
+>>> want is a way to get notified, so that they can shrink their memory
+>>> footprint in response. Just notifying before OOM may not help, since
+>>> they don't have time to react. How does this notification help ? Are
+>>> they supposed to monitor swapping activity and decide ?
+>>>     
+>>
+>> Marcelo's code monitors swapping activity and will let userspace
+>> programs (that poll/select the device node) know when they should
+>> shrink their memory footprint.
+>>
+>> This is not "OOM" in the sense of "no more memory or swap", but
+>> in the sense of "we're low on memory - if you don't free something
+>> we'll slow you down by swapping stuff".
+>>
+>>   
+> I think having this kind of OOM notification is a decent start. But any
+> applications that
+> wants to know notifications, would be more interested if kernel is
+> swapping out any of
+> its data, than overall system swapping events. I guess, making it
+> per-process or per-cgroup
+> may be logical extension. I am not sure if its really practical , though...
+> 
 
-------=_NextPart_000_9A710_01C81B7F.DEE2C820
-Content-Type: text/plain;
-	charset="iso-8859-1"
-Content-Transfer-Encoding: quoted-printable
+Badari,
 
-Nothing but gains in this company
-Hate to say it, but we told you so yesterday
+We have information of swapping per process in taskstats. We have
+swap io count and delay. This can be easily extended to per cgroup.
+It does not have the finesse of this patch, but it might meet basic
+needs.
 
-You cannot sit this one out!!
-
-SHOTPAK Inc (SHTP) has a unique product thats causing ripples across the =
-globe.
-
-All the shorts are getting squeezed, only place left to go is UP
-
-see the recent headlines
-ShotPak Tests New Patented StandUp Pouch and Multi-Pack Option In Two =
-Major Southern California Supermarket Chains
-
-volume and pricing is expected to soar in the coming days,
-
-Look into it and get in on the action.
-------=_NextPart_000_9A710_01C81B7F.DEE2C820
-Content-Type: text/html;
-	charset="iso-8859-1"
-Content-Transfer-Encoding: quoted-printable
-
-<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
-<HTML><HEAD>
-<META http-equiv=3DContent-Type content=3D"text/html; =
-charset=3Diso-8859-1">
-<META content=3D"MSHTML 6.00.2800.1106" name=3DGENERATOR>
-<STYLE></STYLE>
-</HEAD>=20
-<BODY bgColor=3D#ffffff>
-<DIV align=3Dleft><FONT face=3DArial size=3D2>Nothing but gains in =
-this=20
-company</FONT></DIV>
-<DIV align=3Dleft><FONT face=3DArial size=3D2>Hate to say it, but we =
-told you so=20
-yesterday</FONT></DIV><BR>
-<DIV align=3Dleft><FONT face=3DArial size=3D2>You cannot sit this one=20
-out!!</FONT></DIV><BR>
-<DIV align=3Dleft><FONT face=3DArial size=3D2>SHOTPAK Inc (SHTP) has a =
-unique product=20
-thats causing ripples across the globe.</FONT></DIV><BR>
-<DIV align=3Dleft><FONT face=3DArial size=3D2>All the shorts are getting =
-squeezed,=20
-only place left to go is UP</FONT></DIV><BR>
-<DIV align=3Dleft><FONT face=3DArial size=3D2>see the recent =
-headlines</FONT></DIV>
-<DIV align=3Dleft><FONT face=3DArial size=3D2>ShotPak Tests New Patented =
-StandUp=20
-Pouch and Multi-Pack Option In Two Major Southern California Supermarket =
-
-Chains</FONT></DIV><BR>
-<DIV align=3Dleft><FONT face=3DArial size=3D2>volume and pricing is =
-expected to soar=20
-in the coming days, </FONT></DIV><BR>
-<DIV align=3Dleft><FONT face=3DArial size=3D2>Look into it and get in on =
-the=20
-action.</FONT></DIV><BR>
-</BODY></HTML>
+> Thanks,
+> Badari
 
 
-------=_NextPart_000_9A710_01C81B7F.DEE2C820--
+-- 
+	Warm Regards,
+	Balbir Singh
+	Linux Technology Center
+	IBM, ISTL
+
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
