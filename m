@@ -1,35 +1,42 @@
-Date: Wed, 31 Oct 2007 10:33:45 -0700 (PDT)
-From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [PATCH 2/5] hugetlb: Fix quota management for private mappings
-In-Reply-To: <1193842481.18417.133.camel@localhost.localdomain>
-Message-ID: <Pine.LNX.4.64.0710311033160.21194@schroedinger.engr.sgi.com>
-References: <20071030204554.16585.80588.stgit@kernel>
- <20071030204615.16585.60817.stgit@kernel>  <20071030162219.511394fb.akpm@linux-foundation.org>
-  <Pine.LNX.4.64.0710301626580.16022@schroedinger.engr.sgi.com>
- <1193842481.18417.133.camel@localhost.localdomain>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Date: Wed, 31 Oct 2007 13:40:06 -0400
+From: Chris Mason <chris.mason@oracle.com>
+Subject: Re: migratepage failures on reiserfs
+Message-ID: <20071031134006.2ecd520b@think.oraclecorp.com>
+In-Reply-To: <1193847261.17412.13.camel@dyn9047017100.beaverton.ibm.com>
+References: <1193768824.8904.11.camel@dyn9047017100.beaverton.ibm.com>
+	<20071030135442.5d33c61c@think.oraclecorp.com>
+	<1193781245.8904.28.camel@dyn9047017100.beaverton.ibm.com>
+	<20071030185840.48f5a10b@think.oraclecorp.com>
+	<1193847261.17412.13.camel@dyn9047017100.beaverton.ibm.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Adam Litke <agl@us.ibm.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@kvack.org, kenchen@google.com, apw@shadowen.org, haveblue@us.ibm.com
+To: Badari Pulavarty <pbadari@us.ibm.com>
+Cc: reiserfs-devel@vger.kernel.org, linux-mm <linux-mm@kvack.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 31 Oct 2007, Adam Litke wrote:
-
-> > The private pointer in the first page of a compound page is always 
-> > available. However, why do we not use page->mapping for that purpose? 
-> > Could we stay as close as possible to regular page cache field use?
+On Wed, 31 Oct 2007 08:14:21 -0800
+Badari Pulavarty <pbadari@us.ibm.com> wrote:
 > 
-> There is an additional problem I forgot to mention in the previous mail.
-> The remove_from_page_cache() call path clears page->mapping.  This means
-> that if the free_huge_page destructor is called on a previously shared
-> page, we will not have the needed information to release quota.  Perhaps
-> this is a further indication that use of page->mapping at this level is
-> inappropriate. 
+> I tried data=writeback mode and it didn't help :(
 
-How does quota handle that for regular pages? Can you update the quotas 
-before the page is released?
+Ouch, so much for the easy way out.
+
+> 
+> unable to release the page 262070
+> bh c0000000211b9408 flags 110029 count 1 private 0
+> unable to release the page 262098
+> bh c000000020ec9198 flags 110029 count 1 private 0
+> memory offlining 3f000 to 40000 failed
+> 
+
+The only other special thing reiserfs does with the page cache is file
+tails.  I don't suppose all of these pages are index zero in files
+smaller than 4k?
+
+-chris
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
