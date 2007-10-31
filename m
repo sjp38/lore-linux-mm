@@ -1,163 +1,138 @@
-Message-ID: <147ff901c81c02$9be81650$6601a8c0@D7SL15C1>
-From: "Francis Murray" <JoelmelissaDixon@livescience.com>
-Subject: Confirmation link
-Date: Wed, 31 Oct 2007 18:41:16 +0330
-MIME-Version: 1.0
-Content-Type: multipart/alternative;
-	boundary="----=_NextPart_000_147FF5_01C81C02.9BE81650"
-Return-Path: <JoelmelissaDixon@livescience.com>
-To: mm@kvack.org, linux-mm@kvack.org, kelda@kvack.org, linux-mm-archive@kvack.org, majordomo@kvack.org
+Date: Wed, 31 Oct 2007 19:53:06 -0400
+Message-Id: <200710312353.l9VNr67n013016@agora.fsl.cs.sunysb.edu>
+From: Erez Zadok <ezk@cs.sunysb.edu>
+Subject: Re: msync(2) bug(?), returns AOP_WRITEPAGE_ACTIVATE to userland 
+In-reply-to: Your message of "Mon, 29 Oct 2007 20:33:45 -0000."
+             <Pine.LNX.4.64.0710292027310.21528@blonde.wat.veritas.com>
+Sender: owner-linux-mm@kvack.org
+Return-Path: <owner-linux-mm@kvack.org>
+To: Hugh Dickins <hugh@veritas.com>
+Cc: Erez Zadok <ezk@cs.sunysb.edu>, Pekka Enberg <penberg@cs.helsinki.fi>, Ryan Finnie <ryan@finnie.org>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, cjwatson@ubuntu.com, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-This is a multi-part message in MIME format.
+Hi Hugh, I've addressed all of your concerns and am happy to report that the
+newly revised unionfs_writepage works even better, including under my
+memory-pressure conditions.  To summarize my changes since the last time:
 
-------=_NextPart_000_147FF5_01C81C02.9BE81650
-Content-Type: text/plain;
-	charset="iso-8859-1"
-Content-Transfer-Encoding: quoted-printable
+- I'm only masking __GFP_FS, not __GFP_IO
+- using find_or_create_page to avoid locking issues around mapping mask
+- handle for_reclaim case more efficiently
+- using copy_highpage so we handle KM_USER*
+- un/locking upper/lower page as/when needed
+- updated comments to clarify what/why
+- unionfs_sync_page: gone (yes, vfs.txt did confuse me, plus ecryptfs used
+  to have it)
 
-Even if you have no erection problems Viagra would help you to make =
-better sex more often and to bring unimaginable plesure to her. Just =
-disolve half a pill under your tongue and get ready for action in 30 =
-minutes. The tests showed that the majority of men after taking this =
-medication were able to have perfect erection during 24 hours!
+Below is the newest version of unionfs_writepage.  Let me know what you
+think.
 
-Package
-Quantity
-Price in your local drugstore*
-Our price
-LearnMoreNow
+I have to say that with these changes, unionfs appears visibly faster under
+memory pressure.  I suspect the for_reclaim handling is probably the largest
+contributor to this speedup.
 
-10 tabs
-20 doses
-$99.95
-$34.49
+Many thanks,
+Erez.
 
-30 tabs
-60 doses
-$299.95
-$88.50
+//////////////////////////////////////////////////////////////////////////////
 
-60 tabs
-120 doses
-$449.95
-$141.02
+static int unionfs_writepage(struct page *page, struct writeback_control *wbc)
+{
+	int err = -EIO;
+	struct inode *inode;
+	struct inode *lower_inode;
+	struct page *lower_page;
+	struct address_space *lower_mapping; /* lower inode mapping */
+	gfp_t mask;
 
-90 tabs
-180 doses
-$769.95
-$176.40
+	inode = page->mapping->host;
+	lower_inode = unionfs_lower_inode(inode);
+	lower_mapping = lower_inode->i_mapping;
 
-180 tabs
-360 doses
-$1299.95
-$298.46
+	/*
+	 * find lower page (returns a locked page)
+	 *
+	 * We turn off __GFP_FS while we look for or create a new lower
+	 * page.  This prevents a recursion into the file system code, which
+	 * under memory pressure conditions could lead to a deadlock.  This
+	 * is similar to how the loop driver behaves (see loop_set_fd in
+	 * drivers/block/loop.c).  If we can't find the lower page, we
+	 * redirty our page and return "success" so that the VM will call us
+	 * again in the (hopefully near) future.
+	 */
+	mask = mapping_gfp_mask(lower_mapping) & ~(__GFP_FS);
+	lower_page = find_or_create_page(lower_mapping, page->index, mask);
+	if (!lower_page) {
+		err = 0;
+		set_page_dirty(page);
+		goto out;
+	}
 
-When you are young and stressed up&hellip;
-When you are aged and never give up&hellip;
-Viagra gives you confidence in any chance, every time.
-------=_NextPart_000_147FF5_01C81C02.9BE81650
-Content-Type: text/html;
-	charset="iso-8859-1"
-Content-Transfer-Encoding: quoted-printable
+	/* copy page data from our upper page to the lower page */
+	copy_highpage(lower_page, page);
 
-<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
-<HTML><HEAD>
-<META http-equiv=3DContent-Type content=3D"text/html; =
-charset=3Diso-8859-1">
-<META content=3D"MSHTML 6.00.3790.2759" name=3DGENERATOR>
-<STYLE></STYLE>
-</HEAD>=20
-<BODY bgColor=3D#ffffff>
-<div style=3D"margin: 10px 20px 10px 20px; background-color: #ffe; =
-border: 3px=20
-solid #F28B0C; padding: 0 10px 0 10px;">
-<p style=3D"font-size: 13pt;">Even if you have no erection problems =
-Viagra would=20
-help you to make <b>better sex more often</b> and to bring unimaginable =
-plesure=20
-to her. Just disolve half a pill under your tongue and get ready for =
-action in=20
-30 minutes. The tests showed that the majority of men after taking =
-this=20
-medication were able to have <b>perfect erection</b> during 24 hours!</p>
-<center><table style=3D"border-collapse: collapse; background-color: =
-#ffd; width:=20
-90%; font-size: 10pt; font-family: sans-serif; text-align: center;">
-<tr>
-<td style=3D"border: 1px solid #F28B0C; padding: 2px;">Package</td>
-<td style=3D"border: 1px solid #F28B0C; padding: 2px;">Quantity</td>
-<td style=3D"border: 1px solid #F28B0C; padding: 2px;">Price in your =
-local 
-drugstore*</td>
-<td style=3D"border: 1px solid #F28B0C; padding: 2px;"><b>Our =
-price</b></td>
-<td style=3D"border: 1px solid #F28B0C; padding: 2px; background-color: =
-#ffa;"=20
-rowspan=3D"6" align=3D"center" valign=3D"middle"><p style=3D"font-size: =
-14pt;=20
-text-align: center; text-decoration: none;"><b><a =
-href=3D"http://mountchart.com"=20
-style=3D"text-decoration: =
-none;"><u>Learn<br>More<br>Now</u></a></b></p></td>
-</tr>
-<tr>
-<td style=3D"border: 1px solid #F28B0C; padding: 2px;">10 tabs</td>
-<td style=3D"border: 1px solid #F28B0C; padding: 2px;">20 doses</td>
-<td style=3D"border: 1px solid #F28B0C; padding: 2px;"><strike =
-style=3D"color:=20
-#777;">$99.95</strike></td>
-<td style=3D"border: 1px solid #F28B0C; padding: 2px;"><span =
-style=3D"color: 
-#900;"><b>$34.49</b></span></td>
-</tr>
-<tr>
-<td style=3D"border: 1px solid #F28B0C; padding: 2px;">30 tabs</td>
-<td style=3D"border: 1px solid #F28B0C; padding: 2px;">60 doses</td>
-<td style=3D"border: 1px solid #F28B0C; padding: 2px;"><strike =
-style=3D"color:=20
-#777;">$299.95</strike></td>
-<td style=3D"border: 1px solid #F28B0C; padding: 2px;"><span =
-style=3D"color: 
-#900;"><b>$88.50</b></span></td>
-</tr>
-<tr>
-<td style=3D"border: 1px solid #F28B0C; padding: 2px;">60 tabs</td>
-<td style=3D"border: 1px solid #F28B0C; padding: 2px;">120 doses</td>
-<td style=3D"border: 1px solid #F28B0C; padding: 2px;"><strike =
-style=3D"color:=20
-#777;">$449.95</strike></td>
-<td style=3D"border: 1px solid #F28B0C; padding: 2px;"><span =
-style=3D"color: 
-#900;"><b>$141.02</b></span></td>
-</tr>
-<tr>
-<td style=3D"border: 1px solid #F28B0C; padding: 2px;">90 tabs</td>
-<td style=3D"border: 1px solid #F28B0C; padding: 2px;">180 doses</td>
-<td style=3D"border: 1px solid #F28B0C; padding: 2px;"><strike =
-style=3D"color:=20
-#777;">$769.95</strike></td>
-<td style=3D"border: 1px solid #F28B0C; padding: 2px;"><span =
-style=3D"color: 
-#900;"><b>$176.40</b></span></td>
-</tr>
-<tr>
-<td style=3D"border: 1px solid #F28B0C; padding: 2px;">180 tabs</td>
-<td style=3D"border: 1px solid #F28B0C; padding: 2px;">360 doses</td>
-<td style=3D"border: 1px solid #F28B0C; padding: 2px;"><strike =
-style=3D"color:=20
-#777;">$1299.95</strike></td>
-<td style=3D"border: 1px solid #F28B0C; padding: 2px;"><span =
-style=3D"color: 
-#900;"><b>$298.46</b></span></td>
-</tr>
-</table></center>
-<p style=3D"font-size: 13pt;">When you are young and stressed =
-up&hellip;<br>
-When you are aged and never give up&hellip;<br>
-Viagra gives you confidence in any chance, every time.</p>
-</div>
-</BODY></HTML>
+	/*
+	 * Call lower writepage (expects locked page).  However, if we are
+	 * called with wbc->for_reclaim, then the VFS/VM just wants to
+	 * reclaim our page.  Therefore, we don't need to call the lower
+	 * ->writepage: just copy our data to the lower page (already done
+	 * above), then mark the lower page dirty and unlock it, and return
+	 * success.
+	 */
+	if (wbc->for_reclaim) {
+		set_page_dirty(lower_page);
+		unlock_page(lower_page);
+		goto out_release;
+	}
+	BUG_ON(!lower_mapping->a_ops->writepage);
+	clear_page_dirty_for_io(lower_page); /* emulate VFS behavior */
+	err = lower_mapping->a_ops->writepage(lower_page, wbc);
+	if (err < 0) {
+		ClearPageUptodate(page);
+		goto out_release;
+	}
 
+	/*
+	 * Lower file systems such as ramfs and tmpfs, may return
+	 * AOP_WRITEPAGE_ACTIVATE so that the VM won't try to (pointlessly)
+	 * write the page again for a while.  But those lower file systems
+	 * also set the page dirty bit back again.  Since we successfully
+	 * copied our page data to the lower page, then the VM will come
+	 * back to the lower page (directly) and try to flush it.  So we can
+	 * save the VM the hassle of coming back to our page and trying to
+	 * flush too.  Therefore, we don't re-dirty our own page, and we
+	 * never return AOP_WRITEPAGE_ACTIVATE back to the VM (we consider
+	 * this a success).
+	 *
+	 * We also unlock the lower page if the lower ->writepage returned
+	 * AOP_WRITEPAGE_ACTIVATE.  (This "anomalous" behaviour may be
+	 * addressed in future shmem/VM code.)
+	 */
+	if (err == AOP_WRITEPAGE_ACTIVATE) {
+		err = 0;
+		unlock_page(lower_page);
+	}
 
-------=_NextPart_000_147FF5_01C81C02.9BE81650--
+	/* all is well */
+	SetPageUptodate(page);
+	/* lower mtimes have changed: update ours */
+	unionfs_copy_attr_times(inode);
+
+out_release:
+	/* b/c find_or_create_page increased refcnt */
+	page_cache_release(lower_page);
+out:
+	/*
+	 * We unlock our page unconditionally, because we never return
+	 * AOP_WRITEPAGE_ACTIVATE.
+	 */
+	unlock_page(page);
+	return err;
+}
+
+//////////////////////////////////////////////////////////////////////////////
+
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
