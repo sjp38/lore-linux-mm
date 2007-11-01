@@ -1,163 +1,52 @@
-Message-ID: <2c24c201c81c50$fae06330$0400a8c0@YOUR0B890C2128>
-From: "Joan Brandt" <JudithappliedDailey@gpscanada.com>
-Subject: Approval process
-Date: Wed, 31 Oct 2007 23:32:13 +0700
+Received: by nz-out-0506.google.com with SMTP id s1so810715nze
+        for <linux-mm@kvack.org>; Thu, 01 Nov 2007 01:02:44 -0700 (PDT)
+Message-ID: <45a44e480711010102s6ef51f67wff4a796deab0910b@mail.gmail.com>
+Date: Thu, 1 Nov 2007 04:02:44 -0400
+From: "Jaya Kumar" <jayakumar.lkml@gmail.com>
+Subject: Re: vm_ops.page_mkwrite() fails with vmalloc on 2.6.23
+In-Reply-To: <Pine.LNX.4.64.0710301535270.9322@blonde.wat.veritas.com>
 MIME-Version: 1.0
-Content-Type: multipart/alternative;
-	boundary="----=_NextPart_000_2C24BE_01C81C50.FAE06330"
-Return-Path: <JudithappliedDailey@gpscanada.com>
-To: mm@kvack.org, linux-mm@kvack.org, kelda@kvack.org, linux-mm-archive@kvack.org, majordomo@kvack.org
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+References: <1193064057.16541.1.camel@matrix> <1193677302.27652.56.camel@twins>
+	 <45a44e480710291051s7ffbb582x64ea9524c197b48a@mail.gmail.com>
+	 <1193681839.27652.60.camel@twins> <1193696211.5644.100.camel@lappy>
+	 <45a44e480710291822w5864b3beofcf432930d3e68d3@mail.gmail.com>
+	 <1193738177.27652.69.camel@twins>
+	 <45a44e480710300616p34b0a159m87de78d0a4d43028@mail.gmail.com>
+	 <1193750751.27652.86.camel@twins>
+	 <Pine.LNX.4.64.0710301535270.9322@blonde.wat.veritas.com>
+Sender: owner-linux-mm@kvack.org
+Return-Path: <owner-linux-mm@kvack.org>
+To: Hugh Dickins <hugh@veritas.com>
+Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, Andrew Morton <akpm@linux-foundation.org>, stefani@seibold.net, linux-kernel@vger.kernel.org, David Howells <dhowells@redhat.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-This is a multi-part message in MIME format.
+On Oct 30, 2007 11:47 AM, Hugh Dickins <hugh@veritas.com> wrote:
+>
+> I don't understand why you suggested an anon_vma, nor why Jaya is
+> suggesting a private list.  All vmas mapping /dev/fb0 will be kept
+> in the prio_tree rooted in its struct address_space (__vma_link_file
+> in mm/mmap.c).  And page_mkclean gets page_mkclean_file to walk that
+> very tree.  The missing part is just the setting of page->mapping to
+> point to that struct address_space (and clearing it before finally
+> freeing the pages), and the setting of page->index as you described.
+> Isn't it?
 
-------=_NextPart_000_2C24BE_01C81C50.FAE06330
-Content-Type: text/plain;
-	charset="iso-8859-1"
-Content-Transfer-Encoding: quoted-printable
+Oops, sorry that I missed that. Now I understand. I think:
 
-Even if you have no erection problems Viagra would help you to make =
-better sex more often and to bring unimaginable plesure to her. Just =
-disolve half a pill under your tongue and get ready for action in 30 =
-minutes. The tests showed that the majority of men after taking this =
-medication were able to have perfect erection during 24 hours!
+page->mapping = vma->vm_file->f_mapping
+page->index = ((addr - vma->vm_start) >> PAGE_SHIFT) + vma->vm_pgoff
 
-Package
-Quantity
-Price in your local drugstore*
-Our price
-LearnMoreNow
+at nopage time and then before the driver vfrees, I'll clear mapping
+for all those pages.
 
-10 tabs
-20 doses
-$99.95
-$34.49
+Thanks,
+jaya
 
-30 tabs
-60 doses
-$299.95
-$88.50
-
-60 tabs
-120 doses
-$449.95
-$141.02
-
-90 tabs
-180 doses
-$769.95
-$176.40
-
-180 tabs
-360 doses
-$1299.95
-$298.46
-
-When you are young and stressed up&hellip;
-When you are aged and never give up&hellip;
-Viagra gives you confidence in any chance, every time.
-------=_NextPart_000_2C24BE_01C81C50.FAE06330
-Content-Type: text/html;
-	charset="iso-8859-1"
-Content-Transfer-Encoding: quoted-printable
-
-<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
-<HTML><HEAD>
-<META http-equiv=3DContent-Type content=3D"text/html; =
-charset=3Diso-8859-1">
-<META content=3D"MSHTML 6.00.2800.1458" name=3DGENERATOR>
-<STYLE></STYLE>
-</HEAD>=20
-<BODY bgColor=3D#ffffff>
-<div style=3D"margin: 10px 20px 10px 20px; background-color: #ffe; =
-border: 3px=20
-solid #F28B0C; padding: 0 10px 0 10px;">
-<p style=3D"font-size: 13pt;">Even if you have no erection problems =
-Viagra would=20
-help you to make <b>better sex more often</b> and to bring unimaginable =
-plesure=20
-to her. Just disolve half a pill under your tongue and get ready for =
-action in=20
-30 minutes. The tests showed that the majority of men after taking =
-this=20
-medication were able to have <b>perfect erection</b> during 24 hours!</p>
-<center><table style=3D"border-collapse: collapse; background-color: =
-#ffd; width:=20
-90%; font-size: 10pt; font-family: sans-serif; text-align: center;">
-<tr>
-<td style=3D"border: 1px solid #F28B0C; padding: 2px;">Package</td>
-<td style=3D"border: 1px solid #F28B0C; padding: 2px;">Quantity</td>
-<td style=3D"border: 1px solid #F28B0C; padding: 2px;">Price in your =
-local 
-drugstore*</td>
-<td style=3D"border: 1px solid #F28B0C; padding: 2px;"><b>Our =
-price</b></td>
-<td style=3D"border: 1px solid #F28B0C; padding: 2px; background-color: =
-#ffa;"=20
-rowspan=3D"6" align=3D"center" valign=3D"middle"><p style=3D"font-size: =
-14pt;=20
-text-align: center; text-decoration: none;"><b><a =
-href=3D"http://mountchart.com"=20
-style=3D"text-decoration: =
-none;"><u>Learn<br>More<br>Now</u></a></b></p></td>
-</tr>
-<tr>
-<td style=3D"border: 1px solid #F28B0C; padding: 2px;">10 tabs</td>
-<td style=3D"border: 1px solid #F28B0C; padding: 2px;">20 doses</td>
-<td style=3D"border: 1px solid #F28B0C; padding: 2px;"><strike =
-style=3D"color:=20
-#777;">$99.95</strike></td>
-<td style=3D"border: 1px solid #F28B0C; padding: 2px;"><span =
-style=3D"color: 
-#900;"><b>$34.49</b></span></td>
-</tr>
-<tr>
-<td style=3D"border: 1px solid #F28B0C; padding: 2px;">30 tabs</td>
-<td style=3D"border: 1px solid #F28B0C; padding: 2px;">60 doses</td>
-<td style=3D"border: 1px solid #F28B0C; padding: 2px;"><strike =
-style=3D"color:=20
-#777;">$299.95</strike></td>
-<td style=3D"border: 1px solid #F28B0C; padding: 2px;"><span =
-style=3D"color: 
-#900;"><b>$88.50</b></span></td>
-</tr>
-<tr>
-<td style=3D"border: 1px solid #F28B0C; padding: 2px;">60 tabs</td>
-<td style=3D"border: 1px solid #F28B0C; padding: 2px;">120 doses</td>
-<td style=3D"border: 1px solid #F28B0C; padding: 2px;"><strike =
-style=3D"color:=20
-#777;">$449.95</strike></td>
-<td style=3D"border: 1px solid #F28B0C; padding: 2px;"><span =
-style=3D"color: 
-#900;"><b>$141.02</b></span></td>
-</tr>
-<tr>
-<td style=3D"border: 1px solid #F28B0C; padding: 2px;">90 tabs</td>
-<td style=3D"border: 1px solid #F28B0C; padding: 2px;">180 doses</td>
-<td style=3D"border: 1px solid #F28B0C; padding: 2px;"><strike =
-style=3D"color:=20
-#777;">$769.95</strike></td>
-<td style=3D"border: 1px solid #F28B0C; padding: 2px;"><span =
-style=3D"color: 
-#900;"><b>$176.40</b></span></td>
-</tr>
-<tr>
-<td style=3D"border: 1px solid #F28B0C; padding: 2px;">180 tabs</td>
-<td style=3D"border: 1px solid #F28B0C; padding: 2px;">360 doses</td>
-<td style=3D"border: 1px solid #F28B0C; padding: 2px;"><strike =
-style=3D"color:=20
-#777;">$1299.95</strike></td>
-<td style=3D"border: 1px solid #F28B0C; padding: 2px;"><span =
-style=3D"color: 
-#900;"><b>$298.46</b></span></td>
-</tr>
-</table></center>
-<p style=3D"font-size: 13pt;">When you are young and stressed =
-up&hellip;<br>
-When you are aged and never give up&hellip;<br>
-Viagra gives you confidence in any chance, every time.</p>
-</div>
-</BODY></HTML>
-
-
-------=_NextPart_000_2C24BE_01C81C50.FAE06330--
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
