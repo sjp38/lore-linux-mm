@@ -1,33 +1,48 @@
-Message-ID: 1ca4001c81c1e$a76cef70$2f01a8c0@your27e1513d96
-From: "Berta Blackman" <AugustadianneIrving@britneyspears.ac>
-Subject: The selling is over, it's time for a squeeze
-Date: Wed, 31 Oct 2007 20:32:03 +0500
-MIME-Version: 1.0
-Content-Type: text/plain;
-	format=flowed;
-	charset="iso-8859-1";
-	reply-type=original
+Date: Thu, 1 Nov 2007 09:46:29 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [PATCH 1/3] Add remove_memory() for ppc64
+Message-Id: <20071101094629.fac6077c.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <1193867703.6271.42.camel@localhost>
+References: <1193849375.17412.34.camel@dyn9047017100.beaverton.ibm.com>
+	<1193863502.6271.38.camel@localhost>
+	<1193868715.17412.55.camel@dyn9047017100.beaverton.ibm.com>
+	<1193867703.6271.42.camel@localhost>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
-Return-Path: <AugustadianneIrving@britneyspears.ac>
-To: mm@kvack.org, linux-mm@kvack.org, kelda@kvack.org, linux-mm-archive@kvack.org, majordomo@kvack.org
+Sender: owner-linux-mm@kvack.org
+Return-Path: <owner-linux-mm@kvack.org>
+To: Dave Hansen <haveblue@us.ibm.com>
+Cc: Badari Pulavarty <pbadari@us.ibm.com>, Paul Mackerras <paulus@samba.org>, Andrew Morton <akpm@linux-foundation.org>, linuxppc-dev@ozlabs.org, anton@au1.ibm.com, linux-mm <linux-mm@kvack.org>, GOTO <y-goto@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-Calling Bottom on SHTP, Shotpak INc
+On Wed, 31 Oct 2007 14:55:03 -0700
+Dave Hansen <haveblue@us.ibm.com> wrote:
 
-The selling is over, all the shorts are in and it's time for a squeeze
+> On Wed, 2007-10-31 at 14:11 -0800, Badari Pulavarty wrote:
+> > 
+> > Well, We don't need arch-specific remove_memory() for ia64 and ppc64.
+> > x86_64, I don't know. We will know, only when some one does the
+> > verification. I don't need arch_remove_memory() hook also at this
+> > time.
+> 
+> I wasn't being very clear.  I say, add the arch hook only if you need
+> it.  But, for now, just take the ia64 code and make it generic.  
+> 
 
-Only way to go from here is up.
+remove_memory() has been arch-specific since there was no piece of unplug
+code. And I didn't merge it to be generic when I implemented ia64 ver.
 
-with orders flooding in and patented product under it's belt
-otcbb:SHTP is destined to go higher.
+Hmm...I have no objection to merge them. But let's see how memory hotremove
+for ppc64 works for a while. We can merge them later.
 
-If you have not already get into SHTP and enjoy the profits, don't regret later!!
+I'm glad to have new testers :)
 
-Introducing ShotPak (SHTP)
+Thanks,
+-Kame
 
-Today's news is causing ripples, here's what the company has to say
-
-ShotPak Tests New Patented StandUp Pouch and Multi-Pack Option In Two Major Southern California Supermarket Chains
-
-IRVINE, Calif.--(BUSINESS WIRE)--ShotPak, Inc. (Pink Sheets:SHTP - News) today announced at a meeting of the Sales Team that the newly introduced StandUp shaped pouch is currently being tested with consumers in a convenient multiple unit six pack carrier at select Albertsons stores in Southern California.
-ADVERTISEMENT
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
