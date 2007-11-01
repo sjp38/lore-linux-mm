@@ -1,52 +1,92 @@
-Received: by nz-out-0506.google.com with SMTP id s1so810715nze
-        for <linux-mm@kvack.org>; Thu, 01 Nov 2007 01:02:44 -0700 (PDT)
-Message-ID: <45a44e480711010102s6ef51f67wff4a796deab0910b@mail.gmail.com>
-Date: Thu, 1 Nov 2007 04:02:44 -0400
-From: "Jaya Kumar" <jayakumar.lkml@gmail.com>
-Subject: Re: vm_ops.page_mkwrite() fails with vmalloc on 2.6.23
-In-Reply-To: <Pine.LNX.4.64.0710301535270.9322@blonde.wat.veritas.com>
+Date: Thu, 01 Nov 2007 02:38:40 -0700
+From: " Royal Euro Kasino " <custom@mailAccount.com>
+Subject: 300% Bonus fur Ihre erste Einzahlung! 
+Message-ID: <88895584.41811681@fun.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=ISO-8859-1
+Content-Type: text/html; charset=iso-8859-1
 Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
-References: <1193064057.16541.1.camel@matrix> <1193677302.27652.56.camel@twins>
-	 <45a44e480710291051s7ffbb582x64ea9524c197b48a@mail.gmail.com>
-	 <1193681839.27652.60.camel@twins> <1193696211.5644.100.camel@lappy>
-	 <45a44e480710291822w5864b3beofcf432930d3e68d3@mail.gmail.com>
-	 <1193738177.27652.69.camel@twins>
-	 <45a44e480710300616p34b0a159m87de78d0a4d43028@mail.gmail.com>
-	 <1193750751.27652.86.camel@twins>
-	 <Pine.LNX.4.64.0710301535270.9322@blonde.wat.veritas.com>
-Sender: owner-linux-mm@kvack.org
-Return-Path: <owner-linux-mm@kvack.org>
-To: Hugh Dickins <hugh@veritas.com>
-Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, Andrew Morton <akpm@linux-foundation.org>, stefani@seibold.net, linux-kernel@vger.kernel.org, David Howells <dhowells@redhat.com>, linux-mm@kvack.org
+Return-Path: <custom@mailAccount.com>
+To: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Oct 30, 2007 11:47 AM, Hugh Dickins <hugh@veritas.com> wrote:
->
-> I don't understand why you suggested an anon_vma, nor why Jaya is
-> suggesting a private list.  All vmas mapping /dev/fb0 will be kept
-> in the prio_tree rooted in its struct address_space (__vma_link_file
-> in mm/mmap.c).  And page_mkclean gets page_mkclean_file to walk that
-> very tree.  The missing part is just the setting of page->mapping to
-> point to that struct address_space (and clearing it before finally
-> freeing the pages), and the setting of page->index as you described.
-> Isn't it?
+<html>
 
-Oops, sorry that I missed that. Now I understand. I think:
+<head>
+<meta http-equiv=Content-Type content="text/html; charset=iso-8859-1">
 
-page->mapping = vma->vm_file->f_mapping
-page->index = ((addr - vma->vm_start) >> PAGE_SHIFT) + vma->vm_pgoff
+<title>Ein unglaublicher 300% Bonus f&uuml;r </title>
 
-at nopage time and then before the driver vfrees, I'll clear mapping
-for all those pages.
+<style>
+<!--
+ /* Style Definitions */
+ p.MsoNormal, li.MsoNormal, div.MsoNormal
+	{mso-style-parent:"";
+	margin:0cm;
+	margin-bottom:.0001pt;
+	mso-pagination:widow-orphan;
+	font-size:12.0pt;
+	font-family:"Times New Roman";
+	mso-fareast-font-family:"Times New Roman";}
+a:link, span.MsoHyperlink
+	{color:blue;
+	text-decoration:underline;
+	text-underline:single;}
+a:visited, span.MsoHyperlinkFollowed
+	{color:purple;
+	text-decoration:underline;
+	text-underline:single;}
+@page Section1
+	{size:595.3pt 841.9pt;
+	margin:2.0cm 42.5pt 2.0cm 3.0cm;
+	mso-header-margin:35.4pt;
+	mso-footer-margin:35.4pt;
+	mso-paper-source:0;}
+div.Section1
+	{page:Section1;}
+-->
+</style>
 
-Thanks,
-jaya
+</head>
 
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+<body lang=DE link=blue vlink=purple style='tab-interval:35.4pt'>
+
+<div class=Section1>
+
+<p class=MsoNormal><span lang=EN-US style='mso-ansi-language:EN-US'>Ein
+unglaublicher 300% Bonus f&uuml;r Ihre erste Einzahlung bei Royal 
+VIP Casino<o:p></o:p></span></p>
+
+<p class=MsoNormal><span lang=EN-US style='mso-ansi-language:EN-US'>
+<o:p>&nbsp;</o:p></span></p>
+
+<p class=MsoNormal><span lang=EN-US style='mso-ansi-language:EN-US'>
+Stellen Sie
+sich wahrheitsgetreue Grafiken, so wie in den alten Casinos, vor; aber mit
+neuen wunderbaren Spielen in einer einladenden Atmosph&auml;re und 
+einer bunten Umgebung.<o:p></o:p></span></p>
+
+<p class=MsoNormal><span lang=EN-US style='mso-ansi-language:EN-US'>
+<o:p>&nbsp;</o:p></span></p>
+
+<p class=MsoNormal>Melden Sie sich bei Royal VIP Casino an und Sie werden den
+gr&ouml;ssten Ersteinzahlungsbonus online in null komma nix erhalten.<span
+lang=EN-US style='mso-ansi-language:EN-US'><o:p></o:p></span></p>
+
+<p class=MsoNormal><span lang=EN-US style='mso-ansi-language:EN-US'>
+<o:p>&nbsp;</o:p></span></p>
+
+<p class=MsoNormal><span lang=EN-US style='mso-ansi-language:EN-US'>Das
+Leitmotiv dieses Casinos ist es sie zufrieden zu stellen und Ihnen zu
+erm&ouml;glichen einen grossen Gewinn zu machen!<o:p></o:p></span></p>
+
+<p class=MsoNormal><span lang=EN-US style='mso-ansi-language:EN-US'>
+<o:p>&nbsp;</o:p></span></p>
+
+<p class=MsoNormal><a href="http://www.hotroyalcazino.com/lang-de/">
+http://www.hotroyalcazino.com/lang-de/</a><o:p></o:p></p>
+
+</div>
+
+</body>
+
+</html>
