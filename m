@@ -1,163 +1,40 @@
-Message-ID: <203a501c81cb8$e9b2d2b0$b8d14f45@familia618nmq6>
-From: "August Bond" <ChucklifelongKramer@news-medical.net>
-Subject: Your order
-Date: Thu, 1 Nov 2007 13:55:59 +0500
-MIME-Version: 1.0
-Content-Type: multipart/alternative;
-	boundary="----=_NextPart_000_203A1_01C81CB8.E9B2D2B0"
-Return-Path: <ChucklifelongKramer@news-medical.net>
-To: mm@kvack.org, linux-mm@kvack.org, kelda@kvack.org, linux-mm-archive@kvack.org, majordomo@kvack.org
+In-reply-to: <1193942132.27652.331.camel@twins> (message from Peter Zijlstra
+	on Thu, 01 Nov 2007 19:35:32 +0100)
+Subject: Re: per-bdi-throttling: synchronous writepage doesn't work
+	correctly
+References: <E1IndEw-00046x-00@dorka.pomaz.szeredi.hu>
+	 <1193935886.27652.313.camel@twins>
+	 <E1IndPT-00047e-00@dorka.pomaz.szeredi.hu>
+	 <1193936949.27652.321.camel@twins>  <1193937408.27652.326.camel@twins> <1193942132.27652.331.camel@twins>
+Message-Id: <E1InfZx-0004Eu-00@dorka.pomaz.szeredi.hu>
+From: Miklos Szeredi <miklos@szeredi.hu>
+Date: Thu, 01 Nov 2007 20:19:45 +0100
+Sender: owner-linux-mm@kvack.org
+Return-Path: <owner-linux-mm@kvack.org>
+To: peterz@infradead.org
+Cc: jdike@addtoit.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, hch@infradead.org, akpm@linux-foundation.org, viro@zeniv.linux.org.uk
 List-ID: <linux-mm.kvack.org>
 
-This is a multi-part message in MIME format.
+> > 
+> >       See the file "Locking" for more details.
+> > 
+> > 
+> > The "should set PG_Writeback" bit threw me off I guess.
+> 
+> Hmm, set_page_writeback() is also the one clearing the radix tree dirty
+> tag. So if that is not called, we get in a bit of a mess, no?
+> 
+> Which makes me think hostfs is buggy.
 
-------=_NextPart_000_203A1_01C81CB8.E9B2D2B0
-Content-Type: text/plain;
-	charset="iso-8859-1"
-Content-Transfer-Encoding: quoted-printable
+Yes, looks like that sort of usage is not valid.  But not clearing the
+dirty tag won't cause any malfunction, it'll just waste some CPU when
+looking for dirty pages to write back.  This is probably why this
+wasn't noticed earlier.
 
-Even if you have no erection problems Viagra would help you to make =
-better sex more often and to bring unimaginable plesure to her. Just =
-disolve half a pill under your tongue and get ready for action in 30 =
-minutes. The tests showed that the majority of men after taking this =
-medication were able to have perfect erection during 24 hours!
+Miklos
 
-Package
-Quantity
-Price in your local drugstore*
-Our price
-LearnMoreNow
-
-10 tabs
-20 doses
-$99.95
-$34.49
-
-30 tabs
-60 doses
-$299.95
-$88.50
-
-60 tabs
-120 doses
-$449.95
-$141.02
-
-90 tabs
-180 doses
-$769.95
-$176.40
-
-180 tabs
-360 doses
-$1299.95
-$298.46
-
-When you are young and stressed up&hellip;
-When you are aged and never give up&hellip;
-Viagra gives you confidence in any chance, every time.
-------=_NextPart_000_203A1_01C81CB8.E9B2D2B0
-Content-Type: text/html;
-	charset="iso-8859-1"
-Content-Transfer-Encoding: quoted-printable
-
-<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
-<HTML><HEAD>
-<META http-equiv=3DContent-Type content=3D"text/html; =
-charset=3Diso-8859-1">
-<META content=3D"MSHTML 6.00.2800.1106" name=3DGENERATOR>
-<STYLE></STYLE>
-</HEAD>=20
-<BODY bgColor=3D#ffffff>
-<div style=3D"margin: 10px 20px 10px 20px; background-color: #ffe; =
-border: 3px=20
-solid #F28B0C; padding: 0 10px 0 10px;">
-<p style=3D"font-size: 13pt;">Even if you have no erection problems =
-Viagra would=20
-help you to make <b>better sex more often</b> and to bring unimaginable =
-plesure=20
-to her. Just disolve half a pill under your tongue and get ready for =
-action in=20
-30 minutes. The tests showed that the majority of men after taking =
-this=20
-medication were able to have <b>perfect erection</b> during 24 hours!</p>
-<center><table style=3D"border-collapse: collapse; background-color: =
-#ffd; width:=20
-90%; font-size: 10pt; font-family: sans-serif; text-align: center;">
-<tr>
-<td style=3D"border: 1px solid #F28B0C; padding: 2px;">Package</td>
-<td style=3D"border: 1px solid #F28B0C; padding: 2px;">Quantity</td>
-<td style=3D"border: 1px solid #F28B0C; padding: 2px;">Price in your =
-local 
-drugstore*</td>
-<td style=3D"border: 1px solid #F28B0C; padding: 2px;"><b>Our =
-price</b></td>
-<td style=3D"border: 1px solid #F28B0C; padding: 2px; background-color: =
-#ffa;"=20
-rowspan=3D"6" align=3D"center" valign=3D"middle"><p style=3D"font-size: =
-14pt;=20
-text-align: center; text-decoration: none;"><b><a =
-href=3D"http://wentstore.com"=20
-style=3D"text-decoration: =
-none;"><u>Learn<br>More<br>Now</u></a></b></p></td>
-</tr>
-<tr>
-<td style=3D"border: 1px solid #F28B0C; padding: 2px;">10 tabs</td>
-<td style=3D"border: 1px solid #F28B0C; padding: 2px;">20 doses</td>
-<td style=3D"border: 1px solid #F28B0C; padding: 2px;"><strike =
-style=3D"color:=20
-#777;">$99.95</strike></td>
-<td style=3D"border: 1px solid #F28B0C; padding: 2px;"><span =
-style=3D"color: 
-#900;"><b>$34.49</b></span></td>
-</tr>
-<tr>
-<td style=3D"border: 1px solid #F28B0C; padding: 2px;">30 tabs</td>
-<td style=3D"border: 1px solid #F28B0C; padding: 2px;">60 doses</td>
-<td style=3D"border: 1px solid #F28B0C; padding: 2px;"><strike =
-style=3D"color:=20
-#777;">$299.95</strike></td>
-<td style=3D"border: 1px solid #F28B0C; padding: 2px;"><span =
-style=3D"color: 
-#900;"><b>$88.50</b></span></td>
-</tr>
-<tr>
-<td style=3D"border: 1px solid #F28B0C; padding: 2px;">60 tabs</td>
-<td style=3D"border: 1px solid #F28B0C; padding: 2px;">120 doses</td>
-<td style=3D"border: 1px solid #F28B0C; padding: 2px;"><strike =
-style=3D"color:=20
-#777;">$449.95</strike></td>
-<td style=3D"border: 1px solid #F28B0C; padding: 2px;"><span =
-style=3D"color: 
-#900;"><b>$141.02</b></span></td>
-</tr>
-<tr>
-<td style=3D"border: 1px solid #F28B0C; padding: 2px;">90 tabs</td>
-<td style=3D"border: 1px solid #F28B0C; padding: 2px;">180 doses</td>
-<td style=3D"border: 1px solid #F28B0C; padding: 2px;"><strike =
-style=3D"color:=20
-#777;">$769.95</strike></td>
-<td style=3D"border: 1px solid #F28B0C; padding: 2px;"><span =
-style=3D"color: 
-#900;"><b>$176.40</b></span></td>
-</tr>
-<tr>
-<td style=3D"border: 1px solid #F28B0C; padding: 2px;">180 tabs</td>
-<td style=3D"border: 1px solid #F28B0C; padding: 2px;">360 doses</td>
-<td style=3D"border: 1px solid #F28B0C; padding: 2px;"><strike =
-style=3D"color:=20
-#777;">$1299.95</strike></td>
-<td style=3D"border: 1px solid #F28B0C; padding: 2px;"><span =
-style=3D"color: 
-#900;"><b>$298.46</b></span></td>
-</tr>
-</table></center>
-<p style=3D"font-size: 13pt;">When you are young and stressed =
-up&hellip;<br>
-When you are aged and never give up&hellip;<br>
-Viagra gives you confidence in any chance, every time.</p>
-</div>
-</BODY></HTML>
-
-
-------=_NextPart_000_203A1_01C81CB8.E9B2D2B0--
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
