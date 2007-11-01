@@ -1,86 +1,75 @@
-Received: from d03relay02.boulder.ibm.com (d03relay02.boulder.ibm.com [9.17.195.227])
-	by e35.co.us.ibm.com (8.13.8/8.13.8) with ESMTP id lA1IG7bX011950
-	for <linux-mm@kvack.org>; Thu, 1 Nov 2007 14:16:07 -0400
-Received: from d03av01.boulder.ibm.com (d03av01.boulder.ibm.com [9.17.195.167])
-	by d03relay02.boulder.ibm.com (8.13.8/8.13.8/NCO v8.5) with ESMTP id lA1IFwRv117452
-	for <linux-mm@kvack.org>; Thu, 1 Nov 2007 12:16:03 -0600
-Received: from d03av01.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av01.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id lA1IFwdE030118
-	for <linux-mm@kvack.org>; Thu, 1 Nov 2007 12:15:58 -0600
-Subject: start_isolate_page_range() question/offline_pages() bug ?
-From: Badari Pulavarty <pbadari@us.ibm.com>
+Subject: Re: per-bdi-throttling: synchronous writepage doesn't work
+	correctly
+From: Peter Zijlstra <peterz@infradead.org>
+In-Reply-To: <1193937408.27652.326.camel@twins>
+References: <E1IndEw-00046x-00@dorka.pomaz.szeredi.hu>
+	 <1193935886.27652.313.camel@twins>
+	 <E1IndPT-00047e-00@dorka.pomaz.szeredi.hu>
+	 <1193936949.27652.321.camel@twins>  <1193937408.27652.326.camel@twins>
 Content-Type: text/plain
-Date: Thu, 01 Nov 2007 11:19:28 -0800
-Message-Id: <1193944769.26106.34.camel@dyn9047017100.beaverton.ibm.com>
+Date: Thu, 01 Nov 2007 19:35:32 +0100
+Message-Id: <1193942132.27652.331.camel@twins>
 Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: linux-mm <linux-mm@kvack.org>
+To: Miklos Szeredi <miklos@szeredi.hu>
+Cc: jdike@addtoit.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Christoph Hellwig <hch@infradead.org>, Andrew Morton <akpm@linux-foundation.org>, Al Viro <viro@zeniv.linux.org.uk>
 List-ID: <linux-mm.kvack.org>
 
-Hi KAME,
+On Thu, 2007-11-01 at 18:16 +0100, Peter Zijlstra wrote:
+> On Thu, 2007-11-01 at 18:09 +0100, Peter Zijlstra wrote:
+> > On Thu, 2007-11-01 at 18:00 +0100, Miklos Szeredi wrote:
+> > > > > Hi,
+> > > > > 
+> > > > > It looks like bdi_thresh will always be zero if filesystem does
+> > > > > synchronous writepage, resulting in very poor write performance.
+> > > > > 
+> > > > > Hostfs (UML) is one such example, but there might be others.
+> > > > > 
+> > > > > The only solution I can think of is to add a set_page_writeback();
+> > > > > end_page_writeback() pair (or some reduced variant, that only does
+> > > > > the proportions magic).  But that means auditing quite a few
+> > > > > filesystems...
+> > > > 
+> > > > Ouch...
+> > > > 
+> > > > I take it there is no other function that is shared between all these
+> > > > writeout paths which we could stick a bdi_writeout_inc(bdi) in?
+> > > 
+> > > No, and you can't detect it from the callers either I think.
+> > 
+> > The page not having PG_writeback set on return is a hint, but not fool
+> > proof, it could be the device is just blazing fast.
+> > 
+> > I guess there is nothing to it but for me to grep writepage and manually
+> > look at all hits...
+> 
+>   writepage: called by the VM to write a dirty page to backing store.
+>       This may happen for data integrity reasons (i.e. 'sync'), or
+>       to free up memory (flush).  The difference can be seen in
+>       wbc->sync_mode.
+>       The PG_Dirty flag has been cleared and PageLocked is true.
+>       writepage should start writeout, should set PG_Writeback,
+>       and should make sure the page is unlocked, either synchronously
+>       or asynchronously when the write operation completes.
+> 
+>       If wbc->sync_mode is WB_SYNC_NONE, ->writepage doesn't have to
+>       try too hard if there are problems, and may choose to write out
+>       other pages from the mapping if that is easier (e.g. due to
+>       internal dependencies).  If it chooses not to start writeout, it
+>       should return AOP_WRITEPAGE_ACTIVATE so that the VM will not keep
+>       calling ->writepage on that page.
+> 
+>       See the file "Locking" for more details.
+> 
+> 
+> The "should set PG_Writeback" bit threw me off I guess.
 
-While testing hotplug memory remove on x86_64, found an issue.
+Hmm, set_page_writeback() is also the one clearing the radix tree dirty
+tag. So if that is not called, we get in a bit of a mess, no?
 
-offline_pages()
-{
-
-	...
-	
-	/* set above range as isolated */
-        ret = start_isolate_page_range(start_pfn, end_pfn);
-	
-
-	... does all the work and successful ...
-
-        /* reset pagetype flags */
-        start_isolate_page_range(start_pfn, end_pfn);
-        /* removal success */
-}
-
-As you can see it calls, start_isolate_page_range() again at
-the end. Why ? I am assuming that, to clear MIGRATE_ISOLATE
-type for those pages we marked earlier. Isn't it ? But its
-wrong. The pages are already set MIGRATE_ISOLATE and it
-will end up clearing ONLY the first page in the pageblock.
-Shouldn't we clear MIGRATE_ISOLATE for all the pages ?
-
-I see this issue on x86-64, because /sysfs memory block
-is 128MB, but pageblock_nr_pages = 512 (2MB).
-
-I can reproduce the problem easily.. by doing ..
-
-echo offline > state
-echo online > state
-echo offline > state <--- this one will fail
-echo offline > state <-- fail
-echo offline > state <-- fail
-
-Everytime we do "offline" it clears first page in 2MB
-section as part of undo :(
-
-Here is the debug:
-	
-memory offlining 58000 to 60000 started
-Offlined Pages 32768
-
-memory offlining 58000 to 60000 started
-isolate failed for pfn 58200 migratetype 4
-
-memory offlining 58000 to 60000 started
-isolate failed for pfn 58400 migratetype 4
-
-memory offlining 58000 to 60000 started
-isolate failed for pfn 58600 migratetype 4
-
-memory offlining 58000 to 60000 started
-isolate failed for pfn 58800 migratetype 4
-
-
-Thanks,
-Badari
+Which makes me think hostfs is buggy.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
