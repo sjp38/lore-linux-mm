@@ -1,37 +1,59 @@
-In-reply-to: <1193942132.27652.331.camel@twins> (message from Peter Zijlstra
-	on Thu, 01 Nov 2007 19:35:32 +0100)
-Subject: Re: per-bdi-throttling: synchronous writepage doesn't work
-	correctly
-References: <E1IndEw-00046x-00@dorka.pomaz.szeredi.hu>
-	 <1193935886.27652.313.camel@twins>
-	 <E1IndPT-00047e-00@dorka.pomaz.szeredi.hu>
-	 <1193936949.27652.321.camel@twins>  <1193937408.27652.326.camel@twins> <1193942132.27652.331.camel@twins>
-Message-Id: <E1InfZx-0004Eu-00@dorka.pomaz.szeredi.hu>
-From: Miklos Szeredi <miklos@szeredi.hu>
-Date: Thu, 01 Nov 2007 20:19:45 +0100
+Date: Thu, 1 Nov 2007 12:25:09 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [RFC][PATCH 1/3] [RFC][PATCH] Fix procfs task exe symlinks
+Message-Id: <20071101122509.f26225bb.akpm@linux-foundation.org>
+In-Reply-To: <20071101044124.209949000@us.ibm.com>
+References: <20071101033508.720885000@us.ibm.com>
+	<20071101044124.209949000@us.ibm.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: peterz@infradead.org
-Cc: jdike@addtoit.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, hch@infradead.org, akpm@linux-foundation.org, viro@zeniv.linux.org.uk
+To: Matt Helsley <matthltc@us.ibm.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, viro@ftp.linux.org.uk, haveblue@us.ibm.com
 List-ID: <linux-mm.kvack.org>
 
-> > 
-> >       See the file "Locking" for more details.
-> > 
-> > 
-> > The "should set PG_Writeback" bit threw me off I guess.
-> 
-> Hmm, set_page_writeback() is also the one clearing the radix tree dirty
-> tag. So if that is not called, we get in a bit of a mess, no?
-> 
-> Which makes me think hostfs is buggy.
+On Wed, 31 Oct 2007 20:35:09 -0700
+Matt Helsley <matthltc@us.ibm.com> wrote:
 
-Yes, looks like that sort of usage is not valid.  But not clearing the
-dirty tag won't cause any malfunction, it'll just waste some CPU when
-looking for dirty pages to write back.  This is probably why this
-wasn't noticed earlier.
+> +++ linux-2.6.23/include/linux/sched.h
+> @@ -430,10 +430,13 @@ struct mm_struct {
+>  	struct completion *core_startup_done, core_done;
+>  
+>  	/* aio bits */
+>  	rwlock_t		ioctx_list_lock;
+>  	struct kioctx		*ioctx_list;
+> +
+> +	/* store ref to file /proc/<pid>/exe symlink points to */
+> +	struct file *exe_file;
+>  };
 
-Miklos
+I guess with a little work this could be made conditional on
+CONFIG_PROC_FS.  ie: change get_mm_exe_file() to
+
+void get_mm_exe_file(struct mm_struct *newmm, struct mm_struct *old_mm);
+
+> @@ -1716,10 +1744,14 @@ static void remove_vma_list(struct mm_st
+>  
+>  		mm->total_vm -= nrpages;
+>  		if (vma->vm_flags & VM_LOCKED)
+>  			mm->locked_vm -= nrpages;
+>  		vm_stat_account(mm, vma->vm_flags, vma->vm_file, -nrpages);
+> +		if (mm->exe_file && (vma->vm_file == mm->exe_file)) {
+> +			fput(mm->exe_file);
+> +			mm->exe_file = NULL;
+> +		}
+>  		vma = remove_vma(vma);
+>  	} while (vma);
+>  	validate_mm(mm);
+>  }
+
+hm, fput() while holding mmap_sem.  I wonder if that's a problem.
+
+I assume you've runtime tested this with lockdep enabled, but fput() is one
+of those funny things which can call all sorts of things which one least
+expects and where testers hit things which developers don't.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
