@@ -1,207 +1,119 @@
-From: Stephen Hemminger <shemminger@linux-foundation.org>
-Subject: Re: [PATCH 23/33] netvm: skb processing
-Date: Tue, 30 Oct 2007 14:26:34 -0700
-Message-ID: <20071030142634.0f00b492__49355.0905412578$1193779692$gmane$org@freepuppy.rosehill>
-References: <20071030160401.296770000@chello.nl>
-	<20071030160914.749995000@chello.nl>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
-Return-path: <linux-kernel-owner+glk-linux-kernel-3=40m.gmane.org-S1755320AbXJ3V1k@vger.kernel.org>
-In-Reply-To: <20071030160914.749995000@chello.nl>
-Sender: linux-kernel-owner@vger.kernel.org
-To: linux-kernel@vger.kernel.org
-Cc: linux-mm@kvack.org
-List-Id: linux-mm.kvack.org
+Received: from d03relay02.boulder.ibm.com (d03relay02.boulder.ibm.com [9.17.195.227])
+	by e34.co.us.ibm.com (8.13.8/8.13.8) with ESMTP id lA14fPiw028767
+	for <linux-mm@kvack.org>; Thu, 1 Nov 2007 00:41:25 -0400
+Received: from d03av01.boulder.ibm.com (d03av01.boulder.ibm.com [9.17.195.167])
+	by d03relay02.boulder.ibm.com (8.13.8/8.13.8/NCO v8.5) with ESMTP id lA14fO5P107092
+	for <linux-mm@kvack.org>; Wed, 31 Oct 2007 22:41:24 -0600
+Received: from d03av01.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av01.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id lA14fOs0012591
+	for <linux-mm@kvack.org>; Wed, 31 Oct 2007 22:41:24 -0600
+Message-Id: <20071101044124.550166000@us.ibm.com>
+References: <20071101033508.720885000@us.ibm.com>
+Date: Wed, 31 Oct 2007 20:35:10 -0700
+From: Matt Helsley <matthltc@us.ibm.com>
+Subject: [RFC][PATCH 2/3] [RFC][PATCH] Add spinlock in mm to protext exe reference
+Content-Disposition: inline; filename=proc_pid_exe_avoid_mmap_sem
+Sender: owner-linux-mm@kvack.org
+Return-Path: <owner-linux-mm@kvack.org>
+To: Linux-Kernel <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Al Viro <viro@ftp.linux.org.uk>, Dave Hansen <haveblue@us.ibm.com>
+List-ID: <linux-mm.kvack.org>
 
-On Tue, 30 Oct 2007 17:04:24 +0100
-Peter Zijlstra <a.p.zijlstra@chello.nl> wrote:
+The new and relatively unused (compared to VM ops) mm_struct exe file reference
+uses the mmap semaphore. It may be preferrable to avoid using the mmap
+semaphore at some point in the future. This patch demonstrates one way to avoid
+using the mmap semaphore for the exe file reference inside /proc/pid/exe ops.
 
-> In order to make sure emergency packets receive all memory needed to proceed
-> ensure processing of emergency SKBs happens under PF_MEMALLOC.
-> 
-> Use the (new) sk_backlog_rcv() wrapper to ensure this for backlog processing.
-> 
-> Skip taps, since those are user-space again.
-> 
-> Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
-> ---
->  include/net/sock.h |    5 +++++
->  net/core/dev.c     |   44 ++++++++++++++++++++++++++++++++++++++------
->  net/core/sock.c    |   18 ++++++++++++++++++
->  3 files changed, 61 insertions(+), 6 deletions(-)
-> 
-> Index: linux-2.6/net/core/dev.c
-> ===================================================================
-> --- linux-2.6.orig/net/core/dev.c
-> +++ linux-2.6/net/core/dev.c
-> @@ -1976,10 +1976,23 @@ int netif_receive_skb(struct sk_buff *sk
->  	struct net_device *orig_dev;
->  	int ret = NET_RX_DROP;
->  	__be16 type;
-> +	unsigned long pflags = current->flags;
-> +
-> +	/* Emergency skb are special, they should
-> +	 *  - be delivered to SOCK_MEMALLOC sockets only
-> +	 *  - stay away from userspace
-> +	 *  - have bounded memory usage
-> +	 *
-> +	 * Use PF_MEMALLOC as a poor mans memory pool - the grouping kind.
-> +	 * This saves us from propagating the allocation context down to all
-> +	 * allocation sites.
-> +	 */
-> +	if (skb_emergency(skb))
-> +		current->flags |= PF_MEMALLOC;
->  
->  	/* if we've gotten here through NAPI, check netpoll */
->  	if (netpoll_receive_skb(skb))
-> -		return NET_RX_DROP;
-> +		goto out;
+Unfortunately we can't entirely avoid using the mmap semaphore because we need
+to drop the exe file reference when the VMA mapping the executable file does --
+otherwise we'd pin mounted filesystems until all applications executed from
+them exitted.
 
-Why the change? doesn't gcc optimize the common exit case anyway?
+Signed-off-by: Matt Helsley <matthltc@us.ibm.com>
+---
+ include/linux/sched.h |    1 +
+ mm/mmap.c             |   17 +++++++++++------
+ 2 files changed, 12 insertions(+), 6 deletions(-)
 
->  
->  	if (!skb->tstamp.tv64)
->  		net_timestamp(skb);
-> @@ -1990,7 +2003,7 @@ int netif_receive_skb(struct sk_buff *sk
->  	orig_dev = skb_bond(skb);
->  
->  	if (!orig_dev)
-> -		return NET_RX_DROP;
-> +		goto out;
->  
->  	__get_cpu_var(netdev_rx_stat).total++;
->  
-> @@ -2009,6 +2022,9 @@ int netif_receive_skb(struct sk_buff *sk
->  	}
->  #endif
->  
-> +	if (skb_emergency(skb))
-> +		goto skip_taps;
-> +
->  	list_for_each_entry_rcu(ptype, &ptype_all, list) {
->  		if (!ptype->dev || ptype->dev == skb->dev) {
->  			if (pt_prev)
-> @@ -2017,6 +2033,7 @@ int netif_receive_skb(struct sk_buff *sk
->  		}
->  	}
->  
-> +skip_taps:
->  #ifdef CONFIG_NET_CLS_ACT
->  	if (pt_prev) {
->  		ret = deliver_skb(skb, pt_prev, orig_dev);
-> @@ -2029,19 +2046,31 @@ int netif_receive_skb(struct sk_buff *sk
->  
->  	if (ret == TC_ACT_SHOT || (ret == TC_ACT_STOLEN)) {
->  		kfree_skb(skb);
-> -		goto out;
-> +		goto unlock;
->  	}
->  
->  	skb->tc_verd = 0;
->  ncls:
->  #endif
->  
-> +	if (skb_emergency(skb))
-> +		switch(skb->protocol) {
-> +			case __constant_htons(ETH_P_ARP):
-> +			case __constant_htons(ETH_P_IP):
-> +			case __constant_htons(ETH_P_IPV6):
-> +			case __constant_htons(ETH_P_8021Q):
-> +				break;
+Index: linux-2.6.23/include/linux/sched.h
+===================================================================
+--- linux-2.6.23.orig/include/linux/sched.h
++++ linux-2.6.23/include/linux/sched.h
+@@ -432,10 +432,11 @@ struct mm_struct {
+ 	/* aio bits */
+ 	rwlock_t		ioctx_list_lock;
+ 	struct kioctx		*ioctx_list;
+ 
+ 	/* store ref to file /proc/<pid>/exe symlink points to */
++	spinlock_t exe_file_lock;
+ 	struct file *exe_file;
+ };
+ 
+ struct sighand_struct {
+ 	atomic_t		count;
+Index: linux-2.6.23/mm/mmap.c
+===================================================================
+--- linux-2.6.23.orig/mm/mmap.c
++++ linux-2.6.23/mm/mmap.c
+@@ -1706,27 +1706,27 @@ find_extend_vma(struct mm_struct * mm, u
+  * reference; only puts old ones */
+ void set_mm_exe_file(struct mm_struct *mm, struct file *new_exe_file)
+ {
+ 	struct file *old_exe_file;
+ 
+-	down_write(&mm->mmap_sem);
++	spin_lock(&mm->exe_file_lock);
+ 	old_exe_file = mm->exe_file;
+ 	mm->exe_file = new_exe_file;
+-	up_write(&mm->mmap_sem);
++	spin_unlock(&mm->exe_file_lock);
+ 	if (old_exe_file)
+ 		fput(old_exe_file);
+ }
+ 
+ struct file *get_mm_exe_file(struct mm_struct *mm)
+ {
+ 	struct file *exe_file;
+ 
+-	down_read(&mm->mmap_sem);
++	spin_lock(&mm->exe_file_lock);
+ 	exe_file = mm->exe_file;
+ 	if (exe_file)
+ 		get_file(exe_file);
+-	up_read(&mm->mmap_sem);
++	spin_unlock(&mm->exe_file_lock);
+ 	return exe_file;
+ }
+ #endif
+ 
+ /*
+@@ -1744,14 +1744,19 @@ static void remove_vma_list(struct mm_st
+ 
+ 		mm->total_vm -= nrpages;
+ 		if (vma->vm_flags & VM_LOCKED)
+ 			mm->locked_vm -= nrpages;
+ 		vm_stat_account(mm, vma->vm_flags, vma->vm_file, -nrpages);
++		spin_lock(&mm->exe_file_lock);
+ 		if (mm->exe_file && (vma->vm_file == mm->exe_file)) {
+-			fput(mm->exe_file);
++			struct file *old_exe_file = mm->exe_file;
++
+ 			mm->exe_file = NULL;
+-		}
++			spin_unlock(&mm->exe_file_lock);
++			fput(old_exe_file);
++		} else
++			spin_unlock(&mm->exe_file_lock);
+ 		vma = remove_vma(vma);
+ 	} while (vma);
+ 	validate_mm(mm);
+ }
+ 
 
-Indentation is wrong, and hard coding protocol values as spcial case
-seems bad here. What about vlan's, etc?
+--
 
-> +			default:
-> +				goto drop;
-> +		}
-> +
->  	skb = handle_bridge(skb, &pt_prev, &ret, orig_dev);
->  	if (!skb)
-> -		goto out;
-> +		goto unlock;
->  	skb = handle_macvlan(skb, &pt_prev, &ret, orig_dev);
->  	if (!skb)
-> -		goto out;
-> +		goto unlock;
->  
->  	type = skb->protocol;
->  	list_for_each_entry_rcu(ptype, &ptype_base[ntohs(type)&15], list) {
-> @@ -2056,6 +2085,7 @@ ncls:
->  	if (pt_prev) {
->  		ret = pt_prev->func(skb, skb->dev, pt_prev, orig_dev);
->  	} else {
-> +drop:
->  		kfree_skb(skb);
->  		/* Jamal, now you will not able to escape explaining
->  		 * me how you were going to use this. :-)
-> @@ -2063,8 +2093,10 @@ ncls:
->  		ret = NET_RX_DROP;
->  	}
->  
-> -out:
-> +unlock:
->  	rcu_read_unlock();
-> +out:
-> +	tsk_restore_flags(current, pflags, PF_MEMALLOC);
->  	return ret;
->  }
->  
-> Index: linux-2.6/include/net/sock.h
-> ===================================================================
-> --- linux-2.6.orig/include/net/sock.h
-> +++ linux-2.6/include/net/sock.h
-> @@ -523,8 +523,13 @@ static inline void sk_add_backlog(struct
->  	skb->next = NULL;
->  }
->  
-> +extern int __sk_backlog_rcv(struct sock *sk, struct sk_buff *skb);
-> +
->  static inline int sk_backlog_rcv(struct sock *sk, struct sk_buff *skb)
->  {
-> +	if (skb_emergency(skb))
-> +		return __sk_backlog_rcv(sk, skb);
-> +
->  	return sk->sk_backlog_rcv(sk, skb);
->  }
->  
-> Index: linux-2.6/net/core/sock.c
-> ===================================================================
-> --- linux-2.6.orig/net/core/sock.c
-> +++ linux-2.6/net/core/sock.c
-> @@ -319,6 +319,24 @@ int sk_clear_memalloc(struct sock *sk)
->  }
->  EXPORT_SYMBOL_GPL(sk_clear_memalloc);
->  
-> +#ifdef CONFIG_NETVM
-> +int __sk_backlog_rcv(struct sock *sk, struct sk_buff *skb)
-> +{
-> +	int ret;
-> +	unsigned long pflags = current->flags;
-> +
-> +	/* these should have been dropped before queueing */
-> +	BUG_ON(!sk_has_memalloc(sk));
-> +
-> +	current->flags |= PF_MEMALLOC;
-> +	ret = sk->sk_backlog_rcv(sk, skb);
-> +	tsk_restore_flags(current, pflags, PF_MEMALLOC);
-> +
-> +	return ret;
-> +}
-> +EXPORT_SYMBOL(__sk_backlog_rcv);
-> +#endif
-> +
->  static int sock_set_timeout(long *timeo_p, char __user *optval, int optlen)
->  {
->  	struct timeval tv;
-
-
-I am still not convinced that this solves the problem well enough
-to be useful.  Can you really survive a heavy memory overcommit?
-In other words, can you prove that the added complexity causes the system
-to survive a real test where otherwise it would not?
-
-
--- 
-Stephen Hemminger <shemminger@linux-foundation.org>
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
