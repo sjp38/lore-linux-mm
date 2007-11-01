@@ -1,135 +1,70 @@
-Date: Wed, 31 Oct 2007 19:53:06 -0400
-Message-Id: <200710312353.l9VNr67n013016@agora.fsl.cs.sunysb.edu>
-From: Erez Zadok <ezk@cs.sunysb.edu>
-Subject: Re: msync(2) bug(?), returns AOP_WRITEPAGE_ACTIVATE to userland 
-In-reply-to: Your message of "Mon, 29 Oct 2007 20:33:45 -0000."
-             <Pine.LNX.4.64.0710292027310.21528@blonde.wat.veritas.com>
+Date: Thu, 1 Nov 2007 09:29:56 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [PATCH] memory cgroup enhancements take 4 [5/8] add status
+ accounting function for memory cgroup
+Message-Id: <20071101092956.489798fb.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20071031151234.4fcb42b2.akpm@linux-foundation.org>
+References: <20071031192213.4f736fac.kamezawa.hiroyu@jp.fujitsu.com>
+	<20071031193046.a58f2ef0.kamezawa.hiroyu@jp.fujitsu.com>
+	<20071031151234.4fcb42b2.akpm@linux-foundation.org>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Hugh Dickins <hugh@veritas.com>
-Cc: Erez Zadok <ezk@cs.sunysb.edu>, Pekka Enberg <penberg@cs.helsinki.fi>, Ryan Finnie <ryan@finnie.org>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, cjwatson@ubuntu.com, linux-mm@kvack.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, containers@lists.osdl.org, balbir@linux.vnet.ibm.com, yamamoto@valinux.co.jp
 List-ID: <linux-mm.kvack.org>
 
-Hi Hugh, I've addressed all of your concerns and am happy to report that the
-newly revised unionfs_writepage works even better, including under my
-memory-pressure conditions.  To summarize my changes since the last time:
+At first, thank you for review.
 
-- I'm only masking __GFP_FS, not __GFP_IO
-- using find_or_create_page to avoid locking issues around mapping mask
-- handle for_reclaim case more efficiently
-- using copy_highpage so we handle KM_USER*
-- un/locking upper/lower page as/when needed
-- updated comments to clarify what/why
-- unionfs_sync_page: gone (yes, vfs.txt did confuse me, plus ecryptfs used
-  to have it)
+On Wed, 31 Oct 2007 15:12:34 -0700
+Andrew Morton <akpm@linux-foundation.org> wrote:
+> > +static inline void __mem_cgroup_stat_add(struct mem_cgroup_stat *stat,
+> > +                enum mem_cgroup_stat_index idx, int val)
+> > +{
+> > +	int cpu = smp_processor_id();
+> > +	preempt_disable();
+> > +	stat->cpustat[cpu].count[idx] += val;
+> > +	preempt_enable();
+> > +}
+> 
+> This is clearly doing smp_processor_id() in preemptible code.  (or the
+> preempt_disable() just isn't needed).  I fixed it up.
+> 
+Thanks,
+> Please ensure that you test with all runtime debugging options enabled -
+> you should have seen a warning here.
+> 
+Sorry, I'll take care.
 
-Below is the newest version of unionfs_writepage.  Let me know what you
-think.
 
-I have to say that with these changes, unionfs appears visibly faster under
-memory pressure.  I suspect the for_reclaim handling is probably the largest
-contributor to this speedup.
+> > +/*
+> > + * For accounting under irq disable, no need for increment preempt count.
+> > + */
+> > +static inline void __mem_cgroup_stat_add_safe(struct mem_cgroup_stat *stat,
+> > +		enum mem_cgroup_stat_index idx, int val)
+> > +{
+> > +	int cpu = smp_processor_id();
+> > +	stat->cpustat[cpu].count[idx] += val;
+> > +}
+> 
+> There's a wild amount of inlining in that file.  Please, just don't do it -
+> inline is a highly specialised thing and is rarely needed.
+> 
+> When I removed the obviously-wrong inline statements, the size of
+> mm/memcontrol.o went from 3823 bytes down to 3495.
+> 
+> It also caused this:
+> 
+> mm/memcontrol.c:65: warning: '__mem_cgroup_stat_add' defined but not used
+> 
+> so I guess I'll just remove that.
+> 
+ok. I'll add again if it is needed again.
 
-Many thanks,
-Erez.
-
-//////////////////////////////////////////////////////////////////////////////
-
-static int unionfs_writepage(struct page *page, struct writeback_control *wbc)
-{
-	int err = -EIO;
-	struct inode *inode;
-	struct inode *lower_inode;
-	struct page *lower_page;
-	struct address_space *lower_mapping; /* lower inode mapping */
-	gfp_t mask;
-
-	inode = page->mapping->host;
-	lower_inode = unionfs_lower_inode(inode);
-	lower_mapping = lower_inode->i_mapping;
-
-	/*
-	 * find lower page (returns a locked page)
-	 *
-	 * We turn off __GFP_FS while we look for or create a new lower
-	 * page.  This prevents a recursion into the file system code, which
-	 * under memory pressure conditions could lead to a deadlock.  This
-	 * is similar to how the loop driver behaves (see loop_set_fd in
-	 * drivers/block/loop.c).  If we can't find the lower page, we
-	 * redirty our page and return "success" so that the VM will call us
-	 * again in the (hopefully near) future.
-	 */
-	mask = mapping_gfp_mask(lower_mapping) & ~(__GFP_FS);
-	lower_page = find_or_create_page(lower_mapping, page->index, mask);
-	if (!lower_page) {
-		err = 0;
-		set_page_dirty(page);
-		goto out;
-	}
-
-	/* copy page data from our upper page to the lower page */
-	copy_highpage(lower_page, page);
-
-	/*
-	 * Call lower writepage (expects locked page).  However, if we are
-	 * called with wbc->for_reclaim, then the VFS/VM just wants to
-	 * reclaim our page.  Therefore, we don't need to call the lower
-	 * ->writepage: just copy our data to the lower page (already done
-	 * above), then mark the lower page dirty and unlock it, and return
-	 * success.
-	 */
-	if (wbc->for_reclaim) {
-		set_page_dirty(lower_page);
-		unlock_page(lower_page);
-		goto out_release;
-	}
-	BUG_ON(!lower_mapping->a_ops->writepage);
-	clear_page_dirty_for_io(lower_page); /* emulate VFS behavior */
-	err = lower_mapping->a_ops->writepage(lower_page, wbc);
-	if (err < 0) {
-		ClearPageUptodate(page);
-		goto out_release;
-	}
-
-	/*
-	 * Lower file systems such as ramfs and tmpfs, may return
-	 * AOP_WRITEPAGE_ACTIVATE so that the VM won't try to (pointlessly)
-	 * write the page again for a while.  But those lower file systems
-	 * also set the page dirty bit back again.  Since we successfully
-	 * copied our page data to the lower page, then the VM will come
-	 * back to the lower page (directly) and try to flush it.  So we can
-	 * save the VM the hassle of coming back to our page and trying to
-	 * flush too.  Therefore, we don't re-dirty our own page, and we
-	 * never return AOP_WRITEPAGE_ACTIVATE back to the VM (we consider
-	 * this a success).
-	 *
-	 * We also unlock the lower page if the lower ->writepage returned
-	 * AOP_WRITEPAGE_ACTIVATE.  (This "anomalous" behaviour may be
-	 * addressed in future shmem/VM code.)
-	 */
-	if (err == AOP_WRITEPAGE_ACTIVATE) {
-		err = 0;
-		unlock_page(lower_page);
-	}
-
-	/* all is well */
-	SetPageUptodate(page);
-	/* lower mtimes have changed: update ours */
-	unionfs_copy_attr_times(inode);
-
-out_release:
-	/* b/c find_or_create_page increased refcnt */
-	page_cache_release(lower_page);
-out:
-	/*
-	 * We unlock our page unconditionally, because we never return
-	 * AOP_WRITEPAGE_ACTIVATE.
-	 */
-	unlock_page(page);
-	return err;
-}
-
-//////////////////////////////////////////////////////////////////////////////
+Thanks,
+-Kame
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
