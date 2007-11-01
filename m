@@ -1,92 +1,95 @@
-Date: Thu, 01 Nov 2007 02:38:40 -0700
-From: " Royal Euro Kasino " <custom@mailAccount.com>
-Subject: 300% Bonus fur Ihre erste Einzahlung! 
-Message-ID: <88895584.41811681@fun.com>
+Date: Thu, 01 Nov 2007 18:21:35 +0900
+From: Yasunori Goto <y-goto@jp.fujitsu.com>
+Subject: [PATCH] Add IORESOUCE_BUSY flag for System RAM (Re: [Question] How to represent SYSTEM_RAM in kerenel/resouce.c)
+In-Reply-To: <20071003135702.bdcf3f1b.kamezawa.hiroyu@jp.fujitsu.com>
+References: <20071003015242.GC12049@parisc-linux.org> <20071003135702.bdcf3f1b.kamezawa.hiroyu@jp.fujitsu.com>
+Message-Id: <20071101181700.6D9A.Y-GOTO@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/html; charset=iso-8859-1
+Content-Type: text/plain; charset="US-ASCII"
 Content-Transfer-Encoding: 7bit
-Return-Path: <custom@mailAccount.com>
-To: owner-linux-mm@kvack.org
+Sender: owner-linux-mm@kvack.org
+Return-Path: <owner-linux-mm@kvack.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Matthew Wilcox <matthew@wil.cx>, LKML <linux-kernel@vger.kernel.org>, andi@firstfloor.org, "linux-mm@kvack.org" <linux-mm@kvack.org>, "tony.luck@intel.com" <tony.luck@intel.com>, pbadari@us.ibm.com, "linux-ia64@vger.kernel.org" <linux-ia64@vger.kernel.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Dave Hansen <haveblue@us.ibm.com>
 List-ID: <linux-mm.kvack.org>
 
-<html>
+Hello.
 
-<head>
-<meta http-equiv=Content-Type content="text/html; charset=iso-8859-1">
+I was asked from Kame-san to write this patch.
 
-<title>Ein unglaublicher 300% Bonus f&uuml;r </title>
+Please apply.
 
-<style>
-<!--
- /* Style Definitions */
- p.MsoNormal, li.MsoNormal, div.MsoNormal
-	{mso-style-parent:"";
-	margin:0cm;
-	margin-bottom:.0001pt;
-	mso-pagination:widow-orphan;
-	font-size:12.0pt;
-	font-family:"Times New Roman";
-	mso-fareast-font-family:"Times New Roman";}
-a:link, span.MsoHyperlink
-	{color:blue;
-	text-decoration:underline;
-	text-underline:single;}
-a:visited, span.MsoHyperlinkFollowed
-	{color:purple;
-	text-decoration:underline;
-	text-underline:single;}
-@page Section1
-	{size:595.3pt 841.9pt;
-	margin:2.0cm 42.5pt 2.0cm 3.0cm;
-	mso-header-margin:35.4pt;
-	mso-footer-margin:35.4pt;
-	mso-paper-source:0;}
-div.Section1
-	{page:Section1;}
--->
-</style>
+---------
+i386 and x86-64 registers System RAM as IORESOURCE_MEM | IORESOURCE_BUSY.
 
-</head>
+But ia64 registers it as IORESOURCE_MEM only.
+In addition, memory hotplug code registers new memory as IORESOURCE_MEM too.
 
-<body lang=DE link=blue vlink=purple style='tab-interval:35.4pt'>
+This patch adds IORESOURCE_BUSY for them to avoid potential overlap mapping
+by PCI device.
 
-<div class=Section1>
+Signed-off-by: Yasunori Goto <y-goto@jp.fujitsu.com>
 
-<p class=MsoNormal><span lang=EN-US style='mso-ansi-language:EN-US'>Ein
-unglaublicher 300% Bonus f&uuml;r Ihre erste Einzahlung bei Royal 
-VIP Casino<o:p></o:p></span></p>
+---
+ arch/ia64/kernel/efi.c |    6 ++----
+ mm/memory_hotplug.c    |    2 +-
+ 2 files changed, 3 insertions(+), 5 deletions(-)
 
-<p class=MsoNormal><span lang=EN-US style='mso-ansi-language:EN-US'>
-<o:p>&nbsp;</o:p></span></p>
+Index: current/arch/ia64/kernel/efi.c
+===================================================================
+--- current.orig/arch/ia64/kernel/efi.c	2007-11-01 15:24:05.000000000 +0900
++++ current/arch/ia64/kernel/efi.c	2007-11-01 15:24:18.000000000 +0900
+@@ -1111,7 +1111,7 @@ efi_initialize_iomem_resources(struct re
+ 		if (md->num_pages == 0) /* should not happen */
+ 			continue;
+ 
+-		flags = IORESOURCE_MEM;
++		flags = IORESOURCE_MEM | IORESOURCE_BUSY;
+ 		switch (md->type) {
+ 
+ 			case EFI_MEMORY_MAPPED_IO:
+@@ -1133,12 +1133,11 @@ efi_initialize_iomem_resources(struct re
+ 
+ 			case EFI_ACPI_MEMORY_NVS:
+ 				name = "ACPI Non-volatile Storage";
+-				flags |= IORESOURCE_BUSY;
+ 				break;
+ 
+ 			case EFI_UNUSABLE_MEMORY:
+ 				name = "reserved";
+-				flags |= IORESOURCE_BUSY | IORESOURCE_DISABLED;
++				flags |= IORESOURCE_DISABLED;
+ 				break;
+ 
+ 			case EFI_RESERVED_TYPE:
+@@ -1147,7 +1146,6 @@ efi_initialize_iomem_resources(struct re
+ 			case EFI_ACPI_RECLAIM_MEMORY:
+ 			default:
+ 				name = "reserved";
+-				flags |= IORESOURCE_BUSY;
+ 				break;
+ 		}
+ 
+Index: current/mm/memory_hotplug.c
+===================================================================
+--- current.orig/mm/memory_hotplug.c	2007-11-01 15:24:16.000000000 +0900
++++ current/mm/memory_hotplug.c	2007-11-01 15:41:27.000000000 +0900
+@@ -39,7 +39,7 @@ static struct resource *register_memory_
+ 	res->name = "System RAM";
+ 	res->start = start;
+ 	res->end = start + size - 1;
+-	res->flags = IORESOURCE_MEM;
++	res->flags = IORESOURCE_MEM | IORESOURCE_BUSY;
+ 	if (request_resource(&iomem_resource, res) < 0) {
+ 		printk("System RAM resource %llx - %llx cannot be added\n",
+ 		(unsigned long long)res->start, (unsigned long long)res->end);
 
-<p class=MsoNormal><span lang=EN-US style='mso-ansi-language:EN-US'>
-Stellen Sie
-sich wahrheitsgetreue Grafiken, so wie in den alten Casinos, vor; aber mit
-neuen wunderbaren Spielen in einer einladenden Atmosph&auml;re und 
-einer bunten Umgebung.<o:p></o:p></span></p>
+-- 
+Yasunori Goto 
 
-<p class=MsoNormal><span lang=EN-US style='mso-ansi-language:EN-US'>
-<o:p>&nbsp;</o:p></span></p>
 
-<p class=MsoNormal>Melden Sie sich bei Royal VIP Casino an und Sie werden den
-gr&ouml;ssten Ersteinzahlungsbonus online in null komma nix erhalten.<span
-lang=EN-US style='mso-ansi-language:EN-US'><o:p></o:p></span></p>
-
-<p class=MsoNormal><span lang=EN-US style='mso-ansi-language:EN-US'>
-<o:p>&nbsp;</o:p></span></p>
-
-<p class=MsoNormal><span lang=EN-US style='mso-ansi-language:EN-US'>Das
-Leitmotiv dieses Casinos ist es sie zufrieden zu stellen und Ihnen zu
-erm&ouml;glichen einen grossen Gewinn zu machen!<o:p></o:p></span></p>
-
-<p class=MsoNormal><span lang=EN-US style='mso-ansi-language:EN-US'>
-<o:p>&nbsp;</o:p></span></p>
-
-<p class=MsoNormal><a href="http://www.hotroyalcazino.com/lang-de/">
-http://www.hotroyalcazino.com/lang-de/</a><o:p></o:p></p>
-
-</div>
-
-</body>
-
-</html>
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
