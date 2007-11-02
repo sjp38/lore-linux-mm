@@ -1,36 +1,85 @@
-Received: from d03relay02.boulder.ibm.com (d03relay02.boulder.ibm.com [9.17.195.227])
-	by e36.co.us.ibm.com (8.13.8/8.13.8) with ESMTP id lA2FVmsv022801
-	for <linux-mm@kvack.org>; Fri, 2 Nov 2007 11:31:48 -0400
-Received: from d03av01.boulder.ibm.com (d03av01.boulder.ibm.com [9.17.195.167])
-	by d03relay02.boulder.ibm.com (8.13.8/8.13.8/NCO v8.5) with ESMTP id lA2FE79B047752
-	for <linux-mm@kvack.org>; Fri, 2 Nov 2007 09:31:48 -0600
-Received: from d03av01.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av01.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id lA2Es5tS015565
-	for <linux-mm@kvack.org>; Fri, 2 Nov 2007 08:54:05 -0600
-Subject: Re: [PATCH 3/3] Add arch-specific walk_memory_remove() for ppc64
-From: Badari Pulavarty <pbadari@us.ibm.com>
-In-Reply-To: <1193999530.25744.3.camel@johannes.berg>
-References: <1193849335.17412.33.camel@dyn9047017100.beaverton.ibm.com>
-	 <1193999530.25744.3.camel@johannes.berg>
+Received: from d03relay04.boulder.ibm.com (d03relay04.boulder.ibm.com [9.17.195.106])
+	by e35.co.us.ibm.com (8.13.8/8.13.8) with ESMTP id lA2FhJJg006743
+	for <linux-mm@kvack.org>; Fri, 2 Nov 2007 11:43:19 -0400
+Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
+	by d03relay04.boulder.ibm.com (8.13.8/8.13.8/NCO v8.5) with ESMTP id lA2FhEgQ119536
+	for <linux-mm@kvack.org>; Fri, 2 Nov 2007 09:43:19 -0600
+Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av02.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id lA2FhBTO032048
+	for <linux-mm@kvack.org>; Fri, 2 Nov 2007 09:43:12 -0600
+Subject: Re: migratepage failures on reiserfs
+From: Badari Pulavarty <pbadari@gmail.com>
+In-Reply-To: <1193940626.26106.13.camel@dyn9047017100.beaverton.ibm.com>
+References: <1193768824.8904.11.camel@dyn9047017100.beaverton.ibm.com>
+	 <20071030135442.5d33c61c@think.oraclecorp.com>
+	 <1193781245.8904.28.camel@dyn9047017100.beaverton.ibm.com>
+	 <20071030185840.48f5a10b@think.oraclecorp.com>
+	 <1193847261.17412.13.camel@dyn9047017100.beaverton.ibm.com>
+	 <20071031134006.2ecd520b@think.oraclecorp.com>
+	 <1193935137.26106.5.camel@dyn9047017100.beaverton.ibm.com>
+	 <20071101115103.62de4b2e@think.oraclecorp.com>
+	 <1193940626.26106.13.camel@dyn9047017100.beaverton.ibm.com>
 Content-Type: text/plain
-Date: Fri, 02 Nov 2007 07:57:18 -0800
-Message-Id: <1194019038.1547.0.camel@dyn9047017100.beaverton.ibm.com>
+Date: Fri, 02 Nov 2007 08:46:42 -0800
+Message-Id: <1194022002.1547.19.camel@dyn9047017100.beaverton.ibm.com>
 Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Johannes Berg <johannes@sipsolutions.net>
-Cc: Paul Mackerras <paulus@samba.org>, Andrew Morton <akpm@linux-foundation.org>, linuxppc-dev@ozlabs.org, anton@au1.ibm.com, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm <linux-mm@kvack.org>
+To: Chris Mason <chris.mason@oracle.com>
+Cc: mel@csn.ul.ie, reiserfs-devel@vger.kernel.org, linux-mm <linux-mm@kvack.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 2007-11-02 at 10:32 +0000, Johannes Berg wrote:
-> > This patch provides a way for an architecture to provide its
-> > own walk_memory_resource()
+On Thu, 2007-11-01 at 10:10 -0800, Badari Pulavarty wrote:
+> On Thu, 2007-11-01 at 11:51 -0400, Chris Mason wrote:
+> > On Thu, 01 Nov 2007 08:38:57 -0800
+> > Badari Pulavarty <pbadari@us.ibm.com> wrote:
+> > 
+> > > On Wed, 2007-10-31 at 13:40 -0400, Chris Mason wrote:
+> > > > On Wed, 31 Oct 2007 08:14:21 -0800
+> > > > Badari Pulavarty <pbadari@us.ibm.com> wrote:
+> > > > > 
+> > > > > I tried data=writeback mode and it didn't help :(
+> > > > 
+> > > > Ouch, so much for the easy way out.
+> > > > 
+> > > > > 
+> > > > > unable to release the page 262070
+> > > > > bh c0000000211b9408 flags 110029 count 1 private 0
+> > > > > unable to release the page 262098
+> > > > > bh c000000020ec9198 flags 110029 count 1 private 0
+> > > > > memory offlining 3f000 to 40000 failed
+> > > > > 
+> > > > 
+> > > > The only other special thing reiserfs does with the page cache is
+> > > > file tails.  I don't suppose all of these pages are index zero in
+> > > > files smaller than 4k?
+> > > 
+> > > Ahhhhhhhhhhhhh !! I am so blind :(
+> > > 
+> > > I have been suspecting reiserfs all along, since its executing
+> > > fallback_migrate_page(). Actually, these buffer heads are
+> > > backing blockdev. I guess these are metadata buffers :( 
+> > > I am not sure we can do much with these..
+> > 
+> > Hmpf, my first reply had a paragraph about the block device inode
+> > pages, I noticed the phrase file data pages and deleted it ;)
+> > 
+> > But, for the metadata buffers there's not much we can do.  They are
+> > included in a bunch of different lists and the patch would
+> > be non-trivial.
 > 
-> It seems that the patch description "walk_memory_remove()" is wrong?
+> Unfortunately, these buffer pages are spread all around making
+> those sections of memory non-removable. Of course, one can use
+> ZONE_MOVABLE to make sure to guarantee the remove. But I am
+> hoping we could easily group all these allocations and minimize
+> spreading them around. Mel ?
 > 
 
-Yep. Patch title is wrong.
+
+BTW, I am having better luck with being able to offline sections
+of memory on x86-64, if I take out __GFP_MOVABLE flag for 
+blockdev pages. (in grow_dev_page()).
 
 Thanks,
 Badari
