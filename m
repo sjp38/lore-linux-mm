@@ -1,22 +1,18 @@
-Date: Fri, 2 Nov 2007 13:28:46 -0500
+Date: Fri, 2 Nov 2007 14:48:35 -0500
 From: Matt Mackall <mpm@selenic.com>
-Message-ID: <20071102182846.GO19691@waste.org>
+Subject: Re: [PATCH] Remove unused code from mm/tiny-shmem.c
+Message-ID: <20071102194835.GQ19691@waste.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
+In-Reply-To: <20071102172056.14261.39829.sendpatchset@balbir-laptop>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Balbir Singh <balbir@linux.vnet.ibm.com>
-Cc: linux-mm <linux-mm@kvack.org>, Adrian Bunk <bunk@stusta.de>, Hugh@waste.org
+Cc: linux-mm <linux-mm@kvack.org>, Adrian Bunk <bunk@stusta.de>, Hugh Dickins <hugh@veritas.com>, Andrew Morton <akpm@linux-foundation.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-Dickins <hugh@veritas.com>
-	Andrew Morton <akpm@linux-foundation.org>,
-	Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
-Bcc: 
-Subject: Re: [PATCH] Remove unused code from mm/tiny-shmem.c
-Reply-To: 
-In-Reply-To: <20071102172056.14261.39829.sendpatchset@balbir-laptop>
+[resent due to damaged header]
 
 On Fri, Nov 02, 2007 at 10:50:56PM +0530, Balbir Singh wrote:
 > This code in mm/tiny-shmem.c is under #if 0, do we really need it? This
