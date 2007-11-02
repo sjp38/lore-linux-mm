@@ -1,98 +1,52 @@
-Date: Fri, 2 Nov 2007 16:58:25 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: start_isolate_page_range() question/offline_pages() bug ?
-Message-Id: <20071102165825.73d15c5b.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <1193944769.26106.34.camel@dyn9047017100.beaverton.ibm.com>
-References: <1193944769.26106.34.camel@dyn9047017100.beaverton.ibm.com>
+Subject: Re: [PATCH 3/3] Add arch-specific walk_memory_remove() for ppc64
+From: Johannes Berg <johannes@sipsolutions.net>
+In-Reply-To: <1193849335.17412.33.camel@dyn9047017100.beaverton.ibm.com>
+References: <1193849335.17412.33.camel@dyn9047017100.beaverton.ibm.com>
+Content-Type: multipart/signed; micalg=pgp-sha1; protocol="application/pgp-signature"; boundary="=-cAlWIPTGfxae2J1IDv6p"
+Date: Fri, 02 Nov 2007 10:32:10 +0000
+Message-Id: <1193999530.25744.3.camel@johannes.berg>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Badari Pulavarty <pbadari@us.ibm.com>
-Cc: linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, GOTO <y-goto@jp.fujitsu.com>
+Cc: Paul Mackerras <paulus@samba.org>, Andrew Morton <akpm@linux-foundation.org>, linuxppc-dev@ozlabs.org, anton@au1.ibm.com, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-Hi, Badari, and Andrew
-
-This is bugfix for memory hotremove.
-
-But we'll need x86_64 memory hotremove patch set to test this easily.
-
-Then, I'd like to schedule this with Goto's ioresource patch and
-Badari's fix and this one and x86_64 memory hotremove support patch
-against the next -mm.
-
-This is quick fix. Thank you, Badari.
-
-Regards,
--Kame
-==
-
-We should unset migrate type "ISOLATE" when we successfully removed
-memory. But current code has BUG and cannot works well.
-
-This patch also includes bugfix? to change get_pageblock_flags to
-get_pageblock_migratetype().
-
-Tested with x86_64 memory hotremove (private) patch and works well.
-(It will be posted if things settled.)
-
-Thanks to Badari Pulavarty for finding this.
-
-Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+--=-cAlWIPTGfxae2J1IDv6p
+Content-Type: text/plain
+Content-Transfer-Encoding: quoted-printable
 
 
- mm/memory_hotplug.c |    4 ++--
- mm/page_isolation.c |    6 +++---
- 2 files changed, 5 insertions(+), 5 deletions(-)
+> This patch provides a way for an architecture to provide its
+> own walk_memory_resource()
 
-Index: devel-2.6.23-mm1/mm/memory_hotplug.c
-===================================================================
---- devel-2.6.23-mm1.orig/mm/memory_hotplug.c
-+++ devel-2.6.23-mm1/mm/memory_hotplug.c
-@@ -536,8 +536,8 @@ repeat:
- 	/* Ok, all of our target is islaoted.
- 	   We cannot do rollback at this point. */
- 	offline_isolated_pages(start_pfn, end_pfn);
--	/* reset pagetype flags */
--	start_isolate_page_range(start_pfn, end_pfn);
-+	/* reset pagetype flags and makes migrate type to be MOVABLE */
-+	undo_isolate_page_range(start_pfn, end_pfn);
- 	/* removal success */
- 	zone = page_zone(pfn_to_page(start_pfn));
- 	zone->present_pages -= offlined_pages;
-Index: devel-2.6.23-mm1/mm/page_isolation.c
-===================================================================
---- devel-2.6.23-mm1.orig/mm/page_isolation.c
-+++ devel-2.6.23-mm1/mm/page_isolation.c
-@@ -55,7 +55,7 @@ start_isolate_page_range(unsigned long s
- 	return 0;
- undo:
- 	for (pfn = start_pfn;
--	     pfn <= undo_pfn;
-+	     pfn < undo_pfn;
- 	     pfn += pageblock_nr_pages)
- 		unset_migratetype_isolate(pfn_to_page(pfn));
- 
-@@ -76,7 +76,7 @@ undo_isolate_page_range(unsigned long st
- 	     pfn < end_pfn;
- 	     pfn += pageblock_nr_pages) {
- 		page = __first_valid_page(pfn, pageblock_nr_pages);
--		if (!page || get_pageblock_flags(page) != MIGRATE_ISOLATE)
-+		if (!page || get_pageblock_migratetype(page) != MIGRATE_ISOLATE)
- 			continue;
- 		unset_migratetype_isolate(page);
- 	}
-@@ -126,7 +126,7 @@ int test_pages_isolated(unsigned long st
- 	 */
- 	for (pfn = start_pfn; pfn < end_pfn; pfn += pageblock_nr_pages) {
- 		page = __first_valid_page(pfn, pageblock_nr_pages);
--		if (page && get_pageblock_flags(page) != MIGRATE_ISOLATE)
-+		if (page && get_pageblock_migratetype(page) != MIGRATE_ISOLATE)
- 			break;
- 	}
- 	if (pfn < end_pfn)
+It seems that the patch description "walk_memory_remove()" is wrong?
+
+johannes
+
+--=-cAlWIPTGfxae2J1IDv6p
+Content-Type: application/pgp-signature; name=signature.asc
+Content-Description: This is a digitally signed message part
+
+-----BEGIN PGP SIGNATURE-----
+Comment: Johannes Berg (powerbook)
+
+iQIVAwUARyr8qaVg1VMiehFYAQIq2A//SUYdZ2Kox7TSLno9s1odL3iQqXat3DTo
+IWYDX0ErgzWM+i6sVE1hMyZtvGv2fuUOioAnzMEj8nui8Qp4n3Rvr1aiPuUZcV5X
+c6wQ8BNqFhXcoIZjaJH3efhOQ673AHLcgyyWl48n+uSOQXFaE1Ljw8s7/IF/OLlZ
+SpGy3E7LTbGHD5liOTIHXAphIQtWTuATKg9brjW88SwGzoe8pkBBRhSpet93Lfrh
+S5IbR23u8QKlD5g7J6wLiMQ76A/VZg14DK8gUi8DX2ebZG6bBYmxjWf4uOW1qvuE
+ZNQa71QNrPenInCc1KlvYRbiGYQ4Rdfc5ENsEBtgFc80KLpMVC+ILL0DNwk2jk5H
+2snGA3wSeYANZCuxlrxLH+IhI413Dy7ckjnIC4pZ4RTMWhYn1xDye6rumhBrFAbX
+dlSOkOntctUHCNcagJE7Rg6jOJGjuuoz+MRrlvpMFzuV2avpy3/BJSCSoGUQVJLk
+02w0TSlyLnIEaNXrTIz2UpA4THgpe0Ynnl9DhNGfPhmrZDlMtf1wONf0VIx3S1Zj
+18qbazsMxrMxo0VwVjGdHAOnGmefVGYLr86K7elqrpOtQGrgcxXpQ0jF4FuAv9ak
+tkLcb4RZZTA1HLT+nt+SEwRcatmWatUB2G1M1dDrUd4Me/9MwWNxIlckKvTE/pS2
+CizlORweXsc=
+=RYg6
+-----END PGP SIGNATURE-----
+
+--=-cAlWIPTGfxae2J1IDv6p--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
