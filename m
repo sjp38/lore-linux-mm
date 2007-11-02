@@ -1,98 +1,123 @@
-Date: Fri, 02 Nov 2007 09:38:00 -0300
-Message-ID: <46973457.39519194@legend.com>
-From: "Euro VIP Kasino" <benedictine@chinabyte.com>
-Subject: Spielen Sie in Europas bestem Online-Kasino
-MIME-Version: 1.0
-Content-Type: text/html; charset=iso-8859-1
+Received: from d03relay02.boulder.ibm.com (d03relay02.boulder.ibm.com [9.17.195.227])
+	by e32.co.us.ibm.com (8.12.11.20060308/8.13.8) with ESMTP id lA2E2lIt016846
+	for <linux-mm@kvack.org>; Fri, 2 Nov 2007 10:02:47 -0400
+Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
+	by d03relay02.boulder.ibm.com (8.13.8/8.13.8/NCO v8.5) with ESMTP id lA2F31Lo120158
+	for <linux-mm@kvack.org>; Fri, 2 Nov 2007 09:03:07 -0600
+Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av02.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id lA2F30xH011254
+	for <linux-mm@kvack.org>; Fri, 2 Nov 2007 09:03:01 -0600
+Subject: Re: start_isolate_page_range() question/offline_pages() bug ?
+From: Badari Pulavarty <pbadari@us.ibm.com>
+In-Reply-To: <20071102165825.73d15c5b.kamezawa.hiroyu@jp.fujitsu.com>
+References: <1193944769.26106.34.camel@dyn9047017100.beaverton.ibm.com>
+	 <20071102165825.73d15c5b.kamezawa.hiroyu@jp.fujitsu.com>
+Content-Type: text/plain
+Date: Fri, 02 Nov 2007 08:06:20 -0800
+Message-Id: <1194019581.1547.5.camel@dyn9047017100.beaverton.ibm.com>
+Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
-Return-Path: <benedictine@chinabyte.com>
-To: owner-linux-mm@kvack.org
+Sender: owner-linux-mm@kvack.org
+Return-Path: <owner-linux-mm@kvack.org>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, GOTO <y-goto@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-<html>
+On Fri, 2007-11-02 at 16:58 +0900, KAMEZAWA Hiroyuki wrote:
+> Hi, Badari, and Andrew
+> 
+> This is bugfix for memory hotremove.
+> 
+> But we'll need x86_64 memory hotremove patch set to test this easily.
+> 
+> Then, I'd like to schedule this with Goto's ioresource patch and
+> Badari's fix and this one and x86_64 memory hotremove support patch
+> against the next -mm.
+> 
+> This is quick fix. Thank you, Badari.
 
-<head>
-<meta http-equiv=Content-Type content="text/html; charset=iso-8859-1">
+Yes. These are needed for testing x86-64 (which we don't have support
+for). We can schedule these for next -mm.
 
-<title>Spielen Sie in Europas</title>
+I am okay with your patch & Goto's patch. Please include my changes
+also.
 
-<style>
-<!--
- /* Style Definitions */
- p.MsoNormal, li.MsoNormal, div.MsoNormal
-	{mso-style-parent:"";
-	margin:0cm;
-	margin-bottom:.0001pt;
-	mso-pagination:widow-orphan;
-	font-size:12.0pt;
-	font-family:"Times New Roman";
-	mso-fareast-font-family:"Times New Roman";
-	mso-ansi-language:EN-US;
-	mso-fareast-language:EN-US;}
-a:link, span.MsoHyperlink
-	{color:blue;
-	text-decoration:underline;
-	text-underline:single;}
-a:visited, span.MsoHyperlinkFollowed
-	{color:purple;
-	text-decoration:underline;
-	text-underline:single;}
-@page Section1
-	{size:595.3pt 841.9pt;
-	margin:2.0cm 42.5pt 2.0cm 3.0cm;
-	mso-header-margin:35.4pt;
-	mso-footer-margin:35.4pt;
-	mso-paper-source:0;}
-div.Section1
-	{page:Section1;}
--->
-</style>
+Acked-by: Badari Pulavarty <pbadari@us.ibm.com>
 
-</head>
+Thanks,
+Badari
 
-<body lang=DE link=blue vlink=purple style='tab-interval:35.4pt'>
 
-<div class=Section1>
 
-<p class=MsoNormal><span lang=EN-US>Spielen Sie in Europas bestem
-Online-Kasino, sie erhalten 400 &#8364; extra, wenn Sie sich anmelden!
-<o:p></o:p></span></p>
+> 
+> We should unset migrate type "ISOLATE" when we successfully removed
+> memory. But current code has BUG and cannot works well.
+> 
+> This patch also includes bugfix? to change get_pageblock_flags to
+> get_pageblock_migratetype().
+> 
+> Tested with x86_64 memory hotremove (private) patch and works well.
+> (It will be posted if things settled.)
+> 
+> Thanks to Badari Pulavarty for finding this.
+> 
+> Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> 
+> 
+>  mm/memory_hotplug.c |    4 ++--
+>  mm/page_isolation.c |    6 +++---
+>  2 files changed, 5 insertions(+), 5 deletions(-)
+> 
+> Index: devel-2.6.23-mm1/mm/memory_hotplug.c
+> ===================================================================
+> --- devel-2.6.23-mm1.orig/mm/memory_hotplug.c
+> +++ devel-2.6.23-mm1/mm/memory_hotplug.c
+> @@ -536,8 +536,8 @@ repeat:
+>  	/* Ok, all of our target is islaoted.
+>  	   We cannot do rollback at this point. */
+>  	offline_isolated_pages(start_pfn, end_pfn);
+> -	/* reset pagetype flags */
+> -	start_isolate_page_range(start_pfn, end_pfn);
+> +	/* reset pagetype flags and makes migrate type to be MOVABLE */
+> +	undo_isolate_page_range(start_pfn, end_pfn);
+>  	/* removal success */
+>  	zone = page_zone(pfn_to_page(start_pfn));
+>  	zone->present_pages -= offlined_pages;
+> Index: devel-2.6.23-mm1/mm/page_isolation.c
+> ===================================================================
+> --- devel-2.6.23-mm1.orig/mm/page_isolation.c
+> +++ devel-2.6.23-mm1/mm/page_isolation.c
+> @@ -55,7 +55,7 @@ start_isolate_page_range(unsigned long s
+>  	return 0;
+>  undo:
+>  	for (pfn = start_pfn;
+> -	     pfn <= undo_pfn;
+> +	     pfn < undo_pfn;
+>  	     pfn += pageblock_nr_pages)
+>  		unset_migratetype_isolate(pfn_to_page(pfn));
+> 
+> @@ -76,7 +76,7 @@ undo_isolate_page_range(unsigned long st
+>  	     pfn < end_pfn;
+>  	     pfn += pageblock_nr_pages) {
+>  		page = __first_valid_page(pfn, pageblock_nr_pages);
+> -		if (!page || get_pageblock_flags(page) != MIGRATE_ISOLATE)
+> +		if (!page || get_pageblock_migratetype(page) != MIGRATE_ISOLATE)
+>  			continue;
+>  		unset_migratetype_isolate(page);
+>  	}
+> @@ -126,7 +126,7 @@ int test_pages_isolated(unsigned long st
+>  	 */
+>  	for (pfn = start_pfn; pfn < end_pfn; pfn += pageblock_nr_pages) {
+>  		page = __first_valid_page(pfn, pageblock_nr_pages);
+> -		if (page && get_pageblock_flags(page) != MIGRATE_ISOLATE)
+> +		if (page && get_pageblock_migratetype(page) != MIGRATE_ISOLATE)
+>  			break;
+>  	}
+>  	if (pfn < end_pfn)
+> 
 
-<p class=MsoNormal><span lang=EN-US><o:p>&nbsp;</o:p></span></p>
-
-<p class=MsoNormal><span lang=EN-US>F&uuml;r die ersten vier Einzahlungen 
-erhalten Sie jeweils bis zu 100 &#8364; VIP-Matchbonus. Das ist ein 
-fantastisches Angebot von Europas f&uuml;hrendem Anbieter!
-<o:p></o:p></span></p>
-
-<p class=MsoNormal><span lang=EN-US><o:p>&nbsp;</o:p></span></p>
-
-<p class=MsoNormal><span lang=EN-US>Das Angebot ist wirklich toll,
-insbesondere, wenn Sie bedenken, was Euro VIP Kasino sonst noch zu bieten 
-hat: <o:p></o:p></span></p>
-
-<p class=MsoNormal><span lang=EN-US>- &Uuml;ber 100 Spiele, realistische 
-Grafiken<o:p></o:p></span></p>
-
-<p class=MsoNormal><span lang=EN-US>- Die neueste und sicherste Software 
-<o:p></o:p></span></p>
-
-<p class=MsoNormal><span lang=EN-US>- Professionelle Betreuer, die Ihnen zu
-jeder Tages- und Nachtzeit beratend zur Seite stehen. <o:p></o:p></span></p>
-
-<p class=MsoNormal><span lang=EN-US><o:p>&nbsp;</o:p></span></p>
-
-<p class=MsoNormal><span lang=EN-US>Besuchen Sie Euro VIP Kasino, und erleben
-Sie den Unterschied.<o:p></o:p></span></p>
-
-<p class=MsoNormal><span lang=EN-US><o:p>&nbsp;</o:p></span></p>
-
-<p class=MsoNormal><span lang=EN-US>
-<a href="http://www.eurovipkazino.com/lang-de/">
-http://www.eurovipkazino.com/lang-de/</a><o:p></o:p></span></p>
-
-</div>
-
-</body>
-
-</html>
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
