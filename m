@@ -1,7 +1,7 @@
-Date: Sat, 3 Nov 2007 19:04:46 -0400
+Date: Sat, 3 Nov 2007 18:55:37 -0400
 From: Rik van Riel <riel@redhat.com>
-Subject: [RFC PATCH 9/10] split VM and memory controllers
-Message-ID: <20071103190446.722dffa3@bree.surriel.com>
+Subject: [RFC PATCH 4/10] debug page_file_cache
+Message-ID: <20071103185537.20c42f7a@bree.surriel.com>
 In-Reply-To: <20071103184229.3f20e2f0@bree.surriel.com>
 References: <20071103184229.3f20e2f0@bree.surriel.com>
 Mime-Version: 1.0
@@ -9,50 +9,71 @@ Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
-Cc: linux-kernel@vger.kernel.org
+To: linux-kernel@vger.kernel.org
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-The memory controller code is still quite simple, so don't do
-anything fancy for now trying to make it work better with the
-split VM code.
-
-Will be merged into 6/10 soon.
+Debug whether we end up classifying the wrong pages as
+filesystem backed.  This has not triggered in stress
+tests on my system, but who knows...
 
 Signed-off-by: Rik van Riel <riel@redhat.com>
 
-Index: linux-2.6.23-mm1/mm/memcontrol.c
+Index: linux-2.6.23-mm1/include/linux/mm_inline.h
 ===================================================================
---- linux-2.6.23-mm1.orig/mm/memcontrol.c
-+++ linux-2.6.23-mm1/mm/memcontrol.c
-@@ -210,7 +210,6 @@ unsigned long mem_cgroup_isolate_pages(u
- 	struct list_head *src;
- 	struct page_cgroup *pc;
+--- linux-2.6.23-mm1.orig/include/linux/mm_inline.h
++++ linux-2.6.23-mm1/include/linux/mm_inline.h
+@@ -1,6 +1,8 @@
+ #ifndef LINUX_MM_INLINE_H
+ #define LINUX_MM_INLINE_H
  
--//TODO:  memory container maintain separate file/anon lists?
- 	if (active)
- 		src = &mem_cont->active_list;
- 	else
-@@ -222,6 +221,9 @@ unsigned long mem_cgroup_isolate_pages(u
- 		page = pc->page;
- 		VM_BUG_ON(!pc);
- 
-+		/*
-+		 * TODO: play better with lumpy reclaim, grabbing anything.
-+		 */
- 		if (PageActive(page) && !active) {
- 			__mem_cgroup_move_lists(pc, true);
- 			scan--;
-@@ -240,6 +242,9 @@ unsigned long mem_cgroup_isolate_pages(u
- 		if (page_zone(page) != z)
- 			continue;
- 
-+		if (file != !!page_file_cache(page))
-+			continue;
++#include <linux/fs.h>  /* for struct address_space */
 +
- 		/*
- 		 * Check if the meta page went away from under us
- 		 */
+ /**
+  * page_file_cache(@page)
+  * Returns !0 if @page is page cache page backed by a regular file,
+@@ -9,11 +11,19 @@
+  * We would like to get this info without a page flag, but the state
+  * needs to propagate to whereever the page is last deleted from the LRU.
+  */
++extern const struct address_space_operations shmem_aops;
+ static inline int page_file_cache(struct page *page)
+ {
++	struct address_space * mapping = page_mapping(page);
++
+ 	if (PageSwapBacked(page))
+ 		return 0;
+ 
++	/* These pages should all be marked PG_swapbacked */
++	WARN_ON(PageAnon(page));
++	WARN_ON(PageSwapCache(page));
++	WARN_ON(mapping && mapping->a_ops && mapping->a_ops == &shmem_aops);
++
+ 	/* The page is page cache backed by a normal filesystem. */
+ 	return 2;
+ }
+Index: linux-2.6.23-mm1/mm/shmem.c
+===================================================================
+--- linux-2.6.23-mm1.orig/mm/shmem.c
++++ linux-2.6.23-mm1/mm/shmem.c
+@@ -180,7 +180,7 @@ static inline void shmem_unacct_blocks(u
+ }
+ 
+ static const struct super_operations shmem_ops;
+-static const struct address_space_operations shmem_aops;
++const struct address_space_operations shmem_aops;
+ static const struct file_operations shmem_file_operations;
+ static const struct inode_operations shmem_inode_operations;
+ static const struct inode_operations shmem_dir_inode_operations;
+@@ -2344,7 +2344,7 @@ static void destroy_inodecache(void)
+ 	kmem_cache_destroy(shmem_inode_cachep);
+ }
+ 
+-static const struct address_space_operations shmem_aops = {
++const struct address_space_operations shmem_aops = {
+ 	.writepage	= shmem_writepage,
+ 	.set_page_dirty	= __set_page_dirty_no_writeback,
+ #ifdef CONFIG_TMPFS
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
