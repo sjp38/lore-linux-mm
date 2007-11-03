@@ -1,7 +1,7 @@
-Date: Sat, 3 Nov 2007 18:55:37 -0400
+Date: Sat, 3 Nov 2007 19:03:54 -0400
 From: Rik van Riel <riel@redhat.com>
-Subject: [RFC PATCH 4/10] debug page_file_cache
-Message-ID: <20071103185537.20c42f7a@bree.surriel.com>
+Subject: [RFC PATCH 8/10] make split VM and lumpy reclaim work together
+Message-ID: <20071103190354.2ef7f5e8@bree.surriel.com>
 In-Reply-To: <20071103184229.3f20e2f0@bree.surriel.com>
 References: <20071103184229.3f20e2f0@bree.surriel.com>
 Mime-Version: 1.0
@@ -9,71 +9,121 @@ Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-kernel@vger.kernel.org
-Cc: linux-mm@kvack.org
+To: Rik van Riel <riel@redhat.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-Debug whether we end up classifying the wrong pages as
-filesystem backed.  This has not triggered in stress
-tests on my system, but who knows...
+Make lumpy reclaim and the split VM code work together better, by
+allowing both file and anonymous pages to be relaimed together.
+
+Will be merged into patch 6/10 soon, split out for the benefit of
+people who have looked at the older code in the past.
 
 Signed-off-by: Rik van Riel <riel@redhat.com>
 
-Index: linux-2.6.23-mm1/include/linux/mm_inline.h
+Index: linux-2.6.23-mm1/mm/vmscan.c
 ===================================================================
---- linux-2.6.23-mm1.orig/include/linux/mm_inline.h
-+++ linux-2.6.23-mm1/include/linux/mm_inline.h
-@@ -1,6 +1,8 @@
- #ifndef LINUX_MM_INLINE_H
- #define LINUX_MM_INLINE_H
+--- linux-2.6.23-mm1.orig/mm/vmscan.c
++++ linux-2.6.23-mm1/mm/vmscan.c
+@@ -752,10 +752,6 @@ static unsigned long isolate_lru_pages(u
  
-+#include <linux/fs.h>  /* for struct address_space */
-+
- /**
-  * page_file_cache(@page)
-  * Returns !0 if @page is page cache page backed by a regular file,
-@@ -9,11 +11,19 @@
-  * We would like to get this info without a page flag, but the state
-  * needs to propagate to whereever the page is last deleted from the LRU.
+ 			cursor_page = pfn_to_page(pfn);
+ 
+-			/* Don't lump pages of different types:  file vs anon */
+-			if (!PageLRU(page) || (file != !!page_file_cache(cursor_page)))
+-				break;
+-
+ 			/* Check that we have not crossed a zone boundary. */
+ 			if (unlikely(page_zone_id(cursor_page) != zone_id))
+ 				continue;
+@@ -799,16 +795,22 @@ static unsigned long isolate_pages_globa
+  * clear_active_flags() is a helper for shrink_active_list(), clearing
+  * any active bits from the pages in the list.
   */
-+extern const struct address_space_operations shmem_aops;
- static inline int page_file_cache(struct page *page)
+-static unsigned long clear_active_flags(struct list_head *page_list)
++static unsigned long clear_active_flags(struct list_head *page_list,
++					unsigned int *count)
  {
-+	struct address_space * mapping = page_mapping(page);
+ 	int nr_active = 0;
++	int lru;
+ 	struct page *page;
+ 
+-	list_for_each_entry(page, page_list, lru)
++	list_for_each_entry(page, page_list, lru) {
++		lru = page_file_cache(page);
+ 		if (PageActive(page)) {
++			lru += LRU_ACTIVE;
+ 			ClearPageActive(page);
+ 			nr_active++;
+ 		}
++		count[lru]++;
++	}
+ 
+ 	return nr_active;
+ }
+@@ -876,24 +878,25 @@ static unsigned long shrink_inactive_lis
+ 		unsigned long nr_scan;
+ 		unsigned long nr_freed;
+ 		unsigned long nr_active;
++		unsigned int count[NR_LRU_LISTS] = { 0, };
++		int mode = (sc->order > PAGE_ALLOC_COSTLY_ORDER) ?
++					ISOLATE_BOTH : ISOLATE_INACTIVE;
+ 
+ 		nr_taken = sc->isolate_pages(sc->swap_cluster_max,
+-			     &page_list, &nr_scan, sc->order,
+-			     (sc->order > PAGE_ALLOC_COSTLY_ORDER)?
+-					     ISOLATE_BOTH : ISOLATE_INACTIVE,
++			     &page_list, &nr_scan, sc->order, mode,
+ 				zone, sc->mem_cgroup, 0, file);
+-		nr_active = clear_active_flags(&page_list);
++		nr_active = clear_active_flags(&page_list, count);
+ 		__count_vm_events(PGDEACTIVATE, nr_active);
+ 
+-		if (file) {
+-			__mod_zone_page_state(zone, NR_ACTIVE_FILE, -nr_active);
+-			__mod_zone_page_state(zone, NR_INACTIVE_FILE,
+-						-(nr_taken - nr_active));
+-		} else {
+-			__mod_zone_page_state(zone, NR_ACTIVE_ANON, -nr_active);
+-			__mod_zone_page_state(zone, NR_INACTIVE_ANON,
+-						-(nr_taken - nr_active));
+-		}
++		__mod_zone_page_state(zone, NR_ACTIVE_FILE,
++						-count[LRU_ACTIVE_FILE]);
++		__mod_zone_page_state(zone, NR_INACTIVE_FILE,
++						-count[LRU_INACTIVE_FILE]);
++		__mod_zone_page_state(zone, NR_ACTIVE_ANON,
++						-count[LRU_ACTIVE_ANON]);
++		__mod_zone_page_state(zone, NR_INACTIVE_ANON,
++						-count[LRU_INACTIVE_ANON]);
 +
- 	if (PageSwapBacked(page))
- 		return 0;
+ 		zone->pages_scanned += nr_scan;
+ 		spin_unlock_irq(&zone->lru_lock);
  
-+	/* These pages should all be marked PG_swapbacked */
-+	WARN_ON(PageAnon(page));
-+	WARN_ON(PageSwapCache(page));
-+	WARN_ON(mapping && mapping->a_ops && mapping->a_ops == &shmem_aops);
-+
- 	/* The page is page cache backed by a normal filesystem. */
- 	return 2;
- }
-Index: linux-2.6.23-mm1/mm/shmem.c
-===================================================================
---- linux-2.6.23-mm1.orig/mm/shmem.c
-+++ linux-2.6.23-mm1/mm/shmem.c
-@@ -180,7 +180,7 @@ static inline void shmem_unacct_blocks(u
- }
+@@ -914,7 +917,7 @@ static unsigned long shrink_inactive_lis
+ 			 * The attempt at page out may have made some
+ 			 * of the pages active, mark them inactive again.
+ 			 */
+-			nr_active = clear_active_flags(&page_list);
++			nr_active = clear_active_flags(&page_list, count);
+ 			count_vm_events(PGDEACTIVATE, nr_active);
  
- static const struct super_operations shmem_ops;
--static const struct address_space_operations shmem_aops;
-+const struct address_space_operations shmem_aops;
- static const struct file_operations shmem_file_operations;
- static const struct inode_operations shmem_inode_operations;
- static const struct inode_operations shmem_dir_inode_operations;
-@@ -2344,7 +2344,7 @@ static void destroy_inodecache(void)
- 	kmem_cache_destroy(shmem_inode_cachep);
- }
- 
--static const struct address_space_operations shmem_aops = {
-+const struct address_space_operations shmem_aops = {
- 	.writepage	= shmem_writepage,
- 	.set_page_dirty	= __set_page_dirty_no_writeback,
- #ifdef CONFIG_TMPFS
+ 			nr_freed += shrink_page_list(&page_list, sc,
+@@ -943,11 +946,11 @@ static unsigned long shrink_inactive_lis
+ 			VM_BUG_ON(PageLRU(page));
+ 			SetPageLRU(page);
+ 			list_del(&page->lru);
+-			if (file) {
++			if (page_file_cache(page)) {
+ 				l += LRU_FILE;
+-				zone->recent_rotated_file += sc->activated;
++				zone->recent_rotated_file++;
+ 			} else {
+-				zone->recent_rotated_anon += sc->activated;
++				zone->recent_rotated_anon++;
+ 			}
+ 			if (PageActive(page))
+ 				l += LRU_ACTIVE;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
