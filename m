@@ -1,33 +1,32 @@
-Date: Sun, 4 Nov 2007 11:24:16 +0100 (CET)
-From: Geert Uytterhoeven <geert@linux-m68k.org>
-Subject: Re: [Linux-fbdev-devel] [RFC 1/1 2.6.22.10] fbdev: defio and
- Metronomefb
-In-Reply-To: <20071103212446.23631.71478.sendpatchset@apodmy1.cis>
-Message-ID: <Pine.LNX.4.64.0711041123480.5468@anakin>
-References: <20071103212446.23631.71478.sendpatchset@apodmy1.cis>
+Received: by rv-out-0910.google.com with SMTP id l15so3101510rvb
+        for <linux-mm@kvack.org>; Sun, 04 Nov 2007 02:54:44 -0800 (PST)
+Message-ID: <45a44e480711040254n5c009998xe4bcde7abe466c05@mail.gmail.com>
+Date: Sun, 4 Nov 2007 05:54:44 -0500
+From: "Jaya Kumar" <jayakumar.lkml@gmail.com>
+Subject: Re: [Linux-fbdev-devel] [RFC 1/1 2.6.22.10] fbdev: defio and Metronomefb
+In-Reply-To: <Pine.LNX.4.64.0711041123480.5468@anakin>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+References: <20071103212446.23631.71478.sendpatchset@apodmy1.cis>
+	 <Pine.LNX.4.64.0711041123480.5468@anakin>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Jaya Kumar <jayakumar.lkml@gmail.com>
+To: Geert Uytterhoeven <geert@linux-m68k.org>
 Cc: linux-fbdev-devel@lists.sourceforge.net, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Sat, 3 Nov 2007, Jaya Kumar wrote:
-> +         interface. Please read <file:Documentation/fb/metronomefb.txt> 
+On Nov 4, 2007 5:24 AM, Geert Uytterhoeven <geert@linux-m68k.org> wrote:
+> On Sat, 3 Nov 2007, Jaya Kumar wrote:
+> > +         interface. Please read <file:Documentation/fb/metronomefb.txt>
+>
+> Documentation/fb/metronomefb.txt is missing?
 
-Documentation/fb/metronomefb.txt is missing?
+Oops. I forgot to write that document. Ok, will do.
 
-Gr{oetje,eeting}s,
-
-						Geert
-
---
-Geert Uytterhoeven -- There's lots of Linux beyond ia32 -- geert@linux-m68k.org
-
-In personal conversations with technical people, I call myself a hacker. But
-when I'm talking to journalists I just say "programmer" or something like that.
-							    -- Linus Torvalds
+Thanks,
+jaya
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
