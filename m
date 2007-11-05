@@ -1,96 +1,76 @@
-Subject: SPAM:  Ambien, Codeine, Phentermin, Valiun Xanas with Over 45,
-  000 Extremely Satisfied Customers! o11k043xqzzzo3zvdrn
-Date: Mon, 05 Nov 2007 02:00:10 -0700
-Reply-To: "Jarred Jeffries" <jarredjeffries_zh@oracle.com>
-Message-ID: <1194253210.7198@oracle.com>
+Date: Mon, 5 Nov 2007 10:23:35 +0000
+Subject: Re: migratepage failures on reiserfs
+Message-ID: <20071105102335.GA6272@skynet.ie>
+References: <1193768824.8904.11.camel@dyn9047017100.beaverton.ibm.com> <20071030135442.5d33c61c@think.oraclecorp.com> <1193781245.8904.28.camel@dyn9047017100.beaverton.ibm.com> <20071030185840.48f5a10b@think.oraclecorp.com> <1193847261.17412.13.camel@dyn9047017100.beaverton.ibm.com> <20071031134006.2ecd520b@think.oraclecorp.com> <1193935137.26106.5.camel@dyn9047017100.beaverton.ibm.com> <20071101115103.62de4b2e@think.oraclecorp.com> <1193940626.26106.13.camel@dyn9047017100.beaverton.ibm.com>
 MIME-Version: 1.0
-From: "Jarred Jeffries" <jarredjeffries_zh@oracle.com>
-Content-Type: multipart/alternative;
-	boundary="----=_NextPart_000_018C_8AFD807C.FF81CBCA"
-Return-Path: <jarredjeffries_zh@oracle.com>
-To: linux-mm@kvack.org
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <1193940626.26106.13.camel@dyn9047017100.beaverton.ibm.com>
+From: mel@skynet.ie (Mel Gorman)
+Sender: owner-linux-mm@kvack.org
+Return-Path: <owner-linux-mm@kvack.org>
+To: Badari Pulavarty <pbadari@us.ibm.com>
+Cc: Chris Mason <chris.mason@oracle.com>, reiserfs-devel@vger.kernel.org, linux-mm <linux-mm@kvack.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-This is a multi-part message in MIME format.
+On (01/11/07 10:10), Badari Pulavarty didst pronounce:
+> On Thu, 2007-11-01 at 11:51 -0400, Chris Mason wrote:
+> > On Thu, 01 Nov 2007 08:38:57 -0800
+> > Badari Pulavarty <pbadari@us.ibm.com> wrote:
+> > 
+> > > On Wed, 2007-10-31 at 13:40 -0400, Chris Mason wrote:
+> > > > On Wed, 31 Oct 2007 08:14:21 -0800
+> > > > Badari Pulavarty <pbadari@us.ibm.com> wrote:
+> > > > > 
+> > > > > I tried data=writeback mode and it didn't help :(
+> > > > 
+> > > > Ouch, so much for the easy way out.
+> > > > 
+> > > > > 
+> > > > > unable to release the page 262070
+> > > > > bh c0000000211b9408 flags 110029 count 1 private 0
+> > > > > unable to release the page 262098
+> > > > > bh c000000020ec9198 flags 110029 count 1 private 0
+> > > > > memory offlining 3f000 to 40000 failed
+> > > > > 
+> > > > 
+> > > > The only other special thing reiserfs does with the page cache is
+> > > > file tails.  I don't suppose all of these pages are index zero in
+> > > > files smaller than 4k?
+> > > 
+> > > Ahhhhhhhhhhhhh !! I am so blind :(
+> > > 
+> > > I have been suspecting reiserfs all along, since its executing
+> > > fallback_migrate_page(). Actually, these buffer heads are
+> > > backing blockdev. I guess these are metadata buffers :( 
+> > > I am not sure we can do much with these..
+> > 
+> > Hmpf, my first reply had a paragraph about the block device inode
+> > pages, I noticed the phrase file data pages and deleted it ;)
+> > 
+> > But, for the metadata buffers there's not much we can do.  They are
+> > included in a bunch of different lists and the patch would
+> > be non-trivial.
+> 
+> Unfortunately, these buffer pages are spread all around making
+> those sections of memory non-removable. Of course, one can use
+> ZONE_MOVABLE to make sure to guarantee the remove. But I am
+> hoping we could easily group all these allocations and minimize
+> spreading them around. Mel ?
 
-------=_NextPart_000_018C_8AFD807C.FF81CBCA
-Content-Type: text/plain;
-	charset="iso-8859-2"
-Content-Transfer-Encoding: 8bit
+The grow_dev_page() pages should be reclaimable even though migration
+is not supported for those pages? They were marked movable as it was
+useful for lumpy reclaim taking back pages for hugepage allocations and
+the like. Would it make sense for memory unremove to attempt migration
+first and reclaim second?
 
-      PharmaShop 80% Discount  
-- Discreet Packaging
-- Cheapest Medication 
-- Worldwide shipping  
-- Buy in Bulk and Save 
+-- 
+Mel Gorman
+Part-time Phd Student                          Linux Technology Center
+University of Limerick                         IBM Dublin Software Lab
 
-CodeineK    
-XanaxK  
-ValiumK    
-PhenterminK
-ViagraK 
-ViagraGelK    
-CialiK    
-CialiKSoftTabs  
-ViagraSoftTabsK 
-SomaK 
-AdalatK       
-AllegraK
-AmbienK     
-AtaraxK
-AtivanK 
-CiproK  
-EffexorK      
-GlucophageK
-LevitraK  
-LipitorK       
-MeridiaK   
-NorvascK 
-PaxilK    
-PropeciaK     
-ProzacK     
-UltramK 
-ZocorK  
-ZoloftK 
-ZybanK        
-plus 30 meds more    
-
-http://kgu.opreflected.com (Link 1)
-http://kqg.opreflected.com (Link 2)
-------=_NextPart_000_018C_8AFD807C.FF81CBCA
-Content-Type: text/html;
-	charset="iso-8859-2"
-Content-Transfer-Encoding: 8bit
-
-<html><head><meta http-equiv="Content-Type" content="text; charset=iso-8859-1">
-</head><body><center>
-<table border=0 cellspacing=0 cellpadding=3><tr>
-<td bgcolor=931F68 align=center><font size=6 color=ffffff face="Century Gothic">
-<b>
-PharmaShop <font color=FFFF00>80% Discount</font>
-<br><font color=B5EDFD size=2>Discreet Packaging<br>
-Cheapest 
-Medication
-<br>Worldwide shipping<br>Buy in Bulk and Save<br></font></b></font></font><table border=0 cellspacing=0 cellpadding=3 width=500><tr><td width=33% valign=top bgcolor=CDEF73><font face="Century Gothic" size=2 color=000000>CodeineK<br>
-XanaxK
-<br>ValiumK<br>PhenterminK<br>ViagraK<br>ViagraGelK<br>CialiK<br>CialiKSoftTabs<br>ViagraSoftTabsK
-<br>SomaK
-<br>
-</font></td>
-<td width=33% valign=top bgcolor=CDEF73><font face="Century Gothic" size=2 color=000000>AdalatK<br>AllegraK<br>AmbienK
-<br>AtaraxK<br>AtivanK<br>CiproK
-<br>
-EffexorK<br>GlucophageK<br>LevitraK<br>
-LipitorK<br></font>
-</td><td width=33% valign=top bgcolor=CDEF73><font face="Century Gothic" size=2 color=000000>MeridiaK<br>NorvascK
-<br>PaxilK<br>PropeciaK<br>ProzacK<br>UltramK<br>ZocorK<br>ZoloftK<br>ZybanK
-<br>plus <b>30 meds more</b></font></td></tr></table><font size=6 face="Century Gothic"><b><a href=http://k3mydmi3mgskh.opreflected.com target=_blank><u><font color=FFD5EA>Buy Here - start from $72 (link A)</font></u></a><br><a href=http://kuc9n011hr4.opreflected.com target=_blank><u><font size=6 color=FFD5EA>(link B)</u></font></font></a></b>
-<br>
-<font color=931F68 size=1>towards captain day quickly; modern clear central foot bread fancy page. 7bzby83nvh9201 eu8k882twvytp1</font>
-<br>
-</center></td></tr></table><br>
-<br><br>
-</center>
-</body></html>
-
-------=_NextPart_000_018C_8AFD807C.FF81CBCA--
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
