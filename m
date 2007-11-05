@@ -1,56 +1,183 @@
-Date: Mon, 5 Nov 2007 08:40:48 -0500
-From: Chris Mason <chris.mason@oracle.com>
-Subject: Re: migratepage failures on reiserfs
-Message-ID: <20071105084048.28035e52@think.oraclecorp.com>
-In-Reply-To: <20071105102335.GA6272@skynet.ie>
-References: <1193768824.8904.11.camel@dyn9047017100.beaverton.ibm.com>
-	<20071030135442.5d33c61c@think.oraclecorp.com>
-	<1193781245.8904.28.camel@dyn9047017100.beaverton.ibm.com>
-	<20071030185840.48f5a10b@think.oraclecorp.com>
-	<1193847261.17412.13.camel@dyn9047017100.beaverton.ibm.com>
-	<20071031134006.2ecd520b@think.oraclecorp.com>
-	<1193935137.26106.5.camel@dyn9047017100.beaverton.ibm.com>
-	<20071101115103.62de4b2e@think.oraclecorp.com>
-	<1193940626.26106.13.camel@dyn9047017100.beaverton.ibm.com>
-	<20071105102335.GA6272@skynet.ie>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: by ug-out-1314.google.com with SMTP id h3so965471ugf
+        for <linux-mm@kvack.org>; Mon, 05 Nov 2007 06:47:59 -0800 (PST)
+Date: Mon, 05 Nov 2007 15:47:53 +0100
+Subject: [RFC Patch] Thrashing notification
+From: =?utf-8?Q?Daniel_Sp=C3=A5ng?= <daniel.spang@gmail.com>
+Content-Type: text/plain; charset=utf-8
+MIME-Version: 1.0
+Content-Transfer-Encoding: 8bit
+Message-ID: <op.t1bp13jkk4ild9@bingo>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Mel Gorman <mel@skynet.ie>
-Cc: Badari Pulavarty <pbadari@us.ibm.com>, reiserfs-devel@vger.kernel.org, linux-mm <linux-mm@kvack.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>
+To: linux-mm@kvack.org
+Cc: marcelo@kvack.org, drepper@redhat.com, riel@redhat.com, akpm@linux-foundation.org, mbligh@mbligh.org, balbir@linux.vnet.ibm.com, 7eggert@gmx.de
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 5 Nov 2007 10:23:35 +0000
-mel@skynet.ie (Mel Gorman) wrote:
+This patch provides a way to notify user applications when the system
+is about to thrash. It checks the scanning priority of the inactive
+lru list and notifies user applications via sysfs when the priority
+reaches a threshold. In comparison to Marcelo Tosatti's oom
+notification patch, this patch also works on systems without swap.
 
-> On (01/11/07 10:10), Badari Pulavarty didst pronounce:
->
-> > > Hmpf, my first reply had a paragraph about the block device inode
-> > > pages, I noticed the phrase file data pages and deleted it ;)
-> > > 
-> > > But, for the metadata buffers there's not much we can do.  They
-> > > are included in a bunch of different lists and the patch would
-> > > be non-trivial.
-> > 
-> > Unfortunately, these buffer pages are spread all around making
-> > those sections of memory non-removable. Of course, one can use
-> > ZONE_MOVABLE to make sure to guarantee the remove. But I am
-> > hoping we could easily group all these allocations and minimize
-> > spreading them around. Mel ?
-> 
-> The grow_dev_page() pages should be reclaimable even though migration
-> is not supported for those pages? They were marked movable as it was
-> useful for lumpy reclaim taking back pages for hugepage allocations
-> and the like. Would it make sense for memory unremove to attempt
-> migration first and reclaim second?
-> 
+Applications can poll() on this sysfs file and can then free memory in
+one way or another to prevent an oom situation.
 
-In this case, reiserfs has the page pinned while it is doing journal
-magic.  Not sure if ext3 has the same issues.
+Using a test application http://spng.se/oomtest/ that uses multiple
+allocator threads and a single release thread one can see that this
+works fairly well. See http://spng.se/oomtest/ for more details
+and graphs.
 
--chris
+Signed-off-by: Daniel SpAJPYng <daniel.spang@gmail.com>
+
+diff -purN linux-2.6.23.1-mm1/include/linux/thrashing_notify.h linux-2.6.23.1-mm1_thrashing/include/linux/thrashing_notify.h
+--- linux-2.6.23.1-mm1/include/linux/thrashing_notify.h	1970-01-01 01:00:00.000000000 +0100
++++ linux-2.6.23.1-mm1_thrashing/include/linux/thrashing_notify.h	2007-11-05 14:23:26.000000000 +0100
+@@ -0,0 +1,8 @@
++#ifndef _LINUX_THRASHING_NOTIFY_H
++#define _LINUX_THRASHING_NOTIFY_H
++
++void thrashing_notify(int priority);
++
++extern int thrashing_notifier_threshold;
++
++#endif /* _LINUX_THRASHING_NOTIFY_H */
+diff -purN linux-2.6.23.1-mm1/kernel/sysctl.c linux-2.6.23.1-mm1_thrashing/kernel/sysctl.c
+--- linux-2.6.23.1-mm1/kernel/sysctl.c	2007-11-01 14:59:16.000000000 +0100
++++ linux-2.6.23.1-mm1_thrashing/kernel/sysctl.c	2007-11-05 14:22:29.000000000 +0100
+@@ -46,6 +46,7 @@
+ #include <linux/nfs_fs.h>
+ #include <linux/acpi.h>
+ #include <linux/reboot.h>
++#include <linux/thrashing_notify.h>
+ 
+ #include <asm/uaccess.h>
+ #include <asm/processor.h>
+@@ -102,6 +103,7 @@ static int minolduid;
+ static int min_percpu_pagelist_fract = 8;
+ 
+ static int ngroups_max = NGROUPS_MAX;
++static int def_priority = DEF_PRIORITY;
+ 
+ #ifdef CONFIG_KMOD
+ extern char modprobe_path[];
+@@ -1071,6 +1073,16 @@ static struct ctl_table vm_table[] = {
+ 		.extra1		= &zero,
+ 	},
+ #endif
++	{
++		.ctl_name	= CTL_UNNUMBERED,
++		.procname	= "thrashing_notifier_threshold",
++		.data		= &thrashing_notifier_threshold,
++		.maxlen		= sizeof thrashing_notifier_threshold,
++		.mode		= 0644,
++		.proc_handler	= &proc_dointvec_minmax,
++		.extra1		= &zero,
++		.extra2		= &def_priority,
++	},
+ /*
+  * NOTE: do not add new entries to this table unless you have read
+  * Documentation/sysctl/ctl_unnumbered.txt
+diff -purN linux-2.6.23.1-mm1/mm/Makefile linux-2.6.23.1-mm1_thrashing/mm/Makefile
+--- linux-2.6.23.1-mm1/mm/Makefile	2007-11-01 14:59:16.000000000 +0100
++++ linux-2.6.23.1-mm1_thrashing/mm/Makefile	2007-11-05 14:22:11.000000000 +0100
+@@ -11,7 +11,7 @@ obj-y			:= bootmem.o filemap.o mempool.o
+ 			   page_alloc.o page-writeback.o pdflush.o \
+ 			   readahead.o swap.o truncate.o vmscan.o \
+ 			   prio_tree.o util.o mmzone.o vmstat.o backing-dev.o \
+-			   page_isolation.o $(mmu-y)
++			   page_isolation.o thrashing_notify.o $(mmu-y)
+ 
+ obj-$(CONFIG_BOUNCE)	+= bounce.o
+ obj-$(CONFIG_SWAP)	+= page_io.o swap_state.o swapfile.o thrash.o
+diff -purN linux-2.6.23.1-mm1/mm/thrashing_notify.c linux-2.6.23.1-mm1_thrashing/mm/thrashing_notify.c
+--- linux-2.6.23.1-mm1/mm/thrashing_notify.c	1970-01-01 01:00:00.000000000 +0100
++++ linux-2.6.23.1-mm1_thrashing/mm/thrashing_notify.c	2007-11-05 14:22:46.000000000 +0100
+@@ -0,0 +1,56 @@
++/*
++ * mm/thrashing_notify.c
++ *
++ * Copyright (C) 2007 Daniel SpAJPYng <daniel.spang@gmail.com>
++ *
++ * Released under the GPL, see the file COPYING for details.
++ */
++
++#include <linux/thrashing_notify.h>
++#include <linux/module.h>
++#include <linux/kernel.h>
++#include <linux/mman.h>
++#include <linux/init.h>
++#include <linux/types.h>
++#include <linux/kobject.h>
++#include <linux/sysfs.h>
++
++/*
++ * The count of thrashing occasions.
++ *
++ * Published to userspace at /sys/kernel/nr_thrashing
++ */
++int nr_thrashing = 0;
++
++int thrashing_notifier_threshold = 4;
++
++static ssize_t nr_thrashing_show(struct kset *kset, char *page)
++{
++	return sprintf(page, "%u\n", nr_thrashing);
++}
++
++static struct subsys_attribute nr_thrashing_attr = __ATTR_RO(nr_thrashing);
++
++static struct attribute *nr_thrashing_attrs[] = {
++	&nr_thrashing_attr.attr,
++	NULL,
++};
++
++static struct attribute_group nr_thrashing_attr_group = {
++	.attrs  = nr_thrashing_attrs,
++};
++
++void thrashing_notify(int priority)
++{
++	nr_thrashing++;
++	sysfs_notify(&kernel_subsys.kobj, NULL, "nr_thrashing");
++}
++
++static int __init thrashing_init(void)
++{
++	return sysfs_create_group(&kernel_subsys.kobj,
++			       &nr_thrashing_attr_group);
++}
++
++module_init(thrashing_init)
++
+diff -purN linux-2.6.23.1-mm1/mm/vmscan.c linux-2.6.23.1-mm1_thrashing/mm/vmscan.c
+--- linux-2.6.23.1-mm1/mm/vmscan.c	2007-11-01 14:59:16.000000000 +0100
++++ linux-2.6.23.1-mm1_thrashing/mm/vmscan.c	2007-11-05 14:21:55.000000000 +0100
+@@ -39,6 +39,7 @@
+ #include <linux/kthread.h>
+ #include <linux/freezer.h>
+ #include <linux/memcontrol.h>
++#include <linux/thrashing_notify.h>
+ 
+ #include <asm/tlbflush.h>
+ #include <asm/div64.h>
+@@ -1285,6 +1286,9 @@ static unsigned long do_try_to_free_page
+ 		sc->nr_io_pages = 0;
+ 		if (!priority)
+ 			disable_swap_token();
++		if (priority == thrashing_notifier_threshold)
++			thrashing_notify(priority);
+ 		nr_reclaimed += shrink_zones(priority, zones, sc);
+ 		/*
+ 		 * Don't shrink slabs when reclaiming memory from
+@@ -1448,7 +1452,9 @@ loop_again:
+ 		/* The swap token gets in the way of swapout... */
+ 		if (!priority)
+ 			disable_swap_token();
++		if (priority == thrashing_notifier_threshold)
++			thrashing_notify(priority);
+ 		sc.nr_io_pages = 0;
+ 		all_zones_ok = 1;
+ 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
