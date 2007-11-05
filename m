@@ -1,47 +1,37 @@
-Date: Mon, 5 Nov 2007 15:17:23 -0500
-From: Rik van Riel <riel@redhat.com>
-Subject: Re: [RFC Patch] Thrashing notification
-Message-ID: <20071105151723.71b3faaf@bree.surriel.com>
-In-Reply-To: <20071105183025.GA4984@dmt>
-References: <op.t1bp13jkk4ild9@bingo>
-	<20071105183025.GA4984@dmt>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Date: Mon, 5 Nov 2007 14:46:45 -0800 (PST)
+From: Christoph Lameter <clameter@sgi.com>
+Subject: Re: migratepage failures on reiserfs
+In-Reply-To: <20071105102335.GA6272@skynet.ie>
+Message-ID: <Pine.LNX.4.64.0711051446130.20927@schroedinger.engr.sgi.com>
+References: <1193768824.8904.11.camel@dyn9047017100.beaverton.ibm.com>
+ <20071030135442.5d33c61c@think.oraclecorp.com>
+ <1193781245.8904.28.camel@dyn9047017100.beaverton.ibm.com>
+ <20071030185840.48f5a10b@think.oraclecorp.com>
+ <1193847261.17412.13.camel@dyn9047017100.beaverton.ibm.com>
+ <20071031134006.2ecd520b@think.oraclecorp.com>
+ <1193935137.26106.5.camel@dyn9047017100.beaverton.ibm.com>
+ <20071101115103.62de4b2e@think.oraclecorp.com>
+ <1193940626.26106.13.camel@dyn9047017100.beaverton.ibm.com>
+ <20071105102335.GA6272@skynet.ie>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Marcelo Tosatti <marcelo@kvack.org>
-Cc: Daniel =?UTF-8?B?U3DDpW5n?= <daniel.spang@gmail.com>, linux-mm@kvack.org, drepper@redhat.com, akpm@linux-foundation.org, mbligh@mbligh.org, balbir@linux.vnet.ibm.com, 7eggert@gmx.de
+To: Mel Gorman <mel@skynet.ie>
+Cc: Badari Pulavarty <pbadari@us.ibm.com>, Chris Mason <chris.mason@oracle.com>, reiserfs-devel@vger.kernel.org, linux-mm <linux-mm@kvack.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 5 Nov 2007 13:30:25 -0500
-Marcelo Tosatti <marcelo@kvack.org> wrote:
+On Mon, 5 Nov 2007, Mel Gorman wrote:
 
-> Hooking into try_to_free_pages() makes the scheme suspectible to
-> specifics such as:
+> The grow_dev_page() pages should be reclaimable even though migration
+> is not supported for those pages? They were marked movable as it was
+> useful for lumpy reclaim taking back pages for hugepage allocations and
+> the like. Would it make sense for memory unremove to attempt migration
+> first and reclaim second?
 
-The specific of where the hook is can be changed.  I am sure the
-two of you can come up with the best way to do things.  Just keep
-shooting holes in each other's ideas until one idea remains which
-neither of you can find a problem with[1] :)
-
-> Remember that notifications are sent to applications which can allocate
-> globally... 
-
-This is the bigger problem with the sysfs code: every task that
-watches the sysfs node will get woken up.  That could be a big
-problem when there are hundreds of processes watching that file.
-
-Marcelo's code, which only wakes up one task at a time, has the
-potential to work much better.  That code can also be enhanced
-to wake up tasks that use a lot of memory on the specific NUMA
-node that has a memory shortage.
-
-[1] Yes, that is how I usually come up with VM ideas :)
--- 
-"Debugging is twice as hard as writing the code in the first place.
-Therefore, if you write the code as cleverly as possible, you are,
-by definition, not smart enough to debug it." - Brian W. Kernighan
+Note that a page is still movable even if there is no file system method 
+for migration available. In that case the page needs to be cleaned before 
+it can be moved.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
