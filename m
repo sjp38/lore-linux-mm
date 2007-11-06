@@ -1,31 +1,95 @@
-Received: by qb-out-0506.google.com with SMTP id e21so642903qba
-        for <linux-mm@kvack.org>; Mon, 05 Nov 2007 21:07:52 -0800 (PST)
-Date: Tue, 6 Nov 2007 13:06:44 +0800
-From: WANG Cong <xiyou.wangcong@gmail.com>
-Subject: Re: [git Patch] mm/util.c: Remove needless code
-Message-ID: <20071106050644.GB2478@hacking>
-Reply-To: WANG Cong <xiyou.wangcong@gmail.com>
-References: <20071106031207.GA2478@hacking> <20071105203816.3f8b2e7a.akpm@linux-foundation.org>
+Subject: SPAM:  300% Bonus fur Ihre erste Einzahlung!
+Date: Tue, 06 Nov 2007 04:20:05 -0500
+From: " Royal Euro Kasino " <prescriptive@netsearch.org>
+Message-ID: <35788848.69121392@difficult.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20071105203816.3f8b2e7a.akpm@linux-foundation.org>
-Sender: owner-linux-mm@kvack.org
-Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: WANG Cong <xiyou.wangcong@gmail.com>, LKML <linux-kernel@vger.kernel.org>, Christoph Lameter <clameter@sgi.com>, linux-mm@kvack.org, Dong Pu <cocobear.cn@gmail.com>
+Content-Type: text/html; charset=iso-8859-1
+Content-Transfer-Encoding: 7bit
+Return-Path: <prescriptive@netsearch.org>
+To: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
->Thanks.  This was already fixed by
->
->http://www.mail-archive.com/mm-commits@vger.kernel.org/msg28294.html
->
->(which is somewhere in one of my ever-growing number of for-2.6.24 queues)
+<html>
 
-Thanks, Andrew.
+<head>
+<meta http-equiv=Content-Type content="text/html; charset=iso-8859-1">
 
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+<title>Sind Sie auf der Suche </title>
+
+<style>
+<!--
+ /* Style Definitions */
+ p.MsoNormal, li.MsoNormal, div.MsoNormal
+	{mso-style-parent:"";
+	margin:0cm;
+	margin-bottom:.0001pt;
+	mso-pagination:widow-orphan;
+	font-size:12.0pt;
+	font-family:"Times New Roman";
+	mso-fareast-font-family:"Times New Roman";
+	mso-ansi-language:EN-US;
+	mso-fareast-language:EN-US;}
+a:link, span.MsoHyperlink
+	{color:blue;
+	text-decoration:underline;
+	text-underline:single;}
+a:visited, span.MsoHyperlinkFollowed
+	{color:purple;
+	text-decoration:underline;
+	text-underline:single;}
+@page Section1
+	{size:595.3pt 841.9pt;
+	margin:2.0cm 42.5pt 2.0cm 3.0cm;
+	mso-header-margin:35.4pt;
+	mso-footer-margin:35.4pt;
+	mso-paper-source:0;}
+div.Section1
+	{page:Section1;}
+-->
+</style>
+
+</head>
+
+<body lang=DE link=blue vlink=purple style='tab-interval:35.4pt'>
+
+<div class=Section1>
+
+<p class=MsoNormal><span lang=EN-US>Sind Sie auf der Suche nach einem wirklich
+lohnenden Bonus, um sich Ihre Kasino-Erfahrung ein wenig zu 
+vers&uuml;&#223;en? Ihre Suche hat ein Ende! <o:p></o:p></span></p>
+
+<p class=MsoNormal><span lang=EN-US><o:p>&nbsp;</o:p></span></p>
+
+<p class=MsoNormal><span lang=EN-US>Kommen Sie heute zum Royal V.I.P Kasino, 
+und wir gew&auml;hren Ihnen einen 300-%-Bonus auf Ihre erste Einzahlung im 
+Wert  von bis zu 300&euro;!<o:p></o:p></span></p>
+
+<p class=MsoNormal><span lang=EN-US><o:p>&nbsp;</o:p></span></p>
+
+<p class=MsoNormal><span lang=EN-US>Wir haben eine riesige Auswahl an Spielen,
+einschlie&#223;lich der gr&ouml;&#223;ten fortlaufenden Jackpots, die online 
+zu haben sind und bieten Ihnen daher die M&ouml;glichkeit, in nur einer Runde 
+mehrere Millionen Euro zu gewinnen! <o:p></o:p></span></p>
+
+<p class=MsoNormal><span lang=EN-US><o:p>&nbsp;</o:p></span></p>
+
+<p class=MsoNormal><span lang=EN-US>Royal V.I.P ist sicher, wir sind rund um 
+die Uhr f&uuml;r Sie da und k&uuml;mmern uns darum, dass Sie sich dem widmen 
+k&ouml;nnen, was wichtig ist: DEM GEWINNEN!<o:p></o:p></span></p>
+
+<p class=MsoNormal><span lang=EN-US><o:p>&nbsp;</o:p></span></p>
+
+<p class=MsoNormal><span lang=EN-US>Melden Sie sich jetzt an und erleben Sie,
+was es hei&#223;t, ein V.I.P zu sein!</span></p>
+
+<p class=MsoNormal><span lang=EN-US><o:p>&nbsp;</o:p></span></p>
+
+<p class=MsoNormal><span lang=EN-US><a
+href="http://www.webroyalgame.com/lang-de/">
+http://www.webroyalgame.com/lang-de/</a></span></p>
+
+</div>
+
+</body>
+
+</html>
