@@ -1,95 +1,74 @@
-Subject: SPAM:  300% Bonus fur Ihre erste Einzahlung!
-Date: Tue, 06 Nov 2007 04:20:05 -0500
-From: " Royal Euro Kasino " <prescriptive@netsearch.org>
-Message-ID: <35788848.69121392@difficult.com>
+Received: by an-out-0708.google.com with SMTP id d30so235049and
+        for <linux-mm@kvack.org>; Tue, 06 Nov 2007 02:36:25 -0800 (PST)
+Message-ID: <cfd9edbf0711060236l73549554wb340e08e8b671eac@mail.gmail.com>
+Date: Tue, 6 Nov 2007 11:36:24 +0100
+From: "=?ISO-8859-1?Q?Daniel_Sp=E5ng?=" <daniel.spang@gmail.com>
+Subject: Re: [RFC Patch] Thrashing notification
+In-Reply-To: <20071105183025.GA4984@dmt>
 MIME-Version: 1.0
-Content-Type: text/html; charset=iso-8859-1
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
-Return-Path: <prescriptive@netsearch.org>
-To: owner-linux-mm@kvack.org
+Content-Disposition: inline
+References: <op.t1bp13jkk4ild9@bingo> <20071105183025.GA4984@dmt>
+Sender: owner-linux-mm@kvack.org
+Return-Path: <owner-linux-mm@kvack.org>
+To: Marcelo Tosatti <marcelo@kvack.org>
+Cc: linux-mm@kvack.org, drepper@redhat.com, riel@redhat.com, akpm@linux-foundation.org, mbligh@mbligh.org, balbir@linux.vnet.ibm.com, 7eggert@gmx.de
 List-ID: <linux-mm.kvack.org>
 
-<html>
+On 11/5/07, Marcelo Tosatti <marcelo@kvack.org> wrote:
+> Hooking into try_to_free_pages() makes the scheme suspectible to
+> specifics such as:
+>
+> - can the task writeout pages?
+> - is the allocation a higher order one?
+> - in what zones is it operating on?
+>
+> Remember that notifications are sent to applications which can allocate
+> globally... It is not very useful to send notifications for a userspace
+> which has a large percentage of its memory in highmem if the system is
+> having a lowmem zone shortage (granted that the notify-on-swap heuristic
+> has that problem, but you can then argue that swap affects system
+> performance globally, and it generally does in desktop systems).
 
-<head>
-<meta http-equiv=Content-Type content="text/html; charset=iso-8859-1">
+On a swapless system, the alternative is often to get killed by the oom killer.
 
-<title>Sind Sie auf der Suche </title>
+> Other than that tuning "priority" from try_to_free_pages() is rather
+> difficult for users/admins.
 
-<style>
-<!--
- /* Style Definitions */
- p.MsoNormal, li.MsoNormal, div.MsoNormal
-	{mso-style-parent:"";
-	margin:0cm;
-	margin-bottom:.0001pt;
-	mso-pagination:widow-orphan;
-	font-size:12.0pt;
-	font-family:"Times New Roman";
-	mso-fareast-font-family:"Times New Roman";
-	mso-ansi-language:EN-US;
-	mso-fareast-language:EN-US;}
-a:link, span.MsoHyperlink
-	{color:blue;
-	text-decoration:underline;
-	text-underline:single;}
-a:visited, span.MsoHyperlinkFollowed
-	{color:purple;
-	text-decoration:underline;
-	text-underline:single;}
-@page Section1
-	{size:595.3pt 841.9pt;
-	margin:2.0cm 42.5pt 2.0cm 3.0cm;
-	mso-header-margin:35.4pt;
-	mso-footer-margin:35.4pt;
-	mso-paper-source:0;}
-div.Section1
-	{page:Section1;}
--->
-</style>
+Yes, that parameter might need some tuning, but my initial tests show
+that is pretty robust if you keep out of the ends of the interval.
 
-</head>
+> My previous patches had the zone limitation, but the following way of
+> asking "are we low on memory?" gets rid of it:
+>
+> +static unsigned int mem_notify_poll(struct file *file, poll_table *wait)
+> +{
+> +       unsigned int val = 0;
+> +       struct zone *zone;
+> +       int tpages_low, tpages_free, tpages_reserve;
+> +
+> +       tpages_low = tpages_free = tpages_reserve = 0;
+> +
+> +       poll_wait(file, &mem_wait, wait);
+> +
+> +       for_each_zone(zone) {
+> +               if (!populated_zone(zone))
+> +                       continue;
+> +               tpages_low += zone->pages_low;
+> +               tpages_free += zone_page_state(zone, NR_FREE_PAGES);
+> +               /* always use the reserve of the highest allocation type */
+> +               tpages_reserve += zone->lowmem_reserve[MAX_NR_ZONES-1];
+> +       }
+> +
+> +       if (mem_notify_status || (tpages_free <= tpages_low + tpages_reserve))
+> +               val = POLLIN;
+> +
+> +       return val;
+> +}
 
-<body lang=DE link=blue vlink=purple style='tab-interval:35.4pt'>
-
-<div class=Section1>
-
-<p class=MsoNormal><span lang=EN-US>Sind Sie auf der Suche nach einem wirklich
-lohnenden Bonus, um sich Ihre Kasino-Erfahrung ein wenig zu 
-vers&uuml;&#223;en? Ihre Suche hat ein Ende! <o:p></o:p></span></p>
-
-<p class=MsoNormal><span lang=EN-US><o:p>&nbsp;</o:p></span></p>
-
-<p class=MsoNormal><span lang=EN-US>Kommen Sie heute zum Royal V.I.P Kasino, 
-und wir gew&auml;hren Ihnen einen 300-%-Bonus auf Ihre erste Einzahlung im 
-Wert  von bis zu 300&euro;!<o:p></o:p></span></p>
-
-<p class=MsoNormal><span lang=EN-US><o:p>&nbsp;</o:p></span></p>
-
-<p class=MsoNormal><span lang=EN-US>Wir haben eine riesige Auswahl an Spielen,
-einschlie&#223;lich der gr&ouml;&#223;ten fortlaufenden Jackpots, die online 
-zu haben sind und bieten Ihnen daher die M&ouml;glichkeit, in nur einer Runde 
-mehrere Millionen Euro zu gewinnen! <o:p></o:p></span></p>
-
-<p class=MsoNormal><span lang=EN-US><o:p>&nbsp;</o:p></span></p>
-
-<p class=MsoNormal><span lang=EN-US>Royal V.I.P ist sicher, wir sind rund um 
-die Uhr f&uuml;r Sie da und k&uuml;mmern uns darum, dass Sie sich dem widmen 
-k&ouml;nnen, was wichtig ist: DEM GEWINNEN!<o:p></o:p></span></p>
-
-<p class=MsoNormal><span lang=EN-US><o:p>&nbsp;</o:p></span></p>
-
-<p class=MsoNormal><span lang=EN-US>Melden Sie sich jetzt an und erleben Sie,
-was es hei&#223;t, ein V.I.P zu sein!</span></p>
-
-<p class=MsoNormal><span lang=EN-US><o:p>&nbsp;</o:p></span></p>
-
-<p class=MsoNormal><span lang=EN-US><a
-href="http://www.webroyalgame.com/lang-de/">
-http://www.webroyalgame.com/lang-de/</a></span></p>
-
-</div>
-
-</body>
-
-</html>
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
