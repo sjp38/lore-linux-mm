@@ -1,63 +1,101 @@
-Received: by rn-out-0102.google.com with SMTP id v46so746703rnb
-        for <linux-mm@kvack.org>; Tue, 06 Nov 2007 02:41:21 -0800 (PST)
-Message-ID: <cfd9edbf0711060241i7ad7e058m3e6795d90c4da82b@mail.gmail.com>
-Date: Tue, 6 Nov 2007 11:41:20 +0100
-From: "=?ISO-8859-1?Q?Daniel_Sp=E5ng?=" <daniel.spang@gmail.com>
-Subject: Re: [RFC Patch] Thrashing notification
-In-Reply-To: <20071105151723.71b3faaf@bree.surriel.com>
+Received: from [99.236.101.138] (helo=crashcourse.ca)
+	by astoria.ccjclearline.com with esmtpsa (TLSv1:AES256-SHA:256)
+	(Exim 4.68)
+	(envelope-from <rpjday@crashcourse.ca>)
+	id 1IpPtN-00055I-BV
+	for linux-mm@kvack.org; Tue, 06 Nov 2007 09:59:01 -0500
+Date: Tue, 6 Nov 2007 09:57:16 -0500 (EST)
+From: "Robert P. J. Day" <rpjday@crashcourse.ca>
+Subject: [PATCH] MM: Use is_power_of_2() macro where appropriate.
+Message-ID: <Pine.LNX.4.64.0711060955500.6006@localhost.localdomain>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
-References: <op.t1bp13jkk4ild9@bingo> <20071105183025.GA4984@dmt>
-	 <20071105151723.71b3faaf@bree.surriel.com>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Rik van Riel <riel@redhat.com>
-Cc: Marcelo Tosatti <marcelo@kvack.org>, linux-mm@kvack.org, drepper@redhat.com, akpm@linux-foundation.org, mbligh@mbligh.org, balbir@linux.vnet.ibm.com, 7eggert@gmx.de
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 11/5/07, Rik van Riel <riel@redhat.com> wrote:
-> On Mon, 5 Nov 2007 13:30:25 -0500
-> Marcelo Tosatti <marcelo@kvack.org> wrote:
->
-> > Hooking into try_to_free_pages() makes the scheme suspectible to
-> > specifics such as:
->
-> The specific of where the hook is can be changed.  I am sure the
-> two of you can come up with the best way to do things.  Just keep
-> shooting holes in each other's ideas until one idea remains which
-> neither of you can find a problem with[1] :)
->
-> > Remember that notifications are sent to applications which can allocate
-> > globally...
->
-> This is the bigger problem with the sysfs code: every task that
-> watches the sysfs node will get woken up.  That could be a big
-> problem when there are hundreds of processes watching that file.
->
-> Marcelo's code, which only wakes up one task at a time, has the
-> potential to work much better.  That code can also be enhanced
-> to wake up tasks that use a lot of memory on the specific NUMA
-> node that has a memory shortage.
->
-> [1] Yes, that is how I usually come up with VM ideas :)
+Signed-off-by: Robert P. J. Day <rpjday@crashcourse.ca>
 
-I have actually no problem at all using a device to get the message to
-userspace. My patch was more like a demonstration of when to trigger
-the notification. I still (obviously) think that we need a
-notification for systems without swap too.
+---
 
-A concern, or feature =), with the notify-on-swap method is that with
-responsive user applications, it will never use swap at all. There are
-for sure systems where this behavior is desirable, but for example
-desktop systems, the memory occupied by inactive processes might be
-better used by active ones.
+ mm/bootmem.c |    3 ++-
+ mm/slab.c    |    3 ++-
+ mm/slub.c    |    3 ++-
+ 3 files changed, 6 insertions(+), 3 deletions(-)
 
-I think there is a need for both notifications, first a notification
-when we are about to swap and then one to trigger when the total free
-vm is low or when the system is thrashing, preferable using the same
-notification method.
+diff --git a/mm/bootmem.c b/mm/bootmem.c
+index 00a9697..47f9b59 100644
+--- a/mm/bootmem.c
++++ b/mm/bootmem.c
+@@ -12,6 +12,7 @@
+ #include <linux/pfn.h>
+ #include <linux/bootmem.h>
+ #include <linux/module.h>
++#include <linux/log2.h>
+
+ #include <asm/bug.h>
+ #include <asm/io.h>
+@@ -189,7 +190,7 @@ __alloc_bootmem_core(struct bootmem_data *bdata, unsigned long size,
+ 		printk("__alloc_bootmem_core(): zero-sized request\n");
+ 		BUG();
+ 	}
+-	BUG_ON(align & (align-1));
++	BUG_ON(!is_power_of_2(align));
+
+ 	if (limit && bdata->node_boot_start >= limit)
+ 		return NULL;
+diff --git a/mm/slab.c b/mm/slab.c
+index cfa6be4..f13d46d 100644
+--- a/mm/slab.c
++++ b/mm/slab.c
+@@ -110,6 +110,7 @@
+ #include	<linux/fault-inject.h>
+ #include	<linux/rtmutex.h>
+ #include	<linux/reciprocal_div.h>
++#include	<linux/log2.h>
+
+ #include	<asm/cacheflush.h>
+ #include	<asm/tlbflush.h>
+@@ -1782,7 +1783,7 @@ static void dump_line(char *data, int offset, int limit)
+
+ 	if (bad_count == 1) {
+ 		error ^= POISON_FREE;
+-		if (!(error & (error - 1))) {
++		if (is_power_of_2(error)) {
+ 			printk(KERN_ERR "Single bit error detected. Probably "
+ 					"bad RAM.\n");
+ #ifdef CONFIG_X86
+diff --git a/mm/slub.c b/mm/slub.c
+index 84f59fd..413cdc6 100644
+--- a/mm/slub.c
++++ b/mm/slub.c
+@@ -21,6 +21,7 @@
+ #include <linux/ctype.h>
+ #include <linux/kallsyms.h>
+ #include <linux/memory.h>
++#include <linux/log2.h>
+
+ /*
+  * Lock order:
+@@ -2851,7 +2852,7 @@ void __init kmem_cache_init(void)
+ 	 * around with ARCH_KMALLOC_MINALIGN
+ 	 */
+ 	BUILD_BUG_ON(KMALLOC_MIN_SIZE > 256 ||
+-		(KMALLOC_MIN_SIZE & (KMALLOC_MIN_SIZE - 1)));
++		!is_power_of_2(KMALLOC_MIN_SIZE));
+
+ 	for (i = 8; i < KMALLOC_MIN_SIZE; i += 8)
+ 		size_index[(i - 1) / 8] = KMALLOC_SHIFT_LOW;
+
+-- 
+========================================================================
+Robert P. J. Day
+Linux Consulting, Training and Annoying Kernel Pedantry
+Waterloo, Ontario, CANADA
+
+http://crashcourse.ca
+========================================================================
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
