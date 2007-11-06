@@ -1,58 +1,51 @@
-Date: Tue, 6 Nov 2007 11:43:20 -0800 (PST)
-From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [NUMA] Fix memory policy refcounting
-In-Reply-To: <1194377713.5317.76.camel@localhost>
-Message-ID: <Pine.LNX.4.64.0711061139230.30127@schroedinger.engr.sgi.com>
-References: <Pine.LNX.4.64.0710261638020.29369@schroedinger.engr.sgi.com>
- <1193672929.5035.69.camel@localhost>  <Pine.LNX.4.64.0710291317060.1379@schroedinger.engr.sgi.com>
-  <1193693646.6244.51.camel@localhost>  <Pine.LNX.4.64.0710291438470.3475@schroedinger.engr.sgi.com>
-  <1193762382.5039.41.camel@localhost>  <Pine.LNX.4.64.0710301136410.11531@schroedinger.engr.sgi.com>
-  <1194375377.5317.42.camel@localhost>  <Pine.LNX.4.64.0711061107450.27484@schroedinger.engr.sgi.com>
- <1194377713.5317.76.camel@localhost>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Date: Tue, 6 Nov 2007 15:01:52 -0500
+From: Rik van Riel <riel@redhat.com>
+Subject: Re: [RFC Patch] Thrashing notification
+Message-ID: <20071106150152.3ba1e4cc@bree.surriel.com>
+In-Reply-To: <cfd9edbf0711060241i7ad7e058m3e6795d90c4da82b@mail.gmail.com>
+References: <op.t1bp13jkk4ild9@bingo>
+	<20071105183025.GA4984@dmt>
+	<20071105151723.71b3faaf@bree.surriel.com>
+	<cfd9edbf0711060241i7ad7e058m3e6795d90c4da82b@mail.gmail.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8BIT
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
-Cc: AndiKleen <ak@suse.de>, linux-mm@kvack.org, Eric Whitney <eric.whitney@hp.com>, David Rientjes <rientjes@google.com>, Paul Jackson <pj@sgi.com>
+To: Daniel =?UTF-8?B?U3DDpW5n?= <daniel.spang@gmail.com>
+Cc: Marcelo Tosatti <marcelo@kvack.org>, linux-mm@kvack.org, drepper@redhat.com, akpm@linux-foundation.org, mbligh@mbligh.org, balbir@linux.vnet.ibm.com, 7eggert@gmx.de
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 6 Nov 2007, Lee Schermerhorn wrote:
+On Tue, 6 Nov 2007 11:41:20 +0100
+"Daniel SpAJPYng" <daniel.spang@gmail.com> wrote:
 
-> We always seem to rathole on that subject.  I just hoped to head that
-> off...
+> I have actually no problem at all using a device to get the message to
+> userspace. My patch was more like a demonstration of when to trigger
+> the notification. I still (obviously) think that we need a
+> notification for systems without swap too.
 
-Well fix this and the rathole will be gone.,
+I agree.
 
-> > What do you mean by in use? If a vma can potentially use a shared policy 
-> > in a rbtree then it is in use right?
-> 
-> Not really--not for shared policies.  Again, another task is allowed to
-> remove or replace the shared policies at any time, regardless of the
-> number of task's attached to the segment.  We can't differentiate
-> between simple attachment and current use.  We need the lookup-time
-> ref/unref to know that the policy is actually in use.  We can still
-> replace it in the tree while it's "in use".  This will remove the tree's
-> reference on the policy, but the policy won't be freed until the task
-> holding the extra ref drops it.  
+To get out of the "my patch is better" line of conversation,
+I guess you and Marcelo should probably try to figure out
+some threshold that you both agree on.
 
-Stil unclear as to why we need lookup time ref/unref. A task can replace 
-the shared policy at any time you just need to update the refcounts. If 
-you have a pointer to the policy in the vma then its possible to do so.
+> A concern, or feature =), with the notify-on-swap method is that with
+> responsive user applications, it will never use swap at all. There are
+> for sure systems where this behavior is desirable, but for example
+> desktop systems, the memory occupied by inactive processes might be
+> better used by active ones.
 
-> I suppose we could stick any replaced mempolicy on a list associated
-> with the segment and keep them there until all tasks detach from the
-> shared segment.  Not too much of a memory leak, as long as a task
+Well, if the inactive processes get woken up by the low memory
+notification and free some of their memory, the active processes
+will use the memory from the inactive ones :)
 
-Well you have the refcount on the policy? Why keep the mempolicy around?
+Not using swap is generally considered a good thing on desktops.
 
-> > AFAICT: If you take a reference on the shared policy for each 
-> > vma then you can tell from the references that the policy is in use.
-> 
-> See above.  A vma reference does not constitute use for a shared policy.
-
-Why not? What does constitute "use" of a shared policy? A page that has 
-used the policy?
+-- 
+"Debugging is twice as hard as writing the code in the first place.
+Therefore, if you write the code as cleverly as possible, you are,
+by definition, not smart enough to debug it." - Brian W. Kernighan
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
