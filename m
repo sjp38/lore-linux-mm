@@ -1,85 +1,81 @@
-Subject: [PATCH ] Mem Policy:  fix mempolicy usage in pci driver
+Subject: Re: [NUMA] Fix memory policy refcounting
 From: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
-In-Reply-To: <Pine.LNX.4.64.0710111843160.1181@schroedinger.engr.sgi.com>
-References: <20071010205837.7230.42818.sendpatchset@localhost>
-	 <20071010205843.7230.31507.sendpatchset@localhost>
-	 <Pine.LNX.4.64.0710101412410.32488@schroedinger.engr.sgi.com>
-	 <1192129868.5036.27.camel@localhost>
-	 <Pine.LNX.4.64.0710111843160.1181@schroedinger.engr.sgi.com>
+In-Reply-To: <Pine.LNX.4.64.0710301136410.11531@schroedinger.engr.sgi.com>
+References: <Pine.LNX.4.64.0710261638020.29369@schroedinger.engr.sgi.com>
+	 <1193672929.5035.69.camel@localhost>
+	 <Pine.LNX.4.64.0710291317060.1379@schroedinger.engr.sgi.com>
+	 <1193693646.6244.51.camel@localhost>
+	 <Pine.LNX.4.64.0710291438470.3475@schroedinger.engr.sgi.com>
+	 <1193762382.5039.41.camel@localhost>
+	 <Pine.LNX.4.64.0710301136410.11531@schroedinger.engr.sgi.com>
 Content-Type: text/plain
-Date: Tue, 06 Nov 2007 13:09:04 -0500
-Message-Id: <1194372544.5317.28.camel@localhost>
+Date: Tue, 06 Nov 2007 13:56:17 -0500
+Message-Id: <1194375377.5317.42.camel@localhost>
 Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Christoph Lameter <clameter@sgi.com>, ak@suse.de, gregkh@suse.de, linux-mm@kvack.org, mel@skynet.ie, eric.whitney@hp.com
+To: Christoph Lameter <clameter@sgi.com>
+Cc: AndiKleen <ak@suse.de>, linux-mm@kvack.org, Eric Whitney <eric.whitney@hp.com>, David Rientjes <rientjes@google.com>, Paul Jackson <pj@sgi.com>
 List-ID: <linux-mm.kvack.org>
 
-I see that you're starting to build up the next -mm tree.  Would you
-please apply the following patch?  I posted it earlier [twice] and
-Christoph Ack'd it [twice].  Haven't heard any objections. 
+On Tue, 2007-10-30 at 11:42 -0700, Christoph Lameter wrote:
+> On Tue, 30 Oct 2007, Lee Schermerhorn wrote:
+> 
+> > As part of my shared policy cleanup and enhancement series, I "fixed"
+> > numa_maps to display the sub-ranges of policies in a shm segment mapped
+> > by a single vma. As part of this fix, I also modified mempolicy.c so
+> > that it does not split vmas that support set_policy vm_ops, because
+> > handling both split vmas and non-split vmas for a single shm segment
+> > would have complicated the code more than I thought necessary.  This is
+> > still at prototype stage--altho' it works against 23-rc8-mm2.
+> 
+> I have not looked at that yet. Maybe you could post another patch?
+> 
+> > Re:  'ref = 3' -- One reference for the rbtree--the shm segment and it's
+> > policies continue to exist independent of any vma mappings--and one for
+> > each attached vma.  Because the vma references are protected by the
+> > respective task/mm_struct's  mmap_sem, we won't need to add an
+> > additional reference during lookup, nor release it when finished with
+> > the policy.  And, we won't need to mess with any other task's mm data
+> > structures when installing/removing shmem policies.  Of course, munmap()
+> > of a vma will need to decrement the ref count of all policies in a
+> > shared policy tree, but this is not a "fast path".  Unfortunately, we
+> > don't have a unmap file operation, so I'd have to add one, or otherwise
+> > arrange to remove the unmapping vma's ref--perhaps via a vm_op so that
+> > we only need to call it on vmas that support it--i.e., that support
+> > shared policy.
+> 
+> Yup that sounds like it is going to be a good solution.
+> 
+
+Christoph:
+
+After looking at this and attempting to implement it, I find that it
+won't work.  The reason is that I can't tell from just vma references
+whether an mempolicy in the shared policy rbtree is actually in use.  A
+task is allowed to change the policies in the rbtree at any time--a
+feature that I understand you have no use for and therefore don't like,
+but which is fundamental to shared policy semantics.  If I try to
+install a policy that completely covers/replaces an existing policy, I
+need to be able to do this, regardless of how many vmas have the shared
+region attached/mapped.  So, this doesn't protect any task that is
+currently examining the policy for page allocation, get_mempolicy() or
+show_numa_maps() without the extra ref.  Andi had probably figured this
+out back when he implemented shared policies.
+
+I have another approach that still involves adding a ref to shared
+policies at lookup time, and dropping the ref when finished with the
+policy.  I know you don't like the idea of taking references in the vma
+policy lookup path.  However, the 'get() is already there [for shared
+policies].  I just need to add the 'free() [which Mel G would like to
+see renamed at mpol_put()].  I have a patch that does the unref only for
+shared policies, along with the other cleanups necessary in this area.
+
+I hope to post soon, but I've said that before.  I'll also rerun the pft
+tests with and without this change when I can.
 
 Lee
-
---------------
-
-PATCH  Mem Policy:  Fix memory policy usage in pci driver
-
-Against:  2.6.23-mm1
-
-In an attempt to ensure memory allocation from the local node,
-the pci driver temporarily replaces the current task's memory
-policy with the system default policy.  Trying to be a good
-citizen, the driver then call's mpol_get() on the new policy.
-When it's finished probing, it undoes the '_get by calling
-mpol_free() [on the system default policy] and then restores
-the current task's saved mempolicy.
-
-A couple of issues here:
-
-1) it's never necessary to set a task's mempolicy to the
-   system default policy in order to get system default
-   allocation behavior.  Simply set the current task's
-   mempolicy to NULL and allocations will fall back to
-   system default policy.
-
-2) we should never [need to] call mpol_free() on the system
-   default policy.  [I plan on trapping this with a VM_BUG_ON()
-   in a subsequent patch.]
-
-This patch removes the calls to mpol_get() and mpol_free()
-and uses NULL for the temporary task mempolicy to effect
-default allocation behavior.
-
-Signed-off-by:  Lee Schermerhorn <lee.schermerhorn@hp.com>
-Twice:
-Acked-by: Christoph Lameter <clameter@sgi.com>
-
- drivers/pci/pci-driver.c |    4 +---
- 1 file changed, 1 insertion(+), 3 deletions(-)
-
-Index: Linux/drivers/pci/pci-driver.c
-===================================================================
---- Linux.orig/drivers/pci/pci-driver.c	2007-10-09 14:31:57.000000000 -0400
-+++ Linux/drivers/pci/pci-driver.c	2007-10-09 14:43:57.000000000 -0400
-@@ -177,13 +177,11 @@ static int pci_call_probe(struct pci_dri
- 	    set_cpus_allowed(current, node_to_cpumask(node));
- 	/* And set default memory allocation policy */
- 	oldpol = current->mempolicy;
--	current->mempolicy = &default_policy;
--	mpol_get(current->mempolicy);
-+	current->mempolicy = NULL;	/* fall back to system default policy */
- #endif
- 	error = drv->probe(dev, id);
- #ifdef CONFIG_NUMA
- 	set_cpus_allowed(current, oldmask);
--	mpol_free(current->mempolicy);
- 	current->mempolicy = oldpol;
- #endif
- 	return error;
-
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
