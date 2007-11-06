@@ -1,71 +1,63 @@
-Received: by an-out-0708.google.com with SMTP id d30so235049and
-        for <linux-mm@kvack.org>; Tue, 06 Nov 2007 02:36:25 -0800 (PST)
-Message-ID: <cfd9edbf0711060236l73549554wb340e08e8b671eac@mail.gmail.com>
-Date: Tue, 6 Nov 2007 11:36:24 +0100
+Received: by rn-out-0102.google.com with SMTP id v46so746703rnb
+        for <linux-mm@kvack.org>; Tue, 06 Nov 2007 02:41:21 -0800 (PST)
+Message-ID: <cfd9edbf0711060241i7ad7e058m3e6795d90c4da82b@mail.gmail.com>
+Date: Tue, 6 Nov 2007 11:41:20 +0100
 From: "=?ISO-8859-1?Q?Daniel_Sp=E5ng?=" <daniel.spang@gmail.com>
 Subject: Re: [RFC Patch] Thrashing notification
-In-Reply-To: <20071105183025.GA4984@dmt>
+In-Reply-To: <20071105151723.71b3faaf@bree.surriel.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Content-Disposition: inline
 References: <op.t1bp13jkk4ild9@bingo> <20071105183025.GA4984@dmt>
+	 <20071105151723.71b3faaf@bree.surriel.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Marcelo Tosatti <marcelo@kvack.org>
-Cc: linux-mm@kvack.org, drepper@redhat.com, riel@redhat.com, akpm@linux-foundation.org, mbligh@mbligh.org, balbir@linux.vnet.ibm.com, 7eggert@gmx.de
+To: Rik van Riel <riel@redhat.com>
+Cc: Marcelo Tosatti <marcelo@kvack.org>, linux-mm@kvack.org, drepper@redhat.com, akpm@linux-foundation.org, mbligh@mbligh.org, balbir@linux.vnet.ibm.com, 7eggert@gmx.de
 List-ID: <linux-mm.kvack.org>
 
-On 11/5/07, Marcelo Tosatti <marcelo@kvack.org> wrote:
-> Hooking into try_to_free_pages() makes the scheme suspectible to
-> specifics such as:
+On 11/5/07, Rik van Riel <riel@redhat.com> wrote:
+> On Mon, 5 Nov 2007 13:30:25 -0500
+> Marcelo Tosatti <marcelo@kvack.org> wrote:
 >
-> - can the task writeout pages?
-> - is the allocation a higher order one?
-> - in what zones is it operating on?
+> > Hooking into try_to_free_pages() makes the scheme suspectible to
+> > specifics such as:
 >
-> Remember that notifications are sent to applications which can allocate
-> globally... It is not very useful to send notifications for a userspace
-> which has a large percentage of its memory in highmem if the system is
-> having a lowmem zone shortage (granted that the notify-on-swap heuristic
-> has that problem, but you can then argue that swap affects system
-> performance globally, and it generally does in desktop systems).
-
-On a swapless system, the alternative is often to get killed by the oom killer.
-
-> Other than that tuning "priority" from try_to_free_pages() is rather
-> difficult for users/admins.
-
-Yes, that parameter might need some tuning, but my initial tests show
-that is pretty robust if you keep out of the ends of the interval.
-
-> My previous patches had the zone limitation, but the following way of
-> asking "are we low on memory?" gets rid of it:
+> The specific of where the hook is can be changed.  I am sure the
+> two of you can come up with the best way to do things.  Just keep
+> shooting holes in each other's ideas until one idea remains which
+> neither of you can find a problem with[1] :)
 >
-> +static unsigned int mem_notify_poll(struct file *file, poll_table *wait)
-> +{
-> +       unsigned int val = 0;
-> +       struct zone *zone;
-> +       int tpages_low, tpages_free, tpages_reserve;
-> +
-> +       tpages_low = tpages_free = tpages_reserve = 0;
-> +
-> +       poll_wait(file, &mem_wait, wait);
-> +
-> +       for_each_zone(zone) {
-> +               if (!populated_zone(zone))
-> +                       continue;
-> +               tpages_low += zone->pages_low;
-> +               tpages_free += zone_page_state(zone, NR_FREE_PAGES);
-> +               /* always use the reserve of the highest allocation type */
-> +               tpages_reserve += zone->lowmem_reserve[MAX_NR_ZONES-1];
-> +       }
-> +
-> +       if (mem_notify_status || (tpages_free <= tpages_low + tpages_reserve))
-> +               val = POLLIN;
-> +
-> +       return val;
-> +}
+> > Remember that notifications are sent to applications which can allocate
+> > globally...
+>
+> This is the bigger problem with the sysfs code: every task that
+> watches the sysfs node will get woken up.  That could be a big
+> problem when there are hundreds of processes watching that file.
+>
+> Marcelo's code, which only wakes up one task at a time, has the
+> potential to work much better.  That code can also be enhanced
+> to wake up tasks that use a lot of memory on the specific NUMA
+> node that has a memory shortage.
+>
+> [1] Yes, that is how I usually come up with VM ideas :)
+
+I have actually no problem at all using a device to get the message to
+userspace. My patch was more like a demonstration of when to trigger
+the notification. I still (obviously) think that we need a
+notification for systems without swap too.
+
+A concern, or feature =), with the notify-on-swap method is that with
+responsive user applications, it will never use swap at all. There are
+for sure systems where this behavior is desirable, but for example
+desktop systems, the memory occupied by inactive processes might be
+better used by active ones.
+
+I think there is a need for both notifications, first a notification
+when we are about to swap and then one to trigger when the total free
+vm is low or when the system is thrashing, preferable using the same
+notification method.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
