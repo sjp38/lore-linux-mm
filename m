@@ -1,70 +1,70 @@
 From: Christoph Lameter <clameter@sgi.com>
-Subject: [patch 01/23] SLUB: Move count_partial()
-Date: Tue, 06 Nov 2007 17:11:31 -0800
-Message-ID: <20071107011226.617922306@sgi.com>
+Subject: [patch 03/23] bufferhead: Revert constructor removal
+Date: Tue, 06 Nov 2007 17:11:33 -0800
+Message-ID: <20071107011227.071157941@sgi.com>
 References: <20071107011130.382244340@sgi.com>
-Return-path: <linux-kernel-owner+glk-linux-kernel-3=40m.gmane.org-S1755330AbXKGBM7@vger.kernel.org>
-Content-Disposition: inline; filename=0002-slab_defrag_move_count_partial.patch
+Return-path: <linux-kernel-owner+glk-linux-kernel-3=40m.gmane.org-S1756817AbXKGBNj@vger.kernel.org>
+Content-Disposition: inline; filename=0015-slab_defrag_buffer_head_revert.patch
 Sender: linux-kernel-owner@vger.kernel.org
 To: akpm@linux-foundatin.org
 Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Mel Gorman <mel@skynet.ie>
 List-Id: linux-mm.kvack.org
 
-Move the counting function for objects in partial slabs so that it is placed
-before kmem_cache_shrink. We will need to use it to establish the
-fragmentation ratio of per node slab lists.
+The constructor for buffer_head slabs was removed recently. We need
+the constructor in order to insure that slab objects always have a definite
+state even before we allocated them.
 
 [This patch is already in mm]
 
 Reviewed-by: Rik van Riel <riel@redhat.com>
 Signed-off-by: Christoph Lameter <clameter@sgi.com>
----
- mm/slub.c |   26 +++++++++++++-------------
- 1 file changed, 13 insertions(+), 13 deletions(-)
 
-Index: linux-2.6/mm/slub.c
+---
+ fs/buffer.c |   19 +++++++++++++++----
+ 1 file changed, 15 insertions(+), 4 deletions(-)
+
+Index: linux-2.6/fs/buffer.c
 ===================================================================
---- linux-2.6.orig/mm/slub.c	2007-11-06 12:34:13.000000000 -0800
-+++ linux-2.6/mm/slub.c	2007-11-06 12:35:37.000000000 -0800
-@@ -2758,6 +2758,19 @@ void kfree(const void *x)
+--- linux-2.6.orig/fs/buffer.c	2007-10-25 18:28:40.000000000 -0700
++++ linux-2.6/fs/buffer.c	2007-11-06 12:55:45.000000000 -0800
+@@ -3169,10 +3169,9 @@ static void recalc_bh_state(void)
+ 	
+ struct buffer_head *alloc_buffer_head(gfp_t gfp_flags)
+ {
+-	struct buffer_head *ret = kmem_cache_zalloc(bh_cachep,
++	struct buffer_head *ret = kmem_cache_alloc(bh_cachep,
+ 				set_migrateflags(gfp_flags, __GFP_RECLAIMABLE));
+ 	if (ret) {
+-		INIT_LIST_HEAD(&ret->b_assoc_buffers);
+ 		get_cpu_var(bh_accounting).nr++;
+ 		recalc_bh_state();
+ 		put_cpu_var(bh_accounting);
+@@ -3213,12 +3212,24 @@ static int buffer_cpu_notify(struct noti
+ 	return NOTIFY_OK;
  }
- EXPORT_SYMBOL(kfree);
  
-+static unsigned long count_partial(struct kmem_cache_node *n)
++static void
++init_buffer_head(void *data, struct kmem_cache *cachep, unsigned long flags)
 +{
-+	unsigned long flags;
-+	unsigned long x = 0;
-+	struct page *page;
++	struct buffer_head * bh = (struct buffer_head *)data;
 +
-+	spin_lock_irqsave(&n->list_lock, flags);
-+	list_for_each_entry(page, &n->partial, lru)
-+		x += page->inuse;
-+	spin_unlock_irqrestore(&n->list_lock, flags);
-+	return x;
++	memset(bh, 0, sizeof(*bh));
++	INIT_LIST_HEAD(&bh->b_assoc_buffers);
 +}
 +
- /*
-  * kmem_cache_shrink removes empty slabs from the partial lists and sorts
-  * the remaining slabs by the number of items in use. The slabs with the
-@@ -3615,19 +3628,6 @@ static int list_locations(struct kmem_ca
- 	return n;
- }
+ void __init buffer_init(void)
+ {
+ 	int nrpages;
  
--static unsigned long count_partial(struct kmem_cache_node *n)
--{
--	unsigned long flags;
--	unsigned long x = 0;
--	struct page *page;
--
--	spin_lock_irqsave(&n->list_lock, flags);
--	list_for_each_entry(page, &n->partial, lru)
--		x += page->inuse;
--	spin_unlock_irqrestore(&n->list_lock, flags);
--	return x;
--}
--
- enum slab_stat_type {
- 	SL_FULL,
- 	SL_PARTIAL,
+-	bh_cachep = KMEM_CACHE(buffer_head,
+-			SLAB_RECLAIM_ACCOUNT|SLAB_PANIC|SLAB_MEM_SPREAD);
++	bh_cachep = kmem_cache_create("buffer_head",
++			sizeof(struct buffer_head), 0,
++				(SLAB_RECLAIM_ACCOUNT|SLAB_PANIC|
++				SLAB_MEM_SPREAD),
++				init_buffer_head);
+ 
+ 	/*
+ 	 * Limit the bh occupancy to 10% of ZONE_NORMAL
 
 -- 
