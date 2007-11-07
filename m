@@ -1,29 +1,59 @@
-Date: Tue, 6 Nov 2007 18:28:19 -0800 (PST)
-From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [RFC PATCH 6/10] split anon and file LRUs
-In-Reply-To: <20071103190158.34b4650e@bree.surriel.com>
-Message-ID: <Pine.LNX.4.64.0711061825590.5249@schroedinger.engr.sgi.com>
-References: <20071103184229.3f20e2f0@bree.surriel.com>
- <20071103190158.34b4650e@bree.surriel.com>
+Date: Wed, 7 Nov 2007 03:37:09 +0100
+From: Adrian Bunk <bunk@kernel.org>
+Subject: Re: [patch 09/23] SLUB: Add get() and kick() methods
+Message-ID: <20071107023709.GU26163@stusta.de>
+References: <20071107011130.382244340@sgi.com> <20071107011228.605750914@sgi.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=utf-8
+Content-Disposition: inline
+In-Reply-To: <20071107011228.605750914@sgi.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Rik van Riel <riel@redhat.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Christoph Lameter <clameter@sgi.com>
+Cc: akpm@linux-foundatin.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Mel Gorman <mel@skynet.ie>, Rik van Riel <riel@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
-On Sat, 3 Nov 2007, Rik van Riel wrote:
+On Tue, Nov 06, 2007 at 05:11:39PM -0800, Christoph Lameter wrote:
+> Add the two methods needed for defragmentation and add the display of the
+> methods via the proc interface.
+> 
+> Add documentation explaining the use of these methods.
+> 
+> Reviewed-by: Rik van Riel <riel@redhat.com>
+> Signed-off-by: Christoph Lameter <clameter@sgi.com>
+> ---
+>  include/linux/slab.h     |    3 +++
+>  include/linux/slub_def.h |   31 +++++++++++++++++++++++++++++++
+>  mm/slub.c                |   32 ++++++++++++++++++++++++++++++--
+>  3 files changed, 64 insertions(+), 2 deletions(-)
+> 
+> Index: linux-2.6/include/linux/slab.h
+> ===================================================================
+> --- linux-2.6.orig/include/linux/slab.h	2007-10-17 13:35:53.000000000 -0700
+> +++ linux-2.6/include/linux/slab.h	2007-11-06 12:37:51.000000000 -0800
+> @@ -56,6 +56,9 @@ struct kmem_cache *kmem_cache_create(con
+>  			void (*)(struct kmem_cache *, void *));
+>  void kmem_cache_destroy(struct kmem_cache *);
+>  int kmem_cache_shrink(struct kmem_cache *);
+> +void kmem_cache_setup_defrag(struct kmem_cache *s,
+> +	void *(*get)(struct kmem_cache *, int nr, void **),
+> +	void (*kick)(struct kmem_cache *, int nr, void **, void *private));
+>  void kmem_cache_free(struct kmem_cache *, void *);
+>  unsigned int kmem_cache_size(struct kmem_cache *);
+>  const char *kmem_cache_name(struct kmem_cache *);
+>...
 
-> Split the LRU lists in two, one set for pages that are backed by
-> real file systems ("file") and one for pages that are backed by
-> memory and swap ("anon").  The latter includes tmpfs.
+A static inline dummy function for CONFIG_SLUB=n seems to be missing?
 
-If we split the memory backed from the disk backed pages then
-they are no longer competing with one another on equal terms? So the file LRU 
-may run faster than the memory LRU?
+cu
+Adrian
 
-The patch looks awfully large.
+-- 
+
+       "Is there not promise of rain?" Ling Tan asked suddenly out
+        of the darkness. There had been need of rain for many days.
+       "Only a promise," Lao Er said.
+                                       Pearl S. Buck - Dragon Seed
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
