@@ -1,59 +1,65 @@
-Date: Wed, 7 Nov 2007 03:37:09 +0100
-From: Adrian Bunk <bunk@kernel.org>
-Subject: Re: [patch 09/23] SLUB: Add get() and kick() methods
-Message-ID: <20071107023709.GU26163@stusta.de>
-References: <20071107011130.382244340@sgi.com> <20071107011228.605750914@sgi.com>
+Date: Tue, 6 Nov 2007 18:40:46 -0800 (PST)
+From: Christoph Lameter <clameter@sgi.com>
+Subject: Re: [RFC PATCH 0/10] split anon and file LRUs
+In-Reply-To: <20071106212305.6aa3a4fe@bree.surriel.com>
+Message-ID: <Pine.LNX.4.64.0711061834340.5424@schroedinger.engr.sgi.com>
+References: <20071103184229.3f20e2f0@bree.surriel.com>
+ <Pine.LNX.4.64.0711061808460.5249@schroedinger.engr.sgi.com>
+ <20071106212305.6aa3a4fe@bree.surriel.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
-In-Reply-To: <20071107011228.605750914@sgi.com>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
-Cc: akpm@linux-foundatin.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Mel Gorman <mel@skynet.ie>, Rik van Riel <riel@redhat.com>
+To: Rik van Riel <riel@redhat.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Nov 06, 2007 at 05:11:39PM -0800, Christoph Lameter wrote:
-> Add the two methods needed for defragmentation and add the display of the
-> methods via the proc interface.
+On Tue, 6 Nov 2007, Rik van Riel wrote:
+
+> Also, a factor 16 increase in page size is not going to help
+> if memory sizes also increase by a factor 16, since we already 
+> have trouble with today's memory sizes.
+
+Note that a factor 16 increase usually goes hand in hand with
+more processors. The synchronization of multiple processors becomes a 
+concern. If you have an 8p and each of them tries to get the zone locks 
+for reclaim then we are already in trouble. And given the immaturity
+of the handling of cacheline contention in current commodity hardware this 
+is likely to result in livelocks and/or starvation on some level.
+
+> > I think that is the most urgent issue at hand. At least for us.
 > 
-> Add documentation explaining the use of these methods.
+> For some workloads this is the most urgent change, indeed.
+> Since the patches for this already exist, integrating them
+> is at the top of my list.  Expect this to be integrated into
+> the split VM patch series by the end of this week.
+
+Good to hear.
+ 
+> > > - switch to SEQ replacement for the anon LRU lists, so the
+> > >   worst case number of pages to scan is reduced greatly.
+> > 
+> > No idea what that is?
 > 
-> Reviewed-by: Rik van Riel <riel@redhat.com>
-> Signed-off-by: Christoph Lameter <clameter@sgi.com>
-> ---
->  include/linux/slab.h     |    3 +++
->  include/linux/slub_def.h |   31 +++++++++++++++++++++++++++++++
->  mm/slub.c                |   32 ++++++++++++++++++++++++++++++--
->  3 files changed, 64 insertions(+), 2 deletions(-)
+> See http://linux-mm.org/PageReplacementDesign
+
+A bit sparse but limiting the scanning if we cannot do much is certainly 
+the right thing to do. The percentage of memory taken up by anonymous 
+pages varies depending on the load. HPC applications may consume all of 
+memory with anonymous pages. But there the pain is already so bad that 
+many users go to huge pages already which bypasses the VM.
+
+> > We do not have an accepted standard load. So how would we figure that one 
+> > out?
 > 
-> Index: linux-2.6/include/linux/slab.h
-> ===================================================================
-> --- linux-2.6.orig/include/linux/slab.h	2007-10-17 13:35:53.000000000 -0700
-> +++ linux-2.6/include/linux/slab.h	2007-11-06 12:37:51.000000000 -0800
-> @@ -56,6 +56,9 @@ struct kmem_cache *kmem_cache_create(con
->  			void (*)(struct kmem_cache *, void *));
->  void kmem_cache_destroy(struct kmem_cache *);
->  int kmem_cache_shrink(struct kmem_cache *);
-> +void kmem_cache_setup_defrag(struct kmem_cache *s,
-> +	void *(*get)(struct kmem_cache *, int nr, void **),
-> +	void (*kick)(struct kmem_cache *, int nr, void **, void *private));
->  void kmem_cache_free(struct kmem_cache *, void *);
->  unsigned int kmem_cache_size(struct kmem_cache *);
->  const char *kmem_cache_name(struct kmem_cache *);
->...
+> The current worst case is where we need to scan all of memory, 
+> just to find a few pages we can swap out.  With the effects of
+> lock contention figured in, this can take hours on huge systems.
 
-A static inline dummy function for CONFIG_SLUB=n seems to be missing?
-
-cu
-Adrian
-
--- 
-
-       "Is there not promise of rain?" Ling Tan asked suddenly out
-        of the darkness. There had been need of rain for many days.
-       "Only a promise," Lao Er said.
-                                       Pearl S. Buck - Dragon Seed
+Right but I think this looks like a hopeless situation regardless of the 
+algorithm if you have a couple of million pages and are trying to free 
+one. Now image a series of processors going on the hunt for the few pages 
+that can be reclaimed.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
