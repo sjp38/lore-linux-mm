@@ -1,61 +1,43 @@
-Date: Wed, 7 Nov 2007 10:28:22 +0100
-From: Johannes Weiner <hannes-kernel@saeurebad.de>
-Subject: Re: [patch 12/23] SLUB: Trigger defragmentation from memory reclaim
-Message-ID: <20071107092822.GC6243@cataract>
-References: <20071107011130.382244340@sgi.com> <20071107011229.423714790@sgi.com>
+Date: Wed, 7 Nov 2007 10:43:48 +0100
+From: =?utf-8?B?SsO2cm4=?= Engel <joern@logfs.org>
+Subject: Re: [patch 04/23] dentries: Extract common code to remove dentry from lru
+Message-ID: <20071107094348.GB7374@lazybastard.org>
+References: <20071107011130.382244340@sgi.com> <20071107011227.298491275@sgi.com> <20071107085027.GA6243@cataract>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=utf-8
 Content-Disposition: inline
-In-Reply-To: <20071107011229.423714790@sgi.com>
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <20071107085027.GA6243@cataract>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
-Cc: akpm@linux-foundatin.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Mel Gorman <mel@skynet.ie>
+To: Johannes Weiner <hannes-kernel@saeurebad.de>
+Cc: Christoph Lameter <clameter@sgi.com>, akpm@linux-foundatin.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Mel Gorman <mel@skynet.ie>
 List-ID: <linux-mm.kvack.org>
 
-Hi Christoph,
+On Wed, 7 November 2007 09:50:27 +0100, Johannes Weiner wrote:
+> On Tue, Nov 06, 2007 at 05:11:34PM -0800, Christoph Lameter wrote:
+> > @@ -613,11 +606,7 @@ static void shrink_dcache_for_umount_sub
+> >  			spin_lock(&dcache_lock);
+> >  			list_for_each_entry(loop, &dentry->d_subdirs,
+> >  					    d_u.d_child) {
+> > -				if (!list_empty(&loop->d_lru)) {
+> > -					dentry_stat.nr_unused--;
+> > -					list_del_init(&loop->d_lru);
+> > -				}
+> > -
+> > +				dentry_lru_remove(dentry);
+> 
+> Shouldn't this be dentry_lru_remove(loop)?
 
-On Tue, Nov 06, 2007 at 05:11:42PM -0800, Christoph Lameter wrote:
-> Index: linux-2.6/include/linux/slab.h
-> ===================================================================
-> --- linux-2.6.orig/include/linux/slab.h	2007-11-06 12:37:51.000000000 -0800
-> +++ linux-2.6/include/linux/slab.h	2007-11-06 12:53:40.000000000 -0800
-> @@ -63,6 +63,7 @@ void kmem_cache_free(struct kmem_cache *
->  unsigned int kmem_cache_size(struct kmem_cache *);
->  const char *kmem_cache_name(struct kmem_cache *);
->  int kmem_ptr_validate(struct kmem_cache *cachep, const void *ptr);
-> +int kmem_cache_defrag(int node);
+Looks like it.  Once this is fixed, feel free to add
+Acked-by: Joern Engel <joern@logfs.org>
 
-The definition in slab.c always returns 0.  Wouldn't a static inline
-function in the header be better?
+JA?rn
 
-
->   * Returns the number of slab objects which we shrunk.
-      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
->   */
->  unsigned long shrink_slab(unsigned long scanned, gfp_t gfp_mask,
-> -                       unsigned long lru_pages)
-> +                       unsigned long lru_pages, struct zone *zone)
->  {
->         struct shrinker *shrinker;
->         unsigned long ret = 0;
-> @@ -210,6 +218,8 @@ unsigned long shrink_slab(unsigned long
->                 shrinker->nr += total_scan;
->         }
->         up_read(&shrinker_rwsem);
-> +       if (gfp_mask & __GFP_FS)
-> +               kmem_cache_defrag(zone ? zone_to_nid(zone) : -1);
->         return ret;
->  }
-
-What about the objects that kmem_cache_defrag() releases?  Shouldn't
-they be counted too?
-
-     ret += kmem_cache_defrag(...)
-
-Or am I overseeing something here?
-
-	Hannes
+-- 
+It does not require a majority to prevail, but rather an irate,
+tireless minority keen to set brush fires in people's minds.
+-- Samuel Adams
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
