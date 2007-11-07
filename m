@@ -1,58 +1,43 @@
-Message-Id: <20071107004710.642423857@sgi.com>
-References: <20071107004357.233417373@sgi.com>
-Date: Tue, 06 Nov 2007 16:43:58 -0800
-From: clameter@sgi.com
-Subject: [patch 1/2] x86_64: Clean up stack allocation and free
-Content-Disposition: inline; filename=x86_64_stack_cleanup
+Date: Tue, 6 Nov 2007 18:11:39 -0800 (PST)
+From: Christoph Lameter <clameter@sgi.com>
+Subject: Re: [RFC PATCH 0/10] split anon and file LRUs
+In-Reply-To: <20071103184229.3f20e2f0@bree.surriel.com>
+Message-ID: <Pine.LNX.4.64.0711061808460.5249@schroedinger.engr.sgi.com>
+References: <20071103184229.3f20e2f0@bree.surriel.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: akpm@linux-foundation.org
-Cc: linux-mm@kvack.org, ak@suse.de, travis@sgi.com
+To: Rik van Riel <riel@redhat.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-Cleanup the allocation and freeing of stacks a bit by using a __GFP_ZERO
-flag instead of memset.
+On Sat, 3 Nov 2007, Rik van Riel wrote:
 
-Cc: ak@suse.de
-Cc: travis@sgi.com
-Signed-off-by: Christoph Lameter <clameter@sgi.com>
+> The current version only has the infrastructure.  Large changes to
+> the page replacement policy will follow later.
 
----
- include/asm-x86/thread_info_64.h |   16 +++++-----------
- 1 file changed, 5 insertions(+), 11 deletions(-)
+Hmmmm.. I'd rather see where we are going. One other way of addressing 
+many of these issues is to allow large page sizes on the LRU which will
+reduce the number of entities that have to be managed. Both approaches 
+actually would work in tandem.
 
-Index: linux-2.6/include/asm-x86/thread_info_64.h
-===================================================================
---- linux-2.6.orig/include/asm-x86/thread_info_64.h	2007-10-12 12:41:32.000000000 -0700
-+++ linux-2.6/include/asm-x86/thread_info_64.h	2007-11-06 15:38:22.000000000 -0800
-@@ -74,20 +74,14 @@ static inline struct thread_info *stack_
- 
- /* thread information allocation */
- #ifdef CONFIG_DEBUG_STACK_USAGE
--#define alloc_thread_info(tsk)					\
--    ({								\
--	struct thread_info *ret;				\
--								\
--	ret = ((struct thread_info *) __get_free_pages(GFP_KERNEL,THREAD_ORDER)); \
--	if (ret)						\
--		memset(ret, 0, THREAD_SIZE);			\
--	ret;							\
--    })
-+#define THREAD_FLAGS (GFP_KERNEL | __GFP_ZERO)
- #else
--#define alloc_thread_info(tsk) \
--	((struct thread_info *) __get_free_pages(GFP_KERNEL,THREAD_ORDER))
-+#define THREAD_FLAGS GFP_KERNEL
- #endif
- 
-+#define alloc_thread_info(tsk) \
-+	((struct thread_info *) __get_free_pages(THREAD_FLAGS, THREAD_ORDER))
-+
- #define free_thread_info(ti) free_pages((unsigned long) (ti), THREAD_ORDER)
- 
- #else /* !__ASSEMBLY__ */
+> TODO:
+> - have any mlocked and ramfs pages live off of the LRU list,
+>   so we do not need to scan these pages
 
--- 
+I think that is the most urgent issue at hand. At least for us.
+
+> - switch to SEQ replacement for the anon LRU lists, so the
+>   worst case number of pages to scan is reduced greatly.
+
+No idea what that is?
+
+> - figure out if the file LRU lists need page replacement
+>   changes to help with worst case scenarios
+
+We do not have an accepted standard load. So how would we figure that one 
+out?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
