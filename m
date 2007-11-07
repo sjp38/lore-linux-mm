@@ -1,105 +1,126 @@
 From: Christoph Lameter <clameter@sgi.com>
-Subject: [patch 02/23] SLUB: Rename NUMA defrag_ratio to remote_node_defrag_ratio
-Date: Tue, 06 Nov 2007 17:11:32 -0800
-Message-ID: <20071107011226.844437184@sgi.com>
+Subject: [patch 04/23] dentries: Extract common code to remove dentry from lru
+Date: Tue, 06 Nov 2007 17:11:34 -0800
+Message-ID: <20071107011227.298491275@sgi.com>
 References: <20071107011130.382244340@sgi.com>
-Return-path: <linux-kernel-owner+glk-linux-kernel-3=40m.gmane.org-S1755312AbXKGBN1@vger.kernel.org>
-Content-Disposition: inline; filename=0003-slab_defrag_remote_node_defrag_ratio.patch
+Return-path: <linux-kernel-owner+glk-linux-kernel-3=40m.gmane.org-S1757025AbXKGBNx@vger.kernel.org>
+Content-Disposition: inline; filename=0023-slab_defrag_dentry_remove_lru.patch
 Sender: linux-kernel-owner@vger.kernel.org
 To: akpm@linux-foundatin.org
 Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Mel Gorman <mel@skynet.ie>
 List-Id: linux-mm.kvack.org
 
-We need the defrag ratio for the non NUMA situation now. The NUMA defrag works
-by allocating objects from partial slabs on remote nodes. Rename it to
+Extract the common code to remove a dentry from the lru into a new function
+dentry_lru_remove().
 
-	remote_node_defrag_ratio
+Two call sites used list_del() instead of list_del_init(). AFAIK the
+performance of both is the same. dentry_lru_remove() does a list_del_init().
 
-to be clear about this.
+As a result dentry->d_lru is now always empty when a dentry is freed.
+A consistent state is useful to establish dentry state from slab defrag.
 
 [This patch is already in mm]
 
 Reviewed-by: Rik van Riel <riel@redhat.com>
 Signed-off-by: Christoph Lameter <clameter@sgi.com>
 ---
- include/linux/slub_def.h |    5 ++++-
- mm/slub.c                |   17 +++++++++--------
- 2 files changed, 13 insertions(+), 9 deletions(-)
+ fs/dcache.c |   42 ++++++++++++++----------------------------
+ 1 file changed, 14 insertions(+), 28 deletions(-)
 
-Index: linux-2.6/include/linux/slub_def.h
+Index: linux-2.6/fs/dcache.c
 ===================================================================
---- linux-2.6.orig/include/linux/slub_def.h	2007-11-06 12:34:13.000000000 -0800
-+++ linux-2.6/include/linux/slub_def.h	2007-11-06 12:36:28.000000000 -0800
-@@ -60,7 +60,10 @@ struct kmem_cache {
- #endif
- 
- #ifdef CONFIG_NUMA
--	int defrag_ratio;
-+	/*
-+	 * Defragmentation by allocating from a remote node.
-+	 */
-+	int remote_node_defrag_ratio;
- 	struct kmem_cache_node *node[MAX_NUMNODES];
- #endif
- #ifdef CONFIG_SMP
-Index: linux-2.6/mm/slub.c
-===================================================================
---- linux-2.6.orig/mm/slub.c	2007-11-06 12:36:16.000000000 -0800
-+++ linux-2.6/mm/slub.c	2007-11-06 12:37:25.000000000 -0800
-@@ -1345,7 +1345,8 @@ static unsigned long get_any_partial(str
- 	 * expensive if we do it every time we are trying to find a slab
- 	 * with available objects.
- 	 */
--	if (!s->defrag_ratio || get_cycles() % 1024 > s->defrag_ratio)
-+	if (!s->remote_node_defrag_ratio ||
-+			get_cycles() % 1024 > s->remote_node_defrag_ratio)
- 		return 0;
- 
- 	zonelist = &NODE_DATA(slab_node(current->mempolicy))
-@@ -2363,7 +2364,7 @@ static int kmem_cache_open(struct kmem_c
- 
- 	s->refcount = 1;
- #ifdef CONFIG_NUMA
--	s->defrag_ratio = 100;
-+	s->remote_node_defrag_ratio = 100;
- #endif
- 	if (!init_kmem_cache_nodes(s, gfpflags & ~SLUB_DMA))
- 		goto error;
-@@ -4005,21 +4006,21 @@ static ssize_t free_calls_show(struct km
- SLAB_ATTR_RO(free_calls);
- 
- #ifdef CONFIG_NUMA
--static ssize_t defrag_ratio_show(struct kmem_cache *s, char *buf)
-+static ssize_t remote_node_defrag_ratio_show(struct kmem_cache *s, char *buf)
- {
--	return sprintf(buf, "%d\n", s->defrag_ratio / 10);
-+	return sprintf(buf, "%d\n", s->remote_node_defrag_ratio / 10);
+--- linux-2.6.orig/fs/dcache.c	2007-10-25 18:28:40.000000000 -0700
++++ linux-2.6/fs/dcache.c	2007-11-06 12:56:31.000000000 -0800
+@@ -95,6 +95,14 @@ static void d_free(struct dentry *dentry
+ 		call_rcu(&dentry->d_u.d_rcu, d_callback);
  }
  
--static ssize_t defrag_ratio_store(struct kmem_cache *s,
-+static ssize_t remote_node_defrag_ratio_store(struct kmem_cache *s,
- 				const char *buf, size_t length)
++static void dentry_lru_remove(struct dentry *dentry)
++{
++	if (!list_empty(&dentry->d_lru)) {
++		list_del_init(&dentry->d_lru);
++		dentry_stat.nr_unused--;
++	}
++}
++
+ /*
+  * Release the dentry's inode, using the filesystem
+  * d_iput() operation if defined.
+@@ -211,13 +219,7 @@ repeat:
+ unhash_it:
+ 	__d_drop(dentry);
+ kill_it:
+-	/* If dentry was on d_lru list
+-	 * delete it from there
+-	 */
+-	if (!list_empty(&dentry->d_lru)) {
+-		list_del(&dentry->d_lru);
+-		dentry_stat.nr_unused--;
+-	}
++	dentry_lru_remove(dentry);
+ 	dentry = d_kill(dentry);
+ 	if (dentry)
+ 		goto repeat;
+@@ -285,10 +287,7 @@ int d_invalidate(struct dentry * dentry)
+ static inline struct dentry * __dget_locked(struct dentry *dentry)
  {
- 	int n = simple_strtoul(buf, NULL, 10);
- 
- 	if (n < 100)
--		s->defrag_ratio = n * 10;
-+		s->remote_node_defrag_ratio = n * 10;
- 	return length;
+ 	atomic_inc(&dentry->d_count);
+-	if (!list_empty(&dentry->d_lru)) {
+-		dentry_stat.nr_unused--;
+-		list_del_init(&dentry->d_lru);
+-	}
++	dentry_lru_remove(dentry);
+ 	return dentry;
  }
--SLAB_ATTR(defrag_ratio);
-+SLAB_ATTR(remote_node_defrag_ratio);
- #endif
  
- static struct attribute * slab_attrs[] = {
-@@ -4050,7 +4051,7 @@ static struct attribute * slab_attrs[] =
- 	&cache_dma_attr.attr,
- #endif
- #ifdef CONFIG_NUMA
--	&defrag_ratio_attr.attr,
-+	&remote_node_defrag_ratio_attr.attr,
- #endif
- 	NULL
- };
+@@ -404,10 +403,7 @@ static void prune_one_dentry(struct dent
+ 
+ 		if (dentry->d_op && dentry->d_op->d_delete)
+ 			dentry->d_op->d_delete(dentry);
+-		if (!list_empty(&dentry->d_lru)) {
+-			list_del(&dentry->d_lru);
+-			dentry_stat.nr_unused--;
+-		}
++		dentry_lru_remove(dentry);
+ 		__d_drop(dentry);
+ 		dentry = d_kill(dentry);
+ 		spin_lock(&dcache_lock);
+@@ -596,10 +592,7 @@ static void shrink_dcache_for_umount_sub
+ 
+ 	/* detach this root from the system */
+ 	spin_lock(&dcache_lock);
+-	if (!list_empty(&dentry->d_lru)) {
+-		dentry_stat.nr_unused--;
+-		list_del_init(&dentry->d_lru);
+-	}
++	dentry_lru_remove(dentry);
+ 	__d_drop(dentry);
+ 	spin_unlock(&dcache_lock);
+ 
+@@ -613,11 +606,7 @@ static void shrink_dcache_for_umount_sub
+ 			spin_lock(&dcache_lock);
+ 			list_for_each_entry(loop, &dentry->d_subdirs,
+ 					    d_u.d_child) {
+-				if (!list_empty(&loop->d_lru)) {
+-					dentry_stat.nr_unused--;
+-					list_del_init(&loop->d_lru);
+-				}
+-
++				dentry_lru_remove(dentry);
+ 				__d_drop(loop);
+ 				cond_resched_lock(&dcache_lock);
+ 			}
+@@ -799,10 +788,7 @@ resume:
+ 		struct dentry *dentry = list_entry(tmp, struct dentry, d_u.d_child);
+ 		next = tmp->next;
+ 
+-		if (!list_empty(&dentry->d_lru)) {
+-			dentry_stat.nr_unused--;
+-			list_del_init(&dentry->d_lru);
+-		}
++		dentry_lru_remove(dentry);
+ 		/* 
+ 		 * move only zero ref count dentries to the end 
+ 		 * of the unused list for prune_dcache
 
 -- 
