@@ -1,70 +1,48 @@
-Date: Wed, 7 Nov 2007 13:16:27 -0500
+Date: Wed, 7 Nov 2007 13:17:36 -0500
 From: Rik van Riel <riel@redhat.com>
-Subject: Re: [RFC PATCH 0/10] split anon and file LRUs
-Message-ID: <20071107131627.57e8f666@bree.surriel.com>
-In-Reply-To: <20071107095945.c9b870fc.akpm@linux-foundation.org>
+Subject: Re: [RFC PATCH 3/10] define page_file_cache
+Message-ID: <20071107131736.437a21e0@bree.surriel.com>
+In-Reply-To: <Pine.LNX.4.64.0711071005400.9000@schroedinger.engr.sgi.com>
 References: <20071103184229.3f20e2f0@bree.surriel.com>
-	<Pine.LNX.4.64.0711061808460.5249@schroedinger.engr.sgi.com>
-	<20071106212305.6aa3a4fe@bree.surriel.com>
-	<Pine.LNX.4.64.0711061834340.5424@schroedinger.engr.sgi.com>
-	<20071106215127.29e90ecd@bree.surriel.com>
-	<20071107095945.c9b870fc.akpm@linux-foundation.org>
+	<20071103185516.24832ab0@bree.surriel.com>
+	<Pine.LNX.4.64.0711061821010.5249@schroedinger.engr.sgi.com>
+	<20071106215552.4ab7df81@bree.surriel.com>
+	<Pine.LNX.4.64.0711061856400.5565@schroedinger.engr.sgi.com>
+	<20071106221710.3f9b8dd6@bree.surriel.com>
+	<Pine.LNX.4.64.0711061920510.5746@schroedinger.engr.sgi.com>
+	<20071107093527.0d312903@bree.surriel.com>
+	<Pine.LNX.4.64.0711071005400.9000@schroedinger.engr.sgi.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: clameter@sgi.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Christoph Lameter <clameter@sgi.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 7 Nov 2007 09:59:45 -0800
-Andrew Morton <akpm@linux-foundation.org> wrote:
+On Wed, 7 Nov 2007 10:06:10 -0800 (PST)
+Christoph Lameter <clameter@sgi.com> wrote:
 
-> > On Tue, 6 Nov 2007 21:51:27 -0500 Rik van Riel <riel@redhat.com> wrote:
-
-> > Which is why we need to greatly reduce the number of pages
-> > scanned to free a page.  In all workloads.
+> On Wed, 7 Nov 2007, Rik van Riel wrote:
 > 
-> It strikes me that splitting one list into two lists will not provide
-> sufficient improvement in search efficiency to do that. 
-
-Well, if you look at the typical problem systems today, you
-will see that most of the pages being allocated and evicted
-are in the page cache, while most of the pages in memory are
-actually anonymous pages.
-
-Not having to scan over that 80% of memory that contains
-anonymous pages and shared memory segments to get at the
-20% page cache pages is much more than a factor two
-improvement.
-
-> I mean, a naive guess would be that it will, on average, halve the amount
-> of work which needs to be done.
+> > How exactly can an anonymous page ever become file backed?
 > 
-> But we need multiple-orders-of-magnitude improvements to address the
-> pathological worst-cases which you're looking at there.  Where is this
-> coming from?
+> When they get assigned a swap entry.
 
-Replacing page cache pages is easy.  If they were referenced
-once (typical), we can just evict the page the first time we
-scan it.
+That does not change their status.  They're still swap backed.
 
-Anonymous pages have a similar optimization: every anonymous
-page starts out referenced, so moving referenced pages back
-to the front of the active list is unneeded work.
-
-However, we cannot just place referenced anonymous pages onto
-an inactive list that is shared with page cache pages, because
-of the difference in replacement cost and relative importance
-of both types of pages!
-
-> Or is the problem which you're seeing due to scanning of mapped pages
-> at low "distress" levels?
+> > > Do ramfs pages count as memory backed?
+> > 
+> > Since ramfs pages cannot be evicted from memory at all, they
+> > should go into the "noreclaim" page set.
 > 
-> Would be interested in seeing more details on all of this, please.
+> Which LRU do they go on.
 
-http://linux-mm.org/PageReplacementDesign
+With the patch set from last weekend, the file LRU.
+
+With the patch set later this week, they'll be in the 
+"noreclaim" page set, which is never scanned by the VM.
 
 -- 
 "Debugging is twice as hard as writing the code in the first place.
