@@ -1,65 +1,120 @@
-Date: Wed, 7 Nov 2007 09:35:27 -0500
-From: Rik van Riel <riel@redhat.com>
-Subject: Re: [RFC PATCH 3/10] define page_file_cache
-Message-ID: <20071107093527.0d312903@bree.surriel.com>
-In-Reply-To: <Pine.LNX.4.64.0711061920510.5746@schroedinger.engr.sgi.com>
-References: <20071103184229.3f20e2f0@bree.surriel.com>
-	<20071103185516.24832ab0@bree.surriel.com>
-	<Pine.LNX.4.64.0711061821010.5249@schroedinger.engr.sgi.com>
-	<20071106215552.4ab7df81@bree.surriel.com>
-	<Pine.LNX.4.64.0711061856400.5565@schroedinger.engr.sgi.com>
-	<20071106221710.3f9b8dd6@bree.surriel.com>
-	<Pine.LNX.4.64.0711061920510.5746@schroedinger.engr.sgi.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Subject: SPAM:  
+  =?iso-8859-1?Q?Ich_wollte_Ihnen_nur_mitteilen=2C_dass_das_Gl=FCck_endl?=
+  =?iso-8859-1?Q?ich?=
+  =?iso-8859-1?Q?_auch_an_meine_T=FCr_geklopft_hat!?=
+Date: Wed, 07 Nov 2007 15:42:51 +0100
+Message-ID: <22227377.13403056@apollonian.com>
+From: "Andrea" <dexter@madhuri.com>
+MIME-Version: 1.0
+Content-Type: text/html; charset=iso-8859-1
 Content-Transfer-Encoding: 7bit
-Sender: owner-linux-mm@kvack.org
-Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Return-Path: <dexter@madhuri.com>
+To: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 6 Nov 2007 19:26:33 -0800 (PST)
-Christoph Lameter <clameter@sgi.com> wrote:
-> n Tue, 6 Nov 2007, Rik van Riel wrote:
-> 
-> > Every anonymous, tmpfs or shared memory segment page is potentially
-> > swap backed. That is the whole point of the PG_swapbacked flag.
-> 
-> One of the current issues with anonymous pages is the accounting when 
-> they become file backed and get dirty.
+<html>
 
-What are you talking about?
+<head>
+<meta http-equiv=Content-Type content="text/html; charset=iso-8859-1">
 
-How exactly can an anonymous page ever become file backed?
 
-> There are performance issue with swap writeout
+<style>
+<!--
+ /* Style Definitions */
+ p.MsoNormal, li.MsoNormal, div.MsoNormal
+	{mso-style-parent:"";
+	margin:0cm;
+	margin-bottom:.0001pt;
+	mso-pagination:widow-orphan;
+	font-size:12.0pt;
+	font-family:"Times New Roman";
+	mso-fareast-font-family:"Times New Roman";}
+a:link, span.MsoHyperlink
+	{color:blue;
+	text-decoration:underline;
+	text-underline:single;}
+a:visited, span.MsoHyperlinkFollowed
+	{color:purple;
+	text-decoration:underline;
+	text-underline:single;}
+pre
+	{margin:0cm;
+	margin-bottom:.0001pt;
+	mso-pagination:widow-orphan;
+	font-size:10.0pt;
+	font-family:"Courier New";
+	mso-fareast-font-family:"Times New Roman";}
+@page Section1
+	{size:595.3pt 841.9pt;
+	margin:2.0cm 42.5pt 2.0cm 3.0cm;
+	mso-header-margin:35.4pt;
+	mso-footer-margin:35.4pt;
+	mso-paper-source:0;}
+div.Section1
+	{page:Section1;}
+-->
+</style>
 
-That is one of the reasons everything that is ram/swap backed
-goes onto a different set of LRU lists from everything that is
-backed by a disk or network filesystem.
+</head>
 
-> Do ramfs pages count as memory backed?
+<body lang=DE link=blue vlink=purple style='tab-interval:35.4pt'>
 
-Since ramfs pages cannot be evicted from memory at all, they
-should go into the "noreclaim" page set.
+<div class=Section1>
 
-> > A page from a filesystem like ext3 or NFS cannot suddenly turn into
-> > a swap backed page.  This page "nature" is not changed during the
-> > lifetime of a page.
-> 
-> Well COW sortof does that but then its a new page.
+<p class=MsoNormal>Hi,<o:p></o:p></p>
 
-Exactly.  As far as I know, a page never changes from a file
-page into an anonymous page, or the other way around.
+<p class=MsoNormal><o:p>&nbsp;</o:p></p>
 
--- 
-"Debugging is twice as hard as writing the code in the first place.
-Therefore, if you write the code as cleverly as possible, you are,
-by definition, not smart enough to debug it." - Brian W. Kernighan
+<p class=MsoNormal>Ich wollte Ihnen nur mitteilen, dass das Gl&uuml;ck 
+endlich auch an meine T&uuml;r geklopft hat!<o:p></o:p></p>
 
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+<p class=MsoNormal><o:p>&nbsp;</o:p></p>
+
+<p class=MsoNormal>Vor einem Monat habe ich gro&#223;artige Spiele mit 
+wirklich guten Grafiken entdeckt. Ich hatte wirklich nicht damit gerechnet zu
+gewinnen...ich wollte einfach nur Spa&#223; haben. <o:p></o:p></p>
+
+<p class=MsoNormal><o:p>&nbsp;</o:p></p>
+
+<p class=MsoNormal>Ich zahlte 50$ und erhielt einen sch&ouml;nen Bonus in 
+H&ouml;he von 50$ bonus ....und ich verlor beide Betr&auml;ge beim Roulette. 
+Ich zahlte weitere $20 ein und begann die progressiven Jackpots zu spielen, - 
+und BOOM - $129,300!<o:p></o:p></p>
+
+<p class=MsoNormal><o:p>&nbsp;</o:p></p>
+
+<p class=MsoNormal>Der Kundenservice rief mich sofort an, um mir zu 
+gratulieren und mir beim Abheben der Summe behilflich zu sein &#8211; sie 
+waren sehr nett und fair. <o:p></o:p></p>
+
+<p class=MsoNormal><o:p>&nbsp;</o:p></p>
+
+<p class=MsoNormal>Ich bin so gl&uuml;cklich, dass ich einfach der ganzen Welt
+erz&auml;hlen wollte, dass eines Tages das Gl&uuml;ck zu jedem kommt. 
+<o:p></o:p></p>
+
+<p class=MsoNormal><o:p>&nbsp;</o:p></p>
+
+<p class=MsoNormal>Klicken Sie einfach hier und genie&#223;en Sie die 
+gro&#223;artigen Spiele ... Ich hoffe, dass diese Email Ihnen ebenfalls 
+soviel Gl&uuml;ck bringen wird.<o:p></o:p></p>
+
+<p class=MsoNormal><span lang=EN-US style='mso-ansi-language:EN-US'>
+<o:p>&nbsp;</o:p></span></p>
+
+<p class=MsoNormal><span lang=EN-US style='mso-ansi-language:EN-US'>
+<a href="http://www.messocasino.com/lang-de/">
+http://www.messocasino.com/lang-de/</a><o:p></o:p></span></p>
+
+<p class=MsoNormal><span lang=EN-US style='mso-ansi-language:EN-US'>
+<o:p>&nbsp;</o:p></span></p>
+
+<p class=MsoNormal>Andrea<o:p></o:p></p>
+
+<p class=MsoNormal><o:p>&nbsp;</o:p></p>
+
+</div>
+
+</body>
+
+</html>
