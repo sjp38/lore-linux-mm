@@ -1,64 +1,109 @@
-Received: from d03relay02.boulder.ibm.com (d03relay02.boulder.ibm.com [9.17.195.227])
-	by e32.co.us.ibm.com (8.12.11.20060308/8.13.8) with ESMTP id lA7FZCf5032342
-	for <linux-mm@kvack.org>; Wed, 7 Nov 2007 10:35:12 -0500
-Received: from d03av01.boulder.ibm.com (d03av01.boulder.ibm.com [9.17.195.167])
-	by d03relay02.boulder.ibm.com (8.13.8/8.13.8/NCO v8.5) with ESMTP id lA7GGIUM117832
-	for <linux-mm@kvack.org>; Wed, 7 Nov 2007 09:35:45 -0700
-Received: from d03av01.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av01.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id lA7Fvkaw013961
-	for <linux-mm@kvack.org>; Wed, 7 Nov 2007 08:57:46 -0700
-Subject: Re: migratepage failures on reiserfs
-From: Badari Pulavarty <pbadari@us.ibm.com>
-In-Reply-To: <20071107145619.GA32737@skynet.ie>
-References: <20071030135442.5d33c61c@think.oraclecorp.com>
-	 <1193781245.8904.28.camel@dyn9047017100.beaverton.ibm.com>
-	 <20071030185840.48f5a10b@think.oraclecorp.com>
-	 <1193847261.17412.13.camel@dyn9047017100.beaverton.ibm.com>
-	 <20071031134006.2ecd520b@think.oraclecorp.com>
-	 <1193935137.26106.5.camel@dyn9047017100.beaverton.ibm.com>
-	 <20071101115103.62de4b2e@think.oraclecorp.com>
-	 <1193940626.26106.13.camel@dyn9047017100.beaverton.ibm.com>
-	 <20071105102335.GA6272@skynet.ie>
-	 <Pine.LNX.4.64.0711051446130.20927@schroedinger.engr.sgi.com>
-	 <20071107145619.GA32737@skynet.ie>
-Content-Type: text/plain
-Date: Wed, 07 Nov 2007 07:58:57 -0800
-Message-Id: <1194451138.26782.30.camel@dyn9047017100.beaverton.ibm.com>
-Mime-Version: 1.0
+Subject: SPAM:  Willkommensbonus - 555 Euro
+Date: Wed, 07 Nov 2007 15:14:46 -0200
+From: "Vegas VIP Kasino" <quezon@hurting.com>
+Message-ID: <92921405.89791045@calendrical.com>
+MIME-Version: 1.0
+Content-Type: text/html; charset=iso-8859-1
 Content-Transfer-Encoding: 7bit
-Sender: owner-linux-mm@kvack.org
-Return-Path: <owner-linux-mm@kvack.org>
-To: Mel Gorman <mel@skynet.ie>
-Cc: Christoph Lameter <clameter@sgi.com>, Chris Mason <chris.mason@oracle.com>, reiserfs-devel@vger.kernel.org, linux-mm <linux-mm@kvack.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>
+Return-Path: <quezon@hurting.com>
+To: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 2007-11-07 at 14:56 +0000, Mel Gorman wrote:
-> On (05/11/07 14:46), Christoph Lameter didst pronounce:
-> > On Mon, 5 Nov 2007, Mel Gorman wrote:
-> > 
-> > > The grow_dev_page() pages should be reclaimable even though migration
-> > > is not supported for those pages? They were marked movable as it was
-> > > useful for lumpy reclaim taking back pages for hugepage allocations and
-> > > the like. Would it make sense for memory unremove to attempt migration
-> > > first and reclaim second?
-> > 
-> > Note that a page is still movable even if there is no file system method 
-> > for migration available. In that case the page needs to be cleaned before 
-> > it can be moved.
-> > 
-> 
-> Badari, do you know if the pages failed to migrate because they were
-> dirty or because the filesystem simply had ownership of the pages and
-> wouldn't let them go?
+<html>
 
->From the debug, it looks like all the buffers are clean and they
-have a b_count == 1. So drop_buffers() fails to release the buffer.
+<head>
+<meta http-equiv=Content-Type content="text/html; charset=iso-8859-1">
 
-Thanks,
-Badari
+<title>Spielen ist Unterhaltung und Unterhaltung is das Beste im Leben</title>
 
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+<style>
+<!--
+ /* Style Definitions */
+ p.MsoNormal, li.MsoNormal, div.MsoNormal
+	{mso-style-parent:"";
+	margin:0cm;
+	margin-bottom:.0001pt;
+	mso-pagination:widow-orphan;
+	font-size:12.0pt;
+	font-family:"Times New Roman";
+	mso-fareast-font-family:"Times New Roman";}
+a:link, span.MsoHyperlink
+	{color:blue;
+	text-decoration:underline;
+	text-underline:single;}
+a:visited, span.MsoHyperlinkFollowed
+	{color:purple;
+	text-decoration:underline;
+	text-underline:single;}
+@page Section1
+	{size:595.3pt 841.9pt;
+	margin:2.0cm 42.5pt 2.0cm 3.0cm;
+	mso-header-margin:35.4pt;
+	mso-footer-margin:35.4pt;
+	mso-paper-source:0;}
+div.Section1
+	{page:Section1;}
+-->
+</style>
+
+</head>
+
+<body lang=DE link=blue vlink=purple style='tab-interval:35.4pt'>
+
+<div class=Section1>
+
+<p class=MsoNormal><span lang=EN-US style='mso-ansi-language:EN-US'>
+Spielen ist Unterhaltung und Unterhaltung is das Beste im Leben.
+<o:p></o:p></span></p>
+
+<p class=MsoNormal><span lang=EN-US style='mso-ansi-language:EN-US'>
+<o:p>&nbsp;</o:p></span></p>
+
+<p class=MsoNormal><span lang=EN-US style='mso-ansi-language:EN-US'>
+Das echte Spielen findet nur an einem Ort statt... VEGAS
+<o:p></o:p></span></p>
+
+<p class=MsoNormal><span lang=EN-US style='mso-ansi-language:EN-US'>
+<o:p>&nbsp;</o:p></span></p>
+
+<p class=MsoNormal><span lang=EN-US style='mso-ansi-language:EN-US'>
+Kommen und geniessen Sie Vegas VIP Casino.<o:p></o:p></span></p>
+
+<p class=MsoNormal><span lang=EN-US style='mso-ansi-language:EN-US'>
+<o:p>&nbsp;</o:p></span></p>
+
+<p class=MsoNormal><span lang=EN-US style='mso-ansi-language:EN-US'>
+Zus&auml;tzlich dazu ein exklusives Angebot nur f&uuml;r 
+Empf&auml;nger dieser E-Mail.<o:p></o:p></span></p>
+
+<p class=MsoNormal><span lang=EN-US style='mso-ansi-language:EN-US'>
+<o:p>&nbsp;</o:p></span></p>
+
+<p class=MsoNormal><span lang=EN-US style='mso-ansi-language:EN-US'>
+Ein UNGLAUBLICHER Bonus<o:p></o:p></span></p>
+
+<p class=MsoNormal><span lang=EN-US style='mso-ansi-language:EN-US'>
+200% Bonus auf Ihre erste Einzahlung! 100% auf je die zweite und 
+dritte Einzahlung! </span>Und als i-T&uuml;pfelchen 155% auf die 
+vierte Einzahlung<o:p></o:p></p>
+
+<p class=MsoNormal><span lang=EN-US style='mso-ansi-language:EN-US'>
+<o:p>&nbsp;</o:p></span></p>
+
+<p class=MsoNormal><span lang=EN-US style='mso-ansi-language:EN-US'>
+Verschwenden Sie keine Zeit und nutzen Sie diesen Bonus! &Uuml;ber 
+100 Casino Spiele, spektakul&auml;re Grafiken und eine erstklassige 
+Online Unterst&uuml;tzung<o:p></o:p></span></p>
+
+<p class=MsoNormal><span lang=EN-US style='mso-ansi-language:EN-US'>
+<o:p>&nbsp;</o:p></span></p>
+
+<p class=MsoNormal><span lang=EN-US style='mso-ansi-language:EN-US'>
+<a href="http://www.cometovegasvip.com/lang-de/">
+http://www.cometovegasvip.com/lang-de/</a><o:p></o:p></span></p>
+
+</div>
+
+</body>
+
+</html>
