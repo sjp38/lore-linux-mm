@@ -1,70 +1,105 @@
 From: Christoph Lameter <clameter@sgi.com>
-Subject: [patch 03/23] bufferhead: Revert constructor removal
-Date: Tue, 06 Nov 2007 17:11:33 -0800
-Message-ID: <20071107011227.071157941@sgi.com>
+Subject: [patch 02/23] SLUB: Rename NUMA defrag_ratio to remote_node_defrag_ratio
+Date: Tue, 06 Nov 2007 17:11:32 -0800
+Message-ID: <20071107011226.844437184@sgi.com>
 References: <20071107011130.382244340@sgi.com>
-Return-path: <linux-kernel-owner+glk-linux-kernel-3=40m.gmane.org-S1756817AbXKGBNj@vger.kernel.org>
-Content-Disposition: inline; filename=0015-slab_defrag_buffer_head_revert.patch
+Return-path: <linux-kernel-owner+glk-linux-kernel-3=40m.gmane.org-S1755312AbXKGBN1@vger.kernel.org>
+Content-Disposition: inline; filename=0003-slab_defrag_remote_node_defrag_ratio.patch
 Sender: linux-kernel-owner@vger.kernel.org
 To: akpm@linux-foundatin.org
 Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Mel Gorman <mel@skynet.ie>
 List-Id: linux-mm.kvack.org
 
-The constructor for buffer_head slabs was removed recently. We need
-the constructor in order to insure that slab objects always have a definite
-state even before we allocated them.
+We need the defrag ratio for the non NUMA situation now. The NUMA defrag works
+by allocating objects from partial slabs on remote nodes. Rename it to
+
+	remote_node_defrag_ratio
+
+to be clear about this.
 
 [This patch is already in mm]
 
 Reviewed-by: Rik van Riel <riel@redhat.com>
 Signed-off-by: Christoph Lameter <clameter@sgi.com>
-
 ---
- fs/buffer.c |   19 +++++++++++++++----
- 1 file changed, 15 insertions(+), 4 deletions(-)
+ include/linux/slub_def.h |    5 ++++-
+ mm/slub.c                |   17 +++++++++--------
+ 2 files changed, 13 insertions(+), 9 deletions(-)
 
-Index: linux-2.6/fs/buffer.c
+Index: linux-2.6/include/linux/slub_def.h
 ===================================================================
---- linux-2.6.orig/fs/buffer.c	2007-10-25 18:28:40.000000000 -0700
-+++ linux-2.6/fs/buffer.c	2007-11-06 12:55:45.000000000 -0800
-@@ -3169,10 +3169,9 @@ static void recalc_bh_state(void)
- 	
- struct buffer_head *alloc_buffer_head(gfp_t gfp_flags)
+--- linux-2.6.orig/include/linux/slub_def.h	2007-11-06 12:34:13.000000000 -0800
++++ linux-2.6/include/linux/slub_def.h	2007-11-06 12:36:28.000000000 -0800
+@@ -60,7 +60,10 @@ struct kmem_cache {
+ #endif
+ 
+ #ifdef CONFIG_NUMA
+-	int defrag_ratio;
++	/*
++	 * Defragmentation by allocating from a remote node.
++	 */
++	int remote_node_defrag_ratio;
+ 	struct kmem_cache_node *node[MAX_NUMNODES];
+ #endif
+ #ifdef CONFIG_SMP
+Index: linux-2.6/mm/slub.c
+===================================================================
+--- linux-2.6.orig/mm/slub.c	2007-11-06 12:36:16.000000000 -0800
++++ linux-2.6/mm/slub.c	2007-11-06 12:37:25.000000000 -0800
+@@ -1345,7 +1345,8 @@ static unsigned long get_any_partial(str
+ 	 * expensive if we do it every time we are trying to find a slab
+ 	 * with available objects.
+ 	 */
+-	if (!s->defrag_ratio || get_cycles() % 1024 > s->defrag_ratio)
++	if (!s->remote_node_defrag_ratio ||
++			get_cycles() % 1024 > s->remote_node_defrag_ratio)
+ 		return 0;
+ 
+ 	zonelist = &NODE_DATA(slab_node(current->mempolicy))
+@@ -2363,7 +2364,7 @@ static int kmem_cache_open(struct kmem_c
+ 
+ 	s->refcount = 1;
+ #ifdef CONFIG_NUMA
+-	s->defrag_ratio = 100;
++	s->remote_node_defrag_ratio = 100;
+ #endif
+ 	if (!init_kmem_cache_nodes(s, gfpflags & ~SLUB_DMA))
+ 		goto error;
+@@ -4005,21 +4006,21 @@ static ssize_t free_calls_show(struct km
+ SLAB_ATTR_RO(free_calls);
+ 
+ #ifdef CONFIG_NUMA
+-static ssize_t defrag_ratio_show(struct kmem_cache *s, char *buf)
++static ssize_t remote_node_defrag_ratio_show(struct kmem_cache *s, char *buf)
  {
--	struct buffer_head *ret = kmem_cache_zalloc(bh_cachep,
-+	struct buffer_head *ret = kmem_cache_alloc(bh_cachep,
- 				set_migrateflags(gfp_flags, __GFP_RECLAIMABLE));
- 	if (ret) {
--		INIT_LIST_HEAD(&ret->b_assoc_buffers);
- 		get_cpu_var(bh_accounting).nr++;
- 		recalc_bh_state();
- 		put_cpu_var(bh_accounting);
-@@ -3213,12 +3212,24 @@ static int buffer_cpu_notify(struct noti
- 	return NOTIFY_OK;
+-	return sprintf(buf, "%d\n", s->defrag_ratio / 10);
++	return sprintf(buf, "%d\n", s->remote_node_defrag_ratio / 10);
  }
  
-+static void
-+init_buffer_head(void *data, struct kmem_cache *cachep, unsigned long flags)
-+{
-+	struct buffer_head * bh = (struct buffer_head *)data;
-+
-+	memset(bh, 0, sizeof(*bh));
-+	INIT_LIST_HEAD(&bh->b_assoc_buffers);
-+}
-+
- void __init buffer_init(void)
+-static ssize_t defrag_ratio_store(struct kmem_cache *s,
++static ssize_t remote_node_defrag_ratio_store(struct kmem_cache *s,
+ 				const char *buf, size_t length)
  {
- 	int nrpages;
+ 	int n = simple_strtoul(buf, NULL, 10);
  
--	bh_cachep = KMEM_CACHE(buffer_head,
--			SLAB_RECLAIM_ACCOUNT|SLAB_PANIC|SLAB_MEM_SPREAD);
-+	bh_cachep = kmem_cache_create("buffer_head",
-+			sizeof(struct buffer_head), 0,
-+				(SLAB_RECLAIM_ACCOUNT|SLAB_PANIC|
-+				SLAB_MEM_SPREAD),
-+				init_buffer_head);
+ 	if (n < 100)
+-		s->defrag_ratio = n * 10;
++		s->remote_node_defrag_ratio = n * 10;
+ 	return length;
+ }
+-SLAB_ATTR(defrag_ratio);
++SLAB_ATTR(remote_node_defrag_ratio);
+ #endif
  
- 	/*
- 	 * Limit the bh occupancy to 10% of ZONE_NORMAL
+ static struct attribute * slab_attrs[] = {
+@@ -4050,7 +4051,7 @@ static struct attribute * slab_attrs[] =
+ 	&cache_dma_attr.attr,
+ #endif
+ #ifdef CONFIG_NUMA
+-	&defrag_ratio_attr.attr,
++	&remote_node_defrag_ratio_attr.attr,
+ #endif
+ 	NULL
+ };
 
 -- 
