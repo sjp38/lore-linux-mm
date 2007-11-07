@@ -1,41 +1,35 @@
-Received: by nf-out-0910.google.com with SMTP id h3so1646953nfh
-        for <linux-mm@kvack.org>; Wed, 07 Nov 2007 00:37:45 -0800 (PST)
-Message-ID: <47317957.1050504@gmail.com>
-Date: Wed, 07 Nov 2007 09:37:43 +0100
-From: Jiri Olsa <olsajiri@gmail.com>
-MIME-Version: 1.0
-Subject: [PATCH] mm: Removing duplicit #includes
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Date: Wed, 7 Nov 2007 09:50:27 +0100
+From: Johannes Weiner <hannes-kernel@saeurebad.de>
+Subject: Re: [patch 04/23] dentries: Extract common code to remove dentry from lru
+Message-ID: <20071107085027.GA6243@cataract>
+References: <20071107011130.382244340@sgi.com> <20071107011227.298491275@sgi.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20071107011227.298491275@sgi.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
+To: Christoph Lameter <clameter@sgi.com>
+Cc: akpm@linux-foundatin.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Mel Gorman <mel@skynet.ie>
 List-ID: <linux-mm.kvack.org>
 
-Removing duplicit #includes for mm/
-Signed-off-by: Jiri Olsa <olsajiri@gmail.com>
----
-+++ b/mm/filemap.c
-@@ -28,7 +28,6 @@
- #include <linux/backing-dev.h>
- #include <linux/pagevec.h>
- #include <linux/blkdev.h>
--#include <linux/backing-dev.h>
- #include <linux/security.h>
- #include <linux/syscalls.h>
- #include <linux/cpuset.h>
-diff --git a/mm/swapfile.c b/mm/swapfile.c
-index f071648..83da158 100644
---- a/mm/swapfile.c
-+++ b/mm/swapfile.c
-@@ -1153,7 +1153,6 @@ out:
- }
- 
- #if 0  /* We don't need this yet */
--#include <linux/backing-dev.h>
- int page_queue_congested(struct page *page)
- {
-        struct backing_dev_info *bdi;
+Hi Christoph,
+
+On Tue, Nov 06, 2007 at 05:11:34PM -0800, Christoph Lameter wrote:
+> @@ -613,11 +606,7 @@ static void shrink_dcache_for_umount_sub
+>  			spin_lock(&dcache_lock);
+>  			list_for_each_entry(loop, &dentry->d_subdirs,
+>  					    d_u.d_child) {
+> -				if (!list_empty(&loop->d_lru)) {
+> -					dentry_stat.nr_unused--;
+> -					list_del_init(&loop->d_lru);
+> -				}
+> -
+> +				dentry_lru_remove(dentry);
+
+Shouldn't this be dentry_lru_remove(loop)?
+
+	Hannes
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
