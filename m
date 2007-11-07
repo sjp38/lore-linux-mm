@@ -1,44 +1,62 @@
-Date: Wed, 7 Nov 2007 11:35:55 +0100
-From: =?utf-8?B?SsO2cm4=?= Engel <joern@logfs.org>
-Subject: Re: [patch 14/23] inodes: Support generic defragmentation
-Message-ID: <20071107103554.GF7374@lazybastard.org>
-References: <20071107011130.382244340@sgi.com> <20071107011229.893091119@sgi.com> <20071107101748.GC7374@lazybastard.org> <je8x5aibry.fsf@sykes.suse.de>
+Date: Wed, 7 Nov 2007 09:35:27 -0500
+From: Rik van Riel <riel@redhat.com>
+Subject: Re: [RFC PATCH 3/10] define page_file_cache
+Message-ID: <20071107093527.0d312903@bree.surriel.com>
+In-Reply-To: <Pine.LNX.4.64.0711061920510.5746@schroedinger.engr.sgi.com>
+References: <20071103184229.3f20e2f0@bree.surriel.com>
+	<20071103185516.24832ab0@bree.surriel.com>
+	<Pine.LNX.4.64.0711061821010.5249@schroedinger.engr.sgi.com>
+	<20071106215552.4ab7df81@bree.surriel.com>
+	<Pine.LNX.4.64.0711061856400.5565@schroedinger.engr.sgi.com>
+	<20071106221710.3f9b8dd6@bree.surriel.com>
+	<Pine.LNX.4.64.0711061920510.5746@schroedinger.engr.sgi.com>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <je8x5aibry.fsf@sykes.suse.de>
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andreas Schwab <schwab@suse.de>
-Cc: =?utf-8?B?SsO2cm4=?= Engel <joern@logfs.org>, Christoph Lameter <clameter@sgi.com>, akpm@linux-foundatin.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Mel Gorman <mel@skynet.ie>
+To: Christoph Lameter <clameter@sgi.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 7 November 2007 11:35:13 +0100, Andreas Schwab wrote:
-> >
-> > The fact that all pointers get changed makes me a bit uneasy:
-> > 	struct foo_inode v[20];
-> > 	...
-> > 	fs_get_inodes(..., v, ...);
-> > 	...
-> > 	v[0].foo_field = bar;
-> > 	
-> > No warning, but spectacular fireworks.
+On Tue, 6 Nov 2007 19:26:33 -0800 (PST)
+Christoph Lameter <clameter@sgi.com> wrote:
+> n Tue, 6 Nov 2007, Rik van Riel wrote:
 > 
-> You'l get a warning that struct foo_inode * is incompatible with void **.
-- 	struct foo_inode v[20];
-+ 	struct foo_inode *v[20];
+> > Every anonymous, tmpfs or shared memory segment page is potentially
+> > swap backed. That is the whole point of the PG_swapbacked flag.
+> 
+> One of the current issues with anonymous pages is the accounting when 
+> they become file backed and get dirty.
 
-Looks like my example needs a patch as well.  Anyway, the function is
-used in a way that makes this a non-issue.
+What are you talking about?
 
-JA?rn
+How exactly can an anonymous page ever become file backed?
+
+> There are performance issue with swap writeout
+
+That is one of the reasons everything that is ram/swap backed
+goes onto a different set of LRU lists from everything that is
+backed by a disk or network filesystem.
+
+> Do ramfs pages count as memory backed?
+
+Since ramfs pages cannot be evicted from memory at all, they
+should go into the "noreclaim" page set.
+
+> > A page from a filesystem like ext3 or NFS cannot suddenly turn into
+> > a swap backed page.  This page "nature" is not changed during the
+> > lifetime of a page.
+> 
+> Well COW sortof does that but then its a new page.
+
+Exactly.  As far as I know, a page never changes from a file
+page into an anonymous page, or the other way around.
 
 -- 
-You cannot suppose that Moliere ever troubled himself to be original in the
-matter of ideas. You cannot suppose that the stories he tells in his plays
-have never been told before. They were culled, as you very well know.
--- Andre-Louis Moreau in Scarabouche
+"Debugging is twice as hard as writing the code in the first place.
+Therefore, if you write the code as cleverly as possible, you are,
+by definition, not smart enough to debug it." - Brian W. Kernighan
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
