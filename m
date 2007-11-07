@@ -1,120 +1,43 @@
-Subject: SPAM:  
-  =?iso-8859-1?Q?Ich_wollte_Ihnen_nur_mitteilen=2C_dass_das_Gl=FCck_endl?=
-  =?iso-8859-1?Q?ich?=
-  =?iso-8859-1?Q?_auch_an_meine_T=FCr_geklopft_hat!?=
-Date: Wed, 07 Nov 2007 15:42:51 +0100
-Message-ID: <22227377.13403056@apollonian.com>
-From: "Andrea" <dexter@madhuri.com>
+Date: Wed, 7 Nov 2007 14:56:19 +0000
+Subject: Re: migratepage failures on reiserfs
+Message-ID: <20071107145619.GA32737@skynet.ie>
+References: <20071030135442.5d33c61c@think.oraclecorp.com> <1193781245.8904.28.camel@dyn9047017100.beaverton.ibm.com> <20071030185840.48f5a10b@think.oraclecorp.com> <1193847261.17412.13.camel@dyn9047017100.beaverton.ibm.com> <20071031134006.2ecd520b@think.oraclecorp.com> <1193935137.26106.5.camel@dyn9047017100.beaverton.ibm.com> <20071101115103.62de4b2e@think.oraclecorp.com> <1193940626.26106.13.camel@dyn9047017100.beaverton.ibm.com> <20071105102335.GA6272@skynet.ie> <Pine.LNX.4.64.0711051446130.20927@schroedinger.engr.sgi.com>
 MIME-Version: 1.0
-Content-Type: text/html; charset=iso-8859-1
-Content-Transfer-Encoding: 7bit
-Return-Path: <dexter@madhuri.com>
-To: owner-linux-mm@kvack.org
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <Pine.LNX.4.64.0711051446130.20927@schroedinger.engr.sgi.com>
+From: mel@skynet.ie (Mel Gorman)
+Sender: owner-linux-mm@kvack.org
+Return-Path: <owner-linux-mm@kvack.org>
+To: Christoph Lameter <clameter@sgi.com>
+Cc: Badari Pulavarty <pbadari@us.ibm.com>, Chris Mason <chris.mason@oracle.com>, reiserfs-devel@vger.kernel.org, linux-mm <linux-mm@kvack.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-<html>
+On (05/11/07 14:46), Christoph Lameter didst pronounce:
+> On Mon, 5 Nov 2007, Mel Gorman wrote:
+> 
+> > The grow_dev_page() pages should be reclaimable even though migration
+> > is not supported for those pages? They were marked movable as it was
+> > useful for lumpy reclaim taking back pages for hugepage allocations and
+> > the like. Would it make sense for memory unremove to attempt migration
+> > first and reclaim second?
+> 
+> Note that a page is still movable even if there is no file system method 
+> for migration available. In that case the page needs to be cleaned before 
+> it can be moved.
+> 
 
-<head>
-<meta http-equiv=Content-Type content="text/html; charset=iso-8859-1">
+Badari, do you know if the pages failed to migrate because they were
+dirty or because the filesystem simply had ownership of the pages and
+wouldn't let them go?
 
+-- 
+Mel Gorman
+Part-time Phd Student                          Linux Technology Center
+University of Limerick                         IBM Dublin Software Lab
 
-<style>
-<!--
- /* Style Definitions */
- p.MsoNormal, li.MsoNormal, div.MsoNormal
-	{mso-style-parent:"";
-	margin:0cm;
-	margin-bottom:.0001pt;
-	mso-pagination:widow-orphan;
-	font-size:12.0pt;
-	font-family:"Times New Roman";
-	mso-fareast-font-family:"Times New Roman";}
-a:link, span.MsoHyperlink
-	{color:blue;
-	text-decoration:underline;
-	text-underline:single;}
-a:visited, span.MsoHyperlinkFollowed
-	{color:purple;
-	text-decoration:underline;
-	text-underline:single;}
-pre
-	{margin:0cm;
-	margin-bottom:.0001pt;
-	mso-pagination:widow-orphan;
-	font-size:10.0pt;
-	font-family:"Courier New";
-	mso-fareast-font-family:"Times New Roman";}
-@page Section1
-	{size:595.3pt 841.9pt;
-	margin:2.0cm 42.5pt 2.0cm 3.0cm;
-	mso-header-margin:35.4pt;
-	mso-footer-margin:35.4pt;
-	mso-paper-source:0;}
-div.Section1
-	{page:Section1;}
--->
-</style>
-
-</head>
-
-<body lang=DE link=blue vlink=purple style='tab-interval:35.4pt'>
-
-<div class=Section1>
-
-<p class=MsoNormal>Hi,<o:p></o:p></p>
-
-<p class=MsoNormal><o:p>&nbsp;</o:p></p>
-
-<p class=MsoNormal>Ich wollte Ihnen nur mitteilen, dass das Gl&uuml;ck 
-endlich auch an meine T&uuml;r geklopft hat!<o:p></o:p></p>
-
-<p class=MsoNormal><o:p>&nbsp;</o:p></p>
-
-<p class=MsoNormal>Vor einem Monat habe ich gro&#223;artige Spiele mit 
-wirklich guten Grafiken entdeckt. Ich hatte wirklich nicht damit gerechnet zu
-gewinnen...ich wollte einfach nur Spa&#223; haben. <o:p></o:p></p>
-
-<p class=MsoNormal><o:p>&nbsp;</o:p></p>
-
-<p class=MsoNormal>Ich zahlte 50$ und erhielt einen sch&ouml;nen Bonus in 
-H&ouml;he von 50$ bonus ....und ich verlor beide Betr&auml;ge beim Roulette. 
-Ich zahlte weitere $20 ein und begann die progressiven Jackpots zu spielen, - 
-und BOOM - $129,300!<o:p></o:p></p>
-
-<p class=MsoNormal><o:p>&nbsp;</o:p></p>
-
-<p class=MsoNormal>Der Kundenservice rief mich sofort an, um mir zu 
-gratulieren und mir beim Abheben der Summe behilflich zu sein &#8211; sie 
-waren sehr nett und fair. <o:p></o:p></p>
-
-<p class=MsoNormal><o:p>&nbsp;</o:p></p>
-
-<p class=MsoNormal>Ich bin so gl&uuml;cklich, dass ich einfach der ganzen Welt
-erz&auml;hlen wollte, dass eines Tages das Gl&uuml;ck zu jedem kommt. 
-<o:p></o:p></p>
-
-<p class=MsoNormal><o:p>&nbsp;</o:p></p>
-
-<p class=MsoNormal>Klicken Sie einfach hier und genie&#223;en Sie die 
-gro&#223;artigen Spiele ... Ich hoffe, dass diese Email Ihnen ebenfalls 
-soviel Gl&uuml;ck bringen wird.<o:p></o:p></p>
-
-<p class=MsoNormal><span lang=EN-US style='mso-ansi-language:EN-US'>
-<o:p>&nbsp;</o:p></span></p>
-
-<p class=MsoNormal><span lang=EN-US style='mso-ansi-language:EN-US'>
-<a href="http://www.messocasino.com/lang-de/">
-http://www.messocasino.com/lang-de/</a><o:p></o:p></span></p>
-
-<p class=MsoNormal><span lang=EN-US style='mso-ansi-language:EN-US'>
-<o:p>&nbsp;</o:p></span></p>
-
-<p class=MsoNormal>Andrea<o:p></o:p></p>
-
-<p class=MsoNormal><o:p>&nbsp;</o:p></p>
-
-</div>
-
-</body>
-
-</html>
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
