@@ -1,10 +1,10 @@
-Date: Thu, 8 Nov 2007 10:59:29 -0800 (PST)
+Date: Thu, 8 Nov 2007 11:00:32 -0800 (PST)
 From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [patch 07/23] SLUB: Add defrag_ratio field and sysfs support.
-In-Reply-To: <20071108150705.GD2591@skynet.ie>
-Message-ID: <Pine.LNX.4.64.0711081057290.8954@schroedinger.engr.sgi.com>
-References: <20071107011130.382244340@sgi.com> <20071107011228.102370371@sgi.com>
- <20071108150705.GD2591@skynet.ie>
+Subject: Re: [patch 12/23] SLUB: Trigger defragmentation from memory reclaim
+In-Reply-To: <20071108151249.GE2591@skynet.ie>
+Message-ID: <Pine.LNX.4.64.0711081059420.8954@schroedinger.engr.sgi.com>
+References: <20071107011130.382244340@sgi.com> <20071107011229.423714790@sgi.com>
+ <20071108151249.GE2591@skynet.ie>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
@@ -15,25 +15,15 @@ List-ID: <linux-mm.kvack.org>
 
 On Thu, 8 Nov 2007, Mel Gorman wrote:
 
-> On (06/11/07 17:11), Christoph Lameter didst pronounce:
-> > The defrag_ratio is used to set the threshold at which defragmentation
-> > should be run on a slabcache.
-> > 
+> >  	up_read(&shrinker_rwsem);
+> > +	if (gfp_mask & __GFP_FS)
+> > +		kmem_cache_defrag(zone ? zone_to_nid(zone) : -1);
 > 
-> I'm thick, I would like to see a quick note here on what defragmentation
-> means. Also, this defrag_ratio seems to have a significantly different
-> meaning to the other defrag_ratio which isn't helping my poor head at
-> all.
+> Does this make an assumption that only filesystem-related slabs may be
+> targetted for reclaim? What if there is a slab that can free its objects
+> without ever caring about a filesystem?
 
-Yes that is why they have different names. The remote_node_defrag ratio 
-controls the amount of remote allocs we do to reduce fragmentation.
- 
-> "The defrag_ratio sets a threshold at which a slab will be vacated of all
-> it's objects and the pages freed during memory reclaim."
-
-Sortof. If a slab is beyond the threshold during reclaim then reclaim will 
-attempt to free the remaining objects in the slab to reclaim the whole 
-slab.
+Correct. Currently only filesystem related slabs support slab defragy.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
