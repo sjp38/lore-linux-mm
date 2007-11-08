@@ -1,31 +1,28 @@
-Date: Thu, 8 Nov 2007 11:16:33 -0800 (PST)
+Date: Thu, 8 Nov 2007 11:39:29 -0800 (PST)
 From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [patch 02/23] SLUB: Rename NUMA defrag_ratio to remote_node_defrag_ratio
-In-Reply-To: <20071108172548.GW17536@waste.org>
-Message-ID: <Pine.LNX.4.64.0711081116060.9279@schroedinger.engr.sgi.com>
-References: <20071107011130.382244340@sgi.com> <20071107011226.844437184@sgi.com>
- <20071108145044.GB2591@skynet.ie> <20071108172548.GW17536@waste.org>
+Subject: Re: Plans for Onezonelist patch series ???
+In-Reply-To: <20071108183930.GB23882@skynet.ie>
+Message-ID: <Pine.LNX.4.64.0711081137200.9623@schroedinger.engr.sgi.com>
+References: <20071107011130.382244340@sgi.com> <1194535612.6214.9.camel@localhost>
+ <1194537674.5295.8.camel@localhost> <20071108183930.GB23882@skynet.ie>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Matt Mackall <mpm@selenic.com>
-Cc: Mel Gorman <mel@skynet.ie>, akpm@linux-foundatin.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Mel Gorman <mel@skynet.ie>
+Cc: Lee Schermerhorn <Lee.Schermerhorn@hp.com>, akpm@linux-foundatin.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 8 Nov 2007, Matt Mackall wrote:
+On Thu, 8 Nov 2007, Mel Gorman wrote:
 
-> > I cannot figure out what the number of cycles currently showing on the TSC
-> > have to do with a ratio :(. I could semi-understand if we were counting up
-> > how many cycles were being spent trying to pack objects but that does not
-> > appear to be the case. The comment didn't help a whole lot either. It felt
-> > like a cost for packing, not a ratio
-> 
-> It's just a random number generator. And a bad one: lots of arches
-> return 0. And I believe at least one of them has some NUMA support.
+> I was holding off trying to add new features to current mainline or -mm as
+> there were a number of stability issues and one-zonelist touches a number
+> of areas.  Minimally, I was waiting for another -mm to come out and rebase
+> to that.  I'll rebase to latest git tomorrow, see how that looks and post
+> it if passes regression tests on Monday.
 
-Do we have a better one? Something with minimal processing overhead? I'd 
-be glad to switch it.
+Ahh. Great. I am also impatiently waiting for that patchset. I was tempted 
+several times this week to just pick up where you left off...
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
