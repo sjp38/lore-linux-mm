@@ -1,288 +1,77 @@
-Received: from d01relay02.pok.ibm.com (d01relay02.pok.ibm.com [9.56.227.234])
-	by e2.ny.us.ibm.com (8.13.8/8.13.8) with ESMTP id lA8JlQf7000858
-	for <linux-mm@kvack.org>; Thu, 8 Nov 2007 14:47:26 -0500
-Received: from d01av04.pok.ibm.com (d01av04.pok.ibm.com [9.56.224.64])
-	by d01relay02.pok.ibm.com (8.13.8/8.13.8/NCO v8.5) with ESMTP id lA8JlQOg452628
-	for <linux-mm@kvack.org>; Thu, 8 Nov 2007 14:47:26 -0500
-Received: from d01av04.pok.ibm.com (loopback [127.0.0.1])
-	by d01av04.pok.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id lA8JlQcG032412
-	for <linux-mm@kvack.org>; Thu, 8 Nov 2007 14:47:26 -0500
-Date: Thu, 8 Nov 2007 14:47:25 -0500
+Received: from d03relay02.boulder.ibm.com (d03relay02.boulder.ibm.com [9.17.195.227])
+	by e34.co.us.ibm.com (8.13.8/8.13.8) with ESMTP id lA8JlMoa019849
+	for <linux-mm@kvack.org>; Thu, 8 Nov 2007 14:47:22 -0500
+Received: from d03av04.boulder.ibm.com (d03av04.boulder.ibm.com [9.17.195.170])
+	by d03relay02.boulder.ibm.com (8.13.8/8.13.8/NCO v8.5) with ESMTP id lA8JlLH2081956
+	for <linux-mm@kvack.org>; Thu, 8 Nov 2007 12:47:21 -0700
+Received: from d03av04.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av04.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id lA8JlKuC029916
+	for <linux-mm@kvack.org>; Thu, 8 Nov 2007 12:47:20 -0700
+Date: Thu, 8 Nov 2007 12:47:18 -0700
 From: Dave Kleikamp <shaggy@linux.vnet.ibm.com>
-Message-Id: <20071108194724.17862.6594.sendpatchset@norville.austin.ibm.com>
+Message-Id: <20071108194716.17862.97057.sendpatchset@norville.austin.ibm.com>
 In-Reply-To: <20071108194709.17862.16713.sendpatchset@norville.austin.ibm.com>
 References: <20071108194709.17862.16713.sendpatchset@norville.austin.ibm.com>
-Subject: [RFC:PATCH 02/09] Core function for packing, unpacking, and freeing file tails
+Subject: [RFC:PATCH 01/09] Add tail to address space
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: linux-fsdevel <linux-fsdevel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-Core function for packing, unpacking, and freeing file tails
-
-Cleanups by "Luiz Fernando N. Capitulino" <lcapitulino@mandriva.com.br>
+Add tail to address space
 
 Signed-off-by: Dave Kleikamp <shaggy@linux.vnet.ibm.com>
 
 ---
 
- include/linux/vm_file_tail.h |   66 ++++++++++++++++
- mm/Makefile                  |    1 
- mm/file_tail.c               |  169 +++++++++++++++++++++++++++++++++++++++++++
- 3 files changed, 236 insertions(+)
+ fs/inode.c         |    3 +++
+ include/linux/fs.h |    4 ++++
+ mm/Kconfig         |    9 +++++++++
+ 3 files changed, 16 insertions(+)
 
-diff -Nurp linux001/include/linux/vm_file_tail.h linux002/include/linux/vm_file_tail.h
---- linux001/include/linux/vm_file_tail.h	1969-12-31 18:00:00.000000000 -0600
-+++ linux002/include/linux/vm_file_tail.h	2007-11-08 10:49:46.000000000 -0600
-@@ -0,0 +1,66 @@
-+#ifndef FILE_TAIL_H
-+#define FILE_TAIL_H
-+
-+#include <linux/fs.h>
-+#include <linux/pagemap.h>
-+
-+/*
-+ * This file deals with storing tails of files in buffers smaller than a page.
-+ *
-+ * FIXME: The contents of the file could possibly go into linux/pagemap.h.
-+ */
-+
+diff -Nurp linux000/fs/inode.c linux001/fs/inode.c
+--- linux000/fs/inode.c	2007-11-07 08:13:54.000000000 -0600
++++ linux001/fs/inode.c	2007-11-08 10:49:46.000000000 -0600
+@@ -213,6 +213,9 @@ void inode_init_once(struct inode *inode
+ 	spin_lock_init(&inode->i_data.i_mmap_lock);
+ 	INIT_LIST_HEAD(&inode->i_data.private_list);
+ 	spin_lock_init(&inode->i_data.private_lock);
 +#ifdef CONFIG_VM_FILE_TAILS
++	spin_lock_init(&inode->i_data.tail_lock);
++#endif
+ 	INIT_RAW_PRIO_TREE_ROOT(&inode->i_data.i_mmap);
+ 	INIT_LIST_HEAD(&inode->i_data.i_mmap_nonlinear);
+ 	i_size_ordered_init(inode);
+diff -Nurp linux000/include/linux/fs.h linux001/include/linux/fs.h
+--- linux000/include/linux/fs.h	2007-11-07 08:13:59.000000000 -0600
++++ linux001/include/linux/fs.h	2007-11-08 10:49:46.000000000 -0600
+@@ -511,6 +511,10 @@ struct address_space {
+ 	spinlock_t		private_lock;	/* for use by the address_space */
+ 	struct list_head	private_list;	/* ditto */
+ 	struct address_space	*assoc_mapping;	/* ditto */
++#ifdef CONFIG_VM_FILE_TAILS
++	void			*tail;		/* file tail */
++	spinlock_t		tail_lock;	/* protect tail */
++#endif
+ } __attribute__((aligned(sizeof(long))));
+ 	/*
+ 	 * On most architectures that alignment is already the case; but
+diff -Nurp linux000/mm/Kconfig linux001/mm/Kconfig
+--- linux000/mm/Kconfig	2007-11-07 08:14:01.000000000 -0600
++++ linux001/mm/Kconfig	2007-11-08 10:49:46.000000000 -0600
+@@ -194,3 +194,12 @@ config NR_QUICK
+ config VIRT_TO_BUS
+ 	def_bool y
+ 	depends on !ARCH_NO_VIRT_TO_BUS
 +
-+static inline int vm_file_tail_packed(struct address_space *mapping)
-+{
-+	return (mapping->tail != NULL);
-+}
-+
-+static inline unsigned long vm_file_tail_index(struct address_space *mapping)
-+{
-+	return (unsigned long) (i_size_read(mapping->host) >> PAGE_CACHE_SHIFT);
-+}
-+
-+static inline int vm_file_tail_length(struct address_space *mapping)
-+{
-+	return (int) (i_size_read(mapping->host) & (PAGE_CACHE_SIZE - 1));
-+}
-+
-+void __vm_file_tail_free(struct address_space *);
-+
-+static inline void vm_file_tail_free(struct address_space *mapping)
-+{
-+	if (mapping && mapping->tail)
-+		__vm_file_tail_free(mapping);
-+}
-+
-+/*
-+ * vm_file_tail_pack() returns 1 on success, 0 otherwise
-+ *
-+ * The caller must hold a reference on the page
-+ */
-+int vm_file_tail_pack(struct page *);
-+void vm_file_tail_unpack(struct address_space *);
-+
-+/*
-+ * Unpack the tail if it's at the specified index
-+ */
-+static inline void vm_file_tail_unpack_index(struct address_space *mapping,
-+					     unsigned long index)
-+{
-+	if (mapping->tail && index == vm_file_tail_index(mapping))
-+		vm_file_tail_unpack(mapping);
-+}
-+
-+#else /* !CONFIG_VM_FILE_TAILS */
-+
-+#define vm_file_tail_packed(mapping) 0
-+#define vm_file_tail_free(mapping) do {} while (0)
-+#define vm_file_tail_pack(page) 0
-+#define vm_file_tail_unpack(mapping) do {} while (0)
-+#define vm_file_tail_unpack_index(mapping, index) do {} while (0)
-+
-+#endif /* CONFIG_VM_FILE_TAILS */
-+
-+#endif	/* FILE_TAIL_H */
-diff -Nurp linux001/mm/Makefile linux002/mm/Makefile
---- linux001/mm/Makefile	2007-11-07 08:14:01.000000000 -0600
-+++ linux002/mm/Makefile	2007-11-08 10:49:46.000000000 -0600
-@@ -30,4 +30,5 @@ obj-$(CONFIG_FS_XIP) += filemap_xip.o
- obj-$(CONFIG_MIGRATION) += migrate.o
- obj-$(CONFIG_SMP) += allocpercpu.o
- obj-$(CONFIG_QUICKLIST) += quicklist.o
-+obj-$(CONFIG_VM_FILE_TAILS) += file_tail.o
- 
-diff -Nurp linux001/mm/file_tail.c linux002/mm/file_tail.c
---- linux001/mm/file_tail.c	1969-12-31 18:00:00.000000000 -0600
-+++ linux002/mm/file_tail.c	2007-11-08 10:49:46.000000000 -0600
-@@ -0,0 +1,169 @@
-+/*
-+ *	linux/mm/file_tail.c
-+ *
-+ * Copyright (C) International Business Machines  Corp., 2006-2007
-+ * Author: Dave Kleikamp <shaggy@linux.vnet.ibm.com>
-+ */
-+
-+/*
-+ * VM File Tails are used to compactly store the data at the end of the
-+ * file in a small SLAB-allocated buffer when the base page size is large.
-+ */
-+
-+#include <linux/buffer_head.h>
-+#include <linux/fs.h>
-+#include <linux/hardirq.h>
-+#include <linux/vm_file_tail.h>
-+
-+/*
-+ * Free the file tail
-+ *
-+ * Don't worry about a race.  It's essentially a no-op if mapping->tail
-+ * is NULL.
-+ */
-+void __vm_file_tail_free(struct address_space *mapping)
-+{
-+	unsigned long flags;
-+	void *tail;
-+
-+	spin_lock_irqsave(&mapping->tail_lock, flags);
-+	tail = mapping->tail;
-+	mapping->tail = NULL;
-+	spin_unlock_irqrestore(&mapping->tail_lock, flags);
-+	kfree(tail);
-+}
-+
-+/*
-+ * Unpack tail into page cache.
-+ *
-+ * The tail is never modfied, and can be safely discarded on error
-+ */
-+void vm_file_tail_unpack(struct address_space *mapping)
-+{
-+	unsigned int flags;
-+	gfp_t gfp_mask;
-+	pgoff_t index;
-+	void *kaddr;
-+	int length;
-+	struct page *page;
-+	void *tail;
-+
-+	if (!mapping->tail)
-+		return;
-+
-+	/* Allocate page */
-+
-+	if (in_atomic())
-+		gfp_mask = GFP_NOWAIT;
-+	else
-+		gfp_mask = mapping_gfp_mask(mapping);
-+
-+	page = __page_cache_alloc(gfp_mask);
-+
-+	/* Copy data from tail to new page */
-+	if (page) {
-+		spin_lock_irqsave(&mapping->tail_lock, flags);
-+		index = vm_file_tail_index(mapping);
-+		length = vm_file_tail_length(mapping);
-+		tail = mapping->tail;
-+		mapping->tail = NULL;
-+		spin_unlock_irqrestore(&mapping->tail_lock, flags);
-+
-+		if (!tail) {	/* someone else freed the tail */
-+			page_cache_release(page);
-+			return;
-+		}
-+
-+		kaddr = kmap_atomic(page, KM_USER0);
-+		memcpy(kaddr, tail, length);
-+		memset(kaddr + length, 0, PAGE_CACHE_SIZE - length);
-+		kunmap_atomic(kaddr, KM_USER0);
-+
-+		kfree(tail);
-+
-+		add_to_page_cache_lru(page, mapping, index, gfp_mask);
-+		unlock_page(page);
-+		page_cache_release(page);
-+	} else
-+		/* Free the tail */
-+		__vm_file_tail_free(mapping);
-+}
-+
-+static int page_not_eligible(struct page *page)
-+{
-+	if (!page->mapping || page->mapping->tail)
-+		return 1;
-+
-+	if (PageDirty(page) || !PageUptodate(page) || PageWriteback(page))
-+		return 1;
-+
-+	if ((page_count(page) > 2) || mapping_mapped(page->mapping) ||
-+	    PageSwapCache(page))
-+		return 1;
-+
-+	return 0;
-+}
-+
-+/* * Determine if the page is eligible to be packed, and if so, pack it
-+ *
-+ * Non-fatal if this fails. The page will remain in the page cache.
-+ *
-+ * Returns 1 if the page was packed, 0 otherwise
-+ */
-+int vm_file_tail_pack(struct page *page)
-+{
-+	unsigned long flags;
-+	pgoff_t index;
-+	void *kaddr;
-+	int length, ret = 0;
-+	struct address_space *mapping;
-+	void *tail;
-+
-+	if (TestSetPageLocked(page))
-+		return 0;
-+
-+	if (page_not_eligible(page))
-+		goto out;
-+
-+	mapping = page->mapping;
-+	index = vm_file_tail_index(mapping);
-+	length = vm_file_tail_length(mapping);
-+
-+	if ((index != page->index) ||
-+	    (length > PAGE_CACHE_SIZE / 2))
-+		goto out;
-+
-+	if (PagePrivate(page) && !try_to_release_page(page, 0))
-+		goto out;
-+
-+	tail = kmalloc(length, GFP_NOWAIT);
-+	if (!tail)
-+		goto out;
-+
-+	kaddr = kmap_atomic(page, KM_USER0);
-+	memcpy(tail, kaddr, length);
-+	kunmap_atomic(kaddr, KM_USER0);
-+
-+	spin_lock_irqsave(&mapping->tail_lock, flags);
-+
-+	/* Check again under spinlock */
-+	if (mapping->tail || (index != vm_file_tail_index(mapping)) ||
-+	   (length != vm_file_tail_length(mapping))) {
-+		/* File size must have changed */
-+		spin_unlock_irqrestore(&mapping->tail_lock, flags);
-+		kfree(tail);
-+		goto out;
-+	}
-+
-+	mapping->tail = tail;
-+
-+	spin_unlock_irqrestore(&mapping->tail_lock, flags);
-+
-+	remove_from_page_cache(page);
-+	page_cache_release(page);	/* pagecache ref */
-+	ret = 1;
-+
-+out:
-+	unlock_page(page);
-+	return ret;
-+}
++config VM_FILE_TAILS
++	bool "Store file tails in slab cache"
++	def_bool n
++	help
++	  If the data at the end of a file, or the entire file, is small,
++	  the kernel will attempt to store that data in the slab cache,
++	  rather than allocate an entire page in the page cache.
++	  If unsure, say N here.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
