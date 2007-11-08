@@ -1,32 +1,34 @@
-From: Andi Kleen <ak@suse.de>
-Subject: Re: Some interesting observations when trying to optimize vmstat handling
-Date: Fri, 9 Nov 2007 00:07:42 +0100
-References: <Pine.LNX.4.64.0711081141180.9694@schroedinger.engr.sgi.com>
+Date: Thu, 08 Nov 2007 15:24:08 -0800 (PST)
+Message-Id: <20071108.152408.157342087.davem@davemloft.net>
+Subject: Re: Some interesting observations when trying to optimize vmstat
+ handling
+From: David Miller <davem@davemloft.net>
 In-Reply-To: <Pine.LNX.4.64.0711081141180.9694@schroedinger.engr.sgi.com>
-MIME-Version: 1.0
-Content-Type: text/plain;
-  charset="utf-8"
+References: <Pine.LNX.4.64.0711081141180.9694@schroedinger.engr.sgi.com>
+Mime-Version: 1.0
+Content-Type: Text/Plain; charset=us-ascii
 Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
-Message-Id: <200711090007.43424.ak@suse.de>
 Sender: owner-linux-mm@kvack.org
+From: Christoph Lameter <clameter@sgi.com>
+Date: Thu, 8 Nov 2007 11:58:58 -0800 (PST)
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Mathieu Desnoyers <mathieu.desnoyers@polymtl.ca>
+To: clameter@sgi.com
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, ak@suse.de, mathieu.desnoyers@polymtl.ca
 List-ID: <linux-mm.kvack.org>
 
-> There is an interrupt enable overhead of 48 cycles that would be good to
-> be able to eliminate (Kernel code usually moves counter increments into
-> a neighboring interrupt disable section so that __ function can be used).
+> The problem with cmpxchg_local here is that the differential has to
+> be read before we execute the cmpxchg_local. So the cacheline is
+> acquired first in read mode and then made exclusive on executing the
+> cmpxchg_local.
 
-Replace the push flags ; popf  with test $IFMASK,flags ; jz 1f; sti ; 1:
-That will likely make it much faster (but also bigger) 
+I bet this can be defeated by prefetching for a write before
+the read, but of course this won't help if the read is
+being used to conditionally avoid the cmpxchg_local but I don't
+think that's what you're trying to do here.
 
-The only problem is that there might be some code who relies on 
-restore_flags() restoring other flags that IF, but at least for interrupts
-and local_irq_save/restore it should be fine to change.
-
--Andi
+I've always wanted to add a write prefetch at the beginning of all of
+the sparc64 atomic operation primitives because of this problem.
+I just never got around to measuring if it's worthwhile or not.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
