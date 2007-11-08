@@ -1,101 +1,128 @@
-Date: Thu, 8 Nov 2007 15:23:24 +0000
-Subject: Re: [patch 20/23] dentries: Add constructor
-Message-ID: <20071108152324.GF2591@skynet.ie>
-References: <20071107011130.382244340@sgi.com> <20071107011231.453090374@sgi.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <20071107011231.453090374@sgi.com>
-From: mel@skynet.ie (Mel Gorman)
+Subject: Re: [patch 00/23] Slab defragmentation V6
+From: Mel Gorman <mel@csn.ul.ie>
+In-Reply-To: <20071107011130.382244340@sgi.com>
+References: <20071107011130.382244340@sgi.com>
+Content-Type: text/plain
+Date: Thu, 08 Nov 2007 15:26:52 +0000
+Message-Id: <1194535612.6214.9.camel@localhost>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Christoph Lameter <clameter@sgi.com>
 Cc: akpm@linux-foundatin.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On (06/11/07 17:11), Christoph Lameter didst pronounce:
-> In order to support defragmentation on the dentry cache we need to have
-> a determined object state at all times. Without a constructor the object
-> would have a random state after allocation.
+On Tue, 2007-11-06 at 17:11 -0800, Christoph Lameter wrote:
+> Slab defragmentation is mainly an issue if Linux is used as a fileserver
+
+Was hoping this would get renamed to SLUB Targetted Reclaim from
+discussions at VM Summit. As no copying is taking place, it's confusing
+to call it defragmentation to me anyway. Not a major deal but it made
+reading the patches a little confusing.
+
+> and large amounts of dentries, inodes and buffer heads accumulate. In some
+> load situations the slabs become very sparsely populated so that a lot of
+> memory is wasted by slabs that only contain one or a few objects. In
+> extreme cases the performance of a machine will become sluggish since
+> we are continually running reclaim. Slab defragmentation adds the
+> capability to recover wasted memory.
 > 
-> Reviewed-by: Rik van Riel <riel@redhat.com>
-> So provide a constructor.
+
+When reading this first, I expected to find how slab objects get copied
+around and packed which is my problem with the defragmentation name.
+Again, not really that relevant to the code.
+
+> With lumpy reclaim slab defragmentation can be used to enhance the
+> ability to recover larger contiguous areas of memory. Lumpy reclaim currently
+> cannot do anything if a slab page is encountered. With slab defragmentation
+> that slab page can be removed and a large contiguous page freed. It may
+> be possible to have slab pages also part of ZONE_MOVABLE (Mel's defrag
+> scheme in 2.6.23)
+
+More terminology nit-pick - ZONE_MOVABLE is not defragmenting anything.
+It's just partitioning memory. The slab pages need to be 100%
+reclaimable or movable for that to happen but even with targetted
+reclaim, some dentries such as the root directory one cannot be
+reclaimed, right?
+
+>
+>  or the MOVABLE areas (antifrag patches in mm).
 > 
-> Signed-off-by: Christoph Lameter <clameter@sgi.com>
 
-Seems to be some garbling on there in the signed-off lines.
+It'd still be valid to leave them as MIGRATE_RECLAIMABLE because that is
+what they are. Arguably, MIGRATE_RECLAIMABLE could be dropped in it's
+entirety but I'd rather not as reclaimable blocks have significantly
+different reclaim costs to pages that are currently marked movable.
 
-> ---
->  fs/dcache.c |   26 ++++++++++++++------------
->  1 file changed, 14 insertions(+), 12 deletions(-)
+> The patchset is also available via git
 > 
-> Index: linux-2.6/fs/dcache.c
-> ===================================================================
-> --- linux-2.6.orig/fs/dcache.c	2007-11-06 12:56:56.000000000 -0800
-> +++ linux-2.6/fs/dcache.c	2007-11-06 12:57:01.000000000 -0800
-> @@ -870,6 +870,16 @@ static struct shrinker dcache_shrinker =
->  	.seeks = DEFAULT_SEEKS,
->  };
->  
-> +void dcache_ctor(struct kmem_cache *s, void *p)
-> +{
-> +	struct dentry *dentry = p;
-> +
-> +	spin_lock_init(&dentry->d_lock);
-> +	dentry->d_inode = NULL;
-> +	INIT_LIST_HEAD(&dentry->d_lru);
-> +	INIT_LIST_HEAD(&dentry->d_alias);
-> +}
-> +
+> git pull git://git.kernel.org/pub/scm/linux/kernel/git/christoph/slab.git defrag
+> 
+> 
+> Currently memory reclaim from the following slab caches is possible:
+> 
+> 1. dentry cache
+> 2. inode cache (with a generic interface to allow easy setup of more
+>    filesystems than the currently supported ext2/3/4 reiserfs, XFS
+>    and proc)
+> 3. buffer_heads
+> 
+> One typical mechanism that triggers slab defragmentation on my systems
+> is the daily run of
+> 
+> 	updatedb
+> 
+> Updatedb scans all files on the system which causes a high inode and dentry
+> use. After updatedb is complete we need to go back to the regular use
+> patterns (typical on my machine: kernel compiles). Those need the memory now
+> for different purposes. The inodes and dentries used for updatedb will
+> gradually be aged by the dentry/inode reclaim algorithm which will free
+> up the dentries and inode entries randomly through the slabs that were
+> allocated. As a result the slabs will become sparsely populated. If they
+> become empty then they can be freed but a lot of them will remain sparsely
+> populated. That is where slab defrag comes in: It removes the slabs with
+> just a few entries reclaiming more memory for other uses.
+> 
+> V5->V6
+> - Rediff against 2.6.24-rc2 + mm slub patches.
+> - Add reviewed by lines.
+> - Take out the experimental code to make slab pages movable. That
+>   has to wait until this has been considered by Mel.
+> 
 
-Is there any noticable overhead to the constructor?
+I still haven't considered them properly. I've been backlogged for I
+don't know how long at this point and this is on the increasingly large
+todo list :( . I don't believe it is massively urgent at the moment
+though and reclaiming to start with is perfectly adequate just as lumpy
+reclaim is fine at the moment.
 
->  /**
->   * d_alloc	-	allocate a dcache entry
->   * @parent: parent of entry to allocate
-> @@ -907,8 +917,6 @@ struct dentry *d_alloc(struct dentry * p
->  
->  	atomic_set(&dentry->d_count, 1);
->  	dentry->d_flags = DCACHE_UNHASHED;
-> -	spin_lock_init(&dentry->d_lock);
-> -	dentry->d_inode = NULL;
->  	dentry->d_parent = NULL;
->  	dentry->d_sb = NULL;
->  	dentry->d_op = NULL;
-> @@ -918,9 +926,7 @@ struct dentry *d_alloc(struct dentry * p
->  	dentry->d_cookie = NULL;
->  #endif
->  	INIT_HLIST_NODE(&dentry->d_hash);
-> -	INIT_LIST_HEAD(&dentry->d_lru);
->  	INIT_LIST_HEAD(&dentry->d_subdirs);
-> -	INIT_LIST_HEAD(&dentry->d_alias);
->  
->  	if (parent) {
->  		dentry->d_parent = dget(parent);
-> @@ -2096,14 +2102,10 @@ static void __init dcache_init(void)
->  {
->  	int loop;
->  
-> -	/* 
-> -	 * A constructor could be added for stable state like the lists,
-> -	 * but it is probably not worth it because of the cache nature
-> -	 * of the dcache. 
-> -	 */
-> -	dentry_cache = KMEM_CACHE(dentry,
-> -		SLAB_RECLAIM_ACCOUNT|SLAB_PANIC|SLAB_MEM_SPREAD);
-> -	
-> +	dentry_cache = kmem_cache_create("dentry_cache", sizeof(struct dentry),
-> +		0, SLAB_RECLAIM_ACCOUNT|SLAB_PANIC|SLAB_MEM_SPREAD,
-> +		dcache_ctor);
-> +
->  	register_shrinker(&dcache_shrinker);
->  
->  	/* Hash may have been set up in dcache_init_early */
-
--- 
-Mel Gorman
-Part-time Phd Student                          Linux Technology Center
-University of Limerick                         IBM Dublin Software Lab
+> V4->V5:
+> - Support lumpy reclaim for slabs
+> - Support reclaim via slab_shrink()
+> - Add constructors to insure a consistent object state at all times.
+> 
+> V3->V4:
+> - Optimize scan for slabs that need defragmentation
+> - Add /sys/slab/*/defrag_ratio to allow setting defrag limits
+>   per slab.
+> - Add support for buffer heads.
+> - Describe how the cleanup after the daily updatedb can be
+>   improved by slab defragmentation.
+> 
+> V2->V3
+> - Support directory reclaim
+> - Add infrastructure to trigger defragmentation after slab shrinking if we
+>   have slabs with a high degree of fragmentation.
+> 
+> V1->V2
+> - Clean up control flow using a state variable. Simplify API. Back to 2
+>   functions that now take arrays of objects.
+> - Inode defrag support for a set of filesystems
+> - Fix up dentry defrag support to work on negative dentries by adding
+>   a new dentry flag that indicates that a dentry is not in the process
+>   of being freed or allocated.
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
