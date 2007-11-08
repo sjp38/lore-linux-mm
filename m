@@ -1,42 +1,36 @@
-Date: Thu, 8 Nov 2007 20:29:37 +0000
-Subject: Re: Plans for Onezonelist patch series ???
-Message-ID: <20071108202936.GG23882@skynet.ie>
-References: <20071107011130.382244340@sgi.com> <1194535612.6214.9.camel@localhost> <1194537674.5295.8.camel@localhost> <Pine.LNX.4.64.0711081033570.7871@schroedinger.engr.sgi.com> <20071108184009.GC23882@skynet.ie> <Pine.LNX.4.64.0711081043420.7871@schroedinger.engr.sgi.com> <20071108200607.GD23882@skynet.ie> <Pine.LNX.4.64.0711081218250.10074@schroedinger.engr.sgi.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
+Date: Thu, 8 Nov 2007 21:37:27 +0100
+From: Nick Piggin <npiggin@suse.de>
+Subject: Re: [patch] radix-tree: avoid atomic allocations for preloaded insertions
+Message-ID: <20071108203727.GA14254@wotan.suse.de>
+References: <20071108004304.GD3227@wotan.suse.de> <20071107170923.6cf3c389.akpm@linux-foundation.org> <20071108013723.GF3227@wotan.suse.de> <20071107190254.4e65812a.akpm@linux-foundation.org> <20071108031645.GI3227@wotan.suse.de> <20071107201242.390aec38.akpm@linux-foundation.org> <1194523022.6289.137.camel@twins>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <Pine.LNX.4.64.0711081218250.10074@schroedinger.engr.sgi.com>
-From: mel@skynet.ie (Mel Gorman)
+In-Reply-To: <1194523022.6289.137.camel@twins>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
-Cc: Lee Schermerhorn <Lee.Schermerhorn@hp.com>, akpm@linux-foundatin.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Peter Zijlstra <peterz@infradead.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, davem@davemloft.net
 List-ID: <linux-mm.kvack.org>
 
-On (08/11/07 12:20), Christoph Lameter didst pronounce:
-> On Thu, 8 Nov 2007, Mel Gorman wrote:
+On Thu, Nov 08, 2007 at 12:57:02PM +0100, Peter Zijlstra wrote:
+> On Wed, 2007-11-07 at 20:12 -0800, Andrew Morton wrote:
 > 
-> > I've rebased the patches to mm-broken-out-2007-11-06-02-32. However, the
-> > vanilla -mm and the one with onezonelist applied are locking up in the
-> > same manner. I'm way too behind at the moment to guess if it is a new bug
-> > or reported already. At best, I can say the patches are not making things
-> > any worse :) I'll go through the archives in the morning and do a bit more
-> > testing to see what happens.
+> > <looks at fs/nfs/write.c>
+> > 
+> > again: unreliable, remembers to test for failure, would be better to use
+> > radix_tree_preload().
 > 
-> I usually base my patches on Linus' tree as long as there is no tree 
-> available from Andrew. But that means that may have to 
-> approximate what is in there by adding this and that.
-> 
+> http://lkml.org/lkml/2007/10/30/271
 
-Unfortunately for me, there are several collisions with the patches when
-applied against -mm if the patches are based on latest git. They are mainly in
-mm/vmscan.c due to the memory controller work. For the purposes of testing and
-merging, it makes more sense for me to work against -mm as much as possible.
+Ah, missed that. See my subsequent patch too, slightly different. It only
+preloads if a request isn't already found (is this a good idea?, if it wasn't
+relatively common, they'd just be checking for -EEXIST in the insertion?).
 
--- 
-Mel Gorman
-Part-time Phd Student                          Linux Technology Center
-University of Limerick                         IBM Dublin Software Lab
+Anyway we can also simplify the code because the insertion can't fail with a
+preload.
+
+NFS can also use GFP_NOFS for the preload (at least, for upstream).
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
