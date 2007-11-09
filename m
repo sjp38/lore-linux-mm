@@ -1,30 +1,53 @@
-Message-ID: <4733A7A5.9000900@goop.org>
-Date: Thu, 08 Nov 2007 16:19:49 -0800
-From: Jeremy Fitzhardinge <jeremy@goop.org>
-MIME-Version: 1.0
-Subject: Re: Some interesting observations when trying to optimize vmstat
- handling
-References: <Pine.LNX.4.64.0711081141180.9694@schroedinger.engr.sgi.com> <200711090007.43424.ak@suse.de>
-In-Reply-To: <200711090007.43424.ak@suse.de>
-Content-Type: text/plain; charset=UTF-8
+Date: Thu, 8 Nov 2007 20:00:41 -0500
+From: Rik van Riel <riel@redhat.com>
+Subject: Re: bug #5493
+Message-ID: <20071108200041.1a739bc5@bree.surriel.com>
+In-Reply-To: <20071108105659.3ca01b00.akpm@linux-foundation.org>
+References: <32209efe0711071800v4bc0c62er7bc462f1891c9dcd@mail.gmail.com>
+	<20071107191247.04d74241.akpm@linux-foundation.org>
+	<20071108165320.GA23882@skynet.ie>
+	<20071108095704.f98905ec.akpm@linux-foundation.org>
+	<20071108131518.5408931d@bree.surriel.com>
+	<20071108105659.3ca01b00.akpm@linux-foundation.org>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andi Kleen <ak@suse.de>
-Cc: Christoph Lameter <clameter@sgi.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Mathieu Desnoyers <mathieu.desnoyers@polymtl.ca>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: mel@skynet.ie, protasnb@gmail.com, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Andi Kleen wrote:
-> The only problem is that there might be some code who relies on 
-> restore_flags() restoring other flags that IF, but at least for interrupts
-> and local_irq_save/restore it should be fine to change.
->   
+On Thu, 8 Nov 2007 10:56:59 -0800
+Andrew Morton <akpm@linux-foundation.org> wrote:
+> > On Thu, 8 Nov 2007 13:15:18 -0500 Rik van Riel <riel@redhat.com> wrote:
+> > On Thu, 8 Nov 2007 09:57:04 -0800
 
-I don't think so.  We don't bother to save/restore the other flags in
-Xen paravirt and it doesn't seem to cause a problem.  The semantics
-really are specific to the state of the interrupt flag.
+> > > No, it was due to linear traversal of very long reverse-mapping lists
+> > > (thousands of elements, irrc).
+> > 
+> > Traversal at pageout time, or at mprotect time?
+> > 
+> 
+> pageout, iirc.  For each page we were walking a linear list of I think
+> ~10,000 elements.
 
-    J
+Pageout scan complexity in this workload is O(P*M), where
+P is the number of pages scanned and M is the number of
+mappings.
+
+My code will, in the next iteration, reduce P by a fair
+amount for larger amounts of memory, but M is still very
+large...
+
+I might use this test case to play with the SEQ replacement
+of anonymous pages.  Figuring out how to avoid some worst
+case that people really hit in practice is often educational.
+
+-- 
+"Debugging is twice as hard as writing the code in the first place.
+Therefore, if you write the code as cleverly as possible, you are,
+by definition, not smart enough to debug it." - Brian W. Kernighan
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
