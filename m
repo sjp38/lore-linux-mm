@@ -1,55 +1,122 @@
-Date: Fri, 9 Nov 2007 18:27:29 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCH 5/6 mm] memcgroup: fix zone isolation OOM
-Message-Id: <20071109182729.b0f0fe4a.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <Pine.LNX.4.64.0711090712180.21663@blonde.wat.veritas.com>
-References: <Pine.LNX.4.64.0711090700530.21638@blonde.wat.veritas.com>
-	<Pine.LNX.4.64.0711090712180.21663@blonde.wat.veritas.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+From: Mel Gorman <mel@csn.ul.ie>
+Message-Id: <20071109143226.23540.12907.sendpatchset@skynet.skynet.ie>
+Subject: [PATCH 0/6] Use one zonelist per node instead of multiple zonelists v9
+Date: Fri,  9 Nov 2007 14:32:26 +0000 (GMT)
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Hugh Dickins <hugh@veritas.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Balbir Singh <balbir@linux.vnet.ibm.com>, linux-mm@kvack.org, containers@lists.osdl.org
+To: akpm@linux-foundation.org
+Cc: Lee.Schermerhorn@hp.com, Mel Gorman <mel@csn.ul.ie>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, rientjes@google.com, nacc@us.ibm.com, kamezawa.hiroyu@jp.fujitsu.com, clameter@sgi.com
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 9 Nov 2007 07:13:22 +0000 (GMT)
-Hugh Dickins <hugh@veritas.com> wrote:
+This is basically a rebase to the broken-out -mm tree. Since v8, two fixes
+have been applied that showed up during testing. Most machines I test -mm
+on are failing to boot for a variety of reasons but on the two machines
+that did work, they appeared to work fine.
 
-> mem_cgroup_charge_common shows a tendency to OOM without good reason,
-> when a memhog goes well beyond its rss limit but with plenty of swap
-> available.  Seen on x86 but not on PowerPC; seen when the next patch
-> omits swapcache from memcgroup, but we presume it can happen without.
-> 
-> mem_cgroup_isolate_pages is not quite satisfying reclaim's criteria
-> for OOM avoidance.  Already it has to scan beyond the nr_to_scan limit
-> when it finds a !LRU page or an active page when handling inactive or
-> an inactive page when handling active.  It needs to do exactly the same
-> when it finds a page from the wrong zone (the x86 tests had two zones,
-> the PowerPC tests had only one).
-> 
-> Don't increment scan and then decrement it in these cases, just move
-> the incrementation down.  Fix recent off-by-one when checking against
-> nr_to_scan.  Cut out "Check if the meta page went away from under us",
-> presumably left over from early debugging: no amount of such checks
-> could save us if this list really were being updated without locking.
-> 
-> This change does make the unlimited scan while holding two spinlocks
-> even worse - bad for latency and bad for containment; but that's a
-> separate issue which is better left to be fixed a little later.
-> 
+Changelog since V8
+  o Rebase to 2.6.24-rc2
+  o Added ack for the OOM changes
+  o Behave correctly when GFP_THISNODE and a node ID are specified
+  o Clear up warning over type of nodes_intersects() function
 
-Okay, I agree with this logic for scan.
+Changelog since V7
+  o Rebase to 2.6.23-rc8-mm2
 
-I'll consider some kind of optimization for avoiding all list scan
-because of a zone's page is not included in cgroup's lru.
+Changelog since V6
+  o Fix build bug in relation to memory controller combined with one-zonelist
+  o Use while() instead of a stupid looking for()
+  o Instead of encoding zone index information in a pointer, this version
+    introduces a structure that stores a zone pointer and its index 
 
-Maybe counting the number of active/inactive per zone (or per node) will
-be first help.
+Changelog since V5
+  o Rebase to 2.6.23-rc4-mm1
+  o Drop patch that replaces inline functions with macros
 
-Thanks,
--Kame
+Changelog since V4
+  o Rebase to -mm kernel. Host of memoryless patches collisions dealt with
+  o Do not call wakeup_kswapd() for every zone in a zonelist
+  o Dropped the FASTCALL removal
+  o Have cursor in iterator advance earlier
+  o Use nodes_and in cpuset_nodes_valid_mems_allowed()
+  o Use defines instead of inlines, noticably better performance on gcc-3.4
+    No difference on later compilers such as gcc 4.1
+  o Dropped gfp_skip patch until it is proven to be of benefit. Tests are
+    currently inconclusive but it definitly consumes at least one cache
+    line
+
+Changelog since V3
+  o Fix compile error in the parisc change
+  o Calculate gfp_zone only once in __alloc_pages
+  o Calculate classzone_idx properly in get_page_from_freelist
+  o Alter check so that zone id embedded may still be used on UP
+  o Use Kamezawa-sans suggestion for skipping zones in zonelist
+  o Add __alloc_pages_nodemask() to filter zonelist based on a nodemask. This
+    removes the need for MPOL_BIND to have a custom zonelist
+  o Move zonelist iterators and helpers to mm.h
+  o Change _zones from struct zone * to unsigned long
+  
+Changelog since V2
+  o shrink_zones() uses zonelist instead of zonelist->zones
+  o hugetlb uses zonelist iterator
+  o zone_idx information is embedded in zonelist pointers
+  o replace NODE_DATA(nid)->node_zonelist with node_zonelist(nid)
+
+Changelog since V1
+  o Break up the patch into 3 patches
+  o Introduce iterators for zonelists
+  o Performance regression test
+
+The following patches replace multiple zonelists per node with one zonelist
+that is filtered based on the GFP flags. The patches as a set fix a bug
+with regard to the use of MPOL_BIND and ZONE_MOVABLE. With this patchset,
+the MPOL_BIND will apply to the two highest zones when the highest zone
+is ZONE_MOVABLE. This should be considered as an alternative fix for the
+MPOL_BIND+ZONE_MOVABLE in 2.6.23 to the previously discussed hack that
+filters only custom zonelists. As a bonus, the patchset reduces the cache
+footprint of the kernel and should improve performance in a number of cases.
+
+The first patch cleans up an inconsitency where direct reclaim uses
+zonelist->zones where other places use zonelist. The second patch introduces
+a helper function node_zonelist() for looking up the appropriate zonelist
+for a GFP mask which simplifies patches later in the set.
+
+The third patch replaces multiple zonelists with two zonelists that are
+filtered. The two zonelists are due to the fact that the memoryless patchset
+introduces a second set of zonelists for __GFP_THISNODE.
+
+The fourth patch introduces helper macros for retrieving the zone and node indices of entries in a zonelist.
+
+The fifth patch introduces filtering of the zonelists based on a nodemask.
+
+The final patch replaces the two zonelists with one zonelist. A nodemask is
+created when __GFP_THISNODE is specified to filter the list. The nodelists
+could be pre-allocated with one-per-node but it's not clear that __GFP_THISNODE
+is used often enough to be worth the effort.
+
+Performance results varied depending on the machine configuration but were
+usually small performance gains. In real workloads the gain/loss will depend
+on how much the userspace portion of the benchmark benefits from having more
+cache available due to reduced referencing of zonelists.
+
+These are the range of performance losses/gains when running against
+2.6.23-rc3-mm1. The set and these machines are a mix of i386, x86_64 and
+ppc64 both NUMA and non-NUMA.
+
+Total CPU time on Kernbench: -0.67% to  3.05%
+Elapsed   time on Kernbench: -0.25% to  2.96%
+page_test from aim9:         -6.98% to  5.60%
+brk_test  from aim9:         -3.94% to  4.11%
+fork_test from aim9:         -5.72% to  4.14%
+exec_test from aim9:         -1.02% to  1.56%
+
+The TBench figures were too variable between runs to draw conclusions from but
+there didn't appear to be any regressions there. The hackbench results for both
+sockets and pipes were within noise.
+
+-- 
+Mel Gorman
+Part-time Phd Student                          Linux Technology Center
+University of Limerick                         IBM Dublin Software Lab
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
