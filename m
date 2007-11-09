@@ -1,50 +1,55 @@
-Date: Fri, 9 Nov 2007 11:58:20 -0800 (PST)
-From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: about page migration on UMA
-In-Reply-To: <6934efce0711091154x74fe4405q5a9e291b3d9780f0@mail.gmail.com>
-Message-ID: <Pine.LNX.4.64.0711091156170.15914@schroedinger.engr.sgi.com>
-References: <20071016191949.cd50f12f.kamezawa.hiroyu@jp.fujitsu.com>
- <20071016192341.1c3746df.kamezawa.hiroyu@jp.fujitsu.com>
- <alpine.DEB.0.9999.0710162113300.13648@chino.kir.corp.google.com>
- <20071017141609.0eb60539.kamezawa.hiroyu@jp.fujitsu.com>
- <alpine.DEB.0.9999.0710162232540.27242@chino.kir.corp.google.com>
- <20071017145009.e4a56c0d.kamezawa.hiroyu@jp.fujitsu.com>
- <02f001c8108c$a3818760$3708a8c0@arcapub.arca.com>
- <Pine.LNX.4.64.0710181825520.4272@schroedinger.engr.sgi.com>
- <6934efce0711091131n1acd2ce1h7bb17f9f3cb0f235@mail.gmail.com>
- <Pine.LNX.4.64.0711091136270.15605@schroedinger.engr.sgi.com>
- <6934efce0711091154x74fe4405q5a9e291b3d9780f0@mail.gmail.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Date: Fri, 9 Nov 2007 12:13:32 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [patch 2/2] x86_64: Configure stack size
+Message-Id: <20071109121332.7dd34777.akpm@linux-foundation.org>
+In-Reply-To: <Pine.LNX.4.64.0711071639491.4640@schroedinger.engr.sgi.com>
+References: <20071107004357.233417373@sgi.com>
+	<20071107004710.862876902@sgi.com>
+	<20071107191453.GC5080@shadowen.org>
+	<200711080012.06752.ak@suse.de>
+	<Pine.LNX.4.64.0711071639491.4640@schroedinger.engr.sgi.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Jared Hulbert <jaredeh@gmail.com>
-Cc: "Jacky(GuangXiang Lee)" <gxli@arca.com.cn>, linux-mm@kvack.org, Yasunori Goto <y-goto@jp.fujitsu.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+To: Christoph Lameter <clameter@sgi.com>
+Cc: ak@suse.de, apw@shadowen.org, linux-mm@kvack.org, travis@sgi.com
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 9 Nov 2007, Jared Hulbert wrote:
+On Wed, 7 Nov 2007 16:42:04 -0800 (PST)
+Christoph Lameter <clameter@sgi.com> wrote:
 
-> On 11/9/07, Christoph Lameter <clameter@sgi.com> wrote:
-> > On Fri, 9 Nov 2007, Jared Hulbert wrote:
-> >
-> > > For extreme low power systems it would be possible to shut down banks
-> > > in SDRAM chips that were not full thereby saving power.  That would
-> > > require some defraging and migration to empty them prior to powering
-> > > down those banks.
-> >
-> > Yes we have discussed ideas like that a couple of time. If you do have the
-> > time then please make this work. You have my full support.
+> On Thu, 8 Nov 2007, Andi Kleen wrote:
 > 
-> So I would like to make this migration controlled by userspace.  Are
-> there mechanisms to allow that today?  If you give me a starting point
-> I'll look into something like this.
+> > 
+> > > We seem to be growing two different mechanisms here for 32bit and 64bit.
+> > > This does seem a better option than that in 32bit CONFIG_4KSTACKS etc.
+> > > IMO when these two merge we should consolidate on this version.
+> > 
+> > Best would be to not change it at all for 64bit for now.
+> > 
+> > We can worry about the 16k CPU systems when they appear, but shorter term
+> > it would just lead to other crappy kernel code relying on large stacks when
+> > it shouldn't.
+> 
+> Well we cannot really test these systems without these patches and when 
+> they become officially available then its too late for merging.
 
-Well one idea is to generate a sysfs file that can take a physical memory 
-range? echo the range to the sysfs file. The kernel can then try to 
-vacate the memory range.
+It doesn't take many 2kb cpumasks to use up a lot of stack.
 
-I am ccing the memory hotplug developers. They may be able to help you 
-better.
+What else can we do?  Change all sites to do some dynamic allocation if
+(NR_CPUS >= lots), I guess.
+
+As for timing: we might as well merge it now so that 2.6.25 has at least a
+chance of running on 16384-way.
+
+otoh, I doubt if anyone will actually ship an NR_CPUS=16384 kernel, so it
+isn't terribly pointful.
+
+So I'm wobbly.  Could we please examine the alternatives before proceeding?
+Is there any plan in anyone's mind to fix this problem in a better but
+probably more intrusive fashion?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
