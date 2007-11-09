@@ -1,8 +1,8 @@
-Date: Fri, 9 Nov 2007 07:13:22 +0000 (GMT)
+Date: Fri, 9 Nov 2007 07:14:22 +0000 (GMT)
 From: Hugh Dickins <hugh@veritas.com>
-Subject: [PATCH 5/6 mm] memcgroup: fix zone isolation OOM
+Subject: [PATCH 6/6 mm] memcgroup: revert swap_state mods
 In-Reply-To: <Pine.LNX.4.64.0711090700530.21638@blonde.wat.veritas.com>
-Message-ID: <Pine.LNX.4.64.0711090712180.21663@blonde.wat.veritas.com>
+Message-ID: <Pine.LNX.4.64.0711090713300.21663@blonde.wat.veritas.com>
 References: <Pine.LNX.4.64.0711090700530.21638@blonde.wat.veritas.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
@@ -12,81 +12,88 @@ To: Andrew Morton <akpm@linux-foundation.org>
 Cc: Balbir Singh <balbir@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org, containers@lists.osdl.org
 List-ID: <linux-mm.kvack.org>
 
-mem_cgroup_charge_common shows a tendency to OOM without good reason,
-when a memhog goes well beyond its rss limit but with plenty of swap
-available.  Seen on x86 but not on PowerPC; seen when the next patch
-omits swapcache from memcgroup, but we presume it can happen without.
+If we're charging rss and we're charging cache, it seems obvious that
+we should be charging swapcache - as has been done.  But in practice
+that doesn't work out so well: both swapin readahead and swapoff leave
+the majority of pages charged to the wrong cgroup (the cgroup that
+happened to read them in, rather than the cgroup to which they belong).
 
-mem_cgroup_isolate_pages is not quite satisfying reclaim's criteria
-for OOM avoidance.  Already it has to scan beyond the nr_to_scan limit
-when it finds a !LRU page or an active page when handling inactive or
-an inactive page when handling active.  It needs to do exactly the same
-when it finds a page from the wrong zone (the x86 tests had two zones,
-the PowerPC tests had only one).
+(Which is why unuse_pte's GFP_KERNEL while holding pte lock never
+showed up as a problem: no allocation was ever done there, every page
+read being already charged to the cgroup which initiated the swapoff.)
 
-Don't increment scan and then decrement it in these cases, just move
-the incrementation down.  Fix recent off-by-one when checking against
-nr_to_scan.  Cut out "Check if the meta page went away from under us",
-presumably left over from early debugging: no amount of such checks
-could save us if this list really were being updated without locking.
+It all works rather better if we leave the charging to do_swap_page and
+unuse_pte, and do nothing for swapcache itself: revert mm/swap_state.c
+to what it was before the memory-controller patches.  This also speeds
+up significantly a contained process working at its limit: because it
+no longer needs to keep waiting for swap writeback to complete.
 
-This change does make the unlimited scan while holding two spinlocks
-even worse - bad for latency and bad for containment; but that's a
-separate issue which is better left to be fixed a little later.
+Is it unfair that swap pages become uncharged once they're unmapped,
+even though they're still clearly private to particular cgroups?  For
+a short while, yes; but PageReclaim arranges for those pages to go to
+the end of the inactive list and be reclaimed soon if necessary.
+
+shmem/tmpfs pages are a distinct case: their charging also benefits
+from this change, but their second life on the lists as swapcache
+pages may prove more unfair - that I need to check next.
 
 Signed-off-by: Hugh Dickins <hugh@veritas.com>
 ---
-Insert just after bugfix-for-memory-cgroup-controller-avoid-pagelru-page-in-mem_cgroup_isolate_pages-fix.patch
-or just before memory-cgroup-enhancements
+Insert just after 5/6: the tree builds okay if it goes earlier, just after
+memory-controller-bug_on.patch, but 5/6 fixes OOM made more likely by 6/6.
+Alternatively, hand edit all of the mm/swap_state.c mods out of all of the
+memory-controller patches which modify it.
 
- mm/memcontrol.c |   17 ++++-------------
- 1 file changed, 4 insertions(+), 13 deletions(-)
+ mm/swap_state.c |   15 ++-------------
+ 1 file changed, 2 insertions(+), 13 deletions(-)
 
---- patch4/mm/memcontrol.c	2007-11-08 16:03:33.000000000 +0000
-+++ patch5/mm/memcontrol.c	2007-11-08 16:51:39.000000000 +0000
-@@ -260,24 +260,20 @@ unsigned long mem_cgroup_isolate_pages(u
- 	spin_lock(&mem_cont->lru_lock);
- 	scan = 0;
- 	list_for_each_entry_safe_reverse(pc, tmp, src, lru) {
--		if (scan++ > nr_to_scan)
-+		if (scan >= nr_to_scan)
- 			break;
- 		page = pc->page;
- 		VM_BUG_ON(!pc);
+--- patch5/mm/swap_state.c	2007-11-08 15:58:50.000000000 +0000
++++ patch6/mm/swap_state.c	2007-11-08 16:01:11.000000000 +0000
+@@ -17,7 +17,6 @@
+ #include <linux/backing-dev.h>
+ #include <linux/pagevec.h>
+ #include <linux/migrate.h>
+-#include <linux/memcontrol.h>
  
--		if (unlikely(!PageLRU(page))) {
--			scan--;
-+		if (unlikely(!PageLRU(page)))
- 			continue;
--		}
+ #include <asm/pgtable.h>
  
- 		if (PageActive(page) && !active) {
- 			__mem_cgroup_move_lists(pc, true);
--			scan--;
- 			continue;
- 		}
- 		if (!PageActive(page) && active) {
- 			__mem_cgroup_move_lists(pc, false);
--			scan--;
- 			continue;
- 		}
+@@ -79,11 +78,6 @@ static int __add_to_swap_cache(struct pa
+ 	BUG_ON(!PageLocked(page));
+ 	BUG_ON(PageSwapCache(page));
+ 	BUG_ON(PagePrivate(page));
+-
+-	error = mem_cgroup_cache_charge(page, current->mm, gfp_mask);
+-	if (error)
+-		goto out;
+-
+ 	error = radix_tree_preload(gfp_mask);
+ 	if (!error) {
+ 		write_lock_irq(&swapper_space.tree_lock);
+@@ -95,14 +89,10 @@ static int __add_to_swap_cache(struct pa
+ 			set_page_private(page, entry.val);
+ 			total_swapcache_pages++;
+ 			__inc_zone_page_state(page, NR_FILE_PAGES);
+-		} else
+-			mem_cgroup_uncharge_page(page);
+-
++		}
+ 		write_unlock_irq(&swapper_space.tree_lock);
+ 		radix_tree_preload_end();
+-	} else
+-		mem_cgroup_uncharge_page(page);
+-out:
++	}
+ 	return error;
+ }
  
-@@ -288,13 +284,8 @@ unsigned long mem_cgroup_isolate_pages(u
- 		if (page_zone(page) != z)
- 			continue;
+@@ -143,7 +133,6 @@ void __delete_from_swap_cache(struct pag
+ 	BUG_ON(PageWriteback(page));
+ 	BUG_ON(PagePrivate(page));
  
--		/*
--		 * Check if the meta page went away from under us
--		 */
--		if (!list_empty(&pc->lru))
--			list_move(&pc->lru, &pc_list);
--		else
--			continue;
-+		scan++;
-+		list_move(&pc->lru, &pc_list);
- 
- 		if (__isolate_lru_page(page, mode) == 0) {
- 			list_move(&page->lru, dst);
+-	mem_cgroup_uncharge_page(page);
+ 	radix_tree_delete(&swapper_space.page_tree, page_private(page));
+ 	set_page_private(page, 0);
+ 	ClearPageSwapCache(page);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
