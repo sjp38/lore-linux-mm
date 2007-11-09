@@ -1,36 +1,61 @@
-From: Andi Kleen <ak@suse.de>
-Subject: Re: Some interesting observations when trying to optimize vmstat handling
-Date: Fri, 9 Nov 2007 16:56:26 +0100
-References: <Pine.LNX.4.64.0711081141180.9694@schroedinger.engr.sgi.com> <200711090007.43424.ak@suse.de> <4733A7A5.9000900@goop.org>
-In-Reply-To: <4733A7A5.9000900@goop.org>
+Date: Fri, 9 Nov 2007 16:14:55 +0000
+Subject: Re: [PATCH 6/6] Use one zonelist that is filtered by nodemask
+Message-ID: <20071109161455.GB32088@skynet.ie>
+References: <20071109143226.23540.12907.sendpatchset@skynet.skynet.ie> <20071109143426.23540.44459.sendpatchset@skynet.skynet.ie> <Pine.LNX.4.64.0711090741120.13932@schroedinger.engr.sgi.com>
 MIME-Version: 1.0
-Content-Type: text/plain;
-  charset="utf-8"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-Message-Id: <200711091656.26908.ak@suse.de>
+In-Reply-To: <Pine.LNX.4.64.0711090741120.13932@schroedinger.engr.sgi.com>
+From: mel@skynet.ie (Mel Gorman)
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Jeremy Fitzhardinge <jeremy@goop.org>
-Cc: Christoph Lameter <clameter@sgi.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Mathieu Desnoyers <mathieu.desnoyers@polymtl.ca>
+To: Christoph Lameter <clameter@sgi.com>
+Cc: akpm@linux-foundation.org, Lee.Schermerhorn@hp.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, rientjes@google.com, nacc@us.ibm.com, kamezawa.hiroyu@jp.fujitsu.com
 List-ID: <linux-mm.kvack.org>
 
-On Friday 09 November 2007 01:19, Jeremy Fitzhardinge wrote:
-> Andi Kleen wrote:
-> > The only problem is that there might be some code who relies on
-> > restore_flags() restoring other flags that IF, but at least for
-> > interrupts and local_irq_save/restore it should be fine to change.
->
-> I don't think so.  We don't bother to save/restore the other flags in
-> Xen paravirt and it doesn't seem to cause a problem.  The semantics
-> really are specific to the state of the interrupt flag.
+On (09/11/07 07:45), Christoph Lameter didst pronounce:
+> On Fri, 9 Nov 2007, Mel Gorman wrote:
+> 
+> >  struct page * fastcall
+> >  __alloc_pages(gfp_t gfp_mask, unsigned int order,
+> >  		struct zonelist *zonelist)
+> >  {
+> > +	/*
+> > +	 * Use a temporary nodemask for __GFP_THISNODE allocations. If the
+> > +	 * cost of allocating on the stack or the stack usage becomes
+> > +	 * noticable, allocate the nodemasks per node at boot or compile time
+> > +	 */
+> > +	if (unlikely(gfp_mask & __GFP_THISNODE)) {
+> > +		nodemask_t nodemask;
+> 
+> Hmmm.. This places a potentially big structure on the stack. nodemask can 
+> contain up to 1024 bits which means 128 bytes. Maybe keep an array of 
+> gfp_thisnode nodemasks (node_nodemask?) and use node_nodemask[nid]?
+> 
 
-Yes i checked the code and only case I found is actually save_flags, not 
-restore_flags
+That is what I was hinting at in the comment as a possible solution.
 
-(and that particular case is even unnecessary) 
+> > +
+> > +		return __alloc_pages_internal(gfp_mask, order,
+> > +			zonelist, nodemask_thisnode(numa_node_id(), &nodemask));
+> 
+> Argh.... GFP_THISNODE must use the nid passed to alloc_pages_node and 
+> *not* the local numa node id. Only if the node specified to alloc_pages 
+> nodes is -1 will this work.
+> 
 
--Andi
+alloc_pages_node() calls __alloc_pages_nodemask() though where in this
+function if I'm reading it right is called without a node id. Given no
+other details on the nid, the current one seemed a logical choice.
+
+What I did notice when rechecking is I left the warning about THISNODE
+in by accident :(
+
+-- 
+-- 
+Mel Gorman
+Part-time Phd Student                          Linux Technology Center
+University of Limerick                         IBM Dublin Software Lab
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
