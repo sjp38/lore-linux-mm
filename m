@@ -1,63 +1,56 @@
-Date: Thu, 8 Nov 2007 21:47:02 -0500
-Message-Id: <200711090247.lA92l2Ct014971@agora.fsl.cs.sunysb.edu>
-From: Erez Zadok <ezk@cs.sunysb.edu>
-Subject: Re: msync(2) bug(?), returns AOP_WRITEPAGE_ACTIVATE to userland 
-In-reply-to: Your message of "Mon, 05 Nov 2007 08:38:50 PST."
-             <1194280730.6271.145.camel@localhost>
+Date: Thu, 8 Nov 2007 20:27:07 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: bug #5493
+Message-Id: <20071108202707.d7efed57.akpm@linux-foundation.org>
+In-Reply-To: <20071108200041.1a739bc5@bree.surriel.com>
+References: <32209efe0711071800v4bc0c62er7bc462f1891c9dcd@mail.gmail.com>
+	<20071107191247.04d74241.akpm@linux-foundation.org>
+	<20071108165320.GA23882@skynet.ie>
+	<20071108095704.f98905ec.akpm@linux-foundation.org>
+	<20071108131518.5408931d@bree.surriel.com>
+	<20071108105659.3ca01b00.akpm@linux-foundation.org>
+	<20071108200041.1a739bc5@bree.surriel.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Dave Hansen <haveblue@us.ibm.com>
-Cc: Hugh Dickins <hugh@veritas.com>, Erez Zadok <ezk@cs.sunysb.edu>, Pekka Enberg <penberg@cs.helsinki.fi>, Ryan Finnie <ryan@finnie.org>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, cjwatson@ubuntu.com, linux-mm@kvack.org, Christoph Hellwig <hch@infradead.org>
+To: Rik van Riel <riel@redhat.com>
+Cc: mel@skynet.ie, protasnb@gmail.com, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-In message <1194280730.6271.145.camel@localhost>, Dave Hansen writes:
-> On Mon, 2007-11-05 at 15:40 +0000, Hugh Dickins wrote:
-[...]
-> I have a decent guess what the bug is, too.  In the unionfs code:
+> On Thu, 8 Nov 2007 20:00:41 -0500 Rik van Riel <riel@redhat.com> wrote:
+> On Thu, 8 Nov 2007 10:56:59 -0800
+> Andrew Morton <akpm@linux-foundation.org> wrote:
+> > > On Thu, 8 Nov 2007 13:15:18 -0500 Rik van Riel <riel@redhat.com> wrote:
+> > > On Thu, 8 Nov 2007 09:57:04 -0800
 > 
-> > int init_lower_nd(struct nameidata *nd, unsigned int flags)
-> > {
-> > ...
-> > #ifdef ALLOC_LOWER_ND_FILE
-> >                 file = kzalloc(sizeof(struct file), GFP_KERNEL);
-> >                 if (unlikely(!file)) {
-> >                         err = -ENOMEM;
-> >                         break; /* exit switch statement and thus return */
-> >                 }
-> >                 nd->intent.open.file = file;
-> > #endif /* ALLOC_LOWER_ND_FILE */
+> > > > No, it was due to linear traversal of very long reverse-mapping lists
+> > > > (thousands of elements, irrc).
+> > > 
+> > > Traversal at pageout time, or at mprotect time?
+> > > 
+> > 
+> > pageout, iirc.  For each page we were walking a linear list of I think
+> > ~10,000 elements.
 > 
-> The r/o bind mount code will mnt_drop_write() on that file's f_vfsmnt at
-> __fput() time.  Since that code never got a write on the mount, we'll
-> see an imbalance if the file was opened for a write.  I don't see this
-> file's mnt set anywhere, so I'm not completely sure that this is it.  In
-> any case, rolling your own 'struct file' without using alloc_file() and
-> friends is a no-no.
-[...]
+> Pageout scan complexity in this workload is O(P*M), where
+> P is the number of pages scanned and M is the number of
+> mappings.
+> 
+> My code will, in the next iteration, reduce P by a fair
+> amount for larger amounts of memory, but M is still very
+> large...
 
-This #ifdef'd code in unionfs is actually not enabled.  I left it there as a
-reminder of possible future things to come (esp. if nameidata gets split).
-There's a related comment earlier in fs/unionfs/lookup.c:init_lower_nd()
-that says:
+That's yet to be proven - for the vast majority of workloads your P is
+already very small.
 
-#ifdef ALLOC_LOWER_ND_FILE
-	/*
-	 * XXX: one day we may need to have the lower return an open file
-	 * for us.  It is not needed in 2.6.23-rc1 for nfs2/nfs3, but may
-	 * very well be needed for nfs4.
-	 */
-	struct file *file;
-#endif /* ALLOC_LOWER_ND_FILE */
+> I might use this test case to play with the SEQ replacement
+> of anonymous pages.  Figuring out how to avoid some worst
+> case that people really hit in practice is often educational.
 
-In the interest of keeping unionfs as simple as I can, when I implemented
-the whole "pass a lower nd" stuff, I left thos bits of semi-experimental
-#ifdef code for this lower file upon open-intent.  It's not enabled and up
-until now, it didn't seem to be needed.
-
-Do you think unionfs has to start using this nd->intent.open.file stuff?
-
-Thanks,
-Erez.
+I don't think we can anywhere near fix this without basic redesign of VM
+data structures and the relationship between them.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
