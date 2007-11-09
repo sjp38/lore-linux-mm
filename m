@@ -1,8 +1,8 @@
-Date: Fri, 9 Nov 2007 07:12:03 +0000 (GMT)
+Date: Fri, 9 Nov 2007 07:13:22 +0000 (GMT)
 From: Hugh Dickins <hugh@veritas.com>
-Subject: [PATCH 4/6 mm] memcgroup: reinstate swapoff mod
+Subject: [PATCH 5/6 mm] memcgroup: fix zone isolation OOM
 In-Reply-To: <Pine.LNX.4.64.0711090700530.21638@blonde.wat.veritas.com>
-Message-ID: <Pine.LNX.4.64.0711090711190.21663@blonde.wat.veritas.com>
+Message-ID: <Pine.LNX.4.64.0711090712180.21663@blonde.wat.veritas.com>
 References: <Pine.LNX.4.64.0711090700530.21638@blonde.wat.veritas.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
@@ -12,97 +12,81 @@ To: Andrew Morton <akpm@linux-foundation.org>
 Cc: Balbir Singh <balbir@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org, containers@lists.osdl.org
 List-ID: <linux-mm.kvack.org>
 
-This patch reinstates the "swapoff: scan ptes preemptibly" mod we started
-with: in due course it should be rendered down into the earlier patches,
-leaving us with a more straightforward mem_cgroup_charge mod to unuse_pte,
-allocating with GFP_KERNEL while holding no spinlock and no atomic kmap.
+mem_cgroup_charge_common shows a tendency to OOM without good reason,
+when a memhog goes well beyond its rss limit but with plenty of swap
+available.  Seen on x86 but not on PowerPC; seen when the next patch
+omits swapcache from memcgroup, but we presume it can happen without.
+
+mem_cgroup_isolate_pages is not quite satisfying reclaim's criteria
+for OOM avoidance.  Already it has to scan beyond the nr_to_scan limit
+when it finds a !LRU page or an active page when handling inactive or
+an inactive page when handling active.  It needs to do exactly the same
+when it finds a page from the wrong zone (the x86 tests had two zones,
+the PowerPC tests had only one).
+
+Don't increment scan and then decrement it in these cases, just move
+the incrementation down.  Fix recent off-by-one when checking against
+nr_to_scan.  Cut out "Check if the meta page went away from under us",
+presumably left over from early debugging: no amount of such checks
+could save us if this list really were being updated without locking.
+
+This change does make the unlimited scan while holding two spinlocks
+even worse - bad for latency and bad for containment; but that's a
+separate issue which is better left to be fixed a little later.
 
 Signed-off-by: Hugh Dickins <hugh@veritas.com>
 ---
-Insert just after memory-controller-make-charging-gfp-mask-aware.patch or
-you may prefer to insert 4-6 all together before memory-cgroup-enhancements
+Insert just after bugfix-for-memory-cgroup-controller-avoid-pagelru-page-in-mem_cgroup_isolate_pages-fix.patch
+or just before memory-cgroup-enhancements
 
- mm/swapfile.c |   42 ++++++++++++++++++++++++++++++++++--------
- 1 file changed, 34 insertions(+), 8 deletions(-)
+ mm/memcontrol.c |   17 ++++-------------
+ 1 file changed, 4 insertions(+), 13 deletions(-)
 
---- patch3/mm/swapfile.c	2007-11-08 15:48:08.000000000 +0000
-+++ patch4/mm/swapfile.c	2007-11-08 15:55:12.000000000 +0000
-@@ -507,11 +507,23 @@ unsigned int count_swap_pages(int type, 
-  * just let do_wp_page work it out if a write is requested later - to
-  * force COW, vm_page_prot omits write permission from any private vma.
-  */
--static int unuse_pte(struct vm_area_struct *vma, pte_t *pte,
-+static int unuse_pte(struct vm_area_struct *vma, pmd_t *pmd,
- 		unsigned long addr, swp_entry_t entry, struct page *page)
- {
-+	spinlock_t *ptl;
-+	pte_t *pte;
-+	int ret = 1;
-+
- 	if (mem_cgroup_charge(page, vma->vm_mm, GFP_KERNEL))
--		return -ENOMEM;
-+		ret = -ENOMEM;
-+
-+	pte = pte_offset_map_lock(vma->vm_mm, pmd, addr, &ptl);
-+	if (unlikely(!pte_same(*pte, swp_entry_to_pte(entry)))) {
-+		if (ret > 0)
-+			mem_cgroup_uncharge_page(page);
-+		ret = 0;
-+		goto out;
-+	}
+--- patch4/mm/memcontrol.c	2007-11-08 16:03:33.000000000 +0000
++++ patch5/mm/memcontrol.c	2007-11-08 16:51:39.000000000 +0000
+@@ -260,24 +260,20 @@ unsigned long mem_cgroup_isolate_pages(u
+ 	spin_lock(&mem_cont->lru_lock);
+ 	scan = 0;
+ 	list_for_each_entry_safe_reverse(pc, tmp, src, lru) {
+-		if (scan++ > nr_to_scan)
++		if (scan >= nr_to_scan)
+ 			break;
+ 		page = pc->page;
+ 		VM_BUG_ON(!pc);
  
- 	inc_mm_counter(vma->vm_mm, anon_rss);
- 	get_page(page);
-@@ -524,7 +536,9 @@ static int unuse_pte(struct vm_area_stru
- 	 * immediately swapped out again after swapon.
- 	 */
- 	activate_page(page);
--	return 1;
-+out:
-+	pte_unmap_unlock(pte, ptl);
-+	return ret;
- }
+-		if (unlikely(!PageLRU(page))) {
+-			scan--;
++		if (unlikely(!PageLRU(page)))
+ 			continue;
+-		}
  
- static int unuse_pte_range(struct vm_area_struct *vma, pmd_t *pmd,
-@@ -533,21 +547,33 @@ static int unuse_pte_range(struct vm_are
- {
- 	pte_t swp_pte = swp_entry_to_pte(entry);
- 	pte_t *pte;
--	spinlock_t *ptl;
- 	int ret = 0;
- 
--	pte = pte_offset_map_lock(vma->vm_mm, pmd, addr, &ptl);
-+	/*
-+	 * We don't actually need pte lock while scanning for swp_pte: since
-+	 * we hold page lock and mmap_sem, swp_pte cannot be inserted into the
-+	 * page table while we're scanning; though it could get zapped, and on
-+	 * some architectures (e.g. x86_32 with PAE) we might catch a glimpse
-+	 * of unmatched parts which look like swp_pte, so unuse_pte must
-+	 * recheck under pte lock.  Scanning without pte lock lets it be
-+	 * preemptible whenever CONFIG_PREEMPT but not CONFIG_HIGHPTE.
-+	 */
-+	pte = pte_offset_map(pmd, addr);
- 	do {
- 		/*
- 		 * swapoff spends a _lot_ of time in this loop!
- 		 * Test inline before going to call unuse_pte.
- 		 */
- 		if (unlikely(pte_same(*pte, swp_pte))) {
--			ret = unuse_pte(vma, pte++, addr, entry, page);
--			break;
-+			pte_unmap(pte);
-+			ret = unuse_pte(vma, pmd, addr, entry, page);
-+			if (ret)
-+				goto out;
-+			pte = pte_offset_map(pmd, addr);
+ 		if (PageActive(page) && !active) {
+ 			__mem_cgroup_move_lists(pc, true);
+-			scan--;
+ 			continue;
  		}
- 	} while (pte++, addr += PAGE_SIZE, addr != end);
--	pte_unmap_unlock(pte - 1, ptl);
-+	pte_unmap(pte - 1);
-+out:
- 	return ret;
- }
+ 		if (!PageActive(page) && active) {
+ 			__mem_cgroup_move_lists(pc, false);
+-			scan--;
+ 			continue;
+ 		}
  
+@@ -288,13 +284,8 @@ unsigned long mem_cgroup_isolate_pages(u
+ 		if (page_zone(page) != z)
+ 			continue;
+ 
+-		/*
+-		 * Check if the meta page went away from under us
+-		 */
+-		if (!list_empty(&pc->lru))
+-			list_move(&pc->lru, &pc_list);
+-		else
+-			continue;
++		scan++;
++		list_move(&pc->lru, &pc_list);
+ 
+ 		if (__isolate_lru_page(page, mode) == 0) {
+ 			list_move(&page->lru, dst);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
