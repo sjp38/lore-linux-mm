@@ -1,7 +1,7 @@
-Date: Sat, 10 Nov 2007 06:15:01 +0100
+Date: Sat, 10 Nov 2007 06:43:43 +0100
 From: Nick Piggin <npiggin@suse.de>
-Subject: [patch 2/2] fs: buffer trylock rename
-Message-ID: <20071110051501.GB16018@wotan.suse.de>
+Subject: Re: [patch 1/2] mm: page trylock rename
+Message-ID: <20071110054343.GA17803@wotan.suse.de>
 References: <20071110051222.GA16018@wotan.suse.de>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
@@ -13,185 +13,211 @@ To: Andrew Morton <akpm@linux-foundation.org>, Linux Memory Management List <lin
 Cc: Linus Torvalds <torvalds@linux-foundation.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>
 List-ID: <linux-mm.kvack.org>
 
-fs: rename buffer trylock
+Here's a little something to make up for the occasional extra cacheline
+write in add_to_page_cache. Saves an atomic operation and 2 memory barriers
+for every add_to_page_cache().
 
-Converting the buffer lock to new bitops also requires name change, so convert
-the raw test_and_set bitop to a trylock.
-
-Signed-off-by: Nick Piggin <npiggin@suse.de>
+I suspect lockdepifying the page lock will also barf without this, too...
 
 ---
- fs/buffer.c                 |    4 ++--
- fs/jbd/commit.c             |    2 +-
- fs/jbd2/commit.c            |    2 +-
- fs/ntfs/aops.c              |    2 +-
- fs/ntfs/compress.c          |    2 +-
- fs/ntfs/mft.c               |    4 ++--
- fs/reiserfs/inode.c         |    2 +-
- fs/reiserfs/journal.c       |    4 ++--
- include/linux/buffer_head.h |    8 ++++++--
- 9 files changed, 17 insertions(+), 13 deletions(-)
+Setting and clearing the page locked when inserting it into swapcache /
+pagecache when it has no other references can use non-atomic page flags
+operatoins because no other CPU may be operating on it at this time.
 
-Index: linux-2.6/fs/jbd/commit.c
+Also, remove comments in add_to_swap_cache that suggest the contrary, and
+rename it to add_to_swap_cache_lru(), better matching the filemap code,
+and which meaks it more clear that the page has no other references yet.
+
+Also, the comments in add_to_page_cache aren't really correct. It is not
+just called for new pages, but for tmpfs pages as well. They are locked
+when called, so it is OK for atomic bitflag access, but we can't do
+non-atomic access. Split this into add_to_page_cache_locked, for tmpfs.
+
+Signed-off-by: Nick Piggin <npiggin@suse.de>
+---
+Index: linux-2.6/mm/filemap.c
 ===================================================================
---- linux-2.6.orig/fs/jbd/commit.c
-+++ linux-2.6/fs/jbd/commit.c
-@@ -208,7 +208,7 @@ write_out_data:
- 		 * blocking lock_buffer().
- 		 */
- 		if (buffer_dirty(bh)) {
--			if (test_set_buffer_locked(bh)) {
-+			if (!trylock_buffer(bh)) {
- 				BUFFER_TRACE(bh, "needs blocking lock");
- 				spin_unlock(&journal->j_list_lock);
- 				/* Write out all data to prevent deadlocks */
-Index: linux-2.6/fs/jbd2/commit.c
-===================================================================
---- linux-2.6.orig/fs/jbd2/commit.c
-+++ linux-2.6/fs/jbd2/commit.c
-@@ -208,7 +208,7 @@ write_out_data:
- 		 * blocking lock_buffer().
- 		 */
- 		if (buffer_dirty(bh)) {
--			if (test_set_buffer_locked(bh)) {
-+			if (!trylock_buffer(bh)) {
- 				BUFFER_TRACE(bh, "needs blocking lock");
- 				spin_unlock(&journal->j_list_lock);
- 				/* Write out all data to prevent deadlocks */
-Index: linux-2.6/fs/buffer.c
-===================================================================
---- linux-2.6.orig/fs/buffer.c
-+++ linux-2.6/fs/buffer.c
-@@ -1688,7 +1688,7 @@ static int __block_write_full_page(struc
- 		 */
- 		if (wbc->sync_mode != WB_SYNC_NONE || !wbc->nonblocking) {
- 			lock_buffer(bh);
--		} else if (test_set_buffer_locked(bh)) {
-+		} else if (!trylock_buffer(bh)) {
- 			redirty_page_for_writepage(wbc, page);
- 			continue;
- 		}
-@@ -2943,7 +2943,7 @@ void ll_rw_block(int rw, int nr, struct 
- 
- 		if (rw == SWRITE)
- 			lock_buffer(bh);
--		else if (test_set_buffer_locked(bh))
-+		else if (!trylock_buffer(bh))
- 			continue;
- 
- 		if (rw == WRITE || rw == SWRITE) {
-Index: linux-2.6/include/linux/buffer_head.h
-===================================================================
---- linux-2.6.orig/include/linux/buffer_head.h
-+++ linux-2.6/include/linux/buffer_head.h
-@@ -115,7 +115,6 @@ BUFFER_FNS(Uptodate, uptodate)
- BUFFER_FNS(Dirty, dirty)
- TAS_BUFFER_FNS(Dirty, dirty)
- BUFFER_FNS(Lock, locked)
--TAS_BUFFER_FNS(Lock, locked)
- BUFFER_FNS(Req, req)
- TAS_BUFFER_FNS(Req, req)
- BUFFER_FNS(Mapped, mapped)
-@@ -318,10 +317,15 @@ static inline void wait_on_buffer(struct
- 		__wait_on_buffer(bh);
+--- linux-2.6.orig/mm/filemap.c
++++ linux-2.6/mm/filemap.c
+@@ -426,29 +426,28 @@ int filemap_write_and_wait_range(struct 
  }
  
-+static inline int trylock_buffer(struct buffer_head *bh)
+ /**
+- * add_to_page_cache - add newly allocated pagecache pages
++ * add_to_page_cache_locked - add a locked page to pagecache
+  * @page:	page to add
+  * @mapping:	the page's address_space
+  * @offset:	page index
+  * @gfp_mask:	page allocation mode
+  *
+- * This function is used to add newly allocated pagecache pages;
+- * the page is new, so we can just run set_page_locked() against it.
+- * The other page state flags were set by rmqueue().
+- *
++ * This function is used to add a page to the pagecache. It must be locked.
+  * This function does not add the page to the LRU.  The caller must do that.
+  */
+-int add_to_page_cache(struct page *page, struct address_space *mapping,
++int add_to_page_cache_locked(struct page *page, struct address_space *mapping,
+ 		pgoff_t offset, gfp_t gfp_mask)
+ {
+-	int error = radix_tree_preload(gfp_mask & ~__GFP_HIGHMEM);
++	int error;
++
++	VM_BUG_ON(!PageLocked(page));
+ 
++	error = radix_tree_preload(gfp_mask & ~__GFP_HIGHMEM);
+ 	if (error == 0) {
+ 		write_lock_irq(&mapping->tree_lock);
+ 		error = radix_tree_insert(&mapping->page_tree, offset, page);
+ 		if (!error) {
+ 			page_cache_get(page);
+-			set_page_locked(page);
+ 			page->mapping = mapping;
+ 			page->index = offset;
+ 			mapping->nrpages++;
+@@ -459,7 +458,7 @@ int add_to_page_cache(struct page *page,
+ 	}
+ 	return error;
+ }
+-EXPORT_SYMBOL(add_to_page_cache);
++EXPORT_SYMBOL(add_to_page_cache_locked);
+ 
+ int add_to_page_cache_lru(struct page *page, struct address_space *mapping,
+ 				pgoff_t offset, gfp_t gfp_mask)
+Index: linux-2.6/mm/swap_state.c
+===================================================================
+--- linux-2.6.orig/mm/swap_state.c
++++ linux-2.6/mm/swap_state.c
+@@ -95,7 +95,7 @@ static int __add_to_swap_cache(struct pa
+ 	return error;
+ }
+ 
+-static int add_to_swap_cache(struct page *page, swp_entry_t entry)
++static int add_to_swap_cache_lru(struct page *page, swp_entry_t entry)
+ {
+ 	int error;
+ 
+@@ -104,19 +104,18 @@ static int add_to_swap_cache(struct page
+ 		INC_CACHE_INFO(noent_race);
+ 		return -ENOENT;
+ 	}
+-	set_page_locked(page);
++	__set_page_locked(page);
+ 	error = __add_to_swap_cache(page, entry, GFP_KERNEL);
+-	/*
+-	 * Anon pages are already on the LRU, we don't run lru_cache_add here.
+-	 */
+ 	if (error) {
+-		clear_page_locked(page);
++		__clear_page_locked(page);
+ 		swap_free(entry);
+ 		if (error == -EEXIST)
+ 			INC_CACHE_INFO(exist_race);
+ 		return error;
+ 	}
+ 	INC_CACHE_INFO(add_total);
++	lru_cache_add_active(page);
++
+ 	return 0;
+ }
+ 
+@@ -235,7 +234,7 @@ int move_to_swap_cache(struct page *page
+ int move_from_swap_cache(struct page *page, unsigned long index,
+ 		struct address_space *mapping)
+ {
+-	int err = add_to_page_cache(page, mapping, index, GFP_ATOMIC);
++	int err = add_to_page_cache_locked(page, mapping, index, GFP_ATOMIC);
+ 	if (!err) {
+ 		delete_from_swap_cache(page);
+ 		/* shift page from clean_pages to dirty_pages list */
+@@ -353,12 +352,11 @@ struct page *read_swap_cache_async(swp_e
+ 		 * the just freed swap entry for an existing page.
+ 		 * May fail (-ENOMEM) if radix-tree node allocation failed.
+ 		 */
+-		err = add_to_swap_cache(new_page, entry);
++		err = add_to_swap_cache_lru(new_page, entry);
+ 		if (!err) {
+ 			/*
+ 			 * Initiate read into locked page and return.
+ 			 */
+-			lru_cache_add_active(new_page);
+ 			swap_readpage(NULL, new_page);
+ 			return new_page;
+ 		}
+Index: linux-2.6/include/linux/pagemap.h
+===================================================================
+--- linux-2.6.orig/include/linux/pagemap.h
++++ linux-2.6/include/linux/pagemap.h
+@@ -133,13 +133,6 @@ static inline struct page *read_mapping_
+ 	return read_cache_page(mapping, index, filler, data);
+ }
+ 
+-int add_to_page_cache(struct page *page, struct address_space *mapping,
+-				pgoff_t index, gfp_t gfp_mask);
+-int add_to_page_cache_lru(struct page *page, struct address_space *mapping,
+-				pgoff_t index, gfp_t gfp_mask);
+-extern void remove_from_page_cache(struct page *page);
+-extern void __remove_from_page_cache(struct page *page);
+-
+ /*
+  * Return byte-offset into filesystem object for page.
+  */
+@@ -160,14 +153,17 @@ extern void FASTCALL(__lock_page(struct 
+ extern void FASTCALL(__lock_page_nosync(struct page *page));
+ extern void FASTCALL(unlock_page(struct page *page));
+ 
+-static inline void set_page_locked(struct page *page)
++static inline void __set_page_locked(struct page *page)
+ {
+-	set_bit(PG_locked, &page->flags);
++	/* concurrent access would cause data loss with non-atomic bitop */
++	VM_BUG_ON(page_count(page) != 1);
++	__set_bit(PG_locked, &page->flags);
+ }
+ 
+-static inline void clear_page_locked(struct page *page)
++static inline void __clear_page_locked(struct page *page)
+ {
+-	clear_bit(PG_locked, &page->flags);
++	VM_BUG_ON(page_count(page) != 1);
++	__clear_bit(PG_locked, &page->flags);
+ }
+ 
+ static inline int trylock_page(struct page *page)
+@@ -226,6 +222,32 @@ static inline void wait_on_page_writebac
+ 
+ extern void end_page_writeback(struct page *page);
+ 
++
++int add_to_page_cache_locked(struct page *page, struct address_space *mapping,
++				pgoff_t index, gfp_t gfp_mask);
++int add_to_page_cache_lru(struct page *page, struct address_space *mapping,
++				pgoff_t index, gfp_t gfp_mask);
++extern void remove_from_page_cache(struct page *page);
++extern void __remove_from_page_cache(struct page *page);
++
++/*
++ * Like add_to_page_cache_locked, but used to add newly allocated pages: the
++ * page is new, so we can just run __set_page_locked() against it.
++ */
++static inline int add_to_page_cache(struct page *page, struct address_space *mapping,
++		pgoff_t offset, gfp_t gfp_mask)
 +{
-+	return likely(!test_and_set_bit(BH_Lock, &bh->b_state));
++	int error;
++
++	__set_page_locked(page);
++	error = add_to_page_cache_locked(page, mapping, offset, gfp_mask);
++	if (unlikely(error))
++		__clear_page_locked(page);
++
++	return error;
 +}
 +
- static inline void lock_buffer(struct buffer_head *bh)
- {
- 	might_sleep();
--	if (test_set_buffer_locked(bh))
-+	if (!trylock_buffer(bh))
- 		__lock_buffer(bh);
- }
- 
-Index: linux-2.6/fs/ntfs/aops.c
-===================================================================
---- linux-2.6.orig/fs/ntfs/aops.c
-+++ linux-2.6/fs/ntfs/aops.c
-@@ -1191,7 +1191,7 @@ lock_retry_remap:
- 		tbh = bhs[i];
- 		if (!tbh)
- 			continue;
--		if (unlikely(test_set_buffer_locked(tbh)))
-+		if (!trylock_buffer(tbh))
- 			BUG();
- 		/* The buffer dirty state is now irrelevant, just clean it. */
- 		clear_buffer_dirty(tbh);
-Index: linux-2.6/fs/ntfs/compress.c
-===================================================================
---- linux-2.6.orig/fs/ntfs/compress.c
-+++ linux-2.6/fs/ntfs/compress.c
-@@ -665,7 +665,7 @@ lock_retry_remap:
- 	for (i = 0; i < nr_bhs; i++) {
- 		struct buffer_head *tbh = bhs[i];
- 
--		if (unlikely(test_set_buffer_locked(tbh)))
-+		if (!trylock_buffer(tbh))
- 			continue;
- 		if (unlikely(buffer_uptodate(tbh))) {
- 			unlock_buffer(tbh);
-Index: linux-2.6/fs/ntfs/mft.c
-===================================================================
---- linux-2.6.orig/fs/ntfs/mft.c
-+++ linux-2.6/fs/ntfs/mft.c
-@@ -586,7 +586,7 @@ int ntfs_sync_mft_mirror(ntfs_volume *vo
- 		for (i_bhs = 0; i_bhs < nr_bhs; i_bhs++) {
- 			struct buffer_head *tbh = bhs[i_bhs];
- 
--			if (unlikely(test_set_buffer_locked(tbh)))
-+			if (!trylock_buffer(tbh))
- 				BUG();
- 			BUG_ON(!buffer_uptodate(tbh));
- 			clear_buffer_dirty(tbh);
-@@ -779,7 +779,7 @@ int write_mft_record_nolock(ntfs_inode *
- 	for (i_bhs = 0; i_bhs < nr_bhs; i_bhs++) {
- 		struct buffer_head *tbh = bhs[i_bhs];
- 
--		if (unlikely(test_set_buffer_locked(tbh)))
-+		if (!trylock_buffer(tbh))
- 			BUG();
- 		BUG_ON(!buffer_uptodate(tbh));
- 		clear_buffer_dirty(tbh);
-Index: linux-2.6/fs/reiserfs/inode.c
-===================================================================
---- linux-2.6.orig/fs/reiserfs/inode.c
-+++ linux-2.6/fs/reiserfs/inode.c
-@@ -2433,7 +2433,7 @@ static int reiserfs_write_full_page(stru
- 		if (wbc->sync_mode != WB_SYNC_NONE || !wbc->nonblocking) {
- 			lock_buffer(bh);
- 		} else {
--			if (test_set_buffer_locked(bh)) {
-+			if (!trylock_buffer(bh)) {
- 				redirty_page_for_writepage(wbc, page);
- 				continue;
- 			}
-Index: linux-2.6/fs/reiserfs/journal.c
-===================================================================
---- linux-2.6.orig/fs/reiserfs/journal.c
-+++ linux-2.6/fs/reiserfs/journal.c
-@@ -857,7 +857,7 @@ static int write_ordered_buffers(spinloc
- 		jh = JH_ENTRY(list->next);
- 		bh = jh->bh;
- 		get_bh(bh);
--		if (test_set_buffer_locked(bh)) {
-+		if (!trylock_buffer(bh)) {
- 			if (!buffer_dirty(bh)) {
- 				list_move(&jh->list, &tmp);
- 				goto loop_next;
-@@ -3877,7 +3877,7 @@ int reiserfs_prepare_for_journal(struct 
- {
- 	PROC_INFO_INC(p_s_sb, journal.prepare);
- 
--	if (test_set_buffer_locked(bh)) {
-+	if (!trylock_buffer(bh)) {
- 		if (!wait)
- 			return 0;
- 		lock_buffer(bh);
++
+ /*
+  * Fault a userspace page into pagetables.  Return non-zero on a fault.
+  *
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
