@@ -1,247 +1,454 @@
-Date: Fri, 9 Nov 2007 18:44:06 -0800 (PST)
-From: Christoph Lameter <clameter@sgi.com>
-Subject: Page allocator: Clean up pcp draining functions
-Message-ID: <Pine.LNX.4.64.0711091840410.18588@schroedinger.engr.sgi.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Date: Sat, 10 Nov 2007 06:12:22 +0100
+From: Nick Piggin <npiggin@suse.de>
+Subject: [patch 1/2] mm: page trylock rename
+Message-ID: <20071110051222.GA16018@wotan.suse.de>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: akpm@linux-foundation.org
-Cc: linux-mm@kvack.org, Yasunori Goto <y-goto@jp.fujitsu.com>, Mel Gorman <mel@csn.ul.ie>, "Rafael J. Wysocki" <rjw@sisk.pl>
+To: Andrew Morton <akpm@linux-foundation.org>, Linux Memory Management List <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>
 List-ID: <linux-mm.kvack.org>
 
-- Add comments explaing how drain_pages() works.
+Hi,
 
-- Eliminate useless functions
+OK minus the memory barrier changes for now. Can we possibly please
+get these into 2.6.24?
 
-- Rename drain_all_local_pages to drain_all_pages(). It does drain
-  all pages not only those of the local processor.
+--
+mm: rename page trylock
 
-- Eliminate useless interrupt off / on sequences. drain_pages()
-  disables interrupts on its own. The execution thread is
-  pinned to processor by the caller. So there is no need to
-  disable interrupts.
+Converting page lock to new locking bitops requires a change of page flag
+operation naming, so we might as well convert it to something nicer
+(!TestSetPageLocked => trylock_page, SetPageLocked => set_page_locked).
 
-- Put drain_all_pages() declaration in gfp.h and remove the
-  declarations from suspend.h and from mm/memory_hotplug.c
-
-- Make software suspend call drain_all_pages(). The draining
-  of processor local pages is may not the right approach if
-  software suspend wants to support SMP. If they call drain_all_pages
-  then we can make drain_pages() static.
-
-Signed-off-by: Christoph Lameter <clameter@sgi.com>
+Signed-off-by: Nick Piggin <npiggin@suse.de>
 
 ---
- include/linux/gfp.h     |    1 
- include/linux/suspend.h |    1 
- kernel/power/snapshot.c |    4 +-
- mm/memory_hotplug.c     |    6 +--
- mm/page_alloc.c         |   79 +++++++++++++++++++++++++-----------------------
- 5 files changed, 47 insertions(+), 44 deletions(-)
+ drivers/scsi/sg.c           |    2 +-
+ fs/afs/write.c              |    2 +-
+ fs/cifs/file.c              |    2 +-
+ fs/jbd/commit.c             |    2 +-
+ fs/jbd2/commit.c            |    2 +-
+ fs/reiserfs/journal.c       |    2 +-
+ fs/splice.c                 |    2 +-
+ fs/xfs/linux-2.6/xfs_aops.c |    4 ++--
+ include/linux/page-flags.h  |    8 --------
+ include/linux/pagemap.h     |   19 +++++++++++++++++--
+ mm/filemap.c                |   12 ++++++------
+ mm/memory.c                 |    2 +-
+ mm/migrate.c                |    4 ++--
+ mm/rmap.c                   |    2 +-
+ mm/shmem.c                  |    4 ++--
+ mm/swap.c                   |    2 +-
+ mm/swap_state.c             |    6 +++---
+ mm/swapfile.c               |    2 +-
+ mm/truncate.c               |    4 ++--
+ mm/vmscan.c                 |    4 ++--
+ 20 files changed, 47 insertions(+), 40 deletions(-)
 
-Index: linux-2.6/mm/page_alloc.c
+Index: linux-2.6/include/linux/pagemap.h
 ===================================================================
---- linux-2.6.orig/mm/page_alloc.c	2007-11-08 21:57:36.218700063 -0800
-+++ linux-2.6/mm/page_alloc.c	2007-11-08 22:17:28.166753117 -0800
-@@ -901,7 +901,14 @@ void drain_zone_pages(struct zone *zone,
- }
- #endif
+--- linux-2.6.orig/include/linux/pagemap.h
++++ linux-2.6/include/linux/pagemap.h
+@@ -160,13 +160,28 @@ extern void FASTCALL(__lock_page(struct 
+ extern void FASTCALL(__lock_page_nosync(struct page *page));
+ extern void FASTCALL(unlock_page(struct page *page));
  
--static void __drain_pages(unsigned int cpu)
-+/*
-+ * Drain pages of the indicated processor.
-+ *
-+ * The processor must either be the current processor and the
-+ * thread pinned to the current processor or a processor that
-+ * is not online.
-+ */
-+static void drain_pages(unsigned int cpu)
- {
- 	unsigned long flags;
- 	struct zone *zone;
-@@ -926,6 +933,22 @@ static void __drain_pages(unsigned int c
- 	}
- }
- 
-+/*
-+ * Spill all of this CPU's per-cpu pages back into the buddy allocator.
-+ */
-+static void drain_local_pages(void *arg)
++static inline void set_page_locked(struct page *page)
 +{
-+	drain_pages(smp_processor_id());
++	set_bit(PG_locked, &page->flags);
 +}
 +
-+/*
-+ * Spill all the per-cpu pages from all CPUs back into the buddy allocator
-+ */
-+void drain_all_pages(void)
++static inline void clear_page_locked(struct page *page)
 +{
-+	on_each_cpu(drain_local_pages, NULL, 0, 1);
++	clear_bit(PG_locked, &page->flags);
 +}
 +
- #ifdef CONFIG_HIBERNATION
- 
- void mark_free_pages(struct zone *zone)
-@@ -963,37 +986,6 @@ void mark_free_pages(struct zone *zone)
- #endif /* CONFIG_PM */
- 
++static inline int trylock_page(struct page *page)
++{
++	return !test_and_set_bit(PG_locked, &page->flags);
++}
++
  /*
-- * Spill all of this CPU's per-cpu pages back into the buddy allocator.
-- */
--void drain_local_pages(void)
--{
--	unsigned long flags;
--
--	local_irq_save(flags);	
--	__drain_pages(smp_processor_id());
--	local_irq_restore(flags);	
--}
--
--void smp_drain_local_pages(void *arg)
--{
--	drain_local_pages();
--}
--
--/*
-- * Spill all the per-cpu pages from all CPUs back into the buddy allocator
-- */
--void drain_all_local_pages(void)
--{
--	unsigned long flags;
--
--	local_irq_save(flags);
--	__drain_pages(smp_processor_id());
--	local_irq_restore(flags);
--
--	smp_call_function(smp_drain_local_pages, NULL, 0, 1);
--}
--
--/*
-  * Free a 0-order page
+  * lock_page may only be called if we have the page's inode pinned.
   */
- static void fastcall free_hot_cold_page(struct page *page, int cold)
-@@ -1575,7 +1567,7 @@ nofail_alloc:
- 	cond_resched();
- 
- 	if (order != 0)
--		drain_all_local_pages();
-+		drain_all_pages();
- 
- 	if (likely(did_some_progress)) {
- 		page = get_page_from_freelist(gfp_mask, order,
-@@ -3931,10 +3923,23 @@ static int page_alloc_cpu_notify(struct 
- 	int cpu = (unsigned long)hcpu;
- 
- 	if (action == CPU_DEAD || action == CPU_DEAD_FROZEN) {
--		local_irq_disable();
--		__drain_pages(cpu);
-+		drain_pages(cpu);
-+
-+		/*
-+		 * Spill the event counters of the dead processor
-+		 * into the current processors event counters.
-+		 * This artificially elevates the count of the current
-+		 * processor.
-+		 */
- 		vm_events_fold_cpu(cpu);
--		local_irq_enable();
-+
-+		/*
-+		 * Zero the differential counters of the dead processor
-+		 * so that the vm statistics are consistent.
-+		 *
-+		 * This is only okay since the processor is dead and cannot
-+		 * race with what we are doing.
-+		 */
- 		refresh_cpu_vm_stats(cpu);
- 	}
- 	return NOTIFY_OK;
-@@ -4435,7 +4440,7 @@ int set_migratetype_isolate(struct page 
- out:
- 	spin_unlock_irqrestore(&zone->lock, flags);
- 	if (!ret)
--		drain_all_local_pages();
-+		drain_all_pages();
- 	return ret;
- }
- 
-Index: linux-2.6/include/linux/suspend.h
-===================================================================
---- linux-2.6.orig/include/linux/suspend.h	2007-11-08 21:57:36.238700167 -0800
-+++ linux-2.6/include/linux/suspend.h	2007-11-08 22:09:54.324950025 -0800
-@@ -123,7 +123,6 @@ struct pbe {
- };
- 
- /* mm/page_alloc.c */
--extern void drain_local_pages(void);
- extern void mark_free_pages(struct zone *zone);
- 
- /**
-Index: linux-2.6/kernel/power/snapshot.c
-===================================================================
---- linux-2.6.orig/kernel/power/snapshot.c	2007-11-08 21:57:36.250700201 -0800
-+++ linux-2.6/kernel/power/snapshot.c	2007-11-08 22:00:20.924949833 -0800
-@@ -1204,7 +1204,7 @@ asmlinkage int swsusp_save(void)
- 
- 	printk("swsusp: critical section: \n");
- 
--	drain_local_pages();
-+	drain_all_pages();
- 	nr_pages = count_data_pages();
- 	nr_highmem = count_highmem_pages();
- 	printk("swsusp: Need to copy %u pages\n", nr_pages + nr_highmem);
-@@ -1222,7 +1222,7 @@ asmlinkage int swsusp_save(void)
- 	/* During allocating of suspend pagedir, new cold pages may appear.
- 	 * Kill them.
- 	 */
--	drain_local_pages();
-+	drain_all_pages();
- 	copy_data_pages(&copy_bm, &orig_bm);
- 
- 	/*
-Index: linux-2.6/include/linux/gfp.h
-===================================================================
---- linux-2.6.orig/include/linux/gfp.h	2007-11-08 22:10:17.841949824 -0800
-+++ linux-2.6/include/linux/gfp.h	2007-11-08 22:10:33.657034346 -0800
-@@ -228,5 +228,6 @@ extern void FASTCALL(free_cold_page(stru
- 
- void page_alloc_init(void);
- void drain_zone_pages(struct zone *zone, struct per_cpu_pages *pcp);
-+void drain_all_pages(void);
- 
- #endif /* __LINUX_GFP_H */
-Index: linux-2.6/mm/memory_hotplug.c
-===================================================================
---- linux-2.6.orig/mm/memory_hotplug.c	2007-11-08 22:09:08.657449925 -0800
-+++ linux-2.6/mm/memory_hotplug.c	2007-11-08 22:12:07.377699532 -0800
-@@ -481,8 +481,6 @@ check_pages_isolated(unsigned long start
- 	return offlined;
- }
- 
--extern void drain_all_local_pages(void);
--
- int offline_pages(unsigned long start_pfn,
- 		  unsigned long end_pfn, unsigned long timeout)
+ static inline void lock_page(struct page *page)
  {
-@@ -540,7 +538,7 @@ repeat:
- 		lru_add_drain_all();
- 		flush_scheduled_work();
- 		cond_resched();
--		drain_all_local_pages();
-+		drain_all_pages();
- 	}
+ 	might_sleep();
+-	if (TestSetPageLocked(page))
++	if (!trylock_page(page))
+ 		__lock_page(page);
+ }
  
- 	pfn = scan_lru_pages(start_pfn, end_pfn);
-@@ -563,7 +561,7 @@ repeat:
- 	flush_scheduled_work();
- 	yield();
- 	/* drain pcp pages , this is synchrouns. */
--	drain_all_local_pages();
-+	drain_all_pages();
- 	/* check again */
- 	offlined_pages = check_pages_isolated(start_pfn, end_pfn);
- 	if (offlined_pages < 0) {
+@@ -177,7 +192,7 @@ static inline void lock_page(struct page
+ static inline void lock_page_nosync(struct page *page)
+ {
+ 	might_sleep();
+-	if (TestSetPageLocked(page))
++	if (!trylock_page(page))
+ 		__lock_page_nosync(page);
+ }
+ 	
+Index: linux-2.6/drivers/scsi/sg.c
+===================================================================
+--- linux-2.6.orig/drivers/scsi/sg.c
++++ linux-2.6/drivers/scsi/sg.c
+@@ -1714,7 +1714,7 @@ st_map_user_pages(struct scatterlist *sg
+                  */
+ 		flush_dcache_page(pages[i]);
+ 		/* ?? Is locking needed? I don't think so */
+-		/* if (TestSetPageLocked(pages[i]))
++		/* if (!trylock_page(pages[i]))
+ 		   goto out_unlock; */
+         }
+ 
+Index: linux-2.6/fs/cifs/file.c
+===================================================================
+--- linux-2.6.orig/fs/cifs/file.c
++++ linux-2.6/fs/cifs/file.c
+@@ -1251,7 +1251,7 @@ retry:
+ 
+ 			if (first < 0)
+ 				lock_page(page);
+-			else if (TestSetPageLocked(page))
++			else if (!trylock_page(page))
+ 				break;
+ 
+ 			if (unlikely(page->mapping != mapping)) {
+Index: linux-2.6/fs/jbd/commit.c
+===================================================================
+--- linux-2.6.orig/fs/jbd/commit.c
++++ linux-2.6/fs/jbd/commit.c
+@@ -63,7 +63,7 @@ static void release_buffer_page(struct b
+ 		goto nope;
+ 
+ 	/* OK, it's a truncated page */
+-	if (TestSetPageLocked(page))
++	if (!trylock_page(page))
+ 		goto nope;
+ 
+ 	page_cache_get(page);
+Index: linux-2.6/fs/jbd2/commit.c
+===================================================================
+--- linux-2.6.orig/fs/jbd2/commit.c
++++ linux-2.6/fs/jbd2/commit.c
+@@ -63,7 +63,7 @@ static void release_buffer_page(struct b
+ 		goto nope;
+ 
+ 	/* OK, it's a truncated page */
+-	if (TestSetPageLocked(page))
++	if (!trylock_page(page))
+ 		goto nope;
+ 
+ 	page_cache_get(page);
+Index: linux-2.6/fs/xfs/linux-2.6/xfs_aops.c
+===================================================================
+--- linux-2.6.orig/fs/xfs/linux-2.6/xfs_aops.c
++++ linux-2.6/fs/xfs/linux-2.6/xfs_aops.c
+@@ -659,7 +659,7 @@ xfs_probe_cluster(
+ 			} else
+ 				pg_offset = PAGE_CACHE_SIZE;
+ 
+-			if (page->index == tindex && !TestSetPageLocked(page)) {
++			if (page->index == tindex && trylock_page(page)) {
+ 				pg_len = xfs_probe_page(page, pg_offset, mapped);
+ 				unlock_page(page);
+ 			}
+@@ -743,7 +743,7 @@ xfs_convert_page(
+ 
+ 	if (page->index != tindex)
+ 		goto fail;
+-	if (TestSetPageLocked(page))
++	if (!trylock_page(page))
+ 		goto fail;
+ 	if (PageWriteback(page))
+ 		goto fail_unlock_page;
+Index: linux-2.6/include/linux/page-flags.h
+===================================================================
+--- linux-2.6.orig/include/linux/page-flags.h
++++ linux-2.6/include/linux/page-flags.h
+@@ -113,14 +113,6 @@
+  */
+ #define PageLocked(page)		\
+ 		test_bit(PG_locked, &(page)->flags)
+-#define SetPageLocked(page)		\
+-		set_bit(PG_locked, &(page)->flags)
+-#define TestSetPageLocked(page)		\
+-		test_and_set_bit(PG_locked, &(page)->flags)
+-#define ClearPageLocked(page)		\
+-		clear_bit(PG_locked, &(page)->flags)
+-#define TestClearPageLocked(page)	\
+-		test_and_clear_bit(PG_locked, &(page)->flags)
+ 
+ #define PageError(page)		test_bit(PG_error, &(page)->flags)
+ #define SetPageError(page)	set_bit(PG_error, &(page)->flags)
+Index: linux-2.6/mm/memory.c
+===================================================================
+--- linux-2.6.orig/mm/memory.c
++++ linux-2.6/mm/memory.c
+@@ -1559,7 +1559,7 @@ static int do_wp_page(struct mm_struct *
+ 	 * not dirty accountable.
+ 	 */
+ 	if (PageAnon(old_page)) {
+-		if (!TestSetPageLocked(old_page)) {
++		if (trylock_page(old_page)) {
+ 			reuse = can_share_swap_page(old_page);
+ 			unlock_page(old_page);
+ 		}
+Index: linux-2.6/mm/migrate.c
+===================================================================
+--- linux-2.6.orig/mm/migrate.c
++++ linux-2.6/mm/migrate.c
+@@ -569,7 +569,7 @@ static int move_to_new_page(struct page 
+ 	 * establishing additional references. We are the only one
+ 	 * holding a reference to the new page at this point.
+ 	 */
+-	if (TestSetPageLocked(newpage))
++	if (!trylock_page(newpage))
+ 		BUG();
+ 
+ 	/* Prepare mapping for the new page.*/
+@@ -622,7 +622,7 @@ static int unmap_and_move(new_page_t get
+ 		goto move_newpage;
+ 
+ 	rc = -EAGAIN;
+-	if (TestSetPageLocked(page)) {
++	if (!trylock_page(page)) {
+ 		if (!force)
+ 			goto move_newpage;
+ 		lock_page(page);
+Index: linux-2.6/mm/rmap.c
+===================================================================
+--- linux-2.6.orig/mm/rmap.c
++++ linux-2.6/mm/rmap.c
+@@ -401,7 +401,7 @@ int page_referenced(struct page *page, i
+ 			referenced += page_referenced_anon(page);
+ 		else if (is_locked)
+ 			referenced += page_referenced_file(page);
+-		else if (TestSetPageLocked(page))
++		else if (!trylock_page(page))
+ 			referenced++;
+ 		else {
+ 			if (page->mapping)
+Index: linux-2.6/mm/shmem.c
+===================================================================
+--- linux-2.6.orig/mm/shmem.c
++++ linux-2.6/mm/shmem.c
+@@ -1182,7 +1182,7 @@ repeat:
+ 		}
+ 
+ 		/* We have to do this with page locked to prevent races */
+-		if (TestSetPageLocked(swappage)) {
++		if (!trylock_page(swappage)) {
+ 			shmem_swp_unmap(entry);
+ 			spin_unlock(&info->lock);
+ 			wait_on_page_locked(swappage);
+@@ -1241,7 +1241,7 @@ repeat:
+ 		shmem_swp_unmap(entry);
+ 		filepage = find_get_page(mapping, idx);
+ 		if (filepage &&
+-		    (!PageUptodate(filepage) || TestSetPageLocked(filepage))) {
++		    (!PageUptodate(filepage) || !trylock_page(filepage))) {
+ 			spin_unlock(&info->lock);
+ 			wait_on_page_locked(filepage);
+ 			page_cache_release(filepage);
+Index: linux-2.6/mm/swap.c
+===================================================================
+--- linux-2.6.orig/mm/swap.c
++++ linux-2.6/mm/swap.c
+@@ -455,7 +455,7 @@ void pagevec_strip(struct pagevec *pvec)
+ 	for (i = 0; i < pagevec_count(pvec); i++) {
+ 		struct page *page = pvec->pages[i];
+ 
+-		if (PagePrivate(page) && !TestSetPageLocked(page)) {
++		if (PagePrivate(page) && trylock_page(page)) {
+ 			if (PagePrivate(page))
+ 				try_to_release_page(page, 0);
+ 			unlock_page(page);
+Index: linux-2.6/mm/swap_state.c
+===================================================================
+--- linux-2.6.orig/mm/swap_state.c
++++ linux-2.6/mm/swap_state.c
+@@ -104,13 +104,13 @@ static int add_to_swap_cache(struct page
+ 		INC_CACHE_INFO(noent_race);
+ 		return -ENOENT;
+ 	}
+-	SetPageLocked(page);
++	set_page_locked(page);
+ 	error = __add_to_swap_cache(page, entry, GFP_KERNEL);
+ 	/*
+ 	 * Anon pages are already on the LRU, we don't run lru_cache_add here.
+ 	 */
+ 	if (error) {
+-		ClearPageLocked(page);
++		clear_page_locked(page);
+ 		swap_free(entry);
+ 		if (error == -EEXIST)
+ 			INC_CACHE_INFO(exist_race);
+@@ -255,7 +255,7 @@ int move_from_swap_cache(struct page *pa
+  */
+ static inline void free_swap_cache(struct page *page)
+ {
+-	if (PageSwapCache(page) && !TestSetPageLocked(page)) {
++	if (PageSwapCache(page) && trylock_page(page)) {
+ 		remove_exclusive_swap_page(page);
+ 		unlock_page(page);
+ 	}
+Index: linux-2.6/mm/swapfile.c
+===================================================================
+--- linux-2.6.orig/mm/swapfile.c
++++ linux-2.6/mm/swapfile.c
+@@ -401,7 +401,7 @@ void free_swap_and_cache(swp_entry_t ent
+ 	if (p) {
+ 		if (swap_entry_free(p, swp_offset(entry)) == 1) {
+ 			page = find_get_page(&swapper_space, entry.val);
+-			if (page && unlikely(TestSetPageLocked(page))) {
++			if (page && unlikely(!trylock_page(page))) {
+ 				page_cache_release(page);
+ 				page = NULL;
+ 			}
+Index: linux-2.6/mm/truncate.c
+===================================================================
+--- linux-2.6.orig/mm/truncate.c
++++ linux-2.6/mm/truncate.c
+@@ -189,7 +189,7 @@ void truncate_inode_pages_range(struct a
+ 			if (page_index > next)
+ 				next = page_index;
+ 			next++;
+-			if (TestSetPageLocked(page))
++			if (!trylock_page(page))
+ 				continue;
+ 			if (PageWriteback(page)) {
+ 				unlock_page(page);
+@@ -282,7 +282,7 @@ unsigned long __invalidate_mapping_pages
+ 			pgoff_t index;
+ 			int lock_failed;
+ 
+-			lock_failed = TestSetPageLocked(page);
++			lock_failed = !trylock_page(page);
+ 
+ 			/*
+ 			 * We really shouldn't be looking at the ->index of an
+Index: linux-2.6/mm/vmscan.c
+===================================================================
+--- linux-2.6.orig/mm/vmscan.c
++++ linux-2.6/mm/vmscan.c
+@@ -461,7 +461,7 @@ static unsigned long shrink_page_list(st
+ 		page = lru_to_page(page_list);
+ 		list_del(&page->lru);
+ 
+-		if (TestSetPageLocked(page))
++		if (!trylock_page(page))
+ 			goto keep;
+ 
+ 		VM_BUG_ON(PageActive(page));
+@@ -547,7 +547,7 @@ static unsigned long shrink_page_list(st
+ 				 * A synchronous write - probably a ramdisk.  Go
+ 				 * ahead and try to reclaim the page.
+ 				 */
+-				if (TestSetPageLocked(page))
++				if (!trylock_page(page))
+ 					goto keep;
+ 				if (PageDirty(page) || PageWriteback(page))
+ 					goto keep_locked;
+Index: linux-2.6/mm/filemap.c
+===================================================================
+--- linux-2.6.orig/mm/filemap.c
++++ linux-2.6/mm/filemap.c
+@@ -433,7 +433,7 @@ int filemap_write_and_wait_range(struct 
+  * @gfp_mask:	page allocation mode
+  *
+  * This function is used to add newly allocated pagecache pages;
+- * the page is new, so we can just run SetPageLocked() against it.
++ * the page is new, so we can just run set_page_locked() against it.
+  * The other page state flags were set by rmqueue().
+  *
+  * This function does not add the page to the LRU.  The caller must do that.
+@@ -448,7 +448,7 @@ int add_to_page_cache(struct page *page,
+ 		error = radix_tree_insert(&mapping->page_tree, offset, page);
+ 		if (!error) {
+ 			page_cache_get(page);
+-			SetPageLocked(page);
++			set_page_locked(page);
+ 			page->mapping = mapping;
+ 			page->index = offset;
+ 			mapping->nrpages++;
+@@ -530,14 +530,14 @@ EXPORT_SYMBOL(wait_on_page_bit);
+  * But that's OK - sleepers in wait_on_page_writeback() just go back to sleep.
+  *
+  * The first mb is necessary to safely close the critical section opened by the
+- * TestSetPageLocked(), the second mb is necessary to enforce ordering between
++ * trylock_page(), the second mb is necessary to enforce ordering between
+  * the clear_bit and the read of the waitqueue (to avoid SMP races with a
+  * parallel wait_on_page_locked()).
+  */
+ void fastcall unlock_page(struct page *page)
+ {
+ 	smp_mb__before_clear_bit();
+-	if (!TestClearPageLocked(page))
++	if (!test_and_clear_bit(PG_locked, &page->flags))
+ 		BUG();
+ 	smp_mb__after_clear_bit(); 
+ 	wake_up_page(page, PG_locked);
+@@ -629,7 +629,7 @@ repeat:
+ 	page = radix_tree_lookup(&mapping->page_tree, offset);
+ 	if (page) {
+ 		page_cache_get(page);
+-		if (TestSetPageLocked(page)) {
++		if (!trylock_page(page)) {
+ 			read_unlock_irq(&mapping->tree_lock);
+ 			__lock_page(page);
+ 
+@@ -801,7 +801,7 @@ grab_cache_page_nowait(struct address_sp
+ 	struct page *page = find_get_page(mapping, index);
+ 
+ 	if (page) {
+-		if (!TestSetPageLocked(page))
++		if (trylock_page(page))
+ 			return page;
+ 		page_cache_release(page);
+ 		return NULL;
+Index: linux-2.6/fs/splice.c
+===================================================================
+--- linux-2.6.orig/fs/splice.c
++++ linux-2.6/fs/splice.c
+@@ -364,7 +364,7 @@ __generic_file_splice_read(struct file *
+ 			 * for an in-flight io page
+ 			 */
+ 			if (flags & SPLICE_F_NONBLOCK) {
+-				if (TestSetPageLocked(page))
++				if (!trylock_page(page))
+ 					break;
+ 			} else
+ 				lock_page(page);
+Index: linux-2.6/fs/afs/write.c
+===================================================================
+--- linux-2.6.orig/fs/afs/write.c
++++ linux-2.6/fs/afs/write.c
+@@ -404,7 +404,7 @@ static int afs_write_back_from_locked_pa
+ 			page = pages[loop];
+ 			if (page->index > wb->last)
+ 				break;
+-			if (TestSetPageLocked(page))
++			if (!trylock_page(page))
+ 				break;
+ 			if (!PageDirty(page) ||
+ 			    page_private(page) != (unsigned long) wb) {
+Index: linux-2.6/fs/reiserfs/journal.c
+===================================================================
+--- linux-2.6.orig/fs/reiserfs/journal.c
++++ linux-2.6/fs/reiserfs/journal.c
+@@ -629,7 +629,7 @@ static int journal_list_still_alive(stru
+ static void release_buffer_page(struct buffer_head *bh)
+ {
+ 	struct page *page = bh->b_page;
+-	if (!page->mapping && !TestSetPageLocked(page)) {
++	if (!page->mapping && trylock_page(page)) {
+ 		page_cache_get(page);
+ 		put_bh(bh);
+ 		if (!page->mapping)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
