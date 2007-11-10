@@ -1,33 +1,45 @@
-Date: Fri, 9 Nov 2007 13:50:38 -0800 (PST)
-From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [patch 2/2] x86_64: Configure stack size
-In-Reply-To: <20071109134637.8d6fd2b3.akpm@linux-foundation.org>
-Message-ID: <Pine.LNX.4.64.0711091348170.17019@schroedinger.engr.sgi.com>
-References: <20071107004357.233417373@sgi.com> <20071107004710.862876902@sgi.com>
- <20071107191453.GC5080@shadowen.org> <200711080012.06752.ak@suse.de>
- <Pine.LNX.4.64.0711071639491.4640@schroedinger.engr.sgi.com>
- <20071109121332.7dd34777.akpm@linux-foundation.org>
- <Pine.LNX.4.64.0711091242200.16284@schroedinger.engr.sgi.com>
- <20071109131057.a78c914b.akpm@linux-foundation.org>
- <Pine.LNX.4.64.0711091313040.16547@schroedinger.engr.sgi.com>
- <20071109134637.8d6fd2b3.akpm@linux-foundation.org>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Date: Fri, 9 Nov 2007 17:16:13 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [patch] hugetlb: fix i_blocks accounting
+Message-Id: <20071109171613.3b11b581.akpm@linux-foundation.org>
+In-Reply-To: <1194631797.14675.49.camel@localhost.localdomain>
+References: <b040c32a0711082343t2b94b495r1608d99ec0e28a4c@mail.gmail.com>
+	<1194617837.14675.45.camel@localhost.localdomain>
+	<b040c32a0711090942x45e89356kcc7d3282b2dedcb2@mail.gmail.com>
+	<1194631797.14675.49.camel@localhost.localdomain>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: ak@suse.de, apw@shadowen.org, linux-mm@kvack.org, travis@sgi.com
+To: aglitke <agl@us.ibm.com>
+Cc: kenchen@google.com, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 9 Nov 2007, Andrew Morton wrote:
+On Fri, 09 Nov 2007 12:09:57 -0600
+aglitke <agl@us.ibm.com> wrote:
 
-> Did you consider making the stack size a calculated-in-Kconfig-arithmetic
-> thing rather than an offered-to-humans thing?  Derive it from CONFIG_NR_CPUS?
+> Thanks for that explanation.  It makes complete sense to me now.
 
-Estimating stack use based on NR_CPUS is a difficult thing. The estimates 
-likely have to change as the use of the stack changes in the kernel. I'd 
-rather have a constant there now. Maybe in the future we can come up with 
-such a scheme.
+We have a distressing number of hugetlb patches here:
+
+hugetlb-follow_hugetlb_page-for-write-access.patch
+hugetlb-allow-sticky-directory-mount-option.patch
+hugetlb-split-alloc_huge_page-into-private-and-shared-components.patch
+hugetlb-split-alloc_huge_page-into-private-and-shared-components-checkpatch-fixes.patch
+hugetlb-fix-quota-management-for-private-mappings.patch
+hugetlb-debit-quota-in-alloc_huge_page.patch
+hugetlb-allow-bulk-updating-in-hugetlb__quota.patch
+hugetlb-enforce-quotas-during-reservation-for-shared-mappings.patch
+mm-hugetlbc-make-a-function-static.patch
+hugetlb-fix-i_blocks-accounting.patch
+
+(all available at http://userweb.kernel.org/~akpm/mmotm/)
+
+Could we please put heads together and work out which of these need to go
+into 2.6.24?  And 2.6.23, come to that...
+
+Thanks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
