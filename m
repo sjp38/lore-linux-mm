@@ -1,47 +1,25 @@
-Date: Sun, 11 Nov 2007 09:40:12 +0100
+Date: Sun, 11 Nov 2007 09:45:56 +0100
 From: Nick Piggin <npiggin@suse.de>
-Subject: [patch] mm: unlockless reclaim
-Message-ID: <20071111084012.GB19816@wotan.suse.de>
-References: <20071110051222.GA16018@wotan.suse.de> <20071110054343.GA17803@wotan.suse.de> <1194695495.20832.27.camel@lappy>
+Subject: [patch 0/6] lockless pagecache
+Message-ID: <20071111084556.GC19816@wotan.suse.de>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1194695495.20832.27.camel@lappy>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Linux Memory Management List <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linus Torvalds <torvalds@linux-foundation.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>
+To: Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Hugh Dickins <hugh@veritas.com>
+Cc: Linux Memory Management List <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-Combined with the previous and subsequent patches, throughput of pages through
-the pagecache on an Opteron system here goes up by anywhere from 50% to 500%,
-depending on the number of files and threads involved.
---
+Hi,
 
-unlock_page is fairly expensive. It can be avoided in page reclaim.
+I wonder what everyone thinks about getting the lockless pagecache patch
+into -mm? This version uses Hugh's suggestion to avoid a smp_rmb and a load
+and branch in the lockless lookup side, and avoids some atomic ops in the
+reclaim path, and avoids using a page flag! The coolest thing about it is
+that it speeds up single-threaded pagecache lookups...
 
-Signed-off-by: Nick Piggin <npiggin@suse.de>
----
-Index: linux-2.6/mm/vmscan.c
-===================================================================
---- linux-2.6.orig/mm/vmscan.c
-+++ linux-2.6/mm/vmscan.c
-@@ -589,7 +589,14 @@ static unsigned long shrink_page_list(st
- 			goto keep_locked;
- 
- free_it:
--		unlock_page(page);
-+		/*
-+		 * At this point, we have no other references and there is
-+		 * no way to pick any more up (removed from LRU, removed
-+		 * from pagecache). Can use non-atomic bitops now (and
-+		 * we obviously don't have to worry about waking up a process
-+		 * waiting on the page lock, because there are no references.
-+		 */
-+		__clear_page_locked(page);
- 		nr_reclaimed++;
- 		if (!pagevec_add(&freed_pvec, page))
- 			__pagevec_release_nonlru(&freed_pvec);
+Patches are against latest git for RFC.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
