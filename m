@@ -1,20 +1,20 @@
-Received: from d01relay04.pok.ibm.com (d01relay04.pok.ibm.com [9.56.227.236])
-	by e2.ny.us.ibm.com (8.13.8/8.13.8) with ESMTP id lAC6hA1Q020602
-	for <linux-mm@kvack.org>; Mon, 12 Nov 2007 01:43:10 -0500
-Received: from d01av04.pok.ibm.com (d01av04.pok.ibm.com [9.56.224.64])
-	by d01relay04.pok.ibm.com (8.13.8/8.13.8/NCO v8.6) with ESMTP id lAC6hApx125076
-	for <linux-mm@kvack.org>; Mon, 12 Nov 2007 01:43:10 -0500
-Received: from d01av04.pok.ibm.com (loopback [127.0.0.1])
-	by d01av04.pok.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id lAC6hA9i013906
-	for <linux-mm@kvack.org>; Mon, 12 Nov 2007 01:43:10 -0500
-Message-ID: <4737F5F1.5030907@linux.vnet.ibm.com>
-Date: Mon, 12 Nov 2007 12:12:57 +0530
+Received: from d01relay02.pok.ibm.com (d01relay02.pok.ibm.com [9.56.227.234])
+	by e4.ny.us.ibm.com (8.13.8/8.13.8) with ESMTP id lAC6uGar003806
+	for <linux-mm@kvack.org>; Mon, 12 Nov 2007 01:56:16 -0500
+Received: from d01av02.pok.ibm.com (d01av02.pok.ibm.com [9.56.224.216])
+	by d01relay02.pok.ibm.com (8.13.8/8.13.8/NCO v8.6) with ESMTP id lAC6uG8I449498
+	for <linux-mm@kvack.org>; Mon, 12 Nov 2007 01:56:16 -0500
+Received: from d01av02.pok.ibm.com (loopback [127.0.0.1])
+	by d01av02.pok.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id lAC6uFSM014821
+	for <linux-mm@kvack.org>; Mon, 12 Nov 2007 01:56:16 -0500
+Message-ID: <4737F904.8080107@linux.vnet.ibm.com>
+Date: Mon, 12 Nov 2007 12:26:04 +0530
 From: Balbir Singh <balbir@linux.vnet.ibm.com>
 Reply-To: balbir@linux.vnet.ibm.com
 MIME-Version: 1.0
-Subject: Re: [PATCH 5/6 mm] memcgroup: fix zone isolation OOM
-References: <Pine.LNX.4.64.0711090700530.21638@blonde.wat.veritas.com> <Pine.LNX.4.64.0711090712180.21663@blonde.wat.veritas.com>
-In-Reply-To: <Pine.LNX.4.64.0711090712180.21663@blonde.wat.veritas.com>
+Subject: Re: [PATCH 6/6 mm] memcgroup: revert swap_state mods
+References: <Pine.LNX.4.64.0711090700530.21638@blonde.wat.veritas.com> <Pine.LNX.4.64.0711090713300.21663@blonde.wat.veritas.com>
+In-Reply-To: <Pine.LNX.4.64.0711090713300.21663@blonde.wat.veritas.com>
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
@@ -24,37 +24,45 @@ Cc: Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroy
 List-ID: <linux-mm.kvack.org>
 
 Hugh Dickins wrote:
-> mem_cgroup_charge_common shows a tendency to OOM without good reason,
-> when a memhog goes well beyond its rss limit but with plenty of swap
-> available.  Seen on x86 but not on PowerPC; seen when the next patch
-> omits swapcache from memcgroup, but we presume it can happen without.
+> If we're charging rss and we're charging cache, it seems obvious that
+> we should be charging swapcache - as has been done.  But in practice
+> that doesn't work out so well: both swapin readahead and swapoff leave
+> the majority of pages charged to the wrong cgroup (the cgroup that
+> happened to read them in, rather than the cgroup to which they belong).
 > 
-> mem_cgroup_isolate_pages is not quite satisfying reclaim's criteria
-> for OOM avoidance.  Already it has to scan beyond the nr_to_scan limit
-> when it finds a !LRU page or an active page when handling inactive or
-> an inactive page when handling active.  It needs to do exactly the same
-> when it finds a page from the wrong zone (the x86 tests had two zones,
-> the PowerPC tests had only one).
+> (Which is why unuse_pte's GFP_KERNEL while holding pte lock never
+> showed up as a problem: no allocation was ever done there, every page
+> read being already charged to the cgroup which initiated the swapoff.)
 > 
-> Don't increment scan and then decrement it in these cases, just move
-> the incrementation down.  Fix recent off-by-one when checking against
-> nr_to_scan.  Cut out "Check if the meta page went away from under us",
-> presumably left over from early debugging: no amount of such checks
-> could save us if this list really were being updated without locking.
+> It all works rather better if we leave the charging to do_swap_page and
+> unuse_pte, and do nothing for swapcache itself: revert mm/swap_state.c
+> to what it was before the memory-controller patches.  This also speeds
+> up significantly a contained process working at its limit: because it
+> no longer needs to keep waiting for swap writeback to complete.
 > 
 
-It's a spill over from the old code, we do all operations under
-the mem_cont's lru_lock.
+Yes, it does speed up things, but we lose control over swap cache.
+It might grow very large, but having said that I am in favour of
+removing the mods till someone faces a severe problem with them.
+Another approach is to provide a per-container tunable as to
+whether swap cache should be controlled or not and document
+the side-effects of swap cache control.
 
-> This change does make the unlimited scan while holding two spinlocks
-> even worse - bad for latency and bad for containment; but that's a
-> separate issue which is better left to be fixed a little later.
+> Is it unfair that swap pages become uncharged once they're unmapped,
+> even though they're still clearly private to particular cgroups?  For
+> a short while, yes; but PageReclaim arranges for those pages to go to
+> the end of the inactive list and be reclaimed soon if necessary.
+> 
+> shmem/tmpfs pages are a distinct case: their charging also benefits
+> from this change, but their second life on the lists as swapcache
+> pages may prove more unfair - that I need to check next.
 > 
 > Signed-off-by: Hugh Dickins <hugh@veritas.com>
 
-For the swapout test case scenario sent by Hugh
+Thanks for the patch
 
-Tested-by: Balbir Singh <balbir@linux.vnet.ibm.com>
+Acked-by: Balbir Singh <balbir@linux.vnet.ibm.com>
+
 
 -- 
 	Warm Regards,
