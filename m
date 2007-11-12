@@ -1,31 +1,49 @@
-Date: Mon, 12 Nov 2007 11:07:00 -0800 (PST)
+Date: Mon, 12 Nov 2007 11:17:39 -0800 (PST)
 From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [PATCH 6/6] Use one zonelist that is filtered by nodemask
-In-Reply-To: <20071111141609.GA6967@skynet.ie>
-Message-ID: <Pine.LNX.4.64.0711121106250.26682@schroedinger.engr.sgi.com>
-References: <20071109143226.23540.12907.sendpatchset@skynet.skynet.ie>
- <20071109143426.23540.44459.sendpatchset@skynet.skynet.ie>
- <Pine.LNX.4.64.0711090741120.13932@schroedinger.engr.sgi.com>
- <20071109161455.GB32088@skynet.ie> <20071109164537.GG7507@us.ibm.com>
- <1194628732.5296.14.camel@localhost> <Pine.LNX.4.64.0711090924210.14572@schroedinger.engr.sgi.com>
- <20071111141609.GA6967@skynet.ie>
+Subject: Re: Page allocator: Clean up pcp draining functions
+In-Reply-To: <20071112160451.GC6653@skynet.ie>
+Message-ID: <Pine.LNX.4.64.0711121115180.26682@schroedinger.engr.sgi.com>
+References: <Pine.LNX.4.64.0711091840410.18588@schroedinger.engr.sgi.com>
+ <20071112160451.GC6653@skynet.ie>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Mel Gorman <mel@skynet.ie>
-Cc: Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Nishanth Aravamudan <nacc@us.ibm.com>, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, rientjes@google.com, kamezawa.hiroyu@jp.fujitsu.com
+Cc: akpm@linux-foundation.org, linux-mm@kvack.org, Yasunori Goto <y-goto@jp.fujitsu.com>, "Rafael J. Wysocki" <rjw@sisk.pl>
 List-ID: <linux-mm.kvack.org>
 
-On Sun, 11 Nov 2007, Mel Gorman wrote:
+On Mon, 12 Nov 2007, Mel Gorman wrote:
 
-> If MPOL_BIND is in effect, the allocation will be filtered based on the
-> current allowed nodemask. If they specify THISNODE and the specified
-> node or current node is not in the mask, I would expect the allocation
-> to fail. Is that unexpected to anybody?
+> Reflecting the comment, perhaps the following would not hurt?
+> 
+> VM_BUG_ON(cpu != smp_processor_id() && cpu_online(cpu))
 
-Currently GFP_THISNODE with MPOL_BIND results an allocation on the first 
-node.
+Well we need to check first with the hotplug developers if the cpu is 
+already marked off line when this function is called.
+
+> >  	if (action == CPU_DEAD || action == CPU_DEAD_FROZEN) {
+> > -		local_irq_disable();
+> > -		__drain_pages(cpu);
+> > +		drain_pages(cpu);
+> > +
+> > +		/*
+> > +		 * Spill the event counters of the dead processor
+> > +		 * into the current processors event counters.
+> > +		 * This artificially elevates the count of the current
+> > +		 * processor.
+> > +		 */
+> 
+> This comment addition does not appear to be related to the rest of the
+> patch.
+
+Its related to the action of vm_events_fold_cpu which is not that 
+unproblematic since the numbers indicate now that more events occurred on 
+this processor than what actually occurred.
+
+> Acked-by: Mel Gorman <mel@csn.ul.ie>
+
+Thanks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
