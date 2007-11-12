@@ -1,44 +1,47 @@
-Received: by rv-out-0910.google.com with SMTP id l15so1349005rvb
-        for <linux-mm@kvack.org>; Mon, 12 Nov 2007 08:56:19 -0800 (PST)
-From: Denis Cheng <crquan@gmail.com>
-Subject: [PATCH] SLUB: killed the unused "end" variable
-Date: Tue, 13 Nov 2007 00:49:42 +0800
-Message-Id: <1194886182-2330-1-git-send-email-crquan@gmail.com>
+Date: Mon, 12 Nov 2007 17:01:51 +0000 (GMT)
+From: Hugh Dickins <hugh@veritas.com>
+Subject: Re: msync(2) bug(?), returns AOP_WRITEPAGE_ACTIVATE to userland 
+In-Reply-To: <200711090605.lA965B1S024066@agora.fsl.cs.sunysb.edu>
+Message-ID: <Pine.LNX.4.64.0711121645090.14138@blonde.wat.veritas.com>
+References: <200711090605.lA965B1S024066@agora.fsl.cs.sunysb.edu>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>, Mel Gorman <mel@csn.ul.ie>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Denis Cheng <crquan@gmail.com>
+To: Erez Zadok <ezk@cs.sunysb.edu>
+Cc: Dave Hansen <haveblue@us.ibm.com>, Pekka Enberg <penberg@cs.helsinki.fi>, Ryan Finnie <ryan@finnie.org>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, cjwatson@ubuntu.com, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Since the macro "for_each_object" introduced, the "end" variable becomes unused anymore.
+On Fri, 9 Nov 2007, Erez Zadok wrote:
+> In message <Pine.LNX.4.64.0711051358440.7629@blonde.wat.veritas.com>, Hugh Dickins writes:
+> 
+> > Three, I believe you need to add a flush_dcache_page(lower_page)
+> > after the copy_highpage(lower_page): some architectures will need
+> > that to see the new data if they have lower_page mapped (though I
+> > expect it's anyway shaky ground to be accessing through the lower
+> > mount at the same time as modifying through the upper).
+> 
+> OK.
 
-Signed-off-by: Denis Cheng <crquan@gmail.com>
----
- mm/slub.c |    2 --
- 1 files changed, 0 insertions(+), 2 deletions(-)
+While looking into something else entirely, I realize that _here_
+you are missing a SetPageUptodate(lower_page): should go in after
+the flush_dcache_page(lower_page) I'm suggesting.  (Nick would argue
+for some kind of barrier there too, but I don't think unionfs has a
+special need to be ahead of the pack on that issue.)
 
-diff --git a/mm/slub.c b/mm/slub.c
-index 84f59fd..9acb413 100644
---- a/mm/slub.c
-+++ b/mm/slub.c
-@@ -1080,7 +1080,6 @@ static struct page *new_slab(struct kmem_cache *s, gfp_t flags, int node)
- 	struct page *page;
- 	struct kmem_cache_node *n;
- 	void *start;
--	void *end;
- 	void *last;
- 	void *p;
- 
-@@ -1101,7 +1100,6 @@ static struct page *new_slab(struct kmem_cache *s, gfp_t flags, int node)
- 		SetSlabDebug(page);
- 
- 	start = page_address(page);
--	end = start + s->objects * s->size;
- 
- 	if (unlikely(s->flags & SLAB_POISON))
- 		memset(start, POISON_INUSE, PAGE_SIZE << s->order);
--- 
-1.5.3.4
+Think about it:
+when find_or_create_page has created a fresh page in the cache,
+and you've just done copy_highpage to put the data into it, you
+now need to mark it as Uptodate: otherwise a subsequent vfs_read
+or whatever on the lower level will find that page !Uptodate and
+read stale data back from disk instead of what you just copied in,
+unless its dirtiness has got it written back to disk meanwhile.
+
+Odd that that hasn't been noticed at all: I guess it may be hard
+to get testing to reclaim lower/upper pages in such a way as to
+test out such paths thoroughly.
+
+Hugh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
