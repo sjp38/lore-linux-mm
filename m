@@ -1,52 +1,51 @@
-Date: Mon, 12 Nov 2007 04:57:03 +0000 (GMT)
-From: Hugh Dickins <hugh@veritas.com>
-Subject: Re: [PATCH 6/6 mm] memcgroup: revert swap_state mods
-In-Reply-To: <20071109182156.7174e92b.kamezawa.hiroyu@jp.fujitsu.com>
-Message-ID: <Pine.LNX.4.64.0711120447010.23491@blonde.wat.veritas.com>
-References: <Pine.LNX.4.64.0711090700530.21638@blonde.wat.veritas.com>
- <Pine.LNX.4.64.0711090713300.21663@blonde.wat.veritas.com>
- <20071109182156.7174e92b.kamezawa.hiroyu@jp.fujitsu.com>
+Received: from d01relay04.pok.ibm.com (d01relay04.pok.ibm.com [9.56.227.236])
+	by e5.ny.us.ibm.com (8.13.8/8.13.8) with ESMTP id lAC54EWJ013045
+	for <linux-mm@kvack.org>; Mon, 12 Nov 2007 00:04:14 -0500
+Received: from d01av04.pok.ibm.com (d01av04.pok.ibm.com [9.56.224.64])
+	by d01relay04.pok.ibm.com (8.13.8/8.13.8/NCO v8.6) with ESMTP id lAC54EMd141610
+	for <linux-mm@kvack.org>; Mon, 12 Nov 2007 00:04:14 -0500
+Received: from d01av04.pok.ibm.com (loopback [127.0.0.1])
+	by d01av04.pok.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id lAC54DFM016083
+	for <linux-mm@kvack.org>; Mon, 12 Nov 2007 00:04:14 -0500
+Message-ID: <4737DEC2.2080803@linux.vnet.ibm.com>
+Date: Mon, 12 Nov 2007 10:34:02 +0530
+From: Balbir Singh <balbir@linux.vnet.ibm.com>
+Reply-To: balbir@linux.vnet.ibm.com
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: [PATCH 1/6 mm] swapoff: scan ptes preemptibly
+References: <Pine.LNX.4.64.0711090700530.21638@blonde.wat.veritas.com>
+In-Reply-To: <Pine.LNX.4.64.0711090700530.21638@blonde.wat.veritas.com>
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Balbir Singh <balbir@linux.vnet.ibm.com>, linux-mm@kvack.org, containers@lists.osdl.org
+To: Hugh Dickins <hugh@veritas.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org, containers@lists.osdl.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 9 Nov 2007, KAMEZAWA Hiroyuki wrote:
-> On Fri, 9 Nov 2007 07:14:22 +0000 (GMT)
-> Hugh Dickins <hugh@veritas.com> wrote:
+Hugh Dickins wrote:
+> Provided that CONFIG_HIGHPTE is not set, unuse_pte_range can reduce latency
+> in swapoff by scanning the page table preemptibly: so long as unuse_pte is
+> careful to recheck that entry under pte lock.
 > 
-> > If we're charging rss and we're charging cache, it seems obvious that
-> > we should be charging swapcache - as has been done.  But in practice
-> > that doesn't work out so well: both swapin readahead and swapoff leave
-> > the majority of pages charged to the wrong cgroup (the cgroup that
-> > happened to read them in, rather than the cgroup to which they belong).
+> (To tell the truth, this patch was not inspired by any cries for lower
+> latency here: rather, this restructuring permits a future memory controller
+> patch to allocate with GFP_KERNEL in unuse_pte, where before it could not.
+> But it would be wrong to tuck this change away inside a memcgroup patch.)
 > 
-> Thank you. I welcome this patch :)
+> Signed-off-by: Hugh Dickins <hugh@veritas.com>
+> ---
 
-Thank you!  But perhaps less welcome if I don't confirm...
+Looks good to me
 
-> Could I confirm a change in the logic  ?
-> 
->  * Before this patch, wrong swapcache charge is added to one who
->    called try_to_free_page().
+Acked-by: Balbir Singh <balbir@linux.vnet.ibm.com> and earlier
+Tested-by: Balbir Singh <balbir@linux.vnet.ibm.com>
 
-try_to_free_pages?  No, I don't think any wrong charge was made
-there.  It was when reading in swap pages.  The usual way is by
-swapin_readahead, which reads in a cluster of swap pages, which
-are quite likely to belong to different memcgroups, but were all
-charged to the one which is doing the fault on its target page.
-Another way is in swapoff, where they all got charged to whoever
-was doing the swapoff (and the charging in unuse_pte was a no-op).
-
->  * After this patch, anonymous page's charge will drop to 0 when
->    page_remove_rmap() is called.
-
-Yes, when its final (usually its only) page_remove_rmap is called.
-
-Hugh
+-- 
+	Warm Regards,
+	Balbir Singh
+	Linux Technology Center
+	IBM, ISTL
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
