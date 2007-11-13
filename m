@@ -1,53 +1,61 @@
-Date: Tue, 13 Nov 2007 13:46:03 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: Sparsemem: Do not reserve section flags if VMEMMAP is in use
-Message-Id: <20071113134603.5b4b0f24.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <Pine.LNX.4.64.0711121944400.30269@schroedinger.engr.sgi.com>
-References: <Pine.LNX.4.64.0711121944400.30269@schroedinger.engr.sgi.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Date: Tue, 13 Nov 2007 05:18:49 -0500
+Message-Id: <200711131018.lADAInYN017695@agora.fsl.cs.sunysb.edu>
+From: Erez Zadok <ezk@cs.sunysb.edu>
+Subject: Re: msync(2) bug(?), returns AOP_WRITEPAGE_ACTIVATE to userland 
+In-reply-to: Your message of "Mon, 12 Nov 2007 17:01:51 GMT."
+             <Pine.LNX.4.64.0711121645090.14138@blonde.wat.veritas.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
-Cc: Andy Whitcroft <apw@shadowen.org>, linux-mm@kvack.org
+To: Hugh Dickins <hugh@veritas.com>
+Cc: Erez Zadok <ezk@cs.sunysb.edu>, Dave Hansen <haveblue@us.ibm.com>, Pekka Enberg <penberg@cs.helsinki.fi>, Ryan Finnie <ryan@finnie.org>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, cjwatson@ubuntu.com, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 12 Nov 2007 19:47:06 -0800 (PST)
-Christoph Lameter <clameter@sgi.com> wrote:
-
-> Index: linux-2.6/include/linux/mm.h
-> ===================================================================
-> --- linux-2.6.orig/include/linux/mm.h	2007-11-12 19:36:39.472347109 -0800
-> +++ linux-2.6/include/linux/mm.h	2007-11-12 19:37:05.197064250 -0800
-> @@ -378,7 +378,7 @@ static inline void set_compound_order(st
->   * with space for node: | SECTION | NODE | ZONE | ... | FLAGS |
->   *   no space for node: | SECTION |     ZONE    | ... | FLAGS |
->   */
-> -#ifdef CONFIG_SPARSEMEM
-> +#if defined(CONFIG_SPARSEMEM) && !defined(CONFIG_SPARSEMEM_VMEMMAP)
->  #define SECTIONS_WIDTH		SECTIONS_SHIFT
->  #else
->  #define SECTIONS_WIDTH		0
+In message <Pine.LNX.4.64.0711121645090.14138@blonde.wat.veritas.com>, Hugh Dickins writes:
+> On Fri, 9 Nov 2007, Erez Zadok wrote:
+> > In message <Pine.LNX.4.64.0711051358440.7629@blonde.wat.veritas.com>, Hugh Dickins writes:
+> > 
+> > > Three, I believe you need to add a flush_dcache_page(lower_page)
+> > > after the copy_highpage(lower_page): some architectures will need
+> > > that to see the new data if they have lower_page mapped (though I
+> > > expect it's anyway shaky ground to be accessing through the lower
+> > > mount at the same time as modifying through the upper).
+> > 
+> > OK.
 > 
-I like this. but it may safe to add this definition to do this..
+> While looking into something else entirely, I realize that _here_
+> you are missing a SetPageUptodate(lower_page): should go in after
+> the flush_dcache_page(lower_page) I'm suggesting.  (Nick would argue
+> for some kind of barrier there too, but I don't think unionfs has a
+> special need to be ahead of the pack on that issue.)
+> 
+> Think about it:
+> when find_or_create_page has created a fresh page in the cache,
+> and you've just done copy_highpage to put the data into it, you
+> now need to mark it as Uptodate: otherwise a subsequent vfs_read
+> or whatever on the lower level will find that page !Uptodate and
+> read stale data back from disk instead of what you just copied in,
+> unless its dirtiness has got it written back to disk meanwhile.
 
-==
-#if SECTIONS_WIDTH > 0
-static inline page_to_section(struct page *page)
-{
-	return pfn_to_section(page_to_pfn(page));
-}
-else
-....
-#endif
-==
+Hehe.  Funny, you mention this...  A few days ago, while I was doing your other
+recommended pageuptodate cleanups, I also added the same call to
+SetPageUptodate(lower_page) as you suggested.  I tested that change along w/
+the other changes you suggested, and they all seem to work great all the way
+from my 2.6.9 backport to 2.6.24-rc2 and -mm (modulo the fact that I had to
+work around or fix more non-unionfs bugs in -mm than unionfs ones to get it
+to work :-)
 
-page_to_section is used in page_to_nid() if NODE_NOT_IN_PAGE_FLAGS=y.
-(I'm not sure exact config dependency.)
+I posted all of these patches just now.  You're CC'ed.  Hopefully Andrew can
+pull from my unionfs.git branch soon.
 
-Thanks,
--Kame
+You also reported in your previous emails some hangs/oopses while doing make
+-j 20 in unionfs on top of a single tmpfs, using -mm.  After several days,
+I've not been able to reproduce this w/ my latest set of patches.  If you
+can send me your .config and the specs on the h/w you're using (cpus, mem,
+etc.), I'll see if I can find something similar to it on my end and run the
+same tests.
+
+Cheers,
+Erez.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
