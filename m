@@ -1,48 +1,83 @@
-Subject: Re: [RFC] Changing VM_PFNMAP assumptions and rules
-From: Benjamin Herrenschmidt <benh@kernel.crashing.org>
-Reply-To: benh@kernel.crashing.org
-In-Reply-To: <6934efce0711121553s6b88d1qe48b19adee1b7a85@mail.gmail.com>
-References: <6934efce0711091115i3f859a00id0b869742029b661@mail.gmail.com>
-	 <200711111109.34562.nickpiggin@yahoo.com.au>
-	 <6934efce0711121403h2623958cq49490077c586924f@mail.gmail.com>
-	 <1194906542.18185.73.camel@pasglop>
-	 <6934efce0711121553s6b88d1qe48b19adee1b7a85@mail.gmail.com>
-Content-Type: text/plain
-Date: Tue, 13 Nov 2007 11:24:33 +1100
-Message-Id: <1194913473.18185.80.camel@pasglop>
+Date: Tue, 13 Nov 2007 01:35:25 +0100
+From: Nick Piggin <npiggin@suse.de>
+Subject: Re: [patch 3/6] mm: speculative get page
+Message-ID: <20071113003525.GD30650@wotan.suse.de>
+References: <20071111084556.GC19816@wotan.suse.de> <20071111085004.GF19816@wotan.suse.de> <Pine.LNX.4.64.0711121216150.27479@schroedinger.engr.sgi.com>
 Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <Pine.LNX.4.64.0711121216150.27479@schroedinger.engr.sgi.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Jared Hulbert <jaredeh@gmail.com>
-Cc: Nick Piggin <nickpiggin@yahoo.com.au>, Linux Memory Management List <linux-mm@kvack.org>
+To: Christoph Lameter <clameter@sgi.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Hugh Dickins <hugh@veritas.com>, Linux Memory Management List <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 2007-11-12 at 15:53 -0800, Jared Hulbert wrote:
-
-> > > I have a page that is at a hardware level read-only.  What kind of
-> > > rules can that page live under?  More importantly these PFN's get
-> > > mapped in with a call to ioremap() in the mtd drivers.  So once I
-> > > figure out how to SPARSE_MEM, hotplug these pages in I've got to
-> hack
-> > > the MTD to work with real pages.  Or something like that.  I'm not
-> > > ready to take that on yet, I just don't understand it all enough
-> yet.
-> >
-> > I think vm_normal_page() could use something like pfn_normal() which
-> > isn't quite the same as pfn_valid()... or just use pfn_valid() but
-> in
-> > that case, that would mean removing a bunch of the BUG_ON's indeed.
+On Mon, Nov 12, 2007 at 12:21:10PM -0800, Christoph Lameter wrote:
+> On Sun, 11 Nov 2007, Nick Piggin wrote:
 > 
-> That's exactly what my original patch does.  Would my patch break
-> spufs?  Nick said my patch would break /dev/mem I think.
+> > +static inline int page_freeze_refs(struct page *page, int count)
+> > +{
+> > +	return likely(atomic_cmpxchg(&page->_count, count, 0) == count);
+> > +}
+> > +
+> > +static inline void page_unfreeze_refs(struct page *page, int count)
+> > +{
+> > +	VM_BUG_ON(page_count(page) != 0);
+> > +	VM_BUG_ON(count == 0);
+> > +
+> > +	atomic_set(&page->_count, count);
+> > +}
+> 
+> Good idea. That avoids another page bit.
 
-I missed your original patch. Can you resend it to me ? Nick, how would
-it break /dev/mem ?
+Yeah, it's Hugh's good idea. It avoids smp_rmb() in the find_get_page
+path as well, which will be helpful at least for things like powerpc
+and ia64, if not x86. At one single atomic operation to lookup and take
+a reference on a pagecache page, I think it is approaching the fastest
+possible implementation ;)
 
-Cheers,
-Ben.
 
+> > Index: linux-2.6/mm/migrate.c
+> > ===================================================================
+> > --- linux-2.6.orig/mm/migrate.c
+> > +++ linux-2.6/mm/migrate.c
+> > @@ -294,6 +294,7 @@ out:
+> >  static int migrate_page_move_mapping(struct address_space *mapping,
+> >  		struct page *newpage, struct page *page)
+> >  {
+> > +	int expected_count;
+> >  	void **pslot;
+> >  
+> >  	if (!mapping) {
+> > @@ -308,12 +309,18 @@ static int migrate_page_move_mapping(str
+> >  	pslot = radix_tree_lookup_slot(&mapping->page_tree,
+> >   					page_index(page));
+> >  
+> > -	if (page_count(page) != 2 + !!PagePrivate(page) ||
+> > +	expected_count = 2 + !!PagePrivate(page);
+> > +	if (page_count(page) != expected_count ||
+> >  			(struct page *)radix_tree_deref_slot(pslot) != page) {
+> >  		write_unlock_irq(&mapping->tree_lock);
+> >  		return -EAGAIN;
+> >  	}
+> >  
+> > +	if (!page_freeze_refs(page, expected_count))
+> > +		write_unlock_irq(&mapping->tree_lock);
+> > +		return -EAGAIN;
+> > +	}
+> > +
+> 
+> Looks okay but I think you could remove the earlier performance check. We 
+> already modified the page struct by obtaining the page lock so we hold it 
+> exclusively. And the failure rate here is typicalyvery low.
+
+It's up to you. Honestly, I don't have good test facilities for page
+migration. If it's all the same to you, do you mind if we leave it like
+this, and then you can change it in future?
+
+I expect the earlier check won't hurt too much either, even if it doesn't
+trigger for 99.9% of pages...
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
