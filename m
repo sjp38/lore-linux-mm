@@ -1,31 +1,48 @@
-From: Andi Kleen <ak@suse.de>
-Subject: Re: x86_64: Make sparsemem/vmemmap the default memory model
-Date: Tue, 13 Nov 2007 00:59:34 +0100
-References: <Pine.LNX.4.64.0711121549370.29178@schroedinger.engr.sgi.com>
-In-Reply-To: <Pine.LNX.4.64.0711121549370.29178@schroedinger.engr.sgi.com>
-MIME-Version: 1.0
-Content-Type: text/plain;
-  charset="iso-8859-1"
+Subject: Re: [RFC] Changing VM_PFNMAP assumptions and rules
+From: Benjamin Herrenschmidt <benh@kernel.crashing.org>
+Reply-To: benh@kernel.crashing.org
+In-Reply-To: <6934efce0711121553s6b88d1qe48b19adee1b7a85@mail.gmail.com>
+References: <6934efce0711091115i3f859a00id0b869742029b661@mail.gmail.com>
+	 <200711111109.34562.nickpiggin@yahoo.com.au>
+	 <6934efce0711121403h2623958cq49490077c586924f@mail.gmail.com>
+	 <1194906542.18185.73.camel@pasglop>
+	 <6934efce0711121553s6b88d1qe48b19adee1b7a85@mail.gmail.com>
+Content-Type: text/plain
+Date: Tue, 13 Nov 2007 11:24:33 +1100
+Message-Id: <1194913473.18185.80.camel@pasglop>
+Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
-Message-Id: <200711130059.34346.ak@suse.de>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Mel Gorman <mel@csn.ul.ie>, Andy Whitcroft <apw@shadowen.org>
+To: Jared Hulbert <jaredeh@gmail.com>
+Cc: Nick Piggin <nickpiggin@yahoo.com.au>, Linux Memory Management List <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Tuesday 13 November 2007 00:52:14 Christoph Lameter wrote:
-> Use sparsemem as the only memory model for UP, SMP and NUMA.
+On Mon, 2007-11-12 at 15:53 -0800, Jared Hulbert wrote:
+
+> > > I have a page that is at a hardware level read-only.  What kind of
+> > > rules can that page live under?  More importantly these PFN's get
+> > > mapped in with a call to ioremap() in the mtd drivers.  So once I
+> > > figure out how to SPARSE_MEM, hotplug these pages in I've got to
+> hack
+> > > the MTD to work with real pages.  Or something like that.  I'm not
+> > > ready to take that on yet, I just don't understand it all enough
+> yet.
+> >
+> > I think vm_normal_page() could use something like pfn_normal() which
+> > isn't quite the same as pfn_valid()... or just use pfn_valid() but
+> in
+> > that case, that would mean removing a bunch of the BUG_ON's indeed.
 > 
-> Measurements indicate that DISCONTIGMEM has a higher
-> overhead than sparsemem. And FLATMEMs benefits are minimal. So I think its
-> best to simply standardize on sparsemem.
+> That's exactly what my original patch does.  Would my patch break
+> spufs?  Nick said my patch would break /dev/mem I think.
 
-How about the memory overhead? Is it the same too?
-And code size vs flatmem?
+I missed your original patch. Can you resend it to me ? Nick, how would
+it break /dev/mem ?
 
--Andi
+Cheers,
+Ben.
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
