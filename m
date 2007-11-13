@@ -1,61 +1,135 @@
-Date: Tue, 13 Nov 2007 05:18:49 -0500
-Message-Id: <200711131018.lADAInYN017695@agora.fsl.cs.sunysb.edu>
-From: Erez Zadok <ezk@cs.sunysb.edu>
-Subject: Re: msync(2) bug(?), returns AOP_WRITEPAGE_ACTIVATE to userland 
-In-reply-to: Your message of "Mon, 12 Nov 2007 17:01:51 GMT."
-             <Pine.LNX.4.64.0711121645090.14138@blonde.wat.veritas.com>
+Subject: Re: [patch] nfs: use GFP_NOFS preloads for radix-tree insertion
+From: Peter Zijlstra <peterz@infradead.org>
+In-Reply-To: <20071108065633.GB28216@wotan.suse.de>
+References: <20071108004304.GD3227@wotan.suse.de>
+	 <20071107170923.6cf3c389.akpm@linux-foundation.org>
+	 <20071108013723.GF3227@wotan.suse.de>
+	 <20071107190254.4e65812a.akpm@linux-foundation.org>
+	 <20071108031645.GI3227@wotan.suse.de>
+	 <20071107201242.390aec38.akpm@linux-foundation.org>
+	 <20071108045404.GJ3227@wotan.suse.de>
+	 <20071107210204.62070047.akpm@linux-foundation.org>
+	 <20071108054445.GA20162@wotan.suse.de>
+	 <20071107220200.85e9cb59.akpm@linux-foundation.org>
+	 <20071108065633.GB28216@wotan.suse.de>
+Content-Type: text/plain
+Date: Tue, 13 Nov 2007 11:55:45 +0100
+Message-Id: <1194951345.6983.24.camel@twins>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Hugh Dickins <hugh@veritas.com>
-Cc: Erez Zadok <ezk@cs.sunysb.edu>, Dave Hansen <haveblue@us.ibm.com>, Pekka Enberg <penberg@cs.helsinki.fi>, Ryan Finnie <ryan@finnie.org>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, cjwatson@ubuntu.com, linux-mm@kvack.org
+To: Nick Piggin <npiggin@suse.de>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, davem@davemloft.net, Trond Myklebust <trond.myklebust@fys.uio.no>
 List-ID: <linux-mm.kvack.org>
 
-In message <Pine.LNX.4.64.0711121645090.14138@blonde.wat.veritas.com>, Hugh Dickins writes:
-> On Fri, 9 Nov 2007, Erez Zadok wrote:
-> > In message <Pine.LNX.4.64.0711051358440.7629@blonde.wat.veritas.com>, Hugh Dickins writes:
-> > 
-> > > Three, I believe you need to add a flush_dcache_page(lower_page)
-> > > after the copy_highpage(lower_page): some architectures will need
-> > > that to see the new data if they have lower_page mapped (though I
-> > > expect it's anyway shaky ground to be accessing through the lower
-> > > mount at the same time as modifying through the upper).
-> > 
-> > OK.
+On Thu, 2007-11-08 at 07:56 +0100, Nick Piggin wrote:
+> Here is the NFS version. I guess Trond should ack it before you pick it
+> up.
 > 
-> While looking into something else entirely, I realize that _here_
-> you are missing a SetPageUptodate(lower_page): should go in after
-> the flush_dcache_page(lower_page) I'm suggesting.  (Nick would argue
-> for some kind of barrier there too, but I don't think unionfs has a
-> special need to be ahead of the pack on that issue.)
+> --
 > 
-> Think about it:
-> when find_or_create_page has created a fresh page in the cache,
-> and you've just done copy_highpage to put the data into it, you
-> now need to mark it as Uptodate: otherwise a subsequent vfs_read
-> or whatever on the lower level will find that page !Uptodate and
-> read stale data back from disk instead of what you just copied in,
-> unless its dirtiness has got it written back to disk meanwhile.
+> NFS should use GFP_NOFS mode radix tree preloads rather than GFP_ATOMIC
+> allocations at radix-tree insertion-time. This is important to reduce the
+> atomic memory requirement.
 
-Hehe.  Funny, you mention this...  A few days ago, while I was doing your other
-recommended pageuptodate cleanups, I also added the same call to
-SetPageUptodate(lower_page) as you suggested.  I tested that change along w/
-the other changes you suggested, and they all seem to work great all the way
-from my 2.6.9 backport to 2.6.24-rc2 and -mm (modulo the fact that I had to
-work around or fix more non-unionfs bugs in -mm than unionfs ones to get it
-to work :-)
+In another mail you said:
 
-I posted all of these patches just now.  You're CC'ed.  Hopefully Andrew can
-pull from my unionfs.git branch soon.
+> Anyway we can also simplify the code because the insertion can't fail with a
+> preload.
 
-You also reported in your previous emails some hangs/oopses while doing make
--j 20 in unionfs on top of a single tmpfs, using -mm.  After several days,
-I've not been able to reproduce this w/ my latest set of patches.  If you
-can send me your .config and the specs on the h/w you're using (cpus, mem,
-etc.), I'll see if I can find something similar to it on my end and run the
-same tests.
+Can we please avoid adding strict dependencies on that as the preload
+API is unsupportable in -rt.
 
-Cheers,
-Erez.
+> Signed-off-by: Nick Piggin <npiggin@suse.de>
+> ---
+> Index: linux-2.6/fs/nfs/write.c
+> ===================================================================
+> --- linux-2.6.orig/fs/nfs/write.c
+> +++ linux-2.6/fs/nfs/write.c
+> @@ -363,15 +363,13 @@ int nfs_writepages(struct address_space 
+>  /*
+>   * Insert a write request into an inode
+>   */
+> -static int nfs_inode_add_request(struct inode *inode, struct nfs_page *req)
+> +static void nfs_inode_add_request(struct inode *inode, struct nfs_page *req)
+>  {
+>  	struct nfs_inode *nfsi = NFS_I(inode);
+>  	int error;
+>  
+>  	error = radix_tree_insert(&nfsi->nfs_page_tree, req->wb_index, req);
+> -	BUG_ON(error == -EEXIST);
+> -	if (error)
+> -		return error;
+> +	BUG_ON(error);
+>  	if (!nfsi->npages) {
+>  		igrab(inode);
+>  		if (nfs_have_delegation(inode, FMODE_WRITE))
+> @@ -381,7 +379,6 @@ static int nfs_inode_add_request(struct 
+>  	set_page_private(req->wb_page, (unsigned long)req);
+>  	nfsi->npages++;
+>  	kref_get(&req->wb_kref);
+> -	return 0;
+>  }
+>  
+>  /*
+> @@ -593,6 +590,13 @@ static struct nfs_page * nfs_update_requ
+>  		/* Loop over all inode entries and see if we find
+>  		 * A request for the page we wish to update
+>  		 */
+> +		if (new) {
+> +			if (radix_tree_preload(GFP_NOFS)) {
+> +				nfs_release_request(new);
+> +				return ERR_PTR(-ENOMEM);
+> +			}
+> +		}
+> +
+>  		spin_lock(&inode->i_lock);
+>  		req = nfs_page_find_request_locked(page);
+>  		if (req) {
+> @@ -603,28 +607,27 @@ static struct nfs_page * nfs_update_requ
+>  				error = nfs_wait_on_request(req);
+>  				nfs_release_request(req);
+>  				if (error < 0) {
+> -					if (new)
+> +					if (new) {
+> +						radix_tree_preload_end();
+>  						nfs_release_request(new);
+> +					}
+>  					return ERR_PTR(error);
+>  				}
+>  				continue;
+>  			}
+>  			spin_unlock(&inode->i_lock);
+> -			if (new)
+> +			if (new) {
+> +				radix_tree_preload_end();
+>  				nfs_release_request(new);
+> +			}
+>  			break;
+>  		}
+>  
+>  		if (new) {
+> -			int error;
+>  			nfs_lock_request_dontget(new);
+> -			error = nfs_inode_add_request(inode, new);
+> -			if (error) {
+> -				spin_unlock(&inode->i_lock);
+> -				nfs_unlock_request(new);
+> -				return ERR_PTR(error);
+> -			}
+> +			nfs_inode_add_request(inode, new);
+>  			spin_unlock(&inode->i_lock);
+> +			radix_tree_preload_end();
+>  			req = new;
+>  			goto zero_page;
+>  		}
+> 
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
