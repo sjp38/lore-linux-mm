@@ -1,132 +1,90 @@
-Date: Wed, 14 Nov 2007 05:20:11 +0100
-From: Nick Piggin <npiggin@suse.de>
-Subject: Re: [patch] nfs: use GFP_NOFS preloads for radix-tree insertion
-Message-ID: <20071114042011.GE557@wotan.suse.de>
-References: <20071108013723.GF3227@wotan.suse.de> <20071107190254.4e65812a.akpm@linux-foundation.org> <20071108031645.GI3227@wotan.suse.de> <20071107201242.390aec38.akpm@linux-foundation.org> <20071108045404.GJ3227@wotan.suse.de> <20071107210204.62070047.akpm@linux-foundation.org> <20071108054445.GA20162@wotan.suse.de> <20071107220200.85e9cb59.akpm@linux-foundation.org> <20071108065633.GB28216@wotan.suse.de> <1194951345.6983.24.camel@twins>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+From: Nick Piggin <nickpiggin@yahoo.com.au>
+Subject: Re: [RFC] Changing VM_PFNMAP assumptions and rules
+Date: Wed, 14 Nov 2007 04:26:51 +1100
+References: <6934efce0711091115i3f859a00id0b869742029b661@mail.gmail.com> <200711132308.08739.nickpiggin@yahoo.com.au> <6934efce0711131729i4539d1cewf84974ea459f8e0f@mail.gmail.com>
+In-Reply-To: <6934efce0711131729i4539d1cewf84974ea459f8e0f@mail.gmail.com>
+MIME-Version: 1.0
+Content-Type: text/plain;
+  charset="iso-8859-1"
+Content-Transfer-Encoding: 7bit
 Content-Disposition: inline
-In-Reply-To: <1194951345.6983.24.camel@twins>
+Message-Id: <200711140426.51614.nickpiggin@yahoo.com.au>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Peter Zijlstra <peterz@infradead.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, davem@davemloft.net, Trond Myklebust <trond.myklebust@fys.uio.no>
+To: Jared Hulbert <jaredeh@gmail.com>
+Cc: benh@kernel.crashing.org, Linux Memory Management List <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Nov 13, 2007 at 11:55:45AM +0100, Peter Zijlstra wrote:
-> 
-> On Thu, 2007-11-08 at 07:56 +0100, Nick Piggin wrote:
-> > Here is the NFS version. I guess Trond should ack it before you pick it
-> > up.
-> > 
-> > --
-> > 
-> > NFS should use GFP_NOFS mode radix tree preloads rather than GFP_ATOMIC
-> > allocations at radix-tree insertion-time. This is important to reduce the
-> > atomic memory requirement.
-> 
-> In another mail you said:
-> 
-> > Anyway we can also simplify the code because the insertion can't fail with a
-> > preload.
-> 
-> Can we please avoid adding strict dependencies on that as the preload
-> API is unsupportable in -rt.
+On Wednesday 14 November 2007 12:29, Jared Hulbert wrote:
+> > Well you aren't allowed to put a pfn into an is_cow_mapping() with
+> > vm_insert_pfn().  That's my whole point.
+>
+> Why not?
 
-You can surely support it. You just have to do per-thread preloads if you
-want preemption left on.
+Because it breaks VM_PFNMAP as you saw. *This* is why vm_normal_page()
+does actually work correctly with vm_insert_pfn() and VM_PFNMAP today :)
+Because they all work together to ensure that vm_insert_pfn's "breakage"
+of the vm_pgoff you say isn't actually broken.
 
 
+> Maybe I don't understand what this really is.  I want to be 
+> able to COW from pfn only pages.  Wouldn't this restriction cramp my
+> style?  Or is it that you can't tolerate pfn's in a VM_PFNMAP vma?
 
-> > Signed-off-by: Nick Piggin <npiggin@suse.de>
-> > ---
-> > Index: linux-2.6/fs/nfs/write.c
-> > ===================================================================
-> > --- linux-2.6.orig/fs/nfs/write.c
-> > +++ linux-2.6/fs/nfs/write.c
-> > @@ -363,15 +363,13 @@ int nfs_writepages(struct address_space 
-> >  /*
-> >   * Insert a write request into an inode
-> >   */
-> > -static int nfs_inode_add_request(struct inode *inode, struct nfs_page *req)
-> > +static void nfs_inode_add_request(struct inode *inode, struct nfs_page *req)
-> >  {
-> >  	struct nfs_inode *nfsi = NFS_I(inode);
-> >  	int error;
-> >  
-> >  	error = radix_tree_insert(&nfsi->nfs_page_tree, req->wb_index, req);
-> > -	BUG_ON(error == -EEXIST);
-> > -	if (error)
-> > -		return error;
-> > +	BUG_ON(error);
-> >  	if (!nfsi->npages) {
-> >  		igrab(inode);
-> >  		if (nfs_have_delegation(inode, FMODE_WRITE))
-> > @@ -381,7 +379,6 @@ static int nfs_inode_add_request(struct 
-> >  	set_page_private(req->wb_page, (unsigned long)req);
-> >  	nfsi->npages++;
-> >  	kref_get(&req->wb_kref);
-> > -	return 0;
-> >  }
-> >  
-> >  /*
-> > @@ -593,6 +590,13 @@ static struct nfs_page * nfs_update_requ
-> >  		/* Loop over all inode entries and see if we find
-> >  		 * A request for the page we wish to update
-> >  		 */
-> > +		if (new) {
-> > +			if (radix_tree_preload(GFP_NOFS)) {
-> > +				nfs_release_request(new);
-> > +				return ERR_PTR(-ENOMEM);
-> > +			}
-> > +		}
-> > +
-> >  		spin_lock(&inode->i_lock);
-> >  		req = nfs_page_find_request_locked(page);
-> >  		if (req) {
-> > @@ -603,28 +607,27 @@ static struct nfs_page * nfs_update_requ
-> >  				error = nfs_wait_on_request(req);
-> >  				nfs_release_request(req);
-> >  				if (error < 0) {
-> > -					if (new)
-> > +					if (new) {
-> > +						radix_tree_preload_end();
-> >  						nfs_release_request(new);
-> > +					}
-> >  					return ERR_PTR(error);
-> >  				}
-> >  				continue;
-> >  			}
-> >  			spin_unlock(&inode->i_lock);
-> > -			if (new)
-> > +			if (new) {
-> > +				radix_tree_preload_end();
-> >  				nfs_release_request(new);
-> > +			}
-> >  			break;
-> >  		}
-> >  
-> >  		if (new) {
-> > -			int error;
-> >  			nfs_lock_request_dontget(new);
-> > -			error = nfs_inode_add_request(inode, new);
-> > -			if (error) {
-> > -				spin_unlock(&inode->i_lock);
-> > -				nfs_unlock_request(new);
-> > -				return ERR_PTR(error);
-> > -			}
-> > +			nfs_inode_add_request(inode, new);
-> >  			spin_unlock(&inode->i_lock);
-> > +			radix_tree_preload_end();
-> >  			req = new;
-> >  			goto zero_page;
-> >  		}
-> > 
-> > --
-> > To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> > the body to majordomo@kvack.org.  For more info on Linux MM,
-> > see: http://www.linux-mm.org/ .
-> > Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+Yes, it's simply a question of implementation (and one which is required
+for /dev/mem). So all we have to do really is to create a new type of
+mapping for you.
+
+And because /dev/mem is out of the picture, so is the requirement of
+mapping pfn_valid() pages without refcounting them. The sketch I gave
+in the first post *should* be on the right way
+
+I can write the patch for you if you like, but if you'd like a shot at
+it, that would be great!
+
+
+> > Insert the pfn_valid() pages with vm_insert_page(), which I think
+> > should take care of all those issues for you.
+>
+> Right.  So that's probably what I've been doing indirectly, with
+> .nopage/.fault?
+
+If it hasn't been going oops, yes it's probably what's happening.
+And that would be a valid thing for you to do -- if you return the
+page via fault(), it will get refcounted for you, no need for
+vm_insert_page().
+
+
+> > When I waffled on about doing a bit of setup work, I'd forgotten
+> > about vm_insert_page(), which should already do just about everything
+> > you need.
+>
+> So long as I just us vm_insert_page() and don't screw around with
+> anything else, I'm good right?
+
+Actually, I have a patch to unify ->fault and ->nopfn which might
+make it quite neat for you. From your fault handler, you could
+decide either to do the vm_insert_pfn(), or return the the struct
+page to the generic code, and not worry about vm_insert_page at all.
+
+
+> > These pages could live under the !pfn_valid() rules, which, in your
+> > new VM_flag scheme, should not require underlying struct pages. So
+> > hopefully don't need messing with sparsemem?
+>
+> But say I want to do more, like migrate them and such, won't I want to
+> have some kind of page struct?
+
+But most of the complexity of migrating pages goes away if you are
+only dealing with pfns that you control, I suspect. Ie. you can
+just unmap all pagetables mapping them, and prevent your fault handler
+from giving out new references to the pfn until everything is switched
+over (or, if that would be too slow, have the fault handler flip a
+switch causing the migration to fail/retry).
+
+For your struct page backed pages, if those guys ever are allowed onto
+the LRU or into pagecache, or via get_user_pages(), then yes they should
+go through the full migration path.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
