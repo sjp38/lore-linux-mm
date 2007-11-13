@@ -1,40 +1,57 @@
-Date: Tue, 13 Nov 2007 03:37:55 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
+Date: Tue, 13 Nov 2007 03:47:37 -0800 (PST)
+Message-Id: <20071113.034737.199780122.davem@davemloft.net>
 Subject: Re: Vmstat: Small revisions to refresh_cpu_vm_stats()
-Message-Id: <20071113033755.c2e64c09.akpm@linux-foundation.org>
-In-Reply-To: <Pine.LNX.4.64.0711091837390.18567@schroedinger.engr.sgi.com>
+From: David Miller <davem@davemloft.net>
+In-Reply-To: <20071113033755.c2e64c09.akpm@linux-foundation.org>
 References: <Pine.LNX.4.64.0711091837390.18567@schroedinger.engr.sgi.com>
+	<20071113033755.c2e64c09.akpm@linux-foundation.org>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Content-Type: Text/Plain; charset=us-ascii
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
+From: Andrew Morton <akpm@linux-foundation.org>
+Date: Tue, 13 Nov 2007 03:37:55 -0800
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
-Cc: linux-mm@kvack.org, sparclinux@vger.kernel.org, "David S. Miller" <davem@davemloft.net>
+To: akpm@linux-foundation.org
+Cc: clameter@sgi.com, linux-mm@kvack.org, sparclinux@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 9 Nov 2007 18:39:03 -0800 (PST) Christoph Lameter <clameter@sgi.com> wrote:
-
-> 1. Add comments explaining how the function can be called.
+> : undefined reference to `__xchg_called_with_bad_pointer'
 > 
-> 2. Avoid interrupt enable / disable through the use of xchg.
+> This is sparc64's way of telling you that you can'd do xchg on an s8.
 > 
-> 3. Collect global diffs in a local array and only spill
->    them once into the global counters when the zone scan
->    is finished. This means that we only touch each global
->    counter once instead of each time we fold cpu counters
->    into zone counters.
+> Dave, is that fixable?
+> 
+> I assume not, in which case we either go for some open-coded implementation
+> for 8- and 16-bits or we should ban (at compile time) 8- and 16-bit xchg on
+> all architectures.
 
-: undefined reference to `__xchg_called_with_bad_pointer'
+Right, let's write some generic code for this because other platforms
+are going to need this too.
 
-This is sparc64's way of telling you that you can'd do xchg on an s8.
+Basically, do a normal "ll/sc" or "load/cas" sequence on a u32 with
+some shifting and masking as needed.
 
-Dave, is that fixable?
+	int shift = (((unsigned long) addr) % 4) * 8;
+	unsigned long mask = 0xff << shift;
+	unsigned long val = newval << shift;
+	u32 *ptr = (u32 *) ((unsigned long)addr & ~0x3UL);
 
-I assume not, in which case we either go for some open-coded implementation
-for 8- and 16-bits or we should ban (at compile time) 8- and 16-bit xchg on
-all architectures.
+	while (1) {
+		u32 orig, tmp = *ptr;
 
+		orig = tmp;
+		tmp &= ~mask;
+		tmp |= val;
+		cmpxchg_u32(ptr, orig, tmp);
+		if (orig == tmp)
+			break;
+	}
+
+Repeat for u16, etc.
+
+However, for platforms like sparc32 that can do a xchg() atomically
+but can't do cmpxchg, this idea won't work :-/
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
