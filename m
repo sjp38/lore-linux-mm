@@ -1,66 +1,138 @@
-Date: Tue, 13 Nov 2007 13:52:17 -0800 (PST)
+Date: Tue, 13 Nov 2007 14:05:32 -0800 (PST)
 From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: x86_64: Make sparsemem/vmemmap the default memory model
-In-Reply-To: <20071113204100.GB20167@lazybastard.org>
-Message-ID: <Pine.LNX.4.64.0711131349300.3714@schroedinger.engr.sgi.com>
-References: <Pine.LNX.4.64.0711121549370.29178@schroedinger.engr.sgi.com>
- <200711130059.34346.ak@suse.de> <Pine.LNX.4.64.0711121615120.29328@schroedinger.engr.sgi.com>
- <200711130149.54852.ak@suse.de> <Pine.LNX.4.64.0711121940410.30269@schroedinger.engr.sgi.com>
- <2c0942db0711122027m5b11502cveded5705c0bc4f64@mail.gmail.com>
- <Pine.LNX.4.64.0711122040380.30724@schroedinger.engr.sgi.com>
- <20071113204100.GB20167@lazybastard.org>
+Subject: Re: Vmstat: Small revisions to refresh_cpu_vm_stats()
+In-Reply-To: <20071113035509.5d221318.akpm@linux-foundation.org>
+Message-ID: <Pine.LNX.4.64.0711131341160.3714@schroedinger.engr.sgi.com>
+References: <Pine.LNX.4.64.0711091837390.18567@schroedinger.engr.sgi.com>
+ <20071113033755.c2e64c09.akpm@linux-foundation.org>
+ <20071113.034737.199780122.davem@davemloft.net> <20071113035509.5d221318.akpm@linux-foundation.org>
 MIME-Version: 1.0
-Content-Type: MULTIPART/MIXED; BOUNDARY="-1700579579-1724930940-1194990737=:3714"
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: =?utf-8?B?SsO2cm4=?= Engel <joern@logfs.org>
-Cc: Ray Lee <ray-lk@madrabbit.org>, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Mel Gorman <mel@csn.ul.ie>, Andi Kleen <ak@suse.de>, Andy Whitcroft <apw@shadowen.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: David Miller <davem@davemloft.net>, linux-mm@kvack.org, ak@suse.de, Mathieu Desnoyers <mathieu.desnoyers@polymtl.ca>, sparclinux@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
----1700579579-1724930940-1194990737=:3714
-Content-Type: TEXT/PLAIN; charset=iso-8859-1
-Content-Transfer-Encoding: QUOTED-PRINTABLE
+On Tue, 13 Nov 2007, Andrew Morton wrote:
 
-On Tue, 13 Nov 2007, J=F6rn Engel wrote:
+> > However, for platforms like sparc32 that can do a xchg() atomically
+> > but can't do cmpxchg, this idea won't work :-/
+> 
+> xchg() is nonatomic wrt other CPUs, so I think we can get by with
+> local_irq_save()/swap()/local_irq_restore().
 
-> On Mon, 12 November 2007 20:41:10 -0800, Christoph Lameter wrote:
-> > On Mon, 12 Nov 2007, Ray Lee wrote:
-> >=20
-> > > Discontig obviously needs to die. However, FlatMem is consistently
-> > > faster, averaging about 2.1% better overall for your numbers above. I=
-s
-> > > the page allocator not, erm, a fast path, where that matters?
-> > >=20
-> > > Order=09Flat=09Sparse=09% diff
-> > > 0=09639=09641=090.3
-> >=20
-> > IMHO Order 0 currently matters most and the difference is negligible=20
-> > there.
->=20
-> Is it?  I am a bit concerned about the non-monotonic distribution.
-> Difference starts a near-0, grows to 4.4, drops to near-0, grows to 4.9,
-> drops to near-0.
+The xchg in the vmstat case does not need to be nonatomic vs. other 
+processors. However, xchg is always atomic vs other processors.
 
-The problem also is that the comparison here is between a SMP config for=20
-flatmem vs a NUMA config for sparsemem. There is additional overhead in=20
-the NUMA config.=20
+from include/asm-x86/cmpxchg_64.h:
 
-The effect may also be due to the system being able to place=20
-some pages in the same 2MB section as the memmap with flatmem. However,=20
-that is only feasable immeidately after bootup. In regular operations this=
-=20
-should vanish.
+/*
+ * Note: no "lock" prefix even on SMP: xchg always implies lock anyway
+ * Note 2: xchg has side effect, so that attribute volatile is necessary,
+ *        but generally the primitive is invalid, *ptr is output argument. --ANK
+ */
+static inline unsigned long __xchg(unsigned long x, volatile void * ptr, 
+int size)
 
-Could you run your own test to verify?
+If we would have an xchg_local then I would have used it here. So I guess 
+what we need is
+a 
 
-> Is there an explanation for this behaviour?  More to the point, could
-> repeated runs also return 4% difference for order-0?
+	xchg_local
 
-I hope I have given some above. The number of the page allocator suggests=
-=20
-that we have far too much fat in the allocation paths. IMHO reasonable=20
-numbers for an order-0 alloc should be ~100 cycles.
----1700579579-1724930940-1194990737=:3714--
+which can be done just with interrupt/disable/enable and an
+
+	xchg
+
+which would require a spinlock.
+
+
+Lets defer the xchg issue. Here is the patch without it:
+
+
+
+Vmstat: Small revisions to refresh_cpu_vm_stats() V2
+
+1. Add comments explaining how the function can be called.
+
+2. Collect global diffs in a local array and only spill
+   them once into the global counters when the zone scan
+   is finished. This means that we only touch each global
+   counter once instead of each time we fold cpu counters
+   into zone counters.
+
+V1->V2: Remove xchg on a s8.
+
+Signed-off-by: Christoph Lameter <clameter@sgi.com>
+
+---
+ mm/vmstat.c |   20 ++++++++++++++++----
+ 1 file changed, 16 insertions(+), 4 deletions(-)
+
+Index: linux-2.6/mm/vmstat.c
+===================================================================
+--- linux-2.6.orig/mm/vmstat.c	2007-11-13 13:55:48.365792120 -0800
++++ linux-2.6/mm/vmstat.c	2007-11-13 13:58:47.965676589 -0800
+@@ -284,6 +284,10 @@ EXPORT_SYMBOL(dec_zone_page_state);
+ /*
+  * Update the zone counters for one cpu.
+  *
++ * The cpu specified must be either the current cpu or a processor that
++ * is not online. If it is the current cpu then the execution thread must
++ * be pinned to the current cpu.
++ *
+  * Note that refresh_cpu_vm_stats strives to only access
+  * node local memory. The per cpu pagesets on remote zones are placed
+  * in the memory local to the processor using that pageset. So the
+@@ -299,7 +303,7 @@ void refresh_cpu_vm_stats(int cpu)
+ {
+ 	struct zone *zone;
+ 	int i;
+-	unsigned long flags;
++	int global_diff[NR_VM_ZONE_STAT_ITEMS] = { 0, };
+ 
+ 	for_each_zone(zone) {
+ 		struct per_cpu_pageset *p;
+@@ -311,15 +315,19 @@ void refresh_cpu_vm_stats(int cpu)
+ 
+ 		for (i = 0; i < NR_VM_ZONE_STAT_ITEMS; i++)
+ 			if (p->vm_stat_diff[i]) {
++				unsigned long flags;
++				int v;
++
+ 				local_irq_save(flags);
+-				zone_page_state_add(p->vm_stat_diff[i],
+-					zone, i);
++				v = p->vm_stat_diff[i];
+ 				p->vm_stat_diff[i] = 0;
++				local_irq_restore(flags);
++				atomic_long_add(v, &zone->vm_stat[i]);
++				global_diff[i] += v;
+ #ifdef CONFIG_NUMA
+ 				/* 3 seconds idle till flush */
+ 				p->expire = 3;
+ #endif
+-				local_irq_restore(flags);
+ 			}
+ #ifdef CONFIG_NUMA
+ 		/*
+@@ -351,6 +359,10 @@ void refresh_cpu_vm_stats(int cpu)
+ 			drain_zone_pages(zone, p->pcp + 1);
+ #endif
+ 	}
++
++	for (i = 0; i < NR_VM_ZONE_STAT_ITEMS; i++)
++		if (global_diff[i])
++			atomic_long_add(global_diff[i], &vm_stat[i]);
+ }
+ 
+ #endif
+
+
+
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
