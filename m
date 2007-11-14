@@ -1,60 +1,94 @@
-Subject: Re: [PATCH 3/3] nfs: use ->mmap_prepare() to avoid an AB-BA
-	deadlock
-From: Peter Zijlstra <a.p.zijlstra@chello.nl>
-In-Reply-To: <1195076485.7584.66.camel@heimdal.trondhjem.org>
-References: <20071114200136.009242000@chello.nl>
-	 <20071114201528.514434000@chello.nl> <20071114212246.GA31048@wotan.suse.de>
-	 <1195075905.22457.3.camel@lappy>
-	 <1195076485.7584.66.camel@heimdal.trondhjem.org>
-Content-Type: text/plain
-Date: Wed, 14 Nov 2007 22:50:34 +0100
-Message-Id: <1195077034.22457.6.camel@lappy>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Message-Id: <20071114220906.206294426@sgi.com>
+Date: Wed, 14 Nov 2007 14:09:06 -0800
+From: Christoph Lameter <clameter@sgi.com>
+Subject: [patch 00/17] Slab defragmentation V7
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Trond Myklebust <trond.myklebust@fys.uio.no>
-Cc: Nick Piggin <npiggin@suse.de>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-arch@vger.kernel.org, linux-fsdevel@vger.kernel.org, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hugh@veritas.com>
+To: akpm@linux-foundation.org
+Cc: linux-mm@kvack.org, Mel Gorman <mel@skynet.ie>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 2007-11-14 at 16:41 -0500, Trond Myklebust wrote:
-> On Wed, 2007-11-14 at 22:31 +0100, Peter Zijlstra wrote:
-> > On Wed, 2007-11-14 at 22:22 +0100, Nick Piggin wrote:
-> > > On Wed, Nov 14, 2007 at 09:01:39PM +0100, Peter Zijlstra wrote:
-> > > > Normal locking order is:
-> > > > 
-> > > >   i_mutex
-> > > >     mmap_sem
-> > > > 
-> > > > However NFS's ->mmap hook, which is called under mmap_sem, can take i_mutex.
-> > > > Avoid this potential deadlock by doing the work that requires i_mutex from
-> > > > the new ->mmap_prepare().
-> > > > 
-> > > > [ Is this sufficient, or does it introduce a race? ]
-> > > 
-> > > Seems like an OK patchset in my opinion. I don't know much about NFS
-> > > unfortunately, but I wonder what prevents the condition fixed by
-> > > nfs_revalidate_mapping from happening again while the mmap is active...?
-> > 
-> > As the changelog might have suggested, I'm not overly sure of the nfs
-> > requirements myself. I think it just does a best effort at getting the
-> > pages coherent with other clients, and then hopes for the best.
-> > 
-> > I'll let Trond enlighten us further before I make an utter fool of
-> > myself :-)
-> 
-> The NFS client needs to check the validity of already cached data before
-> it allows those pages to be mmapped. If it finds out that the cache is
-> stale, then we need to call invalidate_inode_pages2() to clear out the
-> cache and refresh it from the server. The inode->i_mutex is necessary in
-> order to prevent races between the new writes and the cache invalidation
-> code.
+Slab defragmentation is mainly an issue if Linux is used as a fileserver
+and large amounts of dentries, inodes and buffer heads accumulate. In some
+load situations the slabs become very sparsely populated so that a lot of
+memory is wasted by slabs that only contain one or a few objects. In
+extreme cases the performance of a machine will become sluggish since
+we are continually running reclaim. Slab defragmentation adds the
+capability to recover the memory that is wasted.
 
-Right, but I guess what Nick asked is, if pages could be stale to start
-with, how is that avoided in the future.
+Memory reclaim from the following slab caches is possible:
 
-The way I understand it, this re-validate is just a best effort at
-getting a coherent image.
+1. dentry cache
+2. inode cache (with a generic interface to allow easy setup of more
+   filesystems than the currently supported ext2/3/4 reiserfs, XFS
+   and proc)
+3. buffer_heads
+
+One typical mechanism that triggers slab defragmentation on my systems
+is the daily run of
+
+	updatedb
+
+Updatedb scans all files on the system which causes a high inode and dentry
+use. After updatedb is complete we need to go back to the regular use
+patterns (typical on my machine: kernel compiles). Those need the memory now
+for different purposes. The inodes and dentries used for updatedb will
+gradually be aged by the dentry/inode reclaim algorithm which will free
+up the dentries and inode entries randomly through the slabs that were
+allocated. As a result the slabs will become sparsely populated. If they
+become empty then they can be freed but a lot of them will remain sparsely
+populated. That is where slab defrag comes in: It removes the objects from
+the slabs with just a few entries reclaiming more memory for other uses.
+In the simplest case (as provided here) this is done by simply reclaiming
+the objects. However, if the logic in the kick() function is made more
+sophisticated then we will be able to move the objects out of the slabs.
+
+V6->V7
+- Rediff against 2.6.24-rc2-mm1
+- Remove lumpy reclaim support. No point anymore given that the antifrag
+  handling in 2.6.24-rc2 puts reclaimable slabs into different sections.
+  Targeted reclaim never triggers. This has to wait until we make
+  slabs movable or we need to perform a special version of lumpy reclaim
+  in SLUB while we scan the partial lists for slabs to kick out.
+  Removal simplifies handling significantly since we
+  get to slabs in a more controlled way via the partial lists.
+  The patchset now provides pure reduction of fragmentation levels.
+- SLAB/SLOB: Provide inlines that do nothing
+- Fix various smaller issues that were brought up during review of V6.
+
+V5->V6
+- Rediff against 2.6.24-rc2 + mm slub patches.
+- Add reviewed by lines.
+- Take out the experimental code to make slab pages movable. That
+  has to wait until this has been considered by Mel.
+
+V4->V5:
+- Support lumpy reclaim for slabs
+- Support reclaim via slab_shrink()
+- Add constructors to insure a consistent object state at all times.
+
+V3->V4:
+- Optimize scan for slabs that need defragmentation
+- Add /sys/slab/*/defrag_ratio to allow setting defrag limits
+  per slab.
+- Add support for buffer heads.
+- Describe how the cleanup after the daily updatedb can be
+  improved by slab defragmentation.
+
+V2->V3
+- Support directory reclaim
+- Add infrastructure to trigger defragmentation after slab shrinking if we
+  have slabs with a high degree of fragmentation.
+
+V1->V2
+- Clean up control flow using a state variable. Simplify API. Back to 2
+  functions that now take arrays of objects.
+- Inode defrag support for a set of filesystems
+- Fix up dentry defrag support to work on negative dentries by adding
+  a new dentry flag that indicates that a dentry is not in the process
+  of being freed or allocated.
+
+-- 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
