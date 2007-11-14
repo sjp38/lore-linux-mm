@@ -1,58 +1,37 @@
 From: kamezawa.hiroyu@jp.fujitsu.com
-Message-ID: <22200238.1195036142565.kamezawa.hiroyu@jp.fujitsu.com>
-Date: Wed, 14 Nov 2007 19:29:02 +0900 (JST)
-Subject: Re: Re: [RFC][ for -mm] memory controller enhancements for NUMA [10/10] per-zone-lru
-In-Reply-To: <20071114091138.30BA11CD65F@siro.lan>
+Message-ID: <6333287.1195036296158.kamezawa.hiroyu@jp.fujitsu.com>
+Date: Wed, 14 Nov 2007 19:31:36 +0900 (JST)
+Subject: Re: Re: [RFC][ for -mm] memory controller enhancements for NUMA [1/10] record nid/zid on page_cgroup
+In-Reply-To: <20071114092243.9331F1CD66B@siro.lan>
 Mime-Version: 1.0
 Content-Type: text/plain; charset="iso-2022-jp"
 Content-Transfer-Encoding: 7bit
-References: <20071114091138.30BA11CD65F@siro.lan>
- <20071114175737.d5066644.kamezawa.hiroyu@jp.fujitsu.com>
+References: <20071114092243.9331F1CD66B@siro.lan>
+ <20071114174131.cf7c4aa6.kamezawa.hiroyu@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: YAMAMOTO Takashi <yamamoto@valinux.co.jp>
-Cc: kamezawa.hiroyu@jp.fujitsu.com, containers@lists.osdl.org, linux-mm@kvack.org, hugh@veritas.com, balbir@linux.vnet.ibm.com
+Cc: kamezawa.hiroyu@jp.fujitsu.com, linux-mm@kvack.org, containers@lists.osdl.org, balbir@linux.vnet.ibm.com, hugh@veritas.com
 List-ID: <linux-mm.kvack.org>
 
->> +struct mc_lru_head {
->> +	struct list_head active_list[MAX_NR_ZONES];
->> +	struct list_head inactive_list[MAX_NR_ZONES];
->> +};
->> +
->
->i guess
->	struct foo {
->		struct list_head active_list;
->		struct list_head inactive_list;
->	} lists[MAX_NR_ZONES];
->is better.
-Ah, yes. I'll change this.
+>> Index: linux-2.6.24-rc2-mm1/mm/memcontrol.c
+>> ===================================================================
+>> --- linux-2.6.24-rc2-mm1.orig/mm/memcontrol.c
+>> +++ linux-2.6.24-rc2-mm1/mm/memcontrol.c
+>> @@ -131,6 +131,8 @@ struct page_cgroup {
+>>  	atomic_t ref_cnt;		/* Helpful when pages move b/w  */
+>>  					/* mapped and cached states     */
+>>  	int	 flags;
+>> +	short	nid;
+>> +	short	zid;
 
-
->> @@ -139,8 +144,20 @@ struct mem_cgroup {
->>  	 * Per zone statistics (used for memory reclaim)
->>  	 */
->>  	struct mem_cgroup_zonestat zstat;
->> +#ifndef CONFIG_NUMA
->> +	struct lru_head	local_head;
->> +#endif
+>are they worth to be cached?
+>can't you use page_zonenum(pc->page)?
 >
->	struct mc_lru_head local_lru;
->
-thanks, I'll do test with !CONFIG_NUMA in the next post.
-
->> +static int mem_cgroup_init_lru(struct mem_cgroup *mem)
->> +{
->> +	int zone;
->> +	mem->lrus[0] = &mem->local_lru;
->
->'zone' seems unused.
-
-ok.
+Maybe I can. I'll drop this and see what the whole code looks like.
 
 Thanks,
 -Kame
-
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
