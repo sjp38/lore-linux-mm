@@ -1,93 +1,145 @@
-Message-Id: <20071114221019.983835827@sgi.com>
+Message-Id: <20071114221021.414200334@sgi.com>
 References: <20071114220906.206294426@sgi.com>
-Date: Wed, 14 Nov 2007 14:09:08 -0800
+Date: Wed, 14 Nov 2007 14:09:14 -0800
 From: Christoph Lameter <clameter@sgi.com>
-Subject: [patch 02/17] SLUB: Add defrag_ratio field and sysfs support.
-Content-Disposition: inline; filename=0048-SLUB-Add-defrag_ratio-field-and-sysfs-support.patch
+Subject: [patch 08/17] Buffer heads: Support slab defrag
+Content-Disposition: inline; filename=0054-Buffer-heads-Support-slab-defrag.patch
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: akpm@linux-foundation.org
 Cc: linux-mm@kvack.org, Mel Gorman <mel@skynet.ie>
 List-ID: <linux-mm.kvack.org>
 
-The defrag_ratio is used to set the threshold at which defragmentation
-should be run on a slabcache.
-
-The allocation ratio is measured in the percentage of the available slots
-allocated. The percentage will be lower for slabs that are more fragmented.
-
-Add a defrag ratio field and set it to 30% by default. A limit of 30% specified
-that less than 3 out of 10 available slots for objects are in use before
-slab defragmeentation runs.
+Defragmentation support for buffer heads. We convert the references to
+buffers to struct page references and try to remove the buffers from
+those pages. If the pages are dirty then trigger writeout so that the
+buffer heads can be removed later.
 
 Reviewed-by: Rik van Riel <riel@redhat.com>
 Signed-off-by: Christoph Lameter <clameter@sgi.com>
 ---
- include/linux/slub_def.h |    7 +++++++
- mm/slub.c                |   18 ++++++++++++++++++
- 2 files changed, 25 insertions(+)
+ fs/buffer.c |  101 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 101 insertions(+)
 
-Index: linux-2.6.24-rc2-mm1/include/linux/slub_def.h
+Index: linux-2.6.24-rc2-mm1/fs/buffer.c
 ===================================================================
---- linux-2.6.24-rc2-mm1.orig/include/linux/slub_def.h	2007-11-14 11:10:03.796012330 -0800
-+++ linux-2.6.24-rc2-mm1/include/linux/slub_def.h	2007-11-14 12:06:05.330593714 -0800
-@@ -53,6 +53,13 @@ struct kmem_cache {
- 	void (*ctor)(struct kmem_cache *, void *);
- 	int inuse;		/* Offset to metadata */
- 	int align;		/* Alignment */
-+	int defrag_ratio;	/*
-+				 * objects/possible-objects limit. If we have
-+				 * less that the specified percentage of
-+				 * objects allocated then defrag passes
-+				 * will start to occur during reclaim.
-+				 */
-+
- 	const char *name;	/* Name (only for display!) */
- 	struct list_head list;	/* List of slab caches */
- #ifdef CONFIG_SLUB_DEBUG
-Index: linux-2.6.24-rc2-mm1/mm/slub.c
-===================================================================
---- linux-2.6.24-rc2-mm1.orig/mm/slub.c	2007-11-14 11:10:22.236011521 -0800
-+++ linux-2.6.24-rc2-mm1/mm/slub.c	2007-11-14 12:06:05.338343172 -0800
-@@ -2363,6 +2363,7 @@ static int kmem_cache_open(struct kmem_c
- 		goto error;
- 
- 	s->refcount = 1;
-+	s->defrag_ratio = 30;
- #ifdef CONFIG_NUMA
- 	s->remote_node_defrag_ratio = 100;
- #endif
-@@ -4009,6 +4010,22 @@ static ssize_t free_calls_show(struct km
+--- linux-2.6.24-rc2-mm1.orig/fs/buffer.c	2007-11-14 11:08:35.960011281 -0800
++++ linux-2.6.24-rc2-mm1/fs/buffer.c	2007-11-14 12:18:13.630344173 -0800
+@@ -3227,6 +3227,106 @@ init_buffer_head(struct kmem_cache *cach
+ 	INIT_LIST_HEAD(&bh->b_assoc_buffers);
  }
- SLAB_ATTR_RO(free_calls);
  
-+static ssize_t defrag_ratio_show(struct kmem_cache *s, char *buf)
++/*
++ * Writeback a page to clean the dirty state
++ */
++static void trigger_write(struct page *page)
 +{
-+	return sprintf(buf, "%d\n", s->defrag_ratio);
++	struct address_space *mapping = page_mapping(page);
++	int rc;
++	struct writeback_control wbc = {
++		.sync_mode = WB_SYNC_NONE,
++		.nr_to_write = 1,
++		.range_start = 0,
++		.range_end = LLONG_MAX,
++		.nonblocking = 1,
++		.for_reclaim = 0
++	};
++
++	if (!mapping->a_ops->writepage)
++		/* No write method for the address space */
++		return;
++
++	if (!clear_page_dirty_for_io(page))
++		/* Someone else already triggered a write */
++		return;
++
++	rc = mapping->a_ops->writepage(page, &wbc);
++	if (rc < 0)
++		/* I/O Error writing */
++		return;
++
++	if (rc == AOP_WRITEPAGE_ACTIVATE)
++		unlock_page(page);
 +}
 +
-+static ssize_t defrag_ratio_store(struct kmem_cache *s,
-+				const char *buf, size_t length)
++/*
++ * Get references on buffers.
++ *
++ * We obtain references on the page that uses the buffer. v[i] will point to
++ * the corresponding page after get_buffers() is through.
++ *
++ * We are safe from the underlying page being removed simply by doing
++ * a get_page_unless_zero. The buffer head removal may race at will.
++ * try_to_free_buffes will later take appropriate locks to remove the
++ * buffers if they are still there.
++ */
++static void *get_buffers(struct kmem_cache *s, int nr, void **v)
 +{
-+	int n = simple_strtoul(buf, NULL, 10);
++	struct page *page;
++	struct buffer_head *bh;
++	int i,j;
++	int n = 0;
 +
-+	if (n < 100)
-+		s->defrag_ratio = n;
-+	return length;
++	for (i = 0; i < nr; i++) {
++		bh = v[i];
++		v[i] = NULL;
++
++		page = bh->b_page;
++
++		if (page && PagePrivate(page)) {
++			for (j = 0; j < n; j++)
++				if (page == v[j])
++					goto cont;
++		}
++
++		if (get_page_unless_zero(page))
++			v[n++] = page;
++cont:	;
++	}
++	return NULL;
 +}
-+SLAB_ATTR(defrag_ratio);
 +
- #ifdef CONFIG_NUMA
- static ssize_t remote_node_defrag_ratio_show(struct kmem_cache *s, char *buf)
++/*
++ * Despite its name: kick_buffers operates on a list of pointers to
++ * page structs that was setup by get_buffer
++ */
++static void kick_buffers(struct kmem_cache *s, int nr, void **v,
++							void *private)
++{
++	struct page *page;
++	int i;
++
++	for (i = 0; i < nr; i++) {
++		page = v[i];
++
++		if (!page || PageWriteback(page))
++			continue;
++
++
++		if (!TestSetPageLocked(page)) {
++			if (PageDirty(page))
++				trigger_write(page);
++			else {
++				if (PagePrivate(page))
++					try_to_free_buffers(page);
++				unlock_page(page);
++			}
++		}
++		put_page(page);
++	}
++}
++
+ void __init buffer_init(void)
  {
-@@ -4051,6 +4068,7 @@ static struct attribute *slab_attrs[] = 
- 	&shrink_attr.attr,
- 	&alloc_calls_attr.attr,
- 	&free_calls_attr.attr,
-+	&defrag_ratio_attr.attr,
- #ifdef CONFIG_ZONE_DMA
- 	&cache_dma_attr.attr,
- #endif
+ 	int nrpages;
+@@ -3236,6 +3336,7 @@ void __init buffer_init(void)
+ 				(SLAB_RECLAIM_ACCOUNT|SLAB_PANIC|
+ 				SLAB_MEM_SPREAD),
+ 				init_buffer_head);
++	kmem_cache_setup_defrag(bh_cachep, get_buffers, kick_buffers);
+ 
+ 	/*
+ 	 * Limit the bh occupancy to 10% of ZONE_NORMAL
 
 -- 
 
