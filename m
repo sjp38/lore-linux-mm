@@ -1,51 +1,62 @@
-Received: from [192.168.8.55] ([192.168.8.55])
-	(authenticated bits=0)
-	by arcamail.arcapub.arca.com (8.12.8/8.12.8) with ESMTP id lAE43k7W025071
-	for <linux-mm@kvack.org>; Wed, 14 Nov 2007 12:03:50 +0800
-Message-ID: <473A7877.90703@arca.com.cn>
-Date: Wed, 14 Nov 2007 12:24:23 +0800
-From: "Jacky(GuangXiang Lee)" <gxli@arca.com.cn>
-MIME-Version: 1.0
-Subject: probably memory leak in sparse_index_init()? ---2.6.23/mm/sparse.c
-Content-Type: text/plain; charset=GB2312
-Content-Transfer-Encoding: 7bit
+Date: Wed, 14 Nov 2007 16:39:37 +0100
+From: Nick Piggin <npiggin@suse.de>
+Subject: Re: [patch] nfs: use GFP_NOFS preloads for radix-tree insertion
+Message-ID: <20071114153937.GA3779@wotan.suse.de>
+References: <20071108031645.GI3227@wotan.suse.de> <20071107201242.390aec38.akpm@linux-foundation.org> <20071108045404.GJ3227@wotan.suse.de> <20071107210204.62070047.akpm@linux-foundation.org> <20071108054445.GA20162@wotan.suse.de> <20071107220200.85e9cb59.akpm@linux-foundation.org> <20071108065633.GB28216@wotan.suse.de> <1194951345.6983.24.camel@twins> <20071114042011.GE557@wotan.suse.de> <1195031187.6924.1.camel@twins>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1195031187.6924.1.camel@twins>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
+To: Peter Zijlstra <peterz@infradead.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, davem@davemloft.net, Trond Myklebust <trond.myklebust@fys.uio.no>
 List-ID: <linux-mm.kvack.org>
 
-hi,
-As following,after allocing ,then go out at finding mem_section not
-null.sure?
+On Wed, Nov 14, 2007 at 10:06:27AM +0100, Peter Zijlstra wrote:
+> 
+> On Wed, 2007-11-14 at 05:20 +0100, Nick Piggin wrote:
+> > On Tue, Nov 13, 2007 at 11:55:45AM +0100, Peter Zijlstra wrote:
+> > > 
+> > > On Thu, 2007-11-08 at 07:56 +0100, Nick Piggin wrote:
+> > > > Here is the NFS version. I guess Trond should ack it before you pick it
+> > > > up.
+> > > > 
+> > > > --
+> > > > 
+> > > > NFS should use GFP_NOFS mode radix tree preloads rather than GFP_ATOMIC
+> > > > allocations at radix-tree insertion-time. This is important to reduce the
+> > > > atomic memory requirement.
+> > > 
+> > > In another mail you said:
+> > > 
+> > > > Anyway we can also simplify the code because the insertion can't fail with a
+> > > > preload.
+> > > 
+> > > Can we please avoid adding strict dependencies on that as the preload
+> > > API is unsupportable in -rt.
+> > 
+> > You can surely support it. You just have to do per-thread preloads if you
+> > want preemption left on.
+> 
+> Well, true, but that would mean adding stuff to task_struct, not the end
+> of the world I guess.
+> 
+> But as it is leaving the error handling on each individual
+> radix_tree_insert() allows us to just use GFP_KERNEL for everything.
+
+Hmm, then you reintroduce the lock ordering which I got rid of. Not that
+it's a particularly big deal in this case. I don't think you should noop
+fundamental things like this just because they turn preempt off. At any
+rate, it's not something that mainline can really be concerned with...
 
 
-static int __meminit sparse_index_init(unsigned long section_nr, int nid)
-{
-static DEFINE_SPINLOCK(index_init_lock);
-unsigned long root = SECTION_NR_TO_ROOT(section_nr);
-struct mem_section *section;
-int ret = 0;
+> The other, nicer option, is to do preload on the radix_tree_context
+> object instead.
 
-if (mem_section[root])
-return -EEXIST;
-
-section = sparse_index_alloc(nid);
-/*
-* This lock keeps two different sections from
-* reallocating for the same index
-*/
-spin_lock(&index_init_lock);
-
-if (mem_section[root]) {
-ret = -EEXIST;
-goto out;
-}
-
-mem_section[root] = section;
-out:
-spin_unlock(&index_init_lock);
-return ret;
-}
+I don't know if you'd call it nicer... at least, not as nice as what's
+upstream. So it seems like you'd have to have a custom solution anyway,
+given that per-cpu preloads are probably the best we can do upstream.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
