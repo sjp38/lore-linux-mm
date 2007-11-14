@@ -1,29 +1,43 @@
-Subject: Re: [PATCH 0/3] mmap vs NFS
-From: Trond Myklebust <trond.myklebust@fys.uio.no>
-In-Reply-To: <20071114200136.009242000@chello.nl>
+Subject: Re: [PATCH 3/3] nfs: use ->mmap_prepare() to avoid an AB-BA
+	deadlock
+From: Peter Zijlstra <a.p.zijlstra@chello.nl>
+In-Reply-To: <20071114212246.GA31048@wotan.suse.de>
 References: <20071114200136.009242000@chello.nl>
+	 <20071114201528.514434000@chello.nl> <20071114212246.GA31048@wotan.suse.de>
 Content-Type: text/plain
-Date: Wed, 14 Nov 2007 16:27:32 -0500
-Message-Id: <1195075652.7584.61.camel@heimdal.trondhjem.org>
+Date: Wed, 14 Nov 2007 22:31:45 +0100
+Message-Id: <1195075905.22457.3.camel@lappy>
 Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-arch@vger.kernel.org, linux-fsdevel@vger.kernel.org, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Nick Piggin <npiggin@suse.de>, Hugh Dickins <hugh@veritas.com>
+To: Nick Piggin <npiggin@suse.de>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-arch@vger.kernel.org, linux-fsdevel@vger.kernel.org, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Trond Myklebust <trond.myklebust@fys.uio.no>, Hugh Dickins <hugh@veritas.com>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 2007-11-14 at 21:01 +0100, Peter Zijlstra wrote:
-> Currently there is an AB-BA deadlock in NFS mmap.
+On Wed, 2007-11-14 at 22:22 +0100, Nick Piggin wrote:
+> On Wed, Nov 14, 2007 at 09:01:39PM +0100, Peter Zijlstra wrote:
+> > Normal locking order is:
+> > 
+> >   i_mutex
+> >     mmap_sem
+> > 
+> > However NFS's ->mmap hook, which is called under mmap_sem, can take i_mutex.
+> > Avoid this potential deadlock by doing the work that requires i_mutex from
+> > the new ->mmap_prepare().
+> > 
+> > [ Is this sufficient, or does it introduce a race? ]
 > 
-> nfs_file_mmap() can take i_mutex, while holding mmap_sem, whereas the regular
-> locking order is the other way around.
-> 
-> This patch-set attempts to solve this issue.
+> Seems like an OK patchset in my opinion. I don't know much about NFS
+> unfortunately, but I wonder what prevents the condition fixed by
+> nfs_revalidate_mapping from happening again while the mmap is active...?
 
-Looks good from the NFS point of view.
+As the changelog might have suggested, I'm not overly sure of the nfs
+requirements myself. I think it just does a best effort at getting the
+pages coherent with other clients, and then hopes for the best.
 
-Acked-by: Trond Myklebust <Trond.Myklebust@netapp.com>
+I'll let Trond enlighten us further before I make an utter fool of
+myself :-)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
