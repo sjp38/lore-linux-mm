@@ -1,164 +1,52 @@
-Message-Id: <20071114221021.645219513@sgi.com>
-References: <20071114220906.206294426@sgi.com>
-Date: Wed, 14 Nov 2007 14:09:15 -0800
-From: Christoph Lameter <clameter@sgi.com>
-Subject: [patch 09/17] inodes: Support generic defragmentation
-Content-Disposition: inline; filename=0055-inodes-Support-generic-defragmentation.patch
+Subject: Re: [PATCH 3/3] nfs: use ->mmap_prepare() to avoid an AB-BA
+	deadlock
+From: Trond Myklebust <trond.myklebust@fys.uio.no>
+In-Reply-To: <1195077034.22457.6.camel@lappy>
+References: <20071114200136.009242000@chello.nl>
+	 <20071114201528.514434000@chello.nl> <20071114212246.GA31048@wotan.suse.de>
+	 <1195075905.22457.3.camel@lappy>
+	 <1195076485.7584.66.camel@heimdal.trondhjem.org>
+	 <1195077034.22457.6.camel@lappy>
+Content-Type: text/plain
+Date: Wed, 14 Nov 2007 17:18:50 -0500
+Message-Id: <1195078730.7584.86.camel@heimdal.trondhjem.org>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: akpm@linux-foundation.org
-Cc: linux-mm@kvack.org, Mel Gorman <mel@skynet.ie>
+To: Peter Zijlstra <a.p.zijlstra@chello.nl>
+Cc: Nick Piggin <npiggin@suse.de>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-arch@vger.kernel.org, linux-fsdevel@vger.kernel.org, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hugh@veritas.com>
 List-ID: <linux-mm.kvack.org>
 
-This implements the ability to remove inodes in a particular slab
-from inode caches. In order to remove an inode we may have to write out
-the pages of an inode, the inode itself and remove the dentries referring
-to the node.
+On Wed, 2007-11-14 at 22:50 +0100, Peter Zijlstra wrote:
+> Right, but I guess what Nick asked is, if pages could be stale to start
+> with, how is that avoided in the future.
+> 
+> The way I understand it, this re-validate is just a best effort at
+> getting a coherent image.
 
-Provide generic functionality that can be used by filesystems that have
-their own inode caches to also tie into the defragmentation functions
-that are made available here.
+The normal convention for NFS is to use a close-to-open cache
+consistency model. In that model, applications must agree never to open
+the file for reading or writing if an application on a different NFS
+client already holds it open for writing.
 
-Reviewed-by: Rik van Riel <riel@redhat.com>
-Signed-off-by: Christoph Lameter <clameter@sgi.com>
----
- fs/inode.c         |   96 +++++++++++++++++++++++++++++++++++++++++++++++++++++
- include/linux/fs.h |    6 +++
- 2 files changed, 102 insertions(+)
+However there is no standard locking model for _enforcing_ such an
+agreement, so some setups do violate it. One obvious model that we try
+to support is that where the applications are using POSIX locking in
+order to ensure exclusive access to the data when requires.
 
-Index: linux-2.6.24-rc2-mm1/fs/inode.c
-===================================================================
---- linux-2.6.24-rc2-mm1.orig/fs/inode.c	2007-11-14 11:08:36.512252115 -0800
-+++ linux-2.6.24-rc2-mm1/fs/inode.c	2007-11-14 12:19:18.961758542 -0800
-@@ -1380,6 +1380,101 @@ static int __init set_ihash_entries(char
- }
- __setup("ihash_entries=", set_ihash_entries);
- 
-+void *get_inodes(struct kmem_cache *s, int nr, void **v)
-+{
-+	int i;
-+
-+	spin_lock(&inode_lock);
-+	for (i = 0; i < nr; i++) {
-+		struct inode *inode = v[i];
-+
-+		if (inode->i_state & (I_FREEING|I_CLEAR|I_WILL_FREE))
-+			v[i] = NULL;
-+		else
-+			__iget(inode);
-+	}
-+	spin_unlock(&inode_lock);
-+	return NULL;
-+}
-+EXPORT_SYMBOL(get_inodes);
-+
-+/*
-+ * Function for filesystems that embedd struct inode into their own
-+ * structures. The offset is the offset of the struct inode in the fs inode.
-+ */
-+void *fs_get_inodes(struct kmem_cache *s, int nr, void **v,
-+						unsigned long offset)
-+{
-+	int i;
-+
-+	for (i = 0; i < nr; i++)
-+		v[i] += offset;
-+
-+	return get_inodes(s, nr, v);
-+}
-+EXPORT_SYMBOL(fs_get_inodes);
-+
-+void kick_inodes(struct kmem_cache *s, int nr, void **v, void *private)
-+{
-+	struct inode *inode;
-+	int i;
-+	int abort = 0;
-+	LIST_HEAD(freeable);
-+	struct super_block *sb;
-+
-+	for (i = 0; i < nr; i++) {
-+		inode = v[i];
-+		if (!inode)
-+			continue;
-+
-+		if (inode_has_buffers(inode) || inode->i_data.nrpages) {
-+			if (remove_inode_buffers(inode))
-+				invalidate_mapping_pages(&inode->i_data,
-+								0, -1);
-+		}
-+
-+		/* Invalidate children and dentry */
-+		if (S_ISDIR(inode->i_mode)) {
-+			struct dentry *d = d_find_alias(inode);
-+
-+			if (d) {
-+				d_invalidate(d);
-+				dput(d);
-+			}
-+		}
-+
-+		if (inode->i_state & I_DIRTY)
-+			write_inode_now(inode, 1);
-+
-+		d_prune_aliases(inode);
-+	}
-+
-+	mutex_lock(&iprune_mutex);
-+	for (i = 0; i < nr; i++) {
-+		inode = v[i];
-+		if (!inode)
-+			continue;
-+
-+		sb = inode->i_sb;
-+		iput(inode);
-+		if (abort || !(sb->s_flags & MS_ACTIVE))
-+			continue;
-+
-+		spin_lock(&inode_lock);
-+		abort =  !can_unuse(inode);
-+
-+		if (!abort) {
-+			list_move(&inode->i_list, &freeable);
-+			inode->i_state |= I_FREEING;
-+			inodes_stat.nr_unused--;
-+		}
-+		spin_unlock(&inode_lock);
-+	}
-+	dispose_list(&freeable);
-+	mutex_unlock(&iprune_mutex);
-+}
-+EXPORT_SYMBOL(kick_inodes);
-+
- /*
-  * Initialize the waitqueues and inode hash table.
-  */
-@@ -1419,6 +1514,7 @@ void __init inode_init(void)
- 					 SLAB_MEM_SPREAD),
- 					 init_once);
- 	register_shrinker(&icache_shrinker);
-+	kmem_cache_setup_defrag(inode_cachep, get_inodes, kick_inodes);
- 
- 	/* Hash may have been set up in inode_init_early */
- 	if (!hashdist)
-Index: linux-2.6.24-rc2-mm1/include/linux/fs.h
-===================================================================
---- linux-2.6.24-rc2-mm1.orig/include/linux/fs.h	2007-11-14 11:09:18.500011326 -0800
-+++ linux-2.6.24-rc2-mm1/include/linux/fs.h	2007-11-14 12:19:18.991603944 -0800
-@@ -1775,6 +1775,12 @@ static inline void insert_inode_hash(str
- 	__insert_inode_hash(inode, inode->i_ino);
- }
- 
-+/* Helper functions for inode defragmentation support in filesystems */
-+extern void kick_inodes(struct kmem_cache *, int, void **, void *);
-+extern void *get_inodes(struct kmem_cache *, int nr, void **);
-+extern void *fs_get_inodes(struct kmem_cache *, int nr, void **,
-+						unsigned long offset);
-+
- extern struct file * get_empty_filp(void);
- extern void file_move(struct file *f, struct list_head *list);
- extern void file_kill(struct file *f);
+Another model is to rely rather on synchronous writes and heavy
+attribute revalidation to detect when a competing application has
+written to the file (the 'noac' mount option). While such a model is
+obviously deficient in that it can never guarantee cache coherency, we
+do attempt to ensure that it works on a per-operation basis (IOW: we
+check cache coherency before each call to read(), to mmap(), etc) since
+it is by far the easiest model to apply if you have applications that
+cannot be rewritten and that satisfy the requirement that they rarely
+conflict.
 
--- 
+Cheers
+  Trond
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
