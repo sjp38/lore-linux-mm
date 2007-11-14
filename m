@@ -1,28 +1,37 @@
-Subject: Re: [PATCH 0/3] mmap vs NFS
-From: Peter Zijlstra <a.p.zijlstra@chello.nl>
-In-Reply-To: <20071114200136.009242000@chello.nl>
-References: <20071114200136.009242000@chello.nl>
-Content-Type: text/plain
-Date: Wed, 14 Nov 2007 21:19:22 +0100
-Message-Id: <1195071564.22457.0.camel@lappy>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Date: Wed, 14 Nov 2007 13:13:39 -0800 (PST)
+From: Christoph Lameter <clameter@sgi.com>
+Subject: Re: [PATCH] Page allocator: Get rid of the list of cold pages
+In-Reply-To: <Pine.LNX.4.64.0711141148200.18811@schroedinger.engr.sgi.com>
+Message-ID: <Pine.LNX.4.64.0711141312510.19433@schroedinger.engr.sgi.com>
+References: <Pine.LNX.4.64.0711141148200.18811@schroedinger.engr.sgi.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-kernel@vger.kernel.org
-Cc: linux-mm@kvack.org, linux-arch@vger.kernel.org, linux-fsdevel@vger.kernel.org, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Trond Myklebust <trond.myklebust@fys.uio.no>, Nick Piggin <npiggin@suse.de>, Hugh Dickins <hugh@veritas.com>
+To: akpm@linux-foundation.org
+Cc: linux-mm@kvack.org, apw@shadowen.org, Mel Gorman <mel@skynet.ie>
 List-ID: <linux-mm.kvack.org>
 
-Seems I forgot to mention this is an RFC :-)
+Remove unused leftover variable.
 
-On Wed, 2007-11-14 at 21:01 +0100, Peter Zijlstra wrote:
-> Currently there is an AB-BA deadlock in NFS mmap.
-> 
-> nfs_file_mmap() can take i_mutex, while holding mmap_sem, whereas the regular
-> locking order is the other way around.
-> 
-> This patch-set attempts to solve this issue.
-> 
+Signed-off-by: Christoph Lameter <clameter@sgi.com>
+
+---
+ mm/page_alloc.c |    1 -
+ 1 file changed, 1 deletion(-)
+
+Index: linux-2.6.24-rc2-mm1/mm/page_alloc.c
+===================================================================
+--- linux-2.6.24-rc2-mm1.orig/mm/page_alloc.c	2007-11-14 13:12:02.256478626 -0800
++++ linux-2.6.24-rc2-mm1/mm/page_alloc.c	2007-11-14 13:12:16.557288771 -0800
+@@ -910,7 +910,6 @@ static void drain_pages(unsigned int cpu
+ {
+ 	unsigned long flags;
+ 	struct zone *zone;
+-	int i;
+ 
+ 	for_each_zone(zone) {
+ 		struct per_cpu_pageset *pset;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
