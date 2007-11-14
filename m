@@ -1,49 +1,162 @@
-Message-Id: <20071114221022.355777425@sgi.com>
+Message-Id: <20071114221021.645219513@sgi.com>
 References: <20071114220906.206294426@sgi.com>
-Date: Wed, 14 Nov 2007 14:09:18 -0800
+Date: Wed, 14 Nov 2007 14:09:15 -0800
 From: Christoph Lameter <clameter@sgi.com>
-Subject: [patch 12/17] FS: Proc filesystem support for slab defrag
-Content-Disposition: inline; filename=0058-FS-Proc-filesystem-support-for-slab-defrag.patch
+Subject: [patch 09/17] inodes: Support generic defragmentation
+Content-Disposition: inline; filename=0055-inodes-Support-generic-defragmentation.patch
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: akpm@linux-foundation.org
 Cc: linux-mm@kvack.org, Mel Gorman <mel@skynet.ie>
 List-ID: <linux-mm.kvack.org>
 
-Support procfs inode defragmentation
+This implements the ability to remove inodes in a particular slab
+from inode caches. In order to remove an inode we may have to write out
+the pages of an inode, the inode itself and remove the dentries referring
+to the node.
+
+Provide generic functionality that can be used by filesystems that have
+their own inode caches to also tie into the defragmentation functions
+that are made available here.
 
 Reviewed-by: Rik van Riel <riel@redhat.com>
 Signed-off-by: Christoph Lameter <clameter@sgi.com>
 ---
- fs/proc/inode.c |    8 ++++++++
- 1 file changed, 8 insertions(+)
+ fs/inode.c         |   96 +++++++++++++++++++++++++++++++++++++++++++++++++++++
+ include/linux/fs.h |    6 +++
+ 2 files changed, 102 insertions(+)
 
-Index: linux-2.6.24-rc2-mm1/fs/proc/inode.c
+Index: linux-2.6.24-rc2-mm1/fs/inode.c
 ===================================================================
---- linux-2.6.24-rc2-mm1.orig/fs/proc/inode.c	2007-11-14 11:08:37.264011681 -0800
-+++ linux-2.6.24-rc2-mm1/fs/proc/inode.c	2007-11-14 12:19:50.457593499 -0800
-@@ -109,6 +109,12 @@ static void init_once(struct kmem_cache 
- 	inode_init_once(&ei->vfs_inode);
+--- linux-2.6.24-rc2-mm1.orig/fs/inode.c	2007-11-14 11:08:36.512252115 -0800
++++ linux-2.6.24-rc2-mm1/fs/inode.c	2007-11-14 12:19:18.961758542 -0800
+@@ -1380,6 +1380,101 @@ static int __init set_ihash_entries(char
  }
+ __setup("ihash_entries=", set_ihash_entries);
  
-+static void *proc_get_inodes(struct kmem_cache *s, int nr, void **v)
++void *get_inodes(struct kmem_cache *s, int nr, void **v)
 +{
-+	return fs_get_inodes(s, nr, v,
-+		offsetof(struct proc_inode, vfs_inode));
-+};
++	int i;
 +
- int __init proc_init_inodecache(void)
- {
- 	proc_inode_cachep = kmem_cache_create("proc_inode_cache",
-@@ -116,6 +122,8 @@ int __init proc_init_inodecache(void)
- 					     0, (SLAB_RECLAIM_ACCOUNT|
- 						SLAB_MEM_SPREAD|SLAB_PANIC),
- 					     init_once);
-+	kmem_cache_setup_defrag(proc_inode_cachep,
-+				proc_get_inodes, kick_inodes);
- 	return 0;
++	spin_lock(&inode_lock);
++	for (i = 0; i < nr; i++) {
++		struct inode *inode = v[i];
++
++		if (inode->i_state & (I_FREEING|I_CLEAR|I_WILL_FREE))
++			v[i] = NULL;
++		else
++			__iget(inode);
++	}
++	spin_unlock(&inode_lock);
++	return NULL;
++}
++EXPORT_SYMBOL(get_inodes);
++
++/*
++ * Function for filesystems that embedd struct inode into their own
++ * structures. The offset is the offset of the struct inode in the fs inode.
++ */
++void *fs_get_inodes(struct kmem_cache *s, int nr, void **v,
++						unsigned long offset)
++{
++	int i;
++
++	for (i = 0; i < nr; i++)
++		v[i] += offset;
++
++	return get_inodes(s, nr, v);
++}
++EXPORT_SYMBOL(fs_get_inodes);
++
++void kick_inodes(struct kmem_cache *s, int nr, void **v, void *private)
++{
++	struct inode *inode;
++	int i;
++	int abort = 0;
++	LIST_HEAD(freeable);
++	struct super_block *sb;
++
++	for (i = 0; i < nr; i++) {
++		inode = v[i];
++		if (!inode)
++			continue;
++
++		if (inode_has_buffers(inode) || inode->i_data.nrpages) {
++			if (remove_inode_buffers(inode))
++				invalidate_mapping_pages(&inode->i_data,
++								0, -1);
++		}
++
++		/* Invalidate children and dentry */
++		if (S_ISDIR(inode->i_mode)) {
++			struct dentry *d = d_find_alias(inode);
++
++			if (d) {
++				d_invalidate(d);
++				dput(d);
++			}
++		}
++
++		if (inode->i_state & I_DIRTY)
++			write_inode_now(inode, 1);
++
++		d_prune_aliases(inode);
++	}
++
++	mutex_lock(&iprune_mutex);
++	for (i = 0; i < nr; i++) {
++		inode = v[i];
++		if (!inode)
++			continue;
++
++		sb = inode->i_sb;
++		iput(inode);
++		if (abort || !(sb->s_flags & MS_ACTIVE))
++			continue;
++
++		spin_lock(&inode_lock);
++		abort =  !can_unuse(inode);
++
++		if (!abort) {
++			list_move(&inode->i_list, &freeable);
++			inode->i_state |= I_FREEING;
++			inodes_stat.nr_unused--;
++		}
++		spin_unlock(&inode_lock);
++	}
++	dispose_list(&freeable);
++	mutex_unlock(&iprune_mutex);
++}
++EXPORT_SYMBOL(kick_inodes);
++
+ /*
+  * Initialize the waitqueues and inode hash table.
+  */
+@@ -1419,6 +1514,7 @@ void __init inode_init(void)
+ 					 SLAB_MEM_SPREAD),
+ 					 init_once);
+ 	register_shrinker(&icache_shrinker);
++	kmem_cache_setup_defrag(inode_cachep, get_inodes, kick_inodes);
+ 
+ 	/* Hash may have been set up in inode_init_early */
+ 	if (!hashdist)
+Index: linux-2.6.24-rc2-mm1/include/linux/fs.h
+===================================================================
+--- linux-2.6.24-rc2-mm1.orig/include/linux/fs.h	2007-11-14 11:09:18.500011326 -0800
++++ linux-2.6.24-rc2-mm1/include/linux/fs.h	2007-11-14 12:19:18.991603944 -0800
+@@ -1775,6 +1775,12 @@ static inline void insert_inode_hash(str
+ 	__insert_inode_hash(inode, inode->i_ino);
  }
  
++/* Helper functions for inode defragmentation support in filesystems */
++extern void kick_inodes(struct kmem_cache *, int, void **, void *);
++extern void *get_inodes(struct kmem_cache *, int nr, void **);
++extern void *fs_get_inodes(struct kmem_cache *, int nr, void **,
++						unsigned long offset);
++
+ extern struct file * get_empty_filp(void);
+ extern void file_move(struct file *f, struct list_head *list);
+ extern void file_kill(struct file *f);
 
 -- 
 
