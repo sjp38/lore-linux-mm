@@ -1,36 +1,36 @@
-Date: Tue, 13 Nov 2007 23:30:53 +0100
-From: =?utf-8?B?SsO2cm4=?= Engel <joern@logfs.org>
-Subject: Re: x86_64: Make sparsemem/vmemmap the default memory model
-Message-ID: <20071113223052.GE20167@lazybastard.org>
-References: <Pine.LNX.4.64.0711121549370.29178@schroedinger.engr.sgi.com> <200711130059.34346.ak@suse.de> <Pine.LNX.4.64.0711121615120.29328@schroedinger.engr.sgi.com> <200711130149.54852.ak@suse.de> <Pine.LNX.4.64.0711121940410.30269@schroedinger.engr.sgi.com> <2c0942db0711122027m5b11502cveded5705c0bc4f64@mail.gmail.com> <Pine.LNX.4.64.0711122040380.30724@schroedinger.engr.sgi.com> <20071113204100.GB20167@lazybastard.org> <Pine.LNX.4.64.0711131349300.3714@schroedinger.engr.sgi.com>
+Date: Wed, 14 Nov 2007 09:19:38 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: Sparsemem: Do not reserve section flags if VMEMMAP is in use
+Message-Id: <20071114091938.57d0f44c.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <Pine.LNX.4.64.0711131336500.3714@schroedinger.engr.sgi.com>
+References: <Pine.LNX.4.64.0711121944400.30269@schroedinger.engr.sgi.com>
+	<20071113134603.5b4b0f24.kamezawa.hiroyu@jp.fujitsu.com>
+	<Pine.LNX.4.64.0711131336500.3714@schroedinger.engr.sgi.com>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <Pine.LNX.4.64.0711131349300.3714@schroedinger.engr.sgi.com>
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Christoph Lameter <clameter@sgi.com>
-Cc: =?utf-8?B?SsO2cm4=?= Engel <joern@logfs.org>, Ray Lee <ray-lk@madrabbit.org>, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Mel Gorman <mel@csn.ul.ie>, Andi Kleen <ak@suse.de>, Andy Whitcroft <apw@shadowen.org>
+Cc: Andy Whitcroft <apw@shadowen.org>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 13 November 2007 13:52:17 -0800, Christoph Lameter wrote:
+On Tue, 13 Nov 2007 13:38:11 -0800 (PST)
+Christoph Lameter <clameter@sgi.com> wrote:
+> Well that is currently not done for !SPARSEMEM configuration where 
+> SECTIONS_WIDTH is also zero. So I left it as is.
 > 
-> Could you run your own test to verify?
+> > page_to_section is used in page_to_nid() if NODE_NOT_IN_PAGE_FLAGS=y.
+> > (I'm not sure exact config dependency.)
+> 
+> NODE_NOT_IN_PAGE_FLAGS=y only occurs when flag bits are 
+> taken away by sparsemem for the section bits.
+> 
+> 
+Ahh, thank you for confirmation.
 
-You bastard!  You know I'm too lazy to do that. ;)
-
-As long as the order-0 number is stable across multiple runs I don't
-mind.  The numbers just looked suspiciously as if they were not stable.
-That's all.
-
-JA?rn
-
--- 
-Why do musicians compose symphonies and poets write poems?
-They do it because life wouldn't have any meaning for them if they didn't.
-That's why I draw cartoons.  It's my life.
--- Charles Shultz
+Regards,
+-Kame
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
