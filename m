@@ -1,163 +1,51 @@
-Message-Id: <20071114221020.480211053@sgi.com>
+Message-Id: <20071114221022.827871900@sgi.com>
 References: <20071114220906.206294426@sgi.com>
-Date: Wed, 14 Nov 2007 14:09:10 -0800
+Date: Wed, 14 Nov 2007 14:09:20 -0800
 From: Christoph Lameter <clameter@sgi.com>
-Subject: [patch 04/17] SLUB: Add get() and kick() methods
-Content-Disposition: inline; filename=0050-SLUB-Add-get-and-kick-methods.patch
+Subject: [patch 14/17] FS: Socket inode defragmentation
+Content-Disposition: inline; filename=0060-FS-Socket-inode-defragmentation.patch
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: akpm@linux-foundation.org
 Cc: linux-mm@kvack.org, Mel Gorman <mel@skynet.ie>
 List-ID: <linux-mm.kvack.org>
 
-Add the two methods needed for defragmentation and add the display of the
-methods via the proc interface.
-
-Add documentation explaining the use of these methods.
+Support inode defragmentation for sockets
 
 Reviewed-by: Rik van Riel <riel@redhat.com>
 Signed-off-by: Christoph Lameter <clameter@sgi.com>
 ---
- include/linux/slab_def.h |    4 ++++
- include/linux/slob_def.h |    4 ++++
- include/linux/slub_def.h |   35 +++++++++++++++++++++++++++++++++++
- mm/slub.c                |   32 ++++++++++++++++++++++++++++++--
- 4 files changed, 73 insertions(+), 2 deletions(-)
+ net/socket.c |    8 ++++++++
+ 1 files changed, 8 insertions(+), 0 deletions(-)
 
-Index: linux-2.6.24-rc2-mm1/include/linux/slub_def.h
-===================================================================
---- linux-2.6.24-rc2-mm1.orig/include/linux/slub_def.h	2007-11-14 12:06:05.330593714 -0800
-+++ linux-2.6.24-rc2-mm1/include/linux/slub_def.h	2007-11-14 12:42:38.534492973 -0800
-@@ -51,6 +51,37 @@ struct kmem_cache {
- 	int objects;		/* Number of objects in slab */
- 	int refcount;		/* Refcount for slab cache destroy */
- 	void (*ctor)(struct kmem_cache *, void *);
-+	/*
-+	 * Called with slab lock held and interrupts disabled.
-+	 * No slab operation may be performed in get().
-+	 *
-+	 * Parameters passed are the number of objects to process
-+	 * and an array of pointers to objects for which we
-+	 * need references.
-+	 *
-+	 * Returns a pointer that is passed to the kick function.
-+	 * If all objects cannot be moved then the pointer may
-+	 * indicate that this wont work and then kick can simply
-+	 * remove the references that were already obtained.
-+	 *
-+	 * The array passed to get() is also passed to kick(). The
-+	 * function may remove objects by setting array elements to NULL.
-+	 */
-+	void *(*get)(struct kmem_cache *, int nr, void **);
-+
-+	/*
-+	 * Called with no locks held and interrupts enabled.
-+	 * Any operation may be performed in kick().
-+	 *
-+	 * Parameters passed are the number of objects in the array,
-+	 * the array of pointers to the objects and the pointer
-+	 * returned by get().
-+	 *
-+	 * Success is checked by examining the number of remaining
-+	 * objects in the slab.
-+	 */
-+	void (*kick)(struct kmem_cache *, int nr, void **, void *private);
-+
- 	int inuse;		/* Offset to metadata */
- 	int align;		/* Alignment */
- 	int defrag_ratio;	/*
-@@ -211,4 +242,8 @@ static __always_inline void *kmalloc_nod
+diff --git a/net/socket.c b/net/socket.c
+index 5d879fd..78a193f 100644
+--- a/net/socket.c
++++ b/net/socket.c
+@@ -265,6 +265,12 @@ static void init_once(struct kmem_cache *cachep, void *foo)
+ 	inode_init_once(&ei->vfs_inode);
  }
- #endif
  
-+void kmem_cache_setup_defrag(struct kmem_cache *s,
-+	void *(*get)(struct kmem_cache *, int nr, void **),
-+	void (*kick)(struct kmem_cache *, int nr, void **, void *private));
-+
- #endif /* _LINUX_SLUB_DEF_H */
-Index: linux-2.6.24-rc2-mm1/mm/slub.c
-===================================================================
---- linux-2.6.24-rc2-mm1.orig/mm/slub.c	2007-11-14 12:06:18.770343797 -0800
-+++ linux-2.6.24-rc2-mm1/mm/slub.c	2007-11-14 12:40:58.510493314 -0800
-@@ -2760,6 +2760,20 @@ void kfree(const void *x)
- }
- EXPORT_SYMBOL(kfree);
- 
-+void kmem_cache_setup_defrag(struct kmem_cache *s,
-+	void *(*get)(struct kmem_cache *, int nr, void **),
-+	void (*kick)(struct kmem_cache *, int nr, void **, void *private))
++static void *sock_get_inodes(struct kmem_cache *s, int nr, void **v)
 +{
-+	/*
-+	 * Defragmentable slabs must have a ctor otherwise objects may be
-+	 * in an undetermined state after they are allocated.
-+	 */
-+	BUG_ON(!s->ctor);
-+	s->get = get;
-+	s->kick = kick;
++	return fs_get_inodes(s, nr, v,
++		offsetof(struct socket_alloc, vfs_inode));
 +}
-+EXPORT_SYMBOL(kmem_cache_setup_defrag);
 +
- static unsigned long count_partial(struct kmem_cache_node *n)
+ static int init_inodecache(void)
  {
- 	unsigned long flags;
-@@ -3061,7 +3075,7 @@ static int slab_unmergeable(struct kmem_
- 	if (slub_nomerge || (s->flags & SLUB_NEVER_MERGE))
- 		return 1;
- 
--	if (s->ctor)
-+	if (s->ctor || s->kick || s->get)
- 		return 1;
- 
- 	/*
-@@ -3799,7 +3813,21 @@ static ssize_t ops_show(struct kmem_cach
- 
- 	if (s->ctor) {
- 		x += sprintf(buf + x, "ctor : ");
--		x += sprint_symbol(buf + x, (unsigned long)s->ops->ctor);
-+		x += sprint_symbol(buf + x, (unsigned long)s->ctor);
-+		x += sprintf(buf + x, "\n");
-+	}
-+
-+	if (s->get) {
-+		x += sprintf(buf + x, "get : ");
-+		x += sprint_symbol(buf + x,
-+				(unsigned long)s->get);
-+		x += sprintf(buf + x, "\n");
-+	}
-+
-+	if (s->kick) {
-+		x += sprintf(buf + x, "kick : ");
-+		x += sprint_symbol(buf + x,
-+				(unsigned long)s->kick);
- 		x += sprintf(buf + x, "\n");
- 	}
- 	return x;
-Index: linux-2.6.24-rc2-mm1/include/linux/slab_def.h
-===================================================================
---- linux-2.6.24-rc2-mm1.orig/include/linux/slab_def.h	2007-11-14 12:42:42.794242754 -0800
-+++ linux-2.6.24-rc2-mm1/include/linux/slab_def.h	2007-11-14 12:43:09.914742360 -0800
-@@ -98,4 +98,8 @@ found:
- extern const struct seq_operations slabinfo_op;
- ssize_t slabinfo_write(struct file *, const char __user *, size_t, loff_t *);
- 
-+static inline void kmem_cache_setup_defrag(struct kmem_cache *s,
-+	void *(*get)(struct kmem_cache *, int nr, void **),
-+	void (*kick)(struct kmem_cache *, int nr, void **, void *private)) {}
-+
- #endif	/* _LINUX_SLAB_DEF_H */
-Index: linux-2.6.24-rc2-mm1/include/linux/slob_def.h
-===================================================================
---- linux-2.6.24-rc2-mm1.orig/include/linux/slob_def.h	2007-11-14 12:43:13.442493053 -0800
-+++ linux-2.6.24-rc2-mm1/include/linux/slob_def.h	2007-11-14 12:43:27.914179349 -0800
-@@ -33,4 +33,8 @@ static inline void *__kmalloc(size_t siz
- 	return kmalloc(size, flags);
+ 	sock_inode_cachep = kmem_cache_create("sock_inode_cache",
+@@ -276,6 +282,8 @@ static int init_inodecache(void)
+ 					      init_once);
+ 	if (sock_inode_cachep == NULL)
+ 		return -ENOMEM;
++	kmem_cache_setup_defrag(sock_inode_cachep,
++			sock_get_inodes, kick_inodes);
+ 	return 0;
  }
  
-+static inline void kmem_cache_setup_defrag(struct kmem_cache *s,
-+	void *(*get)(struct kmem_cache *, int nr, void **),
-+	void (*kick)(struct kmem_cache *, int nr, void **, void *private)) {}
-+
- #endif /* __LINUX_SLOB_DEF_H */
+-- 
+1.5.3.4
 
 -- 
 
