@@ -1,51 +1,87 @@
-Message-Id: <20071114221022.827871900@sgi.com>
+Message-Id: <20071114221020.700397968@sgi.com>
 References: <20071114220906.206294426@sgi.com>
-Date: Wed, 14 Nov 2007 14:09:20 -0800
+Date: Wed, 14 Nov 2007 14:09:11 -0800
 From: Christoph Lameter <clameter@sgi.com>
-Subject: [patch 14/17] FS: Socket inode defragmentation
-Content-Disposition: inline; filename=0060-FS-Socket-inode-defragmentation.patch
+Subject: [patch 05/17] SLUB: Sort slab cache list and establish maximum objects for defrag slabs
+Content-Disposition: inline; filename=0051-SLUB-Sort-slab-cache-list-and-establish-maximum-obj.patch
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: akpm@linux-foundation.org
 Cc: linux-mm@kvack.org, Mel Gorman <mel@skynet.ie>
 List-ID: <linux-mm.kvack.org>
 
-Support inode defragmentation for sockets
+When defragmenting slabs then it is advantageous to have all
+defragmentable slabs together at the beginning of the list so that there is
+no need to scan the complete list. Put defragmentable caches first when adding
+a slab cache and others last.
+
+Determine the maximum number of objects in defragmentable slabs. This allows
+to size the allocation of arrays holding refs to these objects later.
 
 Reviewed-by: Rik van Riel <riel@redhat.com>
 Signed-off-by: Christoph Lameter <clameter@sgi.com>
 ---
- net/socket.c |    8 ++++++++
- 1 files changed, 8 insertions(+), 0 deletions(-)
+ mm/slub.c |   19 +++++++++++++++++--
+ 1 file changed, 17 insertions(+), 2 deletions(-)
 
-diff --git a/net/socket.c b/net/socket.c
-index 5d879fd..78a193f 100644
---- a/net/socket.c
-+++ b/net/socket.c
-@@ -265,6 +265,12 @@ static void init_once(struct kmem_cache *cachep, void *foo)
- 	inode_init_once(&ei->vfs_inode);
- }
+Index: linux-2.6.24-rc2-mm1/mm/slub.c
+===================================================================
+--- linux-2.6.24-rc2-mm1.orig/mm/slub.c	2007-11-14 12:06:36.785843715 -0800
++++ linux-2.6.24-rc2-mm1/mm/slub.c	2007-11-14 12:06:49.750093989 -0800
+@@ -198,6 +198,9 @@ static enum {
+ static DECLARE_RWSEM(slub_lock);
+ static LIST_HEAD(slab_caches);
  
-+static void *sock_get_inodes(struct kmem_cache *s, int nr, void **v)
++/* Maximum objects in defragmentable slabs */
++static unsigned int max_defrag_slab_objects = 0;
++
+ /*
+  * Tracking user of a slab.
+  */
+@@ -2546,7 +2549,7 @@ static struct kmem_cache *create_kmalloc
+ 			flags, NULL))
+ 		goto panic;
+ 
+-	list_add(&s->list, &slab_caches);
++	list_add_tail(&s->list, &slab_caches);
+ 	up_write(&slub_lock);
+ 	if (sysfs_slab_add(s))
+ 		goto panic;
+@@ -2760,6 +2763,13 @@ void kfree(const void *x)
+ }
+ EXPORT_SYMBOL(kfree);
+ 
++static inline void *alloc_scratch(void)
 +{
-+	return fs_get_inodes(s, nr, v,
-+		offsetof(struct socket_alloc, vfs_inode));
++	return kmalloc(max_defrag_slab_objects * sizeof(void *) +
++	    BITS_TO_LONGS(max_defrag_slab_objects) * sizeof(unsigned long),
++								GFP_KERNEL);
 +}
 +
- static int init_inodecache(void)
- {
- 	sock_inode_cachep = kmem_cache_create("sock_inode_cache",
-@@ -276,6 +282,8 @@ static int init_inodecache(void)
- 					      init_once);
- 	if (sock_inode_cachep == NULL)
- 		return -ENOMEM;
-+	kmem_cache_setup_defrag(sock_inode_cachep,
-+			sock_get_inodes, kick_inodes);
- 	return 0;
+ void kmem_cache_setup_defrag(struct kmem_cache *s,
+ 	void *(*get)(struct kmem_cache *, int nr, void **),
+ 	void (*kick)(struct kmem_cache *, int nr, void **, void *private))
+@@ -2771,6 +2781,11 @@ void kmem_cache_setup_defrag(struct kmem
+ 	BUG_ON(!s->ctor);
+ 	s->get = get;
+ 	s->kick = kick;
++	down_write(&slub_lock);
++	list_move(&s->list, &slab_caches);
++	if (s->objects > max_defrag_slab_objects)
++		max_defrag_slab_objects = s->objects;
++	up_write(&slub_lock);
  }
+ EXPORT_SYMBOL(kmem_cache_setup_defrag);
  
--- 
-1.5.3.4
+@@ -3162,7 +3177,7 @@ struct kmem_cache *kmem_cache_create(con
+ 	if (s) {
+ 		if (kmem_cache_open(s, GFP_KERNEL, name,
+ 				size, align, flags, ctor)) {
+-			list_add(&s->list, &slab_caches);
++			list_add_tail(&s->list, &slab_caches);
+ 			up_write(&slub_lock);
+ 			if (sysfs_slab_add(s))
+ 				goto err;
 
 -- 
 
