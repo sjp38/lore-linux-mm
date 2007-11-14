@@ -1,41 +1,132 @@
-Message-ID: <473A7A0B.5030300@arca.com.cn>
-Date: Wed, 14 Nov 2007 12:31:07 +0800
-From: "Jacky(GuangXiang Lee)" <gxli@arca.com.cn>
-MIME-Version: 1.0
-Subject: Re: about page migration on UMA
-References: <20071016191949.cd50f12f.kamezawa.hiroyu@jp.fujitsu.com>	 <20071016192341.1c3746df.kamezawa.hiroyu@jp.fujitsu.com>	 <alpine.DEB.0.9999.0710162113300.13648@chino.kir.corp.google.com>	 <20071017141609.0eb60539.kamezawa.hiroyu@jp.fujitsu.com>	 <alpine.DEB.0.9999.0710162232540.27242@chino.kir.corp.google.com>	 <20071017145009.e4a56c0d.kamezawa.hiroyu@jp.fujitsu.com>	 <02f001c8108c$a3818760$3708a8c0@arcapub.arca.com>	 <Pine.LNX.4.64.0710181825520.4272@schroedinger.engr.sgi.com> <6934efce0711091131n1acd2ce1h7bb17f9f3cb0f235@mail.gmail.com>
-In-Reply-To: <6934efce0711091131n1acd2ce1h7bb17f9f3cb0f235@mail.gmail.com>
-Content-Type: text/plain; charset=UTF-8; format=flowed
-Content-Transfer-Encoding: 8bit
+Date: Wed, 14 Nov 2007 05:20:11 +0100
+From: Nick Piggin <npiggin@suse.de>
+Subject: Re: [patch] nfs: use GFP_NOFS preloads for radix-tree insertion
+Message-ID: <20071114042011.GE557@wotan.suse.de>
+References: <20071108013723.GF3227@wotan.suse.de> <20071107190254.4e65812a.akpm@linux-foundation.org> <20071108031645.GI3227@wotan.suse.de> <20071107201242.390aec38.akpm@linux-foundation.org> <20071108045404.GJ3227@wotan.suse.de> <20071107210204.62070047.akpm@linux-foundation.org> <20071108054445.GA20162@wotan.suse.de> <20071107220200.85e9cb59.akpm@linux-foundation.org> <20071108065633.GB28216@wotan.suse.de> <1194951345.6983.24.camel@twins>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1194951345.6983.24.camel@twins>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Jared Hulbert <jaredeh@gmail.com>
-Cc: Christoph Lameter <clameter@sgi.com>, climeter@sgi.com, linux-mm@kvack.org
+To: Peter Zijlstra <peterz@infradead.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, davem@davemloft.net, Trond Myklebust <trond.myklebust@fys.uio.no>
 List-ID: <linux-mm.kvack.org>
 
+On Tue, Nov 13, 2007 at 11:55:45AM +0100, Peter Zijlstra wrote:
+> 
+> On Thu, 2007-11-08 at 07:56 +0100, Nick Piggin wrote:
+> > Here is the NFS version. I guess Trond should ack it before you pick it
+> > up.
+> > 
+> > --
+> > 
+> > NFS should use GFP_NOFS mode radix tree preloads rather than GFP_ATOMIC
+> > allocations at radix-tree insertion-time. This is important to reduce the
+> > atomic memory requirement.
+> 
+> In another mail you said:
+> 
+> > Anyway we can also simplify the code because the insertion can't fail with a
+> > preload.
+> 
+> Can we please avoid adding strict dependencies on that as the preload
+> API is unsupportable in -rt.
 
-Jared Hulbert a??e??:
-> On 10/18/07, Christoph Lameter <clameter@sgi.com> wrote:
->   
->> On Wed, 17 Oct 2007, Jacky(GuangXiang  Lee) wrote:
->>
->>     
->>> seems page migration is used mostly for NUMA platform to improve
->>> performance.
->>> But in a UMA architecture, Is it possible to use page migration to move
->>> pages ?
->>>       
->> Yes. Just one up with a usage for it. The page migration mechanism itself
->> is not NUMA dependent.
->>     
->
-> For extreme low power systems it would be possible to shut down banks
-> in SDRAM chips that were not full thereby saving power.  That would
-> require some defraging and migration to empty them prior to powering
-> down those banks.
->
->   
-what is the way to shut down banks in SDRAM chips?
+You can surely support it. You just have to do per-thread preloads if you
+want preemption left on.
+
+
+
+> > Signed-off-by: Nick Piggin <npiggin@suse.de>
+> > ---
+> > Index: linux-2.6/fs/nfs/write.c
+> > ===================================================================
+> > --- linux-2.6.orig/fs/nfs/write.c
+> > +++ linux-2.6/fs/nfs/write.c
+> > @@ -363,15 +363,13 @@ int nfs_writepages(struct address_space 
+> >  /*
+> >   * Insert a write request into an inode
+> >   */
+> > -static int nfs_inode_add_request(struct inode *inode, struct nfs_page *req)
+> > +static void nfs_inode_add_request(struct inode *inode, struct nfs_page *req)
+> >  {
+> >  	struct nfs_inode *nfsi = NFS_I(inode);
+> >  	int error;
+> >  
+> >  	error = radix_tree_insert(&nfsi->nfs_page_tree, req->wb_index, req);
+> > -	BUG_ON(error == -EEXIST);
+> > -	if (error)
+> > -		return error;
+> > +	BUG_ON(error);
+> >  	if (!nfsi->npages) {
+> >  		igrab(inode);
+> >  		if (nfs_have_delegation(inode, FMODE_WRITE))
+> > @@ -381,7 +379,6 @@ static int nfs_inode_add_request(struct 
+> >  	set_page_private(req->wb_page, (unsigned long)req);
+> >  	nfsi->npages++;
+> >  	kref_get(&req->wb_kref);
+> > -	return 0;
+> >  }
+> >  
+> >  /*
+> > @@ -593,6 +590,13 @@ static struct nfs_page * nfs_update_requ
+> >  		/* Loop over all inode entries and see if we find
+> >  		 * A request for the page we wish to update
+> >  		 */
+> > +		if (new) {
+> > +			if (radix_tree_preload(GFP_NOFS)) {
+> > +				nfs_release_request(new);
+> > +				return ERR_PTR(-ENOMEM);
+> > +			}
+> > +		}
+> > +
+> >  		spin_lock(&inode->i_lock);
+> >  		req = nfs_page_find_request_locked(page);
+> >  		if (req) {
+> > @@ -603,28 +607,27 @@ static struct nfs_page * nfs_update_requ
+> >  				error = nfs_wait_on_request(req);
+> >  				nfs_release_request(req);
+> >  				if (error < 0) {
+> > -					if (new)
+> > +					if (new) {
+> > +						radix_tree_preload_end();
+> >  						nfs_release_request(new);
+> > +					}
+> >  					return ERR_PTR(error);
+> >  				}
+> >  				continue;
+> >  			}
+> >  			spin_unlock(&inode->i_lock);
+> > -			if (new)
+> > +			if (new) {
+> > +				radix_tree_preload_end();
+> >  				nfs_release_request(new);
+> > +			}
+> >  			break;
+> >  		}
+> >  
+> >  		if (new) {
+> > -			int error;
+> >  			nfs_lock_request_dontget(new);
+> > -			error = nfs_inode_add_request(inode, new);
+> > -			if (error) {
+> > -				spin_unlock(&inode->i_lock);
+> > -				nfs_unlock_request(new);
+> > -				return ERR_PTR(error);
+> > -			}
+> > +			nfs_inode_add_request(inode, new);
+> >  			spin_unlock(&inode->i_lock);
+> > +			radix_tree_preload_end();
+> >  			req = new;
+> >  			goto zero_page;
+> >  		}
+> > 
+> > --
+> > To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> > the body to majordomo@kvack.org.  For more info on Linux MM,
+> > see: http://www.linux-mm.org/ .
+> > Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
