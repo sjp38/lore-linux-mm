@@ -1,90 +1,41 @@
-Received: by wa-out-1112.google.com with SMTP id m33so22897wag
-        for <linux-mm@kvack.org>; Tue, 13 Nov 2007 17:29:46 -0800 (PST)
-Message-ID: <6934efce0711131729i4539d1cewf84974ea459f8e0f@mail.gmail.com>
-Date: Tue, 13 Nov 2007 17:29:46 -0800
-From: "Jared Hulbert" <jaredeh@gmail.com>
-Subject: Re: [RFC] Changing VM_PFNMAP assumptions and rules
-In-Reply-To: <200711132308.08739.nickpiggin@yahoo.com.au>
+Message-ID: <473A7A0B.5030300@arca.com.cn>
+Date: Wed, 14 Nov 2007 12:31:07 +0800
+From: "Jacky(GuangXiang Lee)" <gxli@arca.com.cn>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
-References: <6934efce0711091115i3f859a00id0b869742029b661@mail.gmail.com>
-	 <200711111109.34562.nickpiggin@yahoo.com.au>
-	 <6934efce0711121403h2623958cq49490077c586924f@mail.gmail.com>
-	 <200711132308.08739.nickpiggin@yahoo.com.au>
+Subject: Re: about page migration on UMA
+References: <20071016191949.cd50f12f.kamezawa.hiroyu@jp.fujitsu.com>	 <20071016192341.1c3746df.kamezawa.hiroyu@jp.fujitsu.com>	 <alpine.DEB.0.9999.0710162113300.13648@chino.kir.corp.google.com>	 <20071017141609.0eb60539.kamezawa.hiroyu@jp.fujitsu.com>	 <alpine.DEB.0.9999.0710162232540.27242@chino.kir.corp.google.com>	 <20071017145009.e4a56c0d.kamezawa.hiroyu@jp.fujitsu.com>	 <02f001c8108c$a3818760$3708a8c0@arcapub.arca.com>	 <Pine.LNX.4.64.0710181825520.4272@schroedinger.engr.sgi.com> <6934efce0711091131n1acd2ce1h7bb17f9f3cb0f235@mail.gmail.com>
+In-Reply-To: <6934efce0711091131n1acd2ce1h7bb17f9f3cb0f235@mail.gmail.com>
+Content-Type: text/plain; charset=UTF-8; format=flowed
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nick Piggin <nickpiggin@yahoo.com.au>
-Cc: benh@kernel.crashing.org, Linux Memory Management List <linux-mm@kvack.org>
+To: Jared Hulbert <jaredeh@gmail.com>
+Cc: Christoph Lameter <clameter@sgi.com>, climeter@sgi.com, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-> Well you aren't allowed to put a pfn into an is_cow_mapping() with
-> vm_insert_pfn().  That's my whole point.
 
-Why not?  Maybe I don't understand what this really is.  I want to be
-able to COW from pfn only pages.  Wouldn't this restriction cramp my
-style?  Or is it that you can't tolerate pfn's in a VM_PFNMAP vma?
-
-> Oh sure, which is why I say you could do exactly that, but with
-> *another* VM_flag. Because you'll break subtle things if you change
-> VM_PFNMAP.
-
-Okay so I'll code that up and see if I get what you are saying here.
-
-> /dev/mem gives a window into all memory, and you don't actually want
-> to take a reference or elevate the mapcount on the actual underlying
-> pages.
+Jared Hulbert a??e??:
+> On 10/18/07, Christoph Lameter <clameter@sgi.com> wrote:
+>   
+>> On Wed, 17 Oct 2007, Jacky(GuangXiang  Lee) wrote:
+>>
+>>     
+>>> seems page migration is used mostly for NUMA platform to improve
+>>> performance.
+>>> But in a UMA architecture, Is it possible to use page migration to move
+>>> pages ?
+>>>       
+>> Yes. Just one up with a usage for it. The page migration mechanism itself
+>> is not NUMA dependent.
+>>     
 >
-> There are also other cases that we may want to use VM_PFNMAP for,
-> which aren't technically going to break if you refcount them, but it
-> is suboptimal. Eg. vdso pages -- it might be useful to avoid the
-> cacheline bouncing of refcounting these.
-
-Okay I see.
-
-> Yeah sure OK. The only thing that really matters is pfn_valid() ==
-> page with a valid struct page, which should be refcounted.
-
-That seems clear to me.
-
-> > > BUG_ON((vma->vm_flags & VM_JAREDMAP) && pfn_valid(pfn));
-> >
-> > Okay, maybe.  I got to look at this more carefully.
+> For extreme low power systems it would be possible to shut down banks
+> in SDRAM chips that were not full thereby saving power.  That would
+> require some defraging and migration to empty them prior to powering
+> down those banks.
 >
-> OK, well this would prevent you putting improperly refcounted
-> pfn_valid() pages into the pagetables with vm_insert_pfn().
-
-Of course now I get it.
-
-> Insert the pfn_valid() pages with vm_insert_page(), which I think
-> should take care of all those issues for you.
-
-Right.  So that's probably what I've been doing indirectly, with .nopage/.fault?
-
-> No sorry, I didn't word that very well: so long as the pages you
-> have which _are_ pfn_valid() do have valid and properly refcounted
-> struct pages, then inserting them as normal pages into the VM should
-> be fine.
->
-> By properly refcounted, I mean that page->_count isn't 0, and that
-> you are prepared for the page to be freed when the user mappings go
-> away *if* you have dropped your own reference. Just common sense
-> stuff really.
->
-> When I waffled on about doing a bit of setup work, I'd forgotten
-> about vm_insert_page(), which should already do just about everything
-> you need.
-
-So long as I just us vm_insert_page() and don't screw around with
-anything else, I'm good right?
-
-> These pages could live under the !pfn_valid() rules, which, in your
-> new VM_flag scheme, should not require underlying struct pages. So
-> hopefully don't need messing with sparsemem?
-
-But say I want to do more, like migrate them and such, won't I want to
-have some kind of page struct?
+>   
+what is the way to shut down banks in SDRAM chips?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
