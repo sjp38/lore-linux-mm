@@ -1,62 +1,36 @@
-Date: Wed, 14 Nov 2007 16:39:37 +0100
-From: Nick Piggin <npiggin@suse.de>
-Subject: Re: [patch] nfs: use GFP_NOFS preloads for radix-tree insertion
-Message-ID: <20071114153937.GA3779@wotan.suse.de>
-References: <20071108031645.GI3227@wotan.suse.de> <20071107201242.390aec38.akpm@linux-foundation.org> <20071108045404.GJ3227@wotan.suse.de> <20071107210204.62070047.akpm@linux-foundation.org> <20071108054445.GA20162@wotan.suse.de> <20071107220200.85e9cb59.akpm@linux-foundation.org> <20071108065633.GB28216@wotan.suse.de> <1194951345.6983.24.camel@twins> <20071114042011.GE557@wotan.suse.de> <1195031187.6924.1.camel@twins>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Received: by wa-out-1112.google.com with SMTP id m33so304426wag
+        for <linux-mm@kvack.org>; Wed, 14 Nov 2007 09:05:08 -0800 (PST)
+Message-ID: <6934efce0711140905h4dff6e70v69598022a3ddad98@mail.gmail.com>
+Date: Wed, 14 Nov 2007 09:05:08 -0800
+From: "Jared Hulbert" <jaredeh@gmail.com>
+Subject: Re: about page migration on UMA
+In-Reply-To: <473A7A0B.5030300@arca.com.cn>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Content-Disposition: inline
-In-Reply-To: <1195031187.6924.1.camel@twins>
+References: <20071016191949.cd50f12f.kamezawa.hiroyu@jp.fujitsu.com>
+	 <20071016192341.1c3746df.kamezawa.hiroyu@jp.fujitsu.com>
+	 <alpine.DEB.0.9999.0710162113300.13648@chino.kir.corp.google.com>
+	 <20071017141609.0eb60539.kamezawa.hiroyu@jp.fujitsu.com>
+	 <alpine.DEB.0.9999.0710162232540.27242@chino.kir.corp.google.com>
+	 <20071017145009.e4a56c0d.kamezawa.hiroyu@jp.fujitsu.com>
+	 <02f001c8108c$a3818760$3708a8c0@arcapub.arca.com>
+	 <Pine.LNX.4.64.0710181825520.4272@schroedinger.engr.sgi.com>
+	 <6934efce0711091131n1acd2ce1h7bb17f9f3cb0f235@mail.gmail.com>
+	 <473A7A0B.5030300@arca.com.cn>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Peter Zijlstra <peterz@infradead.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, davem@davemloft.net, Trond Myklebust <trond.myklebust@fys.uio.no>
+To: "Jacky(GuangXiang Lee)" <gxli@arca.com.cn>
+Cc: Christoph Lameter <clameter@sgi.com>, climeter@sgi.com, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Nov 14, 2007 at 10:06:27AM +0100, Peter Zijlstra wrote:
-> 
-> On Wed, 2007-11-14 at 05:20 +0100, Nick Piggin wrote:
-> > On Tue, Nov 13, 2007 at 11:55:45AM +0100, Peter Zijlstra wrote:
-> > > 
-> > > On Thu, 2007-11-08 at 07:56 +0100, Nick Piggin wrote:
-> > > > Here is the NFS version. I guess Trond should ack it before you pick it
-> > > > up.
-> > > > 
-> > > > --
-> > > > 
-> > > > NFS should use GFP_NOFS mode radix tree preloads rather than GFP_ATOMIC
-> > > > allocations at radix-tree insertion-time. This is important to reduce the
-> > > > atomic memory requirement.
-> > > 
-> > > In another mail you said:
-> > > 
-> > > > Anyway we can also simplify the code because the insertion can't fail with a
-> > > > preload.
-> > > 
-> > > Can we please avoid adding strict dependencies on that as the preload
-> > > API is unsupportable in -rt.
-> > 
-> > You can surely support it. You just have to do per-thread preloads if you
-> > want preemption left on.
-> 
-> Well, true, but that would mean adding stuff to task_struct, not the end
-> of the world I guess.
-> 
-> But as it is leaving the error handling on each individual
-> radix_tree_insert() allows us to just use GFP_KERNEL for everything.
+> what is the way to shut down banks in SDRAM chips?
 
-Hmm, then you reintroduce the lock ordering which I got rid of. Not that
-it's a particularly big deal in this case. I don't think you should noop
-fundamental things like this just because they turn preempt off. At any
-rate, it's not something that mainline can really be concerned with...
-
-
-> The other, nicer option, is to do preload on the radix_tree_context
-> object instead.
-
-I don't know if you'd call it nicer... at least, not as nice as what's
-upstream. So it seems like you'd have to have a custom solution anyway,
-given that per-cpu preloads are probably the best we can do upstream.
+Well there's partial array self-refresh modes.  However at second
+glance that doesn't actually lose data, it just requires a 'wake up'
+period to access the partial array.  I had been under the impression
+they were lossy modes.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
