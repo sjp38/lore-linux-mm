@@ -1,104 +1,194 @@
-Message-Id: <20071114221021.887190135@sgi.com>
+Message-Id: <20071114221019.746838163@sgi.com>
 References: <20071114220906.206294426@sgi.com>
-Date: Wed, 14 Nov 2007 14:09:16 -0800
+Date: Wed, 14 Nov 2007 14:09:07 -0800
 From: Christoph Lameter <clameter@sgi.com>
-Subject: [patch 10/17] FS: ExtX filesystem defrag
-Content-Disposition: inline; filename=0056-FS-ExtX-filesystem-defrag.patch
+Subject: [patch 01/17] SLUB: Extend slabinfo to support -D and -C options
+Content-Disposition: inline; filename=0047-SLUB-Extend-slabinfo-to-support-D-and-C-options.patch
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: akpm@linux-foundation.org
 Cc: linux-mm@kvack.org, Mel Gorman <mel@skynet.ie>
 List-ID: <linux-mm.kvack.org>
 
-Support defragmentation for extX filesystem inodes
+-D lists caches that support defragmentation
+
+-C lists caches that use a ctor.
+
+Change field names for defrag_ratio and remote_node_defrag_ratio.
+
+Add determination of the allocation ratio for a slab. The allocation ratio
+is the percentage of available slots for objects in use.
 
 Reviewed-by: Rik van Riel <riel@redhat.com>
 Signed-off-by: Christoph Lameter <clameter@sgi.com>
 ---
- fs/ext2/super.c |    9 +++++++++
- fs/ext3/super.c |    8 ++++++++
- fs/ext4/super.c |    8 ++++++++
- 3 files changed, 25 insertions(+)
+ Documentation/vm/slabinfo.c |   52 +++++++++++++++++++++++++++++++++++++-------
+ 1 file changed, 44 insertions(+), 8 deletions(-)
 
-Index: linux-2.6.24-rc2-mm1/fs/ext2/super.c
+Index: linux-2.6.24-rc2-mm1/Documentation/vm/slabinfo.c
 ===================================================================
---- linux-2.6.24-rc2-mm1.orig/fs/ext2/super.c	2007-11-14 11:08:36.224011551 -0800
-+++ linux-2.6.24-rc2-mm1/fs/ext2/super.c	2007-11-14 12:19:30.425593698 -0800
-@@ -171,6 +171,12 @@ static void init_once(struct kmem_cache 
- 	inode_init_once(&ei->vfs_inode);
- }
- 
-+static void *ext2_get_inodes(struct kmem_cache *s, int nr, void **v)
-+{
-+	return fs_get_inodes(s, nr, v,
-+		offsetof(struct ext2_inode_info, vfs_inode));
-+}
-+
- static int init_inodecache(void)
+--- linux-2.6.24-rc2-mm1.orig/Documentation/vm/slabinfo.c	2007-11-14 11:08:29.640144277 -0800
++++ linux-2.6.24-rc2-mm1/Documentation/vm/slabinfo.c	2007-11-14 12:05:16.538434011 -0800
+@@ -31,6 +31,8 @@ struct slabinfo {
+ 	int hwcache_align, object_size, objs_per_slab;
+ 	int sanity_checks, slab_size, store_user, trace;
+ 	int order, poison, reclaim_account, red_zone;
++	int defrag, ctor;
++	int defrag_ratio, remote_node_defrag_ratio;
+ 	unsigned long partial, objects, slabs;
+ 	int numa[MAX_NODES];
+ 	int numa_partial[MAX_NODES];
+@@ -57,6 +59,8 @@ int show_slab = 0;
+ int skip_zero = 1;
+ int show_numa = 0;
+ int show_track = 0;
++int show_defrag = 0;
++int show_ctor = 0;
+ int show_first_alias = 0;
+ int validate = 0;
+ int shrink = 0;
+@@ -91,18 +95,20 @@ void fatal(const char *x, ...)
+ void usage(void)
  {
- 	ext2_inode_cachep = kmem_cache_create("ext2_inode_cache",
-@@ -180,6 +186,9 @@ static int init_inodecache(void)
- 					     init_once);
- 	if (ext2_inode_cachep == NULL)
- 		return -ENOMEM;
-+
-+	kmem_cache_setup_defrag(ext2_inode_cachep,
-+			ext2_get_inodes, kick_inodes);
- 	return 0;
- }
- 
-Index: linux-2.6.24-rc2-mm1/fs/ext3/super.c
-===================================================================
---- linux-2.6.24-rc2-mm1.orig/fs/ext3/super.c	2007-11-14 11:08:36.228011618 -0800
-+++ linux-2.6.24-rc2-mm1/fs/ext3/super.c	2007-11-14 12:19:30.458593321 -0800
-@@ -484,6 +484,12 @@ static void init_once(struct kmem_cache 
- 	inode_init_once(&ei->vfs_inode);
- }
- 
-+static void *ext3_get_inodes(struct kmem_cache *s, int nr, void **v)
-+{
-+	return fs_get_inodes(s, nr, v,
-+		offsetof(struct ext3_inode_info, vfs_inode));
-+}
-+
- static int init_inodecache(void)
+ 	printf("slabinfo 5/7/2007. (c) 2007 sgi. clameter@sgi.com\n\n"
+-		"slabinfo [-ahnpvtsz] [-d debugopts] [slab-regexp]\n"
++		"slabinfo [-aCDefhilnosSrtTvz1] [-d debugopts] [slab-regexp]\n"
+ 		"-a|--aliases           Show aliases\n"
++		"-C|--ctor              Show slabs with ctors\n"
+ 		"-d<options>|--debug=<options> Set/Clear Debug options\n"
+-		"-e|--empty		Show empty slabs\n"
++		"-D|--defrag            Show defragmentable caches\n"
++		"-e|--empty             Show empty slabs\n"
+ 		"-f|--first-alias       Show first alias\n"
+ 		"-h|--help              Show usage information\n"
+ 		"-i|--inverted          Inverted list\n"
+ 		"-l|--slabs             Show slabs\n"
+ 		"-n|--numa              Show NUMA information\n"
+-		"-o|--ops		Show kmem_cache_ops\n"
++		"-o|--ops               Show kmem_cache_ops\n"
+ 		"-s|--shrink            Shrink slabs\n"
+-		"-r|--report		Detailed report on single slabs\n"
++		"-r|--report            Detailed report on single slabs\n"
+ 		"-S|--Size              Sort by size\n"
+ 		"-t|--tracking          Show alloc/free information\n"
+ 		"-T|--Totals            Show summary information\n"
+@@ -282,7 +288,7 @@ int line = 0;
+ void first_line(void)
  {
- 	ext3_inode_cachep = kmem_cache_create("ext3_inode_cache",
-@@ -493,6 +499,8 @@ static int init_inodecache(void)
- 					     init_once);
- 	if (ext3_inode_cachep == NULL)
- 		return -ENOMEM;
-+	kmem_cache_setup_defrag(ext3_inode_cachep,
-+			ext3_get_inodes, kick_inodes);
- 	return 0;
+ 	printf("Name                   Objects Objsize    Space "
+-		"Slabs/Part/Cpu  O/S O %%Fr %%Ef Flg\n");
++		"Slabs/Part/Cpu  O/S O %%Ra %%Ef Flg\n");
  }
  
-Index: linux-2.6.24-rc2-mm1/fs/ext4/super.c
-===================================================================
---- linux-2.6.24-rc2-mm1.orig/fs/ext4/super.c	2007-11-14 11:08:36.252011333 -0800
-+++ linux-2.6.24-rc2-mm1/fs/ext4/super.c	2007-11-14 12:19:30.485842935 -0800
-@@ -600,6 +600,12 @@ static void init_once(struct kmem_cache 
- 	inode_init_once(&ei->vfs_inode);
- }
+ /*
+@@ -325,7 +331,7 @@ void slab_numa(struct slabinfo *s, int m
+ 		return;
  
-+static void *ext4_get_inodes(struct kmem_cache *s, int nr, void **v)
-+{
-+	return fs_get_inodes(s, nr, v,
-+		offsetof(struct ext4_inode_info, vfs_inode));
-+}
+ 	if (!line) {
+-		printf("\n%-21s:", mode ? "NUMA nodes" : "Slab");
++		printf("\n%-21s: Rto ", mode ? "NUMA nodes" : "Slab");
+ 		for(node = 0; node <= highest_node; node++)
+ 			printf(" %4d", node);
+ 		printf("\n----------------------");
+@@ -334,6 +340,7 @@ void slab_numa(struct slabinfo *s, int m
+ 		printf("\n");
+ 	}
+ 	printf("%-21s ", mode ? "All slabs" : s->name);
++	printf("%3d ", s->remote_node_defrag_ratio);
+ 	for(node = 0; node <= highest_node; node++) {
+ 		char b[20];
+ 
+@@ -407,6 +414,8 @@ void report(struct slabinfo *s)
+ 		printf("** Slabs are destroyed via RCU\n");
+ 	if (s->reclaim_account)
+ 		printf("** Reclaim accounting active\n");
++	if (s->defrag)
++		printf("** Defragmentation at %d%%\n", s->defrag_ratio);
+ 
+ 	printf("\nSizes (bytes)     Slabs              Debug                Memory\n");
+ 	printf("------------------------------------------------------------------------\n");
+@@ -453,6 +462,12 @@ void slabcache(struct slabinfo *s)
+ 	if (show_empty && s->slabs)
+ 		return;
+ 
++	if (show_defrag && !s->defrag)
++		return;
 +
- static int init_inodecache(void)
- {
- 	ext4_inode_cachep = kmem_cache_create("ext4_inode_cache",
-@@ -609,6 +615,8 @@ static int init_inodecache(void)
- 					     init_once);
- 	if (ext4_inode_cachep == NULL)
- 		return -ENOMEM;
-+	kmem_cache_setup_defrag(ext4_inode_cachep,
-+			ext4_get_inodes, kick_inodes);
- 	return 0;
- }
++	if (show_ctor && !s->ctor)
++		return;
++
+ 	store_size(size_str, slab_size(s));
+ 	snprintf(dist_str, 40, "%lu/%lu/%d", s->slabs, s->partial, s->cpu_slabs);
  
+@@ -463,6 +478,10 @@ void slabcache(struct slabinfo *s)
+ 		*p++ = '*';
+ 	if (s->cache_dma)
+ 		*p++ = 'd';
++	if (s->defrag)
++		*p++ = 'D';
++	if (s->ctor)
++		*p++ = 'C';
+ 	if (s->hwcache_align)
+ 		*p++ = 'A';
+ 	if (s->poison)
+@@ -482,7 +501,7 @@ void slabcache(struct slabinfo *s)
+ 	printf("%-21s %8ld %7d %8s %14s %4d %1d %3ld %3ld %s\n",
+ 		s->name, s->objects, s->object_size, size_str, dist_str,
+ 		s->objs_per_slab, s->order,
+-		s->slabs ? (s->partial * 100) / s->slabs : 100,
++		s->slabs ? (s->objects * 100) / (s->slabs * s->objs_per_slab) : 100,
+ 		s->slabs ? (s->objects * s->object_size * 100) /
+ 			(s->slabs * (page_size << s->order)) : 100,
+ 		flags);
+@@ -1074,7 +1093,16 @@ void read_slab_dir(void)
+ 			free(t);
+ 			slab->store_user = get_obj("store_user");
+ 			slab->trace = get_obj("trace");
++			slab->defrag_ratio = get_obj("defrag_ratio");
++			slab->remote_node_defrag_ratio =
++					get_obj("remote_node_defrag_ratio");
+ 			chdir("..");
++			if (read_slab_obj(slab, "ops")) {
++				if (strstr(buffer, "ctor :"))
++					slab->ctor = 1;
++				if (strstr(buffer, "kick :"))
++					slab->defrag = 1;
++			}
+ 			if (slab->name[0] == ':')
+ 				alias_targets++;
+ 			slab++;
+@@ -1124,7 +1152,9 @@ void output_slabs(void)
+ 
+ struct option opts[] = {
+ 	{ "aliases", 0, NULL, 'a' },
++	{ "ctor", 0, NULL, 'C' },
+ 	{ "debug", 2, NULL, 'd' },
++	{ "defrag", 0, NULL, 'D' },
+ 	{ "empty", 0, NULL, 'e' },
+ 	{ "first-alias", 0, NULL, 'f' },
+ 	{ "help", 0, NULL, 'h' },
+@@ -1149,7 +1179,7 @@ int main(int argc, char *argv[])
+ 
+ 	page_size = getpagesize();
+ 
+-	while ((c = getopt_long(argc, argv, "ad::efhil1noprstvzTS",
++	while ((c = getopt_long(argc, argv, "ad::efhil1noprstvzCDTS",
+ 						opts, NULL)) != -1)
+ 		switch (c) {
+ 		case '1':
+@@ -1199,6 +1229,12 @@ int main(int argc, char *argv[])
+ 		case 'z':
+ 			skip_zero = 0;
+ 			break;
++		case 'C':
++			show_ctor = 1;
++			break;
++		case 'D':
++			show_defrag = 1;
++			break;
+ 		case 'T':
+ 			show_totals = 1;
+ 			break;
 
 -- 
 
