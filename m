@@ -1,92 +1,93 @@
-Message-Id: <20071114220906.206294426@sgi.com>
-Date: Wed, 14 Nov 2007 14:09:06 -0800
+Message-Id: <20071114221019.983835827@sgi.com>
+References: <20071114220906.206294426@sgi.com>
+Date: Wed, 14 Nov 2007 14:09:08 -0800
 From: Christoph Lameter <clameter@sgi.com>
-Subject: [patch 00/17] Slab defragmentation V7
+Subject: [patch 02/17] SLUB: Add defrag_ratio field and sysfs support.
+Content-Disposition: inline; filename=0048-SLUB-Add-defrag_ratio-field-and-sysfs-support.patch
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: akpm@linux-foundation.org
 Cc: linux-mm@kvack.org, Mel Gorman <mel@skynet.ie>
 List-ID: <linux-mm.kvack.org>
 
-Slab defragmentation is mainly an issue if Linux is used as a fileserver
-and large amounts of dentries, inodes and buffer heads accumulate. In some
-load situations the slabs become very sparsely populated so that a lot of
-memory is wasted by slabs that only contain one or a few objects. In
-extreme cases the performance of a machine will become sluggish since
-we are continually running reclaim. Slab defragmentation adds the
-capability to recover the memory that is wasted.
+The defrag_ratio is used to set the threshold at which defragmentation
+should be run on a slabcache.
 
-Memory reclaim from the following slab caches is possible:
+The allocation ratio is measured in the percentage of the available slots
+allocated. The percentage will be lower for slabs that are more fragmented.
 
-1. dentry cache
-2. inode cache (with a generic interface to allow easy setup of more
-   filesystems than the currently supported ext2/3/4 reiserfs, XFS
-   and proc)
-3. buffer_heads
+Add a defrag ratio field and set it to 30% by default. A limit of 30% specified
+that less than 3 out of 10 available slots for objects are in use before
+slab defragmeentation runs.
 
-One typical mechanism that triggers slab defragmentation on my systems
-is the daily run of
+Reviewed-by: Rik van Riel <riel@redhat.com>
+Signed-off-by: Christoph Lameter <clameter@sgi.com>
+---
+ include/linux/slub_def.h |    7 +++++++
+ mm/slub.c                |   18 ++++++++++++++++++
+ 2 files changed, 25 insertions(+)
 
-	updatedb
-
-Updatedb scans all files on the system which causes a high inode and dentry
-use. After updatedb is complete we need to go back to the regular use
-patterns (typical on my machine: kernel compiles). Those need the memory now
-for different purposes. The inodes and dentries used for updatedb will
-gradually be aged by the dentry/inode reclaim algorithm which will free
-up the dentries and inode entries randomly through the slabs that were
-allocated. As a result the slabs will become sparsely populated. If they
-become empty then they can be freed but a lot of them will remain sparsely
-populated. That is where slab defrag comes in: It removes the objects from
-the slabs with just a few entries reclaiming more memory for other uses.
-In the simplest case (as provided here) this is done by simply reclaiming
-the objects. However, if the logic in the kick() function is made more
-sophisticated then we will be able to move the objects out of the slabs.
-
-V6->V7
-- Rediff against 2.6.24-rc2-mm1
-- Remove lumpy reclaim support. No point anymore given that the antifrag
-  handling in 2.6.24-rc2 puts reclaimable slabs into different sections.
-  Targeted reclaim never triggers. This has to wait until we make
-  slabs movable or we need to perform a special version of lumpy reclaim
-  in SLUB while we scan the partial lists for slabs to kick out.
-  Removal simplifies handling significantly since we
-  get to slabs in a more controlled way via the partial lists.
-  The patchset now provides pure reduction of fragmentation levels.
-- SLAB/SLOB: Provide inlines that do nothing
-- Fix various smaller issues that were brought up during review of V6.
-
-V5->V6
-- Rediff against 2.6.24-rc2 + mm slub patches.
-- Add reviewed by lines.
-- Take out the experimental code to make slab pages movable. That
-  has to wait until this has been considered by Mel.
-
-V4->V5:
-- Support lumpy reclaim for slabs
-- Support reclaim via slab_shrink()
-- Add constructors to insure a consistent object state at all times.
-
-V3->V4:
-- Optimize scan for slabs that need defragmentation
-- Add /sys/slab/*/defrag_ratio to allow setting defrag limits
-  per slab.
-- Add support for buffer heads.
-- Describe how the cleanup after the daily updatedb can be
-  improved by slab defragmentation.
-
-V2->V3
-- Support directory reclaim
-- Add infrastructure to trigger defragmentation after slab shrinking if we
-  have slabs with a high degree of fragmentation.
-
-V1->V2
-- Clean up control flow using a state variable. Simplify API. Back to 2
-  functions that now take arrays of objects.
-- Inode defrag support for a set of filesystems
-- Fix up dentry defrag support to work on negative dentries by adding
-  a new dentry flag that indicates that a dentry is not in the process
-  of being freed or allocated.
+Index: linux-2.6.24-rc2-mm1/include/linux/slub_def.h
+===================================================================
+--- linux-2.6.24-rc2-mm1.orig/include/linux/slub_def.h	2007-11-14 11:10:03.796012330 -0800
++++ linux-2.6.24-rc2-mm1/include/linux/slub_def.h	2007-11-14 12:06:05.330593714 -0800
+@@ -53,6 +53,13 @@ struct kmem_cache {
+ 	void (*ctor)(struct kmem_cache *, void *);
+ 	int inuse;		/* Offset to metadata */
+ 	int align;		/* Alignment */
++	int defrag_ratio;	/*
++				 * objects/possible-objects limit. If we have
++				 * less that the specified percentage of
++				 * objects allocated then defrag passes
++				 * will start to occur during reclaim.
++				 */
++
+ 	const char *name;	/* Name (only for display!) */
+ 	struct list_head list;	/* List of slab caches */
+ #ifdef CONFIG_SLUB_DEBUG
+Index: linux-2.6.24-rc2-mm1/mm/slub.c
+===================================================================
+--- linux-2.6.24-rc2-mm1.orig/mm/slub.c	2007-11-14 11:10:22.236011521 -0800
++++ linux-2.6.24-rc2-mm1/mm/slub.c	2007-11-14 12:06:05.338343172 -0800
+@@ -2363,6 +2363,7 @@ static int kmem_cache_open(struct kmem_c
+ 		goto error;
+ 
+ 	s->refcount = 1;
++	s->defrag_ratio = 30;
+ #ifdef CONFIG_NUMA
+ 	s->remote_node_defrag_ratio = 100;
+ #endif
+@@ -4009,6 +4010,22 @@ static ssize_t free_calls_show(struct km
+ }
+ SLAB_ATTR_RO(free_calls);
+ 
++static ssize_t defrag_ratio_show(struct kmem_cache *s, char *buf)
++{
++	return sprintf(buf, "%d\n", s->defrag_ratio);
++}
++
++static ssize_t defrag_ratio_store(struct kmem_cache *s,
++				const char *buf, size_t length)
++{
++	int n = simple_strtoul(buf, NULL, 10);
++
++	if (n < 100)
++		s->defrag_ratio = n;
++	return length;
++}
++SLAB_ATTR(defrag_ratio);
++
+ #ifdef CONFIG_NUMA
+ static ssize_t remote_node_defrag_ratio_show(struct kmem_cache *s, char *buf)
+ {
+@@ -4051,6 +4068,7 @@ static struct attribute *slab_attrs[] = 
+ 	&shrink_attr.attr,
+ 	&alloc_calls_attr.attr,
+ 	&free_calls_attr.attr,
++	&defrag_ratio_attr.attr,
+ #ifdef CONFIG_ZONE_DMA
+ 	&cache_dma_attr.attr,
+ #endif
 
 -- 
 
