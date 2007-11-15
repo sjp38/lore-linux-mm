@@ -1,7 +1,7 @@
-Date: Thu, 15 Nov 2007 02:32:16 -0800
+Date: Thu, 15 Nov 2007 02:39:43 -0800
 From: Andrew Morton <akpm@linux-foundation.org>
 Subject: Re: [PATCH] Fix boot problem with iSeries lacking hugepage support
-Message-Id: <20071115023216.44002c28.akpm@linux-foundation.org>
+Message-Id: <20071115023943.a54b0464.akpm@linux-foundation.org>
 In-Reply-To: <20071115101322.GA5128@skynet.ie>
 References: <20071115101322.GA5128@skynet.ie>
 Mime-Version: 1.0
@@ -33,15 +33,39 @@ On Thu, 15 Nov 2007 10:13:22 +0000 mel@skynet.ie (Mel Gorman) wrote:
 > with respects to IA-64 before releasing. Additional credit to David Gibson
 > for testing with the libhugetlbfs test suite.
 > 
-
-umm.
-
+> Signed-off-by: Mel Gorman <mel@csn.ul.ie>
+> Tested-by: Stephen Rothwell <sfr@canb.auug.org.au>
+> 
+> --- 
+>  arch/powerpc/Kconfig |    5 +++++
+>  mm/page_alloc.c      |   14 ++++++++++++--
+>  2 files changed, 17 insertions(+), 2 deletions(-)
+> 
+> diff -rup -X /usr/src/patchset-0.6/bin//dontdiff linux-2.6.24-rc2-mm1-clean/arch/powerpc/Kconfig linux-2.6.24-rc2-005_iSeries_fix/arch/powerpc/Kconfig
+> --- linux-2.6.24-rc2-mm1-clean/arch/powerpc/Kconfig	2007-11-14 11:38:05.000000000 +0000
+> +++ linux-2.6.24-rc2-005_iSeries_fix/arch/powerpc/Kconfig	2007-11-14 11:39:12.000000000 +0000
+> @@ -187,6 +187,11 @@ config FORCE_MAX_ZONEORDER
+>  	default "9" if PPC_64K_PAGES
+>  	default "13"
+>  
+> +config HUGETLB_PAGE_SIZE_VARIABLE
+> +	bool
+> +	depends on HUGETLB_PAGE
+> +	default y
+> +
+>  config MATH_EMULATION
+>  	bool "Math emulation"
+>  	depends on 4xx || 8xx || E200 || PPC_MPC832x || E500
+> diff -rup -X /usr/src/patchset-0.6/bin//dontdiff linux-2.6.24-rc2-mm1-clean/mm/page_alloc.c linux-2.6.24-rc2-005_iSeries_fix/mm/page_alloc.c
+> --- linux-2.6.24-rc2-mm1-clean/mm/page_alloc.c	2007-11-14 11:38:08.000000000 +0000
+> +++ linux-2.6.24-rc2-005_iSeries_fix/mm/page_alloc.c	2007-11-14 13:45:19.000000000 +0000
+> @@ -3342,6 +3342,16 @@ static void inline setup_usemap(struct p
+>  #endif /* CONFIG_SPARSEMEM */
+>  
+>  #ifdef CONFIG_HUGETLB_PAGE_SIZE_VARIABLE
 > +
 > +/* Return a sensible default order for the pageblock size. */
 > +static inline int __init pageblock_default_order(void)
-
-inline and __init doesn't make sense.
-
 > +{
 > +	if (HPAGE_SHIFT > PAGE_SHIFT)
 > +		return HUGETLB_PAGE_ORDER;
@@ -59,7 +83,7 @@ inline and __init doesn't make sense.
 > -/* Defined this way to avoid accidently referencing HUGETLB_PAGE_ORDER */
 > +#define pageblock_default_order(x) (0)
 
-that won't compile.
+Shouldn't this have been HUGETLB_PAGE_ORDER?
 
 >  #define set_pageblock_order(x)	do {} while (0)
 >  
@@ -72,37 +96,12 @@ that won't compile.
 > +		set_pageblock_order(pageblock_default_order());
 >  		setup_usemap(pgdat, zone, size);
 >  		ret = init_currently_empty_zone(zone, zone_start_pfn,
-
-
---- a/mm/page_alloc.c~fix-boot-problem-with-iseries-lacking-hugepage-support-fix
-+++ a/mm/page_alloc.c
-@@ -3268,7 +3268,7 @@ static void inline setup_usemap(struct p
- #ifdef CONFIG_HUGETLB_PAGE_SIZE_VARIABLE
- 
- /* Return a sensible default order for the pageblock size. */
--static inline int __init pageblock_default_order(void)
-+static inline int pageblock_default_order(void)
- {
- 	if (HPAGE_SHIFT > PAGE_SHIFT)
- 		return HUGETLB_PAGE_ORDER;
-@@ -3291,7 +3291,11 @@ static inline void __init set_pageblock_
- }
- #else /* CONFIG_HUGETLB_PAGE_SIZE_VARIABLE */
- 
--#define pageblock_default_order(x) (0)
-+static inline int pageblock_default_order(void)
-+{
-+	return 0;
-+}
-+
- #define set_pageblock_order(x)	do {} while (0)
- 
- #endif /* CONFIG_HUGETLB_PAGE_SIZE_VARIABLE */
-_
-
-
-please avoid adding macros when C could have been used.  C is nicer to look
-at and has typechecking and stuff.
+>  						size, MEMMAP_EARLY);
+> -- 
+> -- 
+> Mel Gorman
+> Part-time Phd Student                          Linux Technology Center
+> University of Limerick                         IBM Dublin Software Lab
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
