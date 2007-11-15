@@ -1,58 +1,106 @@
-Received: from d01relay06.pok.ibm.com (d01relay06.pok.ibm.com [9.56.227.116])
-	by e5.ny.us.ibm.com (8.13.8/8.13.8) with ESMTP id lAFLZ7Hd005123
-	for <linux-mm@kvack.org>; Thu, 15 Nov 2007 16:35:07 -0500
-Received: from d03av04.boulder.ibm.com (d03av04.boulder.ibm.com [9.17.195.170])
-	by d01relay06.pok.ibm.com (8.13.8/8.13.8/NCO v8.6) with ESMTP id lAFLYwxB700552
-	for <linux-mm@kvack.org>; Thu, 15 Nov 2007 16:35:00 -0500
-Received: from d03av04.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av04.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id lAFLYn2L021570
-	for <linux-mm@kvack.org>; Thu, 15 Nov 2007 14:34:49 -0700
-Subject: Re: [PATCH][UPDATED] hugetlb: retry pool allocation attempts
-From: Dave Hansen <haveblue@us.ibm.com>
-In-Reply-To: <20071115201826.GB21245@us.ibm.com>
-References: <20071115201053.GA21245@us.ibm.com>
-	 <20071115201826.GB21245@us.ibm.com>
-Content-Type: text/plain
-Date: Thu, 15 Nov 2007 13:34:35 -0800
-Message-Id: <1195162475.7078.224.camel@localhost>
+Received: from toip5.srvr.bell.ca ([209.226.175.88])
+          by tomts25-srv.bellnexxia.net
+          (InterMail vM.5.01.06.13 201-253-122-130-113-20050324) with ESMTP
+          id <20071115215143.CCRZ19497.tomts25-srv.bellnexxia.net@toip5.srvr.bell.ca>
+          for <linux-mm@kvack.org>; Thu, 15 Nov 2007 16:51:43 -0500
+Date: Thu, 15 Nov 2007 16:51:42 -0500
+From: Mathieu Desnoyers <mathieu.desnoyers@polymtl.ca>
+Subject: Re: [RFC 5/7] LTTng instrumentation mm
+Message-ID: <20071115215142.GA7825@Krystal>
+References: <20071113193349.214098508@polymtl.ca> <20071113194025.150641834@polymtl.ca> <1195160783.7078.203.camel@localhost>
 Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+In-Reply-To: <1195160783.7078.203.camel@localhost>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nishanth Aravamudan <nacc@us.ibm.com>
-Cc: wli@holomorphy.com, kenchen@google.com, david@gibson.dropbear.id.au, linux-mm@kvack.org, Andy Whitcroft <apw@shadowen.org>
+To: Dave Hansen <haveblue@us.ibm.com>
+Cc: akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, mbligh@google.com
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 2007-11-15 at 12:18 -0800, Nishanth Aravamudan wrote:
-> b) __alloc_pages() does not currently retry allocations for order >
-> PAGE_ALLOC_COSTLY_ORDER.
+* Dave Hansen (haveblue@us.ibm.com) wrote:
+> > On Tue, 2007-11-13 at 14:33 -0500, Mathieu Desnoyers wrote:
+> >  linux-2.6-lttng/mm/page_io.c        2007-11-13 09:49:35.000000000 -0500
+> > @@ -114,6 +114,7 @@ int swap_writepage(struct page *page, st
+> >                 rw |= (1 << BIO_RW_SYNC);
+> >         count_vm_event(PSWPOUT);
+> >         set_page_writeback(page);
+> > +       trace_mark(mm_swap_out, "address %p", page_address(page));
+> >         unlock_page(page);
+> >         submit_bio(rw, bio);
+> >  out:
+> 
+> I'm not sure all this page_address() stuff makes any sense on highmem
+> systems.  How about page_to_pfn()?
+> 
 
-... when __GFP_REPEAT has not been specified, right?
+Hrm, maybe both ?
 
-> Modify __alloc_pages() to retry GFP_REPEAT COSTLY_ORDER allocations up
-> to COSTLY_ORDER_RETRY_ATTEMPTS times, which I've set to 5, and use
-> GFP_REPEAT in the hugetlb pool allocation. 5 seems to give reasonable
-> results for x86, x86_64 and ppc64, but I'm not sure how to come up with
-> the "best" number here (suggestions are welcome!). With this patch
-> applied, the same box that gave the above results now gives: 
+Knowing which page frame number has been swapped out is not always as
+relevant as knowing the page's virtual address (when it has one). Saving
+both the PFN and the page's virtual address could give us useful
+information when the page is not mapped.
 
-Coding in an explicit number of retries like this seems a bit hackish to
-me.  Retrying the allocations N times internally (through looping)
-should give roughly the same number of huge pages that retrying them N
-times externally (from the /proc file).  Does doing another ~50
-allocations get you to the same number of huge pages?
+We face two possible approaches : either we save both the address and
+the pfn at each event and later have the information at once in the
+trace, or we instrument the kernel virtual addresses map/unmap
+operations and let the trace analyzer figure out the mappings.
 
-What happens if you *only* specify GFP_REPEAT from hugetlbfs?
+It is sometimes a big benefit traffic-wise to let the userspace tool do
+recreate the kernel structures from the traced information, but it
+involved specialized treatment in the userspace tools. If we chose this
+solution, we could simply save the PFN in the event, as you propose.
 
-I think you're asking a bit much of the page allocator (and reclaim)
-here.  There is a discrete amount of memory pressure applied for each
-allocator request.  Increasing the number of requests will virtually
-always increase the memory pressure and make more pages available.
 
-What is the actual behavior that you want to get here?  Do you want that
-34th request to always absolutely plateau the number of huge pages?
+> I also have to wonder if you should be hooking into count_vm_event() and
+> using those.  Could you give a high-level overview of exactly why you
+> need these hooks, and perhaps what you expect from future people adding
+> things to the VM?
+> 
 
--- Dave
+Yep, I guess we could put useful markers beside the count_vm_events
+inline function calls.
+
+High level overview :
+
+We currently have a "LTTng statedump", which iterates on the mappings of
+all tasks at trace start time to dump them in the trace. We also
+instrument memory allocation/free. We therefore have much of the
+information needed to recreate the memory mappings in the kernel at any
+point during the trace by "replaying" the trace.
+
+Having the events that helps us to recreate it
+- precisely
+- efficiently
+- with a level of generality that should not break "too much" between
+  kernel versions
+
+would be useful to us.
+
+Then we could start creating plugins in our userspace trace analysis
+tool to analyze fun stuff such as sources of memory fragmentation.
+
+Then coupling that with, eventually, performance counter, we could start
+doing really fun things with cache misses...
+
+It can also be useful to you guys to find our problems by adding ad-hoc
+instrumentation to the VM code when pinpointing the cause of a problem.
+Martin Bligh made interesting things applying a tracer to the vm,
+described in "Linux Kernel Debugging on Google-sized clusters" in
+OLS2007 proceedings.
+
+(https://ols2006.108.redhat.com/2007/Reprints/OLS2007-Proceedings-V1.pdf)
+
+Mathieu
+
+> -- Dave
+> 
+
+-- 
+Mathieu Desnoyers
+Computer Engineering Ph.D. Student, Ecole Polytechnique de Montreal
+OpenPGP key fingerprint: 8CD5 52C3 8E3C 4140 715F  BA06 3F25 A8FE 3BAE 9A68
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
