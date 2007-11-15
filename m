@@ -1,46 +1,165 @@
-In-reply-to: <1195156900.22457.32.camel@lappy> (message from Peter Zijlstra on
-	Thu, 15 Nov 2007 21:01:39 +0100)
-Subject: Re: [RFC] fuse writable mmap design
-References: <E1IshIR-0000fE-00@dorka.pomaz.szeredi.hu>
-	 <1195154530.22457.16.camel@lappy>
-	 <E1IskWl-0000oJ-00@dorka.pomaz.szeredi.hu>
-	 <1195155759.22457.29.camel@lappy>
-	 <E1Iskpw-0000qY-00@dorka.pomaz.szeredi.hu> <1195156900.22457.32.camel@lappy>
-Message-Id: <E1Isl3p-0000rl-00@dorka.pomaz.szeredi.hu>
-From: Miklos Szeredi <miklos@szeredi.hu>
-Date: Thu, 15 Nov 2007 21:11:37 +0100
+Received: from d01relay04.pok.ibm.com (d01relay04.pok.ibm.com [9.56.227.236])
+	by e2.ny.us.ibm.com (8.13.8/8.13.8) with ESMTP id lAFKBHOb009887
+	for <linux-mm@kvack.org>; Thu, 15 Nov 2007 15:11:17 -0500
+Received: from d01av02.pok.ibm.com (d01av02.pok.ibm.com [9.56.224.216])
+	by d01relay04.pok.ibm.com (8.13.8/8.13.8/NCO v8.6) with ESMTP id lAFKBHCA119438
+	for <linux-mm@kvack.org>; Thu, 15 Nov 2007 15:11:17 -0500
+Received: from d01av02.pok.ibm.com (loopback [127.0.0.1])
+	by d01av02.pok.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id lAFKBGn6014523
+	for <linux-mm@kvack.org>; Thu, 15 Nov 2007 15:11:17 -0500
+Date: Thu, 15 Nov 2007 12:10:53 -0800
+From: Nishanth Aravamudan <nacc@us.ibm.com>
+Subject: [PATCH] hugetlb: retry pool allocation attempts
+Message-ID: <20071115201053.GA21245@us.ibm.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: a.p.zijlstra@chello.nl
-Cc: miklos@szeredi.hu, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org
+To: wli@holomorphy.com
+Cc: kenchen@google.com, david@gibson.dropbear.id.au, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-> > OTOH, I'm thinking about adding a per-fs limit (adjustable for
-> > privileged mounts) of dirty+writeback.
-> > 
-> > I'm not sure how hard would it be to add support for this into
-> > balance_dirty_pages().  So I'm thinking of a parameter in struct
-> > backing_dev_info that is used to clip the calculated per-bdi threshold
-> > below this maximum.
-> > 
-> > How would that affect the proportions algorithm?  What would happen to
-> > the unused portion?  Would it adapt to the slowed writeback and
-> > allocate it to some other writer?
-> 
-> The unused part is gone, I've not yet found a way to re-distribute this
-> fairly.
-> 
-> [ It's one of my open-problems, I can do a min_ratio per bdi, but not
->   yet a max_ratio ]
+Currently, successive attempts to allocate the hugepage pool via the
+sysctl can result in the following sort of behavior (assume each attempt
+is trying to grow the pool by 100 hugepages, starting with 100 hugepages
+in the pool, on x86_64):
 
-OK, I'll bear this in mind.
+Attempt 1: 200 hugepages
+Attempt 2: 300 hugepages
+...
+Attempt 33: 3400 hugepages
+Attempt 34: 3438 hugepages
+Attempt 35: 3438 hugepages
+Attempt 36: 3438 hugepages
+Attempt 37: 3439 hugepages
+Attempt 38: 3440 hugepages
+Attempt 39: 3441 hugepages
+Attempt 40: 3441 hugepages
+Attempt 41: 3442 hugepages
+...
 
-Limiting the number of dirty+writeback to << dirty_thresh could still
-make sense, since it could prevent a nasty filesystem from pinning
-lots of kernel memory (which it can do without fuse in other ways, so
-this is not very important IMO).
+I think, in an ideal world, we would not have a situation where the
+hugepage pool grows on an attempt after a previous attempt has failed
+(we should have freed up sufficient memory earlier). We also wouldn't
+get successive single-page allocations, but would have a single
+larger-size allocation. There are two reasons this doesn't happen
+currently:
 
-Miklos
+a) hugetlb pool allocation calls do not specify __GFP_REPEAT to ask the
+VM to retry the allocations (invoking reclaim to help the requests
+succeed).
+
+b) __alloc_pages() does not currently retry allocations for order >
+PAGE_ALLOC_COSTLY_ORDER.
+
+Modify __alloc_pages() to retry GFP_REPEAT COSTLY_ORDER allocations up
+to COSTLY_ORDER_RETRY_ATTEMPTS times, which I've set to 5, and use
+GFP_REPEAT in the hugetlb pool allocation. 5 seems to give reasonable
+results for x86, x86_64 and ppc64, but I'm not sure how to come up with
+the "best" number here (suggestions are welcome!). With this patch
+applied, the same box that gave the above results now gives:
+
+Attempt 1: 200 hugepages
+Attempt 2: 300 hugepages
+...
+Attempt 33: 3400 hugepages
+Attempt 34: 3438 hugepages
+Attempt 35: 3442 hugepages
+Attempt 36: 3443 hugepages
+Attempt 37: 3443 hugepages
+Attempt 38: 3443 hugepages
+Attempt 39: 3443 hugepages
+Attempt 40: 3443 hugepages
+Attempt 41: 3444 hugepages
+...
+
+While the patch makes things better (we get more hugepages sooner), but
+we still get an allocation success (of one hugepage) after getting a few
+failures in a row. But, even with 10 retry attempts, I got similar
+results. Determining the perfect number, I expect, would require know
+the current/future I/O characteristics and current/future system
+activity -- in lieu of this prescience, this heuristic does seem to
+improve things and does not require userspace applications to implement
+their own retry logic (or, more accurately, makes those userspace
+retries more effective).
+
+Signed-off-by: Nishanth Aravamudan <nacc@us.ibm.com>
+
+diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
+index 4c4522a..c4e36ba 100644
+--- a/include/linux/mmzone.h
++++ b/include/linux/mmzone.h
+@@ -33,6 +33,12 @@
+  * will not.
+  */
+ #define PAGE_ALLOC_COSTLY_ORDER 3
++/*
++ * COSTLY_ORDER_RETRY_ATTEMPTS is the number of retry attempts for
++ * allocations above PAGE_ALLOC_COSTLY_ORDER with __GFP_REPEAT
++ * specified.
++ */
++#define COSTLY_ORDER_RETRY_ATTEMPTS 5
+ 
+ #define MIGRATE_UNMOVABLE     0
+ #define MIGRATE_RECLAIMABLE   1
+diff --git a/mm/hugetlb.c b/mm/hugetlb.c
+index 8b809ec..3d2d092 100644
+--- a/mm/hugetlb.c
++++ b/mm/hugetlb.c
+@@ -171,7 +171,7 @@ static struct page *alloc_fresh_huge_page_node(int nid)
+ 	struct page *page;
+ 
+ 	page = alloc_pages_node(nid,
+-		htlb_alloc_mask|__GFP_COMP|__GFP_THISNODE|__GFP_NOWARN,
++		htlb_alloc_mask|__GFP_COMP|__GFP_THISNODE|__GFP_REPEAT|__GFP_NOWARN,
+ 		HUGETLB_PAGE_ORDER);
+ 	if (page) {
+ 		set_compound_page_dtor(page, free_huge_page);
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index da69d83..931fb46 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -1470,7 +1470,7 @@ __alloc_pages(gfp_t gfp_mask, unsigned int order,
+ 	struct page *page;
+ 	struct reclaim_state reclaim_state;
+ 	struct task_struct *p = current;
+-	int do_retry;
++	int do_retry_attempts = 0;
+ 	int alloc_flags;
+ 	int did_some_progress;
+ 
+@@ -1622,16 +1622,24 @@ nofail_alloc:
+ 	 *
+ 	 * In this implementation, __GFP_REPEAT means __GFP_NOFAIL for order
+ 	 * <= 3, but that may not be true in other implementations.
++	 *
++	 * For order > 3, __GFP_REPEAT means try to reclaim memory 5
++	 * times, but that may not be true in other implementations.
+ 	 */
+-	do_retry = 0;
+ 	if (!(gfp_mask & __GFP_NORETRY)) {
+-		if ((order <= PAGE_ALLOC_COSTLY_ORDER) ||
+-						(gfp_mask & __GFP_REPEAT))
+-			do_retry = 1;
++		if (gfp_mask & __GFP_REPEAT) {
++			if (order <= PAGE_ALLOC_COSTLY_ORDER) {
++				do_retry_attempts = 1;
++			} else {
++				if (do_retry_attempts > COSTLY_ORDER_RETRY_ATTEMPTS)
++					goto nopage;
++				do_retry_attempts += 1;
++			}
++		}
+ 		if (gfp_mask & __GFP_NOFAIL)
+-			do_retry = 1;
++			do_retry_attempts = 1;
+ 	}
+-	if (do_retry) {
++	if (do_retry_attempts) {
+ 		congestion_wait(WRITE, HZ/50);
+ 		goto rebalance;
+ 	}
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
