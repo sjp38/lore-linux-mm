@@ -1,46 +1,69 @@
-Date: Wed, 14 Nov 2007 19:59:27 -0800 (PST)
-From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [patch 06/17] SLUB: Slab defrag core
-In-Reply-To: <20071115113048.16c33010.kamezawa.hiroyu@jp.fujitsu.com>
-Message-ID: <Pine.LNX.4.64.0711141956220.22549@schroedinger.engr.sgi.com>
-References: <20071114220906.206294426@sgi.com> <20071114221020.940981964@sgi.com>
- <20071115101324.3c00e47d.kamezawa.hiroyu@jp.fujitsu.com>
- <Pine.LNX.4.64.0711141726160.22161@schroedinger.engr.sgi.com>
- <20071115113048.16c33010.kamezawa.hiroyu@jp.fujitsu.com>
+Received: from d03relay02.boulder.ibm.com (d03relay02.boulder.ibm.com [9.17.195.227])
+	by e36.co.us.ibm.com (8.13.8/8.13.8) with ESMTP id lAF6Q3Id004205
+	for <linux-mm@kvack.org>; Thu, 15 Nov 2007 01:26:03 -0500
+Received: from d03av04.boulder.ibm.com (d03av04.boulder.ibm.com [9.17.195.170])
+	by d03relay02.boulder.ibm.com (8.13.8/8.13.8/NCO v8.5) with ESMTP id lAF6Pve4118854
+	for <linux-mm@kvack.org>; Wed, 14 Nov 2007 23:26:02 -0700
+Received: from d03av04.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av04.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id lAF6Pvr8015580
+	for <linux-mm@kvack.org>; Wed, 14 Nov 2007 23:25:57 -0700
+Message-ID: <473BE66E.2000707@linux.vnet.ibm.com>
+Date: Thu, 15 Nov 2007 11:55:50 +0530
+From: Balbir Singh <balbir@linux.vnet.ibm.com>
+Reply-To: balbir@linux.vnet.ibm.com
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: [RFC][ for -mm] memory controller enhancements for NUMA [0/10]
+ introduction
+References: <20071114173950.92857eaa.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20071114173950.92857eaa.kamezawa.hiroyu@jp.fujitsu.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: akpm@linux-foundation.org, linux-mm@kvack.org, Mel Gorman <mel@skynet.ie>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "containers@lists.osdl.org" <containers@lists.osdl.org>, "yamamoto@valinux.co.jp" <yamamoto@valinux.co.jp>, hugh@veritas.com
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 15 Nov 2007, KAMEZAWA Hiroyuki wrote:
+KAMEZAWA Hiroyuki wrote:
+> Hi,
+> 
+> This is a patch-set for memory controlelr on NUMA. 
+> patches are
+> 
+> 1. record nid/zid on page_cgroup struct
+> 2. record per-zone active/inactive
+> 3-9 Patches for isolate global-lru reclaiming and memory controller reclaming
+> 10. implements per-zone LRU on memory controller.
+> 
+> now this is just RFC.
+> 
+> Tested on 
+>   2.6.24-rc2-mm1 + x86_64/fake-NUMA( # of nodes = 3)
+> 
+> I did test with numactl under memory limitation.
+>  % numactl -i 0,1,2 dd if=.....
+> 
+> It seems per-zone-lru works well.
+> 
+> I'd like to do test on ia64/real-NUMA when I have a chance.
+> 
+> Any comments are welcome.
+> 
 
-> > There is no reason for allocating a new page. We are talking about slab 
-> > allocations. The defrag stuff is run when there is a high degree of 
-> > fragmentation. So there are a lot of partially allocated pages around. The 
-> > allocation will grab a free object out of one of them.
-> > 
-> Hmm, how about alloc_scratch() ?
+Hi, KAMEZAWA-San,
 
-Hmmm.. We would need GFP_FAIL to simply fail on any attempt to get into 
-the page allocator. __GFP_NOMEMALLOC could be sufficient.
+Thanks for the patchset, I'll review it and get back. I'd
+also try and get some testing done on it.
 
-> BTW, how about counting succesfull kick() in __count_vm_events() and
-> the number of successfully defragmented pages ? (as a debug ops.)
+> Thanks,
+>  -kame
+> 
 
-Yes would be easy to add.
-
-> I can't see how many dentrycache/inode defragment reaps objects after
-> shrinker()s.
-
-I typically do
-
-	slabinfo -D
-
-to observe the effect. I also have a debug patch here that we could add 
-to see numbers in the syslog.
+-- 
+	Warm Regards,
+	Balbir Singh
+	Linux Technology Center
+	IBM, ISTL
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
