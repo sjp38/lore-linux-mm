@@ -1,38 +1,46 @@
-Subject: Re: [PATCH 3/3] nfs: use ->mmap_prepare() to avoid an AB-BA
-	deadlock
-From: Trond Myklebust <trond.myklebust@fys.uio.no>
-In-Reply-To: <20071114222448.GE31048@wotan.suse.de>
-References: <20071114200136.009242000@chello.nl>
-	 <20071114201528.514434000@chello.nl> <20071114212246.GA31048@wotan.suse.de>
-	 <1195075905.22457.3.camel@lappy>
-	 <1195076485.7584.66.camel@heimdal.trondhjem.org>
-	 <1195077034.22457.6.camel@lappy>
-	 <1195078730.7584.86.camel@heimdal.trondhjem.org>
-	 <20071114222448.GE31048@wotan.suse.de>
-Content-Type: text/plain
-Date: Wed, 14 Nov 2007 17:53:48 -0500
-Message-Id: <1195080828.7584.96.camel@heimdal.trondhjem.org>
+Date: Thu, 15 Nov 2007 10:13:24 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [patch 06/17] SLUB: Slab defrag core
+Message-Id: <20071115101324.3c00e47d.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20071114221020.940981964@sgi.com>
+References: <20071114220906.206294426@sgi.com>
+	<20071114221020.940981964@sgi.com>
 Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nick Piggin <npiggin@suse.de>
-Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-arch@vger.kernel.org, linux-fsdevel@vger.kernel.org, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hugh@veritas.com>
+To: Christoph Lameter <clameter@sgi.com>
+Cc: akpm@linux-foundation.org, linux-mm@kvack.org, Mel Gorman <mel@skynet.ie>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 2007-11-14 at 23:24 +0100, Nick Piggin wrote:
+On Wed, 14 Nov 2007 14:09:12 -0800
+Christoph Lameter <clameter@sgi.com> wrote:
 
-> mmap()s can be different from read in that the syscall may have little
-> relation to when the data gets used. But I guess it's still a best
-> effort thing. Fair enough.
+> void kick(struct kmem_cache *, int nr, void **objects, void *get_result)
+> 
+> 	After SLUB has established references to the objects in a
+> 	slab it will then drop all locks and use kick() to move objects out
+> 	of the slab. The existence of the object is guaranteed by virtue of
+> 	the earlier obtained references via get(). The callback may perform
+> 	any slab operation since no locks are held at the time of call.
+> 
+> 	The callback should remove the object from the slab in some way. This
+> 	may be accomplished by reclaiming the object and then running
+> 	kmem_cache_free() or reallocating it and then running
+> 	kmem_cache_free(). Reallocation is advantageous because the partial
+> 	slabs were just sorted to have the partial slabs with the most objects
+> 	first. Reallocation is likely to result in filling up a slab in
+> 	addition to freeing up one slab. A filled up slab can also be removed
+> 	from the partial list. So there could be a double effect.
+> 
 
-Agreed that mmap() is special and very problematic on NFS. However I
-can't see how we can improve on the existing models short of some
-significant protocol modifications, and so far, nobody has presented the
-IETF with a good case for why they need this level of cache consistency.
+I think shrink_slab()? is called under memory shortage and "re-allocation and
+move" may require to allocate new page. Then, kick() should use GFP_ATOMIC if
+they want to do reallocation. Right ?
 
-Cheers
-   Trond
+Thanks,
+-Kame
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
