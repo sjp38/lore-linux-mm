@@ -1,24 +1,37 @@
-Received: from d01relay04.pok.ibm.com (d01relay04.pok.ibm.com [9.56.227.236])
-	by e2.ny.us.ibm.com (8.13.8/8.13.8) with ESMTP id lAFKBHOb009887
-	for <linux-mm@kvack.org>; Thu, 15 Nov 2007 15:11:17 -0500
-Received: from d01av02.pok.ibm.com (d01av02.pok.ibm.com [9.56.224.216])
-	by d01relay04.pok.ibm.com (8.13.8/8.13.8/NCO v8.6) with ESMTP id lAFKBHCA119438
-	for <linux-mm@kvack.org>; Thu, 15 Nov 2007 15:11:17 -0500
-Received: from d01av02.pok.ibm.com (loopback [127.0.0.1])
-	by d01av02.pok.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id lAFKBGn6014523
-	for <linux-mm@kvack.org>; Thu, 15 Nov 2007 15:11:17 -0500
-Date: Thu, 15 Nov 2007 12:10:53 -0800
+Received: from d03relay02.boulder.ibm.com (d03relay02.boulder.ibm.com [9.17.195.227])
+	by e35.co.us.ibm.com (8.13.8/8.13.8) with ESMTP id lAFKIemD026023
+	for <linux-mm@kvack.org>; Thu, 15 Nov 2007 15:18:40 -0500
+Received: from d03av03.boulder.ibm.com (d03av03.boulder.ibm.com [9.17.195.169])
+	by d03relay02.boulder.ibm.com (8.13.8/8.13.8/NCO v8.5) with ESMTP id lAFKIa2c117352
+	for <linux-mm@kvack.org>; Thu, 15 Nov 2007 13:18:38 -0700
+Received: from d03av03.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av03.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id lAFKIa8k005007
+	for <linux-mm@kvack.org>; Thu, 15 Nov 2007 13:18:36 -0700
+Date: Thu, 15 Nov 2007 12:18:26 -0800
 From: Nishanth Aravamudan <nacc@us.ibm.com>
-Subject: [PATCH] hugetlb: retry pool allocation attempts
-Message-ID: <20071115201053.GA21245@us.ibm.com>
+Subject: [PATCH][UPDATED] hugetlb: retry pool allocation attempts
+Message-ID: <20071115201826.GB21245@us.ibm.com>
+References: <20071115201053.GA21245@us.ibm.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
+In-Reply-To: <20071115201053.GA21245@us.ibm.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: wli@holomorphy.com
 Cc: kenchen@google.com, david@gibson.dropbear.id.au, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
+
+On 15.11.2007 [12:10:53 -0800], Nishanth Aravamudan wrote:
+> Currently, successive attempts to allocate the hugepage pool via the
+> sysctl can result in the following sort of behavior (assume each attempt
+> is trying to grow the pool by 100 hugepages, starting with 100 hugepages
+> in the pool, on x86_64):
+
+Sigh, same patch, fixed up a few checkpatch issues with long lines.
+Sorry for the noise.
+
+hugetlb: retry pool allocation attempts
 
 Currently, successive attempts to allocate the hugepage pool via the
 sysctl can result in the following sort of behavior (assume each attempt
@@ -86,6 +99,10 @@ retries more effective).
 
 Signed-off-by: Nishanth Aravamudan <nacc@us.ibm.com>
 
+---
+$ git show HEAD | ./scripts/checkpatch.pl -
+Your patch has no obvious style problems and is ready for submission.
+
 diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
 index 4c4522a..c4e36ba 100644
 --- a/include/linux/mmzone.h
@@ -104,20 +121,21 @@ index 4c4522a..c4e36ba 100644
  #define MIGRATE_UNMOVABLE     0
  #define MIGRATE_RECLAIMABLE   1
 diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-index 8b809ec..3d2d092 100644
+index 8b809ec..0eb2953 100644
 --- a/mm/hugetlb.c
 +++ b/mm/hugetlb.c
-@@ -171,7 +171,7 @@ static struct page *alloc_fresh_huge_page_node(int nid)
+@@ -171,7 +171,8 @@ static struct page *alloc_fresh_huge_page_node(int nid)
  	struct page *page;
  
  	page = alloc_pages_node(nid,
 -		htlb_alloc_mask|__GFP_COMP|__GFP_THISNODE|__GFP_NOWARN,
-+		htlb_alloc_mask|__GFP_COMP|__GFP_THISNODE|__GFP_REPEAT|__GFP_NOWARN,
++		htlb_alloc_mask|__GFP_COMP|__GFP_THISNODE|
++						__GFP_REPEAT|__GFP_NOWARN,
  		HUGETLB_PAGE_ORDER);
  	if (page) {
  		set_compound_page_dtor(page, free_huge_page);
 diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index da69d83..931fb46 100644
+index da69d83..3fcedda 100644
 --- a/mm/page_alloc.c
 +++ b/mm/page_alloc.c
 @@ -1470,7 +1470,7 @@ __alloc_pages(gfp_t gfp_mask, unsigned int order,
@@ -129,7 +147,7 @@ index da69d83..931fb46 100644
  	int alloc_flags;
  	int did_some_progress;
  
-@@ -1622,16 +1622,24 @@ nofail_alloc:
+@@ -1622,16 +1622,25 @@ nofail_alloc:
  	 *
  	 * In this implementation, __GFP_REPEAT means __GFP_NOFAIL for order
  	 * <= 3, but that may not be true in other implementations.
@@ -146,7 +164,8 @@ index da69d83..931fb46 100644
 +			if (order <= PAGE_ALLOC_COSTLY_ORDER) {
 +				do_retry_attempts = 1;
 +			} else {
-+				if (do_retry_attempts > COSTLY_ORDER_RETRY_ATTEMPTS)
++				if (do_retry_attempts >
++					COSTLY_ORDER_RETRY_ATTEMPTS)
 +					goto nopage;
 +				do_retry_attempts += 1;
 +			}
