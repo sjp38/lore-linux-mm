@@ -1,56 +1,91 @@
-Received: from d01relay04.pok.ibm.com (d01relay04.pok.ibm.com [9.56.227.236])
-	by e5.ny.us.ibm.com (8.13.8/8.13.8) with ESMTP id lAFMGPhA013193
-	for <linux-mm@kvack.org>; Thu, 15 Nov 2007 17:16:25 -0500
-Received: from d01av01.pok.ibm.com (d01av01.pok.ibm.com [9.56.224.215])
-	by d01relay04.pok.ibm.com (8.13.8/8.13.8/NCO v8.6) with ESMTP id lAFMGKVI128650
-	for <linux-mm@kvack.org>; Thu, 15 Nov 2007 17:16:25 -0500
-Received: from d01av01.pok.ibm.com (loopback [127.0.0.1])
-	by d01av01.pok.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id lAFMGK69002560
-	for <linux-mm@kvack.org>; Thu, 15 Nov 2007 17:16:20 -0500
-Subject: Re: [RFC 5/7] LTTng instrumentation mm
-From: Dave Hansen <haveblue@us.ibm.com>
-In-Reply-To: <20071115215142.GA7825@Krystal>
-References: <20071113193349.214098508@polymtl.ca>
-	 <20071113194025.150641834@polymtl.ca> <1195160783.7078.203.camel@localhost>
-	 <20071115215142.GA7825@Krystal>
-Content-Type: text/plain
-Date: Thu, 15 Nov 2007 14:16:17 -0800
-Message-Id: <1195164977.27759.10.camel@localhost>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Date: Fri, 16 Nov 2007 00:10:14 +0000
+Subject: Re: [PATCH][UPDATED] hugetlb: retry pool allocation attempts
+Message-ID: <20071116001014.GA7372@skynet.ie>
+References: <20071115201053.GA21245@us.ibm.com> <20071115201826.GB21245@us.ibm.com> <1195162475.7078.224.camel@localhost>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <1195162475.7078.224.camel@localhost>
+From: mel@skynet.ie (Mel Gorman)
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Mathieu Desnoyers <mathieu.desnoyers@polymtl.ca>
-Cc: akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, mbligh@google.com
+To: Dave Hansen <haveblue@us.ibm.com>
+Cc: Nishanth Aravamudan <nacc@us.ibm.com>, wli@holomorphy.com, kenchen@google.com, david@gibson.dropbear.id.au, linux-mm@kvack.org, Andy Whitcroft <apw@shadowen.org>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 2007-11-15 at 16:51 -0500, Mathieu Desnoyers wrote:
-> * Dave Hansen (haveblue@us.ibm.com) wrote:
-> > > On Tue, 2007-11-13 at 14:33 -0500, Mathieu Desnoyers wrote:
-> > >  linux-2.6-lttng/mm/page_io.c        2007-11-13 09:49:35.000000000 -0500
-> > > @@ -114,6 +114,7 @@ int swap_writepage(struct page *page, st
-> > >                 rw |= (1 << BIO_RW_SYNC);
-> > >         count_vm_event(PSWPOUT);
-> > >         set_page_writeback(page);
-> > > +       trace_mark(mm_swap_out, "address %p", page_address(page));
-> > >         unlock_page(page);
-> > >         submit_bio(rw, bio);
-> > >  out:
-> > 
-> > I'm not sure all this page_address() stuff makes any sense on highmem
-> > systems.  How about page_to_pfn()?
->
-> Knowing which page frame number has been swapped out is not always as
-> relevant as knowing the page's virtual address (when it has one). Saving
-> both the PFN and the page's virtual address could give us useful
-> information when the page is not mapped.
+On (15/11/07 13:34), Dave Hansen didst pronounce:
+> On Thu, 2007-11-15 at 12:18 -0800, Nishanth Aravamudan wrote:
+> > b) __alloc_pages() does not currently retry allocations for order >
+> > PAGE_ALLOC_COSTLY_ORDER.
+> 
+> ... when __GFP_REPEAT has not been specified, right?
+> 
 
-For most (all?) architectures, the PFN and the virtual address in the
-kernel's linear are interchangeable with pretty trivial arithmetic.  All
-pages have a pfn, but not all have a virtual address.  Thus, I suggested
-using the pfn.  What kind of virtual addresses are you talking about?
+Currently if hugetlbfs specified __GFP_RELEAT, it would end up trying to
+allocate indefinitly - that does not sound like sane behaviour. Indefinite
+retries for small allocations makes some sense, but for the larger allocs
+it should give up after a while as __GFP_REPEAT is documented to do.
 
--- Dave
+> > Modify __alloc_pages() to retry GFP_REPEAT COSTLY_ORDER allocations up
+> > to COSTLY_ORDER_RETRY_ATTEMPTS times, which I've set to 5, and use
+> > GFP_REPEAT in the hugetlb pool allocation. 5 seems to give reasonable
+> > results for x86, x86_64 and ppc64, but I'm not sure how to come up with
+> > the "best" number here (suggestions are welcome!). With this patch
+> > applied, the same box that gave the above results now gives: 
+> 
+> Coding in an explicit number of retries like this seems a bit hackish to
+> me.  Retrying the allocations N times internally (through looping)
+> should give roughly the same number of huge pages that retrying them N
+> times externally (from the /proc file). 
+
+The third case is where the pool is being dynamically resized and this
+allocation attempt is happening via the mmap() or fault paths. In those cases
+it should be making a serious attempt to satisfy the allocation without
+peppering retry logic in multiple places when __GFP_REPEAT is meant to do
+what is desired.
+
+>Does doing another ~50
+> allocations get you to the same number of huge pages?
+> 
+> What happens if you *only* specify GFP_REPEAT from hugetlbfs?
+> 
+
+Potentially, it will stay forever in a reclaim loop.
+
+> I think you're asking a bit much of the page allocator (and reclaim)
+> here. 
+
+The ideal is that direct reclaim is only entered once. In practice, it
+may not work as even if lumpy reclaim gets the necessary contiguous
+pages, there is no guarantee that another process will take the pages
+because a process does not take ownership of those pages. Fixing that
+would be pretty invasive and while I expect those patches to exist
+eventually, they are pretty far away.
+
+Ideally Nish could just say "__GFP_REPEAT" in the flags but it looks
+like he had alter slightly how __GFP_REPEAT behaves so it is not an
+alias for __GFP_NOFAIL.
+
+> There is a discrete amount of memory pressure applied for each
+> allocator request.  Increasing the number of requests will virtually
+> always increase the memory pressure and make more pages available.
+> 
+
+For a __GFP_REPEAT allocation, it says "try and pressure more because I
+really could do with this page" as opposed to failing.
+
+> What is the actual behavior that you want to get here?  Do you want that
+> 34th request to always absolutely plateau the number of huge pages?
+> 
+
+I believe the desired behaviour is that for larger allocations specifying
+__GFP_REPEAT to apply a bit more pressure than might have been used
+otherwise.
+
+-- 
+Mel Gorman
+Part-time Phd Student                          Linux Technology Center
+University of Limerick                         IBM Dublin Software Lab
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
