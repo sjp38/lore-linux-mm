@@ -1,12 +1,12 @@
-Received: from toip3.srvr.bell.ca ([209.226.175.86])
-          by tomts22-srv.bellnexxia.net
+Received: from toip4.srvr.bell.ca ([209.226.175.87])
+          by tomts10-srv.bellnexxia.net
           (InterMail vM.5.01.06.13 201-253-122-130-113-20050324) with ESMTP
-          id <20071116143021.XRBN18413.tomts22-srv.bellnexxia.net@toip3.srvr.bell.ca>
-          for <linux-mm@kvack.org>; Fri, 16 Nov 2007 09:30:21 -0500
-Date: Fri, 16 Nov 2007 09:30:19 -0500
+          id <20071116144744.FYEY1733.tomts10-srv.bellnexxia.net@toip4.srvr.bell.ca>
+          for <linux-mm@kvack.org>; Fri, 16 Nov 2007 09:47:44 -0500
+Date: Fri, 16 Nov 2007 09:47:43 -0500
 From: Mathieu Desnoyers <mathieu.desnoyers@polymtl.ca>
 Subject: Re: [RFC 5/7] LTTng instrumentation mm
-Message-ID: <20071116143019.GA16082@Krystal>
+Message-ID: <20071116144742.GA17255@Krystal>
 References: <20071113193349.214098508@polymtl.ca> <20071113194025.150641834@polymtl.ca> <1195160783.7078.203.camel@localhost> <20071115215142.GA7825@Krystal> <1195164977.27759.10.camel@localhost>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
@@ -47,23 +47,20 @@ List-ID: <linux-mm.kvack.org>
 > using the pfn.  What kind of virtual addresses are you talking about?
 > 
 
-Hum, the mappings I was referring to are the virual memory mappings of
-all processes, which is not at all what interests us here.
+Hrm, in asm-generic/memory_model.h, we have various versions of
+__page_to_pfn. Normally they all cast the result to (unsigned long),
+except for :
 
-Let's use the PFN then.
 
-I see that the standard macro to get the kernel address from a pfn is :
+#elif defined(CONFIG_SPARSEMEM_VMEMMAP)
 
-asm-x86/page_32.h:#define pfn_to_kaddr(pfn)      __va((pfn) << PAGE_SHIFT)
+/* memmap is virtually contigious.  */
+#define __pfn_to_page(pfn)      (vmemmap + (pfn))
+#define __page_to_pfn(page)     ((page) - vmemmap)
 
-The question might seem trivial, but I wonder how this deals with large
-pages ?
+So I guess the result is a pointer ? Should this be expected ?
 
 Mathieu
-
-
-> -- Dave
-> 
 
 -- 
 Mathieu Desnoyers
