@@ -1,82 +1,149 @@
-Received: from d01relay02.pok.ibm.com (d01relay02.pok.ibm.com [9.56.227.234])
-	by e4.ny.us.ibm.com (8.13.8/8.13.8) with ESMTP id lAG0k3n0000639
-	for <linux-mm@kvack.org>; Thu, 15 Nov 2007 19:46:03 -0500
-Received: from d01av03.pok.ibm.com (d01av03.pok.ibm.com [9.56.224.217])
-	by d01relay02.pok.ibm.com (8.13.8/8.13.8/NCO v8.6) with ESMTP id lAG0k34e422120
-	for <linux-mm@kvack.org>; Thu, 15 Nov 2007 19:46:03 -0500
-Received: from d01av03.pok.ibm.com (loopback [127.0.0.1])
-	by d01av03.pok.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id lAG0k2Sa030456
-	for <linux-mm@kvack.org>; Thu, 15 Nov 2007 19:46:02 -0500
-Date: Thu, 15 Nov 2007 16:46:01 -0800
+Received: from d03relay04.boulder.ibm.com (d03relay04.boulder.ibm.com [9.17.195.106])
+	by e33.co.us.ibm.com (8.13.8/8.13.8) with ESMTP id lAG0waBJ004169
+	for <linux-mm@kvack.org>; Thu, 15 Nov 2007 19:58:36 -0500
+Received: from d03av03.boulder.ibm.com (d03av03.boulder.ibm.com [9.17.195.169])
+	by d03relay04.boulder.ibm.com (8.13.8/8.13.8/NCO v8.5) with ESMTP id lAG0waUE111332
+	for <linux-mm@kvack.org>; Thu, 15 Nov 2007 17:58:36 -0700
+Received: from d03av03.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av03.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id lAG0wZvv002319
+	for <linux-mm@kvack.org>; Thu, 15 Nov 2007 17:58:36 -0700
+Date: Thu, 15 Nov 2007 16:58:34 -0800
 From: Nishanth Aravamudan <nacc@us.ibm.com>
 Subject: Re: [PATCH][UPDATED] hugetlb: retry pool allocation attempts
-Message-ID: <20071116004601.GF21245@us.ibm.com>
-References: <20071115201053.GA21245@us.ibm.com> <20071115201826.GB21245@us.ibm.com> <1195162475.7078.224.camel@localhost>
+Message-ID: <20071116005834.GG21245@us.ibm.com>
+References: <20071115201053.GA21245@us.ibm.com> <20071115201826.GB21245@us.ibm.com> <20071116001911.GB7372@skynet.ie>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1195162475.7078.224.camel@localhost>
+In-Reply-To: <20071116001911.GB7372@skynet.ie>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Dave Hansen <haveblue@us.ibm.com>
-Cc: wli@holomorphy.com, kenchen@google.com, david@gibson.dropbear.id.au, linux-mm@kvack.org, Andy Whitcroft <apw@shadowen.org>
+To: Mel Gorman <mel@skynet.ie>
+Cc: wli@holomorphy.com, kenchen@google.com, david@gibson.dropbear.id.au, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 15.11.2007 [13:34:35 -0800], Dave Hansen wrote:
-> On Thu, 2007-11-15 at 12:18 -0800, Nishanth Aravamudan wrote:
-> > b) __alloc_pages() does not currently retry allocations for order >
-> > PAGE_ALLOC_COSTLY_ORDER.
+On 16.11.2007 [00:19:11 +0000], Mel Gorman wrote:
+> On (15/11/07 12:18), Nishanth Aravamudan didst pronounce:
+> > On 15.11.2007 [12:10:53 -0800], Nishanth Aravamudan wrote:
+> > > Currently, successive attempts to allocate the hugepage pool via the
+> > > sysctl can result in the following sort of behavior (assume each attempt
+> > > is trying to grow the pool by 100 hugepages, starting with 100 hugepages
+> > > in the pool, on x86_64):
+> > 
+> > Sigh, same patch, fixed up a few checkpatch issues with long lines.
+> > Sorry for the noise.
+> > 
+> > hugetlb: retry pool allocation attempts
+> > 
+> > Currently, successive attempts to allocate the hugepage pool via the
+> > sysctl can result in the following sort of behavior (assume each attempt
+> > is trying to grow the pool by 100 hugepages, starting with 100 hugepages
+> > in the pool, on x86_64):
+
+<snip>
+
+> > Modify __alloc_pages() to retry GFP_REPEAT COSTLY_ORDER allocations up
+> > to COSTLY_ORDER_RETRY_ATTEMPTS times, which I've set to 5, and use
+> > GFP_REPEAT in the hugetlb pool allocation. 5 seems to give reasonable
+> > results for x86, x86_64 and ppc64, but I'm not sure how to come up with
+> > the "best" number here (suggestions are welcome!). With this patch
+> > applied, the same box that gave the above results now gives:
+
+<snip>
+
+> > --- a/include/linux/mmzone.h
+> > +++ b/include/linux/mmzone.h
+> > @@ -33,6 +33,12 @@
+> >   * will not.
+> >   */
+> >  #define PAGE_ALLOC_COSTLY_ORDER 3
+> > +/*
+> > + * COSTLY_ORDER_RETRY_ATTEMPTS is the number of retry attempts for
+> > + * allocations above PAGE_ALLOC_COSTLY_ORDER with __GFP_REPEAT
+> > + * specified.
 > 
-> ... when __GFP_REPEAT has not been specified, right?
+> Perhaps add a note here saying that __GFP_REPEAT for allocations below
+> PAGE_ALLOC_COSTLY_ORDER behaves like __GFP_NOFAIL?
 
-Err, yes, sorry -- will fix the commit message. If __GFP_REPEAT is set,
-though, it is translated directly to __GFP_NOFAIL.
+Good idea.
 
-> > Modify __alloc_pages() to retry GFP_REPEAT COSTLY_ORDER allocations
-> > up to COSTLY_ORDER_RETRY_ATTEMPTS times, which I've set to 5, and
-> > use GFP_REPEAT in the hugetlb pool allocation. 5 seems to give
-> > reasonable results for x86, x86_64 and ppc64, but I'm not sure how
-> > to come up with the "best" number here (suggestions are welcome!).
-> > With this patch applied, the same box that gave the above results
-> > now gives: 
+<snip>
+
+> > diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+
+<snip>
+
+> > @@ -1622,16 +1622,25 @@ nofail_alloc:
+> >  	 *
+> >  	 * In this implementation, __GFP_REPEAT means __GFP_NOFAIL for order
+> >  	 * <= 3, but that may not be true in other implementations.
+> > +	 *
+> > +	 * For order > 3, __GFP_REPEAT means try to reclaim memory 5
+> > +	 * times, but that may not be true in other implementations.
 > 
-> Coding in an explicit number of retries like this seems a bit hackish
-> to me.  Retrying the allocations N times internally (through looping)
-> should give roughly the same number of huge pages that retrying them N
-> times externally (from the /proc file).  Does doing another ~50
-> allocations get you to the same number of huge pages?
+> magic number alert. s/3/PAGE_ALLOC_COSTLY_ORDER and
+> s/5/COSTLY_ORDER_RETRY_ATTEMPTS
 
-Yes, in that first example, the userspace shell script, which is just
-repeatedly trying to grow the pool by 100 hugepages eventually gets to
-the same maximum value, just slower.
+I was trying to avoid changing too much outside of the context of the
+intents of the patch, but this does help clarify things.
 
-> What happens if you *only* specify GFP_REPEAT from hugetlbfs?
+> >  	 */
+> > -	do_retry = 0;
+> >  	if (!(gfp_mask & __GFP_NORETRY)) {
+> > -		if ((order <= PAGE_ALLOC_COSTLY_ORDER) ||
+> > -						(gfp_mask & __GFP_REPEAT))
+> > -			do_retry = 1;
+> > +		if (gfp_mask & __GFP_REPEAT) {
+> > +			if (order <= PAGE_ALLOC_COSTLY_ORDER) {
+> > +				do_retry_attempts = 1;
+> > +			} else {
+> > +				if (do_retry_attempts >
+> > +					COSTLY_ORDER_RETRY_ATTEMPTS)
+> > +					goto nopage;
+> > +				do_retry_attempts += 1;
+> > +			}
+> 
+> Seems fair enough logic. The second if looks a little ugly but I don't
+> see a nicer way of expressing it right now.
 
-We get __NOFAIL behavior, as I understand it -- I haven't tried this,
-though. And it seems undesirable to even have that semantic in hugetlb
-code.
+Yeah, I'm open to suggestions. I also didn't want to always increment
+do_retry_attempts, because __NOFAIL might lead to it growing without
+bound and wrapping...
 
-> I think you're asking a bit much of the page allocator (and reclaim)
-> here.  There is a discrete amount of memory pressure applied for each
-> allocator request.  Increasing the number of requests will virtually
-> always increase the memory pressure and make more pages available.
+Hrm, looking closer, this hunk is wrong anyways... the original code
+says this, I think:
 
-I'm not sure how I follow that this is "a bit much"? It seems like it is
-reasonable to try a little harder to satisfy a larger order request, if
-the callee specified as much.
+  if gfp_mask does not specify NORETRY
+	if order is less than or equal to COSTLY_ORDER
+	or gpf_mask specifies REPEAT
+		engage in NOFAIL behavior
 
-> What is the actual behavior that you want to get here?  Do you want
-> that 34th request to always absolutely plateau the number of huge
-> pages?
+My changes lead to:
 
-I think I said this in the commit message, but yes, in an ideal world,
-we'd never have a sequence of requests where a particular number of
-hugepages are requested (X) but the kernel allocates fewer, then the
-same request is made and more hugepages are allocated (due to the
-increased memory pressure). That may mean waiting a long time in the
-kernel, though, so I figured this compromise of some effort (not
-necessarliy best effort, I suppose) for trying to satisfy the request
-gets us a little closer, at least.
+  if gfp_mask does not specify NORETRY
+	if gfp_mask does specify REPEAT
+		if order is less than or equal to COSTLY_ORDER
+			engage in NOFAIL behavior
+
+So before, if an allocation is less than COSTLY_ORDER regardless of
+__GFP_REPEAT's state in the gfp_mask, we upgrade the behavior to NOFAIL.
+That's my reading, at least. Easy enough to keep that behavior with my
+code, but the comment sort of implies a different behavior. I'll update
+the comment further in my patch to reflect the cases, I think.
+
+> > +		}
+> >  		if (gfp_mask & __GFP_NOFAIL)
+> > -			do_retry = 1;
+> > +			do_retry_attempts = 1;
+> >  	}
+> > -	if (do_retry) {
+> > +	if (do_retry_attempts) {
+> >  		congestion_wait(WRITE, HZ/50);
+> >  		goto rebalance;
+> >  	}
+> > 
+> 
+> Overall, seems fine to me.
 
 Thanks,
 Nish
