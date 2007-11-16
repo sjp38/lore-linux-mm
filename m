@@ -1,65 +1,74 @@
-Date: Fri, 16 Nov 2007 19:11:07 +0900
+Date: Fri, 16 Nov 2007 19:14:59 +0900
 From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: [RFC][PATCH] memory controller per zone patches take 2 [0/10]
- introduction
-Message-Id: <20071116191107.46dd523a.kamezawa.hiroyu@jp.fujitsu.com>
+Subject: [RFC][PATCH] memory controller per zone patches take 2 [1/10] add
+ scan_global_lru() macro
+Message-Id: <20071116191459.dcd71a3d.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20071116191107.46dd523a.kamezawa.hiroyu@jp.fujitsu.com>
+References: <20071116191107.46dd523a.kamezawa.hiroyu@jp.fujitsu.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "linux-mm@kvack.org" <linux-mm@kvack.org>
-Cc: "yamamoto@valinux.co.jp" <yamamoto@valinux.co.jp>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "containers@lists.osdl.org" <containers@lists.osdl.org>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "yamamoto@valinux.co.jp" <yamamoto@valinux.co.jp>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "containers@lists.osdl.org" <containers@lists.osdl.org>
 List-ID: <linux-mm.kvack.org>
 
-Hi, this is updated version of patch set implementing per-zone on memory cgroup.
+add macro scan_global_lru().
 
-I still uses x86_64/fake NUMA (my ia64/NUMA box is under maintainance....)
-So, RFC again. (I'd like to do 3rd update in the next week.)
+This is used to detect which scan_control scans global lru or
+mem_cgroup lru. And compiled to be static value (1) when 
+memory controller is not configured. (maybe good for compiler)
 
-Major Changes from previous one.
- - per-zone-lru_lock patch is added.
- - all per-zone objects of memory cgroup are treated in same way.
- - page migration is handled.
- - restructured and cleaned up.
+Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
-Todo:
- - do test on "real" NUMA.
- - merge YAMAMOTO-san's background page reclaim patch set on this. (If I can)
- - performance measurement at some point
- - more cleanup and adding meaningful comments
- - confirm added logic in vmscan.c is really sane.
 
-Overview:
+ mm/vmscan.c |   17 ++++++++++++-----
+ 1 file changed, 12 insertions(+), 5 deletions(-)
 
-All per-zone obects are put into 
-==
- struct mem_cgroup_per_zone {
-        /*
-         * spin_lock to protect the per cgroup LRU
-         */
-        spinlock_t              lru_lock;
-        struct list_head        active_list;
-        struct list_head        inactive_list;
-        unsigned long count[NR_MEM_CGROUP_ZSTAT];
- };
-==
-And this per-zone area is accessed by following functions.
-==
- mem_cgroup_zoneinfo(struct mem_cgroup *mem, int nid, int zid)
- page_cgroup_zoneinfo(struct page_cgroup *pc)
-==
-
-Typical usage is following.
-==
-        mz = page_cgroup_zoneinfo(pc);
-        spin_lock_irqsave(&mz->lru_lock, flags);
-        __mem_cgroup_add_list(pc);
-        spin_unlock_irqrestore(&mz->lru_lock, flags);
-==
-
-Thanks,
--Kame
+Index: linux-2.6.24-rc2-mm1/mm/vmscan.c
+===================================================================
+--- linux-2.6.24-rc2-mm1.orig/mm/vmscan.c
++++ linux-2.6.24-rc2-mm1/mm/vmscan.c
+@@ -127,6 +127,12 @@ long vm_total_pages;	/* The total number
+ static LIST_HEAD(shrinker_list);
+ static DECLARE_RWSEM(shrinker_rwsem);
+ 
++#ifdef CONFIG_CGROUP_MEM_CONT
++#define scan_global_lru(sc)	(!(sc)->mem_cgroup)
++#else
++#define scan_global_lru(sc)	(1)
++#endif
++
+ /*
+  * Add a shrinker callback to be called from the vm
+  */
+@@ -1290,11 +1296,12 @@ static unsigned long do_try_to_free_page
+ 		 * Don't shrink slabs when reclaiming memory from
+ 		 * over limit cgroups
+ 		 */
+-		if (sc->mem_cgroup == NULL)
++		if (scan_global_lru(sc)) {
+ 			shrink_slab(sc->nr_scanned, gfp_mask, lru_pages);
+-		if (reclaim_state) {
+-			nr_reclaimed += reclaim_state->reclaimed_slab;
+-			reclaim_state->reclaimed_slab = 0;
++			if (reclaim_state) {
++				nr_reclaimed += reclaim_state->reclaimed_slab;
++				reclaim_state->reclaimed_slab = 0;
++			}
+ 		}
+ 		total_scanned += sc->nr_scanned;
+ 		if (nr_reclaimed >= sc->swap_cluster_max) {
+@@ -1321,7 +1328,7 @@ static unsigned long do_try_to_free_page
+ 			congestion_wait(WRITE, HZ/10);
+ 	}
+ 	/* top priority shrink_caches still had more to do? don't OOM, then */
+-	if (!sc->all_unreclaimable && sc->mem_cgroup == NULL)
++	if (!sc->all_unreclaimable && scan_global_lru(sc))
+ 		ret = 1;
+ out:
+ 	/*
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
