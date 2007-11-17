@@ -1,21 +1,21 @@
-Received: from d03relay02.boulder.ibm.com (d03relay02.boulder.ibm.com [9.17.195.227])
-	by e35.co.us.ibm.com (8.13.8/8.13.8) with ESMTP id lAHHcDeE013647
-	for <linux-mm@kvack.org>; Sat, 17 Nov 2007 12:38:13 -0500
-Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
-	by d03relay02.boulder.ibm.com (8.13.8/8.13.8/NCO v8.7) with ESMTP id lAHHc7jH123632
-	for <linux-mm@kvack.org>; Sat, 17 Nov 2007 10:38:12 -0700
-Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av02.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id lAHHc7Au003243
-	for <linux-mm@kvack.org>; Sat, 17 Nov 2007 10:38:07 -0700
-Message-ID: <473F26EA.5090808@linux.vnet.ibm.com>
-Date: Sat, 17 Nov 2007 23:07:46 +0530
+Received: from d01relay04.pok.ibm.com (d01relay04.pok.ibm.com [9.56.227.236])
+	by e5.ny.us.ibm.com (8.13.8/8.13.8) with ESMTP id lAHHpPBj031525
+	for <linux-mm@kvack.org>; Sat, 17 Nov 2007 12:51:25 -0500
+Received: from d01av02.pok.ibm.com (d01av02.pok.ibm.com [9.56.224.216])
+	by d01relay04.pok.ibm.com (8.13.8/8.13.8/NCO v8.6) with ESMTP id lAHHpPY9089536
+	for <linux-mm@kvack.org>; Sat, 17 Nov 2007 12:51:25 -0500
+Received: from d01av02.pok.ibm.com (loopback [127.0.0.1])
+	by d01av02.pok.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id lAHHpPnS024945
+	for <linux-mm@kvack.org>; Sat, 17 Nov 2007 12:51:25 -0500
+Message-ID: <473F2A1A.8000703@linux.vnet.ibm.com>
+Date: Sat, 17 Nov 2007 23:21:22 +0530
 From: Balbir Singh <balbir@linux.vnet.ibm.com>
 Reply-To: balbir@linux.vnet.ibm.com
 MIME-Version: 1.0
-Subject: Re: [RFC][PATCH] memory controller per zone patches take 2 [8/10]
- changes in vmscan.c
-References: <20071116191107.46dd523a.kamezawa.hiroyu@jp.fujitsu.com> <20071116192536.0a9f2d61.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20071116192536.0a9f2d61.kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [RFC][PATCH] memory controller per zone patches take 2 [9/10]
+ per-zone-lru for memory cgroup
+References: <20071116191107.46dd523a.kamezawa.hiroyu@jp.fujitsu.com> <20071116192642.8c7f07c9.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20071116192642.8c7f07c9.kamezawa.hiroyu@jp.fujitsu.com>
 Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
@@ -25,45 +25,32 @@ Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "yamamoto@valinux.co.jp" <yamamot
 List-ID: <linux-mm.kvack.org>
 
 KAMEZAWA Hiroyuki wrote:
-> When using memory controller, there are 2 levels of memory reclaim.
->  1. zone memory reclaim because of system/zone memory shortage.
->  2. memory cgroup memory reclaim because of hitting limit.
+> This patch implements per-zone lru for memory cgroup.
+> This patch makes use of mem_cgroup_per_zone struct for per zone lru.
 > 
-> These two can be distinguished by sc->mem_cgroup parameter.
+> LRU can be accessed by
 > 
-> This patch tries to make memory cgroup reclaim routine avoid affecting
-> system/zone memory reclaim. This patch inserts if (!sc->mem_cgroup) and
-> hook to memory_cgroup reclaim support functions.
+>    mz = mem_cgroup_zoneinfo(mem_cgroup, node, zone);
+>    &mz->active_list
+>    &mz->inactive_list
 > 
-> This patch can be a help for isolating system lru activity and group lru
-> activity and shows what additional functions are necessary.
+>    or
+>    mz = page_cgroup_zoneinfo(page_cgroup, node, zone);
+>    &mz->active_list
+>    &mz->inactive_list
 > 
->  * mem_cgroup_calc_mapped_ratio() ... calculate mapped ratio for cgroup.
->  * mem_cgroup_reclaim_imbalance() ... calculate active/inactive balance in
->                                         cgroup.
->  * mem_cgroup_calc_reclaim_active() ... calculate the number of active pages to
->                                 be scanned in this priority in mem_cgroup.
 > 
->  * mem_cgroup_calc_reclaim_inactive() ... calculate the number of inactive pages
->                                 to be scanned in this priority in mem_cgroup.
-> 
->  * mem_cgroup_all_unreclaimable() .. checks cgroup's page is all unreclaimable
->                                      or not.
->  * mem_cgroup_get_reclaim_priority() ...
->  * mem_cgroup_note_reclaim_priority() ... record reclaim priority (temporal)
->  * mem_cgroup_remember_reclaim_priority()
->                              .... record reclaim priority as
->                                   zone->prev_priority.
->                                   This value is used for calc reclaim_mapped.
-> Changelog:
->  - merged calc_reclaim_mapped patch in previous version.
+> Changelog v1->v2
+>   - merged to mem_cgroup_per_zone struct.
+>   - handle page migraiton.
 > 
 > Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> 
 
-The overall idea looks good, it brings the two reclaims closer. The one
-pending to do for memory controllers is to make the reclaim lumpy
-reclaim aware. But at this point, I don't see a need for it, since
-we track only order 1 allocations in the memory controller.
+Thanks, this has been a long pending TODO. What is pending now on my
+plate is re-organizing res_counter to become aware of the filesystem
+hierarchy. I want to split out the LRU lists from the memory controller
+and resource counters.
 
 -- 
 	Warm Regards,
