@@ -1,44 +1,69 @@
-Date: Sat, 17 Nov 2007 20:16:18 +0000 (GMT)
+Date: Sat, 17 Nov 2007 21:24:01 +0000 (GMT)
 From: Hugh Dickins <hugh@veritas.com>
-Subject: Re: [patch 0/6] lockless pagecache
-In-Reply-To: <20071111084556.GC19816@wotan.suse.de>
-Message-ID: <Pine.LNX.4.64.0711172001420.9287@blonde.wat.veritas.com>
-References: <20071111084556.GC19816@wotan.suse.de>
+Subject: Re: msync(2) bug(?), returns AOP_WRITEPAGE_ACTIVATE to userland 
+In-Reply-To: <200711131018.lADAInYN017695@agora.fsl.cs.sunysb.edu>
+Message-ID: <Pine.LNX.4.64.0711172103040.10619@blonde.wat.veritas.com>
+References: <200711131018.lADAInYN017695@agora.fsl.cs.sunysb.edu>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nick Piggin <npiggin@suse.de>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Linux Memory Management List <linux-mm@kvack.org>
+To: Erez Zadok <ezk@cs.sunysb.edu>
+Cc: Dave Hansen <haveblue@us.ibm.com>, Pekka Enberg <penberg@cs.helsinki.fi>, Ryan Finnie <ryan@finnie.org>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, cjwatson@ubuntu.com, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Sun, 11 Nov 2007, Nick Piggin wrote:
+On Tue, 13 Nov 2007, Erez Zadok wrote:
 > 
-> I wonder what everyone thinks about getting the lockless pagecache patch
-> into -mm? This version uses Hugh's suggestion to avoid a smp_rmb and a load
-> and branch in the lockless lookup side, and avoids some atomic ops in the
-> reclaim path, and avoids using a page flag! The coolest thing about it is
-> that it speeds up single-threaded pagecache lookups...
+> I posted all of these patches just now.  You're CC'ed.  Hopefully Andrew can
+> pull from my unionfs.git branch soon.
+> 
+> You also reported in your previous emails some hangs/oopses while doing make
+> -j 20 in unionfs on top of a single tmpfs, using -mm.  After several days,
+> I've not been able to reproduce this w/ my latest set of patches.  If you
+> can send me your .config and the specs on the h/w you're using (cpus, mem,
+> etc.), I'll see if I can find something similar to it on my end and run the
+> same tests.
 
-I've liked this in the past, with the exception of PageNoNewRefs which
-seemed an unnecessary ugliness.  Now you've eliminated that, thank you,
-I expect I should like it through and through (if I actually found time
-to redigest it).  A moment came up and I thought I'd give it a spin...
+I'm glad to report that this unionfs, not the one in 2.6.24-rc2-mm1
+but the one including those 9 patches you posted, now gets through
+my testing with tmpfs without a problem.  I do still get occasional
+"unionfs: new lower inode mtime (bindex=0, name=<directory>)"
+messages, but nothing worse seen yet: a big improvement.
 
-> Patches are against latest git for RFC.
+I deceived myself for a while that the danger of shmem_writepage
+hitting its BUG_ON(entry->val) was dealt with too; but that's wrong,
+I must go back to working out an escape from that one (despite never
+seeing it).
 
-... but they're not.  You seem to have descended into sending out
-?cleanup? patches at intervals, and recursive dependence upon them.
-This set relies on there being something called __set_page_locked()
-in include/linux/pagemap.h, but there isn't in latest git (nor mm).
-Ah, you posted a patch earlier which introduced that, but it relies on
-there being something called set_page_locked() in include/linux/pagemap.h,
-but there isn't in latest git (nor mm).  Ah, you posted a patch earlier
-which introduced that ... I gave up at this point.
-
-We've all got lots of other things to do, please make it easier.
+I did think you could clean up the doubled set_page_dirtys,
+but it's of no consequence.
 
 Hugh
+
+--- 2.6.24-rc2-mm1+9/fs/unionfs/mmap.c	2007-11-17 12:23:30.000000000 +0000
++++ linux/fs/unionfs/mmap.c	2007-11-17 20:22:29.000000000 +0000
+@@ -56,6 +56,7 @@ static int unionfs_writepage(struct page
+ 	copy_highpage(lower_page, page);
+ 	flush_dcache_page(lower_page);
+ 	SetPageUptodate(lower_page);
++	set_page_dirty(lower_page);
+ 
+ 	/*
+ 	 * Call lower writepage (expects locked page).  However, if we are
+@@ -66,12 +67,11 @@ static int unionfs_writepage(struct page
+ 	 * success.
+ 	 */
+ 	if (wbc->for_reclaim) {
+-		set_page_dirty(lower_page);
+ 		unlock_page(lower_page);
+ 		goto out_release;
+ 	}
++
+ 	BUG_ON(!lower_mapping->a_ops->writepage);
+-	set_page_dirty(lower_page);
+ 	clear_page_dirty_for_io(lower_page); /* emulate VFS behavior */
+ 	err = lower_mapping->a_ops->writepage(lower_page, wbc);
+ 	if (err < 0)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
