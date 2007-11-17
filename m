@@ -1,67 +1,51 @@
-Received: from d03relay04.boulder.ibm.com (d03relay04.boulder.ibm.com [9.17.195.106])
-	by e34.co.us.ibm.com (8.13.8/8.13.8) with ESMTP id lAH9FmMb018187
-	for <linux-mm@kvack.org>; Sat, 17 Nov 2007 04:15:48 -0500
-Received: from d03av04.boulder.ibm.com (d03av04.boulder.ibm.com [9.17.195.170])
-	by d03relay04.boulder.ibm.com (8.13.8/8.13.8/NCO v8.7) with ESMTP id lAH9FmXV100428
-	for <linux-mm@kvack.org>; Sat, 17 Nov 2007 02:15:48 -0700
-Received: from d03av04.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av04.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id lAH9Fmkk018399
-	for <linux-mm@kvack.org>; Sat, 17 Nov 2007 02:15:48 -0700
-Message-ID: <473EB141.4000005@linux.vnet.ibm.com>
-Date: Sat, 17 Nov 2007 14:45:45 +0530
-From: Balbir Singh <balbir@linux.vnet.ibm.com>
-Reply-To: balbir@linux.vnet.ibm.com
-MIME-Version: 1.0
-Subject: Re: [RFC][PATCH] memory controller per zone patches take 2 [2/10]
- add nid/zid function for page_cgroup
-References: <20071116191107.46dd523a.kamezawa.hiroyu@jp.fujitsu.com> <20071116191635.2c141c38.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20071116191635.2c141c38.kamezawa.hiroyu@jp.fujitsu.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Subject: Re: [patch 0/6] lockless pagecache
+From: Peter Zijlstra <a.p.zijlstra@chello.nl>
+In-Reply-To: <20071111084556.GC19816@wotan.suse.de>
+References: <20071111084556.GC19816@wotan.suse.de>
+Content-Type: multipart/signed; micalg=pgp-sha1; protocol="application/pgp-signature"; boundary="=-6j3DAuVr16RfmFnb9bBQ"
+Date: Sat, 17 Nov 2007 10:48:11 +0100
+Message-Id: <1195292891.6739.1.camel@twins>
+Mime-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "yamamoto@valinux.co.jp" <yamamoto@valinux.co.jp>, "containers@lists.osdl.org" <containers@lists.osdl.org>
+To: Nick Piggin <npiggin@suse.de>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, Hugh Dickins <hugh@veritas.com>, Linux Memory Management List <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-KAMEZAWA Hiroyuki wrote:
-> Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
->  mm/memcontrol.c |   10 ++++++++++
->  1 file changed, 10 insertions(+)
-> 
-> Index: linux-2.6.24-rc2-mm1/mm/memcontrol.c
-> ===================================================================
-> --- linux-2.6.24-rc2-mm1.orig/mm/memcontrol.c
-> +++ linux-2.6.24-rc2-mm1/mm/memcontrol.c
-> @@ -135,6 +135,16 @@ struct page_cgroup {
->  #define PAGE_CGROUP_FLAG_CACHE	(0x1)	/* charged as cache */
->  #define PAGE_CGROUP_FLAG_ACTIVE (0x2)	/* page is active in this cgroup */
-> 
-> +static inline int page_cgroup_nid(struct page_cgroup *pc)
-> +{
-> +	return page_to_nid(pc->page);
-> +}
-> +
-> +static inline int page_cgroup_zid(struct page_cgroup *pc)
-> +{
-> +	return page_zonenum(pc->page);
-
-page_zonenum returns zone_type, isn't it better we carry the
-type through to the caller?
-
-> +}
-> +
->  enum {
->  	MEM_CGROUP_TYPE_UNSPEC = 0,
->  	MEM_CGROUP_TYPE_MAPPED,
-> 
+--=-6j3DAuVr16RfmFnb9bBQ
+Content-Type: text/plain
+Content-Transfer-Encoding: quoted-printable
 
 
--- 
-	Warm Regards,
-	Balbir Singh
-	Linux Technology Center
-	IBM, ISTL
+On Sun, 2007-11-11 at 09:45 +0100, Nick Piggin wrote:
+> Hi,
+>=20
+> I wonder what everyone thinks about getting the lockless pagecache patch
+> into -mm? This version uses Hugh's suggestion to avoid a smp_rmb and a lo=
+ad
+> and branch in the lockless lookup side, and avoids some atomic ops in the
+> reclaim path, and avoids using a page flag! The coolest thing about it is
+> that it speeds up single-threaded pagecache lookups...
+>=20
+> Patches are against latest git for RFC.
+
+Full set
+
+Acked-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
+
+--=-6j3DAuVr16RfmFnb9bBQ
+Content-Type: application/pgp-signature; name=signature.asc
+Content-Description: This is a digitally signed message part
+
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v1.4.6 (GNU/Linux)
+
+iD8DBQBHPrjbXA2jU0ANEf4RAl66AJ98XMyF2iRPRnTeTtbm14k9n9GA5wCaAwBo
+s7/gSESMbuBxQamIQ/X8q0o=
+=GGLN
+-----END PGP SIGNATURE-----
+
+--=-6j3DAuVr16RfmFnb9bBQ--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
