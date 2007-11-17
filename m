@@ -1,51 +1,72 @@
-Subject: Re: [patch 0/6] lockless pagecache
-From: Peter Zijlstra <a.p.zijlstra@chello.nl>
-In-Reply-To: <20071111084556.GC19816@wotan.suse.de>
-References: <20071111084556.GC19816@wotan.suse.de>
-Content-Type: multipart/signed; micalg=pgp-sha1; protocol="application/pgp-signature"; boundary="=-6j3DAuVr16RfmFnb9bBQ"
-Date: Sat, 17 Nov 2007 10:48:11 +0100
-Message-Id: <1195292891.6739.1.camel@twins>
-Mime-Version: 1.0
+Received: from d03relay04.boulder.ibm.com (d03relay04.boulder.ibm.com [9.17.195.106])
+	by e33.co.us.ibm.com (8.13.8/8.13.8) with ESMTP id lAHG7bGf008869
+	for <linux-mm@kvack.org>; Sat, 17 Nov 2007 11:07:37 -0500
+Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
+	by d03relay04.boulder.ibm.com (8.13.8/8.13.8/NCO v8.7) with ESMTP id lAHG7VlO082684
+	for <linux-mm@kvack.org>; Sat, 17 Nov 2007 09:07:37 -0700
+Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av02.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id lAHG7Vv3018523
+	for <linux-mm@kvack.org>; Sat, 17 Nov 2007 09:07:31 -0700
+Message-ID: <473F11B5.5050009@linux.vnet.ibm.com>
+Date: Sat, 17 Nov 2007 21:37:17 +0530
+From: Balbir Singh <balbir@linux.vnet.ibm.com>
+Reply-To: balbir@linux.vnet.ibm.com
+MIME-Version: 1.0
+Subject: Re: [RFC][PATCH] memory controller per zone patches take 2 [3/10]
+ add per zone active/inactive counter to mem_cgroup
+References: <20071116191107.46dd523a.kamezawa.hiroyu@jp.fujitsu.com> <20071116191744.d8e2b3a5.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20071116191744.d8e2b3a5.kamezawa.hiroyu@jp.fujitsu.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nick Piggin <npiggin@suse.de>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, Hugh Dickins <hugh@veritas.com>, Linux Memory Management List <linux-mm@kvack.org>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "yamamoto@valinux.co.jp" <yamamoto@valinux.co.jp>, "containers@lists.osdl.org" <containers@lists.osdl.org>
 List-ID: <linux-mm.kvack.org>
 
---=-6j3DAuVr16RfmFnb9bBQ
-Content-Type: text/plain
-Content-Transfer-Encoding: quoted-printable
+KAMEZAWA Hiroyuki wrote:
+> Counting active/inactive per-zone in memory controller.
+> 
+> This patch adds per-zone status in memory cgroup.
+> These values are often read (as per-zone value) by page reclaiming.
+> 
+> In current design, per-zone stat is just a unsigned long value and 
+> not an atomic value because they are modified only under lru_lock.
+> (for avoiding atomic_t ops.)
+> 
+> This patch adds ACTIVE and INACTIVE per-zone status values.
+> 
+> For handling per-zone status, this patch adds
+>   struct mem_cgroup_per_zone {
+> 		...
+>   }
+> and some helper functions. This will be useful to add per-zone objects
+> in mem_cgroup.
+> 
+> This patch turns memory controller's early_init to be 0 for calling 
+> kmalloc().
+> 
+> Changelog V1 -> V2
+>   - added mem_cgroup_per_zone struct.
+>       This will help following patches to implement per-zone objects and
+>       pack them into a struct.
+>   - added __mem_cgroup_add_list() and __mem_cgroup_remove_list()
+>   - fixed page migration handling.
+>   - renamed zstat to info (per-zone-info)
+>     This will be place for per-zone information(lru, lock, ..)
+>   - use page_cgroup_nid()/zid() funcs.
+> 
+> Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
+The code looks OK to me, pending test on a real NUMA box
 
-On Sun, 2007-11-11 at 09:45 +0100, Nick Piggin wrote:
-> Hi,
->=20
-> I wonder what everyone thinks about getting the lockless pagecache patch
-> into -mm? This version uses Hugh's suggestion to avoid a smp_rmb and a lo=
-ad
-> and branch in the lockless lookup side, and avoids some atomic ops in the
-> reclaim path, and avoids using a page flag! The coolest thing about it is
-> that it speeds up single-threaded pagecache lookups...
->=20
-> Patches are against latest git for RFC.
+Acked-by: Balbir Singh <balbir@linux.vnet.ibm.com>
 
-Full set
-
-Acked-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
-
---=-6j3DAuVr16RfmFnb9bBQ
-Content-Type: application/pgp-signature; name=signature.asc
-Content-Description: This is a digitally signed message part
-
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v1.4.6 (GNU/Linux)
-
-iD8DBQBHPrjbXA2jU0ANEf4RAl66AJ98XMyF2iRPRnTeTtbm14k9n9GA5wCaAwBo
-s7/gSESMbuBxQamIQ/X8q0o=
-=GGLN
------END PGP SIGNATURE-----
-
---=-6j3DAuVr16RfmFnb9bBQ--
+-- 
+	Warm Regards,
+	Balbir Singh
+	Linux Technology Center
+	IBM, ISTL
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
