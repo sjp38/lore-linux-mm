@@ -1,21 +1,21 @@
-Received: from d03relay04.boulder.ibm.com (d03relay04.boulder.ibm.com [9.17.195.106])
-	by e33.co.us.ibm.com (8.13.8/8.13.8) with ESMTP id lAHG7bGf008869
-	for <linux-mm@kvack.org>; Sat, 17 Nov 2007 11:07:37 -0500
-Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
-	by d03relay04.boulder.ibm.com (8.13.8/8.13.8/NCO v8.7) with ESMTP id lAHG7VlO082684
-	for <linux-mm@kvack.org>; Sat, 17 Nov 2007 09:07:37 -0700
-Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av02.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id lAHG7Vv3018523
-	for <linux-mm@kvack.org>; Sat, 17 Nov 2007 09:07:31 -0700
-Message-ID: <473F11B5.5050009@linux.vnet.ibm.com>
-Date: Sat, 17 Nov 2007 21:37:17 +0530
+Received: from d01relay04.pok.ibm.com (d01relay04.pok.ibm.com [9.56.227.236])
+	by e6.ny.us.ibm.com (8.13.8/8.13.8) with ESMTP id lAHGDlfE006941
+	for <linux-mm@kvack.org>; Sat, 17 Nov 2007 11:13:47 -0500
+Received: from d01av02.pok.ibm.com (d01av02.pok.ibm.com [9.56.224.216])
+	by d01relay04.pok.ibm.com (8.13.8/8.13.8/NCO v8.6) with ESMTP id lAHGC9mn130002
+	for <linux-mm@kvack.org>; Sat, 17 Nov 2007 11:12:09 -0500
+Received: from d01av02.pok.ibm.com (loopback [127.0.0.1])
+	by d01av02.pok.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id lAHGC9RY002786
+	for <linux-mm@kvack.org>; Sat, 17 Nov 2007 11:12:09 -0500
+Message-ID: <473F12D6.8030607@linux.vnet.ibm.com>
+Date: Sat, 17 Nov 2007 21:42:06 +0530
 From: Balbir Singh <balbir@linux.vnet.ibm.com>
 Reply-To: balbir@linux.vnet.ibm.com
 MIME-Version: 1.0
-Subject: Re: [RFC][PATCH] memory controller per zone patches take 2 [3/10]
- add per zone active/inactive counter to mem_cgroup
-References: <20071116191107.46dd523a.kamezawa.hiroyu@jp.fujitsu.com> <20071116191744.d8e2b3a5.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20071116191744.d8e2b3a5.kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [RFC][PATCH] memory controller per zone patches take 2 [4/10]
+ calculate mapped ratio for memory cgroup
+References: <20071116191107.46dd523a.kamezawa.hiroyu@jp.fujitsu.com> <20071116191844.319b2754.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20071116191844.319b2754.kamezawa.hiroyu@jp.fujitsu.com>
 Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
@@ -25,42 +25,80 @@ Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "yamamoto@valinux.co.jp" <yamamot
 List-ID: <linux-mm.kvack.org>
 
 KAMEZAWA Hiroyuki wrote:
-> Counting active/inactive per-zone in memory controller.
+> Define function for calculating mapped_ratio in memory cgroup.
 > 
-> This patch adds per-zone status in memory cgroup.
-> These values are often read (as per-zone value) by page reclaiming.
-> 
-> In current design, per-zone stat is just a unsigned long value and 
-> not an atomic value because they are modified only under lru_lock.
-> (for avoiding atomic_t ops.)
-> 
-> This patch adds ACTIVE and INACTIVE per-zone status values.
-> 
-> For handling per-zone status, this patch adds
->   struct mem_cgroup_per_zone {
-> 		...
->   }
-> and some helper functions. This will be useful to add per-zone objects
-> in mem_cgroup.
-> 
-> This patch turns memory controller's early_init to be 0 for calling 
-> kmalloc().
-> 
-> Changelog V1 -> V2
->   - added mem_cgroup_per_zone struct.
->       This will help following patches to implement per-zone objects and
->       pack them into a struct.
->   - added __mem_cgroup_add_list() and __mem_cgroup_remove_list()
->   - fixed page migration handling.
->   - renamed zstat to info (per-zone-info)
->     This will be place for per-zone information(lru, lock, ..)
->   - use page_cgroup_nid()/zid() funcs.
-> 
+
+Could you explain what the ratio is used for? Is it for reclaim
+later?
+
 > Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> 
 
-The code looks OK to me, pending test on a real NUMA box
 
-Acked-by: Balbir Singh <balbir@linux.vnet.ibm.com>
+
+>  include/linux/memcontrol.h |   11 ++++++++++-
+>  mm/memcontrol.c            |   13 +++++++++++++
+>  2 files changed, 23 insertions(+), 1 deletion(-)
+> 
+> Index: linux-2.6.24-rc2-mm1/mm/memcontrol.c
+> ===================================================================
+> --- linux-2.6.24-rc2-mm1.orig/mm/memcontrol.c
+> +++ linux-2.6.24-rc2-mm1/mm/memcontrol.c
+> @@ -423,6 +423,19 @@ void mem_cgroup_move_lists(struct page_c
+>  	spin_unlock(&mem->lru_lock);
+>  }
+> 
+> +/*
+> + * Calculate mapped_ratio under memory controller.
+> + */
+> +int mem_cgroup_calc_mapped_ratio(struct mem_cgroup *mem)
+> +{
+> +	s64 total, rss;
+> +
+> +	/* usage is recorded in bytes */
+> +	total = mem->res.usage >> PAGE_SHIFT;
+> +	rss = mem_cgroup_read_stat(&mem->stat, MEM_CGROUP_STAT_RSS);
+> +	return (rss * 100) / total;
+
+Never tried 64 bit division on a 32 bit system. I hope we don't
+have to resort to do_div() sort of functionality.
+
+> +}
+> +
+>  unsigned long mem_cgroup_isolate_pages(unsigned long nr_to_scan,
+>  					struct list_head *dst,
+>  					unsigned long *scanned, int order,
+> Index: linux-2.6.24-rc2-mm1/include/linux/memcontrol.h
+> ===================================================================
+> --- linux-2.6.24-rc2-mm1.orig/include/linux/memcontrol.h
+> +++ linux-2.6.24-rc2-mm1/include/linux/memcontrol.h
+> @@ -61,6 +61,12 @@ extern int mem_cgroup_prepare_migration(
+>  extern void mem_cgroup_end_migration(struct page *page);
+>  extern void mem_cgroup_page_migration(struct page *page, struct page *newpage);
+> 
+> +/*
+> + * For memory reclaim.
+> + */
+> +extern int mem_cgroup_calc_mapped_ratio(struct mem_cgroup *mem);
+> +
+> +
+>  #else /* CONFIG_CGROUP_MEM_CONT */
+>  static inline void mm_init_cgroup(struct mm_struct *mm,
+>  					struct task_struct *p)
+> @@ -132,7 +138,10 @@ mem_cgroup_page_migration(struct page *p
+>  {
+>  }
+> 
+> -
+> +static inline int mem_cgroup_calc_mapped_ratio(struct mem_cgroup *mem)
+> +{
+> +	return 0;
+> +}
+>  #endif /* CONFIG_CGROUP_MEM_CONT */
+> 
+>  #endif /* _LINUX_MEMCONTROL_H */
+> 
+
 
 -- 
 	Warm Regards,
