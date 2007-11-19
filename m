@@ -1,57 +1,78 @@
-Received: from d01relay06.pok.ibm.com (d01relay06.pok.ibm.com [9.56.227.116])
-	by e5.ny.us.ibm.com (8.13.8/8.13.8) with ESMTP id lAJI7I6W016061
-	for <linux-mm@kvack.org>; Mon, 19 Nov 2007 13:07:18 -0500
-Received: from d03av04.boulder.ibm.com (d03av04.boulder.ibm.com [9.17.195.170])
-	by d01relay06.pok.ibm.com (8.13.8/8.13.8/NCO v8.6) with ESMTP id lAJI7F7W1278122
-	for <linux-mm@kvack.org>; Mon, 19 Nov 2007 13:07:15 -0500
-Received: from d03av04.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av04.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id lAJI7Bqb007184
-	for <linux-mm@kvack.org>; Mon, 19 Nov 2007 11:07:12 -0700
-Subject: Re: [RFC 5/7] LTTng instrumentation mm
-From: Dave Hansen <haveblue@us.ibm.com>
-In-Reply-To: <20071116144742.GA17255@Krystal>
-References: <20071113193349.214098508@polymtl.ca>
-	 <20071113194025.150641834@polymtl.ca> <1195160783.7078.203.camel@localhost>
-	 <20071115215142.GA7825@Krystal> <1195164977.27759.10.camel@localhost>
-	 <20071116144742.GA17255@Krystal>
-Content-Type: text/plain
-Date: Mon, 19 Nov 2007 10:07:05 -0800
-Message-Id: <1195495626.27759.119.camel@localhost>
-Mime-Version: 1.0
+Message-ID: <4741D3C4.4020809@sgi.com>
+Date: Mon, 19 Nov 2007 10:19:48 -0800
+From: Mike Travis <travis@sgi.com>
+MIME-Version: 1.0
+Subject: Re: [patch 2/2] x86_64: Configure stack size
+References: <Pine.LNX.4.64.0711121147350.27017@schroedinger.engr.sgi.com>
+In-Reply-To: <Pine.LNX.4.64.0711121147350.27017@schroedinger.engr.sgi.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Mathieu Desnoyers <mathieu.desnoyers@polymtl.ca>
-Cc: akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, mbligh@google.com
+To: Andi Kleen <ak@suse.de>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <clameter@sgi.com>, apw@shadowen.org, Jack Steiner <steiner@sgi.com>, Paul Jackson <pj@sgi.com>, linux-mm@kvack.org, Mike Travis <travis@sgi.com>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 2007-11-16 at 09:47 -0500, Mathieu Desnoyers wrote:
-> * Dave Hansen (haveblue@us.ibm.com) wrote:
-> > For most (all?) architectures, the PFN and the virtual address in the
-> > kernel's linear are interchangeable with pretty trivial arithmetic.  All
-> > pages have a pfn, but not all have a virtual address.  Thus, I suggested
-> > using the pfn.  What kind of virtual addresses are you talking about?
-> > 
+Andi Kleen writes:
 > 
-> Hrm, in asm-generic/memory_model.h, we have various versions of
-> __page_to_pfn. Normally they all cast the result to (unsigned long),
-> except for :
+>> What else can we do?  Change all sites to do some dynamic allocation if
+>> (NR_CPUS >= lots), I guess.
 > 
-> 
-> #elif defined(CONFIG_SPARSEMEM_VMEMMAP)
-> 
-> /* memmap is virtually contigious.  */
-> #define __pfn_to_page(pfn)      (vmemmap + (pfn))
-> #define __page_to_pfn(page)     ((page) - vmemmap)
-> 
-> So I guess the result is a pointer ? Should this be expected ?
+> I think that's an reasonable alternative. Perhaps push one or two into
+> task_struct and grab them from there, then go dynamic. Only issue
+> is error handling and making it look nice in the source.
 
-Nope.  'pointer - pointer' is an integer.  Just solve this equation for
-integer:
+I've been looking into this issue of cpumasks quite closely.  The idea of
+having one or two "scratch" cpumask variables available is a good one.
+Integrating it into the current cpumask API is a big issue.
 
-	'pointer + integer = pointer'
+One of the problem areas is cpumask_of_cpu().  This pushes not only a large
+array onto the stack, but the zeroing of all but 1 bit is expensive in
+cpu cycles.  The predominant uses center on the following.  (usage counts are
+only based on x86 and ia64 at the moment - 78 total references):
 
--- Dave
+    * Modifying a task's CPU affinity:  (29 usages)
+	set_cpus_allowed(current, cpumask_of_cpu(cpu))
+
+    * Initialization of arrays: (32 usages)
+        = cpumask_of_cpu(0)
+        = cpumask_of_cpu(cpu)
+        = cpumask_of_cpu(smp_processor_id())
+
+    * other random instances in balance_irq, smp_send_reschedule, !SMP target_cpu
+      replacement macro, etc.
+
+I think adding another api call or an optional interface to include a scalar cpu #
+avoids this fairly easily.  Whether the cpumask primitives need this optional
+scalar operation is still a bit unclear.
+
+> 
+>> As for timing: we might as well merge it now so that 2.6.25 has at least a
+>> chance of running on 16384-way.
+> 
+> x86 is still limited to 256 virtual CPUs. What makes you think that changed?
+> With x2APIC from Intel it will be higher, but I haven't seen code for 
+> that yet.
+
+Yes, there will be more support needed for this new APIC as well as new ACPI
+tables.
+
+> 
+>> otoh, I doubt if anyone will actually ship an NR_CPUS=16384 kernel, so it
+>> isn't terribly pointful.
+
+Ideally, NR_CPUS would just go away, and become a startup initialization problem... ;-)
+
+> NR_CPUS==4096 might happen. Of course that still needs eliminating
+> a lot of NR_CPUS arrays and fixing up of NR_INTERRUPTS and some other
+> things.
+
+I've also looked at the irq problems with cpumask in the irq_desc and irq_cfg
+arrays all being on node 0.  The code in ia64 seems to be a fairly good model
+to base changes on...?
+
+Thanks,
+Mike
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
