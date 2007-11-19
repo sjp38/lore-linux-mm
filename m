@@ -1,70 +1,45 @@
-Date: Mon, 19 Nov 2007 18:39:42 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: page_referenced() and VM_LOCKED
-Message-Id: <20071119183942.614771c2.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <16909246.1195259556869.kamezawa.hiroyu@jp.fujitsu.com>
-References: <Pine.LNX.4.64.0711161749020.12201@blonde.wat.veritas.com>
-	<473D1BC9.8050904@google.com>
-	<20071116144641.f12fd610.kamezawa.hiroyu@jp.fujitsu.com>
-	<16909246.1195259556869.kamezawa.hiroyu@jp.fujitsu.com>
+Received: from d03relay04.boulder.ibm.com (d03relay04.boulder.ibm.com [9.17.195.106])
+	by e31.co.us.ibm.com (8.13.8/8.13.8) with ESMTP id lAJI50BK017055
+	for <linux-mm@kvack.org>; Mon, 19 Nov 2007 13:05:00 -0500
+Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
+	by d03relay04.boulder.ibm.com (8.13.8/8.13.8/NCO v8.7) with ESMTP id lAJI4m7f078650
+	for <linux-mm@kvack.org>; Mon, 19 Nov 2007 11:04:51 -0700
+Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av02.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id lAJI4l7f021908
+	for <linux-mm@kvack.org>; Mon, 19 Nov 2007 11:04:48 -0700
+Subject: Re: [RFC 5/7] LTTng instrumentation mm
+From: Dave Hansen <haveblue@us.ibm.com>
+In-Reply-To: <20071116143019.GA16082@Krystal>
+References: <20071113193349.214098508@polymtl.ca>
+	 <20071113194025.150641834@polymtl.ca> <1195160783.7078.203.camel@localhost>
+	 <20071115215142.GA7825@Krystal> <1195164977.27759.10.camel@localhost>
+	 <20071116143019.GA16082@Krystal>
+Content-Type: text/plain
+Date: Mon, 19 Nov 2007 10:04:45 -0800
+Message-Id: <1195495485.27759.115.camel@localhost>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: kamezawa.hiroyu@jp.fujitsu.com
-Cc: Hugh Dickins <hugh@veritas.com>, Ethan Solomita <solo@google.com>, linux-mm@kvack.org
+To: Mathieu Desnoyers <mathieu.desnoyers@polymtl.ca>
+Cc: akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, mbligh@google.com
 List-ID: <linux-mm.kvack.org>
 
-On Sat, 17 Nov 2007 09:32:36 +0900 (JST)
-kamezawa.hiroyu@jp.fujitsu.com wrote:
-
-> >> > I would've thought the point was to treat locked pages as active, never
-> >> > pushing them into the inactive list, but since that's not quite what's
-> >> > happening I was hoping someone could give me a clue.
-> >
-> >Rik and Lee and others have proposed that we keep VM_LOCKED pages
-> >off both active and inactive lists: that seems a better way forward.
-> >
-> agreed.
+On Fri, 2007-11-16 at 09:30 -0500, Mathieu Desnoyers wrote:
+> I see that the standard macro to get the kernel address from a pfn is :
 > 
-> >> Then, "VM_LOCKED & not referenced" anon page is added to swap cache
-> >> (before pushed back to active list)
-> >> 
-> >> Seems intended ?
-> >
-> >Not intended, no.  Rather a waste of swap.  How about this patch?
-> >
-> seems nice. I'd like to do some test in the next week,
+> asm-x86/page_32.h:#define pfn_to_kaddr(pfn)      __va((pfn) << PAGE_SHIFT)
 > 
-your patch helps the kernel to avoid a waste of Swap.
+> The question might seem trivial, but I wonder how this deals with large
+> pages ?
 
-Tested-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Well, first of all, large pages are a virtual addressing concept.  We're
+only talking about physical addresses here.  You still address the
+memory the same way no matter if it is composed of large or small pages.
+The physical address (and pfn) never change no matter what we do with
+the page or how we allocate ir.
 
-==
-I tested your patch on x86_64/6GiB memory, + 2.6.24-rc3.
-mlock 5GiB and create 4GiB file by"dd".
-
-[before patch]
-MemTotal:      6072620 kB
-MemFree:         50540 kB
-Buffers:          4508 kB
-Cached:         724828 kB
-SwapCached:    5146960 kB
-Active:        2683964 kB
-Inactive:      3198752 kB
-
-[after patch]
-MemTotal:      6072620 kB
-MemFree:         17112 kB
-Buffers:          6816 kB
-Cached:         744880 kB
-SwapCached:      21724 kB
-Active:        5175828 kB
-Inactive:       744956 kB
-
-Thanks,
--Kame
+-- Dave
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
