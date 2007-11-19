@@ -1,56 +1,49 @@
-Received: from l-036148a.enterprise.veritas.com([10.10.97.179]) (1751 bytes) by megami.veritas.com
-	via sendmail with P:esmtp/R:smart_host/T:smtp
-	(sender: <hugh@veritas.com>)
-	id <m1IuC07-00006PC@megami.veritas.com>
-	for <linux-mm@kvack.org>; Mon, 19 Nov 2007 11:09:43 -0800 (PST)
-	(Smail-3.2.0.101 1997-Dec-17 #15 built 2001-Aug-30)
-Date: Mon, 19 Nov 2007 19:09:25 +0000 (GMT)
-From: Hugh Dickins <hugh@veritas.com>
-Subject: Re: page_referenced() and VM_LOCKED
-In-Reply-To: <20071119183942.614771c2.kamezawa.hiroyu@jp.fujitsu.com>
-Message-ID: <Pine.LNX.4.64.0711191906190.14816@blonde.wat.veritas.com>
-References: <Pine.LNX.4.64.0711161749020.12201@blonde.wat.veritas.com>
- <473D1BC9.8050904@google.com> <20071116144641.f12fd610.kamezawa.hiroyu@jp.fujitsu.com>
- <16909246.1195259556869.kamezawa.hiroyu@jp.fujitsu.com>
- <20071119183942.614771c2.kamezawa.hiroyu@jp.fujitsu.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from d01relay04.pok.ibm.com (d01relay04.pok.ibm.com [9.56.227.236])
+	by e5.ny.us.ibm.com (8.13.8/8.13.8) with ESMTP id lAJJh4ON032345
+	for <linux-mm@kvack.org>; Mon, 19 Nov 2007 14:43:04 -0500
+Received: from d01av03.pok.ibm.com (d01av03.pok.ibm.com [9.56.224.217])
+	by d01relay04.pok.ibm.com (8.13.8/8.13.8/NCO v8.6) with ESMTP id lAJJh4PZ113622
+	for <linux-mm@kvack.org>; Mon, 19 Nov 2007 14:43:04 -0500
+Received: from d01av03.pok.ibm.com (loopback [127.0.0.1])
+	by d01av03.pok.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id lAJJh45t009358
+	for <linux-mm@kvack.org>; Mon, 19 Nov 2007 14:43:04 -0500
+Subject: Re: [RFC 5/7] LTTng instrumentation mm
+From: Dave Hansen <haveblue@us.ibm.com>
+In-Reply-To: <20071119185258.GA998@Krystal>
+References: <20071113193349.214098508@polymtl.ca>
+	 <20071113194025.150641834@polymtl.ca> <1195160783.7078.203.camel@localhost>
+	 <20071115215142.GA7825@Krystal> <1195164977.27759.10.camel@localhost>
+	 <20071116144742.GA17255@Krystal> <1195495626.27759.119.camel@localhost>
+	 <20071119185258.GA998@Krystal>
+Content-Type: text/plain
+Date: Mon, 19 Nov 2007 11:43:01 -0800
+Message-Id: <1195501381.27759.127.camel@localhost>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Ethan Solomita <solo@google.com>, linux-mm@kvack.org
+To: Mathieu Desnoyers <mathieu.desnoyers@polymtl.ca>
+Cc: akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, mbligh@google.com
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 19 Nov 2007, KAMEZAWA Hiroyuki wrote:
+On Mon, 2007-11-19 at 13:52 -0500, Mathieu Desnoyers wrote:
+> > > So I guess the result is a pointer ? Should this be expected ?
 > > 
-> your patch helps the kernel to avoid a waste of Swap.
+> > Nope.  'pointer - pointer' is an integer.  Just solve this equation for
+> > integer:
+> > 
+> >       'pointer + integer = pointer'
+> > 
 > 
-> Tested-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> Well, using page_to_pfn turns out to be ugly in markers (and in
+> printks) then. Depending on the architecture, it will result in either
+> an unsigned long (x86_64) or an unsigned int (i386), which corresponds
+> to %lu or %u and will print a warning if we don't cast it explicitly. 
 
-Many thanks, Kame.  I'll send it in with my next little lot.
-Hugh
+Casting the i386 one to be an unconditional 'unsigned long' shouldn't be
+an issue.  We don't generally expect pfns to fit into ints anyway. 
 
-> ==
-> I tested your patch on x86_64/6GiB memory, + 2.6.24-rc3.
-> mlock 5GiB and create 4GiB file by"dd".
-> 
-> [before patch]
-> MemTotal:      6072620 kB
-> MemFree:         50540 kB
-> Buffers:          4508 kB
-> Cached:         724828 kB
-> SwapCached:    5146960 kB
-> Active:        2683964 kB
-> Inactive:      3198752 kB
-> 
-> [after patch]
-> MemTotal:      6072620 kB
-> MemFree:         17112 kB
-> Buffers:          6816 kB
-> Cached:         744880 kB
-> SwapCached:      21724 kB
-> Active:        5175828 kB
-> Inactive:       744956 kB
+-- Dave
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
