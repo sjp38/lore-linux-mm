@@ -1,52 +1,91 @@
-Received: from d03relay04.boulder.ibm.com (d03relay04.boulder.ibm.com [9.17.195.106])
-	by e33.co.us.ibm.com (8.13.8/8.13.8) with ESMTP id lAJLQ6jb011545
-	for <linux-mm@kvack.org>; Mon, 19 Nov 2007 16:26:06 -0500
-Received: from d03av04.boulder.ibm.com (d03av04.boulder.ibm.com [9.17.195.170])
-	by d03relay04.boulder.ibm.com (8.13.8/8.13.8/NCO v8.7) with ESMTP id lAJLQ5do086046
-	for <linux-mm@kvack.org>; Mon, 19 Nov 2007 14:26:05 -0700
-Received: from d03av04.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av04.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id lAJLQ5v3010917
-	for <linux-mm@kvack.org>; Mon, 19 Nov 2007 14:26:05 -0700
-Subject: Re: [PATCH] Cast page_to_pfn to unsigned long in CONFIG_SPARSEMEM
-From: Dave Hansen <haveblue@us.ibm.com>
-In-Reply-To: <1195507183.27759.150.camel@localhost>
-References: <20071113194025.150641834@polymtl.ca>
-	 <1195160783.7078.203.camel@localhost> <20071115215142.GA7825@Krystal>
-	 <1195164977.27759.10.camel@localhost> <20071116144742.GA17255@Krystal>
-	 <1195495626.27759.119.camel@localhost> <20071119185258.GA998@Krystal>
-	 <1195501381.27759.127.camel@localhost> <20071119195257.GA3440@Krystal>
-	 <1195502983.27759.134.camel@localhost> <20071119202023.GA5086@Krystal>
-	 <20071119130801.bd7b7021.akpm@linux-foundation.org>
-	 <1195507183.27759.150.camel@localhost>
-Content-Type: text/plain
-Date: Mon, 19 Nov 2007 13:26:02 -0800
-Message-Id: <1195507562.27759.154.camel@localhost>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Date: Mon, 19 Nov 2007 14:35:14 -0800 (PST)
+From: Christoph Lameter <clameter@sgi.com>
+Subject: Re: [patch 2/2] x86_64: Configure stack size
+In-Reply-To: <4741D3C4.4020809@sgi.com>
+Message-ID: <Pine.LNX.4.64.0711191433480.15026@schroedinger.engr.sgi.com>
+References: <Pine.LNX.4.64.0711121147350.27017@schroedinger.engr.sgi.com>
+ <4741D3C4.4020809@sgi.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Mathieu Desnoyers <mathieu.desnoyers@polymtl.ca>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, mbligh@google.com
+To: Mike Travis <travis@sgi.com>
+Cc: Andi Kleen <ak@suse.de>, Andrew Morton <akpm@linux-foundation.org>, apw@shadowen.org, Jack Steiner <steiner@sgi.com>, Paul Jackson <pj@sgi.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 2007-11-19 at 13:19 -0800, Dave Hansen wrote:
-> On Mon, 2007-11-19 at 13:08 -0800, Andrew Morton wrote:
-> > Heaven knows why though - why does __pfn_to_page() even exist?
-> Perhaps it can go away with the
-> discontig->sparsemem-vmemmap conversion.
+Here is a simple patch to use a per cpu cpumask instead of constructing 
+one on the stack. I have been running awhile with this one:
 
-In fact, Christoph Lameter's
+Do not use stack to allocate cpumask for cpumask_of_cpu
 
-                           Subject: 
-x86_64: Make sparsemem/vmemmap the
-default memory model V2
-                              Date: 
-        Thu, 15 Nov 2007 19:55:11
--0800 (PST)
+Signed-off-by: Christoph Lameter <clameter@sgi.com>
 
-does remove it.  
+---
+ include/linux/cpumask.h |   12 +-----------
+ include/linux/percpu.h  |    2 ++
+ kernel/sched.c          |    6 ++++++
+ 3 files changed, 9 insertions(+), 11 deletions(-)
 
--- Dave
+Index: linux-2.6/include/linux/cpumask.h
+===================================================================
+--- linux-2.6.orig/include/linux/cpumask.h	2007-11-17 17:10:13.508534650 -0800
++++ linux-2.6/include/linux/cpumask.h	2007-11-17 17:11:34.816785513 -0800
+@@ -222,17 +222,7 @@ int __next_cpu(int n, const cpumask_t *s
+ #define next_cpu(n, src)	1
+ #endif
+ 
+-#define cpumask_of_cpu(cpu)						\
+-({									\
+-	typeof(_unused_cpumask_arg_) m;					\
+-	if (sizeof(m) == sizeof(unsigned long)) {			\
+-		m.bits[0] = 1UL<<(cpu);					\
+-	} else {							\
+-		cpus_clear(m);						\
+-		cpu_set((cpu), m);					\
+-	}								\
+-	m;								\
+-})
++#define cpumask_of_cpu(cpu)	per_cpu(cpu_mask, cpu)
+ 
+ #define CPU_MASK_LAST_WORD BITMAP_LAST_WORD_MASK(NR_CPUS)
+ 
+Index: linux-2.6/include/linux/percpu.h
+===================================================================
+--- linux-2.6.orig/include/linux/percpu.h	2007-11-17 17:10:13.516534409 -0800
++++ linux-2.6/include/linux/percpu.h	2007-11-17 17:11:34.816785513 -0800
+@@ -21,6 +21,8 @@
+ 	(__per_cpu_end - __per_cpu_start + PERCPU_MODULE_RESERVE)
+ #endif	/* PERCPU_ENOUGH_ROOM */
+ 
++DECLARE_PER_CPU(cpumask_t, cpu_mask);
++
+ /*
+  * Must be an lvalue. Since @var must be a simple identifier,
+  * we force a syntax error here if it isn't.
+Index: linux-2.6/kernel/sched.c
+===================================================================
+--- linux-2.6.orig/kernel/sched.c	2007-11-17 17:10:13.524534454 -0800
++++ linux-2.6/kernel/sched.c	2007-11-17 17:11:34.816785513 -0800
+@@ -6725,6 +6725,9 @@ static void init_cfs_rq(struct cfs_rq *c
+ 	cfs_rq->min_vruntime = (u64)(-(1LL << 20));
+ }
+ 
++DEFINE_PER_CPU(cpumask_t, cpu_mask);
++EXPORT_PER_CPU_SYMBOL(cpu_mask);
++
+ void __init sched_init(void)
+ {
+ 	int highest_cpu = 0;
+@@ -6734,6 +6737,9 @@ void __init sched_init(void)
+ 		struct rt_prio_array *array;
+ 		struct rq *rq;
+ 
++		/* This makes cpumask_of_cpu work */
++		cpu_set(i, per_cpu(cpu_mask, i));
++
+ 		rq = cpu_rq(i);
+ 		spin_lock_init(&rq->lock);
+ 		lockdep_set_class(&rq->lock, &rq->rq_lock_key);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
