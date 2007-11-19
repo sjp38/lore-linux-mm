@@ -1,91 +1,54 @@
-Date: Mon, 19 Nov 2007 14:35:14 -0800 (PST)
-From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [patch 2/2] x86_64: Configure stack size
-In-Reply-To: <4741D3C4.4020809@sgi.com>
-Message-ID: <Pine.LNX.4.64.0711191433480.15026@schroedinger.engr.sgi.com>
-References: <Pine.LNX.4.64.0711121147350.27017@schroedinger.engr.sgi.com>
- <4741D3C4.4020809@sgi.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Date: Mon, 19 Nov 2007 23:58:24 +0100
+From: Nick Piggin <npiggin@suse.de>
+Subject: Re: [patch 0/6] lockless pagecache
+Message-ID: <20071119225824.GB24255@wotan.suse.de>
+References: <20071111084556.GC19816@wotan.suse.de> <Pine.LNX.4.64.0711172001420.9287@blonde.wat.veritas.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <Pine.LNX.4.64.0711172001420.9287@blonde.wat.veritas.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Mike Travis <travis@sgi.com>
-Cc: Andi Kleen <ak@suse.de>, Andrew Morton <akpm@linux-foundation.org>, apw@shadowen.org, Jack Steiner <steiner@sgi.com>, Paul Jackson <pj@sgi.com>, linux-mm@kvack.org
+To: Hugh Dickins <hugh@veritas.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Linux Memory Management List <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-Here is a simple patch to use a per cpu cpumask instead of constructing 
-one on the stack. I have been running awhile with this one:
+On Sat, Nov 17, 2007 at 08:16:18PM +0000, Hugh Dickins wrote:
+> On Sun, 11 Nov 2007, Nick Piggin wrote:
+> > 
+> > I wonder what everyone thinks about getting the lockless pagecache patch
+> > into -mm? This version uses Hugh's suggestion to avoid a smp_rmb and a load
+> > and branch in the lockless lookup side, and avoids some atomic ops in the
+> > reclaim path, and avoids using a page flag! The coolest thing about it is
+> > that it speeds up single-threaded pagecache lookups...
+> 
+> I've liked this in the past, with the exception of PageNoNewRefs which
+> seemed an unnecessary ugliness.  Now you've eliminated that, thank you,
+> I expect I should like it through and through (if I actually found time
+> to redigest it).  A moment came up and I thought I'd give it a spin...
 
-Do not use stack to allocate cpumask for cpumask_of_cpu
+Yeah I decided it is actually just as good or better at it's job --
+neither really protects against an errant get_page() or put_page(),
+however at least this scheme will go bug with CONFIG_DEBUG_VM, as opposed
+to the current or old lockless schemes (which I guess will silently allow
+it).
 
-Signed-off-by: Christoph Lameter <clameter@sgi.com>
 
----
- include/linux/cpumask.h |   12 +-----------
- include/linux/percpu.h  |    2 ++
- kernel/sched.c          |    6 ++++++
- 3 files changed, 9 insertions(+), 11 deletions(-)
+> > Patches are against latest git for RFC.
+> 
+> ... but they're not.  You seem to have descended into sending out
+> ?cleanup? patches at intervals, and recursive dependence upon them.
+> This set relies on there being something called __set_page_locked()
+> in include/linux/pagemap.h, but there isn't in latest git (nor mm).
+> Ah, you posted a patch earlier which introduced that, but it relies on
+> there being something called set_page_locked() in include/linux/pagemap.h,
+> but there isn't in latest git (nor mm).  Ah, you posted a patch earlier
+> which introduced that ... I gave up at this point.
+> 
+> We've all got lots of other things to do, please make it easier.
 
-Index: linux-2.6/include/linux/cpumask.h
-===================================================================
---- linux-2.6.orig/include/linux/cpumask.h	2007-11-17 17:10:13.508534650 -0800
-+++ linux-2.6/include/linux/cpumask.h	2007-11-17 17:11:34.816785513 -0800
-@@ -222,17 +222,7 @@ int __next_cpu(int n, const cpumask_t *s
- #define next_cpu(n, src)	1
- #endif
- 
--#define cpumask_of_cpu(cpu)						\
--({									\
--	typeof(_unused_cpumask_arg_) m;					\
--	if (sizeof(m) == sizeof(unsigned long)) {			\
--		m.bits[0] = 1UL<<(cpu);					\
--	} else {							\
--		cpus_clear(m);						\
--		cpu_set((cpu), m);					\
--	}								\
--	m;								\
--})
-+#define cpumask_of_cpu(cpu)	per_cpu(cpu_mask, cpu)
- 
- #define CPU_MASK_LAST_WORD BITMAP_LAST_WORD_MASK(NR_CPUS)
- 
-Index: linux-2.6/include/linux/percpu.h
-===================================================================
---- linux-2.6.orig/include/linux/percpu.h	2007-11-17 17:10:13.516534409 -0800
-+++ linux-2.6/include/linux/percpu.h	2007-11-17 17:11:34.816785513 -0800
-@@ -21,6 +21,8 @@
- 	(__per_cpu_end - __per_cpu_start + PERCPU_MODULE_RESERVE)
- #endif	/* PERCPU_ENOUGH_ROOM */
- 
-+DECLARE_PER_CPU(cpumask_t, cpu_mask);
-+
- /*
-  * Must be an lvalue. Since @var must be a simple identifier,
-  * we force a syntax error here if it isn't.
-Index: linux-2.6/kernel/sched.c
-===================================================================
---- linux-2.6.orig/kernel/sched.c	2007-11-17 17:10:13.524534454 -0800
-+++ linux-2.6/kernel/sched.c	2007-11-17 17:11:34.816785513 -0800
-@@ -6725,6 +6725,9 @@ static void init_cfs_rq(struct cfs_rq *c
- 	cfs_rq->min_vruntime = (u64)(-(1LL << 20));
- }
- 
-+DEFINE_PER_CPU(cpumask_t, cpu_mask);
-+EXPORT_PER_CPU_SYMBOL(cpu_mask);
-+
- void __init sched_init(void)
- {
- 	int highest_cpu = 0;
-@@ -6734,6 +6737,9 @@ void __init sched_init(void)
- 		struct rt_prio_array *array;
- 		struct rq *rq;
- 
-+		/* This makes cpumask_of_cpu work */
-+		cpu_set(i, per_cpu(cpu_mask, i));
-+
- 		rq = cpu_rq(i);
- 		spin_lock_init(&rq->lock);
- 		lockdep_set_class(&rq->lock, &rq->rq_lock_key);
+Sorry, I honestly didn't pay enough attention there because I didn't
+think anybody would run it! I'll update it and resend.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
