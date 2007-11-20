@@ -1,55 +1,148 @@
-Date: Tue, 20 Nov 2007 08:55:15 +0100 (CET)
-From: Thomas Gleixner <tglx@linutronix.de>
-Subject: Re: [PATCH 1/1] x86: convert-cpuinfo_x86-array-to-a-per_cpu-array
- fix
-In-Reply-To: <473B423B.6030400@sgi.com>
-Message-ID: <alpine.LFD.0.9999.0711200848160.7601@localhost.localdomain>
-References: <20071012225433.928899000@sgi.com> <20071012225434.102879000@sgi.com> <473B423B.6030400@sgi.com>
+Date: Tue, 20 Nov 2007 14:19:53 +0000
+From: Mel Gorman <mel@csn.ul.ie>
+Subject: Re: [PATCH 6/6] Use one zonelist that is filtered by nodemask
+Message-ID: <20071120141953.GB32313@csn.ul.ie>
+References: <20071109143226.23540.12907.sendpatchset@skynet.skynet.ie> <20071109143426.23540.44459.sendpatchset@skynet.skynet.ie> <Pine.LNX.4.64.0711090741120.13932@schroedinger.engr.sgi.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <Pine.LNX.4.64.0711090741120.13932@schroedinger.engr.sgi.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Mike Travis <travis@sgi.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Suresh B Siddha <suresh.b.siddha@intel.com>, Christoph Lameter <clameter@sgi.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Christoph Lameter <clameter@sgi.com>
+Cc: akpm@linux-foundation.org, Lee.Schermerhorn@hp.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, rientjes@google.com, nacc@us.ibm.com, kamezawa.hiroyu@jp.fujitsu.com
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 14 Nov 2007, Mike Travis wrote:
+On (09/11/07 07:45), Christoph Lameter didst pronounce:
+> On Fri, 9 Nov 2007, Mel Gorman wrote:
+> 
+> >  struct page * fastcall
+> >  __alloc_pages(gfp_t gfp_mask, unsigned int order,
+> >  		struct zonelist *zonelist)
+> >  {
+> > +	/*
+> > +	 * Use a temporary nodemask for __GFP_THISNODE allocations. If the
+> > +	 * cost of allocating on the stack or the stack usage becomes
+> > +	 * noticable, allocate the nodemasks per node at boot or compile time
+> > +	 */
+> > +	if (unlikely(gfp_mask & __GFP_THISNODE)) {
+> > +		nodemask_t nodemask;
+> 
+> Hmmm.. This places a potentially big structure on the stack. nodemask can 
+> contain up to 1024 bits which means 128 bytes. Maybe keep an array of 
+> gfp_thisnode nodemasks (node_nodemask?) and use node_nodemask[nid]?
 
-> Hi Andrew,
-> 
-> It appears that this patch is missing from the latest 2.6.24 git kernel?
-> 
-> (Suresh noticed that it is still a problem.)
-> 
-> Thanks,
-> Mike
-> 
-> This fix corrects the problem that early_identify_cpu() sets
-> cpu_index to '0' (needed when called by setup_arch) after
-> smp_store_cpu_info() had set it to the correct value.
-> 
-> Signed-off-by: Mike Travis <travis@sgi.com>
-> ---
->  arch/x86_64/kernel/smpboot.c |    2 +-
->  1 file changed, 1 insertion(+), 1 deletion(-)
-> 
-> --- linux.orig/arch/x86_64/kernel/smpboot.c	2007-10-12 14:28:45.000000000 -0700
-> +++ linux/arch/x86_64/kernel/smpboot.c	2007-10-12 14:53:42.753508152 -0700
-> @@ -141,8 +141,8 @@ static void __cpuinit smp_store_cpu_info
->  	struct cpuinfo_x86 *c = &cpu_data(id);
->  
->  	*c = boot_cpu_data;
-> -	c->cpu_index = id;
->  	identify_cpu(c);
-> +	c->cpu_index = id;
->  	print_cpu_info(c);
->  }
+Went back and revisited this. Allocating them at boot-time is below but
+essentially it is a silly and it makes sense to just have two zonelists
+where one of them is for __GFP_THISNODE. Implementation wise, this involves
+dropping the last patch in the set and the overall result is still a reduction
+in the number of zonelists.
 
-The correct fix is already in mainline:
+diff -rup -X /usr/src/patchset-0.6/bin//dontdiff linux-2.6.24-rc2-mm1-040_use_one_zonelist/include/linux/gfp.h linux-2.6.24-rc2-mm1-045_use_static_nodemask/include/linux/gfp.h
+--- linux-2.6.24-rc2-mm1-040_use_one_zonelist/include/linux/gfp.h	2007-11-19 19:27:15.000000000 +0000
++++ linux-2.6.24-rc2-mm1-045_use_static_nodemask/include/linux/gfp.h	2007-11-19 19:28:55.000000000 +0000
+@@ -175,7 +175,6 @@ FASTCALL(__alloc_pages(gfp_t, unsigned i
+ extern struct page *
+ FASTCALL(__alloc_pages_nodemask(gfp_t, unsigned int,
+ 				struct zonelist *, nodemask_t *nodemask));
+-extern nodemask_t *nodemask_thisnode(int nid, nodemask_t *nodemask);
+ 
+ static inline struct page *alloc_pages_node(int nid, gfp_t gfp_mask,
+ 						unsigned int order)
+@@ -187,13 +186,10 @@ static inline struct page *alloc_pages_n
+ 	if (nid < 0)
+ 		nid = numa_node_id();
+ 
+-	/* Use a temporary nodemask for __GFP_THISNODE allocations */
+ 	if (unlikely(gfp_mask & __GFP_THISNODE)) {
+-		nodemask_t nodemask;
+-
+ 		return __alloc_pages_nodemask(gfp_mask, order,
+ 				node_zonelist(nid),
+-				nodemask_thisnode(nid, &nodemask));
++				NODE_DATA(nid)->nodemask_thisnode);
+ 	}
+ 
+ 	return __alloc_pages(gfp_mask, order, node_zonelist(nid));
+diff -rup -X /usr/src/patchset-0.6/bin//dontdiff linux-2.6.24-rc2-mm1-040_use_one_zonelist/include/linux/mmzone.h linux-2.6.24-rc2-mm1-045_use_static_nodemask/include/linux/mmzone.h
+--- linux-2.6.24-rc2-mm1-040_use_one_zonelist/include/linux/mmzone.h	2007-11-19 19:27:15.000000000 +0000
++++ linux-2.6.24-rc2-mm1-045_use_static_nodemask/include/linux/mmzone.h	2007-11-19 19:28:55.000000000 +0000
+@@ -519,6 +519,9 @@ typedef struct pglist_data {
+ 	struct zone node_zones[MAX_NR_ZONES];
+ 	struct zonelist node_zonelist;
+ 	int nr_zones;
++
++	/* nodemask suitable for __GFP_THISNODE */
++	nodemask_t *nodemask_thisnode;
+ #ifdef CONFIG_FLAT_NODE_MEM_MAP
+ 	struct page *node_mem_map;
+ #endif
+diff -rup -X /usr/src/patchset-0.6/bin//dontdiff linux-2.6.24-rc2-mm1-040_use_one_zonelist/mm/page_alloc.c linux-2.6.24-rc2-mm1-045_use_static_nodemask/mm/page_alloc.c
+--- linux-2.6.24-rc2-mm1-040_use_one_zonelist/mm/page_alloc.c	2007-11-19 19:27:15.000000000 +0000
++++ linux-2.6.24-rc2-mm1-045_use_static_nodemask/mm/page_alloc.c	2007-11-19 19:28:55.000000000 +0000
+@@ -1695,28 +1695,36 @@ got_pg:
+ }
+ 
+ /* Creates a nodemask suitable for GFP_THISNODE allocations */
+-nodemask_t *nodemask_thisnode(int nid, nodemask_t *nodemask)
++static inline void alloc_node_nodemask_thisnode(pg_data_t *pgdat)
+ {
+-	nodes_clear(*nodemask);
+-	node_set(nid, *nodemask);
++	nodemask_t *nodemask_thisnode;
+ 
+-	return nodemask;
++	/* Only a machine with multiple nodes needs the nodemask */
++	if (!NUMA_BUILD || num_online_nodes() == 1)
++		return;
++	
++	/* Allocate the nodemask. Serious if it fails, but not world ending */
++	nodemask_thisnode = alloc_bootmem_node(pgdat, sizeof(nodemask_t));
++	if (!nodemask_thisnode) {
++		printk(KERN_WARNING
++			"thisnode nodemask allocation failed."
++			"There may be sub-optimal NUMA placement.\n");
++		return;
++	}
++
++	/* Initialise the nodemask to only cover the current node */
++	nodes_clear(*nodemask_thisnode);
++	node_set(pgdat->node_id, *nodemask_thisnode);
++	pgdat->nodemask_thisnode = nodemask_thisnode;
+ }
+ 
+ struct page * fastcall
+ __alloc_pages(gfp_t gfp_mask, unsigned int order,
+ 		struct zonelist *zonelist)
+ {
+-	/*
+-	 * Use a temporary nodemask for __GFP_THISNODE allocations. If the
+-	 * cost of allocating on the stack or the stack usage becomes
+-	 * noticable, allocate the nodemasks per node at boot or compile time
+-	 */
+ 	if (unlikely(gfp_mask & __GFP_THISNODE)) {
+-		nodemask_t nodemask;
+-
+-		return __alloc_pages_internal(gfp_mask, order,
+-			zonelist, nodemask_thisnode(numa_node_id(), &nodemask));
++		return __alloc_pages_internal(gfp_mask, order, zonelist,
++			NODE_DATA(numa_node_id())->nodemask_thisnode);
+ 	}
+ 
+ 	return __alloc_pages_internal(gfp_mask, order, zonelist, NULL);
+@@ -3501,6 +3509,7 @@ void __meminit free_area_init_node(int n
+ 	calculate_node_totalpages(pgdat, zones_size, zholes_size);
+ 
+ 	alloc_node_mem_map(pgdat);
++	alloc_node_nodemask_thisnode(pgdat);
+ 
+ 	free_area_init_core(pgdat, zones_size, zholes_size);
+ }
 
-commit 699d934d5f958d7944d195c03c334f28cc0b3669
-
-	tglx
+-- 
+Mel Gorman
+Part-time Phd Student                          Linux Technology Center
+University of Limerick                         IBM Dublin Software Lab
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
