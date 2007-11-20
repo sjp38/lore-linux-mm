@@ -1,194 +1,87 @@
-Date: Tue, 20 Nov 2007 16:21:29 +0000
-From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: [PATCH 6/6] Use one zonelist that is filtered by nodemask
-Message-ID: <20071120162129.GC32313@csn.ul.ie>
-References: <20071109143226.23540.12907.sendpatchset@skynet.skynet.ie> <20071109143426.23540.44459.sendpatchset@skynet.skynet.ie> <Pine.LNX.4.64.0711090741120.13932@schroedinger.engr.sgi.com> <20071120141953.GB32313@csn.ul.ie> <1195571680.5041.14.camel@localhost>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
+Received: from toip7.srvr.bell.ca ([209.226.175.124])
+          by tomts22-srv.bellnexxia.net
+          (InterMail vM.5.01.06.13 201-253-122-130-113-20050324) with ESMTP
+          id <20071120173920.NPUG18413.tomts22-srv.bellnexxia.net@toip7.srvr.bell.ca>
+          for <linux-mm@kvack.org>; Tue, 20 Nov 2007 12:39:20 -0500
+Date: Tue, 20 Nov 2007 12:34:19 -0500
+From: Mathieu Desnoyers <mathieu.desnoyers@polymtl.ca>
+Subject: Re: [PATCH] Cast page_to_pfn to unsigned long in CONFIG_SPARSEMEM
+Message-ID: <20071120173418.GA650@Krystal>
+References: <20071115215142.GA7825@Krystal> <1195164977.27759.10.camel@localhost> <20071116144742.GA17255@Krystal> <1195495626.27759.119.camel@localhost> <20071119185258.GA998@Krystal> <1195501381.27759.127.camel@localhost> <20071119195257.GA3440@Krystal> <1195502983.27759.134.camel@localhost> <20071119202023.GA5086@Krystal> <20071119130801.bd7b7021.akpm@linux-foundation.org>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
 Content-Disposition: inline
-In-Reply-To: <1195571680.5041.14.camel@localhost>
+In-Reply-To: <20071119130801.bd7b7021.akpm@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
-Cc: Christoph Lameter <clameter@sgi.com>, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, rientjes@google.com, nacc@us.ibm.com, kamezawa.hiroyu@jp.fujitsu.com
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: haveblue@us.ibm.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, mbligh@google.com
 List-ID: <linux-mm.kvack.org>
 
-On (20/11/07 10:14), Lee Schermerhorn didst pronounce:
-> On Tue, 2007-11-20 at 14:19 +0000, Mel Gorman wrote:
-> > On (09/11/07 07:45), Christoph Lameter didst pronounce:
-> > > On Fri, 9 Nov 2007, Mel Gorman wrote:
+* Andrew Morton (akpm@linux-foundation.org) wrote:
+> On Mon, 19 Nov 2007 15:20:23 -0500
+> Mathieu Desnoyers <mathieu.desnoyers@polymtl.ca> wrote:
+> 
+> > * Dave Hansen (haveblue@us.ibm.com) wrote:
+> > > The only thing I might suggest doing differently is actually using the
+> > > page_to_pfn() definition itself:
 > > > 
-> > > >  struct page * fastcall
-> > > >  __alloc_pages(gfp_t gfp_mask, unsigned int order,
-> > > >  		struct zonelist *zonelist)
-> > > >  {
-> > > > +	/*
-> > > > +	 * Use a temporary nodemask for __GFP_THISNODE allocations. If the
-> > > > +	 * cost of allocating on the stack or the stack usage becomes
-> > > > +	 * noticable, allocate the nodemasks per node at boot or compile time
-> > > > +	 */
-> > > > +	if (unlikely(gfp_mask & __GFP_THISNODE)) {
-> > > > +		nodemask_t nodemask;
+> > > memory_model.h:#define page_to_pfn __page_to_pfn
 > > > 
-> > > Hmmm.. This places a potentially big structure on the stack. nodemask can 
-> > > contain up to 1024 bits which means 128 bytes. Maybe keep an array of 
-> > > gfp_thisnode nodemasks (node_nodemask?) and use node_nodemask[nid]?
+> > > The full inline function version should do this already, and we
+> > > shouldn't have any real direct __page_to_pfn() users anyway.    
+> > > 
 > > 
-> > Went back and revisited this. Allocating them at boot-time is below but
-> > essentially it is a silly and it makes sense to just have two zonelists
-> > where one of them is for __GFP_THISNODE. Implementation wise, this involves
-> > dropping the last patch in the set and the overall result is still a reduction
-> > in the number of zonelists.
-> 
-> Hi, Mel:
-> 
-> I'll try this out [n 24-rc2-mm1 or later]. 
-
-Hold off testing for the moment. Getting all the corner cases right for
-__GFP_THISNODE has turned too complicated to be considered as part of a larger
-patchset. I believe it makes sense to drop the final patch and settle with
-having two zonelists. One of these will be for __GFP_THISNODE allocations. We
-can then tackle removing that zonelist at a later date.
-
-This will still remove the hack, reduce the number of zonelists and
-improve how MPOL_BIND policies are applied so it is still an overall
-win.
-
-I should have a revised patchset with the final one dropped posted in a
-few hours.
-
-> I have a series with yet
-> another rework of policy reference counting that will be easier/cleaner
-> atop your series w/o the external zonelist hung off 'BIND policies.  So,
-> I'm hoping your series goes into -mm "real soon now".
-> 
-
-Sounds good.
-
-> Question:  Just wondering why you didn't embed the '_THISNODE nodemask
-> in the pgdat_t--initialized at boot/node-hot-add time? 
-
-At the time, to save space in the pg_data_t structure but it is not
-worth the complexity.
-
-> Perhaps under
-> #ifdef CONFIG_NUMA. The size is known at build time, right?  And
-> wouldn't that be way smaller than an additional zonelist?  
-> 
-
-Yes it would.
-
-> Lee
-> 
+> > Like this then..
 > > 
-> > diff -rup -X /usr/src/patchset-0.6/bin//dontdiff linux-2.6.24-rc2-mm1-040_use_one_zonelist/include/linux/gfp.h linux-2.6.24-rc2-mm1-045_use_static_nodemask/include/linux/gfp.h
-> > --- linux-2.6.24-rc2-mm1-040_use_one_zonelist/include/linux/gfp.h	2007-11-19 19:27:15.000000000 +0000
-> > +++ linux-2.6.24-rc2-mm1-045_use_static_nodemask/include/linux/gfp.h	2007-11-19 19:28:55.000000000 +0000
-> > @@ -175,7 +175,6 @@ FASTCALL(__alloc_pages(gfp_t, unsigned i
-> >  extern struct page *
-> >  FASTCALL(__alloc_pages_nodemask(gfp_t, unsigned int,
-> >  				struct zonelist *, nodemask_t *nodemask));
-> > -extern nodemask_t *nodemask_thisnode(int nid, nodemask_t *nodemask);
-> >  
-> >  static inline struct page *alloc_pages_node(int nid, gfp_t gfp_mask,
-> >  						unsigned int order)
-> > @@ -187,13 +186,10 @@ static inline struct page *alloc_pages_n
-> >  	if (nid < 0)
-> >  		nid = numa_node_id();
-> >  
-> > -	/* Use a temporary nodemask for __GFP_THISNODE allocations */
-> >  	if (unlikely(gfp_mask & __GFP_THISNODE)) {
-> > -		nodemask_t nodemask;
-> > -
-> >  		return __alloc_pages_nodemask(gfp_mask, order,
-> >  				node_zonelist(nid),
-> > -				nodemask_thisnode(nid, &nodemask));
-> > +				NODE_DATA(nid)->nodemask_thisnode);
-> >  	}
-> >  
-> >  	return __alloc_pages(gfp_mask, order, node_zonelist(nid));
-> > diff -rup -X /usr/src/patchset-0.6/bin//dontdiff linux-2.6.24-rc2-mm1-040_use_one_zonelist/include/linux/mmzone.h linux-2.6.24-rc2-mm1-045_use_static_nodemask/include/linux/mmzone.h
-> > --- linux-2.6.24-rc2-mm1-040_use_one_zonelist/include/linux/mmzone.h	2007-11-19 19:27:15.000000000 +0000
-> > +++ linux-2.6.24-rc2-mm1-045_use_static_nodemask/include/linux/mmzone.h	2007-11-19 19:28:55.000000000 +0000
-> > @@ -519,6 +519,9 @@ typedef struct pglist_data {
-> >  	struct zone node_zones[MAX_NR_ZONES];
-> >  	struct zonelist node_zonelist;
-> >  	int nr_zones;
-> > +
-> > +	/* nodemask suitable for __GFP_THISNODE */
-> > +	nodemask_t *nodemask_thisnode;
-> >  #ifdef CONFIG_FLAT_NODE_MEM_MAP
-> >  	struct page *node_mem_map;
-> >  #endif
-> > diff -rup -X /usr/src/patchset-0.6/bin//dontdiff linux-2.6.24-rc2-mm1-040_use_one_zonelist/mm/page_alloc.c linux-2.6.24-rc2-mm1-045_use_static_nodemask/mm/page_alloc.c
-> > --- linux-2.6.24-rc2-mm1-040_use_one_zonelist/mm/page_alloc.c	2007-11-19 19:27:15.000000000 +0000
-> > +++ linux-2.6.24-rc2-mm1-045_use_static_nodemask/mm/page_alloc.c	2007-11-19 19:28:55.000000000 +0000
-> > @@ -1695,28 +1695,36 @@ got_pg:
-> >  }
-> >  
-> >  /* Creates a nodemask suitable for GFP_THISNODE allocations */
-> > -nodemask_t *nodemask_thisnode(int nid, nodemask_t *nodemask)
-> > +static inline void alloc_node_nodemask_thisnode(pg_data_t *pgdat)
-> >  {
-> > -	nodes_clear(*nodemask);
-> > -	node_set(nid, *nodemask);
-> > +	nodemask_t *nodemask_thisnode;
-> >  
-> > -	return nodemask;
-> > +	/* Only a machine with multiple nodes needs the nodemask */
-> > +	if (!NUMA_BUILD || num_online_nodes() == 1)
-> > +		return;
-> > +	
-> > +	/* Allocate the nodemask. Serious if it fails, but not world ending */
-> > +	nodemask_thisnode = alloc_bootmem_node(pgdat, sizeof(nodemask_t));
-> > +	if (!nodemask_thisnode) {
-> > +		printk(KERN_WARNING
-> > +			"thisnode nodemask allocation failed."
-> > +			"There may be sub-optimal NUMA placement.\n");
-> > +		return;
-> > +	}
-> > +
-> > +	/* Initialise the nodemask to only cover the current node */
-> > +	nodes_clear(*nodemask_thisnode);
-> > +	node_set(pgdat->node_id, *nodemask_thisnode);
-> > +	pgdat->nodemask_thisnode = nodemask_thisnode;
-> >  }
-> >  
-> >  struct page * fastcall
-> >  __alloc_pages(gfp_t gfp_mask, unsigned int order,
-> >  		struct zonelist *zonelist)
-> >  {
-> > -	/*
-> > -	 * Use a temporary nodemask for __GFP_THISNODE allocations. If the
-> > -	 * cost of allocating on the stack or the stack usage becomes
-> > -	 * noticable, allocate the nodemasks per node at boot or compile time
-> > -	 */
-> >  	if (unlikely(gfp_mask & __GFP_THISNODE)) {
-> > -		nodemask_t nodemask;
-> > -
-> > -		return __alloc_pages_internal(gfp_mask, order,
-> > -			zonelist, nodemask_thisnode(numa_node_id(), &nodemask));
-> > +		return __alloc_pages_internal(gfp_mask, order, zonelist,
-> > +			NODE_DATA(numa_node_id())->nodemask_thisnode);
-> >  	}
-> >  
-> >  	return __alloc_pages_internal(gfp_mask, order, zonelist, NULL);
-> > @@ -3501,6 +3509,7 @@ void __meminit free_area_init_node(int n
-> >  	calculate_node_totalpages(pgdat, zones_size, zholes_size);
-> >  
-> >  	alloc_node_mem_map(pgdat);
-> > +	alloc_node_nodemask_thisnode(pgdat);
-> >  
-> >  	free_area_init_core(pgdat, zones_size, zholes_size);
-> >  }
+> > Cast page_to_pfn to unsigned long in CONFIG_SPARSEMEM
 > > 
+> > Make sure the type returned by page_to_pfn is always unsigned long. If we
+> > don't cast it explicitly, it can be int on i386, but long on x86_64.
 > 
+> formally ptrdiff_t, I believe.
+> 
+> > This is
+> > especially inelegant for printks.
+> > 
+> > Signed-off-by: Mathieu Desnoyers <mathieu.desnoyers@polymtl.ca>
+> > CC: Dave Hansen <haveblue@us.ibm.com>
+> > CC: linux-mm@kvack.org
+> > CC: linux-kernel@vger.kernel.org
+> > ---
+> >  include/asm-generic/memory_model.h |    2 +-
+> >  1 file changed, 1 insertion(+), 1 deletion(-)
+> > 
+> > Index: linux-2.6-lttng/include/asm-generic/memory_model.h
+> > ===================================================================
+> > --- linux-2.6-lttng.orig/include/asm-generic/memory_model.h	2007-11-19 15:06:40.000000000 -0500
+> > +++ linux-2.6-lttng/include/asm-generic/memory_model.h	2007-11-19 15:18:57.000000000 -0500
+> > @@ -76,7 +76,7 @@ struct page;
+> >  extern struct page *pfn_to_page(unsigned long pfn);
+> >  extern unsigned long page_to_pfn(struct page *page);
+> >  #else
+> > -#define page_to_pfn __page_to_pfn
+> > +#define page_to_pfn ((unsigned long)__page_to_pfn)
+> >  #define pfn_to_page __pfn_to_page
+> >  #endif /* CONFIG_OUT_OF_LINE_PFN_TO_PAGE */
+> 
+> I'd have thought that __pfn_to_page() was the place to fix this: the
+> lower-level point.  Because someone might later start using __pfn_to_page()
+> for something.
+> 
+> Heaven knows why though - why does __pfn_to_page() even exist?
+
+Since it all does away with Christoph's patchset anyway, please drop
+this patch. (I think there is also an issue with this patch version,
+which is that the define should take the arguments...).
+
+Mathieu
 
 -- 
--- 
-Mel Gorman
-Part-time Phd Student                          Linux Technology Center
-University of Limerick                         IBM Dublin Software Lab
+Mathieu Desnoyers
+Computer Engineering Ph.D. Student, Ecole Polytechnique de Montreal
+OpenPGP key fingerprint: 8CD5 52C3 8E3C 4140 715F  BA06 3F25 A8FE 3BAE 9A68
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
