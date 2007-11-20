@@ -1,59 +1,68 @@
-Date: Mon, 19 Nov 2007 20:30:00 -0500
-Message-Id: <200711200130.lAK1U0QN016973@agora.fsl.cs.sunysb.edu>
-From: Erez Zadok <ezk@cs.sunysb.edu>
-Subject: Re: msync(2) bug(?), returns AOP_WRITEPAGE_ACTIVATE to userland 
-In-reply-to: Your message of "Sat, 17 Nov 2007 21:24:01 GMT."
-             <Pine.LNX.4.64.0711172103040.10619@blonde.wat.veritas.com>
+Received: by ro-out-1112.google.com with SMTP id p7so2140296roc
+        for <linux-mm@kvack.org>; Mon, 19 Nov 2007 21:00:06 -0800 (PST)
+Date: Tue, 20 Nov 2007 12:57:37 +0800
+From: WANG Cong <xiyou.wangcong@gmail.com>
+Subject: Re: [Patch] mm/sparse.c: Check the return value of
+	sparse_index_alloc().
+Message-ID: <20071120045737.GE2472@hacking>
+Reply-To: WANG Cong <xiyou.wangcong@gmail.com>
+References: <20071115135428.GE2489@hacking> <1195507022.27759.146.camel@localhost>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1195507022.27759.146.camel@localhost>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Hugh Dickins <hugh@veritas.com>
-Cc: Erez Zadok <ezk@cs.sunysb.edu>, Dave Hansen <haveblue@us.ibm.com>, Pekka Enberg <penberg@cs.helsinki.fi>, Ryan Finnie <ryan@finnie.org>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, cjwatson@ubuntu.com, linux-mm@kvack.org
+To: Dave Hansen <haveblue@us.ibm.com>
+Cc: WANG Cong <xiyou.wangcong@gmail.com>, LKML <linux-kernel@vger.kernel.org>, Rik van Riel <riel@redhat.com>, Christoph Lameter <clameter@sgi.com>, Andrew Morton <akpm@osdl.org>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-In message <Pine.LNX.4.64.0711172103040.10619@blonde.wat.veritas.com>, Hugh Dickins writes:
-> On Tue, 13 Nov 2007, Erez Zadok wrote:
-[...]
-> I'm glad to report that this unionfs, not the one in 2.6.24-rc2-mm1
-> but the one including those 9 patches you posted, now gets through
-> my testing with tmpfs without a problem.  I do still get occasional
-> "unionfs: new lower inode mtime (bindex=0, name=<directory>)"
-> messages, but nothing worse seen yet: a big improvement.
+On Mon, Nov 19, 2007 at 01:17:02PM -0800, Dave Hansen wrote:
+>On Thu, 2007-11-15 at 21:54 +0800, WANG Cong wrote:
+>> Since sparse_index_alloc() can return NULL on memory allocation failure,
+>> we must deal with the failure condition when calling it.
+>> 
+>> Signed-off-by: WANG Cong <xiyou.wangcong@gmail.com>
+>> Cc: Christoph Lameter <clameter@sgi.com>
+>> Cc: Rik van Riel <riel@redhat.com>
+>> 
+>> ---
+>> 
+>> diff --git a/Makefile b/Makefile
+>> diff --git a/mm/sparse.c b/mm/sparse.c
+>> index e06f514..d245e59 100644
+>> --- a/mm/sparse.c
+>> +++ b/mm/sparse.c
+>> @@ -83,6 +83,8 @@ static int __meminit sparse_index_init(unsigned long section_nr, int nid)
+>>  		return -EEXIST;
+>> 
+>>  	section = sparse_index_alloc(nid);
+>> +	if (!section)
+>> +		return -ENOMEM;
+>>  	/*
+>>  	 * This lock keeps two different sections from
+>>  	 * reallocating for the same index
+>
+>Oddly enough, sparse_add_one_section() doesn't seem to like to check
+>its allocations.  The usemap is checked, but not freed on error.  If you
+>want to fix this up, I think it needs a little more love than just two
+>lines.  
 
-Excellent.
+Er, right. I missed this point.
 
-> I did think you could clean up the doubled set_page_dirtys,
-> but it's of no consequence.
+>
+>Do you want to try to add some actual error handling to
+>sparse_add_one_section()?
 
-Yes, looks good.  I'll send that as a patch.  Thanks.
+Yes, I will have a try. And memory_present() also doesn't check it.
+More patches around this will come up soon. Since Andrew has included
+the above patch, so I won't remake it with others together.
 
-> Hugh
-> 
-> --- 2.6.24-rc2-mm1+9/fs/unionfs/mmap.c	2007-11-17 12:23:30.000000000 +0000
-> +++ linux/fs/unionfs/mmap.c	2007-11-17 20:22:29.000000000 +0000
-> @@ -56,6 +56,7 @@ static int unionfs_writepage(struct page
->  	copy_highpage(lower_page, page);
->  	flush_dcache_page(lower_page);
->  	SetPageUptodate(lower_page);
-> +	set_page_dirty(lower_page);
->  
->  	/*
->  	 * Call lower writepage (expects locked page).  However, if we are
-> @@ -66,12 +67,11 @@ static int unionfs_writepage(struct page
->  	 * success.
->  	 */
->  	if (wbc->for_reclaim) {
-> -		set_page_dirty(lower_page);
->  		unlock_page(lower_page);
->  		goto out_release;
->  	}
-> +
->  	BUG_ON(!lower_mapping->a_ops->writepage);
-> -	set_page_dirty(lower_page);
->  	clear_page_dirty_for_io(lower_page); /* emulate VFS behavior */
->  	err = lower_mapping->a_ops->writepage(lower_page, wbc);
->  	if (err < 0)
+Andrew, is this OK for you?
 
-Erez.
+Thanks.
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
