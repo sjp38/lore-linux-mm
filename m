@@ -1,68 +1,55 @@
-Received: by ro-out-1112.google.com with SMTP id p7so2140296roc
-        for <linux-mm@kvack.org>; Mon, 19 Nov 2007 21:00:06 -0800 (PST)
-Date: Tue, 20 Nov 2007 12:57:37 +0800
-From: WANG Cong <xiyou.wangcong@gmail.com>
-Subject: Re: [Patch] mm/sparse.c: Check the return value of
-	sparse_index_alloc().
-Message-ID: <20071120045737.GE2472@hacking>
-Reply-To: WANG Cong <xiyou.wangcong@gmail.com>
-References: <20071115135428.GE2489@hacking> <1195507022.27759.146.camel@localhost>
+Date: Tue, 20 Nov 2007 08:55:15 +0100 (CET)
+From: Thomas Gleixner <tglx@linutronix.de>
+Subject: Re: [PATCH 1/1] x86: convert-cpuinfo_x86-array-to-a-per_cpu-array
+ fix
+In-Reply-To: <473B423B.6030400@sgi.com>
+Message-ID: <alpine.LFD.0.9999.0711200848160.7601@localhost.localdomain>
+References: <20071012225433.928899000@sgi.com> <20071012225434.102879000@sgi.com> <473B423B.6030400@sgi.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1195507022.27759.146.camel@localhost>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Dave Hansen <haveblue@us.ibm.com>
-Cc: WANG Cong <xiyou.wangcong@gmail.com>, LKML <linux-kernel@vger.kernel.org>, Rik van Riel <riel@redhat.com>, Christoph Lameter <clameter@sgi.com>, Andrew Morton <akpm@osdl.org>, linux-mm@kvack.org
+To: Mike Travis <travis@sgi.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Suresh B Siddha <suresh.b.siddha@intel.com>, Christoph Lameter <clameter@sgi.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Nov 19, 2007 at 01:17:02PM -0800, Dave Hansen wrote:
->On Thu, 2007-11-15 at 21:54 +0800, WANG Cong wrote:
->> Since sparse_index_alloc() can return NULL on memory allocation failure,
->> we must deal with the failure condition when calling it.
->> 
->> Signed-off-by: WANG Cong <xiyou.wangcong@gmail.com>
->> Cc: Christoph Lameter <clameter@sgi.com>
->> Cc: Rik van Riel <riel@redhat.com>
->> 
->> ---
->> 
->> diff --git a/Makefile b/Makefile
->> diff --git a/mm/sparse.c b/mm/sparse.c
->> index e06f514..d245e59 100644
->> --- a/mm/sparse.c
->> +++ b/mm/sparse.c
->> @@ -83,6 +83,8 @@ static int __meminit sparse_index_init(unsigned long section_nr, int nid)
->>  		return -EEXIST;
->> 
->>  	section = sparse_index_alloc(nid);
->> +	if (!section)
->> +		return -ENOMEM;
->>  	/*
->>  	 * This lock keeps two different sections from
->>  	 * reallocating for the same index
->
->Oddly enough, sparse_add_one_section() doesn't seem to like to check
->its allocations.  The usemap is checked, but not freed on error.  If you
->want to fix this up, I think it needs a little more love than just two
->lines.  
+On Wed, 14 Nov 2007, Mike Travis wrote:
 
-Er, right. I missed this point.
+> Hi Andrew,
+> 
+> It appears that this patch is missing from the latest 2.6.24 git kernel?
+> 
+> (Suresh noticed that it is still a problem.)
+> 
+> Thanks,
+> Mike
+> 
+> This fix corrects the problem that early_identify_cpu() sets
+> cpu_index to '0' (needed when called by setup_arch) after
+> smp_store_cpu_info() had set it to the correct value.
+> 
+> Signed-off-by: Mike Travis <travis@sgi.com>
+> ---
+>  arch/x86_64/kernel/smpboot.c |    2 +-
+>  1 file changed, 1 insertion(+), 1 deletion(-)
+> 
+> --- linux.orig/arch/x86_64/kernel/smpboot.c	2007-10-12 14:28:45.000000000 -0700
+> +++ linux/arch/x86_64/kernel/smpboot.c	2007-10-12 14:53:42.753508152 -0700
+> @@ -141,8 +141,8 @@ static void __cpuinit smp_store_cpu_info
+>  	struct cpuinfo_x86 *c = &cpu_data(id);
+>  
+>  	*c = boot_cpu_data;
+> -	c->cpu_index = id;
+>  	identify_cpu(c);
+> +	c->cpu_index = id;
+>  	print_cpu_info(c);
+>  }
 
->
->Do you want to try to add some actual error handling to
->sparse_add_one_section()?
+The correct fix is already in mainline:
 
-Yes, I will have a try. And memory_present() also doesn't check it.
-More patches around this will come up soon. Since Andrew has included
-the above patch, so I won't remake it with others together.
+commit 699d934d5f958d7944d195c03c334f28cc0b3669
 
-Andrew, is this OK for you?
-
-Thanks.
-
-
+	tglx
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
