@@ -1,11 +1,11 @@
 From: Mel Gorman <mel@csn.ul.ie>
-Message-Id: <20071121003827.10654.53286.sendpatchset@skynet.skynet.ie>
+Message-Id: <20071121003848.10789.18030.sendpatchset@skynet.skynet.ie>
 Subject: [PATCH 0/6] Use two zonelists per node instead of multiple zonelists v10
-Date: Wed, 21 Nov 2007 00:38:27 +0000 (GMT)
+Date: Wed, 21 Nov 2007 00:38:48 +0000 (GMT)
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Lee.Schermerhorn@hp.com, clameter@sgi.com
-Cc: Mel Gorman <mel@csn.ul.ie>, kamezawa.hiroyu@jp.fujit, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Cc: Mel Gorman <mel@csn.ul.ie>, linux-kernel@vger.kernel.org, kamezawa.hiroyu@jp.fujitsu.com, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
 This release brings the number of zonelists to two instead of one. Getting
