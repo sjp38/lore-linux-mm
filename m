@@ -1,227 +1,300 @@
-Date: Wed, 21 Nov 2007 18:48:02 +0000
-From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: [PATCH 5/6] Have zonelist contains structs with both a zone pointer and zone_idx
-Message-ID: <20071121184801.GA31674@csn.ul.ie>
-References: <20071121003848.10789.18030.sendpatchset@skynet.skynet.ie> <20071121004028.10789.46824.sendpatchset@skynet.skynet.ie> <1195668748.5294.13.camel@localhost> <1195669105.5294.14.camel@localhost> <1195670327.5294.24.camel@localhost>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
+Date: Wed, 21 Nov 2007 14:53:16 -0500
+From: Marcelo Tosatti <marcelo@kvack.org>
+Subject: [PATCH] mem notifications v2 
+Message-ID: <20071121195316.GA21481@dmt>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1195670327.5294.24.camel@localhost>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
-Cc: clameter@sgi.com, linux-kernel@vger.kernel.org, kamezawa.hiroyu@jp.fujitsu.com, linux-mm@kvack.org
+To: linux-mm@kvack.org
+Cc: Daniel =?iso-8859-1?Q?Sp=E5ng?= <daniel.spang@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
-On (21/11/07 13:38), Lee Schermerhorn didst pronounce:
-> On Wed, 2007-11-21 at 13:18 -0500, Lee Schermerhorn wrote:
-> > On Wed, 2007-11-21 at 13:12 -0500, Lee Schermerhorn wrote:
-> > > Mel:
-> > > 
-> > > Are the comparisons noted below correct--i.e., '>' rather than '<'?  I'm
-> > > trying to understand how this matches the comments and code.  Doesn't
-> > > look right to me, but I could be missing something. 
-> > > 
-> > > Lee
-> > 
-> > Never mind...   I get it now.  I was confusing zone ids with node ids.  
+Hi, 
 
-Cool. I'll admit that the iterator is a little mind-bending but it was
-hard to make it obvious in a manner that did not suck performance-wise.
+Following is an update of the mem notifications patch.
 
-> However...  [possibly another stupid question]
-> 
-> Don't the loops in {first|next}_zones_zonelist() depend on the zonelists
-> being in "zone order" as opposed to "node order".  If the nodelists are
-> in node order, the lower zones can be interspersed with the upper zones,
-> I think. 
+It allows detection of low pressure scenarios (eg. fat browser on
+desktop) by checking if the total amount of anonymous pages is growing
+and if the VM is unmapping pages. This formula also works with swapless
+devices, where the timer on previous versions failed to.
 
-That sounds right.
+The check for low memory watermarks is retained for cases which kswapd
+can't keep up with the pressure.
 
-> Looks like this would terminate the loops as soon as we hit a
-> lower zone, even tho' we might not have visited all of the nodes
-> represented in the zonelist.
 
-Well, the first|next loops will terminate and return a known useful
-zone. The allocator sees if it can be used to satisfy the request and if
-not, next() is called again and it moves to the next useful zone.
-
-If in node order, it will try the low zones on the closet node and still
-should continue to the next node.
-
-for_each_zone_zonelist_nodemask() will not terminate until the zone
-returned by next_zones_zonelist() is NULL at which point there are no
-zones left, whether it be node or zone ordering.
-
-> Again, I could be missing some fine point of zonerefs that handles this
-> condition, but I can't see it.
-> 
-
-I think it is fine but I'm going to run a boot-test for node-order just
-in case.
-
-> Lee
-> 
-> 
-> > Lee
-> > > 
-> > > On Wed, 2007-11-21 at 00:40 +0000, Mel Gorman wrote:
-> > > > Filtering zonelists requires very frequent use of zone_idx(). This is costly
-> > > > as it involves a lookup of another structure and a substraction operation. As
-> > > > the zone_idx is often required, it should be quickly accessible.  The node
-> > > > idx could also be stored here if it was found that accessing zone->node is
-> > > > significant which may be the case on workloads where nodemasks are heavily
-> > > > used.
-> > > > 
-> > > > This patch introduces a struct zoneref to store a zone pointer and a zone
-> > > > index.  The zonelist then consists of an array of these struct zonerefs which
-> > > > are looked up as necessary. Helpers are given for accessing the zone index
-> > > > as well as the node index.
-> > > > 
-> > > > [kamezawa.hiroyu@jp.fujitsu.com: Suggested struct zoneref instead of embedding information in pointers]
-> > > > Signed-off-by: Mel Gorman <mel@csn.ul.ie>
-> > > > Acked-by: Christoph Lameter <clameter@sgi.com>
-> > > > Acked-by: David Rientjes <rientjes@google.com>
-> > > > ---
-> > > > 
-> > > >  arch/parisc/mm/init.c  |    2 -
-> > > >  fs/buffer.c            |    6 ++--
-> > > >  include/linux/mmzone.h |   64 ++++++++++++++++++++++++++++++++++++------
-> > > >  include/linux/oom.h    |    4 +-
-> > > >  kernel/cpuset.c        |    4 +-
-> > > >  mm/hugetlb.c           |    3 +-
-> > > >  mm/mempolicy.c         |   36 ++++++++++++++----------
-> > > >  mm/oom_kill.c          |   45 ++++++++++++++----------------
-> > > >  mm/page_alloc.c        |   66 ++++++++++++++++++++++++--------------------
-> > > >  mm/slab.c              |    2 -
-> > > >  mm/slub.c              |    2 -
-> > > >  mm/vmscan.c            |    6 ++--
-> > > >  12 files changed, 149 insertions(+), 91 deletions(-)
-> > > > 
-> > > <snip>
-> > > > diff -rup -X /usr/src/patchset-0.6/bin//dontdiff linux-2.6.24-rc2-mm1-010_use_two_zonelists/include/linux/mmzone.h linux-2.6.24-rc2-mm1-020_zoneid_zonelist/include/linux/mmzone.h
-> > > > --- linux-2.6.24-rc2-mm1-010_use_two_zonelists/include/linux/mmzone.h	2007-11-20 23:27:04.000000000 +0000
-> > > > +++ linux-2.6.24-rc2-mm1-020_zoneid_zonelist/include/linux/mmzone.h	2007-11-20 23:27:34.000000000 +0000
-> > > > @@ -469,6 +469,15 @@ struct zonelist_cache;
-> > > >  #endif
-> > > >  
-> > > >  /*
-> > > > + * This struct contains information about a zone in a zonelist. It is stored
-> > > > + * here to avoid dereferences into large structures and lookups of tables
-> > > > + */
-> > > > +struct zoneref {
-> > > > +	struct zone *zone;	/* Pointer to actual zone */
-> > > > +	int zone_idx;		/* zone_idx(zoneref->zone) */
-> > > > +};
-> > > > +
-> > > > +/*
-> > > >   * One allocation request operates on a zonelist. A zonelist
-> > > >   * is a list of zones, the first one is the 'goal' of the
-> > > >   * allocation, the other zones are fallback zones, in decreasing
-> > > > @@ -476,11 +485,18 @@ struct zonelist_cache;
-> > > >   *
-> > > >   * If zlcache_ptr is not NULL, then it is just the address of zlcache,
-> > > >   * as explained above.  If zlcache_ptr is NULL, there is no zlcache.
-> > > > + * *
-> > > > + * To speed the reading of the zonelist, the zonerefs contain the zone index
-> > > > + * of the entry being read. Helper functions to access information given
-> > > > + * a struct zoneref are
-> > > > + *
-> > > > + * zonelist_zone()	- Return the struct zone * for an entry in _zonerefs
-> > > > + * zonelist_zone_idx()	- Return the index of the zone for an entry
-> > > > + * zonelist_node_idx()	- Return the index of the node for an entry
-> > > >   */
-> > > > -
-> > > >  struct zonelist {
-> > > >  	struct zonelist_cache *zlcache_ptr;		     // NULL or &zlcache
-> > > > -	struct zone *zones[MAX_ZONES_PER_ZONELIST + 1];      // NULL delimited
-> > > > +	struct zoneref _zonerefs[MAX_ZONES_PER_ZONELIST + 1];
-> > > >  #ifdef CONFIG_NUMA
-> > > >  	struct zonelist_cache zlcache;			     // optional ...
-> > > >  #endif
-> > > > @@ -713,26 +729,52 @@ extern struct zone *next_zone(struct zon
-> > > >  	     zone;					\
-> > > >  	     zone = next_zone(zone))
-> > > >  
-> > > > +static inline struct zone *zonelist_zone(struct zoneref *zoneref)
-> > > > +{
-> > > > +	return zoneref->zone;
-> > > > +}
-> > > > +
-> > > > +static inline int zonelist_zone_idx(struct zoneref *zoneref)
-> > > > +{
-> > > > +	return zoneref->zone_idx;
-> > > > +}
-> > > > +
-> > > > +static inline int zonelist_node_idx(struct zoneref *zoneref)
-> > > > +{
-> > > > +#ifdef CONFIG_NUMA
-> > > > +	/* zone_to_nid not available in this context */
-> > > > +	return zoneref->zone->node;
-> > > > +#else
-> > > > +	return 0;
-> > > > +#endif /* CONFIG_NUMA */
-> > > > +}
-> > > > +
-> > > > +static inline void zoneref_set_zone(struct zone *zone, struct zoneref *zoneref)
-> > > > +{
-> > > > +	zoneref->zone = zone;
-> > > > +	zoneref->zone_idx = zone_idx(zone);
-> > > > +}
-> > > > +
-> > > >  /* Returns the first zone at or below highest_zoneidx in a zonelist */
-> > > > -static inline struct zone **first_zones_zonelist(struct zonelist *zonelist,
-> > > > +static inline struct zoneref *first_zones_zonelist(struct zonelist *zonelist,
-> > > >  					enum zone_type highest_zoneidx)
-> > > >  {
-> > > > -	struct zone **z;
-> > > > +	struct zoneref *z;
-> > > >  
-> > > >  	/* Find the first suitable zone to use for the allocation */
-> > > > -	z = zonelist->zones;
-> > > > -	while (*z && zone_idx(*z) > highest_zoneidx)
-> > > > +	z = zonelist->_zonerefs;
-> > > > +	while (zonelist_zone_idx(z) > highest_zoneidx)
-> > > !!! HERE:                             ^
-> > > >  		z++;
-> > > >  
-> > > >  	return z;
-> > > >  }
-> > > >  
-> > > >  /* Returns the next zone at or below highest_zoneidx in a zonelist */
-> > > > -static inline struct zone **next_zones_zonelist(struct zone **z,
-> > > > +static inline struct zoneref *next_zones_zonelist(struct zoneref *z,
-> > > >  					enum zone_type highest_zoneidx)
-> > > >  {
-> > > >  	/* Find the next suitable zone to use for the allocation */
-> > > > -	while (*z && zone_idx(*z) > highest_zoneidx)
-> > > > +	while (zonelist_zone_idx(z) > highest_zoneidx)
-> > > !!! and HERE:                         ^
-> > > >  		z++;
-> > > >  
-> > > >  	return z;
-> > > > @@ -748,9 +790,11 @@ static inline struct zone **next_zones_z
-> > > >   * This iterator iterates though all zones at or below a given zone index.
-> > > >   */
-> > > >  #define for_each_zone_zonelist(zone, z, zlist, highidx) \
-> > > > -	for (z = first_zones_zonelist(zlist, highidx), zone = *z++;	\
-> > > > +	for (z = first_zones_zonelist(zlist, highidx),			\
-> > > > +					zone = zonelist_zone(z++);	\
-> > > >  		zone;							\
-> > > > -		z = next_zones_zonelist(z, highidx), zone = *z++)
-> > > > +		z = next_zones_zonelist(z, highidx),			\
-> > > > +					zone = zonelist_zone(z++))
-> > > >  
-> > > >  #ifdef CONFIG_SPARSEMEM
-> > > >  #include <asm/sparsemem.h>
-> > > <snip>
-> 
-
--- 
--- 
-Mel Gorman
-Part-time Phd Student                          Linux Technology Center
-University of Limerick                         IBM Dublin Software Lab
+--- linux-2.6.24-rc2-mm1.orig/Documentation/devices.txt	2007-11-14 23:51:12.000000000 -0200
++++ linux-2.6.24-rc2-mm1/Documentation/devices.txt	2007-11-15 15:37:22.000000000 -0200
+@@ -96,6 +96,7 @@
+ 		 11 = /dev/kmsg		Writes to this come out as printk's
+ 		 12 = /dev/oldmem	Used by crashdump kernels to access
+ 					the memory of the kernel that crashed.
++		 13 = /dev/mem_notify   Low memory notification.
+ 
+   1 block	RAM disk
+ 		  0 = /dev/ram0		First RAM disk
+--- linux-2.6.24-rc2-mm1.orig/drivers/char/mem.c	2007-11-14 23:50:47.000000000 -0200
++++ linux-2.6.24-rc2-mm1/drivers/char/mem.c	2007-11-20 15:16:32.000000000 -0200
+@@ -34,6 +34,8 @@
+ # include <linux/efi.h>
+ #endif
+ 
++extern struct file_operations mem_notify_fops;
++
+ /*
+  * Architectures vary in how they handle caching for addresses
+  * outside of main memory.
+@@ -854,6 +856,9 @@
+ 			filp->f_op = &oldmem_fops;
+ 			break;
+ #endif
++		case 13:
++			filp->f_op = &mem_notify_fops;
++			break;
+ 		default:
+ 			return -ENXIO;
+ 	}
+@@ -886,6 +891,7 @@
+ #ifdef CONFIG_CRASH_DUMP
+ 	{12,"oldmem",    S_IRUSR | S_IWUSR | S_IRGRP, &oldmem_fops},
+ #endif
++	{13,"mem_notify", S_IRUGO, &mem_notify_fops},
+ };
+ 
+ static struct class *mem_class;
+--- linux-2.6.24-rc2-mm1.orig/include/linux/swap.h	2007-11-14 23:51:28.000000000 -0200
++++ linux-2.6.24-rc2-mm1/include/linux/swap.h	2007-11-21 15:40:23.000000000 -0200
+@@ -169,6 +169,8 @@
+ /* Definition of global_page_state not available yet */
+ #define nr_free_pages() global_page_state(NR_FREE_PAGES)
+ 
++#define total_anon_pages() (global_page_state(NR_ANON_PAGES) \
++			    + total_swap_pages - total_swapcache_pages)
+ 
+ /* linux/mm/swap.c */
+ extern void FASTCALL(lru_cache_add(struct page *));
+@@ -213,6 +215,9 @@
+ 
+ extern void swap_unplug_io_fn(struct backing_dev_info *, struct page *);
+ 
++/* linux/mm/mem_notify.c */
++void mem_notify_userspace(void);
++
+ #ifdef CONFIG_SWAP
+ /* linux/mm/page_io.c */
+ extern int swap_readpage(struct file *, struct page *);
+diff -Nur --exclude-from=linux-2.6.24-rc2-mm1/Documentation/dontdiff linux-2.6.24-rc2-mm1.orig/mm/Makefile linux-2.6.24-rc2-mm1/mm/Makefile
+--- linux-2.6.24-rc2-mm1.orig/mm/Makefile	2007-11-14 23:51:07.000000000 -0200
++++ linux-2.6.24-rc2-mm1/mm/Makefile	2007-11-15 15:38:01.000000000 -0200
+@@ -11,7 +11,7 @@
+ 			   page_alloc.o page-writeback.o pdflush.o \
+ 			   readahead.o swap.o truncate.o vmscan.o \
+ 			   prio_tree.o util.o mmzone.o vmstat.o backing-dev.o \
+-			   page_isolation.o $(mmu-y)
++			   page_isolation.o mem_notify.o $(mmu-y)
+ 
+ obj-$(CONFIG_PROC_PAGE_MONITOR) += pagewalk.o
+ obj-$(CONFIG_BOUNCE)	+= bounce.o
+--- linux-2.6.24-rc2-mm1.orig/mm/mem_notify.c	1969-12-31 21:00:00.000000000 -0300
++++ linux-2.6.24-rc2-mm1/mm/mem_notify.c	2007-11-21 03:22:39.000000000 -0200
+@@ -0,0 +1,68 @@
++/*
++ * Notify applications of memory pressure via /dev/mem_notify
++ */
++
++#include <linux/module.h>
++#include <linux/fs.h>
++#include <linux/wait.h>
++#include <linux/poll.h>
++#include <linux/timer.h>
++#include <linux/spinlock.h>
++#include <linux/mm.h>
++#include <linux/vmstat.h>
++
++static unsigned long mem_notify_status = 0;
++
++DECLARE_WAIT_QUEUE_HEAD(mem_wait);
++
++void mem_notify_userspace(void)
++{
++	mem_notify_status = 1;
++}
++
++static int mem_notify_open(struct inode *inode, struct file *file)
++{
++	return 0;
++}
++
++static int mem_notify_release(struct inode *inode, struct file *file)
++{
++	return 0;
++}
++
++static unsigned int mem_notify_poll(struct file *file, poll_table *wait)
++{
++	unsigned int val = 0;
++	struct zone *zone;
++	int tpages_low, tpages_free, tpages_reserve;
++
++	tpages_low = tpages_free = tpages_reserve = 0;
++
++	poll_wait(file, &mem_wait, wait);
++
++	for_each_zone(zone) {
++		if (!populated_zone(zone))
++			continue;
++		tpages_low += zone->pages_low;
++		tpages_free += zone_page_state(zone, NR_FREE_PAGES);
++		/* always use the reserve of the highest allocation type */
++		tpages_reserve += zone->lowmem_reserve[MAX_NR_ZONES-1];
++	}
++
++	if ((tpages_free <= tpages_low + tpages_reserve))
++		val = POLLIN;
++
++	if (mem_notify_status) {
++		mem_notify_status = 0;
++		val = POLLIN;
++	}
++		
++	return val;
++}
++
++struct file_operations mem_notify_fops = {
++	.open = mem_notify_open,
++	.release = mem_notify_release,
++	.poll = mem_notify_poll,
++};
++EXPORT_SYMBOL(mem_notify_fops);
+--- linux-2.6.24-rc2-mm1.orig/mm/vmscan.c	2007-11-14 23:51:07.000000000 -0200
++++ linux-2.6.24-rc2-mm1/mm/vmscan.c	2007-11-21 15:41:24.000000000 -0200
+@@ -943,34 +943,9 @@
+ 				+ zone_page_state(zone, NR_INACTIVE))*3;
+ }
+ 
+-/*
+- * This moves pages from the active list to the inactive list.
+- *
+- * We move them the other way if the page is referenced by one or more
+- * processes, from rmap.
+- *
+- * If the pages are mostly unmapped, the processing is fast and it is
+- * appropriate to hold zone->lru_lock across the whole operation.  But if
+- * the pages are mapped, the processing is slow (page_referenced()) so we
+- * should drop zone->lru_lock around each page.  It's impossible to balance
+- * this, so instead we remove the pages from the LRU while processing them.
+- * It is safe to rely on PG_active against the non-LRU pages in here because
+- * nobody will play with that bit on a non-LRU page.
+- *
+- * The downside is that we have to touch page->_count against each page.
+- * But we had to alter page->flags anyway.
+- */
+-static void shrink_active_list(unsigned long nr_pages, struct zone *zone,
+-				struct scan_control *sc, int priority)
++static int should_reclaim_mapped(struct zone *zone,
++					struct scan_control *sc, int priority)
+ {
+-	unsigned long pgmoved;
+-	int pgdeactivate = 0;
+-	unsigned long pgscanned;
+-	LIST_HEAD(l_hold);	/* The pages which were snipped off */
+-	LIST_HEAD(l_inactive);	/* Pages to go onto the inactive_list */
+-	LIST_HEAD(l_active);	/* Pages to go onto the active_list */
+-	struct page *page;
+-	struct pagevec pvec;
+ 	int reclaim_mapped = 0;
+ 
+ 	if (sc->may_swap) {
+@@ -1060,6 +1035,40 @@
+ force_reclaim_mapped:
+ 			reclaim_mapped = 1;
+ 	}
++	return reclaim_mapped;
++}
++
++/*
++ * This moves pages from the active list to the inactive list.
++ *
++ * We move them the other way if the page is referenced by one or more
++ * processes, from rmap.
++ *
++ * If the pages are mostly unmapped, the processing is fast and it is
++ * appropriate to hold zone->lru_lock across the whole operation.  But if
++ * the pages are mapped, the processing is slow (page_referenced()) so we
++ * should drop zone->lru_lock around each page.  It's impossible to balance
++ * this, so instead we remove the pages from the LRU while processing them.
++ * It is safe to rely on PG_active against the non-LRU pages in here because
++ * nobody will play with that bit on a non-LRU page.
++ *
++ * The downside is that we have to touch page->_count against each page.
++ * But we had to alter page->flags anyway.
++ */
++static void shrink_active_list(unsigned long nr_pages, struct zone *zone,
++				struct scan_control *sc, int priority)
++{
++	unsigned long pgmoved;
++	int pgdeactivate = 0;
++	unsigned long pgscanned;
++	LIST_HEAD(l_hold);	/* The pages which were snipped off */
++	LIST_HEAD(l_inactive);	/* Pages to go onto the inactive_list */
++	LIST_HEAD(l_active);	/* Pages to go onto the active_list */
++	struct page *page;
++	struct pagevec pvec;
++	int reclaim_mapped;
++
++	reclaim_mapped = should_reclaim_mapped(zone, sc, priority);
+ 
+ 	lru_add_drain();
+ 	spin_lock_irq(&zone->lru_lock);
+@@ -1199,7 +1208,7 @@
+ 	throttle_vm_writeout(sc->gfp_mask);
+ 	return nr_reclaimed;
+ }
+-
++ 
+ /*
+  * This is the direct reclaim path, for page-allocating processes.  We only
+  * try to reclaim pages from zones which will satisfy the caller's allocation
+@@ -1243,7 +1252,7 @@
+ 	}
+ 	return nr_reclaimed;
+ }
+- 
++
+ /*
+  * This is the main entry point to direct page reclaim.
+  *
+@@ -1414,6 +1423,7 @@
+ 	int i;
+ 	unsigned long total_scanned;
+ 	unsigned long nr_reclaimed;
++	unsigned long nr_anon_pages = 0;
+ 	struct reclaim_state *reclaim_state = current->reclaim_state;
+ 	struct scan_control sc = {
+ 		.gfp_mask = GFP_KERNEL,
+@@ -1518,6 +1528,21 @@
+ 						lru_pages);
+ 			nr_reclaimed += reclaim_state->reclaimed_slab;
+ 			total_scanned += sc.nr_scanned;
++
++			/*
++			 * If the total number of anonymous pages is growing, 
++			 * and the pressure is enough to unmap active pages,
++			 * notify userspace.
++			 */
++			if (should_reclaim_mapped(zone, &sc, priority)) {
++				unsigned long anon_pages = 0;
++				anon_pages = nr_anon_pages;
++	
++				if (total_anon_pages() > anon_pages)
++					mem_notify_userspace();
++
++				nr_anon_pages = total_anon_pages();
++			}
+ 			if (zone_is_all_unreclaimable(zone))
+ 				continue;
+ 			if (nr_slab == 0 && zone->pages_scanned >=
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
