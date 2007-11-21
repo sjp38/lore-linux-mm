@@ -1,75 +1,52 @@
-Date: Wed, 21 Nov 2007 15:34:25 -0800 (PST)
-From: Christoph Lameter <clameter@sgi.com>
+Date: Wed, 21 Nov 2007 23:51:14 +0000
+From: Mel Gorman <mel@csn.ul.ie>
 Subject: Re: [PATCH] Page allocator: Get rid of the list of cold pages
-In-Reply-To: <20071121230041.GE31674@csn.ul.ie>
-Message-ID: <Pine.LNX.4.64.0711211530370.4383@schroedinger.engr.sgi.com>
-References: <Pine.LNX.4.64.0711141148200.18811@schroedinger.engr.sgi.com>
- <20071115162706.4b9b9e2a.akpm@linux-foundation.org> <20071121222059.GC31674@csn.ul.ie>
- <Pine.LNX.4.64.0711211434290.3809@schroedinger.engr.sgi.com>
- <20071121230041.GE31674@csn.ul.ie>
+Message-ID: <20071121235114.GF31674@csn.ul.ie>
+References: <Pine.LNX.4.64.0711141148200.18811@schroedinger.engr.sgi.com> <20071115162706.4b9b9e2a.akpm@linux-foundation.org> <20071121222059.GC31674@csn.ul.ie> <20071121152328.72697909.akpm@linux-foundation.org>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <20071121152328.72697909.akpm@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, apw@shadowen.org, Martin Bligh <mbligh@mbligh.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: clameter@sgi.com, linux-mm@kvack.org, apw@shadowen.org, mbligh@mbligh.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 21 Nov 2007, Mel Gorman wrote:
+On (21/11/07 15:23), Andrew Morton didst pronounce:
+> On Wed, 21 Nov 2007 22:20:59 +0000
+> Mel Gorman <mel@csn.ul.ie> wrote:
+> 
+> > I cannot see the evidence of this 3x improvement around the 32K filesize
+> > mark. It may be because my test is very different to what happened before,
+> > I got something wrong or the per-CPU allocator is not as good as it used to
+> > be and does not give out the same hot-pages all the time.
+> 
+> Could be that when you return a handful of pages to the page allocator
+> and then allocate a handful of pages, you get the same pages back.  But
+> that the page allocator wasn't doing that 4-5 years ago when that code
+> went in.
+> 
 
-> I thought this would be a good idea too but in testing mode, I didn't
-> want to fiddle with patches much in case I unconsciously screwed it up.
+Maybe.
 
-Okay here is a patch against the combining patch that just forgets about 
-coldness:
+> Of course, even if the page allocator is indeed doing this for us, you'd
+> still expect to see benefits from the per-cpu magazines when each CPU is
+> allocating and freeing a number of pages which is close to the size of
+> that CPU's L1 cache.  Because when the pages are going into and coming from
+> a shared-by-all-cpus pool, each CPU will often get pages which are hot in
+> a different cpu's L1.
+> 
 
----
- mm/page_alloc.c |   18 ++++--------------
- 1 file changed, 4 insertions(+), 14 deletions(-)
+I checked and I am not seeing any clear benefit around the size of the L1
+cache (64K D-cache). It could be because the granularity of the time is
+too low and the cost of zeroing the page is drowning everything else
+out in this test.
 
-Index: linux-2.6/mm/page_alloc.c
-===================================================================
---- linux-2.6.orig/mm/page_alloc.c	2007-11-21 15:33:14.993673533 -0800
-+++ linux-2.6/mm/page_alloc.c	2007-11-21 15:33:20.697205473 -0800
-@@ -991,10 +991,7 @@ static void fastcall free_hot_cold_page(
- 	pcp = &zone_pcp(zone, get_cpu())->pcp;
- 	local_irq_save(flags);
- 	__count_vm_event(PGFREE);
--	if (cold)
--		list_add_tail(&page->lru, &pcp->list);
--	else
--		list_add(&page->lru, &pcp->list);
-+	list_add(&page->lru, &pcp->list);
- 	set_page_private(page, get_pageblock_migratetype(page));
- 	pcp->count++;
- 	if (pcp->count >= pcp->high) {
-@@ -1043,7 +1040,6 @@ static struct page *buffered_rmqueue(str
- {
- 	unsigned long flags;
- 	struct page *page;
--	int cold = !!(gfp_flags & __GFP_COLD);
- 	int cpu;
- 	int migratetype = allocflags_to_migratetype(gfp_flags);
- 
-@@ -1062,15 +1058,9 @@ again:
- 		}
- 
- 		/* Find a page of the appropriate migrate type */
--		if (cold) {
--			list_for_each_entry_reverse(page, &pcp->list, lru)
--				if (page_private(page) == migratetype)
--					break;
--		} else {
--			list_for_each_entry(page, &pcp->list, lru)
--				if (page_private(page) == migratetype)
--					break;
--		}
-+		list_for_each_entry(page, &pcp->list, lru)
-+			if (page_private(page) == migratetype)
-+				break;
- 
- 		/* Allocate more to the pcp list if necessary */
- 		if (unlikely(&page->lru == &pcp->list)) {
+-- 
+Mel Gorman
+Part-time Phd Student                          Linux Technology Center
+University of Limerick                         IBM Dublin Software Lab
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
