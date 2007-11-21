@@ -1,97 +1,190 @@
-Message-Id: <20071121100201.570607000@sgi.com>
+Message-Id: <20071121100201.417452000@sgi.com>
 References: <20071121100201.156191000@sgi.com>
-Date: Wed, 21 Nov 2007 02:02:03 -0800
+Date: Wed, 21 Nov 2007 02:02:02 -0800
 From: travis@sgi.com
-Subject: [PATCH 2/2] cpumask: Convert set_cpus_allowed to use ptr for cpumask arg -v2
-Content-Disposition: inline; filename=set_cpus_allowed-use-ptr-arg
+Subject: [PATCH 1/2] cpumask: Convert cpumask_of_cpu to static array -v2
+Content-Disposition: inline; filename=cpumask-to-percpu
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>, Andi Kleen <ak@suse.de>, Christoph Lameter <clameter@sgi.com>
 Cc: mingo@elte.hu, apw@shadowen.org, Jack Steiner <steiner@sgi.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-Avoid pushing cpumask variables onto stack when calling set_cpus_allowed
-when NR_CPUS > BITS_PER_LONG by passing cpumast_t arg as a pointer.
+Here is a simple patch to use a per cpu cpumask instead of constructing 
+one on the stack. I have been running awhile with this one:
+
+Do not use stack to allocate cpumask for cpumask_of_cpu
+
+Signed-off-by: Christoph Lameter <clameter@sgi.com>
+
+Modified to be used only if NR_CPUS is greater than the BITS_PER_LONG
+as well as fix cases where !SMP and both NR_CPUS > and < BITS_PER_LONG.
 
 Signed-off-by: Mike Travis <travis@sgi.com>
 
 ---
- include/linux/sched.h |   11 +++++++++--
- kernel/sched.c        |   22 ++++++++++++++++------
- 2 files changed, 25 insertions(+), 8 deletions(-)
+ arch/x86/kernel/apic_32.c      |    1 +
+ arch/x86/kernel/apic_64.c      |    1 +
+ arch/x86/kernel/cpu/intel.c    |    1 +
+ arch/x86/kernel/smp_32.c       |    1 +
+ arch/x86/kernel/smp_64.c       |    1 +
+ arch/x86/kernel/smpcommon_32.c |    1 +
+ arch/x86/mach-generic/bigsmp.c |    1 +
+ arch/x86/mach-generic/summit.c |    1 +
+ arch/x86/mm/numa_64.c          |    1 +
+ include/linux/cpumask.h        |    4 ++++
+ include/linux/sched.h          |    4 ++++
+ kernel/sched.c                 |    9 +++++++++
+ 12 files changed, 26 insertions(+)
 
---- linux-2.6.24-rc2.orig/include/linux/sched.h	2007-11-21 00:11:16.469672358 -0800
-+++ linux-2.6.24-rc2/include/linux/sched.h	2007-11-21 00:18:33.479765445 -0800
-@@ -1435,8 +1435,15 @@ static inline void put_task_struct(struc
- #define tsk_used_math(p) ((p)->flags & PF_USED_MATH)
- #define used_math() tsk_used_math(current)
+--- linux-2.6.24-rc2.orig/include/linux/cpumask.h	2007-11-20 23:47:27.012300595 -0800
++++ linux-2.6.24-rc2/include/linux/cpumask.h	2007-11-20 23:47:27.116306809 -0800
+@@ -222,6 +222,9 @@ int __next_cpu(int n, const cpumask_t *s
+ #define next_cpu(n, src)	1
+ #endif
  
--#ifdef CONFIG_SMP
--extern int set_cpus_allowed(struct task_struct *p, cpumask_t new_mask);
-+#if defined(CONFIG_SMP)
-+#  if NR_CPUS > BITS_PER_LONG
-+     /* avoid pushing cpumask variable onto the stack */
-+#    define set_cpus_allowed(p, new_mask) __set_cpus_allowed((p), &(new_mask))
-+     extern int __set_cpus_allowed(struct task_struct *p, cpumask_t *new_mask);
-+#  else
-+#    define set_cpus_allowed(p, new_mask) __set_cpus_allowed((p), (new_mask))
-+     extern int __set_cpus_allowed(struct task_struct *p, cpumask_t new_mask);
-+#  endif
- #else
- static inline int set_cpus_allowed(struct task_struct *p, cpumask_t new_mask)
- {
---- linux-2.6.24-rc2.orig/kernel/sched.c	2007-11-21 00:11:16.469672358 -0800
-+++ linux-2.6.24-rc2/kernel/sched.c	2007-11-21 00:19:32.599297199 -0800
-@@ -5036,7 +5036,16 @@ static inline void sched_init_granularit
-  * task must not exit() & deallocate itself prematurely.  The
-  * call is not atomic; no spinlocks may be held.
-  */
--int set_cpus_allowed(struct task_struct *p, cpumask_t new_mask)
-+#if NR_CPUS > BITS_PER_LONG
-+/*
-+ * avoid pushing a large CPU count cpumask_t variable onto stack
-+ * (relies on the fact that new_mask is a const arg to subfunctions)
-+ */
-+#define CPU_MASK_VAR(v)		*v
++#if defined(CONFIG_SMP) && (NR_CPUS > BITS_PER_LONG)
++#define cpumask_of_cpu(cpu)    per_cpu(cpu_mask, cpu)
 +#else
-+#define CPU_MASK_VAR(v)		v
+ #define cpumask_of_cpu(cpu)						\
+ ({									\
+ 	typeof(_unused_cpumask_arg_) m;					\
+@@ -233,6 +236,7 @@ int __next_cpu(int n, const cpumask_t *s
+ 	}								\
+ 	m;								\
+ })
 +#endif
-+int __set_cpus_allowed(struct task_struct *p, cpumask_t CPU_MASK_VAR(new_mask))
- {
- 	struct migration_req req;
- 	unsigned long flags;
-@@ -5044,17 +5053,17 @@ int set_cpus_allowed(struct task_struct 
- 	int ret = 0;
  
- 	rq = task_rq_lock(p, &flags);
--	if (!cpus_intersects(new_mask, cpu_online_map)) {
-+	if (!cpus_intersects(CPU_MASK_VAR(new_mask), cpu_online_map)) {
- 		ret = -EINVAL;
- 		goto out;
- 	}
+ #define CPU_MASK_LAST_WORD BITMAP_LAST_WORD_MASK(NR_CPUS)
  
--	p->cpus_allowed = new_mask;
-+	p->cpus_allowed = CPU_MASK_VAR(new_mask);
- 	/* Can the task run on the task's current CPU? If so, we're done */
--	if (cpu_isset(task_cpu(p), new_mask))
-+	if (cpu_isset(task_cpu(p), CPU_MASK_VAR(new_mask)))
- 		goto out;
- 
--	if (migrate_task(p, any_online_cpu(new_mask), &req)) {
-+	if (migrate_task(p, any_online_cpu(CPU_MASK_VAR(new_mask)), &req)) {
- 		/* Need help from migration thread: drop lock and wait. */
- 		task_rq_unlock(rq, &flags);
- 		wake_up_process(rq->migration_thread);
-@@ -5067,7 +5076,8 @@ out:
- 
- 	return ret;
+--- linux-2.6.24-rc2.orig/kernel/sched.c	2007-11-20 23:47:27.012300595 -0800
++++ linux-2.6.24-rc2/kernel/sched.c	2007-11-21 00:48:39.619652089 -0800
+@@ -6732,6 +6732,11 @@ static void init_cfs_rq(struct cfs_rq *c
+ 	cfs_rq->min_vruntime = (u64)(-(1LL << 20));
  }
--EXPORT_SYMBOL_GPL(set_cpus_allowed);
-+#undef CPU_MASK_VAR	/* keep CPU_MASK_VAR local */
-+EXPORT_SYMBOL_GPL(__set_cpus_allowed);
  
- /*
-  * Move (not current) task off this cpu, onto dest cpu.  We're doing
++#if NR_CPUS > BITS_PER_LONG
++DEFINE_PER_CPU(cpumask_t, cpu_mask);
++EXPORT_PER_CPU_SYMBOL(cpu_mask);
++#endif
++
+ void __init sched_init(void)
+ {
+ 	int highest_cpu = 0;
+@@ -6741,6 +6746,10 @@ void __init sched_init(void)
+ 		struct rt_prio_array *array;
+ 		struct rq *rq;
+ 
++#if NR_CPUS > BITS_PER_LONG
++		/* This makes cpumask_of_cpu work */
++		cpu_set(i, per_cpu(cpu_mask, i));
++#endif
+ 		rq = cpu_rq(i);
+ 		spin_lock_init(&rq->lock);
+ 		lockdep_set_class(&rq->lock, &rq->rq_lock_key);
+--- linux-2.6.24-rc2.orig/arch/x86/mm/numa_64.c	2007-11-20 23:47:27.024301312 -0800
++++ linux-2.6.24-rc2/arch/x86/mm/numa_64.c	2007-11-20 23:47:27.144308482 -0800
+@@ -11,6 +11,7 @@
+ #include <linux/ctype.h>
+ #include <linux/module.h>
+ #include <linux/nodemask.h>
++#include <linux/sched.h>
+ 
+ #include <asm/e820.h>
+ #include <asm/proto.h>
+--- linux-2.6.24-rc2.orig/include/linux/sched.h	2007-11-20 23:47:27.012300595 -0800
++++ linux-2.6.24-rc2/include/linux/sched.h	2007-11-21 00:48:39.619652089 -0800
+@@ -2024,6 +2024,10 @@ static inline void migration_init(void)
+ #define TASK_SIZE_OF(tsk)	TASK_SIZE
+ #endif
+ 
++#if defined(CONFIG_SMP) && (NR_CPUS > BITS_PER_LONG)
++DECLARE_PER_CPU(cpumask_t, cpu_mask);
++#endif
++
+ #endif /* __KERNEL__ */
+ 
+ #endif
+--- linux-2.6.24-rc2.orig/arch/x86/kernel/apic_32.c	2007-11-20 11:56:44.000000000 -0800
++++ linux-2.6.24-rc2/arch/x86/kernel/apic_32.c	2007-11-21 00:29:36.619377873 -0800
+@@ -28,6 +28,7 @@
+ #include <linux/acpi_pmtmr.h>
+ #include <linux/module.h>
+ #include <linux/dmi.h>
++#include <linux/sched.h>
+ 
+ #include <asm/atomic.h>
+ #include <asm/smp.h>
+--- linux-2.6.24-rc2.orig/arch/x86/kernel/apic_64.c	2007-11-20 11:56:44.000000000 -0800
++++ linux-2.6.24-rc2/arch/x86/kernel/apic_64.c	2007-11-21 00:29:47.240012242 -0800
+@@ -27,6 +27,7 @@
+ #include <linux/ioport.h>
+ #include <linux/clockchips.h>
+ #include <linux/acpi_pmtmr.h>
++#include <linux/sched.h>
+ 
+ #include <asm/atomic.h>
+ #include <asm/smp.h>
+--- linux-2.6.24-rc2.orig/arch/x86/kernel/smp_32.c	2007-11-06 13:57:46.000000000 -0800
++++ linux-2.6.24-rc2/arch/x86/kernel/smp_32.c	2007-11-21 00:29:23.066568364 -0800
+@@ -19,6 +19,7 @@
+ #include <linux/interrupt.h>
+ #include <linux/cpu.h>
+ #include <linux/module.h>
++#include <linux/sched.h>
+ 
+ #include <asm/mtrr.h>
+ #include <asm/tlbflush.h>
+--- linux-2.6.24-rc2.orig/arch/x86/kernel/smp_64.c	2007-11-20 11:56:45.000000000 -0800
++++ linux-2.6.24-rc2/arch/x86/kernel/smp_64.c	2007-11-21 00:29:09.389751446 -0800
+@@ -18,6 +18,7 @@
+ #include <linux/kernel_stat.h>
+ #include <linux/mc146818rtc.h>
+ #include <linux/interrupt.h>
++#include <linux/sched.h>
+ 
+ #include <asm/mtrr.h>
+ #include <asm/pgalloc.h>
+--- linux-2.6.24-rc2.orig/arch/x86/kernel/smpcommon_32.c	2007-11-06 13:57:46.000000000 -0800
++++ linux-2.6.24-rc2/arch/x86/kernel/smpcommon_32.c	2007-11-21 00:36:48.833194837 -0800
+@@ -2,6 +2,7 @@
+  * SMP stuff which is common to all sub-architectures.
+  */
+ #include <linux/module.h>
++#include <linux/sched.h>
+ #include <asm/smp.h>
+ 
+ DEFINE_PER_CPU(unsigned long, this_cpu_off);
+--- linux-2.6.24-rc2.orig/arch/x86/mach-generic/bigsmp.c	2007-11-06 13:57:46.000000000 -0800
++++ linux-2.6.24-rc2/arch/x86/mach-generic/bigsmp.c	2007-11-21 00:34:34.017141068 -0800
+@@ -14,6 +14,7 @@
+ #include <linux/smp.h>
+ #include <linux/init.h>
+ #include <linux/dmi.h>
++#include <linux/sched.h>
+ #include <asm/mach-bigsmp/mach_apic.h>
+ #include <asm/mach-bigsmp/mach_apicdef.h>
+ #include <asm/mach-bigsmp/mach_ipi.h>
+--- linux-2.6.24-rc2.orig/arch/x86/mach-generic/summit.c	2007-11-06 13:57:46.000000000 -0800
++++ linux-2.6.24-rc2/arch/x86/mach-generic/summit.c	2007-11-21 00:32:03.188132268 -0800
+@@ -13,6 +13,7 @@
+ #include <linux/string.h>
+ #include <linux/smp.h>
+ #include <linux/init.h>
++#include <linux/sched.h>
+ #include <asm/mach-summit/mach_apic.h>
+ #include <asm/mach-summit/mach_apicdef.h>
+ #include <asm/mach-summit/mach_ipi.h>
+--- linux-2.6.24-rc2.orig/arch/x86/kernel/cpu/intel.c	2007-11-20 11:56:44.000000000 -0800
++++ linux-2.6.24-rc2/arch/x86/kernel/cpu/intel.c	2007-11-21 00:49:36.267035499 -0800
+@@ -6,6 +6,7 @@
+ #include <linux/smp.h>
+ #include <linux/thread_info.h>
+ #include <linux/module.h>
++#include <linux/sched.h>
+ 
+ #include <asm/processor.h>
+ #include <asm/pgtable.h>
 
 -- 
 
