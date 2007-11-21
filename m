@@ -1,63 +1,81 @@
-Date: Wed, 21 Nov 2007 14:39:29 -0800 (PST)
-From: Christoph Lameter <clameter@sgi.com>
+Date: Wed, 21 Nov 2007 22:54:03 +0000
+From: Mel Gorman <mel@csn.ul.ie>
 Subject: Re: [PATCH] Page allocator: Get rid of the list of cold pages
-In-Reply-To: <20071121222059.GC31674@csn.ul.ie>
-Message-ID: <Pine.LNX.4.64.0711211434290.3809@schroedinger.engr.sgi.com>
-References: <Pine.LNX.4.64.0711141148200.18811@schroedinger.engr.sgi.com>
- <20071115162706.4b9b9e2a.akpm@linux-foundation.org> <20071121222059.GC31674@csn.ul.ie>
+Message-ID: <20071121225403.GD31674@csn.ul.ie>
+References: <Pine.LNX.4.64.0711141148200.18811@schroedinger.engr.sgi.com> <20071115162706.4b9b9e2a.akpm@linux-foundation.org> <20071121222059.GC31674@csn.ul.ie> <Pine.LNX.4.64.0711211421550.3809@schroedinger.engr.sgi.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <Pine.LNX.4.64.0711211421550.3809@schroedinger.engr.sgi.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Mel Gorman <mel@csn.ul.ie>
+To: Christoph Lameter <clameter@sgi.com>
 Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, apw@shadowen.org, Martin Bligh <mbligh@mbligh.org>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 21 Nov 2007, Mel Gorman wrote:
-
-> Overall, the single list is slower than the split lists although seeing it in a
-> larger benchmark may be difficult. The biggest suprise by far is that disabling
-> the PCPU list altogether seemed to have comparable performance. Intuitively,
-> this makes no sense and means the benchmark code should be read over by a
-> second person to check for mistakes.
+On (21/11/07 14:28), Christoph Lameter didst pronounce:
+> On Wed, 21 Nov 2007, Mel Gorman wrote:
 > 
-> I cannot see the evidence of this 3x improvement around the 32K filesize
-> mark. It may be because my test is very different to what happened before,
-> I got something wrong or the per-CPU allocator is not as good as it used to
-> be and does not give out the same hot-pages all the time. I tried running
-> tests on 2.6.23 but the results of PCPU vs no-PCPU were comparable to
-> 2.6.24-rc2-mm1 so it is not something that has changed very recently.
+> > 1. In general, the split lists are faster than the combined list
+> > 2. Disabling Per-CPU has comparable performance to having the lists
 > 
-> As it is, the single PCP list may need another revision or at least
-> more investigation to see why it slows so much in comparison to the split
-> lists. The more controversial question is why disabling PCP appeared to make
-> no difference in this test.
+> That is only true for the single threaded case (actually I am measuring a 
+> slight performance benefit if I switch them off). If you have multiple 
+> processes allocating from the same zone then you can get the zone locks 
+> hot.
 
-The disabling of PCPs is for us (SGI) a performance benefit for certain 
-loads and we have seen this in tests about 2 years ago.
+um, I thought I went through this but I didn't just test single-threaded
+and you will see that the test C program forks children to do the
+work. 1instances is single process doing the work. 4instance graphs are
+4 processes simultaneously doing the work (1 per CPU) and they showed
+comparable performance of split lists vs no-PCP lits. They are also bound
+to one CPU in an effort to maximise the use of the PCPU lists.  There was
+some evidence this was beginning to change when 12 instances (3 per CPU)
+were running but I hadn't setup the test to run with more.
 
-I sure wish to know why the single PCP list is not that efficient. Could 
-you simply remove the cold handling and put all pages always at the front 
-and always allocate from the front? Maybe it is the additional list 
-handling overhead that makes the difference.
+> That was the reason for the recent regression in SLUB. The networking
+> layer went from an order 0 alloc to order 1. Zonelock contention then
+> dropped performance by 50% on an 8p! The potential for lock contention is 
+> higher the more processor per nodeare involved. So you are not going to 
+> see this as high on a standard NUMA config with 2p per node.
+> 
 
-> Any comments on the test or what could be done differently?
+Ok. I've queued the test to re-run on a 16-way x86_64 machine non-NUMA
+machine and an 8-way PPC64 2-node-NUMA machine. I haven't worked on this
+machines before but hopefully they'll run to completion.
 
-1) Could you label the axis? Its a bit difficult to see what you exactly 
-are measuring there.
+> The main point at this juncture of the pcp lists seems to be avoiding 
+> zone lock contention!
 
-2) it may be useful to do these tests with anonymous pages because the 
-file handling paths are rather slow and you may not hit zone lock 
-contention because there are other things in the way (radix tree?)
- 
-> o The fact the machine was NUMA might have skewed the results. I bound the CPU,
->   but did not set nodemasks. Node-local policies should have been used. I have
->   kicked off tests on bl6-13 which has 4 cores but non-NUMA. It'll be a long
->   time before they complete though
+I get that. I was suprised with the results too and leads me to wonder if
+the lock is being avoided elsewhere (quicklists or slab per-cpu lists maybe)
+or if there was a filesystem lock so big, it doesn't matter what the PCPU
+allocator is doing. I don't have other profile data available.
 
-The ratio of processors per node is important to see the lock contention 
-here. Or run an SMP system with lots of processors.
+> The overhead of extracting a page from the buddy 
+> lists is not such a problem.
+> 
 
+Ok, the higher-CPU machines may show the zone-lock contention. It could also
+be a case that file extend/truncate is not the right thing to be doing either
+for these measurements. Read the code and see what you think.
+
+> > single-pcplist-batch8: This is Christophs patch with pcp->high == 8*batch
+> > 	as suggested by Martin Bligh (I agreed with him that keeping lists
+> > 	the same size made sense)
+> 
+> Ack.
+> 
+> I have not had a look at the details of your performance measurements yet. 
+> More later.
+> 
+
+Thanks.
+
+-- 
+Mel Gorman
+Part-time Phd Student                          Linux Technology Center
+University of Limerick                         IBM Dublin Software Lab
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
