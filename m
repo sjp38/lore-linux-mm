@@ -1,300 +1,35 @@
-Date: Wed, 21 Nov 2007 14:53:16 -0500
-From: Marcelo Tosatti <marcelo@kvack.org>
-Subject: [PATCH] mem notifications v2 
-Message-ID: <20071121195316.GA21481@dmt>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
+Date: Wed, 21 Nov 2007 12:12:09 -0800 (PST)
+From: Christoph Lameter <clameter@sgi.com>
+Subject: Re: [PATCH] Cast page_to_pfn to unsigned long in CONFIG_SPARSEMEM
+In-Reply-To: <1195507183.27759.150.camel@localhost>
+Message-ID: <Pine.LNX.4.64.0711211211390.2971@schroedinger.engr.sgi.com>
+References: <20071113194025.150641834@polymtl.ca>  <1195160783.7078.203.camel@localhost>
+ <20071115215142.GA7825@Krystal>  <1195164977.27759.10.camel@localhost>
+ <20071116144742.GA17255@Krystal>  <1195495626.27759.119.camel@localhost>
+ <20071119185258.GA998@Krystal>  <1195501381.27759.127.camel@localhost>
+ <20071119195257.GA3440@Krystal>  <1195502983.27759.134.camel@localhost>
+ <20071119202023.GA5086@Krystal>  <20071119130801.bd7b7021.akpm@linux-foundation.org>
+ <1195507183.27759.150.camel@localhost>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
-Cc: Daniel =?iso-8859-1?Q?Sp=E5ng?= <daniel.spang@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>
+To: Dave Hansen <haveblue@us.ibm.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Mathieu Desnoyers <mathieu.desnoyers@polymtl.ca>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, mbligh@google.com
 List-ID: <linux-mm.kvack.org>
 
-Hi, 
+On Mon, 19 Nov 2007, Dave Hansen wrote:
 
-Following is an update of the mem notifications patch.
+> Which comes from:
+>         
+>         config OUT_OF_LINE_PFN_TO_PAGE
+>                 def_bool X86_64
+>                 depends on DISCONTIGMEM
+>         
+> and only on x86_64.  Perhaps it can go away with the
+> discontig->sparsemem-vmemmap conversion.
 
-It allows detection of low pressure scenarios (eg. fat browser on
-desktop) by checking if the total amount of anonymous pages is growing
-and if the VM is unmapping pages. This formula also works with swapless
-devices, where the timer on previous versions failed to.
-
-The check for low memory watermarks is retained for cases which kswapd
-can't keep up with the pressure.
-
-
---- linux-2.6.24-rc2-mm1.orig/Documentation/devices.txt	2007-11-14 23:51:12.000000000 -0200
-+++ linux-2.6.24-rc2-mm1/Documentation/devices.txt	2007-11-15 15:37:22.000000000 -0200
-@@ -96,6 +96,7 @@
- 		 11 = /dev/kmsg		Writes to this come out as printk's
- 		 12 = /dev/oldmem	Used by crashdump kernels to access
- 					the memory of the kernel that crashed.
-+		 13 = /dev/mem_notify   Low memory notification.
- 
-   1 block	RAM disk
- 		  0 = /dev/ram0		First RAM disk
---- linux-2.6.24-rc2-mm1.orig/drivers/char/mem.c	2007-11-14 23:50:47.000000000 -0200
-+++ linux-2.6.24-rc2-mm1/drivers/char/mem.c	2007-11-20 15:16:32.000000000 -0200
-@@ -34,6 +34,8 @@
- # include <linux/efi.h>
- #endif
- 
-+extern struct file_operations mem_notify_fops;
-+
- /*
-  * Architectures vary in how they handle caching for addresses
-  * outside of main memory.
-@@ -854,6 +856,9 @@
- 			filp->f_op = &oldmem_fops;
- 			break;
- #endif
-+		case 13:
-+			filp->f_op = &mem_notify_fops;
-+			break;
- 		default:
- 			return -ENXIO;
- 	}
-@@ -886,6 +891,7 @@
- #ifdef CONFIG_CRASH_DUMP
- 	{12,"oldmem",    S_IRUSR | S_IWUSR | S_IRGRP, &oldmem_fops},
- #endif
-+	{13,"mem_notify", S_IRUGO, &mem_notify_fops},
- };
- 
- static struct class *mem_class;
---- linux-2.6.24-rc2-mm1.orig/include/linux/swap.h	2007-11-14 23:51:28.000000000 -0200
-+++ linux-2.6.24-rc2-mm1/include/linux/swap.h	2007-11-21 15:40:23.000000000 -0200
-@@ -169,6 +169,8 @@
- /* Definition of global_page_state not available yet */
- #define nr_free_pages() global_page_state(NR_FREE_PAGES)
- 
-+#define total_anon_pages() (global_page_state(NR_ANON_PAGES) \
-+			    + total_swap_pages - total_swapcache_pages)
- 
- /* linux/mm/swap.c */
- extern void FASTCALL(lru_cache_add(struct page *));
-@@ -213,6 +215,9 @@
- 
- extern void swap_unplug_io_fn(struct backing_dev_info *, struct page *);
- 
-+/* linux/mm/mem_notify.c */
-+void mem_notify_userspace(void);
-+
- #ifdef CONFIG_SWAP
- /* linux/mm/page_io.c */
- extern int swap_readpage(struct file *, struct page *);
-diff -Nur --exclude-from=linux-2.6.24-rc2-mm1/Documentation/dontdiff linux-2.6.24-rc2-mm1.orig/mm/Makefile linux-2.6.24-rc2-mm1/mm/Makefile
---- linux-2.6.24-rc2-mm1.orig/mm/Makefile	2007-11-14 23:51:07.000000000 -0200
-+++ linux-2.6.24-rc2-mm1/mm/Makefile	2007-11-15 15:38:01.000000000 -0200
-@@ -11,7 +11,7 @@
- 			   page_alloc.o page-writeback.o pdflush.o \
- 			   readahead.o swap.o truncate.o vmscan.o \
- 			   prio_tree.o util.o mmzone.o vmstat.o backing-dev.o \
--			   page_isolation.o $(mmu-y)
-+			   page_isolation.o mem_notify.o $(mmu-y)
- 
- obj-$(CONFIG_PROC_PAGE_MONITOR) += pagewalk.o
- obj-$(CONFIG_BOUNCE)	+= bounce.o
---- linux-2.6.24-rc2-mm1.orig/mm/mem_notify.c	1969-12-31 21:00:00.000000000 -0300
-+++ linux-2.6.24-rc2-mm1/mm/mem_notify.c	2007-11-21 03:22:39.000000000 -0200
-@@ -0,0 +1,68 @@
-+/*
-+ * Notify applications of memory pressure via /dev/mem_notify
-+ */
-+
-+#include <linux/module.h>
-+#include <linux/fs.h>
-+#include <linux/wait.h>
-+#include <linux/poll.h>
-+#include <linux/timer.h>
-+#include <linux/spinlock.h>
-+#include <linux/mm.h>
-+#include <linux/vmstat.h>
-+
-+static unsigned long mem_notify_status = 0;
-+
-+DECLARE_WAIT_QUEUE_HEAD(mem_wait);
-+
-+void mem_notify_userspace(void)
-+{
-+	mem_notify_status = 1;
-+}
-+
-+static int mem_notify_open(struct inode *inode, struct file *file)
-+{
-+	return 0;
-+}
-+
-+static int mem_notify_release(struct inode *inode, struct file *file)
-+{
-+	return 0;
-+}
-+
-+static unsigned int mem_notify_poll(struct file *file, poll_table *wait)
-+{
-+	unsigned int val = 0;
-+	struct zone *zone;
-+	int tpages_low, tpages_free, tpages_reserve;
-+
-+	tpages_low = tpages_free = tpages_reserve = 0;
-+
-+	poll_wait(file, &mem_wait, wait);
-+
-+	for_each_zone(zone) {
-+		if (!populated_zone(zone))
-+			continue;
-+		tpages_low += zone->pages_low;
-+		tpages_free += zone_page_state(zone, NR_FREE_PAGES);
-+		/* always use the reserve of the highest allocation type */
-+		tpages_reserve += zone->lowmem_reserve[MAX_NR_ZONES-1];
-+	}
-+
-+	if ((tpages_free <= tpages_low + tpages_reserve))
-+		val = POLLIN;
-+
-+	if (mem_notify_status) {
-+		mem_notify_status = 0;
-+		val = POLLIN;
-+	}
-+		
-+	return val;
-+}
-+
-+struct file_operations mem_notify_fops = {
-+	.open = mem_notify_open,
-+	.release = mem_notify_release,
-+	.poll = mem_notify_poll,
-+};
-+EXPORT_SYMBOL(mem_notify_fops);
---- linux-2.6.24-rc2-mm1.orig/mm/vmscan.c	2007-11-14 23:51:07.000000000 -0200
-+++ linux-2.6.24-rc2-mm1/mm/vmscan.c	2007-11-21 15:41:24.000000000 -0200
-@@ -943,34 +943,9 @@
- 				+ zone_page_state(zone, NR_INACTIVE))*3;
- }
- 
--/*
-- * This moves pages from the active list to the inactive list.
-- *
-- * We move them the other way if the page is referenced by one or more
-- * processes, from rmap.
-- *
-- * If the pages are mostly unmapped, the processing is fast and it is
-- * appropriate to hold zone->lru_lock across the whole operation.  But if
-- * the pages are mapped, the processing is slow (page_referenced()) so we
-- * should drop zone->lru_lock around each page.  It's impossible to balance
-- * this, so instead we remove the pages from the LRU while processing them.
-- * It is safe to rely on PG_active against the non-LRU pages in here because
-- * nobody will play with that bit on a non-LRU page.
-- *
-- * The downside is that we have to touch page->_count against each page.
-- * But we had to alter page->flags anyway.
-- */
--static void shrink_active_list(unsigned long nr_pages, struct zone *zone,
--				struct scan_control *sc, int priority)
-+static int should_reclaim_mapped(struct zone *zone,
-+					struct scan_control *sc, int priority)
- {
--	unsigned long pgmoved;
--	int pgdeactivate = 0;
--	unsigned long pgscanned;
--	LIST_HEAD(l_hold);	/* The pages which were snipped off */
--	LIST_HEAD(l_inactive);	/* Pages to go onto the inactive_list */
--	LIST_HEAD(l_active);	/* Pages to go onto the active_list */
--	struct page *page;
--	struct pagevec pvec;
- 	int reclaim_mapped = 0;
- 
- 	if (sc->may_swap) {
-@@ -1060,6 +1035,40 @@
- force_reclaim_mapped:
- 			reclaim_mapped = 1;
- 	}
-+	return reclaim_mapped;
-+}
-+
-+/*
-+ * This moves pages from the active list to the inactive list.
-+ *
-+ * We move them the other way if the page is referenced by one or more
-+ * processes, from rmap.
-+ *
-+ * If the pages are mostly unmapped, the processing is fast and it is
-+ * appropriate to hold zone->lru_lock across the whole operation.  But if
-+ * the pages are mapped, the processing is slow (page_referenced()) so we
-+ * should drop zone->lru_lock around each page.  It's impossible to balance
-+ * this, so instead we remove the pages from the LRU while processing them.
-+ * It is safe to rely on PG_active against the non-LRU pages in here because
-+ * nobody will play with that bit on a non-LRU page.
-+ *
-+ * The downside is that we have to touch page->_count against each page.
-+ * But we had to alter page->flags anyway.
-+ */
-+static void shrink_active_list(unsigned long nr_pages, struct zone *zone,
-+				struct scan_control *sc, int priority)
-+{
-+	unsigned long pgmoved;
-+	int pgdeactivate = 0;
-+	unsigned long pgscanned;
-+	LIST_HEAD(l_hold);	/* The pages which were snipped off */
-+	LIST_HEAD(l_inactive);	/* Pages to go onto the inactive_list */
-+	LIST_HEAD(l_active);	/* Pages to go onto the active_list */
-+	struct page *page;
-+	struct pagevec pvec;
-+	int reclaim_mapped;
-+
-+	reclaim_mapped = should_reclaim_mapped(zone, sc, priority);
- 
- 	lru_add_drain();
- 	spin_lock_irq(&zone->lru_lock);
-@@ -1199,7 +1208,7 @@
- 	throttle_vm_writeout(sc->gfp_mask);
- 	return nr_reclaimed;
- }
--
-+ 
- /*
-  * This is the direct reclaim path, for page-allocating processes.  We only
-  * try to reclaim pages from zones which will satisfy the caller's allocation
-@@ -1243,7 +1252,7 @@
- 	}
- 	return nr_reclaimed;
- }
-- 
-+
- /*
-  * This is the main entry point to direct page reclaim.
-  *
-@@ -1414,6 +1423,7 @@
- 	int i;
- 	unsigned long total_scanned;
- 	unsigned long nr_reclaimed;
-+	unsigned long nr_anon_pages = 0;
- 	struct reclaim_state *reclaim_state = current->reclaim_state;
- 	struct scan_control sc = {
- 		.gfp_mask = GFP_KERNEL,
-@@ -1518,6 +1528,21 @@
- 						lru_pages);
- 			nr_reclaimed += reclaim_state->reclaimed_slab;
- 			total_scanned += sc.nr_scanned;
-+
-+			/*
-+			 * If the total number of anonymous pages is growing, 
-+			 * and the pressure is enough to unmap active pages,
-+			 * notify userspace.
-+			 */
-+			if (should_reclaim_mapped(zone, &sc, priority)) {
-+				unsigned long anon_pages = 0;
-+				anon_pages = nr_anon_pages;
-+	
-+				if (total_anon_pages() > anon_pages)
-+					mem_notify_userspace();
-+
-+				nr_anon_pages = total_anon_pages();
-+			}
- 			if (zone_is_all_unreclaimable(zone))
- 				continue;
- 			if (nr_slab == 0 && zone->pages_scanned >=
+The discontig/flatmem removal patch for x86_64 in mm already removes this.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
