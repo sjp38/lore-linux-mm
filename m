@@ -1,59 +1,36 @@
-Date: Thu, 22 Nov 2007 12:07:32 +0900
-From: kosaki <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: [PATCH] mem notifications v2 
-In-Reply-To: <20071121195316.GA21481@dmt>
-References: <20071121195316.GA21481@dmt>
-Message-Id: <20071122114532.E9E1.KOSAKI.MOTOHIRO@jp.fujitsu.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset="ISO-2022-JP"
-Content-Transfer-Encoding: 7bit
+Subject: Re: [RFC][PATCH] memory controller per zone patches take 2 [4/10]
+ calculate mapped ratio for memory cgroup
+In-Reply-To: Your message of "Mon, 19 Nov 2007 10:42:46 +0900"
+	<20071119104246.d38de797.kamezawa.hiroyu@jp.fujitsu.com>
+References: <20071119104246.d38de797.kamezawa.hiroyu@jp.fujitsu.com>
+Mime-Version: 1.0
+Content-Type: Text/Plain; charset=us-ascii
+Message-Id: <20071122083421.49E681CEE8C@siro.lan>
+Date: Thu, 22 Nov 2007 17:34:20 +0900 (JST)
+From: yamamoto@valinux.co.jp (YAMAMOTO Takashi)
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Marcelo Tosatti <marcelo@kvack.org>
-Cc: kosaki.motohiro@jp.fujitsu.com, linux-mm@kvack.org, Daniel =?ISO-2022-JP?B?U3AbJEJpTxsoQmc=?= <daniel.spang@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>
+To: kamezawa.hiroyu@jp.fujitsu.com
+Cc: balbir@linux.vnet.ibm.com, containers@lists.osdl.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi Marcelo,
+> > > +	/* usage is recorded in bytes */
+> > > +	total = mem->res.usage >> PAGE_SHIFT;
+> > > +	rss = mem_cgroup_read_stat(&mem->stat, MEM_CGROUP_STAT_RSS);
+> > > +	return (rss * 100) / total;
+> > 
+> > Never tried 64 bit division on a 32 bit system. I hope we don't
+> > have to resort to do_div() sort of functionality.
+> > 
+> Hmm, maybe it's better to make these numebrs be just "long".
+> I'll try to change per-cpu-counter implementation.
+> 
+> Thanks,
+> -Kame
 
-I am interesting your patch.
+besides that, i think 'total' can be zero here.
 
-and I have some stupid question.
-please tell me.
-
-
->  static struct class *mem_class;
-> --- linux-2.6.24-rc2-mm1.orig/include/linux/swap.h	2007-11-14 23:51:28.000000000 -0200
-> +++ linux-2.6.24-rc2-mm1/include/linux/swap.h	2007-11-21 15:40:23.000000000 -0200
-> @@ -169,6 +169,8 @@
->  /* Definition of global_page_state not available yet */
->  #define nr_free_pages() global_page_state(NR_FREE_PAGES)
->  
-> +#define total_anon_pages() (global_page_state(NR_ANON_PAGES) \
-> +			    + total_swap_pages - total_swapcache_pages)
-
-Why you use total_swap_pages?
-Are your intent watching swapon/spwapoff syscall? 
-
-or, s/total_swapcache_pages/nr_swap_pages/ ?
-
-
-> @@ -1199,7 +1208,7 @@
->  	throttle_vm_writeout(sc->gfp_mask);
->  	return nr_reclaimed;
->  }
-> -
-> + 
->  /*
->   * This is the direct reclaim path, for page-allocating processes.  We only
->   * try to reclaim pages from zones which will satisfy the caller's allocation
-
-cut here, please.
-
-
-
--- 
-kosaki
-
+YAMAMOTO Takashi
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
