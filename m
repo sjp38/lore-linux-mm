@@ -1,64 +1,57 @@
-Date: Thu, 22 Nov 2007 12:37:41 -0500
-From: Marcelo Tosatti <marcelo@kvack.org>
+Date: Thu, 22 Nov 2007 15:47:36 -0500
+From: Rik van Riel <riel@redhat.com>
 Subject: Re: [PATCH] mem notifications v2
-Message-ID: <20071122173741.GA4990@dmt>
-References: <20071121195316.GA21481@dmt> <20071122114532.E9E1.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+Message-ID: <20071122154736.02325eca@bree.surriel.com>
+In-Reply-To: <cfd9edbf0711220323v71c1dc84v1d10bda0de93fe51@mail.gmail.com>
+References: <20071121195316.GA21481@dmt>
+	<cfd9edbf0711220323v71c1dc84v1d10bda0de93fe51@mail.gmail.com>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20071122114532.E9E1.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8BIT
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: kosaki <kosaki.motohiro@jp.fujitsu.com>
-Cc: Marcelo Tosatti <marcelo@kvack.org>, linux-mm@kvack.org, Daniel =?utf-8?B?U3DomqNn?= <daniel.spang@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>
+To: Daniel =?UTF-8?B?U3DDpW5n?= <daniel.spang@gmail.com>
+Cc: Marcelo Tosatti <marcelo@kvack.org>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Nov 22, 2007 at 12:07:32PM +0900, kosaki wrote:
-> Hi Marcelo,
-> 
-> I am interesting your patch.
-> 
-> and I have some stupid question.
-> please tell me.
-> 
-> 
-> >  static struct class *mem_class;
-> > --- linux-2.6.24-rc2-mm1.orig/include/linux/swap.h	2007-11-14 23:51:28.000000000 -0200
-> > +++ linux-2.6.24-rc2-mm1/include/linux/swap.h	2007-11-21 15:40:23.000000000 -0200
-> > @@ -169,6 +169,8 @@
-> >  /* Definition of global_page_state not available yet */
-> >  #define nr_free_pages() global_page_state(NR_FREE_PAGES)
-> >  
-> > +#define total_anon_pages() (global_page_state(NR_ANON_PAGES) \
-> > +			    + total_swap_pages - total_swapcache_pages)
-> 
-> Why you use total_swap_pages?
-> Are your intent watching swapon/spwapoff syscall? 
-> 
-> or, s/total_swapcache_pages/nr_swap_pages/ ?
+On Thu, 22 Nov 2007 12:23:55 +0100
+"Daniel SpAJPYng" <daniel.spang@gmail.com> wrote:
 
-Oops.
+> When the page cache is filled, the notification is a bit early as the
+> following example shows on a small system with 64 MB ram and no swap.
+> On the first run the application can use 58 MB of anonymous pages
+> before notification is sent. Then after the page cache is filled the
+> test application is runned again and is only able to use 49 MB before
+> being notified.
 
-total_anon_pages() is supposed to return the total number of anonymous pages
-(including swapped out ones), so that should be: 
+Excellent.  Throwing away useless memory when three is still
+useful memory available sounds like a good idea.
 
-#define total_anon_pages() (global_page_state(NR_ANON_PAGES) + \
-                           (total_swap_pages-nr_swap_pages)  - \
-                            total_swapcache_pages
+> I see it as a feature to be able to throw out inactive binaries and
+> mmaped files before getting notified about low memory.
 
-> > @@ -1199,7 +1208,7 @@
-> >  	throttle_vm_writeout(sc->gfp_mask);
-> >  	return nr_reclaimed;
-> >  }
-> > -
-> > + 
-> >  /*
-> >   * This is the direct reclaim path, for page-allocating processes.  We only
-> >   * try to reclaim pages from zones which will satisfy the caller's allocation
-> 
-> cut here, please.
+I think that once you get low on memory, you want a bit of
+both.  Inactive binaries and mmaped files are potentially
+useful; in-process free()d memory and caches are just as
+potentially (dubiously) useful.
 
-Fixed, thanks.
+Freeing a bit of both will probably provide a good compromise
+between CPU and memory efficiency.
+
+> I suggest we add both this notification and my priority threshold 
+> based approach, then the users can chose which one to use.
+
+That sounds like a horribly bad idea, because we run the
+danger of ending up with two sets of applications, both of
+which expect another notification type.
+
+One type of application can cause the other to receive
+unfair amounts of memory pressure.
+
+-- 
+"Debugging is twice as hard as writing the code in the first place.
+Therefore, if you write the code as cleverly as possible, you are,
+by definition, not smart enough to debug it." - Brian W. Kernighan
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
