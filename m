@@ -1,142 +1,64 @@
-Message-ID: <4745B4F2.3060308@openvz.org>
-Date: Thu, 22 Nov 2007 19:57:22 +0300
-From: Pavel Emelyanov <xemul@openvz.org>
-MIME-Version: 1.0
-Subject: [PATCH][SHMEM] Factor out sbi->free_inodes manipulations
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Date: Thu, 22 Nov 2007 12:37:41 -0500
+From: Marcelo Tosatti <marcelo@kvack.org>
+Subject: Re: [PATCH] mem notifications v2
+Message-ID: <20071122173741.GA4990@dmt>
+References: <20071121195316.GA21481@dmt> <20071122114532.E9E1.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20071122114532.E9E1.KOSAKI.MOTOHIRO@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@osdl.org>
-Cc: Linux MM <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, devel@openvz.org
+To: kosaki <kosaki.motohiro@jp.fujitsu.com>
+Cc: Marcelo Tosatti <marcelo@kvack.org>, linux-mm@kvack.org, Daniel =?utf-8?B?U3DomqNn?= <daniel.spang@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
-The shmem_sb_info structure has a number of free_inodes. This
-value is altered in appropriate places under spinlock and with
-the sbi->max_inodes != 0 check.
+On Thu, Nov 22, 2007 at 12:07:32PM +0900, kosaki wrote:
+> Hi Marcelo,
+> 
+> I am interesting your patch.
+> 
+> and I have some stupid question.
+> please tell me.
+> 
+> 
+> >  static struct class *mem_class;
+> > --- linux-2.6.24-rc2-mm1.orig/include/linux/swap.h	2007-11-14 23:51:28.000000000 -0200
+> > +++ linux-2.6.24-rc2-mm1/include/linux/swap.h	2007-11-21 15:40:23.000000000 -0200
+> > @@ -169,6 +169,8 @@
+> >  /* Definition of global_page_state not available yet */
+> >  #define nr_free_pages() global_page_state(NR_FREE_PAGES)
+> >  
+> > +#define total_anon_pages() (global_page_state(NR_ANON_PAGES) \
+> > +			    + total_swap_pages - total_swapcache_pages)
+> 
+> Why you use total_swap_pages?
+> Are your intent watching swapon/spwapoff syscall? 
+> 
+> or, s/total_swapcache_pages/nr_swap_pages/ ?
 
-Consolidate these manipulations into two helpers.
+Oops.
 
-This is minus 30 bytes of shmem.o and minus 4 :) lines of code.
+total_anon_pages() is supposed to return the total number of anonymous pages
+(including swapped out ones), so that should be: 
 
-Signed-off-by: Pavel Emelyanov <xemul@openvz.org>
+#define total_anon_pages() (global_page_state(NR_ANON_PAGES) + \
+                           (total_swap_pages-nr_swap_pages)  - \
+                            total_swapcache_pages
 
----
+> > @@ -1199,7 +1208,7 @@
+> >  	throttle_vm_writeout(sc->gfp_mask);
+> >  	return nr_reclaimed;
+> >  }
+> > -
+> > + 
+> >  /*
+> >   * This is the direct reclaim path, for page-allocating processes.  We only
+> >   * try to reclaim pages from zones which will satisfy the caller's allocation
+> 
+> cut here, please.
 
-diff --git a/mm/shmem.c b/mm/shmem.c
-index e0d4b2e..abba17c 100644
---- a/mm/shmem.c
-+++ b/mm/shmem.c
-@@ -205,6 +205,29 @@ static void shmem_free_blocks(struct inode *inode, long pages)
- 	}
- }
- 
-+static int shmem_inc_inodes(struct shmem_sb_info *sbinfo)
-+{
-+	if (sbinfo->max_inodes) {
-+		spin_lock(&sbinfo->stat_lock);
-+		if (!sbinfo->free_inodes) {
-+			spin_unlock(&sbinfo->stat_lock);
-+			return -ENOMEM;
-+		}
-+		sbinfo->free_inodes--;
-+		spin_unlock(&sbinfo->stat_lock);
-+	}
-+	return 0;
-+}
-+
-+static void shmem_dec_inodes(struct shmem_sb_info *sbinfo)
-+{
-+	if (sbinfo->max_inodes) {
-+		spin_lock(&sbinfo->stat_lock);
-+		sbinfo->free_inodes++;
-+		spin_unlock(&sbinfo->stat_lock);
-+	}
-+}
-+
- /*
-  * shmem_recalc_inode - recalculate the size of an inode
-  *
-@@ -777,11 +800,7 @@ static void shmem_delete_inode(struct inode *inode)
- 		}
- 	}
- 	BUG_ON(inode->i_blocks);
--	if (sbinfo->max_inodes) {
--		spin_lock(&sbinfo->stat_lock);
--		sbinfo->free_inodes++;
--		spin_unlock(&sbinfo->stat_lock);
--	}
-+	shmem_dec_inodes(sbinfo);
- 	clear_inode(inode);
- }
- 
-@@ -1370,15 +1389,8 @@ shmem_get_inode(struct super_block *sb, int mode, dev_t dev)
- 	struct shmem_inode_info *info;
- 	struct shmem_sb_info *sbinfo = SHMEM_SB(sb);
- 
--	if (sbinfo->max_inodes) {
--		spin_lock(&sbinfo->stat_lock);
--		if (!sbinfo->free_inodes) {
--			spin_unlock(&sbinfo->stat_lock);
--			return NULL;
--		}
--		sbinfo->free_inodes--;
--		spin_unlock(&sbinfo->stat_lock);
--	}
-+	if (shmem_inc_inodes(sbinfo))
-+		return NULL;
- 
- 	inode = new_inode(sb);
- 	if (inode) {
-@@ -1422,11 +1434,8 @@ shmem_get_inode(struct super_block *sb, int mode, dev_t dev)
- 						NULL);
- 			break;
- 		}
--	} else if (sbinfo->max_inodes) {
--		spin_lock(&sbinfo->stat_lock);
--		sbinfo->free_inodes++;
--		spin_unlock(&sbinfo->stat_lock);
--	}
-+	} else
-+		shmem_dec_inodes(sbinfo);
- 	return inode;
- }
- 
-@@ -1676,15 +1685,8 @@ static int shmem_link(struct dentry *old_dentry, struct inode *dir, struct dentr
- 	 * but each new link needs a new dentry, pinning lowmem, and
- 	 * tmpfs dentries cannot be pruned until they are unlinked.
- 	 */
--	if (sbinfo->max_inodes) {
--		spin_lock(&sbinfo->stat_lock);
--		if (!sbinfo->free_inodes) {
--			spin_unlock(&sbinfo->stat_lock);
--			return -ENOSPC;
--		}
--		sbinfo->free_inodes--;
--		spin_unlock(&sbinfo->stat_lock);
--	}
-+	if (shmem_inc_inodes(sbinfo))
-+		return -ENOSPC;
- 
- 	dir->i_size += BOGO_DIRENT_SIZE;
- 	inode->i_ctime = dir->i_ctime = dir->i_mtime = CURRENT_TIME;
-@@ -1699,14 +1701,8 @@ static int shmem_unlink(struct inode *dir, struct dentry *dentry)
- {
- 	struct inode *inode = dentry->d_inode;
- 
--	if (inode->i_nlink > 1 && !S_ISDIR(inode->i_mode)) {
--		struct shmem_sb_info *sbinfo = SHMEM_SB(inode->i_sb);
--		if (sbinfo->max_inodes) {
--			spin_lock(&sbinfo->stat_lock);
--			sbinfo->free_inodes++;
--			spin_unlock(&sbinfo->stat_lock);
--		}
--	}
-+	if (inode->i_nlink > 1 && !S_ISDIR(inode->i_mode))
-+		shmem_dec_inodes(SHMEM_SB(inode->i_sb));
- 
- 	dir->i_size -= BOGO_DIRENT_SIZE;
- 	inode->i_ctime = dir->i_ctime = dir->i_mtime = CURRENT_TIME;
+Fixed, thanks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
