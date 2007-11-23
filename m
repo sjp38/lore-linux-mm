@@ -1,74 +1,170 @@
-Received: by el-out-1112.google.com with SMTP id z25so1345134ele
-        for <linux-mm@kvack.org>; Fri, 23 Nov 2007 04:42:58 -0800 (PST)
-Message-ID: <cfd9edbf0711230442g4004f242v5c21e06e5663d1a8@mail.gmail.com>
-Date: Fri, 23 Nov 2007 13:42:58 +0100
-From: "=?ISO-8859-1?Q?Daniel_Sp=E5ng?=" <daniel.spang@gmail.com>
-Subject: Re: [PATCH] mem notifications v2
-In-Reply-To: <20071122193650.07bfe5dd@bree.surriel.com>
+Date: Fri, 23 Nov 2007 13:41:55 +0000 (GMT)
+From: Hugh Dickins <hugh@veritas.com>
+Subject: Re: [PATCH][SHMEM] Factor out sbi->free_inodes manipulations
+In-Reply-To: <4745B4F2.3060308@openvz.org>
+Message-ID: <Pine.LNX.4.64.0711231325510.18348@blonde.wat.veritas.com>
+References: <4745B4F2.3060308@openvz.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 8BIT
-Content-Disposition: inline
-References: <20071121195316.GA21481@dmt>
-	 <cfd9edbf0711220323v71c1dc84v1d10bda0de93fe51@mail.gmail.com>
-	 <20071122154736.02325eca@bree.surriel.com>
-	 <cfd9edbf0711221627n55c9220dhe3d6bd44449c47b4@mail.gmail.com>
-	 <20071122193650.07bfe5dd@bree.surriel.com>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Rik van Riel <riel@redhat.com>
-Cc: Marcelo Tosatti <marcelo@kvack.org>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>
+To: Pavel Emelyanov <xemul@openvz.org>
+Cc: Andrew Morton <akpm@osdl.org>, Linux MM <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, devel@openvz.org
 List-ID: <linux-mm.kvack.org>
 
-On 11/23/07, Rik van Riel <riel@redhat.com> wrote:
-> On Fri, 23 Nov 2007 01:27:38 +0100
-> "Daniel Spang" <daniel.spang@gmail.com> wrote:
->
-> > On 11/22/07, Rik van Riel <riel@redhat.com> wrote:
-> > > On Thu, 22 Nov 2007 12:23:55 +0100
-> > > "Daniel Spang" <daniel.spang@gmail.com> wrote:
-> > >
-> > > > When the page cache is filled, the notification is a bit early as the
-> > > > following example shows on a small system with 64 MB ram and no swap.
-> > > > On the first run the application can use 58 MB of anonymous pages
-> > > > before notification is sent. Then after the page cache is filled the
-> > > > test application is runned again and is only able to use 49 MB before
-> > > > being notified.
-> > >
-> > > Excellent.  Throwing away useless memory when three is still
-> > > useful memory available sounds like a good idea.
-> > >
-> > > > I see it as a feature to be able to throw out inactive binaries and
-> > > > mmaped files before getting notified about low memory.
-> > >
-> > > I think that once you get low on memory, you want a bit of
-> > > both.  Inactive binaries and mmaped files are potentially
-> > > useful; in-process free()d memory and caches are just as
-> > > potentially (dubiously) useful.
-> > >
-> > > Freeing a bit of both will probably provide a good compromise
-> > > between CPU and memory efficiency.
-> >
-> > I get your point, but strictly speaking, it is never freeing inactive
-> > binaries nor mapped files until all in-process cache are freed. But
-> > your argument is still valid, although a tad weaker, if you replace
-> > ``inactive binaries and mmaped files'' with ``page cache''.
->
-> How can you say that when you do not know how many userland
-> processes will get woken up, or how much memory they will
-> free?
->
-> The kernel sends the notification in *addition* to freeing
-> page cache, not instead of freeing page cache.
+Looks good, but we can save slightly more there (depending on config),
+and I found your inc/dec names a little confusing, since the count is
+going the other way: how do you feel about this version?  (I'd like it
+better if those helpers could take a struct inode *, but they cannot.)
+Hugh
 
-Ok, ``never freeing'' and ``all in-process cache'' was a slight
-exaggeration. However, I did some tests that show that if a process,
-polling on the device and able to free some memory rather quickly, not
-much mmaped file backed memory will be thrown out after each
-notification.
 
-Note that I'm not against this early notification per se, just that I
-think there is a need for a later notification too.
+From: Pavel Emelyanov <xemul@openvz.org>
+
+The shmem_sb_info structure has a number of free_inodes. This
+value is altered in appropriate places under spinlock and with
+the sbi->max_inodes != 0 check.
+
+Consolidate these manipulations into two helpers.
+
+This is minus 42 bytes of shmem.o and minus 4 :) lines of code.
+
+Signed-off-by: Pavel Emelyanov <xemul@openvz.org>
+Signed-off-by: Hugh Dickins <hugh@veritas.com>
+---
+
+ mm/shmem.c |   72 ++++++++++++++++++++++++---------------------------
+ 1 file changed, 34 insertions(+), 38 deletions(-)
+
+--- 2.6.24-rc3/mm/shmem.c	2007-11-07 04:21:45.000000000 +0000
++++ linux/mm/shmem.c	2007-11-23 12:43:28.000000000 +0000
+@@ -207,6 +207,31 @@ static void shmem_free_blocks(struct ino
+ 	}
+ }
+ 
++static int shmem_reserve_inode(struct super_block *sb)
++{
++	struct shmem_sb_info *sbinfo = SHMEM_SB(sb);
++	if (sbinfo->max_inodes) {
++		spin_lock(&sbinfo->stat_lock);
++		if (!sbinfo->free_inodes) {
++			spin_unlock(&sbinfo->stat_lock);
++			return -ENOMEM;
++		}
++		sbinfo->free_inodes--;
++		spin_unlock(&sbinfo->stat_lock);
++	}
++	return 0;
++}
++
++static void shmem_free_inode(struct super_block *sb)
++{
++	struct shmem_sb_info *sbinfo = SHMEM_SB(sb);
++	if (sbinfo->max_inodes) {
++		spin_lock(&sbinfo->stat_lock);
++		sbinfo->free_inodes++;
++		spin_unlock(&sbinfo->stat_lock);
++	}
++}
++
+ /*
+  * shmem_recalc_inode - recalculate the size of an inode
+  *
+@@ -762,7 +787,6 @@ static int shmem_notify_change(struct de
+ 
+ static void shmem_delete_inode(struct inode *inode)
+ {
+-	struct shmem_sb_info *sbinfo = SHMEM_SB(inode->i_sb);
+ 	struct shmem_inode_info *info = SHMEM_I(inode);
+ 
+ 	if (inode->i_op->truncate == shmem_truncate) {
+@@ -777,11 +801,7 @@ static void shmem_delete_inode(struct in
+ 		}
+ 	}
+ 	BUG_ON(inode->i_blocks);
+-	if (sbinfo->max_inodes) {
+-		spin_lock(&sbinfo->stat_lock);
+-		sbinfo->free_inodes++;
+-		spin_unlock(&sbinfo->stat_lock);
+-	}
++	shmem_free_inode(inode->i_sb);
+ 	clear_inode(inode);
+ }
+ 
+@@ -1398,15 +1418,8 @@ shmem_get_inode(struct super_block *sb, 
+ 	struct shmem_inode_info *info;
+ 	struct shmem_sb_info *sbinfo = SHMEM_SB(sb);
+ 
+-	if (sbinfo->max_inodes) {
+-		spin_lock(&sbinfo->stat_lock);
+-		if (!sbinfo->free_inodes) {
+-			spin_unlock(&sbinfo->stat_lock);
+-			return NULL;
+-		}
+-		sbinfo->free_inodes--;
+-		spin_unlock(&sbinfo->stat_lock);
+-	}
++	if (shmem_reserve_inode(sb))
++		return NULL;
+ 
+ 	inode = new_inode(sb);
+ 	if (inode) {
+@@ -1450,11 +1463,8 @@ shmem_get_inode(struct super_block *sb, 
+ 						NULL);
+ 			break;
+ 		}
+-	} else if (sbinfo->max_inodes) {
+-		spin_lock(&sbinfo->stat_lock);
+-		sbinfo->free_inodes++;
+-		spin_unlock(&sbinfo->stat_lock);
+-	}
++	} else
++		shmem_free_inode(sb);
+ 	return inode;
+ }
+ 
+@@ -1797,22 +1807,14 @@ static int shmem_create(struct inode *di
+ static int shmem_link(struct dentry *old_dentry, struct inode *dir, struct dentry *dentry)
+ {
+ 	struct inode *inode = old_dentry->d_inode;
+-	struct shmem_sb_info *sbinfo = SHMEM_SB(inode->i_sb);
+ 
+ 	/*
+ 	 * No ordinary (disk based) filesystem counts links as inodes;
+ 	 * but each new link needs a new dentry, pinning lowmem, and
+ 	 * tmpfs dentries cannot be pruned until they are unlinked.
+ 	 */
+-	if (sbinfo->max_inodes) {
+-		spin_lock(&sbinfo->stat_lock);
+-		if (!sbinfo->free_inodes) {
+-			spin_unlock(&sbinfo->stat_lock);
+-			return -ENOSPC;
+-		}
+-		sbinfo->free_inodes--;
+-		spin_unlock(&sbinfo->stat_lock);
+-	}
++	if (shmem_reserve_inode(inode->i_sb))
++		return -ENOSPC;
+ 
+ 	dir->i_size += BOGO_DIRENT_SIZE;
+ 	inode->i_ctime = dir->i_ctime = dir->i_mtime = CURRENT_TIME;
+@@ -1827,14 +1829,8 @@ static int shmem_unlink(struct inode *di
+ {
+ 	struct inode *inode = dentry->d_inode;
+ 
+-	if (inode->i_nlink > 1 && !S_ISDIR(inode->i_mode)) {
+-		struct shmem_sb_info *sbinfo = SHMEM_SB(inode->i_sb);
+-		if (sbinfo->max_inodes) {
+-			spin_lock(&sbinfo->stat_lock);
+-			sbinfo->free_inodes++;
+-			spin_unlock(&sbinfo->stat_lock);
+-		}
+-	}
++	if (inode->i_nlink > 1 && !S_ISDIR(inode->i_mode))
++		shmem_free_inode(inode->i_sb);
+ 
+ 	dir->i_size -= BOGO_DIRENT_SIZE;
+ 	inode->i_ctime = dir->i_ctime = dir->i_mtime = CURRENT_TIME;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
