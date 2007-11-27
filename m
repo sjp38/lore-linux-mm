@@ -1,259 +1,117 @@
-Date: Tue, 27 Nov 2007 12:11:36 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: [PATCH][for -mm] per-zone and reclaim enhancements for memory
- controller take 3 [10/10] per-zone-lock for cgroup
-Message-Id: <20071127121136.927ec944.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20071127115525.e9779108.kamezawa.hiroyu@jp.fujitsu.com>
-References: <20071127115525.e9779108.kamezawa.hiroyu@jp.fujitsu.com>
+Date: Mon, 26 Nov 2007 21:23:11 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH][SHMEM] Factor out sbi->free_inodes manipulations
+Message-Id: <20071126212311.88818502.akpm@linux-foundation.org>
+In-Reply-To: <Pine.LNX.4.64.0711231325510.18348@blonde.wat.veritas.com>
+References: <4745B4F2.3060308@openvz.org>
+	<Pine.LNX.4.64.0711231325510.18348@blonde.wat.veritas.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "yamamoto@valinux.co.jp" <yamamoto@valinux.co.jp>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "containers@lists.osdl.org" <containers@lists.osdl.org>, LKML <linux-kernel@vger.kernel.org>
+To: Hugh Dickins <hugh@veritas.com>
+Cc: Pavel Emelyanov <xemul@openvz.org>, Linux MM <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, devel@openvz.org
 List-ID: <linux-mm.kvack.org>
 
-Now, lru is per-zone.
+On Fri, 23 Nov 2007 13:41:55 +0000 (GMT) Hugh Dickins <hugh@veritas.com> wrote:
 
-Then, lru_lock can be (should be) per-zone, too.
-This patch implementes per-zone lru lock.
+> Looks good, but we can save slightly more there (depending on config),
+> and I found your inc/dec names a little confusing, since the count is
+> going the other way: how do you feel about this version?  (I'd like it
+> better if those helpers could take a struct inode *, but they cannot.)
+> Hugh
+> 
+> 
+> From: Pavel Emelyanov <xemul@openvz.org>
+> 
+> The shmem_sb_info structure has a number of free_inodes. This
+> value is altered in appropriate places under spinlock and with
+> the sbi->max_inodes != 0 check.
+> 
+> Consolidate these manipulations into two helpers.
+> 
+> This is minus 42 bytes of shmem.o and minus 4 :) lines of code.
+> 
+> Signed-off-by: Pavel Emelyanov <xemul@openvz.org>
+> Signed-off-by: Hugh Dickins <hugh@veritas.com>
+> ---
+> 
+>  mm/shmem.c |   72 ++++++++++++++++++++++++---------------------------
+>  1 file changed, 34 insertions(+), 38 deletions(-)
+> 
+> --- 2.6.24-rc3/mm/shmem.c	2007-11-07 04:21:45.000000000 +0000
+> +++ linux/mm/shmem.c	2007-11-23 12:43:28.000000000 +0000
+> @@ -207,6 +207,31 @@ static void shmem_free_blocks(struct ino
+>  	}
+>  }
+>  
+> +static int shmem_reserve_inode(struct super_block *sb)
+> +{
+> +	struct shmem_sb_info *sbinfo = SHMEM_SB(sb);
+> +	if (sbinfo->max_inodes) {
+> +		spin_lock(&sbinfo->stat_lock);
+> +		if (!sbinfo->free_inodes) {
+> +			spin_unlock(&sbinfo->stat_lock);
+> +			return -ENOMEM;
+> +		}
+> +		sbinfo->free_inodes--;
+> +		spin_unlock(&sbinfo->stat_lock);
+> +	}
+> +	return 0;
+> +}
 
-lru_lock is placed into mem_cgroup_per_zone struct.
+It is peculair to (wrongly) return -ENOMEM
 
-lock can be accessed by
-   mz = mem_cgroup_zoneinfo(mem_cgroup, node, zone);
-   &mz->lru_lock
+> +	if (shmem_reserve_inode(inode->i_sb))
+> +		return -ENOSPC;
 
-   or
-   mz = page_cgroup_zoneinfo(page_cgroup);
-   &mz->lru_lock
+and to then correct it in the caller..
 
 
-Signed-off-by: KAMEZAWA hiroyuki <kmaezawa.hiroyu@jp.fujitsu.com>
+Something boringly conventional such as the below, perhaps?
 
- mm/memcontrol.c |   71 ++++++++++++++++++++++++++++++++++----------------------
- 1 file changed, 44 insertions(+), 27 deletions(-)
-
-Index: linux-2.6.24-rc3-mm1/mm/memcontrol.c
-===================================================================
---- linux-2.6.24-rc3-mm1.orig/mm/memcontrol.c	2007-11-27 11:24:16.000000000 +0900
-+++ linux-2.6.24-rc3-mm1/mm/memcontrol.c	2007-11-27 11:24:22.000000000 +0900
-@@ -89,6 +89,10 @@
- };
- 
- struct mem_cgroup_per_zone {
-+	/*
-+	 * spin_lock to protect the per cgroup LRU
-+	 */
-+	spinlock_t		lru_lock;
- 	struct list_head	active_list;
- 	struct list_head	inactive_list;
- 	unsigned long count[NR_MEM_CGROUP_ZSTAT];
-@@ -126,10 +130,7 @@
- 	 * per zone LRU lists.
- 	 */
- 	struct mem_cgroup_lru_info info;
--	/*
--	 * spin_lock to protect the per cgroup LRU
--	 */
--	spinlock_t lru_lock;
-+
- 	unsigned long control_type;	/* control RSS or RSS+Pagecache */
- 	int	prev_priority;	/* for recording reclaim priority */
- 	/*
-@@ -410,15 +411,16 @@
-  */
- void mem_cgroup_move_lists(struct page_cgroup *pc, bool active)
- {
--	struct mem_cgroup *mem;
-+	struct mem_cgroup_per_zone *mz;
-+	unsigned long flags;
-+
- 	if (!pc)
- 		return;
- 
--	mem = pc->mem_cgroup;
--
--	spin_lock(&mem->lru_lock);
-+	mz = page_cgroup_zoneinfo(pc);
-+	spin_lock_irqsave(&mz->lru_lock, flags);
- 	__mem_cgroup_move_lists(pc, active);
--	spin_unlock(&mem->lru_lock);
-+	spin_unlock_irqrestore(&mz->lru_lock, flags);
- }
- 
- /*
-@@ -528,7 +530,7 @@
- 		src = &mz->inactive_list;
- 
- 
--	spin_lock(&mem_cont->lru_lock);
-+	spin_lock(&mz->lru_lock);
- 	scan = 0;
- 	list_for_each_entry_safe_reverse(pc, tmp, src, lru) {
- 		if (scan >= nr_to_scan)
-@@ -558,7 +560,7 @@
- 	}
- 
- 	list_splice(&pc_list, src);
--	spin_unlock(&mem_cont->lru_lock);
-+	spin_unlock(&mz->lru_lock);
- 
- 	*scanned = scan;
- 	return nr_taken;
-@@ -577,6 +579,7 @@
- 	struct page_cgroup *pc;
- 	unsigned long flags;
- 	unsigned long nr_retries = MEM_CGROUP_RECLAIM_RETRIES;
-+	struct mem_cgroup_per_zone *mz;
- 
- 	/*
- 	 * Should page_cgroup's go to their own slab?
-@@ -688,10 +691,11 @@
- 		goto retry;
- 	}
- 
--	spin_lock_irqsave(&mem->lru_lock, flags);
-+	mz = page_cgroup_zoneinfo(pc);
-+	spin_lock_irqsave(&mz->lru_lock, flags);
- 	/* Update statistics vector */
- 	__mem_cgroup_add_list(pc);
--	spin_unlock_irqrestore(&mem->lru_lock, flags);
-+	spin_unlock_irqrestore(&mz->lru_lock, flags);
- 
- done:
- 	return 0;
-@@ -733,6 +737,7 @@
- void mem_cgroup_uncharge(struct page_cgroup *pc)
- {
- 	struct mem_cgroup *mem;
-+	struct mem_cgroup_per_zone *mz;
- 	struct page *page;
- 	unsigned long flags;
- 
-@@ -745,6 +750,7 @@
- 
- 	if (atomic_dec_and_test(&pc->ref_cnt)) {
- 		page = pc->page;
-+		mz = page_cgroup_zoneinfo(pc);
- 		/*
- 		 * get page->cgroup and clear it under lock.
- 		 * force_empty can drop page->cgroup without checking refcnt.
-@@ -753,9 +759,9 @@
- 			mem = pc->mem_cgroup;
- 			css_put(&mem->css);
- 			res_counter_uncharge(&mem->res, PAGE_SIZE);
--			spin_lock_irqsave(&mem->lru_lock, flags);
-+			spin_lock_irqsave(&mz->lru_lock, flags);
- 			__mem_cgroup_remove_list(pc);
--			spin_unlock_irqrestore(&mem->lru_lock, flags);
-+			spin_unlock_irqrestore(&mz->lru_lock, flags);
- 			kfree(pc);
+--- a/mm/shmem.c~shmem-factor-out-sbi-free_inodes-manipulations-fix
++++ a/mm/shmem.c
+@@ -212,7 +212,7 @@ static int shmem_reserve_inode(struct su
+ 		spin_lock(&sbinfo->stat_lock);
+ 		if (!sbinfo->free_inodes) {
+ 			spin_unlock(&sbinfo->stat_lock);
+-			return -ENOMEM;
++			return -ENOSPC;
  		}
- 	}
-@@ -794,24 +800,29 @@
- 	struct page_cgroup *pc;
- 	struct mem_cgroup *mem;
- 	unsigned long flags;
-+	struct mem_cgroup_per_zone *mz;
- retry:
- 	pc = page_get_page_cgroup(page);
- 	if (!pc)
- 		return;
- 	mem = pc->mem_cgroup;
-+	mz = page_cgroup_zoneinfo(pc);
- 	if (clear_page_cgroup(page, pc) != pc)
- 		goto retry;
--
--	spin_lock_irqsave(&mem->lru_lock, flags);
-+	spin_lock_irqsave(&mz->lru_lock, flags);
- 
- 	__mem_cgroup_remove_list(pc);
-+	spin_unlock_irqrestore(&mz->lru_lock, flags);
-+
- 	pc->page = newpage;
- 	lock_page_cgroup(newpage);
- 	page_assign_page_cgroup(newpage, pc);
- 	unlock_page_cgroup(newpage);
--	__mem_cgroup_add_list(pc);
- 
--	spin_unlock_irqrestore(&mem->lru_lock, flags);
-+	mz = page_cgroup_zoneinfo(pc);
-+	spin_lock_irqsave(&mz->lru_lock, flags);
-+	__mem_cgroup_add_list(pc);
-+	spin_unlock_irqrestore(&mz->lru_lock, flags);
- 	return;
- }
- 
-@@ -822,18 +833,26 @@
-  */
- #define FORCE_UNCHARGE_BATCH	(128)
- static void
--mem_cgroup_force_empty_list(struct mem_cgroup *mem, struct list_head *list)
-+mem_cgroup_force_empty_list(struct mem_cgroup *mem,
-+			    struct mem_cgroup_per_zone *mz,
-+			    int active)
+ 		sbinfo->free_inodes--;
+ 		spin_unlock(&sbinfo->stat_lock);
+@@ -1679,14 +1679,16 @@ static int shmem_create(struct inode *di
+ static int shmem_link(struct dentry *old_dentry, struct inode *dir, struct dentry *dentry)
  {
- 	struct page_cgroup *pc;
- 	struct page *page;
- 	int count;
- 	unsigned long flags;
-+	struct list_head *list;
-+
-+	if (active)
-+		list = &mz->active_list;
-+	else
-+		list = &mz->inactive_list;
+ 	struct inode *inode = old_dentry->d_inode;
++	int ret;
  
- 	if (list_empty(list))
- 		return;
- retry:
- 	count = FORCE_UNCHARGE_BATCH;
--	spin_lock_irqsave(&mem->lru_lock, flags);
-+	spin_lock_irqsave(&mz->lru_lock, flags);
+ 	/*
+ 	 * No ordinary (disk based) filesystem counts links as inodes;
+ 	 * but each new link needs a new dentry, pinning lowmem, and
+ 	 * tmpfs dentries cannot be pruned until they are unlinked.
+ 	 */
+-	if (shmem_reserve_inode(inode->i_sb))
+-		return -ENOSPC;
++	ret = shmem_reserve_inode(inode->i_sb);
++	if (ret)
++		goto out;
  
- 	while (--count && !list_empty(list)) {
- 		pc = list_entry(list->prev, struct page_cgroup, lru);
-@@ -850,7 +869,7 @@
- 		} else 	/* being uncharged ? ...do relax */
- 			break;
- 	}
--	spin_unlock_irqrestore(&mem->lru_lock, flags);
-+	spin_unlock_irqrestore(&mz->lru_lock, flags);
- 	if (!list_empty(list)) {
- 		cond_resched();
- 		goto retry;
-@@ -881,11 +900,9 @@
- 				struct mem_cgroup_per_zone *mz;
- 				mz = mem_cgroup_zoneinfo(mem, node, zid);
- 				/* drop all page_cgroup in active_list */
--				mem_cgroup_force_empty_list(mem,
--							&mz->active_list);
-+				mem_cgroup_force_empty_list(mem, mz, 1);
- 				/* drop all page_cgroup in inactive_list */
--				mem_cgroup_force_empty_list(mem,
--							&mz->inactive_list);
-+				mem_cgroup_force_empty_list(mem, mz, 0);
- 			}
- 	}
- 	ret = 0;
-@@ -1112,6 +1129,7 @@
- 		mz = &pn->zoneinfo[zone];
- 		INIT_LIST_HEAD(&mz->active_list);
- 		INIT_LIST_HEAD(&mz->inactive_list);
-+		spin_lock_init(&mz->lru_lock);
- 	}
- 	return 0;
+ 	dir->i_size += BOGO_DIRENT_SIZE;
+ 	inode->i_ctime = dir->i_ctime = dir->i_mtime = CURRENT_TIME;
+@@ -1694,7 +1696,8 @@ static int shmem_link(struct dentry *old
+ 	atomic_inc(&inode->i_count);	/* New dentry reference */
+ 	dget(dentry);		/* Extra pinning count for the created dentry */
+ 	d_instantiate(dentry, inode);
+-	return 0;
++out:
++	return ret;
  }
-@@ -1136,7 +1154,6 @@
  
- 	res_counter_init(&mem->res);
- 
--	spin_lock_init(&mem->lru_lock);
- 	mem->control_type = MEM_CGROUP_TYPE_ALL;
- 	memset(&mem->info, 0, sizeof(mem->info));
- 
+ static int shmem_unlink(struct inode *dir, struct dentry *dentry)
+_
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
