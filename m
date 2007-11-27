@@ -1,8 +1,8 @@
-Date: Tue, 27 Nov 2007 12:10:30 +0900
+Date: Tue, 27 Nov 2007 12:11:36 +0900
 From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 Subject: [PATCH][for -mm] per-zone and reclaim enhancements for memory
- controller take 3 [9/10] per zone lru for cgroup
-Message-Id: <20071127121030.e6110d2d.kamezawa.hiroyu@jp.fujitsu.com>
+ controller take 3 [10/10] per-zone-lock for cgroup
+Message-Id: <20071127121136.927ec944.kamezawa.hiroyu@jp.fujitsu.com>
 In-Reply-To: <20071127115525.e9779108.kamezawa.hiroyu@jp.fujitsu.com>
 References: <20071127115525.e9779108.kamezawa.hiroyu@jp.fujitsu.com>
 Mime-Version: 1.0
@@ -14,193 +14,246 @@ To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 Cc: Andrew Morton <akpm@linux-foundation.org>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "yamamoto@valinux.co.jp" <yamamoto@valinux.co.jp>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "containers@lists.osdl.org" <containers@lists.osdl.org>, LKML <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-This patch implements per-zone lru for memory cgroup.
-This patch makes use of mem_cgroup_per_zone struct for per zone lru.
+Now, lru is per-zone.
 
-LRU can be accessed by
+Then, lru_lock can be (should be) per-zone, too.
+This patch implementes per-zone lru lock.
 
+lru_lock is placed into mem_cgroup_per_zone struct.
+
+lock can be accessed by
    mz = mem_cgroup_zoneinfo(mem_cgroup, node, zone);
-   &mz->active_list
-   &mz->inactive_list
+   &mz->lru_lock
 
    or
    mz = page_cgroup_zoneinfo(page_cgroup);
-   &mz->active_list
-   &mz->inactive_list
-
-Changelog v1->v2
-  - merged to mem_cgroup_per_zone struct.
-  - handle page migraiton.
-
-Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+   &mz->lru_lock
 
 
- mm/memcontrol.c |   63 ++++++++++++++++++++++++++++++++++----------------------
- 1 file changed, 39 insertions(+), 24 deletions(-)
+Signed-off-by: KAMEZAWA hiroyuki <kmaezawa.hiroyu@jp.fujitsu.com>
+
+ mm/memcontrol.c |   71 ++++++++++++++++++++++++++++++++++----------------------
+ 1 file changed, 44 insertions(+), 27 deletions(-)
 
 Index: linux-2.6.24-rc3-mm1/mm/memcontrol.c
 ===================================================================
---- linux-2.6.24-rc3-mm1.orig/mm/memcontrol.c	2007-11-27 11:24:04.000000000 +0900
-+++ linux-2.6.24-rc3-mm1/mm/memcontrol.c	2007-11-27 11:24:16.000000000 +0900
-@@ -89,6 +89,8 @@
+--- linux-2.6.24-rc3-mm1.orig/mm/memcontrol.c	2007-11-27 11:24:16.000000000 +0900
++++ linux-2.6.24-rc3-mm1/mm/memcontrol.c	2007-11-27 11:24:22.000000000 +0900
+@@ -89,6 +89,10 @@
  };
  
  struct mem_cgroup_per_zone {
-+	struct list_head	active_list;
-+	struct list_head	inactive_list;
++	/*
++	 * spin_lock to protect the per cgroup LRU
++	 */
++	spinlock_t		lru_lock;
+ 	struct list_head	active_list;
+ 	struct list_head	inactive_list;
  	unsigned long count[NR_MEM_CGROUP_ZSTAT];
- };
- /* Macro for accessing counter */
-@@ -122,10 +124,7 @@
- 	/*
- 	 * Per cgroup active and inactive list, similar to the
+@@ -126,10 +130,7 @@
  	 * per zone LRU lists.
--	 * TODO: Consider making these lists per zone
  	 */
--	struct list_head active_list;
--	struct list_head inactive_list;
  	struct mem_cgroup_lru_info info;
+-	/*
+-	 * spin_lock to protect the per cgroup LRU
+-	 */
+-	spinlock_t lru_lock;
++
+ 	unsigned long control_type;	/* control RSS or RSS+Pagecache */
+ 	int	prev_priority;	/* for recording reclaim priority */
  	/*
- 	 * spin_lock to protect the per cgroup LRU
-@@ -367,10 +366,10 @@
+@@ -410,15 +411,16 @@
+  */
+ void mem_cgroup_move_lists(struct page_cgroup *pc, bool active)
+ {
+-	struct mem_cgroup *mem;
++	struct mem_cgroup_per_zone *mz;
++	unsigned long flags;
++
+ 	if (!pc)
+ 		return;
  
- 	if (!to) {
- 		MEM_CGROUP_ZSTAT(mz, MEM_CGROUP_ZSTAT_INACTIVE) += 1;
--		list_add(&pc->lru, &pc->mem_cgroup->inactive_list);
-+		list_add(&pc->lru, &mz->inactive_list);
- 	} else {
- 		MEM_CGROUP_ZSTAT(mz, MEM_CGROUP_ZSTAT_ACTIVE) += 1;
--		list_add(&pc->lru, &pc->mem_cgroup->active_list);
-+		list_add(&pc->lru, &mz->active_list);
- 	}
- 	mem_cgroup_charge_statistics(pc->mem_cgroup, pc->flags, true);
- }
-@@ -388,11 +387,11 @@
- 	if (active) {
- 		MEM_CGROUP_ZSTAT(mz, MEM_CGROUP_ZSTAT_ACTIVE) += 1;
- 		pc->flags |= PAGE_CGROUP_FLAG_ACTIVE;
--		list_move(&pc->lru, &pc->mem_cgroup->active_list);
-+		list_move(&pc->lru, &mz->active_list);
- 	} else {
- 		MEM_CGROUP_ZSTAT(mz, MEM_CGROUP_ZSTAT_INACTIVE) += 1;
- 		pc->flags &= ~PAGE_CGROUP_FLAG_ACTIVE;
--		list_move(&pc->lru, &pc->mem_cgroup->inactive_list);
-+		list_move(&pc->lru, &mz->inactive_list);
- 	}
+-	mem = pc->mem_cgroup;
+-
+-	spin_lock(&mem->lru_lock);
++	mz = page_cgroup_zoneinfo(pc);
++	spin_lock_irqsave(&mz->lru_lock, flags);
+ 	__mem_cgroup_move_lists(pc, active);
+-	spin_unlock(&mem->lru_lock);
++	spin_unlock_irqrestore(&mz->lru_lock, flags);
  }
  
-@@ -518,11 +517,16 @@
- 	LIST_HEAD(pc_list);
- 	struct list_head *src;
- 	struct page_cgroup *pc, *tmp;
-+	int nid = z->zone_pgdat->node_id;
-+	int zid = zone_idx(z);
+ /*
+@@ -528,7 +530,7 @@
+ 		src = &mz->inactive_list;
+ 
+ 
+-	spin_lock(&mem_cont->lru_lock);
++	spin_lock(&mz->lru_lock);
+ 	scan = 0;
+ 	list_for_each_entry_safe_reverse(pc, tmp, src, lru) {
+ 		if (scan >= nr_to_scan)
+@@ -558,7 +560,7 @@
+ 	}
+ 
+ 	list_splice(&pc_list, src);
+-	spin_unlock(&mem_cont->lru_lock);
++	spin_unlock(&mz->lru_lock);
+ 
+ 	*scanned = scan;
+ 	return nr_taken;
+@@ -577,6 +579,7 @@
+ 	struct page_cgroup *pc;
+ 	unsigned long flags;
+ 	unsigned long nr_retries = MEM_CGROUP_RECLAIM_RETRIES;
 +	struct mem_cgroup_per_zone *mz;
  
-+	mz = mem_cgroup_zoneinfo(mem_cont, nid, zid);
- 	if (active)
--		src = &mem_cont->active_list;
-+		src = &mz->active_list;
- 	else
--		src = &mem_cont->inactive_list;
-+		src = &mz->inactive_list;
-+
+ 	/*
+ 	 * Should page_cgroup's go to their own slab?
+@@ -688,10 +691,11 @@
+ 		goto retry;
+ 	}
  
- 	spin_lock(&mem_cont->lru_lock);
- 	scan = 0;
-@@ -544,13 +548,6 @@
- 			continue;
- 		}
+-	spin_lock_irqsave(&mem->lru_lock, flags);
++	mz = page_cgroup_zoneinfo(pc);
++	spin_lock_irqsave(&mz->lru_lock, flags);
+ 	/* Update statistics vector */
+ 	__mem_cgroup_add_list(pc);
+-	spin_unlock_irqrestore(&mem->lru_lock, flags);
++	spin_unlock_irqrestore(&mz->lru_lock, flags);
  
--		/*
--		 * Reclaim, per zone
--		 * TODO: make the active/inactive lists per zone
--		 */
--		if (page_zone(page) != z)
--			continue;
--
- 		scan++;
- 		list_move(&pc->lru, &pc_list);
- 
-@@ -832,6 +829,8 @@
- 	int count;
+ done:
+ 	return 0;
+@@ -733,6 +737,7 @@
+ void mem_cgroup_uncharge(struct page_cgroup *pc)
+ {
+ 	struct mem_cgroup *mem;
++	struct mem_cgroup_per_zone *mz;
+ 	struct page *page;
  	unsigned long flags;
  
-+	if (list_empty(list))
-+		return;
- retry:
- 	count = FORCE_UNCHARGE_BATCH;
- 	spin_lock_irqsave(&mem->lru_lock, flags);
-@@ -867,20 +866,27 @@
- int mem_cgroup_force_empty(struct mem_cgroup *mem)
- {
- 	int ret = -EBUSY;
-+	int node, zid;
- 	css_get(&mem->css);
- 	/*
- 	 * page reclaim code (kswapd etc..) will move pages between
- `	 * active_list <-> inactive_list while we don't take a lock.
- 	 * So, we have to do loop here until all lists are empty.
- 	 */
--	while (!(list_empty(&mem->active_list) &&
--		 list_empty(&mem->inactive_list))) {
-+	while (mem->res.usage > 0) {
- 		if (atomic_read(&mem->css.cgroup->count) > 0)
- 			goto out;
--		/* drop all page_cgroup in active_list */
--		mem_cgroup_force_empty_list(mem, &mem->active_list);
--		/* drop all page_cgroup in inactive_list */
--		mem_cgroup_force_empty_list(mem, &mem->inactive_list);
-+		for_each_node_state(node, N_POSSIBLE)
-+			for (zid = 0; zid < MAX_NR_ZONES; zid++) {
-+				struct mem_cgroup_per_zone *mz;
-+				mz = mem_cgroup_zoneinfo(mem, node, zid);
-+				/* drop all page_cgroup in active_list */
-+				mem_cgroup_force_empty_list(mem,
-+							&mz->active_list);
-+				/* drop all page_cgroup in inactive_list */
-+				mem_cgroup_force_empty_list(mem,
-+							&mz->inactive_list);
-+			}
- 	}
- 	ret = 0;
- out:
-@@ -1092,15 +1098,25 @@
- static int alloc_mem_cgroup_per_zone_info(struct mem_cgroup *mem, int node)
- {
- 	struct mem_cgroup_per_node *pn;
-+	struct mem_cgroup_per_zone *mz;
-+	int zone;
+@@ -745,6 +750,7 @@
  
- 	pn = kmalloc_node(sizeof(*pn), GFP_KERNEL, node);
- 	if (!pn)
- 		return 1;
+ 	if (atomic_dec_and_test(&pc->ref_cnt)) {
+ 		page = pc->page;
++		mz = page_cgroup_zoneinfo(pc);
+ 		/*
+ 		 * get page->cgroup and clear it under lock.
+ 		 * force_empty can drop page->cgroup without checking refcnt.
+@@ -753,9 +759,9 @@
+ 			mem = pc->mem_cgroup;
+ 			css_put(&mem->css);
+ 			res_counter_uncharge(&mem->res, PAGE_SIZE);
+-			spin_lock_irqsave(&mem->lru_lock, flags);
++			spin_lock_irqsave(&mz->lru_lock, flags);
+ 			__mem_cgroup_remove_list(pc);
+-			spin_unlock_irqrestore(&mem->lru_lock, flags);
++			spin_unlock_irqrestore(&mz->lru_lock, flags);
+ 			kfree(pc);
+ 		}
+ 	}
+@@ -794,24 +800,29 @@
+ 	struct page_cgroup *pc;
+ 	struct mem_cgroup *mem;
+ 	unsigned long flags;
++	struct mem_cgroup_per_zone *mz;
+ retry:
+ 	pc = page_get_page_cgroup(page);
+ 	if (!pc)
+ 		return;
+ 	mem = pc->mem_cgroup;
++	mz = page_cgroup_zoneinfo(pc);
+ 	if (clear_page_cgroup(page, pc) != pc)
+ 		goto retry;
+-
+-	spin_lock_irqsave(&mem->lru_lock, flags);
++	spin_lock_irqsave(&mz->lru_lock, flags);
+ 
+ 	__mem_cgroup_remove_list(pc);
++	spin_unlock_irqrestore(&mz->lru_lock, flags);
 +
- 	mem->info.nodeinfo[node] = pn;
- 	memset(pn, 0, sizeof(*pn));
-+
-+	for (zone = 0; zone < MAX_NR_ZONES; zone++) {
-+		mz = &pn->zoneinfo[zone];
-+		INIT_LIST_HEAD(&mz->active_list);
-+		INIT_LIST_HEAD(&mz->inactive_list);
-+	}
- 	return 0;
+ 	pc->page = newpage;
+ 	lock_page_cgroup(newpage);
+ 	page_assign_page_cgroup(newpage, pc);
+ 	unlock_page_cgroup(newpage);
+-	__mem_cgroup_add_list(pc);
+ 
+-	spin_unlock_irqrestore(&mem->lru_lock, flags);
++	mz = page_cgroup_zoneinfo(pc);
++	spin_lock_irqsave(&mz->lru_lock, flags);
++	__mem_cgroup_add_list(pc);
++	spin_unlock_irqrestore(&mz->lru_lock, flags);
+ 	return;
  }
  
+@@ -822,18 +833,26 @@
+  */
+ #define FORCE_UNCHARGE_BATCH	(128)
+ static void
+-mem_cgroup_force_empty_list(struct mem_cgroup *mem, struct list_head *list)
++mem_cgroup_force_empty_list(struct mem_cgroup *mem,
++			    struct mem_cgroup_per_zone *mz,
++			    int active)
+ {
+ 	struct page_cgroup *pc;
+ 	struct page *page;
+ 	int count;
+ 	unsigned long flags;
++	struct list_head *list;
 +
- static struct mem_cgroup init_mem_cgroup;
++	if (active)
++		list = &mz->active_list;
++	else
++		list = &mz->inactive_list;
  
- static struct cgroup_subsys_state *
-@@ -1119,8 +1135,7 @@
- 		return NULL;
+ 	if (list_empty(list))
+ 		return;
+ retry:
+ 	count = FORCE_UNCHARGE_BATCH;
+-	spin_lock_irqsave(&mem->lru_lock, flags);
++	spin_lock_irqsave(&mz->lru_lock, flags);
+ 
+ 	while (--count && !list_empty(list)) {
+ 		pc = list_entry(list->prev, struct page_cgroup, lru);
+@@ -850,7 +869,7 @@
+ 		} else 	/* being uncharged ? ...do relax */
+ 			break;
+ 	}
+-	spin_unlock_irqrestore(&mem->lru_lock, flags);
++	spin_unlock_irqrestore(&mz->lru_lock, flags);
+ 	if (!list_empty(list)) {
+ 		cond_resched();
+ 		goto retry;
+@@ -881,11 +900,9 @@
+ 				struct mem_cgroup_per_zone *mz;
+ 				mz = mem_cgroup_zoneinfo(mem, node, zid);
+ 				/* drop all page_cgroup in active_list */
+-				mem_cgroup_force_empty_list(mem,
+-							&mz->active_list);
++				mem_cgroup_force_empty_list(mem, mz, 1);
+ 				/* drop all page_cgroup in inactive_list */
+-				mem_cgroup_force_empty_list(mem,
+-							&mz->inactive_list);
++				mem_cgroup_force_empty_list(mem, mz, 0);
+ 			}
+ 	}
+ 	ret = 0;
+@@ -1112,6 +1129,7 @@
+ 		mz = &pn->zoneinfo[zone];
+ 		INIT_LIST_HEAD(&mz->active_list);
+ 		INIT_LIST_HEAD(&mz->inactive_list);
++		spin_lock_init(&mz->lru_lock);
+ 	}
+ 	return 0;
+ }
+@@ -1136,7 +1154,6 @@
  
  	res_counter_init(&mem->res);
--	INIT_LIST_HEAD(&mem->active_list);
--	INIT_LIST_HEAD(&mem->inactive_list);
-+
- 	spin_lock_init(&mem->lru_lock);
+ 
+-	spin_lock_init(&mem->lru_lock);
  	mem->control_type = MEM_CGROUP_TYPE_ALL;
  	memset(&mem->info, 0, sizeof(mem->info));
+ 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
