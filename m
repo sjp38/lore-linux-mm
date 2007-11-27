@@ -1,92 +1,65 @@
-Received: by ro-out-1112.google.com with SMTP id p7so1445365roc
-        for <linux-mm@kvack.org>; Mon, 26 Nov 2007 18:29:29 -0800 (PST)
-Date: Tue, 27 Nov 2007 10:26:10 +0800
-From: WANG Cong <xiyou.wangcong@gmail.com>
-Subject: [Patch](Resend) mm/sparse.c: Improve the error handling for
-	sparse_add_one_section()
-Message-ID: <20071127022609.GA4164@hacking>
-Reply-To: WANG Cong <xiyou.wangcong@gmail.com>
-References: <1195507022.27759.146.camel@localhost> <20071123055150.GA2488@hacking> <20071126191316.99CF.Y-GOTO@jp.fujitsu.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20071126191316.99CF.Y-GOTO@jp.fujitsu.com>
+Date: Tue, 27 Nov 2007 11:55:25 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: [PATCH][for -mm] per-zone and reclaim enhancements for memory
+ controller take 3 [0/10] introduction
+Message-Id: <20071127115525.e9779108.kamezawa.hiroyu@jp.fujitsu.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Yasunori Goto <y-goto@jp.fujitsu.com>
-Cc: WANG Cong <xiyou.wangcong@gmail.com>, Dave Hansen <haveblue@us.ibm.com>, LKML <linux-kernel@vger.kernel.org>, Rik van Riel <riel@redhat.com>, Christoph Lameter <clameter@sgi.com>, Andrew Morton <akpm@osdl.org>, linux-mm@kvack.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "yamamoto@valinux.co.jp" <yamamoto@valinux.co.jp>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "containers@lists.osdl.org" <containers@lists.osdl.org>, "kamezawa.hiroyu@jp.fujitsu.com" <kamezawa.hiroyu@jp.fujitsu.com>, LKML <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Nov 26, 2007 at 07:19:49PM +0900, Yasunori Goto wrote:
->Hi, Cong-san.
->
->>  	ms->section_mem_map |= SECTION_MARKED_PRESENT;
->>  
->>  	ret = sparse_init_one_section(ms, section_nr, memmap, usemap);
->>  
->>  out:
->>  	pgdat_resize_unlock(pgdat, &flags);
->> -	if (ret <= 0)
->> -		__kfree_section_memmap(memmap, nr_pages);
->> +
->>  	return ret;
->>  }
->>  #endif
->
->Hmm. When sparse_init_one_section() returns error, memmap and 
->usemap should be free.
+Hi, this is per-zone/reclaim support patch set for memory controller (cgroup).
 
-Hi, Yasunori.
+Major changes from previous one is
+ -- tested with 2.6.24-rc3-mm1 + ia64/NUMA
+ -- applied comments.
 
-Thanks for your comments. Is the following one fine for you?
+I did small test on real NUMA machine.
+My machine was ia64/8CPU/2Node NUMA. I tried to complile the kernel under 800M
+bytes limit with 32 parallel make. (make -j 32)
 
-Signed-off-by: WANG Cong <xiyou.wangcong@gmail.com>
+ - 2.6.24-rc3-mm1 (+ scsi fix) .... shows soft lock-up.
+   before soft lock-up, %sys was almost 100% in several times.
 
----
+ - 2.6.24-rc3-mm1 (+ scsi fix) + this set .... completed succesfully
+   It seems %iowait dominates the total performance.
+   (current memory controller has no background reclaim)
 
-Index: linux-2.6/mm/sparse.c
-===================================================================
---- linux-2.6.orig/mm/sparse.c
-+++ linux-2.6/mm/sparse.c
-@@ -391,9 +391,17 @@ int sparse_add_one_section(struct zone *
- 	 * no locking for this, because it does its own
- 	 * plus, it does a kmalloc
- 	 */
--	sparse_index_init(section_nr, pgdat->node_id);
-+	ret = sparse_index_init(section_nr, pgdat->node_id);
-+	if (ret < 0)
-+		return ret;
- 	memmap = kmalloc_section_memmap(section_nr, pgdat->node_id, nr_pages);
-+	if (!memmap)
-+		return -ENOMEM;
- 	usemap = __kmalloc_section_usemap();
-+	if (!usemap) {
-+		__kfree_section_memmap(memmap, nr_pages);
-+		return -ENOMEM;
-+	}
+Seems this set give us some progress.
+
+(*) I'd like to merge YAMAMOTO-san's background page reclaim for memory
+    controller before discussing about the number of performance.
+
+Andrew, could you pick these up to -mm ?
+
+Patch series brief description:
+
+[1/10] ... add scan_global_lru() macro  (clean up)
+[2/10] ... nid/zid helper function for cgroup
+[3/10] ... introduce per-zone object for memory controller and add
+           active/inactive counter.
+[4/10] ... calculate mapper_ratio per cgroup (for memory reclaim)
+[5/10] ... calculate active/inactive imbalance per cgroup (based on [3])
+[6/10] ... remember reclaim priority in memory controller
+[7/10] ... calculate the number of pages to be reclaimed per cgroup
+
+[8/10] ... modifies vmscan.c to isolate global-lru-reclaim and
+           memory-cgroup-reclaim in obvious manner.
+           (this patch uses functions defined in [4 - 7])
+[9/10] ... implement per-zone-lru for cgroup (based on [3])
+[10/10] ... implement per-zone lru lock for cgroup (based on [3][9])
+
+Any comments are welcome.
+
+Thanks,
+-Kame
  
- 	pgdat_resize_lock(pgdat, &flags);
- 
-@@ -403,10 +411,6 @@ int sparse_add_one_section(struct zone *
- 		goto out;
- 	}
- 
--	if (!usemap) {
--		ret = -ENOMEM;
--		goto out;
--	}
- 	ms->section_mem_map |= SECTION_MARKED_PRESENT;
- 
- 	ret = sparse_init_one_section(ms, section_nr, memmap, usemap);
-@@ -414,7 +418,7 @@ int sparse_add_one_section(struct zone *
- out:
- 	pgdat_resize_unlock(pgdat, &flags);
- 	if (ret <= 0)
--		__kfree_section_memmap(memmap, nr_pages);
-+		kfree(usemap);
- 	return ret;
- }
- #endif
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
