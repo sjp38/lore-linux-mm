@@ -1,74 +1,92 @@
-Received: from d03relay02.boulder.ibm.com (d03relay02.boulder.ibm.com [9.17.195.227])
-	by e36.co.us.ibm.com (8.13.8/8.13.8) with ESMTP id lAQJZx3f029556
-	for <linux-mm@kvack.org>; Mon, 26 Nov 2007 14:35:59 -0500
-Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
-	by d03relay02.boulder.ibm.com (8.13.8/8.13.8/NCO v8.7) with ESMTP id lAQJZu2B024000
-	for <linux-mm@kvack.org>; Mon, 26 Nov 2007 12:35:58 -0700
-Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av02.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id lAQJZuHg030459
-	for <linux-mm@kvack.org>; Mon, 26 Nov 2007 12:35:56 -0700
-Subject: Re: pseries (power3) boot hang  (pageblock_nr_pages==0)
-From: Will Schmidt <will_schmidt@vnet.ibm.com>
-Reply-To: will_schmidt@vnet.ibm.com
-In-Reply-To: <20071121220337.GB31674@csn.ul.ie>
-References: <1195682111.4421.23.camel@farscape.rchland.ibm.com>
-	 <20071121220337.GB31674@csn.ul.ie>
-Content-Type: text/plain
-Date: Mon, 26 Nov 2007 13:35:57 -0600
-Message-Id: <1196105757.11297.11.camel@farscape.rchland.ibm.com>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Received: by ro-out-1112.google.com with SMTP id p7so1445365roc
+        for <linux-mm@kvack.org>; Mon, 26 Nov 2007 18:29:29 -0800 (PST)
+Date: Tue, 27 Nov 2007 10:26:10 +0800
+From: WANG Cong <xiyou.wangcong@gmail.com>
+Subject: [Patch](Resend) mm/sparse.c: Improve the error handling for
+	sparse_add_one_section()
+Message-ID: <20071127022609.GA4164@hacking>
+Reply-To: WANG Cong <xiyou.wangcong@gmail.com>
+References: <1195507022.27759.146.camel@localhost> <20071123055150.GA2488@hacking> <20071126191316.99CF.Y-GOTO@jp.fujitsu.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20071126191316.99CF.Y-GOTO@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: Stephen Rothwell <sfr@canb.auug.org.au>, Linux Memory Management List <linux-mm@kvack.org>, linuxppc-dev <linuxppc-dev@ozlabs.org>
+To: Yasunori Goto <y-goto@jp.fujitsu.com>
+Cc: WANG Cong <xiyou.wangcong@gmail.com>, Dave Hansen <haveblue@us.ibm.com>, LKML <linux-kernel@vger.kernel.org>, Rik van Riel <riel@redhat.com>, Christoph Lameter <clameter@sgi.com>, Andrew Morton <akpm@osdl.org>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 2007-11-21 at 22:03 +0000, Mel Gorman wrote:
-> On (21/11/07 15:55), Will Schmidt didst pronounce:
-> > Hi Folks, 
-> > 
-> > I imagine this would be properly fixed with something similar to the
-> > change for iSeries.  
-> 
-> Have you tried with the patch that fixed the iSeries boot problem?
-> Thanks for tracking down the problem to such a specific place.
+On Mon, Nov 26, 2007 at 07:19:49PM +0900, Yasunori Goto wrote:
+>Hi, Cong-san.
+>
+>>  	ms->section_mem_map |= SECTION_MARKED_PRESENT;
+>>  
+>>  	ret = sparse_init_one_section(ms, section_nr, memmap, usemap);
+>>  
+>>  out:
+>>  	pgdat_resize_unlock(pgdat, &flags);
+>> -	if (ret <= 0)
+>> -		__kfree_section_memmap(memmap, nr_pages);
+>> +
+>>  	return ret;
+>>  }
+>>  #endif
+>
+>Hmm. When sparse_init_one_section() returns error, memmap and 
+>usemap should be free.
 
-I had not, but gave this patch a spin this morning, and it does the
-job.  :-)    I was thinking (without really looking at it), that the
-iseries fix was in platform specific code.   Silly me. :-)
+Hi, Yasunori.
 
-So for the record, this patch also fixes power3 pSeries systems.
+Thanks for your comments. Is the following one fine for you?
 
-fwiw:
-Tested-By:  Will Schmidt <will_schmidt@vnet.ibm.com>
+Signed-off-by: WANG Cong <xiyou.wangcong@gmail.com>
 
-Thanks, 
+---
 
--Will
-
-
-> ======
-> 
-> Ordinarily, the size of a pageblock is determined at compile-time based on
-> the hugepage size. On PPC64, the hugepage size is determined at runtime based
-> on what is supported by the machine. On legacy machines such as iSeries which
-> do not support hugepages, HPAGE_SHIFT is 0. This results in pageblock_order
-> being set to -PAGE_SHIFT and a crash results shortly afterwards.
-> 
-> This patch checks that HPAGE_SHIFT is a sensible value before using the
-> hugepage size. If it is 0, MAX_ORDER-1 is used instead as this is a sensible
-> value of pageblock_order.
-> 
-> This is a fix for 2.6.24.
-> 
-> Credit goes to Stephen Rothwell for identifying the bug and testing on
-> iSeries.  Additional credit goes to David Gibson for testing with the
-> libhugetlbfs test suite.
-> 
-> Signed-off-by: Mel Gorman <mel@csn.ul.ie>
-> 
-> ---
+Index: linux-2.6/mm/sparse.c
+===================================================================
+--- linux-2.6.orig/mm/sparse.c
++++ linux-2.6/mm/sparse.c
+@@ -391,9 +391,17 @@ int sparse_add_one_section(struct zone *
+ 	 * no locking for this, because it does its own
+ 	 * plus, it does a kmalloc
+ 	 */
+-	sparse_index_init(section_nr, pgdat->node_id);
++	ret = sparse_index_init(section_nr, pgdat->node_id);
++	if (ret < 0)
++		return ret;
+ 	memmap = kmalloc_section_memmap(section_nr, pgdat->node_id, nr_pages);
++	if (!memmap)
++		return -ENOMEM;
+ 	usemap = __kmalloc_section_usemap();
++	if (!usemap) {
++		__kfree_section_memmap(memmap, nr_pages);
++		return -ENOMEM;
++	}
+ 
+ 	pgdat_resize_lock(pgdat, &flags);
+ 
+@@ -403,10 +411,6 @@ int sparse_add_one_section(struct zone *
+ 		goto out;
+ 	}
+ 
+-	if (!usemap) {
+-		ret = -ENOMEM;
+-		goto out;
+-	}
+ 	ms->section_mem_map |= SECTION_MARKED_PRESENT;
+ 
+ 	ret = sparse_init_one_section(ms, section_nr, memmap, usemap);
+@@ -414,7 +418,7 @@ int sparse_add_one_section(struct zone *
+ out:
+ 	pgdat_resize_unlock(pgdat, &flags);
+ 	if (ret <= 0)
+-		__kfree_section_memmap(memmap, nr_pages);
++		kfree(usemap);
+ 	return ret;
+ }
+ #endif
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
