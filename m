@@ -1,150 +1,66 @@
-Message-Id: <20071128223156.521223204@sgi.com>
+Message-Id: <20071128223155.608664085@sgi.com>
 References: <20071128223101.864822396@sgi.com>
-Date: Wed, 28 Nov 2007 14:31:08 -0800
+Date: Wed, 28 Nov 2007 14:31:04 -0800
 From: Christoph Lameter <clameter@sgi.com>
-Subject: [patch 07/17] SLUB: Trigger defragmentation from memory reclaim
-Content-Disposition: inline; filename=0053-SLUB-Trigger-defragmentation-from-memory-reclaim.patch
+Subject: [patch 03/17] SLUB: Replace ctor field with ops field in /sys/slab/:0000008 /sys/slab/:0000016 /sys/slab/:0000024 /sys/slab/:0000032 /sys/slab/:0000040 /sys/slab/:0000048 /sys/slab/:0000056 /sys/slab/:0000064 /sys/slab/:0000072 /sys/slab/:0000080 /sys/slab/:0000088 /sys/slab/:0000096 /sys/slab/:0000104 /sys/slab/:0000128 /sys/slab/:0000144 /sys/slab/:0000184 /sys/slab/:0000192 /sys/slab/:0000216 /sys/slab/:0000256 /sys/slab/:0000344 /sys/slab/:0000384 /sys/slab/:0000448 /sys/slab/:0000512 /sys/slab/:0000768 /sys/slab/:0000976 /sys/slab/:0001024 /sys/slab/:0001152 /sys/slab/:0001328 /sys/slab/:0001536 /sys/slab/:0002048 /sys/slab/:0003072 /sys/slab/:0004096 /sys/slab/:a-0000016 /sys/slab/:a-0000024 /sys/slab/:a-0000056 /sys/slab/:a-0000080 /sys/slab/Acpi-Namespace /sys/slab/Acpi-Operand /sys/slab/Acpi-Parse /sys/slab/Acpi-ParseExt /sys/slab/Acpi-State /sys/slab/RAW /sys/slab/TCP /sys/slab/UDP /sys/slab/UDP-Lite /sys/slab/UNIX /sys/slab/anon_vma /sys/slab/arp_cache /sy
+ s/slab/bdev_cache /sys/slab/bio /sys/slab/biovec-1 /sys/slab/biovec-128 /sys/slab/biovec-16 /sys/slab/biovec-256 /sys/slab/biovec-4 /sys/slab/biovec-64 /sys/slab/blkdev_ioc /sys/slab/blkdev_queue /sys/slab/blkdev_requests /sys/slab/buffer_head /sys/slab/cfq_io_context /sys/slab/cfq_queue /sys/slab/dentry_cache /sys/slab/eventpoll_epi /sys/slab/eventpoll_pwq /sys/slab/ext2_inode_cache /sys/slab/ext3_inode_cache /sys/slab/fasync_cache /sys/slab/file_lock_cache /sys/slab/files_cache /sys/slab/filp /sys/slab/flow_cache /sys/slab/fs_cache /sys/slab/idr_layer_cache /sys/slab/inet_peer_cache /sys/slab/inode_cache /sys/slab/inotify_event_cache /sys/slab/inotify_watch_cache /sys/slab/ip_dst_cache /sys/slab/ip_fib_alias /sys/slab/ip_fib_hash /sys/slab/journal_handle /sys/slab/journal_head /sys/slab/kiocb /sys/slab/kioctx /sys/slab/kmalloc-1024 /sys/slab/kmalloc-128 /sys/slab/kmalloc-16 /sys/slab/kmalloc-192 /sys/slab/kmalloc-2048 /sys/slab/kmalloc-256 /sys/slab/kmalloc-32 /sys/slab/km
+ alloc-512 /sys/slab/kmalloc-64 /sys/slab/kmalloc-8 /sys/slab/kmalloc-96 /sys/slab/mm_struct /sys/slab/mnt_cache /sys/slab/mqueue_inode_cache /sys/slab/names_cache /sys/slab/nfs_direct_cache /sys/slab/nfs_inode_cache /sys/slab/nfs_page /sys/slab/nfs_read_data /sys/slab/nfs_write_data /sys/slab/nfsd4_delegations /sys/slab/nfsd4_files /sys/slab/nfsd4_stateids /sys/slab/nfsd4_stateowners /sys/slab/nsproxy /sys/slab/pid_1 /sys/slab/pid_namespace /sys/slab/posix_timers_cache /sys/slab/proc_inode_cache /sys/slab/radix_tree_node /sys/slab/request_sock_TCP /sys/slab/revoke_record /sys/slab/revoke_table /sys/slab/rpc_buffers /sys/slab/rpc_inode_cache /sys/slab/rpc_tasks /sys/slab/scsi_cmd_cache /sys/slab/scsi_io_context /sys/slab/secpath_cache /sys/slab/sgpool-128 /sys/slab/sgpool-16 /sys/slab/sgpool-32 /sys/slab/sgpool-64 /sys/slab/sgpool-8 /sys/slab/shmem_inode_cache /sys/slab/sighand_cache /sys/slab/signal_cache /sys/slab/sigqueue /sys/slab/skbuff_fclone_cache /sys/slab/skbuff_head
+ _cache /sys/slab/sock_inode_cache /sys/slab/sysfs_dir_cache /sys/slab/task_struct /sys/slab/tcp_bind_bucket /sys/slab/tw_sock_TCP /sys/slab/uhci_urb_priv /sys/slab/uid_cache /sys/slab/vm_area_struct /sys/slab/xfrm_dst_cache
+Content-Disposition: inline; filename=0049-SLUB-Replace-ctor-field-with-ops-field-in-sys-slab.patch
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: akpm@linux-foundation.org
 Cc: linux-mm@kvack.org, Mel Gorman <mel@skynet.ie>
 List-ID: <linux-mm.kvack.org>
 
-This patch triggers slab defragmentation from memory reclaim.
-The logical point for this is after slab shrinking was performed in
-vmscan.c. At that point the fragmentation ratio of a slab was increased
-because objects were freed via the LRUs. So we call kmem_cache_defrag() from
-there.
-
-slab_shrink() from vmscan.c is called in some contexts to do
-global shrinking of slabs and in others to do shrinking for
-a particular zone. Pass the zone to slab_shrink, so that slab_shrink
-can call kmem_cache_defrag() and restrict the defragmentation to
-the node that is under memory pressure.
+Create an ops field in /sys/slab/*/ops to contain all the operations defined
+on a slab. This will be used to display the additional operations that will
+be defined soon.
 
 Reviewed-by: Rik van Riel <riel@redhat.com>
 Signed-off-by: Christoph Lameter <clameter@sgi.com>
 ---
- fs/drop_caches.c   |    2 +-
- include/linux/mm.h |    2 +-
- mm/vmscan.c        |   26 +++++++++++++++++++-------
- 3 files changed, 21 insertions(+), 9 deletions(-)
+ mm/slub.c |   16 +++++++++-------
+ 1 file changed, 9 insertions(+), 7 deletions(-)
 
-Index: mm/fs/drop_caches.c
+Index: linux-2.6.24-rc2-mm1/mm/slub.c
 ===================================================================
---- mm.orig/fs/drop_caches.c	2007-11-28 12:24:24.332964809 -0800
-+++ mm/fs/drop_caches.c	2007-11-28 12:30:00.484463542 -0800
-@@ -52,7 +52,7 @@ void drop_slab(void)
- 	int nr_objects;
- 
- 	do {
--		nr_objects = shrink_slab(1000, GFP_KERNEL, 1000);
-+		nr_objects = shrink_slab(1000, GFP_KERNEL, 1000, NULL);
- 	} while (nr_objects > 10);
+--- linux-2.6.24-rc2-mm1.orig/mm/slub.c	2007-11-14 12:06:05.338343172 -0800
++++ linux-2.6.24-rc2-mm1/mm/slub.c	2007-11-14 12:06:18.770343797 -0800
+@@ -3793,16 +3793,18 @@ static ssize_t order_show(struct kmem_ca
  }
+ SLAB_ATTR_RO(order);
  
-Index: mm/mm/vmscan.c
-===================================================================
---- mm.orig/mm/vmscan.c	2007-11-28 12:27:32.487962592 -0800
-+++ mm/mm/vmscan.c	2007-11-28 12:31:09.514355974 -0800
-@@ -174,10 +174,18 @@ EXPORT_SYMBOL(unregister_shrinker);
-  * are eligible for the caller's allocation attempt.  It is used for balancing
-  * slab reclaim versus page reclaim.
-  *
-+ * zone is the zone for which we are shrinking the slabs. If the intent
-+ * is to do a global shrink then zone may be NULL. Specification of a
-+ * zone is currently only used to limit slab defragmentation to a NUMA node.
-+ * The performace of shrink_slab would be better (in particular under NUMA)
-+ * if it could be targeted as a whole to the zone that is under memory
-+ * pressure but the VFS infrastructure does not allow that at the present
-+ * time.
-+ *
-  * Returns the number of slab objects which we shrunk.
-  */
- unsigned long shrink_slab(unsigned long scanned, gfp_t gfp_mask,
--			unsigned long lru_pages)
-+			unsigned long lru_pages, struct zone *zone)
+-static ssize_t ctor_show(struct kmem_cache *s, char *buf)
++static ssize_t ops_show(struct kmem_cache *s, char *buf)
  {
- 	struct shrinker *shrinker;
- 	unsigned long ret = 0;
-@@ -240,6 +248,8 @@ unsigned long shrink_slab(unsigned long 
- 		shrinker->nr += total_scan;
+-	if (s->ctor) {
+-		int n = sprint_symbol(buf, (unsigned long)s->ctor);
++	int x = 0;
+ 
+-		return n + sprintf(buf + n, "\n");
++	if (s->ctor) {
++		x += sprintf(buf + x, "ctor : ");
++		x += sprint_symbol(buf + x, (unsigned long)s->ops->ctor);
++		x += sprintf(buf + x, "\n");
  	}
- 	up_read(&shrinker_rwsem);
-+	if (gfp_mask & __GFP_FS)
-+		kmem_cache_defrag(zone ? zone_to_nid(zone) : -1);
- 	return ret;
+-	return 0;
++	return x;
  }
+-SLAB_ATTR_RO(ctor);
++SLAB_ATTR_RO(ops);
  
-@@ -1360,7 +1370,7 @@ static unsigned long do_try_to_free_page
- 		 * over limit cgroups
- 		 */
- 		if (scan_global_lru(sc)) {
--			shrink_slab(sc->nr_scanned, gfp_mask, lru_pages);
-+			shrink_slab(sc->nr_scanned, gfp_mask, lru_pages, NULL);
- 			if (reclaim_state) {
- 				nr_reclaimed += reclaim_state->reclaimed_slab;
- 				reclaim_state->reclaimed_slab = 0;
-@@ -1589,7 +1599,7 @@ loop_again:
- 				nr_reclaimed += shrink_zone(priority, zone, &sc);
- 			reclaim_state->reclaimed_slab = 0;
- 			nr_slab = shrink_slab(sc.nr_scanned, GFP_KERNEL,
--						lru_pages);
-+						lru_pages, zone);
- 			nr_reclaimed += reclaim_state->reclaimed_slab;
- 			total_scanned += sc.nr_scanned;
- 			if (zone_is_all_unreclaimable(zone))
-@@ -1830,7 +1840,7 @@ unsigned long shrink_all_memory(unsigned
- 	/* If slab caches are huge, it's better to hit them first */
- 	while (nr_slab >= lru_pages) {
- 		reclaim_state.reclaimed_slab = 0;
--		shrink_slab(nr_pages, sc.gfp_mask, lru_pages);
-+		shrink_slab(nr_pages, sc.gfp_mask, lru_pages, NULL);
- 		if (!reclaim_state.reclaimed_slab)
- 			break;
- 
-@@ -1868,7 +1878,7 @@ unsigned long shrink_all_memory(unsigned
- 
- 			reclaim_state.reclaimed_slab = 0;
- 			shrink_slab(sc.nr_scanned, sc.gfp_mask,
--					count_lru_pages());
-+					count_lru_pages(), NULL);
- 			ret += reclaim_state.reclaimed_slab;
- 			if (ret >= nr_pages)
- 				goto out;
-@@ -1885,7 +1895,8 @@ unsigned long shrink_all_memory(unsigned
- 	if (!ret) {
- 		do {
- 			reclaim_state.reclaimed_slab = 0;
--			shrink_slab(nr_pages, sc.gfp_mask, count_lru_pages());
-+			shrink_slab(nr_pages, sc.gfp_mask,
-+					count_lru_pages(), NULL);
- 			ret += reclaim_state.reclaimed_slab;
- 		} while (ret < nr_pages && reclaim_state.reclaimed_slab > 0);
- 	}
-@@ -2048,7 +2059,8 @@ static int __zone_reclaim(struct zone *z
- 		 * Note that shrink_slab will free memory on all zones and may
- 		 * take a long time.
- 		 */
--		while (shrink_slab(sc.nr_scanned, gfp_mask, order) &&
-+		while (shrink_slab(sc.nr_scanned, gfp_mask, order,
-+						zone) &&
- 			zone_page_state(zone, NR_SLAB_RECLAIMABLE) >
- 				slab_reclaimable - nr_pages)
- 			;
-Index: mm/include/linux/mm.h
-===================================================================
---- mm.orig/include/linux/mm.h	2007-11-28 12:26:53.408463773 -0800
-+++ mm/include/linux/mm.h	2007-11-28 12:30:00.488463488 -0800
-@@ -1179,7 +1179,7 @@ int in_gate_area_no_task(unsigned long a
- int drop_caches_sysctl_handler(struct ctl_table *, int, struct file *,
- 					void __user *, size_t *, loff_t *);
- unsigned long shrink_slab(unsigned long scanned, gfp_t gfp_mask,
--			unsigned long lru_pages);
-+			unsigned long lru_pages, struct zone *z);
- extern void drop_pagecache_sb(struct super_block *);
- void drop_pagecache(void);
- void drop_slab(void);
+ static ssize_t aliases_show(struct kmem_cache *s, char *buf)
+ {
+@@ -4053,7 +4055,7 @@ static struct attribute *slab_attrs[] = 
+ 	&slabs_attr.attr,
+ 	&partial_attr.attr,
+ 	&cpu_slabs_attr.attr,
+-	&ctor_attr.attr,
++	&ops_attr.attr,
+ 	&aliases_attr.attr,
+ 	&align_attr.attr,
+ 	&sanity_checks_attr.attr,
 
 -- 
 
