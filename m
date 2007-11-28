@@ -1,50 +1,50 @@
-Received: from [99.236.101.138] (helo=crashcourse.ca)
-	by astoria.ccjclearline.com with esmtpsa (TLSv1:AES256-SHA:256)
-	(Exim 4.68)
-	(envelope-from <rpjday@crashcourse.ca>)
-	id 1IxJpv-0003sz-Jt
-	for linux-mm@kvack.org; Wed, 28 Nov 2007 05:08:07 -0500
-Date: Wed, 28 Nov 2007 05:06:09 -0500 (EST)
-From: "Robert P. J. Day" <rpjday@crashcourse.ca>
-Subject: [PATCH] MM: Standardize inclusion of linux header file to use
- "<>".
-Message-ID: <alpine.LFD.0.9999.0711280503480.4130@localhost.localdomain>
+Date: Wed, 28 Nov 2007 10:52:12 +0000
+From: Mel Gorman <mel@csn.ul.ie>
+Subject: Re: pseries (power3) boot hang  (pageblock_nr_pages==0)
+Message-ID: <20071128105211.GB2238@csn.ul.ie>
+References: <1195682111.4421.23.camel@farscape.rchland.ibm.com> <20071121220337.GB31674@csn.ul.ie> <1196105757.11297.11.camel@farscape.rchland.ibm.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <1196105757.11297.11.camel@farscape.rchland.ibm.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
+To: Will Schmidt <will_schmidt@vnet.ibm.com>
+Cc: Stephen Rothwell <sfr@canb.auug.org.au>, Linux Memory Management List <linux-mm@kvack.org>, linuxppc-dev <linuxppc-dev@ozlabs.org>
 List-ID: <linux-mm.kvack.org>
 
-Signed-off-by: Robert P. J. Day <rpjday@crashcourse.ca>
+On (26/11/07 13:35), Will Schmidt didst pronounce:
+> 
+> On Wed, 2007-11-21 at 22:03 +0000, Mel Gorman wrote:
+> > On (21/11/07 15:55), Will Schmidt didst pronounce:
+> > > Hi Folks, 
+> > > 
+> > > I imagine this would be properly fixed with something similar to the
+> > > change for iSeries.  
+> > 
+> > Have you tried with the patch that fixed the iSeries boot problem?
+> > Thanks for tracking down the problem to such a specific place.
+> 
+> I had not, but gave this patch a spin this morning, and it does the
+> job.  :-)  
 
----
+Brilliant.
 
-  outside of the UML code, there are very few instances of including
-linux header files that use quotes instead of angle brackets, and it
-would be nice to make all of that standard.
+> I was thinking (without really looking at it), that the
+> iseries fix was in platform specific code.   Silly me. :-)
+> 
+> So for the record, this patch also fixes power3 pSeries systems.
+> 
+> fwiw:
+> Tested-By:  Will Schmidt <will_schmidt@vnet.ibm.com>
+> 
 
+Thanks a lot for reporting and testing Will.
 
-diff --git a/mm/slab.c b/mm/slab.c
-index c31cd36..12b1bf3 100644
---- a/mm/slab.c
-+++ b/mm/slab.c
-@@ -333,7 +333,7 @@ static __always_inline int index_of(const size_t size)
- 		return i; \
- 	else \
- 		i++;
--#include "linux/kmalloc_sizes.h"
-+#include <linux/kmalloc_sizes.h>
- #undef CACHE
- 		__bad_size();
- 	} else
-========================================================================
-Robert P. J. Day
-Linux Consulting, Training and Annoying Kernel Pedantry
-Waterloo, Ontario, CANADA
-
-http://crashcourse.ca
-========================================================================
+-- 
+Mel Gorman
+Part-time Phd Student                          Linux Technology Center
+University of Limerick                         IBM Dublin Software Lab
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
