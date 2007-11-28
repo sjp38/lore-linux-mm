@@ -1,33 +1,50 @@
-From: Arnd Bergmann <arnd@arndb.de>
-Subject: Re: [PATCH 1/2] powerpc: add hugepagesz boot-time parameter
-Date: Wed, 28 Nov 2007 08:26:46 +0100
-References: <474CF68E.1040709@us.ibm.com>
-In-Reply-To: <474CF68E.1040709@us.ibm.com>
+Received: from [99.236.101.138] (helo=crashcourse.ca)
+	by astoria.ccjclearline.com with esmtpsa (TLSv1:AES256-SHA:256)
+	(Exim 4.68)
+	(envelope-from <rpjday@crashcourse.ca>)
+	id 1IxJpv-0003sz-Jt
+	for linux-mm@kvack.org; Wed, 28 Nov 2007 05:08:07 -0500
+Date: Wed, 28 Nov 2007 05:06:09 -0500 (EST)
+From: "Robert P. J. Day" <rpjday@crashcourse.ca>
+Subject: [PATCH] MM: Standardize inclusion of linux header file to use
+ "<>".
+Message-ID: <alpine.LFD.0.9999.0711280503480.4130@localhost.localdomain>
 MIME-Version: 1.0
-Content-Type: text/plain;
-  charset="iso-8859-1"
-Content-Transfer-Encoding: 8BIT
-Content-Disposition: inline
-Message-Id: <200711280826.46820.arnd@arndb.de>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linuxppc-dev@ozlabs.org, kniht@linux.vnet.ibm.com
-Cc: Linux Memory Management List <linux-mm@kvack.org>
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wednesday 28 November 2007, Jon Tollefson wrote:
-> This patch adds the hugepagesz boot-time parameter for ppc64 that lets 
-> you pick the size for your huge pages.  The choices available are 64K 
-> and 16M.  It defaults to 16M (previously the only choice) if nothing or 
-> an invalid choice is specified.  Tested 64K huge pages with the 
-> libhugetlbfs 1.2 release with its 'make func' and 'make stress' test 
-> invocations.
+Signed-off-by: Robert P. J. Day <rpjday@crashcourse.ca>
 
-How hard would it be to add the 1MB page size that some CPUs support
-as well? On systems with small physical memory like the PS3, that
-sounds very useful to me.
+---
 
-	Arnd <><
+  outside of the UML code, there are very few instances of including
+linux header files that use quotes instead of angle brackets, and it
+would be nice to make all of that standard.
+
+
+diff --git a/mm/slab.c b/mm/slab.c
+index c31cd36..12b1bf3 100644
+--- a/mm/slab.c
++++ b/mm/slab.c
+@@ -333,7 +333,7 @@ static __always_inline int index_of(const size_t size)
+ 		return i; \
+ 	else \
+ 		i++;
+-#include "linux/kmalloc_sizes.h"
++#include <linux/kmalloc_sizes.h>
+ #undef CACHE
+ 		__bad_size();
+ 	} else
+========================================================================
+Robert P. J. Day
+Linux Consulting, Training and Annoying Kernel Pedantry
+Waterloo, Ontario, CANADA
+
+http://crashcourse.ca
+========================================================================
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
