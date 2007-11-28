@@ -1,100 +1,35 @@
-Message-Id: <20071128223101.864822396@sgi.com>
-Date: Wed, 28 Nov 2007 14:31:01 -0800
+Message-Id: <20071128223157.436916066@sgi.com>
+References: <20071128223101.864822396@sgi.com>
+Date: Wed, 28 Nov 2007 14:31:12 -0800
 From: Christoph Lameter <clameter@sgi.com>
-Subject: [patch 00/17] Slab Fragmentation Reduction V8
+Subject: [patch 11/17] FS: XFS slab defragmentation
+Content-Disposition: inline; filename=0057-FS-XFS-slab-defragmentation.patch
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: akpm@linux-foundation.org
 Cc: linux-mm@kvack.org, Mel Gorman <mel@skynet.ie>
 List-ID: <linux-mm.kvack.org>
 
-Slab fragmentation is mainly an issue if Linux is used as a fileserver
-and large amounts of dentries, inodes and buffer heads accumulate. In some
-load situations the slabs become very sparsely populated so that a lot of
-memory is wasted by slabs that only contain one or a few objects. In
-extreme cases the performance of a machine will become sluggish since
-we are continually running reclaim. Slab defragmentation adds the
-capability to recover the memory that is wasted.
+Support inode defragmentation for xfs
 
-Memory reclaim from the following slab caches is possible:
+Reviewed-by: Rik van Riel <riel@redhat.com>
+Signed-off-by: Christoph Lameter <clameter@sgi.com>
+---
+ fs/xfs/linux-2.6/xfs_super.c |    1 +
+ 1 file changed, 1 insertion(+)
 
-1. dentry cache
-2. inode cache (with a generic interface to allow easy setup of more
-   filesystems than the currently supported ext2/3/4 reiserfs, XFS
-   and proc)
-3. buffer_heads
-
-One typical mechanism that triggers slab defragmentation on my systems
-is the daily run of
-
-	updatedb
-
-Updatedb scans all files on the system which causes a high inode and dentry
-use. After updatedb is complete we need to go back to the regular use
-patterns (typical on my machine: kernel compiles). Those need the memory now
-for different purposes. The inodes and dentries used for updatedb will
-gradually be aged by the dentry/inode reclaim algorithm which will free
-up the dentries and inode entries randomly through the slabs that were
-allocated. As a result the slabs will become sparsely populated. If they
-become empty then they can be freed but a lot of them will remain sparsely
-populated. That is where slab defrag comes in: It removes the objects from
-the slabs with just a few entries reclaiming more memory for other uses.
-In the simplest case (as provided here) this is done by simply reclaiming
-the objects.
-
-However, if the logic in the kick() function is made more
-sophisticated then we will be able to move the objects out of the slabs.
-Allocations of objects is possible if a slab is fragmented without the use of
-the page allocator because a large number of free slots are available. Moving
-an object will reduce fragmentation in the slab the object is moved to.
-
-V7->V8
-- Rediff against 2.6.24-rc3-mm2
-
-V6->V7
-- Rediff against 2.6.24-rc2-mm1
-- Remove lumpy reclaim support. No point anymore given that the antifrag
-  handling in 2.6.24-rc2 puts reclaimable slabs into different sections.
-  Targeted reclaim never triggers. This has to wait until we make
-  slabs movable or we need to perform a special version of lumpy reclaim
-  in SLUB while we scan the partial lists for slabs to kick out.
-  Removal simplifies handling significantly since we
-  get to slabs in a more controlled way via the partial lists.
-  The patchset now provides pure reduction of fragmentation levels.
-- SLAB/SLOB: Provide inlines that do nothing
-- Fix various smaller issues that were brought up during review of V6.
-
-V5->V6
-- Rediff against 2.6.24-rc2 + mm slub patches.
-- Add reviewed by lines.
-- Take out the experimental code to make slab pages movable. That
-  has to wait until this has been considered by Mel.
-
-V4->V5:
-- Support lumpy reclaim for slabs
-- Support reclaim via slab_shrink()
-- Add constructors to insure a consistent object state at all times.
-
-V3->V4:
-- Optimize scan for slabs that need defragmentation
-- Add /sys/slab/*/defrag_ratio to allow setting defrag limits
-  per slab.
-- Add support for buffer heads.
-- Describe how the cleanup after the daily updatedb can be
-  improved by slab defragmentation.
-
-V2->V3
-- Support directory reclaim
-- Add infrastructure to trigger defragmentation after slab shrinking if we
-  have slabs with a high degree of fragmentation.
-
-V1->V2
-- Clean up control flow using a state variable. Simplify API. Back to 2
-  functions that now take arrays of objects.
-- Inode defrag support for a set of filesystems
-- Fix up dentry defrag support to work on negative dentries by adding
-  a new dentry flag that indicates that a dentry is not in the process
-  of being freed or allocated.
+Index: linux-2.6.24-rc2-mm1/fs/xfs/linux-2.6/xfs_super.c
+===================================================================
+--- linux-2.6.24-rc2-mm1.orig/fs/xfs/linux-2.6/xfs_super.c	2007-11-14 11:08:37.852011611 -0800
++++ linux-2.6.24-rc2-mm1/fs/xfs/linux-2.6/xfs_super.c	2007-11-14 12:19:41.386038485 -0800
+@@ -375,6 +375,7 @@ xfs_init_zones(void)
+ 	xfs_ioend_zone = kmem_zone_init(sizeof(xfs_ioend_t), "xfs_ioend");
+ 	if (!xfs_ioend_zone)
+ 		goto out_destroy_vnode_zone;
++	kmem_cache_setup_defrag(xfs_vnode_zone, get_inodes, kick_inodes);
+ 
+ 	xfs_ioend_pool = mempool_create_slab_pool(4 * MAX_BUF_PER_PAGE,
+ 						  xfs_ioend_zone);
 
 -- 
 
