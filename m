@@ -1,104 +1,86 @@
-Message-Id: <20071128223157.209922153@sgi.com>
+Message-Id: <20071128223158.352098818@sgi.com>
 References: <20071128223101.864822396@sgi.com>
-Date: Wed, 28 Nov 2007 14:31:11 -0800
+Date: Wed, 28 Nov 2007 14:31:16 -0800
 From: Christoph Lameter <clameter@sgi.com>
-Subject: [patch 10/17] FS: ExtX filesystem defrag
-Content-Disposition: inline; filename=0056-FS-ExtX-filesystem-defrag.patch
+Subject: [patch 15/17] dentries: Add constructor
+Content-Disposition: inline; filename=0061-dentries-Add-constructor.patch
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: akpm@linux-foundation.org
 Cc: linux-mm@kvack.org, Mel Gorman <mel@skynet.ie>
 List-ID: <linux-mm.kvack.org>
 
-Support defragmentation for extX filesystem inodes
+In order to support defragmentation on the dentry cache we need to have
+a determined object state at all times. Without a constructor the object
+would have a random state after allocation.
+
+So provide a constructor.
 
 Reviewed-by: Rik van Riel <riel@redhat.com>
 Signed-off-by: Christoph Lameter <clameter@sgi.com>
 ---
- fs/ext2/super.c |    9 +++++++++
- fs/ext3/super.c |    8 ++++++++
- fs/ext4/super.c |    8 ++++++++
- 3 files changed, 25 insertions(+)
+ fs/dcache.c |   26 ++++++++++++++------------
+ 1 file changed, 14 insertions(+), 12 deletions(-)
 
-Index: linux-2.6.24-rc2-mm1/fs/ext2/super.c
+Index: linux-2.6.24-rc2-mm1/fs/dcache.c
 ===================================================================
---- linux-2.6.24-rc2-mm1.orig/fs/ext2/super.c	2007-11-14 11:08:36.224011551 -0800
-+++ linux-2.6.24-rc2-mm1/fs/ext2/super.c	2007-11-14 12:19:30.425593698 -0800
-@@ -171,6 +171,12 @@ static void init_once(struct kmem_cache 
- 	inode_init_once(&ei->vfs_inode);
- }
+--- linux-2.6.24-rc2-mm1.orig/fs/dcache.c	2007-11-14 11:08:36.048011768 -0800
++++ linux-2.6.24-rc2-mm1/fs/dcache.c	2007-11-14 12:20:18.034093692 -0800
+@@ -871,6 +871,16 @@ static struct shrinker dcache_shrinker =
+ 	.seeks = DEFAULT_SEEKS,
+ };
  
-+static void *ext2_get_inodes(struct kmem_cache *s, int nr, void **v)
++void dcache_ctor(struct kmem_cache *s, void *p)
 +{
-+	return fs_get_inodes(s, nr, v,
-+		offsetof(struct ext2_inode_info, vfs_inode));
++	struct dentry *dentry = p;
++
++	spin_lock_init(&dentry->d_lock);
++	dentry->d_inode = NULL;
++	INIT_LIST_HEAD(&dentry->d_lru);
++	INIT_LIST_HEAD(&dentry->d_alias);
 +}
 +
- static int init_inodecache(void)
+ /**
+  * d_alloc	-	allocate a dcache entry
+  * @parent: parent of entry to allocate
+@@ -908,8 +918,6 @@ struct dentry *d_alloc(struct dentry * p
+ 
+ 	atomic_set(&dentry->d_count, 1);
+ 	dentry->d_flags = DCACHE_UNHASHED;
+-	spin_lock_init(&dentry->d_lock);
+-	dentry->d_inode = NULL;
+ 	dentry->d_parent = NULL;
+ 	dentry->d_sb = NULL;
+ 	dentry->d_op = NULL;
+@@ -919,9 +927,7 @@ struct dentry *d_alloc(struct dentry * p
+ 	dentry->d_cookie = NULL;
+ #endif
+ 	INIT_HLIST_NODE(&dentry->d_hash);
+-	INIT_LIST_HEAD(&dentry->d_lru);
+ 	INIT_LIST_HEAD(&dentry->d_subdirs);
+-	INIT_LIST_HEAD(&dentry->d_alias);
+ 
+ 	if (parent) {
+ 		dentry->d_parent = dget(parent);
+@@ -2102,14 +2108,10 @@ static void __init dcache_init(void)
  {
- 	ext2_inode_cachep = kmem_cache_create("ext2_inode_cache",
-@@ -180,6 +186,9 @@ static int init_inodecache(void)
- 					     init_once);
- 	if (ext2_inode_cachep == NULL)
- 		return -ENOMEM;
+ 	int loop;
+ 
+-	/* 
+-	 * A constructor could be added for stable state like the lists,
+-	 * but it is probably not worth it because of the cache nature
+-	 * of the dcache. 
+-	 */
+-	dentry_cache = KMEM_CACHE(dentry,
+-		SLAB_RECLAIM_ACCOUNT|SLAB_PANIC|SLAB_MEM_SPREAD);
+-	
++	dentry_cache = kmem_cache_create("dentry_cache", sizeof(struct dentry),
++		0, SLAB_RECLAIM_ACCOUNT|SLAB_PANIC|SLAB_MEM_SPREAD,
++		dcache_ctor);
 +
-+	kmem_cache_setup_defrag(ext2_inode_cachep,
-+			ext2_get_inodes, kick_inodes);
- 	return 0;
- }
+ 	register_shrinker(&dcache_shrinker);
  
-Index: linux-2.6.24-rc2-mm1/fs/ext3/super.c
-===================================================================
---- linux-2.6.24-rc2-mm1.orig/fs/ext3/super.c	2007-11-14 11:08:36.228011618 -0800
-+++ linux-2.6.24-rc2-mm1/fs/ext3/super.c	2007-11-14 12:19:30.458593321 -0800
-@@ -484,6 +484,12 @@ static void init_once(struct kmem_cache 
- 	inode_init_once(&ei->vfs_inode);
- }
- 
-+static void *ext3_get_inodes(struct kmem_cache *s, int nr, void **v)
-+{
-+	return fs_get_inodes(s, nr, v,
-+		offsetof(struct ext3_inode_info, vfs_inode));
-+}
-+
- static int init_inodecache(void)
- {
- 	ext3_inode_cachep = kmem_cache_create("ext3_inode_cache",
-@@ -493,6 +499,8 @@ static int init_inodecache(void)
- 					     init_once);
- 	if (ext3_inode_cachep == NULL)
- 		return -ENOMEM;
-+	kmem_cache_setup_defrag(ext3_inode_cachep,
-+			ext3_get_inodes, kick_inodes);
- 	return 0;
- }
- 
-Index: linux-2.6.24-rc2-mm1/fs/ext4/super.c
-===================================================================
---- linux-2.6.24-rc2-mm1.orig/fs/ext4/super.c	2007-11-14 11:08:36.252011333 -0800
-+++ linux-2.6.24-rc2-mm1/fs/ext4/super.c	2007-11-14 12:19:30.485842935 -0800
-@@ -600,6 +600,12 @@ static void init_once(struct kmem_cache 
- 	inode_init_once(&ei->vfs_inode);
- }
- 
-+static void *ext4_get_inodes(struct kmem_cache *s, int nr, void **v)
-+{
-+	return fs_get_inodes(s, nr, v,
-+		offsetof(struct ext4_inode_info, vfs_inode));
-+}
-+
- static int init_inodecache(void)
- {
- 	ext4_inode_cachep = kmem_cache_create("ext4_inode_cache",
-@@ -609,6 +615,8 @@ static int init_inodecache(void)
- 					     init_once);
- 	if (ext4_inode_cachep == NULL)
- 		return -ENOMEM;
-+	kmem_cache_setup_defrag(ext4_inode_cachep,
-+			ext4_get_inodes, kick_inodes);
- 	return 0;
- }
- 
+ 	/* Hash may have been set up in dcache_init_early */
 
 -- 
 
