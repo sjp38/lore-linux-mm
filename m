@@ -1,63 +1,109 @@
-Date: Wed, 28 Nov 2007 13:28:16 -0800
-From: Randy Dunlap <randy.dunlap@oracle.com>
-Subject: Re: [PATCH 1/2] powerpc: add hugepagesz boot-time parameter
-Message-Id: <20071128132816.542fa4df.randy.dunlap@oracle.com>
-In-Reply-To: <474CF68E.1040709@us.ibm.com>
-References: <474CF68E.1040709@us.ibm.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Message-Id: <20071128223158.802899055@sgi.com>
+References: <20071128223101.864822396@sgi.com>
+Date: Wed, 28 Nov 2007 14:31:18 -0800
+From: Christoph Lameter <clameter@sgi.com>
+Subject: [patch 17/17] SLUB: Add KICKABLE to avoid repeated kick() attempts
+Content-Disposition: inline; filename=0064-SLUB-Add-SlabReclaimable-to-avoid-repeated-reclai.patch
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: kniht@linux.vnet.ibm.com
-Cc: Jon Tollefson <kniht@us.ibm.com>, linuxppc-dev <linuxppc-dev@ozlabs.org>, Linux Memory Management List <linux-mm@kvack.org>
+To: akpm@linux-foundation.org
+Cc: linux-mm@kvack.org, Mel Gorman <mel@skynet.ie>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 27 Nov 2007 23:03:10 -0600 Jon Tollefson wrote:
+Add a flag KICKABLE to be set on slabs with a defragmentation method
 
-> This patch adds the hugepagesz boot-time parameter for ppc64 that lets 
-> you pick the size for your huge pages.  The choices available are 64K 
-> and 16M.  It defaults to 16M (previously the only choice) if nothing or 
-> an invalid choice is specified.  Tested 64K huge pages with the 
-> libhugetlbfs 1.2 release with its 'make func' and 'make stress' test 
-> invocations.
-> 
-> This patch requires the patch posted by Mel Gorman that adds 
-> HUGETLB_PAGE_SIZE_VARIABLE; "[PATCH] Fix boot problem with iSeries 
-> lacking hugepage support" on 2007-11-15.
-> 
-> Signed-off-by: Jon Tollefson <kniht@linux.vnet.ibm.com>
-> ---
-> 
->  Documentation/kernel-parameters.txt |    1 
->  arch/powerpc/mm/hash_utils_64.c     |   11 +--------
->  arch/powerpc/mm/hugetlbpage.c       |   41 ++++++++++++++++++++++++++++++++++++
->  include/asm-powerpc/mmu-hash64.h    |    1 
->  mm/hugetlb.c                        |    1 
->  5 files changed, 46 insertions(+), 9 deletions(-)
-> 
-> diff --git a/Documentation/kernel-parameters.txt b/Documentation/kernel-parameters.txt
-> index 33121d6..2fc1fb8 100644
-> --- a/Documentation/kernel-parameters.txt
-> +++ b/Documentation/kernel-parameters.txt
-> @@ -685,6 +685,7 @@ and is between 256 and 4096 characters. It is defined in the file
->  			See Documentation/isdn/README.HiSax.
->  
->  	hugepages=	[HW,X86-32,IA-64] Maximal number of HugeTLB pages.
-> +	hugepagesz=	[HW,IA-64,PPC] The size of the HugeTLB pages.
+Clear the flag if a kick action is not successful in reducing the
+number of objects in a slab.
 
-Any chance of spelling it as "hugepagesize" so that it's a little
-less cryptic and more difficult to typo as "hugepages"?
-(i.e., less confusion between them)
+The KICKABLE flag is set again when all objeccts of the slab have been
+allocated and it is removed from the partial lists.
 
-
->  
->  	i8042.direct	[HW] Put keyboard port into non-translated mode
->  	i8042.dumbkbd	[HW] Pretend that controller can only read data from
-
-Thanks.
+Reviewed-by: Rik van Riel <riel@redhat.com>
+Signed-off-by: Christoph Lameter <clameter@sgi.com>
 ---
-~Randy
+ mm/slub.c |   19 ++++++++++++++-----
+ 1 file changed, 14 insertions(+), 5 deletions(-)
+
+Index: linux-2.6.24-rc3-mm1/mm/slub.c
+===================================================================
+--- linux-2.6.24-rc3-mm1.orig/mm/slub.c	2007-11-25 13:03:40.765600636 -0800
++++ linux-2.6.24-rc3-mm1/mm/slub.c	2007-11-25 13:06:02.644146121 -0800
+@@ -102,6 +102,7 @@
+ 
+ #define FROZEN (1 << PG_active)
+ #define LOCKED (1 << PG_locked)
++#define KICKABLE (1 << PG_dirty)
+ 
+ #ifdef CONFIG_SLUB_DEBUG
+ #define SLABDEBUG (1 << PG_error)
+@@ -1098,6 +1099,8 @@ static noinline struct page *new_slab(st
+ 	if (s->flags & (SLAB_DEBUG_FREE | SLAB_RED_ZONE | SLAB_POISON |
+ 			SLAB_STORE_USER | SLAB_TRACE))
+ 		state |= SLABDEBUG;
++	if (s->kick)
++		state |= KICKABLE;
+ 
+ 	page->flags |= state;
+ 	start = page_address(page);
+@@ -1170,6 +1173,7 @@ static void discard_slab(struct kmem_cac
+ 
+ 	atomic_long_dec(&n->nr_slabs);
+ 	reset_page_mapcount(page);
++	page->flags &= ~KICKABLE;
+ 	__ClearPageSlab(page);
+ 	free_slab(s, page);
+ }
+@@ -1402,8 +1406,11 @@ static void unfreeze_slab(struct kmem_ca
+ 
+ 		if (page->freelist != page->end)
+ 			add_partial(s, page, tail);
+-		else
++		else {
+ 			add_full(s, page, state);
++			if (s->kick)
++				state |= KICKABLE;
++		}
+ 		slab_unlock(page, state);
+ 
+ 	} else {
+@@ -2837,7 +2844,7 @@ static int kmem_cache_vacate(struct page
+ 
+ 	s = page->slab;
+ 	map = scratch + max_defrag_slab_objects * sizeof(void **);
+-	if (!page->inuse || !s->kick)
++	if (!page->inuse || !s->kick || !(state & KICKABLE))
+ 		goto out;
+ 
+ 	/* Determine used objects */
+@@ -2874,6 +2881,8 @@ out:
+ 	 * Check the result and unfreeze the slab
+ 	 */
+ 	leftover = page->inuse;
++	if (leftover)
++		state &= ~KICKABLE;
+ 	unfreeze_slab(s, page, leftover > 0, state);
+ 	local_irq_restore(flags);
+ 	return leftover;
+@@ -2922,14 +2931,14 @@ static unsigned long __kmem_cache_shrink
+ 
+ 	spin_lock_irqsave(&n->list_lock, flags);
+ 	list_for_each_entry_safe(page, page2, &n->partial, lru) {
+-		if (page->inuse > s->objects / 4)
+-			continue;
++		if (page->inuse > s->objects / 4 ||
++			(!(page->flags & KICKABLE) && s->kick))
++				continue;
+ 		state = slab_trylock(page);
+ 		if (!state)
+ 			continue;
+ 
+ 		if (page->inuse) {
+-
+ 			list_move(&page->lru, &zaplist);
+ 			if (s->kick) {
+ 				n->nr_partial--;
+
+-- 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
