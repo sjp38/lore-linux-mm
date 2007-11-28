@@ -1,35 +1,93 @@
-Message-Id: <20071128223157.436916066@sgi.com>
+Message-Id: <20071128223155.383357653@sgi.com>
 References: <20071128223101.864822396@sgi.com>
-Date: Wed, 28 Nov 2007 14:31:12 -0800
+Date: Wed, 28 Nov 2007 14:31:03 -0800
 From: Christoph Lameter <clameter@sgi.com>
-Subject: [patch 11/17] FS: XFS slab defragmentation
-Content-Disposition: inline; filename=0057-FS-XFS-slab-defragmentation.patch
+Subject: [patch 02/17] SLUB: Add defrag_ratio field and sysfs support.
+Content-Disposition: inline; filename=0048-SLUB-Add-defrag_ratio-field-and-sysfs-support.patch
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: akpm@linux-foundation.org
 Cc: linux-mm@kvack.org, Mel Gorman <mel@skynet.ie>
 List-ID: <linux-mm.kvack.org>
 
-Support inode defragmentation for xfs
+The defrag_ratio is used to set the threshold at which defragmentation
+should be run on a slabcache.
+
+The allocation ratio is measured in the percentage of the available slots
+allocated. The percentage will be lower for slabs that are more fragmented.
+
+Add a defrag ratio field and set it to 30% by default. A limit of 30% specified
+that less than 3 out of 10 available slots for objects are in use before
+slab defragmeentation runs.
 
 Reviewed-by: Rik van Riel <riel@redhat.com>
 Signed-off-by: Christoph Lameter <clameter@sgi.com>
 ---
- fs/xfs/linux-2.6/xfs_super.c |    1 +
- 1 file changed, 1 insertion(+)
+ include/linux/slub_def.h |    7 +++++++
+ mm/slub.c                |   18 ++++++++++++++++++
+ 2 files changed, 25 insertions(+)
 
-Index: linux-2.6.24-rc2-mm1/fs/xfs/linux-2.6/xfs_super.c
+Index: linux-2.6.24-rc2-mm1/include/linux/slub_def.h
 ===================================================================
---- linux-2.6.24-rc2-mm1.orig/fs/xfs/linux-2.6/xfs_super.c	2007-11-14 11:08:37.852011611 -0800
-+++ linux-2.6.24-rc2-mm1/fs/xfs/linux-2.6/xfs_super.c	2007-11-14 12:19:41.386038485 -0800
-@@ -375,6 +375,7 @@ xfs_init_zones(void)
- 	xfs_ioend_zone = kmem_zone_init(sizeof(xfs_ioend_t), "xfs_ioend");
- 	if (!xfs_ioend_zone)
- 		goto out_destroy_vnode_zone;
-+	kmem_cache_setup_defrag(xfs_vnode_zone, get_inodes, kick_inodes);
+--- linux-2.6.24-rc2-mm1.orig/include/linux/slub_def.h	2007-11-14 11:10:03.796012330 -0800
++++ linux-2.6.24-rc2-mm1/include/linux/slub_def.h	2007-11-14 12:06:05.330593714 -0800
+@@ -53,6 +53,13 @@ struct kmem_cache {
+ 	void (*ctor)(struct kmem_cache *, void *);
+ 	int inuse;		/* Offset to metadata */
+ 	int align;		/* Alignment */
++	int defrag_ratio;	/*
++				 * objects/possible-objects limit. If we have
++				 * less that the specified percentage of
++				 * objects allocated then defrag passes
++				 * will start to occur during reclaim.
++				 */
++
+ 	const char *name;	/* Name (only for display!) */
+ 	struct list_head list;	/* List of slab caches */
+ #ifdef CONFIG_SLUB_DEBUG
+Index: linux-2.6.24-rc2-mm1/mm/slub.c
+===================================================================
+--- linux-2.6.24-rc2-mm1.orig/mm/slub.c	2007-11-14 11:10:22.236011521 -0800
++++ linux-2.6.24-rc2-mm1/mm/slub.c	2007-11-14 12:06:05.338343172 -0800
+@@ -2363,6 +2363,7 @@ static int kmem_cache_open(struct kmem_c
+ 		goto error;
  
- 	xfs_ioend_pool = mempool_create_slab_pool(4 * MAX_BUF_PER_PAGE,
- 						  xfs_ioend_zone);
+ 	s->refcount = 1;
++	s->defrag_ratio = 30;
+ #ifdef CONFIG_NUMA
+ 	s->remote_node_defrag_ratio = 100;
+ #endif
+@@ -4009,6 +4010,22 @@ static ssize_t free_calls_show(struct km
+ }
+ SLAB_ATTR_RO(free_calls);
+ 
++static ssize_t defrag_ratio_show(struct kmem_cache *s, char *buf)
++{
++	return sprintf(buf, "%d\n", s->defrag_ratio);
++}
++
++static ssize_t defrag_ratio_store(struct kmem_cache *s,
++				const char *buf, size_t length)
++{
++	int n = simple_strtoul(buf, NULL, 10);
++
++	if (n < 100)
++		s->defrag_ratio = n;
++	return length;
++}
++SLAB_ATTR(defrag_ratio);
++
+ #ifdef CONFIG_NUMA
+ static ssize_t remote_node_defrag_ratio_show(struct kmem_cache *s, char *buf)
+ {
+@@ -4051,6 +4068,7 @@ static struct attribute *slab_attrs[] = 
+ 	&shrink_attr.attr,
+ 	&alloc_calls_attr.attr,
+ 	&free_calls_attr.attr,
++	&defrag_ratio_attr.attr,
+ #ifdef CONFIG_ZONE_DMA
+ 	&cache_dma_attr.attr,
+ #endif
 
 -- 
 
