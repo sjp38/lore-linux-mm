@@ -1,162 +1,158 @@
-Message-Id: <20071128223156.981302429@sgi.com>
+Message-Id: <20071128223158.573128387@sgi.com>
 References: <20071128223101.864822396@sgi.com>
-Date: Wed, 28 Nov 2007 14:31:10 -0800
+Date: Wed, 28 Nov 2007 14:31:17 -0800
 From: Christoph Lameter <clameter@sgi.com>
-Subject: [patch 09/17] inodes: Support generic defragmentation
-Content-Disposition: inline; filename=0055-inodes-Support-generic-defragmentation.patch
+Subject: [patch 16/17] dentries: dentry defragmentation
+Content-Disposition: inline; filename=0062-dentries-dentry-defragmentation.patch
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: akpm@linux-foundation.org
 Cc: linux-mm@kvack.org, Mel Gorman <mel@skynet.ie>
 List-ID: <linux-mm.kvack.org>
 
-This implements the ability to remove inodes in a particular slab
-from inode caches. In order to remove an inode we may have to write out
-the pages of an inode, the inode itself and remove the dentries referring
-to the node.
-
-Provide generic functionality that can be used by filesystems that have
-their own inode caches to also tie into the defragmentation functions
-that are made available here.
+The dentry pruning for unused entries works in a straightforward way. It
+could be made more aggressive if one would actually move dentries instead
+of just reclaiming them.
 
 Reviewed-by: Rik van Riel <riel@redhat.com>
 Signed-off-by: Christoph Lameter <clameter@sgi.com>
 ---
- fs/inode.c         |   96 +++++++++++++++++++++++++++++++++++++++++++++++++++++
- include/linux/fs.h |    6 +++
- 2 files changed, 102 insertions(+)
+ fs/dcache.c |  101 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++-
+ 1 file changed, 100 insertions(+), 1 deletion(-)
 
-Index: mm/fs/inode.c
+Index: linux-2.6.24-rc2-mm1/fs/dcache.c
 ===================================================================
---- mm.orig/fs/inode.c	2007-11-28 12:24:49.404713858 -0800
-+++ mm/fs/inode.c	2007-11-28 12:31:21.493463367 -0800
-@@ -1380,6 +1380,101 @@ static int __init set_ihash_entries(char
- }
- __setup("ihash_entries=", set_ihash_entries);
+--- linux-2.6.24-rc2-mm1.orig/fs/dcache.c	2007-11-14 12:20:18.034093692 -0800
++++ linux-2.6.24-rc2-mm1/fs/dcache.c	2007-11-14 12:20:29.918093658 -0800
+@@ -31,6 +31,7 @@
+ #include <linux/seqlock.h>
+ #include <linux/swap.h>
+ #include <linux/bootmem.h>
++#include <linux/backing-dev.h>
+ #include "internal.h"
  
-+void *get_inodes(struct kmem_cache *s, int nr, void **v)
+ 
+@@ -143,7 +144,10 @@ static struct dentry *d_kill(struct dent
+ 
+ 	list_del(&dentry->d_u.d_child);
+ 	dentry_stat.nr_dentry--;	/* For d_free, below */
+-	/*drops the locks, at that point nobody can reach this dentry */
++	/*
++	 * drops the locks, at that point nobody (aside from defrag)
++	 * can reach this dentry
++	 */
+ 	dentry_iput(dentry);
+ 	parent = dentry->d_parent;
+ 	d_free(dentry);
+@@ -2104,6 +2108,100 @@ static void __init dcache_init_early(voi
+ 		INIT_HLIST_HEAD(&dentry_hashtable[loop]);
+ }
+ 
++/*
++ * The slab allocator is holding off frees. We can safely examine
++ * the object without the danger of it vanishing from under us.
++ */
++static void *get_dentries(struct kmem_cache *s, int nr, void **v)
 +{
++	struct dentry *dentry;
 +	int i;
 +
-+	spin_lock(&inode_lock);
++	spin_lock(&dcache_lock);
 +	for (i = 0; i < nr; i++) {
-+		struct inode *inode = v[i];
++		dentry = v[i];
 +
-+		if (inode->i_state & (I_FREEING|I_CLEAR|I_WILL_FREE))
++		/*
++		 * Three sorts of dentries cannot be reclaimed:
++		 *
++		 * 1. dentries that are in the process of being allocated
++		 *    or being freed. In that case the dentry is neither
++		 *    on the LRU nor hashed.
++		 *
++		 * 2. Fake hashed entries as used for anonymous dentries
++		 *    and pipe I/O. The fake hashed entries have d_flags
++		 *    set to indicate a hashed entry. However, the
++		 *    d_hash field indicates that the entry is not hashed.
++		 *
++		 * 3. dentries that have a backing store that is not
++		 *    writable. This is true for tmpsfs and other in
++		 *    memory filesystems. Removing dentries from them
++		 *    would loose dentries for good.
++		 */
++		if ((d_unhashed(dentry) && list_empty(&dentry->d_lru)) ||
++		   (!d_unhashed(dentry) && hlist_unhashed(&dentry->d_hash)) ||
++		   (dentry->d_inode &&
++		   !mapping_cap_writeback_dirty(dentry->d_inode->i_mapping)))
++			/* Ignore this dentry */
 +			v[i] = NULL;
 +		else
-+			__iget(inode);
++			/* dget_locked will remove the dentry from the LRU */
++			dget_locked(dentry);
 +	}
-+	spin_unlock(&inode_lock);
++	spin_unlock(&dcache_lock);
 +	return NULL;
 +}
-+EXPORT_SYMBOL(get_inodes);
 +
 +/*
-+ * Function for filesystems that embedd struct inode into their own
-+ * structures. The offset is the offset of the struct inode in the fs inode.
++ * Slab has dropped all the locks. Get rid of the refcount obtained
++ * earlier and also free the object.
 + */
-+void *fs_get_inodes(struct kmem_cache *s, int nr, void **v,
-+						unsigned long offset)
++static void kick_dentries(struct kmem_cache *s,
++				int nr, void **v, void *private)
 +{
++	struct dentry *dentry;
 +	int i;
 +
-+	for (i = 0; i < nr; i++)
-+		v[i] += offset;
-+
-+	return get_inodes(s, nr, v);
-+}
-+EXPORT_SYMBOL(fs_get_inodes);
-+
-+void kick_inodes(struct kmem_cache *s, int nr, void **v, void *private)
-+{
-+	struct inode *inode;
-+	int i;
-+	int abort = 0;
-+	LIST_HEAD(freeable);
-+	struct super_block *sb;
-+
++	/*
++	 * First invalidate the dentries without holding the dcache lock
++	 */
 +	for (i = 0; i < nr; i++) {
-+		inode = v[i];
-+		if (!inode)
-+			continue;
++		dentry = v[i];
 +
-+		if (inode_has_buffers(inode) || inode->i_data.nrpages) {
-+			if (remove_inode_buffers(inode))
-+				invalidate_mapping_pages(&inode->i_data,
-+								0, -1);
-+		}
-+
-+		/* Invalidate children and dentry */
-+		if (S_ISDIR(inode->i_mode)) {
-+			struct dentry *d = d_find_alias(inode);
-+
-+			if (d) {
-+				d_invalidate(d);
-+				dput(d);
-+			}
-+		}
-+
-+		if (inode->i_state & I_DIRTY)
-+			write_inode_now(inode, 1);
-+
-+		d_prune_aliases(inode);
++		if (dentry)
++			d_invalidate(dentry);
 +	}
 +
-+	mutex_lock(&iprune_mutex);
++	/*
++	 * If we are the last one holding a reference then the dentries can
++	 * be freed. We need the dcache_lock.
++	 */
++	spin_lock(&dcache_lock);
 +	for (i = 0; i < nr; i++) {
-+		inode = v[i];
-+		if (!inode)
++		dentry = v[i];
++		if (!dentry)
 +			continue;
 +
-+		sb = inode->i_sb;
-+		iput(inode);
-+		if (abort || !(sb->s_flags & MS_ACTIVE))
++		spin_lock(&dentry->d_lock);
++		if (atomic_read(&dentry->d_count) > 1) {
++			spin_unlock(&dentry->d_lock);
++			spin_unlock(&dcache_lock);
++			dput(dentry);
++			spin_lock(&dcache_lock);
 +			continue;
-+
-+		spin_lock(&inode_lock);
-+		abort =  !can_unuse(inode);
-+
-+		if (!abort) {
-+			list_move(&inode->i_list, &freeable);
-+			inode->i_state |= I_FREEING;
-+			inodes_stat.nr_unused--;
 +		}
-+		spin_unlock(&inode_lock);
-+	}
-+	dispose_list(&freeable);
-+	mutex_unlock(&iprune_mutex);
-+}
-+EXPORT_SYMBOL(kick_inodes);
 +
- /*
-  * Initialize the waitqueues and inode hash table.
-  */
-@@ -1419,6 +1514,7 @@ void __init inode_init(void)
- 					 SLAB_MEM_SPREAD),
- 					 init_once);
- 	register_shrinker(&icache_shrinker);
-+	kmem_cache_setup_defrag(inode_cachep, get_inodes, kick_inodes);
++		prune_one_dentry(dentry);
++	}
++	spin_unlock(&dcache_lock);
++
++	/*
++	 * dentries are freed using RCU so we need to wait until RCU
++	 * operations are complete
++	 */
++	synchronize_rcu();
++}
++
+ static void __init dcache_init(void)
+ {
+ 	int loop;
+@@ -2113,6 +2211,7 @@ static void __init dcache_init(void)
+ 		dcache_ctor);
  
- 	/* Hash may have been set up in inode_init_early */
+ 	register_shrinker(&dcache_shrinker);
++	kmem_cache_setup_defrag(dentry_cache, get_dentries, kick_dentries);
+ 
+ 	/* Hash may have been set up in dcache_init_early */
  	if (!hashdist)
-Index: mm/include/linux/fs.h
-===================================================================
---- mm.orig/include/linux/fs.h	2007-11-28 12:26:49.504963147 -0800
-+++ mm/include/linux/fs.h	2007-11-28 12:31:21.493463367 -0800
-@@ -1768,6 +1768,12 @@ static inline void insert_inode_hash(str
- 	__insert_inode_hash(inode, inode->i_ino);
- }
- 
-+/* Helper functions for inode defragmentation support in filesystems */
-+extern void kick_inodes(struct kmem_cache *, int, void **, void *);
-+extern void *get_inodes(struct kmem_cache *, int nr, void **);
-+extern void *fs_get_inodes(struct kmem_cache *, int nr, void **,
-+						unsigned long offset);
-+
- extern struct file * get_empty_filp(void);
- extern void file_move(struct file *f, struct list_head *list);
- extern void file_kill(struct file *f);
 
 -- 
 
