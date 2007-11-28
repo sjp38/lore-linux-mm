@@ -1,66 +1,194 @@
-Message-Id: <20071128223155.608664085@sgi.com>
+Message-Id: <20071128223155.159953000@sgi.com>
 References: <20071128223101.864822396@sgi.com>
-Date: Wed, 28 Nov 2007 14:31:04 -0800
+Date: Wed, 28 Nov 2007 14:31:02 -0800
 From: Christoph Lameter <clameter@sgi.com>
-Subject: [patch 03/17] SLUB: Replace ctor field with ops field in /sys/slab/:0000008 /sys/slab/:0000016 /sys/slab/:0000024 /sys/slab/:0000032 /sys/slab/:0000040 /sys/slab/:0000048 /sys/slab/:0000056 /sys/slab/:0000064 /sys/slab/:0000072 /sys/slab/:0000080 /sys/slab/:0000088 /sys/slab/:0000096 /sys/slab/:0000104 /sys/slab/:0000128 /sys/slab/:0000144 /sys/slab/:0000184 /sys/slab/:0000192 /sys/slab/:0000216 /sys/slab/:0000256 /sys/slab/:0000344 /sys/slab/:0000384 /sys/slab/:0000448 /sys/slab/:0000512 /sys/slab/:0000768 /sys/slab/:0000976 /sys/slab/:0001024 /sys/slab/:0001152 /sys/slab/:0001328 /sys/slab/:0001536 /sys/slab/:0002048 /sys/slab/:0003072 /sys/slab/:0004096 /sys/slab/:a-0000016 /sys/slab/:a-0000024 /sys/slab/:a-0000056 /sys/slab/:a-0000080 /sys/slab/Acpi-Namespace /sys/slab/Acpi-Operand /sys/slab/Acpi-Parse /sys/slab/Acpi-ParseExt /sys/slab/Acpi-State /sys/slab/RAW /sys/slab/TCP /sys/slab/UDP /sys/slab/UDP-Lite /sys/slab/UNIX /sys/slab/anon_vma /sys/slab/arp_cache /sy
- s/slab/bdev_cache /sys/slab/bio /sys/slab/biovec-1 /sys/slab/biovec-128 /sys/slab/biovec-16 /sys/slab/biovec-256 /sys/slab/biovec-4 /sys/slab/biovec-64 /sys/slab/blkdev_ioc /sys/slab/blkdev_queue /sys/slab/blkdev_requests /sys/slab/buffer_head /sys/slab/cfq_io_context /sys/slab/cfq_queue /sys/slab/dentry_cache /sys/slab/eventpoll_epi /sys/slab/eventpoll_pwq /sys/slab/ext2_inode_cache /sys/slab/ext3_inode_cache /sys/slab/fasync_cache /sys/slab/file_lock_cache /sys/slab/files_cache /sys/slab/filp /sys/slab/flow_cache /sys/slab/fs_cache /sys/slab/idr_layer_cache /sys/slab/inet_peer_cache /sys/slab/inode_cache /sys/slab/inotify_event_cache /sys/slab/inotify_watch_cache /sys/slab/ip_dst_cache /sys/slab/ip_fib_alias /sys/slab/ip_fib_hash /sys/slab/journal_handle /sys/slab/journal_head /sys/slab/kiocb /sys/slab/kioctx /sys/slab/kmalloc-1024 /sys/slab/kmalloc-128 /sys/slab/kmalloc-16 /sys/slab/kmalloc-192 /sys/slab/kmalloc-2048 /sys/slab/kmalloc-256 /sys/slab/kmalloc-32 /sys/slab/km
- alloc-512 /sys/slab/kmalloc-64 /sys/slab/kmalloc-8 /sys/slab/kmalloc-96 /sys/slab/mm_struct /sys/slab/mnt_cache /sys/slab/mqueue_inode_cache /sys/slab/names_cache /sys/slab/nfs_direct_cache /sys/slab/nfs_inode_cache /sys/slab/nfs_page /sys/slab/nfs_read_data /sys/slab/nfs_write_data /sys/slab/nfsd4_delegations /sys/slab/nfsd4_files /sys/slab/nfsd4_stateids /sys/slab/nfsd4_stateowners /sys/slab/nsproxy /sys/slab/pid_1 /sys/slab/pid_namespace /sys/slab/posix_timers_cache /sys/slab/proc_inode_cache /sys/slab/radix_tree_node /sys/slab/request_sock_TCP /sys/slab/revoke_record /sys/slab/revoke_table /sys/slab/rpc_buffers /sys/slab/rpc_inode_cache /sys/slab/rpc_tasks /sys/slab/scsi_cmd_cache /sys/slab/scsi_io_context /sys/slab/secpath_cache /sys/slab/sgpool-128 /sys/slab/sgpool-16 /sys/slab/sgpool-32 /sys/slab/sgpool-64 /sys/slab/sgpool-8 /sys/slab/shmem_inode_cache /sys/slab/sighand_cache /sys/slab/signal_cache /sys/slab/sigqueue /sys/slab/skbuff_fclone_cache /sys/slab/skbuff_head
- _cache /sys/slab/sock_inode_cache /sys/slab/sysfs_dir_cache /sys/slab/task_struct /sys/slab/tcp_bind_bucket /sys/slab/tw_sock_TCP /sys/slab/uhci_urb_priv /sys/slab/uid_cache /sys/slab/vm_area_struct /sys/slab/xfrm_dst_cache
-Content-Disposition: inline; filename=0049-SLUB-Replace-ctor-field-with-ops-field-in-sys-slab.patch
+Subject: [patch 01/17] SLUB: Extend slabinfo to support -D and -C options
+Content-Disposition: inline; filename=0047-SLUB-Extend-slabinfo-to-support-D-and-C-options.patch
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: akpm@linux-foundation.org
 Cc: linux-mm@kvack.org, Mel Gorman <mel@skynet.ie>
 List-ID: <linux-mm.kvack.org>
 
-Create an ops field in /sys/slab/*/ops to contain all the operations defined
-on a slab. This will be used to display the additional operations that will
-be defined soon.
+-D lists caches that support defragmentation
+
+-C lists caches that use a ctor.
+
+Change field names for defrag_ratio and remote_node_defrag_ratio.
+
+Add determination of the allocation ratio for a slab. The allocation ratio
+is the percentage of available slots for objects in use.
 
 Reviewed-by: Rik van Riel <riel@redhat.com>
 Signed-off-by: Christoph Lameter <clameter@sgi.com>
 ---
- mm/slub.c |   16 +++++++++-------
- 1 file changed, 9 insertions(+), 7 deletions(-)
+ Documentation/vm/slabinfo.c |   52 +++++++++++++++++++++++++++++++++++++-------
+ 1 file changed, 44 insertions(+), 8 deletions(-)
 
-Index: linux-2.6.24-rc2-mm1/mm/slub.c
+Index: linux-2.6.24-rc2-mm1/Documentation/vm/slabinfo.c
 ===================================================================
---- linux-2.6.24-rc2-mm1.orig/mm/slub.c	2007-11-14 12:06:05.338343172 -0800
-+++ linux-2.6.24-rc2-mm1/mm/slub.c	2007-11-14 12:06:18.770343797 -0800
-@@ -3793,16 +3793,18 @@ static ssize_t order_show(struct kmem_ca
- }
- SLAB_ATTR_RO(order);
- 
--static ssize_t ctor_show(struct kmem_cache *s, char *buf)
-+static ssize_t ops_show(struct kmem_cache *s, char *buf)
+--- linux-2.6.24-rc2-mm1.orig/Documentation/vm/slabinfo.c	2007-11-14 11:08:29.640144277 -0800
++++ linux-2.6.24-rc2-mm1/Documentation/vm/slabinfo.c	2007-11-14 12:05:16.538434011 -0800
+@@ -31,6 +31,8 @@ struct slabinfo {
+ 	int hwcache_align, object_size, objs_per_slab;
+ 	int sanity_checks, slab_size, store_user, trace;
+ 	int order, poison, reclaim_account, red_zone;
++	int defrag, ctor;
++	int defrag_ratio, remote_node_defrag_ratio;
+ 	unsigned long partial, objects, slabs;
+ 	int numa[MAX_NODES];
+ 	int numa_partial[MAX_NODES];
+@@ -57,6 +59,8 @@ int show_slab = 0;
+ int skip_zero = 1;
+ int show_numa = 0;
+ int show_track = 0;
++int show_defrag = 0;
++int show_ctor = 0;
+ int show_first_alias = 0;
+ int validate = 0;
+ int shrink = 0;
+@@ -91,18 +95,20 @@ void fatal(const char *x, ...)
+ void usage(void)
  {
--	if (s->ctor) {
--		int n = sprint_symbol(buf, (unsigned long)s->ctor);
-+	int x = 0;
+ 	printf("slabinfo 5/7/2007. (c) 2007 sgi. clameter@sgi.com\n\n"
+-		"slabinfo [-ahnpvtsz] [-d debugopts] [slab-regexp]\n"
++		"slabinfo [-aCDefhilnosSrtTvz1] [-d debugopts] [slab-regexp]\n"
+ 		"-a|--aliases           Show aliases\n"
++		"-C|--ctor              Show slabs with ctors\n"
+ 		"-d<options>|--debug=<options> Set/Clear Debug options\n"
+-		"-e|--empty		Show empty slabs\n"
++		"-D|--defrag            Show defragmentable caches\n"
++		"-e|--empty             Show empty slabs\n"
+ 		"-f|--first-alias       Show first alias\n"
+ 		"-h|--help              Show usage information\n"
+ 		"-i|--inverted          Inverted list\n"
+ 		"-l|--slabs             Show slabs\n"
+ 		"-n|--numa              Show NUMA information\n"
+-		"-o|--ops		Show kmem_cache_ops\n"
++		"-o|--ops               Show kmem_cache_ops\n"
+ 		"-s|--shrink            Shrink slabs\n"
+-		"-r|--report		Detailed report on single slabs\n"
++		"-r|--report            Detailed report on single slabs\n"
+ 		"-S|--Size              Sort by size\n"
+ 		"-t|--tracking          Show alloc/free information\n"
+ 		"-T|--Totals            Show summary information\n"
+@@ -282,7 +288,7 @@ int line = 0;
+ void first_line(void)
+ {
+ 	printf("Name                   Objects Objsize    Space "
+-		"Slabs/Part/Cpu  O/S O %%Fr %%Ef Flg\n");
++		"Slabs/Part/Cpu  O/S O %%Ra %%Ef Flg\n");
+ }
  
--		return n + sprintf(buf + n, "\n");
-+	if (s->ctor) {
-+		x += sprintf(buf + x, "ctor : ");
-+		x += sprint_symbol(buf + x, (unsigned long)s->ops->ctor);
-+		x += sprintf(buf + x, "\n");
+ /*
+@@ -325,7 +331,7 @@ void slab_numa(struct slabinfo *s, int m
+ 		return;
+ 
+ 	if (!line) {
+-		printf("\n%-21s:", mode ? "NUMA nodes" : "Slab");
++		printf("\n%-21s: Rto ", mode ? "NUMA nodes" : "Slab");
+ 		for(node = 0; node <= highest_node; node++)
+ 			printf(" %4d", node);
+ 		printf("\n----------------------");
+@@ -334,6 +340,7 @@ void slab_numa(struct slabinfo *s, int m
+ 		printf("\n");
  	}
--	return 0;
-+	return x;
- }
--SLAB_ATTR_RO(ctor);
-+SLAB_ATTR_RO(ops);
+ 	printf("%-21s ", mode ? "All slabs" : s->name);
++	printf("%3d ", s->remote_node_defrag_ratio);
+ 	for(node = 0; node <= highest_node; node++) {
+ 		char b[20];
  
- static ssize_t aliases_show(struct kmem_cache *s, char *buf)
- {
-@@ -4053,7 +4055,7 @@ static struct attribute *slab_attrs[] = 
- 	&slabs_attr.attr,
- 	&partial_attr.attr,
- 	&cpu_slabs_attr.attr,
--	&ctor_attr.attr,
-+	&ops_attr.attr,
- 	&aliases_attr.attr,
- 	&align_attr.attr,
- 	&sanity_checks_attr.attr,
+@@ -407,6 +414,8 @@ void report(struct slabinfo *s)
+ 		printf("** Slabs are destroyed via RCU\n");
+ 	if (s->reclaim_account)
+ 		printf("** Reclaim accounting active\n");
++	if (s->defrag)
++		printf("** Defragmentation at %d%%\n", s->defrag_ratio);
+ 
+ 	printf("\nSizes (bytes)     Slabs              Debug                Memory\n");
+ 	printf("------------------------------------------------------------------------\n");
+@@ -453,6 +462,12 @@ void slabcache(struct slabinfo *s)
+ 	if (show_empty && s->slabs)
+ 		return;
+ 
++	if (show_defrag && !s->defrag)
++		return;
++
++	if (show_ctor && !s->ctor)
++		return;
++
+ 	store_size(size_str, slab_size(s));
+ 	snprintf(dist_str, 40, "%lu/%lu/%d", s->slabs, s->partial, s->cpu_slabs);
+ 
+@@ -463,6 +478,10 @@ void slabcache(struct slabinfo *s)
+ 		*p++ = '*';
+ 	if (s->cache_dma)
+ 		*p++ = 'd';
++	if (s->defrag)
++		*p++ = 'D';
++	if (s->ctor)
++		*p++ = 'C';
+ 	if (s->hwcache_align)
+ 		*p++ = 'A';
+ 	if (s->poison)
+@@ -482,7 +501,7 @@ void slabcache(struct slabinfo *s)
+ 	printf("%-21s %8ld %7d %8s %14s %4d %1d %3ld %3ld %s\n",
+ 		s->name, s->objects, s->object_size, size_str, dist_str,
+ 		s->objs_per_slab, s->order,
+-		s->slabs ? (s->partial * 100) / s->slabs : 100,
++		s->slabs ? (s->objects * 100) / (s->slabs * s->objs_per_slab) : 100,
+ 		s->slabs ? (s->objects * s->object_size * 100) /
+ 			(s->slabs * (page_size << s->order)) : 100,
+ 		flags);
+@@ -1074,7 +1093,16 @@ void read_slab_dir(void)
+ 			free(t);
+ 			slab->store_user = get_obj("store_user");
+ 			slab->trace = get_obj("trace");
++			slab->defrag_ratio = get_obj("defrag_ratio");
++			slab->remote_node_defrag_ratio =
++					get_obj("remote_node_defrag_ratio");
+ 			chdir("..");
++			if (read_slab_obj(slab, "ops")) {
++				if (strstr(buffer, "ctor :"))
++					slab->ctor = 1;
++				if (strstr(buffer, "kick :"))
++					slab->defrag = 1;
++			}
+ 			if (slab->name[0] == ':')
+ 				alias_targets++;
+ 			slab++;
+@@ -1124,7 +1152,9 @@ void output_slabs(void)
+ 
+ struct option opts[] = {
+ 	{ "aliases", 0, NULL, 'a' },
++	{ "ctor", 0, NULL, 'C' },
+ 	{ "debug", 2, NULL, 'd' },
++	{ "defrag", 0, NULL, 'D' },
+ 	{ "empty", 0, NULL, 'e' },
+ 	{ "first-alias", 0, NULL, 'f' },
+ 	{ "help", 0, NULL, 'h' },
+@@ -1149,7 +1179,7 @@ int main(int argc, char *argv[])
+ 
+ 	page_size = getpagesize();
+ 
+-	while ((c = getopt_long(argc, argv, "ad::efhil1noprstvzTS",
++	while ((c = getopt_long(argc, argv, "ad::efhil1noprstvzCDTS",
+ 						opts, NULL)) != -1)
+ 		switch (c) {
+ 		case '1':
+@@ -1199,6 +1229,12 @@ int main(int argc, char *argv[])
+ 		case 'z':
+ 			skip_zero = 0;
+ 			break;
++		case 'C':
++			show_ctor = 1;
++			break;
++		case 'D':
++			show_defrag = 1;
++			break;
+ 		case 'T':
+ 			show_totals = 1;
+ 			break;
 
 -- 
 
