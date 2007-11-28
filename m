@@ -1,87 +1,146 @@
-Message-Id: <20071128223156.067262929@sgi.com>
+Message-Id: <20071128223156.764345931@sgi.com>
 References: <20071128223101.864822396@sgi.com>
-Date: Wed, 28 Nov 2007 14:31:06 -0800
+Date: Wed, 28 Nov 2007 14:31:09 -0800
 From: Christoph Lameter <clameter@sgi.com>
-Subject: [patch 05/17] SLUB: Sort slab cache list and establish maximum objects for defrag slabs
-Content-Disposition: inline; filename=0051-SLUB-Sort-slab-cache-list-and-establish-maximum-obj.patch
+Subject: [patch 08/17] Buffer heads: Support slab defrag
+Content-Disposition: inline; filename=0054-Buffer-heads-Support-slab-defrag.patch
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: akpm@linux-foundation.org
 Cc: linux-mm@kvack.org, Mel Gorman <mel@skynet.ie>
 List-ID: <linux-mm.kvack.org>
 
-When defragmenting slabs then it is advantageous to have all
-defragmentable slabs together at the beginning of the list so that there is
-no need to scan the complete list. Put defragmentable caches first when adding
-a slab cache and others last.
-
-Determine the maximum number of objects in defragmentable slabs. This allows
-to size the allocation of arrays holding refs to these objects later.
+Defragmentation support for buffer heads. We convert the references to
+buffers to struct page references and try to remove the buffers from
+those pages. If the pages are dirty then trigger writeout so that the
+buffer heads can be removed later.
 
 Reviewed-by: Rik van Riel <riel@redhat.com>
 Signed-off-by: Christoph Lameter <clameter@sgi.com>
 ---
- mm/slub.c |   19 +++++++++++++++++--
- 1 file changed, 17 insertions(+), 2 deletions(-)
+ fs/buffer.c |  102 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 102 insertions(+)
 
-Index: linux-2.6.24-rc2-mm1/mm/slub.c
+Index: linux-2.6.24-rc3-mm1/fs/buffer.c
 ===================================================================
---- linux-2.6.24-rc2-mm1.orig/mm/slub.c	2007-11-14 12:06:36.785843715 -0800
-+++ linux-2.6.24-rc2-mm1/mm/slub.c	2007-11-14 12:06:49.750093989 -0800
-@@ -198,6 +198,9 @@ static enum {
- static DECLARE_RWSEM(slub_lock);
- static LIST_HEAD(slab_caches);
- 
-+/* Maximum objects in defragmentable slabs */
-+static unsigned int max_defrag_slab_objects = 0;
-+
- /*
-  * Tracking user of a slab.
-  */
-@@ -2546,7 +2549,7 @@ static struct kmem_cache *create_kmalloc
- 			flags, NULL))
- 		goto panic;
- 
--	list_add(&s->list, &slab_caches);
-+	list_add_tail(&s->list, &slab_caches);
- 	up_write(&slub_lock);
- 	if (sysfs_slab_add(s))
- 		goto panic;
-@@ -2760,6 +2763,13 @@ void kfree(const void *x)
+--- linux-2.6.24-rc3-mm1.orig/fs/buffer.c	2007-11-23 11:55:21.912100605 -0800
++++ linux-2.6.24-rc3-mm1/fs/buffer.c	2007-11-25 13:05:53.272908551 -0800
+@@ -3268,6 +3268,107 @@ int bh_submit_read(struct buffer_head *b
+ 	return -EIO;
  }
- EXPORT_SYMBOL(kfree);
- 
-+static inline void *alloc_scratch(void)
+ EXPORT_SYMBOL(bh_submit_read);
++
++/*
++ * Writeback a page to clean the dirty state
++ */
++static void trigger_write(struct page *page)
 +{
-+	return kmalloc(max_defrag_slab_objects * sizeof(void *) +
-+	    BITS_TO_LONGS(max_defrag_slab_objects) * sizeof(unsigned long),
-+								GFP_KERNEL);
++	struct address_space *mapping = page_mapping(page);
++	int rc;
++	struct writeback_control wbc = {
++		.sync_mode = WB_SYNC_NONE,
++		.nr_to_write = 1,
++		.range_start = 0,
++		.range_end = LLONG_MAX,
++		.nonblocking = 1,
++		.for_reclaim = 0
++	};
++
++	if (!mapping->a_ops->writepage)
++		/* No write method for the address space */
++		return;
++
++	if (!clear_page_dirty_for_io(page))
++		/* Someone else already triggered a write */
++		return;
++
++	rc = mapping->a_ops->writepage(page, &wbc);
++	if (rc < 0)
++		/* I/O Error writing */
++		return;
++
++	if (rc == AOP_WRITEPAGE_ACTIVATE)
++		unlock_page(page);
 +}
 +
- void kmem_cache_setup_defrag(struct kmem_cache *s,
- 	void *(*get)(struct kmem_cache *, int nr, void **),
- 	void (*kick)(struct kmem_cache *, int nr, void **, void *private))
-@@ -2771,6 +2781,11 @@ void kmem_cache_setup_defrag(struct kmem
- 	BUG_ON(!s->ctor);
- 	s->get = get;
- 	s->kick = kick;
-+	down_write(&slub_lock);
-+	list_move(&s->list, &slab_caches);
-+	if (s->objects > max_defrag_slab_objects)
-+		max_defrag_slab_objects = s->objects;
-+	up_write(&slub_lock);
- }
- EXPORT_SYMBOL(kmem_cache_setup_defrag);
++/*
++ * Get references on buffers.
++ *
++ * We obtain references on the page that uses the buffer. v[i] will point to
++ * the corresponding page after get_buffers() is through.
++ *
++ * We are safe from the underlying page being removed simply by doing
++ * a get_page_unless_zero. The buffer head removal may race at will.
++ * try_to_free_buffes will later take appropriate locks to remove the
++ * buffers if they are still there.
++ */
++static void *get_buffers(struct kmem_cache *s, int nr, void **v)
++{
++	struct page *page;
++	struct buffer_head *bh;
++	int i,j;
++	int n = 0;
++
++	for (i = 0; i < nr; i++) {
++		bh = v[i];
++		v[i] = NULL;
++
++		page = bh->b_page;
++
++		if (page && PagePrivate(page)) {
++			for (j = 0; j < n; j++)
++				if (page == v[j])
++					goto cont;
++		}
++
++		if (get_page_unless_zero(page))
++			v[n++] = page;
++cont:	;
++	}
++	return NULL;
++}
++
++/*
++ * Despite its name: kick_buffers operates on a list of pointers to
++ * page structs that was setup by get_buffer
++ */
++static void kick_buffers(struct kmem_cache *s, int nr, void **v,
++							void *private)
++{
++	struct page *page;
++	int i;
++
++	for (i = 0; i < nr; i++) {
++		page = v[i];
++
++		if (!page || PageWriteback(page))
++			continue;
++
++
++		if (!TestSetPageLocked(page)) {
++			if (PageDirty(page))
++				trigger_write(page);
++			else {
++				if (PagePrivate(page))
++					try_to_free_buffers(page);
++				unlock_page(page);
++			}
++		}
++		put_page(page);
++	}
++}
++
+ void __init buffer_init(void)
+ {
+ 	int nrpages;
+@@ -3277,6 +3378,7 @@ void __init buffer_init(void)
+ 				(SLAB_RECLAIM_ACCOUNT|SLAB_PANIC|
+ 				SLAB_MEM_SPREAD),
+ 				init_buffer_head);
++	kmem_cache_setup_defrag(bh_cachep, get_buffers, kick_buffers);
  
-@@ -3162,7 +3177,7 @@ struct kmem_cache *kmem_cache_create(con
- 	if (s) {
- 		if (kmem_cache_open(s, GFP_KERNEL, name,
- 				size, align, flags, ctor)) {
--			list_add(&s->list, &slab_caches);
-+			list_add_tail(&s->list, &slab_caches);
- 			up_write(&slub_lock);
- 			if (sysfs_slab_add(s))
- 				goto err;
+ 	/*
+ 	 * Limit the bh occupancy to 10% of ZONE_NORMAL
 
 -- 
 
